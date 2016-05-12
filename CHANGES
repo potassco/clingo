@@ -1,0 +1,86 @@
+gringo 3.0.5
+	* fixed compilation issues
+	* fixed grounding issues with conditionals
+	* incremental constant was not handled properly in some cases
+	* fixed preprocessing of ';' in predicates
+	* fixed compute statements in clingo
+	* fixed show/hide statements in ground-only mode
+	* changed #include directives to do not include file at the end
+	* arguments in #domain statements can be separated by ';' now
+	* reduced Lua's stack size in programs with many lua function calls
+	* improved join ordering heuristic
+gringo 3.0.4
+	* fixed broken #include directive
+	* fixed preprocessing of ';' in terms
+	* fixed some compilation problems
+	* updated inbuilt clasp to version 1.3.10
+gringo 3.0.3
+	* added (default) ODBC support in windows version
+	* fixed bug in simplification of #count/#sum aggregates
+	* fixed problem with incremental grounding
+	* changed handling of strings and constants from within lua
+	* added option to limit term depth while grounding incrementally
+	* allow for tuples with only one element
+gringo 3.0.2
+	* improved literal ordering heuristic
+	* fixed parsing problems with @ symbol
+	* fixed wrong handling of minimize constraints
+gringo 3.0.1
+	* added possibility to intercept models using lua
+	* fixed compilation issues with cmake-2.6
+	* when appropriate automatic conversion from string to int in lua
+	* support for unnamed function symbols (aka tuples)
+	* fixed classical negation
+gringo 3.0.0
+	* relaxed restrictions on programs
+	* no domain predicates needed in (stratified) aggregates
+	* arbitrary literals in aggregates
+	* lua scripting language to write custom functions
+	* #include directives
+	* #minimize statements with priorities
+	* #show/#hide statements with extended functionality
+	* #external statements (extends lparse counterpart)
+gringo 2.0.5
+	* fixed a bug that made assignment aggregates unusable in the previous release
+gringo 2.0.4
+	* correctly handle negative weights in optimize statements
+	* added clasp-1.3.1 to the clingo/iclingo variants
+	* allow for comparing all values with each other 
+	  (strings, numbers, function symbols)
+	* added experimental ishift directives
+	* dropped support for plain Makefiles
+	* corrected the power operator
+	* fixed some serious bugs in the instantiator
+	* the project should be compilable using msvc now
+	  (use cmake-gui to generate the project files)
+	* various other bugfixes
+gringo 2.0.3
+	* added option --shift to remove disjunctions in the head of rules
+	* added support for #times aggregates
+	* added support for #avg aggregates
+	* added support for the two parity aggregates #even and #odd
+	* added the synonyms #minimize/minimise and #maximize/#maximise
+	* every keyword (sum, count, min, ...) should be preceeded by # now
+	* fixed a bug in the lparseconverter
+	* fixed a bug concerning top-level conflicts while incremental solving
+	* fixed a bug with ; nested in aggregates
+	* added clasp-1.2.0 to the clingo/iclingo variants
+	* fixed a bug in the instantiator
+	* changed the ordering of predicates in rule bodies
+	  (the previous implementation may have led to non-deterministic behaviour)
+	* fixed a bug in sum aggregates (negative literals did not work)
+gringo 2.0.2
+	* removed some wrong assertions
+	* fixed handling of min- and max-aggregates
+	* fixed a bug in assignmentliterals
+	* added a "--debug" option to print the internal representation of rules during grounding
+gringo 2.0.1
+	* added "--base" option
+	* aggregates may be preceded by nots now
+	* improved the "--help" output
+	* fixed a bug in the handling of ;'s
+	* fixed non working max-aggregates
+	* fixed the cmake files because of build errors on some platforms
+gringo 2.0.0
+	* complete rewrite of gringo 1.0.0
+

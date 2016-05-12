@@ -1,0 +1,45 @@
+= ToDo =
+	* High Priority
+		* [x] all literals should implement a match method
+		* [x] add file, line and column information to groundables, literals, arguments
+			* [x] print context information on errors
+			* [x] change the assertions in Val::number into a meaningful exception
+		* [x] create an index for head literals too
+		* [x] rename the Arg class into Term
+		* [x] introduce the ; conjunction again
+			* [x] allow for the form: f(X,Y,Z;;A,B;;(C;D)+1;;F) -- this will require some ugly code
+		* [x] allow for arbitrary terms
+			* [x] add an normalize method to flatten them (call in Grounder::addToComponent)
+		* [x] implement const statements
+			* [x] change the scope of const statements (in view of the gringo implementation)
+			* [x] limit the scope to everything that comes after the statement
+		* [x] implement function symbols
+			* [x] the assignment literal (still to be implemented) shall be able to handle something like: f(X,Y) = Z
+		* [ ] implement some more clever literal ordering 
+			* [ ] crucial as can be seen with the queens encoding!
+	* Medium Priority
+		* [ ] implement aggregates
+			* [ ] allow for assignment aggregates
+			* [ ] handle "heads" in aggregates
+			* [ ] handle unstratified aggregates in rule bodies
+			* [ ] support for arbitrary value types
+				* [ ] store values using bingo's value class
+			* [x] sum
+			* [ ] count
+			* [ ] min
+			* [ ] max
+			* [ ] times
+			* [ ] avg
+		* [ ] whenever a domain is created, pass along the location info use this fror printing in the stmdep
+	* Low Priority
+		* [ ] handle pre-grounded programs
+		* [ ] val throws itself atm this should be changed into something different indication what went wrong
+		* [ ] change grounder to context or storage whereever possible
+		* [ ] put everything in the namspace bingo
+		* [ ] use boost range for valvec ranges!!!
+	* Goal
+		* [ ] incorporate all gringo language features
+		* [ ] implement incremental grounding
+			* [ ] wait for (more suitable) clasp interface
+			* [ ] implement clingo
+			* [ ] implement iclingo

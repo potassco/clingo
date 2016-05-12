@@ -1,0 +1,58 @@
+% Written by Marco Manna <manna@mat.unical.it>
+#maxint=1000000.
+
+char_to_digit(0, 0).
+char_to_digit(1, 1).
+char_to_digit(2, 2).
+char_to_digit(3, 3).
+char_to_digit(4, 4).
+char_to_digit(5, 5).
+char_to_digit(6, 6).
+char_to_digit(7, 7).
+char_to_digit(8, 8).
+char_to_digit(9, 9).
+
+digit(X, Y, D) :- char(C, Y), char_to_digit(C, D), +(1, X, Y).
+dig(X) :- digit(_, X, _).
+
+sign(X, p) :- char(p, X).
+sign(X, m) :- char(m, X).
+
+multiply(p, p, p).
+multiply(p, m, m).
+multiply(m, p, m).
+multiply(m, m, p).
+
+opposite(m, p).
+opposite(p, m).
+
+num_1(X, Y, Val) :- digit(X, Y, Val), not dig(X).
+num_1(X, Z, NewVal) :- num_1(X, Y, Val_1), digit(Y, Z, Val_2), *(10, Val_1, NewVal_1), +(NewVal_1, Val_2, NewVal).
+num(X, Y, Val) :- num_1(X, Y, Val), +(1, Y, Z), not dig(Z).
+
+par_expr(X, W, S, Val) :- char(o, Y), expr(Y, Z, S, Val), +(1, Z, W), char(c, W), +(1, X, Y).
+
+sing_term(X, Z, S3, Val) :- sign(Y, S1), par_expr(Y, Z, S2, Val), multiply(S1, S2, S3), +(1, X, Y).
+sing_term(X, Z, S, Val) :- sign(Y, S), num(Y, Z, Val), +(1, X, Y).
+
+expr(X, Y, p, Val) :- char(o, X), num(X, Y, Val).
+expr(0, Y, p, Val) :- num(0, Y, Val).
+expr(X, Y, S, Val) :- par_expr(X, Y, S, Val).
+expr(X, Y, S, Val) :- sing_term(X, Y, S, Val).
+
+expr(X, Z, S, Val) :- expr(X, Y, S, Val_1), sing_term(Y, Z, S, Val_2), +(Val_1, Val_2, Val).
+
+expr_1(X, Z, S1, S2, Val_1, Val_2) :- expr(X, Y, S1, Val_1), sing_term(Y, Z, S2, Val_2), opposite(S1, S2).
+expr(X, Y, p, 0) :- expr_1(X, Y, _, _, Val, Val).
+expr(X, Y, S1, Val) :- expr_1(X, Y, S1, _, Val_1, Val_2), Val_1>Val_2, +(Val, Val_2, Val_1).
+expr(X, Y, S2, Val) :- expr_1(X, Y, _, S2, Val_1, Val_2), Val_1<Val_2, +(Val, Val_1, Val_2).
+
+sign_equal(X, Y, p) :- char(g, Y), +(1, X, Y), digit(Y, _, _).
+sign_equal(X, Z, S) :- char(g, Y), +(1, X, Y), sign(Z, S), +(1, Y, Z).
+
+sol :- expr(0, Y, p, Val1), sign_equal(Y, Z, p), num(Z, W, Val2), Val1 > Val2.
+sol :- expr(0, Y, p, Val1), sign_equal(Y, Z, m), num(Z, W, Val2).
+sol :- expr(0, Y, m, Val1), sign_equal(Y, Z, m), num(Z, W, Val2), Val1 < Val2.
+
+:- not sol.
+

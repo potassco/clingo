@@ -1,0 +1,46 @@
+Gringo - A bottom up grounder for logic programs
+------------------------------------------------
+
+Gringo is distributed under the GNU Public Licence, see file COPYING for
+details. Gringo-3.x should accept almost all gringo-2.x programs plus some 
+language constructs that were not present in previous versions. Additional 
+features include:
+ - Relaxed restrictions on programs (safe programs)
+ - No domain predicates needed in (stratified) aggregates
+ - Arbitrary literals in aggregates
+ - Lua scripting language to write custom functions
+ - #include directives
+ - #minimize statements with priorities
+ - #domain statements
+ - #show/#hide statements with extended functionality
+ - #external statements (extends lparse counterpart)
+
+Prerequisites
+-------------
+
+ - Build system cmake:   http://www.cmake.org/
+ - Lexer generator re2c: http://re2c.org/
+ - Boost C++ Libraries:  http://www.boost.org/
+
+Distribution contents
+---------------------
+
+   COPYING          - GNU Public Licence
+   CHANGES          - Major changes between versions
+   INSTALL          - Installation instructions
+   README           - This file
+   Makefile         - Makefile to build binaries (wraps cmake)
+   CMakeLists.txt   - Build specification
+   cmake/           - Auxiliary cmake scripts 
+   app/             - Sources for applications on top of libgringo
+   lemon/           - Parser generator used by gringo
+   libclasp/        - The clasp library
+   libgringo/       - The gringo library
+   liblua/          - Shipped Lua library
+   libluasql/       - Shipped LuaSQL library
+   libprogram_opts/ - Library for options parsing 
+
+Gringo is written in mostly Standard-C++ and was successfully built and run
+under Linux (x86, x86_64) using gcc and icc. Other compilers might work but 
+have not been tested.
+

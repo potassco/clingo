@@ -1,0 +1,63 @@
+1 Prerequisites
+---------------
+
+Boost (>= v1.37) - http://www.boost.org/
+cmake (>= v2.6)  - http://www.cmake.org/
+
+1.1 Optional Components
+-----------------------
+re2c          - http://re2c.org/
+SQLite (v3.x) - http://www.sqlite.org/
+MySQL         - http://www.mysql.com/
+Lua    (v5.1) - http://www.lua.org/
+
+Note that the lexer generatror re2c is only needed for the svn version 
+Furthermore, the project ships with a lua library. But it is also possible
+to use a lua library provided by the system.
+
+2 Compilation
+-------------
+
+If all prerequisites are satisfied and you are running a *nix, compilation
+should be as simple as typing:
+	make
+
+If you want to use a boost library that is not installed in a default 
+location than you can specify its location using environtment variables:
+
+BOOST_ROOT       - The preferred installation prefix for searching for Boost.
+                   Set this if the module has problems finding the proper
+                   Boost installation.
+
+BOOST_INCLUDEDIR - Similar to BOOST_ROOT but sets the path to the include 
+                   directory directly.
+
+BOOST_LIBRARYDIR - Similar to BOOST_ROOT but sets the path to the library
+                   directory directly.
+
+To use a Boost installation in /usr/local, you should compile the project 
+using:
+	BOOST_ROOT=/usr/local make
+
+2.1 Notes for Mac Users
+-----------------------
+
+You should install the macports version of boost and remove the no_single
+variant. If you want to share the binary with others, you might additionally
+want to enable universal and disable no_static. Depending on the variants you
+selected, options to cmake could look like this:
+	-DCMAKE_CXX_FLAGS="-Wall -arch i386 -arch x86_64"
+	-DCMAKE_BUILD_TYPE=release
+	-DBoost_USE_STATIC_LIBS=true
+
+2.2 Customization
+-----------------
+Additional options might be specified to cmake. To get an overview use
+for example cmake-gui or take a look at the main cmake file.
+
+4 Installation
+--------------
+
+If compilation succeeded, the respective build folder will contain a bin
+folder with an executable, which should be copied somewhere into your path.
+

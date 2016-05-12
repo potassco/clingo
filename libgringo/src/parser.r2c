@@ -1,0 +1,536 @@
+// Copyright (c) 2009, Roland Kaminski <kaminski@cs.uni-potsdam.de>
+//
+// This file is part of gringo.
+//
+// gringo is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// gringo is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with gringo.  If not, see <http://www.gnu.org/licenses/>.
+
+#include <gringo/parser.h>
+#include <gringo/varterm.h>
+#include <gringo/inclit.h>
+#include <gringo/varterm.h>
+#include <gringo/constterm.h>
+#include <gringo/prgvisitor.h>
+#include <gringo/predlit.h>
+#include <gringo/domain.h>
+#include <gringo/rule.h>
+#include <gringo/streams.h>
+#include <gringo/grounder.h>
+#include <gringo/statement.h>
+#include <gringo/exceptions.h>
+#include "parser_impl.h"
+
+void *parserAlloc(void *(*mallocProc)(size_t));
+void parserFree(void *p, void (*freeProc)(void*));
+void parser(void *yyp, int yymajor, Parser::Token yyminor, Parser *pParser);
+
+Parser::DomStm::DomStm(const Loc &l, uint32_t idx, uint32_t id, const VarSigVec &vars)
+	: loc(l)
+	, idx(idx)
+	, id(id)
+	, vars(vars)
+{
+}
+
+Parser::Parser(Grounder *g, IncConfig &config, Streams &streams, bool compat)
+	: g_(g)
+	, config_(config)
+	, streams_(streams)
+	, parser_(parserAlloc(malloc))
+	, error_(false)
+	, include_(std::numeric_limits<uint32_t>::max())
+	, iPart_(IPART_BASE)
+	, iId_(0)
+	, iVar_(0)
+	, iAdded_(0)
+	, compat_(compat)
+{
+}
+
+/*!re2c
+	NUMBER     = "0"|([1-9][0-9]*);
+	ANY        = [\000-\377];
+	WS         = [\t\r ]*;
+	NL         = "\n";
+	IDENTIFIER = "_"*[a-z][A-Za-z0-9_]*;
+	VARIABLE   = "_"*[A-Z][A-Za-z0-9_]*;
+	ANONYMOUS  = "_";
+	STRING     = "\"" ([^\\"\n]|"\\\""|"\\\\"|"\\n")* "\"";
+*/
+
+int Parser::lex()
+{
+start:
+	char *luaEnd = 0;
+	int bc = 0;
+	start();
+	token_.line   = line();
+	token_.column = column();
+	/*!re2c
+		WS               { goto start; }
+		NL               { if(eof()) return 0; step(); goto start; }
+		"#begin_lua"     { luaBegin_ = token_.loc(); goto lua; }
+		"not"            { return PARSER_NOT; }
+		"#include"       { return PARSER_INCLUDE; }
+		"#show"          { return PARSER_SHOW; }
+		"#hide"          { return PARSER_HIDE; }
+		"#const"         { return PARSER_CONST; }
+		"#minimi"[zs]"e" { return PARSER_MINIMIZE; }
+		"#maximi"[zs]"e" { return PARSER_MAXIMIZE; }
+		"#compute"       { return PARSER_COMPUTE; }
+		"#base"          { return PARSER_BASE; }
+		"#cumulative"    { return PARSER_CUMULATIVE; }
+		"#volatile"      { return PARSER_VOLATILE; }
+		"#domain"        { return PARSER_DOMAIN; }
+		"#external"      { return PARSER_EXTERNAL; }
+		"#infimum"       { return PARSER_INFIMUM; }
+		"#supremum"      { return PARSER_SUPREMUM; }
+		IDENTIFIER       { token_.index  = g_->index(string()); return PARSER_IDENTIFIER; }
+		NUMBER           { token_.number = integer(); return PARSER_NUMBER; }
+		VARIABLE         { token_.index = g_->index(string()); return PARSER_VARIABLE; }
+		ANONYMOUS        { return PARSER_ANONYMOUS; }
+		STRING           { token_.index = g_->index(g_->unquote(string(1,1))); return PARSER_STRING; }
+		"#sum"           { return PARSER_SUM; }
+		"#count"         { return PARSER_COUNT; }
+		"#min"           { return PARSER_MIN; }
+		"#max"           { return PARSER_MAX; }
+		"#even"          { return PARSER_EVEN; }
+		"#odd"           { return PARSER_ODD; }
+		"#avg"           { return PARSER_AVG; }
+		"#mod"           { return PARSER_PMOD; }
+		"#div"           { return PARSER_PDIV; }
+		"#pow"           { return PARSER_PPOW; }
+		"#abs"           { return PARSER_PABS; }
+		";;"             { return PARSER_DSEM; }
+		";"              { return PARSER_SEM; }
+		".."             { return PARSER_DOTS; }
+		"."              { return PARSER_DOT; }
+		":"              { return PARSER_COLON; }
+		":-"             { return PARSER_IF; }
+		","              { return PARSER_COMMA; }
+		"|"              { return PARSER_VBAR; }
+		"["              { return PARSER_LSBRAC; }
+		"]"              { return PARSER_RSBRAC; }
+		"("              { return PARSER_LBRAC; }
+		")"              { return PARSER_RBRAC; }
+		"{"              { return PARSER_LCBRAC; }
+		"}"              { return PARSER_RCBRAC; }
+		"+"              { return PARSER_PLUS; }
+		"-"              { return PARSER_MINUS; }
+		"**"             { return PARSER_POW; }
+		"\\"             { return PARSER_MOD; }
+		"*"              { return PARSER_MULT; }
+		">"              { return PARSER_GREATER; }
+		"<"              { return PARSER_LOWER; }
+		">="             { return PARSER_GTHAN; }
+		"<="             { return PARSER_LTHAN; }
+		"=="             { return PARSER_EQUAL; }
+		"!="             { return PARSER_INEQUAL; }
+		":="             { return PARSER_CASSIGN; }
+		"="              { return PARSER_ASSIGN; }
+		"/"              { return PARSER_SLASH; }
+		"@"              { return PARSER_AT; }
+		"&"              { return PARSER_AND; }
+		"^"              { return PARSER_XOR; }
+		"~"              { return PARSER_BNOT; }
+		"?"              { return PARSER_QUESTION; }
+		"%*"             { bc++; goto blockcomment; }
+		"%"              { goto comment; }
+		ANY              { syntaxError(); goto start; }
+	*/
+lua:
+	luaEnd = state().cursor_;
+	/*!re2c
+		"#end_lua" WS "." { grounder()->luaExec(luaBegin_, string(10, state().cursor_ - luaEnd)); goto start; }
+		NL                { if(eof()) { syntaxError(); return 0; } step(); goto lua; }
+		ANY               { goto lua; }
+	 */
+blockcomment:
+	/*!re2c
+		"*%" { if(--bc == 0) goto start; goto blockcomment; }
+		"%*" { bc++; goto blockcomment; }
+		"%"  { goto comment; }
+		NL   { if(eof()) { syntaxError(); return 0; } step(); goto blockcomment; }
+		ANY  { goto blockcomment; }
+	*/
+comment:
+	/*!re2c
+		NL   { if(eof()) { if(bc > 0) syntaxError(); return 0; } step(); if(bc > 0) goto blockcomment; goto start; }
+		ANY  { goto comment; }
+	*/
+}
+
+int Parser::lex_compat()
+{
+start:
+	char *luaEnd = 0;
+	int bc = 0;
+	start();
+	token_.line   = line();
+	token_.column = column();
+	/*!re2c
+
+		"show"           { return PARSER_SHOW; }
+		"hide"           { return PARSER_HIDE; }
+		"const"          { return PARSER_CONST; }
+		"mod"            { return PARSER_PMOD; }
+		"div"            { return PARSER_PDIV; }
+		"pow"            { return PARSER_PPOW; }
+		"abs"            { return PARSER_PABS; }
+		"minimi"[zs]"e"  { return PARSER_MINIMIZE; }
+		"maximi"[zs]"e"  { return PARSER_MAXIMIZE; }
+		"compute"        { return PARSER_COMPUTE; }
+
+		WS               { goto start; }
+		NL               { if(eof()) return 0; step(); goto start; }
+		"#begin_lua"     { luaBegin_ = token_.loc(); goto lua; }
+		"not"            { return PARSER_NOT; }
+		"#include"       { return PARSER_INCLUDE; }
+		"#show"          { return PARSER_SHOW; }
+		"#hide"          { return PARSER_HIDE; }
+		"#const"         { return PARSER_CONST; }
+		"#minimi"[zs]"e" { return PARSER_MINIMIZE; }
+		"#maximi"[zs]"e" { return PARSER_MAXIMIZE; }
+		"#compute"       { return PARSER_COMPUTE; }
+		"#base"          { return PARSER_BASE; }
+		"#cumulative"    { return PARSER_CUMULATIVE; }
+		"#volatile"      { return PARSER_VOLATILE; }
+		"#domain"        { return PARSER_DOMAIN; }
+		"#external"      { return PARSER_EXTERNAL; }
+		"#infimum"       { return PARSER_INFIMUM; }
+		"#supremum"      { return PARSER_SUPREMUM; }
+		IDENTIFIER       { token_.index  = g_->index(string()); return PARSER_IDENTIFIER; }
+		NUMBER           { token_.number = integer(); return PARSER_NUMBER; }
+		VARIABLE         { token_.index = g_->index(string()); return PARSER_VARIABLE; }
+		ANONYMOUS        { return PARSER_ANONYMOUS; }
+		STRING           { token_.index = g_->index(g_->unquote(string(1,1))); return PARSER_STRING; }
+		"#sum"           { return PARSER_SUM; }
+		"#count"         { return PARSER_COUNT; }
+		"#min"           { return PARSER_MIN; }
+		"#max"           { return PARSER_MAX; }
+		"#even"          { return PARSER_EVEN; }
+		"#odd"           { return PARSER_ODD; }
+		"#avg"           { return PARSER_AVG; }
+		"#mod"           { return PARSER_PMOD; }
+		"#div"           { return PARSER_PDIV; }
+		"#pow"           { return PARSER_PPOW; }
+		"#abs"           { return PARSER_PABS; }
+		";;"             { return PARSER_DSEM; }
+		";"              { return PARSER_SEM; }
+		".."             { return PARSER_DOTS; }
+		"."              { return PARSER_DOT; }
+		":"              { return PARSER_COLON; }
+		":-"             { return PARSER_IF; }
+		","              { return PARSER_COMMA; }
+		"|"              { return PARSER_VBAR; }
+		"["              { return PARSER_LSBRAC; }
+		"]"              { return PARSER_RSBRAC; }
+		"("              { return PARSER_LBRAC; }
+		")"              { return PARSER_RBRAC; }
+		"{"              { return PARSER_LCBRAC; }
+		"}"              { return PARSER_RCBRAC; }
+		"+"              { return PARSER_PLUS; }
+		"-"              { return PARSER_MINUS; }
+		"**"             { return PARSER_POW; }
+		"\\"             { return PARSER_MOD; }
+		"*"              { return PARSER_MULT; }
+		">"              { return PARSER_GREATER; }
+		"<"              { return PARSER_LOWER; }
+		">="             { return PARSER_GTHAN; }
+		"<="             { return PARSER_LTHAN; }
+		"=="             { return PARSER_EQUAL; }
+		"!="             { return PARSER_INEQUAL; }
+		":="             { return PARSER_CASSIGN; }
+		"="              { return PARSER_ASSIGN; }
+		"/"              { return PARSER_SLASH; }
+		"@"              { return PARSER_AT; }
+		"&"              { return PARSER_AND; }
+		"^"              { return PARSER_XOR; }
+		"~"              { return PARSER_BNOT; }
+		"?"              { return PARSER_QUESTION; }
+		"%*"             { bc++; goto blockcomment; }
+		"%"              { goto comment; }
+		ANY              { syntaxError(); goto start; }
+	*/
+lua:
+	luaEnd = state().cursor_;
+	/*!re2c
+		"#end_lua" WS "." { grounder()->luaExec(luaBegin_, string(10, state().cursor_ - luaEnd)); goto start; }
+		NL                { if(eof()) { syntaxError(); return 0; } step(); goto lua; }
+		ANY               { goto lua; }
+	*/
+blockcomment:
+	/*!re2c
+		"*%" { if(--bc == 0) goto start; goto blockcomment; }
+		"%*" { bc++; goto blockcomment; }
+		"%"  { goto comment; }
+		NL   { if(eof()) { syntaxError(); return 0; } step(); goto blockcomment; }
+		ANY  { goto blockcomment; }
+	*/
+comment:
+	/*!re2c
+		NL   { if(eof()) { if(bc > 0) syntaxError(); return 0; } step(); if(bc > 0) goto blockcomment; goto start; }
+		ANY  { goto comment; }
+	*/
+}
+
+void Parser::parseError()
+{
+	error_ = true;
+}
+
+std::string Parser::errorToken()
+{
+	if(eof()) return "<EOF>";
+	else return string();
+}
+
+void Parser::syntaxError()
+{
+	errors_.push_back(ErrorTok(token_.loc(), errorToken()));
+	error_ = true;
+}
+
+void Parser::include(uint32_t filename)
+{
+	include_ = filename;
+}
+
+void Parser::include()
+{
+	if(include_ != std::numeric_limits<uint32_t>::max())
+	{
+        uint32_t fileId             = include_;
+        const std::string &filename = grounder()->string(fileId);
+        include_                    = std::numeric_limits<uint32_t>::max();
+
+        if (streams_.includeFile(filename, true)) {
+            push();
+            parse(streams_.currentStream(), fileId);
+            streams_.next();
+            pop();
+        }
+	}
+}
+
+void Parser::parse(std::istream &in, uint32_t filename)
+{
+	reset(&in);
+	int token;
+	do
+	{
+		token = !compat_ ? lex() : lex_compat();
+        token_.file = filename;
+		parser(parser_, token, token_, this);
+		add();
+		include();
+	}
+	while(token != 0);
+}
+
+void Parser::parse()
+{
+	level_ = 1;
+	do
+	{
+		parse(streams_.currentStream(), grounder()->index(streams_.currentFilename()));
+		if(error_)
+		{
+			ParseException ex;
+			foreach(ErrorTok &tok, errors_)
+				ex.add(StrLoc(g_, tok.first), tok.second);
+			throw ex;
+		}
+	}
+	while(streams_.next());
+	incremental(IPART_BASE);
+	foreach(DomainMap::const_reference val, grounder()->domains())
+	{
+		const std::string &name = grounder()->string(val.first.first);
+		if(name.size() > 0 && name[0] == '-')
+		{
+			uint32_t pos = grounder()->index(std::string(name.begin() + 1, name.end()));
+			Loc loc(grounder()->index("#internal"), 1, 1);
+			TermPtrVec t1, t2;
+			for(uint32_t i = 0; i < val.first.second; i++)
+			{
+				std::ostringstream oss;
+				oss << "#I" << i;
+				uint32_t index = grounder()->index(oss.str());
+				t1.push_back(new VarTerm(loc, index));
+				t2.push_back(new VarTerm(loc, index));
+			}
+			LitPtrVec body;
+			body.push_back(new PredLit(loc, grounder()->domain(pos, val.first.second), t1));
+			body.push_back(new PredLit(loc, grounder()->domain(val.first.first, val.first.second), t2));
+			grounder()->add(new Rule(loc, 0, body));
+		}
+	}
+}
+
+void Parser::incremental(iPart part, uint32_t index)
+{
+	iPart_ = part;
+	iId_   = index;
+	if(part != IPART_BASE) { iVar_ = g_->index("#I"); }
+}
+
+Term *Parser::term(Val::Type t, const Loc &loc, uint32_t index)
+{
+	if(t == Val::ID)
+	{
+		if(iPart_ != IPART_BASE && index == iId_)
+		{
+			if(!iAdded_) { iLoc_ = loc; }
+			iAdded_ = true;
+			return new VarTerm(loc, iVar_);
+		}
+		else
+		{
+			ConstMap::const_iterator res = constMap_.find(index);
+			if(res != constMap_.end()) { return res->second->clone(); }
+			else                       { return new ConstTerm(loc, Val::create(Val::ID, index)); }
+		}
+	}
+	else
+	{
+		assert(t == Val::STRING);
+		return new ConstTerm(loc, Val::create(Val::STRING, index));
+	}
+}
+
+namespace
+{
+	class IncVarFinder : public PrgVisitor
+	{
+	public:
+		IncVarFinder(uint32_t var) : var_(var), found_(false) { }
+		bool find(Statement *s) { s->visit(this); return found_; }
+
+	private:
+		void visit(VarTerm *var, bool bind)      { (void)bind; found_ = var_ == var->nameId(); }
+		void visit(Term* term, bool bind)        { if(!found_) term->visit(this, bind); }
+		void visit(Lit *lit, bool domain)        { (void)domain; if(!found_) lit->visit(this); }
+		void visit(Groundable *grd, bool choice) { (void)choice; if(!found_) grd->visit(this); }
+
+	private:
+		uint32_t var_;
+		bool     found_;
+	};
+}
+
+void Parser::constTerm(uint32_t index, Term *term)
+{
+	constMap_.insert(index, term);
+}
+
+namespace
+{
+
+	class DomAdder : public PrgVisitor
+	{
+	private:
+		typedef std::set<uint32_t> Seen;
+
+	public:
+		DomAdder(Parser *parser) : parser_(parser), statement_(0) { }
+		void add(Statement *statement) { statement_ = statement; statement_->visit(this); }
+	private:
+		void visit(VarTerm *var, bool bind);
+		void visit(Term *term, bool bind)        { term->visit(this, bind); }
+		void visit(Lit *lit, bool domain)        { (void)domain; lit->visit(this); }
+		void visit(Groundable *grd, bool choice) { (void)choice; grd->visit(this); }
+
+	private:
+		Parser    *parser_;
+		Statement *statement_;
+		Seen       seen_;
+	};
+
+	void DomAdder::visit(VarTerm *var, bool bind)
+	{
+		(void)bind;
+		foreach(const Parser::DomStmMap::value_type &dom, parser_->domainStm(var->nameId()))
+		{
+			std::pair<Seen::iterator, bool> res = seen_.insert(dom.second->idx);
+			if(res.second)
+			{
+				TermPtrVec terms;
+				foreach(const VarSig &sig, dom.second->vars)
+					terms.push_back(new VarTerm(sig.first, sig.second));
+				statement_->append(new PredLit(dom.second->loc, parser_->grounder()->domain(dom.second->id, terms.size()), terms));
+			}
+		}
+	}
+}
+
+void Parser::domainStm(const Loc &loc, uint32_t id, const VarSigVec &vars)
+{
+	domStmList_.push_back(DomStm(loc, domStmList_.size(), id, vars));
+	foreach(const VarSig &var, vars)
+		domStmMap_.insert(DomStmMap::value_type(var.second, &domStmList_.back()));
+}
+
+Parser::DomStmRng Parser::domainStm(uint32_t var)
+{
+	return DomStmRng(domStmMap_.lower_bound(var), domStmMap_.upper_bound(var));
+}
+
+void Parser::add(Statement *s)
+{
+	if(config_.incBase && iPart_ != IPART_BASE) { delete s; }
+	else                                        { last_.push_back(s); }
+}
+
+void Parser::add()
+{
+	while(!last_.empty())
+	{
+		StatementRng rng(grounder()->add(last_.pop_back().release()));
+		foreach(Statement &statement, rng)
+		{
+			DomAdder domAdder(this);
+			domAdder.add(&statement);
+		}
+		if(iPart_ == IPART_CUMULATIVE && iAdded_)
+		{
+			foreach(Statement &statement, rng)
+			{
+				IncVarFinder finder(iVar_);
+				if(finder.find(&statement))
+				{
+					statement.append(new IncLit(iLoc_, config_, true, iVar_));
+				}
+			}
+		}
+		else if(iPart_ == IPART_VOLATILE)
+		{
+			foreach(Statement &statement, rng)
+			{
+				statement.append(new IncLit(iLoc_, config_, false, iVar_));
+			}
+		}
+		iAdded_ = false;
+	}
+}
+
+PredLit *Parser::predLit(const Loc &loc, uint32_t id, TermPtrVec &terms, bool sign)
+{
+	if(sign) { id = grounder()->index(std::string("-") + grounder()->string(id)); }
+	return new PredLit(loc, grounder()->domain(id, terms.size()), terms);
+}
+
+Parser::~Parser()
+{
+	parserFree(parser_, free);
+}

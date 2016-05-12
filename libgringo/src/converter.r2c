@@ -1,0 +1,164 @@
+// Copyright (c) 2009, Roland Kaminski <kaminski@cs.uni-potsdam.de>
+//
+// This file is part of gringo.
+//
+// gringo is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// gringo is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with gringo.  If not, see <http://www.gnu.org/licenses/>.
+
+#include <gringo/converter.h>
+#include <gringo/storage.h>
+#include <gringo/exceptions.h>
+#include <gringo/streams.h>
+#include "converter_impl.h"
+
+void *converterAlloc(void *(*mallocProc)(size_t));
+void converterFree(void *p, void (*freeProc)(void*));
+void converter(void *yyp, int yymajor, Converter::Token yyminor, Converter *pParser);
+
+Converter::Converter(Output *output, Streams &streams)
+	: GroundProgramBuilder(output)
+	, streams_(streams)
+	, parser_(converterAlloc(malloc))
+	, error_(false)
+{
+}
+
+/*!re2c
+	NUMBER     = "0"|([1-9][0-9]*);
+	ANY        = [\000-\377];
+	WS         = [\t\r ]*;
+	NL         = "\n";
+	IDENTIFIER = "_"*[a-z][A-Za-z0-9_]*;
+	STRING     = "\"" ([^"\n]|"\\\"")* "\"";
+*/
+
+int Converter::lex()
+{
+start:
+	int bc = 0;
+	start();
+	token_.line   = line();
+	token_.column = column();
+	/*!re2c
+		WS            { goto start; }
+		NL            { if(eof()) return 0; step(); goto start; }
+		"not"         { return CONVERTER_NOT; }
+		"#show"       { return CONVERTER_SHOW; }
+		"#hide"       { return CONVERTER_HIDE; }
+		"#minimize"   { return CONVERTER_MINIMIZE; }
+		"#maximize"   { return CONVERTER_MAXIMIZE; }
+		"#compute"    { return CONVERTER_COMPUTE; }
+		"#external"   { return CONVERTER_EXTERNAL; }
+		"#supremum"   { return CONVERTER_SUP; }
+		"#infimum"    { return CONVERTER_INF; }
+		IDENTIFIER    { token_.index  = storage()->index(string()); return CONVERTER_IDENTIFIER; }
+		NUMBER        { token_.number = integer(); return CONVERTER_NUMBER; }
+		STRING        { token_.index = storage()->index(string()); return CONVERTER_STRING; }
+		"#sum"        { return CONVERTER_SUM; }
+		"#count"      { return CONVERTER_COUNT; }
+		"#avg"        { return CONVERTER_AVG; }
+		"#min"        { return CONVERTER_MIN; }
+		"#max"        { return CONVERTER_MAX; }
+		"#even"       { return CONVERTER_EVEN; }
+		"#odd"        { return CONVERTER_ODD; }
+		"."           { return CONVERTER_DOT; }
+		":-"          { return CONVERTER_IF; }
+		","           { return CONVERTER_COMMA; }
+		"-"           { return CONVERTER_MINUS; }
+		"|"           { return CONVERTER_VBAR; }
+		"["           { return CONVERTER_LSBRAC; }
+		"]"           { return CONVERTER_RSBRAC; }
+		"("           { return CONVERTER_LBRAC; }
+		")"           { return CONVERTER_RBRAC; }
+		"{"           { return CONVERTER_LCBRAC; }
+		"}"           { return CONVERTER_RCBRAC; }
+		"="           { return CONVERTER_ASSIGN; }
+		"/"           { return CONVERTER_SLASH; }
+		"@"           { return CONVERTER_AT; }
+		"%*"          { bc++; goto blockcomment; }
+		"%"           { goto comment; }
+		ANY           { syntaxError(); goto start; }
+	*/
+blockcomment:
+	/*!re2c
+		"*%" { if(--bc == 0) goto start; goto blockcomment; }
+		"%*" { bc++; goto blockcomment; }
+		"%"  { goto comment; }
+		NL   { if(eof()) { syntaxError(); return 0; } step(); goto blockcomment; }
+		ANY  { goto blockcomment; }
+	*/
+comment: { }
+	/*!re2c
+		NL   { if(eof()) { if(bc > 0) syntaxError(); return 0; } step(); if(bc > 0) goto blockcomment; goto start; }
+		ANY  { goto comment; }
+	*/
+}
+
+void Converter::parseError()
+{
+	error_ = true;
+}
+
+std::string Converter::errorToken()
+{
+	if(eof()) return "<EOF>";
+	else return string();
+}
+
+void Converter::syntaxError()
+{
+	errors_.push_back(ErrorTok(token_.loc(), errorToken()));
+	error_ = true;
+}
+
+void Converter::parse(std::istream &in)
+{
+	token_.file = storage()->index(streams_.currentFilename());
+	reset(&in);
+	int token;
+	do
+	{
+		token = lex();
+		converter(parser_, token, token_, this);
+	}
+	while(token != 0);
+}
+
+void Converter::parse()
+{
+	level_ = 1;
+	do
+	{
+		parse(streams_.currentStream());
+		if(error_)
+		{
+			ParseException ex;
+			foreach(ErrorTok &tok, errors_)
+				ex.add(StrLoc(storage(), tok.first), tok.second);
+			throw ex;
+		}
+	}
+	while(streams_.next());
+}
+
+void Converter::addSigned(uint32_t index, bool sign)
+{
+	if(sign) { index = storage()->index(std::string("-") + storage()->string(index)); }
+	return addVal(Val::create(Val::ID, index));
+}
+
+
+Converter::~Converter()
+{
+	converterFree(parser_, free);
+}

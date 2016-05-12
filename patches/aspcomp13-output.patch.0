@@ -1,0 +1,82 @@
+Index: app/gringo/gringo_options.cpp
+===================================================================
+--- app/gringo/gringo_options.cpp	(revision 6726)
++++ app/gringo/gringo_options.cpp	(working copy)
+@@ -74,18 +74,19 @@
+ 	OptionGroup gringo("Gringo Options");
+ 
+ 	gringo.addOptions()
+-		("const,c"  , storeTo(consts)->setComposing(), "Replace constant <c> by value <v>\n", "<c>=<v>")
+-		("gstats"   , bool_switch(&stats),             "Print extended statistics")
+-		("dep-graph", storeTo(depGraph),               "Dump program dependency graph to file", "<file>")
+-		("text,t"   , bool_switch(&textOut),           "Print plain text format")
+-		("reify"    , bool_switch(&metaOut),           "Print reified text format")
+-		("lparse,l" , bool_switch(&smodelsOut),        "Print Lparse format")
+-		("compat"   , bool_switch(&compat),            "Improve compatibility with lparse")
+-		("ground,g" , bool_switch(&groundInput),       "Enable lightweight mode for ground input")
+-		("shift"    , bool_switch(&disjShift),         "Shift disjunctions into the body")
+-		("ifixed"   , storeTo(ifixed),                 "Fix number of incremental steps to <num>", "<num>")
+-		("ibase"    , bool_switch(&ibase),             "Process base program only")
+-		("iexpand"  , storeTo(iexpand),
++		("const,c"         , storeTo(consts)->setComposing(), "Replace constant <c> by value <v>", "<c>=<v>")
++		("aspcomp13-output", storeTo(output),                 "Comma separated list of predicate signatures for display\n", "l")
++		("gstats"          , bool_switch(&stats),             "Print extended statistics")
++		("dep-graph"       , storeTo(depGraph),               "Dump program dependency graph to file", "<file>")
++		("text,t"          , bool_switch(&textOut),           "Print plain text format")
++		("reify"           , bool_switch(&metaOut),           "Print reified text format")
++		("lparse,l"        , bool_switch(&smodelsOut),        "Print Lparse format")
++		("compat"          , bool_switch(&compat),            "Improve compatibility with lparse")
++		("ground,g"        , bool_switch(&groundInput),       "Enable lightweight mode for ground input")
++		("shift"           , bool_switch(&disjShift),         "Shift disjunctions into the body")
++		("ifixed"          , storeTo(ifixed),                 "Fix number of incremental steps to <num>", "<num>")
++		("ibase"           , bool_switch(&ibase),             "Process base program only")
++		("iexpand"         , storeTo(iexpand),
+ 			"Limits the expansion of terms\n"
+ 			"      Default: All\n"
+ 			"      Valid:   All, Depth\n"
+Index: app/gringo/gringo_app.cpp
+===================================================================
+--- app/gringo/gringo_app.cpp	(revision 6726)
++++ app/gringo/gringo_app.cpp	(working copy)
+@@ -24,6 +24,7 @@
+ #include <gringo/plainoutput.h>
+ #include <gringo/lparseoutput.h>
+ #include <gringo/reifiedoutput.h>
++#include <boost/tokenizer.hpp>
+ 
+ namespace
+ {
+@@ -55,6 +56,13 @@
+ 	std::auto_ptr<std::stringstream> constants(new std::stringstream());
+ 	for(std::vector<std::string>::const_iterator i = gringo.consts.begin(); i != gringo.consts.end(); ++i)
+ 		*constants << "#const " << *i << ".\n";
++    if (!gringo.output.empty()) {
++        *constants << "#hide.\n";
++        boost::tokenizer<boost::char_separator<char> > tok(gringo.output, boost::char_separator<char>(","));
++        foreach (std::string x, tok) {
++            *constants << "#show " << x << ".\n";
++        }
++    }
+ 	return Streams::StreamPtr(constants.release());
+ }
+ 
+Index: app/gringo/gringo_options.h
+===================================================================
+--- app/gringo/gringo_options.h	(revision 6726)
++++ app/gringo/gringo_options.h	(working copy)
+@@ -41,6 +41,7 @@
+ 
+ 	/** The constant assignments in the format "constant=term" */
+ 	std::vector<std::string> consts;
++	std::string output;
+ 	/** Whether to print smodels output */
+ 	bool smodelsOut;
+ 	/** Whether to print in lparse format */
+@@ -58,6 +59,7 @@
+ 	bool compat;
+ 	/** whether statistics will be printed to stderr */
+ 	bool stats;
++
+ 	IExpand iexpand;
+ };
+ 

@@ -1,0 +1,35 @@
+IF(NOT MYSQL_FOUND)
+	IF(NOT "$ENV{MYSQL_ROOT}" STREQUAL "")
+		SET(MYSQL_ROOT "$ENV{MYSQL_ROOT}")
+	ENDIF()
+
+	SET(mysql-libnames ${mysql-libnames} mysqlclient)
+	IF(MYSQL_USE_STATIC_LIBS OR USE_STATIC_LIBS)
+		SET(CMAKE_FIND_LIBRARY_SUFFIXES .lib .a)
+		# static libraries are not supported
+		SET(MYSQL_ERROR TRUE)
+	ENDIF()
+
+	FIND_PATH(MYSQL_INCLUDE mysql.h HINTS "${MYSQL_ROOT}/include" /usr/include/mysql)
+	FIND_LIBRARY(MYSQL_LIB mysqlclient HINTS ${MYSQL_ROOT}/lib /usr/lib/mysql)
+
+	IF(MYSQL_INCLUDE AND MYSQL_LIB AND NOT MYSQL_ERROR)
+		SET(MYSQL_FOUND TRUE CACHE BOOL "Whether mysql has been found")
+	ENDIF()
+
+	IF(MYSQL_FOUND)
+		IF (NOT MYSQL_FIND_QUIETLY)
+			MESSAGE(STATUS "Looking for mysql... - found")
+		ENDIF (NOT MYSQL_FIND_QUIETLY)
+	ELSE()
+		IF (MYSQL_FIND_REQUIRED)
+			MESSAGE(FATAL_ERROR "Looking for mysql... - NOT found")
+		ENDIF (MYSQL_FIND_REQUIRED)
+		MESSAGE(STATUS "Looking for mysql... - NOT found")
+	ENDIF()
+ENDIF()
+
+IF(MYSQL_FOUND)
+	SET(MYSQL_LIBRARIES ${MYSQL_LIB})
+	SET(MYSQL_INCLUDE_DIR ${MYSQL_INCLUDE})
+ENDIF()
