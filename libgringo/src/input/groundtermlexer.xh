@@ -1,0 +1,77 @@
+// {{{ GPL License 
+
+// This file is part of gringo - a grounder for logic programs.
+// Copyright (C) 2013  Roland Kaminski
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+// }}}
+
+#define YYCTYPE     char
+#define YYCURSOR    cursor()
+#define YYLIMIT     limit()
+#define YYMARKER    marker()
+#define YYCTXMARKER ctxmarker()
+#define YYFILL(n)   {fill(n);}
+
+/*!re2c
+    NUMBER     = "0"|([1-9][0-9]*);
+    ANY        = [\000-\377];
+    WS         = [\t\r ]*;
+    NL         = "\n";
+    IDENTIFIER = "_"*[a-z]['A-Za-z0-9_]*;
+    STRING     = "\"" ([^\\"\n]|"\\\""|"\\\\"|"\\n")* "\"";
+    WSNL       = [\t\r\n ]*;
+*/
+
+int Gringo::Input::GroundTermParser::lex_impl(void *pValue) {
+start:
+    start();
+    auto &value = *static_cast<Gringo::Input::GroundTermGrammar::parser::semantic_type*>(pValue);
+    /*!re2c
+        WS               { goto start; }
+        NL               { if(eof()) return 0; step(); goto start; }
+        "#inf"("imum")?  { return GroundTermGrammar::parser::token::INFIMUM; }
+        "#sup"("remum")? { return GroundTermGrammar::parser::token::SUPREMUM; }
+
+        "not"            { return GroundTermGrammar::parser::token::NOT; }
+        IDENTIFIER       { value.uid = FWString::uid(string()); return GroundTermGrammar::parser::token::IDENTIFIER; }
+        NUMBER           { value.num = integer(); return GroundTermGrammar::parser::token::NUMBER; }
+        STRING           { value.uid = FWString::uid(unquote(string(1, 1))); return GroundTermGrammar::parser::token::STRING; }
+
+        "("              { return GroundTermGrammar::parser::token::LPAREN; }
+        ")"              { return GroundTermGrammar::parser::token::RPAREN; }
+        "+"              { return GroundTermGrammar::parser::token::ADD; }
+        "-"              { return GroundTermGrammar::parser::token::SUB; }
+        "**"             { return GroundTermGrammar::parser::token::POW; }
+        "\\"             { return GroundTermGrammar::parser::token::MOD; }
+        "*"              { return GroundTermGrammar::parser::token::MUL; }
+        "/"              { return GroundTermGrammar::parser::token::SLASH; }
+        "&"              { return GroundTermGrammar::parser::token::AND; }
+        "^"              { return GroundTermGrammar::parser::token::XOR; }
+        "~"              { return GroundTermGrammar::parser::token::BNOT; }
+        "?"              { return GroundTermGrammar::parser::token::QUESTION; }
+        ","              { return GroundTermGrammar::parser::token::COMMA; }
+        "|"              { return GroundTermGrammar::parser::token::VBAR; }
+        ANY              { lexerError(string()); goto start; }
+    */
+    assert(false);
+    return 0;
+}
+
+#undef YYCTYPE
+#undef YYCURSOR
+#undef YYLIMIT
+#undef YYMARKER
+#undef YYFILL

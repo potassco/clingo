@@ -1,0 +1,23 @@
+This example just starts an ipython interpreter, which allows for working
+with a logic program interactively. A session could looks like this:
+    $ clingo ipython.py
+    clingo version 4.1
+    Reading from ipython.py
+    In [1]: prg.add("base", [], "a.")
+
+    In [2]: prg.ground([("base", [])])
+
+    In [3]: prg.solve()
+    Solving...
+    Answer: 1
+    a
+    Out[3]: SAT
+
+    In [4]: exit
+
+    SATISFIABLE
+
+    Models       : 1+    
+    Calls        : 1
+    Time         : 22.762s (Solving: 0.00s 1st Model: 0.00s Unsat: 0.00s)
+    CPU Time     : 0.170s

@@ -1,0 +1,7 @@
+This example illustrates the use of the commit function.
+
+Example calls:
+  clingo commit-lua.lp encoding.lp
+  clingo commit-py.lp encoding.lp
+  gringo --text commit-lua.lp encoding.lp
+  gringo --text commit-py.lp encoding.lp

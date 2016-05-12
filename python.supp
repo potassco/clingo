@@ -1,0 +1,71 @@
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   ...
+   fun:_dl_start
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr4
+   fun:PyObject_Free
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:PyObject_Free
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:PyObject_Realloc
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr4
+   fun:PyObject_Realloc
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr4
+   fun:PyObject_Free
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:PyObject_Realloc
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:PyObject_Free
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   ...
+   fun:_dl_init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   ...
+   fun:*initgringo*
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   ...
+   fun:Py_Initialize
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   ...
+   fun:Py_Finalize
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   ...
+   fun:PyEval_InitThreads
+}

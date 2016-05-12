@@ -1,0 +1,140 @@
+planned for 4.5.*
+ - --lparse-rewrite should produce gringo 4 aligned output
+ - address _ in negated literals
+ - add xor-constraints
+ - add sort-constraint
+  - order(B,A) :- (A, B) = #sort{ X : p(X) }.
+  - order(A,B) :- ((_,A), (_,B)) = #sort{ K,X : p(X), key(X,K) }.
+ - profiling
+ - for 4.5.0 I added a priority queue for grounding 
+   take a second look at this and possible port the complete rules to this
+ - sorting via conditional literals became less efficient with the latest implementation in some cases 
+ - projection is disabled in non-monotone constructs for now
+   it could be enabled again if equivalences are used for affected atoms
+ - auto detection of libraries
+ - test complete API for ptyhon and lua in clingo-tests
+
+postponed
+  last error reported in first file
+  csp-rewrite + output format
+  shifting of disjunctions
+  reified output
+  improve warnings
+    too many warnings are attached to -Wundefined-term
+    change the options a bit
+  language/API extensions in view of preferences
+    lits: Model -> [(Atom, Bool)]
+    turn terms into atoms
+      x :- #assert(Atom, Sign), (Atom, Sign) = @luaCall().
+    or
+      x :- Atom, Atom = @luaCall().
+  provide python/lua language bindings
+  cleanup of gringo's domains using clasp's top-level assignment
+  simplify one elementary head aggregates as in gringo-3
+  how to handle projection in negative literals (_ or *)
+
+*enlarge test suites*
+
+constraints
+  integrate constraint variables tighter into the gringo language
+  any term can contain csp variables
+  terms containing csp variables are called csp terms (except function symbols)
+  only relations (and the second argument of disjoint constraint elements) can "handle" csp variables
+  in all other places csp terms must be replaced by auxiliary variables (positional non-csp terms should be skipped)
+  examples:
+    p(f($X+3)) -> p(f(Aux)), Aux = $X+3
+  problem:
+    f($X+3) < g($Y+1)
+    could be handled but is it really worth the effort?
+    alternatively just replace the csp terms in function terms with auxiliary variables
+      f($X+3) < g($Y+1) -> f(#A) < f(#B), #A = #X+3, #B = $Y + 1
+    probably the second variant is the way to go (even if it is unsafe in the example)
+  as a side effect relation literals with multiple relations would become available for normal terms too
+    1 < X < 10 -> yay!
+  translation of nested terms
+    translate binary terms
+    ...
+
+incremental programs
+  atm indexes have to be cleared and recreated afterwards 
+    it might be a good idea to optimize this and reuse indices later on
+	for now just clear them to not have them dangling around
+
+the weakconstraint class appears to be unnecessary the same can be achieved with a special head literal
+  this way the statemnet interface could be completely removed and replaced by the rule implementation
+  similarly show statements could be handled with a dedicated head literal
+
+auxliterals should be unnecessary
+  they can be handled using a predicate domain
+ 
+output
+  add a method to get a negated literal to save a few auxiliary symbols here and there
+  add more test for disjunctions
+
+cleanup includes
+  split interfaces from specializations
+  term.hh ->
+    term.hh
+	  includes necessary forward declarations
+	terms.hh
+	  includes class that implement the term interface
+  should speed up compilation times
+	  
+missing features in view of the ASP standard
+  queries
+
+bullcrap
+  enqueue: expr(X,Z,Val):-expr(X,Y,Val_1)?,sing_term(Y,Z,Val_2)?,Val=(Val_1+Val_2),#X0=(Val_1+Val_2),#X0=Val.
+  handle assignments in a more clever way...
+
+domain implementation
+  the offset member of exports should be a parameter
+
+optimizations
+  it would be nice to block grounding of rules if one index is empty
+    (maybe even delaying the filling of indices if one index is empty)
+  uids for domain elements can be added in the output when needed
+    no need to assign uids during grounding!
+    consider replacing typedef with using
+  indices could be specialized to handle ground literals more efficiently
+    there could be one domain for all zero-ary predicates 
+  try to speed up flyweight
+  no allocation in lexerstate for std::string
+    (just assign and return reference (which might be moved))
+  move string in flyweight only if inserted
+  the current data structure allows for detecting ground progams
+    do not implement a -g options again but automatically switch from grounding to direct output
+  *very low priority*
+    domains
+      using a value as representation is wasteful
+      uses one unordered_map to much
+    predicate indices
+      using a valvec as key is wasteful
+      uses one unordered_map too much
+    on large instances both optimizations should safe a lot of memory
+    having a boost::multi_index-like container for flyweights might reduce memory even further
+      (would probably involve having to write an own container)
+
+refactoring
+  to make private variables easier accessible put the _ in front
+  it is not necessary to move local variables in return
+    similarly && could be removed in function arguments
+
+notes on auxiliary predicates from aggregate translations
+  they must be treated like normal predicates in the dependency analysis
+    but auxiliary predicates could be ignored for determining recursiveness
+    if rules containing auxiliary predicates are guaranteed to be grounded before rules directly depending on them
+  they should be ignored for output
+  to do this, the stratification information should be passed along with ground atoms
+  fact atoms can be removed as usual!
+
+building boost
+  ./bootstrap.sh
+  ./b2 toolset=clang cxxflags="-std=c++11 -stdlib=libc++" linkflags="-std=c++11 -stdlib=libc++" -d2 -j4 threading=single link=static variant=release install --prefix=...
+  ./b2 toolset=clang cxxflags="-std=c++11 -stdlib=libc++" linkflags="-std=c++11 -stdlib=libc++" -d2 -j4 threading=single link=static variant=debug install --prefix=...
+building cppunit
+  ./configure --enable-static CXX=clang++ CC=clang CXXFLAGS="-std=c++11 -stdlib=libc++" --disable-doxygen --enable-static --disable-shared --prefix=...
+  make install
+building tbb
+  make CPLUS=clang++ CXXFLAGS="-std=c++11 -stdlib=libc++"
+  copy include and lib ...

@@ -1,0 +1,177 @@
+// {{{ GPL License 
+
+// This file is part of gringo - a grounder for logic programs.
+// Copyright (C) 2013  Roland Kaminski
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+// }}}
+
+// TODO: think about making location tracking easier
+//       and allow for using newlines in SHOWSIG and PYTHON again
+
+#define YYCTYPE     char
+#define YYCURSOR    cursor()
+#define YYLIMIT     limit()
+#define YYMARKER    marker()
+#define YYCTXMARKER ctxmarker()
+#define YYFILL(n)   {fill(n);}
+
+/*!re2c
+    NUMBER     = "0"|([1-9][0-9]*);
+    ANY        = [\000-\377];
+    WS         = [\t\r ]*;
+    NL         = "\n";
+    IDENTIFIER = "_"*[a-z]['A-Za-z0-9_]*;
+    VARIABLE   = "_"*[A-Z]['A-Za-z0-9_]*;
+    ANONYMOUS  = "_";
+    STRING     = "\"" ([^\\"\n]|"\\\""|"\\\\"|"\\n")* "\"";
+    WSNL       = [\t\r\n ]*;
+    SIG        = WSNL ([-$])? WSNL IDENTIFIER WSNL "/" WSNL NUMBER WSNL ".";
+    PYTHON     = "#script" WS* "(" WS* "python" WS* ")";
+    LUA        = "#script" WS* "(" WS* "lua" WS* ")";
+*/
+
+int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
+start:
+    int bc = 0;
+    start();
+    loc.beginFilename = filename();
+    loc.beginLine     = line();
+    loc.beginColumn   = column();
+    auto &value = *static_cast<Gringo::Input::NonGroundGrammar::parser::semantic_type*>(pValue);
+    /*!re2c
+        WS                { goto start; }
+        NL                { if(eof()) return 0; step(); goto start; }
+        PYTHON            { goto python; }
+        LUA               { goto lua; }
+        "#include"        { return NonGroundGrammar::parser::token::INCLUDE; }
+        "#show"           { return NonGroundGrammar::parser::token::SHOW; }
+        "#show"/SIG       { return NonGroundGrammar::parser::token::SHOWSIG; }
+        "#const"          { return NonGroundGrammar::parser::token::CONST; }
+        "#minimi"[zs]"e"  { return NonGroundGrammar::parser::token::MINIMIZE; }
+        "#maximi"[zs]"e"  { return NonGroundGrammar::parser::token::MAXIMIZE; }
+        "#program"        { return NonGroundGrammar::parser::token::BLOCK; }
+        "#external"       { return NonGroundGrammar::parser::token::EXTERNAL; }
+        "#inf"("imum")?   { return NonGroundGrammar::parser::token::INFIMUM; }
+        "#sup"("remum")?  { return NonGroundGrammar::parser::token::SUPREMUM; }
+
+        "not"             { value.uid = not_; return NonGroundGrammar::parser::token::NOT; }
+        IDENTIFIER        { value.uid = FWString::uid(string()); return NonGroundGrammar::parser::token::IDENTIFIER; }
+        NUMBER            { value.num = integer(); return NonGroundGrammar::parser::token::NUMBER; }
+        VARIABLE          { value.uid = FWString::uid(string()); return NonGroundGrammar::parser::token::VARIABLE; }
+        ANONYMOUS         { return NonGroundGrammar::parser::token::ANONYMOUS; }
+        STRING            { value.uid = FWString::uid(unquote(string(1, 1))); return NonGroundGrammar::parser::token::STRING; }
+
+        "#true"           { return NonGroundGrammar::parser::token::TRUE; }
+        "#false"          { return NonGroundGrammar::parser::token::FALSE; }
+        "#sum"            { return NonGroundGrammar::parser::token::SUM; }
+        "#sum+"           { return NonGroundGrammar::parser::token::SUMP; }
+        "#count"          { return NonGroundGrammar::parser::token::COUNT; }
+        "#min"            { return NonGroundGrammar::parser::token::MIN; }
+        "#max"            { return NonGroundGrammar::parser::token::MAX; }
+		"#disjoint"       { return NonGroundGrammar::parser::token::DISJOINT; }
+        ";"               { return NonGroundGrammar::parser::token::SEM; }
+        ".."              { return NonGroundGrammar::parser::token::DOTS; }
+        "."               { return NonGroundGrammar::parser::token::DOT; }
+        ":"               { return NonGroundGrammar::parser::token::COLON; }
+        ":-"              { return NonGroundGrammar::parser::token::IF; }
+        ":~"              { return NonGroundGrammar::parser::token::WIF; }
+        ","               { return NonGroundGrammar::parser::token::COMMA; }
+        "|"               { return NonGroundGrammar::parser::token::VBAR; }
+        "["               { return NonGroundGrammar::parser::token::LBRACK; }
+        "]"               { return NonGroundGrammar::parser::token::RBRACK; }
+        "("               { return NonGroundGrammar::parser::token::LPAREN; }
+        ")"               { return NonGroundGrammar::parser::token::RPAREN; }
+        "{"               { return NonGroundGrammar::parser::token::LBRACE; }
+        "}"               { return NonGroundGrammar::parser::token::RBRACE; }
+        "+"               { return NonGroundGrammar::parser::token::ADD; }
+        "-"               { return NonGroundGrammar::parser::token::SUB; }
+        "**"              { return NonGroundGrammar::parser::token::POW; }
+        "\\"              { return NonGroundGrammar::parser::token::MOD; }
+        "*"               { return NonGroundGrammar::parser::token::MUL; }
+        ">"               { return NonGroundGrammar::parser::token::GT; }
+        "<"               { return NonGroundGrammar::parser::token::LT; }
+        ">="              { return NonGroundGrammar::parser::token::GEQ; }
+        "<="              { return NonGroundGrammar::parser::token::LEQ; }
+        "=="              { return NonGroundGrammar::parser::token::EQ; }
+        "!="              { return NonGroundGrammar::parser::token::NEQ; }
+        "<>"              { return NonGroundGrammar::parser::token::NEQ; }
+        "="               { return NonGroundGrammar::parser::token::EQ; }
+        "/"               { return NonGroundGrammar::parser::token::SLASH; }
+        "@"               { return NonGroundGrammar::parser::token::AT; }
+        "&"               { return NonGroundGrammar::parser::token::AND; }
+        "^"               { return NonGroundGrammar::parser::token::XOR; }
+        "~"               { return NonGroundGrammar::parser::token::BNOT; }
+        "?"               { return NonGroundGrammar::parser::token::QUESTION; }
+        "$"               { return NonGroundGrammar::parser::token::CSP; }
+        "$+"              { return NonGroundGrammar::parser::token::CSP_ADD; }
+        "$-"              { return NonGroundGrammar::parser::token::CSP_SUB; }
+        "$*"              { return NonGroundGrammar::parser::token::CSP_MUL; }
+        "$<="             { return NonGroundGrammar::parser::token::CSP_LEQ; }
+        "$<"              { return NonGroundGrammar::parser::token::CSP_LT; }
+        "$>="             { return NonGroundGrammar::parser::token::CSP_GEQ; }
+        "$>"              { return NonGroundGrammar::parser::token::CSP_GT; }
+        "$=="             { return NonGroundGrammar::parser::token::CSP_EQ; }
+        "$="              { return NonGroundGrammar::parser::token::CSP_EQ; }
+        "$!="             { return NonGroundGrammar::parser::token::CSP_NEQ; }
+        "$<>"             { return NonGroundGrammar::parser::token::CSP_NEQ; }
+        "%*"              { bc++; goto blockcomment; }
+        "%"               { goto comment; }
+        "#!"              { goto comment; }
+		"#" [a-zA-Z0-9_]* { lexerError(string()); goto start; }
+        ANY               { lexerError(string()); goto start; }
+    */
+python:
+    /*!re2c
+        "#end"           {
+            value.uid = FWString::uid(string()+"\n"); 
+            return NonGroundGrammar::parser::token::PYTHON; 
+        }
+        NL               { if(eof()) { lexerError("<EOF>"); return 0; } step(); goto python; }
+        ANY              { goto python; }
+     */
+lua:
+    /*!re2c
+        "#end"           {
+            std::string s(string(0,4));
+            s.erase(0, s.find(')') + 1);
+            value.uid = FWString::uid(std::move(s)); 
+            return NonGroundGrammar::parser::token::LUA; 
+        }
+        NL               { if(eof()) { lexerError("<EOF>"); return 0; } step(); goto lua; }
+        ANY              { goto lua; }
+     */
+blockcomment:
+    /*!re2c
+        "*%" { if(--bc == 0) goto start; goto blockcomment; }
+        "%*" { bc++; goto blockcomment; }
+        "%"  { goto comment; }
+        NL   { if(eof()) { lexerError("<EOF>"); return 0; } step(); goto blockcomment; }
+        ANY  { goto blockcomment; }
+    */
+comment:
+    /*!re2c
+        NL   { if(eof()) { if(bc > 0) lexerError("<EOF>"); return 0; } step(); if(bc > 0) goto blockcomment; goto start; }
+        ANY  { goto comment; }
+    */
+    assert(false);
+    return 0;
+}
+
+#undef YYCTYPE
+#undef YYCURSOR
+#undef YYLIMIT
+#undef YYMARKER
+#undef YYFILL

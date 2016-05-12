@@ -1,0 +1,6 @@
+Incrementally solve a Towers of Hanoi problem. Note incremental solving is only
+supported by recent clasp versions.
+
+Example calls:
+  gringo -c imax=16 tohE.lp tohI.lp | clasp
+  clingo tohI.lp tohE.lp

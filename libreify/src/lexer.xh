@@ -1,0 +1,121 @@
+// {{{ GPL License 
+
+// This file is part of gringo - a grounder for logic programs.
+// Copyright (C) 2013  Roland Kaminski
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+// }}}
+
+#define YYCTYPE     char
+#define YYCURSOR    cursor()
+#define YYLIMIT     limit()
+#define YYMARKER    marker()
+#define YYCTXMARKER ctxmarker()
+#define YYFILL(n)   {fill(n);}
+
+/*!re2c
+    NUM     = "0"|([1-9][0-9]*);
+    ANY        = [\000-\377];
+    WS         = [\t\r ]*;
+    NL         = "\n";
+    NNL        = [^\n];
+*/
+
+#define REIFY_ERROR(msg) {endLoc(); error(msg);}
+#define REIFY_CHECKNL(nonl) { \
+    if (eof()) REIFY_ERROR("unexpected end of file"); \
+    step(); \
+    if (nonl) { REIFY_ERROR("unexpected newline"); } \
+}
+int Reify::Parser::lexNumber() {
+start:
+    start();
+    beginLoc();
+    /*!re2c
+        WS  { goto start; }
+        NL  { REIFY_CHECKNL(false); goto start; }
+        NUM { endLoc(); return integer(); }
+        ANY { REIFY_ERROR("unexpected token: " + string()); goto start; }
+    */
+    assert(false);
+    return 0;
+}
+
+void Reify::Parser::skipWS() {
+start:
+    start();
+    beginLoc();
+    /*!re2c
+        " " { endLoc(); return; }
+        NL  { REIFY_CHECKNL(true); goto start; }
+        ANY { REIFY_ERROR("unexpected token: " + string()); goto start; }
+    */
+    assert(false);
+}
+
+void Reify::Parser::skipBP() {
+start:
+    start();
+    beginLoc();
+    /*!re2c
+        "B+" { endLoc(); return; }
+        WS   { goto start; }
+        NL   { REIFY_CHECKNL(false); goto start; }
+        ANY  { REIFY_ERROR("unexpected token: " + string()); goto start; }
+    */
+    assert(false);
+}
+
+void Reify::Parser::skipBM() {
+start:
+    start();
+    beginLoc();
+    /*!re2c
+        "B-" { endLoc(); return; }
+        WS   { goto start; }
+        NL   { REIFY_CHECKNL(false); goto start; }
+        ANY  { REIFY_ERROR("unexpected token: " + string()); goto start; }
+    */
+    assert(false);
+}
+
+void Reify::Parser::skipEOF() {
+start:
+    start();
+    beginLoc();
+    /*!re2c
+        WS   { goto start; }
+        NL   { if (eof()) return; step(); goto start; }
+        ANY  { REIFY_ERROR("unexpected token: " + string()); goto start; }
+    */
+    assert(false);
+}
+
+std::string Reify::Parser::lexStringNL() {
+    start();
+    beginLoc();
+    /*!re2c
+        ""   { endLoc(); return string(); }
+        NNL+ { endLoc(); return string(); }
+    */
+    assert(false);
+    return "";
+}
+
+#undef YYCTYPE
+#undef YYCURSOR
+#undef YYLIMIT
+#undef YYMARKER
+#undef YYFILL
