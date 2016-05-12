@@ -5,7 +5,7 @@ class State:
         self.value = value
 
     def test(self, value):
-        return self.value + value
+        return self.value + value.number
     
     def __on_model(self, m):
         print (m)

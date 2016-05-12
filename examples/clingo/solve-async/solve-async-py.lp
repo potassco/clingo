@@ -3,7 +3,7 @@
 from random import random
 
 def make_on_finish(stop):
-    def on_finish(ret, interrupted):
+    def on_finish(ret):
         stop[0] = True
     return on_finish
 

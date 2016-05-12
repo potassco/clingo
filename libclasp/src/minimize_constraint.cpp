@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2010-2012, Benjamin Kaufmann
+// Copyright (c) 2010-2015, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -27,12 +27,15 @@ namespace Clasp {
 // SharedMinimizeData
 /////////////////////////////////////////////////////////////////////////////////////////
 SharedMinimizeData::SharedMinimizeData(const SumVec& lhsAdjust, MinimizeMode m) : mode_(m) {
-	adjust_  = lhsAdjust;
-	count_   = 1;
+	adjust_ = lhsAdjust;
+	lower_  = new LowerType[adjust_.size()];
+	count_  = 1;
 	resetBounds();
 	setMode(MinimizeMode_t::optimize);
 }
-SharedMinimizeData::~SharedMinimizeData() {}
+SharedMinimizeData::~SharedMinimizeData() {
+	delete[] lower_;
+}
 
 void SharedMinimizeData::destroy() const {
 	this->~SharedMinimizeData();
@@ -42,7 +45,7 @@ void SharedMinimizeData::destroy() const {
 void SharedMinimizeData::resetBounds() {
 	gCount_  = 0;
 	optGen_  = 0;
-	lower_.assign(numRules(), 0);
+	std::fill_n(lower_, numRules(), wsum_t(0));
 	up_[0].assign(numRules(), maxBound());
 	up_[1].assign(numRules(), maxBound());
 	const WeightLiteral* lit = lits;
@@ -109,6 +112,19 @@ const SumVec* SharedMinimizeData::setOptimum(const wsum_t* newOpt) {
 void SharedMinimizeData::setLower(uint32 lev, wsum_t low) {
 	lower_[lev] = low;
 }
+wsum_t SharedMinimizeData::incLower(uint32 at, wsum_t low){
+	for (wsum_t stored;;) {
+		if ((stored = lower(at)) >= low) { 
+			return stored;
+		}
+		if (lower_[at].compare_and_swap(low, stored) == stored) {
+			return low;
+		}
+	}
+}
+wsum_t SharedMinimizeData::lower(uint32 lev) const {
+	return lower_[lev];
+}
 void SharedMinimizeData::markOptimal() {
 	optGen_ = generation();
 }
@@ -136,7 +152,7 @@ MinimizeConstraint::~MinimizeConstraint() {
 }
 bool MinimizeConstraint::prepare(Solver& s, bool useTag) {
 	CLASP_ASSERT_CONTRACT_MSG(!s.isFalse(tag_), "Tag literal must not be false!");
-	if (useTag && tag_ == posLit(0))      { tag_ = posLit(s.pushTagVar(false)); }
+	if (useTag && tag_ == lit_true())      { tag_ = posLit(s.pushTagVar(false)); }
 	if (s.isTrue(tag_) || s.hasConflict()){ return !s.hasConflict(); }
 	return useTag ? s.pushRoot(tag_) : s.force(tag_, 0);
 }
@@ -144,6 +160,12 @@ void MinimizeConstraint::destroy(Solver* s, bool d) {
 	shared_->release();
 	shared_ = 0;
 	Constraint::destroy(s, d);
+}
+void MinimizeConstraint::reportBound(const Solver& s, uint32 lev, wsum_t low, wsum_t up) const {
+	wsum_t adj = shared_->adjust(lev);
+	low += adj;
+	if (up != INT64_MAX) { up += adj; }
+	s.sharedContext()->report(OptBound(s, lev, low, up));
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // DefaultMinimize
@@ -384,18 +406,25 @@ bool DefaultMinimize::minimize(Solver& s, Literal p, CCMinRecursive* rec) {
 // DefaultMinimize - bound management
 /////////////////////////////////////////////////////////////////////////////////////////
 // Stores the current sum as the shared optimum.
-void DefaultMinimize::commitUpperBound(const Solver&)  {
+void DefaultMinimize::commitUpperBound(const Solver& s)  {
 	shared_->setOptimum(sum());
 	if (step_.type == MinimizeMode_t::bb_step_inc) { step_.size *= 2; }
+	if (step_.type) {
+		reportBound(s, step_.lev, stepLow(), sum()[step_.lev]);
+	}
 }
-bool DefaultMinimize::commitLowerBound(const Solver&, bool upShared) {
+bool DefaultMinimize::commitLowerBound(const Solver& s, bool upShared) {
 	bool act   = active() && shared_->checkNext();
 	bool more  = step_.lev < size_ && (step_.size > 1 || step_.lev != size_-1);
 	if (act && step_.type && step_.lev < size_) {
 		uint32 x = step_.lev;
 		wsum_t L = opt()[x] + 1;
+		if (upShared) { 
+			wsum_t sv = shared_->incLower(x, L);
+			if (sv == L) { reportBound(s, x, sv, shared_->upper(x)); } 
+			else         { L = sv; }
+		}
 		stepLow()= L;
-		while (upShared && shared_->lower(x) < L) { shared_->setLower(x, L); }
 		if (step_.type == MinimizeMode_t::bb_step_inc){ step_.size = 1; }
 	}
 	return more;
@@ -435,7 +464,7 @@ bool DefaultMinimize::integrateBound(Solver& s) {
 		stepInit(0);
 	}
 	if ((active() && !shared_->checkNext())) { return !s.hasConflict(); }
-	WeightLiteral min(posLit(0), shared_->weights.empty() ? uint32(0) : (uint32)shared_->weights.size()-1);
+	WeightLiteral min(lit_true(), shared_->weights.empty() ? uint32(0) : (uint32)shared_->weights.size()-1);
 	while (!s.hasConflict() && updateBounds(shared_->checkNext())) {
 		uint32 x = 0;
 		uint32 dl= s.decisionLevel() + 1;
@@ -465,23 +494,24 @@ bool DefaultMinimize::updateBounds(bool applyStep) {
 	for (;;) {
 		const uint32  seq   = shared_->generation();
 		const wsum_t* upper = shared_->upper();
-		const wsum_t* myLow = step_.type ? end() : shared_->lower();
-		const wsum_t* sLow  = shared_->lower();
+		wsum_t*       myLow = step_.type ? end() : 0;
 		wsum_t*       bound = opt();
 		uint32        appLev= applyStep ? step_.lev : size_;
 		for (uint32 i = 0; i != size_; ++i) {
 			wsum_t U = upper[i], B = bound[i];
 			if (i != appLev) {
-				if (myLow != sLow && (i > step_.lev || sLow[i] > myLow[i])) {
-					end()[i] = sLow[i];
+				wsum_t L = shared_->lower(i);
+				if (myLow) {
+					if (i > step_.lev || L > myLow[i]) { myLow[i] = L; }
+					else                               { L = myLow[i]; } 
 				}
-				if      (i > appLev)   { bound[i] = SharedData::maxBound(); }
-				else if (U >= myLow[i]){ bound[i] = U; }
-				else                   { stepInit(size_); return false; }
+				if      (i > appLev) { bound[i] = SharedData::maxBound(); }
+				else if (U >= L)     { bound[i] = U; }
+				else                 { stepInit(size_); return false; }
 				continue;
 			}
 			if (step_.type) {
-				wsum_t L = (stepLow() = std::max(myLow[i], sLow[i]));
+				wsum_t L = (stepLow() = std::max(myLow[i], shared_->lower(i)));
 				if (U < L) { // path exhausted?
 					stepInit(size_);
 					return false;
@@ -522,262 +552,190 @@ bool DefaultMinimize::updateBounds(bool applyStep) {
 /////////////////////////////////////////////////////////////////////////////////////////
 // MinimizeBuilder
 /////////////////////////////////////////////////////////////////////////////////////////
-MinimizeBuilder::MinimizeBuilder() : ready_(false) { }
-MinimizeBuilder::~MinimizeBuilder() { clear(); }
+MinimizeBuilder::MinimizeBuilder() { }
 void MinimizeBuilder::clear() {
-	for (LitVec::size_type i = 0; i != lits_.size(); ++i) {
-		Weight::free(lits_[i].second);
-	}
-	LitRepVec().swap(lits_);
-	SumVec().swap(adjust_);
-	ready_ = false;
+	LitVec().swap(lits_);
 }
-
-// adds a new minimize statement
-MinimizeBuilder& MinimizeBuilder::addRule(const WeightLitVec& lits, wsum_t initSum) {
-	unfreeze();
-	uint32 lev = (uint32)adjust_.size();
-	adjust_.push_back(initSum);
-	for (WeightLitVec::const_iterator it = lits.begin(); it != lits.end(); ++it) {
-		adjust_[lev] += addLitImpl(lev, *it);
+bool MinimizeBuilder::empty() const {
+	return lits_.empty();
+}
+MinimizeBuilder& MinimizeBuilder::add(weight_t prio, const WeightLitVec& lits) {
+	for (WeightLitVec::const_iterator it = lits.begin(), end = lits.end(); it != end; ++it) {
+		add(prio, *it);
 	}
 	return *this;
 }
-MinimizeBuilder& MinimizeBuilder::addLit(uint32 lev, WeightLiteral lit) {
-	unfreeze();
-	if (lev >= adjust_.size()) { adjust_.resize(lev + 1, 0); }
-	adjust_[lev] += addLitImpl(lev, lit);
+MinimizeBuilder& MinimizeBuilder::add(weight_t prio, WeightLiteral lit) {
+	if (lit.second == 0) { return *this; }
+	lits_.push_back(MLit(lit, prio));
 	return *this;
 }
-
-// adds the weights of the given lit to the appropriate levels in vec
-void MinimizeBuilder::addTo(LitRep lit, SumVec& vec) {
-	vec.resize(numRules());
-	for (Weight* r = lit.second; r; r = r->next) {
-		vec[r->level] += r->weight;
-	}
+MinimizeBuilder& MinimizeBuilder::add(weight_t prio, weight_t w) {
+	if (w != 0) { lits_.push_back(MLit(WeightLiteral(lit_true(), w), prio)); }
+	return *this;
 }
-
-void MinimizeBuilder::unfreeze() {
-	if (ready_) {
-		assert(isSentinel(lits_.back().first));
-		lits_.pop_back();
-		ready_ = false;
-	}
-}
-
-// merges duplicate literals and removes literals that are already assigned
-// POST: the literals in lits_ are unique and sorted by decreasing weight
-bool MinimizeBuilder::prepare(SharedContext& ctx) {
-	std::sort(lits_.begin(), lits_.end(), CmpByLit());
-	LitVec::size_type j = 0;
-	Solver& s           = *ctx.master();
-	Weight* w           = 0;
-	for (LitVec::size_type i = 0, k = 0, end = lits_.size(); i != end;) {
-		w    = lits_[i].second;
-		if (s.value(lits_[i].first.var()) == value_free) {
-			for (k = i+1; k < end && lits_[i].first == lits_[k].first; ++k) {
-				// duplicate literal - merge weights
-				if (w->level == lits_[k].second->level) {
-					// add up weights from same level
-					w->weight += lits_[k].second->weight;
-				}
-				else {
-					// extend weight vector with new level
-					w->next         = lits_[k].second;
-					w               = w->next;
-					lits_[k].second = 0;
-				}
-				Weight::free(lits_[k].second);
-			}	
-			// exempt from variable elimination
-			ctx.setFrozen(lits_[i].first.var(), true);
-			lits_[j++] = lits_[i];
-			i = k;
-		}
-		else {
-			if (s.isTrue(lits_[i].first)) {
-				addTo(lits_[i], adjust_);
-			}
-			Weight::free(lits_[i].second);
-			++i;	
-		}
-	}
-	shrinkVecTo(lits_, j);
-	// allocate enough reason data for all our vars
-	ctx.requestData(!lits_.empty() ? lits_.back().first.var() : 0);
-	// now literals are unique - merge any complementary literals
-	j = 0; CmpByWeight greaterW; int cmp;
-	for (LitVec::size_type i = 0, k = 1; i < lits_.size(); ) {
-		if (k == lits_.size() || lits_[i].first.var() != lits_[k].first.var()) {
-			lits_[j++] = lits_[i];
-			++i, ++k;
-		}
-		else if ( (cmp = greaterW.compare(lits_[i], lits_[k])) != 0 ) {
-			LitVec::size_type wMin = cmp > 0 ? k : i;
-			LitVec::size_type wMax = cmp > 0 ? i : k;
-			addTo(lits_[wMin], adjust_);
-			mergeReduceWeight(lits_[wMax], lits_[wMin]);
-			assert(lits_[wMin].second == 0);
-			lits_[j++] = lits_[wMax];
-			i += 2;
-			k += 2;
-		}
-		else {
-			// weights are equal
-			addTo(lits_[i], adjust_);
-			Weight::free(lits_[i].second);
-			Weight::free(lits_[k].second);
-			i += 2;
-			k += 2;
-		}
-	}
-	shrinkVecTo(lits_, j);
-	std::stable_sort(lits_.begin(), lits_.end(), greaterW);
-	if (adjust_.empty()) {
-		adjust_.push_back(0);
-	}
-	// add terminating sentinel literal
-	lits_.push_back(LitRep(posLit(0), new Weight(static_cast<uint32>(adjust_.size()-1), 0)));
-	return true;
-}
-
-// creates a suitable minimize constraint from the 
-// previously added minimize statements
-MinimizeBuilder::SharedData* MinimizeBuilder::build(SharedContext& ctx) {
-	assert(!ctx.master()->hasConflict());
-	if (!ctx.master()->propagate()) { return 0; }
-	if (!ready_ && !prepare(ctx))   { return 0; }
-	SharedData* srep = new (::operator new(sizeof(SharedData) + (lits_.size()*sizeof(WeightLiteral)))) SharedData(adjust_);
-	if (adjust_.size() == 1) {
-		for (LitVec::size_type i = 0; i != lits_.size(); ++i) {
-			srep->lits[i] = WeightLiteral(lits_[i].first, lits_[i].second->weight);
-		}
+MinimizeBuilder& MinimizeBuilder::add(const SharedData& con) {
+	if (con.numRules() == 1) {
+		const weight_t P = !con.prios.empty() ? con.prios[0] : 0;
+		for (const WeightLiteral* it = con.lits; !isSentinel(it->first); ++it) { add(P, *it); }
 	}
 	else {
-		// The weights of a multi-level constraint are stored in a flattened way,
-		// i.e. we store all weights in one vector and each literal stores
-		// an index into that vector. For a (weight) literal i, weights[i.second]
-		// is the first weight of literal i and weights[i.second].next denotes
-		// whether i has more than one weight.
-		srep->lits[0].first  = lits_[0].first;
-		srep->lits[0].second = addFlattened(srep->weights, *lits_[0].second);
-		for (LitVec::size_type i = 1; i < lits_.size(); ++i) {
-			srep->lits[i].first = lits_[i].first;
-			if (eqWeight(&srep->weights[srep->lits[i-1].second], *lits_[i].second)) {
-				// reuse existing weight
-				srep->lits[i].second = srep->lits[i-1].second;
+		for (const WeightLiteral* it = con.lits; !isSentinel(it->first); ++it) {
+			const SharedData::LevelWeight* w = &con.weights[it->second];
+			do {
+				add( w->level < con.prios.size() ? con.prios[w->level] : -static_cast<weight_t>(w->level), WeightLiteral(it->first, w->weight) );
+			} while (w++->next);
+		}
+	}
+	for (uint32 i = 0; i != con.numRules(); ++i) {
+		if (wsum_t w = con.adjust(i)) {
+			const weight_t P = i < con.prios.size() ? con.prios[i] : -static_cast<weight_t>(i);
+			while (w < CLASP_WEIGHT_T_MIN) { add(P, CLASP_WEIGHT_T_MIN); w -= CLASP_WEIGHT_T_MIN; }
+			while (w > CLASP_WEIGHT_T_MAX) { add(P, CLASP_WEIGHT_T_MAX); w -= CLASP_WEIGHT_T_MAX; }
+			add(P, static_cast<weight_t>(w));
+		}
+	}
+	return *this;
+}
+// Comparator for preparing levels: compare (prio, var, weight)
+bool MinimizeBuilder::CmpPrio::operator()(const MLit& lhs, const MLit& rhs) const {
+	if (lhs.prio != rhs.prio)           { return lhs.prio > rhs.prio; }
+	if (lhs.lit.var() != rhs.lit.var()) { return lhs.lit  < rhs.lit; }
+	return lhs.weight > rhs.weight;
+}
+// Comparator for merging levels: compare (var, level, weight)
+bool MinimizeBuilder::CmpLit::operator()(const MLit& lhs, const MLit& rhs) const {
+	if (lhs.lit.var() != rhs.lit.var()) { return lhs.lit  < rhs.lit; }
+	if (lhs.prio != rhs.prio)           { return lhs.prio < rhs.prio; }
+	return lhs.weight > rhs.weight;
+}
+// Comparator for sorting literals by final weight
+bool MinimizeBuilder::CmpWeight::operator()(const MLit& lhs, const MLit& rhs) const {
+	if (!weights) { return lhs.weight > rhs.weight; }
+	const SharedData::LevelWeight* wLhs = &(*weights)[lhs.weight];
+	const SharedData::LevelWeight* wRhs = &(*weights)[rhs.weight];
+	for (;; ++wLhs, ++wRhs) {
+		if (wLhs->level != wRhs->level)  { return wLhs->level < wRhs->level; }
+		if (wLhs->weight != wRhs->weight){ return wLhs->weight > wRhs->weight; }
+		if (!wLhs->next) { return wRhs->next && (++wRhs)->weight < 0; }
+		if (!wRhs->next) { ++wLhs; break; }
+	}
+	return wLhs->weight > 0;
+}
+
+// Replaces integer priorities with increasing levels and merges duplicate/complementary literals.
+void MinimizeBuilder::prepareLevels(const Solver& s, SumVec& adjust, WeightVec& prios) {
+	// group first by decreasing priorities and then by variables
+	std::stable_sort(lits_.begin(), lits_.end(), CmpPrio());
+	prios.clear(); adjust.clear();
+	// assign levels and simplify lits
+	LitVec::iterator j = lits_.begin();
+	for (LitVec::const_iterator it = lits_.begin(), end = lits_.end(); it != end;) {
+		const weight_t P = it->prio, L = static_cast<weight_t>(prios.size());
+		wsum_t R = 0;
+		for (LitVec::const_iterator k; it != end && it->prio == P; it = k) {
+			Literal x(it->lit); // make literal unique wrt this level
+			wsum_t  w = it->weight;
+			for (k = it + 1; k != end && k->lit.var() == x.var() && k->prio == P; ++k) {
+				if (k->lit == x){ w += k->weight; }
+				else            { w -= k->weight; R += k->weight; }
 			}
-			else {
-				// add a new flattened list of weights to srep->weights
-				srep->lits[i].second = addFlattened(srep->weights, *lits_[i].second);
+			if (w < 0){
+				R += w;
+				x  = ~x;
+				w  = -w;
+			}
+			if (w && s.value(x.var()) == value_free) {
+				CLASP_FAIL_IF(static_cast<weight_t>(w) != w, "MinimizeBuilder: weight too large!");
+				*j++ = MLit(WeightLiteral(x, static_cast<weight_t>(w)), L);
+			}
+			else if (s.isTrue(x)) { R += w; }
+		}
+		prios.push_back(P);
+		adjust.push_back(R);
+	}
+	lits_.erase(j, lits_.end());
+}
+
+void MinimizeBuilder::mergeLevels(SumVec& adjust, SharedData::WeightVec& weights) {
+	// group first by variables and then by increasing levels 
+	std::stable_sort(lits_.begin(), lits_.end(), CmpLit());
+	LitVec::iterator j = lits_.begin();
+	weights.clear(); weights.reserve(lits_.size());
+	for (LitVec::const_iterator it = lits_.begin(), end = lits_.end(), k; it != end; it = k) {
+		// handle first occurrence of var
+		assert(it->weight > 0 && "most important occurrence of lit must have positive weight");
+		weight_t wpos = (weight_t)weights.size();
+		weights.push_back(SharedData::LevelWeight(it->prio, it->weight));
+		// handle remaining occurrences with lower prios
+		for (k = it + 1; k != end && k->lit.var() == it->lit.var(); ++k) {
+			assert(k->prio > it->prio && "levels not prepared!");
+			weights.back().next = 1;
+			weights.push_back(SharedData::LevelWeight(k->prio, k->weight));
+			if (k->lit.sign() != it->lit.sign()) {
+				adjust[k->prio] += k->weight;
+				weights.back().weight = -k->weight;
 			}
 		}
+		(*j = *it).weight = wpos;
+		++j;
 	}
-	srep->resetBounds();
-	ready_ = true;
-	return srep;
+	lits_.erase(j, lits_.end());
 }
 
-// computes x.weight -= by.weight
-// PRE: x.weight > by.weight
-void MinimizeBuilder::mergeReduceWeight(LitRep& x, LitRep& by) {
-	assert(x.second->level <= by.second->level);
-	Weight dummy(0,0);
-	dummy.next  = x.second;
-	Weight* ins = &dummy;
-	for (;by.second;) {
-		// unlink head
-		Weight* t = by.second;
-		by.second = by.second->next;
-		// prepare for subtraction
-		t->weight*= -1;
-		// find correct insert location
-		while (ins->next && ins->next->level < t->level) {
-			ins = ins->next;
+MinimizeBuilder::SharedData* MinimizeBuilder::createShared(SharedContext& ctx, const SumVec& adjust, const CmpWeight& cmp) {
+	const uint32 nLits = static_cast<uint32>(lits_.size());
+	SharedData*  ret   = new (::operator new(sizeof(SharedData) + ((nLits + 1)*sizeof(WeightLiteral)))) SharedData(adjust);
+	// sort literals by decreasing weight
+	std::stable_sort(lits_.begin(), lits_.end(), cmp);
+	uint32   last = 0;
+	weight_t wIdx = 0;
+	for (uint32 i = 0; i != nLits; ++i) {
+		WeightLiteral x(lits_[i].lit, lits_[i].weight);
+		ctx.setFrozen(x.first.var(), true);
+		ret->lits[i] = x;
+		if (!cmp.weights) { continue; }
+		if (!i || cmp(lits_[last], lits_[i])) {
+			last = i;
+			wIdx = (weight_t)ret->weights.size();
+			for (const SharedData::LevelWeight* w = &(*cmp.weights)[x.second];; ++w) {
+				ret->weights.push_back(*w);
+				if (!w->next) { break; }
+			}
 		}
-		if (!ins->next || ins->next->level > t->level) {
-			t->next   = ins->next ? ins->next : 0;
-			ins->next = t;
-		}
-		else if ( (ins->next->weight += t->weight) != 0 ) {
-			delete t;
-		}
-		else {
-			Weight* t2 = ins->next;
-			ins->next  = t2->next;
-			delete t2;
-			delete t;
-		}
+		ret->lits[i].second = wIdx;
 	}
-	x.second = dummy.next;
+	ret->lits[nLits] = WeightLiteral(lit_true(), (weight_t)ret->weights.size());
+	if (cmp.weights) {
+		ret->weights.push_back(SharedData::LevelWeight((uint32)adjust.size()-1, 0));
+	}
+	ret->resetBounds();
+	return ret;
 }
 
-// sort by literal id followed by weight
-bool MinimizeBuilder::CmpByLit::operator()(const LitRep& lhs, const LitRep& rhs) const {
-	return lhs.first < rhs.first ||
-		(lhs.first == rhs.first && lhs.second->level < rhs.second->level);
-}
-// sort by final weight
-bool MinimizeBuilder::CmpByWeight::operator()(const LitRep& lhs, const LitRep& rhs) const {
-	Weight* wLhs = lhs.second;
-	Weight* wRhs = rhs.second;
-	while (wLhs && wRhs) {
-		if (wLhs->level != wRhs->level) {
-			return wLhs->level < wRhs->level;
-		}
-		if (wLhs->weight != wRhs->weight) {
-			return wLhs->weight > wRhs->weight;
-		}
-		wLhs = wLhs->next;
-		wRhs = wRhs->next;
+MinimizeBuilder::SharedData* MinimizeBuilder::build(SharedContext& ctx) {
+	CLASP_ASSERT_CONTRACT(ctx.ok() && !ctx.frozen());
+	ctx.master()->propagate();
+	if (empty()) { return 0; }
+	typedef SharedData::WeightVec FlatVec;
+	WeightVec prios;
+	SumVec    adjust;
+	FlatVec   weights;
+	CmpWeight cmp(0);
+	prepareLevels(*ctx.master(), adjust, prios);
+	if (prios.size() > 1) {
+		mergeLevels(adjust, weights);
+		cmp.weights = &weights;
 	}
-	return (wLhs && wLhs->weight > 0)
-	  ||   (wRhs && wRhs->weight < 0);
-}
-int MinimizeBuilder::CmpByWeight::compare(const LitRep& lhs, const LitRep& rhs) const {
-	if (this->operator()(lhs, rhs)) return 1;
-	if (this->operator()(rhs, lhs)) return -1;
-	return 0;
-}
-
-// frees the given weight list
-void MinimizeBuilder::Weight::free(Weight*& head) {
-	for (Weight* r = head; r;) {
-		Weight* t = r;
-		r         = r->next;
-		delete t;
+	else if (prios.empty()) {
+		prios.assign(1, 0);
+		adjust.assign(1, 0);
 	}
-	head = 0;
+	SharedData* ret = createShared(ctx, adjust, cmp);
+	ret->prios.swap(prios);
+	clear();
+	return ret;
 }
-
-// flattens the given weight w and adds the flattened representation to x
-// RETURN: starting position of w in x
-weight_t MinimizeBuilder::addFlattened(SharedData::WeightVec& x, const Weight& w) {
-	typedef SharedData::LevelWeight WT;
-	uint32 idx       = static_cast<uint32>(x.size());
-	const Weight* r  = &w;
-	while (r) {
-		x.push_back(WT(r->level, r->weight));
-		x.back().next  = (r->next != 0);
-		r              = r->next;
-	}
-	return idx;
-}
-// returns true if lhs is equal to w
-bool MinimizeBuilder::eqWeight(const SharedData::LevelWeight* lhs, const Weight& w) {
-	const Weight* r = &w;
-	do {
-		if (lhs->level != r->level || lhs->weight != r->weight) {
-			return false;
-		}
-		r = r->next;
-		if (lhs->next == 0) return r == 0;
-		++lhs;
-	} while(r);
-	return false;
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////
 // UncoreMinimize
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -789,7 +747,7 @@ UncoreMinimize::UncoreMinimize(SharedMinimizeData* d, uint32 strat)
 	, auxAdd_(0)
 	, freeOpen_(0)
 	, options_(0) {
-	options_ = strat & 7u;
+	options_ = strat & 15u;
 }
 void UncoreMinimize::init() {
 	releaseLits();
@@ -806,6 +764,8 @@ void UncoreMinimize::init() {
 	path_  = 1;
 	next_  = 0;
 	init_  = 1;
+	actW_  = 1;
+	nextW_ = 0;
 }
 bool UncoreMinimize::attach(Solver& s) {
 	init();
@@ -823,11 +783,12 @@ bool UncoreMinimize::attach(Solver& s) {
 // any introduced aux vars.
 void UncoreMinimize::detach(Solver* s, bool b) {
 	releaseLits();
-	destroyDB(closed_, s, b);
-	if (s && s->numAuxVars() == (auxInit_ + auxAdd_)) {
-		s->popAuxVar(auxAdd_);
-		auxAdd_ = 0;
+	if (s && auxAdd_ && s->numAuxVars() == (auxInit_ + auxAdd_)) {
+		s->popAuxVar(auxAdd_, &closed_);
+		auxInit_ = UINT32_MAX;
+		auxAdd_  = 0;
 	}
+	Clasp::destroyDB(closed_, s, b);
 	fix_.clear();
 }
 // Destroys this object and optionally detaches it from the given solver.
@@ -878,6 +839,8 @@ bool UncoreMinimize::initLevel(Solver& s) {
 	path_  = 1;
 	init_  = 0;
 	sum_[0]= -1;
+	actW_  = 1;
+	nextW_ = 0;
 	if (!fixLevel(s)) {
 		return false;
 	}
@@ -891,7 +854,7 @@ bool UncoreMinimize::initLevel(Solver& s) {
 		upper_ = shared_->upper(level_);
 		return true;
 	}
-	bool hasWeights = false;
+	weight_t maxW = 1;
 	for (uint32 level = (level_ + next_), n = 1; level <= shared_->maxLevel() && assume_.empty(); ++level) {
 		level_ = level;
 		lower_ = 0;
@@ -906,7 +869,7 @@ bool UncoreMinimize::initLevel(Solver& s) {
 				}
 				if (s.value(x.var()) == value_free || s.level(x.var()) > eRoot_) {
 					addLit(x, w);
-					if (w != 1) { hasWeights = true; }
+					if (w > maxW){ maxW = w; }
 				}
 				else if (s.isTrue(x)) {
 					lower_ += w;
@@ -925,15 +888,20 @@ bool UncoreMinimize::initLevel(Solver& s) {
 				}
 				litData_.clear();
 				assume_.clear();
+				maxW = 1;
 			}
 		}
 	}
 	pre_  = (options_ & MinimizeMode_t::usc_preprocess) != 0u;
-	valid_= (pre_ == 0 && !hasWeights);
+	actW_ = (options_ & MinimizeMode_t::usc_stratify) != 0u ? maxW : 1;
+	valid_= (pre_ == 0 && maxW == 1);
 	if (next_ && !s.hasConflict()) {
 		s.force(~tag_, Antecedent(0));
 		next_ = 0;
 		pre_  = 0;
+	}
+	if (auxInit_ == UINT32_MAX) {
+		auxInit_ = s.numAuxVars(); 
 	}
 	return !s.hasConflict();
 }
@@ -942,6 +910,9 @@ UncoreMinimize::LitData& UncoreMinimize::addLit(Literal p, weight_t w) {
 	assert(w > 0);
 	litData_.push_back(LitData(w, true, 0));
 	assume_.push_back(LitPair(~p, litData_.size()));
+	if (nextW_ && w > nextW_) {
+		nextW_ = w;
+	}
 	return litData_.back();
 }
 
@@ -952,15 +923,30 @@ bool UncoreMinimize::pushPath(Solver& s) {
 	bool path = path_ != 0;
 	while (path) {
 		uint32 j = 0;
+		nextW_   = 0;
 		path_    = uint32(path = false);
-		ok       = ok && s.simplify();
+		ok       = ok && s.simplify() && s.propagate();
 		initRoot(s);
+		assert(s.queueSize() == 0);
 		for (uint32 i = 0, end = assume_.size(), dl; i != end; ++i) {
 			LitData& x = getData(assume_[i].id);
 			if (x.assume) {
 				assume_[j++] = assume_[i];
 				Literal lit  = assume_[i].lit;
-				if      (!ok || s.isTrue(lit)) { continue; }
+				weight_t w   = x.weight;
+				if (w < actW_) {
+					nextW_ = std::max(nextW_, w);
+					continue;
+				}
+				else if (!ok || s.isTrue(lit)) { continue; }
+				else if ((lower_ + w) > upper_){
+					ok   = fixLit(s, lit);
+					path = true;
+					x.assume = 0;
+					x.weight = 0;
+					if (hasCore(x)) { closeCore(s, x, false); }
+					--j;
+				}
 				else if (s.value(lit.var()) == value_free) {
 					ok    = path || s.pushRoot(lit);
 					aTop_ = s.rootLevel();
@@ -1041,7 +1027,7 @@ wsum_t* UncoreMinimize::computeSum(Solver& s) const {
 }
 
 void UncoreMinimize::setLower(wsum_t x) {
-	if (!pre_ && x > lower_) { 
+	if (!pre_ && x > lower_ && nextW_ == 0) { 
 		fprintf(stderr, "*** WARNING: Fixing lower bound (%u - %u)\n", (uint32)lower_, (uint32)x); 
 		lower_ = x;
 	}
@@ -1084,6 +1070,7 @@ bool UncoreMinimize::handleModel(Solver& s) {
 	upper_= shared_->upper(level_);
 	valid_= 1;
 	if (sat_) { setLower(sum_[level_]); }
+	reportBound(s, level_, lower_, upper_);
 	return true;
 }
 
@@ -1112,13 +1099,16 @@ bool UncoreMinimize::handleUnsat(Solver& s, bool up, LitVec& out) {
 				todo_.clear();
 			}
 			else { // preprocessing: remove assumptions and remember core
-				todo_.push_back(LitPair(posLit(0), 0)); // null-terminate core
+				todo_.push_back(LitPair(lit_true(), 0)); // null-terminate core
 				lower_ += mw;
 				for(LitSet::iterator it = todo_.end() - (cs + 1); it->id; ++it) {
 					getData(it->id).assume = 0;
 				}
 			}
 			sat_ = !validLowerBound();
+			if (up && shared_->incLower(level_, lower_) == lower_) { 
+				reportBound(s, level_, lower_, upper_);
+			}
 		}
 		else {
 			s.clearStopConflict();
@@ -1136,12 +1126,16 @@ bool UncoreMinimize::handleUnsat(Solver& s, bool up, LitVec& out) {
 				if (cmp > 0) { s.hasConflict() || s.force(~tag_, Antecedent(0)); }
 				else         { next_ = level_ != shared_->maxLevel() || shared_->checkNext(); }
 			}
-			if (pre_) { 
+			if (pre_) {
 				LitSet().swap(todo_);
 				pre_ = 0; 
 			}
+			if (nextW_) {
+				actW_ = nextW_;
+				valid_= 0;
+				pre_  = (options_ & MinimizeMode_t::usc_preprocess) != 0u;
+			}
 		}
-		if (up && shared_->lower(level_) < lower_) { shared_->setLower(level_, lower_); }
 	} while (sat_ || s.hasConflict() || (next_ && out.empty() && !initLevel(s)));
 	return true;
 }
@@ -1285,11 +1279,11 @@ bool UncoreMinimize::add(CompType c, Solver& s, Literal head, Literal body1, Lit
 	}
 	Literal temp[3][3] = {
 		{ (~head)^ sign,   body1 ^ sign, body2 ^ sign },
-		{   head ^ sign, (~body1)^ sign, negLit(0) }, 
-		{   head ^ sign, (~body2)^ sign, negLit(0) }
+		{   head ^ sign, (~body1)^ sign, lit_false() }, 
+		{   head ^ sign, (~body2)^ sign, lit_false() }
 	};
 	for (uint32 i = first, sz = 3; i != last; ++i) {
-		Result res = ClauseCreator::create(s, ClauseRep::create(temp[i], sz, Constraint_t::learnt_other), flags);
+		Result res = ClauseCreator::create(s, ClauseRep::create(temp[i], sz, Constraint_t::Other), flags);
 		if (res.local) { closed_.push_back(res.local); }
 		if (!res.ok()) { return false; }
 		sz = 2;
@@ -1310,7 +1304,6 @@ bool UncoreMinimize::addCore(Solver& s, const WCTemp& wc, weight_t weight) {
 		return true; 
 	}
 	// create new var for this core
-	if (auxInit_ == UINT32_MAX) { auxInit_ = s.numAuxVars(); }
 	Var newAux = s.pushAuxVar();
 	++auxAdd_;
 	LitData& x = addLit(negLit(newAux), weight);

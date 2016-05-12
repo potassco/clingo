@@ -29,7 +29,6 @@
 #include "string_convert.h"
 #include "detail/notifier.h"
 #include "errors.h"
-#include <memory>
 namespace ProgramOptions { namespace detail {
 template <class T>
 struct Parser { typedef bool (*type)(const std::string&, T&); };
@@ -113,20 +112,18 @@ public:
 		return this;
 	}
 	bool doParse(const std::string& name, const std::string& value) {
-		bool ret;
-		T* pv = 0;
-		std::auto_ptr<T> holder;
+		T* pv;
+		detail::Owned<T> exit = { (pv = 0) };
 		if (this->hasProperty(Value::property_location)) {
-			pv  = value_.address;
+			pv = value_.address;
 		}
 		else {
-			holder.reset(value_.create());
-			pv = holder.get();
+			exit.obj = (pv = value_.create());
 		}
-		ret = this->parser_(value, *pv);
+		bool ret = this->parser_(value, *pv);
 		if (ret && notify_.notify(name, pv)) {
 			this->storeTo(*pv);
-			holder.release();
+			exit.obj = 0;
 		}
 		return ret;
 	}

@@ -1,6 +1,6 @@
 #script (python)
 
-import gringo
+import clingo
 import sys
 
 def writeln(s):
@@ -11,22 +11,22 @@ def writeln(s):
 def on_model(x):
     writeln("Answer: 42")
     writeln(
-          "hasA(" +        str(x.contains(gringo.Fun("a"))).lower() + ") "
-        + "hasVolatile(" + str(x.contains(gringo.Fun("volatile", [9]))).lower() + ") "
-        + "model(" +       ",".join(sorted(map(str, x.atoms()))) + ") ")
+          "hasA(" +        str(x.contains(clingo.function("a"))).lower() + ") "
+        + "hasVolatile(" + str(x.contains(clingo.function("volatile", [9]))).lower() + ") "
+        + "model(" +       ",".join(sorted(map(str, x.atoms(shown=True)))) + ") ")
 
-def on_finish(ret, canceled):
+def on_finish(ret):
     writeln("Answer: 42")
-    writeln(str(ret) + "_" + str(canceled).lower())
+    writeln(str(ret) + "_" + str(ret.interrupted).lower())
 
 def main (prg):
-    n = prg.get_const("n")
+    n = prg.get_const("n").number
     parts = []
     parts.append(("base", []))
     prg.ground(parts)
     prg.solve()
     prg.add("test", ["x"], "test(x).")
-    parts.append(("test", [gringo.Fun("f", [1,2])]))
+    parts.append(("test", [clingo.function("f", [1,2])]))
     for i in range(1,n+1):
         parts.append(("cumulative", [i]))
         prg.ground(parts)

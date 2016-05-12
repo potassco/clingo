@@ -1,5 +1,5 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% This file is part of gringo.                                             %
+% This file is part of clingo.                                             %
 % Copyright (C) 2015  Martin Gebser                                       %
 % Copyright (C) 2015  Roland Kaminski                                     %
 % Copyright (C) 2015  Torsten Schaub                                      %

@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -59,7 +59,8 @@ typedef std::string S;
 
 Program parse(std::string const &str) {
     std::ostringstream oss;
-    Output::OutputBase out({}, oss);
+    Potassco::TheoryData td;
+    Output::OutputBase out(td, {}, oss);
     Input::Program prg;
     Defines defs;
     Scripts scripts(Gringo::Test::getTestModule());
@@ -68,15 +69,15 @@ Program parse(std::string const &str) {
     ngp.pushStream("-", gringo_make_unique<std::stringstream>(str));
     ngp.parse();
     prg.rewrite(defs);
-    return prg.toGround(out.domains);
+    return prg.toGround(out.data);
 }
 
 std::string toString(Program const &p) {
     std::string str = to_string(p);
-    replace_all(str, ",#inc_base", "");
-    replace_all(str, ":-#inc_base.", ".");
-    replace_all(str, ":-#inc_base,", ":-");
-    replace_all(str, ":-#inc_base;", ":-");
+    replace_all(str, ",[#inc_base]", "");
+    replace_all(str, ":-[#inc_base].", ".");
+    replace_all(str, ":-[#inc_base],", ":-");
+    replace_all(str, ":-[#inc_base];", ":-");
     return str;
 }
 
@@ -131,11 +132,11 @@ void TestProgram::test_toGround() {
         "% component\n"
         "#external.\n"
         "% positive component\n"
-        "#accu(#d0(Z,X,Y),tuple(#special)):-:-p(X,Y,Z),0>Z.\n"
+        "#accu(#d0(Z,X,Y),tuple(#special)):-[p(X,Y,Z)],0>Z.\n"
         "% positive component\n"
-        "#accu(#d0(Z,X,Y),tuple(A)):-q(A),r(A,X):-p(X,Y,Z).\n"
+        "#accu(#d0(Z,X,Y),tuple(A)):-[p(X,Y,Z)],q(A),r(A,X).\n"
         "% positive component\n"
-        "#accu(#d0(Z,X,Y),tuple(B,Y)):-a(B,Y):-p(X,Y,Z).\n"
+        "#accu(#d0(Z,X,Y),tuple(B,Y)):-[p(X,Y,Z)],a(B,Y).\n"
         "% positive component\n"
         "#d0(Z,X,Y):-#accu(#d0(Z,X,Y),tuple(#special)),#accu(#d0(Z,X,Y),tuple(A)),#accu(#d0(Z,X,Y),tuple(B,Y)).\n"
         "% positive component\n"
@@ -145,11 +146,11 @@ void TestProgram::test_toGround() {
         "% component\n"
         "#external.\n"
         "% positive component\n"
-        "#accu(#d0(Z,X,Y),tuple(#special)):-:-p(X,Y,Z),0=Z.\n"
+        "#accu(#d0(Z,X,Y),tuple(#special)):-[p(X,Y,Z)],0=Z.\n"
         "% positive component\n"
-        "#accu(#d0(Z,X,Y),tuple(A)):-q(A),r(A,X):-p(X,Y,Z).\n"
+        "#accu(#d0(Z,X,Y),tuple(A)):-[p(X,Y,Z)],q(A),r(A,X).\n"
         "% positive component\n"
-        "#accu(#d0(Z,X,Y),tuple(B,Y)):-a(B,Y):-p(X,Y,Z).\n"
+        "#accu(#d0(Z,X,Y),tuple(B,Y)):-[p(X,Y,Z)],a(B,Y).\n"
         "% positive component\n"
         "#d0(Z,X,Y):-#accu(#d0(Z,X,Y),tuple(#special)),#accu(#d0(Z,X,Y),tuple(A)),#accu(#d0(Z,X,Y),tuple(B,Y)).\n"
         "% positive component\n"
@@ -159,11 +160,11 @@ void TestProgram::test_toGround() {
         "% component\n"
         "#external.\n"
         "% positive component\n"
-        "#accu(#d0(X,Y,ZZ),tuple(#special)):-:-p(X,Y,Z).\n"
+        "#accu(#d0(X,Y,ZZ),tuple(#special)):-[p(X,Y,Z)].\n"
         "% positive component\n"
-        "#accu(#d0(X,Y,ZZ),tuple(A)):-q(A),r(A,X):-p(X,Y,Z).\n"
+        "#accu(#d0(X,Y,ZZ),tuple(A)):-[p(X,Y,Z)],q(A),r(A,X).\n"
         "% positive component\n"
-        "#accu(#d0(X,Y,ZZ),tuple(B,Y)):-a(B,Y):-p(X,Y,Z).\n"
+        "#accu(#d0(X,Y,ZZ),tuple(B,Y)):-[p(X,Y,Z)],a(B,Y).\n"
         "% positive component\n"
         "#d0(X,Y,ZZ):-#accu(#d0(X,Y,ZZ),tuple(#special));#accu(#d0(X,Y,ZZ),tuple(A));#accu(#d0(X,Y,ZZ),tuple(B,Y)).\n"
         "% positive component\n"
@@ -185,13 +186,13 @@ void TestProgram::test_toGround() {
         "% component\n"
         "#external.\n"
         "% positive component\n"
-        "#accu(#d0(Z,X,Y),tuple(#special)):-:-p(X,Y,Z),0>Z.\n"
+        "#accu(#d0(Z,X,Y),tuple(#special)):-[p(X,Y,Z)],0>Z.\n"
         "% positive component\n"
-        "#accu(#d0(Z,X,Y),tuple(1,q(A))):-r(A,X),not q(A):-p(X,Y,Z).\n"
+        "#accu(#d0(Z,X,Y),tuple(1,q(A))):-[p(X,Y,Z)],r(A,X),not q(A).\n"
         "% positive component\n"
-        "#accu(#d0(Z,X,Y),tuple(0,a(B,Y))):-a(B,Y):-p(X,Y,Z).\n"
+        "#accu(#d0(Z,X,Y),tuple(0,a(B,Y))):-[p(X,Y,Z)],a(B,Y).\n"
         "% positive component\n"
-        "#accu(#d0(Z,X,Y),tuple(3,X,1)):-q(X),X>1:-p(X,Y,Z).\n"
+        "#accu(#d0(Z,X,Y),tuple(3,X,1)):-[p(X,Y,Z)],q(X),X>1.\n"
         "% positive component\n"
         "#d0(Z,X,Y):-#accu(#d0(Z,X,Y),tuple(#special)),#accu(#d0(Z,X,Y),tuple(1,q(A))),#accu(#d0(Z,X,Y),tuple(0,a(B,Y))),#accu(#d0(Z,X,Y),tuple(3,X,1)).\n"
         "% positive component\n"
@@ -215,47 +216,37 @@ void TestProgram::test_toGround() {
         "% component\n"
         "#external.\n"
         "% component\n"
-        "#accu(empty,#d0(Y,X),()):-p(X,Y,Z).\n"
+        "#d0(Y,X):-p(X,Y,Z).\n"
         "% component\n"
-        "#accu(cond,#d0(Y,X),(0,)):-:-#accu(empty,#d0(Y,X),())!.\n"
+        "#complete(#d0(Y,X)):-[#d0(Y,X)!].\n"
         "% component\n"
-        "#accu(head(a(B,Y)),#d0(Y,X),(0,)):-:-#accu(cond,#d0(Y,X),(0,))!.\n"
+        "#complete(#d0(Y,X)):-r(A,X),[#d0(Y,X)!].\n"
         "% component\n"
-        "#accu(cond,#d0(Y,X),(A,1)):-r(A,X):-#accu(empty,#d0(Y,X),())!.\n"
-        "% component\n"
-        "#accu(head(q(A)),#d0(Y,X),(A,1)):-:-#accu(cond,#d0(Y,X),(A,1))!.\n"
-        "% component\n"
-        "a(B,Y)|q(A):-#accu(#Any1,#d0(Y,X),#Any2)!"),
+        "a(B,Y);q(A):-#complete(#d0(Y,X))!"),
         toString(parse("q(A):r(A,X);a(B,Y):-p(X,Y,Z).")));
     CPPUNIT_ASSERT_EQUAL(S(
         "% component\n"
         "#external.\n"
         "% component\n"
-        "#accu(empty,#d0(Y,X),()):-p(X,Y,Z).\n"
+        "#d0(Y,X):-p(X,Y,Z).\n"
         "% component\n"
-        "#accu(cond,#d0(Y,X),(0,)):-:-#accu(empty,#d0(Y,X),())!.\n"
+        "#complete(#d0(Y,X)):-[#d0(Y,X)!].\n"
         "% component\n"
-        "#accu(head(a(B,Y)),#d0(Y,X),(0,)):-:-#accu(cond,#d0(Y,X),(0,))!.\n"
+        "#complete(#d0(Y,X)):-q(X),[#d0(Y,X)!].\n"
         "% component\n"
-        "#accu(cond,#d0(Y,X),(1,)):-q(X):-#accu(empty,#d0(Y,X),())!.\n"
+        "#complete(#d0(Y,X)):-r(A,X),[#d0(Y,X)!].\n"
         "% component\n"
-        "#accu(head,#d0(Y,X),(1,)):-X<=1:-#accu(cond,#d0(Y,X),(1,))!.\n"
-        "% component\n"
-        "#accu(cond,#d0(Y,X),(A,2)):-r(A,X):-#accu(empty,#d0(Y,X),())!.\n"
-        "% component\n"
-        "#accu(head,#d0(Y,X),(A,2)):-not not q(A):-#accu(cond,#d0(Y,X),(A,2))!.\n"
-        "% component\n"
-        "a(B,Y):-#accu(#Any1,#d0(Y,X),#Any2)!"),
+        "a(B,Y);#false:X<=1;#false:not not q(A):-#complete(#d0(Y,X))!"),
         toString(parse("not q(A):r(A,X);a(B,Y);X>1:q(X):-p(X,Y,Z).")));
     CPPUNIT_ASSERT_EQUAL(S(
         "% component\n"
         "#external.\n"
         "% positive component\n"
-        "#accu(#d0(Z,X,Y),tuple(#special)):-:-p(X,Y,Z),0>Z.\n"
+        "#accu(#d0(Z,X,Y),tuple(#special)):-[p(X,Y,Z)],0>Z.\n"
         "% positive component\n"
-        "#accu(#d0(Z,X,Y),tuple(A)):-q(A),r(A,X):-p(X,Y,Z).\n"
+        "#accu(#d0(Z,X,Y),tuple(A)):-[p(X,Y,Z)],q(A),r(A,X).\n"
         "% positive component\n"
-        "#accu(#d0(Z,X,Y),tuple(B,Y)):-a(B,Y):-p(X,Y,Z).\n"
+        "#accu(#d0(Z,X,Y),tuple(B,Y)):-[p(X,Y,Z)],a(B,Y).\n"
         "% positive component\n"
         "#d0(Z,X,Y):-#accu(#d0(Z,X,Y),tuple(#special)),#accu(#d0(Z,X,Y),tuple(A)),#accu(#d0(Z,X,Y),tuple(B,Y)).\n"
         "% positive component\n"

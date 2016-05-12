@@ -34,14 +34,14 @@ namespace Clasp {
  */
 class CBConsequences : public Enumerator {
 public:
-	enum Consequences_t { 
-		brave_consequences    = (Model::max_value << 1) | Model::model_cons,
-		cautious_consequences = (Model::max_value << 2) | Model::model_cons,
+	enum Type { 
+		Brave    = Model::Brave,
+		Cautious = Model::Cautious,
 	};
 	/*!
 	 * \param type Type of consequences to compute.
 	 */
-	explicit CBConsequences(Consequences_t type);
+	explicit CBConsequences(Type type);
 	~CBConsequences();
 	int  modelType() const { return type_; }
 	bool exhaustive()const { return true; }
@@ -49,10 +49,11 @@ private:
 	class  CBFinder;
 	class  SharedConstraint;
 	ConPtr doInit(SharedContext& ctx, SharedMinimizeData* m, int numModels);
-	void   addCurrent(Solver& s, LitVec& con, ValueVec& m);
+	void   addLit(SharedContext& ctx, Literal p);
+	void   addCurrent(Solver& s, LitVec& con, ValueVec& m, uint32 rootL = 0);
 	LitVec            cons_;
 	SharedConstraint* shared_;
-	Consequences_t    type_;
+	Type              type_;
 };
 
 }

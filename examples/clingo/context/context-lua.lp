@@ -10,7 +10,7 @@ function State.new(val)
 end
 
 function State:test(value)
-    return self.value + value
+    return self.value + value.number
 end
 
 function State:on_model(m)

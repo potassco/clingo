@@ -25,12 +25,14 @@
 
 namespace Clasp { namespace mt { namespace Detail {
 
+struct RawNode;
+typedef Clasp::Atomic_t<RawNode*>::type SafeNodePtr;
 struct RawNode {
-	Clasp::atomic<RawNode*> next;
+	SafeNodePtr next;
 };
 // Lock-free stack that is NOT ABA-safe by itself
 struct RawStack {
-	RawStack() { top = 0; }
+	RawStack() { top = static_cast<RawNode*>(0); }
 	RawNode* tryPop() {
 		RawNode* n = 0, *next = 0;
 		do {
@@ -49,7 +51,7 @@ struct RawStack {
 			n->next    = assumedTop;
 		} while (top.compare_and_swap(n, assumedTop) != assumedTop);
 	}
-	Clasp::atomic<RawNode*> top;
+	SafeNodePtr top;
 };
 struct DefaultDeleter { 
 	template <class T> 
@@ -71,10 +73,11 @@ template <class T, class Deleter = Detail::DefaultDeleter>
 class MultiQueue {
 protected:
 	typedef Detail::RawNode RawNode;
+	typedef Clasp::Atomic_t<int>::type SafeInt;
 	struct Node : Detail::RawNode {
 		explicit Node(uint32 rc, const T& d) : data(d) { next = 0; refs = rc; }
-		Clasp::atomic<int> refs;
-		T                  data;
+		SafeInt refs;
+		T       data;
 	};
 public:
 	typedef Detail::RawNode* ThreadId;
@@ -85,7 +88,7 @@ public:
 	}
 	uint32 maxThreads() const { return maxQ_; }
 	void reserve(uint32 c) {
-		struct NodeHead : RawNode { Clasp::atomic<int> refs; };
+		struct NodeHead : RawNode { SafeInt refs; };
 		for (uint32 i = 0; i != c; ++i) {
 			free_.push(new (::operator new(sizeof(Node))) NodeHead());
 		}
@@ -173,8 +176,8 @@ protected:
 
 	//! Non-atomically adds n to the global queue
 	void publishRelaxed(Node* n) {
-		tail_->next = n;
-		tail_       = n;
+		static_cast<RawNode*>(tail_)->next = n;
+		tail_ = n;
 	}
 	uint32 maxQ() const { return maxQ_; }
 	Node*  allocate(uint32 maxR, const T& in) {
@@ -196,16 +199,16 @@ private:
 	Node*toNode(Detail::RawNode* x) const { return static_cast<Node*>(x); }
 	void release(Detail::RawNode* n) {
 		if (n != &head_ && --toNode(n)->refs == 0) {
-			head_.next = n->next;
+			head_.next = static_cast<RawNode*>(n->next);
 			deleter_(toNode(n)->data);
 			free_.push(n);
 		}
 	}
-	RawNode                 head_;
-	Clasp::atomic<RawNode*> tail_;
-	Detail::RawStack        free_;
-	const uint32            maxQ_;
-	Deleter                 deleter_;
+	RawNode             head_;
+	Detail::SafeNodePtr tail_;
+	Detail::RawStack    free_;
+	const uint32        maxQ_;
+	Deleter             deleter_;
 };
 
 //! Unbounded non-intrusive lock-free multi-producer single consumer queue.
@@ -217,6 +220,7 @@ class MPSCPtrQueue {
 public:
 	typedef Detail::RawNode RawNode;
 	struct Node : RawNode { void* data; };
+	typedef Clasp::Atomic_t<Node*>::type SafeNodePtr;
 	Node* toNode(RawNode* n) const { return static_cast<Node*>(n); }
 	MPSCPtrQueue() {}
 	void init(Node* sent) {
@@ -225,7 +229,7 @@ public:
 		head_      = sent;
 		tail_      = sent;
 	}
-	bool empty() const { return !tail_->next; }
+	bool empty() const { return !static_cast<RawNode*>(tail_->next); }
 	void push(Node* n) {
 		n->next = 0;
 		Node* p = head_.fetch_and_store(n);
@@ -243,9 +247,9 @@ public:
 private:
 	MPSCPtrQueue(const MPSCPtrQueue&);
 	MPSCPtrQueue& operator=(const MPSCPtrQueue&);
-	Clasp::atomic<Node*> head_; // producers
-	char                 pad_[64 - sizeof(Node*)];
-	Node*                tail_; // consumer
+	SafeNodePtr head_; // producers
+	char        pad_[64 - sizeof(Node*)];
+	Node*       tail_; // consumer
 };
 
 } } // end namespace Clasp::mt

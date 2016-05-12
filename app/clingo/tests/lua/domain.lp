@@ -6,22 +6,22 @@ q(X) :- p(X).
 
 #script (lua)
 
-gringo = require("gringo")
+clingo = require("clingo")
 
 function main(prg)
     prg:ground({{"base", {}}})
     print "Solving..."
     print "Answer: 1"
-    out = "universe(" .. tostring(#prg.domains) .. ")"
-    for x in prg.domains:iter() do
-        out = out .. " domain(" .. tostring(x.atom) .. "," .. tostring(x.is_fact) .. "," .. tostring(x.is_external) .. ")"
+    out = "universe(" .. tostring(#prg.symbolic_atoms) .. ")"
+    for x in prg.symbolic_atoms:iter() do
+        out = out .. " domain(" .. tostring(x.symbol) .. "," .. tostring(x.is_fact) .. "," .. tostring(x.is_external) .. ")"
     end
-    out = out .. " in_domain(p(2)," .. tostring(prg.domains:lookup(gringo.Fun("p", {3})) ~= nil) .. ")"
-    out = out .. " in_domain(p(4)," .. tostring(prg.domains:lookup(gringo.Fun("p", {4})) ~= nil) .. ")"
-    for x in prg.domains:by_signature("p", 1) do
-        out = out .. " domain_of_p(" .. tostring(x.atom) .. "," .. tostring(x.is_fact) .. "," .. tostring(x.is_external) .. ")"
+    out = out .. " in_domain(p(2)," .. tostring(prg.symbolic_atoms:lookup(clingo.fun("p", {3})) ~= nil) .. ")"
+    out = out .. " in_domain(p(4)," .. tostring(prg.symbolic_atoms:lookup(clingo.fun("p", {4})) ~= nil) .. ")"
+    for x in prg.symbolic_atoms:by_signature("p", 1) do
+        out = out .. " domain_of_p(" .. tostring(x.symbol) .. "," .. tostring(x.is_fact) .. "," .. tostring(x.is_external) .. ")"
     end
-    for i,x in ipairs(prg.domains:signatures()) do
+    for i,x in ipairs(prg.symbolic_atoms.signatures) do
         out = out .. " sig(" .. x[1] .. "," .. tostring(x[2]) .. ")"
     end
     print (out)

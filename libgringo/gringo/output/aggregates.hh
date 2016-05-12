@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -24,28 +24,29 @@
 #include <gringo/terms.hh>
 #include <gringo/domain.hh>
 #include <gringo/intervals.hh>
-#include <gringo/unique_list.hh>
 #include <gringo/output/literal.hh>
 
 namespace Gringo { namespace Output {
 
-using ULitValVec        = std::vector<std::pair<ULit, Value>>;
-using BdAggrElemSet     = unique_list<std::pair<FWValVec, std::vector<ULitVec>>, extract_first<FWValVec>>;
-using Interval          = IntervalSet<Value>::Interval;
+using BodyAggregateElements = UniqueVec<std::pair<FWValVec, Formula>, HashFirst<FWValVec>, EqualToFirst<FWValVec>>;
+using HeadFormula = std::vector<std::pair<LiteralId, ClauseId>>;
+using HeadAggregateElements = UniqueVec<std::pair<FWValVec, HeadFormula>, HashFirst<FWValVec>, EqualToFirst<FWValVec>>;
 using DisjunctiveBounds = IntervalSet<Value>;
+using Interval = DisjunctiveBounds::Interval;
 using ConjunctiveBounds = std::vector<std::pair<Interval, Interval>>;
-using ULitUintVec       = std::vector<std::pair<ULit,unsigned>>;
-using IntVec            = std::vector<int>;
+using PlainBounds = std::vector<std::pair<Relation, Value>>;
+using LitValVec = std::vector<std::pair<LiteralId, Value>>;
+using LitUintVec = std::vector<std::pair<LiteralId, unsigned>>;
 
 struct AggregateAnalyzer {
     enum Monotonicity { MONOTONE, ANTIMONOTONE, CONVEX, NONMONOTONE };
     enum WeightType { MIXED, POSITIVE, NEGATIVE };
-    enum Truth { TRUE, FALSE, OPEN };
+    enum Truth { True, False, Open };
     using ConjunctiveBounds = std::vector<std::pair<Interval, Interval>>;
 
-    AggregateAnalyzer(NAF naf, DisjunctiveBounds const &disjunctiveBounds, AggregateFunction fun, Interval range, BdAggrElemSet const &elems);
+    AggregateAnalyzer(DomainData &data, NAF naf, DisjunctiveBounds const &disjunctiveBounds, AggregateFunction fun, Interval range, BodyAggregateElements const &elems);
     void print(std::ostream &out);
-    ULitValVec translateElems(LparseTranslator &x, AggregateFunction fun, BdAggrElemSet const &bdElems, bool incomplete);
+    LitValVec translateElems(DomainData &data, Translator &x, AggregateFunction fun, BodyAggregateElements const &bdElems, bool incomplete);
 
     Monotonicity monotonicity;
     WeightType weightType;
@@ -54,26 +55,38 @@ struct AggregateAnalyzer {
     Interval range;
 };
 
-struct MinMaxTranslator {
-    ULit translate(LparseTranslator &x, AggregateAnalyzer &res, bool isMin, ULitValVec &&elems, bool incomplete);
+inline Value getNeutral(AggregateFunction fun) {
+    switch (fun) {
+        case AggregateFunction::COUNT:
+        case AggregateFunction::SUMP:
+        case AggregateFunction::SUM: { return Value::createNum(0); }
+        case AggregateFunction::MIN: { return Value::createSup(); }
+        case AggregateFunction::MAX: { return Value::createInf(); }
+    }
+    assert(false);
+    return {};
+}
+
+LiteralId getEqualClause(DomainData &data, Translator &x, std::pair<Id_t, Id_t> clause, bool conjunctive, bool equivalence);
+LiteralId getEqualFormula(DomainData &data, Translator &x, Formula const &formula, bool conjunctive, bool equivalence);
+LiteralId getEqualAggregate(DomainData &data, Translator &x, AggregateFunction fun, NAF naf, DisjunctiveBounds const &bounds, Interval const &range, BodyAggregateElements const &bdElems, bool recursive);
+
+class MinMaxTranslator {
+public:
+    LiteralId translate(DomainData &data, Translator &x, AggregateAnalyzer &res, bool isMin, LitValVec &&elems, bool incomplete);
 };
 
 struct SumTranslator {
     SumTranslator() { }
-    void addLiteral(LparseTranslator &x, ULit const &lit, int weight, bool recursive);
-    void translate(LparseTranslator &x, ULit const &head, int bound, ULitUintVec const &litsPosRec, ULitUintVec const &litsNegRec, ULitUintVec const &litsPosStrat, ULitUintVec const &litsNegStrat);
-    ULit translate(LparseTranslator &x, ConjunctiveBounds &bounds, bool convex, bool invert);
+    void addLiteral(DomainData &data, LiteralId const &lit, Potassco::Weight_t weight, bool recursive);
+    void translate(DomainData &data, Translator &x, LiteralId const &head, Potassco::Weight_t bound, LitUintVec const &litsPosRec, LitUintVec const &litsNegRec, LitUintVec const &litsPosStrat, LitUintVec const &litsNegStrat);
+    LiteralId translate(DomainData &data, Translator &x, ConjunctiveBounds &bounds, bool convex, bool invert);
 
-    ULitUintVec litsPosRec;
-    ULitUintVec litsNegRec;
-    ULitUintVec litsPosStrat;
-    ULitUintVec litsNegStrat;
+    LitUintVec litsPosRec;
+    LitUintVec litsNegRec;
+    LitUintVec litsPosStrat;
+    LitUintVec litsNegStrat;
 };
-
-ULit getEqualClause(LparseTranslator &x, ULitVec &&clause, bool conjunctive, bool equivalence);
-ULit getEqualClause(LparseTranslator &x, ULitVec const &clause, bool conjunctive, bool equivalence);
-ULit getEqualFormula(LparseTranslator &x, std::vector<ULitVec> const &clauses, bool conjunctive, bool equivalence);
-ULit getEqualAggregate(LparseTranslator &x, AggregateFunction fun, NAF naf, DisjunctiveBounds const &bounds, Interval const &range, BdAggrElemSet const &bdElems, bool incomplete);
 
 } } // namespace Output Gringo
 

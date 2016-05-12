@@ -16,18 +16,18 @@ unsatisfiable problem is encountered. The two major operation modes of main.py
 are multi-shot solving or repeated single-shot solving (via option --scratch).
 For a summary of all options, run:
 
-./main.py
+./main.py --help
 
-The script main.py requires the gringo Python library shipped with clingo (see
+The script main.py requires the clingo Python library shipped with clingo (see
 http://potassco.sourceforge.net).
 
 Examples invocations:
 
-$ ./main.py --verbose --option="solver.forget_on_step 1" \
+$ ./main.py --verbose --option solver.forget_on_step 1 \
     GraphColouring/encodings/encoding.lp \
     GraphColouring/instances/0004-graph_colouring-125-0.lp
 
-$ ./main.py --verbose --option="solver.forget_on_step 1" --maxobj=40 \
+$ ./main.py --verbose --option solver.forget_on_step 1 --maxobj 40 \
     PartnerUnits/encodings/encoding.lp \
     PartnerUnits/instances/180-partner_units_polynomial-47-0.lp
 

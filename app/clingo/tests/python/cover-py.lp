@@ -1,6 +1,6 @@
 #script (python)
 
-import gringo
+import clingo
 import sys
 
 class State:
@@ -9,13 +9,13 @@ class State:
         self.last = None
 
     def fix(self, k):
-        return self.leaves.get(k-1, [])
+        return self.leaves.get(k.number-1, [])
 
     def on_model(self, m):
-        self.last = m.atoms(gringo.Model.ATOMS)
+        self.last = m.atoms(atoms=True)
         for atom in self.last:
-            if atom.name() == "leaf":
-                args = atom.args()
+            if atom.name == "leaf":
+                args = atom.args
                 self.leaves[args[0]] = args[1]
 
     def prepare_instance(self, k):
@@ -23,21 +23,21 @@ class State:
         cover = []
         vertices = set()
         for atom in self.last:
-            if atom.name() == "edge":
-                args = atom.args()
-                if args[0] == k-1:
+            if atom.name == "edge":
+                args = atom.args
+                if args[0].number == k-1:
                     edges.append((args[1], args[2]))
                     vertices.add(args[1])
                     vertices.add(args[2])
-            if atom.name() == "cover":
-                cover.append(atom.args()[1])
+            if atom.name == "cover":
+                cover.append(atom.args[1])
         vertices = list(vertices)
         setattr(self, "edge", lambda: edges)
         setattr(self, "cover", lambda: cover)
         setattr(self, "vertex", lambda: vertices)
 
     def run(self, prg):
-        pre = gringo.Control()
+        pre = clingo.Control()
         pre.add("base", [], """
 edge(a,(b;c)).
 edge(b,(c;d)).
@@ -64,9 +64,9 @@ edge(k,X,Y) :- edge(k-1,X,Y), not cover(k,X), not cover(k,Y).
         pre.ground([("base", [])])
         ret = pre.solve(on_model = self.on_model)
         k = 0
-        while ret == gringo.SolveResult.SAT:
+        while ret.satisfiable is True:
             k = k + 1
-            pre.cleanup_domains()
+            pre.cleanup()
             pre.ground([("step", [k])], self)
             ret = pre.solve(on_model = self.on_model)
         self.prepare_instance(k)

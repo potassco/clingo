@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -22,49 +22,36 @@
 #define _GRINGO_CONTROL_HH
 
 #include <gringo/value.hh>
+#include <gringo/types.hh>
+#include <gringo/locatable.hh>
+#include <gringo/backend.hh>
+#include <potassco/clingo.h>
 
 namespace Gringo {
 
-enum class SolveResult { UNKNOWN=0, SAT=1, UNSAT=2 };
+// {{{1 declaration of SolveResult
 
-// {{{1 declaration of Any
+class SolveResult {
+public:
+    enum Satisfiabily : unsigned { Unknown=0, Satisfiable=1, Unsatisfiable=2 };
+    SolveResult(Satisfiabily status, bool exhausted, bool interrupted)
+    : repr_(static_cast<unsigned>(status) | (exhausted << 2) | (interrupted << 3)) { }
+    SolveResult(unsigned repr)
+    : repr_(repr) { }
+    Satisfiabily satisfiable() const { return static_cast<Satisfiabily>(repr_ & 3); }
+    bool exhausted() const { return (repr_ >> 2) & 1; }
+    bool interrupted() const { return (repr_ >> 3) & 1; }
+    operator unsigned() const { return repr_; }
+private:
+    unsigned repr_;
+};
 
-struct Any {
-    struct PlaceHolder {
-        virtual ~PlaceHolder() { };
-    };
-    template <class T>
-    struct Holder : public PlaceHolder {
-        Holder(T const &value) : value(value) { }
-        Holder(T&& value) : value(std::forward<T>(value)) { }
-        T value;
-    };
-    Any() : content(nullptr) { }
-    Any(Any &&other) : content(nullptr) { std::swap(content, other.content); }
-    template<typename T>
-    Any(T &&value) : content(new Holder<T>(std::forward<T>(value))) { }
-    template<typename T>
-    Any(T const &value) : content(new Holder<T>(value)) { }
-    ~Any() { delete content; }
+// {{{1 declaration of Context
 
-    Any &operator=(Any &&other) {
-        std::swap(content, other.content);
-        return *this;
-    }
-
-    template<typename T>
-    T *get() {
-        auto x = dynamic_cast<Holder<T>*>(content);
-        return x ? &x->value : nullptr;
-    }
-    template<typename T>
-    T const *get() const {
-        auto x = dynamic_cast<Holder<T>*>(content);
-        return x ? &x->value : nullptr;
-    }
-    bool empty() const { return !content; }
-
-    PlaceHolder *content = nullptr;
+struct Context {
+    virtual bool callable(FWString name) const = 0;
+    virtual ValVec call(Location const &loc, FWString name, ValVec const &args) = 0;
+    virtual ~Context() noexcept = default;
 };
 
 // {{{1 declaration of Model
@@ -72,14 +59,14 @@ struct Any {
 using Int64Vec = std::vector<int64_t>;
 
 struct Model {
-    using LitVec = std::vector<std::pair<bool,Gringo::Value>>;
+    using LitVec = std::vector<std::pair<Gringo::Value, bool>>;
     static const unsigned CSP   = 1;
     static const unsigned SHOWN = 2;
     static const unsigned ATOMS = 4;
     static const unsigned TERMS = 8;
     static const unsigned COMP  = 16;
     virtual bool contains(Value atom) const = 0;
-    virtual ValVec atoms(int showset) const = 0;
+    virtual ValVec const &atoms(int showset) const = 0;
     virtual Int64Vec optimization() const = 0;
     virtual void addClause(LitVec const &lits) const = 0;
     virtual ~Model() { }
@@ -130,7 +117,7 @@ struct ConfigProxy {
     virtual unsigned getSubKey(unsigned key, char const *name) = 0;
     virtual unsigned getArrKey(unsigned key, unsigned idx) = 0;
     virtual void getKeyInfo(unsigned key, int* nSubkeys = 0, int* arrLen = 0, const char** help = 0, int* nValues = 0) const = 0;
-	virtual const char* getSubKeyName(unsigned key, unsigned idx) const = 0;
+    virtual const char* getSubKeyName(unsigned key, unsigned idx) const = 0;
     virtual bool getKeyValue(unsigned key, std::string &value) = 0;
     virtual void setKeyValue(unsigned key, const char *val) = 0;
     virtual unsigned getRootKey() = 0;
@@ -143,6 +130,7 @@ struct DomainProxy {
     using ElementPtr = std::unique_ptr<Element>;
     struct Element {
         virtual Value atom() const = 0;
+        virtual Potassco::Lit_t literal() const = 0;
         virtual bool fact() const = 0;
         virtual bool external() const = 0;
         virtual ElementPtr next() = 0;
@@ -157,36 +145,106 @@ struct DomainProxy {
     virtual ~DomainProxy() { }
 };
 
+struct TheoryData {
+    enum class TermType { Tuple, List, Set, Function, Number, Symbol };
+    enum class AtomType { Head, Body, Directive };
+
+    virtual TermType termType(Id_t) const = 0;
+    virtual int termNum(Id_t value) const = 0;
+    virtual char const *termName(Id_t value) const = 0;
+    virtual Potassco::IdSpan termArgs(Id_t value) const = 0;
+    virtual Potassco::IdSpan elemTuple(Id_t value) const = 0;
+    // This shall map to ids of literals in aspif format.
+    virtual Potassco::LitSpan elemCond(Id_t value) const = 0;
+    virtual Lit_t elemCondLit(Id_t value) const = 0;
+    virtual Potassco::IdSpan atomElems(Id_t value) const = 0;
+    virtual Potassco::Id_t atomTerm(Id_t value) const = 0;
+    virtual bool atomHasGuard(Id_t value) const = 0;
+    virtual Potassco::Lit_t atomLit(Id_t value) const = 0;
+    virtual std::pair<char const *, Id_t> atomGuard(Id_t value) const = 0;
+    virtual Potassco::Id_t numAtoms() const = 0;
+    virtual std::string termStr(Id_t value) const = 0;
+    virtual std::string elemStr(Id_t value) const = 0;
+    virtual std::string atomStr(Id_t value) const = 0;
+    virtual ~TheoryData() noexcept = default;
+};
+
+// {{{1 declaration of Propagator
+
+struct Propagator : Potassco::AbstractPropagator {
+    struct Init {
+        virtual TheoryData const &theory() const = 0;
+        virtual DomainProxy &getDomain() = 0;
+        virtual Lit_t mapLit(Lit_t lit) = 0;
+        virtual void addWatch(Lit_t lit) = 0;
+        virtual int threads() = 0;
+        virtual ~Init() noexcept = default;
+    };
+    virtual ~Propagator() noexcept = default;
+    virtual void init(Init &init) = 0;
+};
+
+// {{{1 declaration of AST
+
+struct ASTLocation {
+    char const *begin_file;
+    char const *end_file;
+    size_t begin_line;
+    size_t end_line;
+    size_t begin_column;
+    size_t end_column;
+};
+struct AST {
+    ASTLocation location;
+    Value value;
+    Potassco::Span<AST> children;
+};
+
+// {{{1 declaration of ASPIFWriter
+
+struct ASPIFProgram {
+    virtual Potassco::Atom_t addAtom() = 0;
+    virtual void addRule(Potassco::AtomSpan head, Potassco::LitSpan body, bool choice) = 0;
+    virtual void addWeightRule(Potassco::AtomSpan head, Potassco::Weight_t lower, Potassco::WeightLitSpan body, bool choice) = 0;
+    virtual ~ASPIFProgram() noexcept = default;
+};
+
 // {{{1 declaration of Control
 
 using FWStringVec = std::vector<FWString>;
 
 struct Control {
-    using ModelHandler    = std::function<bool (Model const &)>;
-    using FinishHandler   = std::function<void (SolveResult, bool)>;
-    using Assumptions     = std::vector<std::pair<Value, bool>>;
-    using GroundVec       = std::vector<std::pair<std::string, FWValVec>>;
-    using NewControlFunc  = Control* (*)(int, char const **);
+    using ModelHandler = std::function<bool (Model const &)>;
+    using FinishHandler = std::function<void (SolveResult)>;
+    using Assumptions = std::vector<std::pair<Value, bool>>;
+    using GroundVec = std::vector<std::pair<std::string, FWValVec>>;
+    using NewControlFunc = Control* (*)(int, char const **);
     using FreeControlFunc = void (*)(Control *);
 
     virtual ConfigProxy &getConf() = 0;
     virtual DomainProxy &getDomain() = 0;
 
-    virtual void ground(GroundVec const &vec, Any &&context) = 0;
-    virtual void prepareSolve(Assumptions &&assumptions) = 0;
-    virtual SolveResult solve(ModelHandler h) = 0;
-    virtual SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh) = 0;
-    virtual SolveIter *solveIter() = 0;
+    virtual void ground(GroundVec const &vec, Context *context) = 0;
+    virtual SolveResult solve(ModelHandler h, Assumptions &&assumptions) = 0;
+    virtual SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&assumptions) = 0;
+    virtual SolveIter *solveIter(Assumptions &&assumptions) = 0;
+    virtual void interrupt() = 0;
     virtual void add(std::string const &name, FWStringVec const &params, std::string const &part) = 0;
     virtual void load(std::string const &filename) = 0;
     virtual Value getConst(std::string const &name) = 0;
     virtual bool blocked() = 0;
-    virtual void assignExternal(Value ext, TruthValue val) = 0;
+    virtual void assignExternal(Value ext, Potassco::Value_t val) = 0;
     virtual Statistics *getStats() = 0;
     virtual void useEnumAssumption(bool enable) = 0;
     virtual bool useEnumAssumption() = 0;
     virtual void cleanupDomains() = 0;
-    virtual ~Control() { }
+    virtual TheoryData const &theory() const = 0;
+    virtual void registerPropagator(Propagator &p, bool sequential) = 0;
+    virtual void parse(char const *program, std::function<void(AST const &)> cb) = 0;
+    virtual void add(std::function<AST const *()> cb) = 0;
+    virtual Potassco::Atom_t addProgramAtom() = 0;
+    virtual Backend *backend() = 0;
+    virtual ~Control() noexcept = default;
 };
 
 // {{{1 declaration of Gringo
@@ -195,7 +253,7 @@ struct GringoModule {
     virtual Control *newControl(int argc, char const **argv) = 0;
     virtual void freeControl(Control *ctrl) = 0;
     virtual Value parseValue(std::string const &repr) = 0;
-    virtual ~GringoModule() { }
+    virtual ~GringoModule() noexcept = default;
 };
 
 // }}}1

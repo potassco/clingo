@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -26,16 +26,10 @@
 
 namespace Gringo { namespace Ground {
 
-struct Queue;
-
 // {{{ declaration of Statement
 
-struct Statement;
-using UStm       = std::unique_ptr<Statement>;
-using UStmVec    = std::vector<UStm>;
-using UStmVecVec = std::vector<UStmVec>;
-
-struct Statement : Printable {
+class Statement : public Printable {
+public:
     using Dep = Dependency<UStm, HeadOccurrence>;
     virtual bool isNormal() const = 0;
     virtual void analyze(Dep::Node &node, Dep &dep) = 0;

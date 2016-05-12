@@ -134,7 +134,7 @@ function main(prg)
     parts = {}
     parts[#parts+1] = {"init", {1, 0}}
     parts[#parts+1] = {"state", {1, 0}}
-    prg:cleanup_domains()
+    prg:cleanup()
     prg:ground(parts)
 	prg:solve()
 
@@ -149,7 +149,7 @@ function main(prg)
 		    parts[#parts+1] = {"move", {j,i}}
         end
     end
-    prg:cleanup_domains()
+    prg:cleanup()
     prg:ground(parts)
 	prg:solve()
 
@@ -166,7 +166,7 @@ function main(prg)
 		parts[#parts+1] = {"move", {j,3}}
     end
 	parts[#parts+1] = {"table", {3}}
-    prg:cleanup_domains()
+    prg:cleanup()
     prg:ground(parts)
 	prg:solve()
 
@@ -183,7 +183,7 @@ function main(prg)
 		parts[#parts+1] = {"move", {j,4}}
     end
 	parts[#parts+1] = {"table", {4}}
-    prg:cleanup_domains()
+    prg:cleanup()
     prg:ground(parts)
 	prg:solve()
 
@@ -201,7 +201,7 @@ function main(prg)
 			parts[#parts+1] = {"move", {j,i}}
         end
     end
-    prg:cleanup_domains()
+    prg:cleanup()
     prg:ground(parts)
 	prg:solve()
 end

@@ -45,6 +45,7 @@ class ClaspCliConfig;
 class ConfigIter {
 public:
 	const char* name() const;
+	const char* base() const;
 	const char* args() const;
 	bool        valid()const;
 	bool        next();
@@ -64,7 +65,7 @@ enum ConfigKey {
 	config_max_value,
 	config_asp_default   = config_tweety,
 	config_sat_default   = config_trendy,
-	config_tester_default= config_frumpy,
+	config_tester_default= config_tester,
 };
 /*!
  * Configuration object for storing/processing command-line options.
@@ -81,13 +82,8 @@ enum ConfigKey {
  *     - A stats level once activated stays activated even if 
  *       level is subsequently decreased via option.
  *     .
- * - init-moms, score_res, score-other, berk-huang: State fixed on init.
- *     - The options apply to the active decision heuristic and are set
- *       once during construction of the heuristic. 
- *     - They are updated only if the heuristic changes or forget-on-step includes heuristic
- *     .
- * - save-progress, sign-fix, opt-heuristic, dom-mod: No unset of previously set values.
- *     - Once set, signs/modifications are only unset if forgetOnStep includes heuristic
+ * - save-progress, sign-fix, opt-heuristic: No unset of previously set values.
+ *     - Once set, signs are only unset if forgetOnStep includes sign.
  *     . 
  * - no-lookback: State Transition (yes<->no) not supported.
  *     - noLookback=yes is a destructive meta-option that disables lookback-options by changing their value
@@ -106,6 +102,7 @@ public:
 	// Base interface
 	virtual void prepare(SharedContext&);
 	virtual void reset();
+	virtual Configuration* config(const char*);
 
 	/*!
 	 * \name Key-based low-level interface
@@ -116,10 +113,10 @@ public:
 	//@{
 
 	typedef uint32 KeyType;	
-	static const KeyType INVALID_KEY = (KeyType)-1; /**< Invalid key used to signal errors. */
-	static const KeyType KEY_ROOT;        /**< Root key of a configuration, i.e. "." */
-	static const KeyType KEY_TESTER;      /**< Root key for tester options, i.e. "tester." */
-	static const KeyType KEY_SOLVER;      /**< Root key for (array of) solver options, i.e. "solver." */
+	static const KeyType KEY_INVALID; /**< Invalid key used to signal errors. */
+	static const KeyType KEY_ROOT;    /**< Root key of a configuration, i.e. "." */
+	static const KeyType KEY_TESTER;  /**< Root key for tester options, i.e. "tester." */
+	static const KeyType KEY_SOLVER;  /**< Root key for (array of) solver options, i.e. "solver." */
 	
 	//! Returns true if k is a leaf, i.e. has not subkeys.
 	static bool  isLeafKey(KeyType k);
@@ -130,7 +127,7 @@ public:
 	 * \param name The name of the subkey to retrieve.
 	 * \return 
 	 *   - key, if name is 0 or empty.
-	 *   - INVALID_KEY, if name is not a subkey of key.
+	 *   - KEY_INVALID, if name is not a subkey of key.
 	 *   - A handle to the subkey.
 	 *   .
 	 */
@@ -142,7 +139,7 @@ public:
 	 * \param element The index of the element to retrieve.
 	 * \return
 	 *   - A handle to the requested element, or
-	 *   - INVALID_KEY, if arr does not reference an array or element is out of bounds.
+	 *   - KEY_INVALID, if arr does not reference an array or element is out of bounds.
 	 *   .
 	 */
 	KeyType getArrKey(KeyType arr, unsigned element) const;

@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -21,76 +21,83 @@
 #ifndef _GRINGO_OUTPUT_OUTPUT_HH
 #define _GRINGO_OUTPUT_OUTPUT_HH
 
-#include <gringo/output/statements.hh>
-#include <gringo/output/lparseoutputter.hh>
 #include <gringo/control.hh>
+#include <gringo/output/types.hh>
+#include <gringo/output/statements.hh>
+#include <gringo/output/theory.hh>
 
 namespace Gringo { namespace Output {
 
-struct PlainLparseOutputter : LparseOutputter {
-    PlainLparseOutputter(std::ostream &out);
-    virtual void incremental();
-    virtual void printBasicRule(unsigned head, LitVec const &body);
-    virtual void printChoiceRule(AtomVec const &head, LitVec const &body);
-    virtual void printCardinalityRule(unsigned head, unsigned lower, LitVec const &body);
-    virtual void printWeightRule(unsigned head, unsigned lower, LitWeightVec const &body);
-    virtual void printMinimize(LitWeightVec const &body);
-    virtual void printDisjunctiveRule(AtomVec const &head, LitVec const &body);
-    virtual unsigned falseUid();
-    virtual unsigned newUid();
-    virtual void finishRules();
-    virtual void printSymbol(unsigned atomUid, Value v);
-    virtual void printExternal(unsigned atomUid, TruthValue type);
-    virtual void finishSymbols();
-    virtual bool &disposeMinimize() { return disposeMinimize_; }
-    virtual ~PlainLparseOutputter();
-
-    std::ostream &out;
-    unsigned      uids             = 2;
-    bool          disposeMinimize_ = true;
+class TranslatorOutput : public AbstractOutput {
+public:
+    TranslatorOutput(UAbstractOutput &&out);
+    void output(DomainData &data, Statement &stm) override;
+private:
+    Translator trans_;
 };
 
-struct StmHandler {
-    virtual void operator()(Statement &x) = 0;
-    // TODO: this should go into a statement!!
-    virtual void operator()(PredicateDomain::element_type &head, TruthValue type) = 0;
-    virtual void incremental() { }
-    virtual void finish(OutputPredicates &outPreds) = 0;
-    virtual void atoms(int atomset, std::function<bool(unsigned)> const &isTrue, ValVec &atoms, OutputPredicates const &outPreds) = 0;
-    virtual void simplify(AssignmentLookup assignment) = 0;
-    virtual ~StmHandler() { }
+class TextOutput : public AbstractOutput {
+public:
+    TextOutput(std::string prefix, std::ostream &stream, UAbstractOutput &&out = nullptr);
+    void output(DomainData &data, Statement &stm) override;
+private:
+    std::string     prefix_;
+    std::ostream   &stream_;
+    UAbstractOutput out_;
 };
-using UStmHandler = std::unique_ptr<StmHandler>;
 
-enum class LparseDebug : unsigned { NONE = 0, PLAIN = 1, LPARSE = 2, ALL = 3 };
+class BackendOutput : public AbstractOutput {
+public:
+    BackendOutput(UBackend &&out);
+    void output(DomainData &data, Statement &stm) override;
+private:
+    UBackend out_;
+};
 
-struct OutputBase {
-    OutputBase(OutputPredicates &&outPreds, std::ostream &out, bool lparse = false);
-    OutputBase(OutputPredicates &&outPreds, LparseOutputter &out, LparseDebug debug = LparseDebug::NONE);
-    void output(Value const &val);
-    
-    std::pair<unsigned, unsigned> simplify(AssignmentLookup assignment);
+// TODO: rename (again)
+class OutputBase {
+public:
+    OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, std::ostream &out, OutputFormat format = OutputFormat::INTERMEDIATE, OutputDebug debug = OutputDebug::NONE);
+    OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, UBackend &&out, OutputDebug debug = OutputDebug::NONE);
+    OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, UAbstractOutput &&out);
+    template <typename T>
+    OutputBase(T create, Potassco::TheoryData &data, OutputPredicates &&outPreds, OutputDebug debug = OutputDebug::NONE)
+    : outPreds(std::move(outPreds))
+    , data(data)
+    , out_(fromBackend(create(this->data.theory()), debug)) { }
+
+    std::pair<Id_t, Id_t> simplify(AssignmentLookup assignment);
     void incremental();
-    void createExternal(PredicateDomain::element_type &head);
-    void assignExternal(PredicateDomain::element_type &head, TruthValue type);
-    void output(UStm &&x);
     void output(Statement &x);
     void flush();
-    void finish();
+    void init(bool incremental);
+    void beginStep();
+    void endStep(bool solve);
     void checkOutPreds();
-    ValVec atoms(int atomset, std::function<bool(unsigned)> const &isTrue) const;
-    PredicateDomain::element_type *find2(Gringo::Value val);
-    AtomState const *find(Gringo::Value val) const;
+    ValVec atoms(int atomset, IsTrueLookup lookup) const;
+    std::pair<PredicateDomain::Iterator, PredicateDomain*> find(Gringo::Value val);
+    std::pair<PredicateDomain::ConstIterator, PredicateDomain const *> find(Gringo::Value val) const;
+    PredDomMap &predDoms() { return data.predDoms(); }
+    PredDomMap const &predDoms() const { return data.predDoms(); }
+    Rule &tempRule(bool choice) { return tempRule_.reset(choice); }
+    ValVec &tempVals() { tempVals_.clear(); return tempVals_; }
+    LitVec &tempLits() { tempLits_.clear(); return tempLits_; }
+    Backend *backend();
+    void reset();
+private:
+    UAbstractOutput fromFormat(std::ostream &out, OutputFormat format, OutputDebug debug);
+    UAbstractOutput fromBackend(UBackend &&out, OutputDebug debug);
 
-    ValVec            tempVals;
-    LitVec            tempLits;
-    RuleRef           tempRule;   // Note: performance
-    PredDomMap        domains;
-    UStmVec           stms;
-    UStmHandler       handler;
-    OutputPredicates  outPreds;
-    OutputPredicates  outPredsForce;
-    bool              keepFacts = false;
+public:
+    ValVec tempVals_;
+    LitVec tempLits_;
+    Rule tempRule_;
+    LitVec delayed_;
+    OutputPredicates outPreds;
+    DomainData data;
+    OutputPredicates outPredsForce;
+    UAbstractOutput out_;
+    bool keepFacts = false;
 };
 
 } } // namespace Output Gringo

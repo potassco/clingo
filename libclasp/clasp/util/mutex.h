@@ -21,12 +21,11 @@
 #ifndef CLASP_UTIL_MUTEX_H_INCLUDED
 #define CLASP_UTIL_MUTEX_H_INCLUDED
 
-#if WITH_THREADS
+#if !defined(CLASP_USE_STD_THREAD)
 #if _WIN32||_WIN64
 #define WIN32_LEAN_AND_MEAN // exclude APIs such as Cryptography, DDE, RPC, Shell, and Windows Sockets.
 #define NOMINMAX            // do not let windows.h define macros min and max
 #endif
-
 #include <tbb/mutex.h>
 #include <tbb/spin_mutex.h>
 #if defined(TBB_IMPLEMENT_CPP0X)
@@ -40,46 +39,50 @@
 #define TBB_IMPLEMENT_CPP0X RESTORE_TBB_IMPLEMENT_CPP0X
 #undef RESTORE_TBB_IMPLEMENT_CPP0X
 #endif
-namespace Clasp { 
-	using tbb::mutex; 
-	using tbb::spin_mutex;
-	using tbb::interface5::condition_variable;
-	using tbb::interface5::lock_guard;
-	using tbb::interface5::unique_lock;
-	using tbb::interface5::swap;
-	using tbb::interface5::defer_lock_t;
-}
+#define NS_MUTEX tbb
+#define NS_COMPAT tbb::interface5
 #else
-namespace no_multi_threading {
-class NullMutex {   
-public:   
-	NullMutex()     {}
-	void lock()     {}
-	bool try_lock() { return true; }
-	void unlock()   {}
-private:
-	NullMutex(const NullMutex&);   
-	NullMutex& operator=(const NullMutex&);   
-};
-typedef NullMutex mutex; 
-typedef NullMutex spin_mutex;
-template<typename M>
-class lock_guard {
-public:
-	typedef M mutex_type;
-	explicit lock_guard(mutex_type& m) : pm(m) {m.lock();}
-	~lock_guard() { pm.unlock(); }
-private:
-	lock_guard(const lock_guard&);
-	lock_guard& operator=(const lock_guard&);
-	mutex_type& pm;
-};
-}
-namespace Clasp {
-	using no_multi_threading::mutex;
-	using no_multi_threading::lock_guard;
-	using no_multi_threading::spin_mutex;
-}
+#include <mutex>
+#include <condition_variable>
+#define NS_MUTEX  std
+#define NS_COMPAT std
 #endif
+namespace Clasp { namespace mt {
+	using NS_MUTEX::mutex;
+	using NS_COMPAT::lock_guard;
+	using NS_COMPAT::unique_lock;
+	using NS_COMPAT::swap;
+	using NS_COMPAT::defer_lock_t;
+	struct condition_variable : private NS_COMPAT::condition_variable {
+		typedef NS_COMPAT::condition_variable base_type;
+		using base_type::notify_one;
+		using base_type::notify_all;
+		using base_type::wait;
+		using base_type::native_handle;
+
+		bool wait_for(unique_lock<mutex>& lock, double timeInSecs);
+	};
+#if !defined(CLASP_USE_STD_THREAD)
+	// Due to a bug in the computation of the wait time in older tbb versions 
+	// wait_for might fail with eid_condvar_wait_failed.
+	// See: http://software.intel.com/en-us/forums/topic/280012
+	// Ignore the error and retry the wait - the computed wait time will be valid, eventually.
+	inline bool condition_variable::wait_for(unique_lock<mutex>& lock, double s) {
+		if (s < 0) { throw std::logic_error("invalid wait time"); }
+		for (;;) {
+			try { return base_type::wait_for(lock, tbb::tick_count::interval_t(s)) == NS_COMPAT::no_timeout; }
+			catch (const std::runtime_error&) {}
+		}
+	}
+#else
+	inline bool condition_variable::wait_for(unique_lock<mutex>& lock, double s) {
+		return base_type::wait_for(lock, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration<double>(s)))
+			== std::cv_status::no_timeout;
+	}
+#endif
+}}
+
+#undef NS_MUTEX 
+#undef NS_COMPAT
 
 #endif

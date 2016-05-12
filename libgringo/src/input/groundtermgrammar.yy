@@ -89,7 +89,6 @@ void GroundTermGrammar::parser::error(GroundTermGrammar::parser::location_type c
 %token <uid>
     IDENTIFIER "<IDENTIFIER>"
     STRING     "<STRING>"
-    NOT        "not"
 
 // {{{1 operator precedence and associativity
 

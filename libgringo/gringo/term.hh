@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -56,7 +56,7 @@ public:
 
     Defines();
     Defines(Defines &&x);
-    //! Add a define. 
+    //! Add a define.
     //! Default defintions will not overwrite existing definitions and can be overwritten by other defines.
     void add(Location const &loc, FWString name, UTerm &&value, bool defaultDef);
     //! Evaluates layered definitions and checks for cycles.
@@ -129,7 +129,7 @@ struct SimplifyState {
     SimplifyState() { }
     SimplifyState(SimplifyState const &) = delete;
     SimplifyState(SimplifyState &&)      = default;
-    
+
     std::unique_ptr<LinearTerm> createDots(Location const &loc, UTerm &&left, UTerm &&right);
     std::unique_ptr<LinearTerm> createScript(Location const &loc, FWString name, UTermVec &&args);
 
@@ -163,7 +163,7 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
     //! \pre the term must either be a function term or value term holding an identifier.
     //! \note unnecessary; can be deleted
     virtual void rename(FWString name) = 0;
-    //! Removes all occurrences of PoolTerm instances. 
+    //! Removes all occurrences of PoolTerm instances.
     //! Returns all unpooled incarnations of the term.
     //! \note The term becomes unusable after the method returns.
     //! \post The pool does not contain PoolTerm instances.
@@ -182,7 +182,7 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
     //! Removes anonymous variables in projectable positions (in outermost function symbols) from a term.
     //! The first element of the return value is a replacement term for the current term,
     //! which might be null if the term does not have to be replace..
-    //! The second and third can be used to create a projection rule 
+    //! The second and third can be used to create a projection rule
     //! where the second is the head and the third is the body element.
     //! \pre Must be called after simplify.
     //! \code{.cpp}
@@ -207,7 +207,7 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
     virtual Value eval(bool &undefined) const = 0;
     //! Returns true if the term evaluates to zero.
     //! \pre Must be called after simplify.
-	//! \pre Term is ground or 
+    //! \pre Term is ground or
     bool isZero() const;
     //! Collects variables in Terms.
     //! \pre Must be called after simplify and project to properly account for bound variables.
@@ -225,7 +225,7 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
     //! \note The term is unusable if the method returned a non-zero replacement term.
     //! \pre Must be called after assignLevel.
     virtual UTerm rewriteArithmetics(ArithmeticsMap &arith, AuxGen &auxGen, bool forceDefined = false) = 0;
-	virtual bool match(Value const &val) const = 0;
+    virtual bool match(Value const &val) const = 0;
     bool bind(VarSet &bound);
     virtual FWSignature getSig() const = 0;
     virtual UTerm renameVars(RenameMap &names) const = 0;
@@ -428,7 +428,7 @@ struct PoolTerm : public Term {
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
     virtual Value eval(bool &undefined) const;
-	virtual bool match(Value const &val) const;
+    virtual bool match(Value const &val) const;
     virtual FWSignature getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;
     virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;
@@ -465,7 +465,7 @@ struct ValTerm : public Term {
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
     virtual Value eval(bool &undefined) const;
-	virtual bool match(Value const &val) const;
+    virtual bool match(Value const &val) const;
     virtual FWSignature getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;
     virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;
@@ -502,7 +502,7 @@ struct VarTerm : Term {
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
     virtual Value eval(bool &undefined) const;
-	virtual bool match(Value const &val) const;
+    virtual bool match(Value const &val) const;
     virtual FWSignature getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;
     virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;
@@ -524,8 +524,8 @@ struct VarTerm : Term {
     virtual ~VarTerm();
 
     FWString name;
-	SVal ref;
-	bool bindRef;
+    SVal ref;
+    bool bindRef;
     unsigned level;
 };
 
@@ -542,7 +542,7 @@ struct UnOpTerm : public Term {
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
     virtual Value eval(bool &undefined) const;
-	virtual bool match(Value const &val) const;
+    virtual bool match(Value const &val) const;
     virtual FWSignature getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;
     virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;
@@ -581,7 +581,7 @@ struct BinOpTerm : public Term {
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
     virtual Value eval(bool &undefined) const;
-	virtual bool match(Value const &val) const;
+    virtual bool match(Value const &val) const;
     virtual FWSignature getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;
     virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;
@@ -620,7 +620,7 @@ struct DotsTerm : public Term {
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
     virtual Value eval(bool &undefined) const;
-	virtual bool match(Value const &val) const;
+    virtual bool match(Value const &val) const;
     virtual FWSignature getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;
     virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;
@@ -658,7 +658,7 @@ struct LuaTerm : public Term {
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
     virtual Value eval(bool &undefined) const;
-	virtual bool match(Value const &val) const;
+    virtual bool match(Value const &val) const;
     virtual FWSignature getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;
     virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;
@@ -696,7 +696,7 @@ struct FunctionTerm : public Term {
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
     virtual Value eval(bool &undefined) const;
-	virtual bool match(Value const &val) const;
+    virtual bool match(Value const &val) const;
     virtual FWSignature getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;
     virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;
@@ -739,7 +739,7 @@ struct LinearTerm : Term {
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
     virtual Value eval(bool &undefined) const;
-	virtual bool match(Value const &val) const;
+    virtual bool match(Value const &val) const;
     virtual FWSignature getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;
     virtual UGTerm gterm(RenameMap &names, ReferenceMap &refs) const;

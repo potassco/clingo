@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -98,7 +98,7 @@ public:
 void TestAspcomp13::setUp() {
 }
 
-void TestAspcomp13::tearDown() { 
+void TestAspcomp13::tearDown() {
 }
 
 // {{{ N01 Permutation Pattern Matching
@@ -498,7 +498,7 @@ void TestAspcomp13::test_aspcomp2013_08() {
             "[move(player_01,pos_3_2,pos_2_2,dir_left,3),noop(2),pushtogoal(player_01,stone_01,pos_2_2,pos_3_2,pos_4_2,dir_right,1)],"
             "[noop(1),noop(2),pushtogoal(player_01,stone_01,pos_2_2,pos_3_2,pos_4_2,dir_right,3)],"
             "[noop(1),noop(3),pushtogoal(player_01,stone_01,pos_2_2,pos_3_2,pos_4_2,dir_right,2)],"
-            "[noop(2),noop(3),pushtogoal(player_01,stone_01,pos_2_2,pos_3_2,pos_4_2,dir_right,1)]]"           
+            "[noop(2),noop(3),pushtogoal(player_01,stone_01,pos_2_2,pos_3_2,pos_4_2,dir_right,1)]]"
             ),
         IO::to_string(solve(
             "% instance\n"

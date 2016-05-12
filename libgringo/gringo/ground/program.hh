@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -46,13 +46,13 @@ struct Parameters {
 };
 
 struct Program {
-    using ClassicalNegationVec = std::vector<std::tuple<PredicateDomain&, PredicateDomain&>>;
+    using ClassicalNegationVec = std::vector<std::pair<PredicateDomain &, PredicateDomain &>>;
 
     Program(SEdbVec &&edb, Statement::Dep::ComponentVec &&stms, ClassicalNegationVec &&negate);
     void linearize(Scripts &scripts);
     void ground(Parameters const &params, Scripts &scripts, Output::OutputBase &out, bool finalize = true);
     void ground(Scripts &scripts, Output::OutputBase &out);
- 
+
     SEdbVec                      edb;
     bool                         linearized = false;
     Statement::Dep::ComponentVec stms;

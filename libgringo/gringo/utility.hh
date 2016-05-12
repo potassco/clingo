@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -32,14 +32,74 @@
 #include <cassert>
 
 namespace Gringo {
- 
+
+// {{{1 declaration of single_owner_ptr<T>
+
+template <class T>
+class single_owner_ptr {
+public:
+    single_owner_ptr()
+    : ptr_(0) { }
+    explicit single_owner_ptr(T* ptr, bool owner)
+    : ptr_(uintptr_t(ptr) | (owner && ptr)) { }
+    single_owner_ptr(single_owner_ptr &&p)
+    : ptr_(p.ptr_) {
+        p.release();
+    }
+    single_owner_ptr(std::unique_ptr<T>&& p)
+    : single_owner_ptr(p.release(), true) { }
+    single_owner_ptr(const single_owner_ptr&) = delete;
+    ~single_owner_ptr() {
+        if (is_owner()) {
+            delete get();
+        }
+    }
+    single_owner_ptr& operator=(single_owner_ptr&& p) {
+        bool owner = p.is_owner();
+        reset(p.release(), owner);
+        return *this;
+    }
+    single_owner_ptr& operator=(const single_owner_ptr&) = delete;
+    bool is_owner() const {
+        return ptr_ & 1;
+    }
+    T* get() const {
+        return (T*)(ptr_ & ~1);
+    }
+    T& operator*() const {
+        return *get();
+    }
+    T* operator->() const {
+        return  get();
+    }
+    T* release() {
+        ptr_ = uintptr_t(get());
+        return (T*)ptr_;
+    }
+    void reset(T* ptr, bool owner) {
+        if (is_owner() && ptr != get()) {
+            delete get();
+        }
+        ptr_ = uintptr_t(ptr) | uintptr_t(owner);
+    }
+    void swap(single_owner_ptr& p) {
+        std::swap(ptr_, p.ptr_);
+    }
+private:
+    uintptr_t ptr_;
+};
+
+template<typename T, typename ...Args>
+single_owner_ptr<T> make_single_owner(Args&& ...args) {
+    return single_owner_ptr<T>(new T(std::forward<Args>(args)...), true);
+}
+
 // {{{ declaration of gringo_make_unique<T, Args>
 
 template<typename T, typename ...Args>
 std::unique_ptr<T> gringo_make_unique(Args&& ...args);
 
-// }}}
-// {{{ declaration of helpers to perform comparisons
+// {{{1 declaration of helpers to perform comparisons
 
 template <class T>
 struct value_equal_to {
@@ -54,6 +114,11 @@ struct value_equal_to<T*> {
 template <class T>
 struct value_equal_to<std::unique_ptr<T>> {
     bool operator()(std::unique_ptr<T> const &a, std::unique_ptr<T> const &b) const;
+};
+
+template <class T>
+struct value_equal_to<single_owner_ptr<T>> {
+    bool operator()(single_owner_ptr<T> const &a, single_owner_ptr<T> const &b) const;
 };
 
 template <class T>
@@ -79,11 +144,22 @@ struct value_equal_to<std::vector<T...>> {
 template <class T>
 bool is_value_equal_to(T const &a, T const &b);
 
-// }}}
-// {{{ declaration of helpers to calculate hashes
+// {{{1 declaration of helpers to calculate hashes
 
 template <class T>
-void hash_combine(std::size_t& seed, const T& v);
+T hash_mix(T const &v);
+
+template <class T, class U>
+void hash_combine(U& seed, T const &v);
+
+template <class T, class H, class U>
+void hash_combine(U& seed, T const &v, H h);
+
+template <class T>
+size_t hash_range(T begin, T end);
+
+template <class T, class H>
+size_t hash_range(T begin, T end, H h);
 
 template <class T>
 struct value_hash {
@@ -98,6 +174,11 @@ struct value_hash<T*> {
 template <class T>
 struct value_hash<std::unique_ptr<T>> {
     size_t operator()(std::unique_ptr<T> const &p) const;
+};
+
+template <class T>
+struct value_hash<single_owner_ptr<T>> {
+    size_t operator()(single_owner_ptr<T> const &p) const;
 };
 
 template <class T>
@@ -126,8 +207,9 @@ inline size_t get_value_hash(T const &x);
 template <class T, class U, class... V>
 inline size_t get_value_hash(T const &x, U const &y, V const &... args);
 
-// }}}
-// {{{ declaration of helpers to perform clone copies
+inline size_t strhash(char const *x);
+
+// {{{1 declaration of helpers to perform clone copies
 
 template <class T>
 struct clone {
@@ -142,6 +224,11 @@ struct clone<T*> {
 template <class T>
 struct clone<std::unique_ptr<T>> {
     std::unique_ptr<T> operator()(std::unique_ptr<T> const &x) const;
+};
+
+template <class T>
+struct clone<single_owner_ptr<T>> {
+    single_owner_ptr<T> operator()(single_owner_ptr<T> const &x) const;
 };
 
 template <class... T>
@@ -162,19 +249,33 @@ struct clone<std::vector<T>> {
 template <class T>
 T get_clone(T const &x);
 
-// }}}
-// {{{ declaration of algorithms
+// {{{1 declaration of algorithms
 
-template <class T, class U>
-void print_comma(std::ostream &out, T const &x, const char *sep, U const &f);
+template <class S, class T, class U>
+void print_comma(S &out, T const &x, const char *sep, U const &f);
 
-template <class T>
-void print_comma(std::ostream &out, T const &x, const char *sep);
+template <class S, class T>
+void print_comma(S &out, T const &x, const char *sep);
 
 template <class T>
 void cross_product(std::vector<std::vector<T>> &vec);
 
-// }}}
+template <class Map, class Pred>
+void erase_if(Map &m, Pred p);
+
+template <class T, class Less>
+void sort_unique(T &vec, Less less) {
+    using E = decltype(*vec.begin());
+    std::sort(vec.begin(), vec.end(), less);
+    vec.erase(std::unique(vec.begin(), vec.end(), [less](E const &a, E const &b) { return !less(a,b) && !less(b,a); }), vec.end());
+}
+
+template <class T>
+void sort_unique(T &vec) {
+    sort_unique(vec, std::less<typename std::remove_reference<decltype(*vec.begin())>::type>());
+}
+
+// }}}1
 
 // {{{ definition of gringo_make_unique
 
@@ -198,6 +299,12 @@ bool value_equal_to<T*>::operator()(T const *a, T const *b) const {
 
 template <class T>
 bool value_equal_to<std::unique_ptr<T>>::operator()(std::unique_ptr<T> const &a, std::unique_ptr<T> const &b) const {
+    assert(a && b);
+    return is_value_equal_to(*a, *b);
+}
+
+template <class T>
+bool value_equal_to<single_owner_ptr<T>>::operator()(single_owner_ptr<T> const &a, single_owner_ptr<T> const &b) const {
     assert(a && b);
     return is_value_equal_to(*a, *b);
 }
@@ -252,10 +359,81 @@ inline bool is_value_equal_to(T const &a, T const &b) {
 // }}}
 // {{{ definition of helpers to calculate hashes
 
+namespace Detail {
+
+// Note: the following functions have been taken from MurmurHash3
+//       see: https://code.google.com/p/smhasher/
+inline uint32_t hash_mix(uint32_t h) {
+    h ^= h >> 16;
+    h *= 0x85ebca6b;
+    h ^= h >> 13;
+    h *= 0xc2b2ae35;
+    h ^= h >> 16;
+    return h;
+}
+
+inline uint64_t hash_mix(uint64_t h) {
+    h ^= h >> 33;
+    h *= 0xff51afd7ed558ccd;
+    h ^= h >> 33;
+    h *= 0xc4ceb9fe1a85ec53;
+    h ^= h >> 33;
+    return h;
+}
+
+template <class T, class H>
+inline void hash_combine(uint64_t& seed, T const &v, H h) {
+    seed*= 0x87c37b91114253d5;
+    seed = (seed >> 31) | (seed << 33);
+    seed*= 0x4cf5ad432745937f;
+    seed^= h(v);
+    seed = (seed >> 27) | (seed << 37);
+    seed = seed * 5 + 0x52dce729;
+}
+
+template <class T, class H>
+inline void hash_combine(uint32_t& seed, T const &v, H h) {
+    seed*= 0xcc9e2d51;
+    seed = (seed >> 17) | (seed << 15);
+    seed*= 0x1b873593;
+    seed^= h(v);
+    seed = (seed >> 19) | (seed << 13);
+    seed = seed * 5 + 0xe6546b64;
+}
+
+template <size_t bytes> struct Select;
+template <> struct Select<4> { using Type = uint32_t; };
+template <> struct Select<8> { using Type = uint64_t; };
+
+}
+
+template <class T, class U>
+void hash_combine(U& seed, T const &v) {
+    Detail::hash_combine(reinterpret_cast<typename Detail::Select<sizeof(U)>::Type&>(seed), v, std::hash<T>());
+}
+
+template <class T, class H, class U>
+void hash_combine(U& seed, T const &v, H h) {
+    Detail::hash_combine(reinterpret_cast<typename Detail::Select<sizeof(U)>::Type&>(seed), v, h);
+}
+
 template <class T>
-inline void hash_combine(std::size_t& seed, const T& v) {
-    std::hash<T> hasher;
-    seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+T hash_mix(T const &v) {
+    return Detail::hash_mix(static_cast<typename Detail::Select<sizeof(T)>::Type>(v));
+}
+
+template <class T>
+size_t hash_range(T begin, T end) {
+    return hash_range(begin, end, std::hash<typename std::remove_reference<decltype(*begin)>::type>());
+}
+
+template <class T, class H>
+size_t hash_range(T begin, T end, H h) {
+    size_t seed = 0;
+    for (auto it = begin; it != end; ++it) {
+        hash_combine(seed, *it, h);
+    }
+    return seed;
 }
 
 template <class T>
@@ -275,6 +453,12 @@ size_t value_hash<std::unique_ptr<T>>::operator()(std::unique_ptr<T> const &p) c
 }
 
 template <class T>
+size_t value_hash<single_owner_ptr<T>>::operator()(single_owner_ptr<T> const &p) const {
+    assert(p);
+    return get_value_hash(*p);
+}
+
+template <class T>
 size_t value_hash<std::reference_wrapper<T>>::operator()(std::reference_wrapper<T> const &x) const {
     return get_value_hash(x.get());
 }
@@ -287,8 +471,7 @@ size_t value_hash<std::pair<T, U>>::operator()(std::pair<T, U> const &v) const {
     return seed;
 }
 
-namespace detail
-{
+namespace detail {
     template <int N>
     struct hash {
         template <class... T>
@@ -333,6 +516,12 @@ inline size_t get_value_hash(T const &x, U const &y, V const &... args) {
     return seed;
 }
 
+inline size_t strhash(char const *x) {
+    size_t seed = 0;
+    for ( ; *x; ++x) { hash_combine(seed, *x); }
+    return seed;
+}
+
 // }}}
 // {{{ definition of helpers to perform clone copies
 
@@ -354,13 +543,19 @@ inline std::unique_ptr<T> clone<std::unique_ptr<T>>::operator()(std::unique_ptr<
     return std::unique_ptr<T>(y);
 }
 
+template <class T>
+inline single_owner_ptr<T> clone<single_owner_ptr<T>>::operator()(single_owner_ptr<T> const &x) const {
+    T *y(get_clone(x.get()));
+    assert(x.get() != y);
+    return single_owner_ptr<T>(y, true);
+}
+
 template <class T, class U>
 inline std::pair<T, U> clone<std::pair<T, U>>::operator()(std::pair<T, U> const &x) const {
     return std::make_pair(get_clone(x.first), get_clone(x.second));
 }
 
-namespace detail
-{
+namespace detail {
     template <int ...>
     struct seq { };
 
@@ -399,8 +594,8 @@ T get_clone(T const &x) {
 // }}}
 // {{{ definition of algorithms
 
-template <class T, class U>
-void print_comma(std::ostream &out, T const &x, const char *sep, U const &f) {
+template <class S, class T, class U>
+void print_comma(S &out, T const &x, const char *sep, U const &f) {
     auto it(std::begin(x)), end(std::end(x));
     if (it != end) {
         f(out, *it);
@@ -408,8 +603,8 @@ void print_comma(std::ostream &out, T const &x, const char *sep, U const &f) {
     }
 }
 
-template <class T>
-void print_comma(std::ostream &out, T const &x, const char *sep) {
+template <class S, class T>
+void print_comma(S &out, T const &x, const char *sep) {
     auto it(std::begin(x)), end(std::end(x));
     if (it != end) {
         out << *it;
@@ -446,6 +641,18 @@ inline void cross_product(std::vector<std::vector<T>> &vec) {
         it->emplace_back(std::move(x.back()));
     }
     vec = std::move(res);
+}
+
+template <class Map, class Pred>
+void erase_if(Map &m, Pred p) {
+    for (auto it = std::begin(m), end = std::end(m); it != end; ) {
+        if (p(*it)) {
+            it = m.erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
 }
 
 // }}}

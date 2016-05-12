@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2006-2012, Benjamin Kaufmann
+// Copyright (c) 2006-2016, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -19,26 +19,24 @@
 //
 
 #include <clasp/constraint.h>
-#include <string>
 namespace Clasp {
 /////////////////////////////////////////////////////////////////////////////////////////
-// (Learnt)Constraint
+// Constraint
 /////////////////////////////////////////////////////////////////////////////////////////
 Constraint::Constraint()                  {}
 Constraint::~Constraint()                 {}
 void Constraint::destroy(Solver*, bool)   { delete this; }
-ConstraintType Constraint::type() const   { return Constraint_t::static_constraint; }
+ConstraintType Constraint::type() const   { return Constraint_t::Static; }
 bool Constraint::simplify(Solver&, bool)  { return false; }
 void Constraint::undoLevel(Solver&)       {}
 uint32 Constraint::estimateComplexity(const Solver&) const { return 1;  }
 bool Constraint::valid(Solver&)           { return true; }
 ClauseHead* Constraint::clause()          { return 0; } 
-LearntConstraint::~LearntConstraint()     {}
-LearntConstraint::LearntConstraint()      {}
-Activity LearntConstraint::activity() const{ return Activity(0,  (1u<<7)-1); }
-void LearntConstraint::decreaseActivity() {}
-void LearntConstraint::resetActivity(Activity) {}
-ConstraintType LearntConstraint::type() const { return Constraint_t::learnt_conflict; }
+void Constraint::decreaseActivity()       {}
+void Constraint::resetActivity()          {}
+ConstraintScore Constraint::activity() const { return makeScore(); }
+bool Constraint::locked(const Solver&) const { return true; }
+uint32 Constraint::isOpen(const Solver&, const TypeSet&, LitVec&) { return 0; }
 /////////////////////////////////////////////////////////////////////////////////////////
 // PostPropagator
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -51,42 +49,49 @@ void PostPropagator::reason(Solver&, Literal, LitVec&) {}
 Constraint::PropResult PostPropagator::propagate(Solver&, Literal, uint32&) { 
 	return PropResult(true, false); 
 }
+void PostPropagator::cancelPropagation() {
+	for (PostPropagator* n = this->next; n; n = n->next) { n->reset(); }
+}
 MessageHandler::MessageHandler() {}
 /////////////////////////////////////////////////////////////////////////////////////////
-// Antecedent
+// PropagatorList
 /////////////////////////////////////////////////////////////////////////////////////////
-PlatformError::PlatformError(const char* msg) : ClaspError(std::string("Platform Error: ")+msg) {}
-bool Antecedent::checkPlatformAssumptions() {
-	int32* i = new int32(22);
-	uint64 p = (uint64)(uintp)i;
-	bool convOk = ((int32*)(uintp)p) == i;
-	bool alignmentOk = (p & 3) == 0;
-	delete i;
-	if ( !alignmentOk ) {
-		throw PlatformError("Unsupported Pointer-Alignment!");
+PropagatorList::PropagatorList() : head_(0) {}
+PropagatorList::~PropagatorList() { clear(); }
+void PropagatorList::clear() {
+	for (PostPropagator* r = head_; r;) {
+		PostPropagator* t = r;
+		r = r->next;
+		t->destroy();
 	}
-	if ( !convOk ) {
-		throw PlatformError("Can't convert between Pointer and Integer!");
-	}
-	p = ~uintp(1);
-	store_set_bit(p, 0);
-	if (!test_bit(p, 0)) {
-		throw PlatformError("Can't set LSB in pointer!");
-	}
-	store_clear_bit(p, 0);
-	if (p != (~uintp(1))) {
-		throw PlatformError("Can't restore LSB in pointer!");
-	}
-	Literal max = posLit(varMax-1);
-	Antecedent a(max);
-	if (a.type() != Antecedent::binary_constraint || a.firstLiteral() != max) {
-		throw PlatformError("Cast between 64- and 32-bit integer does not work as expected!");
-	}
-	Antecedent b(max, ~max);
-	if (b.type() != Antecedent::ternary_constraint || b.firstLiteral() != max || b.secondLiteral() != ~max) {
-		throw PlatformError("Cast between 64- and 32-bit integer does not work as expected!");
-	}
-	return true;
+	head_ = 0;
 }
-
+void PropagatorList::add(PostPropagator* p) {
+	CLASP_ASSERT_CONTRACT_MSG(p && p->next == 0, "Invalid post propagator");
+	uint32 prio = p->priority();
+	for (PostPropagator** r = head(), *x;; r = &x->next) {
+		if ((x = *r) == 0 || prio < (uint32)x->priority()) {
+			p->next = x;
+			*r      = p;
+			break;
+		}
+	}
+}
+void PropagatorList::remove(PostPropagator* p) {
+	CLASP_ASSERT_CONTRACT_MSG(p, "Invalid post propagator");
+	for (PostPropagator** r = head(), *x; *r; r = &x->next) {
+		if ((x = *r) == p) {
+			*r      = x->next;
+			p->next = 0;
+			break;
+		}
+	}
+}
+PostPropagator* PropagatorList::find(uint32 prio) const {
+	for (PostPropagator* x = head_; x; x = x->next) {
+		uint32 xp = x->priority();
+		if (xp >= prio) { return xp == prio ? x : 0; }
+	}
+	return 0;
+}
 }

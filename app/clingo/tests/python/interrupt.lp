@@ -1,13 +1,13 @@
 #script (python) 
 
-import gringo
+import clingo
 
 def main(prg):
     prg.ground([("pigeon", [])])
     for i in range(0,2):
-        prg.assign_external(gringo.Fun("p"), True)
+        prg.assign_external(clingo.function("p"), True)
         prg.solve()
-        prg.assign_external(gringo.Fun("p"), False)
+        prg.assign_external(clingo.function("p"), False)
         f = prg.solve_async()
         f.wait(0.01)
         f.cancel()

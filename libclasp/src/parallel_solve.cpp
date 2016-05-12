@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2010-2012, Benjamin Kaufmann
+// Copyright (c) 2010-2016, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -25,7 +25,6 @@
 #include <clasp/util/timer.h>
 #include <clasp/minimize_constraint.h>
 #include <clasp/util/mutex.h>
-#include <tbb/concurrent_queue.h>
 namespace Clasp { namespace mt {
 /////////////////////////////////////////////////////////////////////////////////////////
 // BarrierSemaphore
@@ -91,20 +90,30 @@ public:
 	// are currently blocked.
 	bool down() {
 		unique_lock<mutex> lock(semMutex_);
+		return down(lock);
+	}
+	// LOW-LEVEL version of down
+	bool down(unique_lock<mutex>& m) {
+		assert(m.owns_lock());
 		if (--counter_ >= 0) { return true; }
-		return !unsafe_wait(lock);
+		return !unsafe_wait(m);
 	}
 	// Increments the semaphore's counter and resumes 
 	// one thread which has called down() if the counter 
 	// was less than zero prior to the call.
 	void up() {
-		bool notify;
-		{
-			lock_guard<mutex> lock(semMutex_);
-			notify    = (++counter_ < 1);
-		}
-		if (notify) semCond_.notify_one();
+		unique_lock<mutex> lock(semMutex_);
+		up(lock);
 	}
+	// LOW-LEVEL version of up
+	void up(unique_lock<mutex>& m, bool transferLock = true) {
+		assert(m.owns_lock());
+		if (++counter_ < 1) {
+			if (transferLock) { m.unlock(); }
+			semCond_.notify_one();
+		}
+	}
+	mutex& toMutex() { return semMutex_; }
 private:
 	BarrierSemaphore(const BarrierSemaphore&);
 	BarrierSemaphore& operator=(const BarrierSemaphore&);
@@ -133,7 +142,7 @@ private:
 // ParallelSolve::Impl
 /////////////////////////////////////////////////////////////////////////////////////////
 struct ParallelSolve::SharedData {
-	typedef tbb::concurrent_queue<const LitVec*> queue;
+	typedef PodQueue<const LitVec*> Queue;
 	enum MsgFlag {
 		terminate_flag        = 1u, sync_flag  = 2u,  split_flag    = 4u, 
 		restart_flag          = 8u, complete_flag = 16u,
@@ -149,6 +158,27 @@ struct ParallelSolve::SharedData {
 		msg_sync_restart   = (sync_flag | restart_flag),
 		msg_split          = split_flag
 	};
+	struct Generator {
+		enum State { start = 0, search = 1, model = 2, done = 3 };
+		Generator() : state(start) {}
+		mutex genM;
+		condition_variable cond;
+		State waitWhile(State st) {
+			State r;
+			for (unique_lock<mutex> lock(genM); (r = state) == st;) { cond.wait(lock); }
+			return r;
+		}
+		void pushModel() {
+			notify(model);
+			waitWhile(model);
+		}
+		void notify(State st) { 
+			unique_lock<mutex> lock(genM);
+			state = st;
+			cond.notify_one(); 
+		}
+		State state;
+	};
 	SharedData() : path(0) { reset(0); control = 0; }
 	void reset(SharedContext* a_ctx) {
 		clearQueue();
@@ -157,55 +187,83 @@ struct ParallelSolve::SharedData {
 		globalR.reset();
 		maxConflict = globalR.current();
 		error       = 0;
-		initMask    = 0;
+		initVec     = 0;
 		ctx         = a_ctx;
 		path        = 0;
 		nextId      = 1;
 		workReq     = 0;
 		restartReq  = 0;
+		generator   = 0;
 	}
 	void clearQueue() {
-		for (const LitVec* a = 0; workQ.try_pop(a); ) {
-			if (a != path) { delete a; }
+		while (!workQ.empty()) { delete workQ.pop_ret(); } 
+		workQ.clear();
+	}
+	const LitVec* requestWork(const Solver& s) {
+		const uint64 m(uint64(1) << s.id());
+		const bool split = allowSplit();
+		uint64 init = initVec;
+		if ((init & m) == m) {
+			if (!split) {
+				// portfolio mode - all solvers can start with initial path
+				initVec -= m;
+				return path;
+			}
+			else if (initVec.compare_and_swap(0, init) == init) {
+				// splitting mode - only one solver must start with initial path
+				return path;
+			}
+		}
+		if (!split) { return 0; }
+		// try to get work from split
+		ctx->report(MessageEvent(s, "SPLIT", MessageEvent::sent));
+		const uint32 flags = uint32(terminate_flag) | uint32(sync_flag);
+		for (unique_lock<mutex> lock(workSem.toMutex());;) {
+			if (!workQ.empty()) {
+				const LitVec* res = workQ.pop_ret();
+				if (workQ.empty()) { workQ.clear(); }
+				return res;
+			}
+			postMessage(SharedData::msg_split, false);
+			if (!workSem.down(lock) || hasControl(flags)) {
+				return 0;
+			}
 		}
 	}
-	const LitVec* requestWork(uint32 id) {
-		// try to get initial path
-		uint64 m(uint64(1) << id);
-		uint64 init = initMask;
-		if ((m & init) == m) { initMask -= m; return path; }
-		// try to get path from split queue
-		const LitVec* res = 0;
-		if (workQ.try_pop(res)) { return res; }
-		return 0;
+	void pushWork(const LitVec* v) {
+		unique_lock<mutex> lock(workSem.toMutex());
+		workQ.push(v);
+		workSem.up(lock);
 	}
 	// MESSAGES
-	bool        hasMessage()  const { return (control & uint32(7)) != 0; }
-	bool        synchronize() const { return (control & uint32(sync_flag))      != 0; }
-	bool        terminate()   const { return (control & uint32(terminate_flag)) != 0; }
-	bool        split()       const { return (control & uint32(split_flag))     != 0; }
-	bool        postMessage(Message m, bool notify);
-	void        aboutToSplit()      { if (--workReq == 0) updateSplitFlag();  }
-	void        updateSplitFlag();
+	bool postMessage(Message m, bool notify);
+	bool hasMessage()  const { return (control & uint32(7)) != 0; }
+	bool synchronize() const { return (control & uint32(sync_flag))      != 0; }
+	bool terminate()   const { return (control & uint32(terminate_flag)) != 0; }
+	bool split()       const { return (control & uint32(split_flag))     != 0; }
+	void aboutToSplit()      { if (--workReq == 0) updateSplitFlag();  }
+	void updateSplitFlag();
 	// CONTROL FLAGS
-	bool        hasControl(uint32 f) const { return (control & f) != 0;        }
-	bool        interrupt()          const { return hasControl(interrupt_flag);}
-	bool        complete()           const { return hasControl(complete_flag); }
-	bool        restart()            const { return hasControl(restart_flag);  }
-	bool        allowSplit()         const { return hasControl(allow_split_flag); }
-	bool        allowRestart()       const { return !hasControl(forbid_restart_flag); }
-	bool        setControl(uint32 flags)   { return (fetch_and_or(control, flags) & flags) != flags; }
-	bool        clearControl(uint32 flags) { return (fetch_and_and(control, ~flags) & flags) == flags; }
+	bool hasControl(uint32 f) const { return (control & f) != 0;        }
+	bool interrupt()          const { return hasControl(interrupt_flag);}
+	bool complete()           const { return hasControl(complete_flag); }
+	bool restart()            const { return hasControl(restart_flag);  }
+	bool allowSplit()         const { return hasControl(allow_split_flag); }
+	bool allowRestart()       const { return !hasControl(forbid_restart_flag); }
+	bool setControl(uint32 flags)   { return (control.fetch_and_or(flags) & flags) != flags; }
+	bool clearControl(uint32 flags) { return (control.fetch_and_and(~flags) & flags) == flags; }
+	typedef SingleOwnerPtr<Generator> GeneratorPtr;
 	ScheduleStrategy globalR;     // global restart strategy
 	uint64           maxConflict; // current restart limit
 	uint64           error;       // bitmask of erroneous solvers
 	SharedContext*   ctx;         // shared context object
 	const LitVec*    path;        // initial guiding path - typically empty
-	atomic<uint64>   initMask;    // bitmask for initialization
+	atomic<uint64>   initVec;     // vector of initial gp - represented as bitset
+	GeneratorPtr     generator;   // optional data for model generation
 	Timer<RealTime>  syncT;       // thread sync time
 	mutex            modelM;      // model-mutex 
 	BarrierSemaphore workSem;     // work-semaphore
-	queue            workQ;       // work-queue
+	Queue            workQ;       // work-queue (must be protected by workSem)
 	uint32           nextId;      // next solver id to use
 	atomic<int>      workReq;     // > 0: someone needs work
 	atomic<uint32>   restartReq;  // == numThreads(): restart
@@ -235,15 +293,15 @@ void ParallelSolve::SharedData::updateSplitFlag() {
 	for (bool splitF;;) {
 		splitF = (workReq > 0);	
 		if (split() == splitF) return;
-		if (splitF) fetch_and_or(control,   uint32(split_flag)); 
-		else        fetch_and_and(control, ~uint32(split_flag));
+		if (splitF) control.fetch_and_or(uint32(split_flag));
+		else        control.fetch_and_and(~uint32(split_flag));
 	}
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // ParallelSolve
 /////////////////////////////////////////////////////////////////////////////////////////
-ParallelSolve::ParallelSolve(Enumerator* e, const ParallelSolveOptions& opts)
-	: SolveAlgorithm(e, opts.limit)
+ParallelSolve::ParallelSolve(const ParallelSolveOptions& opts)
+	: SolveAlgorithm(opts.limit)
 	, shared_(new SharedData)
 	, thread_(0)
 	, distribution_(opts.distribute)
@@ -268,18 +326,19 @@ ParallelSolve::~ParallelSolve() {
 	delete shared_;
 }
 
-bool ParallelSolve::beginSolve(SharedContext& ctx) {
+bool ParallelSolve::beginSolve(SharedContext& ctx, const LitVec& path) {
 	assert(ctx.concurrency() && "Illegal number of threads");
 	if (shared_->terminate()) { return false; }
 	shared_->reset(&ctx);
 	if (!enumerator().supportsParallel() && numThreads() > 1) {
-		ctx.report(warning(Event::subsystem_solve, "Selected reasoning mode implies #Threads=1."));
+		ctx.warn("Selected reasoning mode implies #Threads=1.");
 		shared_->workSem.unsafe_init(1);
 		modeSplit_ = false;
-		ctx.setConcurrency(1, SharedContext::mode_reserve);
+		ctx.setConcurrency(1, SharedContext::resize_reserve);
 	}
 	shared_->setControl(modeSplit_ ? SharedData::allow_split_flag : SharedData::forbid_restart_flag);
 	shared_->modCount = uint32(enumerator().optimize());
+	shared_->path = &path;
 	if (distribution_.types != 0 && ctx.distributor.get() == 0 && numThreads() > 1) {
 		if (distribution_.mode == ParallelSolveOptions::Distribution::mode_local) {
 			ctx.distributor.reset(new mt::LocalDistribution(distribution_, ctx.concurrency(), intTopo_));
@@ -291,11 +350,13 @@ bool ParallelSolve::beginSolve(SharedContext& ctx) {
 	shared_->setControl(SharedData::sync_flag); // force initial sync with all threads
 	shared_->syncT.start();
 	reportProgress(MessageEvent(*ctx.master(), "SYNC", MessageEvent::sent));
+	assert(ctx.master()->id() == masterId);
+	allocThread(masterId, *ctx.master(), ctx.configuration()->search(masterId));
 	for (uint32 i = 1; i != ctx.concurrency(); ++i) {
 		uint32 id = shared_->nextId++;
 		allocThread(id, *ctx.solver(id), ctx.configuration()->search(id));
 		// start in new thread
-		Clasp::thread x(std::mem_fun(&ParallelSolve::solveParallel), this, id);
+		Clasp::mt::thread x(std::mem_fun(&ParallelSolve::solveParallel), this, id);
 		thread_[id]->setThread(x);
 	}
 	return true;
@@ -303,8 +364,8 @@ bool ParallelSolve::beginSolve(SharedContext& ctx) {
 
 void ParallelSolve::setIntegrate(uint32 grace, uint8 filter) {
 	typedef ParallelSolveOptions::Integration Dist;
-	intGrace_     = grace;
-	intFlags_     = ClauseCreator::clause_no_add;
+	intGrace_ = grace;
+	intFlags_ = ClauseCreator::clause_no_add;
 	if (filter == Dist::filter_heuristic) { store_set_bit(intFlags_, 31); }
 	if (filter != Dist::filter_no)        { intFlags_ |= ClauseCreator::clause_not_root_sat; }
 	if (filter == Dist::filter_sat)       { intFlags_ |= ClauseCreator::clause_not_sat; }
@@ -344,6 +405,9 @@ void ParallelSolve::destroyThread(uint32 id) {
 inline void ParallelSolve::reportProgress(const Event& ev) const {
 	return shared_->ctx->report(ev);
 }
+inline void ParallelSolve::reportProgress(const Solver& s, const char* msg) const {
+	return shared_->ctx->report(msg, &s);
+}
 
 // joins with and destroys all active threads
 void ParallelSolve::joinThreads() {
@@ -358,7 +422,13 @@ void ParallelSolve::joinThreads() {
 		if (thread_[i]->winner() && i < winner) {
 			winner = i;
 		}
+		Solver* s = &thread_[i]->solver();
+		reportProgress(*s, "joined");
 		destroyThread(i);
+		reportProgress(*s, "destroyed");
+	}
+	if (shared_->complete()) {
+		enumerator().commitComplete();
 	}
 	// detach master only after all client threads are done
 	thread_[masterId]->detach(*shared_->ctx, shared_->interrupt());
@@ -369,25 +439,51 @@ void ParallelSolve::joinThreads() {
 	reportProgress(MessageEvent(*shared_->ctx->master(), "TERMINATE", MessageEvent::completed, shared_->syncT.total()));
 }
 
+void ParallelSolve::doStart(SharedContext& ctx, const LitVec& assume) {
+	if (beginSolve(ctx, assume)) {
+		// start computation in new thread
+		shared_->generator = new SharedData::Generator();
+		Clasp::mt::thread x(std::mem_fun(&ParallelSolve::solveParallel), this, static_cast<uint32>(masterId));
+		thread_[masterId]->setThread(x);
+	}
+}
+int ParallelSolve::doNext(int) {
+	CLASP_FAIL_IF(!shared_->generator.get(), "Invalid operation");
+	int s = shared_->generator->state;
+	if (s != SharedData::Generator::done) {
+		shared_->generator->notify(SharedData::Generator::search);
+		if ((s = shared_->generator->waitWhile(SharedData::Generator::search)) == SharedData::Generator::model) {
+			return value_true;
+		}
+	}
+	return shared_->complete() ? value_false : value_free;
+}
+void ParallelSolve::doStop() {
+	if (shared_->nextId <= 1) { return; }
+	reportProgress(*shared_->ctx->master(), "joining with other threads");
+	if (shared_->generator.get()) {
+		shared_->setControl(SharedData::terminate_flag);
+		shared_->generator->notify(SharedData::Generator::done);
+		thread_[masterId]->join();
+	}
+	joinThreads();
+	int err = thread_[masterId]->error();
+	destroyThread(masterId);
+	shared_->generator = 0;
+	shared_->ctx->distributor.reset(0);
+	switch(err) {
+		case error_none   : break;
+		case error_oom    : throw std::bad_alloc();
+		case error_runtime: throw std::runtime_error("RUNTIME ERROR!");
+		default:            throw std::runtime_error("UNKNOWN ERROR!");
+	}
+}
+
 // Entry point for master solver
 bool ParallelSolve::doSolve(SharedContext& ctx, const LitVec& path) {
-	if (beginSolve(ctx)) {
-		Solver& s = *ctx.master();
-		assert(s.id() == masterId);
-		allocThread(masterId, s, ctx.configuration()->search(masterId));
-		shared_->path = &path;
+	if (beginSolve(ctx, path)) {
 		solveParallel(masterId);
-		reportProgress(message(Event::subsystem_solve, "Joining with other threads", &s));
-		joinThreads();
-		int err = thread_[masterId]->error();
-		destroyThread(masterId);
-		shared_->ctx->distributor.reset(0);
-		switch(err) {
-			case error_none   : break;
-			case error_oom    : throw std::bad_alloc();
-			case error_runtime: throw std::runtime_error("RUNTIME ERROR!");
-			default:            throw std::runtime_error("UNKNOWN ERROR!");
-		}
+		ParallelSolve::doStop();
 	}
 	return !shared_->complete();
 }
@@ -396,15 +492,17 @@ bool ParallelSolve::doSolve(SharedContext& ctx, const LitVec& path) {
 void ParallelSolve::solveParallel(uint32 id) {
 	Solver& s           = thread_[id]->solver();
 	const SolveParams& p= thread_[id]->params();
-	SolveLimits lim     = limits();
 	SolverStats agg;
 	PathPtr a(0);
+	if (id == masterId && shared_->generator.get()) {
+		shared_->generator->waitWhile(SharedData::Generator::start);
+	}
 	try {
 		// establish solver<->handler connection and attach to shared context
 		// should this fail because of an initial conflict, we'll terminate
 		// in requestWork.
 		thread_[id]->attach(*shared_->ctx);
-		BasicSolve solve(s, p, &lim);
+		BasicSolve solve(s, p, limits());
 		agg.enableStats(s.stats);
 		for (GpType t; requestWork(s, a); solve.reset()) {
 			agg.accu(s.stats);
@@ -414,6 +512,7 @@ void ParallelSolve::solveParallel(uint32 id) {
 				terminate(s, false);
 			}
 			s.clearStopConflict();
+			s.undoUntil(0);
 			enumerator().end(s);
 		}
 	}
@@ -432,11 +531,14 @@ void ParallelSolve::solveParallel(uint32 id) {
 		thread_[id]->detach(*shared_->ctx, shared_->interrupt());
 		s.stats.addCpuTime(ThreadTime::getTime());
 	}
+	else if (shared_->generator.get()) {
+		shared_->generator->notify(SharedData::Generator::done);
+	}
 }
 
 void ParallelSolve::exception(uint32 id, PathPtr& path, ErrorCode e, const char* what) {
 	try {
-		reportProgress(message(Event::subsystem_solve, what, &thread_[id]->solver()));
+		reportProgress(thread_[id]->solver(), what);
 		thread_[id]->setError(e);
 		if (id == masterId || shared_->workSem.active()) { 
 			ParallelSolve::doInterrupt();
@@ -446,7 +548,7 @@ void ParallelSolve::exception(uint32 id, PathPtr& path, ErrorCode e, const char*
 			shared_->workQ.push(path.release());
 			shared_->workSem.up();
 		}
-		reportProgress(warning(Event::subsystem_solve, "Thread failed and was removed.", &thread_[id]->solver()));
+		reportProgress(thread_[id]->solver(), "Thread failed and was removed.");
 	}
 	catch(...) { ParallelSolve::doInterrupt(); }
 }
@@ -474,7 +576,7 @@ bool ParallelSolve::requestWork(Solver& s, PathPtr& out) {
 			// this but did not yet had a chance to react on it
 			waitOnSync(s);
 		}
-		else if (a || (a = shared_->requestWork(s.id())) != 0) {
+		else if (a || (a = shared_->requestWork(s)) != 0) {
 			assert(s.decisionLevel() == 0);
 			// got new work from work-queue
 			out = a;
@@ -487,20 +589,8 @@ bool ParallelSolve::requestWork(Solver& s, PathPtr& out) {
 			// via the call to popRootLevel()
 			popped = 0;
 		}
-		else if (shared_->allowSplit()) {
-			// gp mode is active - request a split	
-			// and wait until someone has work for us
-			reportProgress(MessageEvent(s, "SPLIT", MessageEvent::sent));
-			shared_->postMessage(SharedData::msg_split, false);
-			if (!shared_->workSem.down() && !shared_->synchronize()) {
-				// we are the last man standing, there is no
-				// work left - quitting time?
-				terminate(s, true);
-			}
-		}
-		else {
-			// portfolio mode is active - no splitting, no work left
-			// quitting time? 
+		else if (!shared_->allowSplit() || !shared_->synchronize()) {
+			// no work left - quitting time? 
 			terminate(s, true);
 		}
 	}
@@ -573,45 +663,41 @@ bool ParallelSolve::waitOnSync(Solver& s) {
 //  heuristic for initial splits?
 void ParallelSolve::initQueue() {
 	shared_->clearQueue();
-	uint64 init = UINT64_MAX;
-	if (shared_->allowSplit()) {
-		if (modeSplit_ && !enumerator().supportsSplitting(*shared_->ctx)) {
-			shared_->ctx->report(warning(Event::subsystem_solve, "Selected strategies imply Mode=compete."));
-			shared_->clearControl(SharedData::allow_split_flag);
-			shared_->setControl(SharedData::forbid_restart_flag);
-			modeSplit_ = false;
-		}
-		else {
-			init = 0;
-			shared_->workQ.push(shared_->path);
-		}
+	if (shared_->allowSplit() && modeSplit_ && !enumerator().supportsSplitting(*shared_->ctx)) {
+		shared_->ctx->warn("Selected strategies imply Mode=compete.");
+		shared_->clearControl(SharedData::allow_split_flag);
+		shared_->setControl(SharedData::forbid_restart_flag);
+		modeSplit_ = false;
 	}
-	shared_->initMask = init;
+	shared_->initVec = UINT64_MAX;
 	assert(shared_->allowSplit() || shared_->hasControl(SharedData::forbid_restart_flag));
 }
 
 // adds work to the work-queue
 void ParallelSolve::pushWork(LitVec* v) { 
 	assert(v);
-	shared_->workQ.push(v);
-	shared_->workSem.up();
+	shared_->pushWork(v);
 }
 
 // called whenever some solver proved unsat
 bool ParallelSolve::commitUnsat(Solver& s) {
-	if (!enumerator().optimize() || shared_->terminate() || shared_->synchronize()) {
+	const int supUnsat = enumerator().unsatType();
+	if (supUnsat == Enumerator::unsat_stop || shared_->terminate() || shared_->synchronize()) {
 		return false; 
 	}
-	if (!thread_[s.id()]->disjointPath()) {
-		lock_guard<mutex> lock(shared_->modelM);
-		if (!enumerator().commitUnsat(s)) {
-			terminate(s, true);
-			return false;
-		}
-		++shared_->modCount;
-		return true;
+	unique_lock<mutex> lock(shared_->modelM, defer_lock_t());
+	if (supUnsat == Enumerator::unsat_sync) {
+		lock.lock();
 	}
-	return enumerator().commitUnsat(s);
+	bool result = enumerator().commitUnsat(s);
+	if (lock.owns_lock()) {
+		lock.unlock();
+	}
+	if (!thread_[s.id()]->disjointPath()) {
+		if (result) { ++shared_->modCount; }
+		else        { terminate(s, true);  }
+	}
+	return result;
 }
 
 // called whenever some solver has found a model
@@ -633,7 +719,10 @@ bool ParallelSolve::commitModel(Solver& s) {
 			enumerator().setDisjoint(s, true);
 		}
 		++shared_->modCount;
-		if ((stop = !reportModel(s)) == true) {
+		if (shared_->generator.get()) {
+			shared_->generator->pushModel();
+		}
+		else if ((stop = !reportModel(s)) == true) {
 			// must be called while holding the lock - otherwise
 			// we have a race condition with solvers that
 			// are currently blocking on the mutex and we could enumerate 
@@ -703,7 +792,7 @@ void ParallelSolve::requestRestart() {
 }
 
 SolveAlgorithm* ParallelSolveOptions::createSolveObject() const {
-	return numSolver() > 1 ? new ParallelSolve(0, *this) : BasicSolveOptions::createSolveObject();
+	return numSolver() > 1 ? new ParallelSolve(*this) : BasicSolveOptions::createSolveObject();
 }
 ////////////////////////////////////////////////////////////////////////////////////
 // ParallelHandler
@@ -736,7 +825,7 @@ bool ParallelHandler::attach(SharedContext& ctx) {
 	if (!received_ && ctx.distributor.get()) {
 		received_ = new SharedLiterals*[RECEIVE_BUFFER_SIZE];
 	}
-	ctx.report(message(Event::subsystem_solve, "attach", solver_));
+	ctx.report("attach", solver_);
 	solver_->addPost(this);
 	return ctx.attach(solver_->id());
 }
@@ -744,17 +833,19 @@ bool ParallelHandler::attach(SharedContext& ctx) {
 // removes this from the list of post propagators of its solver and detaches the solver from ctx.
 void ParallelHandler::detach(SharedContext& ctx, bool) {
 	handleTerminateMessage();
+	ctx.report("detach", solver_);
 	if (solver_->sharedContext() == &ctx) {
 		clearDB(!error() ? solver_ : 0);
+		ctx.report("detached db", solver_);
 		ctx.detach(*solver_, error() != 0);
+		ctx.report("detached ctx", solver_);
 	}
-	ctx.report(message(Event::subsystem_solve, "detach", solver_));
 }
 
 void ParallelHandler::clearDB(Solver* s) {
 	for (ClauseDB::iterator it = integrated_.begin(), end = integrated_.end(); it != end; ++it) {
 		ClauseHead* c = static_cast<ClauseHead*>(*it);
-		if (s) { s->addLearnt(c, c->size(), Constraint_t::learnt_other); }
+		if (s) { s->addLearnt(c, c->size(), Constraint_t::Other); }
 		else   { c->destroy(); }
 	}
 	integrated_.clear();
@@ -836,7 +927,7 @@ bool ParallelHandler::propagateFixpoint(Solver& s, PostPropagator* ctx) {
 			bool ok = ctrl_->handleMessages(s) && (up > 1 ? integrate(s) : ctrl_->integrateModels(s, gp_.modCount));
 			if (!ok)                         { return false; }
 			if (cDL != s.decisionLevel())    { // cancel active propagation on cDL
-				for (PostPropagator* n = next; n ; n = n->next){ n->reset(); }
+				cancelPropagation();
 				cDL = s.decisionLevel();
 			}	
 			if      (!s.queueSize())         { if (++up == 3) return true; }
@@ -867,7 +958,7 @@ bool ParallelHandler::integrate(Solver& s) {
 		intFlags |= ClauseCreator::clause_int_lbd;
 	}
 	do {
-		ret    = ClauseCreator::integrate(s, received_[i++], intFlags, Constraint_t::learnt_other);
+		ret    = ClauseCreator::integrate(s, received_[i++], intFlags, Constraint_t::Other);
 		added += ret.status != ClauseCreator::status_subsumed; 
 		if (ret.local) { add(ret.local); }
 		if (ret.unit()){ s.stats.addIntegratedAsserting(dl, s.decisionLevel()); dl = s.decisionLevel(); }
@@ -883,7 +974,7 @@ void ParallelHandler::add(ClauseHead* h) {
 		integrated_[intEnd_] = h;
 		assert(o);
 		if (!ctrl_->integrateUseHeuristic() || o->locked(*solver_) || o->activity().activity() > 0) {
-			solver_->addLearnt(o, o->size(), Constraint_t::learnt_other);
+			solver_->addLearnt(o, o->size(), Constraint_t::Other);
 		}
 		else {
 			o->destroy(solver_, true);

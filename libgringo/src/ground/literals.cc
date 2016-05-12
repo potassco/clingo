@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -20,6 +20,7 @@
 
 #include "gringo/ground/literals.hh"
 #include "gringo/ground/binders.hh"
+#include "gringo/ground/types.hh"
 #include "gringo/logger.hh"
 #include "gringo/scripts.hh"
 #include <cmath>
@@ -32,7 +33,7 @@ namespace {
 // {{{ declaration of RangeBinder
 
 struct RangeBinder : Binder {
-    RangeBinder(UTerm &&assign, RangeLiteralShared &range) 
+    RangeBinder(UTerm &&assign, RangeLiteralShared &range)
         : assign(std::move(assign))
         , range(range) { }
     virtual IndexUpdater *getUpdater() { return nullptr; }
@@ -45,7 +46,7 @@ struct RangeBinder : Binder {
         }
         else {
             if (!undefined) {
-                GRINGO_REPORT(W_OPERATION_UNDEFINED) 
+                GRINGO_REPORT(W_OPERATION_UNDEFINED)
                     << (range.first->loc() + range.second->loc()) << ": info: interval undefined:\n"
                     << "  " << *range.first << ".." << *range.second << "\n";
             }
@@ -67,14 +68,14 @@ struct RangeBinder : Binder {
     RangeLiteralShared &range;
     int                 current = 0;
     int                 end     = 0;
-    
+
 };
 
 // }}}
 // {{{ declaration of RangeMatcher
 
 struct RangeMatcher : Binder {
-    RangeMatcher(Term &assign, RangeLiteralShared &range) 
+    RangeMatcher(Term &assign, RangeLiteralShared &range)
         : assign(assign)
         , range(range) { }
     virtual IndexUpdater *getUpdater() { return nullptr; }
@@ -84,9 +85,9 @@ struct RangeMatcher : Binder {
         if (!undefined && l.type() == Value::NUM && r.type() == Value::NUM) {
             firstMatch = a.type() == Value::NUM && l.num() <= a.num() && a.num() <= r.num();
         }
-        else { 
+        else {
             if (!undefined) {
-                GRINGO_REPORT(W_OPERATION_UNDEFINED) 
+                GRINGO_REPORT(W_OPERATION_UNDEFINED)
                     << (range.first->loc() + range.second->loc()) << ": info: interval undefined:\n"
                     << "  " << *range.first << ".." << *range.second << "\n";
             }
@@ -111,7 +112,7 @@ struct RangeMatcher : Binder {
 // {{{ declaration of ScriptBinder
 
 struct ScriptBinder : Binder {
-    ScriptBinder(Scripts &scripts, UTerm &&assign, ScriptLiteralShared &shared) 
+    ScriptBinder(Scripts &scripts, UTerm &&assign, ScriptLiteralShared &shared)
         : scripts(scripts)
         , assign(std::move(assign))
         , shared(shared) { }
@@ -134,7 +135,7 @@ struct ScriptBinder : Binder {
     }
     virtual void start()  { }
     virtual void finish() { }
-    virtual void print(std::ostream &out) const { 
+    virtual void print(std::ostream &out) const {
         out << *assign << "=" << *std::get<0>(shared) << "(";
         print_comma(out, std::get<1>(shared), ",", [](std::ostream &out, UTerm const &term) { out << *term; });
         out << ")";
@@ -159,20 +160,19 @@ struct RelationMatcher : Binder {
     virtual void match() {
         bool undefined = false;
         Value l(std::get<1>(shared)->eval(undefined));
+        if (undefined) { firstMatch = false; return; }
         Value r(std::get<2>(shared)->eval(undefined));
-        if (!undefined) {
-            switch (std::get<0>(shared)) {
-                case Relation::GT:  { firstMatch = l >  r; break; }
-                case Relation::LT:  { firstMatch = l <  r; break; }
-                case Relation::GEQ: { firstMatch = l >= r; break; }
-                case Relation::LEQ: { firstMatch = l <= r; break; }
-                case Relation::NEQ: { firstMatch = l != r; break; }
-                case Relation::EQ:  { firstMatch = l == r; break; }
-            }
+        if (undefined) { firstMatch = false; return; }
+        switch (std::get<0>(shared)) {
+            case Relation::GT:  { firstMatch = l >  r; break; }
+            case Relation::LT:  { firstMatch = l <  r; break; }
+            case Relation::GEQ: { firstMatch = l >= r; break; }
+            case Relation::LEQ: { firstMatch = l <= r; break; }
+            case Relation::NEQ: { firstMatch = l != r; break; }
+            case Relation::EQ:  { firstMatch = l == r; break; }
         }
-        else { firstMatch = false; }
     }
-    virtual bool next() { 
+    virtual bool next() {
         bool ret = firstMatch;
         firstMatch = false;
         return ret;
@@ -181,7 +181,7 @@ struct RelationMatcher : Binder {
     virtual void finish() { }
     virtual void print(std::ostream &out) const { out << *std::get<1>(shared) << std::get<0>(shared) << *std::get<2>(shared); }
     virtual ~RelationMatcher() { }
-    
+
     RelationShared &shared;
     bool firstMatch = false;
 };
@@ -194,7 +194,7 @@ struct AssignBinder : Binder {
         : lhs(std::move(lhs))
         , rhs(rhs) { }
     virtual IndexUpdater *getUpdater() { return nullptr; }
-    virtual void match() { 
+    virtual void match() {
         bool undefined = false;
         Value valRhs = rhs.eval(undefined);
         if (!undefined) {
@@ -224,10 +224,10 @@ struct CSPLiteralMatcher : Binder {
     CSPLiteralMatcher(CSPLiteralShared &terms)
         : terms(terms) { }
     virtual IndexUpdater *getUpdater() { return nullptr; }
-    virtual void match() { 
+    virtual void match() {
         firstMatch = std::get<1>(terms).checkEval() && std::get<2>(terms).checkEval();
     }
-    virtual bool next() { 
+    virtual bool next() {
         bool ret = firstMatch;
         firstMatch = false;
         return ret;
@@ -236,7 +236,7 @@ struct CSPLiteralMatcher : Binder {
     virtual void finish() { }
     virtual void print(std::ostream &out) const { out << std::get<1>(terms) << std::get<0>(terms) << std::get<2>(terms); }
     virtual ~CSPLiteralMatcher() { }
-    
+
     CSPLiteralShared &terms;
     bool firstMatch = false;
 };
@@ -248,13 +248,13 @@ struct CSPLiteralMatcher : Binder {
 // {{{ definition of PredicateLiteral::BodyOccurrence
 
 UGTerm PredicateLiteral::getRepr() const          { return repr->gterm(); }
-bool PredicateLiteral::isPositive() const         { return gLit.naf == NAF::POS; }
-bool PredicateLiteral::isNegative() const         { return gLit.naf != NAF::POS; }
+bool PredicateLiteral::isPositive() const         { return naf == NAF::POS; }
+bool PredicateLiteral::isNegative() const         { return naf != NAF::POS; }
 void PredicateLiteral::setType(OccurrenceType x)  { type = x; }
 OccurrenceType PredicateLiteral::getType() const  { return type; }
 BodyOcc::DefinedBy &PredicateLiteral::definedBy() { return defs; }
-void PredicateLiteral::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const { 
-    if (defs.empty() && done.find(repr->loc()) == done.end() && edb.find(repr->getSig()) == edb.end()) {
+void PredicateLiteral::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const {
+    if (!auxiliary_ && defs.empty() && done.find(repr->loc()) == done.end() && edb.find(repr->getSig()) == edb.end()) {
         // accumulate warnings in array of printables ..
         done.insert(repr->loc());
         undef.emplace_back(repr->loc(), this);
@@ -276,25 +276,25 @@ ExternalBodyOcc::~ExternalBodyOcc()              { }
 // {{{ definition of *Literal::*Literal
 
 RangeLiteral::RangeLiteral(UTerm &&assign, UTerm &&lower, UTerm &&upper)
-    : assign(std::move(assign))
-    , range(std::move(lower), std::move(upper)) { }
+: assign(std::move(assign))
+, range(std::move(lower), std::move(upper)) { }
 
 ScriptLiteral::ScriptLiteral(UTerm &&assign, FWString name, UTermVec &&args)
-    : assign(std::move(assign))
-    , shared(name, std::move(args)) { }
+: assign(std::move(assign))
+, shared(name, std::move(args)) { }
 
 RelationLiteral::RelationLiteral(Relation rel, UTerm &&left, UTerm &&right)
-    : shared(rel, std::move(left), std::move(right)) { }
+: shared(rel, std::move(left), std::move(right)) { }
 
-PredicateLiteral::PredicateLiteral(PredicateDomain &domain, NAF naf, UTerm &&repr)
-    : repr(std::move(repr))
-    , domain(domain) { gLit.naf = naf; }
+PredicateLiteral::PredicateLiteral(bool auxiliary, PredicateDomain &domain, NAF naf, UTerm &&repr)
+: auxiliary_(auxiliary)
+, repr(std::move(repr))
+, domain(domain)
+, naf(naf) { }
 
-ProjectionLiteral::ProjectionLiteral(PredicateDomain &domain, UTerm &&repr, bool initialized)
-    : PredicateLiteral(domain, NAF::POS, std::move(repr)), initialized_(initialized) { }
-
-CSPLiteral::CSPLiteral(Relation rel, CSPAddTerm &&left, CSPAddTerm &&right)
-    : terms(rel, std::move(left), std::move(right)) { }
+ProjectionLiteral::ProjectionLiteral(bool auxiliary, PredicateDomain &domain, UTerm &&repr, bool initialized)
+: PredicateLiteral(auxiliary, domain, NAF::POS, std::move(repr))
+, initialized_(initialized) { }
 
 // }}}
 // {{{ definition of *Literal::print
@@ -306,15 +306,16 @@ void ScriptLiteral::print(std::ostream &out) const    {
     out << ")";
 }
 void RelationLiteral::print(std::ostream &out) const  { out << *std::get<1>(shared) << std::get<0>(shared) << *std::get<2>(shared); }
-void PredicateLiteral::print(std::ostream &out) const { 
-    out << gLit.naf << *repr;
+void PredicateLiteral::print(std::ostream &out) const {
+    if (auxiliary()) { out << "["; }
+    out << naf << *repr;
     switch (type) {
         case OccurrenceType::POSITIVELY_STRATIFIED: { break; }
         case OccurrenceType::STRATIFIED:            { out << "!"; break; }
         case OccurrenceType::UNSTRATIFIED:          { out << "?"; break; }
     }
+    if (auxiliary()) { out << "]"; }
 }
-void CSPLiteral::print(std::ostream &out) const  { out << std::get<1>(terms) << std::get<0>(terms) << std::get<2>(terms); }
 
 // }}}
 // {{{ definition of *Literal::isRecursive
@@ -323,7 +324,6 @@ bool RangeLiteral::isRecursive() const     { return false; }
 bool ScriptLiteral::isRecursive() const    { return false; }
 bool RelationLiteral::isRecursive() const  { return false; }
 bool PredicateLiteral::isRecursive() const { return type == OccurrenceType::UNSTRATIFIED; }
-bool CSPLiteral::isRecursive() const       { return false; }
 
 // }}}
 // {{{ definition of *Literal::occurrence
@@ -332,7 +332,6 @@ BodyOcc *RangeLiteral::occurrence()     { return nullptr; }
 BodyOcc *ScriptLiteral::occurrence()    { return nullptr; }
 BodyOcc *RelationLiteral::occurrence()  { return nullptr; }
 BodyOcc *PredicateLiteral::occurrence() { return this; }
-BodyOcc *CSPLiteral::occurrence()       { return &ext; }
 
 // }}}
 // {{{ definition of *Literal::collect
@@ -346,15 +345,11 @@ void ScriptLiteral::collect(VarTermBoundVec &vars) const {
     assign->collect(vars, true);
     for (auto &x : std::get<1>(shared)) { x->collect(vars, false); }
 }
-void RelationLiteral::collect(VarTermBoundVec &vars) const { 
+void RelationLiteral::collect(VarTermBoundVec &vars) const {
     std::get<1>(shared)->collect(vars, std::get<0>(shared) == Relation::EQ);
     std::get<2>(shared)->collect(vars, false);
 }
-void PredicateLiteral::collect(VarTermBoundVec &vars) const { repr->collect(vars, gLit.naf == NAF::POS); }
-void CSPLiteral::collect(VarTermBoundVec &vars) const { 
-    std::get<1>(terms).collect(vars);
-    std::get<2>(terms).collect(vars);
-}
+void PredicateLiteral::collect(VarTermBoundVec &vars) const { repr->collect(vars, naf == NAF::POS); }
 
 // }}}
 // {{{ definition of Literal::collectImportant
@@ -366,12 +361,6 @@ void Literal::collectImportant(Term::VarSet &vars) {
         collect(x);
         for (auto &occ : x) { vars.emplace(occ.first->name); }
     }
-}
-
-void CSPLiteral::collectImportant(Term::VarSet &vars) {
-    VarTermBoundVec x;
-    collect(x);
-    for (auto &occ : x) { vars.emplace(occ.first->name); }
 }
 
 // }}}
@@ -395,21 +384,18 @@ UIdx RelationLiteral::index(Scripts &, BinderType, Term::VarSet &bound) {
     return gringo_make_unique<RelationMatcher>(shared);
 }
 UIdx PredicateLiteral::index(Scripts &, BinderType type, Term::VarSet &bound) {
-    return make_binder(domain, gLit.naf, *repr, gLit.repr, type, isRecursive(), bound, 0);
+    return make_binder(domain, naf, *repr, offset, type, isRecursive(), bound, 0);
 }
 UIdx ProjectionLiteral::index(Scripts &, BinderType type, Term::VarSet &bound) {
     assert(bound.empty());
     assert(type == BinderType::ALL || type == BinderType::NEW);
-    return make_binder(domain, gLit.naf, *repr, gLit.repr, type, isRecursive(), bound, initialized_ ? domain.exports.incOffset : 0);
-}
-UIdx CSPLiteral::index(Scripts &, BinderType, Term::VarSet &) {
-    return gringo_make_unique<CSPLiteralMatcher>(terms);
+    return make_binder(domain, naf, *repr, offset, type, isRecursive(), bound, initialized_ ? domain.incOffset() : 0);
 }
 
 // }}}
 // {{{ definition of *Literal::score
 
-Literal::Score RangeLiteral::score(Term::VarSet const &) { 
+Literal::Score RangeLiteral::score(Term::VarSet const &) {
     if (range.first->getInvertibility() == Term::CONSTANT && range.second->getInvertibility() == Term::CONSTANT) {
         bool undefined = false;
         Value l(range.first->eval(undefined));
@@ -418,46 +404,38 @@ Literal::Score RangeLiteral::score(Term::VarSet const &) {
     }
     return 0;
 }
-Literal::Score ScriptLiteral::score(Term::VarSet const &) { 
+Literal::Score ScriptLiteral::score(Term::VarSet const &) {
     return 0;
 }
-Literal::Score RelationLiteral::score(Term::VarSet const &) { 
+Literal::Score RelationLiteral::score(Term::VarSet const &) {
     return -1;
 }
 Literal::Score PredicateLiteral::score(Term::VarSet const &bound) {
-    return gLit.naf == NAF::POS ? estimate(domain.exports.size(), *repr, bound) : 0;
-}
-Literal::Score CSPLiteral::score(Term::VarSet const &) { 
-    return std::numeric_limits<Literal::Score>::infinity();
+    return naf == NAF::POS ? estimate(domain.size(), *repr, bound) : 0;
 }
 
 // }}}
 // {{{ definition of *Literal::toOutput
 
-std::pair<Output::Literal*,bool> RangeLiteral::toOutput()     { return {nullptr, true}; }
-std::pair<Output::Literal*,bool> ScriptLiteral::toOutput()    { return {nullptr, true}; }
-std::pair<Output::Literal*,bool> RelationLiteral::toOutput()  { return {nullptr, true}; }
-std::pair<Output::Literal*,bool> PredicateLiteral::toOutput() { 
-    // TODO: the name isFalse is really bad...
-    // TODO: make the inc_ literals a decicated class
-    if (gLit.repr->second.isFalse() || std::strncmp("#inc_", gLit.repr->first.name()->c_str(), 5) == 0) {
-        return {nullptr,true};
+std::pair<Output::LiteralId,bool> RangeLiteral::toOutput()     { return {Output::LiteralId(), true}; }
+std::pair<Output::LiteralId,bool> ScriptLiteral::toOutput()    { return {Output::LiteralId(), true}; }
+std::pair<Output::LiteralId,bool> RelationLiteral::toOutput()  { return {Output::LiteralId(), true}; }
+std::pair<Output::LiteralId,bool> PredicateLiteral::toOutput() {
+    if (offset == InvalidId) {
+        assert(naf == NAF::NOT);
+        return {Output::LiteralId(), true};
     }
-    switch (gLit.naf) {
+    auto &atom = domain[offset];
+    if (std::strncmp("#inc_", static_cast<Value>(atom).name()->c_str(), 5) == 0) {
+        return {Output::LiteralId(), true};
+    }
+    switch (naf) {
         case NAF::POS:
-        case NAF::NOTNOT: { return {&gLit, gLit.repr->second.fact(isRecursive())}; }
-        case NAF::NOT:    { return {&gLit, gLit.repr->second.isFalse()}; }
+        case NAF::NOTNOT: { return {Output::LiteralId{naf, Output::AtomType::Predicate, offset, domain.domainOffset()}, atom.fact()}; }
+        case NAF::NOT:    { return {Output::LiteralId{naf, Output::AtomType::Predicate, offset, domain.domainOffset()}, false}; }
     }
     assert(false);
-    return {nullptr,true};
-}
-std::pair<Output::Literal*,bool> CSPLiteral::toOutput() {
-    CSPGroundLit add;
-    std::get<0>(add) = std::get<0>(terms);
-    std::get<1>(terms).toGround(add, false);
-    std::get<2>(terms).toGround(add, true);
-    repr.reset(std::move(add));
-    return {&repr, false};
+    return {Output::LiteralId(),true};
 }
 
 // }}}
@@ -468,9 +446,59 @@ ScriptLiteral::~ScriptLiteral() { }
 RelationLiteral::~RelationLiteral() { }
 PredicateLiteral::~PredicateLiteral() { }
 ProjectionLiteral::~ProjectionLiteral() { }
-CSPLiteral::~CSPLiteral() { }
 
 // }}}
+
+// {{{1 definition of CSPLiteral
+
+CSPLiteral::CSPLiteral(DomainData &data, bool auxiliary, Relation rel, CSPAddTerm &&left, CSPAddTerm &&right)
+: data_(data)
+, terms_(rel, std::move(left), std::move(right))
+, auxiliary_(auxiliary)
+{ }
+
+void CSPLiteral::print(std::ostream &out) const  {
+    if (auxiliary()) { out << "["; }
+    out << std::get<1>(terms_) << std::get<0>(terms_) << std::get<2>(terms_);
+    if (auxiliary()) { out << "]"; }
+}
+
+bool CSPLiteral::isRecursive() const { return false; }
+
+BodyOcc *CSPLiteral::occurrence()       { return &ext_; }
+
+void CSPLiteral::collect(VarTermBoundVec &vars) const {
+    std::get<1>(terms_).collect(vars);
+    std::get<2>(terms_).collect(vars);
+}
+
+void CSPLiteral::collectImportant(Term::VarSet &vars) {
+    VarTermBoundVec x;
+    collect(x);
+    for (auto &occ : x) { vars.emplace(occ.first->name); }
+}
+
+UIdx CSPLiteral::index(Scripts &, BinderType, Term::VarSet &) {
+    // NOTE: if the literal is auxiliary it can simply always match
+    return gringo_make_unique<CSPLiteralMatcher>(terms_);
+}
+
+Literal::Score CSPLiteral::score(Term::VarSet const &) {
+    return std::numeric_limits<Literal::Score>::infinity();
+}
+
+std::pair<Output::LiteralId,bool> CSPLiteral::toOutput() {
+    if (auxiliary()) { return {Output::LiteralId(),true}; }
+    CSPGroundLit add;
+    std::get<0>(add) = std::get<0>(terms_);
+    std::get<1>(terms_).toGround(add, false);
+    std::get<2>(terms_).toGround(add, true);
+    return {Output::LiteralId{NAF::POS, Output::AtomType::LinearConstraint, data_.cspAtom(std::move(add)), 0}, false};
+}
+
+CSPLiteral::~CSPLiteral() noexcept = default;
+
+// }}}1
 
 } } // namespace Ground Gringo
 

@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -180,10 +180,10 @@ void TestLiteral::test_unpool() {
         csplit(
             cspadd(
                 cspmul(pool(val(NUM(1)), val(NUM(2))), pool(val(ID("x")), val(ID("y")))),
-                cspmul(val(NUM(1)), val(ID("y")))), 
-            Relation::LEQ, 
-            cspadd(cspmul(val(ID("23")))), 
-            Relation::LEQ, 
+                cspmul(val(NUM(1)), val(ID("y")))),
+            Relation::LEQ,
+            cspadd(cspmul(val(ID("23")))),
+            Relation::LEQ,
             cspadd(cspmul(pool(val(ID("42")), val(NUM(43))))))->unpool(true)));
 }
 
@@ -194,8 +194,8 @@ void TestLiteral::test_rewrite() {
         to_string(rewrite(csplit(
             cspadd(
                 cspmul(binop(BinOp::ADD, val(NUM(1)), val(NUM(2))), binop(BinOp::ADD, val(NUM(2)), val(NUM(3)))),
-                cspmul(binop(BinOp::ADD, val(NUM(1)), val(NUM(3))), val(ID("y")))), 
-            Relation::LEQ, 
+                cspmul(binop(BinOp::ADD, val(NUM(1)), val(NUM(3))), val(ID("y")))),
+            Relation::LEQ,
             cspadd(cspmul(binop(BinOp::MUL, val(NUM(6)), val(NUM(7)))))))));
 }
 

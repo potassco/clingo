@@ -247,27 +247,27 @@ function get(val, default)
 end
 
 function main(prg)
-    local imin   = get(prg:get_const("imin"), 0)
+    local imin   = get(prg:get_const("imin"), clingo.number(0))
     local imax   = prg:get_const("imax")
-    local istop  = get(prg:get_const("istop"), "SAT")
+    local istop  = get(prg:get_const("istop"), clingo.str("SAT"))
 
-    local step, ret = 0, gringo.SolveResult.UNKNOWN
-    while (imax == nil or step < imax) and
-          (step == 0   or step < imin or (
-              (istop == "SAT"     and ret ~= gringo.SolveResult.SAT) or
-              (istop == "UNSAT"   and ret ~= gringo.SolveResult.UNSAT) or
-              (istop == "UNKNOWN" and ret ~= gringo.SolveResult.UNKNOWN))) do
+    local step, ret = 0, None
+    while (imax == nil or step < imax.number) and
+          (step == 0   or step < imin.number or (
+              (istop.string == "SAT"     and not ret.satisfiable) or
+              (istop.string == "UNSAT"   and not ret.unsatisfiable) or
+              (istop.string == "UNKNOWN" and not ret.unknown))) do
         local parts = {}
         table.insert(parts, {"check", {step}})
         if step > 0 then
-            prg:release_external(gringo.Fun("query", {step-1}))
-            prg:cleanup_domains()
+            prg:release_external(clingo.fun("query", {step-1}))
+            prg:cleanup()
             table.insert(parts, {"step", {step}})
         else
             table.insert(parts, {"base", {}})
         end
         prg:ground(parts)
-        prg:assign_external(gringo.Fun("query", {step}), true)
+        prg:assign_external(clingo.fun("query", {step}), true)
         ret, step = prg:solve(), step+1
     end
 end
@@ -304,9 +304,38 @@ bool NonGroundParser::parseDefine(std::string const &define) {
     return ret == 0;
 }
 
+void NonGroundParser::theoryLexing(TheoryLexing mode) {
+   theoryLexing_ = mode;
+}
+
+void NonGroundParser::condition(Condition cond) {
+    assert(condition_ != yyctheory);
+    condition_ = cond;
+}
+
+NonGroundParser::Condition NonGroundParser::condition() const {
+    if (condition_ == yycnormal) {
+        switch (theoryLexing_) {
+            case TheoryLexing::Disabled:   { return  yycnormal; }
+            case TheoryLexing::Theory:     { return  yyctheory; }
+            case TheoryLexing::Definition: { return  yycdefinition; }
+        }
+    }
+    return condition_;
+}
+
+void NonGroundParser::start(Location &loc) {
+    start();
+    loc.beginFilename = filename();
+    loc.beginLine     = line();
+    loc.beginColumn   = column();
+}
+
 bool NonGroundParser::parse() {
-    if (empty()) { return true; }
+    condition(yycnormal);
+    theoryLexing_ = TheoryLexing::Disabled;
     _startSymbol = NonGroundGrammar::parser::token::PARSE_LP;
+    if (empty()) { return true; }
     NonGroundGrammar::parser parser(this);
     _init();
     auto ret = parser.parse();
@@ -316,20 +345,30 @@ bool NonGroundParser::parse() {
 
 INongroundProgramBuilder &NonGroundParser::builder() { return pb_; }
 
-unsigned NonGroundParser::aggregate(AggregateFunction fun, unsigned choice, unsigned elems, BoundVecUid bounds) {
+unsigned NonGroundParser::aggregate(AggregateFunction fun, bool choice, unsigned elems, BoundVecUid bounds) {
     return _aggregates.insert({fun, choice, elems, bounds});
+}
+
+unsigned NonGroundParser::aggregate(TheoryAtomUid atom) {
+    return _aggregates.insert({AggregateFunction::COUNT, 2, atom, static_cast<BoundVecUid>(0)});
 }
 
 HdLitUid NonGroundParser::headaggregate(Location const &loc, unsigned hdaggr) {
     auto aggr = _aggregates.erase(hdaggr);
-    if (aggr.choice) { return builder().headaggr(loc, aggr.fun, aggr.bounds, CondLitVecUid(aggr.elems)); }
-    else { return builder().headaggr(loc, aggr.fun, aggr.bounds, HdAggrElemVecUid(aggr.elems)); }
+    switch (aggr.choice) {
+        case 1:  return builder().headaggr(loc, aggr.fun, aggr.bounds, CondLitVecUid(aggr.elems));
+        case 2:  return builder().headaggr(loc, static_cast<TheoryAtomUid>(aggr.elems));
+        default: return builder().headaggr(loc, aggr.fun, aggr.bounds, HdAggrElemVecUid(aggr.elems));
+    }
 }
 
 BdLitVecUid NonGroundParser::bodyaggregate(BdLitVecUid body, Location const &loc, NAF naf, unsigned bdaggr) {
     auto aggr = _aggregates.erase(bdaggr);
-    if (aggr.choice) { return builder().bodyaggr(body, loc, naf, aggr.fun, aggr.bounds, CondLitVecUid(aggr.elems)); }
-    else { return builder().bodyaggr(body, loc, naf, aggr.fun, aggr.bounds, BdAggrElemVecUid(aggr.elems)); }
+    switch (aggr.choice) {
+        case 1:  return builder().bodyaggr(body, loc, naf, aggr.fun, aggr.bounds, CondLitVecUid(aggr.elems));
+        case 2:  return builder().bodyaggr(body, loc, naf, static_cast<TheoryAtomUid>(aggr.elems));
+        default: return builder().bodyaggr(body, loc, naf, aggr.fun, aggr.bounds, BdAggrElemVecUid(aggr.elems));
+    }
 }
 
 BoundVecUid NonGroundParser::boundvec(Relation ra, TermUid ta, Relation rb, TermUid tb) {

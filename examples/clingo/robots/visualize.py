@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import gringo
+import clingo
 import Tkinter
 
 # {{{1 class Board
@@ -16,15 +16,15 @@ class Board:
         self.current_target = None
         self.solution       = None
 
-        ctl = gringo.Control()
+        ctl = clingo.Control()
         ctl.load("board.lp")
         ctl.ground([("base", [])])
         ctl.solve(on_model=self.__on_model)
 
     def __on_model(self, m):
-        for atom in m.atoms(gringo.Model.ATOMS):
-            if atom.name() == "barrier" and len(atom.args()) == 4:
-                x, y, dx, dy = atom.args()
+        for atom in m.atoms(atoms=True):
+            if atom.name == "barrier" and len(atom.args) == 4:
+                x, y, dx, dy = [n.number for n in atom.args]
                 self.blocked.add((x - 1     , y - 1     ,  dx,  dy))
                 self.blocked.add((x - 1 + dx, y - 1     , -dx,  dy))
                 self.blocked.add((x - 1     , y - 1 + dy,  dx, -dy))
@@ -33,14 +33,14 @@ class Board:
                     self.barriers.add(('west', x if dx == 1 else x - 1, y - 1))
                 else:
                     self.barriers.add(('north', x - 1, y if dy == 1 else y - 1))
-            elif atom.name() == "dim" and len(atom.args()) == 1:
-                self.size = max(self.size, atom.args()[0])
-            elif atom.name() == "available_target" and len(atom.args()) == 4:
-                c, s, x, y = atom.args()
-                self.targets.add((c.name(), s.name(), x - 1, y - 1))
-            elif atom.name() == "initial_pos" and len(atom.args()) == 3:
-                c, x, y = atom.args()
-                self.pos[c.name()] = (x - 1, y - 1)
+            elif atom.name == "dim" and len(atom.args) == 1:
+                self.size = max(self.size, atom.args[0].number)
+            elif atom.name == "available_target" and len(atom.args) == 4:
+                c, s, x, y = [(n.number if n.type == clingo.TermType.Number else str(n)) for n in atom.args]
+                self.targets.add((c, s, x - 1, y - 1))
+            elif atom.name == "initial_pos" and len(atom.args) == 3:
+                c, x, y = [(n.number if n.type == clingo.TermType.Number else str(n)) for n in atom.args]
+                self.pos[c] = (x - 1, y - 1)
         for d in range(0, self.size):
             self.blocked.add((d            ,             0,  0, -1))
             self.blocked.add((d            , self.size - 1,  0,  1))
@@ -75,7 +75,7 @@ class Board:
 class Solver:
     def __init__(self, horizon=0):
         self.__horizon = horizon
-        self.__prg = gringo.Control(['-t4'])
+        self.__prg = clingo.Control(['-t4'])
         self.__future = None
         self.__solution = None
         self.__assign = []
@@ -92,24 +92,24 @@ class Solver:
                          , ("state", [t])
                          ])
         self.__prg.ground(parts)
-        self.__prg.assign_external(gringo.Fun("horizon", [self.__horizon]), True)
+        self.__prg.assign_external(clingo.function("horizon", [self.__horizon]), True)
 
     def __next(self):
         assert(self.__horizon < 30)
-        self.__prg.assign_external(gringo.Fun("horizon", [self.__horizon]), False)
+        self.__prg.assign_external(clingo.function("horizon", [self.__horizon]), False)
         self.__horizon += 1
         self.__prg.ground([ ("trans", [self.__horizon])
                           , ("check", [self.__horizon])
                           , ("state", [self.__horizon])
                           ])
-        self.__prg.assign_external(gringo.Fun("horizon", [self.__horizon]), True)
+        self.__prg.assign_external(clingo.function("horizon", [self.__horizon]), True)
 
     def start(self, board):
         self.__assign = []
         for robot, (x, y) in board.pos.items():
-            self.__assign.append(gringo.Fun("pos", [gringo.Fun(robot), x+1, y+1, 0]))
-        self.__assign.append(gringo.Fun("target",
-            [ gringo.Fun(board.current_target[0])
+            self.__assign.append(clingo.function("pos", [clingo.function(robot), x+1, y+1, 0]))
+        self.__assign.append(clingo.function("target",
+            [ clingo.function(board.current_target[0])
             , board.current_target[2] + 1
             , board.current_target[3] + 1
             ]))
@@ -133,7 +133,7 @@ class Solver:
 
     def stop(self):
         if self.__future is not None:
-            self.__future.interrupt()
+            self.__future.cancel()
             self.__future.wait()
             self.__future = None
             self.get()
@@ -148,10 +148,10 @@ class Solver:
 
     def __on_model(self, m):
         self.__solution = []
-        for atom in m.atoms(gringo.Model.ATOMS):
-            if atom.name() == "move" and len(atom.args()) == 4:
-                c, x, y, t = atom.args()
-                self.__solution.append((c.name(), x, y, t))
+        for atom in m.atoms(atoms=True):
+            if atom.name == "move" and len(atom.args) == 4:
+                c, x, y, t = [(n.number if n.type == clingo.TermType.Number else str(n)) for n in atom.args]
+                self.__solution.append((c, x, y, t))
         self.__solution.sort(key=lambda x: x[3])
         p = None
         i = 0

@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2013, Benjamin Kaufmann
+// Copyright (c) 2013-2016, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -19,7 +19,14 @@
 //
 #ifndef CLASP_CLASP_FWD_H_INCLUDED
 #define CLASP_CLASP_FWD_H_INCLUDED
-
+namespace Potassco {
+	class TheoryAtom;
+	class TheoryTerm;
+	class TheoryData;
+	template <class T> struct Span;
+	struct Heuristic_t;
+	class BufferedStream;
+}
 //! Root namespace for all types and functions of libclasp.
 namespace Clasp { 
 class SharedContext;
@@ -27,31 +34,33 @@ class MinimizeBuilder;
 class SharedMinimizeData;
 class Configuration;
 class Constraint;
+class ConstraintInfo;
+class Solver;
+struct Model;
 struct Problem_t {
-	enum Type   { SAT    = 0, PB  = 1, ASP    = 2 };
-	enum Format { DIMACS = 0, OPB = 1, LPARSE = 2 };
-	static Type format2Type(Format f) { return static_cast<Type>(f); }
+	enum Type {Sat = 0, Pb = 1, Asp = 2};
 };
-typedef Problem_t::Type   ProblemType;
-typedef Problem_t::Format InputFormat;
+typedef Problem_t::Type ProblemType;
 class ProgramBuilder;
+class ProgramParser;
 class SatBuilder;
 class PBBuilder;
-class StreamSource;
+class ExtDepGraph;
+class ConstString;
+typedef Potassco::Span<char> StrView;
+typedef Potassco::Heuristic_t DomModType;
 //! Namespace for types and functions used to define ASP programs.
 namespace Asp {
-class  LogicProgram;
-class  Preprocessor;
-class  LpStats;
-class  Rule;
-class  PrgAtom;
-class  PrgBody;
-class  PrgDisj;
-class  PrgHead;
-class  PrgNode;
+class LogicProgram;
+class Preprocessor;
+class LpStats;
+class PrgAtom;
+class PrgBody;
+class PrgDisj;
+class PrgHead;
+class PrgNode;
+class PrgDepGraph;
 struct PrgEdge;
-class  SccChecker;
 }}
-
 
 #endif

@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -31,7 +31,7 @@ struct Location {
     Location(FWString beginFilename, unsigned beginLine, unsigned beginColumn, FWString endFilename, unsigned endLine, unsigned endColumn);
     //Location(Location const &loc);
     //Location(Location &&loc);
-    
+
     FWString beginFilename;
     FWString endFilename;
     unsigned beginLine;

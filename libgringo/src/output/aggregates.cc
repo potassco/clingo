@@ -62,14 +62,14 @@ void AggregateAnalyzer::print(std::ostream &out) {
     out << std::endl;
     out << "  truth: ";
     switch (truth) {
-        case Truth::TRUE:  { out << "true"; break; }
-        case Truth::OPEN:  { out << "open"; break; }
-        case Truth::FALSE: { out << "false"; break; }
+        case Truth::True:  { out << "true"; break; }
+        case Truth::Open:  { out << "open"; break; }
+        case Truth::False: { out << "false"; break; }
     }
     out << std::endl;
 }
 
-AggregateAnalyzer::AggregateAnalyzer(NAF naf, DisjunctiveBounds const &disjunctiveBounds, AggregateFunction fun, Interval range, BdAggrElemSet const &elems)
+AggregateAnalyzer::AggregateAnalyzer(DomainData &data, NAF naf, DisjunctiveBounds const &disjunctiveBounds, AggregateFunction fun, Interval range, BodyAggregateElements const &elems)
 : range(range) {
     // NOTE: considers everything that is fixed in a reduct as ANTIMONOTONE
     weightType = POSITIVE;
@@ -104,7 +104,7 @@ AggregateAnalyzer::AggregateAnalyzer(NAF naf, DisjunctiveBounds const &disjuncti
         b.left  = x.right;
         b.right = range.right;
         if (a.empty() && b.empty()) {
-            truth        = FALSE;
+            truth        = False;
             monotonicity = ANTIMONOTONE;
             bounds.clear();
             bounds.emplace_back(a, b);
@@ -116,19 +116,19 @@ AggregateAnalyzer::AggregateAnalyzer(NAF naf, DisjunctiveBounds const &disjuncti
         }
     }
     if (bounds.empty()) {
-        truth        = TRUE;
+        truth        = True;
         monotonicity = MONOTONE;
     }
     else {
-        truth = OPEN;
+        truth = Open;
         bool hasPositive       = false;
         bool hasPositiveWeight = false;
         bool hasNegativeWeight = false;
         for (auto &x : elems) {
             bool hasPositiveLiteral = false;
             for (auto &y : x.second) {
-                for (auto &z : y) {
-                    if (z->isPositive()) {
+                for (auto &z : data.clause(y)) {
+                    if (z.sign() == NAF::POS) {
                         hasPositive        = true;
                         hasPositiveLiteral = true;
                         break;
@@ -162,12 +162,11 @@ AggregateAnalyzer::AggregateAnalyzer(NAF naf, DisjunctiveBounds const &disjuncti
     }
 }
 
-ULitValVec AggregateAnalyzer::translateElems(LparseTranslator &x, AggregateFunction fun, BdAggrElemSet const &bdElems, bool incomplete) {
-    ULitValVec elems;
+LitValVec AggregateAnalyzer::translateElems(DomainData &data, Translator &x, AggregateFunction fun, BodyAggregateElements const &bdElems, bool incomplete) {
+    LitValVec elems;
     for (auto &y : bdElems) {
         Value weight(getWeight(fun, y.first));
-        std::vector<ULitVec> formula = get_clone(y.second);
-        ULit lit = getEqualFormula(x, std::move(formula), false, monotonicity == AggregateAnalyzer::NONMONOTONE && incomplete);
+        LiteralId lit = getEqualFormula(data, x, y.second, false, monotonicity == AggregateAnalyzer::NONMONOTONE && incomplete);
         elems.emplace_back(std::move(lit), weight);
     }
 
@@ -176,11 +175,11 @@ ULitValVec AggregateAnalyzer::translateElems(LparseTranslator &x, AggregateFunct
 
 // {{{1 definition of MinMaxTranslator
 
-ULit MinMaxTranslator::translate(LparseTranslator &x, AggregateAnalyzer &res, bool isMin, ULitValVec &&elems, bool incomplete) {
+LiteralId MinMaxTranslator::translate(DomainData &data, Translator &x, AggregateAnalyzer &res, bool isMin, LitValVec &&elems, bool incomplete) {
     // NOTE: passing the elems vec as a list of weighted formulas
     //       could be exploited to add fewer disjunctions than translateElems adds at the moment
     //       (same goes for sum aggregates)
-    ULitVec conjunction;
+    LitVec conjunction;
     for (auto &bound : res.bounds) {
         // translation overview (min):
         // |--A--|  B  |--C--|
@@ -189,23 +188,25 @@ ULit MinMaxTranslator::translate(LparseTranslator &x, AggregateAnalyzer &res, bo
         // if not incomplete or not nonmonotone:
         // (~B | A)
         bool hasAntecedent = isMin ? !bound.second.empty() : !bound.first.empty();
-        ULitVec antecedent;
-        ULitVec consequent;
+        LitVec antecedent;
+        LitVec consequent;
         for (auto &elem : elems) {
             if (res.range.contains(elem.second)) {
                 if (bound.first.contains(elem.second)) {
-                    if (isMin) { consequent.emplace_back(get_clone(elem.first)); }
+                    if (isMin) { consequent.emplace_back(elem.first); }
                 }
                 else if (bound.second.contains(elem.second)) {
-                    if (!isMin) { consequent.emplace_back(get_clone(elem.first)); }
+                    if (!isMin) { consequent.emplace_back(elem.first); }
                 }
-                else if (hasAntecedent) { antecedent.emplace_back(get_clone(elem.first)); }
+                else {
+                    if (hasAntecedent) { antecedent.emplace_back(elem.first); }
+                }
             }
         }
         if (hasAntecedent) {
             assert(!antecedent.empty());
             if (consequent.empty()) {
-                for (auto &lit : antecedent) { conjunction.emplace_back(lit->negateLit(x)); }
+                for (auto &lit : antecedent) { conjunction.emplace_back(lit.negate()); }
             }
             else {
                 if (incomplete && res.monotonicity == AggregateAnalyzer::NONMONOTONE) {
@@ -216,39 +217,38 @@ ULit MinMaxTranslator::translate(LparseTranslator &x, AggregateAnalyzer &res, bo
                     //     a2 => q
                     //    ~a1 => q
                     //   ~~a2 => a1 | q
-                    ULit q  = x.makeAux();
-                    ULit a1 = getEqualClause(x, std::move(antecedent), false, true);
-                    ULit a2 = getEqualClause(x, std::move(consequent), false, false);
-                    LRC().addHead(q).addBody(a2).toLparse(x);
-                    LRC().addHead(q).addBody(a1->negateLit(x)).toLparse(x);
-                    LRC().addHead(q).addHead(a1).addBody(a2->negateLit(x)->negateLit(x)).toLparse(x);
-                    conjunction.emplace_back(std::move(q));
+                    LiteralId q  = data.newAux();
+                    LiteralId a1 = getEqualClause(data, x, data.clause(std::move(antecedent)), false, true);
+                    LiteralId a2 = getEqualClause(data, x, data.clause(std::move(consequent)), false, false);
+                    Rule().addHead(q).addBody(a2).translate(data, x);
+                    Rule().addHead(q).addBody(a1.negate()).translate(data, x);
+                    Rule().addHead(q).addHead(a1).addBody(a2.negate().negate()).translate(data, x);
+                    conjunction.emplace_back(q);
                 }
                 else {
-                    ULit aux = x.makeAux();
-                    for (auto &lit : consequent) { LRC().addHead(aux).addBody(std::move(lit)).toLparse(x); }
-                    LRC negated;
-                    for (auto &lit : antecedent) { negated.addBody(lit->negateLit(x)); }
-                    negated.addHead(aux).toLparse(x);
-                    conjunction.emplace_back(std::move(aux));
+                    LiteralId aux = data.newAux();
+                    for (auto &lit : consequent) { Rule().addHead(aux).addBody(lit).translate(data, x); }
+                    Rule negated;
+                    for (auto &lit : antecedent) { negated.addBody(lit.negate()); }
+                    negated.addHead(aux).translate(data, x);
+                    conjunction.emplace_back(aux);
                 }
             }
         }
         else {
             assert(!consequent.empty());
-            conjunction.emplace_back(getEqualClause(x, std::move(consequent), false, false));
+            conjunction.emplace_back(getEqualClause(data, x, data.clause(std::move(consequent)), false, false));
         }
     }
-    ULit ret = getEqualClause(x, std::move(conjunction), true, false);
-    Term::replace(ret, ret->toLparse(x));
-    return ret;
+    LiteralId ret = getEqualClause(data, x, data.clause(std::move(conjunction)), true, false);
+    return call(data, ret, &Literal::translate, x);
 }
 
 // {{{1 definition of SumTranslator
 
-void SumTranslator::addLiteral(LparseTranslator &x, ULit const &lit, int weight, bool recursive) {
+void SumTranslator::addLiteral(DomainData &data, LiteralId const &lit, Potassco::Weight_t weight, bool recursive) {
     if (weight > 0) {
-        if (!recursive || lit->invertible() || x.isAtomFromPreviousStep(lit)) {
+        if (!recursive || lit.invertible() || call(data, lit, &Literal::isAtomFromPreviousStep)) {
             litsPosStrat.emplace_back(get_clone(lit), weight);
         }
         else {
@@ -256,7 +256,7 @@ void SumTranslator::addLiteral(LparseTranslator &x, ULit const &lit, int weight,
         }
     }
     else if (weight < 0) {
-        if (!recursive || lit->invertible() || x.isAtomFromPreviousStep(lit)) {
+        if (!recursive || lit.invertible() || call(data, lit, &Literal::isAtomFromPreviousStep)) {
             litsNegStrat.emplace_back(get_clone(lit), -weight);
         }
         else {
@@ -265,137 +265,143 @@ void SumTranslator::addLiteral(LparseTranslator &x, ULit const &lit, int weight,
     }
 }
 
-void SumTranslator::translate(LparseTranslator &x, ULit const &head, int bound, ULitUintVec const &litsPosRec, ULitUintVec const &litsNegRec, ULitUintVec const &litsPosStrat, ULitUintVec const &litsNegStrat) {
-    ULitUintVec elems;
+void SumTranslator::translate(DomainData &data, Translator &x, LiteralId const &head, Potassco::Weight_t bound, LitUintVec const &litsPosRec, LitUintVec const &litsNegRec, LitUintVec const &litsPosStrat, LitUintVec const &litsNegStrat) {
+    LitUintVec elems;
     for (auto &wLit : litsPosRec)   { elems.emplace_back(get_clone(wLit.first), wLit.second); }
     for (auto &wLit : litsPosStrat) { elems.emplace_back(get_clone(wLit.first), wLit.second); }
     for (auto &wLit : litsNegStrat) {
         bound+= wLit.second;
-        elems.emplace_back(wLit.first->negateLit(x), wLit.second);
+        elems.emplace_back(wLit.first.negate(), wLit.second);
     }
     for (auto &wLit : litsNegRec) {
         bound+= wLit.second;
-        ULit aux = x.makeAux();
+        LiteralId aux = data.newAux();
         elems.emplace_back(get_clone(aux), wLit.second);
-        LRC().addHead(aux).addBody(wLit.first->negateLit(x)).toLparse(x);
-        LRC().addHead(aux).addBody(head).toLparse(x);
-        LRC().addHead(aux).addHead(wLit.first).addHead(head->negateLit(x)).toLparse(x);
+        Rule().addHead(aux).addBody(wLit.first.negate()).translate(data, x);
+        Rule().addHead(aux).addBody(head).translate(data, x);
+        Rule().addHead(aux).addHead(wLit.first).addHead(head.negate()).translate(data, x);
     }
-    WeightRule(head->isAuxAtom(), bound, get_clone(elems)).toLparse(x);
+    WeightRule(head, bound, std::move(elems)).translate(data, x);
 }
 
-ULit SumTranslator::translate(LparseTranslator &x, BodyAggregate::ConjunctiveBounds &bounds, bool convex, bool invert) {
-    ULitVec clause;
+LiteralId SumTranslator::translate(DomainData &data, Translator &x, ConjunctiveBounds &bounds, bool convex, bool invert) {
+    LitVec clause;
     for (auto &bound : bounds) {
         assert(!bound.first.empty() || !bound.second.empty());
-        ULit pos, neg;
+        LiteralId pos, neg;
         if (!bound.second.empty()) {
             if (invert && convex) {
-                if (!neg) { neg = x.makeAux(); }
-                int lower = 1 - bound.second.left.bound.num();
-                translate(x, neg, lower, litsNegRec, litsPosRec, litsNegStrat, litsPosStrat);
+                if (!neg) { neg = data.newAux(); }
+                Potassco::Weight_t lower = 1 - bound.second.left.bound.num();
+                translate(data, x, neg, lower, litsNegRec, litsPosRec, litsNegStrat, litsPosStrat);
             }
             else {
-                if (!pos) { pos = x.makeAux(); }
-                int lower = bound.second.left.bound.num();
-                translate(x, pos, lower, litsPosRec, litsNegRec, litsPosStrat, litsNegStrat);
+                if (!pos) { pos = data.newAux(); }
+                Potassco::Weight_t lower = bound.second.left.bound.num();
+                translate(data, x, pos, lower, litsPosRec, litsNegRec, litsPosStrat, litsNegStrat);
             }
         }
         if (!bound.first.empty()) {
             if (!invert && convex) {
-                if (!neg) { neg = x.makeAux(); }
-                int lower = 1 + bound.first.right.bound.num();
-                translate(x, neg,  lower, litsPosRec, litsNegRec, litsPosStrat, litsNegStrat);
+                if (!neg) { neg = data.newAux(); }
+                Potassco::Weight_t lower = 1 + bound.first.right.bound.num();
+                translate(data, x, neg,  lower, litsPosRec, litsNegRec, litsPosStrat, litsNegStrat);
             }
             else {
-                if (!pos) { pos = x.makeAux(); }
-                int lower = -bound.first.right.bound.num();
-                translate(x, pos, lower, litsNegRec, litsPosRec, litsNegStrat, litsPosStrat);
+                if (!pos) { pos = data.newAux(); }
+                Potassco::Weight_t lower = -bound.first.right.bound.num();
+                translate(data, x, pos, lower, litsNegRec, litsPosRec, litsNegStrat, litsPosStrat);
             }
         }
-        ULitVec disjunction;
+        LitVec disjunction;
         if (pos) { disjunction.emplace_back(std::move(pos)); }
-        if (neg) { disjunction.emplace_back(neg->negateLit(x)); }
-        clause.emplace_back(getEqualClause(x, std::move(disjunction), false, false));
+        if (neg) { disjunction.emplace_back(neg.negate()); }
+        clause.emplace_back(getEqualClause(data, x, data.clause(std::move(disjunction)), false, false));
     }
-    return getEqualClause(x, std::move(clause), true, false);
+    auto ret = getEqualClause(data, x, data.clause(std::move(clause)), true, false);
+    return call(data, ret, &Literal::translate, x);
 }
 
 // {{{1 definition of translation functions
 
-ULit getEqualClause(LparseTranslator &x, ULitVec &&clause, bool conjunctive, bool equivalence) {
+namespace {
+
+LiteralId getEqualClause(DomainData &data, Translator &x, IteratorRange<LitVec::const_iterator> clause, bool conjunctive, bool equivalence) {
     if (clause.empty()) {
-        return conjunctive ? x.getTrueLit() : x.getTrueLit()->negateLit(x);
+        return conjunctive ? data.getTrueLit() : data.getTrueLit().negate();
     }
     else if (clause.size() == 1) {
-        if (equivalence && x.isAtomFromPreviousStep(clause.front())) {
-            clause.front()->invert();
-            clause.front()->invert();
+        LiteralId lit = clause.front();
+        if (equivalence && call(data, clause.front(), &Literal::isAtomFromPreviousStep)) {
+            lit = lit.negate();
+            lit = lit.negate();
         }
         return std::move(clause.front());
     }
     else {
-        ULit aux = x.makeAux();
+        LiteralId aux = data.newAux();
         if (conjunctive) {
             if (equivalence) {
-                for (auto &lit : clause) { LRC().addHead(lit).addBody(aux).toLparse(x, true); }
+                for (auto &lit : clause) {
+                    Rule().addHead(lit).addBody(aux).negatePrevious(data).translate(data, x);
+                }
             }
-            LRC().addHead(aux).addBody(std::move(clause)).toLparse(x);
+            Rule().addHead(aux).addBody(clause).translate(data, x);
         }
         else {
-            for (auto &lit : clause) { LRC().addHead(aux).addBody(lit).toLparse(x); }
+            for (auto &lit : clause) { Rule().addHead(aux).addBody(lit).translate(data, x); }
             if (equivalence) {
-                LRC().addHead(std::move(clause)).addBody(aux).toLparse(x, true);
+                Rule().addHead(clause).addBody(aux).negatePrevious(data).translate(data, x);
             }
         }
         return aux;
     }
 }
 
-ULit getEqualClause(LparseTranslator &x, ULitVec const &clause, bool conjunctive, bool equivalence) {
-    return getEqualClause(x, get_clone(clause), conjunctive, equivalence);
-}
+} // namespace
 
-ULit getEqualFormula(LparseTranslator &x, std::vector<ULitVec> const &clauses, bool conjunctive, bool equivalence) {
-    ULitVec disjunction;
-    for (auto &conjunction : clauses) {
-        disjunction.emplace_back(getEqualClause(x, conjunction, !conjunctive, equivalence));
-    }
-    return getEqualClause(x, disjunction, conjunctive, equivalence);
-}
-
-Value getNeutral(AggregateFunction fun) {
-    switch (fun) {
-        case AggregateFunction::COUNT:
-        case AggregateFunction::SUMP:
-        case AggregateFunction::SUM: { return Value::createNum(0); }
-        case AggregateFunction::MIN: { return Value::createSup(); }
-        case AggregateFunction::MAX: { return Value::createInf(); }
-    }
-    assert(false);
-    return {};
-}
-
-ULit getEqualAggregate(LparseTranslator &x, AggregateFunction fun, NAF naf, DisjunctiveBounds const &bounds, Interval const &range, BdAggrElemSet const &bdElems, bool incomplete) {
-    AggregateAnalyzer res(naf, bounds, fun, range, bdElems);
-    //res.print(std::cerr);
-    ULit aux;
-    if (res.truth == AggregateAnalyzer::TRUE) {
-        aux = x.getTrueLit();
-    }
-    else if (res.truth == AggregateAnalyzer::FALSE) {
-        aux = x.getTrueLit()->negateLit(x);
+LiteralId getEqualClause(DomainData &data, Translator &x, std::pair<Id_t, Id_t> id, bool conjunctive, bool equivalence) {
+    if (id.second > 1) {
+        auto ret = x.clause(id, conjunctive, equivalence);
+        if (!ret) {
+            ret = getEqualClause(data, x, data.clause(id), conjunctive, equivalence);
+            x.clause(ret, id, conjunctive, equivalence);
+        }
+        return ret;
     }
     else {
-        bool recursive = res.monotonicity == AggregateAnalyzer::NONMONOTONE && incomplete;
-        ULitValVec elems = res.translateElems(x, fun, bdElems, incomplete);
+        return getEqualClause(data, x, data.clause(id), conjunctive, equivalence);
+    }
+}
+
+LiteralId getEqualFormula(DomainData &data, Translator &x, Formula const &formula, bool conjunctive, bool equivalence) {
+    LitVec disjunction;
+    for (auto &conjunction : formula) {
+        disjunction.emplace_back(getEqualClause(data, x, data.clause(conjunction), !conjunctive, equivalence));
+    }
+    return getEqualClause(data, x, data.clause(std::move(disjunction)), conjunctive, equivalence);
+}
+
+LiteralId getEqualAggregate(DomainData &data, Translator &x, AggregateFunction fun, NAF naf, DisjunctiveBounds const &bounds, Interval const &range, BodyAggregateElements const &bdElems, bool recursive) {
+    AggregateAnalyzer res(data, naf, bounds, fun, range, bdElems);
+    //res.print(std::cerr);
+    LiteralId aux;
+    if (res.truth == AggregateAnalyzer::True) {
+        aux = data.getTrueLit();
+    }
+    else if (res.truth == AggregateAnalyzer::False) {
+        aux = data.getTrueLit().negate();
+    }
+    else {
+        recursive = res.monotonicity == AggregateAnalyzer::NONMONOTONE && recursive;
+        LitValVec elems = res.translateElems(data, x, fun, bdElems, recursive);
         if (elems.size() == 1) {
             bool hasElem  = bounds.contains({{elems.front().second, true}, {elems.front().second, true}});
             bool hasEmpty = bounds.contains({{getNeutral(fun), true}, {getNeutral(fun), true}});
-            if (hasElem && hasEmpty) { aux = x.getTrueLit(); }
+            if (hasElem && hasEmpty) { aux = data.getTrueLit(); }
             else if (hasElem)        { aux = std::move(elems.front().first); }
-            else if (hasEmpty)       { aux = elems.front().first->negateLit(x); }
-            else                     { aux = x.getTrueLit()->negateLit(x); }
+            else if (hasEmpty)       { aux = elems.front().first.negate(); }
+            else                     { aux = data.getTrueLit().negate(); }
         }
         else {
             switch (fun) {
@@ -404,15 +410,15 @@ ULit getEqualAggregate(LparseTranslator &x, AggregateFunction fun, NAF naf, Disj
                 case AggregateFunction::SUM: {
                     SumTranslator trans;
                     for (auto &elem : elems) {
-                        trans.addLiteral(x, elem.first, elem.second.num(), recursive);
+                        trans.addLiteral(data, elem.first, elem.second.num(), recursive);
                     }
-                    aux = trans.translate(x, res.bounds, !recursive, res.weightType == AggregateAnalyzer::NEGATIVE);
+                    aux = trans.translate(data, x, res.bounds, !recursive, res.weightType == AggregateAnalyzer::NEGATIVE);
                     break;
                 }
                 case AggregateFunction::MIN:
                 case AggregateFunction::MAX: {
                     MinMaxTranslator trans;
-                    aux = trans.translate(x, res, fun == AggregateFunction::MIN, std::move(elems), incomplete);
+                    aux = trans.translate(data, x, res, fun == AggregateFunction::MIN, std::move(elems), recursive);
                     break;
                 }
             }
@@ -420,12 +426,11 @@ ULit getEqualAggregate(LparseTranslator &x, AggregateFunction fun, NAF naf, Disj
     }
     switch (naf) {
         case NAF::NOTNOT:
-            aux = aux->negateLit(x);
+            aux = aux.negate();
         case NAF::NOT:
-            aux = aux->negateLit(x);
+            aux = aux.negate();
         default:
-            ULit ret = aux->toLparse(x);
-            return ret ? std::move(ret) : std::move(aux);
+            return call(data, aux, &Literal::translate, x);
     }
 }
 

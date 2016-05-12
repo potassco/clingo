@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <memory>
 #include <cassert>
+#include <gringo/utility.hh>
 
 namespace Gringo {
 
@@ -93,7 +94,7 @@ private:
 };
 
 template <class Value>
-class unique_list_const_iterator : public std::iterator<std::bidirectional_iterator_tag, Value const, int> { 
+class unique_list_const_iterator : public std::iterator<std::bidirectional_iterator_tag, Value const, int> {
     using iterator = std::iterator<std::bidirectional_iterator_tag, Value const, int>;
 public:
     template <class V, class X, class H, class E>
@@ -149,9 +150,9 @@ struct extract_first {
 };
 
 template <
-    class Value, 
-    class ExtractKey = identity<Value>, 
-    class Hasher     = std::hash<typename ExtractKey::result_type>, 
+    class Value,
+    class ExtractKey = identity<Value>,
+    class Hasher     = std::hash<typename ExtractKey::result_type>,
     class EqualTo    = std::equal_to<typename ExtractKey::result_type>
 >
 class unique_list : Hasher, EqualTo, ExtractKey {
@@ -180,7 +181,7 @@ public:
         , _front(0)
         , _back(0)
         , _buckets(nullptr) { }
-    unique_list(unique_list &&list) 
+    unique_list(unique_list &&list)
         : hasher(std::move(list))
         , key_equal(std::move(list))
         , _size(list._size)
@@ -226,15 +227,15 @@ public:
                 std::swap(buckets, _buckets);
                 for (auto it = buckets.get(), ie = buckets.get() + reserved; it != ie; ++it) {
                     node_ptr_type pos{std::move(*it)};
-                    while (pos) { 
+                    while (pos) {
                         node_ptr_type next{std::move(pos->eqSucc)};
                         move(std::move(pos));
                         pos = std::move(next);
                     }
                 }
             }
-            else { 
-                _buckets.reset(new node_ptr_type[reserved]); 
+            else {
+                _buckets.reset(new node_ptr_type[reserved]);
                 _reserved = reserved;
             }
         }
@@ -269,7 +270,7 @@ public:
         if (a != b) {
             (a._node->prev ? a._node->prev->succ : _front) = b._node;
             (b._node       ? b._node->prev       : _back ) = a._node->prev;
-            while (a != b) { 
+            while (a != b) {
                 auto c = a++;
                 std::reference_wrapper<node_ptr_type> pos{get_bucket(c._node->hash)};
                 while (pos.get().get() != c._node) { pos = pos.get()->eqSucc; }
@@ -293,10 +294,10 @@ public:
     iterator find(key_type const &x) {
         return static_cast<unique_list const*>(this)->find(x)._node;
     }
-    const_iterator find(key_type const &x) const { 
+    const_iterator find(key_type const &x) const {
         if (!empty()) {
             std::reference_wrapper<node_ptr_type> pos{get_bucket((this->*(&Hasher::operator()))(x))};
-            while (pos.get()) { 
+            while (pos.get()) {
                 if (static_cast<key_equal const &>(*this)(
                     static_cast<key_extract const &>(*this)(pos.get()->value),
                     x
@@ -310,10 +311,10 @@ public:
     const_iterator end() const            { return const_iterator(); }
     iterator begin()                      { return iterator(_front); }
     iterator end()                        { return iterator(); }
-	reverse_iterator rbegin()             { return reverse_iterator(end()); }
-	reverse_iterator rend()               { return reverse_iterator(begin()); }
-	const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
-	const_reverse_iterator rend()   const { return const_reverse_iterator(begin()); }
+    reverse_iterator rbegin()             { return reverse_iterator(end()); }
+    reverse_iterator rend()               { return reverse_iterator(begin()); }
+    const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
+    const_reverse_iterator rend()   const { return const_reverse_iterator(begin()); }
     value_type const &front() const       { return _front->value; }
     value_type const &back()  const       { return _back->value; }
     value_type &front()                   { return _front->value; }
@@ -322,7 +323,7 @@ public:
 private:
     std::pair<iterator, bool> push_back(node_ptr_type&& node) {
         std::reference_wrapper<node_ptr_type> pos{get_bucket(node)};
-        while (pos.get()) { 
+        while (pos.get()) {
             if (static_cast<key_equal&>(*this)(
                 static_cast<key_extract&>(*this)(pos.get()->value),
                 static_cast<key_extract&>(*this)(node->value))) { return {iterator(pos.get().get()), false}; }
@@ -338,11 +339,11 @@ private:
         _back = pos.get().get();
         return {iterator(pos.get().get()), true};
     }
-    node_ptr_type& get_bucket(size_t hash) const { 
+    node_ptr_type& get_bucket(size_t hash) const {
         assert(_reserved);
-        return _buckets[(0x9e3779b9 + (hash<<6) + (hash>>2)) % _reserved];
+        return _buckets[hash_mix(hash) % _reserved];
     }
-    node_ptr_type& get_bucket(node_ptr_type const &node) const { 
+    node_ptr_type& get_bucket(node_ptr_type const &node) const {
         assert(_reserved);
         return get_bucket(node->hash);
     }

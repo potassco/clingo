@@ -42,6 +42,11 @@ static bool parseConst(const std::string& str, std::vector<std::string>& out) {
     return true;
 }
 
+static bool parseText(const std::string&, ClingoOptions& out) {
+    out.outputFormat = Gringo::Output::OutputFormat::TEXT;
+    return true;
+}
+
 void ClingoApp::initOptions(ProgramOptions::OptionContext& root) {
     using namespace ProgramOptions;
     BaseType::initOptions(root);
@@ -49,24 +54,33 @@ void ClingoApp::initOptions(ProgramOptions::OptionContext& root) {
     grOpts_.verbose = false;
     OptionGroup gringo("Gringo Options");
     gringo.addOptions()
-        ("text"                     , flag(grOpts_.text = false)     , "Print plain text format")
-        ("const,c"                  , storeTo(grOpts_.defines, parseConst)->composing()->arg("<id>=<term>"), "Replace term occurrences of <id> with <term>")
-        ("lparse-rewrite"           , flag(grOpts_.lpRewrite = false), "Use together with --text to inspect lparse rewriting")
-        ("lparse-debug"             , storeTo(grOpts_.lparseDebug = Gringo::Output::LparseDebug::NONE, values<Gringo::Output::LparseDebug>()
-          ("none"  , Gringo::Output::LparseDebug::NONE)
-          ("plain" , Gringo::Output::LparseDebug::PLAIN)
-          ("lparse", Gringo::Output::LparseDebug::LPARSE)
-          ("all"   , Gringo::Output::LparseDebug::ALL)), "Debug information during lparse rewriting:\n"
-         "      none  : no additional info\n"
-         "      plain : print rules as in plain output (prefix %%)\n"
-         "      lparse: print rules as in lparse output (prefix %%%%)\n"
-         "      all   : combines plain and lparse\n")
+        ("text", storeTo(grOpts_, parseText)->flag(), "Print plain text format")
+        ("const,c", storeTo(grOpts_.defines, parseConst)->composing()->arg("<id>=<term>"), "Replace term occurrences of <id> with <term>")
+        ("output,o", storeTo(grOpts_.outputFormat = Gringo::Output::OutputFormat::INTERMEDIATE, values<Gringo::Output::OutputFormat>()
+          ("intermediate", Gringo::Output::OutputFormat::INTERMEDIATE)
+          ("text", Gringo::Output::OutputFormat::TEXT)
+          ("reify", Gringo::Output::OutputFormat::REIFY)
+          ("smodels", Gringo::Output::OutputFormat::SMODELS)), "Choose output format:\n"
+             "      intermediate: print intermediate format\n"
+             "      text        : print plain text format\n"
+             "      reify       : print program as reified facts\n"
+             "      smodels     : print smodels format\n"
+             "                    (only supports basic features)")
+        ("output-debug", storeTo(grOpts_.outputDebug = Gringo::Output::OutputDebug::NONE, values<Gringo::Output::OutputDebug>()
+          ("none", Gringo::Output::OutputDebug::NONE)
+          ("text", Gringo::Output::OutputDebug::TEXT)
+          ("translate", Gringo::Output::OutputDebug::TRANSLATE)
+          ("all", Gringo::Output::OutputDebug::ALL)), "Print debug information during output:\n"
+         "      none     : no additional info\n"
+         "      text     : print rules as plain text (prefix %%)\n"
+         "      translate: print translated rules as plain text (prefix %%%%)\n"
+         "      all      : combines text and translate")
         ("warn,W"                   , storeTo(grOpts_, parseWarning)->arg("<warn>")->composing(), "Enable/disable warnings:\n"
          "      [no-]atom-undefined:        a :- b.\n"
          "      [no-]file-included:         #include \"a.lp\". #include \"a.lp\".\n"
          "      [no-]operation-undefined:   p(1/0).\n"
          "      [no-]variable-unbounded:    $x > 10.\n"
-         "      [no-]global-variable:       :- #count { X } = 1, X = 1.\n")
+         "      [no-]global-variable:       :- #count { X } = 1, X = 1.")
         ("rewrite-minimize"         , flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
         ("keep-facts"               , flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
         ("foobar,@4"                , storeTo(grOpts_.foobar, parseFoobar) , "Foobar")
@@ -75,23 +89,40 @@ void ClingoApp::initOptions(ProgramOptions::OptionContext& root) {
 
     OptionGroup basic("Basic Options");
     basic.addOptions()
-        ("mode", storeTo(mode_ = mode_clingo, values<Mode>()("clingo", mode_clingo)("clasp", mode_clasp)("gringo", mode_gringo)), "Run in {clingo|clasp|gringo} mode\n")
+        ("mode", storeTo(mode_ = mode_clingo, values<Mode>()
+            ("clingo", mode_clingo)
+            ("clasp", mode_clasp)
+            ("gringo", mode_gringo)), 
+         "Run in {clingo|clasp|gringo} mode\n")
         ;
     root.add(basic);
 }
 
 void ClingoApp::validateOptions(const ProgramOptions::OptionContext& root, const ProgramOptions::ParsedOptions& parsed, const ProgramOptions::ParsedValues& vals) {
     BaseType::validateOptions(root, parsed, vals);
-    if (grOpts_.text) {
-        if (mode_ == mode_clasp) { error("'--text' and '--mode=clasp' are mutually exclusive!"); exit(E_NO_RUN); }
+    if (parsed.count("text") > 0) { 
+        if (parsed.count("output") > 0) {
+            error("'--text' and '--output' are mutually exclusive!");
+            exit(E_NO_RUN);
+        }
+        if (parsed.count("mode") > 0 && mode_ != mode_gringo) {
+            error("'--text' can only be used with '--mode=gringo'!");
+            exit(E_NO_RUN);
+        }
+        mode_ = mode_gringo;
+    }
+    if (parsed.count("output") > 0) { 
+        if (parsed.count("mode") > 0 && mode_ != mode_gringo) {
+            error("'--output' can only be used with '--mode=gringo'!");
+            exit(E_NO_RUN);
+        }
         mode_ = mode_gringo;
     }
 }
 
 ProblemType ClingoApp::getProblemType() {
-    if (mode_ != mode_clasp) return Problem_t::ASP;
-    InputFormat input = Input_t::detectFormat(getStream());
-    return Problem_t::format2Type(input);
+    if (mode_ != mode_clasp) return Problem_t::Asp;
+	return ClaspFacade::detectProblemType(getStream());
 }
 Output* ClingoApp::createOutput(ProblemType f) {
     if (mode_ == mode_gringo) return 0;

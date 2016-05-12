@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Benjamin Kaufmann
@@ -21,7 +21,7 @@
 #include "clingo_app.hh"
 
 int main(int argc, char** argv) {
-	ClingoApp app;
-	return app.main(argc, argv);
+    ClingoApp app;
+    return app.main(argc, argv);
 }
 

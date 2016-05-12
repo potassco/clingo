@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2006-2010, Benjamin Kaufmann
+// Copyright (c) 2006-2016, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -41,16 +41,6 @@ namespace Clasp {
 //! Computes a moms-like score for var v.
 uint32 momsScore(const Solver& s, Var v);
 
-struct HeuParams {
-	HeuParams() : initScore(0), otherScore(0), resScore(0) {}
-	HeuParams& other(uint32 x)   { otherScore = static_cast<uint8>(x);    return *this; }
-	HeuParams& init(uint32 moms) { initScore  = static_cast<uint8>(moms); return *this; }
-	HeuParams& score(uint32 x)   { resScore   = static_cast<uint8>(x);    return *this; }
-	uint8 initScore; // currently {no, moms}
-	uint8 otherScore;// currently {no, loop, all, heu}
-	uint8 resScore;  // currently {heu, minSet, litSet, multiset}
-};
-
 //! A variant of the BerkMin decision heuristic from the BerkMin Sat-Solver
 /*!
  * \ingroup heuristic
@@ -66,10 +56,11 @@ struct HeuParams {
 class ClaspBerkmin : public DecisionHeuristic {
 public:
 	/*!
-	 * \param maxBerk Check at most maxBerk candidates when searching for not yet satisfied learnt constraints.
-	 * \note maxBerk = 0 means check *all* candidates.
+	 * \note Checks at most params.param candidates when searching for not yet 
+	 * satisfied learnt constraints. If param is 0, all candidates are checked.
 	 */
-	explicit ClaspBerkmin(uint32 maxBerk = 0, const HeuParams& params = HeuParams(), bool berkHuang = false);
+	explicit ClaspBerkmin(const HeuParams& params = HeuParams());
+	void setConfig(const HeuParams& params);
 	void startInit(const Solver& s);
 	void endInit(Solver& s);
 	void newConstraint(const Solver& s, const Literal* first, LitVec::size_type size, ConstraintType t);
@@ -118,7 +109,7 @@ private:
 	typedef VarVec::iterator Pos;
 	
 	struct Order {
-		explicit Order(bool scoreHuang, uint8 rScore) : decay(0), huang(scoreHuang), resScore(rScore) {}
+		explicit Order() : decay(0), huang(false), resScore(3u) {}
 		struct Compare {
 			explicit Compare(Order* o) : self(o) {}
 			bool operator()(Var v1, Var v2) const {
@@ -129,12 +120,12 @@ private:
 		};
 		uint32  decayedScore(Var v) { return score[v].decay(decay, huang); }
 		int32   occ(Var v)   const  { return score[v].occ; }
-		void    inc(Literal p)      { score[p.var()].incAct(decay, huang, p.sign()); }
-		void    inc(Literal p, uint16 f) { if (f) { score[p.var()].decay(decay, huang); score[p.var()].act += f; } }
-		void    incOcc(Literal p)   {
-			if (!huang)score[p.var()].incOcc(p.sign());
-			else       score[p.var()].incAct(decay, true, p.sign());
+		void    inc(Literal p, bool inNant) { 
+			if (!this->nant || inNant) {
+				score[p.var()].incAct(decay, huang, p.sign());
+			}
 		}
+		void    incOcc(Literal p) { score[p.var()].incOcc(p.sign()); }
 		int     compare(Var v1, Var v2) {
 			return int(decayedScore(v1)) - int(decayedScore(v2));
 		}
@@ -142,6 +133,7 @@ private:
 		Scores  score;        // For each var v score_[v] stores heuristic score of v
 		uint32  decay;        // "global" decay counter. Increased every decP_ decisions
 		bool    huang;        // Use Huang's scoring scheme (see: Jinbo Huang: "A Case for Simple SAT Solvers")
+		bool    nant;         // only score vars v with varInfo(v).nant()?
 		uint8   resScore;
 	private:
 		Order(const Order&);
@@ -174,9 +166,12 @@ private:
 class ClaspVmtf : public DecisionHeuristic {
 public:
 	/*!
-	 * \param mtf The number of literals from constraints used during conflict resolution that are moved to the front.
+	 * \note Moves at most params.param literals from constraints used during 
+	 *  conflict resolution to the front. If params.param is 0, the default is  
+	 *  to move up to 8 literals.
 	 */
-	explicit ClaspVmtf(LitVec::size_type mtf = 8, const HeuParams& params = HeuParams());
+	explicit ClaspVmtf(const HeuParams& params = HeuParams());
+	void setConfig(const HeuParams& params);
 	void startInit(const Solver& s);
 	void endInit(Solver&);
 	void newConstraint(const Solver& s, const Literal* first, LitVec::size_type size, ConstraintType t);
@@ -226,9 +221,10 @@ private:
 	VarVec  mtf_;   // Vars to be moved to the front of vars_
 	VarPos  front_; // Current front-position in var list - reset on backtracking 
 	uint32  decay_; // "Global" decay counter. Increased every 512 decisions
+	uint32  nMove_; // Limit on number of vars to move
 	TypeSet types_; // Type of nogoods to score during resolution
 	uint32  scType_;// Type of scoring
-	const LitVec::size_type MOVE_TO_FRONT;
+	bool    nant_;  // only move vars v with varInfo(v).nant()?
 };
 
 //! Score type for VSIDS heuristic.
@@ -237,55 +233,48 @@ private:
  */
 struct VsidsScore {
 	typedef VsidsScore SC;
-	VsidsScore() : value(0.0) {}
+	VsidsScore(double sc = 0.0) : value(sc) {}
 	double get()                  const { return value; }
 	bool   operator>(const SC& o) const { return value > o.value; }
-	double inc(double f)                { return (value += f); }
 	void   set(double f)                { value = f; }
-	double value;
+	template <class C>
+	static double applyFactor(C&, Var, double f) { return f; }
+	double value; // activity
 };
 
 //! A variable state independent decision heuristic favoring variables that were active in recent conflicts.
 /*!
  * \ingroup heuristic
- * This heuristic combines ideas from VSIDS and BerkMin. Literal Selection works as
- * in VSIDS but var activities are increased as in BerkMin.
- *
  * \see M. W. Moskewicz, C. F. Madigan, Y. Zhao, L. Zhang, and S. Malik: 
  * "Chaff: Engineering an Efficient SAT Solver"
- * \see E. Goldberg, Y. Navikov: "BerkMin: a Fast and Robust Sat-Solver"
  *
- * \note The implementation uses the exponential VSIDS scheme from MiniSAT.
+ * \note By default, the implementation uses the exponential VSIDS scheme from MiniSAT and 
+ * applies a MOMs-like score scheme to get an initial var order.
  */
 template <class ScoreType>
 class ClaspVsids_t : public DecisionHeuristic {
 public:
 	/*!
-	 * \param d Set initial inc-factor to 1.0/d.
+	 * \note Uses params.param to init the decay value d and inc factor 1.0/d. 
+	 * If params.param is 0, d is set 0.95. Otherwise, d is set to 0.x, where x is params.param.
 	 */
-	explicit ClaspVsids_t(double d = 0.95, const HeuParams& params = HeuParams());
-	void startInit(const Solver& s);
-	void endInit(Solver&);
-	void newConstraint(const Solver& s, const Literal* first, LitVec::size_type size, ConstraintType t);
-	void updateReason(const Solver& s, const LitVec& lits, Literal resolveLit);
-	bool bump(const Solver& s, const WeightLitVec& lits, double adj);
-	void undoUntil(const Solver&, LitVec::size_type);
-	void simplify(const Solver&, LitVec::size_type);
-	void updateVar(const Solver& s, Var v, uint32 n);
+	explicit ClaspVsids_t(const HeuParams& params = HeuParams());
+	virtual void setConfig(const HeuParams& params);
+	virtual void startInit(const Solver& s);
+	virtual void endInit(Solver&);
+	virtual void newConstraint(const Solver& s, const Literal* first, LitVec::size_type size, ConstraintType t);
+	virtual void updateReason(const Solver& s, const LitVec& lits, Literal resolveLit);
+	virtual bool bump(const Solver& s, const WeightLitVec& lits, double adj);
+	virtual void undoUntil(const Solver&, LitVec::size_type);
+	virtual void simplify(const Solver&, LitVec::size_type);
+	virtual void updateVar(const Solver& s, Var v, uint32 n);
 protected:
-	Literal doSelect(Solver& s);
-	virtual void initScores(Solver& s, bool moms);
+	virtual Literal doSelect(Solver& s);
+	virtual Literal selectRange(Solver& s, const Literal* first, const Literal* last);
+	virtual void    initScores(Solver& s, bool moms);
 	typedef typename PodVector<ScoreType>::type ScoreVec;
 	typedef PodVector<int32>::type              OccVec;
-	Literal selectRange(Solver& s, const Literal* first, const Literal* last);
-	void updateVarActivity(Var v, double f = 1.0) {
-		double old = score_[v].get(), n = score_[v].inc((inc_*f));
-		if (n > 1e100) { normalize(); }
-		if (vars_.is_in_queue(v)) {
-			if (n >= old) { vars_.increase(v); }
-			else          { vars_.decrease(v); }
-		}
-	}
+	void updateVarActivity(const Solver& s, Var v, double f = 1.0);
 	void incOcc(Literal p) { occ_[p.var()] += 1 - (int(p.sign()) << 1); }
 	int  occ(Var v) const  { return occ_[v]; }
 	void normalize();
@@ -297,13 +286,15 @@ protected:
 		const ScoreVec& sc_;
 	};
 	typedef bk_lib::indexed_priority_queue<CmpScore> VarOrder;
-	ScoreVec     score_;
-	OccVec       occ_;
-	VarOrder     vars_;
-	const double decay_;
-	double       inc_;
-	TypeSet      types_;
-	uint32       scType_;
+	ScoreVec score_; // vsids score for each variable
+	OccVec   occ_;   // occurrence balance of each variable
+	VarOrder vars_;  // priority heap of variables
+	double   decay_; // decay factor for evsids (>= 1.0)
+	double   inc_;   // var bump for evsids or conflict index for acids (increased on conflict)
+	TypeSet  types_; // set of constraints to score
+	uint32   scType_;// score type (one of HeuParams::Score) 
+	bool     acids_; // whether to use acids instead if evsids scoring
+	bool     nant_;  // whether bumps are restricted to vars v with varInfo(v).nant()
 };
 typedef ClaspVsids_t<VsidsScore> ClaspVsids;
 
@@ -311,41 +302,23 @@ typedef ClaspVsids_t<VsidsScore> ClaspVsids;
 /*!
  * \see DomainHeuristic
  */
-struct DomScore {
+struct DomScore : VsidsScore {
+	static const uint32 domMax = (1u << 30) - 1;
 	typedef DomScore SC;
-	DomScore() : value(0.0), level(0), factor(1), domKey(UINT32_MAX) {}
-	double get()                  const { return value; }
+	DomScore(double v = 0.0) : VsidsScore(v), level(0), factor(1), domP(domMax), sign(0), init(0) {}
 	bool   operator>(const SC& o) const { return (level > o.level) || (level == o.level && value > o.value); }
-	bool   isDom()                const { return domKey != UINT32_MAX; }
-	void   setDom(uint32 key)           { domKey = key; }
-	double inc(double f)                { return (value += (f*factor)); }
-	void   set(double f)                { value = f; }
-	double value;  // activity as in VSIDS
-	int16  level;  // priority level
-	int16  factor; // factor used when bumping activity
-	uint32 domKey; // index into dom-table if dom var	
-};
-
-//! Domain modification for one literal.
-struct DomEntry {
-	typedef SymbolTable::symbol_type SymbolType;
-	enum Modifier { mod_factor = 0, mod_level = 1, mod_sign = 2, mod_init = 3, mod_tf = 4 };
-	struct Cmp { bool operator()(const SymbolType& lhs, const SymbolType& rhs) const; };
-	struct Lookup : Cmp {
-		using Cmp::operator ();
-		bool operator()(const char* head, const SymbolType& domSym) const;
-		bool operator()(const SymbolType& domSym, const char* head) const;
-	};
-	static bool isDomEntry(const SymbolType& sym);
-	static bool isHeadOf(const char* head, const SymbolType& domSym);
-
-	void init(const SymbolType& atomSym, const SymbolType& domSym);
-	Literal lit;    // literal to which this modification applies
-	Literal cond;   // (optional) condition that must be true for this modification to apply
-	uint32  mod :30;// one of Modifier
-	uint32  pref: 2;// pref value (in case of mod_sign or mod_tf)
-	int16   value;  // value of modification
-	uint16  prio;   // (optional) priority of modification
+	bool   isDom()                const { return domP != domMax; }
+	void   setDom(uint32 key)           { domP = key; }
+	template <class C>
+	static double applyFactor(C& sc, Var v, double f) { 
+		int16 df = sc[v].factor;
+		return df == 1 ? f : static_cast<double>(df) * f;
+	}
+	int16  level;     // priority level
+	int16  factor;    // factor used when bumping activity
+	uint32 domP : 30; // index into dom-table if dom var
+	uint32 sign :  1; // whether v has a sign modification
+	uint32 init :  1; // whether value is from init modification
 };
 
 //! A VSIDS heuristic supporting additional domain knowledge.
@@ -359,15 +332,12 @@ struct DomEntry {
 class DomainHeuristic : public ClaspVsids_t<DomScore>
                       , private Constraint {
 public:
-	typedef ClaspVsids_t<DomScore> BaseType;
-	enum GlobalPreference { gpref_atom = 0, gpref_scc  = 1, gpref_hcc = 2, gpref_disj = 4, gpref_min  = 8, gpref_show = 16 };
-	enum GlobalModifier   { gmod_none  = 0, gmod_level = 1, gmod_spos = 2, gmod_true  = 3, gmod_sneg  = 4, gmod_false = 5  };
-	explicit DomainHeuristic(double d = 0.95, const HeuParams& params = HeuParams());
+	typedef ClaspVsids_t<DomScore>  BaseType;
+	explicit DomainHeuristic(const HeuParams& params = HeuParams());
 	~DomainHeuristic();
-	void setDefaultMod(GlobalModifier mod, uint32 prefSet);
+	void setDefaultMod(HeuParams::DomMod mod, uint32 prefSet);
+	virtual void setConfig(const HeuParams& params);
 	virtual void startInit(const Solver& s);
-	using BaseType::endInit;
-
 	const DomScore& score(Var v) const { return score_[v]; }
 protected:
 	// base interface
@@ -381,11 +351,12 @@ protected:
 	virtual void        undoLevel(Solver& s);
 private:
 	struct DomAction {
-		uint32 var:29; // dom var to be modified
+		static const uint32 UNDO_NIL = (1u << 31) - 1;
+		uint32 var:30; // dom var to be modified
 		uint32 mod: 2; // modification to apply
-		uint32 comp:1; // compound action?
-		uint32 undo;   // next action in undo list
-		int16  val;    // value to apply 
+		uint32 undo:31;// next action in undo list
+		uint32 next: 1;// next action belongs to same condition?
+		int16  bias;   // value to apply 
 		uint16 prio;   // prio of modification
 	};
 	struct DomPrio {
@@ -402,18 +373,21 @@ private:
 	typedef PodVector<DomAction>::type ActionVec;
 	typedef PodVector<DomPrio>::type   PrioVec;
 	typedef PodVector<Frame>::type     FrameVec;
-	bool    addAction(Solver& s, const DomEntry& e, int16& init);
-	void    addDefAction(Solver& s, Literal x, int16 levVal, uint32 domKey);
-	void    pushUndo(Solver& s, uint32 actionId);
+	typedef DomainTable::ValueType     DomMod;
+	typedef PodVector<std::pair<Var, double> >::type VarScoreVec;
+	
+	uint32  addDomAction(const DomMod& e, Solver& s,  VarScoreVec& outInit, Literal& lastW);
+	void    addDefAction(Solver& s, Literal x, int16 lev, uint32 domKey);
+	void    pushUndo(uint32& head, uint32 actionId);
 	void    applyAction(Solver& s, DomAction& act, uint16& oldPrio);
-	uint16& prio(Var v, uint32 mod) { return prios_[score_[v].domKey][mod]; }
-	LitVec*   domMin_;  // optional: domain literals to minimize
-	PrioVec   prios_;   // priorities for domain vars
-	ActionVec actions_; // dynamic modifications
-	FrameVec  frames_;  // dynamic undo information
-	uint32    symSize_; // offset into symbol table
-	uint16    defMod_;  // default modifier
-	uint16    defPref_; // default preferences
+	uint16& prio(Var v, uint32 mod) { return prios_[score_[v].domP][mod]; }
+	PrioVec   prios_;    // priorities for domain vars
+	ActionVec actions_;  // dynamic modifications
+	FrameVec  frames_;   // dynamic undo information
+	uint32    domSeen_;  // offset into domain table
+	uint32    defMax_;   // max var with default modification
+	uint16    defMod_;   // default modifier
+	uint16    defPref_;  // default preferences
 };
 }
 #endif

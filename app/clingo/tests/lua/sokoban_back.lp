@@ -5,16 +5,16 @@ function main(prg)
     while true do
         parts = {}
         if step > 1 then
-            prg:release_external(gringo.Fun("volatile", {step-1}))
-            prg:cleanup_domains()
+            prg:release_external(clingo.fun("volatile", {step-1}))
+            prg:cleanup()
         else
             parts[#parts+1] = {"base", {}}
         end
         parts[#parts+1] = {"cumulative", {step}}
         prg:ground(parts)
-        prg:assign_external(gringo.Fun("volatile", {step}), true)
+        prg:assign_external(clingo.fun("volatile", {step}), true)
         ret = prg:solve()
-        if ret == gringo.SolveResult.SAT then
+        if ret.satisfiable then
             break
         end
         step = step + 1

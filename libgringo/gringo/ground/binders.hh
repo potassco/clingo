@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -31,10 +31,10 @@ namespace Gringo { namespace Ground {
 template <class Index, class... LookupArgs>
 struct PosBinder : Binder {
     using IndexType = typename std::remove_reference<Index>::type;
-    using Match     = typename IndexType::element_type*;
-    using MatchRng  = typename IndexType::element_range;
+    using Match     = typename IndexType::SizeType;
+    using MatchRng  = typename IndexType::OffsetRange;
     using Lookup    = std::tuple<Index, LookupArgs...>;
-    PosBinder(UTerm &&repr, Match &result, Index &&index, BinderType type, LookupArgs&&... args) 
+    PosBinder(UTerm &&repr, Match &result, Index &&index, BinderType type, LookupArgs&&... args)
         : repr(std::move(repr))
         , result(result)
         , index(std::forward<Index>(index), std::forward<LookupArgs>(args)...)
@@ -43,18 +43,18 @@ struct PosBinder : Binder {
     template <       int... I> struct lookup;
     template <int N, int... I> struct lookup<N, I...> : lookup<N-1, N, I...> { };
     template <       int... I> struct lookup<0, I...> {
-        MatchRng operator()(std::tuple<Index, LookupArgs...> &index, BinderType type) { 
+        MatchRng operator()(std::tuple<Index, LookupArgs...> &index, BinderType type) {
             return std::get<0>(index).lookup(std::get<I>(index)..., type);
         }
     };
 
     virtual IndexUpdater *getUpdater()          { return &std::get<0>(index); }
     virtual void match()                        { current = lookup<sizeof...(LookupArgs)>()(index, type); }
-    virtual bool next()                         { return (result = current.next(*repr, std::get<0>(index))); }
+    virtual bool next()                         { return current.next(result, *repr, std::get<0>(index)); }
     virtual void print(std::ostream &out) const { out << *repr << "@" << type; }
     virtual ~PosBinder()                        { }
-    
-    UTerm      repr; // problematic 
+
+    UTerm      repr; // problematic
     Match     &result;
     Lookup     index;
     MatchRng   current;
@@ -64,10 +64,10 @@ struct PosBinder : Binder {
 // }}}
 // {{{ definition of Matcher
 
-template <class Element>
+template <class Atom>
 struct Matcher : Binder {
-    using DomainType = AbstractDomain<Element>;
-    using Match      = typename DomainType::element_type*;
+    using DomainType = AbstractDomain<Atom>;
+    using Match      = typename DomainType::SizeType;
 
     Matcher(Match &result, DomainType &domain, Term const &repr, RECNAF naf)
         : result(result)
@@ -76,17 +76,15 @@ struct Matcher : Binder {
         , naf(naf) { }
     virtual IndexUpdater *getUpdater() { return nullptr; }
     virtual void match() {
-        bool undefined = false;
-        result = domain.lookup(repr, naf, undefined);
-        firstMatch = result && !undefined;
+        firstMatch = domain.lookup(result, repr, naf);
     }
     virtual bool next() {
         bool ret = firstMatch;
         firstMatch = false;
         return ret;
     }
-    virtual void print(std::ostream &out) const { 
-        out << naf << repr << "[" << domain.exports.generation_ << "<=" << domain.exports.nextGeneration_ << "<=" << domain.exports.size() << "]" << "@ALL"; 
+    virtual void print(std::ostream &out) const {
+        out << naf << repr << "[" << domain.generation() << "/" << domain.size() << "]" << "@ALL";
     }
     virtual ~Matcher() { }
 
@@ -100,10 +98,10 @@ struct Matcher : Binder {
 // }}}
 // {{{ definition of PosMatcher
 
-template <class Element>
+template <class Atom>
 struct PosMatcher : Binder, IndexUpdater {
-    using DomainType = AbstractDomain<Element>;
-    using Match = typename DomainType::element_type*;
+    using DomainType = AbstractDomain<Atom>;
+    using Match = typename DomainType::SizeType;
 
     PosMatcher(Match &result, DomainType &domain, UTerm &&repr, BinderType type)
         : result(result)
@@ -111,23 +109,16 @@ struct PosMatcher : Binder, IndexUpdater {
         , repr(std::move(repr))
         , type(type) { }
     virtual IndexUpdater *getUpdater() { return type == BinderType::NEW ? this : nullptr; }
-    virtual void match() { 
-        bool undefined = false;
-        result = domain.lookup(*repr, type, undefined);
-        if (!undefined) {
-            firstMatch = result;
-        }
-        else {
-            firstMatch = false;
-        }
+    virtual void match() {
+        firstMatch = domain.lookup(result, *repr, type);
     }
     virtual bool next() {
         bool ret = firstMatch;
         firstMatch = false;
         return ret;
     }
-    virtual bool update() { return domain.check(*repr, imported); }
-    virtual void print(std::ostream &out) const { out << *repr << "[" << domain.exports.generation_ << "<=" << domain.exports.nextGeneration_ << "<=" << domain.exports.size() << "]" << "@" << type; }
+    virtual bool update() { return domain.update([](unsigned) { }, *repr, imported, importedDelayed); }
+    virtual void print(std::ostream &out) const { out << *repr << "[" << domain.generation() << "/" << domain.size() << "]" << "@" << type; }
     virtual ~PosMatcher() { };
 
     Match      &result;
@@ -135,6 +126,7 @@ struct PosMatcher : Binder, IndexUpdater {
     UTerm       repr;
     BinderType  type;
     unsigned    imported = 0;
+    unsigned    importedDelayed = 0;
     bool        firstMatch = false;
 };
 
@@ -144,13 +136,13 @@ struct PosMatcher : Binder, IndexUpdater {
 // Note: does not (quite) work this way
 //       but it should be enough to make imported part of the key of full_indices
 
-template <class Element>
-inline UIdx make_binder(AbstractDomain<Element> &domain, NAF naf, Term const &repr, typename AbstractDomain<Element>::element_type *&elem, BinderType type, bool recursive, Term::VarSet &bound, int imported) {
-    using DomainType          = AbstractDomain<Element>;
-    using PredicateMatcher    = Matcher<Element>;
-    using PosPredicateMatcher = PosMatcher<Element>;
-    using PosPredicateBinder  = PosBinder<typename DomainType::bind_index_type&, SValVec>;
-    using FullPredicateBinder = PosBinder<typename DomainType::full_index_type&>;
+template <class Atom>
+inline UIdx make_binder(AbstractDomain<Atom> &domain, NAF naf, Term const &repr, typename AbstractDomain<Atom>::SizeType &elem, BinderType type, bool recursive, Term::VarSet &bound, int imported) {
+    using DomainType          = AbstractDomain<Atom>;
+    using PredicateMatcher    = Matcher<Atom>;
+    using PosPredicateMatcher = PosMatcher<Atom>;
+    using PosPredicateBinder  = PosBinder<typename DomainType::BindIndex&, SValVec>;
+    using FullPredicateBinder = PosBinder<typename DomainType::FullIndex&>;
     if (naf == NAF::POS) {
         UTerm predClone(repr.clone());
         VarTermBoundVec occs;
@@ -165,7 +157,7 @@ inline UIdx make_binder(AbstractDomain<Element> &domain, NAF naf, Term const &re
             Term::VarSet occBoundSet;
             VarTermVec occBound;
             for (auto &x : occs) {
-                if (x.first->bindRef)                               { x.first->bindRef = bound.emplace(x.first->name).second; } 
+                if (x.first->bindRef)                               { x.first->bindRef = bound.emplace(x.first->name).second; }
                 else if (occBoundSet.emplace(x.first->name).second) { occBound.emplace_back(*x.first); }
             }
             Term::RenameMap rename;
@@ -178,7 +170,7 @@ inline UIdx make_binder(AbstractDomain<Element> &domain, NAF naf, Term const &re
             }
             Term::VarSet empty;
             idxClone->bind(empty);
-            if (occBound.empty()) { 
+            if (occBound.empty()) {
                 auto &idx(domain.add(std::move(idxClone), imported));
                 return gringo_make_unique<FullPredicateBinder>(std::move(predClone), elem, idx, type);
             }
@@ -194,12 +186,12 @@ inline UIdx make_binder(AbstractDomain<Element> &domain, NAF naf, Term const &re
             predClone->bind(empty);
             return gringo_make_unique<PosPredicateMatcher>(elem, domain, std::move(predClone), type);
         }
-        else { 
+        else {
             assert(imported == 0);
-            return gringo_make_unique<PredicateMatcher>(elem, domain, repr, RECNAF::POS); 
+            return gringo_make_unique<PredicateMatcher>(elem, domain, repr, RECNAF::POS);
         }
     }
-    else { 
+    else {
         assert(imported == 0);
         return gringo_make_unique<PredicateMatcher>(elem, domain, repr, recnaf(naf, recursive));
     }

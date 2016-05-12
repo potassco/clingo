@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -101,7 +101,7 @@ struct LexerState<T>::State {
 // {{{ defintion of LexerState<T>::State
 
 template <class T>
-LexerState<T>::State::State(T &&data) 
+LexerState<T>::State::State(T &&data)
     : data_(std::forward<T>(data))
     , bufmin_(4096), bufsize_(0)
     , buffer_(0), start_(0), offset_(0)
@@ -121,8 +121,8 @@ LexerState<T>::State::State(State &&x)
 
 template <class T>
 void LexerState<T>::State::fill(size_t n) {
-    if(eof_) return;
-    if(start_ > buffer_) {
+    if (eof_) return;
+    if (start_ > buffer_) {
         size_t shift = start_ - buffer_;
         memmove(buffer_, start_, limit_ - start_);
         start_     = buffer_;
@@ -159,13 +159,13 @@ void LexerState<T>::State::step() {
 }
 
 template <class T>
-void LexerState<T>::State::start() { 
+void LexerState<T>::State::start() {
     start_ = cursor_;
 }
 
 template <class T>
 LexerState<T>::State::~State() {
-    if(buffer_) free(buffer_); 
+    if(buffer_) free(buffer_);
 }
 
 // }}}
@@ -176,7 +176,7 @@ LexerState<T>::LexerState() = default;
 
 template <class T>
 void LexerState<T>::start() {
-    state().start(); 
+    state().start();
 }
 
 template <class T>
@@ -261,7 +261,7 @@ int LexerState<T>::column() const {
 template <class T>
 T const &LexerState<T>::data() const {
     return state().data_;
-} 
+}
 
 template <class T>
 char *&LexerState<T>::cursor() {

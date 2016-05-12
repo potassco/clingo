@@ -4,9 +4,8 @@ import os
 import readline
 import atexit
 import signal
-import gringo
+import clingo
 from threading import Condition
-from gringo import Fun, SolveResult
 
 class Controller:
     def __init__(self):
@@ -30,8 +29,8 @@ class Controller:
         signal.signal(signal.SIGINT, signal.SIG_IGN)
         self.solver.stop()
 
-    def on_finish(self, ret, interrupted):
-        self.message = "finish: " + str(ret) + (" (INTERRUPTED)" if interrupted else "")
+    def on_finish(self, ret):
+        self.message = "finish: " + str(ret) + (" (INTERRUPTED)" if ret.interrupted else "")
         self.condition.acquire()
         self.solving = False
         self.condition.notify()
@@ -87,22 +86,22 @@ class Controller:
 class Solver:
     def __init__(self):
         self.k   = 0
-        self.prg = gringo.Control()
+        self.prg = clingo.Control()
         self.prg.load("client.lp")
         self.prg.ground([("pigeon", []), ("sleep",  [self.k])])
-        self.prg.assign_external(Fun("sleep", [self.k]), True)
-        self.ret = SolveResult.UNKNOWN
+        self.prg.assign_external(clingo.function("sleep", [self.k]), True)
+        self.ret = None
         self.models = []
 
     def on_model(self, model):
         self.models.append(str(model))
 
     def start(self, on_finish):
-        if self.ret != SolveResult.UNKNOWN:
+        if self.ret is not None and not self.ret.unknown():
             self.k = self.k + 1
             self.prg.ground([("sleep", [self.k])])
-            self.prg.release_external(Fun("sleep", [self.k-1]))
-            self.prg.assign_external(Fun("sleep", [self.k]), True)
+            self.prg.release_external(clingo.function("sleep", [self.k-1]))
+            self.prg.assign_external(clingo.function("sleep", [self.k]), True)
         self.future = self.prg.solve_async(on_model=self.on_model, on_finish=on_finish)
 
     def stop(self):
@@ -113,7 +112,7 @@ class Solver:
         return ret
 
     def set_more_pigeon(self, more):
-        self.prg.assign_external(Fun("p"), more)
+        self.prg.assign_external(clingo.function("p"), more)
 
 st = Solver()
 ct = Controller()

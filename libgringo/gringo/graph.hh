@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -109,7 +109,7 @@ typename Graph<T>::SCCVec Graph<T>::tarjan() {
     NodeVec stack;
     NodeVec trail;
     for (auto &x : nodes_) {
-        if (x.visited_ == !phase_) { 
+        if (x.visited_ == !phase_) {
             unsigned index = 1;
             auto push = [&stack, &trail, &index](Node &x) {
                 x.visited_  = ++index;
@@ -138,7 +138,7 @@ typename Graph<T>::SCCVec Graph<T>::tarjan() {
                             sccs.back().emplace_back(trail.back());
                             trail.back()->visited_ = phase_;
                             trail.pop_back();
-                        } 
+                        }
                         while (sccs.back().back() != y);
                     }
                 }

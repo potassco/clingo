@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -128,8 +128,8 @@ void TestWarnings::test_warnings() {
     CPPUNIT_ASSERT_EQUAL(S("[[p(bot)]]"), IO::to_string(solve("p(bot).\nq(1/X):-p(X).\n")));
     CPPUNIT_ASSERT_EQUAL(S("[-:2:3-6: info: operation undefined:\n  (1/X)\n]"), IO::to_string(msg));
     msg.clear();
-    CPPUNIT_ASSERT_EQUAL(S("[[p(bot)],[p(bot),q(bot)]]"), IO::to_string(solve("p(bot).\n#sum{X:q(X):p(X)}.\n")));
-    CPPUNIT_ASSERT_EQUAL(S("[-:2:6-7: info: tuple ignored:\n  bot\n]"), IO::to_string(msg));
+    CPPUNIT_ASSERT_EQUAL(S("[[p(bot)]]"), IO::to_string(solve("p(bot).\n#sum{X:q(X):p(X)}.\n")));
+    CPPUNIT_ASSERT_EQUAL(S("[-:2:6-7: info: operation undefined:\n  (X+0)\n]"), IO::to_string(msg));
     msg.clear();
     CPPUNIT_ASSERT_EQUAL(S("[[p(bot)]]"), IO::to_string(solve("p(bot).\nx:-1#sum{X:p(X)}.\n")));
     CPPUNIT_ASSERT_EQUAL(S("[-:2:10-11: info: tuple ignored:\n  bot\n]"), IO::to_string(msg));
@@ -144,7 +144,7 @@ void TestWarnings::test_warnings() {
     CPPUNIT_ASSERT_EQUAL(S("[-:1:4-7: info: atom does not occur in any rule head:\n  bot\n]"), IO::to_string(msg));
     msg.clear();
     CPPUNIT_ASSERT_EQUAL(S("[[p(bot)]]"), IO::to_string(solve("p(bot).\n:~ p(X). [X]\n")));
-    CPPUNIT_ASSERT_EQUAL(S("[-:2:11-12: info: tuple ignored:\n  bot\n]"), IO::to_string(msg));
+    CPPUNIT_ASSERT_EQUAL(S("[-:2:11-12: info: tuple ignored:\n  bot@0\n]"), IO::to_string(msg));
     msg.clear();
     CPPUNIT_ASSERT_EQUAL(S("[[a]]"), IO::to_string(solve("a:-#sum{-1:a;1:a}>=0.\n")));
     CPPUNIT_ASSERT_EQUAL(S("[]"), IO::to_string(msg));

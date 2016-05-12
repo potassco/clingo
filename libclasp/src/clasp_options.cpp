@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2006-2013, Benjamin Kaufmann
+// Copyright (c) 2006-2015, Benjamin Kaufmann
 //
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
 //
@@ -28,11 +28,15 @@
 #include <cfloat>
 #include <fstream>
 #include <cctype>
+#ifdef _MSC_VER
+#pragma warning (disable : 4996)
+#endif
 /////////////////////////////////////////////////////////////////////////////////////////
 // Helper MACROS
 /////////////////////////////////////////////////////////////////////////////////////////
 #define SET(x, v)           ( ((x)=(v)) == (v) )
 #define SET_LEQ(x, v, m)    ( ((v)<=(m)) && SET((x), (v)) )
+#define SET_GEQ(x, v, m)    ( ((v)>=(m)) && SET((x), (v)) )
 #define SET_OR_FILL(x, v)   ( SET((x),(v)) || ((x) = 0, (x) = ~(x),true) )
 #define SET_OR_ZERO(x,v)    ( SET((x),(v)) || SET((x),uint32(0)) )
 #define SET_R(x, v, lo, hi) ( ((lo)<=(v)) && ((v)<=(hi)) && SET((x), (v)) )
@@ -41,10 +45,6 @@
 /////////////////////////////////////////////////////////////////////////////////////////
 namespace bk_lib {
 static const struct OffType {} off = {};
-template <class T, class U>
-struct Or { Or(T& l, U& r) : lhs(&l), rhs(&r) {} T* lhs; U* rhs; };
-template <class T> static Or<T, const OffType> operator|(T& lhs, const OffType&) { return Or<T, const OffType>(lhs, off); }
-template <class T> static Or<const OffType, T> operator|(const OffType&, T& rhs) { return Or<const OffType, T>(off, rhs); }
 static int xconvert(const char* x, const OffType&, const char** errPos, int) {
 	bool temp = true;
 	const char* n = x;
@@ -53,44 +53,6 @@ static int xconvert(const char* x, const OffType&, const char** errPos, int) {
 	return int(temp == false);
 }
 static std::string& xconvert(std::string& out, const OffType&) { return out.append("no"); }
-
-template <class X1, class X2 = void, class X3 = void> struct Arg_t;
-template <class X1, class X2>
-struct Arg_t<X1, X2, void> {
-	Arg_t(const X1& x1 = X1(), const X2& x2 = X2()) : parsed_(0), first(x1), second(x2) {}
-	bool   empty() const { return parsed_ == 0; }
-	uint32 parsed()const { return parsed_; }
-	int parse(const char* n, const char** next) {
-		using bk_lib::xconvert;
-		if (!xconvert(n, first, next, 0)) { return parsed_ = 0; }
-		return parsed_ = (1 + int(*(n=*next) == ',' && *++n && xconvert(n, second, next, 0) > 0));
-	}
-	int parsed_;
-	X1  first;
-	X2  second;
-};
-template <class X1, class X2, class X3>
-struct Arg_t : Arg_t<X1, X2, void> {
-	Arg_t(const X1& x1 = X1(), const X2& x2 = X2(), const X3 x3 = X3()) : Arg_t<X1, X2, void>(x1,x2), third(x3) {}
-	int parse(const char* n, const char** next) {
-		using bk_lib::xconvert;
-		int ret = Arg_t<X1, X2, void>::parse(n, next);
-		return this->parsed_ = (ret == 2 ? 2 + int(*(n=*next) == ',' && *++n && xconvert(n, third, next, 0) > 0) : ret);
-	}
-	X3 third;
-};
-template <class X1, class X2, class X3>
-static int xconvert(const char* x, Arg_t<X1, X2, X3>& out, const char** errPos, int) {
-	const char* n = x, *p = "";
-	if (*n == '(') { p = ")"; ++n; }
-	int ret = out.parse(n, &n);
-	if (*p) {
-		if (*p == *n) { ++n; }
-		else          { n = x; out.parsed_ = 0; }
-	}
-	if (errPos) { *errPos = n; }
-	return ret;
-}
 
 template <class T>
 static int xconvert(const char* x, pod_vector<T>& out, const char** errPos, int sep) {
@@ -141,8 +103,50 @@ static const char* enumToString(int x, const char* k1, int v1, ...) {
 	va_end(args);
 	return res ? res : "";
 }
-template <class T, class U> 
-static bool stringTo(const char* str, const Or<T, U>& x){ return bk_lib::stringTo(str, *x.lhs) || bk_lib::stringTo(str, *x.rhs); }
+struct ArgString {
+	ArgString(const char* x) : in(x) { }
+	~ArgString() { CLASP_FAIL_IF(ok() && *in && !off(), "Unused argument!"); }
+	bool ok()       const { return in != 0; }
+	bool off()      const { return ok() && stringTo(in, bk_lib::off); }
+	bool empty()    const { return ok() && !*in; }
+	operator void*()const { return (void*)in; }
+	char peek()     const { return ok() ? *in : 0; }
+	template <class T>
+	ArgString& get(T& x)  {
+		if (ok()) {
+			const char* next = in + (*in == ',');
+			in = xconvert(next, x, &next, 0) != 0 ? next : 0;
+		}
+		return *this;
+	}
+	const char* in;
+	template <class T>
+	struct Opt_t {
+		Opt_t(T& x) : obj(&x) {}
+		T* obj;
+	};
+};
+template <class T>
+inline ArgString::Opt_t<T> opt(T& x) { return ArgString::Opt_t<T>(x); }
+template <class T>
+inline ArgString& operator>>(ArgString& arg, T& x) { return arg.get(x); }
+template <class T>
+inline ArgString& operator>>(ArgString& arg, const ArgString::Opt_t<T>& x) { return !arg.empty() ? arg.get(*x.obj) : arg; }
+
+struct StringBuilder {
+	StringBuilder(std::string& o) : out(&o) {}
+	template <class T>
+	StringBuilder& _add(const T& x) {
+		if (!out->empty()) { out->append(1, ','); }
+		xconvert(*out, x);
+		return *this;
+	}
+	operator bool() const { return out != 0; }
+	std::string* out;
+};
+template <class T>
+inline StringBuilder& operator<<(StringBuilder& str, const T& val) { return str ? str._add(val) : str; }
+
 }
 namespace Clasp {
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -151,10 +155,10 @@ namespace Clasp {
 #define MAP(x, y) static_cast<const char*>(x), static_cast<int>(y)
 #define DEFINE_ENUM_MAPPING(X, ...) \
 static int xconvert(const char* x, X& out, const char** errPos, int) {\
-	return bk_lib::findEnumVal(x, out, errPos, ##__VA_ARGS__, MAP(0,0)); \
+	return bk_lib::findEnumVal(x, out, errPos, __VA_ARGS__, MAP(0,0)); \
 }\
 static std::string& xconvert(std::string& out, X x) { \
-	return out.append(bk_lib::enumToString(static_cast<int>(x), ##__VA_ARGS__, MAP(0,0))); \
+	return out.append(bk_lib::enumToString(static_cast<int>(x), __VA_ARGS__, MAP(0,0))); \
 }
 #define OPTION(k, e, a, d, ...) a
 #define CLASP_CONTEXT_OPTIONS
@@ -202,7 +206,7 @@ static int xconvert(const char* x, ScheduleStrategy& out, const char** errPos, i
 	else if (strncmp(x, "x,", 2) == 0 || strncmp(x, "*,", 2) == 0 || strncasecmp(x, "d,", 2) == 0) {
 		std::pair<double, uint32> arg(0, 0);
 		if (*next != ',' || !xconvert(next+1, arg, &next, e)) { return 0; }
-		if      (strncasecmp(x, "d", 1) == 0 && arg.first > 0.0) { out = ScheduleStrategy(ScheduleStrategy::user_schedule, base, arg.first, arg.second); }
+		if      (strncasecmp(x, "d", 1) == 0 && arg.first > 0.0) { out = ScheduleStrategy(ScheduleStrategy::User, base, arg.first, arg.second); }
 		else if (strncasecmp(x, "d", 1) != 0 && arg.first >= 1.0){ out = ScheduleStrategy::geom(base, arg.first, arg.second); }
 		else { return 0; }
 	}
@@ -218,46 +222,21 @@ static std::string& xconvert(std::string& out, const ScheduleStrategy& sched) {
 	out.append("f,");
 	xconvert(out, sched.base);
 	switch (sched.type) {
-		case ScheduleStrategy::geometric_schedule :
+		case ScheduleStrategy::Geometric:
 			out[t] = 'x';
 			return xconvert(out.append(1, ','), std::make_pair((double)sched.grow, sched.len));
-		case ScheduleStrategy::arithmetic_schedule:
+		case ScheduleStrategy::Arithmetic:
 			if (sched.grow) { out[t] = '+'; return xconvert(out.append(1, ','), std::make_pair((uint32)sched.grow, sched.len)); }
 			else            { out[t] = 'f'; return out; }
-		case ScheduleStrategy::luby_schedule:
+		case ScheduleStrategy::Luby:
 			out[t] = 'l';
 			if (sched.len) { return xconvert(out.append(1, ','), sched.len); }
 			else           { return out; }
-		case ScheduleStrategy::user_schedule:
+		case ScheduleStrategy::User:
 			out[t] = 'd';
 			return xconvert(out.append(1, ','), std::make_pair((double)sched.grow, sched.len));
 		default: CLASP_FAIL_IF(true, "xconvert(ScheduleStrategy): unknown type");
 	}
-}
-static int xconvert(const char* x, SatPreParams& out, const char** errPos, int) {
-	uint32 arg[6];
-	if (errPos) { *errPos = x; }
-	int nt = bk_lib::convert_seq<uint32>(x, 6, arg, ',', &x);
-	if (!nt || (arg[0] > 3u && arg[0] != UINT32_MAX) || (nt > 1 && !arg[0]) || (nt > 4 && arg[4] > 100u)) { nt = 0; }
-	switch (nt) {
-		case 6: SET_OR_ZERO(out.limClause, arg[5]);
-		case 5: SET_OR_ZERO(out.limFrozen, arg[4]);
-		case 4: SET_OR_ZERO(out.limTime  , arg[3]);
-		case 3: SET_OR_ZERO(out.limOcc   , arg[2]);
-		case 2: SET_OR_ZERO(out.limIters , arg[1]);
-		case 1: out.type = arg[0];
-		default: if (errPos && nt) { *errPos = x; } return nt;
-	}
-}
-static std::string& xconvert(std::string& out, const SatPreParams& pre) {
-	using bk_lib::xconvert;
-	xconvert(out, static_cast<uint32>(pre.type)).append(1, ',');
-	xconvert(out, static_cast<uint32>(pre.limIters)).append(1, ',');
-	xconvert(out, static_cast<uint32>(pre.limOcc)).append(1, ',');
-	xconvert(out, static_cast<uint32>(pre.limTime)).append(1, ',');
-	xconvert(out, static_cast<uint32>(pre.limFrozen)).append(1, ',');
-	xconvert(out, static_cast<uint32>(pre.limClause));
-	return out;
 }
 namespace Asp { using Clasp::xconvert; }
 namespace mt  { using Clasp::xconvert; }
@@ -331,9 +310,10 @@ static uint8 decodeMode(uint32 key)  { return static_cast<uint8>( (key >> 24) );
 static uint8 decodeSolver(uint32 key){ return static_cast<uint8>( (key >> 16) ); }
 static bool  isValidId(int16 id)     { return id >= key_root && id < detail__num_options; }
 static bool  isLeafId(int16 id)      { return id >= key_leaf && id < detail__num_options; }
-const ClaspCliConfig::KeyType ClaspCliConfig::KEY_ROOT   = makeKeyHandle(key_root, 0, 0);
-const ClaspCliConfig::KeyType ClaspCliConfig::KEY_SOLVER = makeKeyHandle(key_solver, 0, 0);
-const ClaspCliConfig::KeyType ClaspCliConfig::KEY_TESTER = makeKeyHandle(key_tester, ClaspCliConfig::mode_tester, 0);
+const ClaspCliConfig::KeyType ClaspCliConfig::KEY_INVALID = static_cast<ClaspCliConfig::KeyType>(-1);
+const ClaspCliConfig::KeyType ClaspCliConfig::KEY_ROOT    = makeKeyHandle(key_root, 0, 0);
+const ClaspCliConfig::KeyType ClaspCliConfig::KEY_SOLVER  = makeKeyHandle(key_solver, 0, 0);
+const ClaspCliConfig::KeyType ClaspCliConfig::KEY_TESTER  = makeKeyHandle(key_tester, ClaspCliConfig::mode_tester, 0);
 
 struct Name2Id { 
 	const char* name; int key;
@@ -464,18 +444,18 @@ ProgramOptions::SharedOptPtr ClaspCliConfig::ParseContext::getOption(const char*
 /////////////////////////////////////////////////////////////////////////////////////////
 ConfigIter ClaspCliConfig::getConfig(ConfigKey k) {
 	switch(k) {
-		#define CONFIG(id, n,c,s,p) case config_##n: return ConfigIter("/[" #n "]\0/" s " " c "\0");
+		#define CONFIG(id, n,c,s,p) case config_##n: return ConfigIter("/[" #n "]\0/\0/" s " " c "\0");
 		#define CLASP_CLI_DEFAULT_CONFIGS
 		#define CLASP_CLI_AUX_CONFIGS
 		#include <clasp/cli/clasp_cli_configs.inl>
 		case config_many:
-		#define CONFIG(id,n,c,s,p) "/[solver." #id "]\0/" c " " p "\0"
+		#define CONFIG(id,n,c,s,p) "/[solver." #id "]\0/\0/" c " " p "\0"
 		#define CLASP_CLI_DEFAULT_CONFIGS
 		#define CLASP_CLI_AUX_CONFIGS
 			return ConfigIter(
 				#include <clasp/cli/clasp_cli_configs.inl>
 				);
-		case config_default: return ConfigIter("/default\0/\0");
+		case config_default: return ConfigIter("/default\0/\0/\0");
 		default            : throw std::logic_error(clasp_format_error("Invalid config key '%d'", (int)k));
 	}
 }
@@ -486,17 +466,37 @@ ConfigIter ClaspCliConfig::getConfig(uint8 key, std::string& tempMem) {
 	loadConfig(tempMem, config_[key - config_max_value].c_str());
 	return ConfigIter(tempMem.data());
 }
+static inline const char* skipWs(const char* x) {
+	while (*x == ' ' || *x == '\t') { ++x; }
+	return x;
+}
+static inline const char* getIdent(const char* x, std::string& to) {
+	for (x = skipWs(x); std::strchr(" \t:()[]", *x) == 0; ++x) { to += *x; }
+	return x;
+}
+static inline bool matchSep(const char*& x, char c) {
+	if (*(x = skipWs(x)) == c) { ++x; return true; }
+	return false;
+}
+
 bool ClaspCliConfig::appendConfig(std::string& to, const std::string& line) {
-	std::string::size_type nBeg = line.find_first_not_of(" \t");
-	std::string::size_type nEnd = line.find(":");
-	if (!nEnd || nEnd == std::string::npos || nBeg == nEnd) { return false; }
-	to.append(1, '/').append(line, nBeg, (line.find_first_of(" \t:", nBeg) - nBeg)).append("\0/", 2);
-	nBeg = line.find_first_not_of(" \t", nEnd + 1);
-	if (nBeg != std::string::npos) { 
-		to.append(line, nBeg, (line.find_last_not_of(" \t") - nBeg) + 1);
+	std::size_t sz = to.size();
+	const char*  x = skipWs(line.c_str());
+	const bool   p = matchSep(x, '[');
+	to.append("/[", 2);
+	// match name in optional square brackets
+	bool ok = matchSep(x = getIdent(x, to), ']') == p;
+	to.append("]\0/", 3);
+	// match optional base in parentheses followed by start of option list
+	if (ok && (!matchSep(x, '(') || matchSep((x = getIdent(x, to)), ')')) && matchSep(x, ':')) {
+		to.append("\0/", 2);
+		to.append(skipWs(x));
+		to.erase(to.find_last_not_of(" \t") + 1);
+		to.append(1, '\0');
+		return true;
 	}
-	to.append(1, '\0');
-	return true;
+	to.resize(sz);
+	return false;
 }
 bool ClaspCliConfig::loadConfig(std::string& to, const char* name) {
 	std::ifstream file(name);
@@ -514,12 +514,13 @@ bool ClaspCliConfig::loadConfig(std::string& to, const char* name) {
 	return true;
 }
 const char* ClaspCliConfig::getDefaults(ProblemType t) {
-	if (t == Problem_t::ASP){ return "--configuration=tweety"; }
+	if (t == Problem_t::Asp){ return "--configuration=tweety"; }
 	else                    { return "--configuration=trendy"; }
 }
 ConfigIter::ConfigIter(const char* x) : base_(x) {}
 const char* ConfigIter::name() const { return base_ + 1; }
-const char* ConfigIter::args() const { return base_ + std::strlen(base_) + 2; }
+const char* ConfigIter::base() const { return base_ + std::strlen(base_) + 2; }
+const char* ConfigIter::args() const { const char* x = base(); return x + std::strlen(x) + 2; }
 bool        ConfigIter::valid()const { return *base_ != 0; }
 bool        ConfigIter::next()       {
 	base_ = args();
@@ -536,7 +537,7 @@ ClaspCliConfig::ScopedSet::ScopedSet(ClaspCliConfig& s, uint8 mode, uint32 sId) 
 }
 ClaspCliConfig::ScopedSet::~ScopedSet() { self->cliId = self->cliMode = 0; }
 ClaspCliConfig::RawConfig::RawConfig(const char* name) {
-	raw.append(1, '/').append(name ? name : "").append("\0/\0", 3);
+	raw.append(1, '/').append(name ? name : "").append("\0/\0/", 4);
 }
 void ClaspCliConfig::RawConfig::addArg(const char* arg) {
 	*raw.rbegin() = ' ';
@@ -559,6 +560,15 @@ void ClaspCliConfig::reset() {
 
 void ClaspCliConfig::prepare(SharedContext& ctx) {
 	ClaspConfig::prepare(ctx);
+}
+Configuration* ClaspCliConfig::config(const char* n) {
+	if (n && std::strcmp(n, "tester") == 0) {
+		if (!testerConfig()) {
+			setAppOpt(meta_tester, "--config=auto");
+		}
+		return testerConfig();
+	}
+	return ClaspConfig::config(n);
 }
 
 ClaspCliConfig::ProgOption* ClaspCliConfig::createOption(int o) {  return new ProgOption(*this, o); }
@@ -627,7 +637,7 @@ ClaspCliConfig::KeyType ClaspCliConfig::getKey(KeyType k, const char* path) cons
 	if (!isValidId(id) || !path || !*path || (match(path, ".") && !*path)) {
 		return k;
 	}
-	if (isLeafId(id)){ return INVALID_KEY; }
+	if (isLeafId(id)){ return KEY_INVALID; }
 	const NodeKey& x = nodes_g[-id];
 	for (int16 sk = x.skBegin; sk != x.skEnd && sk < 0; ++sk) {
 		NodeKey sub = nodes_g[-sk];
@@ -648,14 +658,14 @@ ClaspCliConfig::KeyType ClaspCliConfig::getKey(KeyType k, const char* path) cons
 	const Name2Id* opt = index_g.find(path);
 	// remaining name must be a valid option in our subkey range
 	if (!opt || opt->key < x.skBegin || opt->key >= x.skEnd) { 
-		return INVALID_KEY; 
+		return KEY_INVALID; 
 	}
 	return makeKeyHandle(static_cast<int16>(opt->key), mode, decodeSolver(k));
 }
 
 ClaspCliConfig::KeyType ClaspCliConfig::getArrKey(KeyType k, unsigned i) const {
 	int16 id = decodeKey(k);
-	if (id != key_solver || (decodeMode(k) & mode_solver) != 0 || i >= solve.supportedSolvers()) { return INVALID_KEY; }
+	if (id != key_solver || (decodeMode(k) & mode_solver) != 0 || i >= solve.supportedSolvers()) { return KEY_INVALID; }
 	return makeKeyHandle(id, decodeMode(k) | mode_solver, i);
 }
 int ClaspCliConfig::getKeyInfo(KeyType k, int* nSubkeys, int* arrLen, const char** help, int* nValues) const {
@@ -763,31 +773,32 @@ int ClaspCliConfig::applyActive(int o, const char* _val_, std::string* _val_out_
 			o = (cliMode & mode_relaxed) != 0 ? detail__before_options : detail__num_options;
 		}
 		else if (isSolverOption(o)) {
-			if      (o < option_category_solver_end){ solver = &active->addSolver(sId); }
-			else if (o < option_category_search_end){ search = &active->addSearch(sId); }
+			solver = &active->addSolver(sId);
+			search = &active->addSearch(sId);
 		}
 	}
 	if (!isOption(o)) {
 		return o == detail__before_options ? int(_val_ != 0) : -1;
 	}
 	// action & helper macros used in get/set
-	using bk_lib::xconvert; using bk_lib::off;
+	using bk_lib::xconvert; using bk_lib::off; using bk_lib::opt;
 	using bk_lib::stringTo; using bk_lib::toString;
 	#define ITE(c, a, b)            (!!(c) ? (a) : (b))
-	#define ARG_T(X1, ...)          bk_lib::Arg_t<X1 , ##__VA_ARGS__>
-	#define FUN(x)                  for (const char* x = (_val_);;)
-	#define STORE(obj)              FUN(__value__) { return stringTo(__value__, obj); }
-	#define STORE_LEQ(x, y)         FUN(__value__) { unsigned __n; return stringTo(__value__, __n) && SET_LEQ(x, __n, y); }
-	#define STORE_FLAG(x)           FUN(__value__) { bool __b; return stringTo(__value__, __b) && SET(x, static_cast<unsigned>(__b)); }
-	#define STORE_OR_FILL(x)        FUN(__value__) { unsigned __n; return stringTo(__value__, __n) && SET_OR_FILL(x, __n); }
-	#define TO_STR_IF(c, x, ...)    ITE((c), toString( (x), ##__VA_ARGS__), toString(off))
+	#define FUN(x)                  for (bk_lib::ArgString x = _val_;;)
+	#define STORE(obj)              { return stringTo((_val_), obj); }
+	#define STORE_LEQ(x, y)         { unsigned __n; return stringTo(_val_, __n) && SET_LEQ(x, __n, y); }
+	#define STORE_FLAG(x)           { bool __b; return stringTo(_val_, __b) && SET(x, static_cast<unsigned>(__b)); }
+	#define STORE_OR_FILL(x)        { unsigned __n; return stringTo(_val_, __n) && SET_OR_FILL(x, __n); }
+	#define GET_FUN(x)              bk_lib::StringBuilder x(*_val_out_); if (!x);else
+	#define GET(...)                *_val_out_ = toString( __VA_ARGS__ )
+	#define GET_IF(c, ...)          *_val_out_ = ITE((c), toString(__VA_ARGS__), toString(off))
 	switch(static_cast<OptionKey>(o)) {
 		default: return -1;
 		#define OPTION(k, e, a, d, x, v) \
 		case opt_##k:\
 			if (_name_out_){ *_name_out_ = #k ; }\
-			if (_val_)     { x ; }\
-			if (_val_out_) { ( v ).swap(*_val_out_); }\
+			if (_val_) try { x ; }catch(...) {return 0;}\
+			if (_val_out_) { v ; }\
 			if (_desc_out_){ *_desc_out_ = d; }\
 			return 1;
 		#define CLASP_CONTEXT_OPTIONS (*ctxOpts)
@@ -804,28 +815,39 @@ int ClaspCliConfig::applyActive(int o, const char* _val_, std::string* _val_out_
 	#undef STORE_LEQ
 	#undef STORE_FLAG
 	#undef STORE_OR_FILL
-	#undef TO_STR_IF
+	#undef GET_IF
+	#undef GET
 	#undef ITE
-	#undef ARG_T
 }
 
 int ClaspCliConfig::setActive(int id, const char* setVal) {
 	if      (isOption(id))     { return applyActive(id, setVal ? setVal : "", 0, 0, 0); }
 	else if (id == meta_config){
-		if (setAppOpt(id, setVal) == 0) { return 0; }
+		int sz = setAppOpt(id, setVal);
+		if (sz <= 0) { return 0; }
 		std::string m;
 		UserConfig* act = active();
 		ConfigIter it  = getConfig(act->cliConfig, m);
 		act->hasConfig = 0;
 		cliMode       |= mode_relaxed;
-		for (uint32 sId = 0; it.valid(); it.next(), ++sId) {
-			(act->addSolver(sId) = SolverParams()).id = sId;
-			(act->addSearch(sId) = SolveParams());
+		act->resize(1, 1);
+		for (uint32 sId = 0; it.valid(); it.next()) {
+			act->addSolver(sId);
+			act->addSearch(sId);
 			cliId = static_cast<uint8>(sId);
-			if (!setConfig(it, false, ParsedOpts(), 0)){ return false; }
+			if (!setConfig(it, false, ParsedOpts(), 0)){ return 0; }
+			if (++sId == static_cast<uint32>(sz))      { break; }
 			cliMode |= mode_solver;
 		}
-		return (act->hasConfig = 1) == 1;
+		if (sz < 65 && static_cast<uint32>(sz) > act->numSolver()) {
+			for (uint32 sId = act->numSolver(), mod = sId, end = static_cast<uint32>(sz); sId != end; ++sId) {
+				SolverParams& solver = act->addSolver(sId);
+				SolveParams&  search = act->addSearch(sId);
+				(solver = act->solver(sId % mod)).setId(sId);
+				search = act->search(sId % mod);
+			}
+		}
+		return static_cast<int>((act->hasConfig = 1) == 1);
 	}
 	else { return -1; }
 }
@@ -848,27 +870,27 @@ int ClaspCliConfig::getActive(int o, std::string* val, const char** desc, const 
 }
 int ClaspCliConfig::setAppOpt(int o, const char* _val_) {
 	if (o == meta_config) {
-		ConfigKey defC;
-		if   (bk_lib::stringTo(_val_, defC)){ active()->cliConfig = (uint8)defC; return true; }
+		std::pair<ConfigKey, uint32> defC(config_default, INT_MAX);
+		if   (bk_lib::stringTo(_val_, defC)){ active()->cliConfig = (uint8)defC.first; }
 		else {
 			CLASP_FAIL_IF(!std::ifstream(_val_).is_open(), "Could not open config file '%s'", _val_);
 			config_[!isGenerator()] = _val_; active()->cliConfig = config_max_value + !isGenerator(); 
-			return true;
 		}
+		return Range<uint32>(0, INT_MAX).clamp(defC.second);
 	}
 	else if (o == meta_tester && isGenerator()) {
 		addTesterConfig();
-		std::string temp("/<tester>");
-		temp.append("\0/",2).append(_val_).append(2, '\0');
+		RawConfig config("<tester>");
+		config.addArg(_val_);
 		ParsedOpts ex;
-		bool ret = ScopedSet(*this, mode_tester)->setConfig(ConfigIter(temp.data()), true, ParsedOpts(), &ex);
-		return ret && finalizeAppConfig(testerConfig(), finalizeParsed(testerConfig(), ex, ex), Problem_t::ASP, true);
+		bool ret = ScopedSet(*this, mode_tester)->setConfig(config.iterator(), true, ParsedOpts(), &ex);
+		return ret && finalizeAppConfig(testerConfig(), finalizeParsed(testerConfig(), ex, ex), Problem_t::Asp, true);
 	}
 	return -1; // invalid option
 }
 bool ClaspCliConfig::setAppDefaults(UserConfig* active, uint32 sId, const ParsedOpts& cmdLine, ProblemType t) {
 	ScopedSet temp(*this, (active == this ? 0 : mode_tester) | mode_relaxed, sId);
-	if (sId == 0 && t != Problem_t::ASP && cmdLine.count("sat-prepro") == 0) {
+	if (sId == 0 && t != Problem_t::Asp && cmdLine.count("sat-prepro") == 0) {
 		setActive(opt_sat_prepro, "2,20,25,120");
 	}
 	if (active->addSolver(sId).search == SolverParams::no_learning) {
@@ -929,7 +951,7 @@ bool ClaspCliConfig::finalizeAppConfig(UserConfig* active, const ParsedOpts& par
 	if (c == config_default) {
 		if      (defSolver.search == SolverParams::no_learning)       { c = config_nolearn; }
 		else if (active == testerConfig())                            { c = config_tester_default; }
-		else if (solve.numSolver() == 1 || !solve.defaultPortfolio()) { c = t == Problem_t::ASP ? (uint8)config_asp_default : (uint8)config_sat_default; }
+		else if (solve.numSolver() == 1 || !solve.defaultPortfolio()) { c = t == Problem_t::Asp ? (uint8)config_asp_default : (uint8)config_sat_default; }
 		else                                                          { c = config_many; }
 	}
 	std::string m;
@@ -939,9 +961,13 @@ bool ClaspCliConfig::finalizeAppConfig(UserConfig* active, const ParsedOpts& par
 	const char* ctx = active == testerConfig() ? "<tester>" : "<config>";
 	char   buf[80];
 	for (uint32 i = 0; i != solve.numSolver() && conf.valid(); ++i) {
-		SolverParams& solver = (active->addSolver(i) = defSolver);
+		SolverParams& solver = (active->addSolver(i) = defSolver).setId(i);
 		SolveParams&  search = (active->addSearch(i) = defSearch);
-		solver.id            = i;
+		ConfigKey     baseK  = config_default;
+		CLASP_FAIL_IF(*conf.base() && !bk_lib::stringTo(conf.base(), baseK), "%s.%s: '%s': Invalid base config!", ctx, conf.name(), conf.base());
+		if (baseK != config_default && !ScopedSet(*this, mode|mode_solver, i)->setConfig(getConfig(baseK), false, parsed, 0)) {
+			return false;
+		}
 		if (!ScopedSet(*this, mode, i)->setConfig(conf, false, parsed, 0)) {
 			return false;
 		}

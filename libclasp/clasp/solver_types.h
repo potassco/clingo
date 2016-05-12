@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2006-2011, Benjamin Kaufmann
+// Copyright (c) 2006-2016, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -20,6 +20,7 @@
 #ifndef CLASP_SOLVER_TYPES_H_INCLUDED
 #define CLASP_SOLVER_TYPES_H_INCLUDED
 #ifdef _MSC_VER
+#pragma warning (disable : 4200) // nonstandard extension used : zero-sized array
 #pragma once
 #endif
 
@@ -40,16 +41,91 @@ class SharedLiterals;
  * \addtogroup solver
  */
 //@{
+///////////////////////////////////////////////////////////////////////////////
+// SearchLimits
+///////////////////////////////////////////////////////////////////////////////
+struct DynamicLimit;
+struct BlockLimit;
 
+//! Parameter-Object for managing search limits.
+struct SearchLimits {
+	typedef DynamicLimit* LimitPtr;
+	typedef BlockLimit*   BlockPtr;
+	SearchLimits();
+	uint64 used;
+	struct {
+		uint64   conflicts; /*!< Soft limit on number of conflicts for restart. */
+		LimitPtr dynamic;   /*!< Use dynamic restarts based on lbd or conflict level. */
+		BlockPtr block;     /*!< Optional strategy to increase restart limit. */
+		bool     local;     /*!< Apply conflict limit against active branch.  */
+	} restart;
+	uint64 conflicts; /*!< Soft limit on number of conflicts. */
+	uint64 memory;    /*!< Soft memory limit for learnt lemmas (in bytes). */
+	uint32 learnts;   /*!< Limit on number of learnt lemmas. */
+};
+
+struct DynamicLimit {
+	enum Type { lbd_limit, level_limit };
+	static DynamicLimit* create(uint32 window);
+	void   destroy();
+	// resets moving average and adjust
+	void   init(float k, Type type, uint32 uLimit = 16000);
+	// resets moving average
+	void   resetRun();
+	// resets moving and global average
+	void   reset();
+	void   update(uint32 conflictLevel, uint32 lbd);
+	uint32 restart(uint32 maxLBD, float k);
+	
+	uint32 runLen()  const { return num_;  }
+	uint32 window()  const { return cap_; }
+	bool   reached() const { return runLen() >= window() && (sma(adjust.type) * adjust.rk) > global.avg(adjust.type); }
+	struct {
+		double avg(Type t) const { return ratio(sum[t], samples); }
+		uint64 sum[2]; /**< Sum of lbds/conflict levels since last call to resetGlobal(). */
+		uint64 samples;/**< Samples since last call to resetGlobal().                     */
+	} global;
+	struct {
+		double avgRestart() const { return ratio(samples, restarts); }
+		uint32 limit;   /**< Number of conflicts before an update is forced. */
+		uint32 restarts;/**< Number of restarts since last update.           */
+		uint32 samples; /**< Number of samples since last update.            */
+		float  rk;      /**< LBD/CFL dynamic limit factor (typically < 1.0). */
+		Type   type;    /**< Dynamic limit based on lbd or confllict level.  */
+	} adjust;
+private: 
+	DynamicLimit(uint32 size);
+	DynamicLimit(const DynamicLimit&);
+	DynamicLimit& operator=(const DynamicLimit&);
+	double sma(Type t)  const { return sum_[t] / double(cap_); }
+	uint32 smaU(Type t) const { return static_cast<uint32>(sum_[t] / cap_); }
+	uint64 sum_[2];
+	uint32 cap_;
+	uint32 pos_;
+	uint32 num_;
+	uint32 buffer_[0];
+};
+
+struct BlockLimit {
+	explicit BlockLimit(uint32 windowSize, double R = 1.4);
+	bool push(uint32 nAssign) {
+		ema = n >= span
+			? exponentialMovingAverage(ema, nAssign, alpha)
+			: cumulativeMovingAverage(ema, nAssign, n);
+		return ++n >= next;
+	}
+	double scaled() const { return ema * r; }
+	double ema;   // current exponential moving average
+	double alpha; // smoothing factor: 2/(span+1)
+	uint64 next;  // enable once n >= next
+	uint64 inc;   // block restart for next inc conflict
+	uint64 n;     // number of data points seen
+	uint32 span;  // minimum observation window
+	float  r;     // scale factor for ema
+};
 ///////////////////////////////////////////////////////////////////////////////
 // Statistics
 ///////////////////////////////////////////////////////////////////////////////
-inline double ratio(uint64 x, uint64 y) {
-	if (!x || !y) return 0.0;
-	return static_cast<double>(x) / static_cast<double>(y);
-}
-inline double percent(uint64 x, uint64 y) {	return ratio(x, y) * 100.0; }
-
 inline bool matchStatPath(const char*& x, const char* path, std::size_t len) {
 	return std::strncmp(x, path, len) == 0 && (!x[len] || x[len++] == '.') && ((x += len) != 0);
 }
@@ -98,7 +174,7 @@ struct CoreStats {
 //! A struct for holding (optional) extra statistics.
 struct ExtendedStats {
 	typedef ConstraintType type_t;
-	typedef uint64 Array[Constraint_t::max_value];
+	typedef uint64 Array[Constraint_t::Type__max];
 #define CLASP_EXTENDED_STATS(STAT, SELF, OTHER)     \
 	STAT(uint64 domChoices; /**< "domain" choices   */, "domain_choices"        , SELF.domChoices , SELF.domChoices += OTHER.domChoices) \
 	STAT(uint64 models;     /**< number of models   */, "models"                , SELF.models     , SELF.models     += OTHER.models)     \
@@ -119,12 +195,12 @@ struct ExtendedStats {
 	STAT(uint64 gpLits;  /**< lits in received gps  */, "guiding_paths_lits"    , SELF.gpLits  , SELF.gpLits  += OTHER.gpLits)  \
 	STAT(uint32 gps;     /**< guiding paths received*/, "guiding_paths"         , SELF.gps     , SELF.gps     += OTHER.gps)     \
 	STAT(uint32 splits;  /**< split requests handled*/, "splits"                , SELF.splits  , SELF.splits  += OTHER.splits)  \
-	STAT(NO_ARG       , "lemmas_conflict", SELF.lemmas(Constraint_t::learnt_conflict), SELF.learnts[0] += OTHER.learnts[0]) \
-	STAT(NO_ARG       , "lemmas_loop"    , SELF.lemmas(Constraint_t::learnt_loop)    , SELF.learnts[1] += OTHER.learnts[1]) \
-	STAT(NO_ARG       , "lemmas_other"   , SELF.lemmas(Constraint_t::learnt_other)   , SELF.learnts[2] += OTHER.learnts[2]) \
-	STAT(NO_ARG       , "lits_conflict"  , SELF.lits[Constraint_t::learnt_conflict-1], SELF.lits[0]    += OTHER.lits[0])    \
-	STAT(NO_ARG       , "lits_loop"      , SELF.lits[Constraint_t::learnt_loop-1]    , SELF.lits[1]    += OTHER.lits[1])    \
-	STAT(NO_ARG       , "lits_other"     , SELF.lits[Constraint_t::learnt_other-1]   , SELF.lits[2]    += OTHER.lits[2])
+	STAT(NO_ARG       , "lemmas_conflict", SELF.lemmas(Constraint_t::Conflict), SELF.learnts[0] += OTHER.learnts[0]) \
+	STAT(NO_ARG       , "lemmas_loop"    , SELF.lemmas(Constraint_t::Loop)    , SELF.learnts[1] += OTHER.learnts[1]) \
+	STAT(NO_ARG       , "lemmas_other"   , SELF.lemmas(Constraint_t::Other)   , SELF.learnts[2] += OTHER.learnts[2]) \
+	STAT(NO_ARG       , "lits_conflict"  , SELF.lits[Constraint_t::Conflict-1], SELF.lits[0]    += OTHER.lits[0])    \
+	STAT(NO_ARG       , "lits_loop"      , SELF.lits[Constraint_t::Loop-1]    , SELF.lits[1]    += OTHER.lits[1])    \
+	STAT(NO_ARG       , "lits_other"     , SELF.lits[Constraint_t::Other-1]   , SELF.lits[2]    += OTHER.lits[2])
 	
 	ExtendedStats() { reset(); }
 	void reset() { std::memset(this, 0, sizeof(ExtendedStats)); }
@@ -140,14 +216,14 @@ struct ExtendedStats {
 		return 0;
 	}
 	void addLearnt(uint32 size, type_t t) {
-		assert(t != Constraint_t::static_constraint && t <= Constraint_t::max_value);
+		if (t == Constraint_t::Static) return;
 		learnts[t-1]+= 1;
 		lits[t-1]   += size;
 		binary      += (size == 2);
 		ternary     += (size == 3);
 	}
-	uint64 lemmas()        const { return std::accumulate(learnts, learnts+Constraint_t::max_value, uint64(0)); }
-	uint64 learntLits()    const { return std::accumulate(lits, lits+Constraint_t::max_value, uint64(0)); }
+	uint64 lemmas()        const { return std::accumulate(learnts, learnts+Constraint_t::Type__max, uint64(0)); }
+	uint64 learntLits()    const { return std::accumulate(lits, lits+Constraint_t::Type__max, uint64(0)); }
 	uint64 lemmas(type_t t)const { return learnts[t-1]; }
 	double avgLen(type_t t)const { return ratio(lits[t-1], lemmas(t)); }
 	double avgModel()      const { return ratio(modelLits, models);    }
@@ -204,114 +280,24 @@ struct JumpStats {
 	double avgJumpEx()  const { return ratio(jumped(), jumps); }
 	CLASP_JUMP_STATS(CLASP_STAT_DEFINE,NO_ARG,NO_ARG)
 };
-
-struct QueueImpl {
-	explicit QueueImpl(uint32 size) : maxSize(size), wp(0), rp(0) {}
-	bool    full()  const { return size() == maxSize; }
-	uint32  size()  const { return ((rp > wp) * cap()) + wp - rp;}
-	uint32  cap()   const { return maxSize + 1; }
-	void    clear()       { wp = rp = 0; }
-	uint32  top()   const { return buffer[rp]; }
-	void    push(uint32 x){ buffer[wp] = x; if (++wp == cap()) { wp = 0; } }
-	void    pop()         { if (++rp == cap()) { rp = 0; } }
-	uint32  maxSize;
-	uint32  wp;
-	uint32  rp;
-	uint32  buffer[1];
-};
-
-struct SumQueue {
-	static SumQueue* create(uint32 size) {
-		void* m = ::operator new(sizeof(SumQueue) + (size*sizeof(uint32)));
-		return new (m) SumQueue(size);
-	}
-	void dynamicRestarts(float x, bool xLbd) {
-		upForce  = 16000;
-		upCfl    = 0;
-		nRestart = 0;
-		lim      = x;
-		lbd      = xLbd;
-	}
-	void destroy()         { this->~SumQueue(); ::operator delete(this); }
-	void resetQueue()      { sumLbd = sumCfl = samples = 0; queue.clear(); }
-	void resetGlobal()     { globalSumLbd = globalSumCfl = globalSamples = 0; resetQueue(); }
-	void update(uint32 dl, uint32 lbd) {
-		if (samples++ >= queue.maxSize) {
-			uint32 y = queue.top(); 
-			sumLbd  -= (y & 127u);
-			sumCfl  -= (y >> 7u);
-			queue.pop();
-		}
-		sumLbd += lbd;
-		sumCfl += dl;
-		++upCfl;
-		++globalSamples;
-		globalSumLbd += lbd;
-		globalSumCfl += dl;
-		queue.push((dl << 7) + lbd);
-	}
-	double  avgLbd() const { return sumLbd / (double)queue.maxSize; }
-	double  avgCfl() const { return sumCfl / (double)queue.maxSize; }
-	uint32  maxSize()const { return queue.maxSize; }
-	bool    full()   const { return queue.full();  }
-	double  globalAvgLbd() const { return ratio(globalSumLbd, globalSamples); }
-	double  globalAvgCfl() const { return ratio(globalSumCfl, globalSamples); } 
-	bool    isRestart()    const { return full() && (lbd ? (avgLbd()*lim) > globalAvgLbd() : (avgCfl() * lim) > globalAvgCfl()); }
-	uint32  restart(uint32 maxLBD, float xLim);
-
-	uint64    globalSumLbd; /**< Sum of lbds since last call to resetGlobal().           */
-	uint64    globalSumCfl; /**< Sum of conflict levels since last call to resetGlobal().*/
-	uint64    globalSamples;/**< Samples since last call to resetGlobal().               */
-	uint32    sumLbd;       /**< Sum of lbds in queue.            */
-	uint32    sumCfl;       /**< Sum of conflict levels in queue. */
-	uint32    samples;      /**< Number of items in queue.        */
-	// ------- Dynamic restarts -------
-	uint32    upForce;      /**< Number of conflicts before an update is forced.*/
-	uint32    upCfl;        /**< Conflicts since last update.                   */
-	uint32    nRestart;     /**< Restarts since last update.                    */
-	float     lim;          /**< LBD/CFL adjustment factor for dynamic restarts (0=disable). */
-	bool      lbd;          /**< Dynamic restarts based on true=lbd or false=confllict level.*/
-	// --------------------------------
-	QueueImpl queue;
-private: 
-	SumQueue(uint32 size) 
-		: globalSumLbd(0), globalSumCfl(0), globalSamples(0), sumLbd(0), sumCfl(0), samples(0)
-		, upForce(16000), upCfl(0), nRestart(0), lim(0.0f), lbd(true)
-		, queue(size) {
-	}
-	SumQueue(const SumQueue&);
-	SumQueue& operator=(const SumQueue&);
-};
-
 //! A struct for aggregating statistics maintained in a solver object.
 struct SolverStats : public CoreStats {
-	SolverStats() : queue(0), extra(0), jumps(0) {}
-	SolverStats(const SolverStats& o) : CoreStats(o), queue(0), extra(0), jumps(0) {
-		if (o.queue) enableQueue(o.queue->maxSize());
-		enableStats(o);
-	}
-	~SolverStats() { delete jumps; delete extra; if (queue) queue->destroy(); }
+	SolverStats();
+	SolverStats(const SolverStats& o);
+	~SolverStats();
 	bool enableStats(const SolverStats& other);
-	int  level() const { return (extra != 0) + (jumps != 0); }
+	int  level() const;
 	bool enableExtended();
 	bool enableJump();
-	void enableQueue(uint32 size);
+	void enableLimit(uint32 size);
 	void reset();
 	void accu(const SolverStats& o);
 	void swapStats(SolverStats& o);
 	double operator[](const char* key) const;
 	const char* subKeys(const char* p) const;
-	const char* keys(const char* path) const {
-		if (!path || !*path) {
-			if (jumps && extra) { return "jumps.\0extra.\0" CLASP_CORE_STATS(CLASP_STAT_KEY,NO_ARG,NO_ARG); }
-			if (extra)          { return "extra.\0" CLASP_CORE_STATS(CLASP_STAT_KEY,NO_ARG,NO_ARG); }
-			if (jumps)          { return "jumps.\0" CLASP_CORE_STATS(CLASP_STAT_KEY,NO_ARG,NO_ARG); }
-			return CoreStats::keys(path);
-		}
-		return subKeys(path);
-	}
+	const char* keys(const char* path) const;
 	inline void addLearnt(uint32 size, ConstraintType t);
-	inline void updateJumps(uint32 dl, uint32 uipLevel, uint32 bLevel, uint32 lbd);
+	inline void addConflict(uint32 dl, uint32 uipLevel, uint32 bLevel, uint32 lbd);
 	inline void addDeleted(uint32 num);
 	inline void addDistributed(uint32 lbd, ConstraintType t);
 	inline void addTest(bool partial);
@@ -323,9 +309,9 @@ struct SolverStats : public CoreStats {
 	inline void addIntegrated(uint32 num = 1);
 	inline void removeIntegrated(uint32 num = 1);
 	inline void addPath(const LitVec::size_type& sz);
-	SumQueue*      queue; /**< Optional queue for running averages. */
-	ExtendedStats* extra; /**< Optional extended statistics.        */
-	JumpStats*     jumps; /**< Optional jump statistics.            */
+	DynamicLimit*  limit; /**< Optional dynamic limit.       */
+	ExtendedStats* extra; /**< Optional extended statistics. */
+	JumpStats*     jumps; /**< Optional jump statistics.     */
 private: SolverStats& operator=(const SolverStats&);
 };
 inline void SolverStats::addLearnt(uint32 size, ConstraintType t)  { if (extra) { extra->addLearnt(size, t); } }
@@ -342,10 +328,19 @@ inline void SolverStats::addDomChoice(uint32 n)                    { if (extra) 
 inline void SolverStats::addIntegratedAsserting(uint32 rDL, uint32 jDL) {
 	if (extra) { ++extra->intImps; extra->intJumps += (rDL - jDL); }
 }
-inline void SolverStats::updateJumps(uint32 dl, uint32 uipLevel, uint32 bLevel, uint32 lbd) {
+inline void SolverStats::addConflict(uint32 dl, uint32 uipLevel, uint32 bLevel, uint32 lbd) {
 	++analyzed;
-	if (queue) { queue->update(dl, lbd); }
+	if (limit) { limit->update(dl, lbd); }
 	if (jumps) { jumps->update(dl, uipLevel, bLevel); }
+}
+inline const char* SolverStats::keys(const char* path) const {
+	if (!path || !*path) {
+		if (jumps && extra) { return "jumps.\0extra.\0" CLASP_CORE_STATS(CLASP_STAT_KEY,NO_ARG,NO_ARG); }
+		if (extra)          { return "extra.\0" CLASP_CORE_STATS(CLASP_STAT_KEY,NO_ARG,NO_ARG); }
+		if (jumps)          { return "jumps.\0" CLASP_CORE_STATS(CLASP_STAT_KEY,NO_ARG,NO_ARG); }
+		return CoreStats::keys(path);
+	}
+	return subKeys(path);
 }
 #undef CLASP_STAT_ACCU
 #undef CLASP_STAT_DEFINE
@@ -355,44 +350,20 @@ inline void SolverStats::updateJumps(uint32 dl, uint32 uipLevel, uint32 bLevel, 
 #undef CLASP_EXTENDED_STATS
 #undef CLASP_JUMP_STATS
 #undef NO_ARG
+
 ///////////////////////////////////////////////////////////////////////////////
 // Clauses
 ///////////////////////////////////////////////////////////////////////////////
-//! Type storing initial information on a (learnt) clause.
-class ClauseInfo {
-public:
-	typedef ClauseInfo self_type;
-	enum { MAX_LBD = Activity::MAX_LBD, MAX_ACTIVITY = (1<<21)-1 }; 
-	ClauseInfo(ConstraintType t = Constraint_t::static_constraint) : act_(0), lbd_(MAX_LBD), type_(t), tag_(0), aux_(0) {
-		static_assert(sizeof(self_type) == sizeof(uint32), "Unsupported padding");
-	}
-	bool           learnt()   const { return type() != Constraint_t::static_constraint; }
-	ConstraintType type()     const { return static_cast<ConstraintType>(type_); }
-	uint32         activity() const { return static_cast<uint32>(act_); }
-	uint32         lbd()      const { return static_cast<uint32>(lbd_); }
-	bool           tagged()   const { return tag_ != 0; }
-	bool           aux()      const { return tagged() || aux_ != 0; }
-	self_type&     setType(ConstraintType t) { type_  = static_cast<uint32>(t); return *this; }
-	self_type&     setActivity(uint32 act)   { act_   = std::min(act, (uint32)MAX_ACTIVITY); return *this; }
-	self_type&     setTagged(bool b)         { tag_   = static_cast<uint32>(b); return *this; }
-	self_type&     setLbd(uint32 a_lbd)      { lbd_   = std::min(a_lbd, (uint32)MAX_LBD); return *this; }
-	self_type&     setAux(bool b)            { aux_   = static_cast<uint32>(b); return *this; }
-private:
-	uint32 act_ : 21; // Activity of clause
-	uint32 lbd_ :  7; // Literal block distance in the range [0, MAX_LBD]
-	uint32 type_:  2; // One of ConstraintType
-	uint32 tag_ :  1; // Conditional constraint?
-	uint32 aux_ :  1; // Contains solver-local aux vars?
-};
 //! Primitive representation of a clause.
 struct ClauseRep {
-	static ClauseRep create(Literal* cl, uint32 sz, const ClauseInfo& i = ClauseInfo())  { return ClauseRep(cl, sz, false, i);}
-	static ClauseRep prepared(Literal* cl, uint32 sz, const ClauseInfo& i = ClauseInfo()){ return ClauseRep(cl, sz, true, i); }
-	ClauseRep(Literal* cl = 0, uint32 sz = 0, bool p = false, const ClauseInfo& i = ClauseInfo()) : info(i), size(sz), prep(uint32(p)), lits(cl) {}
-	ClauseInfo info;    /*!< Additional clause info.    */
-	uint32     size:31; /*!< Size of array of literals. */
-	uint32     prep: 1; /*!< Whether lits is already prepared. */
-	Literal*   lits;    /*!< Pointer to array of literals (not owned!). */
+	typedef ConstraintInfo Info;
+	static ClauseRep create(Literal* cl, uint32 sz, const Info& i = Info())  { return ClauseRep(cl, sz, false, i);}
+	static ClauseRep prepared(Literal* cl, uint32 sz, const Info& i = Info()){ return ClauseRep(cl, sz, true, i); }
+	ClauseRep(Literal* cl = 0, uint32 sz = 0, bool p = false, const Info& i = Info()) : info(i), size(sz), prep(uint32(p)), lits(cl) {}
+	Info     info;    /*!< Additional clause info.    */
+	uint32   size:31; /*!< Size of array of literals. */
+	uint32   prep: 1; /*!< Whether lits is already prepared. */
+	Literal* lits;    /*!< Pointer to array of literals (not owned!). */
 	bool isImp() const { return size > 1 && size < 4; }
 };
 
@@ -404,38 +375,38 @@ struct ClauseRep {
  * is only needed if the other watch is not true and the cache literal
  * is false.
  */
-class ClauseHead : public LearntConstraint {
+class ClauseHead : public Constraint {
 public:
-	enum { HEAD_LITS = 3, MAX_SHORT_LEN = 5, MAX_LBD = (1<<5)-1, TAGGED_CLAUSE = 1023, MAX_ACTIVITY = (1<<15)-1 };
-	explicit ClauseHead(const ClauseInfo& init);
+	enum { HEAD_LITS = 3, MAX_SHORT_LEN = 5 };
+	explicit ClauseHead(const InfoType& init);
 	// base interface
 	//! Propagates the head and calls updateWatch() if necessary.
 	PropResult propagate(Solver& s, Literal, uint32& data);
 	//! Type of clause.
-	ConstraintType type() const       { return ConstraintType(info_.data.type); }
-	//! True if this clause currently is the antecedent of an assignment.
-	bool     locked(const Solver& s) const;
+	Type       type()     const { return info_.type(); }
 	//! Returns the activity of this clause.
-	Activity activity() const         { return Activity(info_.data.act, info_.data.lbd); }
+	ScoreType  activity() const { return info_.score(); }
+	//! True if this clause currently is the antecedent of an assignment.
+	bool       locked(const Solver& s) const;
 	//! Halves the activity of this clause.
-	void     decreaseActivity()       { info_.data.act >>= 1; }
-	void     resetActivity(Activity a){ info_.data.act = std::min(a.activity(),uint32(MAX_ACTIVITY)); info_.data.lbd = std::min(a.lbd(), uint32(MAX_LBD)); }
+	void       decreaseActivity() { info_.score().reduce(); }
+	void       resetActivity()    { info_.score().reset(); }
 	//! Downcast from LearntConstraint.
-	ClauseHead* clause()              { return this; }
+	ClauseHead* clause() { return this; }
 	
 	// clause interface
 	typedef std::pair<bool, bool> BoolPair;
-	//! Increases activity.
-	void bumpActivity()     { info_.data.act += (info_.data.act != MAX_ACTIVITY); }
 	//! Adds watches for first two literals in head to solver.
 	void attach(Solver& s);
+	void resetScore(ScoreType sc);
 	//! Returns true if head is satisfied w.r.t current assignment in s.
-	bool satisfied(const Solver& s);
+	bool satisfied(const Solver& s) const;
 	//! Conditional clause?
-	bool tagged() const     { return info_.data.key == uint32(TAGGED_CLAUSE); }
-	bool learnt() const     { return info_.data.type!= 0; }
-	uint32 lbd()  const     { return info_.data.lbd; }
-	void lbd(uint32 x)      { info_.data.lbd = std::min(x, uint32(MAX_LBD)); }
+	bool tagged() const { return info_.tagged(); }
+	//! Contains aux vars?
+	bool aux()    const { return info_.aux(); }
+	bool learnt() const { return info_.learnt(); }
+	uint32 lbd()  const { return info_.lbd(); }
 	//! Removes watches from s.
 	virtual void     detach(Solver& s);
 	//! Returns the size of this clause.
@@ -454,11 +425,9 @@ public:
 	 */
 	virtual BoolPair strengthen(Solver& s, Literal p, bool allowToShort = true) = 0;
 protected:
-	friend struct ClauseWatch;
-	bool         toImplication(Solver& s);
-	void         clearTagged()   { info_.data.key = 0; }
-	void         setLbd(uint32 x){ info_.data.lbd = x; }
-	bool         hasLbd() const  { return info_.data.type != Constraint_t::learnt_other || lbd() != MAX_LBD; }
+	bool toImplication(Solver& s);
+	void clearTagged()    { info_.setTagged(false); }
+	void setLbd(uint32 x) { info_.setLbd(x); }
 	//! Shall replace the watched literal at position pos with a non-false literal.
 	/*!
 	 * \pre pos in [0,1] 
@@ -472,7 +441,7 @@ protected:
 			uint32 sizeExt;
 			uint32 idx;
 			void   init(uint32 size) {
-				if (size <= ClauseHead::MAX_SHORT_LEN){ sizeExt = idx = negLit(0).asUint(); }
+				if (size <= ClauseHead::MAX_SHORT_LEN){ sizeExt = idx = lit_false().rep(); }
 				else                                  { sizeExt = (size << 3) + 1; idx = 0; }
 			}
 			bool   isSmall()     const    { return (sizeExt & 1u) == 0u; }
@@ -485,19 +454,9 @@ protected:
 			void   clearContracted()      { sizeExt &= ~2u; }
 		}               local;
 		uint32          lits[2];
-	}       data_;   // additional data
-	union Info { 
-		Info() : rep(0) {}
-		explicit Info(const ClauseInfo& i);
-		struct {
-			uint32 act : 15; // activity of clause
-			uint32 key : 10; // lru key of clause
-			uint32 lbd :  5; // lbd of clause
-			uint32 type:  2; // type of clause
-		}      data;
-		uint32 rep;
-	}       info_;
-	Literal head_[HEAD_LITS]; // two watched literals and one cache literal
+	}        data_;   // additional data
+	InfoType info_;
+	Literal  head_[HEAD_LITS]; // two watched literals and one cache literal
 };
 //! Allocator for small (at most 32-byte) clauses.
 class SmallClauseAlloc {
@@ -580,22 +539,20 @@ inline void releaseVec(WatchList& w) { w.clear(true); }
  * \note On 32-bit systems additional data is stored in the high-word of antecedents.
  */
 struct ReasonStore32 : PodVector<Antecedent>::type {
-	uint32  dataSize() const     { return (uint32)size(); }
-	void    dataResize(uint32)   {}
-	uint32  data(uint32 v) const { return decode((*this)[v]);}
-	void    setData(uint32 v, uint32 data) { encode((*this)[v], data); }
-	static  void   encode(Antecedent& a, uint32 data) {
+	uint32 data(uint32 v) const { return decode((*this)[v]);}
+	void   setData(uint32 v, uint32 data) { encode((*this)[v], data); }
+	static void encode(Antecedent& a, uint32 data) {
 		a.asUint() = (uint64(data)<<32) | static_cast<uint32>(a.asUint());
 	}
-	static  uint32 decode(const Antecedent& a) {
+	static uint32 decode(const Antecedent& a) {
 		return static_cast<uint32>(a.asUint()>>32);
 	}
 	struct value_type {
 		value_type(const Antecedent& a, uint32 d) : ante_(a) {
-			if (d != UINT32_MAX) { encode(ante_, d); assert(data() == d && ante_.type() == Antecedent::generic_constraint); }
+			if (d != UINT32_MAX) { encode(ante_, d); assert(data() == d && ante_.type() == Antecedent::Generic); }
 		}
 		const Antecedent& ante() const { return ante_;      }
-		      uint32      data() const { return ante_.type() == Antecedent::generic_constraint ? decode(ante_) : UINT32_MAX; }
+		      uint32      data() const { return ante_.type() == Antecedent::Generic ? decode(ante_) : UINT32_MAX; }
 		Antecedent ante_;
 	};
 };
@@ -607,7 +564,7 @@ struct ReasonStore32 : PodVector<Antecedent>::type {
 struct ReasonStore64 : PodVector<Antecedent>::type {
 	uint32  dataSize() const               { return (uint32)data_.size(); }
 	void    dataResize(uint32 nv)          { if (nv > dataSize()) data_.resize(nv, UINT32_MAX); }
-	uint32  data(uint32 v) const           { return data_[v]; }
+	uint32  data(uint32 v) const           { return v < dataSize() ? data_[v] : UINT32_MAX; }
 	void    setData(uint32 v, uint32 data) { dataResize(v+1); data_[v] = data; }
 	VarVec  data_;
 	struct  value_type : std::pair<Antecedent, uint32> {
@@ -633,8 +590,8 @@ struct ValueSet {
 	bool     empty()      const { return rep == 0; }
 	bool     has(Value v) const { return (rep & v) != 0; }
 	bool     has(uint32 f)const { return (rep & f) != 0; }
-	ValueRep get(Value v) const { return static_cast<ValueRep>((rep & v) / right_most_bit(v)); }
-	void     set(Value which, ValueRep to) { rep &= ~which; rep |= (to * right_most_bit(which)); }
+	ValueRep get(Value v) const { return static_cast<ValueRep>((rep & v) / right_most_bit(static_cast<uint8>(v))); }
+	void     set(Value which, ValueRep to) { rep &= ~which; rep |= (to * right_most_bit(static_cast<uint8>(which))); }
 	void     save(ValueRep x)   { rep &= ~saved_value; rep |= (x << 2); }
 	uint8 rep;
 };
@@ -685,10 +642,8 @@ public:
 	const ValueSet    pref(Var v)  const { return v < pref_.size() ? pref_[v] : ValueSet(); }
 	//! Returns the reason for v being assigned if value(v) != value_free.
 	const Antecedent& reason(Var v)const { return reason_[v]; }
-	//! Returns the number of allocated data slots.
-	uint32            numData()    const { return reason_.dataSize(); }
 	//! Returns the reason data associated with v.
-	uint32            data(Var v)  const { assert(v < reason_.dataSize()); return reason_.data(v); }
+	uint32            data(Var v)  const { return reason_.data(v); }
 
 	//! Resize to nv variables.
 	void resize(uint32 nv) {
@@ -704,10 +659,6 @@ public:
 	//! Allocates space for storing preferred values for all variables.
 	void requestPrefs() {
 		if (pref_.size() != assign_.size()) { pref_.resize(assign_.size()); }
-	}
-	//! Allocates data slots for nv variables to be used for storing additional reason data.
-	void requestData(uint32 nv) {
-		reason_.dataResize(nv);
 	}
 	//! Eliminates v from the assignment.
 	void eliminate(Var v) {
@@ -811,9 +762,9 @@ struct ImpliedLiteral {
 		, level(a_level)
 		, ante(a_ante, a_data) {
 	}
-	Literal     lit;    /**< The implied literal */
-	uint32      level;  /**< The earliest decision level on which lit is implied */
-	AnteInfo    ante;   /**< The reason why lit is implied on decision-level level */
+	Literal  lit;   /**< The implied literal */
+	uint32   level; /**< The earliest decision level on which lit is implied */
+	AnteInfo ante;  /**< The reason why lit is implied on decision-level level */
 };
 //! A type for storing ImpliedLiteral objects.
 struct ImpliedList {
@@ -841,31 +792,6 @@ struct ImpliedList {
 	VecType lits;  // current set of (out-of-order) implied literals
 	uint32  level; // highest dl on which lits must be reassigned
 	uint32  front; // current starting position in lits
-};
-
-struct CCMinRecursive {
-	enum State { state_open = 0, state_poison = 1, state_removable = 2 };
-	void  init(uint32 numV) { extra.resize(numV,0); }
-	State state(Literal p) const { return State(extra[p.var()]); }
-	bool  checkRecursive(Literal p) {
-		if (state(p) == state_open) { p.clearWatch(); dfsStack.push_back(p); }
-		return state(p) != state_poison;
-	}
-	void  markVisited(Literal p, State st) {
-		if (state(p) == state_open) {
-			visited.push_back(p.var());
-		}
-		extra[p.var()] = static_cast<uint8>(st);
-	}
-	void clear() {
-		for (; !visited.empty(); visited.pop_back()) {
-			extra[visited.back()] = 0;
-		}
-	}
-	typedef PodVector<uint8>::type DfsState;
-	LitVec   dfsStack;
-	VarVec   visited;
-	DfsState extra;
 };
 //@}
 }

@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -36,8 +36,6 @@
 #include <gringo/flyweight.hh>
 
 namespace Gringo {
-
-enum class TruthValue { True, False, Open, Free };
 
 struct Value;
 using ValVec   = std::vector<Value>;
@@ -94,8 +92,8 @@ inline std::ostream &operator<<(std::ostream &out, Signature const &x) {
 struct FWSignature {
     using FWSig = Flyweight<Signature>;
 
-    template<typename... Args>
-    FWSignature(Args... args);
+    FWSignature(FWString name, unsigned length, bool sign = false);
+    FWSignature(Signature const &sig);
     FWSignature(unsigned repr);
     unsigned uid() const;
     Signature operator*() const;
@@ -106,7 +104,7 @@ struct FWSignature {
     bool operator>(FWSignature const &other) const;
     bool operator<=(FWSignature const &other) const;
     bool operator>=(FWSignature const &other) const;
-    
+
     unsigned repr;
 };
 
@@ -185,13 +183,41 @@ std::ostream& operator<<(std::ostream& out, const Gringo::Value& val);
 
 // }}}
 
- // {{{ definition of FWSignature
+} // namespace Gringo
 
-template<typename... Args>
-FWSignature::FWSignature(Args... args) {
-    Signature val(std::forward<Args>(args)...);
-    if (!val.encode<sizeof(unsigned) >= 4>(repr)) {
-        repr = FWSig(val).uid() << 1u;
+namespace std {
+
+// {{{ declaration of hash functions for Signature and Value
+
+template<>
+struct hash<Gringo::Signature> {
+    size_t operator()(Gringo::Signature const &sig) const;
+};
+
+template<>
+struct hash<Gringo::FWSignature> {
+    size_t operator()(Gringo::FWSignature const &sig) const;
+};
+
+template<>
+struct hash<Gringo::Value> {
+    size_t operator()(Gringo::Value const &val) const;
+};
+
+// }}}
+
+} // namespace std
+
+namespace Gringo {
+
+// {{{ definition of FWSignature
+
+inline FWSignature::FWSignature(FWString name, unsigned length, bool sign)
+: FWSignature(Signature(name, length, sign)) { }
+
+inline FWSignature::FWSignature(Signature const &sig) {
+    if (!sig.encode<sizeof(unsigned) >= 4>(repr)) {
+        repr = FWSig(sig).uid() << 1u;
     }
 }
 
@@ -214,8 +240,8 @@ inline bool FWSignature::operator>=(FWSignature const &other) const { return rep
 // {{{ definition of Signature
 
 inline Signature::Signature(FWString name, unsigned length, bool sign)
-    : name_(name)
-    , length_(sign | (length << 1)) { }
+: name_(name)
+, length_(sign | (length << 1)) { }
 
 inline bool Signature::sign() const {
     return length_ & 1;
@@ -262,8 +288,11 @@ bool Signature::encode(unsigned &uid) const {
 
 // }}}
 // {{{ definition of Value::POD
-    
+
 inline Value::POD::operator Value&() {
+    // NOTE: strictly speaking this is not legal
+    //       but I think that this would be okay,
+    //       if POD where a *member* of Value
     return *reinterpret_cast<Value*>(this);
 }
 
@@ -420,7 +449,7 @@ inline Value Value::replace(IdValMap const &rep) const {
 inline Value Value::flipSign() const {
     switch (type()) {
         case ID: { return Value(type_, value_ ^ 1); }
-        case FUNC: { 
+        case FUNC: {
             Signature s = *sig();
             assert(*s.name() != "");
             return createFun(s.name(), args(), !s.sign());
@@ -435,7 +464,7 @@ inline bool Value::operator!=(Value const &other) const {
 }
 
 inline bool Value::operator<(Value const &other) const {
-    return (*this != other) && this->less(other); 
+    return (*this != other) && this->less(other);
 }
 
 inline bool Value::operator>(Value const &other) const {
@@ -582,20 +611,9 @@ namespace std {
 
 // {{{ definition of hash functions for Signature and Value
 
-template<>
-struct hash<Gringo::Signature> {
-    size_t operator()(Gringo::Signature const &sig) const { return sig.hash(); }
-};
-
-template<>
-struct hash<Gringo::FWSignature> {
-    size_t operator()(Gringo::FWSignature const &sig) const { return sig.uid(); }
-};
-
-template<>
-struct hash<Gringo::Value> {
-    size_t operator()(Gringo::Value const &val) const { return val.hash(); }
-};
+inline size_t hash<Gringo::Signature>::operator()(Gringo::Signature const &sig) const { return sig.hash(); }
+inline size_t hash<Gringo::FWSignature>::operator()(Gringo::FWSignature const &sig) const { return sig.uid(); }
+inline size_t hash<Gringo::Value>::operator()(Gringo::Value const &val) const { return val.hash(); }
 
 // }}}
 

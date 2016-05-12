@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2010-2012, Benjamin Kaufmann
+// Copyright (c) 2010-2016, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -21,27 +21,24 @@
 #ifndef CLASP_UTIL_THREAD_H_INCLUDED
 #define CLASP_UTIL_THREAD_H_INCLUDED
 
-#if WITH_THREADS
+#if !defined(CLASP_USE_STD_THREAD)
+
 #if _WIN32||_WIN64
 #define WIN32_LEAN_AND_MEAN // exclude APIs such as Cryptography, DDE, RPC, Shell, and Windows Sockets.
 #define NOMINMAX            // do not let windows.h define macros min and max
 #endif
 #include <tbb/tbb_thread.h>
-namespace Clasp {
+namespace Clasp { namespace mt {
 	typedef tbb::tbb_thread thread;
-	namespace this_thread {
-		using tbb::this_tbb_thread::yield;
-	}
-}
-#else
-namespace no_multi_threading {
-	struct thread {};
-	inline void yield() {}
-}
-namespace Clasp { 
-	typedef no_multi_threading::thread thread;
-	namespace this_thread { using no_multi_threading::yield; }
-}
-#endif
+	namespace this_thread { using tbb::this_tbb_thread::yield; }
+}}
 
+#else
+#include <thread>
+namespace Clasp { namespace mt {
+	using std::thread;
+	namespace this_thread { using std::this_thread::yield; }
+}}
+
+#endif
 #endif

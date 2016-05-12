@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -37,7 +37,7 @@ unsigned Reify::Reifier::printLits(LitWeightVec const &wlits) {
     std::sort(key.begin(), key.end());
     key.erase(std::unique(key.begin(), key.end()), key.end());
     auto res = lits_.emplace(std::move(key), 0);
-    if (res.second) { 
+    if (res.second) {
         res.first->second = lits_.size();
         for (auto &lit : res.first->first) { printFact("lits", res.first->second, lit); }
     }
@@ -57,7 +57,7 @@ unsigned Reify::Reifier::printWLits(LitWeightVec const &wlits) {
     };
     key.erase(std::unique(key.begin(), key.end(), cmp), key.end());
     auto res = wlits_.emplace(std::move(key), 0);
-    if (res.second) { 
+    if (res.second) {
         res.first->second = wlits_.size();
         for (auto &elem : res.first->first) { printFact("wlits", res.first->second, elem.first, elem.second); }
     }
@@ -100,13 +100,13 @@ Reify::Rule::Rule(AtomVec const &head, LitWeightVec const &body, uint32_t bound)
 , head_(head)
 , body_(body) { }
 
-Reify::Rule::Rule(AtomVec const &head, LitVec const &body, bool choice) 
+Reify::Rule::Rule(AtomVec const &head, LitVec const &body, bool choice)
 : type_(choice ? RuleType::Choice : (head.size() == 1 ? RuleType::Normal : RuleType::Disjunctive))
 , bound_(0)
 , head_(head) {
     body_.reserve(body.size());
-    for (auto &atom : body) { 
-        body_.emplace_back(atom, 1); 
+    for (auto &atom : body) {
+        body_.emplace_back(atom, 1);
         bound_ += 1;
     }
 }
@@ -117,9 +117,9 @@ void Reify::Rule::printLparse(std::ostream &out) {
         case RuleType::Choice:      { out << "3 " << head_.size(); break; }
         case RuleType::Normal:      { out << "1"; break; }
         case RuleType::Disjunctive: { out << "8 " << head_.size(); break; }
-        case RuleType::Weight:      { 
+        case RuleType::Weight:      {
             for (auto &x : body_) {
-                if (x.second != 1) { 
+                if (x.second != 1) {
                     card = false;
                     break;
                 }
@@ -168,7 +168,7 @@ void Reify::Rule::printReified(Reifier &reifier) {
             reifier.printFact("normal", head_.front(), body);
             break;
         }
-        case RuleType::Disjunctive: { 
+        case RuleType::Disjunctive: {
             unsigned head = reifier.printAtoms(head_);
             unsigned body = reifier.printLits(body_);
             reifier.printFact("disjunction", head, body);

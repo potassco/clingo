@@ -18,6 +18,7 @@
 
 // }}}
 
+// {{{1 preamble
 %require "2.5"
 //%define api.namespace {Gringo::Input::NonGroundGrammar}
 %define namespace "Gringo::Input::NonGroundGrammar"
@@ -35,11 +36,12 @@
 //%define parse.trace
 //%debug
 
-// {{{ auxiliary code
+// {{{1 auxiliary code
 
 %code requires
 {
     #include "gringo/input/programbuilder.hh"
+    #include "potassco/basic_types.h"
 
     namespace Gringo { namespace Input { class NonGroundParser; } }
     
@@ -67,9 +69,9 @@
             (Current).endColumn     = YYRHSLOC (Rhs, N).endColumn;     \
         }                                                              \
         else {                                                         \
-            (Current).beginFilename = YYRHSLOC (Rhs, 0).endFilename; \
-            (Current).beginLine     = YYRHSLOC (Rhs, 0).endLine;     \
-            (Current).beginColumn   = YYRHSLOC (Rhs, 0).endColumn;   \
+            (Current).beginFilename = YYRHSLOC (Rhs, 0).endFilename;   \
+            (Current).beginLine     = YYRHSLOC (Rhs, 0).endLine;       \
+            (Current).beginColumn   = YYRHSLOC (Rhs, 0).endColumn;     \
             (Current).endFilename   = YYRHSLOC (Rhs, 0).endFilename;   \
             (Current).endLine       = YYRHSLOC (Rhs, 0).endLine;       \
             (Current).endColumn     = YYRHSLOC (Rhs, 0).endColumn;     \
@@ -94,9 +96,9 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
 
 }
 
-// }}}
-// {{{ nonterminals
-// {{{ union type for stack elements
+// {{{1 nonterminals
+
+// {{{2 union type for stack elements
 %union
 {
     IdVecUid idlist;
@@ -148,14 +150,31 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
     } termpair;
     unsigned uid;
     int num;
+    Potassco::Heuristic_t::E heu;
+    TheoryOpVecUid theoryOps;
+    TheoryTermUid theoryTerm;
+    TheoryOptermUid theoryOpterm;
+    TheoryOptermVecUid theoryOpterms;
+    TheoryElemVecUid theoryElems;
+    struct {
+        TheoryOptermVecUid first;
+        LitVecUid second;
+    } theoryElem;
+    TheoryAtomUid theoryAtom;
+    TheoryOpDefUid theoryOpDef;
+    TheoryOpDefVecUid theoryOpDefs;
+    TheoryTermDefUid theoryTermDef;
+    TheoryAtomDefUid theoryAtomDef;
+    TheoryDefVecUid theoryDefs;
+    TheoryAtomType theoryAtomType;
 }
 
-// }}}
+// }}}2
 
 // TODO: improve naming scheme
-%type <term>            constterm term tuple
+%type <term>            constterm term tuple theory_atom_name
 %type <termvec>         termvec ntermvec consttermvec unaryargvec optimizetuple tuplevec tuplevec_sem
-%type <termvecvec>      argvec constargvec
+%type <termvecvec>      argvec constargvec binaryargvec
 %type <lit>             literal
 %type <litvec>          litvec nlitvec optcondition noptcondition
 %type <bodyaggrelem>    bodyaggrelem
@@ -165,9 +184,9 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
 %type <headaggrelemvec> headaggrelemvec
 %type <cspelemvec>      cspelemvec ncspelemvec
 %type <bound>           upper
-%type <body>            bodycomma bodydot optimizelitvec optimizecond
+%type <body>            bodycomma bodydot bodyconddot optimizelitvec optimizecond
 %type <head>            head
-%type <uid>             identifier lubodyaggregate luheadaggregate
+%type <uid>             identifier lubodyaggregate luheadaggregate theory_definition_identifier
 %type <pair>            atom
 %type <fun>             aggregatefunction
 %type <aggr>            bodyaggregate headaggregate
@@ -178,9 +197,21 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
 %type <csplit>          csp_literal 
 %type <disjoint>        disjoint
 %type <idlist>          idlist nidlist
+%type <theoryOps>       theory_op_list theory_operator_list theory_operator_nlist
+%type <theoryTerm>      theory_term
+%type <theoryOpterm>    theory_opterm
+%type <theoryOpterms>   theory_opterm_list theory_opterm_nlist
+%type <theoryElem>      theory_atom_element
+%type <theoryElems>     theory_atom_element_list theory_atom_element_nlist
+%type <theoryAtom>      theory_atom
+%type <theoryTermDef>   theory_term_definition
+%type <theoryAtomDef>   theory_atom_definition
+%type <theoryOpDef>     theory_operator_definition
+%type <theoryOpDefs>    theory_operator_definition_nlist theory_operator_definiton_list
+%type <theoryDefs>      theory_definition_nlist theory_definition_list
+%type <theoryAtomType>  theory_atom_type
 
-// }}}
-// {{{ terminals
+// {{{1 terminals
 
 %token
     ADD         "+"
@@ -235,6 +266,9 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
     RPAREN      ")"
     SEM         ";"
     SHOW        "#show"
+    EDGE        "#edge"
+    PROJECT     "#project"
+    HEURISTIC   "#heuristic"
     SHOWSIG     "#showsig"
     SLASH       "/"
     SUB         "-"
@@ -251,6 +285,16 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
     XOR         "^"
     PARSE_LP    "<program>"
     PARSE_DEF   "<define>"
+    ANY         "any"
+    UNARY       "unary"
+    BINARY      "binary"
+    LEFT        "left"
+    RIGHT       "right"
+    HEAD        "head"
+    BODY        "body"
+    DIRECTIVE   "directive"
+    THEORY      "#theory"
+
 
 %token <num>
     NUMBER     "<NUMBER>"
@@ -262,9 +306,10 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
     LUA        "<LUA>"
     STRING     "<STRING>"
     VARIABLE   "<VARIABLE>"
+    THEORY_OP  "<THEORYOP>"
     NOT        "not"
 
-// {{{ operator precedence and associativity
+// {{{2 operator precedence and associativity
 
 %left DOTS
 %left XOR
@@ -275,12 +320,11 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
 %right POW
 %left UMINUS UBNOT
 
-// }}}
-// }}}
+// }}}1
 
 %%
 
-// {{{ logic program and global definitions
+// {{{1 logic program and global definitions
 
 start
     : PARSE_LP  program
@@ -292,19 +336,18 @@ program
     | 
     ;
 
-// Note: skip until the next "." in case of an error
+// Note: skip until the next "." in case of an error and switch back to normal lexing
 
 statement
-    : error DOT
+    : error disable_theory_lexing DOT
     ;
 
 identifier
     : IDENTIFIER[a] { $$ = $a; }
     ;
 
-// }}}
-// {{{ terms
-// {{{ constterms are terms without variables and pooling operators
+// {{{1 terms
+// {{{2 constterms are terms without variables and pooling operators
 
 constterm
     : constterm[a] XOR constterm[b]                    { $$ = BUILDER.term(@$, BinOp::XOR, $a, $b); }
@@ -332,7 +375,7 @@ constterm
     | SUPREMUM[a]                                      { $$ = BUILDER.term(@$, Value::createSup()); }
     ;
 
-// {{{ arguments lists for functions in constant terms
+// {{{2 arguments lists for functions in constant terms
 
 consttermvec
     : constterm[a]                       { $$ = BUILDER.termvec(BUILDER.termvec(), $a);  }
@@ -344,9 +387,7 @@ constargvec
     |                 { $$ = BUILDER.termvecvec();  }
     ;
 
-// }}}
-// }}}
-// {{{ terms including variables
+// {{{2 terms including variables
 
 term
     : term[a] DOTS term[b]                     { $$ = BUILDER.term(@$, $a, $b); }
@@ -374,15 +415,14 @@ term
     | ANONYMOUS[a]                             { $$ = BUILDER.term(@$, FWString("_")); }
     ;
 
-// {{{ argument lists for unary operations
+// {{{2 argument lists for unary operations
 
 unaryargvec
     : term[a]                    { $$ = BUILDER.termvec(BUILDER.termvec(), $a); }
     | unaryargvec[a] SEM term[b] { $$ = BUILDER.termvec($a, $b); }
     ;
 
-// }}}
-// {{{ argument lists for functions
+// {{{2 argument lists for functions
 
 ntermvec
     : term[a]                   { $$ = BUILDER.termvec(BUILDER.termvec(), $a); }
@@ -413,14 +453,16 @@ argvec
     | argvec[a] SEM termvec[b] { $$ = BUILDER.termvecvec($a, $b); }
     ;
 
+binaryargvec
+    :                       term[a] COMMA term[b] { $$ = BUILDER.termvecvec(BUILDER.termvecvec(), BUILDER.termvec(BUILDER.termvec(BUILDER.termvec(), $a), $b)); }
+    | binaryargvec[vec] SEM term[a] COMMA term[b] { $$ = BUILDER.termvecvec($vec, BUILDER.termvec(BUILDER.termvec(BUILDER.termvec(), $a), $b)); }
+    ;
+
 // TODO: I might have to create tuples differently
 //       parse a tuple as a list of terms
 //       each term is either a tuple or a term -> which afterwards is turned into a pool!
 
-// }}}
-// }}}
-// }}}
-// {{{ literals
+// {{{1 literals
 
 cmp
     : GT     { $$ = Relation::GT; }
@@ -481,9 +523,9 @@ csp_literal
     | csp_add_term[a]  csp_rel[rel] csp_add_term[b] { $$ = BUILDER.csplit(@$, $a,   $rel, $b); }
     ;
 
-// }}}
-// {{{ aggregates
-// {{{ auxiliary rules
+// {{{1 aggregates
+
+// {{{2 auxiliary rules
 
 nlitvec
     : literal[lit]                    { $$ = BUILDER.litvec(BUILDER.litvec(), $lit); }
@@ -513,9 +555,7 @@ aggregatefunction
     | COUNT { $$ = AggregateFunction::COUNT; }
     ;
 
-// }}}
-// {{{ body aggregates
-// {{{ body aggregate elements
+// {{{2 body aggregate elements
 
 bodyaggrelem
     : COLON litvec[cond]                { $$ = { BUILDER.termvec(), $cond }; }
@@ -538,7 +578,7 @@ altbodyaggrelemvec
     | altbodyaggrelemvec[vec] SEM altbodyaggrelem[elem] { $$ = BUILDER.condlitvec($vec, $elem.first, $elem.second); }
     ;
 
-// }}}
+// {{{2 body aggregates
 
 bodyaggregate
     : LBRACE RBRACE                                               { $$ = { AggregateFunction::COUNT, true, BUILDER.condlitvec() }; }
@@ -557,11 +597,10 @@ lubodyaggregate
     : term[l]          bodyaggregate[a] upper[u] { $$ = lexer->aggregate($a.fun, $a.choice, $a.elems, lexer->boundvec(Relation::LEQ, $l, $u.rel, $u.term)); }
     | term[l] cmp[rel] bodyaggregate[a] upper[u] { $$ = lexer->aggregate($a.fun, $a.choice, $a.elems, lexer->boundvec($rel, $l, $u.rel, $u.term)); }
     |                  bodyaggregate[a] upper[u] { $$ = lexer->aggregate($a.fun, $a.choice, $a.elems, lexer->boundvec(Relation::LEQ, TermUid(-1), $u.rel, $u.term)); }
+    | theory_atom[atom]                          { $$ = lexer->aggregate($atom); }
     ;
 
-// }}}
-// {{{ head aggregates
-// {{{ head aggregate elements
+// {{{2 head aggregate elements
 
 headaggrelemvec
     : headaggrelemvec[vec] SEM termvec[tuple] COLON literal[head] optcondition[cond] { $$ = BUILDER.headaggrelemvec($vec, $tuple, $head, $cond); }
@@ -573,7 +612,7 @@ altheadaggrelemvec
     | altheadaggrelemvec[vec] SEM literal[lit] optcondition[cond] { $$ = BUILDER.condlitvec($vec, $lit, $cond); }
     ;
 
-/// }}}
+// {{{2 head aggregates
 
 headaggregate
     : aggregatefunction[fun] LBRACE RBRACE                        { $$ = { $fun, false, BUILDER.headaggrelemvec() }; }
@@ -586,10 +625,10 @@ luheadaggregate
     : term[l]          headaggregate[a] upper[u] { $$ = lexer->aggregate($a.fun, $a.choice, $a.elems, lexer->boundvec(Relation::LEQ, $l, $u.rel, $u.term)); }
     | term[l] cmp[rel] headaggregate[a] upper[u] { $$ = lexer->aggregate($a.fun, $a.choice, $a.elems, lexer->boundvec($rel, $l, $u.rel, $u.term)); }
     |                  headaggregate[a] upper[u] { $$ = lexer->aggregate($a.fun, $a.choice, $a.elems, lexer->boundvec(Relation::LEQ, TermUid(-1), $u.rel, $u.term)); }
+    | theory_atom[atom]                          { $$ = lexer->aggregate($atom); }
     ;
 
-// }}}
-// {{{ disjoint aggregate
+// {{{2 disjoint aggregate
 
 ncspelemvec
     :                     termvec[tuple] COLON csp_add_term[add] optcondition[cond] { $$ = BUILDER.cspelemvec(BUILDER.cspelemvec(), @$, $tuple, $add, $cond); }
@@ -608,14 +647,14 @@ disjoint
     ;
 
 ///}}}
-// {{{ conjunctions
+// {{{2 conjunctions
 
 conjunction
     : literal[lit] COLON litvec[cond] { $$ = { $lit, $cond }; }
     ;
 
 // }}}
-// {{{ disjunctions
+// {{{2 disjunctions
 
 dsym
     : SEM
@@ -636,10 +675,8 @@ disjunction
     | literal[clit] COLON nlitvec[ccond]                                                            { $$ = BUILDER.condlitvec(BUILDER.condlitvec(), $clit, $ccond); }
     ;
 
-// }}}
-// }}}
-// {{{ statements
-// {{{ rules
+// {{{1 statements
+// {{{2 rules
 
 bodycomma
     : bodycomma[body] literal[lit] COMMA                      { $$ = BUILDER.bodylit($body, $lit); }
@@ -664,6 +701,11 @@ bodydot
     | bodycomma[body] disjoint[cons] DOT                    { $$ = BUILDER.disjoint($body, @cons, $cons.first, $cons.second); }
     ;
 
+bodyconddot
+    : DOT             { $$ = BUILDER.body(); }
+    | COLON DOT       { $$ = BUILDER.body(); }
+    | COLON bodydot[body]   { $$ = $body; }
+
 head
     : literal[lit]            { $$ = BUILDER.headlit($lit); }
     | disjunction[elems]      { $$ = BUILDER.disjunction(@$, $elems); }
@@ -677,8 +719,7 @@ statement
     | IF DOT                  { BUILDER.rule(@$, BUILDER.headlit(BUILDER.boollit(@$, false)), BUILDER.body()); }
     ;
 
-// }}}
-// {{{ CSP
+// {{{2 CSP
 
 statement
     : disjoint[hd] IF bodydot[body] { BUILDER.rule(@$, BUILDER.headlit(BUILDER.boollit(@hd, false)), BUILDER.disjoint($body, @hd, inv($hd.first), $hd.second)); }
@@ -686,8 +727,7 @@ statement
     | disjoint[hd] DOT              { BUILDER.rule(@$, BUILDER.headlit(BUILDER.boollit(@hd, false)), BUILDER.disjoint(BUILDER.body(), @hd, inv($hd.first), $hd.second)); }
     ;
 
-// }}}
-// {{{ optimization
+// {{{2 optimization
 
 optimizetuple
     : COMMA ntermvec[vec] { $$ = $vec; }
@@ -732,22 +772,41 @@ statement
     | MAXIMIZE LBRACE maxelemlist RBRACE DOT
     ;
 
-// }}}
-// {{{ visibility
+// {{{2 visibility
 
 statement
-    : SHOWSIG IDENTIFIER[id] SLASH NUMBER[num] DOT     { BUILDER.showsig(@$, FWSignature($id, $num, false), false); }
-    | SHOWSIG SUB IDENTIFIER[id] SLASH NUMBER[num] DOT { BUILDER.showsig(@$, FWSignature(FWString($id), $num, true), false); }
+    : SHOWSIG identifier[id] SLASH NUMBER[num] DOT     { BUILDER.showsig(@$, FWSignature($id, $num, false), false); }
+    | SHOWSIG SUB identifier[id] SLASH NUMBER[num] DOT { BUILDER.showsig(@$, FWSignature(FWString($id), $num, true), false); }
     | SHOW DOT                                         { BUILDER.showsig(@$, FWSignature("", 0, false), false); }
     | SHOW term[t] COLON bodydot[bd]                   { BUILDER.show(@$, $t, $bd, false); }
     | SHOW term[t] DOT                                 { BUILDER.show(@$, $t, BUILDER.body(), false); }
-    | SHOWSIG CSP IDENTIFIER[id] SLASH NUMBER[num] DOT { BUILDER.showsig(@$, FWSignature($id, $num, false), true); }
+    | SHOWSIG CSP identifier[id] SLASH NUMBER[num] DOT { BUILDER.showsig(@$, FWSignature($id, $num, false), true); }
     | SHOW CSP term[t] COLON bodydot[bd]               { BUILDER.show(@$, $t, $bd, true); }
     | SHOW CSP term[t] DOT                             { BUILDER.show(@$, $t, BUILDER.body(), true); }
     ;
 
-// }}}
-// {{{ constants
+// {{{2 acyclicity
+
+statement
+    : EDGE LPAREN binaryargvec[args] RPAREN bodyconddot[body] { BUILDER.edge(@$, $args, $body); }
+    ;
+
+// {{{2 heuristic
+
+statement
+    : HEURISTIC atom[a] bodyconddot[body] LBRACK term[t] AT term[p] COMMA term[mod] RBRACK { BUILDER.heuristic(@$, $a.second & 1, FWString($a.first), TermVecVecUid($a.second >> 1u), $body, $t, $p, $mod); }
+    | HEURISTIC atom[a] bodyconddot[body] LBRACK term[t]            COMMA term[mod] RBRACK { BUILDER.heuristic(@$, $a.second & 1, FWString($a.first), TermVecVecUid($a.second >> 1u), $body, $t, BUILDER.term(@$, Value::createNum(0)), $mod); }
+    ;
+
+// {{{2 project
+
+statement
+    : PROJECT identifier[name] SLASH NUMBER[arity] DOT     { BUILDER.project(@$, FWSignature(FWString($name), $arity, false)); }
+    | PROJECT SUB identifier[name] SLASH NUMBER[arity] DOT { BUILDER.project(@$, FWSignature(FWString($name), $arity, true)); }
+    | PROJECT atom[a] bodyconddot[body]                    { BUILDER.project(@$, $a.second & 1, FWString($a.first), TermVecVecUid($a.second >> 1u), $body); }
+    ;
+
+// {{{2 constants
 
 define
     : identifier[uid] EQ constterm[rhs] {  BUILDER.define(@$, $uid, $rhs, false); }
@@ -757,28 +816,25 @@ statement
     : CONST identifier[uid] EQ constterm[rhs] DOT {  BUILDER.define(@$, $uid, $rhs, true); }
     ;
 
-// }}}
-// {{{ scripts
+// {{{2 scripts
 
 statement
     : PYTHON[code] DOT { BUILDER.python(@$, $code); }
     | LUA[code]    DOT { BUILDER.lua(@$, $code); }
     ;
 
-// }}}
-// {{{ include
+// {{{2 include
 
 statement
     : INCLUDE    STRING[file]        DOT { lexer->include($file, @$, false); }
-    | INCLUDE LT IDENTIFIER[file] GT DOT { lexer->include($file, @$, true); }
+    | INCLUDE LT identifier[file] GT DOT { lexer->include($file, @$, true); }
     ;
 
-// }}}
-// {{{ blocks
+// {{{2 blocks
 
 nidlist 
-    : nidlist[list] COMMA IDENTIFIER[id] { $$ = BUILDER.idvec($list, @id, $id); }
-    | IDENTIFIER[id]                     { $$ = BUILDER.idvec(BUILDER.idvec(), @id, $id); }
+    : nidlist[list] COMMA identifier[id] { $$ = BUILDER.idvec($list, @id, $id); }
+    | identifier[id]                     { $$ = BUILDER.idvec(BUILDER.idvec(), @id, $id); }
     ;
 
 idlist 
@@ -787,12 +843,11 @@ idlist
     ;
 
 statement
-    : BLOCK IDENTIFIER[name] LPAREN idlist[args] RPAREN DOT { BUILDER.block(@$, $name, $args); }
-    | BLOCK IDENTIFIER[name] DOT                            { BUILDER.block(@$, $name, BUILDER.idvec()); }
+    : BLOCK identifier[name] LPAREN idlist[args] RPAREN DOT { BUILDER.block(@$, $name, $args); }
+    | BLOCK identifier[name] DOT                            { BUILDER.block(@$, $name, BUILDER.idvec()); }
     ;
 
-// }}}
-// {{{ external
+// {{{2 external
 
 statement
     : EXTERNAL atom[hd] COLON bodydot[bd] { BUILDER.external(@$, BUILDER.predlit(@hd, NAF::POS, $hd.second & 1, FWString($hd.first), TermVecVecUid($hd.second >> 1u)), $bd); }
@@ -800,6 +855,156 @@ statement
     | EXTERNAL atom[hd] DOT               { BUILDER.external(@$, BUILDER.predlit(@hd, NAF::POS, $hd.second & 1, FWString($hd.first), TermVecVecUid($hd.second >> 1u)), BUILDER.body()); }
     ;
 
-// }}}
-// }}}
+// {{{1 theory
 
+// {{{2 theory atoms
+
+theory_op_list
+    : theory_op_list[ops] THEORY_OP[op] { $$ = BUILDER.theoryops($ops, $op); }
+    | THEORY_OP[op]                     { $$ = BUILDER.theoryops(BUILDER.theoryops(), $op); }
+    ;
+
+theory_term
+    : LBRACE theory_opterm_list[list] RBRACE                              { $$ = BUILDER.theorytermset(@$, $list); }
+    | LBRACK theory_opterm_list[list] RBRACK                              { $$ = BUILDER.theoryoptermlist(@$, $list); }
+    | LPAREN RPAREN                                                       { $$ = BUILDER.theorytermtuple(@$, BUILDER.theoryopterms()); }
+    | LPAREN theory_opterm[term] RPAREN                                   { $$ = BUILDER.theorytermopterm(@$, $term); }
+    | LPAREN theory_opterm[opterm] COMMA RPAREN                           { $$ = BUILDER.theorytermtuple(@$, BUILDER.theoryopterms(BUILDER.theoryopterms(), $opterm)); }
+    | LPAREN theory_opterm[opterm] COMMA theory_opterm_nlist[list] RPAREN { $$ = BUILDER.theorytermtuple(@$, BUILDER.theoryopterms($opterm, $list)); }
+    | identifier[id] LPAREN theory_opterm_list[list] RPAREN               { $$ = BUILDER.theorytermfun(@$, FWString($id), $list); }
+    | identifier[id]                                                      { $$ = BUILDER.theorytermvalue(@$, Value::createId(FWString($id))); }
+    | NUMBER[num]                                                         { $$ = BUILDER.theorytermvalue(@$, Value::createNum($num)); }
+    | STRING[str]                                                         { $$ = BUILDER.theorytermvalue(@$, Value::createStr(FWString($str))); }
+    | INFIMUM                                                             { $$ = BUILDER.theorytermvalue(@$, Value::createInf()); }
+    | SUPREMUM                                                            { $$ = BUILDER.theorytermvalue(@$, Value::createSup()); }
+    | VARIABLE[var]                                                       { $$ = BUILDER.theorytermvar(@$, FWString($var)); }
+    ;
+
+theory_opterm
+    : theory_opterm[opterm] theory_op_list[ops] theory_term[term] { $$ = BUILDER.theoryopterm($opterm, $ops, $term); }
+    | theory_op_list[ops] theory_term[term]                       { $$ = BUILDER.theoryopterm($ops, $term); }
+    | theory_term[term]                                           { $$ = BUILDER.theoryopterm(BUILDER.theoryops(), $term); }
+    ;
+
+theory_opterm_nlist
+    : theory_opterm_nlist[list] COMMA theory_opterm[opterm] { $$ = BUILDER.theoryopterms($list, $opterm); }
+    | theory_opterm[opterm]                                 { $$ = BUILDER.theoryopterms(BUILDER.theoryopterms(), $opterm); }
+    ;
+
+theory_opterm_list
+    : theory_opterm_nlist[list] { $$ = $list; }
+    |                           { $$ = BUILDER.theoryopterms(); }
+    ;
+
+theory_atom_element 
+    : theory_opterm_nlist[list] disable_theory_lexing optcondition[cond] { $$ = { $list, $cond }; }
+    |                           disable_theory_lexing COLON litvec[cond] { $$ = { BUILDER.theoryopterms(), $cond }; }
+    ;
+
+theory_atom_element_nlist
+    : theory_atom_element_nlist[list] enable_theory_lexing SEM theory_atom_element[elem] { $$ = BUILDER.theoryelems($list, $elem.first, $elem.second); }
+    | theory_atom_element[elem]                                                          { $$ = BUILDER.theoryelems(BUILDER.theoryelems(), $elem.first, $elem.second); }
+    ;
+
+theory_atom_element_list
+    : theory_atom_element_nlist[list] { $$ = $list; }
+    |                                 { $$ = BUILDER.theoryelems(); }
+    ;
+
+theory_atom_name
+    : identifier[id]                                  { $$ = BUILDER.term(@$, $id, BUILDER.termvecvec(BUILDER.termvecvec(), BUILDER.termvec()), false); }
+    | identifier[id] LPAREN argvec[tvv] RPAREN[r]     { $$ = BUILDER.term(@$, $id, $tvv, false); }
+
+theory_atom
+    : AND theory_atom_name[name] enable_theory_lexing LBRACE theory_atom_element_list[elems] enable_theory_lexing RBRACE                                     disable_theory_lexing { $$ = BUILDER.theoryatom($name, $elems); }
+    | AND theory_atom_name[name] enable_theory_lexing LBRACE theory_atom_element_list[elems] enable_theory_lexing RBRACE THEORY_OP[op] theory_opterm[opterm] disable_theory_lexing { $$ = BUILDER.theoryatom($name, $elems, $op, $opterm); }
+    ;
+
+// {{{2 theory definition
+
+theory_operator_nlist
+    : THEORY_OP[op]                                  { $$ = BUILDER.theoryops(BUILDER.theoryops(), $op); }
+    | theory_operator_nlist[ops] COMMA THEORY_OP[op] { $$ = BUILDER.theoryops($ops, $op); }
+    ;
+
+theory_operator_list
+    : theory_operator_nlist[ops] { $$ = $ops; }
+    |                            { $$ = BUILDER.theoryops(); }
+    ;
+
+theory_operator_definition
+    : THEORY_OP[op] enable_theory_definition_lexing COLON NUMBER[arity] COMMA UNARY              { $$ = BUILDER.theoryopdef(@$, $op, $arity, TheoryOperatorType::Unary); }
+    | THEORY_OP[op] enable_theory_definition_lexing COLON NUMBER[arity] COMMA BINARY COMMA LEFT  { $$ = BUILDER.theoryopdef(@$, $op, $arity, TheoryOperatorType::BinaryLeft); }
+    | THEORY_OP[op] enable_theory_definition_lexing COLON NUMBER[arity] COMMA BINARY COMMA RIGHT { $$ = BUILDER.theoryopdef(@$, $op, $arity, TheoryOperatorType::BinaryRight); }
+    ;
+
+theory_operator_definition_nlist
+    : theory_operator_definition[def]                                                                 { $$ = BUILDER.theoryopdefs(BUILDER.theoryopdefs(), $def); }
+    | theory_operator_definition_nlist[defs] enable_theory_lexing SEM theory_operator_definition[def] { $$ = BUILDER.theoryopdefs($defs, $def); }
+    ;
+
+theory_operator_definiton_list
+    : theory_operator_definition_nlist[defs] { $$ = $defs; }
+    |                                        { $$ = BUILDER.theoryopdefs(); }
+    ;
+
+theory_definition_identifier
+    : identifier[id] { $$ = $id; }
+    | LEFT           { $$ = FWString("left").uid(); }
+    | RIGHT          { $$ = FWString("right").uid(); }
+    | UNARY          { $$ = FWString("unary").uid(); }
+    | BINARY         { $$ = FWString("binary").uid(); }
+    | HEAD           { $$ = FWString("head").uid(); }
+    | BODY           { $$ = FWString("body").uid(); }
+    | ANY            { $$ = FWString("any").uid(); }
+    | DIRECTIVE      { $$ = FWString("directive").uid(); }
+    ;
+
+theory_term_definition
+    : theory_definition_identifier[name] enable_theory_lexing LBRACE theory_operator_definiton_list[ops] enable_theory_definition_lexing RBRACE { $$ = BUILDER.theorytermdef(@$, $name, $ops); }
+    ;
+
+theory_atom_type
+    : HEAD      { $$ = TheoryAtomType::Head; }
+    | BODY      { $$ = TheoryAtomType::Body; }
+    | ANY       { $$ = TheoryAtomType::Any; }
+    | DIRECTIVE { $$ = TheoryAtomType::Directive; }
+    ;
+
+theory_atom_definition
+    : AND theory_definition_identifier[name] SLASH NUMBER[arity] COLON theory_definition_identifier[termdef] COMMA
+      enable_theory_lexing LBRACE theory_operator_list[ops] enable_theory_definition_lexing RBRACE COMMA theory_definition_identifier[guarddef] COMMA theory_atom_type[type] { $$ = BUILDER.theoryatomdef(@$, FWString($name), $arity, FWString($termdef), $type, $ops, FWString($guarddef)); }
+    | AND theory_definition_identifier[name] SLASH NUMBER[arity] COLON theory_definition_identifier[termdef] COMMA                                    theory_atom_type[type] { $$ = BUILDER.theoryatomdef(@$, FWString($name), $arity, FWString($termdef), $type); }
+    ;
+
+theory_definition_nlist
+    : theory_definition_list[defs] SEM theory_atom_definition[def] { $$ = BUILDER.theorydefs($defs, $def); }
+    | theory_definition_list[defs] SEM theory_term_definition[def] { $$ = BUILDER.theorydefs($defs, $def); }
+    | theory_atom_definition[def] { $$ = BUILDER.theorydefs(BUILDER.theorydefs(), $def); }
+    | theory_term_definition[def] { $$ = BUILDER.theorydefs(BUILDER.theorydefs(), $def); }
+    ;
+
+theory_definition_list
+    : theory_definition_nlist[defs] { $$ = $defs; }
+    |                               { $$ = BUILDER.theorydefs(); }
+    ;
+
+statement
+    : THEORY identifier[name] enable_theory_definition_lexing LBRACE theory_definition_list[defs] RBRACE disable_theory_lexing DOT { BUILDER.theorydef(@$, $name, $defs); }
+    ;
+
+// {{{2 lexing
+
+enable_theory_lexing
+    : { lexer->theoryLexing(TheoryLexing::Theory); }
+    ;
+
+enable_theory_definition_lexing
+    : { lexer->theoryLexing(TheoryLexing::Definition); }
+    ;
+
+disable_theory_lexing
+    : { lexer->theoryLexing(TheoryLexing::Disabled); }
+    ;
+
+// }}}1

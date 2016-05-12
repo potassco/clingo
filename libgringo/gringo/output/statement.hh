@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -22,55 +22,41 @@
 #define _GRINGO_OUTPUT_STATEMENT_HH
 
 #include <gringo/output/literal.hh>
+#include <gringo/backend.hh>
 #include <gringo/locatable.hh>
 #include <gringo/value.hh>
 #include <gringo/domain.hh>
 
 namespace Gringo { namespace Output {
 
-// {{{ declaration of Statement
+// {{{1 declaration of AbstractOutput
 
-struct LparseOutputter;
-struct LparseTranslator;
-struct Statement;
-struct AuxAtom;
-struct DisjointElem;
+class AbstractOutput {
+public:
+    virtual void output(DomainData &data, Statement &stm) = 0;
+    virtual ~AbstractOutput() noexcept = default;
+};
+using UAbstractOutput = std::unique_ptr<AbstractOutput>;
 
-using SAuxAtom         = std::shared_ptr<AuxAtom>;
-using UStm             = std::unique_ptr<Statement>;
-using UStmVec          = std::vector<UStm>;
-using MinimizeList     = std::vector<std::pair<FWValVec, ULitVec>>;
-using CoefVarVec       = std::vector<std::pair<int, Value>>;
-using DisjointCons     = std::vector<std::pair<FWValVec, std::vector<DisjointElem>>>;
-using OutputPredicates = std::vector<std::tuple<Location, FWSignature, bool>>;
+// {{{1 declaration of Statement
 
-struct LparseTranslator {
-    ULit negate(ULit &lit);
-    virtual bool isAtomFromPreviousStep(ULit const &lit) = 0;
-    virtual void addMinimize(MinimizeList &&x) = 0;
-    virtual void addBounds(Value value, std::vector<CSPBound> bounds) = 0;
-    virtual void addLinearConstraint(SAuxAtom head, CoefVarVec &&vars, int bound) = 0;
-    virtual void addDisjointConstraint(SAuxAtom head, DisjointCons &&elem) = 0;
-    virtual unsigned auxAtom() = 0;
-    virtual void translate() = 0;
-    virtual void outputSymbols(LparseOutputter &out, OutputPredicates const &outPreds) = 0;
-    virtual void operator()(Statement &x) = 0;
-    virtual bool minimizeChanged() const = 0;
-    virtual ULit makeAux(NAF naf=NAF::POS) = 0;
-    virtual ULit getTrueLit() = 0;
-    virtual void simplify(AssignmentLookup assignment) = 0;
-    virtual ~LparseTranslator() { }
+void replaceDelayed(DomainData &data, LiteralId &lit, LitVec &delayed);
+void replaceDelayed(DomainData &data, LitVec &lits, LitVec &delayed);
+void translate(DomainData &data, Translator &x, LiteralId &lit);
+void translate(DomainData &data, Translator &x, LitVec &lits);
+
+class Statement {
+public:
+    virtual ~Statement() noexcept = default;
+    virtual void output(DomainData &data, Backend &out) const = 0;
+    virtual void print(PrintPlain out, char const *prefix = "") const = 0;
+    virtual void translate(DomainData &data, Translator &trans) = 0;
+    virtual void replaceDelayed(DomainData &data, LitVec &delayed) = 0;
+    // convenience function
+    void passTo(DomainData &data, AbstractOutput &out) { out.output(data, *this); }
 };
 
-struct Statement : Clonable<Statement> {
-    virtual void toLparse(LparseTranslator &trans) = 0;
-    virtual void printPlain(std::ostream &out) const = 0;
-    virtual void printLparse(LparseOutputter &out) const = 0;
-    virtual bool isIncomplete() const = 0;
-    virtual ~Statement() { }
-};
-
-// }}}
+// }}}1
 
 } } // namespace Output Gringo
 

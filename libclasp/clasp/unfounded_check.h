@@ -48,27 +48,29 @@ class LoopFormula;
  */
 class DefaultUnfoundedCheck : public PostPropagator {
 public:
-	typedef SharedDependencyGraph DependencyGraph;
+	typedef Asp::PrgDepGraph           DependencyGraph;
 	typedef DependencyGraph::NodeId    NodeId;
 	typedef DependencyGraph::BodyNode  BodyNode;
 	typedef DependencyGraph::AtomNode  AtomNode;
+	typedef const DependencyGraph*     ConstGraphPtr;
+	typedef DependencyGraph*           GraphPtr;
 	//! Defines the supported reasons for explaining assignments.
 	enum ReasonStrategy {
-		common_reason,    /*!< one reason for each unfounded set but one clause for each atom */
+		common_reason = LoopReason_t::Explicit, /*!< one reason for each unfounded set but one clause for each atom */
+		only_reason   = LoopReason_t::Implicit, /*!< store only the reason but don't learn a nogood */
 		distinct_reason,  /*!< distinct reason and clause for each unfounded atom */
 		shared_reason,    /*!< one shared loop formula for each unfounded set */
-		only_reason,      /*!< store only the reason but don't learn a nogood */
 		no_reason,        /*!< do no compute reasons for unfounded sets (only valid if learning is disabled!) */
 	};
 	
-	explicit DefaultUnfoundedCheck(ReasonStrategy st = common_reason);
+	explicit DefaultUnfoundedCheck(DependencyGraph& graph, ReasonStrategy st = common_reason);
 	~DefaultUnfoundedCheck();
 
 	ReasonStrategy reasonStrategy() const { return strategy_; }
 	void           setReasonStrategy(ReasonStrategy rs);
 	
-	DependencyGraph* graph() const { return graph_; }
-	uint32           nodes() const { return static_cast<uint32>(atoms_.size() + bodies_.size()); }
+	ConstGraphPtr graph() const { return graph_; }
+	uint32        nodes() const { return static_cast<uint32>(atoms_.size() + bodies_.size()); }
 
 	// base interface
 	uint32 priority() const { return uint32(priority_reserved_ufs); }
@@ -107,7 +109,7 @@ private:
 	};
 	// data for extended bodies
 	struct ExtData {
-		ExtData(weight_t bound, uint32 preds) : lower(bound) {
+		ExtData(weight_t bound, uint32 preds) : lower(bound), slack(-bound) {
 			for (uint32 i = 0; i != flagSize(preds); ++i) { flags[i] = 0; }
 		}
 		bool addToWs(uint32 idx, weight_t w) {
@@ -130,6 +132,7 @@ private:
 		}
 		static   uint32 flagSize(uint32 preds) { return (preds+31)/32; }
 		weight_t lower;
+		weight_t slack;
 		uint32   flags[0];
 	};
 	// data for each atom
@@ -192,6 +195,7 @@ private:
 	void    addExtWatch(Literal p, const BodyPtr& n, uint32 data);
 	struct  InitExtWatches {
 		void operator()(Literal p, uint32 idx, bool ext) const { 
+			extra->slack += B->node->pred_weight(idx, ext);
 			self->addExtWatch(~p, *B, (idx<<1)+uint32(ext)); 
 			if (ext && !self->solver_->isFalse(p)) {
 				extra->addToWs(idx, B->node->pred_weight(idx, true));
@@ -248,12 +252,20 @@ private:
 	bool assertAtom(Literal a, UfsType t);
 	void computeReason(UfsType t);
 	void addIfReason(const BodyPtr&, uint32 uScc);
+	bool isExternal(const BodyPtr&, weight_t& slack) const;
 	void addDeltaReason(const BodyPtr& body, uint32 uScc);
 	void addReasonLit(Literal);
 	void createLoopFormula();
 	struct  AddReasonLit {
-		void operator()(Literal p, NodeId, bool) const { if (self->solver_->isFalse(p)) self->addReasonLit(p); }
+		void operator()(Literal p, NodeId id, bool ext) const { 
+			if (self->solver_->isFalse(p) && slack >= 0) {
+				slack -= node->pred_weight(id, ext);
+				self->addReasonLit(p);
+			}
+		}
 		DefaultUnfoundedCheck* self;
+		const BodyNode*        node;
+		mutable weight_t       slack;
 	};
 	UfsType findUfs(Solver& s, bool checkNonHcf);
 	UfsType findNonHcfUfs(Solver& s);
@@ -271,7 +283,7 @@ private:
 	typedef SingleOwnerPtr<MinimalityCheck> MiniPtr;
 	// -------------------------------------------------------------------------------------------  
 	Solver*          solver_;      // my solver
-	DependencyGraph* graph_;       // PBADG
+	GraphPtr         graph_;       // PBADG
 	MiniPtr          mini_;        // minimality checker (only for DLPs)
 	AtomVec          atoms_;       // data for each atom       
 	BodyVec          bodies_;      // data for each body
@@ -285,7 +297,7 @@ private:
 	LitVec           loopAtoms_;   // only used if strategy_ == shared_reason
 	LitVec           activeClause_;// activeClause_[0] is the current unfounded atom
 	LitVec*          reasons_;     // only used if strategy_ == only_reason. reasons_[v] reason why v is unfounded
-	ClauseInfo       info_;        // info on active clause
+	ConstraintInfo   info_;        // info on active clause
 	ReasonStrategy   strategy_;    // what kind of reasons to compute?
 };
 }

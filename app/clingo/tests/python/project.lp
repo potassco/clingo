@@ -28,7 +28,7 @@ symb(S) :- th { seq(P,S) }, S=1..nbs.
 
 #script(python)
 import sys, os
-from gringo import *
+from clingo import *
 if sys.version_info[0] >= 3:
     import io as StringIO
 else:
@@ -89,7 +89,7 @@ def genASPsequence(seq, prg):
 def on_model(model):
     pattern={} # map qui associe le numero d'instance à un numero de structure
     
-    for atom in model.atoms(Model.ATOMS):
+    for atom in model.atoms(atoms=True):
         if atom.name()=="pattern":
             args= atom.args()
             pattern[ args[0] ]=args[1]
@@ -102,16 +102,17 @@ def on_model(model):
     if not found:
         patterns.append( pattern )
 
-from gringo import Fun
 def main(prg):
     #Chargement du jeu de données
     theseq = readsequence("we_cmp.seq.minepi")
     genASPsequence(theseq, prg)
     prg.conf.solve.project = 1
     prg.conf.solve.models  = 0
-    d=prg.get_const("ml")
+    d = prg.get_const("ml")
     if d is None:
         d=4
+    else:
+        d = d.number
     
     prg.ground([("base",[])])
     prg.solve()

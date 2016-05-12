@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -23,7 +23,7 @@
 
 namespace Gringo {
 
-Scripts::Scripts(GringoModule &module) 
+Scripts::Scripts(GringoModule &module)
     : py(module)
     , lua(module) { }
 
@@ -34,16 +34,17 @@ bool Scripts::pyExec(Location const &loc, FWString code) {
     return py.exec(loc, code);
 }
 bool Scripts::callable(FWString name) {
-    return py.callable(context, name) || lua.callable(context, name);
+    return (context && context->callable(name)) || py.callable(name) || lua.callable(name);
 }
 void Scripts::main(Control &ctl) {
-    if (py.callable(Any(), "main")) { return py.main(ctl); }
-    if (lua.callable(Any(), "main")) { return lua.main(ctl); }
-    
+    if (py.callable("main")) { return py.main(ctl); }
+    if (lua.callable("main")) { return lua.main(ctl); }
+
 }
 ValVec Scripts::call(Location const &loc, FWString name, ValVec const &args) {
-    if (py.callable(context, name)) { return py.call(context, loc, name, args); }
-    if (lua.callable(context, name)) { return lua.call(context, loc, name, args); }
+    if (context && context->callable(name)) { return context->call(loc, name, args); }
+    if (py.callable(name)) { return py.call(loc, name, args); }
+    if (lua.callable(name)) { return lua.call(loc, name, args); }
     GRINGO_REPORT(W_OPERATION_UNDEFINED)
         << loc << ": info: operation undefined:\n"
         << "  function '" << *name << "' not found\n"

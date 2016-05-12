@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -25,10 +25,11 @@ namespace Gringo { namespace Input {
 // {{{ definition of Projection
 
 Projection::Projection(UTerm &&projected, UTerm &&project)
-    : projected(std::move(projected))
-    , project(std::move(project)) { }
+: projected(std::move(projected))
+, project(std::move(project)) { }
 
-Projections::Projections(Projections &&) = default;
+Projection::Projection(Projection &&) = default;
+Projection &Projection::operator=(Projection &&) = default;
 
 Projection::~Projection() = default;
 
@@ -39,19 +40,21 @@ Projection::operator Term const &() const { return *projected; }
 
 Projections::Projections() = default;
 
+Projections::Projections(Projections &&) = default;
+
 Projections::~Projections() = default;
 
-Projections::ProjectionMap::iterator Projections::begin() {
+Projections::ProjectionMap::Iterator Projections::begin() {
     return proj.begin();
 }
-Projections::ProjectionMap::iterator Projections::end() {
+Projections::ProjectionMap::Iterator Projections::end() {
     return proj.end();
 }
 
 UTerm Projections::add(Term &term) {
     AuxGen gen;
     auto ret(term.project(true, gen));
-    proj.emplace_back(std::move(std::get<1>(ret)), std::move(std::get<2>(ret)));
+    proj.push(std::move(std::get<1>(ret)), std::move(std::get<2>(ret)));
     return std::move(std::get<0>(ret));
 }
 

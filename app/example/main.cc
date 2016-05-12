@@ -28,14 +28,13 @@ void example1() {
     ClingoLib lib(scripts, args.size() - 2, args.data());
     lib.add("base", {}, "a :- not b. b :- not a.");
     lib.ground({{"base", {}}}, nullptr);
-    lib.prepareSolve({});
     lib.solve([](Gringo::Model const &m) {
         for (auto &atom : m.atoms(Gringo::Model::SHOWN)) {
             std::cout << atom << " "; 
         }
         std::cout << std::endl;
         return true; 
-    });
+    }, {});
 }
 
 int main() {

@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -36,18 +36,22 @@ Block::Block(Location const &loc, FWString name, IdVec &&params)
     : loc(loc)
     , name(name)
     , params(std::move(params))
-    , edb(std::make_shared<Ground::SEdb::element_type>(nullptr, ValVec())) { 
+    , edb(std::make_shared<Ground::SEdb::element_type>(nullptr, ValVec())) {
     UTermVec args;
     for (auto &param : this->params) { args.emplace_back(make_locatable<ValTerm>(param.first, Value::createId(param.second))); }
     if (args.empty()) { std::get<0>(*edb) = make_locatable<ValTerm>(loc, Value::createId(name)); }
     else              { std::get<0>(*edb) = make_locatable<FunctionTerm>(loc, name, std::move(args)); }
 }
 
+Block::Block(Block&&) = default;
+Block &Block::operator=(Block&&) = default;
+Block::~Block() = default;
+
 Term const &Block::sig() const {
     return *std::get<0>(*edb);
 }
 Block::operator Term const &() const { return sig(); }
-    
+
 // }}}
 // {{{ definition of Program
 
@@ -58,7 +62,7 @@ Program::Program() {
 Program::Program(Program &&) = default;
 
 void Program::begin(Location const &loc, FWString name, IdVec &&params) {
-    current_ = &*blocks_.emplace_back(loc, "#inc_" + *name, std::move(params)).first;
+    current_ = &*blocks_.push(loc, "#inc_" + *name, std::move(params)).first;
 }
 
 void Program::add(UStm &&stm) {
@@ -67,6 +71,20 @@ void Program::add(UStm &&stm) {
         current_->addedStms.emplace_back(std::move(stm));
         current_->addedEdb.pop_back();
     }
+}
+
+void Program::add(TheoryDef &&def) {
+    auto it = theoryDefs_.find(def.name());
+    if (it == theoryDefs_.end()) {
+        theoryDefs_.push(std::move(def));
+    }
+    else {
+        GRINGO_REPORT(E_ERROR)
+            << def.loc() << ": error: redefinition of theory:" << "\n"
+            << "  " << def.name() << "\n"
+            << it->loc() << ": note: theory first defined here\n";
+    }
+
 }
 
 void Program::rewrite(Defines &defs) {
@@ -80,13 +98,13 @@ void Program::rewrite(Defines &defs) {
             args.emplace_back(gen.uniqueVar(param.first, 0, "#Inc"));
             incDefs.add(param.first, param.second, get_clone(args.back()), false);
         }
-        sigs_.emplace_back(block.name, args.size());
+        sigs_.push(block.name, args.size());
         UTerm blockTerm(args.empty()
             ? (UTerm)make_locatable<ValTerm>(block.loc, Value::createId(block.name))
             : make_locatable<FunctionTerm>(block.loc, block.name, get_clone(args)));
         incDefs.init();
 
-        for (auto &fact : block.addedEdb) { sigs_.emplace_back(fact.sig()); }
+        for (auto &fact : block.addedEdb) { sigs_.push(fact.sig()); }
         auto replace = [&](Defines &defs, Value fact) -> Value {
             if (defs.empty() || fact.type() == Value::SPECIAL) { return fact; }
             UTerm rt;
@@ -109,21 +127,22 @@ void Program::rewrite(Defines &defs) {
         }
         else if (std::get<1>(*block.edb).empty()) { std::swap(std::get<1>(*block.edb), block.addedEdb); }
         else { std::copy(block.addedEdb.begin(), block.addedEdb.end(), std::back_inserter(std::get<1>(*block.edb))); }
-        // {{{3 rewriting 
-        auto rewrite2 = [&](UStm &x) -> void { 
+        // {{{3 rewriting
+        auto rewrite2 = [&](UStm &x) -> void {
             std::get<1>(*block.edb).emplace_back(x->isEDB());
             if (std::get<1>(*block.edb).back().type() == Value::SPECIAL) {
-                x->add(make_locatable<PredicateLiteral>(block.loc, NAF::POS, get_clone(blockTerm)));
+                x->add(make_locatable<PredicateLiteral>(block.loc, NAF::POS, get_clone(blockTerm), true));
                 x->rewrite2();
                 block.stms.emplace_back(std::move(x));
                 std::get<1>(*block.edb).pop_back();
             }
-            else { sigs_.emplace_back(std::get<1>(*block.edb).back().sig()); }
+            else { sigs_.push(std::get<1>(*block.edb).back().sig()); }
         };
         auto rewrite1 = [&](UStm &x) -> void {
+            x->initTheory(theoryDefs_);
             if (x->rewrite1(project_)) {
                 if (x->hasPool(false)) { for (auto &y : x->unpool(false)) { rewrite2(y); } }
-                else                   { rewrite2(x); } 
+                else                   { rewrite2(x); }
             }
         };
         for (auto &x : block.addedStms) {
@@ -151,19 +170,32 @@ void Program::rewrite(Defines &defs) {
     // }}}3
 }
 
-bool Program::check() {
-    bool ret = true;
+void Program::check() {
     for (auto &block : blocks_) {
-        for (auto &stm : block.stms) { ret = stm->check() && ret; }
+        for (auto &stm : block.stms) { stm->check(); }
     }
-    return ret;
+    std::unordered_map<FWSignature, Location> seenSigs;
+    for (auto &def : theoryDefs_) {
+        for (auto &atomDef : def.atomDefs()) {
+            auto seenSig = seenSigs.emplace(atomDef.sig(), atomDef.loc());
+            if (!seenSig.second) {
+                GRINGO_REPORT(E_ERROR)
+                    << atomDef.loc() << ": error: multiple definitions for theory atom:" << "\n"
+                    << "  " << atomDef.sig() << "\n"
+                    << seenSig.first->second << ": note: first defined here\n";
+            }
+        }
+    }
 }
 
 void Program::addClassicalNegation(FWSignature x) {
-    neg_.emplace_back(x);
+    neg_.push(x);
 }
 
 void Program::print(std::ostream &out) const {
+    for (auto &def : theoryDefs_) {
+        out << def << "\n";
+    }
     for (auto &block : blocks_) {
         for (auto &x : block.addedEdb)          { out << x << "." << "\n"; }
         for (auto &x : std::get<1>(*block.edb)) { out << x << "." << "\n"; }
@@ -173,7 +205,7 @@ void Program::print(std::ostream &out) const {
     for (auto &x : stms_) { out << *x << "\n"; }
 }
 
-Ground::Program Program::toGround(PredDomMap &domains) {
+Ground::Program Program::toGround(DomainData &domains) {
     Ground::UStmVec stms;
     stms.emplace_back(make_locatable<Ground::ExternalRule>(Location("#external", 1, 1, "#external", 1, 1)));
     ToGroundArg arg(auxNames_, domains);
@@ -190,12 +222,12 @@ Ground::Program Program::toGround(PredDomMap &domains) {
         node.stm->analyze(node, dep);
     }
     Ground::Program::ClassicalNegationVec negate;
-    for (auto &x : neg_) { 
-        negate.emplace_back(Gringo::add(domains, x), Gringo::add(domains, (*x).flipSign()));
+    for (auto &x : neg_) {
+        negate.emplace_back(domains.add(x), domains.add((*x).flipSign()));
     }
     Ground::Program prg(std::move(edb), dep.analyze(), std::move(negate));
     for (auto &sig : sigs_) {
-        if (domains.find(*sig) == domains.end()) { domains.emplace_back(std::piecewise_construct, std::forward_as_tuple(*sig), std::forward_as_tuple()); }
+        domains.add(sig);
     }
     Ground::UndefVec undef;
     for (auto &x : dep.depend.occs) {

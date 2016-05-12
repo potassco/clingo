@@ -1,6 +1,6 @@
 #script (lua)
 
-gringo = require("gringo")
+clingo = require("clingo")
 
 State = { }
 State.__index = State
@@ -15,7 +15,7 @@ function State.new()
 end
 
 function State:fix(k)
-    local leaf = self.leaves[k-1]
+    local leaf = self.leaves[k.number-1]
     if leaf then
         return leaf
     else
@@ -24,30 +24,30 @@ function State:fix(k)
 end
 
 function State:on_model(m)
-    self.last = m:atoms(gringo.Model.ATOMS)
+    self.last = m:atoms{atoms=true}
     for key,atom in ipairs(self.last) do
-        if atom:name() == "leaf" then
-            local args = atom:args()
+        if atom.name == "leaf" then
+            local args = atom.args
             self.leaves[args[1]] = args[2]
         end
     end
 end
 
 function State:prepare_instance(k)
-    edges = {}
-    cover = {}
-    vertices = {}
+    local edges = {}
+    local cover = {}
+    local vertices = {}
     for key,atom in ipairs(self.last) do
-        if atom:name() == "edge" then
-            args = atom:args()
-            if args[1] == k-1 then
-                edges[#edges + 1] = gringo.Tuple{args[2], args[3]}
+        if atom.name == "edge" then
+            local args = atom.args
+            if args[1].number == k-1 then
+                edges[#edges + 1] = clingo.tuple{args[2], args[3]}
                 vertices[#vertices + 1] = args[2]
                 vertices[#vertices + 1] = args[3]
             end
         end
-        if atom:name() == "cover" then
-            cover[#cover + 1] = atom:args()[2]
+        if atom.name == "cover" then
+            cover[#cover + 1] = atom.args[2]
         end
     end
     self.edge = function (self) return edges end
@@ -56,7 +56,7 @@ function State:prepare_instance(k)
 end
 
 function State:run(prg)
-    local pre = gringo.Control()
+    local pre = clingo.Control()
     pre:add("base", {}, "\
 edge(a,(b;c)).\n\
 edge(b,(c;d)).\n\
@@ -81,9 +81,9 @@ edge(k,X,Y) :- edge(k-1,X,Y), not cover(k,X), not cover(k,Y).\n\
     pre:ground({{"base", {}}}, self)
     local ret = pre:solve(nil, function(...) self:on_model(...) end)
     local k = 0
-    while ret == gringo.SolveResult.SAT do
+    while ret.satisfiable do
         k = k + 1
-        pre:cleanup_domains()
+        pre:cleanup()
         pre:ground({{"step", {k}}}, self)
         ret = pre:solve(nil, function(...) self:on_model(...) end)
     end

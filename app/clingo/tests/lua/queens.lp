@@ -6,10 +6,10 @@ function main(prg)
     stop = 10
     while true do
         if step > 1 then
-            prg:release_external(gringo.Fun("volatile", {step-1}))
+            prg:release_external(clingo.Fun("volatile", {step-1}))
         end
         prg:ground("cumulative", {step})
-        prg:assign_external(gringo.Fun("volatile", {step}), true)
+        prg:assign_external(clingo.Fun("volatile", {step}), true)
         ret = prg:solve()
         if step == stop then
             break

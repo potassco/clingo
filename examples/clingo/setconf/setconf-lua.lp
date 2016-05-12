@@ -1,7 +1,7 @@
 #script (lua)
 
 function print_conf(conf, ident)
-    for _, x in ipairs(conf:keys()) do
+    for _, x in ipairs(conf.keys) do
         key = string.gsub(x, "[.]", "")
         if key == x then
             print (ident .. key .. "[=" .. tostring(conf[key]) .. "] - " .. conf["__desc_" .. key])

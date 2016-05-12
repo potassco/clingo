@@ -1,4 +1,4 @@
-    // {{{ GPL License 
+    // {{{ GPL License
 
     // This file is part of gringo - a grounder for logic programs.
     // Copyright (C) 2013  Roland Kaminski
@@ -22,12 +22,13 @@
 #include "gringo/input/literals.hh"
 #include "gringo/input/aggregates.hh"
 #include "gringo/input/program.hh"
+#include "gringo/input/theory.hh"
 #include "gringo/output/output.hh"
 #include "gringo/scripts.hh"
 
 namespace Gringo { namespace Input {
 
-// {{{ definition of NongroundProgramBuilder
+// {{{1 definition of NongroundProgramBuilder
 
 NongroundProgramBuilder::NongroundProgramBuilder(Scripts &scripts, Program &prg, Output::OutputBase &out, Defines &defs, bool rewriteMinimize)
 : scripts_(scripts)
@@ -36,7 +37,7 @@ NongroundProgramBuilder::NongroundProgramBuilder(Scripts &scripts, Program &prg,
 , defs_(defs)
 , rewriteMinimize_(rewriteMinimize) { }
 
-// {{{ terms
+// {{{2 terms
 
 TermUid NongroundProgramBuilder::term(Location const &loc, Value val) {
     return terms_.insert(make_locatable<ValTerm>(loc, val));
@@ -83,7 +84,7 @@ TermUid NongroundProgramBuilder::term(Location const &loc, FWString name, TermVe
         // function terms
         else { return make_locatable<FunctionTerm>(loc, name, std::move(vec)); }
     };
-    TermVecVecs::value_type vec(termvecvecs_.erase(a));
+    TermVecVecs::ValueType vec(termvecvecs_.erase(a));
     // no pooling
     if (vec.size() == 1) { return terms_.insert(create(std::move(vec.front()))); }
     // pooling
@@ -104,8 +105,7 @@ TermUid NongroundProgramBuilder::pool(Location const &loc, TermVecUid args) {
     return terms_.insert(make_locatable<PoolTerm>(loc, termvecs_.erase(args)));
 }
 
-// }}}
-// {{{ id vectors
+// {{{2 id vectors
 
 IdVecUid NongroundProgramBuilder::idvec() {
     return idvecs_.emplace();
@@ -115,8 +115,7 @@ IdVecUid NongroundProgramBuilder::idvec(IdVecUid uid, Location const &loc, FWStr
     return uid;
 }
 
-// }}}
-// {{{ csp
+// {{{2 csp
 
 CSPMulTermUid NongroundProgramBuilder::cspmulterm(Location const &, TermUid coe, TermUid var) {
     return cspmulterms_.emplace(terms_.erase(var), terms_.erase(coe));
@@ -151,8 +150,7 @@ CSPLitUid NongroundProgramBuilder::csplit(Location const &loc, CSPAddTermUid a, 
     return csplits_.insert(make_locatable<CSPLiteral>(loc, rel, cspaddterms_.erase(a), cspaddterms_.erase(b)));
 }
 
-// }}}
-// {{{ termvecs
+// {{{2 termvecs
 
 TermVecUid NongroundProgramBuilder::termvec() {
     return termvecs_.emplace();
@@ -163,8 +161,7 @@ TermVecUid NongroundProgramBuilder::termvec(TermVecUid uid, TermUid term) {
     return uid;
 }
 
-// }}}
-// {{{ termvecvecs
+// {{{2 termvecvecs
 
 TermVecVecUid NongroundProgramBuilder::termvecvec() {
     return termvecvecs_.emplace();
@@ -175,28 +172,21 @@ TermVecVecUid NongroundProgramBuilder::termvecvec(TermVecVecUid uid, TermVecUid 
     return uid;
 }
 
-// }}}
-// {{{ literals
+// {{{2 literals
 
 LitUid NongroundProgramBuilder::boollit(Location const &loc, bool type) {
     return rellit(loc, type ? Relation::EQ : Relation::NEQ, term(loc, Value::createNum(0)), term(loc, Value::createNum(0)));
 }
 
 LitUid NongroundProgramBuilder::predlit(Location const &loc, NAF naf, bool neg, FWString name, TermVecVecUid tvvUid) {
-    if (neg) {
-        for (auto &x : termvecvecs_[tvvUid]) { prg_.addClassicalNegation(Signature(name, x.size())); }
-    }
-    TermUid t = term(loc, name, tvvUid, false);
-    if (neg) { t = term(loc, UnOp::NEG, t); }
-    return lits_.insert(make_locatable<PredicateLiteral>(loc, naf, terms_.erase(t)));
+    return lits_.insert(make_locatable<PredicateLiteral>(loc, naf, terms_.erase(predRep(loc, neg, name, tvvUid))));
 }
 
 LitUid NongroundProgramBuilder::rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) {
     return lits_.insert(make_locatable<RelationLiteral>(loc, rel, terms_.erase(termUidLeft), terms_.erase(termUidRight)));
 }
 
-// }}}
-// {{{ literal vectors
+// {{{2 literal vectors
 
 LitVecUid NongroundProgramBuilder::litvec() {
     return litvecs_.emplace();
@@ -207,8 +197,7 @@ LitVecUid NongroundProgramBuilder::litvec(LitVecUid uid, LitUid literalUid) {
     return uid;
 }
 
-// }}}
-// {{{ body aggregate element vectors
+// {{{2 body aggregate element vectors
 
 BdAggrElemVecUid NongroundProgramBuilder::bodyaggrelemvec() {
     return bodyaggrelemvecs_.emplace();
@@ -228,8 +217,7 @@ CondLitVecUid NongroundProgramBuilder::condlitvec(CondLitVecUid uid, LitUid lit,
     return uid;
 }
 
-// }}}
-// {{{ head aggregate element vectors
+// {{{2 head aggregate element vectors
 
 HdAggrElemVecUid NongroundProgramBuilder::headaggrelemvec() {
     return headaggrelemvecs_.emplace();
@@ -240,8 +228,7 @@ HdAggrElemVecUid NongroundProgramBuilder::headaggrelemvec(HdAggrElemVecUid uid, 
     return uid;
 }
 
-// }}}
-// {{{ bounds
+// {{{2 bounds
 
 BoundVecUid NongroundProgramBuilder::boundvec() {
     return bounds_.emplace();
@@ -252,8 +239,7 @@ BoundVecUid NongroundProgramBuilder::boundvec(BoundVecUid uid, Relation rel, Ter
     return uid;
 }
 
-// }}}
-// {{{ rule bodies
+// {{{2 rule bodies
 
 BdLitVecUid NongroundProgramBuilder::body() {
     return bodies_.emplace();
@@ -285,8 +271,7 @@ BdLitVecUid NongroundProgramBuilder::disjoint(BdLitVecUid body, Location const &
 }
 
 
-// }}}
-// {{{ rule heads
+// {{{2 rule heads
 
 HdLitUid NongroundProgramBuilder::headlit(LitUid lit) {
     return heads_.insert(gringo_make_unique<SimpleHeadLiteral>(lits_.erase(lit)));
@@ -304,8 +289,7 @@ HdLitUid NongroundProgramBuilder::disjunction(Location const &loc, CondLitVecUid
     return heads_.insert(make_locatable<Disjunction>(loc, condlitvecs_.erase(condlitvec)));
 }
 
-// }}}
-// {{{ csp constraint elements
+// {{{2 csp constraint elements
 
 CSPElemVecUid NongroundProgramBuilder::cspelemvec() {
     return cspelems_.emplace();
@@ -316,8 +300,7 @@ CSPElemVecUid NongroundProgramBuilder::cspelemvec(CSPElemVecUid uid, Location co
     return uid;
 }
 
-// }}}
-// {{{ statements
+// {{{2 statements
 
 void NongroundProgramBuilder::rule(Location const &loc, HdLitUid head) {
     rule(loc, head, body());
@@ -340,7 +323,7 @@ void NongroundProgramBuilder::optimize(Location const &loc, TermUid weight, Term
         out.outPredsForce.emplace_back(loc, Signature("_criteria", 3), false);
     }
     else {
-        prg_.add(make_locatable<Statement>(loc, terms_.erase(weight), terms_.erase(priority), termvecs_.erase(cond), bodies_.erase(body)));
+        prg_.add(make_locatable<Statement>(loc, make_locatable<MinimizeHeadLiteral>(loc, terms_.erase(weight), terms_.erase(priority), termvecs_.erase(cond)), bodies_.erase(body), StatementType::WEAKCONSTRAINT));
     }
 }
 
@@ -349,7 +332,7 @@ void NongroundProgramBuilder::showsig(Location const &loc, FWSignature sig, bool
 }
 
 void NongroundProgramBuilder::show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) {
-    rule(loc, headlit(predlit(loc, NAF::POS, false, "#show", termvecvec(termvecvec(), termvec(termvec(termvec(), t), term(loc, Value::createNum(csp)))))), body);
+    prg_.add(make_locatable<Statement>(loc, make_locatable<ShowHeadLiteral>(loc, terms_.erase(t), csp), bodies_.erase(body), StatementType::RULE));
 }
 
 void NongroundProgramBuilder::lua(Location const &loc, FWString code) {
@@ -368,11 +351,1237 @@ void NongroundProgramBuilder::external(Location const &loc, LitUid head, BdLitVe
     prg_.add(make_locatable<Statement>(loc, heads_.erase(headlit(head)), bodies_.erase(body), StatementType::EXTERNAL));
 }
 
-// }}}
+void NongroundProgramBuilder::edge(Location const &loc, TermVecVecUid edgesUid, BdLitVecUid body) {
+    auto edges = termvecvecs_.erase(edgesUid);
+    for (auto it = edges.begin(), end = edges.end(), last = end-1; it != end; ++it) {
+        prg_.add(make_locatable<Statement>(
+            loc,
+            make_locatable<EdgeHeadAtom>(
+                loc,
+                std::move(it->front()),
+                std::move(it->back())
+            ),
+            it == last ? bodies_.erase(body) : get_clone(bodies_[body]),
+            StatementType::RULE
+        ));
+    }
+}
+
+TermUid NongroundProgramBuilder::predRep(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid) {
+    if (neg) {
+        for (auto &x : termvecvecs_[tvvUid]) { prg_.addClassicalNegation(Signature(name, x.size())); }
+    }
+    TermUid t = term(loc, name, tvvUid, false);
+    if (neg) { t = term(loc, UnOp::NEG, t); }
+    return t;
+
+}
+
+void NongroundProgramBuilder::heuristic(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) {
+    prg_.add(make_locatable<Statement>(loc, make_locatable<HeuristicHeadAtom>(loc, terms_.erase(predRep(loc, neg, name, tvvUid)), terms_.erase(a), terms_.erase(b), terms_.erase(mod)), bodies_.erase(body), StatementType::RULE));
+}
+
+void NongroundProgramBuilder::project(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid body) {
+    prg_.add(make_locatable<Statement>(loc, make_locatable<ProjectHeadAtom>(loc, terms_.erase(predRep(loc, neg, name, tvvUid))), bodies_.erase(body), StatementType::RULE));
+}
+
+void NongroundProgramBuilder::project(Location const &loc, FWSignature sig) {
+    Signature s = *sig;
+    auto tv = termvec();
+    for (unsigned i = 0; i < s.length(); ++i) {
+        std::ostringstream ss;
+        ss << "X" << i;
+        tv = termvec(tv, term(loc, ss.str()));
+    }
+    auto tvv = termvecvec(termvecvec(), tv);
+    project(loc, s.sign(), s.name(), tvv, body());
+}
+
+// {{{2 theory
+
+TheoryTermUid NongroundProgramBuilder::theorytermset(Location const &loc, TheoryOptermVecUid args) {
+    (void)loc;
+    return theoryTerms_.emplace(gringo_make_unique<Output::TupleTheoryTerm>(Output::TupleTheoryTerm::Type::Brace, theoryOptermVecs_.erase(args)));
+}
+
+TheoryTermUid NongroundProgramBuilder::theoryoptermlist(Location const &loc, TheoryOptermVecUid args) {
+    (void)loc;
+    return theoryTerms_.emplace(gringo_make_unique<Output::TupleTheoryTerm>(Output::TupleTheoryTerm::Type::Bracket, theoryOptermVecs_.erase(args)));
+}
+
+TheoryTermUid NongroundProgramBuilder::theorytermtuple(Location const &loc, TheoryOptermVecUid args) {
+    (void)loc;
+    return theoryTerms_.emplace(gringo_make_unique<Output::TupleTheoryTerm>(Output::TupleTheoryTerm::Type::Paren, theoryOptermVecs_.erase(args)));
+}
+
+TheoryTermUid NongroundProgramBuilder::theorytermopterm(Location const &loc, TheoryOptermUid opterm) {
+    (void)loc;
+    return theoryTerms_.emplace(gringo_make_unique<Output::RawTheoryTerm>(theoryOpterms_.erase(opterm)));
+}
+
+TheoryTermUid NongroundProgramBuilder::theorytermfun(Location const &loc, FWString name, TheoryOptermVecUid args) {
+    (void)loc;
+    return theoryTerms_.emplace(gringo_make_unique<Output::FunctionTheoryTerm>(name, theoryOptermVecs_.erase(args)));
+}
+
+TheoryTermUid NongroundProgramBuilder::theorytermvalue(Location const &loc, Value val) {
+    return theoryTerms_.emplace(gringo_make_unique<Output::TermTheoryTerm>(make_locatable<ValTerm>(loc, val)));
+}
+
+TheoryTermUid NongroundProgramBuilder::theorytermvar(Location const &loc, FWString var) {
+    auto &ret(vals_[var]);
+    if (!ret) { ret = std::make_shared<Value>(); }
+    return theoryTerms_.emplace(gringo_make_unique<Output::TermTheoryTerm>(make_locatable<VarTerm>(loc, var, ret)));
+}
+
+TheoryOptermUid NongroundProgramBuilder::theoryopterm(TheoryOpVecUid ops, TheoryTermUid term) {
+    auto ret = theoryOpterms_.emplace();
+    theoryOpterms_[ret].append(theoryOpVecs_.erase(ops), theoryTerms_.erase(term));
+    return ret;
+}
+
+TheoryOptermUid NongroundProgramBuilder::theoryopterm(TheoryOptermUid opterm, TheoryOpVecUid ops, TheoryTermUid term) {
+    theoryOpterms_[opterm].append(theoryOpVecs_.erase(ops), theoryTerms_.erase(term));
+    return opterm;
+}
+
+TheoryOpVecUid NongroundProgramBuilder::theoryops() {
+    return theoryOpVecs_.emplace();
+}
+
+TheoryOpVecUid NongroundProgramBuilder::theoryops(TheoryOpVecUid ops, FWString op) {
+    theoryOpVecs_[ops].emplace_back(op);
+    return ops;
+}
+
+TheoryOptermVecUid NongroundProgramBuilder::theoryopterms() {
+    return theoryOptermVecs_.emplace();
+}
+TheoryOptermVecUid NongroundProgramBuilder::theoryopterms(TheoryOptermVecUid opterms, TheoryOptermUid opterm) {
+    theoryOptermVecs_[opterms].emplace_back(gringo_make_unique<Output::RawTheoryTerm>(theoryOpterms_.erase(opterm)));
+    return opterms;
+}
+TheoryOptermVecUid NongroundProgramBuilder::theoryopterms(TheoryOptermUid opterm, TheoryOptermVecUid opterms) {
+    theoryOptermVecs_[opterms].insert(theoryOptermVecs_[opterms].begin(), gringo_make_unique<Output::RawTheoryTerm>(theoryOpterms_.erase(opterm)));
+    return opterms;
+}
+
+TheoryElemVecUid NongroundProgramBuilder::theoryelems() {
+    return theoryElems_.emplace();
+}
+TheoryElemVecUid NongroundProgramBuilder::theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) {
+    theoryElems_[elems].emplace_back(theoryOptermVecs_.erase(opterms), litvecs_.erase(cond));
+    return elems;
+}
+
+TheoryAtomUid NongroundProgramBuilder::theoryatom(TermUid term, TheoryElemVecUid elems) {
+    return theoryAtoms_.emplace(terms_.erase(term), theoryElems_.erase(elems));
+}
+TheoryAtomUid NongroundProgramBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, FWString op, TheoryOptermUid opterm) {
+    return theoryAtoms_.emplace(terms_.erase(term), theoryElems_.erase(elems), op, gringo_make_unique<Output::RawTheoryTerm>(theoryOpterms_.erase(opterm)));
+}
+
+BdLitVecUid NongroundProgramBuilder::bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, TheoryAtomUid atom) {
+    bodies_[body].emplace_back(make_locatable<BodyTheoryLiteral>(loc, naf, theoryAtoms_.erase(atom)));
+    return body;
+}
+
+HdLitUid NongroundProgramBuilder::headaggr(Location const &loc, TheoryAtomUid atom) {
+    return heads_.emplace(make_locatable<HeadTheoryLiteral>(loc, theoryAtoms_.erase(atom)));
+}
+
+// {{{2 theory definitions
+
+TheoryOpDefUid NongroundProgramBuilder::theoryopdef(Location const &loc, FWString op, unsigned priority, TheoryOperatorType type) {
+    return theoryOpDefs_.emplace(loc, op, priority, type);
+}
+
+TheoryOpDefVecUid NongroundProgramBuilder::theoryopdefs() {
+    return theoryOpDefVecs_.emplace();
+}
+
+TheoryOpDefVecUid NongroundProgramBuilder::theoryopdefs(TheoryOpDefVecUid defs, TheoryOpDefUid def) {
+    theoryOpDefVecs_[defs].emplace_back(theoryOpDefs_.erase(def));
+    return defs;
+}
+
+TheoryTermDefUid NongroundProgramBuilder::theorytermdef(Location const &loc, FWString name, TheoryOpDefVecUid defs) {
+    TheoryTermDef def(loc, name);
+    for (auto &opDef : theoryOpDefVecs_.erase(defs)) {
+        def.addOpDef(std::move(opDef));
+    }
+    return theoryTermDefs_.emplace(std::move(def));
+}
+
+TheoryAtomDefUid NongroundProgramBuilder::theoryatomdef(Location const &loc, FWString name, unsigned arity, FWString termDef, TheoryAtomType type) {
+    return theoryAtomDefs_.emplace(loc, name, arity, termDef, type);
+}
+
+TheoryAtomDefUid NongroundProgramBuilder::theoryatomdef(Location const &loc, FWString name, unsigned arity, FWString termDef, TheoryAtomType type, TheoryOpVecUid ops, FWString guardDef) {
+    return theoryAtomDefs_.emplace(loc, name, arity, termDef, type, theoryOpVecs_.erase(ops), guardDef);
+}
+
+TheoryDefVecUid NongroundProgramBuilder::theorydefs() {
+    return theoryDefVecs_.emplace();
+}
+
+TheoryDefVecUid NongroundProgramBuilder::theorydefs(TheoryDefVecUid defs, TheoryTermDefUid def) {
+    theoryDefVecs_[defs].first.emplace_back(theoryTermDefs_.erase(def));
+    return defs;
+}
+
+TheoryDefVecUid NongroundProgramBuilder::theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid def) {
+    theoryDefVecs_[defs].second.emplace_back(theoryAtomDefs_.erase(def));
+    return defs;
+}
+
+void NongroundProgramBuilder::theorydef(Location const &loc, FWString name, TheoryDefVecUid defs) {
+    TheoryDef def(loc, name);
+    auto defsVec = theoryDefVecs_.erase(defs);
+    for (auto &termDef : defsVec.first) {
+        def.addTermDef(std::move(termDef));
+    }
+    for (auto &atomDef : defsVec.second) {
+        def.addAtomDef(std::move(atomDef));
+    }
+    prg_.add(std::move(def));
+}
+
+// }}}2
 
 NongroundProgramBuilder::~NongroundProgramBuilder() { }
 
-// }}}
+// {{{1 definition of ASTBuilder
+
+ASTLocation convertLoc(Location const &loc) {
+    return {
+        loc.beginFilename->c_str(), loc.endFilename->c_str(),
+        loc.beginLine, loc.endLine,
+        loc.beginColumn, loc.endColumn
+    };
+}
+
+Location convertLoc(ASTLocation loc) {
+    return {loc.begin_file, static_cast<unsigned>(loc.begin_line), static_cast<unsigned>(loc.begin_column)
+           ,loc.end_file, static_cast<unsigned>(loc.end_line), static_cast<unsigned>(loc.end_column)};
+}
+
+ASTBuilder::ASTBuilder(Callback cb) : cb_(cb) { }
+ASTBuilder::~ASTBuilder() noexcept = default;
+
+// {{{2 terms
+TermUid ASTBuilder::term(Location const &loc, Value val) {
+    return terms_.insert(typedNode("term_value", newNode(loc, val)));
+}
+TermUid ASTBuilder::term(Location const &loc, FWString name) {
+    return terms_.insert(typedNode("term_variable", newNode(loc, name->c_str())));
+}
+TermUid ASTBuilder::term(Location const &loc, UnOp op, TermUid a) {
+    Value val;
+    switch (op) {
+        case UnOp::NOT: { val = Value::createId("~"); break;}
+        case UnOp::NEG: { val = Value::createId("-"); break;}
+        case UnOp::ABS: { val = Value::createId("|"); break;}
+    }
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, val));
+    nodeVec.emplace_back(terms_.erase(a));
+    return terms_.insert(newNode(loc, "term_unary", nodeVec));
+}
+TermUid ASTBuilder::term(Location const &loc, UnOp op, TermVecUid a) {
+    return term(loc, op, pool_(loc, termvecs_.erase(a)));
+}
+TermUid ASTBuilder::term(Location const &loc, BinOp op, TermUid a, TermUid b) {
+    Value val;
+    switch (op) {
+        case BinOp::ADD: { val = Value::createId("+"); break; }
+        case BinOp::OR:  { val = Value::createId("?");  break; }
+        case BinOp::SUB: { val = Value::createId("-"); break; }
+        case BinOp::MOD: { val = Value::createId("\\"); break; }
+        case BinOp::MUL: { val = Value::createId("*"); break; }
+        case BinOp::XOR: { val = Value::createId("^"); break; }
+        case BinOp::POW: { val = Value::createId("**"); break; }
+        case BinOp::DIV: { val = Value::createId("/"); break; }
+        case BinOp::AND: { val = Value::createId("&"); break; }
+    }
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(terms_.erase(a));
+    nodeVec.emplace_back(newNode(loc, val));
+    nodeVec.emplace_back(terms_.erase(b));
+    return terms_.insert(newNode(loc, "term_binary", nodeVec));
+}
+TermUid ASTBuilder::term(Location const &loc, TermUid a, TermUid b) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(terms_.erase(a));
+    nodeVec.emplace_back(terms_.erase(b));
+    return terms_.insert(newNode(loc, "term_range", nodeVec));
+}
+TermUid ASTBuilder::term(Location const &loc, FWString name, TermVecVecUid a, bool lua) {
+    TermUidVec pool;
+    for (auto &args : termvecvecs_.erase(a)) {
+        pool.emplace_back(fun_(loc, name, args, lua));
+    }
+    return pool_(loc, pool);
+}
+TermUid ASTBuilder::term(Location const &loc, TermVecUid a, bool forceTuple) {
+    return (termvecs_[a].size() == 1 && !forceTuple) ? termvecs_.erase(a).front() : fun_(loc, "", a, false);
+}
+TermUid ASTBuilder::pool(Location const &loc, TermVecUid a) {
+    return pool_(loc, termvecs_.erase(a));
+}
+// {{{2 csp
+CSPMulTermUid ASTBuilder::cspmulterm(Location const &loc, TermUid coe, TermUid var) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(terms_.erase(coe));
+    nodeVec.emplace_back(terms_.erase(var));
+    return cspmulterms_.insert(newNode(loc, "cspterm_multiplication", nodeVec));
+}
+
+CSPMulTermUid ASTBuilder::cspmulterm(Location const &loc, TermUid coe) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(terms_.erase(coe));
+    return cspmulterms_.insert(newNode(loc, "cspterm_constant", nodeVec));
+}
+
+CSPAddTermUid ASTBuilder::cspaddterm(Location const &loc, CSPAddTermUid a, CSPMulTermUid b, bool add) {
+    auto node = cspmulterms_.erase(b);
+    if (!add) {
+        auto &nodeVec = newNodeVec();
+        nodeVec.emplace_back(newNode(loc, "-"));
+        nodeVec.emplace_back(node.children.first[0]);
+        const_cast<AST&>(node.children.first[0]) = newNode(loc, "term_unary", nodeVec);
+    }
+    cspaddterms_[a].emplace_back(std::move(node));
+    return a;
+}
+
+CSPAddTermUid ASTBuilder::cspaddterm(Location const &, CSPMulTermUid b) {
+    auto a = cspaddterms_.emplace();
+    cspaddterms_[a].emplace_back(cspmulterms_.erase(b));
+    return a;
+}
+
+LitUid ASTBuilder::csplit(CSPLitUid a) {
+    auto lit = csplits_.erase(a);
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(lit.second.first);
+    nodeVec.emplace_back(newNode(lit.first, "tuple_guard", newNodeVec() = std::move(lit.second.second)));
+    return lits_.insert(newNode(lit.first, "literal_csp", nodeVec));
+}
+
+CSPLitUid ASTBuilder::csplit(Location const &loc, CSPLitUid a, Relation rel, CSPAddTermUid b) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, rel));
+    nodeVec.emplace_back(newNode(loc, "cspterm_sum", newNodeVec() = cspaddterms_.erase(b)));
+    csplits_[a].first = loc;
+    csplits_[a].second.second.emplace_back(newNode(loc, "guard_csp", nodeVec));
+    return a;
+}
+
+CSPLitUid ASTBuilder::csplit(Location const &loc, CSPAddTermUid a, Relation rel, CSPAddTermUid b) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, inv(rel)));
+    nodeVec.emplace_back(newNode(loc, "cspterm_sum", newNodeVec() = cspaddterms_.erase(a)));
+    return csplits_.insert({loc, {
+        newNode(loc, "cspterm_sum", newNodeVec() = cspaddterms_.erase(b)),
+        {newNode(loc, "guard_csp", nodeVec)}} });
+}
+
+// {{{2 id vectors
+IdVecUid ASTBuilder::idvec() {
+    return idvecs_.emplace();
+}
+
+IdVecUid ASTBuilder::idvec(IdVecUid uid, Location const &loc, FWString id) {
+    idvecs_[uid].emplace_back(typedNode("id", newNode(loc, id)));
+    return uid;
+}
+
+// {{{2 term vectors
+TermVecUid ASTBuilder::termvec() {
+    return termvecs_.emplace();
+}
+
+TermVecUid ASTBuilder::termvec(TermVecUid uid, TermUid termUid) {
+    termvecs_[uid].emplace_back(termUid);
+    return uid;
+}
+
+// {{{2 term vector vectors
+TermVecVecUid ASTBuilder::termvecvec() {
+    return termvecvecs_.emplace();
+}
+
+TermVecVecUid ASTBuilder::termvecvec(TermVecVecUid uid, TermVecUid termvecUid) {
+    termvecvecs_[uid].emplace_back(termvecUid);
+    return uid;
+}
+
+// {{{2 literals
+LitUid ASTBuilder::boollit(Location const &loc, bool type) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, type ? "true" : "false"));
+    return lits_.insert(newNode(loc, "literal_boolean", nodeVec));
+}
+
+LitUid ASTBuilder::predlit(Location const &loc, NAF naf, bool neg, FWString name, TermVecVecUid argvecvecUid) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, naf));
+    nodeVec.emplace_back(newNode(loc, neg ? "neg_not" : "neg_pos"));
+    nodeVec.emplace_back(newNode(loc, name->c_str()));
+    nodeVec.emplace_back(terms_.erase(term(loc, "", argvecvecUid, false)));
+    return lits_.insert(newNode(loc, "literal_predicate", nodeVec));
+}
+
+LitUid ASTBuilder::rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(terms_.erase(termUidLeft));
+    nodeVec.emplace_back(newNode(loc, rel));
+    nodeVec.emplace_back(terms_.erase(termUidRight));
+    return lits_.insert(newNode(loc, "literal_relation", nodeVec));
+}
+
+// {{{2 literal vectors
+LitVecUid ASTBuilder::litvec() {
+    return litvecs_.emplace();
+}
+
+LitVecUid ASTBuilder::litvec(LitVecUid uid, LitUid literalUid) {
+    litvecs_[uid].emplace_back(lits_.erase(literalUid));
+    return uid;
+}
+
+// {{{2 conditional literals
+CondLitVecUid ASTBuilder::condlitvec() {
+    return condlitvecs_.emplace();
+}
+
+CondLitVecUid ASTBuilder::condlitvec(CondLitVecUid uid, LitUid litUid, LitVecUid litvecUid) {
+    condlitvecs_[uid].emplace_back(condlit_(convertLoc(lits_[litUid].location), litUid, litvecUid));
+    return uid;
+}
+
+// {{{2 body aggregate elements
+BdAggrElemVecUid ASTBuilder::bodyaggrelemvec() {
+    return bodyaggrelemvecs_.emplace();
+}
+
+BdAggrElemVecUid ASTBuilder::bodyaggrelemvec(BdAggrElemVecUid uid, TermVecUid termvec, LitVecUid litvec) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(terms_.erase(term(dummyloc_(), termvec, true)));
+    nodeVec.emplace_back(littuple_(dummyloc_(), litvec));
+    bodyaggrelemvecs_[uid].emplace_back(newNode(dummyloc_(), "element_aggregate_body", nodeVec));
+    return uid;
+}
+
+// {{{2 head aggregate elements
+HdAggrElemVecUid ASTBuilder::headaggrelemvec() {
+    return headaggrelemvecs_.emplace();
+}
+
+HdAggrElemVecUid ASTBuilder::headaggrelemvec(HdAggrElemVecUid uid, TermVecUid termvec, LitUid lit, LitVecUid litvec) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(terms_.erase(term(dummyloc_(), termvec, true)));
+    nodeVec.emplace_back(condlit_(dummyloc_(), lit, litvec));
+    headaggrelemvecs_[uid].emplace_back(newNode(dummyloc_(), "element_aggregate_head", nodeVec));
+    return uid;
+}
+
+// {{{2 bounds
+BoundVecUid ASTBuilder::boundvec() {
+    return bounds_.emplace();
+}
+
+BoundVecUid ASTBuilder::boundvec(BoundVecUid uid, Relation rel, TermUid term) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(dummyloc_(), rel));
+    nodeVec.emplace_back(terms_.erase(term));
+    bounds_[uid].emplace_back(newNode(dummyloc_(), "guard", nodeVec));
+    return uid;
+}
+
+// {{{2 heads
+HdLitUid ASTBuilder::headlit(LitUid litUid) {
+    auto lit = lits_.erase(litUid);
+    return heads_.insert(newNode(convertLoc(lit.location), "tuple_literal", newNodeVec() = {lit}));
+}
+
+HdLitUid ASTBuilder::headaggr(Location const &loc, TheoryAtomUid atomUid) {
+    auto atom = theoryAtoms_.erase(atomUid);
+    return heads_.emplace(newNode(dummyloc_(), "theory_atom", newNodeVec() = {
+        newNode(loc, NAF::POS),
+        terms_.erase(std::get<0>(atom)),
+        newNode(dummyloc_(), "tuple_element", newNodeVec() = theoryElems_.erase(std::get<1>(atom))),
+        std::get<2>(atom)
+    }));
+}
+
+HdLitUid ASTBuilder::headaggr(Location const &loc, AggregateFunction fun, BoundVecUid bounds, HdAggrElemVecUid headaggrelemvec) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, fun));
+    nodeVec.emplace_back(newNode(loc, "tuple_element", newNodeVec() = headaggrelemvecs_.erase(headaggrelemvec)));
+    nodeVec.emplace_back(newNode(loc, "tuple_guard", newNodeVec() = bounds_.erase(bounds)));
+    return heads_.insert(newNode(loc, "aggregate_head", nodeVec));
+}
+
+HdLitUid ASTBuilder::headaggr(Location const &loc, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid headaggrelemvec) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, NAF::POS));
+    nodeVec.emplace_back(newNode(loc, fun));
+    nodeVec.emplace_back(newNode(loc, "tuple_element", newNodeVec() = condlitvecs_.erase(headaggrelemvec)));
+    nodeVec.emplace_back(newNode(loc, "tuple_guard", newNodeVec() = bounds_.erase(bounds)));
+    return heads_.insert(newNode(loc, "aggregate_lparse", nodeVec));
+}
+
+HdLitUid ASTBuilder::disjunction(Location const &loc, CondLitVecUid condlitvec) {
+    return heads_.insert(newNode(loc, "tuple_literal", newNodeVec() = condlitvecs_.erase(condlitvec)));
+}
+
+// {{{2 bodies
+BdLitVecUid ASTBuilder::body() {
+    return bodies_.emplace();
+}
+
+BdLitVecUid ASTBuilder::bodylit(BdLitVecUid body, LitUid bodylit) {
+    bodies_[body].emplace_back(lits_.erase(bodylit));
+    return body;
+}
+
+BdLitVecUid ASTBuilder::bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, TheoryAtomUid atomUid) {
+    auto atom = theoryAtoms_.erase(atomUid);
+    bodies_[body].emplace_back(newNode(dummyloc_(), "theory_atom", newNodeVec() = {
+        newNode(loc, naf),
+        terms_.erase(std::get<0>(atom)),
+        newNode(dummyloc_(), "tuple_element", newNodeVec() = theoryElems_.erase(std::get<1>(atom))),
+        std::get<2>(atom)
+    }));
+    return body;
+}
+
+BdLitVecUid ASTBuilder::bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, BdAggrElemVecUid bodyaggrelemvec) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, naf));
+    nodeVec.emplace_back(newNode(loc, fun));
+    nodeVec.emplace_back(newNode(loc, "tuple_element", newNodeVec() = bodyaggrelemvecs_.erase(bodyaggrelemvec)));
+    nodeVec.emplace_back(newNode(loc, "tuple_guard", newNodeVec() = bounds_.erase(bounds)));
+    bodies_[body].emplace_back(newNode(loc, "aggregate_body", nodeVec));
+    return body;
+}
+
+BdLitVecUid ASTBuilder::bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid bodyaggrelemvec) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, naf));
+    nodeVec.emplace_back(newNode(loc, fun));
+    nodeVec.emplace_back(newNode(loc, "tuple_element", newNodeVec() = condlitvecs_.erase(bodyaggrelemvec)));
+    nodeVec.emplace_back(newNode(loc, "tuple_guard", newNodeVec() = bounds_.erase(bounds)));
+    bodies_[body].emplace_back(newNode(loc, "aggregate_lparse", nodeVec));
+    return body;
+}
+
+BdLitVecUid ASTBuilder::conjunction(BdLitVecUid body, Location const &loc, LitUid head, LitVecUid litvec) {
+    bodies_[body].emplace_back(condlit_(loc, head, litvec));
+    return body;
+}
+
+BdLitVecUid ASTBuilder::disjoint(BdLitVecUid body, Location const &loc, NAF naf, CSPElemVecUid elem) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, naf));
+    nodeVec.emplace_back(newNode(loc, "tuple_element", newNodeVec() = cspelems_.erase(elem)));
+    bodies_[body].emplace_back(newNode(loc, "disjoint", nodeVec));
+    return body;
+}
+
+// {{{2 csp constraint elements
+CSPElemVecUid ASTBuilder::cspelemvec() {
+    return cspelems_.emplace();
+}
+
+CSPElemVecUid ASTBuilder::cspelemvec(CSPElemVecUid uid, Location const &loc, TermVecUid termvec, CSPAddTermUid addterm, LitVecUid litvec) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(terms_.erase(term(loc, termvec, true)));
+    nodeVec.emplace_back(newNode(loc, "cspterm_sum", newNodeVec() = cspaddterms_.erase(addterm)));
+    nodeVec.emplace_back(littuple_(loc, litvec));
+    cspelems_[uid].emplace_back(newNode(loc, "disjoint_element", nodeVec));
+    return uid;
+}
+
+// {{{2 statements
+void ASTBuilder::rule(Location const &loc, HdLitUid head) {
+    return rule(loc, head, body());
+}
+
+void ASTBuilder::rule(Location const &loc, HdLitUid head, BdLitVecUid body) {
+    auto nodeVec = newNodeVec();
+    nodeVec.emplace_back(heads_.erase(head));
+    nodeVec.emplace_back(littuple_(loc, body));
+    directive_(loc, "directive_rule", nodeVec);
+}
+
+void ASTBuilder::define(Location const &loc, FWString name, TermUid value, bool defaultDef) {
+    auto nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, name));
+    nodeVec.emplace_back(terms_.erase(value));
+    nodeVec.emplace_back(newNode(loc, defaultDef ? "file" : "cli"));
+    directive_(loc, "directive_const", nodeVec);
+}
+
+void ASTBuilder::optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) {
+    auto nodeVec = newNodeVec();
+    nodeVec.emplace_back(terms_.erase(weight));
+    nodeVec.emplace_back(terms_.erase(priority));
+    nodeVec.emplace_back(terms_.erase(term(loc, cond, true)));
+    nodeVec.emplace_back(littuple_(loc, body));
+    directive_(loc, "directive_minimize", nodeVec);
+}
+
+void ASTBuilder::showsig(Location const &loc, FWSignature sig, bool csp) {
+    auto nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, (*sig).name()->c_str()));
+    nodeVec.emplace_back(newNode(loc, (*sig).length()));
+    nodeVec.emplace_back(newNode(loc, csp ? "variable" : "atom"));
+    directive_(loc, "directive_show_signature", nodeVec);
+}
+
+void ASTBuilder::show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) {
+    auto nodeVec = newNodeVec();
+    nodeVec.emplace_back(terms_.erase(t));
+    nodeVec.emplace_back(littuple_(loc, body));
+    nodeVec.emplace_back(newNode(loc, csp ? "variable" : "term"));
+    directive_(loc, "directive_show", nodeVec);
+}
+
+void ASTBuilder::python(Location const &loc, FWString code) {
+    auto nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, code));
+    directive_(loc, "directive_python", nodeVec);
+}
+
+void ASTBuilder::lua(Location const &loc, FWString code) {
+    auto nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, code));
+    directive_(loc, "directive_lua", nodeVec);
+}
+
+void ASTBuilder::block(Location const &loc, FWString name, IdVecUid args) {
+    auto nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, name));
+    nodeVec.emplace_back(newNode(loc, "tuple_id", newNodeVec() = idvecs_.erase(args)));
+    directive_(loc, "directive_program", nodeVec);
+}
+
+void ASTBuilder::external(Location const &loc, LitUid head, BdLitVecUid body) {
+    auto nodeVec = newNodeVec();
+    nodeVec.emplace_back(lits_.erase(head));
+    nodeVec.emplace_back(littuple_(loc, body));
+    directive_(loc, "directive_external", nodeVec);
+}
+
+void ASTBuilder::edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) {
+    auto nodeVec = newNodeVec();
+    nodeVec.emplace_back(terms_.erase(term(loc, "", edges, false)));
+    nodeVec.emplace_back(littuple_(loc, body));
+    directive_(loc, "directive_edge", nodeVec);
+}
+
+void ASTBuilder::heuristic(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) {
+    auto nodeVec = newNodeVec();
+    nodeVec.emplace_back(lits_.erase(predlit(loc, NAF::POS, neg, name, tvvUid)));
+    nodeVec.emplace_back(littuple_(loc, body));
+    nodeVec.emplace_back(terms_.erase(a));
+    nodeVec.emplace_back(terms_.erase(b));
+    nodeVec.emplace_back(terms_.erase(mod));
+    directive_(loc, "directive_heuristic", nodeVec);
+}
+
+void ASTBuilder::project(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid body) {
+    auto nodeVec = newNodeVec();
+    nodeVec.emplace_back(lits_.erase(predlit(loc, NAF::POS, neg, name, tvvUid)));
+    nodeVec.emplace_back(littuple_(loc, body));
+    directive_(loc, "directive_project", nodeVec);
+}
+
+void ASTBuilder::project(Location const &loc, FWSignature sig) {
+    auto nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, (*sig).name()->c_str()));
+    nodeVec.emplace_back(newNode(loc, (*sig).length()));
+    directive_(loc, "directive_project_signature", nodeVec);
+}
+
+// {{{2 theory atoms
+
+TheoryTermUid ASTBuilder::theorytermset(Location const &loc, TheoryOptermVecUid args) {
+    return theoryTerms_.insert(newNode(loc, "theory_term_set", newNodeVec() = theoryOptermVecs_.erase(args)));
+}
+
+TheoryTermUid ASTBuilder::theoryoptermlist(Location const &loc, TheoryOptermVecUid args) {
+    return theoryTerms_.insert(newNode(loc, "theory_term_list", newNodeVec() = theoryOptermVecs_.erase(args)));
+}
+
+TheoryTermUid ASTBuilder::theorytermtuple(Location const &loc, TheoryOptermVecUid args) {
+    return theoryTerms_.insert(newNode(loc, "theory_term_tuple", newNodeVec() = theoryOptermVecs_.erase(args)));
+}
+
+TheoryTermUid ASTBuilder::theorytermopterm(Location const &loc, TheoryOptermUid opterm) {
+    return theoryTerms_.insert(newNode(loc, "theory_term_operator", newNodeVec() = theoryOpterms_.erase(opterm)));
+}
+
+TheoryTermUid ASTBuilder::theorytermfun(Location const &loc, FWString name, TheoryOptermVecUid args) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, name));
+    nodeVec.emplace_back(newNode(loc, "tuple_theory_term", newNodeVec() = theoryOptermVecs_.erase(args)));
+    return theoryTerms_.insert(newNode(loc, "theory_term_function", nodeVec));
+}
+
+TheoryTermUid ASTBuilder::theorytermvalue(Location const &loc, Value val) {
+    return theoryTerms_.insert(newNode(loc, "theory_term_constant", newNodeVec() = {newNode(loc, val)}));
+}
+
+TheoryTermUid ASTBuilder::theorytermvar(Location const &loc, FWString var) {
+    return theoryTerms_.insert(newNode(loc, "theory_term_variable", newNodeVec() = {newNode(loc, var)}));
+}
+
+TheoryOptermUid ASTBuilder::theoryopterm(TheoryOpVecUid ops, TheoryTermUid term) {
+    return theoryOpterms_.insert({newNode(dummyloc_(), "element_theory_term_operator", newNodeVec() = {
+        newNode(dummyloc_(), "tuple_theory_operator", newNodeVec() = theoryOpVecs_.erase(ops)),
+        theoryTerms_.erase(term)
+    })});
+}
+
+TheoryOptermUid ASTBuilder::theoryopterm(TheoryOptermUid opterm, TheoryOpVecUid ops, TheoryTermUid term) {
+    theoryOpterms_[opterm].push_back({newNode(dummyloc_(), "element_theory_term_operator", newNodeVec() = {
+        newNode(dummyloc_(), "tuple_theory_operator", newNodeVec() = theoryOpVecs_.erase(ops)),
+        theoryTerms_.erase(term)
+    })});
+    return opterm;
+}
+
+TheoryOpVecUid ASTBuilder::theoryops() {
+    return theoryOpVecs_.emplace();
+}
+
+TheoryOpVecUid ASTBuilder::theoryops(TheoryOpVecUid ops, FWString op) {
+    theoryOpVecs_[ops].emplace_back(newNode(dummyloc_(), op));
+    return ops;
+}
+
+TheoryOptermVecUid ASTBuilder::theoryopterms() {
+    return theoryOptermVecs_.emplace();
+}
+
+TheoryOptermVecUid ASTBuilder::theoryopterms(TheoryOptermVecUid opterms, TheoryOptermUid opterm) {
+    theoryOptermVecs_[opterms].emplace_back(newNode(dummyloc_(), "theory_term_operator", newNodeVec() = theoryOpterms_.erase(opterm)));
+    return opterms;
+}
+
+TheoryOptermVecUid ASTBuilder::theoryopterms(TheoryOptermUid opterm, TheoryOptermVecUid opterms) {
+    theoryOptermVecs_[opterms].emplace(theoryOptermVecs_[opterms].begin(), newNode(dummyloc_(), "theory_term_operator", newNodeVec() = theoryOpterms_.erase(opterm)));
+    return opterms;
+}
+
+TheoryElemVecUid ASTBuilder::theoryelems() {
+    return theoryElems_.emplace();
+}
+
+TheoryElemVecUid ASTBuilder::theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) {
+    theoryElems_[elems].emplace_back(newNode(dummyloc_(), "theory_element", newNodeVec() = {
+        newNode(dummyloc_(), "tuple_theory_term", newNodeVec() = theoryOptermVecs_.erase(opterms)),
+        littuple_(dummyloc_(), cond)
+    }));
+    return elems;
+}
+
+TheoryAtomUid ASTBuilder::theoryatom(TermUid term, TheoryElemVecUid elems) {
+    return theoryAtoms_.emplace(term, elems, newNode(dummyloc_(), "null"));
+}
+
+TheoryAtomUid ASTBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, FWString op, TheoryOptermUid opterm) {
+    return theoryAtoms_.emplace(term, elems, newNode(dummyloc_(), "theory_guard", newNodeVec() = {
+        newNode(dummyloc_(), op),
+        newNode(dummyloc_(), "theory_term_operator", newNodeVec() = theoryOpterms_.erase(opterm))
+    }));
+}
+
+// {{{2 theory definitions
+
+TheoryOpDefUid ASTBuilder::theoryopdef(Location const &loc, FWString op, unsigned priority, TheoryOperatorType type) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, op));
+    nodeVec.emplace_back(newNode(loc, priority));
+    switch (type) {
+        case TheoryOperatorType::Unary:       { nodeVec.emplace_back(newNode(loc, "unary")); break; }
+        case TheoryOperatorType::BinaryLeft:  { nodeVec.emplace_back(newNode(loc, "binary_left")); break; }
+        case TheoryOperatorType::BinaryRight: { nodeVec.emplace_back(newNode(loc, "binary_right")); break; }
+    }
+    return theoryOpDefs_.emplace(newNode(loc, "theory_definition_operator", nodeVec));
+}
+
+TheoryOpDefVecUid ASTBuilder::theoryopdefs() {
+    return theoryOpDefVecs_.emplace();
+}
+
+TheoryOpDefVecUid ASTBuilder::theoryopdefs(TheoryOpDefVecUid defs, TheoryOpDefUid def) {
+    theoryOpDefVecs_[defs].emplace_back(theoryOpDefs_.erase(def));
+    return defs;
+}
+
+TheoryTermDefUid ASTBuilder::theorytermdef(Location const &loc, FWString name, TheoryOpDefVecUid defs) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, name));
+    nodeVec.emplace_back(newNode(loc, "tuple_theory_definition_operator", newNodeVec() = theoryOpDefVecs_.erase(defs)));
+    return theoryTermDefs_.insert(newNode(loc, "theory_definition_term", nodeVec));
+}
+
+TheoryAtomDefUid ASTBuilder::theoryatomdef(Location const &loc, FWString name, unsigned arity, FWString termDef, TheoryAtomType type) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, name));
+    nodeVec.emplace_back(newNode(loc, arity));
+    nodeVec.emplace_back(newNode(loc, termDef));
+    nodeVec.emplace_back(newNode(loc, type));
+    nodeVec.emplace_back(newNode(loc, "null"));
+    return theoryAtomDefs_.insert(newNode(loc, "theory_definition_atom", nodeVec));
+}
+
+TheoryAtomDefUid ASTBuilder::theoryatomdef(Location const &loc, FWString name, unsigned arity, FWString termDef, TheoryAtomType type, TheoryOpVecUid ops, FWString guardDef) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, name));
+    nodeVec.emplace_back(newNode(loc, arity));
+    nodeVec.emplace_back(newNode(loc, termDef));
+    nodeVec.emplace_back(newNode(loc, type));
+    nodeVec.emplace_back(newNode(loc, "guard", newNodeVec() = {
+        newNode(loc, "tuple_theory_operator", newNodeVec() = theoryOpVecs_.erase(ops)),
+        newNode(loc, guardDef)
+    }));
+    return theoryAtomDefs_.insert(newNode(loc, "theory_definition_atom", nodeVec));
+}
+
+TheoryDefVecUid ASTBuilder::theorydefs() {
+    return theoryDefVecs_.emplace();
+}
+
+TheoryDefVecUid ASTBuilder::theorydefs(TheoryDefVecUid defs, TheoryTermDefUid def) {
+    theoryDefVecs_[defs].emplace_back(theoryTermDefs_.erase(def));
+    return defs;
+}
+
+TheoryDefVecUid ASTBuilder::theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid def) {
+    theoryDefVecs_[defs].emplace_back(theoryAtomDefs_.erase(def));
+    return defs;
+}
+
+void ASTBuilder::theorydef(Location const &loc, FWString name, TheoryDefVecUid defs) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(newNode(loc, name));
+    nodeVec.emplace_back(newNode(loc, "tuple_theory_definition", newNodeVec() = theoryDefVecs_.erase(defs)));
+    directive_(loc, "directive_theory", nodeVec);
+}
+
+// }}}2
+
+void ASTBuilder::initNode(AST &node, ASTLocation loc, Value val) {
+    node.location = loc;
+    node.value = val;
+    node.children.size = 0;
+    node.children.first = nullptr;
+}
+void ASTBuilder::initNode(AST &node, ASTLocation loc, Value val, NodeVec &children) {
+    initNode(node, loc, val);
+    node.children.size = children.size();
+    node.children.first = children.data();
+}
+void ASTBuilder::initNode(AST &node, Location const &loc, Value val) {
+    initNode(node, convertLoc(loc), val);
+}
+void ASTBuilder::initNode(AST &node, Location const &loc, Value val, NodeVec &children) {
+    initNode(node, convertLoc(loc), val, children);
+}
+AST ASTBuilder::newNode(ASTLocation loc, Value val) {
+    AST node;
+    initNode(node, loc, val);
+    return node;
+}
+AST ASTBuilder::newNode(Location const &loc, Value val) {
+    return newNode(convertLoc(loc), val);
+}
+AST ASTBuilder::newNode(ASTLocation loc, Value val, NodeVec &children) {
+    AST node;
+    initNode(node, loc, val, children);
+    return node;
+}
+AST ASTBuilder::newNode(Location const &loc, Value val, NodeVec &children) {
+    return newNode(convertLoc(loc), val, children);
+}
+AST ASTBuilder::newNode(Location const &loc,  NAF naf) {
+    switch (naf) {
+        case NAF::POS:    { return newNode(loc, "naf_pos"); }
+        case NAF::NOT:    { return newNode(loc, "naf_not"); }
+        case NAF::NOTNOT: { return newNode(loc, "naf_not_not"); }
+    }
+    throw std::logic_error("must not happen");
+}
+AST ASTBuilder::newNode(Location const &loc,  AggregateFunction fun) {
+    switch (fun) {
+        case AggregateFunction::MIN:   { return newNode(loc, "function_min"); }
+        case AggregateFunction::MAX:   { return newNode(loc, "function_max"); }
+        case AggregateFunction::SUM:   { return newNode(loc, "function_sum"); }
+        case AggregateFunction::SUMP:  { return newNode(loc, "function_sum_plus"); }
+        case AggregateFunction::COUNT: { return newNode(loc, "function_count"); }
+    }
+    throw std::logic_error("must not happen");
+}
+AST ASTBuilder::newNode(Location const &loc,  Relation rel) {
+    switch (rel) {
+        case Relation::GT:  { return newNode(loc, ">"); }
+        case Relation::GEQ: { return newNode(loc, ">="); }
+        case Relation::LT:  { return newNode(loc, "<"); }
+        case Relation::LEQ: { return newNode(loc, "<="); }
+        case Relation::EQ:  { return newNode(loc, "=="); }
+        case Relation::NEQ: { return newNode(loc, "!="); }
+    }
+    throw std::logic_error("must not happen");
+}
+AST ASTBuilder::newNode(Location const &loc, TheoryAtomType type) {
+    switch (type) {
+        case TheoryAtomType::Any:       { return newNode(loc, "any"); }
+        case TheoryAtomType::Body:      { return newNode(loc, "body"); }
+        case TheoryAtomType::Head:      { return newNode(loc, "head"); }
+        case TheoryAtomType::Directive: { return newNode(loc, "directive"); }
+    }
+    throw std::logic_error("must not happen");
+}
+AST ASTBuilder::newNode(Location const &loc, char const *value) {
+    return newNode(loc, Value::createId(value));
+}
+AST ASTBuilder::newNode(Location const &loc, FWString value) {
+    return newNode(loc, Value::createId(value));
+}
+AST ASTBuilder::newNode(Location const &loc, unsigned length) {
+    return newNode(loc, Value::createId(std::to_string(length)));
+}
+AST ASTBuilder::newNode(Location const &loc, char const *value, NodeVec &children) {
+    return newNode(loc, Value::createId(value), children);
+}
+AST ASTBuilder::typedNode(char const *type, AST node) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(std::move(node));
+    return newNode(nodeVec.back().location, Value::createId(type), nodeVec);
+}
+ASTBuilder::NodeVec &ASTBuilder::newNodeVec() {
+    nodeVecs_.emplace_front();
+    return nodeVecs_.front();
+}
+Location ASTBuilder::dummyloc_() {
+    return {"<unavailable>", 0, 0 ,"<unavailable>", 0, 0};
+}
+AST ASTBuilder::littuple_(Location const &loc, LitVecUid a) {
+    return newNode(loc, "tuple_literal", newNodeVec() = litvecs_.erase(a));
+}
+AST ASTBuilder::littuple_(Location const &loc, BdLitVecUid a) {
+    return newNode(loc, "tuple_literal", newNodeVec() = bodies_.erase(a));
+}
+AST ASTBuilder::condlit_(Location const &loc, LitUid litUid, LitVecUid litvecUid) {
+    auto &nodeVec = newNodeVec();
+    nodeVec.push_back(lits_.erase(litUid));
+    nodeVec.push_back(littuple_(loc, litvecUid));
+    return newNode(loc, "literal_conditional", nodeVec);
+}
+TermUid ASTBuilder::fun_(Location const &loc, FWString name, TermVecUid a, bool lua) {
+    auto &argVec = newNodeVec();
+    for (auto &arg : termvecs_.erase(a)) {
+        argVec.emplace_back(terms_.erase(arg));
+    }
+    if (name->empty()) {
+        assert(!lua);
+        return terms_.insert(newNode(loc, "tuple_term", argVec));
+    }
+    else {
+        auto &nodeVec = newNodeVec();
+        nodeVec.emplace_back(newNode(loc, name));
+        nodeVec.emplace_back(newNode(loc, "tuple_term", argVec));
+        return terms_.insert(newNode(loc, lua ? "term_external" : "term_function", nodeVec));
+    }
+}
+TermUid ASTBuilder::pool_(Location const &loc, TermUidVec const &vec) {
+    if (vec.size() == 1) { return vec.front(); }
+    else {
+        auto &nodeVec = newNodeVec();
+        for (auto &term : vec) {
+            nodeVec.emplace_back(terms_.erase(term));
+        }
+        return terms_.insert(newNode(loc, "term_pool", nodeVec));
+    }
+}
+void ASTBuilder::directive_(Location const &loc, char const *name, NodeVec &nodeVec) {
+    auto node = newNode(loc, name, nodeVec);
+    cb_(node);
+    nodeVecs_.clear();
+}
+
+// {{{1 definition of ASTParser
+
+ASTParser::ASTParser(Scripts &scripts, Program &prg, Output::OutputBase &out, Defines &defs, bool rewriteMinimize)
+: prg_(scripts, prg, out, defs, rewriteMinimize) { }
+
+void ASTParser::parse(AST const &node) {
+    if (node.value == directive_rule)                   { parseRule(node); }
+    else if (node.value == directive_const)             { throw std::runtime_error("implement me: parseConst!!!"); }
+    else if (node.value == directive_minimize)          { throw std::runtime_error("implement me: parseMinimize!!!"); }
+    else if (node.value == directive_show_signature)    { throw std::runtime_error("implement me: parseShowSignature!!!"); }
+    else if (node.value == directive_show)              { throw std::runtime_error("implement me: parseShow!!!"); }
+    else if (node.value == directive_python)            { throw std::runtime_error("implement me: parsePython!!!"); }
+    else if (node.value == directive_lua)               { throw std::runtime_error("implement me: parseLua!!!"); }
+    else if (node.value == directive_program)           { parseProgram(node); }
+    else if (node.value == directive_external)          { throw std::runtime_error("implement me: parseExternal!!!"); }
+    else if (node.value == directive_edge)              { throw std::runtime_error("implement me: parseeEdge!!!"); }
+    else if (node.value == directive_heuristic)         { throw std::runtime_error("implement me: parseHeuristic!!!"); }
+    else if (node.value == directive_project)           { throw std::runtime_error("implement me: parseProject!!!"); }
+    else if (node.value == directive_project_signature) { throw std::runtime_error("implement me: parseProjectSignature!!!"); }
+    else if (node.value == directive_theory)            { throw std::runtime_error("implement me: parseTheory!!!"); }
+    else                                                { require_(false, "directive expected"); }
+}
+
+void ASTParser::parseProgram(AST const &node) {
+    require_(
+        node.children.size == 2 &&
+        node.children.first[0].value.type() == Value::ID &&
+        node.children.first[1].value == tuple_id,
+        "ill-formode #program directive");
+    IdVecUid uid = prg_.idvec();
+    for (auto &id : node.children.first[1].children) {
+        require_(id.value == this->id, "id expected");
+        require_(id.children.size == 1 && id.children.first->value.type() == Value::ID, "ill-formed id");
+        uid = prg_.idvec(uid, convertLoc(id.location), id.children.first->value.name());
+    }
+    prg_.block(convertLoc(node.location), node.children.first->value.name(), uid);
+}
+
+NAF ASTParser::parseNAF(AST const &node) {
+    require_(node.children.size == 0, "ill-formed default negation sign");
+    if (node.value == naf_pos)          { return NAF::POS; }
+    else if (node.value == naf_not)     { return NAF::NOT; }
+    else if (node.value == naf_not_not) { return NAF::NOTNOT; }
+    else                                { return fail_<NAF>("default negation sign expected"); }
+}
+
+bool ASTParser::parseNEG(AST const &node) {
+    require_(node.children.size == 0, "ill-formed classical negation sign");
+    if (node.value == neg_pos)          { return false; }
+    else if (node.value == neg_not)     { return true; }
+    else                                { return fail_<bool>("classical negation sign expected"); }
+}
+
+FWString ASTParser::parseID(AST const &node) {
+    require_(node.children.size == 0 && node.value.type() == Value::ID, "ill-formed identifier");
+    return node.value.name();
+}
+
+Value ASTParser::parseValue(AST const &node) {
+    require_(node.children.size == 0, "ill-formed value");
+    return node.value;
+}
+
+UnOp ASTParser::parseUnOp(AST const &node) {
+    require_(node.children.size == 0, "ill-formed unary operator");
+    if (node.value == unop_not)      { return UnOp::NOT; }
+    else if (node.value == unop_neg) { return UnOp::NEG; }
+    else if (node.value == unop_abs) { return UnOp::ABS; }
+    else                             { return fail_<UnOp>("unary operator expected"); }
+}
+
+BinOp ASTParser::parseBinOp(AST const &node) {
+    require_(node.children.size == 0, "ill-formed binary operator");
+    if (node.value == binop_add)      { return BinOp::ADD; }
+    else if (node.value == binop_or)  { return BinOp::OR; }
+    else if (node.value == binop_sub) { return BinOp::SUB; }
+    else if (node.value == binop_mod) { return BinOp::MOD; }
+    else if (node.value == binop_mul) { return BinOp::MUL; }
+    else if (node.value == binop_xor) { return BinOp::XOR; }
+    else if (node.value == binop_pow) { return BinOp::POW; }
+    else if (node.value == binop_div) { return BinOp::DIV; }
+    else if (node.value == binop_and) { return BinOp::AND; }
+    else                              { return fail_<BinOp>("binary operator expected"); }
+}
+
+TermUid ASTParser::parseTerm(AST const &node) {
+    if (node.value == term_value) {
+        require_(node.children.size == 1, "ill-formed value term");
+        return prg_.term(convertLoc(node.location), parseValue(node.children.first[0]));
+    }
+    else if (node.value == term_variable) {
+        require_(node.children.size == 1, "ill-formed variable term");
+        return prg_.term(convertLoc(node.location), parseID(node.children.first[0]));
+    }
+    else if (node.value == term_unary) {
+        require_(node.children.size == 2, "ill-formed unary term");
+        return prg_.term(
+                convertLoc(node.location),
+                parseUnOp(node.children.first[0]),
+                parseTerm(node.children.first[1]));
+    }
+    else if (node.value == term_binary) {
+        require_(node.children.size == 3, "ill-formed unary term");
+        return prg_.term(
+            convertLoc(node.location),
+            parseBinOp(node.children.first[1]),
+            parseTerm(node.children.first[0]),
+            parseTerm(node.children.first[2]));
+    }
+    else if (node.value == term_range) {
+        throw std::logic_error("implement me: parse range term!!!");
+    }
+    else if (node.value == term_external) {
+        throw std::logic_error("implement me: parse external term!!!");
+    }
+    else if (node.value == term_function) {
+        throw std::logic_error("implement me: parse function term!!!");
+    }
+    else if (node.value == tuple_term) {
+        throw std::logic_error("implement me: parse tuple term!!!");
+    }
+    else if (node.value == term_pool) {
+        require_(node.children.size > 0, "ill-formed pool");
+        TermVecVecUid args = prg_.termvecvec();
+        //return prg_.term(loc, "", args, false);
+
+        throw std::logic_error("implement me: parse pool term!!!");
+    }
+    else {
+        return fail_<TermUid>("term expected");
+    }
+}
+
+TermVecUid ASTParser::parseTermVec(AST const &node) {
+    if (node.value == tuple_term) {
+        TermVecUid ret = prg_.termvec();
+        for (auto &term : node.children) {
+            ret = prg_.termvec(ret, parseTerm(term));
+        }
+        return ret;
+    }
+    else { return fail_<TermVecUid>("term tuple expected"); }
+}
+
+TermVecVecUid ASTParser::parseArgs(AST const &node) {
+    TermVecVecUid ret = prg_.termvecvec();
+    if (node.value == term_pool) {
+        for (auto &termVec : node.children) {
+            ret = prg_.termvecvec(ret, parseTermVec(termVec));
+        }
+    }
+    else { ret = prg_.termvecvec(ret, parseTermVec(node)); }
+    return ret;
+}
+
+LitUid ASTParser::parseLit(AST const &node) {
+    if (node.value == literal_csp) {
+        throw std::runtime_error("implement me: parse csp!!!");
+    }
+    else if (node.value == literal_boolean) {
+        throw std::runtime_error("implement me: parse boolean!!!");
+    }
+    else if (node.value == literal_predicate) {
+        require_(node.children.size == 4);
+        NAF naf = parseNAF(node.children.first[0]);
+        bool neg = parseNEG(node.children.first[1]);
+        FWString name = parseID(node.children.first[2]);
+        TermVecVecUid args = parseArgs(node.children.first[3]);
+        return prg_.predlit(convertLoc(node.location), naf, neg, name, args);
+    }
+    else if (node.value == literal_relation) {
+        throw std::runtime_error("implement me: parse relation!!!");
+    }
+    else { return fail_<LitUid>("literal expected"); }
+}
+
+LitVecUid ASTParser::parseLitVec(AST const &node) {
+    require_(node.value == tuple_literal, "literal tuple expected");
+    auto ret = prg_.litvec();
+    for (auto &lit : node.children) {
+        ret = prg_.litvec(ret, parseLit(lit));
+    }
+    return ret;
+}
+
+CondLitVecUid ASTParser::parseConditional(CondLitVecUid uid, AST const &node) {
+    if (node.value == literal_conditional) {
+        require_(node.children.size == 2, "ill-formed conditional literal");
+        return prg_.condlitvec(uid, parseLit(node.children.first[0]), parseLitVec(node.children.first[1]));
+    }
+    else {
+        return prg_.condlitvec(uid, parseLit(node), prg_.litvec());
+    }
+}
+
+HdLitUid ASTParser::parseHead(AST const &node) {
+    if (node.value == tuple_literal) {
+        if (node.children.size == 1 && node.children.first->value != literal_conditional) {
+            return prg_.headlit(parseLit(node.children.first[0]));
+        }
+        auto head = prg_.condlitvec();
+        for (auto const &lit : node.children) {
+            head = parseConditional(head, lit);
+        }
+        return prg_.disjunction(convertLoc(node.location), head);
+    }
+    else if (node.value == theory_atom) {
+        throw std::runtime_error("implement me: parse head theory atom!!!");
+    }
+    else if (node.value == aggregate_head) {
+        throw std::runtime_error("implement me: parse head aggregate!!!");
+    }
+    else if (node.value == aggregate_lparse) {
+        throw std::runtime_error("implement me: parse head lparse atom!!!");
+    }
+    else {
+        return fail_<HdLitUid>("rule head expected");
+    }
+}
+
+BdLitVecUid ASTParser::parseBodyLit(BdLitVecUid uid, AST const &node) {
+    if (node.value == theory_atom) {
+        throw std::runtime_error("implement me: parse body theory atom!!!");
+    }
+    else if (node.value == aggregate_body) {
+        throw std::runtime_error("implement me: parse body aggregate!!!");
+    }
+    else if (node.value == aggregate_lparse) {
+        throw std::runtime_error("implement me: parse body aggregate lparse!!!");
+    }
+    else if (node.value == literal_conditional) {
+        throw std::runtime_error("implement me: parse body conditional literal!!!");
+    }
+    else if (node.value == disjoint) {
+        throw std::runtime_error("implement me: parse body disjoint!!!");
+    }
+    else {
+        return prg_.bodylit(uid, parseLit(node));
+    }
+}
+
+BdLitVecUid ASTParser::parseBody(AST const &node) {
+    require_(node.value == tuple_literal);
+    auto ret = prg_.body();
+    for (auto &lit : node.children) {
+        ret = parseBodyLit(ret, lit);
+    }
+    return ret;
+}
+
+void ASTParser::parseRule(AST const &node) {
+    require_(node.children.size == 2, "ill formed rule");
+    prg_.rule(convertLoc(node.location), parseHead(node.children.first[0]), parseBody(node.children.first[1]));
+}
+
+bool ASTParser::require_(bool cond, char const *message) {
+    if (!cond) { fail_<void>(message); }
+    return false;
+}
+
+template <class T>
+T ASTParser::fail_(char const *message) {
+    throw std::runtime_error(message);
+}
+
+// }}}1
 
 } } // namespace Input Gringo
 

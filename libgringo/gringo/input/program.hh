@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -21,10 +21,10 @@
 #ifndef _GRINGO_INPUT_PROGRAM_HH
 #define _GRINGO_INPUT_PROGRAM_HH
 
+#include <gringo/terms.hh>
 #include <gringo/input/literal.hh>
 #include <gringo/input/statement.hh>
 #include <gringo/ground/program.hh>
-#include <gringo/unique_list.hh>
 
 namespace Gringo { namespace Input {
 
@@ -34,10 +34,13 @@ using IdVec = Ground::IdVec;
 
 struct Block {
     Block(Location const &loc, FWString name, IdVec &&params);
+    Block(Block&&);
+    Block &operator=(Block &&);
+    ~Block();
 
     Term const &sig() const;
     operator Term const &() const;
-    
+
     Location        loc;
     FWString        name;
     IdVec           params;
@@ -46,21 +49,22 @@ struct Block {
     UStmVec         addedStms;
     UStmVec         stms;
 };
-using BlockMap = unique_list<Block, identity<Term>>;
+using BlockMap = UniqueVec<Block, HashKey<Term>, EqualToKey<Term>>;
 
 class Program {
 public:
-    using ClassicalNegationList = unique_list<FWSignature>;
+    using ClassicalNegationList = UniqueVec<FWSignature>;
 
     Program();
     Program(Program &&x);
     void begin(Location const &loc, FWString name, IdVec &&params);
     void add(UStm &&stm);
+    void add(TheoryDef &&def);
     void addClassicalNegation(FWSignature x);
     void rewrite(Defines &defs);
-    bool check();
+    void check();
     void print(std::ostream &out) const;
-    Ground::Program toGround(PredDomMap &domains);
+    Ground::Program toGround(DomainData &domains);
     ~Program();
 
 private:
@@ -76,6 +80,7 @@ private:
     Projections           project_;
     UStmVec               stms_;
     ClassicalNegationList neg_;
+    TheoryDefs            theoryDefs_;
 };
 
 std::ostream &operator<<(std::ostream &out, Program const &p);

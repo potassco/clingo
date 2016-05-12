@@ -1,21 +1,21 @@
 #script (python)
 
-import gringo
+import clingo
 
 def main(prg):
     def on_model(m):
         print "shown"
-        print "  positive:", ", ".join(map(str, m.atoms(gringo.Model.SHOWN)))
-        print "  negative:", ", ".join(map(str, m.atoms(gringo.Model.SHOWN | gringo.Model.COMP)))
+        print "  positive:", ", ".join(map(str, m.atoms(shown=True)))
+        print "  negative:", ", ".join(map(str, m.atoms(shown=True, comp=True)))
         print "csp"
-        print "  positive:", ", ".join(map(str, m.atoms(gringo.Model.CSP)))
-        print "  negative:", ", ".join(map(str, m.atoms(gringo.Model.CSP | gringo.Model.COMP)))
+        print "  positive:", ", ".join(map(str, m.atoms(csp=True)))
+        print "  negative:", ", ".join(map(str, m.atoms(csp=True, comp=True)))
         print "atoms"
-        print "  positive:", ", ".join(map(str, m.atoms(gringo.Model.ATOMS)))
-        print "  negative:", ", ".join(map(str, m.atoms(gringo.Model.ATOMS | gringo.Model.COMP)))
+        print "  positive:", ", ".join(map(str, m.atoms(atoms=True)))
+        print "  negative:", ", ".join(map(str, m.atoms(atoms=True, comp=True)))
         print "terms"
-        print "  positive:", ", ".join(map(str, m.atoms(gringo.Model.TERMS)))
-        print "  negative:", ", ".join(map(str, m.atoms(gringo.Model.TERMS | gringo.Model.COMP)))
+        print "  positive:", ", ".join(map(str, m.atoms(terms=True)))
+        print "  negative:", ", ".join(map(str, m.atoms(terms=True, comp=True)))
 
     prg.ground([("base", [])])
     prg.solve(on_model = on_model)

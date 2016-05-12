@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -33,7 +33,7 @@ class TestDependency : public CppUnit::TestFixture {
     CPPUNIT_TEST_SUITE(TestDependency);
         CPPUNIT_TEST(test_match);
         CPPUNIT_TEST(test_unify);
-		CPPUNIT_TEST(test_dep1);
+        CPPUNIT_TEST(test_dep1);
         CPPUNIT_TEST(test_dep2);
         CPPUNIT_TEST(test_dep3);
         CPPUNIT_TEST(test_dep4);
@@ -42,7 +42,7 @@ class TestDependency : public CppUnit::TestFixture {
 public:
     virtual void setUp();
     virtual void tearDown();
-    
+
     void test_match();
     void test_unify();
     void test_dep1();
@@ -199,7 +199,7 @@ void TestDependency::test_dep1() {
     dep.provides(u, val(ID("c")));
     dep.depends(u, 2, val(ID("a")));
     dep.depends(u, 2, val(ID("b")));
-	CPPUNIT_ASSERT_EQUAL(S("([([x.],1),([a:-b@1,x@1,y@1.,b:-a@1.],1),([c:-a@2,b@2.],1)],[b@2:!,a@2:!,a@1:?,y@1:!,x@1:!,b@1:?])"), dep.analyze());
+    CPPUNIT_ASSERT_EQUAL(S("([([x.],1),([a:-b@1,x@1,y@1.,b:-a@1.],1),([c:-a@2,b@2.],1)],[b@2:!,a@2:!,a@1:?,y@1:!,x@1:!,b@1:?])"), dep.analyze());
 }
 
 void TestDependency::test_dep2() {

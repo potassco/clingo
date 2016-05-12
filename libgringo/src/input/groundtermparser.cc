@@ -20,6 +20,7 @@
 
 #include "gringo/input/groundtermparser.hh"
 #include "input/groundtermgrammar/grammar.hh"
+#include "gringo/logger.hh"
 
 namespace Gringo { namespace Input {
 
@@ -82,15 +83,18 @@ FWValVec GroundTermParser::terms(unsigned uid) {
 }
 
 void GroundTermParser::parseError(std::string const &message) {
-    std::ostringstream out;
-    out << "parse error in line " << line() << " column " << column() << ": " << message;
-    throw std::runtime_error(out.str());
+    Location loc("<string>", line(), column(), "<string>", line(), column());
+    GRINGO_REPORT(W_OPERATION_UNDEFINED)
+        << loc << ": " << "error: " << message << "\n";
+    throw std::runtime_error("term parsing failed");
 }
 
 void GroundTermParser::lexerError(std::string const &token) {
-    std::ostringstream out;
-    out << "lexer error in line " << line() << " column " << column() << ": unexpected token " << token;
-    throw std::runtime_error(out.str());
+    Location loc("<string>", line(), column(), "<string>", line(), column());
+    GRINGO_REPORT(W_OPERATION_UNDEFINED)
+        << loc << ": " << "error: unexpected token:\n"
+        << token << "\n";
+    throw std::runtime_error("term parsing failed");
 }
 
 int GroundTermParser::lex(void *pValue) {

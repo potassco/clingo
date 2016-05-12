@@ -462,14 +462,14 @@ int eval(BinOp op, int x, int y) {
 
 int Term::toNum(bool &undefined) {
     Value y(eval(undefined));
-	if (y.type() == Value::NUM) { return y.num(); }
-	else {
+    if (y.type() == Value::NUM) { return y.num(); }
+    else {
         undefined = true;
-		GRINGO_REPORT(W_OPERATION_UNDEFINED)
-			<< loc() << ": info: number expected:\n"
-			<< "  " << *this << "\n";
-		return 0;
-	}
+        GRINGO_REPORT(W_OPERATION_UNDEFINED)
+            << loc() << ": info: number expected:\n"
+            << "  " << *this << "\n";
+        return 0;
+    }
 }
 
 std::ostream &operator<<(std::ostream &out, BinOp op) {
@@ -1033,24 +1033,24 @@ Term::ProjectRet LinearTerm::project(bool rename, AuxGen &auxGen) {
 }
 
 Value LinearTerm::eval(bool &undefined) const {
-	Value value = var->eval(undefined);
-	if (value.type() == Value::NUM) { return Value::createNum(m * value.num() + n); }
-	else {
+    Value value = var->eval(undefined);
+    if (value.type() == Value::NUM) { return Value::createNum(m * value.num() + n); }
+    else {
         undefined = true;
-		GRINGO_REPORT(W_OPERATION_UNDEFINED)
-			<< loc() << ": info: operation undefined:\n"
-			<< "  " << *this << "\n";
-		return Value::createNum(0);
-	}
+        GRINGO_REPORT(W_OPERATION_UNDEFINED)
+            << loc() << ": info: operation undefined:\n"
+            << "  " << *this << "\n";
+        return Value::createNum(0);
+    }
 }
 
 bool LinearTerm::match(Value const &x) const {
-	if (x.type() == Value::NUM) {
-		assert(m != 0);
-		int c(x.num() - n);
-		if (c % m == 0) { return var->match(Value::createNum(c/m)); }
-	}
-	return false;
+    if (x.type() == Value::NUM) {
+        assert(m != 0);
+        int c(x.num() - n);
+        if (c % m == 0) { return var->match(Value::createNum(c/m)); }
+    }
+    return false;
 }
 
 void LinearTerm::unpool(UTermVec &x) const {
@@ -1185,39 +1185,39 @@ void UnOpTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) cons
     arg->collect(vars, minLevel, maxLevel);
 }
 Value UnOpTerm::eval(bool &undefined) const {
-	Value value = arg->eval(undefined);
-	if (value.type() == Value::NUM) {
-		int num = value.num();
-		switch (op) {
+    Value value = arg->eval(undefined);
+    if (value.type() == Value::NUM) {
+        int num = value.num();
+        switch (op) {
             case UnOp::NEG: { return Value::createNum(-num); }
-			case UnOp::ABS: { return Value::createNum(std::abs(num)); }
-			case UnOp::NOT: { return Value::createNum(~num); }
-		}
-		assert(false);
-		return Value::createNum(0);
-	}
+            case UnOp::ABS: { return Value::createNum(std::abs(num)); }
+            case UnOp::NOT: { return Value::createNum(~num); }
+        }
+        assert(false);
+        return Value::createNum(0);
+    }
     else if (op == UnOp::NEG && (value.type() == Value::ID || value.type() == Value::FUNC)) {
         return value.flipSign();
     }
-	else {
+    else {
         undefined = true;
-		GRINGO_REPORT(W_OPERATION_UNDEFINED)
-			<< loc() << ": info: operation undefined:\n"
-			<< "  " << *this << "\n";
-		return Value::createNum(0);
-	}
+        GRINGO_REPORT(W_OPERATION_UNDEFINED)
+            << loc() << ": info: operation undefined:\n"
+            << "  " << *this << "\n";
+        return Value::createNum(0);
+    }
 }
 bool UnOpTerm::match(Value const &x) const  {
     if (op != UnOp::NEG) {
         throw std::logic_error("Term::rewriteArithmetics must be called before Term::match");
     }
-	if (x.type() == Value::NUM) {
-		return arg->match(Value::createNum(-x.num()));
-	}
+    if (x.type() == Value::NUM) {
+        return arg->match(Value::createNum(-x.num()));
+    }
     else if (x.type() == Value::ID || x.type() == Value::FUNC) {
         return arg->match(x.flipSign());
     }
-	return false;
+    return false;
 }
 void UnOpTerm::unpool(UTermVec &x) const {
     auto f = [&](UTerm &&y) { x.emplace_back(make_locatable<UnOpTerm>(loc(), op, std::move(y))); };
@@ -1388,16 +1388,16 @@ void BinOpTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) con
 }
 
 Value BinOpTerm::eval(bool &undefined) const {
-	Value l(left->eval(undefined));
-	Value r(right->eval(undefined));
-	if (l.type() == Value::NUM && r.type() == Value::NUM && (op != BinOp::DIV || r.num() != 0)) { return Value::createNum(Gringo::eval(op, l.num(), r.num())); }
-	else {
+    Value l(left->eval(undefined));
+    Value r(right->eval(undefined));
+    if (l.type() == Value::NUM && r.type() == Value::NUM && (op != BinOp::DIV || r.num() != 0)) { return Value::createNum(Gringo::eval(op, l.num(), r.num())); }
+    else {
         undefined = true;
-		GRINGO_REPORT(W_OPERATION_UNDEFINED)
-			<< loc() << ": info: operation undefined:\n"
-			<< "  " << *this << "\n";
-		return Value::createNum(0);
-	}
+        GRINGO_REPORT(W_OPERATION_UNDEFINED)
+            << loc() << ": info: operation undefined:\n"
+            << "  " << *this << "\n";
+        return Value::createNum(0);
+    }
 }
 
 bool BinOpTerm::match(Value const &) const { throw std::logic_error("Term::rewriteArithmetics must be called before Term::match"); }
@@ -1774,23 +1774,23 @@ void FunctionTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) 
 }
 
 Value FunctionTerm::eval(bool &undefined) const {
-	cache.clear();
-	for (auto &term : args) { cache.emplace_back(term->eval(undefined)); }
-	return Value::createFun(name, cache);
+    cache.clear();
+    for (auto &term : args) { cache.emplace_back(term->eval(undefined)); }
+    return Value::createFun(name, cache);
 }
 
 bool FunctionTerm::match(Value const &x) const {
-	if (x.type() == Value::FUNC && !(*x.sig()).sign()) {
-		Signature s(*x.sig());
-		if (s.name() == name && s.length() == args.size()) {
-			auto i = 0;
-			for (auto &term : args) {
-				if (!term->match(x.args()[i++])) { return false; }
-			}
-			return true;
-		}
-	}
-	return false;
+    if (x.type() == Value::FUNC && !(*x.sig()).sign()) {
+        Signature s(*x.sig());
+        if (s.name() == name && s.length() == args.size()) {
+            auto i = 0;
+            for (auto &term : args) {
+                if (!term->match(x.args()[i++])) { return false; }
+            }
+            return true;
+        }
+    }
+    return false;
 }
 
 void FunctionTerm::unpool(UTermVec &x) const {

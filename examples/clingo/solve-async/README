@@ -3,5 +3,4 @@ while the search runs in the background. The other task here is a crude
 approximation of Pi.
 
 Example calls:
-  clingo solve-async-lua.lp program.lp
   clingo solve-async-py.lp program.lp

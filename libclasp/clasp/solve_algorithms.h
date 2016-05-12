@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2006-2012, Benjamin Kaufmann
+// Copyright (c) 2006-2015, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -39,6 +39,7 @@ struct SolveLimits {
 		, restarts(r) {
 	}
 	bool   reached() const { return conflicts == 0 || restarts == 0; }
+	bool   enabled() const { return conflicts != UINT64_MAX || restarts != UINT32_MAX; }
 	uint64 conflicts; /*!< Number of conflicts. */
 	uint64 restarts;  /*!< Number of restarts.  */
 };
@@ -52,11 +53,13 @@ public:
 	//! Creates a new object for solving with the given solver using the given solving options.
 	/*!
 	 * \pre s is attached to a problem (SharedContext).
-	 * \param lim   Solving limits to apply (in/out parameter).
+	 * \param lim Solving limits to apply.
 	 */
-	BasicSolve(Solver& s, const SolveParams& p, SolveLimits* lim = 0);
-	BasicSolve(Solver& s, SolveLimits* lim = 0);
+	BasicSolve(Solver& s, const SolveParams& p, const SolveLimits& lim = SolveLimits());
+	BasicSolve(Solver& s, const SolveLimits& lim = SolveLimits());
 	~BasicSolve();
+
+	bool     hasLimit() const { return limits_.enabled(); }
 	
 	//! Enables solving under the given assumptions.
 	/*!
@@ -66,7 +69,7 @@ public:
 	 * \param assumptions A list of unit assumptions to be assumed true.
 	 * \return false if assumptions are conflicting.
 	 */
-	bool     assume(const LitVec& assumptions);
+	bool     assume(const LitVec& assumptions); 
 
 	//! Solves the path stored in the given solver using the given solving options.
 	/*!
@@ -90,7 +93,7 @@ public:
 	//! Resets the internal solving state while keeping the solver and the solving options.
 	void     reset(bool reinit = false);
 	//! Replaces *this with BasicSolve(s, p).
-	void     reset(Solver& s, const SolveParams& p, SolveLimits* lim = 0);
+	void     reset(Solver& s, const SolveParams& p, const SolveLimits& lim = SolveLimits());
 	Solver&  solver() { return *solver_; }
 private:
 	BasicSolve(const BasicSolve&);
@@ -100,7 +103,7 @@ private:
 	struct State;
 	Solver* solver_; // active solver
 	Params* params_; // active solving options
-	Limits* limits_; // active solving limits
+	Limits  limits_; // active solving limits
 	State*  state_;  // internal solving state
 };
 
@@ -125,18 +128,19 @@ class Enumerator;
 class SolveAlgorithm {
 public:
 	/*!
-	 * \param lim    An optional solve limit applied in solve().
+	 * \param lim An optional solve limit applied in solve().
 	 */
-	explicit SolveAlgorithm(Enumerator* enumerator = 0, const SolveLimits& limit = SolveLimits());
+	explicit SolveAlgorithm(const SolveLimits& limit = SolveLimits());
 	virtual ~SolveAlgorithm();
 	
-	const Enumerator*   enumerator() const { return enum_; }
+	const Enumerator*   enumerator() const { return enum_.get(); }
 	const SolveLimits&  limits()     const { return limits_; }
 	virtual bool        interrupted()const = 0;
+	const Model&        model()      const;
 
-	void setEnumerator(Enumerator& e)      { enum_     = &e; }
-	void setEnumLimit(uint64 m)            { enumLimit_= m;  }
-	void setLimits(const SolveLimits& x)   { limits_   = x;  }
+	void setEnumerator(Enumerator& e);
+	void setEnumLimit(uint64 m)          { enumLimit_= m;  }
+	void setLimits(const SolveLimits& x) { limits_   = x;  }
 
 	//! Runs the solve algorithm.
 	/*!
@@ -151,8 +155,34 @@ public:
 	 * \note 
 	 * The use of assumptions allows for incremental solving. Literals contained
 	 * in assumptions are assumed to be true during search but are undone before solve returns.
+	 *
+	 * \note
+	 * Conceptually, solve() behaves as follows:
+	 * \code
+	 * start(ctx, assume);
+	 * while (next()) {
+	 *   if (!report(model()) || enum_limit_reached()) { stop(); }
+	 * }
+	 * return more();
+	 * \endcode
+	 * where report() notifies all registered model handlers.
 	 */
 	bool solve(SharedContext& ctx, const LitVec& assume = LitVec(), ModelHandler* onModel = 0);
+
+	//! Prepares the solve algorithm for enumerating models.
+	/*!
+	 * \pre The algorithm is not yet active.
+	 */
+	void start(SharedContext& ctx, const LitVec& assume = LitVec(), ModelHandler* onModel = 0);
+	//! Searches for the next model and returns whether such a model was found.
+	/*!
+	 * \pre start() was called.
+	 */
+	bool next();
+	//! Stops the algorithms.
+	void stop();
+	//! Returns whether the last search completely exhausted the search-space.
+	bool more();
 	
 	//! Resets solving state and sticky messages like terminate.
 	/*!
@@ -173,38 +203,56 @@ protected:
 	SolveAlgorithm(const SolveAlgorithm&);
 	SolveAlgorithm& operator=(const SolveAlgorithm&);
 	//! The actual solve algorithm.
-	virtual bool  doSolve(SharedContext& ctx, const LitVec& assume) = 0;
+	virtual bool    doSolve(SharedContext& ctx, const LitVec& assume) = 0;
 	//! Shall return true if termination is supported, otherwise false.
-	virtual bool  doInterrupt()                                     = 0;
-	bool          reportModel(Solver& s) const;
-	Enumerator&   enumerator() { return *enum_;  }
-	uint64        maxModels() const { return enumLimit_; }
-	bool          moreModels(const Solver& s) const;
+	virtual bool    doInterrupt()                                     = 0;
+
+	virtual void    doStart(SharedContext& ctx, const LitVec& assume);
+	virtual int     doNext(int last);
+	virtual void    doStop();
+
+	bool            reportModel(Solver& s) const;
+	Enumerator&     enumerator()       { return *enum_;  }
+	SharedContext&  ctx()        const { return *ctx_; }
+	const LitVec&   path()       const { return *path_; }
+	uint64          maxModels() const  { return enumLimit_; }
+	bool            moreModels(const Solver& s) const;
 private:
-	SolveLimits   limits_;
-	Enumerator*   enum_;
-	ModelHandler* onModel_;
-	uint64        enumLimit_;
+	typedef SingleOwnerPtr<Enumerator>   EnumPtr;
+	typedef SingleOwnerPtr<const LitVec> PathPtr;
+	bool attach(SharedContext& ctx, ModelHandler* onModel);
+	void detach();
+	SolveLimits    limits_;
+	SharedContext* ctx_;
+	EnumPtr        enum_;
+	ModelHandler*  onModel_;
+	PathPtr        path_;
+	uint64         enumLimit_;
+	double         time_;
+	int            last_;
 };
 
 class SequentialSolve : public SolveAlgorithm {
 public:
-	explicit SequentialSolve(Enumerator* enumerator = 0, const SolveLimits& limit = SolveLimits());
-	~SequentialSolve();
+	explicit SequentialSolve(const SolveLimits& limit = SolveLimits());
 	virtual bool interrupted() const;
 	virtual void resetSolve();
 	virtual void enableInterrupts();
 protected:
 	virtual bool doSolve(SharedContext& ctx, const LitVec& assume);
 	virtual bool doInterrupt();
+	virtual void doStart(SharedContext& ctx, const LitVec& assume);
+	virtual int  doNext(int last);
+	virtual void doStop();
 private:
-	struct InterruptHandler;
-	InterruptHandler* term_;
+	typedef SingleOwnerPtr<BasicSolve> SolvePtr;
+	SolvePtr     solve_;
+	volatile int term_;
 };
 
 struct BasicSolveOptions {
 	SolveLimits     limit;  /**< Solve limit (disabled by default). */
-	SolveAlgorithm* createSolveObject() const { return new SequentialSolve(0, limit); }
+	SolveAlgorithm* createSolveObject() const { return new SequentialSolve(limit); }
 	static uint32   supportedSolvers()        { return 1; }
 	static uint32   recommendedSolvers()      { return 1; }
 	uint32          numSolver() const         { return 1; }

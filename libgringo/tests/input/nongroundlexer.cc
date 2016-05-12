@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -64,13 +64,14 @@ void TestNongroundLexer::tearDown() {
 
 void TestNongroundLexer::test_lexer() {
     std::ostringstream oss;
-    Output::OutputBase out({}, oss);
+    Potassco::TheoryData td;
+    Output::OutputBase out(td, {}, oss);
     Program prg;
     Defines defs;
     Scripts scripts(Gringo::Test::getTestModule());
     NongroundProgramBuilder pb(scripts, prg, out, defs);
     NonGroundParser ngp(pb);
-    std::string in = 
+    std::string in =
         "#script (python) #end "
         "%*xyz\nxyz\n*%"
         "%xyz\n"

@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -21,56 +21,16 @@
 #ifndef _GRINGO_INPUT_STATEMENT_HH
 #define _GRINGO_INPUT_STATEMENT_HH
 
-#include <gringo/printable.hh>
-#include <gringo/locatable.hh>
+#include <gringo/terms.hh>
+#include <gringo/input/types.hh>
 
-namespace Gringo { 
-    
-class Defines;
-struct Term;
+namespace Gringo { namespace Input {
 
-using UTerm = std::unique_ptr<Term>;
-
-namespace Ground {
-
-// {{{ forward declarations
-
-struct Statement;
-using UStm = std::unique_ptr<Statement>;
-using UStmVec = std::vector<UStm>;
-
-// }}}
-
-} // namespace Ground
-
-namespace Input {
-
-// {{{ forward declarations
-
-struct Literal;
-struct BodyAggregate;
-struct ToGroundArg;
-struct Statement;
-struct Projections;
-struct HeadAggregate;
-
-using UTermVec     = std::vector<UTerm>;
-using UHeadAggr    = std::unique_ptr<HeadAggregate>;
-using ULit         = std::unique_ptr<Literal>;
-using UBodyAggr    = std::unique_ptr<BodyAggregate>;
-using UBodyAggrVec = std::vector<UBodyAggr>;
-
-// }}}
 // {{{ declaration of Statement
-
-using UStm = std::unique_ptr<Statement>;
-using UStmVec = std::vector<UStm>;
 
 enum class StatementType { RULE, EXTERNAL, WEAKCONSTRAINT };
 
 struct Statement : Printable, Locatable {
-    Statement(UTerm &&weight, UTerm &&prioriy, UTermVec &&tuple, UBodyAggrVec &&body);
-    Statement(UTermVec &&tuple, UBodyAggrVec &&body);
     Statement(UHeadAggr &&head, UBodyAggrVec &&body, StatementType type);
     virtual UStmVec unpool(bool beforeRewrite);
     virtual bool rewrite1(Projections &project);
@@ -78,10 +38,11 @@ struct Statement : Printable, Locatable {
     virtual Value isEDB() const;
     virtual void print(std::ostream &out) const;
     virtual bool hasPool(bool beforeRewrite) const;
-    virtual bool check() const;
+    virtual void check() const;
     virtual void replace(Defines &dx);
     virtual void toGround(ToGroundArg &x, Ground::UStmVec &stms) const;
     virtual void add(ULit &&lit);
+    virtual void initTheory(TheoryDefs &def);
     virtual ~Statement();
 
     UHeadAggr     head;

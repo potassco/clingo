@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -23,39 +23,31 @@
 
 #include <gringo/term.hh>
 #include <gringo/domain.hh>
+#include <gringo/input/types.hh>
 
-namespace Gringo { 
-
-namespace Ground { 
-    struct Literal;
-    using ULit = std::unique_ptr<Literal>;
-}
-
-namespace Input {
+namespace Gringo { namespace Input {
 
 // {{{ declaration of Literal
 
-struct Literal;
-using ULit    = std::unique_ptr<Literal>;
-using ULitVec = std::vector<ULit>;
-
 struct Projection {
     Projection(UTerm &&projected, UTerm &&project);
+    Projection(Projection &&);
+    Projection &operator=(Projection &&);
     ~Projection();
     operator Term const &() const;
 
-    UTerm const projected;
-    UTerm const project;
-    bool        done = false;
+    UTerm projected;
+    UTerm project;
+    bool  done = false;
 };
 
 struct Projections {
-    using ProjectionMap = unique_list<Projection, identity<Term>>;
+    using ProjectionMap = UniqueVec<Projection, std::hash<Term>, std::equal_to<Term>>;
 
     Projections();
     Projections(Projections &&x);
-    ProjectionMap::iterator begin();
-    ProjectionMap::iterator end();
+    ProjectionMap::Iterator begin();
+    ProjectionMap::Iterator end();
     ~Projections();
     UTerm add(Term &term);
 
@@ -66,12 +58,14 @@ struct Literal : Printable, Hashable, Locatable, Comparable<Literal>, Clonable<L
     using AssignVec = std::vector<std::pair<UTerm, UTerm>>;
 
     virtual unsigned projectScore() const { return 2; }
-    //! Removes all occurrences of PoolTerm instances. 
+    //! Removes all occurrences of PoolTerm instances.
     //! Returns all unpooled incarnations of the literal.
     //! \note The literal becomes unusable after the method returns.
     //! \post The returned pool does not contain PoolTerm instances.
     virtual ULitVec unpool(bool beforeRewrite) const = 0;
     //! Simplifies the literal.
+    //! Flag positional=true indicates that anonymous variables in this literal can be projected.
+    //! Flag singleton=true disables projections for positive predicate literals (e.g., in non-monotone aggregates)
     virtual bool simplify(Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) = 0;
     //! Collects variables.
     //! \pre Must be called after simplify to properly account for bound variables.
@@ -83,9 +77,11 @@ struct Literal : Printable, Hashable, Locatable, Comparable<Literal>, Clonable<L
     virtual Value isEDB() const;
     virtual bool hasPool(bool beforeRewrite) const = 0;
     virtual void replace(Defines &dx) = 0;
-    virtual Ground::ULit toGround(PredDomMap &x) const = 0;
+    virtual Ground::ULit toGround(DomainData &x, bool auxiliary) const = 0;
     virtual ULit shift(bool negate) = 0;
     virtual UTerm headRepr() const = 0;
+    virtual bool auxiliary() const = 0;
+    virtual void auxiliary(bool auxiliary) = 0;
     virtual ~Literal() { }
 };
 

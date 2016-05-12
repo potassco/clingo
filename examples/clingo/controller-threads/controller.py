@@ -4,9 +4,8 @@ import os
 import readline
 import atexit
 import signal
-import gringo
+import clingo
 from threading import Thread, Condition
-from gringo import Fun, SolveResult
 
 class Connection:
     def __init__(self):
@@ -96,10 +95,10 @@ class SolveThread(Thread):
     def __init__(self, connection):
         Thread.__init__(self)
         self.k   = 0
-        self.prg = gringo.Control()
+        self.prg = clingo.Control()
         self.prg.load("client.lp")
         self.prg.ground([("pigeon", []), ("sleep",  [self.k])])
-        self.prg.assign_external(Fun("sleep", [self.k]), True)
+        self.prg.assign_external(clingo.function("sleep", [self.k]), True)
         self.state = SolveThread.STATE_IDLE
         self.input = Connection()
         self.output = connection
@@ -107,8 +106,8 @@ class SolveThread(Thread):
     def on_model(self, model):
         self.output.send("answer: " + str(model)),
 
-    def on_finish(self, ret, interrupted):
-        self.output.send("finish: " + str(ret) + (" (INTERRUPTED)" if interrupted else ""))
+    def on_finish(self, ret):
+        self.output.send("finish: " + str(ret) + (" (INTERRUPTED)" if ret.interrupted else ""))
 
     def handle_message(self, msg):
         if msg == "interrupt":
@@ -116,10 +115,10 @@ class SolveThread(Thread):
         elif msg == "exit":
             self.state = SolveThread.STATE_EXIT
         elif msg == "less_pigeon_please":
-            self.prg.assign_external(Fun("p"), False)
+            self.prg.assign_external(clingo.function("p"), False)
             self.state = SolveThread.STATE_IDLE
         elif msg == "more_pigeon_please":
-            self.prg.assign_external(Fun("p"), True)
+            self.prg.assign_external(clingo.function("p"), True)
             self.state = SolveThread.STATE_IDLE
         elif msg == "solve":
             self.state = SolveThread.STATE_SOLVE
@@ -134,15 +133,15 @@ class SolveThread(Thread):
                 f.cancel()
                 ret = f.get()
             else:
-                ret = SolveResult.UNKNOWN
+                ret = None
             self.handle_message(msg)
             if self.state == SolveThread.STATE_EXIT:
                 return
-            elif ret != SolveResult.UNKNOWN:
+            elif ret is not None and not ret.unknown:
                 self.k = self.k + 1
                 self.prg.ground([("sleep", [self.k])])
-                self.prg.release_external(Fun("sleep", [self.k-1]))
-                self.prg.assign_external(Fun("sleep", [self.k]), True)
+                self.prg.release_external(clingo.function("sleep", [self.k-1]))
+                self.prg.assign_external(clingo.function("sleep", [self.k]), True)
 
 ct = Controller()
 st = SolveThread(ct.input)

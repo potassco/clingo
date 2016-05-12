@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -34,7 +34,11 @@ namespace Gringo { namespace Input {
 using StringVec   = std::vector<std::string>;
 using ProgramVec  = std::vector<std::tuple<FWString, IdVec, std::string>>;
 
+enum class TheoryLexing { Disabled, Theory, Definition };
+
 class NonGroundParser : private LexerState<std::pair<FWString, std::pair<FWString, IdVec>>> {
+private:
+    enum Condition { yyccomment, yycblockcomment, yycpython, yyclua, yycnormal, yyctheory, yycdefinition };
 public:
     NonGroundParser(INongroundProgramBuilder &pb);
     void parseError(Location const &loc, std::string const &token);
@@ -46,10 +50,12 @@ public:
     bool parse();
     bool empty() { return LexerState::empty(); }
     void include(unsigned sUid, Location const &loc, bool include);
+    void theoryLexing(TheoryLexing mode);
     INongroundProgramBuilder &builder();
     // {{{ aggregate helper functions
     BoundVecUid boundvec(Relation ra, TermUid ta, Relation rb, TermUid tb);
-    unsigned aggregate(AggregateFunction fun, unsigned choice, unsigned elems, BoundVecUid bounds);
+    unsigned aggregate(AggregateFunction fun, bool choice, unsigned elems, BoundVecUid bounds);
+    unsigned aggregate(TheoryAtomUid atom);
     HdLitUid headaggregate(Location const &loc, unsigned hdaggr);
     BdLitVecUid bodyaggregate(BdLitVecUid body, Location const &loc, NAF naf, unsigned bdaggr);
     // }}}
@@ -62,11 +68,16 @@ private:
     bool push(std::string const &file, std::unique_ptr<std::istream> in);
     void pop();
     void _init();
+    void condition(Condition cond);
+    using LexerState<std::pair<FWString, std::pair<FWString, IdVec>>>::start;
+    void start(Location &loc);
+    Condition condition() const;
     FWString filename() const;
 
 private:
     std::set<std::string> filenames_;
-    bool                  incmodeIncluded_ = false;
+    bool incmodeIncluded_ = false;
+    TheoryLexing theoryLexing_ = TheoryLexing::Disabled;
     unsigned not_;
     INongroundProgramBuilder &pb_;
     struct Aggr
@@ -78,6 +89,7 @@ private:
     };
     Indexed<Aggr> _aggregates;
     int           _startSymbol;
+    Condition     condition_ = yycnormal;
     FWString      _filename;
 };
 

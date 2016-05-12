@@ -32,6 +32,7 @@
 
 #include <clasp/clasp_facade.h>
 #include <clasp/solver.h>
+#include <regex>
 
 
 namespace Gringo { namespace Output { namespace Test {
@@ -47,51 +48,77 @@ public:
     ModelPrinter(Models &models, Filter &filter) : models(models), filter(filter) {}
     bool onModel(const Clasp::Solver& s, const Clasp::Model& m) {
         models.emplace_back();
-        const Clasp::SymbolTable& symTab = s.symbolTable();
-        for (Clasp::SymbolTable::const_iterator it = symTab.begin(); it != symTab.end(); ++it) {
-            if (m.isTrue(it->second.lit) && !it->second.name.empty()) {
-                std::string atom(it->second.name.c_str());
-                for (auto &x : filter) {
-                    if (!atom.compare(0, x.size(), x)) {
-                        models.back().emplace_back(std::move(atom));
-                        break;
-                    }
-                }
+        const Clasp::OutputTable& out = s.outputTable();
+        for (Clasp::OutputTable::pred_iterator it = out.pred_begin(); it != out.pred_end(); ++it) {
+            if (m.isTrue(it->cond)) {
+                onAtom(it->name.c_str());
             }
+        }
+        for (Clasp::OutputTable::fact_iterator it = out.fact_begin(); it != out.fact_end(); ++it) {
+            onAtom(it->c_str());
         }
         std::sort(models.back().begin(), models.back().end());
         return true;
+    }
+    void onAtom(std::string&& atom) {
+        for (auto &x : filter) {
+            if (atom.compare(0, x.size(), x) == 0) {
+                models.back().emplace_back(std::move(atom));
+                return;
+            }
+        }
+
     }
     Models &models;
     Filter &filter;
 };
 
-inline Models solve(std::function<bool(OutputBase &, Scripts &, Input::Program&, Input::NonGroundParser &)> ground, std::string &&str, Filter filter = {""}, std::initializer_list<Clasp::wsum_t> minimize = {}) {
-    // grounder: setup
+struct ClingoState {
+    ClingoState()
+    : out(td, {}, ss, OutputFormat::INTERMEDIATE)
+    , scripts(Gringo::Test::getTestModule())
+    , pb(scripts, prg, out, defs)
+    , parser(pb) {
+    }
     std::stringstream ss;
-    PlainLparseOutputter plo(ss);
-    OutputBase out({}, plo);
+    Potassco::TheoryData td;
+    OutputBase out;
     Input::Program prg;
     Defines defs;
-    Scripts scripts(Gringo::Test::getTestModule());
-    Input::NongroundProgramBuilder pb(scripts, prg, out, defs);
-    Input::NonGroundParser parser(pb);
-    parser.pushStream("-", gringo_make_unique<std::stringstream>(std::move(str)));
+    Scripts scripts;
+    Input::NongroundProgramBuilder pb;
+    Input::NonGroundParser parser;
+};
+
+inline bool ground(ClingoState &state) {
+    // grounder: ground
+    if (!message_printer()->hasError()) {
+        Ground::Program gPrg(state.prg.toGround(state.out.data));
+        state.out.init(false);
+        state.out.beginStep();
+        gPrg.ground(state.scripts, state.out);
+        return true;
+    }
+    return false;
+};
+
+inline Models solve(ClingoState &state, std::string &&str, Filter filter = {""}, std::initializer_list<Clasp::wsum_t> minimize = {}) {
+    state.parser.pushStream("-", gringo_make_unique<std::stringstream>(std::move(str)));
     Models models;
     // grounder: parse
-    parser.parse();
+    state.parser.parse();
     // grounder: preprocess
-    defs.init();
-    prg.rewrite(defs);
-    prg.check();
-    if (ground(out, scripts, prg, parser)) {
+    state.defs.init();
+    state.prg.rewrite(state.defs);
+    state.prg.check();
+    if (ground(state)) {
         Clasp::ClaspFacade libclasp;
         Clasp::ClaspConfig config;
         config.solve.numModels = 0;
         config.solve.optMode = Clasp::EnumOptions::OptMode::enumerate;
         config.solve.optBound.assign(minimize.begin(), minimize.end());
         Clasp::Asp::LogicProgram &prg = libclasp.startAsp(config);
-        prg.parseProgram(ss);
+        prg.parseProgram(state.ss);
         libclasp.prepare();
         ModelPrinter printer(models, filter);
         libclasp.solve(&printer);
@@ -101,16 +128,8 @@ inline Models solve(std::function<bool(OutputBase &, Scripts &, Input::Program&,
 }
 
 inline Models solve(std::string &&str, std::initializer_list<std::string> filter = {""}, std::initializer_list<Clasp::wsum_t> minimize = {}) {
-    auto ground = [](OutputBase &out, Scripts &scripts, Input::Program &prg, Input::NonGroundParser &) -> bool {
-        // grounder: ground
-        if (!message_printer()->hasError()) {
-            Ground::Program gPrg(prg.toGround(out.domains));
-            gPrg.ground(scripts, out);
-            return true;
-        }
-        return false;
-    };
-    return solve(ground, std::move(str), filter, minimize);
+    ClingoState state;
+    return solve(state, std::move(str), filter, minimize);
 }
 
 // }}}

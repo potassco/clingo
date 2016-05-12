@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -161,7 +161,7 @@ UBodyAggrVec unpool(UBodyAggr &&x) {
 // }}}
 // {{{ definition of TestAggregate
 
-void TestAggregate::setUp() 
+void TestAggregate::setUp()
 {
 }
 

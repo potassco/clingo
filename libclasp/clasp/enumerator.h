@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2006-2013, Benjamin Kaufmann
+// Copyright (c) 2006-2015, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -36,20 +36,28 @@ class EnumerationConstraint;
 
 //! Type for storing a model.
 struct Model {
-	enum Type { model_sat = 0, model_cons = 1, max_value = 1 };
+	enum Type { Sat = 0u, Brave = 1u, Cautious = 2u, User = 4u };
+	enum      { cons_mask = 3u, est_pos_mask= 4u, est_neg_mask   = 8u };
+	static uint8 estMask(Literal p)  { return est_pos_mask << ((int)p.sign()); }
+	bool     hasVar(Var v)     const { return values && v < values->size(); }
 	//! True if this model stores current (cautious/brave) consequences.
-	bool     consequences()    const { return (type & model_cons) != 0; }
+	bool     consequences()    const { return (type & cons_mask) != 0; }
 	//! For sat models, value of v in model. Otherwise, undefined.
-	ValueRep value(Var v)      const { assert(values && v < values->size()); return (*values)[v]; }
+	ValueRep value(Var v)      const { assert(hasVar(v)); return (*values)[v] & 3u; }
 	//! True if p is true in model or part of current consequences.
 	bool     isTrue(Literal p) const { return (value(p.var()) & trueValue(p)) != 0; }
+	//! True if p is part of a definite answer.
+	bool     isDef(Literal p) const  { return isTrue(p) && (def || ((type & Cautious) == 0u) || !isEst(p));  }
+	//! True if p is part of the current estimate of consequences.
+	bool     isEst(Literal p) const  { assert(hasVar(p.var())); return ((*values)[p.var()] & estMask(p)) != 0; }
 	uint64            num;    // running number of this model
 	const Enumerator* ctx;    // ctx in which model was found
 	const ValueVec*   values; // variable assignment or consequences
 	const SumVec*     costs;  // associated costs (or 0)
 	uint32            sId :16;// id of solver that found the model
-	uint32            type:14;// type of model
+	uint32            type:13;// type of model
 	uint32            opt : 1;// whether the model is optimal w.r.t costs (0: unknown)
+	uint32            def : 1;// whether the model is definite w.r.t consequences (0: unknown)
 	uint32            sym : 1;// whether symmetric models are possible
 };
 
@@ -70,13 +78,14 @@ struct EnumOptions {
 	bool     consequences() const { return (enumMode & enum_consequences) != 0; }
 	bool     models()       const { return (enumMode < enum_consequences); }
 	bool     optimize()     const { return ((optMode  & MinimizeMode_t::optimize) != 0); }
-	int      numModels; /*!< Number of models to compute. */
+	int64    numModels; /*!< Number of models to compute. */
 	EnumType enumMode;  /*!< Enumeration type to use.     */
 	OptMode  optMode;   /*!< Optimization mode to use.    */
 	uint32   project;   /*!< Options for projection.      */
 	SumVec   optBound;  /*!< Initial bound for optimize statements. */
-	bool     maxSat;    /*!< Treat DIMACS input as MaxSat */
+	bool     maxSat;    /*!< Treat DIMACS input as MaxSat. */
 };
+const char* modelType(const Model& m);
 
 
 //! Interface for supporting enumeration of models.
@@ -112,14 +121,12 @@ public:
 	 *
 	 * \pre The problem is not yet frozen, i.e. SharedContext::endInit() was not yet called.
 	 * \param problem The problem on which this enumerator should work.
-	 * \param min     Optional minimization constraint to be applied during enumeration.
+	 * \param opt     Minimization mode to apply during enumeration.
 	 * \param limit   Optional hint on max number of models to compute.
 	 *
 	 * \note In the incremental setting, init() must be called once for each incremental step.
-	 * \note The enumerator takes ownership of the minimize constraint (if any). That is,
-	 *       it does not increase its reference count.
 	 */
-	int    init(SharedContext& problem, SharedMinimizeData* min = 0, int limit = 0);
+	int    init(SharedContext& problem, OptMode opt = MinimizeMode_t::optimize, int limit = 0);
 	
 	//! Prepares the given solver for enumeration under the given path.
 	/*!
@@ -209,7 +216,14 @@ public:
 	//! Returns the active minimization constraint if any.
 	Minimizer    minimizer()        const { return mini_; }
 	//! Returns the type of models this enumerator computes.
-	virtual int  modelType()        const { return Model::model_sat; }
+	virtual int  modelType()        const { return Model::Sat; }
+	enum UnsatType {
+		unsat_stop = 0u, /*!< First unsat stops search - commitUnsat() always return false.     */
+		unsat_cont = 1u, /*!< Unsat may be tentative - commitUnsat() may return true.           */
+		unsat_sync = 3u, /*!< Similar to unsat_cont but additionally requires synchronization among threads. */
+	};
+	//! Returns whether unsat may be tentative and/or requires synchronization.
+	virtual int  unsatType()        const;
 	//! Returns whether or not this enumerator supports full restarts once a model was found.
 	virtual bool supportsRestarts() const { return true; }
 	//! Returns whether or not this enumerator supports parallel search.
@@ -283,6 +297,8 @@ protected:
 	virtual ConPtr      clone() = 0;
 	virtual bool        doUpdate(Solver& s) = 0;
 	virtual void        doCommitModel(Enumerator&, Solver&) {}
+	virtual void        doCommitUnsat(Enumerator&, Solver&) {}
+	uint32              rootLevel() const { return root_; }
 private:
 	enum Flag { flag_path_disjoint = 4u, flag_model_heuristic = 8u };
 	enum { clear_state_mask = ~uint32(value_true|value_false) };

@@ -18,9 +18,9 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
 #include "clasp_app.h"
-#include <clasp/parser.h>
 #include <clasp/solver.h>
 #include <clasp/dependency_graph.h>
+#include <clasp/parser.h>
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
@@ -30,29 +30,41 @@
 #pragma warning (disable : 4996)
 #endif
 #include <clasp/clause.h>
+
+#if defined( __linux__ )
+#include <fpu_control.h>
+#define FPU_SWITCH_DOUBLE(oldW) _FPU_GETCW(oldW);\
+	unsigned __t = ((oldW) & ~_FPU_EXTENDED & ~_FPU_SINGLE) | _FPU_DOUBLE;\
+	_FPU_SETCW(__t)
+#define FPU_RESTORE_DOUBLE(oldW) _FPU_SETCW(oldW)
+#elif defined (_MSC_VER) && !defined(_WIN64)
+#include <float.h>
+#define FPU_SWITCH_DOUBLE(oldW) \
+	(oldW) = _controlfp(0, 0); \
+	_controlfp(_PC_53, _MCW_PC);
+#define FPU_RESTORE_DOUBLE(oldW) \
+	_controlfp((oldW), _MCW_PC);
+#pragma fenv_access (on)
+#endif
+
+#if !defined(FPU_SWITCH_DOUBLE)
+#define FPU_SWITCH_DOUBLE(x) 
+#define FPU_RESTORE_DOUBLE(x)
+#endif
+
 namespace Clasp {
 /////////////////////////////////////////////////////////////////////////////////////////
 // Some helpers
 /////////////////////////////////////////////////////////////////////////////////////////
-inline std::ostream& operator << (std::ostream& os, Literal l) {
-	if (l.sign()) os << '-';
-	os << l.var();
-	return os;
-}
-inline std::istream& operator >> (std::istream& in, Literal& l) {
-	int i;
-	if (in >> i) {
-		l = Literal(i >= 0 ? Var(i) : Var(-i), i < 0);
-	}
-	return in;
-}
+unsigned doubleMode_g = ((unsigned)(sizeof(void*)*CHAR_BIT)) < 64;
+double shutdownTime_g;
 inline bool isStdIn(const std::string& in)  { return in == "-" || in == "stdin"; }
 inline bool isStdOut(const std::string& out){ return out == "-" || out == "stdout"; }
 /////////////////////////////////////////////////////////////////////////////////////////
 // ClaspAppOptions
 /////////////////////////////////////////////////////////////////////////////////////////
 namespace Cli {
-ClaspAppOptions::ClaspAppOptions() : outf(0), ifs(' '), hideAux(false), onlyPre(false), printPort(false), outLbd(Activity::MAX_LBD), inLbd(Activity::MAX_LBD) {
+ClaspAppOptions::ClaspAppOptions() : outf(0), compute(0), ifs(' '), hideAux(false), onlyPre(false), printPort(false), lemmaLbd(Clasp::LBD_MAX) {
 	quiet[0] = quiet[1] = quiet[2] = static_cast<uint8>(UCHAR_MAX);
 }
 void ClaspAppOptions::initOptions(ProgramOptions::OptionContext& root) {
@@ -67,16 +79,16 @@ void ClaspAppOptions::initOptions(ProgramOptions::OptionContext& root) {
 		 "        <call>: print {0=all|1=last|2=no} call steps      [2]")
 		("pre" , flag(onlyPre), "Run preprocessing and exit")
 		("print-portfolio" , flag(printPort), "Print default portfolio and exit")
+		("parse-ext", notify(this, &ClaspAppOptions::mappedOpts)->flag(), "Enable extensions in smodels and dimacs input")
 		("outf,@1", storeTo(outf)->arg("<n>"), "Use {0=default|1=competition|2=JSON|3=no} output")
 		("out-atomf,@1" , storeTo(outAtom), "Set atom format string (<Pre>?%%s<Post>?)")
 		("out-ifs,@1"   , notify(this, &ClaspAppOptions::mappedOpts), "Set internal field separator")
 		("out-hide-aux,@1", flag(hideAux), "Hide auxiliary atoms in answers")
-		("lemma-out,@1" , storeTo(lemmaOut)->arg("<file>"), "Write learnt lemmas to %A on exit")
+		("lemma-out,@1" , storeTo(lemmaLog)->arg("<file>"), "Write learnt lemmas to %A on exit")
 		("lemma-out-lbd,@1",notify(this, &ClaspAppOptions::mappedOpts)->arg("<n>"), "Only write lemmas with lbd <= %A")
-		("lemma-in,@1"  , storeTo(lemmaIn)->arg("<file>"), "Read additional lemmas from %A")
-		("lemma-in-lbd,@1", notify(this, &ClaspAppOptions::mappedOpts)->arg("<n>"), "Initialize lbd of additional lemmas to <n>")
 		("hcc-out,@1", storeTo(hccOut)->arg("<file>"), "Write non-hcf programs to %A.#scc")
-		("file,f,@2", storeTo(input)->composing(), "Input files")
+		("file,f,@2" , storeTo(input)->composing(), "Input files")
+		("compute,@2", storeTo(compute)->arg("<lit>"), "Force given literal to true")
 	;
 	root.add(basic);
 }
@@ -97,11 +109,10 @@ bool ClaspAppOptions::mappedOpts(ClaspAppOptions* this_, const std::string& name
 		if (value[1] == 'v')   { this_->ifs = '\v'; return true; }
 		if (value[1] == '\\')  { this_->ifs = '\\'; return true; }
 	}
-	else if (name.find("-lbd") != std::string::npos && bk_lib::string_cast(value, x) && x < Activity::MAX_LBD) {
-		if      (name == "lemma-out-lbd") { this_->outLbd = (uint8)x; return true; }
-		else if (name == "lemma-in-lbd")  { this_->inLbd  = (uint8)x; return true; }
+	else if (name == "lemma-out-lbd") {
+		return  bk_lib::string_cast(value, x) && x < Clasp::LBD_MAX && (this_->lemmaLbd = (uint8)x, true);
 	}
-	return false; 
+	return name == "parse-ext";
 }
 bool ClaspAppOptions::validateOptions(const ProgramOptions::ParsedOptions&) {
 	if (quiet[1] == static_cast<uint8>(UCHAR_MAX)) { quiet[1] = quiet[0]; }
@@ -138,70 +149,64 @@ void ClaspAppBase::validateOptions(const ProgramOptions::OptionContext&, const P
 		printTemplate();
 		exit(E_UNKNOWN);
 	}
-	if (!claspAppOpts_.validateOptions(parsed) || !claspConfig_.finalize(parsed, getProblemType(), true)) {
-		error("command-line error!");
-		exit(E_NO_RUN);
+	setExitCode(E_NO_RUN);
+	using ProgramOptions::Error;
+	ProblemType pt = getProblemType();
+	if (!claspAppOpts_.validateOptions(parsed) || !claspConfig_.finalize(parsed, pt, true)) {
+		throw Error("command-line error!");
 	}
 	ClaspAppOptions& app = claspAppOpts_;
-	if (!app.lemmaOut.empty() && !isStdOut(app.lemmaOut)) {
-		if (std::find(app.input.begin(), app.input.end(), app.lemmaOut) != app.input.end() || app.lemmaIn == app.lemmaOut) {
-			error("'lemma-out': cowardly refusing to overwrite input file!");
-			exit(E_NO_RUN);
+	if (!app.lemmaLog.empty() && !isStdOut(app.lemmaLog)) {
+		if (std::find(app.input.begin(), app.input.end(), app.lemmaLog) != app.input.end()) {
+			throw Error("'lemma-out': cowardly refusing to overwrite input file!");
 		}
-	}
-	if (!app.lemmaIn.empty() && !isStdIn(app.lemmaIn) && !std::ifstream(app.lemmaIn.c_str()).is_open()) {
-		error("'lemma-in': could not open file!");
-		exit(E_NO_RUN);
 	}
 	for (std::size_t i = 1; i < app.input.size(); ++i) {
 		if (!isStdIn(app.input[i]) && !std::ifstream(app.input[i].c_str()).is_open()) {
-			error(clasp_format_error("'%s': could not open input file!", app.input[i].c_str()));
-			exit(E_NO_RUN);
+			throw Error(clasp_format_error("'%s': could not open input file!", app.input[i].c_str()));
 		}
 	}
+	if (app.onlyPre && pt != Problem_t::Asp) {
+		throw Error("Option '--pre' only supported for ASP!");
+	}
+	if (parsed.count("parse-ext") != 0) {
+		claspConfig_.parse.enableMinimize();
+		claspConfig_.parse.enableAcycEdges();
+	}
+	setExitCode(0);
 	storeCommandArgs(values);
 }
 void ClaspAppBase::setup() {
 	ProblemType pt = getProblemType();
 	clasp_         = new ClaspFacade();
 	if (!claspAppOpts_.onlyPre) {
+		if (doubleMode_g) { FPU_SWITCH_DOUBLE(doubleMode_g); }
 		out_ = createOutput(pt);
 		Event::Verbosity verb	= (Event::Verbosity)std::min(verbose(), (uint32)Event::verbosity_max);
 		if (out_.get() && out_->verbosity() < (uint32)verb) { verb = (Event::Verbosity)out_->verbosity(); }
+		if (!claspAppOpts_.lemmaLog.empty()) {
+			logger_ = new LemmaLogger(claspAppOpts_.lemmaLog.c_str(), claspAppOpts_.lemmaLbd);
+		}
 		EventHandler::setVerbosity(Event::subsystem_facade , verb);
 		EventHandler::setVerbosity(Event::subsystem_load   , verb);
 		EventHandler::setVerbosity(Event::subsystem_prepare, verb);
 		EventHandler::setVerbosity(Event::subsystem_solve  , verb);
-		clasp_->ctx.setEventHandler(this);
-	}
-	else if (pt != Problem_t::ASP) { 
-		error("Option '--pre' only supported for ASP!"); 
-		exit(E_NO_RUN); 
+		clasp_->ctx.setEventHandler(this, logger_.get() == 0 ? SharedContext::report_default : SharedContext::report_conflict);
 	}
 }
 
 void ClaspAppBase::shutdown() {
-	if (clasp_.get()) {
-		const ClaspFacade::Summary& result = clasp_->shutdown();
-		if (out_.get()) { out_->shutdown(result); }
-		if (!claspAppOpts_.lemmaOut.empty()) {
-			std::ofstream file;
-			std::ostream* os = &std::cout;
-			if (!isStdOut(claspAppOpts_.lemmaOut)) {
-				file.open(claspAppOpts_.lemmaOut.c_str());
-				os = &file;
-			}
-			WriteLemmas lemmaOut(*os);
-			lemmaOut.attach(clasp_->ctx);
-			Constraint_t::Set x; x.addSet(Constraint_t::learnt_conflict);
-			lemmaOut.flush(x, claspAppOpts_.outLbd);
-			lemmaOut.detach();
-		}
-		int ec = getExitCode();
-		((ec |= exitCode(result)) & E_ERROR) != 0 ? exit(ec) : setExitCode(ec);
+	if (!clasp_.get()) { return; }
+	if (logger_.get()) { logger_->close(); }
+	const ClaspFacade::Summary& result = clasp_->shutdown();
+	if (shutdownTime_g) {
+		shutdownTime_g += RealTime::getTime();
+		char msg[80];
+		info(clasp_format(msg, sizeof(msg), "Shutdown completed in %.3f seconds", shutdownTime_g));
 	}
-	out_   = 0;
-	clasp_ = 0;
+	if (out_.get()) { out_->shutdown(result); }
+	setExitCode(getExitCode() | exitCode(result));
+	if (doubleMode_g) { FPU_RESTORE_DOUBLE(doubleMode_g); doubleMode_g = 1; }
 }
 
 void ClaspAppBase::run() {
@@ -216,7 +221,7 @@ void ClaspAppBase::run() {
 }
 
 bool ClaspAppBase::onSignal(int sig) {
-	if (!clasp_.get() || !clasp_->terminate(sig)) {
+	if (!clasp_.get() || !clasp_->interrupt(sig)) {
 		info("INTERRUPTED by signal!");
 		setExitCode(E_INTERRUPT);
 		shutdown();
@@ -224,7 +229,8 @@ bool ClaspAppBase::onSignal(int sig) {
 	}
 	else {
 		// multiple threads are active - shutdown was initiated
-		info("Shutting down threads...");
+		shutdownTime_g = -RealTime::getTime();
+		info("Sending shutdown signal...");
 	}
 	return false; // ignore all future signals
 }
@@ -233,6 +239,10 @@ void ClaspAppBase::onEvent(const Event& ev) {
 	const LogEvent* log = event_cast<LogEvent>(ev);
 	if (log && log->isWarning()) {
 		warn(log->msg);
+		return;
+	}
+	else if (const NewConflictEvent* cfl = event_cast<NewConflictEvent>(ev)) {
+		if (logger_.get()) { logger_->add(*cfl->solver, *cfl->learnt, cfl->info); }
 		return;
 	}
 	if (out_.get()) {
@@ -265,8 +275,9 @@ void ClaspAppBase::printTemplate() const {
 		"# clasp %s configuration file\n"
 		"# A configuration file contains a (possibly empty) list of configurations.\n"
 		"# Each of which must have the following format:\n"
-		"#   <name>: <cmd>\n"
-		"# where <name> is a string that must not contain ':'\n"
+		"#   <name>[(<config>)]: <cmd>\n"
+		"# where <name> is a string that must not contain ':',\n"
+		"# <config> is one of clasp's default configs (and optional)\n"
 		"# and   <cmd>  is a command-line string of clasp options in long-format, e.g.\n"
 		"# ('--heuristic=vsids --restarts=L,100').\n"
 		"#\n"
@@ -298,7 +309,7 @@ void ClaspAppBase::printLibClaspVersion() const {
 		printf("libclasp version %s\n", CLASP_VERSION);
 	}
 	printf("Configuration: WITH_THREADS=%d", WITH_THREADS);
-#if WITH_THREADS
+#if defined(WITH_THREADS) && defined(TBB_VERSION_MAJOR) && WITH_THREADS
 	printf(" (Intel TBB version %d.%d)", TBB_VERSION_MAJOR, TBB_VERSION_MINOR);
 #endif
 	printf("\n%s\n", CLASP_LEGAL);
@@ -308,9 +319,9 @@ void ClaspAppBase::printLibClaspVersion() const {
 void ClaspAppBase::printHelp(const ProgramOptions::OptionContext& root) {
 	ProgramOptions::Application::printHelp(root);
 	if (root.getActiveDescLevel() >= ProgramOptions::desc_level_e1) {
-		printf("[asp] %s\n", ClaspCliConfig::getDefaults(Problem_t::ASP));
-		printf("[cnf] %s\n", ClaspCliConfig::getDefaults(Problem_t::SAT));
-		printf("[opb] %s\n", ClaspCliConfig::getDefaults(Problem_t::PB));
+		printf("[asp] %s\n", ClaspCliConfig::getDefaults(Problem_t::Asp));
+		printf("[cnf] %s\n", ClaspCliConfig::getDefaults(Problem_t::Sat));
+		printf("[opb] %s\n", ClaspCliConfig::getDefaults(Problem_t::Pb));
 	}
 	if (root.getActiveDescLevel() >= ProgramOptions::desc_level_e2) {
 		printf("\nDefault configurations:\n");
@@ -338,46 +349,12 @@ void ClaspAppBase::printDefaultConfigs() const {
 		printf("%s\n", cmd.c_str()+off);
 	}
 }
-
-void ClaspAppBase::readLemmas(SharedContext& ctx) {
-	std::ifstream fileStream;	
-	std::istream& file = isStdIn(claspAppOpts_.lemmaIn) ? std::cin : (fileStream.open(claspAppOpts_.lemmaIn.c_str()), fileStream);
-	Solver& s          = *ctx.master();
-	bool ok            = !s.hasConflict();
-	uint32 numVars;
-	for (ClauseCreator clause(&s); file && ok; ) {
-		while (file.peek() == 'c' || file.peek() == 'p') { 
-			const char* m = file.get() == 'p' ? " cnf" : " clasp";
-			while (file.get() == *m) { ++m; }
-			if (!*m && (!(file >> numVars) || numVars != ctx.numVars()) ) {
-				throw std::runtime_error("Wrong number of vars in file: "+claspAppOpts_.lemmaIn); 
-			}
-			while (file.get() != '\n' && file) {} 
-		}
-		Literal x; bool elim = false; 
-		clause.start(Constraint_t::learnt_conflict);
-		clause.setLbd(claspAppOpts_.inLbd);
-		while ( (file >> x) ) {
-			if (x.var() == 0)         { ok = elim || clause.end(); break; }			
-			elim = elim || ctx.eliminated(x.var());
-			if (!s.validVar(x.var())) { throw std::runtime_error("Bad variable in file: "+claspAppOpts_.lemmaIn); }
-			if (!elim)                { clause.add(x); }
-		}
-		if (x.var() != 0) { throw std::runtime_error("Unrecognized format: "+claspAppOpts_.lemmaIn); }
-	}
-	if (ok && !file.eof()){ throw std::runtime_error("Error reading file: "+claspAppOpts_.lemmaIn); }
-	s.simplify();
-}
-
-void ClaspAppBase::writeNonHcfs(const SharedDependencyGraph& graph) const {
+void ClaspAppBase::writeNonHcfs(const PrgDepGraph& graph) const {
 	uint32 scc = 0;
 	char   buf[10];
-	std::ofstream file;
-	for (SharedDependencyGraph::NonHcfIter it = graph.nonHcfBegin(), end = graph.nonHcfEnd(); it != end; ++it, ++scc) {
+	for (PrgDepGraph::NonHcfIter it = graph.nonHcfBegin(), end = graph.nonHcfEnd(); it != end; ++it, ++scc) {
 		snprintf(buf, 10, ".%u", scc);
-		std::string n     = claspAppOpts_.hccOut + buf;
-		if (!isStdOut(claspAppOpts_.hccOut) && (file.open(n.c_str()), !file.is_open())) { throw std::runtime_error("Could not open hcc file!\n"); }
-		WriteCnf cnf(file.is_open() ? file : std::cout);
+		WriteCnf cnf(claspAppOpts_.hccOut + buf);
 		const SharedContext& ctx = it->second->ctx();
 		cnf.writeHeader(ctx.numVars(), ctx.numConstraints());
 		cnf.write(ctx.numVars(), ctx.shortImplications());
@@ -389,7 +366,6 @@ void ClaspAppBase::writeNonHcfs(const SharedDependencyGraph& graph) const {
 			cnf.write(ctx.master()->trail()[i]);
 		}
 		cnf.close();
-		file.close();
 	}
 }
 std::istream& ClaspAppBase::getStream() {
@@ -415,13 +391,13 @@ Output* ClaspAppBase::createOutput(ProblemType f) {
 	}
 	if (claspAppOpts_.outf != ClaspAppOptions::out_json || claspAppOpts_.onlyPre) {
 		TextOutput::Format outFormat = TextOutput::format_asp;
-		if      (f == Problem_t::SAT){ outFormat = TextOutput::format_sat09; }
-		else if (f == Problem_t::PB) { outFormat = TextOutput::format_pb09;  }
-		else if (f == Problem_t::ASP && claspAppOpts_.outf == ClaspAppOptions::out_comp) {
+		if      (f == Problem_t::Sat){ outFormat = TextOutput::format_sat09; }
+		else if (f == Problem_t::Pb) { outFormat = TextOutput::format_pb09;  }
+		else if (f == Problem_t::Asp && claspAppOpts_.outf == ClaspAppOptions::out_comp) {
 			outFormat = TextOutput::format_aspcomp;
 		}
 		out.reset(new TextOutput(verbose(), outFormat, claspAppOpts_.outAtom.c_str(), claspAppOpts_.ifs));
-		if (claspConfig_.solve.maxSat && f == Problem_t::SAT) {
+		if (claspConfig_.solve.maxSat && f == Problem_t::Sat) {
 			static_cast<TextOutput*>(out.get())->result[TextOutput::res_sat] = "UNKNOWN";
 		}
 	}
@@ -437,8 +413,8 @@ Output* ClaspAppBase::createOutput(ProblemType f) {
 	if (claspAppOpts_.quiet[2] != static_cast<uint8>(UCHAR_MAX)) {
 		out->setCallQuiet((Output::PrintLevel)std::min(uint8(Output::print_no), claspAppOpts_.quiet[2]));
 	}
-	if (claspAppOpts_.hideAux) {
-		out->setHide('_');
+	if (claspAppOpts_.hideAux && clasp_.get()) {
+		clasp_->ctx.output.setFilter('_');
 	}
 	return out.release();
 }
@@ -447,30 +423,39 @@ void ClaspAppBase::storeCommandArgs(const ProgramOptions::ParsedValues&) {
 }
 
 bool ClaspAppBase::handlePostGroundOptions(ProgramBuilder& prg) {
-	if (!claspAppOpts_.onlyPre || prg.type() != Problem_t::ASP) { return true; }
-	if (prg.endProgram()) { static_cast<Asp::LogicProgram&>(prg).write(std::cout); }
-	else                  { std::cout << "0\n0\nB+\n1\n0\nB-\n1\n0\n0\n"; }
-	exit(E_UNKNOWN);
+	if (!claspAppOpts_.onlyPre) { 
+		if (logger_.get()) { logger_->start(prg); }
+		return true; 
+	}
+	prg.endProgram();
+	if (prg.type() == Problem_t::Asp) {
+		AspParser::write(static_cast<Asp::LogicProgram&>(prg), std::cout);
+	}
+	else {
+		error("Option '--pre': unsupported input format!");
+		setExitCode(E_ERROR);
+	}
 	return false;
 }
 bool ClaspAppBase::handlePreSolveOptions(ClaspFacade& clasp) {
-	if (!claspAppOpts_.lemmaIn.empty() && clasp.step() == 0)       { readLemmas(clasp.ctx); }
-	if (!claspAppOpts_.hccOut.empty()  && clasp.ctx.sccGraph.get()){ writeNonHcfs(*clasp.ctx.sccGraph); }
+	if (!claspAppOpts_.hccOut.empty() && clasp.ctx.sccGraph.get()){ writeNonHcfs(*clasp.ctx.sccGraph); }
 	return true;
 }
 void ClaspAppBase::run(ClaspFacade& clasp) {
-	ProblemType     pt    = getProblemType();
-	StreamSource    input(getStream());
-	bool            inc   = pt == Problem_t::ASP && *input == '9';
-	ProgramBuilder& prg   = clasp.start(claspConfig_, pt);
-	if (inc) { inc = clasp.enableProgramUpdates(); }
-	else     { claspConfig_.releaseOptions(); }
-	while (prg.parseProgram(input) && handlePostGroundOptions(prg)) {
-		if (clasp.prepare() && handlePreSolveOptions(clasp)) {
-			clasp.solve();
+	clasp.start(claspConfig_, getStream());
+	if (!clasp.incremental()) {
+		claspConfig_.releaseOptions();
+	}
+	if (claspAppOpts_.compute && clasp.program()->type() == Problem_t::Asp) {
+		bool val = claspAppOpts_.compute < 0;
+		Var  var = static_cast<Var>(!val ? claspAppOpts_.compute : -claspAppOpts_.compute);
+		static_cast<Asp::LogicProgram*>(clasp.program())->startRule().addToBody(var, val).endRule();
+	}
+	while (clasp.read()) {
+		if (handlePostGroundOptions(*clasp.program())) {
+			clasp.prepare();
+			if (handlePreSolveOptions(clasp)) { clasp.solve(); }
 		}
-		if (!inc || clasp.result().interrupted() || !input.skipWhite() || *input != '9' || !clasp.update().ok()) { break; }
-		prg.disposeMinimizeConstraint();
 	}
 }
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -479,8 +464,7 @@ void ClaspAppBase::run(ClaspFacade& clasp) {
 ClaspApp::ClaspApp() {}
 
 ProblemType ClaspApp::getProblemType() {
-	InputFormat input = Input_t::detectFormat(getStream());
-	return Problem_t::format2Type(input);
+	return ClaspFacade::detectProblemType(getStream());
 }
 
 void ClaspApp::run(ClaspFacade& clasp) {
@@ -494,75 +478,104 @@ void ClaspApp::printHelp(const ProgramOptions::OptionContext& root) {
 	fflush(stdout);
 }
 /////////////////////////////////////////////////////////////////////////////////////////
-// WriteLemmas
+// LemmaLogger
 /////////////////////////////////////////////////////////////////////////////////////////
-WriteLemmas::WriteLemmas(std::ostream& os) : ctx_(0), os_(os) {}
-WriteLemmas::~WriteLemmas(){ detach(); }
-void WriteLemmas::detach() { if (ctx_) { ctx_ = 0; } }
-void WriteLemmas::attach(SharedContext& ctx) {
-	detach();
-	ctx_ = &ctx;
+LemmaLogger::LemmaLogger(const std::string& to, uint32 maxLbd)
+	: str_(isStdOut(to) ? stdout : fopen(to.c_str(), "w"))
+	, lbd_(maxLbd)
+	, fmt_(Problem_t::Asp) {
+	CLASP_FAIL_IF(!str_, "Could not open lemma log file '%s'!", to.c_str());
 }
-bool WriteLemmas::unary(Literal p, Literal x) const {
-	if (!isSentinel(x) && x.asUint() > p.asUint() && (p.watched() + x.watched()) != 0) {
-		os_ << ~p << " " << x << " 0\n"; 
-		++outShort_;
-	}
-	return true;
-}
-bool WriteLemmas::binary(Literal p, Literal x, Literal y) const {
-	if (x.asUint() > p.asUint() && y.asUint() > p.asUint() && (p.watched() + x.watched() + y.watched()) != 0) {
-		os_ << ~p << " " << x << " " << y << " 0\n"; 
-		++outShort_;
-	}
-	return true;
-}
-// NOTE: ON WINDOWS this function is unsafe if called from time-out handler because
-// it has potential races with the main thread
-void WriteLemmas::flush(Constraint_t::Set x, uint32 maxLbd) {
-	if (!ctx_ || !os_) { return; }
-	// write problem description
-	os_ << "c clasp " << ctx_->numVars() << "\n";
-	// write learnt units
-	Solver& s         = *ctx_->master();
-	const LitVec& t   = s.trail();
-	Antecedent trueAnte(posLit(0));
-	for (uint32 i = ctx_->numUnary(), end = s.decisionLevel() ? s.levelStart(1) : t.size(); i != end; ++i) {
-		const Antecedent& a = s.reason(t[i]);
-		if (a.isNull() || a.asUint() == trueAnte.asUint()) {
-			os_ << t[i] << " 0\n";
+LemmaLogger::~LemmaLogger() { close(); }
+void LemmaLogger::start(ProgramBuilder& prg) {
+	if ( (fmt_ = static_cast<Problem_t::Type>(prg.type())) == Problem_t::Asp && prg.endProgram() ) {
+		// create solver variable to potassco literal mapping
+		Asp::LogicProgram& asp = static_cast<Asp::LogicProgram&>(prg);
+		for (Asp::Atom_t a = asp.startAtom(); a != asp.inputEnd(); ++a) {
+			Literal sLit = asp.getLiteral(a);
+			if (sLit.var() >= solver2asp_.size()) {
+				solver2asp_.resize(sLit.var() + 1, 0);
+			}
+			Potassco::Lit_t& p = solver2asp_[sLit.var()];
+			if (!p || (!sLit.sign() && p < 0)) {
+				p = !sLit.sign() ? Potassco::lit(a) : Potassco::neg(a);
+			}
 		}
 	}
-	// write implicit learnt constraints
-	uint32 numLearnts = ctx_->shortImplications().numLearnt();
-	outShort_         = 0;
-	for (Var v = 1; v <= ctx_->numVars() && outShort_ < numLearnts; ++v) {
-		ctx_->shortImplications().forEach(posLit(v), *this);
-		ctx_->shortImplications().forEach(negLit(v), *this);
+}
+void LemmaLogger::add(const Solver& s, const LitVec& cc, const ConstraintInfo& info) {
+	LitVec temp;
+	const LitVec* out = &cc;
+	uint32 lbd = info.lbd();
+	if (lbd > lbd_) { return; }
+	if (info.aux() || std::find_if(cc.begin(), cc.end(), std::not1(std::bind1st(std::mem_fun(&Solver::inputVar), &s))) != cc.end()) {
+		if (!s.resolveToInput(cc, temp, lbd) || lbd > lbd_) { return; }
+		out = &temp;
 	}
-	// write explicit learnt conflict constraints matching the current filter
-	LitVec lits; ClauseHead* c;
-	for (LitVec::size_type i = 0; i != s.numLearntConstraints() && os_; ++i) {
-		if ((c = s.getLearnt(i).clause()) != 0 && c->lbd() <= maxLbd && x.inSet(c->ClauseHead::type())) {
-			lits.clear();
-			c->toLits(lits);
-			std::copy(lits.begin(), lits.end(), std::ostream_iterator<Literal>(os_, " "));
-			os_ << "0\n";
-		}
+	PodVector<char>::type buf;
+	buf.reserve(cc.size() * 2);
+	switch (fmt_) {
+		case Problem_t::Asp: formatAspif(*out , lbd, buf); break;
+		case Problem_t::Sat: formatDimacs(*out, lbd, buf); break;
+		case Problem_t::Pb:  formatOpb(*out, lbd, buf);    break;
+		default: break;
 	}
-	os_.flush();
+	if (!buf.empty()) { fwrite(&buf[0], sizeof(char), buf.size(), str_); }
+}
+void LemmaLogger::append(BufT& out, const char* fmt, int data) const {
+	char temp[1024];
+	int w = snprintf(temp, sizeof(temp), fmt, data);
+	CLASP_FAIL_IF(w < 0 || w >= (int)sizeof(temp), "Invalid format!");
+	out.insert(out.end(), temp, temp + w);
+}
+void LemmaLogger::formatDimacs(const LitVec& cc, uint32, BufT& buf) const {
+	for (LitVec::const_iterator it = cc.begin(), end = cc.end(); it != end; ++it) {
+		append(buf, "%d ", toInt(*it));
+	}
+	append(buf, "%d\n", 0);
+}
+void LemmaLogger::formatOpb(const LitVec& cc, uint32, BufT& buf) const {
+	for (LitVec::const_iterator it = cc.begin(), end = cc.end(); it != end; ++it) {
+		append(buf, "%+d ", it->sign() ? -1 : 1);
+		append(buf, "x%d ", Potassco::atom(toInt(*it)));
+	}
+	append(buf, ">= %d;\n", 1);
+}
+void LemmaLogger::formatAspif(const LitVec& cc, uint32, BufT& out) const {
+	append(out, "1 0 0 0 %d", (int)cc.size());
+	for (LitVec::const_iterator it = cc.begin(), end = cc.end(); it != end; ++it) {
+		Literal sLit = ~*it; // clause -> constraint
+		Potassco::Lit_t a = sLit.var() < solver2asp_.size() ? solver2asp_[sLit.var()] : 0;
+		if (!a) { out.clear(); return; }
+		if (sLit.sign() != (a < 0)) { a = -a; }
+		append(out, " %d", a);
+	}
+	out.push_back('\n');
+}
+void LemmaLogger::close() {
+	if (!str_) { return; }
+	solver2asp_.clear();
+	fflush(str_);
+	if (str_ != stdout) { fclose(str_); }
+	str_ = 0;
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // WriteCnf
 /////////////////////////////////////////////////////////////////////////////////////////
+WriteCnf::WriteCnf(const std::string& outFile) : str_(fopen(outFile.c_str(), "w")) {
+	CLASP_FAIL_IF(!str_, "Could not open cnf file '%s'!", outFile.c_str());
+}
+WriteCnf::~WriteCnf() { close(); }
 void WriteCnf::writeHeader(uint32 numVars, uint32 numCons) {
-	os_ << "p cnf " << numVars << " " << numCons << "\n";
+	fprintf(str_, "p cnf %u %u\n", numVars, numCons);
 }
 void WriteCnf::write(ClauseHead* h) {
 	lits_.clear();
 	h->toLits(lits_);
-	std::copy(lits_.begin(), lits_.end(), std::ostream_iterator<Literal>(os_, " "));
-	os_ << "0\n";
+	for (LitVec::const_iterator it = lits_.begin(), end = lits_.end(); it != end; ++it) {
+		fprintf(str_, "%d ", toInt(*it));
+	}
+	fprintf(str_, "%d\n", 0);
 }
 void WriteCnf::write(Var maxVar, const ShortImplicationsGraph& g) {
 	for (Var v = 1; v <= maxVar; ++v) {
@@ -571,22 +584,20 @@ void WriteCnf::write(Var maxVar, const ShortImplicationsGraph& g) {
 	}	
 }
 void WriteCnf::write(Literal u) {
-	os_ << u << " 0\n";
+	fprintf(str_, "%d 0\n", toInt(u));
 }
 bool WriteCnf::unary(Literal p, Literal x) const {
-	if (p.asUint() < x.asUint()) {
-		os_ << ~p << " " << x << " 0\n";
-	}
-	return true;
+	return p.rep() >= x.rep() || fprintf(str_, "%d %d 0\n", toInt(~p), toInt(x)) > 0;
 }
 bool WriteCnf::binary(Literal p, Literal x, Literal y) const {
-	if (p.asUint() < x.asUint() && p.asUint() < y.asUint()) {
-		os_ << ~p << " " << x << " " << y << " 0\n"; 
-	}
-	return true;
+	return p.rep() >= x.rep() || p.rep() >= y.rep() || fprintf(str_, "%d %d %d 0\n", toInt(~p), toInt(x), toInt(y)) > 0;
 }
 void WriteCnf::close() {
-	os_ << std::flush;
+	if (str_) {
+		fflush(str_);
+		fclose(str_);
+		str_ = 0;
+	}
 }
 
 }} // end of namespace Clasp::Cli

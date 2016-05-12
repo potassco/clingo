@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2006-2013, Benjamin Kaufmann
+// Copyright (c) 2006-2015, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -27,287 +27,23 @@
 #endif
 #include <clasp/claspfwd.h>
 #include <clasp/literal.h>
+#include <potassco/basic_types.h>
 #include <functional>
-namespace Clasp { 
+namespace Potassco {
+	typedef Clasp::PodVector<Lit_t>::type       LitVec;
+	typedef Clasp::PodVector<WeightLit_t>::type BodyLitVec;
+}
+namespace Clasp {
 class ClauseCreator;
+using Potassco::idMax;
 namespace Asp {
 typedef PodVector<PrgAtom*>::type AtomList;
 typedef PodVector<PrgBody*>::type BodyList;
 typedef PodVector<PrgDisj*>::type DisjList;
 const   ValueRep value_weak_true = 3; /**< true but no proof */
+using Potassco::Atom_t;
+using Potassco::Id_t;
 
-//! Supported rule-types.
-/**
- * \ingroup problem
- */
-enum RuleType{
-	ENDRULE         = 0,  /**< Not a valid rule, used as sentinel */
-	BASICRULE       = 1,  /**< A normal rule, i.e: A0 :- A1,...,Am, not Am+1,...,not An */
-	CONSTRAINTRULE  = 2,  /**< A cardinality constraint, i.e. A0 :- L{A1,...,Am,not Am+1,...,not An} */
-	CHOICERULE      = 3,  /**< A choice rule, i.e. {A0,...,An} :- BODY */
-	WEIGHTRULE      = 5,  /**< A weight constraint, i.e. A0 :- L[A1=W1,...,Am=Wm,not Am+1=Wm+1,...,not An=Wn] */
-	OPTIMIZERULE    = 6,  /**< A minimize statement */
-	DISJUNCTIVERULE = 8,  /**< A disjunctive rule, i.e. A0 | ... | An :- BODY */ 
-	NUM_RULE_TYPES  = 6   /**< Number of different rule types */
-};
-inline uint32 ruleIndex(RuleType x) {
-	switch(x) {
-		case BASICRULE:      return 0;
-		case CONSTRAINTRULE: return 1;
-		case CHOICERULE:     return 2;
-		case WEIGHTRULE:     return 3;
-		case OPTIMIZERULE:   return 4;
-		case DISJUNCTIVERULE:return 5;
-		default:             return NUM_RULE_TYPES;
-	}
-}
-inline RuleType& operator++(RuleType& x) {
-	switch(x) {
-		case BASICRULE:      return x = CONSTRAINTRULE;
-		case CONSTRAINTRULE: return x = CHOICERULE;
-		case CHOICERULE:     return x = WEIGHTRULE;
-		case WEIGHTRULE:     return x = OPTIMIZERULE;
-		case OPTIMIZERULE:   return x = DISJUNCTIVERULE;
-		case DISJUNCTIVERULE:return x = ENDRULE;
-		default:             return x = BASICRULE;
-	}
-}
-inline bool hasWeights(RuleType t) { return t == WEIGHTRULE || t == OPTIMIZERULE; }
-
-//! Supported edge types.
-/*!
- * Currently, we distinguish four types of edges:
- *  - a NORMAL_EDGE stipulates an implication between body and head,
- *    i.e. tableau-rules FTA and BFA for atoms.
- *  - a CHOICE_EDGE only stipulates a support.
- *  - a GAMMA_EDGE is like a NORMAL_EDGE that is only considered during
- *    nogood creation but ignored in the dependency graph.
- *  - a GAMMA_CHOICE_EDGE is like a GAMMA_EDGE but only stipulates a support.
- * The head of a rule is either an atom or a disjunction.
- */
-struct PrgEdge {
-	//! Type of edge.
-	enum EdgeType{ NORMAL_EDGE = 0, GAMMA_EDGE = 1, CHOICE_EDGE = 2, GAMMA_CHOICE_EDGE = 3};
-	//! Type of adjacent node.
-	enum NodeType{ BODY_NODE   = 0, ATOM_NODE  = 1, DISJ_NODE   = 2};
-
-	static PrgEdge noEdge() { PrgEdge x; x.rep = UINT32_MAX; return x; }
-	static PrgEdge newEdge(uint32 nodeId, EdgeType eType, NodeType nType) {
-		PrgEdge x;
-		x.rep = (nodeId << 4) | (nType<<2) | eType;
-		return x;
-	}
-	//! Returns the id of the adjacent node.
-	uint32   node()     const { return rep >> 4; }
-	//! Returns the type of this edge.
-	EdgeType type()     const { return EdgeType(rep & 3u); }
-	//! Returns the type of adjacent node.
-	NodeType nodeType() const { return NodeType((rep>>2) & 3u); }
-	//! Returns true if edge has normal semantic (normal edge or gamma edge).
-	bool     isNormal() const { return (rep & 2u) == 0; }
-	//! Returns true if edge has choice semantic.
-	bool     isChoice() const { return (rep & 2u) != 0; }
-	//! Returns true if the edge is a gamma (aux normal) edge.
-	bool     isGamma()  const { return (rep & 1u) != 0; }
-	//! Returns true if the adjacent node is a body.
-	bool     isBody()   const { return nodeType() == BODY_NODE; }
-	//! Returns true if the adjacant node is an atom.
-	bool     isAtom()   const { return nodeType() == ATOM_NODE; }
-	//! Returns true if the adjacent node is a disjunction.
-	bool     isDisj()   const { return nodeType() == DISJ_NODE; }	
-	bool     operator< (PrgEdge rhs) const { return rep < rhs.rep; }
-	bool     operator==(PrgEdge rhs) const { return rep == rhs.rep; }
-	uint32 rep;
-	struct Node : std::unary_function<PrgEdge, uint32>	{ 
-		uint32 operator()(PrgEdge n) const { return n.node(); } 
-	};
-};
-
-typedef PrgEdge::EdgeType           EdgeType;
-typedef PrgEdge::NodeType           NodeType;
-typedef const PrgEdge*              EdgeIterator;
-typedef bk_lib::pod_vector<PrgEdge> EdgeVec;
-
-
-//! A rule of a logic program.
-/*!
- * \ingroup problem
- * Objects of this class represent one rule of a logic program.
- */
-class Rule {
-public:
-	explicit Rule(RuleType t = ENDRULE) 
-		: bound_(0)
-		, type_(t) {
-	}
-	//! Resets the rule.
-	void clear();
-	//! Swaps *this with o.
-	void swap(Rule& o) {
-		std::swap(heads, o.heads);
-		std::swap(body, o.body);
-		std::swap(bound_, o.bound_);
-		std::swap(type_, o.type_);
-	}
-	// logic
-	//! Sets the type of the rule.
-	/*! 
-	 * \pre t != ENDRULE
-	 */
-	Rule& setType(RuleType t) {
-		assert(t != ENDRULE && "Precondition violated\n");
-		type_ = t;
-		return *this;
-	}
-	//! Returns the rule's type.
-	RuleType type() const { return type_; }
-	//! Sets the lower bound of the rule.
-	/*!
-	 * \pre bound >= 0
-	 * \note The bound is only used for constraint- and weight rules.
-	 */
-	Rule& setBound(weight_t bound) {
-		assert(bound >= 0 && "Precondition violated!\n");
-		bound_ = bound;
-		return *this;
-	}
-	//! Returns the lower bound of the rule.
-	weight_t bound()          const { return bound_; }
-
-	bool     bodyHasWeights() const { return type_ == WEIGHTRULE || type_ == OPTIMIZERULE;   }
-	bool     bodyHasBound()   const { return type_ == WEIGHTRULE || type_ == CONSTRAINTRULE; }
-	bool     bodyIsSet()      const { return type_ == BASICRULE  || type_ == CHOICERULE || type_ == DISJUNCTIVERULE; }
-
-	//! Adds v as a head of this rule.
- 	Rule& addHead(Var v);
-	//! Adds v to the positive/negative body of the rule.
-	Rule& addToBody(Var v, bool pos, weight_t w=1);	
-	VarVec        heads; /**< List of rule heads.         */
-	WeightLitVec  body;  /**< Body literals of this rule. */
-private:
-	Rule(const Rule&);
-	Rule& operator=(const Rule&);
-	weight_t bound_; // lower bound (i.e. number/weight of lits that must be true before rule fires)
-	RuleType type_;  // type of rule
-};
-
-class RuleTransform {
-public:
-	struct ProgramAdapter {
-	virtual Var newAtom() = 0;
-	virtual void addRule(Rule& rule) = 0;
-	protected: ~ProgramAdapter() {}
-	};
-	struct AdaptBuilder : public ProgramAdapter {
-		AdaptBuilder(LogicProgram& p) : prg_(&p) {}
-		Var newAtom();
-		void addRule(Rule& rule);
-		LogicProgram* prg_;
-	};
-	RuleTransform();
-	uint32 transform(LogicProgram& prg, Rule& rule) {
-		AdaptBuilder x(prg);
-		return transform(x, rule);
-	}
-	uint32 transformNoAux(LogicProgram& prg, Rule& rule) {
-		AdaptBuilder x(prg);
-		return transformNoAux(x, rule);
-	}
-	uint32 transform(ProgramAdapter& prg, Rule& rule);
-	uint32 transformNoAux(ProgramAdapter& prg, Rule& rule);
-	static weight_t prepareRule(Rule& rule, weight_t* sumVec);
-private:
-	RuleTransform(const RuleTransform&);
-	RuleTransform& operator=(const RuleTransform&);
-	uint32 transformChoiceRule(ProgramAdapter& prg, Rule& rule) const;
-	uint32 transformDisjunctiveRule(ProgramAdapter& prg, Rule& rule) const;
-	class Impl;
-};
-
-struct BodyInfo {
-	enum BodyType { NORMAL_BODY = 0, COUNT_BODY = 1, SUM_BODY = 2};
-	void     reset() {
-		lits.clear();
-		hash     = 0; 
-		bound_   = 0;
-		posSize_ = 0;
-		type_    = 0;
-	}
-	void     init(BodyType t, weight_t b, uint32 h, uint32 posSize) {
-		hash     = h;
-		bound_   = b;
-		posSize_ = posSize;
-		type_    = t;
-	}
-	void     init(RuleType t, weight_t b, uint32 h, uint32 posSize) {
-		BodyType bt = NORMAL_BODY;
-		if      (t == CONSTRAINTRULE)                  { bt = COUNT_BODY; }
-		else if (t == WEIGHTRULE || t == OPTIMIZERULE) { bt = SUM_BODY;   }
-		init(bt, b, h, posSize);
-	}
-	uint32   size()   const { return static_cast<uint32>(lits.size()); }
-	uint32   posSize()const { return posSize_; }
-	weight_t bound()  const { return bound_; }
-	BodyType type()   const { return static_cast<BodyType>(type_); }
-
-	const WeightLiteral& operator[](uint32 i) const { return lits[i]; }
-	WeightLiteral&       operator[](uint32 i)       { return lits[i]; }
-	weight_t             weight(Literal x)    const { return type() != SUM_BODY ? 1 : lits[findLit(x)].second; }
-	uint32               findLit(Literal x)   const;
-	weight_t             sum()                const;
-	RuleType             ruleType()           const { const RuleType rt[3] = {BASICRULE, CONSTRAINTRULE, WEIGHTRULE}; return  rt[type()]; }
-	WeightLitVec lits;    // literals of body
-	uint32       hash;    // hash value of the rule body
-private:
-	weight_t bound_;      // bound of body
-	uint32   posSize_:30; // size of positive body
-	uint32   type_   : 2; // type of body
-};
-
-//! Used during rule simplification.
-/**
- * \ingroup problem
- */
-class RuleState {
-public:
-	static const uint8 pos_flag    = 0x1u;       // in B+
-	static const uint8 neg_flag    = 0x2u;       // in B-
-	static const uint8 head_flag   = 0x1u << 2u; // atom in normal head 
-	static const uint8 choice_flag = 0x1u << 3u; // atom in choice head
-	static const uint8 disj_flag   = 0x1u << 4u; // disjunctive head
-	static const uint8 any_flag    = 0xFFu;
-	RuleState() {}
-	//! Does t.node() appear in the head of the active rule?
-	bool  inHead(PrgEdge t)         const { return isSet(t.node(), headFlag(t)); }
-	//! Does p appear in the body of the active rule?
-	bool  inBody(Literal p)         const { return isSet(p.var(), pos_flag+p.sign()); }
-	bool  isSet(Var v, uint8 f)     const { return v < state_.size() && (state_[v] & f) != 0; }
-	//! Mark v as a head of the active rule.
-	void  addToHead(Var v)                { set(v, head_flag); }
-	void  addToHead(PrgEdge t)            { set(t.node(), headFlag(t)); }
-	//! Mark p as a literal contained in the active rule.
-	void  addToBody(Literal p)            { set(p.var(), pos_flag+p.sign()); }
-	
-	void  set(Var v, uint8 f)             { grow(v); state_[v] |= f; }
-	void  clear(Var v, uint8 f)           { if (v < state_.size()) { state_[v] &= ~f; } }
-	void  clear(Var v)                    { clear(v, static_cast<uint8>(-1)); }
-	void  clearHead(PrgEdge t)            { clear(t.node(), headFlag(t)); }
-	void  clearBody(Literal p)            { clear(p.var(), pos_flag+p.sign()); }
-	void  clearAll()                      { StateVec().swap(state_); }
-
-	bool  allMarked(EdgeIterator first, EdgeIterator last, uint8 f) const {
-		for (; first != last; ++first) {
-			if (!isSet(first->node(), f)) return false;
-		}
-		return true;
-	}
-private:
-	typedef PodVector<uint8>::type StateVec;
-	void  grow(Var v)                { if (v >= state_.size()) { state_.resize(v+1); } }
-	uint8 headFlag(PrgEdge t) const  { return 1u << ((t.rep>>1) & 7u); }
-	StateVec state_;
-};
-//////////////////////////////////////////////////////////////////////////////////////////////////////
 //! A node of a program-dependency graph.
 /*!
  * A node represents a relevant part in a logic program. Each node
@@ -315,15 +51,17 @@ private:
  */
 class PrgNode {
 public:
-	static const uint32 noScc     = (1u << 27)-1;
-	static const uint32 maxVertex = (1u << 28)-1;
-	static const uint32 noIdx     = 1;
+	//! Supported node types.
+	enum Type { Atom = 0u, Body = 1u, Disj = 2u };
+	static const uint32 noScc  = (1u << 27)-1;
+	static const uint32 noNode = (1u << 28)-1;
+	static const uint32 noLit  = 1;
 	//! Creates a new node that corresponds to a literal that is false.
 	explicit PrgNode(uint32 id, bool checkScc = true);
 	//! Is the node still relevant or removed() resp. eq()?
 	bool relevant() const { return eq_ == 0; }
 	//! Was the node removed?
-	bool removed()  const { return eq_ != 0 && id_ == maxVertex; }
+	bool removed()  const { return eq_ != 0 && id_ == noNode; }
 	//! Ignore the node during scc checking?
 	bool ignoreScc()const { return noScc_ != 0;  }
 	//! Returns true if this node is equivalent to some other node.
@@ -332,14 +70,14 @@ public:
 	 * The only sensible operation is to call id() in order to get the id of the node
 	 * that is equivalent to this node.
 	 */
-	bool eq()       const { return eq_ != 0 && id_ != maxVertex; }
+	bool eq()       const { return eq_ != 0 && id_ != noNode; }
 	bool seen()     const { return seen_ != 0; }
 	//! Returns true if node has an associated variable in a solver.
-	bool hasVar()   const { return litIdx_ != noIdx; }
+	bool hasVar()   const { return litId_ != noLit; }
 	//! Returns the variable associated with this node or sentVar if no var is associated with this node.
-	Var  var()      const { return litIdx_ >> 1; }
+	Var  var()      const { return litId_ >> 1; }
 	//! Returns the literal associated with this node or a sentinel literal if no var is associated with this node.
-	Literal  literal()   const { return Literal::fromIndex(litIdx_); }
+	Literal  literal()   const { return Literal::fromId(litId_); }
 	//! Returns the value currently assigned to this node.
 	ValueRep value()     const { return val_; }
 	//! Returns the current id of this node.
@@ -347,7 +85,7 @@ public:
 	//! Returns the literal that must be true in order to fulfill the truth-value of this node.
 	Literal   trueLit()  const { 
 		return value() == value_free
-			? posLit(0)
+			? lit_true()
 			: literal() ^ (value() == value_false);
 	}
 
@@ -357,19 +95,19 @@ public:
 	 * know what you are doing!
 	 */
 	//@{
-	void    setLiteral(Literal x)   { litIdx_  = x.index(); }
-	void    clearLiteral(bool clVal){ litIdx_  = noIdx; if (clVal) val_ = value_free; }
-	void    setValue(ValueRep v)    { val_     = v; }
-	void    setEq(uint32 eqId)      { id_      = eqId; eq_ = 1; seen_ = 1; }
-	void    setIgnoreScc(bool b)    { noScc_   = (uint32)b; }
-	void    markRemoved()           { if (!eq()) setEq(PrgNode::maxVertex); }
-	void    setSeen(bool b)         { seen_    = uint32(b); }
-	void    resetId(uint32 id, bool seen) { 
-		id_   = id; 
-		eq_   = 0; 
+	void setLiteral(Literal x)   { litId_ = x.id(); }
+	void clearLiteral(bool clVal){ litId_ = noLit; if (clVal) val_ = value_free; }
+	void setValue(ValueRep v)    { val_   = v; }
+	void setEq(uint32 eqId)      { id_    = eqId; eq_ = 1; seen_ = 1; }
+	void setIgnoreScc(bool b)    { noScc_ = (uint32)b; }
+	void markRemoved()           { if (!eq()) setEq(noNode); }
+	void setSeen(bool b)         { seen_  = uint32(b); }
+	void resetId(uint32 id, bool seen) { 
+		id_ = id; 
+		eq_ = 0; 
 		seen_ = (uint32)seen;
 	}
-	bool    assignValueImpl(ValueRep v, bool noWeak) {
+	bool assignValueImpl(ValueRep v, bool noWeak) {
 		if (v == value_weak_true && noWeak) { v = value_true; }
 		if (value() == value_free || v == value() || (value() == value_weak_true && v == value_true)) {
 			setValue(v);
@@ -379,16 +117,205 @@ public:
 	}
 	//@}
 protected:
-	uint32 litIdx_ : 31; // literal-idx in solver
-	uint32 noScc_  :  1; // ignore during scc checks?
-	uint32 id_     : 28; // own id/eq-id/root-id/ufs-id
-	uint32 val_    :  2; // assigned value
-	uint32 eq_     :  1; // removed or eq to some other node?
-	uint32 seen_   :  1; // marked as seen?
+	uint32 litId_ : 31; // literal-id in solver
+	uint32 noScc_ :  1; // ignore during scc checks?
+	uint32 id_    : 28; // own id/eq-id/root-id/ufs-id
+	uint32 val_   :  2; // assigned value
+	uint32 eq_    :  1; // removed or eq to some other node?
+	uint32 seen_  :  1; // marked as seen?
 private:
 	PrgNode(const PrgNode&);
 	PrgNode& operator=(const PrgNode&);
 };
+typedef PrgNode::Type NodeType;
+//! An edge of a program-dependency graph.
+/*!
+ * Currently, clasp distinguishes four types of edges:
+ *  - a Normal edge stipulates an implication between body and head,
+ *    i.e. tableau-rules FTA and BFA for atoms.
+ *  - a Choice edge only stipulates a support.
+ *  - a Gamma edge is like a Normal edge that is only considered during
+ *    nogood creation but ignored in the dependency graph.
+ *  - a GammaChoice edge is like a Gamma edge but only stipulates a support.
+ * The head of a rule is either an atom or a disjunction.
+ */
+struct PrgEdge {
+	//! Type of edge.
+	enum Type { Normal = 0, Gamma = 1, Choice = 2, GammaChoice = 3 };
+	static PrgEdge noEdge() { PrgEdge x; x.rep = UINT32_MAX; return x; }
+	
+	template <class NT>
+	static PrgEdge newEdge(const NT& n, Type eType) { 
+		// 28-bit node id, 2-bit node type, 2-bit edge type
+		PrgEdge x = { (n.id() << 4) | (static_cast<uint32>(n.nodeType()) << 2) | eType };
+		return x;
+	}
+	//! Returns the id of the adjacent node.
+	uint32   node()     const { return rep >> 4; }
+	//! Returns the type of this edge.
+	Type     type()     const { return Type(rep & 3u); }
+	//! Returns the type of adjacent node.
+	NodeType nodeType() const { return NodeType((rep >> 2) & 3u); }
+	//! Returns true if edge has normal semantic (normal edge or gamma edge).
+	bool     isNormal() const { return (rep & 2u) == 0; }
+	//! Returns true if edge has choice semantic.
+	bool     isChoice() const { return (rep & 2u) != 0; }
+	//! Returns true if the edge is a gamma (aux normal) edge.
+	bool     isGamma()  const { return (rep & 1u) != 0; }
+	//! Returns true if the adjacent node is a body.
+	bool     isBody()   const { return nodeType() == PrgNode::Body; }
+	//! Returns true if the adjacant node is an atom.
+	bool     isAtom()   const { return nodeType() == PrgNode::Atom; }
+	//! Returns true if the adjacent node is a disjunction.
+	bool     isDisj()   const { return nodeType() == PrgNode::Disj; }	
+	bool     operator< (PrgEdge rhs) const { return rep < rhs.rep; }
+	bool     operator==(PrgEdge rhs) const { return rep == rhs.rep; }
+	uint32 rep;
+};
+
+typedef PrgEdge::Type               EdgeType;
+typedef const PrgEdge*              EdgeIterator;
+typedef bk_lib::pod_vector<PrgEdge> EdgeVec;
+inline bool isChoice(EdgeType t) { return t >= PrgEdge::Choice;  }
+
+using Potassco::Body_t;
+using Potassco::BodyView;
+struct BodyData {
+	typedef Potassco::BodyLitVec       BodyLitVec;
+	typedef BodyLitVec::value_type     LitType;
+	typedef BodyLitVec::const_iterator iterator;
+	typedef Potassco::Body_t Type;
+	BodyLitVec lits; // literals of body
+	Type       type; // type of body
+	weight_t   bound;// optional bound
+	BodyData& reset(Type t = Body_t::Normal);
+	BodyData& add(Atom_t v, bool pos, weight_t w = 1);
+	BodyData& swap(BodyData& o);
+	bool     empty() const { return lits.empty(); }
+	unsigned size()  const { return (unsigned)lits.size();  }
+	wsum_t   sum()   const;
+	iterator begin() const { return lits.begin(); }
+	iterator end()   const { return lits.end(); }
+	LitType const* find(Literal x) const;
+	LitType*       find(Literal x) { return const_cast<LitType*>(const_cast<const BodyData*>(this)->find(x)); }
+	struct Meta {
+		Meta() : pos(0), hash(0), id(varMax) {}
+		uint32 pos;  // positive size of body
+		uint32 hash; // hash value of the body
+		uint32 id;   // id of existing program body that is eq to this object
+	};
+	BodyView toView() const { 
+		BodyView v = {type, bound, Potassco::toSpan(lits)};
+		return v;
+	}
+};
+using Potassco::Head_t;
+using Potassco::HeadView;
+struct HeadData {
+	typedef Potassco::Head_t Type;
+	typedef VarVec::const_iterator iterator;
+	VarVec atoms;
+	Type   type;
+	HeadData& reset(Type t = Head_t::Disjunctive);
+	HeadData& add(Atom_t atom)  { atoms.push_back(atom); return *this; }
+	HeadData& swap(HeadData& o);
+	bool     empty() const { return atoms.empty(); }
+	unsigned size()  const { return (unsigned)atoms.size();  }
+	iterator begin() const { return atoms.begin(); }
+	iterator end()   const { return atoms.end(); }
+	HeadView toView() const { 
+		HeadView v = {type, Potassco::toSpan(atoms)};
+		return v;
+	}
+};
+class RuleView {
+public:
+	RuleView();
+	RuleView(const HeadData& head, const BodyData& body);
+	RuleView(const HeadView& head, const BodyView& body);
+	bool isPrimitive() const { return body.type == Body_t::Normal || (head.type == Head_t::Disjunctive && Potassco::size(head) <= 1); }
+	HeadView head;
+	BodyView body;
+};
+
+class RuleTransform {
+public:
+	struct ProgramAdapter {
+		virtual Atom_t newAtom() = 0;
+		virtual void addRule(const HeadView& head, const BodyView& body) = 0;
+	protected: ~ProgramAdapter() {}
+	};
+	enum Strategy { strategy_default, strategy_select_no_aux, strategy_split_aux };
+	RuleTransform(ProgramAdapter& prg);
+	RuleTransform(LogicProgram& prg);
+	~RuleTransform();
+	uint32 transform(const RuleView&, Strategy s = strategy_default);
+private:
+	RuleTransform(const RuleTransform&);
+	RuleTransform& operator=(const RuleTransform&);
+	struct Impl;
+	Impl* impl_;
+};
+
+//! Used during rule simplification.
+/**
+ * \ingroup problem
+ */
+class AtomState {
+public:
+	static const uint8 pos_flag    = 0x1u; // in positive body of active rule
+	static const uint8 neg_flag    = 0x2u; // in negative body of active rule
+	static const uint8 head_flag   = 0x4u; // in normal head of active rule
+	static const uint8 choice_flag = 0x8u; // in choice head of active rule
+	static const uint8 disj_flag   = 0x10u;// in disjunctive head of active rule
+	static const uint8 rule_mask   = 0x1Fu;// in active rule
+	static const uint8 fact_flag   = 0x20u;// atom is a fact (sticky)
+	static const uint8 false_flag  = 0x40u;// atom is false  (sticky)
+	static const uint8 simp_mask   = 0x7fu;// in active rule or assigned
+	static const uint8 dom_flag    = 0x80u;// var of atom is a dom var (sticky)
+	AtomState() {}
+	void  swap(AtomState& o) { state_.swap(o.state_); }
+	//! Does t.node() appear in the head of the active rule?
+	bool  inHead(PrgEdge t)         const { return isSet(t.node(), headFlag(t)); }
+	bool  inHead(Atom_t atom)       const { return isSet(atom, head_flag); }
+	//! Does p appear in the body of the active rule?
+	bool  inBody(Literal p)         const { return isSet(p.var(), pos_flag+p.sign()); }
+	bool  isSet(Var v, uint8 f)     const { return v < state_.size() && (state_[v] & f) != 0; }
+	bool  isFact(Var v)             const { return isSet(v, fact_flag); }
+	//! Mark v as a head of the active rule.
+	void  addToHead(Atom_t v)             { set(v, head_flag); }
+	void  addToHead(PrgEdge t)            { set(t.node(), headFlag(t)); }
+	//! Mark p as a literal contained in the active rule.
+	void  addToBody(Literal p)            { set(p.var(), pos_flag+p.sign()); }
+	
+	void  set(Var v, uint8 f)             { grow(v); state_[v] |= f; }
+	void  clear(Var v, uint8 f)           { if (v < state_.size()) { state_[v] &= ~f; } }
+	void  clearRule(Var v)                { clear(v, rule_mask); }
+	void  clearHead(PrgEdge t)            { clear(t.node(), headFlag(t)); }
+	void  clearBody(Literal p)            { clear(p.var(), pos_flag+p.sign()); }
+	void  resize(uint32 sz)               { state_.resize(sz); }
+
+	template <class IT>
+	bool  allMarked(IT first, IT last, uint8 f) const {
+		for (; first != last; ++first) {
+			if (!isSet(*first, f)) return false;
+		}
+		return true;
+	}
+	bool  inBody(const Literal* first, const Literal* last) const {
+		bool all = true;
+		for (; first != last && (all = inBody(*first)) == true; ++first) { ; }
+		return all;
+	}
+private:
+	typedef PodVector<uint8>::type StateVec;
+	void  grow(Var v)                { if (v >= state_.size()) { state_.resize(v+1); } }
+	uint8 headFlag(PrgEdge t) const  { 
+		return t.isAtom() ? (head_flag << uint8(t.isChoice())) : disj_flag;
+	}
+	StateVec state_;
+};
+
 
 //! A head node of a program-dependency graph.
 /*!
@@ -413,7 +340,7 @@ public:
 	//! If frozen(), value to assume during solving.
 	ValueRep     freezeValue()const  { return static_cast<ValueRep>(freeze_ - uint32(freeze_ != 0)); }
 	//! If frozen(), literal to assume during solving.
-	Literal      assumption() const  { return freeze_ > uint32(freeze_free) ? literal() ^ (freeze_ == freeze_false) : posLit(0); }
+	Literal      assumption() const  { return freeze_ > uint32(freeze_free) ? literal() ^ (freeze_ == freeze_false) : lit_true(); }
 	//! Adds r as support edge for this node.
 	void         addSupport(PrgEdge r){ addSupport(r, force_simplify); }
 	void         addSupport(PrgEdge r, Simplify s);
@@ -433,7 +360,8 @@ public:
 	//@{
 	void         setInUpper(bool b)   { upper_ = (uint32)b; }
 	void         markDirty()          { dirty_ = 1; }
-	void         assignVar(LogicProgram& prg, PrgEdge it);
+	void         assignVar(LogicProgram& prg, PrgEdge it, bool allowEq = true);
+	NodeType     nodeType()  const    { return isAtom() ? PrgNode::Atom : PrgNode::Disj; }
 	//@}
 protected:
 	enum FreezeState { freeze_no = 0u, freeze_free = 1u, freeze_true = 2u, freeze_false = 3u };
@@ -457,16 +385,16 @@ protected:
  */
 class PrgAtom : public PrgHead {
 public:
-	enum    Dependency { dep_pos = 0, dep_neg = 1, dep_all = 2 };
-	typedef LitVec::const_iterator      dep_iterator;
+	enum Dependency { dep_pos = 0, dep_neg = 1, dep_all = 2 };
+	typedef LitVec::const_iterator dep_iterator;
 	explicit PrgAtom(uint32 id, bool checkScc = true);
+	NodeType     nodeType() const { return PrgNode::Atom; }
 	//! Strongly connected component of this node.
-	uint32       scc()                          const { return data_; }
+	uint32       scc() const { return data_; }
 	//! If eq(), stores the literal that is eq to this atom.
-	Literal      eqGoal(bool sign)              const;
+	Literal      eqGoal(bool sign) const;
 	//! Returns true if atom belongs to a disjunctive head.
-	bool         inDisj()                       const;
-
+	bool         inDisj()   const;
 	/*!
 	 * \name forward dependencies (bodies containing this atom)
 	 */
@@ -474,8 +402,8 @@ public:
 	dep_iterator deps_begin()                   const { return deps_.begin(); }
 	dep_iterator deps_end()                     const { return deps_.end();   }
 	bool         hasDep(Dependency d)           const;
-	void         addDep(Var bodyId, bool pos);
-	void         removeDep(Var bodyId, bool pos);
+	void         addDep(Id_t bodyId, bool pos);
+	void         removeDep(Id_t bodyId, bool pos);
 	void         clearDeps(Dependency d);
 	//@}
 	
@@ -485,12 +413,12 @@ public:
 	 * know what you are doing!
 	 */
 	//@{
-	void         setEqGoal(Literal x);
-	bool         propagateValue(LogicProgram& prg, bool backprop);
-	bool         addConstraints(const LogicProgram& prg, ClauseCreator& c);
-	void         setScc(uint32 scc) { data_ = scc; }
-	void         markFrozen(ValueRep v){ freeze_ = v + freeze_free; }
-	void         clearFrozen()         { freeze_ = freeze_no; markDirty(); }
+	void setEqGoal(Literal x);
+	bool propagateValue(LogicProgram& prg, bool backprop);
+	bool addConstraints(const LogicProgram& prg, ClauseCreator& c);
+	void setScc(uint32 scc)    { data_ = scc; }
+	void markFrozen(ValueRep v){ freeze_ = v + freeze_free; }
+	void clearFrozen()         { freeze_ = freeze_no; markDirty(); }	
 	//@}
 private:
 	LitVec deps_; // bodies depending on this atom
@@ -499,43 +427,46 @@ private:
 //! A (rule) body in a logic program.
 class PrgBody : public PrgNode {
 public:
-	typedef BodyInfo::BodyType BodyType;
-	typedef EdgeIterator       head_iterator;
+	typedef EdgeIterator   head_iterator;
+	typedef const Literal* goal_iterator;
 	
 	//! Creates a new body node and connects the node to its predecessors.
 	/*!
 	 * \param prg     The program in which the new body is used.
-	 * \param id      The id of the new body object.
-	 * \param info    The rule body for which a node is to be created.
+	 * \param meta    Meta data for the new body node.
+	 * \param body    The rule body for which a node is to be created.
 	 * \param addDeps If true, add an edge between each atom subgoal and the new node.
 	 */
-	static PrgBody* create(LogicProgram& prg, uint32 id, const BodyInfo& info, bool addDeps);
-
+	static PrgBody* create(LogicProgram& prg, const BodyData::Meta& meta, const BodyView& body, bool addDeps);
 	//! Destroys a body node created via create(LogicProgram& prg, uint32 id, const Rule& rule, const Rule::RData& rInfo).
 	void     destroy();
-	BodyType type()  const { return BodyType(type_); }
+	Body_t   type()  const { return Body_t(static_cast<Body_t>(type_)); }
 	//! Returns the number of atoms in the body.
 	uint32   size()  const { return size_; }
 	bool     noScc() const { return size() == 0 || goal(0).sign(); }
 	//! Returns the bound of this body, or size() if the body is a normal body.
-	weight_t bound() const { return static_cast<weight_t>(type() == BodyInfo::NORMAL_BODY ? (weight_t)size() : boundImpl()); }
+	weight_t bound() const { return static_cast<weight_t>(type() == Body_t::Normal ? (weight_t)size() : boundImpl()); }
 	//! Returns the sum of the subgoals weights, or size() if the body is not a SUM_BODY.
-	weight_t sumW()  const { return static_cast<weight_t>(type() != BodyInfo::SUM_BODY    ? (weight_t)size() : data_.ext[0]->sumW); }
+	weight_t sumW()  const { return static_cast<weight_t>(type() != Body_t::Sum    ? (weight_t)size() : data_.ext[0]->sumW); }
 	//! Returns the idx'th subgoal as a literal.
 	Literal  goal(uint32 idx)  const { assert(idx < size()); return *(goals_begin()+idx); }
 	//! Returns the weight of the idx'th subgoal.
-	weight_t weight(uint32 idx)const { assert(idx < size()); return type() != BodyInfo::SUM_BODY ? 1 : data_.ext[0]->weights[idx]; }  
+	weight_t weight(uint32 idx)const { assert(idx < size()); return !hasWeights() ? 1 : data_.ext[0]->weights[idx]; }  
 	//! Returns true if the body node is supported.
 	/*!
 	 * A normal body is supported, iff all of its positive subgoals are supported.
 	 * A count/sum body is supported if the sum of the weights of the supported positive +
 	 * the sum of the negative weights is >= lowerBound().
 	 */
-	bool          isSupported() const { return unsupp_ <= 0; }
+	bool     isSupported() const { return unsupp_ <= 0; }
 	//! Returns true if this body defines any head.
-	bool          hasHeads()    const { return extHead() ? !heads_.ext->empty()  : extHead_ != 0; }
+	bool     hasHeads()    const { return extHead() ? !heads_.ext->empty()  : extHead_ != 0; }
+	bool     inRule()      const { return hasHeads() || freeze_; }
+	
 	head_iterator heads_begin() const { return !extHead() ? heads_.simp          : heads_.ext->begin(); }
 	head_iterator heads_end()   const { return !extHead() ? heads_.simp+extHead_ : heads_.ext->end(); }
+	goal_iterator goals_begin() const { return const_cast<PrgBody*>(this)->goals_begin(); }
+	goal_iterator goals_end()   const { return goals_begin() + size(); }
 	//! Adds a rule edge between this body and the given head.
 	/*!
 	 * \note
@@ -580,7 +511,6 @@ public:
 	bool     simplify(LogicProgram& prg, bool strong, uint32* eqId = 0) {
 		return simplifyBody(prg, strong, eqId) && simplifyHeads(prg, strong);
 	}
-	bool     eqLits(WeightLitVec& vec, bool& sorted) const;
 	//! Notifies the body node about the fact that its positive subgoal v is supported.
 	/*!
 	 * \return true if the body is now also supported, false otherwise.
@@ -592,33 +522,42 @@ public:
 	bool     propagateAssigned(LogicProgram& prg, PrgHead* h, EdgeType t);
 	//! Propagates the value of this body.
 	bool     propagateValue(LogicProgram& prg, bool backprop);
+	bool     propagateValue(LogicProgram& prg);
 	bool     addConstraints(const LogicProgram& prg, ClauseCreator& c);
 	void     markDirty()      { sBody_ = 1; }
 	void     markHeadsDirty() { sHead_ = 1; }
+	void     markFrozen()     { freeze_= 1; }
 	void     clearHeads();
 	bool     resetSupported();
 	void     assignVar(LogicProgram& prg);
 	bool     assignValue(ValueRep v) { return assignValueImpl(v, noScc()); }
 	uint32   scc(const LogicProgram& prg) const;
+	bool     hasWeights()  const { return type() == Body_t::Sum; }
+	void     clearRule(AtomState& rs) const {
+		for (head_iterator it = heads_begin(), end = heads_end(); it != end; ++it) {
+			rs.clearRule(it->node());
+		}
+		for (const Literal* it = goals_begin(), *end = it + size(); it != end; ++it) {
+			rs.clearRule(it->var());
+		}
+	}
+	NodeType nodeType() const  { return PrgNode::Body; }
 private:
 	static const uint32 maxSize = (1u<<26)-1;
-	explicit PrgBody(LogicProgram& prg, uint32 id, const BodyInfo& info, bool addDep);
+	explicit PrgBody(LogicProgram& prg, const BodyData::Meta& meta, const BodyView& body, bool addDep);
 	~PrgBody();
-	uint32         findLit(const LogicProgram& prg, Literal p) const;
-	bool           normalize(const LogicProgram& prg, weight_t bound, weight_t sumW, weight_t reachW, uint32& hashOut);
-	void           prepareSimplifyHeads(LogicProgram& prg, RuleState& rs);
-	bool           simplifyHeadsImpl(LogicProgram& prg, PrgBody& target, RuleState& rs, bool strong);
-	bool           superfluousHead(const LogicProgram& prg, const PrgHead* head, PrgEdge it, const RuleState& rs) const;
-	bool           blockedHead(PrgEdge it, const RuleState& rs) const;
-	void           addHead(PrgEdge h);
-	bool           eraseHead(PrgEdge h);
-	bool           extHead()     const { return extHead_ == 3u; }
-	bool           hasWeights()  const { return type() == BodyInfo::SUM_BODY; }
-	weight_t       boundImpl()   const { return static_cast<weight_t>(!hasWeights() ? (weight_t)data_.lits[0] : data_.ext[0]->bound); }
-	const Literal* goals_end()   const { return goals_begin() + size(); }
-	const Literal* goals_begin() const { return const_cast<PrgBody*>(this)->goals_begin(); }
-	Literal*       goals_end()         { return goals_begin() + size(); }
-	Literal*       goals_begin()       { return reinterpret_cast<Literal*>( data_.lits + (type() == BodyInfo::NORMAL_BODY ? 0 : SumExtra::LIT_OFFSET) ); }
+	uint32   findLit(const LogicProgram& prg, Literal p) const;
+	bool     normalize(const LogicProgram& prg, weight_t bound, weight_t sumW, weight_t reachW, uint32& hashOut);
+	void     prepareSimplifyHeads(LogicProgram& prg, AtomState& rs);
+	bool     simplifyHeadsImpl(LogicProgram& prg, PrgBody& target, AtomState& rs, bool strong);
+	bool     superfluousHead(const LogicProgram& prg, const PrgHead* head, PrgEdge it, const AtomState& rs) const;
+	bool     blockedHead(PrgEdge it, const AtomState& rs) const;
+	void     addHead(PrgEdge h);
+	bool     eraseHead(PrgEdge h);
+	bool     extHead()     const { return extHead_ == 3u; }
+	weight_t boundImpl()   const { return static_cast<weight_t>(!hasWeights() ? (weight_t)data_.lits[0] : data_.ext[0]->bound); }
+	Literal* goals_end()         { return goals_begin() + size(); }
+	Literal* goals_begin()       { return reinterpret_cast<Literal*>( data_.lits + (type() == Body_t::Normal ? 0 : SumExtra::LIT_OFFSET) ); }
 	struct SumExtra {
 		enum { LIT_OFFSET = sizeof(void*)/sizeof(uint32) };
 		static SumExtra* create(uint32 size);
@@ -631,11 +570,12 @@ private:
 		PrgEdge  simp[2];
 		EdgeVec* ext;
 	}         heads_;         // successors of this body
-	uint32    size_     : 26; // |B|
+	uint32    size_     : 25; // |B|
 	uint32    extHead_  :  2; // simple or extended head?
 	uint32    type_     :  2; // body type
 	uint32    sBody_    :  1; // simplify body?
 	uint32    sHead_    :  1; // simplify head?
+	uint32    freeze_   :  1; // keep body even if it does not occur in a rule?
 	weight_t  unsupp_;        // <= 0 -> body is supported
 	struct { union {
 		uint32    lits[0];
@@ -646,7 +586,7 @@ private:
 //! The head of a disjunctive rule.
 class PrgDisj : public PrgHead {
 public:
-	typedef EdgeIterator atom_iterator;
+	typedef const Var* atom_iterator;
 	//! Constructor for disjunctions.
 	static PrgDisj* create(uint32 id, const VarVec& heads);
 	//! Destroys a disjunction created via create().
@@ -661,7 +601,7 @@ public:
 private:
 	explicit PrgDisj(uint32 id, const VarVec& atoms);
 	~PrgDisj();
-	PrgEdge atoms_[0]; // atoms in disjunction
+	Var atoms_[0]; // atoms in disjunction
 };
 
 inline ValueRep getMergeValue(const PrgNode* lhs, const PrgNode* rhs) {
@@ -679,9 +619,9 @@ class SccChecker {
 public:
 	SccChecker(LogicProgram& prg, AtomList& sccAtoms, uint32 startScc);
 	uint32 sccs()              const { return sccs_; }
-	void  visit(PrgBody* body)       { visitDfs(body, PrgEdge::BODY_NODE); }
-	void  visit(PrgAtom* atom)       { visitDfs(atom, PrgEdge::ATOM_NODE); }
-	void  visit(PrgDisj* disj)       { visitDfs(disj, PrgEdge::DISJ_NODE); }
+	void  visit(PrgBody* body)       { visitDfs(body, PrgNode::Body); }
+	void  visit(PrgAtom* atom)       { visitDfs(atom, PrgNode::Atom); }
+	void  visit(PrgDisj* disj)       { visitDfs(disj, PrgNode::Disj); }
 private:
 	struct Call { 
 		uintp    node;
@@ -716,6 +656,7 @@ public:
 	using base_type::begin;
 	using base_type::end;
 	using base_type::size;
+	NonHcfSet() : config(0) {}
 	void add(uint32 scc) {
 		iterator it = std::lower_bound(begin(), end(), scc);
 		if (it == end() || *it != scc) { insert(it, scc); }
@@ -724,6 +665,7 @@ public:
 		const_iterator it = scc != PrgNode::noScc ? std::lower_bound(begin(), end(), scc) : end();
 		return it != end() && *it == scc;
 	}
+	Configuration* config;
 };
 
 } }

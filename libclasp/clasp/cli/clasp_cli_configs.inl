@@ -45,12 +45,12 @@ CONFIG(0, tweety\
        , "--opt-strat=bb,1")
 CONFIG(1, trendy\
        , "--heuristic=Vsids --restarts=D,100,0.7 --deletion=basic,50,0 --del-init=3.0,500,19500 --del-grow=1.1,20.0,x,100,1.5 --del-cfl=+,10000,2000 --del-glue=2"\
-         " --strengthen=recursive --update-lbd --otfs=2 --save-p=75 --counter-restarts=3 --counter-bump=1023 --reverse-arcs=2  --contraction=250 --loops=common"\
+         " --strengthen=recursive --update-lbd --otfs=2 --save-p=75 --counter-restarts=3 --counter-bump=1023 --reverse-arcs=2 --contraction=250 --loops=common"\
        , "--sat-p=2,20,25,240 --trans-ext=dynamic"\
        , "--opt-heu=1 --opt-strat=usc,1")
 CONFIG(2, frumpy\
        , "--heuristic=Berkmin --restarts=x,100,1.5 --deletion=basic,75 --del-init=3.0,200,40000 --del-max=400000 --contraction=250 --loops=common --save-p=180"\
-         " --del-grow=1.1 --strengthen=local --sign-def=4"\
+         " --del-grow=1.1 --strengthen=local --sign-def-disj=1"\
        , "--eq=5"\
        , "--restart-on-model --opt-heu=2")
 CONFIG(3, crafty\
@@ -82,6 +82,9 @@ CONFIG(11, s11, "--heuristic=Vsids --strengthen=recursive --restarts=x,100,1.5,1
 CONFIG(12, s12, "--heuristic=Vsids --restarts=L,128 --save-p --otfs=1 --init-w=2 --contr=0 --opt-heu=3",  "", "")
 CONFIG(13, s13, "--heuristic=Berkmin,512 --restarts=x,100,1.5,6 --local-restarts --init-w=2 --contr=0",  "", "")
 CONFIG(14, nolearn, "--no-lookback --heuristic=Unit --lookahead=atom --deletion=no --restarts=no",  "", "")
+CONFIG(15, tester,  "--heuristic=Vsids --restarts=D,100,0.7 --deletion=sort,50,2 --del-max=200000 --del-init=20.0,1000,14000 --del-cfl=+,4000,600 --del-glue=2 --update-lbd"\
+                    " --strengthen=recursive --otfs=2 --save-p=20 --contraction=600 --counter-restarts=7 --counter-bump=1023 --reverse-arcs=2"\
+                 ,  "--sat-p=2,10,25,240", "")
 #undef CLASP_CLI_AUX_CONFIGS
 #endif
 #undef CONFIG

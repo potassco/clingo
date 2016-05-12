@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -23,7 +23,6 @@
 
 #include <gringo/graph.hh>
 #include <gringo/term.hh>
-#include <gringo/unique_list.hh>
 
 namespace Gringo { namespace Ground {
 
@@ -37,7 +36,7 @@ struct Lookup {
     //! Adds an occurrence associated with a term.
     //! If there is already an occurrence with a structurally equivalent term,
     //! then the method returns true. Otherwise, the method returns false and
-    //! the freshly inserted occurrence is associated with the (representative) 
+    //! the freshly inserted occurrence is associated with the (representative)
     //! term already present.
     bool add(GTerm &term, Occ &&occ);
     template <class Callback>
@@ -60,12 +59,13 @@ public:
 // {{{ declaration of BodyOccurrence
 
 using LocSet = std::set<Location>;
-using SigSet = unique_list<FWSignature>;
+using SigSet = UniqueVec<FWSignature>;
 using UndefVec = std::vector<std::pair<Location, Printable const *>>;
 
 enum class OccurrenceType { POSITIVELY_STRATIFIED, STRATIFIED, UNSTRATIFIED };
 template <class HeadOcc>
-struct BodyOccurrence {
+class BodyOccurrence {
+public:
     using DefinedBy = std::vector<std::reference_wrapper<HeadOcc>>;
     virtual UGTerm getRepr() const = 0;
     virtual bool isPositive() const = 0;
@@ -124,7 +124,7 @@ bool Lookup<Occ>::add(GTerm &term, Occ &&x) {
         occs.emplace(&term, std::forward<Occ>(x));
         return true;
     }
-    else { 
+    else {
         occs.emplace_hint(it, it->first, std::forward<Occ>(x));
         return false;
     }
@@ -138,7 +138,7 @@ void Lookup<Occ>::match(Value const &x, Callback const &c) {
         case Value::ID: {
             auto ir(terms.equal_range(x.sig()));
             for (auto it = ir.first; it != ir.second; ++it) {
-                if (it->second->match(x)) { 
+                if (it->second->match(x)) {
                     auto rng(occs.equal_range(it->second));
                     assert(rng.first != rng.second);
                     c(rng.first, rng.second);
@@ -211,7 +211,7 @@ typename Dependency<Stm, HeadOcc>::ComponentVec Dependency<Stm, HeadOcc>::analyz
     // initialize nodes
     for (auto &x : heads) {
         auto f = [&x](typename Lookup::iterator begin, typename Lookup::iterator end) -> void {
-            for (auto it = begin; it != end; ++it) { 
+            for (auto it = begin; it != end; ++it) {
                 auto &dep(it->second.first->depend[it->second.second]);
                 std::get<1>(dep).emplace_back(std::get<0>(x));
                 std::get<0>(dep)->definedBy().emplace_back(std::get<1>(x));
@@ -266,7 +266,7 @@ typename Dependency<Stm, HeadOcc>::ComponentVec Dependency<Stm, HeadOcc>::analyz
         posSCC = 0;
         for (auto &scc : posSccs) {
             components.emplace_back();
-            for (auto &graphNode : scc) { 
+            for (auto &graphNode : scc) {
                 for (auto &x : graphNode->data->depend) {
                     OccurrenceType t = OccurrenceType::POSITIVELY_STRATIFIED;
                     for (auto &y : std::get<1>(x)) {

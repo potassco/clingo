@@ -1,0 +1,215 @@
+// {{{ GPL License
+
+// This file is part of gringo - a grounder for logic programs.
+// Copyright (C) 2013  Roland Kaminski
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+// }}}
+
+#define YYCTYPE     char
+#define YYCURSOR    cursor()
+#define YYLIMIT     limit()
+#define YYMARKER    marker()
+#define YYFILL(n)   {fill(n);}
+#define YYCTXMARKER ctxmarker()
+#define YYGETCONDITION condition
+#define YYSETCONDITION condition
+
+// Note: THEORYOP is also used in output/backends.cc
+/*!re2c
+    re2c:cond:goto = "continue;";
+
+    NUMBER     = "0"|([1-9][0-9]*);
+    ANY        = [\000-\377];
+    WS         = [\t\r ]*;
+    NL         = "\n";
+    IDENTIFIER = "_"*[a-z]['A-Za-z0-9_]*;
+    VARIABLE   = "_"*[A-Z]['A-Za-z0-9_]*;
+    ANONYMOUS  = "_";
+    STRING     = "\"" ([^\\"\n]|"\\\""|"\\\\"|"\\n")* "\"";
+    WSNL       = [\t\r\n ]*;
+    SIG        = WSNL ([-$])? WSNL IDENTIFIER WSNL "/" WSNL NUMBER WSNL ".";
+    PYTHON     = "#script" WS* "(" WS* "python" WS* ")";
+    LUA        = "#script" WS* "(" WS* "lua" WS* ")";
+    THEORYOP   = [/!<=>+\-*\\?&@|:;~\^\.]+;
+    SUP        = "#sup"("remum")?;
+    INF        = "#inf"("imum")?;
+    KEYWORD    = "#" [a-zA-Z0-9_]*;
+*/
+
+int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
+    int bc = 0;
+    auto &value = *static_cast<Gringo::Input::NonGroundGrammar::parser::semantic_type*>(pValue);
+    start(loc);
+    for (;;) {
+        /*!re2c
+        <normal,theory,definition> WS         { start(loc); continue; }
+        <normal,theory,definition> NL         { if(eof()) return 0; step(); start(loc); continue; }
+        <normal,theory> INF                   { return NonGroundGrammar::parser::token::INFIMUM; }
+        <normal,theory> SUP                   { return NonGroundGrammar::parser::token::SUPREMUM; }
+        <normal> PYTHON                       :=> python
+        <normal> LUA                          :=> lua
+        <normal> "#include"                   { return NonGroundGrammar::parser::token::INCLUDE; }
+        <normal> "#edge"                      { return NonGroundGrammar::parser::token::EDGE; }
+        <normal> "#heuristic"                 { return NonGroundGrammar::parser::token::HEURISTIC; }
+        <normal> "#project"                   { return NonGroundGrammar::parser::token::PROJECT; }
+        <normal> "#show"                      { return NonGroundGrammar::parser::token::SHOW; }
+        <normal> "#show"/SIG                  { return NonGroundGrammar::parser::token::SHOWSIG; }
+        <normal> "#const"                     { return NonGroundGrammar::parser::token::CONST; }
+        <normal> "#minimi"[zs]"e"             { return NonGroundGrammar::parser::token::MINIMIZE; }
+        <normal> "#maximi"[zs]"e"             { return NonGroundGrammar::parser::token::MAXIMIZE; }
+        <normal> "#program"                   { return NonGroundGrammar::parser::token::BLOCK; }
+        <normal> "#external"                  { return NonGroundGrammar::parser::token::EXTERNAL; }
+        <definition> "left"                   { return NonGroundGrammar::parser::token::LEFT; }
+        <definition> "right"                  { return NonGroundGrammar::parser::token::RIGHT; }
+        <definition> "head"                   { return NonGroundGrammar::parser::token::HEAD; }
+        <definition> "body"                   { return NonGroundGrammar::parser::token::BODY; }
+        <definition> "any"                    { return NonGroundGrammar::parser::token::ANY; }
+        <definition> "binary"                 { return NonGroundGrammar::parser::token::BINARY; }
+        <definition> "unary"                  { return NonGroundGrammar::parser::token::UNARY; }
+        <definition> "directive"              { return NonGroundGrammar::parser::token::DIRECTIVE; }
+
+        <normal> "not"                        { value.uid = not_; return NonGroundGrammar::parser::token::NOT; }
+        <normal> ANONYMOUS                    { return NonGroundGrammar::parser::token::ANONYMOUS; }
+        <normal,theory,definition> IDENTIFIER { value.uid = FWString::uid(string()); return NonGroundGrammar::parser::token::IDENTIFIER; }
+        <normal,theory,definition> NUMBER     { value.num = integer(); return NonGroundGrammar::parser::token::NUMBER; }
+        <normal,theory> VARIABLE              { value.uid = FWString::uid(string()); return NonGroundGrammar::parser::token::VARIABLE; }
+        <normal,theory> STRING                { value.uid = FWString::uid(unquote(string(1, 1))); return NonGroundGrammar::parser::token::STRING; }
+
+        <normal> "#true"                      { return NonGroundGrammar::parser::token::TRUE; }
+        <normal> "#false"                     { return NonGroundGrammar::parser::token::FALSE; }
+        <normal> "#sum"                       { return NonGroundGrammar::parser::token::SUM; }
+        <normal> "#sum+"                      { return NonGroundGrammar::parser::token::SUMP; }
+        <normal> "#count"                     { return NonGroundGrammar::parser::token::COUNT; }
+        <normal> "#min"                       { return NonGroundGrammar::parser::token::MIN; }
+        <normal> "#max"                       { return NonGroundGrammar::parser::token::MAX; }
+        <normal> "#disjoint"                  { return NonGroundGrammar::parser::token::DISJOINT; }
+        <normal> "#theory"                    { return NonGroundGrammar::parser::token::THEORY; }
+        <normal,theory,definition> ";"        { return NonGroundGrammar::parser::token::SEM; }
+        <normal> ".."                         { return NonGroundGrammar::parser::token::DOTS; }
+        <normal,theory,definition> "."        { return NonGroundGrammar::parser::token::DOT; }
+        <normal,theory,definition> ":"        { return NonGroundGrammar::parser::token::COLON; }
+        <normal,theory> ":-"                  { return NonGroundGrammar::parser::token::IF; }
+        <normal> ":~"                         { return NonGroundGrammar::parser::token::WIF; }
+        <normal,theory,definition> ","        { return NonGroundGrammar::parser::token::COMMA; }
+        <normal> "|"                          { return NonGroundGrammar::parser::token::VBAR; }
+        <normal,theory> "["                   { return NonGroundGrammar::parser::token::LBRACK; }
+        <normal,theory> "]"                   { return NonGroundGrammar::parser::token::RBRACK; }
+        <normal,theory> "("                   { return NonGroundGrammar::parser::token::LPAREN; }
+        <normal,theory> ")"                   { return NonGroundGrammar::parser::token::RPAREN; }
+        <normal,theory,definition> "{"        { return NonGroundGrammar::parser::token::LBRACE; }
+        <normal,theory,definition> "}"        { return NonGroundGrammar::parser::token::RBRACE; }
+        <normal> "+"                          { return NonGroundGrammar::parser::token::ADD; }
+        <normal> "-"                          { return NonGroundGrammar::parser::token::SUB; }
+        <normal> "**"                         { return NonGroundGrammar::parser::token::POW; }
+        <normal> "\\"                         { return NonGroundGrammar::parser::token::MOD; }
+        <normal> "*"                          { return NonGroundGrammar::parser::token::MUL; }
+        <normal> ">"                          { return NonGroundGrammar::parser::token::GT; }
+        <normal> "<"                          { return NonGroundGrammar::parser::token::LT; }
+        <normal> ">="                         { return NonGroundGrammar::parser::token::GEQ; }
+        <normal> "<="                         { return NonGroundGrammar::parser::token::LEQ; }
+        <normal> "=="                         { return NonGroundGrammar::parser::token::EQ; }
+        <normal> "!="                         { return NonGroundGrammar::parser::token::NEQ; }
+        <normal> "<>"                         { return NonGroundGrammar::parser::token::NEQ; }
+        <normal> "="                          { return NonGroundGrammar::parser::token::EQ; }
+        <normal,definition> "/"               { return NonGroundGrammar::parser::token::SLASH; }
+        <normal> "@"                          { return NonGroundGrammar::parser::token::AT; }
+        <normal,definition> "&"               { return NonGroundGrammar::parser::token::AND; }
+        <normal> "^"                          { return NonGroundGrammar::parser::token::XOR; }
+        <normal> "~"                          { return NonGroundGrammar::parser::token::BNOT; }
+        <normal> "?"                          { return NonGroundGrammar::parser::token::QUESTION; }
+        <normal> "$"                          { return NonGroundGrammar::parser::token::CSP; }
+        <normal> "$+"                         { return NonGroundGrammar::parser::token::CSP_ADD; }
+        <normal> "$-"                         { return NonGroundGrammar::parser::token::CSP_SUB; }
+        <normal> "$*"                         { return NonGroundGrammar::parser::token::CSP_MUL; }
+        <normal> "$<="                        { return NonGroundGrammar::parser::token::CSP_LEQ; }
+        <normal> "$<"                         { return NonGroundGrammar::parser::token::CSP_LT; }
+        <normal> "$>="                        { return NonGroundGrammar::parser::token::CSP_GEQ; }
+        <normal> "$>"                         { return NonGroundGrammar::parser::token::CSP_GT; }
+        <normal> "$=="                        { return NonGroundGrammar::parser::token::CSP_EQ; }
+        <normal> "$="                         { return NonGroundGrammar::parser::token::CSP_EQ; }
+        <normal> "$!="                        { return NonGroundGrammar::parser::token::CSP_NEQ; }
+        <normal> "$<>"                        { return NonGroundGrammar::parser::token::CSP_NEQ; }
+        <theory> THEORYOP                     { value.uid = FWString::uid(string()); return NonGroundGrammar::parser::token::THEORY_OP; }
+        <normal,theory,definition> "%*"       => blockcomment { bc++; continue; }
+        <normal,theory,definition> "%"        :=> comment
+        <normal,theory,definition> "#!"       :=> comment
+        <normal,theory,definition> KEYWORD    { lexerError(string()); continue; }
+        <normal,theory,definition> ANY        { lexerError(string()); continue; }
+
+        <python> "#end" => normal {
+            value.uid = FWString::uid(string()+"\n");
+            return NonGroundGrammar::parser::token::PYTHON;
+        }
+        <python> NL {
+            if(eof()) {
+                lexerError("<EOF>");
+                return 0;
+            }
+            step();
+            continue;
+        }
+        <python> ANY { continue; }
+
+        <lua> "#end" => normal {
+            std::string s(string(0,4));
+            s.erase(0, s.find(')') + 1);
+            value.uid = FWString::uid(std::move(s));
+            return NonGroundGrammar::parser::token::LUA;
+        }
+        <lua> NL {
+            if(eof()) {
+                lexerError("<EOF>");
+                return 0;
+            }
+            step();
+            continue;
+        }
+        <lua> ANY { continue; }
+
+        <blockcomment> "*%" { if(--bc == 0) { condition(yycnormal); start(loc); } continue; }
+        <blockcomment> "%*" { bc++; continue; }
+        <blockcomment> "%"  :=> comment
+        <blockcomment> NL   { if(eof()) { lexerError("<EOF>"); return 0; } step(); continue; }
+        <blockcomment> ANY  { continue; }
+
+        <comment> NL {
+            if(eof()) {
+                if(bc > 0) { lexerError("<EOF>"); }
+                return 0;
+            }
+            step();
+            if (bc > 0) { condition(yycblockcomment); }
+            else {
+                condition(yycnormal);
+                start(loc);
+            }
+            continue;
+        }
+        <comment> ANY { continue; }
+        */
+    }
+    assert(false);
+    return 0;
+}
+
+#undef YYCTYPE
+#undef YYCURSOR
+#undef YYLIMIT
+#undef YYMARKER
+#undef YYFILL
+#undef YYCTXMARKER
+#undef YYGETCONDITION
+#undef YYSETCONDITION

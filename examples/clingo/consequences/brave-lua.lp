@@ -1,13 +1,11 @@
 #script(lua)
 
-Model, SolveResult = gringo.Model, gringo.SolveResult
-
 brave = {}
 
 function on_model(m)
-    for _, x in ipairs(m:atoms(Model.ATOMS)) do
-        if x:name() == "holds" then
-            brave[tostring(x:args()[1])] = true
+    for _, x in ipairs(m:atoms{atoms=true}) do
+        if x.name == "holds" then
+            brave[tostring(x.args[1])] = true
         end
     end
 end
@@ -23,7 +21,7 @@ end
 function main(prg)
     local n = 0
     prg:ground({{"base", {}}})
-    while prg:solve(nil, on_model) == SolveResult.SAT do
+    while prg:solve(nil, on_model).satisfiable do
         if n > 10 then break end
         n = n + 1
         prg:ground({{"brave", {}}})

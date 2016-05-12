@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -36,8 +36,7 @@ using namespace Gringo::Test;
 
 // {{{ declaration of TestProgramBuilder
 
-class TestProgramBuilder : public CppUnit::TestFixture
-{
+class TestProgramBuilder : public CppUnit::TestFixture {
     CPPUNIT_TEST_SUITE(TestProgramBuilder);
         CPPUNIT_TEST(test_term);
         CPPUNIT_TEST(test_literal);
@@ -77,8 +76,9 @@ public:
     void test_rule();
 
     virtual ~TestProgramBuilder();
-    
+
     std::ostringstream oss;
+    Potassco::TheoryData td;
     Output::OutputBase out;
     Location l;
     Defines defs;
@@ -94,7 +94,7 @@ using namespace Gringo::IO;
 // {{{ definition of TestProgramBuilder
 
 TestProgramBuilder::TestProgramBuilder()
-    : out({}, oss)
+    : out(td, {}, oss)
     , l(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1)
     , scripts(Gringo::Test::getTestModule())
     , p(scripts, prg, out, defs) { }
@@ -189,7 +189,7 @@ void TestProgramBuilder::test_term() {
     CPPUNIT_ASSERT_EQUAL(std::string("p(@f(1);@f(2,3,4))."), t(p.term(l, FWString("f"), p.termvecvec(p.termvecvec(p.termvecvec(), p.termvec(p.termvec(), p.term(l, NUM(1)))), p.termvec(p.termvec(p.termvec(p.termvec(), p.term(l, NUM(2))), p.term(l, NUM(3))), p.term(l, NUM(4)))), true)));
     CPPUNIT_ASSERT_EQUAL(std::string("p(1;(2,3,4))."), t(p.pool(l,p.termvec(p.termvec(p.termvec(),p.term(l, p.termvec(p.termvec(), p.term(l, NUM(1))), false)), p.term(l, p.termvec(p.termvec(p.termvec(p.termvec(), p.term(l, NUM(2))), p.term(l, NUM(3))), p.term(l, NUM(4))), false)))));
     CPPUNIT_ASSERT_EQUAL(std::string("p((1,);(2,3,4))."), t(
-        p.pool(l, 
+        p.pool(l,
             p.termvec(
                 p.termvec(
                     p.termvec(),

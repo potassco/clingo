@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -53,42 +53,42 @@ class TestParser : public CppUnit::TestFixture {
     CPPUNIT_TEST_SUITE_END();
 public:
     void normal() {
-        std::string s = 
+        std::string s =
             "1 2 2 1 4 3\n"
             "0\n"
             "0\nB+\n0\nB-\n0\n1\n";
         CPPUNIT_ASSERT_EQUAL(s, toLparse(s));
     }
     void card() {
-        std::string s = 
+        std::string s =
             "2 2 3 1 2 3 4 5\n"
             "0\n"
             "0\nB+\n0\nB-\n0\n1\n";
         CPPUNIT_ASSERT_EQUAL(s, toLparse(s));
     }
     void weight() {
-        std::string s = 
+        std::string s =
             "5 2 3 3 1 3 4 5 1 2 3\n"
             "0\n"
             "0\nB+\n0\nB-\n0\n1\n";
         CPPUNIT_ASSERT_EQUAL(s, toLparse(s));
     }
     void disjunctive() {
-        std::string s = 
+        std::string s =
             "8 2 2 3 2 1 4 5\n"
             "0\n"
             "0\nB+\n0\nB-\n0\n1\n";
         CPPUNIT_ASSERT_EQUAL(s, toLparse(s));
     }
     void choice() {
-        std::string s = 
+        std::string s =
             "3 2 2 3 2 1 4 5\n"
             "0\n"
             "0\nB+\n0\nB-\n0\n1\n";
         CPPUNIT_ASSERT_EQUAL(s, toLparse(s));
     }
     void minimize() {
-        std::string s = 
+        std::string s =
             "6 0 3 1 3 4 5 1 2 3\n"
             "6 0 3 1 5 4 3 1 2 3\n"
             "0\n"
@@ -96,7 +96,7 @@ public:
         CPPUNIT_ASSERT_EQUAL(s, toLparse(s));
     }
     void symbols() {
-        std::string s = 
+        std::string s =
             "0\n"
             "2 a\n"
             "3 b\n"
@@ -105,13 +105,13 @@ public:
         CPPUNIT_ASSERT_EQUAL(s, toLparse(s));
     }
     void models() {
-        std::string s = 
+        std::string s =
             "0\n"
             "0\nB+\n0\nB-\n0\n42\n";
         CPPUNIT_ASSERT_EQUAL(s, toLparse(s));
     }
     void compute() {
-        std::string s = 
+        std::string s =
             "0\n"
             "0\nB+\n1\n2\n0\nB-\n3\n4\n0\n1\n";
         CPPUNIT_ASSERT_EQUAL(s, toLparse(s));

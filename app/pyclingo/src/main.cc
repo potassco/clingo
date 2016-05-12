@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Benjamin Kaufmann
@@ -31,11 +31,11 @@ DefaultGringoModule g_module;
 #if PY_MAJOR_VERSION >= 3
 #define INITRETURN return (PyObject *)
 #define INITFAIL return nullptr;
-PyMODINIT_FUNC PyInit_gringo() {
+PyMODINIT_FUNC PyInit_clingo() {
 #else
 #define INITRETURN
 #define INITFAIL return;
-PyMODINIT_FUNC initgringo() {
+PyMODINIT_FUNC initclingo() {
 #endif
     try                             { INITRETURN Gringo::Python::initlib(g_module); }
     catch (std::bad_alloc const &e) { PyErr_SetString(PyExc_MemoryError, e.what()); INITFAIL }

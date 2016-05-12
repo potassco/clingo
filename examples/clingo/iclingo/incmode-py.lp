@@ -1,31 +1,31 @@
 #script (python) 
 
-import gringo
+import clingo
 
 def get(val, default):
     return val if val != None else default
 
 def main(prg):
-    imin   = get(prg.get_const("imin"), 1)
+    imin   = get(prg.get_const("imin"), clingo.number(0))
     imax   = prg.get_const("imax")
-    istop  = get(prg.get_const("istop"), "SAT")
+    istop  = get(prg.get_const("istop"), clingo.string("SAT"))
 
-    step, ret = 0, gringo.SolveResult.UNKNOWN
-    while ((imax is None or step < imax) and
-           (step == 0   or step < imin or (
-              (istop == "SAT"     and ret != gringo.SolveResult.SAT) or
-              (istop == "UNSAT"   and ret != gringo.SolveResult.UNSAT) or 
-              (istop == "UNKNOWN" and ret != gringo.SolveResult.UNKNOWN)))):
+    step, ret = 0, None
+    while ((imax is None or step < imax.number) and
+           (step == 0 or step < imin.number or (
+              (istop.string == "SAT"     and not ret.satisfiable) or
+              (istop.string == "UNSAT"   and not ret.unsatisfiable) or 
+              (istop.string == "UNKNOWN" and not ret.unknown)))):
         parts = []
         parts.append(("check", [step]))
         if step > 0:
-            prg.release_external(gringo.Fun("query", [step-1]))
+            prg.release_external(clingo.function("query", [step-1]))
             parts.append(("step", [step]))
-            prg.cleanup_domains()
+            prg.cleanup()
         else:
             parts.append(("base", []))
         prg.ground(parts)
-        prg.assign_external(gringo.Fun("query", [step]), True)
+        prg.assign_external(clingo.function("query", [step]), True)
         ret, step = prg.solve(), step+1
 #end.
 

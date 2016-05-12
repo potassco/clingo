@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2010-2012, Benjamin Kaufmann
+// Copyright (c) 2010-2015, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -31,7 +31,6 @@
 namespace Clasp {
 class Solver;
 class SharedContext;
-class SharedDependencyGraph;
 struct SolverStats;
 struct SolveTestEvent : SolveEvent<SolveTestEvent> {
 	SolveTestEvent(const Solver& s, uint32 scc, bool partial);
@@ -45,7 +44,12 @@ struct SolveTestEvent : SolveEvent<SolveTestEvent> {
 	uint64 conflicts() const;
 	uint64 choices()   const;
 };
+struct LoopReason_t {
+	enum Type { Explicit = 0u, Implicit = 1u, };
+};
+typedef LoopReason_t::Type LoopType;
 
+namespace Asp {
 //! (Positive) Body-Atom-Dependency Graph.
 /*!
  * \ingroup shared
@@ -55,23 +59,19 @@ struct SolveTestEvent : SolveEvent<SolveTestEvent> {
  *
  * \note Initialization is *not* thread-safe, i.e. must be done only once by one thread.
  */
-class SharedDependencyGraph {
+class PrgDepGraph {
 public:
-	SharedDependencyGraph(Configuration* nonHcfCfg = 0);
-	~SharedDependencyGraph();
-	typedef uint32            NodeId;
-	typedef Asp::PrgNode      PrgNode;
-	typedef Asp::PrgBody      PrgBody;
-	typedef Asp::PrgAtom      PrgAtom;
-	typedef Asp::PrgDisj      PrgDisj;
-	typedef Asp::LogicProgram LogicProgram;
-	typedef Asp::NonHcfSet    NonHcfSet;
-	typedef Asp::AtomList     AtomList;
-
+	enum NonHcfMapType {
+		map_old = 0,
+		map_new = 1
+	};
+	explicit PrgDepGraph(NonHcfMapType m = map_old);
+	~PrgDepGraph();
+	typedef uint32 NodeId;
 	//! Type for storing a non head-cycle-free component of a disjunctive program.
 	class NonHcfComponent {
 	public:
-		explicit NonHcfComponent(const SharedDependencyGraph& dep, SharedContext& generator, uint32 scc, const VarVec& atoms, const VarVec& bodies);
+		explicit NonHcfComponent(const PrgDepGraph& dep, SharedContext& generator, Configuration* c, uint32 scc, const VarVec& atoms, const VarVec& bodies);
 		~NonHcfComponent();
 		void assumptionsFromAssignment(const Solver& generator, LitVec& assumptionsOut) const;
 		bool test(uint32 scc, const Solver& generator, const LitVec& assumptions, VarVec& unfoundedOut)  const;
@@ -79,12 +79,13 @@ public:
 		const SharedContext& ctx() const { return *prg_; }
 		void update(const SharedContext& generator);
 	private:
-		friend class SharedDependencyGraph;
+		friend class PrgDepGraph;
 		NonHcfComponent(const NonHcfComponent&);
 		NonHcfComponent& operator=(const NonHcfComponent&);
 		class ComponentMap;
-		SharedContext* prg_;
-		ComponentMap*  comp_;
+		const PrgDepGraph* dep_;
+		SharedContext*     prg_;
+		ComponentMap*      comp_;
 	};
 	typedef std::pair<uint32, NonHcfComponent*> ComponentPair;
 	typedef const ComponentPair* NonHcfIter;
@@ -101,9 +102,9 @@ public:
 	//! An atom node.
 	/*!
 	 * The PBDAG stores a node of type AtomNode for each non-trivially connected atom.
-   * The predecessors of an AtomNode are the bodies that define the atom. Its successors
-   * are those bodies from the same SCC that contain the atom positively.
-   */
+	 * The predecessors of an AtomNode are the bodies that define the atom. Its successors
+	 * are those bodies from the same SCC that contain the atom positively.
+	 */
 	struct AtomNode : public Node {
 		enum Property { property_in_choice = 1u, property_in_disj = 2u, property_in_ext = 4u, property_in_non_hcf = 8u};
 		AtomNode() {}
@@ -146,22 +147,21 @@ public:
 	/*!
 	 * The PBDAG stores a node of type BodyNode for each body that defines 
 	 * a non-trivially connected atom.
-   * The predecessors of a BodyNode are the body's subgoals.
+	 * The predecessors of a BodyNode are the body's subgoals.
 	 * Its successors are the heads that are defined by the body.
 	 * \note Normal bodies only store the positive subgoals from the same SCC, while
 	 * extended rule bodies store all subgoals. In the latter case, the positive subgoals from
 	 * the same SCC are stored as AtomNodes. All other subgoals are stored as literals.
 	 */
 	struct BodyNode : public Node {
-		enum Type { type_normal    = 0u, type_count = 1u, type_sum = 3u };
-		enum Flag { flag_has_delta = 4u, flag_seen  = 8u };
+		enum Flag { flag_has_bound = 1u, flag_has_weights = 2u, flag_has_delta = 4u, flag_seen  = 8u };
 		explicit BodyNode(PrgBody* b, uint32 scc) : Node(b->literal(), scc) {
-			if (scc == PrgNode::noScc || b->type() == Asp::BodyInfo::NORMAL_BODY) {
-				data = type_normal;
+			if (scc == PrgNode::noScc || b->type() == Body_t::Normal) {
+				data = 0;
 			}
-			else if (b->type() == Asp::BodyInfo::COUNT_BODY){ data = type_count; }
-			else if (b->type() == Asp::BodyInfo::SUM_BODY)  { data = type_sum;   }
-			else                                            { assert("UNKNOWN BODY TYPE!\n"); }
+			else if (b->type() == Body_t::Count){ data = flag_has_bound; }
+			else if (b->type() == Body_t::Sum)  { data = flag_has_bound | flag_has_weights;   }
+			else                                { assert("UNKNOWN BODY TYPE!\n"); }
 		}
 		bool seen() const { return (data & flag_seen) != 0; }
 		void seen(bool b) { if (b) data |= flag_seen; else data &= ~uint32(flag_seen); }
@@ -169,8 +169,8 @@ public:
 		//! Heads (i.e. successors): atoms from same SCC precede those from other SCCs.
 		/*!
 		 * \note Disjunctive heads are stored in flattened atom-lists, where the
-	   *       lists are terminated on both ends with the special sentinal atom 0.
-	   *       E.g. given
+		 *       lists are terminated on both ends with the special sentinal atom 0.
+		 *       E.g. given
 		 *        x :- B.
 		 *        y :- B.
 		 *       a|b:- B.
@@ -222,9 +222,9 @@ public:
 			return p;
 		}
 		//! Is the body an extended body?
-		bool          extended()const { return (data & type_count) != 0; }
+		bool          extended()const { return (data & flag_has_bound) != 0u; }
 		//! Is the body a sum body?
-		bool          sum()     const { return (data & type_sum) == type_sum; }
+		bool          sum()     const { return (data & flag_has_weights) != 0u; }
 		//! Bound of extended body.
 		weight_t      ext_bound() const { return sep_[-1]; }
 	};
@@ -259,7 +259,7 @@ public:
 	}
 	//! Calls the given function object p once for each body-literal.
 	template <class P>
-	void visitBodyLiterals(const BodyNode& n, const P& p) {
+	void visitBodyLiterals(const BodyNode& n, const P& p) const {
 		const NodeId* x  = n.preds();
 		const uint32 inc = n.pred_inc();
 		uint32       i   = 0;
@@ -270,32 +270,178 @@ public:
 	NonHcfIter     nonHcfBegin() const { return components_.empty() ? NonHcfIter(0) : &components_[0]; }
 	NonHcfIter     nonHcfEnd()   const { return nonHcfBegin() + components_.size(); }
 	uint32         numNonHcfs()  const { return (uint32)components_.size(); }
-	Configuration* nonHcfConfig()const { return config_; }
 	void           accuStats()   const;
 private:
 	typedef PodVector<AtomNode>::type      AtomVec;
 	typedef PodVector<BodyNode>::type      BodyVec;
 	typedef PodVector<ComponentPair>::type ComponentMap;
-	SharedDependencyGraph(const SharedDependencyGraph&);
-	SharedDependencyGraph& operator=(const SharedDependencyGraph&);
-	inline bool      relevantPrgAtom(const Solver& s, PrgAtom* a) const;
-	inline bool      relevantPrgBody(const Solver& s, PrgBody* b) const;
-	NodeId           createBody(PrgBody* b, uint32 bScc);
-	NodeId           createAtom(Literal lit, uint32 aScc);
-	NodeId           addBody(const LogicProgram& prg, PrgBody*);
-	NodeId           addDisj(const LogicProgram& prg, PrgDisj*);
-	uint32           addHeads(const LogicProgram& prg, PrgBody*, VarVec& atoms) const;
-	uint32           getAtoms(const LogicProgram& prg, PrgDisj*, VarVec& atoms) const;
-	void             addPreds(const LogicProgram& prg, PrgBody*, uint32 bScc, VarVec& preds) const;
-	void             initBody(uint32 id, const VarVec& preds, const VarVec& atHeads);
-	void             initAtom(uint32 id, uint32 prop, const VarVec& adj, uint32 preds);
-	void             addNonHcf(SharedContext& ctx, uint32 scc);
+	PrgDepGraph(const PrgDepGraph&);
+	PrgDepGraph& operator=(const PrgDepGraph&);
+	inline bool    relevantPrgAtom(const Solver& s, PrgAtom* a) const;
+	inline bool    relevantPrgBody(const Solver& s, PrgBody* b) const;
+	NonHcfMapType  nonHcfMapType() const { return static_cast<NonHcfMapType>(mapType_); }
+	NodeId         createBody(PrgBody* b, uint32 bScc);
+	NodeId         createAtom(Literal lit, uint32 aScc);
+	NodeId         addBody(const LogicProgram& prg, PrgBody*);
+	NodeId         addDisj(const LogicProgram& prg, PrgDisj*);
+	uint32         addHeads(const LogicProgram& prg, PrgBody*, VarVec& atoms) const;
+	uint32         getAtoms(const LogicProgram& prg, PrgDisj*, VarVec& atoms) const;
+	void           addPreds(const LogicProgram& prg, PrgBody*, uint32 bScc, VarVec& preds) const;
+	void           initBody(uint32 id, const VarVec& preds, const VarVec& atHeads);
+	void           initAtom(uint32 id, uint32 prop, const VarVec& adj, uint32 preds);
+	void           addNonHcf(SharedContext& ctx, Configuration* c, uint32 scc);
 	AtomVec        atoms_;
 	BodyVec        bodies_;
 	ComponentMap   components_;
-	uint32         seenComponents_;
-	Configuration* config_;
+	uint32         seenComponents_ : 31;
+	uint32         mapType_        :  1;
+};
+} // namespace Asp
+
+//! External dependency graph.
+/*!
+ * \ingroup shared
+ *
+ * Represents external dependencies explicitly given
+ * by the user. For example, via the graph block in extended dimacs format.  
+ * \note Initialization is *not* thread-safe, i.e. must be done only once by one thread.
+ */
+class ExtDepGraph {
+public:
+	struct Arc {
+		Literal lit;
+		uint32  node[2];
+		uint32 tail() const { return node[0]; }
+		uint32 head() const { return node[1]; }
+		static Arc create(Literal x, uint32 nodeX, uint32 nodeY) { Arc a = {x, {nodeX, nodeY}}; return a; }
+	};
+	struct Inv {
+		uint32  tail() const { return rep >> 1; }
+		Literal lit;
+		uint32  rep;
+	};
+	template <unsigned x>
+	struct CmpArc {
+		bool operator()(const Arc& lhs, uint32 n) const { return lhs.node[x] < n; }
+		bool operator()(uint32 n, const Arc& rhs) const { return n < rhs.node[x]; }
+		bool operator()(const Arc& lhs, const Arc& rhs) const {
+			return lhs.node[x] < rhs.node[x] 
+			|| (lhs.node[x] == rhs.node[x]  && lhs.node[1-x] < rhs.node[1-x]);
+		}
+	};
+	explicit ExtDepGraph(uint32 numNodeGuess = 0);
+	~ExtDepGraph();
+	void   addEdge(Literal lit, uint32 startNode, uint32 endNode);
+	void   update();
+	uint32 finalize(SharedContext& ctx);
+	bool   frozen() const;
+	uint64 attach(Solver& s, Constraint& p, uint64 genId);
+	void   detach(Solver* s, Constraint& p);
+
+	const Arc& arc(uint32 id)       const { return fwdArcs_[id]; }
+	const Arc* fwdBegin(uint32 n)   const { 
+		uint32 X = nodes_[n].fwdOff;
+		return validOff(X) ? &fwdArcs_[X] : 0;
+	}
+	const Arc* fwdNext(const Arc* a)const { assert(a); return a[0].node[0] == a[1].node[0] ? ++a : 0; }
+	const Inv* invBegin(uint32 n)   const { 
+		uint32 X = nodes_[n].invOff;
+		return validOff(X) ? &invArcs_[X] : 0;
+	}
+	const Inv* invNext(const Inv* a)const { assert(a); return (a->rep & 1u) == 1u ? ++a : 0; }
+	uint32     nodes()              const { return maxNode_; }
+	uint32     edges()              const { return comEdge_; }
+	bool       validNode(uint32 n)  const { return n < maxNode_; }
+private:
+	ExtDepGraph(const ExtDepGraph&);
+	ExtDepGraph& operator=(const ExtDepGraph&);
+	struct Node {
+		uint32 fwdOff;
+		uint32 invOff;
+	};
+	typedef PodVector<Arc>::type  ArcVec;
+	typedef PodVector<Inv>::type  InvVec;
+	typedef PodVector<Node>::type NodeVec;
+	bool validOff(uint32 n) const { 
+		return n != UINT32_MAX;
+	}
+	ArcVec  fwdArcs_; // arcs ordered by node id
+	InvVec  invArcs_; // inverse arcs ordered by node id 
+	NodeVec nodes_;   // data for the nodes of this graph
+	uint32  maxNode_; // nodes have ids in the range [0, maxNode_)
+	uint32  comEdge_; // number of edges committed
+	uint32  genCnt_;  // generation count (for incremental updates)
+};
+
+//! Acyclicity checker that operates on a ExtDepGraph.
+/*!
+ * \see "SAT Modulo Graphs: Acyclicity" by M. Gebser, T. Janhunen, and J. Rintanen.
+ */
+class AcyclicityCheck : public PostPropagator {
+public:
+	enum Strategy {
+		prop_full     = 0, // forward and backward check with clause generation
+		prop_full_imp = 1, // forward and backward check without clause generation
+		prop_fwd      = 2, // only forward check
+	};
+	enum { PRIO = PostPropagator::priority_reserved_ufs + 1 };
+	typedef ExtDepGraph DependencyGraph;
+	explicit AcyclicityCheck(DependencyGraph* graph);
+	~AcyclicityCheck();
+	void   setStrategy(Strategy p);
+	void   setStrategy(const SolverParams& opts);
+	// base interface
+	uint32 priority() const { return uint32(PRIO); }
+	bool   init(Solver&);
+	void   reset();
+	bool   propagateFixpoint(Solver& s, PostPropagator* ctx);
+	bool   isModel(Solver& s);
+	bool   valid(Solver& s);
+	void   destroy(Solver* s, bool detach);
+private:
+	AcyclicityCheck(const AcyclicityCheck&);
+	AcyclicityCheck& operator=(const AcyclicityCheck&);
+	struct Parent {
+		static Parent create(Literal x, uint32 n) { Parent p = {x, n}; return p; }
+		Literal lit;
+		uint32  node;
+	};
+	enum { config_bit = 2 };
+	struct ReasonStore;
+	typedef DependencyGraph::Arc    Arc;
+	typedef DependencyGraph::Inv     Inv;
+	typedef PodQueue<Arc>            EdgeQueue;
+	typedef PodVector<uint32>::type  TagVec;
+	typedef PodVector<Parent>::type  ParentVec;
+	bool   dfsForward(Solver& s,  const Arc& e);
+	bool   dfsBackward(Solver& s, const Arc& e);
+	void   setParent(Var node, const Parent& p){ parent_[node] = p; }
+	void   pushVisit(Var node, uint32 tv)      { nStack_.push_back(node); tags_[node] = tv; }
+	bool   visited(Var node, uint32 tv) const  { return tags_[node] == tv; }
+	uint32 startSearch();
+	void   addClauseLit(Solver& s, Literal p);
+	void   setReason(Literal p, LitVec::const_iterator first, LitVec::const_iterator end);
+	// -------------------------------------------------------------------------------------------  
+	// constraint interface
+	PropResult propagate(Solver&, Literal, uint32& eId) {
+		todo_.push(graph_->arc(eId));
+		return PropResult(true, true);
+	}
+	void reason(Solver& s, Literal, LitVec&);
+	Strategy strategy() const { return static_cast<Strategy>(strat_ & 3u); }
+	DependencyGraph* graph_;  // my graph
+	Solver*          solver_; // my solver
+	ReasonStore*     nogoods_;// stores at most one reason per literal
+	uint32           strat_;  // active propagation strategy
+	uint32           tagCnt_; // generation counter for searches
+	EdgeQueue        todo_;   // edges that recently became enabled
+	TagVec           tags_;   // tag for each node
+	ParentVec        parent_; // parents for each node
+	VarVec           nStack_; // node stack for df-search
+	LitVec           reason_; // reason for conflict/implication
+	uint64           genId_;  // generation identifier
 };
 
 }
 #endif
+

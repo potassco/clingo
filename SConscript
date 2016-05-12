@@ -32,7 +32,7 @@ def find_files(env, path):
         sources = []
         for root, dirnames, filenames in os.walk(path):
             for filename in filenames:
-                if filename.endswith(".cc") or filename.endswith(".cpp"):
+                if filename.endswith(".c") or filename.endswith(".cc") or filename.endswith(".cpp"):
                     sources.append(os.path.join(root, filename))
                 if filename.endswith(".yy"):
                     target = os.path.join(root, filename[:-3],  "grammar.cc")
@@ -43,6 +43,10 @@ def find_files(env, path):
                     target = os.path.join(root, filename[:-3] + ".hh")
                     source = "#"+os.path.join(root, filename)
                     env.Re2c(target, source)
+                if filename.endswith(".xch"):
+                    target = os.path.join(root, filename[:-4] + ".hh")
+                    source = "#"+os.path.join(root, filename)
+                    env.Re2cCond(target, source)
         return sources
     finally:
         os.chdir(oldcwd)
@@ -67,23 +71,6 @@ def CheckRe2c(context):
     context.Result(result)
     return result
 
-def CheckNeedRT(context):
-    context.Message('Checking if need library rt... ')
-    srcCode = """
-    #include <tbb/compat/condition_variable>
-    int main(int argc, char **argv)
-    {
-        tbb::interface5::unique_lock<tbb::mutex> lock;
-        tbb::tick_count::interval_t i;
-        tbb::interface5::condition_variable cv;
-        cv.wait_for(lock, i);
-        return 0;
-    }
-    """
-    result = not context.TryLink(srcCode, '.cc')
-    context.Result(result)
-    return result
-
 def CheckMyFun(context, name, code, header):
     source = header + "\nint main() {\n" + code + "\nreturn 0; }"
     context.Message('Checking for C++ function ' + name + '()... ')
@@ -94,6 +81,7 @@ def CheckMyFun(context, name, code, header):
 def CheckLibs(context, name, libs, header):
     context.Message("Checking for C++ library {0}... ".format(name))
     libs = [libs] if isinstance(libs, types.StringTypes) else libs
+    old = context.env["LIBS"][:]
     for lib in libs:
         if os.path.isabs(lib):
             context.env.Append(LIBS=File(lib))
@@ -101,6 +89,8 @@ def CheckLibs(context, name, libs, header):
             context.env.Append(LIBS=lib)
     result = context.TryLink("#include <{0}>\nint main() {{ }}\n".format(header), '.cc')
     context.Result(result)
+    if result == 0:
+        context.env["LIBS"] = old
     return result
 
 def CheckWithPkgConfig(context, name, versions):
@@ -141,6 +131,8 @@ def CheckPythonConfig(context):
 
 Import('env')
 
+base_env = env.Clone()
+
 bison_action = Action("${BISON} -r all --report-file=${str(TARGET)[:-3]}.out -o ${TARGET} ${SOURCE} ${test}")
 
 bison_builder = Builder(
@@ -158,10 +150,19 @@ re2c_builder = Builder(
     src_suffix = '.xh'
     )
 
+re2c_cond_action = Action("${RE2C} -c -o ${TARGET} ${SOURCE}")
+
+re2c_cond_builder = Builder(
+    action = re2c_cond_action,
+    suffix = '.hh',
+    src_suffix = '.xch'
+    )
+
 env['ENV']['PATH'] = os.environ['PATH']
 if 'LD_LIBRARY_PATH' in os.environ: env['ENV']['LD_LIBRARY_PATH'] = os.environ['LD_LIBRARY_PATH']
 env['BUILDERS']['Bison'] = bison_builder
-env['BUILDERS']['Re2c']  = re2c_builder
+env['BUILDERS']['Re2c'] = re2c_builder
+env['BUILDERS']['Re2cCond'] = re2c_cond_builder
 
 # {{{1 Gringo specific configuration
 
@@ -196,6 +197,7 @@ if env['WITH_PYTHON'] == "auto":
         DEFS["WITH_PYTHON"] = 1
 elif env['WITH_PYTHON']:
     if not conf.CheckLibs("python", env['WITH_PYTHON'], "Python.h"):
+        print 'error: python library not found'
         failure = True
     else:
         with_python = True
@@ -208,6 +210,7 @@ if env['WITH_LUA'] == "auto":
         DEFS["WITH_LUA"] = 1
 elif env['WITH_LUA']:
     if not conf.CheckLibs("lua", env['WITH_LUA'], "lua.hpp"):
+        print 'error: lua library not found'
         failure = True
     else:
         with_lua = True
@@ -231,26 +234,24 @@ env.Append(CPPDEFINES=DEFS)
 # {{{1 Clasp specific configuration
 
 claspEnv  = env.Clone()
-claspConf = Configure(claspEnv, custom_tests = {'CheckNeedRT' : CheckNeedRT, 'CheckLibs' : CheckLibs, 'CheckWithPkgConfig' : CheckWithPkgConfig}, log_file = join("build", GetOption('build_dir') + ".log"))
+claspConf = Configure(claspEnv, custom_tests = {'CheckLibs' : CheckLibs, 'CheckWithPkgConfig' : CheckWithPkgConfig}, log_file = join("build", GetOption('build_dir') + ".log"))
 DEFS = {}
 
-with_tbb = False
 DEFS["WITH_THREADS"] = 0
-if env['WITH_TBB'] == "auto":
-    if claspConf.CheckWithPkgConfig("tbb", ["tbb"]):
-        with_tbb = True
-elif env['WITH_TBB']:
-    if not claspConf.CheckLibs("tbb", env['WITH_TBB'], 'tbb/tbb.h'):
-        print 'error: tbb library not found'
-        failure = True
-    else:
-        with_tbb = True
-if with_tbb:
+if env['WITH_THREADS'] is not None:
     DEFS["WITH_THREADS"] = 1
-    if claspConf.CheckNeedRT():
-        if not claspConf.CheckLibWithHeader('rt', 'time.h', 'C++'):
-            print 'error: rt library not found'
-            failure = True
+    DEFS["CLASP_USE_STD_THREAD"] = 1
+    if env['WITH_THREADS'] == "posix":
+        # Note: configuration differs between gcc and clang here
+        #       gcc needs -pthread, clang needs -lpthread
+        claspConf.env.Append(CPPFLAGS=["-pthread"])
+        claspConf.env.Append(LIBS=["pthread"])
+    elif env['WITH_THREADS'] == "windows":
+        pass # nohing to do
+    else:
+        print 'error: unknown thread model'
+        failure = True
+
 
 claspEnv = claspConf.Finish()
 claspEnv.Append(CPPDEFINES=DEFS)
@@ -288,10 +289,21 @@ optsEnv.Append(CPPPATH = LIBOPTS_HEADERS)
 optsLib  = optsEnv.StaticLibrary('libprogram_opts', LIBOPTS_SOURCES)
 optsLibS = optsEnv.StaticLibrary('libprogram_opts_shared', shared(optsEnv, LIBOPTS_SOURCES))
 
+# {{{1 Lp: Library
+
+LIBLP_SOURCES = find_files(env, 'liblp/src')
+LIBLP_HEADERS = [Dir('#liblp'), Dir('#liblp/src')]
+
+lpEnv = env.Clone()
+lpEnv.Append(CPPPATH = LIBLP_HEADERS)
+
+lpLib  = lpEnv.StaticLibrary('liblp', LIBLP_SOURCES)
+lpLibS = lpEnv.StaticLibrary('liblp_shared', shared(lpEnv, LIBLP_SOURCES))
+
 # {{{1 Clasp: Library
 
 LIBCLASP_SOURCES = find_files(env, 'libclasp/src')
-LIBCLASP_HEADERS = [Dir('#libclasp'), Dir('#libclasp/src'), Dir('#libprogram_opts')]
+LIBCLASP_HEADERS = [Dir('#libclasp'), Dir('#libclasp/src')] + LIBOPTS_HEADERS + LIBLP_HEADERS
 
 claspEnv.Append(CPPPATH = LIBCLASP_HEADERS)
 
@@ -301,10 +313,10 @@ claspLibS = claspEnv.StaticLibrary('libclasp_shared', shared(claspEnv, LIBCLASP_
 # {{{1 Gringo: Library
 
 LIBGRINGO_SOURCES = find_files(env, 'libgringo/src')
-LIBGRINGO_HEADERS = [Dir('#libgringo'), 'libgringo/src']
+LIBGRINGO_HEADERS = [Dir('#libgringo'), 'libgringo/src'] + LIBLP_HEADERS
 
 gringoEnv = env.Clone()
-gringoEnv.Append(CPPPATH = LIBGRINGO_HEADERS + LIBOPTS_HEADERS)
+gringoEnv.Append(CPPPATH = LIBGRINGO_HEADERS)
 
 gringoLib  = gringoEnv.StaticLibrary('libgringo', LIBGRINGO_SOURCES)
 gringoLibS = gringoEnv.StaticLibrary('libgringo_shared', shared(gringoEnv, LIBGRINGO_SOURCES))
@@ -312,26 +324,37 @@ gringoLibS = gringoEnv.StaticLibrary('libgringo_shared', shared(gringoEnv, LIBGR
 # {{{1 Clingo: Library
 
 LIBCLINGO_SOURCES = find_files(env, 'libclingo/src')
-LIBCLINGO_HEADERS = [Dir('#libclingo')]
+LIBCLINGO_HEADERS = [Dir('#libclingo')] + LIBGRINGO_HEADERS + LIBCLASP_HEADERS
 
 clingoEnv = claspEnv.Clone()
-clingoEnv.Append(CPPPATH = LIBCLINGO_HEADERS + LIBGRINGO_HEADERS)
+clingoEnv.Append(CPPPATH = LIBCLINGO_HEADERS)
 
 clingoLib  = clingoEnv.StaticLibrary('libclingo', LIBCLINGO_SOURCES)
 clingoLibS = clingoEnv.StaticLibrary('libclingo_shared', shared(clingoEnv, LIBCLINGO_SOURCES))
 
 clingoSharedEnv = clingoEnv.Clone()
-clingoSharedEnv.Prepend(LIBS = [gringoLibS, claspLibS, optsLibS])
+clingoSharedEnv.Prepend(LIBS = [gringoLibS, claspLibS, optsLibS, lpLibS])
 clingoSharedLib = clingoSharedEnv.SharedLibrary('libclingo', shared(clingoEnv, LIBCLINGO_SOURCES))
 clingoSharedEnv.Alias('libclingo', clingoSharedLib)
+
+# {{{1 Clingo: C-Library
+
+LIBCCLINGO_SOURCES = find_files(env, 'libcclingo/src')
+LIBCCLINGO_HEADERS = [Dir('#libcclingo')] + LIBCLINGO_HEADERS
+
+cclingoSharedEnv = claspEnv.Clone()
+cclingoSharedEnv.Append(CPPPATH = LIBCCLINGO_HEADERS)
+cclingoSharedEnv.Prepend(LIBS = ["clingo"])
+cclingoSharedLib = cclingoSharedEnv.SharedLibrary('libcclingo', shared(cclingoSharedEnv, LIBCCLINGO_SOURCES))
+cclingoSharedEnv.Alias('libcclingo', cclingoSharedLib)
 
 # {{{1 Reify: Library
 
 LIBREIFY_SOURCES = find_files(env, 'libreify/src')
-LIBREIFY_HEADERS = [Dir('#libreify'), 'libreify/src', Dir('#libgringo')]
+LIBREIFY_HEADERS = [Dir('#libreify'), 'libreify/src'] + LIBGRINGO_HEADERS
 
 reifyEnv = env.Clone()
-reifyEnv.Append(CPPPATH = LIBREIFY_HEADERS + LIBOPTS_HEADERS)
+reifyEnv.Append(CPPPATH = LIBREIFY_HEADERS)
 
 reifyLib  = reifyEnv.StaticLibrary('libreify', LIBREIFY_SOURCES)
 #reifyLibS = reifyEnv.StaticLibrary('libreify_shared', shared(reifyEnv, LIBREIFY_SOURCES))
@@ -341,7 +364,8 @@ reifyLib  = reifyEnv.StaticLibrary('libreify', LIBREIFY_SOURCES)
 GRINGO_SOURCES = find_files(env, 'app/gringo')
 
 gringoProgramEnv = gringoEnv.Clone()
-gringoProgramEnv.Prepend(LIBS=[ gringoLib, optsLib ])
+gringoProgramEnv.Append(CPPPATH = LIBOPTS_HEADERS)
+gringoProgramEnv.Prepend(LIBS=[ gringoLib, optsLib, lpLib ])
 
 gringoProgram = gringoProgramEnv.Program('gringo', GRINGO_SOURCES)
 gringoProgramEnv.Alias('gringo', gringoProgram)
@@ -354,8 +378,8 @@ if not env.GetOption('clean'):
 CLINGO_SOURCES = find_files(env, 'app/clingo/src')
 
 clingoProgramEnv = claspEnv.Clone()
-clingoProgramEnv.Prepend(LIBS=[ clingoLib, gringoLib, claspLib, optsLib ])
-clingoProgramEnv.Append(CPPPATH = LIBCLINGO_HEADERS + LIBGRINGO_HEADERS + LIBCLASP_HEADERS + LIBOPTS_HEADERS)
+clingoProgramEnv.Prepend(LIBS=[ clingoLib, gringoLib, claspLib, optsLib, lpLib ])
+clingoProgramEnv.Append(CPPPATH = LIBCLINGO_HEADERS)
 
 clingoProgram  = clingoProgramEnv.Program('clingo', CLINGO_SOURCES)
 clingoProgramEnv.Alias('clingo', clingoProgram)
@@ -368,8 +392,8 @@ if not env.GetOption('clean'):
 WEB_SOURCES = [ clingoProgramEnv.Object(x) for x in find_files(env, 'app/clingo/src') if x != 'app/clingo/src/main.cc' ] + find_files(env, 'app/web')
 
 webProgramEnv = claspEnv.Clone()
-webProgramEnv.Prepend(LIBS=[ clingoLib, gringoLib, claspLib, optsLib ])
-webProgramEnv.Append(CPPPATH = LIBCLINGO_HEADERS + LIBGRINGO_HEADERS + LIBCLASP_HEADERS + LIBOPTS_HEADERS + [Dir('#app/clingo/src')])
+webProgramEnv.Prepend(LIBS=[ clingoLib, gringoLib, claspLib, optsLib, lpLib ])
+webProgramEnv.Append(CPPPATH = LIBCLINGO_HEADERS + [Dir('#app/clingo/src')])
 
 webProgram  = webProgramEnv.Program('clingo.html', WEB_SOURCES)
 webProgramEnv.Alias('web', webProgram)
@@ -379,11 +403,25 @@ webProgramEnv.Alias('web', webProgram)
 EXAMPLE_SOURCES = find_files(env, 'app/example')
 
 exampleProgramEnv = claspEnv.Clone()
-exampleProgramEnv.Prepend(LIBS=[clingoSharedLib])
-exampleProgramEnv.Append(CPPPATH = LIBCLINGO_HEADERS + LIBGRINGO_HEADERS + LIBCLASP_HEADERS + LIBOPTS_HEADERS)
+exampleProgramEnv.Prepend(LIBS=["clingo"])
+exampleProgramEnv.Append(CPPPATH = LIBCLINGO_HEADERS)
 
 exampleProgram  = exampleProgramEnv.Program('example', EXAMPLE_SOURCES)
 exampleProgramEnv.Alias('example', exampleProgram)
+
+# {{{1 C-Example: Program
+
+CEXAMPLE_SOURCES = find_files(env, 'app/cexample')
+
+cexampleProgramEnv = base_env.Clone()
+cexampleProgramEnv.Prepend(LIBPATH=[Dir(".")])
+cexampleProgramEnv.Prepend(LIBS=["cclingo"])
+cexampleProgramEnv["LINKFLAGS"] = base_env["CLINKFLAGS"]
+cexampleProgramEnv.Prepend(LINKFLAGS=["-Wl,-rpath-link=" + Dir(".").path])
+cexampleProgramEnv.Append(CPPPATH = ["libcclingo"])
+
+cexampleProgram = cexampleProgramEnv.Program('cexample', CEXAMPLE_SOURCES)
+cexampleProgramEnv.Alias('cexample', cexampleProgram)
 
 # {{{1 Reify: Program
 
@@ -391,12 +429,28 @@ REIFY_SOURCES = find_files(env, 'app/reify')
 
 reifyProgramEnv = reifyEnv.Clone()
 reifyProgramEnv.Prepend(LIBS=[ reifyLib, optsLib ])
+reifyProgramEnv.Append(CPPPATH = LIBOPTS_HEADERS)
 
 reifyProgram = reifyProgramEnv.Program('reify', REIFY_SOURCES)
 reifyProgramEnv.Alias('reify', reifyProgram)
 
 if not env.GetOption('clean'):
     Default(reifyProgram)
+
+# {{{1 Lpconvert: Program
+
+LPCONVERT_SOURCES = find_files(env, 'app/lpconvert')
+LPCONVERT_HEADERS = [Dir('#libprogram_opts')]
+
+lpconvertProgramEnv = lpEnv.Clone()
+lpconvertProgramEnv.Prepend(LIBS=[ lpLib, optsLib ])
+lpconvertProgramEnv.Append(CPPPATH = LPCONVERT_HEADERS)
+
+lpconvertProgram = lpconvertProgramEnv.Program('lpconvert', LPCONVERT_SOURCES)
+lpconvertProgramEnv.Alias('lpconvert', lpconvertProgram)
+
+if not env.GetOption('clean'):
+    Default(lpconvertProgram)
 
 # {{{1 PyClingo + LuaClingo
 
@@ -405,9 +459,9 @@ if with_python:
 
     pyclingoEnv = clingoEnv.Clone()
     pyclingoEnv["LIBPREFIX"] = ""
-    pyclingoEnv.Prepend(LIBS   = [clingoLibS, gringoLibS, claspLibS, optsLibS])
+    pyclingoEnv.Prepend(LIBS   = [clingoLibS, gringoLibS, claspLibS, optsLibS, lpLibS])
 
-    pyclingo = pyclingoEnv.SharedLibrary('python/gringo.so', PYCLINGO_SOURCES)
+    pyclingo = pyclingoEnv.SharedLibrary('python/clingo.so', PYCLINGO_SOURCES)
     pyclingoEnv.Alias('pyclingo', pyclingo)
     if not env.GetOption('clean'):
         Default(pyclingo)
@@ -417,21 +471,21 @@ if with_lua:
 
     luaclingoEnv = clingoEnv.Clone()
     luaclingoEnv["LIBPREFIX"] = ""
-    luaclingoEnv.Prepend(LIBS   = [clingoLibS, gringoLibS, claspLibS, optsLibS])
+    luaclingoEnv.Prepend(LIBS   = [clingoLibS, gringoLibS, claspLibS, optsLibS, lpLibS])
 
-    luaclingo = luaclingoEnv.SharedLibrary('lua/gringo.so', LUACLINGO_SOURCES)
+    luaclingo = luaclingoEnv.SharedLibrary('lua/clingo.so', LUACLINGO_SOURCES)
     luaclingoEnv.Alias('luaclingo', luaclingo)
     if not env.GetOption('clean'):
         Default(luaclingo)
 
 # {{{1 Gringo: Tests
 
-if with_cppunit:
+if with_cppunit and 'libgringo' in env['TESTS']:
     TEST_LIBGRINGO_SOURCES  = find_files(env, 'libgringo/tests')
 
     gringoTestEnv           = testEnv.Clone()
     gringoTestEnv.Append(CPPPATH = LIBGRINGO_HEADERS + LIBCLASP_HEADERS)
-    gringoTestEnv.Prepend(LIBS   = [gringoLib, claspLib])
+    gringoTestEnv.Prepend(LIBS   = [gringoLib, claspLib, lpLib])
 
     testGringoProgram = gringoTestEnv.Program('test_libgringo', TEST_LIBGRINGO_SOURCES)
     testGringoAlias   = gringoTestEnv.Alias('test', [testGringoProgram], testGringoProgram[0].path + (" " + GetOption("test_case") if GetOption("test_case") else ""))
@@ -439,7 +493,7 @@ if with_cppunit:
 
 # {{{1 Reify: Tests
 
-if with_cppunit:
+if with_cppunit and 'libreify' in env['TESTS']:
     TEST_LIBREIFY_SOURCES  = find_files(env, 'libreify/tests')
 
     reifyTestEnv                = testEnv.Clone()
@@ -447,12 +501,25 @@ if with_cppunit:
     reifyTestEnv.Prepend(LIBS   = [reifyLib])
 
     testReifyProgram = reifyTestEnv.Program('test_libreify', TEST_LIBREIFY_SOURCES)
-    testReifyAlias   = reifyTestEnv.Alias('test', [testReifyProgram], testReifyProgram[0].path + (" " + GetOption("test_case") if GetOption("test_case") else ""))
+    testReifyAlias   = reifyTestEnv.Alias('test', [testReifyProgram], testReifyProgram[0].path)
     AlwaysBuild(testReifyAlias)
+
+# {{{1 Liplp: Tests
+
+if "liblp" in env["TESTS"]:
+    TEST_LIBLP_SOURCES  = find_files(env, 'liblp/tests')
+
+    lpTestEnv                = env.Clone()
+    lpTestEnv.Append(CPPPATH = LIBLP_HEADERS)
+    lpTestEnv.Prepend(LIBS   = [lpLib])
+
+    testLpProgram = lpTestEnv.Program('test_liblp', TEST_LIBLP_SOURCES)
+    testLpAlias   = lpTestEnv.Alias('test', [testLpProgram], testLpProgram[0].path)
+    AlwaysBuild(testLpAlias)
 
 # {{{1 Clingo: Tests
 
-clingoTestCommand = env.Command('clingo-test', clingoProgram, '/bin/zsh app/clingo/tests/run.sh $SOURCE' + (" -- -t8" if with_tbb else ""))
+clingoTestCommand = env.Command('clingo-test', clingoProgram, '/bin/zsh app/clingo/tests/run.sh $SOURCE' + (" -- -t8" if env["WITH_THREADS"] is not None else ""))
 clingoTest        = env.Alias('test-clingo', [clingoTestCommand])
 env.AlwaysBuild(clingoTest)
 

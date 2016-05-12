@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -27,7 +27,17 @@
 
 namespace Gringo {
 
-// {{{ declaration of NAF
+// {{{1 declaration of TheoryAtomType
+
+enum class TheoryAtomType { Head, Body, Any, Directive };
+std::ostream &operator<<(std::ostream &out, TheoryAtomType type);
+
+// {{{1 declaration of TheoryOperatorType
+
+enum class TheoryOperatorType { Unary, BinaryLeft, BinaryRight };
+std::ostream &operator<<(std::ostream &out, TheoryOperatorType type);
+
+// {{{1 declaration of NAF
 
 enum class NAF { POS = 0, NOT = 1, NOTNOT = 2 };
 std::ostream &operator<<(std::ostream &out, NAF naf);
@@ -37,9 +47,7 @@ enum class RECNAF { POS, NOT, NOTNOT, RECNOT };
 RECNAF recnaf(NAF naf, bool recursive);
 std::ostream &operator<<(std::ostream &out, RECNAF naf);
 
-
-// }}}
-// {{{ declaration of Relation
+// {{{1 declaration of Relation
 
 enum class Relation : unsigned { GT, LT, LEQ, GEQ, NEQ, EQ };
 
@@ -48,15 +56,13 @@ Relation neg(Relation rel);
 
 std::ostream &operator<<(std::ostream &out, Relation rel);
 
-// }}}
-// {{{ declaration of AggregateFunction
+// {{{1 declaration of AggregateFunction
 
-enum class AggregateFunction : unsigned { COUNT, SUM, SUMP, MIN, MAX };
+enum class AggregateFunction { COUNT, SUM, SUMP, MIN, MAX };
 
 std::ostream &operator<<(std::ostream &out, AggregateFunction fun);
 
-// }}}
-// {{{ declaration of Bound
+// {{{1 declaration of Bound
 
 struct Bound;
 typedef std::vector<Bound> BoundVec;
@@ -80,9 +86,32 @@ struct Bound {
     UTerm bound;
 };
 
-// }}}
+// }}}1
 
-// {{{ definition of NAF
+// {{{1 definition of TheoryAtomType
+
+inline std::ostream &operator<<(std::ostream &out, TheoryAtomType type) {
+    switch (type) {
+        case TheoryAtomType::Head:      { out << "head"; break; }
+        case TheoryAtomType::Body:      { out << "body"; break; }
+        case TheoryAtomType::Any:       { out << "any"; break; }
+        case TheoryAtomType::Directive: { out << "directive"; break; }
+    }
+    return out;
+}
+
+// {{{1 definition of TheoryOperatorType
+
+inline std::ostream &operator<<(std::ostream &out, TheoryOperatorType type) {
+    switch (type) {
+        case TheoryOperatorType::Unary:       { out << "unary"; break; }
+        case TheoryOperatorType::BinaryLeft:  { out << "binary,left"; break; }
+        case TheoryOperatorType::BinaryRight: { out << "binary,right"; break; }
+    }
+    return out;
+}
+
+// {{{1 definition of NAF
 
 inline NAF inv(NAF naf) {
     switch (naf) {
@@ -122,8 +151,7 @@ inline RECNAF recnaf(NAF naf, bool recursive) {
     return RECNAF::POS;
 }
 
-// }}}
-// {{{ definition of Relation
+// {{{1 definition of Relation
 
 inline std::ostream &operator<<(std::ostream &out, Relation rel) {
     switch (rel) {
@@ -163,8 +191,7 @@ inline Relation neg(Relation rel) {
     return Relation(-1);
 }
 
-// }}}
-// {{{ definition of AggregateFunction
+// {{{1 definition of AggregateFunction
 
 inline std::ostream &operator<<(std::ostream &out, AggregateFunction fun) {
     switch (fun) {
@@ -177,8 +204,7 @@ inline std::ostream &operator<<(std::ostream &out, AggregateFunction fun) {
     return out;
 }
 
-// }}}
-// {{{ definition of Bound
+// {{{1 definition of Bound
 
 inline Bound::Bound(Relation rel, UTerm &&bound)
     : rel(rel)
@@ -219,36 +245,34 @@ struct clone<Bound> {
     }
 };
 
-// }}}
- 
+// }}}1
+
 } // namespace Gringo
- 
+
 namespace std {
 
-// {{{ definition of hash<Gringo::Bound>
+// {{{1 definition of hash<Gringo::Bound>
 
 template <>
 struct hash<Gringo::Bound> {
     size_t operator()(Gringo::Bound const &x) const { return x.hash(); }
 };
 
-// }}}
-// {{{ definition of hash<Gringo::Relation>
+// {{{1 definition of hash<Gringo::Relation>
 
 template <>
 struct hash<Gringo::Relation> {
     size_t operator()(Gringo::Relation const &x) const { return static_cast<unsigned>(x); }
 };
 
-// }}}
-// {{{ definition of hash<Gringo::NAF>
+// {{{1 definition of hash<Gringo::NAF>
 
 template <>
 struct hash<Gringo::NAF> {
     size_t operator()(Gringo::NAF const &x) const { return static_cast<unsigned>(x); }
 };
 
-// }}}
+// }}}1
 
 } // namespace std
 

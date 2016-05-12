@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -23,18 +23,19 @@
 
 #include <gringo/input/literal.hh>
 #include <gringo/safetycheck.hh>
+#include <gringo/terms.hh>
 #include <list>
 
-namespace Gringo { 
- 
+namespace Gringo {
+
 namespace Ground {
 enum class RuleType : unsigned short;
 using ULitVec = std::vector<ULit>;
-struct Statement;
+class Statement;
 using UStm = std::unique_ptr<Statement>;
 using UStmVec = std::vector<UStm>;
 }
-    
+
 namespace Input {
 
 // {{{ declaration of auxiliary types
@@ -85,7 +86,7 @@ struct CheckLevel {
     CheckLevel(Location const &loc, Printable const &p);
     CheckLevel(CheckLevel &&);
     SC::VarNode &var(VarTerm &var);
-    bool check();
+    void check();
     ~CheckLevel();
 
     Location         loc;
@@ -95,11 +96,12 @@ struct CheckLevel {
     VarMap           vars;
 };
 using ChkLvlVec = std::vector<CheckLevel>;
+void addVars(ChkLvlVec &levels, VarTermBoundVec &vars);
 
 // }}}
 // {{{ declaration of ToGroundArg
 
-using CreateLit     = std::function<void (Ground::ULitVec &, bool)>;
+using CreateLit     = std::function<void (Ground::ULitVec &, bool, bool)>;
 using CreateStm     = std::function<Ground::UStm (Ground::ULitVec &&)>;
 using CreateStmVec  = std::vector<CreateStm>;
 using CreateBody    = std::pair<CreateLit, CreateStmVec>;
@@ -107,7 +109,7 @@ using CreateBodyVec = std::vector<CreateBody>;
 using CreateHead    = CreateStm;
 
 struct ToGroundArg {
-    ToGroundArg(unsigned &auxNames, PredDomMap &domains);
+    ToGroundArg(unsigned &auxNames, DomainData &domains);
     FWString newId(bool increment = true);
     UTermVec getGlobal(VarTermBoundVec const &vars);
     UTermVec getLocal(VarTermBoundVec const &vars);
@@ -121,7 +123,7 @@ struct ToGroundArg {
     ~ToGroundArg();
 
     unsigned   &auxNames;
-    PredDomMap &domains;
+    DomainData &domains;
 };
 
 // }}}
@@ -129,6 +131,8 @@ struct ToGroundArg {
 // {{{ declaration of BodyAggregate
 
 struct BodyAggregate : Printable, Hashable, Locatable, Clonable<BodyAggregate>, Comparable<BodyAggregate> {
+    //! Removes RawTheoryTerms from TheoryLiterals
+    virtual void initTheory(TheoryDefs &def) { (void)def; };
     virtual unsigned projectScore() const { return 2; }
     //! Unpool the aggregate and aggregate elements.
     virtual void unpool(UBodyAggrVec &x, bool beforeRewrite) = 0;
@@ -138,7 +142,7 @@ struct BodyAggregate : Printable, Hashable, Locatable, Clonable<BodyAggregate>, 
     //! Assign levels to variables using the VarCollector.
     //! \pre Must be called after simplify.
     virtual void assignLevels(AssignLevel &lvl) = 0;
-    virtual bool check(ChkLvlVec &lvl) const = 0;
+    virtual void check(ChkLvlVec &lvl) const = 0;
     //! Rewrite arithmetics.
     //! \pre Requires variables assigned to levels.
     virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen) = 0;
@@ -167,7 +171,9 @@ struct BodyAggregate : Printable, Hashable, Locatable, Clonable<BodyAggregate>, 
 // {{{ declaration of HeadAggregate
 
 struct HeadAggregate : Printable, Hashable, Locatable, Clonable<HeadAggregate>, Comparable<HeadAggregate> {
-    virtual bool isPredicate() const { return false; } 
+    //! Removes RawTheoryTerms from TheoryLiterals
+    virtual void initTheory(TheoryDefs &def, bool hasBody) { (void)def; (void)hasBody; }
+    virtual bool isPredicate() const { return false; }
     //! Unpool the aggregate and aggregate elements.
     virtual void unpool(UHeadAggrVec &x, bool beforeRewrite) = 0;
     //! Simplify the aggregate and aggregate elements.
@@ -176,7 +182,7 @@ struct HeadAggregate : Printable, Hashable, Locatable, Clonable<HeadAggregate>, 
     //! Assign levels to variables using the VarCollector.
     //! \pre Must be called after simplify.
     virtual void assignLevels(AssignLevel &lvl) = 0;
-    virtual bool check(ChkLvlVec &lvl) const = 0;
+    virtual void check(ChkLvlVec &lvl) const = 0;
     //! Rewrite arithmetics.
     //! \pre Requires variables assigned to levels.
     virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) = 0;

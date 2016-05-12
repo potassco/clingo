@@ -1,13 +1,63 @@
 #include <gringo/output/literal.hh>
 #include <gringo/output/statements.hh>
+#include <gringo/output/theory.hh>
 
 namespace Gringo { namespace Output {
 
-ULit Literal::negateLit(LparseTranslator &x) const {
-    ULit aux = x.makeAux();
-    ULit lit(clone());
-    LRC().addHead(aux).addBody(std::move(lit)).toLparse(x);
-    return aux->negateLit(x); // aux literals can negate themselves
+void PrintPlain::printElem(Potassco::Id_t x) {
+    domain.theory().printElem(stream, x, [this](std::ostream &, LiteralId const &lit){ call(domain, lit, &Literal::printPlain, *this); });
+}
+
+void PrintPlain::printTerm(Potassco::Id_t x) {
+    domain.theory().printTerm(stream, x);
+}
+
+bool isTrueClause(DomainData &data, LitVec &lits, IsTrueLookup lookup) {
+    for (auto &lit : lits) {
+        if (!call(data, lit, &Literal::isTrue, lookup)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool Literal::isAtomFromPreviousStep() const {
+    return false;
+}
+
+bool Literal::isHeadAtom() const {
+    return false;
+}
+
+bool Literal::isIncomplete() const {
+    return false;
+}
+
+std::pair<LiteralId,bool> Literal::delayedLit() {
+    throw std::logic_error("Literal::hasDelayedOffset: not implemented");
+}
+
+bool Literal::isBound(Value &, bool) const {
+    return false;
+}
+
+void Literal::updateBound(std::vector<CSPBound> &, bool) const {
+}
+
+bool Literal::needsSemicolon() const {
+    return false;
+}
+
+bool Literal::isPositive() const {
+    return true;
+}
+
+LiteralId Literal::simplify(Mappings &, AssignmentLookup) const {
+    throw std::logic_error("Literal::simplify: not implemented");
+}
+
+bool Literal::isTrue(IsTrueLookup) const {
+    throw std::logic_error("Literal::isTrue: not implemented");
 }
 
 } } // namespace Output Gringo

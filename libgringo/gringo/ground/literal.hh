@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -21,21 +21,16 @@
 #ifndef _GRINGO_GROUND_LITERAL_HH
 #define _GRINGO_GROUND_LITERAL_HH
 
-#include <gringo/domain.hh>
+#include <gringo/ground/types.hh>
 #include <gringo/ground/dependency.hh>
 #include <gringo/ground/instantiation.hh>
 
-namespace Gringo { 
-
-namespace Output { struct Literal; }
-
-struct Scripts;
-
-namespace Ground {
+namespace Gringo { namespace Ground {
 
 // {{{ declaration of HeadOccurrence
 
-struct HeadOccurrence {
+class HeadOccurrence {
+public:
     virtual void defines(IndexUpdater &update, Instantiator *inst) = 0;
     virtual ~HeadOccurrence() { }
 };
@@ -44,21 +39,20 @@ struct HeadOccurrence {
 
 // {{{ declaration of Literal
 
-typedef BodyOccurrence<HeadOccurrence> BodyOcc;
-struct Literal : Printable {
-    using SValVec = Instantiator::SValVec;
+using BodyOcc = BodyOccurrence<HeadOccurrence>;
+class Literal : public Printable {
+public:
     using Score   = double;
+    virtual bool auxiliary() const = 0;
     virtual bool isRecursive() const = 0;
     virtual UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) = 0;
     virtual BodyOcc *occurrence() = 0;
     virtual void collect(VarTermBoundVec &vars) const = 0;
     virtual void collectImportant(Term::VarSet &vars);
-    virtual std::pair<Output::Literal*,bool> toOutput() = 0;
+    virtual std::pair<Output::LiteralId,bool> toOutput() = 0;
     virtual Score score(Term::VarSet const &bound) = 0;
     virtual ~Literal() { }
 };
-typedef std::unique_ptr<Literal> ULit;
-typedef std::vector<ULit> ULitVec;
 
 // }}}
 

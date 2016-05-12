@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import gringo
+import clingo
 import urwid
 import sys
 
@@ -142,24 +142,24 @@ class MainWindow:
         self.loop = urwid.MainLoop(f, palette)
         self.loop.run()
 
-c = gringo.Control()
+c = clingo.Control()
 c.add("check", ["k"], "#external query(k).")
 for f in sys.argv[1:]: c.load(f)
 def make_on_model(field, stone, move, target):
     def on_model(m):
-        for atom in m.atoms(gringo.Model.ATOMS):
-            if atom.name() == "field" and len(atom.args()) == 2:
-                x, y = atom.args()
+        for atom in m.atoms(atoms=True):
+            if atom.name == "field" and len(atom.args) == 2:
+                x, y = [n.number for n in atom.args]
                 field.append((x, y))
-            elif atom.name() == "stone" and len(atom.args()) == 5:
-                s, d, x, y, l = atom.args()
-                stone.append((str(s), str(d), x, y, l))
-            elif atom.name() == "move" and len(atom.args()) == 4:
-                t, s, d, xy = atom.args()
-                move.setdefault(t, []).append((str(s), str(d), xy))
-            elif atom.name() == "target" and len(atom.args()) == 3:
-                s, x, y = atom.args()
-                target.append((str(s), x, y))
+            elif atom.name == "stone" and len(atom.args) == 5:
+                s, d, x, y, l = [(n.number if n.type == clingo.TermType.Number else str(n)) for n in atom.args]
+                stone.append((s, d, x, y, l))
+            elif atom.name == "move" and len(atom.args) == 4:
+                t, s, d, xy = [(n.number if n.type == clingo.TermType.Number else str(n)) for n in atom.args]
+                move.setdefault(t, []).append((s, d, xy))
+            elif atom.name == "target" and len(atom.args) == 3:
+                s, x, y = [(n.number if n.type == clingo.TermType.Number else str(n)) for n in atom.args]
+                target.append((s, x, y))
         return False
     return on_model
 
@@ -170,9 +170,9 @@ while True:
     t += 1
     c.ground([("step", [t])])
     c.ground([("check", [t])])
-    c.release_external(gringo.Fun("query", [t-1]))
-    c.assign_external(gringo.Fun("query", [t]), True)
-    if c.solve(None, on_model) == gringo.SolveResult.SAT:
+    c.release_external(clingo.function("query", [t-1]))
+    c.assign_external(clingo.function("query", [t]), True)
+    if c.solve(None, on_model).satisfiable:
         break
 
 MainWindow().run(Plan(field, stone, target, move))

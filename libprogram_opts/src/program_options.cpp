@@ -231,10 +231,6 @@ OptionInitHelper OptionGroup::addOptions() {
 	return OptionInitHelper(*this);
 }
 
-void OptionGroup::addOption(std::auto_ptr<Option> option) {
-	SharedOptPtr opt(option.release());
-	options_.push_back(opt);
-}
 void OptionGroup::addOption(const SharedOptPtr& option) {
 	options_.push_back(option);
 }
@@ -263,7 +259,7 @@ OptionInitHelper::OptionInitHelper(OptionGroup& owner)
 	: owner_(&owner) { }
 
 OptionInitHelper& OptionInitHelper::operator()(const char* name, Value* val, const char* desc) {
-	std::auto_ptr<Value> value(val);
+	detail::Owned<Value> exit = { val };
 	if (!name || !*name || *name == ',' || *name == '!') {
 		throw Error("Invalid empty option name");
 	}
@@ -291,15 +287,16 @@ OptionInitHelper& OptionInitHelper::operator()(const char* name, Value* val, con
 		if (!*n || *x || level > desc_level_hidden) {
 			throw Error(std::string("Invalid Key '").append(name).append("'"));
 		}
-		value->level(DescriptionLevel(level));
+		val->level(DescriptionLevel(level));
 	}
 	if (*(longName.end()-1) == '!') {
 		bool neg = *(longName.end()-2) != '\\';
 		longName.erase(longName.end()- (1+!neg), longName.end());
-		if (neg) value->negatable();
+		if (neg) val->negatable();
 		else     longName += '!';
 	}
-	owner_->addOption(auto_ptr<Option>(new Option(longName, shortName, desc, value.release())));
+	owner_->addOption(SharedOptPtr(new Option(longName, shortName, desc, val)));
+	exit.obj = 0;
 	return *this;
 }
 ///////////////////////////////////////////////////////////////////////////////

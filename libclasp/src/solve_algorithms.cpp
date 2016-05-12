@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2006-2012, Benjamin Kaufmann
+// Copyright (c) 2006-2016, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -29,12 +29,14 @@ namespace Clasp {
 /////////////////////////////////////////////////////////////////////////////////////////
 struct BasicSolve::State {
 	typedef BasicSolveEvent EventType;
+	typedef SingleOwnerPtr<BlockLimit> BlockPtr;
 	State(Solver& s, const SolveParams& p);
 	ValueRep solve(Solver& s, const SolveParams& p, SolveLimits* lim);
 	uint64           dbGrowNext;
 	double           dbMax;
 	double           dbHigh;
 	ScheduleStrategy dbRed;
+	BlockPtr         rsBlock;
 	uint32           nRestart;
 	uint32           nGrow;
 	uint32           dbRedInit;
@@ -42,8 +44,8 @@ struct BasicSolve::State {
 	uint32           rsShuffle;
 };
 
-BasicSolve::BasicSolve(Solver& s, SolveLimits* lim) : solver_(&s), params_(&s.searchConfig()), limits_(lim), state_(0) {}
-BasicSolve::BasicSolve(Solver& s, const SolveParams& p, SolveLimits* lim) 
+BasicSolve::BasicSolve(Solver& s, const SolveLimits& lim) : solver_(&s), params_(&s.searchConfig()), limits_(lim), state_(0) {}
+BasicSolve::BasicSolve(Solver& s, const SolveParams& p, const SolveLimits& lim) 
 	: solver_(&s)
 	, params_(&p)
 	, limits_(lim)
@@ -61,7 +63,7 @@ void BasicSolve::reset(bool reinit) {
 		new (state_) State(*solver_, *params_); 
 	}
 }
-void BasicSolve::reset(Solver& s, const SolveParams& p, SolveLimits* lim) { 
+void BasicSolve::reset(Solver& s, const SolveParams& p, const SolveLimits& lim) { 
 	solver_ = &s; 
 	params_ = &p; 
 	limits_ = lim;
@@ -69,10 +71,10 @@ void BasicSolve::reset(Solver& s, const SolveParams& p, SolveLimits* lim) {
 }
 
 ValueRep BasicSolve::solve() {
-	if (limits_ && limits_->reached())           { return value_free;  }
+	if (limits_.reached())                       { return value_free;  }
 	if (!state_ && !params_->randomize(*solver_)){ return value_false; }
 	if (!state_)                                 { state_ = new State(*solver_, *params_); }
-	return state_->solve(*solver_, *params_, limits_);
+	return state_->solve(*solver_, *params_, hasLimit() ? &limits_ : 0);
 }
 
 bool BasicSolve::satisfiable(const LitVec& path, bool init) {
@@ -100,7 +102,7 @@ BasicSolve::State::State(Solver& s, const SolveParams& p) {
 	if (dbLim.lo < s.numLearntConstraints()) { 
 		dbMax      = std::min(dbHigh, double(s.numLearntConstraints() + p.reduce.initRange.lo));
 	}
-	if (dbRedInit && dbRed.type != ScheduleStrategy::luby_schedule) {
+	if (dbRedInit && dbRed.type != ScheduleStrategy::Luby) {
 		if (dbRedInit < dbRed.base) {
 			dbRedInit  = std::min(dbRed.base, std::max(dbRedInit,(uint32)5000));
 			dbRed.grow = dbRedInit != dbRed.base ? std::min(dbRed.grow, dbRedInit/2.0f) : dbRed.grow;
@@ -109,9 +111,13 @@ BasicSolve::State::State(Solver& s, const SolveParams& p) {
 		dbRedInit = 0;
 	}
 	if (p.restart.dynamic()) {
-		s.stats.enableQueue(p.restart.sched.base);
-		s.stats.queue->resetGlobal();
-		s.stats.queue->dynamicRestarts((float)p.restart.sched.grow, true);
+		s.stats.enableLimit(p.restart.sched.base);
+		s.stats.limit->reset();
+	}
+	if (p.restart.blockScale > 0.0f && p.restart.blockWindow > 0) {
+		rsBlock.reset(new BlockLimit(p.restart.blockWindow, p.restart.blockScale));
+		rsBlock->inc  = std::max(p.restart.sched.base, uint32(50));
+		rsBlock->next = std::max(p.restart.blockWindow, p.restart.blockFirst);
 	}
 	s.stats.lastRestart = s.stats.analyzed;
 }
@@ -122,12 +128,12 @@ ValueRep BasicSolve::State::solve(Solver& s, const SolveParams& p, SolveLimits* 
 		return value_false;
 	}
 	struct ConflictLimits {
-		uint64 restart; // current restart limit
 		uint64 reduce;  // current reduce limit
 		uint64 grow;    // current limit for next growth operation
+		uint64 restart; // current restart limit
 		uint64 global;  // current global limit
-		uint64 min()      const { return std::min(std::min(restart, grow), std::min(reduce, global)); }
-		void  update(uint64 x)  { restart -= x; reduce -= x; grow -= x; global -= x; }
+		uint64 min()      const { return std::min(std::min(reduce, grow), std::min(restart, global)); }
+		void  update(uint64 x)  { reduce -= x; grow -= x; restart -= x; global -= x; }
 	};
 	WeightLitVec inDegree;
 	SearchLimits sLimit;
@@ -135,71 +141,77 @@ ValueRep BasicSolve::State::solve(Solver& s, const SolveParams& p, SolveLimits* 
 	ScheduleStrategy dbGrow = p.reduce.growSched;
 	Solver::DBInfo  db      = {0,0,dbPinned};
 	ValueRep result         = value_free;
-	ConflictLimits cLimit   = {UINT64_MAX, dbRed.current() + dbRedInit, dbGrowNext, lim ? lim->conflicts : UINT64_MAX};
+	ConflictLimits cLimit   = {dbRed.current() + dbRedInit, dbGrowNext, UINT64_MAX, lim ? lim->conflicts : UINT64_MAX};
 	uint64  limRestarts     = lim ? lim->restarts : UINT64_MAX;
-	uint64& rsLimit         = p.restart.local() ? sLimit.local : cLimit.restart;
 	if (!dbGrow.disabled())  { dbGrow.advanceTo(nGrow); }
 	if (nRestart == UINT32_MAX && p.restart.update() == RestartParams::seq_disable) {
-		cLimit.restart  = UINT64_MAX;
-		sLimit          = SearchLimits();
+		sLimit = SearchLimits();
 	}
-	else if (p.restart.dynamic()) {
-		if (!nRestart) { s.stats.queue->resetQueue(); s.stats.queue->dynamicRestarts((float)p.restart.sched.grow, true); }
-		sLimit.dynamic  = s.stats.queue; 
-		rsLimit         = sLimit.dynamic->upForce - std::min(sLimit.dynamic->samples, sLimit.dynamic->upForce - 1);
+	else if (p.restart.dynamic() && s.stats.limit) {
+		if (!nRestart) { s.stats.limit->init((float)p.restart.sched.grow, DynamicLimit::lbd_limit); }
+		sLimit.restart.dynamic   = s.stats.limit;
+		sLimit.restart.conflicts = s.stats.limit->adjust.limit - std::min(s.stats.limit->adjust.samples, s.stats.limit->adjust.limit - 1);
 	}
 	else {
 		rs.advanceTo(!rs.disabled() ? nRestart : 0);
-		rsLimit         = rs.current();
+		sLimit.restart.conflicts = rs.current();
 	}
-	sLimit.setMemLimit(p.reduce.memMax);
+	sLimit.restart.local = p.restart.local();
+	sLimit.restart.block = rsBlock.get();
+	if (p.reduce.memMax) {
+		sLimit.memory = static_cast<uint64>(p.reduce.memMax)<<20;
+	}
+	uint64 n = 0;
 	for (EventType progress(s, EventType::event_restart, 0, 0); cLimit.global; ) {
-		uint64 minLimit = cLimit.min(); assert(minLimit);
-		sLimit.learnts  = (uint32)std::min(dbMax + (db.pinned*p.reduce.strategy.noGlue), dbHigh);
-		sLimit.conflicts= minLimit;
-		progress.cLimit = std::min(minLimit, sLimit.local);
-		progress.lLimit = sLimit.learnts;
+		cLimit.restart   = !p.restart.local() ? sLimit.restart.conflicts : UINT64_MAX;
+		sLimit.used      = 0;
+		sLimit.learnts   = (uint32)std::min(dbMax + (db.pinned*p.reduce.strategy.noGlue), dbHigh);
+		sLimit.conflicts = cLimit.min(); assert(sLimit.conflicts);
+		progress.cLimit  = sLimit.conflicts;
+		progress.lLimit  = sLimit.learnts;
 		if (progress.op) { s.sharedContext()->report(progress); progress.op = (uint32)EventType::event_none; }
-		result          = s.search(sLimit, p.randProb);
-		minLimit       -= sLimit.conflicts; // number of conflicts in this iteration
+		result = s.search(sLimit, p.randProb);
+		cLimit.update(n = std::min(sLimit.used, sLimit.conflicts)); // number of conflicts in this iteration
 		if (result != value_free) {
 			progress.op = static_cast<uint32>(EventType::event_exit);
 			if (result == value_true && p.restart.update() != RestartParams::seq_continue) { 
 				if      (p.restart.update() == RestartParams::seq_repeat) { nRestart = 0; }
 				else if (p.restart.update() == RestartParams::seq_disable){ nRestart = UINT32_MAX; }
 			}
-			if (!dbGrow.disabled()) { dbGrowNext = std::max(cLimit.grow - minLimit, uint64(1)); }
+			if (!dbGrow.disabled()) { dbGrowNext = std::max(cLimit.grow, uint64(1)); }
 			s.sharedContext()->report(progress);
 			break;
 		}
-		cLimit.update(minLimit);
-		minLimit = 0;
-		if (rsLimit == 0 || sLimit.hasDynamicRestart()) {
+		if (s.restartReached(sLimit)) {
 			// restart reached - do restart
 			++nRestart;
 			if (p.restart.counterRestart && (nRestart % p.restart.counterRestart) == 0 ) {
 				inDegree.clear();
 				s.heuristic()->bump(s, inDegree, p.restart.counterBump / (double)s.inDegree(inDegree));
 			}
-			if (sLimit.dynamic) {
-				minLimit = sLimit.dynamic->samples;
-				rsLimit  = sLimit.dynamic->restart(rs.len ? rs.len : UINT32_MAX, (float)rs.grow);
+			if (sLimit.restart.dynamic) {
+				n = sLimit.restart.dynamic->runLen();
+				sLimit.restart.conflicts = sLimit.restart.dynamic->restart(rs.len ? rs.len : UINT32_MAX, (float)rs.grow);
+			}
+			else {
+				sLimit.restart.conflicts = n = rs.next();
 			}
 			s.restart();
-			if (rsLimit == 0)              { rsLimit   = rs.next(); }
-			if (!minLimit)                 { minLimit  = rs.current(); }
 			if (p.reduce.strategy.fRestart){ db        = s.reduceLearnts(p.reduce.fRestart(), p.reduce.strategy); }
 			if (nRestart == rsShuffle)     { rsShuffle+= p.restart.shuffleNext; s.shuffleOnNextSimplify();}
 			if (--limRestarts == 0)        { break; }
 			s.stats.lastRestart = s.stats.analyzed;
 			progress.op         = (uint32)EventType::event_restart;
 		}
-		if (cLimit.reduce == 0 || s.learntLimit(sLimit)) {
+		else if (!p.restart.local()) {
+			sLimit.restart.conflicts -= std::min(n, sLimit.restart.conflicts);
+		}
+		if (cLimit.reduce == 0 || s.reduceReached(sLimit)) {
 			// reduction reached - remove learnt constraints
 			db              = s.reduceLearnts(p.reduce.fReduce(), p.reduce.strategy);
 			cLimit.reduce   = dbRedInit + (cLimit.reduce == 0 ? dbRed.next() : dbRed.current());
 			progress.op     = std::max(progress.op, (uint32)EventType::event_deletion);
-			if (s.learntLimit(sLimit) || db.pinned >= dbMax) { 
+			if (s.reduceReached(sLimit) || db.pinned >= dbMax) { 
 				ReduceStrategy t; t.algo = 2; t.score = 2; t.glue = 0;
 				db.pinned /= 2;
 				db.size    = s.reduceLearnts(0.5f, t).size;
@@ -208,9 +220,9 @@ ValueRep BasicSolve::State::solve(Solver& s, const SolveParams& p, SolveLimits* 
 		}
 		if (cLimit.grow == 0 || (dbGrow.defaulted() && progress.op == (uint32)EventType::event_restart)) {
 			// grow sched reached - increase max db size
-			if (cLimit.grow == 0)                             { cLimit.grow = dbGrow.next(); minLimit = cLimit.grow; ++nGrow; }
-			if ((s.numLearntConstraints() + minLimit) > dbMax){ dbMax  *= p.reduce.fGrow; progress.op = std::max(progress.op, (uint32)EventType::event_grow); }
-			if (dbMax > dbHigh)                               { dbMax   = dbHigh; cLimit.grow = UINT64_MAX; dbGrow = ScheduleStrategy::none(); }
+			if (cLimit.grow == 0)                      { cLimit.grow = n = dbGrow.next(); ++nGrow; }
+			if ((s.numLearntConstraints() + n) > dbMax){ dbMax  *= p.reduce.fGrow; progress.op = std::max(progress.op, (uint32)EventType::event_grow); }
+			if (dbMax > dbHigh)                        { dbMax   = dbHigh; cLimit.grow = UINT64_MAX; dbGrow = ScheduleStrategy::none(); }
 		}
 	}
 	dbPinned            = db.pinned;
@@ -224,46 +236,98 @@ ValueRep BasicSolve::State::solve(Solver& s, const SolveParams& p, SolveLimits* 
 /////////////////////////////////////////////////////////////////////////////////////////
 // SolveAlgorithm
 /////////////////////////////////////////////////////////////////////////////////////////
-SolveAlgorithm::SolveAlgorithm(Enumerator* e, const SolveLimits& lim) : limits_(lim), enum_(e), onModel_(0), enumLimit_(UINT64_MAX)  {}
+SolveAlgorithm::SolveAlgorithm(const SolveLimits& lim) : limits_(lim), ctx_(0), enum_(0), onModel_(0), enumLimit_(UINT64_MAX), time_(0.0), last_(0)  {
+}
 SolveAlgorithm::~SolveAlgorithm() {}
-
+void SolveAlgorithm::setEnumerator(Enumerator& e) { 
+	enum_.reset(&e); 
+	enum_.release();
+}
+const Model& SolveAlgorithm::model() const {
+	return enum_->lastModel();
+}
 bool SolveAlgorithm::interrupt() {
 	return doInterrupt();
 }
+bool SolveAlgorithm::attach(SharedContext& ctx, ModelHandler* onModel) {
+	CLASP_FAIL_IF(ctx_, "SolveAlgorithm is already running!");
+	if (!ctx.frozen()) { ctx.endInit(); }
+	ctx.report(Event::subsystem_solve);
+	if (ctx.master()->hasConflict() || !limits_.conflicts || interrupted()) {
+		last_  = !ctx.ok() ? value_false : value_free;
+		return false;
+	}
+	ctx_     = &ctx;
+	time_    = ThreadTime::getTime();
+	onModel_ = onModel;
+	last_    = value_free;
+	if (!enum_.get()) { enum_ = EnumOptions::nullEnumerator(); }
+	return true;
+}
+void SolveAlgorithm::detach() {
+	if (ctx_) {
+		ctx_->master()->stats.addCpuTime(ThreadTime::getTime() - time_);
+		onModel_ = 0;
+		ctx_     = 0;
+		path_    = 0;
+	}
+}
+
 bool SolveAlgorithm::solve(SharedContext& ctx, const LitVec& assume, ModelHandler* onModel) {
 	struct Scoped {
-		explicit Scoped(SolveAlgorithm& self, SharedContext& x) : algo(&self), ctx(&x), temp(0), time(0.0) { }
-		~Scoped() {
-			ctx->master()->stats.addCpuTime(ThreadTime::getTime() - time);
-			if (algo->enum_ == temp) { algo->enum_ = 0; }
-			algo->onModel_ = 0;
-			delete temp;
-		}
-		bool solve(const LitVec& assume, ModelHandler* h) {
-			time = ThreadTime::getTime();
-			if (!algo->enum_) { temp = EnumOptions::nullEnumerator(); algo->setEnumerator(*temp); }
-			algo->onModel_ = h;
-			if (algo->maxModels() != UINT64_MAX) {
-				if (algo->enum_->optimize() && !algo->enum_->tentative()) { 
-					ctx->report(warning(Event::subsystem_solve, "#models not 0: optimality of last model not guaranteed."));
+		Scoped(SolveAlgorithm* s) : self(s) {}
+		~Scoped() { self->detach(); }
+		bool solve(const LitVec& assume) { 
+			if (self->maxModels() != UINT64_MAX) {
+				if (self->enumerator().optimize() && !self->enumerator().tentative()) { 
+					self->ctx().warn("#models not 0: optimality of last model not guaranteed.");
 				}
-				if (algo->enum_->lastModel().consequences()) { 
-					ctx->report(warning(Event::subsystem_solve, "#models not 0: last model may not cover consequences.")); 
+				if (self->enumerator().lastModel().consequences()) { 
+					self->ctx().warn("#models not 0: last model may not cover consequences."); 
 				}
 			}
-			return algo->doSolve(*ctx, assume);
+			self->path_.reset(&assume);
+			self->path_.release();
+			return self->doSolve(self->ctx(), assume); 
 		}
-		SolveAlgorithm* algo;
-		SharedContext*  ctx;
-		Enumerator*     temp;
-		double          time;
+		SolveAlgorithm* self;
 	};
-	if (!ctx.frozen()) { ctx.endInit(); }
-	ctx.report(message<Event::verbosity_low>(Event::subsystem_solve, "Solving"));
-	if (!ctx.ok() || !limits_.conflicts || interrupted()) {
-		return ctx.ok();
+	return attach(ctx, onModel) ? Scoped(this).solve(assume) : ctx.ok();
+}
+
+void SolveAlgorithm::start(SharedContext& ctx, const LitVec& assume, ModelHandler* onModel) {
+	if (attach(ctx, onModel)) {
+		doStart(ctx, *(path_ = new LitVec(assume)));
 	}
-	return Scoped(*this, ctx).solve(assume, onModel);
+}
+bool SolveAlgorithm::next() {
+	if (!ctx_) { return false; }
+	if (last_ == value_true) {
+		if (!enum_->tentative() && model().num >= enumLimit_) {
+			stop();
+			return false;
+		}
+		if (!enum_->commitSymmetric(*ctx_->solver(model().sId))) {
+			last_ = value_free;
+		}
+	}
+	if (last_ == value_true || (last_ = doNext(last_)) == value_true) {
+		Solver& s = *ctx_->solver(model().sId);
+		if (onModel_) { onModel_->onModel(s, model()); }
+		ctx_->report(s, model());
+		return true;
+	}
+	stop();
+ 	return false;
+}
+bool SolveAlgorithm::more() {
+	return last_ != value_false;
+}
+void SolveAlgorithm::stop() {
+	if (ctx_) {
+		doStop();
+		detach();
+	}
 }
 bool SolveAlgorithm::reportModel(Solver& s) const {
 	for (const Model& m = enum_->lastModel();;) {
@@ -276,54 +340,87 @@ bool SolveAlgorithm::reportModel(Solver& s) const {
 bool SolveAlgorithm::moreModels(const Solver& s) const {
 	return s.decisionLevel() != 0 || !s.symmetric().empty() || (!s.sharedContext()->preserveModels() && s.sharedContext()->numEliminatedVars());
 }
+void SolveAlgorithm::doStart(SharedContext&, const LitVec&) {
+	throw std::logic_error("Iterative model generation not supported by this algorithm!");
+}
+int SolveAlgorithm::doNext(int) {
+	throw std::logic_error("Iterative model generation not supported by this algorithm!");
+}
+void SolveAlgorithm::doStop() {}
 /////////////////////////////////////////////////////////////////////////////////////////
 // SequentialSolve
 /////////////////////////////////////////////////////////////////////////////////////////
-struct SequentialSolve::InterruptHandler : public MessageHandler {
-	InterruptHandler() : solver(0) { term = 0; }
-	bool   terminated() const { return term != 0; }
-	bool   terminate()        { return (term = 1) != 0; }
-	bool   attach(Solver& s)  { return !terminated() && (solver = &s)->addPost(this); }
-	void   detach()           { if (solver) { solver->removePost(this); solver = 0; } }
-	bool   handleMessages()                           { return !terminated() || (solver->setStopConflict(), false); }
-	bool   propagateFixpoint(Solver&, PostPropagator*){ return InterruptHandler::handleMessages(); }
-	Solver*            solver;
-	Clasp::atomic<int> term;
+namespace {
+struct InterruptHandler : public MessageHandler {
+	InterruptHandler(Solver* s, volatile int* t) : solver(s), term(t) {
+		if (s && t) { s->addPost(this); }
+	}
+	~InterruptHandler()  { if (solver) { solver->removePost(this); solver = 0; } }
+	bool handleMessages(){ return !*term || (solver->setStopConflict(), false); }
+	bool propagateFixpoint(Solver&, PostPropagator*){ return InterruptHandler::handleMessages(); }
+	Solver*       solver;
+	volatile int* term;
 };
-SequentialSolve::SequentialSolve(Enumerator* enumerator, const SolveLimits& limit)
-	: SolveAlgorithm(enumerator, limit)
-	, term_(0) {
 }
-SequentialSolve::~SequentialSolve() {
-	if (term_) { term_->detach(); delete term_; }
+SequentialSolve::SequentialSolve(const SolveLimits& limit)
+	: SolveAlgorithm(limit)
+	, solve_(0)
+	, term_(-1) {
 }
-void SequentialSolve::resetSolve()       { if (term_) { term_->term = 0; } }
-bool SequentialSolve::doInterrupt()      { return term_ && term_->terminate(); }
-void SequentialSolve::enableInterrupts() { if (!term_) { term_ = new InterruptHandler(); } }
-bool SequentialSolve::interrupted() const{ return term_ && term_->terminated(); }
-
+void SequentialSolve::resetSolve()       { if (term_ > 0) { term_ = 0; } }
+bool SequentialSolve::doInterrupt()      { return term_ >= 0 && ++term_ != 0; }
+void SequentialSolve::enableInterrupts() { if (term_ < 0) { term_ = 0; } }
+bool SequentialSolve::interrupted() const{ return term_ > 0; }
+void SequentialSolve::doStart(SharedContext& ctx, const LitVec& gp) {
+	solve_.reset(new BasicSolve(*ctx.master(), ctx.configuration()->search(0), limits()));
+	if (!enumerator().start(solve_->solver(), gp)) { SequentialSolve::doStop(); }
+}
+int SequentialSolve::doNext(int last) {
+	if (term_ > 0 || !solve_.get()) { return solve_.get() ? value_free : value_false; }
+	Solver& s = solve_->solver();
+	for (InterruptHandler term(term_ == 0 ? &s : (Solver*)0, &term_);;) {
+		if (last != value_free) { enumerator().update(s); }
+		last = solve_->solve();
+ 		if (last != value_true) {
+ 			if      (last == value_free || term_ > 0) { return value_free; }
+			else if (enumerator().commitUnsat(s))     { solve_->reset(); }
+			else if (enumerator().commitComplete())   { break; }
+ 			else {
+				enumerator().end(s);
+				if (!enumerator().start(s, path())) { break; }
+				last = value_free;
+ 			}
+ 		}
+		else if (enumerator().commitModel(s)) { break; }
+ 	}
+ 	return last;
+}
+void SequentialSolve::doStop() {
+	if (solve_.get()) {
+		enumerator().end(solve_->solver());
+		ctx().detach(solve_->solver());
+		solve_ = 0;
+	}
+}
 bool SequentialSolve::doSolve(SharedContext& ctx, const LitVec& gp) {
-	Solver&        s = *ctx.master();
-	SolveLimits  lim = limits();
-	uint32      root = s.rootLevel();
-	BasicSolve solve(s, ctx.configuration()->search(0), &lim);
-	bool        stop = term_ && !term_->attach(s);
-	bool        more = !stop && ctx.attach(s) && enumerator().start(s, gp);
+	BasicSolve solve(*ctx.master(), ctx.configuration()->search(0), limits());
 	// Add assumptions - if this fails, the problem is unsat 
 	// under the current assumptions but not necessarily unsat.
-	for (ValueRep res; more; solve.reset()) {
+	Solver& s = solve.solver();
+	bool more = !interrupted() && ctx.attach(s) && enumerator().start(s, gp);
+	for (InterruptHandler term(term_ == 0 ? &s : (Solver*)0, &term_); more; solve.reset()) {
+		ValueRep res;
 		while ((res = solve.solve()) == value_true && (!enumerator().commitModel(s) || reportModel(s))) {
 			enumerator().update(s);
 		}
 		if      (res != value_false)           { more = (res == value_free || moreModels(s)); break; }
-		else if ((stop=interrupted()) == true) { break; }
+		else if (interrupted())                { more = true; break; }
 		else if (enumerator().commitUnsat(s))  { enumerator().update(s); }
 		else if (enumerator().commitComplete()){ more = false; break; }
 		else                                   { enumerator().end(s); more = enumerator().start(s, gp); }
 	}
-	s.popRootLevel(s.rootLevel() - root);
-	if (term_) { term_->detach(); }
+	enumerator().end(s);
 	ctx.detach(s);
-	return more || stop;
+	return more;
 }
 }

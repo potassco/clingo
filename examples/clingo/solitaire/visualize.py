@@ -2,7 +2,7 @@
 
 import urwid
 import sys
-import gringo
+import clingo
 
 class Board:
 
@@ -129,23 +129,23 @@ class Plan:
     def first(self):
         return 0
 
-c = gringo.Control()
+c = clingo.Control()
 c.add("check", ["k"], "#external query(k).")
 for f in sys.argv[1:]: c.load(f)
 def make_on_model(field, init, jumps):
     sx = { "east": 2, "west": -2, "north":  0, "south": 0 }
     sy = { "east": 0, "west":  0, "north": -2, "south": 2 }
     def on_model(m):
-        for atom in m.atoms(gringo.Model.ATOMS):
-            if atom.name() == "field" and len(atom.args()) == 2:
-                x, y = atom.args()
+        for atom in m.atoms(atoms=True):
+            if atom.name == "field" and len(atom.args) == 2:
+                x, y = [n.number for n in atom.args]
                 field.append((x, y))
-            elif atom.name() == "stone" and len(atom.args()) == 2:
-                x, y = atom.args()
+            elif atom.name == "stone" and len(atom.args) == 2:
+                x, y = [n.number for n in atom.args]
                 init.append((x, y))
-            elif atom.name() == "jump" and len(atom.args()) == 4:
-                ox, oy, d, t = atom.args()
-                jumps.setdefault(t, []).append((ox, oy, ox + sx[str(d)], oy + sy[str(d)]))
+            elif atom.name == "jump" and len(atom.args) == 4:
+                ox, oy, d, t = [(n.number if n.type == clingo.TermType.Number else str(n)) for n in atom.args]
+                jumps.setdefault(t, []).append((ox, oy, ox + sx[d], oy + sy[d]))
         return False
     return on_model
 
@@ -156,9 +156,9 @@ while True:
     t += 1
     c.ground([("step", [t])])
     c.ground([("check", [t])])
-    c.release_external(gringo.Fun("query", [t-1]))
-    c.assign_external(gringo.Fun("query", [t]), True)
-    if c.solve(None, on_model) == gringo.SolveResult.SAT:
+    c.release_external(clingo.function("query", [t-1]))
+    c.assign_external(clingo.function("query", [t]), True)
+    if c.solve(None, on_model).satisfiable:
         break
 
 MainWindow().run(Plan(field, init, jumps))

@@ -21,6 +21,6 @@
 #ifndef _GRINGO_VERSION_HH
 #define _GRINGO_VERSION_HH
 
-#define GRINGO_VERSION "4.5.4"
+#define GRINGO_VERSION "5.0.0"
 
 #endif // _GRINGO_VERSION_HH

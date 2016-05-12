@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -119,14 +119,14 @@ struct IntervalSet {
             }
         }
     }
-    bool contains(Interval const &x) const { 
+    bool contains(Interval const &x) const {
         if (x.empty()) { return true; }
         for (auto &y : vec) {
             if (x.right <= y.right) { return y.left <= x.left; }
         }
         return false;
     }
-    bool intersects(Interval const &x) const { 
+    bool intersects(Interval const &x) const {
         if (!x.empty()) {
             for (auto &y : vec) {
                 if (x.left < y.right) { return y.left < x.right; }
@@ -149,7 +149,7 @@ struct IntervalSet {
         IntervalSet intersection;
         for (auto &x : set.vec) {
             for (; it != vec.end() && it->right < x.left; ++it) { }
-            for (; it != vec.end() && it->right <= x.right; ++it) { 
+            for (; it != vec.end() && it->right <= x.right; ++it) {
                 intersection.vec.emplace_back(Interval{std::max(it->left, x.left), it->right});
             }
             if (it != vec.end() && it->left < x.right) {
@@ -165,7 +165,7 @@ struct IntervalSet {
         for (auto &x : vec) {
             Interval current = x;
             for (; it != set.vec.end() && it->right < current.left; ++it) { }
-            for (; it != set.vec.end() && it->right <= current.right; ++it) { 
+            for (; it != set.vec.end() && it->right <= current.right; ++it) {
                 if (current.left < it->left) {
                     difference.vec.emplace_back(current);
                     difference.vec.back().right = it->left;
@@ -202,7 +202,7 @@ public:
 
 private:
     struct Interval {
-        Interval(value_type left, value_type right) 
+        Interval(value_type left, value_type right)
             : left(left)
             , right(right) { }
         bool contains(value_type const &x) const { return !(x < left) && x < right; }
@@ -214,7 +214,7 @@ private:
     using interval_vec = std::vector<Interval>;
 
 public:
-    class const_iterator : public std::iterator<std::bidirectional_iterator_tag, value_type, int> { 
+    class const_iterator : public std::iterator<std::bidirectional_iterator_tag, value_type, int> {
         friend class enum_interval_set;
         using iterator = std::iterator<std::bidirectional_iterator_tag, value_type, int>;
     public:
@@ -242,9 +242,9 @@ public:
             --current;
             if (rng == set->end()) { --rng; }
             if (current < rng->left) {
-                if (rng != set->begin()) { 
+                if (rng != set->begin()) {
                     --rng;
-                    current = rng->right; 
+                    current = rng->right;
                     --current;
                 }
             }
@@ -268,7 +268,7 @@ public:
         typename interval_vec::const_iterator rng;
         interval_vec const                   *set;
     };
-    
+
     enum_interval_set()                           = default;
     enum_interval_set(enum_interval_set const &x) = default;
     enum_interval_set(enum_interval_set &&x)      = default;
@@ -280,7 +280,7 @@ public:
         for (auto &x : set.vec) {
             // Note: that could be a call to lower bound too ...
             for (; it != vec.end() && it->right <= x.left; ++it) { }
-            for (; it != vec.end() && it->right <= x.right; ++it) { 
+            for (; it != vec.end() && it->right <= x.right; ++it) {
                 intersection.emplace_back(std::max(it->left, x.left), it->right);
             }
             if (it != vec.end() && it->left < x.right) {
@@ -336,14 +336,14 @@ private:
             }
         }
     }
-    bool contains(Interval const &x) const { 
+    bool contains(Interval const &x) const {
         if (x.empty()) { return true; }
         for (auto &y : vec) {
             if (!(y.right < x.right)) { return !(x.left < y.left); }
         }
         return false;
     }
-    bool intersects(Interval const &x) const { 
+    bool intersects(Interval const &x) const {
         if (!x.empty()) {
             for (auto &y : vec) {
                 if (x.left < y.right) { return y.left < x.right; }
@@ -351,7 +351,7 @@ private:
         }
         return false;
     }
-    
+
     std::vector<Interval> vec;
 };
 

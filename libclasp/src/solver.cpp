@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2006-2012, Benjamin Kaufmann
+// Copyright (c) 2006-2016, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -19,23 +19,30 @@
 //
 #include <clasp/solver.h>
 #include <clasp/clause.h>
-#if (defined(__cplusplus) && __cplusplus >= 201103L) || (defined(_MSC_VER) && _MSC_VER > 1500) || (defined(_LIBCPP_VERSION))
-#include <unordered_set>
-typedef std::unordered_set<Clasp::Constraint*> ConstraintSet;
-#else
-#if defined(_MSC_VER)
-#include <unordered_set>
-#else
-#include <tr1/unordered_set>
-#endif
-typedef std::tr1::unordered_set<Clasp::Constraint*> ConstraintSet;
-#endif
-#ifdef _MSC_VER
-#pragma warning (disable : 4996) // 'std::copy': Function call with parameters that may be unsafe
-#endif
-namespace Clasp { 
-
+#include <clasp/util/hash_map.h>
+namespace Clasp {
+namespace {
+	typedef HashSet_t<Constraint*>::set_type ConstraintSet;
+	struct InSet {
+		bool operator()(Constraint* c)        const { return set->find(c) != set->end(); }
+		bool operator()(const ClauseWatch& w) const { return (*this)(w.head); }
+		bool operator()(const GenericWatch&w) const { return (*this)(w.con);  }
+		const ConstraintSet* set;
+	};
+};
 DecisionHeuristic::~DecisionHeuristic() {}
+/////////////////////////////////////////////////////////////////////////////////////////
+// CCMinRecursive
+/////////////////////////////////////////////////////////////////////////////////////////
+struct CCMinRecursive {
+	enum State { state_open = 0, state_removable = 1, state_poison = 2 };
+	uint32 encodeState(State st)     const { return open + uint32(st); }
+	State  decodeState(uint32 epoch) const { return epoch <= open ? state_open : static_cast<State>(epoch - open); }
+	void    push(Literal p) { todo.push_back(p); }
+	Literal pop()           { Literal p = todo.back(); todo.pop_back(); return p; }
+	LitVec todo;
+	uint32 open;
+};
 /////////////////////////////////////////////////////////////////////////////////////////
 // SelectFirst selection strategy
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -50,84 +57,78 @@ Literal SelectFirst::doSelect(Solver& s) {
 	return Literal();
 }
 /////////////////////////////////////////////////////////////////////////////////////////
-// Post propagator list
+// Dirty list
 /////////////////////////////////////////////////////////////////////////////////////////
-static PostPropagator* sent_list;
-Solver::PPList::PPList() : list(0) { enable(); }
-Solver::PPList::~PPList() {
-	for (PostPropagator* r = head(); r;) {
-		PostPropagator* t = r;
-		r = r->next;
-		t->destroy();
+struct Solver::Dirty {
+	static const std::size_t min_size = static_cast<std::size_t>(4);
+	Dirty() : last(0) {}
+	bool add(Literal p, WatchList& wl, Constraint* c) { 
+		if (wl.right_size() <= min_size) { return false; }
+		uintp o = wl.left_size() > 0 ? reinterpret_cast<uintp>(wl.left_begin()->head) : 0;
+		if (add(wl.right_begin()->con, o, c)) { dirty.push_left(p); }
+		return true;
 	}
-}
-
-void Solver::PPList::disable() { act = &sent_list; }
-void Solver::PPList::enable()  { act = &list; }
-
-void Solver::PPList::add(PostPropagator* p, uint32 prio) {
-	assert(p && p->next == 0);
-	for (PostPropagator** r = &list, *x;; r = &x->next) {
-		if ((x = *r) == 0 || prio <= x->priority()) {
-			p->next = x;
-			*r      = p;
-			break;
+	bool add(Literal p, WatchList& wl, ClauseHead* c) { 
+		if (wl.left_size() <= min_size) { return false; }
+		uintp o = wl.right_size() > 0 ? reinterpret_cast<uintp>(wl.right_begin()->con) : 0;
+		if (add(wl.left_begin()->head, o, c)) { dirty.push_left(p); }
+		return true;
+	}
+	bool add(uint32 dl, ConstraintDB& wl, Constraint* c) {
+		if (wl.size() <= min_size) { return false; }
+		if (add(wl[0], 0, c)) { dirty.push_right(dl); }
+		return true;
+	}
+	template <class T>
+	bool add(T*& list, uintp other, Constraint* c) {
+		other |= reinterpret_cast<uintp>(list);
+		list = reinterpret_cast<T*>( set_bit(reinterpret_cast<uintp>(list), 0) );
+		if (c != last) { cons.insert(last = c); }
+		return !test_bit(other, 0);
+	}
+	template <class T>
+	bool test_and_clear(T*& x) const {
+		uintp old = reinterpret_cast<uintp>(x);
+		return test_bit(old, 0) && (x = reinterpret_cast<T*>(clear_bit(old, 0))) != 0;
+	}
+	void cleanup(Watches& watches, DecisionLevels& levels) {
+		InSet inCons = { &cons };
+		for (DirtyList::left_iterator it = dirty.left_begin(), end = dirty.left_end(); it != end; ++it) {
+			WatchList& wl = watches[it->id()];
+			if (wl.left_size() && test_and_clear(wl.left_begin()->head)) { wl.shrink_left(std::remove_if(wl.left_begin(), wl.left_end(), inCons)); }
+			if (wl.right_size()&& test_and_clear(wl.right_begin()->con)) { wl.shrink_right(std::remove_if(wl.right_begin(), wl.right_end(), inCons)); }
 		}
-	}
-}
-
-void Solver::PPList::remove(PostPropagator* p) {
-	assert(p);
-	for (PostPropagator** r = &list, *x; *r; r = &x->next) {
-		if ((x = *r) == p) {
-			*r      = x->next;
-			p->next = 0;
-			break;
+		ConstraintDB* db = 0;
+		for (DirtyList::right_iterator it = dirty.right_begin(), end = dirty.right_end(); it != end; ++it) {
+			if (*it < levels.size() && !(db = levels[*it].undo)->empty() && test_and_clear(*db->begin())) {
+				db->erase(std::remove_if(db->begin(), db->end(), inCons), db->end());
+			}
 		}
+		dirty.clear();
+		cons.clear();
+		last = 0;
 	}
-}
-
-bool Solver::PPList::propagate(Solver& s, PostPropagator* x) const {
-	for (PostPropagator** r = act, *t; *r != x; ) {
-		t = *r;
-		if (!t->propagateFixpoint(s, x)) { return false; }
-		assert(s.queueSize() == 0);
-		if (t == *r) { r = &t->next; }
-		// else: t was removed during propagate
-	}
-	return true;
-}
-
-void Solver::PPList::simplify(Solver& s, bool shuf) {
-	for (PostPropagator* r = active(); r;) {
-		PostPropagator* t = r;
-		r = r->next;
-		if (t->simplify(s, shuf)) {
-			remove(t);
-		}
-	}
-}
-
-void Solver::PPList::cancel()           const { for (PostPropagator* r = active(); r; r = r->next) { r->reset(); } }
-bool Solver::PPList::isModel(Solver& s) const {
-	if (s.hasConflict()) { return false; }
-	for (PostPropagator* r = active(); r; r = r->next) {
-		if (!r->isModel(s)){ return false; }
-	}
-	return !s.enumerationConstraint() || s.enumerationConstraint()->valid(s);
-}
+	typedef bk_lib::left_right_sequence<Literal, uint32, 0> DirtyList;
+	DirtyList     dirty;
+	ConstraintSet cons;
+	Constraint*   last;
+};
 /////////////////////////////////////////////////////////////////////////////////////////
 // Solver: Construction/Destruction/Setup
-////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
+#define FOR_EACH_POST(x, head) \
+	for (PostPropagator** __r__ = (head), *x; (x = *__r__) != 0; __r__ = (x == *__r__) ? &x->next : __r__)
+
+static PostPropagator* sent_list;
 Solver::Solver(SharedContext* ctx, uint32 id) 
 	: shared_(ctx)
 	, ccMin_(0)
-	, smallAlloc_(new SmallClauseAlloc)
+	, postHead_(&sent_list)
 	, undoHead_(0)
 	, enum_(0)
 	, memUse_(0)
-	, ccInfo_(Constraint_t::learnt_conflict)
-	, lbdTime_(0)
+	, lazyRem_(0)
+	, ccInfo_(Constraint_t::Conflict)
 	, dbIdx_(0)
 	, lastSimp_(0)
 	, shufSimp_(0)
@@ -147,7 +148,8 @@ void Solver::freeMem() {
 	std::for_each( learnts_.begin(), learnts_.end(), DestroyObject() );
 	constraints_.clear();
 	learnts_.clear();
-	setEnumerationConstraint(0);
+	post_.clear();
+	if (enum_) { enum_->destroy(); }
 	heuristic_.reset(0);
 	PodVector<WatchList>::destruct(watches_);
 	// free undo lists
@@ -161,50 +163,11 @@ void Solver::freeMem() {
 		x = (ConstraintDB*)x->front();
 		delete t;
 	}
-	delete smallAlloc_;
 	delete ccMin_;
-	smallAlloc_ = 0;
-	ccMin_      = 0;
-	memUse_     = 0;
+	ccMin_  = 0;
+	memUse_ = 0;
 }
-namespace {
-	struct InSet {
-		bool operator()(Constraint* c)        const { return set->find(c) != set->end(); }
-		bool operator()(const ClauseWatch& w) const { return (*this)(w.head);  }
-		bool operator()(const GenericWatch&w) const { return (*this)(w.con);  }
-		const ConstraintSet* set;
-	};
-}
-void Solver::destroyDB(ConstraintDB& db) {
-	bool lazy = db.size() > 100;
-	for (ConstraintDB::const_iterator it = db.begin(), end = db.end(); it != end; ++it) {
-		(*it)->destroy(this, !lazy);
-	}
-	if (lazy) {
-		ConstraintSet set(db.begin(), db.end());
-		InSet inSet = { &set };
-		for (Watches::iterator it = watches_.begin(), end = watches_.end(); it != end; ++it) {
-			if (it->left_size()) { it->shrink_left(std::remove_if(it->left_begin(), it->left_end(), inSet)); }
-			if (it->right_size()){ it->shrink_right(std::remove_if(it->right_begin(), it->right_end(), inSet)); }
-		}
-		for (uint32 i = 0, end = (uint32)levels_.size(); i != end; ++i) {
-			if (ConstraintDB* db = levels_[i].undo) {
-				db->erase(std::remove_if(db->begin(), db->end(), inSet), db->end());
-			}
-		}
-	}
-	db.clear();
-}
-void destroyDB(Solver::ConstraintDB& db, Solver* s, bool detach) {
-	if (s && detach) { 
-		s->destroyDB(db); 
-		return;
-	}
-	while (!db.empty()) {
-		db.back()->destroy(s, detach); 
-		db.pop_back();
-	}
-}
+
 SatPreprocessor*    Solver::satPrepro()     const { return shared_->satPrepro.get(); }
 const SolveParams&  Solver::searchConfig()  const { return shared_->configuration()->search(id()); }
 
@@ -214,31 +177,33 @@ void Solver::reset() {
 	this->~Solver();
 	new (this) Solver(myCtx, myId);
 }
-DecisionHeuristic* Solver::releaseHeuristic(bool detach) {
-	if (detach && heuristic_.is_owner() && heuristic_.get()) { heuristic_->detach(*this); }
-	return heuristic_.release();
-}
-void Solver::setHeuristic(DecisionHeuristic* h) {
-	if (heuristic_.is_owner() && heuristic_.get()) { heuristic_->detach(*this); }
+void Solver::setHeuristic(DecisionHeuristic* h, Ownership_t::Type t) {
+	CLASP_ASSERT_CONTRACT_MSG(h, "Heuristic must not be null");
+	resetHeuristic();
 	heuristic_.reset(h);
+	if (t == Ownership_t::Retain) { heuristic_.release(); }
+}
+void Solver::resetHeuristic() {
+	if (heuristic_.get()) { heuristic_->detach(*this); }
+	heuristic_ = 0;
 }
 void Solver::resetConfig() {
 	if (strategy_.hasConfig) {
 		if (PostPropagator* pp = getPost(PostPropagator::priority_reserved_look)) { pp->destroy(this, true); }
 		delete ccMin_; 
 		ccMin_ = 0;
-	}		
+	}
 	strategy_.hasConfig = 0;
 }
 void Solver::startInit(uint32 numConsGuess, const SolverParams& params) {
 	assert(numVars() <= shared_->numVars());
+	assert(!lazyRem_);
 	assign_.resize(shared_->numVars() + 1);
 	watches_.resize(assign_.numVars()<<1);
 	// pre-allocate some memory
 	assign_.trail.reserve(numVars());
 	constraints_.reserve(numConsGuess/2);
 	levels_.reserve(25);
-	if (smallAlloc_ == 0){ smallAlloc_ = new SmallClauseAlloc();  }
 	if (undoHead_ == 0)  {
 		for (uint32 i = 0; i != 25; ++i) { 
 			undoFree(new ConstraintDB(10)); 
@@ -246,12 +211,11 @@ void Solver::startInit(uint32 numConsGuess, const SolverParams& params) {
 	}
 	if (!popRootLevel(rootLevel())) { return; }
 	if (!strategy_.hasConfig) {
-		uint32 id             = this->id();
-		uint32 hId            = strategy_.heuReserved;
-		strategy_             = params;
-		strategy_.id          = id; // keep id
-		strategy_.heuReserved = hId;// and hId
-		strategy_.hasConfig   = 1;  // strategy is now "up to date"
+		uint32 id           = this->id();
+		uint32 hId          = strategy_.heuId; // remember active heuristic
+		strategy_           = params;
+		strategy_.id        = id; // keep id
+		strategy_.hasConfig = 1;  // strategy is now "up to date"
 		if      (!params.ccMinRec)  { delete ccMin_; ccMin_ = 0; }
 		else if (!ccMin_)           { ccMin_ = new CCMinRecursive; }
 		if (id == params.id || !shared_->seedSolvers()) {
@@ -261,16 +225,18 @@ void Solver::startInit(uint32 numConsGuess, const SolverParams& params) {
 			RNG x(14182940); for (uint32 i = 0; i != id; ++i) { x.rand(); }
 			rng.srand(x.seed());
 		}
-		if (hId != params.heuId || params.forgetHeuristic()) { // heuristic has changed
-			setHeuristic(0);
+		if (hId != params.heuId) { // heuristic has changed
+			resetHeuristic();
+		}
+		else if (heuristic_.get() != 0 && heuristic_.is_owner()) {
+			heuristic_->setConfig(params.heuristic);
 		}
 	}
 	if (heuristic_.get() == 0) {
-		setHeuristic(shared_->configuration()->heuristic(id()));
-		strategy_.heuReserved = params.heuId;
+		heuristic_.reset(shared_->configuration()->heuristic(id()));
 	}
-	post_.disable(); // disable post propagators during setup
-	initPost_ = 0;   // defer calls to PostPropagator::init()
+	postHead_ = &sent_list; // disable post propagators during setup
+	initPost_ = 0;          // defer calls to PostPropagator::init()
 	heuristic_->startInit(*this);
 }
 
@@ -287,20 +253,13 @@ bool Solver::preparePost() {
 	if (hasConflict()) { return false; }
 	if (initPost_ == 0){
 		initPost_ = 1;
-		for (PostPropagator* x = post_.head(), *t; (t = x) != 0; ) {
-			x = x->next;
-			if (!t->init(*this)) { return false; }
+		FOR_EACH_POST(x, post_.head()) {
+			if (!x->init(*this)) { return false; }
 		}
 	}
 	return shared_->configuration()->addPost(*this);
 }
-PostPropagator* Solver::getPost(uint32 prio) const {
-	for (PostPropagator* x = post_.head(); x; x = x->next) {
-		uint32 xp = x->priority();
-		if (xp >= prio) { return xp == prio ? x : 0; }
-	}
-	return 0;
-}
+
 bool Solver::endInit() {
 	if (hasConflict()) { return false; }
 	heuristic_->endInit(*this);
@@ -310,18 +269,19 @@ bool Solver::endInit() {
 			setPref(v, ValueSet::user_value, x.sign() ? value_false : value_true);
 		}
 	}
-	post_.enable(); // enable all post propagators
+	postHead_ = post_.head(); // enable all post propagators
 	return propagate() && simplify();
 }
 
-bool Solver::endStep(uint32 top) {
+bool Solver::endStep(uint32 top, const SolverParams& params) {
 	if (!popRootLevel(rootLevel())) { return false; }
 	popAuxVar();
 	uint32 tp = std::min(top, (uint32)lastSimp_);
 	Literal x = shared_->stepLiteral();
-	Solver* m = this != shared_->master() ? shared_->master() : 0;
-	if (value(x.var()) == value_free){ force(~x, posLit(0));}
-	post_.disable();
+	Solver* m = !isMaster() ? shared_->master() : 0;
+	if (value(x.var()) == value_free){ 
+		force(~x, lit_true());
+	}
 	if (simplify()) {
 		while (tp < (uint32)assign_.trail.size()) {
 			Var v = assign_.trail[tp].var();
@@ -339,6 +299,10 @@ bool Solver::endStep(uint32 top) {
 		assign_.qReset();
 		assign_.setUnits(lastSimp_ = (uint32)assign_.trail.size()); 
 	}
+	if (params.forgetLearnts())   { reduceLearnts(1.0f); }
+	if (params.forgetHeuristic()) { resetHeuristic(); }
+	if (params.forgetSigns())     { resetPrefs(); }
+	if (params.forgetActivities()){ resetLearntActivities(); }
 	return true;
 }
 
@@ -356,7 +320,7 @@ bool Solver::add(const ClauseRep& c, bool isNew) {
 		else                  { return ClauseCreator::create(*this, c, ClauseCreator::clause_explicit).ok(); }
 	}
 	else {
-		Literal u = c.size ? c.lits[0] : negLit(0);
+		Literal u = c.size ? c.lits[0] : lit_false();
 		uint32  ts= trail().size();
 		force(u);
 		added     = int(ts != trail().size());
@@ -367,13 +331,20 @@ bool Solver::add(const ClauseRep& c, bool isNew) {
 	}
 	return !hasConflict();
 }
+bool Solver::addPost(PostPropagator* p, bool init) { 
+	post_.add(p);
+	return !init || p->init(*this);
+}
+bool Solver::addPost(PostPropagator* p)   { return addPost(p, initPost_ != 0); }
+void Solver::removePost(PostPropagator* p){ post_.remove(p); }
+PostPropagator* Solver::getPost(uint32 prio) const { return post_.find(prio); }
 uint32 Solver::receive(SharedLiterals** out, uint32 maxOut) const {
 	if (shared_->distributor.get()) {
 		return shared_->distributor->receive(*this, out, maxOut);
 	}
 	return 0;
 }
-SharedLiterals* Solver::distribute(const Literal* lits, uint32 size, const ClauseInfo& extra) {
+SharedLiterals* Solver::distribute(const Literal* lits, uint32 size, const ConstraintInfo& extra) {
 	if (shared_->distributor.get() && !extra.aux() && (size <= 3 || shared_->distributor->isCandidate(size, extra.lbd(), extra.type()))) {
 		uint32 initialRefs = shared_->concurrency() - (size <= Clause::MAX_SHORT_LEN || !shared_->physicalShare(extra.type()));
 		SharedLiterals* x  = SharedLiterals::newShareable(lits, size, extra.type(), initialRefs);
@@ -394,16 +365,18 @@ uint32 Solver::numConstraints() const {
 }
 
 Var Solver::pushAuxVar() {
+	assert(!lazyRem_);
 	Var aux = assign_.addVar();
 	setPref(aux, ValueSet::def_value, value_false);
 	watches_.insert(watches_.end(), 2, WatchList()); 
 	if (heuristic_.get()) { heuristic_->updateVar(*this, aux, 1); }
 	return aux;
 }
-void Solver::popAuxVar(uint32 num) {
+void Solver::popAuxVar(uint32 num, ConstraintDB* auxCons) {
 	num = numVars() >= shared_->numVars() ? std::min(numVars() - shared_->numVars(), num) : 0;
 	if (!num) { return; }
 	// 1. find first dl containing one of the aux vars
+	shared_->report("removing aux vars", this);
 	Literal aux = posLit(assign_.numVars() - num);
 	uint32  dl  = decisionLevel() + 1;
 	for (ImpliedList::iterator it = impliedLits_.begin(); it != impliedLits_.end(); ++it) {
@@ -412,10 +385,9 @@ void Solver::popAuxVar(uint32 num) {
 	for (Var v = aux.var(), end = aux.var()+num; v != end; ++v) {
 		if (value(v) != value_free){ dl = std::min(dl, level(v)); }
 	}
-	// 2. remove aux vars from assignment
+	// 2. remove aux vars from assignment and watch lists
 	if (dl > rootLevel()) {
-		if (backtrackLevel() >= dl) { setBacktrackLevel(dl-1); }
-		undoUntil(dl-1, undo_pop_bt_level);
+		undoUntil(dl-1, undo_pop_proj_level);
 	}
 	else {
 		popRootLevel((rootLevel() - dl) + 1);
@@ -433,27 +405,38 @@ void Solver::popAuxVar(uint32 num) {
 			assign_.setUnits(units);
 		}
 	}
-	// 3. remove constraints over aux
-	ConstraintDB::size_type i, j, end = learnts_.size();
-	LitVec cc;
-	for (i = j = 0; i != end; ++i) {
-		cc.clear();
-		if (ClauseHead* c = static_cast<LearntConstraint*>(learnts_[i])->clause()) { c->toLits(cc); }
-		if (std::find_if(cc.begin(), cc.end(), std::not1(std::bind2nd(std::less<Literal>(), aux))) == cc.end()) {
-			learnts_[j++] = learnts_[i];
-		}
-		else { learnts_[i]->destroy(this, true); }
-	}
-	learnts_.erase(learnts_.begin()+j, learnts_.end());
-	// 4. remove aux vars and their watches
-	assign_.resize(assign_.numVars()-num);
 	for (uint32 n = num; n--;) { 
 		watches_.back().clear(true);
 		watches_.pop_back();
 		watches_.back().clear(true);
 		watches_.pop_back();
 	}
-	if (!validVar(tag_.var())) { tag_ = posLit(0); }
+	// 3. remove constraints over aux
+	shared_->report("removing aux constraints", this);
+	ConstraintDB::size_type i, j, end = learnts_.size();
+	LitVec cc;
+	Dirty dirty;
+	lazyRem_ = &dirty;
+	for (i = j = 0; i != end; ++i) {
+		learnts_[j++] = learnts_[i];
+		ClauseHead* c = learnts_[i]->clause();
+		if (c && c->aux()) {
+			cc.clear();
+			c->toLits(cc);
+			if (std::find_if(cc.begin(), cc.end(), std::not1(std::bind2nd(std::less<Literal>(), aux))) != cc.end()) {
+				c->destroy(this, true);
+				--j;
+			}
+		}
+	}
+	learnts_.erase(learnts_.begin()+j, learnts_.end());
+	if (auxCons) { destroyDB(*auxCons); }
+	// 4. cleanup watch list
+	lazyRem_ = 0;
+	shared_->report("removing aux watches", this);
+	dirty.cleanup(watches_, levels_);
+	assign_.resize(assign_.numVars()-num);
+	if (!validVar(tag_.var())) { tag_ = lit_true(); }
 	heuristic_->updateVar(*this, aux.var(), num);
 }
 
@@ -490,10 +473,11 @@ bool Solver::popRootLevel(uint32 n, LitVec* popped, bool aux)  {
 	}
 	levels_.root       = newRoot;
 	levels_.backtrack  = rootLevel();
+	levels_.isProject  = 0;
 	impliedLits_.front = 0;
 	bool tagActive     = isTrue(tagLiteral());
 	// go back to new root level and re-assert still implied literals
-	undoUntil(rootLevel(), undo_pop_bt_level);
+	undoUntil(rootLevel(), undo_pop_proj_level);
 	if (tagActive && !isTrue(tagLiteral())) {
 		removeConditional();
 	}
@@ -507,9 +491,9 @@ bool Solver::clearAssumptions()  {
 
 void Solver::clearStopConflict() {
 	if (hasStopConflict()) {
-		levels_.root      = conflict_[1].asUint();
-		levels_.backtrack = conflict_[2].asUint();
-		assign_.front     = conflict_[3].asUint();
+		levels_.root      = conflict_[1].rep();
+		levels_.backtrack = conflict_[2].rep();
+		assign_.front     = conflict_[3].rep();
 		conflict_.clear();
 	}
 }
@@ -519,7 +503,7 @@ void Solver::setStopConflict() {
 		// we use the nogood {FALSE} to represent the unrecoverable conflict -
 		// note that {FALSE} can otherwise never be a violated nogood because
 		// TRUE is always true in every solver
-		conflict_.push_back(negLit(0));
+		conflict_.push_back(lit_false());
 		// remember the current root-level
 		conflict_.push_back(Literal::fromRep(rootLevel()));
 		// remember the current bt-level
@@ -573,7 +557,7 @@ bool Solver::split(LitVec& out) {
 uint32 Solver::numWatches(Literal p) const {
 	assert( validVar(p.var()) );
 	if (!validWatch(p)) return 0;
-	uint32 n = static_cast<uint32>(watches_[p.index()].size());
+	uint32 n = static_cast<uint32>(watches_[p.id()].size());
 	if (!auxVar(p.var())){
 		n += shared_->shortImplications().numEdges(p);
 	}
@@ -582,19 +566,19 @@ uint32 Solver::numWatches(Literal p) const {
 	
 bool Solver::hasWatch(Literal p, Constraint* c) const {
 	if (!validWatch(p)) return false;
-	const WatchList& pList = watches_[p.index()];
+	const WatchList& pList = watches_[p.id()];
 	return std::find_if(pList.right_begin(), pList.right_end(), GenericWatch::EqConstraint(c)) != pList.right_end();
 }
 
 bool Solver::hasWatch(Literal p, ClauseHead* h) const {
 	if (!validWatch(p)) return false;
-	const WatchList& pList = watches_[p.index()];
+	const WatchList& pList = watches_[p.id()];
 	return std::find_if(pList.left_begin(), pList.left_end(), ClauseWatch::EqHead(h)) != pList.left_end();
 }
 
 GenericWatch* Solver::getWatch(Literal p, Constraint* c) const {
 	if (!validWatch(p)) return 0;
-	const WatchList& pList = watches_[p.index()];
+	const WatchList& pList = watches_[p.id()];
 	WatchList::const_right_iterator it = std::find_if(pList.right_begin(), pList.right_end(), GenericWatch::EqConstraint(c));
 	return it != pList.right_end()
 		? &const_cast<GenericWatch&>(*it)
@@ -602,31 +586,50 @@ GenericWatch* Solver::getWatch(Literal p, Constraint* c) const {
 }
 
 void Solver::removeWatch(const Literal& p, Constraint* c) {
-	assert(validWatch(p));
-	WatchList& pList = watches_[p.index()];
-	pList.erase_right(std::find_if(pList.right_begin(), pList.right_end(), GenericWatch::EqConstraint(c)));
+	if (!validWatch(p)) { return; }
+	WatchList& pList = watches_[p.id()];
+	if (!lazyRem_ || !lazyRem_->add(p, pList, c)) {
+		pList.erase_right(std::find_if(pList.right_begin(), pList.right_end(), GenericWatch::EqConstraint(c)));
+	}
 }
 
 void Solver::removeWatch(const Literal& p, ClauseHead* h) {
-	assert(validWatch(p));
-	WatchList& pList = watches_[p.index()];
-	pList.erase_left(std::find_if(pList.left_begin(), pList.left_end(), ClauseWatch::EqHead(h)));
+	if (!validWatch(p)) { return; }
+	WatchList& pList = watches_[p.id()];
+	if (!lazyRem_ || !lazyRem_->add(p, pList, h)) {
+		pList.erase_left(std::find_if(pList.left_begin(), pList.left_end(), ClauseWatch::EqHead(h)));
+	}
 }
 
 bool Solver::removeUndoWatch(uint32 dl, Constraint* c) {
 	assert(dl != 0 && dl <= decisionLevel() );
 	if (levels_[dl-1].undo) {
 		ConstraintDB& uList = *levels_[dl-1].undo;
-		ConstraintDB::iterator it = std::find(uList.begin(), uList.end(), c);
-		if (it != uList.end()) {
-			*it = uList.back();
-			uList.pop_back();
-			return true;
+		if (!lazyRem_ || !lazyRem_->add(dl - 1, uList, c)) {
+			ConstraintDB::iterator it = std::find(uList.begin(), uList.end(), c);
+			if (it != uList.end()) {
+				*it = uList.back();
+				uList.pop_back();
+				return true;
+			}
 		}
 	}
 	return false;
 }
-
+void Solver::destroyDB(ConstraintDB& db) {
+	if (!db.empty()) {
+		Dirty dirty;
+		if (!lazyRem_) { lazyRem_ = &dirty; }
+		for (ConstraintDB::const_iterator it = db.begin(), end = db.end(); it != end; ++it) {
+			(*it)->destroy(this, true);
+		}
+		db.clear();
+		if (lazyRem_ == &dirty) { 
+			lazyRem_ = 0;
+			dirty.cleanup(watches_, levels_);
+		}
+	}
+}
 /////////////////////////////////////////////////////////////////////////////////////////
 // Solver: Basic DPLL-functions
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -655,7 +658,7 @@ void Solver::removeConditional() {
 	if (!isSentinel(p)) {
 		ConstraintDB::size_type i, j, end = learnts_.size();
 		for (i = j = 0; i != end; ++i) {
-			ClauseHead* c = static_cast<LearntConstraint*>(learnts_[i])->clause();
+			ClauseHead* c = learnts_[i]->clause();
 			if (!c || !c->tagged()) {
 				learnts_[j++] = learnts_[i];
 			}
@@ -672,7 +675,7 @@ void Solver::strengthenConditional() {
 	if (!isSentinel(p)) {
 		ConstraintDB::size_type i, j, end = learnts_.size();
 		for (i = j = 0; i != end; ++i) {
-			ClauseHead* c = static_cast<LearntConstraint*>(learnts_[i])->clause();
+			ClauseHead* c = learnts_[i]->clause();
 			if (!c || !c->tagged() || !c->strengthen(*this, p, true).second) {
 				learnts_[j++] = learnts_[i];
 			}
@@ -694,8 +697,8 @@ bool Solver::simplifySAT() {
 	lastSimp_     = (uint32)assign_.trail.size();
 	for (Literal p; !assign_.qEmpty(); ) {
 		p = assign_.qPop();
-		releaseVec(watches_[p.index()]);
-		releaseVec(watches_[(~p).index()]);
+		releaseVec(watches_[p.id()]);
+		releaseVec(watches_[(~p).id()]);
 		shared_->simplifyShort(*this, p);
 	}
 	bool shuffle = shufSimp_ != 0;
@@ -704,10 +707,15 @@ bool Solver::simplifySAT() {
 		std::random_shuffle(constraints_.begin(), constraints_.end(), rng);
 		std::random_shuffle(learnts_.begin(), learnts_.end(), rng);
 	}
-	if (this == shared_->master()) { shared_->simplify(shuffle); }
-	else                           { simplifyDB(*this, constraints_, shuffle); }
+	if (isMaster()) { shared_->simplify(shuffle); }
+	else            { simplifyDB(*this, constraints_, shuffle); }
 	simplifyDB(*this, learnts_, shuffle);
-	post_.simplify(*this, shuffle);
+	FOR_EACH_POST(x, postHead_) {
+		if (x->simplify(*this, shuffle)) {
+			post_.remove(x);
+			x->destroy(this, false);
+		}
+	}
 	if (enum_ && enum_->simplify(*this, shuffle)) {
 		enum_->destroy(this, false);
 		enum_ = 0;
@@ -733,6 +741,25 @@ void Solver::setConflict(Literal p, const Antecedent& a, uint32 data) {
 		}
 	}
 }
+bool Solver::force(const ImpliedLiteral& p) {
+	// Already implied?
+	if (isTrue(p.lit)) {
+		if (level(p.lit.var()) <= p.level) { return true; }
+		if (ImpliedLiteral* x = impliedLits_.find(p.lit)) {
+			if (x->level > p.level) {
+				*x = p;
+				setReason(p.lit, p.ante.ante(), p.ante.data());
+			}
+			return true;
+		}
+	}
+	if (undoUntil(p.level) != p.level) {
+		// Logically the implication is on level p.level.
+		// Store enough information so that p can be re-assigned once we backtrack.
+		impliedLits_.add(decisionLevel(), p);
+	}
+	return (isTrue(p.lit) && setReason(p.lit, p.ante.ante(), p.ante.data())) || force(p.lit, p.ante.ante(), p.ante.data());
+}
 
 bool Solver::assume(const Literal& p) {
 	if (value(p.var()) == value_free) {
@@ -744,13 +771,23 @@ bool Solver::assume(const Literal& p) {
 	return isTrue(p);
 }
 
+void Solver::cancelPropagation() {
+	assign_.qReset();
+	for (PostPropagator* r = *postHead_; r; r = r->next) { r->reset(); }
+}
+
 bool Solver::propagate() {
-	if (unitPropagate() && post_.propagate(*this, 0)) {
+	if (unitPropagate() && postPropagate(0)) {
 		assert(queueSize() == 0);
 		return true;
 	}
 	cancelPropagation();
 	return false;
+}
+
+bool Solver::propagateUntil(PostPropagator* p) { 
+	assert((!p || *postHead_) && "OP not allowed during init!"); 
+	return unitPropagate() && (p == *postHead_ || postPropagate(p)); 
 }
 
 Constraint::PropResult ClauseHead::propagate(Solver& s, Literal p, uint32&) {
@@ -782,7 +819,7 @@ bool Solver::unitPropagate() {
 	const uint32 maxIdx = btig.size();
 	while ( !assign_.qEmpty() ) {
 		p             = assign_.qPop();
-		idx           = p.index();
+		idx           = p.id();
 		WatchList& wl = watches_[idx];
 		// first: short clause BCP
 		if (idx < maxIdx && !btig.propagate(*this, p)) {
@@ -826,6 +863,17 @@ bool Solver::unitPropagate() {
 	return DL || assign_.markUnits();
 }
 
+bool Solver::postPropagate(PostPropagator* stop) {
+	for (PostPropagator** r = postHead_, *t; *r != stop;) {
+		t = *r;
+		if (!t->propagateFixpoint(*this, stop)) { return false; }
+		assert(queueSize() == 0);
+		if (t == *r) { r = &t->next; }
+		// else: t was removed during propagate
+	}
+	return true;
+}
+
 bool Solver::test(Literal p, PostPropagator* c) {
 	assert(value(p.var()) == value_free && !hasConflict());
 	assume(p); --stats.choices;
@@ -848,7 +896,10 @@ bool Solver::resolveConflict() {
 	if (decisionLevel() > rootLevel()) {
 		if (decisionLevel() != backtrackLevel() && searchMode() != SolverStrategies::no_learning) {
 			uint32 uipLevel = analyzeConflict();
-			stats.updateJumps(decisionLevel(), uipLevel, backtrackLevel(), ccInfo_.lbd());
+			stats.addConflict(decisionLevel(), uipLevel, backtrackLevel(), ccInfo_.lbd());
+			if (shared_->reportMode()) {
+				sharedContext()->report(NewConflictEvent(*this, cc_, ccInfo_));
+			}
 			undoUntil( uipLevel );
 			return ClauseCreator::create(*this, cc_, ClauseCreator::clause_no_prepare, ccInfo_);
 		}
@@ -868,7 +919,7 @@ bool Solver::backtrack() {
 		}
 		lastChoiceInverted = ~decision(decisionLevel());
 		levels_.backtrack = decisionLevel() - 1;
-		undoUntil(backtrackLevel(), undo_pop_bt_level);
+		undoUntil(backtrackLevel(), undo_pop_proj_level);
 	} while (hasConflict() || !force(lastChoiceInverted, 0));
 	// remember flipped literal for copyGuidingPath()
 	impliedLits_.add(decisionLevel(), ImpliedLiteral(lastChoiceInverted, decisionLevel(), 0));
@@ -891,23 +942,26 @@ bool ImpliedList::assign(Solver& s) {
 	front = level > s.rootLevel() ? front  : lits.size();
 	return ok;
 }
-
+bool Solver::isUndoLevel() const {
+	return decisionLevel() > backtrackLevel();
+}
 uint32 Solver::undoUntilImpl(uint32 level, bool forceSave) {
 	level      = std::max( level, backtrackLevel() );
 	if (level >= decisionLevel()) { return decisionLevel(); }
-	uint32 num = decisionLevel() - level;
-	bool sp    = forceSave || (strategy_.saveProgress > 0 && ((uint32)strategy_.saveProgress) <= num);
+	uint32& n  = (levels_.jump = decisionLevel() - level);
+	bool sp    = forceSave || (strategy_.saveProgress > 0 && ((uint32)strategy_.saveProgress) <= n);
 	bool ok    = conflict_.empty() && levels_.back().freeze == 0;
 	conflict_.clear();
 	heuristic_->undoUntil( *this, levels_[level].trailPos);
 	undoLevel(sp && ok);
-	while (--num) { undoLevel(sp); }
+	while (--n) { undoLevel(sp); }
 	return level;
 }
 uint32 Solver::undoUntil(uint32 level, uint32 mode) {
 	assert(backtrackLevel() >= rootLevel());
-	if ((mode & undo_pop_bt_level) != 0 && backtrackLevel() > level && !varInfo(decision(backtrackLevel()).var()).project()) {
-		setBacktrackLevel(level);
+	const uint32 pop_mask = undo_pop_bt_level|undo_pop_proj_level;
+	if (level < backtrackLevel() && (mode & pop_mask) > levels_.isProject) {
+		levels_.backtrack = std::max(rootLevel(), level);
 	}
 	level = undoUntilImpl(level, (mode & undo_save_phases) != 0);
 	if (impliedLits_.active(level)) {
@@ -926,7 +980,7 @@ uint32 Solver::estimateBCP(const Literal& p, int rd) const {
 	const uint32 maxIdx = btig.size();
 	do {
 		Literal x = assign_.trail[i++];  
-		if (x.index() < maxIdx && !btig.propagateBin(self.assign_, x, 0)) {
+		if (x.id() < maxIdx && !btig.propagateBin(self.assign_, x, 0)) {
 			break;
 		}
 	} while (i < assign_.assigned() && rd-- != 0);
@@ -941,26 +995,25 @@ uint32 Solver::inDegree(WeightLitVec& out) {
 	if (decisionLevel() == 0) { return 1; }
 	assert(!hasConflict());
 	out.reserve((numAssignedVars()-levelStart(1))/10);
-	uint32 maxIn  = 1;
-	uint32 i      = assign_.trail.size(), stop = levelStart(1);
-	for (Antecedent xAnte; i-- != stop; ) {
-		Literal x     = assign_.trail[i];
-		uint32  xLev  = assign_.level(x.var());
-		xAnte         = assign_.reason(x.var());
-		uint32  xIn   = 0;
-		if (!xAnte.isNull() && xAnte.type() != Antecedent::binary_constraint) {
-			xAnte.reason(*this, x, conflict_);
-			for (LitVec::const_iterator it = conflict_.begin(); it != conflict_.end(); ++it) {
+	uint32 maxIn = 1;
+	uint32 i = assign_.trail.size(), stop = levelStart(1);
+	for (LitVec temp; i-- != stop; ) {
+		Literal x    = assign_.trail[i];
+		uint32  xLev = assign_.level(x.var());
+		uint32  xIn  = 0;
+		Antecedent xAnte = assign_.reason(x.var());
+		if (!xAnte.isNull() && xAnte.type() != Antecedent::Binary) {
+			xAnte.reason(*this, x, temp);
+			for (LitVec::const_iterator it = temp.begin(); it != temp.end(); ++it) {
 				xIn += level(it->var()) != xLev;
 			}
 			if (xIn) {
 				out.push_back(WeightLiteral(x, xIn));
-				maxIn     = std::max(xIn, maxIn);
+				maxIn = std::max(xIn, maxIn);
 			}
-			conflict_.clear();
+			temp.clear();
 		}
 	}
-	assert(!hasConflict());
 	return maxIn;
 }
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -998,7 +1051,69 @@ void Solver::undoLevel(bool sp) {
 }
 
 inline ClauseHead* clause(const Antecedent& ante) {
-	return ante.isNull() || ante.type() != Antecedent::generic_constraint ? 0 : ante.constraint()->clause();
+	return ante.isNull() || ante.type() != Antecedent::Generic ? 0 : ante.constraint()->clause();
+}
+
+bool Solver::resolveToInput(const LitVec& in, LitVec& out, uint32& outLbd) const {
+	return const_cast<Solver&>(*this).resolveToInput(in, out, outLbd);
+}
+bool Solver::resolveToInput(const LitVec& in, LitVec& out, uint32& outLbd) {
+	LitVec temp;
+	const LitVec& trail = assign_.trail;
+	const LitVec* r = &in;
+	uint32 unknown = 0;
+	out.clear();
+	for (LitVec::size_type tp = trail.size(), marked = 0;;) {
+		// resolve p out of out
+		for (LitVec::const_iterator it = r->begin(), end = r->end(); it != end; ++it) {
+			Literal x = *it;
+			if (!seen(x.var())) {
+				markSeen(x.var());
+				if (inputVar(x)) { markLevel(level(x.var())); out.push_back(x ^ isTrue(x)); }
+				else             { ++marked; }
+			}
+		}
+		temp.clear();
+		if (!marked) { break; }
+		r = &temp;
+		// find next marked unnamed literal
+		while (!seen(trail[--tp]) || inputVar(trail[tp])) { ; }
+		Literal p = trail[tp];
+		clearSeen(p.var());
+		--marked;
+		unknown += (uint32)reason(p).isNull();
+		if (!unknown) { reason(p, temp); }
+	}
+	LitVec::size_type outSize = out.size();
+	if (!unknown && r != &in) {
+		uint32 old = strategy_.ccMinKeepAct;
+		strategy_.ccMinKeepAct = 1;
+		uint32 antes = SolverStrategies::all_antes;
+		if (ccMin_) { ccMinRecurseInit(*ccMin_); }
+		for (LitVec::size_type i = 0; i != outSize;) {
+			if (!ccRemovable(~out[i], antes-1, ccMin_)) { ++i; }
+			else { 
+				std::swap(out[i], out.back());
+				--outSize;
+			}
+		}
+		strategy_.ccMinKeepAct = old;
+	}
+	outLbd = unknown;
+	for (uint32 i = 0, dl, root = 0; i != outSize; ++i) {
+		Var v = out[i].var();
+		dl    = level(v);
+		clearSeen(v);
+		if (dl && hasLevel(dl)) {
+			unmarkLevel(dl);
+			outLbd += (dl > rootLevel()) || (++root == 1);
+		}
+	}
+	for (Var v; outSize != out.size(); out.pop_back()) {
+		clearSeen(v = out.back().var());
+		unmarkLevel(level(v));
+	}
+	return !unknown;
 }
 
 // computes the First-UIP clause and stores it in cc_, where cc_[0] is the asserting literal (inverted UIP)
@@ -1068,7 +1183,7 @@ uint32 Solver::analyzeConflict() {
 		}
 	}
 	if (strategy_.bumpVarAct && reason(p).learnt()) {
-		bumpAct_.push_back(WeightLiteral(p, static_cast<LearntConstraint*>(reason(p).constraint())->activity().lbd()));
+		bumpAct_.push_back(WeightLiteral(p, reason(p).constraint()->activity().lbd()));
 	}
 	return simplifyConflictClause(cc_, ccInfo_, lastRes);
 }
@@ -1101,12 +1216,12 @@ void Solver::otfs(Antecedent& lhs, const Antecedent& rhs, Literal p, bool final)
 }
 
 ClauseHead* Solver::otfsRemove(ClauseHead* c, const LitVec* newC) {
-	bool remStatic = !newC || (newC->size() <= 3 && shared_->allowImplicit(Constraint_t::learnt_conflict));
+	bool remStatic = !newC || (newC->size() <= 3 && shared_->allowImplicit(Constraint_t::Conflict));
 	if (c->learnt() || remStatic) {
 		ConstraintDB& db = (c->learnt() ? learnts_ : constraints_);
 		ConstraintDB::iterator it;
 		if ((it = std::find(db.begin(), db.end(), c)) != db.end()) {
-			if (this == shared_->master() && &db == &constraints_) {
+			if (isMaster() && &db == &constraints_) {
 				shared_->removeConstraint(static_cast<uint32>(it - db.begin()), true);
 			}
 			else {
@@ -1126,7 +1241,7 @@ ClauseHead* Solver::otfsRemove(ClauseHead* c, const LitVec* newC) {
 //  - all decision levels of literals in cc are marked
 //  - rhs is 0 or a clause that might be subsumed by cc
 // RETURN: finalizeConflictClause(cc, info)
-uint32 Solver::simplifyConflictClause(LitVec& cc, ClauseInfo& info, ClauseHead* rhs) {
+uint32 Solver::simplifyConflictClause(LitVec& cc, ConstraintInfo& info, ClauseHead* rhs) {
 	// 1. remove redundant literals from conflict clause
 	temp_.clear();
 	uint32 onAssert = ccMinimize(cc, temp_, strategy_.ccMinAntes, ccMin_);
@@ -1215,7 +1330,7 @@ uint32 Solver::simplifyConflictClause(LitVec& cc, ClauseInfo& info, ClauseHead* 
 // RETURN
 //  - the number of literals from the asserting level
 uint32 Solver::ccMinimize(LitVec& cc, LitVec& removed, uint32 antes, CCMinRecursive* ccMin) {
-	if (ccMin) { ccMin->init(numVars()+1); }
+	if (ccMin) { ccMinRecurseInit(*ccMin); }
 	// skip the asserting literal
 	LitVec::size_type j = 1;
 	uint32 assertLevel  = 0;
@@ -1240,8 +1355,16 @@ uint32 Solver::ccMinimize(LitVec& cc, LitVec& removed, uint32 antes, CCMinRecurs
 	if (assertPos != 1) {
 		std::swap(cc[1], cc[assertPos]);
 	}
-	if (ccMin) { ccMin->clear(); }
 	return onAssert;
+}
+void Solver::ccMinRecurseInit(CCMinRecursive& ccMin) {
+	ccMin.open = incEpoch(numVars() + 1, 2) - 2;
+}
+bool Solver::ccMinRecurse(CCMinRecursive& ccMin, Literal p) const {
+	CCMinRecursive::State st = ccMin.decodeState(epoch_[p.var()]);
+	if (st == CCMinRecursive::state_poison) { return false; }
+	if (st == CCMinRecursive::state_open)   { ccMin.push(p.unflag()); }
+	return true;
 }
 
 // returns true if p is redundant in current conflict clause
@@ -1252,25 +1375,21 @@ bool Solver::ccRemovable(Literal p, uint32 antes, CCMinRecursive* ccMin) {
 	}
 	if (!ccMin) { return ante.minimize(*this, p, 0); }
 	// recursive minimization
-	LitVec& dfsStack = ccMin->dfsStack;
-	assert(dfsStack.empty());
+	assert(ccMin->todo.empty());
 	CCMinRecursive::State dfsState = CCMinRecursive::state_removable;
-	p.clearWatch();
-	dfsStack.push_back(p);
+	ccMin->push(p.unflag());
 	for (Literal x;; ) {
-		x = dfsStack.back();
-		dfsStack.pop_back();
+		x = ccMin->pop();
 		assert(!seen(x.var()) || x == p);
-		if (x.watched()) {
+		if (x.flagged()) {
 			if (x == p) return dfsState == CCMinRecursive::state_removable;
-			ccMin->markVisited(x, dfsState);
+			epoch_[x.var()] = ccMin->encodeState(dfsState);
 		}
 		else if (dfsState != CCMinRecursive::state_poison) {
-			CCMinRecursive::State temp = ccMin->state(x);
+			CCMinRecursive::State temp = ccMin->decodeState(epoch_[x.var()]);
 			if (temp == CCMinRecursive::state_open) {
 				assert(value(x.var()) != value_free && hasLevel(level(x.var())));
-				x.watch();
-				dfsStack.push_back(x);
+				ccMin->push(x.flag());
 				const Antecedent& next = reason(x);
 				if (next.isNull() || !(antes <= (uint32)next.type()) || !next.minimize(*this, x, ccMin)) {
 					dfsState = CCMinRecursive::state_poison;
@@ -1294,10 +1413,9 @@ Antecedent Solver::ccHasReverseArc(Literal p, uint32 maxLevel, uint32 maxNew) {
 	assert(seen(p.var()) && isFalse(p) && level(p.var()) == maxLevel);
 	const ShortImplicationsGraph& btig = shared_->shortImplications();
 	Antecedent ante;
-	if (p.index() < btig.size() && btig.reverseArc(*this, p, maxLevel, ante)) { return ante; }
-	WatchList& wl   = watches_[p.index()];
-	WatchList::left_iterator it, end; 
-	for (it = wl.left_begin(), end = wl.left_end();  it != end;  ++it) {
+	if (p.id() < btig.size() && btig.reverseArc(*this, p, maxLevel, ante)) { return ante; }
+	WatchList& wl = watches_[p.id()];
+	for (WatchList::left_iterator it = wl.left_begin(), end = wl.left_end();  it != end;  ++it) {
 		if (it->head->isReverseReason(*this, ~p, maxLevel, maxNew)) {
 			return it->head;
 		}
@@ -1328,7 +1446,7 @@ void Solver::ccResolve(LitVec& cc, uint32 pos, const LitVec& reason) {
 //  - literals and decision levels in cc are no longer marked
 //  - if cc.size() > 1: cc[1] is a literal from the asserting level
 // RETURN: asserting level of conflict clause.
-uint32 Solver::finalizeConflictClause(LitVec& cc, ClauseInfo& info, uint32 ccRepMode) {
+uint32 Solver::finalizeConflictClause(LitVec& cc, ConstraintInfo& info, uint32 ccRepMode) {
 	// 2. clear flags and compute lbd
 	uint32  lbd         = 1;
 	uint32  onRoot      = 0;
@@ -1391,8 +1509,7 @@ uint32 Solver::finalizeConflictClause(LitVec& cc, ClauseInfo& info, uint32 ccRep
 			lbd = cc.size();
 		}
 	}
-	info.setActivity(ccInfo_.activity());
-	info.setLbd(lbd);
+	info.setScore(makeScore(ccInfo_.activity(), lbd));
 	info.setTagged(tagged);
 	info.setAux(auxVar(maxVar));
 	return assertLevel;
@@ -1428,9 +1545,8 @@ bool Solver::decideNextBranch(double f) {
 	return assume(choice);
 }
 void Solver::resetLearntActivities() {
-	Activity hint(0, Activity::MAX_LBD);
 	for (uint32 i = 0, end = learnts_.size(); i != end; ++i) {
-		static_cast<LearntConstraint*>(learnts_[i])->resetActivity(hint);
+		learnts_[i]->resetActivity();
 	}
 }
 // Removes up to remFrac% of the learnt nogoods but
@@ -1439,7 +1555,7 @@ Solver::DBInfo Solver::reduceLearnts(float remFrac, const ReduceStrategy& rs) {
 	uint32 oldS = numLearntConstraints();
 	uint32 remM = static_cast<uint32>(oldS * std::max(0.0f, remFrac));
 	DBInfo r    = {0,0,0};
-	CmpScore cmp(learnts_, (ReduceStrategy::Score)rs.score, rs.glue);
+	CmpScore cmp(learnts_, (ReduceStrategy::Score)rs.score, rs.glue, rs.protect);
 	if (remM >= oldS || !remM || rs.algo == ReduceStrategy::reduce_sort) {
 		r = reduceSortInPlace(remM, cmp, false);
 	}
@@ -1450,35 +1566,34 @@ Solver::DBInfo Solver::reduceLearnts(float remFrac, const ReduceStrategy& rs) {
 	shrinkVecTo(learnts_, r.size);
 	return r;
 }
-
 // Removes up to maxR of the learnt nogoods.
 // Keeps those that are locked or have a high activity and
 // does not reorder learnts_.
 Solver::DBInfo Solver::reduceLinear(uint32 maxR, const CmpScore& sc) {
 	// compute average activity
-	uint64 scoreSum  = 0;
+	uint64 scoreSum = 0;
 	for (LitVec::size_type i = 0; i != learnts_.size(); ++i) {
-		scoreSum += sc.score(static_cast<LearntConstraint*>(learnts_[i])->activity());
+		scoreSum += sc.score(learnts_[i]->activity());
 	}
-	double avgAct    = (scoreSum / (double) numLearntConstraints());
+	double avgAct = (scoreSum / (double) numLearntConstraints());
 	// constraints with socre > 1.5 times the average are "active"
 	double scoreThresh = avgAct * 1.5;
-	double scoreMax    = (double)sc.score(Activity(Activity::MAX_ACT, 1));
+	double scoreMax    = (double)sc.score(makeScore(Clasp::ACT_MAX, 1));
 	if (scoreThresh > scoreMax) {
 		scoreThresh = (scoreMax + (scoreSum / (double) numLearntConstraints())) / 2.0;
 	}
 	// remove up to maxR constraints but keep "active" and locked once
-	const uint32 glue = sc.glue;
-	DBInfo       res  = {0,0,0};
+	DBInfo res = {0,0,0};
+	typedef ConstraintScore ScoreType;
 	for (LitVec::size_type i = 0; i != learnts_.size(); ++i) {
-		LearntConstraint* c = static_cast<LearntConstraint*>(learnts_[i]);
-		Activity a          = c->activity();
-		bool isLocked       = c->locked(*this);
-		bool isGlue         = (sc.score(a) > scoreThresh || a.lbd() <= glue);
-		if (maxR == 0 || isLocked || isGlue) {
-			res.pinned             += isGlue;
-			res.locked             += isLocked;
-			learnts_[res.size++]    = c;
+		Constraint* c = learnts_[i];
+		ScoreType a   = c->activity();
+		bool isLocked = c->locked(*this);
+		bool isGlue   = sc.score(a) > scoreThresh || sc.isGlue(a);
+		if (maxR == 0 || isLocked || isGlue || sc.isFrozen(a)) {
+			res.pinned += isGlue;
+			res.locked += isLocked;
+			learnts_[res.size++] = c;
 			c->decreaseActivity();
 		}
 		else {
@@ -1494,18 +1609,16 @@ Solver::DBInfo Solver::reduceLinear(uint32 maxR, const CmpScore& sc) {
 // reordering learnts_.
 Solver::DBInfo Solver::reduceSort(uint32 maxR, const CmpScore& sc) {
 	typedef PodVector<CmpScore::ViewPair>::type HeapType;
-	maxR              = std::min(maxR, (uint32)learnts_.size());
-	const uint32 glue = sc.glue;
-	DBInfo       res  = {0,0,0};
-	HeapType     heap;
-	heap.reserve(maxR);
+	DBInfo   res  = {0,0,0};
+	HeapType heap;
+	heap.reserve(maxR = std::min(maxR, (uint32)learnts_.size()));
 	bool isGlue, isLocked;
 	for (LitVec::size_type i = 0; i != learnts_.size(); ++i) {
-		LearntConstraint* c = static_cast<LearntConstraint*>(learnts_[i]);
+		Constraint* c = learnts_[i];
 		CmpScore::ViewPair vp(i, c->activity());
-		res.pinned += (isGlue   = (vp.second.lbd() <= glue));
+		res.pinned += (isGlue   = sc.isGlue(vp.second));
 		res.locked += (isLocked = c->locked(*this));
-		if (!isLocked && !isGlue) { 
+		if (!isLocked && !isGlue && !sc.isFrozen(vp.second)) {
 			if (maxR) { // populate heap with first maxR constraints
 				heap.push_back(vp); 
 				if (--maxR == 0) { std::make_heap(heap.begin(), heap.end(), sc); } 
@@ -1525,7 +1638,7 @@ Solver::DBInfo Solver::reduceSort(uint32 maxR, const CmpScore& sc) {
 	// Cleanup db and decrease activity of remaining constraints.
 	uint32 j = 0;
 	for (LitVec::size_type i = 0; i != learnts_.size(); ++i) {
-		if (LearntConstraint* c = static_cast<LearntConstraint*>(learnts_[i])) {
+		if (Constraint* c = learnts_[i]) {
 			c->decreaseActivity();
 			learnts_[j++] = c;
 		}
@@ -1537,31 +1650,39 @@ Solver::DBInfo Solver::reduceSort(uint32 maxR, const CmpScore& sc) {
 // Sorts the learnt db by score and removes the first 
 // maxR constraints (those with the lowest score). 
 Solver::DBInfo Solver::reduceSortInPlace(uint32 maxR, const CmpScore& sc, bool partial) {
-	maxR                        = std::min(maxR, (uint32)learnts_.size());
+	DBInfo res = {0,0,0};
 	ConstraintDB::iterator nEnd = learnts_.begin();
-	const uint32 glue           = sc.glue;
-	DBInfo res                  = {0,0,0};
+	maxR = std::min(maxR, (uint32)learnts_.size());
 	bool isGlue, isLocked;
+	typedef ConstraintScore ScoreType;
 	if (!partial) {
 		// sort whole db and remove first maxR constraints
 		if (maxR && maxR != learnts_.size()) std::stable_sort(learnts_.begin(), learnts_.end(), sc);
 		for (ConstraintDB::iterator it = learnts_.begin(), end = learnts_.end(); it != end; ++it) {
-			LearntConstraint* c = static_cast<LearntConstraint*>(*it);
-			res.pinned         += (isGlue = (c->activity().lbd() <= glue)); 
-			res.locked         += (isLocked = c->locked(*this));
-			if (!maxR || isLocked || isGlue) { c->decreaseActivity(); *nEnd++ = c; }
-			else                             { c->destroy(this, true); --maxR; }
+			Constraint* c = *it;
+			ScoreType a = c->activity();
+			res.pinned += (isGlue = sc.isGlue(a));
+			res.locked += (isLocked = c->locked(*this));
+			if (!maxR || isLocked || isGlue || sc.isFrozen(a)) {
+				c->decreaseActivity(); 
+				*nEnd++ = c;
+			}
+			else {
+				c->destroy(this, true);
+				--maxR;
+			}
 		}
 	}
 	else {
 		ConstraintDB::iterator hBeg = learnts_.begin();
 		ConstraintDB::iterator hEnd = learnts_.begin();
 		for (ConstraintDB::iterator it = learnts_.begin(), end = learnts_.end(); it != end; ++it) {
-			LearntConstraint* c = static_cast<LearntConstraint*>(*it);
-			res.pinned         += (isGlue = (c->activity().lbd() <= glue)); 
-			res.locked         += (isLocked = c->locked(*this));
-			if      (isLocked || isGlue) { continue; }
-			else if (maxR)               {
+			Constraint* c = *it;
+			ScoreType a = c->activity();
+			res.pinned += (isGlue = sc.isGlue(a));
+			res.locked += (isLocked = c->locked(*this));
+			if      (isLocked || isGlue || sc.isFrozen(a)) { continue; }
+			else if (maxR) {
 				*it     = *hEnd;
 				*hEnd++ = c;
 				if (--maxR == 0) { std::make_heap(hBeg, hEnd, sc); }
@@ -1575,11 +1696,11 @@ Solver::DBInfo Solver::reduceSortInPlace(uint32 maxR, const CmpScore& sc, bool p
 		}
 		// remove all constraints in heap
 		for (ConstraintDB::iterator it = hBeg; it != hEnd; ++it) {
-			static_cast<LearntConstraint*>(*it)->destroy(this, true);
+			(*it)->destroy(this, true);
 		}
 		// copy remaining constraints down
 		for (ConstraintDB::iterator it = hEnd, end = learnts_.end(); it != end; ++it) {
-			LearntConstraint* c = static_cast<LearntConstraint*>(*it);
+			Constraint* c = *it;
 			c->decreaseActivity();
 			*nEnd++ = c;
 		}
@@ -1587,54 +1708,102 @@ Solver::DBInfo Solver::reduceSortInPlace(uint32 maxR, const CmpScore& sc, bool p
 	res.size = static_cast<uint32>(std::distance(learnts_.begin(), nEnd));
 	return res;	
 }
-
+uint32 Solver::incEpoch(uint32 size, uint32 n) {
+	if (size > epoch_.size())         { epoch_.resize(size, 0u); }
+	if ((UINT32_MAX - epoch_[0]) < n) { epoch_.assign(epoch_.size(), 0u); }
+	return epoch_[0] += n;
+}
 uint32 Solver::countLevels(const Literal* first, const Literal* last, uint32 maxLevel) {
-	if (maxLevel < 2)    { return uint32(maxLevel && first != last); }
-	if (++lbdTime_ != 0) { lbdStamp_.resize(levels_.size()+1, lbdTime_-1); }
-	else                 { lbdStamp_.assign(levels_.size()+1, lbdTime_); lbdTime_ = 1; }
-	lbdStamp_[0] = lbdTime_;
-	uint32 levels= 0;
-	for (uint32 lev; first != last; ++first) {
-		lev = level(first->var());
-		if (lbdStamp_[lev] != lbdTime_) {
-			lbdStamp_[lev] = lbdTime_;
-			if (++levels == maxLevel) { break; }
+	if (maxLevel < 2) { return uint32(maxLevel && first != last); }
+	CLASP_FAIL_IF(ccMin_ && !ccMin_->todo.empty(), "Must not be called during minimization!");
+	uint32 n = 0;
+	for (uint32 epoch = incEpoch(levels_.size() + 1); first != last; ++first) {
+		assert(value(first->var()) != value_free);
+		uint32& levEpoch = epoch_[level(first->var())];
+		if (levEpoch != epoch) {
+			levEpoch = epoch;
+			if (++n == maxLevel) { break; }
 		}
 	}
-	return levels;
+	return n;
 }
 
-uint64 Solver::updateBranch(uint32 cfl) {
+void Solver::updateBranch(uint32 n) {
 	int32 dl = (int32)decisionLevel(), xl = static_cast<int32>(cflStamp_.size())-1;
-	if      (xl > dl) { do { cfl += cflStamp_.back(); cflStamp_.pop_back(); } while (--xl != dl); }
+	if      (xl > dl) { do { n += cflStamp_.back(); cflStamp_.pop_back(); } while (--xl != dl); }
 	else if (dl > xl) { cflStamp_.insert(cflStamp_.end(), dl - xl, 0); }
-	return cflStamp_.back() += cfl;
+	cflStamp_.back() += n;
+}
+bool Solver::reduceReached(const SearchLimits& limits) const {
+	return numLearntConstraints() > limits.learnts || memUse_ > limits.memory;
+}
+bool Solver::restartReached(const SearchLimits& limits) const {
+	uint64 n = !limits.restart.local || cflStamp_.empty() ? limits.used : cflStamp_.back();
+	return n >= limits.restart.conflicts || (limits.restart.dynamic && limits.restart.dynamic->reached());
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // The basic DPLL-like search-function
 /////////////////////////////////////////////////////////////////////////////////////////
 ValueRep Solver::search(SearchLimits& limit, double rf) {
 	assert(!isFalse(tagLiteral()));
-	uint64 local = limit.local != UINT64_MAX ? limit.local : 0;
-	rf           = std::max(0.0, std::min(1.0, rf));
-	if (local && decisionLevel() == rootLevel()) { cflStamp_.assign(decisionLevel()+1, 0); }
+	SearchLimits::BlockPtr block = limit.restart.block;
+	rf = std::max(0.0, std::min(1.0, rf));
+	if (limit.restart.local && decisionLevel() == rootLevel()) { cflStamp_.assign(decisionLevel()+1, 0); }
 	do {
-		for (uint32 conflicts = hasConflict() || !propagate() || !simplify();;) {
-			if (conflicts) {
-				for (conflicts = 1; resolveConflict() && !propagate(); ) { ++conflicts; }
-				limit.conflicts -= conflicts < limit.conflicts ? conflicts : limit.conflicts;
-				if (local && updateBranch(conflicts) >= local)              { limit.local = 0; }
+		for (bool conflict = hasConflict() || !propagate() || !simplify(), local = limit.restart.local;;) {
+			if (conflict) {
+				uint32 n = 1, ts;
+				do {
+					if (block && block->push(ts = numAssignedVars()) && ts > block->scaled()) {
+						if (limit.restart.dynamic) { limit.restart.dynamic->resetRun(); }
+						else                       { limit.restart.conflicts += block->inc; }
+						block->next = block->n + block->inc;
+					}
+				} while (resolveConflict() && !propagate() && (++n, true));
+				limit.used += n;
+				if (local) { updateBranch(n); }
 				if (hasConflict() || (decisionLevel() == 0 && !simplify())) { return value_false; }
-				if ((limit.reached() || learntLimit(limit))&&numFreeVars()) { return value_free;  }
+				if (numFreeVars()) {
+					if (limit.used >= limit.conflicts) { return value_free; }
+					if (restartReached(limit))         { return value_free; }
+					if (reduceReached(limit))          { return value_free; }
+				}
 			}
-			if (decideNextBranch(rf)) { conflicts = !propagate(); }
+			if (decideNextBranch(rf)) { conflict = !propagate(); }
 			else                      { break; }
 		}
-	} while (!post_.isModel(*this));
+	} while (!isModel());
 	temp_.clear();
 	model.clear(); model.reserve(numVars()+1);
 	for (Var v = 0; v <= numVars(); ++v) { model.push_back(value(v)); }
 	if (satPrepro()) { satPrepro()->extendModel(model, temp_); }
 	return value_true;
+}
+ValueRep Solver::search(uint64 maxC, uint32 maxL, bool local, double rp) {
+	SearchLimits limit;
+	limit.restart.conflicts = maxC;
+	limit.restart.local     = local;
+	limit.learnts = maxL;
+	return search(limit, rp);
+}
+bool Solver::isModel() {
+	if (hasConflict()) { return false; }
+	FOR_EACH_POST(x, post_.head()) {
+		if (!x->isModel(*this)) { return false; }
+	}
+	return !enumerationConstraint() || enumerationConstraint()->valid(*this);
+}
+/////////////////////////////////////////////////////////////////////////////////////////
+// Free functions
+/////////////////////////////////////////////////////////////////////////////////////////
+void destroyDB(Solver::ConstraintDB& db, Solver* s, bool detach) {
+	if (s && detach) { 
+		s->destroyDB(db); 
+		return;
+	}
+	while (!db.empty()) {
+		db.back()->destroy(s, detach); 
+		db.pop_back();
+	}
 }
 }

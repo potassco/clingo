@@ -66,7 +66,6 @@ public:
 	void   setModelQuiet(PrintLevel model);
 	void   setOptQuiet(PrintLevel opt);
 	void   setCallQuiet(PrintLevel call);
-	void   setHide(char c);
 
 	//! Shall be called once on startup.
 	virtual void run(const char* solver, const char* version, const std::string* begInput, const std::string* endInput) = 0;
@@ -78,7 +77,7 @@ public:
 	//! Checks quiet-levels and forwards to printModel() if appropriate.
 	virtual bool onModel(const Solver& s, const Model& m);	
 	//! Shall print the given model.
-	virtual void printModel(const SymbolTable& sym, const Model& m, PrintLevel x) = 0;
+	virtual void printModel(const OutputTable& out, const Model& m, PrintLevel x) = 0;
 	//! A solving step has started.
 	virtual void startStep(const ClaspFacade&);
 	//! A solving step has stopped.
@@ -88,12 +87,15 @@ public:
 	//! Shall print the given statistics.
 	virtual void printStatistics(const ClaspFacade::Summary& summary, bool final) = 0;
 protected:
+	typedef std::pair<const char*, Literal> OutPair;
+	typedef uintp UPtr;
+	typedef std::pair<uint32, uint32> UPair;
 	const Model* getModel() const { return saved_.values ? &saved_ : 0; }
 	void         saveModel(const Model& m);
 	void         clearModel() { saved_.values = 0; }
-	bool         doPrint(const SymbolTable::symbol_type& sym) const {
-		return !sym.name.empty() && *sym.name.c_str() != hidePref_;
-	}
+	void         printWitness(const OutputTable& out, const Model& m, UPtr data);
+	virtual UPtr doPrint(const OutPair& out, uintp data);
+	UPair        numCons(const OutputTable& out, const Model& m) const;
 private:
 	Output(const Output&);
 	Output& operator=(const Output&);
@@ -104,7 +106,6 @@ private:
 	Model     saved_   ; // most recent model
 	uint32    verbose_ ; // verbosity level
 	uint8     quiet_[3]; // quiet levels for models, optimize, calls
-	char      hidePref_; // hide printing of symbols starting with this char
 };
 
 //! Interface for printing statistics.
@@ -152,6 +153,7 @@ private:
 	virtual void visitCoreSolverStats(double cpuTime, uint64 models, const SolverStats& stats, bool accu);
 	virtual void visitExtSolverStats(const ExtendedStats& stats, bool accu);
 	virtual void visitJumpStats(const JumpStats& stats, bool accu);
+	virtual UPtr doPrint(const OutPair& out, UPtr data);
 	enum ObjType { type_object, type_array };
 	void pushObject(const char* k = 0, ObjType t = type_object);
 	char popObject();
@@ -161,8 +163,9 @@ private:
 	void printKeyValue(const char* k, double d);
 	void printString(const char* s, const char* sep);
 	void printKey(const char* k);
-	void printModel(const SymbolTable& sym, const Model& m, PrintLevel x);
-	void printCosts(const SumVec& costs);
+	void printModel(const OutputTable& out, const Model& m, PrintLevel x);
+	void printCosts(const SumVec& costs, const char* name = "Costs");
+	void printCons(const UPair& cons);
 	void startModel();
 	bool hasWitness() const { return !objStack_.empty() && *objStack_.rbegin() == '['; }
 	uint32 indent()   const { return static_cast<uint32>(objStack_.size() * 2); }
@@ -203,7 +206,7 @@ public:
 	 * Prints format[cat_value] followed by the elements of the model. Individual 
 	 * elements e are printed as format[cat_atom] and separated by the internal field separator.
 	 */
-	virtual void printModel(const SymbolTable& sym, const Model& m, PrintLevel x);
+	virtual void printModel(const OutputTable& out, const Model& m, PrintLevel x);
 	//! Called once a solving step has completed.
 	/*!
 	 * Always prints "format[cat_result] result[s.result()]".
@@ -224,7 +227,6 @@ public:
 	//! Prints a comment message.
 	void comment(uint32 v, const char* fmt, ...) const;
 protected:
-	virtual void printNames(const SymbolTable& sym, const Model& m);
 	virtual void visitProblemStats(const ProblemStats& stats, const Asp::LpStats* lp);
 	virtual void visitSolverStats(const Clasp::SolverStats& s, bool accu);
 	virtual void visitLogicProgramStats(const Asp::LpStats& stats);
@@ -233,24 +235,26 @@ protected:
 	virtual void visitExtSolverStats(const ExtendedStats& stats, bool accu);
 	virtual void visitJumpStats(const JumpStats& stats, bool accu);
 	virtual void visitThreads(const SharedContext& ctx)      { startSection("Thread");   StatsVisitor::visitThreads(ctx); }
-	virtual void visitThread(uint32 i, const SolverStats& s)  { startObject("Thread", i); StatsVisitor::visitThread(i, s); }
+	virtual void visitThread(uint32 i, const SolverStats& s) { startObject("Thread", i); StatsVisitor::visitThread(i, s); }
 	virtual void visitHccs(const SharedContext& ctx)         { startSection("Tester");   StatsVisitor::visitHccs(ctx);    }
 	virtual void visitHcc(uint32 i, const SharedContext& ctx){ startObject("HCC", i);    StatsVisitor::visitHcc(i, ctx);  }
-	
+	virtual UPtr doPrint(const OutPair& out, UPtr data);
 	const char* fieldSeparator() const;
 	int         printSep(CategoryKey c) const;
 	void        printCosts(const SumVec&) const;
+	void        printBounds(const SumVec& upper, const SumVec& lower) const;
 	void        startSection(const char* n)     const;
 	void        startObject(const char* n, uint32 i) const;
 	void        setState(uint32 state, uint32 verb, const char* st);
 	void        printSolveProgress(const Event& ev);
 private:
-	double             stTime_;// time on state enter
-	Clasp::atomic<int> ev_;    // last event type
-	int                width_; // output width
-	int                line_;  // lines to print until next separator
-	uint32             state_; // active state
-	char               ifs_[2];// field separator
+	typedef Clasp::Atomic_t<int>::type EvType;
+	double stTime_;// time on state enter
+	EvType ev_;    // last event type
+	int    width_; // output width
+	int    line_;  // lines to print until next separator
+	uint32 state_; // active state
+	char   ifs_[2];// field separator
 };
 //@}
 

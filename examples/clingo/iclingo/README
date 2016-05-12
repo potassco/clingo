@@ -1,4 +1,4 @@
-The new clingo-4 does not have an inbuilt incremental solving mode anymore.
+The new clingo does not have an inbuilt incremental solving mode anymore.
 This example shows how this mode can be simulated via scripting.  For
 convenience, the lua main function in incmode-lua.lp has been embedded into
 clingo and can be loaded with an #include statement (see example

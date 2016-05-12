@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -19,7 +19,7 @@
 // }}}
 
 #include "gringo/unique_list.hh"
-#include "gringo/utility.hh"
+#include "gringo/hash_set.hh"
 
 #include "tests/tests.hh"
 
@@ -30,6 +30,7 @@ namespace Gringo { namespace Test {
 class TestUniqueList : public CppUnit::TestFixture {
     CPPUNIT_TEST_SUITE(TestUniqueList);
         CPPUNIT_TEST(test_emplace);
+        CPPUNIT_TEST(test_push);
         CPPUNIT_TEST(test_erase);
     CPPUNIT_TEST_SUITE_END();
 
@@ -46,6 +47,7 @@ public:
         return oss.str();
     }
     void test_emplace();
+    void test_push();
     void test_erase();
 
     virtual ~TestUniqueList();
@@ -72,6 +74,31 @@ void TestUniqueList::test_emplace() {
     x.emplace_back(4,7);
     x.emplace_back(1,8);
     CPPUNIT_ASSERT_EQUAL(S("(1,1),(2,2),(4,4),(5,5)"), str(x));
+}
+
+void TestUniqueList::test_push() {
+    UniqueVec<unsigned> vec;
+    CPPUNIT_ASSERT( vec.push(1).second);
+    CPPUNIT_ASSERT( vec.push(2).second);
+    CPPUNIT_ASSERT( vec.push(3).second);
+    CPPUNIT_ASSERT( vec.push(4).second);
+    vec.pop();
+    vec.pop();
+    CPPUNIT_ASSERT(!vec.push(1).second);
+    CPPUNIT_ASSERT(!vec.push(2).second);
+    CPPUNIT_ASSERT( vec.push(3).second);
+    CPPUNIT_ASSERT( vec.push(4).second);
+    CPPUNIT_ASSERT( vec.push(5).second);
+    CPPUNIT_ASSERT( vec.push(6).second);
+    CPPUNIT_ASSERT( vec.push(7).second);
+    vec.erase([](unsigned val) { return 2 < val && val < 6; });
+    CPPUNIT_ASSERT(!vec.push(1).second);
+    CPPUNIT_ASSERT(!vec.push(2).second);
+    CPPUNIT_ASSERT( vec.push(3).second);
+    CPPUNIT_ASSERT( vec.push(4).second);
+    CPPUNIT_ASSERT( vec.push(5).second);
+    CPPUNIT_ASSERT(!vec.push(6).second);
+    CPPUNIT_ASSERT(!vec.push(7).second);
 }
 
 void TestUniqueList::test_erase() {

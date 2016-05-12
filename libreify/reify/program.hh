@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -101,7 +101,7 @@ private:
 private:
     int models_ = 1;
     RuleVec rules_;
-    LitVec compute_;    
+    LitVec compute_;
     MinimizeVec minimize_;
     SymbolTable symbols_;
 };

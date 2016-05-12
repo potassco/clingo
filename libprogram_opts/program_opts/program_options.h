@@ -27,7 +27,6 @@
 #include <map>
 #include <vector>
 #include <stdexcept>
-#include <memory>
 #include <cstdio>
 namespace ProgramOptions {
 
@@ -120,7 +119,6 @@ public:
 	OptionInitHelper addOptions();
 
 	//! Adds option to this group.
-	void addOption(std::auto_ptr<Option> option);
 	void addOption(const SharedOptPtr& option);
 
 	void setDescriptionLevel(DescriptionLevel level) { level_ = level; }

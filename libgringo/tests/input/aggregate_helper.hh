@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -24,7 +24,7 @@
 #include "tests/tests.hh"
 #include "gringo/input/aggregates.hh"
 
-namespace Gringo { namespace Input { namespace Test { 
+namespace Gringo { namespace Input { namespace Test {
 
 using namespace Gringo::Test;
 

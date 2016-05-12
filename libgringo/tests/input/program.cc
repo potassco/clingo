@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -38,6 +38,8 @@ class TestProgram : public CppUnit::TestFixture {
         CPPUNIT_TEST(test_defines);
         CPPUNIT_TEST(test_check);
         CPPUNIT_TEST(test_projection);
+        CPPUNIT_TEST(test_statements);
+        CPPUNIT_TEST(test_theory);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -48,8 +50,11 @@ public:
     void test_defines();
     void test_check();
     void test_projection();
+    void test_statements();
+    void test_theory();
 
     std::string message() { return replace_all(messages.back(), ";#inc_base", ""); }
+    bool check(std::pair<Program, Defines> &&x);
 
     virtual ~TestProgram();
 
@@ -68,7 +73,8 @@ namespace {
 
 std::pair<Program, Defines> parse(std::string const &str) {
     std::ostringstream oss;
-    Output::OutputBase out({}, oss);
+    Potassco::TheoryData td;
+    Output::OutputBase out(td, {}, oss);
     std::pair<Program, Defines> ret;
     Scripts scripts(Gringo::Test::getTestModule());
     NongroundProgramBuilder pb{ scripts, ret.first, out, ret.second };
@@ -83,16 +89,13 @@ std::string rewrite(std::pair<Program, Defines> &&x) {
     x.first.rewrite(x.second);
     auto str(to_string(x.first));
     str.erase(std::remove(str.begin(), str.end(), '\n'), str.end());
-    replace_all(str, ";#inc_base", "");
-    replace_all(str, ":-#inc_base.", ".");
-    replace_all(str, ":-#inc_base,", ":-");
-    replace_all(str, ":-#inc_base;", ":-");
+    replace_all(str, ";[#inc_base]", "");
+    replace_all(str, ":-[#inc_base].", ".");
+    replace_all(str, ":-[#inc_base],", ":-");
+    replace_all(str, ":-[#inc_base];", ":-");
+    replace_all(str, ";  ", ";");
+    replace_all(str, "{  ", "{");
     return str;
-}
-
-bool check(std::pair<Program, Defines> &&x) {
-    x.first.rewrite(x.second);
-    return x.first.check();
 }
 
 } // namespace
@@ -109,6 +112,13 @@ void TestProgram::tearDown() {
     std::swap(message_printer(), oldPrinter);
 }
 
+bool TestProgram::check(std::pair<Program, Defines> &&x) {
+    message_printer() = gringo_make_unique<TestMessagePrinter>(messages);
+    x.first.rewrite(x.second);
+    x.first.check();
+    return !message_printer()->hasError();
+}
+
 void TestProgram::test_rewrite() {
     CPPUNIT_ASSERT_EQUAL(std::string("p(1):-q.p(2):-q.p(3):-q.p:-q."), rewrite(parse("p(1;2;3;):-q.")));
     CPPUNIT_ASSERT_EQUAL(std::string("p:-q(1).p:-q(2).p:-q(3).p:-q."), rewrite(parse("p:-q(1;2;3;).")));
@@ -119,7 +129,17 @@ void TestProgram::test_rewrite() {
     CPPUNIT_ASSERT_EQUAL(std::string("p(1):-q.p(2):-q.p(3):-q.p:-q."), rewrite(parse("p(1;2;3;):-q.")));
     CPPUNIT_ASSERT_EQUAL(std::string("p(Z):-p(A,B);Y=#count{0,q(B):q(B)};X=#count{0,q(A):q(A)};Z=#count{0,r(X,Y):r(X,Y)}."), rewrite(parse("p(Z):-p(A,B),X={q(A)},Y={q(B)},Z={r(X,Y)}.")));
     CPPUNIT_ASSERT_EQUAL(std::string("p(Z):-Z=#count{0,p(X):p(X)};Z>0."), rewrite(parse("p(Z):-Z={p(X)},Z>0.")));
-    CPPUNIT_ASSERT_EQUAL(std::string(":~#inc_p(#Inc0,#Inc1);0=0.[#Inc0@0,#Inc1]"), rewrite(parse("#program p(k,t). :~ #true. [ k,t ]")));
+    CPPUNIT_ASSERT_EQUAL(std::string(":~[#inc_p(#Inc0,#Inc1)];0=0.[#Inc0@0,#Inc1]"), rewrite(parse("#program p(k,t). :~ #true. [ k,t ]")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#project p(#Arith0):-[p(#Arith0)];#Arith0=(X+X)."), rewrite(parse("#project p(X+X).")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#project p(X):-[p(X)].#project p(Y):-[p(Y)]."), rewrite(parse("#project p(X;Y).")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#edge(a,b).#edge(c,d)."), rewrite(parse("#edge (a,b;c,d).")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#edge((X+X),b)."), rewrite(parse("#edge (X+X,b).")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#edge(#Range0,b):-#range(#Range0,1,10)."), rewrite(parse("#edge (1..10,b).")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#heuristic a(#Arith0)[1@0,sign]:-[a(#Arith0)];#Arith0=(X+X)."), rewrite(parse("#heuristic a(X+X). [1@0,sign]")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#heuristic a[(X+X)@2,sign]:-[a]."), rewrite(parse("#heuristic a. [X+X@2,sign]")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#heuristic a(#Range0)[2@0,sign]:-[a(#Range0)];#range(#Range0,1,2)."), rewrite(parse("#heuristic a(1..2). [2,sign]")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#theory x{node{};&edge/1:node,head}.#false:-p(Z);not &edge((Z+Z)){(z),(Y): p(Y,#Arith1),#Arith1=(Y+Y)}."), rewrite(parse("#theory x{ node{}; &edge/1: node, head }.&edge(Z+Z) { z, Y : p(Y,Y+Y)} :- p(Z).")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#theory x{node{};&edge/1:node,head}.#false:-p(Z);#range(#Range0,Z,Z);not &edge(#Range0){(z),(Y): p(Y,#Range1),#range(#Range1,Y,Y)}."), rewrite(parse("#theory x{ node{}; &edge/1: node, head }.&edge(Z..Z) { z, Y : p(Y,Y..Y)} :- p(Z).")));
 }
 
 void TestProgram::test_defines() {
@@ -128,6 +148,12 @@ void TestProgram::test_defines() {
     CPPUNIT_ASSERT_EQUAL(std::string("p(1,2,3)."), rewrite(parse("#const x=1.#const y=1+x.#const z=1+y.p(x,y,z).")));
     CPPUNIT_ASSERT_EQUAL(std::string("a."),        rewrite(parse("#const a=b.a.")));
     CPPUNIT_ASSERT_EQUAL(std::string("a(b)."),     rewrite(parse("#const a=b.a(a).")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#project p(2):-[p(2)]."), rewrite(parse("#project p(x).#const x=2.")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#project x:-[x]."), rewrite(parse("#project x.#const x=2.")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#edge(2,y)."), rewrite(parse("#edge(x,y).#const x=2.")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#heuristic x[2@2,sign]:-[x]."), rewrite(parse("#heuristic x. [x@x,sign]#const x=2.")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#heuristic p(2)[2@2,sign]:-[p(2)]."), rewrite(parse("#heuristic p(x). [x@x,sign]#const x=2.")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#theory x{node{};&edge/1:node,{<<},node,head}.#false:-not &edge(2){(2),(Y): p(2,Y)}<<(2)."), rewrite(parse("#theory x{ node{}; &edge/1: node, {<<}, node, head }.&edge(z) { z, Y : p(z,Y)} << z. #const z=2.")));
 }
 
 void TestProgram::test_check() {
@@ -135,7 +161,7 @@ void TestProgram::test_check() {
     CPPUNIT_ASSERT(!check(parse("p(X,Y,Z):-q(X).")));
     CPPUNIT_ASSERT_EQUAL(std::string(
         "-:1:1-16: error: unsafe variables in:\n"
-        "  p(X,Y,Z):-#inc_base;q(X).\n"
+        "  p(X,Y,Z):-[#inc_base];q(X).\n"
         "-:1:5-6: note: 'Y' is unsafe\n"
         "-:1:7-8: note: 'Z' is unsafe\n"), message());
     CPPUNIT_ASSERT(check(parse("p(X):-p(Y),X=Y+Y.")));
@@ -156,6 +182,27 @@ void TestProgram::test_check() {
     CPPUNIT_ASSERT(check(parse("1#count{X:p(X),q(X,Y)}Y:-r(Y).")));
     CPPUNIT_ASSERT(check(parse("1{p(X):q(X,Y)}Y:-r(Y).")));
     CPPUNIT_ASSERT(check(parse("p(X):q(X,Y):-r(Y).")));
+    CPPUNIT_ASSERT(check(parse("#project p(X).")));
+    CPPUNIT_ASSERT(!check(parse("#project p(X+X).")));
+    CPPUNIT_ASSERT(check(parse("#edge (x,y).")));
+    CPPUNIT_ASSERT(!check(parse("#edge (X,Y).")));
+    CPPUNIT_ASSERT(check(parse("#edge (X,Y):p(X,Y).")));
+    CPPUNIT_ASSERT(check(parse("#heuristic p(X). [2@X,sign]")));
+    CPPUNIT_ASSERT(!check(parse("#heuristic p(X). [2@Y,sign]")));
+    CPPUNIT_ASSERT(check(parse("#heuristic p(X) : p(Y). [2@Y,sign]")));
+    CPPUNIT_ASSERT(check(parse("#theory x{ node{}; &edge/1: node, head }.&edge(Z) { X, Y : p(X,Y)}:-p(Z).")));
+    CPPUNIT_ASSERT(check(parse("#theory x{ node{}; &edge/1: node, any }.&edge(Z) { X, Y : p(X,Y)}:-p(Z).")));
+    CPPUNIT_ASSERT(!check(parse("#theory x{ node{}; &edge/1: node, body }.&edge(Z) { X, Y : p(X,Y)}:-p(Z).")));
+    CPPUNIT_ASSERT(!check(parse("#theory x{ node{}; &edge/1: node, directive }.&edge(Z) { X, Y : p(X,Y)}:-p(Z).")));
+    CPPUNIT_ASSERT(check(parse("#theory x{ node{}; &edge/1: node, body }.:-&edge(Z) { X, Y : p(X,Y)},p(Z).")));
+    CPPUNIT_ASSERT(check(parse("#theory x{ node{}; &edge/1: node, any }.:-&edge(Z) { X, Y : p(X,Y)},p(Z).")));
+    CPPUNIT_ASSERT(!check(parse("#theory x{ node{}; &edge/1: node, head }.:-&edge(Z) { X, Y : p(X,Y)},p(Z).")));
+    CPPUNIT_ASSERT(!check(parse("#theory x{ node{}; &edge/1: node, directive }.:-&edge(Z) { X, Y : p(X,Y)},p(Z).")));
+    CPPUNIT_ASSERT(check(parse("#theory x{ node{}; &edge/1: node, directive }.&edge(z) { X, Y : p(X,Y)}.")));
+    CPPUNIT_ASSERT(!check(parse("#theory x{ node{}; &edge/1: node, head }.&edge(ZZ) { X, Y : p(X,Y)}:-p(Z).")));
+    CPPUNIT_ASSERT(!check(parse("#theory x{ node{}; &edge/1: node, head }.&edge(Z) { XX, Y : p(X,Y)}:-p(Z).")));
+    CPPUNIT_ASSERT(!check(parse("#theory x{ node{}; &edge/1: node, head }.&edge(Z) { XX, Y : p(X,Y)}.")));
+    CPPUNIT_ASSERT(!check(parse("#theory x{ node{}; &edge/1: node, head }.&edge(z) { XX, Y : p(X,Y)}.")));
 }
 
 void TestProgram::test_projection() {
@@ -168,6 +215,45 @@ void TestProgram::test_projection() {
     // NOTE: projection disabled for now
     CPPUNIT_ASSERT_EQUAL(std::string("x:-1<=#count{0,y:p(#Anon0),y}."), rewrite(parse("x:-1{y:p(_)}.")));
     CPPUNIT_ASSERT_EQUAL(std::string("x:-1<=#count{0,y:not #p_p(#p),y}.#p_p(#p):-p(#P0)."), rewrite(parse("x:-1{y:not p(_)}.")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#project p(#Anon0):-[p(#Anon0)]."), rewrite(parse("#project p(_).")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#edge(X,#Anon0)."), rewrite(parse("#edge (X,_).")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#heuristic p(#Anon0)[#Anon1@#Anon2,sign]:-[p(#Anon0)]."), rewrite(parse("#heuristic p(_). [_@_,sign]")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#theory x{node{};&edge/2:node,directive}.#false:-not &edge(#Anon0,X){(X),(Y): p(#Anon1,Y)}."), rewrite(parse("#theory x{ node{}; &edge/2: node, directive }.&edge(_,X) { X, Y : p(_,Y)}.")));
+}
+
+void TestProgram::test_statements() {
+    CPPUNIT_ASSERT_EQUAL(std::string("#project p:-[p]."), rewrite(parse("#project p/0.")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#project p(X0):-[p(X0)]."), rewrite(parse("#project p/1.")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#project p(X0,X1,X2):-[p(X0,X1,X2)]."), rewrite(parse("#project p/3.")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#project p:-[p]."), rewrite(parse("#project p.")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#project p(X,Y):-[p(X,Y)]."), rewrite(parse("#project p(X,Y).")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#edge(a,b)."), rewrite(parse("#edge (a,b).")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#heuristic a[1@2,sign]:-[a]."), rewrite(parse("#heuristic a. [1@2,sign]")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#heuristic a[1@2,level]:-[a]."), rewrite(parse("#heuristic a. [1@2,level]")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#heuristic a[1@0,level]:-[a];c."), rewrite(parse("#heuristic a : c. [1,level]")));
+}
+
+void TestProgram::test_theory() {
+    CPPUNIT_ASSERT_EQUAL(std::string("#theory x{}."), rewrite(parse("#theory x{  }.")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#theory x{node{};&edge/0:node,directive}."), rewrite(parse("#theory x{ node{}; &edge/0: node, directive }.")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#theory x{node{};&edge/0:node,directive}.#false:-not &edge{(X),(Y): p(X,Y)}."), rewrite(parse("#theory x{ node{}; &edge/0: node, directive }.&edge { X, Y : p(X,Y)}.")));
+    CPPUNIT_ASSERT_EQUAL(std::string("#theory x{node{};&edge/0:node,directive}.#false:-not &edge{(X),(Y): p(X,Y)}."), rewrite(parse("#theory x{ node{}; &edge/0: node, directive }.&edge { X, Y : p(X,Y)}.")));
+    std::string theory =
+        "#theory csp{\n"
+        "    term {\n"
+        "        < : 0,binary,left;\n"
+        "        + : 1,binary,left;\n"
+        "        - : 1,binary,left;\n"
+        "        * : 2,binary,left;\n"
+        "        / : 2,binary,left;\n"
+        "        ^ : 3,binary,right;\n"
+        "        - : 4,unary\n"
+        "    };\n"
+        "    &linear/0: term, any\n"
+        "}.\n";
+    std::string parsed = "#theory csp{term{< :0,binary,left,+ :1,binary,left,- :1,binary,left,* :2,binary,left,/ :2,binary,left,^ :3,binary,right,- :4,unary};&linear/0:term,any}.";
+    CPPUNIT_ASSERT_EQUAL(parsed, rewrite(parse(theory)));
+    CPPUNIT_ASSERT_EQUAL(parsed+"#false:-not &linear{(((1)<(((2)+(3))-(((4)*(5))/((6)^((-(7))^(8))))))<(9))}.", rewrite(parse(theory + "&linear { 1 < 2+3-4*5/6^ -7^8 < 9 }.")));
 }
 
 TestProgram::~TestProgram() { }

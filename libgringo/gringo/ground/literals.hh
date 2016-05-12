@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -25,11 +25,7 @@
 #include <gringo/ground/literal.hh>
 #include <gringo/output/literals.hh>
 
-namespace Gringo { 
-
-struct Scripts;
-
-namespace Ground {
+namespace Gringo { namespace Ground {
 
 inline double estimate(unsigned size, Term const &term, Term::VarSet const &bound) {
     Term::VarSet vars;
@@ -54,8 +50,9 @@ struct RangeLiteral : Literal {
     virtual BodyOcc *occurrence();
     virtual void collect(VarTermBoundVec &vars) const;
     virtual UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound);
-    virtual std::pair<Output::Literal*,bool> toOutput();
+    virtual std::pair<Output::LiteralId,bool> toOutput();
     virtual Score score(Term::VarSet const &bound);
+    virtual bool auxiliary() const { return true; }
     virtual ~RangeLiteral();
 
     UTerm assign;
@@ -73,8 +70,9 @@ struct ScriptLiteral : Literal {
     virtual BodyOcc *occurrence();
     virtual void collect(VarTermBoundVec &vars) const;
     virtual UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound);
-    virtual std::pair<Output::Literal*,bool> toOutput();
+    virtual std::pair<Output::LiteralId,bool> toOutput();
     virtual Score score(Term::VarSet const &bound);
+    virtual bool auxiliary() const { return true; }
     virtual ~ScriptLiteral();
 
     UTerm assign;
@@ -92,8 +90,9 @@ struct RelationLiteral : Literal {
     virtual BodyOcc *occurrence();
     virtual void collect(VarTermBoundVec &vars) const;
     virtual UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound);
-    virtual std::pair<Output::Literal*,bool> toOutput();
+    virtual std::pair<Output::LiteralId,bool> toOutput();
     virtual Score score(Term::VarSet const &bound);
+    virtual bool auxiliary() const { return true; }
     virtual ~RelationLiteral();
 
     RelationShared shared;
@@ -103,7 +102,7 @@ struct RelationLiteral : Literal {
 // {{{ declaration of PredicateLiteral
 
 struct PredicateLiteral : Literal, BodyOcc {
-    PredicateLiteral(PredicateDomain &dom, NAF naf, UTerm &&repr);
+    PredicateLiteral(bool auxiliary, PredicateDomain &domain, NAF naf, UTerm &&repr);
     virtual void print(std::ostream &out) const;
     virtual UGTerm getRepr() const;
     virtual bool isPositive() const;
@@ -115,20 +114,24 @@ struct PredicateLiteral : Literal, BodyOcc {
     virtual void collect(VarTermBoundVec &vars) const;
     virtual DefinedBy &definedBy();
     virtual UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound);
-    virtual std::pair<Output::Literal*,bool> toOutput();
+    virtual std::pair<Output::LiteralId,bool> toOutput();
     virtual Score score(Term::VarSet const &bound);
     virtual void checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const;
+    virtual bool auxiliary() const { return auxiliary_; }
     virtual ~PredicateLiteral();
 
     OccurrenceType type = OccurrenceType::POSITIVELY_STRATIFIED;
+    bool auxiliary_;
     UTerm repr;
     DefinedBy defs;
     PredicateDomain &domain;
-    Output::PredicateLiteral gLit;   
+    Potassco::Id_t offset = 0;
+    NAF naf;
+
 };
 
 struct ProjectionLiteral : PredicateLiteral {
-    ProjectionLiteral(PredicateDomain &dom, UTerm &&repr, bool initialized);
+    ProjectionLiteral(bool auxiliary, PredicateDomain &dom, UTerm &&repr, bool initialized);
     virtual UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound);
     virtual ~ProjectionLiteral();
     bool initialized_;
@@ -151,21 +154,25 @@ struct ExternalBodyOcc : BodyOcc {
 };
 
 using CSPLiteralShared = std::tuple<Relation, CSPAddTerm, CSPAddTerm>;
-struct CSPLiteral : Literal {
-    CSPLiteral(Relation rel, CSPAddTerm &&left, CSPAddTerm &&right);
-    virtual void print(std::ostream &out) const;
-    virtual bool isRecursive() const;
-    virtual BodyOcc *occurrence();
-    virtual void collectImportant(Term::VarSet &vars);
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound);
-    virtual std::pair<Output::Literal*,bool> toOutput();
-    virtual Score score(Term::VarSet const &bound);
-    virtual ~CSPLiteral();
+class CSPLiteral : public Literal {
+public:
+    CSPLiteral(DomainData &data, bool auxiliary, Relation rel, CSPAddTerm &&left, CSPAddTerm &&right);
+    void print(std::ostream &out) const override;
+    bool isRecursive() const override;
+    BodyOcc *occurrence() override;
+    void collectImportant(Term::VarSet &vars) override;
+    void collect(VarTermBoundVec &vars) const override;
+    UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
+    std::pair<Output::LiteralId,bool> toOutput() override;
+    Score score(Term::VarSet const &bound) override;
+    bool auxiliary() const override { return auxiliary_; }
+    virtual ~CSPLiteral() noexcept;
 
-    Output::CSPLiteral repr;
-    CSPLiteralShared   terms;
-    ExternalBodyOcc    ext;
+private:
+    DomainData &data_;
+    CSPLiteralShared terms_;
+    ExternalBodyOcc ext_;
+    bool auxiliary_;
 };
 
 // }}}

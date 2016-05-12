@@ -5,7 +5,7 @@ To start the server, execute:
     python server.py
 
 Afterwards, start the client:
-    clingo client.lp client-lua.lp
+    python client.py
 
 The client can then be controlled from the server. An overview of the available
 commands is printed on the screen.

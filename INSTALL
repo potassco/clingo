@@ -23,9 +23,6 @@ Optional Dependencies
 - the lua script language (optional)
     version 5.1 is tested
     version 5.2 should work
-- the tbb library (optional)
-    version 4.0+r233 is tested
-    newer versions should work
 - the cppunit library (optional)
     version 1.12 is tested
     newer versions should work
@@ -34,16 +31,17 @@ Optional Dependencies
 Compilation
 ===========
 
-Note that for building gringo/clingo/reify, you need a very recent C++
+Note that for building gringo/clingo/reify/lpconvert, you need a recent C++
 compiler. To build gringo and clingo in their default configurations in release
 mode, run:
     scons --build-dir=release
 
-There is no installation target. To use gringo, clingo, or reify, use the
-binaries/libraries in the build/release folder:
+There is no installation target. To use gringo, clingo, reify, or lpconvert use
+the binaries/libraries in the build/release folder:
     build/release/gringo
     build/release/clingo
     build/release/reify
+    build/release/lpconvert
 
 For enabling lua/python/threading support, please see the Enabling Scripting
 Support Section.
@@ -57,11 +55,6 @@ If configuration fails, always inspect the build log, e.g.:
 It contains all the compiler invocations performed when testing the
 configuration, along with generated error messages.  Typically, this makes it
 very easy to fix the problem.
-
-There seems to be a problem with recent clang version and the tbb library. A
-workaround is to add the following define to the configuration:
-    $ grep "CPPDEFINES" build/release.py
-    CPPDEFINES = {'TBB_IMPLEMENT_CPP0X': 1}
 
 
 Build Options
@@ -77,9 +70,9 @@ file beforehand:
 
 The scons scripts try to automatically find libraries using python-config and
 pkg-config.  Relevant parts of the configuration are:
-	$ grep "PYTHON_CONFIG\|PKG_CONFIG" build/release.py  
-	PYTHON_CONFIG = None
-	PKG_CONFIG = 'pkg-config'
+    $ grep "PYTHON_CONFIG\|PKG_CONFIG" build/release.py
+    PYTHON_CONFIG = None
+    PKG_CONFIG = 'pkg-config'
 
 By default python-config is used to obtain compile and link flags for building
 with python.  This can be disabled by setting PYTHON_CONFIG to None to always
@@ -108,13 +101,13 @@ Building the Python Module
 If python support is enabled, the additional target pyclingo is available.
     scons --build-dir=release pyclingo
 
-This will build a library called gringo that can be imported in python. Make
-sure it is put somewhere under the PYTHONPATH. Then import gringo in your
+This will build a library called clingo that can be imported in python. Make
+sure it is put somewhere under the PYTHONPATH. Then import clingo in your
 python script. The module itself is documented using python's docstrings.
-    build/release/python/gringo.{so,dll,dynlib}
+    build/release/python/clingo.{so,dll,dynlib}
 
-The documentation for the gringo module is available online:
-    http://potassco.sourceforge.net/gringo.html
+The documentation for the clingo module is available online:
+    http://potassco.sourceforge.net/clingo.html
 
 Building the Lua Module
 -----------------------
@@ -122,17 +115,16 @@ Building the Lua Module
 If lua support is enabled, the additional target pyclingo is available.
     scons --build-dir=release luaclingo
 
-This will build a library called gringo that can be imported in lua:
-    build/release/lua/gringo.{so,dll,dynlib}
+This will build a library called clingo that can be imported in lua:
+    build/release/lua/clingo.{so,dll,dynlib}
 
 Enabling Threading
 ------------------
 
-By default the build script tries to automatically detect the tbb library on
-the system and sets the configuration accordingly.  If detection fails, please
-adjust the following portion of the config:
-    $ grep "WITH_TBB" build/release.py
-    WITH_TBB = 'tbb'
+By default multi-threading is enabled using posix threads.  The relevant part
+in the configuration is:
+    $ grep "WITH_THREADS" build/release.py
+    WITH_THREADS = 'posix'
 
 Depending on your system further paths might have to be adjusted - e.g.,
 CPPPATH, LIBPATH if the library is installed in a non-default location.
@@ -146,7 +138,7 @@ also be configured manually:
     $ grep "WITH_CPPUNIT" build/release.py
     WITH_CPPUNIT = 'auto'
 If gringo/clingo has been configured with cppunit support, a test target is
-available to run unit tests. 
+available to run unit tests.
     $ scons --build-dir=release test
 
 Furthermore, there are some acceptance tests for clingo. These tests require
@@ -163,9 +155,10 @@ With a few tweaks gringo/clingo can be compiled using the Mingw-w64 compiler.
 The binaries on Sourceforge have been compiled with a Mingw-w64 based
 cross-compiler.
 
-Additionally, gringo can be compiled under Windows using cygwin.  Except for
-the tbb library, all additional software is available via cygwin and
-cygwinports.
+Additionally, gringo can be compiled under Windows using cygwin.  All
+additional software is available via cygwin and cygwinports.  I cannot test
+this myself because I do not have a Windows installation.  You might encounter
+problems.  Patches to improve compatibility are welcome.
 
 Note that I had problems with cygwin's bison and had to resort to another bison
 port (for some reason I had to delete the last line of the generated parser):
@@ -186,7 +179,7 @@ gringo/clingo has successfully been built using software provided by macports.
 
 This are the relevant installed packages:
     $ port installed \
-        | grep "lua\|clang-3.3\|tbb\|bison\|re2c\|scons\| python27" \
+        | grep "lua\|clang-3.3\|bison\|re2c\|scons\| python27" \
         | grep active
     bison @2.7.1_0+universal (active)
     clang-3.3 @3.3_1+analyzer+python27+universal (active)
@@ -194,21 +187,20 @@ This are the relevant installed packages:
     lua @5.2.2_1+universal (active)
     re2c @0.13.5_0 (active)
     scons @2.3.0_0 (active)
-    tbb @4.2-20130725_0 (active)
 
 Relevant parts of the configuration:
-    $ grep "CXX\|CPPPATH\|WITH_PYTHON\|WITH_LUA\|LIBPATH\|WITH_TBB\|BISON\|RE2C" build/release.py
-    CXX         = '/opt/local/bin/clang++-mp-3.3'
-    CPPPATH     = ['/opt/local/Library/Frameworks/Python.framework/Versions/2.7/include/python2.7', '/opt/local/include']
-    LIBPATH     = ['/opt/local/lib']
-    BISON       = '/opt/local/bin/bison'
-    RE2C        = '/opt/local/bin/re2c'
-    WITH_PYTHON = 'python2.7'
-    WITH_LUA    = 'lua'
-    WITH_TBB    = 'tbb'
+    $ grep "CXX\|CPPPATH\|WITH_PYTHON\|WITH_LUA\|LIBPATH\|WITH_THREADS\|BISON\|RE2C" build/release.py
+    CXX          = '/opt/local/bin/clang++-mp-3.3'
+    CPPPATH      = ['/opt/local/Library/Frameworks/Python.framework/Versions/2.7/include/python2.7', '/opt/local/include']
+    LIBPATH      = ['/opt/local/lib']
+    BISON        = '/opt/local/bin/bison'
+    RE2C         = '/opt/local/bin/re2c'
+    WITH_PYTHON  = 'python2.7'
+    WITH_LUA     = 'lua'
+    WITH_THREADS = 'posix'
 
 Note that the clang and python versions provided by the latest Xcode release
-can be used to compile gringo/clingo. The binaries provided on the sourceforge
+can be used to compile gringo/clingo.  The binaries provided on the sourceforge
 page are built using these.
 
 
@@ -223,7 +215,7 @@ http://libcxx.llvm.org/
 http://llvm.org/
 http://mingw-w64.sourceforge.net/
 http://potassco.sourceforge.net/
-http://potassco.sourceforge.net/gringo.html
+http://potassco.sourceforge.net/clingo.html
 http://re2c.org/
 http://sourceforge.net/projects/cppunit/
 http://sourceforge.net/projects/winflexbison/

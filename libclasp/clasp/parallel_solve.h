@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2010-2012, Benjamin Kaufmann
+// Copyright (c) 2010-2015, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -80,7 +80,7 @@ struct ParallelSolveOptions : BasicSolveOptions {
 	//! Allocates a new solve object.
 	SolveAlgorithm* createSolveObject() const;
 	//! Returns the number of threads that can run concurrently on the current hardware.
-	static uint32   recommendedSolvers()     { return Clasp::thread::hardware_concurrency(); }
+	static uint32   recommendedSolvers()     { return Clasp::mt::thread::hardware_concurrency(); }
 	//! Returns number of maximal number of supported threads.
 	static uint32   supportedSolvers()       { return 64; }
 	//! Returns the peers of the solver with the given id assuming the given topology.
@@ -100,7 +100,7 @@ struct ParallelSolveOptions : BasicSolveOptions {
  */
 class ParallelSolve : public SolveAlgorithm {
 public:
-	explicit ParallelSolve(Enumerator* e, const ParallelSolveOptions& opts);
+	explicit ParallelSolve(const ParallelSolveOptions& opts);
 	~ParallelSolve();
 	// base interface
 	virtual bool interrupted() const;
@@ -137,8 +137,11 @@ private:
 	// Algorithm steps
 	void   setIntegrate(uint32 grace, uint8 filter);
 	void   setRestarts(uint32 maxR, const ScheduleStrategy& rs);
-	bool   beginSolve(SharedContext& ctx);
+	bool   beginSolve(SharedContext& ctx, const LitVec& assume);
 	bool   doSolve(SharedContext& ctx, const LitVec& assume);
+	void   doStart(SharedContext& ctx, const LitVec& assume);
+	int    doNext(int last);
+	void   doStop();
 	bool   doInterrupt();
 	void   solveParallel(uint32 id);
 	void   initQueue();
@@ -147,6 +150,7 @@ private:
 	bool   waitOnSync(Solver& s);
 	void   exception(uint32 id, PathPtr& path, ErrorCode e, const char* what);
 	void   reportProgress(const Event& ev) const;
+	void   reportProgress(const Solver& s, const char* msg) const;
 	// -------------------------------------------------------------------------------------------
 	typedef ParallelSolveOptions::Distribution Distribution;
 	struct SharedData;
@@ -195,7 +199,7 @@ public:
 	int  error() const   { return (int)error_; }
 	void setWinner()     { win_ = 1; }
 	bool winner() const  { return win_ != 0; }
-	void setThread(Clasp::thread& x) { assert(!joinable()); x.swap(thread_); assert(joinable()); }
+	void setThread(Clasp::mt::thread& x) { assert(!joinable()); x.swap(thread_); assert(joinable()); }
 	
 	//! True if *this has an associated thread of execution, false otherwise.
 	bool joinable() const { return thread_.joinable(); }
@@ -271,7 +275,7 @@ private:
 	ParallelSolve*     ctrl_;       // my message source
 	Solver*            solver_;     // my solver
 	const SolveParams* params_;     // my solving params
-	Clasp::thread      thread_;     // active thread or empty for master
+	Clasp::mt::thread  thread_;     // active thread or empty for master
 	RecBuffer          received_;   // received clauses not yet integrated
 	ClauseDB           integrated_; // my integrated clauses
 	size_type          recEnd_;     // where to put next received clause

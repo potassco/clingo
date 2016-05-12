@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -278,7 +278,7 @@ V init(T&&... args) {
 // {{{ defintion of TestMessagePrinter
 
 struct TestMessagePrinter : MessagePrinter {
-    TestMessagePrinter(std::vector<std::string> &messages) 
+    TestMessagePrinter(std::vector<std::string> &messages)
         : messages_(messages)                  { }
     virtual bool check(Errors)                 { error_ = true; return true; }
     virtual bool check(Warnings)               { return true; }
@@ -297,7 +297,7 @@ struct Messages {
         : oldPrinter(std::move(message_printer())) {
         message_printer() = gringo_make_unique<Gringo::Test::TestMessagePrinter>(messages);
     }
-    void clear() { 
+    void clear() {
         messages.clear();
         message_printer() = gringo_make_unique<Gringo::Test::TestMessagePrinter>(messages);
     }

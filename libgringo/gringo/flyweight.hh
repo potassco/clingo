@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -31,6 +31,7 @@
 #include <stdexcept>
 #include <array>
 #include <gringo/utility.hh>
+#include <gringo/hash_set.hh>
 
 #include <iostream>
 
@@ -38,19 +39,19 @@ namespace Gringo {
 
 // {{{ declaration of Indexed
 
-template <class T, class R = unsigned> 
+template <class T, class R = unsigned>
 struct Indexed {
 public:
-    using value_type = T;
-    using index_type = R;
+    using ValueType = T;
+    using IndexType = R;
     template <class... Args>
-    index_type emplace(Args&&... args);
-    index_type insert(value_type &&value);
-    value_type erase(index_type uid);
-    value_type &operator[](index_type uid);
+    IndexType emplace(Args&&... args);
+    IndexType insert(ValueType &&value);
+    ValueType erase(IndexType uid);
+    ValueType &operator[](IndexType uid);
 private:
-    std::vector<value_type> values_;
-    std::vector<index_type> free_;
+    std::vector<ValueType> values_;
+    std::vector<IndexType> free_;
 };
 
 // }}}
@@ -58,23 +59,22 @@ private:
 
 template <class T>
 class Flyweight {
-    struct Hash;
-    struct Equal;
+private:
+    using ValueMap = UniqueVec<T>;
 public:
-    using value_type = T;
-    using key_iterator = typename std::unordered_set<unsigned, Hash, Equal>::const_iterator;
-    using return_type = T&;
+    using SizeType = typename ValueMap::SizeType;
+    using ValueType = T;
 
-    Flyweight(value_type &&val);
-    Flyweight(unsigned uid);
+    Flyweight(ValueType &&val);
+    Flyweight(SizeType uid);
     template<typename... Args>
     Flyweight(Args... args);
 
-    static unsigned uid(value_type &&val);
-    unsigned uid() const;
-    return_type operator*() const;
-    value_type *operator->() const;
-    operator value_type &() const;
+    static SizeType uid(ValueType &&val);
+    SizeType uid() const;
+    ValueType &operator*() const;
+    ValueType *operator->() const;
+    operator ValueType &() const;
 
     bool operator==(Flyweight const &other) const;
     bool operator!=(Flyweight const &other) const;
@@ -83,32 +83,14 @@ public:
     bool operator<=(Flyweight const &other) const;
     bool operator>=(Flyweight const &other) const;
 
-    // garbage collection
-    static key_iterator beginKey();
-    static key_iterator endKey();
-    static void erase(unsigned uid);
+    template <typename F>
+    static void erase(F f);
     static void clear();
 
 private:
-    using key_set_type = std::unordered_set<unsigned, Hash, Equal>;
-    using value_vector_type = std::vector<value_type>;
-    using free_vector_type = std::vector<unsigned>;
+    static ValueMap values_;
 
-    static key_set_type set_;
-    static value_vector_type values_;
-    static free_vector_type free_;
-
-    unsigned uid_;
-};
-
-template <class T>
-struct Flyweight<T>::Hash {
-    size_t operator()(unsigned uid) const;
-};
-
-template <class T>
-struct Flyweight<T>::Equal {
-    bool operator()(unsigned uidA, unsigned uidB) const;
+    SizeType uid_;
 };
 
 // }}}
@@ -118,71 +100,47 @@ struct Flyweight<T>::Equal {
 template <class T>
 class FlyweightVec {
 private:
-    struct Hash;
-    struct Equal;
-
+    using ValueMap = UniqueVecVec<32, T>;
 public:
-    using value_type = T;
-    using key_type = std::pair<unsigned, unsigned>;
-    using value_vector = std::vector<value_type>;
-    using const_iterator = typename value_vector::const_iterator;
-    using key_iterator = typename std::unordered_set<key_type, Hash, Equal>::const_iterator;
+    using SizeType = typename ValueMap::SizeType;
+    using ValueType = T;
+    using ValueVec = std::vector<ValueType>;
+    using ConstIterator = typename ValueVec::const_iterator;
 
     static class FromOffset { } fromOffset;
 
-    FlyweightVec(value_vector const &val);
-    FlyweightVec(std::initializer_list<value_type> val);
-    FlyweightVec(FromOffset, unsigned size, unsigned offset);
+    FlyweightVec(ValueVec const &val);
+    FlyweightVec(std::initializer_list<ValueType> val);
+    FlyweightVec(FromOffset, SizeType size, SizeType offset);
 
-    value_type const &operator[](unsigned pos) const;
-    value_type const &front() const;
-    value_type const &back() const;
-    value_type const &at(unsigned pos) const;
-    const_iterator begin()const;
-    const_iterator end() const;
-    unsigned size() const;
+    ValueType const &operator[](SizeType pos) const;
+    ValueType const &front() const;
+    ValueType const &back() const;
+    ValueType const &at(SizeType pos) const;
+    ConstIterator begin()const;
+    ConstIterator end() const;
+    SizeType size() const;
     bool empty() const;
-    unsigned offset() const;
+    SizeType offset() const;
     bool operator==(FlyweightVec const &x) const;
     bool operator<(FlyweightVec const &x) const;
 
-    // garbage collection
-    static key_iterator beginKey();
-    static key_iterator endKey();
-    static void erase(unsigned size, unsigned offset);
+    template <typename F>
+    static void erase(F f);
     static void clear();
 
 private:
     template <class C>
-    unsigned init(C val);
-    
-    static unsigned const small = 32;
-    using free_small_type = std::array<std::vector<unsigned>, small>;
-    using free_big_type = std::unordered_map<unsigned, std::vector<unsigned>>;
-    using key_set_type = std::unordered_set<key_type, Hash, Equal>;
-    using value_vector_type = std::vector<value_type>;
+    SizeType init(C const &val);
 
-    static free_small_type freeSmall_;
-    static free_big_type freeBig_;
-    static key_set_type set_;
-    static value_vector_type values_;
+    static ValueMap values_;
 
-    unsigned size_;
-    unsigned offset_;
+    SizeType size_;
+    SizeType offset_;
 };
 
 template <class T>
 typename FlyweightVec<T>::FromOffset FlyweightVec<T>::fromOffset;
-
-template <class T>
-struct FlyweightVec<T>::Hash {
-    size_t operator()(key_type key) const;
-};
-
-template <class T>
-struct FlyweightVec<T>::Equal {
-    bool operator()(key_type keyA, key_type keyB) const;
-};
 
 // }}}
 
@@ -190,27 +148,27 @@ struct FlyweightVec<T>::Equal {
 
 template <class T, class R>
 template <class... Args>
-typename Indexed<T, R>::index_type Indexed<T, R>::emplace(Args&&... args) {
+typename Indexed<T, R>::IndexType Indexed<T, R>::emplace(Args&&... args) {
     if (free_.empty()) {
         values_.emplace_back(std::forward<Args>(args)...);
-        return index_type(values_.size() - 1);
+        return IndexType(values_.size() - 1);
     }
     else {
-        index_type uid = free_.back();
-        values_[uid] = value_type(std::forward<Args>(args)...);
+        IndexType uid = free_.back();
+        values_[uid] = ValueType(std::forward<Args>(args)...);
         free_.pop_back();
         return uid;
     }
 }
 
 template <class T, class R>
-typename Indexed<T, R>::index_type Indexed<T, R>::insert(value_type &&value) {
+typename Indexed<T, R>::IndexType Indexed<T, R>::insert(ValueType &&value) {
     if (free_.empty()) {
         values_.push_back(std::move(value));
-        return index_type(values_.size() - 1);
+        return IndexType(values_.size() - 1);
     }
     else {
-        index_type uid = free_.back();
+        IndexType uid = free_.back();
         values_[uid] = std::move(value);
         free_.pop_back();
         return uid;
@@ -218,67 +176,43 @@ typename Indexed<T, R>::index_type Indexed<T, R>::insert(value_type &&value) {
 }
 
 template <class T, class R>
-typename Indexed<T, R>::value_type Indexed<T, R>::erase(index_type uid) {
-    value_type val(std::move(values_[uid]));
+typename Indexed<T, R>::ValueType Indexed<T, R>::erase(IndexType uid) {
+    ValueType val(std::move(values_[uid]));
     if (uid + 1 == values_.size()) { values_.pop_back(); }
     else { free_.push_back(uid); }
     return val;
 }
 
 template <class T, class R>
-typename Indexed<T, R>::value_type &Indexed<T, R>::operator[](typename Indexed<T, R>::index_type uid) {
+typename Indexed<T, R>::ValueType &Indexed<T, R>::operator[](typename Indexed<T, R>::IndexType uid) {
     return values_[uid];
-}
-
-// }}}
-// {{{ defintion of Flyweight<T>::Hash
-
-template <class T>
-size_t Flyweight<T>::Hash::operator()(unsigned uid) const {
-    return std::hash<value_type>()(values_[uid]);
-}
-
-// }}}
-// {{{ defintion of Flyweight<T>::Equal
-
-template <class T>
-bool Flyweight<T>::Equal::operator()(unsigned uidA, unsigned uidB) const {
-    return values_[uidA] == values_[uidB];
 }
 
 // }}}
 // {{{ defintion of Flyweight<T>
 
 template <class T>
-Flyweight<T>::Flyweight(value_type &&val)
+Flyweight<T>::Flyweight(ValueType &&val)
     : uid_(Flyweight::uid(std::move(val))) { }
 
 template <class T>
-unsigned Flyweight<T>::uid(value_type &&val) {
-    if (free_.empty()) {
-        free_.push_back(values_.size());
-        values_.emplace_back(std::move(val));
-    }
-    else {
-        values_[free_.back()] = std::move(val);
-    }
-    auto res = set_.insert(free_.back());
-    if (res.second) { free_.pop_back(); }
-    return *res.first;
+typename Flyweight<T>::SizeType Flyweight<T>::uid(ValueType &&val) {
+    auto ret = values_.push(std::move(val)).first;
+    return ret - values_.begin();
 }
 
 
 template <class T>
-Flyweight<T>::Flyweight(unsigned uid)
+Flyweight<T>::Flyweight(SizeType uid)
     : uid_(uid) { }
 
 template <class T>
 template<typename... Args>
 Flyweight<T>::Flyweight(Args... args)
-    : Flyweight(value_type(args...)) { }
+    : Flyweight(ValueType(args...)) { }
 
 template <class T>
-unsigned Flyweight<T>::uid() const {
+typename Flyweight<T>::SizeType Flyweight<T>::uid() const {
     return uid_;
 }
 
@@ -313,151 +247,87 @@ bool Flyweight<T>::operator>=(Flyweight const &other) const {
 }
 
 template <class T>
-typename Flyweight<T>::return_type Flyweight<T>::operator*() const {
+typename Flyweight<T>::ValueType &Flyweight<T>::operator*() const {
     return values_[uid_];
 }
 
 template <class T>
-typename Flyweight<T>::value_type *Flyweight<T>::operator->() const {
+typename Flyweight<T>::ValueType *Flyweight<T>::operator->() const {
     return &values_[uid_];
 }
 
 template <class T>
-Flyweight<T>::operator typename Flyweight<T>::value_type &() const {
+Flyweight<T>::operator typename Flyweight<T>::ValueType &() const {
     return values_[uid_];
 }
 
 template <class T>
-typename Flyweight<T>::key_iterator Flyweight<T>::beginKey() {
-    return set_.begin();
+template <class F>
+void Flyweight<T>::erase(F f) {
+    values_.erase(f);
 }
 
 template <class T>
-typename Flyweight<T>::key_iterator Flyweight<T>::endKey() {
-    return set_.end();
+void Flyweight<T>::clear() {
+    values_.clear();
 }
 
 template <class T>
-void Flyweight<T>::erase(unsigned uid) {
-    set_.erase(uid);
-    free_.push_back(uid);
-}
-
-template <class T>
-void Flyweight<T>::clear()
-{
-    set_    = key_set_type();
-    free_   = free_vector_type();
-    values_ = value_vector_type();
-}
-
-template <class T>
-typename Flyweight<T>::key_set_type Flyweight<T>::set_;
-
-template <class T>
-typename Flyweight<T>::value_vector_type Flyweight<T>::values_;
-
-template <class T>
-typename Flyweight<T>::free_vector_type Flyweight<T>::free_;
-
-// }}}
-// {{{ defintion of FlyweightVec<T>::Hash
-
-template <class T>
-size_t FlyweightVec<T>::Hash::operator()(key_type key) const {
-    size_t seed = std::hash<unsigned>()(key.first);
-    for (auto it = values_.begin() + key.second, end = it + key.first; it != end; ++it) { hash_combine(seed, *it); }
-    return seed;
-}
-
-// }}}
-// {{{ defintion of FlyweightVec<T>::Equal
-
-template <class T>
-bool FlyweightVec<T>::Equal::operator()(key_type keyA, key_type keyB) const
-{
-    if (keyA.first != keyB.first) { return false; }
-    if (keyA.second == keyB.second) { return true; }
-    auto a = values_.begin() + keyA.second;
-    auto b = values_.begin() + keyB.second;
-    return std::equal(a, a + keyA.first, b);
-}
+typename Flyweight<T>::ValueMap Flyweight<T>::values_;
 
 // }}}
 // {{{ defintion of FlyweightVec<T>
 
 template <class T>
-FlyweightVec<T>::FlyweightVec(value_vector const &val)
+FlyweightVec<T>::FlyweightVec(ValueVec const &val)
     : size_(val.size())
-    , offset_(init<value_vector const &>(val)) { }
+    , offset_(init(val)) { }
 
 template <class T>
-FlyweightVec<T>::FlyweightVec(std::initializer_list<value_type> val)
+FlyweightVec<T>::FlyweightVec(std::initializer_list<ValueType> val)
     : size_(val.size())
-    , offset_(init<std::initializer_list<value_type>>(val)) { }
+    , offset_(init(val)) { }
 
 template <class T>
 template <class C>
-unsigned FlyweightVec<T>::init(C val) {
-    auto &free(size_ < small ? freeSmall_[size_] : freeBig_[size_]);
-    if (free.empty()) {
-        unsigned offset = values_.size();
-        values_.insert(values_.end(), val.begin(), val.end());
-        auto ret = set_.insert(key_type(size_, offset));
-        if (!ret.second) {
-            free.push_back(offset);
-            return ret.first->second;
-        }
-        else { return  offset; }
-    }
-    else {
-        unsigned offset = free.back();
-        std::copy(val.begin(), val.end(), values_.begin() + offset);
-        auto ret = set_.insert(key_type(size_, offset));
-        if (ret.second) {
-            free.pop_back();
-            return offset;
-        }
-        else { return ret.first->second; }
-    }
+typename FlyweightVec<T>::SizeType FlyweightVec<T>::init(C const &val) {
+    return values_.push(val).first;
 }
 
 template <class T>
-FlyweightVec<T>::FlyweightVec(FromOffset, unsigned size, unsigned offset)
+FlyweightVec<T>::FlyweightVec(FromOffset, SizeType size, SizeType offset)
     : size_(size)
     , offset_(offset) { }
 
 template <class T>
-typename FlyweightVec<T>::value_type const &FlyweightVec<T>::operator[](unsigned pos) const {
+typename FlyweightVec<T>::ValueType const &FlyweightVec<T>::operator[](SizeType pos) const {
     assert(pos < size_);
-    return values_[offset_ + pos];
+    return at(pos);
 }
 
 template <class T>
-typename FlyweightVec<T>::value_type const &FlyweightVec<T>::front() const { return *begin(); }
-template <class T>
-typename FlyweightVec<T>::value_type const &FlyweightVec<T>::back() const  { return *(end() - 1); }
+typename FlyweightVec<T>::ValueType const &FlyweightVec<T>::front() const { return *begin(); }
 
 template <class T>
-typename FlyweightVec<T>::value_type const &FlyweightVec<T>::at(unsigned i) const {
-    assert(offset_ + i < values_.size());
-    return values_.begin() + offset_ + i;
+typename FlyweightVec<T>::ValueType const &FlyweightVec<T>::back() const  { return *(end() - 1); }
+
+template <class T>
+typename FlyweightVec<T>::ValueType const &FlyweightVec<T>::at(SizeType pos) const {
+    return *(begin() + pos);
 }
 
 template <class T>
-typename FlyweightVec<T>::const_iterator FlyweightVec<T>::begin() const {
-    assert(offset_ <= values_.size());
-    return values_.begin() + offset_;
+typename FlyweightVec<T>::ConstIterator FlyweightVec<T>::begin() const {
+    return values_.at(offset_, size_);
 }
 
 template <class T>
-typename FlyweightVec<T>::const_iterator FlyweightVec<T>::end() const {
-    assert(offset_ + size_ <= values_.size());
-    return values_.begin() + offset_ + size_;
+typename FlyweightVec<T>::ConstIterator FlyweightVec<T>::end() const {
+    return begin() + size_;
 }
 
 template <class T>
-unsigned FlyweightVec<T>::size() const {
+typename FlyweightVec<T>::SizeType FlyweightVec<T>::size() const {
     return size_;
 }
 
@@ -467,7 +337,7 @@ bool FlyweightVec<T>::empty() const {
 }
 
 template <class T>
-unsigned FlyweightVec<T>::offset() const {
+typename FlyweightVec<T>::SizeType FlyweightVec<T>::offset() const {
     return offset_;
 }
 
@@ -483,45 +353,18 @@ bool FlyweightVec<T>::operator<(FlyweightVec const &x) const {
 }
 
 template <class T>
-typename FlyweightVec<T>::key_iterator FlyweightVec<T>::beginKey() {
-    return set_.begin();
-}
-
-template <class T>
-typename FlyweightVec<T>::key_iterator FlyweightVec<T>::endKey() {
-    return set_.end();
-}
-
-template <class T>
-void FlyweightVec<T>::erase(unsigned size, unsigned offset) {
-    set_.erase(key_type(size, offset));
-    if (size < small) {
-        freeSmall_[size].push_back(offset);
-    }
-    else {
-        freeBig_[size].push_back(offset);
-    }
+template <class F>
+void FlyweightVec<T>::erase(F f) {
+    values_.erase(f);
 }
 
 template <class T>
 void FlyweightVec<T>::clear() {
-    freeSmall_ = free_small_type();
-    freeBig_   = free_big_type();
-    set_       = key_set_type();
-    values_    = value_vector_type();
+    values_.clear();
 }
 
 template <class T>
-typename FlyweightVec<T>::free_small_type FlyweightVec<T>::freeSmall_;
-
-template <class T>
-typename FlyweightVec<T>::free_big_type FlyweightVec<T>::freeBig_;
-
-template <class T>
-typename FlyweightVec<T>::key_set_type FlyweightVec<T>::set_;
-
-template <class T>
-typename FlyweightVec<T>::value_vector_type FlyweightVec<T>::values_;
+typename FlyweightVec<T>::ValueMap FlyweightVec<T>::values_;
 
 // }}}
 

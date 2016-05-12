@@ -1,4 +1,4 @@
-$ cat control_01.lua | clingo-4 lua.lp blocks_01.lp world.lp lua_interpret.lp 0
+$ cat control_01.lua | clingo lua.lp blocks_01.lp world.lp lua_interpret.lp 0
 
 clingo version 4.1
 Reading from lua.lp ...

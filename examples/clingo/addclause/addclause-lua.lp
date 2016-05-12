@@ -1,11 +1,9 @@
 #script (lua)
 
-Fun = gringo.Fun
-
 function main(prg)
     on_model = function (m)
-        m.context:add_clause({{Fun("a"), false}, {Fun("b"), false}})
-        m.context:add_nogood({{Fun("c"), true}, {Fun("d"), true}})
+        m.context:add_clause({{clingo.fun("a"), false}, {clingo.fun("b"), false}})
+        m.context:add_nogood({{clingo.fun("c"), true}, {clingo.fun("d"), true}})
     end
 
     prg.conf.solve.models = 0

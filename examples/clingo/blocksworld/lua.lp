@@ -87,13 +87,13 @@ function incsolve()
   parts = {}
   ret = prg:solve()
   if debugs then
-    if     ret == gringo.SolveResult.SAT     then print "SATISFIABLE"
-    elseif ret == gringo.SolveResult.UNSAT   then print "UNSATISFIABLE"
-    elseif ret == gringo.SolveResult.UNKNOWN then print "UNKNOWN"
+    if     ret.satisfiable   then print "SATISFIABLE"
+    elseif ret.unsatisfiable then print "UNSATISFIABLE"
+    elseif ret.unknown       then print "UNKNOWN"
     end
     print("=============")
   end
-  if ret == gringo.SolveResult.UNSAT then
+  if ret.unsatisfiable then
     rollout(time+1)
     incsolve()
   end

@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -31,8 +31,8 @@ struct PythonImpl;
 struct Python {
     Python(GringoModule &module);
     bool exec(Location const &loc, FWString code);
-    ValVec call(Any const &context, Location const &loc, FWString name, ValVec const &args);
-    bool callable(Any const &context, FWString name);
+    ValVec call(Location const &loc, FWString name, ValVec const &args);
+    bool callable(FWString name);
     void main(Control &ctl);
     static void *initlib(GringoModule &gringo);
     ~Python();

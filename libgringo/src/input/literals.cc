@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -36,19 +36,25 @@ unsigned RelationLiteral::projectScore() const {
 
 // {{{1 definition of Literal::print
 
-inline void PredicateLiteral::print(std::ostream &out) const { out << naf << *repr; }
+inline void PredicateLiteral::print(std::ostream &out) const {
+    if (auxiliary()) { out << "["; }
+    out << naf << *repr;
+    if (auxiliary()) { out << "]"; }
+}
 inline void RelationLiteral::print(std::ostream &out) const  { out << *left << rel << *right; }
 inline void RangeLiteral::print(std::ostream &out) const     { out << "#range(" << *assign << "," << *lower << "," << *upper << ")"; }
 inline void FalseLiteral::print(std::ostream &out) const     { out << "#false"; }
-inline void ScriptLiteral::print(std::ostream &out) const    { 
+inline void ScriptLiteral::print(std::ostream &out) const    {
     out << "#script(" << *assign << "," << *name << "(";
     print_comma(out, args, ",", [](std::ostream &out, UTerm const &term) { out << *term; });
     out << ")";
 }
 inline void CSPLiteral::print(std::ostream &out) const {
     assert(!terms.empty());
+    if (auxiliary()) { out << "["; }
     out << terms.front().term;
     for (auto it = terms.begin() + 1, ie = terms.end(); it != ie; ++it) { out << *it; }
+    if (auxiliary()) { out << "]"; }
 }
 
 // {{{1 definition of Literal::clone
@@ -56,8 +62,8 @@ inline void CSPLiteral::print(std::ostream &out) const {
 PredicateLiteral *PredicateLiteral::clone() const {
     return make_locatable<PredicateLiteral>(loc(), naf, get_clone(repr)).release();
 }
-ProjectionLiteral *ProjectionLiteral::clone() const { 
-    throw std::runtime_error("ProjectionLiteral::clone must not be called!!!");
+ProjectionLiteral *ProjectionLiteral::clone() const {
+    throw std::logic_error("ProjectionLiteral::clone must not be called!!!");
 }
 RelationLiteral *RelationLiteral::clone() const {
     return make_locatable<RelationLiteral>(loc(), rel, get_clone(left), get_clone(right)).release();
@@ -103,7 +109,7 @@ bool ScriptLiteral::simplify(Projections &, SimplifyState &, bool, bool) {
     throw std::logic_error("ScriptLiteral::simplify should never be called  if used properly");
 }
 bool CSPLiteral::simplify(Projections &, SimplifyState &state, bool, bool) {
-    for (auto &x : terms) { 
+    for (auto &x : terms) {
         if (!x.simplify(state)) { return false; };
     }
     return true;
@@ -114,7 +120,7 @@ bool CSPLiteral::simplify(Projections &, SimplifyState &state, bool, bool) {
 void PredicateLiteral::collect(VarTermBoundVec &vars, bool bound) const {
     repr->collect(vars, bound && naf == NAF::POS);
 }
-void RelationLiteral::collect(VarTermBoundVec &vars, bool bound) const { 
+void RelationLiteral::collect(VarTermBoundVec &vars, bool bound) const {
     left->collect(vars, bound && rel == Relation::EQ);
     right->collect(vars, false);
 }
@@ -136,7 +142,7 @@ void CSPLiteral::collect(VarTermBoundVec &vars, bool) const {
 
 inline bool PredicateLiteral::operator==(Literal const &x) const {
     auto t = dynamic_cast<PredicateLiteral const *>(&x);
-    return t && naf == t->naf && is_value_equal_to(repr, t->repr);
+    return t && naf == t->naf && is_value_equal_to(repr, t->repr) && (auxiliary_ == t->auxiliary_);
 }
 inline bool RelationLiteral::operator==(Literal const &x) const {
     auto t = dynamic_cast<RelationLiteral const *>(&x);
@@ -155,7 +161,7 @@ inline bool ScriptLiteral::operator==(Literal const &x) const {
 }
 inline bool CSPLiteral::operator==(Literal const &x) const {
     auto t = dynamic_cast<CSPLiteral const *>(&x);
-    return t && is_value_equal_to(terms, t->terms);
+    return t && is_value_equal_to(terms, t->terms) && (auxiliary_ == t->auxiliary_);
 }
 
 // {{{1 definition of Literal::rewriteArithmetics
@@ -212,8 +218,8 @@ ULitVec PredicateLiteral::unpool(bool) const {
     Term::unpool(repr, Gringo::unpool, f);
     return  value;
 }
-ULitVec ProjectionLiteral::unpool(bool) const { 
-    throw std::runtime_error("ProjectionLiteral::unpool must not be called!!!"); 
+ULitVec ProjectionLiteral::unpool(bool) const {
+    throw std::logic_error("ProjectionLiteral::unpool must not be called!!!");
 }
 ULitVec RelationLiteral::unpool(bool) const {
     ULitVec value;
@@ -312,7 +318,7 @@ inline bool CSPLiteral::hasPool(bool beforeRewrite) const       {
 
 inline void PredicateLiteral::replace(Defines &x) { Term::replace(repr, repr->replace(x, false)); }
 inline void RelationLiteral::replace(Defines &x) {
-    Term::replace(left, left->replace(x, true)); 
+    Term::replace(left, left->replace(x, true));
     Term::replace(right, right->replace(x, true));
 }
 inline void RangeLiteral::replace(Defines &x) {
@@ -331,42 +337,42 @@ inline void CSPLiteral::replace(Defines &x) {
 
 // {{{1 definition of Literal::toGround
 
-inline Ground::ULit PredicateLiteral::toGround(PredDomMap &x) const {
-    return gringo_make_unique<Ground::PredicateLiteral>(add(x, repr->getSig()), naf, get_clone(repr));
+inline Ground::ULit PredicateLiteral::toGround(DomainData &x, bool auxiliary) const {
+    return gringo_make_unique<Ground::PredicateLiteral>(auxiliary_ || auxiliary, x.add(repr->getSig()), naf, get_clone(repr));
 }
-inline Ground::ULit ProjectionLiteral::toGround(PredDomMap &x) const {
+inline Ground::ULit ProjectionLiteral::toGround(DomainData &x, bool auxiliary) const {
     bool initialized = initialized_;
     initialized_ = true;
-    return gringo_make_unique<Ground::ProjectionLiteral>(add(x, repr->getSig()), get_clone(repr), initialized);
+    return gringo_make_unique<Ground::ProjectionLiteral>(auxiliary_ || auxiliary, x.add(repr->getSig()), get_clone(repr), initialized);
 }
-inline Ground::ULit RelationLiteral::toGround(PredDomMap &) const {
+inline Ground::ULit RelationLiteral::toGround(DomainData &, bool) const {
     return gringo_make_unique<Ground::RelationLiteral>(rel, get_clone(left), get_clone(right));
 }
-inline Ground::ULit RangeLiteral::toGround(PredDomMap &) const {
+inline Ground::ULit RangeLiteral::toGround(DomainData &, bool) const {
     return gringo_make_unique<Ground::RangeLiteral>(get_clone(assign), get_clone(lower), get_clone(upper));
 }
-inline Ground::ULit FalseLiteral::toGround(PredDomMap &) const {
-    throw std::runtime_error("FalseLiteral::toGround: must not happen");
+inline Ground::ULit FalseLiteral::toGround(DomainData &, bool) const {
+    throw std::logic_error("FalseLiteral::toGround: must not happen");
 }
-inline Ground::ULit ScriptLiteral::toGround(PredDomMap &) const {
+inline Ground::ULit ScriptLiteral::toGround(DomainData &, bool) const {
     return gringo_make_unique<Ground::ScriptLiteral>(get_clone(assign), name, get_clone(args));
 }
-inline Ground::ULit CSPLiteral::toGround(PredDomMap &) const {
+inline Ground::ULit CSPLiteral::toGround(DomainData &data, bool auxiliary) const {
     assert(terms.size() == 2);
-    return gringo_make_unique<Ground::CSPLiteral>(terms[1].rel, get_clone(terms[0].term), get_clone(terms[1].term));
+    return gringo_make_unique<Ground::CSPLiteral>(data, auxiliary_ || auxiliary, terms[1].rel, get_clone(terms[0].term), get_clone(terms[1].term));
 }
 
 // {{{1 definition of Literal::shift
 
 ULit PredicateLiteral::shift(bool negate) {
     if (naf == NAF::POS) { return nullptr; }
-    else { 
+    else {
         NAF inv = (naf == NAF::NOT) == negate ? NAF::NOTNOT : NAF::NOT;
         return make_locatable<PredicateLiteral>(loc(), inv, std::move(repr));
     }
 }
-ULit ProjectionLiteral::shift(bool) { 
-    throw std::runtime_error("ProjectionLiteral::shift must not be called!!!");
+ULit ProjectionLiteral::shift(bool) {
+    throw std::logic_error("ProjectionLiteral::shift must not be called!!!");
 }
 ULit RelationLiteral::shift(bool negate) {
     return make_locatable<RelationLiteral>(loc(), negate ? neg(rel) : rel, std::move(left), std::move(right));
@@ -408,9 +414,10 @@ UTerm CSPLiteral::headRepr() const {
 
 // {{{1 definition of PredicateLiteral
 
-PredicateLiteral::PredicateLiteral(NAF naf, UTerm &&repr)
-    : naf(naf)
-    , repr(std::move(repr)) { }
+PredicateLiteral::PredicateLiteral(NAF naf, UTerm &&repr, bool auxiliary)
+: naf(naf)
+, auxiliary_(auxiliary)
+, repr(std::move(repr)) { }
 
 PredicateLiteral::~PredicateLiteral() { }
 
@@ -475,7 +482,7 @@ ScriptLiteral::~ScriptLiteral() { }
 
 // {{{1 definition of CSPLiteral
 
-CSPLiteral::CSPLiteral(Relation rel, CSPAddTerm &&left, CSPAddTerm &&right) { 
+CSPLiteral::CSPLiteral(Relation rel, CSPAddTerm &&left, CSPAddTerm &&right) {
     terms.emplace_back(rel, std::move(left));
     terms.emplace_back(rel, std::move(right));
 }

@@ -12,6 +12,8 @@ respective scripting language.
 Reify is a small utility that reifies logic programs given in smodels format.
 It produces a set of facts, which can be processed further with gringo.
 
+Lpconvert is a converter between intermediate and smodels format.
+
 Please consult the following resources for further information:
 
   - CHANGES:  changes between different releases

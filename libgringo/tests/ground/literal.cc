@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -39,7 +39,9 @@ class TestLiteral : public CppUnit::TestFixture {
     CPPUNIT_TEST_SUITE_END();
 
 public:
-    TestLiteral() : scripts(Gringo::Test::getTestModule()) { }
+    TestLiteral()
+    : scripts(Gringo::Test::getTestModule())
+    , data(theory) { }
 
     virtual void setUp();
     virtual void tearDown();
@@ -49,10 +51,12 @@ public:
     void test_range();
     void test_relation();
     void test_pred();
-    
+
     virtual ~TestLiteral();
 
     Scripts scripts;
+    Potassco::TheoryData theory;
+    Output::DomainData data;
 };
 
 // }}}
@@ -113,7 +117,7 @@ std::string TestLiteral::evalRelation(Relation rel, UTerm l, UTerm r) {
     std::vector<S> vals;
     idx->match();
     bool undefined = false;
-    while (idx->next()) { 
+    while (idx->next()) {
         vals.emplace_back();
         vals.back() += to_string(l->eval(undefined));
         vals.back() += to_string(rel);
@@ -130,6 +134,8 @@ void TestLiteral::test_relation() {
 }
 
 S evalPred(L<L<V>> vals, L<P<S,V>> bound, BinderType type, NAF naf, UTerm &&repr, bool recursive = false) {
+    Potassco::TheoryData theory;
+    DomainData data(theory);
     Scripts scripts(Gringo::Test::getTestModule());
     Term::VarSet boundSet;
     for (auto &x : bound) {
@@ -137,22 +143,29 @@ S evalPred(L<L<V>> vals, L<P<S,V>> bound, BinderType type, NAF naf, UTerm &&repr
         boundSet.emplace(x.first);
         *v->ref = x.second;
     }
-    PredicateDomain dom;
-    PredicateLiteral lit(dom, naf, get_clone(repr));
+    auto &dom = data.add(Signature("f", 2));
+    PredicateLiteral lit(false, dom, naf, get_clone(repr));
     if (recursive) { lit.setType(OccurrenceType::UNSTRATIFIED); }
     UIdx idx = lit.index(scripts, type, boundSet);
     std::vector<std::vector<S>> ret;
     dom.init();
     for (auto &x : vals) {
         ret.emplace_back();
-        for (auto &y : x) { dom.insert(y, y < NUM(0)); }
+        for (auto &y : x) {
+            dom.define(y, y < NUM(0));
+        }
         IndexUpdater *up{idx->getUpdater()};
         if (up) { up->update(); }
         dom.nextGeneration();
         idx->match();
-        while (idx->next()) { 
+        while (idx->next()) {
             ret.back().emplace_back();
-            ret.back().back() += to_string(lit.gLit.repr->first);
+            if (lit.offset == std::numeric_limits<PredicateDomain::SizeType>::max()) {
+                ret.back().back() += "#false";
+            }
+            else {
+                ret.back().back() += to_string(static_cast<Value>(dom[lit.offset]));
+            }
         }
         std::sort(ret.back().begin(), ret.back().end());
     }

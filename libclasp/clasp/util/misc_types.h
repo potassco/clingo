@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2006-2007, Benjamin Kaufmann
+// Copyright (c) 2006-2016, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -24,91 +24,49 @@
 #include <clasp/util/platform.h>
 #include <utility>    // std::pair
 #include <functional> // std::unary_function, std::binary_function
+#include <iterator>
 #include <algorithm>
 /*!
  * \file 
  * Some utility types and functions.
  */
 namespace Clasp {
-class  Solver;
-struct Model;
-
-//! Base class for library events.
-struct Event {
-	enum Subsystem { subsystem_facade = 0, subsystem_load = 1, subsystem_prepare = 2, subsystem_solve = 3 };
-	enum Verbosity { verbosity_quiet  = 0, verbosity_low  = 1, verbosity_high    = 2, verbosity_max   = 3 };
-	explicit Event(Subsystem sys, uint32 evId, Verbosity verbosity) : system(sys), verb(verbosity), op(0), id(evId) {}
-	uint32 system : 2; // one of Event::Subsystem - subsystem that produced the event
-	uint32 verb   : 2; // one of Event::Verbosity - the verbosity level of this event
-	uint32 op     : 8; // operation that triggered the event
-	uint32 id     : 16;// type id of event
-	static uint32 nextId();
-};
-template <class T>
-struct Event_t : Event {
-	Event_t(Subsystem sys, Verbosity verb) : Event(sys, id_s, verb) {}
-	static const uint32 id_s;
-};
-template <class T> const uint32 Event_t<T>::id_s = Event::nextId();
-//! A log message.
-struct LogEvent : Event_t<LogEvent> {
-	enum LogType { message = 'M', warning = 'W' };
-	LogEvent(Subsystem sys, Verbosity verb, LogType t, const Solver* s, const char* what) : Event_t<LogEvent>(sys, verb), solver(s), msg(what) {
-		op = static_cast<uint32>(t);
-	}
-	bool isWarning() const { return op == static_cast<uint32>(warning); }
-	const Solver* solver;
-	const char*   msg;
-};
-//! Creates a low priority message event.
-inline LogEvent message(Event::Subsystem sys, const char* what, const Solver* s = 0) { return LogEvent(sys, Event::verbosity_high, LogEvent::message, s, what); }
-template <Event::Verbosity V>
-inline LogEvent message(Event::Subsystem sys, const char* what, const Solver* s = 0) { return LogEvent(sys, V, LogEvent::message, s, what); }
-//! Creates a high priority warning event.
-inline LogEvent warning(Event::Subsystem sys, const char* what, const Solver* s = 0){ return LogEvent(sys, Event::verbosity_quiet, LogEvent::warning, s, what); }
-//! Base class for solving related events.
-template <class T>
-struct SolveEvent : Event_t<T> {
-	SolveEvent(const Solver& s, Event::Verbosity verb) : Event_t<T>(Event::subsystem_solve, verb), solver(&s) {}
-	const Solver* solver;
-};
-//! Event type for reporting models via generic event handler.
-struct ModelEvent : SolveEvent<ModelEvent> {
-	ModelEvent(const Model& m, const Solver& s) : SolveEvent<ModelEvent>(s, verbosity_quiet), model(&m) {}
-	const Model* model;
-};
-
-template <class ToType, class EvType> const ToType* event_cast(const EvType& ev) { return ev.id == ToType::id_s ? static_cast<const ToType*>(&ev) : 0; }
-
-class ModelHandler {
-public:
-	virtual ~ModelHandler() {}
-	virtual bool onModel(const Solver&, const Model&) = 0;
-};
-class EventHandler : public ModelHandler {
-public:	
-	explicit EventHandler(Event::Verbosity verbosity = Event::verbosity_quiet) {
-		for (uint32 i = 0; i != sizeof(verbosity_)/sizeof(verbosity_[0]); ++i) { verbosity_[i] = static_cast<uint8>(verbosity); }
-	}
-	virtual ~EventHandler();
-	void setVerbosity(Event::Subsystem sys, Event::Verbosity verb) {
-		verbosity_[sys] = static_cast<uint8>(verb);
-	}
-	void dispatch(const Event& ev) {
-		if (ev.verb <= verbosity_[ev.system]) { onEvent(ev); }
-	}
-	virtual void onEvent(const Event& /* ev */) {}
-	virtual bool onModel(const Solver& s, const Model& m) { onEvent(ModelEvent(m, s)); return true; }
-private:
-	EventHandler(const EventHandler&);
-	EventHandler& operator=(const EventHandler&);
-	uint8 verbosity_[4];
-};
 
 /*!
  * \defgroup misc Miscellaneous and Internal Stuff not specific to clasp.
  */
 //@{
+
+template <class T>
+inline T bit_mask(unsigned n) { return static_cast<T>(1) << n; }
+// returns whether bit n is set in x
+template <class T>
+inline bool test_bit(T x, unsigned n) { return (x & bit_mask<T>(n)) != 0; }
+template <class T>
+inline T clear_bit(T x, unsigned n)   { return x & ~bit_mask<T>(n); }
+template <class T>
+inline T set_bit(T x, unsigned n)     { return x | bit_mask<T>(n); }
+template <class T>
+inline T toggle_bit(T x, unsigned n)  { return x ^ bit_mask<T>(n); }
+template <class T>
+inline T& store_clear_bit(T& x, unsigned n)  { return (x &= ~bit_mask<T>(n)); }
+template <class T>
+inline T& store_set_bit(T& x, unsigned n)  { return (x |= bit_mask<T>(n)); }
+template <class T>
+inline T& store_toggle_bit(T& x, unsigned n)  { return (x ^= bit_mask<T>(n)); }
+template <class T>
+inline T right_most_bit(T x) { return x & (-x); }
+
+inline uint32 log2(uint32 x) {
+	uint32 ln = 0;
+	if (x & 0xFFFF0000u) { x >>= 16; ln |= 16; }
+	if (x & 0xFF00u    ) { x >>=  8; ln |=  8; }
+	if (x & 0xF0u      ) { x >>=  4; ln |=  4; }
+	if (x & 0xCu       ) { x >>=  2; ln |=  2; }
+	if (x & 0x2u       ) {/*x>>=1*/; ln |=  1; }
+	return ln;
+}
+
 // Computes n choose k.
 inline uint64 choose(unsigned n, unsigned k) {
 	if (k == 0) return 1;
@@ -121,6 +79,8 @@ inline uint64 choose(unsigned n, unsigned k) {
 	}
 	return res;
 }
+inline double ratio(uint64 x, uint64 y)   { return y ? static_cast<double>(x) / static_cast<double>(y) : 0; }
+inline double percent(uint64 x, uint64 y) {	return ratio(x, y) * 100.0; }
 
 //! A very simple but fast Pseudo-random number generator
 /*!
@@ -166,6 +126,17 @@ public:
 private:
 	uint32 seed_;
 };
+
+// exponential moving average
+// ema = currentEma + ((double(sample) - currentEma)*alpha);
+template <class T>
+inline double exponentialMovingAverage(double currentEma, T sample, double alpha) {
+	return (static_cast<double>(sample) * alpha) + (currentEma * (1.0 - alpha));
+}
+template <class T>
+inline double cumulativeMovingAverage(double currentAvg, T sample, uint64 numSeen) {
+	return (static_cast<double>(sample) + (currentAvg * numSeen)) / static_cast<double>(numSeen + 1);
+}
 
 //! An unary operator function that calls p->destroy()
 struct DestroyObject {
@@ -325,6 +296,9 @@ inline compose_2_2<OP1, OP2,OP3> compose22(const OP1& op1, const OP2& op2, const
 	return compose_2_2<OP1, OP2, OP3>(op1, op2, op3);
 }
 
+struct Ownership_t {
+	enum Type { Retain = 0, Acquire = 1 };
+};
 template <class T, class D = DeleteObject>
 class SingleOwnerPtr {
 public:
@@ -360,7 +334,57 @@ struct Range {
 	T lo;
 	T hi;
 };
-//@}
+template <class T>
+inline bool operator==(const Range<T>& lhs, const Range<T>& rhs) {
+	return lhs.lo == rhs.lo && lhs.hi == rhs.hi;
 }
+template <class T>
+struct num_iterator : std::iterator<std::random_access_iterator_tag, T> {
+	explicit num_iterator(const T& val) : val_(val) {}
+	typedef typename std::iterator<std::random_access_iterator_tag, T>::value_type      value_type;
+	typedef typename std::iterator<std::random_access_iterator_tag, T>::difference_type difference_type;
+	bool operator==(const num_iterator& rhs) const { return val_ == rhs.val_; }
+	bool operator!=(const num_iterator& rhs) const { return val_ != rhs.val_; }
+	bool operator<=(const num_iterator& rhs) const { return val_ <= rhs.val_; }
+	bool operator< (const num_iterator& rhs) const { return val_  < rhs.val_; }
+	bool operator>=(const num_iterator& rhs) const { return val_ >= rhs.val_; }
+	bool operator> (const num_iterator& rhs) const { return val_  > rhs.val_; }
+	value_type    operator*()  const { return val_; }
+	T const*      operator->() const { return &val_; }
+	num_iterator& operator++()       { ++val_; return *this; }
+	num_iterator& operator++(int)    { num_iterator t(*this); ++*this; return t; }
+	num_iterator& operator--()       { --val_; return *this; }
+	num_iterator& operator--(int)    { num_iterator t(*this); --*this; return t; }
+	num_iterator& operator+=(difference_type n) { val_ += n; return *this; }
+	num_iterator& operator-=(difference_type n) { val_ -= n; return *this; }
+	num_iterator  operator+(difference_type n) const { return num_iterator(val_ + n); }
+	num_iterator  operator-(difference_type n) const { return num_iterator(val_ - n); }
+	value_type    operator[](difference_type n)const { return val_ + n; }
+	friend num_iterator operator+(difference_type n, num_iterator it) { return num_iterator(it.val_ + n); }
+private:
+	T val_;
+};
+//@}
 
+//! Base class for library events.
+struct Event {
+	enum Subsystem { subsystem_facade = 0, subsystem_load = 1, subsystem_prepare = 2, subsystem_solve = 3 };
+	enum Verbosity { verbosity_quiet  = 0, verbosity_low  = 1, verbosity_high    = 2, verbosity_max   = 3 };
+	explicit Event(Subsystem sys, uint32 evId, Verbosity verbosity) : system(sys), verb(verbosity), op(0), id(evId) {}
+	uint32 system : 2; // one of Event::Subsystem - subsystem that produced the event
+	uint32 verb   : 2; // one of Event::Verbosity - the verbosity level of this event
+	uint32 op     : 8; // operation that triggered the event
+	uint32 id     : 16;// type id of event
+	static uint32 nextId();
+};
+template <class T>
+struct Event_t : Event {
+	Event_t(Subsystem sys, Verbosity verb) : Event(sys, id_s, verb) {}
+	static const uint32 id_s;
+};
+template <class T> const uint32 Event_t<T>::id_s = Event::nextId();
+
+template <class ToType, class EvType> const ToType* event_cast(const EvType& ev) { return ev.id == ToType::id_s ? static_cast<const ToType*>(&ev) : 0; }
+
+}
 #endif

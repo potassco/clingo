@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2010-2012, Benjamin Kaufmann
+// Copyright (c) 2010-2016, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -17,29 +17,39 @@
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
-#ifdef _MSC_VER
-#pragma warning(disable : 4996) // std::copy was declared deprecated
-#endif
-
 #include <clasp/dependency_graph.h>
 #include <clasp/solver.h>
 #include <clasp/clause.h>
 #include <clasp/solve_algorithms.h>
 #include <clasp/util/timer.h>
-namespace Clasp {
-
+namespace Clasp { 
+SolveTestEvent::SolveTestEvent(const Solver& s, uint32 a_scc, bool part) 
+	: SolveEvent<SolveTestEvent>(s, Event::verbosity_max)
+	, result(-1), scc(a_scc), partial(part) {
+	confDelta   = s.stats.conflicts;
+	choiceDelta = s.stats.choices;
+	time        = 0.0;
+}
+uint64 SolveTestEvent::choices() const {
+	return solver->stats.choices - choiceDelta;
+}
+uint64 SolveTestEvent::conflicts() const {
+	return solver->stats.conflicts - confDelta;
+}
+namespace Asp {
 /////////////////////////////////////////////////////////////////////////////////////////
-// class SharedDependencyGraph
+// class PrgDepGraph
 /////////////////////////////////////////////////////////////////////////////////////////
-SharedDependencyGraph::SharedDependencyGraph(Configuration* cfg) : config_(cfg) {
+PrgDepGraph::PrgDepGraph(NonHcfMapType m) {
 	// add sentinal atom needed for disjunctions
-	createAtom(negLit(0), PrgNode::noScc);
+	createAtom(lit_false(), PrgNode::noScc);
 	VarVec adj;	adj.push_back(idMax);
 	initAtom(sentinel_atom, 0, adj, 0);
 	seenComponents_ = 0;
+	mapType_        = (uint32)m;
 }
 
-SharedDependencyGraph::~SharedDependencyGraph() {
+PrgDepGraph::~PrgDepGraph() {
 	for (AtomVec::size_type i = 0; i != atoms_.size(); ++i) {
 		delete [] atoms_[i].adj_;
 	}
@@ -52,10 +62,10 @@ SharedDependencyGraph::~SharedDependencyGraph() {
 	}
 }
 
-bool SharedDependencyGraph::relevantPrgAtom(const Solver& s, PrgAtom* a) const { 
+bool PrgDepGraph::relevantPrgAtom(const Solver& s, PrgAtom* a) const { 
 	return !a->ignoreScc() && a->inUpper() && a->scc() != PrgNode::noScc && !s.isFalse(a->literal());
 }
-bool SharedDependencyGraph::relevantPrgBody(const Solver& s, PrgBody* b) const { 
+bool PrgDepGraph::relevantPrgBody(const Solver& s, PrgBody* b) const { 
 	return !s.isFalse(b->literal()); 
 }
 
@@ -65,7 +75,7 @@ bool SharedDependencyGraph::relevantPrgBody(const Solver& s, PrgBody* b) const {
 // B in body(A).
 // Pre : b->seen() = 1 for all new and relevant bodies b
 // Post: b->seen() = 0 for all bodies that were added to the PBADG
-void SharedDependencyGraph::addSccs(LogicProgram& prg, const AtomList& sccAtoms, const NonHcfSet& nonHcfs) {
+void PrgDepGraph::addSccs(LogicProgram& prg, const AtomList& sccAtoms, const NonHcfSet& nonHcfs) {
 	// Pass 1: Create graph atom nodes and estimate number of bodies
 	atoms_.reserve(atoms_.size() + sccAtoms.size());
 	AtomList::size_type numBodies = 0;
@@ -90,18 +100,17 @@ void SharedDependencyGraph::addSccs(LogicProgram& prg, const AtomList& sccAtoms,
 			uint32 prop = 0;
 			for (PrgAtom::sup_iterator it = a->supps_begin(), endIt = a->supps_end(); it != endIt; ++it) {
 				assert(it->isBody() || it->isDisj());
-				NodeId bId= PrgNode::maxVertex;
+				NodeId bId= PrgNode::noNode;
 				if (it->isBody() && !it->isGamma()) {
 					prgBody = prg.getBody(it->node());
-					bId     = relevantPrgBody(*ctx.master(), prgBody) ? addBody(prg, prgBody) : PrgNode::maxVertex;
+					bId     = relevantPrgBody(*ctx.master(), prgBody) ? addBody(prg, prgBody) : PrgNode::noNode;
 				}
 				else if (it->isDisj()) {
 					prgDis  = prg.getDisj(it->node());
 					bId     = addDisj(prg, prgDis);
 					prop   |= AtomNode::property_in_disj;
-					ctx.setInDisj(a->var(), true);
 				}
-				if (bId != PrgNode::maxVertex) {
+				if (bId != PrgNode::noNode) {
 					if (!bodies_[bId].seen()) {
 						bodies_[bId].seen(true);
 						adj.push_back(bId);
@@ -145,12 +154,12 @@ void SharedDependencyGraph::addSccs(LogicProgram& prg, const AtomList& sccAtoms,
 	}
 	// add new non-hcf components
 	for (NonHcfSet::const_iterator it = nonHcfs.begin() + seenComponents_, end = nonHcfs.end(); it != end; ++it) {
-		addNonHcf(ctx, *it);
+		addNonHcf(ctx, nonHcfs.config, *it);
 	}
 	seenComponents_ = nonHcfs.size();
 }
 
-uint32 SharedDependencyGraph::createAtom(Literal lit, uint32 aScc) {
+uint32 PrgDepGraph::createAtom(Literal lit, uint32 aScc) {
 	NodeId id    = (uint32)atoms_.size();
 	atoms_.push_back(AtomNode());
 	AtomNode& ua = atoms_.back();
@@ -159,7 +168,7 @@ uint32 SharedDependencyGraph::createAtom(Literal lit, uint32 aScc) {
 	return id;
 }
 
-void SharedDependencyGraph::initAtom(uint32 id, uint32 prop, const VarVec& adj, uint32 numPreds) {
+void PrgDepGraph::initAtom(uint32 id, uint32 prop, const VarVec& adj, uint32 numPreds) {
 	AtomNode& ua = atoms_[id];
 	ua.setProperties(prop);
 	ua.adj_      = new NodeId[adj.size()];
@@ -177,14 +186,14 @@ void SharedDependencyGraph::initAtom(uint32 id, uint32 prop, const VarVec& adj, 
 	std::copy(adj.begin()+numPreds, adj.end(), ua.sep_);
 }
 
-uint32 SharedDependencyGraph::createBody(PrgBody* b, uint32 bScc) {
+uint32 PrgDepGraph::createBody(PrgBody* b, uint32 bScc) {
 	NodeId id = (uint32)bodies_.size();
 	bodies_.push_back(BodyNode(b, bScc));
 	return id;
 }
 
 // Creates and initializes a body node for the given body b.
-uint32 SharedDependencyGraph::addBody(const LogicProgram& prg, PrgBody* b) {
+uint32 PrgDepGraph::addBody(const LogicProgram& prg, PrgBody* b) {
 	if (b->seen()) {     // first time we see this body - 
 		VarVec preds, atHeads;
 		uint32 bScc  = b->scc(prg);
@@ -205,9 +214,9 @@ uint32 SharedDependencyGraph::addBody(const LogicProgram& prg, PrgBody* b) {
 // ai is a positive predecessor from bScc,
 // wi is the weight of ai (only for weight rules), and
 // li is a literal of a subgoal from some other scc (only for cardinality/weight rules)
-void SharedDependencyGraph::addPreds(const LogicProgram& prg, PrgBody* b, uint32 bScc, VarVec& preds) const {
+void PrgDepGraph::addPreds(const LogicProgram& prg, PrgBody* b, uint32 bScc, VarVec& preds) const {
 	if (bScc == PrgNode::noScc) { preds.clear(); return; }
-	const bool weights = b->type() == Asp::BodyInfo::SUM_BODY;
+	const bool weights = b->type() == Body_t::Sum;
 	for (uint32 i = 0; i != b->size() && !b->goal(i).sign(); ++i) {
 		PrgAtom* pred = prg.getAtom(b->goal(i).var());
 		if (relevantPrgAtom(*prg.ctx()->master(), pred) && pred->scc() == bScc) {
@@ -215,7 +224,7 @@ void SharedDependencyGraph::addPreds(const LogicProgram& prg, PrgBody* b, uint32
 			if (weights) { preds.push_back(b->weight(i)); }
 		}
 	}
-	if (b->type() != Asp::BodyInfo::NORMAL_BODY) {
+	if (b->type() != Body_t::Normal) {
 		preds.insert(preds.begin(), b->bound());
 		preds.push_back(idMax);
 		for (uint32 n = 0; n != b->size(); ++n) {
@@ -223,7 +232,7 @@ void SharedDependencyGraph::addPreds(const LogicProgram& prg, PrgBody* b, uint32
 			bool     ext  = b->goal(n).sign() || pred->scc() != bScc;
 			Literal lit   = b->goal(n).sign() ? ~pred->literal() : pred->literal();
 			if (ext && !prg.ctx()->master()->isFalse(lit)) {
-				preds.push_back(lit.asUint());
+				preds.push_back(lit.rep());
 				if (weights) { preds.push_back(b->weight(n)); }
 			}
 		}
@@ -233,7 +242,7 @@ void SharedDependencyGraph::addPreds(const LogicProgram& prg, PrgBody* b, uint32
 
 // Splits the heads of b into atoms and disjunctions.
 // Disjunctions are flattened to sentinel-enclose datom-lists.
-uint32 SharedDependencyGraph::addHeads(const LogicProgram& prg, PrgBody* b, VarVec& heads) const {
+uint32 PrgDepGraph::addHeads(const LogicProgram& prg, PrgBody* b, VarVec& heads) const {
 	for (PrgBody::head_iterator it = b->heads_begin(), end = b->heads_end(); it != end; ++it) {
 		if (it->isAtom() && !it->isGamma()) {
 			PrgAtom* a = prg.getAtom(it->node());
@@ -254,10 +263,10 @@ uint32 SharedDependencyGraph::addHeads(const LogicProgram& prg, PrgBody* b, VarV
 }
 
 // Adds the atoms from the given disjunction to atoms and returns the disjunction's scc.
-uint32 SharedDependencyGraph::getAtoms(const LogicProgram& prg, PrgDisj* d, VarVec& atoms) const {
+uint32 PrgDepGraph::getAtoms(const LogicProgram& prg, PrgDisj* d, VarVec& atoms) const {
 	uint32 scc = PrgNode::noScc;
 	for (PrgDisj::atom_iterator it = d->begin(), end = d->end(); it != end; ++it) {
-		PrgAtom* a = prg.getAtom(it->node());
+		PrgAtom* a = prg.getAtom(*it);
 		if (relevantPrgAtom(*prg.ctx()->master(), a)) {
 			assert(scc == PrgNode::noScc || scc == a->scc());
 			atoms.push_back(a->id());
@@ -268,7 +277,7 @@ uint32 SharedDependencyGraph::getAtoms(const LogicProgram& prg, PrgDisj* d, VarV
 }
 
 // Initializes preds and succs lists of the body node with the given id.
-void SharedDependencyGraph::initBody(uint32 id, const VarVec& preds, const VarVec& atHeads) {
+void PrgDepGraph::initBody(uint32 id, const VarVec& preds, const VarVec& atHeads) {
 	BodyNode* bn = &bodies_[id];
 	uint32 nSuccs= atHeads.size();
 	bn->adj_     = new NodeId[nSuccs + preds.size()];
@@ -295,11 +304,11 @@ void SharedDependencyGraph::initBody(uint32 id, const VarVec& preds, const VarVe
 	if (disj) { bodies_[id].data |= BodyNode::flag_has_delta; }
 }
 
-uint32 SharedDependencyGraph::addDisj(const LogicProgram& prg, PrgDisj* d) {
+uint32 PrgDepGraph::addDisj(const LogicProgram& prg, PrgDisj* d) {
 	assert(d->inUpper() && d->supports() == 1);
 	if (d->seen()) { // first time we see this disjunction
 		PrgBody* prgBody = prg.getBody(d->supps_begin()->node());
-		uint32   bId     = PrgNode::maxVertex;
+		uint32   bId     = PrgNode::noNode;
 		if (relevantPrgBody(*prg.ctx()->master(), prgBody)) {
 			bId = addBody(prg, prgBody);
 		}
@@ -308,7 +317,7 @@ uint32 SharedDependencyGraph::addDisj(const LogicProgram& prg, PrgDisj* d) {
 	return d->id();
 }
 
-void SharedDependencyGraph::addNonHcf(SharedContext& ctx, uint32 scc) {
+void PrgDepGraph::addNonHcf(SharedContext& ctx, Configuration* config, uint32 scc) {
 	VarVec sccAtoms, sccBodies;
 	// get all atoms from scc
 	for (uint32 i = 0; i != numAtoms(); ++i) {
@@ -331,41 +340,48 @@ void SharedDependencyGraph::addNonHcf(SharedContext& ctx, uint32 scc) {
 		}
 	}
 	for (uint32 i = 0; i != sccBodies.size(); ++i) { bodies_[sccBodies[i]].seen(false); }
-	components_.push_back( ComponentPair(scc, new NonHcfComponent(*this, ctx, scc, sccAtoms, sccBodies)) );
+	components_.push_back( ComponentPair(scc, new NonHcfComponent(*this, ctx, config, scc, sccAtoms, sccBodies)) );
 }
-void SharedDependencyGraph::accuStats() const {
+void PrgDepGraph::accuStats() const {
 	for (NonHcfIter it = nonHcfBegin(), end = nonHcfEnd(); it != end; ++it) {
 		it->second->prg_->accuStats();
 	}
 }
-void SharedDependencyGraph::simplify(const Solver& s) {
+void PrgDepGraph::simplify(const Solver& s) {
+	const bool shared        = s.sharedContext()->isShared();
 	ComponentMap::iterator j = components_.begin();
 	for (ComponentMap::iterator it = components_.begin(), end = components_.end(); it != end; ++it) {
-		if (it->second->simplify(it->first, s)) { *j++ = *it; }
-		else                                    { delete it->second; }
+		bool ok = it->second->simplify(it->first, s);
+		if (!shared) { 
+			if (ok) { *j++ = *it; }
+			else    { delete it->second; }
+		}
 	}
-	components_.erase(j, components_.end());
+	if (!shared) { components_.erase(j, components_.end()); }
 }
 /////////////////////////////////////////////////////////////////////////////////////////
-// class SharedDependencyGraph::NonHcfComponent::ComponentMap
+// class PrgDepGraph::NonHcfComponent::ComponentMap
 /////////////////////////////////////////////////////////////////////////////////////////
-class SharedDependencyGraph::NonHcfComponent::ComponentMap {
+class PrgDepGraph::NonHcfComponent::ComponentMap {
 public:
 	ComponentMap() { static_assert(sizeof(Mapping) == sizeof(uint64), "Invalid padding!"); }
 	struct Mapping {
-		explicit Mapping(NodeId id) : node(id), varOff(0), varUsed(0), isEq(0) { }
-		uint32 node;        // node id in dep-graph of generator program P
-		uint32 varOff : 30; // var offset in tester solver
-		uint32 varUsed:  1; // has var in tester solver?
-		uint32 isEq   :  1; // node literal in P is eq to some other node literal in P
-		Var     var()       const { return varOff * varUsed; }
-		Literal atPos()     const { return posLit(var()); }
-		Literal atAux()     const { return posLit(varOff+1); }
-		Literal atUnf()     const { return posLit(varOff+2); }
-		Literal bodyAux()   const { return posLit(var()); }
+		explicit Mapping(NodeId id) : node(id), var(0), ext(0) { }
+		uint32 node;     // node id in dep-graph of generator program P
+		uint32 var : 30; // var in tester solver
+		uint32 ext :  2; // additional data
+		// Atom
+		bool  disj() const { return ext != 0u; }
+		bool hasTp() const { return ext == 2u; }
+		Literal up() const { return posLit(var); }
+		Literal hp() const { assert(disj()); return posLit(var + 1); }
+		Literal tp() const { assert(disj()); return posLit((var + 2)*uint32(hasTp())); }
+		// Body
+		Literal fb() const { return Literal(var, (ext & 1u) != 0u); }
+		bool    eq() const { return ext != 0u; }
 		bool operator<(const Mapping& other) const { return node < other.node; }
 	};
-	typedef  SharedDependencyGraph       SccGraph;
+	typedef  PrgDepGraph                 SccGraph;
 	typedef  PodVector<Mapping>::type    NodeMap;
 	typedef  NodeMap::iterator           MapIt;
 	typedef  NodeMap::const_iterator     MapIt_c;
@@ -375,7 +391,7 @@ public:
 	void     addBodyConstraints(const Solver& generator, const SccGraph& dep, uint32 scc, SharedContext& out);
 	void     mapGeneratorAssignment(const Solver& generator, const SccGraph& dep, LitVec& out) const;
 	void     mapTesterModel(const Solver& tester, VarVec& out) const;
-	bool     simplify(const Solver& generator, Solver& tester);
+	bool     simplify(const Solver& generator, const SccGraph& dep, Solver& tester);
 	MapRange atoms() const { return MapRange(mapping.begin(), mapping.begin() + numAtoms); }
 	MapRange bodies()const { return MapRange(mapping.begin() + numAtoms, mapping.end()); }
 	MapIt_c  findAtom(NodeId nodeId) const { return std::lower_bound(mapping.begin(), mapping.begin()+numAtoms, Mapping(nodeId)); }
@@ -384,26 +400,32 @@ public:
 };
 // Adds necessary variables for all atoms and bodies to the component program.
 // Input-Vars: (set via assumptions)
-//  a+: for each atom a, a+ is true iff a is true in P
-//  B*: for each body B, B* is true iff B is not false in P
+//  tp: for each atom p in a proper disjunctive head, tp is true iff p is true in P
+//  fb: for each body b, fb is true iff b is false in P
 // Aux-Var: (derived)
-//  a*: for each atom a, a* is true iff not a+ OR au
+//  hp: for each atom p in a proper disjunctive head, hp is true iff tp and ~up
 // Output: (unfounded sets)
-//  au: for each atom a, au is true iff a is unfounded w.r.t to assignment of P.
-void SharedDependencyGraph::NonHcfComponent::ComponentMap::addVars(Solver& generator, const SccGraph& dep, const VarVec& atoms, const VarVec& bodies, SharedContext& comp) {
+//  up: for each atom p, up is true iff a is unfounded w.r.t the assignment of P.
+void PrgDepGraph::NonHcfComponent::ComponentMap::addVars(Solver& generator, const SccGraph& dep, const VarVec& atoms, const VarVec& bodies, SharedContext& comp) {
+	assert(generator.decisionLevel() == 0);
 	mapping.reserve(atoms.size() + bodies.size());
+	const PrgDepGraph::NonHcfMapType mt = dep.nonHcfMapType();
 	for (VarVec::const_iterator it = atoms.begin(), end = atoms.end(); it != end; ++it) { 
 		const AtomNode& at = dep.getAtom(*it);
 		Literal gen        = at.lit;
 		if (generator.isFalse(gen)) { continue; }
 		Mapping map(*it);
-		map.varUsed = !generator.isTrue(gen) || generator.level(gen.var()) > 0;
-		map.varOff  = map.varUsed ? comp.addVar(Var_t::atom_var) : comp.numVars();
-		// add additional vars for au and ax
-		comp.addVar(Var_t::atom_var);
-		comp.addVar(Var_t::atom_var);
-		comp.setFrozen(map.atUnf().var(), true);
-		comp.setFrozen(map.atPos().var(), true);
+		// up [ hp [tp] ]
+		map.var = comp.addVar(Var_t::Atom); // up
+		map.ext = (mt == PrgDepGraph::map_old || at.inDisjunctive());
+		comp.setFrozen(map.var, true);
+		if (map.ext) {
+			comp.addVar(Var_t::Atom); // hp
+			if (!generator.isTrue(gen)) { // tp
+				comp.setFrozen(comp.addVar(Var_t::Atom), true);
+				++map.ext;
+			}
+		}
 		mapping.push_back(map);
 	}
 	numAtoms = (uint32)mapping.size();
@@ -413,30 +435,29 @@ void SharedDependencyGraph::NonHcfComponent::ComponentMap::addVars(Solver& gener
 		Literal gen = dep.getBody(*it).lit;
 		if (generator.isFalse(gen))  { continue; }
 		Mapping map(*it);
-		map.varUsed = !generator.isTrue(gen) || generator.level(gen.var()) > 0;
-		if (map.varUsed && !generator.seen(gen)) {
-			map.varOff= comp.addVar(Var_t::atom_var);
+		if (!generator.seen(gen) && !generator.isTrue(gen)) {
+			map.var = comp.addVar(Var_t::Atom);
+			comp.setFrozen(map.var, true);
 			generator.markSeen(gen);
 		}
-		else { // eq to TRUE or existing body
-			map.isEq  = 1;
-			map.varOff= comp.numVars()+1;
-			if (map.varUsed) {
-				for (MapRange r = this->bodies(); r.first != r.second;) {
-					--r.second;
-					if (dep.getBody(r.second->node).lit == gen) {
-						map.varOff = r.second->varOff;
-						break;
-					}
+		else if (generator.isTrue(gen)) {
+			map.ext = 1u;
+		}
+		else {
+			map.ext = 2u;
+			for (MapRange r = this->bodies(); r.first != r.second;) {
+				--r.second;
+				if (dep.getBody(r.second->node).lit == gen) {
+					map.var = r.second->var;
+					break;
 				}
-				assert(map.varOff <= comp.numVars());
 			}
 		}
-		comp.setFrozen(map.bodyAux().var(), true);
+		assert(map.var <= comp.numVars() && (map.var || map.ext == 1u));
 		mapping.push_back(map);
 	}
 	for (MapRange r = this->bodies(); r.first != r.second; ++r.first) {
-		if (!r.first->isEq) {
+		if (!r.first->eq()) {
 			Var v = dep.getBody(r.first->node).lit.var();
 			generator.clearSeen(v);
 		}
@@ -444,30 +465,32 @@ void SharedDependencyGraph::NonHcfComponent::ComponentMap::addVars(Solver& gener
 }
 
 // Adds constraints stemming from the given atoms to the component program.
-// 1. [au(a0) v ... v au(an-1)], where 
+// 1. [up(a0) v ... v up(an-1)], where 
 //   - ai is an atom in P from the given atom set, and 
-//   - au(ai) is the corresponding output-atom in the component program C.
-// 2. For each atom ai in atom set, [ax(ai) <=> ~ap(ai) v au(ai)], where
-//   ap(ai), ax(ai), au(ai) are the input, aux resp. output atoms in C.
-void SharedDependencyGraph::NonHcfComponent::ComponentMap::addAtomConstraints(SharedContext& comp) {
+//   - up(ai) is the corresponding output-atom in the component program C.
+// 2. For each atom ai in atom set occurring in a proper disjunction, [hp(ai) <=> tp(ai), ~up(ai)], where
+//   tp(ai), hp(ai), up(ai) are the input, aux, and output atoms in C.
+void PrgDepGraph::NonHcfComponent::ComponentMap::addAtomConstraints(SharedContext& comp) {
 	ClauseCreator cc1(comp.master()), cc2(comp.master());
 	cc1.addDefaultFlags(ClauseCreator::clause_force_simplify);
 	cc1.start();
 	for (MapRange r = atoms(); r.first != r.second; ++r.first) {
 		const Mapping& m = *r.first;
-		cc1.add(m.atUnf());
-		cc2.start().add(~m.atPos()).add(m.atUnf()).add(~m.atAux()).end(); // [~a+ v au v ~a*]
-		cc2.start().add(m.atAux()).add(m.atPos()).end();  // [a* v a+]
-		cc2.start().add(m.atAux()).add(~m.atUnf()).end(); // [a* v ~au]
+		cc1.add(m.up());
+		if (m.disj()) {
+			cc2.start().add(~m.tp()).add(m.up()).add(m.hp()).end(); // [~tp v up v hp]
+			cc2.start().add(~m.hp()).add(m.tp()).end();  // [~hp v tp]
+			cc2.start().add(~m.hp()).add(~m.up()).end(); // [~hp v ~up]
+		}
 	}
 	cc1.end();
 }
 
 // Adds constraints stemming from the given bodies to the component program.
 // For each atom ai and rule a0 | ai | ...| an :- B, s.th. B in bodies
-//  [~au(ai) v ~bc(B) V ~ax(aj), j != i V au(p), p in B+ ^ C], where
-// ax(ai), au(ai) is the aux resp. output atom of ai in C.
-void SharedDependencyGraph::NonHcfComponent::ComponentMap::addBodyConstraints(const Solver& generator, const SccGraph& dep, uint32 scc, SharedContext& comp) {
+//  [~up(ai) v fb(B) V hp(aj), j != i V up(p), p in B+ ^ C], where
+// hp(ai), up(ai) are the aux and output atoms of ai in C.
+void PrgDepGraph::NonHcfComponent::ComponentMap::addBodyConstraints(const Solver& generator, const SccGraph& dep, uint32 scc, SharedContext& comp) {
 	ClauseCreator cc(comp.master()); 
 	cc.addDefaultFlags(ClauseCreator::clause_force_simplify);
 	ClauseCreator dc(comp.master());
@@ -483,18 +506,18 @@ void SharedDependencyGraph::NonHcfComponent::ComponentMap::addBodyConstraints(co
 				if (!*hIt) { do { ++hIt; } while (*hIt); }
 				continue;
 			}
-			// [~B* v ~au V ~o* for all o != a in B.disHead V bu for each b in B+ ^ C]
-			cc.start().add(~r.first->bodyAux());
+			// [fb(B) v ~up(a) V hp(o) for all o != a in B.disHead V up(b) for each b in B+ ^ C]
+			cc.start().add(r.first->fb());
 			if (B.scc == scc) { // add subgoals from same scc
 				for (const NodeId* aIt = B.preds(); *aIt != idMax; ++aIt) {
 					MapIt_c atMapped = findAtom(*aIt);
-					cc.add(atMapped->atUnf());
+					cc.add(atMapped->up());
 				}
 			}
 			if (*hIt) { // normal head
 				MapIt_c atMapped = findAtom(*hIt);
 				assert(atMapped != atoms().second);
-				cc.add(~atMapped->atUnf());
+				cc.add(~atMapped->up());
 				cc.end();
 			}
 			else { // disjunctive head
@@ -503,68 +526,67 @@ void SharedDependencyGraph::NonHcfComponent::ComponentMap::addBodyConstraints(co
 					dc.start();
 					dc = cc;
 					MapIt_c atMapped = findAtom(*hIt);
-					dc.add(~atMapped->atUnf());
+					dc.add(~atMapped->up());
 					for (const NodeId* other = dHead; *other; ++other) {
 						if (*other != *hIt) {
 							assert(dep.getAtom(*other).scc == scc);
 							atMapped = findAtom(*other);
-							dc.add(~atMapped->atAux());
+							dc.add(atMapped->hp());
 						}
 					}
 					dc.end();
 				}
 			}
 		}
-		if (r.first->isEq == 0) { *j++ = *r.first; }
+		if (!r.first->eq()) { *j++ = *r.first; }
 	}
 	mapping.erase(j, mapping.end());
 }
 
 // Maps the generator assignment given in s to a list of tester assumptions.
-void SharedDependencyGraph::NonHcfComponent::ComponentMap::mapGeneratorAssignment(const Solver& s, const SccGraph& dep, LitVec& assume) const {
+void PrgDepGraph::NonHcfComponent::ComponentMap::mapGeneratorAssignment(const Solver& s, const SccGraph& dep, LitVec& assume) const {
 	Literal  gen;
 	assume.clear(); assume.reserve(mapping.size());
 	for (MapRange r = atoms(); r.first != r.second; ++r.first) {
 		const Mapping& at = *r.first;
-		assert(at.varUsed || at.atPos() == posLit(0));
-		if (!at.varUsed) { continue; }
 		gen = dep.getAtom(at.node).lit;
-		assume.push_back(at.atPos() ^ (!s.isTrue(gen)));
-		if (s.isFalse(gen)) { assume.push_back(~at.atUnf()); }
+		if (at.hasTp()) {
+			assume.push_back(at.tp() ^ (!s.isTrue(gen)));
+		}
+		if (s.isFalse(gen)) { assume.push_back(~at.up()); }
 	}
 	for (MapRange r = bodies(); r.first != r.second; ++r.first) {
 		gen = dep.getBody(r.first->node).lit;
-		assume.push_back(r.first->bodyAux() ^ s.isFalse(gen));
+		assume.push_back(r.first->fb() ^ (!s.isFalse(gen)));
 	}
 }
 // Maps the tester model given in s back to a list of unfounded atoms in the generator.
-void SharedDependencyGraph::NonHcfComponent::ComponentMap::mapTesterModel(const Solver& s, VarVec& out) const {
+void PrgDepGraph::NonHcfComponent::ComponentMap::mapTesterModel(const Solver& s, VarVec& out) const {
 	assert(s.numFreeVars() == 0);
 	out.clear();
 	for (MapRange r = atoms(); r.first != r.second; ++r.first) {
-		if (s.isTrue(r.first->atUnf())) {
+		if (s.isTrue(r.first->up())) {
 			out.push_back(r.first->node);
 		}
 	}
 }
-bool SharedDependencyGraph::NonHcfComponent::ComponentMap::simplify(const Solver& generator, Solver& tester) {
+bool PrgDepGraph::NonHcfComponent::ComponentMap::simplify(const Solver& generator, const SccGraph& dep, Solver& tester) {
 	if (!tester.popRootLevel(UINT32_MAX)) { return false; }
-	const SharedDependencyGraph& dep = *generator.sharedContext()->sccGraph;
 	const bool rem = !tester.sharedContext()->isShared();
 	MapIt j        = rem ? mapping.begin() : mapping.end();
 	for (MapIt_c it = mapping.begin(), aEnd = it + numAtoms, end = mapping.end(); it != end; ++it) {
 		const Mapping& m = *it;
 		const bool  atom = it < aEnd;
 		Literal        g = atom ? dep.getAtom(m.node).lit : dep.getBody(m.node).lit;
-		if (!m.varUsed || generator.topValue(g.var()) == value_free) {
+		if (generator.topValue(g.var()) == value_free) {
 			if (rem) { *j++ = m; }
 			continue;
 		}
 		bool isFalse = generator.isFalse(g);
-		bool ok      = atom || tester.force(m.bodyAux() ^ isFalse);
+		bool ok      = atom || tester.force(isFalse ? m.fb() : ~m.fb());
 		if (atom) {
-			if   (!isFalse) { ok = tester.force(m.atPos()); if (ok && rem) { *j++ = m; } }
-			else            { ok = tester.force(~m.atPos()) && tester.force(~m.atUnf()); numAtoms -= (ok && rem); }
+			if (!isFalse){ ok = !m.hasTp() || tester.force(m.tp());  if (rem) { *j++ = m; } }
+			else         { ok = tester.force(~m.up()) && (!m.hasTp() || tester.force(~m.tp())); numAtoms -= (ok && rem); }
 		}
 		if (!ok) {
 			if (rem) { j = std::copy(it, end, j); }
@@ -575,28 +597,15 @@ bool SharedDependencyGraph::NonHcfComponent::ComponentMap::simplify(const Solver
 	return tester.simplify();
 }
 /////////////////////////////////////////////////////////////////////////////////////////
-// class SharedDependencyGraph::NonHcfComponent
+// class PrgDepGraph::NonHcfComponent
 /////////////////////////////////////////////////////////////////////////////////////////
-SolveTestEvent::SolveTestEvent(const Solver& s, uint32 a_scc, bool part) 
-	: SolveEvent<SolveTestEvent>(s, Event::verbosity_max)
-	, result(-1), scc(a_scc), partial(part) {
-	confDelta   = s.stats.conflicts;
-	choiceDelta = s.stats.choices;
-	time        = 0.0;
-}
-uint64 SolveTestEvent::choices() const {
-	return solver->stats.choices - choiceDelta;
-}
-uint64 SolveTestEvent::conflicts() const {
-	return solver->stats.conflicts - confDelta;
-}
-
-SharedDependencyGraph::NonHcfComponent::NonHcfComponent(const SharedDependencyGraph& dep, SharedContext& genCtx, uint32 scc, const VarVec& atoms, const VarVec& bodies) 
-	: prg_(new SharedContext())
+PrgDepGraph::NonHcfComponent::NonHcfComponent(const PrgDepGraph& dep, SharedContext& genCtx, Configuration* c, uint32 scc, const VarVec& atoms, const VarVec& bodies) 
+	: dep_(&dep)
+	, prg_(new SharedContext())
 	, comp_(new ComponentMap()){
 	Solver& generator = *genCtx.master();
-	prg_->setConcurrency(genCtx.concurrency(), SharedContext::mode_reserve);
-	prg_->setConfiguration(dep.nonHcfConfig(), false);
+	prg_->setConcurrency(genCtx.concurrency(), SharedContext::resize_reserve);
+	prg_->setConfiguration(c, Ownership_t::Retain);
 	comp_->addVars(generator, dep, atoms, bodies, *prg_);
 	prg_->startAddConstraints();
 	comp_->addAtomConstraints(*prg_);
@@ -605,25 +614,24 @@ SharedDependencyGraph::NonHcfComponent::NonHcfComponent(const SharedDependencyGr
 	prg_->endInit(true);
 }
 
-SharedDependencyGraph::NonHcfComponent::~NonHcfComponent() { 
+PrgDepGraph::NonHcfComponent::~NonHcfComponent() { 
 	delete prg_;
 	delete comp_;
 }
 
-void SharedDependencyGraph::NonHcfComponent::update(const SharedContext& generator) {
+void PrgDepGraph::NonHcfComponent::update(const SharedContext& generator) {
 	prg_->enableStats(generator.master()->stats.level());
 	for (uint32 i = 0; generator.hasSolver(i); ++i) {
-		if (!prg_->hasSolver(i)) { prg_->attach(prg_->addSolver());   }
+		if (!prg_->hasSolver(i)) { prg_->attach(prg_->pushSolver());   }
 		else                     { prg_->initStats(*prg_->solver(i)); }
 	}
 }
 
-void SharedDependencyGraph::NonHcfComponent::assumptionsFromAssignment(const Solver& s, LitVec& assume) const {
-	assert(s.sharedContext()->sccGraph.get() != 0);
-	comp_->mapGeneratorAssignment(s, *s.sharedContext()->sccGraph, assume);
+void PrgDepGraph::NonHcfComponent::assumptionsFromAssignment(const Solver& s, LitVec& assume) const {
+	comp_->mapGeneratorAssignment(s, *dep_, assume);
 }
 
-bool SharedDependencyGraph::NonHcfComponent::test(uint32 scc, const Solver& generator, const LitVec& assume, VarVec& unfoundedOut) const {
+bool PrgDepGraph::NonHcfComponent::test(uint32 scc, const Solver& generator, const LitVec& assume, VarVec& unfoundedOut) const {
 	assert(generator.id() < prg_->concurrency() && "Invalid id!");
 	// Forwards to message handler of generator so that messages are 
 	// handled during long running tests.
@@ -652,8 +660,296 @@ bool SharedDependencyGraph::NonHcfComponent::test(uint32 scc, const Solver& gene
 	generator.sharedContext()->report(ev);
 	return ev.result != 0;
 }
-bool SharedDependencyGraph::NonHcfComponent::simplify(uint32, const Solver& s) const {
-	assert(s.sharedContext()->sccGraph.get() != 0);
-	return comp_->simplify(s, *prg_->solver(s.id()));
+bool PrgDepGraph::NonHcfComponent::simplify(uint32, const Solver& s) const {
+	return comp_->simplify(s, *dep_, *prg_->solver(s.id()));
+}
+} // namespace Asp
+
+/////////////////////////////////////////////////////////////////////////////////////////
+// class ExtDepGraph
+/////////////////////////////////////////////////////////////////////////////////////////
+ExtDepGraph::ExtDepGraph(uint32) : maxNode_(0), comEdge_(0), genCnt_(0) {}
+ExtDepGraph::~ExtDepGraph(){}
+void ExtDepGraph::addEdge(Literal lit, uint32 startNode, uint32 endNode) {
+	CLASP_FAIL_IF(!fwdArcs_.empty() && fwdArcs_.back().tail() == UINT32_MAX, "ExtDepGraph::update() not called!");
+	fwdArcs_.push_back(Arc::create(lit, startNode, endNode));
+	maxNode_ = std::max(std::max(startNode, endNode)+uint32(1), maxNode_);
+	if (comEdge_ && std::min(startNode, endNode) < nodes_.size()) {
+		invArcs_.clear();
+		comEdge_ = 0;
+		++genCnt_;
+	}
+}
+bool ExtDepGraph::frozen() const {
+	return !fwdArcs_.empty() && fwdArcs_.back().tail() == UINT32_MAX;
+}
+void ExtDepGraph::update() {
+	if (frozen()) {
+		fwdArcs_.pop_back();
+	}
+}
+uint32 ExtDepGraph::finalize(SharedContext& ctx) {
+	if (frozen()) {
+		return comEdge_;
+	}
+	// sort by end node
+	std::sort(fwdArcs_.begin() + comEdge_, fwdArcs_.end(), CmpArc<1>());
+	invArcs_.reserve(fwdArcs_.size());
+	Node sent = { UINT32_MAX, UINT32_MAX };
+	nodes_.resize(maxNode_, sent);
+	for (ArcVec::const_iterator it = fwdArcs_.begin() + comEdge_, end = fwdArcs_.end(); it != end;) {
+		uint32 node = it->head();
+		CLASP_FAIL_IF(comEdge_ && nodes_[node].invOff != UINT32_MAX, "ExtDepGraph: invalid incremental update!");
+		Inv inv;
+		nodes_[node].invOff = (uint32)invArcs_.size();
+		do {
+			inv.lit  = it->lit;
+			inv.rep  = static_cast<uint32>(it->tail() << 1) | 1u;
+			invArcs_.push_back(inv);
+			ctx.setFrozen(it->lit.var(), true);
+		} while (++it != end && it->head() == node);
+		invArcs_.back().rep ^= 1u;
+	}
+	// sort by start node
+	std::sort(fwdArcs_.begin() + comEdge_, fwdArcs_.end(), CmpArc<0>());
+	for (ArcVec::const_iterator it = fwdArcs_.begin() + comEdge_, end = fwdArcs_.end(); it != end;) {
+		uint32 node = it->tail();
+		CLASP_FAIL_IF(comEdge_ && nodes_[node].fwdOff != UINT32_MAX, "ExtDepGraph: invalid incremental update!");
+		nodes_[node].fwdOff = static_cast<uint32>(it - fwdArcs_.begin());
+		it          = std::lower_bound(it, end, node + 1, CmpArc<0>());
+	}
+	comEdge_ = (uint32)fwdArcs_.size();
+	fwdArcs_.push_back(Arc::create(lit_false(), UINT32_MAX, UINT32_MAX));
+	return comEdge_;
+}
+uint64 ExtDepGraph::attach(Solver& s, Constraint& p, uint64 genId) {
+	uint32 count = static_cast<uint32>(genId >> 32);
+	uint32 edges = static_cast<uint32>(genId);
+	uint32 update= count == genCnt_ ? 0 : edges;
+	GenericWatch* w;
+	for (uint32 i = (count == genCnt_ ? edges : 0), eId, end = comEdge_; i < end; ++i) {
+		const Arc& a = fwdArcs_[i];
+		if (a.head() != a.tail()) {
+			if (s.topValue(a.lit.var()) == value_free) {
+				if (!update || (w = s.getWatch(a.lit, &p)) == 0) { 
+					s.addWatch(a.lit, &p, i);
+				}
+				else {
+					w->data = i;
+					--update;
+				}
+			}
+			else if (s.isTrue(a.lit)) {
+				p.propagate(s, a.lit, (eId = i));
+			}
+		}
+		else if (!s.force(~a.lit)) {
+			break;
+		}
+	}
+	return (static_cast<uint64>(genCnt_) << 32) | comEdge_;
+}
+void ExtDepGraph::detach(Solver* s, Constraint& p) {
+	if (s) {
+		for (uint32 i = fwdArcs_.size(); i--; ) {
+			s->removeWatch(fwdArcs_[i].lit, &p);
+		}
+	}
+}
+/////////////////////////////////////////////////////////////////////////////////////////
+// class AcyclicityCheck
+/////////////////////////////////////////////////////////////////////////////////////////
+struct AcyclicityCheck::ReasonStore {
+	typedef PodVector<LitVec*>::type NogoodMap;
+	NogoodMap db;
+	void getReason(Literal p, LitVec& out) {
+		if (const LitVec* r = db[p.var()]) {
+			out.insert(out.end(), r->begin(), r->end());
+		}
+	}
+	void setReason(Literal p, LitVec::const_iterator first, LitVec::const_iterator end) {
+		Var v = p.var();
+		if (v >= db.size()) { db.resize(v+1, 0); }
+		if (db[v] == 0)     { db[v] = new LitVec(first, end); }
+		else                { db[v]->assign(first, end); }
+	}
+	~ReasonStore() { 
+		std::for_each(db.begin(), db.end(), DeleteObject());
+	}
+};
+AcyclicityCheck::AcyclicityCheck(DependencyGraph* graph) : graph_(graph), solver_(0), nogoods_(0), strat_(bit_mask<uint32>(config_bit)), tagCnt_(0), genId_(0)  {
+}
+AcyclicityCheck::~AcyclicityCheck() { 
+	delete nogoods_; 
+}
+
+void AcyclicityCheck::setStrategy(Strategy p) { 
+	strat_ = p;
+}
+void AcyclicityCheck::setStrategy(const SolverParams& p) {
+	if (p.acycFwd) { setStrategy(prop_fwd);  }
+	else           { setStrategy(p.loopRep == LoopReason_t::Implicit ? prop_full_imp : prop_full); }
+	store_set_bit(strat_, config_bit);
+}
+
+bool AcyclicityCheck::init(Solver& s) {
+	if (!graph_) { graph_ = s.sharedContext()->extGraph.get(); }
+	if (!graph_) { return true; }
+	if (test_bit(strat_, config_bit)) {
+		setStrategy(s.sharedContext()->configuration()->solver(s.id()));
+	}
+	tags_.resize(graph_->nodes(), 0);
+	parent_.resize(graph_->nodes());
+	todo_.clear();
+	solver_ = &s;
+	tagCnt_ = 0;
+	genId_  = graph_->attach(s, *this, genId_);
+	return true;
+}
+
+uint32 AcyclicityCheck::startSearch() { 
+	if (++tagCnt_ != 0) { return tagCnt_; } 
+	const uint32 last = tagCnt_ - 1;
+	for (Var v = 0; v != tags_.size(); ++v) {
+		tags_[v] = tags_[v] == last;
+	}
+	return tagCnt_ = 2;
+}
+void AcyclicityCheck::setReason(Literal p, LitVec::const_iterator first, LitVec::const_iterator end) {
+	if (!nogoods_) { nogoods_ = new ReasonStore(); }
+	nogoods_->setReason(p, first, end);
+}
+void AcyclicityCheck::addClauseLit(Solver& s, Literal p) {
+	assert(s.isFalse(p));
+	uint32 dl = s.level(p.var());
+	if (dl && !s.seen(p)) {
+		s.markSeen(p);
+		s.markLevel(dl);
+		reason_.push_back(p);
+	}
+}
+
+void AcyclicityCheck::reset() {
+	todo_.clear();
+	reason_.clear();
+}
+
+bool AcyclicityCheck::valid(Solver& s) { 
+	if (todo_.empty()) { return true; }
+	return AcyclicityCheck::propagateFixpoint(s, 0);
+}
+bool AcyclicityCheck::isModel(Solver& s) { 
+	return AcyclicityCheck::valid(s);
+}
+
+void AcyclicityCheck::destroy(Solver* s, bool detach) {
+	if (s && detach) {
+		s->removePost(this);
+	}
+	if (graph_) {
+		graph_->detach(detach ? s : 0, *this);
+	}
+	PostPropagator::destroy(s, detach);
+}
+void AcyclicityCheck::reason(Solver&, Literal p, LitVec& out) {
+	if (!reason_.empty() && reason_[0] == p) {
+		out.insert(out.end(), reason_.begin()+1, reason_.end());
+	}
+	else if (nogoods_) {
+		nogoods_->getReason(p, out);
+	}
+}
+
+bool AcyclicityCheck::propagateFixpoint(Solver& s, PostPropagator*) {
+	for (Arc x; !todo_.empty();) {
+		x = todo_.pop_ret();
+		if (!dfsForward(s, x) || (strategy() != prop_fwd && !dfsBackward(s, x))) {
+			return false;
+		}
+	}
+	todo_.clear();
+	return true;
+}
+bool AcyclicityCheck::dfsForward(Solver& s, const Arc& root) {
+	const uint32 tag = startSearch();
+	nStack_.clear();
+	pushVisit(root.head(), tag);
+	for (Var node, next; !nStack_.empty();) {
+		node = nStack_.back();
+		nStack_.pop_back();
+		for (const Arc* a = graph_->fwdBegin(node); a; a = graph_->fwdNext(a)) {
+			if (s.isTrue(a->lit)) {
+				next = a->head();
+				if (next == root.tail()) {
+					setParent(next, Parent::create(a->lit, node));
+					reason_.assign(1, ~root.lit);
+					for (Var n0 = next; n0 != root.head();) {
+						Parent parent = parent_[n0];
+						assert(s.isTrue(parent.lit));
+						reason_.push_back(parent.lit);
+						n0 = parent.node;
+					}
+					return s.force(~root.lit, this);
+				}
+				else if (!visited(next, tag)) {
+					setParent(next, Parent::create(a->lit, node));
+					pushVisit(next, tag);
+				}
+			}
+		}
+	}
+	return true;
+}
+bool AcyclicityCheck::dfsBackward(Solver& s, const Arc& root) {
+	const uint32 tag = startSearch();
+	const uint32 fwd = tag - 1;
+	nStack_.clear();
+	pushVisit(root.tail(), tag);
+	for (Var node, next; !nStack_.empty(); ) {
+		node = nStack_.back();
+		nStack_.pop_back();
+		for (const Inv* a = graph_->invBegin(node); a; a = graph_->invNext(a)) {
+			ValueRep val = s.value(a->lit.var());
+			if (val == falseValue(a->lit) || visited(next = a->tail(), tag)) { continue; }
+			if (visited(next, fwd)) { // a->lit would complete a cycle - force to false
+				assert(val == value_free || s.level(a->lit.var()) == s.decisionLevel());
+				reason_.assign(1, ~a->lit);
+				addClauseLit(s, ~root.lit);
+				for (Var n = next; n != root.head(); ) {
+					Parent parent = parent_[n];
+					assert(s.isTrue(parent.lit) && visited(parent.node, fwd));
+					addClauseLit(s, ~parent.lit);
+					n = parent.node;
+				}
+				for (Var n = node; n != root.tail(); ) {
+					Parent parent = parent_[n];
+					assert(s.isTrue(parent.lit)&& visited(parent.node, tag));
+					addClauseLit(s, ~parent.lit);
+					n = parent.node;
+				}
+				if (val == value_free && strategy() == prop_full) {
+					ConstraintInfo info(Constraint_t::Loop);
+					s.finalizeConflictClause(reason_, info, 0);
+					ClauseCreator::create(s, reason_, ClauseCreator::clause_no_prepare, info);
+				}
+				else {
+					for (uint32 i = 1; i != reason_.size(); ++i) {
+						s.clearSeen(reason_[i].var());
+						reason_[i] = ~reason_[i];
+					}
+					if (!s.force(~a->lit, this)) { return false; }
+					setReason(~a->lit, reason_.begin()+1, reason_.end());
+				}
+				assert(s.isFalse(a->lit));
+				if (!s.propagateUntil(this)) { return false; }
+			}
+			else if (val != value_free) { // follow true edge backward
+				setParent(next, Parent::create(a->lit, node));
+				pushVisit(next, tag);
+			}
+		}
+	}
+	return true;
 }
 }
+

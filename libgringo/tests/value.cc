@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -50,8 +50,8 @@ public:
     void test_cmp_num();
     void test_cmp_type();
     void test_cmp_other();
-    void test_print(); 
-    void test_sig(); 
+    void test_print();
+    void test_sig();
 
     virtual ~TestValue();
 
@@ -66,15 +66,15 @@ public:
 void TestValue::setUp() {
     args = { Value::createNum(42), Value::createId("a") };
     values = {
-        Value::createNum(INT_MIN), 
-        Value::createNum(INT_MAX), 
-        Value::createNum(0), 
-        Value::createNum(42), 
+        Value::createNum(INT_MIN),
+        Value::createNum(INT_MAX),
+        Value::createNum(0),
+        Value::createNum(42),
 
-        Value::createId("x"), 
-        Value::createId("abc"), 
+        Value::createId("x"),
+        Value::createId("abc"),
 
-        Value::createStr(""), 
+        Value::createStr(""),
         Value::createStr("xyz"),
 
         Value::createInf(),
@@ -207,7 +207,7 @@ void TestValue::test_cmp_other() {
 
 void TestValue::test_print() {
     std::ostringstream oss;
-    auto toString = [&oss](Value const &val) -> std::string { 
+    auto toString = [&oss](Value const &val) -> std::string {
         oss << val;
         std::string str = oss.str();
         oss.str("");

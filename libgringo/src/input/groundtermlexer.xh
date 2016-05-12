@@ -45,7 +45,6 @@ start:
         "#inf"("imum")?  { return GroundTermGrammar::parser::token::INFIMUM; }
         "#sup"("remum")? { return GroundTermGrammar::parser::token::SUPREMUM; }
 
-        "not"            { return GroundTermGrammar::parser::token::NOT; }
         IDENTIFIER       { value.uid = FWString::uid(string()); return GroundTermGrammar::parser::token::IDENTIFIER; }
         NUMBER           { value.num = integer(); return GroundTermGrammar::parser::token::NUMBER; }
         STRING           { value.uid = FWString::uid(unquote(string(1, 1))); return GroundTermGrammar::parser::token::STRING; }

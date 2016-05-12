@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2006-2012, Benjamin Kaufmann
+// Copyright (c) 2006-2015, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -28,7 +28,7 @@ namespace Clasp {
 class Enumerator::SharedQueue : public mt::MultiQueue<SharedLiterals*, void (*)(SharedLiterals*)> {
 public:
 	typedef mt::MultiQueue<SharedLiterals*, void (*)(SharedLiterals*)> BaseType;
-	explicit SharedQueue(uint32 m) : BaseType(m, releaseLits) { reserve(m + 1);  }
+	explicit SharedQueue(uint32 m) : BaseType(m, releaseLits) { reserve(m + 1); }
 	bool pushRelaxed(SharedLiterals* clause)  { unsafePublish(clause); return true; }
 	static void releaseLits(SharedLiterals* x){ x->release(); }
 };
@@ -74,7 +74,7 @@ void EnumerationConstraint::setDisjoint(bool x) {
 }
 Constraint* EnumerationConstraint::cloneAttach(Solver& s) {
 	EnumerationConstraint* c = clone();
-	CLASP_FAIL_IF(c == 0, "Clonging not supported by Enumerator");
+	CLASP_FAIL_IF(c == 0, "Cloning not supported by Enumerator");
 	c->init(s, mini_ ? const_cast<SharedMinimizeData*>(mini_->shared()) : 0, queue_.get() ? queue_->clone() : 0);
 	return c;
 }
@@ -127,7 +127,7 @@ bool EnumerationConstraint::integrateNogoods(Solver& s) {
 void EnumerationConstraint::destroy(Solver* s, bool x) { 
 	if (mini_) { mini_->destroy(s, x); mini_ = 0; }
 	queue_ = 0;
-	destroyDB(nogoods_, s, x);
+	Clasp::destroyDB(nogoods_, s, x);
 	Constraint::destroy(s, x); 
 }
 bool EnumerationConstraint::simplify(Solver& s, bool reinit) { 
@@ -144,10 +144,16 @@ bool EnumerationConstraint::commitModel(Enumerator& ctx, Solver& s) {
 	flags_|= value_true;
 	return true;
 }
-bool EnumerationConstraint::commitUnsat(Enumerator&, Solver& s) {
+bool EnumerationConstraint::commitUnsat(Enumerator& ctx, Solver& s) {
 	next_.clear();
 	flags_ |= value_false;
-	return mini_ && mini_->handleUnsat(s, !disjointPath(), next_);
+	if (mini_) {
+		mini_->handleUnsat(s, !disjointPath(), next_);
+	}
+	if (!ctx.tentative()) {
+		doCommitUnsat(ctx, s);
+	}
+	return !s.hasConflict() || s.decisionLevel() != s.rootLevel();
 }
 void EnumerationConstraint::modelHeuristic(Solver& s) {
 	const bool full      = (flags_ & uint32(flag_model_heuristic)) != 0;
@@ -165,36 +171,36 @@ void EnumerationConstraint::modelHeuristic(Solver& s) {
 // Enumerator
 /////////////////////////////////////////////////////////////////////////////////////////
 Enumerator::Enumerator() : mini_(0), queue_(0) {}
-Enumerator::~Enumerator()                            { delete queue_; if (mini_) mini_->release(); }
+Enumerator::~Enumerator()                            { delete queue_; }
 void Enumerator::setDisjoint(Solver& s, bool b)const { constraint(s)->setDisjoint(b);    }
 void Enumerator::setIgnoreSymmetric(bool b)          { model_.sym = static_cast<uint32>(b == false); }
 void Enumerator::end(Solver& s)                const { constraint(s)->end(s); }
 void Enumerator::doReset()                           {}
 void Enumerator::reset() {
-	if (mini_) { mini_->release(); mini_ = 0; }
-	if (queue_){ delete queue_;   queue_ = 0; }
-	model_.ctx   = 0;
+	if (mini_) { mini_ = 0; }
+	if (queue_){ delete queue_; queue_ = 0; }
+	model_.ctx   = this;
 	model_.values= 0;
 	model_.costs = 0;
 	model_.num   = 0;
 	model_.opt   = 0;
+	model_.def   = 0;
 	model_.sym   = 1;
 	model_.type  = uint32(modelType());
 	model_.sId   = 0;
 	doReset();
 }
-int  Enumerator::init(SharedContext& ctx, SharedMinimizeData* min, int limit)  { 
+int  Enumerator::init(SharedContext& ctx, OptMode oMode, int limit)  { 
 	ctx.master()->setEnumerationConstraint(0);
 	reset();
-	if (min && min->mode() == MinimizeMode_t::ignore){ min->release(); min = 0; }
-	mini_        = min;
-	limit        = limit >= 0 ? limit : 1 - int(exhaustive());
-	if (limit   != 1) { ctx.setPreserveModels(true); }
-	queue_       = new SharedQueue(ctx.concurrency());
-	ConPtr c     = doInit(ctx, min, limit);
-	bool cons    = model_.consequences();
-	if      (tentative())        { model_.type = Model::model_sat; }
-	else if (cons && optimize()) { ctx.report(warning(Event::subsystem_prepare, "Optimization: Consequences may depend on enumeration order.")); }
+	if (oMode != MinimizeMode_t::ignore){ mini_ = ctx.minimize(); }
+	limit      = limit >= 0 ? limit : 1 - int(exhaustive());
+	if (limit != 1) { ctx.setPreserveModels(true); }
+	queue_     = new SharedQueue(ctx.concurrency());
+	ConPtr c   = doInit(ctx, mini_, limit);
+	bool cons  = model_.consequences();
+	if      (tentative())        { model_.type = Model::Sat; }
+	else if (cons && optimize()) { ctx.warn("Optimization: Consequences may depend on enumeration order."); }
 	c->init(*ctx.master(), mini_, new ThreadQueue(*queue_));
 	ctx.master()->setEnumerationConstraint(c);
 	return limit;
@@ -215,7 +221,7 @@ bool Enumerator::commitModel(Solver& s) {
 	if (constraint(s)->commitModel(*this, s)) {
 		s.stats.addModel(s.decisionLevel());
 		++model_.num;
-		model_.ctx    = this;
+		model_.sId    = s.id();
 		model_.values = &s.model;
 		model_.costs  = 0;
 		if (minimizer()) {
@@ -223,7 +229,6 @@ bool Enumerator::commitModel(Solver& s) {
 			std::transform(minimizer()->adjust(), minimizer()->adjust()+costs_.size(), minimizer()->sum(), costs_.begin(), std::plus<wsum_t>());
 			model_.costs = &costs_;
 		}
-		model_.sId    = s.id();
 		return true;
 	}
 	return false;
@@ -231,7 +236,7 @@ bool Enumerator::commitModel(Solver& s) {
 bool Enumerator::commitSymmetric(Solver& s){ return model_.sym && !optimize() && commitModel(s); }
 bool Enumerator::commitUnsat(Solver& s)    { return constraint(s)->commitUnsat(*this, s); }
 bool Enumerator::commitClause(const LitVec& clause)  const { 
-	return queue_ && queue_->pushRelaxed(SharedLiterals::newShareable(clause, Constraint_t::learnt_other));
+	return queue_ && queue_->pushRelaxed(SharedLiterals::newShareable(clause, Constraint_t::Other));
 }
 bool Enumerator::commitComplete() {
 	if (enumerated()) {
@@ -244,6 +249,7 @@ bool Enumerator::commitComplete() {
 		}
 		else if (model_.consequences() || (!model_.opt && optimize())) {
 			model_.opt = uint32(optimize());
+			model_.def = uint32(model_.consequences());
 			model_.num = 1;
 		}
 	}
@@ -261,6 +267,9 @@ bool Enumerator::supportsSplitting(const SharedContext& ctx) const {
 		else if (config && i < config->numSolver())             { ok = MinimizeMode_t::supportsSplitting(static_cast<MinimizeMode_t::Strategy>(config->solver(i).optStrat)); }
 	}
 	return ok;
+}
+int Enumerator::unsatType() const {
+	return !optimize() ? unsat_stop : unsat_cont;
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // EnumOptions
@@ -283,4 +292,15 @@ Enumerator* EnumOptions::nullEnumerator() {
 	};
 	return new NullEnum;
 }
+
+const char* modelType(const Model& m) {
+	switch (m.type) {
+		case Model::Sat     : return "Model";
+		case Model::Brave   : return "Brave";
+		case Model::Cautious: return "Cautious";
+		case Model::User    : return "User";
+		default: return 0;
+	}
+}
+
 }

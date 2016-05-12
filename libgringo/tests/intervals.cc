@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -161,7 +161,7 @@ void TestInterval::test_boundBefore() {
     CPPUNIT_ASSERT((lb(1,true)  < rb(2,false)));
     CPPUNIT_ASSERT((lb(1,false) < rb(2,true)));
     CPPUNIT_ASSERT((lb(1,false) < rb(2,false)));
-    // [        {           {         
+    // [        {           {
     // ] - gap  ) - no gap  ) - no gap
     CPPUNIT_ASSERT( (lb(1,true)  < rb(1,true)));
     CPPUNIT_ASSERT(!(lb(1,true)  < rb(1,false)));
@@ -196,8 +196,8 @@ void TestInterval::test_boundBefore() {
 
 std::string TestInterval::print(IS const &x) {
     auto f = [](std::ostream &out, IV const &x) {
-        out 
-            << (x.left.inclusive ? "[" : "(") 
+        out
+            << (x.left.inclusive ? "[" : "(")
             << x.left.bound
             << ","
             << x.right.bound

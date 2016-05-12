@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -26,10 +26,10 @@
 
 namespace Gringo { namespace Input {
 
-// {{{ declaration of PredicateLiteral
+// {{{1 declaration of PredicateLiteral
 
 struct PredicateLiteral : Literal {
-    PredicateLiteral(NAF naf, UTerm &&repr);
+    PredicateLiteral(NAF naf, UTerm &&repr, bool auxiliary = false);
     virtual unsigned projectScore() const;
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void toTuple(UTermVec &tuple, int &id);
@@ -43,12 +43,16 @@ struct PredicateLiteral : Literal {
     virtual Value isEDB() const;
     virtual bool hasPool(bool beforeRewrite) const;
     virtual void replace(Defines &dx);
-    virtual Ground::ULit toGround(PredDomMap &x) const;
+    virtual Ground::ULit toGround(DomainData &x, bool auxiliary) const;
     virtual ULit shift(bool negate);
     virtual UTerm headRepr() const;
+    virtual bool auxiliary() const { return auxiliary_; }
+    virtual void auxiliary(bool auxiliary) { auxiliary_ = auxiliary; }
     virtual ~PredicateLiteral();
 
+
     NAF naf;
+    bool auxiliary_;
     UTerm repr;
 };
 
@@ -56,7 +60,7 @@ struct ProjectionLiteral : PredicateLiteral {
     ProjectionLiteral(UTerm &&repr);
     virtual ProjectionLiteral *clone() const;
     virtual ULitVec unpool(bool beforeRewrite) const;
-    virtual Ground::ULit toGround(PredDomMap &x) const;
+    virtual Ground::ULit toGround(DomainData &x, bool auxiliary) const;
     virtual ULit shift(bool negate);
     virtual ~ProjectionLiteral();
     mutable bool initialized_;
@@ -79,9 +83,11 @@ struct RelationLiteral : Literal {
     virtual ULitVec unpool(bool beforeRewrite) const;
     virtual bool hasPool(bool beforeRewrite) const;
     virtual void replace(Defines &dx);
-    virtual Ground::ULit toGround(PredDomMap &x) const;
+    virtual Ground::ULit toGround(DomainData &x, bool auxiliary) const;
     virtual UTerm headRepr() const;
     virtual ULit shift(bool negate);
+    virtual bool auxiliary() const { return true; }
+    virtual void auxiliary(bool) { }
     virtual ~RelationLiteral();
     static ULit make(Term::ArithmeticsMap::value_type::value_type &x);
     static ULit make(Literal::AssignVec::value_type &x);
@@ -107,9 +113,11 @@ struct RangeLiteral : Literal {
     virtual ULitVec unpool(bool beforeRewrite) const;
     virtual bool hasPool(bool beforeRewrite) const;
     virtual void replace(Defines &dx);
-    virtual Ground::ULit toGround(PredDomMap &x) const;
+    virtual Ground::ULit toGround(DomainData &x, bool auxiliary) const;
     virtual ULit shift(bool negate);
     virtual UTerm headRepr() const;
+    virtual bool auxiliary() const { return true; }
+    virtual void auxiliary(bool) { }
     virtual ~RangeLiteral();
     static ULit make(SimplifyState::DotsMap::value_type &dots);
 
@@ -134,10 +142,12 @@ struct ScriptLiteral : Literal {
     virtual ULitVec unpool(bool beforeRewrite) const;
     virtual bool hasPool(bool beforeRewrite) const;
     virtual void replace(Defines &dx);
-    virtual Ground::ULit toGround(PredDomMap &x) const;
+    virtual Ground::ULit toGround(DomainData &x, bool auxiliary) const;
     virtual ULit shift(bool negate);
     virtual UTerm headRepr() const;
     virtual ~ScriptLiteral();
+    virtual bool auxiliary() const { return true; }
+    virtual void auxiliary(bool) { }
     static ULit make(SimplifyState::ScriptMap::value_type &script);
 
     UTerm assign;
@@ -162,9 +172,11 @@ struct FalseLiteral : Literal {
     virtual ULitVec unpool(bool beforeRewrite) const;
     virtual bool hasPool(bool beforeRewrite) const;
     virtual void replace(Defines &dx);
-    virtual Ground::ULit toGround(PredDomMap &x) const;
+    virtual Ground::ULit toGround(DomainData &x, bool auxiliary) const;
     virtual ULit shift(bool negate);
     virtual UTerm headRepr() const;
+    virtual bool auxiliary() const { return true; }
+    virtual void auxiliary(bool) { }
     virtual ~FalseLiteral();
 };
 
@@ -189,12 +201,15 @@ struct CSPLiteral : Literal {
     virtual ULitVec unpool(bool beforeRewrite) const;
     virtual bool hasPool(bool beforeRewrite) const;
     virtual void replace(Defines &dx);
-    virtual Ground::ULit toGround(PredDomMap &x) const;
+    virtual Ground::ULit toGround(DomainData &x, bool auxiliary) const;
     virtual ULit shift(bool negate);
     virtual UTerm headRepr() const;
+    virtual bool auxiliary() const { return auxiliary_; }
+    virtual void auxiliary(bool auxiliary) { auxiliary_ = auxiliary; }
     virtual ~CSPLiteral();
 
     Terms terms;
+    bool auxiliary_ = false;
 };
 using UCSPLit = std::unique_ptr<CSPLiteral>;
 

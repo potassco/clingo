@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2009-2013, Benjamin Kaufmann
+// Copyright (c) 2009-2016, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -93,22 +93,21 @@ void format(const Clasp::mt::MessageEvent& ev, char* out, uint32 outSize) {
 	typedef Clasp::mt::MessageEvent EV;
 	char buf[1024]; int n;
 	if (ev.op != EV::completed) { n = sprintf(buf, "%2u:X| %-15s %-53s |", ev.solver->id(), ev.msg, ev.op == EV::sent ? "sent" : "received"); }
-	else                        { n = sprintf(buf, "%2u:X| %-15s %-33s after %12.3fs |", ev.solver->id(), ev.msg, "completed", ev.time); }
+	else                        { n = sprintf(buf, "%2u:X| %-15s %-35s in %13.3fs |", ev.solver->id(), ev.msg, "completed", ev.time); }
 	null_term_copy(buf, n, out, outSize);
 }
 #endif
 /////////////////////////////////////////////////////////////////////////////////////////
 // Output
 /////////////////////////////////////////////////////////////////////////////////////////
-Output::Output(uint32 verb) : summary_(0), verbose_(0), hidePref_(0) {
+Output::Output(uint32 verb) : summary_(0), verbose_(0) {
 	std::memset(quiet_, 0, sizeof(quiet_));
 	setCallQuiet(print_no);
 	setVerbosity(verb);
 }
 Output::~Output() {}
 void Output::setVerbosity(uint32 verb) {
-	verbose_           = verb;
-	Event::Verbosity x = (Event::Verbosity)std::min(verb, (uint32)Event::verbosity_max);
+	Event::Verbosity x = (Event::Verbosity)std::min(verbose_ = verb, (uint32)Event::verbosity_max);
 	EventHandler::setVerbosity(Event::subsystem_facade , x);
 	EventHandler::setVerbosity(Event::subsystem_load   , x);
 	EventHandler::setVerbosity(Event::subsystem_prepare, x);
@@ -117,13 +116,13 @@ void Output::setVerbosity(uint32 verb) {
 void Output::setModelQuiet(PrintLevel model){ quiet_[0] = static_cast<uint8>(model); }
 void Output::setOptQuiet(PrintLevel opt)    { quiet_[1] = static_cast<uint8>(opt);   }
 void Output::setCallQuiet(PrintLevel call)  { quiet_[2] = static_cast<uint8>(call);  }
-void Output::setHide(char c)                { hidePref_ = c; }
 
 void Output::saveModel(const Model& m) {
-	Model temp(m);
-	temp.values = &(vals_ = *m.values);
-	temp.costs  = m.costs ? &(costs_=*m.costs) : 0;
-	saved_      = temp;
+	saved_ = m;
+	const SumVec*  costs = m.costs ? &(costs_ = *m.costs) : 0;
+	const ValueVec* vals = &(vals_ = *m.values);
+	saved_.values = vals;
+	saved_.costs  = costs;
 }
 
 void Output::onEvent(const Event& ev) {
@@ -137,11 +136,11 @@ void Output::onEvent(const Event& ev) {
 	}
 }
 bool Output::onModel(const Solver& s, const Model& m) {
-	if (modelQ() == print_all || (optQ() == print_all && m.costs)) {
-		printModel(s.symbolTable(), m, print_all);
+	if (modelQ() == print_all || optQ() == print_all) {
+		printModel(s.outputTable(), m, print_all);
 	}
-	if (modelQ() == print_best || (optQ() == print_best && m.costs)) {
-		if (m.opt == 1 && !m.consequences()) { printModel(s.symbolTable(), m, print_best); clearModel(); }
+	if (modelQ() == print_best || optQ() == print_best) {
+		if (m.opt == 1 && !m.consequences()) { printModel(s.outputTable(), m, print_best); clearModel(); }
 		else                                 { saveModel(m); }
 	}
 	return true;
@@ -149,7 +148,11 @@ bool Output::onModel(const Solver& s, const Model& m) {
 void Output::startStep(const ClaspFacade&) { clearModel(); summary_ = 0; }
 void Output::stopStep(const ClaspFacade::Summary& s){
 	if (getModel()) {
-		printModel(s.ctx().symbolTable(), *getModel(), print_best);
+		if (s.model()){
+			saved_.opt = s.model()->opt;
+			saved_.def = s.model()->def;
+		}
+		printModel(s.ctx().output, *getModel(), print_best);
 		clearModel();
 	}
 	if (callQ() == print_all) { 
@@ -169,6 +172,62 @@ void Output::shutdown(const ClaspFacade::Summary& summary) {
 	if (summary.stats()) { printStatistics(summary, true); }
 	shutdown();
 }
+// Returns the number of consequences and estimates in m.
+// For a model m with m.consequences and a return value ret:
+//   - ret.first  is the number of definite consequences
+//   - ret.second is the number of remaining possible consequences
+Output::UPair Output::numCons(const OutputTable& out, const Model& m) const {
+	uint32 low = 0, up = 0;
+	if (out.projectMode() == OutputTable::project_output) {
+		low += out.numFacts();
+		for (OutputTable::pred_iterator it = out.pred_begin(); it != out.pred_end(); ++it) {
+			low += m.isDef(it->cond);
+			up  += m.isEst(it->cond);
+		}
+		for (OutputTable::range_iterator it = out.vars_begin(), end = out.vars_end(); it != end; ++it) {
+			Literal p = posLit(*it);
+			low += m.isDef(p);
+			up  += m.isEst(p);
+		}
+	}
+	else {
+		for (OutputTable::lit_iterator it = out.proj_begin(), end = out.proj_end(); it != end; ++it) {
+			low += m.isDef(*it);
+			up  += m.isEst(*it);
+		}
+	}
+	return UPair(low, m.def ? 0 : up);
+}
+
+// Prints shown symbols in model.
+// The functions prints
+// - true literals in definite answer, followed by 
+// - true literals in current estimate if m.consequences()
+void Output::printWitness(const OutputTable& out, const Model& m, uintp data) {
+	for (OutputTable::fact_iterator it = out.fact_begin(); it != out.fact_end(); ++it) {
+		data = doPrint(OutPair(*it, lit_true()), data);
+	}
+	for (const char* x = out.theory ? out.theory->first(m) : 0; x; x = out.theory->next()) {
+		data = doPrint(OutPair(x, lit_true()), data);
+	}
+	const bool onlyD = m.type != Model::Cautious || m.def;
+	for (bool D = true;; D = !D) {
+		for (OutputTable::pred_iterator it = out.pred_begin(); it != out.pred_end(); ++it) {
+			if (m.isTrue(it->cond) && (onlyD || m.isDef(it->cond) == D)) {
+				data = doPrint(OutPair(it->name, lit_true()), data);
+			}
+		}
+		for (OutputTable::range_iterator it = out.vars_begin(), end = out.vars_end(); it != end; ++it) {
+			const bool showAll = !m.consequences();
+			Literal p = posLit(*it);
+			if ((showAll || m.isTrue(p)) && (onlyD || m.isDef(p) == D)) {
+				data = doPrint(OutPair(static_cast<const char*>(0), m.isTrue(p) ? p : ~p), data);
+			}
+		}
+		if (D == onlyD) { return; }
+	}
+}
+uintp Output::doPrint(const OutPair&, UPtr x) { return x; }
 /////////////////////////////////////////////////////////////////////////////////////////
 // StatsVisitor
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -211,7 +270,7 @@ void StatsVisitor::visitThreads(const SharedContext& ctx) {
 	}
 }
 void StatsVisitor::visitHccs(const SharedContext& ctx) {
-	if (const SharedDependencyGraph* g = ctx.sccGraph.get()) {
+	if (const PrgDepGraph* g = ctx.sccGraph.get()) {
 		for (uint32 i = 0; i != g->numNonHcfs(); ++i) {
 			visitHcc(i, (g->nonHcfBegin() + i)->second->ctx());
 		}
@@ -305,7 +364,7 @@ void JsonOutput::visitExtSolverStats(const ExtendedStats& stx, bool accu) {
 	printKeyValue("Deleted" , stx.deleted);
 	pushObject("Type", type_array);
 	const char* names[] = {"Short", "Conflict", "Loop", "Other"};
-	for (int i = Constraint_t::static_constraint; i <= Constraint_t::learnt_other; ++i) {
+	for (int i = Constraint_t::Static; i <= Constraint_t::Other; ++i) {
 		pushObject();
 		printKeyValue("Type", names[i]);
 		if (i == 0) {
@@ -357,34 +416,38 @@ void JsonOutput::visitJumpStats(const JumpStats& st, bool) {
 void JsonOutput::visitLogicProgramStats(const Asp::LpStats& lp) {
 	using namespace Asp;
 	pushObject("LP");
-	printKeyValue("Atoms", lp.atoms);
-	if (lp.auxAtoms) { printKeyValue("AuxAtoms", lp.auxAtoms); }
 	pushObject("Rules");
-	printKeyValue("Sum", lp.rules());
-	char buf[10];
-	LpStats::RPair r;
-	for (RuleType i = BASICRULE; i != ENDRULE; ++i) {
-		r = lp.rules(i);
-		if (r.first) {
-			sprintf(buf, "R%u", i);
-			printKeyValue(buf, r.first);
+	printKeyValue("Original", lp.rules[0].sum());
+	printKeyValue("Final",    lp.rules[1].sum());
+	for (uint32 i = 0; i != RuleStats::numKeys(); ++i) {
+		if (i != RuleStats::Normal && lp.rules[0][i]) {
+			pushObject(RuleStats::toStr(i));
+			printKeyValue("Original", lp.rules[0][i]);
+			printKeyValue("Final",    lp.rules[1][i]);
+			popObject();
 		}
-	}
-	r = lp.rules(BASICRULE);
-	if (lp.tr()) {
-		printKeyValue("Created", r.second - r.first);
-		pushObject("Translated");
-		for (RuleType i = BASICRULE; ++i != ENDRULE;) {
-			r = lp.rules(i);
-			if (r.first > 0) {
-				sprintf(buf, "R%u", i);
-				printKeyValue(buf, r.first-r.second);
-			}
-		}
-		popObject();
 	}
 	popObject(); // Rules
-	printKeyValue("Bodies", lp.bodies);
+	printKeyValue("Atoms", lp.atoms);
+	if (lp.auxAtoms) { printKeyValue("AuxAtoms", lp.auxAtoms); }
+	if (lp.disjunctions[0]) {
+		pushObject("Disjunctions");
+		printKeyValue("Original", lp.disjunctions[0]);
+		printKeyValue("Final", lp.disjunctions[1]);
+		popObject();
+	}
+	pushObject("Bodies");
+	printKeyValue("Original", lp.bodies[0].sum());
+	printKeyValue("Final"   , lp.bodies[1].sum());
+	for (uint32 i = 1; i != BodyStats::numKeys(); ++i) {
+		if (lp.bodies[0][i]) {
+			pushObject(BodyStats::toStr(i));
+			printKeyValue("Original", lp.bodies[0][i]);
+			printKeyValue("Final",    lp.bodies[1][i]);
+			popObject();
+		}
+	}
+	popObject();
 	if      (lp.sccs == 0)              { printKeyValue("Tight", "yes"); }
 	else if (lp.sccs == PrgNode::noScc) { printKeyValue("Tight", "N/A"); }
 	else                                {
@@ -396,23 +459,24 @@ void JsonOutput::visitLogicProgramStats(const Asp::LpStats& lp) {
 	}
 	pushObject("Equivalences");
 	printKeyValue("Sum", lp.eqs());
-	printKeyValue("Atom", lp.eqs(Var_t::atom_var));
-	printKeyValue("Body", lp.eqs(Var_t::body_var));
-	printKeyValue("Other", lp.eqs(Var_t::atom_body_var));
+	printKeyValue("Atom", lp.eqs(Var_t::Atom));
+	printKeyValue("Body", lp.eqs(Var_t::Body));
+	printKeyValue("Other", lp.eqs(Var_t::Hybrid));
 	popObject();
 	popObject(); // LP
 }
 void JsonOutput::visitProblemStats(const ProblemStats& p) {
 	pushObject("Problem");
-	printKeyValue("Variables", p.vars);
-	printKeyValue("Eliminated", p.vars_eliminated);
-	printKeyValue("Frozen", p.vars_frozen);
+	printKeyValue("Variables", p.vars.num);
+	printKeyValue("Eliminated", p.vars.eliminated);
+	printKeyValue("Frozen", p.vars.frozen);
 	pushObject("Constraints");
-	uint32 sum = p.constraints + p.constraints_binary + p.constraints_ternary;
+	uint32 sum = p.numConstraints();
 	printKeyValue("Sum", sum);
-	printKeyValue("Binary", p.constraints_binary);
-	printKeyValue("Ternary", p.constraints_ternary);
+	printKeyValue("Binary", p.constraints.binary);
+	printKeyValue("Ternary", p.constraints.ternary);
 	popObject(); // Constraints
+	printKeyValue("AcycEdges", p.acycEdges);
 	popObject(); // PS
 }
 
@@ -455,7 +519,7 @@ void JsonOutput::printKeyValue(const char* k, double v) {
 
 void JsonOutput::pushObject(const char* k, ObjType t) {
 	if (k) {
-		printKey(k);	
+		printKey(k);
 	}
 	else {
 		printf("%s%-*.*s", open_, indent(), indent(), " ");
@@ -479,45 +543,50 @@ void JsonOutput::startModel() {
 	}
 	pushObject();
 }
-	
-void JsonOutput::printModel(const SymbolTable& index, const Model& m, PrintLevel x) {
-	bool hasModel = false;
-	if (x == modelQ()) {
+uintp JsonOutput::doPrint(const OutPair& out, uintp data) {
+	const char* sep = reinterpret_cast<const char*>(data);
+	if (out.first){ printString(out.first, sep); }
+	else          { printf("%s%d", sep, out.second.sign() ? -static_cast<int>(out.second.var()) : static_cast<int>(out.second.var())); }
+	return reinterpret_cast<UPtr>(", ");
+}
+void JsonOutput::printModel(const OutputTable& out, const Model& m, PrintLevel x) {
+	uint32 hasModel = (x == modelQ());
+	if (hasModel) {
 		startModel();
-		hasModel = true; 
 		pushObject("Value", type_array);
-		const char* sep = "";
 		printf("%-*s", indent(), " ");
-		if (index.type() == SymbolTable::map_indirect) {
-			for (SymbolTable::const_iterator it = index.begin(); it != index.end(); ++it) {
-				if (m.value(it->second.lit.var()) == trueValue(it->second.lit) && doPrint(it->second)) {
-					printString(it->second.name.c_str(), sep);
-					sep = ", ";
-				}	
-			}
-		}
-		else {
-			for (Var v = 1; v < index.size(); ++v) {
-				printf("%s%d", sep, (m.value(v) == value_false ? -static_cast<int>(v) : static_cast<int>(v)));
-				sep = ", ";
-			}
-		}
+		printWitness(out, m, reinterpret_cast<UPtr>(""));
 		popObject();
+		if (m.consequences() && x == optQ()) {
+			printCons(numCons(out, m));
+		}
 	}
-	if (x == optQ() && m.costs) {
-		if (!hasModel) { startModel(); hasModel = true; }
-		printCosts(*m.costs);
+	if (x == optQ()) {
+		if (m.consequences() && !hasModel++) {
+			startModel();
+			printCons(numCons(out, m));
+		}
+		if (m.costs) {
+			if (!hasModel++) { startModel(); }
+			printCosts(*m.costs);
+		}
 	}
 	if (hasModel) { popObject(); }
 }
-void JsonOutput::printCosts(const SumVec& opt) { 
-	pushObject("Costs", type_array);
+void JsonOutput::printCosts(const SumVec& opt, const char* name) { 
+	pushObject(name, type_array);
 	printf("%-*s", indent(), " ");
 	const char* sep = "";
 	for (SumVec::const_iterator it = opt.begin(), end = opt.end(); it != end; ++it) {
 		printf("%s%" PRId64, sep, *it);
 		sep = ", ";
 	}
+	popObject();
+}
+void JsonOutput::printCons(const UPair& cons) {
+	pushObject("Consequences");
+	printKeyValue("True", cons.first);
+	printKeyValue("Open", cons.second);
 	popObject();
 }
 
@@ -533,7 +602,10 @@ void JsonOutput::printSummary(const ClaspFacade::Summary& run, bool final) {
 		printKeyValue("Number", run.enumerated());
 		printKeyValue("More"  , run.complete() ? "no" : "yes");
 		if (run.sat()) {
-			if (run.consequences()){ printKeyValue(run.consequences(), run.complete() ? "yes":"unknown"); }
+			if (run.consequences()){ 
+				printKeyValue(run.consequences(), run.complete() ? "yes":"unknown");
+				printCons(numCons(run.ctx().output, *run.model()));
+			}
 			if (run.optimize())    { 
 				printKeyValue("Optimum", run.optimum()?"yes":"unknown"); 
 				printKeyValue("Optimal", run.optimal());
@@ -541,6 +613,12 @@ void JsonOutput::printSummary(const ClaspFacade::Summary& run, bool final) {
 			}
 		}
 		popObject();
+		if (run.hasLower() && !run.optimum()) {
+			pushObject("Bounds");
+			printCosts(run.lower(), "Lower");
+			printCosts(run.costs() ? *run.costs() : SumVec(), "Upper");
+			popObject();
+		}
 		if (final) { printKeyValue("Calls", run.step + 1); }
 		pushObject("Time");
 		printKeyValue("Total", run.totalTime);
@@ -605,10 +683,10 @@ TextOutput::TextOutput(uint32 verbosity, Format f, const char* catAtom, char ifs
 		format[cat_objective] = "o ";
 		format[cat_result]    = "s ";
 		format[cat_value_term]= "0";
-		format[cat_atom]      = "%d";
+		format[cat_atom]      = "-%d";
 		if (f == format_pb09) {
 			format[cat_value_term]= "";
-			format[cat_atom]      = "x%d";
+			format[cat_atom]      = "-x%d";
 			setModelQuiet(print_best);
 		}
 	}
@@ -628,6 +706,7 @@ TextOutput::TextOutput(uint32 verbosity, Format f, const char* catAtom, char ifs
 		CLASP_FAIL_IF(*catAtom == '\n', "cat_atom: Invalid format string - new line not allowed!");
 		CLASP_FAIL_IF(*catAtom != 0   , "cat_atom: Invalid format string - '%%%c' too many arguments!", *catAtom);
 	}
+	CLASP_FAIL_IF((f == format_sat09 || f == format_pb09) && *format[cat_atom] != '-' , "cat_atom: Invalid format string - must start with '-'!");
 	ifs_[0] = ifs;
 	ifs_[1] = 0;
 	width_  = 13+(int)strlen(format[cat_comment]);
@@ -665,12 +744,9 @@ void TextOutput::printSummary(const ClaspFacade::Summary& run, bool final) {
 	if (verbosity() || run.stats()) {
 		printBR(cat_comment);
 		if (run.result.interrupted()){ printKeyValue((run.result.signal != SIGALRM ? "INTERRUPTED" : "TIME LIMIT"), "%u\n", uint32(1));  }
+		const char* const moreStr = run.complete() ? "" :  "+";
 		printKey("Models");
-		char buf[64];
-		int wr = sprintf(buf, "%" PRIu64, run.enumerated());
-		if (!run.complete()) { buf[wr++] = '+'; }
-		buf[wr]=0;
-		printf("%-6s\n", buf);
+		printf("%" PRIu64 "%s\n", run.enumerated(), moreStr);
 		if (run.sat()) {
 			if (run.consequences()) { printLN(cat_comment, "  %-*s: %s", width_-2, run.consequences(), (run.complete()?"yes":"unknown")); }
 			if (run.costs())        { printKeyValue("  Optimum", "%s\n", run.optimum()?"yes":"unknown"); }
@@ -680,6 +756,15 @@ void TextOutput::printSummary(const ClaspFacade::Summary& run, bool final) {
 				printCosts(*run.costs());
 				printf("\n");
 			}
+			if (run.consequences()) {
+				printKey("Consequences");
+				printf("%u%s\n", numCons(run.ctx().output, *run.model()).first, moreStr);
+			}
+		}
+		if (run.hasLower() && !run.optimum()) {
+			printKey("Bounds");
+			printBounds(run.lower(), run.costs() ? *run.costs() : SumVec());
+			printf("\n");
 		}
 		if (final) { printKeyValue("Calls", "%u\n", run.step + 1); }
 		printKey("Time");
@@ -754,16 +839,35 @@ void TextOutput::printSolveProgress(const Event& ev) {
 #if WITH_THREADS
 	else if (const mt::MessageEvent*me = event_cast<mt::MessageEvent>(ev)){ Clasp::Cli::format(*me, line, 128); }
 #endif
-	else if (const LogEvent* log = event_cast<LogEvent>(ev))              { printLN(cat_comment, "%2u:L| %-69s |", log->solver->id(), log->msg); return; }
+	else if (const LogEvent* log = event_cast<LogEvent>(ev))              { 
+		clasp_format(line, sizeof(line), "[Solving+%.3fs]", RealTime::getTime() - stTime_);
+		printLN(cat_comment, "%2u:L| %-30s %-38s |", log->solver->id(), line, log->msg);
+		return;
+	}
+	else if (const OptBound* bnd = event_cast<OptBound>(ev))              {
+		if (bnd->upper != INT64_MAX) {
+			clasp_format(line, sizeof(line), "%2u:B| @Level %-6u [%17" PRId64 ";%-17" PRId64 "]%20c", bnd->solver->id(), bnd->at, bnd->lower, bnd->upper, '|');
+		}
+		else {
+			clasp_format(line, sizeof(line), "%2u:B| @Level %-6u [%17" PRId64 ";%-17c]%20c", bnd->solver->id(), bnd->at, bnd->lower, '*', '|');
+		}
+	}
 	else                                                                  { return; }
-	bool newEvent = (uint32)ev_.fetch_and_store(ev.id) != ev.id;
+	bool newEvent = ((uint32)ev_.fetch_and_store(static_cast<int>(ev.id))) != ev.id;
 	if ((lEnd == '\n' && --line_ == 0) || newEvent) {
 		if (line_ <= 0) {
 			line_ = 20;
-			printf("%s%s\n"
-				"%sID:T       Vars           Constraints         State            Limits       |\n"
-				"%s       #free/#fixed   #problem/#learnt  #conflicts/ratio #conflict/#learnt  |\n"
-				"%s%s\n", format[cat_comment], rowSep, format[cat_comment], format[cat_comment], format[cat_comment], rowSep);
+			if ((verbosity() & 1) != 0) {
+				printf("%s%s\n"
+					"%sID:T       Vars           Constraints         State            Limits       |\n"
+					"%s       #free/#fixed   #problem/#learnt  #conflicts/ratio #conflict/#learnt  |\n"
+					"%s%s\n", format[cat_comment], rowSep, format[cat_comment], format[cat_comment], format[cat_comment], rowSep);
+			}
+			else {
+				printf("%s%s\n"
+					"%sID:T       Info                     Info                      Info          |\n"
+					"%s%s\n", format[cat_comment], rowSep, format[cat_comment], format[cat_comment], rowSep);
+			}
 		}
 		else { printLN(cat_comment, "%s", rowSep); }
 	}
@@ -775,57 +879,64 @@ const char* TextOutput::fieldSeparator() const { return ifs_; }
 int TextOutput::printSep(CategoryKey k) const {
 	return printf("%s%s", fieldSeparator(), *fieldSeparator() != '\n' ? "" : format[k]);
 }
-void TextOutput::printModel(const SymbolTable& sym, const Model& m, PrintLevel x) {
+uintp TextOutput::doPrint(const OutPair& s, UPtr data) {
+	uint32& accu    = reinterpret_cast<UPair*>(data)->first;
+	uint32& maxLine = reinterpret_cast<UPair*>(data)->second;
+	if      (accu < maxLine) { accu += printSep(cat_value); }
+	else if (!maxLine)       { maxLine = s.first || *fieldSeparator() != ' ' ? UINT32_MAX : 70; }
+	else                     { printf("\n%s", format[cat_value]); accu = 0; }
+	if (s.first){ accu += printf(format[cat_atom], s.first); }
+	else        { accu += printf(format[cat_atom] + !s.second.sign(), static_cast<int>(s.second.var())); }
+	return data;
+}
+void TextOutput::printModel(const OutputTable& out, const Model& m, PrintLevel x) {
 	if (x == modelQ()) {
 		comment(1, "Answer: %" PRIu64"\n", m.num);
 		printf("%s", format[cat_value]);
-		if (sym.type() == SymbolTable::map_indirect) { printNames(sym, m); }
-		else {
-			uint32 const maxLineLen = *fieldSeparator() == ' ' ? 70 : UINT32_MAX;
-			uint32       printed    = 0;
-			bool   const onlyTrue   = m.consequences();
-			std::string  fmt("%s"); fmt += format[cat_atom];
-			for (Var v = 1; v < sym.size(); ++v) {
-				if (!onlyTrue || m.isTrue(posLit(v))) {
-					if (printed) { printed += printSep(cat_value); }
-					printed += printf(fmt.c_str(), m.value(v) == value_false ? "-":"", int(v));
-					if (printed >= maxLineLen) {
-						printed = 0;
-						printf("\n%s", format[cat_value]);
-					}
-				}
-			}	
-		}
+		UPair data;
+		printWitness(out, m, reinterpret_cast<UPtr>(&data));
 		if (*format[cat_value_term]) {
 			printSep(cat_value);
 			printf("%s", format[cat_value_term]); 
 		}
 		printf("\n");
 	}
-	if (x == optQ() && m.costs) {
-		printf("%s", format[cat_objective]);
-		printCosts(*m.costs);
-		printf("\n");
+	if (x == optQ()) {
+		if (m.consequences()) {
+			UPair cons = numCons(out, m);
+			printLN(cat_comment, "Consequences: [%u;%u]", cons.first, cons.first + cons.second);
+		}
+		if (m.costs) {
+			printf("%s", format[cat_objective]);
+			printCosts(*m.costs);
+			printf("\n");
+		}
 	}
 	fflush(stdout);
 }
 
-void TextOutput::printNames(const Clasp::SymbolTable& sym, const Clasp::Model& m) {
-	bool first = true;
-	for (SymbolTable::const_iterator it = sym.begin(); it != sym.end(); ++it) {
-		if (m.isTrue(it->second.lit) && doPrint(it->second)) {
-			if (!first) { printSep(cat_value); }
-			printf(format[cat_atom], it->second.name.c_str());
-			first = false;
+void TextOutput::printBounds(const SumVec& lower, const SumVec& upper) const {
+	for (uint32 i = 0, uMax = upper.size(), lMax = lower.size(), end = std::max(uMax, lMax), seps = end; i != end; ++i) {
+		if (i >= uMax) {
+			printf("[%" PRId64";*]", lower[i]); 
 		}
+		else if (i >= lMax || lower[i] == upper[i]) {
+			printf("%" PRId64, upper[i]);
+		}
+		else {
+			printf("[%" PRId64";%" PRId64"]", lower[i], upper[i]);
+		}
+		if (--seps) { printSep(cat_objective); }
 	}
 }
 
 void TextOutput::printCosts(const SumVec& costs) const {
-	printf("%" PRId64, costs[0]);
-	for (uint32 i = 1, end = (uint32)costs.size(); i != end; ++i) {
-		printSep(cat_objective);
-		printf("%" PRId64, costs[i]);
+	if (!costs.empty()) {
+		printf("%" PRId64, costs[0]);
+		for (uint32 i = 1, end = (uint32)costs.size(); i != end; ++i) {
+			printSep(cat_objective);
+			printf("%" PRId64, costs[i]);
+		}
 	}
 }
 void TextOutput::startSection(const char* n) const {
@@ -847,31 +958,49 @@ void TextOutput::visitSolverStats(const Clasp::SolverStats& s, bool accu) {
 	
 void TextOutput::visitLogicProgramStats(const Asp::LpStats& lp) {
 	using namespace Asp;
+	uint32 rFinal = lp.rules[1].sum(), rOriginal = lp.rules[0].sum();
+	printKeyValue("Rules", "%-8u", rFinal);
+	if (rFinal != rOriginal) {
+		printf(" (Original: %u)", rOriginal);
+	}
+	printf("\n");
+	char buf[80];
+	for (uint32 i = 0; i != RuleStats::numKeys(); ++i) {
+		if (i == RuleStats::Normal) { continue; }
+		if (uint32 r = lp.rules[0][i]) {
+			printKeyValue(clasp_format(buf, 80, "  %s", RuleStats::toStr(i)), "%-8u", lp.rules[1][i]);
+			if (r != lp.rules[1][i]) { printf(" (Original: %u)", r); }
+			printf("\n");
+		}
+	}
 	printKeyValue("Atoms", "%-8u", lp.atoms);
 	if (lp.auxAtoms) {
 		printf(" (Original: %u Auxiliary: %u)", lp.atoms-lp.auxAtoms, lp.auxAtoms);
 	}
 	printf("\n");
-	printKeyValue("Rules", "%-8u", lp.rules());
-	printf(" ");
-	char space = '(', close = ' ';
-	for (Asp::RuleType i = BASICRULE; i != ENDRULE; ++i) {
-		LpStats::RPair r = lp.rules(i);
-		if (r.first) {
-			printf("%c%d: %u", space, i, r.first);
-			if (lp.tr()) { printf("/%u", r.second); }
-			space = ' ';
-			close = ')';
+	if (lp.disjunctions[0]) {
+		printKeyValue("Disjunctions", "%-8u", lp.disjunctions[1]);
+		printf(" (Original: %u)\n", lp.disjunctions[0]);
+	}
+	uint32 bFinal = lp.bodies[1].sum(), bOriginal = lp.bodies[0].sum();
+	printKeyValue("Bodies", "%-8u", bFinal);
+	if (bFinal != bOriginal) {
+		printf(" (Original: %u)", bOriginal);
+	}
+	printf("\n");
+	for (uint32 i = 1; i != BodyStats::numKeys(); ++i) {
+		if (uint32 b = lp.bodies[0][i]) {
+			printKeyValue(clasp_format(buf, 80, "  %s", BodyStats::toStr(i)), "%-8u", lp.bodies[1][i]);
+			if (b != lp.bodies[1][i]) { printf(" (Original: %u)", b); }
+			printf("\n");
 		}
 	}
-	printf("%c\n", close);
-	printKeyValue("Bodies", "%-8u\n", lp.bodies);
 	if (lp.eqs() > 0) {
 		printKeyValue("Equivalences", "%-8u", lp.eqs());
 		printf(" (Atom=Atom: %u Body=Body: %u Other: %u)\n" 
-			, lp.eqs(Var_t::atom_var)
-			, lp.eqs(Var_t::body_var)
-			, lp.eqs(Var_t::atom_body_var));
+			, lp.eqs(Var_t::Atom)
+			, lp.eqs(Var_t::Body)
+			, lp.eqs(Var_t::Hybrid));
 	}
 	printKey("Tight");
 	if      (lp.sccs == 0)              { printf("Yes"); }
@@ -880,14 +1009,17 @@ void TextOutput::visitLogicProgramStats(const Asp::LpStats& lp) {
 	printf("\n");
 }
 void TextOutput::visitProblemStats(const ProblemStats& ps) {
-	uint32 sum = ps.constraints + ps.constraints_binary + ps.constraints_ternary;
-	printKeyValue("Variables", "%-8u", ps.vars);
-	printf(" (Eliminated: %4u Frozen: %4u)\n", ps.vars_eliminated, ps.vars_frozen);
+	uint32 sum = ps.numConstraints();
+	printKeyValue("Variables", "%-8u", ps.vars.num);
+	printf(" (Eliminated: %4u Frozen: %4u)\n", ps.vars.eliminated, ps.vars.frozen);
 	printKeyValue("Constraints", "%-8u", sum);
-	printf(" (Binary:%5.1f%% Ternary:%5.1f%% Other:%5.1f%%)\n"
-		, percent(ps.constraints_binary, sum)
-		, percent(ps.constraints_ternary, sum)
-		, percent(ps.constraints, sum));
+	printf(" (Binary: %5.1f%% Ternary: %5.1f%% Other: %5.1f%%)\n"
+		, percent(ps.constraints.binary, sum)
+		, percent(ps.constraints.ternary, sum)
+		, percent(ps.constraints.other, sum));
+	if (ps.acycEdges) {
+		printKeyValue("Acyc-Edges", "%-8u\n", ps.acycEdges);
+	}
 }
 void TextOutput::visitCoreSolverStats(double cpuTime, uint64 models, const SolverStats& st, bool accu) {
 	if (!accu) {

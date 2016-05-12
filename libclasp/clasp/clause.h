@@ -1,18 +1,18 @@
-// 
-// Copyright (c) 2006-2012, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// Copyright (c) 2006-2016, Benjamin Kaufmann
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -27,7 +27,7 @@
 
 #include <clasp/solver_types.h>
 #include <clasp/util/atomic.h>
-namespace Clasp { 
+namespace Clasp {
 
 //! An array of literals that can be shared between threads.
 class SharedLiterals {
@@ -68,20 +68,22 @@ private:
 	SharedLiterals(const Literal* lits, uint32 size, ConstraintType t, uint32 numRefs);
 	SharedLiterals(const SharedLiterals&);
 	SharedLiterals& operator=(const SharedLiterals&);
-	Clasp::atomic<int32> refCount_;
-	uint32               size_type_;
-	Literal              lits_[0];
+	typedef Clasp::Atomic_t<int32>::type RCType;
+	RCType  refCount_;
+	uint32  size_type_;
+	Literal lits_[0];
 };
 
 //! A helper-class for creating/adding clauses.
 /*!
  * \ingroup constraint
- * This class simplifies clause creation. It hides the special handling of 
- * short, and shared clauses. It also makes sure that learnt clauses watch 
+ * This class simplifies clause creation. It hides the special handling of
+ * short, and shared clauses. It also makes sure that learnt clauses watch
  * the literals from the highest decision levels.
  */
 class ClauseCreator {
 public:
+	typedef ConstraintInfo ClauseInfo;
 	//! Creates a new ClauseCreator object.
 	/*!
 	 * \param s the Solver in which to store created clauses.
@@ -127,9 +129,9 @@ public:
 	};
 	//! Starts the creation of a new clause.
 	/*!
-	 * \pre s.decisionLevel() == 0 || t != Constraint_t::static_constraint
+	 * \pre s.decisionLevel() == 0 || t != Constraint_t::Static
 	 */
-	ClauseCreator& start(ConstraintType t = Constraint_t::static_constraint);
+	ClauseCreator& start(ConstraintType t = Constraint_t::Static);
 	//! Sets the initial activity of the clause under construction.
 	ClauseCreator& setActivity(uint32 a)      { extra_.setActivity(a);  return *this; }
 	//! Sets the initial literal block distance of the clause under construction.
@@ -149,12 +151,12 @@ public:
 	//! Returns the clause's type.
 	ConstraintType type()    const { return extra_.type(); }
 	//! Returns the aux info of the clause under construction.
-	ClauseInfo     info()    const { return extra_; }
+	ConstraintInfo info()    const { return extra_; }
 	//! Creates a new clause object for the clause under construction.
 	/*!
-	 * \pre The clause does not contain duplicate/complementary literals or 
+	 * \pre The clause does not contain duplicate/complementary literals or
 	 *      flags contains clause_force_simplify.
-	 * 
+	 *
 	 * \note If the clause to be added is empty, end() fails and s.hasConflict() is set to true.
 	 * \see Result ClauseCreator::create(Solver& s, LitVec& lits, uint32 flags, const ClauseInfo& info);
 	 */
@@ -192,7 +194,7 @@ public:
 	
 	//! Returns an abstraction of p's decision level that can be used to order literals.
 	/*!
-	 * The function returns a value, s.th 
+	 * The function returns a value, s.th
 	 * order(any true literal) > order(any free literal) > order(any false literal).
 	 * Furthermore, for equally assigned literals p and q, order(p) > order(q), iff
 	 * level(p) > level(q).
@@ -206,13 +208,13 @@ public:
 	 *  - does not contain any subsumed literals (i.e. literals assigned on decision level 0), and
 	 *  - is partially ordered w.r.t watchOrder(), i.e., watchOrder(l1) >= watchOrder(l2), and there
 	 *    is no lj, j > 2, s.th. watchOrder(lj) > watchOrder(l2)
-	 *  . 
+	 *  .
 	 *
-	 * Removes subsumed literals from lits and reorders lits s.th. 
-	 * the first literals are valid watches. Furthermore, 
-	 * if flags contains clause_force_simplify, 
-	 * duplicate literals are removed from lits and tautologies are 
-	 * replaced with the single literal True. 
+	 * Removes subsumed literals from lits and reorders lits s.th.
+	 * the first literals are valid watches. Furthermore,
+	 * if flags contains clause_force_simplify,
+	 * duplicate literals are removed from lits and tautologies are
+	 * replaced with the single literal True.
 	 */
 	static ClauseRep prepare(Solver& s, LitVec& lits, uint32 flags, const ClauseInfo& info = ClauseInfo());
 
@@ -226,16 +228,16 @@ public:
 	 * \pre !s.hasConflict() and s.decisionLevel() == 0 or extra.learnt()
 	 * \pre lits is fully prepared or flags contains suitable prepare flags.
 	 *
-	 * \note 
+	 * \note
 	 *   If the given clause is unit (or asserting), the unit-resulting literal is
 	 *   asserted on the (numerical) lowest level possible but the new information
 	 *   is not immediately propagated, i.e. on return queueSize() may be greater than 0.
 	 *
-	 * \note 
-	 *   The local representation of the clause is always attached to the solver 
+	 * \note
+	 *   The local representation of the clause is always attached to the solver
 	 *   but only added to the solver if clause_no_add is not contained in flags.
 	 *   Otherwise, the returned clause is owned by the caller
-	 *   and it is the caller's responsibility to manage it. Furthermore, 
+	 *   and it is the caller's responsibility to manage it. Furthermore,
 	 *   learnt statistics are *not* updated automatically in that case.
 	 *
 	 * \see prepare()
@@ -254,19 +256,19 @@ public:
 	 * \param clause The clause to be integrated.
 	 * \param flags  A set of flags controlling integration (see ClauseCreator::CreateFlag).
 	 * \param t      Constraint type to use for the local representation.
-	 * 
-	 * \note 
+	 *
+	 * \note
 	 *   The function behaves similar to ClauseCreator::create() with the exception that
-	 *   it does not add local representations for implicit clauses (i.e. size <= 3) 
-	 *   unless flags contains clause_explicit. 
-	 *   In that case, an explicit representation is created. 
+	 *   it does not add local representations for implicit clauses (i.e. size <= 3)
+	 *   unless flags contains clause_explicit.
+	 *   In that case, an explicit representation is created.
 	 *   Implicit representations can only be created via ClauseCreator::create().
 	 *
 	 * \note
 	 *   The function acts as a sink for the given clause (i.e. it decreases its reference count)
 	 *   unless flags contains clause_no_release.
-	 *   
-	 * \note integrate() is intended to be called in a post propagator. 
+	 *
+	 * \note integrate() is intended to be called in a post propagator.
 	 *   To integrate a set of clauses F, one would use a loop like this:
 	 *   \code
 	 *   bool MyPostProp::propagate(Solver& s) {
@@ -285,7 +287,7 @@ public:
 	 */
 	static Result integrate(Solver& s, SharedLiterals* clause, uint32 flags);
 	//@}
-private:	
+private:
 	static ClauseRep   prepare(Solver& s, const Literal* in, uint32 inSize, const ClauseInfo& e, uint32 flags, Literal* out, uint32 outMax = UINT32_MAX);
 	static Result      create_prepared(Solver& s, const ClauseRep& pc, uint32 flags);
 	static ClauseHead* newProblemClause(Solver& s, const ClauseRep& clause, uint32 flags);
@@ -294,14 +296,14 @@ private:
 	static bool        ignoreClause(const Solver& s, const ClauseRep& cl, Status st, uint32 modeFlags);
 	Solver*    solver_;   // solver in which new clauses are stored
 	LitVec     literals_; // literals of the new clause
-	ClauseInfo extra_;    // extra info 
+	ClauseInfo extra_;    // extra info
 	uint32     flags_;    // default flags to be used in end()
 };
 
 //! Class for representing a clause in a solver.
 class Clause : public ClauseHead {
 public:
-	typedef Constraint::PropResult   PropResult;
+	typedef Constraint::PropResult PropResult;
 	enum { MAX_SHORT_LEN = 5 };
 	
 	//! Allocates memory for storing a (learnt) clause with nLits literals.
@@ -315,7 +317,7 @@ public:
 	 * \pre The clause given in lits is prepared and contains at least two literals.
 	 * \note The clause must be destroyed using Clause::destroy.
 	 * \see ClauseCreator::prepare()
-	 */ 
+	 */
 	static ClauseHead*  newClause(Solver& s, const ClauseRep& rep) {
 		return newClause(alloc(s, rep.size, rep.info.learnt()), s, rep);
 	}
@@ -328,32 +330,32 @@ public:
 	//! Creates a new contracted clause from the clause given in rep.
 	/*!
 	 * A contracted clause consists of an active head and a tail of false literals.
-	 * Propagation is restricted to the head. 
+	 * Propagation is restricted to the head.
 	 * The tail is only needed to compute reasons from assignments.
-	 * 
+	 *
 	 * \param s     Solver in which the new clause is to be used.
 	 * \param rep   The raw representation of the clause.
 	 * \param tail  The starting index of the tail (first literal that should be temporarily removed from the clause).
 	 * \param exten Extend head part of clause as tail literals become free?
-	 */ 
+	 */
 	static ClauseHead*  newContractedClause(Solver& s, const ClauseRep& rep, uint32 tailPos, bool extend);
 	
 	//! Creates a new local surrogate for shared_lits to be used in the given solver.
 	/*!
 	 * \param s      The solver in which this clause will be used.
 	 * \param lits   The shared literals of this clause.
-	 * \param e      Initial data for the new (local) clause.
+	 * \param e      Initial meta data for the new (local) clause.
 	 * \param head   Watches and cache literal for the new (local) clause.
 	 * \param addRef Increment ref count of lits.
 	 */
-	static ClauseHead* newShared(Solver& s, SharedLiterals* lits, const ClauseInfo& e, const Literal head[3], bool addRef = true);
+	static ClauseHead* newShared(Solver& s, SharedLiterals* lits, const InfoType& e, const Literal head[3], bool addRef = true);
 
 	// Constraint-Interface
 	
 	Constraint* cloneAttach(Solver& other);
 
 	/*!
-	 * For a clause [x y p] the reason for p is ~x and ~y. 
+	 * For a clause [x y p] the reason for p is ~x and ~y.
 	 * \pre *this previously asserted p
 	 * \note if the clause is a learnt clause, calling reason increases
 	 * the clause's activity.
@@ -405,7 +407,7 @@ private:
 //! Constraint for Loop-Formulas.
 /*!
  * \ingroup constraint
- * Special purpose constraint for loop formulas of the form: L v B1 v ... v Bm, 
+ * Special purpose constraint for loop formulas of the form: L v B1 v ... v Bm,
  * where L is an unfounded set represented as a set of atom literals {~a1, ..., ~an}.
  * Representing such a loop formula explicitly as n clauses
  *   - (1) ~a1 v B1 v ... v Bm
@@ -414,15 +416,15 @@ private:
  *   .
  * is wasteful because each clause contains the same set of bodies.
  *
- * The idea behind LoopFormula is to treat L as a "macro-literal" 
+ * The idea behind LoopFormula is to treat L as a "macro-literal"
  * with the following properties:
- * - isTrue(L), iff for all ai isTrue(~ai) 
- * - isFalse(L), iff for some ai isFalse(~ai) 
+ * - isTrue(L), iff for all ai isTrue(~ai)
+ * - isFalse(L), iff for some ai isFalse(~ai)
  * - L is watchable, iff not isFalse(L)
  * - Watching L means watching all ai.
  * - setting L to true means setting all ai to false.
  * Using this convention the TWL-algo can be implemented as in a clause.
- * 
+ *
  * \par Implementation:
  * - The literal-array is divided into two parts, an "active clause" part and an atom part.
  * - The "active clause" contains one atom and all bodies: [~ai B1 ... Bj]
@@ -430,7 +432,7 @@ private:
  * - Two of the literals of the "active clause" are watched (again: watching an atom means watching all atoms)
  * - If a watched atom becomes true, it is copied into the "active clause" and the TWL-algo starts.
  */
-class LoopFormula : public LearntConstraint {
+class LoopFormula : public Constraint {
 public:
 	//! Creates a new loop-constraint for the given atoms.
 	/*!
@@ -464,14 +466,14 @@ public:
 	/*!
 	 * The activity of a loop-formula is increased, whenever reason() is called.
 	 */
-	Activity activity() const { return act_; }
+	ScoreType activity() const { return act_; }
 	
 	//! Halves the loop-formula's activity.
-	void decreaseActivity()          { act_ = Activity(act_.activity()>>1, act_.lbd()); }
-	void resetActivity(Activity hint){ act_ = hint; }
+	void decreaseActivity() { act_.reduce(); }
+	void resetActivity()    { act_.reset(); }
 	
-	//! Returns Constraint_t::learnt_loop.
-	ConstraintType type() const { return Constraint_t::learnt_loop; }
+	//! Returns Constraint_t::Loop.
+	ConstraintType type() const { return Constraint_t::Loop; }
 private:
 	LoopFormula(Solver& s, const ClauseRep& c1, const Literal* atoms, uint32 nAtoms, bool heu);
 	void detach(Solver& s);
@@ -479,13 +481,13 @@ private:
 	Literal* begin() { return lits_ + 1; }
 	Literal* xBegin(){ return lits_ + end_ + 1; }
 	Literal* xEnd()  { return lits_ + size_; }
-	Activity act_;     // activity of constraint 
-	uint32   end_;     // position of second sentinel
-	uint32   size_:30; // size of lits_
-	uint32   str_ : 1; // removed literal(s) during simplify?
-	uint32   xPos_: 1; // position of ai in lits_ or 0 if no atom
-	uint32   other_;   // stores the position of a literal that was recently true
-	Literal  lits_[0]; // S ai B1...Bm S a1...an
+	ScoreType act_;     // activity of constraint
+	uint32    end_;     // position of second sentinel
+	uint32    size_:30; // size of lits_
+	uint32    str_ : 1; // removed literal(s) during simplify?
+	uint32    xPos_: 1; // position of ai in lits_ or 0 if no atom
+	uint32    other_;   // stores the position of a literal that was recently true
+	Literal   lits_[0]; // S ai B1...Bm S a1...an
 };
 
 namespace mt {
@@ -494,8 +496,8 @@ namespace mt {
 /*!
  * The local part of a shared clause consists of a
  * clause head and and a pointer to the shared literals.
- * Since the local part is owned by a particular solver 
- * it can be safely modified. Destroying a SharedLitsClause 
+ * Since the local part is owned by a particular solver
+ * it can be safely modified. Destroying a SharedLitsClause
  * means destroying the local part and decreasing the
  * shared literals' reference count.
  */
@@ -505,23 +507,23 @@ public:
 	/*!
 	 * \param s The solver in which this clause will be used.
 	 * \param shared_lits The shared literals of this clause.
-	 * \param e Initial data for the new (local) clause.
+	 * \param e Initial meta data for the new (local) clause.
 	 * \param lits Watches and cache literal for the new (local) clause.
 	 * \param addRef Increment ref count of shared_lits.
 	 */
-	static ClauseHead* newClause(Solver& s, SharedLiterals* shared_lits, const ClauseInfo& e, const Literal* lits, bool addRef = true);
+	static ClauseHead* newClause(Solver& s, SharedLiterals* shared_lits, const InfoType& e, const Literal* lits, bool addRef = true);
 	
-	Constraint*    cloneAttach(Solver& other);
-	void           reason(Solver& s, Literal p, LitVec& out);
-	bool           minimize(Solver& s, Literal p, CCMinRecursive* rec);
-	bool           isReverseReason(const Solver& s, Literal p, uint32 maxL, uint32 maxN);
-	bool           simplify(Solver& s, bool);
-	void           destroy(Solver* s, bool detach);
-	uint32         isOpen(const Solver& s, const TypeSet& t, LitVec& freeLits);
-	uint32         size() const;
-	void           toLits(LitVec& out) const;
+	Constraint* cloneAttach(Solver& other);
+	void        reason(Solver& s, Literal p, LitVec& out);
+	bool        minimize(Solver& s, Literal p, CCMinRecursive* rec);
+	bool        isReverseReason(const Solver& s, Literal p, uint32 maxL, uint32 maxN);
+	bool        simplify(Solver& s, bool);
+	void        destroy(Solver* s, bool detach);
+	uint32      isOpen(const Solver& s, const TypeSet& t, LitVec& freeLits);
+	uint32      size() const;
+	void        toLits(LitVec& out) const;
 private:
-	SharedLitsClause(Solver& s, SharedLiterals* x, const Literal* lits, const ClauseInfo&,  bool addRef);
+	SharedLitsClause(Solver& s, SharedLiterals* x, const Literal* lits, const InfoType&,  bool addRef);
 	bool     updateWatch(Solver& s, uint32 pos);
 	BoolPair strengthen(Solver& s, Literal p, bool allowToShort);
 };

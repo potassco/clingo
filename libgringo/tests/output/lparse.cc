@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -34,12 +34,14 @@ class TestLparse : public CppUnit::TestFixture {
         CPPUNIT_TEST(test_minMax);
         CPPUNIT_TEST(test_recCondBug);
         CPPUNIT_TEST(test_aggregateBug);
+        CPPUNIT_TEST(test_aggregateMinBug);
         CPPUNIT_TEST(test_aggregateNotNot);
         CPPUNIT_TEST(test_aggregateRecBug);
         CPPUNIT_TEST(test_headAggregateBug);
         CPPUNIT_TEST(test_headAggrPropagateBug);
         CPPUNIT_TEST(test_recHeadAggregateBug);
         CPPUNIT_TEST(test_disjunctionBug);
+        CPPUNIT_TEST(test_disjunctionBug2);
         CPPUNIT_TEST(test_symTabBug);
         CPPUNIT_TEST(test_mutexBug);
         CPPUNIT_TEST(test_head);
@@ -48,6 +50,7 @@ class TestLparse : public CppUnit::TestFixture {
         CPPUNIT_TEST(test_disjunction);
         CPPUNIT_TEST(test_show);
         CPPUNIT_TEST(test_aggregates);
+        CPPUNIT_TEST(test_aggregates2);
         CPPUNIT_TEST(test_minimize);
         CPPUNIT_TEST(test_invert);
         CPPUNIT_TEST(test_csp);
@@ -68,6 +71,7 @@ class TestLparse : public CppUnit::TestFixture {
         CPPUNIT_TEST(test_undefinedScript);
         CPPUNIT_TEST(test_nonmon);
         CPPUNIT_TEST(test_bugRewriteCond);
+        CPPUNIT_TEST(test_edge);
     CPPUNIT_TEST_SUITE_END();
     using S = std::string;
 
@@ -80,12 +84,14 @@ public:
     void test_recCondBug();
     void test_recAntiAggr();
     void test_aggregateBug();
+    void test_aggregateMinBug();
     void test_aggregateNotNot();
     void test_aggregateRecBug();
     void test_headAggregateBug();
     void test_headAggrPropagateBug();
     void test_recHeadAggregateBug();
     void test_disjunctionBug();
+    void test_disjunctionBug2();
     void test_symTabBug();
     void test_mutexBug();
     void test_head();
@@ -94,6 +100,7 @@ public:
     void test_disjunction();
     void test_show();
     void test_aggregates();
+    void test_aggregates2();
     void test_csp();
     void test_cspbound();
     void test_disjoint();
@@ -115,6 +122,7 @@ public:
     void test_minMax();
     void test_nonmon();
     void test_bugRewriteCond();
+    void test_edge();
     virtual ~TestLparse();
 };
 
@@ -280,13 +288,24 @@ void TestLparse::test_projectionBug() {
 }
 void TestLparse::test_aggregateBug() {
     CPPUNIT_ASSERT_EQUAL(
-        S("[[a(1),a(2),b(1)],[a(1),a(2),b(1),b(2)]]"), 
+        S("[[a(1),a(2),b(1)],[a(1),a(2),b(1),b(2)]]"),
         IO::to_string(solve(
         "a(1)."
         "a(2)."
         "b(1)."
         "{ b(X) } :- a(X).")));
 }
+
+void TestLparse::test_aggregateMinBug() {
+    CPPUNIT_ASSERT_EQUAL(
+        S("[[a(20),a(50),a(60),output(20)],[a(20),a(50),output(20)],[a(50),a(60),output(50)],[a(50),output(50)]]"),
+        IO::to_string(solve(
+            "a(50)."
+            "{ a(20) ; a(60) }."
+            "output(X) :- X = #min { C : a(C) }."
+        )));
+}
+
 void TestLparse::test_recHeadAggregateBug() {
     CPPUNIT_ASSERT_EQUAL(
         S(
@@ -405,6 +424,7 @@ void TestLparse::test_recHeadAggregateBug() {
         , {"r("})));
 
 }
+
 void TestLparse::test_disjunctionBug() {
     Gringo::Test::Messages msg;
     CPPUNIT_ASSERT_EQUAL(
@@ -416,6 +436,19 @@ void TestLparse::test_disjunctionBug() {
             "c : d :- a."
         )));
 }
+
+void TestLparse::test_disjunctionBug2() {
+    Gringo::Test::Messages msg;
+    CPPUNIT_ASSERT_EQUAL(
+        S("[[b(0),h(0),h(1),p(0)]]"),
+        IO::to_string(solve(
+            "p(0)."
+            "h(0;1)."
+            "b(0)."
+            "p(X) : h(X) :- p(Y), b(Y)."
+        )));
+}
+
 void TestLparse::test_aggregateNotNot() {
     CPPUNIT_ASSERT_EQUAL(
         S("[[p(2)],[p(2),p(3)],[p(2),p(3),p(4)],[p(2),p(3),p(4),p(5)],[p(2),p(3),p(5)],[p(2),p(4)],[p(2),p(4),p(5)],[p(2),p(5)],[p(4)],[p(4),p(5)]]"),
@@ -442,22 +475,22 @@ void TestLparse::test_aggregateNotNot() {
 void TestLparse::test_aggregateRecBug() {
     Gringo::Test::Messages msg;
     CPPUNIT_ASSERT_EQUAL(
-        S("[]"), 
+        S("[]"),
         IO::to_string(solve(
         "a :- {a}!=1."
         )));
     CPPUNIT_ASSERT_EQUAL(
-        S("[]"), 
+        S("[]"),
         IO::to_string(solve(
         "a :- #sum {1:a}!=1."
         )));
     CPPUNIT_ASSERT_EQUAL(
-        S("[[b]]"), 
+        S("[[b]]"),
         IO::to_string(solve(
             "b :- 0  #sum+ { 1: b }."
         )));
     CPPUNIT_ASSERT_EQUAL(
-        S("[[b]]"), 
+        S("[[b]]"),
         IO::to_string(solve(
             "b :- 0  #sum { 1: b }."
         )));
@@ -470,7 +503,7 @@ void TestLparse::test_symTabBug() {
             "time(0..1).\n"
             "1 { does(M,T) : legal(M,T) } 1 :- time(T).\n"
             "legal(a,T) :- time(T).\n"
-            "legal(b,T) :- does(a,0), time(T).\n", 
+            "legal(b,T) :- does(a,0), time(T).\n",
             {"does"})));
 }
 void TestLparse::test_recAntiAggr() {
@@ -501,7 +534,7 @@ void TestLparse::test_headAggrPropagateBug() {
         S(
             "[[a(c),a(p),b(c,d),b(c,e),b(c,f),b(c,g),b(p,d),b(p,e),b(p,f),b(p,g)],"
             "[a(c),a(p),b(c,d),b(c,e),b(c,g),b(p,d),b(p,e),b(p,g),e(3)],"
-            "[b(c,d),b(c,e),b(p,d),b(p,e),e(2),e(3)]]"), 
+            "[b(c,d),b(c,e),b(p,d),b(p,e),e(2),e(3)]]"),
         IO::to_string(solve(
             "b(S,h) :- b(S,X), c.\n"
             "b(c,d).\n"
@@ -515,7 +548,7 @@ void TestLparse::test_headAggrPropagateBug() {
 void TestLparse::test_mutexBug() {
 #ifdef WITH_LUA
     CPPUNIT_ASSERT_EQUAL(
-        S("[[]]"), 
+        S("[[]]"),
         IO::to_string(solve(
             "#script (lua) \n"
             "function main(prg)\n"
@@ -675,7 +708,7 @@ void TestLparse::test_assign() {
         "[p(1),p(4),q(1)],"
         "[p(2),p(3),q(2)],"
         "[p(2),p(4),q(2)],"
-        "[p(3),p(4),q(3)]]"), 
+        "[p(3),p(4),q(3)]]"),
         IO::to_string(solve("2{p(1..4)}2. q(M):-M=#min{X:p(X)}.")));
     CPPUNIT_ASSERT_EQUAL(S(
         "[[p(1),p(2),q(2)],"
@@ -683,7 +716,7 @@ void TestLparse::test_assign() {
         "[p(1),p(4),q(4)],"
         "[p(2),p(3),q(3)],"
         "[p(2),p(4),q(4)],"
-        "[p(3),p(4),q(4)]]"), 
+        "[p(3),p(4),q(4)]]"),
         IO::to_string(solve("2{p(1..4)}2. q(M):-M=#max{X:p(X)}.")));
 }
 
@@ -892,8 +925,29 @@ void TestLparse::test_aggregates() {
     CPPUNIT_ASSERT_EQUAL(S("[]"), IO::to_string(solve("a. {a} 0.")));
 }
 
+void TestLparse::test_aggregates2() {
+    CPPUNIT_ASSERT_EQUAL(
+        std::string(
+            "[[c]]"
+            ),
+        IO::to_string(solve(
+            "a :- not { c } >= 1, not c."
+            "b :- a, #false."
+            "c :- not b, {b; not b} >= 1."
+            )));
+    CPPUNIT_ASSERT_EQUAL(
+        std::string(
+            "[[c]]"
+            ),
+        IO::to_string(solve(
+            "a :- not not { c } >= 1, not c."
+            "b :- a, #false."
+            "c :- not b, {b; not b} >= 1."
+            )));
+}
+
 void TestLparse::test_invert() {
-    std::string prg = 
+    std::string prg =
         "p(-1;2).\n"
         "q(X) :- p((-(X+3))+2).\n"
         "a(a;-b).\n"
@@ -934,7 +988,7 @@ void TestLparse::test_minimize() {
         ":- not ok.\n";
     CPPUNIT_ASSERT_EQUAL(S("[[a,b]]"), IO::to_string(solve(S(prg), {"a", "b", "c", "d"}, {2})));
     CPPUNIT_ASSERT_EQUAL(S("[]"), IO::to_string(solve(S(prg), {"a", "b", "c", "d"}, {1})));
-    prg = 
+    prg =
         "{a; b; c; d}.\n"
         "#minimize {3,a:a; 3,b:b; 1,x:c; 1,x:d}.\n"
         "ok :- a,    b,not c,not d.\n"
@@ -944,7 +998,7 @@ void TestLparse::test_minimize() {
         ;
     CPPUNIT_ASSERT_EQUAL(S("[[a,c,d],[b,c,d]]"), IO::to_string(solve(S(prg), {"a", "b", "c", "d"}, {4})));
     CPPUNIT_ASSERT_EQUAL(S("[]"), IO::to_string(solve(S(prg), {"a", "b", "c", "d"}, {3})));
-    prg = 
+    prg =
         "{a; b; c; d}.\n"
         "#minimize {3@2,a:a; 3@2,b:b; 1@2,x:c; 1@2,x:d}.\n"
         "#minimize {1@1,x:a; 1@1,x:c; 1@1,y:b}.\n"
@@ -955,7 +1009,7 @@ void TestLparse::test_minimize() {
         ;
     CPPUNIT_ASSERT_EQUAL(S("[[a,c,d]]"), IO::to_string(solve(S(prg), {"a", "b", "c", "d"}, {4, 1})));
     CPPUNIT_ASSERT_EQUAL(S("[]"), IO::to_string(solve(S(prg), {"a", "b", "c", "d"}, {4, 0})));
-    CPPUNIT_ASSERT_EQUAL(S("[[]]"), IO::to_string(solve(S("{p}. #maximize{1:not p}."), {"p"}, {0})));
+    CPPUNIT_ASSERT_EQUAL(S("[[]]"), IO::to_string(solve(S("{p}. #maximize{1:not p}."), {"p"}, {-1})));
 }
 
 void TestLparse::test_csp() {
@@ -987,9 +1041,27 @@ void TestLparse::test_cspbound() {
             "$x $<= 5.\n"
             ":- $x $<= 3, $x $<=4.\n", {"x="}
             )));
+    CPPUNIT_ASSERT_EQUAL(
+        S("[[x=2],[x=4],[x=6]]"),
+        IO::to_string(solve(
+            "$x $= 2*X : X = 1..3.\n", {"x="}
+            )));
+    CPPUNIT_ASSERT_EQUAL(
+        S("[[x=1],[x=3],[x=7]]"),
+        IO::to_string(solve(
+            "$x $= 1; $x $= 3 :- $x $!= 7."
+            , {"x="})));
 }
 
 void TestLparse::test_disjoint() {
+    CPPUNIT_ASSERT_EQUAL(
+        S("[[x,x=2,y=2],[x=2,y=1],[x=2,y=2]]"),
+        IO::to_string(solve(
+            "1 $<= $x $<= 2.\n"
+            "1 $<= $y $<= 2.\n"
+            "{x}.\n"
+            "#disjoint{ 1:1; 2:$x; 2:$y : x }.\n"
+            )));
     CPPUNIT_ASSERT_EQUAL(
         S("[[x=2]]"),
         IO::to_string(solve(
@@ -1040,6 +1112,30 @@ void TestLparse::test_disjoint() {
             "not #disjoint{ 1:6$*$y; 2:35$*$x }.\n"
             )));
     CPPUNIT_ASSERT_EQUAL(
+        S("[[a],[a,b]]"),
+        IO::to_string(solve(
+            "{b}.\n"
+            "a :- #disjoint { 1 : 1 : a; 2 : 2 : a; 3 : 3 : b }.\n"
+            )));
+    CPPUNIT_ASSERT_EQUAL(
+        S("[]"),
+        IO::to_string(solve(
+            "{b}.\n"
+            "a :- #disjoint { 1 : 1 : a; 2 : 1 : a; 3 : 3 : b }.\n"
+            )));
+    CPPUNIT_ASSERT_EQUAL(
+        S("[[a]]"),
+        IO::to_string(solve(
+            "{b}.\n"
+            "a :- #disjoint { 1 : 1 : a; 2 : 2 : a; 3 : 2 : b }.\n"
+            )));
+    CPPUNIT_ASSERT_EQUAL(
+        S("[[b]]"),
+        IO::to_string(solve(
+            "{b}.\n"
+            "a :- #disjoint { 1 : 1 : a; 2 : 1 : a; 3 : 3 : b; 4 : 3 : b }.\n"
+            )));
+    CPPUNIT_ASSERT_EQUAL(
         576,
         (int)solve(
             "#const n = 4.\n"
@@ -1073,7 +1169,7 @@ void TestLparse::test_queens() {
             "\n"
             "c(C,XX,YY) :-     c(C,X,Y), n(C,X,Y,XX,YY), not q(XX,YY).\n"
             "           :- not c(C,X,Y), n(C,X,Y,XX,YY),     q(XX,YY).\n", {"q("})));
-    CPPUNIT_ASSERT_EQUAL( 
+    CPPUNIT_ASSERT_EQUAL(
         48,
         (int)solve(
             "#const n=4.\n"
@@ -1083,7 +1179,7 @@ void TestLparse::test_queens() {
             "$row(X) $+ $col(Y) $!= $row(Y) $+ $col(X) :- X=1..n, Y=1..n, X<Y.\n"
             "$row(X) $+ $col(X) $!= $row(Y) $+ $col(Y) :- X=1..n, Y=1..n, X<Y.\n"
             ).size());
-    S q5 = 
+    S q5 =
         "[[q(1)=1,q(2)=3,q(3)=5,q(4)=2,q(5)=4]"
         ",[q(1)=1,q(2)=4,q(3)=2,q(4)=5,q(5)=3]"
         ",[q(1)=2,q(2)=4,q(3)=1,q(4)=3,q(5)=5]"
@@ -1094,7 +1190,7 @@ void TestLparse::test_queens() {
         ",[q(1)=4,q(2)=2,q(3)=5,q(4)=3,q(5)=1]"
         ",[q(1)=5,q(2)=2,q(3)=4,q(4)=1,q(5)=3]"
         ",[q(1)=5,q(2)=3,q(3)=1,q(4)=4,q(5)=2]]";
-    CPPUNIT_ASSERT_EQUAL( 
+    CPPUNIT_ASSERT_EQUAL(
         S(q5),
         IO::to_string(solve(
             "#const n=5.\n"
@@ -1103,7 +1199,7 @@ void TestLparse::test_queens() {
             "X $+ $q(Y) $!= Y $+ $q(X) :- X=1..n, Y=1..n, X<Y.\n"
             "X $+ $q(X) $!= Y $+ $q(Y) :- X=1..n, Y=1..n, X<Y.\n"
             )));
-    CPPUNIT_ASSERT_EQUAL( 
+    CPPUNIT_ASSERT_EQUAL(
         S(q5),
         IO::to_string(solve(
             "#const n=5.\n"
@@ -1112,7 +1208,7 @@ void TestLparse::test_queens() {
             "#disjoint { X : $q(X)$+X : X=1..n }.\n"
             "#disjoint { X : $q(X)$-X : X=1..n }.\n"
             )));
-    CPPUNIT_ASSERT_EQUAL( 
+    CPPUNIT_ASSERT_EQUAL(
         S(q5),
         IO::to_string(solve(
             "#const n=5.\n"
@@ -1132,9 +1228,10 @@ void TestLparse::test_python() {
             "]"),
         IO::to_string(solve(
             "#script (python)\n"
-            "import gringo\n"
-            "def gcd(a, b): return b if a == 0 else gcd(b % a, a)\n"
-            "def test():    return [1, 2, gringo.Fun(\"a\"), \"a\"]\n"
+            "import clingo\n"
+            "def conv(a): return a.number if hasattr(a, 'number') else a\n"
+            "def gcd(a, b): return b if conv(a) == 0 else gcd(conv(b) % conv(a), a)\n"
+            "def test():    return [1, 2, clingo.function(\"a\"), \"a\"]\n"
             "def match():   return [(1,2),(1,3),(2,1)]\n"
             "#end.\n"
             "\n"
@@ -1156,8 +1253,8 @@ void TestLparse::test_lua() {
         IO::to_string(solve(
             "#script (lua)\n"
             "function gcd(a, b) if a == 0 then return b else return gcd(b % a, a) end end\n"
-            "function test()    return {1, 2, gringo.Fun(\"a\"), \"a\"} end\n"
-            "function match()   return {gringo.Tuple({1,2}),gringo.Tuple({1,3}),gringo.Tuple({2,1})} end\n"
+            "function test()    return {1, 2, clingo.Fun(\"a\"), \"a\"} end\n"
+            "function match()   return {clingo.Tuple({1,2}),clingo.Tuple({1,3}),clingo.Tuple({2,1})} end\n"
             "#end.\n"
             "\n"
             "p(@gcd(2*3*7*13,3*11*13)).\n"
@@ -1489,6 +1586,18 @@ void TestLparse::test_nonmon() {
             "var(a,y1,-2).\n"
             "var(a,y2,1).\n"
             "int(4).\n", {"true(e"})));
+}
+
+void TestLparse::test_edge() {
+    CPPUNIT_ASSERT_EQUAL(
+        S("[[path(a,b),path(b,c),path(c,d),path(d,a)]]"),
+        IO::to_string(solve(
+            "node(a;b;c;d).\n"
+            "edge(a,b;b,(c;d);c,(a;d);d,a).\n"
+            "1 { path(X,Y) : edge(X,Y) } 1 :- node(X).\n"
+            "1 { path(X,Y) : edge(X,Y) } 1 :- node(Y).\n"
+            "start(X) :- X = #min { Y : node(Y) }.\n"
+            "#edge (X,Y) : path(X,Y), not start(Y).\n", {"path("})));
 }
 
 void TestLparse::test_bugRewriteCond() {

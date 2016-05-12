@@ -109,7 +109,7 @@ protected:
 	Application();
 	virtual ~Application();
 	void     shutdown(bool hasError);
-	virtual void exit(int exitCode) const;
+	void     exit(int exitCode) const;
 	unsigned verbose() const;
 	void     setVerbose(unsigned v);
 	void     killAlarm();

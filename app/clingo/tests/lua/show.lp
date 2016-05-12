@@ -1,8 +1,5 @@
 #script (lua)
 
-Fun   = gringo.Fun
-Model = gringo.Model
-
 models = {}
 
 function getModels()
@@ -10,7 +7,7 @@ function getModels()
 end
 
 function normalize(terms)
-    table.sort(terms, function (a, b) return gringo.cmp(a, b) < 0 end)
+    table.sort(terms)
     return terms
 end
 
@@ -21,16 +18,12 @@ function split(model)
     return terms
 end
 
-function fun(name, model)
-    return Fun(name, model)
-end
-
 function on_model(model)
-    models[#models+1] = fun("model", split(model))
-    models[#models+1] = fun("shown", normalize(model:atoms(Model.SHOWN)))
-    models[#models+1] = fun("atoms", normalize(model:atoms(Model.ATOMS)))
-    models[#models+1] = fun("terms", normalize(model:atoms(Model.TERMS)))
-    models[#models+1] = fun("csp",   normalize(model:atoms(Model.CSP)))
+    models[#models+1] = clingo.fun("model", split(model))
+    models[#models+1] = clingo.fun("shown", normalize(model:atoms{shown=true}))
+    models[#models+1] = clingo.fun("atoms", normalize(model:atoms{atoms=true}))
+    models[#models+1] = clingo.fun("terms", normalize(model:atoms{terms=true}))
+    models[#models+1] = clingo.fun("csp",   normalize(model:atoms{csp=true}))
 end
 
 function main(prg)

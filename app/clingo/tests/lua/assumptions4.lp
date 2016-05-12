@@ -1,22 +1,17 @@
 #script (lua)
 
-Fun = gringo.Fun
-
 function on_model(m)
     return true
 end
 
-function on_finish(ret, canceled)
+function on_finish(ret)
 end
 
 function main(prg)
-    local assumptions = {{Fun("a"), true}}
+    local assumptions = {{clingo.fun("a"), true}}
     prg:ground({{"base", {}}})
     prg:solve(assumptions, on_model)
-
-    local f = prg:solve_async(assumptions, on_model, on_finish)
-    f:wait()
-
+    prg:solve(assumptions, on_model)
     local it = prg:solve_iter(assumptions)
     local ret = pcall(function()
         for m in it:iter() do

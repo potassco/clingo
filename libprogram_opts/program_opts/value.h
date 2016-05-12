@@ -31,9 +31,13 @@
 namespace std { using ::size_t; }
 #endif
 
-namespace ProgramOptions {
-
-
+namespace ProgramOptions { namespace detail {
+	template <class T>
+	struct Owned { 
+		~Owned() { delete obj; }
+		T* obj;
+	};
+}
 enum DescriptionLevel {
 	desc_level_default = 0, /**< Always shown in description */
 	desc_level_e1      = 1,

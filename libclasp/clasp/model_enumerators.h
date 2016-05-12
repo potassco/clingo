@@ -82,9 +82,10 @@ public:
 	/*!
 	 * \params st         Enumeration algorithm to use. 
 	 * \params projection The set of ProjectOptions to be applied or 0 to disable projective enumeration.
+	 * \params filter     Ignore output predicates starting with filter in projective enumeration.
 	 */
-	void     setStrategy(Strategy st = strategy_auto, uint32 projection = 0);
-	bool     projectionEnabled()const { return project_.get() != 0; }
+	void     setStrategy(Strategy st = strategy_auto, uint32 projection = 0, char filter = '_');
+	bool     projectionEnabled()const { return projectOpts() != 0; }
 	Strategy strategy()         const { return static_cast<Strategy>(options_ & 3u); }
 protected:
 	bool   supportsRestarts() const { return optimize() || strategy() == strategy_record; }
@@ -98,16 +99,13 @@ private:
 	class ModelFinder;
 	class BacktrackFinder;
 	class RecordFinder;
-	typedef SingleOwnerPtr<VarVec> VecPtr;
 	void    initProjection(SharedContext& ctx);
-	void    addProjectVar(SharedContext& ctx, Var v, bool mark);
-	uint32  numProjectionVars() const { return (uint32)project_->size(); }
-	Var     projectVar(uint32 i)const { return (*project_)[i]; }
-	uint32  projectOpts()       const { return options_ >> 4; }
-	bool    detectStrategy()    const { return (options_ & detect_strategy_flag) == detect_strategy_flag; }
-	bool    trivial()           const { return (options_ & trivial_flag) == trivial_flag; }
-	VecPtr project_;
-	uint32 options_;
+	void    addProject(SharedContext& ctx, Var v);
+	uint32  projectOpts()    const { return (options_ >> 4) & strategy_opts_mask; }
+	bool    detectStrategy() const { return (options_ & detect_strategy_flag) == detect_strategy_flag; }
+	bool    trivial()        const { return (options_ & trivial_flag) == trivial_flag; }
+	LitVec  domRec_;
+	uint32  options_;
 };
 
 }

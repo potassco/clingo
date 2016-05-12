@@ -12,45 +12,30 @@ function sorted(t)
     return t
 end
 
-function convert(ret)
-    if     ret == gringo.SolveResult.SAT then return "SAT"
-    elseif ret == gringo.SolveResult.UNSAT then return "UNSAT"
-    elseif ret == gringo.SolveResult.UNKNOWN then return "UNKNOWN"
-    end
-end
-
 function on_model(x)
     print("Answer: 42")
     print(
-           "hasA(" ..        tostring(x:contains(gringo.Fun("a"))) .. ") "
-        .. "hasVolatile(" .. tostring(x:contains(gringo.Fun("volatile", {9}))) .. ") "
-        .. "model(" ..       table.concat(sorted(map(tostring, x:atoms())), ",") .. ") ")
-end
-
-function on_finish(ret, int) 
-    print("Answer: 42")
-    print(convert(ret) .. "_" .. tostring(int))
+           "hasA(" ..        tostring(x:contains(clingo.fun("a"))) .. ") "
+        .. "hasVolatile(" .. tostring(x:contains(clingo.fun("volatile", {9}))) .. ") "
+        .. "model(" ..       table.concat(sorted(map(tostring, x:atoms{shown=true})), ",") .. ") ")
 end
 
 function main (prg)
-    n = prg:get_const("n")
-    Fun = gringo.Fun
+    n = prg:get_const("n").number
     parts = {}
     parts[#parts+1] = {"base", {}}
     prg:ground(parts)
     prg:solve()
     parts = {}
     prg:add("test", {"x"}, "test(x).")
-    parts[#parts+1] = {"test", {Fun("f", {1,2})}}
+    parts[#parts+1] = {"test", {clingo.fun("f", {1,2})}}
     for i=1,n do
         parts[#parts+1] = {"cumulative", {i}}
         prg:ground(parts)
         parts = {}
-        f = prg:solve_async(nil, on_model, on_finish)
-        f:wait(0)
-        ret = f:get()
+        ret = prg:solve(nil, on_model)
         print("Answer: 42")
-        print(convert(ret))
+        print(tostring(ret))
     end
 end
 

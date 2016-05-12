@@ -149,19 +149,19 @@ private:
 	bool    addResolvent(uint32 newId, const Clause& c1, const Clause& c2);
 	bool    cutoff(Var v) const {
 		return opts_->occLimit(occurs_[v].pos, occurs_[v].neg)
-		  ||   (occurs_[v].cost() == 0 && opts_->mode == Options::prepro_preserve_models);
+		  ||   (occurs_[v].cost() == 0 && ctx_->preserveModels());
 	}
 	bool    timeout() const { return time(0) > timeout_; }
-	const Options*opts_;      // active options
-	OccurList*    occurs_;    // occur list for each variable
-	ElimHeap      elimHeap_;  // candidates for variable elimination; ordered by increasing occurrence-cost
-	VarVec      posT_, negT_; // temporary clause lists used in eliminateVar
-	ClauseList    resCands_;  // pairs of clauses to be resolved
-	LitVec        resolvent_; // temporary, used in addResolvent
-	VarVec        queue_;     // indices of clauses waiting for subsumption-check
-	uint32        qFront_;    // front of queue_, i.e. [queue_.begin()+qFront_, queue.end()) is the subsumption queue
-	uint32        facts_;     // [facts_, solver.trail.size()): new top-level facts
-	std::time_t   timeout_;   // stop once time > timeout_
+	enum OccSign { pos = 0, neg = 1};
+	OccurList*  occurs_;    // occur list for each variable
+	ElimHeap    elimHeap_;  // candidates for variable elimination; ordered by increasing occurrence-cost
+	VarVec      occT_[2];   // temporary clause lists used in eliminateVar
+	ClauseList  resCands_;  // pairs of clauses to be resolved
+	LitVec      resolvent_; // temporary, used in addResolvent
+	VarVec      queue_;     // indices of clauses waiting for subsumption-check
+	uint32      qFront_;    // front of queue_, i.e. [queue_.begin()+qFront_, queue.end()) is the subsumption queue
+	uint32      facts_;     // [facts_, solver.trail.size()): new top-level facts
+	std::time_t timeout_;   // stop once time > timeout_
 };
 }}
 #endif

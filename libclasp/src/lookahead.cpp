@@ -66,24 +66,21 @@ bool ScoreLook::greater(Var lhs, Var rhs) const {
 // Lookahead propagator
 /////////////////////////////////////////////////////////////////////////////////////////
 Lookahead::Lookahead(const Params& p)
-	: nodes_(2, LitNode(posLit(0)))
+	: nodes_(2, LitNode(lit_true()))
 	, last_(head_id)    // circular list
 	, pos_(head_id)     // lookahead start pos
 	, top_(uint32(-2))
 	, limit_(p.lim) {
 	head()->next = head_id;
 	undo()->next = UINT32_MAX;
-	if (p.type != hybrid_lookahead) {
+	if (p.type != Var_t::Hybrid) {
 		score.mode = ScoreLook::score_max_min;
-		score.types= (p.type == body_lookahead)
-			? Var_t::body_var
-			: Var_t::atom_var;
 	}
 	else {
 		score.mode = ScoreLook::score_max;
-		score.types= Var_t::atom_body_var;
 	}
-	if (p.topLevelImps) { head()->lit.watch(); }
+	score.types = p.type;
+	if (p.topLevelImps) { head()->lit.flag(); }
 	score.nant = p.restrictNant;
 }
 
@@ -124,7 +121,7 @@ bool Lookahead::init(Solver& s) {
 	Var start     = (uint32)sc.score.size();
 	sc.score.resize(s.numVars()+1);
 	const VarType types= sc.types;
-	const bool uniform = types != Var_t::atom_body_var;
+	const bool uniform = types != Var_t::Hybrid;
 	uint32 add    = 0;
 	uint32 nants  = 0;
 	for (Var v = start; v <= s.numVars(); ++v) {
@@ -136,7 +133,7 @@ bool Lookahead::init(Solver& s) {
 	nodes_.reserve(nodes_.size() + add);
 	for (Var v = start; v <= s.numVars(); ++v) {
 		if (s.value(v) == value_free && (s.varInfo(v).type() & types) != 0 ) {
-			append(Literal(v, s.varInfo(v).preferredSign()), uniform || s.varInfo(v).type() == Var_t::atom_body_var);
+			append(Literal(v, s.varInfo(v).preferredSign()), uniform || s.varInfo(v).type() == Var_t::Hybrid);
 		}
 	}
 	if (add && score.nant) {
@@ -151,13 +148,13 @@ void Lookahead::append(Literal p, bool testBoth) {
 	last_             = node(last_)->next;
 	node(last_)->next = head_id;
 	// remember to also test ~p by setting watched-flag
-	if (testBoth) { node(last_)->lit.watch(); }
+	if (testBoth) { node(last_)->lit.flag(); }
 }
 
 // test p and optionally ~p if necessary
 bool Lookahead::test(Solver& s, Literal p) {
 	return (score.score[p.var()].seen(p) || s.test(p, this))
-		&& (!p.watched() || score.score[p.var()].seen(~p) || s.test(~p, this))
+		&& (!p.flagged() || score.score[p.var()].seen(~p) || s.test(~p, this))
 		&& (imps_.empty() || checkImps(s, p));
 }
 
@@ -166,7 +163,7 @@ bool Lookahead::checkImps(Solver& s, Literal p) {
 	bool ok = true;
 	if (score.score[p.var()].testedBoth()) {
 		for (LitVec::const_iterator it = imps_.begin(), end = imps_.end(); it != end && ok; ++it) {
-			ok  = s.force(*it, posLit(0));
+			ok  = s.force(*it, lit_true());
 		}
 	}
 	imps_.clear();
@@ -257,11 +254,12 @@ void Lookahead::splice(NodeId ul) {
 
 void Lookahead::undoLevel(Solver& s) {
 	if (s.decisionLevel() == saved_.size()) {
+		cancelPropagation();
 		const LitVec& a = s.trail();
 		score.scoreLits(s, &a[0]+s.levelStart(s.decisionLevel()), &a[0]+a.size());
-		if (s.decisionLevel() == static_cast<uint32>(head()->lit.watched())) {
+		if (s.decisionLevel() == static_cast<uint32>(head()->lit.flagged())) {
 			const Literal* b = &a[0]+s.levelStart(s.decisionLevel());
-			if (b->watched()) {
+			if (b->flagged()) {
 				// remember current DL for b
 				uint32 dist = static_cast<uint32>(((&a[0]+a.size()) - b));
 				imps_.assign(b+1, b + std::min(dist, uint32(2048)));
@@ -291,7 +289,7 @@ void Lookahead::undoLevel(Solver& s) {
 Literal Lookahead::heuristic(Solver& s) {
 	if (s.value(score.best) != value_free) {
 		// no candidate available
-		return posLit(0);
+		return lit_true();
 	}
 	ScoreLook& sc = score;
 	Literal choice= Literal(sc.best, sc.score[sc.best].prefSign());
@@ -333,7 +331,7 @@ Literal Lookahead::heuristic(Solver& s) {
 			// Since we can't resolve the problem here, we simply return the
 			// literal that caused the conflict
 			assert(s.hasConflict());
-			return negLit(0);
+			return lit_false();
 		}
 	}
 	return choice;
@@ -344,12 +342,12 @@ Literal Lookahead::heuristic(Solver& s) {
 UnitHeuristic::UnitHeuristic() { }
 void UnitHeuristic::endInit(Solver& s) {
 	Lookahead* look = static_cast<Lookahead*>(s.getPost(Lookahead::priority_reserved_look));
-	if (!look) { s.addPost(new Lookahead(Lookahead::atom_lookahead)); }
+	if (!look) { s.addPost(new Lookahead(Var_t::Atom)); }
 }
 Literal UnitHeuristic::doSelect(Solver& s) {
 	Lookahead* look = static_cast<Lookahead*>(s.getPost(Lookahead::priority_reserved_look));
-	Literal x       = look ? look->heuristic(s) : posLit(0);
-	if (x != posLit(0)) { return x; }
+	Literal x       = look ? look->heuristic(s) : lit_true();
+	if (x != lit_true()) { return x; }
 	return SelectFirst::doSelect(s);
 }
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -366,14 +364,15 @@ public:
 	Literal doSelect(Solver& s) {
 		Lookahead* look = static_cast<Lookahead*>(s.getPost(Lookahead::priority_reserved_look));
 		if (look && !look->hasLimit()) { look = 0; }
-		Literal x = look ? look->heuristic(s) : posLit(0);
-		if (x == posLit(0)) { x = other_->doSelect(s); }
-		if (!look)          { s.setHeuristic(other_.release()); }
+		Literal x = look ? look->heuristic(s) : lit_true();
+		if (x == lit_true()) { x = other_->doSelect(s); }
+		if (!look)          { s.setHeuristic(other_.release(), Ownership_t::Acquire); }
 		return x;
 	}
 	// heuristic interface - forward to other
 	void startInit(const Solver& s)           { other_->startInit(s); }
 	void endInit(Solver& s)                   { other_->endInit(s); }
+	void setConfig(const HeuParams& p)        { other_->setConfig(p); }
 	void detach(Solver& s)                    { if (other_.is_owner()) { other_->detach(s); } }
 	void simplify(const Solver& s, size_t st) { other_->simplify(s, st); }
 	void undoUntil(const Solver& s, size_t st){ other_->undoUntil(s, st); }

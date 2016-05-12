@@ -1,6 +1,6 @@
-The input files used to solve expansible blocksworld problems with clingo-4 are:
+The input files used to solve expansible blocksworld problems with clingo are:
 
-- world.lp: clingo-4 encoding consisting of several program parts
+- world.lp: clingo encoding consisting of several program parts
 
 - blocks_01.lp: base facts providing initial and goal conditions for six blocks
 

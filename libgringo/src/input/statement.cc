@@ -29,49 +29,6 @@
 
 namespace Gringo { namespace Input {
 
-// {{{ helpers for weak constraints
-
-namespace {
-
-UTermVec wc_to_args(UTerm &&weight, UTerm &&prioriy, UTermVec &&tuple) {
-    UTermVec args;
-    args.emplace_back(std::move(weight));
-    args.emplace_back(std::move(prioriy));
-    std::move(tuple.begin(), tuple.end(), std::back_inserter(args));
-    return args;
-}
-
-UHeadAggr wc_to_head(UTermVec &&args) {
-    assert(args.size() > 1);
-    Location loc(args.front()->loc() + args.back()->loc());
-    return make_locatable<SimpleHeadLiteral>(loc, make_locatable<PredicateLiteral>(loc, NAF::POS, make_locatable<FunctionTerm>(loc, "#wc", std::move(args))));
-}
-
-Term const &wc_term_from_head(UHeadAggr const &head) {
-    assert(dynamic_cast<SimpleHeadLiteral*>(head.get()));
-    assert(dynamic_cast<PredicateLiteral*>(static_cast<SimpleHeadLiteral&>(*head).lit.get()));
-    return *static_cast<PredicateLiteral&>(*static_cast<SimpleHeadLiteral&>(*head).lit).repr;
-}
-
-UTermVec wc_args_from_term(Term const &term) {
-    if (term.getInvertibility() == Term::CONSTANT) {
-        bool undefined; // Note: already checked elsewhere
-        Value x = term.eval(undefined);
-        assert(x.type() == Value::FUNC);
-        UTermVec ret;
-        for (Value y : x.args()) { ret.emplace_back(make_locatable<ValTerm>(term.loc(), y)); }
-        return ret;
-    }
-    else {
-        assert(dynamic_cast<FunctionTerm const*>(&term));
-        return get_clone(dynamic_cast<FunctionTerm const &>(term).args);
-    }
-}
-
-} // namespace
-
-// }}}
-
 // {{{ definition of Statement::Statement
 
 Statement::Statement(UHeadAggr &&head, UBodyAggrVec &&body, StatementType type)
@@ -79,13 +36,15 @@ Statement::Statement(UHeadAggr &&head, UBodyAggrVec &&body, StatementType type)
     , body(std::move(body))
     , type(type) { }
 
-Statement::Statement(UTerm &&weight, UTerm &&priority, UTermVec &&tuple, UBodyAggrVec &&body)
-    : Statement(wc_to_args(std::move(weight), std::move(priority), std::move(tuple)), std::move(body)) {
+// }}}
+
+void Statement::initTheory(TheoryDefs &def) {
+    head->initTheory(def, !body.empty());
+    for (auto &lit : body) {
+        lit->initTheory(def);
+    }
 }
 
-Statement::Statement(UTermVec &&tuple, UBodyAggrVec &&body)
-    : Statement(wc_to_head(std::move(tuple)), std::move(body), StatementType::WEAKCONSTRAINT) { }
-// }}}
 // {{{ definition of Statement::add
 
 void Statement::add(ULit &&lit) {
@@ -110,20 +69,8 @@ void Statement::print(std::ostream &out) const {
     else {
         out << ":~";
         print_comma(out, body, ";", [](std::ostream &out, UBodyAggr const &x) { out << *x; });
-        out << ".[";
-        Term const &term = wc_term_from_head(head);
-        if (term.getInvertibility() == Term::CONSTANT) {
-            bool undefined; // Note: don't care
-            FWValVec args = term.eval(undefined).args();
-            out << args.front() << "@" << *(args.begin() + 1);
-            for (auto it = args.begin() + 2, ie = args.end(); it != ie; ++it) { out << "," << *it; }
-        }
-        else {
-            UTermVec const &args = static_cast<FunctionTerm const&>(term).args;
-            out << *args.front() << "@" << **(args.begin() + 1);
-            for (auto it = args.begin() + 2, ie = args.end(); it != ie; ++it) { out << "," << **it; }
-        }
-        out << "]";
+        out << ".";
+        head->print(out);
     }
 }
 
@@ -202,6 +149,17 @@ void _rewriteAggregates(UBodyAggrVec &body) {
     body.erase(jt, body.end());
     std::move(aggr.begin(), aggr.end(), std::back_inserter(body));
 }
+
+// TODO: this code has to be adjusted
+//       the toGround code then has to take an additional argument
+//       to only create aggregate literals up to an index
+//       EXAMPLE:
+//         h :- B, { c1 }, { c2 }.
+//         a1 :- B*, c1.       % accumulation rule
+//         a2 :- B*, a1*, c2.  % accumulation rule
+//         % TODO: add complete rules...
+//         h :- B, a1, a2.
+//
 
 void _rewriteAssignments(UBodyAggrVec &body) {
     using LitDep = SafetyChecker<VarTerm*, UBodyAggr>;
@@ -298,13 +256,12 @@ void Statement::rewrite2() {
 // }}}
 // {{{ definition of Statement::check
 
-bool Statement::check() const {
-    bool ret = true;
+void Statement::check() const {
     ChkLvlVec levels;
     levels.emplace_back(loc(), *this);
-    ret = head->check(levels) && ret;
-    for (auto &y : body) { ret = y->check(levels) && ret; }
-    return levels.back().check() && ret;
+    head->check(levels);
+    for (auto &y : body) { y->check(levels); }
+    levels.back().check();
 }
 
 // }}}
@@ -325,11 +282,11 @@ void toGround(CreateHead &&head, UBodyAggrVec const &body, ToGroundArg &x, Groun
     for (auto &y : body) { createVec.emplace_back(y->toGround(x, stms)); }
     Ground::ULitVec lits;
     for (auto current = createVec.begin(), end = createVec.end(); current != end; ++current) {
-        current->first(lits, true);
+        current->first(lits, true, false);
         for (auto &z : current->second) {
             Ground::ULitVec splitLits;
             for (auto it = createVec.begin(); it != end; ++it) {
-                if (it != current) { it->first(splitLits, it < current); }
+                if (it != current) { it->first(splitLits, it < current, true); }
             }
             stms.emplace_back(z(std::move(splitLits)));
         }
@@ -340,15 +297,11 @@ void toGround(CreateHead &&head, UBodyAggrVec const &body, ToGroundArg &x, Groun
 } // namespace
 
 void Statement::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
-    Ground::RuleType t = Ground::RuleType::NORMAL;
+    Ground::RuleType t = Ground::RuleType::Disjunctive;
     switch (type) {
-        case StatementType::WEAKCONSTRAINT: {
-            CreateHead hd{[this](Ground::ULitVec &&lits) -> Ground::UStm { return gringo_make_unique<Ground::WeakConstraint>(wc_args_from_term(wc_term_from_head(head)), std::move(lits)); }};
-            Gringo::Input::toGround(std::move(hd), body, x, stms);
-            return;
-        }
-        case StatementType::EXTERNAL:   { t = Ground::RuleType::EXTERNAL;   break; }
-        case StatementType::RULE:       { t = Ground::RuleType::NORMAL;     break; }
+        case StatementType::EXTERNAL:   { t = Ground::RuleType::External;   break; }
+        case StatementType::WEAKCONSTRAINT: // t is ignored later
+        case StatementType::RULE:       { t = Ground::RuleType::Disjunctive;     break; }
     }
     Gringo::Input::toGround(head->toGround(x, stms, t), body, x, stms);
 }

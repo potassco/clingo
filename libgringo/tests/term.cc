@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -19,6 +19,7 @@
 // }}}
 
 #include "gringo/bug.hh"
+#include "gringo/output/theory.hh"
 #include "tests/tests.hh"
 #include "tests/term_helper.hh"
 
@@ -43,6 +44,7 @@ class TestTerm : public CppUnit::TestFixture {
         CPPUNIT_TEST(test_undefined);
         CPPUNIT_TEST(test_project);
         CPPUNIT_TEST(test_match);
+        CPPUNIT_TEST(test_theory);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -60,6 +62,7 @@ public:
     void test_undefined();
     void test_project();
     void test_match();
+    void test_theory();
 
     virtual ~TestTerm();
 
@@ -101,8 +104,8 @@ std::string rewriteProject(UTerm &&x) {
     auto projected(std::move(std::get<1>(ret)));
     auto project(std::move(std::get<2>(ret)));
     return to_string(std::make_tuple(
-        std::move(x), 
-        projected ? std::move(projected) : val(Value::createStr("#undef")), 
+        std::move(x),
+        projected ? std::move(projected) : val(Value::createStr("#undef")),
         project ? std::move(project) : val(Value::createStr("#undef"))));
 }
 
@@ -340,6 +343,34 @@ void TestTerm::test_match() {
     CPPUNIT_ASSERT(bindVars(fun("p", binop(BinOp::SUB, val(NUM(4)), binop(BinOp::MUL, val(NUM(3)), var("X"))), unop(UnOp::NEG, var("X"))))->match(FUN("p", {NUM(-5), NUM(-3)})));
     CPPUNIT_ASSERT(!bindVars(fun("p", binop(BinOp::SUB, val(NUM(4)), binop(BinOp::MUL, val(NUM(3)), var("X"))), unop(UnOp::NEG, var("X"))))->match(FUN("p", {NUM(2), NUM(2)})));
     CPPUNIT_ASSERT(!bindVars(fun("p", binop(BinOp::SUB, val(NUM(4)), binop(BinOp::MUL, val(NUM(3)), var("X"))), unop(UnOp::NEG, var("X"))))->match(FUN("p", {NUM(1), NUM(2)})));
+}
+
+void TestTerm::test_theory() {
+    Potassco::TheoryData td;
+    Output::TheoryData data(td);
+    auto T = [&data](Value v) {
+        std::ostringstream out;
+        data.printTerm(out, data.addTerm(v));
+        return out.str();
+    };
+    Value px = Value::createId("x", false);
+    Value nx = Value::createId("x", true);
+    Value str = Value::createStr("x\ny");
+    Value sup = Value::createSup();
+    Value inf = Value::createInf();
+    Value pf = Value::createFun("f", {px, nx, str, sup, inf}, false);
+    Value nf = Value::createFun("f", {px, nx, str, sup, inf}, true);
+    Value t = Value::createTuple({px, nx, str, sup, inf});
+    Potassco::Id_t nfId = data.addTerm(nf);
+    CPPUNIT_ASSERT_EQUAL(S("x"), T(px));
+    CPPUNIT_ASSERT_EQUAL(S("(-x)"), T(nx));
+    CPPUNIT_ASSERT_EQUAL(S("#inf"), T(inf));
+    CPPUNIT_ASSERT_EQUAL(S("#sup"), T(sup));
+    CPPUNIT_ASSERT_EQUAL(S("\"x\\ny\""), T(str));
+    CPPUNIT_ASSERT_EQUAL(S("f(x,(-x),\"x\\ny\",#sup,#inf)"), T(pf));
+    CPPUNIT_ASSERT_EQUAL(S("(-f(x,(-x),\"x\\ny\",#sup,#inf))"), T(nf));
+    CPPUNIT_ASSERT_EQUAL(S("(x,(-x),\"x\\ny\",#sup,#inf)"), T(t));
+    CPPUNIT_ASSERT_EQUAL(nfId, data.addTerm(nf));
 }
 
 TestTerm::~TestTerm() { }

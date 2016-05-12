@@ -69,10 +69,10 @@ public:
 	}
 
 	bool eq() const { return type_ == full_eq; }
-	Var  getRootAtom(Literal p) const { return p.index() < litToNode_.size() ? litToNode_[p.index()] : varMax; }
+	Var  getRootAtom(Literal p) const { return p.id() < litToNode_.size() ? litToNode_[p.id()] : varMax; }
 	void setRootAtom(Literal p, uint32 atomId) {
-		if (p.index() >= litToNode_.size()) litToNode_.resize(p.index()+1, varMax);
-		litToNode_[p.index()] = atomId;
+		if (p.id() >= litToNode_.size()) litToNode_.resize(p.id()+1, varMax);
+		litToNode_[p.id()] = atomId;
 	}
 private:
 	Preprocessor(const Preprocessor&);
@@ -93,9 +93,9 @@ private:
 	ValueRep simplifyClassifiedProgram(const HeadRange& atoms, bool more, VarVec& supported);
 	PrgBody* addBodyVar(uint32 bodyId);
 	bool     addHeadsToUpper(PrgBody* body);
-	bool     addHeadToUpper(PrgHead* head, PrgEdge headEdge, PrgEdge support);
-	bool     propagateAtomVar(Var atomId, PrgAtom*, PrgEdge source);
-	bool     propagateAtomValue(PrgAtom*, ValueRep val);
+	bool     addHeadToUpper(PrgHead* head, PrgEdge support);
+	bool     propagateAtomVar(PrgAtom*, PrgEdge source);
+	bool     propagateAtomValue(PrgAtom*, ValueRep val, PrgEdge source);
 	bool     mergeEqBodies(PrgBody* b, Var rootId, bool equalLits);
 	bool     hasRootLiteral(PrgBody* b) const;
 	bool     superfluous(PrgBody* b) const;

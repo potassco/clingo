@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -133,6 +133,10 @@ void TestFlyweight::test_uid() {
 }
 
 void TestFlyweight::test_erase_uid() {
+    // NOTE: erasing in flyweights will probably never be used in real code
+    //       given the current implementation visiting the datastructure
+    //       and copying all flyweights used is probably a better idea
+    //       the tests are just kept for now
     FWDummy::clear();
 
     FWDummy a("a");
@@ -140,8 +144,8 @@ void TestFlyweight::test_erase_uid() {
 
     CPPUNIT_ASSERT_EQUAL(0u, a.uid());
     CPPUNIT_ASSERT_EQUAL(1u, b.uid());
-    
-    FWDummy::erase(1);
+
+    FWDummy::erase([](Dummy const &d) { return d.name == "b"; });
     FWDummy c("c");
     CPPUNIT_ASSERT_EQUAL(1u, c.uid());
 
@@ -149,18 +153,15 @@ void TestFlyweight::test_erase_uid() {
 
     CPPUNIT_ASSERT_EQUAL(2u, bb.uid());
 
-    CPPUNIT_ASSERT_EQUAL(3u, unsigned(std::distance(FWDummy::beginKey(), FWDummy::endKey())));
-    FWDummy::erase(1);
-    FWDummy::erase(2);
-    FWDummy::erase(0);
+    FWDummy::erase([](Dummy const &d) { return d.name == "a" || d.name == "c"; });
 
     FWDummy x("x");
     FWDummy y("y");
     FWDummy z("z");
 
-    CPPUNIT_ASSERT_EQUAL(0u, x.uid());
+    CPPUNIT_ASSERT_EQUAL(1u, x.uid());
     CPPUNIT_ASSERT_EQUAL(2u, y.uid());
-    CPPUNIT_ASSERT_EQUAL(1u, z.uid());
+    CPPUNIT_ASSERT_EQUAL(3u, z.uid());
 }
 
 void TestFlyweight::test_offset() {
@@ -168,47 +169,67 @@ void TestFlyweight::test_offset() {
     FWStringVec a = {"a", "b", "c"};
     FWStringVec b = {"a", "b"};
     FWStringVec c = {"a", "b", "c"};
-    
+    FWStringVec d = {"a", "b", "d"};
+
     CPPUNIT_ASSERT_EQUAL(3u, a.size());
     CPPUNIT_ASSERT_EQUAL(0u, a.offset());
     CPPUNIT_ASSERT_EQUAL(std::string("a"), a[0]);
     CPPUNIT_ASSERT_EQUAL(std::string("b"), a[1]);
     CPPUNIT_ASSERT_EQUAL(std::string("c"), a[2]);
-    
+
     CPPUNIT_ASSERT_EQUAL(2u, b.size());
-    CPPUNIT_ASSERT_EQUAL(3u, b.offset());
+    CPPUNIT_ASSERT_EQUAL(0u, b.offset());
     CPPUNIT_ASSERT_EQUAL(std::string("a"), b[0]);
     CPPUNIT_ASSERT_EQUAL(std::string("b"), b[1]);
 
     CPPUNIT_ASSERT_EQUAL(3u, c.size());
     CPPUNIT_ASSERT_EQUAL(0u, c.offset());
+    CPPUNIT_ASSERT_EQUAL(1u, d.offset());
+}
+
+template <class It, class Jt>
+bool range_equal(It it, It ie, Jt jt, Jt je) {
+    for (; it != ie && jt != je; ++it, ++jt) {
+        if (!(*it == *jt)) { return false; }
+    }
+    return it == ie && jt == je;
 }
 
 void TestFlyweight::test_erase_offset() {
+    // NOTE: erasing in flyweights will probably never be used in real code
+    //       the tests are just kept for now
     FWStringVec::clear();
 
     FWStringVec a{"a", "b", "c"};
     FWStringVec b{"a", "b"};
+    FWStringVec d{"a", "b", "d"};
     CPPUNIT_ASSERT_EQUAL(0u, a.offset());
-    CPPUNIT_ASSERT_EQUAL(3u, b.offset());
+    CPPUNIT_ASSERT_EQUAL(0u, b.offset());
+    CPPUNIT_ASSERT_EQUAL(1u, d.offset());
 
-    FWStringVec::erase(2, 3);
+    FWStringVec::erase([](FWStringVec::ConstIterator it, FWStringVec::ConstIterator ie) {
+        auto ab = {"a", "b"};
+        return range_equal(it, ie, ab.begin(), ab.end());
+    });
     FWStringVec c{"x", "y"};
-    CPPUNIT_ASSERT_EQUAL(3u, c.offset());
+    CPPUNIT_ASSERT_EQUAL(0u, c.offset());
 
     FWStringVec cc{"x", "y"};
 
-    CPPUNIT_ASSERT_EQUAL(3u, cc.offset());
-    
-    CPPUNIT_ASSERT_EQUAL(2u, unsigned(std::distance(FWStringVec::beginKey(), FWStringVec::endKey())));
-    FWStringVec::erase(3, 0);
-    FWStringVec::erase(2, 3);
+    CPPUNIT_ASSERT_EQUAL(0u, cc.offset());
+
+    FWStringVec::erase([](FWStringVec::ConstIterator it, FWStringVec::ConstIterator ie) {
+        auto xy = {"x", "y"};
+        auto abc = {"a", "b", "c"};
+        return range_equal(it, ie, xy.begin(), xy.end()) || range_equal(it, ie, abc.begin(), abc.end());
+    });
 
     FWStringVec x{"x", "y"};
     FWStringVec y{"x", "y", "z"};
 
-    CPPUNIT_ASSERT_EQUAL(3u, x.offset());
-    CPPUNIT_ASSERT_EQUAL(0u, y.offset());
+    CPPUNIT_ASSERT_EQUAL(0u, x.offset());
+    CPPUNIT_ASSERT_EQUAL(0u, FWStringVec({"a", "b", "d"}).offset());
+    CPPUNIT_ASSERT_EQUAL(1u, y.offset());
 }
 
 TestFlyweight::~TestFlyweight() { }

@@ -1,3 +1,12 @@
+clingo 5.0.0
+ - complete the C-interface
+ - adjust reify to the new format
+ - maybe additional functions/functionality to work with theory atoms
+   - functions to output aspif rules
+   - reify theory atoms (but not the rest of the program)
+ - warnings about atoms not occurring in program should not talk about literals but atoms
+   (p :- not q.)
+
 planned for 4.5.*
  - --lparse-rewrite should produce gringo 4 aligned output
  - address _ in negated literals
@@ -60,26 +69,10 @@ incremental programs
     it might be a good idea to optimize this and reuse indices later on
 	for now just clear them to not have them dangling around
 
-the weakconstraint class appears to be unnecessary the same can be achieved with a special head literal
-  this way the statemnet interface could be completely removed and replaced by the rule implementation
-  similarly show statements could be handled with a dedicated head literal
-
-auxliterals should be unnecessary
-  they can be handled using a predicate domain
- 
 output
   add a method to get a negated literal to save a few auxiliary symbols here and there
   add more test for disjunctions
 
-cleanup includes
-  split interfaces from specializations
-  term.hh ->
-    term.hh
-	  includes necessary forward declarations
-	terms.hh
-	  includes class that implement the term interface
-  should speed up compilation times
-	  
 missing features in view of the ASP standard
   queries
 
@@ -87,21 +80,11 @@ bullcrap
   enqueue: expr(X,Z,Val):-expr(X,Y,Val_1)?,sing_term(Y,Z,Val_2)?,Val=(Val_1+Val_2),#X0=(Val_1+Val_2),#X0=Val.
   handle assignments in a more clever way...
 
-domain implementation
-  the offset member of exports should be a parameter
-
 optimizations
   it would be nice to block grounding of rules if one index is empty
     (maybe even delaying the filling of indices if one index is empty)
-  uids for domain elements can be added in the output when needed
-    no need to assign uids during grounding!
-    consider replacing typedef with using
   indices could be specialized to handle ground literals more efficiently
     there could be one domain for all zero-ary predicates 
-  try to speed up flyweight
-  no allocation in lexerstate for std::string
-    (just assign and return reference (which might be moved))
-  move string in flyweight only if inserted
   the current data structure allows for detecting ground progams
     do not implement a -g options again but automatically switch from grounding to direct output
   *very low priority*
@@ -112,29 +95,7 @@ optimizations
       using a valvec as key is wasteful
       uses one unordered_map too much
     on large instances both optimizations should safe a lot of memory
-    having a boost::multi_index-like container for flyweights might reduce memory even further
-      (would probably involve having to write an own container)
 
-refactoring
-  to make private variables easier accessible put the _ in front
-  it is not necessary to move local variables in return
-    similarly && could be removed in function arguments
-
-notes on auxiliary predicates from aggregate translations
-  they must be treated like normal predicates in the dependency analysis
-    but auxiliary predicates could be ignored for determining recursiveness
-    if rules containing auxiliary predicates are guaranteed to be grounded before rules directly depending on them
-  they should be ignored for output
-  to do this, the stratification information should be passed along with ground atoms
-  fact atoms can be removed as usual!
-
-building boost
-  ./bootstrap.sh
-  ./b2 toolset=clang cxxflags="-std=c++11 -stdlib=libc++" linkflags="-std=c++11 -stdlib=libc++" -d2 -j4 threading=single link=static variant=release install --prefix=...
-  ./b2 toolset=clang cxxflags="-std=c++11 -stdlib=libc++" linkflags="-std=c++11 -stdlib=libc++" -d2 -j4 threading=single link=static variant=debug install --prefix=...
 building cppunit
   ./configure --enable-static CXX=clang++ CC=clang CXXFLAGS="-std=c++11 -stdlib=libc++" --disable-doxygen --enable-static --disable-shared --prefix=...
   make install
-building tbb
-  make CPLUS=clang++ CXXFLAGS="-std=c++11 -stdlib=libc++"
-  copy include and lib ...

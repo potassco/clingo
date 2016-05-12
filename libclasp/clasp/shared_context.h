@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2010-2012, Benjamin Kaufmann
+// Copyright (c) 2010-2016, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -23,11 +23,10 @@
 #pragma warning (disable : 4200) // nonstandard extension used : zero-sized array
 #pragma once
 #endif
-
+#include <clasp/claspfwd.h>
 #include <clasp/literal.h>
 #include <clasp/constraint.h>
 #include <clasp/util/left_right_sequence.h>
-#include <clasp/util/misc_types.h>
 #include <clasp/util/atomic.h>
 #include <clasp/solver_strategies.h>
 /*!
@@ -35,13 +34,40 @@
  * Contains some types shared between different solvers
  */
 namespace Clasp {
-class Solver;
-class ClauseInfo;
 class Assignment;
-class SharedContext;
 class SharedLiterals;
-class SharedDependencyGraph;
 struct SolverStats;
+typedef Asp::PrgDepGraph PrgDepGraph;
+
+class EventHandler : public ModelHandler {
+public:	
+	explicit EventHandler(Event::Verbosity verbosity = Event::verbosity_quiet);
+	virtual ~EventHandler();
+	void setVerbosity(Event::Subsystem sys, Event::Verbosity verb);
+	bool setActive(Event::Subsystem sys);
+	Event::Subsystem active() const;
+	uint32 verbosity(Event::Subsystem sys) const { return (uint32(verb_) >> (uint32(sys)<<VERB_SHIFT)) & uint32(VERB_MAX); }
+	void dispatch(const Event& ev)               { if (ev.verb <= verbosity(static_cast<Event::Subsystem>(ev.system))) { onEvent(ev); } }
+	virtual void onEvent(const Event& /* ev */)  {}
+	virtual bool onModel(const Solver&, const Model&) { return true; }
+private:
+	enum { VERB_SHIFT = 2u, VERB_MAX = 15u };
+	EventHandler(const EventHandler&);
+	EventHandler& operator=(const EventHandler&);
+	uint16 verb_;
+	uint16 sys_;
+};
+
+//! Event type for log or warning messages.
+struct LogEvent : Event_t<LogEvent> {
+	enum Type { Message = 'M', Warning = 'W' };
+	LogEvent(Subsystem sys, Verbosity verb, Type t, const Solver* s, const char* what) : Event_t<LogEvent>(sys, verb), solver(s), msg(what) {
+		op = static_cast<uint32>(t);
+	}
+	bool isWarning() const { return op == static_cast<uint32>(Warning); }
+	const Solver* solver;
+	const char*   msg;
+};
 
 /*!
  * \addtogroup solver
@@ -81,7 +107,7 @@ public:
 		Literal lits_[1];     // literals of the clause: [lits_[0], lits_[size_])
 	};
 	
-	SatPreprocessor() : ctx_(0), elimTop_(0), seen_(1,1) {}
+	SatPreprocessor();
 	virtual ~SatPreprocessor();
 
 	//! Creates a clone of this preprocessor.
@@ -141,8 +167,9 @@ protected:
 		clauses_[id] = 0;
 		++stats.clRemoved;
 	}
-	SharedContext*  ctx_;     // current context
-	Clause*         elimTop_; // stack of blocked/eliminated clauses
+	SharedContext* ctx_;     // current context
+	const Options* opts_;    // active options
+	Clause*        elimTop_; // stack of blocked/eliminated clauses
 private:
 	SatPreprocessor(const SatPreprocessor&);
 	SatPreprocessor& operator=(const SatPreprocessor&);
@@ -166,22 +193,20 @@ private:
  */
 struct ProblemStats {
 	ProblemStats() { reset(); }
-	uint32  vars;
-	uint32  vars_eliminated;
-	uint32  vars_frozen;
-	uint32  constraints;
-	uint32  constraints_binary;
-	uint32  constraints_ternary;
+	struct { uint32 num, eliminated, frozen; } vars;
+	struct { uint32 binary, ternary, other;  } constraints;
+	uint32  acycEdges;
 	uint32  complexity;
 	void    reset() { std::memset(this, 0, sizeof(*this)); }
-	uint32  numConstraints() const   { return constraints + constraints_binary + constraints_ternary; }
+	uint32  numConstraints() const   { return constraints.other + constraints.binary + constraints.ternary; }
 	void diff(const ProblemStats& o) {
-		vars               = std::max(vars, o.vars)-std::min(vars, o.vars);
-		vars_eliminated    = std::max(vars_eliminated, o.vars_eliminated)-std::min(vars_eliminated, o.vars_eliminated);
-		vars_frozen        = std::max(vars_frozen, o.vars_frozen)-std::min(vars_frozen, o.vars_frozen);
-		constraints        = std::max(constraints, o.constraints) - std::min(constraints, o.constraints);
-		constraints_binary = std::max(constraints_binary, o.constraints_binary) - std::min(constraints_binary, o.constraints_binary);
-		constraints_ternary= std::max(constraints_ternary, o.constraints_ternary) - std::min(constraints_ternary, o.constraints_ternary);
+		vars.num           = std::max(vars.num, o.vars.num)-std::min(vars.num, o.vars.num);
+		vars.eliminated    = std::max(vars.eliminated, o.vars.eliminated)-std::min(vars.eliminated, o.vars.eliminated);
+		vars.frozen        = std::max(vars.frozen, o.vars.frozen)-std::min(vars.frozen, o.vars.frozen);
+		constraints.other  = std::max(constraints.other, o.constraints.other) - std::min(constraints.other, o.constraints.other);
+		constraints.binary = std::max(constraints.binary, o.constraints.binary) - std::min(constraints.binary, o.constraints.binary);
+		constraints.ternary= std::max(constraints.ternary, o.constraints.ternary) - std::min(constraints.ternary, o.constraints.ternary);
+		acycEdges          = std::max(acycEdges, o.acycEdges) - std::min(acycEdges, o.acycEdges);
 	}
 	double operator[](const char* key) const;
 	static const char* keys(const char* = 0);
@@ -189,38 +214,43 @@ struct ProblemStats {
 
 //! Stores static information about a variable.
 struct VarInfo {
-	enum FLAG {
-		MARK_P = 0x1u, // mark for positive literal
-		MARK_N = 0x2u, // mark for negative literal
-		NANT   = 0x4u, // var in NAnt(P)?
-		PROJECT= 0x8u, // do we project on this var?
-		BODY   = 0x10u,// is this var representing a body?
-		EQ     = 0x20u,// is the var representing both a body and an atom?
-		DISJ   = 0x40u,// in non-hcf disjunction?
-		FROZEN = 0x80u // is the variable frozen?
+	enum Flag {
+		Mark_p = 0x1u, // mark for positive literal
+		Mark_n = 0x2u, // mark for negative literal
+		Nant   = 0x4u, // var in NAnt(P)?
+		Project= 0x8u, // do we project on this var?
+		Body   = 0x10u,// is this var representing a body?
+		Eq     = 0x20u,// is this var representing both a body and an atom?
+		Input  = 0x40u,// is this var an input variable?
+		Frozen = 0x80u // is the variable frozen?
 	};
-	VarInfo() : rep(0) {}
-
-	//! Returns the type of the variable (or Var_t::atom_body_var if variable was created with parameter eq=true).
-	VarType type()          const { return has(VarInfo::EQ) ? Var_t::atom_body_var : VarType(Var_t::atom_var + has(VarInfo::BODY)); }
-	//! Returns true if var is contained in a negative loop or head of a choice rule.
-	bool    nant()          const { return has(VarInfo::NANT); }
+	static uint8 flags(VarType t) {
+		if (t == Var_t::Body)  { return VarInfo::Body; }
+		if (t == Var_t::Hybrid){ return VarInfo::Eq; }
+		return 0;
+	}
+	explicit VarInfo(uint8 r = 0) : rep(r) { }
+	//! Returns the type of the variable (or Var_t::Hybrid if variable was created with parameter eq=true).
+	VarType type()          const { return has(VarInfo::Eq) ? Var_t::Hybrid : VarType(Var_t::Atom + has(VarInfo::Body)); }
+	//! Returns whether var is part of negative antecedents (occurs negatively or in the head of a choice rule).
+	bool    nant()          const { return has(VarInfo::Nant); }
 	//! Returns true if var is a projection variable.
-	bool    project()       const { return has(VarInfo::PROJECT);}
-	bool    inDisj()        const { return has(VarInfo::DISJ);}
+	bool    project()       const { return has(VarInfo::Project);}
 	//! Returns true if var is excluded from variable elimination.
-	bool    frozen()        const { return has(VarInfo::FROZEN); }
+	bool    frozen()        const { return has(VarInfo::Frozen); }
+	//! Returns true if var is an input variable.
+	bool    input()         const { return has(VarInfo::Input); }
 	//! Returns the preferred sign of this variable w.r.t its type.
 	/*!
 	 * \return false (i.e no sign) if var originated from body, otherwise true.
 	 */
-	bool    preferredSign() const { return !has(VarInfo::BODY); }
+	bool    preferredSign() const { return !has(VarInfo::Body); }
 	
-	bool    has(FLAG f)     const { return (rep & flag(f)) != 0; }
+	bool    has(Flag f)     const { return (rep & flag(f)) != 0; }
 	bool    has(uint32 f)   const { return (rep & f) != 0;       }
-	void    set(FLAG f)           { rep |= flag(f); }
-	void    toggle(FLAG f)        { rep ^= flag(f); }
-	static uint8 flag(FLAG x)     { return uint8(x); }
+	void    set(Flag f)           { rep |= flag(f); }
+	void    toggle(Flag f)        { rep ^= flag(f); }
+	static uint8 flag(Flag x)     { return uint8(x); }
 	uint8 rep;
 };
 
@@ -277,7 +307,7 @@ public:
 	 */
 	template <class OP>
 	bool forEach(Literal p, const OP& op) const {
-		const ImplicationList& x = graph_[p.index()];
+		const ImplicationList& x = graph_[p.id()];
 		if (x.empty()) return true;
 		ImplicationList::const_right_iterator rEnd = x.right_end(); // prefetch
 		for (ImplicationList::const_left_iterator it = x.left_begin(), end = x.left_end(); it != end; ++it) {
@@ -288,9 +318,9 @@ public:
 		}
 #if WITH_THREADS
 		for (Block* b = (x).learnt; b ; b = b->next) {
-			p.watch(); bool r = true;
+			p.flag(); bool r = true;
 			for (Block::const_iterator imp = b->begin(), endOf = b->end(); imp != endOf; ) {
-				if (!imp->watched()) { r = op.binary(p, imp[0], imp[1]); imp += 2; }
+				if (!imp->flagged()) { r = op.binary(p, imp[0], imp[1]); imp += 2; }
 				else                 { r = op.unary(p, imp[0]);          imp += 1; }
 				if (!r)              { return false; }
 			}
@@ -305,8 +335,8 @@ private:
 	struct ReverseArc;
 #if WITH_THREADS
 	struct Block {
-		typedef Clasp::atomic<uint32> atomic_size;
-		typedef Clasp::atomic<Block*> atomic_ptr;
+		typedef Clasp::mt::atomic<uint32> atomic_size;
+		typedef Clasp::mt::atomic<Block*> atomic_ptr;
 		typedef const Literal*      const_iterator;
 		typedef       Literal*      iterator;
 		enum { block_cap = (64 - (sizeof(atomic_size)+sizeof(atomic_ptr)))/sizeof(Literal) };
@@ -325,12 +355,19 @@ private:
 	typedef bk_lib::left_right_sequence<Literal, std::pair<Literal,Literal>, 64-sizeof(SharedBlockPtr)> ImpListBase;
 	struct ImplicationList : public ImpListBase {
 		ImplicationList() : ImpListBase() { learnt = 0; }
-		ImplicationList(const ImplicationList& other) : ImpListBase(other), learnt(other.learnt) {}
+		ImplicationList(const ImplicationList& other) : ImpListBase(other), learnt() {
+			learnt = static_cast<Block*>(other.learnt);
+		}
+		ImplicationList& operator=(const ImplicationList& other) {
+			ImpListBase::operator=(other);
+			learnt = static_cast<Block*>(other.learnt);
+			return *this;
+		}
 		~ImplicationList();
-		bool hasLearnt(Literal q, Literal r = negLit(0)) const;
-		void addLearnt(Literal q, Literal r = negLit(0));
+		bool hasLearnt(Literal q, Literal r = lit_false()) const;
+		void addLearnt(Literal q, Literal r = lit_false());
 		void simplifyLearnt(const Solver& s);
-		bool empty() const { return ImpListBase::empty() && learnt == 0; }
+		bool empty() const { return ImpListBase::empty() && learnt == static_cast<Block*>(0); }
 		void move(ImplicationList& other);
 		void clear(bool b);
 		SharedBlockPtr learnt; 
@@ -338,14 +375,14 @@ private:
 #else
 	typedef bk_lib::left_right_sequence<Literal, std::pair<Literal,Literal>, 64> ImplicationList;
 #endif
-	ImplicationList& getList(Literal p) { return graph_[p.index()]; }
+	ImplicationList& getList(Literal p) { return graph_[p.id()]; }
 	void remove_bin(ImplicationList& w, Literal p);
 	void remove_tern(ImplicationList& w, Literal p);
 	typedef PodVector<ImplicationList>::type ImpLists;
-	ImpLists   graph_;     // one implication list for each literal
-	uint32     bin_[2];    // number of binary constraints (0: problem / 1: learnt)
-	uint32     tern_[2];   // number of ternary constraints(0: problem / 1: learnt)
-	bool       shared_;
+	ImpLists graph_;     // one implication list for each literal
+	uint32   bin_[2];    // number of binary constraints (0: problem / 1: learnt)
+	uint32   tern_[2];   // number of ternary constraints(0: problem / 1: learnt)
+	bool     shared_;
 };
 
 //! Base class for distributing learnt knowledge between solvers.
@@ -354,8 +391,8 @@ public:
 	struct Policy {
 		enum Types { 
 			no       = 0,
-			conflict = Constraint_t::learnt_conflict,
-			loop     = Constraint_t::learnt_loop,
+			conflict = Constraint_t::Conflict,
+			loop     = Constraint_t::Loop,
 			all      = conflict | loop,
 			implicit = all + 1
 		};
@@ -380,35 +417,159 @@ private:
 	Policy policy_;
 };
 
+class ConstString {
+public:
+	ConstString();
+	ConstString(const char* str);
+	ConstString(const StrView& str);
+	ConstString(const ConstString& other);
+	~ConstString();
+	ConstString& operator=(const ConstString& rhs);
+	const char* c_str()     const { return str_; }
+	operator const char* () const { return c_str(); }
+	void swap(ConstString& o);
+private:
+	const char* str_;
+};
+
+//! Output table that contains predicates to be output on model.
+class OutputTable {
+public:
+	typedef ConstString NameType;
+	typedef Range32     RangeType;
+	struct PredType {
+		NameType name;
+		Literal  cond;
+		uint32   user;
+	};
+	typedef PodVector<NameType>::type FactVec;
+	typedef PodVector<PredType>::type PredVec;
+	typedef FactVec::const_iterator   fact_iterator;
+	typedef PredVec::const_iterator   pred_iterator;
+	typedef num_iterator<uint32>      range_iterator;
+	typedef LitVec::const_iterator    lit_iterator;
+	enum ProjectMode { project_output = 0u, project_explicit = 1u };
+	
+	OutputTable();
+	~OutputTable();
+	//! Ignore predicates starting with c.
+	void setFilter(char c);
+	//! Adds a fact.
+	bool add(const NameType& fact);
+	//! Adds an output predicate, i.e. n is output if c is true.
+	bool add(const NameType& n, Literal c, uint32 u = 0);
+	//! Sets a range of output variables.
+	void setVarRange(const RangeType& r);
+
+	//! Returns whether n would be filtered out.
+	bool filter(const NameType& n) const;
+
+	fact_iterator  fact_begin() const { return facts_.begin(); }
+	fact_iterator  fact_end()   const { return facts_.end();  }
+	pred_iterator  pred_begin() const { return preds_.begin(); }
+	pred_iterator  pred_end()   const { return preds_.end();  }
+	range_iterator vars_begin() const { return range_iterator(vars_.lo); }
+	range_iterator vars_end()   const { return range_iterator(vars_.hi); }
+
+	ProjectMode    projectMode()const { return proj_.empty() ? project_output : project_explicit; }
+	lit_iterator   proj_begin() const { return proj_.begin(); }
+	lit_iterator   proj_end()   const { return proj_.end(); }
+	void           addProject(Literal x);
+	
+	//! Returns the number of output elements, counting each element in a var range.
+	uint32 size()     const;
+	uint32 numFacts() const { return static_cast<uint32>(facts_.size()); }
+	uint32 numPreds() const { return static_cast<uint32>(preds_.size()); }
+	uint32 numVars()  const { return static_cast<uint32>(vars_.hi - vars_.lo);  }
+
+	//! An optional callback for getting additional theory output.
+	class Theory {
+	public:
+		virtual ~Theory();
+		//! Called once on new model m. Shall return 0 to indicate no output.
+		virtual const char* first(const Model& m) = 0;
+		//! Shall return 0 to indicate no output.
+		virtual const char* next() = 0;
+	}* theory;
+private:
+	FactVec facts_;
+	PredVec preds_;
+	LitVec  proj_;
+	Range32 vars_;
+	char    hide_;
+};
+
+class DomainTable {
+public:
+	DomainTable();
+	class ValueType {
+	public:
+		ValueType(Var v, DomModType t, int16 bias, uint16 prio, Literal cond);
+		bool       hasCondition() const { return cond_ != 0; }
+		Literal    cond() const { return Literal::fromId(cond_); }
+		Var        var()  const { return var_; }
+		DomModType type() const;
+		int16      bias() const { return bias_; }
+		uint16     prio() const { return prio_; }
+		bool       comp() const { return comp_ != 0; }
+	private:
+		uint32 cond_ : 31;
+		uint32 comp_ :  1;
+		uint32 var_  : 30;
+		uint32 type_ :  2;
+		int16  bias_;
+		uint16 prio_;
+	};
+	typedef PodVector<ValueType>::type DomVec;
+	typedef DomVec::const_iterator     iterator;
+	
+	void   add(Var v, DomModType t, int16 bias, uint16 prio, Literal cond);
+	uint32 simplify();
+	void   reset();
+	bool     empty() const;
+	uint32   size()  const;
+	iterator begin() const;
+	iterator end()   const;
+	LitVec* domRec;
+private:
+	static bool cmp(const ValueType& lhs, const ValueType& rhs) {
+		return lhs.cond() < rhs.cond() || (lhs.cond() == rhs.cond() && lhs.var() < rhs.var());
+	}
+	DomVec entries_;
+	uint32 seen_;   // size of domain table after last simplify
+};
+
 //! Aggregates information to be shared between solver objects.
 /*!
  * Among other things, SharedContext objects store 
- * static information on variables, the (possibly unused) 
- * symbol table, as well as the binary and ternary 
- * implication graph of the input problem.
+ * static information on variables, an output table, as well as the 
+ * binary and ternary implication graph of the input problem.
  * 
  * Furthermore, a SharedContext object always stores a distinguished
  * master solver that is used to store and simplify problem constraints.
- * Additional solvers can be added via SharedContext::addSolver().
+ * Additional solvers can be added via SharedContext::pushSolver().
  * Once initialization is completed, any additional solvers must be attached
  * to this object by calling SharedContext::attach().
  */
 class SharedContext {
 public:
-	typedef SharedDependencyGraph SDG;
 	typedef PodVector<Solver*>::type       SolverVec;
-	typedef SingleOwnerPtr<SDG>            SccGraph;
+	typedef SingleOwnerPtr<PrgDepGraph>    SccGraph;
+	typedef SingleOwnerPtr<ExtDepGraph>    ExtGraph;
 	typedef Configuration*                 ConfigPtr;
 	typedef SingleOwnerPtr<Distributor>    DistrPtr;
-	typedef const ProblemStats&            StatsRef;
-	typedef SymbolTable&                   SymbolsRef;
+	typedef const ProblemStats&            StatsCRef;
+	typedef DomainTable                    DomTab;
+	typedef OutputTable                    Output;
 	typedef LitVec::size_type              size_type;
 	typedef ShortImplicationsGraph         ImpGraph;
 	typedef const ImpGraph&                ImpGraphRef;
 	typedef EventHandler*                  LogPtr;
 	typedef SingleOwnerPtr<SatPreprocessor>SatPrePtr;
-	enum InitMode   { init_share_symbols, init_copy_symbols };
-	enum ResizeMode { mode_reserve = 0u, mode_add = 1u, mode_remove = 2u, mode_resize = 3u};
+	typedef SharedMinimizeData*            MinPtr;
+	enum ResizeMode { resize_reserve = 0u, resize_push = 1u, resize_pop = 2u, resize_resize = 3u};
+	enum PreproMode { prepro_preserve_models = 1u, prepro_preserve_shown  = 2u };
+	enum ReportMode { report_default = 0u, report_conflict = 1u };
 	/*!
 	 * \name Configuration
 	 */
@@ -419,15 +580,20 @@ public:
 	//! Resets this object to the state after default construction.
 	void       reset();
 	//! Enables event reporting via the given event handler.
-	void       setEventHandler(LogPtr r) { progress_ = r; }
+	void       setEventHandler(LogPtr r, ReportMode m = report_default) { progress_ = r; share_.report = uint32(m); }
 	//! Sets how to handle physical sharing of constraints.
 	void       setShareMode(ContextParams::ShareMode m);
 	//! Sets whether the short implication graph should be used for storing short learnt constraints.
 	void       setShortMode(ContextParams::ShortMode m);
 	//! Sets maximal number of solvers sharing this object.
-	void       setConcurrency(uint32 numSolver, ResizeMode m = mode_remove);
+	void       setConcurrency(uint32 numSolver, ResizeMode m = resize_reserve);
+	//! If b is true, sets preprocessing mode to model-preserving operations only.
+	void       setPreserveModels(bool b = true) { setPreproMode(prepro_preserve_models, b); }
+	//! If b is true, excludes all shown variables from variable elimination.
+	void       setPreserveShown(bool b = true)  { setPreproMode(prepro_preserve_shown, b); }
+
 	//! Adds an additional solver to this object and returns it.
-	Solver&    addSolver();
+	Solver&    pushSolver();
 	//! Configures the statistic object of attached solvers.
 	/*!
 	 * The level determines the amount of extra statistics.
@@ -439,15 +605,14 @@ public:
    */
 	void       enableStats(uint32 level);
 	void       accuStats();
-	//! If b is true, sets preprocessing mode to model-preserving operations only.
-	void       setPreserveModels(bool b = true) { share_.satPreM = b ? SatPreParams::prepro_preserve_models : SatPreParams::prepro_preserve_sat; }
 	//! Sets the configuration for this object and its attached solvers.
 	/*!
-	 * \note If own is true, ownership of c is transferred.
+	 * \note If ownership is Ownership_t::Acquire, ownership of c is transferred.
 	 */
-	void       setConfiguration(Configuration* c, bool own);
-	SatPrePtr  satPrepro;  /*!< Preprocessor for simplifying problem.                            */
-	SccGraph   sccGraph;   /*!< Program dependency graph - only used for ASP-problems.           */
+	void       setConfiguration(Configuration* c, Ownership_t::Type ownership);
+	SatPrePtr  satPrepro;  /*!< Preprocessor for simplifying problem.                  */
+	SccGraph   sccGraph;   /*!< Program dependency graph - only used for ASP-problems. */
+	ExtGraph   extGraph;   /*!< External dependency graph - given by user.             */
 	
 	//! Returns the current configuration used in this object.
 	ConfigPtr  configuration()      const { return config_.get(); }
@@ -457,13 +622,14 @@ public:
 	bool       seedSolvers()        const { return share_.seed != 0; }
 	//! Returns the number of solvers that can share this object.
 	uint32     concurrency()        const { return share_.count; }
-	bool       preserveModels()     const { return static_cast<SatPreParams::Mode>(share_.satPreM) == SatPreParams::prepro_preserve_models; }
+	bool       preserveModels()     const { return (share_.satPreM & prepro_preserve_models) != 0; }
+	bool       preserveShown()      const { return (share_.satPreM & prepro_preserve_shown) != 0; }
 	//! Returns whether physical sharing is enabled for constraints of type t.
-	bool       physicalShare(ConstraintType t) const { return (share_.shareM & (1 + (t != Constraint_t::static_constraint))) != 0; }
+	bool       physicalShare(ConstraintType t) const { return (share_.shareM & (1 + (t != Constraint_t::Static))) != 0; }
 	//! Returns whether pyhiscal sharing of problem constraints is enabled.
 	bool       physicalShareProblem()          const { return (share_.shareM & ContextParams::share_problem) != 0; }
 	//! Returns whether short constraints of type t can be stored in the short implication graph.
-	bool       allowImplicit(ConstraintType t) const { return t != Constraint_t::static_constraint ? share_.shortM != ContextParams::short_explicit : !isShared(); }
+	bool       allowImplicit(ConstraintType t) const { return t != Constraint_t::Static ? share_.shortM != ContextParams::short_explicit : !isShared(); }
 	//@}
 
 	/*!
@@ -477,7 +643,7 @@ public:
 	bool       frozen()             const { return share_.frozen;}
 	//! Returns whether more than one solver is actively working on the problem.
 	bool       isShared()           const { return frozen() && concurrency() > 1; } 
-	bool       isExtended()         const { return problem_.vars_frozen || symbolTable().type() == SymbolTable::map_indirect; }
+	bool       isExtended()         const { return stats_.vars.frozen != 0; }
 	//! Returns whether this object has a solver associcated with the given id.
 	bool       hasSolver(uint32 id) const { return id < solvers_.size(); }
 	//! Returns the master solver associated with this object.
@@ -496,7 +662,7 @@ public:
 	 */
 	uint32     numVars()            const { return static_cast<uint32>(varInfo_.size() - 1); }
 	//! Returns the number of eliminated vars.
-	uint32     numEliminatedVars()  const { return problem_.vars_eliminated; }
+	uint32     numEliminatedVars()  const { return stats_.vars.eliminated; }
 	//! Returns true if var represents a valid variable in this problem.
 	/*!
 	 * \note The range of valid variables is [1..numVars()]. The variable 0
@@ -507,7 +673,7 @@ public:
 	VarInfo    varInfo(Var v)       const { assert(validVar(v)); return varInfo_[v]; }
 	//! Returns true if v is currently eliminated, i.e. no longer part of the problem.
 	bool       eliminated(Var v)    const;
-	bool       marked(Literal p)    const { return varInfo(p.var()).has(VarInfo::MARK_P + p.sign()); }
+	bool       marked(Literal p)    const { return varInfo(p.var()).has(VarInfo::Mark_p + p.sign()); }
 	Literal    stepLiteral()        const { return step_; }
 	//! Returns the number of problem constraints.
 	uint32     numConstraints()     const;
@@ -519,8 +685,9 @@ public:
 	uint32     numUnary()           const { return lastTopLevel_; }
 	//! Returns an estimate of the problem complexity based on the number and type of constraints.
 	uint32     problemComplexity()  const;
-	StatsRef   stats()              const { return problem_; }
-	SymbolsRef symbolTable()        const { return symTabPtr_->symTab; }
+	//! Returns whether the problem contains minimize (i.e. weak) constraints.
+	bool       hasMinimize()        const;
+	StatsCRef  stats()              const { return stats_; }
 	//@}
 
 	/*!
@@ -529,7 +696,7 @@ public:
 	 * Problem specification is a four-stage process:
 	 * -# Add variables to the SharedContext object.
 	 * -# Call startAddConstraints().
-	 * -# Add problem constraints to the master solver.
+	 * -# Add problem constraints.
 	 * -# Call endInit() to finish the initialization process.
 	 * .
 	 * \note After endInit() was called, other solvers can be attached to this object.
@@ -549,34 +716,34 @@ public:
 	 * \see Solver::popAuxVar()
 	 */
 	bool    unfreeze();
-	//! Clones vars and symbol table from other.
-	void    cloneVars(const SharedContext& other, InitMode m = init_copy_symbols);
-	//! Sets the range of problem variables to [1, maxVar)
-	void    resizeVars(uint32 maxVar) { varInfo_.resize(std::max(Var(1), maxVar)); problem_.vars = numVars(); }
-	//! Adds a new variable of type t.
+	
+	//! Adds a new variable and returns its numerical id.
 	/*!
-	 * \param t  Type of the new variable (either Var_t::atom_var or Var_t::body_var).
-	 * \param eq True if var represents both an atom and a body. In that case
-	 *           t is the variable's primary type and determines the preferred literal.
-	 * \return The index of the new variable.
+	 * \param type Type of variable.
+	 * \param inf  Additional information associated with the new variable.
 	 * \note Problem variables are numbered from 1 onwards!
 	 */
-	Var     addVar(VarType t, bool eq = false);
+	Var     addVar(VarType type, uint8 flags = VarInfo::Nant | VarInfo::Input) { return addVars(1, type, flags); }
+	Var     addVars(uint32 nVars, VarType type, uint8 flags = VarInfo::Nant | VarInfo::Input);
+	//! Removes the n most recently added variables.
+	/*!
+	 * \pre The variables have not yet been committed by a call to startAddConstraints().
+	 */
+	void    popVars(uint32 n = 1);
 	//! Requests a special variable for tagging volatile knowledge in incremental setting.
 	void    requestStepVar();
-	//! Request additional reason data slot for variable v.
-	void    requestData(Var v);
 	//! Freezes/defreezes a variable (a frozen var is exempt from Sat-preprocessing).
 	void    setFrozen(Var v, bool b);
-	//! Marks/unmarks v as contained in a negative loop or head of a choice rule.
-	void    setNant(Var v, bool b)       { if (b != varInfo(v).has(VarInfo::NANT))    varInfo_[v].toggle(VarInfo::NANT);    }
-	//! Marks/unmarks v as contained in a non-hcf disjunction.
-	void    setInDisj(Var v, bool b)     { if (b != varInfo(v).has(VarInfo::DISJ))    varInfo_[v].toggle(VarInfo::DISJ);    }
 	//! Marks/unmarks v as projection variable.
-	void    setProject(Var v, bool b)    { if (b != varInfo(v).has(VarInfo::PROJECT)) varInfo_[v].toggle(VarInfo::PROJECT); }
-	void    setVarEq(Var v, bool b)      { if (b != varInfo(v).has(VarInfo::EQ))      varInfo_[v].toggle(VarInfo::EQ);      }
-	void    mark(Literal p)              { assert(validVar(p.var())); varInfo_[p.var()].rep |= (VarInfo::MARK_P + p.sign()); }
-	void    unmark(Var v)                { assert(validVar(v)); varInfo_[v].rep &= ~(VarInfo::MARK_P|VarInfo::MARK_N); }
+	void    setProject(Var v, bool b);
+	//! Marks/unmarks v as input variable.
+	void    setInput(Var v, bool b) { set(v, VarInfo::Input, b); }
+	//! Marks/unmarks v as part of negative antecedents.
+	void    setNant(Var v, bool b)  { set(v, VarInfo::Nant, b); }
+	void    setVarEq(Var v, bool b) { set(v, VarInfo::Eq, b); }
+	void    set(Var v, VarInfo::Flag f, bool b) { if (b != varInfo(v).has(f)) varInfo_[v].toggle(f); }
+	void    mark(Literal p)         { assert(validVar(p.var())); varInfo_[p.var()].rep |= (VarInfo::Mark_p + p.sign()); }
+	void    unmark(Var v)           { assert(validVar(v)); varInfo_[v].rep &= ~(VarInfo::Mark_p|VarInfo::Mark_n); }
 	//! Eliminates the variable v from the problem.
 	/*!
 	 * \pre v must not occur in any constraint and frozen(v) == false and value(v) == value_free
@@ -599,6 +766,14 @@ public:
 	bool    addTernary(Literal x, Literal y, Literal z);
 	//! A convenience method for adding constraints to the master.
 	void    add(Constraint* c);
+	//! Add weak constraint :~ x.first [x.second@p].
+	void    addMinimize(WeightLiteral x, weight_t p);
+	//! Returns a pointer to an optimized representation of all minimize constraints in this problem.
+	MinPtr  minimize();
+	//! List of output predicates and/or variables.
+	Output  output;
+	//! Set of heuristic modifications.
+	DomTab  heuristic;
 
 	//! Finishes initialization of the master solver.
 	/*!
@@ -654,6 +829,8 @@ public:
 	void     simplify(bool shuffle);
 	//! Removes the constraint with the given idx from the master's db.
 	void     removeConstraint(uint32 idx, bool detach);
+	//! Removes all minimize constraints from this object.
+	void     removeMinimize();
 	
 	//! Adds the given short implication to the short implication graph if possible.
 	/*!
@@ -669,42 +846,44 @@ public:
 	void        simplifyShort(const Solver& s, Literal p);
 	void               report(const Event& ev)                 const { if (progress_) progress_->dispatch(ev);  }
 	bool               report(const Solver& s, const Model& m) const { return !progress_ || progress_->onModel(s, m); }
+	void               report(const char* what, const Solver* s = 0) const;
+	void               report(Event::Subsystem sys)            const;
+	void               warn(const char* what)                  const;
+	ReportMode         reportMode()                            const { return static_cast<ReportMode>(share_.report); }
 	void               initStats(Solver& s)                    const;
 	const SolverStats& stats(const Solver& s, bool accu)       const;
 	//@}
 private:
 	SharedContext(const SharedContext&);
 	SharedContext& operator=(const SharedContext&);
-	void    init();
 	bool    unfreezeStep();
 	Literal addAuxLit();
 	typedef SingleOwnerPtr<Configuration> Config;
 	typedef PodVector<VarInfo>::type      VarVec;
 	typedef PodVector<SolverStats*>::type StatsVec;
-	struct SharedSymTab {
-		SharedSymTab() : refs(1) {}
-		SymbolTable symTab;
-		uint32      refs;
-	}*           symTabPtr_;     // pointer to shared symbol table
-	ProblemStats   problem_;     // problem statistics
-	VarVec         varInfo_;     // varInfo[v] stores info about variable v
-	ImpGraph       btig_;        // binary-/ternary implication graph
-	Config         config_;      // active configuration
-	SolverVec      solvers_;     // solvers associated with this context
-	LogPtr         progress_;    // event handler or 0 if not used
-	Literal        step_;        // literal for tagging enumeration/step constraints
-	uint32         lastTopLevel_;// size of master's top-level after last init
+	void    setPreproMode(uint32 m, bool b);
+	struct Minimize;
+	ProblemStats stats_;         // problem statistics
+	VarVec       varInfo_;       // varInfo[v] stores info about variable v
+	ImpGraph     btig_;          // binary-/ternary implication graph
+	Config       config_;        // active configuration
+	SolverVec    solvers_;       // solvers associated with this context
+	Minimize*    mini_;          // pointer to set of weak constraints
+	LogPtr       progress_;      // event handler or 0 if not used
+	Literal      step_;          // literal for tagging enumeration/step constraints
+	uint32       lastTopLevel_;  // size of master's top-level after last init
 	struct Share {               // Additional data
-		uint32 count   :12;        //   max number of objects sharing this object
-		uint32 winner  :12;        //   id of solver that terminated the search
+		uint32 count   :11;        //   max number of objects sharing this object
+		uint32 winner  :11;        //   id of solver that terminated the search
 		uint32 shareM  : 3;        //   physical sharing mode
 		uint32 shortM  : 1;        //   short clause mode
 		uint32 frozen  : 1;        //   is adding of problem constraints allowed?
 		uint32 seed    : 1;        //   set seed of new solvers
-		uint32 satPreM : 1;        //   preprocessing mode
-		Share() : count(1), winner(0), shareM((uint32)ContextParams::share_auto), shortM(0), frozen(0), seed(0), satPreM(0) {}
-	}              share_;
-	StatsVec       accu_;        // optional stats accumulator for incremental solving
+		uint32 satPreM : 2;        //   preprocessing mode
+		uint32 report  : 2;        //   report mode
+		Share() : count(1), winner(0), shareM((uint32)ContextParams::share_auto), shortM(0), frozen(0), seed(0), satPreM(0), report(0) {}
+	}            share_;
+	StatsVec     accu_;          // optional stats accumulator for incremental solving
 };
 //@}
 }

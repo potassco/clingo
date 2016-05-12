@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Benjamin Kaufmann
@@ -28,7 +28,7 @@ DefaultGringoModule g_module;
 
 } // namespace
 
-extern "C" int luaopen_gringo(lua_State *L) {
+extern "C" int luaopen_clingo(lua_State *L) {
     try                             { Gringo::Lua::initlib(L, g_module); }
     catch (std::exception const &e) { luaL_error(L, e.what()); }
     catch (...)                     { luaL_error(L, "unknown error"); }

@@ -1,12 +1,11 @@
 #script (python)
 
-import gringo
-from gringo import Fun
+import clingo
 
 def main(prg):
     def on_model(m):
-        m.context.add_clause([(Fun("a"), False), (Fun("b"), False)])
-        m.context.add_nogood([(Fun("c"), True), (Fun("d"), True)])
+        m.context.add_clause([(clingo.function("a"), False), (clingo.function("b"), False)])
+        m.context.add_nogood([(clingo.function("c"), True), (clingo.function("d"), True)])
 
     prg.conf.solve.models = 0
     prg.ground([("base", [])])

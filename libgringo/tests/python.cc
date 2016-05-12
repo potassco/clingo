@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -75,43 +75,58 @@ void TestPython::test_parse() {
     Location loc("dummy", 1, 1, "dummy", 1, 1);
     Python py(getTestModule());
     py.exec(loc,
-        "import gringo\n"
-        "def get(): return gringo.parse_term('1')\n"
+        "import clingo\n"
+        "def get(): return clingo.parse_term('1')\n"
         );
-    CPPUNIT_ASSERT_EQUAL(S("[1]"), to_string(py.call(Any(), loc, "get", {})));
+    CPPUNIT_ASSERT_EQUAL(S("[1]"), to_string(py.call(loc, "get", {})));
     py.exec(loc,
-        "import gringo\n"
-        "def get(): return gringo.parse_term('p(1+2)')\n"
+        "import clingo\n"
+        "def get(): return clingo.parse_term('p(1+2)')\n"
         );
-    CPPUNIT_ASSERT_EQUAL(S("[p(3)]"), to_string(py.call(Any(), loc, "get", {})));
+    CPPUNIT_ASSERT_EQUAL(S("[p(3)]"), to_string(py.call(loc, "get", {})));
+    py.exec(loc,
+        "import clingo\n"
+        "def get(): return clingo.parse_term('-p')\n"
+        );
+    CPPUNIT_ASSERT_EQUAL(S("[-p]"), to_string(py.call(loc, "get", {})));
+    py.exec(loc,
+        "import clingo\n"
+        "def get(): return clingo.parse_term('-p(1)')\n"
+        );
+    CPPUNIT_ASSERT_EQUAL(S("[-p(1)]"), to_string(py.call(loc, "get", {})));
 }
 void TestPython::test_values() {
     Location loc("dummy", 1, 1, "dummy", 1, 1);
     Python py(getTestModule());
     py.exec(loc,
-        "import gringo\n"
-        "x = gringo.Fun(\"f\", [2, 3, 4])\n"
+        "import clingo\n"
+        "x = clingo.function(\"f\", [2, 3, 4])\n"
+        "y = clingo.function(\"f\", [2, 3, 4], True)\n"
         "def getX(): return x\n"
-        "def fail(): return gringo.Fun(\"g\", [None])\n"
+        "def fail(): return clingo.function(\"g\", [None])\n"
         "def none(): return None\n"
         "values = ["
-        "gringo.Fun(\"f\", [1, 2, 3]),"
-        "gringo.Sup,"
-        "gringo.Inf,"
-        "gringo.Fun(\"id\"),"
+        "clingo.function(\"f\", [1, 2, 3]),"
+        "clingo.Sup,"
+        "clingo.Inf,"
+        "clingo.function(\"id\"),"
         "(1, 2, 3),"
         "123,"
         "\"abc\","
-        "tuple(x.args()),"
-        "x.name(),"
+        "tuple(x.args),"
+        "x.name,"
+        "x.sign,"
+        "y.sign,"
+        "x,"
+        "y,"
         "]\n"
         "def getValues(): return values\n"
         );
-    CPPUNIT_ASSERT_EQUAL(S("[f(2,3,4)]"), to_string(py.call(Any(), loc, "getX", {})));
-    CPPUNIT_ASSERT_EQUAL(S("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",(2,3,4),\"f\"]"), to_string(py.call(Any(), loc, "getValues", {})));
+    CPPUNIT_ASSERT_EQUAL(S("[f(2,3,4)]"), to_string(py.call(loc, "getX", {})));
+    CPPUNIT_ASSERT_EQUAL(S("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",(2,3,4),\"f\",0,1,f(2,3,4),-f(2,3,4)]"), to_string(py.call(loc, "getValues", {})));
     {
         Gringo::Test::Messages msg;
-        CPPUNIT_ASSERT_EQUAL(S("[]"), to_string(py.call(Any(), loc, "none", {})));
+        CPPUNIT_ASSERT_EQUAL(S("[]"), to_string(py.call(loc, "none", {})));
         CPPUNIT_ASSERT_EQUAL(S(
             "["
             "dummy:1:1: info: operation undefined:\n"
@@ -120,12 +135,12 @@ void TestPython::test_values() {
     }
     {
         Gringo::Test::Messages msg;
-        CPPUNIT_ASSERT_EQUAL(S("[]"), to_string(py.call(Any(), loc, "fail", {})));
+        CPPUNIT_ASSERT_EQUAL(S("[]"), to_string(py.call(loc, "fail", {})));
         CPPUNIT_ASSERT_EQUAL(S(
             "["
             "dummy:1:1: info: operation undefined:\n"
             "  Traceback (most recent call last):\n"
-            "    File \"<dummy:1:1>\", line 4, in fail\n"
+            "    File \"<dummy:1:1>\", line 5, in fail\n"
             "  RuntimeError: cannot convert to value: unexpected NoneType() object\n"
             "]"), IO::to_string(msg));
     }
@@ -146,30 +161,28 @@ void TestPython::test_values() {
 void TestPython::test_cmp() {
     Location loc("dummy", 1, 1, "dummy", 1, 1);
     Python py(getTestModule());
-    py.exec(loc, 
-        "import gringo\n"
+    py.exec(loc,
+        "import clingo\n"
         "def cmp():\n"
         "  return ["
-        "int(gringo.Fun(\"a\") < gringo.Fun(\"b\")),"
-        "int(gringo.Fun(\"b\") < gringo.Fun(\"a\")),"
-        "gringo.cmp(gringo.Fun(\"a\"), gringo.Fun(\"b\")),"
-        "gringo.cmp(gringo.Fun(\"b\"), gringo.Fun(\"a\")),"
+        "int(clingo.function(\"a\") < clingo.function(\"b\")),"
+        "int(clingo.function(\"b\") < clingo.function(\"a\")),"
         "]\n"
         );
-    CPPUNIT_ASSERT_EQUAL(S("[1,0,-1,1]"), to_string(py.call(Any(), loc, "cmp", {})));
+    CPPUNIT_ASSERT_EQUAL(S("[1,0]"), to_string(py.call(loc, "cmp", {})));
 }
 
 void TestPython::test_callable() {
     Location loc("dummy", 1, 1, "dummy", 1, 1);
     Python py(getTestModule());
-    py.exec(loc, 
-        "import gringo\n"
+    py.exec(loc,
+        "import clingo\n"
         "def a(): pass\n"
         "b = 1\n"
         );
-    CPPUNIT_ASSERT(py.callable(Any(), "a"));
-    CPPUNIT_ASSERT(!py.callable(Any(), "b"));
-    CPPUNIT_ASSERT(!py.callable(Any(), "c"));
+    CPPUNIT_ASSERT(py.callable("a"));
+    CPPUNIT_ASSERT(!py.callable("b"));
+    CPPUNIT_ASSERT(!py.callable("c"));
 }
 
 TestPython::~TestPython() { }

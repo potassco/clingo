@@ -23,6 +23,9 @@
 #ifdef _MSC_VER
 #pragma once
 #endif
+#if !defined(WITH_THREADS)
+#error Invalid thread configuration - use WITH_THREADS=0 for single-threaded or WITH_THREADS=1 for multi-threaded version of libclasp!
+#endif
 
 #define STRING2(x) #x
 #define STRING(x) STRING2(x)
@@ -45,12 +48,6 @@ typedef UINT_PTR  uintp;
 typedef INT16     int16;
 #define PRIu64 "llu"
 #define PRId64 "lld"
-template <unsigned> struct Uint_t;
-template <> struct Uint_t<sizeof(uint8)>  { typedef uint8  type; };
-template <> struct Uint_t<sizeof(uint16)> { typedef uint16 type; };
-template <> struct Uint_t<sizeof(uint32)> { typedef uint32 type; };
-template <> struct Uint_t<sizeof(uint64)> { typedef uint64 type; };
-#define BIT_MASK(x,n) ( static_cast<Uint_t<sizeof((x))>::type>(1) << (n) )
 #elif defined(__GNUC__) && __GNUC__ >= 3
 #define FUNC_NAME __PRETTY_FUNCTION__
 #if !defined(__STDC_FORMAT_MACROS)
@@ -65,7 +62,6 @@ typedef uint32_t  uint32;
 typedef uint64_t  uint64;
 typedef int64_t   int64;
 typedef uintptr_t uintp;
-#define BIT_MASK(x,n) ( static_cast<__typeof((x))>(1)<<(n) )
 #define APPLY_PRAGMA(x) _Pragma (#x)
 #define CLASP_PRAGMA_TODO(x) APPLY_PRAGMA(message ("TODO: " #x))
 #else 
@@ -93,20 +89,6 @@ typedef uintptr_t uintp;
 #define FUNC_NAME __FILE__
 #endif
 
-// set, clear, toggle bit n of x and return new value
-#define set_bit(x,n)   ( (x) |  BIT_MASK((x),(n)) )
-#define clear_bit(x,n) ( (x) & ~BIT_MASK((x),(n)) )
-#define toggle_bit(x,n)( (x) ^  BIT_MASK((x),(n)) )
-
-// set, clear, toggle bit n of x and store new value in x
-#define store_set_bit(x,n)   ( (x) |=  BIT_MASK((x),(n)) )
-#define store_clear_bit(x,n) ( (x) &= ~BIT_MASK((x),(n)) )
-#define store_toggle_bit(x,n)( (x) ^=  BIT_MASK((x),(n)) )
-
-// return true if bit n in x is set
-#define test_bit(x,n)  ( ((x) & BIT_MASK((x),(n))) != 0 )
-
-#define right_most_bit(x) ( (x) & (-(x)) )
 
 template <class T>
 bool aligned(void* mem) {
@@ -136,7 +118,11 @@ bool aligned(void* mem) {
 #if !defined(CLASP_HAS_STATIC_ASSERT) || CLASP_HAS_STATIC_ASSERT == 0
 template <bool> struct static_assertion;
 template <>     struct static_assertion<true> {};
-#define static_assert(x, message) (void)sizeof(static_assertion< (x) >)
+#ifndef __GNUC__
+#define static_assert(x, message) typedef bool clasp_static_assertion[sizeof(static_assertion< (x) >)] 
+#else
+#define static_assert(x, message) typedef bool clasp_static_assertion[sizeof(static_assertion< (x) >)]  __attribute__((__unused__))
+#endif
 #endif
 
 extern const char* clasp_format_error(const char* m, ...);
@@ -163,6 +149,7 @@ extern const char* clasp_format(char* buf, unsigned size, const char* m, ...);
 #endif
 
 #include <stdlib.h>
+#include <string.h>
 #if _WIN32||_WIN64
 #include <malloc.h>
 inline void* alignedAlloc(size_t size, size_t align) { return _aligned_malloc(size, align); }

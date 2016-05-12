@@ -1,11 +1,11 @@
 #script (python)
 
 import sys
-from gringo import Fun
+from clingo import function
 
 def main(prg):
     prg.ground([("base", [])])
-    prg.solve(assumptions=[(Fun("b"), True)])
+    prg.solve(assumptions=[(function("b"), True)])
 
 #end.
 

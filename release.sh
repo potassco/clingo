@@ -70,10 +70,10 @@ mkdir -p build
 cat << EOC > build/mingw64.py
 CXX = 'x86_64-w64-mingw32-g++'
 CXXFLAGS = ['-std=c++11', '-O3', '-Wall', '-W']
-CPPPATH = ['/home/kaminski/local/opt/lua-5.1.5-win64/include', '/home/kaminski/local/opt/tbb-4.3.5-win64/include']
+CPPPATH = ['/home/kaminski/local/opt/lua-5.1.5-win64/include', '/home/kaminski/local/opt/tbb-4.3.5-win64/include', '/home/kaminski/local/opt/cppunit-1.13.2-win64/include']
 CPPDEFINES = {'NDEBUG': 1}
 LIBS = []
-LIBPATH = ['/home/kaminski/local/opt/lua-5.1.5-win64/lib', '/home/kaminski/local/opt/tbb-4.3.5-win64/lib']
+LIBPATH = ['/home/kaminski/local/opt/lua-5.1.5-win64/lib', '/home/kaminski/local/opt/tbb-4.3.5-win64/lib', '/home/kaminski/local/opt/cppunit-1.13.2-win64/lib']
 LINKFLAGS = ['-std=c++11', '-static']
 RPATH = []
 AR = 'x86_64-w64-mingw32-ar'
@@ -81,10 +81,12 @@ ARFLAGS = ['rc']
 RANLIB = 'x86_64-w64-mingw32-ranlib'
 BISON = 'bison'
 RE2C = 're2c'
+PYTHON_CONFIG = None
+PKG_CONFIG = 'x86_64-w64-mingw32-pkg-config'
 WITH_PYTHON = None
 WITH_LUA = 'lua'
 WITH_TBB = 'tbb'
-WITH_CPPUNIT = None
+WITH_CPPUNIT = 'cppunit'
 EOC
 
 scons --build-dir=mingw64 -j4 gringo clingo reify

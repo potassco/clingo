@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -50,7 +50,7 @@ struct SafetyChecker {
 
     typedef std::vector<EntNode*> EntVec;
     typedef std::vector<VarNode*> VarVec;
-    
+
     SafetyChecker();
     SafetyChecker(SafetyChecker const &) = delete;
     SafetyChecker(SafetyChecker &&x);
@@ -66,7 +66,7 @@ struct SafetyChecker {
     //! Edge (x, y) implies that y is bound by x.
     //! E.g., variable y occurs in a positive body element x.
     void insertEdge(EntNode &x, VarNode &y);
-    
+
     void init(EntVec &open);
     void propagate(EntNode *x, EntVec &open, VarVec *bound = nullptr);
     template <class Pred = std::less<Ent>>
@@ -83,7 +83,7 @@ struct SafetyChecker {
 
 template <class Var, class Ent>
 template <class... T>
-SafetyChecker<Var, Ent>::VarNode::VarNode(T&&... args) 
+SafetyChecker<Var, Ent>::VarNode::VarNode(T&&... args)
     : data(std::forward<T>(args)...)
 {
 }
@@ -93,7 +93,7 @@ SafetyChecker<Var, Ent>::VarNode::VarNode(T&&... args)
 
 template <class Var, class Ent>
 template <class... T>
-SafetyChecker<Var, Ent>::EntNode::EntNode(T&&... args) 
+SafetyChecker<Var, Ent>::EntNode::EntNode(T&&... args)
     : data(std::forward<T>(args)...)
 {
 }

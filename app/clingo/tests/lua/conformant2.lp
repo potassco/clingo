@@ -13,20 +13,20 @@ function main(prg)
         if check then
             parts[#parts+1] = {"check", {step}}
         end
-        prg:release_external(gringo.Fun("vol", {step-1}))
-        prg:cleanup_domains()
+        prg:release_external(clingo.fun("vol", {step-1}))
+        prg:cleanup()
         prg:ground(parts)
-        prg:assign_external(gringo.Fun("vol", {step}), true)
+        prg:assign_external(clingo.fun("vol", {step}), true)
         local ret = prg:solve()
-        if ret == gringo.SolveResult.SAT then
+        if ret.satisfiable then
             if not check and prg:get_const("nocheck") == nil then
                 check = true
                 parts = {}
                 parts[#parts+1] = {"check", {step}}
-                prg:cleanup_domains()
+                prg:cleanup()
                 prg:ground(parts)
                 ret = prg:solve()
-                if ret == gringo.SolveResult.SAT then
+                if ret.satisfiable then
                     break
                 end
             else 

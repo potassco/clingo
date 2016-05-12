@@ -1,7 +1,5 @@
 #script (lua)
 
-Model = gringo.Model
-
 function tostringTable(t) 
     ret   = ""
     comma = False
@@ -17,17 +15,17 @@ end
 function main(prg)
     on_model = function (m)
         print("shown")
-        print("  positive: " .. tostringTable(m:atoms(Model.SHOWN)))
-        print("  negative: " .. tostringTable(m:atoms(Model.SHOWN + Model.COMP)))
+        print("  positive: " .. tostringTable(m:atoms{shown=true}))
+        print("  negative: " .. tostringTable(m:atoms{shown=true, comp=true}))
         print("csp")
-        print("  positive: " .. tostringTable(m:atoms(Model.CSP)))
-        print("  negative: " .. tostringTable(m:atoms(Model.CSP + Model.COMP)))
+        print("  positive: " .. tostringTable(m:atoms{csp=true}))
+        print("  negative: " .. tostringTable(m:atoms{csp=true, comp=true}))
         print("atoms")
-        print("  positive: " .. tostringTable(m:atoms(Model.ATOMS)))
-        print("  negative: " .. tostringTable(m:atoms(Model.ATOMS + Model.COMP)))
+        print("  positive: " .. tostringTable(m:atoms{atoms=true}))
+        print("  negative: " .. tostringTable(m:atoms{atoms=true, comp=true}))
         print("terms")
-        print("  positive: " .. tostringTable(m:atoms(Model.TERMS)))
-        print("  negative: " .. tostringTable(m:atoms(Model.TERMS + Model.COMP)))
+        print("  positive: " .. tostringTable(m:atoms{terms=true}))
+        print("  negative: " .. tostringTable(m:atoms{terms=true, comp=true}))
     end
     prg:ground({{"base", {}}})
     prg:solve(nil, on_model)

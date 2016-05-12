@@ -1,117 +1,92 @@
 #!/usr/bin/env python
 
-import gringo
+import clingo
 import json
 import sys
+import argparse
 
-control = gringo.Control()
-scratch = False
+class App:
+    def __init__(self, args):
+        self.control = clingo.Control()
+        self.args = args
+        self.horizon = 0
+        self.objects = 0
+        self.end     = None
 
-outputs = True
-statist = False
-verbose = False
+    def show(self, model):
+        if not self.args.quiet:
+            print "Model:", model
 
-sources = []
-options = []
+    def ground(self, kind):
+        count = self.objects + self.horizon + 1
+        parts = [("expand", [count])]
 
-objects = 0
-horizon = 0
+        if self.args.scratch and count > 1:
+            self.control = clingo.Control()
+            for source in self.args.file: self.control.load(source)
+            for i in range(0, self.objects): parts.append(("object", [i + 1, count]))
+            for i in range(0, self.horizon): parts.append(("horizon", [i + 1, count]))
 
-end = 0
+        if self.args.scratch or count == 1:
+            for option in self.args.option:
+                setattr(self.control.conf, option[0], option[1])
+            parts.append(("base", []))
 
-def info():
-    print "Usage:   main.py [--scratch] [--quiet] [--stats] [--verbose] [--maxobj=n] [--option=\"<option key> <option value>\"]* [logic program files]+"
-    print "Example: main.py --scratch --quiet --stats --verbose --maxobj=42 --option=\"solve.models 0\" encoding.lp instance.lp"
-
-def show(model):
-    global outputs
-
-    if outputs: print "Model:  ", model.atoms()
-
-def ground(kind):
-    global control, scratch, verbose, sources, options, objects, horizon
-
-    count = objects+horizon+1
-    parts = [("expand", [count])]
-
-    if scratch and count > 1:
-        control = gringo.Control()
-        for source in sources: control.load(source)
-        for i in range(0,objects): parts.append(("object", [i+1, count]))
-        for i in range(0,horizon): parts.append(("horizon", [i+1, count]))
-
-    if scratch or count == 1:
-        for option in options: setattr(control.conf, option[0], option[1])
-        parts.append(("base", []))
-
-    if kind:
-        objects += 1
-        parts.append(("object", [objects, count]))
-    else:
-        horizon += 1
-        parts.append(("horizon", [horizon, count]))
-
-    if verbose:
-         print
-         print "Objects:", objects
-         print "Horizon:", horizon
-
-    control.ground(parts)
-
-    if verbose:
-         print "Solving:", count
-
-def main(argv):
-    global control, scratch, outputs, statist, verbose, sources, options, objects, horizon, end
-
-    args = len(argv)
-    for i in range(0, args):
-        arg = argv[args-(i+1)]
-        if arg == "--scratch":
-            scratch = True
-            argv.remove(arg)
+        if kind:
+            self.objects += 1
+            parts.append(("object", [self.objects, count]))
         else:
-            if arg == "--quiet":
-                outputs = False
-                argv.remove(arg)
-            else:
-                if arg == "--stats":
-                    statist = True
-                    argv.remove(arg)
-                else:
-                    if arg == "--verbose":
-                        verbose = True
-                        argv.remove(arg)
-                    else:
-                        if arg.startswith("--maxobj="):
-                            end = int(arg[9:])
-                            argv.remove(arg)
-                        else:
-                            if arg.startswith("--option="):
-                                options.append(arg[9:].split())
-                                argv.remove(arg)
-    sources = argv
+            self.horizon += 1
+            parts.append(("horizon", [self.horizon, count]))
 
-    if "-h" in sources or "--help" in sources or sources == []: info()
-    else:
-        for source in sources: control.load(source)
-        if end == 0: end = control.get_const("n")
-        while objects < end:
-            ground(True)
+        if self.args.verbose:
+             print
+             print "Objects:", self.objects
+             print "Horizon:", self.horizon
+
+        self.control.ground(parts)
+
+        if self.args.verbose:
+             print "Solving:", count
+
+    def run(self):
+        for source in self.args.file:
+            self.control.load(source)
+        if self.args.maxobj is None:
+            self.end = self.control.get_const("n").number
+        else:
+            self.end = self.args.maxobj
+
+        while self.objects < self.end:
+            self.ground(True)
             while True:
-                ret = control.solve(on_model=show)
-                if statist:
-                    print "\"step\":", json.dumps(control.stats["step"], sort_keys=True, indent=0, separators=(',', ': '))
-                    print "\"enumerated\":", json.dumps(control.stats["enumerated"], sort_keys=True, indent=0, separators=(',', ': '))
-                    print "\"time_cpu\":", json.dumps(control.stats["time_cpu"], sort_keys=True, indent=0, separators=(',', ': '))
-                    print "\"time_solve\":", json.dumps(control.stats["time_solve"], sort_keys=True, indent=0, separators=(',', ': '))
-                    print "\"time_sat\":", json.dumps(control.stats["time_sat"], sort_keys=True, indent=0, separators=(',', ': '))
-                    print "\"time_unsat\":", json.dumps(control.stats["time_unsat"], sort_keys=True, indent=0, separators=(',', ': '))
-                    print "\"time_total\":", json.dumps(control.stats["time_total"], sort_keys=True, indent=0, separators=(',', ': '))
-                    print json.dumps(control.stats["lp"], sort_keys=True, indent=0, separators=(',', ': '))
-                    print json.dumps(control.stats["ctx"], sort_keys=True, indent=0, separators=(',', ': '))
-                    print json.dumps(control.stats["solvers"], sort_keys=True, indent=0, separators=(',', ': '))
-                if ret == gringo.SolveResult.SAT: break
-                ground(False)
+                ret = self.control.solve(on_model=self.show)
+                if self.args.stats:
+                    args = {"sort_keys": True, "indent": 0, "separators": (',', ': ')}
+                    stats = {}
+                    for x in ["step", "enumerated", "time_cpu", "time_solve", "time_sat", "time_unsat", "time_total"]:
+                        stats[x] = self.control.stats[x]
+                    for x in ["lp", "ctx", "solvers"]:
+                        for y in self.control.stats[x]:
+                            stats[y] = self.control.stats[x][y]
+                    print json.dumps(stats, *args)
+                if ret.satisfiable:
+                    break
+                self.ground(False)
 
-main(sys.argv[1:])
+parser = argparse.ArgumentParser(description="Gradually expand logic programs.", epilog="""Example: main.py -x -q -s -v -m 42 -o solve.models 0 encoding.lp instance.lp""")
+
+parser.add_argument("-x", "--scratch", action='store_true', help="start each step from scratch (single-shot solving)")
+parser.add_argument("-q", "--quiet", action='store_true', help="do not print models")
+parser.add_argument("-s", "--stats", action='store_true', help="print solver statistics")
+parser.add_argument("-v", "--verbose", action='store_true', help="print progress information")
+parser.add_argument("-m", "--maxobj", type=int, metavar="NUM", default=None, help="maximum number of introduced objects")
+parser.add_argument("-o", "--option", nargs=2, metavar=("OPT", "VAL"), action="append", default=[], help="set sover options")
+parser.add_argument("file", nargs="*", default=[], help="gringo source files")
+
+args = parser.parse_args()
+if args.maxobj is not None and args.maxobj < 1:
+    parser.error("maximum number of objects must be positive")
+
+App(args).run()
+

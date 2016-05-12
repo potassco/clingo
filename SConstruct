@@ -33,13 +33,16 @@ opts_file = join("build", GetOption('build_dir') + ".py")
 
 opts = Variables(opts_file, ARGUMENTS)
 opts.AddVariables(
-    ('CXX'           , 'compiler'),
-    ('CXXFLAGS'      , 'compiler flags'),
+    ('CXX'           , 'C++ compiler'),
+    ('CC'            , 'C compiler'),
+    ('CXXFLAGS'      , 'C++ compiler flags'),
+    ('CFLAGS'        , 'C compiler flags'),
     ('CPPPATH'       , 'include paths'),
     ('CPPDEFINES'    , 'defines'),
     ('LIBS'          , 'additional libraries'),
     ('LIBPATH'       , 'library paths'),
-    ('LINKFLAGS'     , 'linker flags'),
+    ('LINKFLAGS'     , 'C++ linker flags'),
+    ('CLINKFLAGS'    , 'C linker flags'),
     ('RPATH'         , 'library paths to embedd into binaries'),
     ('AR'            , 'path to ar'),
     ('ARFLAGS'       , 'ar flags'),
@@ -50,8 +53,9 @@ opts.AddVariables(
     ('PKG_CONFIG'    , 'path to pkg-config'),
     ('WITH_PYTHON'   , 'enable python integration; None, "auto", or library name or path'),
     ('WITH_LUA'      , 'enable lua integration; None, "auto", library name, or path'),
-    ('WITH_TBB'      , 'enable thread support in clasp library using tbb; None, "auto", library name or path'),
-    ('WITH_CPPUNIT'  , 'enable target test, running unit tests using cppunit; None, "auto", or library name or test'),
+    ('WITH_THREADS'  , 'enable thread support in clasp library; "posix", "windows", or None'),
+    ('WITH_CPPUNIT'  , 'enable tests using cppuint; None, "auto", or library name or path'),
+    ('TESTS'         , 'enable specific unit tests; [libgringo, libreify, liblp]'),
     )
 
 env = Environment()
@@ -59,28 +63,35 @@ env['BISON']          = 'bison'
 env['RE2C']           = 're2c'
 env['PYTHON_CONFIG']  = 'python-config'
 env['PKG_CONFIG']     = 'pkg-config'
-env['CXX']            = 'g++'
+env['CXX']            = 'c++'
+env['CC']             = 'cc'
 env['CXXFLAGS']       = ['-std=c++11', '-O0', '-g', '-Wall', '-W', '-pedantic']
+env['CFLAGS']         = ['-O0', '-g', '-Wall']
 env['LIBS']           = []
 env['LINKFLAGS']      = ['-std=c++11', '-O0']
+env['CLINKFLAGS']     = []
 env['CPPDEFINES']     = {}
 env['CPPPATH']        = []
 env['LIBPATH']        = []
 env['RPATH']          = []
 env['WITH_PYTHON']    = 'auto'
 env['WITH_LUA']       = 'auto'
-env['WITH_TBB']       = 'auto'
+env['WITH_THREADS']   = 'posix'
 env['WITH_CPPUNIT']   = 'auto'
+env['TESTS']          = ['libreify', 'libgringo', 'liblp']
 
 if GetOption("build_dir") == "static":
-    env['CXXFLAGS']  = ['-std=c++11', '-O3', '-Wall']
+    env['CXXFLAGS'] = ['-std=c++11', '-O3', '-Wall']
+    env['CFLAGS'] = ['-O3', '-Wall']
     env['LINKFLAGS'] = ['-std=c++11', '-O3', '-static']
     env['CPPDEFINES']['NDEBUG'] = 1
 elif GetOption("build_dir") == "release":
     env['CXXFLAGS']   = ['-std=c++11', '-O3', '-Wall']
+    env['CFLAGS'] = ['-O3', '-Wall']
     env['LINKFLAGS']  = ['-std=c++11', '-O3']
     env['CPPDEFINES']['NDEBUG'] = 1
 elif GetOption("build_dir") == "js":
+    # NOTE: web is the only working target and there is still the .html suffix missing
     env['CXXFLAGS']   = ['-std=c++11', '-Os', '-Wall', '-s', 'DISABLE_EXCEPTION_CATCHING=0']
     env['LINKFLAGS']  = ['-std=c++11', '-Os', '-s', 'DISABLE_EXCEPTION_CATCHING=0', '-s', 'EXPORTED_FUNCTIONS=\'["_run"]\'']
     env['CXX'] = "em++"
@@ -89,7 +100,7 @@ elif GetOption("build_dir") == "js":
     env['CPPDEFINES']['NDEBUG'] = 1
     env['WITH_PYTHON'] = None
     env['WITH_LUA'] = None
-    env['WITH_TBB'] = None
+    env['WITH_THREADS'] = None
     env['WITH_CPPUNIT'] = None
 
 opts.Update(env)
@@ -117,12 +128,15 @@ Targets:
   gringo                      Build gringo (built by default).
   clingo                      Build clingo (built by default).
   reify                       Build reify (built by default).
+  lpconvert                   Build lpconvert (built by default).
   pyclingo                    Python module (built if python support enabled).
   luaclingo                   Lua module (built if lua support enabled).
   test-clingo                 Run clingo specific acceptence tests.
   test                        Build and run unit tests.
   libclingo                   Build shared clingo library.
+  libcclingo                  Build shared C-clingo library.
   example                     Build example app using libclingo.
+  cexample                    Build C-example app using libcclingo.
   tags                        Generate ctags file.
   web                         Build clingo for the web (use with build-dir js).
 

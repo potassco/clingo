@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2006-2014, Benjamin Kaufmann
+// Copyright (c) 2006-2016, Benjamin Kaufmann
 // 
 // This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
 // 
@@ -21,11 +21,13 @@
 #include <clasp/dependency_graph.h>
 #include <clasp/enumerator.h>
 #include <clasp/clause.h>
+#include <potassco/basic_types.h>
 #include <algorithm>
 #include <limits>
 #include <cstdlib>
 #include <string>
 #include <utility>
+#include <cmath>
 namespace Clasp {
 /////////////////////////////////////////////////////////////////////////////////////////
 // Lookback selection strategies
@@ -45,7 +47,10 @@ uint32 momsScore(const Solver& s, Var v) {
 	}
 	return sc;
 }
-
+static void addOther(TypeSet& t, uint32 other) {
+	if (other != HeuParams::other_no)  { t.addSet(Constraint_t::Loop); }
+	if (other == HeuParams::other_all) { t.addSet(Constraint_t::Other); }
+}
 /////////////////////////////////////////////////////////////////////////////////////////
 // Berkmin selection strategy
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -55,17 +60,22 @@ uint32 momsScore(const Solver& s, Var v) {
 #define BERK_MAX_MOMS_DECS 50
 #define BERK_MAX_DECAY 65534
 
-ClaspBerkmin::ClaspBerkmin(uint32 maxB, const HeuParams& params, bool berkHuang) 
-	: order_(berkHuang, params.resScore ? params.resScore : 3u)
-	, topConflict_(UINT32_MAX)
+ClaspBerkmin::ClaspBerkmin(const HeuParams& params) 
+	: topConflict_(UINT32_MAX)
 	, topOther_(UINT32_MAX)
 	, front_(1) 
 	, cacheSize_(5)
-	, numVsids_(0)
-	, maxBerkmin_(maxB == 0 ? UINT32_MAX : maxB) {
-	if (params.otherScore > 0u) { types_.addSet(Constraint_t::learnt_loop); }
-	if (params.otherScore ==2u) { types_.addSet(Constraint_t::learnt_other);}
-	if (params.initScore)       { types_.addSet(Constraint_t::static_constraint); }
+	, numVsids_(0) {
+	ClaspBerkmin::setConfig(params);
+}
+
+void ClaspBerkmin::setConfig(const HeuParams& params) {
+	maxBerkmin_     = params.param == 0 ? UINT32_MAX : params.param;
+	order_.nant     = params.nant != 0;
+	order_.huang    = params.huang != 0;
+	order_.resScore = params.score == HeuParams::score_auto ? static_cast<uint32>(HeuParams::score_multi_set) : params.score;
+	addOther(types_ = TypeSet(), params.other);
+	if (params.moms) { types_.addSet(Constraint_t::Static); }
 }
 
 Var ClaspBerkmin::getMostActiveFreeVar(const Solver& s) {
@@ -145,7 +155,7 @@ void ClaspBerkmin::startInit(const Solver& s) {
 
 void ClaspBerkmin::endInit(Solver& s) {
 	if (initHuang()) {
-		const bool clearScore = types_.inSet(Constraint_t::static_constraint);
+		const bool clearScore = types_.inSet(Constraint_t::Static);
 		// initialize preferred values of vars
 		cache_.clear();
 		for (Var v = 1; v <= s.numVars(); ++v) {
@@ -158,7 +168,7 @@ void ClaspBerkmin::endInit(Solver& s) {
 		}
 		initHuang(false);
 	}
-	if (!types_.inSet(Constraint_t::static_constraint) || s.numFreeVars() > BERK_MAX_MOMS_VARS) {
+	if (!types_.inSet(Constraint_t::Static) || s.numFreeVars() > BERK_MAX_MOMS_VARS) {
 		hasActivities(true);
 	}
 	std::stable_sort(cache_.begin(), cache_.end(), Order::Compare(&order_));
@@ -172,36 +182,37 @@ void ClaspBerkmin::updateVar(const Solver& s, Var v, uint32 n) {
 	cacheFront_ = cache_.end();
 }
 
-void ClaspBerkmin::newConstraint(const Solver&, const Literal* first, LitVec::size_type size, ConstraintType t) {
-	if (t == Constraint_t::learnt_conflict) {
-		hasActivities(true);
-		if (order_.resScore == 1u) {
-			for (const Literal* x = first, *end = first+size; x != end; ++x) { order_.inc(*x); }
+void ClaspBerkmin::newConstraint(const Solver& s, const Literal* first, LitVec::size_type size, ConstraintType t) {
+	if (t == Constraint_t::Conflict) { hasActivities(true); }
+	if ((t == Constraint_t::Conflict && order_.resScore == HeuParams::score_min)
+	 || (t == Constraint_t::Static   && order_.huang)) {
+		for (const Literal* x = first, *end = first+size; x != end; ++x) {
+			order_.inc(*x, s.varInfo(x->var()).nant());
 		}
 	}
-	if (order_.huang == (t == Constraint_t::static_constraint)) {
-		for (const Literal* x = first, *end = first+size; x != end; ++x) {
-			order_.incOcc(*x);
-		}
+	if (t != Constraint_t::Static && !order_.huang) {
+		for (const Literal* x = first, *end = first+size; x != end; ++x) { order_.incOcc(*x); }
 	}
 }
 
 void ClaspBerkmin::updateReason(const Solver& s, const LitVec& lits, Literal r) {
-	if (order_.resScore > 1) {
-		const bool ms = order_.resScore == 3u;
+	if (order_.resScore > HeuParams::score_min) {
+		const bool ms = order_.resScore == HeuParams::score_multi_set;
 		for (LitVec::size_type i = 0, e = lits.size(); i != e; ++i) {
-			if (ms || !s.seen(lits[i])) { order_.inc(~lits[i]); }
+			if (ms || !s.seen(lits[i])) { order_.inc(~lits[i], s.varInfo(lits[i].var()).nant()); }
 		}
 	}
 	if ((order_.resScore & 1u) != 0 && !isSentinel(r)) {
-		order_.inc(r);
+		order_.inc(r, s.varInfo(r.var()).nant());
 	}
 }
 
-bool ClaspBerkmin::bump(const Solver&, const WeightLitVec& lits, double adj) {
+bool ClaspBerkmin::bump(const Solver& s, const WeightLitVec& lits, double adj) {
 	for (WeightLitVec::const_iterator it = lits.begin(), end = lits.end(); it != end; ++it) {
-		uint32 xf = order_.decayedScore(it->first.var()) + static_cast<weight_t>(it->second*adj);
-		order_.score[it->first.var()].act = (uint16)std::min(xf, UINT32_MAX>>16);
+		if (!order_.nant || s.varInfo(it->first.var()).nant()) {
+			uint32 xf = order_.decayedScore(it->first.var()) + static_cast<weight_t>(it->second*adj);
+			order_.score[it->first.var()].act = (uint16)std::min(xf, UINT32_MAX>>16);
+		}
 	}
 	return true;
 }
@@ -235,16 +246,16 @@ bool ClaspBerkmin::hasTopUnsat(Solver& s) {
 			freeLits_.clear();
 		}
 	}
-	ts.addSet(Constraint_t::learnt_conflict);
+	ts.addSet(Constraint_t::Conflict);
 	uint32 stopAt = topConflict_ < maxBerkmin_ ? 0 : topConflict_ - maxBerkmin_;
 	while (topConflict_ != stopAt) {
 		uint32 x = s.getLearnt(topConflict_-1).isOpen(s, ts, freeLits_);
 		if (x != 0) {
-			if (x == Constraint_t::learnt_conflict) { break; }
+			if (x == Constraint_t::Conflict) { break; }
 			topOther_  = topConflict_;
 			freeLits_.swap(freeOtherLits_);
 			ts.m = 0;
-			ts.addSet(Constraint_t::learnt_conflict);
+			ts.addSet(Constraint_t::Conflict);
 		}
 		--topConflict_;
 		freeLits_.clear();
@@ -329,13 +340,17 @@ void ClaspBerkmin::Order::resetDecay() {
 /////////////////////////////////////////////////////////////////////////////////////////
 // ClaspVmtf selection strategy
 /////////////////////////////////////////////////////////////////////////////////////////
-ClaspVmtf::ClaspVmtf(LitVec::size_type mtf, const HeuParams& params) : decay_(0), MOVE_TO_FRONT(mtf >= 2 ? mtf : 2) {
-	scType_  = params.resScore ? params.resScore : 1u;
-	uint32 x = params.otherScore + 1;
-	if (x & Constraint_t::learnt_loop) { types_.addSet(Constraint_t::learnt_loop); }
-	if (x & Constraint_t::learnt_other){ types_.addSet(Constraint_t::learnt_other);}
-	if (scType_ == 1u)                 { types_.addSet(Constraint_t::learnt_conflict); }
-	if (params.initScore)              { types_.addSet(Constraint_t::static_constraint); }
+ClaspVmtf::ClaspVmtf(const HeuParams& params) : decay_(0) {
+	ClaspVmtf::setConfig(params);
+}
+
+void ClaspVmtf::setConfig(const HeuParams& params) {
+	nMove_  = params.param ? std::max(params.param, uint32(2)) : 8u;
+	scType_ = params.score != HeuParams::score_auto ? params.score : static_cast<uint32>(HeuParams::score_min);
+	nant_   = params.nant != 0;
+	addOther(types_ = TypeSet(), params.other != HeuParams::other_auto ? params.other : static_cast<uint32>(HeuParams::other_no));
+	if (params.moms) { types_.addSet(Constraint_t::Static); }
+	if (scType_ == HeuParams::score_min) { types_.addSet(Constraint_t::Conflict); }
 }
 
 void ClaspVmtf::startInit(const Solver& s) {
@@ -343,7 +358,7 @@ void ClaspVmtf::startInit(const Solver& s) {
 }
 
 void ClaspVmtf::endInit(Solver& s) {
-	bool moms = types_.inSet(Constraint_t::static_constraint);
+	bool moms = types_.inSet(Constraint_t::Static);
 	for (Var v = 1; v <= s.numVars(); ++v) {
 		if (s.value(v) == value_free && score_[v].pos_ == vars_.end()) {
 			score_[v].activity(decay_);
@@ -396,15 +411,15 @@ void ClaspVmtf::simplify(const Solver& s, LitVec::size_type i) {
 }
 
 void ClaspVmtf::newConstraint(const Solver& s, const Literal* first, LitVec::size_type size, ConstraintType t) {
-	if (t != Constraint_t::static_constraint) {
+	if (t != Constraint_t::Static) {
 		LessLevel comp(s, score_);
 		const bool upAct = types_.inSet(t);
-		const VarVec::size_type mtf = t == Constraint_t::learnt_conflict ? MOVE_TO_FRONT : (MOVE_TO_FRONT*int(upAct))/2;
+		const VarVec::size_type mtf = t == Constraint_t::Conflict ? nMove_ : (nMove_*uint32(upAct))/2;
 		for (LitVec::size_type i = 0; i < size; ++i, ++first) {
 			Var v = first->var(); 
 			score_[v].occ_ += 1 - (((int)first->sign())<<1);
 			if (upAct) { ++score_[v].activity(decay_); }
-			if (mtf)   {
+			if (mtf && (!nant_ || s.varInfo(v).nant())){
 				if (mtf_.size() < mtf) {
 					mtf_.push_back(v);
 					std::push_heap(mtf_.begin(), mtf_.end(), comp);
@@ -433,8 +448,8 @@ void ClaspVmtf::undoUntil(const Solver&, LitVec::size_type) {
 }
 
 void ClaspVmtf::updateReason(const Solver& s, const LitVec& lits, Literal r) {
-	if (scType_ > 1u) {
-		const bool  ms = scType_ == 3u;
+	if (scType_ > HeuParams::score_min) {
+		const bool  ms = scType_ == HeuParams::score_multi_set;
 		const uint32 D = decay_;
 		for (LitVec::size_type i = 0, e = lits.size(); i != e; ++i) {
 			if (ms || !s.seen(lits[i])) { ++score_[lits[i].var()].activity(D); }
@@ -484,17 +499,29 @@ Literal ClaspVmtf::selectRange(Solver&, const Literal* first, const Literal* las
 /////////////////////////////////////////////////////////////////////////////////////////
 // ClaspVsids selection strategy
 /////////////////////////////////////////////////////////////////////////////////////////
+static double initDecay(uint32 p) {
+	double m = static_cast<double>(p ? p : 0.95);
+	while (m > 1.0) { m /= 10.0; }
+	return m;
+}
+
 template <class ScoreType>
-ClaspVsids_t<ScoreType>::ClaspVsids_t(double decay, const HeuParams& params) 
-	: vars_(CmpScore(score_)) 
-	, decay_(1.0 / std::max(0.01, std::min(1.0, decay)))
-	, inc_(1.0) {
-	scType_  = params.resScore ? params.resScore : 1u;
-	uint32 x = params.otherScore + 1;
-	if (x & Constraint_t::learnt_loop) { types_.addSet(Constraint_t::learnt_loop); }
-	if (x & Constraint_t::learnt_other){ types_.addSet(Constraint_t::learnt_other);}
-	if (scType_ == 1u)                 { types_.addSet(Constraint_t::learnt_conflict); }
-	if (params.initScore)              { types_.addSet(Constraint_t::static_constraint); }
+ClaspVsids_t<ScoreType>::ClaspVsids_t(const HeuParams& params) 
+	: vars_(CmpScore(score_))
+	, inc_(1.0)
+	, acids_(false) {
+	ClaspVsids_t<ScoreType>::setConfig(params);
+}
+
+template <class ScoreType>
+void ClaspVsids_t<ScoreType>::setConfig(const HeuParams& params) {
+	addOther(types_ = TypeSet(), params.other != HeuParams::other_auto ? params.other : static_cast<uint32>(HeuParams::other_no));
+	scType_ = params.score != HeuParams::score_auto ? params.score : static_cast<uint32>(HeuParams::score_min);
+	decay_  = 1.0 / initDecay(params.param);
+	acids_  = params.acids != 0;
+	nant_   = params.nant != 0;
+	if (params.moms) { types_.addSet(Constraint_t::Static); }
+	if (scType_ == HeuParams::score_min) { types_.addSet(Constraint_t::Conflict); }
 }
 
 template <class ScoreType>
@@ -507,11 +534,32 @@ void ClaspVsids_t<ScoreType>::startInit(const Solver& s) {
 template <class ScoreType>
 void ClaspVsids_t<ScoreType>::endInit(Solver& s) {
 	vars_.clear();
-	initScores(s, types_.inSet(Constraint_t::static_constraint));
+	initScores(s, types_.inSet(Constraint_t::Static));
+	double mx = 0;
 	for (Var v = 1; v <= s.numVars(); ++v) {
-		if (s.value(v) == value_free && !vars_.is_in_queue(v)) {
-			vars_.push(v);
- 		}
+		if (s.value(v) != value_free) { continue; }
+		mx = std::max(mx, score_[v].get());
+		if (!vars_.is_in_queue(v)) { vars_.push(v); }
+	}
+	if (acids_ && mx > inc_) {
+		inc_ = std::ceil(mx);
+	}
+}
+template <class ScoreType>
+void ClaspVsids_t<ScoreType>::updateVarActivity(const Solver& s, Var v, double f) {
+	if (!nant_ || s.varInfo(v).nant()) {
+		double o = score_[v].get(), n;
+		f = ScoreType::applyFactor(score_, v, f);
+		if      (!acids_)  { n = o + (f * inc_); }
+		else if (f == 1.0) { n = (o + inc_) / 2.0; }
+		else if (f != 0.0) { n = std::max( (o + inc_ + f) / 2.0, f + o ); }
+		else               { return; }
+		score_[v].set(n);
+		if (n > 1e100) { normalize(); }
+		if (vars_.is_in_queue(v)) {
+			if (n >= o) { vars_.increase(v); }
+			else        { vars_.decrease(v); }
+		}
 	}
 }
 template <class ScoreType>
@@ -568,34 +616,40 @@ void ClaspVsids_t<ScoreType>::normalize() {
 	}
 }
 template <class ScoreType>
-void ClaspVsids_t<ScoreType>::newConstraint(const Solver&, const Literal* first, LitVec::size_type size, ConstraintType t) {
-	if (t != Constraint_t::static_constraint) {
+void ClaspVsids_t<ScoreType>::newConstraint(const Solver& s, const Literal* first, LitVec::size_type size, ConstraintType t) {
+	if (t != Constraint_t::Static) {
 		const bool upAct = types_.inSet(t);
 		for (LitVec::size_type i = 0; i < size; ++i, ++first) {
 			incOcc(*first);
 			if (upAct) {
-				updateVarActivity(first->var());
+				updateVarActivity(s, first->var());
 			}
 		}
-		if (t == Constraint_t::learnt_conflict) {
-			inc_ *= decay_;
+		if (t == Constraint_t::Conflict) {
+			if (!acids_) { inc_ *= decay_; }
+			else         { inc_ += 1.0; }
 		}
 	}
 }
 template <class ScoreType>
 void ClaspVsids_t<ScoreType>::updateReason(const Solver& s, const LitVec& lits, Literal r) {
-	if (scType_ > 1u) {
-		const bool ms = scType_ == 3u;
+	if (scType_ > HeuParams::score_min) {
+		const bool ms = scType_ == HeuParams::score_multi_set;
 		for (LitVec::size_type i = 0, end = lits.size(); i != end; ++i) {
-			if (ms || !s.seen(lits[i])) { updateVarActivity(lits[i].var()); }
+			if (ms || !s.seen(lits[i])) { updateVarActivity(s, lits[i].var()); }
 		}
 	}
-	if ((scType_ & 1u) != 0 && r.var() != 0) { updateVarActivity(r.var()); }
+	if ((scType_ & 1u) != 0 && r.var() != 0) { updateVarActivity(s, r.var()); }
 }
 template <class ScoreType>
-bool ClaspVsids_t<ScoreType>::bump(const Solver&, const WeightLitVec& lits, double adj) {
+bool ClaspVsids_t<ScoreType>::bump(const Solver& s, const WeightLitVec& lits, double adj) {
+	double mf = 1.0, f;
 	for (WeightLitVec::const_iterator it = lits.begin(), end = lits.end(); it != end; ++it) {
-		updateVarActivity(it->first.var(), it->second*adj);
+		updateVarActivity(s, it->first.var(), (f = it->second*adj));
+		if (acids_ && f > mf) { mf = f; }
+	}
+	if (acids_ && mf > 1.0) {
+		inc_ = std::ceil(mf + inc_);
 	}
 	return true;
 }
@@ -630,75 +684,25 @@ template class ClaspVsids_t<VsidsScore>;
 /////////////////////////////////////////////////////////////////////////////////////////
 // DomainHeuristic selection strategy
 /////////////////////////////////////////////////////////////////////////////////////////
-const char* const domSym_s = "_heuristic(";
-const std::size_t domLen_s = std::strlen(domSym_s);
-bool DomEntry::isDomEntry(const SymbolType& sym) { return !sym.name.empty() && std::strncmp(sym.name.c_str(), domSym_s, domLen_s) == 0; }
-bool DomEntry::isHeadOf(const char* head, const SymbolType& domSym) {
-	assert(isDomEntry(domSym));
-	std::size_t len = std::strlen(head);
-	const char* dom = domSym.name.c_str() + domLen_s;
-	return std::strncmp(head, dom, len) == 0 && dom[len] == ',';
+DomainHeuristic::DomainHeuristic(const HeuParams& params) : ClaspVsids_t<DomScore>(params), domSeen_(0), defMax_(0), defMod_(0), defPref_(0) {
+	frames_.push_back(Frame(0,DomAction::UNDO_NIL));
+	setDefaultMod(static_cast<HeuParams::DomMod>(params.domMod), params.domPref);
 }
-bool DomEntry::Cmp::operator()(const SymbolType& lhs, const SymbolType& rhs) const {
-	assert(DomEntry::isDomEntry(lhs) && DomEntry::isDomEntry(rhs));
-	return std::strcmp(lhs.name.c_str() + domLen_s, rhs.name.c_str() + domLen_s) < 0;
+DomainHeuristic::~DomainHeuristic() {}
+
+void DomainHeuristic::setConfig(const HeuParams& params) {
+	ClaspVsids_t<DomScore>::setConfig(params);
+	setDefaultMod(static_cast<HeuParams::DomMod>(params.domMod), params.domPref);
 }
-bool DomEntry::Lookup::operator()(const char* head, const SymbolType& domSym) const {
-	assert(DomEntry::isDomEntry(domSym));
-	return std::strncmp(head, domSym.name.c_str() + domLen_s, std::strlen(head)) < 0;
-}
-bool DomEntry::Lookup::operator()(const SymbolType& domSym, const char* head) const {
-	assert(DomEntry::isDomEntry(domSym));
-	return std::strncmp(domSym.name.c_str() + domLen_s, head, std::strlen(head)) < 0;
-}
-void DomEntry::init(const SymbolType& atomSym, const SymbolType& domSym) {
-	CLASP_ASSERT_CONTRACT(isDomEntry(domSym));
-	std::memset(this, 0, sizeof(*this));
-	this->lit = atomSym.lit;
-	this->cond= domSym.lit;
-	const char* rule = domSym.name.c_str() + domLen_s;
-	// skip head
-	rule += std::strlen(atomSym.name.c_str());
-	CLASP_FAIL_IF(!*rule++, "Invalid atom name in heuristic predicate!");
-	// extract modifier
-	if      (std::strncmp(rule, "sign"  , 4) == 0) { this->mod = mod_sign;   rule += 4; }
-	else if (std::strncmp(rule, "true"  , 4) == 0) { this->mod = mod_tf;     rule += 4; this->pref = trueValue(lit); }
-	else if (std::strncmp(rule, "init"  , 4) == 0) { this->mod = mod_init;   rule += 4; }
-	else if (std::strncmp(rule, "level" , 5) == 0) { this->mod = mod_level;  rule += 5; }
-	else if (std::strncmp(rule, "false" , 5) == 0) { this->mod = mod_tf;     rule += 5; this->pref = falseValue(lit); }
-	else if (std::strncmp(rule, "factor", 6) == 0) { this->mod = mod_factor; rule += 6; }
-	CLASP_FAIL_IF(*rule++ != ',', "Invalid modifier in heuristic predicate!");
-	// extract value
-	char* next;
-	this->value = Range<int>(INT16_MIN, INT16_MAX).clamp(std::strtol(rule, &next, 10));
-	CLASP_FAIL_IF(rule == next || *(rule = next) == 0, "Invalid value in heuristic predicate!");
-	this->prio = value > 0 ? value : -value;
-	if (mod == mod_sign) {
-		pref  = value_free + ValueRep(value != 0) + ValueRep(value < 0);
-		if (lit.sign() && pref) { pref ^= 3u; }
-		value = pref;
-	}
-	// extract optional priority
-	if (*rule == ',') { // _heuristic/4
-		prio = Range<int>(0, INT16_MAX).clamp(std::strtol(++rule, &next, 10));
-		CLASP_FAIL_IF(rule == next || *(rule = next) == 0, "Invalid priority in heuristic predicate!");
-	}
-	CLASP_FAIL_IF(*rule++ != ')' || *rule != 0, "Invalid extra argument in heuristic predicate!");
-}
-DomainHeuristic::DomainHeuristic(double d, const HeuParams& params) : ClaspVsids_t<DomScore>(d, params), domMin_(0), symSize_(0), defMod_(0), defPref_(0) {
-	frames_.push_back(Frame(0,UINT32_MAX));
-}
-DomainHeuristic::~DomainHeuristic() {
-}
-void DomainHeuristic::setDefaultMod(GlobalModifier mod, uint32 prefSet) {
+void DomainHeuristic::setDefaultMod(HeuParams::DomMod mod, uint32 prefSet) {
 	defMod_ = (uint16)mod;
 	defPref_= prefSet;
 }
 void DomainHeuristic::detach(Solver& s) {
 	if (!actions_.empty()) {
-		for (SymbolTable::const_iterator it = s.symbolTable().begin(), end = s.symbolTable().end(); it != end; ++it) {
-			if (it->second.lit.var() && DomEntry::isDomEntry(it->second)) {
-				s.removeWatch(it->second.lit, this);
+		for (DomainTable::iterator it = s.sharedContext()->heuristic.begin(), end = s.sharedContext()->heuristic.end(); it != end; ++it) {
+			if (it->hasCondition()) {
+				s.removeWatch(it->cond(), this);
 			}
 		}
 	}
@@ -706,98 +710,82 @@ void DomainHeuristic::detach(Solver& s) {
 		s.removeUndoWatch(frames_.back().dl, this);
 		frames_.pop_back();
 	}
+	Var end = std::min(static_cast<Var>(score_.size()), static_cast<Var>(s.numVars() + 1));
+	for (Var v = 1; v != end; ++v) {
+		if (score_[v].sign) { s.setPref(v, ValueSet::user_value, value_free); }
+	}
 	actions_.clear();
 	prios_.clear();
-	symSize_ = 0;
+	domSeen_ = 0;
+	defMax_  = 0;
 }
 void DomainHeuristic::startInit(const Solver& s) {
 	BaseType::startInit(s);
-	if (symSize_ > s.symbolTable().size()) {
-		symSize_ = 0;
-	}
+	domSeen_ = std::min(domSeen_, s.sharedContext()->heuristic.size());
 }
 void DomainHeuristic::initScores(Solver& s, bool moms) {
-	if (moms)  { BaseType::initScores(s, moms); }
-	if (s.symbolTable().type() != SymbolTable::map_indirect) { return; }
-	typedef PodVector<SymbolTable::symbol_type>::type DomTable;
-	DomTable domTab;
-	// get domain entries from symbol table
-	for (SymbolTable::const_iterator sIt = s.symbolTable().begin() + symSize_, end = s.symbolTable().end(); sIt != end; ++sIt) {
-		if (DomEntry::isDomEntry(sIt->second)){ domTab.push_back(sIt->second); }
+	const DomainTable& domTab = s.sharedContext()->heuristic;
+	BaseType::initScores(s, moms);
+	uint32 nKey = (uint32)prios_.size();
+	if (defMax_) {
+		defMax_ = std::min(defMax_, s.numVars()) + 1;
+		for (Var v = 1; v != defMax_; ++v) {
+			if (score_[v].domP >= nKey) {
+				bool sign = score_[v].sign;
+				score_[v] = DomScore(score_[v].value);
+				if (sign) { s.setPref(v, ValueSet::user_value, value_free); }
+			}
+		}
+		defMax_ = 0;
 	}
-	// prepare table for fast name-based lookup
-	std::sort(domTab.begin(), domTab.end(), DomEntry::Cmp());
-	// apply modifications to relevant atoms
-	Literal dyn;
-	uint32 nKey   = (uint32)prios_.size(), uKey = nKey;
-	uint32 nRules = (uint32)domTab.size();
-	if (&s == s.sharedContext()->master()) { domMin_ = &s.sharedContext()->symbolTable().domLits; }
-	typedef PodVector<std::pair<Var, uint32> >::type InitVec;
-	InitVec initVals;
-	for (SymbolTable::const_iterator sIt = s.symbolTable().begin(), end = s.symbolTable().end(); sIt != end && nRules; ++sIt) {
-		if (sIt->second.name.empty() || s.topValue(sIt->second.lit.var()) != value_free) { continue; }
-		const char* head = sIt->second.name.c_str();
-		Var         ev   = 0;
-		int16       init = 0;
-		for (DomTable::const_iterator rIt = std::lower_bound(domTab.begin(), domTab.end(), head, DomEntry::Lookup()); rIt != domTab.end() && DomEntry::isHeadOf(head, *rIt); ++rIt, --nRules) {
-			DomEntry e;
-			e.init(sIt->second, *rIt);
-			if (e.mod == DomEntry::mod_init && !s.isTrue(e.cond))   { continue; }
-			ev = e.lit.var();
-			if (score_[ev].domKey >= nKey){
-				score_[ev].setDom(nKey++);
+	if (domSeen_ < domTab.size()) {
+		// apply new domain modifications
+		VarScoreVec saved;
+		Literal lastW = lit_true();
+		uint32 dKey = nKey;
+		for (DomainTable::iterator it = domTab.begin() + domSeen_, end = domTab.end(); it != end; ++it) {
+			if (s.topValue(it->var()) != value_free || s.isFalse(it->cond())) {
+				continue;
+			}
+			if (score_[it->var()].domP >= nKey){
+				score_[it->var()].setDom(nKey++);
 				prios_.push_back(DomPrio());
 				prios_.back().clear();
 			}
-			int mods = 1;
-			if (e.mod == DomEntry::mod_tf) { e.mod = DomEntry::mod_level; ++mods; }
-			for (;;) {
-				if (e.prio >= prio(ev, e.mod)){
-					if      (s.isTrue(e.cond)) { prio(ev, e.mod) = e.prio; }
-					else if (e.cond != dyn)    { s.addWatch(dyn = e.cond, this, (uint32)actions_.size()); }
-					else                       { actions_.back().comp = 1; }
-					if (addAction(s, e, init) && score_[ev].domKey >= uKey) {
-						uKey = score_[ev].domKey + 1;
-					}
-				}
-				if (--mods == 0) { break; }
-				e.mod   = DomEntry::mod_sign;
-				e.value = (int16)e.pref;
-			}
+			uint32 k = addDomAction(*it, s, saved, lastW);
+			if (k > dKey) { dKey = k; }
 		}
-		if (ev && init) {
-			initVals.push_back(std::make_pair(ev, uint32(init)));
+		for (VarScoreVec::value_type x; !saved.empty(); saved.pop_back()) {
+			x = saved.back();
+			score_[x.first].value += x.second;
+			score_[x.first].init   = 0;
 		}
-	}
-	std::sort(initVals.begin(), initVals.end());
-	for (InitVec::const_iterator it = initVals.begin(), end = initVals.end(); it != end; ++it) {
-		uint32 val = it->second;
-		for (InitVec::const_iterator j = it + 1; j != end && j->first == it->first; it = j++) {
-			if (j->second > val) { val = j->second; }
+		if (!actions_.empty()) {
+			actions_.back().next = 0;
 		}
-		score_[it->first].value += val;
-	}
-	InitVec().swap(initVals);
-	DomTable().swap(domTab);
-	if (s.symbolTable().incremental()) { uKey = nKey; }
-	if (uKey != nKey) {
-		PrioVec(prios_.begin(), prios_.begin()+uKey).swap(prios_);
+		if ((nKey - dKey) > dKey && isSentinel(s.sharedContext()->stepLiteral())) {
+			PrioVec(prios_.begin(), prios_.begin()+dKey).swap(prios_);
+		}
+		domSeen_ = domTab.size();
 	}
 	// apply default modification
 	if (defMod_) {
+		typedef HeuParams Dom;
 		MinimizeConstraint* m = s.enumerationConstraint() ? static_cast<EnumerationConstraint*>(s.enumerationConstraint())->minimizer() : 0;
-		const uint32 prefSet  = defPref_, graphSet = gpref_scc | gpref_hcc | gpref_disj;
-		const uint32 userKey  = prios_.size(), graphKey = userKey + 1, minKey = userKey + 2, showKey = userKey + 3;
-		if ((prefSet & gpref_show) != 0) {
-			for (SymbolTable::const_iterator it = s.symbolTable().begin() + symSize_, end = s.symbolTable().end(); it != end; ++it) {
-				if (!it->second.name.empty() && *it->second.name.c_str() != '_') {
-					addDefAction(s, it->second.lit, gpref_show, showKey);
-				}
+		const uint32 prefSet  = defPref_, graphSet = Dom::pref_scc | Dom::pref_hcc | Dom::pref_disj;
+		const uint32 userKey  = nKey, graphKey = userKey + 1, minKey = userKey + 2, showKey = userKey + 3;
+		if ((prefSet & Dom::pref_show) != 0) {
+			const OutputTable& out = s.outputTable();
+			for (OutputTable::pred_iterator it = out.pred_begin(), end = out.pred_end(); it != end; ++it) {
+				addDefAction(s, it->cond, Dom::pref_show, showKey);
+			}
+			for (OutputTable::range_iterator it = out.vars_begin(), end = out.vars_end(); it != end; ++it) {
+				addDefAction(s, posLit(*it), Dom::pref_show, showKey);
 			}
 		}
-		if ((prefSet & gpref_min) != 0 && m) {
+		if ((prefSet & Dom::pref_min) != 0 && m) {
 			weight_t w = -1; 
-			int16    x = gpref_show;
+			int16    x = Dom::pref_show;
 			for (const WeightLiteral* it = m->shared()->lits; !isSentinel(it->first); ++it) {
 				if (x > 4 && it->second != w) {
 					--x;
@@ -808,67 +796,96 @@ void DomainHeuristic::initScores(Solver& s, bool moms) {
 		}
 		if ((prefSet & graphSet) != 0 && s.sharedContext()->sccGraph.get()) {
 			for (uint32 i = 0; i !=  s.sharedContext()->sccGraph->numAtoms(); ++i) {
-				const SharedDependencyGraph::AtomNode& a = s.sharedContext()->sccGraph->getAtom(i);
+				const PrgDepGraph::AtomNode& a = s.sharedContext()->sccGraph->getAtom(i);
 				int16 lev = 0;
-				if      ((prefSet & gpref_disj) != 0 && a.inDisjunctive()){ lev = 3; }
-				else if ((prefSet & gpref_hcc) != 0 && a.inNonHcf())      { lev = 2; }
-				else if ((prefSet & gpref_scc) != 0)                      { lev = 1; }
+				if      ((prefSet & Dom::pref_disj) != 0 && a.inDisjunctive()){ lev = 3; }
+				else if ((prefSet & Dom::pref_hcc) != 0 && a.inNonHcf())      { lev = 2; }
+				else if ((prefSet & Dom::pref_scc) != 0)                      { lev = 1; }
 				addDefAction(s, a.lit, lev, graphKey);
 			}
 		}
-		for (Var v = 1, end = s.numVars() + 1; v != end; ++v) {
-			if      (!prefSet && (s.varInfo(v).type() & Var_t::atom_var) != 0)    { addDefAction(s, posLit(v), 1, userKey); }
-			else if (score_[v].domKey != UINT32_MAX && score_[v].domKey > userKey){ score_[v].setDom(userKey); }
-		}
-	}
-	if (domMin_) {
-		LitVec::iterator j = domMin_->begin();
-		for (LitVec::const_iterator it = domMin_->begin(), end = domMin_->end(); it != end; ++it) {
-			if (s.value(it->var()) == value_free && score_[it->var()].level > 0 && !s.seen(*it)) {
-				s.markSeen(*it);
-				*j++ = *it;
+		if (!prefSet) {
+			for (Var v = 1, end = s.numVars() + 1; v != end; ++v) {
+				if ((s.varInfo(v).type() & Var_t::Atom) != 0) { addDefAction(s, posLit(v), 1, userKey); }
 			}
 		}
-		domMin_->erase(j, domMin_->end());
-		for (LitVec::const_iterator it = domMin_->begin(), end = domMin_->end(); it != end; ++it) { s.clearSeen(it->var()); }
-		domMin_ = 0;
 	}
-	symSize_ = s.symbolTable().size();
-}
-bool DomainHeuristic::addAction(Solver& s, const DomEntry& e, int16& init) {
-	assert(e.mod < DomEntry::mod_tf);
-	Var domVar = e.lit.var();
-	if (s.isTrue(e.cond)) {
-		if      (e.mod == DomEntry::mod_factor){ score_[domVar].factor= e.value; }
-		else if (e.mod == DomEntry::mod_level) { score_[domVar].level = e.value; }
-		else if (e.mod == DomEntry::mod_init)  { init = e.value; }
-		else if (e.mod == DomEntry::mod_sign)  { 
-			s.setPref(domVar, ValueSet::user_value, e.pref);
-			if (domMin_ && e.pref) { domMin_->push_back(e.pref == falseValue(e.lit) ? e.lit : ~e.lit); }
+	if (&s == s.sharedContext()->master() && domTab.domRec) {
+		LitVec& min = *domTab.domRec;
+		for (Var v = 1, end = s.numVars() + 1; v != end; ++v) {
+			if (score_[v].sign && score_[v].level > 0 && s.value(v) == value_free) {
+				ValueRep val = s.pref(v).get(ValueSet::user_value);
+				if (val != value_false) { min.push_back(negLit(v)); }
+				if (val != value_true)  { min.push_back(posLit(v)); }
+			}
 		}
-		return false;
+	}
+}
+
+uint32 DomainHeuristic::addDomAction(const DomMod& e, Solver& s, VarScoreVec& initOut, Literal& lastW) {
+	if (e.comp()) {
+		DomMod level(e.var(), DomModType::Level, e.bias(), e.prio(), e.cond());
+		DomMod sign(e.var(), DomModType::Sign, e.type() == DomModType::True ? 1 : -1, e.prio(), e.cond());
+		uint32 k1 = addDomAction(level, s, initOut, lastW);
+		uint32 k2 = addDomAction(sign, s, initOut, lastW);
+		return std::max(k1, k2);
+	}
+	bool isStatic = !e.hasCondition() || s.topValue(e.cond().var()) == trueValue(e.cond());
+	uint16& sPrio = prio(e.var(), e.type());
+	if (e.prio() < sPrio || (!isStatic && e.type() == DomModType::Init)) {
+		return 0;
+	}
+	if (e.type() == DomModType::Init) {
+		if (score_[e.var()].init == 0) {
+			initOut.push_back(std::make_pair(e.var(), score_[e.var()].value));
+			score_[e.var()].init = 1;
+		}
+		score_[e.var()].value = e.bias();
+		return 0;
+	}
+	DomAction a = { e.var(), (uint32)e.type(), DomAction::UNDO_NIL, uint32(0), e.bias(), e.prio() };
+	if (a.mod == DomModType::Sign && a.bias != 0) {
+		a.bias = a.bias > 0 ? value_true : value_false;
+	}
+	CLASP_FAIL_IF(e.type() != a.mod, "Invalid dom modifier!");
+	if (isStatic) {
+		applyAction(s, a, sPrio);
+		score_[e.var()].sign |= static_cast<uint32>(e.type() == DomModType::Sign);
+		return 0;
+	}
+	if (e.cond() != lastW) {
+		s.addWatch(lastW = e.cond(), this, (uint32)actions_.size()); 
 	}
 	else {
-		DomAction a = { domVar, (uint32)e.mod, uint32(0), UINT32_MAX, e.value, e.prio };
-		if (e.mod == DomEntry::mod_sign) { a.val = (int16)e.pref; }
-		actions_.push_back(a);
-		return true;
+		actions_.back().next = 1;
 	}
+	actions_.push_back(a);
+	return score_[e.var()].domP + 1;
 }
+
 void DomainHeuristic::addDefAction(Solver& s, Literal x, int16 lev, uint32 domKey) {
-	if (s.value(x.var()) != value_free || score_[x.var()].domKey < domKey) { return; }
-	const uint16 signMod = gmod_spos|gmod_sneg;
-	if (score_[x.var()].domKey > domKey && (defMod_ & gmod_level) != 0){
-		score_[x.var()].level += lev;
-	}
-	if ((defMod_ & signMod) != 0) {
-		if (!s.pref(x.var()).has(ValueSet::user_value)) {
-			s.setPref(x.var(), ValueSet::user_value, (defMod_ & gmod_spos) != 0 ? trueValue(x) : falseValue(x));
+	if (s.value(x.var()) != value_free || score_[x.var()].domP < domKey) { return; }
+	const bool signMod = defMod_ <  HeuParams::mod_init && ((defMod_ & HeuParams::mod_init) != 0);
+	const bool valMod  = defMod_ >= HeuParams::mod_init || ((defMod_ & HeuParams::mod_level)!= 0);
+	if (score_[x.var()].domP > domKey && lev && valMod) {
+		if      (defMod_ < HeuParams::mod_init) { score_[x.var()].level += lev; }
+		else if (defMod_ == HeuParams::mod_init) { score_[x.var()].value += (lev*100); }
+		else if (defMod_ == HeuParams::mod_factor) {
+			int16 f = 1;
+			while (lev >>= 2) { ++f; }
+			score_[x.var()].factor += f;
 		}
-		if (domMin_) { domMin_->push_back((defMod_ & gmod_spos) != 0 ? ~x : x); }
+	}
+	if (signMod && score_[x.var()].sign == 0) {
+		s.setPref(x.var(), ValueSet::user_value, (defMod_ & HeuParams::mod_spos) != 0 ? trueValue(x) : falseValue(x));
+		score_[x.var()].sign = 1;
+	}
+	if (x.var() > defMax_) {
+		defMax_ = x.var();
 	}
 	score_[x.var()].setDom(domKey);
 }
+
 
 Literal DomainHeuristic::doSelect(Solver& s) {
 	Literal x = BaseType::doSelect(s);
@@ -878,14 +895,19 @@ Literal DomainHeuristic::doSelect(Solver& s) {
 
 Constraint::PropResult DomainHeuristic::propagate(Solver& s, Literal, uint32& aId) {
 	uint32 n = aId;
+	uint32 D = s.decisionLevel();
 	do {
 		DomAction& a = actions_[n];
 		uint16& prio = this->prio(a.var, a.mod);
 		if (s.value(a.var) == value_free && a.prio >= prio) {
 			applyAction(s, a, prio);
-			pushUndo(s, n);
+			if (D != frames_.back().dl) {
+				s.addUndoWatch(D, this);
+				frames_.push_back(Frame(D, DomAction::UNDO_NIL));
+			}
+			pushUndo(frames_.back().head, n);
 		}
-	} while (actions_[n++].comp);
+	} while (actions_[n++].next);
 	return PropResult(true, true);
 }
 
@@ -893,30 +915,26 @@ void DomainHeuristic::applyAction(Solver& s, DomAction& a, uint16& gPrio) {
 	std::swap(gPrio, a.prio);
 	switch (a.mod) {
 		default: assert(false); break;
-		case DomEntry::mod_factor: std::swap(score_[a.var].factor, a.val); break;
-		case DomEntry::mod_level:
-			std::swap(score_[a.var].level, a.val);
+		case DomModType::Factor: std::swap(score_[a.var].factor, a.bias); break;
+		case DomModType::Level:
+			std::swap(score_[a.var].level, a.bias);
 			if (vars_.is_in_queue(a.var)) { vars_.update(a.var); } 
 			break;
-		case DomEntry::mod_sign:
-			ValueSet old = s.pref(a.var);
-			s.setPref(a.var, ValueSet::user_value, ValueRep(a.val));
-			a.val        = old.get(ValueSet::user_value);
+		case DomModType::Sign:
+			int16 old = s.pref(a.var).get(ValueSet::user_value);
+			s.setPref(a.var, ValueSet::user_value, ValueRep(a.bias));
+			a.bias    = old;
 			break;
 	}
 }
-void DomainHeuristic::pushUndo(Solver& s, uint32 actionId) {
-	if (s.decisionLevel() != frames_.back().dl) {
-		frames_.push_back(Frame(s.decisionLevel(), UINT32_MAX));
-		s.addUndoWatch(s.decisionLevel(), this);
-	}
-	actions_[actionId].undo = frames_.back().head;
-	frames_.back().head     = actionId;
+void DomainHeuristic::pushUndo(uint32& head, uint32 actionId) {
+	actions_[actionId].undo = head;
+	head = actionId;
 }
 
 void DomainHeuristic::undoLevel(Solver& s) {
 	while (frames_.back().dl >= s.decisionLevel()) {
-		for (uint32 n = frames_.back().head; n != UINT32_MAX;) {
+		for (uint32 n = frames_.back().head; n != DomAction::UNDO_NIL;) {
 			DomAction& a = actions_[n];
 			n            = a.undo;
 			applyAction(s, a, prio(a.var, a.mod));

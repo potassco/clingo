@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -39,7 +39,7 @@ void AssignLevel::assignLevels() {
 }
 void AssignLevel::assignLevels(unsigned level, BoundSet const &parent) {
     BoundSet bound(parent);
-    for (auto &occs : occurr) { 
+    for (auto &occs : occurr) {
         auto ret = bound.emplace(occs.first, level);
         for (auto &occ : occs.second) { occ->level = ret.first->second; }
     }
@@ -58,11 +58,11 @@ CheckLevel::SC::VarNode &CheckLevel::var(VarTerm &var) {
     if (!node) { node = &dep.insertVar(&var); }
     return *node;
 }
-bool CheckLevel::check() {
+void CheckLevel::check() {
     dep.order();
     auto vars(dep.open());
     if (!vars.empty()) {
-        auto cmp = [](SC::VarNode const *x, SC::VarNode const *y) -> bool{ 
+        auto cmp = [](SC::VarNode const *x, SC::VarNode const *y) -> bool{
             if (x->data->name != y->data->name) { return *x->data->name < *y->data->name; }
             return x->data->loc() < y->data->loc();
         };
@@ -72,17 +72,25 @@ bool CheckLevel::check() {
         for (auto &x : vars) { msg << x->data->loc() << ": note: '" << x->data->name << "' is unsafe\n"; }
         GRINGO_REPORT(E_ERROR) << msg.str();
     }
-    return vars.empty();
 }
 CheckLevel::~CheckLevel() { }
+
+void addVars(ChkLvlVec &levels, VarTermBoundVec &vars) {
+    for (auto &x: vars) {
+        auto &lvl(levels[x.first->level]);
+        bool bind = x.second && levels.size() == x.first->level + 1;
+        if (bind) { lvl.dep.insertEdge(*lvl.current, lvl.var(*x.first)); }
+        else      { lvl.dep.insertEdge(lvl.var(*x.first), *lvl.current); }
+    }
+}
 
 // }}}
 // {{{ declaration of ToGroundArg
 
-ToGroundArg::ToGroundArg(unsigned &auxNames, PredDomMap &domains) 
+ToGroundArg::ToGroundArg(unsigned &auxNames, DomainData &domains)
     : auxNames(auxNames)
     , domains(domains) { }
-FWString ToGroundArg::newId(bool increment) { 
+FWString ToGroundArg::newId(bool increment) {
     auxNames+= increment;
     return "#d" + std::to_string(auxNames-increment);
 }

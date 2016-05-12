@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -21,18 +21,7 @@
 #ifndef _GRINGO_GROUND_INSTANTIATION_HH
 #define _GRINGO_GROUND_INSTANTIATION_HH
 
-#include <gringo/base.hh>
-#include <queue>
-
-// {{{ forward declarations
-
-namespace Gringo { 
-struct Domain;
-struct IndexUpdater;
-namespace Output { struct OutputBase; } 
-}
-
-// }}}
+#include <gringo/output/types.hh>
 
 namespace Gringo { namespace Ground {
 
@@ -44,7 +33,7 @@ struct Queue {
     void enqueue(Instantiator &inst);
     void enqueue(Domain &inst);
     ~Queue();
-    
+
     using QueueDec  = std::vector<std::reference_wrapper<Instantiator>>;
     using DomainVec = std::vector<std::reference_wrapper<Domain>>;
     QueueDec  current;
@@ -66,12 +55,13 @@ using UIdx = std::unique_ptr<Binder>;
 // }}}
 // {{{ declaration if SolutionCallback
 
-struct SolutionCallback {
+class SolutionCallback {
+public:
     virtual void report(Output::OutputBase &out) = 0;
     virtual void propagate(Queue &queue) = 0;
     virtual void printHead(std::ostream &out) const = 0;
     virtual unsigned priority() const { return 0; }
-    virtual ~SolutionCallback() { }
+    virtual ~SolutionCallback() noexcept = default;
 };
 
 // }}}
@@ -90,7 +80,6 @@ struct SolutionBinder : public Binder {
 
 struct BackjumpBinder {
     typedef std::vector<unsigned> DependVec;
-    typedef std::vector<Term::SVal> SValVec;
 
     BackjumpBinder(UIdx &&index, DependVec &&depends);
     BackjumpBinder(BackjumpBinder &&x) noexcept;
@@ -111,20 +100,19 @@ inline std::ostream &operator<<(std::ostream &out, BackjumpBinder &x) { x.print(
 
 struct Instantiator {
     using DependVec = BackjumpBinder::DependVec;
-    using SValVec = BackjumpBinder::SValVec;
-    
+
     Instantiator(SolutionCallback &callback);
-    Instantiator(Instantiator &&x) noexcept;
-    Instantiator &operator=(Instantiator &&x) noexcept;
+    Instantiator(Instantiator &&x) = default;
+    Instantiator &operator=(Instantiator &&x) = default;
     void add(UIdx &&index, DependVec &&depends);
     void finalize(DependVec &&depends);
     void enqueue(Queue &queue);
     void instantiate(Output::OutputBase &out);
     void print(std::ostream &out) const;
     unsigned priority() const;
-    ~Instantiator();
+    ~Instantiator() noexcept;
 
-    SolutionCallback &callback;
+    SolutionCallback *callback;
     std::vector<BackjumpBinder> binders;
     bool enqueued = false;
 };

@@ -49,24 +49,10 @@ enum ExitCode {
 /////////////////////////////////////////////////////////////////////////////////////////
 // clasp app helpers
 /////////////////////////////////////////////////////////////////////////////////////////
-class WriteLemmas {
-public:
-	WriteLemmas(std::ostream& os);
-	~WriteLemmas();
-	void attach(SharedContext& ctx);
-	void detach();
-	void flush(Constraint_t::Set types, uint32 maxLbd);
-	bool unary(Literal, Literal) const;
-	bool binary(Literal, Literal, Literal) const;
-private:
-	WriteLemmas& operator=(const WriteLemmas&);
-	SharedContext* ctx_;
-	std::ostream&  os_;
-	mutable uint32 outShort_;
-};
 class WriteCnf {
 public:
-	WriteCnf(std::ostream& os) : os_(os) {}
+	WriteCnf(const std::string& outFile);
+	~WriteCnf();
 	void writeHeader(uint32 numVars, uint32 numCons);
 	void write(Var maxVar, const ShortImplicationsGraph& g);
 	void write(ClauseHead* h);
@@ -75,9 +61,30 @@ public:
 	bool unary(Literal, Literal) const;
 	bool binary(Literal, Literal, Literal) const;
 private:
+	WriteCnf(const WriteCnf&);
 	WriteCnf& operator=(const WriteCnf&);
-	std::ostream& os_;
-	LitVec        lits_;
+	FILE*  str_;
+	LitVec lits_;
+};
+class LemmaLogger {
+public:
+	LemmaLogger(const std::string& outFile, uint32 maxLbd);
+	~LemmaLogger();
+	void start(ProgramBuilder& prg);
+	void add(const Solver& s, const LitVec& cc, const ConstraintInfo& info);
+	void close();
+private:
+	typedef PodVector<char>::type BufT;
+	LemmaLogger(const LemmaLogger&);
+	LemmaLogger& operator=(const LemmaLogger&);
+	void formatDimacs(const LitVec& cc, uint32 lbd, BufT& out) const;
+	void formatOpb(const LitVec& cc, uint32 lbd, BufT& out)    const;
+	void formatAspif(const LitVec& cc, uint32 lbd, BufT& out)  const;
+	void append(BufT& out, const char* fmt, int data) const;
+	FILE*            str_;
+	Potassco::LitVec solver2asp_;
+	uint32           lbd_;
+	Problem_t::Type  fmt_;
 };
 /////////////////////////////////////////////////////////////////////////////////////////
 // clasp specific application options
@@ -89,18 +96,17 @@ struct ClaspAppOptions {
 	void initOptions(ProgramOptions::OptionContext& root);
 	bool validateOptions(const ProgramOptions::ParsedOptions& parsed);
 	StringSeq   input;     // list of input files - only first used!
-	std::string lemmaOut;  // optional file name for writing learnt lemmas
-	std::string lemmaIn;   // optional file name for reading learnt lemmas
+	std::string lemmaLog;  // optional file name for writing learnt lemmas
 	std::string hccOut;    // optional file name for writing scc programs
 	std::string outAtom;   // optional format string for atoms
 	uint32      outf;      // output format
+	int         compute;   // force literal compute to true
 	char        ifs;       // output field separator
 	bool        hideAux;   // output aux atoms?
 	uint8       quiet[3];  // configure printing of models, optimization values, and call steps
 	bool        onlyPre;   // run preprocessor and exit
 	bool        printPort; // print portfolio and exit
-	uint8       outLbd;    // optional lbd limit for lemma out
-	uint8       inLbd;     // optional lbd for lemma in
+	uint8       lemmaLbd;  // optional lbd limit for lemma logging
 	enum OutputFormat { out_def = 0, out_comp = 1, out_json = 2, out_none = 3 };
 };
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -152,14 +158,15 @@ protected:
 	std::istream&   getStream();
 	// -------------------------------------------------------------------------------------------  
 	// Functions called in handlePreSolveOptions()
-	void readLemmas(SharedContext& ctx);
-	void writeNonHcfs(const SharedDependencyGraph& graph) const;
-	typedef SingleOwnerPtr<Output>              OutPtr;
-	typedef SingleOwnerPtr<ClaspFacade>         ClaspPtr;
+	void writeNonHcfs(const PrgDepGraph& graph) const;
+	typedef SingleOwnerPtr<Output>      OutPtr;
+	typedef SingleOwnerPtr<ClaspFacade> ClaspPtr;
+	typedef SingleOwnerPtr<LemmaLogger> LogPtr;
 	ClaspCliConfig  claspConfig_;
 	ClaspAppOptions claspAppOpts_;
 	ClaspPtr        clasp_;
 	OutPtr          out_;
+	LogPtr          logger_;
 };
 /////////////////////////////////////////////////////////////////////////////////////////
 // clasp application

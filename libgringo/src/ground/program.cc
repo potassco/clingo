@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -76,48 +76,55 @@ void Program::ground(Scripts &scripts, Output::OutputBase &out) {
 }
 
 void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputBase &out, bool finalize) {
-    for (auto &dom : out.domains) {
-        std::string const &name = *(*dom.first).name();
+    for (auto &dom : out.predDoms()) {
+        std::string const &name = *(*dom->sig()).name();
         if (name.compare(0, 3, "#p_") == 0) {
-            // prevent redefinition of projection predicates
-            Output::RuleRef ref;
-            Output::PredicateLiteral p;
-            ref.body.emplace_back(p);
-            for (PredicateDomain::element_type &atom : dom.second.exports) {
-                if (!atom.second.isFalse() && atom.second.defined() && !atom.second.fact(false)) {
-                    PredicateDomain::element_type old(atom);
-                    atom.second = AtomState(false, old.second.generation());
-                    p.repr      = &old;
-                    ref.head    = &atom;
-                    out.output(ref);
+            // The idea here is to assign a fresh uid to each projection atom.
+            // Furthermore, the fresh atom is derived by the old atom.
+            // This prevents redefinition errors from projections.
+            for (auto &atom : *dom) {
+                if (!atom.fact() && atom.hasUid() && atom.defined()) {
+                    Output::Rule &rule = out.tempRule(false);;
+                    Atom_t oldUid = atom.uid();
+                    Atom_t newUid = out.data.newAtom();
+                    rule.addHead(Output::LiteralId{NAF::POS, Output::AtomType::Aux, newUid, dom->domainOffset()});
+                    rule.addBody(Output::LiteralId{NAF::POS, Output::AtomType::Aux, oldUid, dom->domainOffset()});
+                    out.output(rule);
+                    atom.resetUid(newUid);
                 }
             }
         }
         else if (name.compare(0, 5, "#inc_") == 0) {
             // clear incremental domains
-            dom.second.clear();
+            dom->clear();
         }
-        else {
-            // mark the incremental step in all other domains
-            dom.second.exports.incNext();
-        }
+        dom->incNext();
     }
     out.checkOutPreds();
     for (auto &x : edb) {
         if (params.find(std::get<0>(*x)->getSig())) {
-            for (auto &z : std::get<1>(*x)) { out.output(z); }
-        }
-    }
-    for (auto &p : params) {
-        auto base = out.domains.find(p.first);
-        if (base != out.domains.end()) {
-            for (auto &args : p.second) { 
-                if (args.size() == 0) { base->second.insert(Value::createId((*p.first).name()), true); }
-                else { base->second.insert(Value::createFun((*p.first).name(), args), true); }
+            for (auto &z : std::get<1>(*x)) {
+                auto it(out.predDoms().find(z.sig()));
+                assert(it != out.predDoms().end());
+                auto ret((*it)->define(z, true));
+                if (!std::get<2>(ret)) {
+                    Potassco::Id_t offset = std::get<0>(ret) - (*it)->begin();
+                    Potassco::Id_t domain = it - out.predDoms().begin();
+                    out.output(out.tempRule(false).addHead({NAF::POS, Output::AtomType::Predicate, offset, domain}));
+                }
             }
         }
     }
-    for (auto &x : out.domains) { x.second.nextGeneration(); }
+    for (auto &p : params) {
+        auto base = out.predDoms().find(p.first);
+        if (base != out.predDoms().end()) {
+            for (auto &args : p.second) {
+                if (args.size() == 0) { (*base)->define(Value::createId((*p.first).name()), true); }
+                else { (*base)->define(Value::createFun((*p.first).name(), args), true); }
+            }
+        }
+    }
+    for (auto &x : out.predDoms()) { x->nextGeneration(); }
     Queue q;
     for (auto &x : stms) {
         if (!linearized) {
@@ -128,7 +135,7 @@ void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputB
 #if DEBUG_INSTANTIATION > 0
         std::cerr << "============= component ===========" << std::endl;
 #endif
-        for (auto &y : x.first) { 
+        for (auto &y : x.first) {
 #if DEBUG_INSTANTIATION > 0
             std::cerr << "  enqueue: " << *y << std::endl;
 #endif
@@ -136,26 +143,20 @@ void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputB
         }
         q.process(out);
     }
-    Output::PredicateLiteral pPos, pNeg;
     for (auto &x : negate) {
-        for (auto it(std::get<1>(x).exports.begin() + std::get<1>(x).exports.incOffset), ie(std::get<1>(x).exports.end()); it != ie; ++it) {
-            PredicateDomain::element_type &neg(*it);
-            Value v = neg.first.flipSign();
-            auto pos(std::get<0>(x).domain.find(v));
-            if (pos != std::get<0>(x).domain.end() && pos->second.defined()) {
-                pPos.repr = &*pos;
-                pNeg.repr = &neg;
-                pPos.naf  = pNeg.naf = NAF::POS;
-                out.tempRule.head = nullptr;
-                out.tempRule.body.clear();
-                out.tempRule.body.emplace_back(pPos);
-                out.tempRule.body.emplace_back(pNeg);
-                out.output(out.tempRule);
+        for (auto neg(x.second.begin() + x.second.incOffset()), ie(x.second.end()); neg != ie; ++neg) {
+            Value v = static_cast<Value>(*neg).flipSign();
+            auto pos(x.first.find(v));
+            if (pos != x.first.end() && pos->defined()) {
+                out.output(out
+                    .tempRule(false)
+                    .addBody({NAF::POS, Output::AtomType::Predicate, static_cast<Potassco::Id_t>(pos - x.first.begin()), x.first.domainOffset()})
+                    .addBody({NAF::POS, Output::AtomType::Predicate, static_cast<Potassco::Id_t>(neg - x.second.begin()), x.second.domainOffset()}));
             }
         }
     }
     out.flush();
-    if (finalize) { out.finish(); }
+    if (finalize) { out.endStep(true); }
     linearized = true;
 }
 

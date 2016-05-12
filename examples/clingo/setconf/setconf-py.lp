@@ -1,9 +1,9 @@
 #script (python)
 
-import gringo
+import clingo
 
 def print_conf(conf, ident):
-    for x in conf.keys():
+    for x in conf.keys:
         key = x.split(".")
         if len(key) > 1:
             subconf = getattr(conf, key[0])

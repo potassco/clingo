@@ -48,6 +48,7 @@ using namespace Gringo::Test;
 
 void TestParseTerm::test_parse() {
     TestGringoModule m;
+    Messages msg;
     CPPUNIT_ASSERT_THROW(m.parseValue("a."), std::runtime_error);
     CPPUNIT_ASSERT_EQUAL(Value(), m.parseValue("x+y"));
     CPPUNIT_ASSERT_EQUAL(NUM(1), m.parseValue("1"));

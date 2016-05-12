@@ -1,16 +1,16 @@
 #script (python)
 
 import sys
-from gringo import Fun
+from clingo import function
 
 def main(prg):
     prg.ground([("base", [])])
-    prg.solve(assumptions=[(Fun("a"), True)])
+    prg.solve(assumptions=[(function("a"), True)])
 
-    f = prg.solve_async(assumptions=[(Fun("a"), True)])
+    f = prg.solve_async(assumptions=[(function("a"), True)])
     f.wait()
 
-    with prg.solve_iter(assumptions=[(Fun("a"), True)]) as it:
+    with prg.solve_iter(assumptions=[(function("a"), True)]) as it:
         for model in it: pass
 
 #end.

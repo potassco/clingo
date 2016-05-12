@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -25,7 +25,7 @@
 #include <sstream>
 #include <stdexcept>
 
-Reify::Parser::Parser(Program &prg) 
+Reify::Parser::Parser(Program &prg)
 : prg_(prg) { }
 
 void Reify::Parser::parseProgram() {
@@ -188,7 +188,7 @@ void Reify::Parser::endLoc() {
 
 void Reify::Parser::error(std::string const &msg) {
     std::ostringstream oss;
-    oss << file_ << ":" 
+    oss << file_ << ":"
         << loc_.first.first << ":" << loc_.first.second;
     if (loc_.first.first == loc_.second.first) {
         if (loc_.first.second != loc_.second.second) {
