@@ -39,7 +39,70 @@ typedef struct clingo_symbol {
 
 namespace Gringo {
 
-struct Sig {
+class UString {
+public:
+    struct Open { };
+    struct Deleted { };
+    struct Hash {
+        size_t operator()(char const *s) const { return strhash(s); }
+    };
+    struct EqualTo {
+        template <class T>
+        bool operator()(UString const &a, T const &b) const { return a == b; }
+    };
+    struct Literals {
+        static constexpr UString::Deleted deleted = {};
+        static constexpr UString::Open open = {};
+    };
+
+    UString() = default;
+    UString(char const *str) {
+        std::unique_ptr<char[]> buf{new char[std::strlen(str) + 1]};
+        std::strcpy(buf.get(), str);
+        str_ = buf.release();
+    }
+    UString(UString &&s) noexcept { std::swap(str_, s.str_); }
+    UString(UString const &) = delete;
+    UString &operator=(UString &&s) noexcept { std::swap(str_, s.str_); return *this; }
+    UString &operator=(UString const &) = delete;
+    ~UString() noexcept {
+        if (str_ && str_ != &deleted_) { delete [] str_; }
+    }
+    UString &operator=(Open) noexcept {
+        this->~UString();
+        str_ = nullptr;
+        return *this;
+    }
+    UString &operator=(Deleted) noexcept {
+        this->~UString();
+        str_ = &deleted_;
+        return *this;
+    }
+    operator const char *() const { return str_; }
+    bool operator==(UString const &s) const { return str_ == s.str_; }
+    bool operator==(char const *s) const { return std::strcmp(str_, s) == 0; }
+    bool operator==(Open) const { return str_ == nullptr; }
+    bool operator==(Deleted) const { return str_ == &deleted_; }
+private:
+    static char deleted_;
+    char const *str_ = nullptr;
+};
+char UString::deleted_;
+
+class String {
+    using StringSet = HashSet<UString, UString::Literals>;
+public:
+    // TODO: has to be locked when inserting!
+    String(char const *str)
+    : str_(strings_.insert(UString::Hash(), UString::EqualTo(), str).first) { }
+    operator const char *() const { return str_; }
+private:
+    static StringSet strings_;
+    char const *str_;
+};
+
+class Sig {
+public:
     // Sig can as well derive from a C pod
     // there are at least 16 free bits in the pointer
     // 1 bit for the sign
