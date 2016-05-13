@@ -66,145 +66,146 @@ template <class T>
 T const *cast(uint64_t rep) { return reinterpret_cast<T const *>(ptr(rep)); }
 String toString(uint64_t rep) { return String::fromRep(ptr(rep)); }
 
-// {{{1 definition of UString
+// {{{1 definition of Unique
 
-class UString {
+template <class T>
+class Unique {
 public:
+    using Type = typename T::Type;
+    struct Hash {
+        size_t operator()(Unique const &s) const { return T::hash(*s.ptr_); }
+        template <class U>
+        size_t operator()(U const &s) const { return T::hash(s); }
+    };
     struct Open { };
     struct Deleted { };
-    struct Hash {
-        size_t operator()(char const *s) const { return strhash(s); }
-    };
     struct EqualTo {
-        template <class T>
-        bool operator()(UString const &a, T const &b) const { return a == b; }
+        bool operator()(Unique const &a, Unique const &b) const { return a.ptr_ == b.ptr_; }
+        template <class U>
+        bool operator()(Unique const &a, U const &b) const { return T::equal(*a.ptr_, b); }
     };
     struct Literals {
-        static constexpr UString::Deleted deleted = {};
-        static constexpr UString::Open open = {};
+        static constexpr Deleted deleted = {};
+        static constexpr Open open = {};
     };
-
-    UString() = default;
-    UString(char const *str) {
-        std::unique_ptr<char[]> buf{new char[std::strlen(str) + 1]};
-        std::strcpy(buf.get(), str);
-        str_ = buf.release();
+    Unique() = default;
+    template <class U>
+    Unique(U &&t) : ptr_(T::construct(std::forward<U>(t))) { }
+    Unique(Unique &&s) noexcept { std::swap(ptr_, s.ptr_); }
+    Unique(Unique const &) = delete;
+    Unique &operator=(Unique &&s) noexcept { std::swap(ptr_, s.ptr_); return *this; }
+    Unique &operator=(Unique const &) = delete;
+    ~Unique() noexcept {
+        if (ptr_ && ptr_ != deleted_) { T::destroy(ptr_); }
     }
-    UString(UString &&s) noexcept { std::swap(str_, s.str_); }
-    UString(UString const &) = delete;
-    UString &operator=(UString &&s) noexcept { std::swap(str_, s.str_); return *this; }
-    UString &operator=(UString const &) = delete;
-    ~UString() noexcept {
-        if (str_ && str_ != &deleted_) { delete [] str_; }
-    }
-    UString &operator=(Open) noexcept {
-        this->~UString();
-        str_ = nullptr;
+    Unique &operator=(Open) noexcept {
+        this->~Unique();
+        ptr_ = nullptr;
         return *this;
     }
-    UString &operator=(Deleted) noexcept {
-        this->~UString();
-        str_ = &deleted_;
+    Unique &operator=(Deleted) noexcept {
+        this->~Unique();
+        ptr_ = deleted_;
         return *this;
     }
-    operator const char *() const { return str_; }
-    bool operator==(UString const &s) const { return str_ == s.str_; }
-    bool operator==(char const *s) const { return std::strcmp(str_, s) == 0; }
-    bool operator==(Open) const { return str_ == nullptr; }
-    bool operator==(Deleted) const { return str_ == &deleted_; }
-    static char const *encode(char const *str) {
-        return doLocked([str]() { return static_cast<char const *>(strings_.insert(Hash(), EqualTo(), str).first); });
+    bool operator==(Open) const { return ptr_ == nullptr; }
+    bool operator==(Deleted) const { return ptr_ == deleted_; }
+    template <class U>
+    static Type const *encode(U &&x) {
+        return doLocked([&x]() { return set_.insert(Hash(), EqualTo(), std::forward<U>(x)).first.ptr_; });
     }
 private:
-    using StringSet = HashSet<UString, UString::Literals>;
-    static StringSet strings_;
-    static char deleted_;
-    char const *str_ = nullptr;
+    using Set = HashSet<Unique, Literals>;
+    static Set set_;
+    static Type const *deleted_;
+    Type *ptr_ = nullptr;
+
 };
-char UString::deleted_;
-UString::StringSet UString::strings_;
+template <class T>
+typename Unique<T>::Set Unique<T>::set_;
+// NOTE: this is just a sentinel address that is never malloced and never dereferenced
+template <class T>
+typename Unique<T>::Type const *Unique<T>::deleted_ = reinterpret_cast<typename Unique<T>::Type const *>(&Unique<T>::deleted_);
+
+
+// {{{1 definition of UString
+
+struct MString {
+    using Type = char;
+    static size_t hash(char const &str) { return strhash(&str); }
+    static bool equal(char const &a, char const &b) { return strcmp(&a, &b) == 0; }
+    static char *construct(char const &str) {
+        std::unique_ptr<char[]> buf{new char[std::strlen(&str) + 1]};
+        std::strcpy(buf.get(), &str);
+        return buf.release();
+    }
+    static void destroy(char *str) { delete [] str; }
+};
+
+using UString = Unique<MString>;
 
 // {{{1 definition of USig
 
-// FIXME: c/p of UString
-struct USig {
-    using Rep = std::pair<String,uint32_t>;
-    struct Open { };
-    struct Deleted { };
-    struct Hash {
-        size_t operator()(USig const &s) const { return get_value_hash(*s.sig_); }
-    };
-    struct EqualTo {
-        template <class T>
-        bool operator()(USig const &a, T const &b) const { return a == b; }
-    };
-    struct Literals {
-        static constexpr USig::Deleted deleted = {};
-        static constexpr USig::Open open = {};
-    };
-
-    USig() = default;
-    USig(Rep sig)
-    : sig_(gringo_make_unique<Rep>(sig).release()) { }
-    USig(USig &&s) noexcept { std::swap(sig_, s.sig_); }
-    USig(USig const &) = delete;
-    USig &operator=(USig &&s) noexcept { std::swap(sig_, s.sig_); return *this; }
-    USig &operator=(USig const &) = delete;
-    ~USig() noexcept {
-        if (sig_ && sig_ != &deleted_) { delete [] sig_; }
-    }
-    USig &operator=(Open) noexcept {
-        this->~USig();
-        sig_ = nullptr;
-        return *this;
-    }
-    USig &operator=(Deleted) noexcept {
-        this->~USig();
-        sig_ = &deleted_;
-        return *this;
-    }
-    bool operator==(USig const &s) const { return sig_ == s.sig_; }
-    bool operator==(Rep s) const { return *sig_ == s; }
-    bool operator==(Open) const { return sig_ == nullptr; }
-    bool operator==(Deleted) const { return sig_ == &deleted_; }
-
-    static uint64_t encode(String name, uint32_t arity, bool sign) {
-        return arity < upperMax
-            ? combine(arity, String::toRep(name), sign)
-            : combine(upperMax, doLocked([name, arity]() { return reinterpret_cast<uintptr_t>(sigs_.insert(Hash(), EqualTo(), USig({name, arity})).first.sig_); }), sign);
-    }
-private:
-    static Rep deleted_;
-    static HashSet<USig, Literals> sigs_;
-    Rep *sig_ = nullptr;
+struct MSig {
+    using Type = std::pair<String, uint32_t>;
+    static size_t hash(Type const &sig) { return get_value_hash(sig); }
+    static bool equal(Type const &a, Type const &b) { return a == b; }
+    static Type *construct(Type const &sig) { return gringo_make_unique<Type>(sig).release(); }
+    static void destroy(Type *sig) { delete sig; }
 };
-USig::Rep USig::deleted_ = {nullptr, 0};
-HashSet<USig, USig::Literals> USig::sigs_;
+using USig = Unique<MSig>;
+uint64_t encodeSig(String name, uint32_t arity, bool sign) {
+    return arity < upperMax
+        ? combine(arity, String::toRep(name), sign)
+        : combine(upperMax, reinterpret_cast<uintptr_t>(USig::encode(MSig::Type{name, arity})), sign);
+}
 
-// {{{1 definition of Function
+// {{{1 definition of Fun
 
-class Function {
+class Fun {
 public:
-    using Ptr = std::unique_ptr<Function, Destroy<Function>>;
     Sig sig() const {
         return sig_;
     }
     SymSpan args() const {
         return {args_, sig().arity()};
     }
-    static Ptr make(Sig sig, SymSpan args) {
-        auto *mem = ::operator new(sizeof(Function) + args.size * sizeof(Symbol));
-        return Ptr{new(mem) Function(sig, args)};
+    static Fun *make(Sig sig, SymSpan args) {
+        auto *mem = ::operator new(sizeof(Fun) + args.size * sizeof(Symbol));
+        return new(mem) Fun(sig, args);
     }
-    ~Function() noexcept = default;
+    bool equal(Sig sig, SymSpan args) const {
+        return sig_ == sig && std::equal(begin(args), end(args), args_);
+    }
+    static size_t hash(Sig sig, SymSpan args) {
+        return get_value_hash(sig, hash_range(begin(args), end(args)));
+    }
+    void destroy() noexcept {
+        this->~Fun();
+        ::operator delete(this);
+    }
 private:
-    Function(Sig sig, SymSpan args) noexcept
+    ~Fun() noexcept = default;
+    Fun(Sig sig, SymSpan args) noexcept
     : sig_(sig) {
         std::memcpy(static_cast<void*>(args_), args.first, args.size * sizeof(Symbol));
     }
     Sig const sig_;
     Symbol args_[0];
 };
+
+struct MFun {
+    using Type = Fun;
+    using Cons = std::pair<Sig, SymSpan>;
+    static size_t hash(Type const &fun) { return Fun::hash(fun.sig(), fun.args()); }
+    static size_t hash(Cons const &fun) { return Fun::hash(fun.first, fun.second); }
+    static size_t cons(Type const &fun) { return fun.hash(fun.sig(), fun.args()); }
+    static bool equal(Type const &a, Type const &b) { return a.equal(b.sig(), b.args()); }
+    static bool equal(Type const &a, Cons const &b) { return a.equal(b.first, b.second); }
+    static Type *construct(Cons fun) { return Fun::make(fun.first, fun.second); }
+    static void destroy(Type *fun) { const_cast<Fun*>(fun)->destroy(); }
+};
+using UFun = Unique<MFun>;
 
 // }}}1
 
@@ -213,7 +214,7 @@ private:
 // {{{1 definition of String
 
 String::String(char const *str)
-: str_(UString::encode(str)) { }
+: str_(UString::encode(*str)) { }
 
 String::String(uintptr_t r)
 : str_(reinterpret_cast<char const *>(r)) { }
@@ -225,16 +226,16 @@ String String::fromRep(uintptr_t t) { return String(t); }
 // {{{1 definition of Signature
 
 Sig::Sig(String name, uint32_t arity, bool sign)
-: rep_(USig::encode(name, arity, sign)) { }
+: rep_(encodeSig(name, arity, sign)) { }
 
 String Sig::name() const {
     uint16_t u = upper(rep_);
-    return u < upperMax ? toString(rep_) : cast<USig::Rep>(rep_)->first;
+    return u < upperMax ? toString(rep_) : cast<USig::Type>(rep_)->first;
 }
 
 uint32_t Sig::arity() const {
     uint16_t u = upper(rep_);
-    return u < upperMax ? u : cast<USig::Rep>(rep_)->second;
+    return u < upperMax ? u : cast<USig::Type>(rep_)->second;
 }
 
 bool Sig::sign() const { return lower(rep_); }
@@ -283,11 +284,11 @@ Symbol Symbol::createStr(String val) {
 }
 
 Symbol Symbol::createTuple(SymSpan args) {
-    throw std::logic_error("implement me!!!");
+    return createFun("", args, false);
 }
 
 Symbol Symbol::createFun(String name, SymSpan args, bool sign) {
-    throw std::logic_error("implement me!!!");
+    return Symbol(combine(static_cast<uint16_t>(SymbolType_::String), reinterpret_cast<uintptr_t>(UFun::encode(std::make_pair(Sig(name, args.size, sign), args))), 0));
 }
 
 // {{{2 inspection
@@ -316,7 +317,7 @@ Sig Symbol::sig() const{
     switch (symbolType_(rep)) {
         case SymbolType_::IdP: { return Sig(toString(rep), 0, false); }
         case SymbolType_::IdN: { return Sig(toString(rep), 0, true); }
-        default:               { return cast<Function>(rep)->sig(); }
+        default:               { return cast<Fun>(rep)->sig(); }
     }
 }
 
@@ -329,7 +330,7 @@ String Symbol::name() const {
     switch (symbolType_(rep)) {
         case SymbolType_::IdP:
         case SymbolType_::IdN: { return toString(rep); }
-        default:               { return cast<Function>(rep)->sig().name(); }
+        default:               { return cast<Fun>(rep)->sig().name(); }
     }
 }
 
@@ -338,7 +339,7 @@ SymSpan Symbol::args() const {
     switch (symbolType_(rep)) {
         case SymbolType_::IdP:
         case SymbolType_::IdN: { return SymSpan{nullptr, 0}; }
-        default:               { return cast<Function>(rep)->args(); }
+        default:               { return cast<Fun>(rep)->args(); }
     }
 }
 bool Symbol::sign() const {
@@ -347,7 +348,7 @@ bool Symbol::sign() const {
         case SymbolType_::Num: { return num() < 0; }
         case SymbolType_::IdP: { return true; }
         case SymbolType_::IdN: { return false; }
-        default:               { return cast<Function>(rep)->sig().sign(); }
+        default:               { return cast<Fun>(rep)->sig().sign(); }
     }
 }
 
@@ -360,7 +361,7 @@ Symbol Symbol::flipSign() const {
         case SymbolType_::IdP: { return Symbol(setUpper(static_cast<uint16_t>(SymbolType_::IdN))); }
         case SymbolType_::IdN: { return Symbol(setUpper(static_cast<uint16_t>(SymbolType_::IdP))); }
         default: {
-            auto f = cast<Function>(rep);
+            auto f = cast<Fun>(rep);
             auto s = f->sig();
             return createFun(s.name(), f->args(), s.sign());
         }

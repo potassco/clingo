@@ -424,7 +424,7 @@ T hash_mix(T const &v) {
 
 template <class T>
 size_t hash_range(T begin, T end) {
-    return hash_range(begin, end, std::hash<typename std::remove_reference<decltype(*begin)>::type>());
+    return hash_range(begin, end, std::hash<typename std::remove_cv<typename std::remove_reference<decltype(*begin)>::type>::type>());
 }
 
 template <class T, class H>
