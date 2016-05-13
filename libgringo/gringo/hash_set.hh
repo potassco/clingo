@@ -102,7 +102,7 @@ public:
                 std::fill(table.get(), table.get() + reserved_, Literals::open);
                 std::swap(table, table_);
                 for (auto it = table.get(), ie = table.get() + rOld; it != ie; ++it) {
-                    if (!(*it == Literals::open) && !(*it == Literals::deleted)) { insert_(hasher, equalTo, *it); }
+                    if (!(*it == Literals::open) && !(*it == Literals::deleted)) { insert_(hasher, equalTo, std::move(*it)); }
                 }
             }
             else {
@@ -116,11 +116,11 @@ public:
         auto ret = !empty() ? find_(hasher, equalTo, val...) : std::make_pair(nullptr, false);
         return ret.second ? ret.first : nullptr;
     }
-    template <typename Hasher, typename EqualTo>
-    std::pair<ValueType&, bool> insert(Hasher const &hasher, EqualTo const &equalTo, ValueType const &val) {
+    template <typename Hasher, typename EqualTo, typename T>
+    std::pair<ValueType&, bool> insert(Hasher const &hasher, EqualTo const &equalTo, T &&val) {
         reserve(hasher, equalTo, size() + 1);
         assert(size() < reserved());
-        auto ret = insert_(hasher, equalTo, val);
+        auto ret = insert_(hasher, equalTo, std::forward<T>(val));
         if (ret.second) {
             ++size_;
         }
@@ -209,13 +209,13 @@ private:
         return {first, false};
     }
 #endif
-    template <typename Hasher, typename EqualTo>
-    std::pair<ValueType&, bool> insert_(Hasher const &hasher, EqualTo const &equalTo, ValueType const &val) {
+    template <typename Hasher, typename EqualTo, typename T>
+    std::pair<ValueType&, bool> insert_(Hasher const &hasher, EqualTo const &equalTo, T &&val) {
         assert(size() < reserved());
         auto ret = find_(hasher, equalTo, val);
         if (!ret.second) {
             assert(ret.first);
-            *ret.first = val;
+            *ret.first = std::forward<T>(val);
         }
         return {*ret.first, !ret.second};
     }

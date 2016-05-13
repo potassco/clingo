@@ -827,7 +827,7 @@ void Translator::clause(LiteralId lit, ClauseId id, bool conjunctive, bool equiv
     auto ret = clauses_.insert(
         [](ClauseKey const &a) { return a.hash(); },
         [](ClauseKey const &a, ClauseKey const &b) { return a == b; },
-        { id.first, id.second, conjunctive, equivalence, lit.repr() });
+        ClauseKey{ id.first, id.second, conjunctive, equivalence, lit.repr() });
     (void)ret;
     assert(ret.second);
 }
