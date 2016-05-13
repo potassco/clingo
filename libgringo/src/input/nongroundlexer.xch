@@ -86,7 +86,7 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
         <normal,theory,definition> IDENTIFIER { value.uid = FWString::uid(string()); return NonGroundGrammar::parser::token::IDENTIFIER; }
         <normal,theory,definition> NUMBER     { value.num = integer(); return NonGroundGrammar::parser::token::NUMBER; }
         <normal,theory> VARIABLE              { value.uid = FWString::uid(string()); return NonGroundGrammar::parser::token::VARIABLE; }
-        <normal,theory> STRING                { value.uid = FWString::uid(unquote(string(1, 1))); return NonGroundGrammar::parser::token::STRING; }
+        <normal,theory> STRING                { value.uid = FWString::uid(unquote(string(1, 1).c_str())); return NonGroundGrammar::parser::token::STRING; }
 
         <normal> "#true"                      { return NonGroundGrammar::parser::token::TRUE; }
         <normal> "#false"                     { return NonGroundGrammar::parser::token::FALSE; }

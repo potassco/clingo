@@ -485,7 +485,6 @@ struct Object {
     static int le(lua_State *L) {
         T *a = static_cast<T*>(luaL_checkudata(L, 1, T::typeName));
         T *b = static_cast<T*>(luaL_checkudata(L, 2, T::typeName));
-        using namespace std::rel_ops;
         lua_pushboolean(L, *a <= *b);
         return 1;
     }
@@ -656,8 +655,6 @@ luaL_Reg const TheoryTerm::meta[] = {
 // {{{1 wrap TheoryElement
 
 struct TheoryElement : Object<TheoryElement> {
-    bool operator <(TheoryElement const &e) const { return idx < e.idx; }
-    bool operator ==(TheoryElement const &e) const { return idx == e.idx; }
     TheoryElement(Gringo::TheoryData const *data, Id_t idx) : data(data) , idx(idx) { }
     Gringo::TheoryData const *data;
     Id_t idx;
@@ -714,6 +711,9 @@ struct TheoryElement : Object<TheoryElement> {
     static constexpr char const *typeName = "clingo.TheoryElement";
     static luaL_Reg const meta[];
 };
+bool operator< (TheoryElement const &a, TheoryElement const &b) { return a.idx <  b.idx; }
+bool operator<=(TheoryElement const &a, TheoryElement const &b) { return a.idx <= b.idx; }
+bool operator==(TheoryElement const &a, TheoryElement const &b) { return a.idx == b.idx; }
 
 constexpr char const *TheoryElement::typeName;
 luaL_Reg const TheoryElement::meta[] = {
@@ -727,8 +727,6 @@ luaL_Reg const TheoryElement::meta[] = {
 // {{{1 wrap TheoryAtom
 
 struct TheoryAtom : Object<TheoryAtom> {
-    bool operator <(TheoryAtom const &e) const { return idx < e.idx; }
-    bool operator ==(TheoryAtom const &e) const { return idx == e.idx; }
     TheoryAtom(Gringo::TheoryData const *data, Id_t idx) : data(data) , idx(idx) { }
     Gringo::TheoryData const *data;
     Id_t idx;
@@ -794,6 +792,10 @@ struct TheoryAtom : Object<TheoryAtom> {
     static constexpr char const *typeName = "clingo.TheoryAtom";
     static luaL_Reg const meta[];
 };
+
+bool operator< (TheoryAtom const &a, TheoryAtom const &b) { return a.idx <  b.idx; }
+bool operator<=(TheoryAtom const &a, TheoryAtom const &b) { return a.idx <= b.idx; }
+bool operator==(TheoryAtom const &a, TheoryAtom const &b) { return a.idx == b.idx; }
 
 constexpr char const *TheoryAtom::typeName;
 luaL_Reg const TheoryAtom::meta[] = {

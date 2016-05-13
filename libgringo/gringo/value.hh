@@ -34,6 +34,8 @@
 #include <algorithm>
 #include <utility>
 #include <gringo/flyweight.hh>
+#include <clingo.h>
+#include <potassco/basic_types.h>
 
 namespace Gringo {
 
@@ -48,13 +50,142 @@ inline std::ostream &operator<<(std::ostream &out, FWString const &x) {
     return out;
 }
 
-// {{{ declaration of quote/unquote
+// {{{1 declaration of String (flyweight)
 
-std::string quote(std::string const &str);
-std::string unquote(std::string const &str);
+class String {
+public:
+    String(char const *str);
+    operator const char *() const { return str_; }
+    size_t hash() const;
+    static uintptr_t toRep(String s);
+    static String fromRep(uintptr_t t);
+private:
+    String(uintptr_t);
+    char const *str_;
+};
 
-// }}}
-// {{{ declaration of Signature
+inline bool operator==(String a, String b) { return strcmp(a, b) == 0; }
+inline bool operator!=(String a, String b) { return strcmp(a, b) != 0; }
+inline bool operator< (String a, String b) { return strcmp(a, b) <  0; }
+inline bool operator> (String a, String b) { return strcmp(a, b) >  0; }
+inline bool operator<=(String a, String b) { return strcmp(a, b) <= 0; }
+inline bool operator>=(String a, String b) { return strcmp(a, b) >= 0; }
+
+inline bool operator==(String a, char const *b) { return strcmp(a, b) == 0; }
+inline bool operator!=(String a, char const *b) { return strcmp(a, b) != 0; }
+inline bool operator< (String a, char const *b) { return strcmp(a, b) <  0; }
+inline bool operator> (String a, char const *b) { return strcmp(a, b) >  0; }
+inline bool operator<=(String a, char const *b) { return strcmp(a, b) <= 0; }
+inline bool operator>=(String a, char const *b) { return strcmp(a, b) >= 0; }
+
+inline bool operator==(char const *a, String b) { return strcmp(a, b) == 0; }
+inline bool operator!=(char const *a, String b) { return strcmp(a, b) != 0; }
+inline bool operator< (char const *a, String b) { return strcmp(a, b) <  0; }
+inline bool operator> (char const *a, String b) { return strcmp(a, b) >  0; }
+inline bool operator<=(char const *a, String b) { return strcmp(a, b) <= 0; }
+inline bool operator>=(char const *a, String b) { return strcmp(a, b) >= 0; }
+
+inline std::ostream &operator<<(std::ostream &out, String x) {
+    out << static_cast<char const *>(x);
+    return out;
+}
+
+// {{{1 declaration of Signature (flyweight)
+
+class Sig {
+public:
+    Sig(String name, uint32_t arity, bool sign);
+    String name() const;
+    uint32_t arity() const;
+    bool sign() const;
+    size_t hash() const;
+    bool operator==(Sig s) const;
+    bool operator!=(Sig s) const;
+    bool operator<(Sig s) const;
+    bool operator>(Sig s) const;
+    bool operator<=(Sig s) const;
+    bool operator>=(Sig s) const;
+private:
+    uint64_t rep_;
+};
+
+inline std::ostream &operator<<(std::ostream &out, Sig x) {
+    if (x.sign()) { out << "-"; }
+    out << *x.name() << "/" << x.arity();
+    return out;
+}
+
+// {{{1 declaration of Symbol (flyweight)
+
+enum class SymbolType : uint8_t {
+    Inf     = clingo_symbol_type_inf,
+    Num     = clingo_symbol_type_num,
+    String  = clingo_symbol_type_str,
+    Func    = clingo_symbol_type_fun,
+    Special = clingo_symbol_type_fun+1,
+    Sup     = clingo_symbol_type_sup
+};
+
+class Symbol;
+using SymVec = std::vector<Symbol>;
+using SymSpan = Potassco::Span<Symbol>;
+using IdSymMap = std::unordered_map<String, Symbol>;
+
+class Symbol : public clingo_symbol {
+public:
+    // construction
+    Symbol(); // createSpecial
+    static Symbol createId(String val, bool sign = false);
+    static Symbol createStr(String val);
+    static Symbol createNum(int num);
+    static Symbol createInf();
+    static Symbol createSup();
+    static Symbol createTuple(SymSpan val);
+    static Symbol createFun(String name, SymSpan val, bool sign = false);
+
+    // value retrieval
+    SymbolType type() const;
+    int num() const;
+    String string() const;
+    Sig sig() const;
+    bool hasSig() const;
+    String name() const;
+    SymSpan args() const;
+    bool sign() const;
+
+    // modifying values
+    Symbol replace(IdSymMap const &rep) const;
+    Symbol flipSign() const;
+
+    // comparison
+    size_t hash() const;
+    bool operator==(Symbol const &other) const;
+    bool less(Symbol const &other) const;
+    bool operator!=(Symbol const &other) const;
+    bool operator<(Symbol const &other) const;
+    bool operator>(Symbol const &other) const;
+    bool operator<=(Symbol const &other) const;
+    bool operator>=(Symbol const &other) const;
+
+    // ouput
+    void print(std::ostream& out) const;
+private:
+    explicit Symbol(uint64_t repr);
+};
+
+inline std::ostream& operator<<(std::ostream& out, Symbol sym) {
+    sym.print(out);
+    return out;
+}
+
+// }}}1
+
+// {{{1 declaration of quote/unquote
+
+std::string quote(char const *str);
+std::string unquote(char const *str);
+
+// {{{1 declaration of Signature
 
 struct FWSignature;
 struct Signature {
@@ -86,8 +217,7 @@ inline std::ostream &operator<<(std::ostream &out, Signature const &x) {
     return out;
 }
 
-// }}}
-// {{{ declaration of FWSignature
+// {{{1 declaration of FWSignature
 
 struct FWSignature {
     using FWSig = Flyweight<Signature>;
@@ -113,8 +243,7 @@ inline std::ostream &operator<<(std::ostream &out, FWSignature const &x) {
     return out;
 }
 
-// }}}
-// {{{ declaration of Value
+// {{{1 declaration of Value
 
 struct Value {
     enum Type : unsigned { INF, NUM, ID, STRING, FUNC, SPECIAL, SUP };
@@ -139,9 +268,9 @@ struct Value {
     FWString name() const;
     FWValVec args() const;
     bool sign() const;
-    Value replace(IdValMap const &rep) const;
 
     // modifying values
+    Value replace(IdValMap const &rep) const;
     Value flipSign() const;
 
     // comparison
@@ -181,13 +310,13 @@ struct Value::POD {
 
 std::ostream& operator<<(std::ostream& out, const Gringo::Value& val);
 
-// }}}
+// }}}1
 
 } // namespace Gringo
 
 namespace std {
 
-// {{{ declaration of hash functions for Signature and Value
+// {{{1 hash functions for Signature and Value
 
 template<>
 struct hash<Gringo::Signature> {
@@ -204,13 +333,28 @@ struct hash<Gringo::Value> {
     size_t operator()(Gringo::Value const &val) const;
 };
 
-// }}}
+template<>
+struct hash<Gringo::String> {
+    size_t operator()(Gringo::String const &str) const { return str.hash(); }
+};
+
+template<>
+struct hash<Gringo::Sig> {
+    size_t operator()(Gringo::Sig const &sig) const { return sig.hash(); }
+};
+
+template<>
+struct hash<Gringo::Symbol> {
+    size_t operator()(Gringo::Symbol const &sym) const { return sym.hash(); }
+};
+
+// }}}1
 
 } // namespace std
 
 namespace Gringo {
 
-// {{{ definition of FWSignature
+// {{{1 definition of FWSignature
 
 inline FWSignature::FWSignature(FWString name, unsigned length, bool sign)
 : FWSignature(Signature(name, length, sign)) { }
@@ -236,8 +380,7 @@ inline bool FWSignature::operator>(FWSignature const &other) const  { return *ot
 inline bool FWSignature::operator<=(FWSignature const &other) const { return repr == other.repr || **this < *other; }
 inline bool FWSignature::operator>=(FWSignature const &other) const { return repr == other.repr || *other < **this; }
 
-// }}}
-// {{{ definition of Signature
+// {{{1 definition of Signature
 
 inline Signature::Signature(FWString name, unsigned length, bool sign)
 : name_(name)
@@ -286,8 +429,7 @@ bool Signature::encode(unsigned &uid) const {
     return false;
 }
 
-// }}}
-// {{{ definition of Value::POD
+// {{{1 definition of Value::POD
 
 inline Value::POD::operator Value&() {
     // NOTE: strictly speaking this is not legal
@@ -308,8 +450,7 @@ inline Value const *Value::POD::operator->() const {
     return reinterpret_cast<Value const *>(this);
 }
 
-// }}}
-// {{{ definition of Value
+// {{{1 definition of Value
 
 inline Value::Value(unsigned type, unsigned value)
     : type_(type)
@@ -354,7 +495,7 @@ inline void Value::print(std::ostream& out) const {
             out << *string();
             break;
         }
-        case STRING: { out << '"' << quote(*string()) << '"'; break; }
+        case STRING: { out << '"' << quote(string()->c_str()) << '"'; break; }
         case INF: { out << "#inf"; break; }
         case SUP: { out << "#sup"; break; }
         case FUNC: {
@@ -541,13 +682,12 @@ inline std::ostream& operator<<(std::ostream& out, Gringo::Value const &val) {
     return out;
 }
 
-// }}}
-// {{{ definition of quote/unquote
+// {{{1 definition of quote/unquote
 
-inline std::string quote(const std::string &str) {
+inline std::string quote(char const *str) {
     std::string res;
-    for (char c : str) {
-        switch (c) {
+    for (char const *c = str; *c; ++c) {
+        switch (*c) {
             case '\n': {
                 res.push_back('\\');
                 res.push_back('n');
@@ -564,7 +704,7 @@ inline std::string quote(const std::string &str) {
                 break;
             }
             default: {
-                res.push_back(c);
+                res.push_back(*c);
                 break;
             }
         }
@@ -572,12 +712,12 @@ inline std::string quote(const std::string &str) {
     return res;
 }
 
-inline std::string unquote(const std::string &str) {
+inline std::string unquote(char const *str) {
     std::string res;
     bool slash = false;
-    for (char c : str) {
+    for (char const *c = str; *c; ++c) {
         if (slash) {
-            switch (c) {
+            switch (*c) {
                 case 'n': {
                     res.push_back('\n');
                     break;
@@ -597,25 +737,25 @@ inline std::string unquote(const std::string &str) {
             }
             slash = false;
         }
-        else if (c == '\\') { slash = true; }
-        else { res.push_back(c); }
+        else if (*c == '\\') { slash = true; }
+        else { res.push_back(*c); }
     }
     return res;
 }
 
-// }}}
+// }}}1
 
 } // namespace Gringo
 
 namespace std {
 
-// {{{ definition of hash functions for Signature and Value
+// {{{1 definition of hash functions for Signature and Value
 
 inline size_t hash<Gringo::Signature>::operator()(Gringo::Signature const &sig) const { return sig.hash(); }
 inline size_t hash<Gringo::FWSignature>::operator()(Gringo::FWSignature const &sig) const { return sig.uid(); }
 inline size_t hash<Gringo::Value>::operator()(Gringo::Value const &val) const { return val.hash(); }
 
-// }}}
+// }}}1
 
 } // namespace std
 

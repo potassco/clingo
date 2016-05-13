@@ -599,7 +599,7 @@ Potassco::Id_t TheoryData::addTerm(Value value) {
         case Value::STRING: {
             std::string s;
             s.push_back('"');
-            s.append(quote(*value.string()));
+            s.append(quote(value.string()->c_str()));
             s.push_back('"');
             return addTerm(s.c_str());
         }
