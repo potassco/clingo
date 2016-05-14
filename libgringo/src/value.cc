@@ -27,21 +27,6 @@ namespace {
 
 // {{{1 auxiliary functions
 
-template <class F>
-auto doLocked(F f) -> decltype(f()) {
-    static std::mutex m;
-    std::lock_guard<std::mutex> g(m);
-    return f();
-}
-
-template <class T>
-struct Destroy {
-    void operator()(T *t) noexcept {
-        t->~T();
-        ::operator delete(t);
-    }
-};
-
 static constexpr const uint16_t upperMax = std::numeric_limits<uint16_t>::max();
 static constexpr const uint16_t lowerMax = std::numeric_limits<uint8_t>::max();
 uint16_t upper(uint64_t rep) { return rep >> 48; }
@@ -112,17 +97,21 @@ public:
     bool operator==(Deleted) const { return ptr_ == deleted_; }
     template <class U>
     static Type const *encode(U &&x) {
-        return doLocked([&x]() { return set_.insert(Hash(), EqualTo(), std::forward<U>(x)).first.ptr_; });
+        std::lock_guard<std::mutex> g(mutex_);
+        return set_.insert(Hash(), EqualTo(), std::forward<U>(x)).first.ptr_;
     }
 private:
     using Set = HashSet<Unique, Literals>;
     static Set set_;
+    static std::mutex mutex_;
     static Type const *deleted_;
     Type *ptr_ = nullptr;
 
 };
 template <class T>
 typename Unique<T>::Set Unique<T>::set_;
+template <class T>
+std::mutex Unique<T>::mutex_;
 // NOTE: this is just a sentinel address that is never malloced and never dereferenced
 template <class T>
 typename Unique<T>::Type const *Unique<T>::deleted_ = reinterpret_cast<typename Unique<T>::Type const *>(&Unique<T>::deleted_);
