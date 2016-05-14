@@ -49,8 +49,8 @@ private:
 // {{{1 declaration of Context
 
 struct Context {
-    virtual bool callable(FWString name) const = 0;
-    virtual ValVec call(Location const &loc, FWString name, ValVec const &args) = 0;
+    virtual bool callable(String name) const = 0;
+    virtual SymVec call(Location const &loc, String name, SymSpan args) = 0;
     virtual ~Context() noexcept = default;
 };
 
@@ -59,14 +59,14 @@ struct Context {
 using Int64Vec = std::vector<int64_t>;
 
 struct Model {
-    using LitVec = std::vector<std::pair<Gringo::Value, bool>>;
+    using LitVec = std::vector<std::pair<Symbol, bool>>;
     static const unsigned CSP   = 1;
     static const unsigned SHOWN = 2;
     static const unsigned ATOMS = 4;
     static const unsigned TERMS = 8;
     static const unsigned COMP  = 16;
-    virtual bool contains(Value atom) const = 0;
-    virtual ValVec const &atoms(int showset) const = 0;
+    virtual bool contains(Symbol atom) const = 0;
+    virtual SymSpan atoms(int showset) const = 0;
     virtual Int64Vec optimization() const = 0;
     virtual void addClause(LitVec const &lits) const = 0;
     virtual ~Model() { }
@@ -129,7 +129,7 @@ struct DomainProxy {
     struct Element;
     using ElementPtr = std::unique_ptr<Element>;
     struct Element {
-        virtual Value atom() const = 0;
+        virtual Symbol atom() const = 0;
         virtual Potassco::Lit_t literal() const = 0;
         virtual bool fact() const = 0;
         virtual bool external() const = 0;
@@ -137,10 +137,10 @@ struct DomainProxy {
         virtual bool valid() const = 0;
         virtual ~Element() { };
     };
-    virtual ElementPtr iter(Signature const &sig) const = 0;
+    virtual ElementPtr iter(Sig sig) const = 0;
     virtual ElementPtr iter() const = 0;
-    virtual ElementPtr lookup(Value const &atom) const = 0;
-    virtual std::vector<FWSignature> signatures() const = 0;
+    virtual ElementPtr lookup(Symbol atom) const = 0;
+    virtual std::vector<Sig> signatures() const = 0;
     virtual size_t length() const = 0;
     virtual ~DomainProxy() { }
 };
@@ -196,7 +196,7 @@ struct ASTLocation {
 };
 struct AST {
     ASTLocation location;
-    Value value;
+    Symbol value;
     Potassco::Span<AST> children;
 };
 
@@ -211,13 +211,13 @@ struct ASPIFProgram {
 
 // {{{1 declaration of Control
 
-using FWStringVec = std::vector<FWString>;
+using FWStringVec = std::vector<String>;
 
 struct Control {
     using ModelHandler = std::function<bool (Model const &)>;
     using FinishHandler = std::function<void (SolveResult)>;
-    using Assumptions = std::vector<std::pair<Value, bool>>;
-    using GroundVec = std::vector<std::pair<std::string, FWValVec>>;
+    using Assumptions = std::vector<std::pair<Symbol, bool>>;
+    using GroundVec = std::vector<std::pair<String, SymVec>>;
     using NewControlFunc = Control* (*)(int, char const **);
     using FreeControlFunc = void (*)(Control *);
 
@@ -231,9 +231,9 @@ struct Control {
     virtual void interrupt() = 0;
     virtual void add(std::string const &name, FWStringVec const &params, std::string const &part) = 0;
     virtual void load(std::string const &filename) = 0;
-    virtual Value getConst(std::string const &name) = 0;
+    virtual Symbol getConst(std::string const &name) = 0;
     virtual bool blocked() = 0;
-    virtual void assignExternal(Value ext, Potassco::Value_t val) = 0;
+    virtual void assignExternal(Symbol ext, Potassco::Value_t val) = 0;
     virtual Statistics *getStats() = 0;
     virtual void useEnumAssumption(bool enable) = 0;
     virtual bool useEnumAssumption() = 0;
@@ -252,7 +252,7 @@ struct Control {
 struct GringoModule {
     virtual Control *newControl(int argc, char const **argv) = 0;
     virtual void freeControl(Control *ctrl) = 0;
-    virtual Value parseValue(std::string const &repr) = 0;
+    virtual Symbol parseValue(std::string const &repr) = 0;
     virtual ~GringoModule() noexcept = default;
 };
 
