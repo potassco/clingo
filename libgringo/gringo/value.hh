@@ -55,6 +55,7 @@ inline std::ostream &operator<<(std::ostream &out, FWString const &x) {
 class String {
 public:
     String(char const *str);
+    const char *c_str() const { return str_; }
     operator const char *() const { return str_; }
     size_t hash() const;
     static uintptr_t toRep(String s);
@@ -120,11 +121,22 @@ inline std::ostream &operator<<(std::ostream &out, Sig x) {
 enum class SymbolType : uint8_t {
     Inf     = clingo_symbol_type_inf,
     Num     = clingo_symbol_type_num,
-    String  = clingo_symbol_type_str,
-    Func    = clingo_symbol_type_fun,
+    Str     = clingo_symbol_type_str,
+    Fun     = clingo_symbol_type_fun,
     Special = clingo_symbol_type_fun+1,
     Sup     = clingo_symbol_type_sup
 };
+inline std::ostream &operator<<(std::ostream &out, SymbolType sym) {
+    switch (sym) {
+        case SymbolType::Inf: { out << "Inf"; break; }
+        case SymbolType::Num: { out << "Num"; break; }
+        case SymbolType::Str: { out << "Str"; break; }
+        case SymbolType::Fun: { out << "Fun"; break; }
+        case SymbolType::Special: { out << "Special"; break; }
+        case SymbolType::Sup: { out << "Sup"; break; }
+    }
+    return out;
+}
 
 class Symbol;
 using SymVec = std::vector<Symbol>;
@@ -160,7 +172,6 @@ public:
     // comparison
     size_t hash() const;
     bool operator==(Symbol const &other) const;
-    bool less(Symbol const &other) const;
     bool operator!=(Symbol const &other) const;
     bool operator<(Symbol const &other) const;
     bool operator>(Symbol const &other) const;
