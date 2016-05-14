@@ -596,19 +596,19 @@ T get_clone(T const &x) {
 
 template <class S, class T, class U>
 void print_comma(S &out, T const &x, const char *sep, U const &f) {
-    auto it(std::begin(x)), end(std::end(x));
-    if (it != end) {
+    auto it(begin(x)), ie(end(x));
+    if (it != ie) {
         f(out, *it);
-        for (++it; it != end; ++it) { out << sep; f(out, *it); }
+        for (++it; it != ie; ++it) { out << sep; f(out, *it); }
     }
 }
 
 template <class S, class T>
 void print_comma(S &out, T const &x, const char *sep) {
-    auto it(std::begin(x)), end(std::end(x));
-    if (it != end) {
+    auto it(begin(x)), ie(end(x));
+    if (it != ie) {
         out << *it;
-        for (++it; it != end; ++it) { out << sep << *it; }
+        for (++it; it != ie; ++it) { out << sep << *it; }
     }
 }
 
@@ -645,7 +645,7 @@ inline void cross_product(std::vector<std::vector<T>> &vec) {
 
 template <class Map, class Pred>
 void erase_if(Map &m, Pred p) {
-    for (auto it = std::begin(m), end = std::end(m); it != end; ) {
+    for (auto it = begin(m), ie = end(m); it != ie; ) {
         if (p(*it)) {
             it = m.erase(it);
         }

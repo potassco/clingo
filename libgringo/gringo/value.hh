@@ -44,6 +44,7 @@ public:
     String(char const *str);
     const char *c_str() const { return str_; }
     bool empty() const;
+    size_t length() { return std::strlen(str_); }
     size_t hash() const;
     static uintptr_t toRep(String s);
     static String fromRep(uintptr_t t);
@@ -52,26 +53,26 @@ private:
     char const *str_;
 };
 
-inline bool operator==(String a, String b) { return strcmp(a.c_str(), b.c_str()) == 0; }
-inline bool operator!=(String a, String b) { return strcmp(a.c_str(), b.c_str()) != 0; }
-inline bool operator< (String a, String b) { return strcmp(a.c_str(), b.c_str()) <  0; }
-inline bool operator> (String a, String b) { return strcmp(a.c_str(), b.c_str()) >  0; }
-inline bool operator<=(String a, String b) { return strcmp(a.c_str(), b.c_str()) <= 0; }
-inline bool operator>=(String a, String b) { return strcmp(a.c_str(), b.c_str()) >= 0; }
+inline bool operator==(String a, String b) { return std::strcmp(a.c_str(), b.c_str()) == 0; }
+inline bool operator!=(String a, String b) { return std::strcmp(a.c_str(), b.c_str()) != 0; }
+inline bool operator< (String a, String b) { return std::strcmp(a.c_str(), b.c_str()) <  0; }
+inline bool operator> (String a, String b) { return std::strcmp(a.c_str(), b.c_str()) >  0; }
+inline bool operator<=(String a, String b) { return std::strcmp(a.c_str(), b.c_str()) <= 0; }
+inline bool operator>=(String a, String b) { return std::strcmp(a.c_str(), b.c_str()) >= 0; }
 
-inline bool operator==(String a, char const *b) { return strcmp(a.c_str(), b) == 0; }
-inline bool operator!=(String a, char const *b) { return strcmp(a.c_str(), b) != 0; }
-inline bool operator< (String a, char const *b) { return strcmp(a.c_str(), b) <  0; }
-inline bool operator> (String a, char const *b) { return strcmp(a.c_str(), b) >  0; }
-inline bool operator<=(String a, char const *b) { return strcmp(a.c_str(), b) <= 0; }
-inline bool operator>=(String a, char const *b) { return strcmp(a.c_str(), b) >= 0; }
+inline bool operator==(String a, char const *b) { return std::strcmp(a.c_str(), b) == 0; }
+inline bool operator!=(String a, char const *b) { return std::strcmp(a.c_str(), b) != 0; }
+inline bool operator< (String a, char const *b) { return std::strcmp(a.c_str(), b) <  0; }
+inline bool operator> (String a, char const *b) { return std::strcmp(a.c_str(), b) >  0; }
+inline bool operator<=(String a, char const *b) { return std::strcmp(a.c_str(), b) <= 0; }
+inline bool operator>=(String a, char const *b) { return std::strcmp(a.c_str(), b) >= 0; }
 
-inline bool operator==(char const *a, String b) { return strcmp(a, b.c_str()) == 0; }
-inline bool operator!=(char const *a, String b) { return strcmp(a, b.c_str()) != 0; }
-inline bool operator< (char const *a, String b) { return strcmp(a, b.c_str()) <  0; }
-inline bool operator> (char const *a, String b) { return strcmp(a, b.c_str()) >  0; }
-inline bool operator<=(char const *a, String b) { return strcmp(a, b.c_str()) <= 0; }
-inline bool operator>=(char const *a, String b) { return strcmp(a, b.c_str()) >= 0; }
+inline bool operator==(char const *a, String b) { return std::strcmp(a, b.c_str()) == 0; }
+inline bool operator!=(char const *a, String b) { return std::strcmp(a, b.c_str()) != 0; }
+inline bool operator< (char const *a, String b) { return std::strcmp(a, b.c_str()) <  0; }
+inline bool operator> (char const *a, String b) { return std::strcmp(a, b.c_str()) >  0; }
+inline bool operator<=(char const *a, String b) { return std::strcmp(a, b.c_str()) <= 0; }
+inline bool operator>=(char const *a, String b) { return std::strcmp(a, b.c_str()) >= 0; }
 
 inline std::ostream &operator<<(std::ostream &out, String x) {
     out << x.c_str();

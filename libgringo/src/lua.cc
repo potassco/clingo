@@ -37,26 +37,26 @@ namespace {
 
 #define VALUE_CMP(TYPE) \
 static int eq##TYPE(lua_State *L) { \
-    Value *a = static_cast<Value*>(luaL_checkudata(L, 1, "clingo."#TYPE)); \
-    Value *b = static_cast<Value*>(luaL_checkudata(L, 2, "clingo."#TYPE)); \
+    Symbol *a = static_cast<Symbol*>(luaL_checkudata(L, 1, "clingo."#TYPE)); \
+    Symbol *b = static_cast<Symbol*>(luaL_checkudata(L, 2, "clingo."#TYPE)); \
     lua_pushboolean(L, *a == *b); \
     return 1; \
 } \
 static int lt##TYPE(lua_State *L) { \
-    Value *a = static_cast<Value*>(luaL_checkudata(L, 1, "clingo."#TYPE)); \
-    Value *b = static_cast<Value*>(luaL_checkudata(L, 2, "clingo."#TYPE)); \
+    Symbol *a = static_cast<Symbol*>(luaL_checkudata(L, 1, "clingo."#TYPE)); \
+    Symbol *b = static_cast<Symbol*>(luaL_checkudata(L, 2, "clingo."#TYPE)); \
     lua_pushboolean(L, *a < *b); \
     return 1; \
 } \
 static int le##TYPE(lua_State *L) { \
-    Value *a = static_cast<Value*>(luaL_checkudata(L, 1, "clingo."#TYPE)); \
-    Value *b = static_cast<Value*>(luaL_checkudata(L, 2, "clingo."#TYPE)); \
+    Symbol *a = static_cast<Symbol*>(luaL_checkudata(L, 1, "clingo."#TYPE)); \
+    Symbol *b = static_cast<Symbol*>(luaL_checkudata(L, 2, "clingo."#TYPE)); \
     lua_pushboolean(L, *a <= *b); \
     return 1; \
 }
 
-template <typename R, typename T>
-R protect(lua_State *L, T f) {
+template <typename T>
+auto protect(lua_State *L, T f) -> decltype(f()) {
     try                             { return f(); }
     catch (std::exception const &e) { luaL_error(L, e.what()); }
     catch (...)                     { luaL_error(L, "unknown error"); }
@@ -108,13 +108,13 @@ struct AnyWrap {
         Gringo::Any *ret = new (data) Any();
         luaL_getmetatable(L, typeName);
         lua_setmetatable(L, -2);
-        protect<void>(L, [&] { *ret = Any(T(std::forward<Args>(args)...)) ; });
+        protect(L, [&] { *ret = Any(T(std::forward<Args>(args)...)) ; });
         return ret->get<T>();
     }
     template <class T>
     static T *get(lua_State *L, int index) {
         auto *self = (Gringo::Any*)luaL_checkudata(L, index, typeName);
-        return protect<T*>(L, [self]() { return self->get<T>(); });
+        return protect(L, [self]() { return self->get<T>(); });
     }
     static int gc(lua_State *L) {
         Any* del = (Any*)lua_touserdata(L, 1);
@@ -132,16 +132,16 @@ luaL_Reg const AnyWrap::meta[] = {
     {nullptr, nullptr}
 };
 
-Value luaToVal(lua_State *L, int idx) {
+Symbol luaToVal(lua_State *L, int idx) {
     int type = lua_type(L, idx);
     switch(type) {
         case LUA_TSTRING: {
             char const *name = lua_tostring(L, idx);
-            return protect<Value>(L, [name]() { return Value::createStr(name); });
+            return protect(L, [name]() { return Symbol::createStr(name); });
         }
         case LUA_TNUMBER: {
             int num = lua_tointeger(L, idx);
-            return Value::createNum(num);
+            return Symbol::createNum(num);
         }
         case LUA_TUSERDATA: {
             bool check = false;
@@ -150,7 +150,7 @@ Value luaToVal(lua_State *L, int idx) {
                 check = lua_rawequal(L, -1, -2);
                 lua_pop(L, 2);                                     // -2
             }
-            if (check) { return *(Value*)lua_touserdata(L, idx); }
+            if (check) { return *(Symbol*)lua_touserdata(L, idx); }
         }
         default: { luaL_error(L, "cannot convert to value"); }
     }
@@ -225,7 +225,7 @@ void luaToCpp(lua_State *L, int index, std::vector<T> &x) {
     }
     lua_pushnil(L);
     while (lua_next(L, index) != 0) {
-        auto &y = protect<T&>(L, [&x]() -> T& { x.emplace_back(); return x.back(); });
+        auto &y = protect(L, [&x]() -> T& { x.emplace_back(); return x.back(); });
         luaToCpp(L, -1, y);
         lua_pop(L, 1);
     }
@@ -262,14 +262,14 @@ void luaToCpp(lua_State *L, int index, Potassco::WeightLit_t &x) {
     luaToCpp(L, index, y);
 }
 
-ValVec *luaToVals(lua_State *L, int idx) {
+SymVec *luaToVals(lua_State *L, int idx) {
     idx = lua_absindex(L, idx);
     luaL_checktype(L, idx, LUA_TTABLE);
-    ValVec *vals = AnyWrap::new_<ValVec>(L);
+    SymVec *vals = AnyWrap::new_<SymVec>(L);
     lua_pushnil(L);
     while (lua_next(L, idx) != 0) {
-        Value val = luaToVal(L, -1);
-        protect<void>(L, [val,&vals](){ vals->push_back(val); });
+        Symbol val = luaToVal(L, -1);
+        protect(L, [val,&vals](){ vals->push_back(val); });
         lua_pop(L, 1);
     }
     lua_replace(L, idx);
@@ -309,7 +309,7 @@ static int luaTraceback (lua_State *L);
 
 // {{{1 lua C functions
 
-using LuaCallArgs = std::tuple<char const *, ValVec const &, ValVec>;
+using LuaCallArgs = std::tuple<char const *, SymSpan, SymVec>;
 
 static int luaTraceback (lua_State *L) {
     if (!lua_isstring(L, 1)) { return 1; }
@@ -580,12 +580,12 @@ struct TheoryTerm {
     }
     static int name(lua_State *L) {
         auto self = (Data*)luaL_checkudata(L, 1, typeName);
-        lua_pushstring(L, protect<char const *>(L, [self](){ return self->first->termName(self->second); }));
+        lua_pushstring(L, protect(L, [self](){ return self->first->termName(self->second); }));
         return 1;
     }
     static int number(lua_State *L) {
         auto self = (Data*)luaL_checkudata(L, 1, typeName);
-        lua_pushnumber(L, protect<int>(L, [self](){ return self->first->termNum(self->second); }));
+        lua_pushnumber(L, protect(L, [self](){ return self->first->termNum(self->second); }));
         return 1;
     }
     static int args(lua_State *L) {
@@ -602,12 +602,12 @@ struct TheoryTerm {
     static int toString(lua_State *L) {
         auto self = (Data*)luaL_checkudata(L, 1, typeName);
         auto *str = AnyWrap::new_<std::string>(L);
-        lua_pushstring(L, protect<char const *>(L, [self, str]() { return (*str = self->first->termStr(self->second)).c_str(); }));
+        lua_pushstring(L, protect(L, [self, str]() { return (*str = self->first->termStr(self->second)).c_str(); }));
         return 1;
     }
     static int type(lua_State *L) {
         auto self = (Data*)luaL_checkudata(L, 1, typeName);
-        return TheoryTermType::new_(L, protect<TheoryTermType::Type>(L, [self]() { return self->first->termType(self->second); }));
+        return TheoryTermType::new_(L, protect(L, [self]() { return self->first->termType(self->second); }));
     }
     static int eq(lua_State *L) {
         auto a = static_cast<Data*>(luaL_checkudata(L, 1, typeName));
@@ -661,7 +661,7 @@ struct TheoryElement : Object<TheoryElement> {
 
     static int terms(lua_State *L) {
         auto self = Object::self(L);
-        auto args = protect<Potassco::IdSpan>(L, [self]() { return self->data->elemTuple(self->idx); });
+        auto args = protect(L, [self]() { return self->data->elemTuple(self->idx); });
         lua_createtable(L, args.size, 0);
         int i = 1;
         for (auto &x : args) {
@@ -673,7 +673,7 @@ struct TheoryElement : Object<TheoryElement> {
 
     static int condition(lua_State *L) {
         auto self = Object::self(L);
-        auto args = protect<Potassco::LitSpan>(L, [self]() { return self->data->elemCond(self->idx); });
+        auto args = protect(L, [self]() { return self->data->elemCond(self->idx); });
         lua_createtable(L, args.size, 0);
         int i = 1;
         for (auto &x : args) {
@@ -685,14 +685,14 @@ struct TheoryElement : Object<TheoryElement> {
 
     static int conditionLiteral(lua_State *L) {
         auto self = Object::self(L);
-        lua_pushnumber(L, protect<Potassco::Lit_t>(L, [self]() { return self->data->elemCondLit(self->idx); }));
+        lua_pushnumber(L, protect(L, [self]() { return self->data->elemCondLit(self->idx); }));
         return 1;
     }
 
     static int toString(lua_State *L) {
         auto self = Object::self(L);
         std::string *rep = AnyWrap::new_<std::string>(L);
-        lua_pushstring(L, protect<char const *>(L, [self, rep]() { return (*rep = self->data->elemStr(self->idx)).c_str(); }));
+        lua_pushstring(L, protect(L, [self, rep]() { return (*rep = self->data->elemStr(self->idx)).c_str(); }));
         return 1;
     }
 
@@ -733,7 +733,7 @@ struct TheoryAtom : Object<TheoryAtom> {
 
     static int elements(lua_State *L) {
         auto self = Object::self(L);
-        auto args = protect<Potassco::IdSpan>(L, [self]() { return self->data->atomElems(self->idx); });
+        auto args = protect(L, [self]() { return self->data->atomElems(self->idx); });
         lua_createtable(L, args.size, 0);
         int i = 1;
         for (auto &x : args) {
@@ -745,23 +745,23 @@ struct TheoryAtom : Object<TheoryAtom> {
 
     static int term(lua_State *L) {
         auto self = Object::self(L);
-        return TheoryTerm::new_(L, self->data, protect<Potassco::Id_t>(L, [self]() { return self->data->atomTerm(self->idx); }));
+        return TheoryTerm::new_(L, self->data, protect(L, [self]() { return self->data->atomTerm(self->idx); }));
     }
 
     static int literal(lua_State *L) {
         auto self = Object::self(L);
-        lua_pushnumber(L, protect<Potassco::Lit_t>(L, [self]() { return self->data->atomLit(self->idx); }));
+        lua_pushnumber(L, protect(L, [self]() { return self->data->atomLit(self->idx); }));
         return 1;
     }
 
     static int guard(lua_State *L) {
         auto self = Object::self(L);
-        if (!protect<bool>(L, [self](){ return self->data->atomHasGuard(self->idx); })) {
+        if (!protect(L, [self](){ return self->data->atomHasGuard(self->idx); })) {
             lua_pushnil(L);
             return 1;
         }
         lua_createtable(L, 2, 0);
-        auto guard = protect<std::pair<char const *, Id_t>>(L, [self](){ return self->data->atomGuard(self->idx); });
+        auto guard = protect(L, [self](){ return self->data->atomGuard(self->idx); });
         lua_pushstring(L, guard.first);
         lua_rawseti(L, -2, 1);
         TheoryTerm::new_(L, self->data, guard.second);
@@ -772,7 +772,7 @@ struct TheoryAtom : Object<TheoryAtom> {
     static int toString(lua_State *L) {
         auto self = Object::self(L);
         std::string *rep = AnyWrap::new_<std::string>(L);
-        lua_pushstring(L, protect<char const *>(L, [self, rep]() { return (*rep = self->data->atomStr(self->idx)).c_str(); }));
+        lua_pushstring(L, protect(L, [self, rep]() { return (*rep = self->data->atomStr(self->idx)).c_str(); }));
         return 1;
     }
 
@@ -900,30 +900,30 @@ luaL_Reg const TermType::meta[] = {
 };
 
 struct Term {
-    static int new_(lua_State *L, Value v) {
-        if (v.type() == Value::SUP) {
+    static int new_(lua_State *L, Symbol v) {
+        if (v.type() == SymbolType::Sup) {
             lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
             lua_getfield(L, -1, "Sup");
             lua_replace(L, -2);
         }
-        else if (v.type() == Value::INF) {
+        else if (v.type() == SymbolType::Inf) {
             lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
             lua_getfield(L, -1, "Inf");
             lua_replace(L, -2);
         }
         else {
-            *(Value*)lua_newuserdata(L, sizeof(Value)) = v;
+            *(Symbol*)lua_newuserdata(L, sizeof(Symbol)) = v;
             luaL_getmetatable(L, typeName);
             lua_setmetatable(L, -2);
         }
         return 1;
     }
     static int addToRegistry(lua_State *L) {
-        *(Value*)lua_newuserdata(L, sizeof(Value)) = Value::createSup();
+        *(Symbol*)lua_newuserdata(L, sizeof(Symbol)) = Symbol::createSup();
         luaL_getmetatable(L, typeName);
         lua_setmetatable(L, -2);
         lua_setfield(L, -2, "Sup");
-        *(Value*)lua_newuserdata(L, sizeof(Value)) = Value::createInf();
+        *(Symbol*)lua_newuserdata(L, sizeof(Symbol)) = Symbol::createInf();
         luaL_getmetatable(L, typeName);
         lua_setmetatable(L, -2);
         lua_setfield(L, -2, "Inf");
@@ -937,11 +937,11 @@ struct Term {
         }
         if (name[0] == '\0' && sign) { luaL_argerror(L, 2, "tuples must not have signs"); }
         if (lua_isnoneornil(L, 2)) {
-            return new_(L, protect<Value>(L, [name, sign](){ return Value::createId(name, sign); }));
+            return new_(L, protect(L, [name, sign](){ return Symbol::createId(name, sign); }));
         }
         else {
-            ValVec *vals = luaToVals(L, 2);
-            return new_(L, protect<Value>(L, [name, sign, vals](){ return vals->empty() && name[0] != '\0' ? Value::createId(name, sign) : Value::createFun(name, *vals, sign); }));
+            SymVec *vals = luaToVals(L, 2);
+            return new_(L, protect(L, [name, sign, vals](){ return vals->empty() && name[0] != '\0' ? Symbol::createId(name, sign) : Symbol::createFun(name, Potassco::toSpan(*vals), sign); }));
         }
     }
     static int newTuple(lua_State *L) {
@@ -950,16 +950,16 @@ struct Term {
         return newFun(L);
     }
     static int newNumber(lua_State *L) {
-        return Term::new_(L, Value::createNum(luaL_checkinteger(L, 1)));
+        return Term::new_(L, Symbol::createNum(luaL_checkinteger(L, 1)));
     }
     static int newString(lua_State *L) {
-        return Term::new_(L, Value::createStr(luaL_checkstring(L, 1)));
+        return Term::new_(L, Symbol::createStr(luaL_checkstring(L, 1)));
     }
     VALUE_CMP(Term)
     static int name(lua_State *L) {
-        Value val = *(Value*)luaL_checkudata(L, 1, typeName);
-        if (val.type() == Value::FUNC || val.type() == Value::ID) {
-            lua_pushstring(L, protect<const char*>(L, [val]() { return (*val.name()).c_str(); }));
+        Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
+        if (val.type() == SymbolType::Fun) {
+            lua_pushstring(L, protect(L, [val]() { return val.name().c_str(); }));
         }
         else {
             lua_pushnil(L);
@@ -967,9 +967,9 @@ struct Term {
         return 1;
     }
     static int string(lua_State *L) {
-        Value val = *(Value*)luaL_checkudata(L, 1, typeName);
-        if (val.type() == Value::STRING) {
-            lua_pushstring(L, protect<const char*>(L, [val]() { return (*val.string()).c_str(); }));
+        Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
+        if (val.type() == SymbolType::Str) {
+            lua_pushstring(L, protect(L, [val]() { return val.string().c_str(); }));
         }
         else {
             lua_pushnil(L);
@@ -977,9 +977,9 @@ struct Term {
         return 1;
     }
     static int number(lua_State *L) {
-        Value val = *(Value*)luaL_checkudata(L, 1, typeName);
-        if (val.type() == Value::NUM) {
-            lua_pushnumber(L, protect<int>(L, [val]() { return val.num(); }));
+        Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
+        if (val.type() == SymbolType::Num) {
+            lua_pushnumber(L, protect(L, [val]() { return val.num(); }));
         }
         else {
             lua_pushnil(L);
@@ -987,9 +987,9 @@ struct Term {
         return 1;
     }
     static int sign(lua_State *L) {
-        Value val = *(Value*)luaL_checkudata(L, 1, typeName);
-        if (val.type() == Value::FUNC || val.type() == Value::ID) {
-            lua_pushboolean(L, protect<bool>(L, [val]() { return val.sign(); }));
+        Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
+        if (val.type() == SymbolType::Fun) {
+            lua_pushboolean(L, protect(L, [val]() { return val.sign(); }));
         }
         else {
             lua_pushnil(L);
@@ -997,15 +997,13 @@ struct Term {
         return 1;
     }
     static int args(lua_State *L) {
-        Value val = *(Value*)luaL_checkudata(L, 1, typeName);
-        if (val.type() == Value::FUNC || val.type() == Value::ID) {
-            lua_createtable(L, val.args().size(), 0);
-            if (val.type() == Value::FUNC) {
-                int i = 1;
-                for (auto &x : val.args()) {
-                    Term::new_(L, x);
-                    lua_rawseti(L, -2, i++);
-                }
+        Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
+        if (val.type() == SymbolType::Fun) {
+            lua_createtable(L, val.args().size, 0);
+            int i = 1;
+            for (auto &x : val.args()) {
+                Term::new_(L, x);
+                lua_rawseti(L, -2, i++);
             }
         }
         else {
@@ -1015,8 +1013,8 @@ struct Term {
     }
     static int toString(lua_State *L) {
         std::string *rep = AnyWrap::new_<std::string>(L);
-        Value val = *(Value*)luaL_checkudata(L, 1, typeName);
-        lua_pushstring(L, protect<const char*>(L, [val, rep]() {
+        Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
+        lua_pushstring(L, protect(L, [val, rep]() {
             std::ostringstream oss;
             oss << val;
             *rep = oss.str();
@@ -1025,18 +1023,17 @@ struct Term {
         return 1;
     }
     static int type(lua_State *L) {
-        Value val = *(Value*)luaL_checkudata(L, 1, typeName);
+        Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
         lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
         lua_getfield(L, -1, "TermType");
         char const *field = "";
         switch (val.type()) {
-            case Value::STRING:  { field = "String"; break; }
-            case Value::NUM:     { field = "Number"; break; }
-            case Value::ID:      { field = "Function"; break; }
-            case Value::INF:     { field = "Inf"; break; }
-            case Value::SUP:     { field = "Sup"; break; }
-            case Value::FUNC:    { field = "Function"; break; }
-            case Value::SPECIAL: { luaL_error(L, "must not happen"); }
+            case SymbolType::Str:     { field = "String"; break; }
+            case SymbolType::Num:     { field = "Number"; break; }
+            case SymbolType::Inf:     { field = "Inf"; break; }
+            case SymbolType::Sup:     { field = "Sup"; break; }
+            case SymbolType::Fun:     { field = "Function"; break; }
+            case SymbolType::Special: { luaL_error(L, "must not happen"); }
         }
         lua_getfield(L, -1, field);
         return 1;
@@ -1077,18 +1074,18 @@ int luaCall(lua_State *L) {
     }
     else { lua_getglobal(L, std::get<0>(args)); }
     for (auto &x : std::get<1>(args)) { Term::new_(L, x); }
-    lua_call(L, std::get<1>(args).size() + hasContext, 1);
+    lua_call(L, std::get<1>(args).size + hasContext, 1);
     if (lua_type(L, -1) == LUA_TTABLE) {
         lua_pushnil(L);
         while (lua_next(L, -2)) {
-            Value val = luaToVal(L, -1);
-            protect<void>(L, [val, &args]() { std::get<2>(args).emplace_back(val); });
+            Symbol val = luaToVal(L, -1);
+            protect(L, [val, &args]() { std::get<2>(args).emplace_back(val); });
             lua_pop(L, 1);
         }
     }
     else {
-        Value val = luaToVal(L, -1);
-        protect<void>(L, [val, &args]() { std::get<2>(args).emplace_back(val); });
+        Symbol val = luaToVal(L, -1);
+        protect(L, [val, &args]() { std::get<2>(args).emplace_back(val); });
     }
     return 0;
 }
@@ -1105,16 +1102,16 @@ struct SolveControl {
             luaL_checktype(L, -1, LUA_TTABLE);
             lua_pushnil(L);
             if (!lua_next(L, -2)) { luaL_error(L, "atom/boolean pair expected"); }
-            Value atom = luaToVal(L, -1);
+            Symbol atom = luaToVal(L, -1);
             lua_pop(L, 1);
             if (!lua_next(L, -2)) { luaL_error(L, "atom/boolean pair expected"); }
             bool truth = lua_toboolean(L, -1);
             lua_pop(L, 1);
             if (lua_next(L, -2)) { luaL_error(L, "atom/boolean pair expected"); }
-            protect<void>(L, [invert, atom, truth, lits](){ lits->emplace_back(atom, truth ^ invert); });
+            protect(L, [invert, atom, truth, lits](){ lits->emplace_back(atom, truth ^ invert); });
             lua_pop(L, 1);
         }
-        protect<void>(L, [model, lits](){ model->addClause(*lits); });
+        protect(L, [model, lits](){ model->addClause(*lits); });
         return 0;
     }
     static int add_clause(lua_State *L) {
@@ -1140,8 +1137,8 @@ luaL_Reg const SolveControl::meta[] = {
 struct Model {
     static int contains(lua_State *L) {
         Gringo::Model const *& model =  *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
-        Value val = luaToVal(L, 2);
-        lua_pushboolean(L, protect<bool>(L, [val, model]() { return model->contains(val); }));
+        Symbol val = luaToVal(L, 2);
+        lua_pushboolean(L, protect(L, [val, model]() { return model->contains(val); }));
         return 1;
     }
     static int atoms(lua_State *L) {
@@ -1163,8 +1160,8 @@ struct Model {
         lua_getfield(L, 2, "comp");
         if (lua_toboolean(L, -1)) { atomset |= Gringo::Model::COMP; }
         lua_pop(L, 1);
-        ValVec const &atoms = protect<ValVec const &>(L, [&model, atomset]() -> ValVec const & { return model->atoms(atomset); });
-        lua_createtable(L, atoms.size(), 0);
+        SymSpan atoms = protect(L, [&model, atomset]() { return model->atoms(atomset); });
+        lua_createtable(L, atoms.size, 0);
         int i = 1;
         for (auto x : atoms) {
             Term::new_(L, x);
@@ -1175,7 +1172,7 @@ struct Model {
     static int optimization(lua_State *L) {
         Gringo::Model const *& model = *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
         Int64Vec *values = AnyWrap::new_<Int64Vec>(L);
-        protect<void>(L, [&model, values]() { *values = model->optimization(); });
+        protect(L, [&model, values]() { *values = model->optimization(); });
         lua_createtable(L, values->size(), 0);
         int i = 1;
         for (auto x : *values) {
@@ -1187,9 +1184,13 @@ struct Model {
     static int toString(lua_State *L) {
         Gringo::Model const *& model =  *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
         std::string *rep = AnyWrap::new_<std::string>(L);
-        lua_pushstring(L, protect<char const *>(L, [model, rep]() {
-            auto printAtom = [](std::ostream &out, Value val) {
-                if (val.type() == Value::FUNC && *val.sig() == Signature("$", 2)) { out << val.args().front() << "=" << val.args().back(); }
+        lua_pushstring(L, protect(L, [model, rep]() {
+            auto printAtom = [](std::ostream &out, Symbol val) {
+                auto sig = val.sig();
+                if (val.type() == SymbolType::Fun && sig.name() == "$" && sig.arity() == 2 && !sig.sign()) {
+                    auto args = val.args().first;
+                    out << args[0] << "=" << args[1];
+                }
                 else { out << val; }
             };
             std::ostringstream oss;
@@ -1236,7 +1237,7 @@ luaL_Reg const Model::meta[] = {
 
 int newStatistics(lua_State *L, Statistics const *stats) {
     char const *prefix = lua_tostring(L, -1); // stack + 1
-    auto ret           = protect<Statistics::Quantity>(L, [stats, prefix]{ return stats->getStat(prefix); });
+    auto ret           = protect(L, [stats, prefix]{ return stats->getStat(prefix); });
     switch (ret.error()) {
         case Statistics::error_none: {
             lua_pop(L, 1);
@@ -1250,12 +1251,12 @@ int newStatistics(lua_State *L, Statistics const *stats) {
             return luaL_error(L, "error_unknown_quantity: %s", prefix);
         }
         case Statistics::error_ambiguous_quantity: {
-            char const *keys = protect<char const *>(L, [stats, prefix]() { return stats->getKeys(prefix); });
+            char const *keys = protect(L, [stats, prefix]() { return stats->getKeys(prefix); });
             if (!keys) { luaL_error(L, "error zero keys string: %s", prefix); }
             lua_newtable(L); // stack + 2
             for (char const *it = keys; *it; it+= strlen(it) + 1) {
                 if (strcmp(it, "__len") == 0) {
-                    int len = (int)protect<double>(L, [stats, prefix]{ return stats->getStat((std::string(prefix) + "__len").c_str()); });
+                    int len = (int)protect(L, [stats, prefix]{ return stats->getStat((std::string(prefix) + "__len").c_str()); });
                     for (int i = 1; i <= len; ++i) {
                         lua_pushvalue(L, -2);
                         lua_pushinteger(L, i-1);
@@ -1290,24 +1291,24 @@ int newStatistics(lua_State *L, Statistics const *stats) {
 struct SolveFuture {
     static int get(lua_State *L) {
         Gringo::SolveFuture *& future = *(Gringo::SolveFuture **)luaL_checkudata(L, 1, typeName);
-        SolveResult::new_(L, protect<int>(L, [future]() { return future->get(); }));
+        SolveResult::new_(L, protect(L, [future]() { return future->get(); }));
         return 1;
     }
     static int wait(lua_State *L) {
         Gringo::SolveFuture *& future = *(Gringo::SolveFuture **)luaL_checkudata(L, 1, typeName);
         if (lua_isnone(L, 2) == 0) {
             double timeout = luaL_checknumber(L, 2);
-            lua_pushboolean(L, protect<bool>(L, [future, timeout]() { return future->wait(timeout); }));
+            lua_pushboolean(L, protect(L, [future, timeout]() { return future->wait(timeout); }));
             return 1;
         }
         else {
-            protect<void>(L, [future]() { future->wait(); });
+            protect(L, [future]() { future->wait(); });
             return 0;
         }
     }
     static int cancel(lua_State *L) {
         Gringo::SolveFuture *& future = *(Gringo::SolveFuture **)luaL_checkudata(L, 1, typeName);
-        protect<void>(L, [future]() { future->cancel(); });
+        protect(L, [future]() { future->cancel(); });
         return 0;
     }
     static luaL_Reg const meta[];
@@ -1327,12 +1328,12 @@ luaL_Reg const SolveFuture::meta[] = {
 struct SolveIter {
     static int close(lua_State *L) {
         Gringo::SolveIter *& iter = *(Gringo::SolveIter **)luaL_checkudata(L, 1, typeName);
-        protect<void>(L, [iter]() { iter->close(); });
+        protect(L, [iter]() { iter->close(); });
         return 0;
     }
     static int next(lua_State *L) {
         Gringo::SolveIter *& iter = *(Gringo::SolveIter **)luaL_checkudata(L, lua_upvalueindex(1), typeName);
-        Gringo::Model const *m = protect<Gringo::Model const *>(L, [iter]() { return iter->next(); });
+        Gringo::Model const *m = protect(L, [iter]() { return iter->next(); });
         if (m) {
             *(Gringo::Model const **)lua_newuserdata(L, sizeof(Gringo::Model*)) = m;
             luaL_getmetatable(L, Model::typeName);
@@ -1349,7 +1350,7 @@ struct SolveIter {
     }
     static int get(lua_State *L) {
         Gringo::SolveIter *& iter = *(Gringo::SolveIter **)luaL_checkudata(L, 1, typeName);
-        lua_pushnumber(L, protect<int>(L, [iter]() { return (int)iter->get(); }));
+        lua_pushnumber(L, protect(L, [iter]() { return (int)iter->get(); }));
         return 1;
     }
     static luaL_Reg const meta[];
@@ -1378,7 +1379,7 @@ struct Configuration {
         Configuration &self = *(Configuration*)lua_newuserdata(L, sizeof(Configuration));
         self.proxy = &proxy;
         self.key   = key;
-        protect<void>(L, [&self] { self.proxy->getKeyInfo(self.key, &self.nSubkeys, &self.arrLen, &self.help, &self.nValues); });
+        protect(L, [&self] { self.proxy->getKeyInfo(self.key, &self.nSubkeys, &self.arrLen, &self.help, &self.nValues); });
         luaL_getmetatable(L, typeName);
         lua_setmetatable(L, -2);
         return 1;
@@ -1390,7 +1391,7 @@ struct Configuration {
         else {
             lua_createtable(L, self.nSubkeys, 0);
             for (int i = 0; i < self.nSubkeys; ++i) {
-                char const *key = protect<char const *>(L, [&self, i] { return self.proxy->getSubKeyName(self.key, i); });
+                char const *key = protect(L, [&self, i] { return self.proxy->getSubKeyName(self.key, i); });
                 lua_pushstring(L, key);
                 lua_rawseti(L, -2, i+1);
             }
@@ -1405,7 +1406,7 @@ struct Configuration {
         bool desc = strncmp("__desc_", name, 7) == 0;
         if (desc) { name += 7; }
         unsigned key;
-        bool hasSubKey = protect<bool>(L, [self, name, &key] { return self.proxy->hasSubKey(self.key, name, &key); });
+        bool hasSubKey = protect(L, [self, name, &key] { return self.proxy->hasSubKey(self.key, name, &key); });
         if (hasSubKey) {
             new_(L, key, *self.proxy);
             auto &sub = *(Configuration *)lua_touserdata(L, -1);
@@ -1416,7 +1417,7 @@ struct Configuration {
             else if (sub.nValues < 0) { return 1; }
             else {
                 std::string *value = AnyWrap::new_<std::string>(L);
-                bool ret = protect<bool>(L, [&sub, value]() { return sub.proxy->getKeyValue(sub.key, *value); });
+                bool ret = protect(L, [&sub, value]() { return sub.proxy->getKeyValue(sub.key, *value); });
                 if (ret) {
                     lua_pushstring(L, value->c_str());
                     return 1;
@@ -1433,10 +1434,10 @@ struct Configuration {
         auto &self = *(Configuration *)luaL_checkudata(L, 1, typeName);
         char const *name = luaL_checkstring(L, 2);
         unsigned key;
-        bool hasSubKey = protect<bool>(L, [self, name, &key] { return self.proxy->hasSubKey(self.key, name, &key); });
+        bool hasSubKey = protect(L, [self, name, &key] { return self.proxy->hasSubKey(self.key, name, &key); });
         if (hasSubKey) {
             const char *value = lua_tostring(L, 3);
-            protect<void>(L, [self, key, value]() { self.proxy->setKeyValue(key, value); });
+            protect(L, [self, key, value]() { self.proxy->setKeyValue(key, value); });
             lua_pushstring(L, value);
             return 1;
         }
@@ -1449,7 +1450,7 @@ struct Configuration {
         lua_pushnumber(L, index + 1);
         lua_replace(L, lua_upvalueindex(2));
         if (index < self.arrLen) {
-            unsigned key = protect<unsigned>(L, [&self, index]() { return self.proxy->getArrKey(self.key, index); });
+            unsigned key = protect(L, [&self, index]() { return self.proxy->getArrKey(self.key, index); });
             return new_(L, key, *self.proxy);
         }
         else {
@@ -1504,13 +1505,13 @@ struct SymbolicAtom {
     }
     static int symbol(lua_State *L) {
         auto self = (SymbolicAtom *)luaL_checkudata(L, 1, typeName);
-        Value atom = protect<Value>(L, [self](){ return self->elem->atom(); });
+        Symbol atom = protect(L, [self](){ return self->elem->atom(); });
         Term::new_(L, atom);
         return 1;
     }
     static int literal(lua_State *L) {
         auto self = (SymbolicAtom *)luaL_checkudata(L, 1, typeName);
-        auto lit = protect<int>(L, [self](){ return self->elem->literal(); });
+        auto lit = protect(L, [self](){ return self->elem->literal(); });
         lua_pushinteger(L, lit);
         return 1;
     }
@@ -1528,13 +1529,13 @@ struct SymbolicAtom {
     }
     static int is_fact(lua_State *L) {
         auto self = (SymbolicAtom *)luaL_checkudata(L, 1, typeName);
-        bool ret = protect<bool>(L, [self](){ return self->elem->fact(); });
+        bool ret = protect(L, [self](){ return self->elem->fact(); });
         lua_pushboolean(L, ret);
         return 1;
     }
     static int is_external(lua_State *L) {
         auto self = (SymbolicAtom *)luaL_checkudata(L, 1, typeName);
-        bool ret = protect<bool>(L, [self](){ return self->elem->external(); });
+        bool ret = protect(L, [self](){ return self->elem->external(); });
         lua_pushboolean(L, ret);
         return 1;
     }
@@ -1569,7 +1570,7 @@ struct SymbolicAtoms {
             auto iter = (SymbolicAtom *)luaL_checkudata(L, lua_upvalueindex(1), SymbolicAtom::typeName);
             lua_pushvalue(L, lua_upvalueindex(1));                                                      // +1
             Gringo::DomainProxy::ElementPtr &elem = *AnyWrap::new_<Gringo::DomainProxy::ElementPtr>(L); // +1
-            elem = protect<Gringo::DomainProxy::ElementPtr>(L, [iter]() { return iter->elem->next(); });
+            elem = protect(L, [iter]() { return iter->elem->next(); });
             if (elem) { SymbolicAtom::new_(L, elem); }
             else      { lua_pushnil(L); }                                                               // +1
             lua_replace(L, -2);                                                                         // -1
@@ -1588,7 +1589,7 @@ struct SymbolicAtoms {
 
     static int len(lua_State *L) {
         auto &self = get_self(L);
-        int ret = protect<int>(L, [&self]() { return self.proxy.length(); });
+        int ret = protect(L, [&self]() { return self.proxy.length(); });
         lua_pushinteger(L, ret);
         return 1;
     }
@@ -1596,21 +1597,21 @@ struct SymbolicAtoms {
     static int iter(lua_State *L) {
         auto &self = get_self(L);
         Gringo::DomainProxy::ElementPtr &elem = *AnyWrap::new_<Gringo::DomainProxy::ElementPtr>(L); // +1
-        elem = protect<Gringo::DomainProxy::ElementPtr>(L, [&self]() { return self.proxy.iter(); });
+        elem = protect(L, [&self]() { return self.proxy.iter(); });
         if (elem) { SymbolicAtom::new_(L, elem); }
         else      { lua_pushnil(L); }                                                               // +1
         lua_replace(L, -2);                                                                         // -1
-        lua_pushcclosure(L, symbolicAtomIter, 1);                                                         // +0
+        lua_pushcclosure(L, symbolicAtomIter, 1);                                                   // +0
         return 1;
     }
 
     static int lookup(lua_State *L) {
         auto &self = get_self(L);
-        Gringo::Value atom = luaToVal(L, 2);
+        Gringo::Symbol atom = luaToVal(L, 2);
         auto elem = AnyWrap::new_<Gringo::DomainProxy::ElementPtr>(L); // +1
-        *elem = protect<Gringo::DomainProxy::ElementPtr>(L, [self, atom]() { return self.proxy.lookup(atom); });
+        *elem = protect(L, [self, atom]() { return self.proxy.lookup(atom); });
         if (!*elem) { lua_pushnil(L); }
-        else        { SymbolicAtom::new_(L, *elem); }                 // +1
+        else        { SymbolicAtom::new_(L, *elem); }                  // +1
         lua_replace(L, -2);                                            // -1
         return 1;
     }
@@ -1620,25 +1621,25 @@ struct SymbolicAtoms {
         char const *name = luaL_checkstring(L, 2);
         int arity = luaL_checkinteger(L, 3);
         auto elem = AnyWrap::new_<Gringo::DomainProxy::ElementPtr>(L);                  // +1
-        *elem = protect<Gringo::DomainProxy::ElementPtr>(L, [&self, name, arity]() { return self.proxy.iter(Signature(name, arity)); });
+        *elem = protect(L, [&self, name, arity]() { return self.proxy.iter(Sig(name, arity, false)); });
         if (*elem) { SymbolicAtom::new_(L, *elem); }
         else       { lua_pushnil(L); }                                                  // +1
         lua_replace(L, -2);                                                             // -1
-        lua_pushcclosure(L, symbolicAtomIter, 1);                                             // +0
+        lua_pushcclosure(L, symbolicAtomIter, 1);                                       // +0
         return 1;
     }
 
     static int signatures(lua_State *L) {
         auto &self = get_self(L);
-        auto ret = AnyWrap::new_<std::vector<FWSignature>>(L); // +1
-        *ret = protect<std::vector<FWSignature>>(L, [&self]() { return self.proxy.signatures(); });
+        auto ret = AnyWrap::new_<std::vector<Sig>>(L); // +1
+        *ret = protect(L, [&self]() { return self.proxy.signatures(); });
         lua_createtable(L, ret->size(), 0);                    // +1
         int i = 1;
         for (auto &sig : *ret) {
             lua_createtable(L, 2, 0);                          // +1
-            lua_pushstring(L, (*(*sig).name()).c_str());       // +1
+            lua_pushstring(L, sig.name().c_str());             // +1
             lua_rawseti(L, -2, 1);                             // -1
-            lua_pushinteger(L, (*sig).length());               // +1
+            lua_pushinteger(L, sig.arity());                   // +1
             lua_rawseti(L, -2, 2);                             // -1
             lua_rawseti(L, -2, i);                             // -1
             ++i;
@@ -1679,7 +1680,7 @@ struct Backend : Object<Backend> {
 
     static int addAtom(lua_State *L) {
         auto self = Object<Backend>::self(L);
-        auto atom = protect<Potassco::Atom_t>(L, [self](){ return self->ctl.addProgramAtom(); });
+        auto atom = protect(L, [self](){ return self->ctl.addProgramAtom(); });
         lua_pushinteger(L, atom);
         return 1;
     }
@@ -1699,7 +1700,7 @@ struct Backend : Object<Backend> {
         luaPushKwArg(L, 2, 3, "choice", true);
         luaToCpp(L, -1, choice);
         lua_pop(L, 1);
-        protect<void>(L, [self, choice, head, body](){ self->backend.printHead(choice, *head); self->backend.printNormalBody(*body); });
+        protect(L, [self, choice, head, body](){ self->backend.printHead(choice, *head); self->backend.printNormalBody(*body); });
         return 0;
     }
 
@@ -1722,7 +1723,7 @@ struct Backend : Object<Backend> {
         luaPushKwArg(L, 2, 4, "choice", true);
         luaToCpp(L, -1, choice);
         lua_pop(L, 1);
-        protect<void>(L, [self, choice, head, lower, body](){ self->backend.printHead(choice, *head); self->backend.printWeightBody(lower, *body); });
+        protect(L, [self, choice, head, lower, body](){ self->backend.printHead(choice, *head); self->backend.printWeightBody(lower, *body); });
         return 0;
     }
 };
@@ -1748,17 +1749,17 @@ struct LuaContext : Gringo::Context {
     : L(L)
     , idx(idx) { }
 
-    bool callable(FWString name) const override {
+    bool callable(String name) const override {
         if (!L || !idx) { return false; }
         LuaClear lc(L);
-        lua_getfield(L, idx, (*name).c_str());
+        lua_getfield(L, idx, name.c_str());
         return lua_type(L, -1) == LUA_TFUNCTION;
     }
 
-    ValVec call(Location const &loc, FWString name, ValVec const &args) override {
+    SymVec call(Location const &loc, String name, SymSpan args) override {
         assert(L);
         LuaClear lc(L);
-        LuaCallArgs arg((*name).c_str(), args, {});
+        LuaCallArgs arg(name.c_str(), args, {});
         lua_pushcfunction(L, luaTraceback);
         lua_pushcfunction(L, luaCall);
         lua_pushlightuserdata(L, (void*)&arg);
@@ -1801,7 +1802,7 @@ struct ControlWrap {
         return *(ControlWrap*)p;
     }
     static void checkBlocked(lua_State *L, Control &ctl, char const *function) {
-        if (protect<bool>(L, [&ctl]() { return ctl.blocked(); })) { luaL_error(L, "Control.%s must not be called during solve call", function); }
+        if (protect(L, [&ctl]() { return ctl.blocked(); })) { luaL_error(L, "Control.%s must not be called during solve call", function); }
     }
     static int ground(lua_State *L) {
         auto &ctl = get_self(L).ctl;
@@ -1818,13 +1819,13 @@ struct ControlWrap {
             char const *name = luaL_checkstring(L, -1);
             lua_pop(L, 1);
             if (!lua_next(L, -2)) { luaL_error(L, "tuple of name and arguments expected"); }
-            ValVec *args = luaToVals(L, -1);
-            protect<void>(L, [name, args, vec](){ vec->emplace_back(name, *args); });
+            SymVec *args = luaToVals(L, -1);
+            protect(L, [name, args, vec](){ vec->emplace_back(name, *args); });
             lua_pop(L, 1);
             if (lua_next(L, -2)) { luaL_error(L, "tuple of name and arguments expected"); }
             lua_pop(L, 1);
         }
-        protect<void>(L, [&ctl, vec, &ctx]() { ctl.ground(*vec, ctx.idx ? &ctx : nullptr); });
+        protect(L, [&ctl, vec, &ctx]() { ctl.ground(*vec, ctx.idx ? &ctx : nullptr); });
         return 0;
     }
     static int add(lua_State *L) {
@@ -1837,26 +1838,26 @@ struct ControlWrap {
         lua_pushnil(L);
         while (lua_next(L, 3) != 0) {
             char const *val = luaL_checkstring(L, -1);
-            protect<void>(L, [val,&vals](){ vals->push_back(val); });
+            protect(L, [val,&vals](){ vals->push_back(val); });
             lua_pop(L, 1);
         }
-        protect<void>(L, [&ctl, name, vals, prg]() { ctl.add(name, *vals, prg); });
+        protect(L, [&ctl, name, vals, prg]() { ctl.add(name, *vals, prg); });
         return 0;
     }
     static int load(lua_State *L) {
         auto &ctl = get_self(L).ctl;
         checkBlocked(L, ctl, "load");
         char const *filename = luaL_checkstring(L, 2);
-        protect<void>(L, [&ctl, filename]() { ctl.load(filename); });
+        protect(L, [&ctl, filename]() { ctl.load(filename); });
         return 0;
     }
     static int get_const(lua_State *L) {
         auto &ctl = get_self(L).ctl;
         checkBlocked(L, ctl, "get_const");
         char const *name = luaL_checkstring(L, 2);
-        Value ret = protect<Value>(L, [&ctl, name]() { return ctl.getConst(name); });
-        if (ret.type() == Value::SPECIAL) { lua_pushnil(L); }
-        else                              { Term::new_(L, ret); }
+        Symbol ret = protect(L, [&ctl, name]() { return ctl.getConst(name); });
+        if (ret.type() == SymbolType::Special) { lua_pushnil(L); }
+        else                                   { Term::new_(L, ret); }
         return 1;
     }
 
@@ -1870,13 +1871,13 @@ struct ControlWrap {
                 luaL_checktype(L, -1, LUA_TTABLE);
                 lua_pushnil(L);
                 if (!lua_next(L, -2)) { luaL_error(L, "atom/boolean pair expected"); }
-                Value atom = luaToVal(L, -1);
+                Symbol atom = luaToVal(L, -1);
                 lua_pop(L, 1);
                 if (!lua_next(L, -2)) { luaL_error(L, "atom/boolean pair expected"); }
                 bool truth = lua_toboolean(L, -1);
                 lua_pop(L, 1);
                 if (lua_next(L, -2)) { luaL_error(L, "atom/boolean pair expected"); }
-                protect<void>(L, [atom, truth, ass](){ ass->emplace_back(atom, truth); });
+                protect(L, [atom, truth, ass](){ ass->emplace_back(atom, truth); });
                 lua_pop(L, 1);
             }
             lua_replace(L, assIdx);
@@ -1901,7 +1902,7 @@ struct ControlWrap {
             mIndex = lua_gettop(L);
         }
         Control::Assumptions *ass = getAssumptions(L, assIdx);
-        SolveResult::new_(L, protect<int>(L, [L, &ctl, model, ass, mhIndex, mIndex]() {
+        SolveResult::new_(L, protect(L, [L, &ctl, model, ass, mhIndex, mIndex]() {
             return (int)ctl.solve(!model ? Control::ModelHandler(nullptr) : [L, model, mhIndex, mIndex](Gringo::Model const &m) -> bool {
                 LuaClear lc(L);
                 lua_pushcfunction(L, luaTraceback);
@@ -1919,7 +1920,7 @@ struct ControlWrap {
     static int cleanup(lua_State *L) {
         auto &ctl = get_self(L).ctl;
         checkBlocked(L, ctl, "cleanup");
-        protect<void>(L, [&ctl]() { ctl.cleanupDomains(); });
+        protect(L, [&ctl]() { ctl.cleanupDomains(); });
         return 0;
     }
     static lua_State *solveCallbackThread(lua_State *L) {
@@ -1950,7 +1951,7 @@ struct ControlWrap {
         int assIdx  = !lua_isnone(L, 2) && !lua_isnil(L, 2) ? 2 : 0;
         Control::Assumptions *ass = getAssumptions(L, assIdx);
         auto &iter = *(Gringo::SolveIter **)lua_newuserdata(L, sizeof(Gringo::SolveIter*));
-        iter = protect<Gringo::SolveIter*>(L, [&ctl, ass]() { return ctl.solveIter(std::move(*ass)); });
+        iter = protect(L, [&ctl, ass]() { return ctl.solveIter(std::move(*ass)); });
         luaL_getmetatable(L, SolveIter::typeName);
         lua_setmetatable(L, -2);
         return 1;
@@ -1958,7 +1959,7 @@ struct ControlWrap {
     static int assign_external(lua_State *L) {
         auto &ctl = get_self(L).ctl;
         checkBlocked(L, ctl, "assign_external");
-        Value atom = luaToVal(L, 2);
+        Symbol atom = luaToVal(L, 2);
         luaL_checkany(L, 3);
         Potassco::Value_t truth;
         if (lua_isnil (L, 3)) { truth = Potassco::Value_t::Free; }
@@ -1966,14 +1967,14 @@ struct ControlWrap {
             luaL_checktype(L, 3, LUA_TBOOLEAN);
             truth = lua_toboolean(L, 3) ? Potassco::Value_t::True : Potassco::Value_t::False;
         }
-        protect<void>(L, [&ctl, atom, truth]() { ctl.assignExternal(atom, truth); });
+        protect(L, [&ctl, atom, truth]() { ctl.assignExternal(atom, truth); });
         return 0;
     }
     static int release_external(lua_State *L) {
         auto &ctl = get_self(L).ctl;
         checkBlocked(L, ctl, "release_external");
-        Value atom = luaToVal(L, 2);
-        protect<void>(L, [&ctl, atom]() { ctl.assignExternal(atom, Potassco::Value_t::Release); });
+        Symbol atom = luaToVal(L, 2);
+        protect(L, [&ctl, atom]() { ctl.assignExternal(atom, Potassco::Value_t::Release); });
         return 0;
     }
     static int interrupt(lua_State *L) {
@@ -1986,7 +1987,7 @@ struct ControlWrap {
         if (strcmp(name, "use_enum_assumption") == 0) {
             bool enabled = lua_toboolean(L, 3);
             checkBlocked(L, ctl, "use_enum_assumption");
-            protect<void>(L, [&ctl, enabled]() { ctl.useEnumAssumption(enabled); });
+            protect(L, [&ctl, enabled]() { ctl.useEnumAssumption(enabled); });
             return 0;
         }
         return luaL_error(L, "unknown field: %s", name);
@@ -1996,7 +1997,7 @@ struct ControlWrap {
         auto &ctl = get_self(L).ctl;
         char const *name = luaL_checkstring(L, 2);
         if (strcmp(name, "use_enum_assumption") == 0) {
-            bool enabled = protect<bool>(L, [&ctl]() { return ctl.useEnumAssumption(); });
+            bool enabled = protect(L, [&ctl]() { return ctl.useEnumAssumption(); });
             lua_pushboolean(L, enabled);     // stack +1
             return 1;
         }
@@ -2005,7 +2006,7 @@ struct ControlWrap {
             lua_pushstring(L, "stats");      // stack +1
             lua_rawget(L, 1);                // stack +0
             if (lua_isnil(L, -1)) {
-                auto stats = protect<Statistics *const>(L, [&ctl](){ return ctl.getStats(); });
+                auto stats = protect(L, [&ctl](){ return ctl.getStats(); });
                 lua_pop(L, 1);               // stack -1
                 lua_pushliteral(L, "");      // stack +1
                 newStatistics(L, stats);     // stack +0
@@ -2019,7 +2020,7 @@ struct ControlWrap {
             checkBlocked(L, ctl, "conf");
             Gringo::ConfigProxy *proxy;
             unsigned key;
-            protect<void>(L, [&ctl, &proxy, &key]() -> void {
+            protect(L, [&ctl, &proxy, &key]() -> void {
                 proxy = &ctl.getConf();
                 key   = proxy->getRootKey();
             });
@@ -2027,7 +2028,7 @@ struct ControlWrap {
         }
         else if (strcmp(name, "symbolic_atoms") == 0) {
             checkBlocked(L, ctl, "symbolic_atoms");
-            auto &proxy = protect<Gringo::DomainProxy&>(L, [&ctl]() -> Gringo::DomainProxy& { return ctl.getDomain(); });
+            auto &proxy = protect(L, [&ctl]() -> Gringo::DomainProxy& { return ctl.getDomain(); });
             return SymbolicAtoms::new_(L, proxy);
         }
         else if (strcmp(name, "theory_atoms") == 0) {
@@ -2036,7 +2037,7 @@ struct ControlWrap {
         }
         else if (strcmp(name, "backend") == 0) {
             checkBlocked(L, ctl, "backend");
-            auto *backend = protect<Gringo::Backend*>(L, [&ctl](){ return ctl.backend(); });
+            auto *backend = protect(L, [&ctl](){ return ctl.backend(); });
             if (!backend) { return luaL_error(L, "backend not available"); }
             return Backend::new_(L, ctl, *backend);
         }
@@ -2054,16 +2055,16 @@ struct ControlWrap {
             lua_pushnil(L);
             while (lua_next(L, 1) != 0) {
                 char const *arg = luaL_checkstring(L, -1);
-                protect<void>(L, [arg, &args](){ args->push_back(arg); });
+                protect(L, [arg, &args](){ args->push_back(arg); });
                 lua_pop(L, 1);
             }
         }
         std::vector<char const *> *cargs = AnyWrap::new_<std::vector<char const*>>(L);
-        protect<void>(L, [&cargs](){ cargs->push_back("clingo"); });
+        protect(L, [&cargs](){ cargs->push_back("clingo"); });
         for (auto &arg : *args) {
-            protect<void>(L, [&arg, &cargs](){ cargs->push_back(arg.c_str()); });
+            protect(L, [&arg, &cargs](){ cargs->push_back(arg.c_str()); });
         }
-        protect<void>(L, [&cargs](){ cargs->push_back(nullptr); });
+        protect(L, [&cargs](){ cargs->push_back(nullptr); });
         return newControl(L, [cargs](void *mem){ new (mem) ControlWrap(*module->newControl(cargs->size(), cargs->data()), true); });
     }
     template <class F>
@@ -2071,7 +2072,7 @@ struct ControlWrap {
         lua_newtable(L);                                                           // +1
         auto self = (Gringo::ControlWrap*)lua_newuserdata(L, sizeof(ControlWrap)); // +1
         lua_rawseti(L, -2, 1);                                                     // -1
-        protect<void>(L, [self, f]() { f(self); });
+        protect(L, [self, f]() { f(self); });
         luaL_getmetatable(L, typeName);                                            // +1
         lua_setmetatable(L, -2);                                                   // -1
         return 1;
@@ -2124,19 +2125,19 @@ struct PropagateInit : Object<PropagateInit> {
     static int mapLit(lua_State *L) {
         auto self = Object::self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushnumber(L, protect<int>(L, [self, lit]() { return self->init->mapLit(lit); }));
+        lua_pushnumber(L, protect(L, [self, lit]() { return self->init->mapLit(lit); }));
         return 1;
     }
 
     static int numThreads(lua_State *L) {
         auto self = Object::self(L);
-        lua_pushnumber(L, protect<int>(L, [self]() { return self->init->threads(); }));
+        lua_pushnumber(L, protect(L, [self]() { return self->init->threads(); }));
         return 1;
     }
     static int addWatch(lua_State *L) {
         auto self = Object::self(L);
         int lit = luaL_checkinteger(L, 2);
-        protect<void>(L, [self, lit]() { self->init->addWatch(lit); });
+        protect(L, [self, lit]() { self->init->addWatch(lit); });
         return 0;
     }
 
@@ -2186,55 +2187,55 @@ struct Assignment : Object<Assignment> {
 
     static int hasConflict(lua_State *L) {
         auto self = Object::self(L);
-        lua_pushboolean(L, protect<bool>(L, [self]() { return self->ass->hasConflict(); }));
+        lua_pushboolean(L, protect(L, [self]() { return self->ass->hasConflict(); }));
         return 1;
     }
 
     static int decisionLevel(lua_State *L) {
         auto self = Object::self(L);
-        lua_pushinteger(L, protect<int>(L, [self]() { return self->ass->level(); }));
+        lua_pushinteger(L, protect(L, [self]() { return self->ass->level(); }));
         return 1;
     }
 
     static int hasLit(lua_State *L) {
         auto self = Object::self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushboolean(L, protect<bool>(L, [self,lit]() { return self->ass->hasLit(lit); }));
+        lua_pushboolean(L, protect(L, [self,lit]() { return self->ass->hasLit(lit); }));
         return 1;
     }
 
     static int level(lua_State *L) {
         auto self = Object::self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushinteger(L, protect<int>(L, [self,lit]() { return self->ass->level(lit); }));
+        lua_pushinteger(L, protect(L, [self,lit]() { return self->ass->level(lit); }));
         return 1;
     }
 
     static int decision(lua_State *L) {
         auto self = Object::self(L);
         int level = luaL_checkinteger(L, 2);
-        lua_pushinteger(L, protect<int>(L, [self,level]() { return self->ass->decision(level); }));
+        lua_pushinteger(L, protect(L, [self,level]() { return self->ass->decision(level); }));
         return 1;
     }
 
     static int isFixed(lua_State *L) {
         auto self = Object::self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushboolean(L, protect<bool>(L, [self,lit]() { return self->ass->isFixed(lit); }));
+        lua_pushboolean(L, protect(L, [self,lit]() { return self->ass->isFixed(lit); }));
         return 1;
     }
 
     static int isTrue(lua_State *L) {
         auto self = Object::self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushboolean(L, protect<bool>(L, [self,lit]() { return self->ass->isTrue(lit); }));
+        lua_pushboolean(L, protect(L, [self,lit]() { return self->ass->isTrue(lit); }));
         return 1;
     }
 
     static int value(lua_State *L) {
         auto self = Object::self(L);
         int lit = luaL_checkinteger(L, 2);
-        auto val = protect<Potassco::Value_t>(L, [self, lit]() { return self->ass->value(lit); });
+        auto val = protect(L, [self, lit]() { return self->ass->value(lit); });
         if (val == Potassco::Value_t::Free) { lua_pushnil(L); }
         else { lua_pushboolean(L, val == Potassco::Value_t::True); }
         lua_pushboolean(L, val);
@@ -2244,7 +2245,7 @@ struct Assignment : Object<Assignment> {
     static int isFalse(lua_State *L) {
         auto self = Object::self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushboolean(L, protect<bool>(L, [self,lit]() { return self->ass->isFalse(lit); }));
+        lua_pushboolean(L, protect(L, [self,lit]() { return self->ass->isFalse(lit); }));
         return 1;
     }
 
@@ -2283,13 +2284,13 @@ struct PropagateControl : Object<PropagateControl> {
 
     static int id(lua_State *L) {
         auto self = Object::self(L);
-        lua_pushinteger(L, protect<int>(L, [self]() { return self->ctl->id() + 1; }));
+        lua_pushinteger(L, protect(L, [self]() { return self->ctl->id() + 1; }));
         return 1;
     }
 
     static int assignment(lua_State *L) {
         auto self = Object::self(L);
-        Assignment::new_(L, protect<Potassco::AbstractAssignment const *>(L, [self]() { return &self->ctl->assignment(); }));
+        Assignment::new_(L, protect(L, [self]() { return &self->ctl->assignment(); }));
         return 1;
     }
 
@@ -2303,7 +2304,7 @@ struct PropagateControl : Object<PropagateControl> {
         lua_pushnil(L);
         while (lua_next(L, table)) {
             int lit = luaL_checkinteger(L, -1);
-            protect<void>(L, [lits, lit](){ lits->emplace_back(lit); });
+            protect(L, [lits, lit](){ lits->emplace_back(lit); });
             lua_pop(L, 1);
         }
         lua_settop(L, 2);
@@ -2318,7 +2319,7 @@ struct PropagateControl : Object<PropagateControl> {
             type |= Potassco::Clause_t::Static;
         }
         lua_settop(L, 2);
-        lua_pushboolean(L, protect<bool>(L, [self, lits, type, invert]() {
+        lua_pushboolean(L, protect(L, [self, lits, type, invert]() {
             if (invert) {
                 for (auto &lit : *lits) { lit = -lit; }
             }
@@ -2337,7 +2338,7 @@ struct PropagateControl : Object<PropagateControl> {
 
     static int propagate(lua_State *L) {
         auto self = Object::self(L);
-        lua_pushboolean(L, protect<bool>(L, [self]() { return self->ctl->propagate(); }));
+        lua_pushboolean(L, protect(L, [self]() { return self->ctl->propagate(); }));
         return 1;
     }
 
@@ -2395,7 +2396,7 @@ public:
         }
         int size = lua_rawlen(L, -1);
 
-        protect<void>(L, [self, init](){ self->threads->reserve(init->threads()); });
+        protect(L, [self, init](){ self->threads->reserve(init->threads()); });
         for (int i = size, e = init->threads(); i < e; ++i) {
             self->threads->emplace_back(lua_newthread(L));
             lua_rawseti(L, -2, i+1);
@@ -2570,8 +2571,8 @@ int ControlWrap::registerPropagator(lua_State *L) {
 
 int parseTerm(lua_State *L) {
     char const *str = luaL_checkstring(L, 1);
-    Value val = protect<Value>(L, [str]() { return ControlWrap::module->parseValue(str); });
-    if (val.type() == Value::SPECIAL) { lua_pushnil(L); }
+    Symbol val = protect(L, [str]() { return ControlWrap::module->parseValue(str); });
+    if (val.type() == SymbolType::Special) { lua_pushnil(L); }
     else { Term::new_(L, val); }
     return 1;
 }
@@ -2670,23 +2671,23 @@ Lua::Lua(GringoModule &module) {
     ControlWrap::module = &module;
 }
 
-bool Lua::exec(Location const &loc, FWString code) {
+bool Lua::exec(Location const &loc, String code) {
     if (!impl) { impl = gringo_make_unique<LuaImpl>(); }
     LuaClear lc(impl->L);
     std::stringstream oss;
     oss << loc;
     lua_pushcfunction(impl->L, luaTraceback);
-    int ret = luaL_loadbuffer(impl->L, (*code).c_str(), (*code).size(), oss.str().c_str());
+    int ret = luaL_loadbuffer(impl->L, code.c_str(), code.length(), oss.str().c_str());
     handleError(impl->L, loc, ret, "parsing lua script failed");
     ret = lua_pcall(impl->L, 0, 0, -2);
     handleError(impl->L, loc, ret, "running lua script failed");
     return true;
 }
 
-ValVec Lua::call(Location const &loc, FWString name, ValVec const &args) {
+SymVec Lua::call(Location const &loc, String name, SymSpan args) {
     assert(impl);
     LuaClear lc(impl->L);
-    LuaCallArgs arg((*name).c_str(), args, {});
+    LuaCallArgs arg(name.c_str(), args, {});
     lua_pushcfunction(impl->L, luaTraceback);
     lua_pushcfunction(impl->L, luaCall);
     lua_pushlightuserdata(impl->L, (void*)&arg);
@@ -2696,10 +2697,10 @@ ValVec Lua::call(Location const &loc, FWString name, ValVec const &args) {
     return std::move(std::get<2>(arg));
 }
 
-bool Lua::callable(FWString name) {
+bool Lua::callable(String name) {
     if (!impl) { return false; }
     LuaClear lc(impl->L);
-    lua_getglobal(impl->L, (*name).c_str());
+    lua_getglobal(impl->L, name.c_str());
     bool ret = lua_type(impl->L, -1) == LUA_TFUNCTION;
     return ret;
 }
@@ -2749,16 +2750,16 @@ struct LuaImpl { };
 // {{{1 definition of Lua
 
 Lua::Lua(Gringo::GringoModule &) { }
-bool Lua::exec(Location const &loc, FWString) {
+bool Lua::exec(Location const &loc, String) {
     GRINGO_REPORT(E_ERROR)
         << loc << ": error: clingo has been build without lua support\n"
         ;
     throw std::runtime_error("grounding stopped because of errors");
 }
-bool Lua::callable(FWString) {
+bool Lua::callable(String) {
     return false;
 }
-ValVec Lua::call(Location const &, FWString, ValVec const &) {
+SymVec Lua::call(Location const &, String, SymSpan) {
     return {};
 }
 void Lua::main(Control &) { }

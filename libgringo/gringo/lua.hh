@@ -33,9 +33,9 @@ struct Control;
 struct LuaImpl;
 struct Lua {
     Lua(GringoModule &module);
-    bool exec(Location const &loc, FWString name);
-    ValVec call(Location const &loc, FWString name, ValVec const &args);
-    bool callable(FWString name);
+    bool exec(Location const &loc, String name);
+    SymVec call(Location const &loc, String name, SymSpan args);
+    bool callable(String name);
     void main(Control &ctl);
     static void initlib(lua_State *L, GringoModule &module);
     ~Lua();
