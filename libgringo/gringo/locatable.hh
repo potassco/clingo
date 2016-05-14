@@ -22,18 +22,19 @@
 #define _GRINGO_LOCATABLE_HH
 
 #include <gringo/value.hh>
+#include <gringo/utility.hh>
 
 namespace Gringo {
 
 // {{{ declaration of Location
 
 struct Location {
-    Location(FWString beginFilename, unsigned beginLine, unsigned beginColumn, FWString endFilename, unsigned endLine, unsigned endColumn);
+    Location(String beginFilename, unsigned beginLine, unsigned beginColumn, String endFilename, unsigned endLine, unsigned endColumn);
     //Location(Location const &loc);
     //Location(Location &&loc);
 
-    FWString beginFilename;
-    FWString endFilename;
+    String beginFilename;
+    String endFilename;
     unsigned beginLine;
     unsigned endLine;
     unsigned beginColumn;
@@ -80,7 +81,7 @@ std::unique_ptr<T> make_locatable(Location const &loc, Args&&... args);
 
 // {{{ defintion of Location
 
-inline Location::Location(FWString beginFilename, unsigned beginLine, unsigned beginColumn, FWString endFilename, unsigned endLine, unsigned endColumn)
+inline Location::Location(String beginFilename, unsigned beginLine, unsigned beginColumn, String endFilename, unsigned endLine, unsigned endColumn)
     : beginFilename(beginFilename)
     , endFilename(endFilename)
     , beginLine(beginLine)
@@ -102,9 +103,9 @@ inline bool Location::operator<(Location const &x) const {
 }
 
 inline std::ostream &operator<<(std::ostream &out, Location const &loc) {
-    out << *loc.beginFilename << ":" << loc.beginLine << ":" << loc.beginColumn;
+    out << loc.beginFilename << ":" << loc.beginLine << ":" << loc.beginColumn;
     if (loc.beginFilename != loc.endFilename) {
-        out << "-" << *loc.endFilename << ":" << loc.endLine << ":" << loc.endColumn;
+        out << "-" << loc.endFilename << ":" << loc.endLine << ":" << loc.endColumn;
     }
     else if(loc.beginLine != loc.endLine) {
         out << "-" << loc.endLine << ":" << loc.endColumn;

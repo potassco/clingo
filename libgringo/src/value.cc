@@ -19,6 +19,7 @@
 // }}}
 
 #include <gringo/value.hh>
+#include <gringo/hash_set.hh>
 #include <mutex>
 
 namespace Gringo {
@@ -429,16 +430,16 @@ void Symbol::print(std::ostream& out) const {
         case SymbolType_::Num: { out << num(); break; }
         case SymbolType_::IdN: { out << "-"; }
         case SymbolType_::IdP: {
-            char const *n = name();
+            char const *n = name().c_str();
             out << (n[0] != '\0' ? n : "()"); break;
         }
-        case SymbolType_::Str: { out << '"' << quote(string()) << '"'; break; }
+        case SymbolType_::Str: { out << '"' << quote(string().c_str()) << '"'; break; }
         case SymbolType_::Inf: { out << "#inf"; break; }
         case SymbolType_::Sup: { out << "#sup"; break; }
         case SymbolType_::Fun: {
             auto s = sig();
             if (s.sign()) { out << "-"; }
-            out << static_cast<char const *>(s.name());
+            out << s.name();
             auto a = args();
             out << "(";
             if (a.size > 0) {

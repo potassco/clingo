@@ -35,21 +35,21 @@ Defines::DefMap const &Defines::defs() const {
     return defs_;
 }
 
-void Defines::add(Location const &loc, FWString name, UTerm &&value, bool defaultDef) {
+void Defines::add(Location const &loc, String name, UTerm &&value, bool defaultDef) {
     auto it = defs_.find(name);
     if (it == defs_.end())                           { defs_.emplace(name, make_tuple(defaultDef, loc, std::move(value))); }
     else if (std::get<0>(it->second) && !defaultDef) { it->second = make_tuple(defaultDef, loc, std::move(value)); }
     else if (std::get<0>(it->second) || !defaultDef) {
         GRINGO_REPORT(E_ERROR)
             << loc << ": error: redefinition of constant:\n"
-            << "  #const " << *name << "=" << *value << ".\n"
+            << "  #const " << name << "=" << *value << ".\n"
             << std::get<1>(it->second) << ": note: constant also defined here\n";
     }
 }
 
 void Defines::init() {
     using DefineGraph = Graph<Defines::DefMap::iterator>;
-    using NodeMap     = std::unordered_map<FWString, DefineGraph::Node*>;
+    using NodeMap     = std::unordered_map<String, DefineGraph::Node*>;
 
     DefineGraph graph;
     NodeMap nodes;
@@ -69,12 +69,12 @@ void Defines::init() {
             std::ostringstream msg;
             msg
                 << std::get<1>(scc.back()->data->second) << ": error: cyclic constant definition:\n"
-                << "  #const " << *scc.back()->data->first << "=" << *std::get<2>(scc.back()->data->second) << ".\n";
+                << "  #const " << scc.back()->data->first << "=" << *std::get<2>(scc.back()->data->second) << ".\n";
             scc.pop_back();
             for (auto &x : scc) {
                 msg
                     << std::get<1>(x->data->second) << ": note: cycle involves definition:\n"
-                    << "  #const " << *x->data->first << "=" << *std::get<2>(x->data->second) << ".\n";
+                    << "  #const " << x->data->first << "=" << *std::get<2>(x->data->second) << ".\n";
             }
             GRINGO_REPORT(E_ERROR) << msg.str();
         }
@@ -84,12 +84,12 @@ void Defines::init() {
 
 bool Defines::empty() const { return defs_.empty(); }
 
-void Defines::apply(Value x, Value &retVal, UTerm &retTerm, bool replace) {
-    switch (x.type())  {
-        case Value::FUNC: {
-            ValVec args;
+void Defines::apply(Symbol x, Symbol &retVal, UTerm &retTerm, bool replace) {
+    if (x.type() == SymbolType::Fun) {
+        if (x.sig().arity() > 0) {
+            SymVec args;
             bool changed = true;
-            for (unsigned i = 0, e = x.args().size(); i != e; ++i) {
+            for (unsigned i = 0, e = x.args().size; i != e; ++i) {
                 UTerm rt;
                 args.emplace_back();
                 apply(x.args()[i], args.back(), rt, true);
@@ -100,36 +100,31 @@ void Defines::apply(Value x, Value &retVal, UTerm &retTerm, bool replace) {
                     for (auto &y : args) { tArgs.emplace_back(make_locatable<ValTerm>(rt->loc(), y)); }
                     tArgs.emplace_back(std::move(rt));
                     for (++i; i != e; ++i) {
-                        Value rv;
+                        Symbol rv;
                         tArgs.emplace_back();
                         apply(x.args()[i], rv, tArgs.back(), true);
                         if (!tArgs.back()) {
-                            if (rv.type() == Value::SPECIAL) { rv = x.args()[i]; }
+                            if (rv.type() == SymbolType::Special) { rv = x.args()[i]; }
                             tArgs.back() = make_locatable<ValTerm>(loc, rv);
                         }
                     }
                     retTerm = make_locatable<FunctionTerm>(loc, x.name(), std::move(tArgs));
                     return;
                 }
-                else if (args.back().type() == Value::SPECIAL) { args.back() = x.args()[i]; }
+                else if (args.back().type() == SymbolType::Special) { args.back() = x.args()[i]; }
                 else                                           { changed = true; }
             }
-            if (changed) { retVal = Value::createFun(x.name(), args); }
-            break;
+            if (changed) { retVal = Symbol::createFun(x.name(), Potassco::toSpan(args)); }
         }
-        case Value::ID: {
-            if (replace) {
-                auto it(defs_.find(x.string()));
-                if (it != defs_.end()) {
-                    retVal = std::get<2>(it->second)->isEDB();
-                    if (retVal.type() == Value::SPECIAL) {
-                        retTerm = get_clone(std::get<2>(it->second));
-                    }
+        else if (replace) {
+            auto it(defs_.find(x.string()));
+            if (it != defs_.end()) {
+                retVal = std::get<2>(it->second)->isEDB();
+                if (retVal.type() == SymbolType::Special) {
+                    retTerm = get_clone(std::get<2>(it->second));
                 }
             }
-            break;
         }
-        default: { break; }
     }
 }
 
@@ -142,14 +137,14 @@ Defines::~Defines() { }
 GRef::GRef(UTerm &&name)
     : type(EMPTY)
     , name(std::move(name))
-    , value(Value::createNum(0))
+    , value(Symbol::createNum(0))
     , term(0) { }
 
 GRef::operator bool() const { return type != EMPTY; }
 
 void GRef::reset() { type = EMPTY; }
 
-GRef &GRef::operator=(Value const &x) {
+GRef &GRef::operator=(Symbol const &x) {
     type  = VALUE;
     value = x;
     return *this;
@@ -171,7 +166,7 @@ bool GRef::occurs(GRef &x) const {
     return false;
 }
 
-bool GRef::match(Value const &x) {
+bool GRef::match(Symbol const &x) {
     switch (type) {
         case VALUE: { return value == x; }
         case TERM:  { return term->match(x); }
@@ -195,7 +190,7 @@ return false;
 
 // {{{1 definition of GValTerm
 
-GValTerm::GValTerm(Value val) : val(val) { }
+GValTerm::GValTerm(Symbol val) : val(val) { }
 
 bool GValTerm::operator==(GTerm const &x) const {
     auto t = dynamic_cast<GValTerm const*>(&x);
@@ -206,7 +201,7 @@ size_t GValTerm::hash() const { return get_value_hash(typeid(GValTerm).hash_code
 
 void GValTerm::print(std::ostream &out) const { out << val; }
 
-FWSignature GValTerm::sig() const { return val.sig(); }
+Sig GValTerm::sig() const { return val.sig(); }
 
 GTerm::EvalResult GValTerm::eval() const { return EvalResult(true, val); }
 
@@ -214,7 +209,7 @@ bool GValTerm::occurs(GRef &) const { return false; }
 
 void GValTerm::reset() { }
 
-bool GValTerm::match(Value const &x) { return val == x; }
+bool GValTerm::match(Symbol const &x) { return val == x; }
 
 bool GValTerm::unify(GTerm &x) { return x.match(val); }
 
@@ -228,7 +223,7 @@ GValTerm::~GValTerm() { }
 
 // {{{1 definition of GFunctionTerm
 
-GFunctionTerm::GFunctionTerm(FWString name, UGTermVec &&args) : sign(false), name(name), args(std::move(args)) { }
+GFunctionTerm::GFunctionTerm(String name, UGTermVec &&args) : sign(false), name(name), args(std::move(args)) { }
 
 // Note: uses structural comparisson of names of variable terms (VarTerm/LinearTerm)
 bool GFunctionTerm::operator==(GTerm const &x) const {
@@ -239,7 +234,7 @@ bool GFunctionTerm::operator==(GTerm const &x) const {
 size_t GFunctionTerm::hash() const { return get_value_hash(typeid(GFunctionTerm).hash_code(), sig(), args); }
 
 void GFunctionTerm::print(std::ostream &out) const {
-    if ((*sig()).sign()) {
+    if ((sig()).sign()) {
         out << "-";
     }
     out << name;
@@ -248,9 +243,9 @@ void GFunctionTerm::print(std::ostream &out) const {
     out << ")";
 }
 
-FWSignature GFunctionTerm::sig() const { return FWSignature(name, args.size(), sign); }
+Sig GFunctionTerm::sig() const { return Sig(name, args.size(), sign); }
 
-GTerm::EvalResult GFunctionTerm::eval() const { return EvalResult(false, Value()); }
+GTerm::EvalResult GFunctionTerm::eval() const { return EvalResult(false, Symbol()); }
 
 bool GFunctionTerm::occurs(GRef &x) const {
     for (auto &y : args) {
@@ -263,8 +258,8 @@ void GFunctionTerm::reset() {
     for (auto &y : args) { y->reset(); }
 }
 
-bool GFunctionTerm::match(Value const &x) {
-    if (x.type() != Value::FUNC || sig() != x.sig()) { return false; }
+bool GFunctionTerm::match(Symbol const &x) {
+    if (x.type() != SymbolType::Fun || sig() != x.sig()) { return false; }
     else {
         auto i = 0;
         for (auto &y : args) {
@@ -312,25 +307,25 @@ size_t GLinearTerm::hash() const   { return get_value_hash(typeid(GLinearTerm).h
 
 void GLinearTerm::print(std::ostream &out) const { out << "(" << m << "*" << *ref->name << "+" << n << ")"; }
 
-FWSignature GLinearTerm::sig() const   { throw std::logic_error("must not be called"); }
+Sig GLinearTerm::sig() const   { throw std::logic_error("must not be called"); }
 
-GTerm::EvalResult GLinearTerm::eval() const   { return EvalResult(false, Value()); }
+GTerm::EvalResult GLinearTerm::eval() const   { return EvalResult(false, Symbol()); }
 
 bool GLinearTerm::occurs(GRef &x) const { return ref->occurs(x); }
 
 void GLinearTerm::reset() { ref->reset(); }
 
-bool GLinearTerm::match(Value const &x) {
-    if (x.type() != Value::NUM) { return false; }
+bool GLinearTerm::match(Symbol const &x) {
+    if (x.type() != SymbolType::Num) { return false; }
     else {
         int y = x.num();
         y-= n;
         if (y % m != 0) { return false; }
         else {
             y /= m;
-            if (*ref) { return ref->match(Value::createNum(y)); }
+            if (*ref) { return ref->match(Symbol::createNum(y)); }
             else {
-                *ref = Value::createNum(y);
+                *ref = Symbol::createNum(y);
                 return true;
             }
         }
@@ -380,15 +375,15 @@ size_t GVarTerm::hash() const      { return get_value_hash(typeid(GVarTerm).hash
 
 void GVarTerm::print(std::ostream &out) const    { out << *ref->name; }
 
-FWSignature GVarTerm::sig() const      { throw std::logic_error("must not be called"); }
+Sig GVarTerm::sig() const      { throw std::logic_error("must not be called"); }
 
-GTerm::EvalResult GVarTerm::eval() const      { return EvalResult(false, Value()); }
+GTerm::EvalResult GVarTerm::eval() const      { return EvalResult(false, Symbol()); }
 
 bool GVarTerm::occurs(GRef &x) const { return ref->occurs(x); }
 
 void GVarTerm::reset()    { ref->reset(); }
 
-bool GVarTerm::match(Value const &x) {
+bool GVarTerm::match(Symbol const &x) {
     if (*ref) { return ref->match(x); }
     else {
         *ref = x;
@@ -441,6 +436,21 @@ std::ostream &operator<<(std::ostream &out, UnOp op) {
     return out;
 }
 
+namespace {
+inline int ipow(int a, int b) {
+    if (b < 0) { return 0; }
+    else {
+        int r = 1;
+        while (b > 0) {
+            if(b & 1) { r *= a; }
+            b >>= 1;
+            a *= a;
+        }
+        return r;
+    }
+}
+}
+
 int eval(BinOp op, int x, int y) {
     switch (op) {
         case BinOp::XOR: { return x ^ y; }
@@ -461,8 +471,8 @@ int eval(BinOp op, int x, int y) {
 }
 
 int Term::toNum(bool &undefined) {
-    Value y(eval(undefined));
-    if (y.type() == Value::NUM) { return y.num(); }
+    Symbol y(eval(undefined));
+    if (y.type() == SymbolType::Num) { return y.num(); }
     else {
         undefined = true;
         GRINGO_REPORT(W_OPERATION_UNDEFINED)
@@ -532,7 +542,7 @@ void Term::collect(VarTermSet &x) const {
 
 bool Term::isZero() const {
     bool undefined;
-    return getInvertibility() == Term::CONSTANT && eval(undefined) == Value::createNum(0);
+    return getInvertibility() == Term::CONSTANT && eval(undefined) == Symbol::createNum(0);
 }
 
 bool Term::bind(VarSet &bound) {
@@ -559,17 +569,17 @@ UTerm Term::insert(ArithmeticsMap &arith, AuxGen &auxGen, UTerm &&term, bool eq)
 
 // {{{1 definition of AuxGen
 
-FWString AuxGen::uniqueName(char const *prefix) {
-    return FWString(prefix + std::to_string((*auxNum)++));
+String AuxGen::uniqueName(char const *prefix) {
+    return String((prefix + std::to_string((*auxNum)++)).c_str());
 }
 
 UTerm AuxGen::uniqueVar(Location const &loc, unsigned level, const char *prefix) {
-    return make_locatable<VarTerm>(loc, uniqueName(prefix), std::make_shared<Value>(), level);
+    return make_locatable<VarTerm>(loc, uniqueName(prefix), std::make_shared<Symbol>(), level);
 }
 
 // {{{1 definition of SimplifyState
 
-std::unique_ptr<LinearTerm> SimplifyState::createScript(Location const &loc, FWString name, UTermVec &&args) {
+std::unique_ptr<LinearTerm> SimplifyState::createScript(Location const &loc, String name, UTermVec &&args) {
     scripts.emplace_back(gen.uniqueVar(loc, 0, "#Script"), name, std::move(args));
     return make_locatable<LinearTerm>(loc, static_cast<VarTerm&>(*std::get<0>(scripts.back())), 1, 0);
 }
@@ -604,13 +614,13 @@ Term::SimplifyRet::SimplifyRet(std::unique_ptr<LinearTerm> &&x) : type(LINEAR), 
 //! Indicate replacement with arbitrary term.
 Term::SimplifyRet::SimplifyRet(UTerm &&x) : type(REPLACE), project(false), term(x.release()) { }
 //! Indicate replacement with value.
-Term::SimplifyRet::SimplifyRet(Value const &x) : type(CONSTANT), project(false), val(x) { }
-Term::SimplifyRet::SimplifyRet() : type(UNDEFINED), project(false), val({}) { }
+Term::SimplifyRet::SimplifyRet(Symbol const &x) : type(CONSTANT), project(false), val(x) { }
+Term::SimplifyRet::SimplifyRet() : type(UNDEFINED), project(false) { }
 bool Term::SimplifyRet::notNumeric() const {
     switch (type) {
         case UNDEFINED: { return true; }
         case LINEAR:    { return false; }
-        case CONSTANT:  { return val.type() != Value::NUM; }
+        case CONSTANT:  { return val.type() != SymbolType::Num; }
         case REPLACE:
         case UNTOUCHED: { return term->isNotNumeric(); }
     }
@@ -618,7 +628,7 @@ bool Term::SimplifyRet::notNumeric() const {
     return false;
 }
 bool Term::SimplifyRet::constant() const  { return type == CONSTANT; }
-bool Term::SimplifyRet::isZero() const    { return constant() && val.type() == Value::NUM && val.num() == 0; }
+bool Term::SimplifyRet::isZero() const    { return constant() && val.type() == SymbolType::Num && val.num() == 0; }
 LinearTerm &Term::SimplifyRet::lin()      { return static_cast<LinearTerm&>(*term); }
 Term::SimplifyRet &Term::SimplifyRet::update(UTerm &x) {
     switch (type) {
@@ -651,7 +661,7 @@ bool Term::SimplifyRet::notFunction() const {
     switch (type) {
         case UNDEFINED: { return true; }
         case LINEAR:    { return true; }
-        case CONSTANT:  { return val.type() != Value::ID && val.type() != Value::FUNC; }
+        case CONSTANT:  { return val.type() != SymbolType::Fun; }
         case REPLACE:
         case UNTOUCHED: { return term->isNotFunction(); }
     }
@@ -669,7 +679,7 @@ Term::SimplifyRet::~SimplifyRet() {
 PoolTerm::PoolTerm(UTermVec &&terms)
     : args(std::move(terms)) { }
 
-void PoolTerm::rename(FWString) {
+void PoolTerm::rename(String) {
     throw std::logic_error("must not be called");
 }
 
@@ -715,9 +725,9 @@ void PoolTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) cons
     for (auto &y : args) { y->collect(vars, minLevel, maxLevel); }
 }
 
-Value PoolTerm::eval(bool &) const { throw std::logic_error("Term::unpool must be called before Term::eval"); }
+Symbol PoolTerm::eval(bool &) const { throw std::logic_error("Term::unpool must be called before Term::eval"); }
 
-bool PoolTerm::match(Value const &) const { throw std::logic_error("Term::unpool must be called before Term::match"); }
+bool PoolTerm::match(Symbol const &) const { throw std::logic_error("Term::unpool must be called before Term::match"); }
 
 void PoolTerm::unpool(UTermVec &x) const {
     for (auto &t : args) { t->unpool(x); }
@@ -740,7 +750,7 @@ PoolTerm *PoolTerm::clone() const {
     return make_locatable<PoolTerm>(loc(), get_clone(args)).release();
 }
 
-FWSignature PoolTerm::getSig() const { assert(false); throw std::logic_error("Term::getSig must not be called on PoolTerm"); }
+Sig PoolTerm::getSig() const { assert(false); throw std::logic_error("Term::getSig must not be called on PoolTerm"); }
 
 UTerm PoolTerm::renameVars(RenameMap &names) const {
     UTermVec args;
@@ -763,29 +773,29 @@ double PoolTerm::estimate(double, VarSet const &) const {
     return 0;
 }
 
-Value PoolTerm::isEDB() const { return {}; }
+Symbol PoolTerm::isEDB() const { return {}; }
 
 PoolTerm::~PoolTerm() { }
 
 // {{{1 definition of ValTerm
 
-ValTerm::ValTerm(Value value)
+ValTerm::ValTerm(Symbol value)
     : value(value) { }
 
 unsigned ValTerm::projectScore() const {
     return 0;
 }
 
-void ValTerm::rename(FWString x) {
-    value = Value::createId(x);
+void ValTerm::rename(String x) {
+    value = Symbol::createId(x);
 }
 
 unsigned ValTerm::getLevel() const {
     return 0;
 }
 
-bool ValTerm::isNotNumeric() const { return value.type() != Value::NUM; }
-bool ValTerm::isNotFunction() const { return value.type() != Value::ID && value.type() != Value::FUNC; }
+bool ValTerm::isNotNumeric() const { return value.type() != SymbolType::Num; }
+bool ValTerm::isNotFunction() const { return value.type() != SymbolType::Fun; }
 
 Term::Invertibility ValTerm::getInvertibility() const      { return Term::CONSTANT; }
 
@@ -808,9 +818,9 @@ void ValTerm::collect(VarTermBoundVec &, bool) const { }
 
 void ValTerm::collect(VarSet &, unsigned, unsigned) const { }
 
-Value ValTerm::eval(bool &) const { return value; }
+Symbol ValTerm::eval(bool &) const { return value; }
 
-bool ValTerm::match(Value const &x) const { return value == x; }
+bool ValTerm::match(Symbol const &x) const { return value == x; }
 
 void ValTerm::unpool(UTermVec &x) const {
     x.emplace_back(UTerm(clone()));
@@ -831,11 +841,10 @@ ValTerm *ValTerm::clone() const {
     return make_locatable<ValTerm>(loc(), value).release();
 }
 
-FWSignature ValTerm::getSig() const {
-    switch (value.type()) {
-        case Value::ID:
-        case Value::FUNC: { return value.sig(); }
-        default:          { throw std::logic_error("Term::getSig must not be called on ValTerm"); }
+Sig ValTerm::getSig() const {
+    if (value.type() == SymbolType::Fun) { return value.sig(); }
+    else {
+        throw std::logic_error("Term::getSig must not be called on ValTerm");
     }
 }
 
@@ -844,14 +853,14 @@ UTerm ValTerm::renameVars(RenameMap &) const { return UTerm(clone()); }
 UGTerm ValTerm::gterm(RenameMap &, ReferenceMap &) const { return gringo_make_unique<GValTerm>(value); }
 
 void ValTerm::collectIds(VarSet &x) const {
-    if (value.type() == Value::ID) { x.emplace(value.string()); }
+    if (value.type() == SymbolType::Fun && value.sig().arity() == 0) { x.emplace(value.name()); }
 }
 
 UTerm ValTerm::replace(Defines &x, bool replace) {
-    Value retVal;
+    Symbol retVal;
     UTerm retTerm;
     x.apply(value, retVal, retTerm, replace);
-    if (retVal.type() != Value::SPECIAL) { value = retVal; }
+    if (retVal.type() != SymbolType::Special) { value = retVal; }
     else                                 { return retTerm; }
     return nullptr;
 }
@@ -860,23 +869,23 @@ double ValTerm::estimate(double, VarSet const &) const {
     return 0;
 }
 
-Value ValTerm::isEDB() const { return value; }
+Symbol ValTerm::isEDB() const { return value; }
 
 ValTerm::~ValTerm() { }
 
 // {{{1 definition of VarTerm
 
-VarTerm::VarTerm(FWString name, SVal ref, unsigned level, bool bindRef)
+VarTerm::VarTerm(String name, SVal ref, unsigned level, bool bindRef)
     : name(name)
     , ref(ref)
     , bindRef(bindRef)
-    , level(level) { assert(ref || *name == "_"); }
+    , level(level) { assert(ref || name == "_"); }
 
 unsigned VarTerm::projectScore() const {
     return 0;
 }
 
-void VarTerm::rename(FWString) {
+void VarTerm::rename(String) {
     throw std::logic_error("must not be called");
 }
 
@@ -889,11 +898,11 @@ bool VarTerm::isNotFunction() const { return false; }
 
 Term::Invertibility VarTerm::getInvertibility() const { return Term::INVERTIBLE; }
 
-void VarTerm::print(std::ostream &out) const { out << *(name); }
+void VarTerm::print(std::ostream &out) const { out << name; }
 
 Term::SimplifyRet VarTerm::simplify(SimplifyState &state, bool positional, bool arithmetic) {
     if (name == "_") {
-        ref = std::make_shared<Value>();
+        ref = std::make_shared<Symbol>();
         if (positional) { return {*this, true}; }
         else { name = state.gen.uniqueName("#Anon"); }
     }
@@ -903,8 +912,8 @@ Term::SimplifyRet VarTerm::simplify(SimplifyState &state, bool positional, bool 
 
 Term::ProjectRet VarTerm::project(bool rename, AuxGen &auxGen) {
     assert(!rename); (void)rename;
-    if (*name == "_") {
-        UTerm r(make_locatable<ValTerm>(loc(), Value::createId("#p")));
+    if (name == "_") {
+        UTerm r(make_locatable<ValTerm>(loc(), Symbol::createId("#p")));
         UTerm x(r->clone());
         UTerm y(auxGen.uniqueVar(loc(), 0, "#P"));
         return std::make_tuple(std::move(r), std::move(x), std::move(y));
@@ -928,9 +937,9 @@ void VarTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) const
     if (minLevel <= level && level <= maxLevel) { vars.emplace(name); }
 }
 
-Value VarTerm::eval(bool &) const { return *ref; }
+Symbol VarTerm::eval(bool &) const { return *ref; }
 
-bool VarTerm::match(Value const &x) const {
+bool VarTerm::match(Symbol const &x) const {
     if (bindRef) {
         *ref = x;
         return true;
@@ -944,24 +953,24 @@ UTerm VarTerm::rewriteArithmetics(Term::ArithmeticsMap &, AuxGen &, bool) { retu
 
 bool VarTerm::operator==(Term const &x) const {
     auto t = dynamic_cast<VarTerm const*>(&x);
-    return t && *name == *t->name && level == t->level;
+    return t && name == t->name && level == t->level;
 }
 
 size_t VarTerm::hash() const {
-    return get_value_hash(typeid(VarTerm).hash_code(), *name, level);
+    return get_value_hash(typeid(VarTerm).hash_code(), name, level);
 }
 
 VarTerm *VarTerm::clone() const {
     return make_locatable<VarTerm>(loc(), name, ref, level, bindRef).release();
 }
 
-FWSignature VarTerm::getSig() const { throw std::logic_error("Term::getSig must not be called on VarTerm"); }
+Sig VarTerm::getSig() const { throw std::logic_error("Term::getSig must not be called on VarTerm"); }
 
 UTerm VarTerm::renameVars(RenameMap &names) const {
     auto ret(names.emplace(name, std::make_pair(name, nullptr)));
     if (ret.second) {
-        ret.first->second.first  = (bindRef ? "X" : "Y") + std::to_string(names.size() - 1);
-        ret.first->second.second = std::make_shared<Value>();
+        ret.first->second.first  = ((bindRef ? "X" : "Y") + std::to_string(names.size() - 1)).c_str();
+        ret.first->second.second = std::make_shared<Symbol>();
     }
     return make_locatable<VarTerm>(loc(), ret.first->second.first, ret.first->second.second, 0, bindRef);
 }
@@ -976,7 +985,7 @@ double VarTerm::estimate(double size, VarSet const &bound) const {
     return bound.find(name) == bound.end() ? size : 0.0;
 }
 
-Value VarTerm::isEDB() const { return {}; }
+Symbol VarTerm::isEDB() const { return {}; }
 
 VarTerm::~VarTerm() { }
 
@@ -996,7 +1005,7 @@ unsigned LinearTerm::projectScore() const {
     return 0;
 }
 
-void LinearTerm::rename(FWString) {
+void LinearTerm::rename(String) {
     throw std::logic_error("must not be called");
 }
 
@@ -1032,23 +1041,23 @@ Term::ProjectRet LinearTerm::project(bool rename, AuxGen &auxGen) {
     return std::make_tuple(wrap(make_locatable<LinearTerm>(loc(), std::move(var), m, n)), std::move(x), std::move(y));
 }
 
-Value LinearTerm::eval(bool &undefined) const {
-    Value value = var->eval(undefined);
-    if (value.type() == Value::NUM) { return Value::createNum(m * value.num() + n); }
+Symbol LinearTerm::eval(bool &undefined) const {
+    Symbol value = var->eval(undefined);
+    if (value.type() == SymbolType::Num) { return Symbol::createNum(m * value.num() + n); }
     else {
         undefined = true;
         GRINGO_REPORT(W_OPERATION_UNDEFINED)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
-        return Value::createNum(0);
+        return Symbol::createNum(0);
     }
 }
 
-bool LinearTerm::match(Value const &x) const {
-    if (x.type() == Value::NUM) {
+bool LinearTerm::match(Symbol const &x) const {
+    if (x.type() == SymbolType::Num) {
         assert(m != 0);
         int c(x.num() - n);
-        if (c % m == 0) { return var->match(Value::createNum(c/m)); }
+        if (c % m == 0) { return var->match(Symbol::createNum(c/m)); }
     }
     return false;
 }
@@ -1077,7 +1086,7 @@ LinearTerm *LinearTerm::clone() const {
     return make_locatable<LinearTerm>(loc(), *var, m, n).release();
 }
 
-FWSignature LinearTerm::getSig() const   { throw std::logic_error("Term::getSig must not be called on LinearTerm"); }
+Sig LinearTerm::getSig() const   { throw std::logic_error("Term::getSig must not be called on LinearTerm"); }
 
 UTerm LinearTerm::renameVars(RenameMap &names) const {
     return make_locatable<LinearTerm>(loc(), UVarTerm(static_cast<VarTerm*>(var->renameVars(names).release())), m, n);
@@ -1096,7 +1105,7 @@ double LinearTerm::estimate(double size, VarSet const &bound) const {
     return var->estimate(size, bound);
 }
 
-Value LinearTerm::isEDB() const { return {}; }
+Symbol LinearTerm::isEDB() const { return {}; }
 
 LinearTerm::~LinearTerm() { }
 
@@ -1112,7 +1121,7 @@ unsigned UnOpTerm::projectScore() const {
     return arg->projectScore();
 }
 
-void UnOpTerm::rename(FWString) { throw std::logic_error("must not be called"); }
+void UnOpTerm::rename(String) { throw std::logic_error("must not be called"); }
 
 unsigned UnOpTerm::getLevel() const { return arg->getLevel(); }
 
@@ -1147,11 +1156,11 @@ Term::SimplifyRet UnOpTerm::simplify(SimplifyState &state, bool, bool arithmetic
     }
     switch (ret.type) {
         case SimplifyRet::CONSTANT: {
-            if (ret.val.type() == Value::NUM) {
-                return {Value::createNum(Gringo::eval(op, ret.val.num()))};
+            if (ret.val.type() == SymbolType::Num) {
+                return {Symbol::createNum(Gringo::eval(op, ret.val.num()))};
             }
             else {
-                assert(ret.val.type() == Value::FUNC || ret.val.type() == Value::ID);
+                assert(ret.val.type() == SymbolType::Fun);
                 return {ret.val.flipSign()};
             }
         }
@@ -1184,19 +1193,19 @@ void UnOpTerm::collect(VarTermBoundVec &vars, bool bound) const {
 void UnOpTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) const {
     arg->collect(vars, minLevel, maxLevel);
 }
-Value UnOpTerm::eval(bool &undefined) const {
-    Value value = arg->eval(undefined);
-    if (value.type() == Value::NUM) {
+Symbol UnOpTerm::eval(bool &undefined) const {
+    Symbol value = arg->eval(undefined);
+    if (value.type() == SymbolType::Num) {
         int num = value.num();
         switch (op) {
-            case UnOp::NEG: { return Value::createNum(-num); }
-            case UnOp::ABS: { return Value::createNum(std::abs(num)); }
-            case UnOp::NOT: { return Value::createNum(~num); }
+            case UnOp::NEG: { return Symbol::createNum(-num); }
+            case UnOp::ABS: { return Symbol::createNum(std::abs(num)); }
+            case UnOp::NOT: { return Symbol::createNum(~num); }
         }
         assert(false);
-        return Value::createNum(0);
+        return Symbol::createNum(0);
     }
-    else if (op == UnOp::NEG && (value.type() == Value::ID || value.type() == Value::FUNC)) {
+    else if (op == UnOp::NEG && value.type() == SymbolType::Fun) {
         return value.flipSign();
     }
     else {
@@ -1204,17 +1213,17 @@ Value UnOpTerm::eval(bool &undefined) const {
         GRINGO_REPORT(W_OPERATION_UNDEFINED)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
-        return Value::createNum(0);
+        return Symbol::createNum(0);
     }
 }
-bool UnOpTerm::match(Value const &x) const  {
+bool UnOpTerm::match(Symbol const &x) const  {
     if (op != UnOp::NEG) {
         throw std::logic_error("Term::rewriteArithmetics must be called before Term::match");
     }
-    if (x.type() == Value::NUM) {
-        return arg->match(Value::createNum(-x.num()));
+    if (x.type() == SymbolType::Num) {
+        return arg->match(Symbol::createNum(-x.num()));
     }
-    else if (x.type() == Value::ID || x.type() == Value::FUNC) {
+    else if (x.type() == SymbolType::Fun) {
         return arg->match(x.flipSign());
     }
     return false;
@@ -1242,11 +1251,8 @@ size_t UnOpTerm::hash() const {
 UnOpTerm *UnOpTerm::clone() const {
     return make_locatable<UnOpTerm>(loc(), op, get_clone(arg)).release();
 }
-FWSignature UnOpTerm::getSig() const {
-    if (op == UnOp::NEG) {
-        Signature sig = *arg->getSig();
-        return sig.flipSign();
-    }
+Sig UnOpTerm::getSig() const {
+    if (op == UnOp::NEG) { return arg->getSig().flipSign(); }
     throw std::logic_error("Term::getSig must not be called on UnOpTerm");
 }
 UTerm UnOpTerm::renameVars(RenameMap &names) const { return make_locatable<UnOpTerm>(loc(), op, arg->renameVars(names)); }
@@ -1279,7 +1285,7 @@ UTerm UnOpTerm::replace(Defines &x, bool) {
 double UnOpTerm::estimate(double, VarSet const &) const {
     return 0;
 }
-Value UnOpTerm::isEDB() const { return {}; }
+Symbol UnOpTerm::isEDB() const { return {}; }
 UnOpTerm::~UnOpTerm() { }
 
 // {{{1 definition of BinOpTerm
@@ -1293,7 +1299,7 @@ unsigned BinOpTerm::projectScore() const {
     return left->projectScore() + right->projectScore();
 }
 
-void BinOpTerm::rename(FWString) {
+void BinOpTerm::rename(String) {
     throw std::logic_error("must not be called");
 }
 
@@ -1326,7 +1332,7 @@ Term::SimplifyRet BinOpTerm::simplify(SimplifyState &state, bool, bool) {
         // NOTE: keep binary operation untouched
     }
     else if (retLeft.type == SimplifyRet::CONSTANT && retRight.type == SimplifyRet::CONSTANT) {
-        return {Value::createNum(Gringo::eval(op, retLeft.val.num(), retRight.val.num()))};
+        return {Symbol::createNum(Gringo::eval(op, retLeft.val.num(), retRight.val.num()))};
     }
     else if (retLeft.type == SimplifyRet::CONSTANT && retRight.type == SimplifyRet::LINEAR) {
         if (op == BinOp::ADD) {
@@ -1387,20 +1393,20 @@ void BinOpTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) con
     right->collect(vars, minLevel, maxLevel);
 }
 
-Value BinOpTerm::eval(bool &undefined) const {
-    Value l(left->eval(undefined));
-    Value r(right->eval(undefined));
-    if (l.type() == Value::NUM && r.type() == Value::NUM && (op != BinOp::DIV || r.num() != 0)) { return Value::createNum(Gringo::eval(op, l.num(), r.num())); }
+Symbol BinOpTerm::eval(bool &undefined) const {
+    Symbol l(left->eval(undefined));
+    Symbol r(right->eval(undefined));
+    if (l.type() == SymbolType::Num && r.type() == SymbolType::Num && (op != BinOp::DIV || r.num() != 0)) { return Symbol::createNum(Gringo::eval(op, l.num(), r.num())); }
     else {
         undefined = true;
         GRINGO_REPORT(W_OPERATION_UNDEFINED)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
-        return Value::createNum(0);
+        return Symbol::createNum(0);
     }
 }
 
-bool BinOpTerm::match(Value const &) const { throw std::logic_error("Term::rewriteArithmetics must be called before Term::match"); }
+bool BinOpTerm::match(Symbol const &) const { throw std::logic_error("Term::rewriteArithmetics must be called before Term::match"); }
 
 void BinOpTerm::unpool(UTermVec &x) const {
     auto f = [&](UTerm &&l, UTerm &&r) { x.emplace_back(make_locatable<BinOpTerm>(loc(), op, std::move(l), std::move(r))); };
@@ -1424,7 +1430,7 @@ BinOpTerm *BinOpTerm::clone() const {
     return make_locatable<BinOpTerm>(loc(), op, get_clone(left), get_clone(right)).release();
 }
 
-FWSignature BinOpTerm::getSig() const    { throw std::logic_error("Term::getSig must not be called on DotsTerm"); }
+Sig BinOpTerm::getSig() const    { throw std::logic_error("Term::getSig must not be called on DotsTerm"); }
 
 UTerm BinOpTerm::renameVars(RenameMap &names) const {
     UTerm term(left->renameVars(names));
@@ -1448,7 +1454,7 @@ double BinOpTerm::estimate(double, VarSet const &) const {
     return 0;
 }
 
-Value BinOpTerm::isEDB() const { return {}; }
+Symbol BinOpTerm::isEDB() const { return {}; }
 
 BinOpTerm::~BinOpTerm() { }
 
@@ -1462,7 +1468,7 @@ unsigned DotsTerm::projectScore() const {
     return 2;
 }
 
-void DotsTerm::rename(FWString) {
+void DotsTerm::rename(String) {
     throw std::logic_error("must not be called");
 }
 unsigned DotsTerm::getLevel() const {
@@ -1507,9 +1513,9 @@ void DotsTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) cons
     right->collect(vars, minLevel, maxLevel);
 }
 
-Value DotsTerm::eval(bool &) const { throw std::logic_error("Term::rewriteDots must be called before Term::eval"); }
+Symbol DotsTerm::eval(bool &) const { throw std::logic_error("Term::rewriteDots must be called before Term::eval"); }
 
-bool DotsTerm::match(Value const &) const  { throw std::logic_error("Term::rewriteDots must be called before Term::match"); }
+bool DotsTerm::match(Symbol const &) const  { throw std::logic_error("Term::rewriteDots must be called before Term::match"); }
 
 void DotsTerm::unpool(UTermVec &x) const {
     auto f = [&](UTerm &&l, UTerm &&r) { x.emplace_back(make_locatable<DotsTerm>(loc(), std::move(l), std::move(r))); };
@@ -1533,7 +1539,7 @@ DotsTerm *DotsTerm::clone() const {
     return make_locatable<DotsTerm>(loc(), get_clone(left), get_clone(right)).release();
 }
 
-FWSignature DotsTerm::getSig() const     { throw std::logic_error("Term::getSig must not be called on LuaTerm"); }
+Sig DotsTerm::getSig() const     { throw std::logic_error("Term::getSig must not be called on LuaTerm"); }
 
 UTerm DotsTerm::renameVars(RenameMap &names) const {
     UTerm term(left->renameVars(names));
@@ -1557,13 +1563,13 @@ double DotsTerm::estimate(double, VarSet const &) const {
     return 0;
 }
 
-Value DotsTerm::isEDB() const { return {}; }
+Symbol DotsTerm::isEDB() const { return {}; }
 
 DotsTerm::~DotsTerm() { }
 
 // {{{1 definition of LuaTerm
 
-LuaTerm::LuaTerm(FWString name, UTermVec &&args)
+LuaTerm::LuaTerm(String name, UTermVec &&args)
     : name(name)
     , args(std::move(args)) { }
 
@@ -1571,7 +1577,7 @@ unsigned LuaTerm::projectScore() const {
     return 2;
 }
 
-void LuaTerm::rename(FWString) {
+void LuaTerm::rename(String) {
     throw std::logic_error("must not be called");
 }
 
@@ -1587,7 +1593,7 @@ bool LuaTerm::isNotFunction() const { return false; }
 Term::Invertibility LuaTerm::getInvertibility() const      { return Term::NOT_INVERTIBLE; }
 
 void LuaTerm::print(std::ostream &out) const {
-    out << "@" << *name << "(";
+    out << "@" << name << "(";
     print_comma(out, args, ",", [](std::ostream &out, UTerm const &y) { out << *y; });
     out << ")";
 }
@@ -1628,9 +1634,9 @@ void LuaTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) const
     for (auto &y : args) { y->collect(vars, minLevel, maxLevel); }
 }
 
-Value LuaTerm::eval(bool &) const { throw std::logic_error("Term::simplify must be called before Term::eval"); }
+Symbol LuaTerm::eval(bool &) const { throw std::logic_error("Term::simplify must be called before Term::eval"); }
 
-bool LuaTerm::match(Value const &) const   { throw std::logic_error("Term::rewriteArithmetics must be called before Term::match"); }
+bool LuaTerm::match(Symbol const &) const   { throw std::logic_error("Term::rewriteArithmetics must be called before Term::match"); }
 
 void LuaTerm::unpool(UTermVec &x) const {
     auto f = [&](UTermVec &&args) { x.emplace_back(make_locatable<LuaTerm>(loc(), name, std::move(args))); };
@@ -1643,18 +1649,18 @@ UTerm LuaTerm::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen, b
 
 bool LuaTerm::operator==(Term const &x) const {
     auto t = dynamic_cast<LuaTerm const*>(&x);
-    return t && *name == *t->name && is_value_equal_to(args, t->args);
+    return t && name == t->name && is_value_equal_to(args, t->args);
 }
 
 size_t LuaTerm::hash() const {
-    return get_value_hash(typeid(LuaTerm).hash_code(), *name, args);
+    return get_value_hash(typeid(LuaTerm).hash_code(), name, args);
 }
 
 LuaTerm *LuaTerm::clone() const {
     return make_locatable<LuaTerm>(loc(), name, get_clone(args)).release();
 }
 
-FWSignature LuaTerm::getSig() const      { return FWSignature(name, args.size()); }
+Sig LuaTerm::getSig() const { return Sig(name, args.size(), false); }
 
 UTerm LuaTerm::renameVars(RenameMap &names) const {
     UTermVec args;
@@ -1677,13 +1683,13 @@ double LuaTerm::estimate(double, VarSet const &) const {
     return 0;
 }
 
-Value LuaTerm::isEDB() const { return {}; }
+Symbol LuaTerm::isEDB() const { return {}; }
 
 LuaTerm::~LuaTerm() { }
 
 // {{{1 definition of FunctionTerm
 
-FunctionTerm::FunctionTerm(FWString name, UTermVec &&args)
+FunctionTerm::FunctionTerm(String name, UTermVec &&args)
     : name(name)
     , args(std::move(args)) { }
 
@@ -1693,7 +1699,7 @@ unsigned FunctionTerm::projectScore() const {
     return ret;
 }
 
-void FunctionTerm::rename(FWString x) {
+void FunctionTerm::rename(String x) {
     name = x;
 }
 
@@ -1709,9 +1715,9 @@ bool FunctionTerm::isNotFunction() const { return false; }
 Term::Invertibility FunctionTerm::getInvertibility() const { return Term::INVERTIBLE; }
 
 void FunctionTerm::print(std::ostream &out) const {
-    out << *(name) << "(";
+    out << name << "(";
     print_comma(out, args, ",", [](std::ostream &out, UTerm const &y) { out << *y; });
-    if (*name == "" && args.size() == 1) {
+    if (name == "" && args.size() == 1) {
         out << ",";
     }
     out << ")";
@@ -1745,8 +1751,8 @@ Term::ProjectRet FunctionTerm::project(bool rename, AuxGen &auxGen) {
         argsProjected.emplace_back(std::move(std::get<1>(ret)));
         argsProject.emplace_back(std::move(std::get<2>(ret)));
     }
-    FWString oldName = name;
-    if (rename) { name = FWString("#p_" + *name); }
+    String oldName = name;
+    if (rename) { name = String((std::string("#p_") + name.c_str()).c_str()); }
     return std::make_tuple(
             nullptr,
             make_locatable<FunctionTerm>(loc(), name, std::move(argsProjected)),
@@ -1773,16 +1779,16 @@ void FunctionTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) 
     for (auto &y : args) { y->collect(vars, minLevel, maxLevel); }
 }
 
-Value FunctionTerm::eval(bool &undefined) const {
+Symbol FunctionTerm::eval(bool &undefined) const {
     cache.clear();
     for (auto &term : args) { cache.emplace_back(term->eval(undefined)); }
-    return Value::createFun(name, cache);
+    return Symbol::createFun(name, Potassco::toSpan(cache));
 }
 
-bool FunctionTerm::match(Value const &x) const {
-    if (x.type() == Value::FUNC && !(*x.sig()).sign()) {
-        Signature s(*x.sig());
-        if (s.name() == name && s.length() == args.size()) {
+bool FunctionTerm::match(Symbol const &x) const {
+    if (x.type() == SymbolType::Fun) {
+        Sig s(x.sig());
+        if (!s.sign() && s.name() == name && s.arity() == args.size()) {
             auto i = 0;
             for (auto &term : args) {
                 if (!term->match(x.args()[i++])) { return false; }
@@ -1805,18 +1811,18 @@ UTerm FunctionTerm::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxG
 
 bool FunctionTerm::operator==(Term const &x) const {
     auto t = dynamic_cast<FunctionTerm const*>(&x);
-    return t && *name == *t->name && is_value_equal_to(args, t->args);
+    return t && name == t->name && is_value_equal_to(args, t->args);
 }
 
 size_t FunctionTerm::hash() const {
-    return get_value_hash(typeid(FunctionTerm).hash_code(), *name, args);
+    return get_value_hash(typeid(FunctionTerm).hash_code(), name, args);
 }
 
 FunctionTerm *FunctionTerm::clone() const {
     return make_locatable<FunctionTerm>(loc(), name, get_clone(args)).release();
 }
 
-FWSignature FunctionTerm::getSig() const { return FWSignature(name, args.size()); }
+Sig FunctionTerm::getSig() const { return Sig(name, args.size(), false); }
 
 UTerm FunctionTerm::renameVars(RenameMap &names) const {
     UTermVec args;
@@ -1846,20 +1852,20 @@ UTerm FunctionTerm::replace(Defines &x, bool) {
 double FunctionTerm::estimate(double size, VarSet const &bound) const {
     double ret = 0.0;
     if (!args.empty()) {
-        double root = std::max(1.0, std::pow(((*name).empty() ? size : size/2.0), 1.0/args.size()));
+        double root = std::max(1.0, std::pow((name.empty() ? size : size/2.0), 1.0/args.size()));
         for (auto &x : args) { ret += x->estimate(root, bound); }
         ret /= args.size();
     }
     return ret;
 }
 
-Value FunctionTerm::isEDB() const {
+Symbol FunctionTerm::isEDB() const {
     cache.clear();
     for (auto &x : args) {
         cache.emplace_back(x->isEDB());
-        if (cache.back().type() == Value::SPECIAL) { return {}; }
+        if (cache.back().type() == SymbolType::Special) { return {}; }
     }
-    return Value::createFun(name, cache);
+    return Symbol::createFun(name, Potassco::toSpan(cache));
 }
 
 
