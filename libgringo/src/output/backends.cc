@@ -19,8 +19,7 @@
 // }}}
 
 #include "gringo/output/backends.hh"
-#include "gringo/output/literals.hh"
-#include "gringo/output/theory.hh"
+#include "potassco/theory_data.h"
 #include <cstring>
 
 namespace Gringo { namespace Output {
@@ -88,7 +87,7 @@ void IntermediateFormatBackend::visit(const Potassco::TheoryData& data, Potassco
     if (addSeen(tSeen_, termId)) { // only visit once
         // visit any subterms then print
         data.accept(t, *this);
-        Potassco::print(out_, termId, t); 
+        Potassco::print(out_, termId, t);
     }
 }
 void IntermediateFormatBackend::visit(const Potassco::TheoryData& data, Potassco::Id_t elemId, const Potassco::TheoryElement& e) {
