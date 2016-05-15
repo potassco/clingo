@@ -146,7 +146,7 @@ void pyToCpp(PyObject *pyNum, T &x, typename std::enable_if<std::is_floating_poi
     if (PyErr_Occurred()) { throw PyException(); }
 }
 
-void pyToCpp(PyObject *obj, Value &val);
+void pyToCpp(PyObject *obj, Symbol &val);
 
 template <class T, class U>
 void pyToCpp(PyObject *pyPair, std::pair<T, U> &x) {
@@ -260,11 +260,11 @@ T pyToCpp(PyObject *py) {
     return ret;
 }
 
-PyObject *cppToPy(Value val);
+PyObject *cppToPy(Symbol val);
 
 template <class T>
 Object cppToPy(std::vector<T> const &vals);
-Object cppToPy(FWValVec vals);
+Object cppToPy(SymSpan vals);
 template <class T>
 Object cppToPy(Potassco::Span<T> const &span);
 
@@ -932,7 +932,7 @@ constexpr TermType::Type TermType::values[];
 constexpr const char * TermType::strings[];
 
 struct Term : ObjectBase<Term> {
-    Value val;
+    Symbol val;
     static PyObject *inf;
     static PyObject *sup;
     static PyGetSetDef tp_getset[];
@@ -954,28 +954,28 @@ preconstructed terms Inf and Sup.)";
         if (!ObjectBase<Term>::initType(module)) { return false; }
         inf = type.tp_alloc(&type, 0);
         if (!inf) { return false; }
-        reinterpret_cast<Term*>(inf)->val = Value::createInf();
+        reinterpret_cast<Term*>(inf)->val = Symbol::createInf();
         if (PyModule_AddObject(module, "Inf", inf) < 0) { return false; }
         sup = type.tp_alloc(&type, 0);
-        reinterpret_cast<Term*>(sup)->val = Value::createSup();
+        reinterpret_cast<Term*>(sup)->val = Symbol::createSup();
         if (!sup) { return false; }
         if (PyModule_AddObject(module, "Sup", sup) < 0) { return false; }
         return true;
     }
 
-    static PyObject *new_(Value value) {
-        if (value.type() == Value::INF) {
+    static PyObject *new_(Symbol value) {
+        if (value.type() == SymbolType::Inf) {
             Py_INCREF(inf);
             return inf;
         }
-        else if (value.type() == Value::SUP) {
+        else if (value.type() == SymbolType::Sup) {
             Py_INCREF(sup);
             return sup;
         }
         else {
             Term *self = reinterpret_cast<Term*>(type.tp_alloc(&type, 0));
             if (!self) { return nullptr; }
-            new (&self->val) Value(value);
+            new (&self->val) Symbol(value);
             return reinterpret_cast<PyObject*>(self);
         }
     }
@@ -988,12 +988,12 @@ preconstructed terms Inf and Sup.)";
                 return nullptr;
             }
             if (params) {
-                ValVec vals;
+                SymVec vals;
                 pyToCpp(params, vals);
-                return new_(vals.empty() && name[0] != '\0' ? Value::createId(name, sign) : Value::createFun(name, vals, sign));
+                return new_(Symbol::createFun(name, Potassco::toSpan(vals), sign));
             }
             else {
-                return new_(Value::createId(name, sign));
+                return new_(Symbol::createId(name, sign));
             }
         PY_CATCH(nullptr);
     }
@@ -1013,62 +1013,66 @@ preconstructed terms Inf and Sup.)";
     static PyObject *new_number(PyObject *, PyObject *arg) {
         PY_TRY
             auto num = pyToCpp<int>(arg);
-            return new_(Value::createNum(num));
+            return new_(Symbol::createNum(num));
         PY_CATCH(nullptr);
     }
     static PyObject *new_string(PyObject *, PyObject *arg) {
         PY_TRY
             char const *str = pyToCpp<char const *>(arg);
-            return new_(Value::createStr(str));
+            return new_(Symbol::createStr(str));
         PY_CATCH(nullptr);
     }
     static PyObject *name(Term *self, void *) {
         PY_TRY
-            switch (self->val.type()) {
-                case Value::FUNC:
-                case Value::ID: { return PyString_FromString((*FWString(self->val.name())).c_str()); }
-                default: { Py_RETURN_NONE; }
+            if (self->val.type() == SymbolType::Fun) {
+                return PyString_FromString(self->val.name().c_str());
+            }
+            else {
+                Py_RETURN_NONE;
             }
         PY_CATCH(nullptr);
     }
 
     static PyObject *string(Term *self, void *) {
         PY_TRY
-            switch (self->val.type()) {
-                case Value::STRING: { return PyString_FromString((*FWString(self->val.string())).c_str()); }
-                default: { Py_RETURN_NONE; }
+            if (self->val.type() == SymbolType::Str) {
+                return PyString_FromString(self->val.string().c_str());
+            }
+            else {
+                Py_RETURN_NONE;
             }
         PY_CATCH(nullptr);
     }
 
     static PyObject *sign(Term *self, void *) {
         PY_TRY
-            switch (self->val.type()) {
-                case Value::FUNC:
-                case Value::ID: { return PyBool_FromLong(self->val.sign()); }
-                default: { Py_RETURN_NONE; }
+            if (self->val.type() == SymbolType::Fun) {
+                return PyBool_FromLong(self->val.sign());
+            }
+            else {
+                Py_RETURN_NONE;
             }
         PY_CATCH(nullptr);
     }
 
     static PyObject *num(Term *self, void *) {
         PY_TRY
-            switch (self->val.type()) {
-                case Value::NUM: { return PyInt_FromLong(self->val.num()); }
-                default: { Py_RETURN_NONE; }
+            if (self->val.type() == SymbolType::Num) {
+                return PyInt_FromLong(self->val.num());
+            }
+            else {
+                Py_RETURN_NONE;
             }
         PY_CATCH(nullptr);
     }
 
     static PyObject *args(Term *self, void *) {
         PY_TRY
-            switch (self->val.type()) {
-                case Value::FUNC: { return cppToPy(self->val.args()).release(); }
-                case Value::ID: {
-                    ValVec vals;
-                    return cppToPy(vals).release();
-                }
-                default: { Py_RETURN_NONE; }
+            if (self->val.type() == SymbolType::Fun) {
+                return cppToPy(self->val.args()).release();
+            }
+            else {
+                Py_RETURN_NONE;
             }
         PY_CATCH(nullptr);
     }
@@ -1076,13 +1080,12 @@ preconstructed terms Inf and Sup.)";
     static PyObject *type_(Term *self, void *) {
         PY_TRY
             switch (self->val.type()) {
-                case Value::STRING:  { return TermType::getAttr(TermType::String); }
-                case Value::NUM:     { return TermType::getAttr(TermType::Number); }
-                case Value::ID:      { return TermType::getAttr(TermType::Function); }
-                case Value::INF:     { return TermType::getAttr(TermType::Inf); }
-                case Value::SUP:     { return TermType::getAttr(TermType::Sup); }
-                case Value::FUNC:    { return TermType::getAttr(TermType::Function); }
-                case Value::SPECIAL: { throw std::logic_error("must not happen"); }
+                case SymbolType::Str:     { return TermType::getAttr(TermType::String); }
+                case SymbolType::Num:     { return TermType::getAttr(TermType::Number); }
+                case SymbolType::Inf:     { return TermType::getAttr(TermType::Inf); }
+                case SymbolType::Sup:     { return TermType::getAttr(TermType::Sup); }
+                case SymbolType::Fun:     { return TermType::getAttr(TermType::Function); }
+                case SymbolType::Special: { throw std::logic_error("must not happen"); }
             }
         PY_CATCH(nullptr);
     }
@@ -1342,7 +1345,7 @@ places like - e.g., the main function.)";
     }
     static PyObject *contains(Model *self, PyObject *arg) {
         PY_TRY
-            Value val;
+            Symbol val;
             pyToCpp(arg, val);
             return cppToPy(self->model->contains(val)).release();
         PY_CATCH(nullptr);
@@ -1368,8 +1371,12 @@ places like - e.g., the main function.)";
     }
     static PyObject *tp_repr(Model *self, PyObject *) {
         PY_TRY
-            auto printAtom = [](std::ostream &out, Value val) {
-                if (val.type() == Value::FUNC && *val.sig() == Signature("$", 2)) { out << val.args().front() << "=" << val.args().back(); }
+            auto printAtom = [](std::ostream &out, Symbol val) {
+                auto sig = val.sig();
+                if (val.type() == SymbolType::Fun && sig.name() == "$" && sig.arity() == 2) {
+                    auto args = val.args().first;
+                    out << args[0] << "=" << args[1];
+                }
                 else { out << val; }
             };
             std::ostringstream oss;
@@ -1926,7 +1933,7 @@ signatures: [('p', 1), ('q', 1)])";
 
     static PyObject* subscript(DomainProxy *self, PyObject *key) {
         PY_TRY
-            Gringo::Value atom;
+            Gringo::Symbol atom;
             pyToCpp(key, atom);
             Gringo::DomainProxy::ElementPtr elem = self->proxy->lookup(atom);
             if (!elem) { Py_RETURN_NONE; }
@@ -1939,18 +1946,18 @@ signatures: [('p', 1), ('q', 1)])";
             char const *name;
             int arity;
             if (!PyArg_ParseTuple(pyargs, "si", &name, &arity)) { return nullptr; }
-            Gringo::DomainProxy::ElementPtr elem = self->proxy->iter(Signature(name, arity));
+            Gringo::DomainProxy::ElementPtr elem = self->proxy->iter(Sig(name, arity, false));
             return SymoblicAtomIter::new_(std::move(elem));
         PY_CATCH(nullptr);
     }
 
     static PyObject* signatures(DomainProxy *self, void *) {
         PY_TRY
-            std::vector<FWSignature> ret = self->proxy->signatures();
+            std::vector<Sig> ret = self->proxy->signatures();
             Object pyRet = PyList_New(ret.size());
             int i = 0;
             for (auto &sig : ret) {
-                Object pySig = Py_BuildValue("(si)", (*(*sig).name()).c_str(), (int)(*sig).length());
+                Object pySig = Py_BuildValue("(si)", sig.name().c_str(), (int)sig.arity());
                 if (PyList_SetItem(pyRet, i, pySig.release()) < 0) { return nullptr; }
                 ++i;
             }
@@ -2431,8 +2438,8 @@ choice -- whether to add a disjunctive or choice rule (Default: False)
 
 // {{{1 wrap Control
 
-void pycall(PyObject *fun, ValVec const &args, ValVec &vals) {
-    Object params = PyTuple_New(args.size());
+void pycall(PyObject *fun, SymSpan args, SymVec &vals) {
+    Object params = PyTuple_New(args.size);
     int i = 0;
     for (auto &val : args) {
         Object pyVal = Term::new_(val);
@@ -2441,21 +2448,21 @@ void pycall(PyObject *fun, ValVec const &args, ValVec &vals) {
     }
     Object ret = PyObject_Call(fun, params, Py_None);
     if (PyList_Check(ret)) { pyToCpp(ret, vals); }
-    else { vals.emplace_back(pyToCpp<Value>(ret)); }
+    else { vals.emplace_back(pyToCpp<Symbol>(ret)); }
 }
 
 class PyContext : public Context {
 public:
     PyContext()
     : ctx(nullptr) { }
-    bool callable(FWString name) const override {
-        return ctx && PyObject_HasAttrString(ctx, name->c_str());
+    bool callable(String name) const override {
+        return ctx && PyObject_HasAttrString(ctx, name.c_str());
     }
-    ValVec call(Location const &loc, FWString name, ValVec const &args) override {
+    SymVec call(Location const &loc, String name, SymSpan args) override {
         assert(ctx);
         try {
-            Object fun = PyObject_GetAttrString(ctx, (*name).c_str());
-            ValVec ret;
+            Object fun = PyObject_GetAttrString(ctx, name.c_str());
+            SymVec ret;
             pycall(fun, args, ret);
             return ret;
         }
@@ -2594,7 +2601,7 @@ active; you must not call any member function during search.)";
                 Object pyNext = PyIter_Next(jt);
                 if (pyNext) { return PyErr_Format(PyExc_RuntimeError, "tuple of name and arguments expected"); }
                 auto name = pyToCpp<char const *>(pyName);
-                auto args = pyToCpp<ValVec>(pyArgs);
+                auto args = pyToCpp<SymVec>(pyArgs);
                 parts.emplace_back(name, args);
             }
             // anchor
@@ -2607,9 +2614,9 @@ active; you must not call any member function during search.)";
             checkBlocked(self, "get_const");
             char *name;
             if (!PyArg_ParseTuple(args, "s", &name)) { return nullptr; }
-            Value val;
+            Symbol val;
             val = self->ctl->getConst(name);
-            if (val.type() == Value::SPECIAL) { Py_RETURN_NONE; }
+            if (val.type() == SymbolType::Special) { Py_RETURN_NONE; }
             else { return Term::new_(val); }
         PY_CATCH(nullptr);
     }
@@ -2646,7 +2653,7 @@ active; you must not call any member function during search.)";
                         if (!PyErr_Occurred()) { PyErr_Format(PyExc_RuntimeError, "tuple expected"); }
                         return false;
                     }
-                    ass.emplace_back(pyToCpp<Value>(pyAtom), pyToCpp<bool>(pyBool));
+                    ass.emplace_back(pyToCpp<Symbol>(pyAtom), pyToCpp<bool>(pyBool));
                 }
                 if (PyErr_Occurred()) { return false; }
             }
@@ -2722,7 +2729,7 @@ active; you must not call any member function during search.)";
                 PyErr_Format(PyExc_RuntimeError, "unexpected %s() object as second argumet", pyVal->ob_type->tp_name);
                 return nullptr;
             }
-            auto ext = pyToCpp<Value>(pyExt);
+            auto ext = pyToCpp<Symbol>(pyExt);
             self->ctl->assignExternal(ext, val);
             Py_RETURN_NONE;
         PY_CATCH(nullptr);
@@ -2732,7 +2739,7 @@ active; you must not call any member function during search.)";
             checkBlocked(self, "release_external");
             PyObject *pyExt;
             if (!PyArg_ParseTuple(args, "O", &pyExt)) { return nullptr; }
-            auto ext = pyToCpp<Value>(pyExt);
+            auto ext = pyToCpp<Symbol>(pyExt);
             self->ctl->assignExternal(ext, Potassco::Value_t::Release);
             Py_RETURN_NONE;
         PY_CATCH(nullptr);
@@ -3196,8 +3203,8 @@ json.dumps(prg.stats, sort_keys=True, indent=4, separators=(',', ': ')))", nullp
 static PyObject *parseTerm(PyObject *, PyObject *objString) {
     PY_TRY
         char const *current = PyString_AsString(objString);
-        Value value = ControlWrap::module->parseValue(current);
-        if (value.type() == Value::SPECIAL) { Py_RETURN_NONE; }
+        Symbol value = ControlWrap::module->parseValue(current);
+        if (value.type() == SymbolType::Special) { Py_RETURN_NONE; }
         else { return Term::new_(value); }
     PY_CATCH(nullptr);
 }
@@ -3354,18 +3361,18 @@ PyObject *initclingo_() {
 
 // {{{1 auxiliary functions and objects
 
-void pyToCpp(PyObject *obj, Value &val) {
+void pyToCpp(PyObject *obj, Symbol &val) {
     if (obj->ob_type == &Term::type) { val = reinterpret_cast<Term*>(obj)->val; }
-    else if (PyTuple_Check(obj))     { val = Value::createTuple(pyToCpp<ValVec>(obj)); }
-    else if (PyInt_Check(obj))       { val = Value::createNum(pyToCpp<int>(obj)); }
-    else if (PyString_Check(obj))    { val = Value::createStr(pyToCpp<char const *>(obj)); }
+    else if (PyTuple_Check(obj))     { val = Symbol::createTuple(Potassco::toSpan(pyToCpp<SymVec>(obj))); }
+    else if (PyInt_Check(obj))       { val = Symbol::createNum(pyToCpp<int>(obj)); }
+    else if (PyString_Check(obj))    { val = Symbol::createStr(pyToCpp<char const *>(obj)); }
     else {
         PyErr_Format(PyExc_RuntimeError, "cannot convert to value: unexpected %s() object", obj->ob_type->tp_name);
         throw PyException();
     }
 }
 
-PyObject *cppToPy(Value val) {
+PyObject *cppToPy(Symbol val) {
     return Term::new_(val);
 }
 
@@ -3386,8 +3393,8 @@ Object cppToPy(std::vector<T> const &vals) {
     return cppRngToPy(vals.begin(), vals.end());
 }
 
-Object cppToPy(FWValVec vals) {
-    return cppRngToPy(vals.begin(), vals.end());
+Object cppToPy(SymSpan vals) {
+    return cppRngToPy(vals.first, vals.first + vals.size);
 }
 
 template <class T>
@@ -3441,18 +3448,18 @@ struct PythonImpl {
             if (!main) { throw PyException(); }
         PY_HANDLE("<internal>", "could not initialize python interpreter");
     }
-    void exec(Location const &loc, FWString code) {
+    void exec(Location const &loc, String code) {
         std::ostringstream oss;
         oss << "<" << loc << ">";
-        pyExec((*code).c_str(), oss.str().c_str(), main);
+        pyExec(code.c_str(), oss.str().c_str(), main);
     }
-    bool callable(FWString name) {
-        if (!PyMapping_HasKeyString(main, const_cast<char *>(name->c_str()))) { return false; }
-        Object fun = PyMapping_GetItemString(main, const_cast<char *>(name->c_str()));
+    bool callable(String name) {
+        if (!PyMapping_HasKeyString(main, const_cast<char *>(name.c_str()))) { return false; }
+        Object fun = PyMapping_GetItemString(main, const_cast<char *>(name.c_str()));
         return PyCallable_Check(fun);
     }
-    void call(FWString name, ValVec const &args, ValVec &vals) {
-        Object fun = PyMapping_GetItemString(main, const_cast<char*>((*name).c_str()));
+    void call(String name, SymSpan args, SymVec &vals) {
+        Object fun = PyMapping_GetItemString(main, const_cast<char*>(name.c_str()));
         pycall(fun, args, vals);
     }
     void call(Gringo::Control &ctl) {
@@ -3473,14 +3480,14 @@ std::unique_ptr<PythonImpl> Python::impl = nullptr;
 Python::Python(GringoModule &module) {
     ControlWrap::module = &module;
 }
-bool Python::exec(Location const &loc, FWString code) {
+bool Python::exec(Location const &loc, String code) {
     if (!impl) { impl = gringo_make_unique<PythonImpl>(); }
     PY_TRY
         impl->exec(loc, code);
         return true;
     PY_HANDLE(loc, "parsing failed");
 }
-bool Python::callable(FWString name) {
+bool Python::callable(String name) {
     if (Py_IsInitialized() && !impl) { impl = gringo_make_unique<PythonImpl>(); }
     try {
         return impl && impl->callable(name);
@@ -3490,10 +3497,10 @@ bool Python::callable(FWString name) {
         return false;
     }
 }
-ValVec Python::call(Location const &loc, FWString name, ValVec const &args) {
+SymVec Python::call(Location const &loc, String name, SymSpan args) {
     assert(impl);
     try {
-        ValVec vals;
+        SymVec vals;
         impl->call(name, args, vals);
         return vals;
     }
@@ -3541,16 +3548,16 @@ struct PythonImpl { };
 std::unique_ptr<PythonImpl> Python::impl = nullptr;
 
 Python::Python(GringoModule &) { }
-bool Python::exec(Location const &loc, FWString ) {
+bool Python::exec(Location const &loc, String ) {
     GRINGO_REPORT(E_ERROR)
         << loc << ": error: clingo has been build without python support\n"
         ;
     throw std::runtime_error("grounding stopped because of errors");
 }
-bool Python::callable(FWString) {
+bool Python::callable(String) {
     return false;
 }
-ValVec Python::call(Location const &, FWString , ValVec const &) {
+SymVec Python::call(Location const &, String , SymSpan) {
     return {};
 }
 void Python::main(Control &) { }
