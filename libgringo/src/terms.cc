@@ -26,7 +26,7 @@ namespace Gringo {
 
 // {{{1 TheoryOpDef
 
-TheoryOpDef::TheoryOpDef(Location const &loc, FWString op, unsigned priority, TheoryOperatorType type)
+TheoryOpDef::TheoryOpDef(Location const &loc, String op, unsigned priority, TheoryOperatorType type)
 : loc_(loc)
 , op_(op)
 , priority_(priority)
@@ -34,7 +34,7 @@ TheoryOpDef::TheoryOpDef(Location const &loc, FWString op, unsigned priority, Th
 
 TheoryOpDef::TheoryOpDef(TheoryOpDef &&) = default;
 
-FWString TheoryOpDef::op() const {
+String TheoryOpDef::op() const {
     return op_;
 }
 
@@ -64,7 +64,7 @@ TheoryOperatorType TheoryOpDef::type() const {
 
 // {{{1 TheoryTermDef
 
-TheoryTermDef::TheoryTermDef(Location const &loc, FWString name)
+TheoryTermDef::TheoryTermDef(Location const &loc, String name)
 : loc_(loc)
 , name_(name) { }
 
@@ -83,7 +83,7 @@ void TheoryTermDef::addOpDef(TheoryOpDef &&def) {
     }
 }
 
-FWString TheoryTermDef::name() const {
+String TheoryTermDef::name() const {
     return name_;
 }
 
@@ -101,7 +101,7 @@ void TheoryTermDef::print(std::ostream &out) const {
     out << "}";
 }
 
-std::pair<unsigned, bool> TheoryTermDef::getPrioAndAssoc(FWString op) const {
+std::pair<unsigned, bool> TheoryTermDef::getPrioAndAssoc(String op) const {
     auto ret = opDefs_.find(TheoryOpDef::Key{op, false});
     if (ret != opDefs_.end()) {
         return {ret->priority(), ret->type() == TheoryOperatorType::BinaryLeft};
@@ -111,11 +111,11 @@ std::pair<unsigned, bool> TheoryTermDef::getPrioAndAssoc(FWString op) const {
     }
 }
 
-bool TheoryTermDef::hasOp(FWString op, bool unary) const {
+bool TheoryTermDef::hasOp(String op, bool unary) const {
     return opDefs_.find(TheoryOpDef::Key{op, unary}) != opDefs_.end();
 }
 
-unsigned TheoryTermDef::getPrio(FWString op, bool unary) const {
+unsigned TheoryTermDef::getPrio(String op, bool unary) const {
     auto ret = opDefs_.find(TheoryOpDef::Key{op, unary});
     if (ret != opDefs_.end()) {
         return ret->priority();
@@ -127,12 +127,12 @@ unsigned TheoryTermDef::getPrio(FWString op, bool unary) const {
 
 // {{{1 TheoryAtomDef
 
-TheoryAtomDef::TheoryAtomDef(Location const &loc, FWString name, unsigned arity, FWString elemDef, TheoryAtomType type)
+TheoryAtomDef::TheoryAtomDef(Location const &loc, String name, unsigned arity, String elemDef, TheoryAtomType type)
 : TheoryAtomDef(loc, name, arity, elemDef, type, {}, "") { }
 
-TheoryAtomDef::TheoryAtomDef(Location const &loc, FWString name, unsigned arity, FWString elemDef, TheoryAtomType type, FWStringVec &&ops, FWString guardDef)
+TheoryAtomDef::TheoryAtomDef(Location const &loc, String name, unsigned arity, String elemDef, TheoryAtomType type, StringVec &&ops, String guardDef)
 : loc_(loc)
-, sig_(name, arity)
+, sig_(name, arity, false)
 , elemDef_(elemDef)
 , guardDef_(guardDef)
 , ops_(std::move(ops))
@@ -140,7 +140,7 @@ TheoryAtomDef::TheoryAtomDef(Location const &loc, FWString name, unsigned arity,
 
 TheoryAtomDef::TheoryAtomDef(TheoryAtomDef &&) = default;
 
-FWSignature TheoryAtomDef::sig() const {
+Sig TheoryAtomDef::sig() const {
     return sig_;
 }
 
@@ -156,15 +156,15 @@ Location const &TheoryAtomDef::loc() const {
     return loc_;
 }
 
-FWStringVec const &TheoryAtomDef::ops() const {
+StringVec const &TheoryAtomDef::ops() const {
     return ops_;
 }
 
-FWString TheoryAtomDef::elemDef() const {
+String TheoryAtomDef::elemDef() const {
     return elemDef_;
 }
 
-FWString TheoryAtomDef::guardDef() const {
+String TheoryAtomDef::guardDef() const {
     assert(hasGuard());
     return guardDef_;
 }
@@ -174,8 +174,7 @@ TheoryAtomDef::~TheoryAtomDef() noexcept = default;
 TheoryAtomDef &TheoryAtomDef::operator=(TheoryAtomDef &&) = default;
 
 void TheoryAtomDef::print(std::ostream &out) const {
-    Signature sig = *sig_;
-    out << "&" << sig.name() << "/" << sig.length() << ":" << elemDef_;
+    out << "&" << sig_.name() << "/" << sig_.arity() << ":" << elemDef_;
     if (hasGuard()) {
         out << ",{";
         print_comma(out, ops_, ",");
@@ -186,13 +185,13 @@ void TheoryAtomDef::print(std::ostream &out) const {
 
 // {{{1 TheoryDef
 
-TheoryDef::TheoryDef(Location const &loc, FWString name)
+TheoryDef::TheoryDef(Location const &loc, String name)
 : loc_(loc)
 , name_(name) { }
 
 TheoryDef::TheoryDef(TheoryDef &&) = default;
 
-FWString TheoryDef::name() const {
+String TheoryDef::name() const {
     return name_;
 }
 
@@ -252,12 +251,12 @@ void TheoryDef::print(std::ostream &out) const {
     out << "}.";
 }
 
-TheoryAtomDef const *TheoryDef::getAtomDef(FWSignature sig) const {
+TheoryAtomDef const *TheoryDef::getAtomDef(Sig sig) const {
     auto ret = atomDefs_.find(sig);
     return ret != atomDefs_.end() ? &*ret : nullptr;
 }
 
-TheoryTermDef const *TheoryDef::getTermDef(FWString name) const {
+TheoryTermDef const *TheoryDef::getTermDef(String name) const {
     auto ret = termDefs_.find(name);
     return ret != termDefs_.end() ? &*ret : nullptr;
 }

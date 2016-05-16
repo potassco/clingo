@@ -29,11 +29,11 @@
 
 namespace Gringo {
 
-using FWStringVec = std::vector<FWString>;
+using StringVec = std::vector<String>;
 template <class T>
 struct GetName {
-    using result_type = FWString;
-    FWString operator()(T const &x) const {
+    using result_type = String;
+    String operator()(T const &x) const {
         return x.name();
     }
 };
@@ -42,18 +42,18 @@ struct GetName {
 
 class TheoryOpDef {
 public:
-    using Key = std::pair<FWString, bool>;
+    using Key = std::pair<String, bool>;
     struct GetKey {
         Key operator()(TheoryOpDef const &x) const {
             return x.key();
         }
     };
 public:
-    TheoryOpDef(Location const &loc, FWString op, unsigned priority, TheoryOperatorType type);
+    TheoryOpDef(Location const &loc, String op, unsigned priority, TheoryOperatorType type);
     TheoryOpDef(TheoryOpDef &&);
     ~TheoryOpDef() noexcept;
     TheoryOpDef &operator=(TheoryOpDef &&);
-    FWString op() const;
+    String op() const;
     Key key() const;
     Location const &loc() const;
     void print(std::ostream &out) const;
@@ -61,7 +61,7 @@ public:
     TheoryOperatorType type() const;
 private:
     Location loc_;
-    FWString op_;
+    String op_;
     unsigned priority_;
     TheoryOperatorType type_;
 };
@@ -75,24 +75,24 @@ inline std::ostream &operator<<(std::ostream &out, TheoryOpDef const &def) {
 
 class TheoryTermDef {
 public:
-    TheoryTermDef(Location const &loc, FWString name);
+    TheoryTermDef(Location const &loc, String name);
     TheoryTermDef(TheoryTermDef &&);
     ~TheoryTermDef() noexcept;
     TheoryTermDef &operator=(TheoryTermDef &&);
     void addOpDef(TheoryOpDef &&def);
-    FWString name() const;
+    String name() const;
     Location const &loc() const;
     void print(std::ostream &out) const;
     // returns (priority, flag) where flag is true if the binary operator is left associative
-    std::pair<unsigned, bool> getPrioAndAssoc(FWString op) const;
-    unsigned getPrio(FWString op, bool unary) const;
-    bool hasOp(FWString op, bool unary) const;
+    std::pair<unsigned, bool> getPrioAndAssoc(String op) const;
+    unsigned getPrio(String op, bool unary) const;
+    bool hasOp(String op, bool unary) const;
 private:
     Location loc_;
-    FWString name_;
+    String name_;
     TheoryOpDefs opDefs_;
 };
-using TheoryTermDefs = UniqueVec<TheoryTermDef, HashKey<FWString, GetName<TheoryTermDef>>, EqualToKey<FWString, GetName<TheoryTermDef>>>;
+using TheoryTermDefs = UniqueVec<TheoryTermDef, HashKey<String, GetName<TheoryTermDef>>, EqualToKey<String, GetName<TheoryTermDef>>>;
 inline std::ostream &operator<<(std::ostream &out, TheoryTermDef const &def) {
     def.print(out);
     return out;
@@ -102,32 +102,32 @@ inline std::ostream &operator<<(std::ostream &out, TheoryTermDef const &def) {
 
 class TheoryAtomDef {
 public:
-    using Key = FWSignature;
+    using Key = Sig;
     struct GetKey {
         Key operator()(TheoryAtomDef const &x) const {
             return x.sig();
         }
     };
 public:
-    TheoryAtomDef(Location const &loc, FWString name, unsigned arity, FWString elemDef, TheoryAtomType type);
-    TheoryAtomDef(Location const &loc, FWString name, unsigned arity, FWString elemDef, TheoryAtomType type, FWStringVec &&ops, FWString guardDef);
+    TheoryAtomDef(Location const &loc, String name, unsigned arity, String elemDef, TheoryAtomType type);
+    TheoryAtomDef(Location const &loc, String name, unsigned arity, String elemDef, TheoryAtomType type, StringVec &&ops, String guardDef);
     TheoryAtomDef(TheoryAtomDef &&);
     ~TheoryAtomDef() noexcept;
     TheoryAtomDef &operator=(TheoryAtomDef &&);
-    FWSignature sig() const;
+    Sig sig() const;
     bool hasGuard() const;
     TheoryAtomType type() const;
-    FWStringVec const &ops() const;
+    StringVec const &ops() const;
     Location const &loc() const;
-    FWString elemDef() const;
-    FWString guardDef() const;
+    String elemDef() const;
+    String guardDef() const;
     void print(std::ostream &out) const;
 private:
     Location loc_;
-    FWSignature sig_;
-    FWString elemDef_;
-    FWString guardDef_;
-    FWStringVec ops_;
+    Sig sig_;
+    String elemDef_;
+    String guardDef_;
+    StringVec ops_;
     TheoryAtomType type_;
 };
 using TheoryAtomDefs = UniqueVec<TheoryAtomDef, HashKey<TheoryAtomDef::Key, TheoryAtomDef::GetKey, value_hash<TheoryAtomDef::Key>>, EqualToKey<TheoryAtomDef::Key, TheoryAtomDef::GetKey>>;
@@ -140,15 +140,15 @@ inline std::ostream &operator<<(std::ostream &out, TheoryAtomDef const &def) {
 
 class TheoryDef {
 public:
-    TheoryDef(Location const &loc, FWString name);
+    TheoryDef(Location const &loc, String name);
     TheoryDef(TheoryDef &&);
     ~TheoryDef() noexcept;
     TheoryDef &operator=(TheoryDef &&);
-    FWString name() const;
+    String name() const;
     void addAtomDef(TheoryAtomDef &&def);
     void addTermDef(TheoryTermDef &&def);
-    TheoryAtomDef const *getAtomDef(FWSignature name) const;
-    TheoryTermDef const *getTermDef(FWString name) const;
+    TheoryAtomDef const *getAtomDef(Sig name) const;
+    TheoryTermDef const *getTermDef(String name) const;
     TheoryAtomDefs const &atomDefs() const;
     Location const &loc() const;
     void print(std::ostream &out) const;
@@ -156,9 +156,9 @@ private:
     Location loc_;
     TheoryTermDefs termDefs_;
     TheoryAtomDefs atomDefs_;
-    FWString name_;
+    String name_;
 };
-using TheoryDefs = UniqueVec<TheoryDef, HashKey<FWString, GetName<TheoryDef>>, EqualToKey<FWString, GetName<TheoryDef>>>;
+using TheoryDefs = UniqueVec<TheoryDef, HashKey<String, GetName<TheoryDef>>, EqualToKey<String, GetName<TheoryDef>>>;
 inline std::ostream &operator<<(std::ostream &out, TheoryDef const &def) {
     def.print(out);
     return out;
@@ -195,7 +195,7 @@ struct clone<CSPMulTerm> {
 
 // {{{1 declaration of CSPAddTerm
 
-using CSPGroundAdd = std::vector<std::pair<int,Value>>;
+using CSPGroundAdd = std::vector<std::pair<int,Symbol>>;
 using CSPGroundLit = std::tuple<Relation, CSPGroundAdd, int>;
 
 struct CSPAddTerm {
