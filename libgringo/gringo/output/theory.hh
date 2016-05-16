@@ -32,14 +32,8 @@ namespace Gringo { namespace Output {
 
 class LiteralId;
 using LitVec = std::vector<LiteralId>;
-using FWStringVec = std::vector<FWString>;
-template <class T>
-struct GetName {
-    using result_type = FWString;
-    FWString operator()(T const &x) const {
-        return x.name();
-    }
-};
+using Gringo::StringVec;
+using Gringo::GetName;
 
 // {{{1 declaration of TheoryData
 
@@ -55,7 +49,7 @@ public:
     Potassco::Id_t addTerm(char const *name);
     Potassco::Id_t addTerm(Potassco::Id_t funcSym, Potassco::IdSpan const& terms);
     Potassco::Id_t addTerm(Potassco::Tuple_t type, Potassco::IdSpan const& terms);
-    Potassco::Id_t addTerm(Value value);
+    Potassco::Id_t addTerm(Symbol value);
     Potassco::Id_t addElem(Potassco::IdSpan const &tuple, LitVec &&cond);
     std::pair<Potassco::TheoryAtom const &, bool> addAtom(std::function<Potassco::Id_t()> newAtom, Potassco::Id_t termId, Potassco::IdSpan const &elems);
     std::pair<Potassco::TheoryAtom const &, bool> addAtom(std::function<Potassco::Id_t()> newAtom, Potassco::Id_t termId, Potassco::IdSpan const &elems, Potassco::Id_t op, Potassco::Id_t rhs);
@@ -102,13 +96,13 @@ public:
 
 class RawTheoryTerm : public TheoryTerm {
 public:
-    using ElemVec = std::vector<std::pair<FWStringVec, UTheoryTerm>>;
+    using ElemVec = std::vector<std::pair<StringVec, UTheoryTerm>>;
 public:
     RawTheoryTerm();
     RawTheoryTerm(ElemVec &&elems);
     RawTheoryTerm(RawTheoryTerm &&);
     RawTheoryTerm &operator=(RawTheoryTerm &&);
-    void append(FWStringVec &&ops, UTheoryTerm &&term);
+    void append(StringVec &&ops, UTheoryTerm &&term);
     virtual ~RawTheoryTerm() noexcept;
     // {{{2 TheoryTerm interface
     Potassco::Id_t eval(TheoryData &data) const override;
@@ -131,13 +125,13 @@ private:
 class TheoryParser {
     enum TokenType { Op, Id };
     struct Elem {
-        Elem(FWString op, bool unary);
+        Elem(String op, bool unary);
         Elem(UTheoryTerm &&term);
         Elem(Elem &&elem);
         ~Elem() noexcept;
         TokenType tokenType;
         union {
-            std::pair<FWString,bool> op;
+            std::pair<String,bool> op;
             UTheoryTerm term;
         };
     };
@@ -148,7 +142,7 @@ public:
     ~TheoryParser() noexcept;
 private:
     void reduce();
-    bool check(FWString op);
+    bool check(String op);
 private:
     Location loc_;
     TheoryTermDef const &def_;
@@ -159,7 +153,7 @@ private:
 
 class UnaryTheoryTerm : public TheoryTerm {
 public:
-    UnaryTheoryTerm(FWString op, UTheoryTerm &&arg);
+    UnaryTheoryTerm(String op, UTheoryTerm &&arg);
     virtual ~UnaryTheoryTerm() noexcept;
     // {{{2 TheoryTerm interface
     Potassco::Id_t eval(TheoryData &data) const override;
@@ -177,14 +171,14 @@ public:
     // }}}2
 private:
     UTheoryTerm arg_;
-    FWString op_;
+    String op_;
 };
 
 // {{{1 declaration of BinaryTheoryTerm
 
 class BinaryTheoryTerm : public TheoryTerm {
 public:
-    BinaryTheoryTerm(UTheoryTerm &&left, FWString op, UTheoryTerm &&right);
+    BinaryTheoryTerm(UTheoryTerm &&left, String op, UTheoryTerm &&right);
     virtual ~BinaryTheoryTerm() noexcept;
     // {{{2 TheoryTerm interface
     Potassco::Id_t eval(TheoryData &data) const override;
@@ -203,7 +197,7 @@ public:
 private:
     UTheoryTerm left_;
     UTheoryTerm right_;
-    FWString op_;
+    String op_;
 };
 
 // {{{1 declaration of TupleTheoryTerm
@@ -237,7 +231,7 @@ private:
 
 class FunctionTheoryTerm : public TheoryTerm {
 public:
-    FunctionTheoryTerm(FWString name, UTheoryTermVec &&args);
+    FunctionTheoryTerm(String name, UTheoryTermVec &&args);
     virtual ~FunctionTheoryTerm() noexcept;
     // {{{2 TheoryTerm interface
     Potassco::Id_t eval(TheoryData &data) const override;
@@ -255,7 +249,7 @@ public:
     // }}}2
 private:
     UTheoryTermVec args_;
-    FWString name_;
+    String name_;
 };
 
 // }}}1

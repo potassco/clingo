@@ -36,7 +36,7 @@ public:
     // {{{2 Atom interface
 
     // Constructs a valid atom without uid and generation.
-    PredicateAtom(Value value)
+    PredicateAtom(Symbol value)
     : value_(value)
     , uid_(0)
     , fact_(false)
@@ -75,7 +75,7 @@ public:
         return delayed_;
     }
     // Returns the value associated with the atom.
-    operator Value const &() const {
+    operator Symbol const &() const {
         return value_;
     }
     // }}}2
@@ -118,7 +118,7 @@ public:
         delayed_ = 0;
     }
 private:
-    Value value_;
+    Symbol value_;
     uint32_t uid_ : 31;
     uint32_t fact_ : 1;
     uint32_t generation_ : 30;
@@ -138,7 +138,7 @@ public:
     TheoryAtom &operator=(TheoryAtom const &) = default;
     ~TheoryAtom() noexcept = default;
     // {{{2 Atom interface
-    TheoryAtom(Value value)
+    TheoryAtom(Symbol value)
     : value_(value)
     , enqueued_(false)
     , delayed_(false)
@@ -152,7 +152,7 @@ public:
     void setGeneration(unsigned x) { generation_ = x + 1; }
     void markDelayed() { delayed_ = 1; }
     bool delayed() const { return delayed_; }
-    operator Value const &() const { return value_; }
+    operator Symbol const &() const { return value_; }
     // }}}2
     bool initialized() { return initialized_; }
     void init(TheoryAtomType type, Id_t name, Id_t op, Id_t guard) {
@@ -179,7 +179,7 @@ public:
     void accumulate(Id_t elemId) { elems_.emplace_back(elemId); }
     void simplify(TheoryData const &data);
 private:
-    Value value_;
+    Symbol value_;
     LiteralId lit_;
     TheoryElementVec elems_;
     Id_t name_ = InvalidId;
@@ -198,36 +198,36 @@ private:
 // {{{1 declaration of functions to work with aggregates
 
 int clamp(int64_t x);
-bool neutral(ValVec const &tuple, AggregateFunction fun, Location const &loc);
-int toInt(IntervalSet<Value>::LBound const &x);
-int toInt(IntervalSet<Value>::RBound const &x);
-Value getWeight(AggregateFunction fun, FWValVec const &x);
+bool neutral(SymVec const &tuple, AggregateFunction fun, Location const &loc);
+int toInt(IntervalSet<Symbol>::LBound const &x);
+int toInt(IntervalSet<Symbol>::RBound const &x);
+Symbol getWeight(AggregateFunction fun, SymVec const &x);
 
 // {{{1 declaration of AggregateAtomRange
 
 union ValInt {
     ValInt() { }
     ValInt(ValInt const &b) : rep(b.rep) { }
-    Value::POD val;
+    Symbol val;
     int64_t num;
     uint64_t rep;
 };
 
 struct AggregateAtomRange {
     void init(AggregateFunction fun, DisjunctiveBounds &&bounds);
-    void accumulate(FWValVec tuple, bool fact, bool remove);
+    void accumulate(SymVec const &tuple, bool fact, bool remove);
     Interval range() const;
     PlainBounds plainBounds();
     bool satisfiable() const { return bounds.intersects(range()); }
     bool fact() const { return bounds.contains(range()); }
     int64_t &intMin() { return min.num; }
     int64_t &intMax() { return max.num; }
-    Value::POD &valMin() { return min.val; }
-    Value::POD &valMax() { return max.val; }
+    Symbol &valMin() { return min.val; }
+    Symbol &valMax() { return max.val; }
     int64_t const &intMin() const { return min.num; }
     int64_t const &intMax() const { return max.num; }
-    Value::POD const &valMin() const { return min.val; }
-    Value::POD const &valMax() const { return max.val; }
+    Symbol const &valMin() const { return min.val; }
+    Symbol const &valMax() const { return max.val; }
 
     AggregateFunction fun = AggregateFunction::COUNT;
     DisjunctiveBounds bounds;
@@ -243,7 +243,7 @@ private:
     class ClauseOffset;
 
 public:
-    void accumulate(DomainData &data, FWValVec tuple, LitVec &lits, bool &inserted, bool &fact, bool &remove);
+    void accumulate(DomainData &data, SymVec tuple, LitVec &lits, bool &inserted, bool &fact, bool &remove);
     // NOTE: expensive (linear)
     BodyAggregateElements elems() const;
 
@@ -265,18 +265,18 @@ public:
     BodyAggregateAtom &operator=(BodyAggregateAtom const &) = delete;
     ~BodyAggregateAtom() noexcept;
     // {{{2 Atom interface
-    BodyAggregateAtom(Value value) : data_(gringo_make_unique<Data>(value)) { }
+    BodyAggregateAtom(Symbol value) : data_(gringo_make_unique<Data>(value)) { }
     bool fact() const { return data_->fact && (data_->monotone || !data_->recursive); }
     bool defined() const { return data_->generation > 0; }
     unsigned generation() const { assert(defined()); return data_->generation - 1; }
     void setGeneration(unsigned x) { data_->generation = x + 1; }
     void markDelayed() { data_->delayed = 1; }
     bool delayed() const { return data_->delayed; }
-    operator Value const &() const { return data_->value; }
+    operator Symbol const &() const { return data_->value; }
     // }}}2
     void setRecursive(bool recursive) { data_->recursive = recursive; }
     void init(AggregateFunction fun, DisjunctiveBounds &&bounds, bool monotone);
-    void accumulate(DomainData &data, Location const &loc, ValVec const &tuple, LitVec &cond);
+    void accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &cond);
     Interval range() const { return data_->range.range(); }
     AggregateFunction fun() const { return data_->range.fun; }
     DisjunctiveBounds const &bounds() const { return data_->range.bounds; }
@@ -294,7 +294,7 @@ public:
 
 private:
     struct Data {
-        Data(Value value)
+        Data(Symbol value)
         : value(value)
         , monotone(false)
         , recursive(true)
@@ -304,7 +304,7 @@ private:
         , delayed(false)
         , translated(false) { }
 
-        Value value;
+        Symbol value;
         BodyAggregateElements_ elems;
         AggregateAtomRange range;
         // This is the literal resulting from the translation of the aggregate.
@@ -330,8 +330,8 @@ private:
 
 class AssignmentAggregateData {
 public:
-    using Values = std::vector<Value>;
-    AssignmentAggregateData(Value value, AggregateFunction fun)
+    using Values = std::vector<Symbol>;
+    AssignmentAggregateData(Symbol value, AggregateFunction fun)
     : value_(value)
     , fun_(fun) { values_.emplace_back(getNeutral(fun)); }
     AssignmentAggregateData(AssignmentAggregateData &&) = default;
@@ -339,8 +339,8 @@ public:
     AssignmentAggregateData &operator=(AssignmentAggregateData &&) = default;
     AssignmentAggregateData &operator=(AssignmentAggregateData const &) = default;
     ~AssignmentAggregateData() noexcept = default;
-    operator Value const &() const { return value_; }
-    void accumulate(DomainData &data, Location const &loc, ValVec const &tuple, LitVec &cond);
+    operator Symbol const &() const { return value_; }
+    void accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &cond);
     BodyAggregateElements const &elems() const { return elems_; }
     void setEnqueued(bool enqueued) { enqueued_ = enqueued; }
     bool enqueued() const { return enqueued_; }
@@ -350,7 +350,7 @@ public:
     Interval range() const;
 
 private:
-    Value value_;
+    Symbol value_;
     BodyAggregateElements elems_;
     Values values_;
     AggregateFunction fun_;
@@ -365,7 +365,7 @@ public:
     AssignmentAggregateAtom &operator=(AssignmentAggregateAtom const &) = default;
     ~AssignmentAggregateAtom() noexcept = default;
     // {{{2 Atom interface
-    AssignmentAggregateAtom(Value value)
+    AssignmentAggregateAtom(Symbol value)
     : value_(value)
     , fact_(false)
     , delayed_(false)
@@ -377,7 +377,7 @@ public:
     void setGeneration(unsigned x) { generation_ = x + 1; }
     void markDelayed() { delayed_ = 1; }
     bool delayed() const { return delayed_; }
-    operator Value const &() const { return value_; }
+    operator Symbol const &() const { return value_; }
     // }}}2
     void setFact(bool fact) { fact_ = fact; }
     void setRecursive(bool recursive) { recursive_ = recursive; }
@@ -391,8 +391,8 @@ public:
     void setTranslated() { translated_ = true; }
 
 private:
-    Value value_;
-    Value bound_;
+    Symbol value_;
+    Symbol bound_;
     LiteralId lit_;
     // The generation is 0 if undefined > 1 if defined.
     Id_t generation_ = 0;
@@ -407,7 +407,7 @@ private:
 
 class ConjunctionElement {
 public:
-    ConjunctionElement(Value value)
+    ConjunctionElement(Symbol value)
     : value_(value) { }
     ConjunctionElement(ConjunctionElement &&) = default;
     ConjunctionElement(ConjunctionElement const &) = default;
@@ -415,7 +415,7 @@ public:
     ConjunctionElement &operator=(ConjunctionElement const &) = default;
     ~ConjunctionElement() noexcept = default;
 
-    operator Value const & () const { return value_; }
+    operator Symbol const & () const { return value_; }
     bool needsSemicolon() const;
     bool isSimple(DomainData &data) const;
     void print(PrintPlain out) const;
@@ -425,7 +425,7 @@ public:
     Formula const &bodies() const { return bodies_; }
 
 private:
-    Value value_;
+    Symbol value_;
     Formula heads_;
     Formula bodies_;
 };
@@ -437,14 +437,14 @@ inline PrintPlain &operator<<(PrintPlain &out, ConjunctionElement const &x) {
 
 class ConjunctionAtom {
 public:
-    using Elements = UniqueVec<ConjunctionElement, std::hash<Value>, std::equal_to<Value>>;
+    using Elements = UniqueVec<ConjunctionElement, std::hash<Symbol>, std::equal_to<Symbol>>;
     ConjunctionAtom(ConjunctionAtom &&) = default;
     ConjunctionAtom(ConjunctionAtom const &) = default;
     ConjunctionAtom &operator=(ConjunctionAtom &&) = default;
     ConjunctionAtom &operator=(ConjunctionAtom const &) = default;
     ~ConjunctionAtom() noexcept = default;
     // {{{2 Atom interface
-    ConjunctionAtom(Value value)
+    ConjunctionAtom(Symbol value)
     : value_(value)
     , condRecursive_(true)
     , headRecursive_(true)
@@ -458,7 +458,7 @@ public:
     void setGeneration(unsigned x) { generation_ = x + 1; }
     void markDelayed() { delayed_ = 1; }
     bool delayed() const { return delayed_; }
-    operator Value const &() const { return value_; }
+    operator Symbol const &() const { return value_; }
     // }}}2
     LiteralId lit() const { return lit_; }
     void setLit(LiteralId lit) { lit_ = lit; }
@@ -466,8 +466,8 @@ public:
     Elements const &elems() const { return elems_; }
     void setEnqueued(bool enqueued) { enqueued_ = enqueued; }
     bool enqueued() const { return enqueued_; }
-    void accumulateCond(DomainData &data, Value elem, LitVec &cond);
-    void accumulateHead(DomainData &data, Value elem, LitVec &cond);
+    void accumulateCond(DomainData &data, Symbol elem, LitVec &cond);
+    void accumulateHead(DomainData &data, Symbol elem, LitVec &cond);
     void init(bool headRecursive, bool condRecursive);
     bool recursive() const;
     bool nonmonotone() const;
@@ -476,7 +476,7 @@ public:
 
 private:
     Elements elems_;
-    Value value_;
+    Symbol value_;
     LiteralId lit_;
     // The generation is 0 if undefined > 1 if defined.
     Id_t generation_ = 0;
@@ -509,7 +509,7 @@ private:
 };
 
 using DisjointElemVec = std::vector<DisjointElement>;
-using DisjointElemSet = UniqueVec<std::pair<FWValVec, DisjointElemVec>, HashFirst<FWValVec>, EqualToFirst<FWValVec>>;
+using DisjointElemSet = UniqueVec<std::pair<SymVec, DisjointElemVec>, HashFirst<SymVec, value_hash<SymVec>>, EqualToFirst<SymVec>>;
 
 class DisjointAtom {
 public:
@@ -519,7 +519,7 @@ public:
     DisjointAtom &operator=(DisjointAtom const &) = default;
     ~DisjointAtom() noexcept = default;
     // {{{2 Atom interface
-    DisjointAtom(Value value)
+    DisjointAtom(Symbol value)
     : value_(value)
     , generation_(0)
     , delayed_(false)
@@ -532,13 +532,13 @@ public:
     void setGeneration(unsigned x) { generation_ = x + 1; }
     void markDelayed() { delayed_ = 1; }
     bool delayed() const { return delayed_; }
-    operator Value const &() const { return value_; }
+    operator Symbol const &() const { return value_; }
     // }}}2
     void init(bool recursive) { recursive_ = recursive; }
     bool recursive() const { return recursive_; }
     void setEnqueued(bool enqueued) { enqueued_ = enqueued; }
     bool enqueued() const { return enqueued_; }
-    void accumulate(DomainData &data, ValVec const &tuple, CSPGroundAdd &&value, int fixed, LitVec const &lits);
+    void accumulate(DomainData &data, SymVec const &tuple, CSPGroundAdd &&value, int fixed, LitVec const &lits);
     bool translated() const { return translated_; }
     void setTranslated() { translated_ = true; }
     LiteralId lit() const { return lit_; }
@@ -547,7 +547,7 @@ public:
     bool translate(DomainData &data, Translator &x);
 
 private:
-    Value value_;
+    Symbol value_;
     DisjointElemSet elems_;
     LiteralId lit_;
     Id_t generation_ = 0;
@@ -561,7 +561,7 @@ private:
 
 class DisjunctionElement {
 public:
-    DisjunctionElement(Value value)
+    DisjunctionElement(Symbol value)
     : value_(value) { }
     DisjunctionElement(DisjunctionElement &&) = default;
     DisjunctionElement(DisjunctionElement const &) = default;
@@ -569,7 +569,7 @@ public:
     DisjunctionElement &operator=(DisjunctionElement const &) = default;
     ~DisjunctionElement() noexcept = default;
 
-    operator Value const & () const { return value_; }
+    operator Symbol const & () const { return value_; }
     void print(PrintPlain out) const;
     void accumulateCond(DomainData &data, LitVec &cond, Id_t &fact);
     void accumulateHead(DomainData &data, LitVec &cond, Id_t &fact);
@@ -581,7 +581,7 @@ public:
     Formula const &bodies() const { return bodies_; }
 
 private:
-    Value value_;
+    Symbol value_;
     Formula heads_;
     Formula bodies_;
 };
@@ -593,14 +593,14 @@ inline PrintPlain &operator<<(PrintPlain &out, DisjunctionElement const &x) {
 
 class DisjunctionAtom {
 public:
-    using Elements = UniqueVec<DisjunctionElement, std::hash<Value>, std::equal_to<Value>>;
+    using Elements = UniqueVec<DisjunctionElement, std::hash<Symbol>, std::equal_to<Symbol>>;
     DisjunctionAtom(DisjunctionAtom &&) = default;
     DisjunctionAtom(DisjunctionAtom const &) = default;
     DisjunctionAtom &operator=(DisjunctionAtom &&) = default;
     DisjunctionAtom &operator=(DisjunctionAtom const &) = default;
     ~DisjunctionAtom() noexcept = default;
     // {{{2 Atom interface
-    DisjunctionAtom(Value value)
+    DisjunctionAtom(Symbol value)
     : value_(value)
     , bodyFact_(false)
     , recursive_(true)
@@ -618,7 +618,7 @@ public:
     void setGeneration(unsigned x) { generation_ = x + 1; }
     void markDelayed() { delayed_ = 1; }
     bool delayed() const { return delayed_; }
-    operator Value const &() const { return value_; }
+    operator Symbol const &() const { return value_; }
     // }}}2
     void setFact(bool fact) { bodyFact_ = fact; }
     bool headFact() const { return headFact_ > 0 && !recursive_; }
@@ -627,8 +627,8 @@ public:
     Elements const &elems() const { return elems_; }
     void setEnqueued(bool enqueued) { enqueued_ = enqueued; }
     bool enqueued() const { return enqueued_; }
-    void accumulateCond(DomainData &data, Value elem, LitVec &cond);
-    void accumulateHead(DomainData &data, Value elem, LitVec &cond);
+    void accumulateCond(DomainData &data, Symbol elem, LitVec &cond);
+    void accumulateHead(DomainData &data, Symbol elem, LitVec &cond);
     void init(bool recursive) { recursive_ = recursive; }
     bool recursive() const { return recursive_; }
     void simplify(bool &headFact);
@@ -637,7 +637,7 @@ public:
 
 private:
     Elements elems_;
-    Value value_;
+    Symbol value_;
     LiteralId lit_;
     // The generation is 0 if undefined > 1 if defined.
     Id_t generation_ = 0;
@@ -659,7 +659,7 @@ public:
     HeadAggregateAtom &operator=(HeadAggregateAtom const &) = default;
     ~HeadAggregateAtom() noexcept = default;
     // {{{2 Atom interface
-    HeadAggregateAtom(Value value)
+    HeadAggregateAtom(Symbol value)
     : value_(value)
     , recursive_(true)
     , fact_(false)
@@ -675,7 +675,7 @@ public:
     void setGeneration(unsigned x) { generation_ = x + 1; }
     void markDelayed() { delayed_ = 1; }
     bool delayed() const { return delayed_; }
-    operator Value const &() const { return value_; }
+    operator Symbol const &() const { return value_; }
     // }}}2
     // This function indicates that the bounds of the aggregate are tivially satisfied.
     // (There is not really a need for it at the moment because, unlike with disjunctions,
@@ -683,7 +683,7 @@ public:
     bool headFact() const { return fact_ && !recursive_; }
     void setRecursive(bool recursive) { recursive_ = recursive; }
     void init(AggregateFunction fun, DisjunctiveBounds &&bounds);
-    void accumulate(DomainData &data, Location const &loc, ValVec const &tuple, LiteralId head, LitVec &cond);
+    void accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LiteralId head, LitVec &cond);
     Interval range() const { return range_.range(); }
     AggregateFunction fun() const { return range_.fun; }
     DisjunctiveBounds const &bounds() const { return range_.bounds; }
@@ -699,7 +699,7 @@ public:
     LiteralId lit() const { return lit_; }
     void setLit(LiteralId lit) { lit_ = lit; }
 private:
-    Value value_;
+    Symbol value_;
     LiteralId lit_;
     HeadAggregateElements elems_;
     AggregateAtomRange range_;
@@ -718,13 +718,13 @@ private:
 
 class PredicateDomain : public AbstractDomain<PredicateAtom> {
 public:
-    explicit PredicateDomain(FWSignature sig)
+    explicit PredicateDomain(Sig sig)
     : sig_(sig) { }
 
     using AbstractDomain<PredicateAtom>::define;
     // Defines (adds) an atom setting its generation and fact status.
     // Returns a tuple indicating its postion, wheather it was inserted, and wheather it was a fact before.
-    std::tuple<Iterator, bool, bool> define(Value x, bool fact) {
+    std::tuple<Iterator, bool, bool> define(Symbol x, bool fact) {
         auto ret = define(x);
         bool wasfact = !ret.second && ret.first->fact();
         if (fact) { ret.first->setFact(true); }
@@ -765,11 +765,11 @@ public:
         showOffset_ = 0;
     }
 
-    FWSignature const &sig() const {
+    Sig const &sig() const {
         return sig_;
     }
 
-    operator FWSignature const &() const {
+    operator Sig const &() const {
         return sig_;
     }
 
@@ -811,7 +811,7 @@ public:
                     }
                 }
             }
-            //std::cerr << "  mapping " << static_cast<Value>(atom) << " from " << oldOffset << " to " << newOffset << std::endl;
+            //std::cerr << "  mapping " << static_cast<Symbol>(atom) << " from " << oldOffset << " to " << newOffset << std::endl;
             map.add(oldOffset, newOffset);
             ++oldOffset;
             ++newOffset;
@@ -820,7 +820,7 @@ public:
         /*
         std::cerr << "remaining atoms: ";
         for (auto &atom : atoms_) {
-            std::cerr << " " << static_cast<Value>(atom) << "=" << (atoms_.find(static_cast<Value>(atom)) != atoms_.end()) << "/" << atom.generation() << "/" << atom.defined() << "/" << atom.delayed();
+            std::cerr << " " << static_cast<Symbol>(atom) << "=" << (atoms_.find(static_cast<Symbol>(atom)) != atoms_.end()) << "/" << atom.generation() << "/" << atom.defined() << "/" << atom.delayed();
         }
         std::cerr << std::endl;
         */
@@ -833,25 +833,25 @@ public:
         return {facts, deleted};
     }
 private:
-    FWSignature sig_;
+    Sig sig_;
     SizeType incOffset_ = 0;
     SizeType showOffset_ = 0;
 };
 using UPredDom = std::unique_ptr<PredicateDomain>;
 
-struct UPredDomHash : std::hash<FWSignature> {
-    using std::hash<FWSignature>::operator();
+struct UPredDomHash : std::hash<Sig> {
+    using std::hash<Sig>::operator();
     size_t operator()(UPredDom const &dom) const {
-        return std::hash<FWSignature>::operator()(*dom);
+        return std::hash<Sig>::operator()(*dom);
     }
 };
 
-struct UPredDomEqualTo : private std::equal_to<FWSignature> {
-    bool operator()(UPredDom const &a, FWSignature const &b) const {
-        return std::equal_to<FWSignature>::operator()(*a, b);
+struct UPredDomEqualTo : private std::equal_to<Sig> {
+    bool operator()(UPredDom const &a, Sig const &b) const {
+        return std::equal_to<Sig>::operator()(*a, b);
     }
     bool operator()(UPredDom const &a, UPredDom const &b) const {
-        return std::equal_to<FWSignature>::operator()(*a, *b);
+        return std::equal_to<Sig>::operator()(*a, *b);
     }
 };
 
@@ -875,9 +875,9 @@ private:
 
 class AssignmentAggregateDomain : public AbstractDomain<AssignmentAggregateAtom> {
 private:
-    using Data = UniqueVec<AssignmentAggregateData, HashKey<Value>, EqualToKey<Value>>;
+    using Data = UniqueVec<AssignmentAggregateData, HashKey<Symbol>, EqualToKey<Symbol>>;
 public:
-    Id_t data(Value value, AggregateFunction fun) {
+    Id_t data(Symbol value, AggregateFunction fun) {
         auto ret = data_.findPush(value, value, fun);
         return data_.offset(ret.first);
     }
@@ -982,7 +982,7 @@ class CSPLiteral : public Literal {
 public:
     CSPLiteral(DomainData &data, LiteralId id);
     CSPGroundLit const &atom() const;
-    bool isBound(Value &value, bool negate) const override;
+    bool isBound(Symbol &value, bool negate) const override;
     void updateBound(std::vector<CSPBound> &bounds, bool negate) const override;
     void printPlain(PrintPlain out) const override;
     bool isIncomplete() const override;
@@ -1085,7 +1085,7 @@ public:
     Lit_t uid() const override;
     std::pair<LiteralId,bool>delayedLit() override;
     DisjunctionDomain &dom() const;
-    bool isBound(Value &value, bool negate) const override;
+    bool isBound(Symbol &value, bool negate) const override;
     void updateBound(std::vector<CSPBound> &bound, bool negate) const override;
     virtual ~DisjunctionLiteral() noexcept;
 
@@ -1119,6 +1119,7 @@ private:
 // {{{1 declaration of DomainData
 
 class DomainData : private Gringo::TheoryData {
+    using Tuples = UniqueVecVec<2, Symbol>;
     using Clauses = UniqueVecVec<2, LiteralId>;
     using Formulas = UniqueVecVec<2, std::pair<Id_t,Id_t>, value_hash<std::pair<Id_t,Id_t>>>;
     using CSPAtoms = UniqueVec<CSPGroundLit, value_hash<CSPGroundLit>>;
@@ -1129,7 +1130,7 @@ public:
     DomainData& operator=(DomainData&&) = delete;
     ~DomainData() noexcept = default;
 
-    PredicateDomain &add(FWSignature const &sig) {
+    PredicateDomain &add(Sig const &sig) {
         auto it(predDomains_.find(sig));
         if (it == predDomains_.end()) {
             it = predDomains_.push(gringo_make_unique<PredicateDomain>(sig)).first;
@@ -1176,6 +1177,13 @@ public:
     }
     Gringo::Output::TheoryData &theory() { return theory_; }
     Gringo::Output::TheoryData const &theory() const { return theory_; }
+    TupleId tuple(SymVec const &cond) {
+        return {tuples_.push(cond).first, static_cast<Id_t>(cond.size())};
+    }
+    IteratorRange<SymVec::const_iterator> tuple(TupleId pos) {
+        auto it = tuples_.at(pos.offset, pos.size);
+        return {it, it + pos.size};
+    }
     std::pair<Id_t,Id_t> clause(LitVec &cond) {
         sort_unique(cond);
         return {clauses_.push(cond).first, cond.size()};
@@ -1239,6 +1247,7 @@ private:
     UDomVec domains_;
     Potassco::Atom_t atoms_ = 0;
     Clauses clauses_;
+    Tuples tuples_;
     Formulas formulas_;
     CSPAtoms cspAtoms_;
     LiteralId trueLit_;

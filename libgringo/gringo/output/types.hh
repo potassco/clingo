@@ -44,8 +44,8 @@ using Formula = std::vector<ClauseId>;
 using CSPBound = std::pair<int, int>;
 using AssignmentLookup = std::function<std::pair<bool, Potassco::Value_t>(unsigned)>; // (isExternal, truthValue)
 using IsTrueLookup = std::function<bool(unsigned)>;
-using OutputPredicates = std::vector<std::tuple<Location, FWSignature, bool>>;
-using CoefVarVec = std::vector<std::pair<int, Value>>;
+using OutputPredicates = std::vector<std::tuple<Location, Sig, bool>>;
+using CoefVarVec = std::vector<std::pair<int, Symbol>>;
 
 struct UPredDomHash;
 struct UPredDomEqualTo;

@@ -25,6 +25,7 @@
 #include <cassert>
 #include <algorithm>
 #include <stdexcept>
+#include <array>
 #include <gringo/primes.hh>
 #include <gringo/utility.hh>
 
@@ -234,7 +235,7 @@ struct CallHash {
 
 struct EqualTo {
     template <typename T, typename U>
-    size_t operator()(T const &a, T const &b) const {
+    size_t operator()(T const &a, U const &b) const {
         return a == b;
     }
 };

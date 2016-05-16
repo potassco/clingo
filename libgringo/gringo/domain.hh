@@ -64,6 +64,14 @@ using SValVec = std::vector<Term::SVal>;
 template <class Domain>
 class BindIndexEntry {
 public:
+    struct Hash {
+        size_t operator()(BindIndexEntry const &e) const {
+            return hash_range(e.data_, reinterpret_cast<uint64_t *>(e.begin_));
+        };
+        size_t operator()(SymVec const &e) const {
+            return hash_range(e.begin(), e.end());
+        };
+    };
     using SizeType  = typename Domain::SizeType;
     using DataVec = std::vector<uint64_t>;
     BindIndexEntry(SymVec const &bound)
@@ -71,7 +79,7 @@ public:
     , reserved_(1)
     , data_(nullptr)
     , begin_(nullptr) {
-        data_ = malloc(sizeof(uint64_t) * bound.size() + sizeof(SizeType));
+        data_ = reinterpret_cast<uint64_t*>(malloc(sizeof(uint64_t) * bound.size() + sizeof(SizeType)));
         if (!data_) { throw std::bad_alloc(); }
         begin_ = reinterpret_cast<uint32_t*>(data_ + bound.size());
         uint64_t *it = data_;
@@ -96,7 +104,7 @@ public:
         data_[end_++] = x;
     }
     size_t hash() const {
-        return hash_range(data_, reinterpret_cast<uint64_t const*>(begin_));
+        return hash_range(data_, reinterpret_cast<uint64_t *>(begin_));
     }
     bool operator==(BindIndexEntry const &x) const {
         return std::equal(x.data_, reinterpret_cast<uint64_t const *>(x.begin_), data_, [](uint64_t a, uint64_t b) { return a == b; });
@@ -107,8 +115,8 @@ public:
 private:
     Id_t end_;
     Id_t reserved_;
-    SizeType* data_;
-    uint64_t* begin_;
+    uint64_t* data_;
+    SizeType* begin_;
 };
 
 // An index for a positive literal occurrence
@@ -120,7 +128,7 @@ public:
     using OffsetVec = std::vector<SizeType>;
     using Iterator  = typename OffsetVec::iterator;
     using Entry     = BindIndexEntry<Domain>;
-    using Index     = UniqueVec<Entry, CallHash, EqualTo>;
+    using Index     = UniqueVec<Entry, typename Entry::Hash, EqualTo>;
 
     struct OffsetRange {
         bool next(Id_t &offset, Term const &repr, BindIndex &idx) {

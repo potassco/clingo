@@ -35,14 +35,14 @@ void printLit(PrintPlain out, LiteralId lit) {
     call(out.domain, lit, &Literal::printPlain, out);
 }
 
-void printCond(PrintPlain out, FWValVec tuple, Formula::value_type cond) {
+void printCond(PrintPlain out, SymVec const &tuple, Formula::value_type cond) {
     print_comma(out, tuple, ",");
     out << ":";
     auto rng = out.domain.clause(cond.first, cond.second);
     print_comma(out, rng, ",", [](PrintPlain out, LiteralId lit) { printLit(out, lit); });
 }
 
-void printCond(PrintPlain out, FWValVec tuple, HeadFormula::value_type const &cond) {
+void printCond(PrintPlain out, SymVec const &tuple, HeadFormula::value_type const &cond) {
     print_comma(out, tuple, ",");
     out << ":";
     if (cond.first.valid()) { printLit(out, cond.first); }
@@ -87,7 +87,7 @@ int clamp(int64_t x) {
     return int(x);
 }
 
-bool defined(ValVec const &tuple, AggregateFunction fun, Location const &loc) {
+bool defined(SymVec const &tuple, AggregateFunction fun, Location const &loc) {
     if (tuple.empty()) {
         if (fun == AggregateFunction::COUNT) { return true; }
         else {
@@ -96,14 +96,14 @@ bool defined(ValVec const &tuple, AggregateFunction fun, Location const &loc) {
             return false;
         }
     }
-    if (tuple.front().type() == Value::SPECIAL) { return true; }
+    if (tuple.front().type() == SymbolType::Special) { return true; }
     switch (fun) {
         case AggregateFunction::MIN:
         case AggregateFunction::MAX:
         case AggregateFunction::COUNT: { return true; }
         case AggregateFunction::SUM:
         case AggregateFunction::SUMP: {
-            if (tuple.front().type() == Value::NUM) { return true; }
+            if (tuple.front().type() == SymbolType::Num) { return true; }
             else {
                 std::ostringstream s;
                 print_comma(s, tuple, ",");
@@ -118,7 +118,7 @@ bool defined(ValVec const &tuple, AggregateFunction fun, Location const &loc) {
 }
 
 
-bool neutral(ValVec const &tuple, AggregateFunction fun, Location const &loc) {
+bool neutral(SymVec const &tuple, AggregateFunction fun, Location const &loc) {
     if (tuple.empty()) {
         if (fun == AggregateFunction::COUNT) { return false; }
         else {
@@ -127,16 +127,16 @@ bool neutral(ValVec const &tuple, AggregateFunction fun, Location const &loc) {
             return true;
         }
     }
-    else if (tuple.front().type() != Value::SPECIAL) {
+    else if (tuple.front().type() != SymbolType::Special) {
         bool ret = true;
         switch (fun) {
-            case AggregateFunction::MIN:   { return tuple.front() == Value::createSup(); }
-            case AggregateFunction::MAX:   { return tuple.front() == Value::createInf(); }
+            case AggregateFunction::MIN:   { return tuple.front() == Symbol::createSup(); }
+            case AggregateFunction::MAX:   { return tuple.front() == Symbol::createInf(); }
             case AggregateFunction::COUNT: { return false; }
-            case AggregateFunction::SUM:   { ret = tuple.front().type() != Value::NUM || tuple.front() == Value::createNum(0); break; }
-            case AggregateFunction::SUMP:  { ret = tuple.front().type() != Value::NUM || tuple.front() <= Value::createNum(0); break; }
+            case AggregateFunction::SUM:   { ret = tuple.front().type() != SymbolType::Num || tuple.front() == Symbol::createNum(0); break; }
+            case AggregateFunction::SUMP:  { ret = tuple.front().type() != SymbolType::Num || tuple.front() <= Symbol::createNum(0); break; }
         }
-        if (ret && tuple.front() != Value::createNum(0)) {
+        if (ret && tuple.front() != Symbol::createNum(0)) {
             std::ostringstream s;
             print_comma(s, tuple, ",");
             GRINGO_REPORT(W_OPERATION_UNDEFINED)
@@ -148,28 +148,28 @@ bool neutral(ValVec const &tuple, AggregateFunction fun, Location const &loc) {
     return true;
 }
 
-int toInt(IntervalSet<Value>::LBound const &x) {
-    if (x.bound.type() == Value::NUM) {
+int toInt(IntervalSet<Symbol>::LBound const &x) {
+    if (x.bound.type() == SymbolType::Num) {
         return x.inclusive ? x.bound.num() : x.bound.num() + 1;
     }
     else {
-        if (x.bound < Value::createNum(0)) { return std::numeric_limits<int>::min(); }
+        if (x.bound < Symbol::createNum(0)) { return std::numeric_limits<int>::min(); }
         else             { return std::numeric_limits<int>::max(); }
     }
 }
 
-int toInt(IntervalSet<Value>::RBound const &x) {
-    if (x.bound.type() == Value::NUM) {
+int toInt(IntervalSet<Symbol>::RBound const &x) {
+    if (x.bound.type() == SymbolType::Num) {
         return x.inclusive ? x.bound.num() : x.bound.num() - 1;
     }
     else {
-        if (x.bound < Value::createNum(0)) { return std::numeric_limits<int>::min(); }
+        if (x.bound < Symbol::createNum(0)) { return std::numeric_limits<int>::min(); }
         else             { return std::numeric_limits<int>::max(); }
     }
 }
 
-Value getWeight(AggregateFunction fun, FWValVec const &x) {
-    return fun == AggregateFunction::COUNT ? Value::createNum(1) : x.front();
+Symbol getWeight(AggregateFunction fun, SymVec const &x) {
+    return fun == AggregateFunction::COUNT ? Symbol::createNum(1) : x.front();
 }
 
 // {{{1 definition of AggregateAtomRange
@@ -177,13 +177,13 @@ Value getWeight(AggregateFunction fun, FWValVec const &x) {
 void AggregateAtomRange::init(AggregateFunction fun, DisjunctiveBounds &&bounds) {
     switch (fun) {
         case AggregateFunction::MIN: {
-            valMin() = Value::createSup();
-            valMax() = Value::createSup();
+            valMin() = Symbol::createSup();
+            valMax() = Symbol::createSup();
             break;
         }
         case AggregateFunction::MAX: {
-            valMin() = Value::createInf();
-            valMax() = Value::createInf();
+            valMin() = Symbol::createInf();
+            valMax() = Symbol::createInf();
             break;
         }
         default: {
@@ -198,7 +198,7 @@ void AggregateAtomRange::init(AggregateFunction fun, DisjunctiveBounds &&bounds)
 
 Interval AggregateAtomRange::range() const {
     if (fun != AggregateFunction::MIN && fun != AggregateFunction::MAX) {
-        return {{Value::createNum(clamp(intMin())), true}, {Value::createNum(clamp(intMax())), true}};
+        return {{Symbol::createNum(clamp(intMin())), true}, {Symbol::createNum(clamp(intMax())), true}};
     }
     else { return {{valMin(), true}, {valMax(), true}}; }
 }
@@ -220,15 +220,15 @@ PlainBounds AggregateAtomRange::plainBounds() {
             // (c)
             else {
                 assert(cBounds.back().first == Relation::LT || cBounds.back().first == Relation::LEQ);
-                Value left = cBounds.back().second;
+                Symbol left = cBounds.back().second;
                 if (cBounds.back().first == Relation::LEQ) {
-                    assert(left.type() == Value::NUM);
-                    left = Value::createNum(left.num() + 1);
+                    assert(left.type() == SymbolType::Num);
+                    left = Symbol::createNum(left.num() + 1);
                 }
-                Value right = part.left.bound;
+                Symbol right = part.left.bound;
                 if (part.left.inclusive) {
-                    assert(right.type() == Value::NUM);
-                    right = Value::createNum(right.num() - 1);
+                    assert(right.type() == SymbolType::Num);
+                    right = Symbol::createNum(right.num() - 1);
                 }
                 cBounds.back() = {Relation::NEQ, left};
                 if (left != right) {
@@ -246,18 +246,18 @@ PlainBounds AggregateAtomRange::plainBounds() {
 
 }
 
-void AggregateAtomRange::accumulate(FWValVec tuple, bool fact, bool remove) {
+void AggregateAtomRange::accumulate(SymVec const &tuple, bool fact, bool remove) {
     switch (fun) {
         case AggregateFunction::MIN: {
-            Value val = tuple.front();
-            if (fact) { valMax() = std::min<Value>(valMax(), val); }
-            valMin() = std::min<Value>(valMin(), val);
+            Symbol val = tuple.front();
+            if (fact) { valMax() = std::min<Symbol>(valMax(), val); }
+            valMin() = std::min<Symbol>(valMin(), val);
             break;
         }
         case AggregateFunction::MAX: {
-            Value val = tuple.front();
-            if (fact) { valMin() = std::max<Value>(valMin(), val); }
-            valMax() = std::max<Value>(valMax(), val);
+            Symbol val = tuple.front();
+            if (fact) { valMin() = std::max<Symbol>(valMin(), val); }
+            valMax() = std::max<Symbol>(valMax(), val);
             break;
         }
         default: {
@@ -337,7 +337,7 @@ void BodyAggregateElements_::visitClause(F f) {
     }
 }
 
-void BodyAggregateElements_::accumulate(DomainData &data, FWValVec tuple, LitVec &lits, bool &inserted, bool &fact, bool &remove) {
+void BodyAggregateElements_::accumulate(DomainData &data, SymVec const &tuple, LitVec &lits, bool &inserted, bool &fact, bool &remove) {
     if (tuples_.reserveNeedsRebuild(tuples_.size() + 1)) {
         // remap tuple offsets if rebuild is necessary
         HashSet<uint64_t> tuples(tuples_.size() + 1, tuples_.reserved());
@@ -428,28 +428,28 @@ void AssignmentAggregateData::accumulate(DomainData &data, Location const &loc, 
     if (!ret.second && !remove) { return; }
     switch (fun_) {
         case AggregateFunction::MIN: {
-            Value val = tuple.front();
+            Symbol val = tuple.front();
             if (fact) {
-                values_.erase(std::remove_if(values_.begin() + 1, values_.end(), [val](Value x) { return x >= val; }), values_.end());
+                values_.erase(std::remove_if(values_.begin() + 1, values_.end(), [val](Symbol x) { return x >= val; }), values_.end());
                 if (values_.front() > val) { values_.front() = val; }
             }
             else if (values_.front() > val) { values_.push_back(val); }
             break;
         }
         case AggregateFunction::MAX: {
-            Value val = tuple.front();
+            Symbol val = tuple.front();
             if (fact) {
-                values_.erase(std::remove_if(values_.begin() + 1, values_.end(), [val](Value x) { return x <= val; }), values_.end());
+                values_.erase(std::remove_if(values_.begin() + 1, values_.end(), [val](Symbol x) { return x <= val; }), values_.end());
                 if (values_.front() < val) { values_.front() = val; }
             }
             else if (values_.front() < val) { values_.push_back(val); }
             break;
         }
         default: {
-            Value val = fun_ == AggregateFunction::COUNT ? Value::createNum(1) : tuple.front();
+            Symbol val = fun_ == AggregateFunction::COUNT ? Symbol::createNum(1) : tuple.front();
             if (fact) {
                 if (remove) { values_.erase(std::find(values_.begin() + 1, values_.end(), val)); }
-                values_.front() = Value::createNum(values_.front().num() + val.num());
+                values_.front() = Symbol::createNum(values_.front().num() + val.num());
             }
             else { values_.push_back(val); }
             break;
@@ -466,11 +466,11 @@ AssignmentAggregateData::Values AssignmentAggregateData::values() const {
             return values;
         }
         default: {
-            UniqueVec<Value> values;
+            UniqueVec<Symbol> values;
             auto it = values_.begin();
             values.push(*it++);
             for (auto ie = values_.end(); it != ie; ++it) {
-                for (Id_t jt = 0, je = values.size(); jt != je; ++jt) { values.push(Value::createNum(values[jt].num() + it->num())); }
+                for (Id_t jt = 0, je = values.size(); jt != je; ++jt) { values.push(Symbol::createNum(values[jt].num() + it->num())); }
             }
             return {values.begin(), values.end()};
         }
@@ -481,8 +481,8 @@ Interval AssignmentAggregateData::range() const {
     switch (fun_) {
         case AggregateFunction::MAX:
         case AggregateFunction::MIN: {
-            Value valMin = values_.front();
-            Value valMax = valMin;
+            Symbol valMin = values_.front();
+            Symbol valMax = valMin;
             for (auto it = values_.begin() + 1, ie = values_.end(); it != ie; ++it) {
                 valMin = std::min(valMin, *it);
                 valMax = std::max(valMax, *it);
@@ -498,7 +498,7 @@ Interval AssignmentAggregateData::range() const {
                 else         { intMax+= val; }
             }
             // NOTE: nonsense, proper handling is not achieved like this...
-            return {{Value::createNum(clamp(intMin)), true}, {Value::createNum(clamp(intMax)), true}};
+            return {{Symbol::createNum(clamp(intMin)), true}, {Symbol::createNum(clamp(intMax)), true}};
         }
     }
 }
@@ -588,11 +588,11 @@ void ConjunctionElement::accumulateHead(DomainData &data, LitVec &lits, Id_t &bl
     }
 }
 
-void ConjunctionAtom::accumulateCond(DomainData &data, Value elem, LitVec &lits) {
+void ConjunctionAtom::accumulateCond(DomainData &data, Symbol elem, LitVec &lits) {
     elems_.findPush(elem, elem).first->accumulateCond(data, lits, blocked_, fact_);
 }
 
-void ConjunctionAtom::accumulateHead(DomainData &data, Value elem, LitVec &lits) {
+void ConjunctionAtom::accumulateHead(DomainData &data, Symbol elem, LitVec &lits) {
     elems_.findPush(elem, elem).first->accumulateHead(data, lits, blocked_, fact_);
 }
 
@@ -644,7 +644,7 @@ bool DisjointAtom::translate(DomainData &data, Translator &x) {
     for (auto &elem : elems_) {
         layers.emplace_back();
         auto &current = layers.back();
-        auto encodeSingle = [&data, &current, &x, &values](ClauseId cond, int coef, Value var, int fixed) -> void {
+        auto encodeSingle = [&data, &current, &x, &values](ClauseId cond, int coef, Symbol var, int fixed) -> void {
             auto &bound = x.findBound(var);
             auto it = bound.atoms.begin() + 1;
             for(auto i : bound) {
@@ -674,7 +674,7 @@ bool DisjointAtom::translate(DomainData &data, Translator &x) {
                 }
                 default: {
                     // create a bound possibly with holes
-                    auto b = x.addBound(Value::createId("#aux" + std::to_string(data.newAtom())));
+                    auto b = x.addBound(Symbol::createId("#aux" + std::to_string(data.newAtom())));
                     b->clear();
                     std::set<int> values;
                     values.emplace(0);
@@ -815,11 +815,11 @@ void DisjunctionAtom::simplify(bool &headFact) {
     headFact = headFact_ > 0;
 }
 
-void DisjunctionAtom::accumulateCond(DomainData &data, Value elem, LitVec &lits) {
+void DisjunctionAtom::accumulateCond(DomainData &data, Symbol elem, LitVec &lits) {
     elems_.findPush(elem, elem).first->accumulateCond(data, lits, headFact_);
 }
 
-void DisjunctionAtom::accumulateHead(DomainData &data, Value elem, LitVec &lits) {
+void DisjunctionAtom::accumulateHead(DomainData &data, Symbol elem, LitVec &lits) {
     elems_.findPush(elem, elem).first->accumulateHead(data, lits, headFact_);
 }
 
@@ -930,7 +930,7 @@ bool PredicateLiteral::isAtomFromPreviousStep() const {
 
 void PredicateLiteral::printPlain(PrintPlain out) const {
     auto &atom = data_.predDoms()[id_.domain()]->operator[](id_.offset());
-    out << id_.sign() << static_cast<Value>(atom);
+    out << id_.sign() << static_cast<Symbol>(atom);
 }
 
 bool PredicateLiteral::isIncomplete() const { return false; }
@@ -1102,7 +1102,7 @@ void CSPLiteral::printPlain(PrintPlain out) const {
     auto &atm = atom();
     out << id_.sign();
     if (!std::get<1>(atm).empty()) {
-        auto f = [](PrintPlain out, std::pair<int, Value> mul) { out << mul.first << "$*$" << mul.second; };
+        auto f = [](PrintPlain out, std::pair<int, Symbol> mul) { out << mul.first << "$*$" << mul.second; };
         print_comma(out, std::get<1>(atm), "$+", f);
     }
     else { out << 0; }
@@ -1114,14 +1114,14 @@ bool CSPLiteral::isIncomplete() const {
     return false;
 }
 
-bool CSPLiteral::isBound(Value &value, bool negate) const {
+bool CSPLiteral::isBound(Symbol &value, bool negate) const {
     auto &atm = atom();
     Relation rel = std::get<0>(atm);
     if (id_.sign() == NAF::NOT) { negate = !negate; }
     if (negate) { rel = neg(rel); }
     if (std::get<1>(atm).size() != 1) { return false; }
     if (rel == Relation::NEQ)            { return false; }
-    if (value.type() == Value::SPECIAL)  { value = std::get<1>(atm).front().second; }
+    if (value.type() == SymbolType::Special)  { value = std::get<1>(atm).front().second; }
     return value == std::get<1>(atm).front().second;
 }
 
@@ -1284,7 +1284,7 @@ void AssignmentAggregateLiteral::printPlain(PrintPlain out) const {
     auto &dom = this->dom();
     auto &atm = dom[id_.offset()];
     auto &data = dom.data(atm.data());
-    Value repr = atm;
+    Symbol repr = atm;
     out << id_.sign();
     out << data.fun() << "{";
     print_comma(out, data.elems(), ";", printBodyElem);
@@ -1303,7 +1303,7 @@ LiteralId AssignmentAggregateLiteral::translate(Translator &x) {
         atm.setTranslated();
         assert(atm.defined());
         // NOTE: for assignment aggregates with many values a better translation could be implemented
-        Value repr = atm;
+        Symbol repr = atm;
         DisjunctiveBounds bounds;
         bounds.add(repr.args().back(), true, repr.args().back(), true);
         auto aggrLit = getEqualAggregate(data_, x, data.fun(), id_.sign(), bounds, data.range(), data.elems(), atm.recursive());
@@ -1346,7 +1346,7 @@ void DisjunctionLiteral::printPlain(PrintPlain out) const {
     else { out << "#false"; }
 }
 
-bool DisjunctionLiteral::isBound(Value &value, bool negate) const {
+bool DisjunctionLiteral::isBound(Symbol &value, bool negate) const {
     assert(!negate);
     auto &atm = dom()[id_.offset()];
     for (auto &y : atm.elems()) {
@@ -1378,8 +1378,8 @@ LiteralId DisjunctionLiteral::translate(Translator &x) {
     if (!atm.translated()) {
         atm.setTranslated();
         if (!atm.lit()) { atm.setLit(data_.newAux()); }
-        Value value;
-        if (atm.fact() && isBound(value, false) && value.type() != Value::SPECIAL) {
+        Symbol value;
+        if (atm.fact() && isBound(value, false) && value.type() != SymbolType::Special) {
             std::vector<CSPBound> bounds;
             updateBound(bounds, false);
             x.addBounds(value, bounds);

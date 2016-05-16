@@ -28,14 +28,15 @@
 
 namespace Gringo { namespace Output {
 
-using BodyAggregateElements = UniqueVec<std::pair<FWValVec, Formula>, HashFirst<FWValVec>, EqualToFirst<FWValVec>>;
+struct TupleId;
+using BodyAggregateElements = UniqueVec<std::pair<TupleId, Formula>, HashFirst<TupleId>, EqualToFirst<TupleId>>;
 using HeadFormula = std::vector<std::pair<LiteralId, ClauseId>>;
-using HeadAggregateElements = UniqueVec<std::pair<FWValVec, HeadFormula>, HashFirst<FWValVec>, EqualToFirst<FWValVec>>;
-using DisjunctiveBounds = IntervalSet<Value>;
+using HeadAggregateElements = UniqueVec<std::pair<TupleId, HeadFormula>, HashFirst<TupleId>, EqualToFirst<TupleId>>;
+using DisjunctiveBounds = IntervalSet<Symbol>;
 using Interval = DisjunctiveBounds::Interval;
 using ConjunctiveBounds = std::vector<std::pair<Interval, Interval>>;
-using PlainBounds = std::vector<std::pair<Relation, Value>>;
-using LitValVec = std::vector<std::pair<LiteralId, Value>>;
+using PlainBounds = std::vector<std::pair<Relation, Symbol>>;
+using LitValVec = std::vector<std::pair<LiteralId, Symbol>>;
 using LitUintVec = std::vector<std::pair<LiteralId, unsigned>>;
 
 struct AggregateAnalyzer {
@@ -55,13 +56,13 @@ struct AggregateAnalyzer {
     Interval range;
 };
 
-inline Value getNeutral(AggregateFunction fun) {
+inline Symbol getNeutral(AggregateFunction fun) {
     switch (fun) {
         case AggregateFunction::COUNT:
         case AggregateFunction::SUMP:
-        case AggregateFunction::SUM: { return Value::createNum(0); }
-        case AggregateFunction::MIN: { return Value::createSup(); }
-        case AggregateFunction::MAX: { return Value::createInf(); }
+        case AggregateFunction::SUM: { return Symbol::createNum(0); }
+        case AggregateFunction::MIN: { return Symbol::createSup(); }
+        case AggregateFunction::MAX: { return Symbol::createInf(); }
     }
     assert(false);
     return {};

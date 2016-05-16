@@ -37,7 +37,7 @@ std::pair<LiteralId,bool> Literal::delayedLit() {
     throw std::logic_error("Literal::hasDelayedOffset: not implemented");
 }
 
-bool Literal::isBound(Value &, bool) const {
+bool Literal::isBound(Symbol &, bool) const {
     return false;
 }
 

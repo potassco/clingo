@@ -81,7 +81,7 @@ private:
 
 class ShowStatement : public Statement {
 public:
-    ShowStatement(Value term, bool csp, LitVec const &body);
+    ShowStatement(Symbol term, bool csp, LitVec const &body);
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
     void output(DomainData &data, Backend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
@@ -89,7 +89,7 @@ public:
     virtual ~ShowStatement() noexcept = default;
 
 private:
-    Value term_;
+    Symbol term_;
     LitVec body_;
     bool csp_;
 };
@@ -132,7 +132,7 @@ private:
 
 class EdgeStatement : public Statement {
 public:
-    EdgeStatement(Value u, Value v, LitVec const &body);
+    EdgeStatement(Symbol u, Symbol v, LitVec const &body);
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
     void output(DomainData &data, Backend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
@@ -140,8 +140,8 @@ public:
     virtual ~EdgeStatement() noexcept = default;
 
 private:
-    Value u_;
-    Value v_;
+    Symbol u_;
+    Symbol v_;
     Id_t uidU_;
     Id_t uidV_;
     LitVec body_;
@@ -151,7 +151,7 @@ private:
 
 class WeakConstraint : public Statement {
 public:
-    WeakConstraint(FWValVec tuple, LitVec const &lits)
+    WeakConstraint(SymVec tuple, LitVec const &lits)
     : tuple_(tuple)
     , lits_(lits) { }
     void translate(DomainData &data, Translator &x) override;
@@ -161,7 +161,7 @@ public:
     virtual ~WeakConstraint() noexcept = default;
 
 private:
-    FWValVec tuple_;
+    SymVec tuple_;
     LitVec lits_;
 };
 
@@ -191,12 +191,12 @@ private:
 struct Bound {
     using ConstIterator = enum_interval_set<int>::const_iterator;
     using AtomVec = std::vector<std::pair<int,Potassco::Id_t>>;
-    Bound(Value var)
+    Bound(Symbol var)
         : modified(true)
         , var(var) {
         range_.add(std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
     }
-    operator Value const & () const { return var; }
+    operator Symbol const & () const { return var; }
     bool init(DomainData &data, Translator &x);
     int getLower(int coef) const {
         if (range_.empty()) { return 0; }
@@ -226,7 +226,7 @@ struct Bound {
     ConstIterator end() const { return range_.end(); }
 
     bool                   modified;
-    Value                  var;
+    Symbol                  var;
 
     AtomVec                atoms;
     enum_interval_set<int> range_;
@@ -297,50 +297,50 @@ struct LinearConstraint {
 class Translator {
 private:
     struct OutputEntry {
-        OutputEntry(Value term, LiteralId cond)
+        OutputEntry(Symbol term, LiteralId cond)
         : term(term)
         , cond(cond) { }
-        Value term;
+        Symbol term;
         LiteralId cond;
-        operator const Value&() const { return term; }
+        operator const Symbol&() const { return term; }
     };
     struct TodoOutputEntry {
-        TodoOutputEntry(Value term, Formula &&cond)
+        TodoOutputEntry(Symbol term, Formula &&cond)
         : term(term)
         , cond(std::move(cond)) { }
-        operator const Value&() const { return term; }
-        Value term;
+        operator const Symbol&() const { return term; }
+        Symbol term;
         Formula cond;
     };
     struct OutputTable {
-        using Table = UniqueVec<OutputEntry, std::hash<Value>, std::equal_to<Value>>;
-        using Todo = UniqueVec<TodoOutputEntry, std::hash<Value>, std::equal_to<Value>>;
+        using Table = UniqueVec<OutputEntry, std::hash<Symbol>, std::equal_to<Symbol>>;
+        using Todo = UniqueVec<TodoOutputEntry, std::hash<Symbol>, std::equal_to<Symbol>>;
         Table table;
         Todo todo;
     };
 public:
-    using TupleLit        = std::pair<FWValVec, LiteralId>;
+    using TupleLit        = std::pair<SymVec, LiteralId>;
     using MinimizeList    = std::vector<TupleLit>;
-    using BoundMap        = UniqueVec<Bound, HashKey<Value>, EqualToKey<Value>>;
+    using BoundMap        = UniqueVec<Bound, HashKey<Symbol>, EqualToKey<Symbol>>;
     using ConstraintVec   = std::vector<LinearConstraint>;
     using DisjointConsVec = std::vector<LiteralId>;
     using ProjectionVec   = std::vector<std::pair<Potassco::Id_t, Potassco::Id_t>>;
-    using TupleLitMap     = UniqueVec<TupleLit, HashFirst<FWValVec>, EqualToFirst<FWValVec>>;
+    using TupleLitMap     = UniqueVec<TupleLit, HashFirst<SymVec, value_hash<SymVec>>, EqualToFirst<SymVec>>;
 
     Translator(UAbstractOutput &&out);
-    void addMinimize(FWValVec tuple, LiteralId cond);
-    void addBounds(Value value, std::vector<CSPBound> bounds);
-    BoundMap::Iterator addBound(Value x);
-    Bound &findBound(Value x);
+    void addMinimize(SymVec tuple, LiteralId cond);
+    void addBounds(Symbol value, std::vector<CSPBound> bounds);
+    BoundMap::Iterator addBound(Symbol x);
+    Bound &findBound(Symbol x);
     void addLinearConstraint(Potassco::Atom_t head, CoefVarVec &&vars, int bound);
     void addDisjointConstraint(DomainData &data, LiteralId lit);
-    void atoms(DomainData &data, int atomset, IsTrueLookup isTrue, ValVec &atoms, OutputPredicates const &outPreds);
+    void atoms(DomainData &data, int atomset, IsTrueLookup isTrue, SymVec &atoms, OutputPredicates const &outPreds);
     void translate(DomainData &data, OutputPredicates const &outPreds);
     void output(DomainData &data, Statement &x);
     void simplify(DomainData &data, Mappings &mappings, AssignmentLookup assignment);
-    void showTerm(DomainData &data, Value term, bool csp, LitVec &&cond);
+    void showTerm(DomainData &data, Symbol term, bool csp, LitVec &&cond);
     LiteralId removeNotNot(DomainData &data, LiteralId lit);
-    unsigned nodeUid(Value v);
+    unsigned nodeUid(Symbol v);
     // These are used to cache literals of translated formulas.
     // The clauses and formuals are tied to clauses and formulas in DomainData.
     // Hence, they have to be deleted after each step.
@@ -352,15 +352,15 @@ public:
 private:
     LitVec updateCond(DomainData &data, OutputTable::Table &table, OutputTable::Todo::ValueType &todo);
     void showAtom(DomainData &data, PredDomMap::Iterator it);
-    void showValue(DomainData &data, Value value, LitVec const &cond);
+    void showValue(DomainData &data, Symbol value, LitVec const &cond);
     void showValue(DomainData &data, Bound const &bound, LitVec const &cond);
-    void addLowerBound(Value x, int bound);
-    void addUpperBound(Value x, int bound);
+    void addLowerBound(Symbol x, int bound);
+    void addUpperBound(Symbol x, int bound);
     bool showBound(OutputPredicates const &outPreds, Bound const &bound);
     void translateMinimize(DomainData &data);
     void outputSymbols(DomainData &data, OutputPredicates const &outPreds);
-    bool showSig(OutputPredicates const &outPreds, Signature const &sig, bool csp);
-    void showCsp(Bound const &bound, IsTrueLookup isTrue, ValVec &atoms);
+    bool showSig(OutputPredicates const &outPreds, Sig sig, bool csp);
+    void showCsp(Bound const &bound, IsTrueLookup isTrue, SymVec &atoms);
 
     OutputTable termOutput_;
     OutputTable cspOutput_;
@@ -372,7 +372,7 @@ private:
     HashSet<unsigned> seenSigs_;
     BoundMap::SizeType incBoundOffset_ = 0;
     UAbstractOutput out_;
-    UniqueVec<Value> nodeUids_;
+    UniqueVec<Symbol> nodeUids_;
     struct ClauseKey {
         uint64_t offset : 32;
         uint64_t size : 30;
@@ -420,8 +420,8 @@ private:
 
 class Symtab : public Statement {
 public:
-    Symtab(Value symbol, LitVec &&body);
-    Symtab(Value symbol, int value, LitVec &&body);
+    Symtab(Symbol symbol, LitVec &&body);
+    Symtab(Symbol symbol, int value, LitVec &&body);
     void output(DomainData &data, Backend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
@@ -429,7 +429,7 @@ public:
     virtual ~Symtab();
 
 private:
-    Value symbol_;
+    Symbol symbol_;
     int value_;
     bool csp_;
     LitVec body_;

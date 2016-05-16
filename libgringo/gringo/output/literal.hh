@@ -27,6 +27,8 @@
 
 namespace Gringo { namespace Output {
 
+// {{{1 declaration of PrintPlain
+
 struct PrintPlain {
     void printTerm(Potassco::Id_t x);
     void printElem(Potassco::Id_t x);
@@ -39,6 +41,8 @@ PrintPlain &operator<<(PrintPlain &out, T const &x) {
     out.stream << x;
     return out;
 }
+
+// {{{1 declaration of LiteralId
 
 enum class AtomType : uint32_t {
     BodyAggregate,
@@ -148,7 +152,7 @@ public:
     // The literal might copy its sign into the delayed literal.
     // In this case the sign is stripped from the original literal.
     virtual std::pair<LiteralId,bool> delayedLit();
-    virtual bool isBound(Value &value, bool negate) const;
+    virtual bool isBound(Symbol &value, bool negate) const;
     virtual void updateBound(std::vector<CSPBound> &bounds, bool negate) const;
     virtual bool needsSemicolon() const;
     virtual bool isPositive() const;
@@ -162,6 +166,16 @@ public:
 // returns true if all literals in lits are true
 bool isTrueClause(DomainData &data, LitVec &lits, IsTrueLookup lookup);
 
+// {{{1 declaration of TupleId
+
+struct TupleId {
+    Id_t offset;
+    Id_t size;
+};
+bool operator==(TupleId a, TupleId b) {
+    return a.offset == b.offset && a.size == b.size;
+}
+
 // }}}1
 
 } } // namespace Output Gringo
@@ -173,6 +187,11 @@ struct hash<Gringo::Output::LiteralId> : private std::hash<uint64_t> {
     size_t operator()(Gringo::Output::LiteralId const &lit) const {
         return std::hash<uint64_t>::operator()(lit.repr());
     }
+};
+
+template <>
+struct hash<Gringo::Output::TupleId> {
+    size_t operator()(Gringo::Output::TupleId t) { return Gringo::get_value_hash(t.offset, t.size); }
 };
 
 } // namespace std
