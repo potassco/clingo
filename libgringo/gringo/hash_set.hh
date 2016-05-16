@@ -225,6 +225,20 @@ private:
     TableType table_;
 };
 
+struct CallHash {
+    template <typename T>
+    size_t operator()(T const &x) const {
+        return x.hash();
+    }
+};
+
+struct EqualTo {
+    template <typename T, typename U>
+    size_t operator()(T const &a, T const &b) const {
+        return a == b;
+    }
+};
+
 template <typename T>
 struct Cast {
     template <typename U>

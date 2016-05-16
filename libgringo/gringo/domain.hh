@@ -61,6 +61,56 @@ using SValVec = std::vector<Term::SVal>;
 // }}}
 // {{{ declaration of BindIndex
 
+template <class Domain>
+class BindIndexEntry {
+public:
+    using SizeType  = typename Domain::SizeType;
+    using DataVec = std::vector<uint64_t>;
+    BindIndexEntry(SymVec const &bound)
+    : end_(0)
+    , reserved_(1)
+    , data_(nullptr)
+    , begin_(nullptr) {
+        data_ = malloc(sizeof(uint64_t) * bound.size() + sizeof(SizeType));
+        if (!data_) { throw std::bad_alloc(); }
+        begin_ = reinterpret_cast<uint32_t*>(data_ + bound.size());
+        uint64_t *it = data_;
+        for (auto &sym : bound) { *it++ = sym.rep; }
+    }
+    ~BindIndexEntry() { free(data_); }
+    SizeType const *begin() const { return begin_; }
+    SizeType const *end() const { return begin_ + end_; }
+    void push(SizeType x) {
+        if (end_ == reserved_) {
+            size_t bound = reinterpret_cast<uint64_t const*>(begin_) - data_;
+            size_t oldsize = bound + sizeof(SizeType) * end_;
+            size_t size = oldsize + sizeof(SizeType) * end_;
+            if (size < oldsize) { throw std::runtime_error("size limit exceeded"); }
+            void *ret = realloc(data_, size);
+            if (!ret) { throw std::bad_alloc(); }
+            if (data_ != ret) {
+                data_ = reinterpret_cast<uint64_t*>(ret);
+                begin_ = reinterpret_cast<uint32_t*>(data_ + bound);
+            }
+        }
+        data_[end_++] = x;
+    }
+    size_t hash() const {
+        return hash_range(data_, reinterpret_cast<uint64_t const*>(begin_));
+    }
+    bool operator==(BindIndexEntry const &x) const {
+        return std::equal(x.data_, reinterpret_cast<uint64_t const *>(x.begin_), data_, [](uint64_t a, uint64_t b) { return a == b; });
+    }
+    bool operator==(SymVec const &vec) const {
+        return std::equal(vec.begin(), vec.end(), data_, [](Symbol const &a, uint64_t b) { return a.rep == b; });
+    }
+private:
+    Id_t end_;
+    Id_t reserved_;
+    SizeType* data_;
+    uint64_t* begin_;
+};
+
 // An index for a positive literal occurrence
 // with at least one variable bound and one variable unbound.
 template <class Domain>
@@ -69,7 +119,8 @@ public:
     using SizeType  = typename Domain::SizeType;
     using OffsetVec = std::vector<SizeType>;
     using Iterator  = typename OffsetVec::iterator;
-    using Index     = UniqueVec<std::pair<FWValVec, OffsetVec>, HashFirst<FWValVec>, EqualToFirst<FWValVec>>;
+    using Entry     = BindIndexEntry<Domain>;
+    using Index     = UniqueVec<Entry, CallHash, EqualTo>;
 
     struct OffsetRange {
         bool next(Id_t &offset, Term const &repr, BindIndex &idx) {
@@ -99,13 +150,13 @@ public:
     OffsetRange lookup(SValVec const &bound, BinderType type) {
         boundVals_.clear();
         for (auto &&x : bound) { boundVals_.emplace_back(*x); }
-        auto it(data_.find(FWValVec(boundVals_)));
+        auto it(data_.find(boundVals_));
         if (it != data_.end()) {
             auto cmp = [this](SizeType a, SizeType gen) { return domain_[a].generation() < gen; };
             switch (type) {
-                case BinderType::NEW: { return { std::lower_bound(it->second.begin(), it->second.end(), domain_.generation(), cmp), it->second.end() }; }
-                case BinderType::OLD: { return { it->second.begin(), std::lower_bound(it->second.begin(), it->second.end(), domain_.generation(), cmp) }; }
-                case BinderType::ALL: { return { it->second.begin(), it->second.end() }; }
+                case BinderType::NEW: { return { std::lower_bound(it->begin(), it->end(), domain_.generation(), cmp), it->end() }; }
+                case BinderType::OLD: { return { it->begin(), std::lower_bound(it->begin(), it->end(), domain_.generation(), cmp) }; }
+                case BinderType::ALL: { return { it->begin(), it->end() }; }
             }
         }
         static OffsetVec dummy;
@@ -129,17 +180,15 @@ private:
     void add(Id_t offset) {
         boundVals_.clear();
         for (auto &y : bound_) { boundVals_.emplace_back(*y); }
-        FWValVec fwBoundVals = boundVals_;
-        auto jt(data_.find(fwBoundVals));
-        if (jt == data_.end()) { jt = data_.push(std::piecewise_construct, std::forward_as_tuple(fwBoundVals), std::forward_as_tuple()).first; }
-        jt->second.emplace_back(offset);
+        auto jt = data_.findPush(boundVals_, boundVals_).first;
+        jt->push(offset);
     }
 
 private:
     UTerm const repr_;
     Domain     &domain_;
     SValVec     bound_;
-    ValVec      boundVals_;
+    SymVec      boundVals_;
     Index       data_;
     Id_t        imported_ = 0;
     Id_t        importedDelayed_ = 0;
@@ -289,7 +338,7 @@ template <class T>
 class AbstractDomain : public Domain {
 public:
     using Atom            = T;
-    using Atoms           = UniqueVec<Atom, HashKey<Value>, EqualToKey<Value>>;
+    using Atoms           = UniqueVec<Atom, HashKey<Symbol>, EqualToKey<Symbol>>;
     using BindIndex       = Gringo::BindIndex<AbstractDomain>;
     using FullIndex       = Gringo::FullIndex<AbstractDomain>;
     using BindIndices     = std::unordered_set<BindIndex, call_hash<BindIndex>>;
@@ -449,9 +498,9 @@ public:
     SizeType generation() const { return generation_; }
     // Resevers an atom for a recursive negative literal.
     // This does not set a generation.
-    Iterator reserve(Value x) { return atoms_.findPush(x, x).first; }
+    Iterator reserve(Symbol x) { return atoms_.findPush(x, x).first; }
     // Defines (adds) an atom setting its generation.
-    std::pair<Iterator, bool> define(Value value) {
+    std::pair<Iterator, bool> define(Symbol value) {
         auto ret = atoms_.findPush(value, value);
         if (ret.second) {
             ret.first->setGeneration(generation() + 1);
@@ -498,8 +547,8 @@ public:
     bool isEnqueued() const override { return enqueued_; }
     void nextGeneration() override { ++generation_; }
     OffsetVec &delayed() { return delayed_; }
-    Iterator find(Value x) { return atoms_.find(x); }
-    ConstIterator find(Value x) const { return atoms_.find(x); }
+    Iterator find(Symbol x) { return atoms_.find(x); }
+    ConstIterator find(Symbol x) const { return atoms_.find(x); }
     Id_t size() const { return atoms_.size(); }
     Iterator begin() { return atoms_.begin(); }
     Iterator end() { return atoms_.end(); }
