@@ -33,7 +33,7 @@ namespace Gringo { namespace Input {
 using IdVec = Ground::IdVec;
 
 struct Block {
-    Block(Location const &loc, FWString name, IdVec &&params);
+    Block(Location const &loc, String name, IdVec &&params);
     Block(Block&&);
     Block &operator=(Block &&);
     ~Block();
@@ -42,9 +42,9 @@ struct Block {
     operator Term const &() const;
 
     Location        loc;
-    FWString        name;
+    String          name;
     IdVec           params;
-    ValVec          addedEdb;
+    SymVec          addedEdb;
     Ground::SEdb    edb;
     UStmVec         addedStms;
     UStmVec         stms;
@@ -53,14 +53,14 @@ using BlockMap = UniqueVec<Block, HashKey<Term>, EqualToKey<Term>>;
 
 class Program {
 public:
-    using ClassicalNegationList = UniqueVec<FWSignature>;
+    using ClassicalNegationList = UniqueVec<Sig>;
 
     Program();
     Program(Program &&x);
-    void begin(Location const &loc, FWString name, IdVec &&params);
+    void begin(Location const &loc, String name, IdVec &&params);
     void add(UStm &&stm);
     void add(TheoryDef &&def);
-    void addClassicalNegation(FWSignature x);
+    void addClassicalNegation(Sig x);
     void rewrite(Defines &defs);
     void check();
     void print(std::ostream &out) const;

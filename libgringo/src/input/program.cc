@@ -32,14 +32,14 @@ namespace Gringo { namespace Input {
 
 // {{{ definition of Block
 
-Block::Block(Location const &loc, FWString name, IdVec &&params)
+Block::Block(Location const &loc, String name, IdVec &&params)
     : loc(loc)
     , name(name)
     , params(std::move(params))
-    , edb(std::make_shared<Ground::SEdb::element_type>(nullptr, ValVec())) {
+    , edb(std::make_shared<Ground::SEdb::element_type>(nullptr, SymVec())) {
     UTermVec args;
-    for (auto &param : this->params) { args.emplace_back(make_locatable<ValTerm>(param.first, Value::createId(param.second))); }
-    if (args.empty()) { std::get<0>(*edb) = make_locatable<ValTerm>(loc, Value::createId(name)); }
+    for (auto &param : this->params) { args.emplace_back(make_locatable<ValTerm>(param.first, Symbol::createId(param.second))); }
+    if (args.empty()) { std::get<0>(*edb) = make_locatable<ValTerm>(loc, Symbol::createId(name)); }
     else              { std::get<0>(*edb) = make_locatable<FunctionTerm>(loc, name, std::move(args)); }
 }
 
@@ -61,13 +61,13 @@ Program::Program() {
 
 Program::Program(Program &&) = default;
 
-void Program::begin(Location const &loc, FWString name, IdVec &&params) {
-    current_ = &*blocks_.push(loc, "#inc_" + *name, std::move(params)).first;
+void Program::begin(Location const &loc, String name, IdVec &&params) {
+    current_ = &*blocks_.push(loc, (std::string("#inc_") + name.c_str()).c_str(), std::move(params)).first;
 }
 
 void Program::add(UStm &&stm) {
     current_->addedEdb.emplace_back(stm->isEDB());
-    if (current_->addedEdb.back().type() == Value::SPECIAL) {
+    if (current_->addedEdb.back().type() == SymbolType::Special) {
         current_->addedStms.emplace_back(std::move(stm));
         current_->addedEdb.pop_back();
     }
@@ -98,30 +98,30 @@ void Program::rewrite(Defines &defs) {
             args.emplace_back(gen.uniqueVar(param.first, 0, "#Inc"));
             incDefs.add(param.first, param.second, get_clone(args.back()), false);
         }
-        sigs_.push(block.name, args.size());
+        sigs_.push(Sig(block.name, args.size(), false));
         UTerm blockTerm(args.empty()
-            ? (UTerm)make_locatable<ValTerm>(block.loc, Value::createId(block.name))
+            ? (UTerm)make_locatable<ValTerm>(block.loc, Symbol::createId(block.name))
             : make_locatable<FunctionTerm>(block.loc, block.name, get_clone(args)));
         incDefs.init();
 
         for (auto &fact : block.addedEdb) { sigs_.push(fact.sig()); }
-        auto replace = [&](Defines &defs, Value fact) -> Value {
-            if (defs.empty() || fact.type() == Value::SPECIAL) { return fact; }
+        auto replace = [&](Defines &defs, Symbol fact) -> Symbol {
+            if (defs.empty() || fact.type() == SymbolType::Special) { return fact; }
             UTerm rt;
-            Value rv;
+            Symbol rv;
             defs.apply(fact, rv, rt, false);
             if (rt) {
                 Location loc{rt->loc()};
                 block.addedStms.emplace_back(make_locatable<Statement>(loc, gringo_make_unique<SimpleHeadLiteral>(make_locatable<PredicateLiteral>(loc, NAF::POS, std::move(rt))), UBodyAggrVec{}, StatementType::RULE));
-                return Value();
+                return Symbol();
             }
-            else if (rv.type() != Value::SPECIAL) { return rv; }
+            else if (rv.type() != SymbolType::Special) { return rv; }
             else { return fact; }
         };
         if (!defs.empty() || !incDefs.empty()) {
             for (auto &fact : block.addedEdb) {
-                Value rv = replace(incDefs, replace(defs, fact));
-                if (rv.type() != Value::SPECIAL) { std::get<1>(*block.edb).emplace_back(rv); }
+                Symbol rv = replace(incDefs, replace(defs, fact));
+                if (rv.type() != SymbolType::Special) { std::get<1>(*block.edb).emplace_back(rv); }
             }
             block.addedEdb.clear();
         }
@@ -130,7 +130,7 @@ void Program::rewrite(Defines &defs) {
         // {{{3 rewriting
         auto rewrite2 = [&](UStm &x) -> void {
             std::get<1>(*block.edb).emplace_back(x->isEDB());
-            if (std::get<1>(*block.edb).back().type() == Value::SPECIAL) {
+            if (std::get<1>(*block.edb).back().type() == SymbolType::Special) {
                 x->add(make_locatable<PredicateLiteral>(block.loc, NAF::POS, get_clone(blockTerm), true));
                 x->rewrite2();
                 block.stms.emplace_back(std::move(x));
@@ -174,7 +174,7 @@ void Program::check() {
     for (auto &block : blocks_) {
         for (auto &stm : block.stms) { stm->check(); }
     }
-    std::unordered_map<FWSignature, Location> seenSigs;
+    std::unordered_map<Sig, Location> seenSigs;
     for (auto &def : theoryDefs_) {
         for (auto &atomDef : def.atomDefs()) {
             auto seenSig = seenSigs.emplace(atomDef.sig(), atomDef.loc());
@@ -188,7 +188,7 @@ void Program::check() {
     }
 }
 
-void Program::addClassicalNegation(FWSignature x) {
+void Program::addClassicalNegation(Sig x) {
     neg_.push(x);
 }
 
@@ -223,7 +223,7 @@ Ground::Program Program::toGround(DomainData &domains) {
     }
     Ground::Program::ClassicalNegationVec negate;
     for (auto &x : neg_) {
-        negate.emplace_back(domains.add(x), domains.add((*x).flipSign()));
+        negate.emplace_back(domains.add(x), domains.add(x.flipSign()));
     }
     Ground::Program prg(std::move(edb), dep.analyze(), std::move(negate));
     for (auto &sig : sigs_) {
