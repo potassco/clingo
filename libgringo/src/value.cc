@@ -258,6 +258,9 @@ bool Sig::operator>=(Sig s) const { return *this == s || less(s, *this); }
 
 // {{{2 construction
 
+Symbol::Symbol(clingo_symbol sym)
+: clingo_symbol{sym.rep} { }
+
 Symbol::Symbol(uint64_t rep)
 : clingo_symbol{rep} { }
 

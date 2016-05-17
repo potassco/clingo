@@ -45,9 +45,9 @@ start:
         "#inf"("imum")?  { return GroundTermGrammar::parser::token::INFIMUM; }
         "#sup"("remum")? { return GroundTermGrammar::parser::token::SUPREMUM; }
 
-        IDENTIFIER       { value.uid = FWString::uid(string()); return GroundTermGrammar::parser::token::IDENTIFIER; }
+        IDENTIFIER       { value.str = String(string().c_str()).c_str(); return GroundTermGrammar::parser::token::IDENTIFIER; }
         NUMBER           { value.num = integer(); return GroundTermGrammar::parser::token::NUMBER; }
-        STRING           { value.uid = FWString::uid(unquote(string(1, 1).c_str())); return GroundTermGrammar::parser::token::STRING; }
+        STRING           { value.str = String(unquote(string(1, 1).c_str()).c_str()).c_str(); return GroundTermGrammar::parser::token::STRING; }
 
         "("              { return GroundTermGrammar::parser::token::LPAREN; }
         ")"              { return GroundTermGrammar::parser::token::RPAREN; }

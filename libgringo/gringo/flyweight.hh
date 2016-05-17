@@ -37,24 +37,6 @@
 
 namespace Gringo {
 
-// {{{ declaration of Indexed
-
-template <class T, class R = unsigned>
-struct Indexed {
-public:
-    using ValueType = T;
-    using IndexType = R;
-    template <class... Args>
-    IndexType emplace(Args&&... args);
-    IndexType insert(ValueType &&value);
-    ValueType erase(IndexType uid);
-    ValueType &operator[](IndexType uid);
-private:
-    std::vector<ValueType> values_;
-    std::vector<IndexType> free_;
-};
-
-// }}}
 // {{{ declaration of Flyweight
 
 template <class T>
@@ -144,51 +126,6 @@ typename FlyweightVec<T>::FromOffset FlyweightVec<T>::fromOffset;
 
 // }}}
 
-// {{{ defintion of Indexed<T>
-
-template <class T, class R>
-template <class... Args>
-typename Indexed<T, R>::IndexType Indexed<T, R>::emplace(Args&&... args) {
-    if (free_.empty()) {
-        values_.emplace_back(std::forward<Args>(args)...);
-        return IndexType(values_.size() - 1);
-    }
-    else {
-        IndexType uid = free_.back();
-        values_[uid] = ValueType(std::forward<Args>(args)...);
-        free_.pop_back();
-        return uid;
-    }
-}
-
-template <class T, class R>
-typename Indexed<T, R>::IndexType Indexed<T, R>::insert(ValueType &&value) {
-    if (free_.empty()) {
-        values_.push_back(std::move(value));
-        return IndexType(values_.size() - 1);
-    }
-    else {
-        IndexType uid = free_.back();
-        values_[uid] = std::move(value);
-        free_.pop_back();
-        return uid;
-    }
-}
-
-template <class T, class R>
-typename Indexed<T, R>::ValueType Indexed<T, R>::erase(IndexType uid) {
-    ValueType val(std::move(values_[uid]));
-    if (uid + 1 == values_.size()) { values_.pop_back(); }
-    else { free_.push_back(uid); }
-    return val;
-}
-
-template <class T, class R>
-typename Indexed<T, R>::ValueType &Indexed<T, R>::operator[](typename Indexed<T, R>::IndexType uid) {
-    return values_[uid];
-}
-
-// }}}
 // {{{ defintion of Flyweight<T>
 
 template <class T>

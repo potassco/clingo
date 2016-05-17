@@ -24,32 +24,30 @@
 #include <gringo/lexerstate.hh>
 #include <gringo/value.hh>
 #include <gringo/term.hh>
-#include <memory>
-#include <iosfwd>
-#include <set>
+#include <gringo/indexed.hh>
 
 namespace Gringo { namespace Input {
 
 // {{{ declaration of GroundTermParser
 
 class GroundTermParser : private LexerState<int> {
-    using IndexedTerms = Indexed<ValVec, unsigned>;
+    using IndexedTerms = Indexed<SymVec, unsigned>;
 public:
     GroundTermParser();
-    Value parse(std::string const &str);
+    Symbol parse(std::string const &str);
     ~GroundTermParser();
     void parseError(std::string const &message);
     void lexerError(std::string const &token);
     int lex(void *pValue);
 
-    Value term(BinOp op, Value a, Value b);
-    Value term(UnOp op, Value a);
+    Symbol term(BinOp op, Symbol a, Symbol b);
+    Symbol term(UnOp op, Symbol a);
     unsigned terms();
-    unsigned terms(unsigned uid, Value a);
-    FWValVec terms(unsigned uid);
-    Value tuple(unsigned uid, bool forceTuple);
+    unsigned terms(unsigned uid, Symbol a);
+    SymVec terms(unsigned uid);
+    Symbol tuple(unsigned uid, bool forceTuple);
 
-    Value        value;
+    Symbol        value;
 private:
     int lex_impl(void *pValue);
 

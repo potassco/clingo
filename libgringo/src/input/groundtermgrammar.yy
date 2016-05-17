@@ -57,9 +57,10 @@ void GroundTermGrammar::parser::error(GroundTermGrammar::parser::location_type c
 
 // {{{1 nonterminals
 %union {
-    int        num;
-    unsigned   uid;
-    Value::POD value;
+    char const *  str;
+    int           num;
+    unsigned      uid;
+    clingo_symbol value;
 }
 
 // {{{1 terminals
@@ -86,7 +87,7 @@ void GroundTermGrammar::parser::error(GroundTermGrammar::parser::location_type c
 %token <num>
     NUMBER     "<NUMBER>"
 
-%token <uid>
+%token <str>
     IDENTIFIER "<IDENTIFIER>"
     STRING     "<STRING>"
 
@@ -123,17 +124,17 @@ term
     | term[a] POW term[b]                     { $$ = lexer->term(BinOp::POW, $a, $b); }
     | SUB term[a] %prec UMINUS                { $$ = lexer->term(UnOp::NEG, $a); }
     | BNOT term[a] %prec UBNOT                { $$ = lexer->term(UnOp::NOT, $a); }
-    | LPAREN RPAREN                           { $$ = Value::createTuple({}); }
-    | LPAREN COMMA RPAREN                     { $$ = Value::createTuple({}); }
+    | LPAREN RPAREN                           { $$ = Symbol::createTuple({}); }
+    | LPAREN COMMA RPAREN                     { $$ = Symbol::createTuple({}); }
     | LPAREN nterms[a] RPAREN                 { $$ = lexer->tuple($a, false); }
     | LPAREN nterms[a] COMMA RPAREN           { $$ = lexer->tuple($a, true); }
-    | IDENTIFIER[a] LPAREN terms[b] RPAREN    { $$ = Value::createFun($a, lexer->terms($b)); }
+    | IDENTIFIER[a] LPAREN terms[b] RPAREN    { $$ = Symbol::createFun($a, Potassco::toSpan(lexer->terms($b))); }
     | VBAR term[a] VBAR                       { $$ = lexer->term(UnOp::ABS, $a); }
-    | IDENTIFIER[a]                           { $$ = Value::createId(FWString($a)); }
-    | NUMBER[a]                               { $$ = Value::createNum($a); }
-    | STRING[a]                               { $$ = Value::createStr(FWString($a)); }
-    | INFIMUM[a]                              { $$ = Value::createInf(); }
-    | SUPREMUM[a]                             { $$ = Value::createSup(); }
+    | IDENTIFIER[a]                           { $$ = Symbol::createId($a); }
+    | NUMBER[a]                               { $$ = Symbol::createNum($a); }
+    | STRING[a]                               { $$ = Symbol::createStr($a); }
+    | INFIMUM[a]                              { $$ = Symbol::createInf(); }
+    | SUPREMUM[a]                             { $$ = Symbol::createSup(); }
     ;
 
 nterms

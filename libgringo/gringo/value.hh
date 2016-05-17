@@ -146,6 +146,7 @@ class Symbol : public clingo_symbol {
 public:
     // construction
     Symbol(); // createSpecial
+    Symbol(clingo_symbol sym);
     static Symbol createId(String val, bool sign = false);
     static Symbol createStr(String val);
     static Symbol createNum(int num);

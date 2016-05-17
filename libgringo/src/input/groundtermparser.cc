@@ -25,60 +25,60 @@
 namespace Gringo { namespace Input {
 
 GroundTermParser::GroundTermParser() { }
-Value GroundTermParser::parse(std::string const &str) {
+Symbol GroundTermParser::parse(std::string const &str) {
     undefined_ = false;
     while (!empty()) { pop(); }
     push(gringo_make_unique<std::stringstream>(str), 0);
     GroundTermGrammar::parser parser(this);
     parser.parse();
-    return undefined_ ? Value() : value;
+    return undefined_ ? Symbol() : value;
 }
 
-Value GroundTermParser::term(BinOp op, Value a, Value b) {
-    if (a.type() == Value::NUM && b.type() == Value::NUM && (op != BinOp::DIV || b.num() != 0)) {
-        return Value::createNum(Gringo::eval(op, a.num(), b.num()));
+Symbol GroundTermParser::term(BinOp op, Symbol a, Symbol b) {
+    if (a.type() == SymbolType::Num && b.type() == SymbolType::Num && (op != BinOp::DIV || b.num() != 0)) {
+        return Symbol::createNum(Gringo::eval(op, a.num(), b.num()));
     }
     undefined_ = true;
-    return Value::createNum(0);
+    return Symbol::createNum(0);
 }
 
-Value GroundTermParser::term(UnOp op, Value a) {
-    if (a.type() == Value::NUM) {
+Symbol GroundTermParser::term(UnOp op, Symbol a) {
+    if (a.type() == SymbolType::Num) {
         int num = a.num();
         switch (op) {
-            case UnOp::NEG: { return Value::createNum(-num); }
-            case UnOp::ABS: { return Value::createNum(std::abs(num)); }
-            case UnOp::NOT: { return Value::createNum(~num); }
+            case UnOp::NEG: { return Symbol::createNum(-num); }
+            case UnOp::ABS: { return Symbol::createNum(std::abs(num)); }
+            case UnOp::NOT: { return Symbol::createNum(~num); }
         }
         assert(false);
     }
-    else if (op == UnOp::NEG && (a.type() == Value::ID || a.type() == Value::FUNC)) {
+    else if (op == UnOp::NEG && a.type() == SymbolType::Fun) {
         return a.flipSign();
     }
     undefined_ = true;
-    return Value::createNum(0);
+    return Symbol::createNum(0);
 }
 
 unsigned GroundTermParser::terms() {
     return terms_.emplace();
 }
 
-Value GroundTermParser::tuple(unsigned uid, bool forceTuple) {
-    FWValVec args(terms_.erase(uid));
+Symbol GroundTermParser::tuple(unsigned uid, bool forceTuple) {
+    SymVec args(terms_.erase(uid));
     if (!forceTuple && args.size() == 1) {
         return args.front();
     }
     else {
-        return Value::createTuple(args);
+        return Symbol::createTuple(Potassco::toSpan(args));
     }
 }
 
-unsigned GroundTermParser::terms(unsigned uid, Value a) {
+unsigned GroundTermParser::terms(unsigned uid, Symbol a) {
     terms_[uid].emplace_back(a);
     return uid;
 }
 
-FWValVec GroundTermParser::terms(unsigned uid) {
+SymVec GroundTermParser::terms(unsigned uid) {
     return terms_.erase(uid);
 }
 
