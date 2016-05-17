@@ -295,7 +295,7 @@ struct SimpleHeadLiteral : HeadAggregate {
     virtual void check(ChkLvlVec &lvl) const;
     virtual void replace(Defines &dx);
     virtual CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const;
-    virtual Value isEDB() const;
+    virtual Symbol isEDB() const;
     virtual ~SimpleHeadLiteral();
 
     ULit lit;

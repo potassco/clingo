@@ -303,13 +303,13 @@ CreateBody TupleBodyAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
         CreateStmVec split;
         split.emplace_back([&completeRef, this](Ground::ULitVec &&lits) -> Ground::UStm {
             UTermVec tuple;
-            tuple.emplace_back(make_locatable<ValTerm>(loc(), Value()));
+            tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol()));
             // Note: should this become a function?
             UTerm neutral;
             switch (fun) {
-                case AggregateFunction::MIN: { neutral = make_locatable<ValTerm>(loc(), Value::createSup());  break; }
-                case AggregateFunction::MAX: { neutral = make_locatable<ValTerm>(loc(), Value::createInf());  break; }
-                default:                     { neutral = make_locatable<ValTerm>(loc(), Value::createNum(0)); break; }
+                case AggregateFunction::MIN: { neutral = make_locatable<ValTerm>(loc(), Symbol::createSup());  break; }
+                case AggregateFunction::MAX: { neutral = make_locatable<ValTerm>(loc(), Symbol::createInf());  break; }
+                default:                     { neutral = make_locatable<ValTerm>(loc(), Symbol::createNum(0)); break; }
             }
             for (auto &y : bounds) { lits.emplace_back(gringo_make_unique<Ground::RelationLiteral>(y.rel, get_clone(neutral), get_clone(y.bound))); }
             auto ret = gringo_make_unique<Ground::BodyAggregateAccumulate>(completeRef, get_clone(tuple), std::move(lits));
@@ -349,7 +349,7 @@ CreateBody TupleBodyAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
         CreateStmVec split;
         split.emplace_back([&completeRef, this](Ground::ULitVec &&lits) -> Ground::UStm {
             UTermVec tuple;
-            tuple.emplace_back(make_locatable<ValTerm>(loc(), Value()));
+            tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol()));
             auto ret = gringo_make_unique<Ground::AssignmentAggregateAccumulate>(completeRef, get_clone(tuple), std::move(lits));
             completeRef.addAccuDom(*ret);
             return std::move(ret);
@@ -714,7 +714,7 @@ CreateBody Conjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
     assert(elems.size() == 1);
 
     UTermVec local;
-    std::unordered_set<FWString> seen;
+    std::unordered_set<String> seen;
     VarTermBoundVec varsHead;
     VarTermBoundVec varsBody;
     for (auto &x : elems.front().first) {
@@ -836,7 +836,7 @@ void SimpleBodyLiteral::removeAssignment() { }
 
 // {{{1 definition of HeadAggregate
 
-Value HeadAggregate::isEDB() const     { return Value(); }
+Symbol HeadAggregate::isEDB() const     { return Symbol(); }
 
 // {{{1 definition of TupleHeadAggregate
 
@@ -929,13 +929,13 @@ UHeadAggr TupleHeadAggregate::rewriteAggregates(UBodyAggrVec &body) {
             // NOTE: there could be special predicates for is_integer and is_defined
             UTerm first = get_clone(term);
             if (weight) {
-                first = make_locatable<BinOpTerm>(l, BinOp::ADD, std::move(first), make_locatable<ValTerm>(l, Value::createNum(0)));
+                first = make_locatable<BinOpTerm>(l, BinOp::ADD, std::move(first), make_locatable<ValTerm>(l, Symbol::createNum(0)));
                 weight = false;
             }
             body.emplace_back(gringo_make_unique<SimpleBodyLiteral>(make_locatable<RelationLiteral>(l, Relation::LEQ, std::move(first), std::move(term))));
         }
         tuple.clear();
-        tuple.emplace_back(make_locatable<ValTerm>(l, Value::createNum(0)));
+        tuple.emplace_back(make_locatable<ValTerm>(l, Symbol::createNum(0)));
         for (auto &lit : std::get<2>(elem)) {
             body.emplace_back(gringo_make_unique<SimpleBodyLiteral>(std::move(lit)));
         }
@@ -1434,7 +1434,7 @@ CreateHead Disjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::
         auto &complete = static_cast<Ground::DisjunctionComplete&>(*stms.back());
         for (auto &y : elems) {
             UTermVec elemVars;
-            std::unordered_set<FWString> seen;
+            std::unordered_set<String> seen;
             VarTermBoundVec vars;
             for (auto &x : y.second) { x->collect(vars, false); }
             for (auto &occ : vars) {
@@ -1456,7 +1456,7 @@ CreateHead Disjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::
                 Ground::ULitVec elemCond;
                 for (auto &z : y.second) { elemCond.emplace_back(z->toGround(x.domains, false)); }
                 Ground::ULitVec headCond;
-                headCond.emplace_back(make_locatable<RelationLiteral>(loc(), Relation::NEQ, make_locatable<ValTerm>(loc(), Value::createNum(0)), make_locatable<ValTerm>(loc(), Value::createNum(0)))->toGround(x.domains, true));
+                headCond.emplace_back(make_locatable<RelationLiteral>(loc(), Relation::NEQ, make_locatable<ValTerm>(loc(), Symbol::createNum(0)), make_locatable<ValTerm>(loc(), Symbol::createNum(0)))->toGround(x.domains, true));
                 stms.emplace_back(gringo_make_unique<Ground::DisjunctionAccumulate>(complete, nullptr, nullptr, std::move(headCond), std::move(elemRepr), std::move(elemCond)));
             }
             else {
@@ -1530,7 +1530,7 @@ void SimpleHeadLiteral::assignLevels(AssignLevel &lvl) {
     lvl.add(vars);
 }
 
-Value SimpleHeadLiteral::isEDB() const { return lit->isEDB(); }
+Symbol SimpleHeadLiteral::isEDB() const { return lit->isEDB(); }
 
 void SimpleHeadLiteral::check(ChkLvlVec &levels) const {
     _add(levels, lit, false);
@@ -1549,7 +1549,7 @@ CreateHead SimpleHeadLiteral::toGround(ToGroundArg &x, Ground::UStmVec &, Ground
         {[this, &x, type](Ground::ULitVec &&lits) -> Ground::UStm {
             Ground::Rule::HeadVec heads;
             if (UTerm headRepr = lit->headRepr()) {
-                FWSignature sig(headRepr->getSig());
+                Sig sig(headRepr->getSig());
                 heads.emplace_back(std::move(headRepr), &x.domains.add(sig));
             }
             return gringo_make_unique<Ground::Rule>(std::move(heads), std::move(lits), type);

@@ -40,7 +40,7 @@ struct PredicateLiteral : Literal {
     virtual bool simplify(Projections &project, SimplifyState &state, bool positional = true, bool singleton = false);
     virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen);
     virtual ULitVec unpool(bool beforeRewrite) const;
-    virtual Value isEDB() const;
+    virtual Symbol isEDB() const;
     virtual bool hasPool(bool beforeRewrite) const;
     virtual void replace(Defines &dx);
     virtual Ground::ULit toGround(DomainData &x, bool auxiliary) const;
@@ -130,7 +130,7 @@ struct RangeLiteral : Literal {
 // {{{ declaration of ScriptLiteral
 
 struct ScriptLiteral : Literal {
-    ScriptLiteral(UTerm &&assign, FWString name, UTermVec &&args);
+    ScriptLiteral(UTerm &&assign, String name, UTermVec &&args);
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void toTuple(UTermVec &tuple, int &id);
     virtual ScriptLiteral *clone() const;
@@ -151,7 +151,7 @@ struct ScriptLiteral : Literal {
     static ULit make(SimplifyState::ScriptMap::value_type &script);
 
     UTerm assign;
-    FWString name;
+    String name;
     UTermVec args;
 };
 
