@@ -63,7 +63,7 @@ void CheckLevel::check() {
     auto vars(dep.open());
     if (!vars.empty()) {
         auto cmp = [](SC::VarNode const *x, SC::VarNode const *y) -> bool{
-            if (x->data->name != y->data->name) { return *x->data->name < *y->data->name; }
+            if (x->data->name != y->data->name) { return x->data->name < y->data->name; }
             return x->data->loc() < y->data->loc();
         };
         std::sort(vars.begin(), vars.end(), cmp);
@@ -90,12 +90,12 @@ void addVars(ChkLvlVec &levels, VarTermBoundVec &vars) {
 ToGroundArg::ToGroundArg(unsigned &auxNames, DomainData &domains)
     : auxNames(auxNames)
     , domains(domains) { }
-FWString ToGroundArg::newId(bool increment) {
+String ToGroundArg::newId(bool increment) {
     auxNames+= increment;
-    return "#d" + std::to_string(auxNames-increment);
+    return ("#d" + std::to_string(auxNames-increment)).c_str();
 }
 UTermVec ToGroundArg::getGlobal(VarTermBoundVec const &vars) {
-    std::unordered_set<FWString> seen;
+    std::unordered_set<String> seen;
     UTermVec global;
     for (auto &occ : vars) {
         if (occ.first->level == 0 && seen.emplace(occ.first->name).second) {
@@ -105,7 +105,7 @@ UTermVec ToGroundArg::getGlobal(VarTermBoundVec const &vars) {
     return global;
 }
 UTermVec ToGroundArg::getLocal(VarTermBoundVec const &vars) {
-    std::unordered_set<FWString> seen;
+    std::unordered_set<String> seen;
     UTermVec local;
     for (auto &occ : vars) {
         if (occ.first->level != 0 && seen.emplace(occ.first->name).second) {
@@ -116,7 +116,7 @@ UTermVec ToGroundArg::getLocal(VarTermBoundVec const &vars) {
 }
 UTerm ToGroundArg::newId(UTermVec &&global, Location const &loc, bool increment) {
     if (!global.empty()) { return make_locatable<FunctionTerm>(loc, newId(increment), std::move(global)); }
-    else                 { return make_locatable<ValTerm>(loc, Value::createId(newId(increment))); }
+    else                 { return make_locatable<ValTerm>(loc, Symbol::createId(newId(increment))); }
 }
 ToGroundArg::~ToGroundArg() { }
 

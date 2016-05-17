@@ -61,7 +61,7 @@ using UHeadAggrVec = std::vector<UHeadAggr>;
 // {{{ declaration of AssignLevel
 
 struct AssignLevel {
-    typedef std::unordered_map<FWString, unsigned> BoundSet;
+    typedef std::unordered_map<String, unsigned> BoundSet;
 
     void add(VarTermBoundVec &vars);
     AssignLevel &subLevel();
@@ -70,7 +70,7 @@ struct AssignLevel {
     virtual ~AssignLevel();
 
     std::list<AssignLevel> childs;
-    std::unordered_map<FWString, std::vector<VarTerm*>> occurr;
+    std::unordered_map<String, std::vector<VarTerm*>> occurr;
 };
 
 // }}}
@@ -81,7 +81,7 @@ struct CheckLevel {
         bool operator<(Ent const &) const;
     };
     using SC     = SafetyChecker<VarTerm*, Ent>;
-    using VarMap = std::unordered_map<FWString, SC::VarNode *>;
+    using VarMap = std::unordered_map<String, SC::VarNode *>;
 
     CheckLevel(Location const &loc, Printable const &p);
     CheckLevel(CheckLevel &&);
@@ -110,7 +110,7 @@ using CreateHead    = CreateStm;
 
 struct ToGroundArg {
     ToGroundArg(unsigned &auxNames, DomainData &domains);
-    FWString newId(bool increment = true);
+    String newId(bool increment = true);
     UTermVec getGlobal(VarTermBoundVec const &vars);
     UTermVec getLocal(VarTermBoundVec const &vars);
     UTerm newId(UTermVec &&global, Location const &loc, bool increment = true);
@@ -194,7 +194,7 @@ struct HeadAggregate : Printable, Hashable, Locatable, Clonable<HeadAggregate>, 
     virtual bool hasPool(bool beforeRewrite) const = 0;
     virtual void replace(Defines &dx) = 0;
     virtual CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const = 0;
-    virtual Value isEDB() const;
+    virtual Symbol isEDB() const;
     virtual ~HeadAggregate() { }
 };
 
