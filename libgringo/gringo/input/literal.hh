@@ -74,7 +74,7 @@ struct Literal : Printable, Hashable, Locatable, Comparable<Literal>, Clonable<L
     //! \note This method will not be called for head literals.
     virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) = 0;
     virtual void toTuple(UTermVec &tuple, int &id) = 0;
-    virtual Value isEDB() const;
+    virtual Symbol isEDB() const;
     virtual bool hasPool(bool beforeRewrite) const = 0;
     virtual void replace(Defines &dx) = 0;
     virtual Ground::ULit toGround(DomainData &x, bool auxiliary) const = 0;
