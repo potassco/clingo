@@ -35,15 +35,15 @@ void printLit(PrintPlain out, LiteralId lit) {
     call(out.domain, lit, &Literal::printPlain, out);
 }
 
-void printCond(PrintPlain out, SymVec const &tuple, Formula::value_type cond) {
-    print_comma(out, tuple, ",");
+void printCond(PrintPlain out, TupleId tuple, Formula::value_type cond) {
+    print_comma(out, out.domain.tuple(tuple), ",");
     out << ":";
     auto rng = out.domain.clause(cond.first, cond.second);
     print_comma(out, rng, ",", [](PrintPlain out, LiteralId lit) { printLit(out, lit); });
 }
 
-void printCond(PrintPlain out, SymVec const &tuple, HeadFormula::value_type const &cond) {
-    print_comma(out, tuple, ",");
+void printCond(PrintPlain out, TupleId tuple, HeadFormula::value_type const &cond) {
+    print_comma(out, out.domain.tuple(tuple), ",");
     out << ":";
     if (cond.first.valid()) { printLit(out, cond.first); }
     else { out << "#true"; }
@@ -55,7 +55,7 @@ void printCond(PrintPlain out, SymVec const &tuple, HeadFormula::value_type cons
 }
 
 void printBodyElem(PrintPlain out, BodyAggregateElements::ValueType const &x) {
-    if (x.second.empty()) { print_comma(out, x.first, ","); }
+    if (x.second.empty()) { print_comma(out, out.domain.tuple(x.first), ","); }
     else { print_comma(out, x.second, ";", [&x](PrintPlain out, Formula::value_type cond) { printCond(out, x.first, cond); }); }
 }
 
@@ -337,7 +337,7 @@ void BodyAggregateElements_::visitClause(F f) {
     }
 }
 
-void BodyAggregateElements_::accumulate(DomainData &data, SymVec const &tuple, LitVec &lits, bool &inserted, bool &fact, bool &remove) {
+void BodyAggregateElements_::accumulate(DomainData &data, TupleId tuple, LitVec &lits, bool &inserted, bool &fact, bool &remove) {
     if (tuples_.reserveNeedsRebuild(tuples_.size() + 1)) {
         // remap tuple offsets if rebuild is necessary
         HashSet<uint64_t> tuples(tuples_.size() + 1, tuples_.reserved());
@@ -350,7 +350,7 @@ void BodyAggregateElements_::accumulate(DomainData &data, SymVec const &tuple, L
             to = (tuples_.offset(insertTuple(tuples.at(to >> 1)).first) << 1) | (to & 1);
         });
     }
-    TupleOffset newTO(tuple.offset(), tuple.size(), lits.empty());
+    TupleOffset newTO(tuple.offset, tuple.size, lits.empty());
     auto ret = insertTuple(newTO);
     inserted = ret.second;
     remove = false;
@@ -378,7 +378,7 @@ BodyAggregateElements BodyAggregateElements_::elems() const {
     BodyAggregateElements elems;
     const_cast<BodyAggregateElements_*>(this)->visitClause([&](uint32_t const &to, ClauseId cond) {
         TupleOffset fo(tuples_.at(to >> 1));
-        FWValVec tuple(FWValVec::fromOffset, fo.size(), fo.offset());
+        TupleId tuple{fo.size(), fo.offset()};
         auto ret = elems.push(std::piecewise_construct, std::forward_as_tuple(tuple), std::forward_as_tuple());
         if (fo.fact()) { ret.first->second.clear(); }
         ret.first->second.emplace_back(cond);
@@ -397,10 +397,10 @@ BodyAggregateElements BodyAggregateAtom::elems() const {
     return data_->elems.elems();
 }
 
-void BodyAggregateAtom::accumulate(DomainData &data, Location const &loc, ValVec const &tuple, LitVec &lits) {
+void BodyAggregateAtom::accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &lits) {
     if (neutral(tuple, data_->range.fun, loc)) { return; }
     bool inserted, fact, remove;
-    data_->elems.accumulate(data, tuple, lits, inserted, fact, remove);
+    data_->elems.accumulate(data, data.tuple(tuple), lits, inserted, fact, remove);
     if (!fact || inserted || remove) {
         data_->range.accumulate(tuple, fact, remove);
         data_->fact = data_->range.fact();
@@ -411,9 +411,9 @@ BodyAggregateAtom::~BodyAggregateAtom() noexcept = default;
 
 // {{{1 definition of AssignmentAggregateAtom
 
-void AssignmentAggregateData::accumulate(DomainData &data, Location const &loc, ValVec const &tuple, LitVec &lits) {
+void AssignmentAggregateData::accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &lits) {
     if (neutral(tuple, fun_, loc)) { return; }
-    auto ret(elems_.push(std::piecewise_construct, std::forward_as_tuple(tuple), std::forward_as_tuple()));
+    auto ret(elems_.push(std::piecewise_construct, std::forward_as_tuple(data.tuple(tuple)), std::forward_as_tuple()));
     auto &elem = ret.first->second;
     // the tuple was fact
     if (elem.size() == 1 && elem.front().second == 0) { return; }
@@ -633,8 +633,8 @@ void DisjointElement::printPlain(PrintPlain out) const {
     }
 }
 
-void DisjointAtom::accumulate(DomainData &data, ValVec const &tuple, CSPGroundAdd &&value, int fixed, LitVec const &lits) {
-    auto elem = elems_.push(std::piecewise_construct, std::forward_as_tuple(tuple), std::forward_as_tuple());
+void DisjointAtom::accumulate(DomainData &data, SymVec const &tuple, CSPGroundAdd &&value, int fixed, LitVec const &lits) {
+    auto elem = elems_.push(std::piecewise_construct, std::forward_as_tuple(data.tuple(tuple)), std::forward_as_tuple());
     elem.first->second.emplace_back(std::move(value), fixed, data.clause(get_clone(lits)));
 }
 
@@ -674,7 +674,7 @@ bool DisjointAtom::translate(DomainData &data, Translator &x) {
                 }
                 default: {
                     // create a bound possibly with holes
-                    auto b = x.addBound(Symbol::createId("#aux" + std::to_string(data.newAtom())));
+                    auto b = x.addBound(Symbol::createId(("#aux" + std::to_string(data.newAtom())).c_str()));
                     b->clear();
                     std::set<int> values;
                     values.emplace(0);
@@ -844,13 +844,13 @@ void HeadAggregateAtom::init(AggregateFunction fun, DisjunctiveBounds &&bounds) 
     initialized_ = true;
 }
 
-void HeadAggregateAtom::accumulate(DomainData &data, Location const &loc, ValVec const &tuple, LiteralId head, LitVec &lits) {
+void HeadAggregateAtom::accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LiteralId head, LitVec &lits) {
     // Elements are grouped by their tuples.
     // Each tuple is associated with a vector of pairs of head literals and a condition.
     // If the head is a fact, this is represented with an invalid literal.
     // If a tuple is a fact, this is represented with the first element of the vector being having an invalid head and an empty condition.
     if (!Gringo::Output::defined(tuple, range_.fun, loc)) { return; }
-    auto ret(elems_.push(std::piecewise_construct, std::forward_as_tuple(tuple), std::forward_as_tuple()));
+    auto ret(elems_.push(std::piecewise_construct, std::forward_as_tuple(data.tuple(tuple)), std::forward_as_tuple()));
     auto &elem = ret.first->second;
     bool fact = lits.empty() && !head.valid();
     bool wasFact = !elem.empty() && !elem.front().first.valid() && elem.front().second.second == 0;
@@ -1288,7 +1288,8 @@ void AssignmentAggregateLiteral::printPlain(PrintPlain out) const {
     out << id_.sign();
     out << data.fun() << "{";
     print_comma(out, data.elems(), ";", printBodyElem);
-    out << "}=" << repr.args().back();
+    auto args = repr.args();
+    out << "}=" << args.first[args.size - 1];
 }
 
 LiteralId AssignmentAggregateLiteral::toId() const {
@@ -1305,7 +1306,9 @@ LiteralId AssignmentAggregateLiteral::translate(Translator &x) {
         // NOTE: for assignment aggregates with many values a better translation could be implemented
         Symbol repr = atm;
         DisjunctiveBounds bounds;
-        bounds.add(repr.args().back(), true, repr.args().back(), true);
+        auto args = repr.args();
+        auto back = args.first[args.size - 1];
+        bounds.add(back, true, back, true);
         auto aggrLit = getEqualAggregate(data_, x, data.fun(), id_.sign(), bounds, data.range(), data.elems(), atm.recursive());
         auto lit = atm.lit();
         if (lit) { Rule().addHead(lit).addBody(aggrLit).translate(data_, x); }
@@ -1591,7 +1594,7 @@ void DisjointLiteral::printPlain(PrintPlain out) const {
     auto &atm = data_.getAtom<DisjointDomain>(id_.domain(), id_.offset());
     if (atm.defined()) {
         auto print_elems = [](PrintPlain out, DisjointElemSet::ValueType const &x) {
-            print_comma(out, x.first, ",");
+            print_comma(out, out.domain.tuple(x.first), ",");
             out << ":";
             using namespace std::placeholders;
             print_comma(out, x.second, ",", std::bind(&DisjointElement::printPlain, _2, _1));
@@ -1660,7 +1663,7 @@ LiteralId HeadAggregateLiteral::translate(Translator &x) {
             Rule().addBody(atm.lit()).translate(data_, x);
             return atm.lit();
         }
-        using GroupedByCond = std::vector<std::pair<ClauseId, std::pair<FWValVec, LiteralId>>>;
+        using GroupedByCond = std::vector<std::pair<ClauseId, std::pair<TupleId, LiteralId>>>;
         GroupedByCond groupedByCond;
         for (auto &y : atm.elems()) {
             for (auto &z : y.second) { groupedByCond.emplace_back(z.second, std::make_pair(y.first, z.first)); }

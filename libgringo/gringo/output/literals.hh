@@ -243,7 +243,7 @@ private:
     class ClauseOffset;
 
 public:
-    void accumulate(DomainData &data, SymVec tuple, LitVec &lits, bool &inserted, bool &fact, bool &remove);
+    void accumulate(DomainData &data, TupleId tuple, LitVec &lits, bool &inserted, bool &fact, bool &remove);
     // NOTE: expensive (linear)
     BodyAggregateElements elems() const;
 
@@ -509,7 +509,7 @@ private:
 };
 
 using DisjointElemVec = std::vector<DisjointElement>;
-using DisjointElemSet = UniqueVec<std::pair<SymVec, DisjointElemVec>, HashFirst<SymVec, value_hash<SymVec>>, EqualToFirst<SymVec>>;
+using DisjointElemSet = UniqueVec<std::pair<TupleId, DisjointElemVec>, HashFirst<TupleId>, EqualToFirst<TupleId>>;
 
 class DisjointAtom {
 public:

@@ -175,6 +175,10 @@ struct TupleId {
 bool operator==(TupleId a, TupleId b) {
     return a.offset == b.offset && a.size == b.size;
 }
+bool operator<(TupleId a, TupleId b) {
+    if (a.offset != b.offset) { return a.offset < b.offset; }
+    return a.size < b.size;
+}
 
 // }}}1
 
@@ -191,7 +195,7 @@ struct hash<Gringo::Output::LiteralId> : private std::hash<uint64_t> {
 
 template <>
 struct hash<Gringo::Output::TupleId> {
-    size_t operator()(Gringo::Output::TupleId t) { return Gringo::get_value_hash(t.offset, t.size); }
+    size_t operator()(Gringo::Output::TupleId t) const { return Gringo::get_value_hash(t.offset, t.size); }
 };
 
 } // namespace std
