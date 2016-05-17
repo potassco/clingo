@@ -202,6 +202,7 @@ bool neutral(SymVec const &tuple, AggregateFunction fun, Location const &loc);
 int toInt(IntervalSet<Symbol>::LBound const &x);
 int toInt(IntervalSet<Symbol>::RBound const &x);
 Symbol getWeight(AggregateFunction fun, SymVec const &x);
+Symbol getWeight(AggregateFunction fun, IteratorRange<SymVec::const_iterator> rng);
 
 // {{{1 declaration of AggregateAtomRange
 

@@ -172,6 +172,10 @@ Symbol getWeight(AggregateFunction fun, SymVec const &x) {
     return fun == AggregateFunction::COUNT ? Symbol::createNum(1) : x.front();
 }
 
+Symbol getWeight(AggregateFunction fun, IteratorRange<SymVec::const_iterator> rng) {
+    return fun == AggregateFunction::COUNT ? Symbol::createNum(1) : rng.front();
+}
+
 // {{{1 definition of AggregateAtomRange
 
 void AggregateAtomRange::init(AggregateFunction fun, DisjunctiveBounds &&bounds) {

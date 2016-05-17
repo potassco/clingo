@@ -73,32 +73,32 @@ AggregateAnalyzer::AggregateAnalyzer(DomainData &data, NAF naf, DisjunctiveBound
 : range(range) {
     // NOTE: considers everything that is fixed in a reduct as ANTIMONOTONE
     weightType = POSITIVE;
-    IntervalSet<Value> numBounds;
+    IntervalSet<Symbol> numBounds;
     for (auto &y : disjunctiveBounds) {
         Interval x = y;
-        if (!x.right.inclusive && x.right.bound.type() == Value::NUM) {
+        if (!x.right.inclusive && x.right.bound.type() == SymbolType::Num) {
             x.right.inclusive = true;
-            x.right.bound = Value::createNum(x.right.bound.num() - 1);
+            x.right.bound = Symbol::createNum(x.right.bound.num() - 1);
         }
-        if (!x.left.inclusive && x.left.bound.type() == Value::NUM) {
+        if (!x.left.inclusive && x.left.bound.type() == SymbolType::Num) {
             x.left.inclusive = true;
-            x.left.bound = Value::createNum(x.left.bound.num() + 1);
+            x.left.bound = Symbol::createNum(x.left.bound.num() + 1);
         }
         numBounds.add(x);
     }
-    IntervalSet<Value> complement(IntervalSet<Value>(range).difference(numBounds));
+    IntervalSet<Symbol> complement(IntervalSet<Symbol>(range).difference(numBounds));
     bool nonMonotone = false;
     for (auto &y : complement) {
         Interval x = y;
-        if (x.right.inclusive && x.right.bound.type() == Value::NUM) {
+        if (x.right.inclusive && x.right.bound.type() == SymbolType::Num) {
             x.right.inclusive = false;
-            x.right.bound = Value::createNum(x.right.bound.num() + 1);
+            x.right.bound = Symbol::createNum(x.right.bound.num() + 1);
         }
-        if (x.left.inclusive && x.left.bound.type() == Value::NUM) {
+        if (x.left.inclusive && x.left.bound.type() == SymbolType::Num) {
             x.left.inclusive = false;
-            x.left.bound = Value::createNum(x.left.bound.num() - 1);
+            x.left.bound = Symbol::createNum(x.left.bound.num() - 1);
         }
-        IntervalSet<Value>::Interval a, b;
+        IntervalSet<Symbol>::Interval a, b;
         a.left  = range.left;
         a.right = x.left;
         b.left  = x.right;
@@ -134,9 +134,10 @@ AggregateAnalyzer::AggregateAnalyzer(DomainData &data, NAF naf, DisjunctiveBound
                         break;
                     }
                 }
-                if (hasPositiveLiteral && !x.first.empty() && x.first.front().type() == Value::NUM) {
-                    if (x.first.front().num() < 0) { hasNegativeWeight = true; }
-                    if (x.first.front().num() > 0) { hasPositiveWeight = true; }
+                auto tuple = data.tuple(x.first);
+                if (hasPositiveLiteral && !tuple.empty() && tuple.front().type() == SymbolType::Num) {
+                    if (tuple.front().num() < 0) { hasNegativeWeight = true; }
+                    if (tuple.front().num() > 0) { hasPositiveWeight = true; }
                 }
             }
         }
@@ -165,7 +166,7 @@ AggregateAnalyzer::AggregateAnalyzer(DomainData &data, NAF naf, DisjunctiveBound
 LitValVec AggregateAnalyzer::translateElems(DomainData &data, Translator &x, AggregateFunction fun, BodyAggregateElements const &bdElems, bool incomplete) {
     LitValVec elems;
     for (auto &y : bdElems) {
-        Value weight(getWeight(fun, y.first));
+        Symbol weight(getWeight(fun, data.tuple(y.first)));
         LiteralId lit = getEqualFormula(data, x, y.second, false, monotonicity == AggregateAnalyzer::NONMONOTONE && incomplete);
         elems.emplace_back(std::move(lit), weight);
     }
