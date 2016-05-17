@@ -427,6 +427,8 @@ public:
     ReferenceType const back() const { *(end()-1); }
     bool empty() const { return begin_ == end_; }
     size_t size() const { return std::distance(begin_, end_); }
+    ReferenceType operator[](size_t p) { return *(begin_ + p); }
+    ReferenceType const operator[](size_t p) const { return *(begin_ + p); }
 private:
     It begin_;
     It end_;

@@ -30,24 +30,24 @@ namespace Gringo { namespace Output {
 
 namespace Debug {
 
-std::ostream &operator<<(std::ostream &out, IntervalSet<Value>::LBound const &x) {
+std::ostream &operator<<(std::ostream &out, IntervalSet<Symbol>::LBound const &x) {
     out << (x.inclusive ? "[" : "(") << x.bound;
     return out;
 }
 
-std::ostream &operator<<(std::ostream &out, IntervalSet<Value>::RBound const &x) {
+std::ostream &operator<<(std::ostream &out, IntervalSet<Symbol>::RBound const &x) {
     out << x.bound << (x.inclusive ? "]" : ")");
     return out;
 }
 
-std::ostream &operator<<(std::ostream &out, IntervalSet<Value>::Interval const &x) {
+std::ostream &operator<<(std::ostream &out, IntervalSet<Symbol>::Interval const &x) {
     out << x.left << "," << x.right;
     return out;
 }
 
-std::ostream &operator<<(std::ostream &out, IntervalSet<Value> const &x) {
+std::ostream &operator<<(std::ostream &out, IntervalSet<Symbol> const &x) {
     out << "{";
-    print_comma(out, x.vec, ",", [](std::ostream &out, IntervalSet<Value>::Interval const &x) { out << x; });
+    print_comma(out, x.vec, ",", [](std::ostream &out, IntervalSet<Symbol>::Interval const &x) { out << x; });
     out << "}";
     return out;
 }
@@ -80,14 +80,14 @@ void printPlainHead(PrintPlain out, LitVec const &body, bool choice) {
 }
 
 bool updateBound(DomainData &data, LitVec const &head, LitVec const &body, Translator &trans) {
-    Value value;
+    Symbol value;
     for (auto &y : head) {
         if (!call(data, y, &Literal::isBound, value, false)) { return false; }
     }
     for (auto &y : body) {
         if (!call(data, y, &Literal::isBound, value, true)) { return false; }
     }
-    if (value.type() == Value::SPECIAL) { return false; }
+    if (value.type() == SymbolType::Special) { return false; }
     std::vector<CSPBound> bounds;
     for (auto &y : body) {
         call(data, y, &Literal::updateBound, bounds, true);
@@ -210,7 +210,7 @@ External::~External() { }
 
 // {{{1 definition of ShowStatement
 
-ShowStatement::ShowStatement(Value term, bool csp, LitVec const &body)
+ShowStatement::ShowStatement(Symbol term, bool csp, LitVec const &body)
 : term_(term)
 , body_(body)
 , csp_(csp) { }
@@ -303,7 +303,7 @@ void HeuristicStatement::replaceDelayed(DomainData &data, LitVec &delayed) {
 
 // {{{1 definition of EdgeStatement
 
-EdgeStatement::EdgeStatement(Value u, Value v, LitVec const &body)
+EdgeStatement::EdgeStatement(Symbol u, Symbol v, LitVec const &body)
 : u_(u)
 , v_(v)
 , uidU_(0)
@@ -366,7 +366,7 @@ void TheoryDirective::replaceDelayed(DomainData &, LitVec &) {
 
 void WeakConstraint::translate(DomainData &data, Translator &x) {
     for (auto &z : lits_) { z = call(data, z, &Literal::translate, x); }
-    x.addMinimize(tuple_, getEqualClause(data, x, data.clause(std::move(lits_)), true, false));
+    x.addMinimize(data.tuple(tuple_), getEqualClause(data, x, data.clause(std::move(lits_)), true, false));
 }
 
 void WeakConstraint::print(PrintPlain out, char const *prefix) const {
@@ -502,29 +502,29 @@ Translator::Translator(UAbstractOutput &&out)
 : out_(std::move(out))
 { }
 
-Translator::BoundMap::Iterator Translator::addBound(Value x) {
+Translator::BoundMap::Iterator Translator::addBound(Symbol x) {
     auto it = boundMap_.find(x);
     return it != boundMap_.end() ? it : boundMap_.push(x).first;
 }
 
-Bound &Translator::findBound(Value x) {
+Bound &Translator::findBound(Symbol x) {
     auto it = boundMap_.find(x);
     assert(it != boundMap_.end());
     return *it;
 }
 
-void Translator::addLowerBound(Value x, int bound) {
+void Translator::addLowerBound(Symbol x, int bound) {
     auto &y = *addBound(x);
     y.remove(std::numeric_limits<int>::min(), bound);
 }
 
-void Translator::addUpperBound(Value x, int bound) {
+void Translator::addUpperBound(Symbol x, int bound) {
     auto &y = *addBound(x);
     y.remove(bound+1, std::numeric_limits<int>::max());
 }
 
-void Translator::addBounds(Value value, std::vector<CSPBound> bounds) {
-    std::map<Value, enum_interval_set<int>> boundUnion;
+void Translator::addBounds(Symbol value, std::vector<CSPBound> bounds) {
+    std::map<Symbol, enum_interval_set<int>> boundUnion;
     for (auto &x : bounds) {
         boundUnion[value].add(x.first, x.second+1);
     }
@@ -546,7 +546,7 @@ void Translator::addDisjointConstraint(DomainData &data, LiteralId lit) {
     }
     disjointCons_.emplace_back(lit);
 }
-void Translator::addMinimize(FWValVec tuple, LiteralId cond) {
+void Translator::addMinimize(TupleId tuple, LiteralId cond) {
     minimize_.emplace_back(tuple, cond);
 }
 void Translator::translate(DomainData &data, OutputPredicates const &outPreds) {
@@ -565,25 +565,25 @@ void Translator::translate(DomainData &data, OutputPredicates const &outPreds) {
 }
 
 bool Translator::showBound(OutputPredicates const &outPreds, Bound const &bound) {
-    return outPreds.empty() || ((bound.var.type() == Value::FUNC || bound.var.type() == Value::ID) && showSig(outPreds, *bound.var.sig(), true));
+    return outPreds.empty() || (bound.var.type() == SymbolType::Fun && showSig(outPreds, bound.var.sig(), true));
 }
 
 void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPreds) {
     { // show csp varibles
         for (auto it = boundMap_.begin() + incBoundOffset_, ie = boundMap_.end(); it != ie; ++it, ++incBoundOffset_) {
-            if (it->var.type() == Value::FUNC || it->var.type() == Value::ID) { seenSigs_.insert(std::hash<unsigned>(), std::equal_to<unsigned>(), it->var.sig().uid()); }
+            if (it->var.type() == SymbolType::Fun) { seenSigs_.insert(std::hash<uint64_t>(), std::equal_to<uint64_t>(), it->var.sig().rep()); }
             if (showBound(outPreds, *it)) { showValue(data, *it, LitVec{}); }
         }
     }
     // check for signatures that did not occur in the program
     for (auto &x : outPreds) {
-        if (std::get<1>(x) != Signature("", 0) && std::get<2>(x)) {
-            auto it(seenSigs_.find(std::hash<unsigned>(), std::equal_to<unsigned>(), std::get<1>(x).uid()));
+        if (std::get<1>(x).match("", 0, false) && std::get<2>(x)) {
+            auto it(seenSigs_.find(std::hash<uint64_t>(), std::equal_to<uint64_t>(), std::get<1>(x).rep()));
             if (!it) {
                 GRINGO_REPORT(W_ATOM_UNDEFINED)
                     << std::get<0>(x) << ": info: no constraint variables over signature occur in program:\n"
-                    << "  $" << *std::get<1>(x) << "\n";
-                seenSigs_.insert(std::hash<unsigned>(), std::equal_to<unsigned>(), std::get<1>(x).uid());
+                    << "  $" << std::get<1>(x) << "\n";
+                seenSigs_.insert(std::hash<uint64_t>(), std::equal_to<uint64_t>(), std::get<1>(x).rep());
             }
         }
     }
@@ -601,11 +601,9 @@ void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPred
     // show everything non-internal
     else {
         for (auto it = data.predDoms().begin(), ie = data.predDoms().end(); it != ie; ++it) {
-            FWSignature sig = **it;
-            std::string const &name((*sig).name());
-            if ((name.empty() || name.front() != '#')) {
-                showAtom(data, it);
-            }
+            Sig sig = **it;
+            auto name(sig.name());
+            if (!name.startsWith("#")) { showAtom(data, it); }
         }
     }
     // show terms
@@ -647,7 +645,7 @@ LitVec Translator::updateCond(DomainData &data, OutputTable::Table &table, Outpu
     return {excludeOldCond};
 }
 
-bool Translator::showSig(OutputPredicates const &outPreds, Signature const &sig, bool csp) {
+bool Translator::showSig(OutputPredicates const &outPreds, Sig sig, bool csp) {
     if (outPreds.empty()) { return true; }
     auto le = [](OutputPredicates::value_type const &x, OutputPredicates::value_type const &y) -> bool {
         if (std::get<1>(x) != std::get<1>(y)) { return std::get<1>(x) < std::get<1>(y); }
@@ -657,14 +655,14 @@ bool Translator::showSig(OutputPredicates const &outPreds, Signature const &sig,
     return std::binary_search(outPreds.begin(), outPreds.end(), OutputPredicates::value_type(loc, sig, csp), le);
 }
 
-void Translator::showCsp(Bound const &bound, IsTrueLookup isTrue, ValVec &atoms) {
+void Translator::showCsp(Bound const &bound, IsTrueLookup isTrue, SymVec &atoms) {
     assert(!bound.atoms.empty());
     int prev = bound.atoms.front().first;
     for (auto it = bound.atoms.begin()+1; it != bound.atoms.end() && !isTrue(it->second); ++it);
-    atoms.emplace_back(Value::createFun("$", {bound.var, Value::createNum(prev)}));
+    atoms.emplace_back(Symbol::createFun("$", Potassco::toSpan(SymVec{bound.var, Symbol::createNum(prev)})));
 }
 
-void Translator::atoms(DomainData &data, int atomset, IsTrueLookup isTrue, ValVec &atoms, OutputPredicates const &outPreds) {
+void Translator::atoms(DomainData &data, int atomset, IsTrueLookup isTrue, SymVec &atoms, OutputPredicates const &outPreds) {
     if (atomset & (Model::CSP | Model::SHOWN)) {
         for (auto &x : boundMap_) {
             if (atomset & Model::CSP || (atomset & Model::SHOWN && showBound(outPreds, x))) { showCsp(x, isTrue, atoms); }
@@ -672,9 +670,9 @@ void Translator::atoms(DomainData &data, int atomset, IsTrueLookup isTrue, ValVe
     }
     if (atomset & (Model::ATOMS | Model::SHOWN)) {
         for (auto &x : data.predDoms()) {
-            Signature sig = *static_cast<FWSignature>(*x);
-            std::string const &name = *sig.name();
-            if (((atomset & Model::ATOMS || (atomset & Model::SHOWN && showSig(outPreds, sig, false))) && !name.empty() && name.front() != '#')) {
+            Sig sig = *x;
+            auto name = sig.name();
+            if (((atomset & Model::ATOMS || (atomset & Model::SHOWN && showSig(outPreds, sig, false))) && !name.empty() && !name.startsWith("#"))) {
                 for (auto &y: *x) {
                     if (y.defined() && y.hasUid() && isTrue(y.uid())) { atoms.emplace_back(y); }
                 }
@@ -736,16 +734,12 @@ void Translator::showAtom(DomainData &data, PredDomMap::Iterator it) {
     (*it)->showNext();
 }
 
-void Translator::showValue(DomainData &data, Value value, LitVec const &cond) {
+void Translator::showValue(DomainData &data, Symbol value, LitVec const &cond) {
     Symtab(value, get_clone(cond)).translate(data, *this);
 }
 
 void Translator::showValue(DomainData &data, Bound const &bound, LitVec const &cond) {
-    std::string const *name = nullptr;
-    if (bound.var.type() == Value::FUNC || bound.var.type() == Value::ID) {
-        name = &*bound.var.name();
-    }
-    if ((!name || name->empty() || name->front() != '#')) {
+    if (bound.var.type() != SymbolType::Fun || !bound.var.name().startsWith("#")) {
         auto assign = [&](int i, Potassco::Atom_t a, Potassco::Atom_t b) {
             LitVec body = get_clone(cond);
             if (a) { body.emplace_back(NAF::POS, AtomType::Aux, a, 0); }
@@ -759,12 +753,13 @@ void Translator::showValue(DomainData &data, Bound const &bound, LitVec const &c
 }
 
 void Translator::translateMinimize(DomainData &data) {
-    sort_unique(minimize_, [](TupleLit const &a, TupleLit const &b) {
-        if (a.first[1] != b.first[1]) { return a.first[1] < b.first[1]; }
+    sort_unique(minimize_, [&data](TupleLit const &a, TupleLit const &b) {
+        auto aa = data.tuple(a.first), ab = data.tuple(b.first);
+        if (aa[1] != ab[1]) { return aa[1] < ab[1]; }
         return a < b;
     });
     for (auto it = minimize_.begin(), iE = minimize_.end(); it != iE;) {
-        int priority = it->first[1].num();
+        int priority = data.tuple(it->first)[1].num();
         Minimize lm(priority);
         do {
             LitVec condLits;
@@ -773,7 +768,7 @@ void Translator::translateMinimize(DomainData &data) {
                 condLits.emplace_back(it++->second);
             }
             while (it != iE && it->first == tuple);
-            int weight(tuple.front().num());
+            int weight(data.tuple(tuple).front().num());
             // Note: extends the minimize constraint incrementally
             auto ret = tuples_.push(tuple, LiteralId{});
             if (!ret.second) {
@@ -784,13 +779,13 @@ void Translator::translateMinimize(DomainData &data) {
             ret.first->second = lit;
             lm.add(lit, weight);
         }
-        while (it != iE && it->first[1].num() == priority);
+        while (it != iE && data.tuple(it->first)[1].num() == priority);
         out_->output(data, lm);
     }
     minimize_.clear();
 }
 
-void Translator::showTerm(DomainData &data, Value term, bool csp, LitVec &&cond) {
+void Translator::showTerm(DomainData &data, Symbol term, bool csp, LitVec &&cond) {
     if (csp) {
         cspOutput_.todo.push(term, Formula{}).first->cond.emplace_back(data.clause(std::move(cond)));
     }
@@ -799,7 +794,7 @@ void Translator::showTerm(DomainData &data, Value term, bool csp, LitVec &&cond)
     }
 }
 
-unsigned Translator::nodeUid(Value v) {
+unsigned Translator::nodeUid(Symbol v) {
     return nodeUids_.offset(nodeUids_.push(v).first);
 }
 
@@ -838,13 +833,13 @@ Translator::~Translator() { }
 
 // {{{1 definition of Symtab
 
-Symtab::Symtab(Value symbol, LitVec &&body)
+Symtab::Symtab(Symbol symbol, LitVec &&body)
 : symbol_(symbol)
 , value_(0)
 , csp_(false)
 , body_(std::move(body)) { }
 
-Symtab::Symtab(Value symbol, int value, LitVec &&body)
+Symtab::Symtab(Symbol symbol, int value, LitVec &&body)
 : symbol_(symbol)
 , value_(value)
 , csp_(true)

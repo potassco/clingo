@@ -319,16 +319,16 @@ private:
         Todo todo;
     };
 public:
-    using TupleLit        = std::pair<SymVec, LiteralId>;
+    using TupleLit        = std::pair<TupleId, LiteralId>;
     using MinimizeList    = std::vector<TupleLit>;
     using BoundMap        = UniqueVec<Bound, HashKey<Symbol>, EqualToKey<Symbol>>;
     using ConstraintVec   = std::vector<LinearConstraint>;
     using DisjointConsVec = std::vector<LiteralId>;
     using ProjectionVec   = std::vector<std::pair<Potassco::Id_t, Potassco::Id_t>>;
-    using TupleLitMap     = UniqueVec<TupleLit, HashFirst<SymVec, value_hash<SymVec>>, EqualToFirst<SymVec>>;
+    using TupleLitMap     = UniqueVec<TupleLit, HashFirst<TupleId>, EqualToFirst<TupleId>>;
 
     Translator(UAbstractOutput &&out);
-    void addMinimize(SymVec tuple, LiteralId cond);
+    void addMinimize(TupleId tuple, LiteralId cond);
     void addBounds(Symbol value, std::vector<CSPBound> bounds);
     BoundMap::Iterator addBound(Symbol x);
     Bound &findBound(Symbol x);
@@ -369,7 +369,7 @@ private:
     BoundMap boundMap_;
     ConstraintVec constraints_;
     DisjointConsVec disjointCons_;
-    HashSet<unsigned> seenSigs_;
+    HashSet<uint64_t> seenSigs_;
     BoundMap::SizeType incBoundOffset_ = 0;
     UAbstractOutput out_;
     UniqueVec<Symbol> nodeUids_;

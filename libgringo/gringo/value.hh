@@ -45,6 +45,9 @@ public:
     const char *c_str() const { return str_; }
     bool empty() const;
     size_t length() { return std::strlen(str_); }
+    bool startsWith(char const *prefix) const {
+        return std::strncmp(prefix, str_, strlen(prefix)) == 0;
+    }
     size_t hash() const;
     static uintptr_t toRep(String s);
     static String fromRep(uintptr_t t);
@@ -89,6 +92,13 @@ public:
     uint32_t arity() const;
     bool sign() const;
     size_t hash() const;
+    uint64_t rep() const { return rep_; }
+    bool match(String n, uint32_t a, bool s = false) const {
+        return name() == n && arity() == a && sign() == s;
+    }
+    bool match(char const *n, uint32_t a, bool s = false) const {
+        return name() == n && arity() == a && sign() == s;
+    }
     bool operator==(Sig s) const;
     bool operator!=(Sig s) const;
     bool operator<(Sig s) const;
