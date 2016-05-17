@@ -138,7 +138,7 @@ size_t atomHash(Potassco::TheoryAtom const &atom) {
 
 // {{{1 definition of TheoryParser
 
-TheoryParser::Elem::Elem(FWString op, bool unary)
+TheoryParser::Elem::Elem(String op, bool unary)
 : tokenType(Op)
 , op(op, unary) { }
 
@@ -152,7 +152,7 @@ TheoryParser::Elem::Elem(Elem &&elem)
         new (&term) UTheoryTerm(std::move(elem.term));
     }
     else {
-        new (&op) std::pair<FWString,bool>(std::move(elem.op));
+        new (&op) std::pair<String,bool>(std::move(elem.op));
     }
 }
 
@@ -169,7 +169,7 @@ TheoryParser::TheoryParser(Location const &loc, TheoryTermDef const &def)
 : loc_(loc)
 , def_(def) { }
 
-bool TheoryParser::check(FWString op) {
+bool TheoryParser::check(String op) {
     if (stack_.size() < 2) { return false; }
     assert(stack_.back().tokenType == Id);
     auto current  = def_.getPrioAndAssoc(op);
@@ -287,7 +287,7 @@ UTheoryTerm RawTheoryTerm::initTheory(TheoryParser &p) {
 
 // {{{1 definition of UnaryTheoryTerm
 
-UnaryTheoryTerm::UnaryTheoryTerm(FWString op, UTheoryTerm &&arg)
+UnaryTheoryTerm::UnaryTheoryTerm(String op, UTheoryTerm &&arg)
 : arg_(std::move(arg))
 , op_(std::move(op))
 { }
@@ -312,7 +312,7 @@ UnaryTheoryTerm *UnaryTheoryTerm::clone() const {
 }
 
 Potassco::Id_t UnaryTheoryTerm::eval(TheoryData &data) const {
-    auto op = data.addTerm(op_->c_str());
+    auto op = data.addTerm(op_.c_str());
     Potassco::Id_t args[] = { arg_->eval(data) };
     return data.addTerm(op, Potassco::toSpan(args, 1));
 }
@@ -332,7 +332,7 @@ UTheoryTerm UnaryTheoryTerm::initTheory(TheoryParser &p) {
 
 // {{{1 definition of BinaryTheoryTerm
 
-BinaryTheoryTerm::BinaryTheoryTerm(UTheoryTerm &&left, FWString op, UTheoryTerm &&right)
+BinaryTheoryTerm::BinaryTheoryTerm(UTheoryTerm &&left, String op, UTheoryTerm &&right)
 : left_(std::move(left))
 , right_(std::move(right))
 , op_(op)
@@ -358,7 +358,7 @@ BinaryTheoryTerm *BinaryTheoryTerm::clone() const {
 }
 
 Potassco::Id_t BinaryTheoryTerm::eval(TheoryData &data) const {
-    auto op = data.addTerm(op_->c_str());
+    auto op = data.addTerm(op_.c_str());
     Potassco::Id_t args[] = { left_->eval(data), right_->eval(data) };
     return data.addTerm(op, Potassco::toSpan(args, 2));
 }
@@ -438,7 +438,7 @@ UTheoryTerm TupleTheoryTerm::initTheory(TheoryParser &p) {
 
 // {{{1 definition of FunctionTheoryTerm
 
-FunctionTheoryTerm::FunctionTheoryTerm(FWString name, UTheoryTermVec &&args)
+FunctionTheoryTerm::FunctionTheoryTerm(String name, UTheoryTermVec &&args)
 : args_(std::move(args))
 , name_(name)
 { }
@@ -465,7 +465,7 @@ FunctionTheoryTerm *FunctionTheoryTerm::clone() const {
 }
 
 Potassco::Id_t FunctionTheoryTerm::eval(TheoryData &data) const {
-    auto name = data.addTerm(name_->c_str());
+    auto name = data.addTerm(name_.c_str());
     std::vector<Potassco::Id_t> args;
     for (auto &arg : args_) {
         args.emplace_back(arg->eval(data));
@@ -573,9 +573,9 @@ Potassco::Id_t TheoryData::addTerm(Potassco::Tuple_t type, Potassco::IdSpan cons
     return addTerm_(type, terms);
 }
 
-Potassco::Id_t TheoryData::addTerm(Value value) {
+Potassco::Id_t TheoryData::addTerm(Symbol value) {
     switch (value.type()) {
-        case Value::NUM: {
+        case SymbolType::Num: {
             auto num = value.num();
             if (num < 0) {
                 auto f = addTerm("-");
@@ -587,48 +587,40 @@ Potassco::Id_t TheoryData::addTerm(Value value) {
                 return addTerm(num);
             }
         }
-        case Value::ID: {
-            auto ret = addTerm(value.name()->c_str());
-            if (value.sign()) {
-                Potassco::Id_t f = addTerm("-");
-                Potassco::Id_t args[] = { ret };
-                ret = addTerm(f, Potassco::toSpan(args, 1));
-            }
-            return ret;
-        }
-        case Value::STRING: {
+        case SymbolType::Str: {
             std::string s;
             s.push_back('"');
-            s.append(quote(value.string()->c_str()));
+            s.append(quote(value.string().c_str()));
             s.push_back('"');
             return addTerm(s.c_str());
         }
-        case Value::SUP: {
+        case SymbolType::Sup: {
             return addTerm("#sup");
         }
-        case Value::INF: {
+        case SymbolType::Inf: {
             return addTerm("#inf");
         }
-        case Value::FUNC: {
+        case SymbolType::Fun: {
             std::vector<Potassco::Id_t> args;
             for (auto &arg : value.args()) {
                 args.emplace_back(addTerm(arg));
             }
-            if (value.name()->empty()) {
+            if (value.name().empty()) {
                 return addTerm(Potassco::Tuple_t::Paren, Potassco::toSpan(args));
             }
             else {
-                Potassco::Id_t name = addTerm(value.name()->c_str());
-                auto ret = addTerm(name, Potassco::toSpan(args));
+                Potassco::Id_t name = addTerm(value.name().c_str());
+                auto ret = args.empty()
+                    ? addTerm(value.name().c_str())
+                    : addTerm(name, Potassco::toSpan(args));
                 if (value.sign()) {
                     Potassco::Id_t f = addTerm("-");
-                    Potassco::Id_t args[1] = { ret };
-                    ret = addTerm(f, Potassco::toSpan(args, 1));
+                    ret = addTerm(f, Potassco::toSpan(&ret, 1));
                 }
                 return ret;
             }
         }
-        case Value::SPECIAL: {
+        case SymbolType::Special: {
             assert(false);
             break;
         }

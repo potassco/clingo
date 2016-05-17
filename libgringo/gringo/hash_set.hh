@@ -409,6 +409,7 @@ private:
 template <class It>
 class IteratorRange {
 public:
+    using Iterrator = It;
     using ReferenceType = decltype(*std::declval<It>());
     using ValueType = typename std::remove_reference<ReferenceType>::type;
     template <class T>
@@ -433,6 +434,15 @@ private:
     It begin_;
     It end_;
 };
+template <class It>
+typename IteratorRange<It>::Iterrator begin(IteratorRange<It> rng) {
+    return rng.begin();
+}
+
+template <class It>
+typename IteratorRange<It>::Iterrator end(IteratorRange<It> rng) {
+    return rng.end();
+}
 
 template <class It>
 IteratorRange<It> make_range(It a, It b) {
@@ -441,7 +451,8 @@ IteratorRange<It> make_range(It a, It b) {
 
 template <class T>
 auto make_range(T &&c) -> IteratorRange<decltype(std::begin(c))> {
-    return IteratorRange<decltype(std::begin(c))>(std::begin(c), std::end(c));
+    using namespace std;
+    return IteratorRange<decltype(begin(c))>(begin(c), end(c));
 }
 
 template <unsigned small, typename Value, typename Hash=std::hash<Value>, typename EqualTo=std::equal_to<Value>>
