@@ -40,10 +40,10 @@ ScopeExit<T> onExit(T &&exit) {
 
 struct Scripts {
     Scripts(GringoModule &module);
-    bool pyExec(Location const &loc, FWString code);
-    bool luaExec(Location const &loc, FWString code);
-    bool callable(FWString name);
-    ValVec call(Location const &loc, FWString name, ValVec const &args);
+    bool pyExec(Location const &loc, String code);
+    bool luaExec(Location const &loc, String code);
+    bool callable(String name);
+    SymVec call(Location const &loc, String name, SymSpan args);
     void main(Control &ctl);
     ~Scripts();
 

@@ -27,13 +27,13 @@ Scripts::Scripts(GringoModule &module)
     : py(module)
     , lua(module) { }
 
-bool Scripts::luaExec(Location const &loc, FWString code) {
+bool Scripts::luaExec(Location const &loc, String code) {
     return lua.exec(loc, code);
 }
-bool Scripts::pyExec(Location const &loc, FWString code) {
+bool Scripts::pyExec(Location const &loc, String code) {
     return py.exec(loc, code);
 }
-bool Scripts::callable(FWString name) {
+bool Scripts::callable(String name) {
     return (context && context->callable(name)) || py.callable(name) || lua.callable(name);
 }
 void Scripts::main(Control &ctl) {
@@ -41,13 +41,13 @@ void Scripts::main(Control &ctl) {
     if (lua.callable("main")) { return lua.main(ctl); }
 
 }
-ValVec Scripts::call(Location const &loc, FWString name, ValVec const &args) {
+SymVec Scripts::call(Location const &loc, String name, SymSpan args) {
     if (context && context->callable(name)) { return context->call(loc, name, args); }
     if (py.callable(name)) { return py.call(loc, name, args); }
     if (lua.callable(name)) { return lua.call(loc, name, args); }
     GRINGO_REPORT(W_OPERATION_UNDEFINED)
         << loc << ": info: operation undefined:\n"
-        << "  function '" << *name << "' not found\n"
+        << "  function '" << name << "' not found\n"
         ;
     return {};
 }
