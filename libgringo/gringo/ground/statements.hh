@@ -618,8 +618,8 @@ public:
     PredicateDomain &emptyDom() { return domEmpty_; }
     PredicateDomain &condDom() { return domCond_; }
     void reportEmpty();
-    void reportCond(DomainData &data, Value cond, Output::LitVec &lits);
-    void reportHead(DomainData &data, Value cond, Output::LitVec &lits);
+    void reportCond(DomainData &data, Symbol cond, Output::LitVec &lits);
+    void reportHead(DomainData &data, Symbol cond, Output::LitVec &lits);
     void setCondRecursive() { condRecursive_ = true; }
     void setHeadRecursive() { headRecursive_ = true; }
     // {{{2 Statement interface
@@ -857,7 +857,7 @@ public:
     using TodoVec = std::vector<Id_t>;
 
     TheoryComplete(DomainData &data, UTerm &&repr, TheoryAtomType type, UTerm &&name);
-    TheoryComplete(DomainData &data, UTerm &&repr, TheoryAtomType type, UTerm &&name, FWString op, Output::UTheoryTerm &&guard);
+    TheoryComplete(DomainData &data, UTerm &&repr, TheoryAtomType type, UTerm &&name, String op, Output::UTheoryTerm &&guard);
     virtual ~TheoryComplete() noexcept;
     TheoryDomain &dom() { return static_cast<TheoryDomain&>(def_.dom()); }
     void enqueue(TheoryDomain::Iterator atom);
@@ -868,7 +868,7 @@ public:
     UTerm const &name() const { return name_; }
     Output::UTheoryTerm const &guard() const { return guard_; }
     bool hasGuard() const { return static_cast<bool>(guard_); }
-    FWString op() const { return op_; }
+    String op() const { return op_; }
     TheoryAtomType type() const { return type_; }
     // {{{2 Statement interface
     bool isNormal() const override;
@@ -899,7 +899,7 @@ private:
     HeadDefinition def_;
     UTerm accuRepr_;
     TodoVec todo_;
-    FWString op_;
+    String op_;
     Output::UTheoryTerm guard_;
     UTerm name_;
     DefinedBy defBy_;

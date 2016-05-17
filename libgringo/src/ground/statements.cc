@@ -38,20 +38,20 @@ namespace {
 
 Output::DisjunctiveBounds _initBounds(BoundVec const &bounds) {
     Output::DisjunctiveBounds set;
-    set.add({{Value::createInf(),true}, {Value::createSup(),true}});
+    set.add({{Symbol::createInf(),true}, {Symbol::createSup(),true}});
     for (auto &x : bounds) {
         bool undefined = false;
-        Value v(x.bound->eval(undefined));
+        Symbol v(x.bound->eval(undefined));
         assert(!undefined);
         switch (x.rel) {
-            case Relation::GEQ: { set.remove({{Value::createInf(),true},{v,false}          }); break; }
-            case Relation::GT:  { set.remove({{Value::createInf(),true},{v,true}           }); break; }
-            case Relation::LEQ: { set.remove({{v,false},                {Value::createSup(),true}}); break; }
-            case Relation::LT:  { set.remove({{v,true},                 {Value::createSup(),true}}); break; }
+            case Relation::GEQ: { set.remove({{Symbol::createInf(),true},{v,false}          }); break; }
+            case Relation::GT:  { set.remove({{Symbol::createInf(),true},{v,true}           }); break; }
+            case Relation::LEQ: { set.remove({{v,false},                {Symbol::createSup(),true}}); break; }
+            case Relation::LT:  { set.remove({{v,true},                 {Symbol::createSup(),true}}); break; }
             case Relation::NEQ: { set.remove({{v,true},                 {v,true}           }); break; }
             case Relation::EQ: {
-                set.remove({{v,false},                {Value::createSup(),true}});
-                set.remove({{Value::createInf(),true},{v,false}          });
+                set.remove({{v,false},                {Symbol::createSup(),true}});
+                set.remove({{Symbol::createInf(),true},{v,false}          });
                 break;
             }
         }
@@ -98,8 +98,8 @@ InstVec _linearize(Scripts &scripts, bool positive, SolutionCallback &cb, Term::
         Term::VarSet bound = boundInitially;
         insts.emplace_back(cb);
         SC s;
-        std::unordered_map<FWString, SC::VarNode*> varMap;
-        std::vector<std::pair<FWString, std::vector<unsigned>>> boundBy;
+        std::unordered_map<String, SC::VarNode*> varMap;
+        std::vector<std::pair<String, std::vector<unsigned>>> boundBy;
         for (auto &lit : x) {
             auto &entNode(s.insertEnt(lit.first, *lit.second));
             VarTermBoundVec vars;
@@ -166,7 +166,7 @@ InstVec _linearize(Scripts &scripts, bool positive, SolutionCallback &cb, Term::
 UTerm completeRepr_(UTerm const &repr) {
     UTermVec ret;
     ret.emplace_back(get_clone(repr));
-    return make_locatable<FunctionTerm>(repr->loc(), FWString{"#complete"}, std::move(ret));
+    return make_locatable<FunctionTerm>(repr->loc(), String{"#complete"}, std::move(ret));
 }
 
 // {{{2 definition of BindOnce
@@ -323,7 +323,7 @@ void AbstractStatement::propagate(Queue &queue) {
 // {{{1 definition of ExternalRule
 
 ExternalRule::ExternalRule()
-: def_(make_locatable<ValTerm>(Location("#external", 1, 1, "#external", 1, 1), Value::createId("#external")), nullptr) { }
+: def_(make_locatable<ValTerm>(Location("#external", 1, 1, "#external", 1, 1), Symbol::createId("#external")), nullptr) { }
 
 bool ExternalRule::isNormal() const { return false; }
 
@@ -363,7 +363,7 @@ void Rule::report(Output::OutputBase &out) {
     if (type_ == RuleType::External) {
         for (auto &def : defs_) {
             bool undefined = false;
-            Value val(def.domRepr()->eval(undefined));
+            Symbol val(def.domRepr()->eval(undefined));
             if (!undefined) {
                 auto &dom = static_cast<PredicateDomain&>(def.dom());
                 auto ret = dom.define(val, false);
@@ -388,7 +388,7 @@ void Rule::report(Output::OutputBase &out) {
         }
         for (auto &def : defs_) {
             bool undefined = false;
-            Value val = def.domRepr()->eval(undefined);
+            Symbol val = def.domRepr()->eval(undefined);
             if (undefined) {
                 if (choice) { continue; }
                 else        { return; }
@@ -476,7 +476,7 @@ ShowStatement::ShowStatement(UTerm &&term, bool csp, ULitVec &&lits)
 
 void ShowStatement::report(Output::OutputBase &out) {
     bool undefined = false;
-    Value term = term_->eval(undefined);
+    Symbol term = term_->eval(undefined);
     if (!undefined) {
         Output::LitVec &cond = out.tempLits();
         for (auto &x : lits_) {
@@ -520,13 +520,13 @@ EdgeStatement::EdgeStatement(UTerm &&u, UTerm &&v, ULitVec &&lits)
 
 void EdgeStatement::report(Output::OutputBase &out) {
     bool undefined = false;
-    Value u = u_->eval(undefined);
+    Symbol u = u_->eval(undefined);
     if (undefined) {
         GRINGO_REPORT(W_OPERATION_UNDEFINED)
             << u_->loc() << ": info: edge ignored\n";
         return;
     }
-    Value v = v_->eval(undefined);
+    Symbol v = v_->eval(undefined);
     if (undefined) {
         GRINGO_REPORT(W_OPERATION_UNDEFINED)
             << v_->loc() << ": info: edge ignored\n";
@@ -567,7 +567,7 @@ ProjectStatement::ProjectStatement(UTerm &&atom, ULitVec &&lits)
 
 void ProjectStatement::report(Output::OutputBase &out) {
     bool undefined = false;
-    Value term = atom_->eval(undefined);
+    Symbol term = atom_->eval(undefined);
     assert(!undefined && term.hasSig());
     auto domain = out.data.predDoms().find(term.sig());
     assert(domain != out.data.predDoms().end());
@@ -606,36 +606,36 @@ HeuristicStatement::HeuristicStatement(UTerm &&atom, UTerm &&value, UTerm &&bias
 void HeuristicStatement::report(Output::OutputBase &out) {
     bool undefined = false;
     // determine atom
-    Value term = atom_->eval(undefined);
+    Symbol term = atom_->eval(undefined);
     assert(!undefined && term.hasSig());
     auto domain = out.data.predDoms().find(term.sig());
     assert(domain != out.data.predDoms().end());
     auto atom = (*domain)->find(term);
     assert (atom != (*domain)->end());
     // check value
-    Value value = value_->eval(undefined);
-    if (undefined || value.type() != Value::NUM) {
+    Symbol value = value_->eval(undefined);
+    if (undefined || value.type() != SymbolType::Num) {
         GRINGO_REPORT(W_OPERATION_UNDEFINED)
             << value_->loc() << ": info: heuristic directive ignored\n";
         return;
     }
     // check priority
-    Value priority = value_->eval(undefined);
-    if (undefined || priority.type() != Value::NUM) {
+    Symbol priority = value_->eval(undefined);
+    if (undefined || priority.type() != SymbolType::Num) {
         GRINGO_REPORT(W_OPERATION_UNDEFINED)
             << priority_->loc() << ": info: heuristic directive ignored\n";
         return;
     }
     // check modifier
-    Value mod = mod_->eval(undefined);
-    if (undefined) { mod = Value::createId(""); }
+    Symbol mod = mod_->eval(undefined);
+    if (undefined) { mod = Symbol::createId(""); }
     Potassco::Heuristic_t heuMod;
-    if      (mod == Value::createId("true"))   { heuMod = Potassco::Heuristic_t::True; }
-    else if (mod == Value::createId("false"))  { heuMod = Potassco::Heuristic_t::False; }
-    else if (mod == Value::createId("level"))  { heuMod = Potassco::Heuristic_t::Level; }
-    else if (mod == Value::createId("factor")) { heuMod = Potassco::Heuristic_t::Factor; }
-    else if (mod == Value::createId("init"))   { heuMod = Potassco::Heuristic_t::Init; }
-    else if (mod == Value::createId("sign"))   { heuMod = Potassco::Heuristic_t::Sign; }
+    if      (mod == Symbol::createId("true"))   { heuMod = Potassco::Heuristic_t::True; }
+    else if (mod == Symbol::createId("false"))  { heuMod = Potassco::Heuristic_t::False; }
+    else if (mod == Symbol::createId("level"))  { heuMod = Potassco::Heuristic_t::Level; }
+    else if (mod == Symbol::createId("factor")) { heuMod = Potassco::Heuristic_t::Factor; }
+    else if (mod == Symbol::createId("init"))   { heuMod = Potassco::Heuristic_t::Init; }
+    else if (mod == Symbol::createId("sign"))   { heuMod = Potassco::Heuristic_t::Sign; }
     else {
         GRINGO_REPORT(W_OPERATION_UNDEFINED)
             << mod_->loc() << ": info: heuristic directive ignored\n";
@@ -680,10 +680,10 @@ WeakConstraint::WeakConstraint(UTermVec &&tuple, ULitVec &&lits)
 , tuple_(std::move(tuple)) { }
 
 void WeakConstraint::report(Output::OutputBase &out) {
-    ValVec &tempVals = out.tempVals();
+    SymVec &tempVals = out.tempVals();
     bool undefined = false;
     for (auto &x : tuple_) { tempVals.emplace_back(x->eval(undefined)); }
-    if (!undefined && tempVals[0].type() == Value::NUM && tempVals[1].type() == Value::NUM) {
+    if (!undefined && tempVals[0].type() == SymbolType::Num && tempVals[1].type() == SymbolType::Num) {
         Output::LitVec &tempLits = out.tempLits();
         for (auto &x : lits_) {
             if (x->auxiliary()) { continue; }
@@ -859,7 +859,7 @@ void BodyAggregateAccumulate::report(Output::OutputBase &out) {
     auto &vals = out.tempVals();
     bool undefined = false;
     for (auto &x : tuple_) { vals.emplace_back(x->eval(undefined)); }
-    Value repr(complete_.domRepr()->eval(undefined));
+    Symbol repr(complete_.domRepr()->eval(undefined));
     if (!undefined) {
         auto &tempLits = out.tempLits();
         for (auto &x : lits_) {
@@ -1030,15 +1030,15 @@ void AssignmentAggregateComplete::report(Output::OutputBase &out) {
         auto &data = dom.data(dataOffset);
         auto values = data.values();
 
-        ValVec &atmArgs = out.tempVals();
-        Value dataVal(data);
-        if (dataVal.type() == Value::FUNC) {
-            atmArgs.assign(dataVal.args().begin(), dataVal.args().end());
+        SymVec &atmArgs = out.tempVals();
+        Symbol dataVal(data);
+        if (dataVal.type() == SymbolType::Fun) {
+            atmArgs.assign(begin(dataVal.args()), end(dataVal.args()));
         }
         atmArgs.emplace_back();
         for (auto &y : values) {
             atmArgs.back() = y;
-            auto ret = dom.define(Value::createFun(dataVal.name(), atmArgs));
+            auto ret = dom.define(Symbol::createFun(dataVal.name(), Potassco::toSpan(atmArgs)));
             if (values.size() == 1) { ret.first->setFact(true); }
             std::get<0>(ret)->setData(dataOffset);
             std::get<0>(ret)->setRecursive(outputRecursive_);
@@ -1117,7 +1117,7 @@ void AssignmentAggregateAccumulate::report(Output::OutputBase &out) {
     auto &tempVals = out.tempVals();
     bool undefined = false;
     for (auto &x : tuple_) { tempVals.emplace_back(x->eval(undefined)); }
-    Value dataRepr(complete_.dataRepr()->eval(undefined));
+    Symbol dataRepr(complete_.dataRepr()->eval(undefined));
     if (undefined) { return; }
     auto &tempLits = out.tempLits();
     for (auto &x : lits_) {
@@ -1310,7 +1310,7 @@ bool ConjunctionAccumulateCond::isNormal() const {
 
 void ConjunctionAccumulateCond::report(Output::OutputBase &out) {
     bool undefined = false;
-    Value condRepr(def_.domRepr()->eval(undefined));
+    Symbol condRepr(def_.domRepr()->eval(undefined));
     assert(!undefined);
 
     Output::LitVec &cond = out.tempLits();
@@ -1344,7 +1344,7 @@ bool ConjunctionAccumulateHead::isNormal() const {
 
 void ConjunctionAccumulateHead::report(Output::OutputBase &out) {
     bool undefined = false;
-    Value condRepr(def_.domRepr()->eval(undefined));
+    Symbol condRepr(def_.domRepr()->eval(undefined));
     assert(!undefined);
 
     Output::LitVec head;
@@ -1368,7 +1368,7 @@ ConjunctionComplete::ConjunctionComplete(DomainData &data, UTerm &&repr, UTermVe
 
 UTerm ConjunctionComplete::emptyRepr() const {
     UTermVec args;
-    args.emplace_back(make_locatable<ValTerm>(def_.domRepr()->loc(), Value::createId("empty")));
+    args.emplace_back(make_locatable<ValTerm>(def_.domRepr()->loc(), Symbol::createId("empty")));
     args.emplace_back(get_clone(def_.domRepr()));
     args.emplace_back(make_locatable<FunctionTerm>(def_.domRepr()->loc(), "", UTermVec()));
     return make_locatable<FunctionTerm>(def_.domRepr()->loc(), "#accu", std::move(args));
@@ -1376,7 +1376,7 @@ UTerm ConjunctionComplete::emptyRepr() const {
 
 UTerm ConjunctionComplete::condRepr() const {
     UTermVec args;
-    args.emplace_back(make_locatable<ValTerm>(def_.domRepr()->loc(), Value::createId("cond")));
+    args.emplace_back(make_locatable<ValTerm>(def_.domRepr()->loc(), Symbol::createId("cond")));
     args.emplace_back(get_clone(def_.domRepr()));
     args.emplace_back(make_locatable<FunctionTerm>(def_.domRepr()->loc(), "", get_clone(local_)));
     return make_locatable<FunctionTerm>(def_.domRepr()->loc(), "#accu", std::move(args));
@@ -1384,7 +1384,7 @@ UTerm ConjunctionComplete::condRepr() const {
 
 UTerm ConjunctionComplete::headRepr() const {
     UTermVec args;
-    args.emplace_back(make_locatable<ValTerm>(def_.domRepr()->loc(), Value::createId("head")));
+    args.emplace_back(make_locatable<ValTerm>(def_.domRepr()->loc(), Symbol::createId("head")));
     args.emplace_back(get_clone(def_.domRepr()));
     args.emplace_back(make_locatable<FunctionTerm>(def_.domRepr()->loc(), "", get_clone(local_)));
     return make_locatable<FunctionTerm>(def_.domRepr()->loc(), "#accu", std::move(args));
@@ -1392,9 +1392,9 @@ UTerm ConjunctionComplete::headRepr() const {
 
 UTerm ConjunctionComplete::accuRepr() const {
     UTermVec args;
-    args.emplace_back(make_locatable<VarTerm>(def_.domRepr()->loc(), "#Any1", std::make_shared<Value>(Value::createNum(0))));
+    args.emplace_back(make_locatable<VarTerm>(def_.domRepr()->loc(), "#Any1", std::make_shared<Symbol>(Symbol::createNum(0))));
     args.emplace_back(get_clone(def_.domRepr()));
-    args.emplace_back(make_locatable<VarTerm>(def_.domRepr()->loc(), "#Any2", std::make_shared<Value>(Value::createNum(0))));
+    args.emplace_back(make_locatable<VarTerm>(def_.domRepr()->loc(), "#Any2", std::make_shared<Symbol>(Symbol::createNum(0))));
     return make_locatable<FunctionTerm>(def_.domRepr()->loc(), "#accu", std::move(args));
 }
 
@@ -1448,11 +1448,11 @@ void ConjunctionComplete::reportEmpty() {
     reportOther([](ConjunctionDomain::Iterator) { });
 }
 
-void ConjunctionComplete::reportCond(DomainData &data, Value cond, Output::LitVec &lits) {
+void ConjunctionComplete::reportCond(DomainData &data, Symbol cond, Output::LitVec &lits) {
     reportOther([&](ConjunctionDomain::Iterator atom) { atom->accumulateCond(data, cond, lits); });
 }
 
-void ConjunctionComplete::reportHead(DomainData &data, Value cond, Output::LitVec &lits) {
+void ConjunctionComplete::reportHead(DomainData &data, Symbol cond, Output::LitVec &lits) {
     reportOther([&](ConjunctionDomain::Iterator atom) { atom->accumulateHead(data, cond, lits); });
 }
 
@@ -1627,7 +1627,7 @@ void DisjointAccumulate::linearize(Scripts &scripts, bool positive) {
 
 void DisjointAccumulate::report(Output::OutputBase &out) {
     bool undefined = false;
-    Value repr(complete_.domRepr()->eval(undefined));
+    Symbol repr(complete_.domRepr()->eval(undefined));
     assert(!undefined);
     auto atom = complete_.dom().reserve(repr);
     if (!neutral_) {
@@ -1740,11 +1740,12 @@ std::pair<Output::LiteralId,bool> DisjointLiteral::toOutput() {
 TheoryComplete::TheoryComplete(DomainData &data, UTerm &&repr, TheoryAtomType type, UTerm &&name)
 : def_(std::move(repr), &data.add<TheoryDomain>())
 , accuRepr_(completeRepr_(def_.domRepr()))
+, op_("")
 , name_(std::move(name))
 , inst_(*this)
 , type_(type) { }
 
-TheoryComplete::TheoryComplete(DomainData &data, UTerm &&repr, TheoryAtomType type, UTerm &&name, FWString op, Output::UTheoryTerm &&guard)
+TheoryComplete::TheoryComplete(DomainData &data, UTerm &&repr, TheoryAtomType type, UTerm &&name, String op, Output::UTheoryTerm &&guard)
 : def_(std::move(repr), &data.add<TheoryDomain>())
 , accuRepr_(completeRepr_(def_.domRepr()))
 , op_(op)
@@ -1873,14 +1874,14 @@ void TheoryAccumulate::collectImportant(Term::VarSet &vars) {
 
 void TheoryAccumulate::report(Output::OutputBase &out) {
     bool undefined = false;
-    Value repr(complete_.domRepr()->eval(undefined));
-    Value name(complete_.name()->eval(undefined));
+    Symbol repr(complete_.domRepr()->eval(undefined));
+    Symbol name(complete_.name()->eval(undefined));
     if (!undefined) {
         auto atom = complete_.dom().reserve(repr);
         if (!atom->initialized()) {
             Id_t n = out.data.theory().addTerm(name);
             Id_t g = complete_.hasGuard() ? complete_.guard()->eval(out.data.theory()) : InvalidId;
-            Id_t o = complete_.hasGuard() ? out.data.theory().addTerm(complete_.op()->c_str()) : InvalidId;
+            Id_t o = complete_.hasGuard() ? out.data.theory().addTerm(complete_.op().c_str()) : InvalidId;
             atom->init(complete_.type(), n, o, g);
         }
         if (!neutral_) {
@@ -2100,7 +2101,7 @@ void HeadAggregateAccumulate::report(Output::OutputBase &out) {
     bool undefined = false;
     for (auto &x : tuple_) { vals.emplace_back(x->eval(undefined)); }
     if (undefined) { return; }
-    Value predVal(predDef_ ? predDef_.domRepr()->eval(undefined) : Value());
+    Symbol predVal(predDef_ ? predDef_.domRepr()->eval(undefined) : Symbol());
     if (undefined) { return; }
     auto &tempLits = out.tempLits();
     for (auto &x : lits_) {
@@ -2108,7 +2109,7 @@ void HeadAggregateAccumulate::report(Output::OutputBase &out) {
         auto lit = x->toOutput();
         if (!lit.second) { tempLits.emplace_back(lit.first); }
     }
-    Value headVal(complete_.domRepr()->eval(undefined));
+    Symbol headVal(complete_.domRepr()->eval(undefined));
     assert(!undefined);
     auto &dom = complete_.dom();
     auto atm = dom.find(headVal);
@@ -2604,11 +2605,11 @@ void DisjunctionAccumulate::printPred(std::ostream &out) const {
 
 void DisjunctionAccumulate::reportHead(Output::OutputBase &out) {
     bool undefined = false;
-    Value predRepr;
+    Symbol predRepr;
     if (predDef_) { predRepr = predDef_.domRepr()->eval(undefined); }
     if (undefined) { return; }
-    Value domRepr(complete_.domRepr()->eval(undefined));
-    Value elemRepr(elemRepr_->eval(undefined));
+    Symbol domRepr(complete_.domRepr()->eval(undefined));
+    Symbol elemRepr(elemRepr_->eval(undefined));
     assert(!undefined);
     auto &dom = complete_.dom();
     auto atm = dom.find(domRepr);
@@ -2631,8 +2632,8 @@ void DisjunctionAccumulate::reportHead(Output::OutputBase &out) {
 
 void DisjunctionAccumulate::report(Output::OutputBase &out) {
     bool undefined = false;
-    Value domRepr(complete_.domRepr()->eval(undefined));
-    Value elemRepr(elemRepr_->eval(undefined));
+    Symbol domRepr(complete_.domRepr()->eval(undefined));
+    Symbol elemRepr(elemRepr_->eval(undefined));
     assert(!undefined);
     auto &tempLits = out.tempLits();
     for (auto &x : lits_) {
