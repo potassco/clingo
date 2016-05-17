@@ -94,8 +94,8 @@ public:
     }
     void print(PrintPlain out, char const *prefix) const override {
         for (auto &x : outPreds_) {
-            if (std::get<1>(x) != Signature("", 0)) { out << prefix << "#show " << (std::get<2>(x) ? "$" : "") << *std::get<1>(x) << ".\n"; }
-            else                                    { out << prefix << "#show.\n"; }
+            if (std::get<1>(x).match("", 0)) { out << prefix << "#show " << (std::get<2>(x) ? "$" : "") << std::get<1>(x) << ".\n"; }
+            else                             { out << prefix << "#show.\n"; }
         }
     }
     void translate(DomainData &data, Translator &trans) override {
@@ -234,9 +234,9 @@ void OutputBase::endStep(bool solve) {
     }
     EndStepStatement(outPreds, solve).passTo(data, *out_);
     // TODO: get rid of such things #d domains should be stored somewhere else
-    std::set<Gringo::FWSignature> rm;
+    std::set<Sig> rm;
     for (auto &x : predDoms()) {
-        if (std::strncmp((*x->sig()).name()->c_str(), "#d", 2) == 0) {
+        if (x->sig().name().startsWith("#d")) {
             rm.emplace(x->sig());
         }
     }
@@ -263,31 +263,31 @@ void OutputBase::checkOutPreds() {
     std::sort(outPreds.begin(), outPreds.end(), le);
     outPreds.erase(std::unique(outPreds.begin(), outPreds.end(), eq), outPreds.end());
     for (auto &x : outPreds) {
-        if (std::get<1>(x) != Signature("", 0) && !std::get<2>(x)) {
+        if (std::get<1>(x).match("", 0) && !std::get<2>(x)) {
             auto it(predDoms().find(std::get<1>(x)));
             if (it == predDoms().end()) {
                 GRINGO_REPORT(W_ATOM_UNDEFINED)
                     << std::get<0>(x) << ": info: no atoms over signature occur in program:\n"
-                    << "  " << *std::get<1>(x) << "\n";
+                    << "  " << std::get<1>(x) << "\n";
             }
         }
     }
 }
 
-ValVec OutputBase::atoms(int atomset, IsTrueLookup isTrue) const {
-    Gringo::ValVec atoms;
+SymVec OutputBase::atoms(int atomset, IsTrueLookup isTrue) const {
+    SymVec atoms;
     translateLambda(const_cast<DomainData&>(data), *out_, [&](DomainData &data, Translator &trans) {
         trans.atoms(data, atomset, isTrue, atoms, outPreds);
     });
     return atoms;
 }
 
-std::pair<PredicateDomain::ConstIterator, PredicateDomain const *> OutputBase::find(Gringo::Value val) const {
+std::pair<PredicateDomain::ConstIterator, PredicateDomain const *> OutputBase::find(Symbol val) const {
     return const_cast<OutputBase*>(this)->find(val);
 }
 
-std::pair<PredicateDomain::Iterator, PredicateDomain*> OutputBase::find(Gringo::Value val) {
-    if (val.type() == Gringo::Value::ID || val.type() == Gringo::Value::FUNC) {
+std::pair<PredicateDomain::Iterator, PredicateDomain*> OutputBase::find(Symbol val) {
+    if (val.type() == SymbolType::Fun) {
         auto it = predDoms().find(val.sig());
         if (it != predDoms().end()) {
             auto jt = (*it)->find(val);

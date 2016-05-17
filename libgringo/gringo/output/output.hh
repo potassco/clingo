@@ -74,13 +74,13 @@ public:
     void beginStep();
     void endStep(bool solve);
     void checkOutPreds();
-    ValVec atoms(int atomset, IsTrueLookup lookup) const;
-    std::pair<PredicateDomain::Iterator, PredicateDomain*> find(Gringo::Value val);
-    std::pair<PredicateDomain::ConstIterator, PredicateDomain const *> find(Gringo::Value val) const;
+    SymVec atoms(int atomset, IsTrueLookup lookup) const;
+    std::pair<PredicateDomain::Iterator, PredicateDomain*> find(Symbol val);
+    std::pair<PredicateDomain::ConstIterator, PredicateDomain const *> find(Symbol val) const;
     PredDomMap &predDoms() { return data.predDoms(); }
     PredDomMap const &predDoms() const { return data.predDoms(); }
     Rule &tempRule(bool choice) { return tempRule_.reset(choice); }
-    ValVec &tempVals() { tempVals_.clear(); return tempVals_; }
+    SymVec &tempVals() { tempVals_.clear(); return tempVals_; }
     LitVec &tempLits() { tempLits_.clear(); return tempLits_; }
     Backend *backend();
     void reset();
@@ -89,7 +89,7 @@ private:
     UAbstractOutput fromBackend(UBackend &&out, OutputDebug debug);
 
 public:
-    ValVec tempVals_;
+    SymVec tempVals_;
     LitVec tempLits_;
     Rule tempRule_;
     LitVec delayed_;
