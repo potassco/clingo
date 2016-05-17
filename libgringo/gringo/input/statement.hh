@@ -35,7 +35,7 @@ struct Statement : Printable, Locatable {
     virtual UStmVec unpool(bool beforeRewrite);
     virtual bool rewrite1(Projections &project);
     virtual void rewrite2();
-    virtual Value isEDB() const;
+    virtual Symbol isEDB() const;
     virtual void print(std::ostream &out) const;
     virtual bool hasPool(bool beforeRewrite) const;
     virtual void check() const;

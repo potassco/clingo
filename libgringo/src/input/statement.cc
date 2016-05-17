@@ -77,7 +77,7 @@ void Statement::print(std::ostream &out) const {
 // }}}
 // {{{ definition of Statement::isEDB
 
-Value Statement::isEDB() const { return type == StatementType::RULE && body.empty() ? head->isEDB() : Value(); }
+Symbol Statement::isEDB() const { return type == StatementType::RULE && body.empty() ? head->isEDB() : Symbol(); }
 
 // }}}
 // {{{ definition of Statement::unpool
@@ -163,7 +163,7 @@ void _rewriteAggregates(UBodyAggrVec &body) {
 
 void _rewriteAssignments(UBodyAggrVec &body) {
     using LitDep = SafetyChecker<VarTerm*, UBodyAggr>;
-    using VarMap = std::unordered_map<FWString, LitDep::VarNode*>;
+    using VarMap = std::unordered_map<String, LitDep::VarNode*>;
     LitDep dep;
     VarMap map;
     for (auto &y : body) {
