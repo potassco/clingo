@@ -126,7 +126,7 @@ class BindIndex : public IndexUpdater {
 public:
     using SizeType  = typename Domain::SizeType;
     using OffsetVec = std::vector<SizeType>;
-    using Iterator  = typename OffsetVec::iterator;
+    using Iterator  = SizeType const *;
     using Entry     = BindIndexEntry<Domain>;
     using Index     = UniqueVec<Entry, typename Entry::Hash, EqualTo>;
 
@@ -167,8 +167,7 @@ public:
                 case BinderType::ALL: { return { it->begin(), it->end() }; }
             }
         }
-        static OffsetVec dummy;
-        return { dummy.begin(), dummy.end() };
+        return { nullptr, nullptr };
     }
 
     // The equality and hash functions are used to prevent adding structurally equivalent indices twice.

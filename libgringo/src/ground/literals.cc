@@ -39,8 +39,8 @@ struct RangeBinder : Binder {
     virtual IndexUpdater *getUpdater() { return nullptr; }
     virtual void match() {
         bool undefined = false;
-        Value l{range.first->eval(undefined)}, r{range.second->eval(undefined)};
-        if (!undefined && l.type() == Value::NUM && r.type() == Value::NUM) {
+        Symbol l{range.first->eval(undefined)}, r{range.second->eval(undefined)};
+        if (!undefined && l.type() == SymbolType::Num && r.type() == SymbolType::Num) {
             current = l.num();
             end     = r.num();
         }
@@ -57,7 +57,7 @@ struct RangeBinder : Binder {
     virtual bool next() {
         // Note: if assign does not match it is not a variable and will not match at all
         //       if assign is just a number, then this is handled in the corresponding Binder
-        return current <= end && assign->match(Value::createNum(current++));
+        return current <= end && assign->match(Symbol::createNum(current++));
     }
     virtual void start()  { }
     virtual void finish() { }
@@ -81,9 +81,9 @@ struct RangeMatcher : Binder {
     virtual IndexUpdater *getUpdater() { return nullptr; }
     virtual void match() {
         bool undefined = false;
-        Value l{range.first->eval(undefined)}, r{range.second->eval(undefined)}, a{assign.eval(undefined)};
-        if (!undefined && l.type() == Value::NUM && r.type() == Value::NUM) {
-            firstMatch = a.type() == Value::NUM && l.num() <= a.num() && a.num() <= r.num();
+        Symbol l{range.first->eval(undefined)}, r{range.second->eval(undefined)}, a{assign.eval(undefined)};
+        if (!undefined && l.type() == SymbolType::Num && r.type() == SymbolType::Num) {
+            firstMatch = a.type() == SymbolType::Num && l.num() <= a.num() && a.num() <= r.num();
         }
         else {
             if (!undefined) {
@@ -118,11 +118,11 @@ struct ScriptBinder : Binder {
         , shared(shared) { }
     virtual IndexUpdater *getUpdater() { return nullptr; }
     virtual void match() {
-        ValVec args;
+        SymVec args;
         bool undefined = false;
         for (auto &x : std::get<1>(shared)) { args.emplace_back(x->eval(undefined)); }
         if (!undefined) {
-            matches = scripts.call(assign->loc(), *std::get<0>(shared), args);
+            matches = scripts.call(assign->loc(), std::get<0>(shared), Potassco::toSpan(args));
         }
         else { matches = {}; }
         current = matches.begin();
@@ -136,7 +136,7 @@ struct ScriptBinder : Binder {
     virtual void start()  { }
     virtual void finish() { }
     virtual void print(std::ostream &out) const {
-        out << *assign << "=" << *std::get<0>(shared) << "(";
+        out << *assign << "=" << std::get<0>(shared) << "(";
         print_comma(out, std::get<1>(shared), ",", [](std::ostream &out, UTerm const &term) { out << *term; });
         out << ")";
     }
@@ -145,8 +145,8 @@ struct ScriptBinder : Binder {
     Scripts             &scripts;
     UTerm                assign;
     ScriptLiteralShared &shared;
-    ValVec               matches;
-    ValVec::iterator     current;
+    SymVec               matches;
+    SymVec::iterator     current;
 };
 
 // }}}
@@ -159,9 +159,9 @@ struct RelationMatcher : Binder {
     virtual IndexUpdater *getUpdater() { return nullptr; }
     virtual void match() {
         bool undefined = false;
-        Value l(std::get<1>(shared)->eval(undefined));
+        Symbol l(std::get<1>(shared)->eval(undefined));
         if (undefined) { firstMatch = false; return; }
-        Value r(std::get<2>(shared)->eval(undefined));
+        Symbol r(std::get<2>(shared)->eval(undefined));
         if (undefined) { firstMatch = false; return; }
         switch (std::get<0>(shared)) {
             case Relation::GT:  { firstMatch = l >  r; break; }
@@ -196,7 +196,7 @@ struct AssignBinder : Binder {
     virtual IndexUpdater *getUpdater() { return nullptr; }
     virtual void match() {
         bool undefined = false;
-        Value valRhs = rhs.eval(undefined);
+        Symbol valRhs = rhs.eval(undefined);
         if (!undefined) {
             firstMatch = lhs->match(valRhs);
         }
@@ -262,7 +262,7 @@ void PredicateLiteral::checkDefined(LocSet &done, SigSet const &edb, UndefVec &u
 }
 
 ExternalBodyOcc::ExternalBodyOcc()               { }
-UGTerm ExternalBodyOcc::getRepr() const          { return gringo_make_unique<GValTerm>(Value::createId("#external")); }
+UGTerm ExternalBodyOcc::getRepr() const          { return gringo_make_unique<GValTerm>(Symbol::createId("#external")); }
 bool ExternalBodyOcc::isPositive() const         { return false; }
 bool ExternalBodyOcc::isNegative() const         { return false; }
 void ExternalBodyOcc::setType(OccurrenceType)    { }
@@ -279,7 +279,7 @@ RangeLiteral::RangeLiteral(UTerm &&assign, UTerm &&lower, UTerm &&upper)
 : assign(std::move(assign))
 , range(std::move(lower), std::move(upper)) { }
 
-ScriptLiteral::ScriptLiteral(UTerm &&assign, FWString name, UTermVec &&args)
+ScriptLiteral::ScriptLiteral(UTerm &&assign, String name, UTermVec &&args)
 : assign(std::move(assign))
 , shared(name, std::move(args)) { }
 
@@ -301,7 +301,7 @@ ProjectionLiteral::ProjectionLiteral(bool auxiliary, PredicateDomain &domain, UT
 
 void RangeLiteral::print(std::ostream &out) const     { out << *assign << "=" << *range.first << ".." << *range.second; }
 void ScriptLiteral::print(std::ostream &out) const    {
-    out << *assign << "=" << *std::get<0>(shared) << "(";
+    out << *assign << "=" << std::get<0>(shared) << "(";
     print_comma(out, std::get<1>(shared), ",", [](std::ostream &out, UTerm const &term) { out << *term; });
     out << ")";
 }
@@ -398,9 +398,9 @@ UIdx ProjectionLiteral::index(Scripts &, BinderType type, Term::VarSet &bound) {
 Literal::Score RangeLiteral::score(Term::VarSet const &) {
     if (range.first->getInvertibility() == Term::CONSTANT && range.second->getInvertibility() == Term::CONSTANT) {
         bool undefined = false;
-        Value l(range.first->eval(undefined));
-        Value r(range.second->eval(undefined));
-        return (l.type() == Value::NUM && r.type() == Value::NUM) ? r.num() - l.num() : -1;
+        Symbol l(range.first->eval(undefined));
+        Symbol r(range.second->eval(undefined));
+        return (l.type() == SymbolType::Num && r.type() == SymbolType::Num) ? r.num() - l.num() : -1;
     }
     return 0;
 }
@@ -426,7 +426,7 @@ std::pair<Output::LiteralId,bool> PredicateLiteral::toOutput() {
         return {Output::LiteralId(), true};
     }
     auto &atom = domain[offset];
-    if (std::strncmp("#inc_", static_cast<Value>(atom).name()->c_str(), 5) == 0) {
+    if (static_cast<Symbol>(atom).name().startsWith("#inc_")) {
         return {Output::LiteralId(), true};
     }
     switch (naf) {

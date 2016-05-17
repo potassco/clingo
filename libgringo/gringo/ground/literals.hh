@@ -62,9 +62,9 @@ struct RangeLiteral : Literal {
 // }}}
 // {{{ declaration of ScriptLiteral
 
-using ScriptLiteralShared = std::pair<FWString, UTermVec>;
+using ScriptLiteralShared = std::pair<String, UTermVec>;
 struct ScriptLiteral : Literal {
-    ScriptLiteral(UTerm &&assign, FWString name, UTermVec &&args);
+    ScriptLiteral(UTerm &&assign, String name, UTermVec &&args);
     virtual void print(std::ostream &out) const;
     virtual bool isRecursive() const;
     virtual BodyOcc *occurrence();

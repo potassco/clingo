@@ -23,6 +23,7 @@
 
 #include <gringo/graph.hh>
 #include <gringo/term.hh>
+#include <gringo/hash_set.hh>
 
 namespace Gringo { namespace Ground {
 
@@ -30,7 +31,7 @@ namespace Gringo { namespace Ground {
 
 template <class Occ>
 struct Lookup {
-    typedef std::unordered_multimap<FWSignature, GTerm*> SigLookup;
+    typedef std::unordered_multimap<Sig, GTerm*> SigLookup;
     typedef std::unordered_multimap<GTerm*, Occ, value_hash<GTerm*>, value_equal_to<GTerm*>> Occurrences;
     typedef typename Occurrences::iterator iterator;
     //! Adds an occurrence associated with a term.
@@ -40,7 +41,7 @@ struct Lookup {
     //! term already present.
     bool add(GTerm &term, Occ &&occ);
     template <class Callback>
-    void match(Value const &x, Callback const &c);
+    void match(Symbol x, Callback const &c);
     template <class Callback>
     void unify(GTerm &x, Callback const &c);
     ~Lookup();
@@ -59,7 +60,7 @@ public:
 // {{{ declaration of BodyOccurrence
 
 using LocSet = std::set<Location>;
-using SigSet = UniqueVec<FWSignature>;
+using SigSet = UniqueVec<Sig>;
 using UndefVec = std::vector<std::pair<Location, Printable const *>>;
 
 enum class OccurrenceType { POSITIVELY_STRATIFIED, STRATIFIED, UNSTRATIFIED };
@@ -132,24 +133,20 @@ bool Lookup<Occ>::add(GTerm &term, Occ &&x) {
 
 template <class Occ>
 template <class Callback>
-void Lookup<Occ>::match(Value const &x, Callback const &c) {
-    switch (x.type()) {
-        case Value::FUNC:
-        case Value::ID: {
-            auto ir(terms.equal_range(x.sig()));
-            for (auto it = ir.first; it != ir.second; ++it) {
-                if (it->second->match(x)) {
-                    auto rng(occs.equal_range(it->second));
-                    assert(rng.first != rng.second);
-                    c(rng.first, rng.second);
-                }
-                it->second->reset();
+void Lookup<Occ>::match(Symbol x, Callback const &c) {
+    if (x.type() == SymbolType::Fun) {
+        auto ir(terms.equal_range(x.sig()));
+        for (auto it = ir.first; it != ir.second; ++it) {
+            if (it->second->match(x)) {
+                auto rng(occs.equal_range(it->second));
+                assert(rng.first != rng.second);
+                c(rng.first, rng.second);
             }
-            GValTerm y(x);
-            auto rng(occs.equal_range(&y));
-            if (rng.first != rng.second) { c(rng.first, rng.second); }
+            it->second->reset();
         }
-        default: { }
+        GValTerm y(x);
+        auto rng(occs.equal_range(&y));
+        if (rng.first != rng.second) { c(rng.first, rng.second); }
     }
 }
 
