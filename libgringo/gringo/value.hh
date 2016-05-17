@@ -161,6 +161,7 @@ public:
     String string() const;
     Sig sig() const;
     bool hasSig() const;
+    uint32_t arity() const;
     String name() const;
     SymSpan args() const;
     bool sign() const;

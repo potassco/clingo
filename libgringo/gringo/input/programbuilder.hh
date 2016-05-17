@@ -21,9 +21,9 @@
 #ifndef _GRINGO_INPUT_PROGRAMBUILDER_HH
 #define _GRINGO_INPUT_PROGRAMBUILDER_HH
 
-#include <gringo/flyweight.hh>
 #include <gringo/locatable.hh>
 #include <gringo/value.hh>
+#include <gringo/indexed.hh>
 
 #include <gringo/base.hh>
 #include <gringo/control.hh>
@@ -102,13 +102,13 @@ enum TheoryDefVecUid    : unsigned { };
 class INongroundProgramBuilder {
 public:
     // {{{2 terms
-    virtual TermUid term(Location const &loc, Value val) = 0;                                // constant
-    virtual TermUid term(Location const &loc, FWString name) = 0;                            // variable
+    virtual TermUid term(Location const &loc, Symbol val) = 0;                                // constant
+    virtual TermUid term(Location const &loc, String name) = 0;                            // variable
     virtual TermUid term(Location const &loc, UnOp op, TermUid a) = 0;                       // unary operation
     virtual TermUid term(Location const &loc, UnOp op, TermVecUid a) = 0;                    // unary operation
     virtual TermUid term(Location const &loc, BinOp op, TermUid a, TermUid b) = 0;           // binary operation
     virtual TermUid term(Location const &loc, TermUid a, TermUid b) = 0;                     // dots
-    virtual TermUid term(Location const &loc, FWString name, TermVecVecUid b, bool lua) = 0; // function or lua function
+    virtual TermUid term(Location const &loc, String name, TermVecVecUid b, bool lua) = 0; // function or lua function
     virtual TermUid term(Location const &loc, TermVecUid args, bool forceTuple) = 0;         // a tuple term (or simply a term)
     virtual TermUid pool(Location const &loc, TermVecUid args) = 0;                          // a pool term
     // {{{2 csp
@@ -121,7 +121,7 @@ public:
     virtual CSPLitUid csplit(Location const &loc, CSPAddTermUid a, Relation rel, CSPAddTermUid b) = 0;
     // {{{2 id vectors
     virtual IdVecUid idvec() = 0;
-    virtual IdVecUid idvec(IdVecUid uid, Location const &loc, FWString id) = 0;
+    virtual IdVecUid idvec(IdVecUid uid, Location const &loc, String id) = 0;
     // {{{2 term vectors
     virtual TermVecUid termvec() = 0;
     virtual TermVecUid termvec(TermVecUid uid, TermUid term) = 0;
@@ -130,7 +130,7 @@ public:
     virtual TermVecVecUid termvecvec(TermVecVecUid uid, TermVecUid termvecUid) = 0;
     // {{{2 literals
     virtual LitUid boollit(Location const &loc, bool type) = 0;
-    virtual LitUid predlit(Location const &loc, NAF naf, bool neg, FWString name, TermVecVecUid argvecvecUid) = 0;
+    virtual LitUid predlit(Location const &loc, NAF naf, bool neg, String name, TermVecVecUid argvecvecUid) = 0;
     virtual LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) = 0;
     // {{{2 literal vectors
     virtual LitVecUid litvec() = 0;
@@ -167,33 +167,33 @@ public:
     // {{{2 statements
     virtual void rule(Location const &loc, HdLitUid head) = 0;
     virtual void rule(Location const &loc, HdLitUid head, BdLitVecUid body) = 0;
-    virtual void define(Location const &loc, FWString name, TermUid value, bool defaultDef) = 0;
+    virtual void define(Location const &loc, String name, TermUid value, bool defaultDef) = 0;
     virtual void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) = 0;
-    virtual void showsig(Location const &loc, FWSignature, bool csp) = 0;
+    virtual void showsig(Location const &loc, Sig, bool csp) = 0;
     virtual void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) = 0;
-    virtual void python(Location const &loc, FWString code) = 0;
-    virtual void lua(Location const &loc, FWString code) = 0;
-    virtual void block(Location const &loc, FWString name, IdVecUid args) = 0;
+    virtual void python(Location const &loc, String code) = 0;
+    virtual void lua(Location const &loc, String code) = 0;
+    virtual void block(Location const &loc, String name, IdVecUid args) = 0;
     virtual void external(Location const &loc, LitUid head, BdLitVecUid body) = 0;
     virtual void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) = 0;
-    virtual void heuristic(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) = 0;
-    virtual void project(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid body) = 0;
-    virtual void project(Location const &loc, FWSignature sig) = 0;
+    virtual void heuristic(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) = 0;
+    virtual void project(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body) = 0;
+    virtual void project(Location const &loc, Sig sig) = 0;
     // {{{2 theory atoms
 
     virtual TheoryTermUid theorytermset(Location const &loc, TheoryOptermVecUid args) = 0;
     virtual TheoryTermUid theoryoptermlist(Location const &loc, TheoryOptermVecUid args) = 0;
     virtual TheoryTermUid theorytermopterm(Location const &loc, TheoryOptermUid opterm) = 0;
     virtual TheoryTermUid theorytermtuple(Location const &loc, TheoryOptermVecUid args) = 0;
-    virtual TheoryTermUid theorytermfun(Location const &loc, FWString name, TheoryOptermVecUid args) = 0;
-    virtual TheoryTermUid theorytermvalue(Location const &loc, Value val) = 0;
-    virtual TheoryTermUid theorytermvar(Location const &loc, FWString var) = 0;
+    virtual TheoryTermUid theorytermfun(Location const &loc, String name, TheoryOptermVecUid args) = 0;
+    virtual TheoryTermUid theorytermvalue(Location const &loc, Symbol val) = 0;
+    virtual TheoryTermUid theorytermvar(Location const &loc, String var) = 0;
 
     virtual TheoryOptermUid theoryopterm(TheoryOpVecUid ops, TheoryTermUid term) = 0;
     virtual TheoryOptermUid theoryopterm(TheoryOptermUid opterm, TheoryOpVecUid ops, TheoryTermUid term) = 0;
 
     virtual TheoryOpVecUid theoryops() = 0;
-    virtual TheoryOpVecUid theoryops(TheoryOpVecUid ops, FWString op) = 0;
+    virtual TheoryOpVecUid theoryops(TheoryOpVecUid ops, String op) = 0;
 
     virtual TheoryOptermVecUid theoryopterms() = 0;
     virtual TheoryOptermVecUid theoryopterms(TheoryOptermVecUid opterms, TheoryOptermUid opterm) = 0;
@@ -203,23 +203,23 @@ public:
     virtual TheoryElemVecUid theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) = 0;
 
     virtual TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems) = 0;
-    virtual TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, FWString op, TheoryOptermUid opterm) = 0;
+    virtual TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, String op, TheoryOptermUid opterm) = 0;
 
     // {{{2 theory definitions
 
-    virtual TheoryOpDefUid theoryopdef(Location const &loc, FWString op, unsigned priority, TheoryOperatorType type) = 0;
+    virtual TheoryOpDefUid theoryopdef(Location const &loc, String op, unsigned priority, TheoryOperatorType type) = 0;
     virtual TheoryOpDefVecUid theoryopdefs() = 0;
     virtual TheoryOpDefVecUid theoryopdefs(TheoryOpDefVecUid defs, TheoryOpDefUid def) = 0;
 
-    virtual TheoryTermDefUid theorytermdef(Location const &loc, FWString name, TheoryOpDefVecUid defs) = 0;
-    virtual TheoryAtomDefUid theoryatomdef(Location const &loc, FWString name, unsigned arity, FWString termDef, TheoryAtomType type) = 0;
-    virtual TheoryAtomDefUid theoryatomdef(Location const &loc, FWString name, unsigned arity, FWString termDef, TheoryAtomType type, TheoryOpVecUid ops, FWString guardDef) = 0;
+    virtual TheoryTermDefUid theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs) = 0;
+    virtual TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type) = 0;
+    virtual TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type, TheoryOpVecUid ops, String guardDef) = 0;
 
     virtual TheoryDefVecUid theorydefs() = 0;
     virtual TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryTermDefUid def) = 0;
     virtual TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid def) = 0;
 
-    virtual void theorydef(Location const &loc, FWString name, TheoryDefVecUid defs) = 0;
+    virtual void theorydef(Location const &loc, String name, TheoryDefVecUid defs) = 0;
 
     // }}}2
 
@@ -243,19 +243,19 @@ using HeadAggrElem = std::tuple<UTermVec, ULit, ULitVec>;
 using HeadAggrElemVec = std::vector<HeadAggrElem>;
 using UBodyAggrVec = std::vector<UBodyAggr>;
 using CSPElemVec = std::vector<CSPElem>;
-using IdVec = std::vector<std::pair<Location, FWString>>;
+using IdVec = std::vector<std::pair<Location, String>>;
 
 class NongroundProgramBuilder : public INongroundProgramBuilder {
 public:
     NongroundProgramBuilder(Scripts &scripts, Program &prg, Output::OutputBase &out, Defines &defs, bool rewriteMinimize = false);
     // {{{2 terms
-    TermUid term(Location const &loc, Value val) override;                               // constant
-    TermUid term(Location const &loc, FWString name) override;                           // variable
+    TermUid term(Location const &loc, Symbol val) override;                               // constant
+    TermUid term(Location const &loc, String name) override;                           // variable
     TermUid term(Location const &loc, UnOp op, TermUid a) override;                      // unary operation
     TermUid term(Location const &loc, UnOp op, TermVecUid a) override;                   // unary operation
     TermUid term(Location const &loc, BinOp op, TermUid a, TermUid b) override;          // binary operation
     TermUid term(Location const &loc, TermUid a, TermUid b) override;                    // assignment
-    TermUid term(Location const &loc, FWString name, TermVecVecUid b, bool lua) override;// function or lua function
+    TermUid term(Location const &loc, String name, TermVecVecUid b, bool lua) override;// function or lua function
     TermUid term(Location const &loc, TermVecUid args, bool forceTuple) override;        // a tuple term (or simply a term)
     TermUid pool(Location const &loc, TermVecUid args) override;                         // a pool term
 
@@ -264,7 +264,7 @@ public:
     TermVecUid termvec(TermVecUid uid, TermUid term) override;
     // {{{2 id vectors
     IdVecUid idvec() override;
-    IdVecUid idvec(IdVecUid uid, Location const &loc, FWString id) override;
+    IdVecUid idvec(IdVecUid uid, Location const &loc, String id) override;
     // {{{2 csp
     CSPMulTermUid cspmulterm(Location const &loc, TermUid coe, TermUid var) override;
     CSPMulTermUid cspmulterm(Location const &loc, TermUid coe) override;
@@ -278,7 +278,7 @@ public:
     TermVecVecUid termvecvec(TermVecVecUid uid, TermVecUid termvecUid) override;
     // {{{2 literals
     LitUid boollit(Location const &loc, bool type) override;
-    LitUid predlit(Location const &loc, NAF naf, bool neg, FWString name, TermVecVecUid argvecvecUid) override;
+    LitUid predlit(Location const &loc, NAF naf, bool neg, String name, TermVecVecUid argvecvecUid) override;
     LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) override;
     // {{{2 literal vectors
     LitVecUid litvec() override;
@@ -315,33 +315,33 @@ public:
     // {{{2 statements
     void rule(Location const &loc, HdLitUid head) override;
     void rule(Location const &loc, HdLitUid head, BdLitVecUid body) override;
-    void define(Location const &loc, FWString name, TermUid value, bool defaultDef) override;
+    void define(Location const &loc, String name, TermUid value, bool defaultDef) override;
     void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) override;
-    void showsig(Location const &loc, FWSignature sig, bool csp) override;
+    void showsig(Location const &loc, Sig sig, bool csp) override;
     void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) override;
-    void python(Location const &loc, FWString code) override;
-    void lua(Location const &loc, FWString code) override;
-    void block(Location const &loc, FWString name, IdVecUid args) override;
+    void python(Location const &loc, String code) override;
+    void lua(Location const &loc, String code) override;
+    void block(Location const &loc, String name, IdVecUid args) override;
     void external(Location const &loc, LitUid head, BdLitVecUid body) override;
     void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) override;
-    void heuristic(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
-    void project(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid body) override;
-    void project(Location const &loc, FWSignature sig) override;
+    void heuristic(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
+    void project(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body) override;
+    void project(Location const &loc, Sig sig) override;
     // }}}2
     // {{{2 theory atoms
     TheoryTermUid theorytermset(Location const &loc, TheoryOptermVecUid args) override;
     TheoryTermUid theoryoptermlist(Location const &loc, TheoryOptermVecUid args) override;
     TheoryTermUid theorytermopterm(Location const &loc, TheoryOptermUid opterm) override;
     TheoryTermUid theorytermtuple(Location const &loc, TheoryOptermVecUid args) override;
-    TheoryTermUid theorytermfun(Location const &loc, FWString name, TheoryOptermVecUid args) override;
-    TheoryTermUid theorytermvalue(Location const &loc, Value val) override;
-    TheoryTermUid theorytermvar(Location const &loc, FWString var) override;
+    TheoryTermUid theorytermfun(Location const &loc, String name, TheoryOptermVecUid args) override;
+    TheoryTermUid theorytermvalue(Location const &loc, Symbol val) override;
+    TheoryTermUid theorytermvar(Location const &loc, String var) override;
 
     TheoryOptermUid theoryopterm(TheoryOpVecUid ops, TheoryTermUid term) override;
     TheoryOptermUid theoryopterm(TheoryOptermUid opterm, TheoryOpVecUid ops, TheoryTermUid term) override;
 
     TheoryOpVecUid theoryops() override;
-    TheoryOpVecUid theoryops(TheoryOpVecUid ops, FWString op) override;
+    TheoryOpVecUid theoryops(TheoryOpVecUid ops, String op) override;
 
     TheoryOptermVecUid theoryopterms() override;
     TheoryOptermVecUid theoryopterms(TheoryOptermVecUid opterms, TheoryOptermUid opterm) override;
@@ -351,29 +351,29 @@ public:
     TheoryElemVecUid theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) override;
 
     TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems) override;
-    TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, FWString op, TheoryOptermUid opterm) override;
+    TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, String op, TheoryOptermUid opterm) override;
 
     // {{{2 theory definitions
 
-    TheoryOpDefUid theoryopdef(Location const &loc, FWString op, unsigned priority, TheoryOperatorType type) override;
+    TheoryOpDefUid theoryopdef(Location const &loc, String op, unsigned priority, TheoryOperatorType type) override;
     TheoryOpDefVecUid theoryopdefs() override;
     TheoryOpDefVecUid theoryopdefs(TheoryOpDefVecUid defs, TheoryOpDefUid def) override;
 
-    TheoryTermDefUid theorytermdef(Location const &loc, FWString name, TheoryOpDefVecUid defs) override;
-    TheoryAtomDefUid theoryatomdef(Location const &loc, FWString name, unsigned arity, FWString termDef, TheoryAtomType type) override;
-    TheoryAtomDefUid theoryatomdef(Location const &loc, FWString name, unsigned arity, FWString termDef, TheoryAtomType type, TheoryOpVecUid ops, FWString guardDef) override;
+    TheoryTermDefUid theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs) override;
+    TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type) override;
+    TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type, TheoryOpVecUid ops, String guardDef) override;
 
     TheoryDefVecUid theorydefs() override;
     TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryTermDefUid def) override;
     TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid def) override;
 
-    void theorydef(Location const &loc, FWString name, TheoryDefVecUid defs) override;
+    void theorydef(Location const &loc, String name, TheoryDefVecUid defs) override;
 
     // }}}2
     virtual ~NongroundProgramBuilder();
 
 private:
-    TermUid predRep(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid);
+    TermUid predRep(Location const &loc, bool neg, String name, TermVecVecUid tvvUid);
 
     using Terms            = Indexed<UTerm, TermUid>;
     using TermVecs         = Indexed<UTermVec, TermVecUid>;
@@ -392,9 +392,9 @@ private:
     using CSPElems         = Indexed<CSPElemVec, CSPElemVecUid>;
     using Statements       = std::vector<UStm>;
     using Bounds           = Indexed<BoundVec, BoundVecUid>;
-    using VarVals          = std::unordered_map<FWString, Term::SVal>;
+    using VarVals          = std::unordered_map<String, Term::SVal>;
 
-    using TheoryOpVecs      = Indexed<std::vector<FWString>, TheoryOpVecUid>;
+    using TheoryOpVecs      = Indexed<std::vector<String>, TheoryOpVecUid>;
     using TheoryTerms       = Indexed<Output::UTheoryTerm, TheoryTermUid>;
     using RawTheoryTerms    = Indexed<Output::RawTheoryTerm, TheoryOptermUid>;
     using RawTheoryTermVecs = Indexed<std::vector<Output::UTheoryTerm>, TheoryOptermVecUid>;
@@ -458,13 +458,13 @@ public:
     virtual ~ASTBuilder() noexcept;
 
     // {{{2 terms
-    TermUid term(Location const &loc, Value val) override;
-    TermUid term(Location const &loc, FWString name) override;
+    TermUid term(Location const &loc, Symbol val) override;
+    TermUid term(Location const &loc, String name) override;
     TermUid term(Location const &loc, UnOp op, TermUid a) override;
     TermUid term(Location const &loc, UnOp op, TermVecUid a) override;
     TermUid term(Location const &loc, BinOp op, TermUid a, TermUid b) override;
     TermUid term(Location const &loc, TermUid a, TermUid b) override;
-    TermUid term(Location const &loc, FWString name, TermVecVecUid a, bool lua) override;
+    TermUid term(Location const &loc, String name, TermVecVecUid a, bool lua) override;
     TermUid term(Location const &loc, TermVecUid a, bool forceTuple) override;
     TermUid pool(Location const &loc, TermVecUid a) override;
     // {{{2 csp
@@ -477,7 +477,7 @@ public:
     CSPLitUid csplit(Location const &loc, CSPAddTermUid a, Relation rel, CSPAddTermUid b) override;
     // {{{2 id vectors
     IdVecUid idvec() override;
-    IdVecUid idvec(IdVecUid uid, Location const &loc, FWString id) override;
+    IdVecUid idvec(IdVecUid uid, Location const &loc, String id) override;
     // {{{2 term vectors
     TermVecUid termvec() override;
     TermVecUid termvec(TermVecUid uid, TermUid termUid) override;
@@ -486,7 +486,7 @@ public:
     TermVecVecUid termvecvec(TermVecVecUid uid, TermVecUid termvecUid) override;
     // {{{2 literals
     LitUid boollit(Location const &loc, bool type) override;
-    LitUid predlit(Location const &loc, NAF naf, bool neg, FWString name, TermVecVecUid argvecvecUid) override;
+    LitUid predlit(Location const &loc, NAF naf, bool neg, String name, TermVecVecUid argvecvecUid) override;
     LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) override;
     // {{{2 literal vectors
     LitVecUid litvec() override;
@@ -523,65 +523,65 @@ public:
     // {{{2 statements
     void rule(Location const &loc, HdLitUid head) override;
     void rule(Location const &loc, HdLitUid head, BdLitVecUid body) override;
-    void define(Location const &loc, FWString name, TermUid value, bool defaultDef) override;
+    void define(Location const &loc, String name, TermUid value, bool defaultDef) override;
     void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) override;
-    void showsig(Location const &loc, FWSignature sig, bool csp) override;
+    void showsig(Location const &loc, Sig sig, bool csp) override;
     void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) override;
-    void python(Location const &loc, FWString code) override;
-    void lua(Location const &loc, FWString code) override;
-    void block(Location const &loc, FWString name, IdVecUid args) override;
+    void python(Location const &loc, String code) override;
+    void lua(Location const &loc, String code) override;
+    void block(Location const &loc, String name, IdVecUid args) override;
     void external(Location const &loc, LitUid head, BdLitVecUid body) override;
     void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) override;
-    void heuristic(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
-    void project(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid body) override;
-    void project(Location const &loc, FWSignature sig) override;
+    void heuristic(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
+    void project(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body) override;
+    void project(Location const &loc, Sig sig) override;
     // {{{2 theory atoms
     TheoryTermUid theorytermset(Location const &loc, TheoryOptermVecUid args) override;
     TheoryTermUid theoryoptermlist(Location const &loc, TheoryOptermVecUid args) override;
     TheoryTermUid theorytermtuple(Location const &loc, TheoryOptermVecUid args) override;
     TheoryTermUid theorytermopterm(Location const &loc, TheoryOptermUid opterm) override;
-    TheoryTermUid theorytermfun(Location const &loc, FWString name, TheoryOptermVecUid args) override;
-    TheoryTermUid theorytermvalue(Location const &loc, Value val) override;
-    TheoryTermUid theorytermvar(Location const &loc, FWString var) override;
+    TheoryTermUid theorytermfun(Location const &loc, String name, TheoryOptermVecUid args) override;
+    TheoryTermUid theorytermvalue(Location const &loc, Symbol val) override;
+    TheoryTermUid theorytermvar(Location const &loc, String var) override;
     TheoryOptermUid theoryopterm(TheoryOpVecUid ops, TheoryTermUid term) override;
     TheoryOptermUid theoryopterm(TheoryOptermUid opterm, TheoryOpVecUid ops, TheoryTermUid term) override;
     TheoryOpVecUid theoryops() override;
-    TheoryOpVecUid theoryops(TheoryOpVecUid ops, FWString op) override;
+    TheoryOpVecUid theoryops(TheoryOpVecUid ops, String op) override;
     TheoryOptermVecUid theoryopterms() override;
     TheoryOptermVecUid theoryopterms(TheoryOptermVecUid opterms, TheoryOptermUid opterm) override;
     TheoryOptermVecUid theoryopterms(TheoryOptermUid opterm, TheoryOptermVecUid opterms) override;
     TheoryElemVecUid theoryelems() override;
     TheoryElemVecUid theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) override;
     TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems) override;
-    TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, FWString op, TheoryOptermUid opterm) override;
+    TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, String op, TheoryOptermUid opterm) override;
     // {{{2 theory definitions
-    TheoryOpDefUid theoryopdef(Location const &loc, FWString op, unsigned priority, TheoryOperatorType type) override;
+    TheoryOpDefUid theoryopdef(Location const &loc, String op, unsigned priority, TheoryOperatorType type) override;
     TheoryOpDefVecUid theoryopdefs() override;
     TheoryOpDefVecUid theoryopdefs(TheoryOpDefVecUid defs, TheoryOpDefUid def) override;
-    TheoryTermDefUid theorytermdef(Location const &loc, FWString name, TheoryOpDefVecUid defs) override;
-    TheoryAtomDefUid theoryatomdef(Location const &loc, FWString name, unsigned arity, FWString termDef, TheoryAtomType type) override;
-    TheoryAtomDefUid theoryatomdef(Location const &loc, FWString name, unsigned arity, FWString termDef, TheoryAtomType type, TheoryOpVecUid ops, FWString guardDef) override;
+    TheoryTermDefUid theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs) override;
+    TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type) override;
+    TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type, TheoryOpVecUid ops, String guardDef) override;
     TheoryDefVecUid theorydefs() override;
     TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryTermDefUid def) override;
     TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid def) override;
-    void theorydef(Location const &loc, FWString name, TheoryDefVecUid defs) override;
+    void theorydef(Location const &loc, String name, TheoryDefVecUid defs) override;
     // }}}2
 
 private:
-    void initNode(AST &node, ASTLocation loc, Value val);
-    void initNode(AST &node, ASTLocation loc, Value val, NodeVec &children);
-    void initNode(AST &node, Location const &loc, Value val);
-    void initNode(AST &node, Location const &loc, Value val, NodeVec &children);
-    AST newNode(ASTLocation loc, Value val);
-    AST newNode(Location const &loc, Value val);
-    AST newNode(ASTLocation loc, Value val, NodeVec &children);
-    AST newNode(Location const &loc, Value val, NodeVec &children);
+    void initNode(AST &node, ASTLocation loc, Symbol val);
+    void initNode(AST &node, ASTLocation loc, Symbol val, NodeVec &children);
+    void initNode(AST &node, Location const &loc, Symbol val);
+    void initNode(AST &node, Location const &loc, Symbol val, NodeVec &children);
+    AST newNode(ASTLocation loc, Symbol val);
+    AST newNode(Location const &loc, Symbol val);
+    AST newNode(ASTLocation loc, Symbol val, NodeVec &children);
+    AST newNode(Location const &loc, Symbol val, NodeVec &children);
     AST newNode(Location const &loc,  NAF naf);
     AST newNode(Location const &loc,  AggregateFunction fun);
     AST newNode(Location const &loc,  Relation rel);
     AST newNode(Location const &loc, TheoryAtomType type);
     AST newNode(Location const &loc, char const *value);
-    AST newNode(Location const &loc, FWString value);
+    AST newNode(Location const &loc, String value);
     AST newNode(Location const &loc, unsigned length);
     AST newNode(Location const &loc, char const *value, NodeVec &children);
     AST typedNode(char const *type, AST node);
@@ -590,7 +590,7 @@ private:
     AST littuple_(Location const &loc, LitVecUid a);
     AST littuple_(Location const &loc, BdLitVecUid a);
     AST condlit_(Location const &loc, LitUid litUid, LitVecUid litvecUid);
-    TermUid fun_(Location const &loc, FWString name, TermVecUid a, bool lua);
+    TermUid fun_(Location const &loc, String name, TermVecUid a, bool lua);
     TermUid pool_(Location const &loc, TermUidVec const &vec);
     void directive_(Location const &loc, char const *name, NodeVec &nodeVec);
 
@@ -665,11 +665,11 @@ public:
 private:
     UnOp parseUnOp(AST const &node);
     BinOp parseBinOp(AST const &node);
-    Value parseValue(AST const &node);
+    Symbol parseValue(AST const &node);
     TermUid parseTerm(AST const &node);
     TermVecUid parseTermVec(AST const &node);
     TermVecVecUid parseArgs(AST const &node);
-    FWString parseID(AST const &node);
+    String parseID(AST const &node);
     NAF parseNAF(AST const &node);
     bool parseNEG(AST const &node);
     void parseProgram(AST const &node);
@@ -686,59 +686,59 @@ private:
 
 private:
     NongroundProgramBuilder prg_;
-    Value directive_rule              = Value::createId("directive_rule");
-    Value directive_const             = Value::createId("directive_const");
-    Value directive_minimize          = Value::createId("directive_minimize");
-    Value directive_show_signature    = Value::createId("directive_show_signature");
-    Value directive_show              = Value::createId("directive_show");
-    Value directive_python            = Value::createId("directive_python");
-    Value directive_lua               = Value::createId("directive_lua");
-    Value directive_program           = Value::createId("directive_program");
-    Value directive_external          = Value::createId("directive_external");
-    Value directive_edge              = Value::createId("directive_edge");
-    Value directive_heuristic         = Value::createId("directive_heuristic");
-    Value directive_project           = Value::createId("directive_project");
-    Value directive_project_signature = Value::createId("directive_project_signature");
-    Value directive_theory            = Value::createId("directive_theory ");
-    Value literal_boolean             = Value::createId("literal_boolean");
-    Value literal_predicate           = Value::createId("literal_predicate");
-    Value literal_relation            = Value::createId("literal_relation");
-    Value literal_csp                 = Value::createId("literal_csp");
-    Value literal_conditional         = Value::createId("literal_conditional");
-    Value tuple_literal               = Value::createId("tuple_literal");
-    Value tuple_id                    = Value::createId("tuple_id");
-    Value theory_atom                 = Value::createId("theory_atom");
-    Value disjoint                    = Value::createId("disjoint");
-    Value aggregate_head              = Value::createId("aggregate_head");
-    Value aggregate_body              = Value::createId("aggregate_body");
-    Value aggregate_lparse            = Value::createId("aggregate_lparse");
-    Value id                          = Value::createId("id");
-    Value naf_pos                     = Value::createId("naf_pos");
-    Value naf_not                     = Value::createId("naf_not");
-    Value naf_not_not                 = Value::createId("naf_not_not");
-    Value neg_pos                     = Value::createId("neg_pos");
-    Value neg_not                     = Value::createId("neg_not");
-    Value tuple_term                  = Value::createId("tuple_term");
-    Value term_pool                   = Value::createId("term_pool");
-    Value term_value                  = Value::createId("term_value");
-    Value term_variable               = Value::createId("term_variable");
-    Value term_unary                  = Value::createId("term_unary");
-    Value term_binary                 = Value::createId("term_binary");
-    Value term_range                  = Value::createId("term_range");
-    Value term_external               = Value::createId("term_external");
-    Value term_function               = Value::createId("term_function");
-    Value unop_neg                    = Value::createId("-");
-    Value unop_not                    = Value::createId("~");
-    Value unop_abs                    = Value::createId("|");
-    Value binop_add                   = Value::createId("+");
-    Value binop_or                    = Value::createId("?");
-    Value binop_sub                   = Value::createId("-");
-    Value binop_mod                   = Value::createId("\\");
-    Value binop_mul                   = Value::createId("*");
-    Value binop_xor                   = Value::createId("^");
-    Value binop_pow                   = Value::createId("**");
-    Value binop_div                   = Value::createId("/");
-    Value binop_and                   = Value::createId("&");
+    Symbol directive_rule              = Symbol::createId("directive_rule");
+    Symbol directive_const             = Symbol::createId("directive_const");
+    Symbol directive_minimize          = Symbol::createId("directive_minimize");
+    Symbol directive_show_signature    = Symbol::createId("directive_show_signature");
+    Symbol directive_show              = Symbol::createId("directive_show");
+    Symbol directive_python            = Symbol::createId("directive_python");
+    Symbol directive_lua               = Symbol::createId("directive_lua");
+    Symbol directive_program           = Symbol::createId("directive_program");
+    Symbol directive_external          = Symbol::createId("directive_external");
+    Symbol directive_edge              = Symbol::createId("directive_edge");
+    Symbol directive_heuristic         = Symbol::createId("directive_heuristic");
+    Symbol directive_project           = Symbol::createId("directive_project");
+    Symbol directive_project_signature = Symbol::createId("directive_project_signature");
+    Symbol directive_theory            = Symbol::createId("directive_theory ");
+    Symbol literal_boolean             = Symbol::createId("literal_boolean");
+    Symbol literal_predicate           = Symbol::createId("literal_predicate");
+    Symbol literal_relation            = Symbol::createId("literal_relation");
+    Symbol literal_csp                 = Symbol::createId("literal_csp");
+    Symbol literal_conditional         = Symbol::createId("literal_conditional");
+    Symbol tuple_literal               = Symbol::createId("tuple_literal");
+    Symbol tuple_id                    = Symbol::createId("tuple_id");
+    Symbol theory_atom                 = Symbol::createId("theory_atom");
+    Symbol disjoint                    = Symbol::createId("disjoint");
+    Symbol aggregate_head              = Symbol::createId("aggregate_head");
+    Symbol aggregate_body              = Symbol::createId("aggregate_body");
+    Symbol aggregate_lparse            = Symbol::createId("aggregate_lparse");
+    Symbol id                          = Symbol::createId("id");
+    Symbol naf_pos                     = Symbol::createId("naf_pos");
+    Symbol naf_not                     = Symbol::createId("naf_not");
+    Symbol naf_not_not                 = Symbol::createId("naf_not_not");
+    Symbol neg_pos                     = Symbol::createId("neg_pos");
+    Symbol neg_not                     = Symbol::createId("neg_not");
+    Symbol tuple_term                  = Symbol::createId("tuple_term");
+    Symbol term_pool                   = Symbol::createId("term_pool");
+    Symbol term_value                  = Symbol::createId("term_value");
+    Symbol term_variable               = Symbol::createId("term_variable");
+    Symbol term_unary                  = Symbol::createId("term_unary");
+    Symbol term_binary                 = Symbol::createId("term_binary");
+    Symbol term_range                  = Symbol::createId("term_range");
+    Symbol term_external               = Symbol::createId("term_external");
+    Symbol term_function               = Symbol::createId("term_function");
+    Symbol unop_neg                    = Symbol::createId("-");
+    Symbol unop_not                    = Symbol::createId("~");
+    Symbol unop_abs                    = Symbol::createId("|");
+    Symbol binop_add                   = Symbol::createId("+");
+    Symbol binop_or                    = Symbol::createId("?");
+    Symbol binop_sub                   = Symbol::createId("-");
+    Symbol binop_mod                   = Symbol::createId("\\");
+    Symbol binop_mul                   = Symbol::createId("*");
+    Symbol binop_xor                   = Symbol::createId("^");
+    Symbol binop_pow                   = Symbol::createId("**");
+    Symbol binop_div                   = Symbol::createId("/");
+    Symbol binop_and                   = Symbol::createId("&");
 };
 
 // }}}1

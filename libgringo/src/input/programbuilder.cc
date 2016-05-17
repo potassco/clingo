@@ -39,15 +39,15 @@ NongroundProgramBuilder::NongroundProgramBuilder(Scripts &scripts, Program &prg,
 
 // {{{2 terms
 
-TermUid NongroundProgramBuilder::term(Location const &loc, Value val) {
+TermUid NongroundProgramBuilder::term(Location const &loc, Symbol val) {
     return terms_.insert(make_locatable<ValTerm>(loc, val));
 }
 
-TermUid NongroundProgramBuilder::term(Location const &loc, FWString name) {
-    if (*name == "_") { return terms_.insert(make_locatable<VarTerm>(loc, name, nullptr)); }
+TermUid NongroundProgramBuilder::term(Location const &loc, String name) {
+    if (name == "_") { return terms_.insert(make_locatable<VarTerm>(loc, name, nullptr)); }
     else {
         auto &ret(vals_[name]);
-        if (!ret) { ret = std::make_shared<Value>(); }
+        if (!ret) { ret = std::make_shared<Symbol>(); }
         return terms_.insert(make_locatable<VarTerm>(loc, name, ret));
     }
 }
@@ -74,13 +74,13 @@ TermUid NongroundProgramBuilder::term(Location const &loc, TermUid a, TermUid b)
     return terms_.insert(make_locatable<DotsTerm>(loc, terms_.erase(a), terms_.erase(b)));
 }
 
-TermUid NongroundProgramBuilder::term(Location const &loc, FWString name, TermVecVecUid a, bool lua) {
-    assert(*name != "");
+TermUid NongroundProgramBuilder::term(Location const &loc, String name, TermVecVecUid a, bool lua) {
+    assert(name != "");
     auto create = [&lua, &name, &loc](UTermVec &&vec) -> UTerm {
         // lua terms
         if (lua) { return make_locatable<LuaTerm>(loc, name, std::move(vec)); }
         // constant symbols
-        else if (vec.empty()) { return make_locatable<ValTerm>(loc, Value::createId(name)); }
+        else if (vec.empty()) { return make_locatable<ValTerm>(loc, Symbol::createId(name)); }
         // function terms
         else { return make_locatable<FunctionTerm>(loc, name, std::move(vec)); }
     };
@@ -110,7 +110,7 @@ TermUid NongroundProgramBuilder::pool(Location const &loc, TermVecUid args) {
 IdVecUid NongroundProgramBuilder::idvec() {
     return idvecs_.emplace();
 }
-IdVecUid NongroundProgramBuilder::idvec(IdVecUid uid, Location const &loc, FWString id) {
+IdVecUid NongroundProgramBuilder::idvec(IdVecUid uid, Location const &loc, String id) {
     idvecs_[uid].emplace_back(loc, id);
     return uid;
 }
@@ -175,10 +175,10 @@ TermVecVecUid NongroundProgramBuilder::termvecvec(TermVecVecUid uid, TermVecUid 
 // {{{2 literals
 
 LitUid NongroundProgramBuilder::boollit(Location const &loc, bool type) {
-    return rellit(loc, type ? Relation::EQ : Relation::NEQ, term(loc, Value::createNum(0)), term(loc, Value::createNum(0)));
+    return rellit(loc, type ? Relation::EQ : Relation::NEQ, term(loc, Symbol::createNum(0)), term(loc, Symbol::createNum(0)));
 }
 
-LitUid NongroundProgramBuilder::predlit(Location const &loc, NAF naf, bool neg, FWString name, TermVecVecUid tvvUid) {
+LitUid NongroundProgramBuilder::predlit(Location const &loc, NAF naf, bool neg, String name, TermVecVecUid tvvUid) {
     return lits_.insert(make_locatable<PredicateLiteral>(loc, naf, terms_.erase(predRep(loc, neg, name, tvvUid))));
 }
 
@@ -310,7 +310,7 @@ void NongroundProgramBuilder::rule(Location const &loc, HdLitUid head, BdLitVecU
     prg_.add(make_locatable<Statement>(loc, heads_.erase(head), bodies_.erase(body), StatementType::RULE));
 }
 
-void NongroundProgramBuilder::define(Location const &loc, FWString name, TermUid value, bool defaultDef) {
+void NongroundProgramBuilder::define(Location const &loc, String name, TermUid value, bool defaultDef) {
     defs_.add(loc, name, terms_.erase(value), defaultDef);
 }
 
@@ -320,14 +320,14 @@ void NongroundProgramBuilder::optimize(Location const &loc, TermUid weight, Term
         termvec(argsUid, term(loc, cond, true));
         auto predUid = predlit(loc, NAF::POS, false, "_criteria", termvecvec(termvecvec(), argsUid));
         rule(loc, headlit(predUid), body);
-        out.outPredsForce.emplace_back(loc, Signature("_criteria", 3), false);
+        out.outPredsForce.emplace_back(loc, Sig("_criteria", 3, false), false);
     }
     else {
         prg_.add(make_locatable<Statement>(loc, make_locatable<MinimizeHeadLiteral>(loc, terms_.erase(weight), terms_.erase(priority), termvecs_.erase(cond)), bodies_.erase(body), StatementType::WEAKCONSTRAINT));
     }
 }
 
-void NongroundProgramBuilder::showsig(Location const &loc, FWSignature sig, bool csp) {
+void NongroundProgramBuilder::showsig(Location const &loc, Sig sig, bool csp) {
     out.outPreds.emplace_back(loc, sig, csp);
 }
 
@@ -335,15 +335,15 @@ void NongroundProgramBuilder::show(Location const &loc, TermUid t, BdLitVecUid b
     prg_.add(make_locatable<Statement>(loc, make_locatable<ShowHeadLiteral>(loc, terms_.erase(t), csp), bodies_.erase(body), StatementType::RULE));
 }
 
-void NongroundProgramBuilder::lua(Location const &loc, FWString code) {
-    scripts_.luaExec(loc, *code);
+void NongroundProgramBuilder::lua(Location const &loc, String code) {
+    scripts_.luaExec(loc, code);
 }
 
-void NongroundProgramBuilder::python(Location const &loc, FWString code) {
-    scripts_.pyExec(loc, *code);
+void NongroundProgramBuilder::python(Location const &loc, String code) {
+    scripts_.pyExec(loc, code);
 }
 
-void NongroundProgramBuilder::block(Location const &loc, FWString name, IdVecUid args) {
+void NongroundProgramBuilder::block(Location const &loc, String name, IdVecUid args) {
     prg_.begin(loc, name, idvecs_.erase(args));
 }
 
@@ -367,9 +367,9 @@ void NongroundProgramBuilder::edge(Location const &loc, TermVecVecUid edgesUid, 
     }
 }
 
-TermUid NongroundProgramBuilder::predRep(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid) {
+TermUid NongroundProgramBuilder::predRep(Location const &loc, bool neg, String name, TermVecVecUid tvvUid) {
     if (neg) {
-        for (auto &x : termvecvecs_[tvvUid]) { prg_.addClassicalNegation(Signature(name, x.size())); }
+        for (auto &x : termvecvecs_[tvvUid]) { prg_.addClassicalNegation(Sig(name, x.size(), false)); }
     }
     TermUid t = term(loc, name, tvvUid, false);
     if (neg) { t = term(loc, UnOp::NEG, t); }
@@ -377,21 +377,21 @@ TermUid NongroundProgramBuilder::predRep(Location const &loc, bool neg, FWString
 
 }
 
-void NongroundProgramBuilder::heuristic(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) {
+void NongroundProgramBuilder::heuristic(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) {
     prg_.add(make_locatable<Statement>(loc, make_locatable<HeuristicHeadAtom>(loc, terms_.erase(predRep(loc, neg, name, tvvUid)), terms_.erase(a), terms_.erase(b), terms_.erase(mod)), bodies_.erase(body), StatementType::RULE));
 }
 
-void NongroundProgramBuilder::project(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid body) {
+void NongroundProgramBuilder::project(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body) {
     prg_.add(make_locatable<Statement>(loc, make_locatable<ProjectHeadAtom>(loc, terms_.erase(predRep(loc, neg, name, tvvUid))), bodies_.erase(body), StatementType::RULE));
 }
 
-void NongroundProgramBuilder::project(Location const &loc, FWSignature sig) {
-    Signature s = *sig;
+void NongroundProgramBuilder::project(Location const &loc, Sig sig) {
+    Sig s = sig;
     auto tv = termvec();
-    for (unsigned i = 0; i < s.length(); ++i) {
+    for (unsigned i = 0; i < s.arity(); ++i) {
         std::ostringstream ss;
         ss << "X" << i;
-        tv = termvec(tv, term(loc, ss.str()));
+        tv = termvec(tv, term(loc, ss.str().c_str()));
     }
     auto tvv = termvecvec(termvecvec(), tv);
     project(loc, s.sign(), s.name(), tvv, body());
@@ -419,18 +419,18 @@ TheoryTermUid NongroundProgramBuilder::theorytermopterm(Location const &loc, The
     return theoryTerms_.emplace(gringo_make_unique<Output::RawTheoryTerm>(theoryOpterms_.erase(opterm)));
 }
 
-TheoryTermUid NongroundProgramBuilder::theorytermfun(Location const &loc, FWString name, TheoryOptermVecUid args) {
+TheoryTermUid NongroundProgramBuilder::theorytermfun(Location const &loc, String name, TheoryOptermVecUid args) {
     (void)loc;
     return theoryTerms_.emplace(gringo_make_unique<Output::FunctionTheoryTerm>(name, theoryOptermVecs_.erase(args)));
 }
 
-TheoryTermUid NongroundProgramBuilder::theorytermvalue(Location const &loc, Value val) {
+TheoryTermUid NongroundProgramBuilder::theorytermvalue(Location const &loc, Symbol val) {
     return theoryTerms_.emplace(gringo_make_unique<Output::TermTheoryTerm>(make_locatable<ValTerm>(loc, val)));
 }
 
-TheoryTermUid NongroundProgramBuilder::theorytermvar(Location const &loc, FWString var) {
+TheoryTermUid NongroundProgramBuilder::theorytermvar(Location const &loc, String var) {
     auto &ret(vals_[var]);
-    if (!ret) { ret = std::make_shared<Value>(); }
+    if (!ret) { ret = std::make_shared<Symbol>(); }
     return theoryTerms_.emplace(gringo_make_unique<Output::TermTheoryTerm>(make_locatable<VarTerm>(loc, var, ret)));
 }
 
@@ -449,7 +449,7 @@ TheoryOpVecUid NongroundProgramBuilder::theoryops() {
     return theoryOpVecs_.emplace();
 }
 
-TheoryOpVecUid NongroundProgramBuilder::theoryops(TheoryOpVecUid ops, FWString op) {
+TheoryOpVecUid NongroundProgramBuilder::theoryops(TheoryOpVecUid ops, String op) {
     theoryOpVecs_[ops].emplace_back(op);
     return ops;
 }
@@ -477,7 +477,7 @@ TheoryElemVecUid NongroundProgramBuilder::theoryelems(TheoryElemVecUid elems, Th
 TheoryAtomUid NongroundProgramBuilder::theoryatom(TermUid term, TheoryElemVecUid elems) {
     return theoryAtoms_.emplace(terms_.erase(term), theoryElems_.erase(elems));
 }
-TheoryAtomUid NongroundProgramBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, FWString op, TheoryOptermUid opterm) {
+TheoryAtomUid NongroundProgramBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, String op, TheoryOptermUid opterm) {
     return theoryAtoms_.emplace(terms_.erase(term), theoryElems_.erase(elems), op, gringo_make_unique<Output::RawTheoryTerm>(theoryOpterms_.erase(opterm)));
 }
 
@@ -492,7 +492,7 @@ HdLitUid NongroundProgramBuilder::headaggr(Location const &loc, TheoryAtomUid at
 
 // {{{2 theory definitions
 
-TheoryOpDefUid NongroundProgramBuilder::theoryopdef(Location const &loc, FWString op, unsigned priority, TheoryOperatorType type) {
+TheoryOpDefUid NongroundProgramBuilder::theoryopdef(Location const &loc, String op, unsigned priority, TheoryOperatorType type) {
     return theoryOpDefs_.emplace(loc, op, priority, type);
 }
 
@@ -505,7 +505,7 @@ TheoryOpDefVecUid NongroundProgramBuilder::theoryopdefs(TheoryOpDefVecUid defs, 
     return defs;
 }
 
-TheoryTermDefUid NongroundProgramBuilder::theorytermdef(Location const &loc, FWString name, TheoryOpDefVecUid defs) {
+TheoryTermDefUid NongroundProgramBuilder::theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs) {
     TheoryTermDef def(loc, name);
     for (auto &opDef : theoryOpDefVecs_.erase(defs)) {
         def.addOpDef(std::move(opDef));
@@ -513,11 +513,11 @@ TheoryTermDefUid NongroundProgramBuilder::theorytermdef(Location const &loc, FWS
     return theoryTermDefs_.emplace(std::move(def));
 }
 
-TheoryAtomDefUid NongroundProgramBuilder::theoryatomdef(Location const &loc, FWString name, unsigned arity, FWString termDef, TheoryAtomType type) {
+TheoryAtomDefUid NongroundProgramBuilder::theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type) {
     return theoryAtomDefs_.emplace(loc, name, arity, termDef, type);
 }
 
-TheoryAtomDefUid NongroundProgramBuilder::theoryatomdef(Location const &loc, FWString name, unsigned arity, FWString termDef, TheoryAtomType type, TheoryOpVecUid ops, FWString guardDef) {
+TheoryAtomDefUid NongroundProgramBuilder::theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type, TheoryOpVecUid ops, String guardDef) {
     return theoryAtomDefs_.emplace(loc, name, arity, termDef, type, theoryOpVecs_.erase(ops), guardDef);
 }
 
@@ -535,7 +535,7 @@ TheoryDefVecUid NongroundProgramBuilder::theorydefs(TheoryDefVecUid defs, Theory
     return defs;
 }
 
-void NongroundProgramBuilder::theorydef(Location const &loc, FWString name, TheoryDefVecUid defs) {
+void NongroundProgramBuilder::theorydef(Location const &loc, String name, TheoryDefVecUid defs) {
     TheoryDef def(loc, name);
     auto defsVec = theoryDefVecs_.erase(defs);
     for (auto &termDef : defsVec.first) {
@@ -555,7 +555,7 @@ NongroundProgramBuilder::~NongroundProgramBuilder() { }
 
 ASTLocation convertLoc(Location const &loc) {
     return {
-        loc.beginFilename->c_str(), loc.endFilename->c_str(),
+        loc.beginFilename.c_str(), loc.endFilename.c_str(),
         loc.beginLine, loc.endLine,
         loc.beginColumn, loc.endColumn
     };
@@ -570,18 +570,18 @@ ASTBuilder::ASTBuilder(Callback cb) : cb_(cb) { }
 ASTBuilder::~ASTBuilder() noexcept = default;
 
 // {{{2 terms
-TermUid ASTBuilder::term(Location const &loc, Value val) {
+TermUid ASTBuilder::term(Location const &loc, Symbol val) {
     return terms_.insert(typedNode("term_value", newNode(loc, val)));
 }
-TermUid ASTBuilder::term(Location const &loc, FWString name) {
-    return terms_.insert(typedNode("term_variable", newNode(loc, name->c_str())));
+TermUid ASTBuilder::term(Location const &loc, String name) {
+    return terms_.insert(typedNode("term_variable", newNode(loc, name.c_str())));
 }
 TermUid ASTBuilder::term(Location const &loc, UnOp op, TermUid a) {
-    Value val;
+    Symbol val;
     switch (op) {
-        case UnOp::NOT: { val = Value::createId("~"); break;}
-        case UnOp::NEG: { val = Value::createId("-"); break;}
-        case UnOp::ABS: { val = Value::createId("|"); break;}
+        case UnOp::NOT: { val = Symbol::createId("~"); break;}
+        case UnOp::NEG: { val = Symbol::createId("-"); break;}
+        case UnOp::ABS: { val = Symbol::createId("|"); break;}
     }
     auto &nodeVec = newNodeVec();
     nodeVec.emplace_back(newNode(loc, val));
@@ -592,17 +592,17 @@ TermUid ASTBuilder::term(Location const &loc, UnOp op, TermVecUid a) {
     return term(loc, op, pool_(loc, termvecs_.erase(a)));
 }
 TermUid ASTBuilder::term(Location const &loc, BinOp op, TermUid a, TermUid b) {
-    Value val;
+    Symbol val;
     switch (op) {
-        case BinOp::ADD: { val = Value::createId("+"); break; }
-        case BinOp::OR:  { val = Value::createId("?");  break; }
-        case BinOp::SUB: { val = Value::createId("-"); break; }
-        case BinOp::MOD: { val = Value::createId("\\"); break; }
-        case BinOp::MUL: { val = Value::createId("*"); break; }
-        case BinOp::XOR: { val = Value::createId("^"); break; }
-        case BinOp::POW: { val = Value::createId("**"); break; }
-        case BinOp::DIV: { val = Value::createId("/"); break; }
-        case BinOp::AND: { val = Value::createId("&"); break; }
+        case BinOp::ADD: { val = Symbol::createId("+"); break; }
+        case BinOp::OR:  { val = Symbol::createId("?");  break; }
+        case BinOp::SUB: { val = Symbol::createId("-"); break; }
+        case BinOp::MOD: { val = Symbol::createId("\\"); break; }
+        case BinOp::MUL: { val = Symbol::createId("*"); break; }
+        case BinOp::XOR: { val = Symbol::createId("^"); break; }
+        case BinOp::POW: { val = Symbol::createId("**"); break; }
+        case BinOp::DIV: { val = Symbol::createId("/"); break; }
+        case BinOp::AND: { val = Symbol::createId("&"); break; }
     }
     auto &nodeVec = newNodeVec();
     nodeVec.emplace_back(terms_.erase(a));
@@ -616,7 +616,7 @@ TermUid ASTBuilder::term(Location const &loc, TermUid a, TermUid b) {
     nodeVec.emplace_back(terms_.erase(b));
     return terms_.insert(newNode(loc, "term_range", nodeVec));
 }
-TermUid ASTBuilder::term(Location const &loc, FWString name, TermVecVecUid a, bool lua) {
+TermUid ASTBuilder::term(Location const &loc, String name, TermVecVecUid a, bool lua) {
     TermUidVec pool;
     for (auto &args : termvecvecs_.erase(a)) {
         pool.emplace_back(fun_(loc, name, args, lua));
@@ -692,7 +692,7 @@ IdVecUid ASTBuilder::idvec() {
     return idvecs_.emplace();
 }
 
-IdVecUid ASTBuilder::idvec(IdVecUid uid, Location const &loc, FWString id) {
+IdVecUid ASTBuilder::idvec(IdVecUid uid, Location const &loc, String id) {
     idvecs_[uid].emplace_back(typedNode("id", newNode(loc, id)));
     return uid;
 }
@@ -724,11 +724,11 @@ LitUid ASTBuilder::boollit(Location const &loc, bool type) {
     return lits_.insert(newNode(loc, "literal_boolean", nodeVec));
 }
 
-LitUid ASTBuilder::predlit(Location const &loc, NAF naf, bool neg, FWString name, TermVecVecUid argvecvecUid) {
+LitUid ASTBuilder::predlit(Location const &loc, NAF naf, bool neg, String name, TermVecVecUid argvecvecUid) {
     auto &nodeVec = newNodeVec();
     nodeVec.emplace_back(newNode(loc, naf));
     nodeVec.emplace_back(newNode(loc, neg ? "neg_not" : "neg_pos"));
-    nodeVec.emplace_back(newNode(loc, name->c_str()));
+    nodeVec.emplace_back(newNode(loc, name.c_str()));
     nodeVec.emplace_back(terms_.erase(term(loc, "", argvecvecUid, false)));
     return lits_.insert(newNode(loc, "literal_predicate", nodeVec));
 }
@@ -917,7 +917,7 @@ void ASTBuilder::rule(Location const &loc, HdLitUid head, BdLitVecUid body) {
     directive_(loc, "directive_rule", nodeVec);
 }
 
-void ASTBuilder::define(Location const &loc, FWString name, TermUid value, bool defaultDef) {
+void ASTBuilder::define(Location const &loc, String name, TermUid value, bool defaultDef) {
     auto nodeVec = newNodeVec();
     nodeVec.emplace_back(newNode(loc, name));
     nodeVec.emplace_back(terms_.erase(value));
@@ -934,10 +934,10 @@ void ASTBuilder::optimize(Location const &loc, TermUid weight, TermUid priority,
     directive_(loc, "directive_minimize", nodeVec);
 }
 
-void ASTBuilder::showsig(Location const &loc, FWSignature sig, bool csp) {
+void ASTBuilder::showsig(Location const &loc, Sig sig, bool csp) {
     auto nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, (*sig).name()->c_str()));
-    nodeVec.emplace_back(newNode(loc, (*sig).length()));
+    nodeVec.emplace_back(newNode(loc, sig.name().c_str()));
+    nodeVec.emplace_back(newNode(loc, sig.arity()));
     nodeVec.emplace_back(newNode(loc, csp ? "variable" : "atom"));
     directive_(loc, "directive_show_signature", nodeVec);
 }
@@ -950,19 +950,19 @@ void ASTBuilder::show(Location const &loc, TermUid t, BdLitVecUid body, bool csp
     directive_(loc, "directive_show", nodeVec);
 }
 
-void ASTBuilder::python(Location const &loc, FWString code) {
+void ASTBuilder::python(Location const &loc, String code) {
     auto nodeVec = newNodeVec();
     nodeVec.emplace_back(newNode(loc, code));
     directive_(loc, "directive_python", nodeVec);
 }
 
-void ASTBuilder::lua(Location const &loc, FWString code) {
+void ASTBuilder::lua(Location const &loc, String code) {
     auto nodeVec = newNodeVec();
     nodeVec.emplace_back(newNode(loc, code));
     directive_(loc, "directive_lua", nodeVec);
 }
 
-void ASTBuilder::block(Location const &loc, FWString name, IdVecUid args) {
+void ASTBuilder::block(Location const &loc, String name, IdVecUid args) {
     auto nodeVec = newNodeVec();
     nodeVec.emplace_back(newNode(loc, name));
     nodeVec.emplace_back(newNode(loc, "tuple_id", newNodeVec() = idvecs_.erase(args)));
@@ -983,7 +983,7 @@ void ASTBuilder::edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body
     directive_(loc, "directive_edge", nodeVec);
 }
 
-void ASTBuilder::heuristic(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) {
+void ASTBuilder::heuristic(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) {
     auto nodeVec = newNodeVec();
     nodeVec.emplace_back(lits_.erase(predlit(loc, NAF::POS, neg, name, tvvUid)));
     nodeVec.emplace_back(littuple_(loc, body));
@@ -993,17 +993,17 @@ void ASTBuilder::heuristic(Location const &loc, bool neg, FWString name, TermVec
     directive_(loc, "directive_heuristic", nodeVec);
 }
 
-void ASTBuilder::project(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid body) {
+void ASTBuilder::project(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body) {
     auto nodeVec = newNodeVec();
     nodeVec.emplace_back(lits_.erase(predlit(loc, NAF::POS, neg, name, tvvUid)));
     nodeVec.emplace_back(littuple_(loc, body));
     directive_(loc, "directive_project", nodeVec);
 }
 
-void ASTBuilder::project(Location const &loc, FWSignature sig) {
+void ASTBuilder::project(Location const &loc, Sig sig) {
     auto nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, (*sig).name()->c_str()));
-    nodeVec.emplace_back(newNode(loc, (*sig).length()));
+    nodeVec.emplace_back(newNode(loc, sig.name().c_str()));
+    nodeVec.emplace_back(newNode(loc, sig.arity()));
     directive_(loc, "directive_project_signature", nodeVec);
 }
 
@@ -1025,18 +1025,18 @@ TheoryTermUid ASTBuilder::theorytermopterm(Location const &loc, TheoryOptermUid 
     return theoryTerms_.insert(newNode(loc, "theory_term_operator", newNodeVec() = theoryOpterms_.erase(opterm)));
 }
 
-TheoryTermUid ASTBuilder::theorytermfun(Location const &loc, FWString name, TheoryOptermVecUid args) {
+TheoryTermUid ASTBuilder::theorytermfun(Location const &loc, String name, TheoryOptermVecUid args) {
     auto &nodeVec = newNodeVec();
     nodeVec.emplace_back(newNode(loc, name));
     nodeVec.emplace_back(newNode(loc, "tuple_theory_term", newNodeVec() = theoryOptermVecs_.erase(args)));
     return theoryTerms_.insert(newNode(loc, "theory_term_function", nodeVec));
 }
 
-TheoryTermUid ASTBuilder::theorytermvalue(Location const &loc, Value val) {
+TheoryTermUid ASTBuilder::theorytermvalue(Location const &loc, Symbol val) {
     return theoryTerms_.insert(newNode(loc, "theory_term_constant", newNodeVec() = {newNode(loc, val)}));
 }
 
-TheoryTermUid ASTBuilder::theorytermvar(Location const &loc, FWString var) {
+TheoryTermUid ASTBuilder::theorytermvar(Location const &loc, String var) {
     return theoryTerms_.insert(newNode(loc, "theory_term_variable", newNodeVec() = {newNode(loc, var)}));
 }
 
@@ -1059,7 +1059,7 @@ TheoryOpVecUid ASTBuilder::theoryops() {
     return theoryOpVecs_.emplace();
 }
 
-TheoryOpVecUid ASTBuilder::theoryops(TheoryOpVecUid ops, FWString op) {
+TheoryOpVecUid ASTBuilder::theoryops(TheoryOpVecUid ops, String op) {
     theoryOpVecs_[ops].emplace_back(newNode(dummyloc_(), op));
     return ops;
 }
@@ -1094,7 +1094,7 @@ TheoryAtomUid ASTBuilder::theoryatom(TermUid term, TheoryElemVecUid elems) {
     return theoryAtoms_.emplace(term, elems, newNode(dummyloc_(), "null"));
 }
 
-TheoryAtomUid ASTBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, FWString op, TheoryOptermUid opterm) {
+TheoryAtomUid ASTBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, String op, TheoryOptermUid opterm) {
     return theoryAtoms_.emplace(term, elems, newNode(dummyloc_(), "theory_guard", newNodeVec() = {
         newNode(dummyloc_(), op),
         newNode(dummyloc_(), "theory_term_operator", newNodeVec() = theoryOpterms_.erase(opterm))
@@ -1103,7 +1103,7 @@ TheoryAtomUid ASTBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, FWStr
 
 // {{{2 theory definitions
 
-TheoryOpDefUid ASTBuilder::theoryopdef(Location const &loc, FWString op, unsigned priority, TheoryOperatorType type) {
+TheoryOpDefUid ASTBuilder::theoryopdef(Location const &loc, String op, unsigned priority, TheoryOperatorType type) {
     auto &nodeVec = newNodeVec();
     nodeVec.emplace_back(newNode(loc, op));
     nodeVec.emplace_back(newNode(loc, priority));
@@ -1124,14 +1124,14 @@ TheoryOpDefVecUid ASTBuilder::theoryopdefs(TheoryOpDefVecUid defs, TheoryOpDefUi
     return defs;
 }
 
-TheoryTermDefUid ASTBuilder::theorytermdef(Location const &loc, FWString name, TheoryOpDefVecUid defs) {
+TheoryTermDefUid ASTBuilder::theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs) {
     auto &nodeVec = newNodeVec();
     nodeVec.emplace_back(newNode(loc, name));
     nodeVec.emplace_back(newNode(loc, "tuple_theory_definition_operator", newNodeVec() = theoryOpDefVecs_.erase(defs)));
     return theoryTermDefs_.insert(newNode(loc, "theory_definition_term", nodeVec));
 }
 
-TheoryAtomDefUid ASTBuilder::theoryatomdef(Location const &loc, FWString name, unsigned arity, FWString termDef, TheoryAtomType type) {
+TheoryAtomDefUid ASTBuilder::theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type) {
     auto &nodeVec = newNodeVec();
     nodeVec.emplace_back(newNode(loc, name));
     nodeVec.emplace_back(newNode(loc, arity));
@@ -1141,7 +1141,7 @@ TheoryAtomDefUid ASTBuilder::theoryatomdef(Location const &loc, FWString name, u
     return theoryAtomDefs_.insert(newNode(loc, "theory_definition_atom", nodeVec));
 }
 
-TheoryAtomDefUid ASTBuilder::theoryatomdef(Location const &loc, FWString name, unsigned arity, FWString termDef, TheoryAtomType type, TheoryOpVecUid ops, FWString guardDef) {
+TheoryAtomDefUid ASTBuilder::theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type, TheoryOpVecUid ops, String guardDef) {
     auto &nodeVec = newNodeVec();
     nodeVec.emplace_back(newNode(loc, name));
     nodeVec.emplace_back(newNode(loc, arity));
@@ -1168,7 +1168,7 @@ TheoryDefVecUid ASTBuilder::theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid de
     return defs;
 }
 
-void ASTBuilder::theorydef(Location const &loc, FWString name, TheoryDefVecUid defs) {
+void ASTBuilder::theorydef(Location const &loc, String name, TheoryDefVecUid defs) {
     auto &nodeVec = newNodeVec();
     nodeVec.emplace_back(newNode(loc, name));
     nodeVec.emplace_back(newNode(loc, "tuple_theory_definition", newNodeVec() = theoryDefVecs_.erase(defs)));
@@ -1177,37 +1177,37 @@ void ASTBuilder::theorydef(Location const &loc, FWString name, TheoryDefVecUid d
 
 // }}}2
 
-void ASTBuilder::initNode(AST &node, ASTLocation loc, Value val) {
+void ASTBuilder::initNode(AST &node, ASTLocation loc, Symbol val) {
     node.location = loc;
     node.value = val;
     node.children.size = 0;
     node.children.first = nullptr;
 }
-void ASTBuilder::initNode(AST &node, ASTLocation loc, Value val, NodeVec &children) {
+void ASTBuilder::initNode(AST &node, ASTLocation loc, Symbol val, NodeVec &children) {
     initNode(node, loc, val);
     node.children.size = children.size();
     node.children.first = children.data();
 }
-void ASTBuilder::initNode(AST &node, Location const &loc, Value val) {
+void ASTBuilder::initNode(AST &node, Location const &loc, Symbol val) {
     initNode(node, convertLoc(loc), val);
 }
-void ASTBuilder::initNode(AST &node, Location const &loc, Value val, NodeVec &children) {
+void ASTBuilder::initNode(AST &node, Location const &loc, Symbol val, NodeVec &children) {
     initNode(node, convertLoc(loc), val, children);
 }
-AST ASTBuilder::newNode(ASTLocation loc, Value val) {
+AST ASTBuilder::newNode(ASTLocation loc, Symbol val) {
     AST node;
     initNode(node, loc, val);
     return node;
 }
-AST ASTBuilder::newNode(Location const &loc, Value val) {
+AST ASTBuilder::newNode(Location const &loc, Symbol val) {
     return newNode(convertLoc(loc), val);
 }
-AST ASTBuilder::newNode(ASTLocation loc, Value val, NodeVec &children) {
+AST ASTBuilder::newNode(ASTLocation loc, Symbol val, NodeVec &children) {
     AST node;
     initNode(node, loc, val, children);
     return node;
 }
-AST ASTBuilder::newNode(Location const &loc, Value val, NodeVec &children) {
+AST ASTBuilder::newNode(Location const &loc, Symbol val, NodeVec &children) {
     return newNode(convertLoc(loc), val, children);
 }
 AST ASTBuilder::newNode(Location const &loc,  NAF naf) {
@@ -1249,21 +1249,21 @@ AST ASTBuilder::newNode(Location const &loc, TheoryAtomType type) {
     throw std::logic_error("must not happen");
 }
 AST ASTBuilder::newNode(Location const &loc, char const *value) {
-    return newNode(loc, Value::createId(value));
+    return newNode(loc, Symbol::createId(value));
 }
-AST ASTBuilder::newNode(Location const &loc, FWString value) {
-    return newNode(loc, Value::createId(value));
+AST ASTBuilder::newNode(Location const &loc, String value) {
+    return newNode(loc, Symbol::createId(value));
 }
 AST ASTBuilder::newNode(Location const &loc, unsigned length) {
-    return newNode(loc, Value::createId(std::to_string(length)));
+    return newNode(loc, Symbol::createId(std::to_string(length).c_str()));
 }
 AST ASTBuilder::newNode(Location const &loc, char const *value, NodeVec &children) {
-    return newNode(loc, Value::createId(value), children);
+    return newNode(loc, Symbol::createId(value), children);
 }
 AST ASTBuilder::typedNode(char const *type, AST node) {
     auto &nodeVec = newNodeVec();
     nodeVec.emplace_back(std::move(node));
-    return newNode(nodeVec.back().location, Value::createId(type), nodeVec);
+    return newNode(nodeVec.back().location, Symbol::createId(type), nodeVec);
 }
 ASTBuilder::NodeVec &ASTBuilder::newNodeVec() {
     nodeVecs_.emplace_front();
@@ -1284,12 +1284,12 @@ AST ASTBuilder::condlit_(Location const &loc, LitUid litUid, LitVecUid litvecUid
     nodeVec.push_back(littuple_(loc, litvecUid));
     return newNode(loc, "literal_conditional", nodeVec);
 }
-TermUid ASTBuilder::fun_(Location const &loc, FWString name, TermVecUid a, bool lua) {
+TermUid ASTBuilder::fun_(Location const &loc, String name, TermVecUid a, bool lua) {
     auto &argVec = newNodeVec();
     for (auto &arg : termvecs_.erase(a)) {
         argVec.emplace_back(terms_.erase(arg));
     }
-    if (name->empty()) {
+    if (name.empty()) {
         assert(!lua);
         return terms_.insert(newNode(loc, "tuple_term", argVec));
     }
@@ -1342,13 +1342,14 @@ void ASTParser::parse(AST const &node) {
 void ASTParser::parseProgram(AST const &node) {
     require_(
         node.children.size == 2 &&
-        node.children.first[0].value.type() == Value::ID &&
+        node.children.first[0].value.type() == SymbolType::Fun &&
+        node.children.first[0].value.arity() == 0 &&
         node.children.first[1].value == tuple_id,
         "ill-formode #program directive");
     IdVecUid uid = prg_.idvec();
     for (auto &id : node.children.first[1].children) {
         require_(id.value == this->id, "id expected");
-        require_(id.children.size == 1 && id.children.first->value.type() == Value::ID, "ill-formed id");
+        require_(id.children.size == 1 && id.children.first->value.type() == SymbolType::Fun && id.children.first->value.arity() == 0, "ill-formed id");
         uid = prg_.idvec(uid, convertLoc(id.location), id.children.first->value.name());
     }
     prg_.block(convertLoc(node.location), node.children.first->value.name(), uid);
@@ -1369,12 +1370,12 @@ bool ASTParser::parseNEG(AST const &node) {
     else                                { return fail_<bool>("classical negation sign expected"); }
 }
 
-FWString ASTParser::parseID(AST const &node) {
-    require_(node.children.size == 0 && node.value.type() == Value::ID, "ill-formed identifier");
+String ASTParser::parseID(AST const &node) {
+    require_(node.children.size == 0 && node.value.type() == SymbolType::Fun && node.value.arity() == 0, "ill-formed identifier");
     return node.value.name();
 }
 
-Value ASTParser::parseValue(AST const &node) {
+Symbol ASTParser::parseValue(AST const &node) {
     require_(node.children.size == 0, "ill-formed value");
     return node.value;
 }
@@ -1482,7 +1483,7 @@ LitUid ASTParser::parseLit(AST const &node) {
         require_(node.children.size == 4);
         NAF naf = parseNAF(node.children.first[0]);
         bool neg = parseNEG(node.children.first[1]);
-        FWString name = parseID(node.children.first[2]);
+        String name = parseID(node.children.first[2]);
         TermVecVecUid args = parseArgs(node.children.first[3]);
         return prg_.predlit(convertLoc(node.location), naf, neg, name, args);
     }
