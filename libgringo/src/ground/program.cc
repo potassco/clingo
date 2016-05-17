@@ -29,10 +29,10 @@ namespace Gringo { namespace Ground {
 
 Parameters::Parameters() = default;
 Parameters::~Parameters() { }
-void Parameters::add(FWString name, FWValVec args) {
-    params[FWSignature("#inc_" + *name, args.size())].insert(args);
+void Parameters::add(String name, SymVec &&args) {
+    params[Sig((std::string("#inc_") + name.c_str()).c_str(), args.size(), false)].emplace(std::move(args));
 }
-bool Parameters::find(FWSignature sig) const {
+bool Parameters::find(Sig sig) const {
     auto it = params.find(sig);
     return it != params.end() && !it->second.empty();
 }
@@ -71,14 +71,14 @@ void Program::linearize(Scripts &scripts) {
 
 void Program::ground(Scripts &scripts, Output::OutputBase &out) {
     Parameters params;
-    params.add("base", FWValVec({}));
+    params.add("base", SymVec({}));
     ground(params, scripts, out);
 }
 
 void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputBase &out, bool finalize) {
     for (auto &dom : out.predDoms()) {
-        std::string const &name = *(*dom->sig()).name();
-        if (name.compare(0, 3, "#p_") == 0) {
+        auto name = dom->sig().name();
+        if (name.startsWith("#p_")) {
             // The idea here is to assign a fresh uid to each projection atom.
             // Furthermore, the fresh atom is derived by the old atom.
             // This prevents redefinition errors from projections.
@@ -94,7 +94,7 @@ void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputB
                 }
             }
         }
-        else if (name.compare(0, 5, "#inc_") == 0) {
+        else if (name.startsWith("#inc_")) {
             // clear incremental domains
             dom->clear();
         }
@@ -119,8 +119,8 @@ void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputB
         auto base = out.predDoms().find(p.first);
         if (base != out.predDoms().end()) {
             for (auto &args : p.second) {
-                if (args.size() == 0) { (*base)->define(Value::createId((*p.first).name()), true); }
-                else { (*base)->define(Value::createFun((*p.first).name(), args), true); }
+                if (args.size() == 0) { (*base)->define(Symbol::createId(p.first.name()), true); }
+                else { (*base)->define(Symbol::createFun(p.first.name(), Potassco::toSpan(args)), true); }
             }
         }
     }
@@ -145,7 +145,7 @@ void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputB
     }
     for (auto &x : negate) {
         for (auto neg(x.second.begin() + x.second.incOffset()), ie(x.second.end()); neg != ie; ++neg) {
-            Value v = static_cast<Value>(*neg).flipSign();
+            Symbol v = static_cast<Symbol>(*neg).flipSign();
             auto pos(x.first.find(v));
             if (pos != x.first.end() && pos->defined()) {
                 out.output(out

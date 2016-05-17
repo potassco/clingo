@@ -27,16 +27,16 @@ namespace Gringo { namespace Ground {
 
 // {{{ declaration of Program
 
-using IdVec       = std::vector<std::pair<Location, FWString>>;
-using SEdb        = std::shared_ptr<std::pair<UTerm, ValVec>>;
-using SEdbVec     = std::vector<SEdb>;
-using FWValVecSet = std::set<FWValVec>;
-using ParamSet    = std::map<FWSignature, FWValVecSet>;
+using IdVec     = std::vector<std::pair<Location, String>>;
+using SEdb      = std::shared_ptr<std::pair<UTerm, SymVec>>;
+using SEdbVec   = std::vector<SEdb>;
+using SymVecSet = std::set<SymVec>;
+using ParamSet  = std::map<Sig, SymVecSet>;
 
 struct Parameters {
     Parameters();
-    void add(FWString name, FWValVec args);
-    bool find(FWSignature sig) const;
+    void add(String name, SymVec &&args);
+    bool find(Sig sig) const;
     ParamSet::const_iterator begin() const;
     ParamSet::const_iterator end() const;
     bool empty() const;
