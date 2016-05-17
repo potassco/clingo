@@ -76,7 +76,7 @@ public:
     TheoryAtom &operator=(TheoryAtom &&);
     // Note: name must be a term that (after unpooling) has a signature
     TheoryAtom(UTerm &&name, TheoryElementVec &&elems);
-    TheoryAtom(UTerm &&name, TheoryElementVec &&elems, FWString op, Output::UTheoryTerm &&guard, TheoryAtomType type = TheoryAtomType::Any);
+    TheoryAtom(UTerm &&name, TheoryElementVec &&elems, String op, Output::UTheoryTerm &&guard, TheoryAtomType type = TheoryAtomType::Any);
     ~TheoryAtom() noexcept;
     TheoryAtom clone() const;
     bool operator==(TheoryAtom const &other) const;
@@ -98,11 +98,11 @@ public:
     CreateHead toGroundHead() const;
 
 private:
-    UTerm            name_;
-    TheoryElementVec elems_;
-    FWString         op_;
+    UTerm               name_;
+    TheoryElementVec    elems_;
+    String              op_;
     Output::UTheoryTerm guard_;
-    TheoryAtomType   type_ = TheoryAtomType::Any;
+    TheoryAtomType      type_ = TheoryAtomType::Any;
 };
 inline std::ostream &operator<<(std::ostream &out, TheoryAtom const &atom) { atom.print(out); return out; }
 

@@ -162,7 +162,7 @@ TheoryAtom::TheoryAtom(TheoryAtom &&) = default;
 
 TheoryAtom &TheoryAtom::operator=(TheoryAtom &&) = default;
 
-TheoryAtom::TheoryAtom(UTerm &&name, TheoryElementVec &&elems, FWString op, Output::UTheoryTerm &&guard, TheoryAtomType type)
+TheoryAtom::TheoryAtom(UTerm &&name, TheoryElementVec &&elems, String op, Output::UTheoryTerm &&guard, TheoryAtomType type)
 : name_(std::move(name))
 , elems_(std::move(elems))
 , op_(op)
@@ -284,7 +284,7 @@ void TheoryAtom::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen)
 }
 
 void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, bool hasBody) {
-    FWSignature sig = name_->getSig();
+    Sig sig = name_->getSig();
     for (auto &def : defs) {
         if (auto atomDef = def.getAtomDef(sig)) {
             type_ = atomDef->type();
