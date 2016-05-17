@@ -45,7 +45,7 @@ inline void RelationLiteral::print(std::ostream &out) const  { out << *left << r
 inline void RangeLiteral::print(std::ostream &out) const     { out << "#range(" << *assign << "," << *lower << "," << *upper << ")"; }
 inline void FalseLiteral::print(std::ostream &out) const     { out << "#false"; }
 inline void ScriptLiteral::print(std::ostream &out) const    {
-    out << "#script(" << *assign << "," << *name << "(";
+    out << "#script(" << *assign << "," << name << "(";
     print_comma(out, args, ",", [](std::ostream &out, UTerm const &term) { out << *term; });
     out << ")";
 }
@@ -265,11 +265,11 @@ void PredicateLiteral::toTuple(UTermVec &tuple, int &) {
         case NAF::NOT:    { id = 1; break; }
         case NAF::NOTNOT: { id = 2; break; }
     }
-    tuple.emplace_back(make_locatable<ValTerm>(loc(), Value::createNum(id)));
+    tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol::createNum(id)));
     tuple.emplace_back(get_clone(repr));
 }
 void RelationLiteral::toTuple(UTermVec &tuple, int &id) {
-    tuple.emplace_back(make_locatable<ValTerm>(loc(), Value::createNum(id+3)));
+    tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol::createNum(id+3)));
     tuple.emplace_back(get_clone(left));
     tuple.emplace_back(get_clone(right));
     id++;
@@ -278,7 +278,7 @@ void RangeLiteral::toTuple(UTermVec &, int &) {
     throw std::logic_error("RangeLiteral::toTuple should never be called  if used properly");
 }
 void FalseLiteral::toTuple(UTermVec &tuple, int &id) {
-    tuple.emplace_back(make_locatable<ValTerm>(loc(), Value::createNum(id+3)));
+    tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol::createNum(id+3)));
     id++;
 }
 void ScriptLiteral::toTuple(UTermVec &, int &) {
@@ -287,15 +287,15 @@ void ScriptLiteral::toTuple(UTermVec &, int &) {
 void CSPLiteral::toTuple(UTermVec &tuple, int &id) {
     VarTermSet vars;
     for (auto &x : terms) { x.collect(vars); }
-    tuple.emplace_back(make_locatable<ValTerm>(loc(), Value::createNum(id+3)));
+    tuple.emplace_back(make_locatable<ValTerm>(loc(), Symbol::createNum(id+3)));
     for (auto &x : vars) { tuple.emplace_back(UTerm(x.get().clone())); }
     id++;
 }
 
 // {{{1 definition of Literal::isEDB
 
-Value Literal::isEDB() const          { return {}; }
-Value PredicateLiteral::isEDB() const { return naf == NAF::POS ? repr->isEDB() : Value(); }
+Symbol Literal::isEDB() const          { return {}; }
+Symbol PredicateLiteral::isEDB() const { return naf == NAF::POS ? repr->isEDB() : Symbol(); }
 
 // {{{1 definition of Literal::hasPool
 
@@ -468,7 +468,7 @@ FalseLiteral::~FalseLiteral() { }
 
 // {{{1 definition of ScriptLiteral
 
-ScriptLiteral::ScriptLiteral(UTerm &&assign, FWString name, UTermVec &&args)
+ScriptLiteral::ScriptLiteral(UTerm &&assign, String name, UTermVec &&args)
     : assign(std::move(assign))
     , name(name)
     , args(std::move(args)) { }
