@@ -2,8 +2,8 @@ Requirements
 ============
 
 - a c++11 conforming compiler
-    gcc version 4.8 (earlier versions will not work)
-    clang version 3.1 (using either libstdc++ provided by gcc 4.8 or libc++)
+    gcc version 4.9 (earlier versions will not work)
+    clang version 3.1 (using either libstdc++ provided by gcc 4.9 or libc++)
     other compilers might work
 - the bison parser generator
     version 3.0 is tested (produces warnings to stay backwards-compatible)
