@@ -29,7 +29,7 @@ namespace Gringo { namespace Test {
 struct TestGringoModule : Gringo::GringoModule {
     virtual Gringo::Control *newControl(int, char const **) { throw std::logic_error("TestGringoModule::newControl must not be called"); }
     virtual void freeControl(Gringo::Control *)  { throw std::logic_error("TestGringoModule::freeControl must not be called"); }
-    virtual Gringo::Value parseValue(std::string const &str) {
+    virtual Gringo::Symbol parseValue(std::string const &str) {
         return parser.parse(str);
     }
     Gringo::Input::GroundTermParser parser;

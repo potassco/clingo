@@ -44,7 +44,7 @@ inline void cspadd(CSPAddTerm &add, CSPMulTerm &&mul, T&&... args) {
 
 template <class... T>
 inline CSPAddTerm cspadd(CSPMulTerm &&mul, T&&... args) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     CSPAddTerm add(std::move(mul));
     cspadd(add, std::forward<T>(args)...);
     return add;
@@ -60,24 +60,24 @@ inline void csplit(CSPLiteral &lit, Relation rel, CSPAddTerm &&add, T&&... args)
 
 template <class... T>
 inline UCSPLit csplit(CSPAddTerm &&left, Relation rel, CSPAddTerm &&right, T&&... args) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     UCSPLit lit(make_locatable<CSPLiteral>(loc, rel, std::move(left), std::move(right)));
     csplit(*lit, std::forward<T>(args)...);
     return lit;
 }
 
 inline ULit pred(NAF naf, UTerm &&arg) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     return make_locatable<PredicateLiteral>(loc, naf, std::move(arg));
 }
 
 inline ULit rel(Relation rel, UTerm &&left, UTerm &&right) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     return make_locatable<RelationLiteral>(loc, rel, std::move(left), std::move(right));
 }
 
 inline ULit range(UTerm &&assign, UTerm &&lower, UTerm &&upper) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     return make_locatable<RangeLiteral>(loc, std::move(assign), std::move(lower), std::move(upper));
 }
 

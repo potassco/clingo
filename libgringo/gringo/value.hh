@@ -22,6 +22,7 @@
 #define _GRINGO_VALUE_HH
 
 #include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <memory>
 #include <unordered_map>
@@ -157,7 +158,9 @@ public:
     static Symbol createInf();
     static Symbol createSup();
     static Symbol createTuple(SymSpan val);
+    static Symbol createTuple(SymVec const &val) { return createTuple(Potassco::toSpan(val)); }
     static Symbol createFun(String name, SymSpan val, bool sign = false);
+    static Symbol createFun(String name, SymVec const &val, bool sign = false) { return createFun(name, Potassco::toSpan(val), sign); }
 
     // value retrieval
     SymbolType type() const;

@@ -28,56 +28,56 @@ namespace Gringo { namespace Test {
 
 // {{{ definition of functions to create terms
 
-inline std::unique_ptr<ValTerm> val(Value v) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
+inline std::unique_ptr<ValTerm> val(Symbol v) {
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     return make_locatable<ValTerm>(loc, v);
 }
 
 inline std::unique_ptr<VarTerm> var(char const *x, int level = 0) {
-    static std::unordered_map<FWString, Term::SVal> vals;
+    static std::unordered_map<String, Term::SVal> vals;
     auto &ret(vals[x]);
-    if (!ret) { ret = std::make_shared<Value>(); }
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
-    auto var(make_locatable<VarTerm>(loc, FWString(x), ret));
+    if (!ret) { ret = std::make_shared<Symbol>(); }
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
+    auto var(make_locatable<VarTerm>(loc, String(x), ret));
     var->level = level;
     return var;
 }
 
 inline std::unique_ptr<LinearTerm> lin(char const *x, int m, int n) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     return make_locatable<LinearTerm>(loc, *var(x), m, n);
 }
 
 inline std::unique_ptr<DotsTerm> dots(UTerm &&left, UTerm &&right) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     return make_locatable<DotsTerm>(loc, std::move(left), std::move(right));
 }
 
 inline std::unique_ptr<UnOpTerm> unop(UnOp op, UTerm &&arg) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     return make_locatable<UnOpTerm>(loc, op, std::move(arg));
 }
 
 inline std::unique_ptr<BinOpTerm> binop(BinOp op, UTerm &&left, UTerm &&right) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     return make_locatable<BinOpTerm>(loc, op, std::move(left), std::move(right));
 }
 
 template <class... T>
 std::unique_ptr<FunctionTerm> fun(char const *name, T&&... args) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
-    return make_locatable<FunctionTerm>(loc, FWString(name), Test::init<UTermVec>(std::forward<T>(args)...));
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
+    return make_locatable<FunctionTerm>(loc, String(name), Test::init<UTermVec>(std::forward<T>(args)...));
 }
 
 template <class... T>
 std::unique_ptr<LuaTerm> lua(char const *name, T&&... args) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
-    return make_locatable<LuaTerm>(loc, FWString(name), Test::init<UTermVec>(std::forward<T>(args)...));
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
+    return make_locatable<LuaTerm>(loc, String(name), Test::init<UTermVec>(std::forward<T>(args)...));
 }
 
 template <class... T>
 std::unique_ptr<PoolTerm> pool(T&&... args) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     return make_locatable<PoolTerm>(loc, Test::init<UTermVec>(std::forward<T>(args)...));
 }
 
@@ -86,12 +86,12 @@ UTermVec termvec(T&&... args) {
     return Test::init<UTermVec>(std::forward<T>(args)...);
 }
 
-inline Value NUM(int num) { return Value::createNum(num); }
-inline Value SUP() { return Value::createSup(); }
-inline Value INF() { return Value::createInf(); }
-inline Value STR(FWString name) { return Value::createStr(name); }
-inline Value ID(FWString name, bool sign = false) { return Value::createId(name, sign); }
-inline Value FUN(FWString name, FWValVec args, bool sign = false) { return Value::createFun(name, args, sign); }
+inline Symbol NUM(int num) { return Symbol::createNum(num); }
+inline Symbol SUP() { return Symbol::createSup(); }
+inline Symbol INF() { return Symbol::createInf(); }
+inline Symbol STR(String name) { return Symbol::createStr(name); }
+inline Symbol ID(String name, bool sign = false) { return Symbol::createId(name, sign); }
+inline Symbol FUN(String name, SymVec args, bool sign = false) { return Symbol::createFun(name, Potassco::toSpan(args), sign); }
 
 // }}}
 

@@ -144,7 +144,8 @@ struct MString {
     }
     static char *construct(StringSpan str) {
         std::unique_ptr<char[]> buf{new char[str.size + 1]};
-        std::strcpy(buf.get(), str.first);
+        std::memcpy(buf.get(), str.first, sizeof(char) * str.size);
+        buf[str.size] = '\0';
         return buf.release();
     }
     static void destroy(char *str) { delete [] str; }

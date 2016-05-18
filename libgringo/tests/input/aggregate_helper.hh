@@ -51,32 +51,32 @@ HeadAggrElemVec hdelemvec(T&&... args) {
 }
 
 inline UBodyAggr bdaggr(NAF naf, AggregateFunction fun, BoundVec &&bounds, BodyAggrElemVec &&elems) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     return make_locatable<TupleBodyAggregate>(loc, naf, fun, std::move(bounds), std::move(elems));
 }
 
 inline UBodyAggr bdaggr(NAF naf, AggregateFunction fun, BoundVec &&bounds, CondLitVec &&elems) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     return make_locatable<LitBodyAggregate>(loc, naf, fun, std::move(bounds), std::move(elems));
 }
 
 inline UBodyAggr bdaggr(ULit &&lit, ULitVec &&cond) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     return make_locatable<Conjunction>(loc, std::move(lit), std::move(cond));
 }
 
 inline UHeadAggr hdaggr(AggregateFunction fun, BoundVec &&bounds, HeadAggrElemVec &&elems) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     return make_locatable<TupleHeadAggregate>(loc, fun, std::move(bounds), std::move(elems));
 }
 
 inline UHeadAggr hdaggr(AggregateFunction fun, BoundVec &&bounds, CondLitVec &&elems) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     return make_locatable<LitHeadAggregate>(loc, fun, std::move(bounds), std::move(elems));
 }
 
 inline UHeadAggr hdaggr(CondLitVec &&elems) {
-    Location loc(FWString("dummy"), 1, 1, FWString("dummy"), 1, 1);
+    Location loc(String("dummy"), 1, 1, String("dummy"), 1, 1);
     return make_locatable<Disjunction>(loc, std::move(elems));
 }
 

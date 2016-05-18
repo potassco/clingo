@@ -25,7 +25,7 @@
 int main(int argc, char **argv) {
     CppUnit::TextUi::TestRunner runner;
     runner.addTest(CppUnit::TestFactoryRegistry::getRegistry().makeTest());
-    runner.setOutputter(new CppUnit::CompilerOutputter(&runner.result(), std::cerr, "%p:%l:"));
-    return runner.run((argc > 1) ? argv[1] : "", false) ? 0 : 1;
+    //runner.setOutputter(new CppUnit::CompilerOutputter(&runner.result(), std::cerr, "%p:%l:"));
+    return runner.run((argc > 1) ? argv[1] : "", true) ? 0 : 1;
 }
 

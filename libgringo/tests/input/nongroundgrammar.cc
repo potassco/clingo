@@ -39,13 +39,13 @@ class TestNongroundProgramBuilder : public INongroundProgramBuilder {
 public:
 
     // {{{ terms
-    virtual TermUid term(Location const &loc, Value val) override;
-    virtual TermUid term(Location const &loc, FWString name) override;
+    virtual TermUid term(Location const &loc, Symbol val) override;
+    virtual TermUid term(Location const &loc, String name) override;
     virtual TermUid term(Location const &loc, UnOp op, TermUid a) override;
     virtual TermUid term(Location const &loc, UnOp op, TermVecUid a) override;
     virtual TermUid term(Location const &loc, BinOp op, TermUid a, TermUid b) override;
     virtual TermUid term(Location const &loc, TermUid a, TermUid b) override;
-    virtual TermUid term(Location const &loc, FWString name, TermVecVecUid b, bool lua) override;
+    virtual TermUid term(Location const &loc, String name, TermVecVecUid b, bool lua) override;
     virtual TermUid term(Location const &loc, TermVecUid args, bool forceTuple) override;
     virtual TermUid pool(Location const &loc, TermVecUid args) override;
     // }}}
@@ -60,7 +60,7 @@ public:
     // }}}
     // {{{ id vectors
     virtual IdVecUid idvec() override;
-    virtual IdVecUid idvec(IdVecUid uid, Location const &loc, FWString id) override;
+    virtual IdVecUid idvec(IdVecUid uid, Location const &loc, String id) override;
     // }}}
     // {{{ term vectors
     virtual TermVecUid termvec() override;
@@ -72,7 +72,7 @@ public:
     // }}}
     // {{{ literals
     virtual LitUid boollit(Location const &loc, bool type) override;
-    virtual LitUid predlit(Location const &loc, NAF naf, bool neg, FWString name, TermVecVecUid argvecvecUid) override;
+    virtual LitUid predlit(Location const &loc, NAF naf, bool neg, String name, TermVecVecUid argvecvecUid) override;
     virtual LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) override;
     // }}}
     // {{{ literal vectors
@@ -118,33 +118,33 @@ public:
     // {{{ statements
     virtual void rule(Location const &loc, HdLitUid head) override;
     virtual void rule(Location const &loc, HdLitUid head, BdLitVecUid body) override;
-    virtual void define(Location const &loc, FWString name, TermUid value, bool defaultDef) override;
+    virtual void define(Location const &loc, String name, TermUid value, bool defaultDef) override;
     virtual void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) override;
-    virtual void showsig(Location const &loc, FWSignature sig, bool csp) override;
+    virtual void showsig(Location const &loc, Sig sig, bool csp) override;
     virtual void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) override;
-    virtual void python(Location const &loc, FWString code) override;
-    virtual void lua(Location const &loc, FWString code) override;
-    virtual void block(Location const &loc, FWString name, IdVecUid args) override;
+    virtual void python(Location const &loc, String code) override;
+    virtual void lua(Location const &loc, String code) override;
+    virtual void block(Location const &loc, String name, IdVecUid args) override;
     virtual void external(Location const &loc, LitUid head, BdLitVecUid body) override;
     virtual void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) override;
-    virtual void heuristic(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
-    virtual void project(Location const &loc, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid body) override;
-    virtual void project(Location const &loc, FWSignature sig) override;
+    virtual void heuristic(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
+    virtual void project(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body) override;
+    virtual void project(Location const &loc, Sig sig) override;
     // }}}
     // {{{ theory atoms
     virtual TheoryTermUid theorytermset(Location const &loc, TheoryOptermVecUid args) override;
     virtual TheoryTermUid theoryoptermlist(Location const &loc, TheoryOptermVecUid args) override;
     virtual TheoryTermUid theorytermopterm(Location const &loc, TheoryOptermUid opterm) override;
     virtual TheoryTermUid theorytermtuple(Location const &loc, TheoryOptermVecUid args) override;
-    virtual TheoryTermUid theorytermfun(Location const &loc, FWString name, TheoryOptermVecUid args) override;
-    virtual TheoryTermUid theorytermvalue(Location const &loc, Value val) override;
-    virtual TheoryTermUid theorytermvar(Location const &loc, FWString var) override;
+    virtual TheoryTermUid theorytermfun(Location const &loc, String name, TheoryOptermVecUid args) override;
+    virtual TheoryTermUid theorytermvalue(Location const &loc, Symbol val) override;
+    virtual TheoryTermUid theorytermvar(Location const &loc, String var) override;
 
     virtual TheoryOptermUid theoryopterm(TheoryOpVecUid ops, TheoryTermUid term) override;
     virtual TheoryOptermUid theoryopterm(TheoryOptermUid opterm, TheoryOpVecUid ops, TheoryTermUid term) override;
 
     virtual TheoryOpVecUid theoryops() override;
-    virtual TheoryOpVecUid theoryops(TheoryOpVecUid ops, FWString op) override;
+    virtual TheoryOpVecUid theoryops(TheoryOpVecUid ops, String op) override;
 
     virtual TheoryOptermVecUid theoryopterms() override;
     virtual TheoryOptermVecUid theoryopterms(TheoryOptermVecUid opterms, TheoryOptermUid opterm) override;
@@ -154,23 +154,23 @@ public:
     virtual TheoryElemVecUid theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) override;
 
     virtual TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems) override;
-    virtual TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, FWString op, TheoryOptermUid opterm) override;
+    virtual TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, String op, TheoryOptermUid opterm) override;
     // }}}
     // {{{ theory definitions
 
-    virtual TheoryOpDefUid theoryopdef(Location const &loc, FWString op, unsigned priority, TheoryOperatorType type) override;
+    virtual TheoryOpDefUid theoryopdef(Location const &loc, String op, unsigned priority, TheoryOperatorType type) override;
     virtual TheoryOpDefVecUid theoryopdefs() override;
     virtual TheoryOpDefVecUid theoryopdefs(TheoryOpDefVecUid defs, TheoryOpDefUid def) override;
 
-    virtual TheoryTermDefUid theorytermdef(Location const &loc, FWString name, TheoryOpDefVecUid defs) override;
-    virtual TheoryAtomDefUid theoryatomdef(Location const &loc, FWString name, unsigned arity, FWString termDef, TheoryAtomType type) override;
-    virtual TheoryAtomDefUid theoryatomdef(Location const &loc, FWString name, unsigned arity, FWString termDef, TheoryAtomType type, TheoryOpVecUid ops, FWString guardDef) override;
+    virtual TheoryTermDefUid theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs) override;
+    virtual TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type) override;
+    virtual TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type, TheoryOpVecUid ops, String guardDef) override;
 
     virtual TheoryDefVecUid theorydefs() override;
     virtual TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryTermDefUid def) override;
     virtual TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid def) override;
 
-    virtual void theorydef(Location const &loc, FWString name, TheoryDefVecUid defs) override;
+    virtual void theorydef(Location const &loc, String name, TheoryDefVecUid defs) override;
 
     // }}}
 
@@ -324,21 +324,21 @@ IdVecUid TestNongroundProgramBuilder::idvec() {
     return idvecs_.emplace();
 }
 
-IdVecUid TestNongroundProgramBuilder::idvec(IdVecUid uid, Location const &, FWString id) {
-    idvecs_[uid].emplace_back(*id);
+IdVecUid TestNongroundProgramBuilder::idvec(IdVecUid uid, Location const &, String id) {
+    idvecs_[uid].emplace_back(id.c_str());
     return uid;
 }
 
 // }}}
 // {{{ terms
 
-TermUid TestNongroundProgramBuilder::term(Location const &, Value val) {
+TermUid TestNongroundProgramBuilder::term(Location const &, Symbol val) {
     current_ << val;
     return terms_.emplace(str());
 }
 
-TermUid TestNongroundProgramBuilder::term(Location const &, FWString name) {
-    current_ << *name;
+TermUid TestNongroundProgramBuilder::term(Location const &, String name) {
+    current_ << name;
     return terms_.emplace(str());
 }
 
@@ -367,12 +367,12 @@ TermUid TestNongroundProgramBuilder::term(Location const &, TermUid a, TermUid b
     return terms_.emplace(str());
 }
 
-TermUid TestNongroundProgramBuilder::term(Location const &, FWString name, TermVecVecUid a, bool lua) {
-    assert(*name != "");
+TermUid TestNongroundProgramBuilder::term(Location const &, String name, TermVecVecUid a, bool lua) {
+    assert(name != "");
     assert(!termvecvecs_[a].empty());
     bool nempty = lua || termvecvecs_[a].size() > 1 || !termvecvecs_[a].front().empty();
     if (lua) { current_ << "@"; }
-    current_ << *name;
+    current_ << name;
     if (nempty) { current_ << "("; }
     print(termvecvecs_.erase(a));
     if (nempty) { current_ << ")"; }
@@ -454,10 +454,10 @@ LitUid TestNongroundProgramBuilder::boollit(Location const &, bool type) {
     return lits_.emplace(type ? "#true" : "#false");
 }
 
-LitUid TestNongroundProgramBuilder::predlit(Location const &, NAF naf, bool neg, FWString name, TermVecVecUid tvvUid) {
+LitUid TestNongroundProgramBuilder::predlit(Location const &, NAF naf, bool neg, String name, TermVecVecUid tvvUid) {
     print(naf);
     if (neg) { current_ << "-"; }
-    current_ << *name;
+    current_ << name;
     bool nempty = termvecvecs_[tvvUid].size() > 1 || !termvecvecs_[tvvUid].front().empty();
     if (nempty) { current_ << "("; }
     print(termvecvecs_.erase(tvvUid));
@@ -651,8 +651,8 @@ void TestNongroundProgramBuilder::rule(Location const &, HdLitUid head, BdLitVec
     statements_.emplace_back(str());
 }
 
-void TestNongroundProgramBuilder::define(Location const &, FWString name, TermUid value, bool) {
-    current_ << "#const " << *name << "=" << terms_.erase(value) << ".";
+void TestNongroundProgramBuilder::define(Location const &, String name, TermUid value, bool) {
+    current_ << "#const " << name << "=" << terms_.erase(value) << ".";
     statements_.emplace_back(str());
 }
 
@@ -670,8 +670,8 @@ void TestNongroundProgramBuilder::optimize(Location const &, TermUid weight, Ter
     statements_.emplace_back(str());
 }
 
-void TestNongroundProgramBuilder::showsig(Location const &, FWSignature sig, bool csp) {
-    current_ << "#showsig " << (csp ? "$" : "") << *sig << ".";
+void TestNongroundProgramBuilder::showsig(Location const &, Sig sig, bool csp) {
+    current_ << "#showsig " << (csp ? "$" : "") << sig << ".";
     statements_.emplace_back(str());
 }
 
@@ -686,17 +686,17 @@ void TestNongroundProgramBuilder::show(Location const &, TermUid t, BdLitVecUid 
     statements_.emplace_back(str());
 }
 
-void TestNongroundProgramBuilder::python(Location const &, FWString code) {
-    current_ << *code << ".";
+void TestNongroundProgramBuilder::python(Location const &, String code) {
+    current_ << code << ".";
     statements_.emplace_back(str());
 }
 
-void TestNongroundProgramBuilder::lua(Location const &, FWString code) {
-    current_ << *code << ".";
+void TestNongroundProgramBuilder::lua(Location const &, String code) {
+    current_ << code << ".";
     statements_.emplace_back(str());
 }
-void TestNongroundProgramBuilder::block(Location const &, FWString name, IdVecUid args) {
-    current_ << "#program " << *name << "(";
+void TestNongroundProgramBuilder::block(Location const &, String name, IdVecUid args) {
+    current_ << "#program " << name << "(";
     print(idvecs_.erase(args), ",");
     current_ << ").";
     statements_.emplace_back(str());
@@ -726,8 +726,8 @@ void TestNongroundProgramBuilder::edge(Location const &, TermVecVecUid edges, Bd
     statements_.emplace_back(str());
 }
 
-void TestNongroundProgramBuilder::heuristic(Location const &, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid bodyuid, TermUid a, TermUid b, TermUid mod) {
-    current_ << "#heuristic " << (neg ? "-" : "") << *name;
+void TestNongroundProgramBuilder::heuristic(Location const &, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid bodyuid, TermUid a, TermUid b, TermUid mod) {
+    current_ << "#heuristic " << (neg ? "-" : "") << name;
     bool nempty = termvecvecs_[tvvUid].size() > 1 || !termvecvecs_[tvvUid].front().empty();
     if (nempty) { current_ << "("; }
     print(termvecvecs_.erase(tvvUid));
@@ -741,8 +741,8 @@ void TestNongroundProgramBuilder::heuristic(Location const &, bool neg, FWString
     statements_.emplace_back(str());
 }
 
-void TestNongroundProgramBuilder::project(Location const &, bool neg, FWString name, TermVecVecUid tvvUid, BdLitVecUid bodyuid) {
-    current_ << "#project " << (neg ? "-" : "") << *name;
+void TestNongroundProgramBuilder::project(Location const &, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid bodyuid) {
+    current_ << "#project " << (neg ? "-" : "") << name;
     bool nempty = termvecvecs_[tvvUid].size() > 1 || !termvecvecs_[tvvUid].front().empty();
     if (nempty) { current_ << "("; }
     print(termvecvecs_.erase(tvvUid));
@@ -757,8 +757,8 @@ void TestNongroundProgramBuilder::project(Location const &, bool neg, FWString n
 
 }
 
-void TestNongroundProgramBuilder::project(Location const &, FWSignature sig) {
-    current_ << "#project " << *sig << ".";
+void TestNongroundProgramBuilder::project(Location const &, Sig sig) {
+    current_ << "#project " << sig << ".";
     statements_.emplace_back(str());
 }
 
@@ -792,19 +792,19 @@ TheoryTermUid TestNongroundProgramBuilder::theorytermtuple(Location const &, The
     return theoryTerms_.emplace(str());
 }
 
-TheoryTermUid TestNongroundProgramBuilder::theorytermfun(Location const &, FWString name, TheoryOptermVecUid args) {
-    current_ << *name << "(";
+TheoryTermUid TestNongroundProgramBuilder::theorytermfun(Location const &, String name, TheoryOptermVecUid args) {
+    current_ << name << "(";
     print(theoryOptermVecs_.erase(args), ",");
     current_ << ")";
     return theoryTerms_.emplace(str());
 }
 
-TheoryTermUid TestNongroundProgramBuilder::theorytermvalue(Location const &, Value val) {
+TheoryTermUid TestNongroundProgramBuilder::theorytermvalue(Location const &, Symbol val) {
     current_ << val;
     return theoryTerms_.emplace(str());
 }
 
-TheoryTermUid TestNongroundProgramBuilder::theorytermvar(Location const &, FWString var) {
+TheoryTermUid TestNongroundProgramBuilder::theorytermvar(Location const &, String var) {
     current_ << var;
     return theoryTerms_.emplace(str());
 }
@@ -831,8 +831,8 @@ TheoryOpVecUid TestNongroundProgramBuilder::theoryops() {
     return theoryOps_.emplace();
 }
 
-TheoryOpVecUid TestNongroundProgramBuilder::theoryops(TheoryOpVecUid ops, FWString op) {
-    theoryOps_[ops].emplace_back(op);
+TheoryOpVecUid TestNongroundProgramBuilder::theoryops(TheoryOpVecUid ops, String op) {
+    theoryOps_[ops].emplace_back(op.c_str());
     return ops;
 }
 
@@ -869,17 +869,17 @@ TheoryAtomUid TestNongroundProgramBuilder::theoryatom(TermUid term, TheoryElemVe
     return theoryAtoms_.emplace(str());
 }
 
-TheoryAtomUid TestNongroundProgramBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, FWString op, TheoryOptermUid opterm) {
+TheoryAtomUid TestNongroundProgramBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, String op, TheoryOptermUid opterm) {
     current_ << "&" << terms_.erase(term) << "{";
     print(theoryElemVecs_.erase(elems), " ; ");
-    current_ << "} " << *op << " " << theoryOpterms_.erase(opterm);
+    current_ << "} " << op << " " << theoryOpterms_.erase(opterm);
     return theoryAtoms_.emplace(str());
 }
 
 // }}}
 // {{{ theory definitions
 
-TheoryOpDefUid TestNongroundProgramBuilder::theoryopdef(Location const &, FWString op, unsigned priority, TheoryOperatorType type) {
+TheoryOpDefUid TestNongroundProgramBuilder::theoryopdef(Location const &, String op, unsigned priority, TheoryOperatorType type) {
     current_ << op << " :" << priority << "," << type;
     return theoryOpDefs_.emplace(str());
 }
@@ -893,19 +893,19 @@ TheoryOpDefVecUid TestNongroundProgramBuilder::theoryopdefs(TheoryOpDefVecUid de
     return defs;
 }
 
-TheoryTermDefUid TestNongroundProgramBuilder::theorytermdef(Location const &, FWString name, TheoryOpDefVecUid defs) {
+TheoryTermDefUid TestNongroundProgramBuilder::theorytermdef(Location const &, String name, TheoryOpDefVecUid defs) {
     current_ << name << "{";
     print(theoryOpDefVecs_.erase(defs), ",");
     current_ << "}";
     return theoryTermDefs_.emplace(str());
 }
 
-TheoryAtomDefUid TestNongroundProgramBuilder::theoryatomdef(Location const &, FWString name, unsigned arity, FWString termDef, TheoryAtomType type) {
+TheoryAtomDefUid TestNongroundProgramBuilder::theoryatomdef(Location const &, String name, unsigned arity, String termDef, TheoryAtomType type) {
     current_ << "&" << name << "/" << arity << ":" << termDef << "," << type;
     return theoryAtomDefs_.emplace(str());
 }
 
-TheoryAtomDefUid TestNongroundProgramBuilder::theoryatomdef(Location const &, FWString name, unsigned arity, FWString termDef, TheoryAtomType type, TheoryOpVecUid ops, FWString guardDef) {
+TheoryAtomDefUid TestNongroundProgramBuilder::theoryatomdef(Location const &, String name, unsigned arity, String termDef, TheoryAtomType type, TheoryOpVecUid ops, String guardDef) {
     current_ << "&" << name << "/" << arity << ":" << termDef << ",{";
     print(theoryOps_.erase(ops), ",");
     current_ << "}," << guardDef << "," << type;
@@ -926,7 +926,7 @@ TheoryDefVecUid TestNongroundProgramBuilder::theorydefs(TheoryDefVecUid defs, Th
     return defs;
 }
 
-void TestNongroundProgramBuilder::theorydef(Location const &, FWString name, TheoryDefVecUid defs) {
+void TestNongroundProgramBuilder::theorydef(Location const &, String name, TheoryDefVecUid defs) {
     current_ << "#theory " << name << "{";
     print(theoryDefVecs_.erase(defs), ";");
     current_ << "}.";

@@ -124,8 +124,8 @@ term
     | term[a] POW term[b]                     { $$ = lexer->term(BinOp::POW, $a, $b); }
     | SUB term[a] %prec UMINUS                { $$ = lexer->term(UnOp::NEG, $a); }
     | BNOT term[a] %prec UBNOT                { $$ = lexer->term(UnOp::NOT, $a); }
-    | LPAREN RPAREN                           { $$ = Symbol::createTuple({}); }
-    | LPAREN COMMA RPAREN                     { $$ = Symbol::createTuple({}); }
+    | LPAREN RPAREN                           { $$ = Symbol::createTuple(Potassco::toSpan<Symbol>()); }
+    | LPAREN COMMA RPAREN                     { $$ = Symbol::createTuple(Potassco::toSpan<Symbol>()); }
     | LPAREN nterms[a] RPAREN                 { $$ = lexer->tuple($a, false); }
     | LPAREN nterms[a] COMMA RPAREN           { $$ = lexer->tuple($a, true); }
     | IDENTIFIER[a] LPAREN terms[b] RPAREN    { $$ = Symbol::createFun($a, Potassco::toSpan(lexer->terms($b))); }

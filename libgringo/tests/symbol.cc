@@ -87,8 +87,6 @@ void TestSymbol::setUp() {
 }
 
 void TestSymbol::tearDown() {
-    FWString::clear();
-    FWValVec::clear();
 }
 
 void TestSymbol::test_types() {
@@ -235,12 +233,12 @@ void TestSymbol::test_print() {
 }
 
 void TestSymbol::test_sig() {
-    std::vector<std::string> names { "a", "b", "c", "d" };
-    for (unsigned i = 0; i < 42; i++) {
-        auto name = names[i % names.size()];
-        Signature sig{ name, i };
-        CPPUNIT_ASSERT_EQUAL(name, *sig.name());
-        CPPUNIT_ASSERT_EQUAL(i, sig.length());
+    std::vector<char const *> names { "a", "b", "c", "d" };
+    for (uint32_t i = 1; i < 1073741824; i*=2) {
+        String name = names[i % names.size()];
+        Sig sig{ name.c_str(), i, false };
+        CPPUNIT_ASSERT_EQUAL(name, sig.name());
+        CPPUNIT_ASSERT_EQUAL(i, sig.arity());
     }
 }
 

@@ -63,7 +63,7 @@ using namespace Gringo::Test;
 using namespace Gringo::IO;
 
 typedef std::set<std::string> StringSet;
-typedef Value V;
+typedef Symbol V;
 typedef std::string S;
 
 struct TestLookup {
@@ -76,7 +76,7 @@ struct TestLookup {
     void matchTerm(L::iterator begin, L::iterator end) {
         for (auto it = begin; it != end; ++it){ str.insert(to_string(*it->first)); }
     }
-    std::string match(Value const &x) {
+    std::string match(Symbol const &x) {
         str.clear();
         using namespace std::placeholders;
         l.match(x, std::bind(&TestLookup::matchTerm, this, _1, _2));

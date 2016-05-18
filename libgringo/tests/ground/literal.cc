@@ -69,7 +69,7 @@ using namespace Gringo::IO;
 using namespace Gringo::Test;
 
 using S = std::string;
-using V = Value;
+using V = Symbol;
 template <class T>
 using L = std::initializer_list<T>;
 template <class A, class B>
@@ -92,7 +92,7 @@ std::string TestLiteral::evalRange(UTerm assign, UTerm l, UTerm r) {
     RangeLiteral lit(get_clone(assign), get_clone(l), get_clone(r));
     Term::VarSet bound;
     UIdx idx(lit.index(scripts, BinderType::ALL, bound));
-    ValVec vals;
+    SymVec vals;
     idx->match();
     bool undefined = false;
     while (idx->next()) { vals.emplace_back(assign->eval(undefined)); }
@@ -140,10 +140,10 @@ S evalPred(L<L<V>> vals, L<P<S,V>> bound, BinderType type, NAF naf, UTerm &&repr
     Term::VarSet boundSet;
     for (auto &x : bound) {
         U<VarTerm> v(var(x.first.c_str()));
-        boundSet.emplace(x.first);
+        boundSet.emplace(x.first.c_str());
         *v->ref = x.second;
     }
-    auto &dom = data.add(Signature("f", 2));
+    auto &dom = data.add(Sig("f", 2, false));
     PredicateLiteral lit(false, dom, naf, get_clone(repr));
     if (recursive) { lit.setType(OccurrenceType::UNSTRATIFIED); }
     UIdx idx = lit.index(scripts, type, boundSet);
@@ -164,7 +164,7 @@ S evalPred(L<L<V>> vals, L<P<S,V>> bound, BinderType type, NAF naf, UTerm &&repr
                 ret.back().back() += "#false";
             }
             else {
-                ret.back().back() += to_string(static_cast<Value>(dom[lit.offset]));
+                ret.back().back() += to_string(static_cast<Symbol>(dom[lit.offset]));
             }
         }
         std::sort(ret.back().begin(), ret.back().end());

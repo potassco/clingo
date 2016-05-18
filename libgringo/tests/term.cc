@@ -78,7 +78,7 @@ using namespace Gringo::IO;
 
 namespace {
 
-typedef Value V;
+typedef Symbol V;
 typedef std::string S;
 
 size_t hash(UTerm const &x) {
@@ -96,7 +96,7 @@ std::tuple<UTerm, SimplifyState::DotsMap, SimplifyState::ScriptMap> rewriteDots(
 }
 
 std::string rewriteProject(UTerm &&x) {
-    UTerm sig{make_locatable<ValTerm>(x->loc(), Value::createId("#p"))};
+    UTerm sig{make_locatable<ValTerm>(x->loc(), Symbol::createId("#p"))};
     SimplifyState state;
     x->simplify(state, true, false).update(x);
     auto ret(x->project(sig.get(), state.gen));
@@ -105,8 +105,8 @@ std::string rewriteProject(UTerm &&x) {
     auto project(std::move(std::get<2>(ret)));
     return to_string(std::make_tuple(
         std::move(x),
-        projected ? std::move(projected) : val(Value::createStr("#undef")),
-        project ? std::move(project) : val(Value::createStr("#undef"))));
+        projected ? std::move(projected) : val(Symbol::createStr("#undef")),
+        project ? std::move(project) : val(Symbol::createStr("#undef"))));
 }
 
 std::string rewriteArithmetics(UTerm &&x) {
@@ -120,7 +120,7 @@ std::string rewriteArithmetics(UTerm &&x) {
 UTerm simplify(UTerm &&x) {
     SimplifyState state;
     if (x->simplify(state, true, false).update(x).undefined()) {
-        return make_locatable<ValTerm>(x->loc(), Value::createId("#undefined"));
+        return make_locatable<ValTerm>(x->loc(), Symbol::createId("#undefined"));
     }
     else {
         return std::move(x);
@@ -236,26 +236,26 @@ void TestTerm::test_equal() {
 
 void TestTerm::test_eval() {
     bool undefined;
-    CPPUNIT_ASSERT_EQUAL(Value(NUM(1)), val(NUM(1))->eval(undefined));
+    CPPUNIT_ASSERT_EQUAL(Symbol(NUM(1)), val(NUM(1))->eval(undefined));
 
-    CPPUNIT_ASSERT_EQUAL(Value(NUM(0)),   binop(BinOp::DIV, val(NUM(7)), val(NUM(0)))->eval(undefined));
-    CPPUNIT_ASSERT_EQUAL(Value(NUM(1)),   binop(BinOp::MOD, val(NUM(7)), val(NUM(3)))->eval(undefined));
-    CPPUNIT_ASSERT_EQUAL(Value(NUM(2)),   binop(BinOp::DIV, val(NUM(7)), val(NUM(3)))->eval(undefined));
-    CPPUNIT_ASSERT_EQUAL(Value(NUM(3)),   binop(BinOp::AND, val(NUM(7)), val(NUM(3)))->eval(undefined));
-    CPPUNIT_ASSERT_EQUAL(Value(NUM(4)),   binop(BinOp::XOR, val(NUM(7)), val(NUM(3)))->eval(undefined));
-    CPPUNIT_ASSERT_EQUAL(Value(NUM(5)),   binop(BinOp::SUB, val(NUM(7)), val(NUM(2)))->eval(undefined));
-    CPPUNIT_ASSERT_EQUAL(Value(NUM(7)),   binop(BinOp::OR,  val(NUM(7)), val(NUM(3)))->eval(undefined));
-    CPPUNIT_ASSERT_EQUAL(Value(NUM(10)),  binop(BinOp::ADD, val(NUM(7)), val(NUM(3)))->eval(undefined));
-    CPPUNIT_ASSERT_EQUAL(Value(NUM(21)),  binop(BinOp::MUL, val(NUM(7)), val(NUM(3)))->eval(undefined));
-    CPPUNIT_ASSERT_EQUAL(Value(NUM(343)), binop(BinOp::POW, val(NUM(7)), val(NUM(3)))->eval(undefined));
+    CPPUNIT_ASSERT_EQUAL(Symbol(NUM(0)),   binop(BinOp::DIV, val(NUM(7)), val(NUM(0)))->eval(undefined));
+    CPPUNIT_ASSERT_EQUAL(Symbol(NUM(1)),   binop(BinOp::MOD, val(NUM(7)), val(NUM(3)))->eval(undefined));
+    CPPUNIT_ASSERT_EQUAL(Symbol(NUM(2)),   binop(BinOp::DIV, val(NUM(7)), val(NUM(3)))->eval(undefined));
+    CPPUNIT_ASSERT_EQUAL(Symbol(NUM(3)),   binop(BinOp::AND, val(NUM(7)), val(NUM(3)))->eval(undefined));
+    CPPUNIT_ASSERT_EQUAL(Symbol(NUM(4)),   binop(BinOp::XOR, val(NUM(7)), val(NUM(3)))->eval(undefined));
+    CPPUNIT_ASSERT_EQUAL(Symbol(NUM(5)),   binop(BinOp::SUB, val(NUM(7)), val(NUM(2)))->eval(undefined));
+    CPPUNIT_ASSERT_EQUAL(Symbol(NUM(7)),   binop(BinOp::OR,  val(NUM(7)), val(NUM(3)))->eval(undefined));
+    CPPUNIT_ASSERT_EQUAL(Symbol(NUM(10)),  binop(BinOp::ADD, val(NUM(7)), val(NUM(3)))->eval(undefined));
+    CPPUNIT_ASSERT_EQUAL(Symbol(NUM(21)),  binop(BinOp::MUL, val(NUM(7)), val(NUM(3)))->eval(undefined));
+    CPPUNIT_ASSERT_EQUAL(Symbol(NUM(343)), binop(BinOp::POW, val(NUM(7)), val(NUM(3)))->eval(undefined));
 
-    CPPUNIT_ASSERT_EQUAL(Value(NUM(-1)),  unop(UnOp::NEG, val(NUM(1)))->eval(undefined));
-    CPPUNIT_ASSERT_EQUAL(Value(NUM(1)),   unop(UnOp::ABS, val(NUM(-1)))->eval(undefined));
-    CPPUNIT_ASSERT_EQUAL(Value(NUM(-13)), unop(UnOp::NOT, val(NUM(12)))->eval(undefined));
+    CPPUNIT_ASSERT_EQUAL(Symbol(NUM(-1)),  unop(UnOp::NEG, val(NUM(1)))->eval(undefined));
+    CPPUNIT_ASSERT_EQUAL(Symbol(NUM(1)),   unop(UnOp::ABS, val(NUM(-1)))->eval(undefined));
+    CPPUNIT_ASSERT_EQUAL(Symbol(NUM(-13)), unop(UnOp::NOT, val(NUM(12)))->eval(undefined));
 
     CPPUNIT_ASSERT_EQUAL(FUN("f", {NUM(1), NUM(5)}), fun("f", val(NUM(1)), binop(BinOp::ADD, val(NUM(2)), val(NUM(3))))->eval(undefined));
 
-    CPPUNIT_ASSERT_EQUAL(Value::createId("a").flipSign(), unop(UnOp::NEG, val(ID("a")))->eval(undefined));
+    CPPUNIT_ASSERT_EQUAL(Symbol::createId("a").flipSign(), unop(UnOp::NEG, val(ID("a")))->eval(undefined));
 }
 
 void TestTerm::test_rewriteArithmetics() {
@@ -348,19 +348,19 @@ void TestTerm::test_match() {
 void TestTerm::test_theory() {
     Potassco::TheoryData td;
     Output::TheoryData data(td);
-    auto T = [&data](Value v) {
+    auto T = [&data](Symbol v) {
         std::ostringstream out;
         data.printTerm(out, data.addTerm(v));
         return out.str();
     };
-    Value px = Value::createId("x", false);
-    Value nx = Value::createId("x", true);
-    Value str = Value::createStr("x\ny");
-    Value sup = Value::createSup();
-    Value inf = Value::createInf();
-    Value pf = Value::createFun("f", {px, nx, str, sup, inf}, false);
-    Value nf = Value::createFun("f", {px, nx, str, sup, inf}, true);
-    Value t = Value::createTuple({px, nx, str, sup, inf});
+    Symbol px = Symbol::createId("x", false);
+    Symbol nx = Symbol::createId("x", true);
+    Symbol str = Symbol::createStr("x\ny");
+    Symbol sup = Symbol::createSup();
+    Symbol inf = Symbol::createInf();
+    Symbol pf = Symbol::createFun("f", Potassco::toSpan(SymVec{px, nx, str, sup, inf}), false);
+    Symbol nf = Symbol::createFun("f", Potassco::toSpan(SymVec{px, nx, str, sup, inf}), true);
+    Symbol t = Symbol::createTuple(Potassco::toSpan(SymVec{px, nx, str, sup, inf}));
     Potassco::Id_t nfId = data.addTerm(nf);
     CPPUNIT_ASSERT_EQUAL(S("x"), T(px));
     CPPUNIT_ASSERT_EQUAL(S("(-x)"), T(nx));

@@ -104,13 +104,13 @@ void TestNongroundLexer::test_lexer() {
     CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::MUL), ngp.lex(&val, loc));
     CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::NOT), ngp.lex(&val, loc));
     CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::IDENTIFIER), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(std::string("xyz"), *FWString(val.uid));
+    CPPUNIT_ASSERT_EQUAL(String("xyz"), String::fromRep(val.str));
     CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::IDENTIFIER), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(std::string("_xyz"), *FWString(val.uid));
+    CPPUNIT_ASSERT_EQUAL(String("_xyz"), String::fromRep(val.str));
     CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::IDENTIFIER), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(std::string("__xyz"), *FWString(val.uid));
+    CPPUNIT_ASSERT_EQUAL(String("__xyz"), String::fromRep(val.str));
     CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::IDENTIFIER), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(std::string("___xyz"), *FWString(val.uid));
+    CPPUNIT_ASSERT_EQUAL(String("___xyz"), String::fromRep(val.str));
     CPPUNIT_ASSERT_EQUAL(5u, loc.beginLine);
     CPPUNIT_ASSERT_EQUAL(23u, loc.beginColumn);
     CPPUNIT_ASSERT_EQUAL(0, ngp.lex(&val, loc));

@@ -117,7 +117,7 @@ void Defines::apply(Symbol x, Symbol &retVal, UTerm &retTerm, bool replace) {
             if (changed) { retVal = Symbol::createFun(x.name(), Potassco::toSpan(args)); }
         }
         else if (replace) {
-            auto it(defs_.find(x.string()));
+            auto it(defs_.find(x.name()));
             if (it != defs_.end()) {
                 retVal = std::get<2>(it->second)->isEDB();
                 if (retVal.type() == SymbolType::Special) {
