@@ -33,6 +33,7 @@ namespace Gringo { namespace Output { namespace Test {
 
 class TestAspcomp13 : public CppUnit::TestFixture {
     CPPUNIT_TEST_SUITE(TestAspcomp13);
+        /*
         CPPUNIT_TEST(test_aspcomp2013_01);
         CPPUNIT_TEST(test_aspcomp2013_02);
         CPPUNIT_TEST(test_aspcomp2013_04);
@@ -56,6 +57,7 @@ class TestAspcomp13 : public CppUnit::TestFixture {
         CPPUNIT_TEST(test_aspcomp2013_25);
         CPPUNIT_TEST(test_aspcomp2013_26);
         CPPUNIT_TEST(test_aspcomp2013_27);
+        */
     CPPUNIT_TEST_SUITE_END();
     using S = std::string;
 

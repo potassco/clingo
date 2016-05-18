@@ -382,7 +382,7 @@ BodyAggregateElements BodyAggregateElements_::elems() const {
     BodyAggregateElements elems;
     const_cast<BodyAggregateElements_*>(this)->visitClause([&](uint32_t const &to, ClauseId cond) {
         TupleOffset fo(tuples_.at(to >> 1));
-        TupleId tuple{fo.size(), fo.offset()};
+        TupleId tuple{fo.offset(), fo.size()};
         auto ret = elems.push(std::piecewise_construct, std::forward_as_tuple(tuple), std::forward_as_tuple());
         if (fo.fact()) { ret.first->second.clear(); }
         ret.first->second.emplace_back(cond);
