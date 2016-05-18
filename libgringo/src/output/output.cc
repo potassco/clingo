@@ -263,7 +263,7 @@ void OutputBase::checkOutPreds() {
     std::sort(outPreds.begin(), outPreds.end(), le);
     outPreds.erase(std::unique(outPreds.begin(), outPreds.end(), eq), outPreds.end());
     for (auto &x : outPreds) {
-        if (std::get<1>(x).match("", 0) && !std::get<2>(x)) {
+        if (!std::get<1>(x).match("", 0) && !std::get<2>(x)) {
             auto it(predDoms().find(std::get<1>(x)));
             if (it == predDoms().end()) {
                 GRINGO_REPORT(W_ATOM_UNDEFINED)

@@ -577,7 +577,7 @@ void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPred
     }
     // check for signatures that did not occur in the program
     for (auto &x : outPreds) {
-        if (std::get<1>(x).match("", 0, false) && std::get<2>(x)) {
+        if (!std::get<1>(x).match("", 0, false) && std::get<2>(x)) {
             auto it(seenSigs_.find(std::hash<uint64_t>(), std::equal_to<uint64_t>(), std::get<1>(x).rep()));
             if (!it) {
                 GRINGO_REPORT(W_ATOM_UNDEFINED)
