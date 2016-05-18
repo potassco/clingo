@@ -89,11 +89,11 @@ void GroundTermParser::parseError(std::string const &message) {
     throw std::runtime_error("term parsing failed");
 }
 
-void GroundTermParser::lexerError(std::string const &token) {
+void GroundTermParser::lexerError(StringSpan token) {
     Location loc("<string>", line(), column(), "<string>", line(), column());
     GRINGO_REPORT(W_OPERATION_UNDEFINED)
         << loc << ": " << "error: unexpected token:\n"
-        << token << "\n";
+        << std::string(token.first, token.size) << "\n";
     throw std::runtime_error("term parsing failed");
 }
 

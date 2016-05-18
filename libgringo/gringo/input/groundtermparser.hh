@@ -37,7 +37,7 @@ public:
     Symbol parse(std::string const &str);
     ~GroundTermParser();
     void parseError(std::string const &message);
-    void lexerError(std::string const &token);
+    void lexerError(StringSpan token);
     int lex(void *pValue);
 
     Symbol term(BinOp op, Symbol a, Symbol b);

@@ -30,8 +30,11 @@
 #include <fstream>
 #include <cassert>
 #include <memory>
+#include <potassco/basic_types.h>
 
 namespace Gringo {
+
+using Potassco::StringSpan;
 
 // {{{ declaration of LexerState
 
@@ -45,11 +48,11 @@ public:
     LexerState();
     void start();
     bool eof() const;
-    bool push(std::string const &file, T &&data);
+    bool push(char const *file, T &&data);
     bool push(std::unique_ptr<std::istream> in, T &&data);
     void pop();
     bool empty() const;
-    std::string string(int start = 0, int end = 0);
+    StringSpan string(int start = 0, int end = 0);
     void step(char s);
     void step();
     int integer() const;
@@ -192,8 +195,8 @@ bool LexerState<T>::push(std::unique_ptr<std::istream> in, T &&data) {
 }
 
 template <class T>
-bool LexerState<T>::push(std::string const &file, T &&data) {
-    if (file == "-") {
+bool LexerState<T>::push(char const *file, T &&data) {
+    if (strcmp(file, "-") == 0) {
         states_.emplace_back(std::forward<T>(data));
         state().in_.reset(new std::istream(std::cin.rdbuf(0)));
         return true;
@@ -220,8 +223,10 @@ bool LexerState<T>::empty() const {
 }
 
 template <class T>
-std::string LexerState<T>::string(int start, int end) {
-    return std::string(state().start_ + start, state().cursor_ - end);
+StringSpan LexerState<T>::string(int start, int end) {
+    auto b = state().start_ + start;
+    auto e = state().cursor_ - end;
+    return {b, static_cast<size_t>(e - b)};
 }
 
 template <class T>

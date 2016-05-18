@@ -39,8 +39,11 @@ namespace Gringo {
 
 // {{{1 declaration of String (flyweight)
 
+using StringSpan = Potassco::StringSpan;
+
 class String {
 public:
+    String(StringSpan str);
     String(char const *str);
     const char *c_str() const { return str_; }
     bool empty() const;
@@ -220,12 +223,12 @@ inline std::string quote(char const *str) {
     return res;
 }
 
-inline std::string unquote(char const *str) {
+inline std::string unquote(StringSpan str) {
     std::string res;
     bool slash = false;
-    for (char const *c = str; *c; ++c) {
+    for (auto c : str) {
         if (slash) {
-            switch (*c) {
+            switch (c) {
                 case 'n': {
                     res.push_back('\n');
                     break;
@@ -245,10 +248,14 @@ inline std::string unquote(char const *str) {
             }
             slash = false;
         }
-        else if (*c == '\\') { slash = true; }
-        else { res.push_back(*c); }
+        else if (c == '\\') { slash = true; }
+        else { res.push_back(c); }
     }
     return res;
+}
+
+inline std::string unquote(char const *str) {
+    return unquote({str, strlen(str)});
 }
 
 // }}}1

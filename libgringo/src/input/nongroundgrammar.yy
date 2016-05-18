@@ -149,6 +149,7 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
         TermUid second;
     } termpair;
     unsigned uid;
+    char const *str;
     int num;
     Potassco::Heuristic_t::E heu;
     TheoryOpVecUid theoryOps;
@@ -186,7 +187,8 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
 %type <bound>           upper
 %type <body>            bodycomma bodydot bodyconddot optimizelitvec optimizecond
 %type <head>            head
-%type <uid>             identifier lubodyaggregate luheadaggregate theory_definition_identifier
+%type <uid>             lubodyaggregate luheadaggregate
+%type <str>             identifier theory_definition_identifier
 %type <pair>            atom
 %type <fun>             aggregatefunction
 %type <aggr>            bodyaggregate headaggregate
@@ -299,7 +301,7 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
 %token <num>
     NUMBER     "<NUMBER>"
 
-%token <uid>
+%token <str>
     ANONYMOUS  "<ANONYMOUS>"
     IDENTIFIER "<IDENTIFIER>"
     PYTHON     "<PYTHON>"

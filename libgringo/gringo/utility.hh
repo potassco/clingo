@@ -30,8 +30,11 @@
 #include <unordered_map>
 #include <algorithm>
 #include <cassert>
+#include <potassco/basic_types.h>
 
 namespace Gringo {
+
+using Potassco::StringSpan;
 
 // {{{1 declaration of single_owner_ptr<T>
 
@@ -208,6 +211,7 @@ template <class T, class U, class... V>
 inline size_t get_value_hash(T const &x, U const &y, V const &... args);
 
 inline size_t strhash(char const *x);
+inline size_t strhash(StringSpan x);
 
 // {{{1 declaration of helpers to perform clone copies
 
@@ -519,6 +523,12 @@ inline size_t get_value_hash(T const &x, U const &y, V const &... args) {
 inline size_t strhash(char const *x) {
     size_t seed = 0;
     for ( ; *x; ++x) { hash_combine(seed, *x); }
+    return seed;
+}
+
+inline size_t strhash(StringSpan x) {
+    size_t seed = 0;
+    for (auto &c : x) { hash_combine(seed, c); }
     return seed;
 }
 

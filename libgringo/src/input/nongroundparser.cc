@@ -49,13 +49,13 @@ struct Free {
 };
 
 template <typename T>
-void report_included(T const &loc, std::string const &filename) {
+void report_included(T const &loc, char const *filename) {
     GRINGO_REPORT(W_FILE_INCLUDED) << loc << ": warning: already included file:\n"
         << "  " << filename << "\n";
 }
 
 template <typename T>
-void report_not_found(T const &loc, std::string const &filename) {
+void report_not_found(T const &loc, char const *filename) {
     GRINGO_REPORT(E_ERROR) << loc << ": error: file could not be opened:\n"
         << "  " << filename << "\n";
 }
@@ -148,55 +148,55 @@ std::pair<std::string, std::string> check_file(std::string const &filename, std:
 // {{{ defintion of NonGroundParser
 
 NonGroundParser::NonGroundParser(INongroundProgramBuilder &pb)
-    : not_(FWString::uid("not"))
+    : not_("not")
     , pb_(pb)
-    , _startSymbol(0) { }
+    , _startSymbol(0)
+    , _filename("") { }
 
 void NonGroundParser::parseError(Location const &loc, std::string const &msg) {
     GRINGO_REPORT(E_ERROR) << loc << ": error: " << msg << "\n";
 }
 
-void NonGroundParser::lexerError(std::string const &token) {
-    GRINGO_REPORT(E_ERROR) << filename() << ":" << line() << ":" << column() << ": error: lexer error, unexpected " << token << "\n";
+void NonGroundParser::lexerError(StringSpan token) {
+    GRINGO_REPORT(E_ERROR) << filename() << ":" << line() << ":" << column() << ": error: lexer error, unexpected " << std::string(token.first, token.first + token.size) << "\n";
 }
 
 bool NonGroundParser::push(std::string const &filename, bool include) {
     return (include && !empty()) ?
-        LexerState::push(filename, {filename, LexerState::data().second}) :
-        LexerState::push(filename, {filename, {"base", {}}});
+        LexerState::push(filename.c_str(), {filename.c_str(), LexerState::data().second}) :
+        LexerState::push(filename.c_str(), {filename.c_str(), {"base", {}}});
 }
 
 bool NonGroundParser::push(std::string const &filename, std::unique_ptr<std::istream> in) {
-    FWString data = filename;
-    return LexerState::push(std::move(in), {data, {"base", {}}});
+    return LexerState::push(std::move(in), {filename.c_str(), {"base", {}}});
 }
 
 void NonGroundParser::pop() { LexerState::pop(); }
 
-FWString NonGroundParser::filename() const { return LexerState::data().first; }
+String NonGroundParser::filename() const { return LexerState::data().first; }
 
 void NonGroundParser::pushFile(std::string &&file) {
     auto checked = check_file(file);
     if (!checked.empty() && !filenames_.insert(checked).second) {
-        report_included("<cmd>", file);
+        report_included("<cmd>", file.c_str());
     }
     else if (checked.empty() || !push(file)) {
-        report_not_found("<cmd>", file);
+        report_not_found("<cmd>", file.c_str());
     }
 }
 
 void NonGroundParser::pushStream(std::string &&file, std::unique_ptr<std::istream> in) {
     auto res = filenames_.insert(std::move(file));
     if (!res.second) {
-        report_included("<cmd>", *res.first);
+        report_included("<cmd>", res.first->c_str());
     }
     else if (!push(*res.first, std::move(in))) {
-        report_not_found("<cmd>", *res.first);
+        report_not_found("<cmd>", res.first->c_str());
     }
 }
 
 void NonGroundParser::pushBlock(std::string const &name, IdVec const &vec, std::string const &block) {
-    LexerState::push(gringo_make_unique<std::istringstream>(block), {"<block>", {name, vec}});
+    LexerState::push(gringo_make_unique<std::istringstream>(block), {"<block>", {name.c_str(), vec}});
 }
 
 void NonGroundParser::_init() {
@@ -228,9 +228,9 @@ int NonGroundParser::lex(void *pValue, Location &loc) {
     return 0;
 }
 
-void NonGroundParser::include(unsigned sUid, Location const &loc, bool inbuilt) {
+void NonGroundParser::include(String file, Location const &loc, bool inbuilt) {
     if (inbuilt) {
-        if (sUid == FWString("incmode").uid()) {
+        if (file == "incmode") {
             if (incmodeIncluded_) {
                 report_included(loc, "<incmode>");
             }
@@ -281,16 +281,16 @@ end
             }
         }
         else {
-            report_not_found(loc, "<" + *FWString(sUid) + ">");
+            report_not_found(loc, (std::string("<") + file.c_str() + ">").c_str());
         }
     }
     else {
-        auto paths = check_file(*FWString(sUid), *loc.beginFilename);
+        auto paths = check_file(file.c_str(), loc.beginFilename.c_str());
         if (!paths.first.empty() && !filenames_.insert(paths.first).second) {
-            report_included(loc, *FWString(sUid));
+            report_included(loc, file.c_str());
         }
         else if (paths.first.empty() || !push(paths.second, true)) {
-            report_not_found(loc, *FWString(sUid));
+            report_not_found(loc, file.c_str());
         }
     }
 }

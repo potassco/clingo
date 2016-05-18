@@ -130,10 +130,17 @@ typename Unique<T>::Type const *Unique<T>::deleted_ = reinterpret_cast<typename 
 struct MString {
     using Type = char;
     static size_t hash(char const &str) { return strhash(&str); }
-    static bool equal(char const &a, char const &b) { return strcmp(&a, &b) == 0; }
+    static size_t hash(StringSpan str) { return strhash(str); }
+    static bool equal(char const &a, char const &b) { return std::strcmp(&a, &b) == 0; }
+    static bool equal(char const &a, StringSpan &b) { return std::strncmp(&a, b.first, b.size) == 0 && (&a)[b.size] == '\0'; }
     static char *construct(char const &str) {
         std::unique_ptr<char[]> buf{new char[std::strlen(&str) + 1]};
         std::strcpy(buf.get(), &str);
+        return buf.release();
+    }
+    static char *construct(StringSpan str) {
+        std::unique_ptr<char[]> buf{new char[str.size + 1]};
+        std::strcpy(buf.get(), str.first);
         return buf.release();
     }
     static void destroy(char *str) { delete [] str; }
@@ -212,6 +219,9 @@ using UFun = Unique<MFun>;
 
 String::String(char const *str)
 : str_(UString::encode(*str)) { }
+
+String::String(StringSpan str)
+: str_(UString::encode(str)) { }
 
 String::String(uintptr_t r)
 : str_(reinterpret_cast<char const *>(r)) { }

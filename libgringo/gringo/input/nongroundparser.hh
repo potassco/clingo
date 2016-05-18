@@ -32,11 +32,11 @@ namespace Gringo { namespace Input {
 // {{{ declaration of NonGroundParser
 
 using StringVec   = std::vector<std::string>;
-using ProgramVec  = std::vector<std::tuple<FWString, IdVec, std::string>>;
+using ProgramVec  = std::vector<std::tuple<String, IdVec, std::string>>;
 
 enum class TheoryLexing { Disabled, Theory, Definition };
 
-class NonGroundParser : private LexerState<std::pair<FWString, std::pair<FWString, IdVec>>> {
+class NonGroundParser : private LexerState<std::pair<String, std::pair<String, IdVec>>> {
 private:
     enum Condition { yyccomment, yycblockcomment, yycpython, yyclua, yycnormal, yyctheory, yycdefinition };
 public:
@@ -49,7 +49,7 @@ public:
     bool parseDefine(std::string const &define);
     bool parse();
     bool empty() { return LexerState::empty(); }
-    void include(unsigned sUid, Location const &loc, bool include);
+    void include(String file, Location const &loc, bool include);
     void theoryLexing(TheoryLexing mode);
     INongroundProgramBuilder &builder();
     // {{{ aggregate helper functions
@@ -63,22 +63,22 @@ public:
 
 private:
     int lex_impl(void *pValue, Location &loc);
-    void lexerError(std::string const &token);
+    void lexerError(StringSpan token);
     bool push(std::string const &filename, bool include = false);
     bool push(std::string const &file, std::unique_ptr<std::istream> in);
     void pop();
     void _init();
     void condition(Condition cond);
-    using LexerState<std::pair<FWString, std::pair<FWString, IdVec>>>::start;
+    using LexerState<std::pair<String, std::pair<String, IdVec>>>::start;
     void start(Location &loc);
     Condition condition() const;
-    FWString filename() const;
+    String filename() const;
 
 private:
     std::set<std::string> filenames_;
     bool incmodeIncluded_ = false;
     TheoryLexing theoryLexing_ = TheoryLexing::Disabled;
-    unsigned not_;
+    String not_;
     INongroundProgramBuilder &pb_;
     struct Aggr
     {
@@ -90,7 +90,7 @@ private:
     Indexed<Aggr> _aggregates;
     int           _startSymbol;
     Condition     condition_ = yycnormal;
-    FWString      _filename;
+    String        _filename;
 };
 
 // }}}
