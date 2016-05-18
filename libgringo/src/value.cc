@@ -376,8 +376,8 @@ bool Symbol::sign() const {
     assert(type() == SymbolType::Fun || type() == SymbolType::Num);
     switch (symbolType_(rep)) {
         case SymbolType_::Num: { return num() < 0; }
-        case SymbolType_::IdP: { return true; }
-        case SymbolType_::IdN: { return false; }
+        case SymbolType_::IdP: { return false; }
+        case SymbolType_::IdN: { return true; }
         default:               { return cast<Fun>(rep)->sig().sign(); }
     }
 }
