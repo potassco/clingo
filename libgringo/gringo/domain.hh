@@ -85,6 +85,20 @@ public:
         uint64_t *it = data_;
         for (auto &sym : bound) { *it++ = sym.rep; }
     }
+    BindIndexEntry(BindIndexEntry const &) = delete;
+    BindIndexEntry(BindIndexEntry &&e)
+    : end_(0)
+    , reserved_(0)
+    , data_(nullptr)
+    , begin_(nullptr) { *this = std::move(e); }
+    BindIndexEntry &operator=(BindIndexEntry const &) = delete;
+    BindIndexEntry &operator=(BindIndexEntry &&e) {
+        std::swap(data_, e.data_);
+        std::swap(begin_, e.begin_);
+        std::swap(end_, e.end_);
+        std::swap(reserved_, e.reserved_);
+        return *this;
+    }
     ~BindIndexEntry() { free(data_); }
     SizeType const *begin() const { return begin_; }
     SizeType const *end() const { return begin_ + end_; }
