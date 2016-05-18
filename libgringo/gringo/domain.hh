@@ -65,12 +65,8 @@ template <class Domain>
 class BindIndexEntry {
 public:
     struct Hash {
-        size_t operator()(BindIndexEntry const &e) const {
-            return hash_range(e.data_, reinterpret_cast<uint64_t *>(e.begin_));
-        };
-        size_t operator()(SymVec const &e) const {
-            return hash_range(e.begin(), e.end());
-        };
+        size_t operator()(BindIndexEntry const &e) const { return e.hash(); };
+        size_t operator()(SymVec const &e) const { return hash_range(e.begin(), e.end()); };
     };
     using SizeType  = typename Domain::SizeType;
     using DataVec = std::vector<uint64_t>;
@@ -81,7 +77,7 @@ public:
     , begin_(nullptr) {
         data_ = reinterpret_cast<uint64_t*>(malloc(sizeof(uint64_t) * bound.size() + sizeof(SizeType)));
         if (!data_) { throw std::bad_alloc(); }
-        begin_ = reinterpret_cast<uint32_t*>(data_ + bound.size());
+        begin_ = reinterpret_cast<SizeType*>(data_ + bound.size());
         uint64_t *it = data_;
         for (auto &sym : bound) { *it++ = sym.rep; }
     }
@@ -103,19 +99,21 @@ public:
     SizeType const *begin() const { return begin_; }
     SizeType const *end() const { return begin_ + end_; }
     void push(SizeType x) {
+        assert(reserved_ > 0 && end_ <= reserved_);
         if (end_ == reserved_) {
             size_t bound = reinterpret_cast<uint64_t const*>(begin_) - data_;
-            size_t oldsize = bound + sizeof(SizeType) * end_;
+            size_t oldsize = sizeof(uint64_t) * bound + sizeof(SizeType) * end_;
             size_t size = oldsize + sizeof(SizeType) * end_;
             if (size < oldsize) { throw std::runtime_error("size limit exceeded"); }
-            void *ret = realloc(data_, size);
+            uint64_t *ret = reinterpret_cast<uint64_t*>(realloc(data_, size));
             if (!ret) { throw std::bad_alloc(); }
+            reserved_ = 2 * end_;
             if (data_ != ret) {
-                data_ = reinterpret_cast<uint64_t*>(ret);
-                begin_ = reinterpret_cast<uint32_t*>(data_ + bound);
+                data_ = ret;
+                begin_ = reinterpret_cast<SizeType*>(data_ + bound);
             }
         }
-        data_[end_++] = x;
+        begin_[end_++] = x;
     }
     size_t hash() const {
         return hash_range(data_, reinterpret_cast<uint64_t *>(begin_));
