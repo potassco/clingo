@@ -81,12 +81,12 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
         <definition> "unary"                  { return NonGroundGrammar::parser::token::UNARY; }
         <definition> "directive"              { return NonGroundGrammar::parser::token::DIRECTIVE; }
 
-        <normal> "not"                        { value.str = not_.c_str(); return NonGroundGrammar::parser::token::NOT; }
+        <normal> "not"                        { value.str = String::toRep(not_); return NonGroundGrammar::parser::token::NOT; }
         <normal> ANONYMOUS                    { return NonGroundGrammar::parser::token::ANONYMOUS; }
-        <normal,theory,definition> IDENTIFIER { value.str = String(string()).c_str(); return NonGroundGrammar::parser::token::IDENTIFIER; }
+        <normal,theory,definition> IDENTIFIER { value.str = String::toRep(string()); return NonGroundGrammar::parser::token::IDENTIFIER; }
         <normal,theory,definition> NUMBER     { value.num = integer(); return NonGroundGrammar::parser::token::NUMBER; }
-        <normal,theory> VARIABLE              { value.str = String(string()).c_str(); return NonGroundGrammar::parser::token::VARIABLE; }
-        <normal,theory> STRING                { value.str = String(unquote(string(1, 1)).c_str()).c_str(); return NonGroundGrammar::parser::token::STRING; }
+        <normal,theory> VARIABLE              { value.str = String::toRep(string()); return NonGroundGrammar::parser::token::VARIABLE; }
+        <normal,theory> STRING                { value.str = String::toRep(unquote(string(1, 1)).c_str()); return NonGroundGrammar::parser::token::STRING; }
 
         <normal> "#true"                      { return NonGroundGrammar::parser::token::TRUE; }
         <normal> "#false"                     { return NonGroundGrammar::parser::token::FALSE; }
@@ -142,7 +142,7 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
         <normal> "$="                         { return NonGroundGrammar::parser::token::CSP_EQ; }
         <normal> "$!="                        { return NonGroundGrammar::parser::token::CSP_NEQ; }
         <normal> "$<>"                        { return NonGroundGrammar::parser::token::CSP_NEQ; }
-        <theory> THEORYOP                     { value.str = String(string()).c_str(); return NonGroundGrammar::parser::token::THEORY_OP; }
+        <theory> THEORYOP                     { value.str = String::toRep(string()); return NonGroundGrammar::parser::token::THEORY_OP; }
         <normal,theory,definition> "%*"       => blockcomment { bc++; continue; }
         <normal,theory,definition> "%"        :=> comment
         <normal,theory,definition> "#!"       :=> comment
@@ -153,7 +153,7 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
             auto span = string();
             std::string s(span.first, span.first + span.size);
             s.push_back('\n');
-            value.str = String(s.c_str()).c_str();
+            value.str = String::toRep(s.c_str());
             return NonGroundGrammar::parser::token::PYTHON;
         }
         <python> NL {
@@ -170,7 +170,7 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
             auto span = string(0,4);
             std::string s(span.first, span.first + span.size);
             s.erase(0, s.find(')') + 1);
-            value.str = String(s.c_str()).c_str();
+            value.str = String::toRep(s.c_str());
             return NonGroundGrammar::parser::token::LUA;
         }
         <lua> NL {

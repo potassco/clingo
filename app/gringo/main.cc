@@ -42,7 +42,7 @@
 #include <program_opts/typed_value.h>
 
 struct GringoOptions {
-    using Foobar = std::vector<Gringo::FWSignature>;
+    using Foobar = std::vector<Gringo::Sig>;
     ProgramOptions::StringSeq    defines;
     Gringo::Output::OutputDebug  outputDebug           = Gringo::Output::OutputDebug::NONE;
     Gringo::Output::OutputFormat outputFormat          = Gringo::Output::OutputFormat::INTERMEDIATE;
@@ -75,7 +75,9 @@ static inline bool parseFoobar(const std::string& str, GringoOptions::Foobar& fo
         if (y.size() != 2) { return false; }
         unsigned a;
         if (!bk_lib::string_cast<unsigned>(y[1], a)) { return false; }
-        foobar.emplace_back(y[0], a);
+        bool sign = !y[0].empty() && y[0][0] == '-';
+        if (sign) { y[0] = y[0].substr(1); }
+        foobar.emplace_back(y[0].c_str(), a, sign);
     }
     return true;
 }
@@ -138,7 +140,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
         }
         if (!parts.empty()) {
             Gringo::Ground::Parameters params;
-            for (auto &x : parts) { params.add(x.first, x.second); }
+            for (auto &x : parts) { params.add(x.first, Gringo::SymVec(x.second)); }
             Gringo::Ground::Program gPrg(prg.toGround(out.data));
             LOG << "************* intermediate program *************" << std::endl << gPrg << std::endl;
             LOG << "*************** grounded program ***************" << std::endl;
@@ -152,15 +154,15 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
         parser.pushBlock(name, std::move(idVec), part);
         parse();
     }
-    Gringo::Value getConst(std::string const &name) override {
+    Gringo::Symbol getConst(std::string const &name) override {
         parse();
-        auto ret = defs.defs().find(name);
+        auto ret = defs.defs().find(name.c_str());
         if (ret != defs.defs().end()) {
             bool undefined = false;
-            Gringo::Value val = std::get<2>(ret->second)->eval(undefined);
+            Gringo::Symbol val = std::get<2>(ret->second)->eval(undefined);
             if (!undefined) { return val; }
         }
-        return Gringo::Value();
+        return Gringo::Symbol();
     }
     void load(std::string const &filename) override {
         parser.pushFile(std::string(filename));
@@ -183,7 +185,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     }
     Gringo::SolveFuture *solveAsync(ModelHandler, FinishHandler, Assumptions &&) override { throw std::runtime_error("asynchronous solving not supported"); }
     Gringo::Statistics *getStats() override { throw std::runtime_error("statistics not supported (yet)"); }
-    void assignExternal(Gringo::Value ext, Potassco::Value_t val) override {
+    void assignExternal(Gringo::Symbol ext, Potassco::Value_t val) override {
         auto atm = out.find(ext);
         if (atm.second && atm.first->hasUid()) {
             Gringo::Id_t offset = atm.first - atm.second->begin();
@@ -197,7 +199,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     void useEnumAssumption(bool) override { }
     bool useEnumAssumption() override { return false; }
     virtual ~IncrementalControl() { }
-    Gringo::Value parseValue(std::string const &str) override { return termParser.parse(str); }
+    Gringo::Symbol parseValue(std::string const &str) override { return termParser.parse(str); }
     Control *newControl(int, char const **) override { throw std::logic_error("new control instances not supported"); }
     Gringo::TheoryData const &theory() const override { return out.data.theoryInterface(); }
     void freeControl(Control *) override { }
@@ -343,7 +345,7 @@ protected:
         else {
             out.init(false);
             Gringo::Control::GroundVec parts;
-            parts.emplace_back("base", FWValVec{});
+            parts.emplace_back("base", SymVec{});
             inc.ground(parts, nullptr);
             inc.solve(nullptr, {});
         }

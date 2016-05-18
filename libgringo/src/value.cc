@@ -29,16 +29,20 @@ namespace {
 // {{{1 auxiliary functions
 
 static constexpr const uint16_t upperMax = std::numeric_limits<uint16_t>::max();
-static constexpr const uint16_t lowerMax = 7;
+static constexpr const uint16_t lowerMax = 3;
 uint16_t upper(uint64_t rep) { return rep >> 48; }
-uint8_t lower(uint64_t rep) { return rep & 7; }
-uintptr_t ptr(uint64_t rep) { return reinterpret_cast<uintptr_t>(rep & 0xFFFFFFFFFFF0); }
+uint8_t lower(uint64_t rep) { return rep & 3; }
+uintptr_t ptr(uint64_t rep) { return reinterpret_cast<uintptr_t>(rep & 0xFFFFFFFFFFFC); }
 uint64_t combine(uint16_t u, uintptr_t ptr, uint8_t l) {
     assert(l <= lowerMax);
     return static_cast<uint64_t>(u) << 48 | ptr | l;
 }
 uint64_t combine(uint16_t u, int32_t num) { return static_cast<uint64_t>(u) << 48 | static_cast<uint64_t>(static_cast<uint32_t>(num)); }
 uint64_t setUpper(uint16_t u, uint64_t rep) { return combine(u, 0, 0) | (rep & 0xFFFFFFFFFFFF); }
+uint64_t setLower(uint8_t l, uint8_t rep) {
+    assert(l <= lowerMax);
+    return combine(0, 0, l) | (rep & 0xFFFFFFFFFFFFFFFC);
+}
 
 enum class SymbolType_ : uint8_t {
     Inf = clingo_symbol_type_inf,
@@ -132,7 +136,7 @@ struct MString {
     static size_t hash(char const &str) { return strhash(&str); }
     static size_t hash(StringSpan str) { return strhash(str); }
     static bool equal(char const &a, char const &b) { return std::strcmp(&a, &b) == 0; }
-    static bool equal(char const &a, StringSpan &b) { return std::strncmp(&a, b.first, b.size) == 0 && (&a)[b.size] == '\0'; }
+    static bool equal(char const &a, StringSpan b) { return std::strncmp(&a, b.first, b.size) == 0 && (&a)[b.size] == '\0'; }
     static char *construct(char const &str) {
         std::unique_ptr<char[]> buf{new char[std::strlen(&str) + 1]};
         std::strcpy(buf.get(), &str);
@@ -226,6 +230,8 @@ String::String(StringSpan str)
 String::String(uintptr_t r)
 : str_(reinterpret_cast<char const *>(r)) { }
 
+bool String::empty() const { return str_[0] == '\0'; }
+
 size_t String::hash() const { return reinterpret_cast<uintptr_t>(str_); }
 uintptr_t String::toRep(String s) { return reinterpret_cast<uintptr_t>(s.str_); }
 String String::fromRep(uintptr_t t) { return String(t); }
@@ -235,9 +241,16 @@ String String::fromRep(uintptr_t t) { return String(t); }
 Sig::Sig(String name, uint32_t arity, bool sign)
 : rep_(encodeSig(name, arity, sign)) { }
 
+Sig::Sig(uint64_t rep)
+: rep_(rep) { }
+
 String Sig::name() const {
     uint16_t u = upper(rep_);
     return u < upperMax ? toString(rep_) : cast<USig::Type>(rep_)->first;
+}
+
+Sig Sig::flipSign() const {
+    return Sig(rep_ ^ 1);
 }
 
 uint32_t Sig::arity() const {

@@ -172,10 +172,10 @@ struct TupleId {
     Id_t offset;
     Id_t size;
 };
-bool operator==(TupleId a, TupleId b) {
+inline bool operator==(TupleId a, TupleId b) {
     return a.offset == b.offset && a.size == b.size;
 }
-bool operator<(TupleId a, TupleId b) {
+inline bool operator<(TupleId a, TupleId b) {
     if (a.offset != b.offset) { return a.offset < b.offset; }
     return a.size < b.size;
 }

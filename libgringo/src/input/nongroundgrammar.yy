@@ -124,7 +124,7 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
         CSPElemVecUid second;
     } disjoint;
     struct {
-        unsigned first;
+        uintptr_t first;
         unsigned second;
     } pair;
     struct {
@@ -149,7 +149,7 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
         TermUid second;
     } termpair;
     unsigned uid;
-    char const *str;
+    uintptr_t str;
     int num;
     Potassco::Heuristic_t::E heu;
     TheoryOpVecUid theoryOps;
@@ -367,14 +367,14 @@ constterm
     | LPAREN COMMA RPAREN                              { $$ = BUILDER.term(@$, BUILDER.termvec(), true); }
     | LPAREN consttermvec[a] RPAREN                    { $$ = BUILDER.term(@$, $a, false); }
     | LPAREN consttermvec[a] COMMA RPAREN              { $$ = BUILDER.term(@$, $a, true); }
-    | identifier[a] LPAREN constargvec[b] RPAREN       { $$ = BUILDER.term(@$, $a, $b, false); }
-    | AT[l] identifier[a] LPAREN constargvec[b] RPAREN { $$ = BUILDER.term(@$, $a, $b, true); }
+    | identifier[a] LPAREN constargvec[b] RPAREN       { $$ = BUILDER.term(@$, String::fromRep($a), $b, false); }
+    | AT[l] identifier[a] LPAREN constargvec[b] RPAREN { $$ = BUILDER.term(@$, String::fromRep($a), $b, true); }
     | VBAR[l] constterm[a] VBAR                        { $$ = BUILDER.term(@$, UnOp::ABS, $a); }
-    | identifier[a]                                    { $$ = BUILDER.term(@$, Value::createId(FWString($a))); }
-    | NUMBER[a]                                        { $$ = BUILDER.term(@$, Value::createNum($a)); }
-    | STRING[a]                                        { $$ = BUILDER.term(@$, Value::createStr(FWString($a))); }
-    | INFIMUM[a]                                       { $$ = BUILDER.term(@$, Value::createInf()); }
-    | SUPREMUM[a]                                      { $$ = BUILDER.term(@$, Value::createSup()); }
+    | identifier[a]                                    { $$ = BUILDER.term(@$, Symbol::createId(String::fromRep($a))); }
+    | NUMBER[a]                                        { $$ = BUILDER.term(@$, Symbol::createNum($a)); }
+    | STRING[a]                                        { $$ = BUILDER.term(@$, Symbol::createStr(String::fromRep($a))); }
+    | INFIMUM[a]                                       { $$ = BUILDER.term(@$, Symbol::createInf()); }
+    | SUPREMUM[a]                                      { $$ = BUILDER.term(@$, Symbol::createSup()); }
     ;
 
 // {{{2 arguments lists for functions in constant terms
@@ -405,16 +405,16 @@ term
     | SUB term[a] %prec UMINUS                 { $$ = BUILDER.term(@$, UnOp::NEG, $a); }
     | BNOT term[a] %prec UBNOT                 { $$ = BUILDER.term(@$, UnOp::NOT, $a); }
     | LPAREN tuplevec[a] RPAREN                { $$ = BUILDER.pool(@$, $a); }
-    | identifier[a] LPAREN argvec[b] RPAREN    { $$ = BUILDER.term(@$, $a, $b, false); }
-    | AT identifier[a] LPAREN argvec[b] RPAREN { $$ = BUILDER.term(@$, $a, $b, true); }
+    | identifier[a] LPAREN argvec[b] RPAREN    { $$ = BUILDER.term(@$, String::fromRep($a), $b, false); }
+    | AT identifier[a] LPAREN argvec[b] RPAREN { $$ = BUILDER.term(@$, String::fromRep($a), $b, true); }
     | VBAR unaryargvec[a] VBAR                 { $$ = BUILDER.term(@$, UnOp::ABS, $a); }
-    | identifier[a]                            { $$ = BUILDER.term(@$, Value::createId(FWString($a))); }
-    | NUMBER[a]                                { $$ = BUILDER.term(@$, Value::createNum($a)); }
-    | STRING[a]                                { $$ = BUILDER.term(@$, Value::createStr(FWString($a))); }
-    | INFIMUM[a]                               { $$ = BUILDER.term(@$, Value::createInf()); }
-    | SUPREMUM[a]                              { $$ = BUILDER.term(@$, Value::createSup()); }
-    | VARIABLE[a]                              { $$ = BUILDER.term(@$, FWString($a)); }
-    | ANONYMOUS[a]                             { $$ = BUILDER.term(@$, FWString("_")); }
+    | identifier[a]                            { $$ = BUILDER.term(@$, Symbol::createId(String::fromRep($a))); }
+    | NUMBER[a]                                { $$ = BUILDER.term(@$, Symbol::createNum($a)); }
+    | STRING[a]                                { $$ = BUILDER.term(@$, Symbol::createStr(String::fromRep($a))); }
+    | INFIMUM[a]                               { $$ = BUILDER.term(@$, Symbol::createInf()); }
+    | SUPREMUM[a]                              { $$ = BUILDER.term(@$, Symbol::createSup()); }
+    | VARIABLE[a]                              { $$ = BUILDER.term(@$, String::fromRep($a)); }
+    | ANONYMOUS[a]                             { $$ = BUILDER.term(@$, String("_")); }
     ;
 
 // {{{2 argument lists for unary operations
@@ -489,9 +489,9 @@ literal
     |         FALSE                    { $$ = BUILDER.boollit(@$, false); }
     |     NOT FALSE                    { $$ = BUILDER.boollit(@$, true); }
     | NOT NOT FALSE                    { $$ = BUILDER.boollit(@$, false); }
-    |         atom[a]                  { $$ = BUILDER.predlit(@$, NAF::POS, $a.second & 1, FWString($a.first), TermVecVecUid($a.second >> 1u)); }
-    |     NOT atom[a]                  { $$ = BUILDER.predlit(@$, NAF::NOT, $a.second & 1, FWString($a.first), TermVecVecUid($a.second >> 1u)); }
-    | NOT NOT atom[a]                  { $$ = BUILDER.predlit(@$, NAF::NOTNOT, $a.second & 1, FWString($a.first), TermVecVecUid($a.second >> 1u)); }
+    |         atom[a]                  { $$ = BUILDER.predlit(@$, NAF::POS, $a.second & 1, String::fromRep($a.first), TermVecVecUid($a.second >> 1u)); }
+    |     NOT atom[a]                  { $$ = BUILDER.predlit(@$, NAF::NOT, $a.second & 1, String::fromRep($a.first), TermVecVecUid($a.second >> 1u)); }
+    | NOT NOT atom[a]                  { $$ = BUILDER.predlit(@$, NAF::NOTNOT, $a.second & 1, String::fromRep($a.first), TermVecVecUid($a.second >> 1u)); }
     |         term[l] cmp[rel] term[r] { $$ = BUILDER.rellit(@$, $rel, $l, $r); }
     |     NOT term[l] cmp[rel] term[r] { $$ = BUILDER.rellit(@$, neg($rel), $l, $r); }
     | NOT NOT term[l] cmp[rel] term[r] { $$ = BUILDER.rellit(@$, $rel, $l, $r); }
@@ -501,7 +501,7 @@ literal
 csp_mul_term
     : CSP term[var] CSP_MUL term[coe] { $$ = BUILDER.cspmulterm(@$, $coe,                     $var); }
     | term[coe] CSP_MUL CSP term[var] { $$ = BUILDER.cspmulterm(@$, $coe,                     $var); }
-    | CSP term[var]                   { $$ = BUILDER.cspmulterm(@$, BUILDER.term(@$, Value::createNum(1)), $var); }
+    | CSP term[var]                   { $$ = BUILDER.cspmulterm(@$, BUILDER.term(@$, Symbol::createNum(1)), $var); }
     | term[coe]                       { $$ = BUILDER.cspmulterm(@$, $coe); }
     ;
 
@@ -738,7 +738,7 @@ optimizetuple
 
 optimizeweight
     : term[w] AT term[p] { $$ = {$w, $p}; }
-    | term[w]            { $$ = {$w, BUILDER.term(@$, Value::createNum(0))}; }
+    | term[w]            { $$ = {$w, BUILDER.term(@$, Symbol::createNum(0))}; }
     ;
 
 optimizelitvec
@@ -777,12 +777,12 @@ statement
 // {{{2 visibility
 
 statement
-    : SHOWSIG identifier[id] SLASH NUMBER[num] DOT     { BUILDER.showsig(@$, FWSignature($id, $num, false), false); }
-    | SHOWSIG SUB identifier[id] SLASH NUMBER[num] DOT { BUILDER.showsig(@$, FWSignature(FWString($id), $num, true), false); }
-    | SHOW DOT                                         { BUILDER.showsig(@$, FWSignature("", 0, false), false); }
+    : SHOWSIG identifier[id] SLASH NUMBER[num] DOT     { BUILDER.showsig(@$, Sig(String::fromRep($id), $num, false), false); }
+    | SHOWSIG SUB identifier[id] SLASH NUMBER[num] DOT { BUILDER.showsig(@$, Sig(String::fromRep($id), $num, true), false); }
+    | SHOW DOT                                         { BUILDER.showsig(@$, Sig("", 0, false), false); }
     | SHOW term[t] COLON bodydot[bd]                   { BUILDER.show(@$, $t, $bd, false); }
     | SHOW term[t] DOT                                 { BUILDER.show(@$, $t, BUILDER.body(), false); }
-    | SHOWSIG CSP identifier[id] SLASH NUMBER[num] DOT { BUILDER.showsig(@$, FWSignature($id, $num, false), true); }
+    | SHOWSIG CSP identifier[id] SLASH NUMBER[num] DOT { BUILDER.showsig(@$, Sig(String::fromRep($id), $num, false), true); }
     | SHOW CSP term[t] COLON bodydot[bd]               { BUILDER.show(@$, $t, $bd, true); }
     | SHOW CSP term[t] DOT                             { BUILDER.show(@$, $t, BUILDER.body(), true); }
     ;
@@ -796,47 +796,47 @@ statement
 // {{{2 heuristic
 
 statement
-    : HEURISTIC atom[a] bodyconddot[body] LBRACK term[t] AT term[p] COMMA term[mod] RBRACK { BUILDER.heuristic(@$, $a.second & 1, FWString($a.first), TermVecVecUid($a.second >> 1u), $body, $t, $p, $mod); }
-    | HEURISTIC atom[a] bodyconddot[body] LBRACK term[t]            COMMA term[mod] RBRACK { BUILDER.heuristic(@$, $a.second & 1, FWString($a.first), TermVecVecUid($a.second >> 1u), $body, $t, BUILDER.term(@$, Value::createNum(0)), $mod); }
+    : HEURISTIC atom[a] bodyconddot[body] LBRACK term[t] AT term[p] COMMA term[mod] RBRACK { BUILDER.heuristic(@$, $a.second & 1, String::fromRep($a.first), TermVecVecUid($a.second >> 1u), $body, $t, $p, $mod); }
+    | HEURISTIC atom[a] bodyconddot[body] LBRACK term[t]            COMMA term[mod] RBRACK { BUILDER.heuristic(@$, $a.second & 1, String::fromRep($a.first), TermVecVecUid($a.second >> 1u), $body, $t, BUILDER.term(@$, Symbol::createNum(0)), $mod); }
     ;
 
 // {{{2 project
 
 statement
-    : PROJECT identifier[name] SLASH NUMBER[arity] DOT     { BUILDER.project(@$, FWSignature(FWString($name), $arity, false)); }
-    | PROJECT SUB identifier[name] SLASH NUMBER[arity] DOT { BUILDER.project(@$, FWSignature(FWString($name), $arity, true)); }
-    | PROJECT atom[a] bodyconddot[body]                    { BUILDER.project(@$, $a.second & 1, FWString($a.first), TermVecVecUid($a.second >> 1u), $body); }
+    : PROJECT identifier[name] SLASH NUMBER[arity] DOT     { BUILDER.project(@$, Sig(String::fromRep($name), $arity, false)); }
+    | PROJECT SUB identifier[name] SLASH NUMBER[arity] DOT { BUILDER.project(@$, Sig(String::fromRep($name), $arity, true)); }
+    | PROJECT atom[a] bodyconddot[body]                    { BUILDER.project(@$, $a.second & 1, String::fromRep($a.first), TermVecVecUid($a.second >> 1u), $body); }
     ;
 
 // {{{2 constants
 
 define
-    : identifier[uid] EQ constterm[rhs] {  BUILDER.define(@$, $uid, $rhs, false); }
+    : identifier[uid] EQ constterm[rhs] {  BUILDER.define(@$, String::fromRep($uid), $rhs, false); }
     ;
 
 statement 
-    : CONST identifier[uid] EQ constterm[rhs] DOT {  BUILDER.define(@$, $uid, $rhs, true); }
+    : CONST identifier[uid] EQ constterm[rhs] DOT {  BUILDER.define(@$, String::fromRep($uid), $rhs, true); }
     ;
 
 // {{{2 scripts
 
 statement
-    : PYTHON[code] DOT { BUILDER.python(@$, $code); }
-    | LUA[code]    DOT { BUILDER.lua(@$, $code); }
+    : PYTHON[code] DOT { BUILDER.python(@$, String::fromRep($code)); }
+    | LUA[code]    DOT { BUILDER.lua(@$, String::fromRep($code)); }
     ;
 
 // {{{2 include
 
 statement
-    : INCLUDE    STRING[file]        DOT { lexer->include($file, @$, false); }
-    | INCLUDE LT identifier[file] GT DOT { lexer->include($file, @$, true); }
+    : INCLUDE    STRING[file]        DOT { lexer->include(String::fromRep($file), @$, false); }
+    | INCLUDE LT identifier[file] GT DOT { lexer->include(String::fromRep($file), @$, true); }
     ;
 
 // {{{2 blocks
 
 nidlist 
-    : nidlist[list] COMMA identifier[id] { $$ = BUILDER.idvec($list, @id, $id); }
-    | identifier[id]                     { $$ = BUILDER.idvec(BUILDER.idvec(), @id, $id); }
+    : nidlist[list] COMMA identifier[id] { $$ = BUILDER.idvec($list, @id, String::fromRep($id)); }
+    | identifier[id]                     { $$ = BUILDER.idvec(BUILDER.idvec(), @id, String::fromRep($id)); }
     ;
 
 idlist 
@@ -845,16 +845,16 @@ idlist
     ;
 
 statement
-    : BLOCK identifier[name] LPAREN idlist[args] RPAREN DOT { BUILDER.block(@$, $name, $args); }
-    | BLOCK identifier[name] DOT                            { BUILDER.block(@$, $name, BUILDER.idvec()); }
+    : BLOCK identifier[name] LPAREN idlist[args] RPAREN DOT { BUILDER.block(@$, String::fromRep($name), $args); }
+    | BLOCK identifier[name] DOT                            { BUILDER.block(@$, String::fromRep($name), BUILDER.idvec()); }
     ;
 
 // {{{2 external
 
 statement
-    : EXTERNAL atom[hd] COLON bodydot[bd] { BUILDER.external(@$, BUILDER.predlit(@hd, NAF::POS, $hd.second & 1, FWString($hd.first), TermVecVecUid($hd.second >> 1u)), $bd); }
-    | EXTERNAL atom[hd] COLON DOT         { BUILDER.external(@$, BUILDER.predlit(@hd, NAF::POS, $hd.second & 1, FWString($hd.first), TermVecVecUid($hd.second >> 1u)), BUILDER.body()); }
-    | EXTERNAL atom[hd] DOT               { BUILDER.external(@$, BUILDER.predlit(@hd, NAF::POS, $hd.second & 1, FWString($hd.first), TermVecVecUid($hd.second >> 1u)), BUILDER.body()); }
+    : EXTERNAL atom[hd] COLON bodydot[bd] { BUILDER.external(@$, BUILDER.predlit(@hd, NAF::POS, $hd.second & 1, String::fromRep($hd.first), TermVecVecUid($hd.second >> 1u)), $bd); }
+    | EXTERNAL atom[hd] COLON DOT         { BUILDER.external(@$, BUILDER.predlit(@hd, NAF::POS, $hd.second & 1, String::fromRep($hd.first), TermVecVecUid($hd.second >> 1u)), BUILDER.body()); }
+    | EXTERNAL atom[hd] DOT               { BUILDER.external(@$, BUILDER.predlit(@hd, NAF::POS, $hd.second & 1, String::fromRep($hd.first), TermVecVecUid($hd.second >> 1u)), BUILDER.body()); }
     ;
 
 // {{{1 theory
@@ -862,8 +862,8 @@ statement
 // {{{2 theory atoms
 
 theory_op_list
-    : theory_op_list[ops] THEORY_OP[op] { $$ = BUILDER.theoryops($ops, $op); }
-    | THEORY_OP[op]                     { $$ = BUILDER.theoryops(BUILDER.theoryops(), $op); }
+    : theory_op_list[ops] THEORY_OP[op] { $$ = BUILDER.theoryops($ops, String::fromRep($op)); }
+    | THEORY_OP[op]                     { $$ = BUILDER.theoryops(BUILDER.theoryops(), String::fromRep($op)); }
     ;
 
 theory_term
@@ -873,13 +873,13 @@ theory_term
     | LPAREN theory_opterm[term] RPAREN                                   { $$ = BUILDER.theorytermopterm(@$, $term); }
     | LPAREN theory_opterm[opterm] COMMA RPAREN                           { $$ = BUILDER.theorytermtuple(@$, BUILDER.theoryopterms(BUILDER.theoryopterms(), $opterm)); }
     | LPAREN theory_opterm[opterm] COMMA theory_opterm_nlist[list] RPAREN { $$ = BUILDER.theorytermtuple(@$, BUILDER.theoryopterms($opterm, $list)); }
-    | identifier[id] LPAREN theory_opterm_list[list] RPAREN               { $$ = BUILDER.theorytermfun(@$, FWString($id), $list); }
-    | identifier[id]                                                      { $$ = BUILDER.theorytermvalue(@$, Value::createId(FWString($id))); }
-    | NUMBER[num]                                                         { $$ = BUILDER.theorytermvalue(@$, Value::createNum($num)); }
-    | STRING[str]                                                         { $$ = BUILDER.theorytermvalue(@$, Value::createStr(FWString($str))); }
-    | INFIMUM                                                             { $$ = BUILDER.theorytermvalue(@$, Value::createInf()); }
-    | SUPREMUM                                                            { $$ = BUILDER.theorytermvalue(@$, Value::createSup()); }
-    | VARIABLE[var]                                                       { $$ = BUILDER.theorytermvar(@$, FWString($var)); }
+    | identifier[id] LPAREN theory_opterm_list[list] RPAREN               { $$ = BUILDER.theorytermfun(@$, String::fromRep($id), $list); }
+    | identifier[id]                                                      { $$ = BUILDER.theorytermvalue(@$, Symbol::createId(String::fromRep($id))); }
+    | NUMBER[num]                                                         { $$ = BUILDER.theorytermvalue(@$, Symbol::createNum($num)); }
+    | STRING[str]                                                         { $$ = BUILDER.theorytermvalue(@$, Symbol::createStr(String::fromRep($str))); }
+    | INFIMUM                                                             { $$ = BUILDER.theorytermvalue(@$, Symbol::createInf()); }
+    | SUPREMUM                                                            { $$ = BUILDER.theorytermvalue(@$, Symbol::createSup()); }
+    | VARIABLE[var]                                                       { $$ = BUILDER.theorytermvar(@$, String::fromRep($var)); }
     ;
 
 theory_opterm
@@ -914,19 +914,19 @@ theory_atom_element_list
     ;
 
 theory_atom_name
-    : identifier[id]                                  { $$ = BUILDER.term(@$, $id, BUILDER.termvecvec(BUILDER.termvecvec(), BUILDER.termvec()), false); }
-    | identifier[id] LPAREN argvec[tvv] RPAREN[r]     { $$ = BUILDER.term(@$, $id, $tvv, false); }
+    : identifier[id]                                  { $$ = BUILDER.term(@$, String::fromRep($id), BUILDER.termvecvec(BUILDER.termvecvec(), BUILDER.termvec()), false); }
+    | identifier[id] LPAREN argvec[tvv] RPAREN[r]     { $$ = BUILDER.term(@$, String::fromRep($id), $tvv, false); }
 
 theory_atom
     : AND theory_atom_name[name] enable_theory_lexing LBRACE theory_atom_element_list[elems] enable_theory_lexing RBRACE                                     disable_theory_lexing { $$ = BUILDER.theoryatom($name, $elems); }
-    | AND theory_atom_name[name] enable_theory_lexing LBRACE theory_atom_element_list[elems] enable_theory_lexing RBRACE THEORY_OP[op] theory_opterm[opterm] disable_theory_lexing { $$ = BUILDER.theoryatom($name, $elems, $op, $opterm); }
+    | AND theory_atom_name[name] enable_theory_lexing LBRACE theory_atom_element_list[elems] enable_theory_lexing RBRACE THEORY_OP[op] theory_opterm[opterm] disable_theory_lexing { $$ = BUILDER.theoryatom($name, $elems, String::fromRep($op), $opterm); }
     ;
 
 // {{{2 theory definition
 
 theory_operator_nlist
-    : THEORY_OP[op]                                  { $$ = BUILDER.theoryops(BUILDER.theoryops(), $op); }
-    | theory_operator_nlist[ops] COMMA THEORY_OP[op] { $$ = BUILDER.theoryops($ops, $op); }
+    : THEORY_OP[op]                                  { $$ = BUILDER.theoryops(BUILDER.theoryops(), String::fromRep($op)); }
+    | theory_operator_nlist[ops] COMMA THEORY_OP[op] { $$ = BUILDER.theoryops($ops, String::fromRep($op)); }
     ;
 
 theory_operator_list
@@ -935,9 +935,9 @@ theory_operator_list
     ;
 
 theory_operator_definition
-    : THEORY_OP[op] enable_theory_definition_lexing COLON NUMBER[arity] COMMA UNARY              { $$ = BUILDER.theoryopdef(@$, $op, $arity, TheoryOperatorType::Unary); }
-    | THEORY_OP[op] enable_theory_definition_lexing COLON NUMBER[arity] COMMA BINARY COMMA LEFT  { $$ = BUILDER.theoryopdef(@$, $op, $arity, TheoryOperatorType::BinaryLeft); }
-    | THEORY_OP[op] enable_theory_definition_lexing COLON NUMBER[arity] COMMA BINARY COMMA RIGHT { $$ = BUILDER.theoryopdef(@$, $op, $arity, TheoryOperatorType::BinaryRight); }
+    : THEORY_OP[op] enable_theory_definition_lexing COLON NUMBER[arity] COMMA UNARY              { $$ = BUILDER.theoryopdef(@$, String::fromRep($op), $arity, TheoryOperatorType::Unary); }
+    | THEORY_OP[op] enable_theory_definition_lexing COLON NUMBER[arity] COMMA BINARY COMMA LEFT  { $$ = BUILDER.theoryopdef(@$, String::fromRep($op), $arity, TheoryOperatorType::BinaryLeft); }
+    | THEORY_OP[op] enable_theory_definition_lexing COLON NUMBER[arity] COMMA BINARY COMMA RIGHT { $$ = BUILDER.theoryopdef(@$, String::fromRep($op), $arity, TheoryOperatorType::BinaryRight); }
     ;
 
 theory_operator_definition_nlist
@@ -952,18 +952,18 @@ theory_operator_definiton_list
 
 theory_definition_identifier
     : identifier[id] { $$ = $id; }
-    | LEFT           { $$ = FWString("left").uid(); }
-    | RIGHT          { $$ = FWString("right").uid(); }
-    | UNARY          { $$ = FWString("unary").uid(); }
-    | BINARY         { $$ = FWString("binary").uid(); }
-    | HEAD           { $$ = FWString("head").uid(); }
-    | BODY           { $$ = FWString("body").uid(); }
-    | ANY            { $$ = FWString("any").uid(); }
-    | DIRECTIVE      { $$ = FWString("directive").uid(); }
+    | LEFT           { $$ = String::toRep("left"); }
+    | RIGHT          { $$ = String::toRep("right"); }
+    | UNARY          { $$ = String::toRep("unary"); }
+    | BINARY         { $$ = String::toRep("binary"); }
+    | HEAD           { $$ = String::toRep("head"); }
+    | BODY           { $$ = String::toRep("body"); }
+    | ANY            { $$ = String::toRep("any"); }
+    | DIRECTIVE      { $$ = String::toRep("directive"); }
     ;
 
 theory_term_definition
-    : theory_definition_identifier[name] enable_theory_lexing LBRACE theory_operator_definiton_list[ops] enable_theory_definition_lexing RBRACE { $$ = BUILDER.theorytermdef(@$, $name, $ops); }
+    : theory_definition_identifier[name] enable_theory_lexing LBRACE theory_operator_definiton_list[ops] enable_theory_definition_lexing RBRACE { $$ = BUILDER.theorytermdef(@$, String::fromRep($name), $ops); }
     ;
 
 theory_atom_type
@@ -975,8 +975,8 @@ theory_atom_type
 
 theory_atom_definition
     : AND theory_definition_identifier[name] SLASH NUMBER[arity] COLON theory_definition_identifier[termdef] COMMA
-      enable_theory_lexing LBRACE theory_operator_list[ops] enable_theory_definition_lexing RBRACE COMMA theory_definition_identifier[guarddef] COMMA theory_atom_type[type] { $$ = BUILDER.theoryatomdef(@$, FWString($name), $arity, FWString($termdef), $type, $ops, FWString($guarddef)); }
-    | AND theory_definition_identifier[name] SLASH NUMBER[arity] COLON theory_definition_identifier[termdef] COMMA                                    theory_atom_type[type] { $$ = BUILDER.theoryatomdef(@$, FWString($name), $arity, FWString($termdef), $type); }
+      enable_theory_lexing LBRACE theory_operator_list[ops] enable_theory_definition_lexing RBRACE COMMA theory_definition_identifier[guarddef] COMMA theory_atom_type[type] { $$ = BUILDER.theoryatomdef(@$, String::fromRep($name), $arity, String::fromRep($termdef), $type, $ops, String::fromRep($guarddef)); }
+    | AND theory_definition_identifier[name] SLASH NUMBER[arity] COLON theory_definition_identifier[termdef] COMMA                                    theory_atom_type[type] { $$ = BUILDER.theoryatomdef(@$, String::fromRep($name), $arity, String::fromRep($termdef), $type); }
     ;
 
 theory_definition_nlist
@@ -992,7 +992,7 @@ theory_definition_list
     ;
 
 statement
-    : THEORY identifier[name] enable_theory_definition_lexing LBRACE theory_definition_list[defs] RBRACE disable_theory_lexing DOT { BUILDER.theorydef(@$, $name, $defs); }
+    : THEORY identifier[name] enable_theory_definition_lexing LBRACE theory_definition_list[defs] RBRACE disable_theory_lexing DOT { BUILDER.theorydef(@$, String::fromRep($name), $defs); }
     ;
 
 // {{{2 lexing

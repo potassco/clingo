@@ -109,6 +109,7 @@ public:
     bool operator<=(Sig s) const;
     bool operator>=(Sig s) const;
 private:
+    Sig (uint64_t rep);
     uint64_t rep_;
 };
 
@@ -164,7 +165,7 @@ public:
     String string() const;
     Sig sig() const;
     bool hasSig() const;
-    uint32_t arity() const;
+    uint32_t arity() const { return sig().arity(); }
     String name() const;
     SymSpan args() const;
     bool sign() const;
