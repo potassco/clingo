@@ -211,7 +211,7 @@ void ClingoControl::ground(Gringo::Control::GroundVec const &parts, Gringo::Cont
     }
     if (!parts.empty()) {
         Gringo::Ground::Parameters params;
-        for (auto &x : parts) { params.add(x.first, x.second); }
+        for (auto &x : parts) { params.add(x.first, Gringo::SymVec(x.second)); }
         auto gPrg = prg_.toGround(out_->data);
         LOG << "*********** intermediate program ***********" << std::endl << gPrg << std::endl;
         LOG << "************* grounded program *************" << std::endl;
@@ -231,7 +231,7 @@ void ClingoControl::main() {
         out_->init(false);
         claspConfig_.releaseOptions();
         Gringo::Control::GroundVec parts;
-        parts.emplace_back("base", Gringo::FWValVec{});
+        parts.emplace_back("base", Gringo::SymVec{});
         ground(parts, nullptr);
         solve(nullptr, {});
     }
@@ -248,14 +248,14 @@ void ClingoControl::onFinish(Clasp::ClaspFacade::Result ret) {
     }
     modelHandler_ = nullptr;
 }
-Gringo::Value ClingoControl::getConst(std::string const &name) {
-    auto ret = defs_.defs().find(name);
+Gringo::Symbol ClingoControl::getConst(std::string const &name) {
+    auto ret = defs_.defs().find(name.c_str());
     if (ret != defs_.defs().end()) {
         bool undefined = false;
-        Gringo::Value val = std::get<2>(ret->second)->eval(undefined);
+        Gringo::Symbol val = std::get<2>(ret->second)->eval(undefined);
         if (!undefined) { return val; }
     }
-    return Gringo::Value();
+    return Gringo::Symbol();
 }
 void ClingoControl::add(std::string const &name, Gringo::FWStringVec const &params, std::string const &part) {
     Gringo::Location loc("<block>", 1, 1, "<block>", 1, 1);
@@ -420,7 +420,7 @@ std::string ClingoControl::str() {
     return "[object:IncrementalControl]";
 }
 
-void ClingoControl::assignExternal(Gringo::Value ext, Potassco::Value_t val) {
+void ClingoControl::assignExternal(Gringo::Symbol ext, Potassco::Value_t val) {
     if (update()) {
         auto atm = out_->find(ext);
         if (atm.second && atm.first->hasUid()) {
@@ -450,8 +450,8 @@ Gringo::DomainProxy &ClingoControl::getDomain() {
 
 namespace {
 
-static bool skipDomain(Gringo::FWSignature sig) {
-    return (strncmp((*(*sig).name()).c_str(), "#", 1) == 0);
+static bool skipDomain(Gringo::Sig sig) {
+    return sig.name().startsWith("#");
 }
 
 struct ClingoDomainElement : Gringo::DomainProxy::Element {
@@ -465,7 +465,7 @@ struct ClingoDomainElement : Gringo::DomainProxy::Element {
     , advanceDom(advanceDom) {
         assert(domIt != out.predDoms().end() && elemIt != (*domIt)->end());
     }
-    Gringo::Value atom() const {
+    Gringo::Symbol atom() const {
         return *elemIt;
     }
     bool fact() const {
@@ -526,15 +526,15 @@ struct ClingoDomainElement : Gringo::DomainProxy::Element {
 
 } // namespace
 
-std::vector<Gringo::FWSignature> ClingoControl::signatures() const {
-    std::vector<Gringo::FWSignature> ret;
+std::vector<Gringo::Sig> ClingoControl::signatures() const {
+    std::vector<Gringo::Sig> ret;
     for (auto &dom : out_->predDoms()) {
         if (!skipDomain(*dom)) { ret.emplace_back(*dom); }
     }
     return ret;
 }
 
-Gringo::DomainProxy::ElementPtr ClingoControl::iter(Gringo::Signature const &sig) const {
+Gringo::DomainProxy::ElementPtr ClingoControl::iter(Gringo::Sig sig) const {
     return ClingoDomainElement::init(*out_, static_cast<Clasp::Asp::LogicProgram&>(*clasp_->program()), false, out_->predDoms().find(sig));
 }
 
@@ -542,7 +542,7 @@ Gringo::DomainProxy::ElementPtr ClingoControl::iter() const {
     return ClingoDomainElement::init(*out_, static_cast<Clasp::Asp::LogicProgram&>(*clasp_->program()), true, out_->predDoms().begin());
 }
 
-Gringo::DomainProxy::ElementPtr ClingoControl::lookup(Gringo::Value const &atom) const {
+Gringo::DomainProxy::ElementPtr ClingoControl::lookup(Gringo::Symbol atom) const {
     if (atom.hasSig()) {
         auto it = out_->predDoms().find(atom.sig());
         if (it != out_->predDoms().end()) {
@@ -763,6 +763,6 @@ Gringo::Control *DefaultGringoModule::newControl(int argc, char const **argv) {
 void DefaultGringoModule::freeControl(Gringo::Control *ctl) {
     if (ctl) { delete ctl; }
 }
-Gringo::Value DefaultGringoModule::parseValue(std::string const &str) { return parser.parse(str); }
+Gringo::Symbol DefaultGringoModule::parseValue(std::string const &str) { return parser.parse(str); }
 
 // }}}1

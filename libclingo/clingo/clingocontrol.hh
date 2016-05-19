@@ -75,7 +75,7 @@ private:
 // {{{1 declaration of ClingoOptions
 
 struct ClingoOptions {
-    using Foobar = std::vector<Gringo::FWSignature>;
+    using Foobar = std::vector<Gringo::Sig>;
     ProgramOptions::StringSeq    defines;
     Gringo::Output::OutputDebug  outputDebug  = Gringo::Output::OutputDebug::NONE;
     Gringo::Output::OutputFormat outputFormat = Gringo::Output::OutputFormat::INTERMEDIATE;
@@ -116,13 +116,15 @@ inline std::vector<std::string> split(std::string const &source, char const *del
     return results;
 }
 
-inline bool parseFoobar(const std::string& str, ClingoOptions::Foobar& foobar) {
+static inline bool parseFoobar(const std::string& str, ClingoOptions::Foobar& foobar) {
     for (auto &x : split(str, ",")) {
         auto y = split(x, "/");
         if (y.size() != 2) { return false; }
         unsigned a;
         if (!bk_lib::string_cast<unsigned>(y[1], a)) { return false; }
-        foobar.emplace_back(y[0], a);
+        bool sign = !y[0].empty() && y[0][0] == '-';
+        if (sign) { y[0] = y[0].substr(1); }
+        foobar.emplace_back(y[0].c_str(), a, sign);
     }
     return true;
 }
@@ -146,13 +148,13 @@ struct ClingoModel : Gringo::Model {
         , ctx(ctx)
         , model(model) { }
     void reset(Clasp::Model const &m) { model = &m; }
-    virtual bool contains(Gringo::Value atom) const {
+    virtual bool contains(Gringo::Symbol atom) const {
         auto atm = out.find(atom);
         return atm.second && atm.first->hasUid() && model->isTrue(lp.getLiteral(atm.first->uid()));
     }
-    virtual Gringo::ValVec const &atoms(int atomset) const {
+    virtual Gringo::SymSpan atoms(int atomset) const {
         atms = out.atoms(atomset, [this, atomset](unsigned uid) -> bool { return bool(atomset & COMP) ^ model->isTrue(lp.getLiteral(uid)); });
-        return atms;
+        return Potassco::toSpan(atms);
     }
     virtual Gringo::Int64Vec optimization() const {
         return model->costs ? Gringo::Int64Vec(model->costs->begin(), model->costs->end()) : Gringo::Int64Vec();
@@ -175,7 +177,7 @@ struct ClingoModel : Gringo::Model {
     Gringo::Output::OutputBase const &out;
     Clasp::SharedContext const       &ctx;
     Clasp::Model const               *model;
-    mutable Gringo::ValVec            atms;
+    mutable Gringo::SymVec            atms;
 };
 
 // {{{1 declaration of ClingoSolveIter
@@ -252,7 +254,7 @@ private:
 class ClingoControl : public Gringo::Control, private Gringo::ConfigProxy, private Gringo::DomainProxy {
 public:
     using StringVec        = std::vector<std::string>;
-    using ExternalVec      = std::vector<std::pair<Gringo::Value, Potassco::Value_t>>;
+    using ExternalVec      = std::vector<std::pair<Gringo::Symbol, Potassco::Value_t>>;
     using StringSeq        = ProgramOptions::StringSeq;
     using PostGroundFunc   = std::function<bool (Clasp::ProgramBuilder &)>;
     using PreSolveFunc     = std::function<bool (Clasp::ClaspFacade &)>;
@@ -272,11 +274,11 @@ public:
 
     // {{{2 DomainProxy interface
 
-    virtual ElementPtr iter(Gringo::Signature const &sig) const;
+    virtual ElementPtr iter(Gringo::Sig sig) const;
     virtual ElementPtr iter() const;
-    virtual ElementPtr lookup(Gringo::Value const &atom) const;
+    virtual ElementPtr lookup(Gringo::Symbol atom) const;
     virtual size_t length() const;
-    virtual std::vector<Gringo::FWSignature> signatures() const;
+    virtual std::vector<Gringo::Sig> signatures() const;
 
     // {{{2 ConfigProxy interface
 
@@ -298,8 +300,8 @@ public:
     virtual Gringo::SolveResult solve(ModelHandler h, Assumptions &&ass);
     virtual bool blocked();
     virtual std::string str();
-    virtual void assignExternal(Gringo::Value ext, Potassco::Value_t);
-    virtual Gringo::Value getConst(std::string const &name);
+    virtual void assignExternal(Gringo::Symbol ext, Potassco::Value_t);
+    virtual Gringo::Symbol getConst(std::string const &name);
     virtual ClingoStatistics *getStats();
     virtual Gringo::ConfigProxy &getConf();
     virtual void useEnumAssumption(bool enable);
@@ -374,7 +376,7 @@ struct DefaultGringoModule : Gringo::GringoModule {
     DefaultGringoModule();
     Gringo::Control *newControl(int argc, char const **argv);
     void freeControl(Gringo::Control *ctl);
-    virtual Gringo::Value parseValue(std::string const &str);
+    virtual Gringo::Symbol parseValue(std::string const &str);
     Gringo::Input::GroundTermParser parser;
     Gringo::Scripts scripts;
 };
