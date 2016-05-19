@@ -1,0 +1,295 @@
+\section{Errors and Warnings}\label{sec:error:warn}
+
+This section explains the most frequent errors and warnings
+related to inappropriate inputs or command line options that,
+if they occur, lead to messages sent to the standard error stream.
+The difference between errors and warnings is that the former
+involve immediate termination,
+while the latter are hints pointing at possibly corrupt input
+that can still be processed further.
+In the below description of errors (Section~\ref{subsec:error})
+and warnings (Section~\ref{subsec:warn}),
+we refrain from attributing them to a particular one among the tools
+\gringo, \clasp, \clingo, and \iclingo,
+in view of the fact that they share a number of functionalities.
+
+
+\subsection{Errors}\label{subsec:error}
+
+We start our description with errors that may be encountered during grounding,
+where the following one indicates a syntax error in the input:
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+syntax error on line @\textit{L}@ column @\textit{C}@ unexpected token: @\textit{T}@
+\end{lstlisting}
+%
+To correct this error, please investigate the line~\code{\textit{L}}
+and check whether something looks strange there
+(like a missing period, an unmatched parenthesis, etc.).
+
+The next error occurs if an input program is not level-restricted
+(cf.\ Section~\ref{subsec:lambda}):
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+the following rule cannot be grounded, \
+weakly restricted variables: { @\textit{V}@, ... }
+        @\textit{rule}@
+\end{lstlisting}
+%
+Along with the error message, the \code{\textit{rule}} and the
+name~\code{\textit{V}} of at least one variable causing the problem
+are reported.
+The first action to take usually consists of checking whether
+variable~\code{\textit{V}} is actually in the scope of any atom
+(in the positive body of \code{\textit{rule}}) that can bind it.%
+\footnote{%
+  Recall from Section~\ref{subsec:gringo:arith} and~\ref{subsec:gringo:comp}
+  that a variable in the scope of a built-in arithmetic function may not be bound
+  by a corresponding atom and that built-in comparison predicates do not bind
+  any variable.}
+If~\code{\textit{V}} is a local variable belonging to an atom~$A$ 
+on the left-hand side of a condition (cf.\ Section~\ref{subsec:gringo:condition})
+or to an aggregate (cf.\ Section~\ref{subsec:gringo:aggregate}),
+an atom over some domain predicate might be included in a condition
+to bind~\code{\textit{V}}.
+In particular, if~$A$ itself is over a domain predicate,
+the problem is often easily fixed by writing ``\code{$A$:$A$}.''
+If the problem is not as simple,
+then the predicates of all atoms that in principle may be used
+to bind~\code{\textit{V}} are involved in positive recursion
+through the predicate of some atom in the head of \code{\textit{rule}}.
+In this case, the positive bodies of some of the rules subject to recursion
+must be augmented with additional atoms over non-recursive predicates that
+can bind variables, in order to eventually establish level-restrictedness.
+As breaking recursion is a rather global matter, the reported
+\code{\textit{rule}} is not necessarily the best place to tackle it.
+
+The following error is related to conditions
+(cf.\ Section~\ref{subsec:gringo:condition}):
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+the following rule cannot be grounded, \
+non domain predicates : { @\textit{p}@(...), ... }
+        @\textit{rule}@
+\end{lstlisting}
+%
+The problem is that an atom \code{\textit{p}(...)} such
+that its predicate \code{\textit{p}/\!\textit{i}} is not a domain predicate
+(cf.\ Section~\ref{subsec:strat}) is used on the right-hand side of a condition
+within \code{\textit{rule}}.
+The error is corrected by either removing the atom or
+by replacing it with another atom over a domain predicate.
+
+The next errors may occur within an arithmetic evaluation
+(cf.\ Section~\ref{subsec:gringo:arith}):
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+trying to convert string to int
+trying to convert functionsymbol to int
+\end{lstlisting}
+%
+It means that either a (symbolic) constant or a compound term
+(over an uninterpreted function with non-zero arity)
+has occurred in the scope of some built-in arithmetic function.
+Unfortunately, no context information is provided yet,
+which is left as an issue to future work
+(cf.\ Section~\ref{sec:future}).
+
+The below errors are related to built-in comparison predicates
+(cf.\ Section~\ref{subsec:gringo:comp}):
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+comparing different types
+comparing function symbols
+\end{lstlisting}
+%
+The first error indicates that one of the built-in comparison predicates
+\code{<}, \code{<=}, \code{>}, and \code{>=}
+has been applied to an integer or a (symbolic) constant
+and a term of a different sort,
+while the second error means that compound terms have occurred in such a comparison.
+The mere reason for these errors is that the required functionalities
+have not been implemented yet,
+so that the errors are likely to disappear in the future
+(cf.\ Section~\ref{sec:future}).
+
+An error occurs if a constant~\code{\textit{c}}
+ought to be replaced with a term~\code{\textit{t}}
+containing~\code{\textit{c}}:
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+cyclic constant definition
+\end{lstlisting}
+%
+To resolve such an error, check the occurrences of \const{\#const}
+in the input as well as \code{--const} or \code{-c} options
+in the command line, and change them in a way such that a constant
+that is to be replaced does not (transitively) occur in a term
+to be inserted.
+
+The next error may occur if a statement from the input language
+of \iclingo\ (cf.\ Section~\ref{subsec:lang:iclingo})
+is used in the input of \gringo, \clingo, or
+\iclingo\ run non-incrementally
+(via one of options \code{--text}, \code{--lparse}, \code{--aspils},
+ or \code{--clingo}):
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+A fixed number of incremental steps is needed to ground the program.
+\end{lstlisting}
+%
+This problem is solved by providing a step number
+via option \code{--ifixed}.
+
+The following error may be reported by \iclingo:
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+The following statement cant be used with the incremental interface:
+        @\textit{rule}@
+\end{lstlisting}
+%
+The \code{\textit{rule}} contains a \const{\#maximize},
+\const{\#minimize}, or \const{\#compute} statement,
+which are currently not supported within incremental computations.
+Their support by \iclingo\ is an issue to future work
+(cf.\ Section~\ref{sec:future}).
+
+The next error may occur if \emph{ASPils}~\cite{gejaosscth08a}
+output is requested via option \code{--aspils}:
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+@\textit{e}@ not allowed in this normal form, \ 
+please choose normal form @\textit{n}@.
+\end{lstlisting}
+%
+The chosen normal form (in-between~\code{1} and~\code{7})
+does not cover the input language expression~\code{\textit{e}},
+and one among the normal forms~\code{\textit{n}} suggested
+in the error message ought to be provided as an argument instead.
+
+The following error message is issued by (embedded) \clasp:
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+Input Error at line @\textit{L}@: Symbol table expected!
+\end{lstlisting}
+%
+This error means that the input does not comply with \lparse's
+numerical format~\cite{lparseManual}.
+It is not unlikely that the input can be processed
+by \gringo, \clingo, or \iclingo.
+
+The next error indicates that input in
+\lparse's numerical format~\cite{lparseManual} is corrupt:
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+Input Error at line @\textit{L}@: Atom out of bounds
+\end{lstlisting}
+%
+There is no way to resolve this problem.
+If the input has been generated by \gringo, \clingo, or \iclingo,
+please report the problem to the authors of this guide.
+
+The following error message is issued by (embedded) \clasp:
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+Input Error at line @\textit{L}@: Unsupported rule type!
+\end{lstlisting}
+%
+It means that some rule type in \lparse's
+numerical format~\cite{lparseManual} is not supported.
+Most likely, the program under consideration contains
+rules with disjunction in the head.
+
+A similar error may occur with \clingo\ or \iclingo:
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+sorry clasp cannot handle disjunctive rules!
+\end{lstlisting}
+%
+The program under consideration contains rules with disjunction in the head,
+which are currently not supported by \clasp,
+but by \claspD~\cite{drgegrkakoossc08a}.
+The integration of \clasp\ and \claspD\ is a subject to future work
+(cf.\ Section~\ref{sec:future}).
+
+All of the tools \gringo, \clasp, \clingo, and \iclingo\
+try to expand incomplete (long) options to recognized ones.
+Parsing command line options may nonetheless fail due to the following three reasons:
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+unknown option: @\textit{o}@
+ambiguous option: '@\!\textit{o}@' could be:
+  @\textit{o1}@
+  @\textit{o2}@
+  ...
+'@\!\textit{a}@': invalid value for Option '@\!\textit{o}@'
+\end{lstlisting}
+%
+The first error means that a provided option~\code{\textit{o}}
+could not be expanded to one that is recognized,
+while the second error expresses that the result of expanding~\code{\textit{o}}
+is ambiguous.
+Finally, the third error occurs if a provided argument~\code{\textit{a}}
+is invalid for option~\code{\textit{o}}.
+In either case, option \code{--help} can be used to see 
+the recognized options and their arguments.
+
+
+\subsection{Warnings}\label{subsec:warn}
+
+The following warnings may be raised by \gringo, \clingo, or \iclingo:
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+Warning: @\textit{p}@/@\!\textit{i}@ is never defined.
+Warning: sum with negative bounds in the body of a rule
+Warning: multiple definitions of #const @\textit{c}@
+\end{lstlisting}
+%
+The first one, stating that a predicate \code{\textit{p}/\!\textit{i}}
+has occurred in some rule body, but not in the head of any rule,
+might point at a mistyped predicate.
+The second warning means that negative weights within a \const{sum} aggregate
+(cf.\ Section~\ref{subsec:gringo:aggregate})
+have been compiled away~\cite{siniso02a},
+which is semantically delicate~\cite{ferraris05a}.
+Thus, we strongly recommend to avoid negative weights
+within a \const{sum} aggregate in the positive body of a rule.
+Finally, the third warning recognizes that multiple \const{\#const}
+statements over the same constant~\code{\textit{c}} are contained in the input,
+but only the first of them will be considered.
+
+The next four warnings may be issued by \iclingo:
+\begin{lstlisting}[numbers=none,escapechar=@]
+Warning: There are no #base, #cumulative or #volatile sections.
+Warning: Option ifixed will be ignored!
+Warning: There are statements not within a #base, \
+         #cumulative or #volatile section.
+         These Statements are put into the #base section.
+Warning: Classical negation is not handled correctly \
+         in combination with the incremental output.
+         You have to add rules like: :- a, -a. on your own! \
+         (at least for now)
+\end{lstlisting}
+%
+For omitting the first warning, one may use option \code{--clingo},
+as the input program contains no statements particular to \iclingo\
+(cf.\ Section~\ref{subsec:lang:iclingo}).
+Similarly, option \code{--clingo} may be used to suppress the second warning,
+stating that a provided option \code{--ifixed} is ignored in incremental mode
+(if \iclingo\ is not run as a grounder 
+ via one of options \code{--text}, \code{--lparse}, or \code{--aspils}).
+The third warning states that rules have been inserted into the static
+program part without a 	preceding \const{\#base} statement.
+This warning can be avoided by ending an encoding with \const{\#base.}
+and by supplying an instance file afterwards, as illustrated in Section~\ref{subsec:ex:block}.
+The fourth warning refers to the fact that there currently is no
+built-in support for classical negation (cf.\ Section~\ref{subsec:gringo:negation})
+by \iclingo.
+Hence, integrity constraints of the form ``$\code{:-}~A\code{,}\code{-}A\code{.}$''
+have to be added explicitly by a user.
+
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "guide"
+%%% End: 

@@ -1,0 +1,20 @@
+\begin{figure}[tb]
+\centering
+\begin{picture}(300,120)(-100,-60)
+\put(-80,+40){\makebox(0,0){\framebox(80,20){Logic Program}}}
+\put(-80,-40){\oval(80,20)}\put(-99,-43){Grounder}
+\put(+50,-40){\makebox(0,0){\framebox(80,20){Ground Program}}}
+\put(+180,+40){\makebox(0,0){\framebox(80,20){Answer set(s)}}}
+\put(+180,-40){\oval(80,20)}\put(+167,-43){Solver}
+\put(-80,+30){\vector(0,-1){60}}
+\put(-40,-40){\vector(+1,0){50}}
+\put(+90,-40){\vector(+1,0){50}}
+\put(+180,-30){\vector(0,+1){60}}
+\end{picture}
+\caption{Basic Architecture of ASP Systems.\label{fig:system}}
+\end{figure}
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "../guide"
+%%% End: 

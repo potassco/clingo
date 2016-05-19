@@ -1,0 +1,591 @@
+\section{Background}\label{sec:background}
+
+In Section~\ref{subsec:asp},
+we give a brief introduction to Answer Set Programming,
+which constitutes the basic framework for the tools we describe here.
+This framework deals with logic programs,
+whose syntax and semantics are formally introduced in
+Section~\ref{subsec:syntax} and~\ref{subsec:semantics}, respectively.
+We invite the reader to merely skim or even skip these two sections
+upon the first reading, and to rather look them up later on if
+formal details are requested.
+However, we want to stress that the syntax we use for logic programs
+admits (uninterpreted) function symbols with non-zero arity,
+whose full support by our tools is rather exceptional and thus innovative.
+
+
+\input{figures/asp}
+\subsection{Answer Set Programming}\label{subsec:asp}
+
+Answer Set Programming (ASP)
+\cite{ankolisc05a,baral03a,gelleo02a,lifschitz02a,martru99a,niemela99a}
+emerged in the late 1990s as a declarative paradigm
+for modeling and solving search problems.
+As illustrated in Figure~\ref{fig:asp},
+the basic approach of ASP is to represent a problem as a logic program~$\Pi$
+such that particular Herbrand models of~$\Pi$, called answer sets,
+correspond to problem solutions.
+In contrast to traditional logic programming languages,
+e.g., Prolog~\cite{nilmal95a},
+ASP programs are sets (not lists) of rules,
+and computations are oriented towards models (not proofs).
+Let us illustrate this on an example.
+
+\begin{example}\label{ex:flies}
+Consider a logic program comprising the following facts:
+%
+\lstinputlisting{examples/bird.lp}
+% \listinginput{1}{examples/bird.lp}
+%
+These facts express that constants \const{tux} and \const{tweety}
+stand for birds.
+Furthermore, \const{tux} is a penguin, 
+and \const{tweety} is a chicken.
+%
+Note that the \emph{unique names assumption} applies, that is,
+$\const{tux}\neq\const{tweety}$ holds.
+Besides the two constants,
+the language of the above facts contains predicates
+\pred{bird}/$1$, \pred{penguin}/$1$, and \pred{chicken}/$1$
+(each having arity~$1$).
+%
+We next augment the above facts with the following rules:%
+\marginlabel{%
+  Instead of \code{neg\mus flies(X)}, one could write
+  \code{-flies(X)} to make explicit that
+  instances (obtained for~\var{X}) amount to the classical (or strong) negation of
+  \code{flies(X)}.}
+%
+\lstinputlisting[firstnumber=3]{examples/fly.lp}
+%
+Informally, such rules correspond to implications where the
+left hand side of connective ``\code{:-}'' (called head)
+is derived if all premises on the right hand side
+(their conjunction called body) hold.
+Connective ``\code{not}'' stands for \emph{default negation},
+and uppercase letter~\var{X} is the name of a first-order variable.
+Variables are local to rules, that is,
+a variable name refers to different variables in distinct rules.
+Finally, every variable is universally quantified and thus
+applies to all terms in the language of a logic program.
+
+The rule in Line~3 formalizes that any instance of~\var{X} that is
+a bird \pred{flies}, as long as \pred{neg\mus flies} does not hold.
+The converse relationship between \pred{neg\mus flies} and \pred{flies}
+is expressed in Line~4.
+At this point, observe that, though syntactically correct,
+the above program ``makes no sense'' in Prolog because a query%\hspace{\listingoffset}
+% \begin{alltt}
+% ?- flies(tweety).
+% \end{alltt}
+\begin{lstlisting}[numbers=none]
+?- flies(tweety).
+\end{lstlisting}
+can be answered neither positively nor negatively.
+In ASP, however, the rules in Line~3 and~4 admit multiple belief states,
+depending on whether \pred{flies} or \pred{neg\mus flies} is assumed for a bird.
+In addition, the rule in Line~5 requires \pred{neg\mus flies} to hold for every penguin.
+Combining this knowledge with the facts in Line~1 and~2
+makes us derive \code{\pred{neg\mus flies}(\const{tux})},
+and it provides us with two alternatives for \const{tweety}:
+either \code{\pred{flies}(\const{tweety})} or \code{\pred{neg\mus flies}(\const{tweety})} holds.
+These alternatives cannot jointly hold because, under such an assumption,
+neither of them is derived, thus,
+violating the justification principle of ASP (cf.\ Section~\ref{subsec:semantics}).
+Without already going into formal details,
+we conclude that the above program has two answer sets:
+one according to which \const{tweety} flies and one where \const{tweety} does not fly.
+\eexample
+\end{example}
+
+\input{figures/system}
+The computation of answer sets usually consists of two phases.
+First, a \emph{grounder} substitutes the variables in a logic program~$\Pi$
+by variable-free terms, resulting in a propositional program~$\alt{\Pi}$.
+Second, the answer sets of~$\alt{\Pi}$ are computed by a \emph{solver}.
+This prototypical architecture is visualized in Figure~\ref{fig:system}.
+Of course, a ground program~$\alt{\Pi}$ must be finite and equivalent to
+input program~$\Pi$.
+To this end, grounders like \lparse~\cite{lparseManual},
+the one embedded into \dlv~\cite{dlv03a},
+and \gringo\footnotemark~\cite{gescth07a}
+impose certain restrictions on~$\Pi$ (cf.\ Section~\ref{subsec:lambda}).
+An obtained ground program~$\alt{\Pi}$ can be piped into a solver, such as 
+\assat~\cite{linzha04a}, 
+\clasp\footnotemark[\value{footnote}]~\cite{gekanesc07b},
+\cmodels~\cite{gilima06a},
+\nomorepp~\cite{angelinesc05c},
+\smodels~\cite{siniso02a}, or
+\smodelscc~\cite{warsch04a},
+in order to compute answer sets of~$\alt{\Pi}$, matching the ones of~$\Pi$.
+All of the aforementioned solvers deal with \lparse's output format,
+a numerical representation of~$\alt{\Pi}$,
+while \dlv\ couples its grounding and its solving component directly
+via an internal interface,
+an approach also realized by \clingo\footnotemark[\value{footnote}].
+Finally, \iclingo\footnotemark[\value{footnote}]~\cite{gekakaosscth08a} integrates and interleaves
+grounding and solving within incremental computations.
+%
+%\addtocounter{footnote}{-1}%
+\footnotetext{Described in this guide.}
+
+The next example illustrates the computation of answer sets for
+the logic program given in Example~\ref{ex:flies}.
+
+\begin{example}\label{ex:flies:ground}
+Reconsidering the facts in Line~1 and~2 of Example~\ref{ex:flies},
+we identify two constants: \const{tux} and \const{tweety}.
+They can be substituted for variables~\var{X} in the rules in Line~3--5.
+In fact, Line~1--5 of Example~\ref{ex:flies} are a shorthand for the ground instantiation:
+%
+\lstinputlisting[nolol]{examples/bird.lp}
+\lstinputlisting[firstnumber=3,xrightmargin=-8pt]{examples/bfall.lp}
+%
+Note that the facts in Line~1 and~2 are unaltered from Example~\ref{ex:flies},
+while the ground rules in Line~3--8 are obtained by instantiating variables~\var{X}.
+We have that the answer sets of the above ground program match
+those of the original input program in Example~\ref{ex:flies}.
+
+In practice, grounders try to avoid producing the full ground instantiation
+of an input program by applying answer-set preserving simplifications.
+In particular, facts can (recursively) be eliminated.
+Thus, \gringo\ computes the following ground program:%
+\marginlabel{%
+  The ground program in text format is obtained via call:\\
+  \code{\mbox{~}gringo -t \textbackslash\\
+        \mbox{~}examples/bird.lp \textbackslash\\
+        \mbox{~}examples/fly.lp}}
+%
+\lstinputlisting[nolol]{examples/bird.lp}
+\lstinputlisting[numbers=none]{examples/bfeff.lp}
+%
+Observe that \code{\pred{neg\mus flies}(\const{tux})} has become a fact because
+\code{\pred{penguin}(\const{tux})} is known.
+Similarly, \code{\pred{bird}(\const{tux})} and \code{\pred{bird}(\const{tweety})}
+have been removed from bodies of rules, making use of the fact that ``\textit{true} \& something'' is
+equivalent to ``something.''
+Applying the complementary principle that ``\textit{false} \& something'' evaluates to ``\textit{false},''
+the rule with \code{not \pred{neg\mus flies}(\const{tux})} in the body (Line~3) has been dropped completely.
+After performing these simplifications, the ground program computed by \gringo\ is still
+equivalent to the input program in Example~\ref{ex:flies}, viz.,
+there is one answer set such that \const{tweety} flies and one where \const{tweety} does not fly.
+In fact, running \clasp\ yields:%
+\marginlabel{%
+  The two answer sets are computed by piping the output of \gringo\
+  into \clasp:\\
+  \code{\mbox{~}gringo \textbackslash\\
+        \mbox{~}examples/bird.lp \textbackslash\\
+        \mbox{~}examples/fly.lp | \textbackslash\\
+        \mbox{~}clasp -n 0}\\
+  Note that \gringo\ is called without option \code{-t},
+  while option \code{-n 0} makes \clasp\ compute all answer sets
+  (rather than just one, as done by default).
+
+  Alternatively, one may use \clingo\ to compute the answer sets.
+  To this end, invoke:\\
+  \code{\mbox{~}clingo -n 0 \textbackslash\\
+        \mbox{~}examples/bird.lp \textbackslash\\
+        \mbox{~}examples/fly.lp}}
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+Answer: 1
+bird(tux) penguin(tux) bird(tweety) chicken(tweety) @\textbackslash@
+neg_flies(tux) flies(tweety)
+Answer: 2
+bird(tux) penguin(tux) bird(tweety) chicken(tweety) @\textbackslash@
+neg_flies(tux) neg_flies(tweety)
+\end{lstlisting}
+%
+Note that the order of the answer sets is incidental and 
+not obliged to the order of rules and bodies in the input,
+as the semantics of ASP programs is purely declarative.
+\eexample
+\end{example}
+
+We have seen how an ASP system computes answer sets of a search problem
+represented by a set of facts (Line~1 and~2 in Example~\ref{ex:flies})
+and a set of schematic rules with first-order variables
+(Line~3--5 in Example~\ref{ex:flies}).
+This separation of a problem into a knowledge part, called \emph{encoding},
+and a data part, called \emph{instance}, is not a coincidence
+but a common methodology in ASP \cite{martru99a,niemela99a,schlipf95a},
+sometimes called \emph{uniform} definition.
+In fact, the possibility to describe problems in a uniform way is
+a major advantage of ASP, as it promotes simplicity and flexibility in
+knowledge representation.
+Together with the availability of efficient reasoning engines,
+this makes ASP an attractive and powerful paradigm
+for declarative problem solving.
+By explaining and illustrating the functionalities of
+grounder \gringo, solver \clasp, and their bondings in \clingo\ and \iclingo,
+this guide aims at enabling the reader to make (better) use of ASP.
+
+
+\subsection{Syntax of Logic Programs}\label{subsec:syntax}
+
+This section gives a brief account of the formal syntax of logic programs,
+needed for defining their semantics.
+Consult, e.g., \cite{lloyd87a} for a detailed introduction.
+The language of a logic program is composed from sets
+%
+\begin{itemize}
+\item $\mathcal{P}=\{p_1/i_1,\dots,p_m/i_m\}$ of \emph{predicates}
+      (with arities $i_1,\dots,i_m$),
+\item $\mathcal{F}=\{f_1/j_1,\dots,f_n/j_n\}$ of \emph{functions}
+      (with arities $j_1,\dots,j_n$), and
+\item $\mathcal{V}=\{V_1,V_2,V_3,\dots\}$ of \emph{variables}
+\end{itemize}
+along with connectives (``\code{:-},'' ``\code{,},'' ``\code{not},'' etc.) and
+punctuation symbols (``\code{(},'' ``\code{)},'' ``\code{.},'' etc.).
+A function~$f/j$ is called a \emph{constant} if $j=0$, that is,
+if~$f$ has no arguments.
+The set~$\mathcal{T}$ of \emph{terms} is the smallest set containing~$\mathcal{V}$
+and all expressions $f(t_1,\dots,t_k)$ such that $f/k$ is a function 
+from~$\mathcal{F}$ and $t_1,\dots,t_k$ are terms in~$\mathcal{T}$.
+Note that every variable and every constant is an elementary term,
+while functions with non-zero arity induce compound terms.
+By $\ground{\mathcal{T}}$, we denote the set of all variable-free
+terms in~$\mathcal{T}$.
+Note that $\ground{\mathcal{T}}$ is infinite
+as soon as~$\mathcal{F}$ contains at least one constant and one function
+with non-zero arity.
+The set~$\mathcal{A}$ of \emph{atoms} consists of 
+$\top$ (``\textit{true}''), $\bot$ (``\textit{false}''), and all expressions
+$p(t_1,\dots,t_k)$ such that $p/k$ is a predicate
+from~$\mathcal{P}$ and $t_1,\dots,t_k$ are terms in~$\mathcal{T}$.
+As with terms, $\ground{\mathcal{A}}$ denotes the set of all variable-free
+atoms in~$\mathcal{A}$.
+
+A \emph{rule}~$r$ is an expression of the form $\mathit{Head}~\code{:-}~\mathit{Body}\code{.}$,
+where $\mathit{Head}$ and $\mathit{Body}$ are composed from atoms in $\mathcal{A}$
+(other than $\bot$ and $\top$), punctuation symbols, and connectives other than ``\code{:-}.''
+The intuitive reading of a rule is that $\mathit{Head}$ follows from $\mathit{Body}$,
+and either $\mathit{Body}$ or $\mathit{Head}$ may be omitted, in which case the
+rule is called a \emph{fact} or an \emph{integrity constraint}, respectively.
+A fact is written in the form $\mathit{Head}\code{.}$ and understood as 
+$\mathit{Head}~\code{:-}~\top\code{.}$, and an integrity constraint
+$\code{:-}~\mathit{Body}\code{.}$ is a shorthand for $\bot~\code{:-}~\mathit{Body}\code{.}$
+By $\vars{r}$, we denote the set of all variables in rule~$r$,
+and~$r$ is called \emph{ground} if $\vars{r}=\emptyset$.
+A \emph{ground substitution} is a mapping $\sigma:\vars{r}\rightarrow\ground{\mathcal{T}}$,
+and~$r\sigma$ is the ground rule obtained by replacing every occurrence of a
+variable $V\in\vars{r}$ with~$\sigma(V)$.
+By $\ground{r}$, we denote the set of ground rules~$r\sigma$
+obtained from~$r$ by applying all possible ground substitutions~$\sigma$.
+A \emph{logic program}~$\Pi$ is a set of rules,
+and the \emph{ground instantiation} of~$\Pi$ is
+$\ground{\Pi}=\bigcup_{r\in\Pi}\ground{r}$.
+By convention, we assume that~$\mathcal{P}$ and~$\mathcal{F}$ are the sets
+of all predicates and functions, respectively, that occur in~$\Pi$.
+Note that $\ground{\Pi}$ is infinite if
+there is at least one rule $r\in\Pi$ such that $\vars{r}\neq\emptyset$ and 
+if~$\mathcal{F}$ contains at least one constant and one function
+with non-zero arity.
+
+For a well-known class of logic programs, called \emph{normal},
+rules are of the form:
+\begin{equation}\label{eq:normal:rule}
+  A_0~\code{:-}~A_1\code{,}\dots\code{,}A_m\code{,}
+  \code{not}~A_{m+1}\code{,}\dots\code{,}\code{not}~A_n\code{.}
+\end{equation}
+%
+For $0\leq k\leq n$, every~$A_k$ is an atom, that is, the head is an atom and
+the body is a (possibly empty) conjunction of atoms that may be preceded by ``\code{not}.''
+As mentioned in Section~\ref{subsec:asp},
+the order of elements in the body is not essential,
+so that they can be regrouped to match the form in~(\ref{eq:normal:rule}).
+For a rule~$r$ as in~(\ref{eq:normal:rule}), we define 
+$\head{r}=A_0$, $\pbody{r}=\{A_1,\dots,A_m\}$, and $\nbody{r}=\{A_{m+1},\dots,A_n\}$.
+If $r=A_0\code{.}$ is a fact, then
+$\pbody{r}=\nbody{r}=\nolinebreak\emptyset$.
+The particular structure of normal programs admits a rather intuitive 
+characterization of their semantics in the next section.
+
+\begin{example}\label{ex:syntax}
+The language of the normal program in Example~\ref{ex:flies} includes
+predicates
+\(
+\mathcal{P}=
+\{
+\pred{bird}/1,\pred{penguin}/1,\pred{chicken}/1,
+\pred{flies}/1,\pred{neg\mus flies}/1\}
+\)
+and functions
+\(
+\mathcal{F}=
+\{
+\const{tux}/0,\const{tweety}/0
+\}
+\).
+As the arity of the latter is~$0$,
+terms \const{tux} and \const{tweety} are constants.
+By substituting them for variables,
+we obtain the ground instantiation given in Example~\ref{ex:flies:ground}.
+For instance, the ground rules
+%
+\begin{lstlisting}[firstnumber=3]
+flies(tux)    :- bird(tux),    not neg_flies(tux).
+flies(tweety) :- bird(tweety), not neg_flies(tweety).
+\end{lstlisting}
+%
+are obtained from:
+%
+\begin{lstlisting}[numbers=none]
+flies(X) :- bird(X), not neg_flies(X).
+\end{lstlisting}
+%
+Observe that the three occurrences of variable name~\var{X}
+stand for a single variable, so that substitutions
+$\{\var{X}\mapsto\const{tux}\}$ and $\{\var{X}\mapsto\const{tweety}\}$
+induce the above ground rules.
+Notably, sets~$\mathcal{P}$ and~$\mathcal{F}$ of predicates and functions
+need not be disjoint because atoms and terms are also distinguished
+by the context they occur in,
+and a predicate or function symbol may be used with different arities.
+For instance, we could add a rule
+%
+\begin{lstlisting}[numbers=none]
+flies :- flies(X).
+\end{lstlisting}
+%
+over predicates \pred{flies}/$0$ and \pred{flies}/$1$. 
+In fact, such rules are not unusual to express that there is some object
+with certain properties, while it does not matter which object it is.
+Finally, note that an infinite ground instantiation would result from adding rule
+\begin{lstlisting}[numbers=none]
+bird(parent(X)) :- bird(X).
+\end{lstlisting}
+in view of function \const{parent}/$1$ with non-zero arity.
+\eexample
+\end{example}
+
+
+\subsection{Semantics of Logic Programs}\label{subsec:semantics}
+
+The semantics of logic programs is given by answer sets~\cite{gellif91a},
+also called stable models~\cite{gellif88a}.
+In view of the rich input language of \gringo\ (cf.\ Section~\ref{subsec:lang:gringo}),
+we below recall a definition of answer sets
+for propositional theories~\cite{ferraris05a} and
+explain the semantics of logic programs by translation
+into propositional logic.
+We will also provide an alternative direct definition of answer sets
+for the class of normal programs.
+
+We consider propositional formulas composed from atoms, $\bot$,
+and connectives~$\wedge$, $\vee$, and~$\rightarrow$.
+Furthermore, $\top$ and~$\neg F$ are used as shorthands for
+$(\bot\rightarrow\bot)$ and $(F\rightarrow\bot)$, respectively.
+The \emph{reduct}~$\reduct{F}{X}$ of a propositional formula~$F$
+relative to a set~$X$ of atoms is defined recursively as follows:
+\begin{itemize}\addtolength{\itemsep}{-3pt}
+\item $\reduct{F}{X}=\bot$ ~if $X\not\models F$,
+\item $\reduct{F}{X}=F$ ~if $F\in X$, and
+\item $\reduct{F}{X}=(\reduct{G}{X}\circ\reduct{H}{X})$ ~if 
+      $X\models F$ and $F=(G\circ H)$ for $\circ\in\{\wedge,\vee,\rightarrow\}$.%
+\footnote{$\models$ is the standard satisfaction relation of propositional logic
+  between interpretations~$X$ and formulas~$F$.}
+\end{itemize}
+Essentially, the reduct relative to~$X$ is obtained by replacing
+all maximal unsatisfied subformulas of~$F$ with~$\bot$.
+As a matter fact, this implies that any maximal negative subformula 
+of the form $(G\rightarrow \bot)$ is replaced by either $\bot$ (if $X\models G$)
+or $(\bot\rightarrow\bot)=\top$ (if $X\not\models G$).
+Furthermore, any atom occurring in $\reduct{F}{X}$ belongs to~$X$.
+
+A propositional theory~$\Phi$ is a set of propositional formulas,
+and the reduct of~$\Phi$
+relative to a set~$X$ of atoms is
+$\reduct{\Phi}{X}=\{\reduct{F}{X} \mid F\in\Phi\}$.
+Furthermore, $X$ is a \emph{model} of~$\Phi$ if $X\models F$
+for every $F\in\Phi$.
+Finally, $X$ is an \emph{answer set} of~$\Phi$ if
+$X$ is a $\subseteq$-minimal model of~$\reduct{\Phi}{X}$, that is,
+if $X$ is a model of~$\Phi$ such that no $Y\subset X$
+is a model of~$\reduct{\Phi}{X}$.
+The latter condition uses the fact that~$X$ is a model of~$\reduct{\Phi}{X}$
+iff $X$ is a model of~$\Phi$.%
+\footnote{If~$X$ is not a model of~$\Phi$, then 
+  there is some $F\in\Phi$ such that $X\not\models F$,
+  which in turn implies $\bot\in\reduct{\Phi}{X}$.}
+Also note that, if~$X$ is an answer set of~$\Phi$,
+it is the unique $\subseteq$-minimal model of~$\reduct{\Phi}{X}$
+because all atoms occurring in~$\reduct{\Phi}{X}$ belong to~$X$
+(which excludes incomparable $\subseteq$-minimal models).
+This must not be confused
+with uniqueness of an answer set of~$\Phi$.
+In fact, $\Phi$ may have zero, one,
+or multiple answer sets~$X$ (being $\subseteq$-minimal models of
+distinct reducts~$\reduct{\Phi}{X}$).
+In a sense, the $\subseteq$-minimality of an answer set~$X$ as a 
+model of~$\reduct{\Phi}{X}$ stipulates the atoms in~$X$ to be justified by~$\Phi$
+(or necessarily true) under the assumption of~$X$.
+
+For a logic program~$\Pi$, answer sets of~$\Pi$ can now be explained
+by translation to a propositional theory~$\Phi[\Pi]$.
+To this end, let
+\begin{itemize}
+\item $\Phi[\Pi] = \bigcup_{r\in\ground{\Pi}}\phi[r]$,
+\item $\phi[\mathit{Head}~\code{:-}~\mathit{Body}\code{.}] = 
+       (\phi[\mathit{Body}]\rightarrow\psi[\mathit{Head}])$,
+\item $\phi[A]=\psi[A]=A$ ~if $A\in\mathcal{A}$,
+\item $\phi[\top]=\top$,%
+\footnote{Recall that a fact $\mathit{Head}\code{.}$ is a shorthand for
+          $\mathit{Head}~\code{:-}~\top\code{.}$}
+\item $\phi[\code{not}~F] = \neg \phi[F]$, and
+\item $\phi[G\code{,}H] = (\phi[G]\wedge\phi[H])$.
+\end{itemize}
+%
+The translation~$\phi$ of a rule primarily consists of
+straightforward syntactic conversions by replacing
+``\code{:-},'' ``\code{,},'' and ``\code{not}'' with
+$\rightarrow$, $\wedge$, and $\neg$, respectively.
+However, it also contains a separate translation~$\psi$ for heads of rules,
+which coincides with~$\phi$ on atoms by simply keeping them unchanged.
+In Section~\ref{subsec:gringo:aggregate},
+we will customize~$\psi$ in order to reflect the
+``choice semantics'' for aggregates in heads of rules~\cite{ferlif05a,siniso02a}.
+By virtue of the above translation,
+we can simply define the answer sets of a logic program~$\Pi$
+to be the answer sets of~$\Phi[\Pi]$.
+We have thus specified answer sets for normal programs.
+
+In order to provide more intuitions,
+we now reproduce a direct definition of answer sets for normal programs.
+This definition builds on the fact that the reduct for a normal program
+is a set of Horn clauses, for which the $\subseteq$-minimal model (if it exists) can be constructed
+systematically in a bottom-up manner~\cite{dowgal84a}.
+To this end, for a normal program~$\Pi$ and a set $X\subseteq\ground{\mathcal{A}}$,
+we define:
+\begin{itemize}
+\item $T^0_{\Pi,X} = \emptyset$ ~and
+\item $T^{i+1}_{\Pi,X} = \{\head{r} \mid 
+                        r\in\ground{\Pi},
+                        \pbody{r}\subseteq T^i_{\Pi,X},
+                        \nbody{r}\cap X=\emptyset\}$.
+\end{itemize}
+It is not hard to check that operator $T_{\Pi,X}$ is monotonic,
+as it adds head atoms of ground rules to its previous result if the positive
+body atoms have been derived,
+while negative bodies are merely evaluated w.r.t.~$X$.
+Using this operator, we can equivalently define $X\subseteq\ground{\mathcal{A}}$
+as an answer set of a normal program~$\Pi$ if $X=\bigcup_{0\leq i}T^i_{\Pi,X}$.
+This equilibrium requirement exhibits two fundamental aspects of answer set semantics:
+\begin{enumerate}
+\item Negative conditions are first evaluated w.r.t.\ an answer set candidate.
+\item The candidate must be justified by the result of the preceding evaluation.
+\end{enumerate}
+Provided that~$X$ is a model of~$\Pi$ (that is, of~$\Phi[\Pi]$),
+the second item can be understood in the sense that all atoms of~$X$
+must have a proof from normal program~$\Pi$ w.r.t.~$X$.
+
+\begin{example}\label{ex:semantics}
+The normal program in Example~\ref{ex:flies}
+(or its ground instantiation given in Example~\ref{ex:flies:ground})
+translates into the following propositional theory:
+%
+\begin{lstlisting}[escapechar=@]
+bird(tux)     penguin(tux)
+bird(tweety)  chicken(tweety) @\\@
+bird(tux)   @\rlap{\,$\wedge$}@  @\rlap{\!$\neg$}@ neg_flies(tux)   @${}\rightarrow$@ flies(tux)
+bird(tweety)@\rlap{\,$\wedge$}@  @\rlap{\!$\neg$}@ neg_flies(tweety)@${}\rightarrow$@ flies(tweety)
+bird(tux)   @\rlap{\,$\wedge$}@  @\rlap{\!$\neg$}@ flies(tux)       @${}\rightarrow$@ neg_flies(tux)
+bird(tweety)@\rlap{\,$\wedge$}@  @\rlap{\!$\neg$}@ flies(tweety)    @${}\rightarrow$@ neg_flies(tweety)
+                 penguin(tux)   @${}\rightarrow$@ neg_flies(tux)
+                 penguin(tweety)@${}\rightarrow$@ neg_flies(tweety)
+\end{lstlisting}
+%
+Let
+$X=\{
+\code{\pred{bird}(\const{tux})},
+\code{\pred{penguin}(\const{tux})},
+\code{\pred{bird}(\const{tweety})},
+\code{\pred{chicken}(\const{tweety})},\linebreak[1]
+\code{\pred{neg\mus flies}(\const{tux})},
+\code{\pred{flies}(\const{tweety})}
+\}$.
+Relative to $X$, we obtain the reduct:
+%
+\begin{lstlisting}[escapechar=@]
+bird(tux)     penguin(tux)
+bird(tweety)  chicken(tweety) @\\@
+              @\rlap{\!$\bot$}@ @${}\rightarrow$@ @$\bot$@
+bird(tweety)@\rlap{\,$\wedge$}@  @\rlap{\!$\top$}@ @${}\rightarrow$@ flies(tweety)
+bird(tux)   @\rlap{\,$\wedge$}@  @\rlap{\!$\top$}@ @${}\rightarrow$@ neg_flies(tux)
+              @\rlap{\!$\bot$}@ @${}\rightarrow$@ @$\bot$@
+   penguin(tux)@${}\rightarrow$@ neg_flies(tux)
+              @\rlap{\!$\bot$}@ @${}\rightarrow$@ @$\bot$@
+\end{lstlisting}
+%
+We have that~$X$ is a model of the reduct (and the original program) because
+the reduct does not contain formula~$\bot$ as an element.
+In addition, observe that no proper subset of~$X$ is a model of the reduct.
+From this, we conclude that~$X$ is an answer set.
+
+The latter can also be verified by determining $\bigcup_{0\leq i}T^i_{\Pi,X}$
+(for~$\Pi$ as in Example~\ref{ex:flies}):
+\begin{tabular}{@{}r||l}
+$i$ & $T^i_{\Pi,X}$
+\\\hline\hline
+$0$ &
+---
+\\\hline
+$1$ &
+$
+\begin{array}{@{}l}
+\code{\pred{bird}(\const{tux})},
+\code{\pred{penguin}(\const{tux})},
+\code{\pred{bird}(\const{tweety})},
+\code{\pred{chicken}(\const{tweety})}
+\end{array}
+$
+\\\hline
+$2$  & 
+$
+\begin{array}{@{}l@{}}
+\code{\pred{bird}(\const{tux})},
+\code{\pred{penguin}(\const{tux})},
+\code{\pred{bird}(\const{tweety})},
+\code{\pred{chicken}(\const{tweety})},\\
+\code{\pred{neg\mus flies}(\const{tux})},
+\code{\pred{flies}(\const{tweety})}
+\end{array}
+$
+\\\hline
+${>\,}2$ &
+\textit{do.}
+\end{tabular}
+\\
+
+\noindent
+For $i=1$, we simply derive the head atoms of facts.
+They allow us to derive the remaining atoms of~$X$, viz.,
+\code{\pred{neg\mus flies}(\const{tux})} and
+\code{\pred{flies}(\const{tweety})}, in step~$i=\nolinebreak2$.
+In fact, two rules produce \code{\pred{neg\mus flies}(\const{tux})},
+while
+\begin{lstlisting}[numbers=none]
+flies(tweety) :- bird(tweety), not neg_flies(tweety).
+\end{lstlisting}
+is the unique rule with head \code{\pred{flies}(\const{tweety})} that ``fires.''
+No further rules apply in step~$i=3$,
+so that the set of atoms derived for~$i=2$ equals $\bigcup_{0\leq i}T^i_{\Pi,X}$.
+We have thus reproduced~$X$ by bottom-up derivation,
+which again shows that~$X$ is an answer set.
+\eexample
+\end{example}
+
+We have above seen two definitions of answer sets that start
+from an answer set candidate $X\subseteq\ground{\mathcal{A}}$,
+which is then verified in some way.
+Such definitions must not be confused with the computation of answer sets,
+as (explicitly) enumerating all subsets of $\ground{\mathcal{A}}$
+is infeasible in practice.
+Rather, the computational schemes of solvers are similar
+to the ``Davis-Putnam-Logemann-Loveland'' procedure (DPLL) \cite{dalolo62a,davput60}
+or to ``Conflict-Driven Clause Learning'' (CDCL) \cite{marsak99a,mitchell05a,momazhzhma01a}.
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "guide"
+%%% End: 

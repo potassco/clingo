@@ -1,0 +1,32 @@
+To build gringo the build system cmake is used. To build the lexers used by
+gringo, the lexer-generator re2c is needed. The source code release contains
+pregenerated paser and lexer files, so re2c is only needed if you checked out
+a svn version. In case of trouble, there is always a set of pre-build versions
+for different architectures available on:
+http://sourceforge.net/projects/potassco/files/gringo_clingo_iclingo
+
+The usual way to compile and install gringo should be:
+make
+cp build/gringo/release/bin/gringo <somewhere-in-your-path>
+
+1 Compilation/Installation:
+---------------------------
+There is a Makefile simplifying the build process. This Makefile is 
+capable of initializing out-of-source builds to build different versions of
+gringo.
+
+1.1 gringo:
+-------------
+make gringo_release
+cp build/gringo/release/bin/gringo <somewhere-in-your-path>
+
+1.2 clingo:
+-------------
+make clingo_release
+cp build/clingo/release/bin/clingo <somewhere-in-your-path>
+
+1.3 iclingo:
+--------------
+make iclingo_release
+cp build/iclingo/release/bin/iclingo <somewhere-in-your-path>
+

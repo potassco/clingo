@@ -1,0 +1,58 @@
+% Logic programs
+
+\newcommand{\alt}[1]{\ensuremath{\mathbf{#1}}}
+\newcommand{\ground}[1]{\ensuremath{\mathit{ground}(#1)}}
+\newcommand{\vars}[1]{\ensuremath{\mathit{var}(#1)}}
+\newcommand{\head}[1]{\ensuremath{\mathit{head}(#1)}}
+\newcommand{\pbody}[1]{\ensuremath{\mathit{body}^+(#1)}}
+\newcommand{\nbody}[1]{\ensuremath{\mathit{body}^-(#1)}}
+\newcommand{\binders}[2]{\ensuremath{\mathit{bind}(#1)}}
+\newcommand{\atom}[1]{\ensuremath{\mathit{atom}(#1)}}
+
+\newcommand{\reduct}[2]{\ensuremath{#1^{#2}}}
+
+% Systems
+
+\newcommand{\sysfont}[1]{\texttt{#1}}
+
+\newcommand{\assat}[0]{\sysfont{assat}}
+\newcommand{\clasp}[0]{\sysfont{clasp}}
+\newcommand{\claspD}[0]{\sysfont{claspD}}
+\newcommand{\clingo}[0]{\sysfont{clingo}}
+\newcommand{\cmodels}[0]{\sysfont{cmodels}}
+\newcommand{\dlv}[0]{\sysfont{dlv}}
+\newcommand{\gnt}[0]{\sysfont{gnt}}
+\newcommand{\gringo}[0]{\sysfont{gringo}}
+\newcommand{\iclingo}[0]{\sysfont{iclingo}}
+\newcommand{\lparse}[0]{\sysfont{lparse}}
+\newcommand{\nomorepp}[0]{\sysfont{nomore++}}
+\newcommand{\smodels}[0]{\sysfont{smodels}}
+\newcommand{\smodelscc}[0]{\sysfont{smodels}$_\text{\sysfont{cc}}$}
+
+
+% Theorems
+
+\theoremstyle{definition}
+\newtheorem{example}{Example}[section]
+\newcommand{\eexample}[0]{\hfill$\Box$}
+
+
+% More formatting
+
+\lstset{numbers=left,numberblanklines=false,basicstyle=\ttfamily,xleftmargin=10pt}
+\addtolength{\oddsidemargin}{-0.25\marginparwidth}
+\newcommand{\marginlabel}[1]{\marginpar{\hspace*{-1.75mm}%
+  \fbox{\parbox[t]{1.76\marginparwidth}{\footnotesize #1}}}}
+% \newcommand{\Comment}[1]{\marginpar{\hspace*{-1.5mm}%
+%   \fbox{\parbox[t]{1.7\marginparwidth}{\footnotesize \underline{COMMENT}\\#1}}}}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\const}[1]{\texttt{#1}}%{\ensuremath{\mathit{#1}}}
+\newcommand{\pred}[1]{\texttt{#1}}%{\ensuremath{\mathsf{#1}}}
+\newcommand{\var}[1]{\texttt{#1}}%{\ensuremath{\mathit{#1}}}
+
+\newcommand{\mus}[0]{\_\hspace{-0.7pt}\_}%{\_\hspace{-2pt}\_\hspace{-2pt}\_}
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "guide"
+%%% End: 

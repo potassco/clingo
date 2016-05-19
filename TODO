@@ -1,0 +1,34 @@
+performance:
+- literals in the body could be ordered by some heuristic see reference in dlv paper
+- dont use tons of small vectors in domains instead put all values into 1 big vector
+  - domains
+  - conditional literals
+- use an own vector implementation for value vectors 
+  (arrays of constant size => size doesnt have to be stored)
+- optimize memory consumtion/handling in output classes
+  - dont use new/delete for all the output objects everytime a rule is grounded
+- optimize datastructures (in view of memoryconsumption)
+- it would be better to use a ptr_vector or sth like that instead of std::vector<T*>
+
+features:
+- add an #include directive
+- add information about different ruletypes to the statistics
+
+code:
+- find a better way (a. :- a. ? ) to state that no answer set exists
+- use more c++ exceptions
+
+documentation:
+- write doxygen doc
+
+testing:
+- write tests for all allowed language constructs !!!
+
+todo:
+- handle classical negation in incremental output
+- improve text output
+- print more statistics
+- distinguish head from body literals (additional field in literal)
+  needed for better matching of aggregates in bodies/heads
+- reimplement the LDGBuilder
+- i am using the lemon parser incorrectly

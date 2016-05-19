@@ -1,0 +1,71 @@
+\section{Differences to the Language of \lparse}\label{sec:lparse}
+
+We below provide a (most likely incomplete) list of differences between the
+input languages of \gringo~\cite{gescth07a} and \lparse~\cite{lparseManual}.
+First of all, it is important to note that the language of \gringo\
+significantly extends the one of \lparse.
+For instance, \const{min} and \const{max} aggregates (cf.\ Section~\ref{subsec:gringo:aggregate})
+are not supported by \lparse.
+Furthermore, \gringo\ provides full support for variables within compound terms
+(over uninterpreted functions with non-zero arity).
+That is, an atom like \code{p(\const{f}(\var{X}))} in the positive body of a rule
+can potentially be used to bind~\var{X} (cf.\ Section~\ref{subsec:lambda}),
+while \lparse\ would treat \code{\const{f}(\var{X})} like an arithmetic
+function (cf.\ Section~\ref{subsec:gringo:arith}) whose variables cannot be bound.
+Finally, \gringo\ deals with level-restricted programs (cf.\ Section~\ref{subsec:lambda}),
+while \lparse\ requires programs to be $\omega$-restricted~\cite{syrjanen01a}.
+As the latter are more restrictive,
+programs for \lparse\ tend to be more verbose than the ones for \gringo.
+Thus, we do not suggest writing programs in the input language of \gringo\
+for compatibility to \lparse.
+
+However, a bulk of existing encodings are written for \lparse\
+(see, e.g.,~\cite{asparagus}),
+and \gringo\ (likewise, \clingo\ and \iclingo) should actually be able to deal with most of them.
+If this is not case, one of the following might be the reason:
+%
+\begin{itemize}
+\item
+The input contains primed atoms like \code{\pred{p}'}, which are (currently) not supported by \gringo.
+\item
+Symbolic names are used for built-in constructs, e.g., \const{plus} or \pred{eq}
+for built-in arithmetic function~\code{+} or predicate~\code{==}, respectively.
+With a few exceptions (e.g., \const{abs} introduced in Section~\ref{subsec:gringo:arith}),
+such names are not associated to built-in constructs by \gringo,
+as they may accidentally clash with users' names otherwise.
+\item
+The input contains (or is instantiated to) 
+a \const{count} aggregate (or a cardinality constraints, respectively)
+containing duplicates of literals.
+Such duplicates are not removed by \lparse, e.g.,
+it treats \code{2\char`\{\pred{p}(\const{c}),\pred{p}(\const{c})\char`\}}
+as a synonym for \code{2[\pred{p}(\const{c})=1,\pred{p}(\const{c})=1]}.
+In contrast, \gringo\ associates curly brackets to a set
+(and square brackets to a multiset), as described in Section~\ref{subsec:gringo:aggregate}, so that
+\code{2\char`\{\pred{p}(\const{c}),\pred{p}(\const{c})\char`\}} is the same as
+\code{2\char`\{\pred{p}(\const{c})\char`\}},
+where the latter can clearly not hold.
+\item
+Pooling is expanded differently,
+e.g.,
+\lparse\ interprets
+\code{\pred{p}(\var{X},\var{Y};\var{X},\var{Z})} 
+as a shorthand for
+\code{\pred{p}(\var{X},\var{Y}),\pred{p}(\var{X},\var{Z})},
+while \gringo\ expands it to
+\code{\pred{p}(\var{X},\var{Y},\var{Z}),\linebreak[1]\pred{p}(\var{X},\var{X},\var{Z})},
+as explained in Section~\ref{subsec:gringo:pool}.
+\item
+The input contains some (rather unusual) meta-statement, e.g.,
+\code{\#external}, not supported by \gringo.
+\end{itemize}
+%
+As indicated above, the provided list is probably incomplete.
+If you would like some difference(s) to be added,
+please contact the authors of this guide.
+
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "guide"
+%%% End: 

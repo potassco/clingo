@@ -1,0 +1,335 @@
+\section{Restrictedness Notions}\label{sec:restricted}
+
+In view of function symbols with non-zero arity,
+we may be confronted with logic programs over an infinite Herbrand base.
+In order to maintain decidability of reasoning tasks,
+it is thus important to identify language fragments for which
+finite equivalent ground programs are guaranteed to exist.
+Level-restricted logic programs constitute such a fragment,
+where finiteness is manifested in the requirement that any variable in a rule
+must be bound to a finite set of ground terms via a predicate not
+subject to positive recursion through that rule.
+The notion of level-restrictedness is complemented by stratification,
+which by disallowing negative recursion among predicates describes a
+class of logic programs having unique answer sets.
+The formal definition of level-restricted programs,
+which can be grounded by \gringo\ (stand-alone or embedded in \clingo\ and \iclingo),
+is provided in Section~\ref{subsec:lambda}.
+Section~\ref{subsec:strat} introduces stratified programs and the related
+concept of domain predicates, which can serve particular purposes during grounding.
+Both sections may be skimmed or even skipped upon the first reading,
+and rather be looked up later on to find out details.
+
+
+\subsection{Level-Restricted Logic Programs}\label{subsec:lambda}
+
+The main task of a grounder is to substitute the variables in a logic program~$\Pi$
+by terms such that the result is a finite equivalent ground program~$\alt{\Pi}$.%
+\footnote{$\Pi$ and~$\alt{\Pi}$ are equivalent if they have the same answer sets.}
+Of course, a necessary condition for this is that~$\Pi$ possesses
+only finitely many finite answer sets.
+Unfortunately, such a property is undecidable in general~\cite{daeigovo01a}.
+Instead of semantic properties, grounders do thus impose rather simple syntactic
+conditions to guarantee the existence of finite equivalent ground programs
+(which are then also computed).
+For instance, the \dlv\ system~\cite{dlv03a} requires programs to be \emph{safe} for
+establishing finiteness in the absence of functions with non-zero arity and under
+limited arithmetic.
+Grounder \lparse~\cite{lparseManual} deals with \emph{$\omega$-restricted}
+programs~\cite{syrjanen01a}, which are more restrictive than safe programs
+but guarantee finiteness also in the presence of functions with non-zero arity.
+Finally, \gringo~\cite{gescth07a} requires programs to be \emph{$\lambda$-restricted},
+a property more general than $\omega$-restrictedness but likewise applicable
+to programs over the same languages.
+We below reproduce the concept of $\lambda$-restrictedness,
+called level-restrictedness here.
+
+The idea underlying level-restrictedness is that the structure of a logic program~$\Pi$
+must be such that, for each rule $r\in\Pi$,
+the set of potentially applicable ground instances of~$r$ is known in advance.
+This is the case if, for each variable~$V\in\vars{r}$,
+we find an atom~$A$ in the body of~$r$ with
+$V\in\vars{A}$ (where $\vars{A}$ is that set of variables occurring in~$A$)
+such that the potentially derivable ground instances of~$A$ are limited (see below).
+In fact, with such an atom~$A$ at hand,
+the set of ground terms to which~$V$ needs to be instantiated is known a priori,
+and no further ground terms need to be considered.
+The sketched approach is justified by the $\subseteq$-minimality of answer sets
+in the sense of Section~\ref{subsec:semantics},
+as it allows us to restrict the attention to rules whose bodies are derivable w.r.t.\
+some answer set.
+Beyond outputting only ``relevant rules,''
+grounders can apply answer-set preserving simplifications,
+some of which are discussed in Section~\ref{subsec:strat}.
+
+We next provide a more precise account of level-restrictedness,
+where we start by considering normal programs~$\Pi$.
+For a rule $r\in\Pi$ and $V\in\vars{r}$,
+we let $\binders{V}{r}$ contain all elements of~$\pbody{r}$ that may be used to
+limit~$V$ to a certain subset of~$\ground{\mathcal{T}}$.
+Although some exceptions will be explained later on,
+% for normal rules~$r$ of form~(\ref{eq:normal:rule}),
+it is convenient to assume that $\binders{V}{r}$ consists of all atoms $A\in\pbody{r}$
+such that $V\in\vars{A}$.
+We then % consider level mappings $\lambda$ and 
+define~$\Pi$ as \emph{level-restricted}
+if there is some level mapping~$\lambda:\mathcal{P}\rightarrow\mathbb{N}$ such that,%
+\footnote{Recall that $\mathcal{P}$ is the set of all predicates that occur in~$\Pi$.}
+for every rule~$r\in\Pi$ and each $V\in\vars{r}$,
+there is some $A\in\binders{V}{r}$ such that $\lambda(p/i)>\lambda(q/j)$
+for predicate~$p/i$ of $\head{r}$ and predicate~$q/j$ of~$A$.
+Note that an appropriate~$\lambda$ (if it exists) is easy to determine,
+and \gringo\ exploits it to schedule the order in which rules will be instantiated.
+In fact, if rules are processed in the order of levels of their head predicates,
+ground  terms to be substituted for variables can be restricted
+on the basis of atoms identified as (un)derivable before.
+
+\begin{example}\label{ex:lambda}
+Consider the following logic program:
+%
+\lstinputlisting{examples/zigzag.lp}
+%
+The set~$\mathcal{P}$ of predicates contains
+\pred{zig}/$1$, \pred{zag}/$1$,
+\pred{zigzag}/$2$, and \pred{zagzig}/$2$.
+The rules~$r$ with head predicates \pred{zig}/$1$ or \pred{zag}/$1$ in Line~1 and~2
+are ground ($\vars{r}=\nolinebreak\emptyset$).
+Hence, the level-restrictedness condition is trivially satisfied for these rules,
+and we may map their head predicates by~$\lambda$ as follows:
+$\pred{zig}/1 \mapsto 0$ and $\pred{zag}/1 \mapsto 0$.
+For the rule in Line~3,
+we have to respect that
+$\lambda(\pred{zigzag}/2) > \lambda(\pred{zig}/1) = \lambda(\pred{zag}/1) =\nolinebreak 0$.
+We can thus choose $\pred{zigzag}/2\mapsto 1$.
+Also note that \code{\pred{zig}(\var{X})} and \code{\pred{zag}(\var{Y})} are
+the only atoms in $\binders{\var{X}}{}$ and $\binders{\var{Y}}{}$, respectively.
+Finally, we let $\pred{zagzig}/2\mapsto 2$ in view of the rule in Line~4,
+where \code{\pred{zigzag}(\var{X},\var{Y})} belongs to
+$\binders{\var{X}}{}$ and $\binders{\var{Y}}{}$.
+The total mapping
+\(
+\lambda=
+\{
+\pred{zig}/1 \mapsto 0,
+\pred{zag}/1 \mapsto 0,
+\pred{zigzag}/2\mapsto 1,
+\pred{zagzig}/2\mapsto 2
+\}
+\)
+witnesses that the above program is level-restricted.
+
+Note that the given mapping~$\lambda$ would no longer be appropriate
+if we add rule
+%
+\begin{lstlisting}[firstnumber=5]
+zigzag(X,Y) :- zagzig(Y,X).
+\end{lstlisting}
+%
+In fact, the program consisting of all rules in Line~1--5 is not
+level-restricted because Line~4 and~5 require
+$\lambda(\pred{zagzig}/2) > \lambda(\pred{zigzag}/2)$ and
+$\lambda(\pred{zigzag}/2) > \lambda(\pred{zagzig}/2)$, respectively.
+Clearly, there cannot be any level mapping~$\lambda$ jointly
+satisfying these two conditions.
+However, replacing Line~4 with
+%
+\begin{lstlisting}[firstnumber=4]
+zagzig(Y,X) :- zigzag(X,Y), zig(X), zag(Y).
+\end{lstlisting}
+%
+would restore level-restrictedness because
+\code{\pred{zig}(\var{X})} and \code{\pred{zag}(\var{Y})} belong to
+$\binders{\var{X}}{}$ and $\binders{\var{Y}}{}$, respectively.
+Instead of the previous~$\lambda$, the following level mapping could then be used:
+\(
+%\lambda=
+\{
+\pred{zig}/1 \mapsto 0,
+\pred{zag}/1 \mapsto 0,
+\pred{zagzig}/2\mapsto 1,
+\pred{zigzag}/2\mapsto 2
+\}
+\).\nolinebreak
+\eexample
+\end{example}
+
+The fundamental property of a level-restricted
+program is that it admits a finite equivalent ground program, not to be confused with
+the (full) ground instantiation because $\ground{\mathcal{T}}$ may still be infinite.
+Furthermore, level-restrictedness provides a syntactic criterion that is not
+difficult to check.
+In fact, \gringo\ performs such a check and accepts an input program if it is level-restricted.
+Generalizations of level-restrictedness to the rich input language of \gringo\
+will be discussed in Section~\ref{sec:language}.
+
+
+\subsection{Stratified Logic Programs}\label{subsec:strat}
+
+Another relevant restriction is stratification (cf.~\cite{minker88}),
+as every stratified (normal) program has a unique answer.
+Grounder \gringo\ exploits stratification in two respects:
+first, it fully evaluates stratified (sub)programs during grounding, and second,
+predicates that are subject to stratification can serve as domain predicates (see below).
+As with level-restrictedness, stratification can be characterized in terms
+of level mappings, here, witnessing the absence of recursion through ``\code{not}.''
+We start by introducing stratification on normal programs, and in a second step,
+we consider stratified subprograms.
+
+A normal program~$\Pi$ is \emph{stratified}
+if there is some level mapping~$\xi:\mathcal{P}\rightarrow\mathbb{N}$ such that,
+for every rule~$r\in\Pi$ and predicate~$p/i$ of~$\head{r}$, we have
+\begin{itemize}
+\item
+$\xi(p/i)\geq\max\{\xi(q/j) \mid q(t_1,\dots,t_j)\in\pbody{r}\}$ ~and
+\item
+$\xi(p/i)>   \max\{\xi(q/j) \mid q(t_1,\dots,t_j)\in\nbody{r}\}$.
+\end{itemize}
+%
+Observe that the levels of predicates in the positive body of a rule
+can be equal to the level of the head predicate,
+while the levels of predicates in the negative body must be strictly less.
+That is, positive recursion is allowed among predicates of the same level,
+but negative dependencies must obey a strict order.
+
+\begin{example}\label{ex:strat:prog}
+We construct a level mapping~$\xi$ for the predicates in the logic program:
+%
+\lstinputlisting{examples/strat.lp}
+%
+Observe that predicate \pred{bitter}/$1$ does not occur in the head on any rule, thus,
+we may map
+$\pred{bitter}/1 \mapsto 0$.
+Furthermore, the facts in Line~1 and the rule in Line~2 do not have
+a negative body, so that their head predicates can also be mapped to the lowest level:
+$\pred{fruit}/1 \mapsto 0$,
+$\pred{foul}/1 \mapsto 0$, and
+$\pred{natural}/1 \mapsto\nolinebreak 0$.
+We still have to map predicates \pred{healthy}/$1$ and \pred{tasty}/$1$.
+As \pred{foul}/$1$ occurs in the negative body of the rule in Line~3,
+we require 
+$\xi(\pred{healthy}/1)>\xi(\pred{foul}/1)=0$.
+We can thus choose 
+$\pred{healthy}/1 \mapsto 1$.
+Finally, the occurrence of \pred{healthy}/$1$ in the positive body of the rule in Line~4
+necessitates $\xi(\pred{tasty}/1)\geq\xi(\pred{healthy}/1)=1$, realized by
+$\pred{tasty}/1 \mapsto 1$.
+In this way, we also satisfy $\xi(\pred{tasty}/1)>\xi(\pred{bitter}/1)=0$.
+The obtained total mapping 
+$
+\xi
+=
+\{
+\pred{bitter}/1 \mapsto 0,\linebreak[1]
+\pred{fruit}/1 \mapsto 0,\linebreak[1]
+\pred{foul}/1 \mapsto 0,\linebreak[1]
+\pred{natural}/1 \mapsto 0,\linebreak[1]
+\pred{healthy}/1 \mapsto 1,\linebreak[1]
+\pred{tasty}/1 \mapsto 1
+\}
+$
+witnesses that the above program is stratified.
+As mentioned before, every stratified normal program has a unique answer set~$X$.
+\marginlabel{%
+By invoking\\
+  \code{\mbox{~}gringo -t \textbackslash\\\mbox{~}examples/strat.lp}
+the reader can observe that \gringo\ computes this unique answer set~$X$
+and represents it in terms of facts.}
+Here, we get
+$
+X
+=
+\{
+\code{\pred{fruit}(\const{apple})},\linebreak[1]
+\code{\pred{fruit}(\const{peach})},\linebreak[1]
+\code{\pred{foul}(\const{peach})},\linebreak[1]
+\code{\pred{natural}(\const{apple})},\linebreak[1]
+\code{\pred{natural}(\const{peach})},\linebreak[1]
+\code{\pred{healthy}(\const{apple})},\linebreak[1]
+\code{\pred{tasty}(\const{apple})}
+\}
+$.
+
+The program would no longer be stratified if we add rule
+%
+\begin{lstlisting}[firstnumber=5]
+bitter(X) :- healthy(X), not tasty(X).
+\end{lstlisting}
+%
+In fact, the conditions $\xi(\pred{tasty}/1)>\xi(\pred{bitter}/1)$
+(because of Line~4) and $\xi(\pred{bitter}/1)>\xi(\pred{tasty}/1)$
+(because of Line~5) cannot jointly be satisfied by any level mapping~$\xi$.
+Note that the non-stratified program containing all rules in Line~1--5
+has two answer sets: $X$ and
+$(X\setminus\{\code{\pred{tasty}(\const{apple})}\})\cup\{\code{\pred{bitter}(\const{apple})}\}$.
+\eexample
+\end{example}
+
+After dealing with stratified programs, we consider subprograms.
+For a given logic program~$\Pi$, some~$\pi\subseteq\Pi$ is a 
+\emph{stratified subprogram} of~$\Pi$ if
+$\pi$ is stratified and if
+no predicate~$p/i$ occurring in~$\pi$ belongs to the head of any rule in~$\Pi\setminus\pi$.
+As a matter of fact,
+a stratified normal subprogram~$\pi$ of~$\Pi$ has a unique answer set~$Y$ such that
+$Y\subseteq X$ for any answer set~$X$ of~$\Pi$~\cite{liftur94a}.
+A stratified subprogram~$\pi$ of~$\Pi$ is \emph{maximal} if every stratified
+subprogram of~$\Pi$ is contained in~$\pi$.
+Note that every logic program has a maximal stratified subprogram,
+which is also easy to determine.
+In fact, \gringo\ identifies the maximal stratified subprogram~$\pi$
+of a logic program~$\Pi$,
+and it fully evaluates the predicates~$p/i$ not belonging to the head of any rule in~$\Pi\setminus\pi$,
+which we call \emph{domain predicates}.
+In Section~\ref{subsec:gringo:condition},
+we will see that domain predicates can serve particular purposes during grounding.
+
+\begin{example}\label{ex:strat:max}
+As the program in Line~1--4 of Example~\ref{ex:strat:prog} is stratified,
+the maximal stratified subprogram consists of all rules.
+After adding the rule in Line~5,
+only the rules in Line~1--3 belong to the maximal stratified subprogram.
+The corresponding domain predicates are
+$\pred{fruit}/1$,
+$\pred{foul}/1$,
+$\pred{natural}/1$, and
+$\pred{healthy}/1$, 
+and the unique answer set for them is
+$
+Y
+=
+\{
+\code{\pred{fruit}(\const{apple})},\linebreak[1]
+\code{\pred{fruit}(\const{peach})},\linebreak[1]
+\code{\pred{foul}(\const{peach})},\linebreak[1]
+\code{\pred{natural}(\const{apple})},\linebreak[1]
+\code{\pred{natural}(\const{peach})},\linebreak[1]
+\code{\pred{healthy}(\const{apple})}
+\}
+$.
+\eexample
+\end{example}
+
+One can check that the program consisting of Line~1--5
+in Example~\ref{ex:strat:prog} is level-restricted, but not stratified.
+Conversely, program
+\begin{lstlisting}[numbers=none]
+nat(0).  nat(s(X)) :- nat(X).
+\end{lstlisting}
+is stratified (take $\xi=\{\pred{nat}/1 \mapsto 0\}$),
+but not level-restricted
+($\lambda(\pred{nat}/1)>\lambda(\pred{nat}/1)$
+ needed because of the second rule is impossible).
+In fact, the program has a unique but infinite answer set.
+Thus,
+the program cannot be translated to a finite equivalent ground program,
+which is why \gringo\ does not accept it.
+Rather, in the first place, a program must be level-restricted in order
+to ground it with \gringo.
+If level-restrictedness is granted,
+the maximal stratified subprogram is exploited in a second stage
+to optimize grounding and to make use of domain predicates.
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "guide"
+%%% End: 

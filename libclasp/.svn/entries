@@ -1,0 +1,77 @@
+10
+
+dir
+10355
+svn+ssh://rkaminski@svn.code.sf.net/p/potassco/code/branches/gringo-2.x/libclasp
+svn+ssh://rkaminski@svn.code.sf.net/p/potassco/code
+
+
+
+2010-06-04T16:16:23.089190Z
+2897
+humesikkins
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+c2a30a28-f9ed-4af8-86dc-e4e425da2d4f
+
+doc
+dir
+
+lib
+dir
+
+src
+dir
+
+CMakeLists.txt
+file
+
+
+
+
+2016-05-19T14:49:22.357990Z
+724176a732a0cc6f2443a10f5ad97b02
+2010-02-13T14:27:51.233528Z
+2283
+rkaminski
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+327
+
+clasp
+dir
+
+tests
+dir
+

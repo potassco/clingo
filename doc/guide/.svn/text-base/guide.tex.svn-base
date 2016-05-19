@@ -1,0 +1,62 @@
+\documentclass[a4paper,10pt]{article}
+
+%\usepackage[latin1]{inputenc}
+%\usepackage[nofancy]{svninfo}
+\usepackage[english]{babel}
+\usepackage{listings}
+\usepackage{helvet,times,courier}
+\usepackage{amsfonts,amssymb,amsmath,amsthm}
+\usepackage[dvipsnames,usenames]{color}
+\usepackage[colorlinks=false,pagebackref=true]{hyperref}
+\usepackage{breakurl}
+
+\input{macro}
+\sloppy
+\renewcommand{\dagger}{**}
+
+\author{%
+Martin Gebser \and 
+Roland Kaminski \and  
+Benjamin Kaufmann \and 
+Max Ostrowski \and  
+Torsten Schaub \and  
+Sven Thiele
+  \thanks{\texttt{\{gebser,kaminski,kaufmann,ostrowsk,torsten,sthiele\}@cs.uni-potsdam.de}}}
+\title{\bf A User's Guide to\\ \gringo, \clasp, \clingo, and \iclingo\
+  \thanks{Tools \gringo, \clasp, \clingo, and \iclingo\ are available at~\cite{potassco}.}}
+\date{\today}
+
+\begin{document}
+%\svnInfo $Id$
+\maketitle
+%\begin{center}\stamp\end{center}
+
+\input{abstract}
+
+\newpage
+\tableofcontents
+\listoffigures
+\lstlistoflistings
+\newpage
+
+\input{introduction}
+\input{background}
+\input{restrictions}
+\input{language}
+\input{examples}
+\input{options}
+\input{errors}
+\input{future}
+
+\newpage
+\phantomsection
+\addcontentsline{toc}{section}{References}
+\bibliographystyle{plain}
+\bibliography{guide}
+
+\newpage
+\begin{appendix}
+\input{lparse}
+\end{appendix}
+
+\end{document}

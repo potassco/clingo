@@ -1,0 +1,467 @@
+\section{Command Line Options}\label{sec:options}
+
+In this section, we briefly describe the meanings of
+command line options supported by
+\gringo\ (Section~\ref{subsec:opt:gringo}),
+\clingo\ (Section~\ref{subsec:opt:clingo}),
+\iclingo\ (Section~\ref{subsec:opt:iclingo}), and
+\clasp\ (Section~\ref{subsec:opt:clasp}).
+Each of these tools displays its available options
+when invoked with flag \code{--help} or \code{-h},
+respectively.%
+\footnote{%
+  Note that our description of command line options
+  is based on Version~2.0.2 of \gringo, \clingo, and \iclingo\
+  as well as Version~1.1.2 of \clasp.
+  While it is rather unlikely that command line options will
+  disappear in future versions,
+  additional ones might be introduced.
+  We will try to keep this document up-to-date,
+  but checking the help information shipped 
+  with a new version is always a good idea.}
+The approach of distinguishing long options, starting with ``\code{--},''
+and short ones of the form ``\code{-\textit{l}},''
+where \code{\textit{l}} is a letter,
+follows the GNU Coding Standards~\cite{GNUcoding}.
+For obvious reasons,
+short forms are made available only for the most common (long) options.
+Some options, also called flags, do not take any argument,
+while others require arguments.
+An argument \code{\textit{arg}} is provided to a (long) option \code{\textit{opt}}
+by writing 
+``\code{--\textit{opt}=\textit{arg}}'' or
+``\code{--\textit{opt} \textit{arg}},''
+while only
+``\code{-\textit{l} \textit{arg}}''
+is accepted for a short option \code{\textit{l}}.
+For each command line option,
+we below indicate whether it requires an argument,
+and if so, we also describe its meaning.
+
+
+\subsection{\gringo\ Options}\label{subsec:opt:gringo}
+
+An abstract invocation of \gringo\ looks as follows:
+%
+\begin{lstlisting}[numbers=none]
+gringo [ options | filenames ]
+\end{lstlisting}
+%
+Note that options and filenames do not need to be passed to \gringo\
+in any particular order.
+If neither a filename nor an option that makes \gringo\ exit (see below)
+is provided, \gringo\ reads from the standard input.
+In the following, we list and describe the options accepted by \gringo\
+along with their particular arguments (if required):
+%
+\begin{description}
+\item[\code{--help,-h}]~\\
+Print help information and exit.
+\item[\code{--version,-v}]~\\
+Print version information and exit.
+\item[\code{--syntax}]~\\
+Print syntax information (about the input language) and exit.
+\item[\code{--stats}]~\\
+Print (extended) statistic information before termination.
+\item[\code{--verbose,-V}]~\\
+Print additional (progress) information during computation.
+\item[\code{--debug}]~\\
+Print internal representations of rules during grounding.
+(This may be used to identify either semantic errors in an input program or
+ performance bottlenecks.)
+\item[\code{--const,-c \textit{c}=\textit{t}}]~\\
+Replace occurrences (in the input program) of a constant~\code{\textit{c}}
+with a term~\code{\textit{t}}.
+\item[\code{--text,-t}]~\\
+Output ground program in (human-readable) text format.
+\item[\code{--lparse,-l}]~\\
+Output ground program in \lparse's numerical format~\cite{lparseManual}.
+\item[\code{--aspils,-a 1|2|3|4|5|6|7}]~\\
+Output ground program in \emph{ASPils} format~\cite{gejaosscth08a},
+where the argument specifies one of the seven normal forms
+defined in~\cite{gejaosscth08a}.
+\item[\code{--ground,-g}]~\\
+Enable lightweight mode for processing a ground input program.
+(This option is recommended to 
+ omit unnecessary overhead if the input program is already ground,
+ but it leads to a syntax error (cf.\ Section~\ref{subsec:error}) otherwise.)
+\item[\code{--bindersplit yes|no}]~\\
+Enable or disable binder-splitting~\cite{gescth07a} in the instantiation of rules.
+(This option is included mainly for comparison purposes, and generally,
+ it is recommended to keep the default argument value \code{yes}.)
+\item[\code{--ifixed \textit{n}}]~\\
+Use \code{\textit{n}} as fix step number if the input program
+contains \const{\#cumulative} or \const{\#volatile} statements.
+(This option permits the handling of programs written for \iclingo\
+ in a traditional single pass computation.)
+\item[\code{--ibase}]~\\
+Process only the static part (that can be initiated by a \const{\#base} statement)
+of an input program.
+(This option may be used to investigate the basic setting of a problem
+ including some mutable bound.)
+\end{description}
+%
+The default command line when invoking \gringo\ is as follows:
+%
+\begin{lstlisting}[numbers=none]
+gringo --lparse --bindersplit=yes
+\end{lstlisting}
+That is, \gringo\ usually outputs a ground program in \lparse's numerical format,
+dealt with by various solvers (cf.\ Section~\ref{subsec:asp}),
+and it performs binder-splitting in rule instantiation.
+
+
+\subsection{\clingo\ Options}\label{subsec:opt:clingo}
+
+ASP system \clingo\ combines grounder \gringo\ and solver \clasp\
+via an internal interface.
+An abstract invocation of \clingo\ looks as follows:
+%
+\begin{lstlisting}[numbers=none]
+clingo [ number | options | filenames ]
+\end{lstlisting}
+%
+A numerical argument is permitted for backward compatibility to
+the usage of solver \smodels~\cite{siniso02a},
+where it specifies the maximum number of answer sets to be computed
+(\code{0}~standing for all answer sets).
+As with \gringo, a number, options, and filenames do not need to be passed to \clingo\
+in any particular order.
+Given that \clingo\ combines \gringo\ and \clasp,
+it accepts all options described in the previous section
+and in Section~\ref{subsec:opt:clasp}.
+In particular, (long) options \code{--help}, \code{--version}, and
+\code{--syntax} make \clingo\ print the desired information and exit,
+while \code{--text}, \code{--lparse}, and \code{--aspils}
+instruct \clingo\ to output a ground program (rather than solving it) like \gringo.
+If neither a filename nor an option that makes \clingo\ exit
+(see Section~\ref{subsec:opt:gringo}) is provided, \clingo\ reads from the standard input.
+Beyond the options described in Section~\ref{subsec:opt:gringo} and~\ref{subsec:opt:clasp},
+\clingo\ has a single additional option:
+%
+\begin{description}
+\item[\code{--clasp}]~\\
+Run \clingo\ as a plain solver (using embedded \clasp).
+\end{description}
+%
+Finally, the default command line when invoking \clingo\
+consists of all \clasp\ defaults (cf.\ Section~\ref{subsec:opt:clasp})
+and option \code{--bindersplit=yes} of \gringo.
+
+
+\subsection{\iclingo\ Options}\label{subsec:opt:iclingo}
+
+Incremental ASP system \iclingo\ extends \clingo\ by interleaving
+grounding and solving for problems including a mutable bound,
+and an abstract invocation of \iclingo\ is as with \clingo:
+%
+\begin{lstlisting}[numbers=none]
+iclingo [ number | options | filenames ]
+\end{lstlisting}
+%
+The external behavior of \iclingo\ is similar to \clingo,
+described in the previous section, except for the fact that
+option \code{--ifixed} is ignored by \iclingo\ if not run as a grounder
+(via one of (long) options \code{--text}, \code{--lparse}, or \code{--aspils}).
+However, option \code{--clingo} (see below) may be used to let \iclingo\
+work like \clingo.
+The additional options of \iclingo\ focus on customizing
+incremental computations:
+%
+\begin{description}
+\item[\code{--istats}]~\\
+Print statistic information for each incremental solving step.
+\item[\code{--imin \textit{n}}]~\\
+Perform at least \code{\textit{n}} incremental solving steps before termination.
+(This may be used to force steps regardless of the termination condition
+ set via \code{--istop}.)
+\item[\code{--imax \textit{n}}]~\\
+Perform at most \code{\textit{n}} incremental solving steps before termination.
+(This may be used to limit steps regardless of the termination condition
+ set via \code{--istop}.)
+\item[\code{--istop SAT|UNSAT}]~\\
+Terminate after an incremental solving step 
+in which some (\code{SAT}) or no (\code{UNSAT})
+answer set has been found.
+\item[\code{--iquery \textit{n}}]~\\
+Start with incremental solving at step number~\code{\textit{n}}.
+(This may be used to skip some solving steps,
+ still accumulating static and cumulative rules for these steps.)
+\item[\code{--ilearnt keep|forget}]~\\
+Maintain (\code{keep}) or delete (\code{forget}) learnt constraints
+in-between incremental solving steps.
+(This option configures the behavior of embedded \clasp.)
+\item[\code{--iheuristic keep|forget}]~\\
+Maintain (\code{keep}) or delete (\code{forget}) heuristic information
+in-between incremental solving steps.
+(This option configures the behavior of embedded \clasp.)
+\item[\code{--clingo}]~\\
+Run \iclingo\ as a non-incremental ASP system (like \clingo).
+\end{description}
+%
+As with \clingo, the default command line when invoking \iclingo\
+consists of all \clasp\ defaults, explained in the next section,
+option \code{--bindersplit=yes} of \gringo\ (cf.\ Section~\ref{subsec:opt:gringo}),
+along with \code{--istop=SAT}, \code{--iquery=1}, \code{--ilearnt=keep}, and
+\code{--iheuristic=forget}.
+That is, incremental solving starts at step number~\code{1} and stops
+after a step in which some answer set has been found.
+In-between incremental solving steps, embedded \clasp\ maintains learnt constraints
+but deletes heuristic information.
+
+
+\subsection{\clasp\ Options}\label{subsec:opt:clasp}
+
+Stand-alone \clasp~\cite{gekanesc07b} is a solver for ground programs in
+\lparse's numerical format~\cite{lparseManual}.
+An abstract invocation of \clasp\ looks as follows:
+%
+\begin{lstlisting}[numbers=none]
+clasp [ number | options ]
+\end{lstlisting}
+%
+As with \clingo\ and \iclingo,
+a numerical argument specifies the maximum number of answer sets to be computed,
+where \code{0}~stands for all answer sets.
+(The number of requested answer sets can likewise be set via long option
+ \code{--number} or its short form~\code{-n}.)
+If neither a filename (via long option \code{--file} or its short form \code{-f})
+nor an option that makes \clasp\ exit (see below) is provided,
+\clasp\ reads from the standard input.
+In fact, it is typical to use \clasp\ in a pipe with \gringo\ in the following way:
+\begin{lstlisting}[numbers=none]
+gringo [ ... ] | clasp [ ... ]
+\end{lstlisting}
+In such a pipe, \gringo\ instantiates an input program and outputs the ground
+rules in \lparse's numerical format,
+which is then consumed by \clasp\ that computes and outputs answer sets.
+Note that \clasp\ offers plenty of options to configure its behavior.
+We thus categorize them according to their functionalities in the following description.
+
+
+\subsubsection{General Options}\label{subsec:clasp:general}
+
+We below group general options of \clasp,
+used to configure its global behavior.
+%
+\begin{description}
+\item[\code{--help,-h}]~\\
+Print help information and exit.
+\item[\code{--version,-v}]~\\
+Print version information and exit.
+\item[\code{--stats}]~\\
+Print (extended) statistic information before termination.
+\item[\code{--file,-f \textit{filename}}]~\\
+Read from file \code{\textit{filename}} (rather than from the standard input).
+\item[\code{--number,-n \textit{n}}]~\\
+Compute at most~\code{\textit{n}} answer sets,
+$\code{\textit{n}}=\code{0}$ standing for compute all answer sets.
+\item[\code{--quiet,-q}]~\\
+Do not print computed answer sets.
+(This is useful for benchmarking.)
+\item[\code{--seed \textit{n}}]~\\
+Use seed~\code{\textit{n}} (rather than~\code{1}) for random number generator.
+\item[\code{--brave}]~\\
+Compute the brave consequences (union of all answer sets) of a logic program.
+\item[\code{--cautious}]~\\
+Compute the cautious consequences (intersection of all answer sets) of a logic program.
+\item[\code{--opt-all}]~\\
+Compute all optimal answer sets (cf.\ Section~\ref{subsec:gringo:optimize}).
+(This is implemented by enumerating~\cite{gekanesc07c} answer sets that are not worse
+ than the best one found so far.)
+\item[\code{--opt-restart}]~\\
+Restart the search from scratch (rather than doing enumeration~\cite{gekanesc07c})
+after finding a provisionally optimal answer set.
+(This may speed up finding the optimum.)
+\item[\code{--opt-value \textit{n1}[,\textit{n2},\textit{n3}...]}]~\\
+Initialize objective function(s) to minimize with \code{\textit{n1}[,\textit{n2},\textit{n3}...]}.
+Depending on the reasoning mode,
+only equitable or strictly better answer sets are computed.
+\item[\code{--supp-models}]~\\
+Compute supported models~\cite{apblwa88a} (rather than answer sets).
+\item[\code{--dimacs}]~\\
+Compute models of a propositional formula in DIMACS/CNF format~\cite{dimacs}.
+\item[\code{--trans-ext all|choice|weight|no}]~\\
+Compile extended rules~\cite{siniso02a} into normal rules of form (\ref{eq:normal:rule}).
+Arguments \code{choice} and \code{weight}
+state that all ``choice rules'' or all ``weight rules,'' respectively,
+are to be compiled into normal rules,
+while \code{all} means that both and \code{no} that none of them
+are subject to compilation.
+\item[\code{--eq \textit{n}}]~\\
+Run equivalence reasoning~\cite{gekanesc08a} for \code{\textit{n}} iterations,
+$\code{\textit{n}}=\code{-1}$ and $\code{\textit{n}}=\code{0}$ standing for
+run to fixpoint or do not run equivalence reasoning, respectively.
+\item[\code{--sat-prepro yes|no|\textit{n1}[,\textit{n2},\textit{n3}]}]~\\
+Run \emph{SatElite}-like preprocessing~\cite{eenbie05a}
+for at most~\code{\textit{n1}} iterations 
+($\code{\textit{n1}}=\code{-1}$ standing for run to fixpoint),
+using cutoff~\code{\textit{n2}} for variable elimination
+($\code{\textit{n2}}=\code{-1}$ standing for no cutoff), and
+for no longer than~\code{\textit{n3}} seconds
+($\code{\textit{n3}}=\code{-1}$ standing for no time limit).
+Arguments \code{yes} and \code{no} mean
+$\code{\textit{n1}}=\code{\textit{n2}}=\code{\textit{n3}}=\code{-1}$
+(that is, run to fixpoint)
+or that \emph{SatElite}-like preprocessing is not to be run at all, respectively.
+\item[\code{--rand-watches yes|no}]~\\
+Initially choose watched literals randomly (with argument \code{yes})
+or systematically (with argument \code{no}).
+\end{description}
+%
+Having introduced the general options of \clasp,
+let us note that the options below \code{--dimacs} in the above list
+are quite low-level and more or less an issue of fine-tuning.
+More important is the fact that virtually all optimization functionalities
+are only provided by \clasp\ if the maximum number of answer sets to be
+computed is set to~\code{0} (standing for all answer sets),
+as it is likely to stop search too early otherwise.
+The same applies to computing either brave or cautious consequences
+(via one of the flags \code{--brave} and \code{--cautious}).
+
+
+\subsubsection{Search Options}\label{subsec:clasp:search}
+
+The options listed below can be used to configure the main search
+strategies of \clasp.
+%
+\begin{description}
+\item[\code{--lookback yes|no}]~\\
+Enable or disable lookback techniques (cf.\ Section~\ref{subsec:clasp:back}).
+(This option is included mainly for comparison purposes, and generally,
+ it is recommended to keep the default argument value \code{yes}.)
+\item[\code{--lookahead atom|body|hybrid|auto|no}]~\\
+Apply failed-literal detection~\cite{freeman95}
+to atoms (with argument \code{atom}),
+to rule bodies (with argument \code{body}),
+to atoms and rule bodies like in \nomorepp~\cite{angelinesc05c} (with argument \code{hybrid}),
+or let \clasp\ pick one of the previous three possibilities
+based on program properties (with argument \code{auto}).
+Failed-literal detection is switched off via argument~\code{no}.
+\item[\code{--initial-lookahead}]~\\
+Apply failed-literal detection (to atoms) in preprocessing,
+but not (necessarily) during search.
+\item[\code{--heuristic Berkmin|Vmtf|Vsids|Unit|None}]~\\
+Use \emph{BerkMin}-like decision heuristic~\cite{golnov02a}
+(with argument~\code{Berkmin}),
+\emph{Siege}-like decision heuristic~\cite{ryan04a}
+(with argument~\code{Vmtf}),
+\emph{Chaff}-like decision heuristic~\cite{momazhzhma01a}
+(with argument~\code{Vsids}),
+\emph{Smodels}-like decision heuristic~\cite{siniso02a}
+(with argument~\code{Unit}),
+or (arbitrary) static variable ordering
+(with argument~\code{None}).
+\item[\code{--rand-freq \textit{p}}]~\\
+Perform random (rather than heuristic) decisions
+with probability $0\leq\code{\textit{p}}\leq 1$.
+\item[\code{--rand-prob yes|no|\textit{n1},\textit{n2}}]~\\
+Run \emph{Satzoo}-like random probing~\cite{een03a},
+initially performing~\code{\textit{n1}} passes of up to~\code{\textit{n2}} conflicts
+making random decisions.
+Arguments \code{yes} and \code{no} mean
+$\code{\textit{n1}}=\code{50},\linebreak[1]\code{\textit{n2}}=\code{20}$
+or that random probing is not to be run at all, respectively.
+\end{description}
+%
+Let us note that switching the above options can have dramatic effects
+(both positively and negatively) on the search performance of \clasp.
+Sticking to the default argument values \code{yes} for \code{--lookback}
+and \code{no} for \code{--lookahead} is generally recommended.
+If nonetheless performance bottlenecks are observed,
+it is worthwhile to give \code{Vmtf} and \code{Vsids} for \code{--heuristic}
+a try, in particular,
+when the program under consideration is huge 
+but scarcely yields conflicts during search.
+
+
+\subsubsection{Lookback Options}\label{subsec:clasp:back}
+
+The following options have an effect only if \code{--lookback}
+is turned on, that is, its argument value must be \code{yes}.
+%
+\begin{description}
+\item[\code{--restarts,-r \textit{n1}[,\textit{n2},\textit{n3}]|no}]~\\
+Choose and parameterize a restart policy.
+If a single argument \code{\textit{n1}} is provided,
+\clasp\ restarts search from scratch after a number of conflicts
+determined by a universal sequence~\cite{lusizu93a}, where \code{\textit{n1}}
+constitutes the base unit.
+If two arguments \code{\textit{n1},\textit{n2}} are specified,
+\clasp\ runs a geometric sequence~\cite{eensor03a},
+restarting every $\code{\textit{n1}}*\code{\textit{n2}}^i$ conflicts,
+where~$i$ is the number of restarts performed so far.
+Given three arguments \code{\textit{n1},\textit{n2},\textit{n3}},
+\clasp\ repeats geometric restart sequence $\code{\textit{n1}}*\code{\textit{n2}}^i$
+when it reaches an outer limit~$\code{\textit{n1}}*\code{\textit{n3}}^j$~\cite{biere08a},
+where~$j$ counts how often the outer limit has been hit so far.
+Finally, restarts are disabled via argument~\code{no}.
+\item[\code{--local-restarts}]~\\
+Count conflicts locally~\cite{ryvstr08a} (rather than globally)
+for deciding when to restart.
+\item[\code{--bounded-restarts}]~\\
+Perform bounded restarts in answer set enumeration~\cite{gekanesc07c}.
+\item[\code{--save-progress}]~\\
+Use cached (rather than heuristic) decisions~\cite{pipdar07a} if available.
+\item[\code{--shuffle,-s \textit{n1},\textit{n2}}]~\\
+Shuffle internal data structures after~\code{\textit{n1}} restarts
+($\code{\textit{n1}}=\code{0}$ standing for no shuffling)
+and then reshuffle every~\code{\textit{n2}} restarts 
+($\code{\textit{n2}}=\code{0}$ standing for no reshuffling).
+\item[\code{--deletion,-d \textit{n1}[,\textit{n2},\textit{n3}]}]~\\
+Limit the number of learnt constraints to 
+$\min\{(c/\code{\textit{n1}})*\code{\textit{n2}}^i,c*\code{\textit{n3}}\}$,
+where~$c$ is the initial number of constraints and~$i$ is the number of restarts
+performed so far.
+\item[\code{--reduce-on-restart}]~\\
+Delete a portion of learnt constraints after every restart.
+\item[\code{--strengthen bin|tern|all|no}]~\\
+Check binary (with argument \code{bin}),
+binary and ternary (with argument \code{tern}), or 
+all (with argument \code{all}) antecedents for
+self-subsumption~\cite{eenbie05a}
+in order to strengthen a constraint to learn.
+Strengthening is disabled via argument~\code{no}.
+\item[\code{--recursive-str}]~\\
+Recursively apply strengthening, as proposed in~\cite{soreen05a}.
+\item[\code{--loops common|distinct|shared|no}]~\\
+Learn loop nogood~\cite{gekanesc07a} per atom in an unfounded set~\cite{gerosc91a}
+(with argument \code{common}),
+shrink unfounded set before learning another loop nogood
+(with argument \code{distinct}),
+learn loop formula~\cite{linzha04a} for atoms in an unfounded set
+(with argument \code{shared}),
+or do not record unfounded sets at all
+(with argument \code{no}).
+\item[\code{--contraction \textit{n}}]~\\
+Temporarily truncate learnt constraints over more than \code{\textit{n}} variables~\cite{ryan04a}.
+\end{description}
+%
+As with search options described in the previous section,
+switching lookback options may have a significant impact on the
+performance of \clasp.
+In particular, we suggest trying the universal restart sequence~\cite{lusizu93a}
+with different base units~\code{\textit{n1}} or even disabling restarts
+(both via (long) option \code{--restarts} or its short form~\code{-r})
+in case that performance needs to be improved.
+
+Finally, let us consider the default command line of \clasp:
+%
+\begin{lstlisting}[numbers=none]
+clasp 1 --seed=1 --trans-ext=no --eq=5 --sat-prepro=no
+        --rand-watches=yes --lookback=yes --lookahead=no
+        --heuristic=Berkmin --rand-freq=0.0 --rand-prob=no
+        --restarts=100,1.5 --shuffle=0,0 --deletion=3.0,1.1,3.0
+        --strengthen=all --loops=common --contraction=250
+\end{lstlisting}
+%
+Considering only the most significant defaults,
+numeric argument~\code{1} instructs \clasp\ to terminate immediately
+after finding an answer set,
+and with \code{--lookback=yes}, \code{--restarts=100,1.5} lets \clasp\ apply a geometric
+restart policy.
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "guide"
+%%% End: 

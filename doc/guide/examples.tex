@@ -1,0 +1,530 @@
+\section{Examples}\label{sec:examples}
+
+We exemplarily solve the following problems in ASP:
+$N$-Coloring (Section~\ref{subsec:ex:color}),
+Traveling Salesperson (Section~\ref{subsec:ex:tsp}), and
+Blocks-World Planning (Section~\ref{subsec:ex:block}).
+While the first problem could likewise be solved within neighboring paradigms,
+the second one requires checking reachability,
+something that is rather hard to encode in either
+Boolean Satisfiability~\cite{bihemawa08a} or
+Constraint Programming~\cite{robewa06a}.
+The third problem coming from the area of planning
+illustrates incremental solving with \iclingo.
+ 
+
+\subsection{$N$-Coloring}\label{subsec:ex:color}
+
+As already mentioned in Section~\ref{subsec:asp},
+it is custom in ASP to provide a \emph{uniform}
+problem definition~\cite{martru99a,niemela99a,schlipf95a}.
+We follow this methodology and separate the encoding
+from an instance of the following problem:
+given a (directed) graph, decide whether each node can be assigned
+one of~$N$ colors such that any pair of adjacent nodes is colored differently.
+Note that this problem is NP-complete for~$N\geq 3$
+(see, e.g.,~\cite{papadimitriou94a}),
+and thus it seems unlikely that a worst-case polynomial algorithm
+can be found.
+In view of this,
+it is convenient to reduce the particular problem to
+a declarative problem solving paradigm like ASP,
+where efficient off-the-shelf tools like \gringo\ and \clasp\
+are ready to solve the problem reasonably well.
+Such a reduction is now exemplified.
+
+\subsubsection{Problem Instance}\label{subsec:color:instance}
+\input{figures/graph}
+
+We consider directed graphs specified via facts over predicates
+\pred{node}/$1$ and \pred{edge}/$2$.%
+\footnote{%
+  Directedness is not an issue in $N$-Coloring,
+  but we will reuse our directed example graph in Section~\ref{subsec:ex:tsp}.}
+The graph shown in Figure~\ref{fig:graph} is represented by the following set of facts:
+%
+\lstinputlisting{examples/graph.lp}
+%
+Recall from Section~\ref{subsec:lang:gringo} that~``\code{..}'' and~``\code{;}''
+in the head expand to multiple rules, which are facts here.
+Thus, the instance contains six nodes and 17 directed edges.
+
+\subsubsection{Problem Encoding}\label{subsec:color:encoding}
+
+We now proceed by encoding $N$-coloring via non-ground rules that are
+independent of particular instances.
+Typically, an encoding consists of a \emph{Generate}, a \emph{Define},
+and a \emph{Test} part~\cite{lifschitz02a}.
+As $N$-Coloring has a rather simple pattern, the following encoding does
+not contain any Define part:
+%
+\lstinputlisting{examples/color.lp}
+%
+In Line~2, we use the \code{\#const} declarative,
+described in Section~\ref{subsec:gringo:meta},
+to install~\const{3} as default value for constant~\const{n} that is to be replaced
+with the number~$N$ of colors.
+(The default value can be overridden by invoking \gringo\ with option
+ \code{--const n=$N$}.)
+The Generate rule in Line~4 makes use of the \const{count} aggregate
+(cf.\ Section~\ref{subsec:gringo:aggregate}).
+For our example graph and~\const{1} substituted for~\var{X},
+we obtain the following ground rule:%
+\marginlabel{%
+  The full ground program is obtained by invoking:\\
+  \code{\mbox{~}gringo -t \textbackslash\\
+    \mbox{~}examples/color.lp \textbackslash\\
+    \mbox{~}examples/graph.lp}}
+%
+\begin{lstlisting}[numbers=none]
+1 { color(1,1), color(1,2), color(1,3) } 1.
+\end{lstlisting}
+%
+Note that~\code{\pred{node}(\const{1})} has been removed from the body,
+as it is derived via a corresponding fact,
+and similar ground instances are obtained for the other nodes~\const{2} to~\const{6}.
+Furthermore, for each instance of \pred{edge}/2,
+we obtain~\code{n} ground instances of the integrity constraint in Line~6,
+prohibiting that the same color~\var{C} is assigned to the adjacent nodes.
+Given~\code{\const{n}=\const{3}},
+we get the following ground instances due to \code{\pred{edge}(\const{1},\const{2})}:
+%
+\begin{lstlisting}[numbers=none]
+:- color(1,1), color(2,1).
+:- color(1,2), color(2,2).
+:- color(1,3), color(2,3).
+\end{lstlisting}
+%
+Again note that \code{\pred{edge}(\const{1},\const{2})},
+derived via a fact, has been removed from the body.
+
+\subsubsection{Problem Solution}\label{subsec:color:solution}
+\input{figures/color}
+
+Provided that a given graph is colorable with~\const{n} colors,
+a solution can be read off an answer set of the program consisting
+of the instance and the encoding.
+For the graph in Figure~\ref{fig:graph},
+the following answer set can be computed:%
+\marginlabel{%
+  To find an answer set, invoke:\\
+  \code{\mbox{~}gringo \textbackslash\\
+        \mbox{~}examples/color.lp \textbackslash\\
+        \mbox{~}examples/graph.lp |\rlap{\:\textbackslash}\\
+        \mbox{~}clasp}\\
+  or alternatively:\\
+  \code{\mbox{~}clingo \textbackslash\\
+        \mbox{~}examples/color.lp \textbackslash\\
+        \mbox{~}examples/graph.lp}}
+%
+\begin{lstlisting}[numbers=none]
+Answer: 1
+... color(1,2) color(2,1) color(3,1) color(4,3) color(5,2) color(6,3)
+\end{lstlisting}
+%
+Note that we have omitted the six instances of \pred{node}/$1$ and the
+17 instances of \pred{edge}/$2$ in order to emphasize the actual solution,
+which is depicted in Figure~\ref{fig:color}.
+Such output projection can also be specified within a logic program file by
+using the declaratives \code{\#hide} and \code{\#show},
+described in Section~\ref{subsec:gringo:meta}.
+
+
+\subsection{Traveling Salesperson}\label{subsec:ex:tsp}
+
+We now consider the well-known Traveling Salesperson Problem (TSP),
+where the task is to decide whether there is a round trip that visits
+each node in a graph exactly once (viz., a Hamiltonian cycle) and whose
+accumulated edge costs must not exceed some budget~$B$.
+We tackle a slightly more general variant of the problem by not
+a priori fixing~$B$ to any integer.
+Rather,
+we want to compute a minimum budget~$B$ along with a round trip of cost~$B$.
+This problem is FP$^\textrm{NP}$-complete (cf.~\cite{papadimitriou94a}),
+that is, it can be solved with a polynomial number of queries to an NP-oracle.
+As with $N$-Coloring,
+we provide a uniform problem definition by separating the encoding from instances.
+
+\subsubsection{Problem Instance}\label{subsec:tsp:instance}
+\input{figures/costs}
+
+We reuse graph specifications in terms of predicates \pred{node}/$1$ and \pred{edge}/$2$
+as in Section~\ref{subsec:color:instance}.
+In addition, facts over predicate \pred{cost}/$3$ are used to define edge costs:
+%
+\lstinputlisting{examples/costs.lp}
+%
+Figure~\ref{fig:costs} shows the (directed) graph from Figure~\ref{fig:graph}
+along with the associated edge costs.
+Symmetric edges have the same costs here,
+but differing costs would also be possible.
+
+
+\subsubsection{Problem Encoding}\label{subsec:tsp:encoding}
+
+The first subproblem consists of describing a Hamiltonian cycle,
+constituting a candidate for a minimum-cost round trip.
+Using the Generate-Define-Test pattern~\cite{lifschitz02a},
+we encode this subproblem via the following non-ground rules:
+%
+\lstinputlisting{examples/ham.lp}
+%
+The Generate rules in Line~2 and~3 assert that every node must have
+exactly one outgoing and exactly one incoming edge, respectively,
+belonging to the cycle.
+By inserting the available edges, for node~\const{1},
+Line~2 and~3 are grounded as follows:%
+\marginlabel{%
+  The full ground program is obtained by invoking:\\
+  \code{\mbox{~}gringo -t \textbackslash\\
+    \mbox{~}examples/ham.lp \textbackslash\\
+    \mbox{~}examples/min.lp \textbackslash\\
+    \mbox{~}examples/costs.lp \textbackslash\\
+    \mbox{~}examples/graph.lp}}
+%
+\begin{lstlisting}[numbers=none]
+1 { cycle(1,2), cycle(1,3), cycle(1,4) } 1.
+1 { cycle(3,1), cycle(4,1) } 1.
+\end{lstlisting}
+%
+Observe that the first rule groups all outgoing edges of node~\const{1},
+while the second one does the same for incoming edges.
+We proceed by considering the Define rules in Line~5 and~6,
+which recursively check whether nodes are reached by a cycle candidate
+produced via the Generate part.
+Note that the rule in Line~5 builds on the assumption that the cycle
+``starts'' at node~\code{1}, that is,
+any successor~\var{Y} of~\code{1} is reached by the cycle.
+The second rule in Line~6 states that, from a reached node~\var{X},
+an adjacent node~\var{Y} can be reached via a further edge in the cycle.
+Note that this definition admits positive recursion
+among the ground instances of \pred{reached}/$1$,
+in which case a ground program is called \emph{non-tight}~\cite{erdlif03a,fages94a}.
+The ``correct'' treatment of (positive) recursion due to the justification
+requirement w.r.t.\ the reduct (cf.\ Section~\ref{subsec:semantics})
+is a particular feature of answer set semantics,
+which is hard to mimic in either
+Boolean Satisfiability~\cite{bihemawa08a} or
+Constraint Programming~\cite{robewa06a}.
+In our present problem, this feature makes sure that all nodes are reached
+by a global cycle from node~\code{1}, thus, excluding isolated subcycles.
+In fact, the Test in Line~8 stipulates that every node in the given graph
+is reached, that is, the instances of \pred{cycle}/$2$ in an answer set
+must be the edges of a Hamiltonian cycle.%
+\marginlabel{%
+  To compute the six Hamiltonian cycles
+  for the graph in Figure~\ref{fig:graph}, invoke:\\
+  \code{\mbox{~}gringo \textbackslash\\
+        \mbox{~}examples/ham.lp \textbackslash\\
+        \mbox{~}examples/graph.lp |\rlap{\:\textbackslash}\\
+        \mbox{~}clasp -n 0}\\
+  or alternatively:\\
+  \code{\mbox{~}clingo -n 0 \textbackslash\\
+        \mbox{~}examples/ham.lp \textbackslash\\
+        \mbox{~}examples/graph.lp}}
+Finally, the additional Display part in Line~10 and~11 states that answer
+sets should be projected to instances of \pred{cycle}/$2$, as only they
+describe a solution.
+We have so far not considered edge costs,
+and answer sets for the above 
+part of the encoding correspond to Hamiltonian cycles,
+that is, candidates for a minimum-cost round trip.
+
+In order to minimize costs,
+we add the following optimization statement:
+%
+\lstinputlisting[firstnumber=13]{examples/min.lp}
+%
+Here, edges belonging to the cycle are weighted according to their costs.
+After grounding, the minimization in Line~14 ranges over~17 instances
+of \pred{cycle}/$2$, one for each weighted edge in Figure~\ref{fig:costs}.
+
+\subsubsection{Problem Solution}\label{subsec:tsp:solution}
+\input{figures/tsp}
+
+Finally, we explain how the unique minimum-cost round trip
+(depicted in Figure~\ref{fig:tsp}) can be computed.
+The catch is that we are now interested in optimal answer sets,
+rather than in arbitrary ones.
+In order to determine the optimum, we can start by gradually
+decreasing the costs associated to answer sets
+until we cannot find a strictly better one anymore.
+To this end, it is important to invoke \clasp\ (or \clingo)
+with option ``\code{-n~0}'' (cf.\ Section~\ref{subsec:opt:clasp}),
+making it enumerate successively better answer sets
+w.r.t.\ the provided optimization statements (cf.\ Section~\ref{subsec:gringo:optimize}).
+Any answer set is printed as soon as it has been computed,
+and the last one is optimal.
+If there are multiple optimal answer sets, an arbitrary one among them is computed.
+For the graph in Figure~\ref{fig:costs},
+the optimal answer set (cf.\ Figure~\ref{fig:tsp}) is unique,
+and its computation can proceed as follows:%
+\marginlabel{%
+  To compute the minimum-cost round trip
+  for the graph in Figure~\ref{fig:costs}, invoke:\\
+  \code{\mbox{~}gringo \textbackslash\\
+    \mbox{~}examples/ham.lp \textbackslash\\
+    \mbox{~}examples/min.lp \textbackslash\\
+    \mbox{~}examples/costs.lp \textbackslash\\
+    \mbox{~}examples/graph.lp |\rlap{\:\textbackslash}\\
+    \mbox{~}clasp -n 0}\\
+  or alternatively:\\
+  \code{\mbox{~}clingo -n 0 \textbackslash\\
+    \mbox{~}examples/ham.lp \textbackslash\\
+    \mbox{~}examples/min.lp \textbackslash\\
+    \mbox{~}examples/costs.lp \textbackslash\\
+    \mbox{~}examples/graph.lp}}
+%
+\begin{lstlisting}[numbers=none]
+Answer: 1
+cycle(1,3) cycle(2,4) cycle(3,5) \
+cycle(4,1) cycle(5,6) cycle(6,2)
+Optimization: 13
+Answer: 2
+cycle(1,2) cycle(2,5) cycle(3,4) \
+cycle(4,1) cycle(5,6) cycle(6,3)
+Optimization: 11
+\end{lstlisting}
+%
+Given that no answer is obtained after the second one,
+we know that~\code{11} is the optimum value,
+but there might be more optimal answer sets that have not been computed yet.
+In order to find them too, we can use the following command line options
+of \clasp\ (cf.\ Section~\ref{subsec:opt:clasp}):
+``\code{--opt-value=11}'' in order to initialize the optimum and
+``\code{--opt-all}'' to compute also equitable
+(rather than only strictly better) answer sets.%
+\marginlabel{%
+  The full invocation is:\\
+  \code{\mbox{~}gringo \textbackslash\\
+    \mbox{~}examples/ham.lp \textbackslash\\
+    \mbox{~}examples/min.lp \textbackslash\\
+    \mbox{~}examples/costs.lp \textbackslash\\
+    \mbox{~}examples/graph.lp |\rlap{\:\textbackslash}\\
+    \mbox{~}clasp -n 0 \textbackslash\\
+    \mbox{~}--opt-value=11 \textbackslash\\
+    \mbox{~}--opt-all}\\
+  or alternatively:\\
+  \code{\mbox{~}clingo -n 0 \textbackslash\\
+    \mbox{~}--opt-value=11 \textbackslash\\
+    \mbox{~}--opt-all \textbackslash\\
+    \mbox{~}examples/ham.lp \textbackslash\\
+    \mbox{~}examples/min.lp \textbackslash\\
+    \mbox{~}examples/costs.lp \textbackslash\\
+    \mbox{~}examples/graph.lp}}
+After obtaining only the second answer given above,
+we are sure that this is the unique optimal answer set,
+whose associated edge costs (cf.\ Figure~\ref{fig:tsp}) correspond to
+the reported optimization value~\code{11}.
+Note that, with \const{maximize} statements in the input, this correlation
+might be less straightforward because they are compiled into \const{minimize}
+statements in the process of generating \lparse's output format~\cite{lparseManual}.
+Furthermore, if there are multiple optimization statements,
+\clasp\ (or \clingo) will report separate optimization values ordered by significance.
+Finally, the two-stage invocation scheme exercised above,
+first determining the optimum and afterwards all (and only) optimal answer sets,
+is recommended for general use.
+Otherwise,
+if using option ``\code{--opt-all}'' right away without knowing the optimum,
+one risks the enumeration of plenty suboptimal answer sets.
+We also invite everyone to explore command line option ``\code{--opt-restart}''
+(cf.\ Section~\ref{subsec:opt:clasp})
+in order to see whether it improves search efficiency on optimization problems.
+
+
+\subsection{Blocks-World Planning}\label{subsec:ex:block}
+
+The Blocks-World is a well-known planning domain,
+where finding \emph{shortest} plans has received particular attention~\cite{gupnau92a}.
+In an eventually propositional formalism like ASP,
+a bound on the plan length must be fixed before search can proceed.
+This is usually accomplished by including some constant~\const{t}
+in an encoding, which is then replaced with the actual bound during grounding.
+Of course, if the length of a shortest plan is unknown,
+an ASP system must repeatedly be queried while varying the bound.
+With a traditional ASP system, processing
+the same planning problem with a different bound
+involves grounding and solving from scratch.
+In order to reduce such redundancies,
+the incremental ASP system \iclingo~\cite{gekakaosscth08a}
+can gradually increase a bound, % thereby,
+doing only the necessary additions in each step.
+Note that planning is a natural application domain for \iclingo,
+but other problems including some mutable bound can be addressed too, thus,
+\iclingo\ is not a specialized planning system.
+However, we use Blocks-World Planning to illustrate the exploitation of
+\iclingo's incremental computation mode.
+
+
+\subsubsection{Problem Instance}\label{subsec:block:instance}
+
+As with the other two problems above,
+an instance is given by a set of facts, here,
+over predicates \pred{block}/$1$ (declaring blocks),
+\pred{init}/$1$ (defining the initial state), and
+\pred{goal}/$1$ (specifying the goal state).
+A well-known Blocks-World instance is described by:%
+\footnote{%
+  Blocks-World instances ``\code{examples/world$i$.lp}'' for
+  $i\in\{\code{0},\code{1},\code{2},\code{3},\code{4}\}$
+  are adaptations of the instances provided at~\cite{erdemBW}.}
+%
+\lstinputlisting{examples/world0.lp}
+%
+Note that the facts in Line~13--15 and~24--26 specify the initial
+and the goal state depicted in Line~9-11 and~19--22, respectively.
+We here use (uninterpreted) function \const{on}/$2$ to illustrate another
+important feature available in \gringo, \clingo, and~\iclingo, namely,
+the possibility of instantiating variables to compound terms.
+
+
+\subsubsection{Problem Encoding}\label{subsec:block:encoding}
+
+Our Blocks-World Planning encoding for \iclingo\ makes use of declaratives
+\const{\#base}, \const{\#cumulative}, and \const{\#volatile},
+separating the encoding into a static, a cumulative, and a volatile (query) part.
+Each of them can be further refined into Generate, Define, Test, and Display constituents, 
+as indicated in the comments below:
+%
+\lstinputlisting{examples/blocks.lp}
+%
+In the initial \const{\#base} part (Line~1--5),
+we define blocks and constant \const{table}
+as instances of predicate \pred{location}/$1$.
+Moreover, we use instances of \pred{init}/$1$
+to initialize predicate \pred{holds}/$2$ for step~\const{0}, thus,
+defining the conditions before the first incremental step.
+Note that variable~\var{F} is instantiated to compound terms
+over function \const{on}/$2$.
+
+The \const{\#cumulative} statement in Line~7 declares constant~\code{t}
+as a placeholder for step numbers in the cumulative encoding part below.
+Here, the Generate rule in Line~9 states that exactly one block~\var{X}
+must be moved to a location~\var{Y} (different from~\var{X}) at each step~\code{t}.
+The integrity constraint in Line~11--13 is used to test whether
+moving block~\var{X} to location~\var{Y} is possible at step~\code{t}
+by denying~\code{\pred{move}(X,Y,t)} to hold if there
+is either some block~\var{A} on~\var{X} or some block~\var{B} distinct from~\var{X} on~\var{Y}
+(this condition is only checked if~\var{Y} is a block, viz., different from constant \const{table})
+at step~\code{t-1}.
+Finally, the Define rule in Line~15 propagates
+a move to the state at step~\code{t},
+while the rule in Line~16--17 states that a block~\var{X} stays on a location~\var{Z}
+if it is not moved to any other location~\var{Y}.
+Note that we require atoms \code{\pred{block}(\var{X})} and \code{\pred{location}(\var{Z})}
+to bind variables~\var{X} and~\var{Z} in the body of the latter rule,
+as recursive predicate \pred{holds}/$2$ cannot be used for this purpose
+(cf.\ the definition of level-restrictedness in Section~\ref{subsec:lambda}).
+
+The \const{\#volatile} statement in Line~19 declares the next part as a
+query depending on step number~\const{t}, but not accumulated over
+successive steps.
+In fact, the integrity constraint in Line~21 tests whether goal conditions are
+satisfied at step~\const{t}.
+
+Our incremental encoding concludes with a second \const{\#base} part,
+as specified in Line~23.
+Note that, for the meta-statements with Display functionality (Line~25--26),
+it is actually unimportant whether they belong to a static, cumulative, or
+volatile program part, as answer sets are projected
+(to instances of \pred{move}/$3$) in either case.
+However, by ending the encoding file with a \const{\#base} statement,
+we make sure that the contents of a concatenated instance file
+is included in the static program part.
+This is also the default of \iclingo\
+(as well as of \gringo\ and \clingo\ that can be used for non-incremental computations),
+but applying this default behavior triggers a warning (cf.\ Section~\ref{subsec:warn}).%
+\marginlabel{%
+  To observe the ground program dealt with internally \iclingo\
+  at a step $n$, invoke:\\
+  \code{\mbox{~}gringo -t \textbackslash\\
+        \mbox{~}--ifixed=$n$ \textbackslash\\
+        \mbox{~}examples/blocks.lp \textbackslash\\
+        \mbox{~}examples/world$i$.lp}
+  where $i\in\{\code{0},\code{1},\code{2},\code{3},\code{4}\}$.}
+
+Finally, let us stress important prerequisites for obtaining
+a well-defined incremental computation result from \iclingo.
+First, the ground instances of head atoms of rules in the
+static, cumulative, and volatile program part must be pairwisely disjoint.
+Furthermore, ground instances of head atoms in the volatile part
+must not occur in the static and cumulative parts,
+and those of the cumulative part must not be used in the static part.
+Finally, ground instances of head atoms in either the cumulative or the volatile part
+must be different for each pair of distinct steps.
+This is the case for our encoding because both atoms over \pred{move}/$3$
+and those over \pred{holds}/$2$ include~\const{t} as an argument in the
+heads of the rules in Line~9, 15, and~16--17.
+As the smallest step number to replace~\const{t} with is~\const{1},
+there also is no clash with the ground atoms over \pred{holds}/$2$
+obtained from the head of the static rule in Line~5.
+Further details on the sketched requirements and their formal background can
+be found in~\cite{gekakaosscth08a}.
+Arguably, many problems including some mutable bound can be encoded
+such that the prerequisites apply.
+Some attention should of course be spent on
+putting rules into the right program parts.
+
+
+\subsubsection{Problem Solution}\label{subsec:block:solution}
+
+We can now use \iclingo\ to \emph{incrementally} compute the shortest
+sequence of moves that brings us from the initial to the goal state
+depicted in the instance in Section~\ref{subsec:block:instance}:%
+\marginlabel{%
+  To this end, invoke:\\
+  \code{\mbox{~}iclingo -n 0 \textbackslash\\
+        \mbox{~}examples/blocks.lp \textbackslash\\
+        \mbox{~}examples/world0.lp}}
+%
+\begin{lstlisting}[numbers=none]
+Answer: 1
+move(b2,table,1) move(b1,b0,2) move(b2,b1,3)
+\end{lstlisting}
+%
+This unique answer set tells us that the given problem instance can
+be solved by moving block~\const{b2} to the~\const{table} in order to
+then put~\const{b1} on top of~\const{b0} and finally~\const{b2} on top of~\const{b1}.
+This solution is computed by \iclingo\ in three grounding and solving steps,
+where, starting from the \const{\#base} program, constant~\const{t}
+is successively replaced with step numbers~\const{1}, \const{2}, and~\const{3}
+in the~\const{\#cumulative} and in the~\const{\#volatile} part.
+While the query postulated in the~\const{\#volatile} part cannot be
+fulfilled in steps~\const{1} and~\const{2}, \iclingo\ 
+stops its incremental computation after finding an answer set in step~\const{3}.
+The scheme of iterating steps until finding at least one answer set
+is the default behavior of~\iclingo,
+which can be customized via command line options
+(cf.\ Section~\ref{subsec:opt:iclingo}).
+
+Finally, let us describe how solutions obtained via an incremental computation
+can be computed in the standard way, that is, in a single pass.
+To this end, the step number can be fixed to some~$n$ via
+option ``\code{--ifixed=$n$}'' (cf.\ Section~\ref{subsec:opt:gringo}),
+\marginlabel{%
+  For non-incremental solving, invoke:\\
+  \code{\mbox{~}gringo --ifixed=$n$ \textbackslash\\
+        \mbox{~}examples/blocks.lp \textbackslash\\
+        \mbox{~}examples/world$i$.lp |\rlap{\textbackslash}\\
+        \mbox{~}clasp -n 0}\\
+  or alternatively:\\
+  \code{\mbox{~}clingo -n 0 \textbackslash\\
+        \mbox{~}--ifixed=$n$ \textbackslash\\
+        \mbox{~}examples/blocks.lp \textbackslash\\
+        \mbox{~}examples/world$i$.lp}
+  where $i\in\{\code{0},\code{1},\code{2},\code{3},\code{4}\}$.}
+enabling \gringo\ or \clingo\ to generate the ground program present
+inside \iclingo\ at step~$n$.
+Note that \const{\#volatile} parts are here only instantiated for the final step~$n$,
+while \const{\#cumulative} rules are added for all steps $\const{1},\dots,n$.
+Option ``\code{--ifixed=$n$}'' can be useful for investigating the contents
+of a ground program dealt with at step~$n$ or for using an external solver
+(other than \clasp).
+In the latter case, repeated invocations with varying~$n$
+are required if the bound of an optimal solution is a priori unknown.
+
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "guide"
+%%% End: 

@@ -1,0 +1,34 @@
+\section{Future Work}\label{sec:future}
+
+We conclude this guide with a brief outlook on the future development
+of \gringo, \clasp, \clingo, and \iclingo.
+An important goal of future releases will be improving usability
+by adding functionalities that make some errors and warnings obsolete or,
+otherwise, by providing helpful context information along with the remaining ones.
+In particular, we consider adding support for yet missing traditional
+features in incremental computations of \iclingo\
+and also the integration of \clasp\ and \claspD~\cite{drgegrkakoossc08a},
+which would enable \clasp, \clingo, and \iclingo\ to deal with disjunctive programs
+(cf.~\cite{eitgot95a}) or, more generally, logic programs such that standard reasoning tasks
+are complete for the second level of the polynomial hierarchy (cf.~\cite{papadimitriou94a}).
+Moreover, we are investigating less demanding restrictedness notions
+(cf.\ Section~\ref{sec:restricted}) that can broaden the class of
+acceptable input programs.
+For the representation of ground programs,
+\emph{ASPils} format~\cite{gejaosscth08a} has been suggested to overcome
+limitations of \lparse's output format~\cite{lparseManual},
+and we work on \emph{ASPils} support in \clasp.
+In the long term,
+limitations inherent to present ASP systems,
+such as space explosion sometimes faced when representing
+multi-valued variables in a propositional formalism,
+might be extinguished by systems combining ASP with
+neighboring paradigms like, e.g., Constraint Programming~\cite{robewa06a}.
+Prototypical approaches in such directions already exist
+today~\cite{melgel08a,niolti06a}.
+
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "guide"
+%%% End: 

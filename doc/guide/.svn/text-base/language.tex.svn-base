@@ -1,0 +1,1442 @@
+\section{Input Languages}\label{sec:language}
+
+This section provides an overview of the input languages of
+grounder \gringo, combined grounder and solver \clingo,
+incremental grounder and solver \iclingo, and of solver \clasp.
+The joint input language of \gringo\ and \clingo\ is detailed in
+Section~\ref{subsec:lang:gringo}.
+It is extended by \iclingo\ with a few directives described in Section~\ref{subsec:lang:iclingo}.
+Finally, Section~\ref{subsec:lang:clasp} is dedicated to the inputs
+handled by \clasp.
+
+
+\subsection{Input Language of \gringo\ and \clingo}\label{subsec:lang:gringo}
+
+The tool \gringo~\cite{gescth07a} is a grounder capable of translating
+logic programs provided by users into equivalent ground programs.
+The output of \gringo\ can be piped into solver \clasp~\cite{gekanesc07b},
+which then computes answer sets.
+System \clingo\ internally couples \gringo\ and \clasp, thus,
+it takes care of both grounding and solving.
+% The input of \gringo\ and \clingo\ is the same,
+% but 
+In contrast to \gringo\ outputting ground programs, 
+\clingo\ returns answer sets.
+Both \gringo\ and \clingo\ can handle level-restricted input programs
+(cf.\ Section~\ref{subsec:lambda}),
+usually specified in one or more text files whose names are passed via the command line
+in an invocation of either \gringo\ or \clingo.
+We below provide a description of constructs belonging to the input language of \gringo\ and \clingo.
+
+
+\subsubsection{Normal Programs and Integrity Constraints}\label{subsec:gringo:normal}
+
+In the previous sections, we have already seen a number of normal programs.
+Now also considering integrity constraints, we get the following basic rule types:
+
+\begin{tabular}{rl@{}l}
+\textbf{Fact:} & $A_0$&\code{.}
+\\
+\textbf{Rule:} & $A_0$& $\code{:-}~L_1\code{,}\dots\code{,}L_n$\code{.}
+\\
+\textbf{Integrity Constraint:} & & $\code{:-}~L_1\code{,}\dots\code{,}L_n$\code{.}
+\end{tabular}
+\\
+
+\noindent
+The head~$A_0$ of a fact or a rule is an \emph{atom} of the form
+$p\code{(}t_1\code{,}\dots\code{,}t_m\code{)}$,
+where $p$ is the name of some predicate, that is, a sequence of letters and digits
+starting with a lowercase letter,
+and any $t_i$ is a term.%
+\footnote{An atom~$p$ without arguments is simply a sequence of letters and digits
+  (starting with a lowercase letter).
+  For such an atom~$p$, parentheses after the name are skipped, e.g.,
+  \pred{p42X} could be an atom without arguments.
+  Also note that lowercase letters include ``\code{\mus},''
+  which can thus be used at any position within a predicate name.}
+A \emph{term} $t$ starting with an uppercase letter followed by
+a sequence of letters and digits (e.g., \var{X08x15}) is a variable name,
+and integers are written as sequences of digits possibly preceded by ``\code{-}.''
+In addition, a term can have the same syntactic structure as an atom
+(e.g., \code{\pred{p}(\const{a},\const{1},\const{f}(\var{X}))}
+ can be either an atom or a term, depending on where it occurs in a rule),
+and functions can be nested within a term.
+There are also built-in constructs
+(cf.\ Section~\ref{subsec:gringo:arith} and~\ref{subsec:gringo:comp})
+having particular representations.
+Finally, any $L_j$ is a \emph{literal} of the form $A$ or $\code{not}~A$
+for an atom~$A$.
+
+In Section~\ref{subsec:semantics},
+we have already provided a translation~$\psi$
+from the head of a rule to a propositional formula.
+By viewing an integrity constraint
+$\code{:-}~\mathit{Body}\code{.}$ as a shorthand for $\bot~\code{:-}~\mathit{Body}\code{.}$,
+we can now explain the semantics of integrity constraints by adding the following case:
+\begin{itemize}
+\item $\psi[\bot]=\bot$.
+\end{itemize}
+Note the role of integrity constraints is to eliminate answer set candidates.
+In fact, given an integrity constraint~$\code{:-}~\mathit{Body}\code{.}$,
+any answer set~$X$ is such that $X\not\models\phi[\mathit{Body}]$, or
+in other words, some literal~$L$ in $\mathit{Body}$ must be unsatisfied w.r.t.~$X$.
+Elaborate examples on the usage of facts, rules, and integrity constraints
+will be provided in Section~\ref{sec:examples}.
+
+
+\subsubsection{Classical Negation}\label{subsec:gringo:negation}
+
+In logic programs, connective \code{not} expresses default negation,
+that is, a literal $\code{not}~A$ is assumed to hold unless~$A$ is derived.
+In contrast, the classical (or strong) negation of some proposition
+holds if the complement of the proposition is objectively derived~\cite{gellif91a}.
+Classical negation, indicated by symbol ``\code{-},'' is permitted in front of atoms.
+That is, if~$A$ is an atom, then~$\code{-}A$ is the complement of~$A$.
+Semantically, $\code{-}A$ is simply a new atom,
+with the additional condition that~$A$ and~$\code{-}A$ must not jointly hold.
+A logic program~$\Pi$ containing complementary atoms is thus translated
+to propositional theory
+$\Phi[\Pi \cup \{\code{:-}~A\code{,}\code{-}A \mid A\in\ground{\mathcal{A}}\}]$.%
+\footnote{Recall that $\ground{\mathcal{A}}$ consists of all variable-free atoms
+built from predicates and functions in~$\Pi$.}
+Observe that classical negation is merely a syntactic feature that can be
+implemented via integrity constraints whose effect is to eliminate
+any answer set candidate containing complementary atoms.
+
+\begin{example}\label{ex:flies:neg}
+The following logic program reformulates the one in Example~\ref{ex:flies}:
+%
+\lstinputlisting[nolol]{examples/bird.lp}
+\lstinputlisting[firstnumber=3]{examples/flycn.lp}
+%
+Logically, classical negation is reflected by
+(implicit) integrity constraints as follows:%
+\marginlabel{By invoking\\
+  \code{\mbox{~}gringo -t \textbackslash\\
+        \mbox{~}examples/bird.lp \textbackslash\\
+        \mbox{~}examples/flycn.lp}
+the reader can observe that \gringo\ indeed produces the integrity constraint
+in Line~7.}
+%
+\begin{lstlisting}[firstnumber=6]
+:- flies(tux),    -flies(tux).
+:- flies(tweety), -flies(tweety).
+\end{lstlisting}
+The additional integrity constraints do not yet change the semantics of the
+program, which still has the answer sets already provided in Example~\ref{ex:flies:ground}
+(of course, identifying
+\code{\pred{neg\mus flies}(\const{tux})} with
+\code{\pred{-flies}(\const{tux})} and
+\code{\pred{neg\mus flies}(\const{tweety})} with
+\code{\pred{-flies}(\const{tweety})}).
+This situation changes if we add the following fact:
+\begin{lstlisting}[firstnumber=8]
+flies(tux).
+\end{lstlisting}
+While the program from Example~\ref{ex:flies} still admits two answer sets,
+both containing 
+\code{\pred{flies}(\const{tux})} and
+\code{\pred{neg\mus flies}(\const{tux})},
+there no longer is any answer set for our new program using classical negation.
+In fact, answer set candidates that contain both
+\code{\pred{flies}(\const{tux})} and
+\code{\pred{-flies}(\const{tux})} violate the integrity constraint in Line~6.
+\eexample
+\end{example}
+
+
+\subsubsection{Disjunction}\label{subsec:gringo:disjunction}
+
+Disjunctive logic programs permit connective~``\code{|}'' between atoms in rule heads.
+An additional case of translation~$\psi$ from Section~\ref{subsec:semantics}
+reflects the semantics of disjunction:
+\begin{itemize}
+\item $\psi[G\code{|}H]=\psi[G]\vee\psi[H]$.
+\end{itemize}
+%
+The concept of level-restrictedness (cf.\ Section~\ref{subsec:lambda}) is extended
+to disjunctive programs by,
+for a disjunctive rule~$r$, every predicate~$p/i$
+of some atom in the head of~$r$, and each $V\in\vars{r}$,
+requiring that there is some $A\in\binders{V}{r}$ such that
+$\lambda(p/i)>\lambda(q/j)$ for predicate~$q/j$ of~$A$.
+Furthermore, a (maximal) stratified subprogram (cf.\ Section~\ref{subsec:strat})
+must not contain any rule with a (non-trivial) disjunctive head.
+
+The following rule combines the ones in Line~3 and~4 from Example~\ref{ex:flies:neg}:
+\begin{lstlisting}[numbers=none]
+flies(X) | -flies(X) :- bird(X).
+\end{lstlisting}
+In general, the use of disjunction however increases
+computational complexity~\cite{eitgot95a}.
+This is why \clingo%
+\footnote{Run as a monolithic system performing both grounding and solving.}
+and solvers like 
+\assat~\cite{linzha04a},
+\clasp~\cite{gekanesc07b},
+\nomorepp~\cite{angelinesc05c},
+\smodels~\cite{siniso02a}, and
+\smodelscc~\cite{warsch04a}
+do not work on disjunctive programs.
+Rather,
+\claspD~\cite{drgegrkakoossc08a},
+\cmodels~\cite{gilima06a,lierler05a}, or
+\gnt~\cite{janisesiyo06a}
+needs to be used for solving a disjunctive program.%
+\footnote{System \dlv~\cite{dlv03a} also deals with disjunctive programs,
+  but it uses a different syntax than presented here.}
+We thus suggest to use ``choice constructs'' (cf.\ Section~\ref{subsec:gringo:aggregate})
+instead of disjunction, unless the latter is required for complexity reasons
+(see~\cite{eitpol06a} for an implementation methodology in disjunctive ASP).
+
+
+\subsubsection{Built-In Arithmetic Functions}\label{subsec:gringo:arith}
+
+\gringo\ and \clingo\ support a number of arithmetic functions that
+are evaluated during grounding.
+The following symbols are used for these functions:
+\code{+} (addition),
+\code{-} (subtraction),
+\code{*} (multiplication),
+\code{/} or \code{div} (integer division),
+\code{mod} (modulo function),
+\code{abs} (absolute value),
+\code{\textasciitilde} (bitwise complement),
+\code{\&}  (bitwise AND),
+\code{?}   (bitwise OR), and
+\code{\^} (bitwise exclusive OR).
+
+\begin{example}\label{ex:arith:fun}
+The usage of arithmetic functions is illustrated by the logic program:%
+\marginlabel{%
+  The unique answer set of the program,
+  obtained after evaluating all arithmetic functions,
+  can be inspected by invoking:\\
+  \code{\mbox{~}gringo -t \textbackslash\\\mbox{~}examples/arithf.lp}}
+%
+\lstinputlisting{examples/arithf.lp}
+%
+Note that variables~\var{L} and~\var{R} are instantiated to~\const{7} and~\const{2},
+respectively, before arithmetic evaluations.
+Consecutive and non-separative (e.g., before ``\code{(}'')
+spaces can also be dropped,
+while spaces around tokens \code{div} and \code{mod} are mandatory.
+Furthermore, the argument of function \code{abs} must be enclosed in parentheses.
+In Line~9, observe that there is a unary version of \code{-},
+``\code{- \var{R}}'' standing for ``\code{0 - \var{R}}.''
+The four bitwise functions apply to signed integers,
+using the complement on two of a negative integer.
+\eexample
+\end{example}
+
+It is important to note that variables
+in the scope of an arithmetic function are not necessarily bound 
+(in the sense of Section~\ref{subsec:lambda}) by a corresponding atom.
+For instance, atom \code{\pred{p}(\var{X}+1,\var{X})} belongs to
+$\binders{\var{X}}{r}$, while atom \code{\pred{p}(\var{X}+1,\var{Y})}
+does not belong to $\binders{\var{X}}{r}$ because it contains~\var{X}
+only in the scope of an arithmetic function.
+
+\subsubsection{Built-In Comparison Predicates}\label{subsec:gringo:comp}
+
+The following built-in predicates permit term comparisons
+within the bodies of rules and on the right-hand side of conditions
+(cf.\ Section~\ref{subsec:gringo:condition}):
+\code{==} (equal),
+\code{!=} (not equal),
+\code{<} (less than),
+\code{<=} (less than or equal),
+\code{>} (greater than),
+\code{>=} (greater than or equal).
+
+\begin{example}\label{ex:arith:pred}
+The usage of comparison predicates is illustrated by the logic program:%
+\marginlabel{%
+  The unique answer set of the program is obtained via call:\\
+  \code{\mbox{~}gringo -t \textbackslash\\\mbox{~}examples/arithc.lp}}
+%
+\lstinputlisting{examples/arithc.lp}
+%
+The last two lines hint at the fact that arithmetic functions are evaluated
+before comparison predicates, so that the latter actually compare integers.
+
+All comparison predicates can also be used with constants,
+as in the next program:%
+\marginlabel{%
+  As above, invoking:\\
+  \code{\mbox{~}gringo -t \textbackslash\\\mbox{~}examples/symbc.lp}
+  yields the unique answer set of the program in terms of facts.}
+%
+\lstinputlisting{examples/symbc.lp}
+%
+Finally, note that~\code{==} and~\code{!=} also apply to
+compound terms over functions with non-zero arity as well as to
+mixed integer and non-integer arguments.%
+\footnote{%
+  Such functionalities are currently not supported for the other four
+  comparison predicates,
+  where (after instantiation and arithmetic evaluation)
+  both arguments must be either integers or (symbolic) constants.
+}
+\eexample
+\end{example}
+
+Importantly, a built-in comparison predicate cannot bind variables,
+that is, it does not belong to $\binders{\var{X}}{r}$ for any variable~\var{X}.
+Also note that built-in predicates are not considered by level mappings~$\xi$
+in the context of stratification (cf.\ Section~\ref{subsec:strat}), or equivalently,
+one may assume that built-in predicates are mapped to level~$0$ and all other
+predicates to levels greater than~$0$.
+
+
+\subsubsection{Assignments}\label{subsec:gringo:assign}
+
+Built-in predicate~\code{=} can be used in the body of a rule
+(or on right-hand sides of conditions introduced in Section~\ref{subsec:gringo:condition})
+to assign a term on its right-hand side to a variable on its left-hand side.
+Note that ``\code{\var{X} \!=\! }$t$'' belongs to~$\binders{\var{X}}{r}$,
+provided that~$t$ is variable-free or that its variables are bound
+by atoms other than assignments with~\var{X} on the right-hand side.
+Cyclic assignments over otherwise unbound variables are thus excluded.
+
+\begin{example}\label{ex:assign}
+The next program demonstrates how terms can be assigned to variables:%
+\marginlabel{%
+  The unique answer set of the program is obtained via call:\\
+  \code{\mbox{~}gringo -t \textbackslash\\\mbox{~}examples/assign.lp}}
+%
+\lstinputlisting{examples/assign.lp}
+%
+Line~3 contains four assignments, where the right-hand sides directly or indirectly
+depend on~\var{X} and~\var{Y}.
+These two variables are bound in Line~4 via atoms of predicate \pred{num}/$1$.
+Also observe the different usage and role of built-in comparison predicate~\code{==}.
+\eexample
+\end{example}
+
+
+\subsubsection{Intervals}\label{subsec:gringo:interval}
+
+In Line~1 of Example~\ref{ex:assign},
+there are five facts~\code{\pred{num}($k$)}
+over consecutive integers~$k$.
+For a more compact representation,
+\gringo\ and \clingo\ support integer intervals of the form $i$\code{..}$j$,
+where~$i$ and~$j$ are integers.
+Such an interval represents each integer~$k$ such that $i\leq k\leq j$,
+and intervals are expanded during grounding.
+
+\begin{example}\label{ex:int}
+The next program makes use of integer intervals:
+%
+\lstinputlisting{examples/int.lp}
+%
+The facts in Line~1 and~2 are expanded as follows:
+%
+\begin{lstlisting}[numbers=none]
+num(1).    num(2).   num(3).   num(4).   num(5).
+top5(5).  top5(6).  top5(7).  top5(8).  top5(9).
+\end{lstlisting}
+%
+By instantiating~\var{X} to~\const{9},
+the rule in Line~4 becomes:
+%
+\begin{lstlisting}[numbers=none]
+top5num(1..5,5..9) :- num(5..9), top5(1..5), top(9).
+\end{lstlisting}
+%
+It is expanded to the cross product
+$(\code{\const{1}..\const{5}})\times
+ (\code{\const{5}..\const{9}})\times
+ (\code{\const{5}..\const{9}})\times
+ (\code{\const{1}..\const{5}})$
+of intervals:
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+top5num(1,5) :- num(5), top5(1), top(9).
+top5num(2,5) :- num(5), top5(1), top(9).
+        @\rlap{\vdots}@
+top5num(5,5) :- num(5), top5(1), top(9).
+top5num(1,6) :- num(5), top5(1), top(9).
+top5num(2,6) :- num(5), top5(1), top(9).
+        @\rlap{\vdots}@  @\rlap{\vdots}@
+top5num(5,9) :- num(5), top5(1), top(9).
+top5num(1,5) :- num(6), top5(1), top(9).
+top5num(2,5) :- num(6), top5(1), top(9).
+        @\rlap{\vdots}@  @\rlap{\vdots}@          @\rlap{\vdots}@
+top5num(5,9) :- num(9), top5(1), top(9).
+top5num(1,5) :- num(5), top5(2), top(9).
+top5num(2,5) :- num(5), top5(2), top(9).
+        @\rlap{\vdots}@  @\rlap{\vdots}@          @\rlap{\vdots}@         @\rlap{\vdots}@
+top5num(5,9) :- num(9), top5(4), top(9).
+top5num(1,5) :- num(5), top5(5), top(9).
+top5num(2,5) :- num(5), top5(5), top(9).
+        @\rlap{\vdots}@  @\rlap{\vdots}@
+top5num(5,9) :- num(5), top5(5), top(9).
+top5num(1,5) :- num(6), top5(5), top(9).
+top5num(2,5) :- num(6), top5(5), top(9).
+        @\rlap{\vdots}@  @\rlap{\vdots}@          @\rlap{\vdots}@
+top5num(5,9) :- num(9), top5(5), top(9).
+\end{lstlisting}
+%
+Note that only the rules with
+\code{\pred{num}(\const{5})} and
+\code{\pred{top5}(\const{5})}
+\marginlabel{%
+  Again the unique answer set is obtained via call:\\
+  \code{\mbox{~}gringo -t \textbackslash\\\mbox{~}examples/int.lp}}
+%
+in the body actually contribute to the unique answer set
+of the above program by deriving all atoms \code{\pred{top5num}($m$,$n$)}
+for $\const{1}\leq m\leq\const{5}$ and $\const{5}\leq n\leq\const{9}$.
+\eexample
+\end{example}
+
+As with built-in arithmetic functions,
+an integer interval mentioning some variable (like~\var{X} in Line~4 of Example~\ref{ex:int})
+cannot be used to bind the variable.
+
+
+\subsubsection{Conditions}\label{subsec:gringo:condition}
+
+Conditions allow for instantiating variables to
+collections of terms within a single rule.
+This is particularly useful for encoding conjunctions or disjunctions over
+arbitrarily many ground atoms as well as for the compact representation of aggregates
+(cf.\ Section~\ref{subsec:gringo:aggregate}).
+The symbol~``\code{:}'' is used to formulate conditions.
+
+\begin{example}\label{ex:cond}
+The following program uses conditions in a rule body and in a rule head:
+%
+\lstinputlisting{examples/cond.lp}
+%
+We are particularly interested in the rules in Line~5 and~6,
+instantiated as follows:%
+%
+\begin{lstlisting}[firstnumber=5]
+meet :- available(jane), available(john).
+on(mon) | on(tues) | on(wed) | on(thurs) | on(fri) :- meet.
+\end{lstlisting}
+%
+The conjunction in Line~5 is obtained by replacing~\var{X} in
+\marginlabel{%
+  The reader can reproduce these ground rules by invoking:\\
+  \code{\mbox{~}gringo -t \textbackslash\\\mbox{~}examples/cond.lp}}
+\code{\pred{available}(\var{X})} with all ground terms~$t$ such that
+\code{\pred{person}($t$)} holds, namely, $t=\const{jane}$ and $t=\const{john}$.
+Furthermore, the condition in the head of the rule in Line~6 turns into
+a disjunction over all ground instances of
+\code{\pred{on}(\var{X})} where~\var{X} is substituted by some term~$t$
+such that
+\code{\pred{day}($t$)} holds.
+That is, conditions in the body and in the head of a rule
+are expanded to different basic language constructs.
+
+Composite conditions can also be constructed via~``\code{:},''
+as in the additional rules:
+%
+\lstinputlisting[firstnumber=7]{examples/twocond.lp}
+%
+Observe that we may use the same atom, viz., \code{\pred{day}(\var{X})},
+both on the left-hand and on the right-hand side of~``\code{:}.''
+Furthermore, negative literals like \code{not \pred{weekend}(\var{X})}
+can occur on both sides of a condition.
+Note that literals on the right-hand side of a condition are connected conjunctively, that is,
+all of them must hold for ground instances of an atom in front
+of the condition.
+Thus, the instantiated rule in Line~8 looks as follows:
+%
+\begin{lstlisting}[firstnumber=8]
+weekdays :- day(mon), day(tues), day(wed), day(thurs), day(fri).
+\end{lstlisting}
+%
+The atoms in the body of this rule follow from facts, so that
+the rule can be simplified to a fact \code{\pred{weekdays}.}
+(as done by \gringo).
+\eexample
+\end{example}
+
+There are three important issues about the correct usage of conditions.
+First, all predicates of atoms on the right-hand side of a condition
+must be either domain predicates (cf.\ Section~\ref{subsec:strat}) or built-in,
+which is due to the fact that conditions are evaluated during grounding.%
+\footnote{%
+  The bodies of rules in a stratified subprogram (cf.\ Section~\ref{subsec:strat})
+  may contain conditions.
+  For a rule~$r$ and
+  $L_0\code{:}L_1\code{:}\dots\code{:}L_n$
+  in the body of~$r$,
+  let $A_0\in\nbody{r}$ if $L_0=\code{not}~A_0$
+  and $L_0\in\pbody{r}$ otherwise,
+  and for $1\leq i\leq n$, 
+  assume $A_i\in\nbody{r}$ for atom~$A_i$
+  such that $L_i=A_i$ or $L_i=\code{not}~A_i$, respectively.
+  }
+Second, any variable occurring within a condition is considered as \emph{local},
+that is, a condition cannot be used to bind variables outside itself.
+In turn, variables outside conditions are \emph{global}, and each variable
+within an atom in front of a condition must occur on the right-hand side or
+be global.
+Third, global variables take priority over local ones, that is,
+they are instantiated first.
+As a consequence, a local variable that also occurs globally is substituted by a term
+before the ground instances of a condition are determined.
+Hence, the names of local variables must be chosen with care,
+making sure that they do not accidentally match the names of global variables.
+
+
+\subsubsection{Pooling}\label{subsec:gringo:pool}
+
+Symbol~``\code{;}'' allows for pooling alternative terms to be used as
+argument within an atom, thus, specifying rules more compactly.
+An atom written in the form \code{\pred{p}($\dots$,X;Y,$\dots$)}
+abbreviates two options:
+\code{\pred{p}($\dots$,X,$\dots$)} and \code{\pred{p}($\dots$,Y,$\dots$)}.
+Pooled arguments in an atom of a rule body 
+(or on the right-hand side of a condition) are expanded to a conjunction
+of the options within the same body (or within the same condition),
+while they are expanded to multiple rules 
+(or multiple literals connected via~``\code{,}'')
+when occurring in the head (or in front of a condition).
+
+\begin{example}\label{ex:pool}
+The following logic program makes use of pooling:
+%
+\lstinputlisting{examples/pool.lp}
+%
+Let us consider instantiations of the rule in Line~3 obtained with substitution 
+$\{\var{A}\mapsto\const{a},\linebreak[1]\var{B}\mapsto\const{b},
+   \var{M}\mapsto\const{1},\var{N}\mapsto\const{2}\}$.
+Note that \pred{mix}/$2$ and \pred{-mix}/$2$ each admit four options,
+corresponding to the cross product of $\{\const{a},\const{b}\}$ substituted
+for~\var{A} and~\var{B}, respectively, together with $\{\const{1},\const{2}\}$
+substituted for~\var{M} and~\var{N}.
+While the instances obtained for \pred{mix}/$2$ give rise to four rules,
+the instances for \pred{-mix}/$2$ jointly belong to the body.
+The (repeated) body also contains two instances each of \pred{sym}/$1$ and of \pred{num}/$1$.
+We thus get the rules:%
+\marginlabel{%
+  Simplified versions of these rules are produced via call:\\
+  \code{\mbox{~}gringo -t \textbackslash\\\mbox{~}examples/pool.lp}}
+%
+\begin{lstlisting}[numbers=none]
+mix(a,1) :- sym(a),sym(b), num(1),num(2), not -mix(1,a),
+  not -mix(1,b), not -mix(2,a), not -mix(2,b).
+mix(a,2) :- sym(a),sym(b), num(1),num(2), not -mix(1,a),
+  not -mix(1,b), not -mix(2,a), not -mix(2,b).
+mix(b,1) :- sym(a),sym(b), num(1),num(2), not -mix(1,a),
+  not -mix(1,b), not -mix(2,a), not -mix(2,b).
+mix(b,2) :- sym(a),sym(b), num(1),num(2), not -mix(1,a),
+  not -mix(1,b), not -mix(2,a), not -mix(2,b).
+\end{lstlisting}
+%
+Finally, we note that pooling is also possible with arguments of built-in predicates.
+\eexample
+\end{example}
+
+
+\subsubsection{Aggregates}\label{subsec:gringo:aggregate}
+
+An aggregate is an operation on a multiset of weighted literals that evaluates to an integer.
+In combination with arithmetic comparisons, we can extract a truth value from
+an aggregate's evaluation, thus, obtaining an aggregate atom.
+Customizing the notation in~\cite{ferraris05a},
+we consider ground \emph{aggregate atoms} of the form:
+%
+\begin{equation}\label{eq:aggregate:atom}
+  l~ 
+  \mathrm{op} 
+  \code{[}
+  L_1\code{=}w_1\code{,}
+  \dots\code{,}
+  L_n\code{=}w_n
+  \code{]}
+  u
+\end{equation}
+%
+where~$l$ and~$u$ are integers each of which can possibly be omitted,
+$\mathrm{op}$ is a function from multisets of integers to an integer,
+each $L_i$ is a literal of the form~$A$ or $\code{not}~A$
+for some atom~$A\in\ground{\mathcal{A}}$,
+and each~$w_i$ is an integer.
+The intuitive reading of an aggregate atom is that the value returned by~$\mathrm{op}$
+applied to all weights~$w_i$ such that~$L_i$ holds should be in-between
+lower bound~$l$ and upper bound~$u$ (inclusively).
+If~$l$ or~$u$ is omitted,
+it means that the aggregate's value is not constrained from below or above,
+respectively.
+
+For an aggregate atom~$\mathit{Agg}$ as in~(\ref{eq:aggregate:atom}),
+we let $\atom{\mathit{Agg}}=\{L_i\in\nolinebreak\ground{\mathcal{A}}\mid 1\leq i\leq n\}$
+denote the set of atoms occurring positively in~$\mathit{Agg}$.
+Currently, \gringo\ and \clingo\ support aggregate operations
+\const{sum}, \const{max}, and \const{min}.%
+\footnote{%
+  The additional operation \const{count} is a shorthand for a \const{sum}
+  aggregate in which all weights are~\const{1}.}
+We can now extend translations~$\phi$ and~$\psi$ from Section~\ref{subsec:semantics}
+to aggregate atoms, 
+using the approach in~\cite{ferraris05a} but
+applying the ``choice semantics'' for aggregates
+in heads of rules~\cite{ferlif05a,siniso02a}:%
+\footnote{%
+  The translation~$\phi$ we provide for \const{sum} aggregates
+  assumes that there are no negative weights for literals,
+  while the more sophisticated translation in~\cite{ferraris05a} also
+  captures negative weights.
+  All current solvers work with positive weights only, and thus
+  \gringo\ and \lparse\ use a compilation technique~\cite{siniso02a}
+  to eliminate negative weights, which are not permitted in
+  \lparse's output format~\cite{lparseManual}.
+  As this technique may lead to counterintuitive results~\cite{ferraris05a},
+  we strongly recommend not to use negative weights within \const{sum} aggregates.}
+\begin{enumerate}
+\item % op %
+$\phi[
+  \mathrm{op} 
+  \code{[}
+  L_1\code{=}w_1\code{,}
+  \dots\code{,}
+  L_n\code{=}w_n
+  \code{]}
+  ] = 
+ \top$,
+\item % l op u %
+$\begin{array}[t]{@{}r@{}l@{}}
+  \phi[
+  l~
+ &
+  \mathrm{op} 
+  \code{[}
+  L_1\code{=}w_1\code{,}
+  \dots\code{,}
+  L_n\code{=}w_n
+  \code{]}
+  u
+  ] = 
+ {} \\ 
+ &
+  \phi[
+  l~
+  \mathrm{op} 
+  \code{[}
+  L_1\code{=}w_1\code{,}
+  \dots\code{,}
+  L_n\code{=}w_n
+  \code{]}
+  ]
+  \wedge
+  \phi[
+  \mathrm{op} 
+  \code{[}
+  L_1\code{=}w_1\code{,}
+  \dots\code{,}
+  L_n\code{=}w_n
+  \code{]}
+  u
+  ]\text{,}
+ \end{array}$
+\item % l sum %
+$\begin{array}[t]{@{}r@{}l@{}}
+  \phi[
+  l~
+ &
+  \const{sum} 
+  \code{[}
+  L_1\code{=}w_1\code{,}
+  \dots\code{,}
+  L_n\code{=}w_n
+  \code{]}
+  ] = 
+ {} \\ 
+ &
+  \big(
+  \bigvee_{\{i_1,\dots,i_j\}\subseteq\{1,\dots,n\},l\leq w_{i_1}+\dots+w_{i_j}}
+  (\phi[L_{i_1}]\wedge\dots\wedge \phi[L_{i_j}])
+  \big)\text{,}
+ \end{array}$
+\item % sum u %
+$\begin{array}[t]{@{}r@{}l@{}}
+  \phi
+  [
+ &
+  \const{sum} 
+  \code{[}
+  L_1\code{=}w_1\code{,}
+  \dots\code{,}
+  L_n\code{=}w_n
+  \code{]}
+  u
+  ] = 
+ {} \\ 
+ &
+  \neg
+  \big(
+  \bigvee_{\{i_1,\dots,i_j\}\subseteq\{1,\dots,n\},u< w_{i_1}+\dots+w_{i_j}}
+  (\phi[L_{i_1}]\wedge\dots\wedge \phi[L_{i_j}])
+  \big)\text{,}
+ \end{array}$
+\item % l max %
+ $\phi[
+  l~
+  \const{max} 
+  \code{[}
+  L_1\code{=}w_1\code{,}
+  \dots\code{,}
+  L_n\code{=}w_n
+  \code{]}
+  ] = 
+ \hspace{6pt}
+  \big(
+  \bigvee_{i\in\{1,\dots,n\},l\leq w_i}
+  \phi[L_i]
+  \big)$,
+\item % max u %
+ $\phi[
+  \const{max} 
+  \code{[}
+  L_1\code{=}w_1\code{,}
+  \dots\code{,}
+  L_n\code{=}w_n
+  \code{]}
+  u
+  ] = 
+  \neg
+  \big(
+  \bigvee_{i\in\{1,\dots,n\},u< w_i}
+  \phi[L_i]
+  \big)$,
+\item % l min %
+ $\phi[
+  l~
+  \const{min} 
+  \code{[}
+  L_1\code{=}w_1\code{,}
+  \dots\code{,}
+  L_n\code{=}w_n
+  \code{]}
+  ] = 
+  \neg
+  \big(
+  \bigvee_{i\in\{1,\dots,n\},w_i< l}
+  \phi[L_i]
+  \big)
+ $,
+\item % min u %
+ $\phi[
+  \const{min} 
+  \code{[}
+  L_1\code{=}w_1\code{,}
+  \dots\code{,}
+  L_n\code{=}w_n
+  \code{]}
+  u
+  ] = 
+  \hspace{6pt}
+  \big(
+  \bigvee_{i\in\{1,\dots,n\},w_i\leq u}
+  \phi[L_i]
+  \big)
+ $, and
+\item % psi %
+$\begin{array}[t]{@{}r@{}l@{}}
+  \psi[
+  \lhd
+ &~
+  \mathrm{op} 
+  \code{[}
+  L_1\code{=}w_1\code{,}
+  \dots\code{,}
+  L_n\code{=}w_n
+  \code{]}
+  \rhd
+  ] = 
+% {} \\ 
+% &
+   \phi[
+  \lhd~
+  \mathrm{op} 
+  \code{[}
+  L_1\code{=}w_1\code{,}
+  \dots\code{,}
+  L_n\code{=}w_n
+  \code{]}
+  \rhd
+  ]
+  \wedge
+ {} \\ 
+ &
+  \big(
+  \bigwedge_{A\in\atom{
+    \lhd~
+    \mathrm{op} 
+    \code{[}
+    L_1\code{=}w_1\code{,}
+    \dots\code{,}
+    L_n\code{=}w_n
+    \code{]}
+    \rhd
+  }}
+  (A\vee\neg A)
+  \big)\text{.}
+ \end{array}$
+\end{enumerate}
+%
+The first item reflects that an unconstrained aggregate atom always holds,
+while aggregate atoms with a lower and an upper bound are split up into two
+conjunctively connected parts (Item~2).
+Item~3--8 specify these parts individually for~\const{sum},~\const{max}, and~\const{min}
+aggregates, respectively.
+Provided that only non-negative weights are used within \const{sum}s,
+all three aggregates are subject to one comparison that is monotone,
+meaning that by default it evaluates to \textit{false} so that truth must be established.
+For \const{sum} and \const{max} aggregates, these monotone comparisons are related
+to lower bounds (Item~3 and~5),
+while an upper bound behaves monotonically for \const{min} (Item~8).
+In turn, the opposite comparison is antimonotone, that is,
+by default it evaluates to \textit{true} unless too many or improper literals hold.
+This is the case for comparisons to upper bounds with aggregates
+\const{sum} and \const{max} (Item~4 and~6), while it concerns 
+the lower bound for \const{min} (Item~7).
+Finally, translation~$\psi$ of an aggregate atom in the head of a rule consists of two parts:
+first, $\phi$ is used like in the body of a rule
+(in Item~9, $\lhd$ and~$\rhd$ are used as ``wildcards'' for provided or omitted 
+ lower and upper bounds),
+second, a disjunction $(A\vee\neg A)$ is added for each atom~$A$ occurring positively.
+Even though such disjunctions are tautological,
+they are important under answer set semantics (cf.\ Section~\ref{subsec:semantics}),
+as they permit deriving an arbitrary subset of atoms from an aggregate in the head
+(which explains the name  ``choice semantics'').
+Beyond this special treatment in rule heads,
+the truth values of aggregate atoms result from their literals as
+may be intuitively expected,
+and Item~1--8 basically do nothing but formalizing the standard meanings
+of aggregate operations.
+Note that the above translations merely define the semantics of aggregates,
+which does not imply that solvers unfold them in this way.
+In fact, \clasp\ natively supports aggregates without translating them.
+
+As regards syntactic representation,
+weight~\const{1} is considered a default,
+so that $L_i\code{=}\const{1}$ can simply be written as $L_i$.
+For instance, the following (multi)sets of (weighted) literals are the same
+when combined with any kind of aggregate operation and bounds:
+\begin{lstlisting}[numbers=none,escapechar=@]
+[a=1, not b=1, c=2]  @\textnormal{and}@
+[a,   not b,   c=2]@\textnormal{.}@
+\end{lstlisting}
+%
+Furthermore,
+keyword \const{sum} may be omitted, which in a sense makes \const{sum} the default
+aggregate operation.
+In fact, the following aggregate atoms are synonyms:
+\begin{lstlisting}[numbers=none,escapechar=@]
+2 sum [a, not b, c=2] 3  @\textnormal{and}@
+2     [a, not b, c=2] 3@\textnormal{.}@
+\end{lstlisting}
+By omitting keyword \const{sum}, we obtain the same notation as the one of 
+so-called ``weight constraints''~\cite{siniso02a,lparseManual}, which are actually aggregate atoms
+whose operation is addition.
+
+It is important to note that the (weighted) literals within an aggregate
+belong to a multiset.
+In particular, if there are multiple occurrences
+$L\code{=}w_1,\dots,L\code{=}w_k$
+of a literal~$L$, in combination with \const{min} and \const{max},
+it is not the same like having $L\code{=}w_1+\dots+w_k$.
+To see this, note that the program consisting of the facts:
+\begin{lstlisting}[numbers=none]
+2 max [a=2].  2 min [a=2].
+\end{lstlisting}
+has $\{\code{a}\}$ as its unique answer set, while there is no answer set for:
+\begin{lstlisting}[numbers=none]
+2 max [a,a].  2 min [a,a].
+\end{lstlisting}
+
+If literals ought not to be repeated,
+we can use \const{count} instead of \const{sum}.
+Syntactically, \const{count} requires curly instead of square
+brackets, and there must not be any weights within a \const{count} aggregate.
+Regarding semantics,
+% \begin{equation*}%\label{eq:aggregate:atom}
+$(
+  l~ 
+  \const{count} 
+  \code{\char`\{}
+  L_1\code{,}
+  \dots\code{,}
+  L_n
+  \code{\char`\}}
+  u
+)$ 
+%\end{equation*}
+reduces to
+$(
+  l~ 
+  \const{sum} 
+  \code{[}
+  L_1\code{=}\const{1}\code{,}
+  \dots\code{,}
+  L_m\code{=}\const{1}
+  \code{]}
+  u
+)$,
+where $\{L_1,\dots,L_m\}=\{L_i \mid 1\leq i\leq n\}$ is obtained by dropping
+repeated literals.
+Of course, the use of~$l$ and~$u$ is optional also with \const{count}.
+As an example, note that the next aggregate atoms express the same:
+\begin{lstlisting}[numbers=none,escapechar=@]
+1 sum   [a=1, not b=1]     1  @\textnormal{and}@ 
+1 count {a,a, not b,not b} 1@\textnormal{.}@  
+\end{lstlisting}
+Keyword \const{count} can be omitted (like \const{sum}),
+so that the following are synonyms:
+\begin{lstlisting}[numbers=none,escapechar=@]
+1 count {a, not b} 1  @\textnormal{and}@ 
+1       {a, not b} 1@\textnormal{.}@  
+\end{lstlisting}
+The last notation is similar to the one of so-called
+``cardinality constraints''~\cite{siniso02a,lparseManual},
+which are aggregate atoms using counting as their operation.
+
+After considering the syntax and semantics of ground aggregate atoms,
+we now turn our attention to non-ground aggregates.
+Regarding contained variables, an atom occurring in an aggregate behaves
+similar to an atom on the left-hand side of a condition
+(cf.\ Section~\ref{subsec:gringo:condition}).
+That is, any variable occurring within an aggregate is a priori local,
+and it must be bound via a variable of the same name that is global
+or that occurs on the right-hand side of a condition
+(with the atom containing the variable in front).
+As with local variables of conditions, global variables take priority
+during grounding, so that the names of local variables must be chosen
+with care to avoid accidental clashes.
+Beyond conditions (which are more or less the natural construct to use
+for instantiating variables within an aggregate),
+classical negation (cf.\ Section~\ref{subsec:gringo:negation}),
+built-in arithmetic functions (cf.\ Section~\ref{subsec:gringo:arith}),
+intervals (cf.\ Section~\ref{subsec:gringo:interval}), and 
+pooling (cf.\ Section~\ref{subsec:gringo:pool})
+can be incorporated as usual within aggregates,
+where intervals and pooling are expanded locally.%
+\footnote{%
+  Assignments (cf.\ Section~\ref{subsec:gringo:assign}) and (currently)
+  also built-in comparison predicates (cf.\ Section~\ref{subsec:gringo:comp})
+  are permitted on the right-hand sides of conditions only.}
+That is, an interval gives rise to multiple literals connected via~``\code{,}''
+within the same aggregate.
+The same applies to pooling in front of a condition,
+while it turns into a composite condition chained by~``\code{:}'' on the right-hand side.
+The notions of level-restrictedness and stratification
+(cf.\ Section~\ref{subsec:lambda} and~\ref{subsec:strat}) are extended
+to programs with aggregates by
+considering the predicates of all atoms (except for those on the right-hand side of a condition)
+in an aggregate atom occurring as the head of a rule~$r$,%
+\footnote{%
+  The rules in a (maximal) stratified subprogram (cf.\ Section~\ref{subsec:strat})
+  cannot have aggregate atoms in the head.}
+and by assuming $A\in\nbody{r}$ for all atoms~$A$ of an aggregate in the body of~$r$.
+Finally, note that aggregates without bounds are also permitted on the
+right-hand sides of assignments, but using this feature is only recommended
+for aggregates whose atoms belong to domain predicates because space blow-up
+can become a bottleneck otherwise.
+The following example, making exhaustive use of aggregates,
+nonetheless demonstrates this and other features.
+
+\begin{example}\label{ex:aggr}
+Consider a situation where an informatics student
+wants to enroll for a number of courses at the beginning of a new term.
+In the university calendar, eight courses are found eligible,
+and they are represented by the following facts:
+%
+\lstinputlisting[xrightmargin=-20pt,lastline=8]{examples/aggr.lp}
+%
+In an instance of \const{course}/$3$,
+the first argument is a number identifying one of the eight courses,
+and the third argument provides the course's contact hours per week.
+The second argument stands for a subject area:
+\const{1} corresponding to ``theoretical informatics,''
+\const{2}               to ``practical informatics,''
+\const{3}               to ``technical informatics,''
+and~\const{4}               to ``applied informatics.''
+For instance, atom \code{\const{course}(\const{1},\const{2},\const{5})}
+expresses that course~\const{1} accounts for~\const{5} contact hours per week
+that may be credited to subject area~\const{2} (``practical informatics'').
+Observe that a single course is usually eligible for multiple
+subject areas.
+
+After specifying the above facts,
+the student starts to provide personal constraints on the courses to enroll.
+The first condition is that~\const{3} to~\const{6} courses should be enrolled:
+%
+\lstinputlisting[nolol,firstline=11,lastline=11,firstnumber=9]{examples/aggr.lp}
+%
+Instantiating the above \const{count} aggregate
+yields the following ground rule:%
+\marginlabel{%
+  The full ground program is obtained by invoking:\\
+  \code{\mbox{~}gringo -t \textbackslash\\\mbox{~}examples/aggr.lp}}
+%
+\begin{lstlisting}[firstnumber=9,stepnumber=9]
+3 { enroll(1), enroll(2), enroll(3), enroll(4), 
+    enroll(5), enroll(6), enroll(7), enroll(8) } 6.
+\end{lstlisting}
+%
+Observe that an instance of atom~\code{\const{enroll}(\var{C})} is included for each
+instantiation of~\var{C} such that \code{\const{course}(\var{C},\var{S},\var{H})}
+holds for some values of~\var{S} and~\var{H}.
+Duplicates resulting from distinct values for~\var{S} are removed, thus,
+obtaining the above set of ground atoms.
+
+The next constraints of the student regard the subject areas of enrolled courses:
+%
+\lstinputlisting[nolol,firstline=13,lastline=15,firstnumber=10]{examples/aggr.lp}
+%
+Each of the three integrity constraints above contains a \const{sum} aggregate,
+using default weight~\const{1} for literals.
+Recalling that \const{sum} aggregates operate on multisets,
+duplicates are not removed.
+Thus, the integrity constraint in Line~10 is instantiated as follows:
+%
+\begin{lstlisting}[firstnumber=10,stepnumber=10]
+:- [ enroll(1) = 1, enroll(1) = 1, 
+     enroll(2) = 1, enroll(2) = 1,
+     enroll(3) = 1, enroll(3) = 1,
+     enroll(4) = 1, enroll(4) = 1, enroll(4) = 1,
+     enroll(5) = 1, enroll(5) = 1,
+     enroll(6) = 1, enroll(6) = 1,
+     enroll(7) = 1, enroll(7) = 1, enroll(7) = 1,
+     enroll(8) = 1, enroll(8) = 1 ] 10.
+\end{lstlisting}
+%
+Note that courses~\const{4} and~\const{7} count three times because
+they are eligible for three subject areas, viz., there are three
+distinct instantiations for~\var{S} in
+\code{\const{course}(\var{4},\var{S},\const{3})} and
+\code{\const{course}(\var{7},\var{S},\const{4})}, respectively.
+Comparing the above ground instance,
+the meaning of the integrity constraint in Line~10 is that the 
+number of eligible subject areas over all enrolled courses
+must be more than~\const{10}.
+Similarly, the integrity constraint in Line~11 expresses the requirement
+that at most one course of subject area~\const{2} (``practical informatics'')
+is not enrolled,
+while Line~12 stipulates that the enrolled courses
+amount to less than six nominations of
+subject area~\const{3} (``technical informatics'') 
+or~\const{4} (``applied informatics'').
+Also note that, given the facts in Line~1--8,
+we could equivalently have used \const{count} rather than \const{sum} in Line~11,
+but not in Line~10 and~12.
+
+The remaining constraints of the student deal with contact hours.
+To express them, we first introduce an auxiliary rule and a fact:
+%
+\lstinputlisting[nolol,firstline=17,lastline=18,firstnumber=13]{examples/aggr.lp}
+%
+The rule in Line~13 projects instances of \pred{course}/$3$ to
+\pred{hours}/$2$, thereby, dropping courses' subject areas.
+This is used to not consider the same course multiple times within the following
+integrity constraints:
+%
+\lstinputlisting[nolol,firstline=20,lastline=22,firstnumber=15]{examples/aggr.lp}
+%
+As Line~15 shows,
+we may use default negation via ``\code{not}'' in front of aggregate atoms,
+and bounds may be specified in terms of variables.
+In fact, by instantiating~\var{M} to~\const{20},
+we obtain the following ground instance of the integrity constraint in Line~15:
+%
+\begin{lstlisting}[firstnumber=15,stepnumber=15]
+:- not 18 [ enroll(1) = 5, enroll(2) = 4, 
+            enroll(3) = 6, enroll(4) = 3,
+            enroll(5) = 4, enroll(6) = 2,
+            enroll(7) = 4, enroll(8) = 5 ] 20.
+\end{lstlisting}
+%
+The above integrity constraint states that the \const{sum} of contact hours per week
+must lie in-between~\const{18} and~\const{20}.
+Note that the \const{min} and \const{max} aggregates in Line~16 and~17, respectively,
+work on the same (multi)set of weighted literals as in Line~15.
+While the integrity constraint in Line~16 stipulates that any course to enroll
+must include more than~\const{2} contact hours,
+the one in Line~17 prohibits enrolling for courses of~\const{6} or more contact hours.
+Of course, the last two requirements could also be formulated as follows:
+%
+\begin{lstlisting}[firstnumber=16]
+:- enroll(C), hours(C,H), H <= 2.
+:- enroll(C), hours(C,H), H >= 6.
+\end{lstlisting}
+
+Finally, the following rules illustrate the use of aggregates within assignments:
+%
+\lstinputlisting[nolol,firstline=24,lastline=25,firstnumber=18]{examples/aggr.lp}
+%
+Note that the above aggregates have already been used in Line~9 and~15, respectively,
+where keywords \const{count} and \const{sum} have been omitted for convenience.
+These keywords can be dropped here too, and we merely include them to show the
+more verbose notations of \const{count} and \const{sum} aggregates.
+However, the usage of aggregates in the last two lines is different from before,
+as they now serve to assign an integer to a variable~\var{N}.
+In this context, bounds are not permitted, and so none are provided in Line~18 and~19.
+The effect of these two lines is that the student can read off the number of
+courses to enroll and the amount of contact hours per week from instances of
+\pred{courses}/$1$ and \pred{hours}/$1$ belonging to an answer set.%
+\marginlabel{%
+  To compute the unique answer set of the program, invoke:\\
+  \code{\mbox{~}gringo \textbackslash\\
+        \mbox{~}examples/aggr.lp | \textbackslash\\
+        \mbox{~}clasp -n 0}\\
+  or alternatively:\\
+  \code{\mbox{~}clingo -n 0 \textbackslash\\
+        \mbox{~}examples/aggr.lp}}
+%
+In fact, running \clasp\ shows the student that a unique
+collection of~\const{5} courses to enroll satisfies all requirements:
+the courses~\const{1}, \const{2}, \const{4}, \const{5}, and~\const{7},
+amounting to~\const{20} contact hours per week.
+
+Although the above program does not reflect this possibility,
+it should be noted that (as has been mentioned in Section~\ref{subsec:gringo:condition})
+multiple literals may be connected via ``\code{:}'' in order to construct
+composite conditions within an aggregate.
+As before, the predicates of atoms on the right-hand side of such conditions
+must be either domain predicates or built-in.
+Furthermore, the usage of non-domain predicates within an aggregate
+on the right-hand side of an assignment (like \pred{enroll}/$1$ in Line~18 and~19 above)
+is not recommended in general because the space blow-up may be significant.
+\eexample
+\end{example}
+
+
+\subsubsection{Optimization}\label{subsec:gringo:optimize}
+
+Optimization statements extend the basic question of
+whether a set of atoms is an answer set to
+whether it is an optimal answer set.
+To support this reasoning mode, \gringo\ and \clingo\ adopt the
+optimization statements of \lparse~\cite{lparseManual},
+indicated via keywords \const{maximize} and \const{minimize}.
+Syntactically, a \const{maximize} or \const{minimize} statement
+is similar to a fact whose head is a \const{count} or a \const{sum}
+aggregate (without bounds),
+viz.,
+``$\textrm{opt}\code{\char`\{}\dots\code{\char`\}}\code{.}$'' or
+``$\textrm{opt}\code{[}\dots\code{]}\code{.}$'' where
+$\textrm{opt}\in\{\const{maximize},\linebreak[1]\const{minimize}\}$.
+As an optimization statement does not admit a body, any (local) variable
+in it must also occur in an atom (over a domain or built-in predicate)
+on the right-hand side of a condition (cf.\ Section~\ref{subsec:gringo:condition})
+within the optimization statement.
+In multiset notation (square brackets),
+weights may be provided as with \const{sum} aggregates. %,
+% where~\const{1} is used as default for omitted weights.
+In set notation (curly brackets),
+duplicates of literals are removed
+as with \const{count} aggregates.
+
+The semantics of an optimization statement is intuitive:
+an answer set is \emph{optimal} if the sum of weights
+(using~\const{1} for unsupplied weights)
+of literals that hold is maximal or minimal, as required by the statement,
+among all answer sets of the given program.
+This definition is sufficient if a single optimization statement is specified
+along with a logic program.
+Unfortunately, the syntax used by \lparse\ and adopted by \gringo\ and \clingo\
+does not provide any means to explicitly declare priorities among multiple
+optimization statements.
+A technique how to compile multiple optimization statements into a single one
+is discussed in~\cite{siniso02a},
+but it can lead to large integers
+(probably rather unnatural for a user to assign).
+Thus, rather than restricting to a single optimization statement,
+a sequence of them is permitted,
+where a statement provided later on takes priority over previous ones.
+That is, the last optimization statement in program is the most significant one,
+and previous ones are only considered if answer sets agree on the sum of 
+weights of its literals.
+In this way, multiple optimization statements are arranged into a total order,
+which is the inverse order of occurrence.
+In contrast to the declarative answer set semantics, the semantics of
+optimization statements is thus order-dependent,
+requiring special care when providing more than one of them.
+
+\begin{example}\label{ex:opt}
+To illustrate optimization, we consider a hotel booking situation
+where we want to choose one among five available hotels.
+The hotels are identified via numbers assigned in descending order of stars.
+Of course, the more stars a hotel has the more it costs per night.
+As an ancillary information, we know that hotel~\const{4} is located
+on a main street, which is why we expect its rooms to be noisy.
+This knowledge is specified in Line~1--5 of the following program:
+%
+\lstinputlisting[xrightmargin=-26pt]{examples/opt.lp}
+%
+Line~6--8 contribute optimization statements in inverse order of significance,
+according to which we want to choose the best hotel to book.
+The most significant optimization statement in Line~8 states that
+avoiding noise is our main priority.
+The secondary optimization criterion in Line~7 consists of
+minimizing the cost per star.
+Finally, the third optimization statement in Line~6 specifies that we want
+to maximize the number of stars among hotels that are otherwise indistinguishable.
+The optimization statements in Line~6--8 are instantiated as follows:%
+\marginlabel{%
+  The full ground program is obtained by invoking:\\
+  \code{\mbox{~}gringo -t \textbackslash\\\mbox{~}examples/opt.lp}}
+%
+\begin{lstlisting}[firstnumber=6,breaklines,breakindent=48pt]
+maximize [ hotel(1) = 5, hotel(2) = 4, hotel(3) = 3,    hotel(4) = 3, hotel(5) = 2 ].
+minimize [ hotel(1) = 34, hotel(2) = 35, hotel(3) = 30,   hotel(4) = 25, hotel(5) = 30 ].
+minimize [ noisy = 1 ].
+\end{lstlisting}
+If we now use \clasp\ to compute an optimal answer set,%
+\marginlabel{%
+  To compute the unique optimal answer set, invoke:\\
+  \code{\mbox{~}gringo \textbackslash\\
+        \mbox{~}examples/opt.lp | \textbackslash\\
+        \mbox{~}clasp -n 0}\\
+  or alternatively:\\
+  \code{\mbox{~}clingo -n 0 \textbackslash\\
+        \mbox{~}examples/opt.lp}}
+we find that hotel~\const{4} is not eligible because it implies \pred{noisy}.
+Thus, hotel~\const{3} and~\const{5} remain as optimal w.r.t.\ the second most
+significant optimization statement in Line~7.
+This tie is broken via the least significant optimization statement in Line~6
+because hotel~\const{3} has one star more than hotel~\const{5}.
+We thus decide to book hotel~\const{3} offering~\const{3} stars
+to cost~\const{90} per night.
+\eexample
+\end{example}
+
+
+\subsubsection{Meta-Statements}\label{subsec:gringo:meta}
+
+After considering the language of logic programs,
+we now introduce features going beyond the contents of a program.
+
+\paragraph{Comments.}
+To keep records of the contents of a logic program,
+a logic program file may include comments.
+A comment until the end of a line is initiated by symbol ``\code{\%},''
+and a comment within one or over multiple lines is enclosed
+by ``\code{\%*}'' and ``\code{*\%}.''
+As an abstract example, consider:
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+@\textit{logic program}@  %* enclosed comment *%  @\textit{logic program}@
+@\textit{logic program}@  % comment till end of line
+@\textit{logic program}@
+%*
+comment over multiple lines
+*%
+@\textit{logic program}@
+\end{lstlisting}
+
+\paragraph{Hiding Predicates.}
+Sometimes, one may be interested only in a subset of the atoms belonging
+to an answer set.
+In order to suppress the atoms of ``irrelevant'' predicates from the output,
+the \code{\#hide} declarative (in which~\code{\#} is optional) can be used.
+The meanings of the following statements are indicated via accompanying comments:
+%
+\begin{lstlisting}[numbers=none]
+#hide.          % Suppress all atoms in output
+ hide.          % Same as "#hide."
+#hide p/3.      % Suppress all atoms of predicate p/3 in output
+ hide p/3.      % Same as "#hide p/3."
+#hide p(X,Y,Z). % Same as "#hide p/3."
+ hide p(X,Y,Z). % Same as "#hide p/3."
+\end{lstlisting}
+%
+In order to selectively include the atoms of a certain predicate in the output,
+one may use the \code{\#show} declarative (in which~\code{\#} is again optional).
+Here are some examples:
+%
+\begin{lstlisting}[numbers=none]
+#show p/3.      % Include all atoms of predicate p/3 in output
+ show p/3.      % Same as "#show p/3."
+#show p(X,Y,Z). % Same as "#show p/3."
+ show p(X,Y,Z). % Same as "#show p/3."
+\end{lstlisting}
+%
+A typical usage of \code{\#hide} and \code{\#show} is to hide all predicates
+via ``\code{\#hide.}'' and to selectively re-add atoms of certain predicates
+\code{p/$n$} to the output via ``\code{\#show p/$n$.}''
+
+\paragraph{Constant Replacement.}
+Constants appearing in a logic program may actually be placeholders for
+concrete values to be provided by a user.
+An example of this will be given in Section~\ref{subsec:ex:color}.
+Via the \code{\#const} declarative (\code{\#}~is optional),
+one may define a default value to be inserted for a constant.
+Such a default value can still be overridden via command line option
+\code{--const} (cf.\ Section~\ref{subsec:opt:gringo}).
+Syntactically, \code{\#const} must be followed by an assignment having
+a (symbolic) constant on the left-hand side and a term on the right-hand side.
+Some exemplary \code{\#const} declarations are:
+%
+\begin{lstlisting}[numbers=none]
+#const x = 42.
+ const y = f(g,h).
+\end{lstlisting}
+
+\paragraph{Domain Declarations.}
+Usually, variable names are local to a rule,
+where they must be bound via appropriate atoms (cf.\ Section~\ref{subsec:lambda}).
+This locality can be undermined by using
+\code{\#domain} declarations (\code{\#}~is optional)
+that globally associate variable names to atoms.
+An associated atom is then simply added to the body of a rule in which
+such a predefined variable name occurs in.
+The following is a made-up example:
+%
+\begin{lstlisting}[numbers=none]
+p(1,1). p(1,2).
+#domain p(X,Y).
+ domain p(Y,Z).
+q(Z,X) :- not p(Z,X).
+\end{lstlisting}
+%
+The above program is a priori not level-restricted because
+variables~\var{X} and~\var{Z} are unbound in the last rule.
+However, as they belong to \code{\#domain} declarations,
+\gringo\ and \clingo\ expand the last rule to:
+%
+\begin{lstlisting}[numbers=none]
+q(Z,X) :- p(X,Y), p(Y,Z), not p(Z,X).
+\end{lstlisting}
+%
+Observe that the resulting program is level-restricted (and stratified).
+
+\paragraph{Compute Statements.}
+These statements are artefacts supported for backward compatibility.
+Although we strongly recommend to avoid compute statements,
+we now describe their syntax.
+A compute statement is of the form
+``$\const{\#compute}~n \code{\char`\{}\dots\code{\char`\}}\code{.}$''
+(\code{\#}~and non-negative integer $n$ are optional),
+where the ``$\code{\char`\{}\dots\code{\char`\}}$'' part
+is similar to a \const{count} aggregate.
+The meaning is that all literals contained in
+``$\code{\char`\{}\dots\code{\char`\}}$'' must hold w.r.t.\ answer sets
+that are to be computed,
+while~$n$ specifies a number of answer sets to compute.
+As \clasp, \clingo, and \iclingo\ provide command line option
+\code{--number} (cf.\ Section~\ref{subsec:opt:clasp})
+to specify how many answer sets are to be computed,
+they simply ignore~$n$.
+Furthermore,
+the ``$\code{\char`\{}\dots\code{\char`\}}$'' part can equivalently
+be expressed in terms of integrity constraints,
+as indicated in the comments provided along with the following example:
+%
+\begin{lstlisting}[xrightmargin=-20pt,numbers=none]
+q(1;2).
+{ p(1..5) }.
+#compute 0 { p(X) : q(X) }.       % :- 1 { not p(X) : q(X) }.
+ compute   { not p(X) : X=4..5 }. % :- 1 { p(X) : X=4..5 }.
+\end{lstlisting}
+
+
+\subsection{Input Language of \iclingo}\label{subsec:lang:iclingo}
+
+System \iclingo~\cite{gekakaosscth08a} extends \clingo\ by an
+\emph{incremental} computation mode that incorporates both grounding and solving.
+Hence, its input language includes all constructs described
+in Section~\ref{subsec:lang:gringo}.%
+\footnote{%
+  In its current version, \iclingo\ has no built-in support for
+  classical negation (cf.\ Section~\ref{subsec:gringo:negation}).
+  That is, complementary atoms may jointly belong to answer sets,
+  unless explicitly prohibited by integrity constraints.}
+In addition, \iclingo\ deals with statements of the following form:
+%
+\begin{lstlisting}[numbers=none,escapechar=@]
+#base.
+#cumulative @\textit{constant}@.
+#volatile   @\textit{constant}@.
+\end{lstlisting}
+%
+Via ``\code{\const{\#base}.},''
+the subsequent part of a logic program is declared as static, that is,
+it is processed only once at the beginning of an incremental computation.
+In contrast, ``\code{\const{\#cumulative} \textit{constant}.}''
+and ``\code{\const{\#volatile} \textit{constant}.}'' are used to declare
+a (symbolic) \code{\textit{constant}} as a placeholder for incremental step numbers.
+In the parts of a logic program below a \const{\#cumulative} statement,
+\code{\textit{constant}} is in each step replaced with the current step number,
+and the resulting rules, facts, and integrity constraints are accumulated
+over a whole incremental computation.
+While the replacement of \code{\textit{constant}} is similar,
+a logic program part below a \const{\#volatile} statement is local to steps,
+that is, all rules, facts, and integrity constraints computed in one step
+are dismissed before the next incremental step.
+Note that the type of a logic program part (static, cumulative, or volatile)
+is determined by the last
+\const{\#base}, \const{\#cumulative}, or \const{\#volatile} statement
+preceding it.
+
+During an incremental computation, all static program parts are grounded first,
+while cumulative and volatile parts are grounded step-wise,
+replacing \code{\textit{constant}}s with successive step numbers starting from~\const{1}.
+After a grounding step, \clasp\ is usually invoked via an internal interface
+(like with \clingo), and the incremental computation stops after a step
+in which at least one answer set has been found by \clasp.
+This default behavior can be readapted via command line 
+options (cf.\ Section~\ref{subsec:opt:iclingo}).
+For obtaining a well-defined incremental computation result,
+it is important that (ground) head atoms within static, cumulative, and volatile program parts
+are distinct from each other, and they must also be different from step to step
+(see~\cite{gekakaosscth08a} for details).
+In Section~\ref{subsec:ex:block},
+we will provide a typical example in which these conditions naturally hold.
+
+
+\subsection{Input Language of \clasp}\label{subsec:lang:clasp}
+
+Solver \clasp~\cite{gekanesc07b} works on logic programs in \lparse's
+output format~\cite{lparseManual}.
+This numerical format, which is not supposed to be human-readable,
+is output by \gringo\ and can be piped into \clasp.
+Such an invocation of \clasp\ looks as follows:
+%
+\begin{lstlisting}[numbers=none]
+gringo [ options | filenames ] | clasp [ number | options ]
+\end{lstlisting}
+%
+Note that \code{number} may be provided to specify a maximum number of answer sets
+to be computed, where~\code{0} makes \clasp\ compute all answer sets.
+This maximum number can also be set via
+option \code{--number} or its abbreviation \code{-n}
+(cf.\ Section~\ref{subsec:opt:clasp}).
+By default, \clasp\ computes one answer set (if it exists).
+If a logic program in \lparse's output format has been stored in a \code{file},
+it can be redirected into \clasp\ as follows:%
+\footnote{%
+  The same is achieved by using option \code{--file} or its short form \code{-f}
+  (cf.\ Section~\ref{subsec:opt:clasp}).}
+%
+\begin{lstlisting}[numbers=none]
+clasp [ number | options ] < file
+\end{lstlisting}
+%
+Via option \code{--dimacs},
+\clasp\ can also be instructed to compute models of a propositional formula
+in DIMACS/CNF format~\cite{dimacs}.
+If such a formula is contained in \code{file},
+then \clasp\ can be invoked in the following way:
+%
+\begin{lstlisting}[numbers=none]
+clasp [ number | options ] --dimacs < file
+\end{lstlisting}
+%
+Finally, \clasp\ may be used as a library, as done within \clingo\ and \iclingo.
+
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "guide"
+%%% End: 

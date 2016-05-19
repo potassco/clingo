@@ -1,0 +1,16 @@
+K 10
+svn:ignore
+V 66
+*.pdf
+*.aux
+*.log
+*.toc
+*.lol
+*.bbl
+*.blg
+*.out
+*.brf
+*.lof
+*.dvi
+
+END

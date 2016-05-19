@@ -1,0 +1,21 @@
+\begin{figure}[tb]
+\centering
+\begin{picture}(300,120)(-150,-60)
+\put(-80,+40){\makebox(0,0){\framebox(80,20){Problem}}}
+\put(-80,-40){\makebox(0,0){\framebox(80,20){Logic Program}}}
+\put(+80,+40){\makebox(0,0){\framebox(80,20){Solution(s)}}}
+\put(+80,-40){\makebox(0,0){\framebox(80,20){Answer set(s)}}}
+\put(-80,+30){\vector(0,-1){60}}
+\put(-40,-40){\vector(+1,0){80}}
+\put(+80,-30){\vector(0,+1){60}}
+\put(-120,  0){\makebox(0,0){{Representation}}}
+\put(+120,  0){\makebox(0,0){{Interpretation}}}
+\put(   0,-55){\makebox(0,0){{Computation}}}
+\end{picture}
+\caption{Declarative Problem Solving in ASP.\label{fig:asp}}
+\end{figure}
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "../guide"
+%%% End: 

@@ -1,0 +1,44 @@
+gringo 2.0.5
+	* fixed a bug that made assignment aggregates unusable in the previous release
+gringo 2.0.4
+	* correctly handle negative weights in optimize statements
+	* added clasp-1.3.1 to the clingo/iclingo variants
+	* allow for comparing all values with each other 
+	  (strings, numbers, function symbols)
+	* added experimental ishift directives
+	* dropped support for plain Makefiles
+	* corrected the power operator
+	* fixed some serious bugs in the instantiator
+	* the project should be compilable using msvc now
+	  (use cmake-gui to generate the project files)
+	* various other bugfixes
+gringo 2.0.3
+	* added option --shift to remove disjunctions in the head of rules
+	* added support for #times aggregates
+	* added support for #avg aggregates
+	* added support for the two parity aggregates #even and #odd
+	* added the synonyms #minimize/minimise and #maximize/#maximise
+	* every keyword (sum, count, min, ...) should be preceeded by # now
+	* fixed a bug in the lparseconverter
+	* fixed a bug concerning top-level conflicts while incremental solving
+	* fixed a bug with ; nested in aggregates
+	* added clasp-1.2.0 to the clingo/iclingo variants
+	* fixed a bug in the instantiator
+	* changed the ordering of predicates in rule bodies
+	  (the previous implementation may have led to non-deterministic behaviour)
+	* fixed a bug in sum aggregates (negative literals did not work)
+gringo 2.0.2
+	* removed some wrong assertions
+	* fixed handling of min- and max-aggregates
+	* fixed a bug in assignmentliterals
+	* added a "--debug" option to print the internal representation of rules during grounding
+gringo 2.0.1
+	* added "--base" option
+	* aggregates may be preceded by nots now
+	* improved the "--help" output
+	* fixed a bug in the handling of ;'s
+	* fixed non working max-aggregates
+	* fixed the cmake files because of build errors on some platforms
+gringo 2.0.0
+	* complete rewrite of gringo 1.0.0
+

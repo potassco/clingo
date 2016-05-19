@@ -1,0 +1,22 @@
+gringo - A grounder for logic programs:
+---------------------------------------
+gringo is distributed under the GNU Public Licence, see file COPYING for 
+details. For instructions on how to compile and install gringo consult 
+the INSTALL file.
+
+Distribution contents:
+   COPYING        - GNU Public Licence
+   CHANGES        - Major changes between versions
+   README         - This file
+   INSTALL        - Installation instructions
+   CMakeLists.txt - Used to build project using cmake
+   Makefile       - Contains preset configurations for common builds
+   app/           - Source code directory of the command-line interface
+   lib*/          - Sourcecode + includes for all required libraries
+   doc/           - Documentation directory (doxygen is required to build the
+                    api documentation and latex to build the guide)
+   cmake/         - Contains auxiliary files for cmake
+
+gringo is written in mostly Standard-C++ and was successfully built and run 
+under Linux (x86-32, x86-64) using gcc and Windows (x86-32) using MinGW. 
+

@@ -1,0 +1,30 @@
+/*!
+\mainpage The clasp System
+\author Benjamin Kaufmann (kaufmann@cs.uni-potsdam.de)
+\version 1.0
+
+clasp - the <b>c</b>onflict-driven <b>l</b>earning <b>a</b>nswer <b>s</b>et <b>p</b>rogramming system -
+is an answer set solver for (extended) normal logic programs. It combines the high-level modeling capacities 
+of answer set programming (ASP) with state-of-the-art techniques from the area of Boolean constraint solving. 
+The primary clasp algorithm relies on conflict-driven learning, a technique that proved 
+very successful for satisfiability checking (SAT). Unlike other ASP solvers that use 
+conflict-driven learning, e.g., <a href="http://assat.cs.ust.hk/">assat</a>, <a href="http://www.cs.utexas.edu/users/tag/cmodels.html">cmodels</a>, and 
+<a href="http://www.nku.edu/~wardj1/Research/smodels_cc.html">smodels_cc</a>, clasp does not rely on legacy 
+software, such as a SAT solver or any other existing ASP solver. Rather, clasp has been genuinely 
+developed for answer set solving based on conflict-driven learning.
+
+clasp incorporates many features that are nowadays standard in state-of-the-art SAT solvers, 
+like <a href="http://www.princeton.edu/~chaff/zchaff.html">chaff</a>, <a href="http://eigold.tripod.com/BerkMin.html">berkmin</a>, 
+<a href="http://www.cs.chalmers.se/Cs/Research/FormalMethods/MiniSat/Papers.html">minisat</a>, <a href="http://www.cs.sfu.ca/~cl/software/siege/">siege</a>, etc., 
+but which are unusual in the context of ASP solving. 
+Such techniques include:
+ - conflict analysis via the FirstUIP scheme and backjumping
+ - nogood recording and deletion
+ - restarts
+ - conflict-driven decision heuristics
+ - unit propagation via watched literals
+ - dedicated propagation of binary and ternary nogoods
+ .
+
+For more information please visit the clasp homepage: http://www.cs.uni-potsdam.de/clasp 
+*/
