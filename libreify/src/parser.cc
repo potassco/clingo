@@ -164,7 +164,7 @@ void Reify::Parser::parse() {
 
 void Reify::Parser::parse(std::string const &file) {
     file_ = file;
-    push(file_, 0);
+    push(file_.c_str(), 0);
     parse();
     pop();
 }
