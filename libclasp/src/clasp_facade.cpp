@@ -665,7 +665,7 @@ bool ClaspFacade::read() {
 	CLASP_ASSERT_CONTRACT(solve_.get());
 	if (!program() || interrupted()) { return false; }
 	ProgramParser& p = program()->parser();
-	if (!p.more() || (solved() && !update().ok())) { return false; }
+	if (!p.isOpen() || (solved() && !update().ok())) { return false; }
 	CLASP_FAIL_IF(!p.parse(), "Invalid input stream!");
 	if (!p.more()) { p.reset(); }
 	return true;

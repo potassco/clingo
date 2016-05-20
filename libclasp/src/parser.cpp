@@ -83,6 +83,9 @@ bool ProgramParser::accept(std::istream& str, const ParserOptions& o) {
 	}
 	return false;
 }
+bool ProgramParser::isOpen() const {
+	return strat_ != 0;
+}
 bool ProgramParser::incremental() const {
 	return strat_ && strat_->incremental();
 }
@@ -317,8 +320,11 @@ bool DimacsReader::doAttach(bool& inc) {
 	require(stream()->get() == '\n', "invalid extra characters in problem line");
 	program_->prepareProblem(numVar_, cw, numC);
 	if (options.isEnabled(ParserOptions::parse_acyc_edge | ParserOptions::parse_minimize)) {
+		const bool acyc = options.isEnabled(ParserOptions::parse_acyc_edge);
+		const bool minw = options.isEnabled(ParserOptions::parse_minimize);
+		const bool proj = options.isEnabled(ParserOptions::parse_project);
 		for (ExtDepGraph* g = 0; match("c "); ) {
-			if (match("graph ") && options.isEnabled(ParserOptions::parse_acyc_edge)) {
+			if (acyc && match("graph ")) {
 				require(g == 0, "graph: only one graph supported");
 				g = program_->ctx()->extGraph.get();
 				if (!g) { program_->ctx()->extGraph = (g = new ExtDepGraph()); }
@@ -326,13 +332,18 @@ bool DimacsReader::doAttach(bool& inc) {
 				parseGraph("c ", *g);
 				g->finalize(*program_->ctx());
 			}
-			else if (match("minweight") && options.isEnabled(ParserOptions::parse_minimize)) {
+			else if (minw && match("minweight")) {
 				WeightLitVec min;
 				for (int lit, weight, max = static_cast<int>(numVar_); (lit = matchInt(-max, max)) != 0; ) {
 					weight = matchInt(CLASP_WEIGHT_T_MIN, CLASP_WEIGHT_T_MAX, "minweight: weight expected");
 					min.push_back(WeightLiteral(toLit(lit), weight));
 				}
 				program_->addObjective(min);
+			}
+			else if (proj && match("project ")) {
+				for (Var v; (v = matchPos("project: variable or 0 expected")) != 0;) {
+					program_->addProject(v);
+				}
 			}
 			else { skipLine(); }
 		}
@@ -395,15 +406,24 @@ bool OpbReader::doAttach(bool& inc) {
 	return true;
 }
 bool OpbReader::doParse() {
-	if (options.isEnabled(ParserOptions::parse_acyc_edge)) {
+	if (options.isEnabled(ParserOptions::parse_acyc_edge | ParserOptions::parse_project)) {
+		const bool graph = options.isEnabled(ParserOptions::parse_acyc_edge);
+		const bool proj  = options.isEnabled(ParserOptions::parse_project);
 		for (ExtDepGraph* g = 0; match("*"); ) {
-			if (match("graph ")) {
+			if (graph && match("graph ")) {
 				require(g == 0, "graph: only one graph supported");
 				g = program_->ctx()->extGraph.get();
 				if (!g) { program_->ctx()->extGraph = (g = new ExtDepGraph()); }
 				else    { g->update(); }
 				parseGraph("* ", *g);
 				g->finalize(*program_->ctx());
+			}
+			else if (proj && match("project ")) {
+				while (match("x")) { // <atom>*
+					Var var = matchAtom();
+					require(var <= program_->numVars() + 1, "identifier out of range");
+					program_->addProject(var);
+				}
 			}
 			else { skipLine(); }
 		}

@@ -172,6 +172,7 @@ void ClaspAppBase::validateOptions(const ProgramOptions::OptionContext&, const P
 	if (parsed.count("parse-ext") != 0) {
 		claspConfig_.parse.enableMinimize();
 		claspConfig_.parse.enableAcycEdges();
+		claspConfig_.parse.enableProject();
 	}
 	setExitCode(0);
 	storeCommandArgs(values);
