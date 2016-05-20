@@ -229,7 +229,7 @@ bool SmodelsInput::readSymbols() {
 bool SmodelsInput::readCompute(const char* comp, bool val) {
 	require(match(comp) && stream()->get() == '\n', "compute statement expected");
 	WeightLit_t w ={0, 1};
-	HeadView F = toHead(toSpan<Atom_t>());
+	HeadView F = toHead();
 	BodyView u = toBody(toSpan(&w, 1));
 	while ((w.lit = (Lit_t)matchPos()) != 0) {
 		if (val) { w.lit = -w.lit; }

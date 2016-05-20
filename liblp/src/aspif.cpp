@@ -92,7 +92,7 @@ bool AspifInput::doParse() {
 				break;
 			{case CR(Output): 
 				StringSpan name = matchString();
-				out_.output(name, matchLits(*stream(), data.lits));
+				out_.output(name, matchLits(data.lits));
 				break;}
 			case CR(External): 
 				if (Atom_t atom = matchAtom()) {
@@ -101,19 +101,19 @@ bool AspifInput::doParse() {
 				}
 				break;
 			case CR(Assume):
-				out_.assume(matchLits(*stream(), data.lits));
+				out_.assume(matchLits(data.lits));
 				break;
 			{case CR(Heuristic):
 				Heuristic_t type = static_cast<Heuristic_t>(matchPos(Heuristic_t::eMax, "invalid heuristic modifier"));	
 				Atom_t      atom = matchAtom();
 				int         bias = matchInt();
 				unsigned    prio = matchPos(INT_MAX, "invalid heuristic priority");
-				out_.heuristic(atom, type, bias, prio, matchLits(*stream(), data.lits));
+				out_.heuristic(atom, type, bias, prio, matchLits(data.lits));
 				break;}
 			{case CR(Edge): 
 				unsigned start = matchPos(INT_MAX, "invalid edge, start node expected");
 				unsigned end   = matchPos(INT_MAX, "invalid edge, end node expected");
-				out_.acycEdge((int)start, (int)end, matchLits(*stream(), data.lits));
+				out_.acycEdge((int)start, (int)end, matchLits(data.lits));
 				break;}
 			case CR(Theory): matchTheory(matchPos()); break;
 			case CR(Comment): skipLine(); break;
@@ -154,7 +154,7 @@ void AspifInput::matchTheory(unsigned rt) {
 		}
 		case Theory_t::Element: {
 			AtomSpan ids = matchTermList();
-			out_.theoryElement(tId, ids, matchLits(*stream(), data_->lits));
+			out_.theoryElement(tId, ids, matchLits(data_->lits));
 			break;
 		}
 		case Theory_t::Atom: // fall through
