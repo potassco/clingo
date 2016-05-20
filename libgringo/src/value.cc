@@ -32,7 +32,7 @@ static constexpr const uint16_t upperMax = std::numeric_limits<uint16_t>::max();
 static constexpr const uint16_t lowerMax = 3;
 uint16_t upper(uint64_t rep) { return rep >> 48; }
 uint8_t lower(uint64_t rep) { return rep & 3; }
-uintptr_t ptr(uint64_t rep) { return reinterpret_cast<uintptr_t>(rep & 0xFFFFFFFFFFFC); }
+uintptr_t ptr(uint64_t rep) { return static_cast<uintptr_t>(rep & 0xFFFFFFFFFFFC); }
 uint64_t combine(uint16_t u, uintptr_t ptr, uint8_t l) {
     assert(l <= lowerMax);
     return static_cast<uint64_t>(u) << 48 | ptr | l;
