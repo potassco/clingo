@@ -565,7 +565,7 @@ size_t ClingoControl::length() const {
     return ret;
 }
 
-void ClingoControl::parse(char const *program, std::function<void(Gringo::AST const &)> cb) {
+void ClingoControl::parse(char const *program, std::function<void(clingo_ast const &)> cb) {
     Gringo::Input::ASTBuilder builder(cb);
     Gringo::Input::NonGroundParser parser(builder);
     parser.pushStream("<string>", Gringo::gringo_make_unique<std::istringstream>(program));
@@ -576,11 +576,11 @@ void ClingoControl::parse(char const *program, std::function<void(Gringo::AST co
     }
 }
 
-void ClingoControl::add(std::function<Gringo::AST const *()> cb) {
+void ClingoControl::add(std::function<void (std::function<void (clingo_ast const &)>)> cb) {
     Gringo::Input::ASTParser p(scripts_, prg_, *out_, defs_);
-    for (Gringo::AST const *node = cb(); node; node = cb()) {
-        p.parse(*node);
-    }
+    cb([&p](clingo_ast_t const &ast) {
+        p.parse(ast);
+    });
     defs_.init();
     if (Gringo::message_printer()->hasError()) {
         throw std::runtime_error("parsing failed");
@@ -764,5 +764,17 @@ void DefaultGringoModule::freeControl(Gringo::Control *ctl) {
     if (ctl) { delete ctl; }
 }
 Gringo::Symbol DefaultGringoModule::parseValue(std::string const &str) { return parser.parse(str); }
+
+struct clingo_module : DefaultGringoModule { };
+
+extern "C" clingo_error_t clingo_module_new(clingo_module_t **mod) {
+    GRINGO_CLINGO_TRY
+        *mod = new clingo_module();
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" void clingo_module_free(clingo_module_t *mod) {
+    delete mod;
+}
 
 // }}}1

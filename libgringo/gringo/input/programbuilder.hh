@@ -447,12 +447,12 @@ private:
 class ASTBuilder : public Gringo::Input::INongroundProgramBuilder {
     // about ownership: the children of nodes are owned by the builder
     // such nodes are deleted when the next directive is parsed
-    using NodeList = std::forward_list<AST>;
-    using NodeVec = std::vector<AST>;
+    using NodeList = std::forward_list<clingo_ast>;
+    using NodeVec = std::vector<clingo_ast>;
     using NodeVecList = std::forward_list<NodeVec>;
     using TermUidVec = std::vector<TermUid>;
     using TermUidVecVec = std::vector<TermVecUid>;
-    using Callback = std::function<void (AST &ast)>;
+    using Callback = std::function<void (clingo_ast &ast)>;
 public:
     ASTBuilder(Callback cb);
     virtual ~ASTBuilder() noexcept;
@@ -568,61 +568,61 @@ public:
     // }}}2
 
 private:
-    void initNode(AST &node, ASTLocation loc, Symbol val);
-    void initNode(AST &node, ASTLocation loc, Symbol val, NodeVec &children);
-    void initNode(AST &node, Location const &loc, Symbol val);
-    void initNode(AST &node, Location const &loc, Symbol val, NodeVec &children);
-    AST newNode(ASTLocation loc, Symbol val);
-    AST newNode(Location const &loc, Symbol val);
-    AST newNode(ASTLocation loc, Symbol val, NodeVec &children);
-    AST newNode(Location const &loc, Symbol val, NodeVec &children);
-    AST newNode(Location const &loc,  NAF naf);
-    AST newNode(Location const &loc,  AggregateFunction fun);
-    AST newNode(Location const &loc,  Relation rel);
-    AST newNode(Location const &loc, TheoryAtomType type);
-    AST newNode(Location const &loc, char const *value);
-    AST newNode(Location const &loc, String value);
-    AST newNode(Location const &loc, unsigned length);
-    AST newNode(Location const &loc, char const *value, NodeVec &children);
-    AST typedNode(char const *type, AST node);
+    void initNode(clingo_ast &node, clingo_location loc, Symbol val);
+    void initNode(clingo_ast &node, clingo_location loc, Symbol val, NodeVec &children);
+    void initNode(clingo_ast &node, Location const &loc, Symbol val);
+    void initNode(clingo_ast &node, Location const &loc, Symbol val, NodeVec &children);
+    clingo_ast newNode(clingo_location loc, Symbol val);
+    clingo_ast newNode(Location const &loc, Symbol val);
+    clingo_ast newNode(clingo_location loc, Symbol val, NodeVec &children);
+    clingo_ast newNode(Location const &loc, Symbol val, NodeVec &children);
+    clingo_ast newNode(Location const &loc,  NAF naf);
+    clingo_ast newNode(Location const &loc,  AggregateFunction fun);
+    clingo_ast newNode(Location const &loc,  Relation rel);
+    clingo_ast newNode(Location const &loc, TheoryAtomType type);
+    clingo_ast newNode(Location const &loc, char const *value);
+    clingo_ast newNode(Location const &loc, String value);
+    clingo_ast newNode(Location const &loc, unsigned length);
+    clingo_ast newNode(Location const &loc, char const *value, NodeVec &children);
+    clingo_ast typedNode(char const *type, clingo_ast node);
     NodeVec &newNodeVec();
     Location dummyloc_();
-    AST littuple_(Location const &loc, LitVecUid a);
-    AST littuple_(Location const &loc, BdLitVecUid a);
-    AST condlit_(Location const &loc, LitUid litUid, LitVecUid litvecUid);
+    clingo_ast littuple_(Location const &loc, LitVecUid a);
+    clingo_ast littuple_(Location const &loc, BdLitVecUid a);
+    clingo_ast condlit_(Location const &loc, LitUid litUid, LitVecUid litvecUid);
     TermUid fun_(Location const &loc, String name, TermVecUid a, bool lua);
     TermUid pool_(Location const &loc, TermUidVec const &vec);
     void directive_(Location const &loc, char const *name, NodeVec &nodeVec);
 
 private:
-    using Terms            = Indexed<AST, TermUid>;
+    using Terms            = Indexed<clingo_ast, TermUid>;
     using TermVecs         = Indexed<TermUidVec, TermVecUid>;
     using TermVecVecs      = Indexed<TermUidVecVec, TermVecVecUid>;
     using IdVecs           = Indexed<NodeVec, IdVecUid>;
-    using Lits             = Indexed<AST, LitUid>;
+    using Lits             = Indexed<clingo_ast, LitUid>;
     using LitVecs          = Indexed<NodeVec, LitVecUid>;
     using BodyAggrElemVecs = Indexed<NodeVec, BdAggrElemVecUid>;
     using CondLitVecs      = Indexed<NodeVec, CondLitVecUid>;
     using HeadAggrElemVecs = Indexed<NodeVec, HdAggrElemVecUid>;
     using Bodies           = Indexed<NodeVec, BdLitVecUid>;
-    using Heads            = Indexed<AST, HdLitUid>;
-    using CSPLits          = Indexed<std::pair<Location, std::pair<AST, NodeVec>>, CSPLitUid>;
+    using Heads            = Indexed<clingo_ast, HdLitUid>;
+    using CSPLits          = Indexed<std::pair<Location, std::pair<clingo_ast, NodeVec>>, CSPLitUid>;
     using CSPAddTerms      = Indexed<NodeVec, CSPAddTermUid>;
-    using CSPMulTerms      = Indexed<AST, CSPMulTermUid>;
+    using CSPMulTerms      = Indexed<clingo_ast, CSPMulTermUid>;
     using CSPElems         = Indexed<NodeVec, CSPElemVecUid>;
     using Bounds           = Indexed<NodeVec, BoundVecUid>;
 
     using TheoryOpVecs      = Indexed<NodeVec, TheoryOpVecUid>;
-    using TheoryTerms       = Indexed<AST, TheoryTermUid>;
+    using TheoryTerms       = Indexed<clingo_ast, TheoryTermUid>;
     using RawTheoryTerms    = Indexed<NodeVec, TheoryOptermUid>;
     using RawTheoryTermVecs = Indexed<NodeVec, TheoryOptermVecUid>;
     using TheoryElementVecs = Indexed<NodeVec, TheoryElemVecUid>;
-    using TheoryAtoms       = Indexed<std::tuple<TermUid, TheoryElemVecUid, AST>, TheoryAtomUid>;
+    using TheoryAtoms       = Indexed<std::tuple<TermUid, TheoryElemVecUid, clingo_ast>, TheoryAtomUid>;
 
-    using TheoryOpDefs    = Indexed<AST, TheoryOpDefUid>;
+    using TheoryOpDefs    = Indexed<clingo_ast, TheoryOpDefUid>;
     using TheoryOpDefVecs = Indexed<NodeVec, TheoryOpDefVecUid>;
-    using TheoryTermDefs  = Indexed<AST, TheoryTermDefUid>;
-    using TheoryAtomDefs  = Indexed<AST, TheoryAtomDefUid>;
+    using TheoryTermDefs  = Indexed<clingo_ast, TheoryTermDefUid>;
+    using TheoryAtomDefs  = Indexed<clingo_ast, TheoryAtomDefUid>;
     using TheoryDefVecs   = Indexed<NodeVec, TheoryDefVecUid>;
 
     Callback            cb_;
@@ -661,25 +661,25 @@ private:
 class ASTParser {
 public:
     ASTParser(Scripts &scripts, Program &prg, Output::OutputBase &out, Defines &defs, bool rewriteMinimize = false);
-    void parse(AST const &node);
+    void parse(clingo_ast const &node);
 private:
-    UnOp parseUnOp(AST const &node);
-    BinOp parseBinOp(AST const &node);
-    Symbol parseValue(AST const &node);
-    TermUid parseTerm(AST const &node);
-    TermVecUid parseTermVec(AST const &node);
-    TermVecVecUid parseArgs(AST const &node);
-    String parseID(AST const &node);
-    NAF parseNAF(AST const &node);
-    bool parseNEG(AST const &node);
-    void parseProgram(AST const &node);
-    LitUid parseLit(AST const &node);
-    LitVecUid parseLitVec(AST const &node);
-    CondLitVecUid parseConditional(CondLitVecUid uid, AST const &node);
-    HdLitUid parseHead(AST const &node);
-    BdLitVecUid parseBodyLit(BdLitVecUid uid, AST const &node);
-    BdLitVecUid parseBody(AST const &node);
-    void parseRule(AST const &node);
+    UnOp parseUnOp(clingo_ast const &node);
+    BinOp parseBinOp(clingo_ast const &node);
+    Symbol parseValue(clingo_ast const &node);
+    TermUid parseTerm(clingo_ast const &node);
+    TermVecUid parseTermVec(clingo_ast const &node);
+    TermVecVecUid parseArgs(clingo_ast const &node);
+    String parseID(clingo_ast const &node);
+    NAF parseNAF(clingo_ast const &node);
+    bool parseNEG(clingo_ast const &node);
+    void parseProgram(clingo_ast const &node);
+    LitUid parseLit(clingo_ast const &node);
+    LitVecUid parseLitVec(clingo_ast const &node);
+    CondLitVecUid parseConditional(CondLitVecUid uid, clingo_ast const &node);
+    HdLitUid parseHead(clingo_ast const &node);
+    BdLitVecUid parseBodyLit(BdLitVecUid uid, clingo_ast const &node);
+    BdLitVecUid parseBody(clingo_ast const &node);
+    void parseRule(clingo_ast const &node);
     bool require_(bool cond, char const *message = "parse error");
     template <class T>
     T fail_(char const *message = "parse error");

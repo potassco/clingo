@@ -78,7 +78,7 @@ env['WITH_PYTHON']    = 'auto'
 env['WITH_LUA']       = 'auto'
 env['WITH_THREADS']   = 'posix'
 env['WITH_CPPUNIT']   = 'auto'
-env['TESTS']          = ['libreify', 'libgringo', 'liblp']
+env['TESTS']          = ['libreify', 'libgringo', 'libclingo', 'liblp', 'clingo']
 
 if GetOption("build_dir") == "static":
     env['CXXFLAGS'] = ['-std=c++11', '-O3', '-Wall']

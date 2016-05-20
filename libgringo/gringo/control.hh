@@ -26,6 +26,7 @@
 #include <gringo/locatable.hh>
 #include <gringo/backend.hh>
 #include <potassco/clingo.h>
+#include <clingo.h>
 
 namespace Gringo {
 
@@ -184,22 +185,6 @@ struct Propagator : Potassco::AbstractPropagator {
     virtual void init(Init &init) = 0;
 };
 
-// {{{1 declaration of AST
-
-struct ASTLocation {
-    char const *begin_file;
-    char const *end_file;
-    size_t begin_line;
-    size_t end_line;
-    size_t begin_column;
-    size_t end_column;
-};
-struct AST {
-    ASTLocation location;
-    Symbol value;
-    Potassco::Span<AST> children;
-};
-
 // {{{1 declaration of ASPIFWriter
 
 struct ASPIFProgram {
@@ -240,8 +225,8 @@ struct Control {
     virtual void cleanupDomains() = 0;
     virtual TheoryData const &theory() const = 0;
     virtual void registerPropagator(Propagator &p, bool sequential) = 0;
-    virtual void parse(char const *program, std::function<void(AST const &)> cb) = 0;
-    virtual void add(std::function<AST const *()> cb) = 0;
+    virtual void parse(char const *program, std::function<void(clingo_ast const &)> cb) = 0;
+    virtual void add(std::function<void (std::function<void (clingo_ast const &)>)> cb) = 0;
     virtual Potassco::Atom_t addProgramAtom() = 0;
     virtual Backend *backend() = 0;
     virtual ~Control() noexcept = default;
@@ -255,6 +240,30 @@ struct GringoModule {
     virtual Symbol parseValue(std::string const &repr) = 0;
     virtual ~GringoModule() noexcept = default;
 };
+
+// {{{1 declaration of ClingoError
+
+struct ClingoError : std::exception {
+    ClingoError(clingo_error_t err) : err(err) { }
+    virtual ~ClingoError() noexcept = default;
+    virtual const char* what() const noexcept {
+        return clingo_error_str(err);
+    }
+    clingo_error_t const err;
+};
+
+void inline clingo_expect(bool expr) {
+    if (!expr) { throw std::runtime_error("unexpected"); }
+}
+
+#define GRINGO_CLINGO_TRY try {
+#define GRINGO_CLINGO_CATCH } \
+catch(Gringo::ClingoError &e) { return e.err; } \
+catch(std::bad_alloc &e)      { std::cerr << e.what() << std::endl; return clingo_error_bad_alloc; } \
+catch(std::runtime_error &e)  { std::cerr << e.what() << std::endl; return clingo_error_runtime; } \
+catch(std::logic_error &e)    { std::cerr << e.what() << std::endl; return clingo_error_logic; } \
+catch(...)                    { return clingo_error_unknown; } \
+return clingo_error_success;
 
 // }}}1
 

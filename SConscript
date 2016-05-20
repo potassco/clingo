@@ -480,7 +480,7 @@ if with_lua:
 
 # {{{1 Gringo: Tests
 
-if with_cppunit and 'libgringo' in env['TESTS']:
+if with_cppunit:
     TEST_LIBGRINGO_SOURCES  = find_files(env, 'libgringo/tests')
 
     gringoTestEnv           = testEnv.Clone()
@@ -488,12 +488,13 @@ if with_cppunit and 'libgringo' in env['TESTS']:
     gringoTestEnv.Prepend(LIBS   = [gringoLib, claspLib, lpLib])
 
     testGringoProgram = gringoTestEnv.Program('test_libgringo', TEST_LIBGRINGO_SOURCES)
-    testGringoAlias   = gringoTestEnv.Alias('test', [testGringoProgram], testGringoProgram[0].path + (" " + GetOption("test_case") if GetOption("test_case") else ""))
-    AlwaysBuild(testGringoAlias)
+    AlwaysBuild(gringoTestEnv.Alias('test-libgringo', [testGringoProgram], testGringoProgram[0].path + (" " + GetOption("test_case") if GetOption("test_case") else "")))
+    if 'libgringo' in env['TESTS']:
+        AlwaysBuild(gringoTestEnv.Alias('test', [testGringoProgram], testGringoProgram[0].path + (" " + GetOption("test_case") if GetOption("test_case") else "")))
 
 # {{{1 Reify: Tests
 
-if with_cppunit and 'libreify' in env['TESTS']:
+if with_cppunit:
     TEST_LIBREIFY_SOURCES  = find_files(env, 'libreify/tests')
 
     reifyTestEnv                = testEnv.Clone()
@@ -501,27 +502,42 @@ if with_cppunit and 'libreify' in env['TESTS']:
     reifyTestEnv.Prepend(LIBS   = [reifyLib])
 
     testReifyProgram = reifyTestEnv.Program('test_libreify', TEST_LIBREIFY_SOURCES)
-    testReifyAlias   = reifyTestEnv.Alias('test', [testReifyProgram], testReifyProgram[0].path)
-    AlwaysBuild(testReifyAlias)
+    AlwaysBuild(reifyTestEnv.Alias('test-libreify', [testReifyProgram], testReifyProgram[0].path))
+    if 'libreify' in env['TESTS']:
+        AlwaysBuild(reifyTestEnv.Alias('test', [testReifyProgram], testReifyProgram[0].path))
 
-# {{{1 Liplp: Tests
+# {{{1 Liblp: Tests
 
+TEST_LIBLP_SOURCES  = find_files(env, 'liblp/tests')
+
+lpTestEnv                = env.Clone()
+lpTestEnv.Append(CPPPATH = LIBLP_HEADERS)
+lpTestEnv.Prepend(LIBS   = [lpLib])
+
+testLpProgram = lpTestEnv.Program('test_liblp', TEST_LIBLP_SOURCES)
+AlwaysBuild(lpTestEnv.Alias('test-liblp', [testLpProgram], testLpProgram[0].path))
 if "liblp" in env["TESTS"]:
-    TEST_LIBLP_SOURCES  = find_files(env, 'liblp/tests')
+    AlwaysBuild(lpTestEnv.Alias('test', [testLpProgram], testLpProgram[0].path))
 
-    lpTestEnv                = env.Clone()
-    lpTestEnv.Append(CPPPATH = LIBLP_HEADERS)
-    lpTestEnv.Prepend(LIBS   = [lpLib])
+# {{{1 Libclingo: Tests
 
-    testLpProgram = lpTestEnv.Program('test_liblp', TEST_LIBLP_SOURCES)
-    testLpAlias   = lpTestEnv.Alias('test', [testLpProgram], testLpProgram[0].path)
-    AlwaysBuild(testLpAlias)
+TEST_CLINGO_SOURCES  = find_files(env, 'libclingo/tests')
+
+clingoTestEnv                = env.Clone()
+clingoTestEnv.Append(CPPPATH = LIBCLINGO_HEADERS)
+clingoTestEnv.Prepend(LIBS   = [clingoLib, gringoLib, claspLib, optsLib, lpLib])
+
+clingoTestProgram = clingoTestEnv.Program('test_libclingo', TEST_CLINGO_SOURCES)
+AlwaysBuild(clingoTestEnv.Alias('test-libclingo', [clingoTestProgram], clingoTestProgram[0].path))
+if "libclingo" in env["TESTS"]:
+    AlwaysBuild(clingoTestEnv.Alias('test', [clingoTestProgram], clingoTestProgram[0].path))
 
 # {{{1 Clingo: Tests
 
 clingoTestCommand = env.Command('clingo-test', clingoProgram, '/bin/zsh app/clingo/tests/run.sh $SOURCE' + (" -- -t8" if env["WITH_THREADS"] is not None else ""))
-clingoTest        = env.Alias('test-clingo', [clingoTestCommand])
-env.AlwaysBuild(clingoTest)
+env.AlwaysBuild(env.Alias('test-clingo', [clingoTestCommand]))
+if "clingo" in env["TESTS"]:
+    env.AlwaysBuild(env.Alias('test', [clingoTestCommand]))
 
 # {{{1 Clingo: Configure
 

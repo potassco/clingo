@@ -20,7 +20,6 @@
 
 #include <gringo/value.hh>
 #include <gringo/hash_set.hh>
-#include <gringo/clingo.hh>
 #include <mutex>
 
 namespace Gringo {
@@ -489,102 +488,4 @@ void Symbol::print(std::ostream& out) const {
 // }}}1
 
 } // namespace Gringo
-
-// {{{1 C-interface for symbols
-
-using namespace Gringo;
-
-extern "C" void clingo_symbol_new_num(int num, clingo_symbol_t *val) {
-    *val = Gringo::Symbol::createNum(num);
-}
-
-extern "C" void clingo_symbol_new_sup(clingo_symbol_t *val) {
-    *val = Gringo::Symbol::createSup();
-}
-
-extern "C" void clingo_symbol_new_inf(clingo_symbol_t *val) {
-    *val = Gringo::Symbol::createInf();
-}
-
-extern "C" clingo_error_t clingo_symbol_new_str(char const *str, clingo_symbol_t *val) {
-    GRINGO_CLINGO_TRY
-        *val = Gringo::Symbol::createStr(str);
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" clingo_error_t clingo_symbol_new_id(char const *id, bool sign, clingo_symbol_t *val) {
-    GRINGO_CLINGO_TRY
-        *val = Gringo::Symbol::createId(id, sign);
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" clingo_error_t clingo_symbol_new_fun(char const *name, clingo_symbol_span_t args, bool sign, clingo_symbol_t *val) {
-    GRINGO_CLINGO_TRY
-        *val = Gringo::Symbol::createFun(name, Gringo::SymSpan{static_cast<Gringo::Symbol const *>(args.first), args.size}, sign);
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" clingo_error_t clingo_symbol_num(clingo_symbol_t val, int *num) {
-    GRINGO_CLINGO_TRY
-        clingo_expect(static_cast<Gringo::Symbol&>(val).type() == Gringo::SymbolType::Num);
-        *num = static_cast<Gringo::Symbol&>(val).num();
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" clingo_error_t clingo_symbol_name(clingo_symbol_t val, char const **name) {
-    GRINGO_CLINGO_TRY
-        clingo_expect(static_cast<Gringo::Symbol&>(val).type() == Gringo::SymbolType::Fun);
-        *name = static_cast<Gringo::Symbol&>(val).name().c_str();
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" clingo_error_t clingo_symbol_string(clingo_symbol_t val, char const **str) {
-    GRINGO_CLINGO_TRY
-        clingo_expect(static_cast<Gringo::Symbol&>(val).type() == Gringo::SymbolType::Str);
-        *str = static_cast<Gringo::Symbol&>(val).string().c_str();
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" clingo_error_t clingo_symbol_sign(clingo_symbol_t val, bool *sign) {
-    GRINGO_CLINGO_TRY
-        clingo_expect(static_cast<Gringo::Symbol&>(val).type() == Gringo::SymbolType::Fun);
-        *sign = static_cast<Gringo::Symbol&>(val).sign();
-        return clingo_error_success;
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" clingo_error_t clingo_symbol_args(clingo_symbol_t val, clingo_symbol_span_t *args) {
-    GRINGO_CLINGO_TRY
-        clingo_expect(static_cast<Gringo::Symbol&>(val).type() == Gringo::SymbolType::Fun);
-        auto ret = static_cast<Gringo::Symbol&>(val).args();
-        *args = clingo_symbol_span_t{ret.first, ret.size};
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" clingo_symbol_type_t clingo_symbol_type(clingo_symbol_t val) {
-    return static_cast<clingo_symbol_type_t>(static_cast<Gringo::Symbol&>(val).type());
-}
-
-extern "C" clingo_error_t clingo_symbol_to_string(clingo_symbol_t val, clingo_string_callback *cb, void *data) {
-    GRINGO_CLINGO_TRY
-        std::ostringstream oss;
-        static_cast<Gringo::Symbol&>(val).print(oss);
-        std::string s = oss.str();
-        return cb(s.c_str(), data);
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" bool clingo_symbol_eq(clingo_symbol_t a, clingo_symbol_t b) {
-    return static_cast<Gringo::Symbol&>(a) == static_cast<Gringo::Symbol&>(b);
-}
-
-extern "C" bool clingo_symbol_lt(clingo_symbol_t a, clingo_symbol_t b) {
-    return static_cast<Gringo::Symbol&>(a) < static_cast<Gringo::Symbol&>(b);
-}
-
-extern "C" size_t clingo_symbol_hash(clingo_symbol_t sym) {
-    return static_cast<Gringo::Symbol&>(sym).hash();
-}
-
-// }}}1
 

@@ -553,18 +553,29 @@ NongroundProgramBuilder::~NongroundProgramBuilder() { }
 
 // {{{1 definition of ASTBuilder
 
-ASTLocation convertLoc(Location const &loc) {
-    return {
+clingo_location convertLoc(Location const &loc) {
+    return clingo_location {
         loc.beginFilename.c_str(), loc.endFilename.c_str(),
         loc.beginLine, loc.endLine,
         loc.beginColumn, loc.endColumn
     };
 }
 
-Location convertLoc(ASTLocation loc) {
+Location convertLoc(clingo_location loc) {
     return {loc.begin_file, static_cast<unsigned>(loc.begin_line), static_cast<unsigned>(loc.begin_column)
            ,loc.end_file, static_cast<unsigned>(loc.end_line), static_cast<unsigned>(loc.end_column)};
 }
+
+SymSpan toSpan(clingo_symbol_span_t span) {
+    return {static_cast<Symbol const *>(span.first), span.size};
+}
+
+Potassco::Span<clingo_ast_t> toSpan(clingo_ast_span_t const &span) {
+    return {static_cast<clingo_ast_t const *>(span.first), span.size};
+}
+
+bool operator==(clingo_symbol_t a, Symbol b) { return static_cast<Symbol const &>(a) == b; }
+bool operator!=(clingo_symbol_t a, Symbol b) { return static_cast<Symbol const &>(a) != b; }
 
 ASTBuilder::ASTBuilder(Callback cb) : cb_(cb) { }
 ASTBuilder::~ASTBuilder() noexcept = default;
@@ -649,7 +660,7 @@ CSPAddTermUid ASTBuilder::cspaddterm(Location const &loc, CSPAddTermUid a, CSPMu
         auto &nodeVec = newNodeVec();
         nodeVec.emplace_back(newNode(loc, "-"));
         nodeVec.emplace_back(node.children.first[0]);
-        const_cast<AST&>(node.children.first[0]) = newNode(loc, "term_unary", nodeVec);
+        const_cast<clingo_ast&>(node.children.first[0]) = newNode(loc, "term_unary", nodeVec);
     }
     cspaddterms_[a].emplace_back(std::move(node));
     return a;
@@ -1177,40 +1188,40 @@ void ASTBuilder::theorydef(Location const &loc, String name, TheoryDefVecUid def
 
 // }}}2
 
-void ASTBuilder::initNode(AST &node, ASTLocation loc, Symbol val) {
+void ASTBuilder::initNode(clingo_ast &node, clingo_location loc, Symbol val) {
     node.location = loc;
     node.value = val;
     node.children.size = 0;
     node.children.first = nullptr;
 }
-void ASTBuilder::initNode(AST &node, ASTLocation loc, Symbol val, NodeVec &children) {
+void ASTBuilder::initNode(clingo_ast &node, clingo_location loc, Symbol val, NodeVec &children) {
     initNode(node, loc, val);
     node.children.size = children.size();
     node.children.first = children.data();
 }
-void ASTBuilder::initNode(AST &node, Location const &loc, Symbol val) {
+void ASTBuilder::initNode(clingo_ast &node, Location const &loc, Symbol val) {
     initNode(node, convertLoc(loc), val);
 }
-void ASTBuilder::initNode(AST &node, Location const &loc, Symbol val, NodeVec &children) {
+void ASTBuilder::initNode(clingo_ast &node, Location const &loc, Symbol val, NodeVec &children) {
     initNode(node, convertLoc(loc), val, children);
 }
-AST ASTBuilder::newNode(ASTLocation loc, Symbol val) {
-    AST node;
+clingo_ast ASTBuilder::newNode(clingo_location loc, Symbol val) {
+    clingo_ast node;
     initNode(node, loc, val);
     return node;
 }
-AST ASTBuilder::newNode(Location const &loc, Symbol val) {
+clingo_ast ASTBuilder::newNode(Location const &loc, Symbol val) {
     return newNode(convertLoc(loc), val);
 }
-AST ASTBuilder::newNode(ASTLocation loc, Symbol val, NodeVec &children) {
-    AST node;
+clingo_ast ASTBuilder::newNode(clingo_location loc, Symbol val, NodeVec &children) {
+    clingo_ast node;
     initNode(node, loc, val, children);
     return node;
 }
-AST ASTBuilder::newNode(Location const &loc, Symbol val, NodeVec &children) {
+clingo_ast ASTBuilder::newNode(Location const &loc, Symbol val, NodeVec &children) {
     return newNode(convertLoc(loc), val, children);
 }
-AST ASTBuilder::newNode(Location const &loc,  NAF naf) {
+clingo_ast ASTBuilder::newNode(Location const &loc,  NAF naf) {
     switch (naf) {
         case NAF::POS:    { return newNode(loc, "naf_pos"); }
         case NAF::NOT:    { return newNode(loc, "naf_not"); }
@@ -1218,7 +1229,7 @@ AST ASTBuilder::newNode(Location const &loc,  NAF naf) {
     }
     throw std::logic_error("must not happen");
 }
-AST ASTBuilder::newNode(Location const &loc,  AggregateFunction fun) {
+clingo_ast ASTBuilder::newNode(Location const &loc,  AggregateFunction fun) {
     switch (fun) {
         case AggregateFunction::MIN:   { return newNode(loc, "function_min"); }
         case AggregateFunction::MAX:   { return newNode(loc, "function_max"); }
@@ -1228,7 +1239,7 @@ AST ASTBuilder::newNode(Location const &loc,  AggregateFunction fun) {
     }
     throw std::logic_error("must not happen");
 }
-AST ASTBuilder::newNode(Location const &loc,  Relation rel) {
+clingo_ast ASTBuilder::newNode(Location const &loc,  Relation rel) {
     switch (rel) {
         case Relation::GT:  { return newNode(loc, ">"); }
         case Relation::GEQ: { return newNode(loc, ">="); }
@@ -1239,7 +1250,7 @@ AST ASTBuilder::newNode(Location const &loc,  Relation rel) {
     }
     throw std::logic_error("must not happen");
 }
-AST ASTBuilder::newNode(Location const &loc, TheoryAtomType type) {
+clingo_ast ASTBuilder::newNode(Location const &loc, TheoryAtomType type) {
     switch (type) {
         case TheoryAtomType::Any:       { return newNode(loc, "any"); }
         case TheoryAtomType::Body:      { return newNode(loc, "body"); }
@@ -1248,19 +1259,19 @@ AST ASTBuilder::newNode(Location const &loc, TheoryAtomType type) {
     }
     throw std::logic_error("must not happen");
 }
-AST ASTBuilder::newNode(Location const &loc, char const *value) {
+clingo_ast ASTBuilder::newNode(Location const &loc, char const *value) {
     return newNode(loc, Symbol::createId(value));
 }
-AST ASTBuilder::newNode(Location const &loc, String value) {
+clingo_ast ASTBuilder::newNode(Location const &loc, String value) {
     return newNode(loc, Symbol::createId(value));
 }
-AST ASTBuilder::newNode(Location const &loc, unsigned length) {
+clingo_ast ASTBuilder::newNode(Location const &loc, unsigned length) {
     return newNode(loc, Symbol::createId(std::to_string(length).c_str()));
 }
-AST ASTBuilder::newNode(Location const &loc, char const *value, NodeVec &children) {
+clingo_ast ASTBuilder::newNode(Location const &loc, char const *value, NodeVec &children) {
     return newNode(loc, Symbol::createId(value), children);
 }
-AST ASTBuilder::typedNode(char const *type, AST node) {
+clingo_ast ASTBuilder::typedNode(char const *type, clingo_ast node) {
     auto &nodeVec = newNodeVec();
     nodeVec.emplace_back(std::move(node));
     return newNode(nodeVec.back().location, Symbol::createId(type), nodeVec);
@@ -1272,13 +1283,13 @@ ASTBuilder::NodeVec &ASTBuilder::newNodeVec() {
 Location ASTBuilder::dummyloc_() {
     return {"<unavailable>", 0, 0 ,"<unavailable>", 0, 0};
 }
-AST ASTBuilder::littuple_(Location const &loc, LitVecUid a) {
+clingo_ast ASTBuilder::littuple_(Location const &loc, LitVecUid a) {
     return newNode(loc, "tuple_literal", newNodeVec() = litvecs_.erase(a));
 }
-AST ASTBuilder::littuple_(Location const &loc, BdLitVecUid a) {
+clingo_ast ASTBuilder::littuple_(Location const &loc, BdLitVecUid a) {
     return newNode(loc, "tuple_literal", newNodeVec() = bodies_.erase(a));
 }
-AST ASTBuilder::condlit_(Location const &loc, LitUid litUid, LitVecUid litvecUid) {
+clingo_ast ASTBuilder::condlit_(Location const &loc, LitUid litUid, LitVecUid litvecUid) {
     auto &nodeVec = newNodeVec();
     nodeVec.push_back(lits_.erase(litUid));
     nodeVec.push_back(littuple_(loc, litvecUid));
@@ -1321,104 +1332,104 @@ void ASTBuilder::directive_(Location const &loc, char const *name, NodeVec &node
 ASTParser::ASTParser(Scripts &scripts, Program &prg, Output::OutputBase &out, Defines &defs, bool rewriteMinimize)
 : prg_(scripts, prg, out, defs, rewriteMinimize) { }
 
-void ASTParser::parse(AST const &node) {
-    if (node.value == directive_rule)                   { parseRule(node); }
-    else if (node.value == directive_const)             { throw std::runtime_error("implement me: parseConst!!!"); }
-    else if (node.value == directive_minimize)          { throw std::runtime_error("implement me: parseMinimize!!!"); }
-    else if (node.value == directive_show_signature)    { throw std::runtime_error("implement me: parseShowSignature!!!"); }
-    else if (node.value == directive_show)              { throw std::runtime_error("implement me: parseShow!!!"); }
-    else if (node.value == directive_python)            { throw std::runtime_error("implement me: parsePython!!!"); }
-    else if (node.value == directive_lua)               { throw std::runtime_error("implement me: parseLua!!!"); }
-    else if (node.value == directive_program)           { parseProgram(node); }
-    else if (node.value == directive_external)          { throw std::runtime_error("implement me: parseExternal!!!"); }
-    else if (node.value == directive_edge)              { throw std::runtime_error("implement me: parseeEdge!!!"); }
-    else if (node.value == directive_heuristic)         { throw std::runtime_error("implement me: parseHeuristic!!!"); }
-    else if (node.value == directive_project)           { throw std::runtime_error("implement me: parseProject!!!"); }
-    else if (node.value == directive_project_signature) { throw std::runtime_error("implement me: parseProjectSignature!!!"); }
-    else if (node.value == directive_theory)            { throw std::runtime_error("implement me: parseTheory!!!"); }
+void ASTParser::parse(clingo_ast const &node) {
+    if (static_cast<Symbol const&>(node.value) == directive_rule)                   { parseRule(node); }
+    else if (static_cast<Symbol const&>(node.value) == directive_const)             { throw std::runtime_error("implement me: parseConst!!!"); }
+    else if (static_cast<Symbol const&>(node.value) == directive_minimize)          { throw std::runtime_error("implement me: parseMinimize!!!"); }
+    else if (static_cast<Symbol const&>(node.value) == directive_show_signature)    { throw std::runtime_error("implement me: parseShowSignature!!!"); }
+    else if (static_cast<Symbol const&>(node.value) == directive_show)              { throw std::runtime_error("implement me: parseShow!!!"); }
+    else if (static_cast<Symbol const&>(node.value) == directive_python)            { throw std::runtime_error("implement me: parsePython!!!"); }
+    else if (static_cast<Symbol const&>(node.value) == directive_lua)               { throw std::runtime_error("implement me: parseLua!!!"); }
+    else if (static_cast<Symbol const&>(node.value) == directive_program)           { parseProgram(node); }
+    else if (static_cast<Symbol const&>(node.value) == directive_external)          { throw std::runtime_error("implement me: parseExternal!!!"); }
+    else if (static_cast<Symbol const&>(node.value) == directive_edge)              { throw std::runtime_error("implement me: parseeEdge!!!"); }
+    else if (static_cast<Symbol const&>(node.value) == directive_heuristic)         { throw std::runtime_error("implement me: parseHeuristic!!!"); }
+    else if (static_cast<Symbol const&>(node.value) == directive_project)           { throw std::runtime_error("implement me: parseProject!!!"); }
+    else if (static_cast<Symbol const&>(node.value) == directive_project_signature) { throw std::runtime_error("implement me: parseProjectSignature!!!"); }
+    else if (static_cast<Symbol const&>(node.value) == directive_theory)            { throw std::runtime_error("implement me: parseTheory!!!"); }
     else                                                { require_(false, "directive expected"); }
 }
 
-void ASTParser::parseProgram(AST const &node) {
+void ASTParser::parseProgram(clingo_ast const &node) {
     require_(
         node.children.size == 2 &&
-        node.children.first[0].value.type() == SymbolType::Fun &&
-        node.children.first[0].value.arity() == 0 &&
-        node.children.first[1].value == tuple_id,
+        static_cast<Symbol const&>(node.children.first[0].value).type() == SymbolType::Fun &&
+        static_cast<Symbol const&>(node.children.first[0].value).arity() == 0 &&
+        static_cast<Symbol const&>(node.children.first[1].value) == tuple_id,
         "ill-formode #program directive");
     IdVecUid uid = prg_.idvec();
-    for (auto &id : node.children.first[1].children) {
+    for (auto &id : toSpan(node.children.first[1].children)) {
         require_(id.value == this->id, "id expected");
-        require_(id.children.size == 1 && id.children.first->value.type() == SymbolType::Fun && id.children.first->value.arity() == 0, "ill-formed id");
-        uid = prg_.idvec(uid, convertLoc(id.location), id.children.first->value.name());
+        require_(id.children.size == 1 && static_cast<Symbol const&>(id.children.first->value).type() == SymbolType::Fun && static_cast<Symbol const&>(id.children.first->value).arity() == 0, "ill-formed id");
+        uid = prg_.idvec(uid, convertLoc(id.location), static_cast<Symbol const&>(id.children.first->value).name());
     }
-    prg_.block(convertLoc(node.location), node.children.first->value.name(), uid);
+    prg_.block(convertLoc(node.location), static_cast<Symbol const&>(node.children.first->value).name(), uid);
 }
 
-NAF ASTParser::parseNAF(AST const &node) {
+NAF ASTParser::parseNAF(clingo_ast const &node) {
     require_(node.children.size == 0, "ill-formed default negation sign");
-    if (node.value == naf_pos)          { return NAF::POS; }
-    else if (node.value == naf_not)     { return NAF::NOT; }
-    else if (node.value == naf_not_not) { return NAF::NOTNOT; }
+    if (static_cast<Symbol const&>(node.value) == naf_pos)          { return NAF::POS; }
+    else if (static_cast<Symbol const&>(node.value) == naf_not)     { return NAF::NOT; }
+    else if (static_cast<Symbol const&>(node.value) == naf_not_not) { return NAF::NOTNOT; }
     else                                { return fail_<NAF>("default negation sign expected"); }
 }
 
-bool ASTParser::parseNEG(AST const &node) {
+bool ASTParser::parseNEG(clingo_ast const &node) {
     require_(node.children.size == 0, "ill-formed classical negation sign");
-    if (node.value == neg_pos)          { return false; }
-    else if (node.value == neg_not)     { return true; }
+    if (static_cast<Symbol const &>(node.value) == neg_pos)          { return false; }
+    else if (static_cast<Symbol const &>(node.value) == neg_not)     { return true; }
     else                                { return fail_<bool>("classical negation sign expected"); }
 }
 
-String ASTParser::parseID(AST const &node) {
-    require_(node.children.size == 0 && node.value.type() == SymbolType::Fun && node.value.arity() == 0, "ill-formed identifier");
-    return node.value.name();
+String ASTParser::parseID(clingo_ast const &node) {
+    require_(node.children.size == 0 && static_cast<Symbol const &>(node.value).type() == SymbolType::Fun && static_cast<Symbol const &>(node.value).arity() == 0, "ill-formed identifier");
+    return static_cast<Symbol const &>(node.value).name();
 }
 
-Symbol ASTParser::parseValue(AST const &node) {
+Symbol ASTParser::parseValue(clingo_ast const &node) {
     require_(node.children.size == 0, "ill-formed value");
-    return node.value;
+    return static_cast<Symbol const &>(node.value);
 }
 
-UnOp ASTParser::parseUnOp(AST const &node) {
+UnOp ASTParser::parseUnOp(clingo_ast const &node) {
     require_(node.children.size == 0, "ill-formed unary operator");
-    if (node.value == unop_not)      { return UnOp::NOT; }
-    else if (node.value == unop_neg) { return UnOp::NEG; }
-    else if (node.value == unop_abs) { return UnOp::ABS; }
+    if (static_cast<Symbol const &>(node.value) == unop_not)      { return UnOp::NOT; }
+    else if (static_cast<Symbol const &>(node.value) == unop_neg) { return UnOp::NEG; }
+    else if (static_cast<Symbol const &>(node.value) == unop_abs) { return UnOp::ABS; }
     else                             { return fail_<UnOp>("unary operator expected"); }
 }
 
-BinOp ASTParser::parseBinOp(AST const &node) {
+BinOp ASTParser::parseBinOp(clingo_ast const &node) {
     require_(node.children.size == 0, "ill-formed binary operator");
-    if (node.value == binop_add)      { return BinOp::ADD; }
-    else if (node.value == binop_or)  { return BinOp::OR; }
-    else if (node.value == binop_sub) { return BinOp::SUB; }
-    else if (node.value == binop_mod) { return BinOp::MOD; }
-    else if (node.value == binop_mul) { return BinOp::MUL; }
-    else if (node.value == binop_xor) { return BinOp::XOR; }
-    else if (node.value == binop_pow) { return BinOp::POW; }
-    else if (node.value == binop_div) { return BinOp::DIV; }
-    else if (node.value == binop_and) { return BinOp::AND; }
+    if (static_cast<Symbol const&>(static_cast<Symbol const &>(node.value)) == binop_add)      { return BinOp::ADD; }
+    else if (static_cast<Symbol const&>(static_cast<Symbol const &>(node.value)) == binop_or)  { return BinOp::OR; }
+    else if (static_cast<Symbol const&>(static_cast<Symbol const &>(node.value)) == binop_sub) { return BinOp::SUB; }
+    else if (static_cast<Symbol const&>(static_cast<Symbol const &>(node.value)) == binop_mod) { return BinOp::MOD; }
+    else if (static_cast<Symbol const&>(static_cast<Symbol const &>(node.value)) == binop_mul) { return BinOp::MUL; }
+    else if (static_cast<Symbol const&>(static_cast<Symbol const &>(node.value)) == binop_xor) { return BinOp::XOR; }
+    else if (static_cast<Symbol const&>(static_cast<Symbol const &>(node.value)) == binop_pow) { return BinOp::POW; }
+    else if (static_cast<Symbol const&>(static_cast<Symbol const &>(node.value)) == binop_div) { return BinOp::DIV; }
+    else if (static_cast<Symbol const&>(static_cast<Symbol const &>(node.value)) == binop_and) { return BinOp::AND; }
     else                              { return fail_<BinOp>("binary operator expected"); }
 }
 
-TermUid ASTParser::parseTerm(AST const &node) {
-    if (node.value == term_value) {
+TermUid ASTParser::parseTerm(clingo_ast const &node) {
+    if (static_cast<Symbol const &>(node.value) == term_value) {
         require_(node.children.size == 1, "ill-formed value term");
         return prg_.term(convertLoc(node.location), parseValue(node.children.first[0]));
     }
-    else if (node.value == term_variable) {
+    else if (static_cast<Symbol const &>(node.value) == term_variable) {
         require_(node.children.size == 1, "ill-formed variable term");
         return prg_.term(convertLoc(node.location), parseID(node.children.first[0]));
     }
-    else if (node.value == term_unary) {
+    else if (static_cast<Symbol const &>(node.value) == term_unary) {
         require_(node.children.size == 2, "ill-formed unary term");
         return prg_.term(
                 convertLoc(node.location),
                 parseUnOp(node.children.first[0]),
                 parseTerm(node.children.first[1]));
     }
-    else if (node.value == term_binary) {
+    else if (static_cast<Symbol const &>(node.value) == term_binary) {
         require_(node.children.size == 3, "ill-formed unary term");
         return prg_.term(
             convertLoc(node.location),
@@ -1426,19 +1437,19 @@ TermUid ASTParser::parseTerm(AST const &node) {
             parseTerm(node.children.first[0]),
             parseTerm(node.children.first[2]));
     }
-    else if (node.value == term_range) {
+    else if (static_cast<Symbol const &>(node.value) == term_range) {
         throw std::logic_error("implement me: parse range term!!!");
     }
-    else if (node.value == term_external) {
+    else if (static_cast<Symbol const &>(node.value) == term_external) {
         throw std::logic_error("implement me: parse external term!!!");
     }
-    else if (node.value == term_function) {
+    else if (static_cast<Symbol const &>(node.value) == term_function) {
         throw std::logic_error("implement me: parse function term!!!");
     }
-    else if (node.value == tuple_term) {
+    else if (static_cast<Symbol const &>(node.value) == tuple_term) {
         throw std::logic_error("implement me: parse tuple term!!!");
     }
-    else if (node.value == term_pool) {
+    else if (static_cast<Symbol const &>(node.value) == term_pool) {
         require_(node.children.size > 0, "ill-formed pool");
         TermVecVecUid args = prg_.termvecvec();
         //return prg_.term(loc, "", args, false);
@@ -1450,10 +1461,10 @@ TermUid ASTParser::parseTerm(AST const &node) {
     }
 }
 
-TermVecUid ASTParser::parseTermVec(AST const &node) {
-    if (node.value == tuple_term) {
+TermVecUid ASTParser::parseTermVec(clingo_ast const &node) {
+    if (static_cast<Symbol const &>(node.value) == tuple_term) {
         TermVecUid ret = prg_.termvec();
-        for (auto &term : node.children) {
+        for (auto &term : toSpan(node.children)) {
             ret = prg_.termvec(ret, parseTerm(term));
         }
         return ret;
@@ -1461,10 +1472,10 @@ TermVecUid ASTParser::parseTermVec(AST const &node) {
     else { return fail_<TermVecUid>("term tuple expected"); }
 }
 
-TermVecVecUid ASTParser::parseArgs(AST const &node) {
+TermVecVecUid ASTParser::parseArgs(clingo_ast const &node) {
     TermVecVecUid ret = prg_.termvecvec();
-    if (node.value == term_pool) {
-        for (auto &termVec : node.children) {
+    if (static_cast<Symbol const &>(node.value) == term_pool) {
+        for (auto &termVec : toSpan(node.children)) {
             ret = prg_.termvecvec(ret, parseTermVec(termVec));
         }
     }
@@ -1472,14 +1483,14 @@ TermVecVecUid ASTParser::parseArgs(AST const &node) {
     return ret;
 }
 
-LitUid ASTParser::parseLit(AST const &node) {
-    if (node.value == literal_csp) {
+LitUid ASTParser::parseLit(clingo_ast const &node) {
+    if (static_cast<Symbol const &>(node.value) == literal_csp) {
         throw std::runtime_error("implement me: parse csp!!!");
     }
-    else if (node.value == literal_boolean) {
+    else if (static_cast<Symbol const &>(node.value) == literal_boolean) {
         throw std::runtime_error("implement me: parse boolean!!!");
     }
-    else if (node.value == literal_predicate) {
+    else if (static_cast<Symbol const &>(node.value) == literal_predicate) {
         require_(node.children.size == 4);
         NAF naf = parseNAF(node.children.first[0]);
         bool neg = parseNEG(node.children.first[1]);
@@ -1487,23 +1498,23 @@ LitUid ASTParser::parseLit(AST const &node) {
         TermVecVecUid args = parseArgs(node.children.first[3]);
         return prg_.predlit(convertLoc(node.location), naf, neg, name, args);
     }
-    else if (node.value == literal_relation) {
+    else if (static_cast<Symbol const &>(node.value) == literal_relation) {
         throw std::runtime_error("implement me: parse relation!!!");
     }
     else { return fail_<LitUid>("literal expected"); }
 }
 
-LitVecUid ASTParser::parseLitVec(AST const &node) {
-    require_(node.value == tuple_literal, "literal tuple expected");
+LitVecUid ASTParser::parseLitVec(clingo_ast const &node) {
+    require_(static_cast<Symbol const &>(node.value) == tuple_literal, "literal tuple expected");
     auto ret = prg_.litvec();
-    for (auto &lit : node.children) {
+    for (auto &lit : toSpan(node.children)) {
         ret = prg_.litvec(ret, parseLit(lit));
     }
     return ret;
 }
 
-CondLitVecUid ASTParser::parseConditional(CondLitVecUid uid, AST const &node) {
-    if (node.value == literal_conditional) {
+CondLitVecUid ASTParser::parseConditional(CondLitVecUid uid, clingo_ast const &node) {
+    if (static_cast<Symbol const &>(node.value) == literal_conditional) {
         require_(node.children.size == 2, "ill-formed conditional literal");
         return prg_.condlitvec(uid, parseLit(node.children.first[0]), parseLitVec(node.children.first[1]));
     }
@@ -1512,24 +1523,24 @@ CondLitVecUid ASTParser::parseConditional(CondLitVecUid uid, AST const &node) {
     }
 }
 
-HdLitUid ASTParser::parseHead(AST const &node) {
-    if (node.value == tuple_literal) {
+HdLitUid ASTParser::parseHead(clingo_ast const &node) {
+    if (static_cast<Symbol const &>(node.value) == tuple_literal) {
         if (node.children.size == 1 && node.children.first->value != literal_conditional) {
             return prg_.headlit(parseLit(node.children.first[0]));
         }
         auto head = prg_.condlitvec();
-        for (auto const &lit : node.children) {
+        for (auto const &lit : toSpan(node.children)) {
             head = parseConditional(head, lit);
         }
         return prg_.disjunction(convertLoc(node.location), head);
     }
-    else if (node.value == theory_atom) {
+    else if (static_cast<Symbol const &>(node.value) == theory_atom) {
         throw std::runtime_error("implement me: parse head theory atom!!!");
     }
-    else if (node.value == aggregate_head) {
+    else if (static_cast<Symbol const &>(node.value) == aggregate_head) {
         throw std::runtime_error("implement me: parse head aggregate!!!");
     }
-    else if (node.value == aggregate_lparse) {
+    else if (static_cast<Symbol const &>(node.value) == aggregate_lparse) {
         throw std::runtime_error("implement me: parse head lparse atom!!!");
     }
     else {
@@ -1537,20 +1548,20 @@ HdLitUid ASTParser::parseHead(AST const &node) {
     }
 }
 
-BdLitVecUid ASTParser::parseBodyLit(BdLitVecUid uid, AST const &node) {
-    if (node.value == theory_atom) {
+BdLitVecUid ASTParser::parseBodyLit(BdLitVecUid uid, clingo_ast const &node) {
+    if (static_cast<Symbol const &>(node.value) == theory_atom) {
         throw std::runtime_error("implement me: parse body theory atom!!!");
     }
-    else if (node.value == aggregate_body) {
+    else if (static_cast<Symbol const &>(node.value) == aggregate_body) {
         throw std::runtime_error("implement me: parse body aggregate!!!");
     }
-    else if (node.value == aggregate_lparse) {
+    else if (static_cast<Symbol const &>(node.value) == aggregate_lparse) {
         throw std::runtime_error("implement me: parse body aggregate lparse!!!");
     }
-    else if (node.value == literal_conditional) {
+    else if (static_cast<Symbol const &>(node.value) == literal_conditional) {
         throw std::runtime_error("implement me: parse body conditional literal!!!");
     }
-    else if (node.value == disjoint) {
+    else if (static_cast<Symbol const &>(node.value) == disjoint) {
         throw std::runtime_error("implement me: parse body disjoint!!!");
     }
     else {
@@ -1558,16 +1569,16 @@ BdLitVecUid ASTParser::parseBodyLit(BdLitVecUid uid, AST const &node) {
     }
 }
 
-BdLitVecUid ASTParser::parseBody(AST const &node) {
-    require_(node.value == tuple_literal);
+BdLitVecUid ASTParser::parseBody(clingo_ast const &node) {
+    require_(static_cast<Symbol const &>(node.value) == tuple_literal);
     auto ret = prg_.body();
-    for (auto &lit : node.children) {
+    for (auto &lit : toSpan(node.children)) {
         ret = parseBodyLit(ret, lit);
     }
     return ret;
 }
 
-void ASTParser::parseRule(AST const &node) {
+void ASTParser::parseRule(clingo_ast const &node) {
     require_(node.children.size == 2, "ill formed rule");
     prg_.rule(convertLoc(node.location), parseHead(node.children.first[0]), parseBody(node.children.first[1]));
 }

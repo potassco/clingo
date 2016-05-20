@@ -311,8 +311,8 @@ public:
     virtual Gringo::SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass);
     virtual Gringo::TheoryData const &theory() const { return out_->data.theoryInterface(); }
     virtual void registerPropagator(Gringo::Propagator &p, bool sequential);
-    virtual void parse(char const *program, std::function<void(Gringo::AST const &)> cb);
-    virtual void add(std::function<Gringo::AST const *()> cb);
+    virtual void parse(char const *program, std::function<void(clingo_ast const &)> cb);
+    virtual void add(std::function<void (std::function<void (clingo_ast const &)>)> cb);
     virtual void interrupt();
     virtual Gringo::Backend *backend();
     virtual Potassco::Atom_t addProgramAtom();

@@ -187,8 +187,8 @@ struct ASTOwner {
     ASTOwner(ASTOwner const &) = delete;
     ASTOwner &operator=(ASTOwner &&) = default;
     ASTOwner &operator=(ASTOwner const &) = delete;
-    AST root;
-    std::vector<AST> childAST;
+    clingo_ast root;
+    std::vector<clingo_ast> childAST;
     std::vector<ASTOwner> childOwner;
     std::string begin;
     std::string end;
@@ -223,7 +223,7 @@ void pyToCpp(PyObject *pyLoc, Gringo::LocOwner &loc) {
 void pyToCpp(PyObject *pyAST, Gringo::ASTOwner &ast) {
     // ast.value
     Object pyTerm = pyGetAttr(pyAST, "term");
-    pyToCpp(pyTerm, ast.root.value);
+    pyToCpp(pyTerm, static_cast<Symbol &>(ast.root.value));
     // ast.location
     Object pyLoc = pyGetAttr(pyAST, "location");
     // ast.location.begin
@@ -264,9 +264,9 @@ PyObject *cppToPy(Symbol val);
 
 template <class T>
 Object cppToPy(std::vector<T> const &vals);
-Object cppToPy(SymSpan vals);
 template <class T>
 Object cppToPy(Potassco::Span<T> const &span);
+Object cppToPy(clingo_ast_span_t vals);
 
 Object cppToPy(char const *n) { return PyString_FromString(n); }
 Object cppToPy(std::string const &s) { return cppToPy(s.c_str()); }
@@ -276,7 +276,7 @@ Object cppToPy(T n, typename std::enable_if<std::is_integral<T>::value>::type* =
     return PyInt_FromLong(n);
 }
 
-Object cppToPy(Gringo::ASTLocation const &l) {
+Object cppToPy(clingo_location const &l) {
     Object dict = PyDict_New();
     auto add = [](char const *n, size_t l, size_t c) -> Object {
         Object loc = PyDict_New();
@@ -295,13 +295,13 @@ Object cppToPy(Gringo::ASTLocation const &l) {
     return dict;
 }
 
-Object cppToPy(Gringo::AST const &e) {
+Object cppToPy(clingo_ast const &e) {
     Object dict = PyDict_New();
     Object term = cppToPy(e.value);
     if (PyDict_SetItemString(dict, "term", term) < 0) { throw PyException(); }
     Object children = cppToPy(e.children);
     if (PyDict_SetItemString(dict, "children", children) < 0) { throw PyException(); }
-    Object loc = cppToPy(e.location);
+    Object loc = cppToPy(static_cast<clingo_location const &>(e.location));
     if (PyDict_SetItemString(dict, "location", loc) < 0) { throw PyException(); }
     return dict;
 }
@@ -2804,7 +2804,7 @@ active; you must not call any member function during search.)";
         PY_TRY
             const char *str = pyToCpp<char const *>(pyStr);
             Object list = PyList_New(0);
-            self->ctl->parse(str, [list](AST const &x){
+            self->ctl->parse(str, [list](clingo_ast const &x){
                 Object ast = cppToPy(x);
                 if (!ast) { throw PyException(); }
                 if (PyList_Append(list, ast) < 0) { throw PyException(); }
@@ -2814,15 +2814,13 @@ active; you must not call any member function during search.)";
     }
     static PyObject *addAST(ControlWrap *self, PyObject *pyAST) {
         PY_TRY
-            Object it = PyObject_GetIter(pyAST);
-            ASTOwner ast;
-            self->ctl->add([&ast, it]() -> AST* {
-                ast = ASTOwner();
-                if (Object pyAST = PyIter_Next(it)) {
+            self->ctl->add([pyAST](std::function<void (clingo_ast const &)> f) {
+                Object it = PyObject_GetIter(pyAST);
+                while (Object pyVal = PyIter_Next(it)) {
+                    ASTOwner ast;
                     pyToCpp(pyAST, ast);
-                    return &ast.root;
+                    f(ast.root);
                 }
-                return nullptr;
             });
             Py_RETURN_NONE;
         PY_CATCH(nullptr);
@@ -2834,7 +2832,7 @@ Gringo::GringoModule *ControlWrap::module  = nullptr;
 PyMethodDef ControlWrap::tp_methods[] = {
     // add_ast
     {"add_ast", (PyCFunction)addAST, METH_O,
-R"(add_ast(self, [AST]) -> None
+R"(add_ast(self, [clingo_ast]) -> None
 
 Add the given list of abstract syntax trees to the program.
 
@@ -2843,15 +2841,15 @@ input must not necessarily be a dictionary.  Any object that either implements
 the dictionary protocoll or has the required attributes suffices.)"},
     // parse
     {"parse", (PyCFunction)parse, METH_O,
-R"(parse(self, prg) -> [AST]
+R"(parse(self, prg) -> [clingo_ast]
 
 Parse the program given as string to obtain list of ASTs representing the
 statements in the program.
 
-AST is dictionary of form
+clingo_ast is dictionary of form
   { "value"    : Term
   , "location" : { "begin": Loc, "end": Loc }
-  , "children" : [AST]
+  , "children" : [clingo_ast]
   }
 and Loc is a dictionary of form
   { "filename" : str
@@ -3393,7 +3391,7 @@ Object cppToPy(std::vector<T> const &vals) {
     return cppRngToPy(vals.begin(), vals.end());
 }
 
-Object cppToPy(SymSpan vals) {
+Object cppToPy(clingo_ast_span_t vals) {
     return cppRngToPy(vals.first, vals.first + vals.size);
 }
 

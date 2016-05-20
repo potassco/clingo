@@ -204,8 +204,8 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     Gringo::TheoryData const &theory() const override { return out.data.theoryInterface(); }
     void freeControl(Control *) override { }
     void cleanupDomains() override { }
-    void parse(char const *, std::function<void(Gringo::AST const &)>) override { throw std::logic_error("AST parsing not supported"); }
-    void add(std::function<Gringo::AST const *()>) override { throw std::logic_error("AST parsing not supported"); }
+    void parse(char const *, std::function<void (clingo_ast_t const &)>) override { throw std::logic_error("AST parsing not supported"); }
+    void add(std::function<void (std::function<void (clingo_ast_t const &)>)>) override { throw std::logic_error("AST parsing not supported"); }
     Gringo::Backend *backend() override { return out.backend(); }
     Potassco::Atom_t addProgramAtom() override { return out.data.newAtom(); }
     Gringo::Input::GroundTermParser        termParser;
