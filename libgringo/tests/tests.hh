@@ -21,6 +21,7 @@
 #ifndef _GRINGO_TEST_TESTS_HH
 #define _GRINGO_TEST_TESTS_HH
 
+#include "catch.hpp"
 #include <cppunit/TestFixture.h>
 #include <cppunit/TestAssert.h>
 #include <cppunit/extensions/HelperMacros.h>

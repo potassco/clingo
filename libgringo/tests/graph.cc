@@ -25,27 +25,7 @@
 
 namespace Gringo { namespace Test {
 
-// {{{ declaration of TestGraph
-
-class TestGraph : public CppUnit::TestFixture {
-    CPPUNIT_TEST_SUITE(TestGraph);
-        CPPUNIT_TEST(test_tarjan);
-    CPPUNIT_TEST_SUITE_END();
-
-public:
-    virtual void setUp();
-    virtual void tearDown();
-
-    void test_tarjan();
-
-    virtual ~TestGraph();
-};
-
-// }}}
-
 using namespace Gringo::IO;
-
-// {{{ auxiliary definitions
 
 namespace {
 
@@ -86,30 +66,16 @@ G graph(std::initializer_list<std::pair<std::string, std::string>> edges)
 
 } // namespace
 
-// }}}
-// {{{ definition of TestGraph
-
-void TestGraph::setUp() { }
-
-void TestGraph::tearDown() { }
-
-void TestGraph::test_tarjan() {
-    CPPUNIT_ASSERT_EQUAL(std::string("[[b,c],[d],[a]]"), to_string(graph({{"a","b"},{"a","d"},{"b","c"},{"c","b"},{"d","b"}}).tarjan()));
-    CPPUNIT_ASSERT_EQUAL(std::string("[[h,i],[f,g],[d,c,b,e],[a]]"), to_string(graph({{"a","b"},{"b","c"},{"c","h"},{"c","d"},{"d","e"},{"e","f"},{"e","b"},{"e","c"},{"f","g"},{"g","f"},{"h","i"},{"i","h"}}).tarjan()));
-    CPPUNIT_ASSERT_EQUAL(std::string("[[c,d],[a,b]]"), to_string(graph({{"a","b"},{"a","c"},{"a","d"},{"b","a"},{"c","d"},{"d","c"}}).tarjan()));
-    CPPUNIT_ASSERT_EQUAL(std::string("[[i],[n],[r3],[r4,e,r1,p,r2,s]]"), to_string(graph({{"r1","e"},{"r2","p"},{"r2","i"},{"r3","n"},{"r3","i"},{"r4","s"},{"p","r1"},{"s","r2"},{"s","r3"},{"e","r4"}}).tarjan()));
+TEST_CASE("test_tarjan") {
+    REQUIRE("[[b,c],[d],[a]]" == to_string(graph({{"a","b"},{"a","d"},{"b","c"},{"c","b"},{"d","b"}}).tarjan()));
+    REQUIRE("[[h,i],[f,g],[d,c,b,e],[a]]" == to_string(graph({{"a","b"},{"b","c"},{"c","h"},{"c","d"},{"d","e"},{"e","f"},{"e","b"},{"e","c"},{"f","g"},{"g","f"},{"h","i"},{"i","h"}}).tarjan()));
+    REQUIRE("[[c,d],[a,b]]" == to_string(graph({{"a","b"},{"a","c"},{"a","d"},{"b","a"},{"c","d"},{"d","c"}}).tarjan()));
+    REQUIRE("[[i],[n],[r3],[r4,e,r1,p,r2,s]]" == to_string(graph({{"r1","e"},{"r2","p"},{"r2","i"},{"r3","n"},{"r3","i"},{"r4","s"},{"p","r1"},{"s","r2"},{"s","r3"},{"e","r4"}}).tarjan()));
     G g{graph({{"a","b"},{"a","d"},{"b","c"},{"c","b"},{"d","b"}})};
-    CPPUNIT_ASSERT_EQUAL(std::string("[[b,c],[d],[a]]"), to_string(g.tarjan()));
-    CPPUNIT_ASSERT_EQUAL(std::string("[[b,c],[d],[a]]"), to_string(g.tarjan()));
-    CPPUNIT_ASSERT_EQUAL(std::string("[[b,c],[d],[a]]"), to_string(g.tarjan()));
+    REQUIRE("[[b,c],[d],[a]]" == to_string(g.tarjan()));
+    REQUIRE("[[b,c],[d],[a]]" == to_string(g.tarjan()));
+    REQUIRE("[[b,c],[d],[a]]" == to_string(g.tarjan()));
 }
 
-TestGraph::~TestGraph() { }
-
-// }}}
-
-CPPUNIT_TEST_SUITE_REGISTRATION(TestGraph);
-
 } } // namespace Test Gringo
-
 
