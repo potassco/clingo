@@ -17,7 +17,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // }}}
-
+#define CATCH_CONFIG_RUNNER
+#include "catch.hpp"
 #include <cppunit/ui/text/TestRunner.h>
 #include <cppunit/extensions/TestFactoryRegistry.h>
 #include <cppunit/CompilerOutputter.h>
@@ -26,6 +27,9 @@ int main(int argc, char **argv) {
     CppUnit::TextUi::TestRunner runner;
     runner.addTest(CppUnit::TestFactoryRegistry::getRegistry().makeTest());
     runner.setOutputter(new CppUnit::CompilerOutputter(&runner.result(), std::cerr, "%p:%l:"));
-    return runner.run((argc > 1) ? argv[1] : "", false) ? 0 : 1;
+    int cppunitRet = runner.run() ? 0 : 1;
+    int catchRet = Catch::Session().run(argc, argv);
+    if (cppunitRet != 0) { return cppunitRet; }
+    return catchRet;
 }
 
