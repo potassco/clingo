@@ -132,11 +132,13 @@ Targets:
   pyclingo                    Python module (built if python support enabled).
   luaclingo                   Lua module (built if lua support enabled).
   test-clingo                 Run clingo specific acceptence tests.
-  test                        Build and run unit tests.
+  test-libclingo              Run unit tests for libclingo.
+  test-libgringo              Run unit tests for libgringo.
+  test-liblp                  Run unit tests for liblp.
+  test-libreify               Run unit tests for librefiy.
   libclingo                   Build shared clingo library.
-  libcclingo                  Build shared C-clingo library.
   example                     Build example app using libclingo.
-  cexample                    Build C-example app using libcclingo.
+  cexample                    Build example app using clingo's C interface.
   tags                        Generate ctags file.
   web                         Build clingo for the web (use with build-dir js).
 

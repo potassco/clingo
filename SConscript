@@ -337,17 +337,6 @@ clingoSharedEnv.Prepend(LIBS = [gringoLibS, claspLibS, optsLibS, lpLibS])
 clingoSharedLib = clingoSharedEnv.SharedLibrary('libclingo', shared(clingoEnv, LIBCLINGO_SOURCES))
 clingoSharedEnv.Alias('libclingo', clingoSharedLib)
 
-# {{{1 Clingo: C-Library
-
-LIBCCLINGO_SOURCES = find_files(env, 'libcclingo/src')
-LIBCCLINGO_HEADERS = [Dir('#libcclingo')] + LIBCLINGO_HEADERS
-
-cclingoSharedEnv = claspEnv.Clone()
-cclingoSharedEnv.Append(CPPPATH = LIBCCLINGO_HEADERS)
-cclingoSharedEnv.Prepend(LIBS = ["clingo"])
-cclingoSharedLib = cclingoSharedEnv.SharedLibrary('libcclingo', shared(cclingoSharedEnv, LIBCCLINGO_SOURCES))
-cclingoSharedEnv.Alias('libcclingo', cclingoSharedLib)
-
 # {{{1 Reify: Library
 
 LIBREIFY_SOURCES = find_files(env, 'libreify/src')
@@ -494,17 +483,16 @@ if with_cppunit:
 
 # {{{1 Reify: Tests
 
-if with_cppunit:
-    TEST_LIBREIFY_SOURCES  = find_files(env, 'libreify/tests')
+TEST_LIBREIFY_SOURCES  = find_files(env, 'libreify/tests')
 
-    reifyTestEnv                = testEnv.Clone()
-    reifyTestEnv.Append(CPPPATH = LIBREIFY_HEADERS)
-    reifyTestEnv.Prepend(LIBS   = [reifyLib])
+reifyTestEnv                = env.Clone()
+reifyTestEnv.Append(CPPPATH = LIBREIFY_HEADERS)
+reifyTestEnv.Prepend(LIBS   = [reifyLib])
 
-    testReifyProgram = reifyTestEnv.Program('test_libreify', TEST_LIBREIFY_SOURCES)
-    AlwaysBuild(reifyTestEnv.Alias('test-libreify', [testReifyProgram], testReifyProgram[0].path))
-    if 'libreify' in env['TESTS']:
-        AlwaysBuild(reifyTestEnv.Alias('test', [testReifyProgram], testReifyProgram[0].path))
+testReifyProgram = reifyTestEnv.Program('test_libreify', TEST_LIBREIFY_SOURCES)
+AlwaysBuild(reifyTestEnv.Alias('test-libreify', [testReifyProgram], testReifyProgram[0].path))
+if 'libreify' in env['TESTS']:
+    AlwaysBuild(reifyTestEnv.Alias('test', [testReifyProgram], testReifyProgram[0].path))
 
 # {{{1 Liblp: Tests
 

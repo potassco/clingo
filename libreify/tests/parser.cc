@@ -20,9 +20,8 @@
 
 #include <reify/reify.hh>
 #include <reify/util.hh>
-#include <cppunit/TestFixture.h>
-#include <cppunit/TestAssert.h>
-#include <cppunit/extensions/HelperMacros.h>
+#include <sstream>
+#include "catch.hpp"
 
 namespace Reify {
 
@@ -39,85 +38,71 @@ std::string toLparse(std::string const &s) {
 
 } // namespace
 
-class TestParser : public CppUnit::TestFixture {
-    CPPUNIT_TEST_SUITE(TestParser);
-        CPPUNIT_TEST(normal);
-        CPPUNIT_TEST(card);
-        CPPUNIT_TEST(weight);
-        CPPUNIT_TEST(disjunctive);
-        CPPUNIT_TEST(choice);
-        CPPUNIT_TEST(minimize);
-        CPPUNIT_TEST(symbols);
-        CPPUNIT_TEST(models);
-        CPPUNIT_TEST(compute);
-    CPPUNIT_TEST_SUITE_END();
-public:
-    void normal() {
+TEST_CASE("reify") {
+    SECTION("normal") {
         std::string s =
             "1 2 2 1 4 3\n"
             "0\n"
             "0\nB+\n0\nB-\n0\n1\n";
-        CPPUNIT_ASSERT_EQUAL(s, toLparse(s));
+        REQUIRE(s == toLparse(s));
     }
-    void card() {
+    SECTION("card()") {
         std::string s =
             "2 2 3 1 2 3 4 5\n"
             "0\n"
             "0\nB+\n0\nB-\n0\n1\n";
-        CPPUNIT_ASSERT_EQUAL(s, toLparse(s));
+        REQUIRE(s == toLparse(s));
     }
-    void weight() {
+    SECTION("weight()") {
         std::string s =
             "5 2 3 3 1 3 4 5 1 2 3\n"
             "0\n"
             "0\nB+\n0\nB-\n0\n1\n";
-        CPPUNIT_ASSERT_EQUAL(s, toLparse(s));
+        REQUIRE(s == toLparse(s));
     }
-    void disjunctive() {
+    SECTION("disjunctive()") {
         std::string s =
             "8 2 2 3 2 1 4 5\n"
             "0\n"
             "0\nB+\n0\nB-\n0\n1\n";
-        CPPUNIT_ASSERT_EQUAL(s, toLparse(s));
+        REQUIRE(s == toLparse(s));
     }
-    void choice() {
+    SECTION("choice()") {
         std::string s =
             "3 2 2 3 2 1 4 5\n"
             "0\n"
             "0\nB+\n0\nB-\n0\n1\n";
-        CPPUNIT_ASSERT_EQUAL(s, toLparse(s));
+        REQUIRE(s == toLparse(s));
     }
-    void minimize() {
+    SECTION("minimize()") {
         std::string s =
             "6 0 3 1 3 4 5 1 2 3\n"
             "6 0 3 1 5 4 3 1 2 3\n"
             "0\n"
             "0\nB+\n0\nB-\n0\n1\n";
-        CPPUNIT_ASSERT_EQUAL(s, toLparse(s));
+        REQUIRE(s == toLparse(s));
     }
-    void symbols() {
+    SECTION("symbols()") {
         std::string s =
             "0\n"
             "2 a\n"
             "3 b\n"
             "4 c\n"
             "0\nB+\n0\nB-\n0\n1\n";
-        CPPUNIT_ASSERT_EQUAL(s, toLparse(s));
+        REQUIRE(s == toLparse(s));
     }
-    void models() {
+    SECTION("models()") {
         std::string s =
             "0\n"
             "0\nB+\n0\nB-\n0\n42\n";
-        CPPUNIT_ASSERT_EQUAL(s, toLparse(s));
+        REQUIRE(s == toLparse(s));
     }
-    void compute() {
+    SECTION("compute()") {
         std::string s =
             "0\n"
             "0\nB+\n1\n2\n0\nB-\n3\n4\n0\n1\n";
-        CPPUNIT_ASSERT_EQUAL(s, toLparse(s));
+        REQUIRE(s == toLparse(s));
     }
-};
-
-CPPUNIT_TEST_SUITE_REGISTRATION(TestParser);
+}
 
 } // namespace Reify
