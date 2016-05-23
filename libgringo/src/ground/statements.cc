@@ -620,7 +620,7 @@ void HeuristicStatement::report(Output::OutputBase &out) {
         return;
     }
     // check priority
-    Symbol priority = value_->eval(undefined);
+    Symbol priority = priority_->eval(undefined);
     if (undefined || priority.type() != SymbolType::Num) {
         GRINGO_REPORT(W_OPERATION_UNDEFINED)
             << priority_->loc() << ": info: heuristic directive ignored\n";

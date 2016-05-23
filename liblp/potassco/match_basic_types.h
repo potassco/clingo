@@ -87,10 +87,10 @@ inline Lit_t matchLit(BufferedStream& str, unsigned aMax = atomMax, const char* 
 	throw ParseError(str.line(), err);
 }
 template <class C>
-LitSpan matchLits(BufferedStream& str, C& c) {
+LitSpan matchLits(BufferedStream& str, C& c, unsigned aMax) {
 	c.clear();
 	for (unsigned n = matchPos(str, "number of literals expected"); n--;) {
-		c.push_back(matchLit(str));
+		c.push_back(matchLit(str, aMax));
 	}
 	return toSpan(c);
 }
@@ -120,6 +120,8 @@ protected:
 	unsigned matchPos(const char* err) { return matchPos(static_cast<unsigned>(-1), err); }
 	Atom_t   matchAtom(const char* err = "atom expected") { return Potassco::matchAtom(*stream(), varMax_, err); }
 	Lit_t    matchLit(const char* err = "literal expected") { return Potassco::matchLit(*stream(), varMax_, err); }
+	template <class C>
+	LitSpan  matchLits(C& c) { return Potassco::matchLits(*stream(), c, varMax_); }
 	void     skipLine();
 private:
 	ProgramReader(const ProgramReader&);

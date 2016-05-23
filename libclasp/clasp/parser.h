@@ -48,11 +48,13 @@ struct ParserOptions {
 		parse_heuristic = 1u, /*!< Parse _heuristic(...) pred in smodels format. */
 		parse_acyc_edge = 2u, /*!< Parse acyc info in smodels, dimacs, and pb format. */
 		parse_minimize  = 4u, /*!< Parse cost function in dimacs format. */
+		parse_project   = 8u, /*!< Parse project directive in dimacs and pb format. */
 	};
 	ParserOptions() : ext(0) {}
 	ParserOptions& enableHeuristic() { ext |= parse_heuristic; return *this; }
 	ParserOptions& enableAcycEdges() { ext |= parse_acyc_edge; return *this; }
 	ParserOptions& enableMinimize()  { ext |= parse_minimize; return *this; }
+	ParserOptions& enableProject()   { ext |= parse_project; return *this; }
 	bool isEnabled(Extension e) const { return (ext & static_cast<uint8>(e)) != 0u; }
 	bool isEnabled(uint8 f) const { return (ext & f) != 0u;  }
 	uint8 ext;
@@ -66,6 +68,7 @@ public:
 	virtual ~ProgramParser();
 	bool accept(std::istream& str, const ParserOptions& o = ParserOptions());
 	bool incremental() const;
+	bool isOpen() const;
 	bool parse();
 	bool more();
 	void reset();

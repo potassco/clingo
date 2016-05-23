@@ -217,11 +217,22 @@ void Output::printWitness(const OutputTable& out, const Model& m, uintp data) {
 				data = doPrint(OutPair(it->name, lit_true()), data);
 			}
 		}
-		for (OutputTable::range_iterator it = out.vars_begin(), end = out.vars_end(); it != end; ++it) {
-			const bool showAll = !m.consequences();
-			Literal p = posLit(*it);
-			if ((showAll || m.isTrue(p)) && (onlyD || m.isDef(p) == D)) {
-				data = doPrint(OutPair(static_cast<const char*>(0), m.isTrue(p) ? p : ~p), data);
+		if (out.vars_begin() != out.vars_end()) {
+			const bool showNeg = !m.consequences();
+			if (out.projectMode() == OutputTable::project_output || !out.filter("_")) {
+				for (OutputTable::range_iterator it = out.vars_begin(), end = out.vars_end(); it != end; ++it) {
+					Literal p = posLit(*it);
+					if ((showNeg || m.isTrue(p)) && (onlyD || m.isDef(p) == D)) {
+						data = doPrint(OutPair(static_cast<const char*>(0), m.isTrue(p) ? p : ~p), data);
+					}
+				}
+			}
+			else {
+				for (OutputTable::lit_iterator it = out.proj_begin(), end = out.proj_end(); it != end; ++it) {
+					if ((showNeg || m.isTrue(*it)) && (onlyD || m.isDef(*it) == D)) {
+						data = doPrint(OutPair(static_cast<const char*>(0), m.isTrue(*it) ? *it : ~*it), data);
+					}
+				}
 			}
 		}
 		if (D == onlyD) { return; }

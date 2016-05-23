@@ -244,6 +244,11 @@ template <class C>
 inline Span<typename C::value_type> toSpan(const C& c) {
 	return !c.empty() ? toSpan(&c[0], c.size()) : toSpan<typename C::value_type>();
 }
+//! Creates head F.
+inline HeadView toHead() {
+	Potassco::HeadView h ={Potassco::Head_t::Disjunctive, Potassco::toSpan<Potassco::Atom_t>()};
+	return h;
+}
 //! Creates a head from an atom span.
 inline HeadView toHead(const Potassco::AtomSpan& atoms, Potassco::Head_t type = Potassco::Head_t::Disjunctive) {
 	Potassco::HeadView h = {type, atoms};
@@ -252,6 +257,11 @@ inline HeadView toHead(const Potassco::AtomSpan& atoms, Potassco::Head_t type = 
 //! Creates a head from a single atom.
 inline HeadView toHead(Potassco::Atom_t& atom, Potassco::Head_t type = Potassco::Head_t::Disjunctive) {
 	return toHead(Potassco::toSpan(&atom, 1), type);
+}
+//! Creates body T.
+inline BodyView toBody() {
+	Potassco::BodyView b ={Potassco::Body_t::Normal, Potassco::Body_t::BOUND_NONE, Potassco::toSpan<WeightLit_t>()};
+	return b;
 }
 //! Creates a normal body from a literal span.
 inline BodyView toBody(const Potassco::WeightLitSpan& lits) {
