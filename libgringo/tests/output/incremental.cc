@@ -27,34 +27,6 @@ namespace Gringo { namespace Output { namespace Test {
 
 using namespace Gringo::Test;
 
-// {{{ declaration of TestIncremental
-
-class TestIncremental : public CppUnit::TestFixture {
-    CPPUNIT_TEST_SUITE(TestIncremental);
-        CPPUNIT_TEST(test_assign);
-        CPPUNIT_TEST(test_projection);
-        CPPUNIT_TEST(test_projectionBug);
-        CPPUNIT_TEST(test_lp);
-        CPPUNIT_TEST(test_csp);
-        CPPUNIT_TEST(test_mapping);
-    CPPUNIT_TEST_SUITE_END();
-    using S = std::string;
-
-public:
-    virtual void setUp();
-    virtual void tearDown();
-
-    void test_assign();
-    void test_projection();
-    void test_projectionBug();
-    void test_lp();
-    void test_csp();
-    void test_mapping();
-    virtual ~TestIncremental();
-};
-
-// }}}
-
 // {{{ definition of auxiliary functions
 
 namespace {
@@ -107,16 +79,10 @@ std::string iground(std::string in, int last = 3) {
 // }}}
 // {{{ definition of TestIncremental
 
-void TestIncremental::setUp() {
-}
-
-void TestIncremental::tearDown() {
-}
-
-void TestIncremental::test_assign() {
-    Gringo::Test::Messages msg;
-    CPPUNIT_ASSERT_EQUAL(
-        S(
+TEST_CASE("output-incremental", "[output]") {
+    SECTION("assign") {
+        Gringo::Test::Messages msg;
+        REQUIRE(
             "asp 1 0 0 incremental\n"
             "0\n"
             "1 0 1 1 0 0\n"
@@ -125,14 +91,12 @@ void TestIncremental::test_assign() {
             "1 0 1 2 0 0\n"
             "4 8 p(2,0,0) 0\n"
             "0\n"
-            "0\n"),
-        iground(
-            "#program base."
-            "#program step(k)."
-            "p(k,N,Y) :- N = #sum { Y }, Y = #sum { }."
-            "#program last."));
-    CPPUNIT_ASSERT_EQUAL(
-        S(
+            "0\n" == iground(
+                "#program base."
+                "#program step(k)."
+                "p(k,N,Y) :- N = #sum { Y }, Y = #sum { }."
+                "#program last."));
+        REQUIRE(
             "asp 1 0 0 incremental\n"
             "0\n"
             "1 0 1 1 0 0\n"
@@ -141,16 +105,14 @@ void TestIncremental::test_assign() {
             "1 0 1 2 0 0\n"
             "4 8 p(2,4,2) 0\n"
             "0\n"
-            "0\n"),
-        iground(
-            "#program base."
-            "#program step(k)."
-            "p(k,N,Y) :- N = #sum { 2*Y }, Y = #sum { k }."
-            "#program last."));
-}
-void TestIncremental::test_projection() {
-    CPPUNIT_ASSERT_EQUAL(
-        S(
+            "0\n" == iground(
+                "#program base."
+                "#program step(k)."
+                "p(k,N,Y) :- N = #sum { 2*Y }, Y = #sum { k }."
+                "#program last."));
+    }
+    SECTION("projection") {
+        REQUIRE(
             "asp 1 0 0 incremental\n"
             "1 1 1 1 0 0\n"
             "1 1 1 2 0 0\n"
@@ -171,18 +133,16 @@ void TestIncremental::test_projection() {
             "4 4 q(2) 1 8\n"
             "0\n"
             "1 0 1 9 0 1 7\n"
-            "0\n"),
-        iground(
-            "#program base."
-            "{p(1..3)}."
-            "#program step(k)."
-            "{q(k)} :- p(_)."
-            "#program last."));
-}
+            "0\n" == iground(
+                "#program base."
+                "{p(1..3)}."
+                "#program step(k)."
+                "{q(k)} :- p(_)."
+                "#program last."));
+    }
 
-void TestIncremental::test_lp() {
-    CPPUNIT_ASSERT_EQUAL(
-        S(
+    SECTION("lp") {
+        REQUIRE(
             "asp 1 0 0 incremental\n"
             "4 4 base 1 -1\n"
             "0\n"
@@ -197,18 +157,16 @@ void TestIncremental::test_lp() {
             "4 4 q(2) 1 -1\n"
             "0\n"
             "4 4 last 1 -1\n"
-            "0\n"
-        ),iground(
-            "#program base."
-            "#show base."
-            "#program step(k)."
-            "#show p(k)."
-            "#show q(k)."
-            "r(k)."
-            "#program last."
-            "#show last."));
-    CPPUNIT_ASSERT_EQUAL(
-        S(
+            "0\n" == iground(
+                "#program base."
+                "#show base."
+                "#program step(k)."
+                "#show p(k)."
+                "#show q(k)."
+                "r(k)."
+                "#program last."
+                "#show last."));
+        REQUIRE(
             "asp 1 0 0 incremental\n"
             "1 0 1 1 0 0\n"
             "4 4 base 0\n"
@@ -221,18 +179,16 @@ void TestIncremental::test_lp() {
             "0\n"
             "1 0 1 4 0 0\n"
             "4 4 last 0\n"
-            "0\n"),
-        iground(
-            "#program base."
-            "base."
-            "#program step(k)."
-            "step(k)."
-            "#program last."
-            "last."));
-}
-void TestIncremental::test_csp() {
-    CPPUNIT_ASSERT_EQUAL(
-        S(
+            "0\n" == iground(
+                "#program base."
+                "base."
+                "#program step(k)."
+                "step(k)."
+                "#program last."
+                "last."));
+    }
+    SECTION("csp") {
+        REQUIRE(
             "asp 1 0 0 incremental\n"
             "4 6 base=1 0\n"
             "0\n"
@@ -267,23 +223,21 @@ void TestIncremental::test_csp() {
             "4 7 step(2) 0\n"
             "0\n"
             "4 6 last=1 0\n"
-            "0\n"),
-        iground(
-            "#program base."
-            "$base$=1."
-            "#program step(k)."
-            "step(k)."
-            "0 $<= $up $<= 5-k."
-            "k $<= $lo $<= 4."
-            "1 $<= $ib $<= 3."
-            "$ib $= 1; $ib $=3 :- k == 2."
-            "#program last."
-            "$last$=1."));
-}
+            "0\n" == iground(
+                "#program base."
+                "$base$=1."
+                "#program step(k)."
+                "step(k)."
+                "0 $<= $up $<= 5-k."
+                "k $<= $lo $<= 4."
+                "1 $<= $ib $<= 3."
+                "$ib $= 1; $ib $=3 :- k == 2."
+                "#program last."
+                "$last$=1."));
+    }
 
-void TestIncremental::test_projectionBug() {
-    CPPUNIT_ASSERT_EQUAL(
-        S(
+    SECTION("projectionBug") {
+        REQUIRE(
             "asp 1 0 0 incremental\n"
             "1 1 1 1 0 0\n"
             "1 0 1 2 0 1 1\n"
@@ -312,47 +266,40 @@ void TestIncremental::test_projectionBug() {
             "4 4 r(0) 1 14\n"
             "4 4 r(1) 1 15\n"
             "4 4 r(2) 1 16\n"
-            "0\n"
-            ),
-        iground(
-            "#program base."
-            "{p(0,0)}."
-            "#program step(k)."
-            "{p(k,k)} :- p(_,k-1)."
-            "#program last."
-            "{p(1,0)}."
-            "{r(X)} :- p(_,X)."
-            ));
+            "0\n" == iground(
+                "#program base."
+                "{p(0,0)}."
+                "#program step(k)."
+                "{p(k,k)} :- p(_,k-1)."
+                "#program last."
+                "{p(1,0)}."
+                "{r(X)} :- p(_,X)."
+                ));
+    }
+
+    SECTION("mapping") {
+        Mapping m;
+        m.add(1,0);
+        m.add(2,1);
+        m.add(4,2);
+        m.add(5,3);
+
+        REQUIRE(InvalidId == m.get(0));
+        REQUIRE(Id_t(0) == m.get(1));
+        REQUIRE(Id_t(1) == m.get(2));
+        REQUIRE(InvalidId == m.get(3));
+        REQUIRE(Id_t(2) == m.get(4));
+        REQUIRE(Id_t(3) == m.get(5));
+        REQUIRE(InvalidId == m.get(6));
+
+        REQUIRE(Id_t(0) == m.bound(0));
+        REQUIRE(Id_t(0) == m.bound(1));
+        REQUIRE(Id_t(1) == m.bound(2));
+        REQUIRE(Id_t(2) == m.bound(3));
+        REQUIRE(Id_t(2) == m.bound(4));
+        REQUIRE(Id_t(3) == m.bound(5));
+        REQUIRE(Id_t(4) == m.bound(6));
+    }
 }
-
-void TestIncremental::test_mapping() {
-    Mapping m;
-    m.add(1,0);
-    m.add(2,1);
-    m.add(4,2);
-    m.add(5,3);
-
-    CPPUNIT_ASSERT_EQUAL(InvalidId, m.get(0));
-    CPPUNIT_ASSERT_EQUAL(Id_t(0), m.get(1));
-    CPPUNIT_ASSERT_EQUAL(Id_t(1), m.get(2));
-    CPPUNIT_ASSERT_EQUAL(InvalidId, m.get(3));
-    CPPUNIT_ASSERT_EQUAL(Id_t(2), m.get(4));
-    CPPUNIT_ASSERT_EQUAL(Id_t(3), m.get(5));
-    CPPUNIT_ASSERT_EQUAL(InvalidId, m.get(6));
-
-    CPPUNIT_ASSERT_EQUAL(Id_t(0), m.bound(0));
-    CPPUNIT_ASSERT_EQUAL(Id_t(0), m.bound(1));
-    CPPUNIT_ASSERT_EQUAL(Id_t(1), m.bound(2));
-    CPPUNIT_ASSERT_EQUAL(Id_t(2), m.bound(3));
-    CPPUNIT_ASSERT_EQUAL(Id_t(2), m.bound(4));
-    CPPUNIT_ASSERT_EQUAL(Id_t(3), m.bound(5));
-    CPPUNIT_ASSERT_EQUAL(Id_t(4), m.bound(6));
-}
-
-TestIncremental::~TestIncremental() { }
-
-// }}}
-
-CPPUNIT_TEST_SUITE_REGISTRATION(TestIncremental);
 
 } } } // namespace Test Output Gringo
