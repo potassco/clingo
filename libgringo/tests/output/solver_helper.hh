@@ -102,8 +102,8 @@ inline bool ground(ClingoState &state) {
     return false;
 };
 
-inline Models solve(ClingoState &state, std::string &&str, Filter filter = {""}, std::initializer_list<Clasp::wsum_t> minimize = {}) {
-    state.parser.pushStream("-", gringo_make_unique<std::stringstream>(std::move(str)));
+inline Models solve(ClingoState &state, std::string const &str, Filter filter = {""}, std::initializer_list<Clasp::wsum_t> minimize = {}) {
+    state.parser.pushStream("-", gringo_make_unique<std::stringstream>(str));
     Models models;
     // grounder: parse
     state.parser.parse();
@@ -127,9 +127,9 @@ inline Models solve(ClingoState &state, std::string &&str, Filter filter = {""},
     return models;
 }
 
-inline Models solve(std::string &&str, std::initializer_list<std::string> filter = {""}, std::initializer_list<Clasp::wsum_t> minimize = {}) {
+inline Models solve(std::string const &str, std::initializer_list<std::string> filter = {""}, std::initializer_list<Clasp::wsum_t> minimize = {}) {
     ClingoState state;
-    return solve(state, std::move(str), filter, minimize);
+    return solve(state, str, filter, minimize);
 }
 
 // }}}

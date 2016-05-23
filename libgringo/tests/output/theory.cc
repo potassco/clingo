@@ -25,156 +25,119 @@
 
 namespace Gringo { namespace Output { namespace Test {
 
-// {{{ declaration of TestTheory
-
-class TestTheory : public CppUnit::TestFixture {
-    CPPUNIT_TEST_SUITE(TestTheory);
-        CPPUNIT_TEST(test_directive);
-        CPPUNIT_TEST(test_head);
-        CPPUNIT_TEST(test_body);
-        CPPUNIT_TEST(test_term);
-        CPPUNIT_TEST(test_guard);
-    CPPUNIT_TEST_SUITE_END();
-    using S = std::string;
-
-public:
-    void test_directive();
-    void test_head();
-    void test_body();
-    void test_term();
-    void test_guard();
-    virtual ~TestTheory();
-};
-
-// }}}
-
-// {{{ definition of TestTheory
-
-void TestTheory::test_directive() {
-    std::string theory =
-        "#theory t {"
-        "    group { };"
-        "    &a/0 : group, directive"
-        "}.";
-    CPPUNIT_ASSERT_EQUAL(
-        S(
+TEST_CASE("output-theory", "[output]") {
+    SECTION("directive") {
+        std::string theory =
+            "#theory t {"
+            "    group { };"
+            "    &a/0 : group, directive"
+            "}.";
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 5 0 0 0\n"
-            "0\n"
-        ),
-        Gringo::Ground::Test::groundAspif(
-            theory +
-            "&a { }."));
-}
+            "0\n" ==
+            Gringo::Ground::Test::groundAspif(
+                theory +
+                "&a { }."));
+    }
 
-void TestTheory::test_head() {
-    std::string theory =
-        "#theory t {"
-        "    group { };"
-        "    &a/0 : group, head"
-        "}.";
-    CPPUNIT_ASSERT_EQUAL(
-        S(
+    SECTION("head") {
+        std::string theory =
+            "#theory t {"
+            "    group { };"
+            "    &a/0 : group, head"
+            "}.";
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 5 1 0 0\n"
             "1 0 1 1 0 0\n"
-            "0\n"
-        ),
-        Gringo::Ground::Test::groundAspif(
-            theory +
-            "&a { }."));
-}
+            "0\n" ==
+            Gringo::Ground::Test::groundAspif(
+                theory +
+                "&a { }."));
+    }
 
-void TestTheory::test_body() {
-    std::string theory =
-        "#theory t {"
-        "    group { };"
-        "    &a/0 : group, body"
-        "}.";
-    CPPUNIT_ASSERT_EQUAL(
-        S(
+    SECTION("body") {
+        std::string theory =
+            "#theory t {"
+            "    group { };"
+            "    &a/0 : group, body"
+            "}.";
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 5 1 0 0\n"
             "1 0 0 0 1 1\n"
-            "0\n"
-        ),
-        Gringo::Ground::Test::groundAspif(
-            theory +
-            ":-&a { }."));
-}
+            "0\n" ==
+            Gringo::Ground::Test::groundAspif(
+                theory +
+                ":-&a { }."));
+    }
 
-void TestTheory::test_guard() {
-    std::string theory =
-        "#theory t {\n"
-        "    group { };\n"
-        "    &a/0 : group, {=}, group, directive\n"
-        "}.\n";
-    CPPUNIT_ASSERT_EQUAL(
-        S(
+    SECTION("guard") {
+        std::string theory =
+            "#theory t {\n"
+            "    group { };\n"
+            "    &a/0 : group, {=}, group, directive\n"
+            "}.\n";
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 1 2 1 =\n"
             "9 0 1 1\n"
             "9 6 0 0 0 2 1\n"
-            "0\n"
-        ),
-        Gringo::Ground::Test::groundAspif(
-            theory +
-            "&a { } = 1."));
-}
+            "0\n" ==
+            Gringo::Ground::Test::groundAspif(
+                theory +
+                "&a { } = 1."));
+    }
 
-void TestTheory::test_term() {
-    std::string theory =
-        "#theory t {\n"
-        "  group {\n"
-        "    + : 4, unary;\n"
-        "    - : 4, unary;\n"
-        "    ^ : 3, binary, right;\n"
-        "    * : 2, binary, left;\n"
-        "    + : 1, binary, left;\n"
-        "    - : 1, binary, left\n"
-        "  };\n"
-        "  &a/0 : group, head\n"
-        "}.\n";
-    CPPUNIT_ASSERT_EQUAL(S(
+    SECTION("term") {
+        std::string theory =
+            "#theory t {\n"
+            "  group {\n"
+            "    + : 4, unary;\n"
+            "    - : 4, unary;\n"
+            "    ^ : 3, binary, right;\n"
+            "    * : 2, binary, left;\n"
+            "    + : 1, binary, left;\n"
+            "    - : 1, binary, left\n"
+            "  };\n"
+            "  &a/0 : group, head\n"
+            "}.\n";
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 4 0 0 0\n"
             "9 5 1 0 1 0\n"
             "1 0 1 1 0 0\n"
-            "0\n"
-        ), Gringo::Ground::Test::groundAspif(theory + "&a { : }."));
-    CPPUNIT_ASSERT_EQUAL(S(
+            "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { : }."));
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 0 1 1\n"
             "9 4 0 2 1 1 0\n"
             "9 5 1 0 1 0\n"
             "1 0 1 1 0 0\n"
-            "0\n"
-        ), Gringo::Ground::Test::groundAspif(theory + "&a { 1,1 }."));
-    CPPUNIT_ASSERT_EQUAL(S(
+            "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { 1,1 }."));
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 2 1 -1 0\n"
             "9 4 0 1 1 0\n"
             "9 5 1 0 1 0\n"
             "1 0 1 1 0 0\n"
-            "0\n"
-        ), Gringo::Ground::Test::groundAspif(theory + "&a { () }."));
-    CPPUNIT_ASSERT_EQUAL(S(
+            "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { () }."));
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 1 1 4 #sup\n"
             "9 4 0 1 1 0\n"
             "9 5 1 0 1 0\n"
             "1 0 1 1 0 0\n"
-            "0\n"
-        ), Gringo::Ground::Test::groundAspif(theory + "&a { #sup }."));
-    CPPUNIT_ASSERT_EQUAL(S(
+            "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { #sup }."));
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 1 1 4 #inf\n"
             "9 4 0 1 1 0\n"
             "9 5 1 0 1 0\n"
             "1 0 1 1 0 0\n"
-            "0\n"
-        ), Gringo::Ground::Test::groundAspif(theory + "&a { #inf }."));
-    CPPUNIT_ASSERT_EQUAL(S(
+            "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { #inf }."));
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 0 2 1\n"
             "9 1 1 1 f\n"
@@ -182,18 +145,16 @@ void TestTheory::test_term() {
             "9 4 0 1 3 0\n"
             "9 5 1 0 1 0\n"
             "1 0 1 1 0 0\n"
-            "0\n"
-        ), Gringo::Ground::Test::groundAspif(theory + "&a { f(1) }."));
-    CPPUNIT_ASSERT_EQUAL(S(
+            "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { f(1) }."));
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 0 1 1\n"
             "9 2 2 -1 1 1\n"
             "9 4 0 1 2 0\n"
             "9 5 1 0 1 0\n"
             "1 0 1 1 0 0\n"
-            "0\n"
-        ), Gringo::Ground::Test::groundAspif(theory + "&a { (1,) }."));
-    CPPUNIT_ASSERT_EQUAL(S(
+            "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { (1,) }."));
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 0 1 1\n"
             "9 0 2 2\n"
@@ -201,9 +162,8 @@ void TestTheory::test_term() {
             "9 4 0 1 3 0\n"
             "9 5 1 0 1 0\n"
             "1 0 1 1 0 0\n"
-            "0\n"
-        ), Gringo::Ground::Test::groundAspif(theory + "&a { (1,2) }."));
-    CPPUNIT_ASSERT_EQUAL(S(
+            "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { (1,2) }."));
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 0 1 1\n"
             "9 0 2 2\n"
@@ -211,9 +171,8 @@ void TestTheory::test_term() {
             "9 4 0 1 3 0\n"
             "9 5 1 0 1 0\n"
             "1 0 1 1 0 0\n"
-            "0\n"
-        ), Gringo::Ground::Test::groundAspif(theory + "&a { {1,2} }."));
-    CPPUNIT_ASSERT_EQUAL(S(
+            "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { {1,2} }."));
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 0 1 1\n"
             "9 0 2 2\n"
@@ -221,10 +180,8 @@ void TestTheory::test_term() {
             "9 4 0 1 3 0\n"
             "9 5 1 0 1 0\n"
             "1 0 1 1 0 0\n"
-            "0\n"
-
-        ), Gringo::Ground::Test::groundAspif(theory + "&a { [1,2] }."));
-    CPPUNIT_ASSERT_EQUAL(S(
+            "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { [1,2] }."));
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 0 2 1\n"
             "9 1 1 1 -\n"
@@ -232,9 +189,8 @@ void TestTheory::test_term() {
             "9 4 0 1 3 0\n"
             "9 5 1 0 1 0\n"
             "1 0 1 1 0 0\n"
-            "0\n"
-        ), Gringo::Ground::Test::groundAspif(theory + "&a { (-1) }."));
-    CPPUNIT_ASSERT_EQUAL(S(
+            "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { (-1) }."));
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 0 2 1\n"
             "9 1 1 1 -\n"
@@ -242,9 +198,8 @@ void TestTheory::test_term() {
             "9 4 0 1 3 0\n"
             "9 5 1 0 1 0\n"
             "1 0 1 1 0 0\n"
-            "0\n"
-        ), Gringo::Ground::Test::groundAspif(theory + "&a { X } :- X=-1."));
-    CPPUNIT_ASSERT_EQUAL(S(
+            "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { X } :- X=-1."));
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 0 3 1\n"
             "9 1 2 1 +\n"
@@ -254,9 +209,8 @@ void TestTheory::test_term() {
             "9 4 0 1 5 0\n"
             "9 5 1 0 1 0\n"
             "1 0 1 1 0 0\n"
-            "0\n"
-        ), Gringo::Ground::Test::groundAspif(theory + "&a { - + 1 }."));
-    CPPUNIT_ASSERT_EQUAL(S(
+            "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { - + 1 }."));
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 0 2 1\n"
             "9 0 3 2\n"
@@ -265,9 +219,8 @@ void TestTheory::test_term() {
             "9 4 0 1 4 0\n"
             "9 5 1 0 1 0\n"
             "1 0 1 1 0 0\n"
-            "0\n"
-        ), Gringo::Ground::Test::groundAspif(theory + "&a { 1^2 }."));
-    CPPUNIT_ASSERT_EQUAL(S(
+            "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { 1^2 }."));
+        REQUIRE(
             "9 1 0 1 a\n"
             "9 0 2 1\n"
             "9 0 4 2\n"
@@ -279,15 +232,9 @@ void TestTheory::test_term() {
             "9 4 0 1 7 0\n"
             "9 5 1 0 1 0\n"
             "1 0 1 1 0 0\n"
-            "0\n"
-        ), Gringo::Ground::Test::groundAspif(theory + "&a { 1+2*3 }."));
+            "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { 1+2*3 }."));
+    }
 }
-
-TestTheory::~TestTheory() { }
-
-// }}}
-
-CPPUNIT_TEST_SUITE_REGISTRATION(TestTheory);
 
 } } } // namespace Test Output Gringo
 
