@@ -54,7 +54,6 @@ opts.AddVariables(
     ('WITH_PYTHON'   , 'enable python integration; None, "auto", or library name or path'),
     ('WITH_LUA'      , 'enable lua integration; None, "auto", library name, or path'),
     ('WITH_THREADS'  , 'enable thread support in clasp library; "posix", "windows", or None'),
-    ('WITH_CPPUNIT'  , 'enable tests using cppuint; None, "auto", or library name or path'),
     ('TESTS'         , 'enable specific unit tests; [libgringo, libreify, liblp]'),
     )
 
@@ -77,7 +76,6 @@ env['RPATH']          = []
 env['WITH_PYTHON']    = 'auto'
 env['WITH_LUA']       = 'auto'
 env['WITH_THREADS']   = 'posix'
-env['WITH_CPPUNIT']   = 'auto'
 env['TESTS']          = ['libreify', 'libgringo', 'libclingo', 'liblp', 'clingo']
 
 if GetOption("build_dir") == "static":
@@ -101,7 +99,6 @@ elif GetOption("build_dir") == "js":
     env['WITH_PYTHON'] = None
     env['WITH_LUA'] = None
     env['WITH_THREADS'] = None
-    env['WITH_CPPUNIT'] = None
 
 opts.Update(env)
 opts.Save(opts_file, env)

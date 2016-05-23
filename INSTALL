@@ -23,10 +23,6 @@ Optional Dependencies
 - the lua script language (optional)
     version 5.1 is tested
     version 5.2 should work
-- the cppunit library (optional)
-    version 1.12 is tested
-    newer versions should work
-
 
 Compilation
 ===========
@@ -133,20 +129,8 @@ CPPPATH, LIBPATH if the library is installed in a non-default location.
 Testing
 =======
 
-Unit tests are available when the cppunit library is found.  The library can
-also be configured manually:
-    $ grep "WITH_CPPUNIT" build/release.py
-    WITH_CPPUNIT = 'auto'
-If gringo/clingo has been configured with cppunit support, a test target is
-available to run unit tests.
+The test target can be used to run unit and acceptance tests:
     $ scons --build-dir=release test
-
-Furthermore, there are some acceptance tests for clingo. These tests require
-clingo to be configured with python, lua, and cppunit support. Additionally,
-the following programs have to be available: zsh, and the GNU core- and
-diffutils.  To run the tests, execute:
-    $ scons --build-dir=release test-clingo
-
 
 Notes for Windows Users
 =======================
@@ -217,7 +201,7 @@ http://mingw-w64.sourceforge.net/
 http://potassco.sourceforge.net/
 http://potassco.sourceforge.net/clingo.html
 http://re2c.org/
-http://sourceforge.net/projects/cppunit/
+https://github.com/philsquared/Catch
 http://sourceforge.net/projects/winflexbison/
 http://virtualenv.pypa.io
 http://www.gnu.org/software/bison/

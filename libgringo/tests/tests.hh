@@ -22,9 +22,6 @@
 #define _GRINGO_TEST_TESTS_HH
 
 #include "catch.hpp"
-#include <cppunit/TestFixture.h>
-#include <cppunit/TestAssert.h>
-#include <cppunit/extensions/HelperMacros.h>
 #include "gringo/utility.hh"
 #include "gringo/logger.hh"
 #include <algorithm>

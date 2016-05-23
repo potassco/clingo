@@ -34,22 +34,12 @@ namespace Gringo { namespace Input { namespace Test {
 
 using namespace Gringo::Test;
 
-// {{{ declaration of TestProgramBuilder
+// {{{ declaration of Builder
 
-class TestProgramBuilder : public CppUnit::TestFixture {
-    CPPUNIT_TEST_SUITE(TestProgramBuilder);
-        CPPUNIT_TEST(test_term);
-        CPPUNIT_TEST(test_literal);
-        CPPUNIT_TEST(test_bdaggr);
-        CPPUNIT_TEST(test_hdaggr);
-        CPPUNIT_TEST(test_rule);
-    CPPUNIT_TEST_SUITE_END();
+struct Builder {
+    Builder();
 
-public:
-    TestProgramBuilder();
-
-    virtual void setUp();
-    virtual void tearDown();
+    void setUp();
     // {{{ auxiliary function
     typedef std::initializer_list<char const*> Lits;
     typedef std::initializer_list<int> Terms;
@@ -75,8 +65,6 @@ public:
     void test_hdaggr();
     void test_rule();
 
-    virtual ~TestProgramBuilder();
-
     std::ostringstream oss;
     Potassco::TheoryData td;
     Output::OutputBase out;
@@ -91,15 +79,15 @@ public:
 
 using namespace Gringo::IO;
 
-// {{{ definition of TestProgramBuilder
+// {{{ definition of Builder
 
-TestProgramBuilder::TestProgramBuilder()
+Builder::Builder()
     : out(td, {}, oss)
     , l("dummy", 1, 1, "dummy", 1, 1)
     , scripts(Gringo::Test::getTestModule())
     , p(scripts, prg, out, defs) { }
 
-void TestProgramBuilder::setUp() {
+void Builder::setUp() {
     defs.~Defines();
     new (&defs) Defines();
     prg.~Program();
@@ -108,69 +96,67 @@ void TestProgramBuilder::setUp() {
     new (&p) NongroundProgramBuilder(scripts, prg, out, defs);
 }
 
-void TestProgramBuilder::tearDown() { }
-
 // {{{ auxiliary functions
 
-LitUid TestProgramBuilder::lit(const char *name) {
+LitUid Builder::lit(const char *name) {
     return p.predlit(l, NAF::POS, false, name, p.termvecvec(p.termvecvec(), p.termvec()));
 }
 
-LitVecUid TestProgramBuilder::litvec(Lits names) {
+LitVecUid Builder::litvec(Lits names) {
     LitVecUid lits = p.litvec();
     for (auto &x : names) { lits = p.litvec(lits, lit(x)); }
     return lits;
 }
 
-TermVecUid TestProgramBuilder::termvec(Terms terms) {
+TermVecUid Builder::termvec(Terms terms) {
     TermVecUid vec = p.termvec();
     for (auto &x : terms) { vec = p.termvec(vec, p.term(l, NUM(x))); }
     return vec;
 }
 
-CondLitVecUid TestProgramBuilder::condlitvec(CondLits elems) {
+CondLitVecUid Builder::condlitvec(CondLits elems) {
     CondLitVecUid vec = p.condlitvec();
     for (auto &x : elems) { p.condlitvec(vec, lit(x.first), litvec(x.second)); }
     return vec;
 }
 
-HdAggrElemVecUid TestProgramBuilder::hdaggrelemvec(HeadAggrElems elems) {
+HdAggrElemVecUid Builder::hdaggrelemvec(HeadAggrElems elems) {
     HdAggrElemVecUid vec = p.headaggrelemvec();
     for (auto &x : elems) { p.headaggrelemvec(vec, termvec(std::get<0>(x)), lit(std::get<1>(x)), litvec(std::get<2>(x))); }
     return vec;
 }
 
-BdAggrElemVecUid TestProgramBuilder::bdaggrelemvec(BodyAggrElems elems) {
+BdAggrElemVecUid Builder::bdaggrelemvec(BodyAggrElems elems) {
     BdAggrElemVecUid vec = p.bodyaggrelemvec();
     for (auto &x : elems) { p.bodyaggrelemvec(vec, termvec(x.first), litvec(x.second)); }
     return vec;
 }
 
-BoundVecUid TestProgramBuilder::boundvec(Bounds bounds) {
+BoundVecUid Builder::boundvec(Bounds bounds) {
     BoundVecUid vec = p.boundvec();
     for (auto &x : bounds) { vec = p.boundvec(vec, x.first, p.term(l, NUM(x.second))); }
     return vec;
 }
 
-BdLitVecUid TestProgramBuilder::bodyaggr(NAF naf, AggregateFunction fun, Bounds bounds, CondLits elems) {
+BdLitVecUid Builder::bodyaggr(NAF naf, AggregateFunction fun, Bounds bounds, CondLits elems) {
     return p.bodyaggr(p.body(), l, naf, fun, boundvec(bounds), condlitvec(elems));
 }
 
-BdLitVecUid TestProgramBuilder::bodyaggr(NAF naf, AggregateFunction fun, Bounds bounds, BodyAggrElems elems) {
+BdLitVecUid Builder::bodyaggr(NAF naf, AggregateFunction fun, Bounds bounds, BodyAggrElems elems) {
     return p.bodyaggr(p.body(), l, naf, fun, boundvec(bounds), bdaggrelemvec(elems));
 }
 
-HdLitUid TestProgramBuilder::headaggr(AggregateFunction fun, Bounds bounds, CondLits elems) {
+HdLitUid Builder::headaggr(AggregateFunction fun, Bounds bounds, CondLits elems) {
     return p.headaggr(l, fun, boundvec(bounds), condlitvec(elems));
 }
 
-HdLitUid TestProgramBuilder::headaggr(AggregateFunction fun, Bounds bounds, HeadAggrElems elems) {
+HdLitUid Builder::headaggr(AggregateFunction fun, Bounds bounds, HeadAggrElems elems) {
     return p.headaggr(l, fun, boundvec(bounds), hdaggrelemvec(elems));
 }
 
 // }}}
 
-void TestProgramBuilder::test_term() {
+void Builder::test_term() {
     auto t = [&](TermUid uid) -> std::string {
         p.rule(l, p.headlit(p.predlit(l, NAF::POS, false, "p", p.termvecvec(p.termvecvec(), p.termvec(p.termvec(), uid)))));
         auto s(to_string(prg));
@@ -178,17 +164,17 @@ void TestProgramBuilder::test_term() {
         if (!s.empty()) { s.pop_back(); }
         return s;
     };
-    CPPUNIT_ASSERT_EQUAL(std::string("p(1)."), t(p.term(l, NUM(1))));
-    CPPUNIT_ASSERT_EQUAL(std::string("p(X)."), t(p.term(l, String("X"))));
-    CPPUNIT_ASSERT_EQUAL(std::string("p(_)."), t(p.term(l, String("_"))));
-    CPPUNIT_ASSERT_EQUAL(std::string("p(|1|)."), t(p.term(l, UnOp::ABS, p.term(l, NUM(1)))));
-    CPPUNIT_ASSERT_EQUAL(std::string("p(|1|;|2|;|3|)."), t(p.term(l, UnOp::ABS, p.termvec(p.termvec(p.termvec(p.termvec(), p.term(l, NUM(1))), p.term(l, NUM(2))), p.term(l, NUM(3))))));
-    CPPUNIT_ASSERT_EQUAL(std::string("p((1+2))."), t(p.term(l, BinOp::ADD, p.term(l, NUM(1)), p.term(l, NUM(2)))));
-    CPPUNIT_ASSERT_EQUAL(std::string("p((1..2))."), t(p.term(l, p.term(l, NUM(1)), p.term(l, NUM(2)))));
-    CPPUNIT_ASSERT_EQUAL(std::string("p(f(1);f(2,3,4))."), t(p.term(l, String("f"), p.termvecvec(p.termvecvec(p.termvecvec(), p.termvec(p.termvec(), p.term(l, NUM(1)))), p.termvec(p.termvec(p.termvec(p.termvec(), p.term(l, NUM(2))), p.term(l, NUM(3))), p.term(l, NUM(4)))), false)));
-    CPPUNIT_ASSERT_EQUAL(std::string("p(@f(1);@f(2,3,4))."), t(p.term(l, String("f"), p.termvecvec(p.termvecvec(p.termvecvec(), p.termvec(p.termvec(), p.term(l, NUM(1)))), p.termvec(p.termvec(p.termvec(p.termvec(), p.term(l, NUM(2))), p.term(l, NUM(3))), p.term(l, NUM(4)))), true)));
-    CPPUNIT_ASSERT_EQUAL(std::string("p(1;(2,3,4))."), t(p.pool(l,p.termvec(p.termvec(p.termvec(),p.term(l, p.termvec(p.termvec(), p.term(l, NUM(1))), false)), p.term(l, p.termvec(p.termvec(p.termvec(p.termvec(), p.term(l, NUM(2))), p.term(l, NUM(3))), p.term(l, NUM(4))), false)))));
-    CPPUNIT_ASSERT_EQUAL(std::string("p((1,);(2,3,4))."), t(
+    REQUIRE("p(1)." == t(p.term(l, NUM(1))));
+    REQUIRE("p(X)." == t(p.term(l, String("X"))));
+    REQUIRE("p(_)." == t(p.term(l, String("_"))));
+    REQUIRE("p(|1|)." == t(p.term(l, UnOp::ABS, p.term(l, NUM(1)))));
+    REQUIRE("p(|1|;|2|;|3|)." == t(p.term(l, UnOp::ABS, p.termvec(p.termvec(p.termvec(p.termvec(), p.term(l, NUM(1))), p.term(l, NUM(2))), p.term(l, NUM(3))))));
+    REQUIRE("p((1+2))." == t(p.term(l, BinOp::ADD, p.term(l, NUM(1)), p.term(l, NUM(2)))));
+    REQUIRE("p((1..2))." == t(p.term(l, p.term(l, NUM(1)), p.term(l, NUM(2)))));
+    REQUIRE("p(f(1);f(2,3,4))." == t(p.term(l, String("f"), p.termvecvec(p.termvecvec(p.termvecvec(), p.termvec(p.termvec(), p.term(l, NUM(1)))), p.termvec(p.termvec(p.termvec(p.termvec(), p.term(l, NUM(2))), p.term(l, NUM(3))), p.term(l, NUM(4)))), false)));
+    REQUIRE("p(@f(1);@f(2,3,4))." == t(p.term(l, String("f"), p.termvecvec(p.termvecvec(p.termvecvec(), p.termvec(p.termvec(), p.term(l, NUM(1)))), p.termvec(p.termvec(p.termvec(p.termvec(), p.term(l, NUM(2))), p.term(l, NUM(3))), p.term(l, NUM(4)))), true)));
+    REQUIRE("p(1;(2,3,4))." == t(p.pool(l,p.termvec(p.termvec(p.termvec(),p.term(l, p.termvec(p.termvec(), p.term(l, NUM(1))), false)), p.term(l, p.termvec(p.termvec(p.termvec(p.termvec(), p.term(l, NUM(2))), p.term(l, NUM(3))), p.term(l, NUM(4))), false)))));
+    REQUIRE("p((1,);(2,3,4))." == t(
         p.pool(l,
             p.termvec(
                 p.termvec(
@@ -197,7 +183,7 @@ void TestProgramBuilder::test_term() {
                 p.term(l, p.termvec(p.termvec(p.termvec(p.termvec(), p.term(l, NUM(2))), p.term(l, NUM(3))), p.term(l, NUM(4))), false)))));
 }
 
-void TestProgramBuilder::test_literal() {
+void Builder::test_literal() {
     auto t = [&](LitUid uid) -> std::string {
         p.rule(l, p.headlit(uid));
         auto s(to_string(prg));
@@ -205,17 +191,17 @@ void TestProgramBuilder::test_literal() {
         if (!s.empty()) { s.pop_back(); }
         return s;
     };
-    CPPUNIT_ASSERT_EQUAL(std::string("0=0."), t(p.boollit(l, true)));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0."), t(p.boollit(l, false)));
-    CPPUNIT_ASSERT_EQUAL(std::string("p."), t(p.predlit(l, NAF::POS, false, "p", p.termvecvec(p.termvecvec(), p.termvec()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("(-p)."), t(p.predlit(l, NAF::POS, true, "p", p.termvecvec(p.termvecvec(), p.termvec()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("not p."), t(p.predlit(l, NAF::NOT, false, "p", p.termvecvec(p.termvecvec(), p.termvec()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("not not p."), t(p.predlit(l, NAF::NOTNOT, false, "p", p.termvecvec(p.termvecvec(), p.termvec()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("1<2."), t(p.rellit(l, Relation::LT, p.term(l, NUM(1)), p.term(l, NUM(2)))));
-    CPPUNIT_ASSERT_EQUAL(std::string("1>2."), t(p.rellit(l, Relation::GT, p.term(l, NUM(1)), p.term(l, NUM(2)))));
+    REQUIRE("0=0." == t(p.boollit(l, true)));
+    REQUIRE("0!=0." == t(p.boollit(l, false)));
+    REQUIRE("p." == t(p.predlit(l, NAF::POS, false, "p", p.termvecvec(p.termvecvec(), p.termvec()))));
+    REQUIRE("(-p)." == t(p.predlit(l, NAF::POS, true, "p", p.termvecvec(p.termvecvec(), p.termvec()))));
+    REQUIRE("not p." == t(p.predlit(l, NAF::NOT, false, "p", p.termvecvec(p.termvecvec(), p.termvec()))));
+    REQUIRE("not not p." == t(p.predlit(l, NAF::NOTNOT, false, "p", p.termvecvec(p.termvecvec(), p.termvec()))));
+    REQUIRE("1<2." == t(p.rellit(l, Relation::LT, p.term(l, NUM(1)), p.term(l, NUM(2)))));
+    REQUIRE("1>2." == t(p.rellit(l, Relation::GT, p.term(l, NUM(1)), p.term(l, NUM(2)))));
 }
 
-void TestProgramBuilder::test_bdaggr() {
+void Builder::test_bdaggr() {
     auto t = [&](BdLitVecUid uid) -> std::string {
         p.rule(l, p.headlit(p.boollit(l, false)), uid);
         auto s(to_string(prg));
@@ -224,36 +210,36 @@ void TestProgramBuilder::test_bdaggr() {
         return s;
     };
     // BodyAggrElems
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-#sum{}."), t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, BodyAggrElems({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-not #sum{}."), t(bodyaggr(NAF::NOT, AggregateFunction::SUM, {}, BodyAggrElems({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-not not #sum{}."), t(bodyaggr(NAF::NOTNOT, AggregateFunction::SUM, {}, BodyAggrElems({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-#count{}."), t(bodyaggr(NAF::POS, AggregateFunction::COUNT, {}, BodyAggrElems({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-1<#sum{}."), t(bodyaggr(NAF::POS, AggregateFunction::SUM, {{Relation::GT, 1}}, BodyAggrElems({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-1<#sum{}<2."), t(bodyaggr(NAF::POS, AggregateFunction::SUM, {{Relation::GT, 1},{Relation::LT, 2}}, BodyAggrElems({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-1<#sum{}<2<3."), t(bodyaggr(NAF::POS, AggregateFunction::SUM, {{Relation::GT, 1},{Relation::LT, 2},{Relation::LT, 3}}, BodyAggrElems({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-#sum{:}."), t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, BodyAggrElems({ {{}, {}} }))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-#sum{1:p}."), t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, BodyAggrElems({ {{1}, {"p"}} }))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-#sum{1,2:p,q}."), t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, BodyAggrElems({ {{1, 2},{"p", "q"}} }))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-#sum{:;:}."), t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, BodyAggrElems({ {{},{}}, {{},{}} }))));
+    REQUIRE("0!=0:-#sum{}." == t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, BodyAggrElems({}))));
+    REQUIRE("0!=0:-not #sum{}." == t(bodyaggr(NAF::NOT, AggregateFunction::SUM, {}, BodyAggrElems({}))));
+    REQUIRE("0!=0:-not not #sum{}." == t(bodyaggr(NAF::NOTNOT, AggregateFunction::SUM, {}, BodyAggrElems({}))));
+    REQUIRE("0!=0:-#count{}." == t(bodyaggr(NAF::POS, AggregateFunction::COUNT, {}, BodyAggrElems({}))));
+    REQUIRE("0!=0:-1<#sum{}." == t(bodyaggr(NAF::POS, AggregateFunction::SUM, {{Relation::GT, 1}}, BodyAggrElems({}))));
+    REQUIRE("0!=0:-1<#sum{}<2." == t(bodyaggr(NAF::POS, AggregateFunction::SUM, {{Relation::GT, 1},{Relation::LT, 2}}, BodyAggrElems({}))));
+    REQUIRE("0!=0:-1<#sum{}<2<3." == t(bodyaggr(NAF::POS, AggregateFunction::SUM, {{Relation::GT, 1},{Relation::LT, 2},{Relation::LT, 3}}, BodyAggrElems({}))));
+    REQUIRE("0!=0:-#sum{:}." == t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, BodyAggrElems({ {{}, {}} }))));
+    REQUIRE("0!=0:-#sum{1:p}." == t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, BodyAggrElems({ {{1}, {"p"}} }))));
+    REQUIRE("0!=0:-#sum{1,2:p,q}." == t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, BodyAggrElems({ {{1, 2},{"p", "q"}} }))));
+    REQUIRE("0!=0:-#sum{:;:}." == t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, BodyAggrElems({ {{},{}}, {{},{}} }))));
     // CondLits
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-#sum{}."), t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, CondLits({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-not #sum{}."), t(bodyaggr(NAF::NOT, AggregateFunction::SUM, {}, CondLits({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-not not #sum{}."), t(bodyaggr(NAF::NOTNOT, AggregateFunction::SUM, {}, CondLits({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-#count{}."), t(bodyaggr(NAF::POS, AggregateFunction::COUNT, {}, CondLits({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-1<#sum{}."), t(bodyaggr(NAF::POS, AggregateFunction::SUM, {{Relation::GT, 1}}, CondLits({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-1<#sum{}<2."), t(bodyaggr(NAF::POS, AggregateFunction::SUM, {{Relation::GT, 1},{Relation::LT, 2}}, CondLits({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-1<#sum{}<2<3."), t(bodyaggr(NAF::POS, AggregateFunction::SUM, {{Relation::GT, 1},{Relation::LT, 2},{Relation::LT, 3}}, CondLits({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-#sum{p:}."), t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, CondLits({ {"p",{}} }))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-#sum{p:q}."), t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, CondLits({ {"p",{"q"}} }))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-#sum{p:q,r}."), t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, CondLits({ {"p",{"q", "r"}} }))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-#sum{p:;q:}."), t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, CondLits({ {"p",{}}, {"q",{}} }))));
+    REQUIRE("0!=0:-#sum{}." == t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, CondLits({}))));
+    REQUIRE("0!=0:-not #sum{}." == t(bodyaggr(NAF::NOT, AggregateFunction::SUM, {}, CondLits({}))));
+    REQUIRE("0!=0:-not not #sum{}." == t(bodyaggr(NAF::NOTNOT, AggregateFunction::SUM, {}, CondLits({}))));
+    REQUIRE("0!=0:-#count{}." == t(bodyaggr(NAF::POS, AggregateFunction::COUNT, {}, CondLits({}))));
+    REQUIRE("0!=0:-1<#sum{}." == t(bodyaggr(NAF::POS, AggregateFunction::SUM, {{Relation::GT, 1}}, CondLits({}))));
+    REQUIRE("0!=0:-1<#sum{}<2." == t(bodyaggr(NAF::POS, AggregateFunction::SUM, {{Relation::GT, 1},{Relation::LT, 2}}, CondLits({}))));
+    REQUIRE("0!=0:-1<#sum{}<2<3." == t(bodyaggr(NAF::POS, AggregateFunction::SUM, {{Relation::GT, 1},{Relation::LT, 2},{Relation::LT, 3}}, CondLits({}))));
+    REQUIRE("0!=0:-#sum{p:}." == t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, CondLits({ {"p",{}} }))));
+    REQUIRE("0!=0:-#sum{p:q}." == t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, CondLits({ {"p",{"q"}} }))));
+    REQUIRE("0!=0:-#sum{p:q,r}." == t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, CondLits({ {"p",{"q", "r"}} }))));
+    REQUIRE("0!=0:-#sum{p:;q:}." == t(bodyaggr(NAF::POS, AggregateFunction::SUM, {}, CondLits({ {"p",{}}, {"q",{}} }))));
     // Conjunction
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-p:."), t(p.conjunction(p.body(), l, lit("p"), litvec({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-p:q."), t(p.conjunction(p.body(), l, lit("p"), litvec({"q"}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("0!=0:-p:q,r."), t(p.conjunction(p.body(), l, lit("p"), litvec({"q", "r"}))));
+    REQUIRE("0!=0:-p:." == t(p.conjunction(p.body(), l, lit("p"), litvec({}))));
+    REQUIRE("0!=0:-p:q." == t(p.conjunction(p.body(), l, lit("p"), litvec({"q"}))));
+    REQUIRE("0!=0:-p:q,r." == t(p.conjunction(p.body(), l, lit("p"), litvec({"q", "r"}))));
 }
 
-void TestProgramBuilder::test_hdaggr() {
+void Builder::test_hdaggr() {
     auto t = [&](HdLitUid uid) -> std::string {
         p.rule(l, uid);
         auto s(to_string(prg));
@@ -262,34 +248,34 @@ void TestProgramBuilder::test_hdaggr() {
         return s;
     };
     // HeadAggrElems
-    CPPUNIT_ASSERT_EQUAL(std::string("#sum{}."), t(headaggr(AggregateFunction::SUM, {}, HeadAggrElems({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("#count{}."), t(headaggr(AggregateFunction::COUNT, {}, HeadAggrElems({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("1<#sum{}."), t(headaggr(AggregateFunction::SUM, {{Relation::GT, 1}}, HeadAggrElems({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("1<#sum{}<2."), t(headaggr(AggregateFunction::SUM, {{Relation::GT, 1},{Relation::LT, 2}}, HeadAggrElems({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("1<#sum{}<2<3."), t(headaggr(AggregateFunction::SUM, {{Relation::GT, 1},{Relation::LT, 2},{Relation::LT, 3}}, HeadAggrElems({}))));
+    REQUIRE("#sum{}." == t(headaggr(AggregateFunction::SUM, {}, HeadAggrElems({}))));
+    REQUIRE("#count{}." == t(headaggr(AggregateFunction::COUNT, {}, HeadAggrElems({}))));
+    REQUIRE("1<#sum{}." == t(headaggr(AggregateFunction::SUM, {{Relation::GT, 1}}, HeadAggrElems({}))));
+    REQUIRE("1<#sum{}<2." == t(headaggr(AggregateFunction::SUM, {{Relation::GT, 1},{Relation::LT, 2}}, HeadAggrElems({}))));
+    REQUIRE("1<#sum{}<2<3." == t(headaggr(AggregateFunction::SUM, {{Relation::GT, 1},{Relation::LT, 2},{Relation::LT, 3}}, HeadAggrElems({}))));
     typedef std::tuple<Terms, char const *, Lits> E;
-    CPPUNIT_ASSERT_EQUAL(std::string("#sum{:p:}."), t(headaggr(AggregateFunction::SUM, {}, HeadAggrElems({ E{{},"p",{}} }))));
-    CPPUNIT_ASSERT_EQUAL(std::string("#sum{1:p:q}."), t(headaggr(AggregateFunction::SUM, {}, HeadAggrElems({ E{{1},"p",{"q"}} }))));
-    CPPUNIT_ASSERT_EQUAL(std::string("#sum{1,2:p:q,r}."), t(headaggr(AggregateFunction::SUM, {}, HeadAggrElems({ E{{1,2},"p",{"q", "r"}} }))));
-    CPPUNIT_ASSERT_EQUAL(std::string("#sum{:p:;:p:}."), t(headaggr(AggregateFunction::SUM, {}, HeadAggrElems({ E{{},"p",{}}, E{{},"p",{}} }))));
+    REQUIRE("#sum{:p:}." == t(headaggr(AggregateFunction::SUM, {}, HeadAggrElems({ E{{},"p",{}} }))));
+    REQUIRE("#sum{1:p:q}." == t(headaggr(AggregateFunction::SUM, {}, HeadAggrElems({ E{{1},"p",{"q"}} }))));
+    REQUIRE("#sum{1,2:p:q,r}." == t(headaggr(AggregateFunction::SUM, {}, HeadAggrElems({ E{{1,2},"p",{"q", "r"}} }))));
+    REQUIRE("#sum{:p:;:p:}." == t(headaggr(AggregateFunction::SUM, {}, HeadAggrElems({ E{{},"p",{}}, E{{},"p",{}} }))));
     // CondLits
-    CPPUNIT_ASSERT_EQUAL(std::string("#sum{}."), t(headaggr(AggregateFunction::SUM, {}, CondLits({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("#count{}."), t(headaggr(AggregateFunction::COUNT, {}, CondLits({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("1<#sum{}."), t(headaggr(AggregateFunction::SUM, {{Relation::GT,1}}, CondLits({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("1<#sum{}<2."), t(headaggr(AggregateFunction::SUM, {{Relation::GT,1},{Relation::LT,2}}, CondLits({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("1<#sum{}<2<3."), t(headaggr(AggregateFunction::SUM, {{Relation::GT,1},{Relation::LT,2},{Relation::LT,3}}, CondLits({}))));
-    CPPUNIT_ASSERT_EQUAL(std::string("#sum{p:}."), t(headaggr(AggregateFunction::SUM, {}, CondLits({ {"p",{}} }))));
-    CPPUNIT_ASSERT_EQUAL(std::string("#sum{p:q}."), t(headaggr(AggregateFunction::SUM, {}, CondLits({ {"p",{"q"}} }))));
-    CPPUNIT_ASSERT_EQUAL(std::string("#sum{p:q,r}."), t(headaggr(AggregateFunction::SUM, {}, CondLits({ {"p",{"q","r"}} }))));
-    CPPUNIT_ASSERT_EQUAL(std::string("#sum{p:;q:}."), t(headaggr(AggregateFunction::SUM, {}, CondLits({ {"p",{}},{"q",{}} }))));
+    REQUIRE("#sum{}." == t(headaggr(AggregateFunction::SUM, {}, CondLits({}))));
+    REQUIRE("#count{}." == t(headaggr(AggregateFunction::COUNT, {}, CondLits({}))));
+    REQUIRE("1<#sum{}." == t(headaggr(AggregateFunction::SUM, {{Relation::GT,1}}, CondLits({}))));
+    REQUIRE("1<#sum{}<2." == t(headaggr(AggregateFunction::SUM, {{Relation::GT,1},{Relation::LT,2}}, CondLits({}))));
+    REQUIRE("1<#sum{}<2<3." == t(headaggr(AggregateFunction::SUM, {{Relation::GT,1},{Relation::LT,2},{Relation::LT,3}}, CondLits({}))));
+    REQUIRE("#sum{p:}." == t(headaggr(AggregateFunction::SUM, {}, CondLits({ {"p",{}} }))));
+    REQUIRE("#sum{p:q}." == t(headaggr(AggregateFunction::SUM, {}, CondLits({ {"p",{"q"}} }))));
+    REQUIRE("#sum{p:q,r}." == t(headaggr(AggregateFunction::SUM, {}, CondLits({ {"p",{"q","r"}} }))));
+    REQUIRE("#sum{p:;q:}." == t(headaggr(AggregateFunction::SUM, {}, CondLits({ {"p",{}},{"q",{}} }))));
     // Disjunction
-    CPPUNIT_ASSERT_EQUAL(std::string("p::."), t(p.disjunction(l, condlitvec({ {"p",{}} }))));
-    CPPUNIT_ASSERT_EQUAL(std::string("p::q."), t(p.disjunction(l, condlitvec({ {"p", {"q"}} }))));
-    CPPUNIT_ASSERT_EQUAL(std::string("p::q,r."), t(p.disjunction(l, condlitvec({ {"p",{"q","r"}} }))));
-    CPPUNIT_ASSERT_EQUAL(std::string("p::;q::."), t(p.disjunction(l, condlitvec({ {"p",{}}, {"q",{}} }))));
+    REQUIRE("p::." == t(p.disjunction(l, condlitvec({ {"p",{}} }))));
+    REQUIRE("p::q." == t(p.disjunction(l, condlitvec({ {"p", {"q"}} }))));
+    REQUIRE("p::q,r." == t(p.disjunction(l, condlitvec({ {"p",{"q","r"}} }))));
+    REQUIRE("p::;q::." == t(p.disjunction(l, condlitvec({ {"p",{}}, {"q",{}} }))));
 }
 
-void TestProgramBuilder::test_rule() {
+void Builder::test_rule() {
     auto t = [&](char const *name, Lits lits) -> std::string {
         BdLitVecUid vec = p.body();
         for (auto &x : lits) { vec = p.bodylit(vec, lit(x)); }
@@ -299,17 +285,20 @@ void TestProgramBuilder::test_rule() {
         if (!s.empty()) { s.pop_back(); }
         return s;
     };
-    CPPUNIT_ASSERT_EQUAL(std::string("a."), t("a",{}));
-    CPPUNIT_ASSERT_EQUAL(std::string("a:-b."), t("a",{"b"}));
-    CPPUNIT_ASSERT_EQUAL(std::string("a:-b;c."), t("a",{"b","c"}));
-    CPPUNIT_ASSERT_EQUAL(std::string("a:-b;c;d."), t("a",{"b","c","d"}));
+    REQUIRE("a." == t("a",{}));
+    REQUIRE("a:-b." == t("a",{"b"}));
+    REQUIRE("a:-b;c." == t("a",{"b","c"}));
+    REQUIRE("a:-b;c;d." == t("a",{"b","c","d"}));
 }
 
-TestProgramBuilder::~TestProgramBuilder() { }
-
-// }}}
-
-CPPUNIT_TEST_SUITE_REGISTRATION(TestProgramBuilder);
+TEST_CASE("input-builder", "[input]") {
+    Builder b;
+    SECTION("term") { b.test_term(); }
+    SECTION("literal") { b.test_literal(); }
+    SECTION("rule") { b.test_rule(); }
+    SECTION("bdaggr") { b.test_bdaggr(); }
+    SECTION("hdaggr") { b.test_hdaggr(); }
+}
 
 } } } // namespace Test Input Gringo
 

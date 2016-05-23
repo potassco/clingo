@@ -256,22 +256,6 @@ if env['WITH_THREADS'] is not None:
 claspEnv = claspConf.Finish()
 claspEnv.Append(CPPDEFINES=DEFS)
 
-# {{{1 Test specific configuration
-
-with_cppunit = False
-if env['WITH_CPPUNIT']:
-    testEnv  = claspEnv.Clone()
-    testConf = Configure(testEnv, custom_tests = {'CheckBison' : CheckBison, 'CheckRe2c' : CheckRe2c, 'CheckLibs' : CheckLibs, 'CheckWithPkgConfig' : CheckWithPkgConfig}, log_file = join("build", GetOption('build_dir') + ".log"))
-    if env['WITH_CPPUNIT'] == "auto":
-        if testConf.CheckWithPkgConfig("cppunit", ["cppunit"]):
-            with_cppunit = True
-    elif testConf.CheckLibs("cppunit", env['WITH_CPPUNIT'], 'cppunit/TestFixture.h'):
-        with_cppunit = True
-    else:
-        print 'error: cppunit library not found'
-        failure = True
-    testEnv  = testConf.Finish()
-
 # {{{1 Check configuration
 
 if failure:
@@ -469,17 +453,16 @@ if with_lua:
 
 # {{{1 Gringo: Tests
 
-if with_cppunit:
-    TEST_LIBGRINGO_SOURCES  = find_files(env, 'libgringo/tests')
+TEST_LIBGRINGO_SOURCES  = find_files(env, 'libgringo/tests')
 
-    gringoTestEnv           = testEnv.Clone()
-    gringoTestEnv.Append(CPPPATH = LIBGRINGO_HEADERS + LIBCLASP_HEADERS)
-    gringoTestEnv.Prepend(LIBS   = [gringoLib, claspLib, lpLib])
+gringoTestEnv                = claspEnv.Clone()
+gringoTestEnv.Append(CPPPATH = LIBGRINGO_HEADERS + LIBCLASP_HEADERS)
+gringoTestEnv.Prepend(LIBS   = [gringoLib, claspLib, lpLib])
 
-    testGringoProgram = gringoTestEnv.Program('test_libgringo', TEST_LIBGRINGO_SOURCES)
-    AlwaysBuild(gringoTestEnv.Alias('test-libgringo', [testGringoProgram], testGringoProgram[0].path + (" " + GetOption("test_case") if GetOption("test_case") else "")))
-    if 'libgringo' in env['TESTS']:
-        AlwaysBuild(gringoTestEnv.Alias('test', [testGringoProgram], testGringoProgram[0].path + (" " + GetOption("test_case") if GetOption("test_case") else "")))
+testGringoProgram = gringoTestEnv.Program('test_libgringo', TEST_LIBGRINGO_SOURCES)
+AlwaysBuild(gringoTestEnv.Alias('test-libgringo', [testGringoProgram], testGringoProgram[0].path + (" " + GetOption("test_case") if GetOption("test_case") else "")))
+if 'libgringo' in env['TESTS']:
+    AlwaysBuild(gringoTestEnv.Alias('test', [testGringoProgram], testGringoProgram[0].path + (" " + GetOption("test_case") if GetOption("test_case") else "")))
 
 # {{{1 Reify: Tests
 
