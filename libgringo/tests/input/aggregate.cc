@@ -31,36 +31,6 @@
 
 namespace Gringo { namespace Input { namespace Test {
 
-// {{{ declaration of TestAggregate
-
-class TestAggregate : public CppUnit::TestFixture {
-    CPPUNIT_TEST_SUITE(TestAggregate);
-        CPPUNIT_TEST(test_print);
-        CPPUNIT_TEST(test_clone);
-        CPPUNIT_TEST(test_hash);
-        CPPUNIT_TEST(test_equal);
-        CPPUNIT_TEST(test_unpool);
-        CPPUNIT_TEST(test_simplify);
-        CPPUNIT_TEST(test_rewriteArithmetics);
-    CPPUNIT_TEST_SUITE_END();
-
-public:
-    virtual void setUp();
-    virtual void tearDown();
-
-    void test_print();
-    void test_clone();
-    void test_hash();
-    void test_equal();
-    void test_unpool();
-    void test_simplify();
-    void test_rewriteArithmetics();
-
-    virtual ~TestAggregate();
-};
-
-// }}}
-
 using namespace Gringo::IO;
 
 // {{{ auxiliary functions and classes
@@ -159,295 +129,284 @@ UBodyAggrVec unpool(UBodyAggr &&x) {
 } // namespace
 
 // }}}
-// {{{ definition of TestAggregate
 
-void TestAggregate::setUp()
-{
+TEST_CASE("input-aggregate", "[input]") {
+    SECTION("print") {
+        // body tuple aggregate
+        REQUIRE("3>#sum{}>1" == to_string(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), bdvec1())));
+        REQUIRE("not 3>#sum{}>1" == to_string(bdaggr(NAF::NOT, AggregateFunction::SUM, bound1(), bdvec1())));
+        REQUIRE("3>#count{}>1" == to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec1())));
+        REQUIRE("3>#count{:}>1" == to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec2())));
+        REQUIRE("3>#count{1:p}>1" == to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec3())));
+        REQUIRE("3>#count{1,2:p,q}>1" == to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec4())));
+        REQUIRE("3>#count{:;:p}>1" == to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec5())));
+        // body lit aggregate
+        REQUIRE("3>#sum{}>1" == to_string(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), condvec1())));
+        REQUIRE("not 3>#sum{}>1" == to_string(bdaggr(NAF::NOT, AggregateFunction::SUM, bound1(), condvec1())));
+        REQUIRE("3>#count{}>1" == to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec1())));
+        REQUIRE("3>#count{p:}>1" == to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec2())));
+        REQUIRE("3>#count{p:q}>1" == to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec3())));
+        REQUIRE("3>#count{p:q,r}>1" == to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec4())));
+        REQUIRE("3>#count{p:;q:}>1" == to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec5())));
+        // conjunction
+        REQUIRE("p:" == to_string(bdaggr(lit("p"), litvec())));
+        REQUIRE("p:q" == to_string(bdaggr(lit("p"), litvec(lit("q")))));
+        // head tuple aggregate
+        REQUIRE("3>#sum{}>1" == to_string(hdaggr(AggregateFunction::SUM, bound1(), hdvec1())));
+        REQUIRE("3>#count{}>1" == to_string(hdaggr(AggregateFunction::COUNT, bound1(), hdvec1())));
+        REQUIRE("3>#count{:p:}>1" == to_string(hdaggr(AggregateFunction::COUNT, bound1(), hdvec2())));
+        REQUIRE("3>#count{1:p:q}>1" == to_string(hdaggr(AggregateFunction::COUNT, bound1(), hdvec3())));
+        REQUIRE("3>#count{1,2:p:q,r}>1" == to_string(hdaggr(AggregateFunction::COUNT, bound1(), hdvec4())));
+        REQUIRE("3>#count{:p:;:q:r}>1" == to_string(hdaggr(AggregateFunction::COUNT, bound1(), hdvec5())));
+        // head lit aggregate
+        REQUIRE("3>#sum{}>1" == to_string(hdaggr(AggregateFunction::SUM, bound1(), condvec1())));
+        REQUIRE("3>#count{}>1" == to_string(hdaggr(AggregateFunction::COUNT, bound1(), condvec1())));
+        REQUIRE("3>#count{p:}>1" == to_string(hdaggr(AggregateFunction::COUNT, bound1(), condvec2())));
+        REQUIRE("3>#count{p:q}>1" == to_string(hdaggr(AggregateFunction::COUNT, bound1(), condvec3())));
+        REQUIRE("3>#count{p:q,r}>1" == to_string(hdaggr(AggregateFunction::COUNT, bound1(), condvec4())));
+        REQUIRE("3>#count{p:;q:}>1" == to_string(hdaggr(AggregateFunction::COUNT, bound1(), condvec5())));
+        // disjunction
+        REQUIRE("" == to_string(hdaggr(condvec1())));
+        REQUIRE("p::" == to_string(hdaggr(condvec2())));
+        REQUIRE("p::q" == to_string(hdaggr(condvec3())));
+        REQUIRE("p::q,r" == to_string(hdaggr(condvec4())));
+        REQUIRE("p::;q::" == to_string(hdaggr(condvec5())));
+    }
+
+    SECTION("clone") {
+        // body tuple aggregate
+        REQUIRE("3>#sum{}>1" == to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), bdvec1()))));
+        REQUIRE("not 3>#sum{}>1" == to_string(get_clone(bdaggr(NAF::NOT, AggregateFunction::SUM, bound1(), bdvec1()))));
+        REQUIRE("3>#count{}>1" == to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec1()))));
+        REQUIRE("3>#count{:}>1" == to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec2()))));
+        REQUIRE("3>#count{1:p}>1" == to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec3()))));
+        REQUIRE("3>#count{1,2:p,q}>1" == to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec4()))));
+        REQUIRE("3>#count{:;:p}>1" == to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec5()))));
+        // body lit aggregate
+        REQUIRE("3>#sum{}>1" == to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), condvec1()))));
+        REQUIRE("not 3>#sum{}>1" == to_string(get_clone(bdaggr(NAF::NOT, AggregateFunction::SUM, bound1(), condvec1()))));
+        REQUIRE("3>#count{}>1" == to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec1()))));
+        REQUIRE("3>#count{p:}>1" == to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec2()))));
+        REQUIRE("3>#count{p:q}>1" == to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec3()))));
+        REQUIRE("3>#count{p:q,r}>1" == to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec4()))));
+        REQUIRE("3>#count{p:;q:}>1" == to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec5()))));
+        // conjunction
+        REQUIRE("p:" == to_string(get_clone(bdaggr(lit("p"), litvec()))));
+        REQUIRE("p:q" == to_string(get_clone(bdaggr(lit("p"), litvec(lit("q"))))));
+        // head tuple aggregate
+        REQUIRE("3>#sum{}>1" == to_string(get_clone(hdaggr(AggregateFunction::SUM, bound1(), hdvec1()))));
+        REQUIRE("3>#count{}>1" == to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), hdvec1()))));
+        REQUIRE("3>#count{:p:}>1" == to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), hdvec2()))));
+        REQUIRE("3>#count{1:p:q}>1" == to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), hdvec3()))));
+        REQUIRE("3>#count{1,2:p:q,r}>1" == to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), hdvec4()))));
+        REQUIRE("3>#count{:p:;:q:r}>1" == to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), hdvec5()))));
+        // head lit aggregate
+        REQUIRE("3>#sum{}>1" == to_string(get_clone(hdaggr(AggregateFunction::SUM, bound1(), condvec1()))));
+        REQUIRE("3>#count{}>1" == to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), condvec1()))));
+        REQUIRE("3>#count{p:}>1" == to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), condvec2()))));
+        REQUIRE("3>#count{p:q}>1" == to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), condvec3()))));
+        REQUIRE("3>#count{p:q,r}>1" == to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), condvec4()))));
+        REQUIRE("3>#count{p:;q:}>1" == to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), condvec5()))));
+        // disjunction
+        REQUIRE("" == to_string(get_clone(hdaggr(condvec1()))));
+        REQUIRE("p::" == to_string(get_clone(hdaggr(condvec2()))));
+        REQUIRE("p::q" == to_string(get_clone(hdaggr(condvec3()))));
+        REQUIRE("p::q,r" == to_string(get_clone(hdaggr(condvec4()))));
+        REQUIRE("p::;q::" == to_string(get_clone(hdaggr(condvec5()))));
+    }
+
+    SECTION("hash") {
+        // body tuple aggregate
+        auto a1(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), bdvec1()));
+        auto a2(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), bdvec2()));
+        auto a3(bdaggr(NAF::NOT, AggregateFunction::SUM, bound1(), bdvec1()));
+        auto a4(bdaggr(NAF::POS, AggregateFunction::COUNT, boundvec(), bdvec1()));
+        CHECK(a1->hash() == get_clone(a1)->hash());
+        CHECK(a2->hash() == get_clone(a2)->hash());
+        CHECK(a3->hash() == get_clone(a3)->hash());
+        CHECK(a4->hash() == get_clone(a4)->hash());
+        CHECK(a1->hash() != a2->hash());
+        CHECK(a1->hash() != a3->hash());
+        CHECK(a1->hash() != a4->hash());
+        CHECK(a2->hash() != a3->hash());
+        CHECK(a2->hash() != a4->hash());
+        CHECK(a3->hash() != a4->hash());
+        // body lit aggregate
+        auto b1(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), condvec1()));
+        auto b2(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), condvec2()));
+        auto b3(bdaggr(NAF::NOT, AggregateFunction::SUM, bound1(), condvec1()));
+        auto b4(bdaggr(NAF::POS, AggregateFunction::COUNT, boundvec(), condvec1()));
+        CHECK(b1->hash() == get_clone(b1)->hash());
+        CHECK(b2->hash() == get_clone(b2)->hash());
+        CHECK(b3->hash() == get_clone(b3)->hash());
+        CHECK(b4->hash() == get_clone(b4)->hash());
+        CHECK(b1->hash() != b2->hash());
+        CHECK(b1->hash() != b3->hash());
+        CHECK(b1->hash() != b4->hash());
+        CHECK(b2->hash() != b3->hash());
+        CHECK(b2->hash() != b4->hash());
+        CHECK(b3->hash() != b4->hash());
+        // conjunction
+        auto c1(bdaggr(lit("p"), litvec()));
+        auto c2(bdaggr(lit("p"), litvec(lit("q"))));
+        CHECK(c1->hash() == get_clone(c1)->hash());
+        CHECK(c2->hash() == get_clone(c2)->hash());
+        CHECK(c1->hash() != c2->hash());
+        // head tuple aggregate
+        auto d1(hdaggr(AggregateFunction::SUM, bound1(), hdvec1()));
+        auto d2(hdaggr(AggregateFunction::SUM, bound1(), hdvec2()));
+        auto d3(hdaggr(AggregateFunction::COUNT, boundvec(), hdvec1()));
+        CHECK(b1->hash() == get_clone(b1)->hash());
+        CHECK(b2->hash() == get_clone(b2)->hash());
+        CHECK(b3->hash() == get_clone(b3)->hash());
+        CHECK(b1->hash() != b2->hash());
+        CHECK(b1->hash() != b3->hash());
+        CHECK(b2->hash() != b3->hash());
+        // head lit aggregate
+        auto e1(hdaggr(AggregateFunction::SUM, bound1(), condvec1()));
+        auto e2(hdaggr(AggregateFunction::SUM, bound1(), condvec2()));
+        auto e3(hdaggr(AggregateFunction::COUNT, boundvec(), condvec1()));
+        CHECK(e1->hash() == get_clone(e1)->hash());
+        CHECK(e2->hash() == get_clone(e2)->hash());
+        CHECK(e3->hash() == get_clone(e3)->hash());
+        CHECK(e1->hash() != e2->hash());
+        CHECK(e1->hash() != e3->hash());
+        CHECK(e2->hash() != e3->hash());
+        // disjunction
+        auto f1(hdaggr(condvec1()));
+        auto f2(hdaggr(condvec2()));
+        CHECK(f1->hash() == get_clone(f1)->hash());
+        CHECK(f2->hash() == get_clone(f2)->hash());
+        CHECK(f1->hash() != f2->hash());
+    }
+
+    SECTION("equal") {
+        // body tuple aggregate
+        auto a1(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), bdvec1()));
+        auto a2(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), bdvec2()));
+        auto a3(bdaggr(NAF::NOT, AggregateFunction::SUM, bound1(), bdvec1()));
+        auto a4(bdaggr(NAF::POS, AggregateFunction::COUNT, boundvec(), bdvec1()));
+        REQUIRE(*a1 == *get_clone(a1));
+        REQUIRE(*a2 == *get_clone(a2));
+        REQUIRE(*a3 == *get_clone(a3));
+        REQUIRE(*a4 == *get_clone(a4));
+        REQUIRE(!(*a1 == *a2));
+        REQUIRE(!(*a1 == *a3));
+        REQUIRE(!(*a1 == *a4));
+        REQUIRE(!(*a2 == *a3));
+        REQUIRE(!(*a2 == *a4));
+        REQUIRE(!(*a3 == *a4));
+        // body lit aggregate
+        auto b1(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), condvec1()));
+        auto b2(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), condvec2()));
+        auto b3(bdaggr(NAF::NOT, AggregateFunction::SUM, bound1(), condvec1()));
+        auto b4(bdaggr(NAF::POS, AggregateFunction::COUNT, boundvec(), condvec1()));
+        REQUIRE(*b1 == *get_clone(b1));
+        REQUIRE(*b2 == *get_clone(b2));
+        REQUIRE(*b3 == *get_clone(b3));
+        REQUIRE(*b4 == *get_clone(b4));
+        REQUIRE(!(*b1 == *b2));
+        REQUIRE(!(*b1 == *b3));
+        REQUIRE(!(*b1 == *b4));
+        REQUIRE(!(*b2 == *b3));
+        REQUIRE(!(*b2 == *b4));
+        REQUIRE(!(*b3 == *b4));
+        // conjunction
+        auto c1(bdaggr(lit("p"), litvec()));
+        auto c2(bdaggr(lit("p"), litvec(lit("q"))));
+        REQUIRE(*c1 == *get_clone(c1));
+        REQUIRE(*c2 == *get_clone(c2));
+        REQUIRE(!(*c1 == *c2));
+        // head tuple aggregate
+        auto d1(hdaggr(AggregateFunction::SUM, bound1(), hdvec1()));
+        auto d2(hdaggr(AggregateFunction::SUM, bound1(), hdvec2()));
+        auto d3(hdaggr(AggregateFunction::COUNT, boundvec(), hdvec1()));
+        REQUIRE(*b1 == *get_clone(b1));
+        REQUIRE(*b2 == *get_clone(b2));
+        REQUIRE(*b3 == *get_clone(b3));
+        REQUIRE(!(*b1 == *b2));
+        REQUIRE(!(*b1 == *b3));
+        REQUIRE(!(*b2 == *b3));
+        // head lit aggregate
+        auto e1(hdaggr(AggregateFunction::SUM, bound1(), condvec1()));
+        auto e2(hdaggr(AggregateFunction::SUM, bound1(), condvec2()));
+        auto e3(hdaggr(AggregateFunction::COUNT, boundvec(), condvec1()));
+        REQUIRE(*e1 == *get_clone(e1));
+        REQUIRE(*e2 == *get_clone(e2));
+        REQUIRE(*e3 == *get_clone(e3));
+        REQUIRE(!(*e1 == *e2));
+        REQUIRE(!(*e1 == *e3));
+        REQUIRE(!(*e2 == *e3));
+        // disjunction
+        auto f1(hdaggr(condvec1()));
+        auto f2(hdaggr(condvec2()));
+        REQUIRE(*f1 == *get_clone(f1));
+        REQUIRE(*f2 == *get_clone(f2));
+        REQUIRE(!(*f1 == *f2));
+    }
+
+    SECTION("unpool") {
+        // body tuple aggregate
+        REQUIRE("[3>#sum{1,3:;2,3:;1,4:;2,4:}>1]" == to_string(unpool(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), bdvec7()))));
+        REQUIRE("[1>#sum{}>3,2>#sum{}>3,1>#sum{}>4,2>#sum{}>4]" == to_string(unpool(bdaggr(NAF::POS, AggregateFunction::SUM, bound2(), bdvec1()))));
+        REQUIRE("[not 1>#min{}>3,not 2>#min{}>3,not 1>#min{}>4,not 2>#min{}>4]" == to_string(unpool(bdaggr(NAF::NOT, AggregateFunction::MIN, bound2(), bdvec1()))));
+        REQUIRE("[3>#sum{1:p;1:q;2:p;2:q;:}>1]" == to_string(unpool(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), bdvec6()))));
+        REQUIRE("[1>#sum{1:p;1:q;2:p;2:q;:},2>#sum{1:p;1:q;2:p;2:q;:}]" == to_string(unpool(bdaggr(NAF::POS, AggregateFunction::SUM, bound3(), bdvec6()))));
+        // body lit aggregate
+        REQUIRE("[1>#sum{}>3,2>#sum{}>3,1>#sum{}>4,2>#sum{}>4]" == to_string(unpool(bdaggr(NAF::POS, AggregateFunction::SUM, bound2(), condvec1()))));
+        REQUIRE("[not 1>#min{}>3,not 2>#min{}>3,not 1>#min{}>4,not 2>#min{}>4]" == to_string(unpool(bdaggr(NAF::NOT, AggregateFunction::MIN, bound2(), condvec1()))));
+        REQUIRE("[3>#sum{p:r;p:s;q:r;q:s;t:}>1]" == to_string(unpool(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), condvec6()))));
+        REQUIRE("[1>#sum{p:r;p:s;q:r;q:s;t:},2>#sum{p:r;p:s;q:r;q:s;t:}]" == to_string(unpool(bdaggr(NAF::POS, AggregateFunction::SUM, bound3(), condvec6()))));
+        // conjunction
+        REQUIRE("[p|q:r]" == to_string(unpool(bdaggr(lit("p", "q"), litvec(lit("r"))))));
+        REQUIRE("[p:q;p:r]" == to_string(unpool(bdaggr(lit("p"), litvec(lit("q", "r"))))));
+        REQUIRE("[p|q:r;p|q:s]" == to_string(unpool(bdaggr(lit("p", "q"), litvec(lit("r", "s"))))));
+        // head tuple aggregate
+        REQUIRE("[3>#sum{1,3:p:;2,3:p:;1,4:p:;2,4:p:}>1]" == to_string(unpool(hdaggr(AggregateFunction::SUM, bound1(), hdvec7()))));
+        REQUIRE("[1>#sum{}>3,2>#sum{}>3,1>#sum{}>4,2>#sum{}>4]" == to_string(unpool(hdaggr(AggregateFunction::SUM, bound2(), hdvec1()))));
+        REQUIRE("[3>#sum{1:p:q;1:p:r;2:p:q;2:p:r;:s:}>1]" == to_string(unpool(hdaggr(AggregateFunction::SUM, bound1(), hdvec6()))));
+        REQUIRE("[3>#sum{1:p:;1:q:}>1]" == to_string(unpool(hdaggr(AggregateFunction::SUM, bound1(), hdvec8()))));
+        // head lit aggregate
+        REQUIRE("[1>#sum{}>3,2>#sum{}>3,1>#sum{}>4,2>#sum{}>4]" == to_string(unpool(hdaggr(AggregateFunction::SUM, bound2(), condvec1()))));
+        REQUIRE("[3>#sum{p:r;p:s;q:r;q:s;t:}>1]" == to_string(unpool(hdaggr(AggregateFunction::SUM, bound1(), condvec6()))));
+        REQUIRE("[1>#sum{p:r;p:s;q:r;q:s;t:},2>#sum{p:r;p:s;q:r;q:s;t:}]" == to_string(unpool(hdaggr(AggregateFunction::SUM, bound3(), condvec6()))));
+        // disjunction
+        REQUIRE("[p:&q::r;p:&q::s;t::]" == to_string(unpool(hdaggr(condvec6()))));
+    }
+
+    SECTION("simplify") {
+        // body tuple aggregate
+        REQUIRE("(#Range0>#sum{#Range1:#Range2,#range(#Range1,3,4),#range(#Range2,5,6)},[(#Range0,1,2)])" == simplify(bdaggr(NAF::POS, AggregateFunction::SUM, boundvec(Relation::LT, dterm(1,2)), bdelemvec(termvec(dterm(3,4)), litvec(dlit(5,6))))));
+        // body lit aggregate
+        REQUIRE("(#Range0>#sum{#Range1:#Range2,#range(#Range1,3,4),#range(#Range2,5,6)},[(#Range0,1,2)])" == simplify(bdaggr(NAF::POS, AggregateFunction::SUM, boundvec(Relation::LT, dterm(1,2)), condlitvec(dlit(3,4), litvec(dlit(5,6))))));
+        // conjunction
+        REQUIRE("(#Range0&#range(#Range0,1,2):#Range1,#range(#Range1,3,4),[])" == simplify(bdaggr(dlit(1,2), litvec(dlit(3,4)))));
+        // head tuple aggregate
+        REQUIRE("(#Range0>#sum{#Range1:#Range2:#Range3,#range(#Range1,3,4),#range(#Range2,5,6),#range(#Range3,7,8)},[(#Range0,1,2)])" == simplify(hdaggr(AggregateFunction::SUM, boundvec(Relation::LT, dterm(1,2)), hdelemvec(termvec(dterm(3,4)), dlit(5,6), litvec(dlit(7,8))))));
+        // head lit aggregate
+        REQUIRE("(#Range0>#sum{#Range1:#Range2,#range(#Range1,3,4),#range(#Range2,5,6)},[(#Range0,1,2)])" == simplify(hdaggr(AggregateFunction::SUM, boundvec(Relation::LT, dterm(1,2)), condlitvec(dlit(3,4), litvec(dlit(5,6))))));
+        // disjunction
+        REQUIRE("(#Range0:#range(#Range0,1,2):#Range1,#range(#Range1,3,4),[])" == simplify(hdaggr(condlitvec(dlit(1,2), litvec(dlit(3,4))))));
+    }
+
+    SECTION("rewriteArithmetics") {
+        // body tuple aggregate
+        REQUIRE("(#Arith0>#sum{(C+D):#Arith1,#Arith1=(E+F)},[{(A+B):#Arith0}],[])" == rewrite(bdaggr(NAF::POS, AggregateFunction::SUM, boundvec(Relation::LT, aterm("A","B")), bdelemvec(termvec(aterm("C","D")), litvec(alit("E","F"))))));
+        REQUIRE("(#Arith0=#sum{(C+D):#Arith0},[{(A+B):#Arith0}],[])" == rewrite(bdaggr(NAF::POS, AggregateFunction::SUM, boundvec(Relation::EQ, aterm("A","B")), bdelemvec(termvec(aterm("C","D")), litvec(alit("A","B"))))));
+        // body lit aggregate
+        REQUIRE("(#Arith0>#sum{(C+D):#Arith1,#Arith1=(E+F)},[{(A+B):#Arith0}],[])" == rewrite(bdaggr(NAF::POS, AggregateFunction::SUM, boundvec(Relation::LT, aterm("A","B")), condlitvec(alit("C","D"), litvec(alit("E","F"))))));
+        REQUIRE("(#Arith0=#sum{(C+D):#Arith0},[{(A+B):#Arith0}],[])" == rewrite(bdaggr(NAF::POS, AggregateFunction::SUM, boundvec(Relation::EQ, aterm("A","B")), condlitvec(alit("C","D"), litvec(alit("A","B"))))));
+        // conjunction
+        REQUIRE("(#Arith0&#Arith0=(C+D):#Arith1,#Arith1=(E+F),[{}],[])" == rewrite(bdaggr(alit("C","D"), litvec(alit("E","F")))));
+        // head tuple aggregate
+        REQUIRE("(#Arith0>#sum{(C+D):(E+F):#Arith1,#Arith1=(G+H)},[{(A+B):#Arith0}])" == rewrite(hdaggr(AggregateFunction::SUM, boundvec(Relation::LT, aterm("A","B")), hdelemvec(termvec(aterm("C","D")), alit("E", "F"), litvec(alit("G","H"))))));
+        // head lit aggregate
+        REQUIRE("(#Arith0>#sum{(C+D):#Arith1,#Arith1=(E+F)},[{(A+B):#Arith0}])" == rewrite(hdaggr(AggregateFunction::SUM, boundvec(Relation::LT, aterm("A","B")), condlitvec(alit("C","D"), litvec(alit("E","F"))))));
+        // disjunction
+        REQUIRE("((C+D)::#Arith0,#Arith0=(E+F),#Arith1=(E+F),#Arith1=#Arith0,[{}])" == rewrite(hdaggr(condlitvec(alit("C","D"), litvec(alit("E","F"))))));
+    }
+
 }
-
-void TestAggregate::tearDown() { }
-
-void TestAggregate::test_print() {
-    // body tuple aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#sum{}>1"), to_string(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), bdvec1())));
-    CPPUNIT_ASSERT_EQUAL(std::string("not 3>#sum{}>1"), to_string(bdaggr(NAF::NOT, AggregateFunction::SUM, bound1(), bdvec1())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{}>1"), to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec1())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{:}>1"), to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec2())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{1:p}>1"), to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec3())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{1,2:p,q}>1"), to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec4())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{:;:p}>1"), to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec5())));
-    // body lit aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#sum{}>1"), to_string(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), condvec1())));
-    CPPUNIT_ASSERT_EQUAL(std::string("not 3>#sum{}>1"), to_string(bdaggr(NAF::NOT, AggregateFunction::SUM, bound1(), condvec1())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{}>1"), to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec1())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{p:}>1"), to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec2())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{p:q}>1"), to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec3())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{p:q,r}>1"), to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec4())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{p:;q:}>1"), to_string(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec5())));
-    // conjunction
-    CPPUNIT_ASSERT_EQUAL(std::string("p:"), to_string(bdaggr(lit("p"), litvec())));
-    CPPUNIT_ASSERT_EQUAL(std::string("p:q"), to_string(bdaggr(lit("p"), litvec(lit("q")))));
-    // head tuple aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#sum{}>1"), to_string(hdaggr(AggregateFunction::SUM, bound1(), hdvec1())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{}>1"), to_string(hdaggr(AggregateFunction::COUNT, bound1(), hdvec1())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{:p:}>1"), to_string(hdaggr(AggregateFunction::COUNT, bound1(), hdvec2())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{1:p:q}>1"), to_string(hdaggr(AggregateFunction::COUNT, bound1(), hdvec3())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{1,2:p:q,r}>1"), to_string(hdaggr(AggregateFunction::COUNT, bound1(), hdvec4())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{:p:;:q:r}>1"), to_string(hdaggr(AggregateFunction::COUNT, bound1(), hdvec5())));
-    // head lit aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#sum{}>1"), to_string(hdaggr(AggregateFunction::SUM, bound1(), condvec1())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{}>1"), to_string(hdaggr(AggregateFunction::COUNT, bound1(), condvec1())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{p:}>1"), to_string(hdaggr(AggregateFunction::COUNT, bound1(), condvec2())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{p:q}>1"), to_string(hdaggr(AggregateFunction::COUNT, bound1(), condvec3())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{p:q,r}>1"), to_string(hdaggr(AggregateFunction::COUNT, bound1(), condvec4())));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{p:;q:}>1"), to_string(hdaggr(AggregateFunction::COUNT, bound1(), condvec5())));
-    // disjunction
-    CPPUNIT_ASSERT_EQUAL(std::string(""), to_string(hdaggr(condvec1())));
-    CPPUNIT_ASSERT_EQUAL(std::string("p::"), to_string(hdaggr(condvec2())));
-    CPPUNIT_ASSERT_EQUAL(std::string("p::q"), to_string(hdaggr(condvec3())));
-    CPPUNIT_ASSERT_EQUAL(std::string("p::q,r"), to_string(hdaggr(condvec4())));
-    CPPUNIT_ASSERT_EQUAL(std::string("p::;q::"), to_string(hdaggr(condvec5())));
-}
-
-void TestAggregate::test_clone() {
-    // body tuple aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#sum{}>1"), to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), bdvec1()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("not 3>#sum{}>1"), to_string(get_clone(bdaggr(NAF::NOT, AggregateFunction::SUM, bound1(), bdvec1()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{}>1"), to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec1()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{:}>1"), to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec2()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{1:p}>1"), to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec3()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{1,2:p,q}>1"), to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec4()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{:;:p}>1"), to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), bdvec5()))));
-    // body lit aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#sum{}>1"), to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), condvec1()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("not 3>#sum{}>1"), to_string(get_clone(bdaggr(NAF::NOT, AggregateFunction::SUM, bound1(), condvec1()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{}>1"), to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec1()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{p:}>1"), to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec2()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{p:q}>1"), to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec3()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{p:q,r}>1"), to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec4()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{p:;q:}>1"), to_string(get_clone(bdaggr(NAF::POS, AggregateFunction::COUNT, bound1(), condvec5()))));
-    // conjunction
-    CPPUNIT_ASSERT_EQUAL(std::string("p:"), to_string(get_clone(bdaggr(lit("p"), litvec()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("p:q"), to_string(get_clone(bdaggr(lit("p"), litvec(lit("q"))))));
-    // head tuple aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#sum{}>1"), to_string(get_clone(hdaggr(AggregateFunction::SUM, bound1(), hdvec1()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{}>1"), to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), hdvec1()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{:p:}>1"), to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), hdvec2()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{1:p:q}>1"), to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), hdvec3()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{1,2:p:q,r}>1"), to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), hdvec4()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{:p:;:q:r}>1"), to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), hdvec5()))));
-    // head lit aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#sum{}>1"), to_string(get_clone(hdaggr(AggregateFunction::SUM, bound1(), condvec1()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{}>1"), to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), condvec1()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{p:}>1"), to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), condvec2()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{p:q}>1"), to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), condvec3()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{p:q,r}>1"), to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), condvec4()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("3>#count{p:;q:}>1"), to_string(get_clone(hdaggr(AggregateFunction::COUNT, bound1(), condvec5()))));
-    // disjunction
-    CPPUNIT_ASSERT_EQUAL(std::string(""), to_string(get_clone(hdaggr(condvec1()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("p::"), to_string(get_clone(hdaggr(condvec2()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("p::q"), to_string(get_clone(hdaggr(condvec3()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("p::q,r"), to_string(get_clone(hdaggr(condvec4()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("p::;q::"), to_string(get_clone(hdaggr(condvec5()))));
-}
-
-void TestAggregate::test_hash() {
-    char const *msg = "warning: hashes are very unlikely to collide";
-    // body tuple aggregate
-    auto a1(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), bdvec1()));
-    auto a2(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), bdvec2()));
-    auto a3(bdaggr(NAF::NOT, AggregateFunction::SUM, bound1(), bdvec1()));
-    auto a4(bdaggr(NAF::POS, AggregateFunction::COUNT, boundvec(), bdvec1()));
-    CPPUNIT_ASSERT_MESSAGE(msg, a1->hash() == get_clone(a1)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, a2->hash() == get_clone(a2)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, a3->hash() == get_clone(a3)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, a4->hash() == get_clone(a4)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, a1->hash() != a2->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, a1->hash() != a3->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, a1->hash() != a4->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, a2->hash() != a3->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, a2->hash() != a4->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, a3->hash() != a4->hash());
-    // body lit aggregate
-    auto b1(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), condvec1()));
-    auto b2(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), condvec2()));
-    auto b3(bdaggr(NAF::NOT, AggregateFunction::SUM, bound1(), condvec1()));
-    auto b4(bdaggr(NAF::POS, AggregateFunction::COUNT, boundvec(), condvec1()));
-    CPPUNIT_ASSERT_MESSAGE(msg, b1->hash() == get_clone(b1)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, b2->hash() == get_clone(b2)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, b3->hash() == get_clone(b3)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, b4->hash() == get_clone(b4)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, b1->hash() != b2->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, b1->hash() != b3->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, b1->hash() != b4->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, b2->hash() != b3->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, b2->hash() != b4->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, b3->hash() != b4->hash());
-    // conjunction
-    auto c1(bdaggr(lit("p"), litvec()));
-    auto c2(bdaggr(lit("p"), litvec(lit("q"))));
-    CPPUNIT_ASSERT_MESSAGE(msg, c1->hash() == get_clone(c1)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, c2->hash() == get_clone(c2)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, c1->hash() != c2->hash());
-    // head tuple aggregate
-    auto d1(hdaggr(AggregateFunction::SUM, bound1(), hdvec1()));
-    auto d2(hdaggr(AggregateFunction::SUM, bound1(), hdvec2()));
-    auto d3(hdaggr(AggregateFunction::COUNT, boundvec(), hdvec1()));
-    CPPUNIT_ASSERT_MESSAGE(msg, b1->hash() == get_clone(b1)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, b2->hash() == get_clone(b2)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, b3->hash() == get_clone(b3)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, b1->hash() != b2->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, b1->hash() != b3->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, b2->hash() != b3->hash());
-    // head lit aggregate
-    auto e1(hdaggr(AggregateFunction::SUM, bound1(), condvec1()));
-    auto e2(hdaggr(AggregateFunction::SUM, bound1(), condvec2()));
-    auto e3(hdaggr(AggregateFunction::COUNT, boundvec(), condvec1()));
-    CPPUNIT_ASSERT_MESSAGE(msg, e1->hash() == get_clone(e1)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, e2->hash() == get_clone(e2)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, e3->hash() == get_clone(e3)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, e1->hash() != e2->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, e1->hash() != e3->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, e2->hash() != e3->hash());
-    // disjunction
-    auto f1(hdaggr(condvec1()));
-    auto f2(hdaggr(condvec2()));
-    CPPUNIT_ASSERT_MESSAGE(msg, f1->hash() == get_clone(f1)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, f2->hash() == get_clone(f2)->hash());
-    CPPUNIT_ASSERT_MESSAGE(msg, f1->hash() != f2->hash());
-}
-
-void TestAggregate::test_equal() {
-    // body tuple aggregate
-    auto a1(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), bdvec1()));
-    auto a2(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), bdvec2()));
-    auto a3(bdaggr(NAF::NOT, AggregateFunction::SUM, bound1(), bdvec1()));
-    auto a4(bdaggr(NAF::POS, AggregateFunction::COUNT, boundvec(), bdvec1()));
-    CPPUNIT_ASSERT(*a1 == *get_clone(a1));
-    CPPUNIT_ASSERT(*a2 == *get_clone(a2));
-    CPPUNIT_ASSERT(*a3 == *get_clone(a3));
-    CPPUNIT_ASSERT(*a4 == *get_clone(a4));
-    CPPUNIT_ASSERT(!(*a1 == *a2));
-    CPPUNIT_ASSERT(!(*a1 == *a3));
-    CPPUNIT_ASSERT(!(*a1 == *a4));
-    CPPUNIT_ASSERT(!(*a2 == *a3));
-    CPPUNIT_ASSERT(!(*a2 == *a4));
-    CPPUNIT_ASSERT(!(*a3 == *a4));
-    // body lit aggregate
-    auto b1(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), condvec1()));
-    auto b2(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), condvec2()));
-    auto b3(bdaggr(NAF::NOT, AggregateFunction::SUM, bound1(), condvec1()));
-    auto b4(bdaggr(NAF::POS, AggregateFunction::COUNT, boundvec(), condvec1()));
-    CPPUNIT_ASSERT(*b1 == *get_clone(b1));
-    CPPUNIT_ASSERT(*b2 == *get_clone(b2));
-    CPPUNIT_ASSERT(*b3 == *get_clone(b3));
-    CPPUNIT_ASSERT(*b4 == *get_clone(b4));
-    CPPUNIT_ASSERT(!(*b1 == *b2));
-    CPPUNIT_ASSERT(!(*b1 == *b3));
-    CPPUNIT_ASSERT(!(*b1 == *b4));
-    CPPUNIT_ASSERT(!(*b2 == *b3));
-    CPPUNIT_ASSERT(!(*b2 == *b4));
-    CPPUNIT_ASSERT(!(*b3 == *b4));
-    // conjunction
-    auto c1(bdaggr(lit("p"), litvec()));
-    auto c2(bdaggr(lit("p"), litvec(lit("q"))));
-    CPPUNIT_ASSERT(*c1 == *get_clone(c1));
-    CPPUNIT_ASSERT(*c2 == *get_clone(c2));
-    CPPUNIT_ASSERT(!(*c1 == *c2));
-    // head tuple aggregate
-    auto d1(hdaggr(AggregateFunction::SUM, bound1(), hdvec1()));
-    auto d2(hdaggr(AggregateFunction::SUM, bound1(), hdvec2()));
-    auto d3(hdaggr(AggregateFunction::COUNT, boundvec(), hdvec1()));
-    CPPUNIT_ASSERT(*b1 == *get_clone(b1));
-    CPPUNIT_ASSERT(*b2 == *get_clone(b2));
-    CPPUNIT_ASSERT(*b3 == *get_clone(b3));
-    CPPUNIT_ASSERT(!(*b1 == *b2));
-    CPPUNIT_ASSERT(!(*b1 == *b3));
-    CPPUNIT_ASSERT(!(*b2 == *b3));
-    // head lit aggregate
-    auto e1(hdaggr(AggregateFunction::SUM, bound1(), condvec1()));
-    auto e2(hdaggr(AggregateFunction::SUM, bound1(), condvec2()));
-    auto e3(hdaggr(AggregateFunction::COUNT, boundvec(), condvec1()));
-    CPPUNIT_ASSERT(*e1 == *get_clone(e1));
-    CPPUNIT_ASSERT(*e2 == *get_clone(e2));
-    CPPUNIT_ASSERT(*e3 == *get_clone(e3));
-    CPPUNIT_ASSERT(!(*e1 == *e2));
-    CPPUNIT_ASSERT(!(*e1 == *e3));
-    CPPUNIT_ASSERT(!(*e2 == *e3));
-    // disjunction
-    auto f1(hdaggr(condvec1()));
-    auto f2(hdaggr(condvec2()));
-    CPPUNIT_ASSERT(*f1 == *get_clone(f1));
-    CPPUNIT_ASSERT(*f2 == *get_clone(f2));
-    CPPUNIT_ASSERT(!(*f1 == *f2));
-}
-
-void TestAggregate::test_unpool() {
-    // body tuple aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("[3>#sum{1,3:;2,3:;1,4:;2,4:}>1]"), to_string(unpool(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), bdvec7()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("[1>#sum{}>3,2>#sum{}>3,1>#sum{}>4,2>#sum{}>4]"), to_string(unpool(bdaggr(NAF::POS, AggregateFunction::SUM, bound2(), bdvec1()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("[not 1>#min{}>3,not 2>#min{}>3,not 1>#min{}>4,not 2>#min{}>4]"), to_string(unpool(bdaggr(NAF::NOT, AggregateFunction::MIN, bound2(), bdvec1()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("[3>#sum{1:p;1:q;2:p;2:q;:}>1]"), to_string(unpool(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), bdvec6()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("[1>#sum{1:p;1:q;2:p;2:q;:},2>#sum{1:p;1:q;2:p;2:q;:}]"), to_string(unpool(bdaggr(NAF::POS, AggregateFunction::SUM, bound3(), bdvec6()))));
-    // body lit aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("[1>#sum{}>3,2>#sum{}>3,1>#sum{}>4,2>#sum{}>4]"), to_string(unpool(bdaggr(NAF::POS, AggregateFunction::SUM, bound2(), condvec1()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("[not 1>#min{}>3,not 2>#min{}>3,not 1>#min{}>4,not 2>#min{}>4]"), to_string(unpool(bdaggr(NAF::NOT, AggregateFunction::MIN, bound2(), condvec1()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("[3>#sum{p:r;p:s;q:r;q:s;t:}>1]"), to_string(unpool(bdaggr(NAF::POS, AggregateFunction::SUM, bound1(), condvec6()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("[1>#sum{p:r;p:s;q:r;q:s;t:},2>#sum{p:r;p:s;q:r;q:s;t:}]"), to_string(unpool(bdaggr(NAF::POS, AggregateFunction::SUM, bound3(), condvec6()))));
-    // conjunction
-    CPPUNIT_ASSERT_EQUAL(std::string("[p|q:r]"), to_string(unpool(bdaggr(lit("p", "q"), litvec(lit("r"))))));
-    CPPUNIT_ASSERT_EQUAL(std::string("[p:q;p:r]"), to_string(unpool(bdaggr(lit("p"), litvec(lit("q", "r"))))));
-    CPPUNIT_ASSERT_EQUAL(std::string("[p|q:r;p|q:s]"), to_string(unpool(bdaggr(lit("p", "q"), litvec(lit("r", "s"))))));
-    // head tuple aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("[3>#sum{1,3:p:;2,3:p:;1,4:p:;2,4:p:}>1]"), to_string(unpool(hdaggr(AggregateFunction::SUM, bound1(), hdvec7()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("[1>#sum{}>3,2>#sum{}>3,1>#sum{}>4,2>#sum{}>4]"), to_string(unpool(hdaggr(AggregateFunction::SUM, bound2(), hdvec1()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("[3>#sum{1:p:q;1:p:r;2:p:q;2:p:r;:s:}>1]"), to_string(unpool(hdaggr(AggregateFunction::SUM, bound1(), hdvec6()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("[3>#sum{1:p:;1:q:}>1]"), to_string(unpool(hdaggr(AggregateFunction::SUM, bound1(), hdvec8()))));
-    // head lit aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("[1>#sum{}>3,2>#sum{}>3,1>#sum{}>4,2>#sum{}>4]"), to_string(unpool(hdaggr(AggregateFunction::SUM, bound2(), condvec1()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("[3>#sum{p:r;p:s;q:r;q:s;t:}>1]"), to_string(unpool(hdaggr(AggregateFunction::SUM, bound1(), condvec6()))));
-    CPPUNIT_ASSERT_EQUAL(std::string("[1>#sum{p:r;p:s;q:r;q:s;t:},2>#sum{p:r;p:s;q:r;q:s;t:}]"), to_string(unpool(hdaggr(AggregateFunction::SUM, bound3(), condvec6()))));
-    // disjunction
-    CPPUNIT_ASSERT_EQUAL(std::string("[p:&q::r;p:&q::s;t::]"), to_string(unpool(hdaggr(condvec6()))));
-}
-
-void TestAggregate::test_simplify() {
-    // body tuple aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("(#Range0>#sum{#Range1:#Range2,#range(#Range1,3,4),#range(#Range2,5,6)},[(#Range0,1,2)])"), simplify(bdaggr(NAF::POS, AggregateFunction::SUM, boundvec(Relation::LT, dterm(1,2)), bdelemvec(termvec(dterm(3,4)), litvec(dlit(5,6))))));
-    // body lit aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("(#Range0>#sum{#Range1:#Range2,#range(#Range1,3,4),#range(#Range2,5,6)},[(#Range0,1,2)])"), simplify(bdaggr(NAF::POS, AggregateFunction::SUM, boundvec(Relation::LT, dterm(1,2)), condlitvec(dlit(3,4), litvec(dlit(5,6))))));
-    // conjunction
-    CPPUNIT_ASSERT_EQUAL(std::string("(#Range0&#range(#Range0,1,2):#Range1,#range(#Range1,3,4),[])"), simplify(bdaggr(dlit(1,2), litvec(dlit(3,4)))));
-    // head tuple aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("(#Range0>#sum{#Range1:#Range2:#Range3,#range(#Range1,3,4),#range(#Range2,5,6),#range(#Range3,7,8)},[(#Range0,1,2)])"), simplify(hdaggr(AggregateFunction::SUM, boundvec(Relation::LT, dterm(1,2)), hdelemvec(termvec(dterm(3,4)), dlit(5,6), litvec(dlit(7,8))))));
-    // head lit aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("(#Range0>#sum{#Range1:#Range2,#range(#Range1,3,4),#range(#Range2,5,6)},[(#Range0,1,2)])"), simplify(hdaggr(AggregateFunction::SUM, boundvec(Relation::LT, dterm(1,2)), condlitvec(dlit(3,4), litvec(dlit(5,6))))));
-    // disjunction
-    CPPUNIT_ASSERT_EQUAL(std::string("(#Range0:#range(#Range0,1,2):#Range1,#range(#Range1,3,4),[])"), simplify(hdaggr(condlitvec(dlit(1,2), litvec(dlit(3,4))))));
-}
-
-void TestAggregate::test_rewriteArithmetics() {
-    // body tuple aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("(#Arith0>#sum{(C+D):#Arith1,#Arith1=(E+F)},[{(A+B):#Arith0}],[])"), rewrite(bdaggr(NAF::POS, AggregateFunction::SUM, boundvec(Relation::LT, aterm("A","B")), bdelemvec(termvec(aterm("C","D")), litvec(alit("E","F"))))));
-    CPPUNIT_ASSERT_EQUAL(std::string("(#Arith0=#sum{(C+D):#Arith0},[{(A+B):#Arith0}],[])"), rewrite(bdaggr(NAF::POS, AggregateFunction::SUM, boundvec(Relation::EQ, aterm("A","B")), bdelemvec(termvec(aterm("C","D")), litvec(alit("A","B"))))));
-    // body lit aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("(#Arith0>#sum{(C+D):#Arith1,#Arith1=(E+F)},[{(A+B):#Arith0}],[])"), rewrite(bdaggr(NAF::POS, AggregateFunction::SUM, boundvec(Relation::LT, aterm("A","B")), condlitvec(alit("C","D"), litvec(alit("E","F"))))));
-    CPPUNIT_ASSERT_EQUAL(std::string("(#Arith0=#sum{(C+D):#Arith0},[{(A+B):#Arith0}],[])"), rewrite(bdaggr(NAF::POS, AggregateFunction::SUM, boundvec(Relation::EQ, aterm("A","B")), condlitvec(alit("C","D"), litvec(alit("A","B"))))));
-    // conjunction
-    CPPUNIT_ASSERT_EQUAL(std::string("(#Arith0&#Arith0=(C+D):#Arith1,#Arith1=(E+F),[{}],[])"), rewrite(bdaggr(alit("C","D"), litvec(alit("E","F")))));
-    // head tuple aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("(#Arith0>#sum{(C+D):(E+F):#Arith1,#Arith1=(G+H)},[{(A+B):#Arith0}])"), rewrite(hdaggr(AggregateFunction::SUM, boundvec(Relation::LT, aterm("A","B")), hdelemvec(termvec(aterm("C","D")), alit("E", "F"), litvec(alit("G","H"))))));
-    // head lit aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("(#Arith0>#sum{(C+D):#Arith1,#Arith1=(E+F)},[{(A+B):#Arith0}])"), rewrite(hdaggr(AggregateFunction::SUM, boundvec(Relation::LT, aterm("A","B")), condlitvec(alit("C","D"), litvec(alit("E","F"))))));
-    // disjunction
-    CPPUNIT_ASSERT_EQUAL(std::string("((C+D)::#Arith0,#Arith0=(E+F),#Arith1=(E+F),#Arith1=#Arith0,[{}])"), rewrite(hdaggr(condlitvec(alit("C","D"), litvec(alit("E","F"))))));
-}
-
-TestAggregate::~TestAggregate() { }
-
-// }}}
-
-CPPUNIT_TEST_SUITE_REGISTRATION(TestAggregate);
 
 } } } // namespace Test Input Gringo
 

@@ -25,6 +25,7 @@
 namespace Gringo { namespace Output { namespace Test {
 
 TEST_CASE("output-lparse") {
+    Gringo::Test::Messages msg;
     SECTION("unpool") {
         REQUIRE(
             "[[a(1),a(2),a(4)]]" ==

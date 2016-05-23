@@ -29,184 +29,151 @@
 
 namespace Gringo { namespace Ground { namespace Test {
 
-// {{{ declaration of TestLiteral
+using namespace Gringo::IO;
+using namespace Gringo::Test;
 
-class TestLiteral : public CppUnit::TestFixture {
-    CPPUNIT_TEST_SUITE(TestLiteral);
-        CPPUNIT_TEST(test_range);
-        CPPUNIT_TEST(test_relation);
-        CPPUNIT_TEST(test_pred);
-    CPPUNIT_TEST_SUITE_END();
+namespace {
 
-public:
-    TestLiteral()
+struct Grounder {
+    using S = std::string;
+    using V = Symbol;
+    template <class T>
+    using L = std::initializer_list<T>;
+    template <class A, class B>
+    using P = std::pair<A,B>;
+    template <class T>
+    using U = std::unique_ptr<T>;
+
+    Grounder()
     : scripts(Gringo::Test::getTestModule())
     , data(theory) { }
 
-    virtual void setUp();
-    virtual void tearDown();
+    std::string evalRange(UTerm assign, UTerm l, UTerm r) {
+        RangeLiteral lit(get_clone(assign), get_clone(l), get_clone(r));
+        Term::VarSet bound;
+        UIdx idx(lit.index(scripts, BinderType::ALL, bound));
+        SymVec vals;
+        idx->match();
+        bool undefined = false;
+        while (idx->next()) { vals.emplace_back(assign->eval(undefined)); }
+        return to_string(vals);
+    }
 
-    std::string evalRange(UTerm assign, UTerm l, UTerm r);
-    std::string evalRelation(Relation rel, UTerm l, UTerm r);
-    void test_range();
-    void test_relation();
-    void test_pred();
+    std::string evalRelation(Relation rel, UTerm l, UTerm r) {
+        Term::VarSet bound;
+        RelationLiteral lit(rel, get_clone(l), get_clone(r));
+        UIdx idx(lit.index(scripts, BinderType::ALL, bound));
+        std::vector<S> vals;
+        idx->match();
+        bool undefined = false;
+        while (idx->next()) {
+            vals.emplace_back();
+            vals.back() += to_string(l->eval(undefined));
+            vals.back() += to_string(rel);
+            vals.back() += to_string(r->eval(undefined));
+        }
+        return to_string(vals);
+    }
 
-    virtual ~TestLiteral();
+    S evalPred(L<L<V>> vals, L<P<S,V>> bound, BinderType type, NAF naf, UTerm &&repr, bool recursive = false) {
+        Potassco::TheoryData theory;
+        DomainData data(theory);
+        Scripts scripts(Gringo::Test::getTestModule());
+        Term::VarSet boundSet;
+        for (auto &x : bound) {
+            U<VarTerm> v(var(x.first.c_str()));
+            boundSet.emplace(x.first.c_str());
+            *v->ref = x.second;
+        }
+        auto &dom = data.add(Sig("f", 2, false));
+        PredicateLiteral lit(false, dom, naf, get_clone(repr));
+        if (recursive) { lit.setType(OccurrenceType::UNSTRATIFIED); }
+        UIdx idx = lit.index(scripts, type, boundSet);
+        std::vector<std::vector<S>> ret;
+        dom.init();
+        for (auto &x : vals) {
+            ret.emplace_back();
+            for (auto &y : x) {
+                dom.define(y, y < NUM(0));
+            }
+            IndexUpdater *up{idx->getUpdater()};
+            if (up) { up->update(); }
+            dom.nextGeneration();
+            idx->match();
+            while (idx->next()) {
+                ret.back().emplace_back();
+                if (lit.offset == std::numeric_limits<PredicateDomain::SizeType>::max()) {
+                    ret.back().back() += "#false";
+                }
+                else {
+                    ret.back().back() += to_string(static_cast<Symbol>(dom[lit.offset]));
+                }
+            }
+            std::sort(ret.back().begin(), ret.back().end());
+        }
+        return to_string(ret);
+    }
+
 
     Scripts scripts;
     Potassco::TheoryData theory;
     Output::DomainData data;
 };
 
-// }}}
+}// namespace
 
-// {{{ definition of auxiliary functions
-
-namespace {
-
-using namespace Gringo::IO;
-using namespace Gringo::Test;
-
-using S = std::string;
-using V = Symbol;
-template <class T>
-using L = std::initializer_list<T>;
-template <class A, class B>
-using P = std::pair<A,B>;
-template <class T>
-using U = std::unique_ptr<T>;
-
-} // namespace
-
-// }}}
-// {{{ definition of TestLiteral
-
-void TestLiteral::setUp() {
-}
-
-void TestLiteral::tearDown() {
-}
-
-std::string TestLiteral::evalRange(UTerm assign, UTerm l, UTerm r) {
-    RangeLiteral lit(get_clone(assign), get_clone(l), get_clone(r));
-    Term::VarSet bound;
-    UIdx idx(lit.index(scripts, BinderType::ALL, bound));
-    SymVec vals;
-    idx->match();
-    bool undefined = false;
-    while (idx->next()) { vals.emplace_back(assign->eval(undefined)); }
-    return to_string(vals);
-}
-void TestLiteral::test_range() {
-    Gringo::Test::Messages msg;
-    CPPUNIT_ASSERT_EQUAL(S("[]"), evalRange(var("X"), val(NUM(1)), val(NUM(0))));
-    CPPUNIT_ASSERT_EQUAL(S("[1]"), evalRange(var("X"), val(NUM(1)), val(NUM(1))));
-    CPPUNIT_ASSERT_EQUAL(S("[1,2]"), evalRange(var("X"), val(NUM(1)), val(NUM(2))));
-    CPPUNIT_ASSERT_EQUAL(S("[]"), evalRange(var("X"), val(NUM(1)), val(ID("a"))));
-    CPPUNIT_ASSERT_EQUAL(S("[]"), evalRange(val(NUM(0)), val(NUM(1)), val(NUM(2))));
-    CPPUNIT_ASSERT_EQUAL(S("[1]"), evalRange(val(NUM(1)), val(NUM(1)), val(NUM(2))));
-    CPPUNIT_ASSERT_EQUAL(S("[2]"), evalRange(val(NUM(2)), val(NUM(1)), val(NUM(2))));
-    CPPUNIT_ASSERT_EQUAL(S("[]"), evalRange(val(NUM(3)), val(NUM(1)), val(NUM(2))));
-}
-
-std::string TestLiteral::evalRelation(Relation rel, UTerm l, UTerm r) {
-    Term::VarSet bound;
-    RelationLiteral lit(rel, get_clone(l), get_clone(r));
-    UIdx idx(lit.index(scripts, BinderType::ALL, bound));
-    std::vector<S> vals;
-    idx->match();
-    bool undefined = false;
-    while (idx->next()) {
-        vals.emplace_back();
-        vals.back() += to_string(l->eval(undefined));
-        vals.back() += to_string(rel);
-        vals.back() += to_string(r->eval(undefined));
+TEST_CASE("ground-literal", "[ground]") {
+    Grounder g;
+    SECTION("range") {
+        Gringo::Test::Messages msg;
+        REQUIRE("[]" == g.evalRange(var("X"), val(NUM(1)), val(NUM(0))));
+        REQUIRE("[1]" == g.evalRange(var("X"), val(NUM(1)), val(NUM(1))));
+        REQUIRE("[1,2]" == g.evalRange(var("X"), val(NUM(1)), val(NUM(2))));
+        REQUIRE("[]" == g.evalRange(var("X"), val(NUM(1)), val(ID("a"))));
+        REQUIRE("[]" == g.evalRange(val(NUM(0)), val(NUM(1)), val(NUM(2))));
+        REQUIRE("[1]" == g.evalRange(val(NUM(1)), val(NUM(1)), val(NUM(2))));
+        REQUIRE("[2]" == g.evalRange(val(NUM(2)), val(NUM(1)), val(NUM(2))));
+        REQUIRE("[]" == g.evalRange(val(NUM(3)), val(NUM(1)), val(NUM(2))));
     }
-    return to_string(vals);
-}
-void TestLiteral::test_relation() {
-    CPPUNIT_ASSERT_EQUAL(S("[]"), evalRelation(Relation::LT, val(NUM(1)), val(NUM(1))));
-    CPPUNIT_ASSERT_EQUAL(S("[1<2]"), evalRelation(Relation::LT, val(NUM(1)), val(NUM(2))));
-    CPPUNIT_ASSERT_EQUAL(S("[1=1]"), evalRelation(Relation::EQ, var("X"), val(NUM(1))));
-    CPPUNIT_ASSERT_EQUAL(S("[f(1,g(1))=f(1,g(1))]"), evalRelation(Relation::EQ, fun("f", var("X"), fun("g", var("X"))), val(FUN("f", {NUM(1), FUN("g", {NUM(1)})}))));
-    CPPUNIT_ASSERT_EQUAL(S("[]"), evalRelation(Relation::EQ, fun("f", var("X"), fun("g", var("X"))), val(FUN("f", {NUM(1), FUN("g", {NUM(2)})}))));
-}
 
-S evalPred(L<L<V>> vals, L<P<S,V>> bound, BinderType type, NAF naf, UTerm &&repr, bool recursive = false) {
-    Potassco::TheoryData theory;
-    DomainData data(theory);
-    Scripts scripts(Gringo::Test::getTestModule());
-    Term::VarSet boundSet;
-    for (auto &x : bound) {
-        U<VarTerm> v(var(x.first.c_str()));
-        boundSet.emplace(x.first.c_str());
-        *v->ref = x.second;
+    SECTION("relation") {
+        REQUIRE("[]" == g.evalRelation(Relation::LT, val(NUM(1)), val(NUM(1))));
+        REQUIRE("[1<2]" == g.evalRelation(Relation::LT, val(NUM(1)), val(NUM(2))));
+        REQUIRE("[1=1]" == g.evalRelation(Relation::EQ, var("X"), val(NUM(1))));
+        REQUIRE("[f(1,g(1))=f(1,g(1))]" == g.evalRelation(Relation::EQ, fun("f", var("X"), fun("g", var("X"))), val(FUN("f", {NUM(1), FUN("g", {NUM(1)})}))));
+        REQUIRE("[]" == g.evalRelation(Relation::EQ, fun("f", var("X"), fun("g", var("X"))), val(FUN("f", {NUM(1), FUN("g", {NUM(2)})}))));
     }
-    auto &dom = data.add(Sig("f", 2, false));
-    PredicateLiteral lit(false, dom, naf, get_clone(repr));
-    if (recursive) { lit.setType(OccurrenceType::UNSTRATIFIED); }
-    UIdx idx = lit.index(scripts, type, boundSet);
-    std::vector<std::vector<S>> ret;
-    dom.init();
-    for (auto &x : vals) {
-        ret.emplace_back();
-        for (auto &y : x) {
-            dom.define(y, y < NUM(0));
-        }
-        IndexUpdater *up{idx->getUpdater()};
-        if (up) { up->update(); }
-        dom.nextGeneration();
-        idx->match();
-        while (idx->next()) {
-            ret.back().emplace_back();
-            if (lit.offset == std::numeric_limits<PredicateDomain::SizeType>::max()) {
-                ret.back().back() += "#false";
-            }
-            else {
-                ret.back().back() += to_string(static_cast<Symbol>(dom[lit.offset]));
-            }
-        }
-        std::sort(ret.back().begin(), ret.back().end());
+
+    SECTION("pred") {
+        // BIND + LOOKUP + POS + OLD/NEW/ALL
+        REQUIRE("[[f(1,1),f(1,2)],[f(1,1),f(1,2),f(1,3)]]" == g.evalPred({{FUN("f",{NUM(1),NUM(1)}),FUN("f",{NUM(2),NUM(2)}),FUN("f",{NUM(1),NUM(2)})},{FUN("f",{NUM(1),NUM(3)})}}, {{"X",NUM(1)}}, BinderType::ALL, NAF::POS, fun("f",var("X"),var("Y")), true));
+        REQUIRE("[[],[f(1,1),f(1,2)]]"                     == g.evalPred({{FUN("f",{NUM(1),NUM(1)}),FUN("f",{NUM(2),NUM(2)}),FUN("f",{NUM(1),NUM(2)})},{FUN("f",{NUM(1),NUM(3)})}}, {{"X",NUM(1)}}, BinderType::OLD, NAF::POS, fun("f",var("X"),var("Y")), true));
+        REQUIRE("[[f(1,1),f(1,2)],[f(1,3)]]"               == g.evalPred({{FUN("f",{NUM(1),NUM(1)}),FUN("f",{NUM(2),NUM(2)}),FUN("f",{NUM(1),NUM(2)})},{FUN("f",{NUM(1),NUM(3)})}}, {{"X",NUM(1)}}, BinderType::NEW, NAF::POS, fun("f",var("X"),var("Y")), true));
+        // MATCH + POS + OLD/NEW/ALL + recursive
+        REQUIRE("[[],[1],[1]]" == g.evalPred({{NUM(2)},{NUM(1)},{NUM(3)}}, {}, BinderType::ALL, NAF::POS, val(NUM(1)), true));
+        REQUIRE("[[],[],[1]]"  == g.evalPred({{NUM(2)},{NUM(1)},{NUM(3)}}, {}, BinderType::OLD, NAF::POS, val(NUM(1)), true));
+        REQUIRE("[[],[1],[]]"  == g.evalPred({{NUM(2)},{NUM(1)},{NUM(3)}}, {}, BinderType::NEW, NAF::POS, val(NUM(1)), true));
+        REQUIRE("[[],[1],[1]]" == g.evalPred({{NUM(2)},{NUM(1)},{NUM(3)}}, {}, BinderType::ALL, NAF::POS, val(NUM(1))));
+        // MATCH NOT fact/unknown
+        REQUIRE("[[1],[1]]"           == g.evalPred({{NUM(1),NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::NOT, val(NUM(1))));
+        REQUIRE("[[],[]]"             == g.evalPred({{NUM(-1),NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::NOT, val(NUM(-1))));
+        REQUIRE("[[1],[1]]"           == g.evalPred({{NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::NOT, val(NUM(1)), true));
+        REQUIRE("[[#false],[#false]]" == g.evalPred({{NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::NOT, val(NUM(1))));
+        // MATCH NOTNOT fact/unknown
+        REQUIRE("[[1],[1]]"   == g.evalPred({{NUM(1),NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::NOTNOT, val(NUM(1))));
+        REQUIRE("[[-1],[-1]]" == g.evalPred({{NUM(-1),NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::NOTNOT, val(NUM(-1))));
+        REQUIRE("[[1],[1]]"   == g.evalPred({{NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::NOTNOT, val(NUM(1)), true));
+        REQUIRE("[[],[]]"     == g.evalPred({{NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::NOTNOT, val(NUM(1))));
+        // FULL + OLD/NEW/ALL
+        REQUIRE("[[1,2],[1,2,3]]" == g.evalPred({{NUM(1),NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::POS, var("X"), true));
+        REQUIRE("[[1,2],[3]]"     == g.evalPred({{NUM(1),NUM(2)},{NUM(3)}}, {}, BinderType::NEW, NAF::POS, var("X"), true));
+        REQUIRE("[[],[1,2]]"      == g.evalPred({{NUM(1),NUM(2)},{NUM(3)}}, {}, BinderType::OLD, NAF::POS, var("X"), true));
+        // BIND + LOOKUP + POS + OLD/NEW/ALL
+        REQUIRE("[[f(1,1),f(1,2)],[f(1,1),f(1,2),f(1,3)]]" == g.evalPred({{FUN("f",{NUM(1),NUM(1)}),FUN("f",{NUM(2),NUM(2)}),FUN("f",{NUM(1),NUM(2)})},{FUN("f",{NUM(1),NUM(3)})}}, {{"X",NUM(1)}}, BinderType::ALL, NAF::POS, fun("f",var("X"),var("Y")), true));
+        REQUIRE("[[],[f(1,1),f(1,2)]]"                     == g.evalPred({{FUN("f",{NUM(1),NUM(1)}),FUN("f",{NUM(2),NUM(2)}),FUN("f",{NUM(1),NUM(2)})},{FUN("f",{NUM(1),NUM(3)})}}, {{"X",NUM(1)}}, BinderType::OLD, NAF::POS, fun("f",var("X"),var("Y")), true));
+        REQUIRE("[[f(1,1),f(1,2)],[f(1,3)]]"               == g.evalPred({{FUN("f",{NUM(1),NUM(1)}),FUN("f",{NUM(2),NUM(2)}),FUN("f",{NUM(1),NUM(2)})},{FUN("f",{NUM(1),NUM(3)})}}, {{"X",NUM(1)}}, BinderType::NEW, NAF::POS, fun("f",var("X"),var("Y")), true));
     }
-    return to_string(ret);
 }
-
-void TestLiteral::test_pred() {
-    // BIND + LOOKUP + POS + OLD/NEW/ALL
-    CPPUNIT_ASSERT_EQUAL(S("[[f(1,1),f(1,2)],[f(1,1),f(1,2),f(1,3)]]"), evalPred({{FUN("f",{NUM(1),NUM(1)}),FUN("f",{NUM(2),NUM(2)}),FUN("f",{NUM(1),NUM(2)})},{FUN("f",{NUM(1),NUM(3)})}}, {{"X",NUM(1)}}, BinderType::ALL, NAF::POS, fun("f",var("X"),var("Y")), true));
-    CPPUNIT_ASSERT_EQUAL(S("[[],[f(1,1),f(1,2)]]"), evalPred({{FUN("f",{NUM(1),NUM(1)}),FUN("f",{NUM(2),NUM(2)}),FUN("f",{NUM(1),NUM(2)})},{FUN("f",{NUM(1),NUM(3)})}}, {{"X",NUM(1)}}, BinderType::OLD, NAF::POS, fun("f",var("X"),var("Y")), true));
-    CPPUNIT_ASSERT_EQUAL(S("[[f(1,1),f(1,2)],[f(1,3)]]"), evalPred({{FUN("f",{NUM(1),NUM(1)}),FUN("f",{NUM(2),NUM(2)}),FUN("f",{NUM(1),NUM(2)})},{FUN("f",{NUM(1),NUM(3)})}}, {{"X",NUM(1)}}, BinderType::NEW, NAF::POS, fun("f",var("X"),var("Y")), true));
-    // MATCH + POS + OLD/NEW/ALL + recursive
-    CPPUNIT_ASSERT_EQUAL(S("[[],[1],[1]]"), evalPred({{NUM(2)},{NUM(1)},{NUM(3)}}, {}, BinderType::ALL, NAF::POS, val(NUM(1)), true));
-    CPPUNIT_ASSERT_EQUAL(S("[[],[],[1]]"), evalPred({{NUM(2)},{NUM(1)},{NUM(3)}}, {}, BinderType::OLD, NAF::POS, val(NUM(1)), true));
-    CPPUNIT_ASSERT_EQUAL(S("[[],[1],[]]"), evalPred({{NUM(2)},{NUM(1)},{NUM(3)}}, {}, BinderType::NEW, NAF::POS, val(NUM(1)), true));
-    CPPUNIT_ASSERT_EQUAL(S("[[],[1],[1]]"), evalPred({{NUM(2)},{NUM(1)},{NUM(3)}}, {}, BinderType::ALL, NAF::POS, val(NUM(1))));
-    // MATCH NOT fact/unknown
-    CPPUNIT_ASSERT_EQUAL(S("[[1],[1]]"), evalPred({{NUM(1),NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::NOT, val(NUM(1))));
-    CPPUNIT_ASSERT_EQUAL(S("[[],[]]"), evalPred({{NUM(-1),NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::NOT, val(NUM(-1))));
-    CPPUNIT_ASSERT_EQUAL(S("[[1],[1]]"), evalPred({{NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::NOT, val(NUM(1)), true));
-    CPPUNIT_ASSERT_EQUAL(S("[[#false],[#false]]"), evalPred({{NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::NOT, val(NUM(1))));
-    // MATCH NOTNOT fact/unknown
-    CPPUNIT_ASSERT_EQUAL(S("[[1],[1]]"), evalPred({{NUM(1),NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::NOTNOT, val(NUM(1))));
-    CPPUNIT_ASSERT_EQUAL(S("[[-1],[-1]]"), evalPred({{NUM(-1),NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::NOTNOT, val(NUM(-1))));
-    CPPUNIT_ASSERT_EQUAL(S("[[1],[1]]"), evalPred({{NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::NOTNOT, val(NUM(1)), true));
-    CPPUNIT_ASSERT_EQUAL(S("[[],[]]"), evalPred({{NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::NOTNOT, val(NUM(1))));
-    // FULL + OLD/NEW/ALL
-    CPPUNIT_ASSERT_EQUAL(S("[[1,2],[1,2,3]]"), evalPred({{NUM(1),NUM(2)},{NUM(3)}}, {}, BinderType::ALL, NAF::POS, var("X"), true));
-    CPPUNIT_ASSERT_EQUAL(S("[[1,2],[3]]")    , evalPred({{NUM(1),NUM(2)},{NUM(3)}}, {}, BinderType::NEW, NAF::POS, var("X"), true));
-    CPPUNIT_ASSERT_EQUAL(S("[[],[1,2]]")     , evalPred({{NUM(1),NUM(2)},{NUM(3)}}, {}, BinderType::OLD, NAF::POS, var("X"), true));
-    // BIND + LOOKUP + POS + OLD/NEW/ALL
-    CPPUNIT_ASSERT_EQUAL(S("[[f(1,1),f(1,2)],[f(1,1),f(1,2),f(1,3)]]"), evalPred({{FUN("f",{NUM(1),NUM(1)}),FUN("f",{NUM(2),NUM(2)}),FUN("f",{NUM(1),NUM(2)})},{FUN("f",{NUM(1),NUM(3)})}}, {{"X",NUM(1)}}, BinderType::ALL, NAF::POS, fun("f",var("X"),var("Y")), true));
-    CPPUNIT_ASSERT_EQUAL(S("[[],[f(1,1),f(1,2)]]"), evalPred({{FUN("f",{NUM(1),NUM(1)}),FUN("f",{NUM(2),NUM(2)}),FUN("f",{NUM(1),NUM(2)})},{FUN("f",{NUM(1),NUM(3)})}}, {{"X",NUM(1)}}, BinderType::OLD, NAF::POS, fun("f",var("X"),var("Y")), true));
-    CPPUNIT_ASSERT_EQUAL(S("[[f(1,1),f(1,2)],[f(1,3)]]"), evalPred({{FUN("f",{NUM(1),NUM(1)}),FUN("f",{NUM(2),NUM(2)}),FUN("f",{NUM(1),NUM(2)})},{FUN("f",{NUM(1),NUM(3)})}}, {{"X",NUM(1)}}, BinderType::NEW, NAF::POS, fun("f",var("X"),var("Y")), true));
-}
-
-TestLiteral::~TestLiteral() { }
-
-// }}}
-
-CPPUNIT_TEST_SUITE_REGISTRATION(TestLiteral);
 
 } } } // namespace Test Ground Gringo
 

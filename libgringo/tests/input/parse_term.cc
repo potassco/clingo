@@ -27,58 +27,40 @@
 
 namespace Gringo { namespace Input { namespace Test {
 
-// {{{ declaration of TestParseTerm
-
-class TestParseTerm : public CppUnit::TestFixture {
-    CPPUNIT_TEST_SUITE(TestParseTerm);
-        CPPUNIT_TEST(test_parse);
-    CPPUNIT_TEST_SUITE_END();
-
-public:
-    void test_parse();
-
-    virtual ~TestParseTerm();
-};
-
-// }}}
-
 using namespace Gringo::Test;
 
-// {{{ definition of TestParseTerm
+TEST_CASE("input-parse_term", "[input]") {
 
-void TestParseTerm::test_parse() {
-    TestGringoModule m;
-    Messages msg;
-    CPPUNIT_ASSERT_THROW(m.parseValue("a."), std::runtime_error);
-    CPPUNIT_ASSERT_EQUAL(Symbol(), m.parseValue("x+y"));
-    CPPUNIT_ASSERT_EQUAL(NUM(1), m.parseValue("1"));
-    CPPUNIT_ASSERT_EQUAL(NUM(-1), m.parseValue("-1"));
-    CPPUNIT_ASSERT_EQUAL(ID("x"), m.parseValue("x"));
-    CPPUNIT_ASSERT_EQUAL(ID("x", true), m.parseValue("-x"));
-    CPPUNIT_ASSERT_EQUAL(FUN("f", {ID("x")}), m.parseValue("f(x)"));
-    CPPUNIT_ASSERT_EQUAL(FUN("f", {ID("x")}, true), m.parseValue("-f(x)"));
-    CPPUNIT_ASSERT_EQUAL(NUM(39), m.parseValue("7?32"));
-    CPPUNIT_ASSERT_EQUAL(NUM(5), m.parseValue("7&13"));
-    CPPUNIT_ASSERT_EQUAL(NUM(8), m.parseValue("13-5"));
-    CPPUNIT_ASSERT_EQUAL(NUM(18), m.parseValue("13+5"));
-    CPPUNIT_ASSERT_EQUAL(NUM(65), m.parseValue("13*5"));
-    CPPUNIT_ASSERT_EQUAL(NUM(3), m.parseValue("13\\5"));
-    CPPUNIT_ASSERT_EQUAL(NUM(2), m.parseValue("13/5"));
-    CPPUNIT_ASSERT_EQUAL(NUM(371293), m.parseValue("13**5"));
-    CPPUNIT_ASSERT_EQUAL(NUM(-2), m.parseValue("~1"));
-    CPPUNIT_ASSERT_EQUAL(FUN("", {}), m.parseValue("()"));
-    CPPUNIT_ASSERT_EQUAL(FUN("", {NUM(1)}), m.parseValue("(1,)"));
-    CPPUNIT_ASSERT_EQUAL(FUN("", {NUM(1),NUM(2)}), m.parseValue("(1,2)"));
-    CPPUNIT_ASSERT_EQUAL(NUM(2), m.parseValue("|-2|"));
-    CPPUNIT_ASSERT_EQUAL(STR("hallo"), m.parseValue("\"hallo\""));
-    CPPUNIT_ASSERT_EQUAL(INF(), m.parseValue("#inf"));
-    CPPUNIT_ASSERT_EQUAL(SUP(), m.parseValue("#sup"));
+    SECTION("parse") {
+        TestGringoModule m;
+        Messages msg;
+        REQUIRE_THROWS_AS(m.parseValue("a."), std::runtime_error);
+        REQUIRE(Symbol() == m.parseValue("x+y"));
+        REQUIRE(NUM(1) == m.parseValue("1"));
+        REQUIRE(NUM(-1) == m.parseValue("-1"));
+        REQUIRE(ID("x") == m.parseValue("x"));
+        REQUIRE(ID("x", true) == m.parseValue("-x"));
+        REQUIRE(FUN("f", {ID("x")}) == m.parseValue("f(x)"));
+        REQUIRE(FUN("f", {ID("x")}, true) == m.parseValue("-f(x)"));
+        REQUIRE(NUM(39) == m.parseValue("7?32"));
+        REQUIRE(NUM(5) == m.parseValue("7&13"));
+        REQUIRE(NUM(8) == m.parseValue("13-5"));
+        REQUIRE(NUM(18) == m.parseValue("13+5"));
+        REQUIRE(NUM(65) == m.parseValue("13*5"));
+        REQUIRE(NUM(3) == m.parseValue("13\\5"));
+        REQUIRE(NUM(2) == m.parseValue("13/5"));
+        REQUIRE(NUM(371293) == m.parseValue("13**5"));
+        REQUIRE(NUM(-2) == m.parseValue("~1"));
+        REQUIRE(FUN("", {}) == m.parseValue("()"));
+        REQUIRE(FUN("", {NUM(1)}) == m.parseValue("(1,)"));
+        REQUIRE(FUN("", {NUM(1),NUM(2)}) == m.parseValue("(1,2)"));
+        REQUIRE(NUM(2) == m.parseValue("|-2|"));
+        REQUIRE(STR("hallo") == m.parseValue("\"hallo\""));
+        REQUIRE(INF() == m.parseValue("#inf"));
+        REQUIRE(SUP() == m.parseValue("#sup"));
+    }
+
 }
-
-TestParseTerm::~TestParseTerm() { }
-// }}}
-
-CPPUNIT_TEST_SUITE_REGISTRATION(TestParseTerm);
 
 } } } // namespace Test Input Gringo
 

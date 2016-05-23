@@ -24,6 +24,7 @@
 namespace Gringo { namespace Ground { namespace Test {
 
 TEST_CASE("ground-theory") {
+    Gringo::Test::Messages msg;
 
     SECTION("directive") {
         std::string theory =

@@ -30,6 +30,7 @@
 namespace Gringo { namespace Output { namespace Test {
 
 TEST_CASE("output-aspcomp2013", "[output]") {
+    Gringo::Test::Messages msg;
 
 // {{{1 N01 Permutation Pattern Matching
 

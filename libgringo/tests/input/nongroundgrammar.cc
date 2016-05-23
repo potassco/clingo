@@ -33,6 +33,8 @@
 
 namespace Gringo { namespace Input { namespace Test {
 
+namespace {
+
 // {{{ declaration of TestNongroundProgramBuilder
 
 class TestNongroundProgramBuilder : public INongroundProgramBuilder {
@@ -263,59 +265,6 @@ private:
 };
 
 // }}}
-// {{{ declaration of TestNongroundGrammar
-class TestNongroundGrammar : public CppUnit::TestFixture {
-    CPPUNIT_TEST_SUITE(TestNongroundGrammar);
-        CPPUNIT_TEST(test_term);
-        CPPUNIT_TEST(test_atomargs);
-        CPPUNIT_TEST(test_literal);
-        CPPUNIT_TEST(test_bdaggr);
-        CPPUNIT_TEST(test_hdaggr);
-        CPPUNIT_TEST(test_conjunction);
-        CPPUNIT_TEST(test_disjunction);
-        CPPUNIT_TEST(test_rule);
-        CPPUNIT_TEST(test_define);
-        CPPUNIT_TEST(test_optimize);
-        CPPUNIT_TEST(test_show);
-        CPPUNIT_TEST(test_include);
-        CPPUNIT_TEST(test_csp);
-        CPPUNIT_TEST(test_edge);
-        CPPUNIT_TEST(test_project);
-        CPPUNIT_TEST(test_heuristic);
-        CPPUNIT_TEST(test_theory);
-        CPPUNIT_TEST(test_theoryDefinition);
-    CPPUNIT_TEST_SUITE_END();
-
-public:
-    virtual void setUp();
-    virtual void tearDown();
-
-    void test_term();
-    void test_atomargs();
-    void test_literal();
-    void test_bdaggr();
-    void test_hdaggr();
-    void test_conjunction();
-    void test_disjunction();
-    void test_rule();
-    void test_define();
-    void test_optimize();
-    void test_show();
-    void test_include();
-    void test_csp();
-    void test_edge();
-    void test_project();
-    void test_heuristic();
-    void test_theory();
-    void test_theoryDefinition();
-
-    virtual ~TestNongroundGrammar();
-
-    std::string parse(std::string const &str);
-};
-
-// }}}
-
 // {{{ definition of TestNongroundProgramBuilder
 
 // {{{ id vectors
@@ -994,13 +943,8 @@ std::string TestNongroundProgramBuilder::toString() {
 TestNongroundProgramBuilder::~TestNongroundProgramBuilder() { }
 
 // }}}
-// {{{ definition of TestNongroundGrammar
 
-void TestNongroundGrammar::setUp() { }
-
-void TestNongroundGrammar::tearDown() { }
-
-std::string TestNongroundGrammar::parse(std::string const &str) {
+std::string parse(std::string const &str) {
     TestNongroundProgramBuilder pb;
     NonGroundParser ngp(pb);
     ngp.pushStream("-", std::unique_ptr<std::istream>(new std::stringstream(str)));
@@ -1008,333 +952,333 @@ std::string TestNongroundGrammar::parse(std::string const &str) {
     return pb.toString();
 }
 
-void TestNongroundGrammar::test_term() {
-    // testing constants
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(x)."), parse("p(x)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(1)."), parse("p(1)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(\"1\")."), parse("p(\"1\")."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(#inf)."), parse("p(#inf)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(#sup)."), parse("p(#sup)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(X)."), parse("p(X)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(_)."), parse("p(_)."));
-    // absolute
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(|1|)."), parse("p(|1|)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(|1;2;3|)."), parse("p(|1;2;3|)."));
-    // lua function calls
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(@f())."), parse("p(@f())."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(@f(1))."), parse("p(@f(1))."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(@f(1,2))."), parse("p(@f(1,2))."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(@f(1,2,3))."), parse("p(@f(1,2,3))."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(@f(;;;1,2;3))."), parse("p(@f(;;;1,2;3))."));
-    // function symbols
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(f)."), parse("p(f())."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(f(1))."), parse("p(f(1))."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(f(1,2))."), parse("p(f(1,2))."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(f(1,2,3))."), parse("p(f(1,2,3))."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(f(;;;1,2;3))."), parse("p(f(;;;1,2;3))."));
-    // tuples / parenthesis
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np((()))."), parse("p(())."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(((1)))."), parse("p((1))."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(((1,2)))."), parse("p((1,2))."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(((1,2,3)))."), parse("p((1,2,3))."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np((();();();(1,2);(3,)))."), parse("p((;;;1,2;3,))."));
-    // unary operations
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np((-1))."), parse("p(-1)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np((~1))."), parse("p(~1)."));
-    // binary operations
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np((1**2))."), parse("p(1**2)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np((1\\2))."), parse("p(1\\2)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np((1/2))."), parse("p(1/2)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np((1*2))."), parse("p(1*2)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np((1-2))."), parse("p(1-2)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np((1+2))."), parse("p(1+2)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np((1&2))."), parse("p(1&2)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np((1?2))."), parse("p(1?2)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np((1^2))."), parse("p(1^2)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np((1..2))."), parse("p(1..2)."));
-    // precedence
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(((1+2)+((3*4)*(5**(6**7)))))."), parse("p(1+2+3*4*5**6**7)."));
-    // nesting
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np((f(1,(();();();(1,(x..Y));(3)),3)+p(f(1,#sup,3))))."), parse("p(f(1,(;;;1,x..Y;3),3)+p(f(1,#sup,3)))."));
+} // namespace
+
+TEST_CASE("input-nongroundprogrambuilder") {
+
+    SECTION("term") {
+        // testing constants
+        REQUIRE("#program base().\np(x)." == parse("p(x)."));
+        REQUIRE("#program base().\np(1)." == parse("p(1)."));
+        REQUIRE("#program base().\np(\"1\")." == parse("p(\"1\")."));
+        REQUIRE("#program base().\np(#inf)." == parse("p(#inf)."));
+        REQUIRE("#program base().\np(#sup)." == parse("p(#sup)."));
+        REQUIRE("#program base().\np(X)." == parse("p(X)."));
+        REQUIRE("#program base().\np(_)." == parse("p(_)."));
+        // absolute
+        REQUIRE("#program base().\np(|1|)." == parse("p(|1|)."));
+        REQUIRE("#program base().\np(|1;2;3|)." == parse("p(|1;2;3|)."));
+        // lua function calls
+        REQUIRE("#program base().\np(@f())." == parse("p(@f())."));
+        REQUIRE("#program base().\np(@f(1))." == parse("p(@f(1))."));
+        REQUIRE("#program base().\np(@f(1,2))." == parse("p(@f(1,2))."));
+        REQUIRE("#program base().\np(@f(1,2,3))." == parse("p(@f(1,2,3))."));
+        REQUIRE("#program base().\np(@f(;;;1,2;3))." == parse("p(@f(;;;1,2;3))."));
+        // function symbols
+        REQUIRE("#program base().\np(f)." == parse("p(f())."));
+        REQUIRE("#program base().\np(f(1))." == parse("p(f(1))."));
+        REQUIRE("#program base().\np(f(1,2))." == parse("p(f(1,2))."));
+        REQUIRE("#program base().\np(f(1,2,3))." == parse("p(f(1,2,3))."));
+        REQUIRE("#program base().\np(f(;;;1,2;3))." == parse("p(f(;;;1,2;3))."));
+        // tuples / parenthesis
+        REQUIRE("#program base().\np((()))." == parse("p(())."));
+        REQUIRE("#program base().\np(((1)))." == parse("p((1))."));
+        REQUIRE("#program base().\np(((1,2)))." == parse("p((1,2))."));
+        REQUIRE("#program base().\np(((1,2,3)))." == parse("p((1,2,3))."));
+        REQUIRE("#program base().\np((();();();(1,2);(3,)))." == parse("p((;;;1,2;3,))."));
+        // unary operations
+        REQUIRE("#program base().\np((-1))." == parse("p(-1)."));
+        REQUIRE("#program base().\np((~1))." == parse("p(~1)."));
+        // binary operations
+        REQUIRE("#program base().\np((1**2))." == parse("p(1**2)."));
+        REQUIRE("#program base().\np((1\\2))." == parse("p(1\\2)."));
+        REQUIRE("#program base().\np((1/2))." == parse("p(1/2)."));
+        REQUIRE("#program base().\np((1*2))." == parse("p(1*2)."));
+        REQUIRE("#program base().\np((1-2))." == parse("p(1-2)."));
+        REQUIRE("#program base().\np((1+2))." == parse("p(1+2)."));
+        REQUIRE("#program base().\np((1&2))." == parse("p(1&2)."));
+        REQUIRE("#program base().\np((1?2))." == parse("p(1?2)."));
+        REQUIRE("#program base().\np((1^2))." == parse("p(1^2)."));
+        REQUIRE("#program base().\np((1..2))." == parse("p(1..2)."));
+        // precedence
+        REQUIRE("#program base().\np(((1+2)+((3*4)*(5**(6**7)))))." == parse("p(1+2+3*4*5**6**7)."));
+        // nesting
+        REQUIRE("#program base().\np((f(1,(();();();(1,(x..Y));(3)),3)+p(f(1,#sup,3))))." == parse("p(f(1,(;;;1,x..Y;3),3)+p(f(1,#sup,3)))."));
+    }
+
+    SECTION("atomargs") {
+        // identifier
+        REQUIRE("#program base().\np." == parse("p."));
+        // identifier LPAREN argvec RPAREN
+        REQUIRE("#program base().\np." == parse("p()."));
+        REQUIRE("#program base().\np(1)." == parse("p(1)."));
+        REQUIRE("#program base().\np(;;;1,2;3,4)." == parse("p(;;;1,2;3,4)."));
+        // identifier LPAREN MUL RPAREN
+        REQUIRE("#program base().\np(_)." == parse("p(_)."));
+        // identifier LPAREN MUL cpredargvec RPAREN
+        REQUIRE("#program base().\np(_,1)." == parse("p(_,1)."));
+        REQUIRE("#program base().\np(_,1,2)." == parse("p(_,1,2)."));
+        REQUIRE("#program base().\np(_,1,2;2,3)." == parse("p(_,1,2;2,3)."));
+        // identifier LPAREN MUL spredargvec RPAREN
+        REQUIRE("#program base().\np(_;1)." == parse("p(_;1)."));
+        REQUIRE("#program base().\np(_;1,2)." == parse("p(_;1,2)."));
+        REQUIRE("#program base().\np(_;1,2;2,3)." == parse("p(_;1,2;2,3)."));
+        // identifier LPAREN argvec COMMAMUL MUL RPAREN
+        REQUIRE("#program base().\np(1,_)." == parse("p(1,_)."));
+        REQUIRE("#program base().\np(1,2,_)." == parse("p(1,2,_)."));
+        // identifier LPAREN argvec COMMAMUL MUL cpredargvec RPAREN
+        REQUIRE("#program base().\np(1,2,_,3,_;_)." == parse("p(1,2,_,3,_;_)."));
+        REQUIRE("#program base().\np(1,2,_,3,4,_;_)." == parse("p(1,2,_,3,4,_;_)."));
+        // identifier LPAREN argvec COMMAMUL MUL spredargvec RPAREN
+        REQUIRE("#program base().\np(1,2,_;3,_;_)." == parse("p(1,2,_;3,_;_)."));
+        REQUIRE("#program base().\np(1,2,_;3,4,_;_)." == parse("p(1,2,_;3,4,_;_)."));
+        // identifier LPAREN argvec SEMMUL MUL RPAREN
+        REQUIRE("#program base().\np(1;_)." == parse("p(1;_)."));
+        REQUIRE("#program base().\np(1,2;_)." == parse("p(1,2;_)."));
+        // identifier LPAREN argvec SEMMUL MUL cpredargvec RPAREN
+        REQUIRE("#program base().\np(1,2;_,3,_;_)." == parse("p(1,2;_,3,_;_)."));
+        REQUIRE("#program base().\np(1,2;_,3,4,_;_)." == parse("p(1,2;_,3,4,_;_)."));
+        // identifier LPAREN argvec SEMMUL MUL spredargvec RPAREN
+        REQUIRE("#program base().\np(1,2;_;3,_;_)." == parse("p(1,2;_;3,_;_)."));
+        REQUIRE("#program base().\np(1,2;_;3,4,_;_)." == parse("p(1,2;_;3,4,_;_)."));
+    }
+
+    SECTION("literal") {
+        // TRUE
+        REQUIRE("#program base().\n#true." == parse("#true."));
+        // FALSE
+        REQUIRE("#program base().\n#false." == parse("#false."));
+        // atom
+        REQUIRE("#program base().\np." == parse("p."));
+        REQUIRE("#program base().\n-p." == parse("-p."));
+        // NOT atom
+        REQUIRE("#program base().\n#not p." == parse("not p."));
+        // NOT NOT atom
+        REQUIRE("#program base().\n#not #not p." == parse("not not p."));
+        // term cmp term
+        REQUIRE("#program base().\n(1+2)!=3." == parse("1+2!=3."));
+    }
+
+    SECTION("bdaggr") {
+        // aggregatefunction
+        REQUIRE("#program base().\n#false:-#count{}." == parse(":-{}."));
+        REQUIRE("#program base().\n#false:-#sum{}." == parse(":-#sum{}."));
+        REQUIRE("#program base().\n#false:-#sum+{}." == parse(":-#sum+{}."));
+        REQUIRE("#program base().\n#false:-#min{}." == parse(":-#min{}."));
+        REQUIRE("#program base().\n#false:-#max{}." == parse(":-#max{}."));
+        REQUIRE("#program base().\n#false:-#count{}." == parse(":-#count{}."));
+        // LBRACE altbodyaggrelemvec RBRACE
+        REQUIRE("#program base().\n#false:-#count{p:;p:;p:p;p:p,q}." == parse(":-{p;p:;p:p;p:p,q}."));
+        // aggregatefunction LBRACE bodyaggrelemvec RBRACE
+        REQUIRE("#program base().\n#false:-#count{:;:p;:p,q}." == parse(":-#count{:;:p;:p,q}."));
+        REQUIRE("#program base().\n#false:-#count{p:;p,q:}." == parse(":-#count{p;p,q}."));
+        REQUIRE("#program base().\n#false:-#count{p:;p,q:}." == parse(":-#count{p:;p,q:}."));
+        REQUIRE("#program base().\n#false:-#count{p:q,r,s}." == parse(":-#count{p:q,r,s}."));
+        // test lower
+        REQUIRE("#program base().\n#false:-1<=#count{}." == parse(":-1{}."));
+        REQUIRE("#program base().\n#false:-1<#count{}." == parse(":-1<{}."));
+        REQUIRE("#program base().\n#false:-1<=#count{}." == parse(":-1<={}."));
+        REQUIRE("#program base().\n#false:-1>#count{}." == parse(":-1>{}."));
+        REQUIRE("#program base().\n#false:-1>=#count{}." == parse(":-1>={}."));
+        REQUIRE("#program base().\n#false:-1=#count{}." == parse(":-1=={}."));
+        REQUIRE("#program base().\n#false:-1=#count{}." == parse(":-1={}."));
+        // test upper
+        REQUIRE("#program base().\n#false:-1>=#count{}." == parse(":-{}1."));
+        REQUIRE("#program base().\n#false:-1<#count{}." == parse(":-{}>1."));
+        REQUIRE("#program base().\n#false:-1<=#count{}." == parse(":-{}>=1."));
+        REQUIRE("#program base().\n#false:-1>#count{}." == parse(":-{}<1."));
+        REQUIRE("#program base().\n#false:-1>=#count{}." == parse(":-{}<=1."));
+        REQUIRE("#program base().\n#false:-1=#count{}." == parse(":-{}==1."));
+        REQUIRE("#program base().\n#false:-1=#count{}." == parse(":-{}=1."));
+        // test both
+        REQUIRE("#program base().\n#false:-1<=#count{}<=2." == parse(":-1{}2."));
+        REQUIRE("#program base().\n#false:-1<#count{}<2." == parse(":-1<{}<2."));
+    }
+
+    SECTION("hdaggr") {
+        // aggregatefunction
+        REQUIRE("#program base().\n#count{}." == parse("{}."));
+        REQUIRE("#program base().\n#sum{}." == parse("#sum{}."));
+        REQUIRE("#program base().\n#sum+{}." == parse("#sum+{}."));
+        REQUIRE("#program base().\n#min{}." == parse("#min{}."));
+        REQUIRE("#program base().\n#max{}." == parse("#max{}."));
+        REQUIRE("#program base().\n#count{}." == parse("#count{}."));
+        // LBRACE altheadaggrelemvec RBRACE
+        REQUIRE("#program base().\n#count{p:;p:;p:p;p:p,q}." == parse("{p;p:;p:p;p:p,q}."));
+        // aggregatefunction LBRACE headaggrelemvec RBRACE
+        REQUIRE("#program base().\n#count{:p:;:q:r;:s:t,u}." == parse("#count{:p;:q:r;:s:t,u}."));
+        REQUIRE("#program base().\n#count{p:q:;r,s:t:}." == parse("#count{p:q;r,s:t}."));
+        REQUIRE("#program base().\n#count{p:q:;r,s:t:}." == parse("#count{p:q:;r,s:t:}."));
+        REQUIRE("#program base().\n#count{p:q:x,y,z;r,s:t:q,w,e}." == parse("#count{p:q:x,y,z;r,s:t:q,w,e}."));
+        // test lower
+        REQUIRE("#program base().\n1<=#count{}." == parse("1{}."));
+        REQUIRE("#program base().\n1<#count{}." == parse("1<{}."));
+        REQUIRE("#program base().\n1<=#count{}." == parse("1<={}."));
+        REQUIRE("#program base().\n1>#count{}." == parse("1>{}."));
+        REQUIRE("#program base().\n1>=#count{}." == parse("1>={}."));
+        REQUIRE("#program base().\n1=#count{}." == parse("1=={}."));
+        REQUIRE("#program base().\n1=#count{}." == parse("1={}."));
+        // test upper
+        REQUIRE("#program base().\n1>=#count{}." == parse("{}1."));
+        REQUIRE("#program base().\n1<#count{}." == parse("{}>1."));
+        REQUIRE("#program base().\n1<=#count{}." == parse("{}>=1."));
+        REQUIRE("#program base().\n1>#count{}." == parse("{}<1."));
+        REQUIRE("#program base().\n1>=#count{}." == parse("{}<=1."));
+        REQUIRE("#program base().\n1=#count{}." == parse("{}==1."));
+        REQUIRE("#program base().\n1=#count{}." == parse("{}=1."));
+        // test both
+        REQUIRE("#program base().\n1<=#count{}<=2." == parse("1{}2."));
+        REQUIRE("#program base().\n1<#count{}<2." == parse("1<{}<2."));
+    }
+
+    SECTION("conjunction") {
+        REQUIRE("#program base().\n#false:-a:." == parse(":-a:."));
+        REQUIRE("#program base().\n#false:-a:b." == parse(":-a:b."));
+        REQUIRE("#program base().\n#false:-a:b,c." == parse(":-a:b,c."));
+        REQUIRE("#program base().\n#false:-a:b,c;x." == parse(":-a:b,c;x."));
+    }
+
+    SECTION("disjunction") {
+        // Note: first disjunction element moves to the end (parsing related)
+        // literal COLON litvec
+        REQUIRE("#program base().\na." == parse("a."));
+        REQUIRE("#program base().\na:b." == parse("a:b."));
+        REQUIRE("#program base().\na:b,c." == parse("a:b,c."));
+        // literal COMMA disjunctionsep literal optcondition
+        REQUIRE("#program base().\nb:;c:;a:." == parse("a,b,c."));
+        REQUIRE("#program base().\nb:;c:;d:;a:." == parse("a,b;c;d."));
+        REQUIRE("#program base().\nb:;c:d,e;a:." == parse("a,b,c:d,e."));
+        REQUIRE("#program base().\nb:d,e;c:;a:." == parse("a,b:d,e;c."));
+        // literal SEM disjunctionsep literal optcondition
+        REQUIRE("#program base().\nb:;c:;a:." == parse("a;b,c."));
+        REQUIRE("#program base().\nb:;c:;d:;a:." == parse("a;b;c;d."));
+        REQUIRE("#program base().\nb:;c:d,e;a:." == parse("a;b,c:d,e."));
+        REQUIRE("#program base().\nb:d,e;c:;a:." == parse("a;b:d,e;c."));
+        // literal COLON litvec SEM disjunctionsep literal optcondition
+        REQUIRE("#program base().\nc:;a:." == parse("a;c."));
+        REQUIRE("#program base().\nc:;a:x." == parse("a:x;c."));
+        REQUIRE("#program base().\nc:;a:x,y." == parse("a:x,y;c."));
+        REQUIRE("#program base().\nb:;c:;a:x,y." == parse("a:x,y;b,c."));
+        REQUIRE("#program base().\nb:;c:;d:;a:x,y." == parse("a:x,y;b;c;d."));
+        REQUIRE("#program base().\nb:;c:d,e;a:x,y." == parse("a:x,y;b,c:d,e."));
+        REQUIRE("#program base().\nb:d,e;c:;a:x,y." == parse("a:x,y;b:d,e;c."));
+    }
+
+    SECTION("rule") {
+        // body literal
+        REQUIRE("#program base().\n#false:-a;x." == parse(":-a,x."));
+        REQUIRE("#program base().\n#false:-a;x." == parse(":-a;x."));
+        REQUIRE("#program base().\n#false:-a;x." == parse(":-a,x."));
+        // body aggregate
+        REQUIRE("#program base().\n#false:-#count{};#count{}." == parse(":-{},{}."));
+        REQUIRE("#program base().\n#false:-#count{};#count{}." == parse(":-{};{}."));
+        REQUIRE("#program base().\n#false:-#not #count{};#not #count{}." == parse(":-not{},not{}."));
+        REQUIRE("#program base().\n#false:-#not #count{};#not #count{}." == parse(":-not{};not{}."));
+        REQUIRE("#program base().\n#false:-#not #not #count{};#not #not #count{}." == parse(":-not not{},not not{}."));
+        REQUIRE("#program base().\n#false:-#not #not #count{};#not #not #count{}." == parse(":-not not{};not not{}."));
+        REQUIRE("#program base().\n#false:-#not #not nott<=#count{};#not #not nott<=#count{}." == parse(":-not not nott{},not not nott{}."));
+        REQUIRE("#program base().\n#false:-#not #not nott<=#count{};#not #not nott<=#count{}." == parse(":-not not nott{};not not nott{}."));
+        // conjunction
+        REQUIRE("#program base().\n#false:-a:;b:." == parse(":-a:;b:."));
+        // head literal
+        REQUIRE("#program base().\na." == parse("a."));
+        // head aggregate
+        REQUIRE("#program base().\n#count{}." == parse("{}."));
+        REQUIRE("#program base().\nnott<=#count{}." == parse("nott{}."));
+        // disjunction
+        REQUIRE("#program base().\nb:;a:." == parse("a,b."));
+        // rules
+        REQUIRE("#program base().\na." == parse("a."));
+        REQUIRE("#program base().\na:-b." == parse("a:-b."));
+        REQUIRE("#program base().\na:-b;c." == parse("a:-b,c."));
+        REQUIRE("#program base().\n#false." == parse(":-."));
+        REQUIRE("#program base().\n#false:-b." == parse(":-b."));
+        REQUIRE("#program base().\n#false:-b;c." == parse(":-b,c."));
+    }
+
+    SECTION("define") {
+        REQUIRE("#program base().\n#const a=10." == parse("#const a=10."));
+    }
+
+    SECTION("optimize") {
+        REQUIRE("#program base().\n:~p(X,Y).[X@Y,a]" == parse(":~ p(X,Y). [X@Y,a]"));
+        REQUIRE("#program base().\n:~p(X,Y);r;s.[X@0]" == parse(":~ p(X,Y),r,s. [X]"));
+        REQUIRE("#program base().\n:~p(X,Y);s.[X@Y,a]\n:~q(Y).[Y@f]\n:~.[1@0]" == parse("#minimize { X@Y,a : p(X,Y),s; Y@f : q(Y); 1 }."));
+        REQUIRE("#program base()." == parse("#minimize { }."));
+        REQUIRE("#program base().\n:~p(X,Y);r.[(-X)@Y,a]\n:~q(Y).[(-Y)@f]\n:~.[(-2)@0]" == parse("#maximize { X@Y,a : p(X,Y), r; Y@f : q(Y); 2 }."));
+        REQUIRE("#program base()." == parse("#maximize { }."));
+    }
+
+    SECTION("show") {
+        REQUIRE("#program base().\n#showsig p/1." == parse("#show p/1."));
+        REQUIRE("#program base().\n#showsig p/1." == parse("#show p  /  1."));
+        REQUIRE("#program base().\n#showsig -p/1." == parse("#show -p/1."));
+        REQUIRE("#program base().\n#show ((-p)/(-1))." == parse("#show -p/-1."));
+        REQUIRE("#program base().\n#show X:p(X);1<=#count{q(X):p(X)}." == parse("#show X:p(X), 1 { q(X):p(X) }."));
+    }
+
+    SECTION("include") {
+        std::ofstream("/tmp/test_include.lp") << "b.\n";
+        REQUIRE("#program base().\na.\nb.\n#program base().\nc.\nd." == parse("a.\n#include \"/tmp/test_include.lp\".\nc.\nd.\n"));
+    }
+
+    SECTION("csp") {
+        REQUIRE("#program base().\n1$<=1$*$x$<=10." == parse("1 $<= $x $<= 10."));
+        REQUIRE("#program base().\n1$*$a$<=X$*$x$+8$*$X$<=10:-p(X)." == parse("1 $* $a $<= $x $* X $+ 8 $* $X $<= 10 :- p(X)."));
+        REQUIRE("#program base().\n#false:-a;b;not #disjoint{a:1$*$a:a,a,b:1$*$b:b}." == parse("#disjoint{a:$a:a,a; b:$b:b} :- a, b."));
+    }
+
+    SECTION("edge") {
+        REQUIRE("#program base().\n#edge(a,b)." == parse("#edge (a, b)."));
+        REQUIRE("#program base().\n#edge(a,b;e,f)." == parse("#edge (a, b;e,f):."));
+        REQUIRE("#program base().\n#edge(a,b;e,f):p;q." == parse("#edge (a, b;e,f):p,q."));
+    }
+
+    SECTION("project") {
+        REQUIRE("#program base().\n#project a/1." == parse("#project a/1."));
+        REQUIRE("#program base().\n#project -a/1." == parse("#project -a/1."));
+        REQUIRE("#program base().\n#project a." == parse("#project a."));
+        REQUIRE("#program base().\n#project a." == parse("#project a:."));
+        REQUIRE("#program base().\n#project a:b;c." == parse("#project a:b,c."));
+    }
+
+    SECTION("heuristic") {
+        REQUIRE("#program base().\n#heuristic p:q.[1@2,level]" == parse("#heuristic p : q. [1@2,level]"));
+        REQUIRE("#program base().\n#heuristic p:q.[1@2,sign]" == parse("#heuristic p : q. [1@2,sign]"));
+        REQUIRE("#program base().\n#heuristic p:q.[1@2,true]" == parse("#heuristic p : q. [1@2,true]"));
+        REQUIRE("#program base().\n#heuristic p:q.[1@2,false]" == parse("#heuristic p : q. [1@2,false]"));
+        REQUIRE("#program base().\n#heuristic p:q.[1@2,factor]" == parse("#heuristic p : q. [1@2,factor]"));
+        REQUIRE("#program base().\n#heuristic p:q;r.[1@2,init]" == parse("#heuristic p : q,r. [1@2,init]"));
+        REQUIRE("#program base().\n#heuristic p.[1@0,init]" == parse("#heuristic p:. [1,init]"));
+        REQUIRE("#program base().\n#heuristic p.[1@0,init]" == parse("#heuristic p. [1,init]"));
+    }
+
+    SECTION("theory") {
+        // NOTE: things would be less error prone if : and ; would not be valid theory connectives
+        REQUIRE("#program base().\n&x{}." == parse("&x { }."));
+        REQUIRE("#program base().\n#false:-&x{}." == parse(":-&x { }."));
+        REQUIRE("#program base().\n&x{} < 42." == parse("&x { } < 42."));
+        REQUIRE("#program base().\n#false:-&x{} < 42." == parse(":-&x { } < 42."));
+        REQUIRE("#program base().\n#false:-&x{} < 42 + 17 ^ (- 1)." == parse(":-&x { } < 42+17^(-1)."));
+        REQUIRE("#program base().\n#false:-&x{} < 42 + 17 ^ - 1." == parse(":-&x { } < 42+17^ -1."));
+        REQUIRE("#program base().\n#false:-&x{} < 42 + 17 ^- 1." == parse(":-&x { } < 42+17^-1."));
+        REQUIRE("#program base().\n&x{u,v: ; u: ; u: ; : ; :p ; :p,q}." == parse("&x { u,v; u ; u: ; : ; :p; :p,q }."));
+        REQUIRE("#program base().\n&x{u: ; u: ; : ; :p ; :p,q}." == parse("&x { u ; u: ; : ; :p; :p,q }."));
+        REQUIRE("#program base().\n&x{i(u + v ^ (a +- 3 * b),7 + (1,) *** (2) - () + [a ; b] ? {1 ; 2 ; 3}):}." == parse("&x { i(u+v^(a+- 3 * b),7+(1,)***(2)-()+[a,b]?{1,2,3}) }."));
+    }
+
+    SECTION("theoryDefinition") {
+        REQUIRE("#program base().\n#theory t{}." == parse("#theory t { }."));
+        REQUIRE("#program base().\n#theory t{x{}}." == parse("#theory t { x { } }."));
+        REQUIRE("#program base().\n#theory t{x{};y{}}." == parse("#theory t { x { }; y{} }."));
+        REQUIRE("#program base().\n#theory t{x{++ :42,unary}}." == parse("#theory t { x { ++ : 42, unary } }."));
+        REQUIRE("#program base().\n#theory t{x{++ :42,unary,** :21,binary,left,-* :1,binary,right}}." == parse("#theory t { x { ++ : 42, unary; ** : 21, binary, left; -* : 1, binary, right } }."));
+        REQUIRE("#program base().\n#theory t{x{};&a/0:x,any}." == parse("#theory t { x{}; &a/0: x, any }."));
+        REQUIRE("#program base().\n#theory t{x{};&a/0:x,any;&b/0:x,head;&c/0:x,body;&d/0:x,directive}." == parse("#theory t { x{}; &a/0: x, any; &b/0: x, head; &c/0: x, body; &d/0: x, directive }."));
+        REQUIRE("#program base().\n#theory t{x{};&a/0:x,{+,-,++,**},x,any}." == parse("#theory t { x{}; &a/0: x, {+,-, ++, **}, x, any }."));
+    }
+
 }
-
-void TestNongroundGrammar::test_atomargs() {
-    // identifier
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np."), parse("p."));
-    // identifier LPAREN argvec RPAREN
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np."), parse("p()."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(1)."), parse("p(1)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(;;;1,2;3,4)."), parse("p(;;;1,2;3,4)."));
-    // identifier LPAREN MUL RPAREN
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(_)."), parse("p(_)."));
-    // identifier LPAREN MUL cpredargvec RPAREN
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(_,1)."), parse("p(_,1)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(_,1,2)."), parse("p(_,1,2)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(_,1,2;2,3)."), parse("p(_,1,2;2,3)."));
-    // identifier LPAREN MUL spredargvec RPAREN
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(_;1)."), parse("p(_;1)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(_;1,2)."), parse("p(_;1,2)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(_;1,2;2,3)."), parse("p(_;1,2;2,3)."));
-    // identifier LPAREN argvec COMMAMUL MUL RPAREN
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(1,_)."), parse("p(1,_)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(1,2,_)."), parse("p(1,2,_)."));
-    // identifier LPAREN argvec COMMAMUL MUL cpredargvec RPAREN
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(1,2,_,3,_;_)."), parse("p(1,2,_,3,_;_)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(1,2,_,3,4,_;_)."), parse("p(1,2,_,3,4,_;_)."));
-    // identifier LPAREN argvec COMMAMUL MUL spredargvec RPAREN
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(1,2,_;3,_;_)."), parse("p(1,2,_;3,_;_)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(1,2,_;3,4,_;_)."), parse("p(1,2,_;3,4,_;_)."));
-    // identifier LPAREN argvec SEMMUL MUL RPAREN
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(1;_)."), parse("p(1;_)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(1,2;_)."), parse("p(1,2;_)."));
-    // identifier LPAREN argvec SEMMUL MUL cpredargvec RPAREN
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(1,2;_,3,_;_)."), parse("p(1,2;_,3,_;_)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(1,2;_,3,4,_;_)."), parse("p(1,2;_,3,4,_;_)."));
-    // identifier LPAREN argvec SEMMUL MUL spredargvec RPAREN
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(1,2;_;3,_;_)."), parse("p(1,2;_;3,_;_)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np(1,2;_;3,4,_;_)."), parse("p(1,2;_;3,4,_;_)."));
-}
-
-void TestNongroundGrammar::test_literal() {
-    // TRUE
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#true."), parse("#true."));
-    // FALSE
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false."), parse("#false."));
-    // atom
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\np."), parse("p."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n-p."), parse("-p."));
-    // NOT atom
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#not p."), parse("not p."));
-    // NOT NOT atom
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#not #not p."), parse("not not p."));
-    // term cmp term
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n(1+2)!=3."), parse("1+2!=3."));
-}
-
-void TestNongroundGrammar::test_bdaggr() {
-    // aggregatefunction
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#count{}."), parse(":-{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#sum{}."), parse(":-#sum{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#sum+{}."), parse(":-#sum+{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#min{}."), parse(":-#min{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#max{}."), parse(":-#max{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#count{}."), parse(":-#count{}."));
-    // LBRACE altbodyaggrelemvec RBRACE
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#count{p:;p:;p:p;p:p,q}."), parse(":-{p;p:;p:p;p:p,q}."));
-    // aggregatefunction LBRACE bodyaggrelemvec RBRACE
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#count{:;:p;:p,q}."), parse(":-#count{:;:p;:p,q}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#count{p:;p,q:}."), parse(":-#count{p;p,q}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#count{p:;p,q:}."), parse(":-#count{p:;p,q:}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#count{p:q,r,s}."), parse(":-#count{p:q,r,s}."));
-    // test lower
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-1<=#count{}."), parse(":-1{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-1<#count{}."), parse(":-1<{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-1<=#count{}."), parse(":-1<={}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-1>#count{}."), parse(":-1>{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-1>=#count{}."), parse(":-1>={}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-1=#count{}."), parse(":-1=={}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-1=#count{}."), parse(":-1={}."));
-    // test upper
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-1>=#count{}."), parse(":-{}1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-1<#count{}."), parse(":-{}>1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-1<=#count{}."), parse(":-{}>=1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-1>#count{}."), parse(":-{}<1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-1>=#count{}."), parse(":-{}<=1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-1=#count{}."), parse(":-{}==1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-1=#count{}."), parse(":-{}=1."));
-    // test both
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-1<=#count{}<=2."), parse(":-1{}2."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-1<#count{}<2."), parse(":-1<{}<2."));
-}
-
-void TestNongroundGrammar::test_hdaggr() {
-    // aggregatefunction
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#count{}."), parse("{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#sum{}."), parse("#sum{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#sum+{}."), parse("#sum+{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#min{}."), parse("#min{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#max{}."), parse("#max{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#count{}."), parse("#count{}."));
-    // LBRACE altheadaggrelemvec RBRACE
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#count{p:;p:;p:p;p:p,q}."), parse("{p;p:;p:p;p:p,q}."));
-    // aggregatefunction LBRACE headaggrelemvec RBRACE
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#count{:p:;:q:r;:s:t,u}."), parse("#count{:p;:q:r;:s:t,u}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#count{p:q:;r,s:t:}."), parse("#count{p:q;r,s:t}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#count{p:q:;r,s:t:}."), parse("#count{p:q:;r,s:t:}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#count{p:q:x,y,z;r,s:t:q,w,e}."), parse("#count{p:q:x,y,z;r,s:t:q,w,e}."));
-    // test lower
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1<=#count{}."), parse("1{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1<#count{}."), parse("1<{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1<=#count{}."), parse("1<={}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1>#count{}."), parse("1>{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1>=#count{}."), parse("1>={}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1=#count{}."), parse("1=={}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1=#count{}."), parse("1={}."));
-    // test upper
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1>=#count{}."), parse("{}1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1<#count{}."), parse("{}>1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1<=#count{}."), parse("{}>=1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1>#count{}."), parse("{}<1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1>=#count{}."), parse("{}<=1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1=#count{}."), parse("{}==1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1=#count{}."), parse("{}=1."));
-    // test both
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1<=#count{}<=2."), parse("1{}2."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1<#count{}<2."), parse("1<{}<2."));
-}
-
-void TestNongroundGrammar::test_conjunction() {
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-a:."), parse(":-a:."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-a:b."), parse(":-a:b."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-a:b,c."), parse(":-a:b,c."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-a:b,c;x."), parse(":-a:b,c;x."));
-}
-
-void TestNongroundGrammar::test_disjunction() {
-    // Note: first disjunction element moves to the end (parsing related)
-    // literal COLON litvec
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\na."), parse("a."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\na:b."), parse("a:b."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\na:b,c."), parse("a:b,c."));
-    // literal COMMA disjunctionsep literal optcondition
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\nb:;c:;a:."), parse("a,b,c."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\nb:;c:;d:;a:."), parse("a,b;c;d."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\nb:;c:d,e;a:."), parse("a,b,c:d,e."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\nb:d,e;c:;a:."), parse("a,b:d,e;c."));
-    // literal SEM disjunctionsep literal optcondition
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\nb:;c:;a:."), parse("a;b,c."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\nb:;c:;d:;a:."), parse("a;b;c;d."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\nb:;c:d,e;a:."), parse("a;b,c:d,e."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\nb:d,e;c:;a:."), parse("a;b:d,e;c."));
-    // literal COLON litvec SEM disjunctionsep literal optcondition
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\nc:;a:."), parse("a;c."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\nc:;a:x."), parse("a:x;c."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\nc:;a:x,y."), parse("a:x,y;c."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\nb:;c:;a:x,y."), parse("a:x,y;b,c."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\nb:;c:;d:;a:x,y."), parse("a:x,y;b;c;d."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\nb:;c:d,e;a:x,y."), parse("a:x,y;b,c:d,e."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\nb:d,e;c:;a:x,y."), parse("a:x,y;b:d,e;c."));
-}
-
-void TestNongroundGrammar::test_rule() {
-    // body literal
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-a;x."), parse(":-a,x."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-a;x."), parse(":-a;x."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-a;x."), parse(":-a,x."));
-    // body aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#count{};#count{}."), parse(":-{},{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#count{};#count{}."), parse(":-{};{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#not #count{};#not #count{}."), parse(":-not{},not{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#not #count{};#not #count{}."), parse(":-not{};not{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#not #not #count{};#not #not #count{}."), parse(":-not not{},not not{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#not #not #count{};#not #not #count{}."), parse(":-not not{};not not{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#not #not nott<=#count{};#not #not nott<=#count{}."), parse(":-not not nott{},not not nott{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-#not #not nott<=#count{};#not #not nott<=#count{}."), parse(":-not not nott{};not not nott{}."));
-    // conjunction
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-a:;b:."), parse(":-a:;b:."));
-    // head literal
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\na."), parse("a."));
-    // head aggregate
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#count{}."), parse("{}."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\nnott<=#count{}."), parse("nott{}."));
-    // disjunction
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\nb:;a:."), parse("a,b."));
-    // rules
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\na."), parse("a."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\na:-b."), parse("a:-b."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\na:-b;c."), parse("a:-b,c."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false."), parse(":-."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-b."), parse(":-b."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-b;c."), parse(":-b,c."));
-}
-
-void TestNongroundGrammar::test_define() {
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#const a=10."), parse("#const a=10."));
-}
-
-void TestNongroundGrammar::test_optimize() {
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n:~p(X,Y).[X@Y,a]"), parse(":~ p(X,Y). [X@Y,a]"));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n:~p(X,Y);r;s.[X@0]"), parse(":~ p(X,Y),r,s. [X]"));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n:~p(X,Y);s.[X@Y,a]\n:~q(Y).[Y@f]\n:~.[1@0]"), parse("#minimize { X@Y,a : p(X,Y),s; Y@f : q(Y); 1 }."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base()."), parse("#minimize { }."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n:~p(X,Y);r.[(-X)@Y,a]\n:~q(Y).[(-Y)@f]\n:~.[(-2)@0]"), parse("#maximize { X@Y,a : p(X,Y), r; Y@f : q(Y); 2 }."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base()."), parse("#maximize { }."));
-}
-
-void TestNongroundGrammar::test_show() {
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#showsig p/1."), parse("#show p/1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#showsig p/1."), parse("#show p  /  1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#showsig -p/1."), parse("#show -p/1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#show ((-p)/(-1))."), parse("#show -p/-1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#show X:p(X);1<=#count{q(X):p(X)}."), parse("#show X:p(X), 1 { q(X):p(X) }."));
-}
-
-void TestNongroundGrammar::test_include() {
-    std::ofstream("/tmp/test_include.lp") << "b.\n";
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\na.\nb.\n#program base().\nc.\nd."), parse("a.\n#include \"/tmp/test_include.lp\".\nc.\nd.\n"));
-}
-
-void TestNongroundGrammar::test_csp() {
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1$<=1$*$x$<=10."), parse("1 $<= $x $<= 10."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n1$*$a$<=X$*$x$+8$*$X$<=10:-p(X)."), parse("1 $* $a $<= $x $* X $+ 8 $* $X $<= 10 :- p(X)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-a;b;not #disjoint{a:1$*$a:a,a,b:1$*$b:b}."), parse("#disjoint{a:$a:a,a; b:$b:b} :- a, b."));
-}
-
-void TestNongroundGrammar::test_edge() {
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#edge(a,b)."), parse("#edge (a, b)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#edge(a,b;e,f)."), parse("#edge (a, b;e,f):."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#edge(a,b;e,f):p;q."), parse("#edge (a, b;e,f):p,q."));
-}
-
-void TestNongroundGrammar::test_project() {
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#project a/1."), parse("#project a/1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#project -a/1."), parse("#project -a/1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#project a."), parse("#project a."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#project a."), parse("#project a:."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#project a:b;c."), parse("#project a:b,c."));
-}
-
-void TestNongroundGrammar::test_heuristic() {
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#heuristic p:q.[1@2,level]"), parse("#heuristic p : q. [1@2,level]"));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#heuristic p:q.[1@2,sign]"), parse("#heuristic p : q. [1@2,sign]"));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#heuristic p:q.[1@2,true]"), parse("#heuristic p : q. [1@2,true]"));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#heuristic p:q.[1@2,false]"), parse("#heuristic p : q. [1@2,false]"));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#heuristic p:q.[1@2,factor]"), parse("#heuristic p : q. [1@2,factor]"));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#heuristic p:q;r.[1@2,init]"), parse("#heuristic p : q,r. [1@2,init]"));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#heuristic p.[1@0,init]"), parse("#heuristic p:. [1,init]"));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#heuristic p.[1@0,init]"), parse("#heuristic p. [1,init]"));
-}
-
-void TestNongroundGrammar::test_theory() {
-    // NOTE: things would be less error prone if : and ; would not be valid theory connectives
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n&x{}."), parse("&x { }."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-&x{}."), parse(":-&x { }."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n&x{} < 42."), parse("&x { } < 42."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-&x{} < 42."), parse(":-&x { } < 42."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-&x{} < 42 + 17 ^ (- 1)."), parse(":-&x { } < 42+17^(-1)."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-&x{} < 42 + 17 ^ - 1."), parse(":-&x { } < 42+17^ -1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#false:-&x{} < 42 + 17 ^- 1."), parse(":-&x { } < 42+17^-1."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n&x{u,v: ; u: ; u: ; : ; :p ; :p,q}."), parse("&x { u,v; u ; u: ; : ; :p; :p,q }."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n&x{u: ; u: ; : ; :p ; :p,q}."), parse("&x { u ; u: ; : ; :p; :p,q }."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n&x{i(u + v ^ (a +- 3 * b),7 + (1,) *** (2) - () + [a ; b] ? {1 ; 2 ; 3}):}."), parse("&x { i(u+v^(a+- 3 * b),7+(1,)***(2)-()+[a,b]?{1,2,3}) }."));
-}
-
-void TestNongroundGrammar::test_theoryDefinition() {
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#theory t{}."), parse("#theory t { }."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#theory t{x{}}."), parse("#theory t { x { } }."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#theory t{x{};y{}}."), parse("#theory t { x { }; y{} }."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#theory t{x{++ :42,unary}}."), parse("#theory t { x { ++ : 42, unary } }."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#theory t{x{++ :42,unary,** :21,binary,left,-* :1,binary,right}}."), parse("#theory t { x { ++ : 42, unary; ** : 21, binary, left; -* : 1, binary, right } }."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#theory t{x{};&a/0:x,any}."), parse("#theory t { x{}; &a/0: x, any }."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#theory t{x{};&a/0:x,any;&b/0:x,head;&c/0:x,body;&d/0:x,directive}."), parse("#theory t { x{}; &a/0: x, any; &b/0: x, head; &c/0: x, body; &d/0: x, directive }."));
-    CPPUNIT_ASSERT_EQUAL(std::string("#program base().\n#theory t{x{};&a/0:x,{+,-,++,**},x,any}."), parse("#theory t { x{}; &a/0: x, {+,-, ++, **}, x, any }."));
-}
-
-TestNongroundGrammar::~TestNongroundGrammar() { }
-
-// }}}
-
-CPPUNIT_TEST_SUITE_REGISTRATION(TestNongroundGrammar);
 
 } } } // namespace Test Input Gringo
 

@@ -27,42 +27,11 @@
 #include "gringo/scripts.hh"
 #include "tests/gringo_module.hh"
 
-#include <cppunit/TestFixture.h>
-#include <cppunit/TestAssert.h>
-#include <cppunit/extensions/HelperMacros.h>
-#include <climits>
-#include <sstream>
+#include "tests/tests.hh"
 
 namespace Gringo { namespace Input { namespace Test {
 
-// {{{ declaration of TestNongroundLexer
-
-class TestNongroundLexer : public CppUnit::TestFixture
-{
-    CPPUNIT_TEST_SUITE(TestNongroundLexer);
-        CPPUNIT_TEST(test_lexer);
-    CPPUNIT_TEST_SUITE_END();
-
-public:
-    virtual void setUp();
-    virtual void tearDown();
-
-    void test_lexer();
-
-    virtual ~TestNongroundLexer();
-};
-
-// }}}
-
-// {{{ definition of TestNongroundLexer
-
-void TestNongroundLexer::setUp() {
-}
-
-void TestNongroundLexer::tearDown() {
-}
-
-void TestNongroundLexer::test_lexer() {
+TEST_CASE("input-nongroundlexer", "[input]") {
     std::ostringstream oss;
     Potassco::TheoryData td;
     Output::OutputBase out(td, {}, oss);
@@ -93,32 +62,28 @@ void TestNongroundLexer::test_lexer() {
     Location loc("<undef>", 0, 0, "<undef>", 0, 0);
     NonGroundGrammar::parser::semantic_type val;
 
-    CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::PYTHON), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::MINIMIZE), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::MINIMIZE), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::INFIMUM), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::INFIMUM), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::SEM), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::MUL), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::SEM), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::MUL), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::NOT), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::IDENTIFIER), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(String("xyz"), String::fromRep(val.str));
-    CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::IDENTIFIER), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(String("_xyz"), String::fromRep(val.str));
-    CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::IDENTIFIER), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(String("__xyz"), String::fromRep(val.str));
-    CPPUNIT_ASSERT_EQUAL(int(NonGroundGrammar::parser::token::IDENTIFIER), ngp.lex(&val, loc));
-    CPPUNIT_ASSERT_EQUAL(String("___xyz"), String::fromRep(val.str));
-    CPPUNIT_ASSERT_EQUAL(5u, loc.beginLine);
-    CPPUNIT_ASSERT_EQUAL(23u, loc.beginColumn);
-    CPPUNIT_ASSERT_EQUAL(0, ngp.lex(&val, loc));
+    REQUIRE(int(NonGroundGrammar::parser::token::PYTHON) == ngp.lex(&val, loc));
+    REQUIRE(int(NonGroundGrammar::parser::token::MINIMIZE) == ngp.lex(&val, loc));
+    REQUIRE(int(NonGroundGrammar::parser::token::MINIMIZE) == ngp.lex(&val, loc));
+    REQUIRE(int(NonGroundGrammar::parser::token::INFIMUM) == ngp.lex(&val, loc));
+    REQUIRE(int(NonGroundGrammar::parser::token::INFIMUM) == ngp.lex(&val, loc));
+    REQUIRE(int(NonGroundGrammar::parser::token::SEM) == ngp.lex(&val, loc));
+    REQUIRE(int(NonGroundGrammar::parser::token::MUL) == ngp.lex(&val, loc));
+    REQUIRE(int(NonGroundGrammar::parser::token::SEM) == ngp.lex(&val, loc));
+    REQUIRE(int(NonGroundGrammar::parser::token::MUL) == ngp.lex(&val, loc));
+    REQUIRE(int(NonGroundGrammar::parser::token::NOT) == ngp.lex(&val, loc));
+    REQUIRE(int(NonGroundGrammar::parser::token::IDENTIFIER) == ngp.lex(&val, loc));
+    REQUIRE(String("xyz") == String::fromRep(val.str));
+    REQUIRE(int(NonGroundGrammar::parser::token::IDENTIFIER) == ngp.lex(&val, loc));
+    REQUIRE(String("_xyz") == String::fromRep(val.str));
+    REQUIRE(int(NonGroundGrammar::parser::token::IDENTIFIER) == ngp.lex(&val, loc));
+    REQUIRE(String("__xyz") == String::fromRep(val.str));
+    REQUIRE(int(NonGroundGrammar::parser::token::IDENTIFIER) == ngp.lex(&val, loc));
+    REQUIRE(String("___xyz") == String::fromRep(val.str));
+    REQUIRE(5 == loc.beginLine);
+    REQUIRE(23 == loc.beginColumn);
+    REQUIRE(0 == ngp.lex(&val, loc));
 }
-
-TestNongroundLexer::~TestNongroundLexer() { }
-
-CPPUNIT_TEST_SUITE_REGISTRATION(TestNongroundLexer);
 
 // }}}
 
