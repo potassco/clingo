@@ -22,7 +22,7 @@
 #define _GRINGO_INPUT_GROUNDTERMPARSER_HH
 
 #include <gringo/lexerstate.hh>
-#include <gringo/value.hh>
+#include <gringo/symbol.hh>
 #include <gringo/term.hh>
 #include <gringo/indexed.hh>
 

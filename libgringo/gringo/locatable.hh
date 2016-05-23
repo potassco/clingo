@@ -21,7 +21,7 @@
 #ifndef _GRINGO_LOCATABLE_HH
 #define _GRINGO_LOCATABLE_HH
 
-#include <gringo/value.hh>
+#include <gringo/symbol.hh>
 #include <gringo/utility.hh>
 
 namespace Gringo {

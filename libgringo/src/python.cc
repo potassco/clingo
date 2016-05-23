@@ -24,7 +24,7 @@
 
 #include "gringo/python.hh"
 #include "gringo/version.hh"
-#include "gringo/value.hh"
+#include "gringo/symbol.hh"
 #include "gringo/locatable.hh"
 #include "gringo/logger.hh"
 #include "gringo/control.hh"
@@ -3533,7 +3533,7 @@ void *Python::initlib(Gringo::GringoModule &module) {
 #else // WITH_PYTHON
 
 #include "gringo/python.hh"
-#include "gringo/value.hh"
+#include "gringo/symbol.hh"
 #include "gringo/locatable.hh"
 #include "gringo/logger.hh"
 

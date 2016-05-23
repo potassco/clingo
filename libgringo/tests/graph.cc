@@ -66,15 +66,17 @@ G graph(std::initializer_list<std::pair<std::string, std::string>> edges)
 
 } // namespace
 
-TEST_CASE("test_tarjan") {
-    REQUIRE("[[b,c],[d],[a]]" == to_string(graph({{"a","b"},{"a","d"},{"b","c"},{"c","b"},{"d","b"}}).tarjan()));
-    REQUIRE("[[h,i],[f,g],[d,c,b,e],[a]]" == to_string(graph({{"a","b"},{"b","c"},{"c","h"},{"c","d"},{"d","e"},{"e","f"},{"e","b"},{"e","c"},{"f","g"},{"g","f"},{"h","i"},{"i","h"}}).tarjan()));
-    REQUIRE("[[c,d],[a,b]]" == to_string(graph({{"a","b"},{"a","c"},{"a","d"},{"b","a"},{"c","d"},{"d","c"}}).tarjan()));
-    REQUIRE("[[i],[n],[r3],[r4,e,r1,p,r2,s]]" == to_string(graph({{"r1","e"},{"r2","p"},{"r2","i"},{"r3","n"},{"r3","i"},{"r4","s"},{"p","r1"},{"s","r2"},{"s","r3"},{"e","r4"}}).tarjan()));
-    G g{graph({{"a","b"},{"a","d"},{"b","c"},{"c","b"},{"d","b"}})};
-    REQUIRE("[[b,c],[d],[a]]" == to_string(g.tarjan()));
-    REQUIRE("[[b,c],[d],[a]]" == to_string(g.tarjan()));
-    REQUIRE("[[b,c],[d],[a]]" == to_string(g.tarjan()));
+TEST_CASE("graph", "[base]") {
+    SECTION("test_tarjan") {
+        REQUIRE("[[b,c],[d],[a]]" == to_string(graph({{"a","b"},{"a","d"},{"b","c"},{"c","b"},{"d","b"}}).tarjan()));
+        REQUIRE("[[h,i],[f,g],[d,c,b,e],[a]]" == to_string(graph({{"a","b"},{"b","c"},{"c","h"},{"c","d"},{"d","e"},{"e","f"},{"e","b"},{"e","c"},{"f","g"},{"g","f"},{"h","i"},{"i","h"}}).tarjan()));
+        REQUIRE("[[c,d],[a,b]]" == to_string(graph({{"a","b"},{"a","c"},{"a","d"},{"b","a"},{"c","d"},{"d","c"}}).tarjan()));
+        REQUIRE("[[i],[n],[r3],[r4,e,r1,p,r2,s]]" == to_string(graph({{"r1","e"},{"r2","p"},{"r2","i"},{"r3","n"},{"r3","i"},{"r4","s"},{"p","r1"},{"s","r2"},{"s","r3"},{"e","r4"}}).tarjan()));
+        G g{graph({{"a","b"},{"a","d"},{"b","c"},{"c","b"},{"d","b"}})};
+        REQUIRE("[[b,c],[d],[a]]" == to_string(g.tarjan()));
+        REQUIRE("[[b,c],[d],[a]]" == to_string(g.tarjan()));
+        REQUIRE("[[b,c],[d],[a]]" == to_string(g.tarjan()));
+    }
 }
 
 } } // namespace Test Gringo

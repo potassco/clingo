@@ -21,7 +21,7 @@
 #ifndef _GRINGO_CONTROL_HH
 #define _GRINGO_CONTROL_HH
 
-#include <gringo/value.hh>
+#include <gringo/symbol.hh>
 #include <gringo/types.hh>
 #include <gringo/locatable.hh>
 #include <gringo/backend.hh>

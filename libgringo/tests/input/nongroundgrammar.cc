@@ -21,7 +21,7 @@
 #include "gringo/input/nongroundparser.hh"
 #include "gringo/input/programbuilder.hh"
 #include "input/nongroundgrammar/grammar.hh"
-#include "gringo/value.hh"
+#include "gringo/symbol.hh"
 #include "tests/tests.hh"
 
 #include <cppunit/TestFixture.h>

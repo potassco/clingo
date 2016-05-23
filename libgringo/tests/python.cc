@@ -26,40 +26,10 @@
 
 namespace Gringo { namespace Test {
 
-// {{{ declaration of TestPython
-
-class TestPython : public CppUnit::TestFixture {
-    CPPUNIT_TEST_SUITE(TestPython);
-        CPPUNIT_TEST(test_parse);
-        CPPUNIT_TEST(test_callable);
-        CPPUNIT_TEST(test_values);
-        CPPUNIT_TEST(test_cmp);
-    CPPUNIT_TEST_SUITE_END();
-
-public:
-    virtual void setUp();
-    virtual void tearDown();
-
-    void test_parse();
-    void test_values();
-    void test_cmp();
-    void test_callable();
-
-    virtual ~TestPython();
-};
-
-// }}}
-
 using namespace Gringo::IO;
 using S = std::string;
 
-// {{{ definition of TestPython
-
-void TestPython::setUp() {
-}
-
-void TestPython::tearDown() {
-}
+namespace {
 
 std::string replace(std::string &&x, std::string const &y, std::string const &z) {
     size_t index = 0;
@@ -71,125 +41,125 @@ std::string replace(std::string &&x, std::string const &y, std::string const &z)
     }
     return std::move(x);
 }
-void TestPython::test_parse() {
-    Location loc("dummy", 1, 1, "dummy", 1, 1);
-    Python py(getTestModule());
-    py.exec(loc,
-        "import clingo\n"
-        "def get(): return clingo.parse_term('1')\n"
-        );
-    CPPUNIT_ASSERT_EQUAL(S("[1]"), to_string(py.call(loc, "get", {})));
-    py.exec(loc,
-        "import clingo\n"
-        "def get(): return clingo.parse_term('p(1+2)')\n"
-        );
-    CPPUNIT_ASSERT_EQUAL(S("[p(3)]"), to_string(py.call(loc, "get", {})));
-    py.exec(loc,
-        "import clingo\n"
-        "def get(): return clingo.parse_term('-p')\n"
-        );
-    CPPUNIT_ASSERT_EQUAL(S("[-p]"), to_string(py.call(loc, "get", {})));
-    py.exec(loc,
-        "import clingo\n"
-        "def get(): return clingo.parse_term('-p(1)')\n"
-        );
-    CPPUNIT_ASSERT_EQUAL(S("[-p(1)]"), to_string(py.call(loc, "get", {})));
-}
-void TestPython::test_values() {
-    Location loc("dummy", 1, 1, "dummy", 1, 1);
-    Python py(getTestModule());
-    py.exec(loc,
-        "import clingo\n"
-        "x = clingo.function(\"f\", [2, 3, 4])\n"
-        "y = clingo.function(\"f\", [2, 3, 4], True)\n"
-        "def getX(): return x\n"
-        "def fail(): return clingo.function(\"g\", [None])\n"
-        "def none(): return None\n"
-        "values = ["
-        "clingo.function(\"f\", [1, 2, 3]),"
-        "clingo.Sup,"
-        "clingo.Inf,"
-        "clingo.function(\"id\"),"
-        "(1, 2, 3),"
-        "123,"
-        "\"abc\","
-        "tuple(x.args),"
-        "x.name,"
-        "x.sign,"
-        "y.sign,"
-        "x,"
-        "y,"
-        "]\n"
-        "def getValues(): return values\n"
-        );
-    CPPUNIT_ASSERT_EQUAL(S("[f(2,3,4)]"), to_string(py.call(loc, "getX", {})));
-    CPPUNIT_ASSERT_EQUAL(S("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",(2,3,4),\"f\",0,1,f(2,3,4),-f(2,3,4)]"), to_string(py.call(loc, "getValues", {})));
-    {
-        Gringo::Test::Messages msg;
-        CPPUNIT_ASSERT_EQUAL(S("[]"), to_string(py.call(loc, "none", {})));
-        CPPUNIT_ASSERT_EQUAL(S(
-            "["
-            "dummy:1:1: info: operation undefined:\n"
-            "  RuntimeError: cannot convert to value: unexpected NoneType() object\n"
-            "]"), IO::to_string(msg));
+
+} // namspace
+
+TEST_CASE("python", "[base]") {
+    SECTION("parse") {
+        Location loc("dummy", 1, 1, "dummy", 1, 1);
+        Python py(getTestModule());
+        py.exec(loc,
+            "import clingo\n"
+            "def get(): return clingo.parse_term('1')\n"
+            );
+        REQUIRE("[1]" == to_string(py.call(loc, "get", {})));
+        py.exec(loc,
+            "import clingo\n"
+            "def get(): return clingo.parse_term('p(1+2)')\n"
+            );
+        REQUIRE("[p(3)]" == to_string(py.call(loc, "get", {})));
+        py.exec(loc,
+            "import clingo\n"
+            "def get(): return clingo.parse_term('-p')\n"
+            );
+        REQUIRE("[-p]" == to_string(py.call(loc, "get", {})));
+        py.exec(loc,
+            "import clingo\n"
+            "def get(): return clingo.parse_term('-p(1)')\n"
+            );
+        REQUIRE("[-p(1)]" == to_string(py.call(loc, "get", {})));
     }
-    {
-        Gringo::Test::Messages msg;
-        CPPUNIT_ASSERT_EQUAL(S("[]"), to_string(py.call(loc, "fail", {})));
-        CPPUNIT_ASSERT_EQUAL(S(
-            "["
-            "dummy:1:1: info: operation undefined:\n"
-            "  Traceback (most recent call last):\n"
-            "    File \"<dummy:1:1>\", line 5, in fail\n"
-            "  RuntimeError: cannot convert to value: unexpected NoneType() object\n"
-            "]"), IO::to_string(msg));
+    SECTION("values") {
+        Location loc("dummy", 1, 1, "dummy", 1, 1);
+        Python py(getTestModule());
+        py.exec(loc,
+            "import clingo\n"
+            "x = clingo.function(\"f\", [2, 3, 4])\n"
+            "y = clingo.function(\"f\", [2, 3, 4], True)\n"
+            "def getX(): return x\n"
+            "def fail(): return clingo.function(\"g\", [None])\n"
+            "def none(): return None\n"
+            "values = ["
+            "clingo.function(\"f\", [1, 2, 3]),"
+            "clingo.Sup,"
+            "clingo.Inf,"
+            "clingo.function(\"id\"),"
+            "(1, 2, 3),"
+            "123,"
+            "\"abc\","
+            "tuple(x.args),"
+            "x.name,"
+            "x.sign,"
+            "y.sign,"
+            "x,"
+            "y,"
+            "]\n"
+            "def getValues(): return values\n"
+            );
+        REQUIRE("[f(2,3,4)]" == to_string(py.call(loc, "getX", {})));
+        REQUIRE("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",(2,3,4),\"f\",0,1,f(2,3,4),-f(2,3,4)]" == to_string(py.call(loc, "getValues", {})));
+        {
+            Gringo::Test::Messages msg;
+            REQUIRE("[]" == to_string(py.call(loc, "none", {})));
+            REQUIRE(
+                "["
+                "dummy:1:1: info: operation undefined:\n"
+                "  RuntimeError: cannot convert to value: unexpected NoneType() object\n"
+                "]" == IO::to_string(msg));
+        }
+        {
+            Gringo::Test::Messages msg;
+            REQUIRE("[]" == to_string(py.call(loc, "fail", {})));
+            REQUIRE(
+                "["
+                "dummy:1:1: info: operation undefined:\n"
+                "  Traceback (most recent call last):\n"
+                "    File \"<dummy:1:1>\", line 5, in fail\n"
+                "  RuntimeError: cannot convert to value: unexpected NoneType() object\n"
+                "]" == IO::to_string(msg));
+        }
+        {
+            Gringo::Test::Messages msg;
+            REQUIRE_THROWS_AS(py.exec(loc, "("), std::runtime_error);
+            REQUIRE(
+                "["
+                "dummy:1:1: error: parsing failed:\n"
+                "    File \"<dummy:1:1>\", line 1\n"
+                "      (\n"
+                "      ^\n"
+                "  SyntaxError: unexpected EOF while parsing\n"
+                "]" == replace(IO::to_string(msg), "column 1", "column 2"));
+        }
     }
-    {
-        Gringo::Test::Messages msg;
-        CPPUNIT_ASSERT_THROW(py.exec(loc, "("), std::runtime_error);
-        CPPUNIT_ASSERT_EQUAL(S(
-            "["
-            "dummy:1:1: error: parsing failed:\n"
-            "    File \"<dummy:1:1>\", line 1\n"
-            "      (\n"
-            "      ^\n"
-            "  SyntaxError: unexpected EOF while parsing\n"
-            "]"), replace(IO::to_string(msg), "column 1", "column 2"));
+
+    SECTION("cmp") {
+        Location loc("dummy", 1, 1, "dummy", 1, 1);
+        Python py(getTestModule());
+        py.exec(loc,
+            "import clingo\n"
+            "def cmp():\n"
+            "  return ["
+            "int(clingo.function(\"a\") < clingo.function(\"b\")),"
+            "int(clingo.function(\"b\") < clingo.function(\"a\")),"
+            "]\n"
+            );
+        REQUIRE("[1,0]" == to_string(py.call(loc, "cmp", {})));
     }
+
+    SECTION("callable") {
+        Location loc("dummy", 1, 1, "dummy", 1, 1);
+        Python py(getTestModule());
+        py.exec(loc,
+            "import clingo\n"
+            "def a(): pass\n"
+            "b = 1\n"
+            );
+        REQUIRE(py.callable("a"));
+        REQUIRE(!py.callable("b"));
+        REQUIRE(!py.callable("c"));
+    }
+
 }
-
-void TestPython::test_cmp() {
-    Location loc("dummy", 1, 1, "dummy", 1, 1);
-    Python py(getTestModule());
-    py.exec(loc,
-        "import clingo\n"
-        "def cmp():\n"
-        "  return ["
-        "int(clingo.function(\"a\") < clingo.function(\"b\")),"
-        "int(clingo.function(\"b\") < clingo.function(\"a\")),"
-        "]\n"
-        );
-    CPPUNIT_ASSERT_EQUAL(S("[1,0]"), to_string(py.call(loc, "cmp", {})));
-}
-
-void TestPython::test_callable() {
-    Location loc("dummy", 1, 1, "dummy", 1, 1);
-    Python py(getTestModule());
-    py.exec(loc,
-        "import clingo\n"
-        "def a(): pass\n"
-        "b = 1\n"
-        );
-    CPPUNIT_ASSERT(py.callable("a"));
-    CPPUNIT_ASSERT(!py.callable("b"));
-    CPPUNIT_ASSERT(!py.callable("c"));
-}
-
-TestPython::~TestPython() { }
-
-// }}}
-
-CPPUNIT_TEST_SUITE_REGISTRATION(TestPython);
 
 } } // namespace Test Gringo
 

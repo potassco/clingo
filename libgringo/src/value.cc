@@ -18,7 +18,7 @@
 
 // }}}
 
-#include <gringo/value.hh>
+#include <gringo/symbol.hh>
 #include <gringo/hash_set.hh>
 #include <mutex>
 

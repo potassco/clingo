@@ -22,7 +22,7 @@
 #define _GRINGO_INPUT_PROGRAMBUILDER_HH
 
 #include <gringo/locatable.hh>
-#include <gringo/value.hh>
+#include <gringo/symbol.hh>
 #include <gringo/indexed.hh>
 
 #include <gringo/base.hh>

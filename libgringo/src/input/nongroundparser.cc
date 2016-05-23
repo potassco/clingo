@@ -29,7 +29,7 @@
 #endif
 #include "gringo/input/nongroundparser.hh"
 #include "gringo/lexerstate.hh"
-#include "gringo/value.hh"
+#include "gringo/symbol.hh"
 #include "gringo/logger.hh"
 #include "input/nongroundgrammar/grammar.hh"
 #include <cstddef>

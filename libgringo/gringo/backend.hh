@@ -21,7 +21,7 @@
 #ifndef _GRINGO_BACKEND_HH
 #define _GRINGO_BACKEND_HH
 
-#include <gringo/value.hh>
+#include <gringo/symbol.hh>
 #include <potassco/theory_data.h>
 
 namespace Gringo {

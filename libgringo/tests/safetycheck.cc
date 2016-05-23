@@ -27,24 +27,6 @@
 
 namespace Gringo { namespace Test {
 
-// {{{ declaration of TestSafetyCheck
-
-class TestSafetyCheck : public CppUnit::TestFixture {
-    CPPUNIT_TEST_SUITE(TestSafetyCheck);
-        CPPUNIT_TEST(test_safety);
-    CPPUNIT_TEST_SUITE_END();
-
-public:
-    virtual void setUp();
-    virtual void tearDown();
-
-    void test_safety();
-
-    virtual ~TestSafetyCheck();
-};
-
-// }}}
-
 using namespace Gringo::IO;
 
 // {{{ definition of auxiliary functions
@@ -77,25 +59,16 @@ std::string check(std::initializer_list<T> list) {
 } // namespace
 
 // }}}
-// {{{ definition of TestSafetyCheck
 
-void TestSafetyCheck::setUp() { }
-
-void TestSafetyCheck::tearDown() { }
-
-void TestSafetyCheck::test_safety() {
-    CPPUNIT_ASSERT_EQUAL(std::string("([Y=1,X=Y],[])"), check({ T{"X=Y",{"Y"},{"X"}}, T{"Y=1",{},{"Y"}} }));
-    CPPUNIT_ASSERT_EQUAL(std::string("([],[X,Y])"), check({ T{"0=X+Y",{"X","Y"}, {}} }));
-    CPPUNIT_ASSERT_EQUAL(std::string("([A=1,B=A,C=B,D=C],[])"), check({ T{"A=1",{}, {"A"}}, T{"B=A",{"A"}, {"B"}}, T{"C=B",{"B"}, {"C"}}, T{"D=C",{"C"}, {"D"}} }));
-    CPPUNIT_ASSERT_EQUAL(std::string("([],[A,B])"), check({ T{"A=B",{"B"}, {"A"}}, T{"B=A",{"A"}, {"B"}} }));
-    CPPUNIT_ASSERT_EQUAL(std::string("([A=1,B=A,A=B],[])"), check({ T{"A=B",{"B"}, {"A"}}, T{"B=A",{"A"}, {"B"}}, T{"A=1",{}, {"A"}} }));
-    CPPUNIT_ASSERT_EQUAL(std::string("([(X,Y)=(1,1),2=X+Y],[])"), check({ T{"(X,Y)=(1,1)",{}, {"X","Y"}}, T{"2=X+Y",{"X", "Y"}, {}} }));
+TEST_CASE("safetycheck", "[base]") {
+    SECTION("safety") {
+        REQUIRE("([Y=1,X=Y],[])" == check({ T{"X=Y",{"Y"},{"X"}}, T{"Y=1",{},{"Y"}} }));
+        REQUIRE("([],[X,Y])" == check({ T{"0=X+Y",{"X","Y"}, {}} }));
+        REQUIRE("([A=1,B=A,C=B,D=C],[])" == check({ T{"A=1",{}, {"A"}}, T{"B=A",{"A"}, {"B"}}, T{"C=B",{"B"}, {"C"}}, T{"D=C",{"C"}, {"D"}} }));
+        REQUIRE("([],[A,B])" == check({ T{"A=B",{"B"}, {"A"}}, T{"B=A",{"A"}, {"B"}} }));
+        REQUIRE("([A=1,B=A,A=B],[])" == check({ T{"A=B",{"B"}, {"A"}}, T{"B=A",{"A"}, {"B"}}, T{"A=1",{}, {"A"}} }));
+        REQUIRE("([(X,Y)=(1,1),2=X+Y],[])" == check({ T{"(X,Y)=(1,1)",{}, {"X","Y"}}, T{"2=X+Y",{"X", "Y"}, {}} }));
+    }
 }
-
-TestSafetyCheck::~TestSafetyCheck() { }
-
-// }}}
-
-CPPUNIT_TEST_SUITE_REGISTRATION(TestSafetyCheck);
 
 } } // namespace Test Gringo

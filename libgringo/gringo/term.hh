@@ -22,7 +22,7 @@
 #define _GRINGO_TERM_HH
 
 #include <gringo/bug.hh>
-#include <gringo/value.hh>
+#include <gringo/symbol.hh>
 #include <gringo/printable.hh>
 #include <gringo/hashable.hh>
 #include <gringo/locatable.hh>

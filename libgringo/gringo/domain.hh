@@ -26,7 +26,6 @@
 #include <gringo/types.hh>
 #include <deque>
 #include <gringo/hash_set.hh>
-#include <gringo/unique_list.hh>
 
 namespace Gringo {
 

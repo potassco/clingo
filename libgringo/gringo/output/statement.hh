@@ -24,7 +24,7 @@
 #include <gringo/output/literal.hh>
 #include <gringo/backend.hh>
 #include <gringo/locatable.hh>
-#include <gringo/value.hh>
+#include <gringo/symbol.hh>
 #include <gringo/domain.hh>
 
 namespace Gringo { namespace Output {

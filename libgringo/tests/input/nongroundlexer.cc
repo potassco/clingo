@@ -23,7 +23,7 @@
 #include "gringo/input/program.hh"
 #include "gringo/output/output.hh"
 #include "input/nongroundgrammar/grammar.hh"
-#include "gringo/value.hh"
+#include "gringo/symbol.hh"
 #include "gringo/scripts.hh"
 #include "tests/gringo_module.hh"
 
