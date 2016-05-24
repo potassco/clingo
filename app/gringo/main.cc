@@ -86,18 +86,18 @@ static inline bool parseFoobar(const std::string& str, GringoOptions::Foobar& fo
 struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     using StringVec = std::vector<std::string>;
     IncrementalControl(Gringo::Output::OutputBase &out, StringVec const &files, GringoOptions const &opts)
-        : out(out)
-        , scripts(*this)
-        , pb(scripts, prg, out, defs, opts.rewriteMinimize)
-        , parser(pb)
-        , opts(opts) {
+    : out(out)
+    , scripts(*this)
+    , pb(scripts, prg, out, defs, opts.rewriteMinimize)
+    , parser(pb)
+    , opts(opts) {
         using namespace Gringo;
         out.keepFacts = opts.keepFacts;
-        if (opts.wNoOperationUndefined) { message_printer()->disable(W_OPERATION_UNDEFINED); }
-        if (opts.wNoAtomUndef)          { message_printer()->disable(W_ATOM_UNDEFINED); }
-        if (opts.wNoFileIncluded)       { message_printer()->disable(W_FILE_INCLUDED); }
-        if (opts.wNoVariableUnbounded)  { message_printer()->disable(W_VARIABLE_UNBOUNDED); }
-        if (opts.wNoGlobalVariable)     { message_printer()->disable(W_GLOBAL_VARIABLE); }
+        if (opts.wNoOperationUndefined) { logger_.disable(W_OPERATION_UNDEFINED); }
+        if (opts.wNoAtomUndef)          { logger_.disable(W_ATOM_UNDEFINED); }
+        if (opts.wNoFileIncluded)       { logger_.disable(W_FILE_INCLUDED); }
+        if (opts.wNoVariableUnbounded)  { logger_.disable(W_VARIABLE_UNBOUNDED); }
+        if (opts.wNoGlobalVariable)     { logger_.disable(W_GLOBAL_VARIABLE); }
         for (auto &x : opts.defines) {
             LOG << "define: " << x << std::endl;
             parser.parseDefine(x);
@@ -129,7 +129,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
             prg.rewrite(defs);
             LOG << "************* rewritten program ************" << std::endl << prg;
             prg.check();
-            if (Gringo::message_printer()->hasError()) {
+            if (logger_.hasError()) {
                 throw std::runtime_error("grounding stopped because of errors");
             }
             parsed = false;
@@ -216,6 +216,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     Gringo::Input::NongroundProgramBuilder pb;
     Gringo::Input::NonGroundParser         parser;
     GringoOptions const                   &opts;
+    Gringo::DefaultMessagePrinter          logger_;
     bool                                   parsed = false;
     bool                                   grounded = false;
 };

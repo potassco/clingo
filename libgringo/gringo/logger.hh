@@ -74,6 +74,7 @@ private:
     bool error_ = false;
 };
 
+/*
 inline std::unique_ptr<MessagePrinter> &message_printer() {
     static std::unique_ptr<MessagePrinter> x(new DefaultMessagePrinter());
     return x;
@@ -81,6 +82,7 @@ inline std::unique_ptr<MessagePrinter> &message_printer() {
 inline void reset_message_printer() {
     message_printer().reset(new DefaultMessagePrinter());
 }
+*/
 
 // }}}
 
@@ -120,18 +122,22 @@ inline DefaultMessagePrinter::~DefaultMessagePrinter() { }
 // }}}
 // {{{ definition of Report
 
-struct Report {
-    ~Report() { message_printer()->print(out.str()); }
+class Report {
+public:
+    Report(MessagePrinter &p) : p_(p) { }
+    ~Report() { p_.print(out.str()); }
     std::ostringstream out;
+private:
+    MessagePrinter &p_;
 };
 
 // }}}
 
 } // namespace GRINGO
 
-#define GRINGO_REPORT(id) \
-if (!message_printer()->check(id)) { } \
-else Gringo::Report().out
+#define GRINGO_REPORT(p, id) \
+if (!(p)->check(id)) { } \
+else Gringo::Report(p).out
 
 #endif // _GRINGO_REPORT_HH
 
