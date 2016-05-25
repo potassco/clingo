@@ -138,11 +138,11 @@ struct BodyAggregate : Printable, Hashable, Locatable, Clonable<BodyAggregate>, 
     virtual void unpool(UBodyAggrVec &x, bool beforeRewrite) = 0;
     //! Simplify the aggregate and aggregate elements.
     //! \pre Must be called after unpool.
-    virtual bool simplify(Projections &project, SimplifyState &state, bool singleton) = 0;
+    virtual bool simplify(Projections &project, SimplifyState &state, bool singleton, MessagePrinter &log) = 0;
     //! Assign levels to variables using the VarCollector.
     //! \pre Must be called after simplify.
     virtual void assignLevels(AssignLevel &lvl) = 0;
-    virtual void check(ChkLvlVec &lvl) const = 0;
+    virtual void check(ChkLvlVec &lvl, MessagePrinter &log) const = 0;
     //! Rewrite arithmetics.
     //! \pre Requires variables assigned to levels.
     virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen) = 0;
@@ -182,7 +182,7 @@ struct HeadAggregate : Printable, Hashable, Locatable, Clonable<HeadAggregate>, 
     //! Assign levels to variables using the VarCollector.
     //! \pre Must be called after simplify.
     virtual void assignLevels(AssignLevel &lvl) = 0;
-    virtual void check(ChkLvlVec &lvl) const = 0;
+    virtual void check(ChkLvlVec &lvl, MessagePrinter &log) const = 0;
     //! Rewrite arithmetics.
     //! \pre Requires variables assigned to levels.
     virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) = 0;

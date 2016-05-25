@@ -545,7 +545,7 @@ public:
     LiteralId lit() const { return lit_; }
     void setLit(LiteralId lit) { lit_ = lit; }
     DisjointElemSet const &elems() const { return elems_; }
-    bool translate(DomainData &data, Translator &x);
+    bool translate(DomainData &data, Translator &x, MessagePrinter &log);
 
 private:
     Symbol value_;
@@ -684,7 +684,7 @@ public:
     bool headFact() const { return fact_ && !recursive_; }
     void setRecursive(bool recursive) { recursive_ = recursive; }
     void init(AggregateFunction fun, DisjunctiveBounds &&bounds);
-    void accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LiteralId head, LitVec &cond);
+    void accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LiteralId head, LitVec &cond, MessagePrinter &log);
     Interval range() const { return range_.range(); }
     AggregateFunction fun() const { return range_.fun; }
     DisjunctiveBounds const &bounds() const { return range_.bounds; }

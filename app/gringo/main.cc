@@ -111,11 +111,14 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
             parser.pushFile("-");
         }
         parse();
-        }
+    }
+    Gringo::MessagePrinter &logger() override {
+        return logger_;
+    }
     void parse() {
         if (!parser.empty()) {
             parser.parse();
-            defs.init();
+            defs.init(logger_);
             parsed = true;
         }
     }
@@ -144,7 +147,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
             Gringo::Ground::Program gPrg(prg.toGround(out.data));
             LOG << "************* intermediate program *************" << std::endl << gPrg << std::endl;
             LOG << "*************** grounded program ***************" << std::endl;
-            gPrg.ground(params, scripts, out, false);
+            gPrg.ground(params, scripts, out, false, logger_);
         }
     }
     void add(std::string const &name, Gringo::FWStringVec const &params, std::string const &part) override {
@@ -159,7 +162,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
         auto ret = defs.defs().find(name.c_str());
         if (ret != defs.defs().end()) {
             bool undefined = false;
-            Gringo::Symbol val = std::get<2>(ret->second)->eval(undefined);
+            Gringo::Symbol val = std::get<2>(ret->second)->eval(undefined, logger_);
             if (!undefined) { return val; }
         }
         return Gringo::Symbol();
@@ -172,7 +175,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     Gringo::SolveResult solve(ModelHandler, Assumptions &&ass) override {
         if (!ass.empty()) { std::cerr << "warning: the lparse format does not support assumptions" << std::endl; }
         grounded = false;
-        out.endStep(true);
+        out.endStep(true, logger_);
         out.reset();
         const_cast<Potassco::TheoryData&>(out.data.theory().data()).reset();
         return {Gringo::SolveResult::Unknown, false, false};

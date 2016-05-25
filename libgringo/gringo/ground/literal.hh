@@ -49,8 +49,8 @@ public:
     virtual BodyOcc *occurrence() = 0;
     virtual void collect(VarTermBoundVec &vars) const = 0;
     virtual void collectImportant(Term::VarSet &vars);
-    virtual std::pair<Output::LiteralId,bool> toOutput() = 0;
-    virtual Score score(Term::VarSet const &bound) = 0;
+    virtual std::pair<Output::LiteralId,bool> toOutput(MessagePrinter &log) = 0;
+    virtual Score score(Term::VarSet const &bound, MessagePrinter &log) = 0;
     virtual ~Literal() { }
 };
 

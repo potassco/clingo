@@ -85,8 +85,8 @@ void translateLambda(DomainData &data, AbstractOutput &out, T const &lambda) {
 
 class EndStepStatement : public Statement {
 public:
-    EndStepStatement(OutputPredicates const &outPreds, bool solve)
-    : outPreds_(outPreds), solve_(solve) { }
+    EndStepStatement(OutputPredicates const &outPreds, bool solve, MessagePrinter &log)
+    : outPreds_(outPreds), log_(log), solve_(solve) { }
     void output(DomainData &, Backend &out) const override {
         if (solve_) {
             out.endStep();
@@ -99,13 +99,14 @@ public:
         }
     }
     void translate(DomainData &data, Translator &trans) override {
-        trans.translate(data, outPreds_);
+        trans.translate(data, outPreds_, log_);
         trans.output(data, *this);
     }
     void replaceDelayed(DomainData &, LitVec &) override { }
     virtual ~EndStepStatement() { }
 private:
     OutputPredicates const &outPreds_;
+    MessagePrinter &log_;
     bool solve_;
 };
 
@@ -227,12 +228,12 @@ void OutputBase::beginStep() {
     backendLambda(data, *out_, [](DomainData &, Backend &out) { out.beginStep(); });
 }
 
-void OutputBase::endStep(bool solve) {
+void OutputBase::endStep(bool solve, MessagePrinter &log) {
     if (!outPreds.empty()) {
         std::move(outPredsForce.begin(), outPredsForce.end(), std::back_inserter(outPreds));
         outPredsForce.clear();
     }
-    EndStepStatement(outPreds, solve).passTo(data, *out_);
+    EndStepStatement(outPreds, solve, log).passTo(data, *out_);
     // TODO: get rid of such things #d domains should be stored somewhere else
     std::set<Sig> rm;
     for (auto &x : predDoms()) {
@@ -252,7 +253,7 @@ void OutputBase::reset() {
     translateLambda(data, *out_, [](DomainData &, Translator &x) { x.reset(); });
 }
 
-void OutputBase::checkOutPreds() {
+void OutputBase::checkOutPreds(MessagePrinter &log) {
     auto le = [](OutputPredicates::value_type const &x, OutputPredicates::value_type const &y) -> bool {
         if (std::get<1>(x) != std::get<1>(y)) { return std::get<1>(x) < std::get<1>(y); }
         return std::get<2>(x) < std::get<2>(y);
@@ -266,7 +267,7 @@ void OutputBase::checkOutPreds() {
         if (!std::get<1>(x).match("", 0) && !std::get<2>(x)) {
             auto it(predDoms().find(std::get<1>(x)));
             if (it == predDoms().end()) {
-                GRINGO_REPORT(W_ATOM_UNDEFINED)
+                GRINGO_REPORT(log, W_ATOM_UNDEFINED)
                     << std::get<0>(x) << ": info: no atoms over signature occur in program:\n"
                     << "  " << std::get<1>(x) << "\n";
             }

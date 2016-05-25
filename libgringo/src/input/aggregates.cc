@@ -107,14 +107,14 @@ void _aggr(ChkLvlVec &levels, BoundVec const &bounds, T const &f, bool bind) {
     }
 }
 
-void warnGlobal(VarTermBoundVec &vars, bool warn) {
+void warnGlobal(VarTermBoundVec &vars, bool warn, MessagePrinter &log) {
     if (warn) {
         auto ib = vars.begin(), ie = vars.end();
         ie = std::remove_if(ib, ie, [](VarTermBoundVec::value_type const &a) { return a.first->level > 0; });
         std::sort(ib, ie, [](VarTermBoundVec::value_type const &a, VarTermBoundVec::value_type const &b) { return a.first->name < b.first->name; });
         ie = std::unique(ib, ie, [](VarTermBoundVec::value_type const &a, VarTermBoundVec::value_type const &b) { return a.first->name == b.first->name; });
         for (auto it = ib; it != ie; ++it) {
-            GRINGO_REPORT(W_GLOBAL_VARIABLE)
+            GRINGO_REPORT(log, W_GLOBAL_VARIABLE)
                 << it->first->loc() << ": info: global variable in tuple of aggregate element:\n"
                 << "  " << it->first->name << "\n"
                 ;
@@ -218,14 +218,14 @@ bool TupleBodyAggregate::rewriteAggregates(UBodyAggrVec &aggr) {
     return !bounds.empty();
 }
 
-bool TupleBodyAggregate::simplify(Projections &project, SimplifyState &state, bool) {
+bool TupleBodyAggregate::simplify(Projections &project, SimplifyState &state, bool, MessagePrinter &log) {
     for (auto &bound : bounds) {
-        if (!bound.simplify(state)) { return false; }
+        if (!bound.simplify(state, log)) { return false; }
     }
     elems.erase(std::remove_if(elems.begin(), elems.end(), [&](BodyAggrElemVec::value_type &elem) {
         SimplifyState elemState(state);
         for (auto &term : std::get<0>(elem)) {
-            if (term->simplify(elemState, false, false).update(term).undefined()) { return true; }
+            if (term->simplify(elemState, false, false, log).update(term).undefined()) { return true; }
         }
         for (auto &lit : std::get<1>(elem)) {
             // NOTE: projection disabled with singelton=true
@@ -263,7 +263,7 @@ void TupleBodyAggregate::assignLevels(AssignLevel &lvl) {
     }
 }
 
-void TupleBodyAggregate::check(ChkLvlVec &levels) const {
+void TupleBodyAggregate::check(ChkLvlVec &levels, MessagePrinter &log) const {
     auto f = [&]() {
         VarTermBoundVec vars;
         for (auto &y : elems) {
@@ -274,7 +274,7 @@ void TupleBodyAggregate::check(ChkLvlVec &levels) const {
             levels.pop_back();
             for (auto &term : y.first) { term->collect(vars, false); }
         }
-        warnGlobal(vars, !translated);
+        warnGlobal(vars, !translated, log);
     };
     return _aggr(levels, bounds, f, naf == NAF::POS);
 }

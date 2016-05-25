@@ -166,7 +166,7 @@ public:
     }
 
     // Returns a range of offsets corresponding to atoms that match the given bound variables.
-    OffsetRange lookup(SValVec const &bound, BinderType type) {
+    OffsetRange lookup(SValVec const &bound, BinderType type, MessagePrinter &) {
         boundVals_.clear();
         for (auto &&x : bound) { boundVals_.emplace_back(*x); }
         auto it(data_.find(boundVals_));
@@ -284,7 +284,7 @@ public:
     , initialImport_(imported) { }
 
     // Returns a range of offsets corresponding to matching atoms.
-    OffsetRange lookup(BinderType type) {
+    OffsetRange lookup(BinderType type, MessagePrinter &) {
         switch (type) {
             case BinderType::OLD:
             case BinderType::ALL: { return { type, 0, !index_.empty() ? index_.front().first : 0 }; }
@@ -387,12 +387,12 @@ public:
     }
 
     // Function to lookup negative literals or non-recursive atoms.
-    bool lookup(SizeType &offset, Term const &repr, RECNAF naf) {
+    bool lookup(SizeType &offset, Term const &repr, RECNAF naf, MessagePrinter &log) {
         bool undefined = false;
         switch (naf) {
             case RECNAF::POS: {
                 // Note: intended for non-recursive case only
-                auto it = atoms_.find(repr.eval(undefined));
+                auto it = atoms_.find(repr.eval(undefined, log));
                 if (!undefined && it != atoms_.end() && it->defined()) {
                     offset = it - begin();
                     return true;
@@ -400,7 +400,7 @@ public:
                 break;
             }
             case RECNAF::NOT: {
-                auto it = atoms_.find(repr.eval(undefined));
+                auto it = atoms_.find(repr.eval(undefined, log));
                 if (!undefined && it != atoms_.end()) {
                     if (!it->fact()) {
                         offset = it - begin();
@@ -416,7 +416,7 @@ public:
                 break;
             }
             case RECNAF::RECNOT: {
-                auto it = reserve(repr.eval(undefined));
+                auto it = reserve(repr.eval(undefined, log));
                 if (!undefined && !it->fact()) {
                     offset = it - begin();
                     return true;
@@ -425,7 +425,7 @@ public:
             }
             case RECNAF::NOTNOT: {
                 // Note: intended for recursive case only
-                auto it = reserve(repr.eval(undefined));
+                auto it = reserve(repr.eval(undefined, log));
                 if (!undefined) {
                     offset = it - begin();
                     return true;
@@ -438,10 +438,10 @@ public:
     }
 
     // Function to lookup recursive atoms.
-    bool lookup(SizeType &offset, Term const &repr, BinderType type) {
+    bool lookup(SizeType &offset, Term const &repr, BinderType type, MessagePrinter &log) {
         // Note: intended for recursive case only
         bool undefined = false;
-        auto it = atoms_.find(repr.eval(undefined));
+        auto it = atoms_.find(repr.eval(undefined, log));
         if (!undefined && it != atoms_.end() && it->defined()) {
             switch (type) {
                 case BinderType::OLD: {

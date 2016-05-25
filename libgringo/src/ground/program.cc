@@ -60,22 +60,22 @@ std::ostream &operator<<(std::ostream &out, Program const &p) {
     return out;
 }
 
-void Program::linearize(Scripts &scripts) {
+void Program::linearize(Scripts &scripts, MessagePrinter &log) {
     for (auto &x : stms) {
         for (auto &y : x.first) { y->startLinearize(true); }
-        for (auto &y : x.first) { y->linearize(scripts, x.second); }
+        for (auto &y : x.first) { y->linearize(scripts, x.second, log); }
         for (auto &y : x.first) { y->startLinearize(false); }
     }
     linearized = true;
 }
 
-void Program::ground(Scripts &scripts, Output::OutputBase &out) {
+void Program::ground(Scripts &scripts, Output::OutputBase &out, MessagePrinter &log) {
     Parameters params;
     params.add("base", SymVec({}));
-    ground(params, scripts, out);
+    ground(params, scripts, out, true, log);
 }
 
-void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputBase &out, bool finalize) {
+void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputBase &out, bool finalize, MessagePrinter &log) {
     for (auto &dom : out.predDoms()) {
         auto name = dom->sig().name();
         if (name.startsWith("#p_")) {
@@ -100,7 +100,7 @@ void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputB
         }
         dom->incNext();
     }
-    out.checkOutPreds();
+    out.checkOutPreds(log);
     for (auto &x : edb) {
         if (params.find(std::get<0>(*x)->getSig())) {
             for (auto &z : std::get<1>(*x)) {
@@ -129,7 +129,7 @@ void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputB
     for (auto &x : stms) {
         if (!linearized) {
             for (auto &y : x.first) { y->startLinearize(true); }
-            for (auto &y : x.first) { y->linearize(scripts, x.second); }
+            for (auto &y : x.first) { y->linearize(scripts, x.second, log); }
             for (auto &y : x.first) { y->startLinearize(false); }
         }
 #if DEBUG_INSTANTIATION > 0
@@ -141,7 +141,7 @@ void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputB
 #endif
             y->enqueue(q);
         }
-        q.process(out);
+        q.process(out, log);
     }
     for (auto &x : negate) {
         for (auto neg(x.second.begin() + x.second.incOffset()), ie(x.second.end()); neg != ie; ++neg) {
@@ -156,7 +156,7 @@ void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputB
         }
     }
     out.flush();
-    if (finalize) { out.endStep(true); }
+    if (finalize) { out.endStep(true, log); }
     linearized = true;
 }
 

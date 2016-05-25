@@ -89,7 +89,7 @@ public:
     bool isNormal() const override; // false by default
     void analyze(Dep::Node &node, Dep &dep) override;
     void startLinearize(bool active) override;
-    void linearize(Scripts &scripts, bool positive) override;
+    void linearize(Scripts &scripts, bool positive, MessagePrinter &log) override;
     void enqueue(Queue &q) override;
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
@@ -124,14 +124,14 @@ public:
     bool isNormal() const override;
     void analyze(Dep::Node &node, Dep &dep) override;
     void startLinearize(bool active) override;
-    void linearize(Scripts &scripts, bool positive) override;
+    void linearize(Scripts &scripts, bool positive, MessagePrinter &log) override;
     void enqueue(Queue &q) override;
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
     // }}}2
 protected:
     // {{{2 SolutionCallback interface
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     void printHead(std::ostream &out) const override;
     void propagate(Queue &queue) override;
     // }}}2
@@ -154,7 +154,7 @@ public:
     virtual bool isNormal() const;
     virtual void analyze(Dep::Node &node, Dep &dep);
     virtual void startLinearize(bool active);
-    virtual void linearize(Scripts &scripts, bool positive);
+    virtual void linearize(Scripts &scripts, bool positive, MessagePrinter &log);
     virtual void enqueue(Queue &q);
     // {{{2 Printable interface
     virtual void print(std::ostream &out) const;
@@ -180,7 +180,7 @@ public:
     // }}}2
 private:
     // {{{2 SolutionCallback interface
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     void printHead(std::ostream &out) const override;
     // }}}2
 
@@ -203,7 +203,7 @@ public:
     // }}}2
 private:
     // {{{2 SolutionCallback interface
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     void printHead(std::ostream &out) const override;
     // }}}2
 
@@ -226,7 +226,7 @@ public:
     // }}}2
 private:
     // {{{2 SolutionCallback interface
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     void printHead(std::ostream &out) const override;
     // }}}2
 
@@ -248,7 +248,7 @@ public:
     // }}}2
 private:
     // {{{2 SolutionCallback interface
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     void printHead(std::ostream &out) const override;
     // }}}2
 
@@ -273,7 +273,7 @@ public:
     // }}}2
 private:
     // {{{2 SolutionCallback interface
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     void printHead(std::ostream &out) const override;
     // }}}2
 
@@ -301,12 +301,12 @@ public:
     void collectImportant(Term::VarSet &vars) override;
     // {{{3 Statement interface
     bool isNormal() const override { return true; }
-    void linearize(Scripts &scripts, bool positive) override;
+    void linearize(Scripts &scripts, bool positive, MessagePrinter &log) override;
     // }}}2
 
 private:
     // {{{2 SolutionCallback interface (w/o printHead)
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     // }}}2
 
 private:
@@ -337,7 +337,7 @@ public:
     bool isNormal() const override;                           // return false -> this one creates choices
     void analyze(Dep::Node &node, Dep &dep) override;         // use accuDoms to build the dependency...
     void startLinearize(bool active) override;                // noop because single instantiator
-    void linearize(Scripts &scripts, bool positive) override; // noop because single instantiator
+    void linearize(Scripts &scripts, bool positive, MessagePrinter &log) override; // noop because single instantiator
     void enqueue(Queue &q) override;                          // enqueue the single instantiator
     // {{{2 Printable interface
     void print(std::ostream &out) const override;             // #complete { h1, ..., hn } :- accu1,... , accun.
@@ -347,7 +347,7 @@ private:
     // {{{2 SolutionCallback interface
     void printHead(std::ostream &out) const override;         // #complete { h1, ..., hn }
     void propagate(Queue &queue) override;                    // enqueue based on accuDoms
-    void report(Output::OutputBase &out) override;            // loop over headDom here
+    void report(Output::OutputBase &out, MessagePrinter &log) override;            // loop over headDom here
     // {{{2 BodyOcc interface
     UGTerm getRepr() const override;
     bool isPositive() const override;
@@ -386,8 +386,8 @@ public:
     bool isRecursive() const override;
     BodyOcc *occurrence() override;
     void collect(VarTermBoundVec &vars) const override;
-    Score score(Term::VarSet const &bound) override;
-    std::pair<Output::LiteralId, bool> toOutput() override;
+    Score score(Term::VarSet const &bound, MessagePrinter &log) override;
+    std::pair<Output::LiteralId, bool> toOutput(MessagePrinter &log) override;
     bool auxiliary() const override { return false; } // by construction
     // }}}2
 
@@ -429,12 +429,12 @@ public:
     void collectImportant(Term::VarSet &vars) override;
     // {{{2 Statement interface
     virtual bool isNormal() const override { return true; }
-    void linearize(Scripts &scripts, bool positive) override;
+    void linearize(Scripts &scripts, bool positive, MessagePrinter &log) override;
     // }}}2
 
 private:
     // {{{2 SolutionCallback interface (w/o printHead)
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     // }}}2
 
 private:
@@ -462,7 +462,7 @@ public:
     bool isNormal() const override;                           // return false -> this one creates choices
     void analyze(Dep::Node &node, Dep &dep) override;         // use accuDoms to build the dependency...
     void startLinearize(bool active) override;                // noop because single instantiator
-    void linearize(Scripts &scripts, bool positive) override; // noop because single instantiator
+    void linearize(Scripts &scripts, bool positive, MessagePrinter &log) override; // noop because single instantiator
     void enqueue(Queue &q) override;                          // enqueue the single instantiator
     // {{{2 Printable interface
     void print(std::ostream &out) const override;             // #complete { h1, ..., hn } :- accu1,... , accun.
@@ -472,7 +472,7 @@ private:
     // {{{2 SolutionCallback interface
     void printHead(std::ostream &out) const override;         // #complete { h1, ..., hn }
     void propagate(Queue &queue) override;                    // enqueue based on accuDoms
-    void report(Output::OutputBase &out) override;            // loop over headDom here
+    void report(Output::OutputBase &out, MessagePrinter &log) override;            // loop over headDom here
     // {{{2 BodyOcc interface
     UGTerm getRepr() const override;
     bool isPositive() const override;
@@ -508,8 +508,8 @@ public:
     bool isRecursive() const override;
     BodyOcc *occurrence() override;
     void collect(VarTermBoundVec &vars) const override;
-    Score score(Term::VarSet const &bound) override;
-    std::pair<Output::LiteralId,bool> toOutput() override;
+    Score score(Term::VarSet const &bound, MessagePrinter &log) override;
+    std::pair<Output::LiteralId,bool> toOutput(MessagePrinter &log) override;
     bool auxiliary() const override { return false; } // by construction
     // }}}2
 
@@ -556,7 +556,7 @@ public:
 
 private:
     // {{{2 SolutionCallback interface
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     // }}}2
 
 private:
@@ -571,11 +571,11 @@ public:
     virtual ~ConjunctionAccumulateCond() noexcept;
     // {{{2 Statement interface
     bool isNormal() const override;
-    void linearize(Scripts &scripts, bool positive) override;
+    void linearize(Scripts &scripts, bool positive, MessagePrinter &log) override;
     // }}}2
 private:
     // {{{2 SolutionCallback interface
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     // }}}2
 
 private:
@@ -590,12 +590,12 @@ public:
     virtual ~ConjunctionAccumulateHead() noexcept;
     // {{{2 Statement interface
     bool isNormal() const override;
-    void linearize(Scripts &scripts, bool positive) override;
+    void linearize(Scripts &scripts, bool positive, MessagePrinter &log) override;
     // }}}2
 
 private:
     // {{{2 SolutionCallback interface
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     // }}}2
 
 private:
@@ -617,16 +617,16 @@ public:
     ConjunctionDomain &dom() { return static_cast<ConjunctionDomain&>(def_.dom()); }
     PredicateDomain &emptyDom() { return domEmpty_; }
     PredicateDomain &condDom() { return domCond_; }
-    void reportEmpty();
-    void reportCond(DomainData &data, Symbol cond, Output::LitVec &lits);
-    void reportHead(DomainData &data, Symbol cond, Output::LitVec &lits);
+    void reportEmpty(MessagePrinter &log);
+    void reportCond(DomainData &data, Symbol cond, Output::LitVec &lits, MessagePrinter &log);
+    void reportHead(DomainData &data, Symbol cond, Output::LitVec &lits, MessagePrinter &log);
     void setCondRecursive() { condRecursive_ = true; }
     void setHeadRecursive() { headRecursive_ = true; }
     // {{{2 Statement interface
     bool isNormal() const override;
     void analyze(Dep::Node &node, Dep &dep) override;
     void startLinearize(bool active) override;
-    void linearize(Scripts &scripts, bool positive) override;
+    void linearize(Scripts &scripts, bool positive, MessagePrinter &log) override;
     void enqueue(Queue &q) override;
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
@@ -636,7 +636,7 @@ private:
     // {{{2 SolutionCallback interface
     void printHead(std::ostream &out) const override;
     void propagate(Queue &queue) override;
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     unsigned priority() const override { return 1; }
     // {{{2 BodyOcc interface
     UGTerm getRepr() const override;
@@ -648,7 +648,7 @@ private:
     void checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const override;
     // }}}2
     template <class F>
-    void reportOther(F f);
+    void reportOther(F f, MessagePrinter &log);
 
 private:
     HeadDefinition def_; // condtional literal
@@ -676,8 +676,8 @@ public:
     bool isRecursive() const override;
     BodyOcc *occurrence() override;
     void collect(VarTermBoundVec &vars) const override;
-    Score score(Term::VarSet const &bound) override;
-    std::pair<Output::LiteralId,bool> toOutput() override;
+    Score score(Term::VarSet const &bound, MessagePrinter &log) override;
+    std::pair<Output::LiteralId,bool> toOutput(MessagePrinter &log) override;
     bool auxiliary() const override { return false; } // by construction
     // }}}2
 
@@ -717,10 +717,10 @@ public:
     void collectImportant(Term::VarSet &vars) override;
     // {{{2 Statement interface
     bool isNormal() const override { return true; }
-    void linearize(Scripts &scripts, bool positive) override;
+    void linearize(Scripts &scripts, bool positive, MessagePrinter &log) override;
 private:
     // {{{2 SolutionCallback interface
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     // }}}2
 
 private:
@@ -751,7 +751,7 @@ public:
     bool isNormal() const override;
     void analyze(Dep::Node &node, Dep &dep) override;
     void startLinearize(bool active) override;
-    void linearize(Scripts &scripts, bool positive) override;
+    void linearize(Scripts &scripts, bool positive, MessagePrinter &log) override;
     void enqueue(Queue &q) override;
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
@@ -760,7 +760,7 @@ private:
     // {{{2 SolutionCallback interface
     void printHead(std::ostream &out) const override;
     void propagate(Queue &queue) override;
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     // {{{2 BodyOcc interface
     UGTerm getRepr() const override;
     bool isPositive() const override;
@@ -795,8 +795,8 @@ public:
     bool isRecursive() const override;
     BodyOcc *occurrence() override;
     void collect(VarTermBoundVec &vars) const override;
-    Score score(Term::VarSet const &bound) override;
-    std::pair<Output::LiteralId,bool> toOutput() override;
+    Score score(Term::VarSet const &bound, MessagePrinter &log) override;
+    std::pair<Output::LiteralId,bool> toOutput(MessagePrinter &log) override;
     bool auxiliary() const override { return false; } // by construction
     // }}}2
 private:
@@ -836,11 +836,11 @@ public:
     void collectImportant(Term::VarSet &vars) override;
     // {{{2 Statement interface
     bool isNormal() const override { return true; }
-    void linearize(Scripts &scripts, bool positive) override;
+    void linearize(Scripts &scripts, bool positive, MessagePrinter &log) override;
     // }}}2
 private:
     // {{{2 SolutionCallback interface
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     // }}}2
 
 private:
@@ -874,7 +874,7 @@ public:
     bool isNormal() const override;
     void analyze(Dep::Node &node, Dep &dep) override;
     void startLinearize(bool active) override;
-    void linearize(Scripts &scripts, bool positive) override;
+    void linearize(Scripts &scripts, bool positive, MessagePrinter &log) override;
     void enqueue(Queue &q) override;
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
@@ -883,7 +883,7 @@ private:
     // {{{2 SolutionCallback interface
     void printHead(std::ostream &out) const override;
     void propagate(Queue &queue) override;
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     // {{{2 BodyOcc interface
     UGTerm getRepr() const override;
     bool isPositive() const override;
@@ -923,8 +923,8 @@ public:
     bool isRecursive() const override;
     BodyOcc *occurrence() override;
     void collect(VarTermBoundVec &vars) const override;
-    Score score(Term::VarSet const &bound) override;
-    std::pair<Output::LiteralId,bool> toOutput() override;
+    Score score(Term::VarSet const &bound, MessagePrinter &log) override;
+    std::pair<Output::LiteralId,bool> toOutput(MessagePrinter &log) override;
     bool auxiliary() const override { return auxiliary_; }
     // }}}2
 private:
@@ -957,7 +957,7 @@ public:
     void collectImportant(Term::VarSet &vars) override;
     // {{{2 SolutionCallback interface
     void printHead(std::ostream &out) const override;
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     // }}}2
 
 private:
@@ -992,7 +992,7 @@ public:
     bool isNormal() const override;                           // return false -> this one creates choices
     void analyze(Dep::Node &node, Dep &dep) override;         // use accuDoms to build the dependency...
     void startLinearize(bool active) override;                // noop because single instantiator
-    void linearize(Scripts &scripts, bool positive) override; // noop because single instantiator
+    void linearize(Scripts &scripts, bool positive, MessagePrinter &log) override; // noop because single instantiator
     void enqueue(Queue &q) override;                          // enqueue the single instantiator
     // {{{2 Printable interface
     void print(std::ostream &out) const override;             // #complete { h1, ..., hn } :- accu1,... , accun.
@@ -1001,7 +1001,7 @@ private:
     // {{{2 SolutionCallback interface
     void printHead(std::ostream &out) const override;         // #complete { h1, ..., hn }
     void propagate(Queue &queue) override;                    // enqueue based on accuDoms
-    void report(Output::OutputBase &out) override;            // loop over headDom here
+    void report(Output::OutputBase &out, MessagePrinter &log) override;            // loop over headDom here
     // {{{2 BodyOcc interface
     UGTerm getRepr() const override;
     bool isPositive() const override;
@@ -1037,7 +1037,7 @@ public:
 
 private:
     // {{{2 SolutionCallback interface
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     // }}}2
 
 private:
@@ -1057,8 +1057,8 @@ public:
     bool isRecursive() const override;
     BodyOcc *occurrence() override;
     void collect(VarTermBoundVec &vars) const override;
-    Score score(Term::VarSet const &bound) override;
-    std::pair<Output::LiteralId,bool> toOutput() override;
+    Score score(Term::VarSet const &bound, MessagePrinter &log) override;
+    std::pair<Output::LiteralId,bool> toOutput(MessagePrinter &log) override;
     bool auxiliary() const override { return true; } // by construction
     // }}}2
 private:
@@ -1095,7 +1095,7 @@ public:
 
 private:
     // {{{2 SolutionCallback interface (w/o printHead)
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     // }}}2
 
 private:
@@ -1145,7 +1145,7 @@ public:
     bool isNormal() const override;                           // return false -> this one creates choices
     void analyze(Dep::Node &node, Dep &dep) override;         // use accuDoms to build the dependency...
     void startLinearize(bool active) override;                // noop because single instantiator
-    void linearize(Scripts &scripts, bool positive) override; // noop because single instantiator
+    void linearize(Scripts &scripts, bool positive, MessagePrinter &log) override; // noop because single instantiator
     void enqueue(Queue &q) override;                          // enqueue the single instantiator
     // {{{2 Printable interface
     void print(std::ostream &out) const override;             // #complete { h1, ..., hn } :- accu1,... , accun.
@@ -1155,7 +1155,7 @@ private:
     // {{{2 SolutionCallback interface
     void printHead(std::ostream &out) const override;         // #complete { h1, ..., hn }
     void propagate(Queue &queue) override;                    // enqueue based on accuDoms
-    void report(Output::OutputBase &out) override;            // loop over headDom here
+    void report(Output::OutputBase &out, MessagePrinter &log) override;            // loop over headDom here
     unsigned priority() const override { return 1; }
     // {{{2 BodyOcc interface
     UGTerm getRepr() const override;
@@ -1190,8 +1190,8 @@ public:
     bool isRecursive() const override;
     BodyOcc *occurrence() override;
     void collect(VarTermBoundVec &vars) const override;
-    Score score(Term::VarSet const &bound) override;
-    std::pair<Output::LiteralId,bool> toOutput() override;
+    Score score(Term::VarSet const &bound, MessagePrinter &log) override;
+    std::pair<Output::LiteralId,bool> toOutput(MessagePrinter &log) override;
     bool auxiliary() const override { return true; } // by construction
     // }}}2
 private:
@@ -1221,7 +1221,7 @@ public:
     // {{{2 Statement interface
     bool isNormal() const override;
     // {{{2 SolutionCallback interface
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     // }}}2
 
 private:
@@ -1234,7 +1234,7 @@ class DisjunctionAccumulate;
 class DisjunctionAccumulateHead : public SolutionCallback {
 public:
     DisjunctionAccumulateHead(DisjunctionAccumulate &accu) : accu_(accu) { }
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     void propagate(Queue &) override { }
     void printHead(std::ostream &out) const override;
     virtual ~DisjunctionAccumulateHead() noexcept = default;
@@ -1252,10 +1252,10 @@ public:
     void analyze(Dep::Node &node, Dep &dep) override;
     void collectImportant(Term::VarSet &vars) override;
 private:
-    void reportHead(Output::OutputBase &out);
-    void linearize(Scripts &scripts, bool positive) override;
+    void reportHead(Output::OutputBase &out, MessagePrinter &log);
+    void linearize(Scripts &scripts, bool positive, MessagePrinter &log) override;
     // {{{2 SolutionCallback interface
-    void report(Output::OutputBase &out) override;
+    void report(Output::OutputBase &out, MessagePrinter &log) override;
     // }}}2
 
 private:

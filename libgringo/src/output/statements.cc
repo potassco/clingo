@@ -394,7 +394,7 @@ void WeakConstraint::replaceDelayed(DomainData &data, LitVec &delayed) {
 
 // {{{1 definition of Bound
 
-bool Bound::init(DomainData &data, Translator &x) {
+bool Bound::init(DomainData &data, Translator &x, MessagePrinter &log) {
     if (modified) {
         modified = false;
         if (range_.empty()) { Rule().translate(data, x); }
@@ -403,7 +403,7 @@ bool Bound::init(DomainData &data, Translator &x) {
                 if      (range_.front()  != std::numeric_limits<int>::min()) { range_.remove(range_.front()+1, std::numeric_limits<int>::max()); }
                 else if (range_.back()+1 != std::numeric_limits<int>::max()) { range_.remove(std::numeric_limits<int>::min(), range_.back()); }
                 else                                                         { range_.clear(), range_.add(0, 1); }
-                GRINGO_REPORT(W_VARIABLE_UNBOUNDED)
+                GRINGO_REPORT(log, W_VARIABLE_UNBOUNDED)
                     << "warning: unbounded constraint variable:\n"
                     << "  domain of '" << var << "' is set to [" << range_.front() << "," << range_.back() << "]\n"
                     ;
@@ -549,26 +549,26 @@ void Translator::addDisjointConstraint(DomainData &data, LiteralId lit) {
 void Translator::addMinimize(TupleId tuple, LiteralId cond) {
     minimize_.emplace_back(tuple, cond);
 }
-void Translator::translate(DomainData &data, OutputPredicates const &outPreds) {
+void Translator::translate(DomainData &data, OutputPredicates const &outPreds, MessagePrinter &log) {
     for (auto &x : boundMap_) {
-        if (!x.init(data, *this)) { return; }
+        if (!x.init(data, *this, log)) { return; }
     }
     for (auto &lit : disjointCons_) {
         auto &atm = data.getAtom<DisjointDomain>(lit.domain(), lit.offset());
-        atm.translate(data, *this);
+        atm.translate(data, *this, log);
     }
     for (auto &x : constraints_)  { x.translate(data, *this); }
     disjointCons_.clear();
     constraints_.clear();
     translateMinimize(data);
-    outputSymbols(data, outPreds);
+    outputSymbols(data, outPreds, log);
 }
 
 bool Translator::showBound(OutputPredicates const &outPreds, Bound const &bound) {
     return outPreds.empty() || (bound.var.type() == SymbolType::Fun && showSig(outPreds, bound.var.sig(), true));
 }
 
-void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPreds) {
+void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPreds, MessagePrinter &log) {
     { // show csp varibles
         for (auto it = boundMap_.begin() + incBoundOffset_, ie = boundMap_.end(); it != ie; ++it, ++incBoundOffset_) {
             if (it->var.type() == SymbolType::Fun) { seenSigs_.insert(std::hash<uint64_t>(), std::equal_to<uint64_t>(), it->var.sig().rep()); }
@@ -580,7 +580,7 @@ void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPred
         if (!std::get<1>(x).match("", 0, false) && std::get<2>(x)) {
             auto it(seenSigs_.find(std::hash<uint64_t>(), std::equal_to<uint64_t>(), std::get<1>(x).rep()));
             if (!it) {
-                GRINGO_REPORT(W_ATOM_UNDEFINED)
+                GRINGO_REPORT(log, W_ATOM_UNDEFINED)
                     << std::get<0>(x) << ": info: no constraint variables over signature occur in program:\n"
                     << "  $" << std::get<1>(x) << "\n";
                 seenSigs_.insert(std::hash<uint64_t>(), std::equal_to<uint64_t>(), std::get<1>(x).rep());
@@ -617,7 +617,7 @@ void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPred
         auto bound = boundMap_.find(todo.term);
         if (bound == boundMap_.end()) {
             // TODO: W_ATOM_UNDEFINED???
-            GRINGO_REPORT(W_ATOM_UNDEFINED)
+            GRINGO_REPORT(log, W_ATOM_UNDEFINED)
                 << "info: constraint variable does not occur in program:\n"
                 << "  $" << todo.term << "\n";
             continue;

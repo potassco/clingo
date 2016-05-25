@@ -197,7 +197,7 @@ struct Bound {
         range_.add(std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
     }
     operator Symbol const & () const { return var; }
-    bool init(DomainData &data, Translator &x);
+    bool init(DomainData &data, Translator &x, MessagePrinter &log);
     int getLower(int coef) const {
         if (range_.empty()) { return 0; }
         return coef * (coef < 0 ? range_.back() : range_.front());
@@ -335,7 +335,7 @@ public:
     void addLinearConstraint(Potassco::Atom_t head, CoefVarVec &&vars, int bound);
     void addDisjointConstraint(DomainData &data, LiteralId lit);
     void atoms(DomainData &data, int atomset, IsTrueLookup isTrue, SymVec &atoms, OutputPredicates const &outPreds);
-    void translate(DomainData &data, OutputPredicates const &outPreds);
+    void translate(DomainData &data, OutputPredicates const &outPreds, MessagePrinter &log);
     void output(DomainData &data, Statement &x);
     void simplify(DomainData &data, Mappings &mappings, AssignmentLookup assignment);
     void showTerm(DomainData &data, Symbol term, bool csp, LitVec &&cond);
@@ -358,7 +358,7 @@ private:
     void addUpperBound(Symbol x, int bound);
     bool showBound(OutputPredicates const &outPreds, Bound const &bound);
     void translateMinimize(DomainData &data);
-    void outputSymbols(DomainData &data, OutputPredicates const &outPreds);
+    void outputSymbols(DomainData &data, OutputPredicates const &outPreds, MessagePrinter &log);
     bool showSig(OutputPredicates const &outPreds, Sig sig, bool csp);
     void showCsp(Bound const &bound, IsTrueLookup isTrue, SymVec &atoms);
 

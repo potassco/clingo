@@ -72,8 +72,8 @@ public:
     void flush();
     void init(bool incremental);
     void beginStep();
-    void endStep(bool solve);
-    void checkOutPreds();
+    void endStep(bool solve, MessagePrinter &log);
+    void checkOutPreds(MessagePrinter &log);
     SymVec atoms(int atomset, IsTrueLookup lookup) const;
     std::pair<PredicateDomain::Iterator, PredicateDomain*> find(Symbol val);
     std::pair<PredicateDomain::ConstIterator, PredicateDomain const *> find(Symbol val) const;

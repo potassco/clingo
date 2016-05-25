@@ -27,11 +27,11 @@ namespace Gringo { namespace Ground {
 
 // {{{ definition of SolutionBinder
 
-IndexUpdater *SolutionBinder::getUpdater()   { return nullptr; }
-void SolutionBinder::match()                 { }
-bool SolutionBinder::next()                  { return false; }
+IndexUpdater *SolutionBinder::getUpdater()          { return nullptr; }
+void SolutionBinder::match(MessagePrinter &)        { }
+bool SolutionBinder::next()                         { return false; }
 void SolutionBinder::print(std::ostream &out) const { out << "#end"; }
-SolutionBinder::~SolutionBinder()             { }
+SolutionBinder::~SolutionBinder()                   { }
 
 // }}}
 // {{{ definition of BackjumpBinder
@@ -40,10 +40,10 @@ BackjumpBinder::BackjumpBinder(UIdx &&index, DependVec &&depends)
     : index(std::move(index))
     , depends(std::move(depends)) { }
 BackjumpBinder::BackjumpBinder(BackjumpBinder &&) noexcept = default;
-void BackjumpBinder::match() { index->match(); }
-bool BackjumpBinder::next()  { return index->next(); }
-bool BackjumpBinder::first() {
-    index->match();
+void BackjumpBinder::match(MessagePrinter &log) { index->match(log); }
+bool BackjumpBinder::next() { return index->next(); }
+bool BackjumpBinder::first(MessagePrinter &log) {
+    index->match(log);
     return next();
 }
 void BackjumpBinder::print(std::ostream &out) const {
@@ -66,24 +66,24 @@ void Instantiator::finalize(DependVec &&depends) {
     binders.emplace_back(gringo_make_unique<SolutionBinder>(), std::move(depends));
 }
 void Instantiator::enqueue(Queue &queue) { queue.enqueue(*this); }
-void Instantiator::instantiate(Output::OutputBase &out) {
+void Instantiator::instantiate(Output::OutputBase &out, MessagePrinter &log) {
 #if DEBUG_INSTANTIATION > 0
     std::cerr << "  instantiate: " << *this << std::endl;
 #endif
     auto ie = binders.rend(), it = ie - 1, ib = binders.rbegin();
-    it->match();
+    it->match(log);
     do {
 #if DEBUG_INSTANTIATION > 1
         std::cerr << "    start at: " << *it << std::endl;
 #endif
         it->backjumpable = true;
         if (it->next()) {
-            for (--it; it->first(); --it) { it->backjumpable = true; }
+            for (--it; it->first(log); --it) { it->backjumpable = true; }
 #if DEBUG_INSTANTIATION > 1
             std::cerr << "    advanced to: " << *it << std::endl;
 #endif
         }
-        if (it == ib) { callback->report(out); }
+        if (it == ib) { callback->report(out, log); }
         for (auto &x : it->depends) { binders[x].backjumpable = false; }
         for (++it; it != ie && it->backjumpable; ++it) { }
 #if DEBUG_INSTANTIATION > 1
@@ -111,7 +111,7 @@ Instantiator::~Instantiator() noexcept = default;
 // }}}
 // {{{ definition of Queue
 
-void Queue::process(Output::OutputBase &out) {
+void Queue::process(Output::OutputBase &out, MessagePrinter &log) {
     bool empty;
     do {
         empty = true;
@@ -122,7 +122,7 @@ void Queue::process(Output::OutputBase &out) {
 #endif
                 queue.swap(current);
                 for (Instantiator &x : current) {
-                    x.instantiate(out);
+                    x.instantiate(out, log);
                     x.enqueued = false;
                 }
                 for (Instantiator &x : current) { x.callback->propagate(*this); }

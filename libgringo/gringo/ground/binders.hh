@@ -43,16 +43,16 @@ struct PosBinder : Binder {
     template <       int... I> struct lookup;
     template <int N, int... I> struct lookup<N, I...> : lookup<N-1, N, I...> { };
     template <       int... I> struct lookup<0, I...> {
-        MatchRng operator()(std::tuple<Index, LookupArgs...> &index, BinderType type) {
-            return std::get<0>(index).lookup(std::get<I>(index)..., type);
+        MatchRng operator()(std::tuple<Index, LookupArgs...> &index, BinderType type, MessagePrinter &log) {
+            return std::get<0>(index).lookup(std::get<I>(index)..., type, log);
         }
     };
 
-    virtual IndexUpdater *getUpdater()          { return &std::get<0>(index); }
-    virtual void match()                        { current = lookup<sizeof...(LookupArgs)>()(index, type); }
-    virtual bool next()                         { return current.next(result, *repr, std::get<0>(index)); }
-    virtual void print(std::ostream &out) const { out << *repr << "@" << type; }
-    virtual ~PosBinder()                        { }
+    IndexUpdater *getUpdater() override          { return &std::get<0>(index); }
+    void match(MessagePrinter &log) override     { current = lookup<sizeof...(LookupArgs)>()(index, type, log); }
+    bool next() override                         { return current.next(result, *repr, std::get<0>(index)); }
+    void print(std::ostream &out) const override { out << *repr << "@" << type; }
+    virtual ~PosBinder()                         { }
 
     UTerm      repr; // problematic
     Match     &result;
@@ -74,16 +74,16 @@ struct Matcher : Binder {
         , domain(domain)
         , repr(repr)
         , naf(naf) { }
-    virtual IndexUpdater *getUpdater() { return nullptr; }
-    virtual void match() {
-        firstMatch = domain.lookup(result, repr, naf);
+    IndexUpdater *getUpdater() override { return nullptr; }
+    void match(MessagePrinter &log) override {
+        firstMatch = domain.lookup(result, repr, naf, log);
     }
-    virtual bool next() {
+    bool next() override {
         bool ret = firstMatch;
         firstMatch = false;
         return ret;
     }
-    virtual void print(std::ostream &out) const {
+    void print(std::ostream &out) const override {
         out << naf << repr << "[" << domain.generation() << "/" << domain.size() << "]" << "@ALL";
     }
     virtual ~Matcher() { }
@@ -108,17 +108,17 @@ struct PosMatcher : Binder, IndexUpdater {
         , domain(domain)
         , repr(std::move(repr))
         , type(type) { }
-    virtual IndexUpdater *getUpdater() { return type == BinderType::NEW ? this : nullptr; }
-    virtual void match() {
-        firstMatch = domain.lookup(result, *repr, type);
+    IndexUpdater *getUpdater() override { return type == BinderType::NEW ? this : nullptr; }
+    void match(MessagePrinter &log) override {
+        firstMatch = domain.lookup(result, *repr, type, log);
     }
-    virtual bool next() {
+    bool next() override {
         bool ret = firstMatch;
         firstMatch = false;
         return ret;
     }
-    virtual bool update() { return domain.update([](unsigned) { }, *repr, imported, importedDelayed); }
-    virtual void print(std::ostream &out) const { out << *repr << "[" << domain.generation() << "/" << domain.size() << "]" << "@" << type; }
+    bool update() override { return domain.update([](unsigned) { }, *repr, imported, importedDelayed); }
+    void print(std::ostream &out) const override { out << *repr << "[" << domain.generation() << "/" << domain.size() << "]" << "@" << type; }
     virtual ~PosMatcher() { };
 
     Match      &result;

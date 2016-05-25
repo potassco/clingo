@@ -87,11 +87,11 @@ int clamp(int64_t x) {
     return int(x);
 }
 
-bool defined(SymVec const &tuple, AggregateFunction fun, Location const &loc) {
+bool defined(SymVec const &tuple, AggregateFunction fun, Location const &loc, MessagePrinter &log) {
     if (tuple.empty()) {
         if (fun == AggregateFunction::COUNT) { return true; }
         else {
-            GRINGO_REPORT(W_OPERATION_UNDEFINED)
+            GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
                 << loc << ": info: empty tuple ignored\n";
             return false;
         }
@@ -107,7 +107,7 @@ bool defined(SymVec const &tuple, AggregateFunction fun, Location const &loc) {
             else {
                 std::ostringstream s;
                 print_comma(s, tuple, ",");
-                GRINGO_REPORT(W_OPERATION_UNDEFINED)
+                GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
                     << loc << ": info: tuple ignored:\n"
                     << "  " << s.str() << "\n";
                 return false;
@@ -118,11 +118,11 @@ bool defined(SymVec const &tuple, AggregateFunction fun, Location const &loc) {
 }
 
 
-bool neutral(SymVec const &tuple, AggregateFunction fun, Location const &loc) {
+bool neutral(SymVec const &tuple, AggregateFunction fun, Location const &loc, MessagePrinter &log) {
     if (tuple.empty()) {
         if (fun == AggregateFunction::COUNT) { return false; }
         else {
-            GRINGO_REPORT(W_OPERATION_UNDEFINED)
+            GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
                 << loc << ": info: empty tuple ignored\n";
             return true;
         }
@@ -139,7 +139,7 @@ bool neutral(SymVec const &tuple, AggregateFunction fun, Location const &loc) {
         if (ret && tuple.front() != Symbol::createNum(0)) {
             std::ostringstream s;
             print_comma(s, tuple, ",");
-            GRINGO_REPORT(W_OPERATION_UNDEFINED)
+            GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
                 << loc << ": info: tuple ignored:\n"
                 << "  " << s.str() << "\n";
         }
@@ -642,7 +642,7 @@ void DisjointAtom::accumulate(DomainData &data, SymVec const &tuple, CSPGroundAd
     elem.first->second.emplace_back(std::move(value), fixed, data.clause(get_clone(lits)));
 }
 
-bool DisjointAtom::translate(DomainData &data, Translator &x) {
+bool DisjointAtom::translate(DomainData &data, Translator &x, MessagePrinter &log) {
     std::set<int> values;
     std::vector<std::map<int, LiteralId>> layers;
     for (auto &elem : elems_) {
@@ -690,7 +690,7 @@ bool DisjointAtom::translate(DomainData &data, Translator &x) {
                         values = std::move(nextValues);
                     }
                     for (auto i : values) { b->add(i, i+1); }
-                    b->init(data, x);
+                    b->init(data, x, log);
 
                     // create a new variable with the respective bound
                     // b = value + fixed
@@ -848,12 +848,12 @@ void HeadAggregateAtom::init(AggregateFunction fun, DisjunctiveBounds &&bounds) 
     initialized_ = true;
 }
 
-void HeadAggregateAtom::accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LiteralId head, LitVec &lits) {
+void HeadAggregateAtom::accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LiteralId head, LitVec &lits, MessagePrinter &log) {
     // Elements are grouped by their tuples.
     // Each tuple is associated with a vector of pairs of head literals and a condition.
     // If the head is a fact, this is represented with an invalid literal.
     // If a tuple is a fact, this is represented with the first element of the vector being having an invalid head and an empty condition.
-    if (!Gringo::Output::defined(tuple, range_.fun, loc)) { return; }
+    if (!Gringo::Output::defined(tuple, range_.fun, loc, log)) { return; }
     auto ret(elems_.push(std::piecewise_construct, std::forward_as_tuple(data.tuple(tuple)), std::forward_as_tuple()));
     auto &elem = ret.first->second;
     bool fact = lits.empty() && !head.valid();

@@ -195,13 +195,13 @@ void TheoryParser::reduce() {
     }
 }
 
-UTheoryTerm TheoryParser::parse(RawTheoryTerm::ElemVec &&elems) {
+UTheoryTerm TheoryParser::parse(RawTheoryTerm::ElemVec &&elems, MessagePrinter &log) {
     stack_.clear();
     bool unary = true;
     for (auto &elem : elems) {
         for (auto &op : elem.first) {
             if (!def_.hasOp(op, unary)) {
-                GRINGO_REPORT(E_ERROR)
+                GRINGO_REPORT(log, E_ERROR)
                     << loc_ << ": error: missing definition for operator:" << "\n"
                     << "  " << op << "\n";
             }
@@ -262,7 +262,7 @@ RawTheoryTerm *RawTheoryTerm::clone() const {
     return gringo_make_unique<RawTheoryTerm>(get_clone(elems_)).release();
 }
 
-Potassco::Id_t RawTheoryTerm::eval(TheoryData &) const {
+Potassco::Id_t RawTheoryTerm::eval(TheoryData &, MessagePrinter &) const {
     throw std::logic_error("RawTheoryTerm::eval must not be called!");
 }
 
@@ -278,11 +278,11 @@ void RawTheoryTerm::replace(Defines &defs) {
     }
 }
 
-UTheoryTerm RawTheoryTerm::initTheory(TheoryParser &p) {
+UTheoryTerm RawTheoryTerm::initTheory(TheoryParser &p, MessagePrinter &log) {
     for (auto &elem : elems_) {
-        Term::replace(elem.second, elem.second->initTheory(p));
+        Term::replace(elem.second, elem.second->initTheory(p, log));
     }
-    return p.parse(std::move(elems_));
+    return p.parse(std::move(elems_), log);
 }
 
 // {{{1 definition of UnaryTheoryTerm
@@ -311,9 +311,9 @@ UnaryTheoryTerm *UnaryTheoryTerm::clone() const {
     return gringo_make_unique<UnaryTheoryTerm>(op_, get_clone(arg_)).release();
 }
 
-Potassco::Id_t UnaryTheoryTerm::eval(TheoryData &data) const {
+Potassco::Id_t UnaryTheoryTerm::eval(TheoryData &data, MessagePrinter &log) const {
     auto op = data.addTerm(op_.c_str());
-    Potassco::Id_t args[] = { arg_->eval(data) };
+    Potassco::Id_t args[] = { arg_->eval(data, log) };
     return data.addTerm(op, Potassco::toSpan(args, 1));
 }
 
@@ -325,8 +325,8 @@ void UnaryTheoryTerm::replace(Defines &defs) {
     arg_->replace(defs);
 }
 
-UTheoryTerm UnaryTheoryTerm::initTheory(TheoryParser &p) {
-    Term::replace(arg_, arg_->initTheory(p));
+UTheoryTerm UnaryTheoryTerm::initTheory(TheoryParser &p, MessagePrinter &log) {
+    Term::replace(arg_, arg_->initTheory(p, log));
     return nullptr;
 }
 
@@ -357,9 +357,9 @@ BinaryTheoryTerm *BinaryTheoryTerm::clone() const {
     return gringo_make_unique<BinaryTheoryTerm>(get_clone(left_), op_, get_clone(right_)).release();
 }
 
-Potassco::Id_t BinaryTheoryTerm::eval(TheoryData &data) const {
+Potassco::Id_t BinaryTheoryTerm::eval(TheoryData &data, MessagePrinter &log) const {
     auto op = data.addTerm(op_.c_str());
-    Potassco::Id_t args[] = { left_->eval(data), right_->eval(data) };
+    Potassco::Id_t args[] = { left_->eval(data, log), right_->eval(data, log) };
     return data.addTerm(op, Potassco::toSpan(args, 2));
 }
 
@@ -373,9 +373,9 @@ void BinaryTheoryTerm::replace(Defines &defs) {
     right_->replace(defs);
 }
 
-UTheoryTerm BinaryTheoryTerm::initTheory(TheoryParser &p) {
-    Term::replace(left_, left_->initTheory(p));
-    Term::replace(right_, right_->initTheory(p));
+UTheoryTerm BinaryTheoryTerm::initTheory(TheoryParser &p, MessagePrinter &log) {
+    Term::replace(left_, left_->initTheory(p, log));
+    Term::replace(right_, right_->initTheory(p, log));
     return nullptr;
 }
 
@@ -409,10 +409,10 @@ TupleTheoryTerm *TupleTheoryTerm::clone() const {
     return gringo_make_unique<TupleTheoryTerm>(type_, get_clone(args_)).release();
 }
 
-Potassco::Id_t TupleTheoryTerm::eval(TheoryData &data) const {
+Potassco::Id_t TupleTheoryTerm::eval(TheoryData &data, MessagePrinter &log) const {
     std::vector<Potassco::Id_t> args;
     for (auto &arg : args_) {
-        args.emplace_back(arg->eval(data));
+        args.emplace_back(arg->eval(data, log));
     }
     return data.addTerm(type_, Potassco::toSpan(args));
 }
@@ -429,9 +429,9 @@ void TupleTheoryTerm::replace(Defines &defs) {
     }
 }
 
-UTheoryTerm TupleTheoryTerm::initTheory(TheoryParser &p) {
+UTheoryTerm TupleTheoryTerm::initTheory(TheoryParser &p, MessagePrinter &log) {
     for (auto &term : args_) {
-        Term::replace(term, term->initTheory(p));
+        Term::replace(term, term->initTheory(p, log));
     }
     return nullptr;
 }
@@ -464,11 +464,11 @@ FunctionTheoryTerm *FunctionTheoryTerm::clone() const {
     return gringo_make_unique<FunctionTheoryTerm>(name_, get_clone(args_)).release();
 }
 
-Potassco::Id_t FunctionTheoryTerm::eval(TheoryData &data) const {
+Potassco::Id_t FunctionTheoryTerm::eval(TheoryData &data, MessagePrinter &log) const {
     auto name = data.addTerm(name_.c_str());
     std::vector<Potassco::Id_t> args;
     for (auto &arg : args_) {
-        args.emplace_back(arg->eval(data));
+        args.emplace_back(arg->eval(data, log));
     }
     return data.addTerm(name, Potassco::toSpan(args));
 }
@@ -485,9 +485,9 @@ void FunctionTheoryTerm::replace(Defines &defs) {
     }
 }
 
-UTheoryTerm FunctionTheoryTerm::initTheory(TheoryParser &p) {
+UTheoryTerm FunctionTheoryTerm::initTheory(TheoryParser &p, MessagePrinter &log) {
     for (auto &term : args_) {
-        Term::replace(term, term->initTheory(p));
+        Term::replace(term, term->initTheory(p, log));
     }
     return nullptr;
 }
@@ -518,9 +518,9 @@ TermTheoryTerm *TermTheoryTerm::clone() const {
     return gringo_make_unique<TermTheoryTerm>(get_clone(term_)).release();
 }
 
-Potassco::Id_t TermTheoryTerm::eval(TheoryData &data) const {
+Potassco::Id_t TermTheoryTerm::eval(TheoryData &data, MessagePrinter &log) const {
     bool undefined = false;
-    return data.addTerm(term_->eval(undefined));
+    return data.addTerm(term_->eval(undefined, log));
 }
 
 void TermTheoryTerm::collect(VarTermBoundVec &vars) {
@@ -531,7 +531,7 @@ void TermTheoryTerm::replace(Defines &defs) {
     Term::replace(term_, term_->replace(defs, true));
 }
 
-UTheoryTerm TermTheoryTerm::initTheory(TheoryParser &) {
+UTheoryTerm TermTheoryTerm::initTheory(TheoryParser &, MessagePrinter &) {
     return nullptr;
 }
 

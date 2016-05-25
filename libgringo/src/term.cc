@@ -35,19 +35,19 @@ Defines::DefMap const &Defines::defs() const {
     return defs_;
 }
 
-void Defines::add(Location const &loc, String name, UTerm &&value, bool defaultDef) {
+void Defines::add(Location const &loc, String name, UTerm &&value, bool defaultDef, MessagePrinter &log) {
     auto it = defs_.find(name);
     if (it == defs_.end())                           { defs_.emplace(name, make_tuple(defaultDef, loc, std::move(value))); }
     else if (std::get<0>(it->second) && !defaultDef) { it->second = make_tuple(defaultDef, loc, std::move(value)); }
     else if (std::get<0>(it->second) || !defaultDef) {
-        GRINGO_REPORT(E_ERROR)
+        GRINGO_REPORT(log, E_ERROR)
             << loc << ": error: redefinition of constant:\n"
             << "  #const " << name << "=" << *value << ".\n"
             << std::get<1>(it->second) << ": note: constant also defined here\n";
     }
 }
 
-void Defines::init() {
+void Defines::init(MessagePrinter &log) {
     using DefineGraph = Graph<Defines::DefMap::iterator>;
     using NodeMap     = std::unordered_map<String, DefineGraph::Node*>;
 
@@ -76,7 +76,7 @@ void Defines::init() {
                     << std::get<1>(x->data->second) << ": note: cycle involves definition:\n"
                     << "  #const " << x->data->first << "=" << *std::get<2>(x->data->second) << ".\n";
             }
-            GRINGO_REPORT(E_ERROR) << msg.str();
+            GRINGO_REPORT(log, E_ERROR) << msg.str();
         }
         for (auto &x : scc) { Term::replace(std::get<2>(x->data->second), std::get<2>(x->data->second)->replace(*this, true)); }
     }
@@ -470,12 +470,12 @@ int eval(BinOp op, int x, int y) {
     return 0;
 }
 
-int Term::toNum(bool &undefined) {
-    Symbol y(eval(undefined));
+int Term::toNum(bool &undefined, MessagePrinter &log) {
+    Symbol y(eval(undefined, log));
     if (y.type() == SymbolType::Num) { return y.num(); }
     else {
         undefined = true;
-        GRINGO_REPORT(W_OPERATION_UNDEFINED)
+        GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
             << loc() << ": info: number expected:\n"
             << "  " << *this << "\n";
         return 0;
@@ -540,9 +540,9 @@ void Term::collect(VarTermSet &x) const {
 }
 
 
-bool Term::isZero() const {
+bool Term::isZero(MessagePrinter &log) const {
     bool undefined;
-    return getInvertibility() == Term::CONSTANT && eval(undefined) == Symbol::createNum(0);
+    return getInvertibility() == Term::CONSTANT && eval(undefined, log) == Symbol::createNum(0);
 }
 
 bool Term::bind(VarSet &bound) {
@@ -700,7 +700,7 @@ Term::Invertibility PoolTerm::getInvertibility() const     { return Term::NOT_IN
 
 void PoolTerm::print(std::ostream &out) const    { print_comma(out, args, ";", [](std::ostream &out, UTerm const &y) { out << *y; }); }
 
-Term::SimplifyRet PoolTerm::simplify(SimplifyState &, bool, bool) {
+Term::SimplifyRet PoolTerm::simplify(SimplifyState &, bool, bool, MessagePrinter &) {
     throw std::logic_error("Term::simplify must be called after Term::unpool");
 }
 
@@ -725,7 +725,7 @@ void PoolTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) cons
     for (auto &y : args) { y->collect(vars, minLevel, maxLevel); }
 }
 
-Symbol PoolTerm::eval(bool &) const { throw std::logic_error("Term::unpool must be called before Term::eval"); }
+Symbol PoolTerm::eval(bool &, MessagePrinter &) const { throw std::logic_error("Term::unpool must be called before Term::eval"); }
 
 bool PoolTerm::match(Symbol const &) const { throw std::logic_error("Term::unpool must be called before Term::match"); }
 
@@ -801,7 +801,7 @@ Term::Invertibility ValTerm::getInvertibility() const      { return Term::CONSTA
 
 void ValTerm::print(std::ostream &out) const     { out << value; }
 
-Term::SimplifyRet ValTerm::simplify(SimplifyState &, bool, bool) { return {value}; }
+Term::SimplifyRet ValTerm::simplify(SimplifyState &, bool, bool, MessagePrinter &) { return {value}; }
 
 Term::ProjectRet ValTerm::project(bool rename, AuxGen &) {
     assert(!rename); (void)rename;
@@ -818,7 +818,7 @@ void ValTerm::collect(VarTermBoundVec &, bool) const { }
 
 void ValTerm::collect(VarSet &, unsigned, unsigned) const { }
 
-Symbol ValTerm::eval(bool &) const { return value; }
+Symbol ValTerm::eval(bool &, MessagePrinter &) const { return value; }
 
 bool ValTerm::match(Symbol const &x) const { return value == x; }
 
@@ -900,7 +900,7 @@ Term::Invertibility VarTerm::getInvertibility() const { return Term::INVERTIBLE;
 
 void VarTerm::print(std::ostream &out) const { out << name; }
 
-Term::SimplifyRet VarTerm::simplify(SimplifyState &state, bool positional, bool arithmetic) {
+Term::SimplifyRet VarTerm::simplify(SimplifyState &state, bool positional, bool arithmetic, MessagePrinter &) {
     if (name == "_") {
         ref = std::make_shared<Symbol>();
         if (positional) { return {*this, true}; }
@@ -937,7 +937,7 @@ void VarTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) const
     if (minLevel <= level && level <= maxLevel) { vars.emplace(name); }
 }
 
-Symbol VarTerm::eval(bool &) const { return *ref; }
+Symbol VarTerm::eval(bool &, MessagePrinter &) const { return *ref; }
 
 bool VarTerm::match(Symbol const &x) const {
     if (bindRef) {
@@ -1032,7 +1032,7 @@ Term::Invertibility LinearTerm::getInvertibility() const   { return Term::INVERT
 
 void LinearTerm::print(std::ostream &out) const  { out << "(" << m << "*" << *var << "+" << n << ")"; }
 
-Term::SimplifyRet LinearTerm::simplify(SimplifyState &, bool, bool) { return {*this, false}; }
+Term::SimplifyRet LinearTerm::simplify(SimplifyState &, bool, bool, MessagePrinter &) { return {*this, false}; }
 
 Term::ProjectRet LinearTerm::project(bool rename, AuxGen &auxGen) {
     assert(!rename); (void)rename;
@@ -1041,12 +1041,12 @@ Term::ProjectRet LinearTerm::project(bool rename, AuxGen &auxGen) {
     return std::make_tuple(wrap(make_locatable<LinearTerm>(loc(), std::move(var), m, n)), std::move(x), std::move(y));
 }
 
-Symbol LinearTerm::eval(bool &undefined) const {
-    Symbol value = var->eval(undefined);
+Symbol LinearTerm::eval(bool &undefined, MessagePrinter &log) const {
+    Symbol value = var->eval(undefined, log);
     if (value.type() == SymbolType::Num) { return Symbol::createNum(m * value.num() + n); }
     else {
         undefined = true;
-        GRINGO_REPORT(W_OPERATION_UNDEFINED)
+        GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
         return Symbol::createNum(0);
@@ -1142,14 +1142,14 @@ void UnOpTerm::print(std::ostream &out) const {
     }
 }
 
-Term::SimplifyRet UnOpTerm::simplify(SimplifyState &state, bool, bool arithmetic) {
+Term::SimplifyRet UnOpTerm::simplify(SimplifyState &state, bool, bool arithmetic, MessagePrinter &log) {
     bool multiNeg = !arithmetic && op == UnOp::NEG;
-    SimplifyRet ret(arg->simplify(state, false, !multiNeg));
+    SimplifyRet ret(arg->simplify(state, false, !multiNeg, log));
     if (ret.undefined()) {
         return {};
     }
     else if ((multiNeg && ret.notNumeric() && ret.notFunction()) || (!multiNeg && ret.notNumeric())) {
-        GRINGO_REPORT(W_OPERATION_UNDEFINED)
+        GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
         return {};
@@ -1193,8 +1193,8 @@ void UnOpTerm::collect(VarTermBoundVec &vars, bool bound) const {
 void UnOpTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) const {
     arg->collect(vars, minLevel, maxLevel);
 }
-Symbol UnOpTerm::eval(bool &undefined) const {
-    Symbol value = arg->eval(undefined);
+Symbol UnOpTerm::eval(bool &undefined, MessagePrinter &log) const {
+    Symbol value = arg->eval(undefined, log);
     if (value.type() == SymbolType::Num) {
         int num = value.num();
         switch (op) {
@@ -1210,7 +1210,7 @@ Symbol UnOpTerm::eval(bool &undefined) const {
     }
     else {
         undefined = true;
-        GRINGO_REPORT(W_OPERATION_UNDEFINED)
+        GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
         return Symbol::createNum(0);
@@ -1316,14 +1316,14 @@ void BinOpTerm::print(std::ostream &out) const {
     out << "(" << *left << op << *right << ")";
 }
 
-Term::SimplifyRet BinOpTerm::simplify(SimplifyState &state, bool, bool) {
-    auto retLeft(left->simplify(state, false, true));
-    auto retRight(right->simplify(state, false, true));
+Term::SimplifyRet BinOpTerm::simplify(SimplifyState &state, bool, bool, MessagePrinter &log) {
+    auto retLeft(left->simplify(state, false, true, log));
+    auto retRight(right->simplify(state, false, true, log));
     if (retLeft.undefined() || retRight.undefined()) {
         return {};
     }
     else if (retLeft.notNumeric() || retRight.notNumeric() || (op == BinOp::DIV && retRight.isZero())) {
-        GRINGO_REPORT(W_OPERATION_UNDEFINED)
+        GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
         return {};
@@ -1393,13 +1393,13 @@ void BinOpTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) con
     right->collect(vars, minLevel, maxLevel);
 }
 
-Symbol BinOpTerm::eval(bool &undefined) const {
-    Symbol l(left->eval(undefined));
-    Symbol r(right->eval(undefined));
+Symbol BinOpTerm::eval(bool &undefined, MessagePrinter &log) const {
+    Symbol l(left->eval(undefined, log));
+    Symbol r(right->eval(undefined, log));
     if (l.type() == SymbolType::Num && r.type() == SymbolType::Num && (op != BinOp::DIV || r.num() != 0)) { return Symbol::createNum(Gringo::eval(op, l.num(), r.num())); }
     else {
         undefined = true;
-        GRINGO_REPORT(W_OPERATION_UNDEFINED)
+        GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
         return Symbol::createNum(0);
@@ -1484,8 +1484,8 @@ void DotsTerm::print(std::ostream &out) const {
     out << "(" << *left << ".." << *right << ")";
 }
 
-Term::SimplifyRet DotsTerm::simplify(SimplifyState &state, bool, bool) {
-    if (!left->simplify(state, false, false).update(left).undefined() && !right->simplify(state, false, false).update(right).undefined()) {
+Term::SimplifyRet DotsTerm::simplify(SimplifyState &state, bool, bool, MessagePrinter &log) {
+    if (!left->simplify(state, false, false, log).update(left).undefined() && !right->simplify(state, false, false, log).update(right).undefined()) {
         return { state.createDots(loc(), std::move(left), std::move(right)) };
     }
     else {
@@ -1513,7 +1513,7 @@ void DotsTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) cons
     right->collect(vars, minLevel, maxLevel);
 }
 
-Symbol DotsTerm::eval(bool &) const { throw std::logic_error("Term::rewriteDots must be called before Term::eval"); }
+Symbol DotsTerm::eval(bool &, MessagePrinter &) const { throw std::logic_error("Term::rewriteDots must be called before Term::eval"); }
 
 bool DotsTerm::match(Symbol const &) const  { throw std::logic_error("Term::rewriteDots must be called before Term::match"); }
 
@@ -1598,9 +1598,9 @@ void LuaTerm::print(std::ostream &out) const {
     out << ")";
 }
 
-Term::SimplifyRet LuaTerm::simplify(SimplifyState &state, bool, bool) {
+Term::SimplifyRet LuaTerm::simplify(SimplifyState &state, bool, bool, MessagePrinter &log) {
     for (auto &arg : args) {
-        if (arg->simplify(state, false, false).update(arg).undefined()) {
+        if (arg->simplify(state, false, false, log).update(arg).undefined()) {
             return {};
         }
     }
@@ -1634,7 +1634,7 @@ void LuaTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) const
     for (auto &y : args) { y->collect(vars, minLevel, maxLevel); }
 }
 
-Symbol LuaTerm::eval(bool &) const { throw std::logic_error("Term::simplify must be called before Term::eval"); }
+Symbol LuaTerm::eval(bool &, MessagePrinter &) const { throw std::logic_error("Term::simplify must be called before Term::eval"); }
 
 bool LuaTerm::match(Symbol const &) const   { throw std::logic_error("Term::rewriteArithmetics must be called before Term::match"); }
 
@@ -1723,11 +1723,11 @@ void FunctionTerm::print(std::ostream &out) const {
     out << ")";
 }
 
-Term::SimplifyRet FunctionTerm::simplify(SimplifyState &state, bool positional, bool) {
+Term::SimplifyRet FunctionTerm::simplify(SimplifyState &state, bool positional, bool, MessagePrinter &log) {
     bool constant  = true;
     bool projected = false;
     for (auto &arg : args) {
-        auto ret(arg->simplify(state, positional, false));
+        auto ret(arg->simplify(state, positional, false, log));
         if (ret.undefined()) {
             return {};
         }
@@ -1737,7 +1737,7 @@ Term::SimplifyRet FunctionTerm::simplify(SimplifyState &state, bool positional, 
     }
     if (constant) {
         bool undefined;
-        return {eval(undefined)};
+        return {eval(undefined, log)};
     }
     else          { return {*this, projected}; }
 }
@@ -1779,9 +1779,9 @@ void FunctionTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) 
     for (auto &y : args) { y->collect(vars, minLevel, maxLevel); }
 }
 
-Symbol FunctionTerm::eval(bool &undefined) const {
+Symbol FunctionTerm::eval(bool &undefined, MessagePrinter &log) const {
     cache.clear();
-    for (auto &term : args) { cache.emplace_back(term->eval(undefined)); }
+    for (auto &term : args) { cache.emplace_back(term->eval(undefined, log)); }
     return Symbol::createFun(name, Potassco::toSpan(cache));
 }
 
