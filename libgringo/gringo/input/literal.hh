@@ -66,7 +66,7 @@ struct Literal : Printable, Hashable, Locatable, Comparable<Literal>, Clonable<L
     //! Simplifies the literal.
     //! Flag positional=true indicates that anonymous variables in this literal can be projected.
     //! Flag singleton=true disables projections for positive predicate literals (e.g., in non-monotone aggregates)
-    virtual bool simplify(Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) = 0;
+    virtual bool simplify(MessagePrinter &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) = 0;
     //! Collects variables.
     //! \pre Must be called after simplify to properly account for bound variables.
     virtual void collect(VarTermBoundVec &vars, bool bound) const = 0;

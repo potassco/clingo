@@ -100,15 +100,15 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
         if (opts.wNoGlobalVariable)     { logger_.disable(W_GLOBAL_VARIABLE); }
         for (auto &x : opts.defines) {
             LOG << "define: " << x << std::endl;
-            parser.parseDefine(x);
+            parser.parseDefine(x, logger_);
         }
         for (auto &x : files) {
             LOG << "file: " << x << std::endl;
-            parser.pushFile(std::string(x));
+            parser.pushFile(std::string(x), logger_);
         }
         if (files.empty()) {
             LOG << "reading from stdin" << std::endl;
-            parser.pushFile("-");
+            parser.pushFile("-", logger_);
         }
         parse();
     }
@@ -117,7 +117,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     }
     void parse() {
         if (!parser.empty()) {
-            parser.parse();
+            parser.parse(logger_);
             defs.init(logger_);
             parsed = true;
         }
@@ -129,9 +129,9 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
         parse();
         if (parsed) {
             LOG << "************** parsed program **************" << std::endl << prg;
-            prg.rewrite(defs);
+            prg.rewrite(defs, logger_);
             LOG << "************* rewritten program ************" << std::endl << prg;
-            prg.check();
+            prg.check(logger_);
             if (logger_.hasError()) {
                 throw std::runtime_error("grounding stopped because of errors");
             }
@@ -144,7 +144,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
         if (!parts.empty()) {
             Gringo::Ground::Parameters params;
             for (auto &x : parts) { params.add(x.first, Gringo::SymVec(x.second)); }
-            Gringo::Ground::Program gPrg(prg.toGround(out.data));
+            Gringo::Ground::Program gPrg(prg.toGround(out.data, logger_));
             LOG << "************* intermediate program *************" << std::endl << gPrg << std::endl;
             LOG << "*************** grounded program ***************" << std::endl;
             gPrg.ground(params, scripts, out, false, logger_);
@@ -154,7 +154,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
         Gringo::Location loc("<block>", 1, 1, "<block>", 1, 1);
         Gringo::Input::IdVec idVec;
         for (auto &x : params) { idVec.emplace_back(loc, x); }
-        parser.pushBlock(name, std::move(idVec), part);
+        parser.pushBlock(name, std::move(idVec), part, logger_);
         parse();
     }
     Gringo::Symbol getConst(std::string const &name) override {
@@ -168,7 +168,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
         return Gringo::Symbol();
     }
     void load(std::string const &filename) override {
-        parser.pushFile(std::string(filename));
+        parser.pushFile(std::string(filename), logger_);
         parse();
     }
     bool blocked() override { return false; }
@@ -202,7 +202,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     void useEnumAssumption(bool) override { }
     bool useEnumAssumption() override { return false; }
     virtual ~IncrementalControl() { }
-    Gringo::Symbol parseValue(std::string const &str) override { return termParser.parse(str); }
+    Gringo::Symbol parseValue(std::string const &str) override { return termParser.parse(str, logger_); }
     Control *newControl(int, char const **) override { throw std::logic_error("new control instances not supported"); }
     Gringo::TheoryData const &theory() const override { return out.data.theoryInterface(); }
     void freeControl(Control *) override { }

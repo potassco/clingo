@@ -872,7 +872,7 @@ void BodyAggregateAccumulate::report(Output::OutputBase &out, MessagePrinter &lo
         if (!atom->initialized()) {
             atom->init(complete_.fun(), _initBounds(complete_.bounds(), log), complete_.monotone());
         }
-        atom->accumulate(out.data, tuple_.empty() ? def_.domRepr()->loc() : tuple_.front()->loc(), vals, tempLits);
+        atom->accumulate(out.data, tuple_.empty() ? def_.domRepr()->loc() : tuple_.front()->loc(), vals, tempLits, log);
         complete_.enqueue(atom);
     }
 }
@@ -1128,7 +1128,7 @@ void AssignmentAggregateAccumulate::report(Output::OutputBase &out, MessagePrint
     auto &dom = complete_.dom();
     auto dataId = dom.data(dataRepr, complete_.fun());
     auto &data = dom.data(dataId);
-    data.accumulate(out.data, tuple_.empty() ? def_.domRepr()->loc() : tuple_.front()->loc(), tempVals, tempLits);
+    data.accumulate(out.data, tuple_.empty() ? def_.domRepr()->loc() : tuple_.front()->loc(), tempVals, tempLits, log);
     complete_.enqueue(dataId);
 }
 

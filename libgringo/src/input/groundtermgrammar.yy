@@ -42,7 +42,7 @@ using namespace Gringo;
 using namespace Gringo::Input;
 
 int GringoGroundTermGrammar_lex(void *value, void *, GroundTermParser *lexer) {
-    return lexer->lex(value);
+    return lexer->lex(value, lexer->logger());
 }
 
 %}
@@ -50,7 +50,7 @@ int GringoGroundTermGrammar_lex(void *value, void *, GroundTermParser *lexer) {
 %code {
 
 void GroundTermGrammar::parser::error(GroundTermGrammar::parser::location_type const &, std::string const &msg) {
-    lexer->parseError(msg);
+    lexer->parseError(msg, lexer->logger());
 }
 
 }

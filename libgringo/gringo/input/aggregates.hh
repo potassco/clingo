@@ -205,7 +205,7 @@ struct TupleHeadAggregate : HeadAggregate {
     size_t hash() const override;
     TupleHeadAggregate *clone() const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool simplify(Projections &project, SimplifyState &state) override;
+    bool simplify(Projections &project, SimplifyState &state, MessagePrinter &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
     bool hasPool(bool beforeRewrite) const override;
@@ -231,7 +231,7 @@ struct LitHeadAggregate : HeadAggregate {
     size_t hash() const override;
     LitHeadAggregate *clone() const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool simplify(Projections &project, SimplifyState &state) override;
+    bool simplify(Projections &project, SimplifyState &state, MessagePrinter &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
     bool hasPool(bool beforeRewrite) const override;
@@ -262,7 +262,7 @@ struct Disjunction : HeadAggregate {
     size_t hash() const override;
     Disjunction *clone() const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool simplify(Projections &project, SimplifyState &state) override;
+    bool simplify(Projections &project, SimplifyState &state, MessagePrinter &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
     bool hasPool(bool beforeRewrite) const override;
@@ -288,7 +288,7 @@ struct SimpleHeadLiteral : HeadAggregate {
     size_t hash() const override;
     SimpleHeadLiteral *clone() const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool simplify(Projections &project, SimplifyState &state) override;
+    bool simplify(Projections &project, SimplifyState &state, MessagePrinter &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
     bool hasPool(bool beforeRewrite) const override;
@@ -314,7 +314,7 @@ struct MinimizeHeadLiteral : HeadAggregate {
     size_t hash() const override;
     MinimizeHeadLiteral *clone() const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool simplify(Projections &project, SimplifyState &state) override;
+    bool simplify(Projections &project, SimplifyState &state, MessagePrinter &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
     bool hasPool(bool beforeRewrite) const override;
@@ -342,7 +342,7 @@ struct EdgeHeadAtom : HeadAggregate {
     size_t hash() const override;
     EdgeHeadAtom *clone() const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool simplify(Projections &project, SimplifyState &state) override;
+    bool simplify(Projections &project, SimplifyState &state, MessagePrinter &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
     bool hasPool(bool beforeRewrite) const override;
@@ -367,7 +367,7 @@ struct ProjectHeadAtom : HeadAggregate {
     size_t hash() const override;
     ProjectHeadAtom *clone() const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool simplify(Projections &project, SimplifyState &state) override;
+    bool simplify(Projections &project, SimplifyState &state, MessagePrinter &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
     bool hasPool(bool beforeRewrite) const override;
@@ -391,7 +391,7 @@ struct HeuristicHeadAtom : HeadAggregate {
     size_t hash() const override;
     HeuristicHeadAtom *clone() const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool simplify(Projections &project, SimplifyState &state) override;
+    bool simplify(Projections &project, SimplifyState &state, MessagePrinter &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
     bool hasPool(bool beforeRewrite) const override;
@@ -418,7 +418,7 @@ struct ShowHeadLiteral : HeadAggregate {
     size_t hash() const override;
     ShowHeadLiteral *clone() const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool simplify(Projections &project, SimplifyState &state) override;
+    bool simplify(Projections &project, SimplifyState &state, MessagePrinter &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
     bool hasPool(bool beforeRewrite) const override;

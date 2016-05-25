@@ -310,8 +310,8 @@ void NongroundProgramBuilder::rule(Location const &loc, HdLitUid head, BdLitVecU
     prg_.add(make_locatable<Statement>(loc, heads_.erase(head), bodies_.erase(body), StatementType::RULE));
 }
 
-void NongroundProgramBuilder::define(Location const &loc, String name, TermUid value, bool defaultDef) {
-    defs_.add(loc, name, terms_.erase(value), defaultDef);
+void NongroundProgramBuilder::define(Location const &loc, String name, TermUid value, bool defaultDef, MessagePrinter &log) {
+    defs_.add(loc, name, terms_.erase(value), defaultDef, log);
 }
 
 void NongroundProgramBuilder::optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) {
@@ -505,10 +505,10 @@ TheoryOpDefVecUid NongroundProgramBuilder::theoryopdefs(TheoryOpDefVecUid defs, 
     return defs;
 }
 
-TheoryTermDefUid NongroundProgramBuilder::theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs) {
+TheoryTermDefUid NongroundProgramBuilder::theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs, MessagePrinter &log) {
     TheoryTermDef def(loc, name);
     for (auto &opDef : theoryOpDefVecs_.erase(defs)) {
-        def.addOpDef(std::move(opDef));
+        def.addOpDef(std::move(opDef), log);
     }
     return theoryTermDefs_.emplace(std::move(def));
 }
@@ -535,16 +535,16 @@ TheoryDefVecUid NongroundProgramBuilder::theorydefs(TheoryDefVecUid defs, Theory
     return defs;
 }
 
-void NongroundProgramBuilder::theorydef(Location const &loc, String name, TheoryDefVecUid defs) {
+void NongroundProgramBuilder::theorydef(Location const &loc, String name, TheoryDefVecUid defs, MessagePrinter &log) {
     TheoryDef def(loc, name);
     auto defsVec = theoryDefVecs_.erase(defs);
     for (auto &termDef : defsVec.first) {
-        def.addTermDef(std::move(termDef));
+        def.addTermDef(std::move(termDef), log);
     }
     for (auto &atomDef : defsVec.second) {
-        def.addAtomDef(std::move(atomDef));
+        def.addAtomDef(std::move(atomDef), log);
     }
-    prg_.add(std::move(def));
+    prg_.add(std::move(def), log);
 }
 
 // }}}2
@@ -928,7 +928,7 @@ void ASTBuilder::rule(Location const &loc, HdLitUid head, BdLitVecUid body) {
     directive_(loc, "directive_rule", nodeVec);
 }
 
-void ASTBuilder::define(Location const &loc, String name, TermUid value, bool defaultDef) {
+void ASTBuilder::define(Location const &loc, String name, TermUid value, bool defaultDef, MessagePrinter &) {
     auto nodeVec = newNodeVec();
     nodeVec.emplace_back(newNode(loc, name));
     nodeVec.emplace_back(terms_.erase(value));
@@ -1135,7 +1135,7 @@ TheoryOpDefVecUid ASTBuilder::theoryopdefs(TheoryOpDefVecUid defs, TheoryOpDefUi
     return defs;
 }
 
-TheoryTermDefUid ASTBuilder::theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs) {
+TheoryTermDefUid ASTBuilder::theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs, MessagePrinter &) {
     auto &nodeVec = newNodeVec();
     nodeVec.emplace_back(newNode(loc, name));
     nodeVec.emplace_back(newNode(loc, "tuple_theory_definition_operator", newNodeVec() = theoryOpDefVecs_.erase(defs)));
@@ -1179,7 +1179,7 @@ TheoryDefVecUid ASTBuilder::theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid de
     return defs;
 }
 
-void ASTBuilder::theorydef(Location const &loc, String name, TheoryDefVecUid defs) {
+void ASTBuilder::theorydef(Location const &loc, String name, TheoryDefVecUid defs, MessagePrinter &) {
     auto &nodeVec = newNodeVec();
     nodeVec.emplace_back(newNode(loc, name));
     nodeVec.emplace_back(newNode(loc, "tuple_theory_definition", newNodeVec() = theoryDefVecs_.erase(defs)));

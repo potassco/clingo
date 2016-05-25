@@ -25,7 +25,8 @@
 namespace Gringo { namespace Input {
 
 GroundTermParser::GroundTermParser() { }
-Symbol GroundTermParser::parse(std::string const &str) {
+Symbol GroundTermParser::parse(std::string const &str, MessagePrinter &log) {
+    log_ = &log;
     undefined_ = false;
     while (!empty()) { pop(); }
     push(gringo_make_unique<std::stringstream>(str), 0);

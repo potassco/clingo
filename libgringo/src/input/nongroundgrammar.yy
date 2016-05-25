@@ -58,6 +58,7 @@
 #include <climits> 
 
 #define BUILDER (lexer->builder())
+#define LOGGER (lexer->logger())
 #define YYLLOC_DEFAULT(Current, Rhs, N)                                \
     do {                                                               \
         if (N) {                                                       \
@@ -811,11 +812,11 @@ statement
 // {{{2 constants
 
 define
-    : identifier[uid] EQ constterm[rhs] {  BUILDER.define(@$, String::fromRep($uid), $rhs, false); }
+    : identifier[uid] EQ constterm[rhs] {  BUILDER.define(@$, String::fromRep($uid), $rhs, false, LOGGER); }
     ;
 
 statement 
-    : CONST identifier[uid] EQ constterm[rhs] DOT {  BUILDER.define(@$, String::fromRep($uid), $rhs, true); }
+    : CONST identifier[uid] EQ constterm[rhs] DOT {  BUILDER.define(@$, String::fromRep($uid), $rhs, true, LOGGER); }
     ;
 
 // {{{2 scripts
@@ -828,8 +829,8 @@ statement
 // {{{2 include
 
 statement
-    : INCLUDE    STRING[file]        DOT { lexer->include(String::fromRep($file), @$, false); }
-    | INCLUDE LT identifier[file] GT DOT { lexer->include(String::fromRep($file), @$, true); }
+    : INCLUDE    STRING[file]        DOT { lexer->include(String::fromRep($file), @$, false, LOGGER); }
+    | INCLUDE LT identifier[file] GT DOT { lexer->include(String::fromRep($file), @$, true, LOGGER); }
     ;
 
 // {{{2 blocks
@@ -963,7 +964,7 @@ theory_definition_identifier
     ;
 
 theory_term_definition
-    : theory_definition_identifier[name] enable_theory_lexing LBRACE theory_operator_definiton_list[ops] enable_theory_definition_lexing RBRACE { $$ = BUILDER.theorytermdef(@$, String::fromRep($name), $ops); }
+    : theory_definition_identifier[name] enable_theory_lexing LBRACE theory_operator_definiton_list[ops] enable_theory_definition_lexing RBRACE { $$ = BUILDER.theorytermdef(@$, String::fromRep($name), $ops, LOGGER); }
     ;
 
 theory_atom_type
@@ -992,7 +993,7 @@ theory_definition_list
     ;
 
 statement
-    : THEORY identifier[name] enable_theory_definition_lexing LBRACE theory_definition_list[defs] RBRACE disable_theory_lexing DOT { BUILDER.theorydef(@$, String::fromRep($name), $defs); }
+    : THEORY identifier[name] enable_theory_definition_lexing LBRACE theory_definition_list[defs] RBRACE disable_theory_lexing DOT { BUILDER.theorydef(@$, String::fromRep($name), $defs, LOGGER); }
     ;
 
 // {{{2 lexing

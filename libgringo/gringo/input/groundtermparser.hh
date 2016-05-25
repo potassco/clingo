@@ -34,8 +34,10 @@ class GroundTermParser : private LexerState<int> {
     using IndexedTerms = Indexed<SymVec, unsigned>;
 public:
     GroundTermParser();
-    Symbol parse(std::string const &str);
+    Symbol parse(std::string const &str, MessagePrinter &log);
     ~GroundTermParser();
+    // NOTE: only to be used durning parsing (actually it would be better to hide this behind a private interface)
+    MessagePrinter &logger() { assert(log_); return *log_; }
     void parseError(std::string const &message, MessagePrinter &log);
     void lexerError(StringSpan token, MessagePrinter &log);
     int lex(void *pValue, MessagePrinter &log);
@@ -52,6 +54,7 @@ private:
     int lex_impl(void *pValue, MessagePrinter &log);
 
     IndexedTerms terms_;
+    MessagePrinter *log_ = nullptr;
     bool         undefined_;
 };
 

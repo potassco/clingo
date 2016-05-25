@@ -401,8 +401,8 @@ BodyAggregateElements BodyAggregateAtom::elems() const {
     return data_->elems.elems();
 }
 
-void BodyAggregateAtom::accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &lits) {
-    if (neutral(tuple, data_->range.fun, loc)) { return; }
+void BodyAggregateAtom::accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &lits, MessagePrinter &log) {
+    if (neutral(tuple, data_->range.fun, loc, log)) { return; }
     bool inserted, fact, remove;
     data_->elems.accumulate(data, data.tuple(tuple), lits, inserted, fact, remove);
     if (!fact || inserted || remove) {
@@ -415,8 +415,8 @@ BodyAggregateAtom::~BodyAggregateAtom() noexcept = default;
 
 // {{{1 definition of AssignmentAggregateAtom
 
-void AssignmentAggregateData::accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &lits) {
-    if (neutral(tuple, fun_, loc)) { return; }
+void AssignmentAggregateData::accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &lits, MessagePrinter &log) {
+    if (neutral(tuple, fun_, loc, log)) { return; }
     auto ret(elems_.push(std::piecewise_construct, std::forward_as_tuple(data.tuple(tuple)), std::forward_as_tuple()));
     auto &elem = ret.first->second;
     // the tuple was fact
@@ -865,7 +865,7 @@ void HeadAggregateAtom::accumulate(DomainData &data, Location const &loc, SymVec
         std::swap(elem.front(), elem.back());
         remove = !ret.second;
     }
-    if ((!ret.second && !remove) || neutral(tuple, range_.fun, loc)) { return; }
+    if ((!ret.second && !remove) || neutral(tuple, range_.fun, loc, log)) { return; }
     range_.accumulate(tuple, fact, remove);
     fact_ = range_.fact();
 }

@@ -58,7 +58,7 @@ CheckLevel::SC::VarNode &CheckLevel::var(VarTerm &var) {
     if (!node) { node = &dep.insertVar(&var); }
     return *node;
 }
-void CheckLevel::check() {
+void CheckLevel::check(MessagePrinter &log) {
     dep.order();
     auto vars(dep.open());
     if (!vars.empty()) {
@@ -70,7 +70,7 @@ void CheckLevel::check() {
         std::ostringstream msg;
         msg << loc << ": error: unsafe variables in:\n  " << p << "\n";
         for (auto &x : vars) { msg << x->data->loc() << ": note: '" << x->data->name << "' is unsafe\n"; }
-        GRINGO_REPORT(E_ERROR) << msg.str();
+        GRINGO_REPORT(log, E_ERROR) << msg.str();
     }
 }
 CheckLevel::~CheckLevel() { }

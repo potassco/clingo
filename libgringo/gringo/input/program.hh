@@ -59,12 +59,12 @@ public:
     Program(Program &&x);
     void begin(Location const &loc, String name, IdVec &&params);
     void add(UStm &&stm);
-    void add(TheoryDef &&def);
+    void add(TheoryDef &&def, MessagePrinter &log);
     void addClassicalNegation(Sig x);
-    void rewrite(Defines &defs);
-    void check();
+    void rewrite(Defines &defs, MessagePrinter &log);
+    void check(MessagePrinter &log);
     void print(std::ostream &out) const;
-    Ground::Program toGround(DomainData &domains);
+    Ground::Program toGround(DomainData &domains, MessagePrinter &log);
     ~Program();
 
 private:
