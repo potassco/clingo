@@ -1808,18 +1808,18 @@ PyGetSetDef SymbolicAtom::tp_getset[] = {
     {nullptr, nullptr, nullptr, nullptr, nullptr},
 };
 
-// {{{1 wrap SymoblicAtomIter
+// {{{1 wrap SymbolicAtomIter
 
-struct SymoblicAtomIter : ObjectBase<SymoblicAtomIter> {
+struct SymbolicAtomIter : ObjectBase<SymbolicAtomIter> {
     SymbolicAtom *elem;
 
-    static constexpr char const *tp_type = "SymoblicAtomIter";
-    static constexpr char const *tp_name = "clingo.SymoblicAtomIter";
+    static constexpr char const *tp_type = "SymbolicAtomIter";
+    static constexpr char const *tp_name = "clingo.SymbolicAtomIter";
     static constexpr char const *tp_doc = "Class to iterate over symbolic atoms.";
 
     static PyObject *new_(Gringo::DomainProxy::ElementPtr &&elem) {
         Object ret(type.tp_alloc(&type, 0));
-        SymoblicAtomIter *self = reinterpret_cast<SymoblicAtomIter*>(ret.get());
+        SymbolicAtomIter *self = reinterpret_cast<SymbolicAtomIter*>(ret.get());
         if (elem) {
             self->elem = reinterpret_cast<SymbolicAtom*>(SymbolicAtom::new_(std::move(elem)));
             if (!self->elem) { return nullptr; }
@@ -1827,18 +1827,18 @@ struct SymoblicAtomIter : ObjectBase<SymoblicAtomIter> {
         else { self->elem = nullptr; }
         return ret.release();
     }
-    static PyObject* tp_iter(SymoblicAtomIter *self) {
+    static PyObject* tp_iter(SymbolicAtomIter *self) {
         Py_XINCREF(self);
         return reinterpret_cast<PyObject*>(self);
     }
-    static void tp_dealloc(SymoblicAtomIter *self) {
+    static void tp_dealloc(SymbolicAtomIter *self) {
         if (self->elem) {
             Py_XDECREF(self->elem);
             self->elem = nullptr;
         }
         type.tp_free(self);
     }
-    static PyObject* tp_iternext(SymoblicAtomIter *self) {
+    static PyObject* tp_iternext(SymbolicAtomIter *self) {
         PY_TRY
             if (self->elem) {
                 Gringo::DomainProxy::ElementPtr elem = self->elem->elem->next();
@@ -1927,7 +1927,7 @@ signatures: [('p', 1), ('q', 1)])";
 
     static PyObject* tp_iter(DomainProxy *self) {
         PY_TRY
-            return SymoblicAtomIter::new_(self->proxy->iter());
+            return SymbolicAtomIter::new_(self->proxy->iter());
         PY_CATCH(nullptr);
     }
 
@@ -1947,7 +1947,7 @@ signatures: [('p', 1), ('q', 1)])";
             int arity;
             if (!PyArg_ParseTuple(pyargs, "si", &name, &arity)) { return nullptr; }
             Gringo::DomainProxy::ElementPtr elem = self->proxy->iter(Sig(name, arity, false));
-            return SymoblicAtomIter::new_(std::move(elem));
+            return SymbolicAtomIter::new_(std::move(elem));
         PY_CATCH(nullptr);
     }
 
@@ -1968,7 +1968,7 @@ signatures: [('p', 1), ('q', 1)])";
 
 PyMethodDef DomainProxy::tp_methods[] = {
     {"by_signature", (PyCFunction)by_signature, METH_VARARGS,
-R"(by_signature(self, name, arity) -> SymoblicAtomIter
+R"(by_signature(self, name, arity) -> SymbolicAtomIter
 
 Return an iterator over the symbolic atoms with the given signature.
 
@@ -3050,8 +3050,8 @@ Arguments:
 external -- term representing the external atom
 truth    -- bool or None indicating the truth value
 
-To determine whether an atom a is external, inspect the symoblic_atoms using
-SolveControl.symoblic_atoms[a].is_external. See release_external() for an
+To determine whether an atom a is external, inspect the symbolic_atoms using
+SolveControl.symbolic_atoms[a].is_external. See release_external() for an
 example.)"},
     // release_external
     {"release_external", (PyCFunction)release_external, METH_VARARGS,
@@ -3166,7 +3166,7 @@ query if the search was interrupted.)"},
 
 PyGetSetDef ControlWrap::tp_getset[] = {
     {(char*)"conf", (getter)conf, nullptr, (char*)"Configuration object to change the configuration.", nullptr},
-    {(char*)"symbolic_atoms", (getter)symbolicAtoms, nullptr, (char*)"SymoblicAtoms object to inspect the symoblic atoms.", nullptr},
+    {(char*)"symbolic_atoms", (getter)symbolicAtoms, nullptr, (char*)"symbolicAtoms object to inspect the symbolic atoms.", nullptr},
     {(char*)"use_enum_assumption", (getter)get_use_enum_assumption, (setter)set_use_enum_assumption,
 (char*)R"(Boolean determining how learnt information from enumeration modes is treated.
 
@@ -3347,7 +3347,7 @@ PyObject *initclingo_() {
         !TheoryElement::initType(m) || !TheoryAtom::initType(m)       || !TheoryAtomIter::initType(m)   ||
         !Model::initType(m)         || !SolveIter::initType(m)        || !SolveFuture::initType(m)      ||
         !ControlWrap::initType(m)   || !Configuration::initType(m)    || !SolveControl::initType(m)     ||
-        !SymbolicAtom::initType(m)  || !SymoblicAtomIter::initType(m) || !DomainProxy::initType(m)      ||
+        !SymbolicAtom::initType(m)  || !SymbolicAtomIter::initType(m) || !DomainProxy::initType(m)      ||
         !TheoryTerm::initType(m)    || !PropagateInit::initType(m)    || !Assignment::initType(m)       ||
         !TermType::initType(m)      || !Term::initType(m)             || !Backend::initType(m)          ||
         PyModule_AddStringConstant(m, "__version__", GRINGO_VERSION) < 0 ||
