@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Benjamin Kaufmann
@@ -92,7 +92,7 @@ void ClingoApp::initOptions(ProgramOptions::OptionContext& root) {
         ("mode", storeTo(mode_ = mode_clingo, values<Mode>()
             ("clingo", mode_clingo)
             ("clasp", mode_clasp)
-            ("gringo", mode_gringo)), 
+            ("gringo", mode_gringo)),
          "Run in {clingo|clasp|gringo} mode\n")
         ;
     root.add(basic);
@@ -100,7 +100,7 @@ void ClingoApp::initOptions(ProgramOptions::OptionContext& root) {
 
 void ClingoApp::validateOptions(const ProgramOptions::OptionContext& root, const ProgramOptions::ParsedOptions& parsed, const ProgramOptions::ParsedValues& vals) {
     BaseType::validateOptions(root, parsed, vals);
-    if (parsed.count("text") > 0) { 
+    if (parsed.count("text") > 0) {
         if (parsed.count("output") > 0) {
             error("'--text' and '--output' are mutually exclusive!");
             exit(E_NO_RUN);
@@ -111,7 +111,7 @@ void ClingoApp::validateOptions(const ProgramOptions::OptionContext& root, const
         }
         mode_ = mode_gringo;
     }
-    if (parsed.count("output") > 0) { 
+    if (parsed.count("output") > 0) {
         if (parsed.count("mode") > 0 && mode_ != mode_gringo) {
             error("'--output' can only be used with '--mode=gringo'!");
             exit(E_NO_RUN);
@@ -157,7 +157,7 @@ void ClingoApp::printVersion() {
     printf("License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n");
     printf("Gringo is free software: you are free to change and redistribute it.\n");
     printf("There is NO WARRANTY, to the extent permitted by law.\n");
-    printf("\n");   
+    printf("\n");
     BaseType::printLibClaspVersion();
 }
 bool ClingoApp::onModel(Clasp::Solver const& s, Clasp::Model const& m) {
@@ -189,7 +189,7 @@ void ClingoApp::run(Clasp::ClaspFacade& clasp) {
         ProgramBuilder* prg = &clasp.start(claspConfig_, pt);
         grOpts_.verbose = verbose() == UINT_MAX;
         Asp::LogicProgram* lp = mode_ != mode_gringo ? static_cast<Asp::LogicProgram*>(prg) : 0;
-        grd = Gringo::gringo_make_unique<ClingoControl>(module.scripts, mode_ == mode_clingo, clasp_.get(), claspConfig_, std::bind(&ClingoApp::handlePostGroundOptions, this, _1), std::bind(&ClingoApp::handlePreSolveOptions, this, _1));
+        grd = Gringo::gringo_make_unique<ClingoControl>(module.scripts, mode_ == mode_clingo, clasp_.get(), claspConfig_, std::bind(&ClingoApp::handlePostGroundOptions, this, _1), std::bind(&ClingoApp::handlePreSolveOptions, this, _1), module.logger);
         grd->parse(claspAppOpts_.input, grOpts_, lp);
         grd->main();
     }

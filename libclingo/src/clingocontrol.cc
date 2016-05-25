@@ -118,21 +118,22 @@ ClaspAPIBackend::~ClaspAPIBackend() noexcept = default;
 // {{{1 definition of ClingoControl
 
 #define LOG if (verbose_) std::cerr
-ClingoControl::ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf)
+ClingoControl::ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Gringo::MessagePrinter &log)
     : scripts_(scripts)
     , clasp_(clasp)
     , claspConfig_(claspConfig)
     , pgf_(pgf)
     , psf_(psf)
+    , logger_(log)
     , clingoMode_(clingoMode) { }
 
 void ClingoControl::parse() {
     if (!parser_->empty()) {
-        parser_->parse();
-        defs_.init();
+        parser_->parse(logger_);
+        defs_.init(logger_);
         parsed = true;
     }
-    if (Gringo::message_printer()->hasError()) {
+    if (logger_.hasError()) {
         throw std::runtime_error("parsing failed");
     }
 }
@@ -148,11 +149,11 @@ int ClingoPropagateInit::threads() {
 
 void ClingoControl::parse(const StringSeq& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* claspOut, bool addStdIn) {
     using namespace Gringo;
-    if (opts.wNoOperationUndefined) { message_printer()->disable(W_OPERATION_UNDEFINED); }
-    if (opts.wNoAtomUndef)          { message_printer()->disable(W_ATOM_UNDEFINED); }
-    if (opts.wNoVariableUnbounded)  { message_printer()->disable(W_VARIABLE_UNBOUNDED); }
-    if (opts.wNoFileIncluded)       { message_printer()->disable(W_FILE_INCLUDED); }
-    if (opts.wNoGlobalVariable)     { message_printer()->disable(W_GLOBAL_VARIABLE); }
+    if (opts.wNoOperationUndefined) { logger_.disable(W_OPERATION_UNDEFINED); }
+    if (opts.wNoAtomUndef)          { logger_.disable(W_ATOM_UNDEFINED); }
+    if (opts.wNoVariableUnbounded)  { logger_.disable(W_VARIABLE_UNBOUNDED); }
+    if (opts.wNoFileIncluded)       { logger_.disable(W_FILE_INCLUDED); }
+    if (opts.wNoGlobalVariable)     { logger_.disable(W_GLOBAL_VARIABLE); }
     verbose_ = opts.verbose;
     Output::OutputPredicates outPreds;
     for (auto &x : opts.foobar) {
@@ -171,15 +172,15 @@ void ClingoControl::parse(const StringSeq& files, const ClingoOptions& opts, Cla
     parser_ = gringo_make_unique<Input::NonGroundParser>(*pb_);
     for (auto &x : opts.defines) {
         LOG << "define: " << x << std::endl;
-        parser_->parseDefine(x);
+        parser_->parseDefine(x, logger_);
     }
     for (auto x : files) {
         LOG << "file: " << x << std::endl;
-        parser_->pushFile(std::move(x));
+        parser_->pushFile(std::move(x), logger_);
     }
     if (files.empty() && addStdIn) {
         LOG << "reading from stdin" << std::endl;
-        parser_->pushFile("-");
+        parser_->pushFile("-", logger_);
     }
     parse();
 }
@@ -197,10 +198,10 @@ void ClingoControl::ground(Gringo::Control::GroundVec const &parts, Gringo::Cont
     if (!update()) { return; }
     if (parsed) {
         LOG << "************** parsed program **************" << std::endl << prg_;
-        prg_.rewrite(defs_);
+        prg_.rewrite(defs_, logger_);
         LOG << "************* rewritten program ************" << std::endl << prg_;
-        prg_.check();
-        if (Gringo::message_printer()->hasError()) {
+        prg_.check(logger_);
+        if (logger_.hasError()) {
             throw std::runtime_error("grounding stopped because of errors");
         }
         parsed = false;
@@ -212,12 +213,12 @@ void ClingoControl::ground(Gringo::Control::GroundVec const &parts, Gringo::Cont
     if (!parts.empty()) {
         Gringo::Ground::Parameters params;
         for (auto &x : parts) { params.add(x.first, Gringo::SymVec(x.second)); }
-        auto gPrg = prg_.toGround(out_->data);
+        auto gPrg = prg_.toGround(out_->data, logger_);
         LOG << "*********** intermediate program ***********" << std::endl << gPrg << std::endl;
         LOG << "************* grounded program *************" << std::endl;
         auto exit = Gringo::onExit([this]{ scripts_.context = nullptr; });
         scripts_.context = context;
-        gPrg.ground(params, scripts_, *out_, false);
+        gPrg.ground(params, scripts_, *out_, false, logger_);
     }
 }
 
@@ -252,7 +253,7 @@ Gringo::Symbol ClingoControl::getConst(std::string const &name) {
     auto ret = defs_.defs().find(name.c_str());
     if (ret != defs_.defs().end()) {
         bool undefined = false;
-        Gringo::Symbol val = std::get<2>(ret->second)->eval(undefined);
+        Gringo::Symbol val = std::get<2>(ret->second)->eval(undefined, logger_);
         if (!undefined) { return val; }
     }
     return Gringo::Symbol();
@@ -261,11 +262,11 @@ void ClingoControl::add(std::string const &name, Gringo::FWStringVec const &para
     Gringo::Location loc("<block>", 1, 1, "<block>", 1, 1);
     Gringo::Input::IdVec idVec;
     for (auto &x : params) { idVec.emplace_back(loc, x); }
-    parser_->pushBlock(name, std::move(idVec), part);
+    parser_->pushBlock(name, std::move(idVec), part, logger_);
     parse();
 }
 void ClingoControl::load(std::string const &filename) {
-    parser_->pushFile(std::string(filename));
+    parser_->pushFile(std::string(filename), logger_);
     parse();
 }
 bool ClingoControl::hasSubKey(unsigned key, char const *name, unsigned* subKey) {
@@ -345,7 +346,7 @@ bool ClingoControl::blocked() {
 }
 void ClingoControl::prepare(Gringo::Control::ModelHandler mh, Gringo::Control::FinishHandler fh) {
     grounded = false;
-    if (update()) { out_->endStep(true); }
+    if (update()) { out_->endStep(true, logger_); }
     if (clingoMode_) {
 #if WITH_THREADS
         solveFuture_   = nullptr;
@@ -398,7 +399,7 @@ void ClingoControl::registerPropagator(Gringo::Propagator &p, bool sequential) {
     claspConfig_.addConfigurator(propagators_.back().get(), Clasp::Ownership_t::Retain);
 }
 void ClingoControl::cleanupDomains() {
-    out_->endStep(false);
+    out_->endStep(false, logger_);
     if (clingoMode_) {
         Clasp::Asp::LogicProgram &prg = static_cast<Clasp::Asp::LogicProgram&>(*clasp_->program());
         prg.endProgram();
@@ -568,10 +569,10 @@ size_t ClingoControl::length() const {
 void ClingoControl::parse(char const *program, std::function<void(clingo_ast const &)> cb) {
     Gringo::Input::ASTBuilder builder(cb);
     Gringo::Input::NonGroundParser parser(builder);
-    parser.pushStream("<string>", Gringo::gringo_make_unique<std::istringstream>(program));
-    parser.parse();
+    parser.pushStream("<string>", Gringo::gringo_make_unique<std::istringstream>(program), logger_);
+    parser.parse(logger_);
     // TODO: implement better error handling
-    if (Gringo::message_printer()->hasError()) {
+    if (logger_.hasError()) {
         throw std::runtime_error("TODO: syntax errors here should not be fatal");
     }
 }
@@ -581,8 +582,8 @@ void ClingoControl::add(std::function<void (std::function<void (clingo_ast const
     cb([&p](clingo_ast_t const &ast) {
         p.parse(ast);
     });
-    defs_.init();
-    if (Gringo::message_printer()->hasError()) {
+    defs_.init(logger_);
+    if (logger_.hasError()) {
         throw std::runtime_error("parsing failed");
     }
 }
@@ -668,8 +669,8 @@ ClingoSolveFuture::~ClingoSolveFuture() { }
 
 // {{{1 definition of ClingoLib
 
-ClingoLib::ClingoLib(Gringo::Scripts &scripts, int argc, char const **argv)
-        : ClingoControl(scripts, true, &clasp_, claspConfig_, nullptr, nullptr) {
+ClingoLib::ClingoLib(Gringo::Scripts &scripts, int argc, char const **argv, Gringo::MessagePrinter &log)
+        : ClingoControl(scripts, true, &clasp_, claspConfig_, nullptr, nullptr, log) {
     using namespace ProgramOptions;
     OptionContext allOpts("<pyclingo>");
     initOptions(allOpts);
@@ -757,13 +758,13 @@ ClingoLib::~ClingoLib() {
 DefaultGringoModule::DefaultGringoModule()
 : scripts(*this) { }
 Gringo::Control *DefaultGringoModule::newControl(int argc, char const **argv) {
-    return new ClingoLib(scripts, argc, argv);
+    return new ClingoLib(scripts, argc, argv, logger);
 }
 
 void DefaultGringoModule::freeControl(Gringo::Control *ctl) {
     if (ctl) { delete ctl; }
 }
-Gringo::Symbol DefaultGringoModule::parseValue(std::string const &str) { return parser.parse(str); }
+Gringo::Symbol DefaultGringoModule::parseValue(std::string const &str) { return parser.parse(str, logger); }
 
 struct clingo_module : DefaultGringoModule { };
 

@@ -132,8 +132,8 @@ static inline bool parseFoobar(const std::string& str, ClingoOptions::Foobar& fo
 // {{{1 declaration of ClingoStatistics
 
 struct ClingoStatistics : Gringo::Statistics {
-    virtual Quantity    getStat(char const* key) const;
-    virtual char const *getKeys(char const* key) const;
+    Quantity    getStat(char const* key) const override;
+    char const *getKeys(char const* key) const override;
     virtual ~ClingoStatistics() { }
 
     Clasp::ClaspFacade *clasp = nullptr;
@@ -185,9 +185,9 @@ struct ClingoModel : Gringo::Model {
 struct ClingoSolveIter : Gringo::SolveIter {
     ClingoSolveIter(Clasp::ClaspFacade::ModelGenerator const &future, Clasp::Asp::LogicProgram const &lp, Gringo::Output::OutputBase const &out, Clasp::SharedContext const &ctx);
 
-    virtual Gringo::Model const *next();
-    virtual void close();
-    virtual Gringo::SolveResult get();
+    Gringo::Model const *next() override;
+    void close() override;
+    Gringo::SolveResult get() override;
 
     virtual ~ClingoSolveIter();
 
@@ -202,10 +202,10 @@ Gringo::SolveResult convert(Clasp::ClaspFacade::Result res);
 struct ClingoSolveFuture : Gringo::SolveFuture {
     ClingoSolveFuture(Clasp::ClaspFacade::AsyncResult const &res);
     // async
-    virtual Gringo::SolveResult get();
-    virtual void wait();
-    virtual bool wait(double timeout);
-    virtual void cancel();
+    Gringo::SolveResult get() override;
+    void wait() override;
+    bool wait(double timeout) override;
+    void cancel() override;
 
     virtual ~ClingoSolveFuture();
     void reset(Clasp::ClaspFacade::AsyncResult res);
@@ -260,7 +260,7 @@ public:
     using PreSolveFunc     = std::function<bool (Clasp::ClaspFacade &)>;
     enum class ConfigUpdate { KEEP, REPLACE };
 
-    ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf);
+    ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Gringo::MessagePrinter &log);
     void prepare(Gringo::Control::ModelHandler mh, Gringo::Control::FinishHandler fh);
     void commitExternals();
     void parse();
@@ -274,48 +274,49 @@ public:
 
     // {{{2 DomainProxy interface
 
-    virtual ElementPtr iter(Gringo::Sig sig) const;
-    virtual ElementPtr iter() const;
-    virtual ElementPtr lookup(Gringo::Symbol atom) const;
-    virtual size_t length() const;
-    virtual std::vector<Gringo::Sig> signatures() const;
+    ElementPtr iter(Gringo::Sig sig) const override;
+    ElementPtr iter() const override;
+    ElementPtr lookup(Gringo::Symbol atom) const override;
+    size_t length() const override;
+    std::vector<Gringo::Sig> signatures() const override;
 
     // {{{2 ConfigProxy interface
 
-    virtual bool hasSubKey(unsigned key, char const *name, unsigned* subKey = nullptr);
-    virtual unsigned getSubKey(unsigned key, char const *name);
-    virtual unsigned getArrKey(unsigned key, unsigned idx);
-    virtual void getKeyInfo(unsigned key, int* nSubkeys = 0, int* arrLen = 0, const char** help = 0, int* nValues = 0) const;
-    virtual const char* getSubKeyName(unsigned key, unsigned idx) const;
-    virtual bool getKeyValue(unsigned key, std::string &value);
-    virtual void setKeyValue(unsigned key, const char *val);
-    virtual unsigned getRootKey();
+    bool hasSubKey(unsigned key, char const *name, unsigned* subKey = nullptr) override;
+    unsigned getSubKey(unsigned key, char const *name) override;
+    unsigned getArrKey(unsigned key, unsigned idx) override;
+    void getKeyInfo(unsigned key, int* nSubkeys = 0, int* arrLen = 0, const char** help = 0, int* nValues = 0) const override;
+    const char* getSubKeyName(unsigned key, unsigned idx) const override;
+    bool getKeyValue(unsigned key, std::string &value) override;
+    void setKeyValue(unsigned key, const char *val) override;
+    unsigned getRootKey() override;
 
     // {{{2 Control interface
 
-    virtual Gringo::DomainProxy &getDomain();
-    virtual void ground(Gringo::Control::GroundVec const &vec, Gringo::Context *ctx);
-    virtual void add(std::string const &name, Gringo::FWStringVec const &params, std::string const &part);
-    virtual void load(std::string const &filename);
-    virtual Gringo::SolveResult solve(ModelHandler h, Assumptions &&ass);
-    virtual bool blocked();
-    virtual std::string str();
-    virtual void assignExternal(Gringo::Symbol ext, Potassco::Value_t);
-    virtual Gringo::Symbol getConst(std::string const &name);
-    virtual ClingoStatistics *getStats();
-    virtual Gringo::ConfigProxy &getConf();
-    virtual void useEnumAssumption(bool enable);
-    virtual bool useEnumAssumption();
-    virtual void cleanupDomains();
-    virtual Gringo::SolveIter *solveIter(Assumptions &&ass);
-    virtual Gringo::SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass);
-    virtual Gringo::TheoryData const &theory() const { return out_->data.theoryInterface(); }
-    virtual void registerPropagator(Gringo::Propagator &p, bool sequential);
-    virtual void parse(char const *program, std::function<void(clingo_ast const &)> cb);
-    virtual void add(std::function<void (std::function<void (clingo_ast const &)>)> cb);
-    virtual void interrupt();
-    virtual Gringo::Backend *backend();
-    virtual Potassco::Atom_t addProgramAtom();
+    Gringo::DomainProxy &getDomain() override;
+    void ground(Gringo::Control::GroundVec const &vec, Gringo::Context *ctx) override;
+    void add(std::string const &name, Gringo::FWStringVec const &params, std::string const &part) override;
+    void load(std::string const &filename) override;
+    Gringo::SolveResult solve(ModelHandler h, Assumptions &&ass) override;
+    bool blocked() override;
+    std::string str();
+    void assignExternal(Gringo::Symbol ext, Potassco::Value_t) override;
+    Gringo::Symbol getConst(std::string const &name) override;
+    ClingoStatistics *getStats() override;
+    Gringo::ConfigProxy &getConf() override;
+    void useEnumAssumption(bool enable) override;
+    bool useEnumAssumption() override;
+    void cleanupDomains() override;
+    Gringo::SolveIter *solveIter(Assumptions &&ass) override;
+    Gringo::SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass) override;
+    virtual Gringo::TheoryData const &theory() const override { return out_->data.theoryInterface(); }
+    void registerPropagator(Gringo::Propagator &p, bool sequential) override;
+    void parse(char const *program, std::function<void(clingo_ast const &)> cb) override;
+    void add(std::function<void (std::function<void (clingo_ast const &)>)> cb) override;
+    void interrupt() override;
+    Gringo::Backend *backend() override;
+    Potassco::Atom_t addProgramAtom() override;
+    Gringo::MessagePrinter &logger() override { return logger_; }
 
     // }}}2
 
@@ -335,6 +336,7 @@ public:
     std::unique_ptr<Potassco::TheoryData>                     data_;
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>> propagators_;
     ClingoPropagatorLock                                      propLock_;
+    Gringo::MessagePrinter                                   &logger_;
 #if WITH_THREADS
     std::unique_ptr<ClingoSolveFuture> solveFuture_;
 #endif
@@ -353,15 +355,15 @@ public:
 class ClingoLib : public Clasp::EventHandler, public ClingoControl {
     using StringVec    = std::vector<std::string>;
 public:
-    ClingoLib(Gringo::Scripts &scripts, int argc, char const **argv);
+    ClingoLib(Gringo::Scripts &scripts, int argc, char const **argv, Gringo::MessagePrinter &log);
     virtual ~ClingoLib();
 protected:
     void initOptions(ProgramOptions::OptionContext& root);
     static bool parsePositional(const std::string& s, std::string& out);
     // -------------------------------------------------------------------------------------------
     // Event handler
-    virtual void onEvent(const Clasp::Event& ev);
-    virtual bool onModel(const Clasp::Solver& s, const Clasp::Model& m);
+    void onEvent(const Clasp::Event& ev) override;
+    bool onModel(const Clasp::Solver& s, const Clasp::Model& m) override;
 private:
     ClingoLib(const ClingoLib&);
     ClingoLib& operator=(const ClingoLib&);
@@ -374,11 +376,12 @@ private:
 
 struct DefaultGringoModule : Gringo::GringoModule {
     DefaultGringoModule();
-    Gringo::Control *newControl(int argc, char const **argv);
-    void freeControl(Gringo::Control *ctl);
-    virtual Gringo::Symbol parseValue(std::string const &str);
+    Gringo::Control *newControl(int argc, char const **argv) override;
+    void freeControl(Gringo::Control *ctl) override;
+    Gringo::Symbol parseValue(std::string const &str) override;
     Gringo::Input::GroundTermParser parser;
     Gringo::Scripts scripts;
+    Gringo::DefaultMessagePrinter logger;
 };
 
 // }}}1
