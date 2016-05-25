@@ -21,6 +21,8 @@
 #include "tests/tests.hh"
 #include "gringo/symbol.hh"
 
+#include <climits>
+
 namespace Gringo { namespace Test {
 
 TEST_CASE("symbol", "[base]") {
