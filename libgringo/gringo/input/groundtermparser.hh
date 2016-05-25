@@ -36,9 +36,9 @@ public:
     GroundTermParser();
     Symbol parse(std::string const &str);
     ~GroundTermParser();
-    void parseError(std::string const &message);
-    void lexerError(StringSpan token);
-    int lex(void *pValue);
+    void parseError(std::string const &message, MessagePrinter &log);
+    void lexerError(StringSpan token, MessagePrinter &log);
+    int lex(void *pValue, MessagePrinter &log);
 
     Symbol term(BinOp op, Symbol a, Symbol b);
     Symbol term(UnOp op, Symbol a);
@@ -49,7 +49,7 @@ public:
 
     Symbol        value;
 private:
-    int lex_impl(void *pValue);
+    int lex_impl(void *pValue, MessagePrinter &log);
 
     IndexedTerms terms_;
     bool         undefined_;

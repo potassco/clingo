@@ -82,23 +82,23 @@ SymVec GroundTermParser::terms(unsigned uid) {
     return terms_.erase(uid);
 }
 
-void GroundTermParser::parseError(std::string const &message) {
+void GroundTermParser::parseError(std::string const &message, MessagePrinter &log) {
     Location loc("<string>", line(), column(), "<string>", line(), column());
-    GRINGO_REPORT(W_OPERATION_UNDEFINED)
+    GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
         << loc << ": " << "error: " << message << "\n";
     throw std::runtime_error("term parsing failed");
 }
 
-void GroundTermParser::lexerError(StringSpan token) {
+void GroundTermParser::lexerError(StringSpan token, MessagePrinter &log) {
     Location loc("<string>", line(), column(), "<string>", line(), column());
-    GRINGO_REPORT(W_OPERATION_UNDEFINED)
+    GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
         << loc << ": " << "error: unexpected token:\n"
         << std::string(token.first, token.size) << "\n";
     throw std::runtime_error("term parsing failed");
 }
 
-int GroundTermParser::lex(void *pValue) {
-    return lex_impl(pValue);
+int GroundTermParser::lex(void *pValue, MessagePrinter &log) {
+    return lex_impl(pValue, log);
 }
 
 GroundTermParser::~GroundTermParser() { }
