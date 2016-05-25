@@ -410,12 +410,9 @@ std::string errorToString() {
     }
 }
 void handleError(Location const &loc, char const *msg) {
-    std::string s = errorToString();
-    GRINGO_REPORT(E_ERROR)
-        << loc << ": error: " << msg << ":\n"
-        << s
-        ;
-    throw std::runtime_error("grounding stopped because of errors");
+    std::ostringstream ss;
+    ss << loc << ": error: " << msg << ":\n" << errorToString();
+    throw std::runtime_error(ss.str());
 }
 
 void handleError(char const *loc, char const *msg) {
@@ -2453,8 +2450,9 @@ void pycall(PyObject *fun, SymSpan args, SymVec &vals) {
 
 class PyContext : public Context {
 public:
-    PyContext()
-    : ctx(nullptr) { }
+    PyContext(MessagePrinter &log)
+    : log(log)
+    , ctx(nullptr) { }
     bool callable(String name) const override {
         return ctx && PyObject_HasAttrString(ctx, name.c_str());
     }
@@ -2467,7 +2465,7 @@ public:
             return ret;
         }
         catch (PyException const &) {
-            GRINGO_REPORT(W_OPERATION_UNDEFINED)
+            GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
                 << loc << ": info: operation undefined:\n"
                 << errorToString()
                 ;
@@ -2477,6 +2475,7 @@ public:
     operator bool() const { return ctx; }
     virtual ~PyContext() noexcept = default;
 
+    MessagePrinter &log;
     PyObject *ctx;
 };
 
@@ -2589,7 +2588,7 @@ active; you must not call any member function during search.)";
             Gringo::Control::GroundVec parts;
             static char const *kwlist[] = {"parts", "context", nullptr};
             PyObject *pyParts;
-            PyContext context;
+            PyContext context(self->ctl->logger());
             if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O", const_cast<char**>(kwlist), &pyParts, &context.ctx)) { return nullptr; }
             Object it = PyObject_GetIter(pyParts);
             while (Object pyVal = PyIter_Next(it)) {
@@ -3495,7 +3494,7 @@ bool Python::callable(String name) {
         return false;
     }
 }
-SymVec Python::call(Location const &loc, String name, SymSpan args) {
+SymVec Python::call(Location const &loc, String name, SymSpan args, MessagePrinter &log) {
     assert(impl);
     try {
         SymVec vals;
@@ -3503,7 +3502,7 @@ SymVec Python::call(Location const &loc, String name, SymSpan args) {
         return vals;
     }
     catch (PyException const &) {
-        GRINGO_REPORT(W_OPERATION_UNDEFINED)
+        GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
             << loc << ": info: operation undefined:\n"
             << errorToString()
             ;
@@ -3547,15 +3546,14 @@ std::unique_ptr<PythonImpl> Python::impl = nullptr;
 
 Python::Python(GringoModule &) { }
 bool Python::exec(Location const &loc, String ) {
-    GRINGO_REPORT(E_ERROR)
-        << loc << ": error: clingo has been build without python support\n"
-        ;
-    throw std::runtime_error("grounding stopped because of errors");
+    std::stringstream ss;
+    ss << loc << ": error: clingo has been build without python support\n"
+    throw std::runtime_error(ss.str());
 }
 bool Python::callable(String) {
     return false;
 }
-SymVec Python::call(Location const &, String , SymSpan) {
+SymVec Python::call(Location const &, String , SymSpan, MessagePrinter &) {
     return {};
 }
 void Python::main(Control &) { }

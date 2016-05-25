@@ -34,7 +34,7 @@ struct LuaImpl;
 struct Lua {
     Lua(GringoModule &module);
     bool exec(Location const &loc, String name);
-    SymVec call(Location const &loc, String name, SymSpan args);
+    SymVec call(Location const &loc, String name, SymSpan args, MessagePrinter &log);
     bool callable(String name);
     void main(Control &ctl);
     static void initlib(lua_State *L, GringoModule &module);

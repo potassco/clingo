@@ -31,7 +31,7 @@ struct PythonImpl;
 struct Python {
     Python(GringoModule &module);
     bool exec(Location const &loc, String code);
-    SymVec call(Location const &loc, String name, SymSpan args);
+    SymVec call(Location const &loc, String name, SymSpan args, MessagePrinter &log);
     bool callable(String name);
     void main(Control &ctl);
     static void *initlib(GringoModule &gringo);

@@ -198,6 +198,7 @@ struct ASPIFProgram {
 
 using FWStringVec = std::vector<String>;
 
+struct MessagePrinter;
 struct Control {
     using ModelHandler = std::function<bool (Model const &)>;
     using FinishHandler = std::function<void (SolveResult)>;
@@ -229,6 +230,7 @@ struct Control {
     virtual void add(std::function<void (std::function<void (clingo_ast const &)>)> cb) = 0;
     virtual Potassco::Atom_t addProgramAtom() = 0;
     virtual Backend *backend() = 0;
+    virtual MessagePrinter &logger() = 0;
     virtual ~Control() noexcept = default;
 };
 

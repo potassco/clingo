@@ -276,7 +276,7 @@ SymVec *luaToVals(lua_State *L, int idx) {
     return vals;
 }
 
-bool handleError(lua_State *L, Location const &loc, int code, char const *desc, bool info = false) {
+bool handleError(lua_State *L, Location const &loc, int code, char const *desc, MessagePrinter *log) {
     switch (code) {
         case LUA_ERRRUN:
         case LUA_ERRERR:
@@ -284,22 +284,20 @@ bool handleError(lua_State *L, Location const &loc, int code, char const *desc, 
             std::string s(lua_tostring(L, -1));
             lua_pop(L, 1);
             std::stringstream msg;
-            msg << loc << ": " << (info ? "info" : "error") << ": " << desc << ":\n"
+            msg << loc << ": " << (log ? "info" : "error") << ": " << desc << ":\n"
                 << (code == LUA_ERRSYNTAX ? "  SyntaxError: " : "  RuntimeError: ")
                 << s << "\n"
                 ;
-            if (!info) {
-                GRINGO_REPORT(E_ERROR) << msg.str();
-                throw std::runtime_error("grounding stopped because of errors");
-            }
+            if (!log) { throw std::runtime_error(msg.str()); }
             else {
-                GRINGO_REPORT(W_OPERATION_UNDEFINED) << msg.str();
+                GRINGO_REPORT(*log, W_OPERATION_UNDEFINED) << msg.str();
                 return false;
             }
         }
         case LUA_ERRMEM: {
-            GRINGO_REPORT(E_ERROR) << loc << ": error: lua interpreter ran out of memory" << "\n";
-            throw std::runtime_error("grounding stopped because of errors");
+            std::stringstream msg;
+            msg << loc << ": error: lua interpreter ran out of memory" << "\n";
+            throw std::runtime_error(msg.str());
         }
     }
     return true;
@@ -1745,8 +1743,9 @@ struct LuaClear {
 };
 
 struct LuaContext : Gringo::Context {
-    LuaContext(lua_State *L, int idx)
+    LuaContext(lua_State *L, MessagePrinter &log, int idx)
     : L(L)
+    , log(log)
     , idx(idx) { }
 
     bool callable(String name) const override {
@@ -1765,13 +1764,14 @@ struct LuaContext : Gringo::Context {
         lua_pushlightuserdata(L, (void*)&arg);
         lua_pushvalue(L, idx);
         int ret = lua_pcall(L, 2, 0, -4);
-        if (!handleError(L, loc, ret, "operation undefined", true)) { return {}; }
+        if (!handleError(L, loc, ret, "operation undefined", &log)) { return {}; }
         return std::move(std::get<2>(arg));
     }
 
     virtual ~LuaContext() noexcept = default;
 
     lua_State *L;
+    MessagePrinter &log;
     int idx;
 };
 
@@ -1808,7 +1808,7 @@ struct ControlWrap {
         auto &ctl = get_self(L).ctl;
         checkBlocked(L, ctl, "ground");
         luaL_checktype(L, 2, LUA_TTABLE);
-        LuaContext ctx{ L, !lua_isnone(L, 3) && !lua_isnil(L, 3) ? 3 : 0 };
+        LuaContext ctx{ L, ctl.logger(), !lua_isnone(L, 3) && !lua_isnil(L, 3) ? 3 : 0 };
         if (ctx.idx) { luaL_checktype(L, ctx.idx, LUA_TTABLE); }
         Control::GroundVec *vec = AnyWrap::new_<Control::GroundVec>(L);
         lua_pushnil(L);
@@ -1911,7 +1911,7 @@ struct ControlWrap {
                 *model = &m;
                 int code = lua_pcall(L, 1, 1, -3);
                 Location loc("<on_model>", 1, 1, "<on_model>", 1, 1);
-                handleError(L, loc, code, "error in model callback");
+                handleError(L, loc, code, "error in model callback", nullptr);
                 return lua_type(L, -1) == LUA_TNIL || lua_toboolean(L, -1);
             }, std::move(*ass));
         }));
@@ -2445,7 +2445,7 @@ public:
         auto ret = lua_pcall(L, 3, 0, -5);
         if (ret != 0) {
             Location loc("<Propagator::init>", 1, 1, "<Propagator::init>", 1, 1);
-            handleError(L, loc, ret, "initializing the propagator failed");
+            handleError(L, loc, ret, "initializing the propagator failed", nullptr);
         }
     }
     static int setChanges(lua_State *L) {
@@ -2482,7 +2482,7 @@ public:
             }
             if (ret != 0) {
                 Location loc("<Propagator::propagate>", 1, 1, "<Propagator::propagate>", 1, 1);
-                handleError(T, loc, ret, "propagate failed");
+                handleError(T, loc, ret, "propagate failed", nullptr);
             }
         }
     }
@@ -2507,7 +2507,7 @@ public:
             }
             if (ret != 0) {
                 Location loc("<Propagator::propagate>", 1, 1, "<Propagator::propagate>", 1, 1);
-                handleError(T, loc, ret, "undo failed");
+                handleError(T, loc, ret, "undo failed", nullptr);
             }
         }
     }
@@ -2525,7 +2525,7 @@ public:
             auto ret = lua_pcall(T, 3, 0, -5);         // -4
             if (ret != 0) {
                 Location loc("<Propagator::check>", 1, 1, "<Propagator::check>", 1, 1);
-                handleError(T, loc, ret, "check failed");
+                handleError(T, loc, ret, "check failed", nullptr);
             }
         }
     }
@@ -2656,7 +2656,7 @@ struct LuaImpl {
         lua_pushcfunction(L, luarequire_clingo);
         int ret = lua_pcall(L, 0, 0, -2);
         Location loc("<LuaImpl>", 1, 1, "<LuaImpl>", 1, 1);
-        handleError(L, loc, ret, "running lua script failed");
+        handleError(L, loc, ret, "running lua script failed", nullptr);
         lua_settop(L, n);
     }
     ~LuaImpl() {
@@ -2678,13 +2678,13 @@ bool Lua::exec(Location const &loc, String code) {
     oss << loc;
     lua_pushcfunction(impl->L, luaTraceback);
     int ret = luaL_loadbuffer(impl->L, code.c_str(), code.length(), oss.str().c_str());
-    handleError(impl->L, loc, ret, "parsing lua script failed");
+    handleError(impl->L, loc, ret, "parsing lua script failed", nullptr);
     ret = lua_pcall(impl->L, 0, 0, -2);
-    handleError(impl->L, loc, ret, "running lua script failed");
+    handleError(impl->L, loc, ret, "running lua script failed", nullptr);
     return true;
 }
 
-SymVec Lua::call(Location const &loc, String name, SymSpan args) {
+SymVec Lua::call(Location const &loc, String name, SymSpan args, MessagePrinter &log) {
     assert(impl);
     LuaClear lc(impl->L);
     LuaCallArgs arg(name.c_str(), args, {});
@@ -2693,7 +2693,7 @@ SymVec Lua::call(Location const &loc, String name, SymSpan args) {
     lua_pushlightuserdata(impl->L, (void*)&arg);
     lua_pushnil(impl->L);
     int ret = lua_pcall(impl->L, 2, 0, -4);
-    if (!handleError(impl->L, loc, ret, "operation undefined", true)) { return {}; }
+    if (!handleError(impl->L, loc, ret, "operation undefined", &log)) { return {}; }
     return std::move(std::get<2>(arg));
 }
 
@@ -2720,8 +2720,7 @@ void Lua::main(Control &ctl) {
                 << "  RuntimeError: " << lua_tostring(impl->L, -1) << "\n"
                 ;
             lua_pop(impl->L, 1);
-            GRINGO_REPORT(E_ERROR) << oss.str();
-            throw std::runtime_error("error executing main function");
+            throw std::runtime_error(oss.str());
         }
         case LUA_ERRMEM: { throw std::runtime_error("lua interpreter ran out of memory"); }
     }
@@ -2759,7 +2758,7 @@ bool Lua::exec(Location const &loc, String) {
 bool Lua::callable(String) {
     return false;
 }
-SymVec Lua::call(Location const &, String, SymSpan) {
+SymVec Lua::call(Location const &, String, SymSpan, MessagePrinter &) {
     return {};
 }
 void Lua::main(Control &) { }

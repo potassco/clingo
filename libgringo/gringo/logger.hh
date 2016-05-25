@@ -136,7 +136,7 @@ private:
 } // namespace GRINGO
 
 #define GRINGO_REPORT(p, id) \
-if (!(p)->check(id)) { } \
+if (!(p).check(id)) { } \
 else Gringo::Report(p).out
 
 #endif // _GRINGO_REPORT_HH
