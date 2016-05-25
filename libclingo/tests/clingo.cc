@@ -57,13 +57,13 @@ TEST_CASE("clingo C-interface", "[clingo]") {
             SECTION("ground and solve base") {
                 char const * params_base[] = { nullptr };
                 REQUIRE(clingo_control_add(ctl, "base", params_base, "a.") == clingo_error_success);
-                clingo_symbol_t values_base[0] = {};
-                clingo_part_t parts[] = { {"base", {values_base, sizeof(values_base) / sizeof(clingo_symbol_t)}} };
+                clingo_symbol_t *values_base = nullptr;
+                clingo_part_t parts[] = { {"base", {values_base, 0}} };
                 REQUIRE(clingo_control_ground(ctl, {parts, sizeof(parts) / sizeof(clingo_part_t)}, nullptr, nullptr) == clingo_error_success);
                 clingo_solve_result_t ret;
-                clingo_symbolic_literal_t ass[0] = { };
+                clingo_symbolic_literal_t *ass = nullptr;
                 ModelVec models;
-                REQUIRE(clingo_control_solve(ctl, {ass, sizeof(ass) / sizeof(clingo_symbolic_literal_t)}, &mcb, &models, &ret) == clingo_error_success);
+                REQUIRE(clingo_control_solve(ctl, {ass, 0}, &mcb, &models, &ret) == clingo_error_success);
                 REQUIRE((ret & clingo_solve_result_sat) == clingo_solve_result_sat);
                 clingo_symbol_t a;
                 REQUIRE(clingo_symbol_new_id("a", false, &a) == clingo_error_success);
