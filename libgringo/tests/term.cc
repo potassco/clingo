@@ -43,75 +43,75 @@ UGTerm gterm(UTerm const &x) {
     return x->gterm();
 }
 
-std::tuple<UTerm, SimplifyState::DotsMap, SimplifyState::ScriptMap> rewriteDots(UTerm &&x) {
-    SimplifyState state;
-    x->simplify(state, true, false).update(x);
-    return std::make_tuple(std::move(x), std::move(state.dots), std::move(state.scripts));
-}
-
-std::string rewriteProject(UTerm &&x) {
-    UTerm sig{make_locatable<ValTerm>(x->loc(), Symbol::createId("#p"))};
-    SimplifyState state;
-    x->simplify(state, true, false).update(x);
-    auto ret(x->project(sig.get(), state.gen));
-    Term::replace(x, std::move(std::get<0>(ret)));
-    auto projected(std::move(std::get<1>(ret)));
-    auto project(std::move(std::get<2>(ret)));
-    return to_string(std::make_tuple(
-        std::move(x),
-        projected ? std::move(projected) : val(Symbol::createStr("#undef")),
-        project ? std::move(project) : val(Symbol::createStr("#undef"))));
-}
-
-std::string rewriteArithmetics(UTerm &&x) {
-    Term::ArithmeticsMap vec;
-    vec.emplace_back();
-    AuxGen gen;
-    UTerm y(x->rewriteArithmetics(vec, gen));
-    return to_string(std::make_pair(y ? std::move(y) : std::move(x), std::move(vec)));
-}
-
-UTerm simplify(UTerm &&x) {
-    SimplifyState state;
-    if (x->simplify(state, true, false).update(x).undefined()) {
-        return make_locatable<ValTerm>(x->loc(), Symbol::createId("#undefined"));
-    }
-    else {
-        return std::move(x);
-    }
-}
-
-std::vector<std::tuple<UTerm, SimplifyState::DotsMap, Term::ArithmeticsMap>> rewrite(UTerm &&x) {
-    SimplifyState state;
-    std::vector<std::tuple<UTerm, SimplifyState::DotsMap, Term::ArithmeticsMap>> res;
-    for(auto &term : unpool(x)) {
-        SimplifyState elemState(state);
-        Term::ArithmeticsMap arith;
-        arith.emplace_back();
-        term->simplify(elemState, true, false).update(term);
-        Term::replace(term, term->rewriteArithmetics(arith, elemState.gen));
-        res.emplace_back(std::move(term), std::move(elemState.dots), std::move(arith));
-    }
-    return res;
-}
-
-UTerm bindVars(UTerm &&x) {
-    SimplifyState state;
-    Term::ArithmeticsMap arith;
-    Term::VarSet set;
-    arith.emplace_back();
-    x->simplify(state, true, false).update(x);
-    Term::replace(x, x->rewriteArithmetics(arith, state.gen));
-    x->bind(set);
-    return std::move(x);
-}
 
 } // namespace
 
 TEST_CASE("term", "[base]") {
     std::vector<std::string> messages;
-    std::unique_ptr<MessagePrinter> oldPrinter = std::move(message_printer());
-    message_printer() = gringo_make_unique<TestMessagePrinter>(messages);
+    TestMessagePrinter log(messages);
+
+    auto rewriteDots = [&](UTerm &&x) -> std::tuple<UTerm, SimplifyState::DotsMap, SimplifyState::ScriptMap>  {
+        SimplifyState state;
+        x->simplify(state, true, false, log).update(x);
+        return std::make_tuple(std::move(x), std::move(state.dots), std::move(state.scripts));
+    };
+
+    auto rewriteProject = [&](UTerm &&x) -> std::string {
+        UTerm sig{make_locatable<ValTerm>(x->loc(), Symbol::createId("#p"))};
+        SimplifyState state;
+        x->simplify(state, true, false, log).update(x);
+        auto ret(x->project(sig.get(), state.gen));
+        Term::replace(x, std::move(std::get<0>(ret)));
+        auto projected(std::move(std::get<1>(ret)));
+        auto project(std::move(std::get<2>(ret)));
+        return to_string(std::make_tuple(
+            std::move(x),
+            projected ? std::move(projected) : val(Symbol::createStr("#undef")),
+            project ? std::move(project) : val(Symbol::createStr("#undef"))));
+    };
+
+    auto rewriteArithmetics = [&](UTerm &&x) -> std::string {
+        Term::ArithmeticsMap vec;
+        vec.emplace_back();
+        AuxGen gen;
+        UTerm y(x->rewriteArithmetics(vec, gen));
+        return to_string(std::make_pair(y ? std::move(y) : std::move(x), std::move(vec)));
+    };
+
+    auto simplify = [&](UTerm &&x) -> UTerm {
+        SimplifyState state;
+        if (x->simplify(state, true, false, log).update(x).undefined()) {
+            return make_locatable<ValTerm>(x->loc(), Symbol::createId("#undefined"));
+        }
+        else {
+            return std::move(x);
+        }
+    };
+
+    auto rewrite = [&] (UTerm &&x) -> std::vector<std::tuple<UTerm, SimplifyState::DotsMap, Term::ArithmeticsMap>> {
+        SimplifyState state;
+        std::vector<std::tuple<UTerm, SimplifyState::DotsMap, Term::ArithmeticsMap>> res;
+        for(auto &term : unpool(x)) {
+            SimplifyState elemState(state);
+            Term::ArithmeticsMap arith;
+            arith.emplace_back();
+            term->simplify(elemState, true, false, log).update(term);
+            Term::replace(term, term->rewriteArithmetics(arith, elemState.gen));
+            res.emplace_back(std::move(term), std::move(elemState.dots), std::move(arith));
+        }
+        return res;
+    };
+
+    auto bindVars = [&](UTerm &&x) -> UTerm {
+        SimplifyState state;
+        Term::ArithmeticsMap arith;
+        Term::VarSet set;
+        arith.emplace_back();
+        x->simplify(state, true, false, log).update(x);
+        Term::replace(x, x->rewriteArithmetics(arith, state.gen));
+        x->bind(set);
+        return std::move(x);
+    };
 
     SECTION("hash") {
         // term
@@ -182,26 +182,26 @@ TEST_CASE("term", "[base]") {
 
     SECTION("eval") {
         bool undefined;
-        REQUIRE(Symbol(NUM(1)) == val(NUM(1))->eval(undefined));
+        REQUIRE(Symbol(NUM(1)) == val(NUM(1))->eval(undefined, log));
 
-        REQUIRE(NUM(0)   == binop(BinOp::DIV, val(NUM(7)), val(NUM(0)))->eval(undefined));
-        REQUIRE(NUM(1)   == binop(BinOp::MOD, val(NUM(7)), val(NUM(3)))->eval(undefined));
-        REQUIRE(NUM(2)   == binop(BinOp::DIV, val(NUM(7)), val(NUM(3)))->eval(undefined));
-        REQUIRE(NUM(3)   == binop(BinOp::AND, val(NUM(7)), val(NUM(3)))->eval(undefined));
-        REQUIRE(NUM(4)   == binop(BinOp::XOR, val(NUM(7)), val(NUM(3)))->eval(undefined));
-        REQUIRE(NUM(5)   == binop(BinOp::SUB, val(NUM(7)), val(NUM(2)))->eval(undefined));
-        REQUIRE(NUM(7)   == binop(BinOp::OR,  val(NUM(7)), val(NUM(3)))->eval(undefined));
-        REQUIRE(NUM(10)  == binop(BinOp::ADD, val(NUM(7)), val(NUM(3)))->eval(undefined));
-        REQUIRE(NUM(21)  == binop(BinOp::MUL, val(NUM(7)), val(NUM(3)))->eval(undefined));
-        REQUIRE(NUM(343) == binop(BinOp::POW, val(NUM(7)), val(NUM(3)))->eval(undefined));
+        REQUIRE(NUM(0)   == binop(BinOp::DIV, val(NUM(7)), val(NUM(0)))->eval(undefined, log));
+        REQUIRE(NUM(1)   == binop(BinOp::MOD, val(NUM(7)), val(NUM(3)))->eval(undefined, log));
+        REQUIRE(NUM(2)   == binop(BinOp::DIV, val(NUM(7)), val(NUM(3)))->eval(undefined, log));
+        REQUIRE(NUM(3)   == binop(BinOp::AND, val(NUM(7)), val(NUM(3)))->eval(undefined, log));
+        REQUIRE(NUM(4)   == binop(BinOp::XOR, val(NUM(7)), val(NUM(3)))->eval(undefined, log));
+        REQUIRE(NUM(5)   == binop(BinOp::SUB, val(NUM(7)), val(NUM(2)))->eval(undefined, log));
+        REQUIRE(NUM(7)   == binop(BinOp::OR,  val(NUM(7)), val(NUM(3)))->eval(undefined, log));
+        REQUIRE(NUM(10)  == binop(BinOp::ADD, val(NUM(7)), val(NUM(3)))->eval(undefined, log));
+        REQUIRE(NUM(21)  == binop(BinOp::MUL, val(NUM(7)), val(NUM(3)))->eval(undefined, log));
+        REQUIRE(NUM(343) == binop(BinOp::POW, val(NUM(7)), val(NUM(3)))->eval(undefined, log));
 
-        REQUIRE(NUM(-1)  == unop(UnOp::NEG, val(NUM(1)))->eval(undefined));
-        REQUIRE(NUM(1)   == unop(UnOp::ABS, val(NUM(-1)))->eval(undefined));
-        REQUIRE(NUM(-13) == unop(UnOp::NOT, val(NUM(12)))->eval(undefined));
+        REQUIRE(NUM(-1)  == unop(UnOp::NEG, val(NUM(1)))->eval(undefined, log));
+        REQUIRE(NUM(1)   == unop(UnOp::ABS, val(NUM(-1)))->eval(undefined, log));
+        REQUIRE(NUM(-13) == unop(UnOp::NOT, val(NUM(12)))->eval(undefined, log));
 
-        REQUIRE(FUN("f", {NUM(1), NUM(5)}) == fun("f", val(NUM(1)), binop(BinOp::ADD, val(NUM(2)), val(NUM(3))))->eval(undefined));
+        REQUIRE(FUN("f", {NUM(1), NUM(5)}) == fun("f", val(NUM(1)), binop(BinOp::ADD, val(NUM(2)), val(NUM(3))))->eval(undefined, log));
 
-        REQUIRE(Symbol::createId("a").flipSign() == unop(UnOp::NEG, val(ID("a")))->eval(undefined));
+        REQUIRE(Symbol::createId("a").flipSign() == unop(UnOp::NEG, val(ID("a")))->eval(undefined, log));
     }
 
     SECTION("rewriteArithmetics") {
@@ -253,11 +253,11 @@ TEST_CASE("term", "[base]") {
 
     SECTION("undefined") {
         bool undefined = false;
-        REQUIRE(NUM(0) == binop(BinOp::POW, val(ID("a")), val(NUM(1)))->eval(undefined));
+        REQUIRE(NUM(0) == binop(BinOp::POW, val(ID("a")), val(NUM(1)))->eval(undefined, log));
         REQUIRE(undefined);
         REQUIRE("dummy:1:1: info: operation undefined:\n  (a**1)\n" == messages.back());
         undefined = false;
-        REQUIRE(NUM(0) == unop(UnOp::NOT, val(ID("a")))->eval(undefined));
+        REQUIRE(NUM(0) == unop(UnOp::NOT, val(ID("a")))->eval(undefined, log));
         REQUIRE(undefined);
         REQUIRE("dummy:1:1: info: operation undefined:\n  (~a)\n" == messages.back());
     }
@@ -318,8 +318,6 @@ TEST_CASE("term", "[base]") {
         REQUIRE("(x,(-x),\"x\\ny\",#sup,#inf)" == T(t));
         REQUIRE(nfId == data.addTerm(nf));
     }
-
-    std::swap(message_printer(), oldPrinter);
 }
 
 } } // namespace Test Gringo

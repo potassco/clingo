@@ -277,7 +277,7 @@ V init(T&&... args) {
 
 struct TestMessagePrinter : MessagePrinter {
     TestMessagePrinter(std::vector<std::string> &messages)
-        : messages_(messages)                  { }
+    : messages_(messages)                      { }
     virtual bool check(Errors)                 { error_ = true; return true; }
     virtual bool check(Warnings)               { return true; }
     virtual bool hasError() const              { return error_; }
@@ -289,28 +289,6 @@ private:
     std::vector<std::string> &messages_;
     bool error_ = false;
 };
-
-struct Messages {
-    Messages()
-        : oldPrinter(std::move(message_printer())) {
-        message_printer() = gringo_make_unique<Gringo::Test::TestMessagePrinter>(messages);
-    }
-    void clear() {
-        messages.clear();
-        message_printer() = gringo_make_unique<Gringo::Test::TestMessagePrinter>(messages);
-    }
-    ~Messages() {
-        message_printer() = std::move(oldPrinter);
-    }
-    std::vector<std::string>        messages;
-private:
-    std::unique_ptr<MessagePrinter> oldPrinter;
-};
-
-inline std::ostream &operator<<(std::ostream &out, Messages const &x) {
-    out << IO::to_string(x.messages);
-    return out;
-}
 
 // }}}
 
