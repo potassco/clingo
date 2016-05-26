@@ -36,7 +36,7 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_01") {
         // Author: Martin Lackner, Andreas Pfandler
         REQUIRE(
-            "[[solution(1,3),solution(2,4),solution(3,2)]]" ==
+            "([[solution(1,3),solution(2,4),solution(3,2)]],[])" ==
             IO::to_string(solve(
                 "% instance\n"
                 "t(1,5).\n"
@@ -63,8 +63,15 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_02") {
         // Author: Andrea Peano
         REQUIRE(
-            "[[valve(1,2),valve(1,4),valve(3,2),valve(4,2)]]" ==
-            IO::to_string(solve(
+            "([[valve(1,2),valve(1,4),valve(3,2),valve(4,2)]],"
+            "[-:63:20-21: info: global variable in tuple of aggregate element:\n  X\n"
+            ",-:91:31-32: info: global variable in tuple of aggregate element:\n  W\n"
+            ",-:90:22-23: info: global variable in tuple of aggregate element:\n  X\n"
+            ",-:90:24-25: info: global variable in tuple of aggregate element:\n  Y\n"
+            ",-:91:33-34: info: global variable in tuple of aggregate element:\n  Z\n"
+            ",-:107:44-45: info: global variable in tuple of aggregate element:\n  X\n"
+            ",-:107:46-47: info: global variable in tuple of aggregate element:\n  Y\n"
+            "])" == IO::to_string(solve(
                 "%instance\n"
                 "\n"
                 "valves_number(4).\n"
@@ -82,103 +89,103 @@ TEST_CASE("output-aspcomp2013", "[output]") {
                 "\n"
                 "%encoding\n"
                 "\n"
-                "		%just some tools\n"
-                "		%Symmetric pipe\n"
+                "       %just some tools\n"
+                "       %Symmetric pipe\n"
                 "symm_pipe(A,B):- pipe(A,B).\n"
                 "symm_pipe(B,A):- pipe(A,B).\n"
-                "		%We need a lexicographic order (there may be more than one worst isolation cases)\n"
+                "       %We need a lexicographic order (there may be more than one worst isolation cases)\n"
                 "less_ico(pipe(A,B), pipe(C,D)):- pipe(A,B), pipe(C,D), A<C.\n"
                 "less_ico(pipe(A,B), pipe(C,D)):- pipe(A,B), pipe(C,D), A = C, B<D.\n"
                 "\n"
                 "%Adjacency of pipes (common junction and unshared junctions)\n"
                 "%adj(pipe(X,Y), pipe(W,Z), COM, U1, U2) :- symm_pipe(COM,U1), symm_pipe(COM,U2), U1!=U2, not tank(COM),\n"
-                "%				pipe(X,Y), pipe(W,Z), \n"
+                "%              pipe(X,Y), pipe(W,Z), \n"
                 "%                                2 {COM=W, COM=Z, COM=X, COM=Y} 2,\n"
-                "%				1 {U1=W, U1=Z, U1=X, U1=Y} 1,\n"
-                "%				1 {U2=W, U2=Z, U2=X, U2=Y} 1.\n"
+                "%              1 {U1=W, U1=Z, U1=X, U1=Y} 1,\n"
+                "%              1 {U2=W, U2=Z, U2=X, U2=Y} 1.\n"
                 "adj(pipe(X,Y), pipe(W,Z), COM, U1, U2) :- symm_pipe(COM,U1), symm_pipe(COM,U2), U1!=U2, not tank(COM),\n"
-                "				pipe(X,Y), pipe(W,Z), \n"
+                "               pipe(X,Y), pipe(W,Z), \n"
                 "                                2 = #count {a : COM=W; b : COM=Z; c : COM=X; d : COM=Y},\n"
-                "				1 = #count {a : U1=W; b : U1=Z; c : U1=X; d : U1=Y},\n"
-                "				1 = #count {a : U2=W; b : U2=Z; c : U2=X; d : U2=Y}.\n"
+                "               1 = #count {a : U1=W; b : U1=Z; c : U1=X; d : U1=Y},\n"
+                "               1 = #count {a : U2=W; b : U2=Z; c : U2=X; d : U2=Y}.\n"
                 "\n"
                 "\n"
                 "\n"
-                "		%\n"
-                "		%There are some valves that are closed to isolate the broken pipe\n"
+                "       %\n"
+                "       %There are some valves that are closed to isolate the broken pipe\n"
                 "1 <= { closed_valve(v(X,Y), broken(A,B)) : symm_pipe(X,Y) } <= Nv :- pipe(A,B), valves_number(Nv).\n"
                 "\n"
-                "		%\n"
-                "		%If a valve is closed for some pipes, then it must be installed!!\n"
+                "       %\n"
+                "       %If a valve is closed for some pipes, then it must be installed!!\n"
                 "valve(A,B) :- closed_valve(v(A,B), _).\n"
                 "\n"
-                "		%\n"
-                "		%There should always be installed valves near the tanks\n"
+                "       %\n"
+                "       %There should always be installed valves near the tanks\n"
                 "valve(A,B) :- symm_pipe(A,B), tank(A).\n"
                 "\n"
-                "		%\n"
-                "		%Valves must be at most Nv\n"
+                "       %\n"
+                "       %Valves must be at most Nv\n"
                 ":- valves_number(Nv), not Nv = #count{ X,Y : valve(X,Y) , pipe(X,Y); Y,X : valve(Y,X) , pipe(X,Y)}.\n"
                 "\n"
-                "		%\n"
-                "		%At most X valves per pipe must be allowed (either 1 or 2)\n"
+                "       %\n"
+                "       %At most X valves per pipe must be allowed (either 1 or 2)\n"
                 ":- valves_per_pipe(1), pipe(A,B), valve(A,B), valve(B,A).\n"
                 "\n"
-                "		%\n"
-                "		%some symmetry breaking on valves\n"
+                "       %\n"
+                "       %some symmetry breaking on valves\n"
                 ":- junction(X), not tank(X), symm_pipe(X,A), symm_pipe(X,B),\n"
-                "		2 = #count{ X,Y : symm_pipe(X,Y) }, A>B, valve(X,A).\n"
+                "       2 = #count{ X,Y : symm_pipe(X,Y) }, A>B, valve(X,A).\n"
                 "\n"
-                "		%\n"
-                "		%A pipe adjacent to the tank is reached, when a generic pipe is broken iff there is no valve between them.\n"
+                "       %\n"
+                "       %A pipe adjacent to the tank is reached, when a generic pipe is broken iff there is no valve between them.\n"
                 "reached(pipe(A,B), broken(X,Y)):- tank(A), pipe(X,Y), pipe(A,B), not closed_valve(v(A,B), broken(X,Y)).\n"
                 "reached(pipe(A,B), broken(X,Y)):- tank(B), pipe(X,Y), pipe(A,B), not closed_valve(v(B,A), broken(X,Y)).\n"
                 "\n"
-                "		%\n"
-                "		%Can we recursively reach any tank??\n"
+                "       %\n"
+                "       %Can we recursively reach any tank??\n"
                 "reached(pipe(A,B), broken(X,Y)) :- adj(pipe(A,B), pipe(C,D), COM, U1, U2), %COM is not a tank! \n"
-                "				not closed_valve(v(COM,U1), broken(X,Y)),\n"
-                "				not closed_valve(v(COM,U2), broken(X,Y)),\n"
-                "				reached(pipe(C,D), broken(X,Y)).\n"
+                "               not closed_valve(v(COM,U1), broken(X,Y)),\n"
+                "               not closed_valve(v(COM,U2), broken(X,Y)),\n"
+                "               reached(pipe(C,D), broken(X,Y)).\n"
                 "\n"
-                "		%\n"
-                "		%The broken pipe must be unreachable!\n"
+                "       %\n"
+                "       %The broken pipe must be unreachable!\n"
                 ":- pipe(A,B), reached(pipe(A,B), broken(A,B)).\n"
                 "\n"
-                "		%\n"
-                "		% Pair-wise comparisons between delivered demand pipe isolation cases\n"
+                "       %\n"
+                "       % Pair-wise comparisons between delivered demand pipe isolation cases\n"
                 "%lower(pipe(X,Y), pipe(W,Z)) :- pipe(X,Y), pipe(W,Z),\n"
-                "%		#sum [ 	reached(pipe(A,B), broken(X,Y))=Dn: dem(A,B,Dn),\n"
-                "%			reached(pipe(C,D), broken(W,Z))=-Dm: dem(C,D,Dm) ] 0.\n"
+                "%      #sum [  reached(pipe(A,B), broken(X,Y))=Dn: dem(A,B,Dn),\n"
+                "%          reached(pipe(C,D), broken(W,Z))=-Dm: dem(C,D,Dm) ] 0.\n"
                 "%lower(pipe(X,Y), pipe(W,Z)) :- pipe(X,Y), pipe(W,Z),\n"
-                "%		S1 = #sum { Dn,A,B,X,Y : reached(pipe(A,B), broken(X,Y)), dem(A,B,Dn) },\n"
+                "%      S1 = #sum { Dn,A,B,X,Y : reached(pipe(A,B), broken(X,Y)), dem(A,B,Dn) },\n"
                 "%                S2 = #sum { Dm,C,D,W,Z : reached(pipe(C,D), broken(W,Z)), dem(C,D,Dm) }, S1 - S2 <= 0.\n"
                 "lower(pipe(X,Y), pipe(W,Z)) :- pipe(X,Y), pipe(W,Z),\n"
-                "		#sum { Dn,A,B,X,Y : reached(pipe(A,B), broken(X,Y)), dem(A,B,Dn);\n"
+                "       #sum { Dn,A,B,X,Y : reached(pipe(A,B), broken(X,Y)), dem(A,B,Dn);\n"
                 "                       Dm,C,D,W,Z : reached(pipe(C,D), broken(W,Z)), dem(C,D,NegDm), Dm = -NegDm } <= 0.\n"
                 "\n"
-                "		%\n"
-                "		%Then the lower are...\n"
+                "       %\n"
+                "       %Then the lower are...\n"
                 "lower_lexico(pipe(X,Y), pipe(W,Z)) :- pipe(X,Y), pipe(W,Z),\n"
-                "				lower(pipe(X,Y), pipe(W,Z)), not lower(pipe(W,Z), pipe(X,Y)).\n"
+                "               lower(pipe(X,Y), pipe(W,Z)), not lower(pipe(W,Z), pipe(X,Y)).\n"
                 "lower_lexico(pipe(X,Y), pipe(X,Y)) :- pipe(X,Y),\n"
-                "				lower(pipe(X,Y), pipe(X,Y)).\n"
+                "               lower(pipe(X,Y), pipe(X,Y)).\n"
                 "lower_lexico(pipe(X,Y), pipe(W,Z)) :- pipe(X,Y), pipe(W,Z), % with the same delivered demand\n"
-                "				lower(pipe(X,Y), pipe(W,Z)), lower(pipe(W,Z),pipe(X,Y)),\n"
-                "				less_ico(pipe(X,Y), pipe(W,Z)).\n"
+                "               lower(pipe(X,Y), pipe(W,Z)), lower(pipe(W,Z),pipe(X,Y)),\n"
+                "               less_ico(pipe(X,Y), pipe(W,Z)).\n"
                 "\n"
-                "		%\n"
-                "		%And the worst isolation case is the one for which all lower_lexico are true\n"
+                "       %\n"
+                "       %And the worst isolation case is the one for which all lower_lexico are true\n"
                 "%worst(pipe(X,Y)) :- pipe(X,Y), lower_lexico(pipe(X,Y),pipe(W,Z)) : pipe(W,Z).\n"
                 "worst(pipe(X,Y)) :- pipe(X,Y), C = #count{ W,Z : pipe(W,Z) }, \n"
                 "                               D = #count{ X,Y,W,Z : lower_lexico(pipe(X,Y),pipe(W,Z)) , pipe(W,Z)}, C = D.\n"
                 "\n"
                 "\n"
                 "worst_deliv_dem(pipe(A,B), D) :- dem(A,B,D), pipe(X,Y),\n"
-                "		reached(pipe(A,B), broken(X,Y)), worst(pipe(X,Y)).\n"
+                "       reached(pipe(A,B), broken(X,Y)), worst(pipe(X,Y)).\n"
                 "\n"
-                "		%\n"
-                "		%Worst isolation case' delivered demand maximization\n"
+                "       %\n"
+                "       %Worst isolation case' delivered demand maximization\n"
                 "\n"
                 ":~ dem(A,B,D),  not worst_deliv_dem(pipe(A,B),D). [D,A,B]\n", {"valve("}, {343})));
     }
@@ -188,9 +195,9 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_04") {
         // Author: Christian Drescher
         REQUIRE(
-            "[[lives(1,1),lives(1,2),lives(2,1),lives(2,3),lives(3,2),lives(3,4),lives(4,3),lives(4,4)],"
+            "([[lives(1,1),lives(1,2),lives(2,1),lives(2,3),lives(3,2),lives(3,4),lives(4,3),lives(4,4)],"
             "[lives(1,2),lives(1,3),lives(2,1),lives(2,4),lives(3,1),lives(3,4),lives(4,2),lives(4,3)],"
-            "[lives(1,3),lives(1,4),lives(2,2),lives(2,4),lives(3,1),lives(3,3),lives(4,1),lives(4,2)]]" == IO::to_string(solve(
+            "[lives(1,3),lives(1,4),lives(2,2),lives(2,4),lives(3,1),lives(3,3),lives(4,1),lives(4,2)]],[])" == IO::to_string(solve(
                 "%instance\n"
                 "\n"
                 "size(4).\n"
@@ -231,7 +238,7 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_05") {
         // Author: Christian Drescher
         REQUIRE(
-            "[[value(a,0),value(b,1),value(c,3)],"
+            "([[value(a,0),value(b,1),value(c,3)],"
             "[value(a,0),value(b,2),value(c,3)],"
             "[value(a,0),value(b,3),value(c,1)],"
             "[value(a,0),value(b,3),value(c,2)],"
@@ -242,7 +249,7 @@ TEST_CASE("output-aspcomp2013", "[output]") {
             "[value(a,3),value(b,0),value(c,1)],"
             "[value(a,3),value(b,0),value(c,2)],"
             "[value(a,3),value(b,1),value(c,0)],"
-            "[value(a,3),value(b,2),value(c,0)]]" == IO::to_string(solve(
+            "[value(a,3),value(b,2),value(c,0)]],[])" == IO::to_string(solve(
                 "%instance\n"
                 "\n"
                 "edge(a,b). edge(b,c). edge(c,a).\n"
@@ -276,7 +283,7 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_06") {
         // Author: Wolfgang Faber
         REQUIRE(
-            "[[filled(1,1),filled(1,2)]]" ==
+            "([[filled(1,1),filled(1,2)]],[])" ==
             IO::to_string(solve(
                 "% instance\n"
                 "\n"
@@ -302,11 +309,12 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_07") {
         // Author: Giovambattista Ianni, Carlos Linares López*, Hootan Nakhost*
         REQUIRE(
-            "[[drive(t0,a,b,10),drive(t0,a,b,2),drive(t0,a,b,6),drive(t0,b,a,5),drive(t0,b,a,9),load(p0,t0,a,1),load(p0,t0,b,7),unload(p0,t0,b,4)],"
+            "([[drive(t0,a,b,10),drive(t0,a,b,2),drive(t0,a,b,6),drive(t0,b,a,5),drive(t0,b,a,9),load(p0,t0,a,1),load(p0,t0,b,7),unload(p0,t0,b,4)],"
             "[drive(t0,a,b,10),drive(t0,a,b,2),drive(t0,a,b,6),drive(t0,b,a,5),drive(t0,b,a,9),load(p0,t0,a,1),load(p0,t0,b,7),unload(p0,t0,b,4),unload(p0,t0,b,8)],"
             "[drive(t0,a,b,2),drive(t0,a,b,6),drive(t0,b,a,5),drive(t0,b,a,9),load(p0,t0,a,1),load(p0,t0,b,7),unload(p0,t0,a,10),unload(p0,t0,b,4)],"
             "[drive(t0,a,b,2),drive(t0,a,b,6),drive(t0,b,a,5),drive(t0,b,a,9),load(p0,t0,a,1),load(p0,t0,b,7),unload(p0,t0,b,4)],"
-            "[drive(t0,a,b,2),drive(t0,a,b,6),drive(t0,b,a,5),drive(t0,b,a,9),load(p0,t0,a,1),load(p0,t0,b,7),unload(p0,t0,b,4),unload(p0,t0,b,8)]]" == IO::to_string(solve(
+            "[drive(t0,a,b,2),drive(t0,a,b,6),drive(t0,b,a,5),drive(t0,b,a,9),load(p0,t0,a,1),load(p0,t0,b,7),unload(p0,t0,b,4),unload(p0,t0,b,8)]],"
+            "[-:91:42-43: info: global variable in tuple of aggregate element:\n  S\n])" == IO::to_string(solve(
                 "%instance\n"
                 "\n"
                 "fuelcost(10,a,b). fuelcost(10,b,a).\n"
@@ -346,15 +354,15 @@ TEST_CASE("output-aspcomp2013", "[output]") {
                 "% GENERATE  >>>>>\n"
                 "1 <= { unload( P,T,L,S ) : \n"
                 "        package( P ) , \n"
-                " 	truck( T ) , \n"
-                "	location( L ); \n"
+                "   truck( T ) , \n"
+                "   location( L ); \n"
                 "    load( P,T,L,S ) : \n"
-                "	package( P ) , \n"
-                "	truck( T ) , \n"
-                "	location( L ); \n"
+                "   package( P ) , \n"
+                "   truck( T ) , \n"
+                "   location( L ); \n"
                 "    drive( T,L1,L2,S ) : \n"
-                "	fuelcost( Fueldelta,L1,L2 ) , \n"
-                "	truck( T );\n"
+                "   fuelcost( Fueldelta,L1,L2 ) , \n"
+                "   truck( T );\n"
                 "    noop(S)\n"
                 "  } <= 1 :- step(S), S > 0.\n"
                 "% <<<<<  GENERATE\n"
@@ -406,13 +414,14 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_08") {
         // Author: Giovambattista Ianni, Carlos Linares López*, Hootan Nakhost*
         REQUIRE(
-            "[[move(player_01,pos_2_2,pos_3_2,dir_right,3),move(player_01,pos_3_2,pos_2_2,dir_left,2),pushtogoal(player_01,stone_01,pos_2_2,pos_3_2,pos_4_2,dir_right,1)],"
+            "([[move(player_01,pos_2_2,pos_3_2,dir_right,3),move(player_01,pos_3_2,pos_2_2,dir_left,2),pushtogoal(player_01,stone_01,pos_2_2,pos_3_2,pos_4_2,dir_right,1)],"
             "[move(player_01,pos_3_2,pos_2_2,dir_left,2),noop(3),pushtogoal(player_01,stone_01,pos_2_2,pos_3_2,pos_4_2,dir_right,1)],"
             "[move(player_01,pos_3_2,pos_2_2,dir_left,3),noop(1),pushtogoal(player_01,stone_01,pos_2_2,pos_3_2,pos_4_2,dir_right,2)],"
             "[move(player_01,pos_3_2,pos_2_2,dir_left,3),noop(2),pushtogoal(player_01,stone_01,pos_2_2,pos_3_2,pos_4_2,dir_right,1)],"
             "[noop(1),noop(2),pushtogoal(player_01,stone_01,pos_2_2,pos_3_2,pos_4_2,dir_right,3)],"
             "[noop(1),noop(3),pushtogoal(player_01,stone_01,pos_2_2,pos_3_2,pos_4_2,dir_right,2)],"
-            "[noop(2),noop(3),pushtogoal(player_01,stone_01,pos_2_2,pos_3_2,pos_4_2,dir_right,1)]]" == IO::to_string(solve(
+            "[noop(2),noop(3),pushtogoal(player_01,stone_01,pos_2_2,pos_3_2,pos_4_2,dir_right,1)]],"
+            "[-:135:39-40: info: global variable in tuple of aggregate element:\n  T\n])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "player(player_01).\n"
@@ -457,18 +466,18 @@ TEST_CASE("output-aspcomp2013", "[output]") {
                 "\n"
                 "% GENERATE  >>>>>\n"
                 "1 <= { pushtonongoal( P,S,Ppos,From,To,Dir,T ) : \n"
-                "	movedir( Ppos,From,Dir ) ,\n"
-                "	movedir( From,To,Dir ) , \n"
-                "	isnongoal( To ) , \n"
-                "	player( P ) , \n"
-                "	stone( S ) , Ppos != To , Ppos != From , From != To; \n"
+                "   movedir( Ppos,From,Dir ) ,\n"
+                "   movedir( From,To,Dir ) , \n"
+                "   isnongoal( To ) , \n"
+                "   player( P ) , \n"
+                "   stone( S ) , Ppos != To , Ppos != From , From != To; \n"
                 "    move( P,From,To,Dir,T ) : \n"
-                "	movedir( From,To,Dir ) , \n"
-                "	player( P ) , From != To;\n"
+                "   movedir( From,To,Dir ) , \n"
+                "   player( P ) , From != To;\n"
                 "    pushtogoal( P,S,Ppos,From,To,Dir,T ) : \n"
-                "	movedir( Ppos,From,Dir ) , \n"
-                "	movedir( From,To,Dir ) , \n"
-                "	isgoal( To ) , player( P ) , stone( S ) , Ppos != To , Ppos != From , From != To;\n"
+                "   movedir( Ppos,From,Dir ) , \n"
+                "   movedir( From,To,Dir ) , \n"
+                "   isgoal( To ) , player( P ) , stone( S ) , Ppos != To , Ppos != From , From != To;\n"
                 "    noop(T) } <= 1 :- step(T).\n"
                 "\n"
                 "% <<<<<  GENERATE\n"
@@ -563,7 +572,7 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_09") {
         // Author: Julius Höfler, Martin Gebser, Philipp Obermeier, Roland Kaminski, Torsten Schaub
         REQUIRE(
-            "[[go(blue,east,1,2),go(blue,east,2),go(blue,north,-1,1),go(blue,north,1),go(blue,south,-1,3),go(blue,south,3),go(red,east,1,4),go(red,east,4),go(red,south,-1,5),go(red,south,5)],"
+            "([[go(blue,east,1,2),go(blue,east,2),go(blue,north,-1,1),go(blue,north,1),go(blue,south,-1,3),go(blue,south,3),go(red,east,1,4),go(red,east,4),go(red,south,-1,5),go(red,south,5)],"
                 "[go(blue,east,1,2),go(blue,east,2),go(blue,north,-1,1),go(blue,north,1),go(blue,south,-1,4),go(blue,south,4),go(red,east,1,3),go(red,east,3),go(red,south,-1,5),go(red,south,5)],"
                 "[go(blue,east,1,3),go(blue,east,3),go(blue,north,-1,1),go(blue,north,1),go(blue,south,-1,4),go(blue,south,4),go(red,east,1,2),go(red,east,2),go(red,south,-1,5),go(red,south,5)],"
                 "[go(blue,east,1,3),go(blue,east,3),go(blue,north,-1,2),go(blue,north,2),go(blue,south,-1,4),go(blue,south,4),go(red,east,1),go(red,east,1,1),go(red,south,-1,5),go(red,south,5)],"
@@ -573,7 +582,7 @@ TEST_CASE("output-aspcomp2013", "[output]") {
                 "[go(green,south,-1,3),go(green,south,3),go(green,west,1,4),go(green,west,4),go(red,east,1),go(red,east,1,1),go(red,south,-1,5),go(red,south,5),go(yellow,west,1,2),go(yellow,west,2)],"
                 "[go(green,south,-1,3),go(green,south,3),go(green,west,1,4),go(green,west,4),go(red,east,1,2),go(red,east,2),go(red,south,-1,5),go(red,south,5),go(yellow,west,1),go(yellow,west,1,1)],"
                 "[go(green,south,-1,3),go(green,south,3),go(red,east,1),go(red,east,1,1),go(red,south,-1,5),go(red,south,5),go(yellow,east,1,4),go(yellow,east,4),go(yellow,west,1,2),go(yellow,west,2)],"
-                "[go(green,south,-1,3),go(green,south,3),go(red,east,1,2),go(red,east,2),go(red,south,-1,5),go(red,south,5),go(yellow,east,1,4),go(yellow,east,4),go(yellow,west,1),go(yellow,west,1,1)]]" == IO::to_string(solve(
+                "[go(green,south,-1,3),go(green,south,3),go(red,east,1,2),go(red,east,2),go(red,south,-1,5),go(red,south,5),go(yellow,east,1,4),go(yellow,east,4),go(yellow,west,1),go(yellow,west,1,1)]],[])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "dim(1). dim(2). dim(3).\n"
@@ -656,9 +665,9 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_10") {
         // Author: Carmine Dodaro, Graeme Gange*, Peter Stuckey*
         REQUIRE(
-            "[[position(n1,1),position(n10,4),position(n11,1),position(n12,3),position(n13,8),position(n14,9),position(n15,5),position(n16,6),position(n17,2),position(n18,7),position(n19,1),position(n2,3),position(n20,7),position(n21,2),position(n22,3),position(n23,8),position(n24,9),position(n25,5),position(n26,4),position(n27,6),position(n3,7),position(n4,2),position(n5,8),position(n6,9),position(n7,6),position(n8,4),position(n9,5)],"
+            "([[position(n1,1),position(n10,4),position(n11,1),position(n12,3),position(n13,8),position(n14,9),position(n15,5),position(n16,6),position(n17,2),position(n18,7),position(n19,1),position(n2,3),position(n20,7),position(n21,2),position(n22,3),position(n23,8),position(n24,9),position(n25,5),position(n26,4),position(n27,6),position(n3,7),position(n4,2),position(n5,8),position(n6,9),position(n7,6),position(n8,4),position(n9,5)],"
             "[position(n1,1),position(n10,4),position(n11,1),position(n12,3),position(n13,8),position(n14,9),position(n15,5),position(n16,6),position(n17,2),position(n18,7),position(n19,2),position(n2,3),position(n20,7),position(n21,1),position(n22,3),position(n23,8),position(n24,9),position(n25,5),position(n26,4),position(n27,6),position(n3,7),position(n4,2),position(n5,8),position(n6,9),position(n7,6),position(n8,4),position(n9,5)],"
-            "[position(n1,1),position(n10,4),position(n11,1),position(n12,3),position(n13,8),position(n14,9),position(n15,5),position(n16,6),position(n17,2),position(n18,7),position(n19,3),position(n2,3),position(n20,7),position(n21,1),position(n22,2),position(n23,8),position(n24,9),position(n25,5),position(n26,4),position(n27,6),position(n3,7),position(n4,2),position(n5,8),position(n6,9),position(n7,6),position(n8,4),position(n9,5)]]" == IO::to_string(solve(
+            "[position(n1,1),position(n10,4),position(n11,1),position(n12,3),position(n13,8),position(n14,9),position(n15,5),position(n16,6),position(n17,2),position(n18,7),position(n19,3),position(n2,3),position(n20,7),position(n21,1),position(n22,2),position(n23,8),position(n24,9),position(n25,5),position(n26,4),position(n27,6),position(n3,7),position(n4,2),position(n5,8),position(n6,9),position(n7,6),position(n8,4),position(n9,5)]],[])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "layers(3).\n"
@@ -772,7 +781,7 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_13") {
         // Author: Marcello Balduccini, Yuliya Lierler*
         REQUIRE(
-            "[[move(1,left,6,3),move(2,right,3,3),move(3,up,3,5),move(4,left,5,5),move(5,left,7,5),move(6,down,7,3)],"
+            "([[move(1,left,6,3),move(2,right,3,3),move(3,up,3,5),move(4,left,5,5),move(5,left,7,5),move(6,down,7,3)],"
             "[move(1,right,2,3),move(2,up,2,5),move(3,up,3,5),move(4,left,5,5),move(5,left,7,5),move(6,down,7,3)],"
             "[move(1,right,2,3),move(2,up,3,5),move(3,left,4,3),move(4,left,5,5),move(5,left,7,5),move(6,down,7,3)],"
             "[move(1,right,2,3),move(2,up,3,5),move(3,left,5,4),move(4,left,5,5),move(5,left,7,5),move(6,down,7,3)],"
@@ -782,7 +791,10 @@ TEST_CASE("output-aspcomp2013", "[output]") {
             "[move(1,up,4,5),move(2,right,2,4),move(3,right,2,5),move(4,left,5,5),move(5,left,7,5),move(6,down,7,3)],"
             "[move(1,up,4,5),move(2,right,2,5),move(3,down,2,3),move(4,left,5,5),move(5,left,7,5),move(6,down,7,3)],"
             "[move(1,up,4,5),move(2,right,2,5),move(3,left,6,4),move(4,left,5,5),move(5,left,7,5),move(6,down,7,3)],"
-            "[move(1,up,4,5),move(2,right,2,5),move(3,right,2,4),move(4,left,5,5),move(5,left,7,5),move(6,down,7,3)]]" == IO::to_string(solve(
+            "[move(1,up,4,5),move(2,right,2,5),move(3,right,2,4),move(4,left,5,5),move(5,left,7,5),move(6,down,7,3)]],"
+            "[-:56:22-23: info: global variable in tuple of aggregate element:\n  T\n"
+            ",-:51:72-93: info: atom does not occur in any rule head:\n  not checking_solution\n"
+            ",-:56:94-111: info: atom does not occur in any rule head:\n  checking_solution\n])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "time(1).  time(2).  time(3).  time(4).  time(5).  time(6).\n"
@@ -891,12 +903,12 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_14") {
         // Author: Marcello Balduccini, Yuliya Lierlier, Shaden Smith
         REQUIRE(
-           "[[leafPos(1,0),leafPos(2,1),leafPos(3,2),posColor(1,blue),posColor(2,red)],"
+           "([[leafPos(1,0),leafPos(2,1),leafPos(3,2),posColor(1,blue),posColor(2,red)],"
            "[leafPos(1,0),leafPos(2,1),leafPos(3,2),posColor(1,green),posColor(2,red)],"
            "[leafPos(1,0),leafPos(2,1),leafPos(3,2),posColor(1,red),posColor(2,red)],"
            "[leafPos(1,2),leafPos(2,1),leafPos(3,0),posColor(1,blue),posColor(2,red)],"
            "[leafPos(1,2),leafPos(2,1),leafPos(3,0),posColor(1,green),posColor(2,red)],"
-           "[leafPos(1,2),leafPos(2,1),leafPos(3,0),posColor(1,red),posColor(2,red)]]" == IO::to_string(solve(
+           "[leafPos(1,2),leafPos(2,1),leafPos(3,0),posColor(1,red),posColor(2,red)]],[])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "leafWeightCardinality(1,45,44). leafWeightCardinality(2,21,3). leafWeightCardinality(3,64,74).\n"
@@ -949,7 +961,7 @@ TEST_CASE("output-aspcomp2013", "[output]") {
                 "nWeight(0,W):- leafWeightCardinality(L,W,C), leafPos(L,0).\n"
                 "\n"
                 "nWeight(P,W):- W= W1+C, posColor(P,green),\n"
-                "			leafWeight(R,W1), leafCard(R,C),\n"
+                "           leafWeight(R,W1), leafCard(R,C),\n"
                 "            coloredPos(P), leafPos(R,P), leaf(R),  W<=M, max_total_weight(M).\n"
                 "\n"
                 "\n"
@@ -958,8 +970,8 @@ TEST_CASE("output-aspcomp2013", "[output]") {
                 "%  if color of X is red\n"
                 "%     weight(X) = weight(right child of X) + weight(left child of X) \n"
                 "nWeight(P,W):- W= W1+W2, posColor(P,red),\n"
-                "			leafWeight(R,W1),nWeight(P-1,W2),\n"
-                "			coloredPos(P), leafPos(R,P),\n"
+                "           leafWeight(R,W1),nWeight(P-1,W2),\n"
+                "           coloredPos(P), leafPos(R,P),\n"
                 "            leaf(R),  W<=M, max_total_weight(M).\n"
                 "\n"
                 "\n"
@@ -967,8 +979,8 @@ TEST_CASE("output-aspcomp2013", "[output]") {
                 "%  if color(X) is blue\n"
                 "%     weight(X) = cardinality(right child of X) + weight(left child of X) \n"
                 "nWeight(P,W):- W= W1+C,   posColor(P,blue),\n"
-                "			leafCard(R,C), nWeight(P-1,W1),\n"
-                "			coloredPos(P),leafPos(R,P),   \n"
+                "           leafCard(R,C), nWeight(P-1,W1),\n"
+                "           coloredPos(P),leafPos(R,P),   \n"
                 "            leaf(R),  W<=M, max_total_weight(M).\n"
                 "\n"
                 "%%\n"
@@ -995,7 +1007,7 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_15") {
         // Author: Mario Alviano, Carmine Dodaro, Francesco Ricca
         REQUIRE(
-            "[[match(m_1,w_1),match(m_2,w_3),match(m_3,w_2),match(m_4,w_4)]]" == IO::to_string(solve(
+            "([[match(m_1,w_1),match(m_2,w_3),match(m_3,w_2),match(m_4,w_4)]],[])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "manAssignsScore(m_1,w_1,4). manAssignsScore(m_1,w_2,2). manAssignsScore(m_1,w_3,2). manAssignsScore(m_1,w_4,1).\n"
@@ -1033,13 +1045,15 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_16") {
         // Author: Marcello Balduccini, Yuliya Lierler*
         REQUIRE(
-            "[[on_instance(j1,1),on_instance(j2,2),on_instance(j3,2),penalty(j2,0),penalty(j3,2),start(j1,0),start(j2,4),start(j3,9),tot_penalty(2)],"
+            "([[on_instance(j1,1),on_instance(j2,2),on_instance(j3,2),penalty(j2,0),penalty(j3,2),start(j1,0),start(j2,4),start(j3,9),tot_penalty(2)],"
             "[on_instance(j1,1),on_instance(j2,2),on_instance(j3,2),penalty(j2,1),penalty(j3,0),start(j1,0),start(j2,6),start(j3,2),tot_penalty(1)],"
             "[on_instance(j1,1),on_instance(j2,2),on_instance(j3,2),penalty(j2,2),penalty(j3,0),start(j1,0),start(j2,7),start(j3,2),tot_penalty(2)],"
             "[on_instance(j1,1),on_instance(j2,2),on_instance(j3,2),penalty(j2,2),penalty(j3,0),start(j1,0),start(j2,7),start(j3,3),tot_penalty(2)],"
             "[on_instance(j1,1),on_instance(j2,2),on_instance(j3,2),penalty(j2,3),penalty(j3,0),start(j1,0),start(j2,8),start(j3,2),tot_penalty(3)],"
             "[on_instance(j1,1),on_instance(j2,2),on_instance(j3,2),penalty(j2,3),penalty(j3,0),start(j1,0),start(j2,8),start(j3,3),tot_penalty(3)],"
-            "[on_instance(j1,1),on_instance(j2,2),on_instance(j3,2),penalty(j2,3),penalty(j3,0),start(j1,0),start(j2,8),start(j3,4),tot_penalty(3)]]" == IO::to_string(solve(
+            "[on_instance(j1,1),on_instance(j2,2),on_instance(j3,2),penalty(j2,3),penalty(j3,0),start(j1,0),start(j2,8),start(j3,4),tot_penalty(3)]],"
+            "[-:33:47-68: info: atom does not occur in any rule head:\n  not checking_solution\n"
+            ",-:34:79-100: info: atom does not occur in any rule head:\n  not checking_solution\n])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "max_value(20).\n"
@@ -1098,33 +1112,33 @@ TEST_CASE("output-aspcomp2013", "[output]") {
                 "%     - completion -- total-tardiness\n"
                 "%-------------------------------------\n"
                 "td(J,S + L - D) :-\n"
-                "	job(J),\n"
-                "	start(J,S), job_len(J,L),\n"
-                "	deadline(J,D),\n"
-                "	S + L > D.\n"
+                "   job(J),\n"
+                "   start(J,S), job_len(J,L),\n"
+                "   deadline(J,D),\n"
+                "   S + L > D.\n"
                 "\n"
                 "td(J,0) :-\n"
-                "	job(J),\n"
-                "	start(J,S), job_len(J,L),\n"
-                "	deadline(J,D),\n"
-                "	S + L <= D.\n"
+                "   job(J),\n"
+                "   start(J,S), job_len(J,L),\n"
+                "   deadline(J,D),\n"
+                "   S + L <= D.\n"
                 "\n"
                 "%-------------------------------------\n"
                 "%     - completion -- penalty\n"
                 "%-------------------------------------\n"
                 "\n"
                 "penalty(J,TD * I) :-\n"
-                "	job(J),\n"
-                "	td(J,TD),\n"
-                "	importance(J,I).\n"
+                "   job(J),\n"
+                "   td(J,TD),\n"
+                "   importance(J,I).\n"
                 "\n"
                 ":- penalty(J,P),\n"
                 "   max_value(MV),\n"
                 "   P > MV.\n"
                 "\n"
                 "tot_penalty(TP) :-\n"
-                "	pen_value(TP),\n"
-                "	TP = #sum{ P,J : penalty(J,P) }.\n"
+                "   pen_value(TP),\n"
+                "   TP = #sum{ P,J : penalty(J,P) }.\n"
                 "\n"
                 "%\n"
                 "% If the value of the total penalty would be greater than the\n"
@@ -1133,9 +1147,9 @@ TEST_CASE("output-aspcomp2013", "[output]") {
                 "% In that case, the solution is not acceptable.\n"
                 "%\n"
                 "has_tot_penalty :-\n"
-                "	tot_penalty(TP).\n"
+                "   tot_penalty(TP).\n"
                 "-has_tot_penalty :-\n"
-                "	not has_tot_penalty.\n"
+                "   not has_tot_penalty.\n"
                 ":- -has_tot_penalty.\n"
                 "\n"
                 ":- pen_value(TP), tot_penalty(TP), max_total_penalty(K),\n"
@@ -1164,30 +1178,30 @@ TEST_CASE("output-aspcomp2013", "[output]") {
                 "%----------------------\n"
                 "\n"
                 "already_started(J) :-\n"
-                "	curr_job_start(J,S),\n"
-                "	curr_time(CT),\n"
-                "	CT > S.\n"
+                "   curr_job_start(J,S),\n"
+                "   curr_time(CT),\n"
+                "   CT > S.\n"
                 "\n"
                 "already_finished(J) :-\n"
-                "	curr_job_start(J,S),\n"
-                "	job_len(J,L),\n"
-                "	curr_time(CT),\n"
-                "	CT >= S + L.\n"
+                "   curr_job_start(J,S),\n"
+                "   job_len(J,L),\n"
+                "   curr_time(CT),\n"
+                "   CT >= S + L.\n"
                 "\n"
                 "must_schedule(J) :-\n"
-                "	job(J),\n"
-                "	not must_not_schedule(J).\n"
+                "   job(J),\n"
+                "   not must_not_schedule(J).\n"
                 "\n"
                 "must_not_schedule(J) :-\n"
-                "	already_started(J),\n"
-                "	not rescheduled(J).\n"
+                "   already_started(J),\n"
+                "   not rescheduled(J).\n"
                 "\n"
                 "rescheduled(J) :-\n"
-                "	already_started(J),\n"
-                "	not already_finished(J),\n"
-                "	job_device(J,D),\n"
-                "	curr_on_instance(J,I),\n"
-                "	offline_instance(D,I).\n"
+                "   already_started(J),\n"
+                "   not already_finished(J),\n"
+                "   job_device(J,D),\n"
+                "   curr_on_instance(J,I),\n"
+                "   offline_instance(D,I).\n"
                 "\n"
                 ":- start(J,S),\n"
                 "   curr_time(CT),\n"
@@ -1216,11 +1230,11 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_17") {
         // Author: Jason Jingshi Li
         REQUIRE(
-            "[[label(0,1,rpi),label(0,2,rd),label(1,2,rd)],"
+            "([[label(0,1,rpi),label(0,2,rd),label(1,2,rd)],"
             "[label(0,1,rpi),label(0,2,rf),label(1,2,rd)],"
             "[label(0,1,rpi),label(0,2,rmi),label(1,2,rd)],"
             "[label(0,1,rpi),label(0,2,roi),label(1,2,rd)],"
-            "[label(0,1,rpi),label(0,2,rpi),label(1,2,rd)]]" == IO::to_string(solve(
+            "[label(0,1,rpi),label(0,2,rpi),label(1,2,rd)]],[])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "% Csp\n"
@@ -1607,7 +1621,7 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_19") {
         // Author: Stefan Ellmauthaler, Johannes Wallner
         REQUIRE(
-            "[[accept(1),accept(2),reject(4)],"
+            "([[accept(1),accept(2),reject(4)],"
             "[accept(1),accept(2),reject(4)],"
             "[accept(1),accept(2),reject(4)],"
             "[accept(1),accept(2),reject(4)],"
@@ -1618,7 +1632,9 @@ TEST_CASE("output-aspcomp2013", "[output]") {
             "[accept(1),accept(2),reject(4)],"
             "[accept(1),accept(2),reject(4)],"
             "[accept(1),accept(2),reject(4)],"
-            "[accept(1),accept(2),reject(4)]]" == IO::to_string(solve(
+            "[accept(1),accept(2),reject(4)]],"
+            "[-:74:15-16: info: global variable in tuple of aggregate element:\n  I\n"
+            ",-:82:21-22: info: global variable in tuple of aggregate element:\n  I\n])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "statement(1). statement(2). statement(3). statement(4). \n"
@@ -1733,11 +1749,11 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_20") {
         // Author: Giovambattista Ianni,Nir Lipovetzky*, Carlos Linares López*
         REQUIRE(
-            "[[move(x1y1,x2y1,3),move(x2y1,x1y1,2),move(x2y1,x3y1,4),move(x2y2,x2y1,1),move(x2y2,x2y3,7),move(x2y3,x1y3,8),move(x3y1,x3y2,5),move(x3y2,x2y2,6)],"
+            "([[move(x1y1,x2y1,3),move(x2y1,x1y1,2),move(x2y1,x3y1,4),move(x2y2,x2y1,1),move(x2y2,x2y3,7),move(x2y3,x1y3,8),move(x3y1,x3y2,5),move(x3y2,x2y2,6)],"
             "[move(x1y1,x2y1,3),move(x2y1,x1y1,2),move(x2y1,x3y1,4),move(x2y2,x2y1,1),move(x2y3,x1y3,8),move(x3y1,x3y2,5),move(x3y2,x3y3,6),move(x3y3,x2y3,7)],"
             "[move(x1y1,x2y1,5),move(x2y1,x1y1,4),move(x2y1,x2y2,6),move(x2y2,x2y3,7),move(x2y2,x3y2,1),move(x2y3,x1y3,8),move(x3y1,x2y1,3),move(x3y2,x3y1,2)],"
             "[move(x1y3,x2y3,3),move(x2y1,x1y1,8),move(x2y2,x2y3,1),move(x2y2,x3y2,5),move(x2y3,x1y3,2),move(x2y3,x2y2,4),move(x3y1,x2y1,7),move(x3y2,x3y1,6)],"
-            "[move(x1y3,x2y3,3),move(x2y1,x1y1,8),move(x2y2,x2y3,1),move(x2y3,x1y3,2),move(x2y3,x3y3,4),move(x3y1,x2y1,7),move(x3y2,x3y1,6),move(x3y3,x3y2,5)]]" == IO::to_string(solve(
+            "[move(x1y3,x2y3,3),move(x2y1,x1y1,8),move(x2y2,x2y3,1),move(x2y3,x1y3,2),move(x2y3,x3y3,4),move(x3y1,x2y1,7),move(x3y2,x3y1,6),move(x3y3,x3y2,5)]],[])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "connected(x1y1,x2y1). connected(x2y1,x1y1). \n"
@@ -1818,8 +1834,8 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_21") {
         // Author: Martin Gebser, Roland Kaminski, Torsten Schaub
         REQUIRE(
-            "[[hold(atom(a)),hold(atom(c)),hold(atom(s)),hold(atom(t)),hold(conjunction(2)),hold(conjunction(4)),hold(conjunction(6)),hold(conjunction(7)),hold(conjunction(8))],"
-            "[hold(atom(a)),hold(atom(d)),hold(atom(p)),hold(atom(r)),hold(conjunction(0)),hold(conjunction(1)),hold(conjunction(3)),hold(conjunction(4))]]" == IO::to_string(solve(
+            "([[hold(atom(a)),hold(atom(c)),hold(atom(s)),hold(atom(t)),hold(conjunction(2)),hold(conjunction(4)),hold(conjunction(6)),hold(conjunction(7)),hold(conjunction(8))],"
+            "[hold(atom(a)),hold(atom(d)),hold(atom(p)),hold(atom(r)),hold(conjunction(0)),hold(conjunction(1)),hold(conjunction(3)),hold(conjunction(4))]],[])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "wlist(0,0,pos(atom(q)),1). wlist(0,1,pos(atom(r)),1). \n"
@@ -1931,9 +1947,9 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_22") {
         // Author: Francesco Calimeri, Neng-Fa Zhou*
         REQUIRE(
-            "[[move(1,1,2,3),move(1,2,3,1),move(1,3,2,1),move(1,4,2,2),move(1,5,2,7),move(1,6,2,8),move(1,7,3,8),move(1,8,3,7),move(2,1,1,3),move(2,2,4,1),move(2,3,3,1),move(2,4,1,6),move(2,5,1,7),move(2,6,3,8),move(2,7,4,8),move(2,8,1,6),move(3,1,2,3),move(3,2,5,1),move(3,3,2,1),move(3,4,1,3),move(3,5,1,6),move(3,6,1,7),move(3,7,5,8),move(3,8,1,7),move(4,1,2,2),move(4,2,2,1),move(4,3,2,2),move(4,4,2,3),move(4,5,3,7),move(4,6,2,7),move(4,7,2,8),move(4,8,2,7),move(5,1,7,2),move(5,2,3,1),move(5,3,7,2),move(5,4,7,3),move(5,5,6,7),move(5,6,4,8),move(5,7,7,8),move(5,8,3,7),move(6,1,8,2),move(6,2,4,1),move(6,3,8,2),move(6,4,8,3),move(6,5,8,6),move(6,6,8,7),move(6,7,4,8),move(6,8,8,7),move(7,1,8,3),move(7,2,5,1),move(7,3,6,1),move(7,4,8,2),move(7,5,8,7),move(7,6,6,8),move(7,7,5,8),move(7,8,8,6),move(8,1,6,2),move(8,2,6,1),move(8,3,6,2),move(8,4,7,2),move(8,5,7,3),move(8,6,7,8),move(8,7,6,8),move(8,8,6,7)],"
+            "([[move(1,1,2,3),move(1,2,3,1),move(1,3,2,1),move(1,4,2,2),move(1,5,2,7),move(1,6,2,8),move(1,7,3,8),move(1,8,3,7),move(2,1,1,3),move(2,2,4,1),move(2,3,3,1),move(2,4,1,6),move(2,5,1,7),move(2,6,3,8),move(2,7,4,8),move(2,8,1,6),move(3,1,2,3),move(3,2,5,1),move(3,3,2,1),move(3,4,1,3),move(3,5,1,6),move(3,6,1,7),move(3,7,5,8),move(3,8,1,7),move(4,1,2,2),move(4,2,2,1),move(4,3,2,2),move(4,4,2,3),move(4,5,3,7),move(4,6,2,7),move(4,7,2,8),move(4,8,2,7),move(5,1,7,2),move(5,2,3,1),move(5,3,7,2),move(5,4,7,3),move(5,5,6,7),move(5,6,4,8),move(5,7,7,8),move(5,8,3,7),move(6,1,8,2),move(6,2,4,1),move(6,3,8,2),move(6,4,8,3),move(6,5,8,6),move(6,6,8,7),move(6,7,4,8),move(6,8,8,7),move(7,1,8,3),move(7,2,5,1),move(7,3,6,1),move(7,4,8,2),move(7,5,8,7),move(7,6,6,8),move(7,7,5,8),move(7,8,8,6),move(8,1,6,2),move(8,2,6,1),move(8,3,6,2),move(8,4,7,2),move(8,5,7,3),move(8,6,7,8),move(8,7,6,8),move(8,8,6,7)],"
             "[move(1,1,2,3),move(1,2,3,1),move(1,3,2,1),move(1,4,2,2),move(1,5,2,7),move(1,6,2,8),move(1,7,3,8),move(1,8,3,7),move(2,1,1,3),move(2,2,4,1),move(2,3,3,1),move(2,4,1,6),move(2,5,1,7),move(2,6,3,8),move(2,7,4,8),move(2,8,1,6),move(3,1,2,3),move(3,2,5,1),move(3,3,2,1),move(3,4,1,3),move(3,5,1,6),move(3,6,1,7),move(3,7,5,8),move(3,8,1,7),move(4,1,2,2),move(4,2,2,1),move(4,3,2,2),move(4,4,2,3),move(4,5,3,7),move(4,6,2,7),move(4,7,2,8),move(4,8,6,7),move(5,1,7,2),move(5,2,3,1),move(5,3,7,2),move(5,4,7,3),move(5,5,6,7),move(5,6,4,8),move(5,7,7,8),move(5,8,3,7),move(6,1,8,2),move(6,2,4,1),move(6,3,8,2),move(6,4,8,3),move(6,5,8,6),move(6,6,8,7),move(6,7,4,8),move(6,8,8,7),move(7,1,8,3),move(7,2,5,1),move(7,3,6,1),move(7,4,8,2),move(7,5,8,7),move(7,6,6,8),move(7,7,5,8),move(7,8,8,6),move(8,1,6,2),move(8,2,6,1),move(8,3,6,2),move(8,4,7,2),move(8,5,7,3),move(8,6,7,8),move(8,7,6,8),move(8,8,6,7)],"
-            "[move(1,1,2,3),move(1,2,3,1),move(1,3,2,1),move(1,4,2,2),move(1,5,2,7),move(1,6,2,8),move(1,7,3,8),move(1,8,3,7),move(2,1,1,3),move(2,2,4,1),move(2,3,3,1),move(2,4,3,6),move(2,5,1,7),move(2,6,3,8),move(2,7,4,8),move(2,8,1,6),move(3,1,2,3),move(3,2,5,1),move(3,3,2,1),move(3,4,1,3),move(3,5,1,6),move(3,6,1,7),move(3,7,5,8),move(3,8,1,7),move(4,1,2,2),move(4,2,2,1),move(4,3,2,2),move(4,4,2,3),move(4,5,3,7),move(4,6,2,7),move(4,7,2,8),move(4,8,3,6),move(5,1,7,2),move(5,2,3,1),move(5,3,7,2),move(5,4,7,3),move(5,5,6,7),move(5,6,4,8),move(5,7,7,8),move(5,8,3,7),move(6,1,8,2),move(6,2,4,1),move(6,3,8,2),move(6,4,8,3),move(6,5,8,6),move(6,6,8,7),move(6,7,4,8),move(6,8,8,7),move(7,1,8,3),move(7,2,5,1),move(7,3,6,1),move(7,4,8,2),move(7,5,8,7),move(7,6,6,8),move(7,7,5,8),move(7,8,8,6),move(8,1,6,2),move(8,2,6,1),move(8,3,6,2),move(8,4,7,2),move(8,5,7,3),move(8,6,7,8),move(8,7,6,8),move(8,8,6,7)]]" == IO::to_string(solve(
+            "[move(1,1,2,3),move(1,2,3,1),move(1,3,2,1),move(1,4,2,2),move(1,5,2,7),move(1,6,2,8),move(1,7,3,8),move(1,8,3,7),move(2,1,1,3),move(2,2,4,1),move(2,3,3,1),move(2,4,3,6),move(2,5,1,7),move(2,6,3,8),move(2,7,4,8),move(2,8,1,6),move(3,1,2,3),move(3,2,5,1),move(3,3,2,1),move(3,4,1,3),move(3,5,1,6),move(3,6,1,7),move(3,7,5,8),move(3,8,1,7),move(4,1,2,2),move(4,2,2,1),move(4,3,2,2),move(4,4,2,3),move(4,5,3,7),move(4,6,2,7),move(4,7,2,8),move(4,8,3,6),move(5,1,7,2),move(5,2,3,1),move(5,3,7,2),move(5,4,7,3),move(5,5,6,7),move(5,6,4,8),move(5,7,7,8),move(5,8,3,7),move(6,1,8,2),move(6,2,4,1),move(6,3,8,2),move(6,4,8,3),move(6,5,8,6),move(6,6,8,7),move(6,7,4,8),move(6,8,8,7),move(7,1,8,3),move(7,2,5,1),move(7,3,6,1),move(7,4,8,2),move(7,5,8,7),move(7,6,6,8),move(7,7,5,8),move(7,8,8,6),move(8,1,6,2),move(8,2,6,1),move(8,3,6,2),move(8,4,7,2),move(8,5,7,3),move(8,6,7,8),move(8,7,6,8),move(8,8,6,7)]],[])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "size(9).\n"
@@ -2067,7 +2083,7 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_23") {
         // Author: Guenther Charwat, Martin Kronegger, Johan Wittocx*
         REQUIRE(
-            "[[clique(1),clique(2),clique(5)]]" == IO::to_string(solve(
+            "([[clique(1),clique(2),clique(5)]],[])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "node(1). node(2). node(3). node(4). node(5). node(6). \n"
@@ -2100,7 +2116,7 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_24") {
         // Author: Carmine Dodaro, Giovambattista Ianni, Martin Gebser*
         REQUIRE(
-            "[[push(1,w,1),push(2,n,2)],[push(1,w,1),push(3,s,2)]]" == IO::to_string(solve(
+            "([[push(1,w,1),push(2,n,2)],[push(1,w,1),push(3,s,2)]],[])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "field(1,1).\n"
@@ -2247,7 +2263,30 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_25") {
         // Author: Marcello Balduccini, Martin Gebser*
         REQUIRE(
-            "[[active(0),active(3)]]" == IO::to_string(solve(
+            "([[active(0),active(3)]],"
+            "[-:33:26-38: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:34:26-38: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:36:29-41: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:37:29-41: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:40:29-41: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:41:29-41: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:48:39-51: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:49:39-51: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:57:24-36: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:71:64-76: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:72:64-76: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:73:64-76: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:75:64-76: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:76:64-76: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:84:64-76: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:85:64-76: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:86:64-76: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:99:98-110: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:99:112-124: info: atom does not occur in any rule head:\n  not input(W)\n"
+            ",-:100:98-110: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:100:112-124: info: atom does not occur in any rule head:\n  not input(W)\n"
+            ",-:101:98-110: info: atom does not occur in any rule head:\n  not input(V)\n"
+            ",-:101:112-124: info: atom does not occur in any rule head:\n  not input(W)\n])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "vertex(0). vertex(1). vertex(2). vertex(3). vertex(4). \n"
@@ -2370,7 +2409,7 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_26") {
         // Author: Gayathri Namasivayam, Miroslaw Truszczynski, Shaden Smith, Alex Westlund
         REQUIRE(
-            "[[put(0,3,9),put(1,2,8),put(2,8,9)],[put(0,4,9),put(1,2,8),put(2,8,9)]]" == IO::to_string(solve(
+            "([[put(0,3,9),put(1,2,8),put(2,8,9)],[put(0,4,9),put(1,2,8),put(2,8,9)]],[])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "steps(3). time(0). time(1). time(2). time(3). disk(1). disk(2). disk(3). disk(4). disk(5). disk(6). disk(7). disk(8). disk(9). on0(5,1). on0(6,5). on0(7,6). on0(8,7). on0(9,8). ongoal(5,1). ongoal(6,5). ongoal(7,6). ongoal(8,2). ongoal(9,8).\n"
@@ -2392,50 +2431,50 @@ TEST_CASE("output-aspcomp2013", "[output]") {
                 "% steps(T), which is the number of time steps T, required to reach the goal (provided part of Input data)\n"
                 "\n"
                 "% Read in data \n"
-                " 	on(0,N1,N) :- on0(N,N1).\n"
+                "   on(0,N1,N) :- on0(N,N1).\n"
                 "    onG(K,N1,N) :- ongoal(N,N1), steps(K).\n"
-                "		   \n"
+                "          \n"
                 "% Specify valid arrangements of disks\n"
-                " 	% Basic condition. Smaller disks are on larger ones\n"
-                " 	:- time(T), on(T,N1,N), N1>=N.\n"
-                " 	\n"
+                "   % Basic condition. Smaller disks are on larger ones\n"
+                "   :- time(T), on(T,N1,N), N1>=N.\n"
+                "   \n"
                 "% Specify a valid move (only for T<t)\n"
-                " 	% pick a disk to move\n"
+                "   % pick a disk to move\n"
                 "    move(T,N) | noMove(T,N) :- disk(N), time(T), steps(K), T<K.\n"
                 "    :- move(T,N1), move(T,N2), N1 != N2.\n"
                 "    :- time(T), steps(K), T<K, not diskMoved(T).\n"
                 "    diskMoved(T) :- move(T,Fv1).\n"
                 "\n"
-                " 	% pick a disk onto which to move\n"
+                "   % pick a disk onto which to move\n"
                 "    where(T,N) | noWhere(T,N) :- disk(N), time(T), steps(K), T<K.\n"
                 "    :- where(T,N1), where(T,N2), N1 != N2.\n"
                 "    :- time(T), steps(K), T<K, not diskWhere(T).\n"
                 "    diskWhere(T) :- where(T,Fv1).\n"
                 "\n"
-                " 	% pegs cannot be moved\n"
-                " 	:- move(T,N), N<5.\n"
+                "   % pegs cannot be moved\n"
+                "   :- move(T,N), N<5.\n"
                 "\n"
-                " 	% only top disk can be moved\n"
-                " 	:- on(T,N,N1), move(T,N).\n"
+                "   % only top disk can be moved\n"
+                "   :- on(T,N,N1), move(T,N).\n"
                 "\n"
-                " 	% a disk can be placed on top only.\n"
-                " 	:- on(T,N,N1), where(T,N).\n"
+                "   % a disk can be placed on top only.\n"
+                "   :- on(T,N,N1), where(T,N).\n"
                 "\n"
-                " 	% no disk is moved in two consecutive moves\n"
-                " 	:- move(T,N), move(TM1,N), TM1=T-1.\n"
+                "   % no disk is moved in two consecutive moves\n"
+                "   :- move(T,N), move(TM1,N), TM1=T-1.\n"
                 "\n"
                 "% Specify effects of a move\n"
-                " 	on(TP1,N1,N) :- move(T,N), where(T,N1), TP1=T+1.\n"
+                "   on(TP1,N1,N) :- move(T,N), where(T,N1), TP1=T+1.\n"
                 "\n"
-                " 	on(TP1,N,N1) :- time(T), steps(K), T<K,\n"
-                " 	                on(T,N,N1), not move(T,N1), TP1=T+1.\n"
+                "   on(TP1,N,N1) :- time(T), steps(K), T<K,\n"
+                "                   on(T,N,N1), not move(T,N1), TP1=T+1.\n"
                 "\n"
                 "% Goal description\n"
-                "	 :- not on(K,N,N1), onG(K,N,N1), steps(K).\n"
-                "	 :- on(K,N,N1), not onG(K,N,N1),steps(K).\n"
+                "    :- not on(K,N,N1), onG(K,N,N1), steps(K).\n"
+                "    :- on(K,N,N1), not onG(K,N,N1),steps(K).\n"
                 "\n"
                 "% Solution\n"
-                "	 put(T,M,N) :- move(T,N), where(T,M), steps(K), T<K.\n"
+                "    put(T,M,N) :- move(T,N), where(T,M), steps(K), T<K.\n"
                 , {"put("})));
     }
 
@@ -2444,12 +2483,12 @@ TEST_CASE("output-aspcomp2013", "[output]") {
     SECTION("aspcomp2013_27") {
         // Author: Johannes Wallner, Marcello Balduccini*, Yuliya Lierler*
         REQUIRE(
-            "[[chosenColour(1,blue),chosenColour(2,green),chosenColour(3,red)],"
+            "([[chosenColour(1,blue),chosenColour(2,green),chosenColour(3,red)],"
             "[chosenColour(1,blue),chosenColour(2,red),chosenColour(3,green)],"
             "[chosenColour(1,green),chosenColour(2,blue),chosenColour(3,red)],"
             "[chosenColour(1,green),chosenColour(2,red),chosenColour(3,blue)],"
             "[chosenColour(1,red),chosenColour(2,blue),chosenColour(3,green)],"
-            "[chosenColour(1,red),chosenColour(2,green),chosenColour(3,blue)]]" == IO::to_string(solve(
+            "[chosenColour(1,red),chosenColour(2,green),chosenColour(3,blue)]],[])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "node(1). node(2). node(3). \n"

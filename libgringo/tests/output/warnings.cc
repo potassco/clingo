@@ -29,92 +29,55 @@ namespace Gringo { namespace Output { namespace Test {
 
 TEST_CASE("output-warnings", "[output]") {
     SECTION("warnings_simplify") {
-        REQUIRE("[[]]" == IO::to_string(solve("p(a+0).")));
-        //REQUIRE("[-:1:3-6: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
-        REQUIRE("[[]]" == IO::to_string(solve("q :- X=a+0.")));
-        //REQUIRE("[-:1:8-11: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
-        REQUIRE("[[]]" == IO::to_string(solve("q :- p(a+0).")));
-        //REQUIRE("[-:1:8-11: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
-        REQUIRE("[[]]" == IO::to_string(solve("p(a+0) : #true.")));
-        //REQUIRE("[-:1:3-6: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
-        REQUIRE("[[]]" == IO::to_string(solve("q :- p(a+0) : #true.")));
-        //REQUIRE("[-:1:8-11: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
-        REQUIRE("[[]]" == IO::to_string(solve(":~ p(a+0). [0]")));
-        //REQUIRE("[-:1:6-9: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
-        REQUIRE("[[]]" == IO::to_string(solve(":~ . [a+0]")));
-        //REQUIRE("[-:1:7-10: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
+        REQUIRE("([[]],[-:1:3-6: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve("p(a+0).")));
+        REQUIRE("([[]],[-:1:8-11: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve("q :- X=a+0.")));
+        REQUIRE("([[]],[-:1:8-11: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve("q :- p(a+0).")));
+        REQUIRE("([[]],[-:1:3-6: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve("p(a+0) : #true.")));
+        REQUIRE("([[]],[-:1:8-11: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve("q :- p(a+0) : #true.")));
+        REQUIRE("([[]],[-:1:6-9: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve(":~ p(a+0). [0]")));
+        REQUIRE("([[]],[-:1:7-10: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve(":~ . [a+0]")));
 
-        REQUIRE("[[]]" == IO::to_string(solve("{ p(a+0) }.")));
-        //REQUIRE("[-:1:5-8: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
-        REQUIRE("[[]]" == IO::to_string(solve("{ q : p(a+0) }.")));
-        //REQUIRE("[-:1:9-12: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
-        REQUIRE("[[]]" == IO::to_string(solve("#count { q : p(a+0) }.")));
-        //REQUIRE("[-:1:16-19: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
-        REQUIRE("[[]]" == IO::to_string(solve("#count { p(a+0) : q }.")));
-        //REQUIRE("[-:1:12-15: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
-        REQUIRE("[[]]" == IO::to_string(solve("#count { q : q : p(a+0) }.")));
-        //REQUIRE("[-:1:20-23: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
+        REQUIRE("([[]],[-:1:5-8: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve("{ p(a+0) }.")));
+        REQUIRE("([[]],[-:1:9-12: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve("{ q : p(a+0) }.")));
+        REQUIRE("([[]],[-:1:16-19: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve("#count { q : p(a+0) }.")));
+        REQUIRE("([[]],[-:1:12-15: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve("#count { p(a+0) : q }.")));
+        REQUIRE("([[]],[-:1:20-23: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve("#count { q : q : p(a+0) }.")));
 
-        REQUIRE("[[q]]" == IO::to_string(solve("q :- #true : p(a+0).")));
-        //REQUIRE("[-:1:16-19: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
-        REQUIRE("[[q]]" == IO::to_string(solve("q :- 0 { p(a+0) } 0.")));
-        //REQUIRE("[-:1:12-15: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
-        REQUIRE("[[q]]" == IO::to_string(solve("q :- 0 { q : p(a+0) } 0.")));
-        //REQUIRE("[-:1:16-19: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
-        REQUIRE("[[q]]" == IO::to_string(solve("q :- 0 #count { p(a+0) } 0.")));
-        //REQUIRE("[-:1:19-22: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
-        REQUIRE("[[q]]" == IO::to_string(solve("q :- 0 #count { q : p(a+0) } 0.")));
-        //REQUIRE("[-:1:23-26: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
+        REQUIRE("([[q]],[-:1:16-19: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve("q :- #true : p(a+0).")));
+        REQUIRE("([[q]],[-:1:12-15: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve("q :- 0 { p(a+0) } 0.")));
+        REQUIRE("([[q]],[-:1:16-19: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve("q :- 0 { q : p(a+0) } 0.")));
+        REQUIRE("([[q]],[-:1:19-22: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve("q :- 0 #count { p(a+0) } 0.")));
+        REQUIRE("([[q]],[-:1:23-26: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve("q :- 0 #count { q : p(a+0) } 0.")));
 
-        REQUIRE("[]" == IO::to_string(solve("#true : q(a+0).")));
-        //REQUIRE("[-:1:11-14: info: operation undefined:\n  (a+0)\n]" == IO::to_string(msg));
+        REQUIRE("([],[-:1:11-14: info: operation undefined:\n  (a+0)\n])" == IO::to_string(solve("#true : q(a+0).")));
     }
 
     SECTION("warnings") {
-        REQUIRE("[[]]" == IO::to_string(solve("p(1..f).")));
-        //REQUIRE("[-:1:3-7: info: interval undefined:\n  1..f\n]" == IO::to_string(msg));
-        REQUIRE("[[p(1)]]" == IO::to_string(solve("p(1). :-p(1..f).")));
-        //REQUIRE("[-:1:11-15: info: interval undefined:\n  1..f\n]" == IO::to_string(msg));
-        REQUIRE("[[p(bot)]]" == IO::to_string(solve("p(bot).\nq(1/X):-p(X).\n")));
-        //REQUIRE("[-:2:3-6: info: operation undefined:\n  (1/X)\n]" == IO::to_string(msg));
-        REQUIRE("[[p(bot)]]" == IO::to_string(solve("p(bot).\n#sum{X:q(X):p(X)}.\n")));
-        //REQUIRE("[-:2:6-7: info: operation undefined:\n  (X+0)\n]" == IO::to_string(msg));
-        REQUIRE("[[p(bot)]]" == IO::to_string(solve("p(bot).\nx:-1#sum{X:p(X)}.\n")));
-        //REQUIRE("[-:2:10-11: info: tuple ignored:\n  bot\n]" == IO::to_string(msg));
-        REQUIRE("[[p(bot)]]" == IO::to_string(solve("p(bot).\nx:-1#sum{:p(X)}.\n")));
-        //REQUIRE("[-:2:4-16: info: empty tuple ignored\n]" == IO::to_string(msg));
-        REQUIRE("[[]]" == IO::to_string(solve("#show bot/0.\n")));
-        //REQUIRE("[-:1:1-13: info: no atoms over signature occur in program:\n  bot/0\n]" == IO::to_string(msg));
-        REQUIRE("[[]]" == IO::to_string(solve("x:-bot.\n")));
-        //REQUIRE("[-:1:4-7: info: atom does not occur in any rule head:\n  bot\n]" == IO::to_string(msg));
-        REQUIRE("[[p(bot)]]" == IO::to_string(solve("p(bot).\n:~ p(X). [X]\n")));
-        //REQUIRE("[-:2:11-12: info: tuple ignored:\n  bot@0\n]" == IO::to_string(msg));
-        REQUIRE("[[a]]" == IO::to_string(solve("a:-#sum{-1:a;1:a}>=0.\n")));
-        //REQUIRE("[]" == IO::to_string(msg));
-        REQUIRE("[[a]]" == IO::to_string(solve("a:-#sum{1:a;2:a}!=1.\n")));
-        //REQUIRE("[]" == IO::to_string(msg));
-        REQUIRE("[[a]]" == IO::to_string(solve("a:-X=#sum{-1:a;1:a},X>=0,X<=0.\n")));
-        //REQUIRE("[]" == IO::to_string(msg));
-        REQUIRE("[]" == IO::to_string(solve("#const a=b.\n#const b=a.\n")));
-        //REQUIRE("[-:1:1-12: error: cyclic constant definition:\n  #const a=b.\n-:2:1-12: note: cycle involves definition:\n  #const b=a.\n]" == IO::to_string(msg));
-        REQUIRE("[[]]" == IO::to_string(solve("#const a=a.\n")));
-        //REQUIRE("[]" == IO::to_string(msg));
-        REQUIRE("[]" == IO::to_string(solve("#const a=1.\n#const a=2.\np(a).\n")));
-        //REQUIRE("[-:2:1-12: error: redefinition of constant:\n  #const a=2.\n-:1:1-12: note: constant also defined here\n]" == IO::to_string(msg));
+        REQUIRE("([[]],[-:1:3-7: info: interval undefined:\n  1..f\n])" == IO::to_string(solve("p(1..f).")));
+        REQUIRE("([[p(1)]],[-:1:11-15: info: interval undefined:\n  1..f\n])" == IO::to_string(solve("p(1). :-p(1..f).")));
+        REQUIRE("([[p(bot)]],[-:2:3-6: info: operation undefined:\n  (1/X)\n])" == IO::to_string(solve("p(bot).\nq(1/X):-p(X).\n")));
+        REQUIRE("([[p(bot)]],[-:2:6-7: info: operation undefined:\n  (X+0)\n])" == IO::to_string(solve("p(bot).\n#sum{X:q(X):p(X)}.\n")));
+        REQUIRE("([[p(bot)]],[-:2:10-11: info: tuple ignored:\n  bot\n])" == IO::to_string(solve("p(bot).\nx:-1#sum{X:p(X)}.\n")));
+        REQUIRE("([[p(bot)]],[-:2:4-16: info: empty tuple ignored\n])" == IO::to_string(solve("p(bot).\nx:-1#sum{:p(X)}.\n")));
+        REQUIRE("([[]],[-:1:1-13: info: no atoms over signature occur in program:\n  bot/0\n])" == IO::to_string(solve("#show bot/0.\n")));
+        REQUIRE("([[]],[-:1:4-7: info: atom does not occur in any rule head:\n  bot\n])" == IO::to_string(solve("x:-bot.\n")));
+        REQUIRE("([[p(bot)]],[-:2:11-12: info: tuple ignored:\n  bot@0\n])" == IO::to_string(solve("p(bot).\n:~ p(X). [X]\n")));
+        REQUIRE("([[a]],[])" == IO::to_string(solve("a:-#sum{-1:a;1:a}>=0.\n")));
+        REQUIRE("([[a]],[])" == IO::to_string(solve("a:-#sum{1:a;2:a}!=1.\n")));
+        REQUIRE("([[a]],[])" == IO::to_string(solve("a:-X=#sum{-1:a;1:a},X>=0,X<=0.\n")));
+        REQUIRE("([],[-:1:1-12: error: cyclic constant definition:\n  #const a=b.\n-:2:1-12: note: cycle involves definition:\n  #const b=a.\n])" == IO::to_string(solve("#const a=b.\n#const b=a.\n")));
+        REQUIRE("([[]],[])" == IO::to_string(solve("#const a=a.\n")));
+        REQUIRE("([],[-:2:1-12: error: redefinition of constant:\n  #const a=2.\n-:1:1-12: note: constant also defined here\n])" == IO::to_string(solve("#const a=1.\n#const a=2.\np(a).\n")));
         std::ofstream("/tmp/wincluded.lp");
-        REQUIRE("[[]]" == IO::to_string(solve("#include \"/tmp/wincluded.lp\".#include \"/tmp/wincluded.lp\".")));
-        //REQUIRE("[-:1:30-59: warning: already included file:\n  /tmp/wincluded.lp\n]"
-        REQUIRE("[[x=1,y=-1,z=0]]" == IO::to_string(solve("$x $> 0.\n$y $< 0.\na:-$z $> 0.\n")));
-        /*
+        REQUIRE("([[]],[-:1:30-59: warning: already included file:\n  /tmp/wincluded.lp\n])" == IO::to_string(solve("#include \"/tmp/wincluded.lp\".#include \"/tmp/wincluded.lp\".")));
+        REQUIRE(
+            "([[x=1,y=-1,z=0]],"
             "[warning: unbounded constraint variable:\n  domain of 'x' is set to [1,1]\n"
             ",warning: unbounded constraint variable:\n  domain of 'y' is set to [-1,-1]\n"
             ",warning: unbounded constraint variable:\n  domain of 'z' is set to [0,0]\n"
-            "]"
-        */
-        REQUIRE("[[]]" == IO::to_string(solve("#show $y/0.")));
-        //"[-:1:1-12: info: no constraint variables over signature occur in program:\n  $y/0\n]"
-        REQUIRE("[[]]" == IO::to_string(solve("#show $y.")));
-        //"[info: constraint variable does not occur in program:\n  $y\n]"
+            "])" == IO::to_string(solve("$x $> 0.\n$y $< 0.\na:-$z $> 0.\n")));
+        REQUIRE("([[]],[-:1:1-12: info: no constraint variables over signature occur in program:\n  $y/0\n])" == IO::to_string(solve("#show $y/0.")));
+        REQUIRE("([[]],[info: constraint variable does not occur in program:\n  $y\n])" == IO::to_string(solve("#show $y.")));
     }
 }
 
