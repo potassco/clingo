@@ -25,19 +25,19 @@
 #include "input/nongroundgrammar/grammar.hh"
 #include "gringo/symbol.hh"
 #include "gringo/scripts.hh"
-#include "tests/gringo_module.hh"
 
 #include "tests/tests.hh"
 
 namespace Gringo { namespace Input { namespace Test {
 
 TEST_CASE("input-nongroundlexer", "[input]") {
+    Gringo::Test::TestGringoModule module;
     std::ostringstream oss;
     Potassco::TheoryData td;
     Output::OutputBase out(td, {}, oss);
     Program prg;
     Defines defs;
-    Scripts scripts(Gringo::Test::getTestModule());
+    Scripts scripts(module);
     NongroundProgramBuilder pb(scripts, prg, out, defs);
     NonGroundParser ngp(pb);
     std::string in =
@@ -57,7 +57,7 @@ TEST_CASE("input-nongroundlexer", "[input]") {
         "___xyz "
         // TODO: check errors too: "# "
         ;
-    ngp.pushStream("-", std::unique_ptr<std::istream>(new std::stringstream(in)));
+    ngp.pushStream("-", std::unique_ptr<std::istream>(new std::stringstream(in)), module.logger);
 
     Location loc("<undef>", 0, 0, "<undef>", 0, 0);
     NonGroundGrammar::parser::semantic_type val;

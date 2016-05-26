@@ -22,7 +22,6 @@
 
 #include "tests/tests.hh"
 #include "gringo/python.hh"
-#include "gringo_module.hh"
 
 namespace Gringo { namespace Test {
 
@@ -45,33 +44,34 @@ std::string replace(std::string &&x, std::string const &y, std::string const &z)
 } // namspace
 
 TEST_CASE("python", "[base]") {
+    TestGringoModule module;
     SECTION("parse") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);
-        Python py(getTestModule());
+        Python py(module);
         py.exec(loc,
             "import clingo\n"
             "def get(): return clingo.parse_term('1')\n"
             );
-        REQUIRE("[1]" == to_string(py.call(loc, "get", {})));
+        REQUIRE("[1]" == to_string(py.call(loc, "get", {}, module.logger)));
         py.exec(loc,
             "import clingo\n"
             "def get(): return clingo.parse_term('p(1+2)')\n"
             );
-        REQUIRE("[p(3)]" == to_string(py.call(loc, "get", {})));
+        REQUIRE("[p(3)]" == to_string(py.call(loc, "get", {}, module.logger)));
         py.exec(loc,
             "import clingo\n"
             "def get(): return clingo.parse_term('-p')\n"
             );
-        REQUIRE("[-p]" == to_string(py.call(loc, "get", {})));
+        REQUIRE("[-p]" == to_string(py.call(loc, "get", {}, module.logger)));
         py.exec(loc,
             "import clingo\n"
             "def get(): return clingo.parse_term('-p(1)')\n"
             );
-        REQUIRE("[-p(1)]" == to_string(py.call(loc, "get", {})));
+        REQUIRE("[-p(1)]" == to_string(py.call(loc, "get", {}, module.logger)));
     }
     SECTION("values") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);
-        Python py(getTestModule());
+        Python py(module);
         py.exec(loc,
             "import clingo\n"
             "x = clingo.function(\"f\", [2, 3, 4])\n"
@@ -96,45 +96,48 @@ TEST_CASE("python", "[base]") {
             "]\n"
             "def getValues(): return values\n"
             );
-        REQUIRE("[f(2,3,4)]" == to_string(py.call(loc, "getX", {})));
-        REQUIRE("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",(2,3,4),\"f\",0,1,f(2,3,4),-f(2,3,4)]" == to_string(py.call(loc, "getValues", {})));
+        REQUIRE("[f(2,3,4)]" == to_string(py.call(loc, "getX", {}, module.logger)));
+        REQUIRE("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",(2,3,4),\"f\",0,1,f(2,3,4),-f(2,3,4)]" == to_string(py.call(loc, "getValues", {}, module.logger)));
         {
-            Gringo::Test::Messages msg;
-            REQUIRE("[]" == to_string(py.call(loc, "none", {})));
+            REQUIRE("[]" == to_string(py.call(loc, "none", {}, module.logger)));
             REQUIRE(
                 "["
                 "dummy:1:1: info: operation undefined:\n"
                 "  RuntimeError: cannot convert to value: unexpected NoneType() object\n"
-                "]" == IO::to_string(msg));
+                "]" == IO::to_string(module.logger));
         }
         {
-            Gringo::Test::Messages msg;
-            REQUIRE("[]" == to_string(py.call(loc, "fail", {})));
+            module.logger.reset();
+            REQUIRE("[]" == to_string(py.call(loc, "fail", {}, module.logger)));
             REQUIRE(
                 "["
                 "dummy:1:1: info: operation undefined:\n"
                 "  Traceback (most recent call last):\n"
                 "    File \"<dummy:1:1>\", line 5, in fail\n"
                 "  RuntimeError: cannot convert to value: unexpected NoneType() object\n"
-                "]" == IO::to_string(msg));
+                "]" == IO::to_string(module.logger));
         }
         {
-            Gringo::Test::Messages msg;
-            REQUIRE_THROWS_AS(py.exec(loc, "("), std::runtime_error);
-            REQUIRE(
-                "["
-                "dummy:1:1: error: parsing failed:\n"
-                "    File \"<dummy:1:1>\", line 1\n"
-                "      (\n"
-                "      ^\n"
-                "  SyntaxError: unexpected EOF while parsing\n"
-                "]" == replace(IO::to_string(msg), "column 1", "column 2"));
+            module.logger.reset();
+            try {
+                py.exec(loc, "(");
+                FAIL("no exception");
+            }
+            catch (std::runtime_error const &e) {
+                REQUIRE(
+                    "dummy:1:1: error: parsing failed:\n"
+                    "    File \"<dummy:1:1>\", line 1\n"
+                    "      (\n"
+                    "      ^\n"
+                    "  SyntaxError: unexpected EOF while parsing\n"
+                    "" == replace(e.what(), "column 1", "column 2"));
+            }
         }
     }
 
     SECTION("cmp") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);
-        Python py(getTestModule());
+        Python py(module);
         py.exec(loc,
             "import clingo\n"
             "def cmp():\n"
@@ -143,12 +146,12 @@ TEST_CASE("python", "[base]") {
             "int(clingo.function(\"b\") < clingo.function(\"a\")),"
             "]\n"
             );
-        REQUIRE("[1,0]" == to_string(py.call(loc, "cmp", {})));
+        REQUIRE("[1,0]" == to_string(py.call(loc, "cmp", {}, module.logger)));
     }
 
     SECTION("callable") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);
-        Python py(getTestModule());
+        Python py(module);
         py.exec(loc,
             "import clingo\n"
             "def a(): pass\n"

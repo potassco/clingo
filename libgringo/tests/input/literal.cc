@@ -34,11 +34,12 @@ using namespace Gringo::IO;
 namespace {
 
 ULit rewrite(ULit &&x) {
+    Gringo::Test::TestMessagePrinter log;
     Projections project;
     Literal::AssignVec assign;
     SimplifyState state;
     Term::ArithmeticsMap arith;
-    x->simplify(project, state);
+    x->simplify(log, project, state);
     x->rewriteArithmetics(arith, assign, state.gen);
     return std::move(x);
 }

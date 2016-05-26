@@ -22,7 +22,6 @@
 
 #include "tests/tests.hh"
 #include "gringo/lua.hh"
-#include "gringo_module.hh"
 
 namespace Gringo { namespace Test {
 
@@ -54,25 +53,25 @@ using S = std::string;
 } // namespace
 
 TEST_CASE("lua", "[base]") {
-
+    TestGringoModule module;
     SECTION("parse") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);
-        Lua lua(getTestModule());
+        Lua lua(module);
         lua.exec(loc,
             "clingo = require(\"clingo\")\n"
             "function get() return clingo.parse_term('1') end\n"
             );
-        REQUIRE("[1]" == to_string(lua.call(loc, "get", {})));
+        REQUIRE("[1]" == to_string(lua.call(loc, "get", {}, module.logger)));
         lua.exec(loc,
             "clingo = require(\"clingo\")\n"
             "function get() return clingo.parse_term('p(2+1)') end\n"
             );
-        REQUIRE("[p(3)]" == to_string(lua.call(loc, "get", {})));
+        REQUIRE("[p(3)]" == to_string(lua.call(loc, "get", {}, module.logger)));
     }
 
     SECTION("values") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);
-        Lua lua(Gringo::Test::getTestModule());
+        Lua lua(module);
         lua.exec(loc,
             "clingo = require(\"clingo\")\n"
             "x = clingo.fun(\"f\", {2, 3, 4})\n"
@@ -98,44 +97,48 @@ TEST_CASE("lua", "[base]") {
             "}\n"
             "function getValues() return values end\n"
             );
-        REQUIRE("[f(2,3,4)]" == to_string(lua.call(loc, "getX", {})));
-        REQUIRE("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",\"x\",(2,3,4),\"f\",\"false\",\"true\",f(2,3,4),-f(2,3,4)]" == to_string(lua.call(loc, "getValues", {})));
+        REQUIRE("[f(2,3,4)]" == to_string(lua.call(loc, "getX", {}, module.logger)));
+        REQUIRE("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",\"x\",(2,3,4),\"f\",\"false\",\"true\",f(2,3,4),-f(2,3,4)]" == to_string(lua.call(loc, "getValues", {}, module.logger)));
         {
-            Gringo::Test::Messages msg;
-            REQUIRE("[]" == to_string(lua.call(loc, "none", {})));
+            REQUIRE("[]" == to_string(lua.call(loc, "none", {}, module.logger)));
             REQUIRE(
                 "["
                 "dummy:1:1: info: operation undefined:\n"
                 "  RuntimeError: cannot convert to value\n"
                 "stack traceback:\n"
                 "  ...\n"
-                "]" == removeTrace(IO::to_string(msg)));
+                "]" == removeTrace(IO::to_string(module.logger)));
         }
         {
-            Gringo::Test::Messages msg;
-            REQUIRE("[]" == to_string(lua.call(loc, "fail", {})));
+            module.logger.reset();
+            REQUIRE("[]" == to_string(lua.call(loc, "fail", {}, module.logger)));
             REQUIRE(
                 "["
                 "dummy:1:1: info: operation undefined:\n"
                 "  RuntimeError: [string \"dummy:1:1\"]:5: cannot convert to value\n"
                 "stack traceback:\n"
                 "  ...\n"
-                "]" == removeTrace(IO::to_string(msg)));
+                "]" == removeTrace(IO::to_string(module.logger)));
         }
         {
-            Gringo::Test::Messages msg;
+            module.logger.reset();
             REQUIRE_THROWS_AS(lua.exec(loc, "("), std::runtime_error);
-            REQUIRE(
-                "["
-                "dummy:1:1: error: parsing lua script failed:\n"
-                "  SyntaxError: [string \"dummy:1:1\"]:1: unexpected symbol near <eof>\n"
-                "]" == replace_all(IO::to_string(msg), "'<eof>'", "<eof>"));
+            try {
+                lua.exec(loc, "(");
+                FAIL("no exception");
+            }
+            catch (std::runtime_error const &e) {
+                REQUIRE(
+                    "dummy:1:1: error: parsing lua script failed:\n"
+                    "  SyntaxError: [string \"dummy:1:1\"]:1: unexpected symbol near <eof>\n"
+                    "" == replace_all(e.what(), "'<eof>'", "<eof>"));
+            }
         }
     }
 
     SECTION("cmp") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);
-        Lua lua(Gringo::Test::getTestModule());
+        Lua lua(module);
         lua.exec(loc,
             "clingo = require(\"clingo\")\n"
             "function int(x) if x then return 1 else return 0 end end\n"
@@ -145,12 +148,12 @@ TEST_CASE("lua", "[base]") {
             "int(clingo.fun(\"b\") < clingo.fun(\"a\")),"
             "} end\n"
             );
-        REQUIRE("[1,0]" == to_string(lua.call(loc, "cmp", {})));
+        REQUIRE("[1,0]" == to_string(lua.call(loc, "cmp", {}, module.logger)));
     }
 
     SECTION("callable") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);
-        Lua lua(Gringo::Test::getTestModule());
+        Lua lua(module);
         lua.exec(loc,
             "function a() end\n"
             "b = 1\n"

@@ -23,7 +23,6 @@
 
 #include "tests/tests.hh"
 #include "tests/term_helper.hh"
-#include "tests/gringo_module.hh"
 
 #include <functional>
 
@@ -45,7 +44,7 @@ struct Grounder {
     using U = std::unique_ptr<T>;
 
     Grounder()
-    : scripts(Gringo::Test::getTestModule())
+    : scripts(module)
     , data(theory) { }
 
     std::string evalRange(UTerm assign, UTerm l, UTerm r) {
@@ -53,9 +52,9 @@ struct Grounder {
         Term::VarSet bound;
         UIdx idx(lit.index(scripts, BinderType::ALL, bound));
         SymVec vals;
-        idx->match();
+        idx->match(module.logger);
         bool undefined = false;
-        while (idx->next()) { vals.emplace_back(assign->eval(undefined)); }
+        while (idx->next()) { vals.emplace_back(assign->eval(undefined, module.logger)); }
         return to_string(vals);
     }
 
@@ -64,21 +63,22 @@ struct Grounder {
         RelationLiteral lit(rel, get_clone(l), get_clone(r));
         UIdx idx(lit.index(scripts, BinderType::ALL, bound));
         std::vector<S> vals;
-        idx->match();
+        idx->match(module.logger);
         bool undefined = false;
         while (idx->next()) {
             vals.emplace_back();
-            vals.back() += to_string(l->eval(undefined));
+            vals.back() += to_string(l->eval(undefined, module.logger));
             vals.back() += to_string(rel);
-            vals.back() += to_string(r->eval(undefined));
+            vals.back() += to_string(r->eval(undefined, module.logger));
         }
         return to_string(vals);
     }
 
     S evalPred(L<L<V>> vals, L<P<S,V>> bound, BinderType type, NAF naf, UTerm &&repr, bool recursive = false) {
-        Potassco::TheoryData theory;
-        DomainData data(theory);
-        Scripts scripts(Gringo::Test::getTestModule());
+        //Gringo::Test::TestGringoModule module;
+        //Potassco::TheoryData theory;
+        //DomainData data(theory);
+        //Scripts scripts(module);
         Term::VarSet boundSet;
         for (auto &x : bound) {
             U<VarTerm> v(var(x.first.c_str()));
@@ -99,7 +99,7 @@ struct Grounder {
             IndexUpdater *up{idx->getUpdater()};
             if (up) { up->update(); }
             dom.nextGeneration();
-            idx->match();
+            idx->match(module.logger);
             while (idx->next()) {
                 ret.back().emplace_back();
                 if (lit.offset == std::numeric_limits<PredicateDomain::SizeType>::max()) {
@@ -114,7 +114,7 @@ struct Grounder {
         return to_string(ret);
     }
 
-
+    Gringo::Test::TestGringoModule module;
     Scripts scripts;
     Potassco::TheoryData theory;
     Output::DomainData data;
@@ -125,7 +125,6 @@ struct Grounder {
 TEST_CASE("ground-literal", "[ground]") {
     Grounder g;
     SECTION("range") {
-        Gringo::Test::Messages msg;
         REQUIRE("[]" == g.evalRange(var("X"), val(NUM(1)), val(NUM(0))));
         REQUIRE("[1]" == g.evalRange(var("X"), val(NUM(1)), val(NUM(1))));
         REQUIRE("[1,2]" == g.evalRange(var("X"), val(NUM(1)), val(NUM(2))));

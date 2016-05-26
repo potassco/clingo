@@ -28,7 +28,7 @@
 #include "gringo/output/output.hh"
 #include "gringo/scripts.hh"
 
-#include "tests/gringo_module.hh"
+#include "tests/tests.hh"
 
 #include <clasp/clasp_facade.h>
 #include <clasp/solver.h>
@@ -42,6 +42,7 @@ namespace Gringo { namespace Output { namespace Test {
 using Model  = std::vector<std::string>;
 using Filter = std::initializer_list<std::string>;
 using Models = std::vector<Model>;
+using ModelsAndMessages = std::pair<std::vector<Model>, std::vector<std::string>>;
 
 class ModelPrinter : public Clasp::EventHandler {
 public:
@@ -76,10 +77,11 @@ public:
 struct ClingoState {
     ClingoState()
     : out(td, {}, ss, OutputFormat::INTERMEDIATE)
-    , scripts(Gringo::Test::getTestModule())
+    , scripts(module)
     , pb(scripts, prg, out, defs)
     , parser(pb) {
     }
+    Gringo::Test::TestGringoModule module;
     std::stringstream ss;
     Potassco::TheoryData td;
     OutputBase out;
@@ -92,25 +94,25 @@ struct ClingoState {
 
 inline bool ground(ClingoState &state) {
     // grounder: ground
-    if (!message_printer()->hasError()) {
-        Ground::Program gPrg(state.prg.toGround(state.out.data));
+    if (!state.module.logger.hasError()) {
+        Ground::Program gPrg(state.prg.toGround(state.out.data, state.module.logger));
         state.out.init(false);
         state.out.beginStep();
-        gPrg.ground(state.scripts, state.out);
+        gPrg.ground(state.scripts, state.out, state.module.logger);
         return true;
     }
     return false;
 };
 
 inline Models solve(ClingoState &state, std::string const &str, Filter filter = {""}, std::initializer_list<Clasp::wsum_t> minimize = {}) {
-    state.parser.pushStream("-", gringo_make_unique<std::stringstream>(str));
+    state.parser.pushStream("-", gringo_make_unique<std::stringstream>(str), state.module.logger);
     Models models;
     // grounder: parse
-    state.parser.parse();
+    state.parser.parse(state.module.logger);
     // grounder: preprocess
-    state.defs.init();
-    state.prg.rewrite(state.defs);
-    state.prg.check();
+    state.defs.init(state.module.logger);
+    state.prg.rewrite(state.defs, state.module.logger);
+    state.prg.check(state.module.logger);
     if (ground(state)) {
         Clasp::ClaspFacade libclasp;
         Clasp::ClaspConfig config;
@@ -127,9 +129,9 @@ inline Models solve(ClingoState &state, std::string const &str, Filter filter = 
     return models;
 }
 
-inline Models solve(std::string const &str, std::initializer_list<std::string> filter = {""}, std::initializer_list<Clasp::wsum_t> minimize = {}) {
+inline ModelsAndMessages solve(std::string const &str, std::initializer_list<std::string> filter = {""}, std::initializer_list<Clasp::wsum_t> minimize = {}) {
     ClingoState state;
-    return solve(state, str, filter, minimize);
+    return {solve(state, str, filter, minimize), state.module.logger.messages()};
 }
 
 // }}}

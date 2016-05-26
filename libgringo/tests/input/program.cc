@@ -26,7 +26,6 @@
 
 #include "tests/tests.hh"
 #include "tests/term_helper.hh"
-#include "tests/gringo_module.hh"
 
 namespace Gringo { namespace Input { namespace Test {
 
@@ -37,23 +36,24 @@ using namespace Gringo::Test;
 
 namespace {
 
-std::pair<Program, Defines> parse(std::string const &str) {
+std::tuple<Program, Defines, Gringo::Test::TestMessagePrinter&> parse(std::string const &str) {
+    Gringo::Test::TestGringoModule module;
     std::ostringstream oss;
     Potassco::TheoryData td;
     Output::OutputBase out(td, {}, oss);
-    std::pair<Program, Defines> ret;
-    Scripts scripts(Gringo::Test::getTestModule());
-    NongroundProgramBuilder pb{ scripts, ret.first, out, ret.second };
+    std::tuple<Program, Defines, Gringo::Test::TestMessagePrinter &> ret{Program(), Defines(), module.logger};
+    Scripts scripts(module);
+    NongroundProgramBuilder pb{ scripts, std::get<0>(ret), out, std::get<1>(ret) };
     NonGroundParser ngp{ pb };
-    ngp.pushStream("-", gringo_make_unique<std::stringstream>(str));
-    ngp.parse();
+    ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module.logger);
+    ngp.parse(module.logger);
     return ret;
 }
 
-std::string rewrite(std::pair<Program, Defines> &&x) {
-    x.second.init();
-    x.first.rewrite(x.second);
-    auto str(to_string(x.first));
+std::string rewrite(std::tuple<Program, Defines, Gringo::Test::TestMessagePrinter&> &&x) {
+    std::get<1>(x).init(std::get<2>(x));
+    std::get<0>(x).rewrite(std::get<1>(x), std::get<2>(x));
+    auto str(to_string(std::get<0>(x)));
     str.erase(std::remove(str.begin(), str.end(), '\n'), str.end());
     replace_all(str, ";[#inc_base]", "");
     replace_all(str, ":-[#inc_base].", ".");
@@ -65,14 +65,13 @@ std::string rewrite(std::pair<Program, Defines> &&x) {
 }
 
 bool check(std::string const &prg, std::string const &messages = "") {
-    Messages msg;
     auto x = parse(prg);
-    x.first.rewrite(x.second);
-    x.first.check();
+    std::get<0>(x).rewrite(std::get<1>(x), std::get<2>(x));
+    std::get<0>(x).check(std::get<2>(x));
     if (!messages.empty()) {
-        REQUIRE(messages == to_string(msg.messages));
+        REQUIRE(messages == to_string(std::get<2>(x)));
     }
-    return msg.messages.empty();
+    return std::get<2>(x).messages().empty();
 }
 
 } // namespace

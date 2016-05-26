@@ -47,8 +47,7 @@ UGTerm gterm(UTerm const &x) {
 } // namespace
 
 TEST_CASE("term", "[base]") {
-    std::vector<std::string> messages;
-    TestMessagePrinter log(messages);
+    TestMessagePrinter log;
 
     auto rewriteDots = [&](UTerm &&x) -> std::tuple<UTerm, SimplifyState::DotsMap, SimplifyState::ScriptMap>  {
         SimplifyState state;
@@ -255,11 +254,11 @@ TEST_CASE("term", "[base]") {
         bool undefined = false;
         REQUIRE(NUM(0) == binop(BinOp::POW, val(ID("a")), val(NUM(1)))->eval(undefined, log));
         REQUIRE(undefined);
-        REQUIRE("dummy:1:1: info: operation undefined:\n  (a**1)\n" == messages.back());
+        REQUIRE("dummy:1:1: info: operation undefined:\n  (a**1)\n" == log.messages().back());
         undefined = false;
         REQUIRE(NUM(0) == unop(UnOp::NOT, val(ID("a")))->eval(undefined, log));
         REQUIRE(undefined);
-        REQUIRE("dummy:1:1: info: operation undefined:\n  (~a)\n" == messages.back());
+        REQUIRE("dummy:1:1: info: operation undefined:\n  (~a)\n" == log.messages().back());
     }
 
     SECTION("project") {

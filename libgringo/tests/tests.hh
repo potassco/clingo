@@ -24,6 +24,8 @@
 #include "catch.hpp"
 #include "gringo/utility.hh"
 #include "gringo/logger.hh"
+#include "gringo/control.hh"
+#include "gringo/input/groundtermparser.hh"
 #include <algorithm>
 #include <unordered_map>
 
@@ -176,15 +178,15 @@ inline std::string &replace_all(std::string &haystack, std::string const &needle
 }
 
 inline std::string replace_all(std::string &&haystack, std::string const &needle, std::string const &replace) {
-	replace_all(haystack, needle, replace);
-	return std::move(haystack);
+    replace_all(haystack, needle, replace);
+    return std::move(haystack);
 }
 
 }
 
 namespace Gringo { namespace Test {
 
-// {{{ definition of helpers to initialize vectors
+// {{{1 definition of helpers to initialize vectors
 
 namespace Detail {
 
@@ -272,25 +274,42 @@ V init(T&&... args) {
     return std::move(v);
 }
 
-// }}}
-// {{{ defintion of TestMessagePrinter
+// {{{1 definition of TestMessagePrinter
 
 struct TestMessagePrinter : MessagePrinter {
-    TestMessagePrinter(std::vector<std::string> &messages)
-    : messages_(messages)                      { }
-    virtual bool check(Errors)                 { error_ = true; return true; }
-    virtual bool check(Warnings)               { return true; }
-    virtual bool hasError() const              { return error_; }
-    virtual void enable(Warnings)              { }
-    virtual void disable(Warnings)             { }
-    virtual void print(std::string const &msg) { messages_.emplace_back(msg); }
+    virtual bool check(Errors)                       { error_ = true; return true; }
+    virtual bool check(Warnings)                     { return true; }
+    virtual bool hasError() const                    { return error_; }
+    virtual void enable(Warnings)                    { }
+    virtual void disable(Warnings)                   { }
+    virtual void print(std::string const &msg)       { messages_.emplace_back(msg); }
+    void reset()                                     { messages_.clear(); }
+    std::vector<std::string> const &messages() const { return messages_; }
     virtual ~TestMessagePrinter() { }
 private:
-    std::vector<std::string> &messages_;
+    std::vector<std::string> messages_;
     bool error_ = false;
 };
 
-// }}}
+// {{{1 definition of TestMessagePrinter
+
+struct TestGringoModule : Gringo::GringoModule {
+    virtual Gringo::Control *newControl(int, char const **) { throw std::logic_error("TestGringoModule::newControl must not be called"); }
+    virtual void freeControl(Gringo::Control *)  { throw std::logic_error("TestGringoModule::freeControl must not be called"); }
+    virtual Gringo::Symbol parseValue(std::string const &str) {
+        return parser.parse(str, logger);
+    }
+    Gringo::Input::GroundTermParser parser;
+    TestMessagePrinter logger;
+};
+
+inline std::ostream &operator<<(std::ostream &out, TestMessagePrinter const &log) {
+    using Gringo::IO::operator<<;
+    out << log.messages();
+    return out;
+}
+
+// }}}1
 
 } } // namespace Test Gringo
 

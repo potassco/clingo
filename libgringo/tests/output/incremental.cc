@@ -33,41 +33,42 @@ namespace {
 
 std::string iground(std::string in, int last = 3) {
     std::stringstream ss;
+    Gringo::Test::TestGringoModule module;
     Potassco::TheoryData td;
     Output::OutputBase out(td, {}, ss, OutputFormat::INTERMEDIATE);
     Input::Program prg;
     Defines defs;
-    Scripts scripts(Gringo::Test::getTestModule());
+    Scripts scripts(module);
     Input::NongroundProgramBuilder pb(scripts, prg, out, defs);
     Input::NonGroundParser parser(pb);
-    parser.pushStream("-", gringo_make_unique<std::stringstream>(in));
+    parser.pushStream("-", gringo_make_unique<std::stringstream>(in), module.logger);
     Models models;
-    parser.parse();
-    prg.rewrite(defs);
-    prg.check();
+    parser.parse(module.logger);
+    prg.rewrite(defs, module.logger);
+    prg.check(module.logger);
     //std::cerr << prg;
     // TODO: think about passing params to toGround already...
-    if (!message_printer()->hasError()) {
+    if (!module.logger.hasError()) {
         out.init(true);
         {
             Ground::Parameters params;
             params.add("base", {});
             out.beginStep();
-            prg.toGround(out.data).ground(params, scripts, out);
+            prg.toGround(out.data, module.logger).ground(params, scripts, out, true, module.logger);
             out.reset();
         }
         for (int i=1; i < last; ++i) {
             Ground::Parameters params;
             params.add("step", {NUM(i)});
             out.beginStep();
-            prg.toGround(out.data).ground(params, scripts, out);
+            prg.toGround(out.data, module.logger).ground(params, scripts, out, true, module.logger);
             out.reset();
         }
         {
             Ground::Parameters params;
             params.add("last", {});
             out.beginStep();
-            prg.toGround(out.data).ground(params, scripts, out);
+            prg.toGround(out.data, module.logger).ground(params, scripts, out, true, module.logger);
             out.reset();
         }
     }
@@ -81,7 +82,6 @@ std::string iground(std::string in, int last = 3) {
 
 TEST_CASE("output-incremental", "[output]") {
     SECTION("assign") {
-        Gringo::Test::Messages msg;
         REQUIRE(
             "asp 1 0 0 incremental\n"
             "0\n"

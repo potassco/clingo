@@ -120,7 +120,7 @@ public:
     // {{{ statements
     virtual void rule(Location const &loc, HdLitUid head) override;
     virtual void rule(Location const &loc, HdLitUid head, BdLitVecUid body) override;
-    virtual void define(Location const &loc, String name, TermUid value, bool defaultDef) override;
+    virtual void define(Location const &loc, String name, TermUid value, bool defaultDef, MessagePrinter &log) override;
     virtual void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) override;
     virtual void showsig(Location const &loc, Sig sig, bool csp) override;
     virtual void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) override;
@@ -164,7 +164,7 @@ public:
     virtual TheoryOpDefVecUid theoryopdefs() override;
     virtual TheoryOpDefVecUid theoryopdefs(TheoryOpDefVecUid defs, TheoryOpDefUid def) override;
 
-    virtual TheoryTermDefUid theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs) override;
+    virtual TheoryTermDefUid theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs, MessagePrinter &log) override;
     virtual TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type) override;
     virtual TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type, TheoryOpVecUid ops, String guardDef) override;
 
@@ -172,7 +172,7 @@ public:
     virtual TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryTermDefUid def) override;
     virtual TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid def) override;
 
-    virtual void theorydef(Location const &loc, String name, TheoryDefVecUid defs) override;
+    virtual void theorydef(Location const &loc, String name, TheoryDefVecUid defs, MessagePrinter &log) override;
 
     // }}}
 
@@ -600,7 +600,7 @@ void TestNongroundProgramBuilder::rule(Location const &, HdLitUid head, BdLitVec
     statements_.emplace_back(str());
 }
 
-void TestNongroundProgramBuilder::define(Location const &, String name, TermUid value, bool) {
+void TestNongroundProgramBuilder::define(Location const &, String name, TermUid value, bool, MessagePrinter &) {
     current_ << "#const " << name << "=" << terms_.erase(value) << ".";
     statements_.emplace_back(str());
 }
@@ -842,7 +842,7 @@ TheoryOpDefVecUid TestNongroundProgramBuilder::theoryopdefs(TheoryOpDefVecUid de
     return defs;
 }
 
-TheoryTermDefUid TestNongroundProgramBuilder::theorytermdef(Location const &, String name, TheoryOpDefVecUid defs) {
+TheoryTermDefUid TestNongroundProgramBuilder::theorytermdef(Location const &, String name, TheoryOpDefVecUid defs, MessagePrinter &) {
     current_ << name << "{";
     print(theoryOpDefVecs_.erase(defs), ",");
     current_ << "}";
@@ -875,7 +875,7 @@ TheoryDefVecUid TestNongroundProgramBuilder::theorydefs(TheoryDefVecUid defs, Th
     return defs;
 }
 
-void TestNongroundProgramBuilder::theorydef(Location const &, String name, TheoryDefVecUid defs) {
+void TestNongroundProgramBuilder::theorydef(Location const &, String name, TheoryDefVecUid defs, MessagePrinter &) {
     current_ << "#theory " << name << "{";
     print(theoryDefVecs_.erase(defs), ";");
     current_ << "}.";
@@ -945,10 +945,11 @@ TestNongroundProgramBuilder::~TestNongroundProgramBuilder() { }
 // }}}
 
 std::string parse(std::string const &str) {
+    Gringo::Test::TestMessagePrinter log;
     TestNongroundProgramBuilder pb;
     NonGroundParser ngp(pb);
-    ngp.pushStream("-", std::unique_ptr<std::istream>(new std::stringstream(str)));
-    ngp.parse();
+    ngp.pushStream("-", std::unique_ptr<std::istream>(new std::stringstream(str)), log);
+    ngp.parse(log);
     return pb.toString();
 }
 

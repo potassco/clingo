@@ -25,30 +25,29 @@
 namespace Gringo { namespace Output { namespace Test {
 
 TEST_CASE("output-lparse") {
-    Gringo::Test::Messages msg;
     SECTION("unpool") {
         REQUIRE(
-            "[[a(1),a(2),a(4)]]" ==
+            "([[a(1),a(2),a(4)]],[])" ==
             IO::to_string(solve(
                 "a(X) :- X=(1;2;4)."
             ))
         );
         REQUIRE(
-            "[[p(1),p(2),q(3)],[p(1),p(2),q(4)]]" ==
+            "([[p(1),p(2),q(3)],[p(1),p(2),q(4)]],[])" ==
             IO::to_string(solve(
                 "1 {q(3;4)} 1."
                 "p(1;2) :- q(3;4)."
             ))
         );
         REQUIRE(
-            "[]" ==
+            "([],[])" ==
             IO::to_string(solve(
                 "1 {q(3;4)} 1."
                 "#disjoint { (1;2) : (2;3) : q(3;4) }."
             ))
         );
         REQUIRE(
-            "[[a,p(1),q(3)],[a,p(1),q(4)],[a,p(2),q(3)],[a,p(2),q(4)]]" ==
+            "([[a,p(1),q(3)],[a,p(1),q(4)],[a,p(2),q(3)],[a,p(2),q(4)]],[])" ==
             IO::to_string(solve(
                 "1 { p(1;2) } 1."
                 "1 { q(3;4) } 1."
@@ -56,14 +55,14 @@ TEST_CASE("output-lparse") {
             ))
         );
         REQUIRE(
-            "[[p(1),p(2),q(3)],[p(1),p(2),q(4)]]" ==
+            "([[p(1),p(2),q(3)],[p(1),p(2),q(4)]],[])" ==
             IO::to_string(solve(
                 "1 { q(3;4) } 1."
                 "p(1;2) : q(3;4)."
             ))
         );
         REQUIRE(
-            "[[a,p(1),q(3)],[a,p(1),q(4)],[a,p(2),q(3)],[a,p(2),q(4)],[q(3)],[q(4)]]" ==
+            "([[a,p(1),q(3)],[a,p(1),q(4)],[a,p(2),q(3)],[a,p(2),q(4)],[q(3)],[q(4)]],[])" ==
             IO::to_string(solve(
                 "1 { q(3;4) } 1."
                 "0 { p(1;2) } 1."
@@ -71,21 +70,21 @@ TEST_CASE("output-lparse") {
             ))
         );
         REQUIRE(
-            "[[],[a,p(1)],[a,p(2)]]" ==
+            "([[],[a,p(1)],[a,p(2)]],[])" ==
             IO::to_string(solve(
                 "0 { p(1;2) } 1."
                 "a :- (2;3) #count { q(3;4) : p(1;2) }."
             ))
         );
         REQUIRE(
-            "[[p(1),q(3),q(4)],[p(2),q(3),q(4)]]" ==
+            "([[p(1),q(3),q(4)],[p(2),q(3),q(4)]],[])" ==
             IO::to_string(solve(
                 "0 { p(1;2) } 1."
                 "(1;2) { q(3;4) : p(1;2) }."
             ))
         );
         REQUIRE(
-            "[[p(1),q(3)],[p(1),q(3),q(4)],[p(1),q(4)],[p(2),q(3)],[p(2),q(3),q(4)],[p(2),q(4)]]" ==
+            "([[p(1),q(3)],[p(1),q(3),q(4)],[p(1),q(4)],[p(2),q(3)],[p(2),q(3),q(4)],[p(2),q(4)]],[])" ==
             IO::to_string(solve(
                 "0 { p(1;2) } 1."
                 "(1;2) #count { t(5;6) : q(3;4) : p(1;2) }."
@@ -95,7 +94,7 @@ TEST_CASE("output-lparse") {
 
     SECTION("recCondBug") {
         REQUIRE(
-            "[[0,2,4,5,9],[0,2,5,9],[0,4,9],[0,9]]" ==
+            "([[0,2,4,5,9],[0,2,5,9],[0,4,9],[0,9]],[])" ==
             IO::to_string(solve(
                 "holds(atom(A)) :- rule(lit(pos,atom(A)),B); holds(B).\n"
                 "{ holds(atom(A)) : head_aggregate_element_set(I, head_aggregate_element(_,lit(pos,atom(A)),C))\n"
@@ -166,11 +165,11 @@ TEST_CASE("output-lparse") {
     }
 
     SECTION("empty") {
-        REQUIRE("[[]]" == IO::to_string(solve("")));
+        REQUIRE("([[]],[])" == IO::to_string(solve("")));
     }
 
     SECTION("projectionBug") {
-        REQUIRE("[[p(1),p(2)]]" == IO::to_string(solve(
+        REQUIRE("([[p(1),p(2)]],[])" == IO::to_string(solve(
             "q((1,x),2).\n"
             "p(A) :- q((A,_),_).\n"
             "p(B) :- q((A,_),B).\n"
@@ -178,7 +177,7 @@ TEST_CASE("output-lparse") {
     }
     SECTION("aggregateBug") {
         REQUIRE(
-            "[[a(1),a(2),b(1)],[a(1),a(2),b(1),b(2)]]" ==
+            "([[a(1),a(2),b(1)],[a(1),a(2),b(1),b(2)]],[])" ==
             IO::to_string(solve(
             "a(1)."
             "a(2)."
@@ -188,7 +187,7 @@ TEST_CASE("output-lparse") {
 
     SECTION("aggregateMinBug") {
         REQUIRE(
-            "[[a(20),a(50),a(60),output(20)],[a(20),a(50),output(20)],[a(50),a(60),output(50)],[a(50),output(50)]]" ==
+            "([[a(20),a(50),a(60),output(20)],[a(20),a(50),output(20)],[a(50),a(60),output(50)],[a(50),output(50)]],[])" ==
             IO::to_string(solve(
                 "a(50)."
                 "{ a(20) ; a(60) }."
@@ -198,7 +197,7 @@ TEST_CASE("output-lparse") {
 
     SECTION("recHeadAggregateBug") {
         REQUIRE(
-            "["
+            "(["
             "[r(v(x13),e(r1,n(a11))),r(v(x13),e(r1,v(x3))),r(v(x13),e(r1,v(x7))),r(v(x13),n(a11)),r(v(x7),e(r1,n(a11))),r(v(x7),e(r1,v(x4))),r(v(x7),n(a11)),r(v(x9),e(r1,n(a11))),r(v(x9),e(r1,v(x3))),r(v(x9),e(r1,v(x7)))],"
             "[r(v(x13),e(r1,n(a11))),r(v(x13),e(r1,v(x3))),r(v(x13),e(r1,v(x7))),r(v(x13),n(a11)),r(v(x7),e(r1,n(a11))),r(v(x7),e(r1,v(x4))),r(v(x9),e(r1,v(x3))),r(v(x9),e(r1,v(x7)))],"
             "[r(v(x13),e(r1,n(a11))),r(v(x13),e(r1,v(x3))),r(v(x13),e(r1,v(x7))),r(v(x7),e(r1,n(a11))),r(v(x7),e(r1,v(x4))),r(v(x9),e(r1,v(x3))),r(v(x9),e(r1,v(x7)))],"
@@ -228,7 +227,7 @@ TEST_CASE("output-lparse") {
             "[r(v(x13),n(a11)),r(v(x7),e(r1,n(a11))),r(v(x7),e(r1,v(x4))),r(v(x9),e(r1,v(x3))),r(v(x9),e(r1,v(x7)))],"
             "[r(v(x7),e(r1,n(a11))),r(v(x7),e(r1,v(x4))),r(v(x9),e(r1,v(x3)))],"
             "[r(v(x7),e(r1,n(a11))),r(v(x7),e(r1,v(x4))),r(v(x9),e(r1,v(x3))),r(v(x9),e(r1,v(x7)))]"
-            "]" == IO::to_string(solve(
+            "],[])" == IO::to_string(solve(
             "atom(A) :- hasatom(A,_,_).\n"
             "atom(A) :- hasatom(e(_,A),_,_).\n"
             "nonvatom(X) :- atom(X), X!=v(V):atom(v(V)).\n"
@@ -315,9 +314,8 @@ TEST_CASE("output-lparse") {
     }
 
     SECTION("disjunctionBug") {
-        Gringo::Test::Messages msg;
         REQUIRE(
-            "[]" ==
+            "([],[-:1:21-22: info: atom does not occur in any rule head:\n  d\n])" ==
             IO::to_string(solve(
                 "b."
                 "c :- b."
@@ -327,9 +325,8 @@ TEST_CASE("output-lparse") {
     }
 
     SECTION("disjunctionBug2") {
-        Gringo::Test::Messages msg;
         REQUIRE(
-            "[[b(0),h(0),h(1),p(0)]]" ==
+            "([[b(0),h(0),h(1),p(0)]],[])" ==
             IO::to_string(solve(
                 "p(0)."
                 "h(0;1)."
@@ -340,54 +337,52 @@ TEST_CASE("output-lparse") {
 
     SECTION("aggregateNotNot") {
         REQUIRE(
-            "[[p(2)],[p(2),p(3)],[p(2),p(3),p(4)],[p(2),p(3),p(4),p(5)],[p(2),p(3),p(5)],[p(2),p(4)],[p(2),p(4),p(5)],[p(2),p(5)],[p(4)],[p(4),p(5)]]" ==
+            "([[p(2)],[p(2),p(3)],[p(2),p(3),p(4)],[p(2),p(3),p(4),p(5)],[p(2),p(3),p(5)],[p(2),p(4)],[p(2),p(4),p(5)],[p(2),p(5)],[p(4)],[p(4),p(5)]],[])" ==
             IO::to_string(solve(
             "{ p(1..5) }."
             ":- not not 2 != #min { X:p(X) } != 4.")));
         REQUIRE(
-            "[[p(2)],[p(2),p(3)],[p(2),p(3),p(4)],[p(2),p(3),p(4),p(5)],[p(2),p(3),p(5)],[p(2),p(4)],[p(2),p(4),p(5)],[p(2),p(5)],[p(4)],[p(4),p(5)]]" ==
+            "([[p(2)],[p(2),p(3)],[p(2),p(3),p(4)],[p(2),p(3),p(4),p(5)],[p(2),p(3),p(5)],[p(2),p(4)],[p(2),p(4),p(5)],[p(2),p(5)],[p(4)],[p(4),p(5)]],[])" ==
             IO::to_string(solve(
             "{ p(1..5) }."
             ":- 2 != #min { X:p(X) } != 4.")));
         REQUIRE(
-            "[[p(2)],[p(2),p(3)],[p(2),p(3),p(4)],[p(2),p(3),p(4),p(5)],[p(2),p(3),p(5)],[p(2),p(4)],[p(2),p(4),p(5)],[p(2),p(5)],[p(4)],[p(4),p(5)]]" ==
+            "([[p(2)],[p(2),p(3)],[p(2),p(3),p(4)],[p(2),p(3),p(4),p(5)],[p(2),p(3),p(5)],[p(2),p(4)],[p(2),p(4),p(5)],[p(2),p(5)],[p(4)],[p(4),p(5)]],[])" ==
             IO::to_string(solve(
             "{ p(1..5) }."
             "h :- not 2 != #min { X:p(X) } != 4."
             ":- not h.", {"p("})));
         REQUIRE(
-            "[[p(2)],[p(2),p(3)],[p(2),p(3),p(4)],[p(2),p(3),p(4),p(5)],[p(2),p(3),p(5)],[p(2),p(4)],[p(2),p(4),p(5)],[p(2),p(5)],[p(4)],[p(4),p(5)]]" ==
+            "([[p(2)],[p(2),p(3)],[p(2),p(3),p(4)],[p(2),p(3),p(4),p(5)],[p(2),p(3),p(5)],[p(2),p(4)],[p(2),p(4),p(5)],[p(2),p(5)],[p(4)],[p(4),p(5)]],[])" ==
             IO::to_string(solve(
             "{ p(1..5) }."
             ":- not 2 = #min { X:p(X) }, not #min { X:p(X) } = 4.")));
     }
     SECTION("aggregateRecBug") {
-        Gringo::Test::Messages msg;
         REQUIRE(
-            "[]" ==
+            "([],[])" ==
             IO::to_string(solve(
             "a :- {a}!=1."
             )));
         REQUIRE(
-            "[]" ==
+            "([],[])" ==
             IO::to_string(solve(
             "a :- #sum {1:a}!=1."
             )));
         REQUIRE(
-            "[[b]]" ==
+            "([[b]],[])" ==
             IO::to_string(solve(
                 "b :- 0  #sum+ { 1: b }."
             )));
         REQUIRE(
-            "[[b]]" ==
+            "([[b]],[])" ==
             IO::to_string(solve(
                 "b :- 0  #sum { 1: b }."
             )));
     }
     SECTION("symTabBug") {
-        Gringo::Test::Messages msg;
         REQUIRE(
-            "[[does(a,0),does(a,1)],[does(a,0),does(b,1)]]" ==
+            "([[does(a,0),does(a,1)],[does(a,0),does(b,1)]],[])" ==
             IO::to_string(solve(
                 "time(0..1).\n"
                 "1 { does(M,T) : legal(M,T) } 1 :- time(T).\n"
@@ -397,32 +392,31 @@ TEST_CASE("output-lparse") {
     }
     SECTION("recAntiAggr") {
         REQUIRE(
-            "[[p],[r]]" ==
+            "([[p],[r]],[])" ==
             IO::to_string(solve(
                 "r :- #sum { 1:p } < 1.\n"
                 "p :- not r.")));
         REQUIRE(
-            "[[],[p]]" ==
+            "([[],[p]],[])" ==
             IO::to_string(solve("p :- #sum { 1:not p } < 1.")));
         REQUIRE(
-            "[[],[p]]" ==
+            "([[],[p]],[])" ==
             IO::to_string(solve("p :- not #sum { 1:p } < 1.")));
         REQUIRE(
-            "[[],[p]]" ==
+            "([[],[p]],[])" ==
             IO::to_string(solve("p :- not #sum { 1:not p } > 0.")));
         REQUIRE(
-            "[[],[p]]" ==
+            "([[],[p]],[])" ==
             IO::to_string(solve("p :- not not #sum { 1:p } > 0.")));
         REQUIRE(
-            "[[],[p]]" ==
+            "([[],[p]],[])" ==
             IO::to_string(solve("p :- not not #sum { 1:not p } < 1.")));
     }
     SECTION("headAggrPropagateBug") {
-        Gringo::Test::Messages msg;
         REQUIRE(
-            "[[a(c),a(p),b(c,d),b(c,e),b(c,f),b(c,g),b(p,d),b(p,e),b(p,f),b(p,g)],"
+            "([[a(c),a(p),b(c,d),b(c,e),b(c,f),b(c,g),b(p,d),b(p,e),b(p,f),b(p,g)],"
             "[a(c),a(p),b(c,d),b(c,e),b(c,g),b(p,d),b(p,e),b(p,g),e(3)],"
-            "[b(c,d),b(c,e),b(p,d),b(p,e),e(2),e(3)]]" == IO::to_string(solve(
+            "[b(c,d),b(c,e),b(p,d),b(p,e),e(2),e(3)]],[-:1:19-20: info: atom does not occur in any rule head:\n  c\n])" == IO::to_string(solve(
                 "b(S,h) :- b(S,X), c.\n"
                 "b(c,d).\n"
                 "b(p,X) :- b(c,X).\n"
@@ -430,12 +424,12 @@ TEST_CASE("output-lparse") {
                 "a(S)   :- b(S,g).\n"
                 "1 = { e(3); b(S,f) : a(S) } :- b(S,e).\n"
                 "1 = { e(2); b(S,g) } :- b(S,d).\n")));
-        REQUIRE("[-:1:19-20: info: atom does not occur in any rule head:\n  c\n]" == IO::to_string(msg.messages));
+        //REQUIRE("[-:1:19-20: info: atom does not occur in any rule head:\n  c\n]" == IO::to_string(msg.messages));
     }
     SECTION("mutexBug") {
 #ifdef WITH_LUA
         REQUIRE(
-            "[[]]" ==
+            "([[]],[])" ==
             IO::to_string(solve(
                 "#script (lua) \n"
                 "function main(prg)\n"
@@ -565,61 +559,58 @@ TEST_CASE("output-lparse") {
 #endif // WITH_LUA
     }
     SECTION("headAggregateBug") {
-        Gringo::Test::Messages msg;
-        REQUIRE("[[q(a),r(a)]]" == IO::to_string(solve("1 { q(a); p(X) : z(X) }. r(X) :- q(X).")));
-        REQUIRE("[[q(a),r(a)]]" == IO::to_string(solve("1 { p(X) : z(X); q(a) }. r(X) :- q(X).")));
+        REQUIRE("([[q(a),r(a)]],[-:1:18-22: info: atom does not occur in any rule head:\n  z(X)\n])" == IO::to_string(solve("1 { q(a); p(X) : z(X) }. r(X) :- q(X).")));
+        REQUIRE("([[q(a),r(a)]],[-:1:12-16: info: atom does not occur in any rule head:\n  z(X)\n])" == IO::to_string(solve("1 { p(X) : z(X); q(a) }. r(X) :- q(X).")));
     }
     SECTION("head") {
-        REQUIRE("[[],[a],[a,b],[b]]" == IO::to_string(solve("{a;b}.")));
-        REQUIRE("[[a],[b]]" == IO::to_string(solve("1{a;b}1.")));
-        REQUIRE("[[p(1)],[p(1),p(2)],[p(1),p(3)],[p(1),p(4)],[p(2)],[p(2),p(3)],[p(2),p(4)],[p(3)],[p(3),p(4)],[p(4)]]" == IO::to_string(solve("1#count{X:p(X):X=1..4}2.")));
-        REQUIRE("[[p(1)],[p(2)]]" == IO::to_string(solve("1#sum+{X:p(X):X=1..4}2.")));
-        REQUIRE("[[p(1)],[p(2)]]" == IO::to_string(solve("1#sum {X:p(X):X=1..4}2.")));
+        REQUIRE("([[],[a],[a,b],[b]],[])" == IO::to_string(solve("{a;b}.")));
+        REQUIRE("([[a],[b]],[])" == IO::to_string(solve("1{a;b}1.")));
+        REQUIRE("([[p(1)],[p(1),p(2)],[p(1),p(3)],[p(1),p(4)],[p(2)],[p(2),p(3)],[p(2),p(4)],[p(3)],[p(3),p(4)],[p(4)]],[])" == IO::to_string(solve("1#count{X:p(X):X=1..4}2.")));
+        REQUIRE("([[p(1)],[p(2)]],[])" == IO::to_string(solve("1#sum+{X:p(X):X=1..4}2.")));
+        REQUIRE("([[p(1)],[p(2)]],[])" == IO::to_string(solve("1#sum {X:p(X):X=1..4}2.")));
         REQUIRE(
-            "[[p(1)],[p(1),p(2)],[p(1),p(2),p(3)],[p(1),p(2),p(3),p(4)],[p(1),p(2),p(4)],[p(1),p(3)],[p(1),p(3),p(4)],[p(1),p(4)],"
-            "[p(2)],[p(2),p(3)],[p(2),p(3),p(4)],[p(2),p(4)]]" == IO::to_string(solve("1#min{X:p(X):X=1..4}2.")));
-        REQUIRE("[[p(1)],[p(1),p(2)],[p(2)]]" == IO::to_string(solve("1#max{X:p(X):X=1..4}2.")));
-        REQUIRE("[[c,p]]" == IO::to_string(solve("{p}. 1 {c:p}.")));
+            "([[p(1)],[p(1),p(2)],[p(1),p(2),p(3)],[p(1),p(2),p(3),p(4)],[p(1),p(2),p(4)],[p(1),p(3)],[p(1),p(3),p(4)],[p(1),p(4)],"
+            "[p(2)],[p(2),p(3)],[p(2),p(3),p(4)],[p(2),p(4)]],[])" == IO::to_string(solve("1#min{X:p(X):X=1..4}2.")));
+        REQUIRE("([[p(1)],[p(1),p(2)],[p(2)]],[])" == IO::to_string(solve("1#max{X:p(X):X=1..4}2.")));
+        REQUIRE("([[c,p]],[])" == IO::to_string(solve("{p}. 1 {c:p}.")));
     }
 
     SECTION("assign") {
-        REQUIRE("[[p,q(1)],[q(0)]]" ==IO::to_string(solve("{p}. q(M):-M=#count{1:p}.")));
-        REQUIRE("[[p,q(1)],[q(0)]]" ==IO::to_string(solve("{p}. q(M):-M=#sum+{1:p}.")));
-        REQUIRE("[[p,q(1)],[q(0)]]" ==IO::to_string(solve("{p}. q(M):-M=#sum{1:p}.")));
-        REQUIRE("[[p,q(p)],[q(#sup)]]" ==IO::to_string(solve("{p}. q(M):-M=#min{p:p}.")));
-        REQUIRE("[[p,q(p)],[q(#inf)]]" ==IO::to_string(solve("{p}. q(M):-M=#max{p:p}.")));
+        REQUIRE("([[p,q(1)],[q(0)]],[])" ==IO::to_string(solve("{p}. q(M):-M=#count{1:p}.")));
+        REQUIRE("([[p,q(1)],[q(0)]],[])" ==IO::to_string(solve("{p}. q(M):-M=#sum+{1:p}.")));
+        REQUIRE("([[p,q(1)],[q(0)]],[])" ==IO::to_string(solve("{p}. q(M):-M=#sum{1:p}.")));
+        REQUIRE("([[p,q(p)],[q(#sup)]],[])" ==IO::to_string(solve("{p}. q(M):-M=#min{p:p}.")));
+        REQUIRE("([[p,q(p)],[q(#inf)]],[])" ==IO::to_string(solve("{p}. q(M):-M=#max{p:p}.")));
         REQUIRE(
-            "[[p(1),p(2),q(1)],"
+            "([[p(1),p(2),q(1)],"
             "[p(1),p(3),q(1)],"
             "[p(1),p(4),q(1)],"
             "[p(2),p(3),q(2)],"
             "[p(2),p(4),q(2)],"
-            "[p(3),p(4),q(3)]]" == IO::to_string(solve("2{p(1..4)}2. q(M):-M=#min{X:p(X)}.")));
+            "[p(3),p(4),q(3)]],[])" == IO::to_string(solve("2{p(1..4)}2. q(M):-M=#min{X:p(X)}.")));
         REQUIRE(
-            "[[p(1),p(2),q(2)],"
+            "([[p(1),p(2),q(2)],"
             "[p(1),p(3),q(3)],"
             "[p(1),p(4),q(4)],"
             "[p(2),p(3),q(3)],"
             "[p(2),p(4),q(4)],"
-            "[p(3),p(4),q(4)]]" == IO::to_string(solve("2{p(1..4)}2. q(M):-M=#max{X:p(X)}.")));
+            "[p(3),p(4),q(4)]],[])" == IO::to_string(solve("2{p(1..4)}2. q(M):-M=#max{X:p(X)}.")));
     }
 
     SECTION("conjunction") {
-        Gringo::Test::Messages msg;
         REQUIRE(
-            "[]" ==
+            "([],[-:1:4-5: info: atom does not occur in any rule head:\n  b\n])" ==
             IO::to_string(solve(
                 "a:-b:c.\n"
                 "c:-a.\n")));
-        REQUIRE("[-:1:4-5: info: atom does not occur in any rule head:\n  b\n]" == IO::to_string(msg));
         REQUIRE(
-            "[[a,b,c]]" ==
+            "([[a,b,c]],[])" ==
             IO::to_string(solve(
                 "a:-b:c.\n"
                 "c:-a.\n"
                 "b:-c.\n", {"a", "b", "c"})));
         REQUIRE(
-            "[[a,b,c,d]]" ==
+            "([[a,b,c,d]],[])" ==
             IO::to_string(solve(
                 "a:-b:c,d.\n"
                 "c:-a.\n"
@@ -627,7 +618,7 @@ TEST_CASE("output-lparse") {
                 "b:-c.\n"
                 "b:-d.\n", {"a","b","c","d"})));
         REQUIRE(
-            "[[a(1),a(2),a(3),c,q],[a(3)]]" ==
+            "([[a(1),a(2),a(3),c,q],[a(3)]],[])" ==
             IO::to_string(solve(
                 "{c}.\n"
                 "a(1):-c.\n"
@@ -635,19 +626,19 @@ TEST_CASE("output-lparse") {
                 "a(3).\n"
                 "q:-a(X):X=1..3.\n")));
         REQUIRE(
-            "[[p],[q]]" ==
+            "([[p],[q]],[])" ==
             IO::to_string(solve(
                 "p :- p:q.\n"
                 "q :- q:p.\n")));
         REQUIRE(
-            "[[p,q]]" ==
+            "([[p,q]],[])" ==
             IO::to_string(solve(
                 "p :- p:q.\n"
                 "q :- q:p.\n"
                 "p :- q.\n"
                 "q :- p.\n")));
         REQUIRE(
-            "[[],[p(1),r,s],[p(2),q,r],[p(3),r,s]]" ==
+            "([[],[p(1),r,s],[p(2),q,r],[p(3),r,s]],[])" ==
             IO::to_string(solve(
                 "{ p(1..3) } 1.\n"
                 "q :- p(Y..X) : Y = 2, X = 2.\n"
@@ -655,7 +646,7 @@ TEST_CASE("output-lparse") {
                 "s :- p(X-1;2*(X..X+1)-3) : X=2.\n"
                 )));
         REQUIRE(
-            "[[d(a),d(b),q(1,a),q(2,a)],[d(a),d(b),q(1,b),q(2,b)]]" ==
+            "([[d(a),d(b),q(1,a),q(2,a)],[d(a),d(b),q(1,b),q(2,b)]],[])" ==
             IO::to_string(solve(
                 "d(a;b).\n"
                 "2 { q(1,a); q(1,b); q(2,a); q(2,b) } 2.\n"
@@ -664,7 +655,7 @@ TEST_CASE("output-lparse") {
     }
     SECTION("disjunction") {
         REQUIRE(
-            "[[],[a,b,c,d],[c,x,y]]" ==
+            "([[],[a,b,c,d],[c,x,y]],[])" ==
             IO::to_string(solve(
                 "{ y; d } 1.\n"
                 "c :- y.\n"
@@ -674,7 +665,7 @@ TEST_CASE("output-lparse") {
                 "b :- a.\n"
                 )));
         REQUIRE(
-            "[[a,b,c,d,x5]]" ==
+            "([[a,b,c,d,x5]],[])" ==
             IO::to_string(solve(
                 "x5:-b.\n"
                 "x5:-not c.\n"
@@ -689,23 +680,23 @@ TEST_CASE("output-lparse") {
                 )));
 
         REQUIRE(
-            "[[a,b,c],[b],[b,c],[c]]" ==
+            "([[a,b,c],[b],[b,c],[c]],[])" ==
             IO::to_string(solve(
                 "1{b;c}.\n"
                 "a:b,c;not a.\n")));
         REQUIRE(
-            "[[],[p(1)],[p(1),p(2)],[p(2)]]" ==
+            "([[],[p(1)],[p(1),p(2)],[p(2)]],[])" ==
             IO::to_string(solve(
                 "q(1..2).\n"
                 "p(X); not p(X) :- q(X).\n", {"p("})));
         REQUIRE(
-            "[[],[p(1),r(1)],[r(1)]]" ==
+            "([[],[p(1),r(1)],[r(1)]],[])" ==
             IO::to_string(solve(
                 "q(1).\n"
                 "p(X); not p(X); not r(X) :- q(X).\n"
                 "r(X); not r(X) :- q(X).\n", {"p(", "r("})));
         REQUIRE(
-            "[[a,aux,b,c,p,s_b1,s_b2,s_c2]]" ==
+            "([[a,aux,b,c,p,s_b1,s_b2,s_c2]],[])" ==
             IO::to_string(solve(
                 "aux :- { a; b; c } > 2.\n"
 
@@ -735,12 +726,12 @@ TEST_CASE("output-lparse") {
                 "p :- b.\n"
                 "p :- c.\n")));
         REQUIRE(
-            "[[p(1,a),p(2,a)],[p(1,b),p(2,b)]]" ==
+            "([[p(1,a),p(2,a)],[p(1,b),p(2,b)]],[])" ==
             IO::to_string(solve(
                 "d(a;b).\n"
                 "p(1,A;2,A) : d(A).\n", {"p("})));
         REQUIRE(
-            "[[],[p(1),p(2)]]" ==
+            "([[],[p(1),p(2)]],[])" ==
             IO::to_string(solve(
                 "r(1).\n"
                 "q(1,2).\n"
@@ -749,7 +740,7 @@ TEST_CASE("output-lparse") {
 
     SECTION("show") {
         REQUIRE(
-            "["
+            "(["
             "[(1,2,3),-q(1),42],"
             "[(1,2,3),-q(1),42],"
             "[(1,2,3),-q(1),42,p(1)],"
@@ -759,7 +750,7 @@ TEST_CASE("output-lparse") {
             "[(1,2,3),42,boo(1)],"
             "[(1,2,3),42,boo(1),p(1)],"
             "[(1,2,3),42,p(1)]"
-            "]" == IO::to_string(solve(
+            "],[])" == IO::to_string(solve(
                 "#show p/1.\n"
                 "#show -q/1.\n"
                 "#show boo(X):q(X).\n"
@@ -770,7 +761,7 @@ TEST_CASE("output-lparse") {
                 "\n"
                 "#const p=42.\n")));
         REQUIRE(
-            "[[a,c,x=1,y=1]]" == IO::to_string(solve(
+            "([[a,c,x=1,y=1]],[])" == IO::to_string(solve(
                 "a. b.\n"
                 "$x $= 1. $y $= 1. $z $= 1.\n"
                 "#show a/0.\n"
@@ -779,7 +770,7 @@ TEST_CASE("output-lparse") {
                 "#show $y.\n"
                 )));
         REQUIRE(
-            "[[x=1],[y=1]]" ==
+            "([[x=1],[y=1]],[])" ==
             IO::to_string(solve(
                 "{b}.\n"
                 "$x $= 1. $y $= 1.\n"
@@ -790,27 +781,22 @@ TEST_CASE("output-lparse") {
     }
 
     SECTION("aggregates") {
-        REQUIRE(
-            "["
-            "[]"
-            "]" == IO::to_string(solve(
-                "#sum { 1:b; 2:c } < 1.\n"
-                )));
-        REQUIRE("[[p(1),p(2)],[p(1),p(3)],[p(2),p(3)]]" == IO::to_string(solve("{p(1..3)}.\n:-{p(X)}!=2.")));
-        REQUIRE("[[],[a,b],[b]]" == IO::to_string(solve("#sum { -1:a; 1:b } >= 0.")));
-        REQUIRE("[[],[a,b],[b]]" == IO::to_string(solve("#sum { 1:a; 2:b } != 1.")));
-        REQUIRE("[]" == IO::to_string(solve("a. {a} 0.")));
+        REQUIRE("([[]],[])" == IO::to_string(solve("#sum { 1:b; 2:c } < 1.\n")));
+        REQUIRE("([[p(1),p(2)],[p(1),p(3)],[p(2),p(3)]],[])" == IO::to_string(solve("{p(1..3)}.\n:-{p(X)}!=2.")));
+        REQUIRE("([[],[a,b],[b]],[])" == IO::to_string(solve("#sum { -1:a; 1:b } >= 0.")));
+        REQUIRE("([[],[a,b],[b]],[])" == IO::to_string(solve("#sum { 1:a; 2:b } != 1.")));
+        REQUIRE("([],[])" == IO::to_string(solve("a. {a} 0.")));
     }
 
     SECTION("aggregates2") {
         REQUIRE(
-            "[[c]]" == IO::to_string(solve(
+            "([[c]],[])" == IO::to_string(solve(
                 "a :- not { c } >= 1, not c."
                 "b :- a, #false."
                 "c :- not b, {b; not b} >= 1."
                 )));
         REQUIRE(
-            "[[c]]" == IO::to_string(solve(
+            "([[c]],[])" == IO::to_string(solve(
                 "a :- not not { c } >= 1, not c."
                 "b :- a, #false."
                 "c :- not b, {b; not b} >= 1."
@@ -824,7 +810,7 @@ TEST_CASE("output-lparse") {
             "a(a;-b).\n"
             "b(X) :- a(---X).\n"
             "c(X) :- a(----X).\n";
-        REQUIRE("[[a(-b),a(a),b(-a),b(b),c(-b),c(a),p(-1),p(2),q(-3),q(0)]]" == IO::to_string(solve(prg)));
+        REQUIRE("([[a(-b),a(a),b(-a),b(b),c(-b),c(a),p(-1),p(2),q(-3),q(0)]],[])" == IO::to_string(solve(prg)));
     }
 
     SECTION("minimize") {
@@ -836,8 +822,8 @@ TEST_CASE("output-lparse") {
             "ok :- not a,b,    c,    d.\n"
             "ok :- a,not b,    c,    d.\n"
             ":- not ok.\n";
-        REQUIRE("[[a,b]]" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {2})));
-        REQUIRE("[]" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {1})));
+        REQUIRE("([[a,b]],[])" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {2})));
+        REQUIRE("([],[])" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {1})));
         prg =
             "{a; b; c; d}.\n"
             ":~ a. [1,a]\n"
@@ -848,8 +834,8 @@ TEST_CASE("output-lparse") {
             "ok :- not a,b,    c,    d.\n"
             "ok :- a,not b,    c,    d.\n"
             ":- not ok.\n";
-        REQUIRE("[[a,b]]" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {2})));
-        REQUIRE("[]" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {1})));
+        REQUIRE("([[a,b]],[])" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {2})));
+        REQUIRE("([],[])" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {1})));
         prg =
             "{a; b; c; d}.\n"
             "#maximize {-1,a:a; -1,b:b; -1,c:c; -1,d:d}.\n"
@@ -857,8 +843,8 @@ TEST_CASE("output-lparse") {
             "ok :- not a,b,    c,    d.\n"
             "ok :- a,not b,    c,    d.\n"
             ":- not ok.\n";
-        REQUIRE("[[a,b]]" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {2})));
-        REQUIRE("[]" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {1})));
+        REQUIRE("([[a,b]],[])" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {2})));
+        REQUIRE("([],[])" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {1})));
         prg =
             "{a; b; c; d}.\n"
             "#minimize {3,a:a; 3,b:b; 1,x:c; 1,x:d}.\n"
@@ -867,8 +853,8 @@ TEST_CASE("output-lparse") {
             "ok :- a,not b,    c,    d.\n"
             ":- not ok.\n"
             ;
-        REQUIRE("[[a,c,d],[b,c,d]]" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {4})));
-        REQUIRE("[]" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {3})));
+        REQUIRE("([[a,c,d],[b,c,d]],[])" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {4})));
+        REQUIRE("([],[])" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {3})));
         prg =
             "{a; b; c; d}.\n"
             "#minimize {3@2,a:a; 3@2,b:b; 1@2,x:c; 1@2,x:d}.\n"
@@ -878,26 +864,26 @@ TEST_CASE("output-lparse") {
             "ok :- a,not b,    c,    d.\n"
             ":- not ok.\n"
             ;
-        REQUIRE("[[a,c,d]]" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {4, 1})));
-        REQUIRE("[]" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {4, 0})));
-        REQUIRE("[[]]" == IO::to_string(solve("{p}. #maximize{1:not p}.", {"p"}, {-1})));
+        REQUIRE("([[a,c,d]],[])" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {4, 1})));
+        REQUIRE("([],[])" == IO::to_string(solve(prg, {"a", "b", "c", "d"}, {4, 0})));
+        REQUIRE("([[]],[])" == IO::to_string(solve("{p}. #maximize{1:not p}.", {"p"}, {-1})));
     }
 
     SECTION("csp") {
         REQUIRE(
-            "[[p(1)=1,p(2)=1,x=1],[p(1)=1,p(2)=2,x=1],[p(1)=2,p(2)=1,x=1],[p(1)=2,p(2)=2,x=1]]" ==
+            "([[p(1)=1,p(2)=1,x=1],[p(1)=1,p(2)=2,x=1],[p(1)=2,p(2)=1,x=1],[p(1)=2,p(2)=2,x=1]],[])" ==
             IO::to_string(solve(
                 "1 $<= $p(1..2) $<= 2.\n"
                 "$x $= 1.\n"
                 )));
         REQUIRE(
-            "[[x=0,y=0,z=2],[x=0,y=0,z=3],[x=0,y=1,z=3],[x=1,y=0,z=3]]" ==
+            "([[x=0,y=0,z=2],[x=0,y=0,z=3],[x=0,y=1,z=3],[x=1,y=0,z=3]],[])" ==
             IO::to_string(solve(
                 "0 $<= $(x;y;z) $<= 3.\n"
                 "$x $+ $y $+ -1$*$z $<= -2.\n"
                 )));
         REQUIRE(
-            "[[x=0,y=0,z=2],[x=0,y=0,z=3],[x=0,y=1,z=3],[x=1,y=0,z=3]]" ==
+            "([[x=0,y=0,z=2],[x=0,y=0,z=3],[x=0,y=1,z=3],[x=1,y=0,z=3]],[])" ==
             IO::to_string(solve(
                 "0 $<= $(x;y;z) $<= 3.\n"
                 "p:-$x $+ $y $+ -1$*$z $<= -2.\n"
@@ -907,18 +893,18 @@ TEST_CASE("output-lparse") {
 
     SECTION("cspbound") {
         REQUIRE(
-            "[[x=4],[x=5]]" ==
+            "([[x=4],[x=5]],[])" ==
             IO::to_string(solve(
                 "$x $<= 5.\n"
                 ":- $x $<= 3, $x $<=4.\n", {"x="}
                 )));
         REQUIRE(
-            "[[x=2],[x=4],[x=6]]" ==
+            "([[x=2],[x=4],[x=6]],[])" ==
             IO::to_string(solve(
                 "$x $= 2*X : X = 1..3.\n", {"x="}
                 )));
         REQUIRE(
-            "[[x=1],[x=3],[x=7]]" ==
+            "([[x=1],[x=3],[x=7]],[])" ==
             IO::to_string(solve(
                 "$x $= 1; $x $= 3 :- $x $!= 7."
                 , {"x="})));
@@ -926,7 +912,7 @@ TEST_CASE("output-lparse") {
 
     SECTION("disjoint") {
         REQUIRE(
-            "[[x,x=2,y=2],[x=2,y=1],[x=2,y=2]]" ==
+            "([[x,x=2,y=2],[x=2,y=1],[x=2,y=2]],[])" ==
             IO::to_string(solve(
                 "1 $<= $x $<= 2.\n"
                 "1 $<= $y $<= 2.\n"
@@ -934,73 +920,73 @@ TEST_CASE("output-lparse") {
                 "#disjoint{ 1:1; 2:$x; 2:$y : x }.\n"
                 )));
         REQUIRE(
-            "[[x=2]]" ==
+            "([[x=2]],[])" ==
             IO::to_string(solve(
                 "1 $<= $x $<= 2.\n"
                 "#disjoint{ 1:1; 2:$x }.\n"
                 )));
         REQUIRE(
-            "[[a,x=1],[b,x=1],[x=1]]" ==
+            "([[a,x=1],[b,x=1],[x=1]],[])" ==
             IO::to_string(solve(
                 "$x $= 1.\n"
                 "{ a; b }.\n"
                 "#disjoint{ a:$x:a; b:$x:b }.\n"
                 )));
         REQUIRE(
-            "[[a,b,y=2],[a,y=2],[b,y=2],[y=1],[y=2]]" ==
+            "([[a,b,y=2],[a,y=2],[b,y=2],[y=1],[y=2]],[])" ==
             IO::to_string(solve(
                 "1 $<= $y $<= 2.\n"
                 "{ a; b }.\n"
                 "#disjoint{ 1:1:a; 1:1:b; 2:$y }.\n"
                 )));
         REQUIRE(
-            "[[p(1)=1,p(2)=1,p(3)=1,q(1)=2,q(2)=2,q(3)=2],[p(1)=2,p(2)=2,p(3)=2,q(1)=1,q(2)=1,q(3)=1]]" ==
+            "([[p(1)=1,p(2)=1,p(3)=1,q(1)=2,q(2)=2,q(3)=2],[p(1)=2,p(2)=2,p(3)=2,q(1)=1,q(2)=1,q(3)=1]],[])" ==
             IO::to_string(solve(
                 "1 $<= $(p(1..3);q(1..3)) $<= 2.\n"
                 "#disjoint{ 1:$p(1..3); 2:$q(1..3) }.\n"
                 )));
         REQUIRE(
-            "[[x=6,y=35]]" ==
+            "([[x=6,y=35]],[])" ==
             IO::to_string(solve(
                 "6  $<= $x $<=  7.\n"
                 "35 $<= $y $<= 36.\n"
                 "not #disjoint{ 1:6$*$y; 2:35$*$x }.\n"
                 )));
         REQUIRE(
-            "[[x=1,y=1,z=1]"
+            "([[x=1,y=1,z=1]"
             ",[x=2,y=2,z=2]"
-            ",[x=3,y=3,z=3]]" ==
+            ",[x=3,y=3,z=3]],[])" ==
             IO::to_string(solve(
                 "1  $<= $(x;y;z) $<=  3.\n"
                 "not #disjoint{ 1:2$*$x $+ 3$*$y; 2:2$*$y $+ 3$*$z; 3:2$*$z $+ 3$*$x }.\n"
                 )));
         REQUIRE(
-            "[[x=6,y=35]]" ==
+            "([[x=6,y=35]],[])" ==
             IO::to_string(solve(
                 "6  $<= $x $<=  7.\n"
                 "35 $<= $y $<= 36.\n"
                 "not #disjoint{ 1:6$*$y; 2:35$*$x }.\n"
                 )));
         REQUIRE(
-            "[[a],[a,b]]" ==
+            "([[a],[a,b]],[])" ==
             IO::to_string(solve(
                 "{b}.\n"
                 "a :- #disjoint { 1 : 1 : a; 2 : 2 : a; 3 : 3 : b }.\n"
                 )));
         REQUIRE(
-            "[]" ==
+            "([],[])" ==
             IO::to_string(solve(
                 "{b}.\n"
                 "a :- #disjoint { 1 : 1 : a; 2 : 1 : a; 3 : 3 : b }.\n"
                 )));
         REQUIRE(
-            "[[a]]" ==
+            "([[a]],[])" ==
             IO::to_string(solve(
                 "{b}.\n"
                 "a :- #disjoint { 1 : 1 : a; 2 : 2 : a; 3 : 2 : b }.\n"
                 )));
         REQUIRE(
-            "[[b]]" ==
+            "([[b]],[])" ==
             IO::to_string(solve(
                 "{b}.\n"
                 "a :- #disjoint { 1 : 1 : a; 2 : 1 : a; 3 : 3 : b; 4 : 3 : b }.\n"
@@ -1015,15 +1001,15 @@ TEST_CASE("output-lparse") {
                 "L $<= $cell(X,Y) $<= U :- row(X), col(Y), dom(L,U).\n"
                 ":- col(Y), not #disjoint { X : $cell(X,Y) : row(X) }.\n"
                 ":- row(X), not #disjoint { Y : $cell(X,Y) : col(Y) }.\n"
-                ).size());
+                ).first.size());
     }
 
     SECTION("queens") {
         REQUIRE(
-            "[[q(1,2),q(2,4),q(3,6),q(4,1),q(5,3),q(6,5)],"
+            "([[q(1,2),q(2,4),q(3,6),q(4,1),q(5,3),q(6,5)],"
             "[q(1,3),q(2,6),q(3,2),q(4,5),q(5,1),q(6,4)],"
             "[q(1,4),q(2,1),q(3,5),q(4,2),q(5,6),q(6,3)],"
-            "[q(1,5),q(2,3),q(3,1),q(4,6),q(5,4),q(6,2)]]" ==
+            "[q(1,5),q(2,3),q(3,1),q(4,6),q(5,4),q(6,2)]],[])" ==
             IO::to_string(solve(
                 "#const n = 6.\n"
                 "n(1..n).\n"
@@ -1046,9 +1032,9 @@ TEST_CASE("output-lparse") {
                 "$col(X) $!= $col(Y) :- X=1..n, Y=1..n, X<Y.\n"
                 "$row(X) $+ $col(Y) $!= $row(Y) $+ $col(X) :- X=1..n, Y=1..n, X<Y.\n"
                 "$row(X) $+ $col(X) $!= $row(Y) $+ $col(Y) :- X=1..n, Y=1..n, X<Y.\n"
-                ).size());
+                ).first.size());
         std::string q5 =
-            "[[q(1)=1,q(2)=3,q(3)=5,q(4)=2,q(5)=4]"
+            "([[q(1)=1,q(2)=3,q(3)=5,q(4)=2,q(5)=4]"
             ",[q(1)=1,q(2)=4,q(3)=2,q(4)=5,q(5)=3]"
             ",[q(1)=2,q(2)=4,q(3)=1,q(4)=3,q(5)=5]"
             ",[q(1)=2,q(2)=5,q(3)=3,q(4)=1,q(5)=4]"
@@ -1057,7 +1043,7 @@ TEST_CASE("output-lparse") {
             ",[q(1)=4,q(2)=1,q(3)=3,q(4)=5,q(5)=2]"
             ",[q(1)=4,q(2)=2,q(3)=5,q(4)=3,q(5)=1]"
             ",[q(1)=5,q(2)=2,q(3)=4,q(4)=1,q(5)=3]"
-            ",[q(1)=5,q(2)=3,q(3)=1,q(4)=4,q(5)=2]]";
+            ",[q(1)=5,q(2)=3,q(3)=1,q(4)=4,q(5)=2]],[])";
         REQUIRE(
             q5 == IO::to_string(solve(
                 "#const n=5.\n"
@@ -1087,9 +1073,7 @@ TEST_CASE("output-lparse") {
     SECTION("python") {
 #ifdef WITH_PYTHON
         REQUIRE(
-            "["
-            "[p(39),q(\"a\"),q(1),q(2),q(a),r(2),r(3),s((1,2)),s((1,3)),s((2,1))]"
-            "]" == IO::to_string(solve(
+            "([[p(39),q(\"a\"),q(1),q(2),q(a),r(2),r(3),s((1,2)),s((1,3)),s((2,1))]],[])" == IO::to_string(solve(
                 "#script (python)\n"
                 "import clingo\n"
                 "def conv(a): return a.number if hasattr(a, 'number') else a\n"
@@ -1109,9 +1093,7 @@ TEST_CASE("output-lparse") {
     SECTION("lua") {
 #ifdef WITH_LUA
         REQUIRE(
-            "["
-            "[p(39),q(\"a\"),q(1),q(2),q(a),r(2),r(3),s((1,2)),s((1,3)),s((2,1))]"
-            "]" == IO::to_string(solve(
+            "([[p(39),q(\"a\"),q(1),q(2),q(a),r(2),r(3),s((1,2)),s((1,3)),s((2,1))]],[])" == IO::to_string(solve(
                 "#script (lua)\n"
                 "function gcd(a, b) if a == 0 then return b else return gcd(b % a, a) end end\n"
                 "function test()    return {1, 2, clingo.Fun(\"a\"), \"a\"} end\n"
@@ -1127,262 +1109,204 @@ TEST_CASE("output-lparse") {
     }
 
     SECTION("undefinedRule") {
-        Gringo::Test::Messages msg;
         REQUIRE(
-            "[[q(2)]]" ==
+            "([[q(2)]],[-:4:3-6: info: operation undefined:\n  (A+B)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "b(1).\n"
                 "q(A+B) :- a(A), b(B).\n", {"q("})));
-        REQUIRE("[-:4:3-6: info: operation undefined:\n  (A+B)\n]" == IO::to_string(msg.messages));
-        msg.clear();
         REQUIRE(
-            "[[q(1,1,2)]]" ==
+            "([[q(1,1,2)]],[-:4:27-30: info: operation undefined:\n  (A+B)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "b(1).\n"
                 "q(A,B,X) :- a(A), b(B), X=A+B.\n", {"q("})));
-        REQUIRE("[-:4:27-30: info: operation undefined:\n  (A+B)\n]" == IO::to_string(msg.messages));
-        msg.clear();
         REQUIRE(
-            "[[q(1,1)]]" ==
+            "([[q(1,1)]],[-:4:29-32: info: operation undefined:\n  (A+B)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "b(1).\n"
                 "q(A,B) :- a(A), b(B), not b(A+B).\n", {"q("})));
-        REQUIRE("[-:4:29-32: info: operation undefined:\n  (A+B)\n]" == IO::to_string(msg.messages));
-        msg.clear();
         REQUIRE(
-            "[[q(1)]]" ==
+            "([[q(1)]],[-:4:3-7: info: interval undefined:\n  A..B\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "b(1).\n"
                 "q(A..B) :- a(A), b(B).\n", {"q("})));
-        REQUIRE("[-:4:3-7: info: interval undefined:\n  A..B\n]" == IO::to_string(msg.messages));
-        msg.clear();
     }
 
     SECTION("undefinedCSP") {
-        Gringo::Test::Messages msg;
-        REQUIRE(
-            "[[a(1),a(a),b(1)]]" ==
-            IO::to_string(solve(
+        REQUIRE( "([[a(1),a(a),b(1)]],[-:4:1-2: info: number expected:\n  A\n])" == IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "b(1).\n"
                 "A $<= B :- a(A), b(B).\n")));
-        REQUIRE("[-:4:1-2: info: number expected:\n  A\n]" == IO::to_string(msg.messages));
-        msg.clear();
         REQUIRE(
-            "[[a(1),a(a),b(1)]]" ==
+            "([[a(1),a(a),b(1)]],[-:4:16-17: info: number expected:\n  A\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "b(1).\n"
                 ":- a(A), b(B), A $< B.\n")));
-        REQUIRE("[-:4:16-17: info: number expected:\n  A\n]" == IO::to_string(msg.messages));
-        msg.clear();
         REQUIRE(
-            "[[a(1),a(2)=1,a(a),b(1)]]" ==
+            "([[a(1),a(2)=1,a(a),b(1)]],[-:5:19-20: info: operation undefined:\n  (1*A+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "b(1).\n"
                 "$a(2) $<= 1.\n"
                 ":- a(A), b(B), $a(A+1) $< B.\n")));
-        REQUIRE("[-:5:19-20: info: operation undefined:\n  (1*A+1)\n]" == IO::to_string(msg.messages));
-        msg.clear();
     }
 
     SECTION("undefinedCSPDisjoint") {
-        Gringo::Test::Messages msg;
         REQUIRE(
-            "[[a(1),a(a)]]" ==
+            "([[a(1),a(a)]],[-:3:17-18: info: number expected:\n  X\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "#disjoint { X : X : a(X) }.\n")));
-        REQUIRE("[-:3:17-18: info: number expected:\n  X\n]" == IO::to_string(msg.messages));
-        msg.clear();
         REQUIRE(
-            "[[a(1),a(1)=1,a(a)]]" ==
+            "([[a(1),a(1)=1,a(a)]],[-:4:20-21: info: operation undefined:\n  (1*X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "$a(1) $= 1.\n"
                 "#disjoint { X : $a(X+1) : a(X) }.\n")));
-        REQUIRE("[-:4:20-21: info: operation undefined:\n  (1*X+1)\n]" == IO::to_string(msg.messages));
-        msg.clear();
     }
 
     SECTION("undefinedBodyAggregate") {
-        Gringo::Test::Messages msg;
         REQUIRE(
-            "[[a(1),a(a),h]]" ==
+            "([[a(1),a(a),h]],[-:3:15-16: info: operation undefined:\n  (1*X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "h :- #count { X+1 : a(X) } < 2.\n")));
-        REQUIRE("[-:3:15-16: info: operation undefined:\n  (1*X+1)\n]" == IO::to_string(msg.messages));
-        msg.clear();
         REQUIRE(
-            "[[a(1),a(a),h]]" ==
+            "([[a(1),a(a),h]],[-:3:14-15: info: operation undefined:\n  (1*X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "h :- { not a(X+1) : a(X) } < 2.\n")));
-        REQUIRE("[-:3:14-15: info: operation undefined:\n  (1*X+1)\n]" == IO::to_string(msg.messages));
-        msg.clear();
         REQUIRE(
-            "[[a(1),a(a),g(1)]]" ==
+            "([[a(1),a(a),g(1)]],[-:3:30-31: info: operation undefined:\n  (1*X+1)\n,-:4:30-31: info: operation undefined:\n  (1*X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "g(X) :- not X < #count { } < X+1, a(X).\n"
                 "h(X) :-     X < #count { } < X+1, a(X).\n")));
-        REQUIRE("[-:3:30-31: info: operation undefined:\n  (1*X+1)\n,-:4:30-31: info: operation undefined:\n  (1*X+1)\n]" == IO::to_string(msg.messages));
     }
 
     SECTION("undefinedAssignmentAggregate") {
-        Gringo::Test::Messages msg;
         REQUIRE(
-            "[[a(1),a(a),h(1)]]" ==
+            "([[a(1),a(a),h(1)]],[-:3:22-23: info: operation undefined:\n  (1*X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "h(C) :- C = #count { X+1 : a(X) }.\n")));
-        REQUIRE("[-:3:22-23: info: operation undefined:\n  (1*X+1)\n]" == IO::to_string(msg.messages));
-        msg.clear();
         REQUIRE(
-            "[[a(1),a(a),h(1)]]" ==
+            "([[a(1),a(a),h(1)]],[-:3:21-22: info: operation undefined:\n  (1*X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "h(C) :- C = { not a(X+1) : a(X) }.\n")));
-        REQUIRE("[-:3:21-22: info: operation undefined:\n  (1*X+1)\n]" == IO::to_string(msg.messages));
-        msg.clear();
         REQUIRE(
-            "[[]]" ==
+            "([[]],[])" ==
             IO::to_string(solve(
                 "h(C) :- C+1 = #min { a }.\n")));
-        REQUIRE("[]" == IO::to_string(msg.messages));
-        msg.clear();
     }
 
     SECTION("undefinedHeadAggregate") {
-        Gringo::Test::Messages msg;
         REQUIRE(
-            "[[a(1),a(a)],[a(1),a(a),p(1)]]" ==
+            "([[a(1),a(a)],[a(1),a(a),p(1)]],[-:3:10-11: info: operation undefined:\n  (1*X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "#count { X+1 : p(X) : a(X) }.\n")));
-        REQUIRE("[-:3:10-11: info: operation undefined:\n  (1*X+1)\n]" == IO::to_string(msg.messages));
-        msg.clear();
         REQUIRE(
-            "[[a(1),a(a)],[a(1),a(a),p(2)]]" ==
+            "([[a(1),a(a)],[a(1),a(a),p(2)]],[-:3:16-17: info: operation undefined:\n  (1*X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "#count { X : p(X+1) : a(X) }.\n")));
-        REQUIRE("[-:3:16-17: info: operation undefined:\n  (1*X+1)\n]" == IO::to_string(msg.messages));
-        msg.clear();
         REQUIRE(
-            "[[a(1),a(a)],[a(1),a(a),p(2)]]" ==
+            "([[a(1),a(a)],[a(1),a(a),p(2)]],[-:3:5-6: info: operation undefined:\n  (1*X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "{ p(X+1) : a(X) }.\n")));
-        REQUIRE("[-:3:5-6: info: operation undefined:\n  (1*X+1)\n]" == IO::to_string(msg.messages));
-        msg.clear();
         REQUIRE(
-            "[[p(1)]]" ==
+            "([[p(1)]],[-:3:1-2: info: operation undefined:\n  (1*X+-1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
                 "X-1 < { p(X) } < X+1 :- a(X).\n", {"p("})));
-        REQUIRE("[-:3:1-2: info: operation undefined:\n  (1*X+-1)\n]" == IO::to_string(msg.messages));
     }
 
     SECTION("undefinedConjunction") {
-        Gringo::Test::Messages msg;
         REQUIRE(
-            "[[a(a)],[h]]" ==
+            "([[a(a)],[h]],[-:4:10-11: info: operation undefined:\n  (1*A+1)\n])" ==
             IO::to_string(solve(
                 "{a(a)}.\n"
                 "a(1..2).\n"
                 "p(2..3).\n"
                 "h :- p(1+A):a(A).\n", {"h", "a(a)"})));
-        REQUIRE("[-:4:10-11: info: operation undefined:\n  (1*A+1)\n]" == IO::to_string(msg.messages));
-        msg.clear();
         REQUIRE(
-            "[[a(a)],[a(a),p(2),p(3)],[h],[p(2),p(3)]]" ==
+            "([[a(a)],[a(a),p(2),p(3)],[h],[p(2),p(3)]],[-:4:14-15: info: operation undefined:\n  (1*A+1)\n])" ==
             IO::to_string(solve(
                 "{a(a)}.\n"
                 "a(1..2).\n"
                 "{p(2..3)} != 1.\n"
                 "h :- not p(1+A):a(A).\n", {"h", "a(a)", "p("})));
-        REQUIRE("[-:4:14-15: info: operation undefined:\n  (1*A+1)\n]" == IO::to_string(msg.messages));
-        msg.clear();
         REQUIRE(
-            "[[a(a),h],[a(a),p(2),p(3)],[h],[p(2),p(3)]]" ==
+            "([[a(a),h],[a(a),p(2),p(3)],[h],[p(2),p(3)]],[-:4:24-25: info: operation undefined:\n  (1*A+1)\n])" ==
             IO::to_string(solve(
                 "{a(a)}.\n"
                 "a(1..2).\n"
                 "{p(2..3)} != 1.\n"
                 "h :- not p(X):a(A),X=1+A.\n", {"h", "a(a)", "p("})));
-        REQUIRE("[-:4:24-25: info: operation undefined:\n  (1*A+1)\n]" == IO::to_string(msg.messages));
     }
 
     SECTION("undefinedDisjunction") {
-        Gringo::Test::Messages msg;
         REQUIRE(
-            "[[]]" ==
+            "([[]],[-:3:5-6: info: operation undefined:\n  (1*A+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1..2).\n"
                 "p(1+A):a(A).\n", {"p("})));
-        REQUIRE("[-:3:5-6: info: operation undefined:\n  (1*A+1)\n]" == IO::to_string(msg.messages));
-        msg.clear();
         REQUIRE(
-            "[[p(2)],[p(3)]]" ==
+            "([[p(2)],[p(3)]],[-:3:15-16: info: operation undefined:\n  (1*A+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1..2).\n"
                 "p(X):a(A),X=1+A.\n", {"p("})));
-        REQUIRE("[-:3:15-16: info: operation undefined:\n  (1*A+1)\n]" == IO::to_string(msg.messages));
-        msg.clear();
     }
 
     SECTION("undefinedScript") {
-        Gringo::Test::Messages msg;
         REQUIRE(
-            "[[]]" ==
+            "([[]],[-:1:3-13: info: operation undefined:\n  function 'failure' not found\n])" ==
             IO::to_string(solve(
                 "a(@failure()).\n")));
-        REQUIRE("[-:1:3-13: info: operation undefined:\n  function 'failure' not found\n]" == IO::to_string(msg.messages));
-        msg.clear();
     }
 
     SECTION("minMax") {
         REQUIRE(
-            "[[a],[b]]" ==
+            "([[a],[b]],[])" ==
             IO::to_string(solve(
                 "a :- #min { 1:a; 2:b } != 2.\n"
                 "b :- #max { 1:a; 2:b } != 1.\n")));
         REQUIRE(
-            "[[a,b]]" ==
+            "([[a,b]],[])" ==
             IO::to_string(solve(
                 "a :- b.\n"
                 "b :- a.\n"
                 "a :- #min { 1:a; 2:b } != 2.\n"
                 "b :- #max { 1:a; 2:b } != 1.\n")));
         REQUIRE(
-            "[[a,b,c,w,z],[a,b,w,z],[a,c,w,z],[a,w,z],[b,c,x,y,z],[b,x,y,z],[c,w,y],[w,y]]" ==
+            "([[a,b,c,w,z],[a,b,w,z],[a,c,w,z],[a,w,z],[b,c,x,y,z],[b,x,y,z],[c,w,y],[w,y]],[])" ==
             IO::to_string(solve(
                 "{a;b;c}.\n"
                 "w :- #min { 1:a;2:b;3:c } != 2.\n"
@@ -1393,7 +1317,7 @@ TEST_CASE("output-lparse") {
 
     SECTION("nonmon") {
         REQUIRE(
-            "[[true(e,x1,1)]]" ==
+            "([[true(e,x1,1)]],[])" ==
             IO::to_string(solve(
                 "{ true(e,L,C) } :- var(e,L,C).\n"
                 "true(a,L,C) :- unequal, var(a,L,C).\n"
@@ -1406,7 +1330,7 @@ TEST_CASE("output-lparse") {
                 "var(a,y2,3).\n"
                 "int(5).\n", {"true(e"})));
         REQUIRE(
-            "[[true(e,x1,1)]]" ==
+            "([[true(e,x1,1)]],[])" ==
             IO::to_string(solve(
                 "{ true(e,L,C) } :- var(e,L,C).\n"
                 "true(a,L,C) :- unequal, var(a,L,C).\n"
@@ -1420,7 +1344,7 @@ TEST_CASE("output-lparse") {
                 "int(5).\n", {"true(e"})));
 
         REQUIRE(
-            "[]" ==
+            "([],[])" ==
             IO::to_string(solve(
                 "{ true(e,L,C) } :- var(e,L,C).\n"
                 "true(a,L,C) :- unequal, var(a,L,C).\n"
@@ -1434,7 +1358,7 @@ TEST_CASE("output-lparse") {
                 "int(4).\n", {"true(e"})));
 
         REQUIRE(
-            "[[],[true(e,x1,6),true(e,x2,3)]]" ==
+            "([[],[true(e,x1,6),true(e,x2,3)]],[])" ==
             IO::to_string(solve(
                 "{ true(e,L,C) } :- var(e,L,C).\n"
                 "true(a,L,C) :- unequal, var(a,L,C).\n"
@@ -1450,7 +1374,7 @@ TEST_CASE("output-lparse") {
 
     SECTION("edge") {
         REQUIRE(
-            "[[path(a,b),path(b,c),path(c,d),path(d,a)]]" ==
+            "([[path(a,b),path(b,c),path(c,d),path(d,a)]],[])" ==
             IO::to_string(solve(
                 "node(a;b;c;d).\n"
                 "edge(a,b;b,(c;d);c,(a;d);d,a).\n"
@@ -1462,7 +1386,7 @@ TEST_CASE("output-lparse") {
 
     SECTION("bugRewriteCond") {
         REQUIRE(
-            "[[p(1)],[p(1),p(2)],[p(2)]]" ==
+            "([[p(1)],[p(1),p(2)],[p(2)]],[])" ==
             IO::to_string(solve(
                 "{p(1..2)}.\n"
                 ":- #false:p(X).\n", {"p("})));

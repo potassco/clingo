@@ -30,7 +30,6 @@
 namespace Gringo { namespace Output { namespace Test {
 
 TEST_CASE("output-aspcomp2013", "[output]") {
-    Gringo::Test::Messages msg;
 
 // {{{1 N01 Permutation Pattern Matching
 
@@ -63,7 +62,6 @@ TEST_CASE("output-aspcomp2013", "[output]") {
 
     SECTION("aspcomp2013_02") {
         // Author: Andrea Peano
-        Gringo::Test::Messages msg;
         REQUIRE(
             "[[valve(1,2),valve(1,4),valve(3,2),valve(4,2)]]" ==
             IO::to_string(solve(
@@ -303,7 +301,6 @@ TEST_CASE("output-aspcomp2013", "[output]") {
 
     SECTION("aspcomp2013_07") {
         // Author: Giovambattista Ianni, Carlos Linares López*, Hootan Nakhost*
-        Gringo::Test::Messages msg;
         REQUIRE(
             "[[drive(t0,a,b,10),drive(t0,a,b,2),drive(t0,a,b,6),drive(t0,b,a,5),drive(t0,b,a,9),load(p0,t0,a,1),load(p0,t0,b,7),unload(p0,t0,b,4)],"
             "[drive(t0,a,b,10),drive(t0,a,b,2),drive(t0,a,b,6),drive(t0,b,a,5),drive(t0,b,a,9),load(p0,t0,a,1),load(p0,t0,b,7),unload(p0,t0,b,4),unload(p0,t0,b,8)],"
@@ -408,7 +405,6 @@ TEST_CASE("output-aspcomp2013", "[output]") {
 
     SECTION("aspcomp2013_08") {
         // Author: Giovambattista Ianni, Carlos Linares López*, Hootan Nakhost*
-        Gringo::Test::Messages msg;
         REQUIRE(
             "[[move(player_01,pos_2_2,pos_3_2,dir_right,3),move(player_01,pos_3_2,pos_2_2,dir_left,2),pushtogoal(player_01,stone_01,pos_2_2,pos_3_2,pos_4_2,dir_right,1)],"
             "[move(player_01,pos_3_2,pos_2_2,dir_left,2),noop(3),pushtogoal(player_01,stone_01,pos_2_2,pos_3_2,pos_4_2,dir_right,1)],"
@@ -775,7 +771,6 @@ TEST_CASE("output-aspcomp2013", "[output]") {
 
     SECTION("aspcomp2013_13") {
         // Author: Marcello Balduccini, Yuliya Lierler*
-        Gringo::Test::Messages msg;
         REQUIRE(
             "[[move(1,left,6,3),move(2,right,3,3),move(3,up,3,5),move(4,left,5,5),move(5,left,7,5),move(6,down,7,3)],"
             "[move(1,right,2,3),move(2,up,2,5),move(3,up,3,5),move(4,left,5,5),move(5,left,7,5),move(6,down,7,3)],"
@@ -887,7 +882,7 @@ TEST_CASE("output-aspcomp2013", "[output]") {
                 "\n"
                 "state(1,full,X,Y) :- full(X,Y).\n"
                 "state(1,empty,X,Y) :- empty(X,Y).\n", {"move("})));
-        REQUIRE("[-:56:22-23: info: global variable in tuple of aggregate element:\n  T\n,-:51:72-93: info: atom does not occur in any rule head:\n  not checking_solution\n,-:56:94-111: info: atom does not occur in any rule head:\n  checking_solution\n]" == IO::to_string(msg));
+        //REQUIRE("[-:56:22-23: info: global variable in tuple of aggregate element:\n  T\n,-:51:72-93: info: atom does not occur in any rule head:\n  not checking_solution\n,-:56:94-111: info: atom does not occur in any rule head:\n  checking_solution\n]" == IO::to_string(msg));
     }
 
 
@@ -1037,7 +1032,6 @@ TEST_CASE("output-aspcomp2013", "[output]") {
 
     SECTION("aspcomp2013_16") {
         // Author: Marcello Balduccini, Yuliya Lierler*
-        Gringo::Test::Messages msg;
         REQUIRE(
             "[[on_instance(j1,1),on_instance(j2,2),on_instance(j3,2),penalty(j2,0),penalty(j3,2),start(j1,0),start(j2,4),start(j3,9),tot_penalty(2)],"
             "[on_instance(j1,1),on_instance(j2,2),on_instance(j3,2),penalty(j2,1),penalty(j3,0),start(j1,0),start(j2,6),start(j3,2),tot_penalty(1)],"
@@ -1214,7 +1208,7 @@ TEST_CASE("output-aspcomp2013", "[output]") {
                 "   I != CI,\n"
                 "   must_not_schedule(J).\n"
                 , {"start(","on_instance(","penalty(","tot_penalty(","rescheduled("})));
-        REQUIRE("[-:33:47-68: info: atom does not occur in any rule head:\n  not checking_solution\n,-:34:79-100: info: atom does not occur in any rule head:\n  not checking_solution\n]" == IO::to_string(msg));
+        //REQUIRE("[-:33:47-68: info: atom does not occur in any rule head:\n  not checking_solution\n,-:34:79-100: info: atom does not occur in any rule head:\n  not checking_solution\n]" == IO::to_string(msg));
     }
 
 // {{{1 N17 Qualitative Spatial Reasoning
@@ -1612,7 +1606,6 @@ TEST_CASE("output-aspcomp2013", "[output]") {
 
     SECTION("aspcomp2013_19") {
         // Author: Stefan Ellmauthaler, Johannes Wallner
-        Gringo::Test::Messages msg;
         REQUIRE(
             "[[accept(1),accept(2),reject(4)],"
             "[accept(1),accept(2),reject(4)],"
@@ -2253,7 +2246,6 @@ TEST_CASE("output-aspcomp2013", "[output]") {
 
     SECTION("aspcomp2013_25") {
         // Author: Marcello Balduccini, Martin Gebser*
-        Gringo::Test::Messages msg;
         REQUIRE(
             "[[active(0),active(3)]]" == IO::to_string(solve(
                 "% instance\n"
