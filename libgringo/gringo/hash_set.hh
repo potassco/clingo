@@ -96,10 +96,11 @@ public:
     void reserve(Hasher const &hasher, EqualTo const &equalTo, SizeType n) {
         if (reserveNeedsRebuild(n)) {
             SizeType rOld = reserved_;
-            reserved_ = grow_(n, reserved_);
-            assert(rOld < reserved_);
+            SizeType rNew = grow_(n, reserved_);
+            assert(rOld < rNew);
             if (table_) {
-                TableType table(new ValueType[reserved_]);
+                TableType table(new ValueType[rNew]);
+                reserved_ = rNew;
                 std::fill(table.get(), table.get() + reserved_, Literals::open);
                 std::swap(table, table_);
                 for (auto it = table.get(), ie = table.get() + rOld; it != ie; ++it) {
@@ -107,7 +108,8 @@ public:
                 }
             }
             else {
-                table_.reset(new ValueType[reserved_]);
+                table_.reset(new ValueType[rNew]);
+                reserved_ = rNew;
                 std::fill(table_.get(), table_.get() + reserved_, Literals::open);
             }
         }

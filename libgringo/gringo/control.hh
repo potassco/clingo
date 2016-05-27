@@ -284,8 +284,7 @@ inline clingo_error_t handleClingoError(Gringo::Logger *logger) {
     catch (std::bad_alloc const &e)            { return clingo_error_bad_alloc; }
     catch (std::runtime_error const &e)        { return clingo_error_runtime; }
     catch (std::logic_error const &e)          { return clingo_error_logic; }
-    catch (...)                                { return clingo_error_unknown; }
-    return clingo_error_success;
+    return clingo_error_unknown;
 }
 
 #define GRINGO_CLINGO_TRY try

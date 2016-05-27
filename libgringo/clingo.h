@@ -31,6 +31,11 @@ extern "C" {
 
 // {{{1 errors and warnings
 
+// Note: Errors can be recovered from. If a control function fails, the
+// corresponding control object must be destroyed.  An exception is the
+// clingo_control_parse function, which does not invalidate the corresponding
+// control object (probably this function will become a free function in the
+// future).
 enum clingo_error {
     clingo_error_success   = 0,
     clingo_error_fatal     = 1,
