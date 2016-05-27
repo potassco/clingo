@@ -49,14 +49,14 @@ struct Free {
 };
 
 template <typename T>
-void report_included(T const &loc, char const *filename, MessagePrinter &log) {
-    GRINGO_REPORT(log, W_FILE_INCLUDED) << loc << ": warning: already included file:\n"
+void report_included(T const &loc, char const *filename, Logger &log) {
+    GRINGO_REPORT(log, clingo_warning_file_included) << loc << ": warning: already included file:\n"
         << "  " << filename << "\n";
 }
 
 template <typename T>
-void report_not_found(T const &loc, char const *filename, MessagePrinter &log) {
-    GRINGO_REPORT(log, E_ERROR) << loc << ": error: file could not be opened:\n"
+void report_not_found(T const &loc, char const *filename, Logger &log) {
+    GRINGO_REPORT(log, clingo_error_fatal) << loc << ": error: file could not be opened:\n"
         << "  " << filename << "\n";
 }
 
@@ -154,11 +154,11 @@ NonGroundParser::NonGroundParser(INongroundProgramBuilder &pb)
     , _filename("") { }
 
 void NonGroundParser::parseError(Location const &loc, std::string const &msg) {
-    GRINGO_REPORT(*log_, E_ERROR) << loc << ": error: " << msg << "\n";
+    GRINGO_REPORT(*log_, clingo_error_fatal) << loc << ": error: " << msg << "\n";
 }
 
 void NonGroundParser::lexerError(StringSpan token) {
-    GRINGO_REPORT(*log_, E_ERROR) << filename() << ":" << line() << ":" << column() << ": error: lexer error, unexpected " << std::string(token.first, token.first + token.size) << "\n";
+    GRINGO_REPORT(*log_, clingo_error_fatal) << filename() << ":" << line() << ":" << column() << ": error: lexer error, unexpected " << std::string(token.first, token.first + token.size) << "\n";
 }
 
 bool NonGroundParser::push(std::string const &filename, bool include) {
@@ -175,7 +175,7 @@ void NonGroundParser::pop() { LexerState::pop(); }
 
 String NonGroundParser::filename() const { return LexerState::data().first; }
 
-void NonGroundParser::pushFile(std::string &&file, MessagePrinter &log) {
+void NonGroundParser::pushFile(std::string &&file, Logger &log) {
     auto checked = check_file(file);
     if (!checked.empty() && !filenames_.insert(checked).second) {
         report_included("<cmd>", file.c_str(), log);
@@ -185,7 +185,7 @@ void NonGroundParser::pushFile(std::string &&file, MessagePrinter &log) {
     }
 }
 
-void NonGroundParser::pushStream(std::string &&file, std::unique_ptr<std::istream> in, MessagePrinter &log) {
+void NonGroundParser::pushStream(std::string &&file, std::unique_ptr<std::istream> in, Logger &log) {
     auto res = filenames_.insert(std::move(file));
     if (!res.second) {
         report_included("<cmd>", res.first->c_str(), log);
@@ -195,7 +195,7 @@ void NonGroundParser::pushStream(std::string &&file, std::unique_ptr<std::istrea
     }
 }
 
-void NonGroundParser::pushBlock(std::string const &name, IdVec const &vec, std::string const &block, MessagePrinter &) {
+void NonGroundParser::pushBlock(std::string const &name, IdVec const &vec, std::string const &block, Logger &) {
     LexerState::push(gringo_make_unique<std::istringstream>(block), {"<block>", {name.c_str(), vec}});
 }
 
@@ -228,7 +228,7 @@ int NonGroundParser::lex(void *pValue, Location &loc) {
     return 0;
 }
 
-void NonGroundParser::include(String file, Location const &loc, bool inbuilt, MessagePrinter &log) {
+void NonGroundParser::include(String file, Location const &loc, bool inbuilt, Logger &log) {
     if (inbuilt) {
         if (file == "incmode") {
             if (incmodeIncluded_) {
@@ -295,7 +295,7 @@ end
     }
 }
 
-bool NonGroundParser::parseDefine(std::string const &define, MessagePrinter &log) {
+bool NonGroundParser::parseDefine(std::string const &define, Logger &log) {
     log_ = &log;
     pushStream("<" + define + ">", gringo_make_unique<std::stringstream>(define), log);
     _startSymbol = NonGroundGrammar::parser::token::PARSE_DEF;
@@ -332,7 +332,7 @@ void NonGroundParser::start(Location &loc) {
     loc.beginColumn   = column();
 }
 
-bool NonGroundParser::parse(MessagePrinter &log) {
+bool NonGroundParser::parse(Logger &log) {
     log_ = &log;
     condition(yycnormal);
     theoryLexing_ = TheoryLexing::Disabled;

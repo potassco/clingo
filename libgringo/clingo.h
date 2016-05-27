@@ -29,20 +29,33 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-// {{{1 error
+// {{{1 errors and warnings
 
 enum clingo_error {
     clingo_error_success   = 0,
-    clingo_error_runtime   = 1,
-    clingo_error_logic     = 2,
-    clingo_error_bad_alloc = 3,
-    clingo_error_unknown   = 4
+    clingo_error_fatal     = 1,
+    clingo_error_runtime   = 2,
+    clingo_error_logic     = 3,
+    clingo_error_bad_alloc = 4,
+    clingo_error_unknown   = 5
 };
-// An application can return negative error codes from callbacks
-// to indicate errors not related to clingo.
-// Such error codes are passed through to the calling function.
 typedef int clingo_error_t;
-char const *clingo_error_str(clingo_error_t err);
+
+enum clingo_warning {
+    clingo_warning_operation_undefined = -1, //< Undefined arithmetic operation or weight of aggregate.
+    clingo_warning_atom_undefined      = -2, //< Undefined atom in program.
+    clingo_warning_file_included       = -3, //< Same file included multiple times.
+    clingo_warning_variable_unbounded  = -4, //< CSP Domain undefined.
+    clingo_warning_global_variable     = -5, //< Global variable in tuple of aggregate element.
+    clingo_warning_total               =  5, //< Total number of warnings.
+};
+typedef int clingo_warning_t;
+
+// the union of error and warning codes
+typedef int clingo_message_code_t;
+char const *clingo_message_code_str(clingo_message_code_t code);
+
+typedef void clingo_logger_t(clingo_message_code_t, char const *, void *);
 
 // {{{1 symbol
 // {{{2 types
@@ -189,7 +202,7 @@ typedef clingo_error_t clingo_model_handler_t (clingo_model_t*, void *, bool *);
 typedef clingo_error_t clingo_symbol_span_callback_t (clingo_symbol_span_t, void *);
 typedef clingo_error_t clingo_ground_callback_t (char const *, clingo_symbol_span_t, void *, clingo_symbol_span_callback_t *, void *);
 typedef struct clingo_control clingo_control_t;
-clingo_error_t clingo_control_new(clingo_module_t *mod, int argc, char const **argv, clingo_control_t **);
+clingo_error_t clingo_control_new(clingo_module_t *mod, int argc, char const **argv, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl);
 void clingo_control_free(clingo_control_t *ctl);
 clingo_error_t clingo_control_add(clingo_control_t *ctl, char const *name, char const **params, char const *part);
 clingo_error_t clingo_control_ground(clingo_control_t *ctl, clingo_part_span_t vec, clingo_ground_callback_t *cb, void *data);

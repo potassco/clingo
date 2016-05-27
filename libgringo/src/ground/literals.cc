@@ -37,7 +37,7 @@ struct RangeBinder : Binder {
         : assign(std::move(assign))
         , range(range) { }
     IndexUpdater *getUpdater() override { return nullptr; }
-    void match(MessagePrinter &log) override {
+    void match(Logger &log) override {
         bool undefined = false;
         Symbol l{range.first->eval(undefined, log)}, r{range.second->eval(undefined, log)};
         if (!undefined && l.type() == SymbolType::Num && r.type() == SymbolType::Num) {
@@ -46,7 +46,7 @@ struct RangeBinder : Binder {
         }
         else {
             if (!undefined) {
-                GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
+                GRINGO_REPORT(log, clingo_warning_operation_undefined)
                     << (range.first->loc() + range.second->loc()) << ": info: interval undefined:\n"
                     << "  " << *range.first << ".." << *range.second << "\n";
             }
@@ -77,7 +77,7 @@ struct RangeMatcher : Binder {
         : assign(assign)
         , range(range) { }
     IndexUpdater *getUpdater() override { return nullptr; }
-    void match(MessagePrinter &log) override {
+    void match(Logger &log) override {
         bool undefined = false;
         Symbol l{range.first->eval(undefined, log)}, r{range.second->eval(undefined, log)}, a{assign.eval(undefined, log)};
         if (!undefined && l.type() == SymbolType::Num && r.type() == SymbolType::Num) {
@@ -85,7 +85,7 @@ struct RangeMatcher : Binder {
         }
         else {
             if (!undefined) {
-                GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
+                GRINGO_REPORT(log, clingo_warning_operation_undefined)
                     << (range.first->loc() + range.second->loc()) << ": info: interval undefined:\n"
                     << "  " << *range.first << ".." << *range.second << "\n";
             }
@@ -113,7 +113,7 @@ struct ScriptBinder : Binder {
         , assign(std::move(assign))
         , shared(shared) { }
     IndexUpdater *getUpdater() override { return nullptr; }
-    void match(MessagePrinter &log) override {
+    void match(Logger &log) override {
         SymVec args;
         bool undefined = false;
         for (auto &x : std::get<1>(shared)) { args.emplace_back(x->eval(undefined, log)); }
@@ -151,7 +151,7 @@ struct RelationMatcher : Binder {
     RelationMatcher(RelationShared &shared)
         : shared(shared) { }
     IndexUpdater *getUpdater() override { return nullptr; }
-    void match(MessagePrinter &log) override {
+    void match(Logger &log) override {
         bool undefined = false;
         Symbol l(std::get<1>(shared)->eval(undefined, log));
         if (undefined) { firstMatch = false; return; }
@@ -186,7 +186,7 @@ struct AssignBinder : Binder {
         : lhs(std::move(lhs))
         , rhs(rhs) { }
     IndexUpdater *getUpdater() override { return nullptr; }
-    void match(MessagePrinter &log) override {
+    void match(Logger &log) override {
         bool undefined = false;
         Symbol valRhs = rhs.eval(undefined, log);
         if (!undefined) {
@@ -214,7 +214,7 @@ struct CSPLiteralMatcher : Binder {
     CSPLiteralMatcher(CSPLiteralShared &terms)
         : terms(terms) { }
     IndexUpdater *getUpdater() override { return nullptr; }
-    void match(MessagePrinter &log) override {
+    void match(Logger &log) override {
         firstMatch = std::get<1>(terms).checkEval(log) && std::get<2>(terms).checkEval(log);
     }
     bool next() override {
@@ -383,7 +383,7 @@ UIdx ProjectionLiteral::index(Scripts &, BinderType type, Term::VarSet &bound) {
 // }}}
 // {{{ definition of *Literal::score
 
-Literal::Score RangeLiteral::score(Term::VarSet const &, MessagePrinter &log) {
+Literal::Score RangeLiteral::score(Term::VarSet const &, Logger &log) {
     if (range.first->getInvertibility() == Term::CONSTANT && range.second->getInvertibility() == Term::CONSTANT) {
         bool undefined = false;
         Symbol l(range.first->eval(undefined, log));
@@ -392,23 +392,23 @@ Literal::Score RangeLiteral::score(Term::VarSet const &, MessagePrinter &log) {
     }
     return 0;
 }
-Literal::Score ScriptLiteral::score(Term::VarSet const &, MessagePrinter &) {
+Literal::Score ScriptLiteral::score(Term::VarSet const &, Logger &) {
     return 0;
 }
-Literal::Score RelationLiteral::score(Term::VarSet const &, MessagePrinter &) {
+Literal::Score RelationLiteral::score(Term::VarSet const &, Logger &) {
     return -1;
 }
-Literal::Score PredicateLiteral::score(Term::VarSet const &bound, MessagePrinter &) {
+Literal::Score PredicateLiteral::score(Term::VarSet const &bound, Logger &) {
     return naf == NAF::POS ? estimate(domain.size(), *repr, bound) : 0;
 }
 
 // }}}
 // {{{ definition of *Literal::toOutput
 
-std::pair<Output::LiteralId,bool> RangeLiteral::toOutput(MessagePrinter &)     { return {Output::LiteralId(), true}; }
-std::pair<Output::LiteralId,bool> ScriptLiteral::toOutput(MessagePrinter &)    { return {Output::LiteralId(), true}; }
-std::pair<Output::LiteralId,bool> RelationLiteral::toOutput(MessagePrinter &)  { return {Output::LiteralId(), true}; }
-std::pair<Output::LiteralId,bool> PredicateLiteral::toOutput(MessagePrinter &) {
+std::pair<Output::LiteralId,bool> RangeLiteral::toOutput(Logger &)     { return {Output::LiteralId(), true}; }
+std::pair<Output::LiteralId,bool> ScriptLiteral::toOutput(Logger &)    { return {Output::LiteralId(), true}; }
+std::pair<Output::LiteralId,bool> RelationLiteral::toOutput(Logger &)  { return {Output::LiteralId(), true}; }
+std::pair<Output::LiteralId,bool> PredicateLiteral::toOutput(Logger &) {
     if (offset == InvalidId) {
         assert(naf == NAF::NOT);
         return {Output::LiteralId(), true};
@@ -471,11 +471,11 @@ UIdx CSPLiteral::index(Scripts &, BinderType, Term::VarSet &) {
     return gringo_make_unique<CSPLiteralMatcher>(terms_);
 }
 
-Literal::Score CSPLiteral::score(Term::VarSet const &, MessagePrinter &) {
+Literal::Score CSPLiteral::score(Term::VarSet const &, Logger &) {
     return std::numeric_limits<Literal::Score>::infinity();
 }
 
-std::pair<Output::LiteralId,bool> CSPLiteral::toOutput(MessagePrinter &log) {
+std::pair<Output::LiteralId,bool> CSPLiteral::toOutput(Logger &log) {
     if (auxiliary()) { return {Output::LiteralId(),true}; }
     CSPGroundLit add;
     std::get<0>(add) = std::get<0>(terms_);

@@ -73,13 +73,13 @@ void Program::add(UStm &&stm) {
     }
 }
 
-void Program::add(TheoryDef &&def, MessagePrinter &log) {
+void Program::add(TheoryDef &&def, Logger &log) {
     auto it = theoryDefs_.find(def.name());
     if (it == theoryDefs_.end()) {
         theoryDefs_.push(std::move(def));
     }
     else {
-        GRINGO_REPORT(log, E_ERROR)
+        GRINGO_REPORT(log, clingo_error_fatal)
             << def.loc() << ": error: redefinition of theory:" << "\n"
             << "  " << def.name() << "\n"
             << it->loc() << ": note: theory first defined here\n";
@@ -87,7 +87,7 @@ void Program::add(TheoryDef &&def, MessagePrinter &log) {
 
 }
 
-void Program::rewrite(Defines &defs, MessagePrinter &log) {
+void Program::rewrite(Defines &defs, Logger &log) {
     for (auto &block : blocks_) {
         // {{{3 replacing definitions
         Defines incDefs;
@@ -170,7 +170,7 @@ void Program::rewrite(Defines &defs, MessagePrinter &log) {
     // }}}3
 }
 
-void Program::check(MessagePrinter &log) {
+void Program::check(Logger &log) {
     for (auto &block : blocks_) {
         for (auto &stm : block.stms) { stm->check(log); }
     }
@@ -179,7 +179,7 @@ void Program::check(MessagePrinter &log) {
         for (auto &atomDef : def.atomDefs()) {
             auto seenSig = seenSigs.emplace(atomDef.sig(), atomDef.loc());
             if (!seenSig.second) {
-                GRINGO_REPORT(log, E_ERROR)
+                GRINGO_REPORT(log, clingo_error_fatal)
                     << atomDef.loc() << ": error: multiple definitions for theory atom:" << "\n"
                     << "  " << atomDef.sig() << "\n"
                     << seenSig.first->second << ": note: first defined here\n";
@@ -205,7 +205,7 @@ void Program::print(std::ostream &out) const {
     for (auto &x : stms_) { out << *x << "\n"; }
 }
 
-Ground::Program Program::toGround(DomainData &domains, MessagePrinter &log) {
+Ground::Program Program::toGround(DomainData &domains, Logger &log) {
     Ground::UStmVec stms;
     stms.emplace_back(make_locatable<Ground::ExternalRule>(Location("#external", 1, 1, "#external", 1, 1)));
     ToGroundArg arg(auxNames_, domains);
@@ -235,7 +235,7 @@ Ground::Program Program::toGround(DomainData &domains, MessagePrinter &log) {
     }
     std::sort(undef.begin(), undef.end(), [](Ground::UndefVec::value_type const &a, Ground::UndefVec::value_type const &b) { return a.first < b.first; });
     for (auto &x : undef) {
-        GRINGO_REPORT(log, W_ATOM_UNDEFINED)
+        GRINGO_REPORT(log, clingo_warning_atom_undefined)
             << x.first << ": info: atom does not occur in any rule head:\n"
             << "  " << *x.second << "\n";
     }

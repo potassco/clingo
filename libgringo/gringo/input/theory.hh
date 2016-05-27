@@ -56,10 +56,10 @@ public:
     void replace(Defines &x);
     void collect(VarTermBoundVec &vars) const;
     void assignLevels(AssignLevel &lvl);
-    void check(Location const &loc, Printable const &p, ChkLvlVec &levels, MessagePrinter &log) const;
-    bool simplify(Projections &project, SimplifyState &state, MessagePrinter &log);
+    void check(Location const &loc, Printable const &p, ChkLvlVec &levels, Logger &log) const;
+    bool simplify(Projections &project, SimplifyState &state, Logger &log);
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
-    void initTheory(Output::TheoryParser &p, MessagePrinter &log);
+    void initTheory(Output::TheoryParser &p, Logger &log);
     std::unique_ptr<Ground::TheoryAccumulate> toGround(ToGroundArg &x, Ground::TheoryComplete &completeRef, Ground::ULitVec &&lits) const;
 
 private:
@@ -89,10 +89,10 @@ public:
     void replace(Defines &x);
     void collect(VarTermBoundVec &vars) const;
     void assignLevels(AssignLevel &lvl);
-    void check(Location const &loc, Printable const &p, ChkLvlVec &levels, MessagePrinter &log) const;
-    bool simplify(Projections &project, SimplifyState &state, MessagePrinter &log);
+    void check(Location const &loc, Printable const &p, ChkLvlVec &levels, Logger &log) const;
+    bool simplify(Projections &project, SimplifyState &state, Logger &log);
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
-    void initTheory(Location const &loc, TheoryDefs &def, bool inBody, bool hasBody, MessagePrinter &log);
+    void initTheory(Location const &loc, TheoryDefs &def, bool inBody, bool hasBody, Logger &log);
     TheoryAtomType type() const { return type_; }
     CreateBody toGroundBody(ToGroundArg &x, Ground::UStmVec &stms, NAF naf, UTerm &&id) const;
     CreateHead toGroundHead() const;
@@ -114,9 +114,9 @@ public:
     virtual ~BodyTheoryLiteral() noexcept;
     // {{{2 BodyAggregate interface
     void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
-    bool simplify(Projections &project, SimplifyState &state, bool singleton, MessagePrinter &log) override;
+    bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
-    void check(ChkLvlVec &lvl, MessagePrinter &log) const override;
+    void check(ChkLvlVec &lvl, Logger &log) const override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen) override;
     bool rewriteAggregates(UBodyAggrVec &aggr) override;
     void removeAssignment() override;
@@ -125,7 +125,7 @@ public:
     bool hasPool(bool beforeRewrite) const override;
     void replace(Defines &dx) override;
     CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
-    void initTheory(TheoryDefs &def, MessagePrinter &log) override;
+    void initTheory(TheoryDefs &def, Logger &log) override;
     // {{{2 Hashable
     size_t hash() const override;
     // {{{2 Printable
@@ -155,13 +155,13 @@ public:
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
     void collect(VarTermBoundVec &vars) const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
-    bool simplify(Projections &project, SimplifyState &state, MessagePrinter &log) override;
+    bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
     void assignLevels(AssignLevel &lvl) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
     bool hasPool(bool beforeRewrite) const override;
-    void check(ChkLvlVec &lvl, MessagePrinter &log) const override;
+    void check(ChkLvlVec &lvl, Logger &log) const override;
     void replace(Defines &x) override;
-    void initTheory(TheoryDefs &def, bool hasBody, MessagePrinter &log) override;
+    void initTheory(TheoryDefs &def, bool hasBody, Logger &log) override;
     // {{{2 Hashable
     size_t hash() const override;
     // {{{2 Printable

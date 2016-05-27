@@ -52,22 +52,22 @@ TEST_CASE("python", "[base]") {
             "import clingo\n"
             "def get(): return clingo.parse_term('1')\n"
             );
-        REQUIRE("[1]" == to_string(py.call(loc, "get", {}, module.logger)));
+        REQUIRE("[1]" == to_string(py.call(loc, "get", {}, module)));
         py.exec(loc,
             "import clingo\n"
             "def get(): return clingo.parse_term('p(1+2)')\n"
             );
-        REQUIRE("[p(3)]" == to_string(py.call(loc, "get", {}, module.logger)));
+        REQUIRE("[p(3)]" == to_string(py.call(loc, "get", {}, module)));
         py.exec(loc,
             "import clingo\n"
             "def get(): return clingo.parse_term('-p')\n"
             );
-        REQUIRE("[-p]" == to_string(py.call(loc, "get", {}, module.logger)));
+        REQUIRE("[-p]" == to_string(py.call(loc, "get", {}, module)));
         py.exec(loc,
             "import clingo\n"
             "def get(): return clingo.parse_term('-p(1)')\n"
             );
-        REQUIRE("[-p(1)]" == to_string(py.call(loc, "get", {}, module.logger)));
+        REQUIRE("[-p(1)]" == to_string(py.call(loc, "get", {}, module)));
     }
     SECTION("values") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);
@@ -96,29 +96,29 @@ TEST_CASE("python", "[base]") {
             "]\n"
             "def getValues(): return values\n"
             );
-        REQUIRE("[f(2,3,4)]" == to_string(py.call(loc, "getX", {}, module.logger)));
-        REQUIRE("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",(2,3,4),\"f\",0,1,f(2,3,4),-f(2,3,4)]" == to_string(py.call(loc, "getValues", {}, module.logger)));
+        REQUIRE("[f(2,3,4)]" == to_string(py.call(loc, "getX", {}, module)));
+        REQUIRE("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",(2,3,4),\"f\",0,1,f(2,3,4),-f(2,3,4)]" == to_string(py.call(loc, "getValues", {}, module)));
         {
-            REQUIRE("[]" == to_string(py.call(loc, "none", {}, module.logger)));
+            REQUIRE("[]" == to_string(py.call(loc, "none", {}, module)));
             REQUIRE(
                 "["
                 "dummy:1:1: info: operation undefined:\n"
                 "  RuntimeError: cannot convert to value: unexpected NoneType() object\n"
-                "]" == IO::to_string(module.logger));
+                "]" == IO::to_string(module));
         }
         {
-            module.logger.reset();
-            REQUIRE("[]" == to_string(py.call(loc, "fail", {}, module.logger)));
+            module.reset();
+            REQUIRE("[]" == to_string(py.call(loc, "fail", {}, module)));
             REQUIRE(
                 "["
                 "dummy:1:1: info: operation undefined:\n"
                 "  Traceback (most recent call last):\n"
                 "    File \"<dummy:1:1>\", line 5, in fail\n"
                 "  RuntimeError: cannot convert to value: unexpected NoneType() object\n"
-                "]" == IO::to_string(module.logger));
+                "]" == IO::to_string(module));
         }
         {
-            module.logger.reset();
+            module.reset();
             try {
                 py.exec(loc, "(");
                 FAIL("no exception");
@@ -146,7 +146,7 @@ TEST_CASE("python", "[base]") {
             "int(clingo.function(\"b\") < clingo.function(\"a\")),"
             "]\n"
             );
-        REQUIRE("[1,0]" == to_string(py.call(loc, "cmp", {}, module.logger)));
+        REQUIRE("[1,0]" == to_string(py.call(loc, "cmp", {}, module)));
     }
 
     SECTION("callable") {

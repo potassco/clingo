@@ -93,11 +93,11 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     , opts(opts) {
         using namespace Gringo;
         out.keepFacts = opts.keepFacts;
-        if (opts.wNoOperationUndefined) { logger_.disable(W_OPERATION_UNDEFINED); }
-        if (opts.wNoAtomUndef)          { logger_.disable(W_ATOM_UNDEFINED); }
-        if (opts.wNoFileIncluded)       { logger_.disable(W_FILE_INCLUDED); }
-        if (opts.wNoVariableUnbounded)  { logger_.disable(W_VARIABLE_UNBOUNDED); }
-        if (opts.wNoGlobalVariable)     { logger_.disable(W_GLOBAL_VARIABLE); }
+        if (opts.wNoOperationUndefined) { logger_.disable(clingo_warning_operation_undefined); }
+        if (opts.wNoAtomUndef)          { logger_.disable(clingo_warning_atom_undefined); }
+        if (opts.wNoFileIncluded)       { logger_.disable(clingo_warning_file_included); }
+        if (opts.wNoVariableUnbounded)  { logger_.disable(clingo_warning_variable_unbounded); }
+        if (opts.wNoGlobalVariable)     { logger_.disable(clingo_warning_global_variable); }
         for (auto &x : opts.defines) {
             LOG << "define: " << x << std::endl;
             parser.parseDefine(x, logger_);
@@ -112,7 +112,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
         }
         parse();
     }
-    Gringo::MessagePrinter &logger() override {
+    Gringo::Logger &logger() override {
         return logger_;
     }
     void parse() {
@@ -202,10 +202,9 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     void useEnumAssumption(bool) override { }
     bool useEnumAssumption() override { return false; }
     virtual ~IncrementalControl() { }
-    Gringo::Symbol parseValue(std::string const &str) override { return termParser.parse(str, logger_); }
-    Control *newControl(int, char const **) override { throw std::logic_error("new control instances not supported"); }
+    Gringo::Symbol parseValue(std::string const &str, Gringo::Logger::Printer, unsigned) override { return termParser.parse(str, logger_); }
+    Gringo::Control *newControl(int, char const **, Gringo::Logger::Printer, unsigned) override { throw std::logic_error("new control instances not supported"); }
     Gringo::TheoryData const &theory() const override { return out.data.theoryInterface(); }
-    void freeControl(Control *) override { }
     void cleanupDomains() override { }
     void parse(char const *, std::function<void (clingo_ast_t const &)>) override { throw std::logic_error("AST parsing not supported"); }
     void add(std::function<void (std::function<void (clingo_ast_t const &)>)>) override { throw std::logic_error("AST parsing not supported"); }
@@ -219,7 +218,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     Gringo::Input::NongroundProgramBuilder pb;
     Gringo::Input::NonGroundParser         parser;
     GringoOptions const                   &opts;
-    Gringo::DefaultMessagePrinter          logger_;
+    Gringo::Logger                         logger_;
     bool                                   parsed = false;
     bool                                   grounded = false;
 };
@@ -253,7 +252,6 @@ struct GringoApp : public ProgramOptions::Application {
     using StringSeq = std::vector<std::string>;
     virtual const char* getName() const    { return "gringo"; }
     virtual const char* getVersion() const { return GRINGO_VERSION; }
-protected:
     virtual void initOptions(ProgramOptions::OptionContext& root) {
         using namespace ProgramOptions;
         grOpts_.defines.clear();
@@ -356,16 +354,23 @@ protected:
     }
 
     virtual void run() {
-        using namespace Gringo;
-        grOpts_.verbose = verbose() == UINT_MAX;
-        Output::OutputPredicates outPreds;
-        for (auto &x : grOpts_.foobar) {
-            outPreds.emplace_back(Location("<cmd>",1,1,"<cmd>", 1,1), x, false);
+        try {
+            using namespace Gringo;
+            grOpts_.verbose = verbose() == UINT_MAX;
+            Output::OutputPredicates outPreds;
+            for (auto &x : grOpts_.foobar) {
+                outPreds.emplace_back(Location("<cmd>",1,1,"<cmd>", 1,1), x, false);
+            }
+            Potassco::TheoryData data;
+            data.update();
+            Output::OutputBase out(data, std::move(outPreds), std::cout, grOpts_.outputFormat, grOpts_.outputDebug);
+            ground(out);
         }
-        Potassco::TheoryData data;
-        data.update();
-        Output::OutputBase out(data, std::move(outPreds), std::cout, grOpts_.outputFormat, grOpts_.outputDebug);
-        ground(out);
+        catch (Gringo::GringoError const &e) {
+            std::cerr << e.what() << std::endl;
+            throw std::runtime_error("fatal error");
+        }
+        catch (...) { throw; }
     }
 private:
     StringSeq     input_;

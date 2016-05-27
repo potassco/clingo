@@ -61,12 +61,12 @@ TEST_CASE("lua", "[base]") {
             "clingo = require(\"clingo\")\n"
             "function get() return clingo.parse_term('1') end\n"
             );
-        REQUIRE("[1]" == to_string(lua.call(loc, "get", {}, module.logger)));
+        REQUIRE("[1]" == to_string(lua.call(loc, "get", {}, module)));
         lua.exec(loc,
             "clingo = require(\"clingo\")\n"
             "function get() return clingo.parse_term('p(2+1)') end\n"
             );
-        REQUIRE("[p(3)]" == to_string(lua.call(loc, "get", {}, module.logger)));
+        REQUIRE("[p(3)]" == to_string(lua.call(loc, "get", {}, module)));
     }
 
     SECTION("values") {
@@ -97,37 +97,36 @@ TEST_CASE("lua", "[base]") {
             "}\n"
             "function getValues() return values end\n"
             );
-        REQUIRE("[f(2,3,4)]" == to_string(lua.call(loc, "getX", {}, module.logger)));
-        REQUIRE("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",\"x\",(2,3,4),\"f\",\"false\",\"true\",f(2,3,4),-f(2,3,4)]" == to_string(lua.call(loc, "getValues", {}, module.logger)));
+        REQUIRE("[f(2,3,4)]" == to_string(lua.call(loc, "getX", {}, module)));
+        REQUIRE("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",\"x\",(2,3,4),\"f\",\"false\",\"true\",f(2,3,4),-f(2,3,4)]" == to_string(lua.call(loc, "getValues", {}, module)));
         {
-            REQUIRE("[]" == to_string(lua.call(loc, "none", {}, module.logger)));
+            REQUIRE("[]" == to_string(lua.call(loc, "none", {}, module)));
             REQUIRE(
                 "["
                 "dummy:1:1: info: operation undefined:\n"
                 "  RuntimeError: cannot convert to value\n"
                 "stack traceback:\n"
                 "  ...\n"
-                "]" == removeTrace(IO::to_string(module.logger)));
+                "]" == removeTrace(IO::to_string(module)));
         }
         {
-            module.logger.reset();
-            REQUIRE("[]" == to_string(lua.call(loc, "fail", {}, module.logger)));
+            module.reset();
+            REQUIRE("[]" == to_string(lua.call(loc, "fail", {}, module)));
             REQUIRE(
                 "["
                 "dummy:1:1: info: operation undefined:\n"
                 "  RuntimeError: [string \"dummy:1:1\"]:5: cannot convert to value\n"
                 "stack traceback:\n"
                 "  ...\n"
-                "]" == removeTrace(IO::to_string(module.logger)));
+                "]" == removeTrace(IO::to_string(module)));
         }
         {
-            module.logger.reset();
-            REQUIRE_THROWS_AS(lua.exec(loc, "("), std::runtime_error);
+            module.reset();
             try {
                 lua.exec(loc, "(");
                 FAIL("no exception");
             }
-            catch (std::runtime_error const &e) {
+            catch (GringoError const &e) {
                 REQUIRE(
                     "dummy:1:1: error: parsing lua script failed:\n"
                     "  SyntaxError: [string \"dummy:1:1\"]:1: unexpected symbol near <eof>\n"
@@ -148,7 +147,7 @@ TEST_CASE("lua", "[base]") {
             "int(clingo.fun(\"b\") < clingo.fun(\"a\")),"
             "} end\n"
             );
-        REQUIRE("[1,0]" == to_string(lua.call(loc, "cmp", {}, module.logger)));
+        REQUIRE("[1,0]" == to_string(lua.call(loc, "cmp", {}, module)));
     }
 
     SECTION("callable") {

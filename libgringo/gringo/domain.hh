@@ -166,7 +166,7 @@ public:
     }
 
     // Returns a range of offsets corresponding to atoms that match the given bound variables.
-    OffsetRange lookup(SValVec const &bound, BinderType type, MessagePrinter &) {
+    OffsetRange lookup(SValVec const &bound, BinderType type, Logger &) {
         boundVals_.clear();
         for (auto &&x : bound) { boundVals_.emplace_back(*x); }
         auto it(data_.find(boundVals_));
@@ -284,7 +284,7 @@ public:
     , initialImport_(imported) { }
 
     // Returns a range of offsets corresponding to matching atoms.
-    OffsetRange lookup(BinderType type, MessagePrinter &) {
+    OffsetRange lookup(BinderType type, Logger &) {
         switch (type) {
             case BinderType::OLD:
             case BinderType::ALL: { return { type, 0, !index_.empty() ? index_.front().first : 0 }; }
@@ -387,7 +387,7 @@ public:
     }
 
     // Function to lookup negative literals or non-recursive atoms.
-    bool lookup(SizeType &offset, Term const &repr, RECNAF naf, MessagePrinter &log) {
+    bool lookup(SizeType &offset, Term const &repr, RECNAF naf, Logger &log) {
         bool undefined = false;
         switch (naf) {
             case RECNAF::POS: {
@@ -438,7 +438,7 @@ public:
     }
 
     // Function to lookup recursive atoms.
-    bool lookup(SizeType &offset, Term const &repr, BinderType type, MessagePrinter &log) {
+    bool lookup(SizeType &offset, Term const &repr, BinderType type, Logger &log) {
         // Note: intended for recursive case only
         bool undefined = false;
         auto it = atoms_.find(repr.eval(undefined, log));

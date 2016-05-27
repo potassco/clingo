@@ -37,7 +37,7 @@ struct PredicateLiteral : Literal {
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
-    bool simplify(MessagePrinter &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
+    bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
     ULitVec unpool(bool beforeRewrite) const override;
     Symbol isEDB() const override;
@@ -78,7 +78,7 @@ struct RelationLiteral : Literal {
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
-    bool simplify(MessagePrinter &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
+    bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
     ULitVec unpool(bool beforeRewrite) const override;
     bool hasPool(bool beforeRewrite) const override;
@@ -108,7 +108,7 @@ struct RangeLiteral : Literal {
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
-    bool simplify(MessagePrinter &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
+    bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
     ULitVec unpool(bool beforeRewrite) const override;
     bool hasPool(bool beforeRewrite) const override;
@@ -137,7 +137,7 @@ struct ScriptLiteral : Literal {
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
-    bool simplify(MessagePrinter &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
+    bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
     ULitVec unpool(bool beforeRewrite) const override;
     bool hasPool(bool beforeRewrite) const override;
@@ -167,7 +167,7 @@ struct FalseLiteral : Literal {
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
-    bool simplify(MessagePrinter &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
+    bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
     ULitVec unpool(bool beforeRewrite) const override;
     bool hasPool(bool beforeRewrite) const override;
@@ -196,7 +196,7 @@ struct CSPLiteral : Literal {
     void print(std::ostream &out) const override;
     bool operator==(Literal const &other) const override;
     size_t hash() const override;
-    bool simplify(MessagePrinter &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
+    bool simplify(Logger &log, Projections &project, SimplifyState &state, bool positional = true, bool singleton = false) override;
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AssignVec &assign, AuxGen &auxGen) override;
     ULitVec unpool(bool beforeRewrite) const override;
     bool hasPool(bool beforeRewrite) const override;

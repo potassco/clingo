@@ -118,13 +118,13 @@ ClaspAPIBackend::~ClaspAPIBackend() noexcept = default;
 // {{{1 definition of ClingoControl
 
 #define LOG if (verbose_) std::cerr
-ClingoControl::ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Gringo::MessagePrinter &log)
+ClingoControl::ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Gringo::Logger::Printer printer, unsigned messageLimit)
     : scripts_(scripts)
     , clasp_(clasp)
     , claspConfig_(claspConfig)
     , pgf_(pgf)
     , psf_(psf)
-    , logger_(log)
+    , logger_(printer, messageLimit)
     , clingoMode_(clingoMode) { }
 
 void ClingoControl::parse() {
@@ -149,11 +149,11 @@ int ClingoPropagateInit::threads() {
 
 void ClingoControl::parse(const StringSeq& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* claspOut, bool addStdIn) {
     using namespace Gringo;
-    if (opts.wNoOperationUndefined) { logger_.disable(W_OPERATION_UNDEFINED); }
-    if (opts.wNoAtomUndef)          { logger_.disable(W_ATOM_UNDEFINED); }
-    if (opts.wNoVariableUnbounded)  { logger_.disable(W_VARIABLE_UNBOUNDED); }
-    if (opts.wNoFileIncluded)       { logger_.disable(W_FILE_INCLUDED); }
-    if (opts.wNoGlobalVariable)     { logger_.disable(W_GLOBAL_VARIABLE); }
+    if (opts.wNoOperationUndefined) { logger_.disable(clingo_warning_operation_undefined); }
+    if (opts.wNoAtomUndef)          { logger_.disable(clingo_warning_atom_undefined); }
+    if (opts.wNoVariableUnbounded)  { logger_.disable(clingo_warning_variable_unbounded); }
+    if (opts.wNoFileIncluded)       { logger_.disable(clingo_warning_file_included); }
+    if (opts.wNoGlobalVariable)     { logger_.disable(clingo_warning_global_variable); }
     verbose_ = opts.verbose;
     Output::OutputPredicates outPreds;
     for (auto &x : opts.foobar) {
@@ -669,8 +669,8 @@ ClingoSolveFuture::~ClingoSolveFuture() { }
 
 // {{{1 definition of ClingoLib
 
-ClingoLib::ClingoLib(Gringo::Scripts &scripts, int argc, char const **argv, Gringo::MessagePrinter &log)
-        : ClingoControl(scripts, true, &clasp_, claspConfig_, nullptr, nullptr, log) {
+ClingoLib::ClingoLib(Gringo::Scripts &scripts, int argc, char const **argv, Gringo::Logger::Printer printer, unsigned messageLimit)
+        : ClingoControl(scripts, true, &clasp_, claspConfig_, nullptr, nullptr, printer, messageLimit) {
     using namespace ProgramOptions;
     OptionContext allOpts("<pyclingo>");
     initOptions(allOpts);
@@ -757,21 +757,19 @@ ClingoLib::~ClingoLib() {
 
 DefaultGringoModule::DefaultGringoModule()
 : scripts(*this) { }
-Gringo::Control *DefaultGringoModule::newControl(int argc, char const **argv) {
-    return new ClingoLib(scripts, argc, argv, logger);
+Gringo::Control *DefaultGringoModule::newControl(int argc, char const **argv, Gringo::Logger::Printer printer, unsigned messageLimit) {
+    return new ClingoLib(scripts, argc, argv, printer, messageLimit);
 }
 
-void DefaultGringoModule::freeControl(Gringo::Control *ctl) {
-    if (ctl) { delete ctl; }
+Gringo::Symbol DefaultGringoModule::parseValue(std::string const &str, Gringo::Logger::Printer printer, unsigned messageLimit) {
+    Gringo::Logger logger(printer, messageLimit);
+    return parser.parse(str, logger);
 }
-Gringo::Symbol DefaultGringoModule::parseValue(std::string const &str) { return parser.parse(str, logger); }
-
-struct clingo_module : DefaultGringoModule { };
 
 extern "C" clingo_error_t clingo_module_new(clingo_module_t **mod) {
-    GRINGO_CLINGO_TRY
-        *mod = new clingo_module();
-    GRINGO_CLINGO_CATCH;
+    GRINGO_CLINGO_TRY {
+        *mod = new DefaultGringoModule();
+    } GRINGO_CLINGO_CATCH(nullptr);
 }
 
 extern "C" void clingo_module_free(clingo_module_t *mod) {

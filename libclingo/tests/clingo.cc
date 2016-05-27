@@ -53,7 +53,7 @@ TEST_CASE("clingo C-interface", "[clingo]") {
         SECTION("with control") {
             clingo_control_t *ctl;
             char const *argv[] = { "test_libclingo", nullptr };
-            REQUIRE(clingo_control_new(mod, sizeof(argv), argv, &ctl) == clingo_error_success);
+            REQUIRE(clingo_control_new(mod, sizeof(argv), argv, nullptr, nullptr, 20, &ctl) == clingo_error_success);
             SECTION("ground and solve base") {
                 char const * params_base[] = { nullptr };
                 REQUIRE(clingo_control_add(ctl, "base", params_base, "a.") == clingo_error_success);

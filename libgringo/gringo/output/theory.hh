@@ -85,10 +85,10 @@ using UTheoryTerm = std::unique_ptr<TheoryTerm>;
 using UTheoryTermVec = std::vector<UTheoryTerm>;
 class TheoryTerm : public Hashable, public Comparable<TheoryTerm>, public Printable, public Clonable<TheoryTerm> {
 public:
-    virtual Potassco::Id_t eval(TheoryData &data, MessagePrinter &log) const = 0;
+    virtual Potassco::Id_t eval(TheoryData &data, Logger &log) const = 0;
     virtual void collect(VarTermBoundVec &vars) = 0;
     virtual void replace(Defines &defs) = 0;
-    virtual UTheoryTerm initTheory(TheoryParser &p, MessagePrinter &log) = 0;
+    virtual UTheoryTerm initTheory(TheoryParser &p, Logger &log) = 0;
     virtual ~TheoryTerm() { }
 };
 
@@ -105,10 +105,10 @@ public:
     void append(StringVec &&ops, UTheoryTerm &&term);
     virtual ~RawTheoryTerm() noexcept;
     // {{{2 TheoryTerm interface
-    Potassco::Id_t eval(TheoryData &data, MessagePrinter &log) const override;
+    Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
     void replace(Defines &defs) override;
-    UTheoryTerm initTheory(TheoryParser &p, MessagePrinter &log) override;
+    UTheoryTerm initTheory(TheoryParser &p, Logger &log) override;
     // {{{2 Hashable interface
     size_t hash() const override;
     // {{{2 Comparable interface
@@ -138,7 +138,7 @@ class TheoryParser {
     using Stack = std::vector<Elem>;
 public:
     TheoryParser(Location const &loc, TheoryTermDef const &def);
-    UTheoryTerm parse(RawTheoryTerm::ElemVec && elems, MessagePrinter &log);
+    UTheoryTerm parse(RawTheoryTerm::ElemVec && elems, Logger &log);
     ~TheoryParser() noexcept;
 private:
     void reduce();
@@ -156,10 +156,10 @@ public:
     UnaryTheoryTerm(String op, UTheoryTerm &&arg);
     virtual ~UnaryTheoryTerm() noexcept;
     // {{{2 TheoryTerm interface
-    Potassco::Id_t eval(TheoryData &data, MessagePrinter &log) const override;
+    Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
     void replace(Defines &defs) override;
-    UTheoryTerm initTheory(TheoryParser &p, MessagePrinter &log) override;
+    UTheoryTerm initTheory(TheoryParser &p, Logger &log) override;
     // {{{2 Hashable interface
     size_t hash() const override;
     // {{{2 Comparable interface
@@ -181,10 +181,10 @@ public:
     BinaryTheoryTerm(UTheoryTerm &&left, String op, UTheoryTerm &&right);
     virtual ~BinaryTheoryTerm() noexcept;
     // {{{2 TheoryTerm interface
-    Potassco::Id_t eval(TheoryData &data, MessagePrinter &log) const override;
+    Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
     void replace(Defines &defs) override;
-    UTheoryTerm initTheory(TheoryParser &p, MessagePrinter &log) override;
+    UTheoryTerm initTheory(TheoryParser &p, Logger &log) override;
     // {{{2 Hashable interface
     size_t hash() const override;
     // {{{2 Comparable interface
@@ -209,10 +209,10 @@ public:
     TupleTheoryTerm(Type type, UTheoryTermVec &&args);
     virtual ~TupleTheoryTerm() noexcept;
     // {{{2 TheoryTerm interface
-    Potassco::Id_t eval(TheoryData &data, MessagePrinter &log) const override;
+    Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
     void replace(Defines &defs) override;
-    UTheoryTerm initTheory(TheoryParser &p, MessagePrinter &log) override;
+    UTheoryTerm initTheory(TheoryParser &p, Logger &log) override;
     // {{{2 Hashable interface
     size_t hash() const override;
     // {{{2 Comparable interface
@@ -234,10 +234,10 @@ public:
     FunctionTheoryTerm(String name, UTheoryTermVec &&args);
     virtual ~FunctionTheoryTerm() noexcept;
     // {{{2 TheoryTerm interface
-    Potassco::Id_t eval(TheoryData &data, MessagePrinter &log) const override;
+    Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
     void replace(Defines &defs) override;
-    UTheoryTerm initTheory(TheoryParser &p, MessagePrinter &log) override;
+    UTheoryTerm initTheory(TheoryParser &p, Logger &log) override;
     // {{{2 Hashable interface
     size_t hash() const override;
     // {{{2 Comparable interface
@@ -260,10 +260,10 @@ public:
     TermTheoryTerm(UTerm &&term);
     virtual ~TermTheoryTerm() noexcept;
     // {{{2 TheoryTerm interface
-    Potassco::Id_t eval(TheoryData &data, MessagePrinter &log) const override;
+    Potassco::Id_t eval(TheoryData &data, Logger &log) const override;
     void collect(VarTermBoundVec &vars) override;
     void replace(Defines &defs) override;
-    UTheoryTerm initTheory(TheoryParser &p, MessagePrinter &log) override;
+    UTheoryTerm initTheory(TheoryParser &p, Logger &log) override;
     // {{{2 Hashable interface
     size_t hash() const override;
     // {{{2 Comparable interface

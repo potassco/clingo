@@ -43,13 +43,13 @@ struct PosBinder : Binder {
     template <       int... I> struct lookup;
     template <int N, int... I> struct lookup<N, I...> : lookup<N-1, N, I...> { };
     template <       int... I> struct lookup<0, I...> {
-        MatchRng operator()(std::tuple<Index, LookupArgs...> &index, BinderType type, MessagePrinter &log) {
+        MatchRng operator()(std::tuple<Index, LookupArgs...> &index, BinderType type, Logger &log) {
             return std::get<0>(index).lookup(std::get<I>(index)..., type, log);
         }
     };
 
     IndexUpdater *getUpdater() override          { return &std::get<0>(index); }
-    void match(MessagePrinter &log) override     { current = lookup<sizeof...(LookupArgs)>()(index, type, log); }
+    void match(Logger &log) override     { current = lookup<sizeof...(LookupArgs)>()(index, type, log); }
     bool next() override                         { return current.next(result, *repr, std::get<0>(index)); }
     void print(std::ostream &out) const override { out << *repr << "@" << type; }
     virtual ~PosBinder()                         { }
@@ -75,7 +75,7 @@ struct Matcher : Binder {
         , repr(repr)
         , naf(naf) { }
     IndexUpdater *getUpdater() override { return nullptr; }
-    void match(MessagePrinter &log) override {
+    void match(Logger &log) override {
         firstMatch = domain.lookup(result, repr, naf, log);
     }
     bool next() override {
@@ -109,7 +109,7 @@ struct PosMatcher : Binder, IndexUpdater {
         , repr(std::move(repr))
         , type(type) { }
     IndexUpdater *getUpdater() override { return type == BinderType::NEW ? this : nullptr; }
-    void match(MessagePrinter &log) override {
+    void match(Logger &log) override {
         firstMatch = domain.lookup(result, *repr, type, log);
     }
     bool next() override {

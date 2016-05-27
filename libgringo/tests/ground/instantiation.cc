@@ -48,11 +48,11 @@ std::string ground(std::string const &str, std::initializer_list<std::string> fi
     Scripts scripts(module);
     Input::NongroundProgramBuilder pb{ scripts, prg, out, defs };
     Input::NonGroundParser ngp{ pb };
-    ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module.logger);
-    ngp.parse(module.logger);
-    prg.rewrite(defs, module.logger);
-    Program gPrg(prg.toGround(out.data, module.logger));
-    gPrg.ground(scripts, out, module.logger);
+    ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module);
+    ngp.parse(module);
+    prg.rewrite(defs, module);
+    Program gPrg(prg.toGround(out.data, module));
+    gPrg.ground(scripts, out, module);
 
     std::string line;
     std::vector<std::string> res;
@@ -89,7 +89,7 @@ std::string ground(std::string const &str, std::initializer_list<std::string> fi
     std::stringstream oss;
     std::sort(res.begin(), res.end());
     for (auto &x : res) { oss << x << "\n"; }
-    for (auto &x : module.logger.messages()) { oss << x; }
+    for (auto &x : module.messages()) { oss << x; }
     return oss.str();
 }
 

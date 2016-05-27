@@ -42,18 +42,18 @@ private:
 public:
     NonGroundParser(INongroundProgramBuilder &pb);
     void parseError(Location const &loc, std::string const &token);
-    void pushFile(std::string &&filename, MessagePrinter &log);
-    void pushStream(std::string &&name, std::unique_ptr<std::istream>, MessagePrinter &log);
-    void pushBlock(std::string const &name, IdVec const &vec, std::string const &block, MessagePrinter &log);
+    void pushFile(std::string &&filename, Logger &log);
+    void pushStream(std::string &&name, std::unique_ptr<std::istream>, Logger &log);
+    void pushBlock(std::string const &name, IdVec const &vec, std::string const &block, Logger &log);
     int lex(void *pValue, Location &loc);
-    bool parseDefine(std::string const &define, MessagePrinter &log);
-    bool parse(MessagePrinter &log);
+    bool parseDefine(std::string const &define, Logger &log);
+    bool parse(Logger &log);
     bool empty() { return LexerState::empty(); }
-    void include(String file, Location const &loc, bool include, MessagePrinter &log);
+    void include(String file, Location const &loc, bool include, Logger &log);
     void theoryLexing(TheoryLexing mode);
     INongroundProgramBuilder &builder();
     // Note: only to be used during parsing
-    MessagePrinter &logger() { assert(log_); return *log_; }
+    Logger &logger() { assert(log_); return *log_; }
     // {{{ aggregate helper functions
     BoundVecUid boundvec(Relation ra, TermUid ta, Relation rb, TermUid tb);
     unsigned aggregate(AggregateFunction fun, bool choice, unsigned elems, BoundVecUid bounds);
@@ -93,7 +93,7 @@ private:
     int           _startSymbol;
     Condition     condition_ = yycnormal;
     String        _filename;
-    MessagePrinter *log_ = nullptr;
+    Logger *log_ = nullptr;
 };
 
 // }}}

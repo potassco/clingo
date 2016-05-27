@@ -49,9 +49,9 @@ struct Program {
     using ClassicalNegationVec = std::vector<std::pair<PredicateDomain &, PredicateDomain &>>;
 
     Program(SEdbVec &&edb, Statement::Dep::ComponentVec &&stms, ClassicalNegationVec &&negate);
-    void linearize(Scripts &scripts, MessagePrinter &log);
-    void ground(Parameters const &params, Scripts &scripts, Output::OutputBase &out, bool finalize, MessagePrinter &log);
-    void ground(Scripts &scripts, Output::OutputBase &out, MessagePrinter &log);
+    void linearize(Scripts &scripts, Logger &log);
+    void ground(Parameters const &params, Scripts &scripts, Output::OutputBase &out, bool finalize, Logger &log);
+    void ground(Scripts &scripts, Output::OutputBase &out, Logger &log);
 
     SEdbVec                      edb;
     bool                         linearized = false;

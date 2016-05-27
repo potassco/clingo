@@ -260,7 +260,7 @@ public:
     using PreSolveFunc     = std::function<bool (Clasp::ClaspFacade &)>;
     enum class ConfigUpdate { KEEP, REPLACE };
 
-    ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Gringo::MessagePrinter &log);
+    ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Gringo::Logger::Printer printer, unsigned messageLimit);
     void prepare(Gringo::Control::ModelHandler mh, Gringo::Control::FinishHandler fh);
     void commitExternals();
     void parse();
@@ -316,7 +316,7 @@ public:
     void interrupt() override;
     Gringo::Backend *backend() override;
     Potassco::Atom_t addProgramAtom() override;
-    Gringo::MessagePrinter &logger() override { return logger_; }
+    Gringo::Logger &logger() override { return logger_; }
 
     // }}}2
 
@@ -336,7 +336,7 @@ public:
     std::unique_ptr<Potassco::TheoryData>                     data_;
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>> propagators_;
     ClingoPropagatorLock                                      propLock_;
-    Gringo::MessagePrinter                                   &logger_;
+    Gringo::Logger                                            logger_;
 #if WITH_THREADS
     std::unique_ptr<ClingoSolveFuture> solveFuture_;
 #endif
@@ -355,7 +355,7 @@ public:
 class ClingoLib : public Clasp::EventHandler, public ClingoControl {
     using StringVec    = std::vector<std::string>;
 public:
-    ClingoLib(Gringo::Scripts &scripts, int argc, char const **argv, Gringo::MessagePrinter &log);
+    ClingoLib(Gringo::Scripts &scripts, int argc, char const **argv, Gringo::Logger::Printer printer, unsigned messageLimit);
     virtual ~ClingoLib();
 protected:
     void initOptions(ProgramOptions::OptionContext& root);
@@ -376,12 +376,10 @@ private:
 
 struct DefaultGringoModule : Gringo::GringoModule {
     DefaultGringoModule();
-    Gringo::Control *newControl(int argc, char const **argv) override;
-    void freeControl(Gringo::Control *ctl) override;
-    Gringo::Symbol parseValue(std::string const &str) override;
+    Gringo::Control *newControl(int argc, char const **argv, Gringo::Logger::Printer printer, unsigned messageLimit) override;
+    Gringo::Symbol parseValue(std::string const &str, Gringo::Logger::Printer printer, unsigned messageLimit) override;
     Gringo::Input::GroundTermParser parser;
     Gringo::Scripts scripts;
-    Gringo::DefaultMessagePrinter logger;
 };
 
 // }}}1

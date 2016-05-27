@@ -274,38 +274,29 @@ V init(T&&... args) {
     return std::move(v);
 }
 
-// {{{1 definition of TestMessagePrinter
-
-struct TestMessagePrinter : MessagePrinter {
-    virtual bool check(Errors)                       { error_ = true; return true; }
-    virtual bool check(Warnings)                     { return true; }
-    virtual bool hasError() const                    { return error_; }
-    virtual void enable(Warnings)                    { }
-    virtual void disable(Warnings)                   { }
-    virtual void print(std::string const &msg)       { messages_.emplace_back(msg); }
-    void reset()                                     { messages_.clear(); }
-    std::vector<std::string> const &messages() const { return messages_; }
-    virtual ~TestMessagePrinter() { }
-private:
-    std::vector<std::string> messages_;
-    bool error_ = false;
-};
-
-// {{{1 definition of TestMessagePrinter
+// {{{1 definition of TestLogger
 
 struct TestGringoModule : Gringo::GringoModule {
-    virtual Gringo::Control *newControl(int, char const **) { throw std::logic_error("TestGringoModule::newControl must not be called"); }
-    virtual void freeControl(Gringo::Control *)  { throw std::logic_error("TestGringoModule::freeControl must not be called"); }
-    virtual Gringo::Symbol parseValue(std::string const &str) {
+    TestGringoModule()
+    : logger([&](clingo_message_code_t, char const *msg){
+        messages_.emplace_back(msg);
+    }, std::numeric_limits<unsigned>::max()) { }
+
+    Gringo::Control *newControl(int, char const **, Logger::Printer, unsigned) override { throw std::logic_error("TestGringoModule::newControl must not be called"); }
+    Gringo::Symbol parseValue(std::string const &str, Logger::Printer = nullptr, unsigned = 0) override {
         return parser.parse(str, logger);
     }
+    operator Logger &() { return logger; }
+    void reset() { messages_.clear(); }
+    std::vector<std::string> const &messages() const { return messages_; }
     Gringo::Input::GroundTermParser parser;
-    TestMessagePrinter logger;
+    std::vector<std::string> messages_;
+    Logger logger;
 };
 
-inline std::ostream &operator<<(std::ostream &out, TestMessagePrinter const &log) {
+inline std::ostream &operator<<(std::ostream &out, TestGringoModule const &mod) {
     using Gringo::IO::operator<<;
-    out << log.messages();
+    out << mod.messages();
     return out;
 }
 

@@ -214,7 +214,7 @@ void ClaspAppBase::run() {
 	if (out_.get()) { out_->run(getName(), getVersion(), &claspAppOpts_.input[0], &claspAppOpts_.input[0] + claspAppOpts_.input.size()); }
 	try        { run(*clasp_); }
 	catch(...) {
-		try { blockSignals(); setExitCode(E_ERROR); throw; }
+		try { blockSignals(); setExitCode(clingo_error_fatal); throw; }
 		catch (const std::bad_alloc&  ) { setExitCode(E_MEMORY); error("std::bad_alloc"); }
 		catch (const std::exception& e) { error(e.what()); }
 		catch (...)                     { ; }
@@ -434,7 +434,7 @@ bool ClaspAppBase::handlePostGroundOptions(ProgramBuilder& prg) {
 	}
 	else {
 		error("Option '--pre': unsupported input format!");
-		setExitCode(E_ERROR);
+		setExitCode(clingo_error_fatal);
 	}
 	return false;
 }

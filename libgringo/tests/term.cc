@@ -47,7 +47,7 @@ UGTerm gterm(UTerm const &x) {
 } // namespace
 
 TEST_CASE("term", "[base]") {
-    TestMessagePrinter log;
+    TestGringoModule log;
 
     auto rewriteDots = [&](UTerm &&x) -> std::tuple<UTerm, SimplifyState::DotsMap, SimplifyState::ScriptMap>  {
         SimplifyState state;

@@ -95,24 +95,24 @@ struct ClingoState {
 inline bool ground(ClingoState &state) {
     // grounder: ground
     if (!state.module.logger.hasError()) {
-        Ground::Program gPrg(state.prg.toGround(state.out.data, state.module.logger));
+        Ground::Program gPrg(state.prg.toGround(state.out.data, state.module));
         state.out.init(false);
         state.out.beginStep();
-        gPrg.ground(state.scripts, state.out, state.module.logger);
+        gPrg.ground(state.scripts, state.out, state.module);
         return true;
     }
     return false;
 };
 
 inline Models solve(ClingoState &state, std::string const &str, Filter filter = {""}, std::initializer_list<Clasp::wsum_t> minimize = {}) {
-    state.parser.pushStream("-", gringo_make_unique<std::stringstream>(str), state.module.logger);
+    state.parser.pushStream("-", gringo_make_unique<std::stringstream>(str), state.module);
     Models models;
     // grounder: parse
-    state.parser.parse(state.module.logger);
+    state.parser.parse(state.module);
     // grounder: preprocess
-    state.defs.init(state.module.logger);
-    state.prg.rewrite(state.defs, state.module.logger);
-    state.prg.check(state.module.logger);
+    state.defs.init(state.module);
+    state.prg.rewrite(state.defs, state.module);
+    state.prg.check(state.module);
     if (ground(state)) {
         Clasp::ClaspFacade libclasp;
         Clasp::ClaspConfig config;
@@ -131,7 +131,7 @@ inline Models solve(ClingoState &state, std::string const &str, Filter filter = 
 
 inline ModelsAndMessages solve(std::string const &str, std::initializer_list<std::string> filter = {""}, std::initializer_list<Clasp::wsum_t> minimize = {}) {
     ClingoState state;
-    return {solve(state, str, filter, minimize), state.module.logger.messages()};
+    return {solve(state, str, filter, minimize), state.module.messages()};
 }
 
 // }}}

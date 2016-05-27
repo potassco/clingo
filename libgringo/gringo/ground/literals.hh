@@ -50,8 +50,8 @@ struct RangeLiteral : Literal {
     BodyOcc *occurrence() override;
     void collect(VarTermBoundVec &vars) const override;
     UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
-    std::pair<Output::LiteralId,bool> toOutput(MessagePrinter &log) override;
-    Score score(Term::VarSet const &bound, MessagePrinter &log) override;
+    std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
+    Score score(Term::VarSet const &bound, Logger &log) override;
     bool auxiliary() const override { return true; }
     virtual ~RangeLiteral();
 
@@ -70,8 +70,8 @@ struct ScriptLiteral : Literal {
     BodyOcc *occurrence() override;
     void collect(VarTermBoundVec &vars) const override;
     UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
-    std::pair<Output::LiteralId,bool> toOutput(MessagePrinter &log) override;
-    Score score(Term::VarSet const &bound, MessagePrinter &log) override;
+    std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
+    Score score(Term::VarSet const &bound, Logger &log) override;
     bool auxiliary() const override { return true; }
     virtual ~ScriptLiteral();
 
@@ -90,8 +90,8 @@ struct RelationLiteral : Literal {
     BodyOcc *occurrence() override;
     void collect(VarTermBoundVec &vars) const override;
     UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
-    std::pair<Output::LiteralId,bool> toOutput(MessagePrinter &log) override;
-    Score score(Term::VarSet const &bound, MessagePrinter &log) override;
+    std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
+    Score score(Term::VarSet const &bound, Logger &log) override;
     bool auxiliary() const override { return true; }
     virtual ~RelationLiteral();
 
@@ -114,8 +114,8 @@ struct PredicateLiteral : Literal, BodyOcc {
     void collect(VarTermBoundVec &vars) const override;
     DefinedBy &definedBy() override;
     UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
-    std::pair<Output::LiteralId,bool> toOutput(MessagePrinter &log) override;
-    Score score(Term::VarSet const &bound, MessagePrinter &log) override;
+    std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
+    Score score(Term::VarSet const &bound, Logger &log) override;
     void checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const override;
     bool auxiliary() const override { return auxiliary_; }
     virtual ~PredicateLiteral();
@@ -163,8 +163,8 @@ public:
     void collectImportant(Term::VarSet &vars) override;
     void collect(VarTermBoundVec &vars) const override;
     UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
-    std::pair<Output::LiteralId,bool> toOutput(MessagePrinter &log) override;
-    Score score(Term::VarSet const &bound, MessagePrinter &log) override;
+    std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
+    Score score(Term::VarSet const &bound, Logger &log) override;
     bool auxiliary() const override { return auxiliary_; }
     virtual ~CSPLiteral() noexcept;
 

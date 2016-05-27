@@ -85,7 +85,7 @@ void translateLambda(DomainData &data, AbstractOutput &out, T const &lambda) {
 
 class EndStepStatement : public Statement {
 public:
-    EndStepStatement(OutputPredicates const &outPreds, bool solve, MessagePrinter &log)
+    EndStepStatement(OutputPredicates const &outPreds, bool solve, Logger &log)
     : outPreds_(outPreds), log_(log), solve_(solve) { }
     void output(DomainData &, Backend &out) const override {
         if (solve_) {
@@ -106,7 +106,7 @@ public:
     virtual ~EndStepStatement() { }
 private:
     OutputPredicates const &outPreds_;
-    MessagePrinter &log_;
+    Logger &log_;
     bool solve_;
 };
 
@@ -228,7 +228,7 @@ void OutputBase::beginStep() {
     backendLambda(data, *out_, [](DomainData &, Backend &out) { out.beginStep(); });
 }
 
-void OutputBase::endStep(bool solve, MessagePrinter &log) {
+void OutputBase::endStep(bool solve, Logger &log) {
     if (!outPreds.empty()) {
         std::move(outPredsForce.begin(), outPredsForce.end(), std::back_inserter(outPreds));
         outPredsForce.clear();
@@ -253,7 +253,7 @@ void OutputBase::reset() {
     translateLambda(data, *out_, [](DomainData &, Translator &x) { x.reset(); });
 }
 
-void OutputBase::checkOutPreds(MessagePrinter &log) {
+void OutputBase::checkOutPreds(Logger &log) {
     auto le = [](OutputPredicates::value_type const &x, OutputPredicates::value_type const &y) -> bool {
         if (std::get<1>(x) != std::get<1>(y)) { return std::get<1>(x) < std::get<1>(y); }
         return std::get<2>(x) < std::get<2>(y);
@@ -267,7 +267,7 @@ void OutputBase::checkOutPreds(MessagePrinter &log) {
         if (!std::get<1>(x).match("", 0) && !std::get<2>(x)) {
             auto it(predDoms().find(std::get<1>(x)));
             if (it == predDoms().end()) {
-                GRINGO_REPORT(log, W_ATOM_UNDEFINED)
+                GRINGO_REPORT(log, clingo_warning_atom_undefined)
                     << std::get<0>(x) << ": info: no atoms over signature occur in program:\n"
                     << "  " << std::get<1>(x) << "\n";
             }

@@ -57,14 +57,14 @@ struct Grounder {
 
 std::unique_ptr<Grounder> parse(std::string const &str) {
     std::unique_ptr<Grounder> g = gringo_make_unique<Grounder>();
-    g->ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), g->module.logger);
-    g->ngp.parse(g->module.logger);
+    g->ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), g->module);
+    g->ngp.parse(g->module);
     return g;
 }
 
 std::string rewrite(std::unique_ptr<Grounder> g) {
-    g->d.init(g->module.logger);
-    g->p.rewrite(g->d, g->module.logger);
+    g->d.init(g->module);
+    g->p.rewrite(g->d, g->module);
     auto str(to_string(g->p));
     str.erase(std::remove(str.begin(), str.end(), '\n'), str.end());
     replace_all(str, ";[#inc_base]", "");
@@ -78,12 +78,12 @@ std::string rewrite(std::unique_ptr<Grounder> g) {
 
 bool check(std::string const &prg, std::string const &messages = "") {
     auto g = parse(prg);
-    g->p.rewrite(g->d, g->module.logger);
-    g->p.check(g->module.logger);
+    g->p.rewrite(g->d, g->module);
+    g->p.check(g->module);
     if (!messages.empty()) {
-        REQUIRE(messages == to_string(g->module.logger));
+        REQUIRE(messages == to_string(g->module));
     }
-    return g->module.logger.messages().empty();
+    return g->module.messages().empty();
 }
 
 } // namespace

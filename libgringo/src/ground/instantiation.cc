@@ -28,7 +28,7 @@ namespace Gringo { namespace Ground {
 // {{{ definition of SolutionBinder
 
 IndexUpdater *SolutionBinder::getUpdater()          { return nullptr; }
-void SolutionBinder::match(MessagePrinter &)        { }
+void SolutionBinder::match(Logger &)        { }
 bool SolutionBinder::next()                         { return false; }
 void SolutionBinder::print(std::ostream &out) const { out << "#end"; }
 SolutionBinder::~SolutionBinder()                   { }
@@ -40,9 +40,9 @@ BackjumpBinder::BackjumpBinder(UIdx &&index, DependVec &&depends)
     : index(std::move(index))
     , depends(std::move(depends)) { }
 BackjumpBinder::BackjumpBinder(BackjumpBinder &&) noexcept = default;
-void BackjumpBinder::match(MessagePrinter &log) { index->match(log); }
+void BackjumpBinder::match(Logger &log) { index->match(log); }
 bool BackjumpBinder::next() { return index->next(); }
-bool BackjumpBinder::first(MessagePrinter &log) {
+bool BackjumpBinder::first(Logger &log) {
     index->match(log);
     return next();
 }
@@ -66,7 +66,7 @@ void Instantiator::finalize(DependVec &&depends) {
     binders.emplace_back(gringo_make_unique<SolutionBinder>(), std::move(depends));
 }
 void Instantiator::enqueue(Queue &queue) { queue.enqueue(*this); }
-void Instantiator::instantiate(Output::OutputBase &out, MessagePrinter &log) {
+void Instantiator::instantiate(Output::OutputBase &out, Logger &log) {
 #if DEBUG_INSTANTIATION > 0
     std::cerr << "  instantiate: " << *this << std::endl;
 #endif
@@ -111,7 +111,7 @@ Instantiator::~Instantiator() noexcept = default;
 // }}}
 // {{{ definition of Queue
 
-void Queue::process(Output::OutputBase &out, MessagePrinter &log) {
+void Queue::process(Output::OutputBase &out, Logger &log) {
     bool empty;
     do {
         empty = true;

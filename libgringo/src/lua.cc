@@ -276,28 +276,28 @@ SymVec *luaToVals(lua_State *L, int idx) {
     return vals;
 }
 
-bool handleError(lua_State *L, Location const &loc, int code, char const *desc, MessagePrinter *log) {
+bool handleError(lua_State *L, Location const &loc, int code, char const *desc, Logger *log) {
     switch (code) {
         case LUA_ERRRUN:
         case LUA_ERRERR:
         case LUA_ERRSYNTAX: {
             std::string s(lua_tostring(L, -1));
             lua_pop(L, 1);
-            std::stringstream msg;
+            std::ostringstream msg;
             msg << loc << ": " << (log ? "info" : "error") << ": " << desc << ":\n"
                 << (code == LUA_ERRSYNTAX ? "  SyntaxError: " : "  RuntimeError: ")
                 << s << "\n"
                 ;
-            if (!log) { throw std::runtime_error(msg.str()); }
+            if (!log) { throw GringoError(msg.str().c_str()); }
             else {
-                GRINGO_REPORT(*log, W_OPERATION_UNDEFINED) << msg.str();
+                GRINGO_REPORT(*log, clingo_warning_operation_undefined) << msg.str();
                 return false;
             }
         }
         case LUA_ERRMEM: {
             std::stringstream msg;
             msg << loc << ": error: lua interpreter ran out of memory" << "\n";
-            throw std::runtime_error(msg.str());
+            throw GringoError(msg.str().c_str());
         }
     }
     return true;
@@ -1743,7 +1743,7 @@ struct LuaClear {
 };
 
 struct LuaContext : Gringo::Context {
-    LuaContext(lua_State *L, MessagePrinter &log, int idx)
+    LuaContext(lua_State *L, Logger &log, int idx)
     : L(L)
     , log(log)
     , idx(idx) { }
@@ -1771,7 +1771,7 @@ struct LuaContext : Gringo::Context {
     virtual ~LuaContext() noexcept = default;
 
     lua_State *L;
-    MessagePrinter &log;
+    Logger &log;
     int idx;
 };
 
@@ -2065,7 +2065,7 @@ struct ControlWrap {
             protect(L, [&arg, &cargs](){ cargs->push_back(arg.c_str()); });
         }
         protect(L, [&cargs](){ cargs->push_back(nullptr); });
-        return newControl(L, [cargs](void *mem){ new (mem) ControlWrap(*module->newControl(cargs->size(), cargs->data()), true); });
+        return newControl(L, [cargs](void *mem){ new (mem) ControlWrap(*module->newControl(cargs->size(), cargs->data(), nullptr, 20), true); });
     }
     template <class F>
     static int newControl(lua_State *L, F f) {
@@ -2079,7 +2079,7 @@ struct ControlWrap {
     }
     static int gc(lua_State *L) {
         auto &self = get_self(L);
-        if (self.free) { module->freeControl(&self.ctl); }
+        if (self.free) { delete &self.ctl; }
         return 0;
     }
     static int registerPropagator(lua_State *L);
@@ -2571,7 +2571,7 @@ int ControlWrap::registerPropagator(lua_State *L) {
 
 int parseTerm(lua_State *L) {
     char const *str = luaL_checkstring(L, 1);
-    Symbol val = protect(L, [str]() { return ControlWrap::module->parseValue(str); });
+    Symbol val = protect(L, [str]() { return ControlWrap::module->parseValue(str, nullptr, 20); });
     if (val.type() == SymbolType::Special) { lua_pushnil(L); }
     else { Term::new_(L, val); }
     return 1;
@@ -2684,7 +2684,7 @@ bool Lua::exec(Location const &loc, String code) {
     return true;
 }
 
-SymVec Lua::call(Location const &loc, String name, SymSpan args, MessagePrinter &log) {
+SymVec Lua::call(Location const &loc, String name, SymSpan args, Logger &log) {
     assert(impl);
     LuaClear lc(impl->L);
     LuaCallArgs arg(name.c_str(), args, {});
@@ -2720,7 +2720,7 @@ void Lua::main(Control &ctl) {
                 << "  RuntimeError: " << lua_tostring(impl->L, -1) << "\n"
                 ;
             lua_pop(impl->L, 1);
-            throw std::runtime_error(oss.str());
+            throw GringoError(oss.str().c_str());
         }
         case LUA_ERRMEM: { throw std::runtime_error("lua interpreter ran out of memory"); }
     }
@@ -2750,15 +2750,14 @@ struct LuaImpl { };
 
 Lua::Lua(Gringo::GringoModule &) { }
 bool Lua::exec(Location const &loc, String) {
-    GRINGO_REPORT(E_ERROR)
-        << loc << ": error: clingo has been build without lua support\n"
-        ;
-    throw std::runtime_error("grounding stopped because of errors");
+    std::ostringstream oss;
+    oss << loc << ": error: clingo has been build without lua support\n";
+    throw GringoError(oss.str().c_str());
 }
 bool Lua::callable(String) {
     return false;
 }
-SymVec Lua::call(Location const &, String, SymSpan, MessagePrinter &) {
+SymVec Lua::call(Location const &, String, SymSpan, Logger &) {
     return {};
 }
 void Lua::main(Control &) { }

@@ -34,7 +34,7 @@ using namespace Gringo::IO;
 namespace {
 
 ULit rewrite(ULit &&x) {
-    Gringo::Test::TestMessagePrinter log;
+    Gringo::Test::TestGringoModule log;
     Projections project;
     Literal::AssignVec assign;
     SimplifyState state;

@@ -25,6 +25,7 @@
 #include <gringo/types.hh>
 #include <gringo/locatable.hh>
 #include <gringo/backend.hh>
+#include <gringo/logger.hh>
 #include <potassco/clingo.h>
 #include <clingo.h>
 
@@ -57,21 +58,26 @@ struct Context {
 
 // {{{1 declaration of Model
 
+using Model = clingo_model;
 using Int64Vec = std::vector<int64_t>;
 
-struct Model {
-    using LitVec = std::vector<std::pair<Symbol, bool>>;
+} // namespace Gringo
+
+struct clingo_model {
+    using LitVec = std::vector<std::pair<Gringo::Symbol, bool>>;
     static const unsigned CSP   = 1;
     static const unsigned SHOWN = 2;
     static const unsigned ATOMS = 4;
     static const unsigned TERMS = 8;
     static const unsigned COMP  = 16;
-    virtual bool contains(Symbol atom) const = 0;
-    virtual SymSpan atoms(int showset) const = 0;
-    virtual Int64Vec optimization() const = 0;
+    virtual bool contains(Gringo::Symbol atom) const = 0;
+    virtual Gringo::SymSpan atoms(int showset) const = 0;
+    virtual Gringo::Int64Vec optimization() const = 0;
     virtual void addClause(LitVec const &lits) const = 0;
-    virtual ~Model() { }
+    virtual ~clingo_model() { }
 };
+
+namespace Gringo {
 
 // {{{1 declaration of Statistics
 
@@ -197,51 +203,60 @@ struct ASPIFProgram {
 // {{{1 declaration of Control
 
 using FWStringVec = std::vector<String>;
+using Control = clingo_control;
 
-struct MessagePrinter;
-struct Control {
-    using ModelHandler = std::function<bool (Model const &)>;
-    using FinishHandler = std::function<void (SolveResult)>;
-    using Assumptions = std::vector<std::pair<Symbol, bool>>;
-    using GroundVec = std::vector<std::pair<String, SymVec>>;
-    using NewControlFunc = Control* (*)(int, char const **);
-    using FreeControlFunc = void (*)(Control *);
+} // namespace Gringo
 
-    virtual ConfigProxy &getConf() = 0;
-    virtual DomainProxy &getDomain() = 0;
+struct clingo_control {
+    using ModelHandler = std::function<bool (Gringo::Model const &)>;
+    using FinishHandler = std::function<void (Gringo::SolveResult)>;
+    using Assumptions = std::vector<std::pair<Gringo::Symbol, bool>>;
+    using GroundVec = std::vector<std::pair<Gringo::String, Gringo::SymVec>>;
+    using NewControlFunc = Gringo::Control* (*)(int, char const **);
+    using FreeControlFunc = void (*)(Gringo::Control *);
 
-    virtual void ground(GroundVec const &vec, Context *context) = 0;
-    virtual SolveResult solve(ModelHandler h, Assumptions &&assumptions) = 0;
-    virtual SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&assumptions) = 0;
-    virtual SolveIter *solveIter(Assumptions &&assumptions) = 0;
+    virtual Gringo::ConfigProxy &getConf() = 0;
+    virtual Gringo::DomainProxy &getDomain() = 0;
+
+    virtual void ground(GroundVec const &vec, Gringo::Context *context) = 0;
+    virtual Gringo::SolveResult solve(ModelHandler h, Assumptions &&assumptions) = 0;
+    virtual Gringo::SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&assumptions) = 0;
+    virtual Gringo::SolveIter *solveIter(Assumptions &&assumptions) = 0;
     virtual void interrupt() = 0;
-    virtual void add(std::string const &name, FWStringVec const &params, std::string const &part) = 0;
+    virtual void add(std::string const &name, Gringo::FWStringVec const &params, std::string const &part) = 0;
     virtual void load(std::string const &filename) = 0;
-    virtual Symbol getConst(std::string const &name) = 0;
+    virtual Gringo::Symbol getConst(std::string const &name) = 0;
     virtual bool blocked() = 0;
-    virtual void assignExternal(Symbol ext, Potassco::Value_t val) = 0;
-    virtual Statistics *getStats() = 0;
+    virtual void assignExternal(Gringo::Symbol ext, Potassco::Value_t val) = 0;
+    virtual Gringo::Statistics *getStats() = 0;
     virtual void useEnumAssumption(bool enable) = 0;
     virtual bool useEnumAssumption() = 0;
     virtual void cleanupDomains() = 0;
-    virtual TheoryData const &theory() const = 0;
-    virtual void registerPropagator(Propagator &p, bool sequential) = 0;
+    virtual Gringo::TheoryData const &theory() const = 0;
+    virtual void registerPropagator(Gringo::Propagator &p, bool sequential) = 0;
     virtual void parse(char const *program, std::function<void(clingo_ast const &)> cb) = 0;
     virtual void add(std::function<void (std::function<void (clingo_ast const &)>)> cb) = 0;
     virtual Potassco::Atom_t addProgramAtom() = 0;
-    virtual Backend *backend() = 0;
-    virtual MessagePrinter &logger() = 0;
-    virtual ~Control() noexcept = default;
+    virtual Gringo::Backend *backend() = 0;
+    virtual Gringo::Logger &logger() = 0;
+    virtual ~clingo_control() noexcept = default;
 };
+
+namespace Gringo {
 
 // {{{1 declaration of Gringo
 
-struct GringoModule {
-    virtual Control *newControl(int argc, char const **argv) = 0;
-    virtual void freeControl(Control *ctrl) = 0;
-    virtual Symbol parseValue(std::string const &repr) = 0;
-    virtual ~GringoModule() noexcept = default;
+using GringoModule = clingo_module;
+
+} // namespace Gringo
+
+struct clingo_module {
+    virtual Gringo::Control *newControl(int argc, char const **argv, Gringo::Logger::Printer p, unsigned messageLimit) = 0;
+    virtual Gringo::Symbol parseValue(std::string const &repr, Gringo::Logger::Printer p, unsigned messageLimit) = 0;
+    virtual ~clingo_module() noexcept = default;
 };
+
+namespace Gringo {
 
 // {{{1 declaration of ClingoError
 
@@ -249,7 +264,7 @@ struct ClingoError : std::exception {
     ClingoError(clingo_error_t err) : err(err) { }
     virtual ~ClingoError() noexcept = default;
     virtual const char* what() const noexcept {
-        return clingo_error_str(err);
+        return clingo_message_code_str(err);
     }
     clingo_error_t const err;
 };
@@ -258,14 +273,23 @@ void inline clingo_expect(bool expr) {
     if (!expr) { throw std::runtime_error("unexpected"); }
 }
 
-#define GRINGO_CLINGO_TRY try {
-#define GRINGO_CLINGO_CATCH } \
-catch(Gringo::ClingoError &e) { return e.err; } \
-catch(std::bad_alloc &e)      { std::cerr << e.what() << std::endl; return clingo_error_bad_alloc; } \
-catch(std::runtime_error &e)  { std::cerr << e.what() << std::endl; return clingo_error_runtime; } \
-catch(std::logic_error &e)    { std::cerr << e.what() << std::endl; return clingo_error_logic; } \
-catch(...)                    { return clingo_error_unknown; } \
-return clingo_error_success;
+inline clingo_error_t handleClingoError(Gringo::Logger *logger) {
+    try { throw; }
+    catch (Gringo::GringoError const &e) {
+        if (logger) { logger->print(clingo_error_bad_alloc, e.what()); }
+        return clingo_error_fatal;
+    }
+    catch (Gringo::ClingoError const &e)       { return e.err; } \
+    catch (Gringo::MessageLimitError const &e) { return clingo_error_fatal; }
+    catch (std::bad_alloc const &e)            { return clingo_error_bad_alloc; }
+    catch (std::runtime_error const &e)        { return clingo_error_runtime; }
+    catch (std::logic_error const &e)          { return clingo_error_logic; }
+    catch (...)                                { return clingo_error_unknown; }
+    return clingo_error_success;
+}
+
+#define GRINGO_CLINGO_TRY try
+#define GRINGO_CLINGO_CATCH(logger) catch (...) { return Gringo::handleClingoError((logger)); } return clingo_error_success
 
 // }}}1
 

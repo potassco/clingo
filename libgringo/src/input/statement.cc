@@ -38,7 +38,7 @@ Statement::Statement(UHeadAggr &&head, UBodyAggrVec &&body, StatementType type)
 
 // }}}
 
-void Statement::initTheory(TheoryDefs &def, MessagePrinter &log) {
+void Statement::initTheory(TheoryDefs &def, Logger &log) {
     head->initTheory(def, !body.empty(), log);
     for (auto &lit : body) {
         lit->initTheory(def, log);
@@ -120,7 +120,7 @@ bool Statement::hasPool(bool beforeRewrite) const {
 // }}}
 // {{{ definition of Statement::rewrite1
 
-bool Statement::rewrite1(Projections &project, MessagePrinter &log) {
+bool Statement::rewrite1(Projections &project, Logger &log) {
     SimplifyState state;
     if (!head->simplify(project, state, log)) { return false; }
     bool singleton = std::accumulate(body.begin(), body.end(), 0, [](unsigned x, UBodyAggr const &y){ return x + y->projectScore(); }) == 1 && head->isPredicate();
@@ -256,7 +256,7 @@ void Statement::rewrite2() {
 // }}}
 // {{{ definition of Statement::check
 
-void Statement::check(MessagePrinter &log) const {
+void Statement::check(Logger &log) const {
     ChkLvlVec levels;
     levels.emplace_back(loc(), *this);
     head->check(levels, log);

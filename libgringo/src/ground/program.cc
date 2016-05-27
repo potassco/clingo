@@ -60,7 +60,7 @@ std::ostream &operator<<(std::ostream &out, Program const &p) {
     return out;
 }
 
-void Program::linearize(Scripts &scripts, MessagePrinter &log) {
+void Program::linearize(Scripts &scripts, Logger &log) {
     for (auto &x : stms) {
         for (auto &y : x.first) { y->startLinearize(true); }
         for (auto &y : x.first) { y->linearize(scripts, x.second, log); }
@@ -69,13 +69,13 @@ void Program::linearize(Scripts &scripts, MessagePrinter &log) {
     linearized = true;
 }
 
-void Program::ground(Scripts &scripts, Output::OutputBase &out, MessagePrinter &log) {
+void Program::ground(Scripts &scripts, Output::OutputBase &out, Logger &log) {
     Parameters params;
     params.add("base", SymVec({}));
     ground(params, scripts, out, true, log);
 }
 
-void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputBase &out, bool finalize, MessagePrinter &log) {
+void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputBase &out, bool finalize, Logger &log) {
     for (auto &dom : out.predDoms()) {
         auto name = dom->sig().name();
         if (name.startsWith("#p_")) {

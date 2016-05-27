@@ -29,7 +29,7 @@ namespace Gringo { namespace Ground {
 
 struct Instantiator;
 struct Queue {
-    void process(Output::OutputBase &out, MessagePrinter &log);
+    void process(Output::OutputBase &out, Logger &log);
     void enqueue(Instantiator &inst);
     void enqueue(Domain &inst);
     ~Queue();
@@ -46,7 +46,7 @@ struct Queue {
 
 struct Binder : Printable {
     virtual IndexUpdater *getUpdater() = 0;
-    virtual void match(MessagePrinter &log) = 0;
+    virtual void match(Logger &log) = 0;
     virtual bool next() = 0;
     virtual ~Binder() { }
 };
@@ -57,7 +57,7 @@ using UIdx = std::unique_ptr<Binder>;
 
 class SolutionCallback {
 public:
-    virtual void report(Output::OutputBase &out, MessagePrinter &log) = 0;
+    virtual void report(Output::OutputBase &out, Logger &log) = 0;
     virtual void propagate(Queue &queue) = 0;
     virtual void printHead(std::ostream &out) const = 0;
     virtual unsigned priority() const { return 0; }
@@ -69,7 +69,7 @@ public:
 
 struct SolutionBinder : public Binder {
     IndexUpdater *getUpdater() override;
-    void match(MessagePrinter &log) override;
+    void match(Logger &log) override;
     bool next() override;
     void print(std::ostream &out) const override;
     virtual ~SolutionBinder();
@@ -83,9 +83,9 @@ struct BackjumpBinder {
 
     BackjumpBinder(UIdx &&index, DependVec &&depends);
     BackjumpBinder(BackjumpBinder &&x) noexcept;
-    void match(MessagePrinter &log);
+    void match(Logger &log);
     bool next();
-    bool first(MessagePrinter &log);
+    bool first(Logger &log);
     void print(std::ostream &out) const;
     ~BackjumpBinder();
 
@@ -107,7 +107,7 @@ struct Instantiator {
     void add(UIdx &&index, DependVec &&depends);
     void finalize(DependVec &&depends);
     void enqueue(Queue &queue);
-    void instantiate(Output::OutputBase &out, MessagePrinter &log);
+    void instantiate(Output::OutputBase &out, Logger &log);
     void print(std::ostream &out) const;
     unsigned priority() const;
     ~Instantiator() noexcept;

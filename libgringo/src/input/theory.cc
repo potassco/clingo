@@ -100,7 +100,7 @@ void TheoryElement::assignLevels(AssignLevel &lvl) {
     local.add(vars);
 }
 
-void TheoryElement::check(Location const &loc, Printable const &p, ChkLvlVec &levels, MessagePrinter &log) const {
+void TheoryElement::check(Location const &loc, Printable const &p, ChkLvlVec &levels, Logger &log) const {
     levels.emplace_back(loc, p);
     for (auto &lit : cond_) {
         levels.back().current = &levels.back().dep.insertEnt();
@@ -118,7 +118,7 @@ void TheoryElement::check(Location const &loc, Printable const &p, ChkLvlVec &le
     levels.pop_back();
 }
 
-bool TheoryElement::simplify(Projections &project, SimplifyState &state, MessagePrinter &log) {
+bool TheoryElement::simplify(Projections &project, SimplifyState &state, Logger &log) {
     for (auto &lit : cond_) {
         if (!lit->simplify(log, project, state, true, true)) {
             return false;
@@ -138,7 +138,7 @@ void TheoryElement::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxG
     arith.pop_back();
 }
 
-void TheoryElement::initTheory(Output::TheoryParser &p, MessagePrinter &log) {
+void TheoryElement::initTheory(Output::TheoryParser &p, Logger &log) {
     for (auto &term : tuple_) {
         Term::replace(term, term->initTheory(p, log));
     }
@@ -251,7 +251,7 @@ void TheoryAtom::assignLevels(AssignLevel &lvl) {
     }
 }
 
-void TheoryAtom::check(Location const &loc, Printable const &p, ChkLvlVec &levels, MessagePrinter &log) const {
+void TheoryAtom::check(Location const &loc, Printable const &p, ChkLvlVec &levels, Logger &log) const {
     levels.back().current = &levels.back().dep.insertEnt();
 
     VarTermBoundVec vars;
@@ -264,7 +264,7 @@ void TheoryAtom::check(Location const &loc, Printable const &p, ChkLvlVec &level
     }
 }
 
-bool TheoryAtom::simplify(Projections &project, SimplifyState &state, MessagePrinter &log) {
+bool TheoryAtom::simplify(Projections &project, SimplifyState &state, Logger &log) {
     if (name_->simplify(state, false, false, log).update(name_).undefined()) {
         return false;
     }
@@ -283,20 +283,20 @@ void TheoryAtom::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen)
     }
 }
 
-void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, bool hasBody, MessagePrinter &log) {
+void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, bool hasBody, Logger &log) {
     Sig sig = name_->getSig();
     for (auto &def : defs) {
         if (auto atomDef = def.getAtomDef(sig)) {
             type_ = atomDef->type();
             if (inBody) {
                 if (type_ == TheoryAtomType::Head) {
-                    GRINGO_REPORT(log, E_ERROR)
+                    GRINGO_REPORT(log, clingo_error_fatal)
                         << loc << ": error: theory body atom used in head:" << "\n"
                         << "  " << sig << "\n";
                     return;
                 }
                 else if (type_ == TheoryAtomType::Directive) {
-                    GRINGO_REPORT(log, E_ERROR)
+                    GRINGO_REPORT(log, clingo_error_fatal)
                         << loc << ": error: theory directive used in body:" << "\n"
                         << "  " << sig << "\n";
                     return;
@@ -304,13 +304,13 @@ void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, 
             }
             else {
                 if (type_ == TheoryAtomType::Body) {
-                    GRINGO_REPORT(log, E_ERROR)
+                    GRINGO_REPORT(log, clingo_error_fatal)
                         << loc << ": error: theory head atom used in body:" << "\n"
                         << "  " << sig << "\n";
                     return;
                 }
                 if (type_ == TheoryAtomType::Directive && hasBody) {
-                    GRINGO_REPORT(log, E_ERROR)
+                    GRINGO_REPORT(log, clingo_error_fatal)
                         << loc << ": error: theory directive used with body:" << "\n"
                         << "  " << sig << "\n";
                     return;
@@ -329,13 +329,13 @@ void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, 
                 }
             }
             else {
-                GRINGO_REPORT(log, E_ERROR)
+                GRINGO_REPORT(log, clingo_error_fatal)
                     << loc << ": error: missing definition for term:" << "\n"
                     << "  " << atomDef->elemDef() << "\n";
             }
             if (hasGuard()) {
                 if (!atomDef->hasGuard()) {
-                    GRINGO_REPORT(log, E_ERROR)
+                    GRINGO_REPORT(log, clingo_error_fatal)
                         << loc << ": error: unexpected guard:" << "\n"
                         << "  " << sig << "\n";
                 }
@@ -347,7 +347,7 @@ void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, 
                     else {
                         std::stringstream ss;
                         print_comma(ss, atomDef->ops(), ",");
-                        GRINGO_REPORT(log, E_ERROR)
+                        GRINGO_REPORT(log, clingo_error_fatal)
                             << loc << ": error: unexpected operator:" << "\n"
                             << "  " << op_ << "\n"
                             << loc << ": note: expected one of:\n"
@@ -355,7 +355,7 @@ void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, 
                     }
                 }
                 else {
-                    GRINGO_REPORT(log, E_ERROR)
+                    GRINGO_REPORT(log, clingo_error_fatal)
                         << loc << ": error: missing definition for term:" << "\n"
                         << "  " << atomDef->guardDef() << "\n";
                 }
@@ -363,7 +363,7 @@ void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, 
             return;
         }
     }
-    GRINGO_REPORT(log, E_ERROR)
+    GRINGO_REPORT(log, clingo_error_fatal)
         << loc << ": error: no definition found for theory atom:" << "\n"
         << "  " << sig << "\n";
 }
@@ -440,7 +440,7 @@ void HeadTheoryLiteral::unpool(UHeadAggrVec &x, bool beforeRewrite) {
     atom_.unpool([&](TheoryAtom &&atom) { x.emplace_back(make_locatable<HeadTheoryLiteral>(loc(), std::move(atom))); }, beforeRewrite);
 }
 
-bool HeadTheoryLiteral::simplify(Projections &project, SimplifyState &state, MessagePrinter &log) {
+bool HeadTheoryLiteral::simplify(Projections &project, SimplifyState &state, Logger &log) {
     return atom_.simplify(project, state, log);
 }
 
@@ -456,7 +456,7 @@ bool HeadTheoryLiteral::hasPool(bool beforeRewrite) const {
     return atom_.hasPool(beforeRewrite);
 }
 
-void HeadTheoryLiteral::check(ChkLvlVec &lvl, MessagePrinter &log) const {
+void HeadTheoryLiteral::check(ChkLvlVec &lvl, Logger &log) const {
     atom_.check(loc(), *this, lvl, log);
 }
 
@@ -483,7 +483,7 @@ bool HeadTheoryLiteral::operator==(HeadAggregate const &other) const {
     return t && atom_ == t->atom_;
 }
 
-void HeadTheoryLiteral::initTheory(TheoryDefs &defs, bool hasBody, MessagePrinter &log) {
+void HeadTheoryLiteral::initTheory(TheoryDefs &defs, bool hasBody, Logger &log) {
     atom_.initTheory(loc(), defs, false, hasBody, log);
 }
 
@@ -501,7 +501,7 @@ void BodyTheoryLiteral::unpool(UBodyAggrVec &x, bool beforeRewrite) {
     atom_.unpool([&](TheoryAtom &&atom) { x.emplace_back(make_locatable<BodyTheoryLiteral>(loc(), naf_, std::move(atom))); }, beforeRewrite);
 }
 
-bool BodyTheoryLiteral::simplify(Projections &project, SimplifyState &state, bool, MessagePrinter &log) {
+bool BodyTheoryLiteral::simplify(Projections &project, SimplifyState &state, bool, Logger &log) {
     return atom_.simplify(project, state, log);
 }
 
@@ -509,7 +509,7 @@ void BodyTheoryLiteral::assignLevels(AssignLevel &lvl) {
     atom_.assignLevels(lvl);
 }
 
-void BodyTheoryLiteral::check(ChkLvlVec &lvl, MessagePrinter &log) const {
+void BodyTheoryLiteral::check(ChkLvlVec &lvl, Logger &log) const {
     atom_.check(loc(), *this, lvl, log);
 }
 
@@ -562,7 +562,7 @@ bool BodyTheoryLiteral::operator==(BodyAggregate const &other) const {
     return t && naf_ == t->naf_ && atom_ == t->atom_;
 }
 
-void BodyTheoryLiteral::initTheory(TheoryDefs &defs, MessagePrinter &log) {
+void BodyTheoryLiteral::initTheory(TheoryDefs &defs, Logger &log) {
     atom_.initTheory(loc(), defs, true, true, log);
 }
 

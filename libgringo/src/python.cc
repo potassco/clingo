@@ -412,7 +412,7 @@ std::string errorToString() {
 void handleError(Location const &loc, char const *msg) {
     std::ostringstream ss;
     ss << loc << ": error: " << msg << ":\n" << errorToString();
-    throw std::runtime_error(ss.str());
+    throw GringoError(ss.str().c_str());
 }
 
 void handleError(char const *loc, char const *msg) {
@@ -2450,7 +2450,7 @@ void pycall(PyObject *fun, SymSpan args, SymVec &vals) {
 
 class PyContext : public Context {
 public:
-    PyContext(MessagePrinter &log)
+    PyContext(Logger &log)
     : log(log)
     , ctx(nullptr) { }
     bool callable(String name) const override {
@@ -2465,7 +2465,7 @@ public:
             return ret;
         }
         catch (PyException const &) {
-            GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
+            GRINGO_REPORT(log, clingo_warning_operation_undefined)
                 << loc << ": info: operation undefined:\n"
                 << errorToString()
                 ;
@@ -2475,7 +2475,7 @@ public:
     operator bool() const { return ctx; }
     virtual ~PyContext() noexcept = default;
 
-    MessagePrinter &log;
+    Logger &log;
     PyObject *ctx;
 };
 
@@ -2527,7 +2527,7 @@ active; you must not call any member function during search.)";
         return reinterpret_cast<PyObject*>(self);
     }
     static void tp_dealloc(ControlWrap *self) {
-        module->freeControl(self->freeCtl);
+        if (self->freeCtl) { delete self->freeCtl; }
         self->ctl = self->freeCtl = nullptr;
         Py_XDECREF(self->stats);
         self->propagators_.~Propagators();
@@ -2551,7 +2551,7 @@ active; you must not call any member function during search.)";
                 if (PyErr_Occurred()) { return -1; }
             }
             args.emplace_back(nullptr);
-            self->ctl = self->freeCtl = module->newControl(args.size(), args.data());
+            self->ctl = self->freeCtl = module->newControl(args.size(), args.data(), nullptr, 20);
             return 0;
         PY_CATCH(-1);
     }
@@ -3200,7 +3200,7 @@ json.dumps(prg.stats, sort_keys=True, indent=4, separators=(',', ': ')))", nullp
 static PyObject *parseTerm(PyObject *, PyObject *objString) {
     PY_TRY
         char const *current = PyString_AsString(objString);
-        Symbol value = ControlWrap::module->parseValue(current);
+        Symbol value = ControlWrap::module->parseValue(current, nullptr, 20);
         if (value.type() == SymbolType::Special) { Py_RETURN_NONE; }
         else { return Term::new_(value); }
     PY_CATCH(nullptr);
@@ -3494,7 +3494,7 @@ bool Python::callable(String name) {
         return false;
     }
 }
-SymVec Python::call(Location const &loc, String name, SymSpan args, MessagePrinter &log) {
+SymVec Python::call(Location const &loc, String name, SymSpan args, Logger &log) {
     assert(impl);
     try {
         SymVec vals;
@@ -3502,7 +3502,7 @@ SymVec Python::call(Location const &loc, String name, SymSpan args, MessagePrint
         return vals;
     }
     catch (PyException const &) {
-        GRINGO_REPORT(log, W_OPERATION_UNDEFINED)
+        GRINGO_REPORT(log, clingo_warning_operation_undefined)
             << loc << ": info: operation undefined:\n"
             << errorToString()
             ;
@@ -3547,13 +3547,13 @@ std::unique_ptr<PythonImpl> Python::impl = nullptr;
 Python::Python(GringoModule &) { }
 bool Python::exec(Location const &loc, String ) {
     std::stringstream ss;
-    ss << loc << ": error: clingo has been build without python support\n"
-    throw std::runtime_error(ss.str());
+    ss << loc << ": error: clingo has been build without python support\n";
+    throw GringoError(ss.str());
 }
 bool Python::callable(String) {
     return false;
 }
-SymVec Python::call(Location const &, String , SymSpan, MessagePrinter &) {
+SymVec Python::call(Location const &, String , SymSpan, Logger &) {
     return {};
 }
 void Python::main(Control &) { }

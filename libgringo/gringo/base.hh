@@ -77,7 +77,7 @@ struct Bound {
     BoundVec unpool();
     //! Simplify the terms in the bound.
     //! \pre Must be called after unpool.
-    bool simplify(SimplifyState &state, MessagePrinter &log);
+    bool simplify(SimplifyState &state, Logger &log);
     //! Rewrite arithmetics.
     //! \pre Must be called after assignLevels.
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
@@ -229,7 +229,7 @@ inline BoundVec Bound::unpool() {
     return pool;
 }
 
-inline bool Bound::simplify(SimplifyState &state, MessagePrinter &log) {
+inline bool Bound::simplify(SimplifyState &state, Logger &log) {
     return !bound->simplify(state, false, false, log).update(bound).undefined();
 }
 

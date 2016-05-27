@@ -107,14 +107,14 @@ void _aggr(ChkLvlVec &levels, BoundVec const &bounds, T const &f, bool bind) {
     }
 }
 
-void warnGlobal(VarTermBoundVec &vars, bool warn, MessagePrinter &log) {
+void warnGlobal(VarTermBoundVec &vars, bool warn, Logger &log) {
     if (warn) {
         auto ib = vars.begin(), ie = vars.end();
         ie = std::remove_if(ib, ie, [](VarTermBoundVec::value_type const &a) { return a.first->level > 0; });
         std::sort(ib, ie, [](VarTermBoundVec::value_type const &a, VarTermBoundVec::value_type const &b) { return a.first->name < b.first->name; });
         ie = std::unique(ib, ie, [](VarTermBoundVec::value_type const &a, VarTermBoundVec::value_type const &b) { return a.first->name == b.first->name; });
         for (auto it = ib; it != ie; ++it) {
-            GRINGO_REPORT(log, W_GLOBAL_VARIABLE)
+            GRINGO_REPORT(log, clingo_warning_global_variable)
                 << it->first->loc() << ": info: global variable in tuple of aggregate element:\n"
                 << "  " << it->first->name << "\n"
                 ;
@@ -218,7 +218,7 @@ bool TupleBodyAggregate::rewriteAggregates(UBodyAggrVec &aggr) {
     return !bounds.empty();
 }
 
-bool TupleBodyAggregate::simplify(Projections &project, SimplifyState &state, bool, MessagePrinter &log) {
+bool TupleBodyAggregate::simplify(Projections &project, SimplifyState &state, bool, Logger &log) {
     for (auto &bound : bounds) {
         if (!bound.simplify(state, log)) { return false; }
     }
@@ -263,7 +263,7 @@ void TupleBodyAggregate::assignLevels(AssignLevel &lvl) {
     }
 }
 
-void TupleBodyAggregate::check(ChkLvlVec &levels, MessagePrinter &log) const {
+void TupleBodyAggregate::check(ChkLvlVec &levels, Logger &log) const {
     auto f = [&]() {
         VarTermBoundVec vars;
         for (auto &y : elems) {
@@ -448,7 +448,7 @@ bool LitBodyAggregate::rewriteAggregates(UBodyAggrVec &aggr) {
     return false;
 }
 
-bool LitBodyAggregate::simplify(Projections &project, SimplifyState &state, bool, MessagePrinter &log) {
+bool LitBodyAggregate::simplify(Projections &project, SimplifyState &state, bool, Logger &log) {
     for (auto &bound : bounds) {
         if (!bound.simplify(state, log)) { return false; }
     }
@@ -491,7 +491,7 @@ void LitBodyAggregate::assignLevels(AssignLevel &lvl) {
     }
 }
 
-void LitBodyAggregate::check(ChkLvlVec &levels, MessagePrinter &log) const {
+void LitBodyAggregate::check(ChkLvlVec &levels, Logger &log) const {
     auto f = [&]() {
         for (auto &y : elems) {
             levels.emplace_back(loc(), *this);
@@ -610,7 +610,7 @@ bool Conjunction::rewriteAggregates(UBodyAggrVec &x) {
     return !elems.empty();
 }
 
-bool Conjunction::simplify(Projections &project, SimplifyState &state, bool, MessagePrinter &log) {
+bool Conjunction::simplify(Projections &project, SimplifyState &state, bool, Logger &log) {
     for (auto &elem : elems) {
         elem.first.erase(std::remove_if(elem.first.begin(), elem.first.end(), [&](ULitVec &clause) {
             SimplifyState elemState(state);
@@ -670,7 +670,7 @@ void Conjunction::assignLevels(AssignLevel &lvl) {
     }
 }
 
-void Conjunction::check(ChkLvlVec &levels, MessagePrinter &log) const {
+void Conjunction::check(ChkLvlVec &levels, Logger &log) const {
     levels.back().current = &levels.back().dep.insertEnt();
     for (auto &elem : elems) {
         levels.emplace_back(loc(), *this);
@@ -795,7 +795,7 @@ void SimpleBodyLiteral::collect(VarTermBoundVec &vars) const { lit->collect(vars
 
 bool SimpleBodyLiteral::rewriteAggregates(UBodyAggrVec &) { return true; }
 
-bool SimpleBodyLiteral::simplify(Projections &project, SimplifyState &state, bool singleton, MessagePrinter &log) {
+bool SimpleBodyLiteral::simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) {
     return lit->simplify(log, project, state, true, singleton);
 }
 
@@ -809,7 +809,7 @@ void SimpleBodyLiteral::assignLevels(AssignLevel &lvl) {
     lvl.add(vars);
 }
 
-void SimpleBodyLiteral::check(ChkLvlVec &levels, MessagePrinter &) const {
+void SimpleBodyLiteral::check(ChkLvlVec &levels, Logger &) const {
     levels.back().current = &levels.back().dep.insertEnt();
     _add(levels, lit, true);
 }
@@ -944,7 +944,7 @@ UHeadAggr TupleHeadAggregate::rewriteAggregates(UBodyAggrVec &body) {
     return nullptr;
 }
 
-bool TupleHeadAggregate::simplify(Projections &project, SimplifyState &state, MessagePrinter &log) {
+bool TupleHeadAggregate::simplify(Projections &project, SimplifyState &state, Logger &log) {
     for (auto &bound : bounds) {
         if (!bound.simplify(state, log)) { return false; }
     }
@@ -992,7 +992,7 @@ void TupleHeadAggregate::assignLevels(AssignLevel &lvl) {
     }
 }
 
-void TupleHeadAggregate::check(ChkLvlVec &levels, MessagePrinter &log) const {
+void TupleHeadAggregate::check(ChkLvlVec &levels, Logger &log) const {
     auto f = [&]() {
         VarTermBoundVec vars;
         for (auto &y : elems) {
@@ -1134,7 +1134,7 @@ UHeadAggr LitHeadAggregate::rewriteAggregates(UBodyAggrVec &aggr) {
     return x;
 }
 
-bool LitHeadAggregate::simplify(Projections &project, SimplifyState &state, MessagePrinter &log) {
+bool LitHeadAggregate::simplify(Projections &project, SimplifyState &state, Logger &log) {
     for (auto &bound : bounds) {
         if (!bound.simplify(state, log)) { return false; }
     }
@@ -1176,7 +1176,7 @@ void LitHeadAggregate::assignLevels(AssignLevel &lvl) {
     }
 }
 
-void LitHeadAggregate::check(ChkLvlVec &levels, MessagePrinter &log) const {
+void LitHeadAggregate::check(ChkLvlVec &levels, Logger &log) const {
     auto f = [&]() {
         for (auto &y : elems) {
             levels.emplace_back(loc(), *this);
@@ -1311,7 +1311,7 @@ UHeadAggr Disjunction::rewriteAggregates(UBodyAggrVec &body) {
     return nullptr;
 }
 
-bool Disjunction::simplify(Projections &project, SimplifyState &state, MessagePrinter &log) {
+bool Disjunction::simplify(Projections &project, SimplifyState &state, Logger &log) {
     for (auto &elem : elems) {
         elem.first.erase(std::remove_if(elem.first.begin(), elem.first.end(), [&](Head &head) {
             SimplifyState elemState(state);
@@ -1368,7 +1368,7 @@ void Disjunction::assignLevels(AssignLevel &lvl) {
     }
 }
 
-void Disjunction::check(ChkLvlVec &levels, MessagePrinter &log) const {
+void Disjunction::check(ChkLvlVec &levels, Logger &log) const {
     levels.back().current = &levels.back().dep.insertEnt();
     for (auto &y : elems) {
         levels.emplace_back(loc(), *this);
@@ -1516,7 +1516,7 @@ UHeadAggr SimpleHeadLiteral::rewriteAggregates(UBodyAggrVec &aggr) {
     return nullptr;
 }
 
-bool SimpleHeadLiteral::simplify(Projections &project, SimplifyState &state, MessagePrinter &log) {
+bool SimpleHeadLiteral::simplify(Projections &project, SimplifyState &state, Logger &log) {
     return lit->simplify(log, project, state, false);
 }
 
@@ -1532,7 +1532,7 @@ void SimpleHeadLiteral::assignLevels(AssignLevel &lvl) {
 
 Symbol SimpleHeadLiteral::isEDB() const { return lit->isEDB(); }
 
-void SimpleHeadLiteral::check(ChkLvlVec &levels, MessagePrinter &) const {
+void SimpleHeadLiteral::check(ChkLvlVec &levels, Logger &) const {
     _add(levels, lit, false);
 }
 
@@ -1647,7 +1647,7 @@ void DisjointAggregate::collect(VarTermBoundVec &vars) const {
 
 bool DisjointAggregate::rewriteAggregates(UBodyAggrVec &) { return true; }
 
-bool DisjointAggregate::simplify(Projections &project, SimplifyState &state, bool, MessagePrinter &log) {
+bool DisjointAggregate::simplify(Projections &project, SimplifyState &state, bool, Logger &log) {
     elems.erase(std::remove_if(elems.begin(), elems.end(), [&](CSPElemVec::value_type &elem) {
         SimplifyState elemState(state);
         for (auto &term : elem.tuple) {
@@ -1686,7 +1686,7 @@ void DisjointAggregate::assignLevels(AssignLevel &lvl) {
     }
 }
 
-void DisjointAggregate::check(ChkLvlVec &levels, MessagePrinter &log) const {
+void DisjointAggregate::check(ChkLvlVec &levels, Logger &log) const {
     auto f = [&]() {
         for (auto &y : elems) {
             levels.emplace_back(loc(), *this);
@@ -1799,7 +1799,7 @@ UHeadAggr MinimizeHeadLiteral::rewriteAggregates(UBodyAggrVec &) {
     return nullptr;
 }
 
-bool MinimizeHeadLiteral::simplify(Projections &, SimplifyState &state, MessagePrinter &log) {
+bool MinimizeHeadLiteral::simplify(Projections &, SimplifyState &state, Logger &log) {
     for (auto &term : tuple_) {
         if (term->simplify(state, false, false, log).update(term).undefined()) {
             return false;
@@ -1820,7 +1820,7 @@ void MinimizeHeadLiteral::assignLevels(AssignLevel &lvl) {
     lvl.add(vars);
 }
 
-void MinimizeHeadLiteral::check(ChkLvlVec &levels, MessagePrinter &) const {
+void MinimizeHeadLiteral::check(ChkLvlVec &levels, Logger &) const {
     levels.back().current = &levels.back().dep.insertEnt();
     VarTermBoundVec vars;
     collect(vars);
@@ -1906,7 +1906,7 @@ UHeadAggr EdgeHeadAtom::rewriteAggregates(UBodyAggrVec &) {
     return nullptr;
 }
 
-bool EdgeHeadAtom::simplify(Projections &, SimplifyState &state, MessagePrinter &log) {
+bool EdgeHeadAtom::simplify(Projections &, SimplifyState &state, Logger &log) {
     return !u_->simplify(state, false, false, log).update(u_).undefined() &&
            !v_->simplify(state, false, false, log).update(v_).undefined();
 }
@@ -1921,7 +1921,7 @@ void EdgeHeadAtom::assignLevels(AssignLevel &lvl) {
     lvl.add(vars);
 }
 
-void EdgeHeadAtom::check(ChkLvlVec &levels, MessagePrinter &) const {
+void EdgeHeadAtom::check(ChkLvlVec &levels, Logger &) const {
     levels.back().current = &levels.back().dep.insertEnt();
     VarTermBoundVec vars;
     collect(vars);
@@ -1988,7 +1988,7 @@ UHeadAggr ProjectHeadAtom::rewriteAggregates(UBodyAggrVec &body) {
     return nullptr;
 }
 
-bool ProjectHeadAtom::simplify(Projections &, SimplifyState &state, MessagePrinter &log) {
+bool ProjectHeadAtom::simplify(Projections &, SimplifyState &state, Logger &log) {
     return !atom_->simplify(state, false, false, log).update(atom_).undefined();
 }
 
@@ -2002,7 +2002,7 @@ void ProjectHeadAtom::assignLevels(AssignLevel &lvl) {
     lvl.add(vars);
 }
 
-void ProjectHeadAtom::check(ChkLvlVec &levels, MessagePrinter &) const {
+void ProjectHeadAtom::check(ChkLvlVec &levels, Logger &) const {
     levels.back().current = &levels.back().dep.insertEnt();
     VarTermBoundVec vars;
     collect(vars);
@@ -2084,7 +2084,7 @@ UHeadAggr HeuristicHeadAtom::rewriteAggregates(UBodyAggrVec &body) {
     return nullptr;
 }
 
-bool HeuristicHeadAtom::simplify(Projections &, SimplifyState &state, MessagePrinter &log) {
+bool HeuristicHeadAtom::simplify(Projections &, SimplifyState &state, Logger &log) {
     return
         !atom_->simplify(state, false, false, log).update(atom_).undefined() &&
         !value_->simplify(state, false, false, log).update(value_).undefined() &&
@@ -2102,7 +2102,7 @@ void HeuristicHeadAtom::assignLevels(AssignLevel &lvl) {
     lvl.add(vars);
 }
 
-void HeuristicHeadAtom::check(ChkLvlVec &levels, MessagePrinter &) const {
+void HeuristicHeadAtom::check(ChkLvlVec &levels, Logger &) const {
     levels.back().current = &levels.back().dep.insertEnt();
     VarTermBoundVec vars;
     collect(vars);
@@ -2168,7 +2168,7 @@ UHeadAggr ShowHeadLiteral::rewriteAggregates(UBodyAggrVec &) {
     return nullptr;
 }
 
-bool ShowHeadLiteral::simplify(Projections &, SimplifyState &state, MessagePrinter &log) {
+bool ShowHeadLiteral::simplify(Projections &, SimplifyState &state, Logger &log) {
     return !term_->simplify(state, false, false, log).update(term_).undefined();
 }
 
@@ -2182,7 +2182,7 @@ void ShowHeadLiteral::assignLevels(AssignLevel &lvl) {
     lvl.add(vars);
 }
 
-void ShowHeadLiteral::check(ChkLvlVec &levels, MessagePrinter &) const {
+void ShowHeadLiteral::check(ChkLvlVec &levels, Logger &) const {
     levels.back().current = &levels.back().dep.insertEnt();
     VarTermBoundVec vars;
     collect(vars);

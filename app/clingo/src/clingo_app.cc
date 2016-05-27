@@ -183,19 +183,26 @@ void ClingoApp::onEvent(Event const& ev) {
     BaseType::onEvent(ev);
 }
 void ClingoApp::run(Clasp::ClaspFacade& clasp) {
-    using namespace std::placeholders;
-    if (mode_ != mode_clasp) {
-        ProblemType     pt  = getProblemType();
-        ProgramBuilder* prg = &clasp.start(claspConfig_, pt);
-        grOpts_.verbose = verbose() == UINT_MAX;
-        Asp::LogicProgram* lp = mode_ != mode_gringo ? static_cast<Asp::LogicProgram*>(prg) : 0;
-        grd = Gringo::gringo_make_unique<ClingoControl>(module.scripts, mode_ == mode_clingo, clasp_.get(), claspConfig_, std::bind(&ClingoApp::handlePostGroundOptions, this, _1), std::bind(&ClingoApp::handlePreSolveOptions, this, _1), module.logger);
-        grd->parse(claspAppOpts_.input, grOpts_, lp);
-        grd->main();
+    try {
+        using namespace std::placeholders;
+        if (mode_ != mode_clasp) {
+            ProblemType     pt  = getProblemType();
+            ProgramBuilder* prg = &clasp.start(claspConfig_, pt);
+            grOpts_.verbose = verbose() == UINT_MAX;
+            Asp::LogicProgram* lp = mode_ != mode_gringo ? static_cast<Asp::LogicProgram*>(prg) : 0;
+            grd = Gringo::gringo_make_unique<ClingoControl>(module.scripts, mode_ == mode_clingo, clasp_.get(), claspConfig_, std::bind(&ClingoApp::handlePostGroundOptions, this, _1), std::bind(&ClingoApp::handlePreSolveOptions, this, _1), nullptr, 20);
+            grd->parse(claspAppOpts_.input, grOpts_, lp);
+            grd->main();
+        }
+        else {
+            ClaspAppBase::run(clasp);
+        }
     }
-    else {
-        ClaspAppBase::run(clasp);
+    catch (Gringo::GringoError const &e) {
+        std::cerr << e.what() << std::endl;
+        throw std::runtime_error("fatal error");
     }
+    catch (...) { throw; }
 }
 
 // }}}

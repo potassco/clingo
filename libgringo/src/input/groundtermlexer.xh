@@ -35,7 +35,7 @@
     WSNL       = [\t\r\n ]*;
 */
 
-int Gringo::Input::GroundTermParser::lex_impl(void *pValue, MessagePrinter &log) {
+int Gringo::Input::GroundTermParser::lex_impl(void *pValue, Logger &log) {
 start:
     start();
     auto &value = *static_cast<Gringo::Input::GroundTermGrammar::parser::semantic_type*>(pValue);

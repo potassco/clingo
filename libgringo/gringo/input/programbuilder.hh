@@ -167,7 +167,7 @@ public:
     // {{{2 statements
     virtual void rule(Location const &loc, HdLitUid head) = 0;
     virtual void rule(Location const &loc, HdLitUid head, BdLitVecUid body) = 0;
-    virtual void define(Location const &loc, String name, TermUid value, bool defaultDef, MessagePrinter &log) = 0;
+    virtual void define(Location const &loc, String name, TermUid value, bool defaultDef, Logger &log) = 0;
     virtual void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) = 0;
     virtual void showsig(Location const &loc, Sig, bool csp) = 0;
     virtual void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) = 0;
@@ -211,7 +211,7 @@ public:
     virtual TheoryOpDefVecUid theoryopdefs() = 0;
     virtual TheoryOpDefVecUid theoryopdefs(TheoryOpDefVecUid defs, TheoryOpDefUid def) = 0;
 
-    virtual TheoryTermDefUid theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs, MessagePrinter &log) = 0;
+    virtual TheoryTermDefUid theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs, Logger &log) = 0;
     virtual TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type) = 0;
     virtual TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type, TheoryOpVecUid ops, String guardDef) = 0;
 
@@ -219,7 +219,7 @@ public:
     virtual TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryTermDefUid def) = 0;
     virtual TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid def) = 0;
 
-    virtual void theorydef(Location const &loc, String name, TheoryDefVecUid defs, MessagePrinter &log) = 0;
+    virtual void theorydef(Location const &loc, String name, TheoryDefVecUid defs, Logger &log) = 0;
 
     // }}}2
 
@@ -315,7 +315,7 @@ public:
     // {{{2 statements
     void rule(Location const &loc, HdLitUid head) override;
     void rule(Location const &loc, HdLitUid head, BdLitVecUid body) override;
-    void define(Location const &loc, String name, TermUid value, bool defaultDef, MessagePrinter &log) override;
+    void define(Location const &loc, String name, TermUid value, bool defaultDef, Logger &log) override;
     void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) override;
     void showsig(Location const &loc, Sig sig, bool csp) override;
     void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) override;
@@ -359,7 +359,7 @@ public:
     TheoryOpDefVecUid theoryopdefs() override;
     TheoryOpDefVecUid theoryopdefs(TheoryOpDefVecUid defs, TheoryOpDefUid def) override;
 
-    TheoryTermDefUid theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs, MessagePrinter &log) override;
+    TheoryTermDefUid theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs, Logger &log) override;
     TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type) override;
     TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type, TheoryOpVecUid ops, String guardDef) override;
 
@@ -367,7 +367,7 @@ public:
     TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryTermDefUid def) override;
     TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid def) override;
 
-    void theorydef(Location const &loc, String name, TheoryDefVecUid defs, MessagePrinter &log) override;
+    void theorydef(Location const &loc, String name, TheoryDefVecUid defs, Logger &log) override;
 
     // }}}2
     virtual ~NongroundProgramBuilder();
@@ -523,7 +523,7 @@ public:
     // {{{2 statements
     void rule(Location const &loc, HdLitUid head) override;
     void rule(Location const &loc, HdLitUid head, BdLitVecUid body) override;
-    void define(Location const &loc, String name, TermUid value, bool defaultDef, MessagePrinter &log) override;
+    void define(Location const &loc, String name, TermUid value, bool defaultDef, Logger &log) override;
     void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) override;
     void showsig(Location const &loc, Sig sig, bool csp) override;
     void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) override;
@@ -558,13 +558,13 @@ public:
     TheoryOpDefUid theoryopdef(Location const &loc, String op, unsigned priority, TheoryOperatorType type) override;
     TheoryOpDefVecUid theoryopdefs() override;
     TheoryOpDefVecUid theoryopdefs(TheoryOpDefVecUid defs, TheoryOpDefUid def) override;
-    TheoryTermDefUid theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs, MessagePrinter &log) override;
+    TheoryTermDefUid theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs, Logger &log) override;
     TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type) override;
     TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type, TheoryOpVecUid ops, String guardDef) override;
     TheoryDefVecUid theorydefs() override;
     TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryTermDefUid def) override;
     TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid def) override;
-    void theorydef(Location const &loc, String name, TheoryDefVecUid defs, MessagePrinter &log) override;
+    void theorydef(Location const &loc, String name, TheoryDefVecUid defs, Logger &log) override;
     // }}}2
 
 private:

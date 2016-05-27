@@ -60,9 +60,9 @@ public:
     Defines(Defines &&x);
     //! Add a define.
     //! Default defintions will not overwrite existing definitions and can be overwritten by other defines.
-    void add(Location const &loc, String name, UTerm &&value, bool defaultDef, MessagePrinter &log);
+    void add(Location const &loc, String name, UTerm &&value, bool defaultDef, Logger &log);
     //! Evaluates layered definitions and checks for cycles.
-    void init(MessagePrinter &log);
+    void init(Logger &log);
     bool empty() const;
     void apply(Symbol x, Symbol &retVal, UTerm &retTerm, bool replace);
     DefMap const &defs() const;
@@ -180,7 +180,7 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
     //! - f(X)+0 -> 0
     //! \note The term is unusable if the method returned a non-zero replacement term.
     //! \pre Must be called after unpool.
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, MessagePrinter &log) = 0;
+    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log) = 0;
     //! Removes anonymous variables in projectable positions (in outermost function symbols) from a term.
     //! The first element of the return value is a replacement term for the current term,
     //! which might be null if the term does not have to be replace..
@@ -206,11 +206,11 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
     virtual Invertibility getInvertibility() const = 0;
     //! Evaluates the term to a value.
     //! \pre Must be called after simplify.
-    virtual Symbol eval(bool &undefined, MessagePrinter &log) const = 0;
+    virtual Symbol eval(bool &undefined, Logger &log) const = 0;
     //! Returns true if the term evaluates to zero.
     //! \pre Must be called after simplify.
     //! \pre Term is ground or
-    bool isZero(MessagePrinter &log) const;
+    bool isZero(Logger &log) const;
     //! Collects variables in Terms.
     //! \pre Must be called after simplify and project to properly account for bound variables.
     // TODO: the way I am using these it would be nice to have a visitor for variables
@@ -239,7 +239,7 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
     virtual UTerm replace(Defines &defs, bool replace) = 0;
     virtual double estimate(double size, VarSet const &bound) const = 0;
     virtual Symbol isEDB() const = 0;
-    virtual int toNum(bool &undefined, MessagePrinter &log);
+    virtual int toNum(bool &undefined, Logger &log);
 
     virtual ~Term() { }
 
@@ -424,12 +424,12 @@ struct PoolTerm : public Term {
     PoolTerm(UTermVec &&terms);
     virtual unsigned projectScore() const;
     virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, MessagePrinter &log);
+    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
     virtual ProjectRet project(bool rename, AuxGen &gen);
     virtual bool hasVar() const;
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, MessagePrinter &log) const;
+    virtual Symbol eval(bool &undefined, Logger &log) const;
     virtual bool match(Symbol const &val) const;
     virtual Sig getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;
@@ -461,12 +461,12 @@ struct ValTerm : public Term {
     ValTerm(Symbol value);
     virtual unsigned projectScore() const;
     virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, MessagePrinter &log);
+    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
     virtual ProjectRet project(bool rename, AuxGen &gen);
     virtual bool hasVar() const;
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, MessagePrinter &log) const;
+    virtual Symbol eval(bool &undefined, Logger &log) const;
     virtual bool match(Symbol const &val) const;
     virtual Sig getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;
@@ -498,12 +498,12 @@ struct VarTerm : Term {
     VarTerm(String name, SVal ref, unsigned level = 0, bool bindRef = false);
     virtual unsigned projectScore() const;
     virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, MessagePrinter &log);
+    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
     virtual ProjectRet project(bool rename, AuxGen &gen);
     virtual bool hasVar() const;
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, MessagePrinter &log) const;
+    virtual Symbol eval(bool &undefined, Logger &log) const;
     virtual bool match(Symbol const &val) const;
     virtual Sig getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;
@@ -538,12 +538,12 @@ struct UnOpTerm : public Term {
     UnOpTerm(UnOp op, UTerm &&arg);
     virtual unsigned projectScore() const;
     virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, MessagePrinter &log);
+    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
     virtual ProjectRet project(bool rename, AuxGen &gen);
     virtual bool hasVar() const;
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, MessagePrinter &log) const;
+    virtual Symbol eval(bool &undefined, Logger &log) const;
     virtual bool match(Symbol const &val) const;
     virtual Sig getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;
@@ -577,12 +577,12 @@ struct BinOpTerm : public Term {
     BinOpTerm(BinOp op, UTerm &&left, UTerm &&right);
     virtual unsigned projectScore() const;
     virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, MessagePrinter &log);
+    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
     virtual ProjectRet project(bool rename, AuxGen &gen);
     virtual bool hasVar() const;
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, MessagePrinter &log) const;
+    virtual Symbol eval(bool &undefined, Logger &log) const;
     virtual bool match(Symbol const &val) const;
     virtual Sig getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;
@@ -616,12 +616,12 @@ struct DotsTerm : public Term {
     DotsTerm(UTerm &&left, UTerm &&right);
     virtual unsigned projectScore() const;
     virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, MessagePrinter &log);
+    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
     virtual ProjectRet project(bool rename, AuxGen &gen);
     virtual bool hasVar() const;
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, MessagePrinter &log) const;
+    virtual Symbol eval(bool &undefined, Logger &log) const;
     virtual bool match(Symbol const &val) const;
     virtual Sig getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;
@@ -654,12 +654,12 @@ struct LuaTerm : public Term {
     LuaTerm(String name, UTermVec &&args);
     virtual unsigned projectScore() const;
     virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, MessagePrinter &log);
+    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
     virtual ProjectRet project(bool rename, AuxGen &gen);
     virtual bool hasVar() const;
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, MessagePrinter &log) const;
+    virtual Symbol eval(bool &undefined, Logger &log) const;
     virtual bool match(Symbol const &val) const;
     virtual Sig getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;
@@ -692,12 +692,12 @@ struct FunctionTerm : public Term {
     FunctionTerm(String name, UTermVec &&args);
     virtual unsigned projectScore() const;
     virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, MessagePrinter &log);
+    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
     virtual ProjectRet project(bool rename, AuxGen &gen);
     virtual bool hasVar() const;
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, MessagePrinter &log) const;
+    virtual Symbol eval(bool &undefined, Logger &log) const;
     virtual bool match(Symbol const &val) const;
     virtual Sig getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;
@@ -735,12 +735,12 @@ struct LinearTerm : Term {
     LinearTerm(UVarTerm &&var, int m, int n);
     virtual unsigned projectScore() const;
     virtual void rename(String name);
-    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, MessagePrinter &log);
+    virtual SimplifyRet simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &log);
     virtual ProjectRet project(bool rename, AuxGen &gen);
     virtual bool hasVar() const;
     virtual void collect(VarTermBoundVec &vars, bool bound) const;
     virtual void collect(VarSet &vars, unsigned minLevel = 0, unsigned maxLevel = std::numeric_limits<unsigned>::max()) const;
-    virtual Symbol eval(bool &undefined, MessagePrinter &log) const;
+    virtual Symbol eval(bool &undefined, Logger &log) const;
     virtual bool match(Symbol const &val) const;
     virtual Sig getSig() const;
     virtual UTerm renameVars(RenameMap &names) const;

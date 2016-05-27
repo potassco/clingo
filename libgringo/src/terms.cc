@@ -70,13 +70,13 @@ TheoryTermDef::TheoryTermDef(Location const &loc, String name)
 
 TheoryTermDef::TheoryTermDef(TheoryTermDef &&) = default;
 
-void TheoryTermDef::addOpDef(TheoryOpDef &&def, MessagePrinter &log) {
+void TheoryTermDef::addOpDef(TheoryOpDef &&def, Logger &log) {
     auto it = opDefs_.find(def.key());
     if (it == opDefs_.end()) {
         opDefs_.push(std::move(def));
     }
     else {
-        GRINGO_REPORT(log, E_ERROR)
+        GRINGO_REPORT(log, clingo_error_fatal)
             << def.loc() << ": error: redefinition of theory operator:" << "\n"
             << "  " << def.op() << "\n"
             << it->loc() << ": note: operator first defined here\n";
@@ -199,26 +199,26 @@ Location const &TheoryDef::loc() const {
     return loc_;
 }
 
-void TheoryDef::addAtomDef(TheoryAtomDef &&def, MessagePrinter &log) {
+void TheoryDef::addAtomDef(TheoryAtomDef &&def, Logger &log) {
     auto it = atomDefs_.find(def.sig());
     if (it == atomDefs_.end()) {
         atomDefs_.push(std::move(def));
     }
     else {
-        GRINGO_REPORT(log, E_ERROR)
+        GRINGO_REPORT(log, clingo_error_fatal)
             << def.loc() << ": error: redefinition of theory atom:" << "\n"
             << "  " << def.sig() << "\n"
             << it->loc() << ": note: atom first defined here\n";
     }
 }
 
-void TheoryDef::addTermDef(TheoryTermDef &&def, MessagePrinter &log) {
+void TheoryDef::addTermDef(TheoryTermDef &&def, Logger &log) {
     auto it = termDefs_.find(def.name());
     if (it == termDefs_.end()) {
         termDefs_.push(std::move(def));
     }
     else {
-        GRINGO_REPORT(log, E_ERROR)
+        GRINGO_REPORT(log, clingo_error_fatal)
             << def.loc() << ": error: redefinition of theory term:" << "\n"
             << "  " << def.name() << "\n"
             << it->loc() << ": note: term first defined term\n";
@@ -280,7 +280,7 @@ void CSPRelTerm::collect(VarTermBoundVec &vars) const                           
 void CSPRelTerm::collect(VarTermSet &vars) const                                 { term.collect(vars); }
 void CSPRelTerm::replace(Defines &x)                                             { term.replace(x); }
 bool CSPRelTerm::operator==(CSPRelTerm const &x) const                           { return rel == x.rel && term == x.term; }
-bool CSPRelTerm::simplify(SimplifyState &state, MessagePrinter &log)             { return term.simplify(state, log); }
+bool CSPRelTerm::simplify(SimplifyState &state, Logger &log)             { return term.simplify(state, log); }
 void CSPRelTerm::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) { term.rewriteArithmetics(arith, auxGen); }
 size_t CSPRelTerm::hash() const                                                  { return get_value_hash(size_t(rel), term); }
 bool CSPRelTerm::hasPool() const                                                 { return term.hasPool(); }
@@ -318,7 +318,7 @@ void CSPAddTerm::replace(Defines &x) {
     for (auto &y : terms) { y.replace(x); }
 }
 bool CSPAddTerm::operator==(CSPAddTerm const &x) const { return is_value_equal_to(terms, x.terms); }
-bool CSPAddTerm::simplify(SimplifyState &state, MessagePrinter &log) {
+bool CSPAddTerm::simplify(SimplifyState &state, Logger &log) {
     for (auto &y : terms) {
         if (!y.simplify(state, log)) { return false; }
     }
@@ -340,7 +340,7 @@ std::vector<CSPAddTerm> CSPAddTerm::unpool() const {
     Term::unpool(terms.begin(), terms.end(), std::bind(&CSPMulTerm::unpool, std::placeholders::_1), f);
     return x;
 }
-void CSPAddTerm::toGround(CSPGroundLit &ground, bool invert, MessagePrinter &log) const {
+void CSPAddTerm::toGround(CSPGroundLit &ground, bool invert, Logger &log) const {
     bool undefined = false;
     for (auto &x : terms) {
         int coe = x.coe->toNum(undefined, log);
@@ -352,7 +352,7 @@ void CSPAddTerm::toGround(CSPGroundLit &ground, bool invert, MessagePrinter &log
     assert(!undefined);
 }
 
-bool CSPAddTerm::checkEval(MessagePrinter &log) const {
+bool CSPAddTerm::checkEval(Logger &log) const {
     for (auto &x : terms) {
         bool undefined = false;
         x.coe->toNum(undefined, log);
@@ -399,7 +399,7 @@ bool CSPMulTerm::operator==(CSPMulTerm const &x) const {
     if (var && x.var) { return is_value_equal_to(var, x.var) && is_value_equal_to(coe, x.coe); }
     else { return !var && !x.var && is_value_equal_to(coe, x.coe); }
 }
-bool CSPMulTerm::simplify(SimplifyState &state, MessagePrinter &log) {
+bool CSPMulTerm::simplify(SimplifyState &state, Logger &log) {
     if (var && var->simplify(state, false, false, log).update(var).undefined()) { return false;}
     return !coe->simplify(state, false, false, log).update(coe).undefined();
 }
