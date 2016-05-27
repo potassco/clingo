@@ -52,7 +52,7 @@ using S = std::string;
 
 } // namespace
 
-TEST_CASE("lua", "[base]") {
+TEST_CASE("lua", "[base][lua]") {
     TestGringoModule module;
     SECTION("parse") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);

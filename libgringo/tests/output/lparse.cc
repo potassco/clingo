@@ -426,138 +426,6 @@ TEST_CASE("output-lparse") {
                 "1 = { e(2); b(S,g) } :- b(S,d).\n")));
         //REQUIRE("[-:1:19-20: info: atom does not occur in any rule head:\n  c\n]" == IO::to_string(msg.messages));
     }
-    SECTION("mutexBug") {
-#ifdef WITH_LUA
-        REQUIRE(
-            "([[]],[])" ==
-            IO::to_string(solve(
-                "#script (lua) \n"
-                "function main(prg)\n"
-                "	prg:ground(\"base\", {})\n"
-                "	prg:ground(\"plan_graph_base\", {})\n"
-                "\n"
-                "	for step = 1,3,1 do\n"
-                "		prg:ground(\"plan_graph_step\", {step})\n"
-                "		prg:solve()\n"
-                "	end\n"
-                "--	Comment line 8 and uncomment line 11\n"
-                "--	prg:solve()\n"
-                "end\n"
-                "#end.\n"
-                "\n"
-                "#program plan_graph_base.\n"
-                "valid_f(FLUENT, 1) :- init(FLUENT).\n"
-                "valid_f1(FLUENT, 1) :- init(FLUENT).\n"
-                "\n"
-                "#program plan_graph_step(time).\n"
-                "\n"
-                "%Encoding 1\n"
-                "\n"
-                "valid_a(ACT, time) :- action(ACT); valid_f(FLUENT, time) : pre(ACT, FLUENT);\n"
-                "			not mutex(F1, F2, time) : req_both(ACT, F1, F2).\n"
-                "\n"
-                "valid_pre(ACT, FLUENT, time) :- valid_a(ACT, time), pre(ACT, FLUENT).\n"
-                "valid_add(ACT, FLUENT, time) :- valid_a(ACT, time), addadd(ACT, FLUENT).\n"
-                "valid_f(FLUENT, time + 1) :- valid_add(_, FLUENT, time).\n"
-                "\n"
-                "mutex_actions(A1, A2, time) :- valid_a(A1, time), valid_a(A2, time), conflicting(A1, A2).\n"
-                "\n"
-                "mutex_a_with_f(A1, P2, time) :- mutex(P1, P2, time), valid_pre(A1, P1, time).\n"
-                "mutex_actions(A1, A2, time) :- mutex_a_with_f(A1, P2, time), valid_pre(A2, P2, time).\n"
-                "%mutex_actions(A1, A2, time) :- mutex(P1, P2, time), valid_pre(A1, P1, time), valid_pre(A2, P2, time).\n"
-                "\n"
-                "mutex_a_sym(A1, A2, time; A2, A1, time) :- mutex_actions(A1, A2, time).\n"
-                "\n"
-                "closes(A2, F1, time) :- valid_a(A2, time), valid_f(F1, time+1); mutex_a_sym(A1, A2, time) : valid_add(A1, F1, time).\n"
-                "mutex(F1, F2, time+1) :- F1 < F2, valid_f(F1, time+1), valid_f(F2, time+1);\n"
-                "			closes(A2, F1, time) : valid_add(A2, F2, time).\n"
-                "\n"
-                "% Encoding 2:\n"
-                "% Identical to encoding 1 except for lines 32 and 33 vs. line 57.\n"
-                "% However these should generate identical groundings, but they don't for some reason\n"
-                "\n"
-                "valid_a1(ACT, time) :- action(ACT); valid_f1(FLUENT, time) : pre(ACT, FLUENT);\n"
-                "			not mutex1(F1, F2, time) : req_both(ACT, F1, F2).\n"
-                "\n"
-                "valid_pre1(ACT, FLUENT, time) :- valid_a1(ACT, time), pre(ACT, FLUENT).\n"
-                "valid_add1(ACT, FLUENT, time) :- valid_a1(ACT, time), addadd(ACT, FLUENT).\n"
-                "valid_f1(FLUENT, time + 1) :- valid_add1(_, FLUENT, time).\n"
-                "\n"
-                "mutex_actions1(A1, A2, time) :- valid_a1(A1, time), valid_a1(A2, time), conflicting(A1, A2).\n"
-                "\n"
-                "%mutex_a_with_f1(A1, P2, time) :- mutex1(P1, P2, time), valid_pre1(A1, P1, time).\n"
-                "%mutex_actions1(A1, A2, time) :- mutex_a_with_f1(A1, P2, time), valid_pre1(A2, P2, time).\n"
-                "mutex_actions1(A1, A2, time) :- mutex1(P1, P2, time), valid_pre1(A1, P1, time), valid_pre1(A2, P2, time).\n"
-                "\n"
-                "mutex_a_sym1(A1, A2, time; A2, A1, time) :- mutex_actions1(A1, A2, time).\n"
-                "\n"
-                "closes1(A2, F1, time) :- valid_a1(A2, time), valid_f1(F1, time+1); mutex_a_sym1(A1, A2, time) : valid_add1(A1, F1, time).\n"
-                "mutex1(F1, F2, time+1) :- F1 < F2, valid_f1(F1, time+1), valid_f1(F2, time+1);\n"
-                "			closes1(A2, F1, time) : valid_add1(A2, F2, time).\n"
-                "\n"
-                "% diff reports if the two encodings are not the same\n"
-                "\n"
-                "diff(A1, A2, time) :- mutex_actions1(A1, A2, time), not mutex_actions(A1, A2, time).\n"
-                "diff(A1, A2, time) :- mutex_actions(A1, A2, time), not mutex_actions1(A1, A2, time).\n"
-                "\n"
-                "#program base.\n"
-                "\n"
-                "#show diff/3.\n"
-                "\n"
-                "preserve_action(preserve(F)) :- fact(F).\n"
-                "action(A) :- preserve_action(A).\n"
-                "pre(preserve(F), F) :- fact(F).\n"
-                "addadd(preserve(F), F) :- fact(F).\n"
-                "\n"
-                "prepre(A, F) :- pre(A, F), not del(A, F).\n"
-                "deldel(A, F) :- del(A, F), not pre(A, F).\n"
-                "predel(A, F) :- pre(A, F), del(A, F).\n"
-                "addadd(A, F) :- add(A, F), not pre(A, F), not del(A, F).\n"
-                "\n"
-                "conflicting(A1, A2) :- pre(A1, F), del(A2, F), A1 != A2.\n"
-                "\n"
-                "req_both(ACT, F1, F2) :- pre(ACT, F1), pre(ACT, F2), F1 < F2.\n"
-                "\n"
-                "type(object).\n"
-                "type(ferry, object).\n"
-                "fact(at_ferry(X)) :- type(X, object).\n"
-                "fact(at(X, Y)) :- type(X, object), type(Y, object).\n"
-                "fact(on(X, Y)) :- type(X, object), type(Y, object).\n"
-                "fact(empty_ferry).\n"
-                "action(debark(X, Y)) :- type(X, object), type(Y, object), auto__(X), place__(Y).\n"
-                "pre(debark(X, Y), on(X, ferry)) :- action(debark(X, Y)).\n"
-                "pre(debark(X, Y), at_ferry(Y)) :- action(debark(X, Y)).\n"
-                "add(debark(X, Y), at(X, Y)) :- action(debark(X, Y)).\n"
-                "add(debark(X, Y), empty_ferry) :- action(debark(X, Y)).\n"
-                "del(debark(X, Y), on(X, ferry)) :- action(debark(X, Y)).\n"
-                "action(sail(X, Y)) :- type(X, object), type(Y, object), place__(X), place__(Y).\n"
-                "pre(sail(X, Y), at_ferry(X)) :- action(sail(X, Y)).\n"
-                "add(sail(X, Y), at_ferry(Y)) :- action(sail(X, Y)).\n"
-                "del(sail(X, Y), at_ferry(X)) :- action(sail(X, Y)).\n"
-                "action(board(X, Y)) :- type(X, object), type(Y, object), place__(Y), auto__(X).\n"
-                "pre(board(X, Y), at(X, Y)) :- action(board(X, Y)).\n"
-                "pre(board(X, Y), at_ferry(Y)) :- action(board(X, Y)).\n"
-                "pre(board(X, Y), empty_ferry) :- action(board(X, Y)).\n"
-                "add(board(X, Y), on(X, ferry)) :- action(board(X, Y)).\n"
-                "del(board(X, Y), at(X, Y)) :- action(board(X, Y)).\n"
-                "del(board(X, Y), empty_ferry) :- action(board(X, Y)).\n"
-                "type(c1, object).\n"
-                "type(b, object).\n"
-                "type(c2, object).\n"
-                "type(a, object).\n"
-                "place__(a).\n"
-                "place__(b).\n"
-                "auto__(c1).\n"
-                "auto__(c2).\n"
-                "init(at(c1, a)).\n"
-                "init(at(c2, a)).\n"
-                "init(at_ferry(a)).\n"
-                "init(empty_ferry).\n"
-                "goal(at(c1, b)).\n"
-                "goal(at(c2, b)).\n"
-                )));
-#endif // WITH_LUA
-    }
     SECTION("headAggregateBug") {
         REQUIRE("([[q(a),r(a)]],[-:1:18-22: info: atom does not occur in any rule head:\n  z(X)\n])" == IO::to_string(solve("1 { q(a); p(X) : z(X) }. r(X) :- q(X).")));
         REQUIRE("([[q(a),r(a)]],[-:1:12-16: info: atom does not occur in any rule head:\n  z(X)\n])" == IO::to_string(solve("1 { p(X) : z(X); q(a) }. r(X) :- q(X).")));
@@ -1070,44 +938,6 @@ TEST_CASE("output-lparse") {
                 )));
     }
 
-    SECTION("python") {
-#ifdef WITH_PYTHON
-        REQUIRE(
-            "([[p(39),q(\"a\"),q(1),q(2),q(a),r(2),r(3),s((1,2)),s((1,3)),s((2,1))]],[])" == IO::to_string(solve(
-                "#script (python)\n"
-                "import clingo\n"
-                "def conv(a): return a.number if hasattr(a, 'number') else a\n"
-                "def gcd(a, b): return b if conv(a) == 0 else gcd(conv(b) % conv(a), a)\n"
-                "def test():    return [1, 2, clingo.function(\"a\"), \"a\"]\n"
-                "def match():   return [(1,2),(1,3),(2,1)]\n"
-                "#end.\n"
-                "\n"
-                "p(@gcd(2*3*7*13,3*11*13)).\n"
-                "q(@test()).\n"
-                "r(X) :- (1,X)=@match().\n"
-                "s(X) :- X=@match().\n"
-                )));
-#endif // WITH_PYTHON
-    }
-
-    SECTION("lua") {
-#ifdef WITH_LUA
-        REQUIRE(
-            "([[p(39),q(\"a\"),q(1),q(2),q(a),r(2),r(3),s((1,2)),s((1,3)),s((2,1))]],[])" == IO::to_string(solve(
-                "#script (lua)\n"
-                "function gcd(a, b) if a == 0 then return b else return gcd(b % a, a) end end\n"
-                "function test()    return {1, 2, clingo.Fun(\"a\"), \"a\"} end\n"
-                "function match()   return {clingo.Tuple({1,2}),clingo.Tuple({1,3}),clingo.Tuple({2,1})} end\n"
-                "#end.\n"
-                "\n"
-                "p(@gcd(2*3*7*13,3*11*13)).\n"
-                "q(@test()).\n"
-                "r(X) :- (1,X)=@match().\n"
-                "s(X) :- X=@match().\n"
-                )));
-#endif // WITH_LUA
-    }
-
     SECTION("undefinedRule") {
         REQUIRE(
             "([[q(2)]],[-:4:3-6: info: operation undefined:\n  (A+B)\n])" ==
@@ -1393,6 +1223,48 @@ TEST_CASE("output-lparse") {
     }
 
 }
+
+#ifdef WITH_PYTHON
+
+TEST_CASE("output-lparse-python", "[output][python]") {
+    REQUIRE(
+        "([[p(39),q(\"a\"),q(1),q(2),q(a),r(2),r(3),s((1,2)),s((1,3)),s((2,1))]],[])" == IO::to_string(solve(
+            "#script (python)\n"
+            "import clingo\n"
+            "def conv(a): return a.number if hasattr(a, 'number') else a\n"
+            "def pygcd(a, b): return b if conv(a) == 0 else pygcd(conv(b) % conv(a), a)\n"
+            "def pytest():    return [1, 2, clingo.function(\"a\"), \"a\"]\n"
+            "def pymatch():   return [(1,2),(1,3),(2,1)]\n"
+            "#end.\n"
+            "\n"
+            "p(@pygcd(2*3*7*13,3*11*13)).\n"
+            "q(@pytest()).\n"
+            "r(X) :- (1,X)=@pymatch().\n"
+            "s(X) :- X=@pymatch().\n"
+            )));
+}
+
+#endif // WITH_PYTHON
+
+#ifdef WITH_LUA
+
+TEST_CASE("output-lparse-lua", "[output][lua]") {
+    REQUIRE(
+        "([[p(39),q(\"a\"),q(1),q(2),q(a),r(2),r(3),s((1,2)),s((1,3)),s((2,1))]],[])" == IO::to_string(solve(
+            "#script (lua)\n"
+            "function conv(a) if type(a) == 'number' then return a else return a.number end end\n"
+            "function luagcd(a, b) if conv(a) == 0 then return b else return luagcd(conv(b) % conv(a), a) end end\n"
+            "function luatest()    return {1, 2, clingo.fun(\"a\"), \"a\"} end\n"
+            "function luamatch()   return {clingo.tuple{1,2},clingo.tuple{1,3},clingo.tuple{2,1}} end\n"
+            "#end.\n"
+            "\n"
+            "p(@luagcd(2*3*7*13,3*11*13)).\n"
+            "q(@luatest()).\n"
+            "r(X) :- (1,X)=@luamatch().\n"
+            "s(X) :- X=@luamatch().\n"
+            )));
+}
+#endif // WITH_LUA
 
 } } } // namespace Test Output Gringo
 

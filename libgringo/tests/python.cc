@@ -43,7 +43,7 @@ std::string replace(std::string &&x, std::string const &y, std::string const &z)
 
 } // namspace
 
-TEST_CASE("python", "[base]") {
+TEST_CASE("python", "[base][python]") {
     TestGringoModule module;
     SECTION("parse") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);
