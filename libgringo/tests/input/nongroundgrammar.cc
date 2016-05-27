@@ -955,7 +955,7 @@ std::string parse(std::string const &str) {
 
 } // namespace
 
-TEST_CASE("input-nongroundprogrambuilder") {
+TEST_CASE("input-nongroundprogrambuilder", "[input]") {
 
     SECTION("term") {
         // testing constants

@@ -23,7 +23,7 @@
 
 namespace Gringo { namespace Ground { namespace Test {
 
-TEST_CASE("ground-theory") {
+TEST_CASE("ground-theory", "[ground]") {
 
     SECTION("directive") {
         std::string theory =

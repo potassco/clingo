@@ -65,7 +65,7 @@ std::string toString(Program const &p) {
 
 // }}}
 
-TEST_CASE("ground-program") {
+TEST_CASE("ground-program", "[ground]") {
 
     SECTION("toGround") {
         REQUIRE(
