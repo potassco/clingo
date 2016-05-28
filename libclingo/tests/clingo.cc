@@ -22,33 +22,25 @@
 #include <vector>
 #include <iostream>
 
-using Model = std::vector<clingo_symbol_t>;
-using ModelVec = std::vector<Model>;
+using namespace Clingo;
 
-clingo_error_t mcb(clingo_model *m, void *data, bool *ret) {
-    auto &models = *static_cast<ModelVec*>(data);
-    models.emplace_back();
-    clingo_symbol_span_t model;
-    clingo_model_atoms(m, clingo_show_type_all, &model);
-    for (auto it = model.first, ie = it + model.size; it != ie; ++it) {
-        models.back().emplace_back(*it);
-    }
-    std::sort(models.back().begin(), models.back().end(), clingo_symbol_lt);
-    *ret = true;
-    return clingo_error_success;
+using AtomVec = std::vector<Symbol>;
+using ModelVec = std::vector<AtomVec>;
+
+struct MCB {
+    MCB(ModelVec &models) : models(models) { }
+    bool operator()(Model m) {
+        models.emplace_back();
+        for (auto sym : m.atoms(ShowType::All)) {
+            models.back().emplace_back(sym);
+        }
+        std::sort(models.back().begin(), models.back().end());
+        return true;
+    };
+    ModelVec &models;
 };
 
-bool operator==(Model const &a, Model const &b) {
-    return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), clingo_symbol_eq);
-}
-
-bool operator==(ModelVec const &a, ModelVec const &b) {
-    return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin());
-}
-
-TEST_CASE("c-interface-symbol", "[clingo]") {
-    using namespace Clingo;
-    clingo_error_t success = static_cast<clingo_error_t>(clingo_error_success);
+TEST_CASE("c-interface", "[clingo]") {
     using S = std::string;
 
     SECTION("symbol") {
@@ -104,32 +96,22 @@ TEST_CASE("c-interface-symbol", "[clingo]") {
         REQUIRE(a.hash() == a.hash());
         REQUIRE(a.hash() != b.hash());
     }
-}
-
-TEST_CASE("clingo C-interface", "[clingo]") {
     SECTION("with module") {
         clingo_module *mod;
         REQUIRE(clingo_module_new(&mod) == clingo_error_success);
         SECTION("with control") {
-            clingo_control_t *ctl;
+            clingo_control_t *cctl;
             char const *argv[] = { "test_libclingo", nullptr };
-            REQUIRE(clingo_control_new(mod, sizeof(argv), argv, nullptr, nullptr, 20, &ctl) == clingo_error_success);
+            REQUIRE(clingo_control_new(mod, sizeof(argv) / sizeof(char const *), argv, nullptr, nullptr, 20, &cctl) == clingo_error_success);
+            Control ctl{cctl};
             SECTION("ground and solve base") {
-                char const * params_base[] = { nullptr };
-                REQUIRE(clingo_control_add(ctl, "base", params_base, "a.") == clingo_error_success);
-                clingo_symbol_t *values_base = nullptr;
-                clingo_part_t parts[] = { {"base", {values_base, 0}} };
-                REQUIRE(clingo_control_ground(ctl, {parts, sizeof(parts) / sizeof(clingo_part_t)}, nullptr, nullptr) == clingo_error_success);
-                clingo_solve_result_t ret;
-                clingo_symbolic_literal_t *ass = nullptr;
+                ctl.add("base", {}, "a.");
+                ctl.ground({{"base", {}}}, nullptr);
                 ModelVec models;
-                REQUIRE(clingo_control_solve(ctl, {ass, 0}, &mcb, &models, &ret) == clingo_error_success);
-                REQUIRE((ret & clingo_solve_result_sat) == clingo_solve_result_sat);
+                REQUIRE(ctl.solve({}, MCB(models)).sat());
                 clingo_symbol_t a;
-                REQUIRE(clingo_symbol_new_id("a", false, &a) == clingo_error_success);
-                REQUIRE(models == ModelVec{{a}});
+                REQUIRE(models == ModelVec{{Id("a")}});
             }
-            clingo_control_free(ctl);
         }
         clingo_module_free(mod);
     }

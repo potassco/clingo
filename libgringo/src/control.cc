@@ -199,10 +199,10 @@ extern "C" void clingo_control_free(clingo_control_t *ctl) {
     delete ctl;
 }
 
-extern "C" clingo_error_t clingo_control_add(clingo_control_t *ctl, char const *name, char const **params, char const *part) {
+extern "C" clingo_error_t clingo_control_add(clingo_control_t *ctl, char const *name, clingo_string_span_t params, char const *part) {
     GRINGO_CLINGO_TRY {
         FWStringVec p;
-        for (char const **param = params; *param; ++param) { p.emplace_back(*param); }
+        for (char const **it = params.first, **ie = it + params.size; it != ie; ++it) { p.emplace_back(*it); }
         ctl->add(name, p, part);
     } GRINGO_CLINGO_CATCH(&ctl->logger());
 }
@@ -459,6 +459,119 @@ bool operator< (Symbol const &a, Symbol const &b) { return  clingo_symbol_lt(a, 
 bool operator<=(Symbol const &a, Symbol const &b) { return !clingo_symbol_lt(b, a); }
 bool operator> (Symbol const &a, Symbol const &b) { return  clingo_symbol_lt(b, a); }
 bool operator>=(Symbol const &a, Symbol const &b) { return !clingo_symbol_lt(a, b); }
+
+// {{{2 model
+
+Model::Model(clingo_model_t *model)
+: model_(model) { }
+
+bool Model::contains(Symbol atom) const {
+    return clingo_model_contains(model_, atom);
+}
+
+SymSpan Model::atoms(ShowType show) const {
+    SymSpan ret;
+    handleError(clingo_model_atoms(model_, show, &ret));
+    return ret;
+}
+
+// {{{2 solve iter
+
+SolveIter::SolveIter()
+: iter_(nullptr) { }
+
+SolveIter::SolveIter(clingo_solve_iter_t *it)
+: iter_(it) { }
+
+SolveIter::SolveIter(SolveIter &&it)
+: iter_(nullptr) { std::swap(iter_, it.iter_); }
+
+SolveIter &SolveIter::operator=(SolveIter &&it) {
+    std::swap(iter_, it.iter_);
+    return *this;
+}
+
+Model SolveIter::next() {
+    clingo_model_t *m = nullptr;
+    if (iter_) { handleError(clingo_solve_iter_next(iter_, &m)); }
+    return m;
+}
+
+SolveResult SolveIter::get() {
+    clingo_solve_result_t ret = 0;
+    if (iter_) { handleError(clingo_solve_iter_get(iter_, &ret)); }
+    return ret;
+}
+
+void SolveIter::close() {
+    if (iter_) {
+        clingo_solve_iter_close(iter_);
+        iter_ = nullptr;
+    }
+}
+
+// {{{2 control
+
+Control::Control(clingo_control_t *ctl)
+: ctl_(ctl) { }
+
+Control::~Control() noexcept {
+    clingo_control_free(ctl_);
+}
+
+void Control::add(char const *name, StringSpan params, char const *part) {
+    handleError(clingo_control_add(ctl_, name, params, part));
+}
+
+void Control::ground(PartSpan parts, GroundCallback cb) {
+    using Data = std::pair<GroundCallback&, std::exception_ptr>;
+    Data data(cb, nullptr);
+    handleError(clingo_control_ground(ctl_, parts,
+        [](char const *name, clingo_symbol_span_t args, void *data, clingo_symbol_span_callback_t *cb, void *cbdata) -> clingo_error_t {
+            auto &d = *static_cast<Data*>(data);
+            CLINGO_CALLBACK_TRY {
+                if (d.first) {
+                    struct Ret { clingo_error_t ret; };
+                    try {
+                        d.first(name, args, [cb, cbdata](SymSpan symret) {
+                            clingo_error_t ret = cb(symret, cbdata);
+                            if (ret != clingo_error_success) { throw Ret { ret }; }
+                        });
+                    }
+                    catch (Ret const &e) { return e.ret; }
+                }
+            }
+            CLINGO_CALLBACK_CATCH(d.second);
+        }, &data));
+}
+
+Control::operator clingo_control_t*() const { return ctl_; }
+
+SolveResult Control::solve(SymbolicLiteralSpan assumptions, ModelHandler mh) {
+    clingo_solve_result_t ret;
+    using Data = std::pair<ModelHandler&, std::exception_ptr>;
+    Data data(mh, nullptr);
+    clingo_control_solve(ctl_, assumptions, [](clingo_model_t*m, void *data, bool *ret) -> clingo_error_t {
+        auto &d = *static_cast<Data*>(data);
+        CLINGO_CALLBACK_TRY { *ret = d.first(m); }
+        CLINGO_CALLBACK_CATCH(d.second);
+    }, &data, &ret);
+    return ret;
+}
+
+SolveIter Control::solve_iter(SymbolicLiteralSpan assumptions) {
+    clingo_solve_iter_t *it;
+    clingo_control_solve_iter(ctl_, assumptions, &it);
+    return it;
+}
+
+void Control::assign_external(Symbol atom, TruthValue value) {
+    handleError(clingo_control_assign_external(ctl_, atom, static_cast<clingo_truth_value_t>(value)));
+}
+
+void Control::release_external(Symbol atom) {
+    handleError(clingo_control_release_external(ctl_, atom));
+}
 
 // }}}2
 
