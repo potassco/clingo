@@ -80,7 +80,7 @@ typedef struct clingo_symbol_span {
     clingo_symbol_t const *first;
     size_t size;
 } clingo_symbol_span_t;
-typedef clingo_error_t clingo_string_callback (char const *, void *);
+typedef clingo_error_t clingo_string_callback_t (char const *, void *);
 
 // {{{2 construction
 
@@ -99,7 +99,7 @@ clingo_error_t clingo_symbol_string(clingo_symbol_t sym, char const **str);
 clingo_error_t clingo_symbol_sign(clingo_symbol_t sym, bool *sign);
 clingo_error_t clingo_symbol_args(clingo_symbol_t sym, clingo_symbol_span_t *args);
 clingo_symbol_type_t clingo_symbol_type(clingo_symbol_t sym);
-clingo_error_t clingo_symbol_to_string(clingo_symbol_t sym, clingo_string_callback *cb, void *data);
+clingo_error_t clingo_symbol_to_string(clingo_symbol_t sym, clingo_string_callback_t *cb, void *data);
 
 // {{{2 comparison
 

@@ -22,7 +22,9 @@
 
 using namespace Gringo;
 
-// {{{1 error handling
+// {{{1 c interface
+
+// {{{2 error handling
 
 namespace {
 
@@ -50,7 +52,7 @@ extern "C" inline char const *clingo_message_code_str(clingo_message_code_t code
     return "unknown message code";
 }
 
-// {{{1 value
+// {{{2 value
 
 using namespace Gringo;
 
@@ -125,7 +127,7 @@ extern "C" clingo_symbol_type_t clingo_symbol_type(clingo_symbol_t val) {
     return static_cast<clingo_symbol_type_t>(static_cast<Symbol&>(val).type());
 }
 
-extern "C" clingo_error_t clingo_symbol_to_string(clingo_symbol_t val, clingo_string_callback *cb, void *data) {
+extern "C" clingo_error_t clingo_symbol_to_string(clingo_symbol_t val, clingo_string_callback_t *cb, void *data) {
     GRINGO_CLINGO_TRY {
         std::ostringstream oss;
         static_cast<Symbol&>(val).print(oss);
@@ -146,7 +148,7 @@ extern "C" size_t clingo_symbol_hash(clingo_symbol_t sym) {
     return static_cast<Symbol&>(sym).hash();
 }
 
-// {{{1 model
+// {{{2 model
 
 extern "C" bool clingo_model_contains(clingo_model_t *m, clingo_symbol_t atom) {
     return m->contains(static_cast<Symbol &>(atom));
@@ -160,7 +162,7 @@ extern "C" clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type
     } GRINGO_CLINGO_CATCH(nullptr);
 }
 
-// {{{1 solve_iter
+// {{{2 solve_iter
 
 struct clingo_solve_iter : SolveIter { };
 
@@ -185,7 +187,7 @@ extern "C" clingo_error_t clingo_solve_iter_close(clingo_solve_iter_t *it) {
     } GRINGO_CLINGO_CATCH(nullptr);
 }
 
-// {{{1 control
+ // {{{2 control
 
 extern "C" clingo_error_t clingo_control_new(clingo_module_t *mod, int argc, char const **argv, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl) {
     GRINGO_CLINGO_TRY {
@@ -325,24 +327,33 @@ extern "C" clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_a
     } GRINGO_CLINGO_CATCH(&ctl->logger());
 }
 
-// {{{1 control (c++)
+// }}}2
 
 namespace Clingo {
 
+// {{{1 c++ interface
+
+// {{{2 error handling
+
 namespace {
 
-void handleError(clingo_error_t code) {
+void handleError(clingo_error_t code, std::exception_ptr *exc = nullptr) {
     switch (code) {
         case clingo_error_success:   { break; }
         case clingo_error_fatal:     { throw std::runtime_error("fatal error"); }
         case clingo_error_runtime:   { throw std::runtime_error("runtime error"); }
         case clingo_error_logic:     { throw std::logic_error("logic error"); }
         case clingo_error_bad_alloc: { throw std::bad_alloc(); }
-        case clingo_error_unknown:   { throw std::logic_error("unknown error"); }
+        case clingo_error_unknown:   {
+            if (exc && *exc) { std::rethrow_exception(*exc); }
+            throw std::logic_error("unknown error");
+        }
     }
 }
 
-}
+} // namespace
+
+// {{{2 symbol
 
 Symbol::Symbol() {
     clingo_symbol_new_num(0, this);
@@ -418,14 +429,19 @@ SymbolType Symbol::type() const {
     return static_cast<SymbolType>(clingo_symbol_type(*this));
 }
 
+#define CLINGO_CALLBACK_TRY try
+#define CLINGO_CALLBACK_CATCH(ref) catch (...){ (ref) = std::current_exception(); return clingo_error_unknown; } return clingo_error_success
+
 std::string Symbol::toString() const {
-    std::string str;
+    std::string ret;
+    using Data = std::pair<std::string&, std::exception_ptr>;
+    Data data(ret, nullptr);
     handleError(clingo_symbol_to_string(*this, [](char const *str, void *data) -> clingo_error_t {
-        GRINGO_CLINGO_TRY {
-            *static_cast<std::string*>(data) = str;
-        } GRINGO_CLINGO_CATCH(nullptr);
-    }, &str));
-    return str;
+        auto &d = *static_cast<Data*>(data);
+        CLINGO_CALLBACK_TRY { d.first = str; }
+        CLINGO_CALLBACK_CATCH(d.second);
+    }, &data), &data.second);
+    return ret;
 }
 
 size_t Symbol::hash() const {
@@ -444,6 +460,9 @@ bool operator<=(Symbol const &a, Symbol const &b) { return !clingo_symbol_lt(b, 
 bool operator> (Symbol const &a, Symbol const &b) { return  clingo_symbol_lt(b, a); }
 bool operator>=(Symbol const &a, Symbol const &b) { return !clingo_symbol_lt(a, b); }
 
-}
+// }}}2
 
 // }}}1
+
+} // namespace Clingo
+
