@@ -325,4 +325,125 @@ extern "C" clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_a
     } GRINGO_CLINGO_CATCH(&ctl->logger());
 }
 
+// {{{1 control (c++)
+
+namespace Clingo {
+
+namespace {
+
+void handleError(clingo_error_t code) {
+    switch (code) {
+        case clingo_error_success:   { break; }
+        case clingo_error_fatal:     { throw std::runtime_error("fatal error"); }
+        case clingo_error_runtime:   { throw std::runtime_error("runtime error"); }
+        case clingo_error_logic:     { throw std::logic_error("logic error"); }
+        case clingo_error_bad_alloc: { throw std::bad_alloc(); }
+        case clingo_error_unknown:   { throw std::logic_error("unknown error"); }
+    }
+}
+
+}
+
+Symbol::Symbol() {
+    clingo_symbol_new_num(0, this);
+}
+
+Symbol Num(int num) {
+    clingo_symbol_t sym;
+    clingo_symbol_new_num(num, &sym);
+    return static_cast<Symbol&>(sym);
+}
+
+Symbol Sup() {
+    clingo_symbol_t sym;
+    clingo_symbol_new_sup(&sym);
+    return static_cast<Symbol&>(sym);
+}
+
+Symbol Inf() {
+    clingo_symbol_t sym;
+    clingo_symbol_new_inf(&sym);
+    return static_cast<Symbol&>(sym);
+}
+
+Symbol Str(char const *str) {
+    clingo_symbol_t sym;
+    handleError(clingo_symbol_new_str(str, &sym));
+    return static_cast<Symbol&>(sym);
+}
+
+Symbol Id(char const *id, bool sign) {
+    clingo_symbol_t sym;
+    handleError(clingo_symbol_new_id(id, sign, &sym));
+    return static_cast<Symbol&>(sym);
+}
+
+Symbol Fun(char const *name, SymSpan args, bool sign) {
+    clingo_symbol_t sym;
+    handleError(clingo_symbol_new_fun(name, args, sign, &sym));
+    return static_cast<Symbol&>(sym);
+}
+
+int Symbol::num() const {
+    int ret;
+    handleError(clingo_symbol_num(*this, &ret));
+    return ret;
+}
+
+char const *Symbol::name() const {
+    char const *ret;
+    handleError(clingo_symbol_name(*this, &ret));
+    return ret;
+}
+
+char const *Symbol::string() const {
+    char const *ret;
+    handleError(clingo_symbol_string(*this, &ret));
+    return ret;
+}
+
+bool Symbol::sign() const {
+    bool ret;
+    handleError(clingo_symbol_sign(*this, &ret));
+    return ret;
+}
+
+SymSpan Symbol::args() const {
+    SymSpan ret;
+    handleError(clingo_symbol_args(*this, &ret));
+    return ret;
+}
+
+SymbolType Symbol::type() const {
+    return static_cast<SymbolType>(clingo_symbol_type(*this));
+}
+
+std::string Symbol::toString() const {
+    std::string str;
+    handleError(clingo_symbol_to_string(*this, [](char const *str, void *data) -> clingo_error_t {
+        GRINGO_CLINGO_TRY {
+            *static_cast<std::string*>(data) = str;
+        } GRINGO_CLINGO_CATCH(nullptr);
+    }, &str));
+    return str;
+}
+
+size_t Symbol::hash() const {
+    return clingo_symbol_hash(*this);
+}
+
+std::ostream &operator<<(std::ostream &out, Symbol sym) {
+    out << sym.toString();
+    return out;
+}
+
+bool operator==(Symbol const &a, Symbol const &b) { return  clingo_symbol_eq(a, b); }
+bool operator!=(Symbol const &a, Symbol const &b) { return !clingo_symbol_eq(a, b); }
+bool operator< (Symbol const &a, Symbol const &b) { return  clingo_symbol_lt(a, b); }
+bool operator<=(Symbol const &a, Symbol const &b) { return !clingo_symbol_lt(b, a); }
+bool operator> (Symbol const &a, Symbol const &b) { return  clingo_symbol_lt(b, a); }
+bool operator>=(Symbol const &a, Symbol const &b) { return !clingo_symbol_lt(a, b); }
+
+}
+
 // }}}1

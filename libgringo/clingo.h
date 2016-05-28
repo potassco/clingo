@@ -224,4 +224,90 @@ clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_add_ast_call
 }
 #endif
 
+#ifdef __cplusplus
+
+#include <string>
+#include <functional>
+#include <ostream>
+
+namespace Clingo {
+
+// {{{1 span
+
+template <class T, class C>
+class Span : public C {
+public:
+    Span()
+    : C{nullptr, 0} { }
+    Span(C const &span)
+    : C{span.first, span.size} { }
+    template <class U>
+    Span(U const &c)
+    : C{c.size() > 0 ? &c[0] : nullptr, c.size()} { }
+    Span(T const *begin, T const *end)
+    : C{begin, end - begin} { }
+    Span(T const *begin, size_t size)
+    : C{begin, size} { }
+    T const *begin() { return static_cast<T const *>(C::first); }
+    T const *end() { return begin() + size(); }
+    size_t size() { return C::size; }
+};
+
+// {{{1 symbol
+
+enum class SymbolType {
+    Inf = clingo_symbol_type_inf,
+    Num = clingo_symbol_type_num,
+    Str = clingo_symbol_type_str,
+    Fun = clingo_symbol_type_fun,
+    Sup = clingo_symbol_type_sup
+};
+
+class Symbol;
+using SymSpan = Span<Symbol, clingo_symbol_span_t>;
+
+class Symbol : public clingo_symbol_t {
+public:
+    Symbol();
+    Symbol(clingo_symbol_t);
+    int num() const;
+    char const *name() const;
+    char const *string() const;
+    bool sign() const;
+    SymSpan args() const;
+    SymbolType type() const;
+    std::string toString() const;
+    size_t hash() const;
+};
+
+Symbol Num(int num);
+Symbol Sup();
+Symbol Inf();
+Symbol Str(char const *str);
+Symbol Id(char const *str, bool sign = false);
+Symbol Fun(char const *name, SymSpan args, bool sign = false);
+
+std::ostream &operator<<(std::ostream &out, Symbol sym);
+bool operator==(Symbol const &a, Symbol const &b);
+bool operator!=(Symbol const &a, Symbol const &b);
+bool operator< (Symbol const &a, Symbol const &b);
+bool operator<=(Symbol const &a, Symbol const &b);
+bool operator> (Symbol const &a, Symbol const &b);
+bool operator>=(Symbol const &a, Symbol const &b);
+
+} namespace std {
+
+template<>
+struct hash<Clingo::Symbol> {
+    size_t operator()(Clingo::Symbol sym) const { return sym.hash(); }
+};
+
+} namespace Clingo {
+
+// }}}1
+
+}
+
+#endif
+
 #endif

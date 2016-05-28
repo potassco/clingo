@@ -46,6 +46,66 @@ bool operator==(ModelVec const &a, ModelVec const &b) {
     return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin());
 }
 
+TEST_CASE("c-interface-symbol", "[clingo]") {
+    using namespace Clingo;
+    clingo_error_t success = static_cast<clingo_error_t>(clingo_error_success);
+    using S = std::string;
+
+    SECTION("symbol") {
+        std::vector<Symbol> args;
+        // numbers
+        auto sym = Num(42);
+        REQUIRE(42 == sym.num());
+        args.emplace_back(sym);
+        // inf
+        sym = Inf();
+        REQUIRE(SymbolType::Inf == sym.type());
+        args.emplace_back(sym);
+        // sup
+        sym = Sup();
+        REQUIRE(SymbolType::Sup == sym.type());
+        args.emplace_back(sym);
+        // str
+        sym = Str("x");
+        REQUIRE(S("x") == sym.string());
+        args.emplace_back(sym);
+        // id
+        sym = Id("x", true);
+        REQUIRE(SymbolType::Fun == sym.type());
+        REQUIRE(sym.sign());
+        REQUIRE(S("x") == sym.name());
+        args.emplace_back(sym);
+        // fun
+        sym = Fun("f", args);
+        REQUIRE(SymbolType::Fun == sym.type());
+        REQUIRE(!sym.sign());
+        REQUIRE(S("f") == sym.name());
+        REQUIRE("f(42,#inf,#sup,\"x\",-x)" == sym.toString());
+        REQUIRE((args.size() == sym.args().size() && std::equal(args.begin(), args.end(), sym.args().begin())));
+        REQUIRE_THROWS(sym.num());
+        // comparison
+        auto a = Num(1), b = Num(2);
+        REQUIRE(a < b);
+        REQUIRE_FALSE(a < a);
+        REQUIRE_FALSE(b < a);
+        REQUIRE(b > a);
+        REQUIRE_FALSE(a > a);
+        REQUIRE_FALSE(a > b);
+        REQUIRE(a <= a);
+        REQUIRE(a <= b);
+        REQUIRE_FALSE(b <= a);
+        REQUIRE(a >= a);
+        REQUIRE(b >= a);
+        REQUIRE_FALSE(a >= b);
+        REQUIRE(a == a);
+        REQUIRE_FALSE(a == b);
+        REQUIRE(a != b);
+        REQUIRE_FALSE(a != a);
+        REQUIRE(a.hash() == a.hash());
+        REQUIRE(a.hash() != b.hash());
+    }
+}
+
 TEST_CASE("clingo C-interface", "[clingo]") {
     SECTION("with module") {
         clingo_module *mod;
