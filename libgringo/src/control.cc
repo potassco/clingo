@@ -19,6 +19,7 @@
 // }}}
 
 #include <gringo/control.hh>
+#include <clingo.hh>
 
 using namespace Gringo;
 
@@ -189,9 +190,16 @@ extern "C" clingo_error_t clingo_solve_iter_close(clingo_solve_iter_t *it) {
 
  // {{{2 control
 
-extern "C" clingo_error_t clingo_control_new(clingo_module_t *mod, int argc, char const **argv, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl) {
+extern "C" clingo_error_t clingo_control_new(clingo_module_t *mod, clingo_string_span_t args, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl) {
     GRINGO_CLINGO_TRY {
-        *ctl = mod->newControl(argc, argv, logger ? [logger, data](clingo_message_code_t code, char const *msg) { logger(code, msg, data); } : Gringo::Logger::Printer(nullptr), message_limit);
+        // NOTE: nullptr sentinel required by program options library
+        // TODO: ask Benny about possible removal
+        std::vector<char const *> argVec;
+        for (auto it = args.first, ie = it + args.size; it != ie; ++it) {
+            argVec.emplace_back(*it);
+        }
+        argVec.push_back(nullptr);
+        *ctl = mod->newControl(args.size, argVec.data(), logger ? [logger, data](clingo_message_code_t code, char const *msg) { logger(code, msg, data); } : Gringo::Logger::Printer(nullptr), message_limit);
     } GRINGO_CLINGO_CATCH(nullptr);
 }
 
@@ -202,7 +210,7 @@ extern "C" void clingo_control_free(clingo_control_t *ctl) {
 extern "C" clingo_error_t clingo_control_add(clingo_control_t *ctl, char const *name, clingo_string_span_t params, char const *part) {
     GRINGO_CLINGO_TRY {
         FWStringVec p;
-        for (char const **it = params.first, **ie = it + params.size; it != ie; ++it) { p.emplace_back(*it); }
+        for (char const * const *it = params.first, * const *ie = it + params.size; it != ie; ++it) { p.emplace_back(*it); }
         ctl->add(name, p, part);
     } GRINGO_CLINGO_CATCH(&ctl->logger());
 }
@@ -335,9 +343,9 @@ namespace Clingo {
 
 // {{{2 error handling
 
-namespace {
+} namespace Gringo {
 
-void handleError(clingo_error_t code, std::exception_ptr *exc = nullptr) {
+void handleError(clingo_error_t code, std::exception_ptr *exc) {
     switch (code) {
         case clingo_error_success:   { break; }
         case clingo_error_fatal:     { throw std::runtime_error("fatal error"); }
@@ -351,7 +359,7 @@ void handleError(clingo_error_t code, std::exception_ptr *exc = nullptr) {
     }
 }
 
-} // namespace
+} namespace Clingo {
 
 // {{{2 symbol
 
@@ -572,6 +580,7 @@ void Control::assign_external(Symbol atom, TruthValue value) {
 void Control::release_external(Symbol atom) {
     handleError(clingo_control_release_external(ctl_, atom));
 }
+
 
 // }}}2
 

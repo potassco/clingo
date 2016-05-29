@@ -18,7 +18,7 @@
 //
 
 #include "catch.hpp"
-#include "clingo.h"
+#include "clingo.hh"
 #include <vector>
 #include <iostream>
 
@@ -26,6 +26,7 @@ using namespace Clingo;
 
 using AtomVec = std::vector<Symbol>;
 using ModelVec = std::vector<AtomVec>;
+using MessageVec = std::vector<std::pair<MessageCode, std::string>>;
 
 struct MCB {
     MCB(ModelVec &models) : models(models) { }
@@ -36,8 +37,18 @@ struct MCB {
         }
         std::sort(models.back().begin(), models.back().end());
         return true;
-    };
+    }
     ModelVec &models;
+};
+
+class LCB {
+public:
+    LCB(MessageVec &messages) : messages_(messages) { }
+    void operator()(MessageCode code, char const *msg) {
+        messages_.emplace_back(code, msg);
+    }
+private:
+    MessageVec &messages_;
 };
 
 TEST_CASE("c-interface", "[clingo]") {
@@ -97,23 +108,27 @@ TEST_CASE("c-interface", "[clingo]") {
         REQUIRE(a.hash() != b.hash());
     }
     SECTION("with module") {
-        clingo_module *mod;
-        REQUIRE(clingo_module_new(&mod) == clingo_error_success);
+        Module mod;
         SECTION("with control") {
-            clingo_control_t *cctl;
-            char const *argv[] = { "test_libclingo", nullptr };
-            REQUIRE(clingo_control_new(mod, sizeof(argv) / sizeof(char const *), argv, nullptr, nullptr, 20, &cctl) == clingo_error_success);
-            Control ctl{cctl};
-            SECTION("ground and solve base") {
+            MessageVec messages;
+            Control ctl{mod.create_control({"test_libclingo"}, LCB(messages), 20)};
+            SECTION("basic solving") {
                 ctl.add("base", {}, "a.");
                 ctl.ground({{"base", {}}}, nullptr);
                 ModelVec models;
                 REQUIRE(ctl.solve({}, MCB(models)).sat());
-                clingo_symbol_t a;
                 REQUIRE(models == ModelVec{{Id("a")}});
+                REQUIRE(messages.empty());
+            }
+            SECTION("logging") {
+                ctl.add("base", {}, "a(1+a).");
+                ctl.ground({{"base", {}}}, nullptr);
+                ModelVec models;
+                REQUIRE(ctl.solve({}, MCB(models)).sat());
+                REQUIRE(models == ModelVec{{}});
+                REQUIRE(messages == MessageVec({{MessageCode::OperationUndefined, "<block>:1:3-6: info: operation undefined:\n  (1+a)\n"}}));
             }
         }
-        clingo_module_free(mod);
     }
 }
 

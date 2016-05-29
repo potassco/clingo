@@ -273,6 +273,8 @@ void inline clingo_expect(bool expr) {
     if (!expr) { throw std::runtime_error("unexpected"); }
 }
 
+void handleError(clingo_error_t code, std::exception_ptr *exc = nullptr);
+
 inline clingo_error_t handleClingoError(Gringo::Logger *logger) {
     try { throw; }
     catch (Gringo::GringoError const &e) {

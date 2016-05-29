@@ -18,8 +18,8 @@
 
 // }}}
 
-#ifndef GRINGO_CLINGO_H
-#define GRINGO_CLINGO_H
+#ifndef CLINGO_H
+#define CLINGO_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -204,14 +204,14 @@ typedef clingo_error_t clingo_add_ast_callback_t (void *, clingo_ast_callback_t 
 // {{{1 control
 
 typedef struct clingo_string_span {
-    char const **first;
+    char const * const *first;
     size_t size;
 } clingo_string_span_t;
 typedef clingo_error_t clingo_model_handler_t (clingo_model_t*, void *, bool *);
 typedef clingo_error_t clingo_symbol_span_callback_t (clingo_symbol_span_t, void *);
 typedef clingo_error_t clingo_ground_callback_t (char const *, clingo_symbol_span_t, void *, clingo_symbol_span_callback_t *, void *);
 typedef struct clingo_control clingo_control_t;
-clingo_error_t clingo_control_new(clingo_module_t *mod, int argc, char const **argv, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl);
+clingo_error_t clingo_control_new(clingo_module_t *mod, clingo_string_span_t args, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl);
 void clingo_control_free(clingo_control_t *ctl);
 clingo_error_t clingo_control_add(clingo_control_t *ctl, char const *name, clingo_string_span_t params, char const *part);
 clingo_error_t clingo_control_ground(clingo_control_t *ctl, clingo_part_span_t vec, clingo_ground_callback_t *cb, void *data);
@@ -226,209 +226,6 @@ clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_add_ast_call
 
 #ifdef __cplusplus
 }
-#endif
-
-#ifdef __cplusplus
-
-#include <string>
-#include <functional>
-#include <ostream>
-#include <bitset>
-
-namespace Clingo {
-
-// {{{1 span
-
-template <class T, class C>
-class Span : public C {
-public:
-    Span()
-    : C{nullptr, 0} { }
-    Span(C const &span)
-    : C{span.first, span.size} { }
-    Span(std::initializer_list<T> c)
-    : C{c.size() > 0 ? &*c.begin() : nullptr, c.size()} { }
-    template <class U>
-    Span(U const &c)
-    : C{c.size() > 0 ? &*c.begin() : nullptr, c.size()} { }
-    Span(T const *begin, T const *end)
-    : C{begin, end - begin} { }
-    Span(T const *begin, size_t size)
-    : C{begin, size} { }
-    T const *begin() { return static_cast<T const *>(C::first); }
-    T const *end() { return begin() + size(); }
-    size_t size() { return C::size; }
-};
-
-// {{{1 symbol
-
-enum class SymbolType : clingo_symbol_type_t {
-    Inf = clingo_symbol_type_inf,
-    Num = clingo_symbol_type_num,
-    Str = clingo_symbol_type_str,
-    Fun = clingo_symbol_type_fun,
-    Sup = clingo_symbol_type_sup
-};
-
-class Symbol;
-using SymSpan = Span<Symbol, clingo_symbol_span_t>;
-
-class Symbol : public clingo_symbol_t {
-public:
-    Symbol();
-    Symbol(clingo_symbol_t);
-    int num() const;
-    char const *name() const;
-    char const *string() const;
-    bool sign() const;
-    SymSpan args() const;
-    SymbolType type() const;
-    std::string toString() const;
-    size_t hash() const;
-};
-
-Symbol Num(int num);
-Symbol Sup();
-Symbol Inf();
-Symbol Str(char const *str);
-Symbol Id(char const *str, bool sign = false);
-Symbol Fun(char const *name, SymSpan args, bool sign = false);
-
-std::ostream &operator<<(std::ostream &out, Symbol sym);
-bool operator==(Symbol const &a, Symbol const &b);
-bool operator!=(Symbol const &a, Symbol const &b);
-bool operator< (Symbol const &a, Symbol const &b);
-bool operator<=(Symbol const &a, Symbol const &b);
-bool operator> (Symbol const &a, Symbol const &b);
-bool operator>=(Symbol const &a, Symbol const &b);
-
-} namespace std {
-
-template<>
-struct hash<Clingo::Symbol> {
-    size_t operator()(Clingo::Symbol sym) const { return sym.hash(); }
-};
-
-} namespace Clingo {
-
-// {{{1 symbolic literal
-
-class SymbolicLiteral : public clingo_symbolic_literal_t{
-public:
-    SymbolicLiteral(Symbol atom, bool sign)
-    : clingo_symbolic_literal_t{atom, sign} { }
-    Symbol atom() const { return clingo_symbolic_literal_t::atom; }
-    bool sign() const { return clingo_symbolic_literal_t::sign; }
-};
-
-using SymbolicLiteralSpan = Span<SymbolicLiteral, clingo_symbolic_literal_span_t>;
-
-// {{{1 model
-
-class ShowType {
-public:
-    enum Type : clingo_show_type_t {
-        CSP = clingo_show_type_csp,
-        Shown = clingo_show_type_shown,
-        Atoms = clingo_show_type_atoms,
-        Terms = clingo_show_type_terms,
-        Comp = clingo_show_type_comp,
-        All = clingo_show_type_all
-    };
-    ShowType(clingo_show_type_t type) : type_(type) { }
-    operator clingo_show_type_t() const { return type_; }
-private:
-    clingo_show_type_t type_;
-};
-
-class Model {
-public:
-    Model(clingo_model_t *model);
-    bool contains(Symbol atom) const;
-    operator bool() const { return model_; }
-    operator clingo_model_t*() const { return model_; }
-    // currently the model stores the symspan up to the next call to atoms - bad?
-    SymSpan atoms(ShowType show) const;
-private:
-    clingo_model_t *model_;
-};
-
-// {{{1 solve result
-
-class SolveResult {
-public:
-    SolveResult() : res_(0) { }
-    SolveResult(clingo_solve_result_t res)
-    : res_(res) { }
-    bool sat() const { return res_ & clingo_solve_result_sat; }
-    bool unsat() const { return res_ & clingo_solve_result_unsat; }
-    bool unknown() const { return (res_ & 3) == 0; }
-    bool exhausted() const { return res_ & clingo_solve_result_exhausted; }
-    bool interrupted() const { return res_ & clingo_solve_result_interrupted; }
-    operator clingo_solve_result_t() const { return res_; }
-private:
-    clingo_solve_result_t res_;
-};
-
-// {{{1 solve iter
-
-class SolveIter {
-public:
-    SolveIter();
-    SolveIter(clingo_solve_iter_t *it);
-    SolveIter(SolveIter &&it);
-    SolveIter(SolveIter const &) = delete;
-    SolveIter &operator=(SolveIter &&it);
-    SolveIter &operator=(SolveIter const &) = delete;
-    operator clingo_solve_iter_t*() const { return iter_; }
-    Model next();
-    SolveResult get();
-    void close();
-    ~SolveIter() { close(); }
-private:
-    clingo_solve_iter_t *iter_;
-};
-
-// {{{1 control
-
-enum class TruthValue : clingo_truth_value_t {
-    Free = clingo_truth_value_free,
-    True = clingo_truth_value_true,
-    False = clingo_truth_value_false
-};
-
-class Part : public clingo_part_t {
-public:
-    Part(char const *name, SymSpan params)
-    : clingo_part_t{name, params} { }
-    char const *name() const { return clingo_part_t::name; }
-    SymSpan params() const { return clingo_part_t::params; }
-};
-using PartSpan = Span<Part, clingo_part_span_t>;
-using GroundCallback = std::function<void (char const *, SymSpan, std::function<void (SymSpan)>)>;
-using StringSpan = Span<char const *, clingo_string_span_t>;
-using ModelHandler = std::function<bool (Model)>;
-
-class Control {
-public:
-    Control(clingo_control_t *ctl);
-    ~Control() noexcept;
-    void add(char const *name, StringSpan params, char const *part);
-    void add(clingo_add_ast_callback_t *cb, void *data);
-    void ground(PartSpan parts, GroundCallback cb);
-    SolveResult solve(SymbolicLiteralSpan assumptions, ModelHandler mh);
-    SolveIter solve_iter(SymbolicLiteralSpan assumptions);
-    void assign_external(Symbol atom, TruthValue value);
-    void release_external(Symbol atom);
-    operator clingo_control_t*() const;
-private:
-    clingo_control_t *ctl_;
-};
-
-// }}}1
-
-}
-
 #endif
 
 #endif

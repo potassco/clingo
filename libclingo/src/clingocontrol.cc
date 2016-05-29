@@ -25,6 +25,7 @@
 #include <program_opts/typed_value.h>
 #include <program_opts/application.h>
 #include <potassco/basic_types.h>
+#include "clingo.hh"
 
 // {{{1 definition of ClaspAPIBackend
 
@@ -766,6 +767,8 @@ Gringo::Symbol DefaultGringoModule::parseValue(std::string const &str, Gringo::L
     return parser.parse(str, logger);
 }
 
+
+
 extern "C" clingo_error_t clingo_module_new(clingo_module_t **mod) {
     GRINGO_CLINGO_TRY {
         *mod = new DefaultGringoModule();
@@ -774,6 +777,24 @@ extern "C" clingo_error_t clingo_module_new(clingo_module_t **mod) {
 
 extern "C" void clingo_module_free(clingo_module_t *mod) {
     delete mod;
+}
+
+Clingo::Module::Module()
+: module_(nullptr) {
+    Gringo::handleError(clingo_module_new(&module_));
+}
+
+Clingo::Control Clingo::Module::create_control(StringSpan args, Logger logger, unsigned message_limit) {
+    clingo_control_t *ctl;
+    clingo_control_new(module_, args, [](clingo_message_code_t code, char const *msg, void *data) {
+        try { (*static_cast<Logger*>(data))(code, msg); }
+        catch (...) { }
+    }, &logger, message_limit, &ctl);
+    return ctl;
+}
+
+Clingo::Module::~Module() {
+    if (module_) { clingo_module_free(module_); }
 }
 
 // }}}1
