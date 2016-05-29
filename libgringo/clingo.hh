@@ -23,9 +23,10 @@
 
 #include <clingo.h>
 #include <string>
+#include <cstring>
 #include <functional>
 #include <ostream>
-#include <bitset>
+#include <algorithm>
 
 namespace Clingo {
 
@@ -47,10 +48,21 @@ public:
     : C{begin, end - begin} { }
     Span(T const *begin, size_t size)
     : C{begin, size} { }
-    T const *begin() { return static_cast<T const *>(C::first); }
-    T const *end() { return begin() + size(); }
-    size_t size() { return C::size; }
+    T const *begin() const { return static_cast<T const *>(C::first); }
+    T const *end() const { return begin() + size(); }
+    size_t size() const { return C::size; }
 };
+
+template <class T, class U>
+bool equal_range(T const &a, U const &b) {
+    using namespace std;
+    return a.size() == b.size() && std::equal(begin(a), end(a), begin(b));
+}
+
+template <class T, class C, class V>
+bool operator==(Span<T, C> span, V const &v) { return equal_range(span, v); }
+template <class T, class C, class V>
+bool operator==(V const &v, Span<T, C> span) { return equal_range(span, v); }
 
 // {{{1 symbol
 
@@ -196,6 +208,18 @@ public:
     size_t end_column() const { return clingo_location_t::end_column; }
 };
 
+inline std::ostream &operator<<(std::ostream &out, Location loc) {
+    out << loc.begin_file() << ":" << loc.begin_line() << ":" << loc.begin_column();
+    bool dash = true;
+    bool eq = std::strcmp(loc.begin_file(), loc.end_file()) == 0;
+    if (!eq) { out << (dash ? "-" : ":") << loc.begin_file(); dash = false; }
+    eq = eq && (loc.begin_line() == loc.end_line());
+    if (!eq) { out << (dash ? "-" : ":") << loc.begin_line(); dash = false; }
+    eq = eq && (loc.begin_column() == loc.end_column());
+    if (!eq) { out << (dash ? "-" : ":") << loc.end_column(); dash = false; }
+    return out;
+}
+
 class AST;
 using ASTSpan = Span<AST, clingo_ast_span_t>;
 
@@ -232,8 +256,9 @@ public:
     char const *name() const { return clingo_part_t::name; }
     SymSpan params() const { return clingo_part_t::params; }
 };
+using SymSpanCallback = std::function<void (SymSpan)>;
 using PartSpan = Span<Part, clingo_part_span_t>;
-using GroundCallback = std::function<void (char const *, SymSpan, std::function<void (SymSpan)>)>;
+using GroundCallback = std::function<void (Location loc, char const *, SymSpan, SymSpanCallback)>;
 using StringSpan = Span<char const *, clingo_string_span_t>;
 using ModelHandler = std::function<bool (Model)>;
 
@@ -243,9 +268,10 @@ public:
     ~Control() noexcept;
     void add(char const *name, StringSpan params, char const *part);
     void add(AddASTCallback cb);
-    void ground(PartSpan parts, GroundCallback cb);
-    SolveResult solve(SymbolicLiteralSpan assumptions, ModelHandler mh);
-    SolveIter solve_iter(SymbolicLiteralSpan assumptions);
+    void ground(PartSpan parts, GroundCallback cb = nullptr);
+    // TODO: consider changing order of arguments
+    SolveResult solve(SymbolicLiteralSpan assumptions, ModelHandler mh = nullptr);
+    SolveIter solve_iter(SymbolicLiteralSpan assumptions = {});
     void assign_external(Symbol atom, TruthValue value);
     void release_external(Symbol atom);
     operator clingo_control_t*() const;
@@ -295,7 +321,7 @@ public:
         std::swap(module_, m.module_);
         return *this;
     }
-    Control create_control(StringSpan args, Logger logger, unsigned message_limit);
+    Control create_control(StringSpan args, Logger &logger, unsigned message_limit);
     Module &operator=(Module const &) = delete;
     operator clingo_module_t*() const { return module_; }
     ~Module();

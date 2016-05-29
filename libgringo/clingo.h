@@ -209,7 +209,7 @@ typedef struct clingo_string_span {
 } clingo_string_span_t;
 typedef clingo_error_t clingo_model_handler_t (clingo_model_t*, void *, bool *);
 typedef clingo_error_t clingo_symbol_span_callback_t (clingo_symbol_span_t, void *);
-typedef clingo_error_t clingo_ground_callback_t (char const *, clingo_symbol_span_t, void *, clingo_symbol_span_callback_t *, void *);
+typedef clingo_error_t clingo_ground_callback_t (clingo_location_t, char const *, clingo_symbol_span_t, void *, clingo_symbol_span_callback_t *, void *);
 typedef struct clingo_control clingo_control_t;
 clingo_error_t clingo_control_new(clingo_module_t *mod, clingo_string_span_t args, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl);
 void clingo_control_free(clingo_control_t *ctl);

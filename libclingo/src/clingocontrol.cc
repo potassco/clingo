@@ -784,11 +784,14 @@ Clingo::Module::Module()
     Gringo::handleError(clingo_module_new(&module_));
 }
 
-Clingo::Control Clingo::Module::create_control(StringSpan args, Logger logger, unsigned message_limit) {
+Clingo::Control Clingo::Module::create_control(StringSpan args, Logger &logger, unsigned message_limit) {
     clingo_control_t *ctl;
     clingo_control_new(module_, args, [](clingo_message_code_t code, char const *msg, void *data) {
-        try { (*static_cast<Logger*>(data))(code, msg); }
-        catch (...) { }
+        try {
+            (*static_cast<Logger*>(data))(code, msg);
+        }
+        catch (std::exception const &e) { std::cerr << "error for some reason???: " << e.what() << std::endl; }
+        catch (...) { std::cerr << "error for some reason???" << std::endl; }
     }, &logger, message_limit, &ctl);
     return ctl;
 }

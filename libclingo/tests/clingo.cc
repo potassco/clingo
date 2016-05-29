@@ -27,6 +27,7 @@ using namespace Clingo;
 using AtomVec = std::vector<Symbol>;
 using ModelVec = std::vector<AtomVec>;
 using MessageVec = std::vector<std::pair<MessageCode, std::string>>;
+using SymList = std::initializer_list<Symbol>;
 
 struct MCB {
     MCB(ModelVec &models) : models(models) { }
@@ -44,9 +45,7 @@ struct MCB {
 class LCB {
 public:
     LCB(MessageVec &messages) : messages_(messages) { }
-    void operator()(MessageCode code, char const *msg) {
-        messages_.emplace_back(code, msg);
-    }
+    void operator()(MessageCode code, char const *msg) { messages_.emplace_back(code, msg); }
 private:
     MessageVec &messages_;
 };
@@ -111,10 +110,27 @@ TEST_CASE("c-interface", "[clingo]") {
         Module mod;
         SECTION("with control") {
             MessageVec messages;
-            Control ctl{mod.create_control({"test_libclingo"}, LCB(messages), 20)};
-            SECTION("basic solving") {
+            Logger logger = [&messages](MessageCode code, char const *msg) { messages.emplace_back(code, msg); };
+            Control ctl{mod.create_control({"test_libclingo"}, logger, 20)};
+            SECTION("solve") {
                 ctl.add("base", {}, "a.");
-                ctl.ground({{"base", {}}}, nullptr);
+                ctl.ground({{"base", {}}});
+                ModelVec models;
+                REQUIRE(ctl.solve({}, MCB(models)).sat());
+                REQUIRE(models == ModelVec{{Id("a")}});
+                REQUIRE(messages.empty());
+            }
+            SECTION("solve_iter") {
+                ctl.add("base", {}, "a.");
+                ctl.ground({{"base", {}}});
+                {
+                    auto iter = ctl.solve_iter();
+                    ModelVec models;
+                    MCB mcb(models);
+                    while (Model m = iter.next()) { mcb(m); }
+                    REQUIRE(models == ModelVec{{Id("a")}});
+                    REQUIRE(iter.get().sat());
+                }
                 ModelVec models;
                 REQUIRE(ctl.solve({}, MCB(models)).sat());
                 REQUIRE(models == ModelVec{{Id("a")}});
@@ -122,11 +138,34 @@ TEST_CASE("c-interface", "[clingo]") {
             }
             SECTION("logging") {
                 ctl.add("base", {}, "a(1+a).");
-                ctl.ground({{"base", {}}}, nullptr);
+                ctl.ground({{"base", {}}});
                 ModelVec models;
                 REQUIRE(ctl.solve({}, MCB(models)).sat());
                 REQUIRE(models == ModelVec{{}});
                 REQUIRE(messages == MessageVec({{MessageCode::OperationUndefined, "<block>:1:3-6: info: operation undefined:\n  (1+a)\n"}}));
+            }
+            SECTION("ground callback") {
+                ctl.add("base", {}, "a(@f(X)):- X=1..2. b(@f()).");
+                ctl.ground({{"base", {}}}, [&messages](Location loc, char const *name, SymSpan args, SymSpanCallback report) {
+                    if (strcmp(name, "f") == 0 && args.size() == 1) {
+                        Symbol front = *args.begin();
+                        report({Num(front.num() + 1), Num(front.num() + 10)});
+                        report({Num(front.num() + 20)});
+                    }
+                    else {
+                        std::ostringstream oss;
+                        oss << "invalid call: " << name << "/" << args.size() << " at " << loc;
+                        messages.emplace_back(MessageCode::OperationUndefined, oss.str());
+                    }
+                });
+                ModelVec models;
+                REQUIRE(ctl.solve({}, MCB(models)).sat());
+                REQUIRE(models == ModelVec({{Fun("a", {Num(2)}), Fun("a", {Num(3)}), Fun("a", {Num(11)}), Fun("a", {Num(12)}), Fun("a", {Num(21)}), Fun("a", {Num(22)})}}));
+                REQUIRE(messages == MessageVec({{MessageCode::OperationUndefined, "invalid call: f/0 at <block>:1:22-26"}}));
+            }
+            SECTION("ground callback fail") {
+                ctl.add("base", {}, "a(@f()).");
+                REQUIRE_THROWS_AS(ctl.ground({{"base", {}}}, [](Location, char const *, SymSpan, SymSpanCallback) { throw std::runtime_error("fail"); }), std::runtime_error);
             }
         }
     }

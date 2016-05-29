@@ -227,11 +227,12 @@ struct ClingoContext : Context {
         return cb;
     }
 
-    SymVec call(Location const &, String name, SymSpan args) override {
+    SymVec call(Location const &loc, String name, SymSpan args) override {
         assert(cb);
+        clingo_location_t loc_c{loc.beginFilename.c_str(), loc.endFilename.c_str(), loc.beginLine, loc.endLine, loc.beginColumn, loc.endColumn};
         clingo_symbol_span_t args_c;
         args_c = { args.first, args.size };
-        auto err = cb(name.c_str(), args_c, data, [](clingo_symbol_span_t ret_c, void *data) -> clingo_error_t {
+        auto err = cb(loc_c, name.c_str(), args_c, data, [](clingo_symbol_span_t ret_c, void *data) -> clingo_error_t {
             auto t = static_cast<ClingoContext*>(data);
             GRINGO_CLINGO_TRY {
                 for (auto it = ret_c.first, ie = it + ret_c.size; it != ie; ++it) {
@@ -363,6 +364,9 @@ void handleError(clingo_error_t code, std::exception_ptr *exc) {
 
 // {{{2 symbol
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+
 Symbol::Symbol() {
     clingo_symbol_new_num(0, this);
 }
@@ -436,6 +440,8 @@ SymSpan Symbol::args() const {
 SymbolType Symbol::type() const {
     return static_cast<SymbolType>(clingo_symbol_type(*this));
 }
+
+#pragma GCC diagnostic pop
 
 #define CLINGO_CALLBACK_TRY try
 #define CLINGO_CALLBACK_CATCH(ref) catch (...){ (ref) = std::current_exception(); return clingo_error_unknown; } return clingo_error_success
@@ -535,13 +541,13 @@ void Control::ground(PartSpan parts, GroundCallback cb) {
     using Data = std::pair<GroundCallback&, std::exception_ptr>;
     Data data(cb, nullptr);
     handleError(clingo_control_ground(ctl_, parts,
-        [](char const *name, clingo_symbol_span_t args, void *data, clingo_symbol_span_callback_t *cb, void *cbdata) -> clingo_error_t {
+        [](clingo_location_t loc, char const *name, clingo_symbol_span_t args, void *data, clingo_symbol_span_callback_t *cb, void *cbdata) -> clingo_error_t {
             auto &d = *static_cast<Data*>(data);
             CLINGO_CALLBACK_TRY {
                 if (d.first) {
                     struct Ret { clingo_error_t ret; };
                     try {
-                        d.first(name, args, [cb, cbdata](SymSpan symret) {
+                        d.first(loc, name, args, [cb, cbdata](SymSpan symret) {
                             clingo_error_t ret = cb(symret, cbdata);
                             if (ret != clingo_error_success) { throw Ret { ret }; }
                         });
@@ -550,7 +556,7 @@ void Control::ground(PartSpan parts, GroundCallback cb) {
                 }
             }
             CLINGO_CALLBACK_CATCH(d.second);
-        }, &data));
+        }, &data), &data.second);
 }
 
 Control::operator clingo_control_t*() const { return ctl_; }
