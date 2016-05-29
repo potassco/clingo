@@ -57,7 +57,7 @@ public:
     void printAssume(LitVec const &lits) override;
     void printMinimize(int priority, LitWeightVec const &body) override;
     void endStep() override;
-    ~ClaspAPIBackend() noexcept;
+    ~ClaspAPIBackend() noexcept override;
 
 private:
     void addBody(const LitVec& body);
@@ -134,65 +134,8 @@ static inline bool parseFoobar(const std::string& str, ClingoOptions::Foobar& fo
 struct ClingoStatistics : Gringo::Statistics {
     Quantity    getStat(char const* key) const override;
     char const *getKeys(char const* key) const override;
-    virtual ~ClingoStatistics() { }
 
     Clasp::ClaspFacade *clasp = nullptr;
-};
-
-// {{{1 declaration of ClingoModel
-
-struct ClingoModel : Gringo::Model {
-    ClingoModel(Clasp::Asp::LogicProgram const &lp, Gringo::Output::OutputBase const &out, Clasp::SharedContext const &ctx, Clasp::Model const *model = nullptr)
-        : lp(lp)
-        , out(out)
-        , ctx(ctx)
-        , model(model) { }
-    void reset(Clasp::Model const &m) { model = &m; }
-    virtual bool contains(Gringo::Symbol atom) const {
-        auto atm = out.find(atom);
-        return atm.second && atm.first->hasUid() && model->isTrue(lp.getLiteral(atm.first->uid()));
-    }
-    virtual Gringo::SymSpan atoms(int atomset) const {
-        atms = out.atoms(atomset, [this, atomset](unsigned uid) -> bool { return bool(atomset & COMP) ^ model->isTrue(lp.getLiteral(uid)); });
-        return Potassco::toSpan(atms);
-    }
-    virtual Gringo::Int64Vec optimization() const {
-        return model->costs ? Gringo::Int64Vec(model->costs->begin(), model->costs->end()) : Gringo::Int64Vec();
-    }
-    virtual void addClause(LitVec const &lits) const {
-        Clasp::LitVec claspLits;
-        for (auto &x : lits) {
-            auto atom = out.find(x.first);
-            if (atom.second && atom.first->hasUid()) {
-                Clasp::Literal lit = lp.getLiteral(atom.first->uid());
-                claspLits.push_back(x.second ? lit : ~lit);
-            }
-            else if (!x.second) { return; }
-        }
-        claspLits.push_back(~ctx.stepLiteral());
-        model->ctx->commitClause(claspLits);
-    }
-    virtual ~ClingoModel() { }
-    Clasp::Asp::LogicProgram const   &lp;
-    Gringo::Output::OutputBase const &out;
-    Clasp::SharedContext const       &ctx;
-    Clasp::Model const               *model;
-    mutable Gringo::SymVec            atms;
-};
-
-// {{{1 declaration of ClingoSolveIter
-
-struct ClingoSolveIter : Gringo::SolveIter {
-    ClingoSolveIter(Clasp::ClaspFacade::ModelGenerator const &future, Clasp::Asp::LogicProgram const &lp, Gringo::Output::OutputBase const &out, Clasp::SharedContext const &ctx);
-
-    Gringo::Model const *next() override;
-    void close() override;
-    Gringo::SolveResult get() override;
-
-    virtual ~ClingoSolveIter();
-
-    Clasp::ClaspFacade::ModelGenerator future;
-    ClingoModel                        model;
 };
 
 // {{{1 declaration of ClingoSolveFuture
@@ -207,7 +150,6 @@ struct ClingoSolveFuture : Gringo::SolveFuture {
     bool wait(double timeout) override;
     void cancel() override;
 
-    virtual ~ClingoSolveFuture();
     void reset(Clasp::ClaspFacade::AsyncResult res);
 
     Clasp::ClaspFacade::AsyncResult future;
@@ -226,7 +168,6 @@ public:
     Lit_t mapLit(Lit_t lit) override;
     int threads() override;
     void addWatch(Lit_t lit) override { p_.addWatch(Clasp::decodeLit(lit)); }
-    virtual ~ClingoPropagateInit() noexcept = default;
 private:
     Gringo::Control &c_;
     Clasp::ClingoPropagatorInit &p_;
@@ -235,8 +176,8 @@ private:
 class ClingoPropagatorLock : public Clasp::ClingoPropagatorLock {
 public:
     ClingoPropagatorLock() : seq_(0) {}
-    virtual void lock()   override { if (mut_) mut_->lock(); }
-    virtual void unlock() override { if (mut_) mut_->unlock(); }
+    void lock()   override { if (mut_) mut_->lock(); }
+    void unlock() override { if (mut_) mut_->unlock(); }
     ClingoPropagatorLock* add(bool seq) {
         if (seq) { ++seq_; return this; }
         return 0;
@@ -251,7 +192,8 @@ private:
     unsigned seq_;
 };
 
-class ClingoControl : public Gringo::Control, private Gringo::ConfigProxy, private Gringo::DomainProxy {
+class ClingoSolveIter;
+class ClingoControl : public clingo_control, private Gringo::ConfigProxy, private Gringo::DomainProxy {
 public:
     using StringVec        = std::vector<std::string>;
     using ExternalVec      = std::vector<std::pair<Gringo::Symbol, Potassco::Value_t>>;
@@ -261,6 +203,7 @@ public:
     enum class ConfigUpdate { KEEP, REPLACE };
 
     ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Gringo::Logger::Printer printer, unsigned messageLimit);
+    ~ClingoControl() noexcept override;
     void prepare(Gringo::Control::ModelHandler mh, Gringo::Control::FinishHandler fh);
     void commitExternals();
     void parse();
@@ -309,7 +252,7 @@ public:
     void cleanupDomains() override;
     Gringo::SolveIter *solveIter(Assumptions &&ass) override;
     Gringo::SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass) override;
-    virtual Gringo::TheoryData const &theory() const override { return out_->data.theoryInterface(); }
+    Gringo::TheoryData const &theory() const override { return out_->data.theoryInterface(); }
     void registerPropagator(Gringo::Propagator &p, bool sequential) override;
     void parse(char const *program, std::function<void(clingo_ast const &)> cb) override;
     void add(std::function<void (std::function<void (clingo_ast const &)>)> cb) override;
@@ -350,13 +293,71 @@ public:
     bool configUpdate_          = false;
 };
 
+// {{{1 declaration of ClingoModel
+
+class ClingoModel : public Gringo::Model {
+public:
+    ClingoModel(ClingoControl &ctl, Clasp::Model const *model = nullptr)
+    : ctl_(ctl)
+    , model_(model) { }
+    void reset(Clasp::Model const &m) { model_ = &m; }
+    bool contains(Gringo::Symbol atom) const override {
+        auto atm = out().find(atom);
+        return atm.second && atm.first->hasUid() && model_->isTrue(lp().getLiteral(atm.first->uid()));
+    }
+    Gringo::SymSpan atoms(unsigned atomset) const override {
+        atms_ = out().atoms(atomset, [this, atomset](unsigned uid) { return bool(atomset & clingo_show_type_comp) ^ model_->isTrue(lp().getLiteral(uid)); });
+        return Potassco::toSpan(atms_);
+    }
+    Gringo::Int64Vec optimization() const override {
+        return model_->costs ? Gringo::Int64Vec(model_->costs->begin(), model_->costs->end()) : Gringo::Int64Vec();
+    }
+    void addClause(LitVec const &lits) const override {
+        Clasp::LitVec claspLits;
+        for (auto &x : lits) {
+            auto atom = out().find(x.first);
+            if (atom.second && atom.first->hasUid()) {
+                Clasp::Literal lit = lp().getLiteral(atom.first->uid());
+                claspLits.push_back(x.second ? lit : ~lit);
+            }
+            else if (!x.second) { return; }
+        }
+        claspLits.push_back(~ctx().stepLiteral());
+        model_->ctx->commitClause(claspLits);
+    }
+    ClingoControl &owner() const override { return ctl_; }
+private:
+    Clasp::Asp::LogicProgram const &lp() const    { return *static_cast<Clasp::Asp::LogicProgram*>(ctl_.clasp_->program()); };
+    Gringo::Output::OutputBase const &out() const { return *ctl_.out_; };
+    Clasp::SharedContext const &ctx() const       { return ctl_.clasp_->ctx; };
+    ClingoControl          &ctl_;
+    Clasp::Model const     *model_;
+    mutable Gringo::SymVec  atms_;
+};
+
+// {{{1 declaration of ClingoSolveIter
+
+class ClingoSolveIter : public Gringo::SolveIter {
+public:
+    ClingoSolveIter(ClingoControl &ctl, Clasp::LitVec const &ass);
+
+    Gringo::Model const *next() override;
+    void close() override;
+    Gringo::SolveResult get() override;
+    ClingoControl &owner() const override { return model_.owner(); }
+
+private:
+    Clasp::ClaspFacade::ModelGenerator future_;
+    ClingoModel                        model_;
+};
+
 // {{{1 declaration of ClingoLib
 
 class ClingoLib : public Clasp::EventHandler, public ClingoControl {
     using StringVec    = std::vector<std::string>;
 public:
     ClingoLib(Gringo::Scripts &scripts, int argc, char const **argv, Gringo::Logger::Printer printer, unsigned messageLimit);
-    virtual ~ClingoLib();
+    ~ClingoLib() override;
 protected:
     void initOptions(ProgramOptions::OptionContext& root);
     static bool parsePositional(const std::string& s, std::string& out);

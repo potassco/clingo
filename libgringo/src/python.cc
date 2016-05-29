@@ -1353,11 +1353,11 @@ places like - e.g., the main function.)";
             static char const *kwlist[] = {"atoms", "terms", "shown", "csp", "comp", nullptr};
             PyObject *pyAtoms = Py_False, *pyTerms = Py_False, *pyShown = Py_False, *pyCSP = Py_False, *pyComp = Py_False;
             if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "|OOOOO", const_cast<char**>(kwlist), &pyAtoms, &pyTerms, &pyShown, &pyCSP, &pyComp)) { return nullptr; }
-            if (pyToCpp<bool>(pyAtoms)) { atomset |= Gringo::Model::ATOMS; }
-            if (pyToCpp<bool>(pyTerms)) { atomset |= Gringo::Model::TERMS; }
-            if (pyToCpp<bool>(pyShown)) { atomset |= Gringo::Model::SHOWN; }
-            if (pyToCpp<bool>(pyCSP))   { atomset |= Gringo::Model::CSP; }
-            if (pyToCpp<bool>(pyComp))  { atomset |= Gringo::Model::COMP; }
+            if (pyToCpp<bool>(pyAtoms)) { atomset |= clingo_show_type_atoms; }
+            if (pyToCpp<bool>(pyTerms)) { atomset |= clingo_show_type_terms; }
+            if (pyToCpp<bool>(pyShown)) { atomset |= clingo_show_type_shown; }
+            if (pyToCpp<bool>(pyCSP))   { atomset |= clingo_show_type_csp; }
+            if (pyToCpp<bool>(pyComp))  { atomset |= clingo_show_type_comp; }
             return cppToPy(self->model->atoms(atomset)).release();
         PY_CATCH(nullptr);
     }
@@ -1377,7 +1377,7 @@ places like - e.g., the main function.)";
                 else { out << val; }
             };
             std::ostringstream oss;
-            print_comma(oss, self->model->atoms(Gringo::Model::SHOWN), " ", printAtom);
+            print_comma(oss, self->model->atoms(clingo_show_type_shown), " ", printAtom);
             return cppToPy(oss.str()).release();
         PY_CATCH(nullptr);
     }

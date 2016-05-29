@@ -159,8 +159,7 @@ extern "C" clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type
     GRINGO_CLINGO_TRY {
         SymSpan atoms = m->atoms(show);
         *ret = {atoms.first, atoms.size};
-#       pragma message("I need the associated control here...")
-    } GRINGO_CLINGO_CATCH(nullptr);
+    } GRINGO_CLINGO_CATCH(&m->owner().logger());
 }
 
 // {{{2 solve_iter
@@ -170,22 +169,19 @@ struct clingo_solve_iter : SolveIter { };
 extern "C" clingo_error_t clingo_solve_iter_next(clingo_solve_iter_t *it, clingo_model **m) {
     GRINGO_CLINGO_TRY {
         *m = static_cast<clingo_model*>(const_cast<Model*>(it->next()));
-#       pragma message("I need the associated control here...")
-    } GRINGO_CLINGO_CATCH(nullptr);
+    } GRINGO_CLINGO_CATCH(&it->owner().logger());
 }
 
 extern "C" clingo_error_t clingo_solve_iter_get(clingo_solve_iter_t *it, clingo_solve_result_t *ret) {
     GRINGO_CLINGO_TRY {
         *ret = convert(it->get().satisfiable());
-#       pragma message("I need the associated control here...")
-    } GRINGO_CLINGO_CATCH(nullptr);
+    } GRINGO_CLINGO_CATCH(&it->owner().logger());
 }
 
 extern "C" clingo_error_t clingo_solve_iter_close(clingo_solve_iter_t *it) {
     GRINGO_CLINGO_TRY {
         it->close();
-#       pragma message("I need the associated control here...")
-    } GRINGO_CLINGO_CATCH(nullptr);
+    } GRINGO_CLINGO_CATCH(&it->owner().logger());
 }
 
  // {{{2 control
@@ -364,8 +360,10 @@ void handleError(clingo_error_t code, std::exception_ptr *exc) {
 
 // {{{2 symbol
 
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
 
 Symbol::Symbol() {
     clingo_symbol_new_num(0, this);
@@ -441,7 +439,9 @@ SymbolType Symbol::type() const {
     return static_cast<SymbolType>(clingo_symbol_type(*this));
 }
 
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
+#endif
 
 #define CLINGO_CALLBACK_TRY try
 #define CLINGO_CALLBACK_CATCH(ref) catch (...){ (ref) = std::current_exception(); return clingo_error_unknown; } return clingo_error_success

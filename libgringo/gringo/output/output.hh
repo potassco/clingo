@@ -74,7 +74,7 @@ public:
     void beginStep();
     void endStep(bool solve, Logger &log);
     void checkOutPreds(Logger &log);
-    SymVec atoms(int atomset, IsTrueLookup lookup) const;
+    SymVec atoms(unsigned atomset, IsTrueLookup lookup) const;
     std::pair<PredicateDomain::Iterator, PredicateDomain*> find(Symbol val);
     std::pair<PredicateDomain::ConstIterator, PredicateDomain const *> find(Symbol val) const;
     PredDomMap &predDoms() { return data.predDoms(); }

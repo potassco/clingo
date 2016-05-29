@@ -241,7 +241,7 @@ void ClingoControl::main() {
 bool ClingoControl::onModel(Clasp::Model const &m) {
     if (!modelHandler_) { return true; }
     std::lock_guard<decltype(propLock_)> lock(propLock_);
-    return modelHandler_(ClingoModel(static_cast<Clasp::Asp::LogicProgram&>(*clasp_->program()), *out_, clasp_->ctx, &m));
+    return modelHandler_(ClingoModel(*this, &m));
 }
 void ClingoControl::onFinish(Clasp::ClaspFacade::Result ret) {
     if (finishHandler_) {
@@ -322,7 +322,7 @@ Gringo::ConfigProxy &ClingoControl::getConf() {
 Gringo::SolveIter *ClingoControl::solveIter(Assumptions &&ass) {
     prepare(nullptr, nullptr);
     auto a = toClaspAssumptions(std::move(ass));
-    solveIter_ = Gringo::gringo_make_unique<ClingoSolveIter>(clasp_->startSolve(a), static_cast<Clasp::Asp::LogicProgram&>(*clasp_->program()), *out_, clasp_->ctx);
+    solveIter_ = Gringo::gringo_make_unique<ClingoSolveIter>(*this, a);
     return solveIter_.get();
 }
 Gringo::SolveFuture *ClingoControl::solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass) {
@@ -592,6 +592,8 @@ void ClingoControl::add(std::function<void (std::function<void (clingo_ast const
 Gringo::Backend *ClingoControl::backend() { return out_->backend(); }
 Potassco::Atom_t ClingoControl::addProgramAtom() { return out_->data.newAtom(); }
 
+ClingoControl::~ClingoControl() noexcept = default;
+
 // {{{1 definition of ClingoStatistics
 
 Gringo::Statistics::Quantity ClingoStatistics::getStat(char const* key) const {
@@ -612,25 +614,25 @@ char const *ClingoStatistics::getKeys(char const* key) const {
 
 // {{{1 definition of ClingoSolveIter
 
-ClingoSolveIter::ClingoSolveIter(Clasp::ClaspFacade::ModelGenerator const &future, Clasp::Asp::LogicProgram const &lp, Gringo::Output::OutputBase const &out, Clasp::SharedContext const &ctx)
-    : future(future)
-    , model(lp, out, ctx) { }
+ClingoSolveIter::ClingoSolveIter(ClingoControl &ctl, Clasp::LitVec const &ass)
+: future_(ctl.clasp_->startSolve(ass))
+, model_(ctl) { }
+
 Gringo::Model const *ClingoSolveIter::next() {
-    if (future.next()) {
-        model.reset(future.model());
-        return &model;
+    if (future_.next()) {
+        model_.reset(future_.model());
+        return &model_;
     }
-    else {
-        return nullptr;
-    }
+    else { return nullptr; }
 }
+
 void ClingoSolveIter::close() {
-    future.stop();
+    future_.stop();
 }
+
 Gringo::SolveResult ClingoSolveIter::get() {
-    return convert(future.result());
+    return convert(future_.result());
 }
-ClingoSolveIter::~ClingoSolveIter() = default;
 
 // {{{1 definition of ClingoSolveFuture
 
@@ -665,7 +667,6 @@ bool ClingoSolveFuture::wait(double timeout) {
     return true;
 }
 void ClingoSolveFuture::cancel() { future.cancel(); }
-ClingoSolveFuture::~ClingoSolveFuture() { }
 #endif
 
 // {{{1 definition of ClingoLib

@@ -662,24 +662,24 @@ void Translator::showCsp(Bound const &bound, IsTrueLookup isTrue, SymVec &atoms)
     atoms.emplace_back(Symbol::createFun("$", Potassco::toSpan(SymVec{bound.var, Symbol::createNum(prev)})));
 }
 
-void Translator::atoms(DomainData &data, int atomset, IsTrueLookup isTrue, SymVec &atoms, OutputPredicates const &outPreds) {
-    if (atomset & (Model::CSP | Model::SHOWN)) {
+void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup isTrue, SymVec &atoms, OutputPredicates const &outPreds) {
+    if (atomset & (clingo_show_type_csp | clingo_show_type_shown)) {
         for (auto &x : boundMap_) {
-            if (atomset & Model::CSP || (atomset & Model::SHOWN && showBound(outPreds, x))) { showCsp(x, isTrue, atoms); }
+            if (atomset & clingo_show_type_csp || (atomset & clingo_show_type_shown && showBound(outPreds, x))) { showCsp(x, isTrue, atoms); }
         }
     }
-    if (atomset & (Model::ATOMS | Model::SHOWN)) {
+    if (atomset & (clingo_show_type_atoms | clingo_show_type_shown)) {
         for (auto &x : data.predDoms()) {
             Sig sig = *x;
             auto name = sig.name();
-            if (((atomset & Model::ATOMS || (atomset & Model::SHOWN && showSig(outPreds, sig, false))) && !name.empty() && !name.startsWith("#"))) {
+            if (((atomset & clingo_show_type_atoms || (atomset & clingo_show_type_shown && showSig(outPreds, sig, false))) && !name.empty() && !name.startsWith("#"))) {
                 for (auto &y: *x) {
                     if (y.defined() && y.hasUid() && isTrue(y.uid())) { atoms.emplace_back(y); }
                 }
             }
         }
     }
-    if (atomset & Model::SHOWN) {
+    if (atomset & clingo_show_type_shown) {
         for (auto &entry : cspOutput_.table) {
             auto bound = boundMap_.find(entry.term);
             if (bound != boundMap_.end() && !showBound(outPreds, *bound) && call(data, entry.cond, &Literal::isTrue, isTrue)) {
@@ -687,7 +687,7 @@ void Translator::atoms(DomainData &data, int atomset, IsTrueLookup isTrue, SymVe
             }
         }
     }
-    if (atomset & (Model::TERMS | Model::SHOWN)) {
+    if (atomset & (clingo_show_type_terms | clingo_show_type_shown)) {
         for (auto &entry : termOutput_.table) {
             if (isTrue(call(data, entry.cond, &Literal::uid))) {
                 atoms.emplace_back(entry.term);

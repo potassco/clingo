@@ -275,7 +275,7 @@ void OutputBase::checkOutPreds(Logger &log) {
     }
 }
 
-SymVec OutputBase::atoms(int atomset, IsTrueLookup isTrue) const {
+SymVec OutputBase::atoms(unsigned atomset, IsTrueLookup isTrue) const {
     SymVec atoms;
     translateLambda(const_cast<DomainData&>(data), *out_, [&](DomainData &data, Translator &trans) {
         trans.atoms(data, atomset, isTrue, atoms, outPreds);

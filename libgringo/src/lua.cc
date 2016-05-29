@@ -1141,22 +1141,22 @@ struct Model {
     }
     static int atoms(lua_State *L) {
         Gringo::Model const *& model = *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
-        int atomset = 0;
+        unsigned atomset = 0;
         luaL_checktype(L, 2, LUA_TTABLE);
         lua_getfield(L, 2, "atoms");
-        if (lua_toboolean(L, -1)) { atomset |= Gringo::Model::ATOMS; }
+        if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_atoms; }
         lua_pop(L, 1);
         lua_getfield(L, 2, "shown");
-        if (lua_toboolean(L, -1)) { atomset |= Gringo::Model::SHOWN; }
+        if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_shown; }
         lua_pop(L, 1);
         lua_getfield(L, 2, "terms");
-        if (lua_toboolean(L, -1)) { atomset |= Gringo::Model::TERMS; }
+        if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_terms; }
         lua_pop(L, 1);
         lua_getfield(L, 2, "csp");
-        if (lua_toboolean(L, -1)) { atomset |= Gringo::Model::CSP; }
+        if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_csp; }
         lua_pop(L, 1);
         lua_getfield(L, 2, "comp");
-        if (lua_toboolean(L, -1)) { atomset |= Gringo::Model::COMP; }
+        if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_comp; }
         lua_pop(L, 1);
         SymSpan atoms = protect(L, [&model, atomset]() { return model->atoms(atomset); });
         lua_createtable(L, atoms.size, 0);
@@ -1192,7 +1192,7 @@ struct Model {
                 else { out << val; }
             };
             std::ostringstream oss;
-            print_comma(oss, model->atoms(Gringo::Model::SHOWN), " ", printAtom);
+            print_comma(oss, model->atoms(clingo_show_type_shown), " ", printAtom);
             *rep = oss.str();
             return rep->c_str();
         }));

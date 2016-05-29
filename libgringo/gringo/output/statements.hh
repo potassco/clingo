@@ -334,7 +334,7 @@ public:
     Bound &findBound(Symbol x);
     void addLinearConstraint(Potassco::Atom_t head, CoefVarVec &&vars, int bound);
     void addDisjointConstraint(DomainData &data, LiteralId lit);
-    void atoms(DomainData &data, int atomset, IsTrueLookup isTrue, SymVec &atoms, OutputPredicates const &outPreds);
+    void atoms(DomainData &data, unsigned atomset, IsTrueLookup isTrue, SymVec &atoms, OutputPredicates const &outPreds);
     void translate(DomainData &data, OutputPredicates const &outPreds, Logger &log);
     void output(DomainData &data, Statement &x);
     void simplify(DomainData &data, Mappings &mappings, AssignmentLookup assignment);

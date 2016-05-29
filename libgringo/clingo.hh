@@ -64,6 +64,20 @@ bool operator==(Span<T, C> span, V const &v) { return equal_range(span, v); }
 template <class T, class C, class V>
 bool operator==(V const &v, Span<T, C> span) { return equal_range(span, v); }
 
+template <class T, class C>
+std::ostream &operator<<(std::ostream &out, Span<T, C> span) {
+    out << "{";
+    bool comma = false;
+    for (auto &x : span) {
+        if (comma) { out << ", "; }
+        else { out << " "; }
+        out << x;
+        comma = true;
+    }
+    out << " }";
+    return out;
+}
+
 // {{{1 symbol
 
 enum class SymbolType : clingo_symbol_type_t {
@@ -127,6 +141,21 @@ public:
 
 using SymbolicLiteralSpan = Span<SymbolicLiteral, clingo_symbolic_literal_span_t>;
 
+inline std::ostream &operator<<(std::ostream &out, SymbolicLiteral sym) {
+    if (sym.sign()) { out << "~"; }
+    out << sym.atom();
+    return out;
+}
+inline bool operator==(SymbolicLiteral const &a, SymbolicLiteral const &b) { return a.sign() == b.sign() && a.atom() == b.atom(); }
+inline bool operator!=(SymbolicLiteral const &a, SymbolicLiteral const &b) { return !(a == b); }
+inline bool operator< (SymbolicLiteral const &a, SymbolicLiteral const &b) {
+    if (a.sign() != b.sign()) { return a.sign() < b.sign(); }
+    return a.atom() < b.atom();
+}
+inline bool operator<=(SymbolicLiteral const &a, SymbolicLiteral const &b) { return !(b < a); }
+inline bool operator> (SymbolicLiteral const &a, SymbolicLiteral const &b) { return  (b < a); }
+inline bool operator>=(SymbolicLiteral const &a, SymbolicLiteral const &b) { return !(a < b); }
+
 // {{{1 model
 
 class ShowType {
@@ -151,11 +180,15 @@ public:
     bool contains(Symbol atom) const;
     operator bool() const { return model_; }
     operator clingo_model_t*() const { return model_; }
-    // currently the model stores the symspan up to the next call to atoms - bad?
     SymSpan atoms(ShowType show) const;
 private:
     clingo_model_t *model_;
 };
+
+inline std::ostream &operator<<(std::ostream &out, Model m) {
+    out << m.atoms(ShowType::Shown);
+    return out;
+}
 
 // {{{1 solve result
 
@@ -173,6 +206,17 @@ public:
 private:
     clingo_solve_result_t res_;
 };
+
+inline std::ostream &operator<<(std::ostream &out, SolveResult res) {
+    if (res.sat())    {
+        out << "SATISFIABLE";
+        if (!res.exhausted()) { out << "+"; }
+    }
+    else if (res.unsat())  { out << "UNSATISFIABLE"; }
+    else { out << "UNKNOWN"; }
+    if (res.interrupted()) { out << "/INTERRUPTED"; }
+    return out;
+}
 
 // {{{1 solve iter
 
@@ -248,6 +292,15 @@ public:
 private:
     clingo_truth_value_t type_;
 };
+
+inline std::ostream &operator<<(std::ostream &out, TruthValue tv) {
+    switch (tv) {
+        case TruthValue::Free:  { out << "Free"; break; }
+        case TruthValue::True:  { out << "True"; break; }
+        case TruthValue::False: { out << "False"; break; }
+    }
+    return out;
+}
 
 class Part : public clingo_part_t {
 public:

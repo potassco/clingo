@@ -63,17 +63,14 @@ using Int64Vec = std::vector<int64_t>;
 
 } // namespace Gringo
 
+using ShowType = clingo_show_type_t;
 struct clingo_model {
     using LitVec = std::vector<std::pair<Gringo::Symbol, bool>>;
-    static const unsigned CSP   = 1;
-    static const unsigned SHOWN = 2;
-    static const unsigned ATOMS = 4;
-    static const unsigned TERMS = 8;
-    static const unsigned COMP  = 16;
     virtual bool contains(Gringo::Symbol atom) const = 0;
-    virtual Gringo::SymSpan atoms(int showset) const = 0;
+    virtual Gringo::SymSpan atoms(ShowType showset) const = 0;
     virtual Gringo::Int64Vec optimization() const = 0;
     virtual void addClause(LitVec const &lits) const = 0;
+    virtual clingo_control &owner() const = 0;
     virtual ~clingo_model() { }
 };
 
@@ -114,6 +111,7 @@ struct SolveIter {
     virtual Model const *next() = 0;
     virtual void close() = 0;
     virtual SolveResult get() = 0;
+    virtual clingo_control_t &owner() const = 0;
     virtual ~SolveIter() { }
 };
 
