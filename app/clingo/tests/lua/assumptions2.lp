@@ -2,7 +2,7 @@
 
 function main(prg)
     prg:ground({{"base", {}}})
-    prg:solve({{clingo.fun("b"), true}})
+    prg:solve(nil, {{clingo.fun("b"), true}})
 end
 
 #end.

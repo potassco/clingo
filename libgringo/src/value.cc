@@ -39,10 +39,10 @@ uint64_t combine(uint16_t u, uintptr_t ptr, uint8_t l) {
 }
 uint64_t combine(uint16_t u, int32_t num) { return static_cast<uint64_t>(u) << 48 | static_cast<uint64_t>(static_cast<uint32_t>(num)); }
 uint64_t setUpper(uint16_t u, uint64_t rep) { return combine(u, 0, 0) | (rep & 0xFFFFFFFFFFFF); }
-uint64_t setLower(uint8_t l, uint8_t rep) {
-    assert(l <= lowerMax);
-    return combine(0, 0, l) | (rep & 0xFFFFFFFFFFFFFFFC);
-}
+//uint64_t setLower(uint8_t l, uint8_t rep) {
+//    assert(l <= lowerMax);
+//    return combine(0, 0, l) | (rep & 0xFFFFFFFFFFFFFFFC);
+//}
 
 enum class SymbolType_ : uint8_t {
     Inf = clingo_symbol_type_inf,

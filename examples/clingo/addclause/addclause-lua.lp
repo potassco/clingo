@@ -8,7 +8,7 @@ function main(prg)
 
     prg.conf.solve.models = 0
     prg:ground({{"base", {}}})
-    prg:solve(nil, on_model)
+    prg:solve(on_model)
     print "and again"
     prg:solve()
 end

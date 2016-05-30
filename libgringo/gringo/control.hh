@@ -176,17 +176,25 @@ struct TheoryData {
 
 // {{{1 declaration of Propagator
 
+using PropagateControl = clingo_propagate_control;
+using PropagateInit = clingo_propagate_init;
+
+} // namespace Gringo
+
+struct clingo_propagate_init {
+    virtual Gringo::TheoryData const &theory() const = 0;
+    virtual Gringo::DomainProxy &getDomain() = 0;
+    virtual Gringo::Lit_t mapLit(Gringo::Lit_t lit) = 0;
+    virtual void addWatch(Gringo::Lit_t lit) = 0;
+    virtual int threads() = 0;
+    virtual ~clingo_propagate_init() noexcept = default;
+};
+
+namespace Gringo {
+
 struct Propagator : Potassco::AbstractPropagator {
-    struct Init {
-        virtual TheoryData const &theory() const = 0;
-        virtual DomainProxy &getDomain() = 0;
-        virtual Lit_t mapLit(Lit_t lit) = 0;
-        virtual void addWatch(Lit_t lit) = 0;
-        virtual int threads() = 0;
-        virtual ~Init() noexcept = default;
-    };
     virtual ~Propagator() noexcept = default;
-    virtual void init(Init &init) = 0;
+    virtual void init(Gringo::PropagateInit &init) = 0;
 };
 
 // {{{1 declaration of ASPIFWriter

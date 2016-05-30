@@ -319,11 +319,12 @@ class Control {
 public:
     Control(clingo_control_t *ctl);
     ~Control() noexcept;
+    // TODO: consider removing the name/param part
     void add(char const *name, StringSpan params, char const *part);
     void add(AddASTCallback cb);
     void ground(PartSpan parts, GroundCallback cb = nullptr);
     // TODO: consider changing order of arguments
-    SolveResult solve(SymbolicLiteralSpan assumptions, ModelHandler mh = nullptr);
+    SolveResult solve(ModelHandler mh = nullptr, SymbolicLiteralSpan assumptions = {});
     SolveIter solve_iter(SymbolicLiteralSpan assumptions = {});
     void assign_external(Symbol atom, TruthValue value);
     void release_external(Symbol atom);

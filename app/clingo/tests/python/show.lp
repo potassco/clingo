@@ -24,7 +24,7 @@ def on_model(model):
 
 def main(prg):
     prg.ground([("base", [])])
-    prg.solve(None, on_model)
+    prg.solve(on_model)
     prg.ground([("result", [])])
     prg.solve()
 

@@ -33,7 +33,7 @@ function main (prg)
         parts[#parts+1] = {"cumulative", {i}}
         prg:ground(parts)
         parts = {}
-        ret = prg:solve(nil, on_model)
+        ret = prg:solve(on_model)
         print("Answer: 42")
         print(tostring(ret))
     end

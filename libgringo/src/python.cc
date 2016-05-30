@@ -1993,7 +1993,7 @@ the program.)"
 // {{{1 wrap PropagateInit
 
 struct PropagateInit : ObjectBase<PropagateInit> {
-    Propagator::Init *init;
+    Gringo::PropagateInit *init;
     static constexpr char const *tp_type = "PropagateInit";
     static constexpr char const *tp_name = "clingo.PropagateInit";
     static constexpr char const *tp_doc = R"(
@@ -2012,7 +2012,7 @@ solver literals.)";
     static PyGetSetDef tp_getset[];
 
     using ObjectBase<PropagateInit>::new_;
-    static PyObject *construct(Propagator::Init &init) {
+    static PyObject *construct(Gringo::PropagateInit &init) {
         PropagateInit *self = new_();
         self->init = &init;
         return reinterpret_cast<PyObject*>(self);
@@ -2278,7 +2278,7 @@ PyGetSetDef PropagateControl::tp_getset[] = {
 class Propagator : public Gringo::Propagator {
 public:
     Propagator(PyObject *tp) : tp_(tp, true) {}
-    void init(Init &init) override {
+    void init(Gringo::PropagateInit &init) override {
         PyBlock block;
         PY_TRY
             Object i = PropagateInit::construct(init);
@@ -2664,9 +2664,9 @@ active; you must not call any member function during search.)";
             checkBlocked(self, "solve_async");
             Py_XDECREF(self->stats);
             self->stats = nullptr;
-            static char const *kwlist[] = {"assumptions", "on_model", "on_finish", nullptr};
+            static char const *kwlist[] = {"on_model", "on_finish", "assumptions", nullptr};
             PyObject *pyAss = nullptr, *mh = Py_None, *fh = Py_None;
-            if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOO", const_cast<char **>(kwlist), &pyAss, &mh, &fh)) { return nullptr; }
+            if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOO", const_cast<char **>(kwlist), &mh, &fh, &pyAss)) { return nullptr; }
             Gringo::Control::Assumptions ass;
             if (!getAssumptions(pyAss, ass)) { return nullptr; }
             Gringo::SolveFuture *future = self->ctl->solveAsync(
@@ -2695,10 +2695,10 @@ active; you must not call any member function during search.)";
             checkBlocked(self, "solve");
             Py_XDECREF(self->stats);
             self->stats = nullptr;
-            static char const *kwlist[] = {"assumptions", "on_model", nullptr};
+            static char const *kwlist[] = {"on_model", "assumptions", nullptr};
             PyObject *mh = Py_None;
             PyObject *pyAss = nullptr;
-            if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OO", const_cast<char **>(kwlist), &pyAss, &mh)) { return nullptr; }
+            if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OO", const_cast<char **>(kwlist), &mh, &pyAss)) { return nullptr; }
             Gringo::Control::Assumptions ass;
             if (!getAssumptions(pyAss, ass)) { return nullptr; }
             Gringo::SolveResult ret = doUnblocked([self, mh, &ass]() {
@@ -2928,19 +2928,19 @@ Arguments:
 path -- path to program)"},
     // solve_async
     {"solve_async", (PyCFunction)solve_async, METH_KEYWORDS | METH_VARARGS,
-R"(solve_async(self, assumptions, on_model, on_finish) -> SolveFuture
+R"(solve_async(self, on_model, on_finish, assumptions) -> SolveFuture
 
 Start a search process in the background and return a SolveFuture object.
 
 Keyword Arguments:
-assumptions -- list of (atom, boolean) tuples that serve as assumptions for
-               the solve call, e.g. - solving under assumptions [(function("a"),
-               True)] only admits answer sets that contain atom a
 on_model    -- optional callback for intercepting models
                a Model object is passed to the callback
 on_finish   -- optional callback called once search has finished
                a SolveResult and a Boolean indicating whether the solve call
                has been canceled is passed to the callback
+assumptions -- list of (atom, boolean) tuples that serve as assumptions for
+               the solve call, e.g. - solving under assumptions [(function("a"),
+               True)] only admits answer sets that contain atom a
 
 Note that this function is only available in clingo with thread support
 enabled. Both the on_model and the on_finish callbacks are called from another
@@ -2961,7 +2961,7 @@ def on_finish(res, canceled):
 
 def main(prg):
     prg.ground([("base", [])])
-    f = prg.solve_async(None, on_model, on_finish)
+    f = prg.solve_async(on_model, on_finish)
     f.wait()
 
 #end.
@@ -2996,16 +2996,16 @@ def main(prg):
 #end.)"},
     // solve
     {"solve", (PyCFunction)solve, METH_KEYWORDS | METH_VARARGS,
-R"(solve(self, assumptions, on_model) -> SolveResult
+R"(solve(self, on_model, assumptions) -> SolveResult
 
 Start a search process and return a SolveResult.
 
 Keyword Arguments:
+on_model    -- optional callback for intercepting models
+               a Model object is passed to the callback
 assumptions -- a list of (atom, boolean) tuples that serve as assumptions for
                the solve call, e.g. - solving under assumptions [(function("a"),
                True)] only admits answer sets that contain atom a
-on_model    -- optional callback for intercepting models
-               a Model object is passed to the callback
 
 Note that in gringo or in clingo with lparse or text output enabled this
 function just grounds and returns a SolveResult where

@@ -278,7 +278,7 @@ Control::Assumptions toAss(clingo_symbolic_literal_span_t assumptions) {
 
 }
 
-extern "C" clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_symbolic_literal_span_t assumptions, clingo_model_handler_t *model_handler, void *data, clingo_solve_result_t *ret) {
+extern "C" clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_model_handler_t *model_handler, void *data, clingo_symbolic_literal_span_t assumptions, clingo_solve_result_t *ret) {
     GRINGO_CLINGO_TRY {
         *ret = static_cast<clingo_solve_result_t>(ctl->solve([model_handler, data](Model const &m) {
             bool ret;
@@ -561,15 +561,15 @@ void Control::ground(PartSpan parts, GroundCallback cb) {
 
 Control::operator clingo_control_t*() const { return ctl_; }
 
-SolveResult Control::solve(SymbolicLiteralSpan assumptions, ModelHandler mh) {
+SolveResult Control::solve(ModelHandler mh, SymbolicLiteralSpan assumptions) {
     clingo_solve_result_t ret;
     using Data = std::pair<ModelHandler&, std::exception_ptr>;
     Data data(mh, nullptr);
-    clingo_control_solve(ctl_, assumptions, [](clingo_model_t*m, void *data, bool *ret) -> clingo_error_t {
+    clingo_control_solve(ctl_, [](clingo_model_t*m, void *data, bool *ret) -> clingo_error_t {
         auto &d = *static_cast<Data*>(data);
         CLINGO_CALLBACK_TRY { *ret = d.first(m); }
         CLINGO_CALLBACK_CATCH(d.second);
-    }, &data, &ret);
+    }, &data, assumptions, &ret);
     return ret;
 }
 

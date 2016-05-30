@@ -1,21 +1,22 @@
-//
-// Copyright (c) 2015, Benjamin Kaufmann
-//
-// This file is part of Potassco. See http://potassco.sourceforge.net/
-//
+// {{{ GPL License
+
+// This file is part of gringo - a grounder for logic programs.
+// Copyright Roland Kaminski
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-//
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-//
+
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
-//
+
+// }}}
 
 #include "catch.hpp"
 #include "clingo.hh"
@@ -117,14 +118,14 @@ TEST_CASE("c-interface", "[clingo]") {
             SECTION("solve") {
                 ctl.add("base", {}, "a.");
                 ctl.ground({{"base", {}}});
-                REQUIRE(ctl.solve({}, MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).sat());
                 REQUIRE(models == ModelVec{{Id("a")}});
                 REQUIRE(messages.empty());
             }
             SECTION("model") {
                 ctl.add("base", {}, "a. $x $= 1. #show b.");
                 ctl.ground({{"base", {}}});
-                REQUIRE(ctl.solve({}, [](Model m){
+                REQUIRE(ctl.solve([](Model m) {
                     REQUIRE(m.atoms(ShowType::Atoms) == (SymVec{Id("a")}));
                     REQUIRE(m.atoms(ShowType::Terms) == (SymVec{Id("b")}));
                     REQUIRE(m.atoms(ShowType::CSP) == (SymVec{Fun("$", {Id("x"), Num(1)})}));
@@ -139,7 +140,7 @@ TEST_CASE("c-interface", "[clingo]") {
             SECTION("assumptions") {
                 ctl.add("base", {}, "{a;b;c}.");
                 ctl.ground({{"base", {}}});
-                REQUIRE(ctl.solve({{Id("a"), false}, {Id("b"), true}}, MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models), {{Id("a"), false}, {Id("b"), true}}).sat());
                 REQUIRE(models == (ModelVec{{Id("a")}, {Id("a"), Id("c")}}));
                 REQUIRE(messages.empty());
             }
@@ -148,14 +149,14 @@ TEST_CASE("c-interface", "[clingo]") {
                 ctl.add("acid", {"k"}, "#external query(k).");
                 ctl.ground({{"base", {}}});
                 ctl.assign_external(Fun("query", {Num(0)}), TruthValue::True);
-                REQUIRE(ctl.solve({}, MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).sat());
                 REQUIRE(models == (ModelVec{{Fun("query", {Num(0)})}}));
                 REQUIRE(messages.empty());
 
                 ctl.ground({{"acid", {Num(1)}}});
                 ctl.release_external(Fun("query", {Num(0)}));
                 ctl.assign_external(Fun("query", {Num(1)}), TruthValue::Free);
-                REQUIRE(ctl.solve({}, MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).sat());
                 REQUIRE(models == (ModelVec{{}, {Fun("query", {Num(1)})}}));
                 REQUIRE(messages.empty());
             }
@@ -169,14 +170,14 @@ TEST_CASE("c-interface", "[clingo]") {
                     REQUIRE(models == ModelVec{{Id("a")}});
                     REQUIRE(iter.get().sat());
                 }
-                REQUIRE(ctl.solve({}, MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).sat());
                 REQUIRE(models == ModelVec{{Id("a")}});
                 REQUIRE(messages.empty());
             }
             SECTION("logging") {
                 ctl.add("base", {}, "a(1+a).");
                 ctl.ground({{"base", {}}});
-                REQUIRE(ctl.solve({}, MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).sat());
                 REQUIRE(models == ModelVec{{}});
                 REQUIRE(messages == MessageVec({{MessageCode::OperationUndefined, "<block>:1:3-6: info: operation undefined:\n  (1+a)\n"}}));
             }
@@ -194,7 +195,7 @@ TEST_CASE("c-interface", "[clingo]") {
                         messages.emplace_back(MessageCode::OperationUndefined, oss.str());
                     }
                 });
-                REQUIRE(ctl.solve({}, MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).sat());
                 REQUIRE(models == ModelVec({{Fun("a", {Num(2)}), Fun("a", {Num(3)}), Fun("a", {Num(11)}), Fun("a", {Num(12)}), Fun("a", {Num(21)}), Fun("a", {Num(22)})}}));
                 REQUIRE(messages == MessageVec({{MessageCode::OperationUndefined, "invalid call: f/0 at <block>:1:22-26"}}));
             }

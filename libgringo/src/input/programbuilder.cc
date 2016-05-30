@@ -1452,6 +1452,7 @@ TermUid ASTParser::parseTerm(clingo_ast const &node) {
     else if (static_cast<Symbol const &>(node.value) == term_pool) {
         require_(node.children.size > 0, "ill-formed pool");
         TermVecVecUid args = prg_.termvecvec();
+        (void)args;
         //return prg_.term(loc, "", args, false);
 
         throw std::logic_error("implement me: parse pool term!!!");

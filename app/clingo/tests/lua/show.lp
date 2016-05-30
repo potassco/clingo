@@ -28,7 +28,7 @@ end
 
 function main(prg)
     prg:ground({{"base", {}}})
-    prg:solve(nil, on_model)
+    prg:solve(on_model)
     prg:ground({{"result", {}}})
     prg:solve()
 end

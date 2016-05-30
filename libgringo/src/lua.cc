@@ -1891,8 +1891,8 @@ struct ControlWrap {
         lua_pushstring(L, "stats");
         lua_pushnil(L);
         lua_rawset(L, 1);
-        int assIdx  = !lua_isnone(L, 2) && !lua_isnil(L, 2) ? 2 : 0;
-        int mhIndex = !lua_isnone(L, 3) && !lua_isnil(L, 3) ? 3 : 0;
+        int mhIndex = !lua_isnone(L, 2) && !lua_isnil(L, 2) ? 2 : 0;
+        int assIdx  = !lua_isnone(L, 3) && !lua_isnil(L, 3) ? 3 : 0;
         Gringo::Model const **model = nullptr;
         int mIndex  = 0;
         if (mhIndex) {
@@ -2118,9 +2118,9 @@ int luaMain(lua_State *L) {
 
 struct PropagateInit : Object<PropagateInit> {
     using Threads = std::vector<lua_State*>;
-    Gringo::Propagator::Init *init;
+    Gringo::PropagateInit *init;
     Threads *threads;
-    PropagateInit(Gringo::Propagator::Init *init, Threads *threads) : init(init), threads(threads) { }
+    PropagateInit(Gringo::PropagateInit *init, Threads *threads) : init(init), threads(threads) { }
 
     static int mapLit(lua_State *L) {
         auto self = Object::self(L);
@@ -2375,7 +2375,7 @@ public:
     static int init_(lua_State *L) {
         lua_gc (L, LUA_GCSTOP, 1);
         auto *self = (Propagator*)lua_touserdata(L, 1);
-        auto *init = (Init*)lua_touserdata(L, 2);
+        auto *init = (Gringo::PropagateInit*)lua_touserdata(L, 2);
         lua_pushstring(L, "propagate_threads");          // +1
         lua_rawget(L, 3);
         if (lua_isnil(L, -1)) {
@@ -2433,7 +2433,7 @@ public:
 
         return 0;
     }
-    void init(Init &init) override {
+    void init(Gringo::PropagateInit &init) override {
         // at this point we are still in the solve call (even for solve_async)
         // hence, the the solvecontrol object is at index 1
         if (!lua_checkstack(L, 5)) { throw std::runtime_error("lua stack size exceeded"); }

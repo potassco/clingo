@@ -159,7 +159,7 @@ struct ClingoSolveFuture : Gringo::SolveFuture {
 #endif
 
 // {{{1 declaration of ClingoControl
-class ClingoPropagateInit : public Gringo::Propagator::Init {
+class ClingoPropagateInit : public Gringo::PropagateInit {
 public:
     using Lit_t = Potassco::Lit_t;
     ClingoPropagateInit(Gringo::Control &c, Clasp::ClingoPropagatorInit &p) : c_(c), p_(p) { }

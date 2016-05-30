@@ -18,12 +18,10 @@ EOF
         [[ $a == "y" || $a == "" ]] && break
     done
 }
-clingo=/home/kaminski/gringo-claspoutput/build/debug/clingo
-export python=python-dbg
+clingo=$(realpath ../build/release/clingo)
+export python=python
+export PYTHONPATH=$(realpath ../build/release/python)
 
-export PYTHONPATH=/home/kaminski/gringo-claspoutput/build/debug/python
-
-function finished() {
 check clingo/addclause "${clingo}" addclause-py.lp 0
 check clingo/addclause "${clingo}" addclause-lua.lp 0
 
@@ -128,6 +126,3 @@ check gringo/rec-cond "${clingo}" --mode=gringo encoding.lp instance.lp \| "${cl
 check gringo/subset "${clingo}" --mode=gringo example.lp \| "${clingo}" --mode=clasp --heuristic=domain --enum-mode=domRec 0
 
 check gringo/toh "${clingo}" --mode=gringo -c imax=16 tohE.lp tohI.lp \| "${clingo}" --mode=clasp 0
-}
-
-finished
