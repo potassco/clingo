@@ -1484,32 +1484,29 @@ luaL_Reg const Configuration::meta[] = {
 // {{{1 wrap SymbolicAtom
 
 struct SymbolicAtom {
-    Gringo::DomainProxy::ElementPtr elem;
+    Gringo::SymbolicAtoms &atoms;
+    Gringo::SymbolicAtomRange range;
     static luaL_Reg const meta[];
-    SymbolicAtom(Gringo::DomainProxy::ElementPtr &&elem)
-        : elem(std::move(elem)) { }
+    SymbolicAtom(Gringo::SymbolicAtoms &atoms, Gringo::SymbolicAtomRange range)
+    : atoms(atoms)
+    , range(range) { }
     static constexpr const char *typeName = "clingo.SymbolicAtom";
-    static int new_(lua_State *L, Gringo::DomainProxy::ElementPtr &elem) {
+    static int new_(lua_State *L, Gringo::SymbolicAtoms &atoms, Gringo::SymbolicAtomRange range) {
         auto self = (SymbolicAtom*)lua_newuserdata(L, sizeof(SymbolicAtom));
-        new (self) SymbolicAtom(std::move(elem));
+        new (self) SymbolicAtom(atoms, range);
         luaL_getmetatable(L, typeName);
         lua_setmetatable(L, -2);
         return 1;
     }
-    static int gc(lua_State *L) {
-        auto self = (SymbolicAtom *)luaL_checkudata(L, 1, typeName);
-        self->~SymbolicAtom();
-        return 0;
-    }
     static int symbol(lua_State *L) {
         auto self = (SymbolicAtom *)luaL_checkudata(L, 1, typeName);
-        Symbol atom = protect(L, [self](){ return self->elem->atom(); });
+        Symbol atom = protect(L, [self](){ return self->atoms.atom(self->range); });
         Term::new_(L, atom);
         return 1;
     }
     static int literal(lua_State *L) {
         auto self = (SymbolicAtom *)luaL_checkudata(L, 1, typeName);
-        auto lit = protect(L, [self](){ return self->elem->literal(); });
+        auto lit = protect(L, [self](){ return self->atoms.literal(self->range); });
         lua_pushinteger(L, lit);
         return 1;
     }
@@ -1527,13 +1524,13 @@ struct SymbolicAtom {
     }
     static int is_fact(lua_State *L) {
         auto self = (SymbolicAtom *)luaL_checkudata(L, 1, typeName);
-        bool ret = protect(L, [self](){ return self->elem->fact(); });
+        bool ret = protect(L, [self](){ return self->atoms.fact(self->range); });
         lua_pushboolean(L, ret);
         return 1;
     }
     static int is_external(lua_State *L) {
         auto self = (SymbolicAtom *)luaL_checkudata(L, 1, typeName);
-        bool ret = protect(L, [self](){ return self->elem->external(); });
+        bool ret = protect(L, [self](){ return self->atoms.external(self->range); });
         lua_pushboolean(L, ret);
         return 1;
     }
@@ -1542,17 +1539,16 @@ struct SymbolicAtom {
 constexpr const char *SymbolicAtom::typeName;
 
 luaL_Reg const SymbolicAtom::meta[] = {
-    {"__gc", gc},
     {nullptr, nullptr}
 };
 
 // {{{1 wrap SymbolicAtoms
 
 struct SymbolicAtoms {
-    Gringo::DomainProxy &proxy;
+    Gringo::SymbolicAtoms &atoms;
     static luaL_Reg const meta[];
 
-    SymbolicAtoms(Gringo::DomainProxy &proxy) : proxy(proxy) { }
+    SymbolicAtoms(Gringo::SymbolicAtoms &atoms) : atoms(atoms) { }
 
     static constexpr const char *typeName = "clingo.SymbolicAtoms";
 
@@ -1561,25 +1557,20 @@ struct SymbolicAtoms {
     }
 
     static int symbolicAtomIter(lua_State *L) {
-        if (lua_type(L, lua_upvalueindex(1)) == LUA_TNIL) {
-            lua_pushnil(L);                                                                             // +1
+        auto current = (SymbolicAtom *)luaL_checkudata(L, lua_upvalueindex(1), SymbolicAtom::typeName);
+        if (current->atoms.valid(current->range)) {
+            lua_pushvalue(L, lua_upvalueindex(1));                                               // +1
+            auto next = protect(L, [current]() { return current->atoms.next(current->range); });
+            SymbolicAtom::new_(L, current->atoms, next);                                         // +1
+            lua_replace(L, lua_upvalueindex(1));                                                 // -1
         }
-        else {
-            auto iter = (SymbolicAtom *)luaL_checkudata(L, lua_upvalueindex(1), SymbolicAtom::typeName);
-            lua_pushvalue(L, lua_upvalueindex(1));                                                      // +1
-            Gringo::DomainProxy::ElementPtr &elem = *AnyWrap::new_<Gringo::DomainProxy::ElementPtr>(L); // +1
-            elem = protect(L, [iter]() { return iter->elem->next(); });
-            if (elem) { SymbolicAtom::new_(L, elem); }
-            else      { lua_pushnil(L); }                                                               // +1
-            lua_replace(L, -2);                                                                         // -1
-            lua_replace(L, lua_upvalueindex(1));                                                        // -1
-        }
+        else { lua_pushnil(L); }                                                                 // +1
         return 1;
     }
 
-    static int new_(lua_State *L, Gringo::DomainProxy &proxy) {
+    static int new_(lua_State *L, Gringo::SymbolicAtoms &atoms) {
         auto self = (SymbolicAtoms*)lua_newuserdata(L, sizeof(SymbolicAtoms));
-        new (self) SymbolicAtoms(proxy);
+        new (self) SymbolicAtoms(atoms);
         luaL_getmetatable(L, typeName);
         lua_setmetatable(L, -2);
         return 1;
@@ -1587,30 +1578,25 @@ struct SymbolicAtoms {
 
     static int len(lua_State *L) {
         auto &self = get_self(L);
-        int ret = protect(L, [&self]() { return self.proxy.length(); });
+        int ret = protect(L, [&self]() { return self.atoms.length(); });
         lua_pushinteger(L, ret);
         return 1;
     }
 
     static int iter(lua_State *L) {
         auto &self = get_self(L);
-        Gringo::DomainProxy::ElementPtr &elem = *AnyWrap::new_<Gringo::DomainProxy::ElementPtr>(L); // +1
-        elem = protect(L, [&self]() { return self.proxy.iter(); });
-        if (elem) { SymbolicAtom::new_(L, elem); }
-        else      { lua_pushnil(L); }                                                               // +1
-        lua_replace(L, -2);                                                                         // -1
-        lua_pushcclosure(L, symbolicAtomIter, 1);                                                   // +0
+        auto range = protect(L, [&self]() { return self.atoms.iter(); });
+        SymbolicAtom::new_(L, self.atoms, range);                         // +1
+        lua_pushcclosure(L, symbolicAtomIter, 1);                         // +0
         return 1;
     }
 
     static int lookup(lua_State *L) {
         auto &self = get_self(L);
         Gringo::Symbol atom = luaToVal(L, 2);
-        auto elem = AnyWrap::new_<Gringo::DomainProxy::ElementPtr>(L); // +1
-        *elem = protect(L, [self, atom]() { return self.proxy.lookup(atom); });
-        if (!*elem) { lua_pushnil(L); }
-        else        { SymbolicAtom::new_(L, *elem); }                  // +1
-        lua_replace(L, -2);                                            // -1
+        auto range = protect(L, [self, atom]() { return self.atoms.lookup(atom); });
+        if (self.atoms.valid(range)) { SymbolicAtom::new_(L, self.atoms, range); }
+        else                         { lua_pushnil(L); }               // +1
         return 1;
     }
 
@@ -1618,19 +1604,16 @@ struct SymbolicAtoms {
         auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
         int arity = luaL_checkinteger(L, 3);
-        auto elem = AnyWrap::new_<Gringo::DomainProxy::ElementPtr>(L);                  // +1
-        *elem = protect(L, [&self, name, arity]() { return self.proxy.iter(Sig(name, arity, false)); });
-        if (*elem) { SymbolicAtom::new_(L, *elem); }
-        else       { lua_pushnil(L); }                                                  // +1
-        lua_replace(L, -2);                                                             // -1
-        lua_pushcclosure(L, symbolicAtomIter, 1);                                       // +0
+        auto range = protect(L, [&self, name, arity]() { return self.atoms.iter(Sig(name, arity, false)); });
+        SymbolicAtom::new_(L, self.atoms, range);  // +1
+        lua_pushcclosure(L, symbolicAtomIter, 1);  // +0
         return 1;
     }
 
     static int signatures(lua_State *L) {
         auto &self = get_self(L);
         auto ret = AnyWrap::new_<std::vector<Sig>>(L); // +1
-        *ret = protect(L, [&self]() { return self.proxy.signatures(); });
+        *ret = protect(L, [&self]() { return self.atoms.signatures(); });
         lua_createtable(L, ret->size(), 0);                    // +1
         int i = 1;
         for (auto &sig : *ret) {
@@ -2028,7 +2011,7 @@ struct ControlWrap {
         }
         else if (strcmp(name, "symbolic_atoms") == 0) {
             checkBlocked(L, ctl, "symbolic_atoms");
-            auto &proxy = protect(L, [&ctl]() -> Gringo::DomainProxy& { return ctl.getDomain(); });
+            auto &proxy = protect(L, [&ctl]() -> Gringo::SymbolicAtoms& { return ctl.getDomain(); });
             return SymbolicAtoms::new_(L, proxy);
         }
         else if (strcmp(name, "theory_atoms") == 0) {

@@ -196,7 +196,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
             out.output(external);
         }
     }
-    Gringo::DomainProxy &getDomain() override { throw std::runtime_error("domain introspection not supported"); }
+    Gringo::SymbolicAtoms &getDomain() override { throw std::runtime_error("domain introspection not supported"); }
     Gringo::ConfigProxy &getConf() override { throw std::runtime_error("configuration not supported"); }
     void registerPropagator(Gringo::Propagator &, bool) override { throw std::runtime_error("theory propagators not supported"); }
     void useEnumAssumption(bool) override { }

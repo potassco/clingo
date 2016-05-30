@@ -55,7 +55,10 @@ extern "C" inline char const *clingo_message_code_str(clingo_message_code_t code
 
 // {{{2 value
 
-extern "C" clingo_error_t clingo_signature_new(char const *name, uint32_t arity, bool sign) {
+extern "C" clingo_error_t clingo_signature_new(char const *name, uint32_t arity, bool sign, clingo_signature_t *ret) {
+    GRINGO_CLINGO_TRY {
+        *ret = Sig(name, arity, sign);
+    } GRINGO_CLINGO_CATCH(nullptr);
 }
 
 extern "C" char const *clingo_signature_name(clingo_signature_t sig) {
@@ -156,12 +159,19 @@ extern "C" clingo_symbol_type_t clingo_symbol_type(clingo_symbol_t val) {
     return static_cast<clingo_symbol_type_t>(static_cast<Symbol&>(val).type());
 }
 
-extern "C" clingo_error_t clingo_symbol_to_string(clingo_symbol_t val, clingo_string_callback_t *cb, void *data) {
+extern "C" clingo_error_t clingo_symbol_to_string(clingo_symbol_t val, char *ret, size_t *n) {
     GRINGO_CLINGO_TRY {
-        std::ostringstream oss;
-        static_cast<Symbol&>(val).print(oss);
-        std::string s = oss.str();
-        return cb(s.c_str(), data);
+        if (!n) { throw std::invalid_argument("size must not be null"); }
+        if (!ret) {
+            Gringo::CountStream cs;
+            static_cast<Symbol&>(val).print(cs);
+            *n = cs.count() + 1;
+        }
+        else {
+            if (*n < 1) { throw std::length_error("not enough space"); }
+            Gringo::ArrayStream as(ret, *n - 1);
+            static_cast<Symbol&>(val).print(as);
+        }
     } GRINGO_CLINGO_CATCH(nullptr);
 }
 
@@ -183,10 +193,16 @@ extern "C" bool clingo_model_contains(clingo_model_t *m, clingo_symbol_t atom) {
     return m->contains(static_cast<Symbol &>(atom));
 }
 
-extern "C" clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type_t show, clingo_symbol_span_t *ret) {
+extern "C" clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type_t show, clingo_symbol_t *ret, size_t *n) {
     GRINGO_CLINGO_TRY {
+        // TODO: implement matching C++ functions ...
         SymSpan atoms = m->atoms(show);
-        *ret = {atoms.first, atoms.size};
+        if (!n) { throw std::invalid_argument("size must be non-null"); }
+        if (!ret) { *n = atoms.size; }
+        else {
+            if (*n < atoms.size) { throw std::length_error("not enough space"); }
+            for (auto it = atoms.first, ie = it + atoms.size; it != ie; ++it) { *ret++ = *it; }
+        }
     } GRINGO_CLINGO_CATCH(&m->owner().logger());
 }
 
@@ -386,6 +402,36 @@ void handleError(clingo_error_t code, std::exception_ptr *exc) {
 
 } namespace Clingo {
 
+// {{{2 signature
+
+Signature::Signature(char const *name, uint32_t arity, bool sign) {
+    handleError(clingo_signature_new(name, arity, sign, this));
+}
+
+char const *Signature::name() const {
+    return clingo_signature_name(*this);
+}
+
+uint32_t Signature::arity() const {
+    return clingo_signature_arity(*this);
+}
+
+bool Signature::sign() const {
+    return clingo_signature_sign(*this);
+}
+
+
+size_t Signature::hash() const {
+    return clingo_signature_hash(*this);
+}
+
+bool operator==(Signature a, Signature b) { return  clingo_signature_eq(a, b); }
+bool operator!=(Signature a, Signature b) { return !clingo_signature_eq(a, b); }
+bool operator< (Signature a, Signature b) { return  clingo_signature_lt(a, b); }
+bool operator<=(Signature a, Signature b) { return !clingo_signature_lt(b, a); }
+bool operator> (Signature a, Signature b) { return  clingo_signature_lt(b, a); }
+bool operator>=(Signature a, Signature b) { return !clingo_signature_lt(a, b); }
+
 // {{{2 symbol
 
 #if defined(__GNUC__) && !defined(__clang__)
@@ -467,22 +513,15 @@ SymbolType Symbol::type() const {
     return static_cast<SymbolType>(clingo_symbol_type(*this));
 }
 
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
-
 #define CLINGO_CALLBACK_TRY try
 #define CLINGO_CALLBACK_CATCH(ref) catch (...){ (ref) = std::current_exception(); return clingo_error_unknown; } return clingo_error_success
 
-std::string Symbol::toString() const {
+std::string Symbol::to_string() const {
     std::string ret;
-    using Data = std::pair<std::string&, std::exception_ptr>;
-    Data data(ret, nullptr);
-    handleError(clingo_symbol_to_string(*this, [](char const *str, void *data) -> clingo_error_t {
-        auto &d = *static_cast<Data*>(data);
-        CLINGO_CALLBACK_TRY { d.first = str; }
-        CLINGO_CALLBACK_CATCH(d.second);
-    }, &data), &data.second);
+    size_t n;
+    handleError(clingo_symbol_to_string(*this, nullptr, &n));
+    ret.resize(n-1);
+    handleError(clingo_symbol_to_string(*this, const_cast<char*>(ret.data()), &n));
     return ret;
 }
 
@@ -491,16 +530,16 @@ size_t Symbol::hash() const {
 }
 
 std::ostream &operator<<(std::ostream &out, Symbol sym) {
-    out << sym.toString();
+    out << sym.to_string();
     return out;
 }
 
-bool operator==(Symbol const &a, Symbol const &b) { return  clingo_symbol_eq(a, b); }
-bool operator!=(Symbol const &a, Symbol const &b) { return !clingo_symbol_eq(a, b); }
-bool operator< (Symbol const &a, Symbol const &b) { return  clingo_symbol_lt(a, b); }
-bool operator<=(Symbol const &a, Symbol const &b) { return !clingo_symbol_lt(b, a); }
-bool operator> (Symbol const &a, Symbol const &b) { return  clingo_symbol_lt(b, a); }
-bool operator>=(Symbol const &a, Symbol const &b) { return !clingo_symbol_lt(a, b); }
+bool operator==(Symbol a, Symbol b) { return  clingo_symbol_eq(a, b); }
+bool operator!=(Symbol a, Symbol b) { return !clingo_symbol_eq(a, b); }
+bool operator< (Symbol a, Symbol b) { return  clingo_symbol_lt(a, b); }
+bool operator<=(Symbol a, Symbol b) { return !clingo_symbol_lt(b, a); }
+bool operator> (Symbol a, Symbol b) { return  clingo_symbol_lt(b, a); }
+bool operator>=(Symbol a, Symbol b) { return !clingo_symbol_lt(a, b); }
 
 // {{{2 model
 
@@ -511,11 +550,18 @@ bool Model::contains(Symbol atom) const {
     return clingo_model_contains(model_, atom);
 }
 
-SymSpan Model::atoms(ShowType show) const {
-    SymSpan ret;
-    handleError(clingo_model_atoms(model_, show, &ret));
+SymVec Model::atoms(ShowType show) const {
+    SymVec ret;
+    size_t n;
+    handleError(clingo_model_atoms(model_, show, nullptr, &n));
+    ret.resize(n);
+    handleError(clingo_model_atoms(model_, show, ret.data(), &n));
     return ret;
 }
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 // {{{2 solve iter
 
@@ -580,7 +626,7 @@ void Control::ground(PartSpan parts, GroundCallback cb) {
                             if (ret != clingo_error_success) { throw Ret { ret }; }
                         });
                     }
-                    catch (Ret const &e) { return e.ret; }
+                    catch (Ret e) { return e.ret; }
                 }
             }
             CLINGO_CALLBACK_CATCH(d.second);

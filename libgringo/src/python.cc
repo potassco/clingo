@@ -1757,43 +1757,40 @@ PySequenceMethods Configuration::tp_as_sequence[] = {{
 // {{{1 wrap SymbolicAtom
 
 struct SymbolicAtom : public ObjectBase<SymbolicAtom> {
-    Gringo::DomainProxy::Element *elem;
+    Gringo::SymbolicAtoms *atoms;
+    Gringo::SymbolicAtomRange range;
 
     static constexpr char const *tp_type = "SymbolicAtom";
     static constexpr char const *tp_name = "clingo.SymbolicAtom";
     static constexpr char const *tp_doc = "Captures a symbolic atom and provides properties to inspect its state.";
     static PyGetSetDef tp_getset[];
 
-    static PyObject *new_(Gringo::DomainProxy::ElementPtr &&elem) {
+    static PyObject *new_(Gringo::SymbolicAtoms &atoms, Gringo::SymbolicAtomRange range) {
         Object ret(type.tp_alloc(&type, 0));
         SymbolicAtom *self = reinterpret_cast<SymbolicAtom*>(ret.get());
-        self->elem = elem.release();
+        self->atoms = &atoms;
+        self->range = range;
         return ret.release();
     }
     static PyObject *symbol(SymbolicAtom *self, void *) {
         PY_TRY
-            return Term::new_(self->elem->atom());
+            return Term::new_(self->atoms->atom(self->range));
         PY_CATCH(nullptr);
     }
     static PyObject *literal(SymbolicAtom *self, void *) {
         PY_TRY
-            return PyInt_FromLong(self->elem->literal());
+            return PyInt_FromLong(self->atoms->literal(self->range));
         PY_CATCH(nullptr);
     }
     static PyObject *is_fact(SymbolicAtom *self, void *) {
         PY_TRY
-            return cppToPy(self->elem->fact()).release();
+            return cppToPy(self->atoms->fact(self->range)).release();
         PY_CATCH(nullptr);
     }
     static PyObject *is_external(SymbolicAtom *self, void *) {
         PY_TRY
-            return cppToPy(self->elem->external()).release();
+            return cppToPy(self->atoms->external(self->range)).release();
         PY_CATCH(nullptr);
-    }
-    static void tp_dealloc(SymbolicAtom *self) {
-        delete self->elem;
-        self->elem = nullptr;
-        type.tp_free(self);
     }
 };
 
@@ -1808,55 +1805,43 @@ PyGetSetDef SymbolicAtom::tp_getset[] = {
 // {{{1 wrap SymbolicAtomIter
 
 struct SymbolicAtomIter : ObjectBase<SymbolicAtomIter> {
-    SymbolicAtom *elem;
+    SymbolicAtoms *atoms;
+    SymbolicAtomRange range;
 
     static constexpr char const *tp_type = "SymbolicAtomIter";
     static constexpr char const *tp_name = "clingo.SymbolicAtomIter";
     static constexpr char const *tp_doc = "Class to iterate over symbolic atoms.";
 
-    static PyObject *new_(Gringo::DomainProxy::ElementPtr &&elem) {
+    static PyObject *new_(Gringo::SymbolicAtoms &atoms, Gringo::SymbolicAtomRange range) {
         Object ret(type.tp_alloc(&type, 0));
         SymbolicAtomIter *self = reinterpret_cast<SymbolicAtomIter*>(ret.get());
-        if (elem) {
-            self->elem = reinterpret_cast<SymbolicAtom*>(SymbolicAtom::new_(std::move(elem)));
-            if (!self->elem) { return nullptr; }
-        }
-        else { self->elem = nullptr; }
+        self->atoms = &atoms;
+        self->range = range;
         return ret.release();
     }
     static PyObject* tp_iter(SymbolicAtomIter *self) {
         Py_XINCREF(self);
         return reinterpret_cast<PyObject*>(self);
     }
-    static void tp_dealloc(SymbolicAtomIter *self) {
-        if (self->elem) {
-            Py_XDECREF(self->elem);
-            self->elem = nullptr;
-        }
-        type.tp_free(self);
-    }
     static PyObject* tp_iternext(SymbolicAtomIter *self) {
         PY_TRY
-            if (self->elem) {
-                Gringo::DomainProxy::ElementPtr elem = self->elem->elem->next();
-                Object oldElem = reinterpret_cast<PyObject*>(self->elem);
-                if (elem) {
-                    self->elem = reinterpret_cast<SymbolicAtom*>(SymbolicAtom::new_(std::move(elem)));
-                    if (!self->elem) { return nullptr; }
-                }
-                else { self->elem = nullptr; }
-                return oldElem.release();
+            Gringo::SymbolicAtomRange current = self->range;
+            if (self->atoms->valid(current)) {
+                self->range = self->atoms->next(current);
+                return SymbolicAtom::new_(*self->atoms, current);
             }
-            PyErr_SetNone(PyExc_StopIteration);
-            return nullptr;
+            else {
+                PyErr_SetNone(PyExc_StopIteration);
+                return nullptr;
+            }
         PY_CATCH(nullptr);
     }
 };
 
-// {{{1 wrap DomainProxy
+// {{{1 wrap SymbolicAtoms
 
-struct DomainProxy : ObjectBase<DomainProxy> {
-    Gringo::DomainProxy *proxy;
+struct SymbolicAtoms : ObjectBase<SymbolicAtoms> {
+    Gringo::SymbolicAtoms *atoms;
     static PyMethodDef tp_methods[];
     static PyMappingMethods tp_as_mapping[];
     static PyGetSetDef tp_getset[];
@@ -1910,47 +1895,47 @@ p(3) False False
 p(2) False True
 signatures: [('p', 1), ('q', 1)])";
 
-    static PyObject *new_(Gringo::DomainProxy &proxy) {
+    static PyObject *new_(Gringo::SymbolicAtoms &atoms) {
         Object ret(type.tp_alloc(&type, 0));
         if (!ret) { return nullptr; }
-        DomainProxy *self = reinterpret_cast<DomainProxy*>(ret.get());
-        self->proxy = &proxy;
+        SymbolicAtoms *self = reinterpret_cast<SymbolicAtoms*>(ret.get());
+        self->atoms = &atoms;
         return ret.release();
     }
 
-    static Py_ssize_t length(DomainProxy *self) {
-        return self->proxy->length();
+    static Py_ssize_t length(SymbolicAtoms *self) {
+        return self->atoms->length();
     }
 
-    static PyObject* tp_iter(DomainProxy *self) {
+    static PyObject* tp_iter(SymbolicAtoms *self) {
         PY_TRY
-            return SymbolicAtomIter::new_(self->proxy->iter());
+            return SymbolicAtomIter::new_(*self->atoms, self->atoms->iter());
         PY_CATCH(nullptr);
     }
 
-    static PyObject* subscript(DomainProxy *self, PyObject *key) {
+    static PyObject* subscript(SymbolicAtoms *self, PyObject *key) {
         PY_TRY
             Gringo::Symbol atom;
             pyToCpp(key, atom);
-            Gringo::DomainProxy::ElementPtr elem = self->proxy->lookup(atom);
-            if (!elem) { Py_RETURN_NONE; }
-            return SymbolicAtom::new_(std::move(elem));
+            Gringo::SymbolicAtomRange range = self->atoms->lookup(atom);
+            if (self->atoms->valid(range)) { return SymbolicAtom::new_(*self->atoms, range); }
+            else                           { Py_RETURN_NONE; }
         PY_CATCH(nullptr);
     }
 
-    static PyObject* by_signature(DomainProxy *self, PyObject *pyargs) {
+    static PyObject* by_signature(SymbolicAtoms *self, PyObject *pyargs) {
         PY_TRY
             char const *name;
             int arity;
             if (!PyArg_ParseTuple(pyargs, "si", &name, &arity)) { return nullptr; }
-            Gringo::DomainProxy::ElementPtr elem = self->proxy->iter(Sig(name, arity, false));
-            return SymbolicAtomIter::new_(std::move(elem));
+            Gringo::SymbolicAtomRange range = self->atoms->iter(Sig(name, arity, false));
+            return SymbolicAtomIter::new_(*self->atoms, range);
         PY_CATCH(nullptr);
     }
 
-    static PyObject* signatures(DomainProxy *self, void *) {
+    static PyObject* signatures(SymbolicAtoms *self, void *) {
         PY_TRY
-            std::vector<Sig> ret = self->proxy->signatures();
+            auto ret = self->atoms->signatures();
             Object pyRet = PyList_New(ret.size());
             int i = 0;
             for (auto &sig : ret) {
@@ -1963,7 +1948,7 @@ signatures: [('p', 1), ('q', 1)])";
     }
 };
 
-PyMethodDef DomainProxy::tp_methods[] = {
+PyMethodDef SymbolicAtoms::tp_methods[] = {
     {"by_signature", (PyCFunction)by_signature, METH_VARARGS,
 R"(by_signature(self, name, arity) -> SymbolicAtomIter
 
@@ -1976,13 +1961,13 @@ arity -- the arity of the signature
     {nullptr, nullptr, 0, nullptr}
 };
 
-PyMappingMethods DomainProxy::tp_as_mapping[] = {{
+PyMappingMethods SymbolicAtoms::tp_as_mapping[] = {{
     (lenfunc)length,
     (binaryfunc)subscript,
     nullptr,
 }};
 
-PyGetSetDef DomainProxy::tp_getset[] = {
+PyGetSetDef SymbolicAtoms::tp_getset[] = {
     {(char *)"signatures", (getter)signatures, nullptr, (char *)
 R"(The list of predicate signatures (pairs of names and arities) occurring in
 the program.)"
@@ -2023,7 +2008,7 @@ solver literals.)";
     }
 
     static PyObject *symbolicAtoms(PropagateInit *self, void *) {
-        return DomainProxy::new_(self->init->getDomain());
+        return SymbolicAtoms::new_(self->init->getDomain());
     }
 
     static PyObject *numThreads(PropagateInit *self, void *) {
@@ -2775,7 +2760,7 @@ active; you must not call any member function during search.)";
         PY_CATCH(nullptr);
     }
     static PyObject *symbolicAtoms(ControlWrap *self, void *) {
-        return DomainProxy::new_(self->ctl->getDomain());
+        return SymbolicAtoms::new_(self->ctl->getDomain());
     }
     static PyObject *theoryIter(ControlWrap *self, void *) {
         PY_TRY
@@ -3346,7 +3331,7 @@ PyObject *initclingo_() {
         !TheoryElement::initType(m) || !TheoryAtom::initType(m)       || !TheoryAtomIter::initType(m)   ||
         !Model::initType(m)         || !SolveIter::initType(m)        || !SolveFuture::initType(m)      ||
         !ControlWrap::initType(m)   || !Configuration::initType(m)    || !SolveControl::initType(m)     ||
-        !SymbolicAtom::initType(m)  || !SymbolicAtomIter::initType(m) || !DomainProxy::initType(m)      ||
+        !SymbolicAtom::initType(m)  || !SymbolicAtomIter::initType(m) || !SymbolicAtoms::initType(m)    ||
         !TheoryTerm::initType(m)    || !PropagateInit::initType(m)    || !Assignment::initType(m)       ||
         !TermType::initType(m)      || !Term::initType(m)             || !Backend::initType(m)          ||
         PyModule_AddStringConstant(m, "__version__", GRINGO_VERSION) < 0 ||

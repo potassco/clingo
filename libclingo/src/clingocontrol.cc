@@ -443,7 +443,7 @@ bool ClingoControl::useEnumAssumption() {
     return enableEnumAssupmption_;
 }
 
-Gringo::DomainProxy &ClingoControl::getDomain() {
+Gringo::SymbolicAtoms &ClingoControl::getDomain() {
     if (clingoMode_) { return *this; }
     else {
         throw std::runtime_error("domain introspection only supported in clingo mode");
@@ -452,81 +452,77 @@ Gringo::DomainProxy &ClingoControl::getDomain() {
 
 namespace {
 
-static bool skipDomain(Gringo::Sig sig) {
-    return sig.name().startsWith("#");
+bool skipDomain(Gringo::Sig sig)                                           { return sig.name().startsWith("#"); }
+void setAtomOffset(Gringo::SymbolicAtomRange &it, uint32_t offset)         { it.atom_offset = (offset << 1) | (it.atom_offset & 1); }
+void setDomainOffset(Gringo::SymbolicAtomRange &it, uint32_t offset)       { it.domain_offset = (offset << 1) | (it.domain_offset & 1); }
+uint32_t atomOffset(Gringo::SymbolicAtomRange it)                          { return it.atom_offset >> 1; }
+uint32_t domainOffset(Gringo::SymbolicAtomRange it)                        { return it.domain_offset >> 1; }
+bool advanceDomain(Gringo::SymbolicAtomRange &it)                          { return it.domain_offset & 1; }
+void advanceDomainOffset(Gringo::SymbolicAtomRange &it)                    { it.domain_offset += 2; }
+void advanceAtomOffset(Gringo::SymbolicAtomRange &it)                      { it.atom_offset += 2; }
+Gringo::SymbolicAtomRange init(uint32_t domainOffset, uint32_t atomOffset) { return { (domainOffset << 1) | 1, (atomOffset << 1) | 1}; }
+
+Gringo::SymbolicAtomRange init(Gringo::Output::OutputBase &out, uint32_t domainOffset, bool advance) {
+    Gringo::SymbolicAtomRange it{ (domainOffset << 1) | uint32_t(advance), 0 };
+    for (auto domIt = out.predDoms().begin() + domainOffset, domIe = out.predDoms().end(); domIt != domIe; ++domIt, advanceDomainOffset(it)) {
+        auto &dom = **domIt;
+        if (!skipDomain(dom) && dom.size() > 0) { return it; }
+        if (!advanceDomain(it)) { break; }
+    }
+    setDomainOffset(it, out.predDoms().size());
+    return it;
 }
 
-struct ClingoDomainElement : Gringo::DomainProxy::Element {
-    using ElemIt = Gringo::Output::PredicateDomain::Iterator;
-    using DomIt = Gringo::Output::PredDomMap::Iterator;
-    ClingoDomainElement(Gringo::Output::OutputBase &out, Clasp::Asp::LogicProgram &prg, DomIt const &domIt, ElemIt const &elemIt, bool advanceDom = true)
-    : out(out)
-    , prg(prg)
-    , domIt(domIt)
-    , elemIt(elemIt)
-    , advanceDom(advanceDom) {
-        assert(domIt != out.predDoms().end() && elemIt != (*domIt)->end());
-    }
-    Gringo::Symbol atom() const {
-        return *elemIt;
-    }
-    bool fact() const {
-        return elemIt->fact();
-    }
-    bool external() const {
-        return
-            elemIt->hasUid() &&
-            elemIt->isExternal() &&
-            prg.isExternal(elemIt->uid());
-    }
-
-    Potassco::Lit_t literal() const {
-        return elemIt->hasUid() ? elemIt->uid() : 0;
-    }
-
-    static std::unique_ptr<ClingoDomainElement> init(Gringo::Output::OutputBase &out, Clasp::Asp::LogicProgram &prg, bool advanceDom, Gringo::Output::PredDomMap::Iterator domIt) {
-        for (; domIt != out.predDoms().end(); ++domIt) {
-            if (!skipDomain(**domIt)) {
-                auto elemIt = (*domIt)->begin();
-                if (elemIt != (*domIt)->end()) {
-                    return Gringo::gringo_make_unique<ClingoDomainElement>(out, prg, domIt, elemIt, advanceDom);
-                }
-            }
-            if (!advanceDom) { return nullptr; }
+void advance(Gringo::Output::OutputBase &out, Gringo::SymbolicAtomRange &it) {
+    auto domIt  = out.predDoms().begin() + domainOffset(it);
+    auto domIe  = out.predDoms().end();
+    auto elemIt = (*domIt)->begin() + atomOffset(it);
+    auto elemIe = (*domIt)->end();
+    ++elemIt; advanceAtomOffset(it);
+    while (elemIt == elemIe) {
+        setAtomOffset(it, 0);
+        if (!advanceDomain(it)) {
+            setDomainOffset(it, out.predDoms().size());
+            return;
         }
-        return nullptr;
-    }
-
-    static std::unique_ptr<ClingoDomainElement> advance(Gringo::Output::OutputBase &out, Clasp::Asp::LogicProgram &prg, bool advanceDom, Gringo::Output::PredDomMap::Iterator domIt, Gringo::Output::PredicateDomain::Iterator elemIt) {
-        auto domIe  = out.predDoms().end();
-        auto elemIe = (*domIt)->end();
-        ++elemIt;
-        while (elemIt == elemIe) {
-            if (!advanceDom) { return nullptr; }
-            ++domIt;
-            if (domIt == domIe) { return nullptr; }
-            if (!skipDomain(**domIt)) {
-                elemIt = (*domIt)->begin();
-                elemIe = (*domIt)->end();
-            }
+        ++domIt; advanceDomainOffset(it);
+        if (domIt == domIe) { return; }
+        if (!skipDomain(**domIt)) {
+            elemIt = (*domIt)->begin();
+            elemIe = (*domIt)->end();
         }
-        return Gringo::gringo_make_unique<ClingoDomainElement>(out, prg, domIt, elemIt, advanceDom);
     }
-
-    Gringo::DomainProxy::ElementPtr next() {
-        return advance(out, prg, advanceDom, domIt, elemIt);
-    }
-    bool valid() const {
-        return domIt != out.predDoms().end();
-    }
-    Gringo::Output::OutputBase &out;
-    Clasp::Asp::LogicProgram &prg;
-    DomIt domIt;
-    ElemIt elemIt;
-    bool advanceDom;
-};
+}
 
 } // namespace
+
+Gringo::Symbol ClingoControl::atom(Gringo::SymbolicAtomRange it) const {
+    return (*out_->predDoms()[domainOffset(it)])[atomOffset(it)];
+}
+
+Potassco::Lit_t ClingoControl::literal(Gringo::SymbolicAtomRange it) const {
+    auto &elem = (*out_->predDoms()[domainOffset(it)])[atomOffset(it)];
+    return elem.hasUid() ? elem.uid() : 0;
+}
+
+bool ClingoControl::fact(Gringo::SymbolicAtomRange it) const {
+    return (*out_->predDoms()[domainOffset(it)])[atomOffset(it)].fact();
+}
+
+bool ClingoControl::external(Gringo::SymbolicAtomRange it) const {
+    auto &elem = (*out_->predDoms()[domainOffset(it)])[atomOffset(it)];
+    return elem.hasUid() && elem.isExternal() && static_cast<Clasp::Asp::LogicProgram*>(clasp_->program())->isExternal(elem.uid());
+}
+
+Gringo::SymbolicAtomRange ClingoControl::next(Gringo::SymbolicAtomRange it) {
+    advance(*out_, it);
+    return it;
+}
+
+bool ClingoControl::valid(Gringo::SymbolicAtomRange it) const {
+    auto off = domainOffset(it);
+    return off < out_->predDoms().size() && atomOffset(it) < out_->predDoms()[off]->size();
+}
 
 std::vector<Gringo::Sig> ClingoControl::signatures() const {
     std::vector<Gringo::Sig> ret;
@@ -536,25 +532,25 @@ std::vector<Gringo::Sig> ClingoControl::signatures() const {
     return ret;
 }
 
-Gringo::DomainProxy::ElementPtr ClingoControl::iter(Gringo::Sig sig) const {
-    return ClingoDomainElement::init(*out_, static_cast<Clasp::Asp::LogicProgram&>(*clasp_->program()), false, out_->predDoms().find(sig));
+Gringo::SymbolicAtomRange ClingoControl::iter(Gringo::Sig sig) const {
+    return init(*out_, out_->predDoms().offset(out_->predDoms().find(sig)), false);
 }
 
-Gringo::DomainProxy::ElementPtr ClingoControl::iter() const {
-    return ClingoDomainElement::init(*out_, static_cast<Clasp::Asp::LogicProgram&>(*clasp_->program()), true, out_->predDoms().begin());
+Gringo::SymbolicAtomRange ClingoControl::iter() const {
+    return init(*out_, 0, true);
 }
 
-Gringo::DomainProxy::ElementPtr ClingoControl::lookup(Gringo::Symbol atom) const {
+Gringo::SymbolicAtomRange ClingoControl::lookup(Gringo::Symbol atom) const {
     if (atom.hasSig()) {
         auto it = out_->predDoms().find(atom.sig());
         if (it != out_->predDoms().end()) {
             auto jt = (*it)->find(atom);
             if (jt != (*it)->end()) {
-                return Gringo::gringo_make_unique<ClingoDomainElement>(*out_, static_cast<Clasp::Asp::LogicProgram&>(*clasp_->program()), it, jt);
+                return init(out_->predDoms().offset(it), jt - (*it)->begin());
             }
         }
     }
-    return nullptr;
+    return init(out_->predDoms().size(), 0);
 }
 
 size_t ClingoControl::length() const {

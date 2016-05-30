@@ -25,7 +25,6 @@
 
 using namespace Clingo;
 
-using SymVec = std::vector<Symbol>;
 using ModelVec = std::vector<SymVec>;
 using MessageVec = std::vector<std::pair<MessageCode, std::string>>;
 
@@ -84,7 +83,7 @@ TEST_CASE("c-interface", "[clingo]") {
         REQUIRE(SymbolType::Fun == sym.type());
         REQUIRE(!sym.sign());
         REQUIRE(S("f") == sym.name());
-        REQUIRE("f(42,#inf,#sup,\"x\",-x)" == sym.toString());
+        REQUIRE("f(42,#inf,#sup,\"x\",-x)" == sym.to_string());
         REQUIRE((args.size() == sym.args().size() && std::equal(args.begin(), args.end(), sym.args().begin())));
         REQUIRE_THROWS(sym.num());
         // comparison
@@ -107,6 +106,26 @@ TEST_CASE("c-interface", "[clingo]") {
         REQUIRE_FALSE(a != a);
         REQUIRE(a.hash() == a.hash());
         REQUIRE(a.hash() != b.hash());
+    }
+    SECTION("signature") {
+        Signature a("a", 2, true);
+        Signature b("a", 2, true);
+        Signature c("a", 2, false);
+        REQUIRE(a.name() == S("a"));
+        REQUIRE(a.arity() == 2);
+        REQUIRE(a.sign());
+        REQUIRE(b == a);
+        REQUIRE(c != a);
+        REQUIRE(c < a);
+        REQUIRE(c <= a);
+        REQUIRE(a <= b);
+        REQUIRE_FALSE(a <= c);
+        REQUIRE(a > c);
+        REQUIRE(a >= c);
+        REQUIRE(a >= b);
+        REQUIRE_FALSE(c >= a);
+        REQUIRE(c.hash() != a.hash());
+        REQUIRE(b.hash() == a.hash());
     }
     SECTION("with module") {
         Module mod;

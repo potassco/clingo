@@ -27,6 +27,7 @@
 #include <functional>
 #include <ostream>
 #include <algorithm>
+#include <vector>
 
 namespace Clingo {
 
@@ -78,6 +79,40 @@ std::ostream &operator<<(std::ostream &out, Span<T, C> span) {
     return out;
 }
 
+// {{{1 signature
+
+class Signature : public clingo_signature_t {
+public:
+    Signature(char const *name, uint32_t arity, bool sign = false);
+    char const *name() const;
+    uint32_t arity() const;
+    bool sign() const;
+    size_t hash() const;
+
+    bool clingo_signature_eq(clingo_signature_t a, clingo_signature_t b);
+    bool clingo_signature_lt(clingo_signature_t a, clingo_signature_t b);
+};
+
+inline std::ostream &operator<<(std::ostream &out, Signature sig) {
+    out << (sig.sign() ? "-" : "") << sig.name() << "/" << sig.arity();
+    return out;
+}
+bool operator==(Signature a, Signature b);
+bool operator!=(Signature a, Signature b);
+bool operator< (Signature a, Signature b);
+bool operator<=(Signature a, Signature b);
+bool operator> (Signature a, Signature b);
+bool operator>=(Signature a, Signature b);
+
+} namespace std {
+
+template<>
+struct hash<Clingo::Signature> {
+    size_t operator()(Clingo::Signature sig) const { return sig.hash(); }
+};
+
+} namespace Clingo {
+
 // {{{1 symbol
 
 enum class SymbolType : clingo_symbol_type_t {
@@ -90,6 +125,7 @@ enum class SymbolType : clingo_symbol_type_t {
 
 class Symbol;
 using SymSpan = Span<Symbol, clingo_symbol_span_t>;
+using SymVec = std::vector<Symbol>;
 
 class Symbol : public clingo_symbol_t {
 public:
@@ -101,7 +137,7 @@ public:
     bool sign() const;
     SymSpan args() const;
     SymbolType type() const;
-    std::string toString() const;
+    std::string to_string() const;
     size_t hash() const;
 };
 
@@ -113,12 +149,12 @@ Symbol Id(char const *str, bool sign = false);
 Symbol Fun(char const *name, SymSpan args, bool sign = false);
 
 std::ostream &operator<<(std::ostream &out, Symbol sym);
-bool operator==(Symbol const &a, Symbol const &b);
-bool operator!=(Symbol const &a, Symbol const &b);
-bool operator< (Symbol const &a, Symbol const &b);
-bool operator<=(Symbol const &a, Symbol const &b);
-bool operator> (Symbol const &a, Symbol const &b);
-bool operator>=(Symbol const &a, Symbol const &b);
+bool operator==(Symbol a, Symbol b);
+bool operator!=(Symbol a, Symbol b);
+bool operator< (Symbol a, Symbol b);
+bool operator<=(Symbol a, Symbol b);
+bool operator> (Symbol a, Symbol b);
+bool operator>=(Symbol a, Symbol b);
 
 } namespace std {
 
@@ -146,15 +182,15 @@ inline std::ostream &operator<<(std::ostream &out, SymbolicLiteral sym) {
     out << sym.atom();
     return out;
 }
-inline bool operator==(SymbolicLiteral const &a, SymbolicLiteral const &b) { return a.sign() == b.sign() && a.atom() == b.atom(); }
-inline bool operator!=(SymbolicLiteral const &a, SymbolicLiteral const &b) { return !(a == b); }
-inline bool operator< (SymbolicLiteral const &a, SymbolicLiteral const &b) {
+inline bool operator==(SymbolicLiteral a, SymbolicLiteral b) { return a.sign() == b.sign() && a.atom() == b.atom(); }
+inline bool operator!=(SymbolicLiteral a, SymbolicLiteral b) { return !(a == b); }
+inline bool operator< (SymbolicLiteral a, SymbolicLiteral b) {
     if (a.sign() != b.sign()) { return a.sign() < b.sign(); }
     return a.atom() < b.atom();
 }
-inline bool operator<=(SymbolicLiteral const &a, SymbolicLiteral const &b) { return !(b < a); }
-inline bool operator> (SymbolicLiteral const &a, SymbolicLiteral const &b) { return  (b < a); }
-inline bool operator>=(SymbolicLiteral const &a, SymbolicLiteral const &b) { return !(a < b); }
+inline bool operator<=(SymbolicLiteral a, SymbolicLiteral b) { return !(b < a); }
+inline bool operator> (SymbolicLiteral a, SymbolicLiteral b) { return  (b < a); }
+inline bool operator>=(SymbolicLiteral a, SymbolicLiteral b) { return !(a < b); }
 
 // {{{1 model
 
@@ -180,13 +216,13 @@ public:
     bool contains(Symbol atom) const;
     operator bool() const { return model_; }
     operator clingo_model_t*() const { return model_; }
-    SymSpan atoms(ShowType show) const;
+    SymVec atoms(ShowType show) const;
 private:
     clingo_model_t *model_;
 };
 
 inline std::ostream &operator<<(std::ostream &out, Model m) {
-    out << m.atoms(ShowType::Shown);
+    out << SymSpan(m.atoms(ShowType::Shown));
     return out;
 }
 

@@ -128,26 +128,22 @@ struct ConfigProxy {
     virtual unsigned getRootKey() = 0;
 };
 
-// {{{1 declaration of DomainProxy
+// {{{1 declaration of SymbolicAtoms
 
-struct DomainProxy {
-    struct Element;
-    using ElementPtr = std::unique_ptr<Element>;
-    struct Element {
-        virtual Symbol atom() const = 0;
-        virtual Potassco::Lit_t literal() const = 0;
-        virtual bool fact() const = 0;
-        virtual bool external() const = 0;
-        virtual ElementPtr next() = 0;
-        virtual bool valid() const = 0;
-        virtual ~Element() { };
-    };
-    virtual ElementPtr iter(Sig sig) const = 0;
-    virtual ElementPtr iter() const = 0;
-    virtual ElementPtr lookup(Symbol atom) const = 0;
+using SymbolicAtomRange = clingo_symbolic_atom_range_t;
+struct SymbolicAtoms {
+    virtual Symbol atom(SymbolicAtomRange it) const = 0;
+    virtual Potassco::Lit_t literal(SymbolicAtomRange it) const = 0;
+    virtual bool fact(SymbolicAtomRange it) const = 0;
+    virtual bool external(SymbolicAtomRange it) const = 0;
+    virtual SymbolicAtomRange next(SymbolicAtomRange it) = 0;
+    virtual bool valid(SymbolicAtomRange it) const = 0;
+    virtual SymbolicAtomRange iter(Sig sig) const = 0;
+    virtual SymbolicAtomRange iter() const = 0;
+    virtual SymbolicAtomRange lookup(Symbol atom) const = 0;
     virtual std::vector<Sig> signatures() const = 0;
     virtual size_t length() const = 0;
-    virtual ~DomainProxy() { }
+    virtual ~SymbolicAtoms() noexcept = default;
 };
 
 struct TheoryData {
@@ -183,7 +179,7 @@ using PropagateInit = clingo_propagate_init;
 
 struct clingo_propagate_init {
     virtual Gringo::TheoryData const &theory() const = 0;
-    virtual Gringo::DomainProxy &getDomain() = 0;
+    virtual Gringo::SymbolicAtoms &getDomain() = 0;
     virtual Gringo::Lit_t mapLit(Gringo::Lit_t lit) = 0;
     virtual void addWatch(Gringo::Lit_t lit) = 0;
     virtual int threads() = 0;
@@ -222,7 +218,7 @@ struct clingo_control {
     using FreeControlFunc = void (*)(Gringo::Control *);
 
     virtual Gringo::ConfigProxy &getConf() = 0;
-    virtual Gringo::DomainProxy &getDomain() = 0;
+    virtual Gringo::SymbolicAtoms &getDomain() = 0;
 
     virtual void ground(GroundVec const &vec, Gringo::Context *context) = 0;
     virtual Gringo::SolveResult solve(ModelHandler h, Assumptions &&assumptions) = 0;

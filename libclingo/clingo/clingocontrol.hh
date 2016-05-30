@@ -164,7 +164,7 @@ public:
     using Lit_t = Potassco::Lit_t;
     ClingoPropagateInit(Gringo::Control &c, Clasp::ClingoPropagatorInit &p) : c_(c), p_(p) { }
     Gringo::TheoryData const &theory() const override { return c_.theory(); }
-    Gringo::DomainProxy &getDomain() override { return c_.getDomain(); }
+    Gringo::SymbolicAtoms &getDomain() override { return c_.getDomain(); }
     Lit_t mapLit(Lit_t lit) override;
     int threads() override;
     void addWatch(Lit_t lit) override { p_.addWatch(Clasp::decodeLit(lit)); }
@@ -193,7 +193,7 @@ private:
 };
 
 class ClingoSolveIter;
-class ClingoControl : public clingo_control, private Gringo::ConfigProxy, private Gringo::DomainProxy {
+class ClingoControl : public clingo_control, private Gringo::ConfigProxy, private Gringo::SymbolicAtoms {
 public:
     using StringVec        = std::vector<std::string>;
     using ExternalVec      = std::vector<std::pair<Gringo::Symbol, Potassco::Value_t>>;
@@ -215,13 +215,19 @@ public:
 
     Clasp::LitVec toClaspAssumptions(Gringo::Control::Assumptions &&ass) const;
 
-    // {{{2 DomainProxy interface
+    // {{{2 SymbolicAtoms interface
 
-    ElementPtr iter(Gringo::Sig sig) const override;
-    ElementPtr iter() const override;
-    ElementPtr lookup(Gringo::Symbol atom) const override;
+    Gringo::SymbolicAtomRange iter(Gringo::Sig sig) const override;
+    Gringo::SymbolicAtomRange iter() const override;
+    Gringo::SymbolicAtomRange lookup(Gringo::Symbol atom) const override;
     size_t length() const override;
     std::vector<Gringo::Sig> signatures() const override;
+    Gringo::Symbol atom(Gringo::SymbolicAtomRange it) const override;
+    Potassco::Lit_t literal(Gringo::SymbolicAtomRange it) const override;
+    bool fact(Gringo::SymbolicAtomRange it) const override;
+    bool external(Gringo::SymbolicAtomRange it) const override;
+    Gringo::SymbolicAtomRange next(Gringo::SymbolicAtomRange it) override;
+    bool valid(Gringo::SymbolicAtomRange it) const override;
 
     // {{{2 ConfigProxy interface
 
@@ -236,7 +242,7 @@ public:
 
     // {{{2 Control interface
 
-    Gringo::DomainProxy &getDomain() override;
+    Gringo::SymbolicAtoms &getDomain() override;
     void ground(Gringo::Control::GroundVec const &vec, Gringo::Context *ctx) override;
     void add(std::string const &name, Gringo::FWStringVec const &params, std::string const &part) override;
     void load(std::string const &filename) override;
