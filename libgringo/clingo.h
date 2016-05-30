@@ -220,7 +220,33 @@ typedef struct clingo_signature_span {
     size_t size;
 } clingo_signature_span_t;
 
+clingo_error_t clingo_signature_new(char const *name, uint32_t arity, bool sign);
+char const *clingo_signature_name(clingo_signature_t sig);
+uint32_t clingo_signature_arity(clingo_signature_t sig);
+bool clingo_signature_sign(clingo_signature_t sig);
+size_t clingo_signature_hash(clingo_signature_t sig);
+bool clingo_signature_eq(clingo_signature_t a, clingo_signature_t b);
+bool clingo_signature_lt(clingo_signature_t a, clingo_signature_t b);
+
 // {{{2 domain
+
+typedef struct clingo_symbol_vec {
+    clingo_symbol_t *first;
+    size_t size;
+    size_t reserved;
+} clingo_symbol_vec_t;
+
+clingo_error_t clingo_symbol_vec_new(clingo_symbol_vec *, size_t reserved);
+clingo_error_t clingo_symbol_vec_free(clingo_symbol_vec *);
+
+typedef struct clingo_signature_vec {
+    clingo_signature_t *first;
+    size_t size;
+    size_t reserved;
+} clingo_signature_vec_t;
+
+clingo_error_t clingo_signature_vec_new(clingo_signature_vec *, size_t reserved);
+clingo_error_t clingo_signature_vec_free(clingo_signature_vec *);
 
 typedef struct clingo_symbolic_atom_iter {
     uint32_t domain_offset;

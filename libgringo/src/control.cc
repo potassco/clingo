@@ -55,7 +55,35 @@ extern "C" inline char const *clingo_message_code_str(clingo_message_code_t code
 
 // {{{2 value
 
-using namespace Gringo;
+extern "C" clingo_error_t clingo_signature_new(char const *name, uint32_t arity, bool sign) {
+}
+
+extern "C" char const *clingo_signature_name(clingo_signature_t sig) {
+    return static_cast<Sig&>(sig).name().c_str();
+}
+
+extern "C" uint32_t clingo_signature_arity(clingo_signature_t sig) {
+    return static_cast<Sig&>(sig).arity();
+}
+
+extern "C" bool clingo_signature_sign(clingo_signature_t sig) {
+    return static_cast<Sig&>(sig).sign();
+}
+
+extern "C" size_t clingo_signature_hash(clingo_signature_t sig) {
+    return static_cast<Sig&>(sig).hash();
+}
+
+extern "C" bool clingo_signature_eq(clingo_signature_t a, clingo_signature_t b) {
+    return static_cast<Sig&>(a) == static_cast<Sig&>(b);
+}
+
+extern "C" bool clingo_signature_lt(clingo_signature_t a, clingo_signature_t b) {
+    return static_cast<Sig&>(a) < static_cast<Sig&>(b);
+}
+
+
+// {{{2 value
 
 extern "C" void clingo_symbol_new_num(int num, clingo_symbol_t *val) {
     *val = Symbol::createNum(num);
