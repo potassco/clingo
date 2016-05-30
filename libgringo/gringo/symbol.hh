@@ -88,7 +88,7 @@ inline std::ostream &operator<<(std::ostream &out, String x) {
 
 // {{{1 declaration of Signature (flyweight)
 
-class Sig {
+class Sig : public clingo_signature {
 public:
     Sig(String name, uint32_t arity, bool sign);
     String name() const;
@@ -96,7 +96,7 @@ public:
     uint32_t arity() const;
     bool sign() const;
     size_t hash() const;
-    uint64_t rep() const { return rep_; }
+    uint64_t rep() const { return clingo_signature::rep; }
     bool match(String n, uint32_t a, bool s = false) const {
         return name() == n && arity() == a && sign() == s;
     }
@@ -111,7 +111,6 @@ public:
     bool operator>=(Sig s) const;
 private:
     Sig (uint64_t rep);
-    uint64_t rep_;
 };
 
 inline std::ostream &operator<<(std::ostream &out, Sig x) {

@@ -240,28 +240,28 @@ String String::fromRep(uintptr_t t) { return String(t); }
 // {{{1 definition of Signature
 
 Sig::Sig(String name, uint32_t arity, bool sign)
-: rep_(encodeSig(name, arity, sign)) { }
+: clingo_signature{encodeSig(name, arity, sign)} { }
 
 Sig::Sig(uint64_t rep)
-: rep_(rep) { }
+: clingo_signature{rep} { }
 
 String Sig::name() const {
-    uint16_t u = upper(rep_);
-    return u < upperMax ? toString(rep_) : cast<USig::Type>(rep_)->first;
+    uint16_t u = upper(rep());
+    return u < upperMax ? toString(rep()) : cast<USig::Type>(rep())->first;
 }
 
 Sig Sig::flipSign() const {
-    return Sig(rep_ ^ 1);
+    return Sig(rep() ^ 1);
 }
 
 uint32_t Sig::arity() const {
-    uint16_t u = upper(rep_);
-    return u < upperMax ? u : cast<USig::Type>(rep_)->second;
+    uint16_t u = upper(rep());
+    return u < upperMax ? u : cast<USig::Type>(rep())->second;
 }
 
-bool Sig::sign() const { return lower(rep_); }
+bool Sig::sign() const { return lower(rep()); }
 
-size_t Sig::hash() const { return get_value_hash(rep_); }
+size_t Sig::hash() const { return get_value_hash(rep()); }
 
 namespace {
 bool less(Sig const &a, Sig const &b) {
@@ -271,8 +271,8 @@ bool less(Sig const &a, Sig const &b) {
 }
 }
 
-bool Sig::operator==(Sig s) const { return rep_ == s.rep_; }
-bool Sig::operator!=(Sig s) const { return rep_ != s.rep_; }
+bool Sig::operator==(Sig s) const { return rep() == s.rep(); }
+bool Sig::operator!=(Sig s) const { return rep() != s.rep(); }
 bool Sig::operator<(Sig s) const { return *this != s && less(*this, s); }
 bool Sig::operator>(Sig s) const { return *this != s && less(s, *this); }
 bool Sig::operator<=(Sig s) const { return *this == s || less(*this, s); }
