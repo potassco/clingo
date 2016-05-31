@@ -29,6 +29,16 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
+/**********************************************************************
+ * TODO: logging should only be necessary for highlevel control stuff *
+ *       loosing some small error messages for bad alloc/etc. is ok   *
+ **********************************************************************/
+
+// {{{1 basic types
+
+typedef int32_t clingo_lit_t;
+typedef uint32_t clingo_id_t;
+
 // {{{1 errors and warnings
 
 // Note: Errors can be recovered from. If a control function fails, the
@@ -68,11 +78,6 @@ typedef struct clingo_signature {
     uint64_t rep;
 } clingo_signature_t;
 
-typedef struct clingo_signature_span {
-    clingo_signature_t const *first;
-    size_t size;
-} clingo_signature_span_t;
-
 clingo_error_t clingo_signature_new(char const *name, uint32_t arity, bool sign, clingo_signature_t *ret);
 char const *clingo_signature_name(clingo_signature_t sig);
 uint32_t clingo_signature_arity(clingo_signature_t sig);
@@ -96,11 +101,6 @@ typedef struct clingo_symbol {
     uint64_t rep;
 } clingo_symbol_t;
 
-typedef struct clingo_symbol_span {
-    clingo_symbol_t const *first;
-    size_t size;
-} clingo_symbol_span_t;
-
 // construction
 
 void clingo_symbol_new_num(int num, clingo_symbol_t *sym);
@@ -108,7 +108,7 @@ void clingo_symbol_new_sup(clingo_symbol_t *sym);
 void clingo_symbol_new_inf(clingo_symbol_t *sym);
 clingo_error_t clingo_symbol_new_str(char const *str, clingo_symbol_t *sym);
 clingo_error_t clingo_symbol_new_id(char const *id, bool sign, clingo_symbol_t *sym);
-clingo_error_t clingo_symbol_new_fun(char const *name, clingo_symbol_span_t args, bool sign, clingo_symbol_t *sym);
+clingo_error_t clingo_symbol_new_fun(char const *name, clingo_symbol_t const *args, size_t n, bool sign, clingo_symbol_t *sym);
 
 // inspection
 
@@ -116,7 +116,7 @@ clingo_error_t clingo_symbol_num(clingo_symbol_t sym, int *num);
 clingo_error_t clingo_symbol_name(clingo_symbol_t sym, char const **name);
 clingo_error_t clingo_symbol_string(clingo_symbol_t sym, char const **str);
 clingo_error_t clingo_symbol_sign(clingo_symbol_t sym, bool *sign);
-clingo_error_t clingo_symbol_args(clingo_symbol_t sym, clingo_symbol_span_t *args);
+clingo_error_t clingo_symbol_args(clingo_symbol_t sym, clingo_symbol_t const **args, size_t *n);
 clingo_symbol_type_t clingo_symbol_type(clingo_symbol_t sym);
 clingo_error_t clingo_symbol_to_string(clingo_symbol_t sym, char *ret, size_t *n);
 
@@ -133,21 +133,13 @@ typedef struct clingo_symbolic_literal {
     bool sign;
 } clingo_symbolic_literal_t;
 
-typedef struct clingo_symbolic_literal_span {
-    clingo_symbolic_literal_t const *first;
-    size_t size;
-} clingo_symbolic_literal_span_t;
-
 // {{{1 part
 
 typedef struct clingo_part {
     char const *name;
-    clingo_symbol_span_t params;
+    clingo_symbol_t const *params;
+    size_t n;
 } clingo_part_t;
-typedef struct clingo_part_span {
-    clingo_part_t const *first;
-    size_t size;
-} clingo_part_span_t;
 
 // {{{1 module (there should only ever be one module)
 
@@ -208,72 +200,67 @@ typedef struct clingo_location {
     size_t end_column;
 } clingo_location_t;
 typedef struct clingo_ast clingo_ast_t;
-typedef struct clingo_ast_span {
-    clingo_ast_t const *first;
-    size_t size;
-} clingo_ast_span_t;
 struct clingo_ast {
     clingo_location_t location;
     clingo_symbol_t value;
-    clingo_ast_span_t children;
+    clingo_ast_t const *children;
+    size_t n;
 };
 typedef clingo_error_t clingo_ast_callback_t (clingo_ast_t const *, void *);
 typedef clingo_error_t clingo_add_ast_callback_t (void *, clingo_ast_callback_t *, void *);
 
-// {{{1 propagator
+// {{{1 symbolic atoms
 
-// {{{2 basic
-
-typedef int32_t lit_t;
-typedef uint32_t id_t;
-
-// {{{2 symbolic atoms
-
-typedef struct clingo_symbolic_atoms clingo_symbolic_atoms_t;
-typedef struct clingo_symbolic_atom_range {
+typedef struct clingo_symbolic_atom_iter {
     uint32_t domain_offset;
     uint32_t atom_offset;
-} clingo_symbolic_atom_range_t;
+} clingo_symbolic_atom_iter_t;
 
-clingo_symbolic_atom_range_t clingo_symbolic_atoms_iter(clingo_symbolic_atoms_t *dom, clingo_signature_t *sig);
-clingo_symbolic_atom_range_t clingo_symbolic_atoms_lookup(clingo_symbolic_atoms_t *dom, clingo_symbol_t atom);
+typedef struct clingo_symbolic_atoms clingo_symbolic_atoms_t;
+clingo_error_t clingo_symbolic_atoms_begin(clingo_symbolic_atoms_t *dom, clingo_signature_t *sig, clingo_symbolic_atom_iter_t *ret);
+clingo_error_t clingo_symbolic_atoms_end(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t *ret);
+clingo_error_t clingo_symbolic_atoms_lookup(clingo_symbolic_atoms_t *dom, clingo_symbol_t atom, clingo_symbolic_atom_iter_t *ret);
+clingo_error_t clingo_symbolic_atoms_iter_eq(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t it, clingo_symbolic_atom_iter_t jt, bool *ret);
 clingo_error_t clingo_symbolic_atoms_signatures(clingo_symbolic_atoms_t *dom, clingo_signature_t *ret, size_t *n);
-size_t clingo_symbolic_atoms_length(clingo_symbolic_atoms_t *dom);
-clingo_error_t clingo_symbolic_atoms_atom(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, clingo_symbol_t *sym);
-clingo_error_t clingo_symbolic_atoms_literal(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, lit_t *lit);
-clingo_error_t clingo_symbolic_atoms_fact(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, bool *fact);
-clingo_error_t clingo_symbolic_atoms_external(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, bool *external);
-clingo_error_t clingo_symbolic_atoms_next(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, clingo_symbolic_atom_range_t *next);
-clingo_error_t clingo_symbolic_atoms_valid(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, bool *valid);
+clingo_error_t clingo_symbolic_atoms_size(clingo_symbolic_atoms_t *dom, size_t *ret);
+clingo_error_t clingo_symbolic_atoms_symbol(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, clingo_symbol_t *sym);
+clingo_error_t clingo_symbolic_atoms_literal(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, clingo_lit_t *lit);
+clingo_error_t clingo_symbolic_atoms_fact(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, bool *fact);
+clingo_error_t clingo_symbolic_atoms_external(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, bool *external);
+clingo_error_t clingo_symbolic_atoms_next(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, clingo_symbolic_atom_iter_t *next);
+clingo_error_t clingo_symbolic_atoms_valid(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, bool *valid);
 
-// {{{2 theory
+// {{{1 theory atoms
 
-typedef struct clingo_theory_data clingo_theory_data_t;
-/*
-struct TheoryData {
-    enum class TermType { Tuple, List, Set, Function, Number, Symbol };
-    enum class AtomType { Head, Body, Directive };
-
-    virtual TermType termType(Id_t) const = 0;
-    virtual int termNum(Id_t value) const = 0;
-    virtual char const *termName(Id_t value) const = 0;
-    virtual Potassco::IdSpan termArgs(Id_t value) const = 0;
-    virtual Potassco::IdSpan elemTuple(Id_t value) const = 0;
-    // This shall map to ids of literals in aspif format.
-    virtual Potassco::LitSpan elemCond(Id_t value) const = 0;
-    virtual Lit_t elemCondLit(Id_t value) const = 0;
-    virtual Potassco::IdSpan atomElems(Id_t value) const = 0;
-    virtual Potassco::Id_t atomTerm(Id_t value) const = 0;
-    virtual bool atomHasGuard(Id_t value) const = 0;
-    virtual Potassco::Lit_t atomLit(Id_t value) const = 0;
-    virtual std::pair<char const *, Id_t> atomGuard(Id_t value) const = 0;
-    virtual Potassco::Id_t numAtoms() const = 0;
-    virtual std::string termStr(Id_t value) const = 0;
-    virtual std::string elemStr(Id_t value) const = 0;
-    virtual std::string atomStr(Id_t value) const = 0;
-    virtual ~TheoryData() noexcept = default;
+enum clingo_theory_term_type {
+    clingo_theory_term_type_tuple,
+    clingo_theory_term_type_list,
+    clingo_theory_term_type_set,
+    clingo_theory_term_type_function,
+    clingo_theory_term_type_number,
+    clingo_theory_term_type_symbol
 };
-*/
+typedef int clingo_theory_term_type_t;
+
+typedef struct clingo_theory_atoms clingo_theory_atoms_t;
+clingo_error_t clingo_theory_atoms_term_type(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_theory_term_type_t *ret);
+clingo_error_t clingo_theory_atoms_term_number(clingo_theory_atoms_t *atoms, clingo_id_t value, int *num);
+clingo_error_t clingo_theory_atoms_term_name(clingo_theory_atoms_t *atoms, clingo_id_t value, char const **ret);
+clingo_error_t clingo_theory_atoms_term_arguments(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n);
+clingo_error_t clingo_theory_atoms_element_tuple(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n);
+clingo_error_t clingo_theory_atoms_element_condition(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_lit_t const **ret, size_t *n);
+clingo_error_t clingo_theory_atoms_element_condition_literal(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_lit_t *ret);
+clingo_error_t clingo_theory_atoms_atom_elements(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n);
+clingo_error_t clingo_theory_atoms_atom_term(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t *ret);
+clingo_error_t clingo_theory_atoms_atom_has_guard(clingo_theory_atoms_t *atoms, clingo_id_t value, bool *ret);
+clingo_error_t clingo_theory_atoms_atom_literal(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_lit_t *ret);
+clingo_error_t clingo_theory_atoms_atom_guard(clingo_theory_atoms_t *atoms, clingo_id_t value, char const **ret_op, clingo_id_t *ret_term);
+clingo_error_t clingo_theory_atoms_size(clingo_theory_atoms_t *atoms, size_t *ret);
+clingo_error_t clingo_theory_atoms_term_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t *n);
+clingo_error_t clingo_theory_atoms_element_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t *n);
+clingo_error_t clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t *n);
+
+// {{{1 propagator
 
 // {{{2 clauses
 
@@ -285,46 +272,41 @@ enum clingo_clause_type {
 };
 typedef int clingo_clause_type_t;
 
-typedef struct clingo_lit_span {
-    lit_t const *first;
-    size_t size;
-} clingo_lit_span_t;
-
 // {{{2 init
 
 typedef struct clingo_propagate_init clingo_propagate_init_t;
-clingo_error_t clingo_propagate_init_map_lit(clingo_propagate_init_t *init, lit_t lit, lit_t *ret);
-clingo_error_t clingo_propagate_init_add_watch(clingo_propagate_init_t *init, lit_t lit);
+clingo_error_t clingo_propagate_init_map_lit(clingo_propagate_init_t *init, clingo_lit_t lit, clingo_lit_t *ret);
+clingo_error_t clingo_propagate_init_add_watch(clingo_propagate_init_t *init, clingo_lit_t lit);
 int clingo_propagator_init_threads(clingo_propagate_init_t *init);
 clingo_error_t clingo_propagate_init_symbolic_atoms(clingo_propagate_init_t *init, clingo_symbolic_atoms_t **ret);
-clingo_error_t clingo_propagate_init_theory_data(clingo_propagate_init_t *init, clingo_theory_data_t **ret);
+clingo_error_t clingo_propagate_init_theory_data(clingo_propagate_init_t *init, clingo_theory_atoms_t **ret);
 
 // {{{2 assignment
 
 typedef struct clingo_assignment clingo_assignment_t;
 bool clingo_assignment_has_conflict(clingo_assignment_t *ass);
 uint32_t clingo_assignment_decision_level(clingo_assignment_t *ass);
-bool clingo_assignment_has_lit(clingo_assignment_t *ass, lit_t lit);
-clingo_error_t clingo_assignment_value(clingo_assignment_t *ass, lit_t lit, clingo_truth_value_t *ret);
-clingo_error_t clingo_assignment_level(clingo_assignment_t *ass, lit_t lit, uint32_t *ret);
-clingo_error_t clingo_assignment_decision(clingo_assignment_t *ass, uint32_t level, lit_t *ret);
-clingo_error_t clingo_assignment_is_fixed(clingo_assignment_t *ass, lit_t lit, bool *ret);
-clingo_error_t clingo_assignment_is_true(clingo_assignment_t *ass, lit_t lit, bool *ret);
-clingo_error_t clingo_assignment_is_false(clingo_assignment_t *ass, lit_t lit, bool *ret);
+bool clingo_assignment_has_lit(clingo_assignment_t *ass, clingo_lit_t lit);
+clingo_error_t clingo_assignment_value(clingo_assignment_t *ass, clingo_lit_t lit, clingo_truth_value_t *ret);
+clingo_error_t clingo_assignment_level(clingo_assignment_t *ass, clingo_lit_t lit, uint32_t *ret);
+clingo_error_t clingo_assignment_decision(clingo_assignment_t *ass, uint32_t level, clingo_lit_t *ret);
+clingo_error_t clingo_assignment_is_fixed(clingo_assignment_t *ass, clingo_lit_t lit, bool *ret);
+clingo_error_t clingo_assignment_is_true(clingo_assignment_t *ass, clingo_lit_t lit, bool *ret);
+clingo_error_t clingo_assignment_is_false(clingo_assignment_t *ass, clingo_lit_t lit, bool *ret);
 
 // {{{2 control
 
 typedef struct clingo_propagate_control clingo_propagate_control_t;
-id_t clingo_propagate_control_id(clingo_propagate_control_t *ctl);
+clingo_id_t clingo_propagate_control_id(clingo_propagate_control_t *ctl);
 clingo_assignment_t *clingo_propagate_control_assignment(clingo_propagate_control_t *ctl);
-clingo_error_t add_clause(clingo_propagate_control_t *ctl, clingo_lit_span_t clause, clingo_clause_type_t prop, bool *ret);
+clingo_error_t add_clause(clingo_propagate_control_t *ctl, clingo_lit_t const *clause, size_t n, clingo_clause_type_t prop, bool *ret);
 clingo_error_t propagate(clingo_propagate_control_t *ctl, bool *ret);
 
 // {{{2 propagator
 
 typedef struct clingo_propagator {
-    clingo_error_t (*clingo_propagate_callback_t) (clingo_propagate_control_t *ctl, clingo_lit_span_t changes, void *data);
-    clingo_error_t (*clingo_undo_callback_t) (clingo_propagate_control_t *ctl, clingo_lit_span_t changes, void *data);
+    clingo_error_t (*clingo_propagate_callback_t) (clingo_propagate_control_t *ctl, clingo_lit_t const *changes, size_t n, void *data);
+    clingo_error_t (*clingo_undo_callback_t) (clingo_propagate_control_t *ctl, clingo_lit_t const *changes, size_t n, void *data);
     clingo_error_t (*clingo_check_callback_t) (clingo_propagate_control_t *ctl, void *data);
     void *data;
 } clingo_propagator_t;
@@ -333,26 +315,23 @@ typedef struct clingo_propagator {
 
 // {{{1 control
 
-typedef struct clingo_string_span {
-    char const * const *first;
-    size_t size;
-} clingo_string_span_t;
 typedef clingo_error_t clingo_model_handler_t (clingo_model_t*, void *, bool *);
-typedef clingo_error_t clingo_symbol_span_callback_t (clingo_symbol_span_t, void *);
-typedef clingo_error_t clingo_ground_callback_t (clingo_location_t, char const *, clingo_symbol_span_t, void *, clingo_symbol_span_callback_t *, void *);
+typedef clingo_error_t clingo_symbol_callback_t (clingo_symbol_t const *, size_t, void *);
+typedef clingo_error_t clingo_ground_callback_t (clingo_location_t, char const *, clingo_symbol_t const *, size_t, void *, clingo_symbol_callback_t *, void *);
 typedef struct clingo_control clingo_control_t;
-clingo_error_t clingo_control_new(clingo_module_t *mod, clingo_string_span_t args, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl);
+clingo_error_t clingo_control_new(clingo_module_t *mod, char const *const * args, size_t n, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl);
 void clingo_control_free(clingo_control_t *ctl);
-clingo_error_t clingo_control_add(clingo_control_t *ctl, char const *name, clingo_string_span_t params, char const *part);
-clingo_error_t clingo_control_ground(clingo_control_t *ctl, clingo_part_span_t vec, clingo_ground_callback_t *cb, void *data);
-clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_model_handler_t *mh, void *data, clingo_symbolic_literal_span_t assumptions, clingo_solve_result_t *ret);
-clingo_error_t clingo_control_solve_iter(clingo_control_t *ctl, clingo_symbolic_literal_span_t assumptions, clingo_solve_iter_t **it);
+clingo_error_t clingo_control_add(clingo_control_t *ctl, char const *name, char const * const * params, size_t n, char const *part);
+clingo_error_t clingo_control_ground(clingo_control_t *ctl, clingo_part_t const *params, size_t n, clingo_ground_callback_t *cb, void *data);
+clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_model_handler_t *mh, void *data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_result_t *ret);
+clingo_error_t clingo_control_solve_iter(clingo_control_t *ctl, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_iter_t **it);
 clingo_error_t clingo_control_assign_external(clingo_control_t *ctl, clingo_symbol_t atom, clingo_truth_value_t value);
 clingo_error_t clingo_control_release_external(clingo_control_t *ctl, clingo_symbol_t atom);
 clingo_error_t clingo_control_parse(clingo_control_t *ctl, char const *program, clingo_ast_callback_t *cb, void *data);
 clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_add_ast_callback_t *cb, void *data);
 clingo_error_t clingo_control_register_propagator(clingo_control_t *ctl, clingo_propagator_t propagator);
 clingo_error_t clingo_control_symbolic_atoms(clingo_control_t *ctl, clingo_symbolic_atoms_t **ret);
+clingo_error_t clingo_control_theory_atoms(clingo_control_t *ctl, clingo_theory_atoms_t **ret);
 
 // }}}1
 

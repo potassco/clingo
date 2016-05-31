@@ -163,6 +163,72 @@ TEST_CASE("c-interface", "[clingo]") {
                 REQUIRE(models == (ModelVec{{Id("a")}, {Id("a"), Id("c")}}));
                 REQUIRE(messages.empty());
             }
+            SECTION("theory atoms") {
+                char const *theory =
+                    "#theory t {\n"
+                    "  group {\n"
+                    "    + : 4, unary;\n"
+                    "    - : 4, unary;\n"
+                    "    ^ : 3, binary, right;\n"
+                    "    * : 2, binary, left;\n"
+                    "    + : 1, binary, left;\n"
+                    "    - : 1, binary, left\n"
+                    "  };\n"
+                    "  &a/0 : group, head;\n"
+                    "  &b/0 : group, {=}, group, directive\n"
+                    "}.\n"
+                    "{p; q}.\n"
+                    "&a { 1,[1,a],f(1) : p, q }.\n";
+                ctl.add("base", {}, theory);
+                ctl.ground({{"base", {}}});
+                auto atoms = ctl.theory_atoms();
+                REQUIRE(atoms.size() == 1);
+                int count = 0;
+                for (auto atom : atoms) {
+                    ++count;
+                    REQUIRE(atom.to_string() == "&a{1,[1,a],f(1): p,q}");
+                    REQUIRE(!atom.has_guard());
+                    REQUIRE(atom.term().type() == TheoryTermType::Symbol);
+                    REQUIRE(atom.term().name() == S("a"));
+                    REQUIRE(atom.elements().size() == 1);
+                    REQUIRE(atom.literal() > 0);
+                    for (auto elem : atom.elements()) {
+                        ++count;
+                        REQUIRE(elem.condition_literal() > 0);
+                        REQUIRE(elem.tuple().size() == 3);
+                        auto it = elem.tuple().begin();
+                        REQUIRE(it->type() == TheoryTermType::Number);
+                        REQUIRE(it->number() == 1);
+                        ++it;
+                        REQUIRE(it->type() == TheoryTermType::List);
+                        REQUIRE(it->arguments().size() == 2);
+                        auto jt = it->arguments().begin();
+                        REQUIRE(jt->type() == TheoryTermType::Number);
+                        REQUIRE((*++jt).type() == TheoryTermType::Symbol);
+                        ++it;
+                        REQUIRE(it->type() == TheoryTermType::Function);
+                        REQUIRE(it->name() == S("f"));
+                        REQUIRE(elem.condition().size() == 2);
+                        auto kt = elem.condition().begin();
+                        REQUIRE(*kt++ > 0);
+                        REQUIRE(*kt++ > 0);
+                        REQUIRE(kt == elem.condition().end());
+                    }
+                }
+                REQUIRE(count == 2);
+                REQUIRE(ctl.solve(MCB(models), {{Id("p"), false}, {Id("q"), false}}).sat());
+                REQUIRE(models == ModelVec({{Id("p"), Id("q")}}));
+                REQUIRE(atoms.size() == 0);
+                ctl.add("next", {}, "&b {} = 42.");
+                ctl.ground({{"next", {}}});
+                REQUIRE(atoms.size() == 1);
+                auto atom = *atoms.begin();
+                REQUIRE(atom.term().name() == S("b"));
+                REQUIRE(atom.has_guard());
+                REQUIRE(atom.guard().first == S("="));
+                REQUIRE(atom.guard().second.number() == 42);
+                REQUIRE(atom.literal() == 0);
+            }
             SECTION("symbolic atoms") {
                 ctl.add("base", {}, "p(1). {p(2)}. #external p(3). q.");
                 ctl.ground({{"base", {}}});
@@ -174,13 +240,12 @@ TEST_CASE("c-interface", "[clingo]") {
                 REQUIRE(!atoms.lookup(p2).fact()); REQUIRE(!atoms.lookup(p2).external());
                 REQUIRE(!atoms.lookup(p3).fact()); REQUIRE( atoms.lookup(p3).external());
                 REQUIRE(atoms.length() == 4);
-                // TODO: this should also work with a foreach loop!!!
                 SymVec symbols;
-                for (auto it = atoms.range(); it; ++it) { symbols.emplace_back(it->symbol()); }
+                for (auto atom : atoms) { symbols.emplace_back(atom.symbol()); }
                 std::sort(symbols.begin(), symbols.end());
                 REQUIRE(symbols == SymVec({q, p1, p2, p3}));
                 symbols.clear();
-                for (auto it = atoms.range(Signature("p", 1)); it; ++it) { symbols.emplace_back(it->symbol()); }
+                for (auto it = atoms.begin(Signature("p", 1)); it; ++it) { symbols.emplace_back(it->symbol()); }
                 std::sort(symbols.begin(), symbols.end());
                 REQUIRE(symbols == SymVec({p1, p2, p3}));
             }

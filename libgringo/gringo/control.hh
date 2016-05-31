@@ -132,20 +132,22 @@ struct ConfigProxy {
 
 using Control = clingo_control;
 using SymbolicAtoms = clingo_symbolic_atoms;
-using SymbolicAtomRange = clingo_symbolic_atom_range_t;
+using SymbolicAtomIter = clingo_symbolic_atom_iter_t;
 
 } // namespace Gringo
 
 struct clingo_symbolic_atoms {
-    virtual Gringo::Symbol atom(Gringo::SymbolicAtomRange it) const = 0;
-    virtual Potassco::Lit_t literal(Gringo::SymbolicAtomRange it) const = 0;
-    virtual bool fact(Gringo::SymbolicAtomRange it) const = 0;
-    virtual bool external(Gringo::SymbolicAtomRange it) const = 0;
-    virtual Gringo::SymbolicAtomRange next(Gringo::SymbolicAtomRange it) = 0;
-    virtual bool valid(Gringo::SymbolicAtomRange it) const = 0;
-    virtual Gringo::SymbolicAtomRange iter(Gringo::Sig sig) const = 0;
-    virtual Gringo::SymbolicAtomRange iter() const = 0;
-    virtual Gringo::SymbolicAtomRange lookup(Gringo::Symbol atom) const = 0;
+    virtual Gringo::Symbol atom(Gringo::SymbolicAtomIter it) const = 0;
+    virtual Potassco::Lit_t literal(Gringo::SymbolicAtomIter it) const = 0;
+    virtual bool fact(Gringo::SymbolicAtomIter it) const = 0;
+    virtual bool external(Gringo::SymbolicAtomIter it) const = 0;
+    virtual Gringo::SymbolicAtomIter next(Gringo::SymbolicAtomIter it) = 0;
+    virtual bool valid(Gringo::SymbolicAtomIter it) const = 0;
+    virtual Gringo::SymbolicAtomIter begin(Gringo::Sig sig) const = 0;
+    virtual Gringo::SymbolicAtomIter begin() const = 0;
+    virtual Gringo::SymbolicAtomIter lookup(Gringo::Symbol atom) const = 0;
+    virtual bool eq(Gringo::SymbolicAtomIter it, Gringo::SymbolicAtomIter jt) const = 0;
+    virtual Gringo::SymbolicAtomIter end() const = 0;
     virtual std::vector<Gringo::Sig> signatures() const = 0;
     virtual Gringo::Control &owner() const = 0;
     virtual size_t length() const = 0;
@@ -154,29 +156,46 @@ struct clingo_symbolic_atoms {
 
 namespace Gringo {
 
-struct TheoryData {
-    enum class TermType { Tuple, List, Set, Function, Number, Symbol };
-    enum class AtomType { Head, Body, Directive };
+using TheoryData = clingo_theory_atoms;
 
-    virtual TermType termType(Id_t) const = 0;
-    virtual int termNum(Id_t value) const = 0;
-    virtual char const *termName(Id_t value) const = 0;
-    virtual Potassco::IdSpan termArgs(Id_t value) const = 0;
-    virtual Potassco::IdSpan elemTuple(Id_t value) const = 0;
+} // namespace Gringo
+
+struct clingo_theory_atoms {
+    enum class TermType {
+        Tuple = clingo_theory_term_type_tuple,
+        List = clingo_theory_term_type_list,
+        Set = clingo_theory_term_type_set,
+        Function = clingo_theory_term_type_function,
+        Number = clingo_theory_term_type_number,
+        Symbol = clingo_theory_term_type_symbol
+    };
+    enum class AtomType {
+        Head,
+        Body,
+        Directive
+    };
+    virtual TermType termType(Gringo::Id_t) const = 0;
+    virtual int termNum(Gringo::Id_t value) const = 0;
+    virtual char const *termName(Gringo::Id_t value) const = 0;
+    virtual Potassco::IdSpan termArgs(Gringo::Id_t value) const = 0;
+    virtual Potassco::IdSpan elemTuple(Gringo::Id_t value) const = 0;
     // This shall map to ids of literals in aspif format.
-    virtual Potassco::LitSpan elemCond(Id_t value) const = 0;
-    virtual Lit_t elemCondLit(Id_t value) const = 0;
-    virtual Potassco::IdSpan atomElems(Id_t value) const = 0;
-    virtual Potassco::Id_t atomTerm(Id_t value) const = 0;
-    virtual bool atomHasGuard(Id_t value) const = 0;
-    virtual Potassco::Lit_t atomLit(Id_t value) const = 0;
-    virtual std::pair<char const *, Id_t> atomGuard(Id_t value) const = 0;
+    virtual Potassco::LitSpan elemCond(Gringo::Id_t value) const = 0;
+    virtual Gringo::Lit_t elemCondLit(Gringo::Id_t value) const = 0;
+    virtual Potassco::IdSpan atomElems(Gringo::Id_t value) const = 0;
+    virtual Potassco::Id_t atomTerm(Gringo::Id_t value) const = 0;
+    virtual bool atomHasGuard(Gringo::Id_t value) const = 0;
+    virtual Potassco::Lit_t atomLit(Gringo::Id_t value) const = 0;
+    virtual std::pair<char const *, Gringo::Id_t> atomGuard(Gringo::Id_t value) const = 0;
     virtual Potassco::Id_t numAtoms() const = 0;
-    virtual std::string termStr(Id_t value) const = 0;
-    virtual std::string elemStr(Id_t value) const = 0;
-    virtual std::string atomStr(Id_t value) const = 0;
-    virtual ~TheoryData() noexcept = default;
+    virtual std::string termStr(Gringo::Id_t value) const = 0;
+    virtual std::string elemStr(Gringo::Id_t value) const = 0;
+    virtual std::string atomStr(Gringo::Id_t value) const = 0;
+    virtual clingo_control &owner() const = 0;
+    virtual ~clingo_theory_atoms() noexcept = default;
 };
+
+namespace Gringo {
 
 // {{{1 declaration of Propagator
 

@@ -18,6 +18,11 @@
 
 // }}}
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+
 #include <gringo/control.hh>
 #include <clingo.hh>
 
@@ -33,6 +38,33 @@ clingo_solve_result_t convert(SolveResult r) {
     return static_cast<clingo_solve_result_t>(r.satisfiable()) |
            static_cast<clingo_solve_result_t>(r.interrupted()) * static_cast<clingo_solve_result_t>(clingo_solve_result_interrupted) |
            static_cast<clingo_solve_result_t>(r.exhausted()) * static_cast<clingo_solve_result_t>(clingo_solve_result_exhausted);
+}
+
+template <class F>
+std::string to_string(F f) {
+    std::string ret;
+    size_t n;
+    handleError(f(nullptr, &n));
+    ret.resize(n-1);
+    handleError(f(const_cast<char *>(ret.data()), &n));
+    return ret;
+}
+
+template <class F>
+void print(char *ret, size_t *n, F f) {
+    if (!n) { throw std::invalid_argument("size must not be null"); }
+    if (!ret) {
+        Gringo::CountStream cs;
+        f(cs);
+        *n = cs.count() + 1;
+    }
+    else {
+        if (*n < 1) { throw std::length_error("not enough space"); }
+        Gringo::ArrayStream as(ret, *n - 1);
+        f(as);
+        ret[*n - 1] = '\0';
+    }
+
 }
 
 }
@@ -112,9 +144,9 @@ extern "C" clingo_error_t clingo_symbol_new_id(char const *id, bool sign, clingo
     } GRINGO_CLINGO_CATCH(nullptr);
 }
 
-extern "C" clingo_error_t clingo_symbol_new_fun(char const *name, clingo_symbol_span_t args, bool sign, clingo_symbol_t *val) {
+extern "C" clingo_error_t clingo_symbol_new_fun(char const *name, clingo_symbol_t const *args, size_t n, bool sign, clingo_symbol_t *val) {
     GRINGO_CLINGO_TRY {
-        *val = Symbol::createFun(name, SymSpan{static_cast<Symbol const *>(args.first), args.size}, sign);
+        *val = Symbol::createFun(name, SymSpan{static_cast<Symbol const *>(args), n}, sign);
     } GRINGO_CLINGO_CATCH(nullptr);
 }
 
@@ -147,11 +179,12 @@ extern "C" clingo_error_t clingo_symbol_sign(clingo_symbol_t val, bool *sign) {
     } GRINGO_CLINGO_CATCH(nullptr);
 }
 
-extern "C" clingo_error_t clingo_symbol_args(clingo_symbol_t val, clingo_symbol_span_t *args) {
+extern "C" clingo_error_t clingo_symbol_args(clingo_symbol_t val, clingo_symbol_t const **args, size_t *n) {
     GRINGO_CLINGO_TRY {
         clingo_expect(static_cast<Symbol&>(val).type() == SymbolType::Fun);
         auto ret = static_cast<Symbol&>(val).args();
-        *args = clingo_symbol_span_t{ret.first, ret.size};
+        *args = ret.first;
+        *n = ret.size;
     } GRINGO_CLINGO_CATCH(nullptr);
 }
 
@@ -171,6 +204,7 @@ extern "C" clingo_error_t clingo_symbol_to_string(clingo_symbol_t val, char *ret
             if (*n < 1) { throw std::length_error("not enough space"); }
             Gringo::ArrayStream as(ret, *n - 1);
             static_cast<Symbol&>(val).print(as);
+            ret[*n - 1] = '\0';
         }
     } GRINGO_CLINGO_CATCH(nullptr);
 }
@@ -189,12 +223,24 @@ extern "C" size_t clingo_symbol_hash(clingo_symbol_t sym) {
 
 // {{{2 symbolic atoms
 
-extern "C" clingo_symbolic_atom_range_t clingo_symbolic_atoms_iter(clingo_symbolic_atoms_t *dom, clingo_signature_t *sig) {
-    return sig ? dom->iter(static_cast<Sig&>(*sig)) : dom->iter();
+extern "C" clingo_error_t clingo_symbolic_atoms_begin(clingo_symbolic_atoms_t *dom, clingo_signature_t *sig, clingo_symbolic_atom_iter_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = sig ? dom->begin(static_cast<Sig&>(*sig)) : dom->begin(); }
+    GRINGO_CLINGO_CATCH(&dom->owner().logger());
 }
 
-extern "C" clingo_symbolic_atom_range_t clingo_symbolic_atoms_lookup(clingo_symbolic_atoms_t *dom, clingo_symbol_t atom) {
-    return dom->lookup(static_cast<Symbol&>(atom));
+extern "C" clingo_error_t clingo_symbolic_atoms_end(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = dom->end(); }
+    GRINGO_CLINGO_CATCH(&dom->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_symbolic_atoms_lookup(clingo_symbolic_atoms_t *dom, clingo_symbol_t atom, clingo_symbolic_atom_iter_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = dom->lookup(static_cast<Symbol&>(atom)); }
+    GRINGO_CLINGO_CATCH(&dom->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_symbolic_atoms_iter_eq(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t it, clingo_symbolic_atom_iter_t jt, bool *ret) {
+    GRINGO_CLINGO_TRY { *ret = dom->eq(it, jt); }
+    GRINGO_CLINGO_CATCH(&dom->owner().logger());
 }
 
 extern "C" clingo_error_t clingo_symbolic_atoms_signatures(clingo_symbolic_atoms_t *dom, clingo_signature_t *ret, size_t *n) {
@@ -215,34 +261,136 @@ extern "C" size_t clingo_symbolic_atoms_length(clingo_symbolic_atoms_t *dom) {
     return dom->length();
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_atom(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, clingo_symbol_t *sym) {
+extern "C" clingo_error_t clingo_symbolic_atoms_atom(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, clingo_symbol_t *sym) {
     GRINGO_CLINGO_TRY { *sym = dom->atom(atm); }
     GRINGO_CLINGO_CATCH(&dom->owner().logger());
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_literal(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, lit_t *lit) {
+extern "C" clingo_error_t clingo_symbolic_atoms_literal(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, clingo_lit_t *lit) {
     GRINGO_CLINGO_TRY { *lit = dom->literal(atm); }
     GRINGO_CLINGO_CATCH(&dom->owner().logger());
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_fact(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, bool *fact) {
+extern "C" clingo_error_t clingo_symbolic_atoms_fact(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, bool *fact) {
     GRINGO_CLINGO_TRY { *fact = dom->fact(atm); }
     GRINGO_CLINGO_CATCH(&dom->owner().logger());
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_external(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, bool *external) {
+extern "C" clingo_error_t clingo_symbolic_atoms_external(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, bool *external) {
     GRINGO_CLINGO_TRY { *external = dom->external(atm); }
     GRINGO_CLINGO_CATCH(&dom->owner().logger());
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_next(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, clingo_symbolic_atom_range_t *next) {
+extern "C" clingo_error_t clingo_symbolic_atoms_next(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, clingo_symbolic_atom_iter_t *next) {
     GRINGO_CLINGO_TRY { *next = dom->next(atm); }
     GRINGO_CLINGO_CATCH(&dom->owner().logger());
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_valid(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, bool *valid) {
+extern "C" clingo_error_t clingo_symbolic_atoms_valid(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, bool *valid) {
     GRINGO_CLINGO_TRY { *valid = dom->valid(atm); }
     GRINGO_CLINGO_CATCH(&dom->owner().logger());
+}
+
+// {{{2 theory atoms
+
+extern "C" clingo_error_t clingo_theory_atoms_term_type(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_theory_term_type_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = static_cast<clingo_theory_term_type_t>(atoms->termType(value)); }
+    GRINGO_CLINGO_CATCH(&atoms->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_term_number(clingo_theory_atoms_t *atoms, clingo_id_t value, int *ret) {
+    GRINGO_CLINGO_TRY { *ret = atoms->termNum(value); }
+    GRINGO_CLINGO_CATCH(&atoms->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_term_name(clingo_theory_atoms_t *atoms, clingo_id_t value, char const **ret) {
+    GRINGO_CLINGO_TRY { *ret = atoms->termName(value); }
+    GRINGO_CLINGO_CATCH(&atoms->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_term_arguments(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n) {
+    GRINGO_CLINGO_TRY {
+        auto span = atoms->termArgs(value);
+        *ret = span.first;
+        *n = span.size;
+    }
+    GRINGO_CLINGO_CATCH(&atoms->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_element_tuple(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n) {
+    GRINGO_CLINGO_TRY {
+        auto span = atoms->elemTuple(value);
+        *ret = span.first;
+        *n = span.size;
+    }
+    GRINGO_CLINGO_CATCH(&atoms->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_element_condition(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_lit_t const **ret, size_t *n) {
+    GRINGO_CLINGO_TRY {
+        auto span = atoms->elemCond(value);
+        *ret = span.first;
+        *n = span.size;
+    }
+    GRINGO_CLINGO_CATCH(&atoms->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_element_condition_literal(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_lit_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = atoms->elemCondLit(value); }
+    GRINGO_CLINGO_CATCH(&atoms->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_atom_elements(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n) {
+    GRINGO_CLINGO_TRY {
+        auto span = atoms->atomElems(value);
+        *ret = span.first;
+        *n = span.size;
+    }
+    GRINGO_CLINGO_CATCH(&atoms->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_atom_term(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = atoms->atomTerm(value); }
+    GRINGO_CLINGO_CATCH(&atoms->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_atom_has_guard(clingo_theory_atoms_t *atoms, clingo_id_t value, bool *ret) {
+    GRINGO_CLINGO_TRY { *ret = atoms->atomHasGuard(value); }
+    GRINGO_CLINGO_CATCH(&atoms->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_atom_literal(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_lit_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = atoms->atomLit(value); }
+    GRINGO_CLINGO_CATCH(&atoms->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_atom_guard(clingo_theory_atoms_t *atoms, clingo_id_t value, char const **ret_op, clingo_id_t *ret_term) {
+    GRINGO_CLINGO_TRY {
+        auto guard = atoms->atomGuard(value);
+        *ret_op = guard.first;
+        *ret_term = guard.second;
+    }
+    GRINGO_CLINGO_CATCH(&atoms->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_size(clingo_theory_atoms_t *atoms, size_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = atoms->numAtoms(); }
+    GRINGO_CLINGO_CATCH(&atoms->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_term_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t *n) {
+    GRINGO_CLINGO_TRY { print(ret, n, [atoms, value](std::ostream &out) { out << atoms->termStr(value); }); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_element_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t *n) {
+    GRINGO_CLINGO_TRY { print(ret, n, [atoms, value](std::ostream &out) { out << atoms->elemStr(value); }); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t *n) {
+    GRINGO_CLINGO_TRY { print(ret, n, [atoms, value](std::ostream &out) { out << atoms->atomStr(value); }); }
+    GRINGO_CLINGO_CATCH(nullptr);
 }
 
 // {{{2 model
@@ -286,18 +434,18 @@ extern "C" clingo_error_t clingo_solve_iter_close(clingo_solve_iter_t *it) {
     } GRINGO_CLINGO_CATCH(&it->owner().logger());
 }
 
- // {{{2 control
+// {{{2 control
 
-extern "C" clingo_error_t clingo_control_new(clingo_module_t *mod, clingo_string_span_t args, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl) {
+extern "C" clingo_error_t clingo_control_new(clingo_module_t *mod, char const *const * args, size_t n, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl) {
     GRINGO_CLINGO_TRY {
         // NOTE: nullptr sentinel required by program options library
         // TODO: ask Benny about possible removal
         std::vector<char const *> argVec;
-        for (auto it = args.first, ie = it + args.size; it != ie; ++it) {
+        for (auto it = args, ie = it + n; it != ie; ++it) {
             argVec.emplace_back(*it);
         }
         argVec.push_back(nullptr);
-        *ctl = mod->newControl(args.size, argVec.data(), logger ? [logger, data](clingo_message_code_t code, char const *msg) { logger(code, msg, data); } : Gringo::Logger::Printer(nullptr), message_limit);
+        *ctl = mod->newControl(n, argVec.data(), logger ? [logger, data](clingo_message_code_t code, char const *msg) { logger(code, msg, data); } : Gringo::Logger::Printer(nullptr), message_limit);
     } GRINGO_CLINGO_CATCH(nullptr);
 }
 
@@ -305,10 +453,12 @@ extern "C" void clingo_control_free(clingo_control_t *ctl) {
     delete ctl;
 }
 
-extern "C" clingo_error_t clingo_control_add(clingo_control_t *ctl, char const *name, clingo_string_span_t params, char const *part) {
+extern "C" clingo_error_t clingo_control_add(clingo_control_t *ctl, char const *name, char const * const *params, size_t n, char const *part) {
     GRINGO_CLINGO_TRY {
         FWStringVec p;
-        for (char const * const *it = params.first, * const *ie = it + params.size; it != ie; ++it) { p.emplace_back(*it); }
+        for (char const * const *it = params, * const *ie = it + n; it != ie; ++it) {
+            p.emplace_back(*it);
+        }
         ctl->add(name, p, part);
     } GRINGO_CLINGO_CATCH(&ctl->logger());
 }
@@ -328,12 +478,10 @@ struct ClingoContext : Context {
     SymVec call(Location const &loc, String name, SymSpan args) override {
         assert(cb);
         clingo_location_t loc_c{loc.beginFilename.c_str(), loc.endFilename.c_str(), loc.beginLine, loc.endLine, loc.beginColumn, loc.endColumn};
-        clingo_symbol_span_t args_c;
-        args_c = { args.first, args.size };
-        auto err = cb(loc_c, name.c_str(), args_c, data, [](clingo_symbol_span_t ret_c, void *data) -> clingo_error_t {
+        auto err = cb(loc_c, name.c_str(), args.first, args.size, data, [](clingo_symbol_t const * ret_c, size_t n, void *data) -> clingo_error_t {
             auto t = static_cast<ClingoContext*>(data);
             GRINGO_CLINGO_TRY {
-                for (auto it = ret_c.first, ie = it + ret_c.size; it != ie; ++it) {
+                for (auto it = ret_c, ie = it + n; it != ie; ++it) {
                     t->ret.emplace_back(static_cast<Symbol const &>(*it));
                 }
             } GRINGO_CLINGO_CATCH(&t->ctl->logger());
@@ -351,14 +499,14 @@ struct ClingoContext : Context {
 
 }
 
-extern "C" clingo_error_t clingo_control_ground(clingo_control_t *ctl, clingo_part_span_t vec, clingo_ground_callback_t *cb, void *data) {
+extern "C" clingo_error_t clingo_control_ground(clingo_control_t *ctl, clingo_part_t const * vec, size_t n, clingo_ground_callback_t *cb, void *data) {
     GRINGO_CLINGO_TRY {
         Control::GroundVec gv;
-        gv.reserve(vec.size);
-        for (auto it = vec.first, ie = it + vec.size; it != ie; ++it) {
+        gv.reserve(n);
+        for (auto it = vec, ie = it + n; it != ie; ++it) {
             SymVec params;
-            params.reserve(it->params.size);
-            for (auto jt = it->params.first, je = jt + it->params.size; jt != je; ++jt) {
+            params.reserve(it->n);
+            for (auto jt = it->params, je = jt + it->n; jt != je; ++jt) {
                 params.emplace_back(static_cast<Symbol const &>(*jt));
             }
             gv.emplace_back(it->name, params);
@@ -370,9 +518,9 @@ extern "C" clingo_error_t clingo_control_ground(clingo_control_t *ctl, clingo_pa
 
 namespace {
 
-Control::Assumptions toAss(clingo_symbolic_literal_span_t assumptions) {
+Control::Assumptions toAss(clingo_symbolic_literal_t const * assumptions, size_t n) {
     Control::Assumptions ass;
-    for (auto it = assumptions.first, ie = it + assumptions.size; it != ie; ++it) {
+    for (auto it = assumptions, ie = it + n; it != ie; ++it) {
         ass.emplace_back(static_cast<Symbol const>(it->atom), !it->sign);
     }
     return ass;
@@ -380,20 +528,20 @@ Control::Assumptions toAss(clingo_symbolic_literal_span_t assumptions) {
 
 }
 
-extern "C" clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_model_handler_t *model_handler, void *data, clingo_symbolic_literal_span_t assumptions, clingo_solve_result_t *ret) {
+extern "C" clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_model_handler_t *model_handler, void *data, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_result_t *ret) {
     GRINGO_CLINGO_TRY {
         *ret = static_cast<clingo_solve_result_t>(ctl->solve([model_handler, data](Model const &m) {
             bool ret;
             auto err = model_handler(static_cast<clingo_model*>(const_cast<Model*>(&m)), data, &ret);
             if (err != 0) { throw ClingoError(err); }
             return ret;
-        }, toAss(assumptions)));
+        }, toAss(assumptions, n)));
     } GRINGO_CLINGO_CATCH(&ctl->logger());
 }
 
-extern "C" clingo_error_t clingo_control_solve_iter(clingo_control_t *ctl, clingo_symbolic_literal_span_t assumptions, clingo_solve_iter_t **it) {
+extern "C" clingo_error_t clingo_control_solve_iter(clingo_control_t *ctl, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_iter_t **it) {
     GRINGO_CLINGO_TRY {
-        *it = static_cast<clingo_solve_iter_t*>(ctl->solveIter(toAss(assumptions)));
+        *it = static_cast<clingo_solve_iter_t*>(ctl->solveIter(toAss(assumptions, n)));
     } GRINGO_CLINGO_CATCH(&ctl->logger());
 }
 
@@ -436,6 +584,11 @@ extern "C" clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_a
 
 extern "C" clingo_error_t clingo_control_symbolic_atoms(clingo_control_t *ctl, clingo_symbolic_atoms_t **ret) {
     GRINGO_CLINGO_TRY { *ret = &ctl->getDomain(); }
+    GRINGO_CLINGO_CATCH(&ctl->logger());
+}
+
+extern "C" clingo_error_t clingo_control_theory_atoms(clingo_control_t *ctl, clingo_theory_atoms_t **ret) {
+    GRINGO_CLINGO_TRY { *ret = const_cast<Gringo::TheoryData*>(&ctl->theory()); }
     GRINGO_CLINGO_CATCH(&ctl->logger());
 }
 
@@ -497,11 +650,6 @@ bool operator>=(Signature a, Signature b) { return !clingo_signature_lt(a, b); }
 
 // {{{2 symbol
 
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#endif
-
 Symbol::Symbol() {
     clingo_symbol_new_num(0, this);
 }
@@ -538,7 +686,7 @@ Symbol Id(char const *id, bool sign) {
 
 Symbol Fun(char const *name, SymSpan args, bool sign) {
     clingo_symbol_t sym;
-    handleError(clingo_symbol_new_fun(name, args, sign, &sym));
+    handleError(clingo_symbol_new_fun(name, args.begin(), args.size(), sign, &sym));
     return static_cast<Symbol&>(sym);
 }
 
@@ -567,9 +715,10 @@ bool Symbol::sign() const {
 }
 
 SymSpan Symbol::args() const {
-    SymSpan ret;
-    handleError(clingo_symbol_args(*this, &ret));
-    return ret;
+    clingo_symbol_t const *ret;
+    size_t n;
+    handleError(clingo_symbol_args(*this, &ret, &n));
+    return {static_cast<Symbol const *>(ret), n};
 }
 
 SymbolType Symbol::type() const {
@@ -612,8 +761,8 @@ Symbol SymbolicAtom::symbol() const {
     return ret;
 }
 
-lit_t SymbolicAtom::literal() const {
-    lit_t ret;
+clingo_lit_t SymbolicAtom::literal() const {
+    clingo_lit_t ret;
     clingo_symbolic_atoms_literal(atoms_, range_, &ret);
     return ret;
 }
@@ -630,29 +779,41 @@ bool SymbolicAtom::external() const {
     return ret;
 }
 
-SymbolicAtomRange &SymbolicAtomRange::operator++() {
-    clingo_symbolic_atom_range_t range;
+SymbolicAtomIter &SymbolicAtomIter::operator++() {
+    clingo_symbolic_atom_iter_t range;
     handleError(clingo_symbolic_atoms_next(atoms_, range_, &range));
     range_ = range;
     return *this;
 }
 
-SymbolicAtomRange::operator bool() const {
+SymbolicAtomIter::operator bool() const {
     bool ret;
     handleError(clingo_symbolic_atoms_valid(atoms_, range_, &ret));
     return ret;
 }
 
-SymbolicAtomRange SymbolicAtoms::range() {
-    return {atoms_, clingo_symbolic_atoms_iter(atoms_, nullptr) };
+SymbolicAtomIter SymbolicAtoms::begin() {
+    clingo_symbolic_atom_iter it;
+    handleError(clingo_symbolic_atoms_begin(atoms_, nullptr, &it));
+    return {atoms_,  it};
 }
 
-SymbolicAtomRange SymbolicAtoms::range(Signature sig) {
-    return {atoms_, clingo_symbolic_atoms_iter(atoms_, &sig) };
+SymbolicAtomIter SymbolicAtoms::begin(Signature sig) {
+    clingo_symbolic_atom_iter it;
+    handleError(clingo_symbolic_atoms_begin(atoms_, &sig, &it));
+    return {atoms_, it};
+}
+
+SymbolicAtomIter SymbolicAtoms::end() {
+    clingo_symbolic_atom_iter it;
+    handleError(clingo_symbolic_atoms_end(atoms_, &it));
+    return {atoms_, it};
 }
 
 SymbolicAtom SymbolicAtoms::lookup(Symbol atom) {
-    return {atoms_, clingo_symbolic_atoms_lookup(atoms_, atom) };
+    clingo_symbolic_atom_iter it;
+    handleError(clingo_symbolic_atoms_lookup(atoms_, atom, &it));
+    return {atoms_, it};
 }
 
 std::vector<Signature> SymbolicAtoms::signatures() {
@@ -661,12 +822,133 @@ std::vector<Signature> SymbolicAtoms::signatures() {
     Signature sig("", 0);
     std::vector<Signature> ret;
     ret.resize(n, sig);
-    clingo_symbolic_atoms_signatures(atoms_, ret.data(), &n);
+    handleError(clingo_symbolic_atoms_signatures(atoms_, ret.data(), &n));
     return ret;
 }
 
 size_t SymbolicAtoms::length() const {
     return clingo_symbolic_atoms_length(atoms_);
+}
+
+// {{{2 theory atoms
+
+TheoryTermType TheoryTerm::type() const {
+    clingo_theory_term_type_t ret;
+    handleError(clingo_theory_atoms_term_type(atoms_, id_, &ret));
+    return static_cast<TheoryTermType>(ret);
+}
+
+int TheoryTerm::number() const {
+    int ret;
+    handleError(clingo_theory_atoms_term_number(atoms_, id_, &ret));
+    return ret;
+}
+
+char const *TheoryTerm::name() const {
+    char const *ret;
+    handleError(clingo_theory_atoms_term_name(atoms_, id_, &ret));
+    return ret;
+}
+
+TheoryTermSpan TheoryTerm::arguments() const {
+    clingo_id_t const *ret;
+    size_t n;
+    handleError(clingo_theory_atoms_term_arguments(atoms_, id_, &ret, &n));
+    return {atoms_, ret, n};
+}
+
+std::ostream &operator<<(std::ostream &out, TheoryTerm term) {
+    out << term.to_string();
+    return out;
+}
+
+std::string TheoryTerm::to_string() const {
+    return ::to_string([this](char *ret, size_t *n) { return clingo_theory_atoms_term_to_string(atoms_, id_, ret, n); });
+}
+
+
+TheoryTermSpan TheoryElement::tuple() const {
+    clingo_id_t const *ret;
+    size_t n;
+    handleError(clingo_theory_atoms_element_tuple(atoms_, id_, &ret, &n));
+    return {atoms_, ret, n};
+}
+
+LitSpan TheoryElement::condition() const {
+    clingo_lit_t const *ret;
+    size_t n;
+    handleError(clingo_theory_atoms_element_condition(atoms_, id_, &ret, &n));
+    return {ret, n};
+}
+
+lit_t TheoryElement::condition_literal() const {
+    clingo_lit_t ret;
+    handleError(clingo_theory_atoms_element_condition_literal(atoms_, id_, &ret));
+    return ret;
+}
+
+std::string TheoryElement::to_string() const {
+    return ::to_string([this](char *ret, size_t *n) { return clingo_theory_atoms_element_to_string(atoms_, id_, ret, n); });
+}
+
+std::ostream &operator<<(std::ostream &out, TheoryElement term) {
+    out << term.to_string();
+    return out;
+}
+
+TheoryElementSpan TheoryAtom::elements() const {
+    clingo_id_t const *ret;
+    size_t n;
+    handleError(clingo_theory_atoms_atom_elements(atoms_, id_, &ret, &n));
+    return {atoms_, ret, n};
+}
+
+TheoryTerm TheoryAtom::term() const {
+    clingo_id_t ret;
+    handleError(clingo_theory_atoms_atom_term(atoms_, id_, &ret));
+    return {atoms_, ret};
+}
+
+bool TheoryAtom::has_guard() const {
+    bool ret;
+    handleError(clingo_theory_atoms_atom_has_guard(atoms_, id_, &ret));
+    return ret;
+}
+
+lit_t TheoryAtom::literal() const {
+    clingo_lit_t ret;
+    handleError(clingo_theory_atoms_atom_literal(atoms_, id_, &ret));
+    return ret;
+}
+
+std::pair<char const *, TheoryTerm> TheoryAtom::guard() const {
+    char const *name;
+    clingo_id_t term;
+    handleError(clingo_theory_atoms_atom_guard(atoms_, id_, &name, &term));
+    return {name, {atoms_, term}};
+}
+
+std::string TheoryAtom::to_string() const {
+    return ::to_string([this](char *ret, size_t *n) { return clingo_theory_atoms_atom_to_string(atoms_, id_, ret, n); });
+}
+
+std::ostream &operator<<(std::ostream &out, TheoryAtom term) {
+    out << term.to_string();
+    return out;
+}
+
+TheoryAtomIterator TheoryAtoms::begin() const {
+    return {atoms_, 0};
+}
+
+TheoryAtomIterator TheoryAtoms::end() const {
+    return {atoms_, clingo_id_t(size())};
+}
+
+size_t TheoryAtoms::size() const {
+    size_t ret;
+    handleError(clingo_theory_atoms_size(atoms_, &ret));
+    return ret;
 }
 
 // {{{2 model
@@ -686,10 +968,6 @@ SymVec Model::atoms(ShowType show) const {
     handleError(clingo_model_atoms(model_, show, ret.data(), &n));
     return ret;
 }
-
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
 
 // {{{2 solve iter
 
@@ -736,21 +1014,21 @@ Control::~Control() noexcept {
 }
 
 void Control::add(char const *name, StringSpan params, char const *part) {
-    handleError(clingo_control_add(ctl_, name, params, part));
+    handleError(clingo_control_add(ctl_, name, params.begin(), params.size(), part));
 }
 
 void Control::ground(PartSpan parts, GroundCallback cb) {
     using Data = std::pair<GroundCallback&, std::exception_ptr>;
     Data data(cb, nullptr);
-    handleError(clingo_control_ground(ctl_, parts,
-        [](clingo_location_t loc, char const *name, clingo_symbol_span_t args, void *data, clingo_symbol_span_callback_t *cb, void *cbdata) -> clingo_error_t {
+    handleError(clingo_control_ground(ctl_, parts.begin(), parts.size(),
+        [](clingo_location_t loc, char const *name, clingo_symbol_t const *args, size_t n, void *data, clingo_symbol_callback_t *cb, void *cbdata) -> clingo_error_t {
             auto &d = *static_cast<Data*>(data);
             CLINGO_CALLBACK_TRY {
                 if (d.first) {
                     struct Ret { clingo_error_t ret; };
                     try {
-                        d.first(loc, name, args, [cb, cbdata](SymSpan symret) {
-                            clingo_error_t ret = cb(symret, cbdata);
+                        d.first(loc, name, {static_cast<Symbol const *>(args), n}, [cb, cbdata](SymSpan symret) {
+                            clingo_error_t ret = cb(symret.begin(), symret.size(), cbdata);
                             if (ret != clingo_error_success) { throw Ret { ret }; }
                         });
                     }
@@ -767,17 +1045,17 @@ SolveResult Control::solve(ModelHandler mh, SymbolicLiteralSpan assumptions) {
     clingo_solve_result_t ret;
     using Data = std::pair<ModelHandler&, std::exception_ptr>;
     Data data(mh, nullptr);
-    clingo_control_solve(ctl_, [](clingo_model_t*m, void *data, bool *ret) -> clingo_error_t {
+    clingo_control_solve(ctl_, [](clingo_model_t *m, void *data, bool *ret) -> clingo_error_t {
         auto &d = *static_cast<Data*>(data);
         CLINGO_CALLBACK_TRY { *ret = d.first(m); }
         CLINGO_CALLBACK_CATCH(d.second);
-    }, &data, assumptions, &ret);
+    }, &data, assumptions.begin(), assumptions.size(), &ret);
     return ret;
 }
 
 SolveIter Control::solve_iter(SymbolicLiteralSpan assumptions) {
     clingo_solve_iter_t *it;
-    clingo_control_solve_iter(ctl_, assumptions, &it);
+    handleError(clingo_control_solve_iter(ctl_, assumptions.begin(), assumptions.size(), &it));
     return it;
 }
 
@@ -791,11 +1069,21 @@ void Control::release_external(Symbol atom) {
 
 SymbolicAtoms Control::symbolic_atoms() {
     clingo_symbolic_atoms_t *ret;
-    clingo_control_symbolic_atoms(ctl_, &ret);
+    handleError(clingo_control_symbolic_atoms(ctl_, &ret));
+    return ret;
+}
+
+TheoryAtoms Control::theory_atoms() {
+    clingo_theory_atoms_t *ret;
+    clingo_control_theory_atoms(ctl_, &ret);
     return ret;
 }
 
 // }}}2
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 // }}}1
 

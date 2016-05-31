@@ -28,30 +28,68 @@
 #include <ostream>
 #include <algorithm>
 #include <vector>
+#include <cassert>
+
+#include <iostream>
 
 namespace Clingo {
 
+// {{{1 basic types
+
+using lit_t = clingo_lit_t;
+using id_t = clingo_id_t;
+
 // {{{1 span
 
-template <class T, class C>
-class Span : public C {
+template <class T, class C, class I>
+class Span {
 public:
     Span()
-    : C{nullptr, 0} { }
-    Span(C const &span)
-    : C{span.first, span.size} { }
+    : Span(nullptr, nullptr, size_t(0)) { }
+    Span(C *atoms, clingo_id_t const *begin, clingo_id_t const *end)
+    : data_(atoms), begin_(begin), end_(end) { }
+    Span(C *atoms, clingo_id_t const *begin, size_t size)
+    : Span(atoms, begin, begin + size) { }
+    Span(C *atoms, std::initializer_list<T> c)
+    : Span(atoms, c.size() > 0 ? &*c.begin() : nullptr, c.size()) { }
+    template <class U>
+    Span(C *atoms, U const &c)
+    : Span(atoms, c.size() > 0 ? &*c.begin() : nullptr, c.size()) { }
+    I begin() const { return {data_, begin_}; }
+    I end() const { return {data_, end_}; }
+    size_t size() const { return end_ - begin_; }
+private:
+    C *data_;
+    clingo_id_t const *begin_;
+    clingo_id_t const *end_;
+};
+
+
+template <class T>
+class Span<T, void, void> {
+public:
+    Span()
+    : Span(nullptr, nullptr) { }
     Span(std::initializer_list<T> c)
-    : C{c.size() > 0 ? &*c.begin() : nullptr, c.size()} { }
+    : Span(c.size() > 0 ? &*c.begin() : nullptr, c.size()) { }
     template <class U>
     Span(U const &c)
-    : C{c.size() > 0 ? &*c.begin() : nullptr, c.size()} { }
-    Span(T const *begin, T const *end)
-    : C{begin, end - begin} { }
+    : Span(c.size() > 0 ? &*c.begin() : nullptr, c.size()) { }
+    template <class I>
+    Span(I const *begin, size_t size)
+    : Span(static_cast<T const *>(begin), size) { }
     Span(T const *begin, size_t size)
-    : C{begin, size} { }
-    T const *begin() const { return static_cast<T const *>(C::first); }
-    T const *end() const { return begin() + size(); }
-    size_t size() const { return C::size; }
+    : Span(begin, begin + size) { }
+    Span(T const *begin, T const *end)
+    : begin_(begin)
+    , end_(end) { }
+    Span(Span const &span) = default;
+    T const *begin() const { return begin_; }
+    T const *end() const { return end_; }
+    size_t size() const { return end_ - begin_; }
+private:
+    T const *begin_;
+    T const *end_;
 };
 
 template <class T, class U>
@@ -60,13 +98,13 @@ bool equal_range(T const &a, U const &b) {
     return a.size() == b.size() && std::equal(begin(a), end(a), begin(b));
 }
 
-template <class T, class C, class V>
-bool operator==(Span<T, C> span, V const &v) { return equal_range(span, v); }
-template <class T, class C, class V>
-bool operator==(V const &v, Span<T, C> span) { return equal_range(span, v); }
+template <class T, class C, class I, class V>
+bool operator==(Span<T, C, I> span, V const &v) { return equal_range(span, v); }
+template <class T, class C, class I, class V>
+bool operator==(V const &v, Span<T, C, I> span) { return equal_range(span, v); }
 
-template <class T, class C>
-std::ostream &operator<<(std::ostream &out, Span<T, C> span) {
+template <class T, class C, class I>
+std::ostream &operator<<(std::ostream &out, Span<T, C, I> span) {
     out << "{";
     bool comma = false;
     for (auto &x : span) {
@@ -124,7 +162,7 @@ enum class SymbolType : clingo_symbol_type_t {
 };
 
 class Symbol;
-using SymSpan = Span<Symbol, clingo_symbol_span_t>;
+using SymSpan = Span<Symbol, void, void>;
 using SymVec = std::vector<Symbol>;
 
 class Symbol : public clingo_symbol_t {
@@ -168,50 +206,229 @@ struct hash<Clingo::Symbol> {
 // {{{1 symbolic atoms
 
 class SymbolicAtom {
-    friend class SymbolicAtomRange;
+    friend class SymbolicAtomIter;
 public:
-    SymbolicAtom(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_range_t range)
+    SymbolicAtom(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iter_t range)
     : atoms_(atoms)
     , range_(range) { }
     Symbol symbol() const;
     lit_t literal() const;
     bool fact() const;
     bool external() const;
-    operator clingo_symbolic_atom_range_t() const { return range_; }
+    operator clingo_symbolic_atom_iter_t() const { return range_; }
 private:
     clingo_symbolic_atoms_t *atoms_;
-    clingo_symbolic_atom_range_t range_;
+    clingo_symbolic_atom_iter_t range_;
 };
 
-
-class SymbolicAtomRange : private SymbolicAtom {
+class SymbolicAtomIter : private SymbolicAtom, public std::iterator<std::input_iterator_tag, SymbolicAtom> {
 public:
-    SymbolicAtomRange(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_range_t range)
+    SymbolicAtomIter(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iter_t range)
     : SymbolicAtom{atoms, range} { }
     SymbolicAtom &operator*() { return *this; }
     SymbolicAtom *operator->() { return this; }
-    SymbolicAtomRange &operator++();
-    SymbolicAtomRange operator++ (int) {
+    SymbolicAtomIter &operator++();
+    SymbolicAtomIter operator++ (int) {
         auto range = range_;
         ++(*this);
         return {atoms_, range};
     }
+    bool operator==(SymbolicAtomIter it) const;
     operator bool() const;
-    operator clingo_symbolic_atom_range_t() const { return range_; }
+    operator clingo_symbolic_atom_iter_t() const { return range_; }
 };
 
 class SymbolicAtoms {
 public:
     SymbolicAtoms(clingo_symbolic_atoms_t *atoms)
     : atoms_(atoms) { }
-    SymbolicAtomRange range();
-    SymbolicAtomRange range(Signature sig);
+    SymbolicAtomIter begin();
+    SymbolicAtomIter begin(Signature sig);
+    SymbolicAtomIter end();
     SymbolicAtom lookup(Symbol atom);
     std::vector<Signature> signatures();
     size_t length() const;
     operator clingo_symbolic_atoms_t*() const { return atoms_; }
 private:
     clingo_symbolic_atoms_t *atoms_;
+};
+
+// {{{1 theory atoms
+
+enum class TheoryTermType : clingo_theory_term_type_t {
+    Tuple = clingo_theory_term_type_tuple,
+    List = clingo_theory_term_type_list,
+    Set = clingo_theory_term_type_set,
+    Function = clingo_theory_term_type_function,
+    Number = clingo_theory_term_type_number,
+    Symbol = clingo_theory_term_type_symbol
+};
+
+template <class T>
+class TheoryIterator : public std::iterator<std::bidirectional_iterator_tag, const T> {
+public:
+    TheoryIterator(clingo_theory_atoms_t *atoms, clingo_id_t const* id)
+    : elem_(atoms)
+    , id_(id) { }
+    TheoryIterator& operator++() { ++id_; return *this; }
+    TheoryIterator operator++(int) {
+        TheoryIterator t(*this);
+        ++*this;
+        return t;
+    }
+    TheoryIterator& operator--() { --id_; return *this; }
+    TheoryIterator operator--(int) {
+        TheoryIterator t(*this);
+        --*this;
+        return t;
+    }
+    T &operator*() { return elem_ = *id_; }
+    T *operator->() { return &**this; }
+    friend void swap(TheoryIterator& lhs, TheoryIterator& rhs) {
+        std::swap(lhs.data_, rhs.data_);
+        std::swap(lhs.elem_, rhs.elem_);
+    }
+    friend bool operator==(const TheoryIterator& lhs, const TheoryIterator& rhs) { return lhs.id_ == rhs.id_; }
+    friend bool operator!=(const TheoryIterator& lhs, const TheoryIterator& rhs) { return !(lhs == rhs); }
+private:
+    T                  elem_;
+    clingo_id_t const *id_;
+};
+
+class TheoryTerm;
+using TheoryTermIterator = TheoryIterator<TheoryTerm>;
+using TheoryTermSpan = Span<TheoryTerm, clingo_theory_atoms_t, TheoryTermIterator>;
+
+class TheoryTerm {
+    friend class TheoryIterator<TheoryTerm>;
+public:
+    TheoryTerm(clingo_theory_atoms_t *atoms, clingo_id_t id)
+    : atoms_(atoms)
+    , id_(id) { }
+    TheoryTermType type() const;
+    int number() const;
+    char const *name() const;
+    TheoryTermSpan arguments() const;
+    operator clingo_id_t() const { return id_; }
+    std::string to_string() const;
+private:
+    TheoryTerm(clingo_theory_atoms_t *atoms)
+    : TheoryTerm(atoms, 0) { }
+    TheoryTerm &operator=(clingo_id_t id) {
+        id_ = id;
+        return *this;
+    }
+private:
+    clingo_theory_atoms_t *atoms_;
+    clingo_id_t id_;
+};
+std::ostream &operator<<(std::ostream &out, TheoryTerm term);
+
+class TheoryElement;
+using TheoryElementIterator = TheoryIterator<TheoryElement>;
+using TheoryElementSpan = Span<TheoryElement, clingo_theory_atoms_t, TheoryElementIterator>;
+using LitSpan = Span<lit_t, void, void>;
+
+class TheoryElement {
+    friend class TheoryIterator<TheoryElement>;
+public:
+    TheoryElement(clingo_theory_atoms_t *atoms, clingo_id_t id)
+    : atoms_(atoms)
+    , id_(id) { }
+    TheoryTermSpan tuple() const;
+    LitSpan condition() const;
+    lit_t condition_literal() const;
+    std::string to_string() const;
+    operator clingo_id_t() const { return id_; }
+private:
+    TheoryElement(clingo_theory_atoms_t *atoms)
+    : TheoryElement(atoms, 0) { }
+    TheoryElement &operator=(clingo_id_t id) {
+        id_ = id;
+        return *this;
+    }
+private:
+    clingo_theory_atoms_t *atoms_;
+    clingo_id_t id_;
+};
+std::ostream &operator<<(std::ostream &out, TheoryElement term);
+
+class TheoryAtom {
+    friend class TheoryAtomIterator;
+public:
+    TheoryAtom(clingo_theory_atoms_t *atoms, clingo_id_t id)
+    : atoms_(atoms)
+    , id_(id) { }
+    TheoryElementSpan elements() const;
+    TheoryTerm term() const;
+    bool has_guard() const;
+    lit_t literal() const;
+    std::pair<char const *, TheoryTerm> guard() const;
+    std::string to_string() const;
+    operator clingo_id_t() const { return id_; }
+private:
+    TheoryAtom(clingo_theory_atoms_t *atoms)
+    : TheoryAtom(atoms, 0) { }
+    TheoryAtom &operator=(clingo_id_t id) {
+        id_ = id;
+        return *this;
+    }
+private:
+    clingo_theory_atoms_t *atoms_;
+    clingo_id_t id_;
+};
+std::ostream &operator<<(std::ostream &out, TheoryAtom term);
+
+class TheoryAtomIterator : private TheoryAtom, public std::iterator<TheoryAtom, std::random_access_iterator_tag> {
+public:
+    TheoryAtomIterator(clingo_theory_atoms_t *atoms, clingo_id_t id)
+    : TheoryAtom{atoms, id} { }
+    TheoryAtomIterator& operator++() { ++id_; return *this; }
+    TheoryAtomIterator operator++(int) {
+        auto t = *this;
+        ++*this;
+        return t;
+    }
+    TheoryAtomIterator& operator--() { --id_; return *this; }
+    TheoryAtomIterator operator--(int) {
+        auto t = *this;
+        --*this;
+        return t;
+    }
+    TheoryAtomIterator& operator+=(difference_type n) { id_ += n; return *this; }
+    TheoryAtomIterator& operator-=(difference_type n) { id_ -= n; return *this; }
+    friend TheoryAtomIterator operator+(TheoryAtomIterator it, difference_type n) { return {it.atoms(), clingo_id_t(it.id() + n)}; }
+    friend TheoryAtomIterator operator+(difference_type n, TheoryAtomIterator it) { return {it.atoms(), clingo_id_t(it.id() + n)}; }
+    friend TheoryAtomIterator operator-(TheoryAtomIterator it, difference_type n) { return {it.atoms(), clingo_id_t(it.id() - n)}; }
+    friend difference_type operator-(TheoryAtomIterator a, TheoryAtomIterator b)  { return b.id() - a.id(); }
+    TheoryAtom &operator*() { return *this; }
+    TheoryAtom *operator->() { return this; }
+    friend void swap(TheoryAtomIterator& lhs, TheoryAtomIterator& rhs) {
+        std::swap(lhs.atoms(), rhs.atoms());
+        std::swap(lhs.id(), rhs.id());
+    }
+    friend bool operator==(TheoryAtomIterator lhs, TheoryAtomIterator rhs) { return lhs.atoms() == rhs.atoms() && lhs.id() == rhs.id(); }
+    friend bool operator!=(TheoryAtomIterator lhs, TheoryAtomIterator rhs) { return !(lhs == rhs); }
+    friend bool operator< (TheoryAtomIterator lhs, TheoryAtomIterator rhs) { assert(lhs.atoms() == rhs.atoms()); return (lhs.id() + 1) < (rhs.id() + 1); }
+    friend bool operator> (TheoryAtomIterator lhs, TheoryAtomIterator rhs) { return rhs < lhs; }
+    friend bool operator<=(TheoryAtomIterator lhs, TheoryAtomIterator rhs) { return !(lhs > rhs); }
+    friend bool operator>=(TheoryAtomIterator lhs, TheoryAtomIterator rhs) { return !(lhs < rhs); }
+private:
+    clingo_theory_atoms_t *&atoms() { return atoms_; }
+    clingo_id_t &id() { return id_; }
+
+};
+
+class TheoryAtoms {
+public:
+    TheoryAtoms(clingo_theory_atoms_t *atoms)
+    : atoms_(atoms) { }
+    TheoryAtomIterator begin() const;
+    TheoryAtomIterator end() const;
+    size_t size() const;
+    operator clingo_theory_atoms_t*() const { return atoms_; }
+private:
+    clingo_theory_atoms_t *atoms_;
 };
 
 // {{{1 symbolic literal
@@ -224,7 +441,7 @@ public:
     bool sign() const { return clingo_symbolic_literal_t::sign; }
 };
 
-using SymbolicLiteralSpan = Span<SymbolicLiteral, clingo_symbolic_literal_span_t>;
+using SymbolicLiteralSpan = Span<SymbolicLiteral, void, void>;
 
 inline std::ostream &operator<<(std::ostream &out, SymbolicLiteral sym) {
     if (sym.sign()) { out << "~"; }
@@ -350,15 +567,15 @@ inline std::ostream &operator<<(std::ostream &out, Location loc) {
 }
 
 class AST;
-using ASTSpan = Span<AST, clingo_ast_span_t>;
+using ASTSpan = Span<AST, void, void>;
 
 class AST : public clingo_ast_t {
 public:
     AST(Location location, Symbol value, ASTSpan children)
-    : clingo_ast_t{location, value, children} { }
+    : clingo_ast_t{location, value, children.begin(), children.size()} { }
     Location location() const { return clingo_ast_t::location; }
     Symbol value() const { return clingo_ast_t::value; }
-    ASTSpan children() const { return clingo_ast_t::children; }
+    ASTSpan children() const { return {clingo_ast_t::children, clingo_ast_t::n}; }
 };
 using ASTCallback = std::function<void (AST ast)>;
 using AddASTCallback = std::function<void (ASTCallback)>;
@@ -390,14 +607,14 @@ inline std::ostream &operator<<(std::ostream &out, TruthValue tv) {
 class Part : public clingo_part_t {
 public:
     Part(char const *name, SymSpan params)
-    : clingo_part_t{name, params} { }
+    : clingo_part_t{name, params.begin(), params.size()} { }
     char const *name() const { return clingo_part_t::name; }
-    SymSpan params() const { return clingo_part_t::params; }
+    SymSpan params() const { return {clingo_part_t::params, clingo_part_t::n}; }
 };
 using SymSpanCallback = std::function<void (SymSpan)>;
-using PartSpan = Span<Part, clingo_part_span_t>;
+using PartSpan = Span<Part, void, void>;
 using GroundCallback = std::function<void (Location loc, char const *, SymSpan, SymSpanCallback)>;
-using StringSpan = Span<char const *, clingo_string_span_t>;
+using StringSpan = Span<char const *, void, void>;
 using ModelHandler = std::function<bool (Model)>;
 
 class Control {
@@ -413,6 +630,7 @@ public:
     void assign_external(Symbol atom, TruthValue value);
     void release_external(Symbol atom);
     SymbolicAtoms symbolic_atoms();
+    TheoryAtoms theory_atoms();
     operator clingo_control_t*() const;
 private:
     clingo_control_t *ctl_;

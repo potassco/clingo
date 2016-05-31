@@ -1485,13 +1485,13 @@ luaL_Reg const Configuration::meta[] = {
 
 struct SymbolicAtom {
     Gringo::SymbolicAtoms &atoms;
-    Gringo::SymbolicAtomRange range;
+    Gringo::SymbolicAtomIter range;
     static luaL_Reg const meta[];
-    SymbolicAtom(Gringo::SymbolicAtoms &atoms, Gringo::SymbolicAtomRange range)
+    SymbolicAtom(Gringo::SymbolicAtoms &atoms, Gringo::SymbolicAtomIter range)
     : atoms(atoms)
     , range(range) { }
     static constexpr const char *typeName = "clingo.SymbolicAtom";
-    static int new_(lua_State *L, Gringo::SymbolicAtoms &atoms, Gringo::SymbolicAtomRange range) {
+    static int new_(lua_State *L, Gringo::SymbolicAtoms &atoms, Gringo::SymbolicAtomIter range) {
         auto self = (SymbolicAtom*)lua_newuserdata(L, sizeof(SymbolicAtom));
         new (self) SymbolicAtom(atoms, range);
         luaL_getmetatable(L, typeName);
@@ -1585,7 +1585,7 @@ struct SymbolicAtoms {
 
     static int iter(lua_State *L) {
         auto &self = get_self(L);
-        auto range = protect(L, [&self]() { return self.atoms.iter(); });
+        auto range = protect(L, [&self]() { return self.atoms.begin(); });
         SymbolicAtom::new_(L, self.atoms, range);                         // +1
         lua_pushcclosure(L, symbolicAtomIter, 1);                         // +0
         return 1;
@@ -1604,7 +1604,7 @@ struct SymbolicAtoms {
         auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
         int arity = luaL_checkinteger(L, 3);
-        auto range = protect(L, [&self, name, arity]() { return self.atoms.iter(Sig(name, arity, false)); });
+        auto range = protect(L, [&self, name, arity]() { return self.atoms.begin(Sig(name, arity, false)); });
         SymbolicAtom::new_(L, self.atoms, range);  // +1
         lua_pushcclosure(L, symbolicAtomIter, 1);  // +0
         return 1;
