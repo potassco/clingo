@@ -266,7 +266,6 @@ template <class T>
 Object cppToPy(std::vector<T> const &vals);
 template <class T>
 Object cppToPy(Potassco::Span<T> const &span);
-Object cppToPy(clingo_ast_span_t vals);
 
 Object cppToPy(char const *n) { return PyString_FromString(n); }
 Object cppToPy(std::string const &s) { return cppToPy(s.c_str()); }
@@ -1758,14 +1757,14 @@ PySequenceMethods Configuration::tp_as_sequence[] = {{
 
 struct SymbolicAtom : public ObjectBase<SymbolicAtom> {
     Gringo::SymbolicAtoms *atoms;
-    Gringo::SymbolicAtomRange range;
+    Gringo::SymbolicAtomIter range;
 
     static constexpr char const *tp_type = "SymbolicAtom";
     static constexpr char const *tp_name = "clingo.SymbolicAtom";
     static constexpr char const *tp_doc = "Captures a symbolic atom and provides properties to inspect its state.";
     static PyGetSetDef tp_getset[];
 
-    static PyObject *new_(Gringo::SymbolicAtoms &atoms, Gringo::SymbolicAtomRange range) {
+    static PyObject *new_(Gringo::SymbolicAtoms &atoms, Gringo::SymbolicAtomIter range) {
         Object ret(type.tp_alloc(&type, 0));
         SymbolicAtom *self = reinterpret_cast<SymbolicAtom*>(ret.get());
         self->atoms = &atoms;
@@ -1806,13 +1805,13 @@ PyGetSetDef SymbolicAtom::tp_getset[] = {
 
 struct SymbolicAtomIter : ObjectBase<SymbolicAtomIter> {
     SymbolicAtoms *atoms;
-    SymbolicAtomRange range;
+    Gringo::SymbolicAtomIter range;
 
     static constexpr char const *tp_type = "SymbolicAtomIter";
     static constexpr char const *tp_name = "clingo.SymbolicAtomIter";
     static constexpr char const *tp_doc = "Class to iterate over symbolic atoms.";
 
-    static PyObject *new_(Gringo::SymbolicAtoms &atoms, Gringo::SymbolicAtomRange range) {
+    static PyObject *new_(Gringo::SymbolicAtoms &atoms, Gringo::SymbolicAtomIter range) {
         Object ret(type.tp_alloc(&type, 0));
         SymbolicAtomIter *self = reinterpret_cast<SymbolicAtomIter*>(ret.get());
         self->atoms = &atoms;
@@ -1825,7 +1824,7 @@ struct SymbolicAtomIter : ObjectBase<SymbolicAtomIter> {
     }
     static PyObject* tp_iternext(SymbolicAtomIter *self) {
         PY_TRY
-            Gringo::SymbolicAtomRange current = self->range;
+            Gringo::SymbolicAtomIter current = self->range;
             if (self->atoms->valid(current)) {
                 self->range = self->atoms->next(current);
                 return SymbolicAtom::new_(*self->atoms, current);
@@ -1909,7 +1908,7 @@ signatures: [('p', 1), ('q', 1)])";
 
     static PyObject* tp_iter(SymbolicAtoms *self) {
         PY_TRY
-            return SymbolicAtomIter::new_(*self->atoms, self->atoms->iter());
+            return SymbolicAtomIter::new_(*self->atoms, self->atoms->begin());
         PY_CATCH(nullptr);
     }
 
@@ -1917,7 +1916,7 @@ signatures: [('p', 1), ('q', 1)])";
         PY_TRY
             Gringo::Symbol atom;
             pyToCpp(key, atom);
-            Gringo::SymbolicAtomRange range = self->atoms->lookup(atom);
+            Gringo::SymbolicAtomIter range = self->atoms->lookup(atom);
             if (self->atoms->valid(range)) { return SymbolicAtom::new_(*self->atoms, range); }
             else                           { Py_RETURN_NONE; }
         PY_CATCH(nullptr);
@@ -1928,7 +1927,7 @@ signatures: [('p', 1), ('q', 1)])";
             char const *name;
             int arity;
             if (!PyArg_ParseTuple(pyargs, "si", &name, &arity)) { return nullptr; }
-            Gringo::SymbolicAtomRange range = self->atoms->iter(Sig(name, arity, false));
+            Gringo::SymbolicAtomIter range = self->atoms->begin(Sig(name, arity, false));
             return SymbolicAtomIter::new_(*self->atoms, range);
         PY_CATCH(nullptr);
     }
@@ -3373,10 +3372,6 @@ Object cppRngToPy(T begin, T end) {
 template <class T>
 Object cppToPy(std::vector<T> const &vals) {
     return cppRngToPy(vals.begin(), vals.end());
-}
-
-Object cppToPy(clingo_ast_span_t vals) {
-    return cppRngToPy(vals.first, vals.first + vals.size);
 }
 
 template <class T>

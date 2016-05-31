@@ -174,13 +174,12 @@ TEST_CASE("c-interface", "[clingo]") {
                 REQUIRE(!atoms.lookup(p2).fact()); REQUIRE(!atoms.lookup(p2).external());
                 REQUIRE(!atoms.lookup(p3).fact()); REQUIRE( atoms.lookup(p3).external());
                 REQUIRE(atoms.length() == 4);
-                // TODO: this should also work with a foreach loop!!!
                 SymVec symbols;
-                for (auto it = atoms.range(); it; ++it) { symbols.emplace_back(it->symbol()); }
+                for (auto atom : atoms) { symbols.emplace_back(atom.symbol()); }
                 std::sort(symbols.begin(), symbols.end());
                 REQUIRE(symbols == SymVec({q, p1, p2, p3}));
                 symbols.clear();
-                for (auto it = atoms.range(Signature("p", 1)); it; ++it) { symbols.emplace_back(it->symbol()); }
+                for (auto it = atoms.begin(Signature("p", 1)); it; ++it) { symbols.emplace_back(it->symbol()); }
                 std::sort(symbols.begin(), symbols.end());
                 REQUIRE(symbols == SymVec({p1, p2, p3}));
             }

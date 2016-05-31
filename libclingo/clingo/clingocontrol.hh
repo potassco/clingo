@@ -217,17 +217,19 @@ public:
 
     // {{{2 SymbolicAtoms interface
 
-    Gringo::SymbolicAtomRange iter(Gringo::Sig sig) const override;
-    Gringo::SymbolicAtomRange iter() const override;
-    Gringo::SymbolicAtomRange lookup(Gringo::Symbol atom) const override;
+    Gringo::SymbolicAtomIter begin(Gringo::Sig sig) const override;
+    Gringo::SymbolicAtomIter begin() const override;
+    Gringo::SymbolicAtomIter end() const override;
+    bool eq(Gringo::SymbolicAtomIter it, Gringo::SymbolicAtomIter jt) const override;
+    Gringo::SymbolicAtomIter lookup(Gringo::Symbol atom) const override;
     size_t length() const override;
     std::vector<Gringo::Sig> signatures() const override;
-    Gringo::Symbol atom(Gringo::SymbolicAtomRange it) const override;
-    Potassco::Lit_t literal(Gringo::SymbolicAtomRange it) const override;
-    bool fact(Gringo::SymbolicAtomRange it) const override;
-    bool external(Gringo::SymbolicAtomRange it) const override;
-    Gringo::SymbolicAtomRange next(Gringo::SymbolicAtomRange it) override;
-    bool valid(Gringo::SymbolicAtomRange it) const override;
+    Gringo::Symbol atom(Gringo::SymbolicAtomIter it) const override;
+    Potassco::Lit_t literal(Gringo::SymbolicAtomIter it) const override;
+    bool fact(Gringo::SymbolicAtomIter it) const override;
+    bool external(Gringo::SymbolicAtomIter it) const override;
+    Gringo::SymbolicAtomIter next(Gringo::SymbolicAtomIter it) override;
+    bool valid(Gringo::SymbolicAtomIter it) const override;
     ClingoControl &owner() const override { return *const_cast<ClingoControl*>(this); };
 
     // {{{2 ConfigProxy interface

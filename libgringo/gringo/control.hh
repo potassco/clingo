@@ -132,20 +132,22 @@ struct ConfigProxy {
 
 using Control = clingo_control;
 using SymbolicAtoms = clingo_symbolic_atoms;
-using SymbolicAtomRange = clingo_symbolic_atom_range_t;
+using SymbolicAtomIter = clingo_symbolic_atom_iter_t;
 
 } // namespace Gringo
 
 struct clingo_symbolic_atoms {
-    virtual Gringo::Symbol atom(Gringo::SymbolicAtomRange it) const = 0;
-    virtual Potassco::Lit_t literal(Gringo::SymbolicAtomRange it) const = 0;
-    virtual bool fact(Gringo::SymbolicAtomRange it) const = 0;
-    virtual bool external(Gringo::SymbolicAtomRange it) const = 0;
-    virtual Gringo::SymbolicAtomRange next(Gringo::SymbolicAtomRange it) = 0;
-    virtual bool valid(Gringo::SymbolicAtomRange it) const = 0;
-    virtual Gringo::SymbolicAtomRange iter(Gringo::Sig sig) const = 0;
-    virtual Gringo::SymbolicAtomRange iter() const = 0;
-    virtual Gringo::SymbolicAtomRange lookup(Gringo::Symbol atom) const = 0;
+    virtual Gringo::Symbol atom(Gringo::SymbolicAtomIter it) const = 0;
+    virtual Potassco::Lit_t literal(Gringo::SymbolicAtomIter it) const = 0;
+    virtual bool fact(Gringo::SymbolicAtomIter it) const = 0;
+    virtual bool external(Gringo::SymbolicAtomIter it) const = 0;
+    virtual Gringo::SymbolicAtomIter next(Gringo::SymbolicAtomIter it) = 0;
+    virtual bool valid(Gringo::SymbolicAtomIter it) const = 0;
+    virtual Gringo::SymbolicAtomIter begin(Gringo::Sig sig) const = 0;
+    virtual Gringo::SymbolicAtomIter begin() const = 0;
+    virtual Gringo::SymbolicAtomIter lookup(Gringo::Symbol atom) const = 0;
+    virtual bool eq(Gringo::SymbolicAtomIter it, Gringo::SymbolicAtomIter jt) const = 0;
+    virtual Gringo::SymbolicAtomIter end() const = 0;
     virtual std::vector<Gringo::Sig> signatures() const = 0;
     virtual Gringo::Control &owner() const = 0;
     virtual size_t length() const = 0;
