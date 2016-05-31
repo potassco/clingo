@@ -130,21 +130,29 @@ struct ConfigProxy {
 
 // {{{1 declaration of SymbolicAtoms
 
+using Control = clingo_control;
+using SymbolicAtoms = clingo_symbolic_atoms;
 using SymbolicAtomRange = clingo_symbolic_atom_range_t;
-struct SymbolicAtoms {
-    virtual Symbol atom(SymbolicAtomRange it) const = 0;
-    virtual Potassco::Lit_t literal(SymbolicAtomRange it) const = 0;
-    virtual bool fact(SymbolicAtomRange it) const = 0;
-    virtual bool external(SymbolicAtomRange it) const = 0;
-    virtual SymbolicAtomRange next(SymbolicAtomRange it) = 0;
-    virtual bool valid(SymbolicAtomRange it) const = 0;
-    virtual SymbolicAtomRange iter(Sig sig) const = 0;
-    virtual SymbolicAtomRange iter() const = 0;
-    virtual SymbolicAtomRange lookup(Symbol atom) const = 0;
-    virtual std::vector<Sig> signatures() const = 0;
+
+} // namespace Gringo
+
+struct clingo_symbolic_atoms {
+    virtual Gringo::Symbol atom(Gringo::SymbolicAtomRange it) const = 0;
+    virtual Potassco::Lit_t literal(Gringo::SymbolicAtomRange it) const = 0;
+    virtual bool fact(Gringo::SymbolicAtomRange it) const = 0;
+    virtual bool external(Gringo::SymbolicAtomRange it) const = 0;
+    virtual Gringo::SymbolicAtomRange next(Gringo::SymbolicAtomRange it) = 0;
+    virtual bool valid(Gringo::SymbolicAtomRange it) const = 0;
+    virtual Gringo::SymbolicAtomRange iter(Gringo::Sig sig) const = 0;
+    virtual Gringo::SymbolicAtomRange iter() const = 0;
+    virtual Gringo::SymbolicAtomRange lookup(Gringo::Symbol atom) const = 0;
+    virtual std::vector<Gringo::Sig> signatures() const = 0;
+    virtual Gringo::Control &owner() const = 0;
     virtual size_t length() const = 0;
-    virtual ~SymbolicAtoms() noexcept = default;
+    virtual ~clingo_symbolic_atoms() noexcept = default;
 };
+
+namespace Gringo {
 
 struct TheoryData {
     enum class TermType { Tuple, List, Set, Function, Number, Symbol };

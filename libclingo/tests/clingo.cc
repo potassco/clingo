@@ -163,6 +163,27 @@ TEST_CASE("c-interface", "[clingo]") {
                 REQUIRE(models == (ModelVec{{Id("a")}, {Id("a"), Id("c")}}));
                 REQUIRE(messages.empty());
             }
+            SECTION("symbolic atoms") {
+                ctl.add("base", {}, "p(1). {p(2)}. #external p(3). q.");
+                ctl.ground({{"base", {}}});
+                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(messages.empty());
+                auto atoms = ctl.symbolic_atoms();
+                Symbol p1 = Fun("p", {Num(1)}), p2 = Fun("p", {Num(2)}), p3 = Fun("p", {Num(3)}), q = Id("q");
+                REQUIRE( atoms.lookup(p1).fact()); REQUIRE(!atoms.lookup(p1).external());
+                REQUIRE(!atoms.lookup(p2).fact()); REQUIRE(!atoms.lookup(p2).external());
+                REQUIRE(!atoms.lookup(p3).fact()); REQUIRE( atoms.lookup(p3).external());
+                REQUIRE(atoms.length() == 4);
+                // TODO: this should also work with a foreach loop!!!
+                SymVec symbols;
+                for (auto it = atoms.range(); it; ++it) { symbols.emplace_back(it->symbol()); }
+                std::sort(symbols.begin(), symbols.end());
+                REQUIRE(symbols == SymVec({q, p1, p2, p3}));
+                symbols.clear();
+                for (auto it = atoms.range(Signature("p", 1)); it; ++it) { symbols.emplace_back(it->symbol()); }
+                std::sort(symbols.begin(), symbols.end());
+                REQUIRE(symbols == SymVec({p1, p2, p3}));
+            }
             SECTION("incremental") {
                 ctl.add("base", {}, "#external query(0).");
                 ctl.add("acid", {"k"}, "#external query(k).");

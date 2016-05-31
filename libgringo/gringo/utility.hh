@@ -314,6 +314,26 @@ public:
         setg(begin, begin, begin + size);
         setp(begin, begin + size);
     }
+    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override {
+        if (dir == std::ios_base::cur)      { off += offset(which); }
+        else if (dir == std::ios_base::end) { off = size() - off; }
+        return seekpos(off, which);
+    }
+    pos_type seekpos(pos_type off, std::ios_base::openmode which) override {
+        if (off >= 0 && off <= size()) {
+            if (which & std::ios_base::in) { gbump(off - offset(which)); }
+            else                           { pbump(off - offset(which)); }
+            return off;
+        }
+        return std::streambuf::seekpos(off, which);
+    }
+private:
+    off_type size() const { return egptr() - eback(); }
+    off_type offset(std::ios_base::openmode which) const {
+        return (which & std::ios_base::out)
+            ? pptr() - pbase()
+            : gptr() - eback();
+    }
 };
 
 class ArrayStream : public std::iostream {

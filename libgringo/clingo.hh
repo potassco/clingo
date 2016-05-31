@@ -165,6 +165,55 @@ struct hash<Clingo::Symbol> {
 
 } namespace Clingo {
 
+// {{{1 symbolic atoms
+
+class SymbolicAtom {
+    friend class SymbolicAtomRange;
+public:
+    SymbolicAtom(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_range_t range)
+    : atoms_(atoms)
+    , range_(range) { }
+    Symbol symbol() const;
+    lit_t literal() const;
+    bool fact() const;
+    bool external() const;
+    operator clingo_symbolic_atom_range_t() const { return range_; }
+private:
+    clingo_symbolic_atoms_t *atoms_;
+    clingo_symbolic_atom_range_t range_;
+};
+
+
+class SymbolicAtomRange : private SymbolicAtom {
+public:
+    SymbolicAtomRange(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_range_t range)
+    : SymbolicAtom{atoms, range} { }
+    SymbolicAtom &operator*() { return *this; }
+    SymbolicAtom *operator->() { return this; }
+    SymbolicAtomRange &operator++();
+    SymbolicAtomRange operator++ (int) {
+        auto range = range_;
+        ++(*this);
+        return {atoms_, range};
+    }
+    operator bool() const;
+    operator clingo_symbolic_atom_range_t() const { return range_; }
+};
+
+class SymbolicAtoms {
+public:
+    SymbolicAtoms(clingo_symbolic_atoms_t *atoms)
+    : atoms_(atoms) { }
+    SymbolicAtomRange range();
+    SymbolicAtomRange range(Signature sig);
+    SymbolicAtom lookup(Symbol atom);
+    std::vector<Signature> signatures();
+    size_t length() const;
+    operator clingo_symbolic_atoms_t*() const { return atoms_; }
+private:
+    clingo_symbolic_atoms_t *atoms_;
+};
+
 // {{{1 symbolic literal
 
 class SymbolicLiteral : public clingo_symbolic_literal_t{
@@ -359,11 +408,11 @@ public:
     void add(char const *name, StringSpan params, char const *part);
     void add(AddASTCallback cb);
     void ground(PartSpan parts, GroundCallback cb = nullptr);
-    // TODO: consider changing order of arguments
     SolveResult solve(ModelHandler mh = nullptr, SymbolicLiteralSpan assumptions = {});
     SolveIter solve_iter(SymbolicLiteralSpan assumptions = {});
     void assign_external(Symbol atom, TruthValue value);
     void release_external(Symbol atom);
+    SymbolicAtoms symbolic_atoms();
     operator clingo_control_t*() const;
 private:
     clingo_control_t *ctl_;

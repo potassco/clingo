@@ -228,6 +228,7 @@ public:
     bool external(Gringo::SymbolicAtomRange it) const override;
     Gringo::SymbolicAtomRange next(Gringo::SymbolicAtomRange it) override;
     bool valid(Gringo::SymbolicAtomRange it) const override;
+    ClingoControl &owner() const override { return *const_cast<ClingoControl*>(this); };
 
     // {{{2 ConfigProxy interface
 

@@ -227,7 +227,7 @@ typedef clingo_error_t clingo_add_ast_callback_t (void *, clingo_ast_callback_t 
 typedef int32_t lit_t;
 typedef uint32_t id_t;
 
-// {{{2 domain
+// {{{2 symbolic atoms
 
 typedef struct clingo_symbolic_atoms clingo_symbolic_atoms_t;
 typedef struct clingo_symbolic_atom_range {
@@ -352,6 +352,7 @@ clingo_error_t clingo_control_release_external(clingo_control_t *ctl, clingo_sym
 clingo_error_t clingo_control_parse(clingo_control_t *ctl, char const *program, clingo_ast_callback_t *cb, void *data);
 clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_add_ast_callback_t *cb, void *data);
 clingo_error_t clingo_control_register_propagator(clingo_control_t *ctl, clingo_propagator_t propagator);
+clingo_error_t clingo_control_symbolic_atoms(clingo_control_t *ctl, clingo_symbolic_atoms_t **ret);
 
 // }}}1
 

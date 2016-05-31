@@ -187,6 +187,64 @@ extern "C" size_t clingo_symbol_hash(clingo_symbol_t sym) {
     return static_cast<Symbol&>(sym).hash();
 }
 
+// {{{2 symbolic atoms
+
+extern "C" clingo_symbolic_atom_range_t clingo_symbolic_atoms_iter(clingo_symbolic_atoms_t *dom, clingo_signature_t *sig) {
+    return sig ? dom->iter(static_cast<Sig&>(*sig)) : dom->iter();
+}
+
+extern "C" clingo_symbolic_atom_range_t clingo_symbolic_atoms_lookup(clingo_symbolic_atoms_t *dom, clingo_symbol_t atom) {
+    return dom->lookup(static_cast<Symbol&>(atom));
+}
+
+extern "C" clingo_error_t clingo_symbolic_atoms_signatures(clingo_symbolic_atoms_t *dom, clingo_signature_t *ret, size_t *n) {
+    GRINGO_CLINGO_TRY {
+        // TODO: implement matching C++ functions ...
+        auto sigs = dom->signatures();
+        if (!n) { throw std::invalid_argument("size must be non-null"); }
+        if (!ret) { *n = sigs.size(); }
+        else {
+            if (*n < sigs.size()) { throw std::length_error("not enough space"); }
+            for (auto &sig : sigs) { *ret++ = sig; }
+        }
+    }
+    GRINGO_CLINGO_CATCH(&dom->owner().logger());
+}
+
+extern "C" size_t clingo_symbolic_atoms_length(clingo_symbolic_atoms_t *dom) {
+    return dom->length();
+}
+
+extern "C" clingo_error_t clingo_symbolic_atoms_atom(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, clingo_symbol_t *sym) {
+    GRINGO_CLINGO_TRY { *sym = dom->atom(atm); }
+    GRINGO_CLINGO_CATCH(&dom->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_symbolic_atoms_literal(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, lit_t *lit) {
+    GRINGO_CLINGO_TRY { *lit = dom->literal(atm); }
+    GRINGO_CLINGO_CATCH(&dom->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_symbolic_atoms_fact(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, bool *fact) {
+    GRINGO_CLINGO_TRY { *fact = dom->fact(atm); }
+    GRINGO_CLINGO_CATCH(&dom->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_symbolic_atoms_external(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, bool *external) {
+    GRINGO_CLINGO_TRY { *external = dom->external(atm); }
+    GRINGO_CLINGO_CATCH(&dom->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_symbolic_atoms_next(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, clingo_symbolic_atom_range_t *next) {
+    GRINGO_CLINGO_TRY { *next = dom->next(atm); }
+    GRINGO_CLINGO_CATCH(&dom->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_symbolic_atoms_valid(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_range_t atm, bool *valid) {
+    GRINGO_CLINGO_TRY { *valid = dom->valid(atm); }
+    GRINGO_CLINGO_CATCH(&dom->owner().logger());
+}
+
 // {{{2 model
 
 extern "C" bool clingo_model_contains(clingo_model_t *m, clingo_symbol_t atom) {
@@ -376,6 +434,11 @@ extern "C" clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_a
     } GRINGO_CLINGO_CATCH(&ctl->logger());
 }
 
+extern "C" clingo_error_t clingo_control_symbolic_atoms(clingo_control_t *ctl, clingo_symbolic_atoms_t **ret) {
+    GRINGO_CLINGO_TRY { *ret = &ctl->getDomain(); }
+    GRINGO_CLINGO_CATCH(&ctl->logger());
+}
+
 // }}}2
 
 namespace Clingo {
@@ -541,6 +604,71 @@ bool operator<=(Symbol a, Symbol b) { return !clingo_symbol_lt(b, a); }
 bool operator> (Symbol a, Symbol b) { return  clingo_symbol_lt(b, a); }
 bool operator>=(Symbol a, Symbol b) { return !clingo_symbol_lt(a, b); }
 
+// {{{2 symbolic atoms
+
+Symbol SymbolicAtom::symbol() const {
+    Symbol ret;
+    clingo_symbolic_atoms_atom(atoms_, range_, &ret);
+    return ret;
+}
+
+lit_t SymbolicAtom::literal() const {
+    lit_t ret;
+    clingo_symbolic_atoms_literal(atoms_, range_, &ret);
+    return ret;
+}
+
+bool SymbolicAtom::fact() const {
+    bool ret;
+    clingo_symbolic_atoms_fact(atoms_, range_, &ret);
+    return ret;
+}
+
+bool SymbolicAtom::external() const {
+    bool ret;
+    clingo_symbolic_atoms_external(atoms_, range_, &ret);
+    return ret;
+}
+
+SymbolicAtomRange &SymbolicAtomRange::operator++() {
+    clingo_symbolic_atom_range_t range;
+    handleError(clingo_symbolic_atoms_next(atoms_, range_, &range));
+    range_ = range;
+    return *this;
+}
+
+SymbolicAtomRange::operator bool() const {
+    bool ret;
+    handleError(clingo_symbolic_atoms_valid(atoms_, range_, &ret));
+    return ret;
+}
+
+SymbolicAtomRange SymbolicAtoms::range() {
+    return {atoms_, clingo_symbolic_atoms_iter(atoms_, nullptr) };
+}
+
+SymbolicAtomRange SymbolicAtoms::range(Signature sig) {
+    return {atoms_, clingo_symbolic_atoms_iter(atoms_, &sig) };
+}
+
+SymbolicAtom SymbolicAtoms::lookup(Symbol atom) {
+    return {atoms_, clingo_symbolic_atoms_lookup(atoms_, atom) };
+}
+
+std::vector<Signature> SymbolicAtoms::signatures() {
+    size_t n;
+    clingo_symbolic_atoms_signatures(atoms_, nullptr, &n);
+    Signature sig("", 0);
+    std::vector<Signature> ret;
+    ret.resize(n, sig);
+    clingo_symbolic_atoms_signatures(atoms_, ret.data(), &n);
+    return ret;
+}
+
+size_t SymbolicAtoms::length() const {
+    return clingo_symbolic_atoms_length(atoms_);
+}
+
 // {{{2 model
 
 Model::Model(clingo_model_t *model)
@@ -661,6 +789,11 @@ void Control::release_external(Symbol atom) {
     handleError(clingo_control_release_external(ctl_, atom));
 }
 
+SymbolicAtoms Control::symbolic_atoms() {
+    clingo_symbolic_atoms_t *ret;
+    clingo_control_symbolic_atoms(ctl_, &ret);
+    return ret;
+}
 
 // }}}2
 
