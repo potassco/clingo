@@ -83,7 +83,9 @@ public:
     , end_(end) { }
     IteratorType begin() const { return I::operator()(begin_); }
     IteratorType end() const { return I::operator()(end_); }
-    ReferenceType operator[](size_t offset) { return *(begin() + offset); }
+    ReferenceType operator[](size_t offset) const { return *(begin() + offset); }
+    ReferenceType front() const { return *begin(); }
+    ReferenceType back() const { return *I::operator()(end_-1); }
     size_t size() const { return end_ - begin_; }
 private:
     T const *begin_;
