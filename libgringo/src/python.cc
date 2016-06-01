@@ -2468,7 +2468,6 @@ struct ControlWrap : ObjectBase<ControlWrap> {
     Gringo::Control *ctl;
     Gringo::Control *freeCtl;
     PyObject        *stats;
-    Propagators      propagators_;
 
     static PyGetSetDef tp_getset[];
     static PyMethodDef tp_methods[];
@@ -2507,14 +2506,12 @@ active; you must not call any member function during search.)";
         self->ctl     = nullptr;
         self->freeCtl = nullptr;
         self->stats   = nullptr;
-        new (&self->propagators_) Propagators();
         return reinterpret_cast<PyObject*>(self);
     }
     static void tp_dealloc(ControlWrap *self) {
         if (self->freeCtl) { delete self->freeCtl; }
         self->ctl = self->freeCtl = nullptr;
         Py_XDECREF(self->stats);
-        self->propagators_.~Propagators();
         type.tp_free(self);
     }
     static int tp_init(ControlWrap *self, PyObject *pyargs, PyObject *pykwds) {
@@ -2769,8 +2766,7 @@ active; you must not call any member function during search.)";
     }
     static PyObject *registerPropagator(ControlWrap *self, PyObject *tp) {
         PY_TRY
-            self->propagators_.emplace_back(gringo_make_unique<Propagator>(tp));
-            self->ctl->registerPropagator(*self->propagators_.back(), false);
+            self->ctl->registerPropagator(gringo_make_unique<Propagator>(tp), false);
             Py_RETURN_NONE;
         PY_CATCH(nullptr);
     }

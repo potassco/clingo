@@ -2356,7 +2356,6 @@ class Propagator : public Gringo::Propagator {
 public:
     Propagator(lua_State *L, int propagator) : L(L), propagator(propagator) { }
     static int init_(lua_State *L) {
-        lua_gc (L, LUA_GCSTOP, 1);
         auto *self = (Propagator*)lua_touserdata(L, 1);
         auto *init = (Gringo::PropagateInit*)lua_touserdata(L, 2);
         lua_pushstring(L, "propagate_threads");          // +1
@@ -2533,20 +2532,7 @@ int ControlWrap::registerPropagator(lua_State *L) {
     lua_pushvalue(L, 2);                              // +1
     int idx = luaL_ref(L, -2);                        // -1
     lua_pop(L, 1);                                    // -1
-
-    lua_pushstring(L, "propagators_cpp");             // +1
-    lua_rawget(L, 1);
-    if (lua_isnil(L, -1)) {
-        lua_pop(L, 1);                                // -1
-        lua_newtable(L);                              // +1
-        lua_pushstring(L, "propagators_cpp");         // +1
-        lua_pushvalue(L, -2);                         // +1
-        lua_rawset(L, 1);                             // -2
-    }
-    auto prop = AnyWrap::new_<Propagator>(L, L, idx); // +1
-    luaL_ref(L, -2);                                  // -1
-    lua_pop(L, 1);                                    // -1
-    self.ctl.registerPropagator(*prop, true);
+    protect(L, [L, &self, idx]() { self.ctl.registerPropagator(gringo_make_unique<Propagator>(L, idx), true); });
     return 0;
 }
 

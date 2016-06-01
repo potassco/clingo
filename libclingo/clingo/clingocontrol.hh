@@ -262,7 +262,7 @@ public:
     Gringo::SolveIter *solveIter(Assumptions &&ass) override;
     Gringo::SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass) override;
     Gringo::TheoryData const &theory() const override { return out_->data.theoryInterface(*const_cast<ClingoControl*>(this)); }
-    void registerPropagator(Gringo::Propagator &p, bool sequential) override;
+    void registerPropagator(Gringo::UProp p, bool sequential) override;
     void parse(char const *program, std::function<void(clingo_ast const &)> cb) override;
     void add(std::function<void (std::function<void (clingo_ast const &)>)> cb) override;
     void interrupt() override;
@@ -286,6 +286,7 @@ public:
     PostGroundFunc                                            pgf_;
     PreSolveFunc                                              psf_;
     std::unique_ptr<Potassco::TheoryData>                     data_;
+    std::vector<Gringo::UProp>                                props_;
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>> propagators_;
     ClingoPropagatorLock                                      propLock_;
     Gringo::Logger                                            logger_;

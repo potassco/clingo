@@ -198,13 +198,13 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     }
     Gringo::SymbolicAtoms &getDomain() override { throw std::runtime_error("domain introspection not supported"); }
     Gringo::ConfigProxy &getConf() override { throw std::runtime_error("configuration not supported"); }
-    void registerPropagator(Gringo::Propagator &, bool) override { throw std::runtime_error("theory propagators not supported"); }
+    void registerPropagator(Gringo::UProp, bool) override { throw std::runtime_error("theory propagators not supported"); }
     void useEnumAssumption(bool) override { }
     bool useEnumAssumption() override { return false; }
     virtual ~IncrementalControl() { }
     Gringo::Symbol parseValue(std::string const &str, Gringo::Logger::Printer, unsigned) override { return termParser.parse(str, logger_); }
     Gringo::Control *newControl(int, char const **, Gringo::Logger::Printer, unsigned) override { throw std::logic_error("new control instances not supported"); }
-    Gringo::TheoryData const &theory() const override { return out.data.theoryInterface(); }
+    Gringo::TheoryData const &theory() const override { return out.data.theoryInterface(const_cast<IncrementalControl&>(*this)); }
     void cleanupDomains() override { }
     void parse(char const *, std::function<void (clingo_ast_t const &)>) override { throw std::logic_error("AST parsing not supported"); }
     void add(std::function<void (std::function<void (clingo_ast_t const &)>)>) override { throw std::logic_error("AST parsing not supported"); }

@@ -395,7 +395,7 @@ extern "C" clingo_error_t clingo_theory_atoms_atom_to_string(clingo_theory_atoms
 
 // {{{2 propagate init
 
-extern "C" clingo_error_t clingo_propagate_init_map_lit(clingo_propagate_init_t *init, clingo_lit_t lit, clingo_lit_t *ret) {
+extern "C" clingo_error_t clingo_propagate_init_map_literal(clingo_propagate_init_t *init, clingo_lit_t lit, clingo_lit_t *ret) {
     GRINGO_CLINGO_TRY { *ret = init->mapLit(lit); }
     GRINGO_CLINGO_CATCH(nullptr);
 }
@@ -405,7 +405,7 @@ extern "C" clingo_error_t clingo_propagate_init_add_watch(clingo_propagate_init_
     GRINGO_CLINGO_CATCH(nullptr);
 }
 
-extern "C" int clingo_propagator_init_threads(clingo_propagate_init_t *init) {
+extern "C" int clingo_propagate_init_number_of_threads(clingo_propagate_init_t *init) {
     return init->threads();
 }
 
@@ -414,7 +414,7 @@ extern "C" clingo_error_t clingo_propagate_init_symbolic_atoms(clingo_propagate_
     GRINGO_CLINGO_CATCH(nullptr);
 }
 
-extern "C" clingo_error_t clingo_propagate_init_theory_data(clingo_propagate_init_t *init, clingo_theory_atoms_t **ret) {
+extern "C" clingo_error_t clingo_propagate_init_theory_atoms(clingo_propagate_init_t *init, clingo_theory_atoms_t **ret) {
     GRINGO_CLINGO_TRY { *ret = const_cast<Gringo::TheoryData*>(&init->theory()); }
     GRINGO_CLINGO_CATCH(nullptr);
 }
@@ -435,7 +435,7 @@ extern "C" bool clingo_assignment_has_literal(clingo_assignment_t *ass, clingo_l
     return ass->hasLit(lit);
 }
 
-extern "C" clingo_error_t clingo_assignment_value(clingo_assignment_t *ass, clingo_lit_t lit, clingo_truth_value_t *ret) {
+extern "C" clingo_error_t clingo_assignment_truth_value(clingo_assignment_t *ass, clingo_lit_t lit, clingo_truth_value_t *ret) {
     GRINGO_CLINGO_TRY { *ret = ass->value(lit); }
     GRINGO_CLINGO_CATCH(nullptr);
 }
@@ -477,12 +477,12 @@ extern "C" clingo_assignment_t *clingo_propagate_control_assignment(clingo_propa
     return const_cast<clingo_assignment *>(static_cast<clingo_assignment const *>(&ctl->assignment()));
 }
 
-extern "C" clingo_error_t add_clause(clingo_propagate_control_t *ctl, clingo_lit_t const *clause, size_t n, clingo_clause_type_t prop, bool *ret) {
+extern "C" clingo_error_t clingo_propagate_control_add_clause(clingo_propagate_control_t *ctl, clingo_lit_t const *clause, size_t n, clingo_clause_type_t prop, bool *ret) {
     GRINGO_CLINGO_TRY { *ret = ctl->addClause({clause, n}, Potassco::Clause_t(prop)); }
     GRINGO_CLINGO_CATCH(nullptr);
 }
 
-extern "C" clingo_error_t propagate(clingo_propagate_control_t *ctl, bool *ret) {
+extern "C" clingo_error_t clingo_propagate_control_propagate(clingo_propagate_control_t *ctl, bool *ret) {
     GRINGO_CLINGO_TRY { *ret = ctl->propagate(); }
     GRINGO_CLINGO_CATCH(nullptr);
 }
@@ -686,7 +686,47 @@ extern "C" clingo_error_t clingo_control_theory_atoms(clingo_control_t *ctl, cli
     GRINGO_CLINGO_CATCH(&ctl->logger());
 }
 
+namespace {
+
+class ClingoPropagator : public Gringo::Propagator {
+public:
+    ClingoPropagator(clingo_propagator_t prop, void *data)
+    : prop_(prop)
+    , data_(data) { }
+    void init(Gringo::PropagateInit &init) override {
+        auto ret = prop_.init(&init, data_);
+        if (ret != 0) { throw ClingoError(ret); }
+    }
+
+    void propagate(Potassco::AbstractSolver& solver, const ChangeList& changes) override {
+        auto ret = prop_.propagate(static_cast<clingo_propagate_control_t*>(&solver), changes.first, changes.size, data_);
+        if (ret != 0) { throw ClingoError(ret); }
+    }
+
+    void undo(const Potassco::AbstractSolver& solver, const ChangeList& undo) override {
+        auto ret = prop_.undo(static_cast<clingo_propagate_control_t*>(&const_cast<Potassco::AbstractSolver&>(solver)), undo.first, undo.size, data_);
+        if (ret != 0) { throw ClingoError(ret); }
+    }
+
+    void check(Potassco::AbstractSolver& solver) override {
+        auto ret = prop_.check(static_cast<clingo_propagate_control_t*>(&solver), data_);
+        if (ret != 0) { throw ClingoError(ret); }
+    }
+private:
+    clingo_propagator_t prop_;
+    void *data_;
+};
+
+} // namespace
+
+extern "C" clingo_error_t clingo_control_register_propagator(clingo_control_t *ctl, clingo_propagator_t propagator, void *data, bool sequential) {
+    GRINGO_CLINGO_TRY { ctl->registerPropagator(gringo_make_unique<ClingoPropagator>(propagator, data), sequential); }
+    GRINGO_CLINGO_CATCH(&ctl->logger());
+}
+
 // }}}2
+
+// }}}1
 
 namespace Clingo {
 
@@ -1045,6 +1085,113 @@ size_t TheoryAtoms::size() const {
     return ret;
 }
 
+// {{{2 assignment
+
+bool Assignment::has_conflict() const {
+    return clingo_assignment_has_conflict(ass_);
+}
+
+uint32_t Assignment::decision_level() const {
+    return clingo_assignment_decision_level(ass_);
+}
+
+bool Assignment::has_literal(lit_t lit) const {
+    return clingo_assignment_has_literal(ass_, lit);
+}
+
+TruthValue Assignment::truth_value(lit_t lit) const {
+    clingo_truth_value_t ret;
+    handleError(clingo_assignment_truth_value(ass_, lit, &ret));
+    return static_cast<TruthValue>(ret);
+}
+
+uint32_t Assignment::level(lit_t lit) const {
+    uint32_t ret;
+    handleError(clingo_assignment_level(ass_, lit, &ret));
+    return ret;
+}
+
+lit_t Assignment::decision(uint32_t level) const {
+    lit_t ret;
+    handleError(clingo_assignment_decision(ass_, level, &ret));
+    return ret;
+}
+
+bool Assignment::is_fixed(lit_t lit) const {
+    bool ret;
+    handleError(clingo_assignment_is_fixed(ass_, lit, &ret));
+    return ret;
+}
+
+bool Assignment::is_true(lit_t lit) const {
+    bool ret;
+    handleError(clingo_assignment_is_true(ass_, lit, &ret));
+    return ret;
+}
+
+bool Assignment::is_false(lit_t lit) const {
+    bool ret;
+    handleError(clingo_assignment_is_false(ass_, lit, &ret));
+    return ret;
+}
+
+// {{{2 propagate control
+
+lit_t PropagateInit::map_literal(lit_t lit) const {
+    lit_t ret;
+    handleError(clingo_propagate_init_map_literal(init_, lit, &ret));
+    return ret;
+}
+
+void PropagateInit::add_watch(lit_t lit) {
+    handleError(clingo_propagate_init_add_watch(init_, lit));
+}
+
+int PropagateInit::number_of_threads() const {
+    return clingo_propagate_init_number_of_threads(init_);
+}
+
+SymbolicAtoms PropagateInit::symbolic_atoms() const {
+    clingo_symbolic_atoms_t *ret;
+    handleError(clingo_propagate_init_symbolic_atoms(init_, &ret));
+    return ret;
+}
+
+TheoryAtoms PropagateInit::theory_atoms() const {
+    clingo_theory_atoms_t *ret;
+    handleError(clingo_propagate_init_theory_atoms(init_, &ret));
+    return ret;
+}
+
+// {{{2 propagate control
+
+id_t PropagateControl::thread_id() const {
+    return clingo_propagate_control_thread_id(ctl_);
+}
+
+Assignment PropagateControl::assignment() const {
+    return clingo_propagate_control_assignment(ctl_);
+}
+
+bool PropagateControl::add_clause(LitSpan clause, ClauseType type) {
+    bool ret;
+    handleError(clingo_propagate_control_add_clause(ctl_, clause.begin(), clause.size(), static_cast<clingo_clause_type_t>(type), &ret));
+    return ret;
+}
+
+bool PropagateControl::propagate() {
+    bool ret;
+    handleError(clingo_propagate_control_propagate(ctl_, &ret));
+    return ret;
+}
+
+// {{{2 propagator
+
+void Propagator::init(PropagateInit &) { }
+void Propagator::propagate(PropagateControl &, LitSpan) { }
+void Propagator::undo(PropagateControl const &, LitSpan) { }
+void Propagator::check(PropagateControl &) { }
+
 // {{{2 model
 
 Model::Model(clingo_model_t *model)
@@ -1171,6 +1318,54 @@ TheoryAtoms Control::theory_atoms() {
     clingo_theory_atoms_t *ret;
     clingo_control_theory_atoms(ctl_, &ret);
     return ret;
+}
+
+namespace {
+
+// NOTE: I see no easy way to pass the exception object through
+static clingo_error_t g_init(clingo_propagate_init_t *ctl, Propagator *p) {
+    GRINGO_CLINGO_TRY {
+        PropagateInit pi(ctl);
+        p->init(pi);
+    }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+static clingo_error_t g_propagate(clingo_propagate_control_t *ctl, clingo_lit_t const *changes, size_t n, Propagator *p) {
+    GRINGO_CLINGO_TRY {
+        PropagateControl pc(ctl);
+        p->propagate(pc, {changes, n});
+    }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+static clingo_error_t g_undo(clingo_propagate_control_t *ctl, clingo_lit_t const *changes, size_t n, Propagator *p) {
+    GRINGO_CLINGO_TRY {
+        PropagateControl pc(ctl);
+        p->undo(pc, {changes, n});
+    }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+static clingo_error_t g_check(clingo_propagate_control_t *ctl, Propagator *p) {
+    GRINGO_CLINGO_TRY {
+        PropagateControl pc(ctl);
+        p->check(pc);
+    }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+static clingo_propagator_t g_propagator = {
+    reinterpret_cast<decltype(clingo_propagator_t::init)>(&g_init),
+    reinterpret_cast<decltype(clingo_propagator_t::propagate)>(g_propagate),
+    reinterpret_cast<decltype(clingo_propagator_t::undo)>(g_undo),
+    reinterpret_cast<decltype(clingo_propagator_t::check)>(g_check)
+};
+
+}
+
+void Control::register_propagator(Propagator &propagator, bool sequential) {
+    handleError(clingo_control_register_propagator(ctl_, g_propagator, &propagator, sequential));
 }
 
 // }}}2

@@ -32,6 +32,7 @@ extern "C" {
 /**********************************************************************
  * TODO: logging should only be necessary for highlevel control stuff *
  *       loosing some small error messages for bad alloc/etc. is ok   *
+ * TODO: think about const correctness                                *
  **********************************************************************/
 
 // {{{1 basic types
@@ -275,11 +276,11 @@ typedef int clingo_clause_type_t;
 // {{{2 propagate init
 
 typedef struct clingo_propagate_init clingo_propagate_init_t;
-clingo_error_t clingo_propagate_init_map_lit(clingo_propagate_init_t *init, clingo_lit_t lit, clingo_lit_t *ret);
+clingo_error_t clingo_propagate_init_map_literal(clingo_propagate_init_t *init, clingo_lit_t lit, clingo_lit_t *ret);
 clingo_error_t clingo_propagate_init_add_watch(clingo_propagate_init_t *init, clingo_lit_t lit);
-int clingo_propagator_init_threads(clingo_propagate_init_t *init);
+int clingo_propagate_init_number_of_threads(clingo_propagate_init_t *init);
 clingo_error_t clingo_propagate_init_symbolic_atoms(clingo_propagate_init_t *init, clingo_symbolic_atoms_t **ret);
-clingo_error_t clingo_propagate_init_theory_data(clingo_propagate_init_t *init, clingo_theory_atoms_t **ret);
+clingo_error_t clingo_propagate_init_theory_atoms(clingo_propagate_init_t *init, clingo_theory_atoms_t **ret);
 
 // {{{2 assignment
 
@@ -299,16 +300,16 @@ clingo_error_t clingo_assignment_is_false(clingo_assignment_t *ass, clingo_lit_t
 typedef struct clingo_propagate_control clingo_propagate_control_t;
 clingo_id_t clingo_propagate_control_thread_id(clingo_propagate_control_t *ctl);
 clingo_assignment_t *clingo_propagate_control_assignment(clingo_propagate_control_t *ctl);
-clingo_error_t add_clause(clingo_propagate_control_t *ctl, clingo_lit_t const *clause, size_t n, clingo_clause_type_t prop, bool *ret);
-clingo_error_t propagate(clingo_propagate_control_t *ctl, bool *ret);
+clingo_error_t clingo_propagate_control_add_clause(clingo_propagate_control_t *ctl, clingo_lit_t const *clause, size_t n, clingo_clause_type_t prop, bool *ret);
+clingo_error_t clingo_propagate_control_propagate(clingo_propagate_control_t *ctl, bool *ret);
 
 // {{{2 propagator
 
 typedef struct clingo_propagator {
-    clingo_error_t (*clingo_propagate_callback_t) (clingo_propagate_control_t *ctl, clingo_lit_t const *changes, size_t n, void *data);
-    clingo_error_t (*clingo_undo_callback_t) (clingo_propagate_control_t *ctl, clingo_lit_t const *changes, size_t n, void *data);
-    clingo_error_t (*clingo_check_callback_t) (clingo_propagate_control_t *ctl, void *data);
-    void *data;
+    clingo_error_t (*init) (clingo_propagate_init_t *ctl, void *data);
+    clingo_error_t (*propagate) (clingo_propagate_control_t *ctl, clingo_lit_t const *changes, size_t n, void *data);
+    clingo_error_t (*undo) (clingo_propagate_control_t *ctl, clingo_lit_t const *changes, size_t n, void *data);
+    clingo_error_t (*check) (clingo_propagate_control_t *ctl, void *data);
 } clingo_propagator_t;
 
 // }}}2
@@ -329,7 +330,7 @@ clingo_error_t clingo_control_assign_external(clingo_control_t *ctl, clingo_symb
 clingo_error_t clingo_control_release_external(clingo_control_t *ctl, clingo_symbol_t atom);
 clingo_error_t clingo_control_parse(clingo_control_t *ctl, char const *program, clingo_ast_callback_t *cb, void *data);
 clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_add_ast_callback_t *cb, void *data);
-clingo_error_t clingo_control_register_propagator(clingo_control_t *ctl, clingo_propagator_t propagator);
+clingo_error_t clingo_control_register_propagator(clingo_control_t *ctl, clingo_propagator_t propagator, void *data, bool sequential);
 clingo_error_t clingo_control_symbolic_atoms(clingo_control_t *ctl, clingo_symbolic_atoms_t **ret);
 clingo_error_t clingo_control_theory_atoms(clingo_control_t *ctl, clingo_theory_atoms_t **ret);
 

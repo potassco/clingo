@@ -38,6 +38,21 @@ namespace Clingo {
 using lit_t = clingo_lit_t;
 using id_t = clingo_id_t;
 
+enum class TruthValue {
+    Free = clingo_truth_value_free,
+    True = clingo_truth_value_true,
+    False = clingo_truth_value_false
+};
+
+inline std::ostream &operator<<(std::ostream &out, TruthValue tv) {
+    switch (tv) {
+        case TruthValue::Free:  { out << "Free"; break; }
+        case TruthValue::True:  { out << "True"; break; }
+        case TruthValue::False: { out << "False"; break; }
+    }
+    return out;
+}
+
 // {{{1 span
 
 template <class T>
@@ -48,6 +63,8 @@ struct ToIterator {
 template <class T, class I = ToIterator<T>>
 class Span : private I {
 public:
+    using IteratorType = typename std::result_of<I(T const *)>::type;
+    using ReferenceType = decltype(*std::declval<IteratorType>());
     Span(I to_it = I())
     : Span(nullptr, size_t(0), to_it) { }
     template <class U>
@@ -64,8 +81,9 @@ public:
     : I(to_it)
     , begin_(begin)
     , end_(end) { }
-    auto begin() const -> typename std::result_of<I(T const *)>::type { return I::operator()(begin_); }
-    auto end() const -> typename std::result_of<I(T const *)>::type { return I::operator()(end_); }
+    IteratorType begin() const { return I::operator()(begin_); }
+    IteratorType end() const { return I::operator()(end_); }
+    ReferenceType operator[](size_t offset) { return *(begin() + offset); }
     size_t size() const { return end_ - begin_; }
 private:
     T const *begin_;
@@ -423,6 +441,85 @@ private:
     clingo_theory_atoms_t *atoms_;
 };
 
+// {{{1 propagate init
+
+class PropagateInit {
+public:
+    PropagateInit(clingo_propagate_init_t *init)
+    : init_(init) { }
+    lit_t map_literal(lit_t lit) const;
+    void add_watch(lit_t lit);
+    int number_of_threads() const;
+    SymbolicAtoms symbolic_atoms() const;
+    TheoryAtoms theory_atoms() const;
+    operator clingo_propagate_init_t*() const { return init_; }
+private:
+    clingo_propagate_init_t *init_;
+};
+
+// {{{1 assignment
+
+class Assignment {
+public:
+    Assignment(clingo_assignment_t *ass)
+    : ass_(ass) { }
+    bool has_conflict() const;
+    uint32_t decision_level() const;
+    bool has_literal(lit_t lit) const;
+    TruthValue truth_value(lit_t lit) const;
+    uint32_t level(lit_t lit) const;
+    lit_t decision(uint32_t level) const;
+    bool is_fixed(lit_t lit) const;
+    bool is_true(lit_t lit) const;
+    bool is_false(lit_t lit) const;
+    operator clingo_assignment_t*() const { return ass_; }
+private:
+    clingo_assignment_t *ass_;
+};
+
+// {{{1 propagate control
+
+enum class ClauseType : clingo_clause_type_t {
+    Learnt = clingo_clause_type_learnt,
+    Static = clingo_clause_type_static,
+    Volatile = clingo_clause_type_volatile,
+    VolatileStatic = clingo_clause_type_volatile_static
+};
+
+inline std::ostream &operator<<(std::ostream &out, ClauseType t) {
+    switch (t) {
+        case ClauseType::Learnt:         { out << "Learnt"; break; }
+        case ClauseType::Static:         { out << "Static"; break; }
+        case ClauseType::Volatile:       { out << "Volatile"; break; }
+        case ClauseType::VolatileStatic: { out << "VolatileStatic"; break; }
+    }
+    return out;
+}
+
+class PropagateControl {
+public:
+    PropagateControl(clingo_propagate_control_t *ctl)
+    : ctl_(ctl) { }
+    id_t thread_id() const;
+    Assignment assignment() const;
+    bool add_clause(LitSpan clause, ClauseType type = ClauseType::Learnt);
+    bool propagate();
+    operator clingo_propagate_control_t*() const { return ctl_; }
+private:
+    clingo_propagate_control_t *ctl_;
+};
+
+// {{{1 propagator
+
+class Propagator {
+public:
+    virtual void init(PropagateInit &init);
+    virtual void propagate(PropagateControl &ctl, LitSpan changes);
+    virtual void undo(PropagateControl const &ctl, LitSpan changes);
+    virtual void check(PropagateControl &ctl);
+    virtual ~Propagator() noexcept = default;
+};
+
 // {{{1 symbolic literal
 
 class SymbolicLiteral : public clingo_symbolic_literal_t{
@@ -574,28 +671,6 @@ using AddASTCallback = std::function<void (ASTCallback)>;
 
 // {{{1 control
 
-class TruthValue {
-public:
-    enum Type : clingo_truth_value_t {
-        Free = clingo_truth_value_free,
-        True = clingo_truth_value_true,
-        False = clingo_truth_value_false
-    };
-    TruthValue(clingo_truth_value_t type) : type_(type) { }
-    operator clingo_truth_value_t() const { return type_; }
-private:
-    clingo_truth_value_t type_;
-};
-
-inline std::ostream &operator<<(std::ostream &out, TruthValue tv) {
-    switch (tv) {
-        case TruthValue::Free:  { out << "Free"; break; }
-        case TruthValue::True:  { out << "True"; break; }
-        case TruthValue::False: { out << "False"; break; }
-    }
-    return out;
-}
-
 class Part : public clingo_part_t {
 public:
     Part(char const *name, SymSpan params)
@@ -623,6 +698,7 @@ public:
     void release_external(Symbol atom);
     SymbolicAtoms symbolic_atoms();
     TheoryAtoms theory_atoms();
+    void register_propagator(Propagator &propagator, bool sequential);
     operator clingo_control_t*() const;
 private:
     clingo_control_t *ctl_;

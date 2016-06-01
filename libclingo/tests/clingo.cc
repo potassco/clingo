@@ -22,6 +22,7 @@
 #include "clingo.hh"
 #include <vector>
 #include <iostream>
+#include <unordered_map>
 
 using namespace Clingo;
 
@@ -40,6 +41,9 @@ struct MCB {
         std::sort(models.back().begin(), models.back().end());
         return true;
     }
+    ~MCB() {
+        std::sort(models.begin(), models.end());
+    }
     ModelVec &models;
 };
 
@@ -50,6 +54,208 @@ public:
 private:
     MessageVec &messages_;
 };
+
+class PigeonPropagator : public Propagator {
+public:
+    void init(PropagateInit &init) override {
+        unsigned nHole = 0, nPig = 0, nWatch = 0, p, h;
+        state_.clear();
+        p2h_[0] = 0;
+        for (auto it = init.symbolic_atoms().begin(Signature("place", 2)), ie = init.symbolic_atoms().end(); it != ie; ++it) {
+            lit_t lit = init.map_literal(it->literal());
+            p = it->symbol().args()[0].num();
+            h = it->symbol().args()[1].num();
+            p2h_[lit] = h;
+            init.add_watch(lit);
+            nHole = std::max(h, nHole);
+            nPig  = std::max(p, nPig);
+            ++nWatch;
+        }
+        assert(p2h_[0] == 0);
+        for (unsigned i = 0, end = init.number_of_threads(); i != end; ++i) {
+            state_.emplace_back(nHole + 1, 0);
+            assert(state_.back().size() == nHole + 1);
+        }
+    }
+    void propagate(PropagateControl &ctl, LitSpan changes) override {
+        assert(ctl.thread_id() < state_.size());
+        Hole2Lit& holes = state_[ctl.thread_id()];
+        for (lit_t lit : changes) {
+            lit_t& prev = holes[ p2h_[lit] ];
+            if (prev == 0) { prev = lit; }
+            else {
+                if (!ctl.add_clause({-lit, -prev}) || !ctl.propagate()) {
+                    return;
+                }
+                assert(false);
+            }
+        }
+    }
+    void undo(PropagateControl const &ctl, LitSpan undo) override {
+        assert(ctl.thread_id() < state_.size());
+        Hole2Lit& holes = state_[ctl.thread_id()];
+        for (lit_t lit : undo) {
+            unsigned hole = p2h_[lit];
+            if (holes[hole] == lit) {
+                holes[hole] = 0;
+            }
+        }
+    }
+private:
+    using Lit2Hole = std::unordered_map<lit_t, unsigned>;
+    using Hole2Lit = std::vector<lit_t>;
+    using State    = std::vector<Hole2Lit>;
+
+    Lit2Hole p2h_;
+    State    state_;
+};
+
+class TestAssignment : public Propagator {
+public:
+    void init(PropagateInit &init) override {
+        a_ = init.map_literal(init.symbolic_atoms().lookup(Id("a")).literal());
+        b_ = init.map_literal(init.symbolic_atoms().lookup(Id("b")).literal());
+        c_ = init.map_literal(init.symbolic_atoms().lookup(Id("c")).literal());
+        init.add_watch(a_);
+        init.add_watch(b_);
+    }
+    void propagate(PropagateControl &ctl, LitSpan changes) override {
+        auto ass = ctl.assignment();
+        count_+= changes.size();
+        REQUIRE(ass.is_fixed(c_));
+        REQUIRE(!ass.is_fixed(a_));
+        REQUIRE(!ass.is_fixed(b_));
+        REQUIRE(!ass.has_conflict());
+        REQUIRE(ass.has_literal(a_));
+        REQUIRE(ass.has_literal(b_));
+        REQUIRE(!ass.has_literal(1000));
+        auto decision = ass.decision(ass.decision_level());
+        REQUIRE(ass.level(decision) == ass.decision_level());
+        if (count_ == 1) {
+            int a = changes[0];
+            REQUIRE(changes.size() == 1);
+            REQUIRE(!ass.is_fixed(a_));
+            REQUIRE(ass.is_true(a));
+            REQUIRE(ass.truth_value(a) == TruthValue::True);
+            REQUIRE((ass.is_true(a_) ^ ass.is_true(b_)));
+            REQUIRE(ass.level(a) == ass.decision_level());
+        }
+        if (count_ == 2) {
+            REQUIRE(!ass.is_fixed(a_));
+            REQUIRE(!ass.is_fixed(b_));
+            REQUIRE(ass.is_true(a_));
+            REQUIRE(ass.is_true(b_));
+        }
+    }
+    void undo(PropagateControl const &, LitSpan undo) override {
+        count_-= undo.size();
+    }
+private:
+    lit_t a_;
+    lit_t b_;
+    lit_t c_;
+    int count_ = 0;
+};
+
+class TestAddClause : public Propagator {
+public:
+    void init(PropagateInit &init) override {
+        a_ = init.map_literal(init.symbolic_atoms().lookup(Id("a")).literal());
+        b_ = init.map_literal(init.symbolic_atoms().lookup(Id("b")).literal());
+        init.add_watch(a_);
+        init.add_watch(b_);
+    }
+    void propagate(PropagateControl &ctl, LitSpan changes) override {
+        count_+= changes.size();
+        REQUIRE_FALSE((enable && count_ == 2 && ctl.add_clause({-a_, -b_}, type) && ctl.propagate()));
+    }
+    void undo(PropagateControl const &, LitSpan undo) override {
+        count_-= undo.size();
+    }
+public:
+    ClauseType type = ClauseType::Learnt;
+    bool enable = true;
+private:
+    lit_t a_;
+    lit_t b_;
+    int count_ = 0;
+};
+
+TEST_CASE("propagator") {
+    Module mod;
+    MessageVec messages;
+    ModelVec models;
+    Logger logger = [&messages](MessageCode code, char const *msg) { messages.emplace_back(code, msg); };
+    Control ctl{mod.create_control({"test_libclingo", "0"}, logger, 20)};
+    SECTION("pigeon") {
+        PigeonPropagator p;
+        ctl.register_propagator(p, false);
+        ctl.add("pigeon", {"h", "p"}, "1 { place(P,H) : H = 1..h } 1 :- P = 1..p.");
+        auto place = [](int p, int h) { return Fun("place", {Num(p), Num(h)}); };
+        SECTION("unsat") {
+            ctl.ground({{"pigeon", {Num(5), Num(6)}}}, nullptr);
+            ctl.solve(MCB(models));
+            REQUIRE(models.empty());
+        }
+        SECTION("sat") {
+            ctl.ground({{"pigeon", {Num(2), Num(2)}}}, nullptr);
+            ctl.solve(MCB(models));
+            REQUIRE(models == ModelVec({{place(1,1), place(2,2)}, {place(1,2), place(2,1)}}));
+        }
+    }
+    SECTION("assignment") {
+        TestAssignment p;
+        ctl.register_propagator(p, false);
+        ctl.add("base", {}, "{a; b}. c.");
+        ctl.ground({{"base", {}}}, nullptr);
+        ctl.solve(MCB(models));
+        REQUIRE(models.size() == 4);
+    }
+    SECTION("add_clause") {
+        TestAddClause p;
+        ctl.register_propagator(p, false);
+        SECTION("learnt") {
+            p.type = ClauseType::Learnt;
+            ctl.add("base", {}, "{a; b}.");
+            ctl.ground({{"base", {}}}, nullptr);
+            ctl.solve(MCB(models));
+            REQUIRE(models.size() == 3);
+            p.enable = false;
+            ctl.solve(MCB(models));
+            REQUIRE(models.size() >= 3);
+        }
+        SECTION("static") {
+            p.type = ClauseType::Static;
+            ctl.add("base", {}, "{a; b}.");
+            ctl.ground({{"base", {}}}, nullptr);
+            ctl.solve(MCB(models));
+            REQUIRE(models.size() == 3);
+            p.enable = false;
+            ctl.solve(MCB(models));
+            REQUIRE(models.size() == 3);
+        }
+        SECTION("volatile") {
+            p.type = ClauseType::Volatile;
+            ctl.add("base", {}, "{a; b}.");
+            ctl.ground({{"base", {}}}, nullptr);
+            ctl.solve(MCB(models));
+            REQUIRE(models.size() == 3);
+            p.enable = false;
+            ctl.solve(MCB(models));
+            REQUIRE(models.size() == 4);
+        }
+        SECTION("volatile static") {
+            p.type = ClauseType::VolatileStatic;
+            ctl.add("base", {}, "{a; b}.");
+            ctl.ground({{"base", {}}}, nullptr);
+            ctl.solve(MCB(models));
+            REQUIRE(models.size() == 3);
+            p.enable = false;
+            ctl.solve(MCB(models));
+            REQUIRE(models.size() == 4);
+        }
+    }
+}
 
 TEST_CASE("c-interface", "[clingo]") {
     using S = std::string;

@@ -395,10 +395,12 @@ Gringo::SolveResult ClingoControl::solve(ModelHandler h, Assumptions &&ass) {
     return clingoMode_ ? convert(clasp_->solve(nullptr, toClaspAssumptions(std::move(ass)))) : Gringo::SolveResult(Gringo::SolveResult::Unknown, false, false);
 }
 
-void ClingoControl::registerPropagator(Gringo::Propagator &p, bool sequential) {
-    propagators_.emplace_back(Gringo::gringo_make_unique<Clasp::ClingoPropagatorInit>(p, propLock_.add(sequential)));
+void ClingoControl::registerPropagator(std::unique_ptr<Gringo::Propagator> p, bool sequential) {
+    propagators_.emplace_back(Gringo::gringo_make_unique<Clasp::ClingoPropagatorInit>(*p, propLock_.add(sequential)));
     claspConfig_.addConfigurator(propagators_.back().get(), Clasp::Ownership_t::Retain);
+    props_.emplace_back(std::move(p));
 }
+
 void ClingoControl::cleanupDomains() {
     out_->endStep(false, logger_);
     if (clingoMode_) {

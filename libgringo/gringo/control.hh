@@ -219,6 +219,7 @@ struct Propagator : Potassco::AbstractPropagator {
     virtual ~Propagator() noexcept = default;
     virtual void init(Gringo::PropagateInit &init) = 0;
 };
+using UProp = std::unique_ptr<Propagator>;
 
 // {{{1 declaration of ASPIFWriter
 
@@ -262,7 +263,7 @@ struct clingo_control {
     virtual bool useEnumAssumption() = 0;
     virtual void cleanupDomains() = 0;
     virtual Gringo::TheoryData const &theory() const = 0;
-    virtual void registerPropagator(Gringo::Propagator &p, bool sequential) = 0;
+    virtual void registerPropagator(std::unique_ptr<Gringo::Propagator> p, bool sequential) = 0;
     virtual void parse(char const *program, std::function<void(clingo_ast const &)> cb) = 0;
     virtual void add(std::function<void (std::function<void (clingo_ast const &)>)> cb) = 0;
     virtual Potassco::Atom_t addProgramAtom() = 0;
