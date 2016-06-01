@@ -380,16 +380,110 @@ extern "C" clingo_error_t clingo_theory_atoms_size(clingo_theory_atoms_t *atoms,
 
 extern "C" clingo_error_t clingo_theory_atoms_term_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t *n) {
     GRINGO_CLINGO_TRY { print(ret, n, [atoms, value](std::ostream &out) { out << atoms->termStr(value); }); }
-    GRINGO_CLINGO_CATCH(nullptr);
+    GRINGO_CLINGO_CATCH(&atoms->owner().logger());
 }
 
 extern "C" clingo_error_t clingo_theory_atoms_element_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t *n) {
     GRINGO_CLINGO_TRY { print(ret, n, [atoms, value](std::ostream &out) { out << atoms->elemStr(value); }); }
-    GRINGO_CLINGO_CATCH(nullptr);
+    GRINGO_CLINGO_CATCH(&atoms->owner().logger());
 }
 
 extern "C" clingo_error_t clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t *n) {
     GRINGO_CLINGO_TRY { print(ret, n, [atoms, value](std::ostream &out) { out << atoms->atomStr(value); }); }
+    GRINGO_CLINGO_CATCH(&atoms->owner().logger());
+}
+
+// {{{2 propagate init
+
+extern "C" clingo_error_t clingo_propagate_init_map_lit(clingo_propagate_init_t *init, clingo_lit_t lit, clingo_lit_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = init->mapLit(lit); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_propagate_init_add_watch(clingo_propagate_init_t *init, clingo_lit_t lit) {
+    GRINGO_CLINGO_TRY { init->addWatch(lit); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" int clingo_propagator_init_threads(clingo_propagate_init_t *init) {
+    return init->threads();
+}
+
+extern "C" clingo_error_t clingo_propagate_init_symbolic_atoms(clingo_propagate_init_t *init, clingo_symbolic_atoms_t **ret) {
+    GRINGO_CLINGO_TRY { *ret = &init->getDomain(); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_propagate_init_theory_data(clingo_propagate_init_t *init, clingo_theory_atoms_t **ret) {
+    GRINGO_CLINGO_TRY { *ret = const_cast<Gringo::TheoryData*>(&init->theory()); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+// {{{2 assignment
+
+struct clingo_assignment : public Potassco::AbstractAssignment { };
+
+extern "C" bool clingo_assignment_has_conflict(clingo_assignment_t *ass) {
+    return ass->hasConflict();
+}
+
+extern "C" uint32_t clingo_assignment_decision_level(clingo_assignment_t *ass) {
+    return ass->level();
+}
+
+extern "C" bool clingo_assignment_has_literal(clingo_assignment_t *ass, clingo_lit_t lit) {
+    return ass->hasLit(lit);
+}
+
+extern "C" clingo_error_t clingo_assignment_value(clingo_assignment_t *ass, clingo_lit_t lit, clingo_truth_value_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = ass->value(lit); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_assignment_level(clingo_assignment_t *ass, clingo_lit_t lit, uint32_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = ass->level(lit); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_assignment_decision(clingo_assignment_t *ass, uint32_t level, clingo_lit_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = ass->decision(level); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_assignment_is_fixed(clingo_assignment_t *ass, clingo_lit_t lit, bool *ret) {
+    GRINGO_CLINGO_TRY { *ret = ass->isFixed(lit); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_assignment_is_true(clingo_assignment_t *ass, clingo_lit_t lit, bool *ret) {
+    GRINGO_CLINGO_TRY { *ret = ass->isTrue(lit); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_assignment_is_false(clingo_assignment_t *ass, clingo_lit_t lit, bool *ret) {
+    GRINGO_CLINGO_TRY { *ret = ass->isFalse(lit); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+// {{{2 propagate control
+
+struct clingo_propagate_control : Potassco::AbstractSolver { };
+
+extern "C" clingo_id_t clingo_propagate_control_thread_id(clingo_propagate_control_t *ctl) {
+    return ctl->id();
+}
+
+extern "C" clingo_assignment_t *clingo_propagate_control_assignment(clingo_propagate_control_t *ctl) {
+    return const_cast<clingo_assignment *>(static_cast<clingo_assignment const *>(&ctl->assignment()));
+}
+
+extern "C" clingo_error_t add_clause(clingo_propagate_control_t *ctl, clingo_lit_t const *clause, size_t n, clingo_clause_type_t prop, bool *ret) {
+    GRINGO_CLINGO_TRY { *ret = ctl->addClause({clause, n}, Potassco::Clause_t(prop)); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t propagate(clingo_propagate_control_t *ctl, bool *ret) {
+    GRINGO_CLINGO_TRY { *ret = ctl->propagate(); }
     GRINGO_CLINGO_CATCH(nullptr);
 }
 

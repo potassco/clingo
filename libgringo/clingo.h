@@ -272,7 +272,7 @@ enum clingo_clause_type {
 };
 typedef int clingo_clause_type_t;
 
-// {{{2 init
+// {{{2 propagate init
 
 typedef struct clingo_propagate_init clingo_propagate_init_t;
 clingo_error_t clingo_propagate_init_map_lit(clingo_propagate_init_t *init, clingo_lit_t lit, clingo_lit_t *ret);
@@ -286,7 +286,7 @@ clingo_error_t clingo_propagate_init_theory_data(clingo_propagate_init_t *init, 
 typedef struct clingo_assignment clingo_assignment_t;
 bool clingo_assignment_has_conflict(clingo_assignment_t *ass);
 uint32_t clingo_assignment_decision_level(clingo_assignment_t *ass);
-bool clingo_assignment_has_lit(clingo_assignment_t *ass, clingo_lit_t lit);
+bool clingo_assignment_has_literal(clingo_assignment_t *ass, clingo_lit_t lit);
 clingo_error_t clingo_assignment_value(clingo_assignment_t *ass, clingo_lit_t lit, clingo_truth_value_t *ret);
 clingo_error_t clingo_assignment_level(clingo_assignment_t *ass, clingo_lit_t lit, uint32_t *ret);
 clingo_error_t clingo_assignment_decision(clingo_assignment_t *ass, uint32_t level, clingo_lit_t *ret);
@@ -294,10 +294,10 @@ clingo_error_t clingo_assignment_is_fixed(clingo_assignment_t *ass, clingo_lit_t
 clingo_error_t clingo_assignment_is_true(clingo_assignment_t *ass, clingo_lit_t lit, bool *ret);
 clingo_error_t clingo_assignment_is_false(clingo_assignment_t *ass, clingo_lit_t lit, bool *ret);
 
-// {{{2 control
+// {{{2 propagate control
 
 typedef struct clingo_propagate_control clingo_propagate_control_t;
-clingo_id_t clingo_propagate_control_id(clingo_propagate_control_t *ctl);
+clingo_id_t clingo_propagate_control_thread_id(clingo_propagate_control_t *ctl);
 clingo_assignment_t *clingo_propagate_control_assignment(clingo_propagate_control_t *ctl);
 clingo_error_t add_clause(clingo_propagate_control_t *ctl, clingo_lit_t const *clause, size_t n, clingo_clause_type_t prop, bool *ret);
 clingo_error_t propagate(clingo_propagate_control_t *ctl, bool *ret);
