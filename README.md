@@ -24,3 +24,5 @@ Please consult the following resources for further information:
 For more information please visit the project website: 
   
   http://potassco.sourceforge.net/
+
+[![Build Status](https://img.shields.io/travis/potassco/clingo/master.svg?maxAge=2592000)](https://travis-ci.org/potassco/plasp?branch=master)
