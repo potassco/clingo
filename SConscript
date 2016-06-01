@@ -388,10 +388,10 @@ CEXAMPLE_SOURCES = find_files(env, 'app/cexample')
 
 cexampleProgramEnv = base_env.Clone()
 cexampleProgramEnv.Prepend(LIBPATH=[Dir(".")])
-cexampleProgramEnv.Prepend(LIBS=["cclingo"])
+cexampleProgramEnv.Prepend(LIBS=["clingo"])
 cexampleProgramEnv["LINKFLAGS"] = base_env["CLINKFLAGS"]
 cexampleProgramEnv.Prepend(LINKFLAGS=["-Wl,-rpath-link=" + Dir(".").path])
-cexampleProgramEnv.Append(CPPPATH = ["libcclingo"])
+cexampleProgramEnv.Append(CPPPATH = ["libgringo"])
 
 cexampleProgram = cexampleProgramEnv.Program('cexample', CEXAMPLE_SOURCES)
 cexampleProgramEnv.Alias('cexample', cexampleProgram)

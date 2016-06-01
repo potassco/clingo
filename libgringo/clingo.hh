@@ -573,7 +573,7 @@ public:
     bool contains(Symbol atom) const;
     operator bool() const { return model_; }
     operator clingo_model_t*() const { return model_; }
-    SymVec atoms(ShowType show) const;
+    SymVec atoms(ShowType show = ShowType::Shown) const;
 private:
     clingo_model_t *model_;
 };
@@ -629,6 +629,39 @@ public:
 private:
     clingo_solve_iter_t *iter_;
 };
+
+class ModelIterator : public std::iterator<Model, std::input_iterator_tag> {
+public:
+    ModelIterator(SolveIter &iter)
+    : iter_(&iter)
+    , model_(nullptr) { model_ = iter_->next(); }
+    ModelIterator()
+    : iter_(nullptr)
+    , model_(nullptr) { }
+    ModelIterator &operator++() {
+        model_ = iter_->next();
+        return *this;
+    }
+    // Warning: the resulting iterator should not be used
+    //          because its model is no longer valid
+    ModelIterator operator++(int) {
+        ModelIterator t = *this;
+        ++*this;
+        return t;
+    }
+    Model &operator*() { return model_; }
+    Model *operator->() { return &**this; }
+    friend bool operator==(ModelIterator a, ModelIterator b) {
+        return static_cast<clingo_model_t*>(a.model_) == static_cast<clingo_model_t*>(b.model_);
+    }
+    friend bool operator!=(ModelIterator a, ModelIterator b) { return !(a == b); }
+private:
+    SolveIter *iter_;
+    Model model_;
+};
+
+inline ModelIterator begin(SolveIter &it) { return ModelIterator(it); };
+inline ModelIterator end(SolveIter &) { return ModelIterator(); };
 
 // {{{1 ast
 
