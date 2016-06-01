@@ -1,0 +1,21 @@
+# Use container-based distribution
+sudo: false
+language: c++
+matrix:
+  include:
+    - compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-5
+            - re2c
+            - liblua5.1-0-dev
+            - libcppunit-dev
+            - zsh
+script:
+  - mkdir build
+  - echo "CXX = 'g++-5'" > build/debug.py
+  - echo "CC = 'gcc-5'" >> build/debug.py
+  - scons -j3 && scons -j3 test
