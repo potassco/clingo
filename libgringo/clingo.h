@@ -21,6 +21,11 @@
 #ifndef CLINGO_H
 #define CLINGO_H
 
+#define CLINGO_VERSION "5.0.0"
+#define CLINGO_VERSION_MAJOR 5
+#define CLINGO_VERSION_MINOR 0
+#define CLINGO_VERSION_REVISION 0
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -316,6 +321,7 @@ typedef struct clingo_propagator {
 // {{{1 global functions
 
 // TODO: parse_term
+void clingo_version(int *major, int *minor, int *revision);
 
 // {{{1 control
 

@@ -528,6 +528,14 @@ extern "C" clingo_error_t clingo_solve_iter_close(clingo_solve_iter_t *it) {
     } GRINGO_CLINGO_CATCH(&it->owner().logger());
 }
 
+// {{{2 global functions
+
+extern "C" void clingo_version(int *major, int *minor, int *revision) {
+    *major = CLINGO_VERSION_MAJOR;
+    *minor = CLINGO_VERSION_MINOR;
+    *revision = CLINGO_VERSION_REVISION;
+}
+
 // {{{2 control
 
 extern "C" clingo_error_t clingo_control_new(clingo_module_t *mod, char const *const * args, size_t n, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl) {
