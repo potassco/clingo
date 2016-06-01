@@ -854,7 +854,7 @@ TheoryTermSpan TheoryTerm::arguments() const {
     clingo_id_t const *ret;
     size_t n;
     handleError(clingo_theory_atoms_term_arguments(atoms_, id_, &ret, &n));
-    return {atoms_, ret, n};
+    return {ret, n, atoms_};
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryTerm term) {
@@ -871,7 +871,7 @@ TheoryTermSpan TheoryElement::tuple() const {
     clingo_id_t const *ret;
     size_t n;
     handleError(clingo_theory_atoms_element_tuple(atoms_, id_, &ret, &n));
-    return {atoms_, ret, n};
+    return {ret, n, atoms_};
 }
 
 LitSpan TheoryElement::condition() const {
@@ -900,7 +900,7 @@ TheoryElementSpan TheoryAtom::elements() const {
     clingo_id_t const *ret;
     size_t n;
     handleError(clingo_theory_atoms_atom_elements(atoms_, id_, &ret, &n));
-    return {atoms_, ret, n};
+    return {ret, n, atoms_};
 }
 
 TheoryTerm TheoryAtom::term() const {
