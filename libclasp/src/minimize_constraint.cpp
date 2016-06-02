@@ -409,13 +409,13 @@ bool DefaultMinimize::minimize(Solver& s, Literal p, CCMinRecursive* rec) {
 void DefaultMinimize::commitUpperBound(const Solver& s)  {
 	shared_->setOptimum(sum());
 	if (step_.type == MinimizeMode_t::bb_step_inc) { step_.size *= 2; }
-	if (step_.type) {
+	if (step_.type && step_.lev < size_ && shared_->checkNext()) {
 		reportBound(s, step_.lev, stepLow(), sum()[step_.lev]);
 	}
 }
 bool DefaultMinimize::commitLowerBound(const Solver& s, bool upShared) {
-	bool act   = active() && shared_->checkNext();
-	bool more  = step_.lev < size_ && (step_.size > 1 || step_.lev != size_-1);
+	bool act  = active() && shared_->checkNext();
+	bool more = step_.lev < size_ && (step_.size > 1 || step_.lev != size_-1);
 	if (act && step_.type && step_.lev < size_) {
 		uint32 x = step_.lev;
 		wsum_t L = opt()[x] + 1;
