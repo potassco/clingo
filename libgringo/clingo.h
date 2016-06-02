@@ -183,6 +183,13 @@ clingo_error_t clingo_solve_iter_next(clingo_solve_iter_t *it, clingo_model_t **
 clingo_error_t clingo_solve_iter_get(clingo_solve_iter_t *it, clingo_solve_result_t *ret);
 clingo_error_t clingo_solve_iter_close(clingo_solve_iter_t *it);
 
+// {{{1 solve async
+
+typedef struct clingo_solve_async clingo_solve_async_t;
+clingo_error_t clingo_solve_async_cancel(clingo_solve_async_t *async);
+clingo_error_t clingo_solve_async_get(clingo_solve_async_t *async, clingo_solve_result_t *ret);
+clingo_error_t clingo_solve_async_wait(clingo_solve_async_t *async, double timeout, bool *ret);
+
 // {{{1 ast
 
 // TODO: think about visitor
@@ -314,18 +321,12 @@ typedef struct clingo_propagator {
 
 // TODO: ...
 
-// {{{1 solve future
-
-// TODO: ...
-
 // {{{1 global functions
 
 // TODO: parse_term
 void clingo_version(int *major, int *minor, int *revision);
 
 // {{{1 control
-
-// TODO: load, cleanup, get_const, interrupt, solve_async, backend, conf, stats, use_enum_assumption
 
 typedef struct clingo_part {
     char const *name;
@@ -338,24 +339,36 @@ typedef struct clingo_symbolic_literal {
     bool sign;
 } clingo_symbolic_literal_t;
 
-typedef clingo_error_t clingo_model_handler_t (clingo_model_t*, void *, bool *);
+typedef clingo_error_t clingo_model_callback_t (clingo_model_t*, void *, bool *);
+typedef clingo_error_t clingo_finish_callback_t (clingo_solve_result_t res, void *);
 typedef clingo_error_t clingo_symbol_callback_t (clingo_symbol_t const *, size_t, void *);
 typedef clingo_error_t clingo_ground_callback_t (clingo_location_t, char const *, clingo_symbol_t const *, size_t, void *, clingo_symbol_callback_t *, void *);
 typedef struct clingo_control clingo_control_t;
-clingo_error_t clingo_control_new(clingo_module_t *mod, char const *const * args, size_t n, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl);
-void clingo_control_free(clingo_control_t *ctl);
-clingo_error_t clingo_control_add(clingo_control_t *ctl, char const *name, char const * const * params, size_t n, char const *part);
-clingo_error_t clingo_control_ground(clingo_control_t *ctl, clingo_part_t const *params, size_t n, clingo_ground_callback_t *cb, void *data);
-clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_model_handler_t *mh, void *data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_result_t *ret);
-clingo_error_t clingo_control_solve_iter(clingo_control_t *ctl, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_iter_t **it);
-clingo_error_t clingo_control_assign_external(clingo_control_t *ctl, clingo_symbol_t atom, clingo_truth_value_t value);
-clingo_error_t clingo_control_release_external(clingo_control_t *ctl, clingo_symbol_t atom);
-clingo_error_t clingo_control_parse(clingo_control_t *ctl, char const *program, clingo_ast_callback_t *cb, void *data);
 clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_add_ast_callback_t *cb, void *data);
+clingo_error_t clingo_control_add(clingo_control_t *ctl, char const *name, char const * const * params, size_t n, char const *part);
+clingo_error_t clingo_control_assign_external(clingo_control_t *ctl, clingo_symbol_t atom, clingo_truth_value_t value);
+clingo_error_t clingo_control_cleanup(clingo_control_t *ctl);
+clingo_error_t clingo_control_get_const(clingo_control_t *ctl, char const *name, clingo_symbol_t *ret);
+clingo_error_t clingo_control_ground(clingo_control_t *ctl, clingo_part_t const *params, size_t n, clingo_ground_callback_t *cb, void *data);
+clingo_error_t clingo_control_has_const(clingo_control_t *ctl, char const *name, bool *ret);
+clingo_error_t clingo_control_load(clingo_control_t *ctl, char const *file);
+clingo_error_t clingo_control_new(clingo_module_t *mod, char const *const * args, size_t n, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl);
+clingo_error_t clingo_control_parse(clingo_control_t *ctl, char const *program, clingo_ast_callback_t *cb, void *data);
 clingo_error_t clingo_control_register_propagator(clingo_control_t *ctl, clingo_propagator_t propagator, void *data, bool sequential);
+clingo_error_t clingo_control_release_external(clingo_control_t *ctl, clingo_symbol_t atom);
+clingo_error_t clingo_control_solve_async(clingo_control_t *ctl, clingo_model_callback_t *mh, void *mh_data, clingo_finish_callback_t *fh, void *fh_data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_async_t **ret);
+clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_model_callback_t *mh, void *data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_result_t *ret);
+clingo_error_t clingo_control_solve_iter(clingo_control_t *ctl, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_iter_t **it);
 clingo_error_t clingo_control_symbolic_atoms(clingo_control_t *ctl, clingo_symbolic_atoms_t **ret);
 clingo_error_t clingo_control_theory_atoms(clingo_control_t *ctl, clingo_theory_atoms_t **ret);
-
+clingo_error_t clingo_control_use_enum_assumption(clingo_control_t *ctl, bool value);
+// TODO: ...
+clingo_error_t clingo_control_backend(clingo_control_t *ctl);
+clingo_error_t clingo_control_configuration(clingo_control_t *ctl);
+clingo_error_t clingo_control_statistics(clingo_control_t *ctl);
+// ... :TODO
+void clingo_control_interrupt(clingo_control_t *ctl);
+void clingo_control_free(clingo_control_t *ctl);
 // }}}1
 
 #ifdef __cplusplus

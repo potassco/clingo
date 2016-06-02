@@ -340,7 +340,7 @@ Gringo::SolveFuture *ClingoControl::solveAsync(ModelHandler mh, FinishHandler fh
 #endif
 }
 void ClingoControl::interrupt() {
-    clasp_->interrupt(SIGINT);
+    clasp_->interrupt(SIGUSR1);
 }
 bool ClingoControl::blocked() {
     return clasp_->solving();

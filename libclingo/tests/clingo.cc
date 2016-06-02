@@ -22,11 +22,12 @@
 #include "clingo.hh"
 #include <vector>
 #include <iostream>
+#include <fstream>
 #include <unordered_map>
 
 using namespace Clingo;
 
-using ModelVec = std::vector<SymVec>;
+using ModelVec = std::vector<SymbolVector>;
 using MessageVec = std::vector<std::pair<MessageCode, std::string>>;
 
 struct MCB {
@@ -113,9 +114,9 @@ private:
 class TestAssignment : public Propagator {
 public:
     void init(PropagateInit &init) override {
-        a_ = init.map_literal(init.symbolic_atoms().lookup(Id("a")).literal());
-        b_ = init.map_literal(init.symbolic_atoms().lookup(Id("b")).literal());
-        c_ = init.map_literal(init.symbolic_atoms().lookup(Id("c")).literal());
+        a_ = init.map_literal(init.symbolic_atoms().lookup(Id("a"))->literal());
+        b_ = init.map_literal(init.symbolic_atoms().lookup(Id("b"))->literal());
+        c_ = init.map_literal(init.symbolic_atoms().lookup(Id("c"))->literal());
         init.add_watch(a_);
         init.add_watch(b_);
     }
@@ -160,8 +161,8 @@ private:
 class TestAddClause : public Propagator {
 public:
     void init(PropagateInit &init) override {
-        a_ = init.map_literal(init.symbolic_atoms().lookup(Id("a")).literal());
-        b_ = init.map_literal(init.symbolic_atoms().lookup(Id("b")).literal());
+        a_ = init.map_literal(init.symbolic_atoms().lookup(Id("a"))->literal());
+        b_ = init.map_literal(init.symbolic_atoms().lookup(Id("b"))->literal());
         init.add_watch(a_);
         init.add_watch(b_);
     }
@@ -341,20 +342,37 @@ TEST_CASE("c-interface", "[clingo]") {
             Logger logger = [&messages](MessageCode code, char const *msg) { messages.emplace_back(code, msg); };
             Control ctl{mod.create_control({"test_libclingo", "0"}, logger, 20)};
             SECTION("solve") {
-                ctl.add("base", {}, "a.");
+                SECTION("add") { ctl.add("base", {}, "{a}."); }
+                SECTION("load") {
+                    char temp[L_tmpnam];
+                    std::tmpnam (temp);
+                    std::ofstream(temp) << "{a}.\n";
+                    ctl.load(temp);
+                    std::remove(temp);
+                }
                 ctl.ground({{"base", {}}});
                 REQUIRE(ctl.solve(MCB(models)).sat());
-                REQUIRE(models == ModelVec{{Id("a")}});
+                REQUIRE(models == ModelVec({{},{Id("a")}}));
+                REQUIRE(messages.empty());
+            }
+            SECTION("async") {
+                ctl.add("base", {}, "{a}.");
+                ctl.ground({{"base", {}}});
+                ModelCallback mc = MCB(models);
+                FinishCallback fc;
+                auto async = ctl.solve_async(mc, fc);
+                REQUIRE(async.get().sat());
+                REQUIRE(models == ModelVec({{},{Id("a")}}));
                 REQUIRE(messages.empty());
             }
             SECTION("model") {
                 ctl.add("base", {}, "a. $x $= 1. #show b.");
                 ctl.ground({{"base", {}}});
                 REQUIRE(ctl.solve([](Model m) {
-                    REQUIRE(m.atoms(ShowType::Atoms) == (SymVec{Id("a")}));
-                    REQUIRE(m.atoms(ShowType::Terms) == (SymVec{Id("b")}));
-                    REQUIRE(m.atoms(ShowType::CSP) == (SymVec{Fun("$", {Id("x"), Num(1)})}));
-                    REQUIRE(m.atoms(ShowType::Shown) == (SymVec{Fun("$", {Id("x"), Num(1)}), Id("a"), Id("b")}));
+                    REQUIRE(m.atoms(ShowType::Atoms) == (SymbolVector{Id("a")}));
+                    REQUIRE(m.atoms(ShowType::Terms) == (SymbolVector{Id("b")}));
+                    REQUIRE(m.atoms(ShowType::CSP) == (SymbolVector{Fun("$", {Id("x"), Num(1)})}));
+                    REQUIRE(m.atoms(ShowType::Shown) == (SymbolVector{Fun("$", {Id("x"), Num(1)}), Id("a"), Id("b")}));
                     REQUIRE(m.atoms(ShowType::Atoms | ShowType::Comp).size() == 0);
                     REQUIRE( m.contains(Id("a")));
                     REQUIRE(!m.contains(Id("b")));
@@ -442,18 +460,18 @@ TEST_CASE("c-interface", "[clingo]") {
                 REQUIRE(messages.empty());
                 auto atoms = ctl.symbolic_atoms();
                 Symbol p1 = Fun("p", {Num(1)}), p2 = Fun("p", {Num(2)}), p3 = Fun("p", {Num(3)}), q = Id("q");
-                REQUIRE( atoms.lookup(p1).fact()); REQUIRE(!atoms.lookup(p1).external());
-                REQUIRE(!atoms.lookup(p2).fact()); REQUIRE(!atoms.lookup(p2).external());
-                REQUIRE(!atoms.lookup(p3).fact()); REQUIRE( atoms.lookup(p3).external());
+                REQUIRE( atoms.lookup(p1)->fact()); REQUIRE(!atoms.lookup(p1)->external());
+                REQUIRE(!atoms.lookup(p2)->fact()); REQUIRE(!atoms.lookup(p2)->external());
+                REQUIRE(!atoms.lookup(p3)->fact()); REQUIRE( atoms.lookup(p3)->external());
                 REQUIRE(atoms.length() == 4);
-                SymVec symbols;
+                SymbolVector symbols;
                 for (auto atom : atoms) { symbols.emplace_back(atom.symbol()); }
                 std::sort(symbols.begin(), symbols.end());
-                REQUIRE(symbols == SymVec({q, p1, p2, p3}));
+                REQUIRE(symbols == SymbolVector({q, p1, p2, p3}));
                 symbols.clear();
                 for (auto it = atoms.begin(Signature("p", 1)); it; ++it) { symbols.emplace_back(it->symbol()); }
                 std::sort(symbols.begin(), symbols.end());
-                REQUIRE(symbols == SymVec({p1, p2, p3}));
+                REQUIRE(symbols == SymbolVector({p1, p2, p3}));
             }
             SECTION("incremental") {
                 ctl.add("base", {}, "#external query(0).");
@@ -477,7 +495,8 @@ TEST_CASE("c-interface", "[clingo]") {
                 {
                     auto iter = ctl.solve_iter();
                     MCB mcb(models);
-                    while (Model m = iter.next()) { mcb(m); }
+                    SECTION("c++") { for (auto m : iter) { mcb(m); } }
+                    SECTION("java") { while (Model m = iter.next()) { mcb(m); } }
                     REQUIRE(models == ModelVec{{Id("a")}});
                     REQUIRE(iter.get().sat());
                 }
@@ -492,9 +511,63 @@ TEST_CASE("c-interface", "[clingo]") {
                 REQUIRE(models == ModelVec{{}});
                 REQUIRE(messages == MessageVec({{MessageCode::OperationUndefined, "<block>:1:3-6: info: operation undefined:\n  (1+a)\n"}}));
             }
+            SECTION("use_enum_assumption") {
+                ctl.add("base", {}, "{p;q}.");
+                ctl.ground({{"base", {}}});
+                ctl.use_enum_assumption(false);
+                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(models.size() == 4);
+                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(models.size() <= 4);
+            }
+            SECTION("use_enum_assumption") {
+                ctl.add("base", {}, "{p;q}.");
+                ctl.ground({{"base", {}}});
+                ctl.use_enum_assumption(false);
+                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(models.size() == 4);
+                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(models.size() <= 4);
+            }
+            SECTION("cleanup") {
+                ctl.add("base", {}, "{a}. :- a.");
+                ctl.ground({{"base", {}}});
+                auto dom = ctl.symbolic_atoms();
+                REQUIRE(dom.lookup(Id("a")) != dom.end());
+                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(models.size() == 1);
+                ctl.cleanup();
+                REQUIRE(dom.lookup(Id("a")) == dom.end());
+                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(models.size() == 1);
+            }
+            SECTION("const") {
+                ctl.add("base", {}, "#const a=10.");
+                REQUIRE(ctl.has_const("a"));
+                REQUIRE(!ctl.has_const("b"));
+                REQUIRE(ctl.get_const("a") == Num(10));
+                REQUIRE(ctl.get_const("b") == Id("b"));
+            }
+            SECTION("async and cancel") {
+                ctl.add("pigeon", {"p", "h"}, "1 {p(P,H) : P=1..p}1 :- H=1..h."
+                                              "1 {p(P,H) : H=1..h}1 :- P=1..p.");
+                ctl.ground({{"pigeon", {Num(21), Num(20)}}});
+                ModelCallback mh;
+                int fcalled = 0;
+                SolveResult fret;
+                FinishCallback fh = [&fret, &fcalled](SolveResult ret) { ++fcalled; fret = ret; };
+                auto async = ctl.solve_async(mh, fh);
+                REQUIRE(!async.wait(0.01));
+                SECTION("interrupt") { ctl.interrupt(); }
+                SECTION("cancel") { async.cancel(); }
+                auto ret = async.get();
+                REQUIRE((ret.unknown() && ret.interrupted()));
+                REQUIRE(fcalled == 1);
+                REQUIRE(fret == ret);
+            }
             SECTION("ground callback") {
                 ctl.add("base", {}, "a(@f(X)):- X=1..2. b(@f()).");
-                ctl.ground({{"base", {}}}, [&messages](Location loc, char const *name, SymSpan args, SymSpanCallback report) {
+                ctl.ground({{"base", {}}}, [&messages](Location loc, char const *name, SymbolSpan args, SymbolSpanCallback report) {
                     if (strcmp(name, "f") == 0 && args.size() == 1) {
                         Symbol front = *args.begin();
                         report({Num(front.num() + 1), Num(front.num() + 10)});
@@ -512,7 +585,7 @@ TEST_CASE("c-interface", "[clingo]") {
             }
             SECTION("ground callback fail") {
                 ctl.add("base", {}, "a(@f()).");
-                REQUIRE_THROWS_AS(ctl.ground({{"base", {}}}, [](Location, char const *, SymSpan, SymSpanCallback) { throw std::runtime_error("fail"); }), std::runtime_error);
+                REQUIRE_THROWS_AS(ctl.ground({{"base", {}}}, [](Location, char const *, SymbolSpan, SymbolSpanCallback) { throw std::runtime_error("fail"); }), std::runtime_error);
             }
         }
     }

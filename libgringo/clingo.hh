@@ -162,8 +162,8 @@ enum class SymbolType : clingo_symbol_type_t {
 };
 
 class Symbol;
-using SymSpan = Span<Symbol>;
-using SymVec = std::vector<Symbol>;
+using SymbolSpan = Span<Symbol>;
+using SymbolVector = std::vector<Symbol>;
 
 class Symbol : public clingo_symbol_t {
 public:
@@ -173,7 +173,7 @@ public:
     char const *name() const;
     char const *string() const;
     bool sign() const;
-    SymSpan args() const;
+    SymbolSpan args() const;
     SymbolType type() const;
     std::string to_string() const;
     size_t hash() const;
@@ -184,7 +184,7 @@ Symbol Sup();
 Symbol Inf();
 Symbol Str(char const *str);
 Symbol Id(char const *str, bool sign = false);
-Symbol Fun(char const *name, SymSpan args, bool sign = false);
+Symbol Fun(char const *name, SymbolSpan args, bool sign = false);
 
 std::ostream &operator<<(std::ostream &out, Symbol sym);
 bool operator==(Symbol a, Symbol b);
@@ -234,6 +234,7 @@ public:
         return {atoms_, range};
     }
     bool operator==(SymbolicAtomIter it) const;
+    bool operator!=(SymbolicAtomIter it) const { return !(*this == it); }
     operator bool() const;
     operator clingo_symbolic_atom_iter_t() const { return range_; }
 };
@@ -242,11 +243,11 @@ class SymbolicAtoms {
 public:
     SymbolicAtoms(clingo_symbolic_atoms_t *atoms)
     : atoms_(atoms) { }
-    SymbolicAtomIter begin();
-    SymbolicAtomIter begin(Signature sig);
-    SymbolicAtomIter end();
-    SymbolicAtom lookup(Symbol atom);
-    std::vector<Signature> signatures();
+    SymbolicAtomIter begin() const;
+    SymbolicAtomIter begin(Signature sig) const;
+    SymbolicAtomIter end() const;
+    SymbolicAtomIter lookup(Symbol atom) const;
+    std::vector<Signature> signatures() const;
     size_t length() const;
     operator clingo_symbolic_atoms_t*() const { return atoms_; }
 private:
@@ -573,13 +574,13 @@ public:
     bool contains(Symbol atom) const;
     operator bool() const { return model_; }
     operator clingo_model_t*() const { return model_; }
-    SymVec atoms(ShowType show = ShowType::Shown) const;
+    SymbolVector atoms(ShowType show = ShowType::Shown) const;
 private:
     clingo_model_t *model_;
 };
 
 inline std::ostream &operator<<(std::ostream &out, Model m) {
-    out << SymSpan(m.atoms(ShowType::Shown));
+    out << SymbolSpan(m.atoms(ShowType::Shown));
     return out;
 }
 
@@ -663,6 +664,20 @@ private:
 inline ModelIterator begin(SolveIter &it) { return ModelIterator(it); };
 inline ModelIterator end(SolveIter &) { return ModelIterator(); };
 
+// {{{1 solve async
+
+class SolveAsync {
+public:
+    SolveAsync(clingo_solve_async_t *async)
+    : async_(async) { }
+    void cancel();
+    SolveResult get();
+    bool wait(double timeout = std::numeric_limits<double>::infinity());
+    operator clingo_solve_async_t*() const { return async_; }
+private:
+    clingo_solve_async_t *async_;
+};
+
 // {{{1 ast
 
 class Location : public clingo_location_t {
@@ -708,16 +723,17 @@ using AddASTCallback = std::function<void (ASTCallback)>;
 
 class Part : public clingo_part_t {
 public:
-    Part(char const *name, SymSpan params)
+    Part(char const *name, SymbolSpan params)
     : clingo_part_t{name, params.begin(), params.size()} { }
     char const *name() const { return clingo_part_t::name; }
-    SymSpan params() const { return {clingo_part_t::params, clingo_part_t::n}; }
+    SymbolSpan params() const { return {clingo_part_t::params, clingo_part_t::n}; }
 };
-using SymSpanCallback = std::function<void (SymSpan)>;
+using SymbolSpanCallback = std::function<void (SymbolSpan)>;
 using PartSpan = Span<Part>;
-using GroundCallback = std::function<void (Location loc, char const *, SymSpan, SymSpanCallback)>;
+using GroundCallback = std::function<void (Location loc, char const *, SymbolSpan, SymbolSpanCallback)>;
 using StringSpan = Span<char const *>;
-using ModelHandler = std::function<bool (Model)>;
+using ModelCallback = std::function<bool (Model)>;
+using FinishCallback = std::function<void (SolveResult)>;
 
 class Control {
 public:
@@ -727,13 +743,20 @@ public:
     void add(char const *name, StringSpan params, char const *part);
     void add(AddASTCallback cb);
     void ground(PartSpan parts, GroundCallback cb = nullptr);
-    SolveResult solve(ModelHandler mh = nullptr, SymbolicLiteralSpan assumptions = {});
+    SolveResult solve(ModelCallback mh = nullptr, SymbolicLiteralSpan assumptions = {});
     SolveIter solve_iter(SymbolicLiteralSpan assumptions = {});
     void assign_external(Symbol atom, TruthValue value);
     void release_external(Symbol atom);
-    SymbolicAtoms symbolic_atoms();
-    TheoryAtoms theory_atoms();
+    SymbolicAtoms symbolic_atoms() const;
+    TheoryAtoms theory_atoms() const;
     void register_propagator(Propagator &propagator, bool sequential);
+    void cleanup();
+    bool has_const(char const *name) const;
+    Symbol get_const(char const *name) const;
+    void interrupt() noexcept;
+    void load(char const *file);
+    SolveAsync solve_async(ModelCallback &mh, FinishCallback &fh, SymbolicLiteralSpan assumptions = {});
+    void use_enum_assumption(bool value);
     operator clingo_control_t*() const;
 private:
     clingo_control_t *ctl_;
