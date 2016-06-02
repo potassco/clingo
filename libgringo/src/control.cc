@@ -60,11 +60,10 @@ void print(char *ret, size_t *n, F f) {
     }
     else {
         if (*n < 1) { throw std::length_error("not enough space"); }
-        Gringo::ArrayStream as(ret, *n - 1);
+        Gringo::ArrayStream as(ret, *n);
         f(as);
-        ret[*n - 1] = '\0';
+        as << '\0';
     }
-
 }
 
 }
