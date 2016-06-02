@@ -568,10 +568,13 @@ private:
     clingo_show_type_t type_;
 };
 
+using OptimizationVector = std::vector<int64_t>;
+
 class Model {
 public:
     Model(clingo_model_t *model);
     bool contains(Symbol atom) const;
+    OptimizationVector optimization() const;
     operator bool() const { return model_; }
     operator clingo_model_t*() const { return model_; }
     SymbolVector atoms(ShowType show = ShowType::Shown) const;

@@ -503,7 +503,22 @@ extern "C" clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type
             if (*n < atoms.size) { throw std::length_error("not enough space"); }
             for (auto it = atoms.first, ie = it + atoms.size; it != ie; ++it) { *ret++ = *it; }
         }
-    } GRINGO_CLINGO_CATCH(&m->owner().logger());
+    }
+    GRINGO_CLINGO_CATCH(&m->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_model_optimization(clingo_model_t *m, int64_t *ret, size_t *n) {
+    GRINGO_CLINGO_TRY {
+        // TODO: implement matching C++ functions ...
+        auto opt = m->optimization();
+        if (!n) { throw std::invalid_argument("size must be non-null"); }
+        if (!ret) { *n = opt.size(); }
+        else {
+            if (*n < opt.size()) { throw std::length_error("not enough space"); }
+            std::copy(opt.begin(), opt.end(), ret);
+        }
+    }
+    GRINGO_CLINGO_CATCH(&m->owner().logger());
 }
 
 // {{{2 solve_iter
@@ -1288,6 +1303,15 @@ Model::Model(clingo_model_t *model)
 
 bool Model::contains(Symbol atom) const {
     return clingo_model_contains(model_, atom);
+}
+
+OptimizationVector Model::optimization() const {
+    OptimizationVector ret;
+    size_t n;
+    handleError(clingo_model_optimization(model_, nullptr, &n));
+    ret.resize(n);
+    handleError(clingo_model_optimization(model_, ret.data(), &n));
+    return ret;
 }
 
 SymbolVector Model::atoms(ShowType show) const {

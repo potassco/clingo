@@ -344,15 +344,35 @@ TEST_CASE("c-interface", "[clingo]") {
             SECTION("solve") {
                 SECTION("add") { ctl.add("base", {}, "{a}."); }
                 SECTION("load") {
-                    char temp[L_tmpnam];
-                    std::tmpnam (temp);
-                    std::ofstream(temp) << "{a}.\n";
-                    ctl.load(temp);
-                    std::remove(temp);
+                    struct Temp {
+                        Temp()  { std::tmpnam(temp); }
+                        ~Temp() { std::remove(temp); }
+                        char temp[L_tmpnam];
+                    } t;
+                    std::ofstream(t.temp) << "{a}.\n";
+                    ctl.load(t.temp);
                 }
                 ctl.ground({{"base", {}}});
                 REQUIRE(ctl.solve(MCB(models)).sat());
                 REQUIRE(models == ModelVec({{},{Id("a")}}));
+                REQUIRE(messages.empty());
+            }
+            SECTION("optimize") {
+                ctl.add("base", {}, "2 {a; b; c; d}.\n"
+                                    ":- a, b.\n"
+                                    ":- a, c.\n"
+                                    "#minimize {2@2:a; 3@2:b; 4@2:c; 5@2:d}.\n"
+                                    "#minimize {3@1:a; 4@1:b; 5@1:c; 2@1:d}.\n");
+                ctl.ground({{"base", {}}});
+                SymbolVector model;
+                OptimizationVector optimum;
+                REQUIRE(ctl.solve([&optimum, &model](Model m) {
+                    model = m.atoms();
+                    optimum = m.optimization();
+                    return true;
+                }).sat());
+                REQUIRE(model == SymbolVector({ Id("a"), Id("d") }));
+                REQUIRE(optimum == (OptimizationVector{7,5}));
                 REQUIRE(messages.empty());
             }
             SECTION("async") {

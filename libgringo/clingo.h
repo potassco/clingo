@@ -140,6 +140,10 @@ typedef struct clingo_module clingo_module_t;
 clingo_error_t clingo_module_new(clingo_module_t **mod);
 void clingo_module_free(clingo_module_t *mod);
 
+// {{{1 solve control
+
+// TODO: context
+
 // {{{1 model
 
 // TODO: context, optimization
@@ -156,6 +160,7 @@ typedef unsigned clingo_show_type_t;
 typedef struct clingo_model clingo_model_t;
 bool clingo_model_contains(clingo_model_t *m, clingo_symbol_t atom);
 clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type_t show, clingo_symbol_t *ret, size_t *n);
+clingo_error_t clingo_model_optimization(clingo_model_t *m, int64_t *ret, size_t *n);
 
 // {{{1 solve result
 
