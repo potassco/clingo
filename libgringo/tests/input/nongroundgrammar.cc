@@ -24,9 +24,6 @@
 #include "gringo/symbol.hh"
 #include "tests/tests.hh"
 
-#include <cppunit/TestFixture.h>
-#include <cppunit/TestAssert.h>
-#include <cppunit/extensions/HelperMacros.h>
 #include <climits>
 #include <sstream>
 #include <unistd.h>
