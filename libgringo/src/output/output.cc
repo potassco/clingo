@@ -100,6 +100,17 @@ public:
     }
     void translate(DomainData &data, Translator &trans) override {
         trans.translate(data, outPreds_, log_);
+        backendLambda(data, trans, [](DomainData &data, Backend &out) {
+            auto getCond = [&data](Id_t elem) {
+                TheoryData &td = data.theory();
+                BackendLitVec bc;
+                for (auto &lit : td.getCondition(elem)) {
+                    bc.emplace_back(call(data, lit, &Literal::uid));
+                }
+                return bc;
+            };
+            Gringo::output(data.theory().data(), out, getCond);
+        });
         trans.output(data, *this);
     }
     void replaceDelayed(DomainData &, LitVec &) override { }
@@ -182,11 +193,11 @@ UAbstractOutput OutputBase::fromFormat(std::ostream &stream, OutputFormat format
                 throw std::logic_error("implement reified format");
             }
             case OutputFormat::INTERMEDIATE: {
-                backend = gringo_make_unique<IntermediateFormatBackend>(data.theory().data(), stream);
+                backend = gringo_make_unique<IntermediateFormatBackend>(stream);
                 break;
             }
             case OutputFormat::SMODELS: {
-                backend = gringo_make_unique<SmodelsFormatBackend>(stream);
+                backend = gringo_make_unique<SmodelsFormatBackend>(stream, true);
                 break;
             }
             case OutputFormat::TEXT: {
@@ -211,7 +222,7 @@ UAbstractOutput OutputBase::fromBackend(UBackend &&backend, OutputDebug debug) {
 }
 
 void OutputBase::init(bool incremental) {
-    backendLambda(data, *out_, [incremental](DomainData &, Backend &out) { out.init(incremental); });
+    backendLambda(data, *out_, [incremental](DomainData &, Backend &out) { out.initProgram(incremental); });
 }
 
 void OutputBase::output(Statement &x) {

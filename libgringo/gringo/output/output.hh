@@ -54,17 +54,11 @@ private:
     UBackend out_;
 };
 
-// TODO: rename (again)
 class OutputBase {
 public:
     OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, std::ostream &out, OutputFormat format = OutputFormat::INTERMEDIATE, OutputDebug debug = OutputDebug::NONE);
     OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, UBackend &&out, OutputDebug debug = OutputDebug::NONE);
     OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, UAbstractOutput &&out);
-    template <typename T>
-    OutputBase(T create, Potassco::TheoryData &data, OutputPredicates &&outPreds, OutputDebug debug = OutputDebug::NONE)
-    : outPreds(std::move(outPreds))
-    , data(data)
-    , out_(fromBackend(create(this->data.theory()), debug)) { }
 
     std::pair<Id_t, Id_t> simplify(AssignmentLookup assignment);
     void incremental();

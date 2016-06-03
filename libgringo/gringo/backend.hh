@@ -28,49 +28,28 @@ namespace Gringo {
 
 // {{{1 declaration of Backend
 
-class Backend {
-public:
-    using AtomVec      = std::vector<Potassco::Atom_t>;
-    using LitVec       = std::vector<Potassco::Lit_t>;
-    using LitWeightVec = std::vector<Potassco::WeightLit_t>;
-    using TId          = Potassco::Id_t;
-    using GetCond      = std::function<LitVec(Potassco::Id_t)>;
-    virtual void init(bool incremental) = 0;
-    virtual void beginStep() = 0;
-    virtual void printTheoryAtom(Potassco::TheoryAtom const &atom, GetCond getCond) = 0;
-    virtual void printHead(bool choice, AtomVec const &atoms) = 0;
-    virtual void printNormalBody(LitVec const &body) = 0;
-    virtual void printWeightBody(Potassco::Weight_t lower, LitWeightVec const &body) = 0;
-    virtual void printProject(AtomVec const &atoms) = 0;
-    virtual void printOutput(char const *symbol, LitVec const &body) = 0;
-    virtual void printEdge(unsigned u, unsigned v, LitVec const &body) = 0;
-    virtual void printHeuristic(Potassco::Heuristic_t modifier, Potassco::Atom_t atom, int value, unsigned priority, LitVec const &body) = 0;
-    virtual void printExternal(Potassco::Atom_t atom, Potassco::Value_t value) = 0;
-    virtual void printAssume(LitVec const &lits) = 0;
-    virtual void printMinimize(int priority, LitWeightVec const &body) = 0;
-    virtual void endStep() = 0;
-
-    AtomVec &tempAtoms() {
-        hd_.clear();
-        return hd_;
-    }
-    LitVec &tempLits() {
-        bd_.clear();
-        return bd_;
-    }
-    LitWeightVec &tempWLits() {
-        wb_.clear();
-        return wb_;
-    }
-
-    virtual ~Backend() noexcept { }
-
-public:
-    AtomVec hd_;
-    LitVec  bd_;
-    LitWeightVec wb_;
-};
+using GetTheoryAtomCondition = std::function<std::vector<Potassco::Lit_t> (Potassco::Id_t)>;
+using BackendAtomVec = std::vector<Potassco::Atom_t>;
+using BackendLitVec = std::vector<Potassco::Lit_t>;
+using BackendLitWeightVec = std::vector<Potassco::WeightLit_t>;
+using Backend = Potassco::AbstractProgram;
 using UBackend = std::unique_ptr<Backend>;
+
+void output(Potassco::TheoryData const &data, Potassco::AbstractProgram &out, GetTheoryAtomCondition cond);
+
+inline void outputRule(Backend &out, bool choice, BackendAtomVec const &head, BackendLitVec const &body) {
+    BackendLitWeightVec wBody;
+    for (auto &lit : body) { wBody.emplace_back(Potassco::WeightLit_t{lit, 1}); }
+    out.rule({
+        choice ? Potassco::Head_t::Choice : Potassco::Head_t::Disjunctive, Potassco::toSpan(head)}, {
+        Potassco::Body_t::Normal, Potassco::Weight_t(body.size()), Potassco::toSpan(wBody)});
+}
+
+inline void outputRule(Backend &out, bool choice, BackendAtomVec const &head, Potassco::Weight_t lower, BackendLitWeightVec const &body) {
+    out.rule({
+        choice ? Potassco::Head_t::Choice : Potassco::Head_t::Disjunctive, Potassco::toSpan(head)}, {
+        Potassco::Body_t::Sum, lower, toSpan(body)});
+}
 
 // }}}1
 

@@ -1227,6 +1227,19 @@ public:
         owner_ = &owner;
         return *this;
     }
+    BackendAtomVec &tempAtoms() {
+        hd_.clear();
+        return hd_;
+    }
+    BackendLitVec &tempLits() {
+        bd_.clear();
+        return bd_;
+    }
+    BackendLitWeightVec &tempWLits() {
+        wb_.clear();
+        return wb_;
+    }
+
 private:
     Gringo::TheoryData::TermType termType(Id_t) const override;
     int termNum(Id_t value) const override;
@@ -1246,6 +1259,9 @@ private:
     std::string atomStr(Id_t value) const override;
 
 private:
+    BackendAtomVec hd_;
+    BackendLitVec bd_;
+    BackendLitWeightVec wb_;
     std::vector<Lit_t> tempLits_;
     Gringo::Output::TheoryData theory_;
     PredDomMap predDomains_;

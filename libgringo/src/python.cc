@@ -2349,13 +2349,12 @@ format.)";
             PyObject *pyBody = nullptr;
             PyObject *pyChoice = Py_False;
             if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "O|OO", const_cast<char**>(kwlist), &pyHead, &pyBody, &pyChoice)) { return nullptr; }
-            Gringo::Backend::AtomVec head;
+            Gringo::BackendAtomVec head;
             pyToCpp(pyHead, head);
-            Gringo::Backend::LitVec body;
+            Gringo::BackendLitVec body;
             if (pyBody) { pyToCpp(pyBody, body); }
             bool choice = pyToCpp<bool>(pyChoice);
-            self->backend->printHead(choice, head);
-            self->backend->printNormalBody(body);
+            Gringo::outputRule(*self->backend, choice, head, body);
             Py_RETURN_NONE;
         PY_CATCH(nullptr);
     }
@@ -2368,12 +2367,11 @@ format.)";
             PyObject *pyBody = nullptr;
             PyObject *pyChoice = Py_False;
             if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOO|O", const_cast<char**>(kwlist), &pyHead, &pyLower, &pyBody, &pyChoice)) { return nullptr; }
-            auto head = pyToCpp<Gringo::Backend::AtomVec>(pyHead);
+            auto head = pyToCpp<Gringo::BackendAtomVec>(pyHead);
             auto lower = pyToCpp<Potassco::Weight_t>(pyLower);
-            auto body = pyToCpp<Gringo::Backend::LitWeightVec>(pyBody);
+            auto body = pyToCpp<Gringo::BackendLitWeightVec>(pyBody);
             auto choice = pyToCpp<bool>(pyChoice);
-            self->backend->printHead(choice, head);
-            self->backend->printWeightBody(lower, body);
+            Gringo::outputRule(*self->backend, choice, head, lower, body);
             Py_RETURN_NONE;
         PY_CATCH(nullptr);
     }

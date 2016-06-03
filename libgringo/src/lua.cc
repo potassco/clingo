@@ -1668,8 +1668,8 @@ struct Backend : Object<Backend> {
 
     static int addRule(lua_State *L) {
         auto *self = Object<Backend>::self(L);
-        auto *head = AnyWrap::new_<Gringo::Backend::AtomVec>(L);
-        auto *body = AnyWrap::new_<Gringo::Backend::LitVec>(L);
+        auto *head = AnyWrap::new_<Gringo::BackendAtomVec>(L);
+        auto *body = AnyWrap::new_<Gringo::BackendLitVec>(L);
         bool choice = false;
         luaL_checktype(L, 2, LUA_TTABLE);
         luaPushKwArg(L, 2, 1, "head", false);
@@ -1681,15 +1681,17 @@ struct Backend : Object<Backend> {
         luaPushKwArg(L, 2, 3, "choice", true);
         luaToCpp(L, -1, choice);
         lua_pop(L, 1);
-        protect(L, [self, choice, head, body](){ self->backend.printHead(choice, *head); self->backend.printNormalBody(*body); });
+        protect(L, [self, choice, head, body](){
+            Gringo::outputRule(self->backend, choice, *head, *body);
+        });
         return 0;
     }
 
     static int addWeightRule(lua_State *L) {
         auto *self = Object<Backend>::self(L);
-        auto *head = AnyWrap::new_<Gringo::Backend::AtomVec>(L);
+        auto *head = AnyWrap::new_<Gringo::BackendAtomVec>(L);
         Weight_t lower;
-        auto *body = AnyWrap::new_<Gringo::Backend::LitWeightVec>(L);
+        auto *body = AnyWrap::new_<Gringo::BackendLitWeightVec>(L);
         bool choice = false;
         luaL_checktype(L, 2, LUA_TTABLE);
         luaPushKwArg(L, 2, 1, "head", false);
@@ -1704,7 +1706,9 @@ struct Backend : Object<Backend> {
         luaPushKwArg(L, 2, 4, "choice", true);
         luaToCpp(L, -1, choice);
         lua_pop(L, 1);
-        protect(L, [self, choice, head, lower, body](){ self->backend.printHead(choice, *head); self->backend.printWeightBody(lower, *body); });
+        protect(L, [self, choice, head, lower, body](){
+            Gringo::outputRule(self->backend, choice, *head, lower, *body);
+        });
         return 0;
     }
 };

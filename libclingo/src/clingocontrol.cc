@@ -29,90 +29,63 @@
 
 // {{{1 definition of ClaspAPIBackend
 
-void ClaspAPIBackend::init(bool) {
+void ClaspAPIBackend::initProgram(bool) { }
 
+void ClaspAPIBackend::endStep() { }
+
+void ClaspAPIBackend::beginStep() { }
+
+void ClaspAPIBackend::rule(const Potassco::HeadView& head, const Potassco::BodyView& body) {
+    prg_.addRule(head, body);
 }
 
-void ClaspAPIBackend::endStep() {
-
+void ClaspAPIBackend::minimize(Potassco::Weight_t prio, const Potassco::WeightLitSpan& lits) {
+    prg_.addMinimize(prio, lits);
 }
 
-void ClaspAPIBackend::beginStep() {
+void ClaspAPIBackend::project(const Potassco::AtomSpan& atoms) {
+    prg_.addProject(atoms);
 }
 
-void ClaspAPIBackend::addBody(const LitVec& body) {
-    for (auto x : body) {
-        body_.add((Clasp::Var)std::abs(x), x > 0);
+void ClaspAPIBackend::output(const Potassco::StringSpan& str, const Potassco::LitSpan& condition) {
+    prg_.addOutput(str, condition);
+}
+
+void ClaspAPIBackend::acycEdge(int s, int t, const Potassco::LitSpan& condition) {
+    prg_.addAcycEdge(s, t, condition);
+}
+
+void ClaspAPIBackend::heuristic(Potassco::Atom_t a, Potassco::Heuristic_t t, int bias, unsigned prio, const Potassco::LitSpan& condition) {
+    prg_.addDomHeuristic(a, t, bias, prio, condition);
+}
+
+void ClaspAPIBackend::assume(const Potassco::LitSpan& lits) {
+    prg_.addAssumption(lits);
+}
+
+void ClaspAPIBackend::external(Potassco::Atom_t a, Potassco::Value_t v) {
+    switch (v) {
+        case Potassco::Value_t::False:   { prg_.freeze(a, Clasp::value_false); break; }
+        case Potassco::Value_t::True:    { prg_.freeze(a, Clasp::value_true); break; }
+        case Potassco::Value_t::Free:    { prg_.freeze(a, Clasp::value_free); break; }
+        case Potassco::Value_t::Release: { prg_.unfreeze(a); break; }
     }
 }
 
-void ClaspAPIBackend::addBody(const LitWeightVec& body) {
-    for (auto x : body) {
-        body_.add((Clasp::Var)std::abs(x.lit), x.lit > 0, x.weight);
-    }
+void ClaspAPIBackend::theoryTerm(Potassco::Id_t, int) { }
+
+void ClaspAPIBackend::theoryTerm(Potassco::Id_t, const Potassco::StringSpan&) { }
+
+void ClaspAPIBackend::theoryTerm(Potassco::Id_t, int, const Potassco::IdSpan&) { }
+
+void ClaspAPIBackend::theoryElement(Potassco::Id_t e, const Potassco::IdSpan&, const Potassco::LitSpan& cond) {
+    Potassco::TheoryElement const &elem = prg_.theoryData().getElement(e);
+    if (elem.condition() == Potassco::TheoryData::COND_DEFERRED) { prg_.theoryData().setCondition(e, prg_.newCondition(cond)); }
 }
 
-void ClaspAPIBackend::printHead(bool choice, AtomVec const &atoms) {
-    head_.reset(choice ? Clasp::Asp::Head_t::Choice : Clasp::Asp::Head_t::Disjunctive);
-    for (auto x : atoms) { head_.add(x); }
-}
+void ClaspAPIBackend::theoryAtom(Potassco::Id_t, Potassco::Id_t, const Potassco::IdSpan&) { }
 
-void ClaspAPIBackend::printNormalBody(LitVec const &body) {
-    body_.reset(Potassco::Body_t::Normal);
-    addBody(body);
-    prg_.addRule(head_.toView(), body_.toView());
-}
-
-void ClaspAPIBackend::printWeightBody(Potassco::Weight_t lower, LitWeightVec const &body) {
-    body_.reset(Potassco::Body_t::Sum);
-    body_.bound = lower;
-    addBody(body);
-    prg_.addRule(head_.toView(), body_.toView());
-}
-
-void ClaspAPIBackend::printMinimize(int priority, LitWeightVec const &body) {
-    body_.reset(Potassco::Body_t::Sum);
-    prg_.addMinimize(priority, Potassco::toSpan(body));
-}
-
-void ClaspAPIBackend::printProject(AtomVec const &lits) {
-    prg_.addProject(Potassco::toSpan(lits));
-}
-
-void ClaspAPIBackend::printOutput(char const *symbol, LitVec const &body) {
-    prg_.addOutput(symbol, Potassco::toSpan(body));
-}
-
-void ClaspAPIBackend::printEdge(unsigned u, unsigned v, LitVec const &body) {
-    prg_.addAcycEdge(u, v, Potassco::toSpan(body));
-}
-
-void ClaspAPIBackend::printHeuristic(Potassco::Heuristic_t modifier, Potassco::Atom_t atom, int value, unsigned priority, LitVec const &body) {
-    prg_.addDomHeuristic(atom, modifier, value, priority, Potassco::toSpan(body));
-}
-
-void ClaspAPIBackend::printAssume(LitVec const &lits) {
-    prg_.addAssumption(Potassco::toSpan(lits));
-}
-
-void ClaspAPIBackend::printExternal(Potassco::Atom_t atomUid, Potassco::Value_t type) {
-    switch (type) {
-        case Potassco::Value_t::False:   { prg_.freeze(atomUid, Clasp::value_false); break; }
-        case Potassco::Value_t::True:    { prg_.freeze(atomUid, Clasp::value_true); break; }
-        case Potassco::Value_t::Free:    { prg_.freeze(atomUid, Clasp::value_free); break; }
-        case Potassco::Value_t::Release: { prg_.unfreeze(atomUid); break; }
-    }
-}
-
-void ClaspAPIBackend::printTheoryAtom(Potassco::TheoryAtom const &atom, GetCond getCond) {
-    for (auto&& e : atom.elements()) {
-        Potassco::TheoryElement const &elem = data_.getElement(e);
-        if (elem.condition() == Potassco::TheoryData::COND_DEFERRED) {
-            Potassco::LitVec cond;
-            data_.setCondition(e, prg_.newCondition(Potassco::toSpan(getCond(e))));
-        }
-    }
-}
+void ClaspAPIBackend::theoryAtom(Potassco::Id_t, Potassco::Id_t, const Potassco::IdSpan&, Potassco::Id_t, Potassco::Id_t){ }
 
 ClaspAPIBackend::~ClaspAPIBackend() noexcept = default;
 
@@ -161,8 +134,7 @@ void ClingoControl::parse(const StringSeq& files, const ClingoOptions& opts, Cla
         outPreds.emplace_back(Location("<cmd>",1,1,"<cmd>", 1,1), x, false);
     }
     if (claspOut) {
-        auto create = [&](Output::TheoryData &data) -> UBackend { return gringo_make_unique<ClaspAPIBackend>(const_cast<Potassco::TheoryData&>(data.data()), *claspOut); };
-        out_ = gringo_make_unique<Output::OutputBase>(create, claspOut->theoryData(), std::move(outPreds), opts.outputDebug);
+        out_ = gringo_make_unique<Output::OutputBase>(claspOut->theoryData(), std::move(outPreds), gringo_make_unique<ClaspAPIBackend>(*claspOut), opts.outputDebug);
     }
     else {
         data_ = gringo_make_unique<Potassco::TheoryData>();

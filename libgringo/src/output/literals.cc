@@ -346,9 +346,6 @@ void BodyAggregateElements_::accumulate(DomainData &data, TupleId tuple, LitVec 
         // remap tuple offsets if rebuild is necessary
         HashSet<uint64_t> tuples(tuples_.size() + 1, tuples_.reserved());
         tuples.swap(tuples_);
-        if (tuples.reserved() >= tuples_.reserved()) {
-            std::cerr << tuples.size() << " / " << tuples.load() << " / " << tuples.reserved() << " < " << tuples_.reserved() << std::endl;
-        }
         assert(tuples.reserved() < tuples_.reserved());
         visitClause([&](uint32_t &to, ClauseId) {
             to = (tuples_.offset(insertTuple(tuples.at(to >> 1)).first) << 1) | (to & 1);
@@ -1056,20 +1053,6 @@ LiteralId TheoryLiteral::translate(Translator &trans) {
             auto ret = atm.hasGuard()
                 ? data.addAtom(newAtom, atm.name(), Potassco::toSpan(atm.elems()), atm.op(), atm.guard())
                 : data.addAtom(newAtom, atm.name(), Potassco::toSpan(atm.elems()));
-            // output newly inserted theory atoms
-            if (ret.second) {
-                backendLambda(data_, trans, [&ret](DomainData &data, Backend &out){
-                    auto getCond = [&data](Id_t elem) {
-                        TheoryData &td = data.theory();
-                        Backend::LitVec bc;
-                        for (auto &lit : td.getCondition(elem)) {
-                            bc.emplace_back(call(data, lit, &Literal::uid));
-                        }
-                        return bc;
-                    };
-                    out.printTheoryAtom(ret.first, getCond);
-                });
-            }
             if (ret.first.atom() != 0) {
                 // assign the literal of the theory atom
                 if (!atm.lit()) { atm.setLit({NAF::POS, AtomType::Aux, ret.first.atom(), 0}); }

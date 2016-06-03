@@ -42,34 +42,30 @@
 
 class ClaspAPIBackend : public Gringo::Backend {
 public:
-    ClaspAPIBackend(Potassco::TheoryData &data, Clasp::Asp::LogicProgram& out) : data_(data), prg_(out) { }
-    void init(bool incremental) override;
+    ClaspAPIBackend(Clasp::Asp::LogicProgram& out) : prg_(out) { }
+    void initProgram(bool incremental) override;
     void beginStep() override;
-    void printTheoryAtom(Potassco::TheoryAtom const &atom, GetCond getCond) override;
-    void printHead(bool choice, AtomVec const &atoms) override;
-    void printNormalBody(LitVec const &body) override;
-    void printWeightBody(Potassco::Weight_t lower, LitWeightVec const &body) override;
-    void printProject(AtomVec const &lits) override;
-    void printOutput(char const *symbol, LitVec const &body) override;
-    void printEdge(unsigned u, unsigned v, LitVec const &body) override;
-    void printHeuristic(Potassco::Heuristic_t modifier, Potassco::Atom_t atom, int value, unsigned priority, LitVec const &body) override;
-    void printExternal(Potassco::Atom_t atom, Potassco::Value_t value) override;
-    void printAssume(LitVec const &lits) override;
-    void printMinimize(int priority, LitWeightVec const &body) override;
+    void rule(const Potassco::HeadView& head, const Potassco::BodyView& body) override;
+    void minimize(Potassco::Weight_t prio, const Potassco::WeightLitSpan& lits) override;
+    void project(const Potassco::AtomSpan& atoms) override;
+    void output(const Potassco::StringSpan& str, const Potassco::LitSpan& condition) override;
+    void external(Potassco::Atom_t a, Potassco::Value_t v) override;
+    void assume(const Potassco::LitSpan& lits) override;
+    void heuristic(Potassco::Atom_t a, Potassco::Heuristic_t t, int bias, unsigned prio, const Potassco::LitSpan& condition) override;
+    void acycEdge(int s, int t, const Potassco::LitSpan& condition) override;
+    void theoryTerm(Potassco::Id_t termId, int number) override;
+    void theoryTerm(Potassco::Id_t termId, const Potassco::StringSpan& name) override;
+    void theoryTerm(Potassco::Id_t termId, int cId, const Potassco::IdSpan& args) override;
+    void theoryElement(Potassco::Id_t elementId, const Potassco::IdSpan& terms, const Potassco::LitSpan& cond) override;
+    void theoryAtom(Potassco::Id_t atomOrZero, Potassco::Id_t termId, const Potassco::IdSpan& elements) override;
+    void theoryAtom(Potassco::Id_t atomOrZero, Potassco::Id_t termId, const Potassco::IdSpan& elements, Potassco::Id_t op, Potassco::Id_t rhs) override;
     void endStep() override;
     ~ClaspAPIBackend() noexcept override;
 
 private:
-    void addBody(const LitVec& body);
-    void addBody(const LitWeightVec& body);
-    void updateConditions(Potassco::IdSpan const& elems, GetCond getCond);
     ClaspAPIBackend(const ClaspAPIBackend&);
     ClaspAPIBackend& operator=(const ClaspAPIBackend&);
-    Potassco::TheoryData &data_;
     Clasp::Asp::LogicProgram& prg_;
-    Clasp::Asp::HeadData head_;
-    Clasp::Asp::BodyData body_;
-    std::stringstream str_;
 };
 
 // {{{1 declaration of ClingoOptions

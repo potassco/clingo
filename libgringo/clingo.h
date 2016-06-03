@@ -374,6 +374,7 @@ clingo_error_t clingo_control_statistics(clingo_control_t *ctl);
 // ... :TODO
 void clingo_control_interrupt(clingo_control_t *ctl);
 void clingo_control_free(clingo_control_t *ctl);
+
 // }}}1
 
 #ifdef __cplusplus

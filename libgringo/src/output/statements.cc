@@ -156,16 +156,15 @@ void Rule::translate(DomainData &data, Translator &x) {
     }
 }
 void Rule::output(DomainData &data, Backend &out) const {
-    Backend::AtomVec &hd = out.tempAtoms();
+    BackendAtomVec &hd = data.tempAtoms();
     for (auto &x : head_) {
         Potassco::Lit_t lit = call(data, x, &Literal::uid);
         assert(lit > 0);
         hd.emplace_back(static_cast<Potassco::Atom_t>(lit));
     }
-    Backend::LitVec &bd = out.tempLits();
+    BackendLitVec &bd = data.tempLits();
     for (auto &x : body_) { bd.emplace_back(call(data, x, &Literal::uid)); }
-    out.printHead(choice_, hd);
-    out.printNormalBody(bd);
+    outputRule(out, choice_, hd, bd);
 }
 
 void Rule::replaceDelayed(DomainData &data, LitVec &delayed) {
@@ -198,7 +197,7 @@ void External::translate(DomainData &data, Translator &x) {
 
 void External::output(DomainData &data, Backend &out) const {
     Atom_t head = call(data, head_, &Literal::uid);
-    out.printExternal(head, type_);
+    out.external(head, type_);
 }
 
 void External::replaceDelayed(DomainData &data, LitVec &) {
@@ -255,9 +254,9 @@ void ProjectStatement::translate(DomainData &data, Translator &x) {
 }
 
 void ProjectStatement::output(DomainData &data, Backend &out) const {
-    Backend::AtomVec atoms;
+    BackendAtomVec atoms;
     atoms.emplace_back(call(data, atom_, &Literal::uid));
-    out.printProject(atoms);
+    out.project(Potassco::toSpan(atoms));
 }
 
 void ProjectStatement::replaceDelayed(DomainData &, LitVec &) {
@@ -290,11 +289,11 @@ void HeuristicStatement::translate(DomainData &data, Translator &x) {
 
 void HeuristicStatement::output(DomainData &data, Backend &out) const {
     auto uid = call(data, atom_, &Literal::uid);
-    Backend::LitVec bd;
+    BackendLitVec bd;
     for (auto &lit : body_) {
         bd.emplace_back(call(data, lit, &Literal::uid));
     }
-    out.printHeuristic(mod_, uid, value_, priority_, bd);
+    out.heuristic(uid, mod_, value_, priority_, Potassco::toSpan(bd));
 }
 
 void HeuristicStatement::replaceDelayed(DomainData &data, LitVec &delayed) {
@@ -327,9 +326,9 @@ void EdgeStatement::translate(DomainData &data, Translator &x) {
 }
 
 void EdgeStatement::output(DomainData &data, Backend &out) const {
-    Backend::LitVec bd;
+    BackendLitVec bd;
     for (auto &x : body_) { bd.emplace_back(call(data, x, &Literal::uid)); }
-    out.printEdge(uidU_, uidV_, bd);
+    out.acycEdge(uidU_, uidV_, Potassco::toSpan(bd));
 }
 
 void EdgeStatement::replaceDelayed(DomainData &data, LitVec &delayed) {
@@ -859,12 +858,12 @@ void Symtab::translate(DomainData &data, Translator &x) {
 }
 
 void Symtab::output(DomainData &data, Backend &out) const {
-    Backend::LitVec &bd = out.tempLits();
+    BackendLitVec &bd = data.tempLits();
     for (auto &x : body_) { bd.emplace_back(call(data, x, &Literal::uid)); }
     std::ostringstream oss;
     oss << symbol_;
     if (csp_) { oss << "=" << value_; }
-    out.printOutput(oss.str().c_str(), bd);
+    out.output(Potassco::toSpan(oss.str()), Potassco::toSpan(bd));
 }
 
 void Symtab::replaceDelayed(DomainData &data, LitVec &delayed) {
@@ -900,11 +899,11 @@ void Minimize::print(PrintPlain out, char const *prefix) const {
 }
 
 void Minimize::output(DomainData &data, Backend &x) const {
-    Backend::LitWeightVec &body = x.tempWLits();
+    BackendLitWeightVec &body = data.tempWLits();
     for (auto &y : lits_) {
         body.push_back({call(data, y.first, &Literal::uid), y.second});
     }
-    x.printMinimize(priority_, body);
+    x.minimize(priority_, Potassco::toSpan(body));
 }
 
 void Minimize::replaceDelayed(DomainData &data, LitVec &delayed) {
@@ -949,11 +948,10 @@ void WeightRule::translate(DomainData &data, Translator &x) {
 }
 
 void WeightRule::output(DomainData &data, Backend &out) const {
-    Backend::LitWeightVec lits;
+    BackendLitWeightVec lits;
     for (auto &x : body_) { lits.push_back({call(data, x.first, &Literal::uid), static_cast<Potassco::Weight_t>(x.second)}); }
-    Backend::AtomVec heads({static_cast<Potassco::Atom_t>(call(data, head_, &Literal::uid))});
-    out.printHead(false, heads);
-    out.printWeightBody(lower_, lits);
+    BackendAtomVec heads({static_cast<Potassco::Atom_t>(call(data, head_, &Literal::uid))});
+    outputRule(out, false, heads, lower_, lits);
 }
 
 void WeightRule::replaceDelayed(DomainData &data, LitVec &delayed) {
