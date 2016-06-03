@@ -345,7 +345,7 @@ TEST_CASE("c-interface", "[clingo]") {
                 SECTION("add") { ctl.add("base", {}, "{a}."); }
                 SECTION("load") {
                     struct Temp {
-                        Temp()  { std::tmpnam(temp); }
+                        Temp()  { (void)std::tmpnam(temp); }
                         ~Temp() { std::remove(temp); }
                         char temp[L_tmpnam];
                     } t;
