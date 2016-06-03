@@ -2283,35 +2283,35 @@ struct PropagateControl : Object<PropagateControl> {
 
     static int addClauseOrNogood(lua_State *L, bool invert) {
         auto self = Object::self(L);
-        lua_pushinteger(L, 1);
-        lua_gettable(L, 2);
-        int table = lua_gettop(L);
-        auto lits = AnyWrap::new_<std::vector<Potassco::Lit_t>>(L);
-        luaL_checktype(L, table, LUA_TTABLE);
-        lua_pushnil(L);
-        while (lua_next(L, table)) {
-            int lit = luaL_checkinteger(L, -1);
+        lua_pushinteger(L, 1);                                       // +1
+        lua_gettable(L, 2);                                          // +0
+        luaL_checktype(L, -1, LUA_TTABLE);                           // +0
+        auto lits = AnyWrap::new_<std::vector<Potassco::Lit_t>>(L);  // +1
+        lua_pushnil(L);                                              // +1
+        while (lua_next(L, -3)) {                                    // -1
+            int lit = luaL_checkinteger(L, -1);                      // +0
             protect(L, [lits, lit](){ lits->emplace_back(lit); });
             lua_pop(L, 1);
         }
-        lua_settop(L, 2);
         unsigned type = 0;
-        lua_getfield(L, 2, "tag");
+        lua_getfield(L, 2, "tag");                                   // +1
         if (lua_toboolean(L, -1)) {
             type |= Potassco::Clause_t::Volatile;
         }
-        lua_settop(L, 2);
-        lua_getfield(L, 2, "lock");
+        lua_pop(L, 1);                                               // -1
+        lua_getfield(L, 2, "lock");                                  // +1
         if (lua_toboolean(L, -1)) {
             type |= Potassco::Clause_t::Static;
         }
-        lua_settop(L, 2);
-        lua_pushboolean(L, protect(L, [self, lits, type, invert]() {
+        lua_pop(L, 1);                                               // -1
+        lua_pushboolean(L, protect(L, [self, lits, type, invert]() { // +1
             if (invert) {
                 for (auto &lit : *lits) { lit = -lit; }
             }
             return self->ctl->addClause(Potassco::toSpan(*lits), static_cast<Potassco::Clause_t>(type));
         }));
+        lua_replace(L, 3);
+        lua_settop(L, 3);
         return 1;
     }
 

@@ -345,12 +345,14 @@ TEST_CASE("c-interface", "[clingo]") {
                 SECTION("add") { ctl.add("base", {}, "{a}."); }
                 SECTION("load") {
                     struct Temp {
-                        Temp()  { (void)std::tmpnam(temp); }
-                        ~Temp() { std::remove(temp); }
+                        Temp() : file(std::tmpnam(temp)) { }
+                        ~Temp() { if (file) { std::remove(temp); } }
                         char temp[L_tmpnam];
+                        char *file;
                     } t;
-                    std::ofstream(t.temp) << "{a}.\n";
-                    ctl.load(t.temp);
+                    REQUIRE(t.file != nullptr);
+                    std::ofstream(t.file) << "{a}.\n";
+                    ctl.load(t.file);
                 }
                 ctl.ground({{"base", {}}});
                 REQUIRE(ctl.solve(MCB(models)).sat());
