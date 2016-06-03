@@ -100,17 +100,6 @@ public:
     }
     void translate(DomainData &data, Translator &trans) override {
         trans.translate(data, outPreds_, log_);
-        backendLambda(data, trans, [](DomainData &data, Backend &out) {
-            auto getCond = [&data](Id_t elem) {
-                TheoryData &td = data.theory();
-                BackendLitVec bc;
-                for (auto &lit : td.getCondition(elem)) {
-                    bc.emplace_back(call(data, lit, &Literal::uid));
-                }
-                return bc;
-            };
-            Gringo::output(data.theory().data(), out, getCond);
-        });
         trans.output(data, *this);
     }
     void replaceDelayed(DomainData &, LitVec &) override { }
@@ -233,6 +222,17 @@ void OutputBase::output(Statement &x) {
 void OutputBase::flush() {
     for (auto &lit : delayed_) { DelayedStatement(lit).passTo(data, *out_); }
     delayed_.clear();
+    backendLambda(data, *out_, [](DomainData &data, Backend &out) {
+        auto getCond = [&data](Id_t elem) {
+            TheoryData &td = data.theory();
+            BackendLitVec bc;
+            for (auto &lit : td.getCondition(elem)) {
+                bc.emplace_back(call(data, lit, &Literal::uid));
+            }
+            return bc;
+        };
+        Gringo::output(data.theory().data(), out, getCond);
+    });
 }
 
 void OutputBase::beginStep() {
