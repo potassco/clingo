@@ -35,7 +35,6 @@ std::ostream &operator<<(std::ostream &out, std::vector<T> const &vec);
 template <class K, class V>
 std::ostream &operator<<(std::ostream &out, std::pair<K, V> const &pair);
 
-
 template <class T>
 std::ostream &operator<<(std::ostream &out, std::vector<T> const &vec) {
     out << "{";
@@ -460,7 +459,7 @@ TEST_CASE("propagator", "[clingo][propagator]") {
     Control ctl{mod.create_control({"test_libclingo", "0"}, logger, 20)};
     SECTION("pigeon") {
         PigeonPropagator p;
-        ctl.register_propagator(p, false);
+        ctl.register_propagator(p);
         ctl.add("pigeon", {"h", "p"}, "1 { place(P,H) : H = 1..h } 1 :- P = 1..p.");
         auto place = [](int p, int h) { return Fun("place", {Num(p), Num(h)}); };
         SECTION("unsat") {
@@ -533,7 +532,7 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
     MessageVec messages;
     ModelVec models;
     Logger logger = [&messages](MessageCode code, char const *msg) { messages.emplace_back(code, msg); };
-    Control ctl{mod.create_control({"test_libclingo", "-t8", "--opt-mode=optN"}, logger, 20)};
+    Control ctl{mod.create_control({"test_libclingo", "-t30", "--opt-mode=optN"}, logger, 20)};
     SECTION("sequence mining") {
         SequenceMiningPropagator p;
         ctl.register_propagator(p, false);

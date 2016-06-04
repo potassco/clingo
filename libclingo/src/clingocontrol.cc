@@ -118,7 +118,7 @@ Potassco::Lit_t ClingoPropagateInit::mapLit(Lit_t lit) {
 }
 
 int ClingoPropagateInit::threads() {
-    return static_cast<ClingoControl&>(c_).clasp_->config()->numSolver();
+    return static_cast<ClingoControl&>(c_).clasp_->config()->solve.numSolver();
 }
 
 void ClingoControl::parse(const StringSeq& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* claspOut, bool addStdIn) {

@@ -842,7 +842,7 @@ public:
     void release_external(Symbol atom);
     SymbolicAtoms symbolic_atoms() const;
     TheoryAtoms theory_atoms() const;
-    void register_propagator(Propagator &propagator, bool sequential);
+    void register_propagator(Propagator &propagator, bool sequential = false);
     void cleanup();
     bool has_const(char const *name) const;
     Symbol get_const(char const *name) const;
