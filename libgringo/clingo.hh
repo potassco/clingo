@@ -35,8 +35,11 @@ namespace Clingo {
 
 // {{{1 basic types
 
+// consider using upper case
 using lit_t = clingo_lit_t;
 using id_t = clingo_id_t;
+using weight_t = clingo_weight_t;
+using atom_t = clingo_atom_t;
 
 enum class TruthValue {
     Free = clingo_truth_value_free,
@@ -87,6 +90,7 @@ public:
     ReferenceType front() const { return *begin(); }
     ReferenceType back() const { return *I::operator()(end_-1); }
     size_t size() const { return end_ - begin_; }
+    bool empty() const { return begin_ == end_; }
 private:
     T const *begin_;
     T const *end_;
@@ -246,10 +250,11 @@ public:
     SymbolicAtomIter begin() const;
     SymbolicAtomIter begin(Signature sig) const;
     SymbolicAtomIter end() const;
-    SymbolicAtomIter lookup(Symbol atom) const;
+    SymbolicAtomIter find(Symbol atom) const;
     std::vector<Signature> signatures() const;
     size_t length() const;
     operator clingo_symbolic_atoms_t*() const { return atoms_; }
+    SymbolicAtom operator[](Symbol atom) { return *find(atom); }
 private:
     clingo_symbolic_atoms_t *atoms_;
 };
@@ -266,8 +271,9 @@ enum class TheoryTermType : clingo_theory_term_type_t {
 };
 
 template <class T>
-class TheoryIterator : public std::iterator<std::bidirectional_iterator_tag, const T> {
+class TheoryIterator : public std::iterator<std::bidirectional_iterator_tag, const T, ptrdiff_t, T*, T> {
 public:
+    using difference_type = typename std::iterator<std::bidirectional_iterator_tag, const T>::difference_type;
     TheoryIterator(clingo_theory_atoms_t *atoms, clingo_id_t const* id)
     : elem_(atoms)
     , id_(id) { }
@@ -283,14 +289,26 @@ public:
         --*this;
         return t;
     }
-    T &operator*() { return elem_ = *id_; }
-    T *operator->() { return &**this; }
+    TheoryIterator& operator+=(difference_type n) { id_ += n; return *this; }
+    TheoryIterator& operator-=(difference_type n) { id_ -= n; return *this; }
+    friend TheoryIterator operator+(TheoryIterator it, difference_type n) { return {it.atoms(), it.id_ + n}; }
+    friend TheoryIterator operator+(difference_type n, TheoryIterator it) { return {it.atoms(), it.id_ + n}; }
+    friend TheoryIterator operator-(TheoryIterator it, difference_type n) { return {it.atoms(), it.id_ - n}; }
+    friend difference_type operator-(TheoryIterator a, TheoryIterator b)  { return b.id_ - a.id_; }
+    T operator*() { return elem_ = *id_; }
+    T *operator->() { return &(elem_ = *id_); }
     friend void swap(TheoryIterator& lhs, TheoryIterator& rhs) {
-        std::swap(lhs.data_, rhs.data_);
+        std::swap(lhs.id_, rhs.id_);
         std::swap(lhs.elem_, rhs.elem_);
     }
     friend bool operator==(const TheoryIterator& lhs, const TheoryIterator& rhs) { return lhs.id_ == rhs.id_; }
     friend bool operator!=(const TheoryIterator& lhs, const TheoryIterator& rhs) { return !(lhs == rhs); }
+    friend bool operator< (TheoryIterator lhs, TheoryIterator rhs) { return lhs.id_ < rhs.id_; }
+    friend bool operator> (TheoryIterator lhs, TheoryIterator rhs) { return rhs < lhs; }
+    friend bool operator<=(TheoryIterator lhs, TheoryIterator rhs) { return !(lhs > rhs); }
+    friend bool operator>=(TheoryIterator lhs, TheoryIterator rhs) { return !(lhs < rhs); }
+private:
+    clingo_theory_atoms_t *&atoms() { return elem_.atoms_; }
 private:
     T                  elem_;
     clingo_id_t const *id_;
@@ -392,7 +410,7 @@ private:
 };
 std::ostream &operator<<(std::ostream &out, TheoryAtom term);
 
-class TheoryAtomIterator : private TheoryAtom, public std::iterator<TheoryAtom, std::random_access_iterator_tag> {
+class TheoryAtomIterator : private TheoryAtom, public std::iterator<TheoryAtom, std::random_access_iterator_tag, ptrdiff_t, TheoryAtom*, TheoryAtom> {
 public:
     TheoryAtomIterator(clingo_theory_atoms_t *atoms, clingo_id_t id)
     : TheoryAtom{atoms, id} { }
@@ -414,7 +432,7 @@ public:
     friend TheoryAtomIterator operator+(difference_type n, TheoryAtomIterator it) { return {it.atoms(), clingo_id_t(it.id() + n)}; }
     friend TheoryAtomIterator operator-(TheoryAtomIterator it, difference_type n) { return {it.atoms(), clingo_id_t(it.id() - n)}; }
     friend difference_type operator-(TheoryAtomIterator a, TheoryAtomIterator b)  { return b.id() - a.id(); }
-    TheoryAtom &operator*() { return *this; }
+    TheoryAtom operator*() { return *this; }
     TheoryAtom *operator->() { return this; }
     friend void swap(TheoryAtomIterator& lhs, TheoryAtomIterator& rhs) {
         std::swap(lhs.atoms(), rhs.atoms());
@@ -724,6 +742,78 @@ using AddASTCallback = std::function<void (ASTCallback)>;
 
 // {{{1 control
 
+enum class HeuristicType : clingo_heuristic_type_t {
+    Level  = clingo_heuristic_type_level,
+    Sign   = clingo_heuristic_type_sign,
+    Factor = clingo_heuristic_type_factor,
+    Init   = clingo_heuristic_type_init,
+    True   = clingo_heuristic_type_true,
+    False  = clingo_heuristic_type_false
+};
+
+inline std::ostream &operator<<(std::ostream &out, HeuristicType t) {
+    switch (t) {
+        case HeuristicType::Level:  { out << "Level"; break; }
+        case HeuristicType::Sign:   { out << "Sign"; break; }
+        case HeuristicType::Factor: { out << "Factor"; break; }
+        case HeuristicType::Init:   { out << "Init"; break; }
+        case HeuristicType::True:   { out << "True"; break; }
+        case HeuristicType::False:  { out << "False"; break; }
+    }
+    return out;
+}
+
+enum class ExternalType {
+    Free    = clingo_external_type_free,
+    True    = clingo_external_type_true,
+    False   = clingo_external_type_false,
+    Release = clingo_external_type_release
+};
+
+inline std::ostream &operator<<(std::ostream &out, ExternalType t) {
+    switch (t) {
+        case ExternalType::Free:    { out << "Free"; break; }
+        case ExternalType::True:    { out << "True"; break; }
+        case ExternalType::False:   { out << "False"; break; }
+        case ExternalType::Release: { out << "Release"; break; }
+    }
+    return out;
+}
+
+class WeightLit : public clingo_weight_lit_t {
+public:
+    WeightLit(clingo_lit_t lit, clingo_weight_t weight)
+    : clingo_weight_lit_t{lit, weight} { }
+    WeightLit(clingo_weight_lit_t wlit)
+    : clingo_weight_lit_t(wlit) { }
+    lit_t literal() const { return clingo_weight_lit_t::literal; }
+    weight_t weight() const { return clingo_weight_lit_t::weight; }
+};
+
+using AtomSpan = Span<atom_t>;
+using WeightLitSpan = Span<WeightLit>;
+
+class Backend {
+public:
+    Backend(clingo_backend_t *backend)
+    : backend_(backend) { }
+    void rule(bool choice, AtomSpan head, LitSpan body);
+    void weight_rule(bool choice, AtomSpan head, weight_t lower, WeightLitSpan body);
+    void minimize(weight_t prio, WeightLitSpan body);
+    void project(AtomSpan atoms);
+    void output(char const *name, LitSpan condition);
+    void external(atom_t atom, ExternalType type);
+    void assume(LitSpan lits);
+    void heuristic(atom_t atom, HeuristicType type, int bias, unsigned priority, LitSpan condition);
+    void acyc_edge(int node_u, int node_v, LitSpan condition);
+    atom_t add_atom();
+    operator clingo_backend_t*() const { return backend_; }
+private:
+    clingo_backend_t *backend_;
+};
+
+// {{{1 control
+
 class Part : public clingo_part_t {
 public:
     Part(char const *name, SymbolSpan params)
@@ -760,6 +850,7 @@ public:
     void load(char const *file);
     SolveAsync solve_async(ModelCallback &mh, FinishCallback &fh, SymbolicLiteralSpan assumptions = {});
     void use_enum_assumption(bool value);
+    Backend backend();
     operator clingo_control_t*() const;
 private:
     clingo_control_t *ctl_;

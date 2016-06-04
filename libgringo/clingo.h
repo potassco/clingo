@@ -44,6 +44,8 @@ extern "C" {
 
 typedef int32_t clingo_lit_t;
 typedef uint32_t clingo_id_t;
+typedef int32_t clingo_weight_t;
+typedef uint32_t clingo_atom_t;
 
 // {{{1 errors and warnings
 
@@ -226,7 +228,7 @@ typedef struct clingo_symbolic_atom_iter {
 typedef struct clingo_symbolic_atoms clingo_symbolic_atoms_t;
 clingo_error_t clingo_symbolic_atoms_begin(clingo_symbolic_atoms_t *dom, clingo_signature_t *sig, clingo_symbolic_atom_iter_t *ret);
 clingo_error_t clingo_symbolic_atoms_end(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t *ret);
-clingo_error_t clingo_symbolic_atoms_lookup(clingo_symbolic_atoms_t *dom, clingo_symbol_t atom, clingo_symbolic_atom_iter_t *ret);
+clingo_error_t clingo_symbolic_atoms_find(clingo_symbolic_atoms_t *dom, clingo_symbol_t atom, clingo_symbolic_atom_iter_t *ret);
 clingo_error_t clingo_symbolic_atoms_iter_eq(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t it, clingo_symbolic_atom_iter_t jt, bool *ret);
 clingo_error_t clingo_symbolic_atoms_signatures(clingo_symbolic_atoms_t *dom, clingo_signature_t *ret, size_t *n);
 clingo_error_t clingo_symbolic_atoms_size(clingo_symbolic_atoms_t *dom, size_t *ret);
@@ -316,7 +318,40 @@ typedef struct clingo_propagator {
 
 // {{{1 backend
 
-// TODO: ...
+enum clingo_heuristic_type {
+    clingo_heuristic_type_level  = 0,
+    clingo_heuristic_type_sign   = 1,
+    clingo_heuristic_type_factor = 2,
+    clingo_heuristic_type_init   = 3,
+    clingo_heuristic_type_true   = 4,
+    clingo_heuristic_type_false  = 5
+};
+typedef int clingo_heuristic_type_t;
+
+enum clingo_external_type {
+    clingo_external_type_free    = 0,
+    clingo_external_type_true    = 1,
+    clingo_external_type_false   = 2,
+    clingo_external_type_release = 3,
+};
+typedef int clingo_external_type_t;
+
+typedef struct clingo_weight_lit {
+    clingo_lit_t    literal;
+    clingo_weight_t weight;
+} clingo_weight_lit_t;
+
+typedef struct clingo_backend clingo_backend_t;
+clingo_error_t clingo_backend_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head, size_t head_n, clingo_lit_t const *body, size_t body_n);
+clingo_error_t clingo_backend_weight_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head, size_t head_n, clingo_weight_t lower, clingo_weight_lit_t const *body, size_t body_n);
+clingo_error_t clingo_backend_minimize(clingo_backend_t *backend, clingo_weight_t prio, clingo_weight_lit_t const* lits, size_t lits_n);
+clingo_error_t clingo_backend_project(clingo_backend_t *backend, clingo_atom_t const *atoms, size_t n);
+clingo_error_t clingo_backend_output(clingo_backend_t *backend, char const *name, clingo_lit_t const *condition, size_t condition_n);
+clingo_error_t clingo_backend_external(clingo_backend_t *backend, clingo_atom_t atom, clingo_external_type_t v);
+clingo_error_t clingo_backend_assume(clingo_backend_t *backend, clingo_lit_t const *literals, size_t n);
+clingo_error_t clingo_backend_heuristic(clingo_backend_t *backend, clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority, clingo_lit_t const *condition, size_t condition_n);
+clingo_error_t clingo_backend_acyc_edge(clingo_backend_t *backend, int node_u, int node_v, clingo_lit_t const *condition, size_t condition_n);
+clingo_error_t clingo_backend_add_atom(clingo_backend_t *backend, clingo_atom_t *ret);
 
 // {{{1 configuration
 
@@ -352,6 +387,7 @@ typedef struct clingo_control clingo_control_t;
 clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_add_ast_callback_t *cb, void *data);
 clingo_error_t clingo_control_add(clingo_control_t *ctl, char const *name, char const * const * params, size_t n, char const *part);
 clingo_error_t clingo_control_assign_external(clingo_control_t *ctl, clingo_symbol_t atom, clingo_truth_value_t value);
+clingo_error_t clingo_control_backend(clingo_control_t *ctl, clingo_backend_t **ret);
 clingo_error_t clingo_control_cleanup(clingo_control_t *ctl);
 clingo_error_t clingo_control_get_const(clingo_control_t *ctl, char const *name, clingo_symbol_t *ret);
 clingo_error_t clingo_control_ground(clingo_control_t *ctl, clingo_part_t const *params, size_t n, clingo_ground_callback_t *cb, void *data);
@@ -368,7 +404,6 @@ clingo_error_t clingo_control_symbolic_atoms(clingo_control_t *ctl, clingo_symbo
 clingo_error_t clingo_control_theory_atoms(clingo_control_t *ctl, clingo_theory_atoms_t **ret);
 clingo_error_t clingo_control_use_enum_assumption(clingo_control_t *ctl, bool value);
 // TODO: ...
-clingo_error_t clingo_control_backend(clingo_control_t *ctl);
 clingo_error_t clingo_control_configuration(clingo_control_t *ctl);
 clingo_error_t clingo_control_statistics(clingo_control_t *ctl);
 // ... :TODO

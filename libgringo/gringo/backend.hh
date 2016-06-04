@@ -37,18 +37,26 @@ using UBackend = std::unique_ptr<Backend>;
 
 void output(Potassco::TheoryData const &data, Potassco::AbstractProgram &out, GetTheoryAtomCondition cond);
 
-inline void outputRule(Backend &out, bool choice, BackendAtomVec const &head, BackendLitVec const &body) {
+inline void outputRule(Backend &out, bool choice, Potassco::AtomSpan head, Potassco::LitSpan body) {
     BackendLitWeightVec wBody;
     for (auto &lit : body) { wBody.emplace_back(Potassco::WeightLit_t{lit, 1}); }
     out.rule({
-        choice ? Potassco::Head_t::Choice : Potassco::Head_t::Disjunctive, Potassco::toSpan(head)}, {
-        Potassco::Body_t::Normal, Potassco::Weight_t(body.size()), Potassco::toSpan(wBody)});
+        choice ? Potassco::Head_t::Choice : Potassco::Head_t::Disjunctive, head}, {
+        Potassco::Body_t::Normal, Potassco::Weight_t(body.size), Potassco::toSpan(wBody)});
+}
+
+inline void outputRule(Backend &out, bool choice, BackendAtomVec const &head, BackendLitVec const &body) {
+    outputRule(out, choice, Potassco::toSpan(head), Potassco::toSpan(body));
+}
+
+inline void outputRule(Backend &out, bool choice, Potassco::AtomSpan head, Potassco::Weight_t lower, Potassco::WeightLitSpan body) {
+    out.rule({
+        choice ? Potassco::Head_t::Choice : Potassco::Head_t::Disjunctive, head}, {
+        Potassco::Body_t::Sum, lower, body});
 }
 
 inline void outputRule(Backend &out, bool choice, BackendAtomVec const &head, Potassco::Weight_t lower, BackendLitWeightVec const &body) {
-    out.rule({
-        choice ? Potassco::Head_t::Choice : Potassco::Head_t::Disjunctive, Potassco::toSpan(head)}, {
-        Potassco::Body_t::Sum, lower, toSpan(body)});
+    outputRule(out, choice, Potassco::toSpan(head), lower, Potassco::toSpan(body));
 }
 
 // }}}1
