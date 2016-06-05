@@ -1515,6 +1515,81 @@ atom_t Backend::add_atom() {
     return ret;
 }
 
+// {{{1 configuration
+
+Configuration Configuration::operator[](unsigned index) {
+    unsigned ret;
+    clingo_configuration_get_array_key(conf_, key_, index, &ret);
+    return {conf_, ret};
+}
+
+ConfigurationArrayIterator Configuration::begin() {
+    return {conf_, 0};
+}
+
+ConfigurationArrayIterator Configuration::end() {
+    return {conf_, unsigned(size())};
+}
+
+size_t Configuration::size() const {
+    int n;
+    handleError(clingo_configuration_get_info(conf_, key_, &n, nullptr, nullptr, nullptr));
+    if (n < 0) { std::runtime_error("not an array"); }
+    return n;
+}
+
+bool Configuration::empty() const {
+    return size() == 0;
+}
+
+Configuration Configuration::operator[](char const *name) {
+    unsigned ret;
+    handleError(clingo_configuration_get_subkey(conf_, key_, name, &ret));
+    return {conf_, ret};
+}
+
+ConfigurationKeyRange Configuration::keys() const {
+    int n;
+    handleError(clingo_configuration_get_info(conf_, key_, &n, nullptr, nullptr, nullptr));
+    return { {conf_, key_, 0}, {conf_, key_, unsigned(n)} };
+}
+
+bool Configuration::leaf() const {
+    int n;
+    handleError(clingo_configuration_get_info(conf_, key_, &n, nullptr, nullptr, nullptr));
+    return n == 0;
+}
+bool Configuration::has_value() const {
+    int ret;
+    handleError(clingo_configuration_get_info(conf_, key_, nullptr, nullptr, nullptr, &ret));
+    return ret == 1;
+}
+
+std::string Configuration::value() const {
+    size_t n;
+    handleError(clingo_configuration_get_value(conf_, key_, nullptr, &n));
+    std::vector<char> ret(n);
+    handleError(clingo_configuration_get_value(conf_, key_, ret.data(), &n));
+    return std::string(ret.begin(), ret.end() - 1);
+}
+
+bool Configuration::assignable() const {
+    int ret;
+    handleError(clingo_configuration_get_info(conf_, key_, nullptr, nullptr, nullptr, &ret));
+    return ret != -1;
+}
+
+Configuration &Configuration::operator=(char const *value) {
+    handleError(clingo_configuration_set_value(conf_, key_, value));
+    return *this;
+}
+
+char const *Configuration::decription() const {
+    char const *ret;
+    handleError(clingo_configuration_get_info(conf_, key_, nullptr, nullptr, &ret, nullptr));
+    return ret;
+}
+
 // {{{1 control
 
 Control::Control(clingo_control_t *ctl)
@@ -1688,6 +1763,14 @@ Backend Control::backend() {
     clingo_backend_t *ret;
     handleError(clingo_control_backend(ctl_, &ret));
     return ret;
+}
+
+Configuration Control::configuration() {
+    clingo_configuration_t *conf;
+    handleError(clingo_control_configuration(ctl_, &conf));
+    unsigned key;
+    handleError(clingo_configuration_root(conf, &key));
+    return {conf, key};
 }
 
 // }}}1

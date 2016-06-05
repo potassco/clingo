@@ -118,7 +118,7 @@ Potassco::Lit_t ClingoPropagateInit::mapLit(Lit_t lit) {
 }
 
 int ClingoPropagateInit::threads() {
-    return static_cast<ClingoControl&>(c_).clasp_->config()->solve.numSolver();
+    return static_cast<ClingoControl&>(c_).clasp_->ctx.concurrency();
 }
 
 void ClingoControl::parse(const StringSeq& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* claspOut, bool addStdIn) {
@@ -335,7 +335,7 @@ void ClingoControl::prepare(Gringo::Control::ModelHandler mh, Gringo::Control::F
                 ClingoPropagateInit i(*this, *pp);
                 static_cast<Gringo::Propagator*>(pp->propagator())->init(i);
             }
-            propLock_.init(clasp_->config()->numSolver());
+            propLock_.init(clasp_->ctx.concurrency());
         }
         clasp_->prepare(enableEnumAssupmption_ ? Clasp::ClaspFacade::enum_volatile : Clasp::ClaspFacade::enum_static);
         if (psf_) { psf_(*clasp_);}

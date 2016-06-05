@@ -532,8 +532,9 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
     MessageVec messages;
     ModelVec models;
     Logger logger = [&messages](MessageCode code, char const *msg) { messages.emplace_back(code, msg); };
-    Control ctl{mod.create_control({"test_libclingo", "-t30", "--opt-mode=optN"}, logger, 20)};
+    Control ctl{mod.create_control({"test_libclingo", "-t30"}, logger, 20)};
     SECTION("sequence mining") {
+        ctl.configuration()["solve"]["opt_mode"] = "optN";
         SequenceMiningPropagator p;
         ctl.register_propagator(p, false);
         ctl.add("base", {"n"}, sequence_mining_encoding);
