@@ -710,11 +710,7 @@ void ClingoLib::onEvent(Clasp::Event const& ev) {
     if (r && finishHandler_) { onFinish(r->summary->result); }
 #endif
     const Clasp::LogEvent* log = Clasp::event_cast<Clasp::LogEvent>(ev);
-    if (log && log->isWarning()) {
-        fflush(stdout);
-        fprintf(stderr, "*** %-5s: (%s): %s\n", "Warn", "pyclingo", log->msg);
-        fflush(stderr);
-    }
+    if (log && log->isWarning()) { logger_.print(clingo_warning_other, log->msg); }
 }
 bool ClingoLib::parsePositional(const std::string& t, std::string& out) {
     int num;

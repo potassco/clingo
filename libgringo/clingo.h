@@ -70,7 +70,8 @@ enum clingo_warning {
     clingo_warning_file_included       = -3, //< Same file included multiple times.
     clingo_warning_variable_unbounded  = -4, //< CSP Domain undefined.
     clingo_warning_global_variable     = -5, //< Global variable in tuple of aggregate element.
-    clingo_warning_total               =  5, //< Total number of warnings.
+    clingo_warning_other               = -6, //< Other kinds of warnings
+    clingo_warning_total               =  6, //< Total number of warnings.
 };
 typedef int clingo_warning_t;
 
