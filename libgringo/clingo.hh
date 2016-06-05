@@ -1030,6 +1030,7 @@ private:
 
 // {{{1 module
 
+// TODO: this has to change!!!
 class MessageCode {
 public:
     enum Error : clingo_message_code_t {
@@ -1045,6 +1046,7 @@ public:
         FileIncluded = clingo_warning_file_included,
         VariableUnbounded = clingo_warning_variable_unbounded,
         GlobalVariable = clingo_warning_global_variable,
+        Other = clingo_warning_other,
     };
     MessageCode(clingo_message_code_t code) : code_(code) { }
     operator clingo_message_code_t() const { return code_; }

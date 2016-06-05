@@ -82,6 +82,7 @@ extern "C" inline char const *clingo_message_code_str(clingo_message_code_t code
         case clingo_warning_file_included:       { return "file included"; }
         case clingo_warning_variable_unbounded:  { return "variable unbounded"; }
         case clingo_warning_global_variable:     { return "global variable"; }
+        case clingo_warning_other:               { return "other"; }
     }
     return "unknown message code";
 }
