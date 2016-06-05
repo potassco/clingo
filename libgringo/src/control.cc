@@ -510,7 +510,7 @@ extern "C" clingo_error_t clingo_model_optimization(clingo_model_t *m, int64_t *
     GRINGO_CLINGO_CATCH(&m->owner().logger());
 }
 
-// {{{1 solve_iter
+// {{{1 solve iter
 
 struct clingo_solve_iter : SolveIter { };
 
@@ -529,6 +529,8 @@ extern "C" clingo_error_t clingo_solve_iter_close(clingo_solve_iter_t *it) {
     GRINGO_CLINGO_CATCH(&it->owner().logger());
 }
 
+// {{{1 solve async
+
 struct clingo_solve_async : SolveFuture { };
 
 extern "C" clingo_error_t clingo_solve_async_cancel(clingo_solve_async_t *async) {
@@ -545,6 +547,50 @@ extern "C" clingo_error_t clingo_solve_async_wait(clingo_solve_async_t *async, d
     GRINGO_CLINGO_TRY { *ret = async->wait(timeout); }
     GRINGO_CLINGO_CATCH(nullptr);
 }
+
+// {{{1 configuration
+
+struct clingo_configuration : ConfigProxy { };
+
+extern "C" clingo_error_t clingo_configuration_get_subkey(clingo_configuration_t *conf, unsigned key, char const *name, unsigned* subkey) {
+    GRINGO_CLINGO_TRY { *subkey = conf->getSubKey(key, name); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_configuration_get_array_key(clingo_configuration_t *conf, unsigned key, unsigned idx, unsigned *ret) {
+    GRINGO_CLINGO_TRY { *ret = conf->getArrKey(key, idx); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_configuration_get_info(clingo_configuration_t *conf, unsigned key, int* nsubkeys, int* arrlen, const char** help, int* nvalues) {
+    GRINGO_CLINGO_TRY { conf->getKeyInfo(key, nsubkeys, arrlen, help, nvalues); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_configuration_root(clingo_configuration_t *conf, unsigned *ret) {
+    GRINGO_CLINGO_TRY { *ret = conf->getRootKey(); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_configuration_get_value(clingo_configuration_t *conf, unsigned key, char *ret, size_t *n) {
+    GRINGO_CLINGO_TRY {
+        std::string value;
+        conf->getKeyValue(key, value);
+        if (!n) { throw std::invalid_argument("size must be non-null"); }
+        if (!ret) { *n = value.size(); }
+        else {
+            if (*n < value.size()) { throw std::length_error("not enough space"); }
+            std::strcpy(ret, value.c_str());
+        }
+    }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_configuration_set_value(clingo_configuration_t *conf, unsigned key, const char *val) {
+    GRINGO_CLINGO_TRY { conf->setKeyValue(key, val); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
 
 // {{{1 global functions
 
@@ -870,7 +916,12 @@ extern "C" clingo_error_t clingo_control_backend(clingo_control_t *ctl, clingo_b
     GRINGO_CLINGO_CATCH(&ctl->logger());
 }
 
-// }}}2
+extern "C" clingo_error_t clingo_control_configuration(clingo_control_t *ctl, clingo_configuration_t **conf) {
+    GRINGO_CLINGO_TRY { *conf = static_cast<clingo_configuration_t*>(&ctl->getConf()); }
+    GRINGO_CLINGO_CATCH(&ctl->logger());
+}
+
+// }}}1
 
 namespace Clingo {
 
@@ -1402,7 +1453,7 @@ void SolveIter::close() {
     }
 }
 
-// {{{1 solve iter
+// {{{1 solve async
 
 void SolveAsync::cancel() {
     handleError(clingo_solve_async_cancel(async_));
@@ -1420,7 +1471,7 @@ bool SolveAsync::wait(double timeout) {
     return ret;
 }
 
-// {{{1 control
+// {{{1 backend
 
 void Backend::rule(bool choice, AtomSpan head, LitSpan body) {
     handleError(clingo_backend_rule(backend_, choice, head.begin(), head.size(), body.begin(), body.size()));

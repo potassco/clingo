@@ -355,7 +355,13 @@ clingo_error_t clingo_backend_add_atom(clingo_backend_t *backend, clingo_atom_t 
 
 // {{{1 configuration
 
-// TODO: ...
+typedef struct clingo_configuration clingo_configuration_t;
+clingo_error_t clingo_configuration_get_subkey(clingo_configuration_t *conf, unsigned key, char const *name, unsigned* subkey);
+clingo_error_t clingo_configuration_get_array_key(clingo_configuration_t *conf, unsigned key, unsigned idx, unsigned *ret);
+clingo_error_t clingo_configuration_get_info(clingo_configuration_t *conf, unsigned key, int *nsubkeys, int *arrlen, char const **help, int* nvalues);
+clingo_error_t clingo_configuration_root(clingo_configuration_t *conf, unsigned *ret);
+clingo_error_t clingo_configuration_get_value(clingo_configuration_t *conf, unsigned key, char *ret, size_t *n);
+clingo_error_t clingo_configuration_set_value(clingo_configuration_t *conf, unsigned key, char const *val);
 
 // {{{1 statistics
 
@@ -389,6 +395,7 @@ clingo_error_t clingo_control_add(clingo_control_t *ctl, char const *name, char 
 clingo_error_t clingo_control_assign_external(clingo_control_t *ctl, clingo_symbol_t atom, clingo_truth_value_t value);
 clingo_error_t clingo_control_backend(clingo_control_t *ctl, clingo_backend_t **ret);
 clingo_error_t clingo_control_cleanup(clingo_control_t *ctl);
+clingo_error_t clingo_control_configuration(clingo_control_t *ctl, clingo_configuration_t **conf);
 clingo_error_t clingo_control_get_const(clingo_control_t *ctl, char const *name, clingo_symbol_t *ret);
 clingo_error_t clingo_control_ground(clingo_control_t *ctl, clingo_part_t const *params, size_t n, clingo_ground_callback_t *cb, void *data);
 clingo_error_t clingo_control_has_const(clingo_control_t *ctl, char const *name, bool *ret);
@@ -404,7 +411,6 @@ clingo_error_t clingo_control_symbolic_atoms(clingo_control_t *ctl, clingo_symbo
 clingo_error_t clingo_control_theory_atoms(clingo_control_t *ctl, clingo_theory_atoms_t **ret);
 clingo_error_t clingo_control_use_enum_assumption(clingo_control_t *ctl, bool value);
 // TODO: ...
-clingo_error_t clingo_control_configuration(clingo_control_t *ctl);
 clingo_error_t clingo_control_statistics(clingo_control_t *ctl);
 // ... :TODO
 void clingo_control_interrupt(clingo_control_t *ctl);
