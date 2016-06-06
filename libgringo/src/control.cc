@@ -618,9 +618,9 @@ extern "C" clingo_error_t clingo_configuration_value_get(clingo_configuration_t 
         std::string value;
         conf->getKeyValue(key, value);
         if (!n) { throw std::invalid_argument("size must be non-null"); }
-        if (!ret) { *n = value.size(); }
+        if (!ret) { *n = value.size() + 1; }
         else {
-            if (*n < value.size()) { throw std::length_error("not enough space"); }
+            if (*n < value.size() + 1) { throw std::length_error("not enough space"); }
             std::strcpy(ret, value.c_str());
         }
     }

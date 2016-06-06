@@ -74,6 +74,35 @@ TEST_CASE("solving", "[clingo]") {
                 }
                 REQUIRE(nloop == 1);
             }
+            SECTION("configuration") {
+                auto conf = ctl.configuration();
+                std::vector<std::string> keys_root;
+                std::copy(conf.keys().begin(), conf.keys().end(), std::back_inserter(keys_root));
+                std::sort(keys_root.begin(), keys_root.end());
+                std::vector<std::string> keys_check = { "asp.", "configuration", "learn_explicit", "sat_prepro", "share", "solve.", "solver.", "stats", "tester." };
+                REQUIRE(keys_root == keys_check);
+                REQUIRE(conf["solve"]["models"].is_value());
+                conf["solve"]["models"] = "2";
+                REQUIRE(conf["solve"]["models"].assigned());
+                REQUIRE(conf["solve"]["models"].value() == "2");
+                REQUIRE(conf["solver"].is_array());
+                REQUIRE(conf["solver"].size() == 1);
+                int nloop = 0;
+                for (auto s : conf["solver"]) {
+                    s["heuristic"] = "berkmin,100";
+                    ++nloop;
+                }
+                REQUIRE(nloop == 1);
+                CHECK(conf["solver"][size_t(0)]["heuristic"].value() == "berkmin,100");
+                CHECK(conf["solver"]["heuristic"].value() == "berkmin,100");
+                ctl.add("base", {}, "{a; b; c}.");
+                ctl.ground({{"base", {}}});
+                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(models.size() == 2);
+            }
+            SECTION("backend") {
+                FAIL("write tests for the backend");
+            }
             SECTION("optimize") {
                 ctl.add("base", {}, "2 {a; b; c; d}.\n"
                                     ":- a, b.\n"
