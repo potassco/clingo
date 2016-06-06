@@ -608,7 +608,7 @@ inline bool operator>=(SymbolicLiteral a, SymbolicLiteral b) { return !(a < b); 
 
 class ShowType {
 public:
-    enum Type : clingo_show_type_t {
+    enum Type : clingo_show_type_bitset_t {
         CSP = clingo_show_type_csp,
         Shown = clingo_show_type_shown,
         Atoms = clingo_show_type_atoms,
@@ -616,10 +616,10 @@ public:
         Comp = clingo_show_type_comp,
         All = clingo_show_type_all
     };
-    ShowType(clingo_show_type_t type) : type_(type) { }
-    operator clingo_show_type_t() const { return type_; }
+    ShowType(clingo_show_type_bitset_t type) : type_(type) { }
+    operator clingo_show_type_bitset_t() const { return type_; }
 private:
-    clingo_show_type_t type_;
+    clingo_show_type_bitset_t type_;
 };
 
 using OptimizationVector = std::vector<int64_t>;
@@ -646,16 +646,16 @@ inline std::ostream &operator<<(std::ostream &out, Model m) {
 class SolveResult {
 public:
     SolveResult() : res_(0) { }
-    SolveResult(clingo_solve_result_t res)
+    SolveResult(clingo_solve_result_bitset_t res)
     : res_(res) { }
     bool sat() const { return res_ & clingo_solve_result_sat; }
     bool unsat() const { return res_ & clingo_solve_result_unsat; }
     bool unknown() const { return (res_ & 3) == 0; }
     bool exhausted() const { return res_ & clingo_solve_result_exhausted; }
     bool interrupted() const { return res_ & clingo_solve_result_interrupted; }
-    operator clingo_solve_result_t() const { return res_; }
+    operator clingo_solve_result_bitset_t() const { return res_; }
 private:
-    clingo_solve_result_t res_;
+    clingo_solve_result_bitset_t res_;
 };
 
 inline std::ostream &operator<<(std::ostream &out, SolveResult res) {

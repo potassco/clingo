@@ -63,7 +63,7 @@ using Int64Vec = std::vector<int64_t>;
 
 } // namespace Gringo
 
-using ShowType = clingo_show_type_t;
+using ShowType = clingo_show_type_bitset_t;
 struct clingo_model {
     using LitVec = std::vector<std::pair<Gringo::Symbol, bool>>;
     virtual bool contains(Gringo::Symbol atom) const = 0;

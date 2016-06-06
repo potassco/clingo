@@ -34,10 +34,10 @@ using namespace Gringo;
 
 namespace {
 
-clingo_solve_result_t convert(SolveResult r) {
-    return static_cast<clingo_solve_result_t>(r.satisfiable()) |
-           static_cast<clingo_solve_result_t>(r.interrupted()) * static_cast<clingo_solve_result_t>(clingo_solve_result_interrupted) |
-           static_cast<clingo_solve_result_t>(r.exhausted()) * static_cast<clingo_solve_result_t>(clingo_solve_result_exhausted);
+clingo_solve_result_bitset_t convert(SolveResult r) {
+    return static_cast<clingo_solve_result_bitset_t>(r.satisfiable()) |
+           static_cast<clingo_solve_result_bitset_t>(r.interrupted()) * static_cast<clingo_solve_result_bitset_t>(clingo_solve_result_interrupted) |
+           static_cast<clingo_solve_result_bitset_t>(r.exhausted()) * static_cast<clingo_solve_result_bitset_t>(clingo_solve_result_exhausted);
 }
 
 template <class F>
@@ -483,7 +483,7 @@ extern "C" bool clingo_model_contains(clingo_model_t *m, clingo_symbol_t atom) {
     return m->contains(static_cast<Symbol &>(atom));
 }
 
-extern "C" clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type_t show, clingo_symbol_t *ret, size_t *n) {
+extern "C" clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type_bitset_t show, clingo_symbol_t *ret, size_t *n) {
     GRINGO_CLINGO_TRY {
         // TODO: implement matching C++ functions ...
         SymSpan atoms = m->atoms(show);
@@ -520,7 +520,7 @@ extern "C" clingo_error_t clingo_solve_iter_next(clingo_solve_iter_t *it, clingo
     GRINGO_CLINGO_CATCH(&it->owner().logger());
 }
 
-extern "C" clingo_error_t clingo_solve_iter_get(clingo_solve_iter_t *it, clingo_solve_result_t *ret) {
+extern "C" clingo_error_t clingo_solve_iter_get(clingo_solve_iter_t *it, clingo_solve_result_bitset_t *ret) {
     GRINGO_CLINGO_TRY { *ret = convert(it->get().satisfiable()); }
     GRINGO_CLINGO_CATCH(&it->owner().logger());
 }
@@ -539,7 +539,7 @@ extern "C" clingo_error_t clingo_solve_async_cancel(clingo_solve_async_t *async)
     GRINGO_CLINGO_CATCH(nullptr);
 }
 
-extern "C" clingo_error_t clingo_solve_async_get(clingo_solve_async_t *async, clingo_solve_result_t *ret) {
+extern "C" clingo_error_t clingo_solve_async_get(clingo_solve_async_t *async, clingo_solve_result_bitset_t *ret) {
     GRINGO_CLINGO_TRY { *ret = async->get(); }
     GRINGO_CLINGO_CATCH(nullptr);
 }
@@ -844,9 +844,9 @@ Control::Assumptions toAss(clingo_symbolic_literal_t const * assumptions, size_t
 
 }
 
-extern "C" clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_model_callback_t *model_handler, void *data, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_result_t *ret) {
+extern "C" clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_model_callback_t *model_handler, void *data, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_result_bitset_t *ret) {
     GRINGO_CLINGO_TRY {
-        *ret = static_cast<clingo_solve_result_t>(ctl->solve([model_handler, data](Model const &m) {
+        *ret = static_cast<clingo_solve_result_bitset_t>(ctl->solve([model_handler, data](Model const &m) {
             bool ret;
             auto err = model_handler(static_cast<clingo_model*>(const_cast<Model*>(&m)), data, &ret);
             if (err != 0) { throw ClingoError(err); }
@@ -1540,7 +1540,7 @@ Model SolveIter::next() {
 }
 
 SolveResult SolveIter::get() {
-    clingo_solve_result_t ret = 0;
+    clingo_solve_result_bitset_t ret = 0;
     if (iter_) { handleError(clingo_solve_iter_get(iter_, &ret)); }
     return ret;
 }
@@ -1559,7 +1559,7 @@ void SolveAsync::cancel() {
 }
 
 SolveResult SolveAsync::get() {
-    clingo_solve_result_t ret;
+    clingo_solve_result_bitset_t ret;
     handleError(clingo_solve_async_get(async_, &ret));
     return ret;
 }
@@ -1791,7 +1791,7 @@ void Control::ground(PartSpan parts, GroundCallback cb) {
 Control::operator clingo_control_t*() const { return ctl_; }
 
 SolveResult Control::solve(ModelCallback mh, SymbolicLiteralSpan assumptions) {
-    clingo_solve_result_t ret;
+    clingo_solve_result_bitset_t ret;
     using Data = std::pair<ModelCallback&, std::exception_ptr>;
     Data data(mh, nullptr);
     handleError(clingo_control_solve(ctl_, [](clingo_model_t *m, void *data, bool *ret) -> clingo_error_t {
@@ -1908,7 +1908,7 @@ SolveAsync Control::solve_async(ModelCallback &mh, FinishCallback &fh, SymbolicL
             *ret = !mh || mh(m);
         }
         GRINGO_CLINGO_CATCH(nullptr);
-    }, &mh, [](clingo_solve_result_t res, void *data) -> clingo_error_t {
+    }, &mh, [](clingo_solve_result_bitset_t res, void *data) -> clingo_error_t {
         GRINGO_CLINGO_TRY {
             auto &fh = *static_cast<FinishCallback*>(data);
             if (fh) { fh(res); }

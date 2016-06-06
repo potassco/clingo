@@ -159,10 +159,10 @@ enum clingo_show_type {
     clingo_show_type_comp  = 16,
     clingo_show_type_all   = 15
 };
-typedef unsigned clingo_show_type_t;
+typedef unsigned clingo_show_type_bitset_t;
 typedef struct clingo_model clingo_model_t;
 bool clingo_model_contains(clingo_model_t *m, clingo_symbol_t atom);
-clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type_t show, clingo_symbol_t *ret, size_t *n);
+clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type_bitset_t show, clingo_symbol_t *ret, size_t *n);
 clingo_error_t clingo_model_optimization(clingo_model_t *m, int64_t *ret, size_t *n);
 
 // {{{1 solve result
@@ -173,7 +173,7 @@ enum clingo_solve_result {
     clingo_solve_result_exhausted   = 4,
     clingo_solve_result_interrupted = 8
 };
-typedef unsigned clingo_solve_result_t;
+typedef unsigned clingo_solve_result_bitset_t;
 
 // {{{1 truth value
 
@@ -188,14 +188,14 @@ typedef int clingo_truth_value_t;
 
 typedef struct clingo_solve_iter clingo_solve_iter_t;
 clingo_error_t clingo_solve_iter_next(clingo_solve_iter_t *it, clingo_model_t **m);
-clingo_error_t clingo_solve_iter_get(clingo_solve_iter_t *it, clingo_solve_result_t *ret);
+clingo_error_t clingo_solve_iter_get(clingo_solve_iter_t *it, clingo_solve_result_bitset_t *ret);
 clingo_error_t clingo_solve_iter_close(clingo_solve_iter_t *it);
 
 // {{{1 solve async
 
 typedef struct clingo_solve_async clingo_solve_async_t;
 clingo_error_t clingo_solve_async_cancel(clingo_solve_async_t *async);
-clingo_error_t clingo_solve_async_get(clingo_solve_async_t *async, clingo_solve_result_t *ret);
+clingo_error_t clingo_solve_async_get(clingo_solve_async_t *async, clingo_solve_result_bitset_t *ret);
 clingo_error_t clingo_solve_async_wait(clingo_solve_async_t *async, double timeout, bool *ret);
 
 // {{{1 ast
@@ -379,9 +379,9 @@ clingo_error_t clingo_configuration_description(clingo_configuration_t *conf, cl
 // {{{1 statistics
 
 enum clingo_statistics_type {
-    clingo_statistics_type_value,
-    clingo_statistics_type_array,
-    clingo_statistics_type_map
+    clingo_statistics_type_value = 0,
+    clingo_statistics_type_array = 1,
+    clingo_statistics_type_map   = 2
 };
 typedef int clingo_statistics_type_t;
 
@@ -414,7 +414,7 @@ typedef struct clingo_symbolic_literal {
 } clingo_symbolic_literal_t;
 
 typedef clingo_error_t clingo_model_callback_t (clingo_model_t*, void *, bool *);
-typedef clingo_error_t clingo_finish_callback_t (clingo_solve_result_t res, void *);
+typedef clingo_error_t clingo_finish_callback_t (clingo_solve_result_bitset_t res, void *);
 typedef clingo_error_t clingo_symbol_callback_t (clingo_symbol_t const *, size_t, void *);
 typedef clingo_error_t clingo_ground_callback_t (clingo_location_t, char const *, clingo_symbol_t const *, size_t, void *, clingo_symbol_callback_t *, void *);
 typedef struct clingo_control clingo_control_t;
@@ -433,7 +433,7 @@ clingo_error_t clingo_control_parse(clingo_control_t *ctl, char const *program, 
 clingo_error_t clingo_control_register_propagator(clingo_control_t *ctl, clingo_propagator_t propagator, void *data, bool sequential);
 clingo_error_t clingo_control_release_external(clingo_control_t *ctl, clingo_symbol_t atom);
 clingo_error_t clingo_control_solve_async(clingo_control_t *ctl, clingo_model_callback_t *mh, void *mh_data, clingo_finish_callback_t *fh, void *fh_data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_async_t **ret);
-clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_model_callback_t *mh, void *data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_result_t *ret);
+clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_model_callback_t *mh, void *data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_result_bitset_t *ret);
 clingo_error_t clingo_control_solve_iter(clingo_control_t *ctl, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_iter_t **it);
 clingo_error_t clingo_control_statistics(clingo_control_t *ctl, clingo_statistics_t **stats);
 clingo_error_t clingo_control_symbolic_atoms(clingo_control_t *ctl, clingo_symbolic_atoms_t **ret);
