@@ -553,27 +553,67 @@ extern "C" clingo_error_t clingo_solve_async_wait(clingo_solve_async_t *async, d
 
 struct clingo_configuration : ConfigProxy { };
 
-extern "C" clingo_error_t clingo_configuration_get_subkey(clingo_configuration_t *conf, unsigned key, char const *name, unsigned* subkey) {
+extern "C" clingo_error_t clingo_configuration_type(clingo_configuration_t *conf, clingo_id_t key, clingo_configuration_type_bitset_t *ret) {
+    GRINGO_CLINGO_TRY {
+        int map_size, array_size, value_size;
+        conf->getKeyInfo(key, &map_size, &array_size, nullptr, &value_size);
+        *ret = 0;
+        if (map_size >= 0)   { *ret |= clingo_configuration_type_map; }
+        if (array_size >= 0) { *ret |= clingo_configuration_type_array; }
+        if (value_size >= 0) { *ret |= clingo_configuration_type_value; }
+    }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_configuration_map_at(clingo_configuration_t *conf, clingo_id_t key, char const *name, clingo_id_t* subkey) {
     GRINGO_CLINGO_TRY { *subkey = conf->getSubKey(key, name); }
     GRINGO_CLINGO_CATCH(nullptr);
 }
 
-extern "C" clingo_error_t clingo_configuration_get_array_key(clingo_configuration_t *conf, unsigned key, unsigned idx, unsigned *ret) {
+extern "C" clingo_error_t clingo_configuration_map_subkey_name(clingo_configuration_t *conf, clingo_id_t key, size_t index, char const **name) {
+    GRINGO_CLINGO_TRY { *name = conf->getSubKeyName(key, index); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_configuration_map_size(clingo_configuration_t *conf, clingo_id_t key, size_t* ret) {
+    GRINGO_CLINGO_TRY {
+        int n;
+        conf->getKeyInfo(key, &n, nullptr, nullptr, nullptr);
+        if (n < 0) { throw std::runtime_error("not an array"); }
+        *ret = n;
+    }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_configuration_array_at(clingo_configuration_t *conf, clingo_id_t key, size_t idx, clingo_id_t *ret) {
     GRINGO_CLINGO_TRY { *ret = conf->getArrKey(key, idx); }
     GRINGO_CLINGO_CATCH(nullptr);
 }
 
-extern "C" clingo_error_t clingo_configuration_get_info(clingo_configuration_t *conf, unsigned key, int* nsubkeys, int* arrlen, const char** help, int* nvalues) {
-    GRINGO_CLINGO_TRY { conf->getKeyInfo(key, nsubkeys, arrlen, help, nvalues); }
+extern "C" clingo_error_t clingo_configuration_array_size(clingo_configuration_t *conf, clingo_id_t key, size_t *ret) {
+    GRINGO_CLINGO_TRY {
+        int n;
+        conf->getKeyInfo(key, nullptr, &n, nullptr, nullptr);
+        if (n < 0) { throw std::runtime_error("not an array"); }
+        *ret = n;
+    }
     GRINGO_CLINGO_CATCH(nullptr);
 }
 
-extern "C" clingo_error_t clingo_configuration_root(clingo_configuration_t *conf, unsigned *ret) {
+extern "C" clingo_error_t clingo_configuration_root(clingo_configuration_t *conf, clingo_id_t *ret) {
     GRINGO_CLINGO_TRY { *ret = conf->getRootKey(); }
     GRINGO_CLINGO_CATCH(nullptr);
 }
 
-extern "C" clingo_error_t clingo_configuration_get_value(clingo_configuration_t *conf, unsigned key, char *ret, size_t *n) {
+extern "C" clingo_error_t clingo_configuration_description(clingo_configuration_t *conf, clingo_id_t key, char const **ret) {
+    GRINGO_CLINGO_TRY {
+        conf->getKeyInfo(key, nullptr, nullptr, ret, nullptr);
+        if (!ret) { throw std::runtime_error("no description"); }
+    }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_configuration_value_get(clingo_configuration_t *conf, clingo_id_t key, char *ret, size_t *n) {
     GRINGO_CLINGO_TRY {
         std::string value;
         conf->getKeyValue(key, value);
@@ -587,8 +627,18 @@ extern "C" clingo_error_t clingo_configuration_get_value(clingo_configuration_t 
     GRINGO_CLINGO_CATCH(nullptr);
 }
 
-extern "C" clingo_error_t clingo_configuration_set_value(clingo_configuration_t *conf, unsigned key, const char *val) {
+extern "C" clingo_error_t clingo_configuration_value_set(clingo_configuration_t *conf, clingo_id_t key, const char *val) {
     GRINGO_CLINGO_TRY { conf->setKeyValue(key, val); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_configuration_value_assigned(clingo_configuration_t *conf, clingo_id_t key, bool *ret) {
+    GRINGO_CLINGO_TRY {
+        int n = 0;
+        conf->getKeyInfo(key, nullptr, nullptr, nullptr, &n);
+        if (n < 0) { throw std::runtime_error("not a value"); }
+        *ret = n > 0;
+    }
     GRINGO_CLINGO_CATCH(nullptr);
 }
 
@@ -626,12 +676,12 @@ extern "C" clingo_error_t clingo_statistics_map_subkey_name(clingo_statistics_t 
     GRINGO_CLINGO_CATCH(nullptr);
 }
 
-extern "C" clingo_error_t clingo_statistics_map_lookup(clingo_statistics_t *stats, clingo_id_t key, char const *name, clingo_id_t *ret) {
+extern "C" clingo_error_t clingo_statistics_map_at(clingo_statistics_t *stats, clingo_id_t key, char const *name, clingo_id_t *ret) {
     GRINGO_CLINGO_TRY { *ret = stats->lookup(key, name); }
     GRINGO_CLINGO_CATCH(nullptr);
 }
 
-extern "C" clingo_error_t clingo_statistics_leaf_value(clingo_statistics_t *stats, clingo_id_t key, double *value) {
+extern "C" clingo_error_t clingo_statistics_value_get(clingo_statistics_t *stats, clingo_id_t key, double *value) {
     GRINGO_CLINGO_TRY { *value = stats->value(key); }
     GRINGO_CLINGO_CATCH(nullptr);
 }
@@ -1594,7 +1644,7 @@ StatisticsArrayIterator Statistics::end() const {
 
 Statistics Statistics::operator[](char const *name) const {
     clingo_id_t ret;
-    handleError(clingo_statistics_map_lookup(stats_, key_, name, &ret));
+    handleError(clingo_statistics_map_at(stats_, key_, name, &ret));
     return {stats_, ret};
 }
 
@@ -1606,7 +1656,7 @@ StatisticsKeyRange Statistics::keys() const {
 
 double Statistics::value() const {
     double ret;
-    handleError(clingo_statistics_leaf_value(stats_, key_, &ret));
+    handleError(clingo_statistics_value_get(stats_, key_, &ret));
     return ret;
 }
 
@@ -1618,9 +1668,9 @@ char const *Statistics::key_name(size_t index) const {
 
 // {{{1 configuration
 
-Configuration Configuration::operator[](unsigned index) {
+Configuration Configuration::operator[](size_t index) {
     unsigned ret;
-    handleError(clingo_configuration_get_array_key(conf_, key_, index, &ret));
+    handleError(clingo_configuration_array_at(conf_, key_, index, &ret));
     return {conf_, ret};
 }
 
@@ -1633,9 +1683,8 @@ ConfigurationArrayIterator Configuration::end() {
 }
 
 size_t Configuration::size() const {
-    int n;
-    handleError(clingo_configuration_get_info(conf_, key_, &n, nullptr, nullptr, nullptr));
-    if (n < 0) { std::runtime_error("not an array"); }
+    size_t n;
+    handleError(clingo_configuration_array_size(conf_, key_, &n));
     return n;
 }
 
@@ -1644,50 +1693,63 @@ bool Configuration::empty() const {
 }
 
 Configuration Configuration::operator[](char const *name) {
-    unsigned ret;
-    handleError(clingo_configuration_get_subkey(conf_, key_, name, &ret));
+    clingo_id_t ret;
+    handleError(clingo_configuration_map_at(conf_, key_, name, &ret));
     return {conf_, ret};
 }
 
 ConfigurationKeyRange Configuration::keys() const {
-    int n;
-    handleError(clingo_configuration_get_info(conf_, key_, &n, nullptr, nullptr, nullptr));
+    size_t n;
+    handleError(clingo_configuration_map_size(conf_, key_, &n));
     return { {this, size_t(0)}, {this, size_t(n)} };
 }
 
-bool Configuration::leaf() const {
-    int n;
-    handleError(clingo_configuration_get_info(conf_, key_, &n, nullptr, nullptr, nullptr));
-    return n == 0;
+bool Configuration::is_value() const {
+    clingo_configuration_type_bitset_t type;
+    handleError(clingo_configuration_type(conf_, key_, &type));
+    return type & clingo_configuration_type_value;
 }
-bool Configuration::has_value() const {
-    int ret;
-    handleError(clingo_configuration_get_info(conf_, key_, nullptr, nullptr, nullptr, &ret));
-    return ret == 1;
+
+bool Configuration::is_array() const {
+    clingo_configuration_type_bitset_t type;
+    handleError(clingo_configuration_type(conf_, key_, &type));
+    return type & clingo_configuration_type_array;
+}
+
+bool Configuration::is_map() const {
+    clingo_configuration_type_bitset_t type;
+    handleError(clingo_configuration_type(conf_, key_, &type));
+    return type & clingo_configuration_type_map;
+}
+
+bool Configuration::assigned() const {
+    bool ret;
+    handleError(clingo_configuration_value_assigned(conf_, key_, &ret));
+    return ret;
 }
 
 std::string Configuration::value() const {
     size_t n;
-    handleError(clingo_configuration_get_value(conf_, key_, nullptr, &n));
+    handleError(clingo_configuration_value_get(conf_, key_, nullptr, &n));
     std::vector<char> ret(n);
-    handleError(clingo_configuration_get_value(conf_, key_, ret.data(), &n));
+    handleError(clingo_configuration_value_get(conf_, key_, ret.data(), &n));
     return std::string(ret.begin(), ret.end() - 1);
 }
 
-bool Configuration::assignable() const {
-    int ret;
-    handleError(clingo_configuration_get_info(conf_, key_, nullptr, nullptr, nullptr, &ret));
-    return ret != -1;
-}
-
 Configuration &Configuration::operator=(char const *value) {
-    handleError(clingo_configuration_set_value(conf_, key_, value));
+    handleError(clingo_configuration_value_set(conf_, key_, value));
     return *this;
 }
 
 char const *Configuration::decription() const {
     char const *ret;
-    handleError(clingo_configuration_get_info(conf_, key_, nullptr, nullptr, &ret, nullptr));
+    handleError(clingo_configuration_description(conf_, key_, &ret));
+    return ret;
+}
+
+char const *Configuration::key_name(size_t index) const {
+    char const *ret;
+    handleError(clingo_configuration_map_subkey_name(conf_, key_, index, &ret));
     return ret;
 }
 

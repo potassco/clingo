@@ -356,14 +356,25 @@ clingo_error_t clingo_backend_add_atom(clingo_backend_t *backend, clingo_atom_t 
 
 // {{{1 configuration
 
-// TODO: cleanup
+enum clingo_configuration_type {
+    clingo_configuration_type_value = 1,
+    clingo_configuration_type_array = 2,
+    clingo_configuration_type_map   = 4
+};
+typedef unsigned clingo_configuration_type_bitset_t;
+
 typedef struct clingo_configuration clingo_configuration_t;
-clingo_error_t clingo_configuration_get_subkey(clingo_configuration_t *conf, unsigned key, char const *name, unsigned* subkey);
-clingo_error_t clingo_configuration_get_array_key(clingo_configuration_t *conf, unsigned key, unsigned idx, unsigned *ret);
-clingo_error_t clingo_configuration_get_info(clingo_configuration_t *conf, unsigned key, int *nsubkeys, int *arrlen, char const **help, int* nvalues);
-clingo_error_t clingo_configuration_root(clingo_configuration_t *conf, unsigned *ret);
-clingo_error_t clingo_configuration_get_value(clingo_configuration_t *conf, unsigned key, char *ret, size_t *n);
-clingo_error_t clingo_configuration_set_value(clingo_configuration_t *conf, unsigned key, char const *val);
+clingo_error_t clingo_configuration_array_at(clingo_configuration_t *conf, clingo_id_t key, size_t idx, clingo_id_t *ret);
+clingo_error_t clingo_configuration_array_size(clingo_configuration_t *conf, clingo_id_t key, size_t *ret);
+clingo_error_t clingo_configuration_map_at(clingo_configuration_t *conf, clingo_id_t key, char const *name, clingo_id_t* subkey);
+clingo_error_t clingo_configuration_map_size(clingo_configuration_t *conf, clingo_id_t key, size_t* subkey);
+clingo_error_t clingo_configuration_map_subkey_name(clingo_configuration_t *conf, clingo_id_t key, size_t index, char const **name);
+clingo_error_t clingo_configuration_value_assigned(clingo_configuration_t *conf, clingo_id_t key, bool *ret);
+clingo_error_t clingo_configuration_value_get(clingo_configuration_t *conf, clingo_id_t key, char *ret, size_t *n);
+clingo_error_t clingo_configuration_value_set(clingo_configuration_t *conf, clingo_id_t key, char const *val);
+clingo_error_t clingo_configuration_root(clingo_configuration_t *conf, clingo_id_t *ret);
+clingo_error_t clingo_configuration_type(clingo_configuration_t *conf, clingo_id_t key, clingo_configuration_type_bitset_t *ret);
+clingo_error_t clingo_configuration_description(clingo_configuration_t *conf, clingo_id_t key, char const **ret);
 
 // {{{1 statistics
 
@@ -375,14 +386,14 @@ enum clingo_statistics_type {
 typedef int clingo_statistics_type_t;
 
 typedef struct clingo_statistic clingo_statistics_t;
-clingo_error_t clingo_statistics_root(clingo_statistics_t *stats, clingo_id_t *ret);
-clingo_error_t clingo_statistics_type(clingo_statistics_t *stats, clingo_id_t key, clingo_statistics_type_t *ret);
-clingo_error_t clingo_statistics_array_size(clingo_statistics_t *stats, clingo_id_t key, size_t *ret);
 clingo_error_t clingo_statistics_array_at(clingo_statistics_t *stats, clingo_id_t key, size_t index, clingo_id_t *ret);
+clingo_error_t clingo_statistics_array_size(clingo_statistics_t *stats, clingo_id_t key, size_t *ret);
+clingo_error_t clingo_statistics_map_at(clingo_statistics_t *stats, clingo_id_t key, char const *name, clingo_id_t *ret);
 clingo_error_t clingo_statistics_map_size(clingo_statistics_t *stats, clingo_id_t key, size_t *n);
 clingo_error_t clingo_statistics_map_subkey_name(clingo_statistics_t *stats, clingo_id_t key, size_t index, char const **name);
-clingo_error_t clingo_statistics_map_lookup(clingo_statistics_t *stats, clingo_id_t key, char const *name, clingo_id_t *ret);
-clingo_error_t clingo_statistics_leaf_value(clingo_statistics_t *stats, clingo_id_t key, double *value);
+clingo_error_t clingo_statistics_root(clingo_statistics_t *stats, clingo_id_t *ret);
+clingo_error_t clingo_statistics_type(clingo_statistics_t *stats, clingo_id_t key, clingo_statistics_type_t *ret);
+clingo_error_t clingo_statistics_value_get(clingo_statistics_t *stats, clingo_id_t key, double *value);
 
 // {{{1 global functions
 

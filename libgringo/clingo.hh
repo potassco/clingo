@@ -982,23 +982,23 @@ using ConfigurationKeyRange = IteratorRange<ConfigurationKeyIterator>;
 class Configuration {
     friend class KeyIterator<Configuration>;
 public:
-    Configuration(clingo_configuration_t *conf, unsigned key)
+    Configuration(clingo_configuration_t *conf, clingo_id_t key)
     : conf_(conf)
     , key_(key) { }
     // arrays
     bool is_array() const;
-    Configuration operator[](unsigned index);
+    Configuration operator[](size_t index);
     ConfigurationArrayIterator begin();
     ConfigurationArrayIterator end();
     size_t size() const;
     bool empty() const;
     // maps
-    bool leaf() const;
+    bool is_map() const;
     Configuration operator[](char const *name);
     ConfigurationKeyRange keys() const;
     // values
-    bool assignable() const;
-    bool has_value() const;
+    bool is_value() const;
+    bool assigned() const;
     std::string value() const;
     operator std::string() const { return value(); }
     Configuration &operator=(char const *value);
