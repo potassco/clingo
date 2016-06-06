@@ -83,6 +83,7 @@ TEST_CASE("solving", "[clingo]") {
                 REQUIRE(keys_root == keys_check);
                 REQUIRE(conf["solve"]["models"].is_value());
                 conf["solve"]["models"] = "2";
+                REQUIRE(conf["solve"].decription() == S("Solve Options"));
                 REQUIRE(conf["solve"]["models"].assigned());
                 REQUIRE(conf["solve"]["models"].value() == "2");
                 REQUIRE(conf["solver"].is_array());
