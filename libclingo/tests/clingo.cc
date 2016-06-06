@@ -50,6 +50,30 @@ TEST_CASE("solving", "[clingo]") {
                 REQUIRE(models == ModelVec({{},{Id("a")}}));
                 REQUIRE(messages.empty());
             }
+            SECTION("statistics") {
+                ctl.add("pigeon", {"p", "h"}, "1 {p(P,H) : P=1..p}1 :- H=1..h."
+                                              "1 {p(P,H) : H=1..h}1 :- P=1..p.");
+                ctl.ground({{"pigeon", {Num(6), Num(5)}}});
+                REQUIRE(ctl.solve(MCB(models)).unsat());
+                std::vector<std::string> keys_root;
+                auto stats = ctl.statistics();
+                std::copy(stats.keys().begin(), stats.keys().end(), std::back_inserter(keys_root));
+                std::sort(keys_root.begin(), keys_root.end());
+                std::vector<std::string> keys_check = { "costs", "ctx", "enumerated", "lp", "optimal", "result", "solver", "solvers", "step", "time_cpu", "time_sat", "time_solve", "time_total", "time_unsat" };
+                REQUIRE(keys_root == keys_check);
+                REQUIRE(stats["solver"].type() == StatisticsType::Array);
+                REQUIRE(stats["solvers"].type() == StatisticsType::Map);
+                REQUIRE(stats["time_cpu"].type() == StatisticsType::Value);
+                REQUIRE(stats["time_cpu"] >= 0.0);
+                REQUIRE(stats["solver"].size() == 1);
+                REQUIRE(stats["solver"][size_t(0)]["conflicts"] > 0);
+                int nloop = 0;
+                for (auto s : stats["solver"]) {
+                    REQUIRE(s["conflicts"] > 0);
+                    ++nloop;
+                }
+                REQUIRE(nloop == 1);
+            }
             SECTION("optimize") {
                 ctl.add("base", {}, "2 {a; b; c; d}.\n"
                                     ":- a, b.\n"

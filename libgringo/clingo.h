@@ -356,6 +356,7 @@ clingo_error_t clingo_backend_add_atom(clingo_backend_t *backend, clingo_atom_t 
 
 // {{{1 configuration
 
+// TODO: cleanup
 typedef struct clingo_configuration clingo_configuration_t;
 clingo_error_t clingo_configuration_get_subkey(clingo_configuration_t *conf, unsigned key, char const *name, unsigned* subkey);
 clingo_error_t clingo_configuration_get_array_key(clingo_configuration_t *conf, unsigned key, unsigned idx, unsigned *ret);
@@ -366,7 +367,22 @@ clingo_error_t clingo_configuration_set_value(clingo_configuration_t *conf, unsi
 
 // {{{1 statistics
 
-// TODO: ...
+enum clingo_statistics_type {
+    clingo_statistics_type_value,
+    clingo_statistics_type_array,
+    clingo_statistics_type_map
+};
+typedef int clingo_statistics_type_t;
+
+typedef struct clingo_statistic clingo_statistics_t;
+clingo_error_t clingo_statistics_root(clingo_statistics_t *stats, clingo_id_t *ret);
+clingo_error_t clingo_statistics_type(clingo_statistics_t *stats, clingo_id_t key, clingo_statistics_type_t *ret);
+clingo_error_t clingo_statistics_array_size(clingo_statistics_t *stats, clingo_id_t key, size_t *ret);
+clingo_error_t clingo_statistics_array_at(clingo_statistics_t *stats, clingo_id_t key, size_t index, clingo_id_t *ret);
+clingo_error_t clingo_statistics_map_size(clingo_statistics_t *stats, clingo_id_t key, size_t *n);
+clingo_error_t clingo_statistics_map_subkey_name(clingo_statistics_t *stats, clingo_id_t key, size_t index, char const **name);
+clingo_error_t clingo_statistics_map_lookup(clingo_statistics_t *stats, clingo_id_t key, char const *name, clingo_id_t *ret);
+clingo_error_t clingo_statistics_leaf_value(clingo_statistics_t *stats, clingo_id_t key, double *value);
 
 // {{{1 global functions
 
@@ -408,12 +424,10 @@ clingo_error_t clingo_control_release_external(clingo_control_t *ctl, clingo_sym
 clingo_error_t clingo_control_solve_async(clingo_control_t *ctl, clingo_model_callback_t *mh, void *mh_data, clingo_finish_callback_t *fh, void *fh_data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_async_t **ret);
 clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_model_callback_t *mh, void *data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_result_t *ret);
 clingo_error_t clingo_control_solve_iter(clingo_control_t *ctl, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_iter_t **it);
+clingo_error_t clingo_control_statistics(clingo_control_t *ctl, clingo_statistics_t **stats);
 clingo_error_t clingo_control_symbolic_atoms(clingo_control_t *ctl, clingo_symbolic_atoms_t **ret);
 clingo_error_t clingo_control_theory_atoms(clingo_control_t *ctl, clingo_theory_atoms_t **ret);
 clingo_error_t clingo_control_use_enum_assumption(clingo_control_t *ctl, bool value);
-// TODO: ...
-clingo_error_t clingo_control_statistics(clingo_control_t *ctl);
-// ... :TODO
 void clingo_control_interrupt(clingo_control_t *ctl);
 void clingo_control_free(clingo_control_t *ctl);
 

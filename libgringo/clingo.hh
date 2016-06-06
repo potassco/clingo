@@ -31,6 +31,8 @@
 #include <cassert>
 #include <type_traits>
 
+#include <iostream>
+
 namespace Clingo {
 
 // {{{1 basic types
@@ -328,7 +330,7 @@ public:
     friend TheoryIterator operator+(TheoryIterator it, difference_type n) { return {it.atoms(), it.id_ + n}; }
     friend TheoryIterator operator+(difference_type n, TheoryIterator it) { return {it.atoms(), it.id_ + n}; }
     friend TheoryIterator operator-(TheoryIterator it, difference_type n) { return {it.atoms(), it.id_ - n}; }
-    friend difference_type operator-(TheoryIterator a, TheoryIterator b)  { return b.id_ - a.id_; }
+    friend difference_type operator-(TheoryIterator a, TheoryIterator b)  { return a.id_ - b.id_; }
     T operator*() { return elem_ = *id_; }
     T *operator->() { return &(elem_ = *id_); }
     friend void swap(TheoryIterator& lhs, TheoryIterator& rhs) {
@@ -465,7 +467,7 @@ public:
     friend TheoryAtomIterator operator+(TheoryAtomIterator it, difference_type n) { return {it.atoms(), clingo_id_t(it.id() + n)}; }
     friend TheoryAtomIterator operator+(difference_type n, TheoryAtomIterator it) { return {it.atoms(), clingo_id_t(it.id() + n)}; }
     friend TheoryAtomIterator operator-(TheoryAtomIterator it, difference_type n) { return {it.atoms(), clingo_id_t(it.id() - n)}; }
-    friend difference_type operator-(TheoryAtomIterator a, TheoryAtomIterator b)  { return b.id() - a.id(); }
+    friend difference_type operator-(TheoryAtomIterator a, TheoryAtomIterator b)  { return a.id() - b.id(); }
     TheoryAtom operator*() { return *this; }
     TheoryAtom *operator->() { return this; }
     friend void swap(TheoryAtomIterator& lhs, TheoryAtomIterator& rhs) {
@@ -846,13 +848,139 @@ private:
     clingo_backend_t *backend_;
 };
 
+// {{{1 statistics
+
+template <class T>
+class KeyIterator : public std::iterator<std::random_access_iterator_tag, char const *, ptrdiff_t, ValuePointer<char const *>, char const *> {
+public:
+    KeyIterator(T const *map, size_t index = 0)
+    : map_(map)
+    , index_(index) { }
+    KeyIterator& operator++() { ++index_; return *this; }
+    KeyIterator operator++(int) {
+        KeyIterator t(*this);
+        ++*this;
+        return t;
+    }
+    KeyIterator& operator--() { --index_; return *this; }
+    KeyIterator operator--(int) {
+        KeyIterator t(*this);
+        --*this;
+        return t;
+    }
+    KeyIterator& operator+=(difference_type n) { index_ += n; return *this; }
+    KeyIterator& operator-=(difference_type n) { index_ -= n; return *this; }
+    friend KeyIterator operator+(KeyIterator it, difference_type n) { return {it.map_, it.index_ + n}; }
+    friend KeyIterator operator+(difference_type n, KeyIterator it) { return {it.map_, it.index_ + n}; }
+    friend KeyIterator operator-(KeyIterator it, difference_type n) { return {it.map_, it.index_ - n}; }
+    friend difference_type operator-(KeyIterator a, KeyIterator b)  { return a.index_ - b.index_; }
+    reference operator*() { return map_->key_name(index_); }
+    pointer operator->() { return pointer(**this); }
+    friend void swap(KeyIterator& lhs, KeyIterator& rhs) {
+        std::swap(lhs.map_, rhs.map_);
+        std::swap(lhs.index_, rhs.index_);
+    }
+    friend bool operator==(const KeyIterator& lhs, const KeyIterator& rhs) { return lhs.index_ == rhs.index_; }
+    friend bool operator!=(const KeyIterator& lhs, const KeyIterator& rhs) { return !(lhs == rhs); }
+    friend bool operator< (KeyIterator lhs, KeyIterator rhs) { return (lhs.index_ + 1) < (rhs.index_ + 1); }
+    friend bool operator> (KeyIterator lhs, KeyIterator rhs) { return rhs < lhs; }
+    friend bool operator<=(KeyIterator lhs, KeyIterator rhs) { return !(lhs > rhs); }
+    friend bool operator>=(KeyIterator lhs, KeyIterator rhs) { return !(lhs < rhs); }
+private:
+    T const *map_;
+    size_t index_;
+};
+
+template <class T, class P=T*>
+class ArrayIterator : public std::iterator<std::random_access_iterator_tag, T, ptrdiff_t, ValuePointer<T>, T> {
+public:
+    using base = std::iterator<std::random_access_iterator_tag, T, ptrdiff_t, ValuePointer<T>, T>;
+    using difference_type = typename base::difference_type;
+    using reference = typename base::reference;
+    using pointer = typename base::pointer;
+    ArrayIterator(P arr, size_t index = 0)
+    : arr_(arr)
+    , index_(index) { }
+    ArrayIterator& operator++() { ++index_; return *this; }
+    ArrayIterator operator++(int) {
+        ArrayIterator t(*this);
+        ++*this;
+        return t;
+    }
+    ArrayIterator& operator--() { --index_; return *this; }
+    ArrayIterator operator--(int) {
+        ArrayIterator t(*this);
+        --*this;
+        return t;
+    }
+    ArrayIterator& operator+=(difference_type n) { index_ += n; return *this; }
+    ArrayIterator& operator-=(difference_type n) { index_ -= n; return *this; }
+    friend ArrayIterator operator+(ArrayIterator it, difference_type n) { return {it.arr_, it.index_ + n}; }
+    friend ArrayIterator operator+(difference_type n, ArrayIterator it) { return {it.arr_, it.index_ + n}; }
+    friend ArrayIterator operator-(ArrayIterator it, difference_type n) { return {it.arr_, it.index_ - n}; }
+    friend difference_type operator-(ArrayIterator a, ArrayIterator b)  { return a.index_ - b.index_; }
+    reference operator*() { return (*arr_)[index_]; }
+    pointer operator->() { return pointer(**this); }
+    friend void swap(ArrayIterator& lhs, ArrayIterator& rhs) {
+        std::swap(lhs.arr_, rhs.arr_);
+        std::swap(lhs.index_, rhs.index_);
+    }
+    friend bool operator==(const ArrayIterator& lhs, const ArrayIterator& rhs) { return lhs.index_ == rhs.index_; }
+    friend bool operator!=(const ArrayIterator& lhs, const ArrayIterator& rhs) { return !(lhs == rhs); }
+    friend bool operator< (ArrayIterator lhs, ArrayIterator rhs) { return (lhs.index_ + 1) < (rhs.index_ + 1); }
+    friend bool operator> (ArrayIterator lhs, ArrayIterator rhs) { return rhs < lhs; }
+    friend bool operator<=(ArrayIterator lhs, ArrayIterator rhs) { return !(lhs > rhs); }
+    friend bool operator>=(ArrayIterator lhs, ArrayIterator rhs) { return !(lhs < rhs); }
+private:
+    P arr_;
+    size_t index_;
+};
+
+enum class StatisticsType : clingo_statistics_type_t {
+    Value = clingo_statistics_type_value,
+    Array = clingo_statistics_type_array,
+    Map = clingo_statistics_type_map
+};
+
+class Statistics;
+using StatisticsKeyIterator = KeyIterator<Statistics>;
+using StatisticsArrayIterator = ArrayIterator<Statistics, Statistics const *>;
+using StatisticsKeyRange = IteratorRange<StatisticsKeyIterator>;
+
+class Statistics {
+    friend class KeyIterator<Statistics>;
+public:
+    Statistics(clingo_statistics_t *stats, unsigned key)
+    : stats_(stats)
+    , key_(key) { }
+    // generic
+    StatisticsType type() const;
+    // arrays
+    size_t size() const;
+    Statistics operator[](size_t index) const;
+    StatisticsArrayIterator begin() const;
+    StatisticsArrayIterator end() const;
+    // maps
+    Statistics operator[](char const *name) const;
+    StatisticsKeyRange keys() const;
+    // leafs
+    double value() const;
+    operator double() const { return value(); }
+private:
+    char const *key_name(size_t index) const;
+    clingo_statistics_t *stats_;
+    unsigned key_;
+};
+
 // {{{1 configuration
 
-class ConfigurationKeyIterator;
-class ConfigurationArrayIterator;
+class Configuration;
+using ConfigurationArrayIterator = ArrayIterator<Configuration>;
+using ConfigurationKeyIterator = KeyIterator<Configuration>;
 using ConfigurationKeyRange = IteratorRange<ConfigurationKeyIterator>;
 
 class Configuration {
+    friend class KeyIterator<Configuration>;
 public:
     Configuration(clingo_configuration_t *conf, unsigned key)
     : conf_(conf)
@@ -878,109 +1006,9 @@ public:
     char const *decription() const;
     operator clingo_configuration_t*() const { return conf_; }
 private:
+    char const *key_name(size_t index) const;
     clingo_configuration_t *conf_;
     unsigned key_;
-};
-
-class ConfigurationArrayIterator : public std::iterator<std::random_access_iterator_tag, Configuration, int, ValuePointer<Configuration>, Configuration> {
-public:
-    ConfigurationArrayIterator(clingo_configuration_t *conf, unsigned key, unsigned index = 0)
-    : conf_(conf)
-    , key_(key)
-    , index_(index) { }
-    ConfigurationArrayIterator& operator++() { ++index_; return *this; }
-    ConfigurationArrayIterator operator++(int) {
-        ConfigurationArrayIterator t(*this);
-        ++*this;
-        return t;
-    }
-    ConfigurationArrayIterator& operator--() { --index_; return *this; }
-    ConfigurationArrayIterator operator--(int) {
-        ConfigurationArrayIterator t(*this);
-        --*this;
-        return t;
-    }
-    ConfigurationArrayIterator& operator+=(difference_type n) { index_ += n; return *this; }
-    ConfigurationArrayIterator& operator-=(difference_type n) { index_ -= n; return *this; }
-    friend ConfigurationArrayIterator operator+(ConfigurationArrayIterator it, difference_type n) { return {it.conf_, it.index_ + n}; }
-    friend ConfigurationArrayIterator operator+(difference_type n, ConfigurationArrayIterator it) { return {it.conf_, it.index_ + n}; }
-    friend ConfigurationArrayIterator operator-(ConfigurationArrayIterator it, difference_type n) { return {it.conf_, it.index_ - n}; }
-    friend difference_type operator-(ConfigurationArrayIterator a, ConfigurationArrayIterator b)  { return b.index_ - a.index_; }
-    reference operator*();
-    pointer operator->() { return pointer(**this); }
-    friend void swap(ConfigurationArrayIterator& lhs, ConfigurationArrayIterator& rhs) {
-        std::swap(lhs.conf_, rhs.conf_);
-        std::swap(lhs.index_, rhs.index_);
-    }
-    friend bool operator==(const ConfigurationArrayIterator& lhs, const ConfigurationArrayIterator& rhs) {
-        assert(lhs.conf_ == rhs.conf_);
-        assert(lhs.key_ == rhs.key_);
-        return lhs.index_ == rhs.index_;
-    }
-    friend bool operator!=(const ConfigurationArrayIterator& lhs, const ConfigurationArrayIterator& rhs) { return !(lhs == rhs); }
-    friend bool operator< (ConfigurationArrayIterator lhs, ConfigurationArrayIterator rhs) {
-        assert(lhs.conf_ == rhs.conf_);
-        assert(lhs.key_ == rhs.key_);
-        return (lhs.index_ + 1) < (rhs.index_ + 1);
-    }
-    friend bool operator> (ConfigurationArrayIterator lhs, ConfigurationArrayIterator rhs) { return rhs < lhs; }
-    friend bool operator<=(ConfigurationArrayIterator lhs, ConfigurationArrayIterator rhs) { return !(lhs > rhs); }
-    friend bool operator>=(ConfigurationArrayIterator lhs, ConfigurationArrayIterator rhs) { return !(lhs < rhs); }
-private:
-    clingo_configuration_t *conf_;
-    unsigned key_;
-    unsigned index_;
-};
-
-class ConfigurationKeyIterator : public std::iterator<std::random_access_iterator_tag, char const *, int, ValuePointer<char const *>, char const *> {
-public:
-    ConfigurationKeyIterator(clingo_configuration_t *conf, unsigned key, unsigned index = 0)
-    : conf_(conf)
-    , key_(key)
-    , index_(index) { }
-    ConfigurationKeyIterator& operator++() { ++index_; return *this; }
-    ConfigurationKeyIterator operator++(int) {
-        ConfigurationKeyIterator t(*this);
-        ++*this;
-        return t;
-    }
-    ConfigurationKeyIterator& operator--() { --index_; return *this; }
-    ConfigurationKeyIterator operator--(int) {
-        ConfigurationKeyIterator t(*this);
-        --*this;
-        return t;
-    }
-    ConfigurationKeyIterator& operator+=(difference_type n) { index_ += n; return *this; }
-    ConfigurationKeyIterator& operator-=(difference_type n) { index_ -= n; return *this; }
-    friend ConfigurationKeyIterator operator+(ConfigurationKeyIterator it, difference_type n) { return {it.conf_, it.key_, it.index_ + n}; }
-    friend ConfigurationKeyIterator operator+(difference_type n, ConfigurationKeyIterator it) { return {it.conf_, it.key_, it.index_ + n}; }
-    friend ConfigurationKeyIterator operator-(ConfigurationKeyIterator it, difference_type n) { return {it.conf_, it.key_, it.index_ - n}; }
-    friend difference_type operator-(ConfigurationKeyIterator a, ConfigurationKeyIterator b)  { return b.index_ - a.index_; }
-    reference operator*();
-    pointer operator->() { return pointer(**this); }
-    friend void swap(ConfigurationKeyIterator& lhs, ConfigurationKeyIterator& rhs) {
-        std::swap(lhs.conf_, rhs.conf_);
-        std::swap(lhs.key_, rhs.key_);
-        std::swap(lhs.index_, rhs.index_);
-    }
-    friend bool operator==(const ConfigurationKeyIterator& lhs, const ConfigurationKeyIterator& rhs) {
-        assert(lhs.conf_ == rhs.conf_);
-        assert(lhs.key_ == rhs.key_);
-        return lhs.index_ == rhs.index_;
-    }
-    friend bool operator!=(const ConfigurationKeyIterator& lhs, const ConfigurationKeyIterator& rhs) { return !(lhs == rhs); }
-    friend bool operator< (ConfigurationKeyIterator lhs, ConfigurationKeyIterator rhs) {
-        assert(lhs.conf_ == rhs.conf_);
-        assert(lhs.key_ == rhs.key_);
-        return (lhs.index_ + 1) < (rhs.index_ + 1);
-    }
-    friend bool operator> (ConfigurationKeyIterator lhs, ConfigurationKeyIterator rhs) { return rhs < lhs; }
-    friend bool operator<=(ConfigurationKeyIterator lhs, ConfigurationKeyIterator rhs) { return !(lhs > rhs); }
-    friend bool operator>=(ConfigurationKeyIterator lhs, ConfigurationKeyIterator rhs) { return !(lhs < rhs); }
-private:
-    clingo_configuration_t *conf_;
-    unsigned key_;
-    unsigned index_;
 };
 
 // {{{1 control
@@ -1023,6 +1051,7 @@ public:
     void use_enum_assumption(bool value);
     Backend backend();
     Configuration configuration();
+    Statistics statistics() const;
     operator clingo_control_t*() const;
 private:
     clingo_control_t *ctl_;

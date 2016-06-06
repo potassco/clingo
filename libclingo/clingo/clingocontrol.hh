@@ -134,6 +134,47 @@ struct ClingoStatistics : Gringo::Statistics {
     Clasp::ClaspFacade *clasp = nullptr;
 };
 
+class ClingoStatisticsNG : public Gringo::StatisticsNG {
+public:
+    ClingoStatisticsNG(ClingoStatistics &stats)
+    : stats_{stats} { }
+    // array keys
+    size_t size(Potassco::Id_t key) const override;
+    Potassco::Id_t at(Potassco::Id_t key, size_t index) const override;
+    // keys with a value
+    double value(Potassco::Id_t key) const override;
+    // map keys
+    Potassco::Id_t lookup(Potassco::Id_t key, char const *name) const override;
+    size_t subkeys(Potassco::Id_t key) const override;
+    char const *subkey(Potassco::Id_t key, size_t index) const override;
+    // generic
+    Potassco::Id_t root() const override;
+    char const *name(Potassco::Id_t key) override;
+    Type type(Potassco::Id_t key) const override;
+private:
+    struct Key {
+        Key(std::string &&path)
+        : path(std::move(path)) { }
+        char const *name() const {
+            size_t pos = path.find_last_of('.');
+            return (pos == std::string::npos) ? path.c_str() : (path.c_str() + pos + 1);
+        }
+        std::string path;
+        std::unordered_set<std::string> keys;
+    };
+    using UKey = std::unique_ptr<Key>;
+    struct Hash {
+        size_t operator()(UKey const &key) const { return Gringo::get_value_hash(key->path); }
+    };
+    struct EqualTo {
+        size_t operator()(UKey const &a, UKey const &b) const { return a->path == b->path; }
+    };
+    Potassco::Id_t add(std::string const &path, char const *name) const;
+    // NOTE: unique_ptr to preserve name() and subkeys()
+    mutable Gringo::UniqueVec<UKey, Hash, EqualTo> keys_;
+    ClingoStatistics &stats_;
+};
+
 // {{{1 declaration of ClingoSolveFuture
 
 Gringo::SolveResult convert(Clasp::ClaspFacade::Result res);
@@ -251,6 +292,7 @@ public:
     void assignExternal(Gringo::Symbol ext, Potassco::Value_t) override;
     Gringo::Symbol getConst(std::string const &name) override;
     ClingoStatistics *getStats() override;
+    Gringo::StatisticsNG *statistics() override;
     Gringo::ConfigProxy &getConf() override;
     void useEnumAssumption(bool enable) override;
     bool useEnumAssumption() override;
@@ -276,7 +318,6 @@ public:
     std::unique_ptr<Gringo::Input::NonGroundParser>           parser_;
     ModelHandler                                              modelHandler_;
     FinishHandler                                             finishHandler_;
-    ClingoStatistics                                          clingoStats_;
     Clasp::ClaspFacade                                       *clasp_ = nullptr;
     Clasp::Cli::ClaspCliConfig                               &claspConfig_;
     PostGroundFunc                                            pgf_;
@@ -286,6 +327,8 @@ public:
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>> propagators_;
     ClingoPropagatorLock                                      propLock_;
     Gringo::Logger                                            logger_;
+    ClingoStatistics                                          clingoStats_;
+    ClingoStatisticsNG                                        clingoStatsNg_;
 #if WITH_THREADS
     std::unique_ptr<ClingoSolveFuture> solveFuture_;
 #endif

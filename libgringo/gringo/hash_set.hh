@@ -400,6 +400,8 @@ public:
         vec_.clear();
         set_.clear();
     }
+    ValueType &at(SizeType offset) { return vec_.at(offset); }
+    ValueType const &at(SizeType offset) const { return vec_.at(offset); }
     ValueType &operator[](SizeType offset) { return vec_[offset]; }
     ValueType const &operator[](SizeType offset) const { return vec_[offset]; }
 

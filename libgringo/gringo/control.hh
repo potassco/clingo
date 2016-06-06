@@ -95,6 +95,25 @@ struct Statistics {
     virtual ~Statistics() { }
 };
 
+class StatisticsNG {
+public:
+    enum Type { Leaf, Array, Map };
+    // generic
+    virtual Id_t root() const = 0;
+    virtual Type type(Id_t key) const = 0;
+    virtual char const *name(Id_t key) = 0;
+    // Array
+    virtual size_t size(Id_t key) const = 0;
+    virtual Id_t at(Potassco::Id_t key, size_t index) const = 0;
+    // Map
+    virtual size_t subkeys(Id_t key) const = 0;
+    virtual char const *subkey(Id_t key, size_t index) const = 0;
+    virtual Id_t lookup(Id_t key, char const *name) const = 0;
+    // Leaf
+    virtual double value(Potassco::Id_t key) const = 0;
+    virtual ~StatisticsNG() noexcept = default;
+};
+
 // {{{1 declaration of SolveFuture
 
 struct SolveFuture {
@@ -221,15 +240,6 @@ struct Propagator : Potassco::AbstractPropagator {
 };
 using UProp = std::unique_ptr<Propagator>;
 
-// {{{1 declaration of ASPIFWriter
-
-struct ASPIFProgram {
-    virtual Potassco::Atom_t addAtom() = 0;
-    virtual void addRule(Potassco::AtomSpan head, Potassco::LitSpan body, bool choice) = 0;
-    virtual void addWeightRule(Potassco::AtomSpan head, Potassco::Weight_t lower, Potassco::WeightLitSpan body, bool choice) = 0;
-    virtual ~ASPIFProgram() noexcept = default;
-};
-
 // {{{1 declaration of Control
 
 using FWStringVec = std::vector<String>;
@@ -259,6 +269,7 @@ struct clingo_control {
     virtual bool blocked() = 0;
     virtual void assignExternal(Gringo::Symbol ext, Potassco::Value_t val) = 0;
     virtual Gringo::Statistics *getStats() = 0;
+    virtual Gringo::StatisticsNG *statistics() = 0;
     virtual void useEnumAssumption(bool enable) = 0;
     virtual bool useEnumAssumption() = 0;
     virtual void cleanupDomains() = 0;

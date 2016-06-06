@@ -592,6 +592,49 @@ extern "C" clingo_error_t clingo_configuration_set_value(clingo_configuration_t 
     GRINGO_CLINGO_CATCH(nullptr);
 }
 
+// {{{1 statistics
+
+struct clingo_statistic : public StatisticsNG { };
+
+extern "C" clingo_error_t clingo_statistics_root(clingo_statistics_t *stats, clingo_id_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = stats->root(); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_statistics_type(clingo_statistics_t *stats, clingo_id_t key, clingo_statistics_type_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = stats->type(key); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_statistics_array_size(clingo_statistics_t *stats, clingo_id_t key, size_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = stats->size(key); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_statistics_array_at(clingo_statistics_t *stats, clingo_id_t key, size_t index, clingo_id_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = stats->at(key, index); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_statistics_map_size(clingo_statistics_t *stats, clingo_id_t key, size_t *n) {
+    GRINGO_CLINGO_TRY { *n = stats->subkeys(key); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_statistics_map_subkey_name(clingo_statistics_t *stats, clingo_id_t key, size_t index, char const **name) {
+    GRINGO_CLINGO_TRY { *name = stats->subkey(key, index); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_statistics_map_lookup(clingo_statistics_t *stats, clingo_id_t key, char const *name, clingo_id_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = stats->lookup(key, name); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
+
+extern "C" clingo_error_t clingo_statistics_leaf_value(clingo_statistics_t *stats, clingo_id_t key, double *value) {
+    GRINGO_CLINGO_TRY { *value = stats->value(key); }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
 
 // {{{1 global functions
 
@@ -919,6 +962,11 @@ extern "C" clingo_error_t clingo_control_backend(clingo_control_t *ctl, clingo_b
 
 extern "C" clingo_error_t clingo_control_configuration(clingo_control_t *ctl, clingo_configuration_t **conf) {
     GRINGO_CLINGO_TRY { *conf = static_cast<clingo_configuration_t*>(&ctl->getConf()); }
+    GRINGO_CLINGO_CATCH(&ctl->logger());
+}
+
+extern "C" clingo_error_t clingo_control_statistics(clingo_control_t *ctl, clingo_statistics_t **stats) {
+    GRINGO_CLINGO_TRY { *stats = static_cast<clingo_statistics_t*>(ctl->statistics()); }
     GRINGO_CLINGO_CATCH(&ctl->logger());
 }
 
@@ -1516,20 +1564,72 @@ atom_t Backend::add_atom() {
     return ret;
 }
 
+// {{{1 statistics
+
+StatisticsType Statistics::type() const {
+    clingo_statistics_type_t ret;
+    handleError(clingo_statistics_type(stats_, key_, &ret));
+    return StatisticsType(ret);
+}
+
+size_t Statistics::size() const {
+    size_t ret;
+    handleError(clingo_statistics_array_size(stats_, key_, &ret));
+    return ret;
+}
+
+Statistics Statistics::operator[](size_t index) const {
+    clingo_id_t ret;
+    handleError(clingo_statistics_array_at(stats_, key_, index, &ret));
+    return {stats_, ret};
+}
+
+StatisticsArrayIterator Statistics::begin() const {
+    return {this, 0};
+}
+
+StatisticsArrayIterator Statistics::end() const {
+    return {this, size()};
+}
+
+Statistics Statistics::operator[](char const *name) const {
+    clingo_id_t ret;
+    handleError(clingo_statistics_map_lookup(stats_, key_, name, &ret));
+    return {stats_, ret};
+}
+
+StatisticsKeyRange Statistics::keys() const {
+    size_t ret;
+    handleError(clingo_statistics_map_size(stats_, key_, &ret));
+    return { {this, 0}, {this, ret} };
+}
+
+double Statistics::value() const {
+    double ret;
+    handleError(clingo_statistics_leaf_value(stats_, key_, &ret));
+    return ret;
+}
+
+char const *Statistics::key_name(size_t index) const {
+    char const *ret;
+    handleError(clingo_statistics_map_subkey_name(stats_, key_, index, &ret));
+    return ret;
+}
+
 // {{{1 configuration
 
 Configuration Configuration::operator[](unsigned index) {
     unsigned ret;
-    clingo_configuration_get_array_key(conf_, key_, index, &ret);
+    handleError(clingo_configuration_get_array_key(conf_, key_, index, &ret));
     return {conf_, ret};
 }
 
 ConfigurationArrayIterator Configuration::begin() {
-    return {conf_, 0};
+    return {this, 0};
 }
 
 ConfigurationArrayIterator Configuration::end() {
-    return {conf_, unsigned(size())};
+    return {this, size()};
 }
 
 size_t Configuration::size() const {
@@ -1552,7 +1652,7 @@ Configuration Configuration::operator[](char const *name) {
 ConfigurationKeyRange Configuration::keys() const {
     int n;
     handleError(clingo_configuration_get_info(conf_, key_, &n, nullptr, nullptr, nullptr));
-    return { {conf_, key_, 0}, {conf_, key_, unsigned(n)} };
+    return { {this, size_t(0)}, {this, size_t(n)} };
 }
 
 bool Configuration::leaf() const {
@@ -1772,6 +1872,14 @@ Configuration Control::configuration() {
     unsigned key;
     handleError(clingo_configuration_root(conf, &key));
     return {conf, key};
+}
+
+Statistics Control::statistics() const {
+    clingo_statistics_t *stats;
+    handleError(clingo_control_statistics(const_cast<clingo_control_t*>(ctl_), &stats));
+    unsigned key;
+    handleError(clingo_statistics_root(stats, &key));
+    return {stats, key};
 }
 
 // }}}1
