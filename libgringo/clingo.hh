@@ -860,7 +860,6 @@ public:
     void weight_rule(bool choice, AtomSpan head, weight_t lower, WeightLitSpan body);
     void minimize(weight_t prio, WeightLitSpan body);
     void project(AtomSpan atoms);
-    void output(char const *name, LitSpan condition);
     void external(atom_t atom, ExternalType type);
     void assume(LitSpan lits);
     void heuristic(atom_t atom, HeuristicType type, int bias, unsigned priority, LitSpan condition);

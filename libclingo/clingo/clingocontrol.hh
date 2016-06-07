@@ -374,10 +374,9 @@ public:
         model_->ctx->commitClause(claspLits);
     }
     Gringo::ModelType type() const override {
-        if (model_->type & Clasp::Model::Sat) { return Gringo::ModelType::StableModel; }
         if (model_->type & Clasp::Model::Brave) { return Gringo::ModelType::BraveConsequences; }
         if (model_->type & Clasp::Model::Cautious) { return Gringo::ModelType::CautiousConsequences; }
-        throw std::logic_error("must not happen");
+        return Gringo::ModelType::StableModel;
     }
     uint64_t number() const override { return model_->num; }
     Potassco::Id_t threadId() const override { return model_->sId; }

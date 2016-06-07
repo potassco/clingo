@@ -110,6 +110,11 @@ typedef struct clingo_symbol {
     uint64_t rep;
 } clingo_symbol_t;
 
+typedef struct clingo_symbolic_literal {
+    clingo_symbol_t atom;
+    bool sign;
+} clingo_symbolic_literal_t;
+
 // construction
 
 void clingo_symbol_new_num(int num, clingo_symbol_t *sym);
@@ -138,6 +143,7 @@ bool clingo_symbol_lt(clingo_symbol_t a, clingo_symbol_t b);
 
 // {{{1 module (there should only ever be one module)
 
+// TODO: maybe get rid of the module
 typedef struct clingo_module clingo_module_t;
 
 clingo_error_t clingo_module_new(clingo_module_t **mod);
@@ -145,7 +151,9 @@ void clingo_module_free(clingo_module_t *mod);
 
 // {{{1 solve control
 
-// TODO: context
+typedef struct clingo_solve_control clingo_solve_control_t;
+clingo_error_t clingo_solve_control_thread_id(clingo_solve_control_t *ctl, clingo_id_t *ret);
+clingo_error_t clingo_solve_control_add_clause(clingo_solve_control_t *ctl, clingo_symbolic_literal_t const *clause, size_t n);
 
 // {{{1 model
 
@@ -165,15 +173,6 @@ enum clingo_show_type {
     clingo_show_type_all   = 15
 };
 typedef unsigned clingo_show_type_bitset_t;
-
-typedef struct clingo_symbolic_literal {
-    clingo_symbol_t atom;
-    bool sign;
-} clingo_symbolic_literal_t;
-
-typedef struct clingo_solve_control clingo_solve_control_t;
-clingo_error_t clingo_solve_control_thread_id(clingo_solve_control_t *ctl, clingo_id_t *ret);
-clingo_error_t clingo_solve_control_add_clause(clingo_solve_control_t *ctl, clingo_symbolic_literal_t const *clause, size_t n);
 
 typedef struct clingo_model clingo_model_t;
 clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type_bitset_t show, clingo_symbol_t *ret, size_t *n);
@@ -366,7 +365,6 @@ clingo_error_t clingo_backend_rule(clingo_backend_t *backend, bool choice, cling
 clingo_error_t clingo_backend_weight_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head, size_t head_n, clingo_weight_t lower, clingo_weight_lit_t const *body, size_t body_n);
 clingo_error_t clingo_backend_minimize(clingo_backend_t *backend, clingo_weight_t prio, clingo_weight_lit_t const* lits, size_t lits_n);
 clingo_error_t clingo_backend_project(clingo_backend_t *backend, clingo_atom_t const *atoms, size_t n);
-clingo_error_t clingo_backend_output(clingo_backend_t *backend, char const *name, clingo_lit_t const *condition, size_t condition_n);
 clingo_error_t clingo_backend_external(clingo_backend_t *backend, clingo_atom_t atom, clingo_external_type_t v);
 clingo_error_t clingo_backend_assume(clingo_backend_t *backend, clingo_lit_t const *literals, size_t n);
 clingo_error_t clingo_backend_heuristic(clingo_backend_t *backend, clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority, clingo_lit_t const *condition, size_t condition_n);

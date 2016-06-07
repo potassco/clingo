@@ -755,11 +755,6 @@ extern "C" clingo_error_t clingo_backend_project(clingo_backend_t *backend, clin
     GRINGO_CLINGO_CATCH(&backend->logger());
 }
 
-extern "C" clingo_error_t clingo_backend_output(clingo_backend_t *backend, char const *name, clingo_lit_t const *condition, size_t condition_n) {
-    GRINGO_CLINGO_TRY { backend->backend()->output({name, std::strlen(name)}, {condition, condition_n}); }
-    GRINGO_CLINGO_CATCH(&backend->logger());
-}
-
 extern "C" clingo_error_t clingo_backend_external(clingo_backend_t *backend, clingo_atom_t atom, clingo_external_type_t v) {
     GRINGO_CLINGO_TRY { backend->backend()->external(atom, Potassco::Value_t(v)); }
     GRINGO_CLINGO_CATCH(&backend->logger());
@@ -1661,10 +1656,6 @@ void Backend::minimize(weight_t prio, WeightLitSpan body) {
 
 void Backend::project(AtomSpan atoms) {
     handleError(clingo_backend_project(backend_, atoms.begin(), atoms.size()));
-}
-
-void Backend::output(char const *name, LitSpan condition) {
-    handleError(clingo_backend_output(backend_, name, condition.begin(), condition.size()));
 }
 
 void Backend::external(atom_t atom, ExternalType type) {

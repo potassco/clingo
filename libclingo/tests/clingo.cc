@@ -102,7 +102,66 @@ TEST_CASE("solving", "[clingo]") {
                 REQUIRE(models.size() == 2);
             }
             SECTION("backend") {
-                FAIL("write tests for the backend");
+                // NOTE: ground has to be called before using the backend
+                auto backend = ctl.backend();
+                ctl.ground({});
+                lit_t a = backend.add_atom(), b = backend.add_atom();
+                backend.rule(true, {atom_t(a)}, {});
+                backend.rule(false, {atom_t(b)}, {-a});
+                ctl.solve(MCB(models));
+                REQUIRE(models == (ModelVec{{},{}}));
+                ctl.ground({});
+                backend.assume({a});
+                ctl.solve(MCB(models));
+                REQUIRE(models == (ModelVec{{}}));
+                ctl.ground({});
+                backend.minimize(1, {{a,1},{b,1}});
+                ctl.solve(MCB(models));
+                REQUIRE(ctl.statistics()["costs"].size() == 1);
+                REQUIRE(ctl.statistics()["costs"][size_t(0)] == 1);
+                // Note: I don't have a good idea how to test this one
+                // void heuristic(atom_t atom, HeuristicType type, int bias, unsigned priority, LitSpan condition);
+            }
+            SECTION("backend-project") {
+                ctl.configuration()["solve.project"] = "1";
+                auto backend = ctl.backend();
+                ctl.ground({});
+                atom_t a = backend.add_atom(), b = backend.add_atom();
+                backend.rule(true, {a, b}, {});
+                backend.project({a});
+                ctl.solve(MCB(models));
+                REQUIRE(models == (ModelVec{{},{}}));
+            }
+            SECTION("backend-external") {
+                auto backend = ctl.backend();
+                ctl.ground({});
+                atom_t a = backend.add_atom();
+                backend.external(a, ExternalType::Free);
+                ctl.solve(MCB(models));
+                REQUIRE(models == (ModelVec{{},{}}));
+                ctl.ground({});
+                backend.external(a, ExternalType::Release);
+                ctl.solve(MCB(models));
+                REQUIRE(models == (ModelVec{{}}));
+            }
+            SECTION("backend-acyc") {
+                auto backend = ctl.backend();
+                ctl.ground({});
+                atom_t a = backend.add_atom(), b = backend.add_atom();
+                backend.rule(true, {a, b}, {});
+                backend.acyc_edge(1, 2, {lit_t(a)});
+                backend.acyc_edge(2, 1, {lit_t(b)});
+                ctl.solve(MCB(models));
+                REQUIRE(models == (ModelVec{{},{},{}}));
+            }
+            SECTION("backend-weight-rule") {
+                auto backend = ctl.backend();
+                ctl.ground({});
+                atom_t a = backend.add_atom(), b = backend.add_atom();
+                backend.rule(true, {a, b}, {});
+                backend.weight_rule(false, {}, 1, {{lit_t(a),1}, {lit_t(b),1}});
+                ctl.solve(MCB(models));
+                REQUIRE(models == (ModelVec{{}}));
             }
             SECTION("optimize") {
                 ctl.add("base", {}, "2 {a; b; c; d}.\n"
@@ -136,6 +195,7 @@ TEST_CASE("solving", "[clingo]") {
                 ctl.add("base", {}, "a. $x $= 1. #show b.");
                 ctl.ground({{"base", {}}});
                 REQUIRE(ctl.solve([](Model m) {
+                    REQUIRE(m.type() == ModelType::StableModel);
                     REQUIRE(m.atoms(ShowType::Atoms) == (SymbolVector{Id("a")}));
                     REQUIRE(m.atoms(ShowType::Terms) == (SymbolVector{Id("b")}));
                     REQUIRE(m.atoms(ShowType::CSP) == (SymbolVector{Fun("$", {Id("x"), Num(1)})}));
@@ -147,6 +207,56 @@ TEST_CASE("solving", "[clingo]") {
                 }).sat());
                 REQUIRE(messages.empty());
             }
+            SECTION("model-add-clause") {
+                ctl.add("base", {}, "1{a;b}1.");
+                ctl.ground({{"base", {}}});
+                int n = 0;
+                auto ret = ctl.solve([&n](Model m) {
+                    REQUIRE(m.type() == ModelType::StableModel);
+                    REQUIRE(m.context().thread_id() == 0);
+                    ++n;
+                    char const *name = m.contains(Id("a")) ? "b" : "a";
+                    m.context().add_clause({{Id(name), false}});
+                    return true;
+                });
+                REQUIRE(ret.sat());
+                REQUIRE(n == 1);
+                REQUIRE(messages.empty());
+            }
+            SECTION("model-cautious") {
+                ctl.configuration()["solve.enum_mode"] = "cautious";
+                ctl.add("base", {}, "a.");
+                ctl.ground({{"base", {}}});
+                int n = 0;
+                auto ret = ctl.solve([&n](Model m) {
+                    REQUIRE(m.type() == ModelType::CautiousConsequences);
+                    REQUIRE(m.context().thread_id() == 0);
+                    ++n;
+                    return true;
+                });
+                REQUIRE(ret.sat());
+                REQUIRE(n == 1);
+                REQUIRE(messages.empty());
+            }
+            SECTION("model-optimization") {
+                ctl.configuration()["solve.opt_mode"] = "optN";
+                ctl.add("base", {}, "{a}. #minimize { 1:a }.");
+                ctl.ground({{"base", {}}});
+                int n = 0;
+                auto ret = ctl.solve([&n](Model m) {
+                    REQUIRE(m.type() == ModelType::StableModel);
+                    REQUIRE(m.context().thread_id() == 0);
+                    if (m.optimality_proven()) {
+                        REQUIRE(m.number() == 1);
+                        REQUIRE(m.optimization() == (OptimizationVector{0}));
+                        ++n;
+                    }
+                    return true;
+                });
+                REQUIRE(ret.sat());
+                REQUIRE(n == 1);
+                REQUIRE(messages.empty());
+            }
             SECTION("assumptions") {
                 ctl.add("base", {}, "{a;b;c}.");
                 ctl.ground({{"base", {}}});
@@ -154,7 +264,7 @@ TEST_CASE("solving", "[clingo]") {
                 REQUIRE(models == (ModelVec{{Id("a")}, {Id("a"), Id("c")}}));
                 REQUIRE(messages.empty());
             }
-            SECTION("theory atoms") {
+            SECTION("theory-atoms") {
                 char const *theory =
                     "#theory t {\n"
                     "  group {\n"
