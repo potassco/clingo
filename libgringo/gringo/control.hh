@@ -58,6 +58,11 @@ struct Context {
 
 // {{{1 declaration of Model
 
+enum class ModelType : clingo_model_type_t {
+    StableModel = clingo_model_type_stable_model,
+    BraveConsequences = clingo_model_type_brave_consequences,
+    CautiousConsequences = clingo_model_type_cautious_consequences
+};
 using Model = clingo_model;
 using Int64Vec = std::vector<int64_t>;
 
@@ -69,8 +74,12 @@ struct clingo_model {
     virtual bool contains(Gringo::Symbol atom) const = 0;
     virtual Gringo::SymSpan atoms(ShowType showset) const = 0;
     virtual Gringo::Int64Vec optimization() const = 0;
+    virtual bool optimality_proven() const = 0;
     virtual void addClause(LitVec const &lits) const = 0;
     virtual clingo_control &owner() const = 0;
+    virtual uint64_t number() const = 0;
+    virtual Potassco::Id_t threadId() const = 0;
+    virtual Gringo::ModelType type() const = 0;
     virtual ~clingo_model() { }
 };
 
@@ -101,7 +110,6 @@ public:
     // generic
     virtual Id_t root() const = 0;
     virtual Type type(Id_t key) const = 0;
-    virtual char const *name(Id_t key) = 0;
     // Array
     virtual size_t size(Id_t key) const = 0;
     virtual Id_t at(Potassco::Id_t key, size_t index) const = 0;

@@ -604,7 +604,26 @@ inline bool operator<=(SymbolicLiteral a, SymbolicLiteral b) { return !(b < a); 
 inline bool operator> (SymbolicLiteral a, SymbolicLiteral b) { return  (b < a); }
 inline bool operator>=(SymbolicLiteral a, SymbolicLiteral b) { return !(a < b); }
 
+// {{{1 solve control
+
+class SolveControl {
+public:
+    SolveControl(clingo_solve_control_t *ctl)
+    : ctl_(ctl) { }
+    void add_clause(SymbolicLiteralSpan clause);
+    id_t thread_id() const;
+    operator clingo_solve_control_t*() const { return ctl_; }
+private:
+    clingo_solve_control_t *ctl_;
+};
+
 // {{{1 model
+
+enum class ModelType : clingo_model_type_t {
+    StableModel = clingo_model_type_stable_model,
+    BraveConsequences = clingo_model_type_brave_consequences,
+    CautiousConsequences = clingo_model_type_cautious_consequences
+};
 
 class ShowType {
 public:
@@ -628,10 +647,14 @@ class Model {
 public:
     Model(clingo_model_t *model);
     bool contains(Symbol atom) const;
+    bool optimality_proven() const;
     OptimizationVector optimization() const;
+    SymbolVector atoms(ShowType show = ShowType::Shown) const;
+    SolveControl context() const;
+    ModelType type() const;
+    uint64_t number() const;
     operator bool() const { return model_; }
     operator clingo_model_t*() const { return model_; }
-    SymbolVector atoms(ShowType show = ShowType::Shown) const;
 private:
     clingo_model_t *model_;
 };

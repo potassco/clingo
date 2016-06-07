@@ -149,7 +149,12 @@ void clingo_module_free(clingo_module_t *mod);
 
 // {{{1 model
 
-// TODO: context, optimization
+enum clingo_model_type {
+    clingo_model_type_stable_model          = 0,
+    clingo_model_type_brave_consequences    = 1,
+    clingo_model_type_cautious_consequences = 2
+};
+typedef int clingo_model_type_t;
 
 enum clingo_show_type {
     clingo_show_type_csp   = 1,
@@ -160,10 +165,24 @@ enum clingo_show_type {
     clingo_show_type_all   = 15
 };
 typedef unsigned clingo_show_type_bitset_t;
+
+typedef struct clingo_symbolic_literal {
+    clingo_symbol_t atom;
+    bool sign;
+} clingo_symbolic_literal_t;
+
+typedef struct clingo_solve_control clingo_solve_control_t;
+clingo_error_t clingo_solve_control_thread_id(clingo_solve_control_t *ctl, clingo_id_t *ret);
+clingo_error_t clingo_solve_control_add_clause(clingo_solve_control_t *ctl, clingo_symbolic_literal_t const *clause, size_t n);
+
 typedef struct clingo_model clingo_model_t;
-bool clingo_model_contains(clingo_model_t *m, clingo_symbol_t atom);
 clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type_bitset_t show, clingo_symbol_t *ret, size_t *n);
+clingo_error_t clingo_model_contains(clingo_model_t *m, clingo_symbol_t atom, bool *ret);
+clingo_error_t clingo_model_context(clingo_model_t *m, clingo_solve_control_t **ret);
+clingo_error_t clingo_model_number(clingo_model_t *m, uint64_t *n);
+clingo_error_t clingo_model_optimality_proven(clingo_model_t *m, bool *ret);
 clingo_error_t clingo_model_optimization(clingo_model_t *m, int64_t *ret, size_t *n);
+clingo_error_t clingo_model_type(clingo_model_t *m, clingo_model_type_t *ret);
 
 // {{{1 solve result
 
@@ -407,11 +426,6 @@ typedef struct clingo_part {
     clingo_symbol_t const *params;
     size_t n;
 } clingo_part_t;
-
-typedef struct clingo_symbolic_literal {
-    clingo_symbol_t atom;
-    bool sign;
-} clingo_symbolic_literal_t;
 
 typedef clingo_error_t clingo_model_callback_t (clingo_model_t*, void *, bool *);
 typedef clingo_error_t clingo_finish_callback_t (clingo_solve_result_bitset_t res, void *);

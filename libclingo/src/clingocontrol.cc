@@ -602,10 +602,6 @@ Potassco::Id_t ClingoStatisticsNG::root() const {
     return keys_.offset(ret.first);
 }
 
-char const *ClingoStatisticsNG::name(Potassco::Id_t key) {
-    return keys_.at(key)->name();
-}
-
 Potassco::Id_t ClingoStatisticsNG::add(std::string const &path, char const *name) const {
     auto p = path;
     if (!p.empty()) { p+= '.'; }

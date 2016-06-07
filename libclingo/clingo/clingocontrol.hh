@@ -149,7 +149,6 @@ public:
     char const *subkey(Potassco::Id_t key, size_t index) const override;
     // generic
     Potassco::Id_t root() const override;
-    char const *name(Potassco::Id_t key) override;
     Type type(Potassco::Id_t key) const override;
 private:
     struct Key {
@@ -374,6 +373,15 @@ public:
         claspLits.push_back(~ctx().stepLiteral());
         model_->ctx->commitClause(claspLits);
     }
+    Gringo::ModelType type() const override {
+        if (model_->type & Clasp::Model::Sat) { return Gringo::ModelType::StableModel; }
+        if (model_->type & Clasp::Model::Brave) { return Gringo::ModelType::BraveConsequences; }
+        if (model_->type & Clasp::Model::Cautious) { return Gringo::ModelType::CautiousConsequences; }
+        throw std::logic_error("must not happen");
+    }
+    uint64_t number() const override { return model_->num; }
+    Potassco::Id_t threadId() const override { return model_->sId; }
+    bool optimality_proven() const override { return model_->opt; }
     ClingoControl &owner() const override { return ctl_; }
 private:
     Clasp::Asp::LogicProgram const &lp() const    { return *static_cast<Clasp::Asp::LogicProgram*>(ctl_.clasp_->program()); };

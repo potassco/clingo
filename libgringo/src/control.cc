@@ -479,8 +479,25 @@ extern "C" clingo_error_t clingo_propagate_control_propagate(clingo_propagate_co
 
 // {{{1 model
 
-extern "C" bool clingo_model_contains(clingo_model_t *m, clingo_symbol_t atom) {
-    return m->contains(static_cast<Symbol &>(atom));
+struct clingo_solve_control : clingo_model { };
+
+extern "C" clingo_error_t clingo_solve_control_thread_id(clingo_solve_control_t *ctl, clingo_id_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = ctl->threadId(); }
+    GRINGO_CLINGO_CATCH(&ctl->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_solve_control_add_clause(clingo_solve_control_t *ctl, clingo_symbolic_literal_t const *clause, size_t n) {
+    GRINGO_CLINGO_TRY {
+        // TODO: unnecessary copying
+        Gringo::Model::LitVec lits;
+        for (auto it = clause, ie = it + n; it != ie; ++it) { lits.emplace_back(it->atom, it->sign); }
+        ctl->addClause(lits); }
+    GRINGO_CLINGO_CATCH(&ctl->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_model_contains(clingo_model_t *m, clingo_symbol_t atom, bool *ret) {
+    GRINGO_CLINGO_TRY { *ret = m->contains(static_cast<Symbol &>(atom)); }
+    GRINGO_CLINGO_CATCH(&m->owner().logger());
 }
 
 extern "C" clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type_bitset_t show, clingo_symbol_t *ret, size_t *n) {
@@ -497,6 +514,11 @@ extern "C" clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type
     GRINGO_CLINGO_CATCH(&m->owner().logger());
 }
 
+extern "C" clingo_error_t clingo_model_optimality_proven(clingo_model_t *m, bool *proven) {
+    GRINGO_CLINGO_TRY { *proven = m->optimality_proven(); }
+    GRINGO_CLINGO_CATCH(&m->owner().logger());
+}
+
 extern "C" clingo_error_t clingo_model_optimization(clingo_model_t *m, int64_t *ret, size_t *n) {
     GRINGO_CLINGO_TRY {
         // TODO: implement matching C++ functions ...
@@ -508,6 +530,21 @@ extern "C" clingo_error_t clingo_model_optimization(clingo_model_t *m, int64_t *
             std::copy(opt.begin(), opt.end(), ret);
         }
     }
+    GRINGO_CLINGO_CATCH(&m->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_model_context(clingo_model_t *m, clingo_solve_control_t **ret) {
+    GRINGO_CLINGO_TRY { *ret = static_cast<clingo_solve_control_t*>(m); }
+    GRINGO_CLINGO_CATCH(&m->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_model_number(clingo_model_t *m, uint64_t *n) {
+    GRINGO_CLINGO_TRY { *n = m->number(); }
+    GRINGO_CLINGO_CATCH(&m->owner().logger());
+}
+
+extern "C" clingo_error_t clingo_model_type(clingo_model_t *m, clingo_model_type_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = static_cast<clingo_model_type_t>(m->type()); }
     GRINGO_CLINGO_CATCH(&m->owner().logger());
 }
 
@@ -1490,13 +1527,27 @@ void Propagator::propagate(PropagateControl &, LitSpan) { }
 void Propagator::undo(PropagateControl const &, LitSpan) { }
 void Propagator::check(PropagateControl &) { }
 
+// {{{1 solve control
+
+void SolveControl::add_clause(SymbolicLiteralSpan clause) {
+    handleError(clingo_solve_control_add_clause(ctl_, clause.begin(), clause.size()));
+}
+
+id_t SolveControl::thread_id() const {
+    id_t ret;
+    handleError(clingo_solve_control_thread_id(ctl_, &ret));
+    return ret;
+}
+
 // {{{1 model
 
 Model::Model(clingo_model_t *model)
 : model_(model) { }
 
 bool Model::contains(Symbol atom) const {
-    return clingo_model_contains(model_, atom);
+    bool ret;
+    handleError(clingo_model_contains(model_, atom, &ret));
+    return ret;
 }
 
 OptimizationVector Model::optimization() const {
@@ -1515,6 +1566,30 @@ SymbolVector Model::atoms(ShowType show) const {
     ret.resize(n);
     handleError(clingo_model_atoms(model_, show, ret.data(), &n));
     return ret;
+}
+
+uint64_t Model::number() const {
+    uint64_t ret;
+    handleError(clingo_model_number(model_, &ret));
+    return ret;
+}
+
+bool Model::optimality_proven() const {
+    bool ret;
+    handleError(clingo_model_optimality_proven(model_, &ret));
+    return ret;
+}
+
+SolveControl Model::context() const {
+    clingo_solve_control_t *ret;
+    handleError(clingo_model_context(model_, &ret));
+    return ret;
+}
+
+ModelType Model::type() const {
+    clingo_model_type_t ret;
+    handleError(clingo_model_type(model_, &ret));
+    return static_cast<ModelType>(ret);
 }
 
 // {{{1 solve iter
