@@ -980,10 +980,12 @@ public:
     // arrays
     size_t size() const;
     Statistics operator[](size_t index) const;
+    Statistics at(size_t index) const { return operator[](index); }
     StatisticsArrayIterator begin() const;
     StatisticsArrayIterator end() const;
     // maps
     Statistics operator[](char const *name) const;
+    Statistics get(char const *name) { return operator[](name); }
     StatisticsKeyRange keys() const;
     // leafs
     double value() const;
@@ -1010,6 +1012,7 @@ public:
     // arrays
     bool is_array() const;
     Configuration operator[](size_t index);
+    Configuration at(size_t index) { return operator[](index); }
     ConfigurationArrayIterator begin();
     ConfigurationArrayIterator end();
     size_t size() const;
@@ -1017,6 +1020,7 @@ public:
     // maps
     bool is_map() const;
     Configuration operator[](char const *name);
+    Configuration get(char const *name) { return operator[](name); }
     ConfigurationKeyRange keys() const;
     // values
     bool is_value() const;
