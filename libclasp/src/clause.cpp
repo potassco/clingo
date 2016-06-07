@@ -386,11 +386,15 @@ ClauseHead* Clause::newContractedClause(Solver& s, const ClauseRep& rep, uint32 
 	if (extend) { std::stable_sort(rep.lits+tailStart, rep.lits+rep.size, Detail::GreaterLevel(s)); }
 	return new (alloc(s, rep.size, rep.info.learnt())) Clause(s, rep, tailStart, extend);
 }
-
+void ClauseHead::Local::init(uint32 sz) {
+	std::memset(mem, 0, sizeof(mem));
+	if (sz > ClauseHead::MAX_SHORT_LEN) { mem[0] = (sz << 3) + 1; }
+	assert(isSmall() == (sz <= ClauseHead::MAX_SHORT_LEN));
+}
 Clause::Clause(Solver& s, const ClauseRep& rep, uint32 tail, bool extend) 
 	: ClauseHead(rep.info) {
 	assert(tail >= rep.size || s.isFalse(rep.lits[tail]));
-	data_.local.init(rep.size);
+	local_.init(rep.size);
 	if (!isSmall()) {
 		// copy literals
 		std::memcpy(head_, rep.lits, rep.size*sizeof(Literal));
@@ -399,18 +403,18 @@ Clause::Clause(Solver& s, const ClauseRep& rep, uint32 tail, bool extend)
 			head_[rep.size-1].flag();  // mark last literal of clause
 			Literal t = head_[tail];
 			if (s.level(t.var()) > 0) {
-				data_.local.markContracted();
+				local_.markContracted();
 				if (extend) {
 					s.addUndoWatch(s.level(t.var()), this);
 				}
 			}
-			data_.local.setSize(tail);
+			local_.setSize(tail);
 		}
 	}
 	else {
 		std::memcpy(head_, rep.lits, std::min(rep.size, (uint32)ClauseHead::HEAD_LITS)*sizeof(Literal));
-		data_.lits[0] = rep.size > ClauseHead::HEAD_LITS   ? rep.lits[ClauseHead::HEAD_LITS].rep()   : lit_false().rep();
-		data_.lits[1] = rep.size > ClauseHead::HEAD_LITS+1 ? rep.lits[ClauseHead::HEAD_LITS+1].rep() : lit_false().rep();
+		small()[0] = rep.size > ClauseHead::HEAD_LITS   ? rep.lits[ClauseHead::HEAD_LITS]   : lit_false();
+		small()[1] = rep.size > ClauseHead::HEAD_LITS+1 ? rep.lits[ClauseHead::HEAD_LITS+1] : lit_false();
 		assert(isSmall() && Clause::size() == rep.size);
 	}
 	attach(s);
@@ -418,12 +422,12 @@ Clause::Clause(Solver& s, const ClauseRep& rep, uint32 tail, bool extend)
 
 Clause::Clause(Solver& s, const Clause& other) : ClauseHead(other.info_) {
 	uint32 oSize = other.size();
-	data_.local.init(oSize);
+	local_.init(oSize);
 	if      (!isSmall())      { std::memcpy(head_, other.head_, oSize*sizeof(Literal)); }
-	else if (other.isSmall()) { std::memcpy(data_.lits, other.data_.lits, (ClauseHead::MAX_SHORT_LEN+1)*sizeof(Literal)); }
+	else if (other.isSmall()) { std::memcpy(&local_, &other.local_, (ClauseHead::MAX_SHORT_LEN+1)*sizeof(Literal)); }
 	else { // this is small, other is not
 		std::memcpy(head_, other.head_, ClauseHead::HEAD_LITS*sizeof(Literal));
-		std::memcpy(data_.lits, other.head_+ClauseHead::HEAD_LITS, 2*sizeof(Literal));
+		std::memcpy(&local_, other.head_+ClauseHead::HEAD_LITS, 2*sizeof(Literal));
 	}
 	attach(s);
 }
@@ -432,7 +436,10 @@ Constraint* Clause::cloneAttach(Solver& other) {
 	assert(!learnt());
 	return new (alloc(other, Clause::size(), false)) Clause(other, *this);
 }
-
+Literal* Clause::small()          { return static_cast<Literal*>(static_cast<void*>(&local_)); }
+bool Clause::contracted()   const { return local_.contracted(); }
+bool Clause::isSmall()      const { return local_.isSmall(); }
+bool Clause::strengthened() const { return local_.strengthened(); }
 void Clause::destroy(Solver* s, bool detachFirst) {
 	if (s) { 
 		if (detachFirst) { Clause::detach(*s); }
@@ -447,7 +454,7 @@ void Clause::destroy(Solver* s, bool detachFirst) {
 
 void Clause::detach(Solver& s) {
 	if (contracted()) {
-		Literal* eoc = longEnd();
+		Literal* eoc = end();
 		if (s.isFalse(*eoc) && s.level(eoc->var()) != 0) {
 			s.removeUndoWatch(s.level(eoc->var()), this);
 		}
@@ -458,7 +465,7 @@ void Clause::detach(Solver& s) {
 uint32 Clause::computeAllocSize() const {
 	if (isSmall()) { return 32; }
 	uint32 rt = sizeof(Clause) - (ClauseHead::HEAD_LITS*sizeof(Literal));
-	uint32 sz = data_.local.size();
+	uint32 sz = local_.size();
 	uint32 nw = contracted() + strengthened();
 	if (nw != 0u) {
 		const Literal* eoc = head_ + sz;
@@ -469,13 +476,13 @@ uint32 Clause::computeAllocSize() const {
 }
 
 bool Clause::updateWatch(Solver& s, uint32 pos) {
-	uint32* n;
+	Literal* it;
 	if (!isSmall()) {
-		for (Literal* begin = head_ + ClauseHead::HEAD_LITS, *end = longEnd(), *first = begin + data_.local.idx;;) {
-			for (Literal* it = first; it < end; ++it) {
+		for (Literal* begin = head_ + ClauseHead::HEAD_LITS, *end = this->end(), *first = begin + local_.mem[1];;) {
+			for (it = first; it < end; ++it) {
 				if (!s.isFalse(*it)) {
 					std::swap(*it, head_[pos]);
-					data_.local.idx = static_cast<uint32>(++it - begin);
+					local_.mem[1] = static_cast<uint32>(++it - begin);
 					return true;
 				}
 			}
@@ -484,13 +491,19 @@ bool Clause::updateWatch(Solver& s, uint32 pos) {
 			first = begin;
 		}
 	}
-	else if (!s.isFalse(Literal::fromRep(*(n = data_.lits))) || !s.isFalse(Literal::fromRep(*++n))) {
-		std::swap(head_[pos].rep(), *n);
+	else if (!s.isFalse(*(it = this->small())) || !s.isFalse(*++it)) {
+		std::swap(head_[pos], *it);
 		return true;
 	}
 	return false;
 }
-
+Clause::LitRange Clause::tail() {
+	if (!isSmall()) { return LitRange(head_+ClauseHead::HEAD_LITS, end()); }
+	Literal* tBeg = small(), *tEnd = tBeg;
+	if (*tEnd != lit_false()) ++tEnd;
+	if (*tEnd != lit_false()) ++tEnd;
+	return LitRange(tBeg, tEnd);
+}
 void Clause::reason(Solver& s, Literal p, LitVec& out) {
 	out.push_back(~head_[p == head_[0]]);
 	if (!isSentinel(head_[2])) {
@@ -559,13 +572,13 @@ bool Clause::simplify(Solver& s, bool reinit) {
 	// replace any false lits with sentinels
 	for (Literal* r = j; r != t.second; ++r) { *r = lit_false(); }
 	if (!isSmall()) {
-		uint32 size     = std::max((uint32)ClauseHead::HEAD_LITS, static_cast<uint32>(j-head_));
-		data_.local.idx = 0;
-		data_.local.setSize(size);
+		uint32 size = std::max((uint32)ClauseHead::HEAD_LITS, static_cast<uint32>(j-head_));
+		local_.setSize(size);
+		local_.clearIdx();
 		if (j != t.second && learnt() && !strengthened()) {
 			// mark last literal so that we can recompute alloc size later
 			t.second[-1].flag();
-			data_.local.markStrengthened();
+			local_.markStrengthened();
 		}
 		if (reinit && size > 3) {
 			detach(s);
@@ -606,7 +619,7 @@ uint32 Clause::isOpen(const Solver& s, const TypeSet& x, LitVec& freeLits) {
 
 void Clause::undoLevel(Solver& s) {
 	assert(!isSmall());
-	uint32   t = data_.local.size();
+	uint32   t = local_.size();
 	uint32  ul = s.jumpLevel();
 	Literal* r = head_+t;
 	while (!r->flagged() && (s.value(r->var()) == value_free || s.level(r->var()) > ul)) {
@@ -616,12 +629,12 @@ void Clause::undoLevel(Solver& s) {
 	if (r->flagged() || s.level(r->var()) == 0) {
 		r->unflag();
 		t += !isSentinel(*r);
-		data_.local.clearContracted();
+		local_.clearContracted();
 	}
 	else {
 		s.addUndoWatch(s.level(r->var()), this);
 	}
-	data_.local.setSize(t);
+	local_.setSize(t);
 }
 
 void Clause::toLits(LitVec& out) const {
@@ -679,8 +692,8 @@ Literal* Clause::removeFromTail(Solver& s, Literal* it, Literal* end) {
 		*it  = *--end;
 		*end = lit_false();
 		if (!isSmall()) { 
-			data_.local.setSize(data_.local.size()-1);
-			data_.local.idx = 0;
+			local_.setSize(local_.size()-1);
+			local_.clearIdx();
 		}
 	}
 	else {
@@ -693,12 +706,12 @@ Literal* Clause::removeFromTail(Solver& s, Literal* it, Literal* end) {
 			s.addUndoWatch(nLev, this);
 		}
 		if (j != end) { (j-1)->flag(); }
-		else          { data_.local.clearContracted(); }
+		else          { local_.clearContracted(); }
 		end = j;
 	}
 	if (learnt() && !isSmall() && !strengthened()) {
 		end->flag();
-		data_.local.markStrengthened();
+		local_.markStrengthened();
 	}
 	return end;
 }
@@ -719,19 +732,19 @@ ClauseHead* SharedLitsClause::newClause(Solver& s, SharedLiterals* shared_lits, 
 SharedLitsClause::SharedLitsClause(Solver& s, SharedLiterals* shared_lits, const Literal* w, const InfoType& e, bool addRef) 
 	: ClauseHead(e) {
 	static_assert(sizeof(SharedLitsClause) <= 32, "Unsupported Padding");
-	data_.shared = addRef ? shared_lits->share() : shared_lits;
+	shared_ = addRef ? shared_lits->share() : shared_lits;
 	std::memcpy(head_, w, std::min((uint32)ClauseHead::HEAD_LITS, shared_lits->size())*sizeof(Literal));
 	attach(s);
 	if (learnt()) { s.addLearntBytes(32); }
 }
 
 Constraint* SharedLitsClause::cloneAttach(Solver& other) {
-	return SharedLitsClause::newClause(other, data_.shared, InfoType(this->type()), head_);
+	return SharedLitsClause::newClause(other, shared_, InfoType(this->type()), head_);
 }
 
 bool SharedLitsClause::updateWatch(Solver& s, uint32 pos) {
 	Literal  other = head_[1^pos];
-	for (const Literal* r = data_.shared->begin(), *end = data_.shared->end(); r != end; ++r) {
+	for (const Literal* r = shared_->begin(), *end = shared_->end(); r != end; ++r) {
 		// at this point we know that head_[2] is false so we only need to check 
 		// that we do not watch the other watched literal twice!
 		if (!s.isFalse(*r) && *r != other) {
@@ -753,7 +766,7 @@ bool SharedLitsClause::updateWatch(Solver& s, uint32 pos) {
 }
 
 void SharedLitsClause::reason(Solver& s, Literal p, LitVec& out) {
-	for (const Literal* r = data_.shared->begin(), *end = data_.shared->end(); r != end; ++r) {
+	for (const Literal* r = shared_->begin(), *end = shared_->end(); r != end; ++r) {
 		assert(s.isFalse(*r) || *r == p);
 		if (*r != p) { out.push_back(~*r); }
 	}
@@ -764,7 +777,7 @@ void SharedLitsClause::reason(Solver& s, Literal p, LitVec& out) {
 
 bool SharedLitsClause::minimize(Solver& s, Literal p, CCMinRecursive* rec) {
 	s.updateOnMinimize(info_.score());
-	for (const Literal* r = data_.shared->begin(), *end = data_.shared->end(); r != end; ++r) {
+	for (const Literal* r = shared_->begin(), *end = shared_->end(); r != end; ++r) {
 		if (*r != p && !s.ccMinimize(~*r, rec)) { return false; }
 	}
 	return true;
@@ -772,7 +785,7 @@ bool SharedLitsClause::minimize(Solver& s, Literal p, CCMinRecursive* rec) {
 
 bool SharedLitsClause::isReverseReason(const Solver& s, Literal p, uint32 maxL, uint32 maxN) {
 	uint32 notSeen = 0;
-	for (const Literal* r = data_.shared->begin(), *end = data_.shared->end(); r != end; ++r) {
+	for (const Literal* r = shared_->begin(), *end = shared_->end(); r != end; ++r) {
 		if (*r == p) continue;
 		if (!isRevLit(s, *r, maxL)) return false;
 		if (!s.seen(r->var()) && ++notSeen > maxN) return false;
@@ -785,7 +798,7 @@ bool SharedLitsClause::simplify(Solver& s, bool reinit) {
 		detach(s);
 		return true;
 	}
-	uint32 optSize = data_.shared->simplify(s);
+	uint32 optSize = shared_->simplify(s);
 	if (optSize == 0) {
 		detach(s);
 		return true;
@@ -793,7 +806,7 @@ bool SharedLitsClause::simplify(Solver& s, bool reinit) {
 	else if (optSize <= Clause::MAX_SHORT_LEN) {
 		Literal lits[Clause::MAX_SHORT_LEN];
 		Literal* j = lits;
-		for (const Literal* r = data_.shared->begin(), *e = data_.shared->end(); r != e; ++r) {
+		for (const Literal* r = shared_->begin(), *e = shared_->end(); r != e; ++r) {
 			if (!s.isFalse(*r)) *j++ = *r;
 		}
 		// safe extra data
@@ -807,7 +820,7 @@ bool SharedLitsClause::simplify(Solver& s, bool reinit) {
 	}
 	else if (s.isFalse(head_[2])) {
 		// try to replace cache lit with non-false literal
-		for (const Literal* r = data_.shared->begin(), *e = data_.shared->end(); r != e; ++r) {
+		for (const Literal* r = shared_->begin(), *e = shared_->end(); r != e; ++r) {
 			if (!s.isFalse(*r) && std::find(head_, head_+2, *r) == head_+2) {
 				head_[2] = *r;
 				break;
@@ -822,7 +835,7 @@ void SharedLitsClause::destroy(Solver* s, bool detachFirst) {
 		if (detachFirst) { ClauseHead::detach(*s); }
 		if (learnt())    { s->freeLearntBytes(32); }
 	}
-	data_.shared->release();
+	shared_->release();
 	void* mem = this;
 	this->~SharedLitsClause();
 	if (s) { s->freeSmall(mem); }
@@ -834,7 +847,7 @@ uint32 SharedLitsClause::isOpen(const Solver& s, const TypeSet& x, LitVec& freeL
 	}
 	Literal* head = head_;
 	ValueRep v;
-	for (const Literal* r = data_.shared->begin(), *end = data_.shared->end(); r != end; ++r) {
+	for (const Literal* r = shared_->begin(), *end = shared_->end(); r != end; ++r) {
 		if ( (v = s.value(r->var())) == value_free ) {
 			freeLits.push_back(*r);
 		}
@@ -847,15 +860,14 @@ uint32 SharedLitsClause::isOpen(const Solver& s, const TypeSet& x, LitVec& freeL
 }
 
 void SharedLitsClause::toLits(LitVec& out) const {
-	out.insert(out.end(), data_.shared->begin(), data_.shared->end());
+	out.insert(out.end(), shared_->begin(), shared_->end());
 }
 
 ClauseHead::BoolPair SharedLitsClause::strengthen(Solver&, Literal, bool) {
 	return BoolPair(false, false);
 }
 
-uint32 SharedLitsClause::size() const { return data_.shared->size(); }
-
+uint32 SharedLitsClause::size() const { return shared_->size(); }
 } // end namespace mt
 
 /////////////////////////////////////////////////////////////////////////////////////////

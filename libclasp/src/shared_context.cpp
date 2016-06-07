@@ -820,11 +820,27 @@ Var SharedContext::addVars(uint32 nVars, VarType t, uint8 flags) {
 }
 
 void SharedContext::popVars(uint32 nVars) {
+	CLASP_ASSERT_CONTRACT_MSG(!frozen(), "Cannot pop vars from frozen program");
+	CLASP_FAIL_IF(nVars > numVars(), "Invalid parameter");
 	uint32 newVars = numVars() - nVars;
 	uint32 comVars = master()->numVars();
-	CLASP_ASSERT_CONTRACT_MSG(nVars <= numVars() && newVars >= comVars, "Cannot pop already committed vars!");
-	varInfo_.erase(varInfo_.end() - nVars, varInfo_.end());
-	stats_.vars.num -= nVars;
+	if (newVars >= comVars) {
+		// vars not yet committed
+		varInfo_.erase(varInfo_.end() - nVars, varInfo_.end());
+		stats_.vars.num -= nVars;
+	}
+	else {
+		for (Var v = numVars(); nVars--; --v) {
+			stats_.vars.eliminated -= eliminated(v);
+			stats_.vars.frozen     -= varInfo(v).frozen();
+			--stats_.vars.num;
+			varInfo_.pop_back();
+		}
+		if (!validVar(step_.var()) && numVars()) {
+			varInfo_.pop_back();
+			step_ = lit_false();
+		}
+	}
 }
 
 void SharedContext::requestStepVar()  { if (step_ == lit_true()) { step_= lit_false(); } }

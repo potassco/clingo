@@ -385,23 +385,20 @@ public:
 	void     detach(Solver&);
 	uint32   size()                 const;
 	void     toLits(LitVec& out)    const;
-	bool     contracted()           const { return data_.local.contracted(); }
-	bool     isSmall()              const { return data_.local.isSmall(); }
-	bool     strengthened()         const { return data_.local.strengthened(); }
+	bool     contracted()           const;
+	bool     isSmall()              const;
+	bool     strengthened()         const;
 	uint32   computeAllocSize()     const;
 private:
 	Clause(Solver& s, const ClauseRep& rep, uint32 tail = UINT32_MAX, bool extend = false);
 	Clause(Solver& s, const Clause& other);
 	typedef std::pair<Literal*, Literal*> LitRange;
-	void         undoLevel(Solver& s);
-	bool         updateWatch(Solver& s, uint32 pos);
-	Literal*     removeFromTail(Solver& s, Literal* it, Literal* end);
-	Literal*     longEnd()   { return head_+data_.local.size(); }
-	LitRange     tail() {
-		if (!isSmall()) { return LitRange(head_+ClauseHead::HEAD_LITS, longEnd()); }
-		uint32 ts = (data_.lits[0] != 2) + (data_.lits[1] != 2);
-		return LitRange((Literal*)data_.lits, (Literal*)(data_.lits + ts));
-	}
+	void     undoLevel(Solver& s);
+	bool     updateWatch(Solver& s, uint32 pos);
+	Literal* end() { return head_+local_.size(); }
+	Literal* removeFromTail(Solver& s, Literal* it, Literal* end);
+	Literal* small();
+	LitRange tail();
 };
 
 //! Constraint for Loop-Formulas.

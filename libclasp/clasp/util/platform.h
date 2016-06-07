@@ -157,8 +157,7 @@ inline void  alignedFree(void* p)                    { _aligned_free(p); }
 #else
 inline void* alignedAlloc(size_t size, size_t align) {
 	void* result = 0;
-	posix_memalign(&result, align, size);
-	return result;
+	return posix_memalign(&result, align, size) == 0 ? result : static_cast<void*>(0);
 }
 inline void alignedFree(void* p) { free(p); }
 #endif
