@@ -425,6 +425,19 @@ public:
 	 */
 	virtual BoolPair strengthen(Solver& s, Literal p, bool allowToShort = true) = 0;
 protected:
+	struct Local {
+		void   init(uint32 sz);
+		bool   isSmall()     const  { return (mem[0] & 1u) == 0u; }
+		bool   contracted()  const  { return (mem[0] & 3u) == 3u; }
+		bool   strengthened()const  { return (mem[0] & 5u) == 5u; }
+		uint32 size()        const  { return mem[0] >> 3; }
+		void   setSize(uint32 size) { mem[0] = (size << 3) | (mem[0] & 7u); }
+		void   markContracted()     { mem[0] |= 2u; }
+		void   markStrengthened()   { mem[0] |= 4u; }
+		void   clearContracted()    { mem[0] &= ~2u; }
+		void   clearIdx()           { mem[1] = 0; }
+		uint32 mem[2];
+	};
 	bool toImplication(Solver& s);
 	void clearTagged()    { info_.setTagged(false); }
 	void setLbd(uint32 x) { info_.setLbd(x); }
@@ -435,26 +448,10 @@ protected:
 	 * \pre head_[pos^1] is the other watched literal
 	 */
 	virtual bool updateWatch(Solver& s, uint32 pos) = 0;
-	union Data {
-		SharedLiterals* shared;
-		struct LocalClause {
-			uint32 sizeExt;
-			uint32 idx;
-			void   init(uint32 size) {
-				if (size <= ClauseHead::MAX_SHORT_LEN){ sizeExt = idx = lit_false().rep(); }
-				else                                  { sizeExt = (size << 3) + 1; idx = 0; }
-			}
-			bool   isSmall()     const    { return (sizeExt & 1u) == 0u; }
-			bool   contracted()  const    { return (sizeExt & 3u) == 3u; }
-			bool   strengthened()const    { return (sizeExt & 5u) == 5u; }
-			uint32 size()        const    { return sizeExt >> 3; }
-			void   setSize(uint32 size)   { sizeExt = (size << 3) | (sizeExt & 7u); }
-			void   markContracted()       { sizeExt |= 2u;  }
-			void   markStrengthened()     { sizeExt |= 4u;  }
-			void   clearContracted()      { sizeExt &= ~2u; }
-		}               local;
-		uint32          lits[2];
-	}        data_;   // additional data
+	union {
+		Local           local_;
+		SharedLiterals* shared_;
+	};
 	InfoType info_;
 	Literal  head_[HEAD_LITS]; // two watched literals and one cache literal
 };

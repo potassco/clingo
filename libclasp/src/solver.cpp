@@ -196,8 +196,21 @@ void Solver::resetConfig() {
 	strategy_.hasConfig = 0;
 }
 void Solver::startInit(uint32 numConsGuess, const SolverParams& params) {
-	assert(numVars() <= shared_->numVars());
-	assert(!lazyRem_);
+	assert(!lazyRem_ && decisionLevel() == 0);
+	if (numVars() > shared_->numVars()) {
+		uint32 j = 0, units = assign_.units();
+		uint32 max = shared_->numVars() - (shared_->stepLiteral().var() != 0);
+		for (uint32 i = 0, end = assign_.trail.size(); i != end; ++i) {
+			if (assign_.trail[i].var() <= max) { assign_.trail[j++] = assign_.trail[i]; }
+			else {
+				units -= (i < units);
+				assign_.front -= (i < assign_.front);
+				lastSimp_ -= (i < lastSimp_);
+			}
+		}
+		shrinkVecTo(assign_.trail, j);
+		assign_.setUnits(units);
+	}
 	assign_.resize(shared_->numVars() + 1);
 	watches_.resize(assign_.numVars()<<1);
 	// pre-allocate some memory

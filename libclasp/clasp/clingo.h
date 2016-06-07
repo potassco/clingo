@@ -47,7 +47,6 @@ public:
 	virtual PPair  propagate(Solver&, Literal, uint32&);
 	virtual bool   isModel(Solver& s);
 	virtual void   reason(Solver&, Literal, LitVec&);
-	virtual void   reset();
 	virtual void   undoLevel(Solver& s);
 	virtual bool   simplify(Solver& s, bool reinit);
 	virtual void   destroy(Solver* s, bool detach);
@@ -56,8 +55,6 @@ private:
 	typedef Potassco::Lit_t Lit_t;
 	class Control;
 	enum State { state_ctrl = 1u, state_prop = 2u };
-	struct Undo { Undo(uint32 dl, size_t d) : level(dl), delta(d) {} uint32 level; size_t delta;  };
-	typedef PodVector<Undo>::type         UndoVec;
 	typedef PodVector<Lit_t>::type        TrailVec;
 	typedef PodVector<Constraint*>::type  ClauseDB;
 	typedef Potassco::AbstractPropagator* Callback;
@@ -65,15 +62,16 @@ private:
 	typedef const LitVec&                 Watches;
 	bool addClause(Solver& s, uint32 state);
 	void toClause(Solver& s, const Potassco::LitSpan& clause, Potassco::Clause_t prop);
-	Watches    watches_;
-	Callback   call_;
-	ClingoLock lock_;
-	TrailVec   trail_;
-	LitVec     clause_;
-	UndoVec    undo_;
-	ClauseDB   db_;
-	size_t     init_;
-	size_t     delta_;
+	Watches    watches_; // set of watched literals
+	Callback   call_;    // actual theory propagator
+	ClingoLock lock_;    // optional lock for protecting calls to theory propagator
+	TrailVec   trail_;   // assignment trail: watched literals that are true
+	VarVec     undo_;    // offsets into trail marking beginnings of decision levels
+	LitVec     clause_;  // active clause to be added (received from theory propagator)
+	ClauseDB   db_;      // clauses added with flag static
+	size_t     init_;    // offset into watches separating old and newly added ones
+	size_t     level_;   // highest decision level in trail
+	size_t     prop_;    // offset into trail: literals [0, prop_) were propagated
 };
 
 class ClingoPropagatorInit : public ClaspConfig::Configurator {

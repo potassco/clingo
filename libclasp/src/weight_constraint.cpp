@@ -240,12 +240,13 @@ WeightConstraint* WeightConstraint::doCreate(Solver& s, Literal W, WeightLitsRep
 	return c;
 }
 WeightConstraint::WeightConstraint(Solver& s, SharedContext* ctx, Literal W, const WeightLitsRep& rep, WL* out, uint32 act) {
+	typedef unsigned char Byte_t;
 	const bool hasW = rep.hasWeights();
 	lits_           = out;
 	active_         = act;
 	ownsLit_        = !out->shareable();
 	Literal* p      = lits_->lits;
-	Literal* h      = (Literal*)undo_;
+	Literal* h      = new (reinterpret_cast<Byte_t*>(undo_)) Literal(W);
 	weight_t w      = 1;
 	bound_[FFB_BTB]	= (rep.reach-rep.bound)+1; // ffb-btb
 	bound_[FTB_BFB]	= rep.bound;               // ftb-bfb
@@ -256,17 +257,20 @@ WeightConstraint::WeightConstraint(Solver& s, SharedContext* ctx, Literal W, con
 		active_ = FFB_BTB+s.isFalse(W);
 	}
 	watched_        = 3u - (active_ != 3u || ctx == 0);
-	for (uint32 i = 0, j = 1, end = rep.size; i != end; ++i, ++j) {
-		*p++ = h[j] = rep.lits[i].first;         // store constraint literal
-		w    = rep.lits[i].second;               // followed by weight
+	WeightLiteral*x = rep.lits;
+	for (uint32 sz = rep.size, j = 1; sz--; ++j, ++x) {
+		h    = new (h + 1) Literal(x->first);
+		*p++ = x->first;                         // store constraint literal
+		w    = x->second;                        // followed by weight
 		if (hasW) *p++= Literal::fromRep(w);     // if necessary
 		addWatch(s, j, FTB_BFB);                 // watches  lits[idx]
 		addWatch(s, j, FFB_BTB);                 // watches ~lits[idx]
-		if (ctx) ctx->setFrozen(h[j].var(), true);// exempt from variable elimination
+		if (ctx) ctx->setFrozen(h->var(), true); // exempt from variable elimination
 	}
 	// init heuristic
+	h -= rep.size;
 	uint32 off = active_ != NOT_ACTIVE;
-	h[0]       = W;
+	assert((void*)h == (void*)undo_);
 	s.heuristic()->newConstraint(s, h+off, rep.size+(1-off), Constraint_t::Static);
 	// init undo stack
 	up_                 = undoStart();     // undo stack is initially empty
@@ -284,27 +288,29 @@ WeightConstraint::WeightConstraint(Solver& s, SharedContext* ctx, Literal W, con
 }
 
 WeightConstraint::WeightConstraint(Solver& s, const WeightConstraint& other) {
+	typedef unsigned char Byte_t;
 	lits_        = other.lits_->clone();
 	ownsLit_     = 0;
-	Literal* heu = (Literal*)undo_;
-	heu[0]       = ~lits_->lit(0);
+	Literal* heu = new (reinterpret_cast<Byte_t*>(undo_))Literal(~lits_->lit(0));
 	bound_[0]	   = other.bound_[0];
 	bound_[1]	   = other.bound_[1];
 	active_      = other.active_;
 	watched_     = other.watched_;
-	if (active_ == NOT_ACTIVE && s.value(heu[0].var()) == value_free) {
+	if (active_ == NOT_ACTIVE && s.value(heu->var()) == value_free) {
 		addWatch(s, 0, FTB_BFB);  // watch con in both phases
 		addWatch(s, 0, FFB_BTB);  // in order to allow for backpropagation
 	}
 	for (uint32 i = 1, end = size(); i < end; ++i) {
-		heu[i]      = lits_->lit(i);
-		if (s.value(heu[i].var()) == value_free) {
+		heu = new (heu + 1) Literal(lits_->lit(i));
+		if (s.value(heu->var()) == value_free) {
 			addWatch(s, i, FTB_BFB);  // watches  lits[i]
 			addWatch(s, i, FFB_BTB);  // watches ~lits[i]
 		}
 	}
 	// Initialize heuristic with literals (no weights) in constraint.
 	uint32 off = active_ != NOT_ACTIVE;
+	heu -= (size() - 1);
+	assert((void*)heu == (void*)undo_);
 	s.heuristic()->newConstraint(s, heu+off, size()-off, Constraint_t::Static);
 	// Init undo stack
 	std::memcpy(undo_, other.undo_, sizeof(UndoInfo)*(size()+isWeight()));

@@ -123,7 +123,7 @@ public:
 
 	//! Retrieves a handle to the specified key.
 	/*!
-	 * \param root A valid handle to a key.
+	 * \param key A valid handle to a key.
 	 * \param name The name of the subkey to retrieve.
 	 * \return 
 	 *   - key, if name is 0 or empty.
