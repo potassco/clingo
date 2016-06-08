@@ -327,7 +327,7 @@ void handleError(clingo_error_t code, std::exception_ptr *exc = nullptr);
 inline clingo_error_t handleClingoError(Gringo::Logger *logger) {
     try { throw; }
     catch (Gringo::GringoError const &e) {
-        if (logger) { logger->print(clingo_error_bad_alloc, e.what()); }
+        if (logger) { logger->print(clingo_error_runtime, e.what()); }
         return clingo_error_fatal;
     }
     catch (Gringo::ClingoError const &e)       { return e.err; } \

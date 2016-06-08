@@ -1135,6 +1135,10 @@ private:
     clingo_module_t *module_;
 };
 
+// {{{1 global functions
+
+Symbol parse_term(char const *str, Logger logger = nullptr, unsigned message_limit = 20);
+
 // }}}1
 
 }

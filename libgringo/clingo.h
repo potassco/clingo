@@ -414,7 +414,7 @@ clingo_error_t clingo_statistics_value_get(clingo_statistics_t *stats, clingo_id
 
 // {{{1 global functions
 
-// TODO: parse_term
+clingo_error_t clingo_parse_term(char const *str, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_symbol *ret);
 void clingo_version(int *major, int *minor, int *revision);
 
 // {{{1 control

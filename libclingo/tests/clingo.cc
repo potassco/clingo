@@ -24,6 +24,17 @@
 
 namespace Clingo { namespace Test {
 
+TEST_CASE("parse_term", "[clingo]") {
+    MessageVec messages;
+    Logger logger = [&messages](MessageCode code, char const *msg) { messages.emplace_back(code, msg); };
+    REQUIRE(parse_term("10+1").num() == 11);
+    REQUIRE_THROWS(parse_term("10+", logger));
+    REQUIRE(messages == (MessageVec{{MessageCode::Runtime, "<string>:1:5: error: syntax error, unexpected <EOF>\n"}}));
+    messages.clear();
+    REQUIRE_THROWS(parse_term("10+a", logger));
+    REQUIRE(messages.size() == 0);
+};
+
 TEST_CASE("solving", "[clingo]") {
     SECTION("with module") {
         Module mod;

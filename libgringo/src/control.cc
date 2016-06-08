@@ -24,6 +24,7 @@
 #endif
 
 #include <gringo/control.hh>
+#include <gringo/input/groundtermparser.hh>
 #include <clingo.hh>
 
 using namespace Gringo;
@@ -724,6 +725,25 @@ extern "C" clingo_error_t clingo_statistics_value_get(clingo_statistics_t *stats
 }
 
 // {{{1 global functions
+
+extern "C" clingo_error_t clingo_parse_term(char const *str, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_symbol *ret) {
+    GRINGO_CLINGO_TRY {
+        // TODO: the message logger is not used for undefined operations at the moment
+        Gringo::Input::GroundTermParser parser;
+        Gringo::Logger::Printer printer;
+        if (logger) {
+            printer = [logger, data](clingo_message_code_t code, char const *msg) { logger(code, msg, data); };
+        }
+        Gringo::Logger log(printer, message_limit);
+        GRINGO_CLINGO_TRY {
+            Symbol sym = parser.parse(str, log);
+            if (sym.type() == SymbolType::Special) { throw std::runtime_error("parsing failed"); }
+            *ret = sym;
+        }
+        GRINGO_CLINGO_CATCH(&log);
+    }
+    GRINGO_CLINGO_CATCH(nullptr);
+}
 
 extern "C" void clingo_version(int *major, int *minor, int *revision) {
     *major = CLINGO_VERSION_MAJOR;
@@ -2008,6 +2028,17 @@ Statistics Control::statistics() const {
     unsigned key;
     handleError(clingo_statistics_root(stats, &key));
     return {stats, key};
+}
+
+// {{{1 global functions
+
+Symbol parse_term(char const *str, Logger logger, unsigned message_limit) {
+    clingo_symbol ret;
+    handleError(clingo_parse_term(str, [](clingo_message_code_t code, char const *msg, void *data) {
+        try { (*static_cast<Logger*>(data))(code, msg); }
+        catch (...) { }
+    }, &logger, message_limit, &ret));
+    return ret;
 }
 
 // }}}1
