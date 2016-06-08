@@ -726,7 +726,7 @@ extern "C" clingo_error_t clingo_statistics_value_get(clingo_statistics_t *stats
 
 // {{{1 global functions
 
-extern "C" clingo_error_t clingo_parse_term(char const *str, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_symbol *ret) {
+extern "C" clingo_error_t clingo_parse_term(char const *str, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_symbol_t *ret) {
     GRINGO_CLINGO_TRY {
         // TODO: the message logger is not used for undefined operations at the moment
         Gringo::Input::GroundTermParser parser;
