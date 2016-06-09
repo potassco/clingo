@@ -717,6 +717,7 @@ head
 
 statement
     : head[hd] DOT            { BUILDER.rule(@$, $hd); }
+    | head[hd] IF DOT         { BUILDER.rule(@$, $hd); }
     | head[hd] IF bodydot[bd] { BUILDER.rule(@$, $hd, $bd); }
     | IF bodydot[bd]          { BUILDER.rule(@$, BUILDER.headlit(BUILDER.boollit(@$, false)), $bd); }
     | IF DOT                  { BUILDER.rule(@$, BUILDER.headlit(BUILDER.boollit(@$, false)), BUILDER.body()); }
