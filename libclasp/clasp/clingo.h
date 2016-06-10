@@ -72,6 +72,7 @@ private:
 	size_t     init_;    // offset into watches separating old and newly added ones
 	size_t     level_;   // highest decision level in trail
 	size_t     prop_;    // offset into trail: literals [0, prop_) were propagated
+	size_t     epoch_;   // number of calls into callback
 };
 
 class ClingoPropagatorInit : public ClaspConfig::Configurator {

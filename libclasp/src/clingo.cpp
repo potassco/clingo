@@ -23,16 +23,19 @@
 #include <clasp/util/atomic.h>
 #include <algorithm>
 namespace Clasp { namespace {
-	template <class O, class L, void (L::*enter)(), void (L::*exit)()>
+	template <class O, class L, void (L::*enter)(), void (L::*exit)(), class OP>
 	struct Scoped {
-		Scoped(L* lock, O* obj) : lock_(lock), obj_(obj) { if (lock) (lock->*enter)(); }
+		Scoped(L* lock, O* obj, const OP& op = OP()) : lock_(lock), obj_(obj), op_(op) { if (lock) (lock->*enter)(); }
 		~Scoped() { if (lock_) (lock_->*exit)(); }
-		O* operator->() const { return obj_; }
+		O* operator->() const { op_(); return obj_; }
 		L* lock_;
 		O* obj_;
+		OP op_;
 	};
-	typedef Scoped<Potassco::AbstractPropagator, ClingoPropagatorLock, &ClingoPropagatorLock::lock, &ClingoPropagatorLock::unlock> ScopedLock;
-	typedef Scoped<ClingoPropagator, ClingoPropagatorLock, &ClingoPropagatorLock::unlock, &ClingoPropagatorLock::lock> ScopedUnlock;
+	struct Nop { void operator()() const {} };
+	struct Inc { Inc(uint32& e) : epoch_(&e) {} void operator()() const { ++*epoch_; } uint32* epoch_; };
+	typedef Scoped<Potassco::AbstractPropagator, ClingoPropagatorLock, &ClingoPropagatorLock::lock, &ClingoPropagatorLock::unlock, Inc> ScopedLock;
+	typedef Scoped<ClingoPropagator, ClingoPropagatorLock, &ClingoPropagatorLock::unlock, &ClingoPropagatorLock::lock, Nop> ScopedUnlock;
 }
 ClingoPropagatorLock::~ClingoPropagatorLock() {}
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -80,7 +83,8 @@ bool ClingoPropagator::Control::propagate() {
 	ScopedUnlock unlocked(ctx_->lock_, ctx_);
 	if (s_->hasConflict())    { return false; }
 	if (s_->queueSize() == 0) { return true;  }
-	return (state_ & state_prop) != 0u && s_->propagateUntil(unlocked.obj_);
+	uint32 epoch = ctx_->epoch_;
+	return (state_ & state_prop) != 0u && s_->propagateUntil(unlocked.obj_) && epoch == ctx_->epoch_;
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // ClingoPropagator
@@ -94,7 +98,7 @@ ClingoPropagator::ClingoPropagator(const LitVec& watches, Potassco::AbstractProp
 	: watches_(watches)
 	, call_(&cb)
 	, lock_(ctrl)
-	, init_(0), level_(0), prop_(0) {
+	, init_(0), level_(0), prop_(0), epoch_(0) {
 }
 uint32 ClingoPropagator::priority() const { return static_cast<uint32>(priority_class_general); }
 
@@ -133,8 +137,8 @@ void ClingoPropagator::undoLevel(Solver& s) {
 	uint32 beg = undo_.back();
 	undo_.pop_back();
 	if (prop_ > beg) {
-		Potassco::LitSpan undo = Potassco::toSpan(&trail_[0] + beg, prop_ - beg);
-		ScopedLock(lock_, call_)->undo(Control(*this, s), undo);
+		Potassco::LitSpan change = Potassco::toSpan(&trail_[0] + beg, prop_ - beg);
+		ScopedLock(lock_, call_, Inc(epoch_))->undo(Control(*this, s), change);
 		prop_ = beg;
 	}
 	trail_.resize(beg);
@@ -145,7 +149,7 @@ bool ClingoPropagator::propagateFixpoint(Clasp::Solver& s, Clasp::PostPropagator
 	for (Control ctrl(*this, s, state_prop); prop_ != trail_.size();) {
 		Potassco::LitSpan change = Potassco::toSpan(&trail_[0] + prop_, trail_.size() - prop_);
 		prop_ = static_cast<uint32>(trail_.size());
-		ScopedLock(lock_, call_)->propagate(ctrl, change);
+		ScopedLock(lock_, call_, Inc(epoch_))->propagate(ctrl, change);
 		if (!addClause(s, state_prop) || (s.queueSize() && !s.propagateUntil(this))) {
 			return false;
 		}
@@ -199,7 +203,7 @@ bool ClingoPropagator::simplify(Solver& s, bool) {
 bool ClingoPropagator::isModel(Solver& s) {
 	CLASP_ASSERT_CONTRACT_MSG(prop_ == trail_.size(), "Assignment not propagated");
 	Control ctrl(*this, s);
-	ScopedLock(lock_, call_)->check(ctrl);
+	ScopedLock(lock_, call_, Inc(epoch_))->check(ctrl);
 	return addClause(s, 0u) && s.numFreeVars() == 0 && s.queueSize() == 0;
 }
 /////////////////////////////////////////////////////////////////////////////////////////
