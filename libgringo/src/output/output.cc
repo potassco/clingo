@@ -94,8 +94,8 @@ public:
     }
     void print(PrintPlain out, char const *prefix) const override {
         for (auto &x : outPreds_) {
-            if (std::get<1>(x).match("", 0)) { out << prefix << "#show " << (std::get<2>(x) ? "$" : "") << std::get<1>(x) << ".\n"; }
-            else                             { out << prefix << "#show.\n"; }
+            if (std::get<1>(x).match("", 0)) { out << prefix << "#show.\n"; }
+            else                             { out << prefix << "#show " << (std::get<2>(x) ? "$" : "") << std::get<1>(x) << ".\n"; }
         }
     }
     void translate(DomainData &data, Translator &trans) override {
