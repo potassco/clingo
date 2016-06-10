@@ -169,7 +169,7 @@ public:
 	/*!
 	 * \param name  The name of the option associated with this value.
 	 * \param value The value to parse.
-	 * \param st    The state to which the value should transition if parsing is succesful.
+	 * \param st    The state to which the value should transition if parsing is successful.
 	 *   
 	 * \return 
 	 * - true if the given string contains a valid value
@@ -183,7 +183,7 @@ protected:
 	enum Property {
 		  property_implicit    = 1 // implicit value?
 		, property_flag        = 3 // implicit and type bool?
-	  , property_composing   = 4 // multiple values allowed?
+		, property_composing   = 4 // multiple values allowed?
 		, property_negatable   = 8 // negatable form allowed? 
 		, property_location    =16 // fixed storage location?
 		, not_a_property       =32

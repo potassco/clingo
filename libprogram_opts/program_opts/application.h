@@ -102,7 +102,7 @@ protected:
 	virtual void        shutdown();
 	//! Called on an exception from run(). The default terminates the application.
 	virtual void        onUnhandledException();
-	//! Called when a signal is received. Tthe default terminates the application.
+	//! Called when a signal is received. The default terminates the application.
 	virtual bool        onSignal(int);
 	//@}
 protected:
