@@ -43,7 +43,7 @@ enum ExitCode {
 	E_SAT       = 10, /*!< At least one model was found.                              */
 	E_EXHAUST   = 20, /*!< Search-space was completely examined.                      */
 	E_MEMORY    = 33, /*!< Run was interrupted by out of memory exception.            */
-	clingo_error_fatal     = 65, /*!< Run was interrupted by internal error.                     */
+	E_ERROR     = 65, /*!< Run was interrupted by internal error.                     */
 	E_NO_RUN    = 128 /*!< Search not started because of syntax or command line error.*/
 };
 /////////////////////////////////////////////////////////////////////////////////////////
