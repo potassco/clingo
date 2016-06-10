@@ -167,9 +167,9 @@ int lua_absindex(lua_State *L, int idx) {
 //     return lua_objlen(L, index);
 // }
 
-size_t lua_rawlen(lua_State *L, int index) {
-    return lua_objlen(L, index);
-}
+// size_t lua_rawlen(lua_State *L, int index) {
+//     return lua_objlen(L, index);
+// }
 
 #endif
 
@@ -454,7 +454,7 @@ template <typename T>
 struct Object {
     template <typename... Args>
     static int new_(lua_State *L, Args&&... args) {
-        new (lua_newuserdata(L, sizeof(T))) T{std::forward<Args>(args)...};
+        new (lua_newuserdata(L, sizeof(T))) T(std::forward<Args>(args)...);
         luaL_getmetatable(L, T::typeName);
         lua_setmetatable(L, -2);
         return 1;
@@ -1910,22 +1910,6 @@ struct ControlWrap {
         protect(L, [&ctl]() { ctl.cleanupDomains(); });
         return 0;
     }
-    static lua_State *solveCallbackThread(lua_State *L) {
-        lua_pushstring(L, "solve_thread");     // +1
-        lua_rawget(L, 1);                      // +0
-        if (lua_isnil(L, -1)) {
-            lua_pop(L, 1);                     // -1
-            lua_pushstring(L, "solve_thread"); // +1
-            auto ret = lua_newthread(L);       // +1
-            lua_rawset(L, 1);                  // -2
-            return ret;
-        }
-        else {
-            auto ret = lua_tothread(L, -1);
-            lua_pop(L, 1);                     // -1
-            return ret;
-        }
-    }
     static int solve_async(lua_State *L) {
         return luaL_error(L, "asynchronous solving not supported");
     }
@@ -2104,10 +2088,9 @@ int luaMain(lua_State *L) {
 // {{{1 wrap PropagateInit
 
 struct PropagateInit : Object<PropagateInit> {
-    using Threads = std::vector<lua_State*>;
+    lua_State *T;
     Gringo::PropagateInit *init;
-    Threads *threads;
-    PropagateInit(Gringo::PropagateInit *init, Threads *threads) : init(init), threads(threads) { }
+    PropagateInit(lua_State *T, Gringo::PropagateInit *init) : T(T), init(init) { }
 
     static int mapLit(lua_State *L) {
         auto self = Object::self(L);
@@ -2142,15 +2125,13 @@ struct PropagateInit : Object<PropagateInit> {
 
     static int setState(lua_State *L) {
         auto self = Object::self(L);
-        int id = luaL_checknumber(L, 2) - 1;
+        int id = luaL_checknumber(L, 2);
         luaL_checkany(L, 3);
-        if (id < 0 || id >= (int)self->threads->size()) {
+        if (id < 1 || id > (int)self->init->threads()) {
             luaL_error(L, "invalid solver thread id %d", id);
         }
-        lua_State *T = self->threads->operator[](id);
-        lua_pushvalue(L, 3);
-        lua_xmove(L, T, 1);
-        lua_replace(T, 8);
+        lua_xmove(L, self->T, 1);
+        lua_rawseti(self->T, 2, id);
         return 0;
     }
 
@@ -2169,60 +2150,60 @@ luaL_Reg const PropagateInit::meta[] = {
 // {{{1 wrap Assignment
 
 struct Assignment : Object<Assignment> {
-    Assignment(Potassco::AbstractAssignment const * ass) : ass(ass) { }
-    Potassco::AbstractAssignment const * ass;
+    Assignment(Potassco::AbstractAssignment const *ass) : ass(*ass) { }
+    Potassco::AbstractAssignment const &ass;
 
     static int hasConflict(lua_State *L) {
         auto self = Object::self(L);
-        lua_pushboolean(L, protect(L, [self]() { return self->ass->hasConflict(); }));
+        lua_pushboolean(L, protect(L, [self]() { return self->ass.hasConflict(); }));
         return 1;
     }
 
     static int decisionLevel(lua_State *L) {
         auto self = Object::self(L);
-        lua_pushinteger(L, protect(L, [self]() { return self->ass->level(); }));
+        lua_pushinteger(L, protect(L, [self]() { return self->ass.level(); }));
         return 1;
     }
 
     static int hasLit(lua_State *L) {
         auto self = Object::self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushboolean(L, protect(L, [self,lit]() { return self->ass->hasLit(lit); }));
+        lua_pushboolean(L, protect(L, [self,lit]() { return self->ass.hasLit(lit); }));
         return 1;
     }
 
     static int level(lua_State *L) {
         auto self = Object::self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushinteger(L, protect(L, [self,lit]() { return self->ass->level(lit); }));
+        lua_pushinteger(L, protect(L, [self,lit]() { return self->ass.level(lit); }));
         return 1;
     }
 
     static int decision(lua_State *L) {
         auto self = Object::self(L);
         int level = luaL_checkinteger(L, 2);
-        lua_pushinteger(L, protect(L, [self,level]() { return self->ass->decision(level); }));
+        lua_pushinteger(L, protect(L, [self,level]() { return self->ass.decision(level); }));
         return 1;
     }
 
     static int isFixed(lua_State *L) {
         auto self = Object::self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushboolean(L, protect(L, [self,lit]() { return self->ass->isFixed(lit); }));
+        lua_pushboolean(L, protect(L, [self,lit]() { return self->ass.isFixed(lit); }));
         return 1;
     }
 
     static int isTrue(lua_State *L) {
         auto self = Object::self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushboolean(L, protect(L, [self,lit]() { return self->ass->isTrue(lit); }));
+        lua_pushboolean(L, protect(L, [self,lit]() { return self->ass.isTrue(lit); }));
         return 1;
     }
 
     static int value(lua_State *L) {
         auto self = Object::self(L);
         int lit = luaL_checkinteger(L, 2);
-        auto val = protect(L, [self, lit]() { return self->ass->value(lit); });
+        auto val = protect(L, [self, lit]() { return self->ass.value(lit); });
         if (val == Potassco::Value_t::Free) { lua_pushnil(L); }
         else { lua_pushboolean(L, val == Potassco::Value_t::True); }
         lua_pushboolean(L, val);
@@ -2232,7 +2213,7 @@ struct Assignment : Object<Assignment> {
     static int isFalse(lua_State *L) {
         auto self = Object::self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushboolean(L, protect(L, [self,lit]() { return self->ass->isFalse(lit); }));
+        lua_pushboolean(L, protect(L, [self,lit]() { return self->ass.isFalse(lit); }));
         return 1;
     }
 
@@ -2286,6 +2267,7 @@ struct PropagateControl : Object<PropagateControl> {
         lua_pushinteger(L, 1);                                       // +1
         lua_gettable(L, 2);                                          // +0
         luaL_checktype(L, -1, LUA_TTABLE);                           // +0
+        int lits_index = lua_gettop(L);
         auto lits = AnyWrap::new_<std::vector<Potassco::Lit_t>>(L);  // +1
         lua_pushnil(L);                                              // +1
         while (lua_next(L, -3)) {                                    // -1
@@ -2310,8 +2292,8 @@ struct PropagateControl : Object<PropagateControl> {
             }
             return self->ctl->addClause(Potassco::toSpan(*lits), static_cast<Potassco::Clause_t>(type));
         }));
-        lua_replace(L, 3);
-        lua_settop(L, 3);
+        lua_replace(L, lits_index);
+        lua_settop(L, lits_index);
         return 1;
     }
 
@@ -2356,176 +2338,169 @@ luaL_Reg const PropagateControl::meta[] = {
 // {{{1 wrap Propagator
 
 class Propagator : public Gringo::Propagator {
-    using Threads = std::vector<lua_State*>;
 public:
-    Propagator(lua_State *L, int propagator) : L(L), propagator(propagator) { }
+    enum Indices : int { PropagatorIndex=1, StateIndex=2, ThreadIndex=3 };
+    Propagator(lua_State *L, lua_State *T) : L(L), T(T) { }
     static int init_(lua_State *L) {
         auto *self = (Propagator*)lua_touserdata(L, 1);
         auto *init = (Gringo::PropagateInit*)lua_touserdata(L, 2);
-        lua_pushstring(L, "propagate_threads");          // +1
-        lua_rawget(L, 3);
-        if (lua_isnil(L, -1)) {
-            lua_pop(L, 1);                               // -1
-            lua_newtable(L);                             // +1
-            lua_pushstring(L, "propagate_threads");      // +1
-            lua_pushvalue(L, -2);                        // +1
-            lua_rawset(L, 3);                            // -2
-            lua_pushstring(L, "propagate_threads_cpp");  // +1
-            self->threads = AnyWrap::new_<Threads>(L);   // +1
-            lua_rawset(L, 3);                            // -2
+        while (self->threads.size() < static_cast<size_t>(init->threads())) {
+            self->threads.emplace_back(lua_newthread(L));
+            lua_xmove(L, self->T, 1);
+            lua_rawseti(self->T, ThreadIndex, self->threads.size());
         }
-        else {
-            lua_pushstring(L, "propagate_threads_cpp");  // +1
-            lua_rawget(L, 3);
-            self->threads = AnyWrap::get<Threads>(L, -1);
-            lua_pop(L, 1);                               // -1
-        }
-        int size = lua_rawlen(L, -1);
-
-        protect(L, [self, init](){ self->threads->reserve(init->threads()); });
-        for (int i = size, e = init->threads(); i < e; ++i) {
-            self->threads->emplace_back(lua_newthread(L));
-            lua_rawseti(L, -2, i+1);
-        }
-        lua_pop(L, 1);                                   // -1
-
-        lua_pushstring(L, "propagators");                // +1
-        lua_rawget(L, 3);
-        lua_rawgeti(L, -1, self->propagator) ;           // +1
-        lua_replace(L, -2);                              // -1
-        lua_getfield(L, -1, "propagate");                // +1
-        lua_getfield(L, -2, "undo");                     // +1
-        lua_getfield(L, -3, "check");                    // +1
-        for (auto &T : *self->threads) {
-            lua_settop(T, 0);
-            lua_pushvalue(L, -4);                        // +1
-            lua_pushvalue(L, -4);                        // +1
-            lua_pushvalue(L, -4);                        // +1
-            lua_pushvalue(L, -4);                        // +1
-            Assignment::new_(L, nullptr);                // +1
-            PropagateControl::new_(L, nullptr);          // +1
-            lua_newtable(L);                             // +1
-            lua_xmove(L, T, 7);                          // -7
-            lua_pushnil(T);
-        }
-        lua_pop(L, 3);                                   // -3
+        lua_pushvalue(self->T, PropagatorIndex);         // +1
+        lua_xmove(self->T, L, 1);                        // +0
         lua_getfield(L, -1, "init");                     // +1
         if (!lua_isnil(L, -1)) {
             lua_insert(L, -2);
-            PropagateInit::new_(L, init, self->threads); // +1
+            PropagateInit::new_(L, self->T, init);       // +1
             lua_call(L, 2, 0);                           // -3
         }
         else { lua_pop(L, 2); }                          // -2
-
         return 0;
     }
     void init(Gringo::PropagateInit &init) override {
-        // at this point we are still in the solve call (even for solve_async)
-        // hence, the the solvecontrol object is at index 1
-        if (!lua_checkstack(L, 5)) { throw std::runtime_error("lua stack size exceeded"); }
+        threads.reserve(init.threads());
+        if (!lua_checkstack(L, 4)) { throw std::runtime_error("lua stack size exceeded"); }
         lua_pushcfunction(L, luaTraceback);
         lua_pushcfunction(L, init_);
         lua_pushlightuserdata(L, this);
         lua_pushlightuserdata(L, &init);
-        lua_pushvalue(L, 1);
-        auto ret = lua_pcall(L, 3, 0, -5);
+        auto ret = lua_pcall(L, 2, 0, -4);
         if (ret != 0) {
             Location loc("<Propagator::init>", 1, 1, "<Propagator::init>", 1, 1);
             handleError(L, loc, ret, "initializing the propagator failed", nullptr);
         }
     }
-    static int setChanges(lua_State *L) {
-        auto changes = (Potassco::LitSpan const *)lua_touserdata(L, 1);
-        int n = lua_rawlen(L, -1);
+    static int getChanges(lua_State *L, Potassco::LitSpan const *changes) {
+        lua_newtable(L);
         int m = changes->size;
         for (int i = 0; i < m; ++i) {
             lua_pushinteger(L, *(changes->first + i));
             lua_rawseti(L, -2, i+1);
         }
-        for (int i = m; i < n; ++i) {
-            lua_pushnil(L);
-            lua_rawseti(L, -2, i+1);
-        }
         return 1;
     }
+    static int getState(lua_State *L, lua_State *T, Potassco::Id_t id) {
+        lua_rawgeti(T, StateIndex, id+1);
+        lua_xmove(T, L, 1);
+        return 1;
+    }
+    static int propagate_(lua_State *L) {
+        auto *self = static_cast<Propagator*>(lua_touserdata(L, 1));
+        auto *solver = static_cast<Potassco::AbstractSolver*>(lua_touserdata(L, 2));
+        auto *changes = static_cast<Potassco::LitSpan const*>(lua_touserdata(L, 3));
+        lua_pushvalue(self->T, PropagatorIndex);         // +1
+        lua_xmove(self->T, L, 1);                        // +0
+        lua_getfield(L, -1, "propagate");                // +1
+        if (!lua_isnil(L, -1)) {
+            lua_insert(L, -2);
+            PropagateControl::new_(L, solver);           // +1
+            getChanges(L, changes);                      // +1
+            getState(L, self->T, solver->id());          // +1
+            lua_call(L, 4, 0);                           // -5
+        }
+        else {
+            lua_pop(L, 2);                               // -2
+        }
+        return 0;
+    }
     void propagate(Potassco::AbstractSolver &solver, Potassco::LitSpan const &changes) override {
-        lua_State *T = threads->operator[](solver.id());
-        if (!lua_isnil(T, 2)) {
-            LuaClear lc(T);
-            if (!lua_checkstack(T, 7)) { throw std::runtime_error("lua stack size exceeded"); }
-            lua_pushcfunction(T, luaTraceback);        // +1
-            lua_pushvalue(T, 2);                       // +1
-            lua_pushvalue(T, 1);                       // +1
-            static_cast<PropagateControl*>(lua_touserdata(T, 6))->ctl = &solver;
-            lua_pushvalue(T, 6);                       // +1
-            lua_pushcfunction(T, setChanges);          // +1
-            lua_pushlightuserdata(T, (void*)&changes); // +1
-            lua_pushvalue(T, 7);                       // +1
-            auto ret = lua_pcall(T, 2, 1, -7);         // -2
-            if (ret == 0) {
-                lua_pushvalue(T, 8);                   // +1
-                ret = lua_pcall(T, 4, 0, -7);          // -5
-            }
-            if (ret != 0) {
-                Location loc("<Propagator::propagate>", 1, 1, "<Propagator::propagate>", 1, 1);
-                handleError(T, loc, ret, "propagate failed", nullptr);
-            }
+        lua_State *L = threads[solver.id()];
+        if (!lua_checkstack(L, 5)) { throw std::runtime_error("lua stack size exceeded"); }
+        LuaClear ll(T), lt(L);
+        lua_pushcfunction(L, luaTraceback);
+        lua_pushcfunction(L, propagate_);
+        lua_pushlightuserdata(L, this);
+        lua_pushlightuserdata(L, &solver);
+        lua_pushlightuserdata(L, &const_cast<Potassco::LitSpan&>(changes));
+        auto ret = lua_pcall(L, 3, 0, -5);
+        if (ret != 0) {
+            Location loc("<Propagator::propagate>", 1, 1, "<Propagator::propagate>", 1, 1);
+            handleError(L, loc, ret, "propagate failed", nullptr);
         }
     }
-    void undo(Potassco::AbstractSolver const &solver, Potassco::LitSpan const &undo) override {
-        lua_State *T = threads->operator[](solver.id());
-        if (!lua_isnil(T, 3)) {
-            if (!lua_checkstack(T, 8)) { throw std::runtime_error("lua stack size exceeded"); }
-            LuaClear lc(T);
-            lua_pushcfunction(T, luaTraceback);        // +1
-            lua_pushvalue(T, 3);                       // +1
-            lua_pushinteger(T, solver.id());           // +1
-            lua_pushvalue(T, 1);                       // +1
-            static_cast<Assignment*>(lua_touserdata(T, 5))->ass = &solver.assignment();
-            lua_pushvalue(T, 5);                       // +1
-            lua_pushcfunction(T, setChanges);          // +1
-            lua_pushlightuserdata(T, (void*)&undo);    // +1
-            lua_pushvalue(T, 7);                       // +1
-            auto ret = lua_pcall(T, 2, 1, -8);         // -2
-            if (ret == 0) {
-                lua_pushvalue(T, 8);                   // +1
-                ret = lua_pcall(T, 5, 0, -7);          // -6
-            }
-            if (ret != 0) {
-                Location loc("<Propagator::propagate>", 1, 1, "<Propagator::propagate>", 1, 1);
-                handleError(T, loc, ret, "undo failed", nullptr);
-            }
+    static int undo_(lua_State *L) {
+        auto *self = static_cast<Propagator*>(lua_touserdata(L, 1));
+        auto *solver = static_cast<Potassco::AbstractSolver const*>(lua_touserdata(L, 2));
+        auto *changes = static_cast<Potassco::LitSpan const*>(lua_touserdata(L, 3));
+        lua_pushvalue(self->T, PropagatorIndex);         // +1
+        lua_xmove(self->T, L, 1);                        // +0
+        lua_getfield(L, -1, "undo");                     // +1
+        if (!lua_isnil(L, -1)) {
+            lua_insert(L, -2);
+            lua_pushnumber(L, solver->id());             // +1
+            Assignment::new_(L, &solver->assignment());  // +1
+            getChanges(L, changes);                      // +1
+            getState(L, self->T, solver->id());          // +1
+            lua_call(L, 5, 0);                           // -6
         }
+        else {
+            lua_pop(L, 2);                               // -2
+        }
+        return 0;
+    }
+    void undo(Potassco::AbstractSolver const &solver, Potassco::LitSpan const &changes) override {
+        lua_State *L = threads[solver.id()];
+        if (!lua_checkstack(L, 5)) { throw std::runtime_error("lua stack size exceeded"); }
+        LuaClear ll(T), lt(L);
+        lua_pushcfunction(L, luaTraceback);
+        lua_pushcfunction(L, undo_);
+        lua_pushlightuserdata(L, this);
+        lua_pushlightuserdata(L, &const_cast<Potassco::AbstractSolver&>(solver));
+        lua_pushlightuserdata(L, &const_cast<Potassco::LitSpan&>(changes));
+        auto ret = lua_pcall(L, 3, 0, -5);
+        if (ret != 0) {
+            Location loc("<Propagator::undo>", 1, 1, "<Propagator::undo>", 1, 1);
+            handleError(L, loc, ret, "undo failed", nullptr);
+        }
+    }
+    static int check_(lua_State *L) {
+        auto *self = static_cast<Propagator*>(lua_touserdata(L, 1));
+        auto *solver = static_cast<Potassco::AbstractSolver *>(lua_touserdata(L, 2));
+        lua_pushvalue(self->T, PropagatorIndex);         // +1
+        lua_xmove(self->T, L, 1);                        // +0
+        lua_getfield(L, -1, "check");                    // +1
+        if (!lua_isnil(L, -1)) {
+            lua_insert(L, -2);                           // -1
+            PropagateControl::new_(L, solver);           // +1
+            getState(L, self->T, solver->id());          // +1
+            lua_call(L, 3, 0);                           // -4
+        }
+        else {
+            lua_pop(L, 2);                               // -2
+        }
+        return 0;
     }
     void check(Potassco::AbstractSolver &solver) override {
-        lua_State *T = threads->operator[](solver.id());
-        if (!lua_isnil(T, 4)) {
-            if (!lua_checkstack(T, 5)) { throw std::runtime_error("lua stack size exceeded"); }
-            LuaClear lc(T);
-            lua_pushcfunction(T, luaTraceback);        // +1
-            lua_pushvalue(T, 4);                       // +1
-            lua_pushvalue(T, 1);                       // +1
-            static_cast<PropagateControl*>(lua_touserdata(T, 6))->ctl = &solver;
-            lua_pushvalue(T, 6);                       // +1
-            lua_pushvalue(T, 8);                       // +1
-            auto ret = lua_pcall(T, 3, 0, -5);         // -4
-            if (ret != 0) {
-                Location loc("<Propagator::check>", 1, 1, "<Propagator::check>", 1, 1);
-                handleError(T, loc, ret, "check failed", nullptr);
-            }
+        lua_State *L = threads[solver.id()];
+        if (!lua_checkstack(L, 4)) { throw std::runtime_error("lua stack size exceeded"); }
+        LuaClear ll(T), lt(L);
+        lua_pushcfunction(L, luaTraceback);
+        lua_pushcfunction(L, check_);
+        lua_pushlightuserdata(L, this);
+        lua_pushlightuserdata(L, &solver);
+        auto ret = lua_pcall(L, 2, 0, -4);
+        if (ret != 0) {
+            Location loc("<Propagator::check>", 1, 1, "<Propagator::check>", 1, 1);
+            handleError(L, loc, ret, "check failed", nullptr);
         }
     }
     virtual ~Propagator() noexcept = default;
 private:
     lua_State *L;
-    int propagator;
-    Threads *threads = nullptr;
+    // global data for the executions stacks below
+    // (something similar could be achieved using the registry index + luaL_(un)ref)
+    lua_State *T;
+    // execution threads for progagators (executed in lock step)
+    std::vector<lua_State *> threads;
 };
 
 int ControlWrap::registerPropagator(lua_State *L) {
     auto &self = get_self(L);
     lua_pushstring(L, "propagators");                 // +1
-    lua_rawget(L, 1);
+    lua_rawget(L, 1);                                 // +0
     if (lua_isnil(L, -1)) {
         lua_pop(L, 1);                                // -1
         lua_newtable(L);                              // +1
@@ -2533,10 +2508,14 @@ int ControlWrap::registerPropagator(lua_State *L) {
         lua_pushvalue(L, -2);                         // +1
         lua_rawset(L, 1);                             // -2
     }
-    lua_pushvalue(L, 2);                              // +1
-    int idx = luaL_ref(L, -2);                        // -1
+    auto *T = lua_newthread(L);                       // +1
+    luaL_ref(L, -2);                                  // -1
     lua_pop(L, 1);                                    // -1
-    protect(L, [L, &self, idx]() { self.ctl.registerPropagator(gringo_make_unique<Propagator>(L, idx), true); });
+    lua_pushvalue(L, 2);                              // +1
+    lua_xmove(L, T, 1);                               // -1
+    lua_newtable(T);
+    lua_newtable(T);
+    protect(L, [L, T, &self]() { self.ctl.registerPropagator(gringo_make_unique<Propagator>(L, T), true); });
     return 0;
 }
 
