@@ -52,8 +52,9 @@ struct GringoOptions {
     bool                         wNoFileIncluded       = false;
     bool                         wNoVariableUnbounded  = false;
     bool                         wNoGlobalVariable     = false;
+    bool                         wNoOther              = false;
     bool                         rewriteMinimize       = false;
-    bool                        keepFacts             = false;
+    bool                         keepFacts             = false;
     Foobar foobar;
 };
 
@@ -93,11 +94,12 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     , opts(opts) {
         using namespace Gringo;
         out.keepFacts = opts.keepFacts;
-        if (opts.wNoOperationUndefined) { logger_.disable(clingo_warning_operation_undefined); }
-        if (opts.wNoAtomUndef)          { logger_.disable(clingo_warning_atom_undefined); }
-        if (opts.wNoFileIncluded)       { logger_.disable(clingo_warning_file_included); }
-        if (opts.wNoVariableUnbounded)  { logger_.disable(clingo_warning_variable_unbounded); }
-        if (opts.wNoGlobalVariable)     { logger_.disable(clingo_warning_global_variable); }
+        logger_.enable(clingo_warning_operation_undefined, !opts.wNoOperationUndefined);
+        logger_.enable(clingo_warning_atom_undefined, !opts.wNoAtomUndef);
+        logger_.enable(clingo_warning_variable_unbounded, !opts.wNoVariableUnbounded);
+        logger_.enable(clingo_warning_file_included, !opts.wNoFileIncluded);
+        logger_.enable(clingo_warning_global_variable, !opts.wNoGlobalVariable);
+        logger_.enable(clingo_warning_other, !opts.wNoOther);
         for (auto &x : opts.defines) {
             LOG << "define: " << x << std::endl;
             parser.parseDefine(x, logger_);
@@ -230,17 +232,30 @@ static bool parseConst(const std::string& str, std::vector<std::string>& out) {
     return true;
 }
 
-static bool parseWarning(const std::string& str, GringoOptions& out) {
-    if (str == "no-atom-undefined")      { out.wNoAtomUndef          = true;  return true; }
-    if (str ==    "atom-undefined")      { out.wNoAtomUndef          = false; return true; }
-    if (str == "no-file-included")       { out.wNoFileIncluded       = true;  return true; }
-    if (str ==    "file-included")       { out.wNoFileIncluded       = false; return true; }
-    if (str == "no-operation-undefined") { out.wNoOperationUndefined = true;  return true; }
-    if (str ==    "operation-undefined") { out.wNoOperationUndefined = false; return true; }
-    if (str == "no-variable-unbounded")  { out.wNoVariableUnbounded  = true;  return true; }
-    if (str ==    "variable-unbounded")  { out.wNoVariableUnbounded  = false; return true; }
-    if (str == "no-global-variable")     { out.wNoGlobalVariable     = true;  return true; }
-    if (str ==    "global-variable")     { out.wNoGlobalVariable     = false; return true; }
+inline void enableAll(GringoOptions& out, bool enable) {
+    out.wNoAtomUndef          = !enable;
+    out.wNoFileIncluded       = !enable;
+    out.wNoOperationUndefined = !enable;
+    out.wNoVariableUnbounded  = !enable;
+    out.wNoGlobalVariable     = !enable;
+    out.wNoOther              = !enable;
+}
+
+inline bool parseWarning(const std::string& str, GringoOptions& out) {
+    if (str == "none")                     { enableAll(out, false);             return true; }
+    if (str == "all")                      { enableAll(out, true);              return true; }
+    if (str == "no-atom-undefined")        { out.wNoAtomUndef          = true;  return true; }
+    if (str ==    "atom-undefined")        { out.wNoAtomUndef          = false; return true; }
+    if (str == "no-file-included")         { out.wNoFileIncluded       = true;  return true; }
+    if (str ==    "file-included")         { out.wNoFileIncluded       = false; return true; }
+    if (str == "no-operation-undefined")   { out.wNoOperationUndefined = true;  return true; }
+    if (str ==    "operation-undefined")   { out.wNoOperationUndefined = false; return true; }
+    if (str == "no-variable-unbounded")    { out.wNoVariableUnbounded  = true;  return true; }
+    if (str ==    "variable-unbounded")    { out.wNoVariableUnbounded  = false; return true; }
+    if (str == "no-global-variable")       { out.wNoGlobalVariable     = true;  return true; }
+    if (str ==    "global-variable")       { out.wNoGlobalVariable     = false; return true; }
+    if (str == "no-other")                 { out.wNoOther              = true;  return true; }
+    if (str ==    "other")                 { out.wNoOther              = false; return true; }
     return false;
 }
 
@@ -281,11 +296,14 @@ struct GringoApp : public ProgramOptions::Application {
              "      translate: print translated rules as plain text (prefix %%%%)\n"
              "      all      : combines text and translate")
             ("warn,W", storeTo(grOpts_, parseWarning)->arg("<warn>")->composing(), "Enable/disable warnings:\n"
-             "      [no-]atom-undefined:        a :- b.\n"
-             "      [no-]file-included:         #include \"a.lp\". #include \"a.lp\".\n"
-             "      [no-]operation-undefined:   p(1/0).\n"
-             "      [no-]variable-unbounded:    $x > 10.\n"
-             "      [no-]global-variable:       :- #count { X } = 1, X = 1.")
+             "      none:                     disable all warnings\n"
+             "      all:                      enable all warnings\n"
+             "      [no-]atom-undefined:      a :- b.\n"
+             "      [no-]file-included:       #include \"a.lp\". #include \"a.lp\".\n"
+             "      [no-]operation-undefined: p(1/0).\n"
+             "      [no-]variable-unbounded:  $x > 10.\n"
+             "      [no-]global-variable:     :- #count { X } = 1, X = 1.\n"
+             "      [no-]other:               uncategorized warnings")
             ("rewrite-minimize", flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
             ("keep-facts", flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
             ("foobar,@4", storeTo(grOpts_.foobar, parseFoobar), "Foobar")

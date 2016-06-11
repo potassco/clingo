@@ -81,12 +81,24 @@ struct ClingoOptions {
     bool wNoFileIncluded       = false;
     bool wNoVariableUnbounded  = false;
     bool wNoGlobalVariable     = false;
+    bool wNoOther              = false;
     bool rewriteMinimize       = false;
     bool keepFacts             = false;
     Foobar foobar;
 };
 
+inline void enableAll(ClingoOptions& out, bool enable) {
+    out.wNoAtomUndef          = !enable;
+    out.wNoFileIncluded       = !enable;
+    out.wNoOperationUndefined = !enable;
+    out.wNoVariableUnbounded  = !enable;
+    out.wNoGlobalVariable     = !enable;
+    out.wNoOther              = !enable;
+}
+
 inline bool parseWarning(const std::string& str, ClingoOptions& out) {
+    if (str == "none")                     { enableAll(out, false);             return true; }
+    if (str == "all")                      { enableAll(out, true);              return true; }
     if (str == "no-atom-undefined")        { out.wNoAtomUndef          = true;  return true; }
     if (str ==    "atom-undefined")        { out.wNoAtomUndef          = false; return true; }
     if (str == "no-file-included")         { out.wNoFileIncluded       = true;  return true; }
@@ -97,6 +109,8 @@ inline bool parseWarning(const std::string& str, ClingoOptions& out) {
     if (str ==    "variable-unbounded")    { out.wNoVariableUnbounded  = false; return true; }
     if (str == "no-global-variable")       { out.wNoGlobalVariable     = true;  return true; }
     if (str ==    "global-variable")       { out.wNoGlobalVariable     = false; return true; }
+    if (str == "no-other")                 { out.wNoOther              = true;  return true; }
+    if (str ==    "other")                 { out.wNoOther              = false; return true; }
     return false;
 }
 

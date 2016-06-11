@@ -76,11 +76,14 @@ void ClingoApp::initOptions(ProgramOptions::OptionContext& root) {
          "      translate: print translated rules as plain text (prefix %%%%)\n"
          "      all      : combines text and translate")
         ("warn,W"                   , storeTo(grOpts_, parseWarning)->arg("<warn>")->composing(), "Enable/disable warnings:\n"
-         "      [no-]atom-undefined:        a :- b.\n"
-         "      [no-]file-included:         #include \"a.lp\". #include \"a.lp\".\n"
-         "      [no-]operation-undefined:   p(1/0).\n"
-         "      [no-]variable-unbounded:    $x > 10.\n"
-         "      [no-]global-variable:       :- #count { X } = 1, X = 1.")
+         "      none:                     disable all warnings\n"
+         "      all:                      enable all warnings\n"
+         "      [no-]atom-undefined:      a :- b.\n"
+         "      [no-]file-included:       #include \"a.lp\". #include \"a.lp\".\n"
+         "      [no-]operation-undefined: p(1/0).\n"
+         "      [no-]variable-unbounded:  $x > 10.\n"
+         "      [no-]global-variable:     :- #count { X } = 1, X = 1.\n"
+         "      [no-]other:               clasp related and uncategorized warnings")
         ("rewrite-minimize"         , flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
         ("keep-facts"               , flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
         ("foobar,@4"                , storeTo(grOpts_.foobar, parseFoobar) , "Foobar")

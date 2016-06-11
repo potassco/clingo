@@ -124,11 +124,12 @@ int ClingoPropagateInit::threads() {
 
 void ClingoControl::parse(const StringSeq& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* claspOut, bool addStdIn) {
     using namespace Gringo;
-    if (opts.wNoOperationUndefined) { logger_.disable(clingo_warning_operation_undefined); }
-    if (opts.wNoAtomUndef)          { logger_.disable(clingo_warning_atom_undefined); }
-    if (opts.wNoVariableUnbounded)  { logger_.disable(clingo_warning_variable_unbounded); }
-    if (opts.wNoFileIncluded)       { logger_.disable(clingo_warning_file_included); }
-    if (opts.wNoGlobalVariable)     { logger_.disable(clingo_warning_global_variable); }
+    logger_.enable(clingo_warning_operation_undefined, !opts.wNoOperationUndefined);
+    logger_.enable(clingo_warning_atom_undefined, !opts.wNoAtomUndef);
+    logger_.enable(clingo_warning_variable_unbounded, !opts.wNoVariableUnbounded);
+    logger_.enable(clingo_warning_file_included, !opts.wNoFileIncluded);
+    logger_.enable(clingo_warning_global_variable, !opts.wNoGlobalVariable);
+    logger_.enable(clingo_warning_other, !opts.wNoOther);
     verbose_ = opts.verbose;
     Output::OutputPredicates outPreds;
     for (auto &x : opts.foobar) {
@@ -781,11 +782,14 @@ void ClingoLib::initOptions(ProgramOptions::OptionContext& root) {
          "      translate: print translated rules as plain text (prefix %%%%)\n"
          "      all      : combines text and translate")
         ("warn,W"                   , storeTo(grOpts_, parseWarning)->arg("<warn>")->composing(), "Enable/disable warnings:\n"
-         "      [no-]atom-undefined:        a :- b.\n"
-         "      [no-]file-included:         #include \"a.lp\". #include \"a.lp\".\n"
-         "      [no-]operation-undefined:   p(1/0).\n"
-         "      [no-]variable-unbounded:    $x > 10.\n"
-         "      [no-]global-variable:       :- #count { X } = 1, X = 1.")
+         "      none:                     disable all warnings\n"
+         "      all:                      enable all warnings\n"
+         "      [no-]atom-undefined:      a :- b.\n"
+         "      [no-]file-included:       #include \"a.lp\". #include \"a.lp\".\n"
+         "      [no-]operation-undefined: p(1/0).\n"
+         "      [no-]variable-unbounded:  $x > 10.\n"
+         "      [no-]global-variable:     :- #count { X } = 1, X = 1.\n"
+         "      [no-]other:               clasp related and uncategorized warnings")
         ("rewrite-minimize"         , flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
         ("keep-facts"               , flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
         ;

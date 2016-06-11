@@ -58,8 +58,7 @@ public:
     bool check(Errors id);
     bool check(Warnings id);
     bool hasError() const;
-    void enable(Warnings id);
-    void disable(Warnings id);
+    void enable(Warnings id, bool enable);
     void print(clingo_message_code_t code, char const *msg);
     ~Logger();
 private:
@@ -89,12 +88,8 @@ inline bool Logger::hasError() const {
     return error_;
 }
 
-inline void Logger::enable(Warnings id) {
-    disabled_[std::abs(id + 1)] = false;
-}
-
-inline void Logger::disable(Warnings id) {
-    disabled_[std::abs(id + 1)] = true;
+inline void Logger::enable(Warnings id, bool enabled) {
+    disabled_[std::abs(id + 1)] = !enabled;
 }
 
 inline void Logger::print(clingo_message_code_t code, char const *msg) {
