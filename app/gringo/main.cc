@@ -207,7 +207,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     virtual ~IncrementalControl() { }
     Gringo::Symbol parseValue(std::string const &str, Gringo::Logger::Printer, unsigned) override { return termParser.parse(str, logger_); }
     Gringo::Control *newControl(int, char const **, Gringo::Logger::Printer, unsigned) override { throw std::logic_error("new control instances not supported"); }
-    Gringo::TheoryData const &theory() const override { return out.data.theoryInterface(const_cast<IncrementalControl&>(*this)); }
+    Gringo::TheoryData const &theory() const override { return out.data.theoryInterface(); }
     void cleanupDomains() override { }
     void parse(char const *, std::function<void (clingo_ast_t const &)>) override { throw std::logic_error("AST parsing not supported"); }
     void add(std::function<void (std::function<void (clingo_ast_t const &)>)>) override { throw std::logic_error("AST parsing not supported"); }

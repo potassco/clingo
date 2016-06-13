@@ -76,7 +76,6 @@ struct clingo_model {
     virtual Gringo::Int64Vec optimization() const = 0;
     virtual bool optimality_proven() const = 0;
     virtual void addClause(LitVec const &lits) const = 0;
-    virtual clingo_control &owner() const = 0;
     virtual uint64_t number() const = 0;
     virtual Potassco::Id_t threadId() const = 0;
     virtual Gringo::ModelType type() const = 0;
@@ -138,7 +137,6 @@ struct SolveIter {
     virtual Model const *next() = 0;
     virtual void close() = 0;
     virtual SolveResult get() = 0;
-    virtual clingo_control_t &owner() const = 0;
     virtual ~SolveIter() { }
 };
 
@@ -176,7 +174,6 @@ struct clingo_symbolic_atoms {
     virtual bool eq(Gringo::SymbolicAtomIter it, Gringo::SymbolicAtomIter jt) const = 0;
     virtual Gringo::SymbolicAtomIter end() const = 0;
     virtual std::vector<Gringo::Sig> signatures() const = 0;
-    virtual Gringo::Control &owner() const = 0;
     virtual size_t length() const = 0;
     virtual ~clingo_symbolic_atoms() noexcept = default;
 };
@@ -218,7 +215,6 @@ struct clingo_theory_atoms {
     virtual std::string termStr(Gringo::Id_t value) const = 0;
     virtual std::string elemStr(Gringo::Id_t value) const = 0;
     virtual std::string atomStr(Gringo::Id_t value) const = 0;
-    virtual clingo_control &owner() const = 0;
     virtual ~clingo_theory_atoms() noexcept = default;
 };
 

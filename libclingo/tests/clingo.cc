@@ -74,12 +74,12 @@ TEST_CASE("solving", "[clingo]") {
                 auto stats = ctl.statistics();
                 std::copy(stats.keys().begin(), stats.keys().end(), std::back_inserter(keys_root));
                 std::sort(keys_root.begin(), keys_root.end());
-                std::vector<std::string> keys_check = { "costs", "ctx", "enumerated", "lp", "optimal", "result", "solver", "solvers", "step", "time_cpu", "time_sat", "time_solve", "time_total", "time_unsat" };
+                std::vector<std::string> keys_check = { ".ctx", ".lp", ".solver", ".solvers", ".summary" };
                 REQUIRE(keys_root == keys_check);
                 REQUIRE(stats["solver"].type() == StatisticsType::Array);
                 REQUIRE(stats["solvers"].type() == StatisticsType::Map);
-                REQUIRE(stats["time_cpu"].type() == StatisticsType::Value);
-                REQUIRE(stats["time_cpu"] >= 0.0);
+                REQUIRE(stats["summary.time_cpu"].type() == StatisticsType::Value);
+                REQUIRE(stats["summary.time_cpu"] >= 0.0);
                 REQUIRE(stats["solver"].size() == 1);
                 REQUIRE(stats["solver"][size_t(0)]["conflicts"] > 0);
                 int nloop = 0;
@@ -132,8 +132,8 @@ TEST_CASE("solving", "[clingo]") {
                 ctl.ground({});
                 backend.minimize(1, {{a,1},{b,1}});
                 ctl.solve(MCB(models));
-                REQUIRE(ctl.statistics()["costs"].size() == 1);
-                REQUIRE(ctl.statistics()["costs"][size_t(0)] == 1);
+                REQUIRE(ctl.statistics()["summary.costs"].size() == 1);
+                REQUIRE(ctl.statistics()["summary.costs"][size_t(0)] == 1);
                 // Note: I don't have a good idea how to test this one
                 // void heuristic(atom_t atom, HeuristicType type, int bias, unsigned priority, LitSpan condition);
             }

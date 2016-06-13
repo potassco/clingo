@@ -280,7 +280,6 @@ public:
     bool external(Gringo::SymbolicAtomIter it) const override;
     Gringo::SymbolicAtomIter next(Gringo::SymbolicAtomIter it) override;
     bool valid(Gringo::SymbolicAtomIter it) const override;
-    ClingoControl &owner() const override { return *const_cast<ClingoControl*>(this); };
 
     // {{{2 ConfigProxy interface
 
@@ -312,7 +311,7 @@ public:
     void cleanupDomains() override;
     Gringo::SolveIter *solveIter(Assumptions &&ass) override;
     Gringo::SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass) override;
-    Gringo::TheoryData const &theory() const override { return out_->data.theoryInterface(*const_cast<ClingoControl*>(this)); }
+    Gringo::TheoryData const &theory() const override { return out_->data.theoryInterface(); }
     void registerPropagator(Gringo::UProp p, bool sequential) override;
     void parse(char const *program, std::function<void(clingo_ast const &)> cb) override;
     void add(std::function<void (std::function<void (clingo_ast const &)>)> cb) override;
@@ -395,7 +394,6 @@ public:
     uint64_t number() const override { return model_->num; }
     Potassco::Id_t threadId() const override { return model_->sId; }
     bool optimality_proven() const override { return model_->opt; }
-    ClingoControl &owner() const override { return ctl_; }
 private:
     Clasp::Asp::LogicProgram const &lp() const    { return *static_cast<Clasp::Asp::LogicProgram*>(ctl_.clasp_->program()); };
     Gringo::Output::OutputBase const &out() const { return *ctl_.out_; };
@@ -414,7 +412,6 @@ public:
     Gringo::Model const *next() override;
     void close() override;
     Gringo::SolveResult get() override;
-    ClingoControl &owner() const override { return model_.owner(); }
 
 private:
     Clasp::ClaspFacade::ModelGenerator future_;

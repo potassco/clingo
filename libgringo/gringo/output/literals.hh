@@ -1222,9 +1222,7 @@ public:
     bool canSimplify() const {
         return domains_.empty() && clauses_.empty() && formulas_.empty() && theory_.empty();
     }
-    Control &owner() const override { return *owner_; }
-    Gringo::TheoryData const &theoryInterface(Control &owner) const {
-        owner_ = &owner;
+    Gringo::TheoryData const &theoryInterface() const {
         return *this;
     }
     BackendAtomVec &tempAtoms() {
@@ -1272,7 +1270,6 @@ private:
     Formulas formulas_;
     CSPAtoms cspAtoms_;
     LiteralId trueLit_;
-    mutable Control *owner_;
 };
 
 template <class M, typename... Args>
