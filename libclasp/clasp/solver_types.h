@@ -335,9 +335,9 @@ inline void SolverStats::addConflict(uint32 dl, uint32 uipLevel, uint32 bLevel, 
 }
 inline const char* SolverStats::keys(const char* path) const {
 	if (!path || !*path) {
-		if (jumps && extra) { return "jumps.\0extra.\0" CLASP_CORE_STATS(CLASP_STAT_KEY,NO_ARG,NO_ARG); }
-		if (extra)          { return "extra.\0" CLASP_CORE_STATS(CLASP_STAT_KEY,NO_ARG,NO_ARG); }
-		if (jumps)          { return "jumps.\0" CLASP_CORE_STATS(CLASP_STAT_KEY,NO_ARG,NO_ARG); }
+		if (jumps && extra) { return CLASP_CORE_STATS(CLASP_STAT_KEY, NO_ARG, NO_ARG) ".jumps\0.extra\0"; }
+		if (extra)          { return CLASP_CORE_STATS(CLASP_STAT_KEY, NO_ARG, NO_ARG) ".extra\0"; }
+		if (jumps)          { return CLASP_CORE_STATS(CLASP_STAT_KEY, NO_ARG, NO_ARG) ".jumps\0"; }
 		return CoreStats::keys(path);
 	}
 	return subKeys(path);

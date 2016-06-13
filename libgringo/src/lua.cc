@@ -1252,13 +1252,13 @@ int newStatistics(lua_State *L, Statistics const *stats) {
             char const *keys = protect(L, [stats, prefix]() { return stats->getKeys(prefix); });
             if (!keys) { luaL_error(L, "error zero keys string: %s", prefix); }
             lua_newtable(L); // stack + 2
-            for (char const *it = keys; *it; it+= strlen(it) + 1) {
+            for (char const *it = keys, *sep = *prefix ? "." : ""; *it; it+= strlen(it) + 1) {
                 if (strcmp(it, "__len") == 0) {
-                    int len = (int)protect(L, [stats, prefix]{ return stats->getStat((std::string(prefix) + "__len").c_str()); });
+                    int len = (int)(double)protect(L, [stats, prefix]{ return stats->getStat((std::string(prefix) + "__len").c_str()); });
                     for (int i = 1; i <= len; ++i) {
                         lua_pushvalue(L, -2);
-                        lua_pushinteger(L, i-1);
                         lua_pushliteral(L, ".");
+                        lua_pushinteger(L, i-1);
                         lua_concat(L, 3);        // stack + 3
                         newStatistics(L, stats); // stack + 3
                         lua_rawseti(L, -2, i);   // stack + 2
@@ -1266,11 +1266,12 @@ int newStatistics(lua_State *L, Statistics const *stats) {
                     break;
                 }
                 else {
-                    int len = strlen(it);
-                    lua_pushlstring(L, it, len - (it[len-1] == '.')); // stack + 3
+                    it += (*it == '.');
+                    lua_pushlstring(L, it, strlen(it)); // stack + 3
                     lua_pushvalue(L, -3);
+                    lua_pushstring(L, sep);
                     lua_pushstring(L, it);
-                    lua_concat(L, 2);        // stack + 4
+                    lua_concat(L, 3);        // stack + 4
                     newStatistics(L, stats); // stack + 4
                     lua_rawset(L, -3);       // stack + 2
                 }

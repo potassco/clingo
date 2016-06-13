@@ -773,21 +773,30 @@ ExpectedQuantity::operator double() const { return valid() ? rep : std::numeric_
 ExpectedQuantity ClaspFacade::getStatImpl(const char* path, bool keys) const {
 #define GET_KEYS(o, path) ( ExpectedQuantity((o).keys(path)) )
 #define GET_OBJ(o, path)  ( ExpectedQuantity((o)[path]) )
-#define COMMON_KEYS "ctx.\0solvers.\0solver.\0costs.\0time_total\0time_cpu\0time_solve\0time_unsat\0time_sat\0enumerated\0optimal\0step\0result\0"
-	static const char* _keys[] = {"accu.\0hccs.\0hcc.\0lp.\0" COMMON_KEYS, 0, "accu.\0lp.\0" COMMON_KEYS, "accu.\0" COMMON_KEYS };
-	enum ObjId { id_hccs, id_hcc, id_lp, id_ctx, id_solvers, id_solver, id_costs, id_total, id_cpu, id_solve, id_unsat, id_sat, id_num, id_opt, id_step, id_result };
+#define COMMON_KEYS "time_total\0time_cpu\0time_solve\0time_unsat\0time_sat\0enumerated\0optimal\0step\0result\0.ctx\0.solvers\0.solver\0.costs\0"
+	static const char* _keys[] = {".accu\0" COMMON_KEYS, ".accu\0" COMMON_KEYS ".lp\0", ".accu\0" COMMON_KEYS ".lp\0.hccs\0.hcc\0"};
+	enum ObjId { id_total, id_cpu, id_solve, id_unsat, id_sat, id_num, id_opt, id_step, id_result, id_ctx, id_solvers, id_solver, id_costs, id_lp, id_hccs, id_hcc};
 	if (!path)  path = "";
 	std::size_t kLen = 0;
-	int         oId  = lpStats_.get() ? ((ctx.sccGraph.get() && ctx.sccGraph->numNonHcfs() != 0) ? id_hccs : id_lp) : id_ctx;
-	const char* keyL = _keys[oId];
+	int         oId  = 0;
+	const char* keyL = _keys[lpStats_.get() ? (1 +  (ctx.sccGraph.get() && ctx.sccGraph->numNonHcfs() != 0)) : 0];
 	bool        accu = step_.stats() != 0 && matchStatPath(path, "accu");
 	if (!*path) { 
 		if (accu || step_.stats() == 0) { keyL += 6; }
 		return keys ? ExpectedQuantity(keyL) : ExpectedQuantity::error_ambiguous_quantity;
 	}
 	accu = accu && step() != 0;
-	for (const char* k = keyL + 6; (kLen = std::strlen(k)) != 0; k += kLen + 1, ++oId) {
-		bool match = k[kLen-1] == '.' ? matchStatPath(path, k, kLen-1) : std::strcmp(path, k) == 0;
+	const char* k = keyL + 6;
+	switch (*path) {
+		case 't': break;
+		case 'e': k += 51; oId = id_num; break;
+		case 'o': k += 62; oId = id_opt; break;
+		case 's': k += 70; oId = id_step; break;
+		case 'r': k += 75; oId = id_result; break;
+		default:  k += 82; oId = id_ctx; break;
+	}
+	for (; (kLen = std::strlen(k)) != 0; k += kLen + 1, ++oId) {
+		bool match = *k == '.' ? matchStatPath(path, k + 1, kLen-1) : std::strcmp(path, k) == 0;
 		if (match) {
 			if (!*path && !keys){ return ExpectedQuantity::error_ambiguous_quantity; }
 			switch(oId) {

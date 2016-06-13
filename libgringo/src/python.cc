@@ -1218,11 +1218,11 @@ PyObject *getStatistics(Statistics const *stats, char const *prefix) {
                 if (strcmp(keys, "__len") == 0) {
                     std::string lenPrefix;
                     lenPrefix += prefix;
-                    lenPrefix += "__len";
+                    lenPrefix += ".__len";
                     int len = (int)(double)stats->getStat(lenPrefix.c_str());
                     Object list = PyList_New(len);
                     for (int i = 0; i < len; ++i) {
-                        Object objPrefix = PyString_FromFormat("%s%d.", prefix, i);
+                        Object objPrefix = PyString_FromFormat("%s.%d", prefix, i);
                         auto subPrefix = pyToCpp<char const *>(objPrefix);
                         Object subStats = getStatistics(stats, subPrefix);
                         if (PyList_SetItem(list, i, subStats.release()) < 0) { return nullptr; }
@@ -1231,10 +1231,11 @@ PyObject *getStatistics(Statistics const *stats, char const *prefix) {
                 }
                 else {
                     Object dict = PyDict_New();
+                    const char* sep = *prefix ? "." : "";
                     for (char const *it = keys; *it; it+= strlen(it) + 1) {
-                        int len = strlen(it);
-                        Object key = PyString_FromStringAndSize(it, len - (it[len-1] == '.'));
-                        Object objPrefix = PyString_FromFormat("%s%s", prefix, it);
+                        it += (*it == '.');
+                        Object key = PyString_FromStringAndSize(it, strlen(it));
+                        Object objPrefix = PyString_FromFormat("%s%s%s", prefix, sep, it);
                         auto subPrefix = pyToCpp<char const *>(objPrefix);
                         Object subStats = getStatistics(stats, subPrefix);
                         if (PyDict_SetItem(dict, key, subStats) < 0) { return nullptr; }
