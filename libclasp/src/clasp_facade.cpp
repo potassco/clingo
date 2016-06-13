@@ -771,81 +771,79 @@ ExpectedQuantity::ExpectedQuantity(Error e) : rep(-double(int(e))) {}
 ExpectedQuantity::operator double() const { return valid() ? rep : std::numeric_limits<double>::quiet_NaN(); }
 
 ExpectedQuantity ClaspFacade::getStatImpl(const char* path, bool keys) const {
-#define GET_KEYS(o, path) ( ExpectedQuantity((o).keys(path)) )
-#define GET_OBJ(o, path)  ( ExpectedQuantity((o)[path]) )
 #define ROOT_COMMON ".accu\0.ctx\0.solvers\0.solver\0.summary\0"
 	const char* const lpRoot[] ={ROOT_COMMON ".lp\0", ROOT_COMMON ".lp\0.hccs\0.hcc\0"};
-	enum RootId { id_error, id_missing, id_ctx, id_solvers, id_solver, id_summary, id_lp, id_hccs, id_hcc };
-	if (!path)  path = "";
 	const char* root = !lpStats_.get() ? ROOT_COMMON : lpRoot[int(ctx.sccGraph.get() && ctx.sccGraph->numNonHcfs() != 0)];
+#undef ROOT_COMMON
+	if (!path)  path = "";
 	bool accu = false;
 	if (step_.stats() == 0 || (accu = (*path == 'a' && matchStatPath(path, root + 1))) == true) {
 		root += std::strlen(root) + 1;
 	}
-	int rId = id_error;
-	switch (*path) {
-		case '\0': return keys ? ExpectedQuantity(root)  : ExpectedQuantity::error_ambiguous_quantity;
-		case 'c': if (matchStatPath(path, "ctx")) rId = id_ctx; break;
-		case 'h':
-			if      (matchStatPath(path, "hccs")) rId = id_hccs;
-			else if (matchStatPath(path, "hcc"))  rId = id_hcc;
-			if (rId != id_error && (!ctx.sccGraph.get() || ctx.sccGraph->numNonHcfs() == 0)) {
-				rId = id_missing;
-			}
-			break;
-		case 'l': if (matchStatPath(path, "lp")) rId = lpStats_.get() ? id_lp : id_missing; break;
-		case 's': 
-			if      (matchStatPath(path, "summary")) rId = id_summary;
-			else if (matchStatPath(path, "solver"))  rId = id_solver;
-			else if (matchStatPath(path, "solvers")) rId = id_solvers;
-			break;
-		default: return ExpectedQuantity::error_unknown_quantity;
-	}
+#define GET_KEYS(o, path) ( ExpectedQuantity((o).keys(path)) )
+#define GET_OBJ(o, path)  ( *path ? ExpectedQuantity((o)[path]) : ExpectedQuantity::error_ambiguous_quantity )
+#define MATCH(p, k, op) if (matchStatPath(p, (k)))op;else (void)0;
+#define CASE(c, ...) case c: __VA_ARGS__ break;
+#define REQUIRE(cnd) if (!(cnd)) break;else (void)0;
 	const Summary& stats = accu && accu_.get() ? *accu_.get() : step_;
-	switch (rId) {
-		default: CLASP_FAIL_IF(true, "key not handled");
-		case id_error:   return ExpectedQuantity::error_unknown_quantity;
-		case id_missing: return ExpectedQuantity::error_not_available;
-		case id_ctx:     return keys ? GET_KEYS(ctx.stats(), path) : GET_OBJ(ctx.stats(), path);
-		case id_summary: return keys ? GET_KEYS(stats, path) : GET_OBJ(stats, path);
-		case id_lp:      return keys ? GET_KEYS((*lpStats_), path) : GET_OBJ((*lpStats_), path);
-		case id_solvers: return keys ? GET_KEYS(ctx.stats(*ctx.solver(0), accu), path) : getStat(ctx, path, accu, Range32(0, ctx.concurrency()));
-		case id_hccs: {
-			ExpectedQuantity res(0.0);
-			for (PrgDepGraph::NonHcfIter it = ctx.sccGraph->nonHcfBegin(), end = ctx.sccGraph->nonHcfEnd(); it != end; ++it) {
-				const SharedContext& hCtx= it->second->ctx();
-				if (keys) { return GET_KEYS(hCtx.stats(*hCtx.solver(0), accu), path); }
-				ExpectedQuantity hccAccu = getStat(hCtx, path, accu, Range32(0, hCtx.concurrency()));
-				if (!hccAccu.valid()) { return hccAccu; }
-				res.rep += hccAccu.rep;
-			}
-			return res;
+	enum RootId { id_error, id_solver, id_hccs, id_hcc };
+	RootId rId = id_error;
+	switch (*path) {
+		default: return ExpectedQuantity::error_unknown_quantity;
+		case '\0': return keys ? ExpectedQuantity(root)  : ExpectedQuantity::error_ambiguous_quantity;
+		CASE('c', MATCH(path, "ctx", return keys ? GET_KEYS(ctx.stats(), path) : GET_OBJ(ctx.stats(), path)));
+		CASE('l', REQUIRE(lpStats_.get())
+			MATCH(path, "lp", return keys ? GET_KEYS((*lpStats_), path) : GET_OBJ((*lpStats_), path))
+		);
+		CASE('h', REQUIRE(ctx.sccGraph.get() && ctx.sccGraph->numNonHcfs())
+			MATCH(path, "hccs", rId = id_hccs)
+			MATCH(path, "hcc", rId = id_hcc));
+		CASE('s',
+			MATCH(path, "summary", return keys ? GET_KEYS(stats, path) : GET_OBJ(stats, path))
+			MATCH(path, "solvers", return keys ? GET_KEYS(ctx.stats(*ctx.solver(0), accu), path) : getStat(ctx, path, accu, Range32(0, ctx.concurrency())))
+			MATCH(path, "solver", rId = id_solver)
+		);
+	}
+#undef MATCH
+#undef CASE
+#undef REQUIRE
+	if (rId == id_hccs) {
+		if (!*path && !keys) { return ExpectedQuantity::error_ambiguous_quantity; }
+		ExpectedQuantity res(0.0);
+		for (PrgDepGraph::NonHcfIter it = ctx.sccGraph->nonHcfBegin(), end = ctx.sccGraph->nonHcfEnd(); it != end; ++it) {
+			const SharedContext& hCtx= it->second->ctx();
+			if (keys) { return GET_KEYS(hCtx.stats(*hCtx.solver(0), accu), path); }
+			ExpectedQuantity hccAccu = getStat(hCtx, path, accu, Range32(0, hCtx.concurrency()));
+			if (!hccAccu.valid()) { return hccAccu; }
+			res.rep += hccAccu.rep;
 		}
-		case id_solver:
-		case id_hcc: {
-			if (!*path) { return keys ? ExpectedQuantity("__len\0") : ExpectedQuantity::error_ambiguous_quantity; }
-			int pos = 0;
-			uint32 len = rId == id_solver ? ctx.concurrency() : ctx.sccGraph->numNonHcfs();
-			if (matchStatPath(path, "__len")) {
-				return *path || keys ? ExpectedQuantity::error_unknown_quantity : ExpectedQuantity(len);
-			}
-			else if (!Potassco::match(path, pos) || pos < 0 || (*path && *path++ != '.')) {
-				return ExpectedQuantity::error_unknown_quantity;
-			}
-			else {
-				Range32 r(uint32(pos), uint32(pos+1));
-				const SharedContext* actx = &ctx;
-				if (rId == id_hcc) {
-					actx = &(ctx.sccGraph->nonHcfBegin() + pos)->second->ctx();
-					r.hi = actx->concurrency();
-				}
-				return keys ? GET_KEYS(actx->stats(*actx->solver(r.lo), accu), path) : getStat(*actx, path, accu, r);
-			}
+		return res;
+	}
+	else if (rId == id_solver || rId == id_hcc) {
+		if (!*path) { return keys ? ExpectedQuantity("__len\0") : ExpectedQuantity::error_ambiguous_quantity; }
+		uint32 len = rId == id_solver ? ctx.concurrency() : ctx.sccGraph->numNonHcfs();
+		int pos = 0;
+		if (matchStatPath(path, "__len")) {
+			return *path || keys ? ExpectedQuantity::error_unknown_quantity : ExpectedQuantity(len);
 		}
+		else if (!Potassco::match(path, pos) || pos < 0 || (*path && *path++ != '.')) {
+			return ExpectedQuantity::error_unknown_quantity;
+		}
+		else {
+			Range32 r(uint32(pos), uint32(pos+1));
+			const SharedContext* actx = &ctx;
+			if (rId == id_hcc) {
+				actx = &(ctx.sccGraph->nonHcfBegin() + pos)->second->ctx();
+				r.hi = actx->concurrency();
+			}
+			return keys ? GET_KEYS(actx->stats(*actx->solver(r.lo), accu), path) : getStat(*actx, path, accu, r);
+		}
+	}
+	else {
+		return ExpectedQuantity::error_unknown_quantity;
 	}
 #undef GET_KEYS
 #undef GET_OBJ
-#undef ROOT_COMMON
 }
 
 ExpectedQuantity ClaspFacade::getStat(const char* path)const {
@@ -922,7 +920,8 @@ ExpectedQuantity ClaspFacade::Summary::operator[](const char* key) const {
 			if (matchStatPath(key, "costs")) {
 				uint32 len = optimize() && costs() ? (uint32)costs()->size() : 0u;
 				int pos = -1;
-				if      (matchStatPath(key, "__len")) { r = len; }
+				if      (!*key) { return ExpectedQuantity::error_ambiguous_quantity; }
+				else if (matchStatPath(key, "__len")) { r = len; }
 				else if (Potassco::match(key, pos) && pos >= 0 && uint32(pos) < len) {
 					r = double(costs()->at(pos));
 				}

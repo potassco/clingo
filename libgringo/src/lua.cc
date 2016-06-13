@@ -1254,7 +1254,7 @@ int newStatistics(lua_State *L, Statistics const *stats) {
             lua_newtable(L); // stack + 2
             for (char const *it = keys, *sep = *prefix ? "." : ""; *it; it+= strlen(it) + 1) {
                 if (strcmp(it, "__len") == 0) {
-                    int len = (int)(double)protect(L, [stats, prefix]{ return stats->getStat((std::string(prefix) + "__len").c_str()); });
+                    int len = (int)(double)protect(L, [stats, prefix]{ return stats->getStat((std::string(prefix) + ".__len").c_str()); });
                     for (int i = 1; i <= len; ++i) {
                         lua_pushvalue(L, -2);
                         lua_pushliteral(L, ".");
