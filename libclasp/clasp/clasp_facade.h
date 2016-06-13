@@ -26,7 +26,7 @@
 #endif
 
 #if !defined(CLASP_VERSION)
-#define CLASP_VERSION "3.2.0-RC-R51983"
+#define CLASP_VERSION "3.2.0-RC-R51996"
 #endif
 #if !defined(CLASP_LEGAL)
 #define CLASP_LEGAL \
@@ -181,6 +181,8 @@ public:
 		uint64             numEnum;   /**< Total models enumerated.            */
 		uint32             step;      /**< Step number (multishot solving).    */
 		Result             result;    /**< Result of step.                     */
+		const char*      keys(const char*) const;
+		ExpectedQuantity operator[](const char* key) const;
 	};
 	ClaspFacade();
 	~ClaspFacade();
