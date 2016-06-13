@@ -25,7 +25,7 @@ namespace Clingo { namespace Test {
 
 using S = std::string;
 using ModelVec = std::vector<SymbolVector>;
-using MessageVec = std::vector<std::pair<MessageCode, std::string>>;
+using MessageVec = std::vector<std::pair<WarningCode, std::string>>;
 
 struct MCB {
     MCB(ModelVec &models) : models(models) {
@@ -48,7 +48,7 @@ struct MCB {
 class LCB {
 public:
     LCB(MessageVec &messages) : messages_(messages) { }
-    void operator()(MessageCode code, char const *msg) { messages_.emplace_back(code, msg); }
+    void operator()(WarningCode code, char const *msg) { messages_.emplace_back(code, msg); }
 private:
     MessageVec &messages_;
 };

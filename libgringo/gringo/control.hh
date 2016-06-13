@@ -313,7 +313,7 @@ struct ClingoError : std::exception {
     ClingoError(clingo_error_t err) : err(err) { }
     virtual ~ClingoError() noexcept = default;
     virtual const char* what() const noexcept {
-        return clingo_message_code_str(err);
+        return clingo_error_string(err);
     }
     clingo_error_t const err;
 };
@@ -322,24 +322,11 @@ void inline clingo_expect(bool expr) {
     if (!expr) { throw std::runtime_error("unexpected"); }
 }
 
-void handleError(clingo_error_t code, std::exception_ptr *exc = nullptr);
-
-inline clingo_error_t handleClingoError(Gringo::Logger *logger) {
-    try { throw; }
-    catch (Gringo::GringoError const &e) {
-        if (logger) { logger->print(clingo_error_runtime, e.what()); }
-        return clingo_error_fatal;
-    }
-    catch (Gringo::ClingoError const &e)       { return e.err; } \
-    catch (Gringo::MessageLimitError const &e) { return clingo_error_fatal; }
-    catch (std::bad_alloc const &e)            { return clingo_error_bad_alloc; }
-    catch (std::runtime_error const &e)        { return clingo_error_runtime; }
-    catch (std::logic_error const &e)          { return clingo_error_logic; }
-    return clingo_error_unknown;
-}
+void handleCError(clingo_error_t code, std::exception_ptr *exc = nullptr);
+clingo_error_t handleCXXError();
 
 #define GRINGO_CLINGO_TRY try
-#define GRINGO_CLINGO_CATCH(logger) catch (...) { return Gringo::handleClingoError((logger)); } return clingo_error_success
+#define GRINGO_CLINGO_CATCH catch (...) { return Gringo::handleCXXError(); } return clingo_error_success
 
 // }}}1
 

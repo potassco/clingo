@@ -51,7 +51,7 @@ using Errors = clingo_error;
 
 class Logger {
 public:
-    using Printer = std::function<void (clingo_message_code_t, char const *)>;
+    using Printer = std::function<void (clingo_warning_t, char const *)>;
     Logger(Printer p = nullptr, unsigned limit = 20)
     : p_(p)
     , limit_(limit) { }
@@ -59,7 +59,7 @@ public:
     bool check(Warnings id);
     bool hasError() const;
     void enable(Warnings id, bool enable);
-    void print(clingo_message_code_t code, char const *msg);
+    void print(clingo_warning_t code, char const *msg);
     ~Logger();
 private:
     Printer p_;
@@ -92,7 +92,7 @@ inline void Logger::enable(Warnings id, bool enabled) {
     disabled_[std::abs(id + 1)] = !enabled;
 }
 
-inline void Logger::print(clingo_message_code_t code, char const *msg) {
+inline void Logger::print(clingo_warning_t code, char const *msg) {
     if (p_) { p_(code, msg); }
     else {
         fprintf(stderr, "%s\n", msg);
@@ -106,12 +106,12 @@ inline Logger::~Logger() { }
 
 class Report {
 public:
-    Report(Logger &p, clingo_message_code_t code) : p_(p), code_(code) { }
+    Report(Logger &p, clingo_warning_t code) : p_(p), code_(code) { }
     ~Report() { p_.print(code_, out.str().c_str()); }
     std::ostringstream out;
 private:
     Logger &p_;
-    clingo_message_code_t code_;
+    clingo_warning_t code_;
 };
 
 // }}}1

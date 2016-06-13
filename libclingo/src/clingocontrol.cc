@@ -839,9 +839,8 @@ Gringo::Symbol DefaultGringoModule::parseValue(std::string const &str, Gringo::L
 }
 
 extern "C" clingo_error_t clingo_module_new(clingo_module_t **mod) {
-    GRINGO_CLINGO_TRY {
-        *mod = new DefaultGringoModule();
-    } GRINGO_CLINGO_CATCH(nullptr);
+    GRINGO_CLINGO_TRY { *mod = new DefaultGringoModule(); }
+    GRINGO_CLINGO_CATCH;
 }
 
 extern "C" void clingo_module_free(clingo_module_t *mod) {
@@ -850,13 +849,13 @@ extern "C" void clingo_module_free(clingo_module_t *mod) {
 
 Clingo::Module::Module()
 : module_(nullptr) {
-    Gringo::handleError(clingo_module_new(&module_));
+    Gringo::handleCError(clingo_module_new(&module_));
 }
 
 Clingo::Control Clingo::Module::create_control(StringSpan args, Logger &logger, unsigned message_limit) {
     clingo_control_t *ctl;
-    Gringo::handleError(clingo_control_new(module_, args.begin(), args.size(), [](clingo_message_code_t code, char const *msg, void *data) {
-        try { (*static_cast<Logger*>(data))(code, msg); }
+    Gringo::handleCError(clingo_control_new(module_, args.begin(), args.size(), [](clingo_warning_t code, char const *msg, void *data) {
+        try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
         catch (...) { }
     }, &logger, message_limit, &ctl));
     return ctl;

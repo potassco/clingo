@@ -278,7 +278,7 @@ V init(T&&... args) {
 
 struct TestGringoModule : Gringo::GringoModule {
     TestGringoModule()
-    : logger([&](clingo_message_code_t, char const *msg){
+    : logger([&](clingo_warning_t, char const *msg){
         messages_.emplace_back(msg);
     }, std::numeric_limits<unsigned>::max()) { }
 

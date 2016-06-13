@@ -451,11 +451,18 @@ private:
     int count_ = 0;
 };
 
+class TestException : public Propagator {
+public:
+    void check(PropagateControl &) override {
+        throw std::runtime_error("the answer is 42");
+    }
+};
+
 TEST_CASE("propagator", "[clingo][propagator]") {
     Module mod;
     MessageVec messages;
     ModelVec models;
-    Logger logger = [&messages](MessageCode code, char const *msg) { messages.emplace_back(code, msg); };
+    Logger logger = [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); };
     Control ctl{mod.create_control({"test_libclingo", "0"}, logger, 20)};
     SECTION("pigeon") {
         PigeonPropagator p;
@@ -480,6 +487,32 @@ TEST_CASE("propagator", "[clingo][propagator]") {
         ctl.ground({{"base", {}}}, nullptr);
         ctl.solve(MCB(models));
         REQUIRE(models.size() == 4);
+    }
+    SECTION("exception") {
+        TestException p;
+        ctl.register_propagator(p, false);
+        ctl.add("base", {}, "{a}.");
+        ctl.ground({{"base", {}}}, nullptr);
+        try {
+            ctl.solve(MCB(models));
+            FAIL("solve must throw");
+        }
+        catch (std::runtime_error const &e) { REQUIRE(e.what() == S("the answer is 42")); }
+    }
+    SECTION("exception-t2") {
+        ctl.configuration()["solve.parallel_mode"] = "2";
+        TestException p;
+        ctl.register_propagator(p, false);
+        ctl.add("base", {}, "{a}.");
+        ctl.ground({{"base", {}}}, nullptr);
+        try {
+            ctl.solve(MCB(models));
+            FAIL("solve must throw");
+        }
+        catch (std::runtime_error const &e) {
+            // NOTE: in the multithreaded case a runtime error is thrown after the last thread died
+            REQUIRE(e.what() == S("RUNTIME ERROR!"));
+        }
     }
     SECTION("add_clause") {
         TestAddClause p;
@@ -531,8 +564,8 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
     Module mod;
     MessageVec messages;
     ModelVec models;
-    Logger logger = [&messages](MessageCode code, char const *msg) { messages.emplace_back(code, msg); };
-    Control ctl{mod.create_control({"test_libclingo", "-t30"}, logger, 20)};
+    Logger logger = [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); };
+    Control ctl{mod.create_control({"test_libclingo", "-t14"}, logger, 20)};
     SECTION("sequence mining") {
         ctl.configuration()["solve"]["opt_mode"] = "optN";
         SequenceMiningPropagator p;

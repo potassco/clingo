@@ -76,7 +76,8 @@ TEST_CASE("symbol", "[clingo]") {
         REQUIRE(S("f") == sym.name());
         REQUIRE("f(42,#inf,#sup,\"x\",-x)" == sym.to_string());
         REQUIRE((args.size() == sym.args().size() && std::equal(args.begin(), args.end(), sym.args().begin())));
-        REQUIRE_THROWS(sym.num());
+        try { sym.num(); }
+        catch (std::exception const &e) { REQUIRE(e.what() == S("unexpected")); }
         // comparison
         auto a = Num(1), b = Num(2);
         REQUIRE(a < b);

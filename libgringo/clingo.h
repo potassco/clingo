@@ -64,6 +64,9 @@ enum clingo_error {
 };
 typedef int clingo_error_t;
 
+char const *clingo_error_string(clingo_error_t code);
+char const *clingo_error_message();
+
 enum clingo_warning {
     clingo_warning_operation_undefined = -1, //< Undefined arithmetic operation or weight of aggregate.
     clingo_warning_atom_undefined      = -2, //< Undefined atom in program.
@@ -75,11 +78,8 @@ enum clingo_warning {
 };
 typedef int clingo_warning_t;
 
-// the union of error and warning codes
-typedef int clingo_message_code_t;
-char const *clingo_message_code_str(clingo_message_code_t code);
-
-typedef void clingo_logger_t(clingo_message_code_t, char const *, void *);
+char const *clingo_warning_string(clingo_warning_t code);
+typedef void clingo_logger_t(clingo_warning_t, char const *, void *);
 
 // {{{1 signature
 

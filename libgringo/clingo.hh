@@ -1085,33 +1085,32 @@ private:
 
 // {{{1 module
 
-// TODO: this has to change!!!
-class MessageCode {
-public:
-    enum Error : clingo_message_code_t {
-        Fatal = clingo_error_fatal,
-        Runtime = clingo_error_runtime,
-        Logic = clingo_error_logic,
-        BadAlloc = clingo_error_bad_alloc,
-        Unknown = clingo_error_unknown,
-    };
-    enum Warning : clingo_message_code_t {
-        OperationUndefined = clingo_warning_operation_undefined,
-        AtomUndefined = clingo_warning_atom_undefined,
-        FileIncluded = clingo_warning_file_included,
-        VariableUnbounded = clingo_warning_variable_unbounded,
-        GlobalVariable = clingo_warning_global_variable,
-        Other = clingo_warning_other,
-    };
-    MessageCode(clingo_message_code_t code) : code_(code) { }
-    operator clingo_message_code_t() const { return code_; }
-private:
-    clingo_message_code_t code_;
+enum class ErrorCode : clingo_error_t {
+    Fatal = clingo_error_fatal,
+    Runtime = clingo_error_runtime,
+    Logic = clingo_error_logic,
+    BadAlloc = clingo_error_bad_alloc,
+    Unknown = clingo_error_unknown,
 };
-using Logger = std::function<void (MessageCode, char const *)>;
 
-inline std::ostream &operator<<(std::ostream &out, MessageCode code) {
-    out << clingo_message_code_str(code);
+inline std::ostream &operator<<(std::ostream &out, ErrorCode code) {
+    out << clingo_error_string(static_cast<clingo_error_t>(code));
+    return out;
+}
+
+enum class WarningCode : clingo_warning_t {
+    OperationUndefined = clingo_warning_operation_undefined,
+    AtomUndefined = clingo_warning_atom_undefined,
+    FileIncluded = clingo_warning_file_included,
+    VariableUnbounded = clingo_warning_variable_unbounded,
+    GlobalVariable = clingo_warning_global_variable,
+    Other = clingo_warning_other,
+};
+
+using Logger = std::function<void (WarningCode, char const *)>;
+
+inline std::ostream &operator<<(std::ostream &out, WarningCode code) {
+    out << clingo_warning_string(static_cast<clingo_warning_t>(code));
     return out;
 }
 

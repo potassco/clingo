@@ -16,7 +16,7 @@
         old_n = new_n; \
     }
 
-void logger(clingo_message_code_t code, char const *message, void *data) {
+void logger(clingo_warning_t code, char const *message, void *data) {
     (void)code;
     (void)data;
     fprintf(stderr, "%s\n", message);

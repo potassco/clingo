@@ -27,7 +27,7 @@ using namespace Clingo;
 int main(int argc, char const **argv) {
     try {
         Module module;
-        Logger logger = [](Clingo::MessageCode, char const *message) {
+        Logger logger = [](Clingo::WarningCode, char const *message) {
             std::cerr << message << std::endl;
         };
         Control ctl = module.create_control({argv, size_t(argc)}, logger, 20);

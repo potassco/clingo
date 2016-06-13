@@ -39,7 +39,6 @@ bool Scripts::callable(String name) {
 void Scripts::main(Control &ctl) {
     if (py.callable("main")) { return py.main(ctl); }
     if (lua.callable("main")) { return lua.main(ctl); }
-
 }
 SymVec Scripts::call(Location const &loc, String name, SymSpan args, Logger &log) {
     if (context && context->callable(name)) { return context->call(loc, name, args); }
