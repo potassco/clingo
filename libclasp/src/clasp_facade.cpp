@@ -839,6 +839,7 @@ ExpectedQuantity ClaspFacade::getStatImpl(const char* path, bool keys) const {
 						return ExpectedQuantity::error_unknown_quantity;
 					}
 					if (r.lo >= r.hi)  { return ExpectedQuantity::error_not_available;    }
+					r.hi = r.lo + 1;
 					if (*(path = x) == '.') { ++path; }
 					const SharedContext* active = &ctx; 
 					if (oId == id_hcc) {
