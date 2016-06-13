@@ -1057,8 +1057,12 @@ class Control {
 public:
     Control(clingo_control_t *ctl);
     Control(Control const &) = delete;
-    Control(Control &&x)
-    : ctl_(nullptr) { std::swap(x.ctl_, ctl_); }
+    Control(Control &&c)
+    : Control(nullptr) { *this = std::move(c); }
+    Control &operator=(Control &&c) {
+        std::swap(ctl_, c.ctl_);
+        return *this;
+    }
     ~Control() noexcept;
     // TODO: consider removing the name/param part
     void add(char const *name, StringSpan params, char const *part);
