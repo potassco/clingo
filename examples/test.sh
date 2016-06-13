@@ -18,6 +18,7 @@ EOF
         [[ $a == "y" || $a == "" ]] && break
     done
 }
+cd "$(dirname "$0")"
 clingo=$(realpath ../build/release/clingo)
 export python=python
 export PYTHONPATH=$(realpath ../build/release/python)

@@ -423,7 +423,7 @@ private:
 class ClingoLib : public Clasp::EventHandler, public ClingoControl {
     using StringVec    = std::vector<std::string>;
 public:
-    ClingoLib(Gringo::Scripts &scripts, int argc, char const **argv, Gringo::Logger::Printer printer, unsigned messageLimit);
+    ClingoLib(Gringo::Scripts &scripts, int argc, char const * const *argv, Gringo::Logger::Printer printer, unsigned messageLimit);
     ~ClingoLib() override;
 protected:
     void initOptions(ProgramOptions::OptionContext& root);
@@ -444,7 +444,7 @@ private:
 
 struct DefaultGringoModule : Gringo::GringoModule {
     DefaultGringoModule();
-    Gringo::Control *newControl(int argc, char const **argv, Gringo::Logger::Printer printer, unsigned messageLimit) override;
+    Gringo::Control *newControl(int argc, char const * const *argv, Gringo::Logger::Printer printer, unsigned messageLimit) override;
     Gringo::Symbol parseValue(std::string const &str, Gringo::Logger::Printer printer, unsigned messageLimit) override;
     Gringo::Input::GroundTermParser parser;
     Gringo::Scripts scripts;

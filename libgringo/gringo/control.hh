@@ -296,7 +296,7 @@ using GringoModule = clingo_module;
 } // namespace Gringo
 
 struct clingo_module {
-    virtual Gringo::Control *newControl(int argc, char const **argv, Gringo::Logger::Printer p, unsigned messageLimit) = 0;
+    virtual Gringo::Control *newControl(int argc, char const * const *argv, Gringo::Logger::Printer p, unsigned messageLimit) = 0;
     virtual Gringo::Symbol parseValue(std::string const &repr, Gringo::Logger::Printer p, unsigned messageLimit) = 0;
     virtual ~clingo_module() noexcept = default;
 };

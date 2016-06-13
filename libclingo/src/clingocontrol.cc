@@ -742,12 +742,12 @@ void ClingoSolveFuture::cancel() { future.cancel(); }
 
 // {{{1 definition of ClingoLib
 
-ClingoLib::ClingoLib(Gringo::Scripts &scripts, int argc, char const **argv, Gringo::Logger::Printer printer, unsigned messageLimit)
+ClingoLib::ClingoLib(Gringo::Scripts &scripts, int argc, char const * const *argv, Gringo::Logger::Printer printer, unsigned messageLimit)
         : ClingoControl(scripts, true, &clasp_, claspConfig_, nullptr, nullptr, printer, messageLimit) {
     using namespace ProgramOptions;
     OptionContext allOpts("<pyclingo>");
     initOptions(allOpts);
-    ParsedValues values = parseCommandLine(argc, const_cast<char**>(argv), allOpts, false, parsePositional);
+    ParsedValues values = parseCommandArray(argv, argc, allOpts, false, parsePositional);
     ParsedOptions parsed;
     parsed.assign(values);
     allOpts.assignDefaults(parsed);
@@ -829,7 +829,7 @@ ClingoLib::~ClingoLib() {
 
 DefaultGringoModule::DefaultGringoModule()
 : scripts(*this) { }
-Gringo::Control *DefaultGringoModule::newControl(int argc, char const **argv, Gringo::Logger::Printer printer, unsigned messageLimit) {
+Gringo::Control *DefaultGringoModule::newControl(int argc, char const * const*argv, Gringo::Logger::Printer printer, unsigned messageLimit) {
     return new ClingoLib(scripts, argc, argv, printer, messageLimit);
 }
 
@@ -858,6 +858,15 @@ Clingo::Control Clingo::Module::create_control(StringSpan args, Logger &logger, 
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
         catch (...) { }
     }, &logger, message_limit, &ctl));
+    return ctl;
+}
+
+Clingo::Control Clingo::Module::create_control(StringSpan args) {
+    clingo_control_t *ctl;
+    Gringo::handleCError(clingo_control_new(module_, args.begin(), args.size(), [](clingo_warning_t code, char const *msg, void *data) {
+        try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
+        catch (...) { }
+    }, nullptr, 20, &ctl));
     return ctl;
 }
 

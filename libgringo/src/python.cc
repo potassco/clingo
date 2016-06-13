@@ -2519,7 +2519,6 @@ active; you must not call any member function during search.)";
             PyObject *params = nullptr;
             if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "|O", const_cast<char**>(kwlist), &params)) { return -1; }
             std::vector<char const *> args;
-            args.emplace_back("clingo");
             if (params) {
                 Object it = PyObject_GetIter(params);
                 if (!it) { return -1; }
@@ -2530,7 +2529,6 @@ active; you must not call any member function during search.)";
                 }
                 if (PyErr_Occurred()) { return -1; }
             }
-            args.emplace_back(nullptr);
             self->ctl = self->freeCtl = module->newControl(args.size(), args.data(), nullptr, 20);
             return 0;
         PY_CATCH(-1);

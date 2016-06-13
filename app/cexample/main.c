@@ -35,7 +35,7 @@ int main(int argc, char const **argv) {
     char *str = 0;
     size_t str_n = 0;
     E(clingo_module_new(&mod), "error initializing module");
-    E(clingo_control_new(mod, argv, argc, &logger, 0, 20, &ctl), "error initializing control");
+    E(clingo_control_new(mod, argv+1, argc-1, &logger, 0, 20, &ctl), "error initializing control");
     E(clingo_control_add(ctl, "base", 0, 0, "a :- not b. b :- not a."), "error adding program");
     E(clingo_control_ground(ctl, parts, 1, 0, 0), "error while grounding");
     E(clingo_control_solve_iter(ctl, 0, 0, &it), "error while solving");

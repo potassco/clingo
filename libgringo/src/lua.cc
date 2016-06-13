@@ -2032,11 +2032,9 @@ struct ControlWrap {
             }
         }
         std::vector<char const *> *cargs = AnyWrap::new_<std::vector<char const*>>(L);
-        protect(L, [&cargs](){ cargs->push_back("clingo"); });
         for (auto &arg : *args) {
             protect(L, [&arg, &cargs](){ cargs->push_back(arg.c_str()); });
         }
-        protect(L, [&cargs](){ cargs->push_back(nullptr); });
         return newControl(L, [cargs](void *mem){ new (mem) ControlWrap(*module->newControl(cargs->size(), cargs->data(), nullptr, 20), true); });
     }
     template <class F>

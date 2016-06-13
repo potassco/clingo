@@ -282,7 +282,7 @@ struct TestGringoModule : Gringo::GringoModule {
         messages_.emplace_back(msg);
     }, std::numeric_limits<unsigned>::max()) { }
 
-    Gringo::Control *newControl(int, char const **, Logger::Printer, unsigned) override { throw std::logic_error("TestGringoModule::newControl must not be called"); }
+    Gringo::Control *newControl(int, char const * const *, Logger::Printer, unsigned) override { throw std::logic_error("TestGringoModule::newControl must not be called"); }
     Gringo::Symbol parseValue(std::string const &str, Logger::Printer = nullptr, unsigned = 0) override {
         return parser.parse(str, logger);
     }

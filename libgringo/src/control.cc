@@ -856,14 +856,7 @@ extern "C" clingo_error_t clingo_backend_add_atom(clingo_backend_t *backend, cli
 
 extern "C" clingo_error_t clingo_control_new(clingo_module_t *mod, char const *const * args, size_t n, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl) {
     GRINGO_CLINGO_TRY {
-        // NOTE: nullptr sentinel required by program options library
-        // TODO: ask Benny about possible removal
-        std::vector<char const *> argVec;
-        for (auto it = args, ie = it + n; it != ie; ++it) {
-            argVec.emplace_back(*it);
-        }
-        argVec.push_back(nullptr);
-        *ctl = mod->newControl(n, argVec.data(), logger ? [logger, data](clingo_warning_t code, char const *msg) { logger(code, msg, data); } : Gringo::Logger::Printer(nullptr), message_limit);
+        *ctl = mod->newControl(n, args, logger ? [logger, data](clingo_warning_t code, char const *msg) { logger(code, msg, data); } : Gringo::Logger::Printer(nullptr), message_limit);
     }
     GRINGO_CLINGO_CATCH;
 }

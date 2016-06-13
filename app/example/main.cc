@@ -30,7 +30,7 @@ int main(int argc, char const **argv) {
         Logger logger = [](Clingo::WarningCode, char const *message) {
             std::cerr << message << std::endl;
         };
-        Control ctl = module.create_control({argv, size_t(argc)}, logger, 20);
+        Control ctl = module.create_control({argv+1, size_t(argc-1)}, logger, 20);
         ctl.add("base", {}, "a :- not b. b :- not a.");
         ctl.ground({{"base", {}}});
         for (auto m : ctl.solve_iter()) {
