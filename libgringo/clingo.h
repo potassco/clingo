@@ -34,12 +34,6 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-/**********************************************************************
- * TODO: logging should only be necessary for highlevel control stuff *
- *       loosing some small error messages for bad alloc/etc. is ok   *
- * TODO: think about const correctness                                *
- **********************************************************************/
-
 // {{{1 basic types
 
 typedef int32_t clingo_lit_t;
@@ -50,10 +44,7 @@ typedef uint32_t clingo_atom_t;
 // {{{1 errors and warnings
 
 // Note: Errors can be recovered from. If a control function fails, the
-// corresponding control object must be destroyed.  An exception is the
-// clingo_control_parse function, which does not invalidate the corresponding
-// control object (probably this function will become a free function in the
-// future).
+//       corresponding control object must be destroyed.
 enum clingo_error {
     clingo_error_success   = 0,
     clingo_error_fatal     = 1,
@@ -143,7 +134,6 @@ bool clingo_symbol_lt(clingo_symbol_t a, clingo_symbol_t b);
 
 // {{{1 module (there should only ever be one module)
 
-// TODO: maybe get rid of the module
 typedef struct clingo_module clingo_module_t;
 
 clingo_error_t clingo_module_new(clingo_module_t **mod);
@@ -441,7 +431,6 @@ clingo_error_t clingo_control_ground(clingo_control_t *ctl, clingo_part_t const 
 clingo_error_t clingo_control_has_const(clingo_control_t *ctl, char const *name, bool *ret);
 clingo_error_t clingo_control_load(clingo_control_t *ctl, char const *file);
 clingo_error_t clingo_control_new(clingo_module_t *mod, char const *const * args, size_t n, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl);
-clingo_error_t clingo_control_parse(clingo_control_t *ctl, char const *program, clingo_ast_callback_t *cb, void *data);
 clingo_error_t clingo_control_register_propagator(clingo_control_t *ctl, clingo_propagator_t propagator, void *data, bool sequential);
 clingo_error_t clingo_control_release_external(clingo_control_t *ctl, clingo_symbol_t atom);
 clingo_error_t clingo_control_solve_async(clingo_control_t *ctl, clingo_model_callback_t *mh, void *mh_data, clingo_finish_callback_t *fh, void *fh_data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_async_t **ret);
@@ -453,6 +442,9 @@ clingo_error_t clingo_control_theory_atoms(clingo_control_t *ctl, clingo_theory_
 clingo_error_t clingo_control_use_enum_assumption(clingo_control_t *ctl, bool value);
 void clingo_control_interrupt(clingo_control_t *ctl);
 void clingo_control_free(clingo_control_t *ctl);
+
+// TODO: should not depend on control
+clingo_error_t clingo_control_parse(clingo_control_t *ctl, char const *program, clingo_ast_callback_t *cb, void *data);
 
 // }}}1
 

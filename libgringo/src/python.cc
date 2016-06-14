@@ -1846,8 +1846,8 @@ struct SymbolicAtoms : ObjectBase<SymbolicAtoms> {
     static PyMappingMethods tp_as_mapping[];
     static PyGetSetDef tp_getset[];
 
-    static constexpr char const *tp_type = "Domain";
-    static constexpr char const *tp_name = "clingo.Domain";
+    static constexpr char const *tp_type = "SymbolicAtoms";
+    static constexpr char const *tp_name = "clingo.SymbolicAtoms";
     static constexpr char const *tp_doc =
 R"(This class provides read-only access to the symbolic atoms of the grounder
 (the Herbrand base).
@@ -3142,7 +3142,7 @@ query if the search was interrupted.)"},
 
 PyGetSetDef ControlWrap::tp_getset[] = {
     {(char*)"conf", (getter)conf, nullptr, (char*)"Configuration object to change the configuration.", nullptr},
-    {(char*)"symbolic_atoms", (getter)symbolicAtoms, nullptr, (char*)"symbolicAtoms object to inspect the symbolic atoms.", nullptr},
+    {(char*)"symbolic_atoms", (getter)symbolicAtoms, nullptr, (char*)"SymbolicAtoms object to inspect the symbolic atoms.", nullptr},
     {(char*)"use_enum_assumption", (getter)get_use_enum_assumption, (setter)set_use_enum_assumption,
 (char*)R"(Boolean determining how learnt information from enumeration modes is treated.
 
