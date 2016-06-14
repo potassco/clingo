@@ -208,7 +208,16 @@ clingo_error_t clingo_solve_async_wait(clingo_solve_async_t *async, double timeo
 
 // {{{1 ast
 
-// TODO: think about visitor
+// TODO:
+//   think about a visitor:
+//     clingo_error_t clingo_ast_callback(clingo_location_t *loc, clingo_symbol_t value, size_t number_of_children, void *data)
+//     - should location be optional?
+//       if not, the location could simply be added to the arguments
+//     - allows for building an AST using a stack
+//     - adding an ast to the program could work the same way
+//       the user would have to call the clingo_ast_callback
+//       this could be done in a callback again
+//       or alternatively with an object that has to be created/freed
 typedef struct clingo_location {
     char const *begin_file;
     char const *end_file;
