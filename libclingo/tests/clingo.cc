@@ -44,21 +44,20 @@ TEST_CASE("solving", "[clingo]") {
             Logger logger = [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); };
             Control ctl{mod.create_control({"0"}, logger, 20)};
             SECTION("solve") {
-                bool run = false;
-                SECTION("add") { ctl.add("base", {}, "{a}."); run = true; }
-                SECTION("load") {
-                    struct Temp {
-                        Temp() : file(std::tmpnam(temp)) { }
-                        ~Temp() { if (file) { std::remove(temp); } }
-                        char temp[L_tmpnam];
-                        char *file;
-                    } t;
-                    REQUIRE(t.file != nullptr);
-                    std::ofstream(t.file) << "{a}.\n";
-                    ctl.load(t.file);
-                    run = true;
-                }
-                if (run) {
+                static int n = 0;
+                if (++n < 3) { // workaround for some bug with catch
+                    SECTION("add") { ctl.add("base", {}, "{a}."); }
+                    SECTION("load") {
+                        struct Temp {
+                            Temp() : file(std::tmpnam(temp)) { }
+                            ~Temp() { if (file) { std::remove(temp); } }
+                            char temp[L_tmpnam];
+                            char *file;
+                        } t;
+                        REQUIRE(t.file != nullptr);
+                        std::ofstream(t.file) << "{a}.\n";
+                        ctl.load(t.file);
+                    }
                     ctl.ground({{"base", {}}});
                     REQUIRE(ctl.solve(MCB(models)).sat());
                     REQUIRE(models == ModelVec({{},{Id("a")}}));
@@ -382,22 +381,22 @@ TEST_CASE("solving", "[clingo]") {
                 REQUIRE(messages.empty());
             }
             SECTION("solve_iter") {
-                bool run = false;
-                ctl.add("base", {}, "a.");
-                ctl.ground({{"base", {}}});
-                {
-                    auto iter = ctl.solve_iter();
-                    MCB mcb(models);
-                    SECTION("c++") { for (auto m : iter) { mcb(m); }; run = true; }
-                    SECTION("java") { while (Model m = iter.next()) { mcb(m); }; run = true; }
-                    if (run) {
+                static int n = 0;
+                if (++n < 3) { // workaround for some bug with catch
+                    ctl.add("base", {}, "a.");
+                    ctl.ground({{"base", {}}});
+                    {
+                        auto iter = ctl.solve_iter();
+                        MCB mcb(models);
+                        SECTION("c++") { for (auto m : iter) { mcb(m); }; }
+                        SECTION("java") { while (Model m = iter.next()) { mcb(m); }; }
                         REQUIRE(models == ModelVec{{Id("a")}});
                         REQUIRE(iter.get().sat());
                     }
+                    REQUIRE(ctl.solve(MCB(models)).sat());
+                    REQUIRE(models == ModelVec{{Id("a")}});
+                    REQUIRE(messages.empty());
                 }
-                REQUIRE(ctl.solve(MCB(models)).sat());
-                REQUIRE(models == ModelVec{{Id("a")}});
-                REQUIRE(messages.empty());
             }
             SECTION("logging") {
                 ctl.add("base", {}, "a(1+a).");
@@ -444,19 +443,19 @@ TEST_CASE("solving", "[clingo]") {
                 REQUIRE(ctl.get_const("b") == Id("b"));
             }
             SECTION("async and cancel") {
-                bool run = false;
-                ctl.add("pigeon", {"p", "h"}, "1 {p(P,H) : P=1..p}1 :- H=1..h."
-                                              "1 {p(P,H) : H=1..h}1 :- P=1..p.");
-                ctl.ground({{"pigeon", {Num(21), Num(20)}}});
-                ModelCallback mh;
-                int fcalled = 0;
-                SolveResult fret;
-                FinishCallback fh = [&fret, &fcalled](SolveResult ret) { ++fcalled; fret = ret; };
-                auto async = ctl.solve_async(mh, fh);
-                REQUIRE(!async.wait(0.01));
-                SECTION("interrupt") { ctl.interrupt(); run = true; }
-                SECTION("cancel") { async.cancel(); run = true; }
-                if (run) {
+                static int n = 0;
+                if (++n < 3) { // workaround for some bug with catch
+                    ctl.add("pigeon", {"p", "h"}, "1 {p(P,H) : P=1..p}1 :- H=1..h."
+                                                  "1 {p(P,H) : H=1..h}1 :- P=1..p.");
+                    ctl.ground({{"pigeon", {Num(21), Num(20)}}});
+                    ModelCallback mh;
+                    int fcalled = 0;
+                    SolveResult fret;
+                    FinishCallback fh = [&fret, &fcalled](SolveResult ret) { ++fcalled; fret = ret; };
+                    auto async = ctl.solve_async(mh, fh);
+                    REQUIRE(!async.wait(0.01));
+                    SECTION("interrupt") { ctl.interrupt(); }
+                    SECTION("cancel") { async.cancel(); }
                     auto ret = async.get();
                     REQUIRE((ret.unknown() && ret.interrupted()));
                     REQUIRE(fcalled == 1);
