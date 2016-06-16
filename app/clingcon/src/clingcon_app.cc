@@ -184,6 +184,46 @@ void ClingoApp::onEvent(Event const& ev) {
 #endif
     BaseType::onEvent(ev);
 }
+namespace
+{
+
+class Callback
+{
+public:
+    Callback(Callback&) = delete;
+    Callback(const Callback&) = delete;
+    using PostGroundFunc   = std::function<bool (Clasp::ProgramBuilder &)>;
+    using PreSolveFunc     = std::function<bool (Clasp::ClaspFacade &)>;
+    Callback(clingcon::Helper& h, PostGroundFunc pgf, PreSolveFunc psf) : h_(h), pgf_(pgf), psf_(psf) {}
+    bool postGround(Clasp::ProgramBuilder & pb)
+    {
+        h_.postRead();
+        return pgf_(pb);
+    }
+
+    bool preSolve(Clasp::ClaspFacade &cf)
+    {
+        h_.postEnd();
+        if (!psf_(cf))
+            return false;
+        return true;
+
+    }
+
+    ///TODO: currently ignored
+    void postSolve()
+    {
+        h_.postSolve();
+    }
+
+    ///TODO: missing postSolve
+    clingcon::Helper& h_;
+    PostGroundFunc pgf_;
+    PreSolveFunc psf_;
+
+};
+
+}
 void ClingoApp::run(Clasp::ClaspFacade& clasp) {
     using namespace std::placeholders;
 
@@ -192,13 +232,32 @@ void ClingoApp::run(Clasp::ClaspFacade& clasp) {
         ProgramBuilder* prg = &clasp.start(claspConfig_, pt);
         grOpts_.verbose = verbose() == UINT_MAX;
         Asp::LogicProgram* lp = mode_ != mode_gringo ? static_cast<Asp::LogicProgram*>(prg) : 0;
-        grd = Gringo::gringo_make_unique<ClingoControl>(module.scripts, mode_ == mode_clingo, clasp_.get(), claspConfig_, std::bind(&ClingoApp::handlePostGroundOptions, this, _1), std::bind(&ClingoApp::handlePreSolveOptions, this, _1));
-        grd->parse(claspAppOpts_.input, grOpts_, lp);
         clingcon::Helper cspapp(clasp.ctx,claspConfig_,lp,conf_);
+        Callback cb(cspapp, std::bind(&ClingoApp::handlePostGroundOptions, this, _1), std::bind(&ClingoApp::handlePreSolveOptions, this, _1));
+        grd = Gringo::gringo_make_unique<ClingoControl>(module.scripts, mode_ == mode_clingo, clasp_.get(), claspConfig_, std::bind(&Callback::postGround, &cb, _1), std::bind(&Callback::preSolve, &cb, _1));
+        grd->parse(claspAppOpts_.input, grOpts_, lp);
         grd->main();
     }
     else {
-        ClaspAppBase::run(clasp);
+        clasp.start(claspConfig_, getStream());
+        if (!clasp.incremental()) {
+            claspConfig_.releaseOptions();
+        }
+        if (claspAppOpts_.compute && clasp.program()->type() == Problem_t::Asp) {
+            bool val = claspAppOpts_.compute < 0;
+            Var  var = static_cast<Var>(!val ? claspAppOpts_.compute : -claspAppOpts_.compute);
+            static_cast<Asp::LogicProgram*>(clasp.program())->startRule().addToBody(var, val).endRule();
+        }
+        clingcon::Helper cspapp(clasp.ctx,claspConfig_,static_cast<Asp::LogicProgram*>(clasp.program()),conf_);
+        while (clasp.read()) {
+            cspapp.postRead();
+            if (handlePostGroundOptions(*clasp.program())) {
+                cspapp.postEnd();
+                clasp.prepare();
+                if (handlePreSolveOptions(clasp)) { clasp.solve(); }
+                cspapp.postSolve();
+            }
+        }
     }
 }
 
