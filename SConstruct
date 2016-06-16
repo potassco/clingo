@@ -53,6 +53,7 @@ opts.AddVariables(
     ('PKG_CONFIG'    , 'path to pkg-config'),
     ('WITH_PYTHON'   , 'enable python integration; None, "auto", or library name or path'),
     ('WITH_LUA'      , 'enable lua integration; None, "auto", library name, or path'),
+    ('WITH_CSP'      , 'enable csp integration; None, or something'),
     ('WITH_THREADS'  , 'enable thread support in clasp library; "posix", "windows", or None'),
     ('TESTS'         , 'enable specific unit tests; [libgringo, libreify, liblp]'),
     )
@@ -75,6 +76,7 @@ env['LIBPATH']        = []
 env['RPATH']          = []
 env['WITH_PYTHON']    = 'auto'
 env['WITH_LUA']       = 'auto'
+env['WITH_CSP']       = 'true'
 env['WITH_THREADS']   = 'posix'
 env['TESTS']          = ['libreify', 'libgringo', 'libclingo', 'liblp', 'clingo']
 
@@ -100,6 +102,9 @@ elif GetOption("build_dir") == "js":
     env['WITH_LUA'] = None
     env['WITH_THREADS'] = None
 
+if env['WITH_CSP']:
+    env.Append(WITH_CSP=['liborder', 'libclingcon'])
+
 opts.Update(env)
 opts.Save(opts_file, env)
 opts.FormatVariableHelpText = lambda env, opt, help, default, actual, other: "%10s: %s (%s)\n" % (opt, help, actual)
@@ -124,6 +129,7 @@ Targets:
   configure                   Only configure and build nothing.
   gringo                      Build gringo (built by default).
   clingo                      Build clingo (built by default).
+  clingcon                    Build clingcon (built by default).
   reify                       Build reify (built by default).
   lpconvert                   Build lpconvert (built by default).
   pyclingo                    Python module (built if python support enabled).
@@ -134,6 +140,7 @@ Targets:
   test-liblp                  Run unit tests for liblp.
   test-libreify               Run unit tests for librefiy.
   libclingo                   Build shared clingo library.
+  libclingcon                 Build shared clingcon library.
   example                     Build example app using libclingo.
   cexample                    Build example app using clingo's C interface.
   tags                        Generate ctags file.
