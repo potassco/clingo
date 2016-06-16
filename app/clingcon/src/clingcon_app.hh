@@ -26,7 +26,6 @@
 #include <gringo/version.hh>
 #include <clingo/clingocontrol.hh>
 #include <order/config.h>
-#include <order/normalizer.h>
 
 // Standalone clingo application.
 class ClingoApp : public Clasp::Cli::ClaspAppBase {
@@ -66,7 +65,6 @@ private:
     DefaultGringoModule module;
     std::unique_ptr<ClingoControl> grd;
     order::Config conf_;
-    std::unique_ptr<order::Normalizer> n_;
 };
 
 #endif // _GRINGO_CLINGCONAPP_HH

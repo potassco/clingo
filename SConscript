@@ -399,7 +399,7 @@ CLINGCON_SOURCES = find_files(env, 'app/clingcon/src')
 CLINGCON_HEADERS = LIBCLINGO_HEADERS + LIBCLINGCON_HEADERS + LIBORDER_HEADERS + LIBCLASP_HEADERS + LIBLP_HEADERS
 
 clingconProgramEnv = claspEnv.Clone()
-clingconProgramEnv.Prepend(LIBS=[ clingoLib, gringoLib, claspLib, optsLib, lpLib, orderLib, clingconLib ])
+clingconProgramEnv.Prepend(LIBS=[ clingoLib, gringoLib, claspLib, optsLib, lpLib, clingconLib, orderLib ])
 clingconProgramEnv.Append(CPPPATH = CLINGCON_HEADERS)
 
 clingconProgram  = clingconProgramEnv.Program('clingcon', CLINGCON_SOURCES)

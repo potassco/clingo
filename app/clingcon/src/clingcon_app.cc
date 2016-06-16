@@ -97,7 +97,7 @@ void ClingoApp::initOptions(ProgramOptions::OptionContext& root) {
          "Run in {clingo|clasp|gringo} mode\n")
         ;
     root.add(basic);
-    clingcon::addOptions(root, conf_);
+    clingcon::Helper::addOptions(root, conf_);
 }
 
 void ClingoApp::validateOptions(const ProgramOptions::OptionContext& root, const ProgramOptions::ParsedOptions& parsed, const ProgramOptions::ParsedValues& vals) {
@@ -186,6 +186,7 @@ void ClingoApp::onEvent(Event const& ev) {
 }
 void ClingoApp::run(Clasp::ClaspFacade& clasp) {
     using namespace std::placeholders;
+
     if (mode_ != mode_clasp) {
         ProblemType     pt  = getProblemType();
         ProgramBuilder* prg = &clasp.start(claspConfig_, pt);
@@ -193,6 +194,7 @@ void ClingoApp::run(Clasp::ClaspFacade& clasp) {
         Asp::LogicProgram* lp = mode_ != mode_gringo ? static_cast<Asp::LogicProgram*>(prg) : 0;
         grd = Gringo::gringo_make_unique<ClingoControl>(module.scripts, mode_ == mode_clingo, clasp_.get(), claspConfig_, std::bind(&ClingoApp::handlePostGroundOptions, this, _1), std::bind(&ClingoApp::handlePreSolveOptions, this, _1));
         grd->parse(claspAppOpts_.input, grOpts_, lp);
+        clingcon::Helper cspapp(clasp.ctx,claspConfig_,lp,conf_);
         grd->main();
     }
     else {
