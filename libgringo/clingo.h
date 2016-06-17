@@ -131,7 +131,6 @@ size_t clingo_symbol_hash(clingo_symbol_t sym);
 bool clingo_symbol_eq(clingo_symbol_t a, clingo_symbol_t b);
 bool clingo_symbol_lt(clingo_symbol_t a, clingo_symbol_t b);
 
-
 // {{{1 module (there should only ever be one module)
 
 typedef struct clingo_module clingo_module_t;
@@ -159,8 +158,8 @@ enum clingo_show_type {
     clingo_show_type_shown = 2,
     clingo_show_type_atoms = 4,
     clingo_show_type_terms = 8,
-    clingo_show_type_comp  = 16,
-    clingo_show_type_all   = 15
+    clingo_show_type_all   = 15,
+    clingo_show_type_comp  = 16
 };
 typedef unsigned clingo_show_type_bitset_t;
 
@@ -244,7 +243,7 @@ typedef struct clingo_symbolic_atom_iter {
 } clingo_symbolic_atom_iter_t;
 
 typedef struct clingo_symbolic_atoms clingo_symbolic_atoms_t;
-clingo_error_t clingo_symbolic_atoms_begin(clingo_symbolic_atoms_t *dom, clingo_signature_t *sig, clingo_symbolic_atom_iter_t *ret);
+clingo_error_t clingo_symbolic_atoms_begin(clingo_symbolic_atoms_t *dom, clingo_signature_t const *sig, clingo_symbolic_atom_iter_t *ret);
 clingo_error_t clingo_symbolic_atoms_end(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t *ret);
 clingo_error_t clingo_symbolic_atoms_find(clingo_symbolic_atoms_t *dom, clingo_symbol_t atom, clingo_symbolic_atom_iter_t *ret);
 clingo_error_t clingo_symbolic_atoms_iter_eq(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t it, clingo_symbolic_atom_iter_t jt, bool *ret);

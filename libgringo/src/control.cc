@@ -270,8 +270,8 @@ extern "C" size_t clingo_symbol_hash(clingo_symbol_t sym) {
 
 // {{{1 symbolic atoms
 
-extern "C" clingo_error_t clingo_symbolic_atoms_begin(clingo_symbolic_atoms_t *dom, clingo_signature_t *sig, clingo_symbolic_atom_iter_t *ret) {
-    GRINGO_CLINGO_TRY { *ret = sig ? dom->begin(static_cast<Sig&>(*sig)) : dom->begin(); }
+extern "C" clingo_error_t clingo_symbolic_atoms_begin(clingo_symbolic_atoms_t *dom, clingo_signature_t const *sig, clingo_symbolic_atom_iter_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = sig ? dom->begin(static_cast<Sig const&>(*sig)) : dom->begin(); }
     GRINGO_CLINGO_CATCH;
 }
 
