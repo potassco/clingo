@@ -64,7 +64,7 @@ public:
 private:
     Printer p_;
     unsigned limit_;
-    std::bitset<clingo_warning_total> disabled_;
+    std::bitset<clingo_warning_other+1> disabled_;
     bool error_ = false;
 };
 
@@ -81,7 +81,7 @@ inline bool Logger::check(Errors) {
 
 inline bool Logger::check(Warnings id) {
     if (!limit_ && error_) { throw MessageLimitError("too many messages."); }
-    return !disabled_[std::abs(id + 1)] && limit_ && (--limit_, true);
+    return !disabled_[id] && limit_ && (--limit_, true);
 }
 
 inline bool Logger::hasError() const {
@@ -89,7 +89,7 @@ inline bool Logger::hasError() const {
 }
 
 inline void Logger::enable(Warnings id, bool enabled) {
-    disabled_[std::abs(id + 1)] = !enabled;
+    disabled_[id] = !enabled;
 }
 
 inline void Logger::print(clingo_warning_t code, char const *msg) {

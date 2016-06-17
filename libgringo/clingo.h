@@ -59,13 +59,12 @@ char const *clingo_error_string(clingo_error_t code);
 char const *clingo_error_message();
 
 enum clingo_warning {
-    clingo_warning_operation_undefined = -1, //< Undefined arithmetic operation or weight of aggregate.
-    clingo_warning_atom_undefined      = -2, //< Undefined atom in program.
-    clingo_warning_file_included       = -3, //< Same file included multiple times.
-    clingo_warning_variable_unbounded  = -4, //< CSP Domain undefined.
-    clingo_warning_global_variable     = -5, //< Global variable in tuple of aggregate element.
-    clingo_warning_other               = -6, //< Other kinds of warnings
-    clingo_warning_total               =  6, //< Total number of warnings.
+    clingo_warning_operation_undefined = 0, //< Undefined arithmetic operation or weight of aggregate.
+    clingo_warning_atom_undefined      = 1, //< Undefined atom in program.
+    clingo_warning_file_included       = 2, //< Same file included multiple times.
+    clingo_warning_variable_unbounded  = 3, //< CSP Domain undefined.
+    clingo_warning_global_variable     = 4, //< Global variable in tuple of aggregate element.
+    clingo_warning_other               = 5, //< Other kinds of warnings
 };
 typedef int clingo_warning_t;
 

@@ -42,7 +42,7 @@ int main(int argc, char const **argv) {
         };
     }
     catch (std::exception const &e) {
-        std::cerr << "example failed with " << e.what() << std::endl;
+        std::cerr << "example failed with: " << e.what() << std::endl;
     }
 }
 

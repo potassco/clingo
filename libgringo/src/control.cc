@@ -139,7 +139,6 @@ extern "C" inline char const *clingo_warning_string(clingo_warning_t code) {
         case clingo_warning_variable_unbounded:  { return "variable unbounded"; }
         case clingo_warning_global_variable:     { return "global variable"; }
         case clingo_warning_other:               { return "other"; }
-        case clingo_warning_total:               { break; }
     }
     return "unknown message code";
 }
