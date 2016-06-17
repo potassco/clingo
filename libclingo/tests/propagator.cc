@@ -77,7 +77,7 @@ private:
         : literal(lit)
         , item_index(idx) { }
         operator bool() const { return literal != 0; }
-        lit_t literal;
+        literal_t literal;
         int item_index;
     };
     enum class IndexType { SequenceIndex, PatternIndex };
@@ -126,7 +126,7 @@ private:
 
     std::vector<State> states_;
     std::vector<SequenceAtoms> sequence_atoms_;
-    std::unordered_map<lit_t, std::vector<PatternAtom>> pattern_atoms_;
+    std::unordered_map<literal_t, std::vector<PatternAtom>> pattern_atoms_;
     std::vector<std::vector<int>> occurrence_list_;
     std::unordered_map<std::string, int> item_map_;
     int pattern_length_ = 0;
@@ -158,7 +158,7 @@ private:
 
     void add_pattern_atoms(PropagateInit &init, TheoryAtom const &atom) {
         for (auto elem : atom.elements()) {
-            lit_t lit = init.map_literal(elem.condition_literal());
+            literal_t lit = init.map_literal(elem.condition_literal());
             auto args = elem.tuple();
             int index = args[0].number();
             assert(index >= 0);
@@ -192,11 +192,11 @@ private:
 
     // {{{2 propagation
 
-    bool propagate_sequence_literal(State &state, PropagateControl &ctl, int sid, lit_t lit) {
+    bool propagate_sequence_literal(State &state, PropagateControl &ctl, int sid, literal_t lit) {
         state.seq_active[sid] = false;
         state.stack.emplace_back(IndexType::SequenceIndex, sid);
         if (!ctl.assignment().is_true(lit)) {
-            std::vector<lit_t> klaus;
+            std::vector<literal_t> klaus;
             klaus.reserve(1 + pattern_length_);
             klaus.emplace_back(lit);
             for (auto &pat : state.pattern) {
@@ -237,7 +237,7 @@ public:
         initialize_states(init);
     }
 
-    void propagate(PropagateControl &ctl, LitSpan changes) override {
+    void propagate(PropagateControl &ctl, LiteralSpan changes) override {
         auto &state = states_[ctl.thread_id()];
         uint32_t dl = ctl.assignment().decision_level();
         if (state.trail.size() == 0 || state.trail.back().decision_level < dl) {
@@ -268,7 +268,7 @@ public:
         }
     }
 
-    void undo(PropagateControl const &ctl , LitSpan) override {
+    void undo(PropagateControl const &ctl , LiteralSpan) override {
         auto &state = states_[ctl.thread_id()];
         int sid = state.trail.back().stack_index;
         auto ib = state.stack.begin() + sid, ie = state.stack.end();
@@ -332,7 +332,7 @@ public:
         state_.clear();
         p2h_[0] = 0;
         for (auto it = init.symbolic_atoms().begin(Signature("place", 2)), ie = init.symbolic_atoms().end(); it != ie; ++it) {
-            lit_t lit = init.map_literal(it->literal());
+            literal_t lit = init.map_literal(it->literal());
             p = it->symbol().args()[0].num();
             h = it->symbol().args()[1].num();
             p2h_[lit] = h;
@@ -347,11 +347,11 @@ public:
             assert(state_.back().size() == nHole + 1);
         }
     }
-    void propagate(PropagateControl &ctl, LitSpan changes) override {
+    void propagate(PropagateControl &ctl, LiteralSpan changes) override {
         assert(ctl.thread_id() < state_.size());
         Hole2Lit& holes = state_[ctl.thread_id()];
-        for (lit_t lit : changes) {
-            lit_t& prev = holes[ p2h_[lit] ];
+        for (literal_t lit : changes) {
+            literal_t& prev = holes[ p2h_[lit] ];
             if (prev == 0) { prev = lit; }
             else {
                 if (!ctl.add_clause({-lit, -prev}) || !ctl.propagate()) {
@@ -361,10 +361,10 @@ public:
             }
         }
     }
-    void undo(PropagateControl const &ctl, LitSpan undo) override {
+    void undo(PropagateControl const &ctl, LiteralSpan undo) override {
         assert(ctl.thread_id() < state_.size());
         Hole2Lit& holes = state_[ctl.thread_id()];
-        for (lit_t lit : undo) {
+        for (literal_t lit : undo) {
             unsigned hole = p2h_[lit];
             if (holes[hole] == lit) {
                 holes[hole] = 0;
@@ -372,8 +372,8 @@ public:
         }
     }
 private:
-    using Lit2Hole = std::unordered_map<lit_t, unsigned>;
-    using Hole2Lit = std::vector<lit_t>;
+    using Lit2Hole = std::unordered_map<literal_t, unsigned>;
+    using Hole2Lit = std::vector<literal_t>;
     using State    = std::vector<Hole2Lit>;
 
     Lit2Hole p2h_;
@@ -389,7 +389,7 @@ public:
         init.add_watch(a_);
         init.add_watch(b_);
     }
-    void propagate(PropagateControl &ctl, LitSpan changes) override {
+    void propagate(PropagateControl &ctl, LiteralSpan changes) override {
         auto ass = ctl.assignment();
         count_+= changes.size();
         REQUIRE(ass.is_fixed(c_));
@@ -417,13 +417,13 @@ public:
             REQUIRE(ass.is_true(b_));
         }
     }
-    void undo(PropagateControl const &, LitSpan undo) override {
+    void undo(PropagateControl const &, LiteralSpan undo) override {
         count_-= undo.size();
     }
 private:
-    lit_t a_;
-    lit_t b_;
-    lit_t c_;
+    literal_t a_;
+    literal_t b_;
+    literal_t c_;
     int count_ = 0;
 };
 
@@ -435,19 +435,19 @@ public:
         init.add_watch(a_);
         init.add_watch(b_);
     }
-    void propagate(PropagateControl &ctl, LitSpan changes) override {
+    void propagate(PropagateControl &ctl, LiteralSpan changes) override {
         count_+= changes.size();
         REQUIRE_FALSE((enable && count_ == 2 && ctl.add_clause({-a_, -b_}, type) && ctl.propagate()));
     }
-    void undo(PropagateControl const &, LitSpan undo) override {
+    void undo(PropagateControl const &, LiteralSpan undo) override {
         count_-= undo.size();
     }
 public:
     ClauseType type = ClauseType::Learnt;
     bool enable = true;
 private:
-    lit_t a_;
-    lit_t b_;
+    literal_t a_;
+    literal_t b_;
     int count_ = 0;
 };
 
@@ -577,7 +577,7 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
         //       this also works with vectors + sorting avoiding node based containers
         // :- not sup(U), seq(U,_,_), n == 0.
         if (n == 0) {
-            std::map<Symbol, std::vector<lit_t>> grouped;
+            std::map<Symbol, std::vector<literal_t>> grouped;
             for (auto it = ctl.symbolic_atoms().begin({"seq", 3}), ie = ctl.symbolic_atoms().end(); it != ie; ++it) {
                 grouped[it->symbol().args().front()].emplace_back(it->literal());
             }
@@ -586,11 +586,11 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
                 for (auto &lit : elem.second) {
                     ctl.backend().rule(false, {atom}, {lit});
                 }
-                ctl.backend().rule(false, {}, {-ctl.symbolic_atoms()[Fun("sup", {elem.first})].literal(), lit_t(atom)});
+                ctl.backend().rule(false, {}, {-ctl.symbolic_atoms()[Fun("sup", {elem.first})].literal(), literal_t(atom)});
             }
         }
         // :- sup(U), pat(_,I), not seq(U,_,I).
-        std::map<Symbol, std::vector<lit_t>> grouped_pat;
+        std::map<Symbol, std::vector<literal_t>> grouped_pat;
         std::unordered_set<Symbol> grouped_seq;
         for (auto it = ctl.symbolic_atoms().begin({"pat", 2}), ie = ctl.symbolic_atoms().end(); it != ie; ++it) {
             grouped_pat[it->symbol().args()[1]].emplace_back(it->literal());
@@ -609,7 +609,7 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
         for (auto it = ctl.symbolic_atoms().begin({"sup", 1}), ie = ctl.symbolic_atoms().end(); it != ie; ++it) {
             for (auto &pat : projected_pat) {
                 if (grouped_seq.find(Fun("", {it->symbol().args().front(), pat.first})) == grouped_seq.end()) {
-                    ctl.backend().rule(false, {}, {it->literal(), lit_t(pat.second)});
+                    ctl.backend().rule(false, {}, {it->literal(), literal_t(pat.second)});
                 }
             }
         }

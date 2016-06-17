@@ -119,7 +119,7 @@ TEST_CASE("solving", "[clingo]") {
                 // NOTE: ground has to be called before using the backend
                 auto backend = ctl.backend();
                 ctl.ground({});
-                lit_t a = backend.add_atom(), b = backend.add_atom();
+                literal_t a = backend.add_atom(), b = backend.add_atom();
                 backend.rule(true, {atom_t(a)}, {});
                 backend.rule(false, {atom_t(b)}, {-a});
                 ctl.solve(MCB(models));
@@ -163,8 +163,8 @@ TEST_CASE("solving", "[clingo]") {
                 ctl.ground({});
                 atom_t a = backend.add_atom(), b = backend.add_atom();
                 backend.rule(true, {a, b}, {});
-                backend.acyc_edge(1, 2, {lit_t(a)});
-                backend.acyc_edge(2, 1, {lit_t(b)});
+                backend.acyc_edge(1, 2, {literal_t(a)});
+                backend.acyc_edge(2, 1, {literal_t(b)});
                 ctl.solve(MCB(models));
                 REQUIRE(models == (ModelVec{{},{},{}}));
             }
@@ -173,7 +173,7 @@ TEST_CASE("solving", "[clingo]") {
                 ctl.ground({});
                 atom_t a = backend.add_atom(), b = backend.add_atom();
                 backend.rule(true, {a, b}, {});
-                backend.weight_rule(false, {}, 1, {{lit_t(a),1}, {lit_t(b),1}});
+                backend.weight_rule(false, {}, 1, {{literal_t(a),1}, {literal_t(b),1}});
                 ctl.solve(MCB(models));
                 REQUIRE(models == (ModelVec{{}}));
             }

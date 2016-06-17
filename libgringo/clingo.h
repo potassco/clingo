@@ -36,7 +36,7 @@ extern "C" {
 
 // {{{1 basic types
 
-typedef int32_t clingo_lit_t;
+typedef int32_t clingo_literal_t;
 typedef uint32_t clingo_id_t;
 typedef int32_t clingo_weight_t;
 typedef uint32_t clingo_atom_t;
@@ -249,7 +249,7 @@ clingo_error_t clingo_symbolic_atoms_iter_eq(clingo_symbolic_atoms_t *dom, cling
 clingo_error_t clingo_symbolic_atoms_signatures(clingo_symbolic_atoms_t *dom, clingo_signature_t *ret, size_t *n);
 clingo_error_t clingo_symbolic_atoms_size(clingo_symbolic_atoms_t *dom, size_t *ret);
 clingo_error_t clingo_symbolic_atoms_symbol(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, clingo_symbol_t *sym);
-clingo_error_t clingo_symbolic_atoms_literal(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, clingo_lit_t *lit);
+clingo_error_t clingo_symbolic_atoms_literal(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, clingo_literal_t *lit);
 clingo_error_t clingo_symbolic_atoms_fact(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, bool *fact);
 clingo_error_t clingo_symbolic_atoms_external(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, bool *external);
 clingo_error_t clingo_symbolic_atoms_next(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, clingo_symbolic_atom_iter_t *next);
@@ -273,12 +273,12 @@ clingo_error_t clingo_theory_atoms_term_number(clingo_theory_atoms_t *atoms, cli
 clingo_error_t clingo_theory_atoms_term_name(clingo_theory_atoms_t *atoms, clingo_id_t value, char const **ret);
 clingo_error_t clingo_theory_atoms_term_arguments(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n);
 clingo_error_t clingo_theory_atoms_element_tuple(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n);
-clingo_error_t clingo_theory_atoms_element_condition(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_lit_t const **ret, size_t *n);
-clingo_error_t clingo_theory_atoms_element_condition_literal(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_lit_t *ret);
+clingo_error_t clingo_theory_atoms_element_condition(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_literal_t const **ret, size_t *n);
+clingo_error_t clingo_theory_atoms_element_condition_literal(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_literal_t *ret);
 clingo_error_t clingo_theory_atoms_atom_elements(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n);
 clingo_error_t clingo_theory_atoms_atom_term(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t *ret);
 clingo_error_t clingo_theory_atoms_atom_has_guard(clingo_theory_atoms_t *atoms, clingo_id_t value, bool *ret);
-clingo_error_t clingo_theory_atoms_atom_literal(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_lit_t *ret);
+clingo_error_t clingo_theory_atoms_atom_literal(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_literal_t *ret);
 clingo_error_t clingo_theory_atoms_atom_guard(clingo_theory_atoms_t *atoms, clingo_id_t value, char const **ret_op, clingo_id_t *ret_term);
 clingo_error_t clingo_theory_atoms_size(clingo_theory_atoms_t *atoms, size_t *ret);
 clingo_error_t clingo_theory_atoms_term_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t *n);
@@ -288,8 +288,8 @@ clingo_error_t clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms, 
 // {{{1 propagate init
 
 typedef struct clingo_propagate_init clingo_propagate_init_t;
-clingo_error_t clingo_propagate_init_map_literal(clingo_propagate_init_t *init, clingo_lit_t lit, clingo_lit_t *ret);
-clingo_error_t clingo_propagate_init_add_watch(clingo_propagate_init_t *init, clingo_lit_t lit);
+clingo_error_t clingo_propagate_init_map_literal(clingo_propagate_init_t *init, clingo_literal_t lit, clingo_literal_t *ret);
+clingo_error_t clingo_propagate_init_add_watch(clingo_propagate_init_t *init, clingo_literal_t lit);
 int clingo_propagate_init_number_of_threads(clingo_propagate_init_t *init);
 clingo_error_t clingo_propagate_init_symbolic_atoms(clingo_propagate_init_t *init, clingo_symbolic_atoms_t **ret);
 clingo_error_t clingo_propagate_init_theory_atoms(clingo_propagate_init_t *init, clingo_theory_atoms_t **ret);
@@ -299,13 +299,13 @@ clingo_error_t clingo_propagate_init_theory_atoms(clingo_propagate_init_t *init,
 typedef struct clingo_assignment clingo_assignment_t;
 bool clingo_assignment_has_conflict(clingo_assignment_t *ass);
 uint32_t clingo_assignment_decision_level(clingo_assignment_t *ass);
-bool clingo_assignment_has_literal(clingo_assignment_t *ass, clingo_lit_t lit);
-clingo_error_t clingo_assignment_value(clingo_assignment_t *ass, clingo_lit_t lit, clingo_truth_value_t *ret);
-clingo_error_t clingo_assignment_level(clingo_assignment_t *ass, clingo_lit_t lit, uint32_t *ret);
-clingo_error_t clingo_assignment_decision(clingo_assignment_t *ass, uint32_t level, clingo_lit_t *ret);
-clingo_error_t clingo_assignment_is_fixed(clingo_assignment_t *ass, clingo_lit_t lit, bool *ret);
-clingo_error_t clingo_assignment_is_true(clingo_assignment_t *ass, clingo_lit_t lit, bool *ret);
-clingo_error_t clingo_assignment_is_false(clingo_assignment_t *ass, clingo_lit_t lit, bool *ret);
+bool clingo_assignment_has_literal(clingo_assignment_t *ass, clingo_literal_t lit);
+clingo_error_t clingo_assignment_value(clingo_assignment_t *ass, clingo_literal_t lit, clingo_truth_value_t *ret);
+clingo_error_t clingo_assignment_level(clingo_assignment_t *ass, clingo_literal_t lit, uint32_t *ret);
+clingo_error_t clingo_assignment_decision(clingo_assignment_t *ass, uint32_t level, clingo_literal_t *ret);
+clingo_error_t clingo_assignment_is_fixed(clingo_assignment_t *ass, clingo_literal_t lit, bool *ret);
+clingo_error_t clingo_assignment_is_true(clingo_assignment_t *ass, clingo_literal_t lit, bool *ret);
+clingo_error_t clingo_assignment_is_false(clingo_assignment_t *ass, clingo_literal_t lit, bool *ret);
 
 // {{{1 propagate control
 
@@ -320,15 +320,15 @@ typedef int clingo_clause_type_t;
 typedef struct clingo_propagate_control clingo_propagate_control_t;
 clingo_id_t clingo_propagate_control_thread_id(clingo_propagate_control_t *ctl);
 clingo_assignment_t *clingo_propagate_control_assignment(clingo_propagate_control_t *ctl);
-clingo_error_t clingo_propagate_control_add_clause(clingo_propagate_control_t *ctl, clingo_lit_t const *clause, size_t n, clingo_clause_type_t prop, bool *ret);
+clingo_error_t clingo_propagate_control_add_clause(clingo_propagate_control_t *ctl, clingo_literal_t const *clause, size_t n, clingo_clause_type_t prop, bool *ret);
 clingo_error_t clingo_propagate_control_propagate(clingo_propagate_control_t *ctl, bool *ret);
 
 // {{{1 propagator
 
 typedef struct clingo_propagator {
     clingo_error_t (*init) (clingo_propagate_init_t *ctl, void *data);
-    clingo_error_t (*propagate) (clingo_propagate_control_t *ctl, clingo_lit_t const *changes, size_t n, void *data);
-    clingo_error_t (*undo) (clingo_propagate_control_t *ctl, clingo_lit_t const *changes, size_t n, void *data);
+    clingo_error_t (*propagate) (clingo_propagate_control_t *ctl, clingo_literal_t const *changes, size_t n, void *data);
+    clingo_error_t (*undo) (clingo_propagate_control_t *ctl, clingo_literal_t const *changes, size_t n, void *data);
     clingo_error_t (*check) (clingo_propagate_control_t *ctl, void *data);
 } clingo_propagator_t;
 
@@ -352,20 +352,20 @@ enum clingo_external_type {
 };
 typedef int clingo_external_type_t;
 
-typedef struct clingo_weight_lit {
-    clingo_lit_t    literal;
+typedef struct clingo_weighted_literal {
+    clingo_literal_t literal;
     clingo_weight_t weight;
-} clingo_weight_lit_t;
+} clingo_weighted_literal_t;
 
 typedef struct clingo_backend clingo_backend_t;
-clingo_error_t clingo_backend_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head, size_t head_n, clingo_lit_t const *body, size_t body_n);
-clingo_error_t clingo_backend_weight_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head, size_t head_n, clingo_weight_t lower, clingo_weight_lit_t const *body, size_t body_n);
-clingo_error_t clingo_backend_minimize(clingo_backend_t *backend, clingo_weight_t prio, clingo_weight_lit_t const* lits, size_t lits_n);
+clingo_error_t clingo_backend_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head, size_t head_n, clingo_literal_t const *body, size_t body_n);
+clingo_error_t clingo_backend_weight_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head, size_t head_n, clingo_weight_t lower, clingo_weighted_literal_t const *body, size_t body_n);
+clingo_error_t clingo_backend_minimize(clingo_backend_t *backend, clingo_weight_t prio, clingo_weighted_literal_t const* lits, size_t lits_n);
 clingo_error_t clingo_backend_project(clingo_backend_t *backend, clingo_atom_t const *atoms, size_t n);
 clingo_error_t clingo_backend_external(clingo_backend_t *backend, clingo_atom_t atom, clingo_external_type_t v);
-clingo_error_t clingo_backend_assume(clingo_backend_t *backend, clingo_lit_t const *literals, size_t n);
-clingo_error_t clingo_backend_heuristic(clingo_backend_t *backend, clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority, clingo_lit_t const *condition, size_t condition_n);
-clingo_error_t clingo_backend_acyc_edge(clingo_backend_t *backend, int node_u, int node_v, clingo_lit_t const *condition, size_t condition_n);
+clingo_error_t clingo_backend_assume(clingo_backend_t *backend, clingo_literal_t const *literals, size_t n);
+clingo_error_t clingo_backend_heuristic(clingo_backend_t *backend, clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority, clingo_literal_t const *condition, size_t condition_n);
+clingo_error_t clingo_backend_acyc_edge(clingo_backend_t *backend, int node_u, int node_v, clingo_literal_t const *condition, size_t condition_n);
 clingo_error_t clingo_backend_add_atom(clingo_backend_t *backend, clingo_atom_t *ret);
 
 // {{{1 configuration

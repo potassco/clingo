@@ -38,7 +38,7 @@ namespace Clingo {
 // {{{1 basic types
 
 // consider using upper case
-using lit_t = clingo_lit_t;
+using literal_t = clingo_literal_t;
 using id_t = clingo_id_t;
 using weight_t = clingo_weight_t;
 using atom_t = clingo_atom_t;
@@ -251,7 +251,7 @@ public:
     : atoms_(atoms)
     , range_(range) { }
     Symbol symbol() const;
-    lit_t literal() const;
+    literal_t literal() const;
     bool fact() const;
     bool external() const;
     operator clingo_symbolic_atom_iter_t() const { return range_; }
@@ -394,7 +394,7 @@ std::ostream &operator<<(std::ostream &out, TheoryTerm term);
 class TheoryElement;
 using TheoryElementIterator = TheoryIterator<TheoryElement>;
 using TheoryElementSpan = Span<clingo_id_t, ToTheoryIterator<TheoryElementIterator>>;
-using LitSpan = Span<lit_t>;
+using LiteralSpan = Span<literal_t>;
 
 class TheoryElement {
     friend class TheoryIterator<TheoryElement>;
@@ -403,8 +403,8 @@ public:
     : atoms_(atoms)
     , id_(id) { }
     TheoryTermSpan tuple() const;
-    LitSpan condition() const;
-    lit_t condition_literal() const;
+    LiteralSpan condition() const;
+    literal_t condition_literal() const;
     std::string to_string() const;
     operator clingo_id_t() const { return id_; }
 private:
@@ -429,7 +429,7 @@ public:
     TheoryElementSpan elements() const;
     TheoryTerm term() const;
     bool has_guard() const;
-    lit_t literal() const;
+    literal_t literal() const;
     std::pair<char const *, TheoryTerm> guard() const;
     std::string to_string() const;
     operator clingo_id_t() const { return id_; }
@@ -504,8 +504,8 @@ class PropagateInit {
 public:
     PropagateInit(clingo_propagate_init_t *init)
     : init_(init) { }
-    lit_t map_literal(lit_t lit) const;
-    void add_watch(lit_t lit);
+    literal_t map_literal(literal_t lit) const;
+    void add_watch(literal_t lit);
     int number_of_threads() const;
     SymbolicAtoms symbolic_atoms() const;
     TheoryAtoms theory_atoms() const;
@@ -522,13 +522,13 @@ public:
     : ass_(ass) { }
     bool has_conflict() const;
     uint32_t decision_level() const;
-    bool has_literal(lit_t lit) const;
-    TruthValue truth_value(lit_t lit) const;
-    uint32_t level(lit_t lit) const;
-    lit_t decision(uint32_t level) const;
-    bool is_fixed(lit_t lit) const;
-    bool is_true(lit_t lit) const;
-    bool is_false(lit_t lit) const;
+    bool has_literal(literal_t lit) const;
+    TruthValue truth_value(literal_t lit) const;
+    uint32_t level(literal_t lit) const;
+    literal_t decision(uint32_t level) const;
+    bool is_fixed(literal_t lit) const;
+    bool is_true(literal_t lit) const;
+    bool is_false(literal_t lit) const;
     operator clingo_assignment_t*() const { return ass_; }
 private:
     clingo_assignment_t *ass_;
@@ -559,7 +559,7 @@ public:
     : ctl_(ctl) { }
     id_t thread_id() const;
     Assignment assignment() const;
-    bool add_clause(LitSpan clause, ClauseType type = ClauseType::Learnt);
+    bool add_clause(LiteralSpan clause, ClauseType type = ClauseType::Learnt);
     bool propagate();
     operator clingo_propagate_control_t*() const { return ctl_; }
 private:
@@ -571,8 +571,8 @@ private:
 class Propagator {
 public:
     virtual void init(PropagateInit &init);
-    virtual void propagate(PropagateControl &ctl, LitSpan changes);
-    virtual void undo(PropagateControl const &ctl, LitSpan changes);
+    virtual void propagate(PropagateControl &ctl, LiteralSpan changes);
+    virtual void undo(PropagateControl const &ctl, LiteralSpan changes);
     virtual void check(PropagateControl &ctl);
     virtual ~Propagator() noexcept = default;
 };
@@ -839,31 +839,31 @@ inline std::ostream &operator<<(std::ostream &out, ExternalType t) {
     return out;
 }
 
-class WeightLit : public clingo_weight_lit_t {
+class WeightedLiteral : public clingo_weighted_literal_t {
 public:
-    WeightLit(clingo_lit_t lit, clingo_weight_t weight)
-    : clingo_weight_lit_t{lit, weight} { }
-    WeightLit(clingo_weight_lit_t wlit)
-    : clingo_weight_lit_t(wlit) { }
-    lit_t literal() const { return clingo_weight_lit_t::literal; }
-    weight_t weight() const { return clingo_weight_lit_t::weight; }
+    WeightedLiteral(clingo_literal_t lit, clingo_weight_t weight)
+    : clingo_weighted_literal_t{lit, weight} { }
+    WeightedLiteral(clingo_weighted_literal_t wlit)
+    : clingo_weighted_literal_t(wlit) { }
+    literal_t literal() const { return clingo_weighted_literal_t::literal; }
+    weight_t weight() const { return clingo_weighted_literal_t::weight; }
 };
 
 using AtomSpan = Span<atom_t>;
-using WeightLitSpan = Span<WeightLit>;
+using WeightedLiteralSpan = Span<WeightedLiteral>;
 
 class Backend {
 public:
     Backend(clingo_backend_t *backend)
     : backend_(backend) { }
-    void rule(bool choice, AtomSpan head, LitSpan body);
-    void weight_rule(bool choice, AtomSpan head, weight_t lower, WeightLitSpan body);
-    void minimize(weight_t prio, WeightLitSpan body);
+    void rule(bool choice, AtomSpan head, LiteralSpan body);
+    void weight_rule(bool choice, AtomSpan head, weight_t lower, WeightedLiteralSpan body);
+    void minimize(weight_t prio, WeightedLiteralSpan body);
     void project(AtomSpan atoms);
     void external(atom_t atom, ExternalType type);
-    void assume(LitSpan lits);
-    void heuristic(atom_t atom, HeuristicType type, int bias, unsigned priority, LitSpan condition);
-    void acyc_edge(int node_u, int node_v, LitSpan condition);
+    void assume(LiteralSpan lits);
+    void heuristic(atom_t atom, HeuristicType type, int bias, unsigned priority, LiteralSpan condition);
+    void acyc_edge(int node_u, int node_v, LiteralSpan condition);
     atom_t add_atom();
     operator clingo_backend_t*() const { return backend_; }
 private:
