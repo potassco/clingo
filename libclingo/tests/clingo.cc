@@ -67,7 +67,7 @@ TEST_CASE("solving", "[clingo]") {
             SECTION("statistics") {
                 ctl.add("pigeon", {"p", "h"}, "1 {p(P,H) : P=1..p}1 :- H=1..h."
                                               "1 {p(P,H) : H=1..h}1 :- P=1..p.");
-                ctl.ground({{"pigeon", {Num(6), Num(5)}}});
+                ctl.ground({{"pigeon", {Number(6), Number(5)}}});
                 REQUIRE(ctl.solve(MCB(models)).unsat());
                 std::vector<std::string> keys_root;
                 auto stats = ctl.statistics();
@@ -212,9 +212,9 @@ TEST_CASE("solving", "[clingo]") {
                     REQUIRE(m.type() == ModelType::StableModel);
                     REQUIRE(m.atoms(ShowType::Atoms) == (SymbolVector{Id("a")}));
                     REQUIRE(m.atoms(ShowType::Terms) == (SymbolVector{Id("b")}));
-                    REQUIRE(m.atoms(ShowType::CSP) == (SymbolVector{Fun("$", {Id("x"), Num(1)})}));
-                    REQUIRE(m.atoms(ShowType::Shown) == (SymbolVector{Fun("$", {Id("x"), Num(1)}), Id("a"), Id("b")}));
-                    REQUIRE(m.atoms(ShowType::Atoms | ShowType::Comp).size() == 0);
+                    REQUIRE(m.atoms(ShowType::CSP) == (SymbolVector{Function("$", {Id("x"), Number(1)})}));
+                    REQUIRE(m.atoms(ShowType::Shown) == (SymbolVector{Function("$", {Id("x"), Number(1)}), Id("a"), Id("b")}));
+                    REQUIRE(m.atoms(ShowType::Atoms | ShowType::Complement).size() == 0);
                     REQUIRE( m.contains(Id("a")));
                     REQUIRE(!m.contains(Id("b")));
                     return true;
@@ -350,7 +350,7 @@ TEST_CASE("solving", "[clingo]") {
                 REQUIRE(ctl.solve(MCB(models)).sat());
                 REQUIRE(messages.empty());
                 auto atoms = ctl.symbolic_atoms();
-                Symbol p1 = Fun("p", {Num(1)}), p2 = Fun("p", {Num(2)}), p3 = Fun("p", {Num(3)}), q = Id("q");
+                Symbol p1 = Function("p", {Number(1)}), p2 = Function("p", {Number(2)}), p3 = Function("p", {Number(3)}), q = Id("q");
                 REQUIRE( atoms.find(p1)->fact()); REQUIRE(!atoms.find(p1)->external());
                 REQUIRE(!atoms.find(p2)->fact()); REQUIRE(!atoms.find(p2)->external());
                 REQUIRE(!atoms.find(p3)->fact()); REQUIRE( atoms.find(p3)->external());
@@ -368,16 +368,16 @@ TEST_CASE("solving", "[clingo]") {
                 ctl.add("base", {}, "#external query(0).");
                 ctl.add("acid", {"k"}, "#external query(k).");
                 ctl.ground({{"base", {}}});
-                ctl.assign_external(Fun("query", {Num(0)}), TruthValue::True);
+                ctl.assign_external(Function("query", {Number(0)}), TruthValue::True);
                 REQUIRE(ctl.solve(MCB(models)).sat());
-                REQUIRE(models == (ModelVec{{Fun("query", {Num(0)})}}));
+                REQUIRE(models == (ModelVec{{Function("query", {Number(0)})}}));
                 REQUIRE(messages.empty());
 
-                ctl.ground({{"acid", {Num(1)}}});
-                ctl.release_external(Fun("query", {Num(0)}));
-                ctl.assign_external(Fun("query", {Num(1)}), TruthValue::Free);
+                ctl.ground({{"acid", {Number(1)}}});
+                ctl.release_external(Function("query", {Number(0)}));
+                ctl.assign_external(Function("query", {Number(1)}), TruthValue::Free);
                 REQUIRE(ctl.solve(MCB(models)).sat());
-                REQUIRE(models == (ModelVec{{}, {Fun("query", {Num(1)})}}));
+                REQUIRE(models == (ModelVec{{}, {Function("query", {Number(1)})}}));
                 REQUIRE(messages.empty());
             }
             SECTION("solve_iter") {
@@ -439,7 +439,7 @@ TEST_CASE("solving", "[clingo]") {
                 ctl.add("base", {}, "#const a=10.");
                 REQUIRE(ctl.has_const("a"));
                 REQUIRE(!ctl.has_const("b"));
-                REQUIRE(ctl.get_const("a") == Num(10));
+                REQUIRE(ctl.get_const("a") == Number(10));
                 REQUIRE(ctl.get_const("b") == Id("b"));
             }
             SECTION("async and cancel") {
@@ -447,7 +447,7 @@ TEST_CASE("solving", "[clingo]") {
                 if (++n < 3) { // workaround for some bug with catch
                     ctl.add("pigeon", {"p", "h"}, "1 {p(P,H) : P=1..p}1 :- H=1..h."
                                                   "1 {p(P,H) : H=1..h}1 :- P=1..p.");
-                    ctl.ground({{"pigeon", {Num(21), Num(20)}}});
+                    ctl.ground({{"pigeon", {Number(21), Number(20)}}});
                     ModelCallback mh;
                     int fcalled = 0;
                     SolveResult fret;
@@ -467,8 +467,8 @@ TEST_CASE("solving", "[clingo]") {
                 ctl.ground({{"base", {}}}, [&messages](Location loc, char const *name, SymbolSpan args, SymbolSpanCallback report) {
                     if (strcmp(name, "f") == 0 && args.size() == 1) {
                         Symbol front = *args.begin();
-                        report({Num(front.num() + 1), Num(front.num() + 10)});
-                        report({Num(front.num() + 20)});
+                        report({Number(front.num() + 1), Number(front.num() + 10)});
+                        report({Number(front.num() + 20)});
                     }
                     else {
                         std::ostringstream oss;
@@ -477,7 +477,7 @@ TEST_CASE("solving", "[clingo]") {
                     }
                 });
                 REQUIRE(ctl.solve(MCB(models)).sat());
-                REQUIRE(models == ModelVec({{Fun("a", {Num(2)}), Fun("a", {Num(3)}), Fun("a", {Num(11)}), Fun("a", {Num(12)}), Fun("a", {Num(21)}), Fun("a", {Num(22)})}}));
+                REQUIRE(models == ModelVec({{Function("a", {Number(2)}), Function("a", {Number(3)}), Function("a", {Number(11)}), Function("a", {Number(12)}), Function("a", {Number(21)}), Function("a", {Number(22)})}}));
                 REQUIRE(messages == MessageVec({{WarningCode::OperationUndefined, "invalid call: f/0 at <block>:1:22-26"}}));
             }
             SECTION("ground callback fail") {

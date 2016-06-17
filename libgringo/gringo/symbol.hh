@@ -122,12 +122,12 @@ inline std::ostream &operator<<(std::ostream &out, Sig x) {
 // {{{1 declaration of Symbol (flyweight)
 
 enum class SymbolType : uint8_t {
-    Inf     = clingo_symbol_type_inf,
-    Num     = clingo_symbol_type_num,
-    Str     = clingo_symbol_type_str,
-    Fun     = clingo_symbol_type_fun,
-    Special = clingo_symbol_type_fun+1,
-    Sup     = clingo_symbol_type_sup
+    Inf     = clingo_symbol_type_infimum,
+    Num     = clingo_symbol_type_number,
+    Str     = clingo_symbol_type_string,
+    Fun     = clingo_symbol_type_function,
+    Special = clingo_symbol_type_function+1,
+    Sup     = clingo_symbol_type_supremum
 };
 inline std::ostream &operator<<(std::ostream &out, SymbolType sym) {
     switch (sym) {

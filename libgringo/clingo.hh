@@ -193,11 +193,11 @@ struct hash<Clingo::Signature> {
 // {{{1 symbol
 
 enum class SymbolType : clingo_symbol_type_t {
-    Inf = clingo_symbol_type_inf,
-    Num = clingo_symbol_type_num,
-    Str = clingo_symbol_type_str,
-    Fun = clingo_symbol_type_fun,
-    Sup = clingo_symbol_type_sup
+    Infimum = clingo_symbol_type_infimum,
+    Number = clingo_symbol_type_number,
+    String = clingo_symbol_type_string,
+    Function = clingo_symbol_type_function,
+    Supremum = clingo_symbol_type_supremum
 };
 
 class Symbol;
@@ -218,12 +218,12 @@ public:
     size_t hash() const;
 };
 
-Symbol Num(int num);
-Symbol Sup();
-Symbol Inf();
-Symbol Str(char const *str);
+Symbol Number(int num);
+Symbol Supremum();
+Symbol Infimum();
+Symbol String(char const *str);
 Symbol Id(char const *str, bool sign = false);
-Symbol Fun(char const *name, SymbolSpan args, bool sign = false);
+Symbol Function(char const *name, SymbolSpan args, bool sign = false);
 
 std::ostream &operator<<(std::ostream &out, Symbol sym);
 bool operator==(Symbol a, Symbol b);
@@ -628,12 +628,12 @@ enum class ModelType : clingo_model_type_t {
 class ShowType {
 public:
     enum Type : clingo_show_type_bitset_t {
-        CSP = clingo_show_type_csp,
-        Shown = clingo_show_type_shown,
-        Atoms = clingo_show_type_atoms,
-        Terms = clingo_show_type_terms,
-        Comp = clingo_show_type_comp,
-        All = clingo_show_type_all
+        CSP        = clingo_show_type_csp,
+        Shown      = clingo_show_type_shown,
+        Atoms      = clingo_show_type_atoms,
+        Terms      = clingo_show_type_terms,
+        All        = clingo_show_type_all,
+        Complement = clingo_show_type_complement
     };
     ShowType(clingo_show_type_bitset_t type) : type_(type) { }
     operator clingo_show_type_bitset_t() const { return type_; }

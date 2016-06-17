@@ -1357,7 +1357,7 @@ places like - e.g., the main function.)";
             if (pyToCpp<bool>(pyTerms)) { atomset |= clingo_show_type_terms; }
             if (pyToCpp<bool>(pyShown)) { atomset |= clingo_show_type_shown; }
             if (pyToCpp<bool>(pyCSP))   { atomset |= clingo_show_type_csp; }
-            if (pyToCpp<bool>(pyComp))  { atomset |= clingo_show_type_comp; }
+            if (pyToCpp<bool>(pyComp))  { atomset |= clingo_show_type_complement; }
             return cppToPy(self->model->atoms(atomset)).release();
         PY_CATCH(nullptr);
     }

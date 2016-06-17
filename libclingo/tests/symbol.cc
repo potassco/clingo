@@ -48,30 +48,30 @@ TEST_CASE("symbol", "[clingo]") {
     SECTION("symbol") {
         std::vector<Symbol> args;
         // numbers
-        auto sym = Num(42);
+        auto sym = Number(42);
         REQUIRE(42 == sym.num());
         args.emplace_back(sym);
         // inf
-        sym = Inf();
-        REQUIRE(SymbolType::Inf == sym.type());
+        sym = Infimum();
+        REQUIRE(SymbolType::Infimum == sym.type());
         args.emplace_back(sym);
         // sup
-        sym = Sup();
-        REQUIRE(SymbolType::Sup == sym.type());
+        sym = Supremum();
+        REQUIRE(SymbolType::Supremum == sym.type());
         args.emplace_back(sym);
         // str
-        sym = Str("x");
+        sym = String("x");
         REQUIRE(S("x") == sym.string());
         args.emplace_back(sym);
         // id
         sym = Id("x", true);
-        REQUIRE(SymbolType::Fun == sym.type());
+        REQUIRE(SymbolType::Function == sym.type());
         REQUIRE(sym.sign());
         REQUIRE(S("x") == sym.name());
         args.emplace_back(sym);
         // fun
-        sym = Fun("f", args);
-        REQUIRE(SymbolType::Fun == sym.type());
+        sym = Function("f", args);
+        REQUIRE(SymbolType::Function == sym.type());
         REQUIRE(!sym.sign());
         REQUIRE(S("f") == sym.name());
         REQUIRE("f(42,#inf,#sup,\"x\",-x)" == sym.to_string());
@@ -79,7 +79,7 @@ TEST_CASE("symbol", "[clingo]") {
         try { sym.num(); }
         catch (std::exception const &e) { REQUIRE(e.what() == S("unexpected")); }
         // comparison
-        auto a = Num(1), b = Num(2);
+        auto a = Number(1), b = Number(2);
         REQUIRE(a < b);
         REQUIRE_FALSE(a < a);
         REQUIRE_FALSE(b < a);

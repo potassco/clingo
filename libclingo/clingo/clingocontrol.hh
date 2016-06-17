@@ -367,7 +367,7 @@ public:
         return atm.second && atm.first->hasUid() && model_->isTrue(lp().getLiteral(atm.first->uid()));
     }
     Gringo::SymSpan atoms(unsigned atomset) const override {
-        atms_ = out().atoms(atomset, [this, atomset](unsigned uid) { return bool(atomset & clingo_show_type_comp) ^ model_->isTrue(lp().getLiteral(uid)); });
+        atms_ = out().atoms(atomset, [this, atomset](unsigned uid) { return bool(atomset & clingo_show_type_complement) ^ model_->isTrue(lp().getLiteral(uid)); });
         return Potassco::toSpan(atms_);
     }
     Gringo::Int64Vec optimization() const override {

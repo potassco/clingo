@@ -82,17 +82,17 @@ char const *clingo_signature_name(clingo_signature_t sig);
 uint32_t clingo_signature_arity(clingo_signature_t sig);
 bool clingo_signature_sign(clingo_signature_t sig);
 size_t clingo_signature_hash(clingo_signature_t sig);
-bool clingo_signature_eq(clingo_signature_t a, clingo_signature_t b);
-bool clingo_signature_lt(clingo_signature_t a, clingo_signature_t b);
+bool clingo_signature_equal_to(clingo_signature_t a, clingo_signature_t b);
+bool clingo_signature_less_than(clingo_signature_t a, clingo_signature_t b);
 
 // {{{1 symbol
 
 enum clingo_symbol_type {
-    clingo_symbol_type_inf = 0,
-    clingo_symbol_type_num = 1,
-    clingo_symbol_type_str = 4,
-    clingo_symbol_type_fun = 5,
-    clingo_symbol_type_sup = 7
+    clingo_symbol_type_infimum  = 0,
+    clingo_symbol_type_number   = 1,
+    clingo_symbol_type_string   = 4,
+    clingo_symbol_type_function = 5,
+    clingo_symbol_type_supremum = 7
 };
 typedef int clingo_symbol_type_t;
 
@@ -108,27 +108,27 @@ typedef struct clingo_symbolic_literal {
 // construction
 
 void clingo_symbol_create_num(int num, clingo_symbol_t *sym);
-void clingo_symbol_create_sup(clingo_symbol_t *sym);
-void clingo_symbol_create_inf(clingo_symbol_t *sym);
-clingo_error_t clingo_symbol_create_str(char const *str, clingo_symbol_t *sym);
+void clingo_symbol_create_supremum(clingo_symbol_t *sym);
+void clingo_symbol_create_infimum(clingo_symbol_t *sym);
+clingo_error_t clingo_symbol_create_string(char const *str, clingo_symbol_t *sym);
 clingo_error_t clingo_symbol_create_id(char const *id, bool sign, clingo_symbol_t *sym);
-clingo_error_t clingo_symbol_create_fun(char const *name, clingo_symbol_t const *args, size_t n, bool sign, clingo_symbol_t *sym);
+clingo_error_t clingo_symbol_create_function(char const *name, clingo_symbol_t const *args, size_t n, bool sign, clingo_symbol_t *sym);
 
 // inspection
 
-clingo_error_t clingo_symbol_num(clingo_symbol_t sym, int *num);
+clingo_error_t clingo_symbol_number(clingo_symbol_t sym, int *num);
 clingo_error_t clingo_symbol_name(clingo_symbol_t sym, char const **name);
 clingo_error_t clingo_symbol_string(clingo_symbol_t sym, char const **str);
 clingo_error_t clingo_symbol_sign(clingo_symbol_t sym, bool *sign);
-clingo_error_t clingo_symbol_args(clingo_symbol_t sym, clingo_symbol_t const **args, size_t *n);
+clingo_error_t clingo_symbol_arguments(clingo_symbol_t sym, clingo_symbol_t const **args, size_t *n);
 clingo_symbol_type_t clingo_symbol_type(clingo_symbol_t sym);
 clingo_error_t clingo_symbol_to_string(clingo_symbol_t sym, char *ret, size_t *n);
 
 // comparison
 
 size_t clingo_symbol_hash(clingo_symbol_t sym);
-bool clingo_symbol_eq(clingo_symbol_t a, clingo_symbol_t b);
-bool clingo_symbol_lt(clingo_symbol_t a, clingo_symbol_t b);
+bool clingo_symbol_equal_to(clingo_symbol_t a, clingo_symbol_t b);
+bool clingo_symbol_less_than(clingo_symbol_t a, clingo_symbol_t b);
 
 // {{{1 module (there should only ever be one module)
 
@@ -153,12 +153,12 @@ enum clingo_model_type {
 typedef int clingo_model_type_t;
 
 enum clingo_show_type {
-    clingo_show_type_csp   = 1,
-    clingo_show_type_shown = 2,
-    clingo_show_type_atoms = 4,
-    clingo_show_type_terms = 8,
-    clingo_show_type_all   = 15,
-    clingo_show_type_comp  = 16
+    clingo_show_type_csp        = 1,
+    clingo_show_type_shown      = 2,
+    clingo_show_type_atoms      = 4,
+    clingo_show_type_terms      = 8,
+    clingo_show_type_all        = 15,
+    clingo_show_type_complement = 16
 };
 typedef unsigned clingo_show_type_bitset_t;
 
@@ -245,7 +245,7 @@ typedef struct clingo_symbolic_atoms clingo_symbolic_atoms_t;
 clingo_error_t clingo_symbolic_atoms_begin(clingo_symbolic_atoms_t *dom, clingo_signature_t const *sig, clingo_symbolic_atom_iter_t *ret);
 clingo_error_t clingo_symbolic_atoms_end(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t *ret);
 clingo_error_t clingo_symbolic_atoms_find(clingo_symbolic_atoms_t *dom, clingo_symbol_t atom, clingo_symbolic_atom_iter_t *ret);
-clingo_error_t clingo_symbolic_atoms_iter_eq(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t it, clingo_symbolic_atom_iter_t jt, bool *ret);
+clingo_error_t clingo_symbolic_atoms_iter_equal_to(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t it, clingo_symbolic_atom_iter_t jt, bool *ret);
 clingo_error_t clingo_symbolic_atoms_signatures(clingo_symbolic_atoms_t *dom, clingo_signature_t *ret, size_t *n);
 clingo_error_t clingo_symbolic_atoms_size(clingo_symbolic_atoms_t *dom, size_t *ret);
 clingo_error_t clingo_symbolic_atoms_symbol(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, clingo_symbol_t *sym);
@@ -300,7 +300,7 @@ typedef struct clingo_assignment clingo_assignment_t;
 bool clingo_assignment_has_conflict(clingo_assignment_t *ass);
 uint32_t clingo_assignment_decision_level(clingo_assignment_t *ass);
 bool clingo_assignment_has_literal(clingo_assignment_t *ass, clingo_literal_t lit);
-clingo_error_t clingo_assignment_value(clingo_assignment_t *ass, clingo_literal_t lit, clingo_truth_value_t *ret);
+clingo_error_t clingo_assignment_truth_value(clingo_assignment_t *ass, clingo_literal_t lit, clingo_truth_value_t *ret);
 clingo_error_t clingo_assignment_level(clingo_assignment_t *ass, clingo_literal_t lit, uint32_t *ret);
 clingo_error_t clingo_assignment_decision(clingo_assignment_t *ass, uint32_t level, clingo_literal_t *ret);
 clingo_error_t clingo_assignment_is_fixed(clingo_assignment_t *ass, clingo_literal_t lit, bool *ret);

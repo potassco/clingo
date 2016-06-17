@@ -468,14 +468,14 @@ TEST_CASE("propagator", "[clingo][propagator]") {
         PigeonPropagator p;
         ctl.register_propagator(p);
         ctl.add("pigeon", {"h", "p"}, "1 { place(P,H) : H = 1..h } 1 :- P = 1..p.");
-        auto place = [](int p, int h) { return Fun("place", {Num(p), Num(h)}); };
+        auto place = [](int p, int h) { return Function("place", {Number(p), Number(h)}); };
         SECTION("unsat") {
-            ctl.ground({{"pigeon", {Num(5), Num(6)}}}, nullptr);
+            ctl.ground({{"pigeon", {Number(5), Number(6)}}}, nullptr);
             ctl.solve(MCB(models));
             REQUIRE(models.empty());
         }
         SECTION("sat") {
-            ctl.ground({{"pigeon", {Num(2), Num(2)}}}, nullptr);
+            ctl.ground({{"pigeon", {Number(2), Number(2)}}}, nullptr);
             ctl.solve(MCB(models));
             REQUIRE(models == ModelVec({{place(1,1), place(2,2)}, {place(1,2), place(2,1)}}));
         }
@@ -572,7 +572,7 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
         ctl.register_propagator(p, false);
         ctl.add("base", {"n"}, sequence_mining_encoding);
         int n = 5;
-        ctl.ground({{"base", {Num(n)}}}, nullptr);
+        ctl.ground({{"base", {Number(n)}}}, nullptr);
         // NOTE: maps and sets are not necessary
         //       this also works with vectors + sorting avoiding node based containers
         // :- not sup(U), seq(U,_,_), n == 0.
@@ -586,7 +586,7 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
                 for (auto &lit : elem.second) {
                     ctl.backend().rule(false, {atom}, {lit});
                 }
-                ctl.backend().rule(false, {}, {-ctl.symbolic_atoms()[Fun("sup", {elem.first})].literal(), literal_t(atom)});
+                ctl.backend().rule(false, {}, {-ctl.symbolic_atoms()[Function("sup", {elem.first})].literal(), literal_t(atom)});
             }
         }
         // :- sup(U), pat(_,I), not seq(U,_,I).
@@ -596,7 +596,7 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
             grouped_pat[it->symbol().args()[1]].emplace_back(it->literal());
         }
         for (auto it = ctl.symbolic_atoms().begin({"seq", 3}), ie = ctl.symbolic_atoms().end(); it != ie; ++it) {
-            grouped_seq.emplace(Fun("", {it->symbol().args()[0], it->symbol().args()[2]}));
+            grouped_seq.emplace(Function("", {it->symbol().args()[0], it->symbol().args()[2]}));
         }
         std::map<Symbol, atom_t> projected_pat;
         for (auto &pat : grouped_pat) {
@@ -608,7 +608,7 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
         }
         for (auto it = ctl.symbolic_atoms().begin({"sup", 1}), ie = ctl.symbolic_atoms().end(); it != ie; ++it) {
             for (auto &pat : projected_pat) {
-                if (grouped_seq.find(Fun("", {it->symbol().args().front(), pat.first})) == grouped_seq.end()) {
+                if (grouped_seq.find(Function("", {it->symbol().args().front(), pat.first})) == grouped_seq.end()) {
                     ctl.backend().rule(false, {}, {it->literal(), literal_t(pat.second)});
                 }
             }
@@ -627,7 +627,7 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
             return true;
         });
         std::sort(models.begin(), models.end());
-        auto pat = [](int num, char const *item) { return Fun("pat", {Num(num), Id(item)}); };
+        auto pat = [](int num, char const *item) { return Function("pat", {Number(num), Id(item)}); };
         ModelVec solution = {
             { pat(0,"a"), pat(1,"b"), pat(2,"a"), pat(3,"c"), pat(4,"a") },
             { pat(0,"a"), pat(1,"b"), pat(2,"d"), pat(3,"c"), pat(4,"a") },

@@ -1156,7 +1156,7 @@ struct Model {
         if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_csp; }
         lua_pop(L, 1);
         lua_getfield(L, 2, "comp");
-        if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_comp; }
+        if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_complement; }
         lua_pop(L, 1);
         SymSpan atoms = protect(L, [&model, atomset]() { return model->atoms(atomset); });
         lua_createtable(L, atoms.size, 0);
