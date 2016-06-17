@@ -107,7 +107,7 @@ clingo_error_t handleCXXError() {
 
 } // namespace Gringo
 
-extern "C" inline char const *clingo_error_message() {
+extern "C" char const *clingo_error_message() {
     if (g_lastException) {
         try { std::rethrow_exception(g_lastException); }
         catch (std::bad_alloc const &e) { return "bad_alloc"; }
@@ -119,7 +119,7 @@ extern "C" inline char const *clingo_error_message() {
     return nullptr;
 }
 
-extern "C" inline char const *clingo_error_string(clingo_error_t code) {
+extern "C" char const *clingo_error_string(clingo_error_t code) {
     switch (static_cast<clingo_error>(code)) {
         case clingo_error_success:               { return "success"; }
         case clingo_error_runtime:               { return "runtime error"; }
@@ -131,7 +131,7 @@ extern "C" inline char const *clingo_error_string(clingo_error_t code) {
     return nullptr;
 }
 
-extern "C" inline char const *clingo_warning_string(clingo_warning_t code) {
+extern "C" char const *clingo_warning_string(clingo_warning_t code) {
     switch (static_cast<clingo_warning>(code)) {
         case clingo_warning_operation_undefined: { return "operation_undefined"; }
         case clingo_warning_atom_undefined:      { return "atom undefined"; }
@@ -145,7 +145,7 @@ extern "C" inline char const *clingo_warning_string(clingo_warning_t code) {
 
 // {{{1 signature
 
-extern "C" clingo_error_t clingo_signature_new(char const *name, uint32_t arity, bool sign, clingo_signature_t *ret) {
+extern "C" clingo_error_t clingo_signature_create(char const *name, uint32_t arity, bool sign, clingo_signature_t *ret) {
     GRINGO_CLINGO_TRY {
         *ret = Sig(name, arity, sign);
     } GRINGO_CLINGO_CATCH;
@@ -178,31 +178,31 @@ extern "C" bool clingo_signature_lt(clingo_signature_t a, clingo_signature_t b) 
 
 // {{{1 value
 
-extern "C" void clingo_symbol_new_num(int num, clingo_symbol_t *val) {
+extern "C" void clingo_symbol_create_num(int num, clingo_symbol_t *val) {
     *val = Symbol::createNum(num);
 }
 
-extern "C" void clingo_symbol_new_sup(clingo_symbol_t *val) {
+extern "C" void clingo_symbol_create_sup(clingo_symbol_t *val) {
     *val = Symbol::createSup();
 }
 
-extern "C" void clingo_symbol_new_inf(clingo_symbol_t *val) {
+extern "C" void clingo_symbol_create_inf(clingo_symbol_t *val) {
     *val = Symbol::createInf();
 }
 
-extern "C" clingo_error_t clingo_symbol_new_str(char const *str, clingo_symbol_t *val) {
+extern "C" clingo_error_t clingo_symbol_create_str(char const *str, clingo_symbol_t *val) {
     GRINGO_CLINGO_TRY {
         *val = Symbol::createStr(str);
     } GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbol_new_id(char const *id, bool sign, clingo_symbol_t *val) {
+extern "C" clingo_error_t clingo_symbol_create_id(char const *id, bool sign, clingo_symbol_t *val) {
     GRINGO_CLINGO_TRY {
         *val = Symbol::createId(id, sign);
     } GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbol_new_fun(char const *name, clingo_symbol_t const *args, size_t n, bool sign, clingo_symbol_t *val) {
+extern "C" clingo_error_t clingo_symbol_create_fun(char const *name, clingo_symbol_t const *args, size_t n, bool sign, clingo_symbol_t *val) {
     GRINGO_CLINGO_TRY {
         *val = Symbol::createFun(name, SymSpan{static_cast<Symbol const *>(args), n}, sign);
     } GRINGO_CLINGO_CATCH;
@@ -1125,7 +1125,7 @@ namespace Clingo {
 // {{{1 signature
 
 Signature::Signature(char const *name, uint32_t arity, bool sign) {
-    handleCError(clingo_signature_new(name, arity, sign, this));
+    handleCError(clingo_signature_create(name, arity, sign, this));
 }
 
 char const *Signature::name() const {
@@ -1155,7 +1155,7 @@ bool operator>=(Signature a, Signature b) { return !clingo_signature_lt(a, b); }
 // {{{1 symbol
 
 Symbol::Symbol() {
-    clingo_symbol_new_num(0, this);
+    clingo_symbol_create_num(0, this);
 }
 
 Symbol::Symbol(clingo_symbol_t sym)
@@ -1163,37 +1163,37 @@ Symbol::Symbol(clingo_symbol_t sym)
 
 Symbol Num(int num) {
     clingo_symbol_t sym;
-    clingo_symbol_new_num(num, &sym);
+    clingo_symbol_create_num(num, &sym);
     return static_cast<Symbol&>(sym);
 }
 
 Symbol Sup() {
     clingo_symbol_t sym;
-    clingo_symbol_new_sup(&sym);
+    clingo_symbol_create_sup(&sym);
     return static_cast<Symbol&>(sym);
 }
 
 Symbol Inf() {
     clingo_symbol_t sym;
-    clingo_symbol_new_inf(&sym);
+    clingo_symbol_create_inf(&sym);
     return static_cast<Symbol&>(sym);
 }
 
 Symbol Str(char const *str) {
     clingo_symbol_t sym;
-    handleCError(clingo_symbol_new_str(str, &sym));
+    handleCError(clingo_symbol_create_str(str, &sym));
     return static_cast<Symbol&>(sym);
 }
 
 Symbol Id(char const *id, bool sign) {
     clingo_symbol_t sym;
-    handleCError(clingo_symbol_new_id(id, sign, &sym));
+    handleCError(clingo_symbol_create_id(id, sign, &sym));
     return static_cast<Symbol&>(sym);
 }
 
 Symbol Fun(char const *name, SymbolSpan args, bool sign) {
     clingo_symbol_t sym;
-    handleCError(clingo_symbol_new_fun(name, args.begin(), args.size(), sign, &sym));
+    handleCError(clingo_symbol_create_fun(name, args.begin(), args.size(), sign, &sym));
     return static_cast<Symbol&>(sym);
 }
 

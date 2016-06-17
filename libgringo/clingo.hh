@@ -1133,10 +1133,10 @@ public:
         std::swap(module_, m.module_);
         return *this;
     }
-    Control create_control(StringSpan args = {});
+    Control make_control(StringSpan args = {});
     // TODO: passing the logger by reference is kind of ugly
     //       passing by value would require storing it in the associated control object
-    Control create_control(StringSpan args, Logger &logger, unsigned message_limit);
+    Control make_control(StringSpan args, Logger &logger, unsigned message_limit);
     Module &operator=(Module const &) = delete;
     operator clingo_module_t*() const { return module_; }
     ~Module();

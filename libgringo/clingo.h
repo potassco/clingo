@@ -77,7 +77,7 @@ typedef struct clingo_signature {
     uint64_t rep;
 } clingo_signature_t;
 
-clingo_error_t clingo_signature_new(char const *name, uint32_t arity, bool sign, clingo_signature_t *ret);
+clingo_error_t clingo_signature_create(char const *name, uint32_t arity, bool sign, clingo_signature_t *ret);
 char const *clingo_signature_name(clingo_signature_t sig);
 uint32_t clingo_signature_arity(clingo_signature_t sig);
 bool clingo_signature_sign(clingo_signature_t sig);
@@ -107,12 +107,12 @@ typedef struct clingo_symbolic_literal {
 
 // construction
 
-void clingo_symbol_new_num(int num, clingo_symbol_t *sym);
-void clingo_symbol_new_sup(clingo_symbol_t *sym);
-void clingo_symbol_new_inf(clingo_symbol_t *sym);
-clingo_error_t clingo_symbol_new_str(char const *str, clingo_symbol_t *sym);
-clingo_error_t clingo_symbol_new_id(char const *id, bool sign, clingo_symbol_t *sym);
-clingo_error_t clingo_symbol_new_fun(char const *name, clingo_symbol_t const *args, size_t n, bool sign, clingo_symbol_t *sym);
+void clingo_symbol_create_num(int num, clingo_symbol_t *sym);
+void clingo_symbol_create_sup(clingo_symbol_t *sym);
+void clingo_symbol_create_inf(clingo_symbol_t *sym);
+clingo_error_t clingo_symbol_create_str(char const *str, clingo_symbol_t *sym);
+clingo_error_t clingo_symbol_create_id(char const *id, bool sign, clingo_symbol_t *sym);
+clingo_error_t clingo_symbol_create_fun(char const *name, clingo_symbol_t const *args, size_t n, bool sign, clingo_symbol_t *sym);
 
 // inspection
 

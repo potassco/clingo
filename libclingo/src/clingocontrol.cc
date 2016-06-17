@@ -852,7 +852,7 @@ Clingo::Module::Module()
     Gringo::handleCError(clingo_module_new(&module_));
 }
 
-Clingo::Control Clingo::Module::create_control(StringSpan args, Logger &logger, unsigned message_limit) {
+Clingo::Control Clingo::Module::make_control(StringSpan args, Logger &logger, unsigned message_limit) {
     clingo_control_t *ctl;
     Gringo::handleCError(clingo_control_new(module_, args.begin(), args.size(), [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
@@ -861,7 +861,7 @@ Clingo::Control Clingo::Module::create_control(StringSpan args, Logger &logger, 
     return ctl;
 }
 
-Clingo::Control Clingo::Module::create_control(StringSpan args) {
+Clingo::Control Clingo::Module::make_control(StringSpan args) {
     clingo_control_t *ctl;
     Gringo::handleCError(clingo_control_new(module_, args.begin(), args.size(), [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }

@@ -463,7 +463,7 @@ TEST_CASE("propagator", "[clingo][propagator]") {
     MessageVec messages;
     ModelVec models;
     Logger logger = [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); };
-    Control ctl{mod.create_control({"0"}, logger, 20)};
+    Control ctl{mod.make_control({"0"}, logger, 20)};
     SECTION("pigeon") {
         PigeonPropagator p;
         ctl.register_propagator(p);
@@ -565,7 +565,7 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
     MessageVec messages;
     ModelVec models;
     Logger logger = [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); };
-    Control ctl{mod.create_control({"-t14"}, logger, 20)};
+    Control ctl{mod.make_control({"-t14"}, logger, 20)};
     SECTION("sequence mining") {
         ctl.configuration()["solve"]["opt_mode"] = "optN";
         SequenceMiningPropagator p;

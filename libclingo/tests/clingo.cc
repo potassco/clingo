@@ -42,7 +42,7 @@ TEST_CASE("solving", "[clingo]") {
             MessageVec messages;
             ModelVec models;
             Logger logger = [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); };
-            Control ctl{mod.create_control({"0"}, logger, 20)};
+            Control ctl{mod.make_control({"0"}, logger, 20)};
             SECTION("solve") {
                 static int n = 0;
                 if (++n < 3) { // workaround for some bug with catch
