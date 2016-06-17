@@ -59,7 +59,7 @@ TEST_CASE("solving", "[clingo]") {
                         ctl.load(t.file);
                     }
                     ctl.ground({{"base", {}}});
-                    REQUIRE(ctl.solve(MCB(models)).sat());
+                    REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
                     REQUIRE(models == ModelVec({{},{Id("a")}}));
                     REQUIRE(messages.empty());
                 }
@@ -68,7 +68,7 @@ TEST_CASE("solving", "[clingo]") {
                 ctl.add("pigeon", {"p", "h"}, "1 {p(P,H) : P=1..p}1 :- H=1..h."
                                               "1 {p(P,H) : H=1..h}1 :- P=1..p.");
                 ctl.ground({{"pigeon", {Number(6), Number(5)}}});
-                REQUIRE(ctl.solve(MCB(models)).unsat());
+                REQUIRE(ctl.solve(MCB(models)).is_unsatisfiable());
                 std::vector<std::string> keys_root;
                 auto stats = ctl.statistics();
                 std::copy(stats.keys().begin(), stats.keys().end(), std::back_inserter(keys_root));
@@ -98,7 +98,7 @@ TEST_CASE("solving", "[clingo]") {
                 REQUIRE(conf["solve"]["models"].is_value());
                 conf["solve"]["models"] = "2";
                 REQUIRE(conf["solve"].decription() == S("Solve Options"));
-                REQUIRE(conf["solve"]["models"].assigned());
+                REQUIRE(conf["solve"]["models"].is_assigned());
                 REQUIRE(conf["solve"]["models"].value() == "2");
                 REQUIRE(conf["solver"].is_array());
                 REQUIRE(conf["solver"].size() == 1);
@@ -112,7 +112,7 @@ TEST_CASE("solving", "[clingo]") {
                 CHECK(conf["solver"]["heuristic"].value() == "berkmin,100");
                 ctl.add("base", {}, "{a; b; c}.");
                 ctl.ground({{"base", {}}});
-                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
                 REQUIRE(models.size() == 2);
             }
             SECTION("backend") {
@@ -190,7 +190,7 @@ TEST_CASE("solving", "[clingo]") {
                     model = m.atoms();
                     optimum = m.cost();
                     return true;
-                }).sat());
+                }).is_satisfiable());
                 REQUIRE(model == SymbolVector({ Id("a"), Id("d") }));
                 REQUIRE(optimum == (CostVector{7,5}));
                 REQUIRE(messages.empty());
@@ -201,7 +201,7 @@ TEST_CASE("solving", "[clingo]") {
                 ModelCallback mc = MCB(models);
                 FinishCallback fc;
                 auto async = ctl.solve_async(mc, fc);
-                REQUIRE(async.get().sat());
+                REQUIRE(async.get().is_satisfiable());
                 REQUIRE(models == ModelVec({{},{Id("a")}}));
                 REQUIRE(messages.empty());
             }
@@ -218,7 +218,7 @@ TEST_CASE("solving", "[clingo]") {
                     REQUIRE( m.contains(Id("a")));
                     REQUIRE(!m.contains(Id("b")));
                     return true;
-                }).sat());
+                }).is_satisfiable());
                 REQUIRE(messages.empty());
             }
             SECTION("model-add-clause") {
@@ -233,7 +233,7 @@ TEST_CASE("solving", "[clingo]") {
                     m.context().add_clause({{Id(name), false}});
                     return true;
                 });
-                REQUIRE(ret.sat());
+                REQUIRE(ret.is_satisfiable());
                 REQUIRE(n == 1);
                 REQUIRE(messages.empty());
             }
@@ -248,7 +248,7 @@ TEST_CASE("solving", "[clingo]") {
                     ++n;
                     return true;
                 });
-                REQUIRE(ret.sat());
+                REQUIRE(ret.is_satisfiable());
                 REQUIRE(n == 1);
                 REQUIRE(messages.empty());
             }
@@ -267,14 +267,14 @@ TEST_CASE("solving", "[clingo]") {
                     }
                     return true;
                 });
-                REQUIRE(ret.sat());
+                REQUIRE(ret.is_satisfiable());
                 REQUIRE(n == 1);
                 REQUIRE(messages.empty());
             }
             SECTION("assumptions") {
                 ctl.add("base", {}, "{a;b;c}.");
                 ctl.ground({{"base", {}}});
-                REQUIRE(ctl.solve(MCB(models), {{Id("a"), false}, {Id("b"), true}}).sat());
+                REQUIRE(ctl.solve(MCB(models), {{Id("a"), false}, {Id("b"), true}}).is_satisfiable());
                 REQUIRE(models == (ModelVec{{Id("a")}, {Id("a"), Id("c")}}));
                 REQUIRE(messages.empty());
             }
@@ -331,7 +331,7 @@ TEST_CASE("solving", "[clingo]") {
                     }
                 }
                 REQUIRE(count == 2);
-                REQUIRE(ctl.solve(MCB(models), {{Id("p"), false}, {Id("q"), false}}).sat());
+                REQUIRE(ctl.solve(MCB(models), {{Id("p"), false}, {Id("q"), false}}).is_satisfiable());
                 REQUIRE(models == ModelVec({{Id("p"), Id("q")}}));
                 REQUIRE(atoms.size() == 0);
                 ctl.add("next", {}, "&b {} = 42.");
@@ -347,13 +347,13 @@ TEST_CASE("solving", "[clingo]") {
             SECTION("symbolic atoms") {
                 ctl.add("base", {}, "p(1). {p(2)}. #external p(3). q.");
                 ctl.ground({{"base", {}}});
-                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
                 REQUIRE(messages.empty());
                 auto atoms = ctl.symbolic_atoms();
                 Symbol p1 = Function("p", {Number(1)}), p2 = Function("p", {Number(2)}), p3 = Function("p", {Number(3)}), q = Id("q");
-                REQUIRE( atoms.find(p1)->fact()); REQUIRE(!atoms.find(p1)->external());
-                REQUIRE(!atoms.find(p2)->fact()); REQUIRE(!atoms.find(p2)->external());
-                REQUIRE(!atoms.find(p3)->fact()); REQUIRE( atoms.find(p3)->external());
+                REQUIRE( atoms.find(p1)->is_fact()); REQUIRE(!atoms.find(p1)->is_external());
+                REQUIRE(!atoms.find(p2)->is_fact()); REQUIRE(!atoms.find(p2)->is_external());
+                REQUIRE(!atoms.find(p3)->is_fact()); REQUIRE( atoms.find(p3)->is_external());
                 REQUIRE(atoms.length() == 4);
                 SymbolVector symbols;
                 for (auto atom : atoms) { symbols.emplace_back(atom.symbol()); }
@@ -369,14 +369,14 @@ TEST_CASE("solving", "[clingo]") {
                 ctl.add("acid", {"k"}, "#external query(k).");
                 ctl.ground({{"base", {}}});
                 ctl.assign_external(Function("query", {Number(0)}), TruthValue::True);
-                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
                 REQUIRE(models == (ModelVec{{Function("query", {Number(0)})}}));
                 REQUIRE(messages.empty());
 
                 ctl.ground({{"acid", {Number(1)}}});
                 ctl.release_external(Function("query", {Number(0)}));
                 ctl.assign_external(Function("query", {Number(1)}), TruthValue::Free);
-                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
                 REQUIRE(models == (ModelVec{{}, {Function("query", {Number(1)})}}));
                 REQUIRE(messages.empty());
             }
@@ -386,14 +386,14 @@ TEST_CASE("solving", "[clingo]") {
                     ctl.add("base", {}, "a.");
                     ctl.ground({{"base", {}}});
                     {
-                        auto iter = ctl.solve_iter();
+                        auto iter = ctl.solve_iteratively();
                         MCB mcb(models);
                         SECTION("c++") { for (auto m : iter) { mcb(m); }; }
                         SECTION("java") { while (Model m = iter.next()) { mcb(m); }; }
                         REQUIRE(models == ModelVec{{Id("a")}});
-                        REQUIRE(iter.get().sat());
+                        REQUIRE(iter.get().is_satisfiable());
                     }
-                    REQUIRE(ctl.solve(MCB(models)).sat());
+                    REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
                     REQUIRE(models == ModelVec{{Id("a")}});
                     REQUIRE(messages.empty());
                 }
@@ -401,7 +401,7 @@ TEST_CASE("solving", "[clingo]") {
             SECTION("logging") {
                 ctl.add("base", {}, "a(1+a).");
                 ctl.ground({{"base", {}}});
-                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
                 REQUIRE(models == ModelVec{{}});
                 REQUIRE(messages == MessageVec({{WarningCode::OperationUndefined, "<block>:1:3-6: info: operation undefined:\n  (1+a)\n"}}));
             }
@@ -409,18 +409,18 @@ TEST_CASE("solving", "[clingo]") {
                 ctl.add("base", {}, "{p;q}.");
                 ctl.ground({{"base", {}}});
                 ctl.use_enum_assumption(false);
-                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
                 REQUIRE(models.size() == 4);
-                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
                 REQUIRE(models.size() <= 4);
             }
             SECTION("use_enum_assumption") {
                 ctl.add("base", {}, "{p;q}.");
                 ctl.ground({{"base", {}}});
                 ctl.use_enum_assumption(false);
-                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
                 REQUIRE(models.size() == 4);
-                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
                 REQUIRE(models.size() <= 4);
             }
             SECTION("cleanup") {
@@ -428,11 +428,11 @@ TEST_CASE("solving", "[clingo]") {
                 ctl.ground({{"base", {}}});
                 auto dom = ctl.symbolic_atoms();
                 REQUIRE(dom.find(Id("a")) != dom.end());
-                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
                 REQUIRE(models.size() == 1);
                 ctl.cleanup();
                 REQUIRE(dom.find(Id("a")) == dom.end());
-                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
                 REQUIRE(models.size() == 1);
             }
             SECTION("const") {
@@ -457,7 +457,7 @@ TEST_CASE("solving", "[clingo]") {
                     SECTION("interrupt") { ctl.interrupt(); }
                     SECTION("cancel") { async.cancel(); }
                     auto ret = async.get();
-                    REQUIRE((ret.unknown() && ret.interrupted()));
+                    REQUIRE((ret.is_unknown() && ret.is_interrupted()));
                     REQUIRE(fcalled == 1);
                     REQUIRE(fret == ret);
                 }
@@ -476,7 +476,7 @@ TEST_CASE("solving", "[clingo]") {
                         messages.emplace_back(WarningCode::OperationUndefined, oss.str());
                     }
                 });
-                REQUIRE(ctl.solve(MCB(models)).sat());
+                REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
                 REQUIRE(models == ModelVec({{Function("a", {Number(2)}), Function("a", {Number(3)}), Function("a", {Number(11)}), Function("a", {Number(12)}), Function("a", {Number(21)}), Function("a", {Number(22)})}}));
                 REQUIRE(messages == MessageVec({{WarningCode::OperationUndefined, "invalid call: f/0 at <block>:1:22-26"}}));
             }

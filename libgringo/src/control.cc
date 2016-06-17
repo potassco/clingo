@@ -134,12 +134,12 @@ size_t Signature::hash() const {
     return clingo_signature_hash(*this);
 }
 
-bool operator==(Signature a, Signature b) { return  clingo_signature_equal_to(a, b); }
-bool operator!=(Signature a, Signature b) { return !clingo_signature_equal_to(a, b); }
-bool operator< (Signature a, Signature b) { return  clingo_signature_less_than(a, b); }
-bool operator<=(Signature a, Signature b) { return !clingo_signature_less_than(b, a); }
-bool operator> (Signature a, Signature b) { return  clingo_signature_less_than(b, a); }
-bool operator>=(Signature a, Signature b) { return !clingo_signature_less_than(a, b); }
+bool operator==(Signature a, Signature b) { return  clingo_signature_is_equal_to(a, b); }
+bool operator!=(Signature a, Signature b) { return !clingo_signature_is_equal_to(a, b); }
+bool operator< (Signature a, Signature b) { return  clingo_signature_is_less_than(a, b); }
+bool operator<=(Signature a, Signature b) { return !clingo_signature_is_less_than(b, a); }
+bool operator> (Signature a, Signature b) { return  clingo_signature_is_less_than(b, a); }
+bool operator>=(Signature a, Signature b) { return !clingo_signature_is_less_than(a, b); }
 
 // {{{1 symbol
 
@@ -237,12 +237,12 @@ std::ostream &operator<<(std::ostream &out, Symbol sym) {
     return out;
 }
 
-bool operator==(Symbol a, Symbol b) { return  clingo_symbol_equal_to(a, b); }
-bool operator!=(Symbol a, Symbol b) { return !clingo_symbol_equal_to(a, b); }
-bool operator< (Symbol a, Symbol b) { return  clingo_symbol_less_than(a, b); }
-bool operator<=(Symbol a, Symbol b) { return !clingo_symbol_less_than(b, a); }
-bool operator> (Symbol a, Symbol b) { return  clingo_symbol_less_than(b, a); }
-bool operator>=(Symbol a, Symbol b) { return !clingo_symbol_less_than(a, b); }
+bool operator==(Symbol a, Symbol b) { return  clingo_symbol_is_equal_to(a, b); }
+bool operator!=(Symbol a, Symbol b) { return !clingo_symbol_is_equal_to(a, b); }
+bool operator< (Symbol a, Symbol b) { return  clingo_symbol_is_less_than(a, b); }
+bool operator<=(Symbol a, Symbol b) { return !clingo_symbol_is_less_than(b, a); }
+bool operator> (Symbol a, Symbol b) { return  clingo_symbol_is_less_than(b, a); }
+bool operator>=(Symbol a, Symbol b) { return !clingo_symbol_is_less_than(a, b); }
 
 // {{{1 symbolic atoms
 
@@ -258,56 +258,56 @@ clingo_literal_t SymbolicAtom::literal() const {
     return ret;
 }
 
-bool SymbolicAtom::fact() const {
+bool SymbolicAtom::is_fact() const {
     bool ret;
-    clingo_symbolic_atoms_fact(atoms_, range_, &ret);
+    clingo_symbolic_atoms_is_fact(atoms_, range_, &ret);
     return ret;
 }
 
-bool SymbolicAtom::external() const {
+bool SymbolicAtom::is_external() const {
     bool ret;
-    clingo_symbolic_atoms_external(atoms_, range_, &ret);
+    clingo_symbolic_atoms_is_external(atoms_, range_, &ret);
     return ret;
 }
 
-SymbolicAtomIter &SymbolicAtomIter::operator++() {
+SymbolicAtomIterator &SymbolicAtomIterator::operator++() {
     clingo_symbolic_atom_iterator_t range;
     handleCError(clingo_symbolic_atoms_next(atoms_, range_, &range));
     range_ = range;
     return *this;
 }
 
-SymbolicAtomIter::operator bool() const {
+SymbolicAtomIterator::operator bool() const {
     bool ret;
-    handleCError(clingo_symbolic_atoms_valid(atoms_, range_, &ret));
+    handleCError(clingo_symbolic_atoms_is_valid(atoms_, range_, &ret));
     return ret;
 }
 
-bool SymbolicAtomIter::operator==(SymbolicAtomIter it) const {
+bool SymbolicAtomIterator::operator==(SymbolicAtomIterator it) const {
     bool ret = atoms_ == it.atoms_;
-    if (ret) { handleCError(clingo_symbolic_atoms_iterator_equal_to(atoms_, range_, it.range_, &ret)); }
+    if (ret) { handleCError(clingo_symbolic_atoms_iterator_is_equal_to(atoms_, range_, it.range_, &ret)); }
     return ret;
 }
 
-SymbolicAtomIter SymbolicAtoms::begin() const {
+SymbolicAtomIterator SymbolicAtoms::begin() const {
     clingo_symbolic_atom_iterator it;
     handleCError(clingo_symbolic_atoms_begin(atoms_, nullptr, &it));
     return {atoms_,  it};
 }
 
-SymbolicAtomIter SymbolicAtoms::begin(Signature sig) const {
+SymbolicAtomIterator SymbolicAtoms::begin(Signature sig) const {
     clingo_symbolic_atom_iterator it;
     handleCError(clingo_symbolic_atoms_begin(atoms_, &sig, &it));
     return {atoms_, it};
 }
 
-SymbolicAtomIter SymbolicAtoms::end() const {
+SymbolicAtomIterator SymbolicAtoms::end() const {
     clingo_symbolic_atom_iterator it;
     handleCError(clingo_symbolic_atoms_end(atoms_, &it));
     return {atoms_, it};
 }
 
-SymbolicAtomIter SymbolicAtoms::find(Symbol atom) const {
+SymbolicAtomIterator SymbolicAtoms::find(Symbol atom) const {
     clingo_symbolic_atom_iterator it;
     handleCError(clingo_symbolic_atoms_find(atoms_, atom, &it));
     return {atoms_, it};
@@ -624,33 +624,33 @@ ModelType Model::type() const {
 
 // {{{1 solve iter
 
-SolveIter::SolveIter()
+SolveIterator::SolveIterator()
 : iter_(nullptr) { }
 
-SolveIter::SolveIter(clingo_solve_iterator_t *it)
+SolveIterator::SolveIterator(clingo_solve_iterator_t *it)
 : iter_(it) { }
 
-SolveIter::SolveIter(SolveIter &&it)
+SolveIterator::SolveIterator(SolveIterator &&it)
 : iter_(nullptr) { std::swap(iter_, it.iter_); }
 
-SolveIter &SolveIter::operator=(SolveIter &&it) {
+SolveIterator &SolveIterator::operator=(SolveIterator &&it) {
     std::swap(iter_, it.iter_);
     return *this;
 }
 
-Model SolveIter::next() {
+Model SolveIterator::next() {
     clingo_model_t *m = nullptr;
     if (iter_) { handleCError(clingo_solve_iterator_next(iter_, &m)); }
     return m;
 }
 
-SolveResult SolveIter::get() {
+SolveResult SolveIterator::get() {
     clingo_solve_result_bitset_t ret = 0;
     if (iter_) { handleCError(clingo_solve_iterator_get(iter_, &ret)); }
     return ret;
 }
 
-void SolveIter::close() {
+void SolveIterator::close() {
     if (iter_) {
         clingo_solve_iterator_close(iter_);
         iter_ = nullptr;
@@ -823,9 +823,9 @@ bool Configuration::is_map() const {
     return type & clingo_configuration_type_map;
 }
 
-bool Configuration::assigned() const {
+bool Configuration::is_assigned() const {
     bool ret;
-    handleCError(clingo_configuration_value_assigned(conf_, key_, &ret));
+    handleCError(clingo_configuration_value_is_assigned(conf_, key_, &ret));
     return ret;
 }
 
@@ -903,7 +903,7 @@ SolveResult Control::solve(ModelCallback mh, SymbolicLiteralSpan assumptions) {
     return ret;
 }
 
-SolveIter Control::solve_iter(SymbolicLiteralSpan assumptions) {
+SolveIterator Control::solve_iteratively(SymbolicLiteralSpan assumptions) {
     clingo_solve_iterator_t *it;
     handleCError(clingo_control_solve_iteratively(ctl_, assumptions.begin(), assumptions.size(), &it));
     return it;
@@ -1128,11 +1128,11 @@ extern "C" size_t clingo_signature_hash(clingo_signature_t sig) {
     return static_cast<Sig&>(sig).hash();
 }
 
-extern "C" bool clingo_signature_equal_to(clingo_signature_t a, clingo_signature_t b) {
+extern "C" bool clingo_signature_is_equal_to(clingo_signature_t a, clingo_signature_t b) {
     return static_cast<Sig&>(a) == static_cast<Sig&>(b);
 }
 
-extern "C" bool clingo_signature_less_than(clingo_signature_t a, clingo_signature_t b) {
+extern "C" bool clingo_signature_is_less_than(clingo_signature_t a, clingo_signature_t b) {
     return static_cast<Sig&>(a) < static_cast<Sig&>(b);
 }
 
@@ -1216,11 +1216,11 @@ extern "C" clingo_error_t clingo_symbol_to_string(clingo_symbol_t val, char *ret
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_symbol_equal_to(clingo_symbol_t a, clingo_symbol_t b) {
+extern "C" bool clingo_symbol_is_equal_to(clingo_symbol_t a, clingo_symbol_t b) {
     return static_cast<Symbol&>(a) == static_cast<Symbol&>(b);
 }
 
-extern "C" bool clingo_symbol_less_than(clingo_symbol_t a, clingo_symbol_t b) {
+extern "C" bool clingo_symbol_is_less_than(clingo_symbol_t a, clingo_symbol_t b) {
     return static_cast<Symbol&>(a) < static_cast<Symbol&>(b);
 }
 
@@ -1245,7 +1245,7 @@ extern "C" clingo_error_t clingo_symbolic_atoms_find(clingo_symbolic_atoms_t *do
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_iterator_equal_to(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t it, clingo_symbolic_atom_iterator_t jt, bool *ret) {
+extern "C" clingo_error_t clingo_symbolic_atoms_iterator_is_equal_to(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t it, clingo_symbolic_atom_iterator_t jt, bool *ret) {
     GRINGO_CLINGO_TRY { *ret = dom->eq(it, jt); }
     GRINGO_CLINGO_CATCH;
 }
@@ -1279,12 +1279,12 @@ extern "C" clingo_error_t clingo_symbolic_atoms_literal(clingo_symbolic_atoms_t 
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_fact(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *fact) {
+extern "C" clingo_error_t clingo_symbolic_atoms_is_fact(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *fact) {
     GRINGO_CLINGO_TRY { *fact = dom->fact(atm); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_external(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *external) {
+extern "C" clingo_error_t clingo_symbolic_atoms_is_external(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *external) {
     GRINGO_CLINGO_TRY { *external = dom->external(atm); }
     GRINGO_CLINGO_CATCH;
 }
@@ -1294,7 +1294,7 @@ extern "C" clingo_error_t clingo_symbolic_atoms_next(clingo_symbolic_atoms_t *do
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_valid(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *valid) {
+extern "C" clingo_error_t clingo_symbolic_atoms_is_valid(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *valid) {
     GRINGO_CLINGO_TRY { *valid = dom->valid(atm); }
     GRINGO_CLINGO_CATCH;
 }
@@ -1687,7 +1687,7 @@ extern "C" clingo_error_t clingo_configuration_value_set(clingo_configuration_t 
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_configuration_value_assigned(clingo_configuration_t *conf, clingo_id_t key, bool *ret) {
+extern "C" clingo_error_t clingo_configuration_value_is_assigned(clingo_configuration_t *conf, clingo_id_t key, bool *ret) {
     GRINGO_CLINGO_TRY {
         int n = 0;
         conf->getKeyInfo(key, nullptr, nullptr, nullptr, &n);

@@ -33,7 +33,7 @@ int main(int argc, char const **argv) {
         Control ctl = module.make_control({argv+1, size_t(argc-1)}, logger, 20);
         ctl.add("base", {}, "a :- not b. b :- not a.");
         ctl.ground({{"base", {}}});
-        for (auto m : ctl.solve_iter()) {
+        for (auto m : ctl.solve_iteratively()) {
             std::cout << "Model:";
             for (auto &atom : m.atoms()) {
                 std::cout << " " << atom;

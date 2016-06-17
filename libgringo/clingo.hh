@@ -245,35 +245,35 @@ struct hash<Clingo::Symbol> {
 // {{{1 symbolic atoms
 
 class SymbolicAtom {
-    friend class SymbolicAtomIter;
+    friend class SymbolicAtomIterator;
 public:
     SymbolicAtom(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t range)
     : atoms_(atoms)
     , range_(range) { }
     Symbol symbol() const;
     literal_t literal() const;
-    bool fact() const;
-    bool external() const;
+    bool is_fact() const;
+    bool is_external() const;
     operator clingo_symbolic_atom_iterator_t() const { return range_; }
 private:
     clingo_symbolic_atoms_t *atoms_;
     clingo_symbolic_atom_iterator_t range_;
 };
 
-class SymbolicAtomIter : private SymbolicAtom, public std::iterator<std::input_iterator_tag, SymbolicAtom> {
+class SymbolicAtomIterator : private SymbolicAtom, public std::iterator<std::input_iterator_tag, SymbolicAtom> {
 public:
-    SymbolicAtomIter(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t range)
+    SymbolicAtomIterator(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t range)
     : SymbolicAtom{atoms, range} { }
     SymbolicAtom &operator*() { return *this; }
     SymbolicAtom *operator->() { return this; }
-    SymbolicAtomIter &operator++();
-    SymbolicAtomIter operator++ (int) {
+    SymbolicAtomIterator &operator++();
+    SymbolicAtomIterator operator++ (int) {
         auto range = range_;
         ++(*this);
         return {atoms_, range};
     }
-    bool operator==(SymbolicAtomIter it) const;
-    bool operator!=(SymbolicAtomIter it) const { return !(*this == it); }
+    bool operator==(SymbolicAtomIterator it) const;
+    bool operator!=(SymbolicAtomIterator it) const { return !(*this == it); }
     operator bool() const;
     operator clingo_symbolic_atom_iterator_t() const { return range_; }
 };
@@ -282,10 +282,10 @@ class SymbolicAtoms {
 public:
     SymbolicAtoms(clingo_symbolic_atoms_t *atoms)
     : atoms_(atoms) { }
-    SymbolicAtomIter begin() const;
-    SymbolicAtomIter begin(Signature sig) const;
-    SymbolicAtomIter end() const;
-    SymbolicAtomIter find(Symbol atom) const;
+    SymbolicAtomIterator begin() const;
+    SymbolicAtomIterator begin(Signature sig) const;
+    SymbolicAtomIterator end() const;
+    SymbolicAtomIterator find(Symbol atom) const;
     std::vector<Signature> signatures() const;
     size_t length() const;
     operator clingo_symbolic_atoms_t*() const { return atoms_; }
@@ -671,49 +671,49 @@ public:
     SolveResult() : res_(0) { }
     SolveResult(clingo_solve_result_bitset_t res)
     : res_(res) { }
-    bool sat() const { return res_ & clingo_solve_result_sat; }
-    bool unsat() const { return res_ & clingo_solve_result_unsat; }
-    bool unknown() const { return (res_ & 3) == 0; }
-    bool exhausted() const { return res_ & clingo_solve_result_exhausted; }
-    bool interrupted() const { return res_ & clingo_solve_result_interrupted; }
+    bool is_satisfiable() const { return res_ & clingo_solve_result_satisfiable; }
+    bool is_unsatisfiable() const { return res_ & clingo_solve_result_unsatisfiable; }
+    bool is_unknown() const { return (res_ & 3) == 0; }
+    bool is_exhausted() const { return res_ & clingo_solve_result_exhausted; }
+    bool is_interrupted() const { return res_ & clingo_solve_result_interrupted; }
     operator clingo_solve_result_bitset_t() const { return res_; }
 private:
     clingo_solve_result_bitset_t res_;
 };
 
 inline std::ostream &operator<<(std::ostream &out, SolveResult res) {
-    if (res.sat())    {
+    if (res.is_satisfiable())    {
         out << "SATISFIABLE";
-        if (!res.exhausted()) { out << "+"; }
+        if (!res.is_exhausted()) { out << "+"; }
     }
-    else if (res.unsat())  { out << "UNSATISFIABLE"; }
+    else if (res.is_unsatisfiable())  { out << "UNSATISFIABLE"; }
     else { out << "UNKNOWN"; }
-    if (res.interrupted()) { out << "/INTERRUPTED"; }
+    if (res.is_interrupted()) { out << "/INTERRUPTED"; }
     return out;
 }
 
 // {{{1 solve iter
 
-class SolveIter {
+class SolveIterator {
 public:
-    SolveIter();
-    SolveIter(clingo_solve_iterator_t *it);
-    SolveIter(SolveIter &&it);
-    SolveIter(SolveIter const &) = delete;
-    SolveIter &operator=(SolveIter &&it);
-    SolveIter &operator=(SolveIter const &) = delete;
+    SolveIterator();
+    SolveIterator(clingo_solve_iterator_t *it);
+    SolveIterator(SolveIterator &&it);
+    SolveIterator(SolveIterator const &) = delete;
+    SolveIterator &operator=(SolveIterator &&it);
+    SolveIterator &operator=(SolveIterator const &) = delete;
     operator clingo_solve_iterator_t*() const { return iter_; }
     Model next();
     SolveResult get();
     void close();
-    ~SolveIter() { close(); }
+    ~SolveIterator() { close(); }
 private:
     clingo_solve_iterator_t *iter_;
 };
 
 class ModelIterator : public std::iterator<Model, std::input_iterator_tag> {
 public:
-    ModelIterator(SolveIter &iter)
+    ModelIterator(SolveIterator &iter)
     : iter_(&iter)
     , model_(nullptr) { model_ = iter_->next(); }
     ModelIterator()
@@ -737,12 +737,12 @@ public:
     }
     friend bool operator!=(ModelIterator a, ModelIterator b) { return !(a == b); }
 private:
-    SolveIter *iter_;
+    SolveIterator *iter_;
     Model model_;
 };
 
-inline ModelIterator begin(SolveIter &it) { return ModelIterator(it); };
-inline ModelIterator end(SolveIter &) { return ModelIterator(); };
+inline ModelIterator begin(SolveIterator &it) { return ModelIterator(it); };
+inline ModelIterator end(SolveIterator &) { return ModelIterator(); };
 
 // {{{1 solve async
 
@@ -1024,7 +1024,7 @@ public:
     ConfigurationKeyRange keys() const;
     // values
     bool is_value() const;
-    bool assigned() const;
+    bool is_assigned() const;
     std::string value() const;
     operator std::string() const { return value(); }
     Configuration &operator=(char const *value);
@@ -1069,7 +1069,7 @@ public:
     void add(AddASTCallback cb);
     void ground(PartSpan parts, GroundCallback cb = nullptr);
     SolveResult solve(ModelCallback mh = nullptr, SymbolicLiteralSpan assumptions = {});
-    SolveIter solve_iter(SymbolicLiteralSpan assumptions = {});
+    SolveIterator solve_iteratively(SymbolicLiteralSpan assumptions = {});
     void assign_external(Symbol atom, TruthValue value);
     void release_external(Symbol atom);
     SymbolicAtoms symbolic_atoms() const;

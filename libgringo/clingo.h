@@ -82,8 +82,8 @@ char const *clingo_signature_name(clingo_signature_t sig);
 uint32_t clingo_signature_arity(clingo_signature_t sig);
 bool clingo_signature_sign(clingo_signature_t sig);
 size_t clingo_signature_hash(clingo_signature_t sig);
-bool clingo_signature_equal_to(clingo_signature_t a, clingo_signature_t b);
-bool clingo_signature_less_than(clingo_signature_t a, clingo_signature_t b);
+bool clingo_signature_is_equal_to(clingo_signature_t a, clingo_signature_t b);
+bool clingo_signature_is_less_than(clingo_signature_t a, clingo_signature_t b);
 
 // {{{1 symbol
 
@@ -127,8 +127,8 @@ clingo_error_t clingo_symbol_to_string(clingo_symbol_t sym, char *ret, size_t *n
 // comparison
 
 size_t clingo_symbol_hash(clingo_symbol_t sym);
-bool clingo_symbol_equal_to(clingo_symbol_t a, clingo_symbol_t b);
-bool clingo_symbol_less_than(clingo_symbol_t a, clingo_symbol_t b);
+bool clingo_symbol_is_equal_to(clingo_symbol_t a, clingo_symbol_t b);
+bool clingo_symbol_is_less_than(clingo_symbol_t a, clingo_symbol_t b);
 
 // {{{1 module (there should only ever be one module)
 
@@ -174,10 +174,10 @@ clingo_error_t clingo_model_type(clingo_model_t *m, clingo_model_type_t *ret);
 // {{{1 solve result
 
 enum clingo_solve_result {
-    clingo_solve_result_sat         = 1,
-    clingo_solve_result_unsat       = 2,
-    clingo_solve_result_exhausted   = 4,
-    clingo_solve_result_interrupted = 8
+    clingo_solve_result_satisfiable   = 1,
+    clingo_solve_result_unsatisfiable = 2,
+    clingo_solve_result_exhausted     = 4,
+    clingo_solve_result_interrupted   = 8
 };
 typedef unsigned clingo_solve_result_bitset_t;
 
@@ -245,15 +245,15 @@ typedef struct clingo_symbolic_atoms clingo_symbolic_atoms_t;
 clingo_error_t clingo_symbolic_atoms_begin(clingo_symbolic_atoms_t *dom, clingo_signature_t const *sig, clingo_symbolic_atom_iterator_t *ret);
 clingo_error_t clingo_symbolic_atoms_end(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t *ret);
 clingo_error_t clingo_symbolic_atoms_find(clingo_symbolic_atoms_t *dom, clingo_symbol_t atom, clingo_symbolic_atom_iterator_t *ret);
-clingo_error_t clingo_symbolic_atoms_iterator_equal_to(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t it, clingo_symbolic_atom_iterator_t jt, bool *ret);
+clingo_error_t clingo_symbolic_atoms_iterator_is_equal_to(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t it, clingo_symbolic_atom_iterator_t jt, bool *ret);
 clingo_error_t clingo_symbolic_atoms_signatures(clingo_symbolic_atoms_t *dom, clingo_signature_t *ret, size_t *n);
 clingo_error_t clingo_symbolic_atoms_size(clingo_symbolic_atoms_t *dom, size_t *ret);
 clingo_error_t clingo_symbolic_atoms_symbol(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, clingo_symbol_t *sym);
 clingo_error_t clingo_symbolic_atoms_literal(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, clingo_literal_t *lit);
-clingo_error_t clingo_symbolic_atoms_fact(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *fact);
-clingo_error_t clingo_symbolic_atoms_external(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *external);
+clingo_error_t clingo_symbolic_atoms_is_fact(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *fact);
+clingo_error_t clingo_symbolic_atoms_is_external(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *external);
 clingo_error_t clingo_symbolic_atoms_next(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, clingo_symbolic_atom_iterator_t *next);
-clingo_error_t clingo_symbolic_atoms_valid(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *valid);
+clingo_error_t clingo_symbolic_atoms_is_valid(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *valid);
 
 // {{{1 theory atoms
 
@@ -383,7 +383,7 @@ clingo_error_t clingo_configuration_array_size(clingo_configuration_t *conf, cli
 clingo_error_t clingo_configuration_map_at(clingo_configuration_t *conf, clingo_id_t key, char const *name, clingo_id_t* subkey);
 clingo_error_t clingo_configuration_map_size(clingo_configuration_t *conf, clingo_id_t key, size_t* subkey);
 clingo_error_t clingo_configuration_map_subkey_name(clingo_configuration_t *conf, clingo_id_t key, size_t index, char const **name);
-clingo_error_t clingo_configuration_value_assigned(clingo_configuration_t *conf, clingo_id_t key, bool *ret);
+clingo_error_t clingo_configuration_value_is_assigned(clingo_configuration_t *conf, clingo_id_t key, bool *ret);
 clingo_error_t clingo_configuration_value_get(clingo_configuration_t *conf, clingo_id_t key, char *ret, size_t *n);
 clingo_error_t clingo_configuration_value_set(clingo_configuration_t *conf, clingo_id_t key, char const *val);
 clingo_error_t clingo_configuration_root(clingo_configuration_t *conf, clingo_id_t *ret);

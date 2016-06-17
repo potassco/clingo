@@ -28,7 +28,7 @@ int main(int argc, char const **argv) {
     clingo_error_t ret;
     clingo_module_t *mod = NULL;
     clingo_control_t *ctl = NULL;
-    clingo_solve_iter_t *it = NULL;
+    clingo_solve_iterator_t *solve_it = NULL;
     clingo_part_t parts[] = {{ "base", NULL, 0 }};
     clingo_symbol_t *atoms = NULL;
     size_t n;
@@ -39,29 +39,30 @@ int main(int argc, char const **argv) {
     E(clingo_control_new(mod, argv+1, argc-1, &logger, NULL, 20, &ctl));
     E(clingo_control_add(ctl, "base", NULL, 0, "a :- not b. b :- not a."));
     E(clingo_control_ground(ctl, parts, 1, NULL, NULL));
-    E(clingo_control_solve_iter(ctl, NULL, 0, &it));
+    E(clingo_control_solve_iteratively(ctl, NULL, 0, &solve_it));
     for (;;) {
         clingo_model_t *m;
-        E(clingo_solve_iter_next(it, &m));
+        clingo_symbol_t const *atoms_it, *atoms_ie;
+        E(clingo_solve_iterator_next(solve_it, &m));
         if (!m) { break; }
         E(clingo_model_atoms(m, clingo_show_type_atoms | clingo_show_type_csp, NULL, &n));
         A(atoms, clingo_symbol_t, atoms_n, n, "failed to allocate memory for atoms");
         E(clingo_model_atoms(m, clingo_show_type_atoms | clingo_show_type_csp, atoms, &n));
         printf("Model:");
-        for (clingo_symbol_t const *it = atoms, *ie = it + atoms_n; it != ie; ++it) {
-            E(clingo_symbol_to_string(*it, NULL, &n));
+        for (atoms_it = atoms, atoms_ie = atoms + n; atoms_it != atoms_ie; ++atoms_it) {
+            E(clingo_symbol_to_string(*atoms_it, NULL, &n));
             A(str, char, str_n, n, "failed to allocate memory for symbol's string");
-            E(clingo_symbol_to_string(*it, str, &n));
+            E(clingo_symbol_to_string(*atoms_it, str, &n));
             printf(" %s", str);
         }
         printf("\n");
     }
 cleanup:
-    if (str)   { free(str); }
-    if (atoms) { free(atoms); }
-    if (it)    { clingo_solve_iter_close(it); }
-    if (ctl)   { clingo_control_free(ctl); }
-    if (mod)   { clingo_module_free(mod); }
+    if (str)      { free(str); }
+    if (atoms)    { free(atoms); }
+    if (solve_it) { clingo_solve_iterator_close(solve_it); }
+    if (ctl)      { clingo_control_free(ctl); }
+    if (mod)      { clingo_module_free(mod); }
     return ret;
 }
 
