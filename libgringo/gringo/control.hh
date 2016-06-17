@@ -157,7 +157,7 @@ struct ConfigProxy {
 
 using Control = clingo_control;
 using SymbolicAtoms = clingo_symbolic_atoms;
-using SymbolicAtomIter = clingo_symbolic_atom_iter_t;
+using SymbolicAtomIter = clingo_symbolic_atom_iterator_t;
 
 } // namespace Gringo
 

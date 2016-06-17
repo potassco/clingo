@@ -1167,7 +1167,7 @@ struct Model {
         }
         return 1;
     }
-    static int optimization(lua_State *L) {
+    static int cost(lua_State *L) {
         Gringo::Model const *& model = *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
         Int64Vec *values = AnyWrap::new_<Int64Vec>(L);
         protect(L, [&model, values]() { *values = model->optimization(); });
@@ -1207,8 +1207,8 @@ struct Model {
     }
     static int index(lua_State *L) {
         char const *name = luaL_checkstring(L, 2);
-        if (strcmp(name, "optimization") == 0) {
-            return optimization(L);
+        if (strcmp(name, "cost") == 0) {
+            return cost(L);
         }
         else if (strcmp(name, "context") == 0) {
             return context(L);

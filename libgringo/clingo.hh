@@ -247,22 +247,22 @@ struct hash<Clingo::Symbol> {
 class SymbolicAtom {
     friend class SymbolicAtomIter;
 public:
-    SymbolicAtom(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iter_t range)
+    SymbolicAtom(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t range)
     : atoms_(atoms)
     , range_(range) { }
     Symbol symbol() const;
     literal_t literal() const;
     bool fact() const;
     bool external() const;
-    operator clingo_symbolic_atom_iter_t() const { return range_; }
+    operator clingo_symbolic_atom_iterator_t() const { return range_; }
 private:
     clingo_symbolic_atoms_t *atoms_;
-    clingo_symbolic_atom_iter_t range_;
+    clingo_symbolic_atom_iterator_t range_;
 };
 
 class SymbolicAtomIter : private SymbolicAtom, public std::iterator<std::input_iterator_tag, SymbolicAtom> {
 public:
-    SymbolicAtomIter(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iter_t range)
+    SymbolicAtomIter(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t range)
     : SymbolicAtom{atoms, range} { }
     SymbolicAtom &operator*() { return *this; }
     SymbolicAtom *operator->() { return this; }
@@ -275,7 +275,7 @@ public:
     bool operator==(SymbolicAtomIter it) const;
     bool operator!=(SymbolicAtomIter it) const { return !(*this == it); }
     operator bool() const;
-    operator clingo_symbolic_atom_iter_t() const { return range_; }
+    operator clingo_symbolic_atom_iterator_t() const { return range_; }
 };
 
 class SymbolicAtoms {
@@ -641,14 +641,14 @@ private:
     clingo_show_type_bitset_t type_;
 };
 
-using OptimizationVector = std::vector<int64_t>;
+using CostVector = std::vector<int64_t>;
 
 class Model {
 public:
     Model(clingo_model_t *model);
     bool contains(Symbol atom) const;
     bool optimality_proven() const;
-    OptimizationVector optimization() const;
+    CostVector cost() const;
     SymbolVector atoms(ShowType show = ShowType::Shown) const;
     SolveControl context() const;
     ModelType type() const;
@@ -697,18 +697,18 @@ inline std::ostream &operator<<(std::ostream &out, SolveResult res) {
 class SolveIter {
 public:
     SolveIter();
-    SolveIter(clingo_solve_iter_t *it);
+    SolveIter(clingo_solve_iterator_t *it);
     SolveIter(SolveIter &&it);
     SolveIter(SolveIter const &) = delete;
     SolveIter &operator=(SolveIter &&it);
     SolveIter &operator=(SolveIter const &) = delete;
-    operator clingo_solve_iter_t*() const { return iter_; }
+    operator clingo_solve_iterator_t*() const { return iter_; }
     Model next();
     SolveResult get();
     void close();
     ~SolveIter() { close(); }
 private:
-    clingo_solve_iter_t *iter_;
+    clingo_solve_iterator_t *iter_;
 };
 
 class ModelIterator : public std::iterator<Model, std::input_iterator_tag> {

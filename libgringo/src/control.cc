@@ -271,7 +271,7 @@ bool SymbolicAtom::external() const {
 }
 
 SymbolicAtomIter &SymbolicAtomIter::operator++() {
-    clingo_symbolic_atom_iter_t range;
+    clingo_symbolic_atom_iterator_t range;
     handleCError(clingo_symbolic_atoms_next(atoms_, range_, &range));
     range_ = range;
     return *this;
@@ -285,30 +285,30 @@ SymbolicAtomIter::operator bool() const {
 
 bool SymbolicAtomIter::operator==(SymbolicAtomIter it) const {
     bool ret = atoms_ == it.atoms_;
-    if (ret) { handleCError(clingo_symbolic_atoms_iter_equal_to(atoms_, range_, it.range_, &ret)); }
+    if (ret) { handleCError(clingo_symbolic_atoms_iterator_equal_to(atoms_, range_, it.range_, &ret)); }
     return ret;
 }
 
 SymbolicAtomIter SymbolicAtoms::begin() const {
-    clingo_symbolic_atom_iter it;
+    clingo_symbolic_atom_iterator it;
     handleCError(clingo_symbolic_atoms_begin(atoms_, nullptr, &it));
     return {atoms_,  it};
 }
 
 SymbolicAtomIter SymbolicAtoms::begin(Signature sig) const {
-    clingo_symbolic_atom_iter it;
+    clingo_symbolic_atom_iterator it;
     handleCError(clingo_symbolic_atoms_begin(atoms_, &sig, &it));
     return {atoms_, it};
 }
 
 SymbolicAtomIter SymbolicAtoms::end() const {
-    clingo_symbolic_atom_iter it;
+    clingo_symbolic_atom_iterator it;
     handleCError(clingo_symbolic_atoms_end(atoms_, &it));
     return {atoms_, it};
 }
 
 SymbolicAtomIter SymbolicAtoms::find(Symbol atom) const {
-    clingo_symbolic_atom_iter it;
+    clingo_symbolic_atom_iterator it;
     handleCError(clingo_symbolic_atoms_find(atoms_, atom, &it));
     return {atoms_, it};
 }
@@ -580,12 +580,12 @@ bool Model::contains(Symbol atom) const {
     return ret;
 }
 
-OptimizationVector Model::optimization() const {
-    OptimizationVector ret;
+CostVector Model::cost() const {
+    CostVector ret;
     size_t n;
-    handleCError(clingo_model_optimization(model_, nullptr, &n));
+    handleCError(clingo_model_cost(model_, nullptr, &n));
     ret.resize(n);
-    handleCError(clingo_model_optimization(model_, ret.data(), &n));
+    handleCError(clingo_model_cost(model_, ret.data(), &n));
     return ret;
 }
 
@@ -627,7 +627,7 @@ ModelType Model::type() const {
 SolveIter::SolveIter()
 : iter_(nullptr) { }
 
-SolveIter::SolveIter(clingo_solve_iter_t *it)
+SolveIter::SolveIter(clingo_solve_iterator_t *it)
 : iter_(it) { }
 
 SolveIter::SolveIter(SolveIter &&it)
@@ -640,19 +640,19 @@ SolveIter &SolveIter::operator=(SolveIter &&it) {
 
 Model SolveIter::next() {
     clingo_model_t *m = nullptr;
-    if (iter_) { handleCError(clingo_solve_iter_next(iter_, &m)); }
+    if (iter_) { handleCError(clingo_solve_iterator_next(iter_, &m)); }
     return m;
 }
 
 SolveResult SolveIter::get() {
     clingo_solve_result_bitset_t ret = 0;
-    if (iter_) { handleCError(clingo_solve_iter_get(iter_, &ret)); }
+    if (iter_) { handleCError(clingo_solve_iterator_get(iter_, &ret)); }
     return ret;
 }
 
 void SolveIter::close() {
     if (iter_) {
-        clingo_solve_iter_close(iter_);
+        clingo_solve_iterator_close(iter_);
         iter_ = nullptr;
     }
 }
@@ -904,8 +904,8 @@ SolveResult Control::solve(ModelCallback mh, SymbolicLiteralSpan assumptions) {
 }
 
 SolveIter Control::solve_iter(SymbolicLiteralSpan assumptions) {
-    clingo_solve_iter_t *it;
-    handleCError(clingo_control_solve_iter(ctl_, assumptions.begin(), assumptions.size(), &it));
+    clingo_solve_iterator_t *it;
+    handleCError(clingo_control_solve_iteratively(ctl_, assumptions.begin(), assumptions.size(), &it));
     return it;
 }
 
@@ -1230,22 +1230,22 @@ extern "C" size_t clingo_symbol_hash(clingo_symbol_t sym) {
 
 // {{{1 symbolic atoms
 
-extern "C" clingo_error_t clingo_symbolic_atoms_begin(clingo_symbolic_atoms_t *dom, clingo_signature_t const *sig, clingo_symbolic_atom_iter_t *ret) {
+extern "C" clingo_error_t clingo_symbolic_atoms_begin(clingo_symbolic_atoms_t *dom, clingo_signature_t const *sig, clingo_symbolic_atom_iterator_t *ret) {
     GRINGO_CLINGO_TRY { *ret = sig ? dom->begin(static_cast<Sig const&>(*sig)) : dom->begin(); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_end(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t *ret) {
+extern "C" clingo_error_t clingo_symbolic_atoms_end(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t *ret) {
     GRINGO_CLINGO_TRY { *ret = dom->end(); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_find(clingo_symbolic_atoms_t *dom, clingo_symbol_t atom, clingo_symbolic_atom_iter_t *ret) {
+extern "C" clingo_error_t clingo_symbolic_atoms_find(clingo_symbolic_atoms_t *dom, clingo_symbol_t atom, clingo_symbolic_atom_iterator_t *ret) {
     GRINGO_CLINGO_TRY { *ret = dom->lookup(static_cast<Symbol&>(atom)); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_iter_equal_to(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t it, clingo_symbolic_atom_iter_t jt, bool *ret) {
+extern "C" clingo_error_t clingo_symbolic_atoms_iterator_equal_to(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t it, clingo_symbolic_atom_iterator_t jt, bool *ret) {
     GRINGO_CLINGO_TRY { *ret = dom->eq(it, jt); }
     GRINGO_CLINGO_CATCH;
 }
@@ -1269,32 +1269,32 @@ extern "C" clingo_error_t clingo_symbolic_atoms_size(clingo_symbolic_atoms_t *do
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_symbol(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, clingo_symbol_t *sym) {
+extern "C" clingo_error_t clingo_symbolic_atoms_symbol(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, clingo_symbol_t *sym) {
     GRINGO_CLINGO_TRY { *sym = dom->atom(atm); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_literal(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, clingo_literal_t *lit) {
+extern "C" clingo_error_t clingo_symbolic_atoms_literal(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, clingo_literal_t *lit) {
     GRINGO_CLINGO_TRY { *lit = dom->literal(atm); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_fact(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, bool *fact) {
+extern "C" clingo_error_t clingo_symbolic_atoms_fact(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *fact) {
     GRINGO_CLINGO_TRY { *fact = dom->fact(atm); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_external(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, bool *external) {
+extern "C" clingo_error_t clingo_symbolic_atoms_external(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *external) {
     GRINGO_CLINGO_TRY { *external = dom->external(atm); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_next(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, clingo_symbolic_atom_iter_t *next) {
+extern "C" clingo_error_t clingo_symbolic_atoms_next(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, clingo_symbolic_atom_iterator_t *next) {
     GRINGO_CLINGO_TRY { *next = dom->next(atm); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_valid(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iter_t atm, bool *valid) {
+extern "C" clingo_error_t clingo_symbolic_atoms_valid(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *valid) {
     GRINGO_CLINGO_TRY { *valid = dom->valid(atm); }
     GRINGO_CLINGO_CATCH;
 }
@@ -1537,7 +1537,7 @@ extern "C" clingo_error_t clingo_model_optimality_proven(clingo_model_t *m, bool
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_model_optimization(clingo_model_t *m, int64_t *ret, size_t *n) {
+extern "C" clingo_error_t clingo_model_cost(clingo_model_t *m, int64_t *ret, size_t *n) {
     GRINGO_CLINGO_TRY {
         // TODO: implement matching C++ functions ...
         auto opt = m->optimization();
@@ -1568,19 +1568,19 @@ extern "C" clingo_error_t clingo_model_type(clingo_model_t *m, clingo_model_type
 
 // {{{1 solve iter
 
-struct clingo_solve_iter : SolveIter { };
+struct clingo_solve_iterator : SolveIter { };
 
-extern "C" clingo_error_t clingo_solve_iter_next(clingo_solve_iter_t *it, clingo_model **m) {
+extern "C" clingo_error_t clingo_solve_iterator_next(clingo_solve_iterator_t *it, clingo_model **m) {
     GRINGO_CLINGO_TRY { *m = static_cast<clingo_model*>(const_cast<Model*>(it->next())); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_solve_iter_get(clingo_solve_iter_t *it, clingo_solve_result_bitset_t *ret) {
+extern "C" clingo_error_t clingo_solve_iterator_get(clingo_solve_iterator_t *it, clingo_solve_result_bitset_t *ret) {
     GRINGO_CLINGO_TRY { *ret = convert(it->get().satisfiable()); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_solve_iter_close(clingo_solve_iter_t *it) {
+extern "C" clingo_error_t clingo_solve_iterator_close(clingo_solve_iterator_t *it) {
     GRINGO_CLINGO_TRY { it->close(); }
     GRINGO_CLINGO_CATCH;
 }
@@ -1914,8 +1914,8 @@ extern "C" clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_mod
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_control_solve_iter(clingo_control_t *ctl, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_iter_t **it) {
-    GRINGO_CLINGO_TRY { *it = static_cast<clingo_solve_iter_t*>(ctl->solveIter(toAss(assumptions, n))); }
+extern "C" clingo_error_t clingo_control_solve_iteratively(clingo_control_t *ctl, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_iterator_t **it) {
+    GRINGO_CLINGO_TRY { *it = static_cast<clingo_solve_iterator_t*>(ctl->solveIter(toAss(assumptions, n))); }
     GRINGO_CLINGO_CATCH;
 }
 

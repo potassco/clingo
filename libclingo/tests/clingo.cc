@@ -185,14 +185,14 @@ TEST_CASE("solving", "[clingo]") {
                                     "#minimize {3@1:a; 4@1:b; 5@1:c; 2@1:d}.\n");
                 ctl.ground({{"base", {}}});
                 SymbolVector model;
-                OptimizationVector optimum;
+                CostVector optimum;
                 REQUIRE(ctl.solve([&optimum, &model](Model m) {
                     model = m.atoms();
-                    optimum = m.optimization();
+                    optimum = m.cost();
                     return true;
                 }).sat());
                 REQUIRE(model == SymbolVector({ Id("a"), Id("d") }));
-                REQUIRE(optimum == (OptimizationVector{7,5}));
+                REQUIRE(optimum == (CostVector{7,5}));
                 REQUIRE(messages.empty());
             }
             SECTION("async") {
@@ -252,7 +252,7 @@ TEST_CASE("solving", "[clingo]") {
                 REQUIRE(n == 1);
                 REQUIRE(messages.empty());
             }
-            SECTION("model-optimization") {
+            SECTION("model-cost") {
                 ctl.configuration()["solve.opt_mode"] = "optN";
                 ctl.add("base", {}, "{a}. #minimize { 1:a }.");
                 ctl.ground({{"base", {}}});
@@ -262,7 +262,7 @@ TEST_CASE("solving", "[clingo]") {
                     REQUIRE(m.context().thread_id() == 0);
                     if (m.optimality_proven()) {
                         REQUIRE(m.number() == 1);
-                        REQUIRE(m.optimization() == (OptimizationVector{0}));
+                        REQUIRE(m.cost() == (CostVector{0}));
                         ++n;
                     }
                     return true;

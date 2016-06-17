@@ -1361,7 +1361,7 @@ places like - e.g., the main function.)";
             return cppToPy(self->model->atoms(atomset)).release();
         PY_CATCH(nullptr);
     }
-    static PyObject *optimization(Model *self, void *) {
+    static PyObject *cost(Model *self, void *) {
         PY_TRY
             return cppToPy(self->model->optimization()).release();
         PY_CATCH(nullptr);
@@ -1388,10 +1388,10 @@ places like - e.g., the main function.)";
 
 PyGetSetDef Model::tp_getset[] = {
     {(char *)"context", (getter)getContext, nullptr, (char*)"SolveControl object that allows for controlling the running search.", nullptr},
-    {(char *)"optimization", (getter)optimization, nullptr,
-(char *)R"(Return the list of integer optimization values of the model.
+    {(char *)"cost", (getter)cost, nullptr,
+(char *)R"(Return the list of integer cost values of the model.
 
-The return values correspond to clasp's optimization output.)", nullptr},
+The return values correspond to clasp's cost output.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
