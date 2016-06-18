@@ -23,4 +23,4 @@ script:
   - echo "LINKFLAGS = ['-std=c++11', '--coverage']" >> build/debug.py
   - scons -j3 && scons -j3 example cexample && scons -j3 test
 after_success:
-  - coveralls --gcov gcov-5 --include build/gcov --gcov-options '\-lp' -b ${PWD}
+  - coveralls --verbose --gcov gcov-5 --gcov-options '\-lp' -b ${PWD} --exclude .sconf_temp
