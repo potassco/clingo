@@ -19,8 +19,14 @@ script:
   - mkdir build
   - echo "CXX = 'g++-5'" > build/debug.py
   - echo "CC = 'gcc-5'" >> build/debug.py
+  - echo "CXXFLAGS = ['-std=c++11', '-O2', '-g', '-W', '-Wall']" >> build/debug.py
+  - echo "LINKFLAGS = ['-std=c++11']" >> build/debug.py
+  - scons -j3
+  - scons -j3 example cexample
+  - echo "CXX = 'g++-5'" > build/debug.py
+  - echo "CC = 'gcc-5'" >> build/debug.py
   - echo "CXXFLAGS = ['-std=c++11', '-O2', '-g', '-W', '-Wall', '--coverage']" >> build/debug.py
   - echo "LINKFLAGS = ['-std=c++11', '--coverage']" >> build/debug.py
-  - scons -j3 && scons -j3 example cexample && scons -j3 test
+  - scons -j3 test
 after_success:
   - coveralls --verbose --gcov gcov-5 --gcov-options '\-lp' -b ${PWD} --exclude .sconf_temp
