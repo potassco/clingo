@@ -24,11 +24,11 @@ script:
   - echo "LINKFLAGS = ['-std=c++11']" >> build/debug.py
   - scons -j3
   - scons -j3 example cexample
-  - echo "CXX = 'g++-5'" > build/debug.py
-  - echo "CC = 'gcc-5'" >> build/debug.py
-  - echo "CXXFLAGS = ['-std=c++11', '-O2', '-g', '-W', '-Wall', '--coverage']" >> build/debug.py
-  - echo "LINKFLAGS = ['-std=c++11', '--coverage']" >> build/debug.py
-  - scons -j3 test
+  - echo "CXX = 'g++-5'" > build/gcov.py
+  - echo "CC = 'gcc-5'" >> build/gcov.py
+  - echo "CXXFLAGS = ['-std=c++11', '-O0', '-W', '-Wall', '--coverage']" >> build/gcov.py
+  - echo "LINKFLAGS = ['-std=c++11', '--coverage']" >> build/gcov.py
+  - scons -j3 --build-dir=gcov test
 after_success:
   - lcov --gcov-tool /usr/bin/gcov-5 --directory . --capture --output-file coverage.info
   - lcov --gcov-tool /usr/bin/gcov-5 --remove coverage.info '/usr/*' '*/tests/*' --output-file coverage.info
