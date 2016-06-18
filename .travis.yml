@@ -13,7 +13,7 @@ matrix:
             - re2c
             - liblua5.1-0-dev
             - zsh
-before-install:
+before_install:
   - pip install --user cpp-coveralls
 script:
   - mkdir build
