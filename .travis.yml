@@ -13,6 +13,7 @@ matrix:
             - re2c
             - liblua5.1-0-dev
             - zsh
+            - python-yaml
 before_install:
   - pip install --user cpp-coveralls
 script:
