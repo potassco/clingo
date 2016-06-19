@@ -715,7 +715,6 @@ void SharedContext::enableStats(uint32 lev) {
 }
 SharedContext::~SharedContext() {
 	while (!solvers_.empty()) { delete solvers_.back(); solvers_.pop_back(); }
-	while (!accu_.empty())    { delete accu_.back(); accu_.pop_back(); }
 	delete mini_;
 }
 
@@ -994,17 +993,16 @@ void SharedContext::initStats(Solver& s) const {
 	s.stats.enableStats(master()->stats);
 	s.stats.reset();
 }
-const SolverStats& SharedContext::stats(const Solver& s, bool accu)  const {
-	return !accu || s.id() >= accu_.size() || !accu_[s.id()] ? s.stats : *accu_[s.id()];
+SolverStats& SharedContext::solverStats(uint32 sId) const {
+	CLASP_FAIL_IF(!hasSolver(sId), "solver id out of range");
+	return solver(sId)->stats;
 }
-void SharedContext::accuStats() {
-	accu_.resize(std::max(accu_.size(), solvers_.size()), 0);
+const SolverStats& SharedContext::accuStats(SolverStats& out) const {
 	for (uint32 i = 0; i != solvers_.size(); ++i) {
-		if (!accu_[i]) { accu_[i] = new SolverStats(); }
-		accu_[i]->enableStats(solvers_[i]->stats);
-		accu_[i]->accu(solvers_[i]->stats);
+		out.enableStats(solvers_[i]->stats);
+		out.accu(solvers_[i]->stats);
 	}
-	if (sccGraph.get()) { sccGraph->accuStats(); }
+	return out;
 }
 void SharedContext::warn(const char* what) const {
 	if (progress_) {

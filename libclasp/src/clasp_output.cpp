@@ -243,23 +243,14 @@ uintp Output::doPrint(const OutPair&, UPtr x) { return x; }
 // StatsVisitor
 /////////////////////////////////////////////////////////////////////////////////////////
 StatsVisitor::~StatsVisitor() {}
-void StatsVisitor::accuStats(const SharedContext& ctx, SolverStats& out) const {
-	for (uint32 i = 0; ctx.hasSolver(i); ++i) { 
-		const SolverStats& x = ctx.stats(*ctx.solver(i), accu);
-		out.enableStats(x);
-		out.accu(x);
+void StatsVisitor::visitStats(const ClaspFacade::Summary& summary) {
+	const SharedContext& ctx = summary.ctx();
+	visitSolverStats(summary.solvers(), true);
+	visitProblemStats(ctx.stats(), summary.lpStats());
+	if (summary.stats() > 1 && summary.numSolver() > 1) {
+		visitThreads(summary);
 	}
-}
-void StatsVisitor::visitStats(const SharedContext& ctx, const Asp::LpStats* lp, bool accu) {
-	this->accu = accu;
-	SolverStats stats;
-	accuStats(ctx, stats);
-	visitSolverStats(stats, true);
-	visitProblemStats(ctx.stats(), lp);
-	if (stats.level() > 1) {
-		if (ctx.hasSolver(1)) { visitThreads(ctx); }
-		if (ctx.sccGraph.get() && ctx.sccGraph->numNonHcfs()) { visitHccs(ctx); }
-	}
+	if (summary.numHcc() != 0) { visitHccs(summary); }
 }
 void StatsVisitor::visitProblemStats(const Clasp::ProblemStats& stats, const Clasp::Asp::LpStats* lp) {
 	if (lp) { visitLogicProgramStats(*lp); }
@@ -274,24 +265,24 @@ void StatsVisitor::visitSolverStats(const Clasp::SolverStats& stats, bool accu) 
 	if (stats.jumps) { visitJumpStats(*stats.jumps, accu); }
 }
 
-void StatsVisitor::visitThreads(const SharedContext& ctx) {
-	for (uint32 i = 0; ctx.hasSolver(i); ++i) {
-		const SolverStats& x = ctx.stats(*ctx.solver(i), accu);
-		visitThread(i, x);
+void StatsVisitor::visitThreads(const ClaspFacade::Summary& summary) {
+	for (uint32 i = 0, end = summary.numSolver(); i != end; ++i) {
+		visitThread(i, summary.solver(i));
 	}
 }
-void StatsVisitor::visitHccs(const SharedContext& ctx) {
-	if (const PrgDepGraph* g = ctx.sccGraph.get()) {
-		for (uint32 i = 0; i != g->numNonHcfs(); ++i) {
-			visitHcc(i, (g->nonHcfBegin() + i)->second->ctx());
+void StatsVisitor::visitHccs(const ClaspFacade::Summary& summary) {
+	visitProblemStats(*summary.hccs().first, 0);
+	visitSolverStats(*summary.hccs().second, false);
+	if (summary.stats() > 1) {
+		for (uint32 i = 0, end = summary.numHcc(); i != end; ++i) {
+			const ClaspFacade::Summary::HccPair& p = summary.hcc(i);
+			visitHcc(i, *p.first, *p.second);
 		}
 	}
 }
-void StatsVisitor::visitHcc(uint32, const SharedContext& ctx) {
-	SolverStats stats;
-	accuStats(ctx, stats);
-	visitProblemStats(ctx.stats(), 0);
-	visitSolverStats(stats, false);
+void StatsVisitor::visitHcc(uint32, const ProblemStats& p, const SolverStats& s) {
+	visitProblemStats(p, 0);
+	visitSolverStats(s, false);
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // JsonOutput
@@ -644,10 +635,10 @@ void JsonOutput::printSummary(const ClaspFacade::Summary& run, bool final) {
 		}
 	}
 }
-void JsonOutput::printStatistics(const ClaspFacade::Summary& summary, bool final) {
+void JsonOutput::printStatistics(const ClaspFacade::Summary& summary, bool) {
 	if (hasWitness()) { popObject(); }
 	pushObject("Stats", type_object); 
-	StatsVisitor::visitStats(summary.ctx(), summary.lpStats(), final && summary.step);
+	StatsVisitor::visitStats(summary);
 	popObject();
 }
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -791,9 +782,9 @@ void TextOutput::printSummary(const ClaspFacade::Summary& run, bool final) {
 		}
 	}
 }
-void TextOutput::printStatistics(const ClaspFacade::Summary& run, bool final) {
+void TextOutput::printStatistics(const ClaspFacade::Summary& run, bool) {
 	printBR(cat_comment);
-	StatsVisitor::visitStats(run.ctx(), run.lpStats(), final && run.step);
+	StatsVisitor::visitStats(run);
 }
 void TextOutput::startStep(const ClaspFacade& f) {
 	Output::startStep(f);

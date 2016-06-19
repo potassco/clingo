@@ -208,6 +208,15 @@ struct ProblemStats {
 		constraints.ternary= std::max(constraints.ternary, o.constraints.ternary) - std::min(constraints.ternary, o.constraints.ternary);
 		acycEdges          = std::max(acycEdges, o.acycEdges) - std::min(acycEdges, o.acycEdges);
 	}
+	void accu(const ProblemStats& o) {
+		vars.num            += o.vars.num;
+		vars.eliminated     += o.vars.eliminated;
+		vars.frozen         += o.vars.frozen;
+		constraints.other   += o.constraints.other;
+		constraints.binary  += o.constraints.binary;
+		constraints.ternary += o.constraints.ternary;
+		acycEdges           += o.acycEdges;
+	}
 	double operator[](const char* key) const;
 	static const char* keys(const char* = 0);
 };
@@ -604,7 +613,6 @@ public:
 	 * \see JumpStats
    */
 	void       enableStats(uint32 level);
-	void       accuStats();
 	//! Sets the configuration for this object and its attached solvers.
 	/*!
 	 * \note If ownership is Ownership_t::Acquire, ownership of c is transferred.
@@ -851,7 +859,8 @@ public:
 	void               warn(const char* what)                  const;
 	ReportMode         reportMode()                            const { return static_cast<ReportMode>(share_.report); }
 	void               initStats(Solver& s)                    const;
-	const SolverStats& stats(const Solver& s, bool accu)       const;
+	SolverStats&       solverStats(uint32 sId)                 const; // stats of solver i
+	const SolverStats& accuStats(SolverStats& out)             const; // accumulates all solver stats in out
 	//@}
 private:
 	SharedContext(const SharedContext&);
@@ -860,7 +869,6 @@ private:
 	Literal addAuxLit();
 	typedef SingleOwnerPtr<Configuration> Config;
 	typedef PodVector<VarInfo>::type      VarVec;
-	typedef PodVector<SolverStats*>::type StatsVec;
 	void    setPreproMode(uint32 m, bool b);
 	struct Minimize;
 	ProblemStats stats_;         // problem statistics
@@ -883,7 +891,6 @@ private:
 		uint32 report  : 2;        //   report mode
 		Share() : count(1), winner(0), shareM((uint32)ContextParams::share_auto), shortM(0), frozen(0), seed(0), satPreM(0), report(0) {}
 	}            share_;
-	StatsVec     accu_;          // optional stats accumulator for incremental solving
 };
 //@}
 }
