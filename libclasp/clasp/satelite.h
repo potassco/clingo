@@ -35,8 +35,8 @@ namespace Clasp { namespace SatElite {
  * The preprocessor implements subsumption, self-subsumption, variable elimination,
  * and (optionally) blocked clause elimination.
  * \see 
- *   - Niklas Eén, Armin Biere: "Effective Preprocessing in SAT through Variable and Clause Elimination" 
- *   - Matti Järvisalo, Armin Biere, Marijn Heule: "Blocked Clause Elimination"
+ *   - Niklas EÃ©n, Armin Biere: "Effective Preprocessing in SAT through Variable and Clause Elimination" 
+ *   - Matti JÃ¤rvisalo, Armin Biere, Marijn Heule: "Blocked Clause Elimination"
  *   - Parts of the SatElite preprocessor are adapted from MiniSAT 2.0 beta
  *     available under the MIT licence from http://minisat.se/MiniSat.html
  *   .
