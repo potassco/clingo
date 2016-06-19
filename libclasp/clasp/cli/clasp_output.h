@@ -112,23 +112,20 @@ private:
 class StatsVisitor {
 public:
 	virtual ~StatsVisitor();
-	virtual void visitStats(const SharedContext& ctx, const Asp::LpStats* lp, bool accu);
+	virtual void visitStats(const ClaspFacade::Summary& summary);
 	// compound
 	virtual void visitSolverStats(const SolverStats& stats, bool accu);
 	virtual void visitProblemStats(const ProblemStats& stats, const Asp::LpStats* lp);
-	virtual void visitThreads(const SharedContext& ctx);
-	virtual void visitHccs(const SharedContext& ctx);
+	virtual void visitThreads(const ClaspFacade::Summary& summary);
+	virtual void visitHccs(const ClaspFacade::Summary& summary);
 	virtual void visitThread(uint32, const SolverStats& stats) { visitSolverStats(stats, false); }
-	virtual void visitHcc(uint32, const SharedContext& stats);
+	virtual void visitHcc(uint32, const ProblemStats& p, const SolverStats& s);
 	// leafs
 	virtual void visitLogicProgramStats(const Asp::LpStats& stats) = 0;
 	virtual void visitProblemStats(const ProblemStats& stats) = 0;
 	virtual void visitCoreSolverStats(double cpuTime, uint64 models, const SolverStats& stats, bool accu) = 0;
 	virtual void visitExtSolverStats(const ExtendedStats& stats, bool accu) = 0;
 	virtual void visitJumpStats(const JumpStats& stats, bool accu) = 0;
-	virtual void accuStats(const SharedContext& ctx, SolverStats& out) const;
-
-	bool accu;
 };
 
 //! Prints models and solving statistics in Json-format to stdout.
@@ -144,10 +141,20 @@ public:
 private:
 	virtual void startStep(const ClaspFacade&);
 	virtual void stopStep(const ClaspFacade::Summary& summary);
-	virtual void visitThreads(const SharedContext& ctx)         { pushObject("Thread", type_array); StatsVisitor::visitThreads(ctx);    popObject(); }
-	virtual void visitHccs(const SharedContext& ctx)            { pushObject("HCC", type_array);    StatsVisitor::visitHccs(ctx);       popObject(); }
-	virtual void visitThread(uint32 i, const SolverStats& stats){ pushObject(0, type_object);       StatsVisitor::visitThread(i, stats);popObject(); }
-	virtual void visitHcc(uint32 i, const SharedContext& ctx)   { pushObject(0, type_object);       StatsVisitor::visitHcc(i, ctx);     popObject(); }
+	virtual void visitThreads(const ClaspFacade::Summary& s)     { pushObject("Thread", type_array); StatsVisitor::visitThreads(s);   popObject(); }
+	virtual void visitThread(uint32 i, const SolverStats& stats) { pushObject(0, type_object);       StatsVisitor::visitThread(i, stats); popObject(); }
+	virtual void visitHccs(const ClaspFacade::Summary& s)        { 
+		pushObject("Tester");
+		StatsVisitor::visitHccs(s);
+		if (*objStack_.rbegin() == '[') { popObject(); }
+		popObject();
+	}
+	virtual void visitHcc(uint32 i, const ProblemStats& p, const SolverStats& s) { 
+		if (*objStack_.rbegin() != '[') { pushObject("HCC", type_array); }
+		pushObject(0, type_object);
+		StatsVisitor::visitHcc(i, p, s);
+		popObject();
+	}
 	virtual void visitLogicProgramStats(const Asp::LpStats& stats);
 	virtual void visitProblemStats(const ProblemStats& stats);
 	virtual void visitCoreSolverStats(double cpuTime, uint64 models, const SolverStats& stats, bool accu);
@@ -234,10 +241,10 @@ protected:
 	virtual void visitCoreSolverStats(double cpuTime, uint64 models, const SolverStats& stats, bool accu);
 	virtual void visitExtSolverStats(const ExtendedStats& stats, bool accu);
 	virtual void visitJumpStats(const JumpStats& stats, bool accu);
-	virtual void visitThreads(const SharedContext& ctx)      { startSection("Thread");   StatsVisitor::visitThreads(ctx); }
-	virtual void visitThread(uint32 i, const SolverStats& s) { startObject("Thread", i); StatsVisitor::visitThread(i, s); }
-	virtual void visitHccs(const SharedContext& ctx)         { startSection("Tester");   StatsVisitor::visitHccs(ctx);    }
-	virtual void visitHcc(uint32 i, const SharedContext& ctx){ startObject("HCC", i);    StatsVisitor::visitHcc(i, ctx);  }
+	virtual void visitThreads(const ClaspFacade::Summary& s)   { startSection("Thread");   StatsVisitor::visitThreads(s); }
+	virtual void visitThread(uint32 i, const SolverStats& s)   { startObject("Thread", i); StatsVisitor::visitThread(i, s); }
+	virtual void visitHccs(const ClaspFacade::Summary& s)      { startSection("Tester"); StatsVisitor::visitHccs(s); }
+	virtual void visitHcc(uint32 i, const ProblemStats& p, const SolverStats& s) { startObject("HCC", i);    StatsVisitor::visitHcc(i, p, s); }
 	virtual UPtr doPrint(const OutPair& out, UPtr data);
 	const char* fieldSeparator() const;
 	int         printSep(CategoryKey c) const;

@@ -36,6 +36,10 @@ uint64 SolveTestEvent::choices() const {
 uint64 SolveTestEvent::conflicts() const {
 	return solver->stats.conflicts - confDelta;
 }
+RemoveNonHcfEvent::RemoveNonHcfEvent(const Asp::PrgDepGraph& g, uint32 nonHcfId, Event::Subsystem s)
+	: Event_t<RemoveNonHcfEvent>(s, Event::verbosity_high)
+	, graph(&g)
+	, id(nonHcfId) {}
 namespace Asp {
 /////////////////////////////////////////////////////////////////////////////////////////
 // class PrgDepGraph
@@ -47,6 +51,7 @@ PrgDepGraph::PrgDepGraph(NonHcfMapType m) {
 	initAtom(sentinel_atom, 0, adj, 0);
 	seenComponents_ = 0;
 	mapType_        = (uint32)m;
+	removeHandler_  = 0;
 }
 
 PrgDepGraph::~PrgDepGraph() {
@@ -61,7 +66,6 @@ PrgDepGraph::~PrgDepGraph() {
 		components_.pop_back();
 	}
 }
-
 bool PrgDepGraph::relevantPrgAtom(const Solver& s, PrgAtom* a) const { 
 	return !a->ignoreScc() && a->inUpper() && a->scc() != PrgNode::noScc && !s.isFalse(a->literal());
 }
@@ -342,11 +346,6 @@ void PrgDepGraph::addNonHcf(SharedContext& ctx, Configuration* config, uint32 sc
 	for (uint32 i = 0; i != sccBodies.size(); ++i) { bodies_[sccBodies[i]].seen(false); }
 	components_.push_back( ComponentPair(scc, new NonHcfComponent(*this, ctx, config, scc, sccAtoms, sccBodies)) );
 }
-void PrgDepGraph::accuStats() const {
-	for (NonHcfIter it = nonHcfBegin(), end = nonHcfEnd(); it != end; ++it) {
-		it->second->prg_->accuStats();
-	}
-}
 void PrgDepGraph::simplify(const Solver& s) {
 	const bool shared        = s.sharedContext()->isShared();
 	ComponentMap::iterator j = components_.begin();
@@ -354,7 +353,13 @@ void PrgDepGraph::simplify(const Solver& s) {
 		bool ok = it->second->simplify(it->first, s);
 		if (!shared) { 
 			if (ok) { *j++ = *it; }
-			else    { delete it->second; }
+			else    { 
+				EventHandler* h = s.sharedContext()->eventHandler();
+				RemoveNonHcfEvent rv(*this, uint32(it - components_.begin()), h ? h->active() : s.sharedContext()->frozen() ? Event::subsystem_solve : Event::subsystem_prepare);
+				if (removeHandler_) { removeHandler_->onEvent(rv); }
+				if (h) { h->dispatch(rv); }
+				delete it->second;
+			}
 		}
 	}
 	if (!shared) { components_.erase(j, components_.end()); }
