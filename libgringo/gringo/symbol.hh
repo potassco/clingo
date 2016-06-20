@@ -146,11 +146,11 @@ using SymVec = std::vector<Symbol>;
 using SymSpan = Potassco::Span<Symbol>;
 using IdSymMap = std::unordered_map<String, Symbol>;
 
-class Symbol : public clingo_symbol {
+class Symbol {
 public:
     // construction
     Symbol(); // createSpecial
-    Symbol(clingo_symbol sym);
+    explicit Symbol(clingo_symbol_t sym) : rep_(sym) { };
     static Symbol createId(String val, bool sign = false);
     static Symbol createStr(String val);
     static Symbol createNum(int num);
@@ -187,8 +187,10 @@ public:
 
     // ouput
     void print(std::ostream& out) const;
+
+    uint64_t rep () const { return rep_; }
 private:
-    explicit Symbol(uint64_t repr);
+    clingo_symbol_t rep_;
 };
 
 inline std::ostream& operator<<(std::ostream& out, Symbol sym) {

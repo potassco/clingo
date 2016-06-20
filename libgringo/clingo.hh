@@ -204,7 +204,7 @@ class Symbol;
 using SymbolSpan = Span<Symbol>;
 using SymbolVector = std::vector<Symbol>;
 
-class Symbol : public clingo_symbol_t {
+class Symbol {
 public:
     Symbol();
     Symbol(clingo_symbol_t);
@@ -216,6 +216,9 @@ public:
     SymbolType type() const;
     std::string to_string() const;
     size_t hash() const;
+    operator clingo_symbol_t const &() { return sym_; }
+private:
+    clingo_symbol_t sym_;
 };
 
 Symbol Number(int num);
@@ -1042,9 +1045,9 @@ private:
 class Part : public clingo_part_t {
 public:
     Part(char const *name, SymbolSpan params)
-    : clingo_part_t{name, params.begin(), params.size()} { }
+    : clingo_part_t{name, reinterpret_cast<clingo_symbol_t const*>(params.begin()), params.size()} { }
     char const *name() const { return clingo_part_t::name; }
-    SymbolSpan params() const { return {clingo_part_t::params, clingo_part_t::n}; }
+    SymbolSpan params() const { return {reinterpret_cast<Symbol const*>(clingo_part_t::params), clingo_part_t::n}; }
 };
 using SymbolSpanCallback = std::function<void (SymbolSpan)>;
 using PartSpan = Span<Part>;

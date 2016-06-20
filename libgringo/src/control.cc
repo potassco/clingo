@@ -144,92 +144,92 @@ bool operator>=(Signature a, Signature b) { return !clingo_signature_is_less_tha
 // {{{1 symbol
 
 Symbol::Symbol() {
-    clingo_symbol_create_num(0, this);
+    clingo_symbol_create_num(0, &sym_);
 }
 
 Symbol::Symbol(clingo_symbol_t sym)
-: clingo_symbol{sym.rep} { }
+: sym_(sym) { }
 
 Symbol Number(int num) {
     clingo_symbol_t sym;
     clingo_symbol_create_num(num, &sym);
-    return static_cast<Symbol&>(sym);
+    return Symbol(sym);
 }
 
 Symbol Supremum() {
     clingo_symbol_t sym;
     clingo_symbol_create_supremum(&sym);
-    return static_cast<Symbol&>(sym);
+    return Symbol(sym);
 }
 
 Symbol Infimum() {
     clingo_symbol_t sym;
     clingo_symbol_create_infimum(&sym);
-    return static_cast<Symbol&>(sym);
+    return Symbol(sym);
 }
 
 Symbol String(char const *str) {
     clingo_symbol_t sym;
     handleCError(clingo_symbol_create_string(str, &sym));
-    return static_cast<Symbol&>(sym);
+    return Symbol(sym);
 }
 
 Symbol Id(char const *id, bool sign) {
     clingo_symbol_t sym;
     handleCError(clingo_symbol_create_id(id, sign, &sym));
-    return static_cast<Symbol&>(sym);
+    return Symbol(sym);
 }
 
 Symbol Function(char const *name, SymbolSpan args, bool sign) {
     clingo_symbol_t sym;
-    handleCError(clingo_symbol_create_function(name, args.begin(), args.size(), sign, &sym));
-    return static_cast<Symbol&>(sym);
+    handleCError(clingo_symbol_create_function(name, reinterpret_cast<clingo_symbol_t const *>(args.begin()), args.size(), sign, &sym));
+    return Symbol(sym);
 }
 
 int Symbol::num() const {
     int ret;
-    handleCError(clingo_symbol_number(*this, &ret));
+    handleCError(clingo_symbol_number(sym_, &ret));
     return ret;
 }
 
 char const *Symbol::name() const {
     char const *ret;
-    handleCError(clingo_symbol_name(*this, &ret));
+    handleCError(clingo_symbol_name(sym_, &ret));
     return ret;
 }
 
 char const *Symbol::string() const {
     char const *ret;
-    handleCError(clingo_symbol_string(*this, &ret));
+    handleCError(clingo_symbol_string(sym_, &ret));
     return ret;
 }
 
 bool Symbol::sign() const {
     bool ret;
-    handleCError(clingo_symbol_sign(*this, &ret));
+    handleCError(clingo_symbol_sign(sym_, &ret));
     return ret;
 }
 
 SymbolSpan Symbol::args() const {
     clingo_symbol_t const *ret;
     size_t n;
-    handleCError(clingo_symbol_arguments(*this, &ret, &n));
-    return {static_cast<Symbol const *>(ret), n};
+    handleCError(clingo_symbol_arguments(sym_, &ret, &n));
+    return {reinterpret_cast<Symbol const *>(ret), n};
 }
 
 SymbolType Symbol::type() const {
-    return static_cast<SymbolType>(clingo_symbol_type(*this));
+    return static_cast<SymbolType>(clingo_symbol_type(sym_));
 }
 
 #define CLINGO_CALLBACK_TRY try
 #define CLINGO_CALLBACK_CATCH(ref) catch (...){ (ref) = std::current_exception(); return clingo_error_unknown; } return clingo_error_success
 
 std::string Symbol::to_string() const {
-    return ::to_string([this](char *ret, size_t *n) { return clingo_symbol_to_string(*this, ret, n); });
+    return ::to_string([this](char *ret, size_t *n) { return clingo_symbol_to_string(sym_, ret, n); });
 }
 
 size_t Symbol::hash() const {
-    return clingo_symbol_hash(*this);
+    return clingo_symbol_hash(sym_);
 }
 
 std::ostream &operator<<(std::ostream &out, Symbol sym) {
@@ -247,9 +247,9 @@ bool operator>=(Symbol a, Symbol b) { return !clingo_symbol_is_less_than(a, b); 
 // {{{1 symbolic atoms
 
 Symbol SymbolicAtom::symbol() const {
-    Symbol ret;
+    clingo_symbol_t ret;
     clingo_symbolic_atoms_symbol(atoms_, range_, &ret);
-    return ret;
+    return Symbol(ret);
 }
 
 clingo_literal_t SymbolicAtom::literal() const {
@@ -594,7 +594,7 @@ SymbolVector Model::atoms(ShowType show) const {
     size_t n;
     handleCError(clingo_model_atoms(model_, show, nullptr, &n));
     ret.resize(n);
-    handleCError(clingo_model_atoms(model_, show, ret.data(), &n));
+    handleCError(clingo_model_atoms(model_, show, reinterpret_cast<clingo_symbol_t *>(ret.data()), &n));
     return ret;
 }
 
@@ -877,8 +877,8 @@ void Control::ground(PartSpan parts, GroundCallback cb) {
                 if (d.first) {
                     struct Ret { clingo_error_t ret; };
                     try {
-                        d.first(loc, name, {static_cast<Symbol const *>(args), n}, [cb, cbdata](SymbolSpan symret) {
-                            clingo_error_t ret = cb(symret.begin(), symret.size(), cbdata);
+                        d.first(loc, name, {reinterpret_cast<Symbol const *>(args), n}, [cb, cbdata](SymbolSpan symret) {
+                            clingo_error_t ret = cb(reinterpret_cast<clingo_symbol_t const *>(symret.begin()), symret.size(), cbdata);
                             if (ret != clingo_error_success) { throw Ret { ret }; }
                         });
                     }
@@ -1052,7 +1052,7 @@ Statistics Control::statistics() const {
 // {{{1 global functions
 
 Symbol parse_term(char const *str, Logger logger, unsigned message_limit) {
-    clingo_symbol ret;
+    clingo_symbol_t ret;
     handleCError(clingo_parse_term(str, [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
         catch (...) { }
@@ -1140,92 +1140,92 @@ extern "C" bool clingo_signature_is_less_than(clingo_signature_t a, clingo_signa
 // {{{1 value
 
 extern "C" void clingo_symbol_create_num(int num, clingo_symbol_t *val) {
-    *val = Symbol::createNum(num);
+    *val = Symbol::createNum(num).rep();
 }
 
 extern "C" void clingo_symbol_create_supremum(clingo_symbol_t *val) {
-    *val = Symbol::createSup();
+    *val = Symbol::createSup().rep();
 }
 
 extern "C" void clingo_symbol_create_infimum(clingo_symbol_t *val) {
-    *val = Symbol::createInf();
+    *val = Symbol::createInf().rep();
 }
 
 extern "C" clingo_error_t clingo_symbol_create_string(char const *str, clingo_symbol_t *val) {
     GRINGO_CLINGO_TRY {
-        *val = Symbol::createStr(str);
+        *val = Symbol::createStr(str).rep();
     } GRINGO_CLINGO_CATCH;
 }
 
 extern "C" clingo_error_t clingo_symbol_create_id(char const *id, bool sign, clingo_symbol_t *val) {
     GRINGO_CLINGO_TRY {
-        *val = Symbol::createId(id, sign);
+        *val = Symbol::createId(id, sign).rep();
     } GRINGO_CLINGO_CATCH;
 }
 
 extern "C" clingo_error_t clingo_symbol_create_function(char const *name, clingo_symbol_t const *args, size_t n, bool sign, clingo_symbol_t *val) {
     GRINGO_CLINGO_TRY {
-        *val = Symbol::createFun(name, SymSpan{static_cast<Symbol const *>(args), n}, sign);
+        *val = Symbol::createFun(name, SymSpan{reinterpret_cast<Symbol const *>(args), n}, sign).rep();
     } GRINGO_CLINGO_CATCH;
 }
 
 extern "C" clingo_error_t clingo_symbol_number(clingo_symbol_t val, int *num) {
     GRINGO_CLINGO_TRY {
-        clingo_expect(static_cast<Symbol&>(val).type() == SymbolType::Num);
-        *num = static_cast<Symbol&>(val).num();
+        clingo_expect(Symbol(val).type() == SymbolType::Num);
+        *num = Symbol(val).num();
     } GRINGO_CLINGO_CATCH;
 }
 
 extern "C" clingo_error_t clingo_symbol_name(clingo_symbol_t val, char const **name) {
     GRINGO_CLINGO_TRY {
-        clingo_expect(static_cast<Symbol&>(val).type() == SymbolType::Fun);
-        *name = static_cast<Symbol&>(val).name().c_str();
+        clingo_expect(Symbol(val).type() == SymbolType::Fun);
+        *name = Symbol(val).name().c_str();
     } GRINGO_CLINGO_CATCH;
 }
 
 extern "C" clingo_error_t clingo_symbol_string(clingo_symbol_t val, char const **str) {
     GRINGO_CLINGO_TRY {
-        clingo_expect(static_cast<Symbol&>(val).type() == SymbolType::Str);
-        *str = static_cast<Symbol&>(val).string().c_str();
+        clingo_expect(Symbol(val).type() == SymbolType::Str);
+        *str = Symbol(val).string().c_str();
     } GRINGO_CLINGO_CATCH;
 }
 
 extern "C" clingo_error_t clingo_symbol_sign(clingo_symbol_t val, bool *sign) {
     GRINGO_CLINGO_TRY {
-        clingo_expect(static_cast<Symbol&>(val).type() == SymbolType::Fun);
-        *sign = static_cast<Symbol&>(val).sign();
+        clingo_expect(Symbol(val).type() == SymbolType::Fun);
+        *sign = Symbol(val).sign();
         return clingo_error_success;
     } GRINGO_CLINGO_CATCH;
 }
 
 extern "C" clingo_error_t clingo_symbol_arguments(clingo_symbol_t val, clingo_symbol_t const **args, size_t *n) {
     GRINGO_CLINGO_TRY {
-        clingo_expect(static_cast<Symbol&>(val).type() == SymbolType::Fun);
-        auto ret = static_cast<Symbol&>(val).args();
-        *args = ret.first;
+        clingo_expect(Symbol(val).type() == SymbolType::Fun);
+        auto ret = Symbol(val).args();
+        *args = reinterpret_cast<clingo_symbol_t const *>(ret.first);
         *n = ret.size;
     } GRINGO_CLINGO_CATCH;
 }
 
 extern "C" clingo_symbol_type_t clingo_symbol_type(clingo_symbol_t val) {
-    return static_cast<clingo_symbol_type_t>(static_cast<Symbol&>(val).type());
+    return static_cast<clingo_symbol_type_t>(Symbol(val).type());
 }
 
 extern "C" clingo_error_t clingo_symbol_to_string(clingo_symbol_t val, char *ret, size_t *n) {
-    GRINGO_CLINGO_TRY { print(ret, n, [&val](std::ostream &out) { static_cast<Symbol&>(val).print(out); }); }
+    GRINGO_CLINGO_TRY { print(ret, n, [&val](std::ostream &out) { Symbol(val).print(out); }); }
     GRINGO_CLINGO_CATCH;
 }
 
 extern "C" bool clingo_symbol_is_equal_to(clingo_symbol_t a, clingo_symbol_t b) {
-    return static_cast<Symbol&>(a) == static_cast<Symbol&>(b);
+    return Symbol(a) == Symbol(b);
 }
 
 extern "C" bool clingo_symbol_is_less_than(clingo_symbol_t a, clingo_symbol_t b) {
-    return static_cast<Symbol&>(a) < static_cast<Symbol&>(b);
+    return Symbol(a) < Symbol(b);
 }
 
 extern "C" size_t clingo_symbol_hash(clingo_symbol_t sym) {
-    return static_cast<Symbol&>(sym).hash();
+    return Symbol(sym).hash();
 }
 
 // {{{1 symbolic atoms
@@ -1241,7 +1241,7 @@ extern "C" clingo_error_t clingo_symbolic_atoms_end(clingo_symbolic_atoms_t *dom
 }
 
 extern "C" clingo_error_t clingo_symbolic_atoms_find(clingo_symbolic_atoms_t *dom, clingo_symbol_t atom, clingo_symbolic_atom_iterator_t *ret) {
-    GRINGO_CLINGO_TRY { *ret = dom->lookup(static_cast<Symbol&>(atom)); }
+    GRINGO_CLINGO_TRY { *ret = dom->lookup(Symbol(atom)); }
     GRINGO_CLINGO_CATCH;
 }
 
@@ -1270,7 +1270,7 @@ extern "C" clingo_error_t clingo_symbolic_atoms_size(clingo_symbolic_atoms_t *do
 }
 
 extern "C" clingo_error_t clingo_symbolic_atoms_symbol(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, clingo_symbol_t *sym) {
-    GRINGO_CLINGO_TRY { *sym = dom->atom(atm); }
+    GRINGO_CLINGO_TRY { *sym = dom->atom(atm).rep(); }
     GRINGO_CLINGO_CATCH;
 }
 
@@ -1508,13 +1508,13 @@ extern "C" clingo_error_t clingo_solve_control_add_clause(clingo_solve_control_t
     GRINGO_CLINGO_TRY {
         // TODO: unnecessary copying
         Gringo::Model::LitVec lits;
-        for (auto it = clause, ie = it + n; it != ie; ++it) { lits.emplace_back(it->atom, it->sign); }
+        for (auto it = clause, ie = it + n; it != ie; ++it) { lits.emplace_back(Symbol(it->atom), it->sign); }
         ctl->addClause(lits); }
     GRINGO_CLINGO_CATCH;
 }
 
 extern "C" clingo_error_t clingo_model_contains(clingo_model_t *m, clingo_symbol_t atom, bool *ret) {
-    GRINGO_CLINGO_TRY { *ret = m->contains(static_cast<Symbol &>(atom)); }
+    GRINGO_CLINGO_TRY { *ret = m->contains(Symbol(atom)); }
     GRINGO_CLINGO_CATCH;
 }
 
@@ -1526,7 +1526,7 @@ extern "C" clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type
         if (!ret) { *n = atoms.size; }
         else {
             if (*n < atoms.size) { throw std::length_error("not enough space"); }
-            for (auto it = atoms.first, ie = it + atoms.size; it != ie; ++it) { *ret++ = *it; }
+            for (auto it = atoms.first, ie = it + atoms.size; it != ie; ++it) { *ret++ = it->rep(); }
         }
     }
     GRINGO_CLINGO_CATCH;
@@ -1753,7 +1753,7 @@ extern "C" clingo_error_t clingo_parse_term(char const *str, clingo_logger_t *lo
         Gringo::Logger log(printer, message_limit);
         Symbol sym = parser.parse(str, log);
         if (sym.type() == SymbolType::Special) { throw std::runtime_error("parsing failed"); }
-        *ret = sym;
+        *ret = sym.rep();
     }
     GRINGO_CLINGO_CATCH;
 }
@@ -1852,11 +1852,11 @@ struct ClingoContext : Context {
     SymVec call(Location const &loc, String name, SymSpan args) override {
         assert(cb);
         clingo_location_t loc_c{loc.beginFilename.c_str(), loc.endFilename.c_str(), loc.beginLine, loc.endLine, loc.beginColumn, loc.endColumn};
-        auto err = cb(loc_c, name.c_str(), args.first, args.size, data, [](clingo_symbol_t const * ret_c, size_t n, void *data) -> clingo_error_t {
+        auto err = cb(loc_c, name.c_str(), reinterpret_cast<clingo_symbol_t const *>(args.first), args.size, data, [](clingo_symbol_t const * ret_c, size_t n, void *data) -> clingo_error_t {
             auto t = static_cast<ClingoContext*>(data);
             GRINGO_CLINGO_TRY {
                 for (auto it = ret_c, ie = it + n; it != ie; ++it) {
-                    t->ret.emplace_back(static_cast<Symbol const &>(*it));
+                    t->ret.emplace_back(Symbol(*it));
                 }
             } GRINGO_CLINGO_CATCH;
         }, static_cast<void*>(this));
@@ -1881,7 +1881,7 @@ extern "C" clingo_error_t clingo_control_ground(clingo_control_t *ctl, clingo_pa
             SymVec params;
             params.reserve(it->n);
             for (auto jt = it->params, je = jt + it->n; jt != je; ++jt) {
-                params.emplace_back(static_cast<Symbol const &>(*jt));
+                params.emplace_back(Symbol(*jt));
             }
             gv.emplace_back(it->name, params);
         }
@@ -1920,12 +1920,12 @@ extern "C" clingo_error_t clingo_control_solve_iteratively(clingo_control_t *ctl
 }
 
 extern "C" clingo_error_t clingo_control_assign_external(clingo_control_t *ctl, clingo_symbol_t atom, clingo_truth_value_t value) {
-    GRINGO_CLINGO_TRY { ctl->assignExternal(static_cast<Symbol const &>(atom), static_cast<Potassco::Value_t>(value)); }
+    GRINGO_CLINGO_TRY { ctl->assignExternal(Symbol(atom), static_cast<Potassco::Value_t>(value)); }
     GRINGO_CLINGO_CATCH;
 }
 
 extern "C" clingo_error_t clingo_control_release_external(clingo_control_t *ctl, clingo_symbol_t atom) {
-    GRINGO_CLINGO_TRY { ctl->assignExternal(static_cast<Symbol const &>(atom), Potassco::Value_t::Release); }
+    GRINGO_CLINGO_TRY { ctl->assignExternal(Symbol(atom), Potassco::Value_t::Release); }
     GRINGO_CLINGO_CATCH;
 }
 
@@ -2021,7 +2021,7 @@ extern "C" clingo_error_t clingo_control_has_const(clingo_control_t *ctl, char c
 extern "C" clingo_error_t clingo_control_get_const(clingo_control_t *ctl, char const *name, clingo_symbol_t *ret) {
     GRINGO_CLINGO_TRY {
         auto sym = ctl->getConst(name);
-        *ret = sym.type() != SymbolType::Special ? sym : Symbol::createId(name);
+        *ret = sym.type() != SymbolType::Special ? sym.rep() : Symbol::createId(name).rep();
     }
     GRINGO_CLINGO_CATCH;
 }
@@ -2039,7 +2039,7 @@ extern "C" clingo_error_t clingo_control_solve_async(clingo_control_t *ctl, clin
     GRINGO_CLINGO_TRY {
         clingo_control::Assumptions ass;
         for (auto it = assumptions, ie = assumptions + n; it != ie; ++it) {
-            ass.emplace_back(it->atom, it->sign);
+            ass.emplace_back(Symbol(it->atom), it->sign);
         }
         *ret = static_cast<clingo_solve_async_t*>(ctl->solveAsync(
             [mh, mh_data](Gringo::Model const &m) {

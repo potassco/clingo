@@ -223,7 +223,7 @@ void pyToCpp(PyObject *pyLoc, Gringo::LocOwner &loc) {
 void pyToCpp(PyObject *pyAST, Gringo::ASTOwner &ast) {
     // ast.value
     Object pyTerm = pyGetAttr(pyAST, "term");
-    pyToCpp(pyTerm, static_cast<Symbol &>(ast.root.value));
+    pyToCpp(pyTerm, reinterpret_cast<Symbol &>(ast.root.value));
     // ast.location
     Object pyLoc = pyGetAttr(pyAST, "location");
     // ast.location.begin

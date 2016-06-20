@@ -78,7 +78,7 @@ public:
         if (!data_) { throw std::bad_alloc(); }
         begin_ = reinterpret_cast<SizeType*>(data_ + bound.size());
         uint64_t *it = data_;
-        for (auto &sym : bound) { *it++ = sym.rep; }
+        for (auto &sym : bound) { *it++ = sym.rep(); }
     }
     BindIndexEntry(BindIndexEntry const &) = delete;
     BindIndexEntry(BindIndexEntry &&e)
@@ -121,7 +121,7 @@ public:
         return std::equal(x.data_, reinterpret_cast<uint64_t const *>(x.begin_), data_, [](uint64_t a, uint64_t b) { return a == b; });
     }
     bool operator==(SymVec const &vec) const {
-        return std::equal(vec.begin(), vec.end(), data_, [](Symbol const &a, uint64_t b) { return a.rep == b; });
+        return std::equal(vec.begin(), vec.end(), data_, [](Symbol const &a, uint64_t b) { return a.rep() == b; });
     }
 private:
     Id_t end_;

@@ -96,9 +96,7 @@ enum clingo_symbol_type {
 };
 typedef int clingo_symbol_type_t;
 
-typedef struct clingo_symbol {
-    uint64_t rep;
-} clingo_symbol_t;
+typedef uint64_t clingo_symbol_t;
 
 typedef struct clingo_symbolic_literal {
     clingo_symbol_t atom;
