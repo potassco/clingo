@@ -28,6 +28,7 @@
 #include "clingcon_app.hh"
 #include <clingcon/appsupport.h>
 #include <clasp/parser.h>
+#include <clingcon/version.h>
 #include <climits>
 #include <unistd.h>
 
@@ -142,6 +143,7 @@ void ClingoApp::printVersion() {
     ProgramOptions::Application::printVersion();
     printf("\n");
     printf("libgringo version " GRINGO_VERSION "\n");
+    printf("libclingcon version " LIBCLINGCON_VERSION "\n");
     printf("Configuration: "
 #ifdef WITH_PYTHON
         "with Python " PY_VERSION
