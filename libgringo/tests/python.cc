@@ -45,6 +45,7 @@ std::string replace(std::string &&x, std::string const &y, std::string const &z)
 
 TEST_CASE("python", "[base][python]") {
     TestGringoModule module;
+    SymSpan const empty{nullptr, 0};
     SECTION("parse") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);
         Python py(module);
@@ -52,22 +53,22 @@ TEST_CASE("python", "[base][python]") {
             "import clingo\n"
             "def get(): return clingo.parse_term('1')\n"
             );
-        REQUIRE("[1]" == to_string(py.call(loc, "get", {}, module)));
+        REQUIRE("[1]" == to_string(py.call(loc, "get", empty, module)));
         py.exec(loc,
             "import clingo\n"
             "def get(): return clingo.parse_term('p(1+2)')\n"
             );
-        REQUIRE("[p(3)]" == to_string(py.call(loc, "get", {}, module)));
+        REQUIRE("[p(3)]" == to_string(py.call(loc, "get", empty, module)));
         py.exec(loc,
             "import clingo\n"
             "def get(): return clingo.parse_term('-p')\n"
             );
-        REQUIRE("[-p]" == to_string(py.call(loc, "get", {}, module)));
+        REQUIRE("[-p]" == to_string(py.call(loc, "get", empty, module)));
         py.exec(loc,
             "import clingo\n"
             "def get(): return clingo.parse_term('-p(1)')\n"
             );
-        REQUIRE("[-p(1)]" == to_string(py.call(loc, "get", {}, module)));
+        REQUIRE("[-p(1)]" == to_string(py.call(loc, "get", empty, module)));
     }
     SECTION("values") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);
@@ -96,10 +97,10 @@ TEST_CASE("python", "[base][python]") {
             "]\n"
             "def getValues(): return values\n"
             );
-        REQUIRE("[f(2,3,4)]" == to_string(py.call(loc, "getX", {}, module)));
-        REQUIRE("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",(2,3,4),\"f\",0,1,f(2,3,4),-f(2,3,4)]" == to_string(py.call(loc, "getValues", {}, module)));
+        REQUIRE("[f(2,3,4)]" == to_string(py.call(loc, "getX", empty, module)));
+        REQUIRE("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",(2,3,4),\"f\",0,1,f(2,3,4),-f(2,3,4)]" == to_string(py.call(loc, "getValues", empty, module)));
         {
-            REQUIRE("[]" == to_string(py.call(loc, "none", {}, module)));
+            REQUIRE("[]" == to_string(py.call(loc, "none", empty, module)));
             REQUIRE(
                 "["
                 "dummy:1:1: info: operation undefined:\n"
@@ -108,7 +109,7 @@ TEST_CASE("python", "[base][python]") {
         }
         {
             module.reset();
-            REQUIRE("[]" == to_string(py.call(loc, "fail", {}, module)));
+            REQUIRE("[]" == to_string(py.call(loc, "fail", empty, module)));
             REQUIRE(
                 "["
                 "dummy:1:1: info: operation undefined:\n"
@@ -146,7 +147,7 @@ TEST_CASE("python", "[base][python]") {
             "int(clingo.Function(\"b\") < clingo.Function(\"a\")),"
             "]\n"
             );
-        REQUIRE("[1,0]" == to_string(py.call(loc, "cmp", {}, module)));
+        REQUIRE("[1,0]" == to_string(py.call(loc, "cmp", empty, module)));
     }
 
     SECTION("callable") {

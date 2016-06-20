@@ -54,6 +54,7 @@ using S = std::string;
 
 TEST_CASE("lua", "[base][lua]") {
     TestGringoModule module;
+    SymSpan const empty{nullptr, 0};
     SECTION("parse") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);
         Lua lua(module);
@@ -61,12 +62,12 @@ TEST_CASE("lua", "[base][lua]") {
             "clingo = require(\"clingo\")\n"
             "function get() return clingo.parse_term('1') end\n"
             );
-        REQUIRE("[1]" == to_string(lua.call(loc, "get", {}, module)));
+        REQUIRE("[1]" == to_string(lua.call(loc, "get", empty, module)));
         lua.exec(loc,
             "clingo = require(\"clingo\")\n"
             "function get() return clingo.parse_term('p(2+1)') end\n"
             );
-        REQUIRE("[p(3)]" == to_string(lua.call(loc, "get", {}, module)));
+        REQUIRE("[p(3)]" == to_string(lua.call(loc, "get", empty, module)));
     }
 
     SECTION("values") {
@@ -97,10 +98,10 @@ TEST_CASE("lua", "[base][lua]") {
             "}\n"
             "function getValues() return values end\n"
             );
-        REQUIRE("[f(2,3,4)]" == to_string(lua.call(loc, "getX", {}, module)));
-        REQUIRE("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",\"x\",(2,3,4),\"f\",\"false\",\"true\",f(2,3,4),-f(2,3,4)]" == to_string(lua.call(loc, "getValues", {}, module)));
+        REQUIRE("[f(2,3,4)]" == to_string(lua.call(loc, "getX", empty, module)));
+        REQUIRE("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",\"x\",(2,3,4),\"f\",\"false\",\"true\",f(2,3,4),-f(2,3,4)]" == to_string(lua.call(loc, "getValues", empty, module)));
         {
-            REQUIRE("[]" == to_string(lua.call(loc, "none", {}, module)));
+            REQUIRE("[]" == to_string(lua.call(loc, "none", empty, module)));
             REQUIRE(
                 "["
                 "dummy:1:1: info: operation undefined:\n"
@@ -111,7 +112,7 @@ TEST_CASE("lua", "[base][lua]") {
         }
         {
             module.reset();
-            REQUIRE("[]" == to_string(lua.call(loc, "fail", {}, module)));
+            REQUIRE("[]" == to_string(lua.call(loc, "fail", empty, module)));
             REQUIRE(
                 "["
                 "dummy:1:1: info: operation undefined:\n"
@@ -147,7 +148,7 @@ TEST_CASE("lua", "[base][lua]") {
             "int(clingo.Function(\"b\") < clingo.Function(\"a\")),"
             "} end\n"
             );
-        REQUIRE("[1,0]" == to_string(lua.call(loc, "cmp", {}, module)));
+        REQUIRE("[1,0]" == to_string(lua.call(loc, "cmp", empty, module)));
     }
 
     SECTION("callable") {
