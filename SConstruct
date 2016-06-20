@@ -78,7 +78,7 @@ env['WITH_PYTHON']    = 'auto'
 env['WITH_LUA']       = 'auto'
 env['WITH_CSP']       = 'true'
 env['WITH_THREADS']   = 'posix'
-env['TESTS']          = ['libreify', 'libgringo', 'libclingo', 'liblp', 'clingo', 'liborder', 'libclingcon']
+env['TESTS']          = ['libreify', 'libgringo', 'libclingo', 'liblp', 'clingo']
 
 if GetOption("build_dir") == "static":
     env['CXXFLAGS'] = ['-std=c++11', '-O3', '-Wall']
@@ -103,7 +103,7 @@ elif GetOption("build_dir") == "js":
     env['WITH_THREADS'] = None
 
 if env['WITH_CSP']:
-    env.Append(WITH_CSP=['liborder', 'libclingcon'])
+    env.Append(TESTS=['liborder', 'libclingcon'])
 
 opts.Update(env)
 opts.Save(opts_file, env)

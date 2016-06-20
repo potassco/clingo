@@ -228,8 +228,6 @@ if not conf.CheckMyFun('std::to_string', 'std::to_string(10);', "#include <strin
     DEFS['MISSING_STD_TO_STRING']=1
 
 
-with_cppunit = conf.CheckWithPkgConfig("cppunit", ["cppunit"])
-
 env = conf.Finish()
 env.PrependUnique(LIBPATH=[Dir('.')])
 env.Append(CPPDEFINES=DEFS)
@@ -557,34 +555,33 @@ env.AlwaysBuild(env.Alias('test-clingo', [clingoTestCommand]))
 if "clingo" in env["TESTS"]:
     env.AlwaysBuild(env.Alias('test', [clingoTestCommand]))
 
-if with_cppunit:
-    # {{{1 liborder: Tests
-    
-    TEST_LIBORDER_SOURCES = find_files(env, 'libcsp/testliborder/src')
-    TEST_LIBORDER_HEADERS = [Dir('#libcsp/testliborder')] + LIBORDER_HEADERS + LIBCLASP_HEADERS
-    
-    orderTestEnv                = claspEnv.Clone()
-    orderTestEnv.Append(CPPPATH = TEST_LIBORDER_HEADERS)
-    orderTestEnv.Prepend(LIBS   = [orderLib, claspLib, lpLib])
-    
-    orderlibTestProgram = orderTestEnv.Program('test_liborder', TEST_LIBORDER_SOURCES)
-    AlwaysBuild(orderTestEnv.Alias('test-liborder', [orderlibTestProgram], orderlibTestProgram[0].path))
-    if 'liborder' in env['TESTS']:
-        AlwaysBuild(orderTestEnv.Alias('test', [orderlibTestProgram], orderlibTestProgram[0].path))
-    
-    # {{{1 libclingcon: Tests
-    
-    TEST_LIBCLINGCON_SOURCES  = find_files(env, 'libcsp/testlibclingcon/src')
-    TEST_LIBCLINGCON_HEADERS = [Dir('#libcsp/testlibclingcon')] + LIBORDER_HEADERS + LIBCLINGCON_HEADERS + LIBCLASP_HEADERS + LIBLP_HEADERS
-    
-    clingconTestEnv                = claspEnv.Clone()
-    clingconTestEnv.Append(CPPPATH = TEST_LIBCLINGCON_HEADERS)
-    clingconTestEnv.Prepend(LIBS   = [clingconLib, orderLib, claspLib, lpLib])
-    
-    testClingconProgram = clingconTestEnv.Program('test_libclingcon', TEST_LIBCLINGCON_SOURCES)
-    AlwaysBuild(clingconTestEnv.Alias('test-libclingcon', [testClingconProgram], testClingconProgram[0].path))
-    if 'libclingcon' in env['TESTS']:
-        AlwaysBuild(clingconTestEnv.Alias('test', [testClingconProgram], testClingconProgram[0].path))
+# {{{1 liborder: Tests
+
+TEST_LIBORDER_SOURCES = find_files(env, 'libcsp/testliborder/src')
+TEST_LIBORDER_HEADERS = [Dir('#libcsp/testliborder')] + LIBORDER_HEADERS + LIBCLASP_HEADERS
+
+orderTestEnv                = claspEnv.Clone()
+orderTestEnv.Append(CPPPATH = TEST_LIBORDER_HEADERS)
+orderTestEnv.Prepend(LIBS   = [orderLib, claspLib, lpLib])
+
+orderlibTestProgram = orderTestEnv.Program('test_liborder', TEST_LIBORDER_SOURCES)
+AlwaysBuild(orderTestEnv.Alias('test-liborder', [orderlibTestProgram], orderlibTestProgram[0].path))
+if 'liborder' in env['TESTS']:
+    AlwaysBuild(orderTestEnv.Alias('test', [orderlibTestProgram], orderlibTestProgram[0].path))
+
+# {{{1 libclingcon: Tests
+
+TEST_LIBCLINGCON_SOURCES  = find_files(env, 'libcsp/testlibclingcon/src')
+TEST_LIBCLINGCON_HEADERS = [Dir('#libcsp/testlibclingcon')] + LIBORDER_HEADERS + LIBCLINGCON_HEADERS + LIBCLASP_HEADERS + LIBLP_HEADERS
+
+clingconTestEnv                = claspEnv.Clone()
+clingconTestEnv.Append(CPPPATH = TEST_LIBCLINGCON_HEADERS)
+clingconTestEnv.Prepend(LIBS   = [clingconLib, orderLib, claspLib, lpLib])
+
+testClingconProgram = clingconTestEnv.Program('test_libclingcon', TEST_LIBCLINGCON_SOURCES)
+AlwaysBuild(clingconTestEnv.Alias('test-libclingcon', [testClingconProgram], testClingconProgram[0].path))
+if 'libclingcon' in env['TESTS']:
+    AlwaysBuild(clingconTestEnv.Alias('test', [testClingconProgram], testClingconProgram[0].path))
 
 
 
