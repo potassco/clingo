@@ -11,8 +11,8 @@ def writeln(s):
 def on_model(x):
     writeln("Answer: 42")
     writeln(
-          "hasA(" +        str(x.contains(clingo.function("a"))).lower() + ") "
-        + "hasVolatile(" + str(x.contains(clingo.function("volatile", [9]))).lower() + ") "
+          "hasA(" +        str(x.contains(clingo.Function("a"))).lower() + ") "
+        + "hasVolatile(" + str(x.contains(clingo.Function("volatile", [9]))).lower() + ") "
         + "model(" +       ",".join(sorted(map(str, x.atoms(shown=True)))) + ") ")
 
 def on_finish(ret):
@@ -26,7 +26,7 @@ def main (prg):
     prg.ground(parts)
     prg.solve()
     prg.add("test", ["x"], "test(x).")
-    parts.append(("test", [clingo.function("f", [1,2])]))
+    parts.append(("test", [clingo.Function("f", [1,2])]))
     for i in range(1,n+1):
         parts.append(("cumulative", [i]))
         prg.ground(parts)

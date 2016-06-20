@@ -1,12 +1,12 @@
 #script (python)
 
 import sys
-from clingo import function
+from clingo import Function
 
 def main(prg):
     prg.ground([("base", [])])
-    prg.solve(assumptions=[(function("a"), True), (function("b"), False), (function("d"), True)])
-    prg.solve(assumptions=[(function("a"), False), (function("c"), True)])
+    prg.solve(assumptions=[(Function("a"), True), (Function("b"), False), (Function("d"), True)])
+    prg.solve(assumptions=[(Function("a"), False), (Function("c"), True)])
 
 #end.  
 

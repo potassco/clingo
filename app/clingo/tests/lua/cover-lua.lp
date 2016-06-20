@@ -41,7 +41,7 @@ function State:prepare_instance(k)
         if atom.name == "edge" then
             local args = atom.args
             if args[1].number == k-1 then
-                edges[#edges + 1] = clingo.tuple{args[2], args[3]}
+                edges[#edges + 1] = clingo.Tuple{args[2], args[3]}
                 vertices[#vertices + 1] = args[2]
                 vertices[#vertices + 1] = args[3]
             end

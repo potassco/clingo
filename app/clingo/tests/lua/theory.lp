@@ -13,13 +13,13 @@ function convert_term(t)
         for i, x in ipairs(t.args) do
             a[#a+1] = convert_term(x)
         end
-        return clingo.tuple({t.name, clingo.tuple(a)})
+        return clingo.Tuple({t.name, clingo.Tuple(a)})
     elseif t.type == clingo.TheoryTermType.Number then
         return t.number
     elseif t.type == clingo.TheoryTermType.Symbol then
         return t.name
     else
-        return clingo.fun("unimplemented")
+        return clingo.Function("unimplemented")
     end
 
 end
@@ -35,17 +35,17 @@ function main(c)
             for i, z in ipairs(y.condition) do
                 cond[#cond+1] = "n/a"
             end
-            tuple = {}
+            Tuple = {}
             for i, z in ipairs(y.terms) do
-                tuple[#tuple+1] = convert_term(z)
+                Tuple[#Tuple+1] = convert_term(z)
             end
-            e[#e+1] = clingo.tuple({clingo.tuple(tuple), clingo.tuple(cond)})
+            e[#e+1] = clingo.Tuple({clingo.Tuple(Tuple), clingo.Tuple(cond)})
         end
-        r[#r+1] = clingo.tuple(e)
+        r[#r+1] = clingo.Tuple(e)
         if x.guard ~= nil then
-            r[#r+1] = clingo.tuple({x.guard[1], convert_term(x.guard[2])})
+            r[#r+1] = clingo.Tuple({x.guard[1], convert_term(x.guard[2])})
         end
-        t[#t+1] = clingo.tuple(r)
+        t[#t+1] = clingo.Tuple(r)
     end
     c:ground({{"theory",{}}})
     c:solve()

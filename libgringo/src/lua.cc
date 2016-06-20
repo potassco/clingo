@@ -2533,10 +2533,10 @@ int parseTerm(lua_State *L) {
 
 int luaopen_clingo(lua_State* L) {
     static luaL_Reg clingoLib[] = {
-        {"fun", Term::newFun},
-        {"tuple", Term::newTuple},
-        {"number", Term::newNumber},
-        {"str", Term::newString},
+        {"Function", Term::newFun},
+        {"Tuple", Term::newTuple},
+        {"Number", Term::newNumber},
+        {"String", Term::newString},
         {"Control", ControlWrap::newControl},
         {"parse_term", parseTerm},
         {nullptr, nullptr}

@@ -176,7 +176,7 @@ def main(prg):
             a = prg.backend.add_atom()
             for l in value:
                 prg.backend.add_rule([a], [l])
-            prg.backend.add_rule([], [-prg.symbolic_atoms[clingo.function("sup", [key])].literal, a])
+            prg.backend.add_rule([], [-prg.symbolic_atoms[clingo.Function("sup", [key])].literal, a])
     # :- sup(U), pat(_,I), not seq(U,_,I).
     grouped_pat, grouped_seq = {}, set()
     for atom in prg.symbolic_atoms.by_signature("pat", 2):

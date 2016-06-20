@@ -247,9 +247,9 @@ function get(val, default)
 end
 
 function main(prg)
-    local imin   = get(prg:get_const("imin"), clingo.number(0))
+    local imin   = get(prg:get_const("imin"), clingo.Number(0))
     local imax   = prg:get_const("imax")
-    local istop  = get(prg:get_const("istop"), clingo.str("SAT"))
+    local istop  = get(prg:get_const("istop"), clingo.String("SAT"))
 
     local step, ret = 0, None
     while (imax == nil or step < imax.number) and
@@ -260,14 +260,14 @@ function main(prg)
         local parts = {}
         table.insert(parts, {"check", {step}})
         if step > 0 then
-            prg:release_external(clingo.fun("query", {step-1}))
+            prg:release_external(clingo.Function("query", {step-1}))
             prg:cleanup()
             table.insert(parts, {"step", {step}})
         else
             table.insert(parts, {"base", {}})
         end
         prg:ground(parts)
-        prg:assign_external(clingo.fun("query", {step}), true)
+        prg:assign_external(clingo.Function("query", {step}), true)
         ret, step = prg:solve(), step+1
     end
 end

@@ -6,9 +6,9 @@ def get(val, default):
     return val if val != None else default
 
 def main(prg):
-    imin   = get(prg.get_const("imin"), clingo.number(0))
+    imin   = get(prg.get_const("imin"), clingo.Number(0))
     imax   = prg.get_const("imax")
-    istop  = get(prg.get_const("istop"), clingo.string("SAT"))
+    istop  = get(prg.get_const("istop"), clingo.String("SAT"))
 
     step, ret = 0, None
     while ((imax is None or step < imax.number) and
@@ -19,13 +19,13 @@ def main(prg):
         parts = []
         parts.append(("check", [step]))
         if step > 0:
-            prg.release_external(clingo.function("query", [step-1]))
+            prg.release_external(clingo.Function("query", [step-1]))
             parts.append(("step", [step]))
             prg.cleanup()
         else:
             parts.append(("base", []))
         prg.ground(parts)
-        prg.assign_external(clingo.function("query", [step]), True)
+        prg.assign_external(clingo.Function("query", [step]), True)
         ret, step = prg.solve(), step+1
 #end.
 

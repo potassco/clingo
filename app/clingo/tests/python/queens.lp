@@ -7,9 +7,9 @@ def main(prg):
     stop = 10
     while True:
         if step > 1:
-            prg.release_external(clingo.function("volatile", [step-1]))
+            prg.release_external(clingo.Function("volatile", [step-1]))
         prg.ground([("cumulative", [step])])
-        prg.assign_external(clingo.function("volatile", [step]), True)
+        prg.assign_external(clingo.Function("volatile", [step]), True)
         ret = prg.solve()
         if step == stop:
             break

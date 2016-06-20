@@ -74,16 +74,16 @@ TEST_CASE("python", "[base][python]") {
         Python py(module);
         py.exec(loc,
             "import clingo\n"
-            "x = clingo.function(\"f\", [2, 3, 4])\n"
-            "y = clingo.function(\"f\", [2, 3, 4], True)\n"
+            "x = clingo.Function(\"f\", [2, 3, 4])\n"
+            "y = clingo.Function(\"f\", [2, 3, 4], True)\n"
             "def getX(): return x\n"
-            "def fail(): return clingo.function(\"g\", [None])\n"
+            "def fail(): return clingo.Function(\"g\", [None])\n"
             "def none(): return None\n"
             "values = ["
-            "clingo.function(\"f\", [1, 2, 3]),"
+            "clingo.Function(\"f\", [1, 2, 3]),"
             "clingo.Sup,"
             "clingo.Inf,"
-            "clingo.function(\"id\"),"
+            "clingo.Function(\"id\"),"
             "(1, 2, 3),"
             "123,"
             "\"abc\","
@@ -142,8 +142,8 @@ TEST_CASE("python", "[base][python]") {
             "import clingo\n"
             "def cmp():\n"
             "  return ["
-            "int(clingo.function(\"a\") < clingo.function(\"b\")),"
-            "int(clingo.function(\"b\") < clingo.function(\"a\")),"
+            "int(clingo.Function(\"a\") < clingo.Function(\"b\")),"
+            "int(clingo.Function(\"b\") < clingo.Function(\"a\")),"
             "]\n"
             );
         REQUIRE("[1,0]" == to_string(py.call(loc, "cmp", {}, module)));

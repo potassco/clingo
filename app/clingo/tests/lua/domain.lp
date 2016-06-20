@@ -16,8 +16,8 @@ function main(prg)
     for x in prg.symbolic_atoms:iter() do
         out = out .. " domain(" .. tostring(x.symbol) .. "," .. tostring(x.is_fact) .. "," .. tostring(x.is_external) .. ")"
     end
-    out = out .. " in_domain(p(2)," .. tostring(prg.symbolic_atoms:lookup(clingo.fun("p", {3})) ~= nil) .. ")"
-    out = out .. " in_domain(p(4)," .. tostring(prg.symbolic_atoms:lookup(clingo.fun("p", {4})) ~= nil) .. ")"
+    out = out .. " in_domain(p(2)," .. tostring(prg.symbolic_atoms:lookup(clingo.Function("p", {3})) ~= nil) .. ")"
+    out = out .. " in_domain(p(4)," .. tostring(prg.symbolic_atoms:lookup(clingo.Function("p", {4})) ~= nil) .. ")"
     for x in prg.symbolic_atoms:by_signature("p", 1) do
         out = out .. " domain_of_p(" .. tostring(x.symbol) .. "," .. tostring(x.is_fact) .. "," .. tostring(x.is_external) .. ")"
     end

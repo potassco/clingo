@@ -943,7 +943,7 @@ like in gringo and their string representation corresponds to their gringo
 representation.
 
 Note that this class does not have a constructor. Instead there are the
-functions number(), string(), and function() to construct term objects or the
+functions Number(), String(), and Function() to construct term objects or the
 preconstructed terms Inf and Sup.)";
 
     static bool initType(PyObject *module) {
@@ -1869,8 +1869,8 @@ def main(prg):
     print "universe:", len(prg.symbolic_atoms)
     for x in prg.symbolic_atoms:
         print x.atom, x.is_fact, x.is_external
-    print "p(2) is in domain:", prg.symbolic_atoms[clingo.function("p", [3])] is not None
-    print "p(4) is in domain:", prg.symbolic_atoms[clingo.function("p", [6])] is not None
+    print "p(2) is in domain:", prg.symbolic_atoms[clingo.Function("p", [3])] is not None
+    print "p(4) is in domain:", prg.symbolic_atoms[clingo.Function("p", [6])] is not None
     print "domain of p/1:"
     for x in prg.symbolic_atoms.by_signature(("p", 1)):
         print x.atom, x.is_fact, x.is_external
@@ -2916,7 +2916,7 @@ on_finish   -- optional callback called once search has finished
                a SolveResult and a Boolean indicating whether the solve call
                has been canceled is passed to the callback
 assumptions -- list of (atom, boolean) tuples that serve as assumptions for
-               the solve call, e.g. - solving under assumptions [(function("a"),
+               the solve call, e.g. - solving under assumptions [(Function("a"),
                True)] only admits answer sets that contain atom a
 
 Note that this function is only available in clingo with thread support
@@ -2956,7 +2956,7 @@ Return a SolveIter object, which can be used to iterate over models.
 
 Keyword Arguments:
 assumptions -- a list of (atom, boolean) tuples that serve as assumptions for
-               the solve call, e.g. - solving under assumptions [(function("a"),
+               the solve call, e.g. - solving under assumptions [(Function("a"),
                True)] only admits answer sets that contain atom a
 
 Example:
@@ -2981,7 +2981,7 @@ Keyword Arguments:
 on_model    -- optional callback for intercepting models
                a Model object is passed to the callback
 assumptions -- a list of (atom, boolean) tuples that serve as assumptions for
-               the solve call, e.g. - solving under assumptions [(function("a"),
+               the solve call, e.g. - solving under assumptions [(Function("a"),
                True)] only admits answer sets that contain atom a
 
 Note that in gringo or in clingo with lparse or text output enabled this
@@ -3046,9 +3046,9 @@ from clingo import function
 
 def main(prg):
     prg.ground([("base", [])])
-    prg.assign_external(function("b"), True)
+    prg.assign_external(Function("b"), True)
     prg.solve()
-    prg.release_external(function("b"))
+    prg.release_external(Function("b"))
     prg.solve()
 
 #end.
@@ -3194,9 +3194,9 @@ function also evaluates arithmetic functions.
 
 Example:
 
-clingo.parse_term('p(1+2)') == clingo.function("p", [3])
+clingo.parse_term('p(1+2)') == clingo.Function("p", [3])
 )"},
-    {"function", (PyCFunction)Term::new_function, METH_VARARGS | METH_KEYWORDS, R"(function(name, args, sign) -> Term
+    {"Function", (PyCFunction)Term::new_function, METH_VARARGS | METH_KEYWORDS, R"(Function(name, args, sign) -> Term
 
 Construct a function term.
 
@@ -3209,14 +3209,14 @@ sign -- the sign of the function (tuples must not have signs)
 
 This includes constants and tuples. Constants have an empty argument list and
 tuples have an empty name.)"},
-    {"tuple_", (PyCFunction)Term::new_tuple, METH_O, R"(tuple_(args) -> Term
+    {"Tuple", (PyCFunction)Term::new_tuple, METH_O, R"(Tuple(args) -> Term
 
-Shortcut for function("", args).
+Shortcut for Function("", args).
 )"},
-    {"number", (PyCFunction)Term::new_number, METH_O, R"(number(num) -> Term
+    {"Number", (PyCFunction)Term::new_number, METH_O, R"(Number(num) -> Term
 
 Construct a numeric term given a number.)"},
-    {"string", (PyCFunction)Term::new_string, METH_O, R"(string(s) -> Term
+    {"String", (PyCFunction)Term::new_string, METH_O, R"(String(s) -> Term
 
 Construct a string term given a string.)"},
     {nullptr, nullptr, 0, nullptr}
@@ -3247,11 +3247,11 @@ Sup         -- represents a #sup term
 
 Functions:
 
-function()   -- create a function term
-number()     -- creat a number term
+Function()   -- create a function term
+Number()     -- creat a number term
 parse_term() -- parse ground terms
-string()     -- create a string term
-tuple_()     -- create a tuple term (shortcut)
+String()     -- create a string term
+Tuple()      -- create a tuple term (shortcut)
 
 Classes:
 
