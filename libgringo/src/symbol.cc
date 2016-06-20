@@ -240,10 +240,7 @@ String String::fromRep(uintptr_t t) { return String(t); }
 // {{{1 definition of Signature
 
 Sig::Sig(String name, uint32_t arity, bool sign)
-: clingo_signature{encodeSig(name, arity, sign)} { }
-
-Sig::Sig(uint64_t rep)
-: clingo_signature{rep} { }
+: Sig{encodeSig(name, arity, sign)} { }
 
 String Sig::name() const {
     uint16_t u = upper(rep());

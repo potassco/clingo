@@ -114,24 +114,24 @@ namespace Clingo {
 // {{{1 signature
 
 Signature::Signature(char const *name, uint32_t arity, bool sign) {
-    handleCError(clingo_signature_create(name, arity, sign, this));
+    handleCError(clingo_signature_create(name, arity, sign, &sig_));
 }
 
 char const *Signature::name() const {
-    return clingo_signature_name(*this);
+    return clingo_signature_name(sig_);
 }
 
 uint32_t Signature::arity() const {
-    return clingo_signature_arity(*this);
+    return clingo_signature_arity(sig_);
 }
 
 bool Signature::sign() const {
-    return clingo_signature_sign(*this);
+    return clingo_signature_sign(sig_);
 }
 
 
 size_t Signature::hash() const {
-    return clingo_signature_hash(*this);
+    return clingo_signature_hash(sig_);
 }
 
 bool operator==(Signature a, Signature b) { return  clingo_signature_is_equal_to(a, b); }
@@ -297,7 +297,7 @@ SymbolicAtomIterator SymbolicAtoms::begin() const {
 
 SymbolicAtomIterator SymbolicAtoms::begin(Signature sig) const {
     clingo_symbolic_atom_iterator it;
-    handleCError(clingo_symbolic_atoms_begin(atoms_, &sig, &it));
+    handleCError(clingo_symbolic_atoms_begin(atoms_, &sig.operator clingo_signature_t const &(), &it));
     return {atoms_, it};
 }
 
@@ -319,7 +319,7 @@ std::vector<Signature> SymbolicAtoms::signatures() const {
     Signature sig("", 0);
     std::vector<Signature> ret;
     ret.resize(n, sig);
-    handleCError(clingo_symbolic_atoms_signatures(atoms_, ret.data(), &n));
+    handleCError(clingo_symbolic_atoms_signatures(atoms_, reinterpret_cast<clingo_signature_t *>(ret.data()), &n));
     return ret;
 }
 
@@ -1108,32 +1108,32 @@ extern "C" char const *clingo_warning_string(clingo_warning_t code) {
 
 extern "C" clingo_error_t clingo_signature_create(char const *name, uint32_t arity, bool sign, clingo_signature_t *ret) {
     GRINGO_CLINGO_TRY {
-        *ret = Sig(name, arity, sign);
+        *ret = Sig(name, arity, sign).rep();
     } GRINGO_CLINGO_CATCH;
 }
 
 extern "C" char const *clingo_signature_name(clingo_signature_t sig) {
-    return static_cast<Sig&>(sig).name().c_str();
+    return Sig(sig).name().c_str();
 }
 
 extern "C" uint32_t clingo_signature_arity(clingo_signature_t sig) {
-    return static_cast<Sig&>(sig).arity();
+    return Sig(sig).arity();
 }
 
 extern "C" bool clingo_signature_sign(clingo_signature_t sig) {
-    return static_cast<Sig&>(sig).sign();
+    return Sig(sig).sign();
 }
 
 extern "C" size_t clingo_signature_hash(clingo_signature_t sig) {
-    return static_cast<Sig&>(sig).hash();
+    return Sig(sig).hash();
 }
 
 extern "C" bool clingo_signature_is_equal_to(clingo_signature_t a, clingo_signature_t b) {
-    return static_cast<Sig&>(a) == static_cast<Sig&>(b);
+    return Sig(a) == Sig(b);
 }
 
 extern "C" bool clingo_signature_is_less_than(clingo_signature_t a, clingo_signature_t b) {
-    return static_cast<Sig&>(a) < static_cast<Sig&>(b);
+    return Sig(a) < Sig(b);
 }
 
 
@@ -1231,7 +1231,7 @@ extern "C" size_t clingo_symbol_hash(clingo_symbol_t sym) {
 // {{{1 symbolic atoms
 
 extern "C" clingo_error_t clingo_symbolic_atoms_begin(clingo_symbolic_atoms_t *dom, clingo_signature_t const *sig, clingo_symbolic_atom_iterator_t *ret) {
-    GRINGO_CLINGO_TRY { *ret = sig ? dom->begin(static_cast<Sig const&>(*sig)) : dom->begin(); }
+    GRINGO_CLINGO_TRY { *ret = sig ? dom->begin(Sig(*sig)) : dom->begin(); }
     GRINGO_CLINGO_CATCH;
 }
 
@@ -1258,7 +1258,7 @@ extern "C" clingo_error_t clingo_symbolic_atoms_signatures(clingo_symbolic_atoms
         if (!ret) { *n = sigs.size(); }
         else {
             if (*n < sigs.size()) { throw std::length_error("not enough space"); }
-            for (auto &sig : sigs) { *ret++ = sig; }
+            for (auto &sig : sigs) { *ret++ = sig.rep(); }
         }
     }
     GRINGO_CLINGO_CATCH;

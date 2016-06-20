@@ -73,9 +73,7 @@ typedef void clingo_logger_t(clingo_warning_t, char const *, void *);
 
 // {{{1 signature
 
-typedef struct clingo_signature {
-    uint64_t rep;
-} clingo_signature_t;
+typedef uint64_t clingo_signature_t;
 
 clingo_error_t clingo_signature_create(char const *name, uint32_t arity, bool sign, clingo_signature_t *ret);
 char const *clingo_signature_name(clingo_signature_t sig);

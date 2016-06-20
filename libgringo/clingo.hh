@@ -158,7 +158,7 @@ std::ostream &operator<<(std::ostream &out, Span<T, I> span) {
 
 // {{{1 signature
 
-class Signature : public clingo_signature_t {
+class Signature {
 public:
     Signature(char const *name, uint32_t arity, bool sign = false);
     char const *name() const;
@@ -168,6 +168,10 @@ public:
 
     bool clingo_signature_eq(clingo_signature_t a, clingo_signature_t b);
     bool clingo_signature_lt(clingo_signature_t a, clingo_signature_t b);
+
+    operator clingo_signature_t const &() { return sig_; }
+private:
+    clingo_signature_t sig_;
 };
 
 inline std::ostream &operator<<(std::ostream &out, Signature sig) {
