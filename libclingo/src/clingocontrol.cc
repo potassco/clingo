@@ -434,40 +434,54 @@ Gringo::SymbolicAtoms &ClingoControl::getDomain() {
 
 namespace {
 
-bool skipDomain(Gringo::Sig sig)                                           { return sig.name().startsWith("#"); }
-void setAtomOffset(Gringo::SymbolicAtomIter &it, uint32_t offset)         { it.atom_offset = (offset << 1) | (it.atom_offset & 1); }
-void setDomainOffset(Gringo::SymbolicAtomIter &it, uint32_t offset)       { it.domain_offset = (offset << 1) | (it.domain_offset & 1); }
-uint32_t atomOffset(Gringo::SymbolicAtomIter it)                          { return it.atom_offset >> 1; }
-uint32_t domainOffset(Gringo::SymbolicAtomIter it)                        { return it.domain_offset >> 1; }
-bool advanceDomain(Gringo::SymbolicAtomIter &it)                          { return it.domain_offset & 1; }
-void advanceDomainOffset(Gringo::SymbolicAtomIter &it)                    { it.domain_offset += 2; }
-void advanceAtomOffset(Gringo::SymbolicAtomIter &it)                      { it.atom_offset += 2; }
-Gringo::SymbolicAtomIter init(uint32_t domainOffset, uint32_t atomOffset) { return { (domainOffset << 1) | 1, (atomOffset << 1) | 1}; }
+union SymbolicAtomOffset {
+    SymbolicAtomOffset(clingo_symbolic_atom_iterator_t repr)
+    : repr(repr) { }
+    SymbolicAtomOffset(uint32_t domain_offset, bool domain_advance, uint32_t atom_offset, bool atom_advance)
+    : data{domain_offset, domain_advance, atom_offset, atom_advance} { }
+    clingo_symbolic_atom_iterator_t repr;
+    friend bool operator==(SymbolicAtomOffset const &a, SymbolicAtomOffset const &b) {
+        return a.data.domain_offset == b.data.domain_offset && a.data.atom_offset == b.data.atom_offset;
+    }
+    struct {
+        clingo_symbolic_atom_iterator_t domain_offset : 31;
+        clingo_symbolic_atom_iterator_t domain_advance : 1;
+        clingo_symbolic_atom_iterator_t atom_offset : 31;
+        clingo_symbolic_atom_iterator_t atom_advance : 1;
+    } data;
+};
+
+SymbolicAtomOffset &toOffset(clingo_symbolic_atom_iterator_t &it) {
+    return reinterpret_cast<SymbolicAtomOffset &>(it);
+}
+
+bool skipDomain(Gringo::Sig sig)                                          { return sig.name().startsWith("#"); }
 
 Gringo::SymbolicAtomIter init(Gringo::Output::OutputBase &out, uint32_t domainOffset, bool advance) {
-    Gringo::SymbolicAtomIter it{ (domainOffset << 1) | uint32_t(advance), 0 };
-    for (auto domIt = out.predDoms().begin() + domainOffset, domIe = out.predDoms().end(); domIt != domIe; ++domIt, advanceDomainOffset(it)) {
+    SymbolicAtomOffset it(domainOffset, advance, 0, false);
+    for (auto domIt = out.predDoms().begin() + domainOffset, domIe = out.predDoms().end(); domIt != domIe; ++domIt, ++it.data.domain_offset) {
         auto &dom = **domIt;
-        if (!skipDomain(dom) && dom.size() > 0) { return it; }
-        if (!advanceDomain(it)) { break; }
+        if (!skipDomain(dom) && dom.size() > 0) { return it.repr; }
+        if (!it.data.domain_advance) { break; }
     }
-    setDomainOffset(it, out.predDoms().size());
-    return it;
+    it.data.domain_offset = out.predDoms().size();
+    return it.repr;
 }
 
 void advance(Gringo::Output::OutputBase &out, Gringo::SymbolicAtomIter &it) {
-    auto domIt  = out.predDoms().begin() + domainOffset(it);
+    auto &off = toOffset(it).data;
+    auto domIt  = out.predDoms().begin() + off.domain_offset;
     auto domIe  = out.predDoms().end();
-    auto elemIt = (*domIt)->begin() + atomOffset(it);
+    auto elemIt = (*domIt)->begin() + off.atom_offset;
     auto elemIe = (*domIt)->end();
-    ++elemIt; advanceAtomOffset(it);
+    ++elemIt; ++off.atom_offset;
     while (elemIt == elemIe) {
-        setAtomOffset(it, 0);
-        if (!advanceDomain(it)) {
-            setDomainOffset(it, out.predDoms().size());
+        off.atom_offset = 0;
+        if (!off.domain_advance) {
+            off.domain_offset = out.predDoms().size();
             return;
         }
-        ++domIt; advanceDomainOffset(it);
+        ++domIt; ++off.domain_offset;
         if (domIt == domIe) { return; }
         if (!skipDomain(**domIt)) {
             elemIt = (*domIt)->begin();
@@ -476,23 +490,28 @@ void advance(Gringo::Output::OutputBase &out, Gringo::SymbolicAtomIter &it) {
     }
 }
 
+Gringo::Output::PredicateAtom &domainElem(Gringo::Output::PredDomMap &map, Gringo::SymbolicAtomIter it) {
+    auto &off = toOffset(it).data;
+    return (*map[off.domain_offset])[off.atom_offset];
+}
+
 } // namespace
 
 Gringo::Symbol ClingoControl::atom(Gringo::SymbolicAtomIter it) const {
-    return (*out_->predDoms()[domainOffset(it)])[atomOffset(it)];
+    return domainElem(out_->predDoms(), it);
 }
 
 Potassco::Lit_t ClingoControl::literal(Gringo::SymbolicAtomIter it) const {
-    auto &elem = (*out_->predDoms()[domainOffset(it)])[atomOffset(it)];
+    auto &elem = domainElem(out_->predDoms(), it);
     return elem.hasUid() ? elem.uid() : 0;
 }
 
 bool ClingoControl::fact(Gringo::SymbolicAtomIter it) const {
-    return (*out_->predDoms()[domainOffset(it)])[atomOffset(it)].fact();
+    return domainElem(out_->predDoms(), it).fact();
 }
 
 bool ClingoControl::external(Gringo::SymbolicAtomIter it) const {
-    auto &elem = (*out_->predDoms()[domainOffset(it)])[atomOffset(it)];
+    auto &elem = domainElem(out_->predDoms(), it);
     return elem.hasUid() && elem.isExternal() && static_cast<Clasp::Asp::LogicProgram*>(clasp_->program())->isExternal(elem.uid());
 }
 
@@ -502,8 +521,8 @@ Gringo::SymbolicAtomIter ClingoControl::next(Gringo::SymbolicAtomIter it) {
 }
 
 bool ClingoControl::valid(Gringo::SymbolicAtomIter it) const {
-    auto off = domainOffset(it);
-    return off < out_->predDoms().size() && atomOffset(it) < out_->predDoms()[off]->size();
+    auto &off = toOffset(it).data;
+    return off.domain_offset < out_->predDoms().size() && off.atom_offset < out_->predDoms()[off.domain_offset]->size();
 }
 
 std::vector<Gringo::Sig> ClingoControl::signatures() const {
@@ -523,11 +542,11 @@ Gringo::SymbolicAtomIter ClingoControl::begin() const {
 }
 
 Gringo::SymbolicAtomIter ClingoControl::end() const {
-    return {out_->predDoms().size() << 1 , 0};
+    return SymbolicAtomOffset{out_->predDoms().size(), false, 0, false}.repr;
 }
 
 bool ClingoControl::eq(Gringo::SymbolicAtomIter it, Gringo::SymbolicAtomIter jt) const {
-    return domainOffset(it) == domainOffset(jt) && atomOffset(it) == atomOffset(jt);
+    return toOffset(it) == toOffset(jt);
 }
 
 Gringo::SymbolicAtomIter ClingoControl::lookup(Gringo::Symbol atom) const {
@@ -536,11 +555,11 @@ Gringo::SymbolicAtomIter ClingoControl::lookup(Gringo::Symbol atom) const {
         if (it != out_->predDoms().end()) {
             auto jt = (*it)->find(atom);
             if (jt != (*it)->end()) {
-                return init(out_->predDoms().offset(it), jt - (*it)->begin());
+                return SymbolicAtomOffset(out_->predDoms().offset(it), true, jt - (*it)->begin(), true).repr;
             }
         }
     }
-    return init(out_->predDoms().size(), 0);
+    return SymbolicAtomOffset(out_->predDoms().size(), true, 0, true).repr;
 }
 
 size_t ClingoControl::length() const {

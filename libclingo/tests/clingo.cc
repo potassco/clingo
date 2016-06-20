@@ -360,7 +360,7 @@ TEST_CASE("solving", "[clingo]") {
                 std::sort(symbols.begin(), symbols.end());
                 REQUIRE(symbols == SymbolVector({q, p1, p2, p3}));
                 symbols.clear();
-                for (auto it = atoms.begin(Signature("p", 1)); it; ++it) { symbols.emplace_back(it->symbol()); }
+                for (auto it = atoms.begin(Signature("p", 1)); it.valid(); ++it) { symbols.emplace_back(it->symbol()); }
                 std::sort(symbols.begin(), symbols.end());
                 REQUIRE(symbols == SymbolVector({p1, p2, p3}));
             }

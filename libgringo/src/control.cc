@@ -277,7 +277,7 @@ SymbolicAtomIterator &SymbolicAtomIterator::operator++() {
     return *this;
 }
 
-SymbolicAtomIterator::operator bool() const {
+bool SymbolicAtomIterator::valid() const {
     bool ret;
     handleCError(clingo_symbolic_atoms_is_valid(atoms_, range_, &ret));
     return ret;
@@ -290,25 +290,25 @@ bool SymbolicAtomIterator::operator==(SymbolicAtomIterator it) const {
 }
 
 SymbolicAtomIterator SymbolicAtoms::begin() const {
-    clingo_symbolic_atom_iterator it;
+    clingo_symbolic_atom_iterator_t it;
     handleCError(clingo_symbolic_atoms_begin(atoms_, nullptr, &it));
     return {atoms_,  it};
 }
 
 SymbolicAtomIterator SymbolicAtoms::begin(Signature sig) const {
-    clingo_symbolic_atom_iterator it;
+    clingo_symbolic_atom_iterator_t it;
     handleCError(clingo_symbolic_atoms_begin(atoms_, &sig.operator clingo_signature_t const &(), &it));
     return {atoms_, it};
 }
 
 SymbolicAtomIterator SymbolicAtoms::end() const {
-    clingo_symbolic_atom_iterator it;
+    clingo_symbolic_atom_iterator_t it;
     handleCError(clingo_symbolic_atoms_end(atoms_, &it));
     return {atoms_, it};
 }
 
 SymbolicAtomIterator SymbolicAtoms::find(Symbol atom) const {
-    clingo_symbolic_atom_iterator it;
+    clingo_symbolic_atom_iterator_t it;
     handleCError(clingo_symbolic_atoms_find(atoms_, atom, &it));
     return {atoms_, it};
 }

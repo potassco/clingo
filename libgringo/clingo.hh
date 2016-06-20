@@ -281,7 +281,7 @@ public:
     }
     bool operator==(SymbolicAtomIterator it) const;
     bool operator!=(SymbolicAtomIterator it) const { return !(*this == it); }
-    operator bool() const;
+    bool valid() const;
     operator clingo_symbolic_atom_iterator_t() const { return range_; }
 };
 

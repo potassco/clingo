@@ -232,10 +232,7 @@ typedef clingo_error_t clingo_add_ast_callback_t (void *, clingo_ast_callback_t 
 
 // {{{1 symbolic atoms
 
-typedef struct clingo_symbolic_atom_iterator {
-    uint32_t domain_offset;
-    uint32_t atom_offset;
-} clingo_symbolic_atom_iterator_t;
+typedef uint64_t clingo_symbolic_atom_iterator_t;
 
 typedef struct clingo_symbolic_atoms clingo_symbolic_atoms_t;
 clingo_error_t clingo_symbolic_atoms_begin(clingo_symbolic_atoms_t *dom, clingo_signature_t const *sig, clingo_symbolic_atom_iterator_t *ret);
