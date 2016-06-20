@@ -1,1 +1,6 @@
 make.sh
+libcsp/build/
+.sconf_temp
+.sconsign.dblite
+libcsp/.sconf_temp
+libcsp/.sconsign.dblite
