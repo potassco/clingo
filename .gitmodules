@@ -1,3 +1,3 @@
 [submodule "libcsp"]
 	path = libcsp
-	url = git@github.com:MaxOstrowski/libcsp.git
+	url = https://github.com/MaxOstrowski/libcsp.git

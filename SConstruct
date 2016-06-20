@@ -55,7 +55,7 @@ opts.AddVariables(
     ('WITH_LUA'      , 'enable lua integration; None, "auto", library name, or path'),
     ('WITH_CSP'      , 'enable csp integration; None, or something'),
     ('WITH_THREADS'  , 'enable thread support in clasp library; "posix", "windows", or None'),
-    ('TESTS'         , 'enable specific unit tests; [libgringo, libreify, liblp]'),
+    ('TESTS'         , 'enable specific unit tests; [libgringo, libreify, liblp, liborder, libclingcon]'),
     )
 
 env = Environment()
@@ -78,7 +78,7 @@ env['WITH_PYTHON']    = 'auto'
 env['WITH_LUA']       = 'auto'
 env['WITH_CSP']       = 'true'
 env['WITH_THREADS']   = 'posix'
-env['TESTS']          = ['libreify', 'libgringo', 'libclingo', 'liblp', 'clingo']
+env['TESTS']          = ['libreify', 'libgringo', 'libclingo', 'liblp', 'clingo', 'liborder', 'libclingcon']
 
 if GetOption("build_dir") == "static":
     env['CXXFLAGS'] = ['-std=c++11', '-O3', '-Wall']
@@ -139,6 +139,8 @@ Targets:
   test-libgringo              Run unit tests for libgringo.
   test-liblp                  Run unit tests for liblp.
   test-libreify               Run unit tests for librefiy.
+  test-liborder               Run unit tests for liborder.
+  test-libclingcon            Run unit tests for libclingcon.
   libclingo                   Build shared clingo library.
   libclingcon                 Build shared clingcon library.
   example                     Build example app using libclingo.
