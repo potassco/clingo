@@ -557,8 +557,8 @@ if "clingo" in env["TESTS"]:
 
 # {{{1 liborder: Tests
 
-TEST_LIBORDER_SOURCES = find_files(env, 'libcsp/testliborder/src')
-TEST_LIBORDER_HEADERS = [Dir('#libcsp/testliborder')] + LIBORDER_HEADERS + LIBCLASP_HEADERS
+TEST_LIBORDER_SOURCES = find_files(env, 'libcsp/tests/testliborder/src')
+TEST_LIBORDER_HEADERS = [Dir('#libcsp/tests/testliborder')] + LIBORDER_HEADERS + LIBCLASP_HEADERS
 
 orderTestEnv                = claspEnv.Clone()
 orderTestEnv.Append(CPPPATH = TEST_LIBORDER_HEADERS)
@@ -571,8 +571,8 @@ if 'liborder' in env['TESTS']:
 
 # {{{1 libclingcon: Tests
 
-TEST_LIBCLINGCON_SOURCES  = find_files(env, 'libcsp/testlibclingcon/src')
-TEST_LIBCLINGCON_HEADERS = [Dir('#libcsp/testlibclingcon')] + LIBORDER_HEADERS + LIBCLINGCON_HEADERS + LIBCLASP_HEADERS + LIBLP_HEADERS
+TEST_LIBCLINGCON_SOURCES  = find_files(env, 'libcsp/tests/testlibclingcon/src')
+TEST_LIBCLINGCON_HEADERS = [Dir('#libcsp/tests/testlibclingcon')] + LIBORDER_HEADERS + LIBCLINGCON_HEADERS + LIBCLASP_HEADERS + LIBLP_HEADERS
 
 clingconTestEnv                = claspEnv.Clone()
 clingconTestEnv.Append(CPPPATH = TEST_LIBCLINGCON_HEADERS)
