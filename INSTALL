@@ -36,6 +36,7 @@ There is no installation target. To use gringo, clingo, reify, or lpconvert use
 the binaries/libraries in the build/release folder:
     build/release/gringo
     build/release/clingo
+    build/release/clingcon
     build/release/reify
     build/release/lpconvert
 
