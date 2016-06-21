@@ -118,7 +118,8 @@ clingo_error_t clingo_symbol_string(clingo_symbol_t sym, char const **str);
 clingo_error_t clingo_symbol_sign(clingo_symbol_t sym, bool *sign);
 clingo_error_t clingo_symbol_arguments(clingo_symbol_t sym, clingo_symbol_t const **args, size_t *n);
 clingo_symbol_type_t clingo_symbol_type(clingo_symbol_t sym);
-clingo_error_t clingo_symbol_to_string(clingo_symbol_t sym, char *ret, size_t *n);
+clingo_error_t clingo_symbol_to_string_size(clingo_symbol_t sym, size_t *n);
+clingo_error_t clingo_symbol_to_string(clingo_symbol_t sym, char *ret, size_t n);
 
 // comparison
 
@@ -159,12 +160,14 @@ enum clingo_show_type {
 typedef unsigned clingo_show_type_bitset_t;
 
 typedef struct clingo_model clingo_model_t;
-clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type_bitset_t show, clingo_symbol_t *ret, size_t *n);
+clingo_error_t clingo_model_atoms_size(clingo_model_t *m, clingo_show_type_bitset_t show, size_t *n);
+clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type_bitset_t show, clingo_symbol_t *ret, size_t n);
 clingo_error_t clingo_model_contains(clingo_model_t *m, clingo_symbol_t atom, bool *ret);
 clingo_error_t clingo_model_context(clingo_model_t *m, clingo_solve_control_t **ret);
 clingo_error_t clingo_model_number(clingo_model_t *m, uint64_t *n);
 clingo_error_t clingo_model_optimality_proven(clingo_model_t *m, bool *ret);
-clingo_error_t clingo_model_cost(clingo_model_t *m, int64_t *ret, size_t *n);
+clingo_error_t clingo_model_cost_size(clingo_model_t *m, size_t *n);
+clingo_error_t clingo_model_cost(clingo_model_t *m, int64_t *ret, size_t n);
 clingo_error_t clingo_model_type(clingo_model_t *m, clingo_model_type_t *ret);
 
 // {{{1 solve result
@@ -239,7 +242,8 @@ clingo_error_t clingo_symbolic_atoms_begin(clingo_symbolic_atoms_t *dom, clingo_
 clingo_error_t clingo_symbolic_atoms_end(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t *ret);
 clingo_error_t clingo_symbolic_atoms_find(clingo_symbolic_atoms_t *dom, clingo_symbol_t atom, clingo_symbolic_atom_iterator_t *ret);
 clingo_error_t clingo_symbolic_atoms_iterator_is_equal_to(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t it, clingo_symbolic_atom_iterator_t jt, bool *ret);
-clingo_error_t clingo_symbolic_atoms_signatures(clingo_symbolic_atoms_t *dom, clingo_signature_t *ret, size_t *n);
+clingo_error_t clingo_symbolic_atoms_signatures_size(clingo_symbolic_atoms_t *dom, size_t *n);
+clingo_error_t clingo_symbolic_atoms_signatures(clingo_symbolic_atoms_t *dom, clingo_signature_t *ret, size_t n);
 clingo_error_t clingo_symbolic_atoms_size(clingo_symbolic_atoms_t *dom, size_t *ret);
 clingo_error_t clingo_symbolic_atoms_symbol(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, clingo_symbol_t *sym);
 clingo_error_t clingo_symbolic_atoms_literal(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, clingo_literal_t *lit);
@@ -274,9 +278,12 @@ clingo_error_t clingo_theory_atoms_atom_has_guard(clingo_theory_atoms_t *atoms, 
 clingo_error_t clingo_theory_atoms_atom_literal(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_literal_t *ret);
 clingo_error_t clingo_theory_atoms_atom_guard(clingo_theory_atoms_t *atoms, clingo_id_t value, char const **ret_op, clingo_id_t *ret_term);
 clingo_error_t clingo_theory_atoms_size(clingo_theory_atoms_t *atoms, size_t *ret);
-clingo_error_t clingo_theory_atoms_term_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t *n);
-clingo_error_t clingo_theory_atoms_element_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t *n);
-clingo_error_t clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t *n);
+clingo_error_t clingo_theory_atoms_term_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t value, size_t *n);
+clingo_error_t clingo_theory_atoms_term_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t n);
+clingo_error_t clingo_theory_atoms_element_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t value, size_t *n);
+clingo_error_t clingo_theory_atoms_element_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t n);
+clingo_error_t clingo_theory_atoms_atom_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t value, size_t *n);
+clingo_error_t clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t n);
 
 // {{{1 propagate init
 
@@ -377,7 +384,8 @@ clingo_error_t clingo_configuration_map_at(clingo_configuration_t *conf, clingo_
 clingo_error_t clingo_configuration_map_size(clingo_configuration_t *conf, clingo_id_t key, size_t* subkey);
 clingo_error_t clingo_configuration_map_subkey_name(clingo_configuration_t *conf, clingo_id_t key, size_t index, char const **name);
 clingo_error_t clingo_configuration_value_is_assigned(clingo_configuration_t *conf, clingo_id_t key, bool *ret);
-clingo_error_t clingo_configuration_value_get(clingo_configuration_t *conf, clingo_id_t key, char *ret, size_t *n);
+clingo_error_t clingo_configuration_value_get_size(clingo_configuration_t *conf, clingo_id_t key, size_t *n);
+clingo_error_t clingo_configuration_value_get(clingo_configuration_t *conf, clingo_id_t key, char *ret, size_t n);
 clingo_error_t clingo_configuration_value_set(clingo_configuration_t *conf, clingo_id_t key, char const *val);
 clingo_error_t clingo_configuration_root(clingo_configuration_t *conf, clingo_id_t *ret);
 clingo_error_t clingo_configuration_type(clingo_configuration_t *conf, clingo_id_t key, clingo_configuration_type_bitset_t *ret);

@@ -39,32 +39,30 @@ clingo_solve_result_bitset_t convert(SolveResult r) {
            static_cast<clingo_solve_result_bitset_t>(r.exhausted()) * static_cast<clingo_solve_result_bitset_t>(clingo_solve_result_exhausted);
 }
 
-template <class F>
-std::string to_string(F f) {
+template <class S, class P, class ...Args>
+std::string to_string(S size, P print, Args ...args) {
     std::vector<char> ret;
     size_t n;
-    handleCError(f(nullptr, &n));
+    handleCError(size(std::forward<Args>(args)..., &n));
     ret.resize(n);
-    handleCError(f(ret.data(), &n));
+    handleCError(print(std::forward<Args>(args)..., ret.data(), n));
     return std::string(ret.begin(), ret.end()-1);
 }
 
 template <class F>
-void print(char *ret, size_t *n, F f) {
-    if (!n) { throw std::invalid_argument("size must not be null"); }
-    if (!ret) {
-        Gringo::CountStream cs;
-        f(cs);
-        cs.flush();
-        *n = cs.count() + 1;
-    }
-    else {
-        if (*n < 1) { throw std::length_error("not enough space"); }
-        Gringo::ArrayStream as(ret, *n);
-        f(as);
-        as << '\0';
-        as.flush();
-    }
+size_t print_size(F f) {
+    Gringo::CountStream cs;
+    f(cs);
+    cs.flush();
+    return cs.count() + 1;
+}
+
+template <class F>
+void print(char *ret, size_t n, F f) {
+    Gringo::ArrayStream as(ret, n);
+    f(as);
+    as << '\0';
+    as.flush();
 }
 
 thread_local std::exception_ptr g_lastException;
@@ -225,7 +223,7 @@ SymbolType Symbol::type() const {
 #define CLINGO_CALLBACK_CATCH(ref) catch (...){ (ref) = std::current_exception(); return clingo_error_unknown; } return clingo_error_success
 
 std::string Symbol::to_string() const {
-    return ::to_string([this](char *ret, size_t *n) { return clingo_symbol_to_string(sym_, ret, n); });
+    return ::to_string(clingo_symbol_to_string_size, clingo_symbol_to_string, sym_);
 }
 
 size_t Symbol::hash() const {
@@ -315,11 +313,11 @@ SymbolicAtomIterator SymbolicAtoms::find(Symbol atom) const {
 
 std::vector<Signature> SymbolicAtoms::signatures() const {
     size_t n;
-    clingo_symbolic_atoms_signatures(atoms_, nullptr, &n);
+    clingo_symbolic_atoms_signatures_size(atoms_, &n);
     Signature sig("", 0);
     std::vector<Signature> ret;
     ret.resize(n, sig);
-    handleCError(clingo_symbolic_atoms_signatures(atoms_, reinterpret_cast<clingo_signature_t *>(ret.data()), &n));
+    handleCError(clingo_symbolic_atoms_signatures(atoms_, reinterpret_cast<clingo_signature_t *>(ret.data()), n));
     return ret;
 }
 
@@ -362,7 +360,7 @@ std::ostream &operator<<(std::ostream &out, TheoryTerm term) {
 }
 
 std::string TheoryTerm::to_string() const {
-    return ::to_string([this](char *ret, size_t *n) { return clingo_theory_atoms_term_to_string(atoms_, id_, ret, n); });
+    return ::to_string(clingo_theory_atoms_term_to_string_size, clingo_theory_atoms_term_to_string, atoms_, id_);
 }
 
 
@@ -387,7 +385,7 @@ literal_t TheoryElement::condition_literal() const {
 }
 
 std::string TheoryElement::to_string() const {
-    return ::to_string([this](char *ret, size_t *n) { return clingo_theory_atoms_element_to_string(atoms_, id_, ret, n); });
+    return ::to_string(clingo_theory_atoms_element_to_string_size, clingo_theory_atoms_element_to_string, atoms_, id_);
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryElement term) {
@@ -428,7 +426,7 @@ std::pair<char const *, TheoryTerm> TheoryAtom::guard() const {
 }
 
 std::string TheoryAtom::to_string() const {
-    return ::to_string([this](char *ret, size_t *n) { return clingo_theory_atoms_atom_to_string(atoms_, id_, ret, n); });
+    return ::to_string(clingo_theory_atoms_atom_to_string_size, clingo_theory_atoms_atom_to_string, atoms_, id_);
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryAtom term) {
@@ -583,18 +581,18 @@ bool Model::contains(Symbol atom) const {
 CostVector Model::cost() const {
     CostVector ret;
     size_t n;
-    handleCError(clingo_model_cost(model_, nullptr, &n));
+    handleCError(clingo_model_cost_size(model_, &n));
     ret.resize(n);
-    handleCError(clingo_model_cost(model_, ret.data(), &n));
+    handleCError(clingo_model_cost(model_, ret.data(), n));
     return ret;
 }
 
 SymbolVector Model::atoms(ShowType show) const {
     SymbolVector ret;
     size_t n;
-    handleCError(clingo_model_atoms(model_, show, nullptr, &n));
+    handleCError(clingo_model_atoms_size(model_, show, &n));
     ret.resize(n);
-    handleCError(clingo_model_atoms(model_, show, reinterpret_cast<clingo_symbol_t *>(ret.data()), &n));
+    handleCError(clingo_model_atoms(model_, show, reinterpret_cast<clingo_symbol_t *>(ret.data()), n));
     return ret;
 }
 
@@ -831,9 +829,9 @@ bool Configuration::is_assigned() const {
 
 std::string Configuration::value() const {
     size_t n;
-    handleCError(clingo_configuration_value_get(conf_, key_, nullptr, &n));
+    handleCError(clingo_configuration_value_get_size(conf_, key_, &n));
     std::vector<char> ret(n);
-    handleCError(clingo_configuration_value_get(conf_, key_, ret.data(), &n));
+    handleCError(clingo_configuration_value_get(conf_, key_, ret.data(), n));
     return std::string(ret.begin(), ret.end() - 1);
 }
 
@@ -1211,7 +1209,12 @@ extern "C" clingo_symbol_type_t clingo_symbol_type(clingo_symbol_t val) {
     return static_cast<clingo_symbol_type_t>(Symbol(val).type());
 }
 
-extern "C" clingo_error_t clingo_symbol_to_string(clingo_symbol_t val, char *ret, size_t *n) {
+extern "C" clingo_error_t clingo_symbol_to_string_size(clingo_symbol_t val, size_t *n) {
+    GRINGO_CLINGO_TRY { *n = print_size([&val](std::ostream &out) { Symbol(val).print(out); }); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" clingo_error_t clingo_symbol_to_string(clingo_symbol_t val, char *ret, size_t n) {
     GRINGO_CLINGO_TRY { print(ret, n, [&val](std::ostream &out) { Symbol(val).print(out); }); }
     GRINGO_CLINGO_CATCH;
 }
@@ -1250,16 +1253,21 @@ extern "C" clingo_error_t clingo_symbolic_atoms_iterator_is_equal_to(clingo_symb
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbolic_atoms_signatures(clingo_symbolic_atoms_t *dom, clingo_signature_t *ret, size_t *n) {
+extern "C" clingo_error_t clingo_symbolic_atoms_signatures_size(clingo_symbolic_atoms_t *dom, size_t *n) {
     GRINGO_CLINGO_TRY {
         // TODO: implement matching C++ functions ...
         auto sigs = dom->signatures();
-        if (!n) { throw std::invalid_argument("size must be non-null"); }
-        if (!ret) { *n = sigs.size(); }
-        else {
-            if (*n < sigs.size()) { throw std::length_error("not enough space"); }
-            for (auto &sig : sigs) { *ret++ = sig.rep(); }
-        }
+        *n = sigs.size();
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" clingo_error_t clingo_symbolic_atoms_signatures(clingo_symbolic_atoms_t *dom, clingo_signature_t *ret, size_t n) {
+    GRINGO_CLINGO_TRY {
+        // TODO: implement matching C++ functions ...
+        auto sigs = dom->signatures();
+        if (n < sigs.size()) { throw std::length_error("not enough space"); }
+        for (auto &sig : sigs) { *ret++ = sig.rep(); }
     }
     GRINGO_CLINGO_CATCH;
 }
@@ -1386,17 +1394,32 @@ extern "C" clingo_error_t clingo_theory_atoms_size(clingo_theory_atoms_t *atoms,
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_theory_atoms_term_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t *n) {
+extern "C" clingo_error_t clingo_theory_atoms_term_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t value, size_t *n) {
+    GRINGO_CLINGO_TRY { *n = print_size([atoms, value](std::ostream &out) { out << atoms->termStr(value); }); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_term_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t n) {
     GRINGO_CLINGO_TRY { print(ret, n, [atoms, value](std::ostream &out) { out << atoms->termStr(value); }); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_theory_atoms_element_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t *n) {
+extern "C" clingo_error_t clingo_theory_atoms_element_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t value, size_t *n) {
+    GRINGO_CLINGO_TRY { *n = print_size([atoms, value](std::ostream &out) { out << atoms->elemStr(value); }); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_element_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t n) {
     GRINGO_CLINGO_TRY { print(ret, n, [atoms, value](std::ostream &out) { out << atoms->elemStr(value); }); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t *n) {
+extern "C" clingo_error_t clingo_theory_atoms_atom_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t value, size_t *n) {
+    GRINGO_CLINGO_TRY { *n = print_size([atoms, value](std::ostream &out) { out << atoms->atomStr(value); }); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" clingo_error_t clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t n) {
     GRINGO_CLINGO_TRY { print(ret, n, [atoms, value](std::ostream &out) { out << atoms->atomStr(value); }); }
     GRINGO_CLINGO_CATCH;
 }
@@ -1518,16 +1541,21 @@ extern "C" clingo_error_t clingo_model_contains(clingo_model_t *m, clingo_symbol
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type_bitset_t show, clingo_symbol_t *ret, size_t *n) {
+extern "C" clingo_error_t clingo_model_atoms_size(clingo_model_t *m, clingo_show_type_bitset_t show, size_t *n) {
     GRINGO_CLINGO_TRY {
         // TODO: implement matching C++ functions ...
         SymSpan atoms = m->atoms(show);
-        if (!n) { throw std::invalid_argument("size must be non-null"); }
-        if (!ret) { *n = atoms.size; }
-        else {
-            if (*n < atoms.size) { throw std::length_error("not enough space"); }
-            for (auto it = atoms.first, ie = it + atoms.size; it != ie; ++it) { *ret++ = it->rep(); }
-        }
+        *n = atoms.size;
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type_bitset_t show, clingo_symbol_t *ret, size_t n) {
+    GRINGO_CLINGO_TRY {
+        // TODO: implement matching C++ functions ...
+        SymSpan atoms = m->atoms(show);
+        if (n < atoms.size) { throw std::length_error("not enough space"); }
+        for (auto it = atoms.first, ie = it + atoms.size; it != ie; ++it) { *ret++ = it->rep(); }
     }
     GRINGO_CLINGO_CATCH;
 }
@@ -1537,16 +1565,21 @@ extern "C" clingo_error_t clingo_model_optimality_proven(clingo_model_t *m, bool
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_model_cost(clingo_model_t *m, int64_t *ret, size_t *n) {
+extern "C" clingo_error_t clingo_model_cost_size(clingo_model_t *m, size_t *n) {
     GRINGO_CLINGO_TRY {
         // TODO: implement matching C++ functions ...
         auto opt = m->optimization();
-        if (!n) { throw std::invalid_argument("size must be non-null"); }
-        if (!ret) { *n = opt.size(); }
-        else {
-            if (*n < opt.size()) { throw std::length_error("not enough space"); }
-            std::copy(opt.begin(), opt.end(), ret);
-        }
+        *n = opt.size();
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" clingo_error_t clingo_model_cost(clingo_model_t *m, int64_t *ret, size_t n) {
+    GRINGO_CLINGO_TRY {
+        // TODO: implement matching C++ functions ...
+        auto opt = m->optimization();
+        if (n < opt.size()) { throw std::length_error("not enough space"); }
+        std::copy(opt.begin(), opt.end(), ret);
     }
     GRINGO_CLINGO_CATCH;
 }
@@ -1668,16 +1701,21 @@ extern "C" clingo_error_t clingo_configuration_description(clingo_configuration_
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_configuration_value_get(clingo_configuration_t *conf, clingo_id_t key, char *ret, size_t *n) {
+extern "C" clingo_error_t clingo_configuration_value_get_size(clingo_configuration_t *conf, clingo_id_t key, size_t *n) {
     GRINGO_CLINGO_TRY {
         std::string value;
         conf->getKeyValue(key, value);
-        if (!n) { throw std::invalid_argument("size must be non-null"); }
-        if (!ret) { *n = value.size() + 1; }
-        else {
-            if (*n < value.size() + 1) { throw std::length_error("not enough space"); }
-            std::strcpy(ret, value.c_str());
-        }
+        *n = value.size() + 1;
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" clingo_error_t clingo_configuration_value_get(clingo_configuration_t *conf, clingo_id_t key, char *ret, size_t n) {
+    GRINGO_CLINGO_TRY {
+        std::string value;
+        conf->getKeyValue(key, value);
+        if (n < value.size() + 1) { throw std::length_error("not enough space"); }
+        std::strcpy(ret, value.c_str());
     }
     GRINGO_CLINGO_CATCH;
 }
