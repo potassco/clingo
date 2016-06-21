@@ -94,6 +94,7 @@ def CheckMyFun(context, name, code, header):
 def CheckLibs(context, name, libs, header):
     context.Message("Checking for C++ library {0}... ".format(name))
     libs = [libs] if isinstance(libs, types.StringTypes) else libs
+    old = context.env["LIBS"][:]
     for lib in libs:
         if os.path.isabs(lib):
             context.env.Append(LIBS=File(lib))
@@ -101,6 +102,8 @@ def CheckLibs(context, name, libs, header):
             context.env.Append(LIBS=lib)
     result = context.TryLink("#include <{0}>\nint main() {{ }}\n".format(header), '.cc')
     context.Result(result)
+    if result == 0:
+        context.env["LIBS"] = old
     return result
 
 def CheckWithPkgConfig(context, name, versions):
@@ -124,14 +127,18 @@ def CheckPythonConfig(context):
             content = context.env.backtick('{0} --ldflags --includes'.format(context.env['PYTHON_CONFIG']))
             flags = []
             for option in content.split():
-                if option.startswith("-I"):
-                    flags.append(option)
-                if option.startswith("-L"):
-                    flags.append(option)
-                if option.startswith("-l"):
-                    flags.append(option)
+                if option.startswith("-I"): flags.append(option)
+                if option.startswith("-L"): flags.append(option)
+                if option.startswith("-l"): flags.append(option)
+            old_libs = context.env['LIBS'][:]
+            old_cpppath = context.env['CPPPATH'][:]
+            old_libpath = context.env['LIBPATH'][:]
             context.env.MergeFlags(' '.join(flags))
             result = context.TryLink("#include <Python.h>\nint main() { }\n", ".cc")
+            if not result:
+                context.env['LIBS'] = old_libs
+                context.env['LIBPATH'] = old_libpath
+                context.env['CPPPATH'] = old_cpppath
     else:
         result = False
     context.Result(result)
