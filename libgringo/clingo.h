@@ -78,8 +78,8 @@ typedef uint64_t clingo_signature_t;
 clingo_error_t clingo_signature_create(char const *name, uint32_t arity, bool positive, clingo_signature_t *ret);
 char const *clingo_signature_name(clingo_signature_t sig);
 uint32_t clingo_signature_arity(clingo_signature_t sig);
-bool clingo_signature_positive(clingo_signature_t sig);
-bool clingo_signature_negative(clingo_signature_t sig);
+bool clingo_signature_is_positive(clingo_signature_t sig);
+bool clingo_signature_is_negative(clingo_signature_t sig);
 size_t clingo_signature_hash(clingo_signature_t sig);
 bool clingo_signature_is_equal_to(clingo_signature_t a, clingo_signature_t b);
 bool clingo_signature_is_less_than(clingo_signature_t a, clingo_signature_t b);
@@ -98,7 +98,7 @@ typedef int clingo_symbol_type_t;
 typedef uint64_t clingo_symbol_t;
 
 typedef struct clingo_symbolic_literal {
-    clingo_symbol_t atom;
+    clingo_symbol_t symbol;
     bool positive;
 } clingo_symbolic_literal_t;
 
@@ -116,8 +116,8 @@ clingo_error_t clingo_symbol_create_function(char const *name, clingo_symbol_t c
 clingo_error_t clingo_symbol_number(clingo_symbol_t sym, int *num);
 clingo_error_t clingo_symbol_name(clingo_symbol_t sym, char const **name);
 clingo_error_t clingo_symbol_string(clingo_symbol_t sym, char const **str);
-clingo_error_t clingo_symbol_positive(clingo_symbol_t sym, bool *positive);
-clingo_error_t clingo_symbol_negative(clingo_symbol_t sym, bool *negative);
+clingo_error_t clingo_symbol_is_positive(clingo_symbol_t sym, bool *positive);
+clingo_error_t clingo_symbol_is_negative(clingo_symbol_t sym, bool *negative);
 clingo_error_t clingo_symbol_arguments(clingo_symbol_t sym, clingo_symbol_t const **args, size_t *n);
 clingo_symbol_type_t clingo_symbol_type(clingo_symbol_t sym);
 clingo_error_t clingo_symbol_to_string_size(clingo_symbol_t sym, size_t *n);

@@ -216,8 +216,8 @@ public:
     int num() const;
     char const *name() const;
     char const *string() const;
-    bool positive() const;
-    bool negative() const;
+    bool is_positive() const;
+    bool is_negative() const;
     SymbolSpan args() const;
     SymbolType type() const;
     std::string to_string() const;
@@ -590,13 +590,13 @@ public:
 
 class SymbolicLiteral {
 public:
-    SymbolicLiteral(Symbol atom, bool sign)
-    : sym_{atom.to_c(), sign} { }
+    SymbolicLiteral(Symbol sym, bool sign)
+    : sym_{sym.to_c(), sign} { }
     explicit SymbolicLiteral(clingo_symbolic_literal_t sym)
     : sym_(sym) { }
-    Symbol atom() const { return Symbol(sym_.atom); }
-    bool positive() const { return sym_.positive; }
-    bool negative() const { return !sym_.positive; }
+    Symbol symbol() const { return Symbol(sym_.symbol); }
+    bool is_positive() const { return sym_.positive; }
+    bool is_negative() const { return !sym_.positive; }
     clingo_symbolic_literal_t &to_c() { return sym_; }
     clingo_symbolic_literal_t const &to_c() const { return sym_; }
 private:
@@ -606,15 +606,15 @@ private:
 using SymbolicLiteralSpan = Span<SymbolicLiteral>;
 
 inline std::ostream &operator<<(std::ostream &out, SymbolicLiteral sym) {
-    if (sym.negative()) { out << "~"; }
-    out << sym.atom();
+    if (sym.is_negative()) { out << "~"; }
+    out << sym.symbol();
     return out;
 }
-inline bool operator==(SymbolicLiteral a, SymbolicLiteral b) { return a.negative() == b.negative() && a.atom() == b.atom(); }
+inline bool operator==(SymbolicLiteral a, SymbolicLiteral b) { return a.is_negative() == b.is_negative() && a.symbol() == b.symbol(); }
 inline bool operator!=(SymbolicLiteral a, SymbolicLiteral b) { return !(a == b); }
 inline bool operator< (SymbolicLiteral a, SymbolicLiteral b) {
-    if (a.negative() != b.negative()) { return a.negative() < b.negative(); }
-    return a.atom() < b.atom();
+    if (a.is_negative() != b.is_negative()) { return a.is_negative() < b.is_negative(); }
+    return a.symbol() < b.symbol();
 }
 inline bool operator<=(SymbolicLiteral a, SymbolicLiteral b) { return !(b < a); }
 inline bool operator> (SymbolicLiteral a, SymbolicLiteral b) { return  (b < a); }

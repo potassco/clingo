@@ -67,14 +67,14 @@ TEST_CASE("symbol", "[clingo]") {
         // id
         sym = Id("x", false);
         REQUIRE(SymbolType::Function == sym.type());
-        REQUIRE(sym.negative());
-        REQUIRE(!sym.positive());
+        REQUIRE(sym.is_negative());
+        REQUIRE(!sym.is_positive());
         REQUIRE(S("x") == sym.name());
         args.emplace_back(sym);
         // fun
         sym = Function("f", args);
         REQUIRE(SymbolType::Function == sym.type());
-        REQUIRE(!sym.negative());
+        REQUIRE(!sym.is_negative());
         REQUIRE(S("f") == sym.name());
         REQUIRE("f(42,#inf,#sup,\"x\",-x)" == sym.to_string());
         REQUIRE((args.size() == sym.args().size() && std::equal(args.begin(), args.end(), sym.args().begin())));
