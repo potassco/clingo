@@ -26,11 +26,10 @@ using namespace Clingo;
 
 int main(int argc, char const **argv) {
     try {
-        Module module;
         Logger logger = [](Clingo::WarningCode, char const *message) {
             std::cerr << message << std::endl;
         };
-        Control ctl = module.make_control({argv+1, size_t(argc-1)}, logger, 20);
+        Control ctl{{argv+1, size_t(argc-1)}, logger, 20};
         ctl.add("base", {}, "a :- not b. b :- not a.");
         ctl.ground({{"base", {}}});
         for (auto m : ctl.solve_iteratively()) {
