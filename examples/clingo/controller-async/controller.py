@@ -89,7 +89,7 @@ class Solver:
         self.prg = clingo.Control()
         self.prg.load("client.lp")
         self.prg.ground([("pigeon", []), ("sleep",  [self.k])])
-        self.prg.assign_external(clingo.function("sleep", [self.k]), True)
+        self.prg.assign_external(clingo.Function("sleep", [self.k]), True)
         self.ret = None
         self.models = []
 
@@ -100,8 +100,8 @@ class Solver:
         if self.ret is not None and not self.ret.unknown():
             self.k = self.k + 1
             self.prg.ground([("sleep", [self.k])])
-            self.prg.release_external(clingo.function("sleep", [self.k-1]))
-            self.prg.assign_external(clingo.function("sleep", [self.k]), True)
+            self.prg.release_external(clingo.Function("sleep", [self.k-1]))
+            self.prg.assign_external(clingo.Function("sleep", [self.k]), True)
         self.future = self.prg.solve_async(on_model=self.on_model, on_finish=on_finish)
 
     def stop(self):
@@ -112,7 +112,7 @@ class Solver:
         return ret
 
     def set_more_pigeon(self, more):
-        self.prg.assign_external(clingo.function("p"), more)
+        self.prg.assign_external(clingo.Function("p"), more)
 
 st = Solver()
 ct = Controller()
