@@ -111,8 +111,8 @@ namespace Clingo {
 
 // {{{1 signature
 
-Signature::Signature(char const *name, uint32_t arity, bool sign) {
-    handleCError(clingo_signature_create(name, arity, sign, &sig_));
+Signature::Signature(char const *name, uint32_t arity, bool positive) {
+    handleCError(clingo_signature_create(name, arity, positive, &sig_));
 }
 
 char const *Signature::name() const {
@@ -123,10 +123,13 @@ uint32_t Signature::arity() const {
     return clingo_signature_arity(sig_);
 }
 
-bool Signature::sign() const {
-    return clingo_signature_sign(sig_);
+bool Signature::positive() const {
+    return clingo_signature_positive(sig_);
 }
 
+bool Signature::negative() const {
+    return clingo_signature_negative(sig_);
+}
 
 size_t Signature::hash() const {
     return clingo_signature_hash(sig_);
@@ -172,15 +175,15 @@ Symbol String(char const *str) {
     return Symbol(sym);
 }
 
-Symbol Id(char const *id, bool sign) {
+Symbol Id(char const *id, bool positive) {
     clingo_symbol_t sym;
-    handleCError(clingo_symbol_create_id(id, sign, &sym));
+    handleCError(clingo_symbol_create_id(id, positive, &sym));
     return Symbol(sym);
 }
 
-Symbol Function(char const *name, SymbolSpan args, bool sign) {
+Symbol Function(char const *name, SymbolSpan args, bool positive) {
     clingo_symbol_t sym;
-    handleCError(clingo_symbol_create_function(name, reinterpret_cast<clingo_symbol_t const *>(args.begin()), args.size(), sign, &sym));
+    handleCError(clingo_symbol_create_function(name, reinterpret_cast<clingo_symbol_t const *>(args.begin()), args.size(), positive, &sym));
     return Symbol(sym);
 }
 
@@ -202,9 +205,15 @@ char const *Symbol::string() const {
     return ret;
 }
 
-bool Symbol::sign() const {
+bool Symbol::positive() const {
     bool ret;
-    handleCError(clingo_symbol_sign(sym_, &ret));
+    handleCError(clingo_symbol_positive(sym_, &ret));
+    return ret;
+}
+
+bool Symbol::negative() const {
+    bool ret;
+    handleCError(clingo_symbol_negative(sym_, &ret));
     return ret;
 }
 
@@ -1128,9 +1137,9 @@ extern "C" char const *clingo_warning_string(clingo_warning_t code) {
 
 // {{{1 signature
 
-extern "C" clingo_error_t clingo_signature_create(char const *name, uint32_t arity, bool sign, clingo_signature_t *ret) {
+extern "C" clingo_error_t clingo_signature_create(char const *name, uint32_t arity, bool positive, clingo_signature_t *ret) {
     GRINGO_CLINGO_TRY {
-        *ret = Sig(name, arity, sign).rep();
+        *ret = Sig(name, arity, !positive).rep();
     } GRINGO_CLINGO_CATCH;
 }
 
@@ -1142,8 +1151,12 @@ extern "C" uint32_t clingo_signature_arity(clingo_signature_t sig) {
     return Sig(sig).arity();
 }
 
-extern "C" bool clingo_signature_sign(clingo_signature_t sig) {
+extern "C" bool clingo_signature_negative(clingo_signature_t sig) {
     return Sig(sig).sign();
+}
+
+extern "C" bool clingo_signature_positive(clingo_signature_t sig) {
+    return !Sig(sig).sign();
 }
 
 extern "C" size_t clingo_signature_hash(clingo_signature_t sig) {
@@ -1179,15 +1192,15 @@ extern "C" clingo_error_t clingo_symbol_create_string(char const *str, clingo_sy
     } GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbol_create_id(char const *id, bool sign, clingo_symbol_t *val) {
+extern "C" clingo_error_t clingo_symbol_create_id(char const *id, bool positive, clingo_symbol_t *val) {
     GRINGO_CLINGO_TRY {
-        *val = Symbol::createId(id, sign).rep();
+        *val = Symbol::createId(id, !positive).rep();
     } GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbol_create_function(char const *name, clingo_symbol_t const *args, size_t n, bool sign, clingo_symbol_t *val) {
+extern "C" clingo_error_t clingo_symbol_create_function(char const *name, clingo_symbol_t const *args, size_t n, bool positive, clingo_symbol_t *val) {
     GRINGO_CLINGO_TRY {
-        *val = Symbol::createFun(name, SymSpan{reinterpret_cast<Symbol const *>(args), n}, sign).rep();
+        *val = Symbol::createFun(name, SymSpan{reinterpret_cast<Symbol const *>(args), n}, !positive).rep();
     } GRINGO_CLINGO_CATCH;
 }
 
@@ -1212,10 +1225,18 @@ extern "C" clingo_error_t clingo_symbol_string(clingo_symbol_t val, char const *
     } GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_symbol_sign(clingo_symbol_t val, bool *sign) {
+extern "C" clingo_error_t clingo_symbol_negative(clingo_symbol_t val, bool *sign) {
     GRINGO_CLINGO_TRY {
         clingo_expect(Symbol(val).type() == SymbolType::Fun);
         *sign = Symbol(val).sign();
+        return clingo_error_success;
+    } GRINGO_CLINGO_CATCH;
+}
+
+extern "C" clingo_error_t clingo_symbol_positive(clingo_symbol_t val, bool *sign) {
+    GRINGO_CLINGO_TRY {
+        clingo_expect(Symbol(val).type() == SymbolType::Fun);
+        *sign = !Symbol(val).sign();
         return clingo_error_success;
     } GRINGO_CLINGO_CATCH;
 }
@@ -1555,7 +1576,7 @@ extern "C" clingo_error_t clingo_solve_control_add_clause(clingo_solve_control_t
     GRINGO_CLINGO_TRY {
         // TODO: unnecessary copying
         Gringo::Model::LitVec lits;
-        for (auto it = clause, ie = it + n; it != ie; ++it) { lits.emplace_back(Symbol(it->atom), it->sign); }
+        for (auto it = clause, ie = it + n; it != ie; ++it) { lits.emplace_back(Symbol(it->atom), it->positive); }
         ctl->addClause(lits); }
     GRINGO_CLINGO_CATCH;
 }
@@ -1950,7 +1971,7 @@ namespace {
 Control::Assumptions toAss(clingo_symbolic_literal_t const * assumptions, size_t n) {
     Control::Assumptions ass;
     for (auto it = assumptions, ie = it + n; it != ie; ++it) {
-        ass.emplace_back(static_cast<Symbol const>(it->atom), !it->sign);
+        ass.emplace_back(static_cast<Symbol const>(it->atom), !it->positive);
     }
     return ass;
 }
@@ -2094,7 +2115,7 @@ extern "C" clingo_error_t clingo_control_solve_async(clingo_control_t *ctl, clin
     GRINGO_CLINGO_TRY {
         clingo_control::Assumptions ass;
         for (auto it = assumptions, ie = assumptions + n; it != ie; ++it) {
-            ass.emplace_back(Symbol(it->atom), it->sign);
+            ass.emplace_back(Symbol(it->atom), it->positive);
         }
         *ret = static_cast<clingo_solve_async_t*>(ctl->solveAsync(
             [mh, mh_data](Gringo::Model const &m) {

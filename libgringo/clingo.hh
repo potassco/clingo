@@ -162,10 +162,11 @@ class Signature {
 public:
     explicit Signature(clingo_signature_t sig)
     : sig_(sig) { }
-    Signature(char const *name, uint32_t arity, bool sign = false);
+    Signature(char const *name, uint32_t arity, bool positive = true);
     char const *name() const;
     uint32_t arity() const;
-    bool sign() const;
+    bool positive() const;
+    bool negative() const;
     size_t hash() const;
 
     clingo_signature_t const &to_c() const { return sig_; }
@@ -175,7 +176,7 @@ private:
 };
 
 inline std::ostream &operator<<(std::ostream &out, Signature sig) {
-    out << (sig.sign() ? "-" : "") << sig.name() << "/" << sig.arity();
+    out << (sig.negative() ? "-" : "") << sig.name() << "/" << sig.arity();
     return out;
 }
 bool operator==(Signature a, Signature b);
@@ -215,7 +216,8 @@ public:
     int num() const;
     char const *name() const;
     char const *string() const;
-    bool sign() const;
+    bool positive() const;
+    bool negative() const;
     SymbolSpan args() const;
     SymbolType type() const;
     std::string to_string() const;
@@ -230,8 +232,8 @@ Symbol Number(int num);
 Symbol Supremum();
 Symbol Infimum();
 Symbol String(char const *str);
-Symbol Id(char const *str, bool sign = false);
-Symbol Function(char const *name, SymbolSpan args, bool sign = false);
+Symbol Id(char const *str, bool positive = true);
+Symbol Function(char const *name, SymbolSpan args, bool positive = true);
 
 std::ostream &operator<<(std::ostream &out, Symbol sym);
 bool operator==(Symbol a, Symbol b);
@@ -593,7 +595,8 @@ public:
     explicit SymbolicLiteral(clingo_symbolic_literal_t sym)
     : sym_(sym) { }
     Symbol atom() const { return Symbol(sym_.atom); }
-    bool sign() const { return sym_.sign; }
+    bool positive() const { return sym_.positive; }
+    bool negative() const { return !sym_.positive; }
     clingo_symbolic_literal_t &to_c() { return sym_; }
     clingo_symbolic_literal_t const &to_c() const { return sym_; }
 private:
@@ -603,14 +606,14 @@ private:
 using SymbolicLiteralSpan = Span<SymbolicLiteral>;
 
 inline std::ostream &operator<<(std::ostream &out, SymbolicLiteral sym) {
-    if (sym.sign()) { out << "~"; }
+    if (sym.negative()) { out << "~"; }
     out << sym.atom();
     return out;
 }
-inline bool operator==(SymbolicLiteral a, SymbolicLiteral b) { return a.sign() == b.sign() && a.atom() == b.atom(); }
+inline bool operator==(SymbolicLiteral a, SymbolicLiteral b) { return a.negative() == b.negative() && a.atom() == b.atom(); }
 inline bool operator!=(SymbolicLiteral a, SymbolicLiteral b) { return !(a == b); }
 inline bool operator< (SymbolicLiteral a, SymbolicLiteral b) {
-    if (a.sign() != b.sign()) { return a.sign() < b.sign(); }
+    if (a.negative() != b.negative()) { return a.negative() < b.negative(); }
     return a.atom() < b.atom();
 }
 inline bool operator<=(SymbolicLiteral a, SymbolicLiteral b) { return !(b < a); }

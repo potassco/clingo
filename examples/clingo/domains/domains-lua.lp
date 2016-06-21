@@ -16,7 +16,8 @@ function main(prg)
     end
     print ("signatures:")
     for i,x in ipairs(prg.symbolic_atoms.signatures) do
-        print (x[1] .. "/" .. tostring(x[2]))
+        if x[3] then s = "" else s = "~" end
+        print (s .. x[1] .. "/" .. tostring(x[2]))
     end
 end
 

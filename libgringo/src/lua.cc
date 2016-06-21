@@ -931,7 +931,7 @@ struct Term {
         char const *name = luaL_checklstring(L, 1, nullptr);
         bool sign = false;
         if (!lua_isnone(L, 3) && !lua_isnil(L, 3)) {
-            sign = lua_toboolean(L, 3);
+            sign = !lua_toboolean(L, 3);
         }
         if (name[0] == '\0' && sign) { luaL_argerror(L, 2, "tuples must not have signs"); }
         if (lua_isnoneornil(L, 2)) {
@@ -984,10 +984,20 @@ struct Term {
         }
         return 1;
     }
-    static int sign(lua_State *L) {
+    static int negative(lua_State *L) {
         Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
         if (val.type() == SymbolType::Fun) {
             lua_pushboolean(L, protect(L, [val]() { return val.sign(); }));
+        }
+        else {
+            lua_pushnil(L);
+        }
+        return 1;
+    }
+    static int positive(lua_State *L) {
+        Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
+        if (val.type() == SymbolType::Fun) {
+            lua_pushboolean(L, protect(L, [val]() { return !val.sign(); }));
         }
         else {
             lua_pushnil(L);
@@ -1038,7 +1048,8 @@ struct Term {
     }
     static int index(lua_State *L) {
         char const *field = luaL_checkstring(L, 2);
-        if (strcmp(field, "sign") == 0) { return sign(L); }
+        if      (strcmp(field, "positive") == 0) { return positive(L); }
+        else if (strcmp(field, "negative") == 0) { return negative(L); }
         else if (strcmp(field, "args") == 0) { return args(L); }
         else if (strcmp(field, "name") == 0) { return name(L); }
         else if (strcmp(field, "string") == 0) { return string(L); }
@@ -1605,7 +1616,8 @@ struct SymbolicAtoms {
         auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
         int arity = luaL_checkinteger(L, 3);
-        auto range = protect(L, [&self, name, arity]() { return self.atoms.begin(Sig(name, arity, false)); });
+        bool positive = lua_isnone(L, 4) || lua_toboolean(L, 4);
+        auto range = protect(L, [&self, name, arity, positive]() { return self.atoms.begin(Sig(name, arity, !positive)); });
         SymbolicAtom::new_(L, self.atoms, range);  // +1
         lua_pushcclosure(L, symbolicAtomIter, 1);  // +0
         return 1;
@@ -1618,11 +1630,13 @@ struct SymbolicAtoms {
         lua_createtable(L, ret->size(), 0);                    // +1
         int i = 1;
         for (auto &sig : *ret) {
-            lua_createtable(L, 2, 0);                          // +1
+            lua_createtable(L, 3, 0);                          // +1
             lua_pushstring(L, sig.name().c_str());             // +1
             lua_rawseti(L, -2, 1);                             // -1
             lua_pushinteger(L, sig.arity());                   // +1
             lua_rawseti(L, -2, 2);                             // -1
+            lua_pushboolean(L, !sig.sign());                   // +1
+            lua_rawseti(L, -2, 3);                             // -1
             lua_rawseti(L, -2, i);                             // -1
             ++i;
         }

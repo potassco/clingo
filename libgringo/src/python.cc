@@ -976,9 +976,9 @@ preconstructed terms Inf and Sup.)";
         }
     }
 
-    static PyObject *new_function_(char const *name, PyObject *params, PyObject *pySign) {
+    static PyObject *new_function_(char const *name, PyObject *params, PyObject *pyPos) {
         PY_TRY
-            auto sign = pyToCpp<bool>(pySign);
+            auto sign = !pyToCpp<bool>(pyPos);
             if (strcmp(name, "") == 0 && sign) {
                 PyErr_SetString(PyExc_RuntimeError, "tuples must not have signs");
                 return nullptr;
@@ -995,12 +995,12 @@ preconstructed terms Inf and Sup.)";
     }
     static PyObject *new_function(PyObject *, PyObject *args, PyObject *kwds) {
         PY_TRY
-            static char const *kwlist[] = {"name", "args", "sign", nullptr};
+            static char const *kwlist[] = {"name", "args", "positive", nullptr};
             char const *name;
-            PyObject *pySign = Py_False;
+            PyObject *pyPos = Py_True;
             PyObject *params = nullptr;
-            if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|OO", const_cast<char**>(kwlist), &name, &params, &pySign)) { return nullptr; }
-            return new_function_(name, params, pySign);
+            if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|OO", const_cast<char**>(kwlist), &name, &params, &pyPos)) { return nullptr; }
+            return new_function_(name, params, pyPos);
         PY_CATCH(nullptr);
     }
     static PyObject *new_tuple(PyObject *, PyObject *arg) {
@@ -1040,10 +1040,21 @@ preconstructed terms Inf and Sup.)";
         PY_CATCH(nullptr);
     }
 
-    static PyObject *sign(Term *self, void *) {
+    static PyObject *negative(Term *self, void *) {
         PY_TRY
             if (self->val.type() == SymbolType::Fun) {
-                return PyBool_FromLong(self->val.sign());
+                return cppToPy(self->val.sign()).release();
+            }
+            else {
+                Py_RETURN_NONE;
+            }
+        PY_CATCH(nullptr);
+    }
+
+    static PyObject *positive(Term *self, void *) {
+        PY_TRY
+            if (self->val.type() == SymbolType::Fun) {
+                return cppToPy(!self->val.sign()).release();
             }
             else {
                 Py_RETURN_NONE;
@@ -1109,7 +1120,8 @@ PyGetSetDef Term::tp_getset[] = {
     {(char *)"string", (getter)string, nullptr, (char *)"The value of a string.", nullptr},
     {(char *)"number", (getter)num, nullptr, (char *)"The value of a number.", nullptr},
     {(char *)"args", (getter)args, nullptr, (char *)"The arguments of a function.", nullptr},
-    {(char *)"sign", (getter)sign, nullptr, (char *)"The sign of a function.", nullptr},
+    {(char *)"negative", (getter)negative, nullptr, (char *)"The sign of a function.", nullptr},
+    {(char *)"positive", (getter)positive, nullptr, (char *)"The sign of a function.", nullptr},
     {(char *)"type", (getter)type_, nullptr, (char *)"The type of the term.", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
@@ -1923,12 +1935,14 @@ signatures: [('p', 1), ('q', 1)])";
         PY_CATCH(nullptr);
     }
 
-    static PyObject* by_signature(SymbolicAtoms *self, PyObject *pyargs) {
+    static PyObject* by_signature(SymbolicAtoms *self, PyObject *pyargs, PyObject *pykwds) {
         PY_TRY
             char const *name;
             int arity;
-            if (!PyArg_ParseTuple(pyargs, "si", &name, &arity)) { return nullptr; }
-            Gringo::SymbolicAtomIter range = self->atoms->begin(Sig(name, arity, false));
+            PyObject *pos = Py_True;
+            char const *kwlist[] = {"name", "arity", "positive"};
+            if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "si|O", const_cast<char**>(kwlist), &name, &arity, &pos)) { return nullptr; }
+            Gringo::SymbolicAtomIter range = self->atoms->begin(Sig(name, arity, !pyToCpp<bool>(pos)));
             return SymbolicAtomIter::new_(*self->atoms, range);
         PY_CATCH(nullptr);
     }
@@ -1939,7 +1953,8 @@ signatures: [('p', 1), ('q', 1)])";
             Object pyRet = PyList_New(ret.size());
             int i = 0;
             for (auto &sig : ret) {
-                Object pySig = Py_BuildValue("(si)", sig.name().c_str(), (int)sig.arity());
+                Object pos = cppToPy(!sig.sign());
+                Object pySig = Py_BuildValue("(siO)", sig.name().c_str(), (int)sig.arity(), pos.get());
                 if (PyList_SetItem(pyRet, i, pySig.release()) < 0) { return nullptr; }
                 ++i;
             }
@@ -1949,14 +1964,15 @@ signatures: [('p', 1), ('q', 1)])";
 };
 
 PyMethodDef SymbolicAtoms::tp_methods[] = {
-    {"by_signature", (PyCFunction)by_signature, METH_VARARGS,
-R"(by_signature(self, name, arity) -> SymbolicAtomIter
+    {"by_signature", (PyCFunction)by_signature, METH_KEYWORDS | METH_VARARGS,
+R"(by_signature(self, name, arity, positive) -> SymbolicAtomIter
 
 Return an iterator over the symbolic atoms with the given signature.
 
 Arguments:
-name  -- the name of the signature
-arity -- the arity of the signature
+name     -- the name of the signature
+arity    -- the arity of the signature
+positive -- the sign of the signature
 )"},
     {nullptr, nullptr, 0, nullptr}
 };
@@ -1969,8 +1985,8 @@ PyMappingMethods SymbolicAtoms::tp_as_mapping[] = {{
 
 PyGetSetDef SymbolicAtoms::tp_getset[] = {
     {(char *)"signatures", (getter)signatures, nullptr, (char *)
-R"(The list of predicate signatures (pairs of names and arities) occurring in
-the program.)"
+R"(The list of predicate signatures (triples of names, arities, and Booleans)
+occurring in the program. A true Boolean stands for a positive signature.)"
     , nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
@@ -3196,7 +3212,7 @@ Example:
 
 clingo.parse_term('p(1+2)') == clingo.Function("p", [3])
 )"},
-    {"Function", (PyCFunction)Term::new_function, METH_VARARGS | METH_KEYWORDS, R"(Function(name, args, sign) -> Term
+    {"Function", (PyCFunction)Term::new_function, METH_VARARGS | METH_KEYWORDS, R"(Function(name, args, positive) -> Term
 
 Construct a function term.
 
@@ -3204,11 +3220,13 @@ Arguments:
 name -- the name of the function (empty for tuples)
 
 Keyword Arguments:
-args -- the arguments in form of a list of terms
-sign -- the sign of the function (tuples must not have signs)
+args     -- the arguments in form of a list of terms
+positive -- the sign of the function (tuples must not have signs)
+            (Default: True)
 
 This includes constants and tuples. Constants have an empty argument list and
-tuples have an empty name.)"},
+tuples have an empty name. Functions can represent classically negated atoms.
+Argument positive has to be set to False to represent such atoms.)"},
     {"Tuple", (PyCFunction)Term::new_tuple, METH_O, R"(Tuple(args) -> Term
 
 Shortcut for Function("", args).

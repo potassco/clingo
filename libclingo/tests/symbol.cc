@@ -26,12 +26,13 @@ namespace Clingo { namespace Test {
 
 TEST_CASE("symbol", "[clingo]") {
     SECTION("signature") {
-        Signature a("a", 2, true);
-        Signature b("a", 2, true);
-        Signature c("a", 2, false);
+        Signature a("a", 2, false);
+        Signature b("a", 2, false);
+        Signature c("a", 2, true);
         REQUIRE(a.name() == S("a"));
         REQUIRE(a.arity() == 2);
-        REQUIRE(a.sign());
+        REQUIRE(a.negative());
+        REQUIRE(!a.positive());
         REQUIRE(b == a);
         REQUIRE(c != a);
         REQUIRE(c < a);
@@ -64,15 +65,16 @@ TEST_CASE("symbol", "[clingo]") {
         REQUIRE(S("x") == sym.string());
         args.emplace_back(sym);
         // id
-        sym = Id("x", true);
+        sym = Id("x", false);
         REQUIRE(SymbolType::Function == sym.type());
-        REQUIRE(sym.sign());
+        REQUIRE(sym.negative());
+        REQUIRE(!sym.positive());
         REQUIRE(S("x") == sym.name());
         args.emplace_back(sym);
         // fun
         sym = Function("f", args);
         REQUIRE(SymbolType::Function == sym.type());
-        REQUIRE(!sym.sign());
+        REQUIRE(!sym.negative());
         REQUIRE(S("f") == sym.name());
         REQUIRE("f(42,#inf,#sup,\"x\",-x)" == sym.to_string());
         REQUIRE((args.size() == sym.args().size() && std::equal(args.begin(), args.end(), sym.args().begin())));

@@ -27,7 +27,7 @@ void logger(clingo_warning_t code, char const *message, void *data) {
 int main(int argc, char const **argv) {
     clingo_error_t ret;
     clingo_control_t *ctl = NULL;
-    clingo_solve_iterator_t *solve_it = NULL;
+    clingo_solve_iteratively_t *solve_it = NULL;
     clingo_part_t parts[] = {{ "base", NULL, 0 }};
     clingo_symbol_t *atoms = NULL;
     size_t n;
@@ -41,7 +41,7 @@ int main(int argc, char const **argv) {
     for (;;) {
         clingo_model_t *m;
         clingo_symbol_t const *atoms_it, *atoms_ie;
-        E(clingo_solve_iterator_next(solve_it, &m));
+        E(clingo_solve_iteratively_next(solve_it, &m));
         if (!m) { break; }
         E(clingo_model_atoms_size(m, clingo_show_type_atoms | clingo_show_type_csp, &n));
         A(atoms, clingo_symbol_t, atoms_n, n, "failed to allocate memory for atoms");
@@ -58,7 +58,7 @@ int main(int argc, char const **argv) {
 cleanup:
     if (str)      { free(str); }
     if (atoms)    { free(atoms); }
-    if (solve_it) { clingo_solve_iterator_close(solve_it); }
+    if (solve_it) { clingo_solve_iteratively_close(solve_it); }
     if (ctl)      { clingo_control_free(ctl); }
     return ret;
 }
