@@ -114,14 +114,18 @@ def CheckPythonConfig(context):
             content = context.env.backtick('{0} --ldflags --includes'.format(context.env['PYTHON_CONFIG']))
             flags = []
             for option in content.split():
-                if option.startswith("-I"):
-                    flags.append(option)
-                if option.startswith("-L"):
-                    flags.append(option)
-                if option.startswith("-l"):
-                    flags.append(option)
+                if option.startswith("-I"): flags.append(option)
+                if option.startswith("-L"): flags.append(option)
+                if option.startswith("-l"): flags.append(option)
+            old_libs = context.env['LIBS'][:]
+            old_cpppath = context.env['CPPPATH'][:]
+            old_libpath = context.env['LIBPATH'][:]
             context.env.MergeFlags(' '.join(flags))
             result = context.TryLink("#include <Python.h>\nint main() { }\n", ".cc")
+            if not result:
+                context.env['LIBS'] = old_libs
+                context.env['LIBPATH'] = old_libpath
+                context.env['CPPPATH'] = old_cpppath
     else:
         result = False
     context.Result(result)
