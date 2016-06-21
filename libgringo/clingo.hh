@@ -1060,8 +1060,41 @@ using StringSpan = Span<char const *>;
 using ModelCallback = std::function<bool (Model)>;
 using FinishCallback = std::function<void (SolveResult)>;
 
+enum class ErrorCode : clingo_error_t {
+    Fatal = clingo_error_fatal,
+    Runtime = clingo_error_runtime,
+    Logic = clingo_error_logic,
+    BadAlloc = clingo_error_bad_alloc,
+    Unknown = clingo_error_unknown,
+};
+
+inline std::ostream &operator<<(std::ostream &out, ErrorCode code) {
+    out << clingo_error_string(static_cast<clingo_error_t>(code));
+    return out;
+}
+
+enum class WarningCode : clingo_warning_t {
+    OperationUndefined = clingo_warning_operation_undefined,
+    AtomUndefined = clingo_warning_atom_undefined,
+    FileIncluded = clingo_warning_file_included,
+    VariableUnbounded = clingo_warning_variable_unbounded,
+    GlobalVariable = clingo_warning_global_variable,
+    Other = clingo_warning_other,
+};
+
+using Logger = std::function<void (WarningCode, char const *)>;
+
+inline std::ostream &operator<<(std::ostream &out, WarningCode code) {
+    out << clingo_warning_string(static_cast<clingo_warning_t>(code));
+    return out;
+}
+
 class Control {
 public:
+    Control(StringSpan args = {});
+    // TODO: passing the logger by reference is kind of ugly
+    //       passing by value would require storing it in the associated control object
+    Control(StringSpan args, Logger &logger, unsigned message_limit);
     Control(clingo_control_t *ctl);
     Control(Control const &) = delete;
     Control(Control &&c)
@@ -1095,60 +1128,6 @@ public:
     operator clingo_control_t*() const;
 private:
     clingo_control_t *ctl_;
-};
-
-// {{{1 module
-
-enum class ErrorCode : clingo_error_t {
-    Fatal = clingo_error_fatal,
-    Runtime = clingo_error_runtime,
-    Logic = clingo_error_logic,
-    BadAlloc = clingo_error_bad_alloc,
-    Unknown = clingo_error_unknown,
-};
-
-inline std::ostream &operator<<(std::ostream &out, ErrorCode code) {
-    out << clingo_error_string(static_cast<clingo_error_t>(code));
-    return out;
-}
-
-enum class WarningCode : clingo_warning_t {
-    OperationUndefined = clingo_warning_operation_undefined,
-    AtomUndefined = clingo_warning_atom_undefined,
-    FileIncluded = clingo_warning_file_included,
-    VariableUnbounded = clingo_warning_variable_unbounded,
-    GlobalVariable = clingo_warning_global_variable,
-    Other = clingo_warning_other,
-};
-
-using Logger = std::function<void (WarningCode, char const *)>;
-
-inline std::ostream &operator<<(std::ostream &out, WarningCode code) {
-    out << clingo_warning_string(static_cast<clingo_warning_t>(code));
-    return out;
-}
-
-class Module {
-public:
-    Module();
-    Module(clingo_module_t *module)
-    : module_(module) { }
-    Module(Module const &) = delete;
-    Module(Module &&m)
-    : module_(nullptr) { *this = std::move(m); }
-    Module &operator=(Module &&m) {
-        std::swap(module_, m.module_);
-        return *this;
-    }
-    Control make_control(StringSpan args = {});
-    // TODO: passing the logger by reference is kind of ugly
-    //       passing by value would require storing it in the associated control object
-    Control make_control(StringSpan args, Logger &logger, unsigned message_limit);
-    Module &operator=(Module const &) = delete;
-    operator clingo_module_t*() const { return module_; }
-    ~Module();
-private:
-    clingo_module_t *module_;
 };
 
 // {{{1 global functions

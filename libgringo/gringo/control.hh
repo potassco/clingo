@@ -289,19 +289,13 @@ struct clingo_control {
 
 namespace Gringo {
 
-// {{{1 declaration of Gringo
+/// {{{1 declaration of GringoModule
 
-using GringoModule = clingo_module;
-
-} // namespace Gringo
-
-struct clingo_module {
+struct GringoModule {
     virtual Gringo::Control *newControl(int argc, char const * const *argv, Gringo::Logger::Printer p, unsigned messageLimit) = 0;
     virtual Gringo::Symbol parseValue(std::string const &repr, Gringo::Logger::Printer p, unsigned messageLimit) = 0;
-    virtual ~clingo_module() noexcept = default;
+    virtual ~GringoModule() noexcept = default;
 };
-
-namespace Gringo {
 
 // {{{1 declaration of ClingoError
 

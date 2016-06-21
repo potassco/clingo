@@ -856,6 +856,7 @@ ClingoLib::~ClingoLib() {
 
 DefaultGringoModule::DefaultGringoModule()
 : scripts(*this) { }
+
 Gringo::Control *DefaultGringoModule::newControl(int argc, char const * const*argv, Gringo::Logger::Printer printer, unsigned messageLimit) {
     return new ClingoLib(scripts, argc, argv, printer, messageLimit);
 }
@@ -865,40 +866,28 @@ Gringo::Symbol DefaultGringoModule::parseValue(std::string const &str, Gringo::L
     return parser.parse(str, logger);
 }
 
-extern "C" clingo_error_t clingo_module_new(clingo_module_t **mod) {
-    GRINGO_CLINGO_TRY { *mod = new DefaultGringoModule(); }
+extern "C" clingo_error_t clingo_control_new(char const *const * args, size_t n, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl) {
+    GRINGO_CLINGO_TRY {
+        static std::mutex mut;
+        static DefaultGringoModule mod;
+        std::lock_guard<std::mutex> grd(mut);
+        *ctl = mod.newControl(n, args, logger ? [logger, data](clingo_warning_t code, char const *msg) { logger(code, msg, data); } : Gringo::Logger::Printer(nullptr), message_limit);
+    }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" void clingo_module_free(clingo_module_t *mod) {
-    delete mod;
-}
-
-Clingo::Module::Module()
-: module_(nullptr) {
-    Gringo::handleCError(clingo_module_new(&module_));
-}
-
-Clingo::Control Clingo::Module::make_control(StringSpan args, Logger &logger, unsigned message_limit) {
-    clingo_control_t *ctl;
-    Gringo::handleCError(clingo_control_new(module_, args.begin(), args.size(), [](clingo_warning_t code, char const *msg, void *data) {
+Clingo::Control::Control(StringSpan args, Logger &logger, unsigned message_limit) {
+    Gringo::handleCError(clingo_control_new(args.begin(), args.size(), [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
         catch (...) { }
-    }, &logger, message_limit, &ctl));
-    return ctl;
+    }, &logger, message_limit, &ctl_));
 }
 
-Clingo::Control Clingo::Module::make_control(StringSpan args) {
-    clingo_control_t *ctl;
-    Gringo::handleCError(clingo_control_new(module_, args.begin(), args.size(), [](clingo_warning_t code, char const *msg, void *data) {
+Clingo::Control::Control(StringSpan args) {
+    Gringo::handleCError(clingo_control_new(args.begin(), args.size(), [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
         catch (...) { }
-    }, nullptr, 20, &ctl));
-    return ctl;
-}
-
-Clingo::Module::~Module() {
-    if (module_) { clingo_module_free(module_); }
+    }, nullptr, 20, &ctl_));
 }
 
 // }}}1

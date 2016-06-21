@@ -1853,13 +1853,6 @@ extern "C" clingo_error_t clingo_backend_add_atom(clingo_backend_t *backend, cli
 
 // {{{1 control
 
-extern "C" clingo_error_t clingo_control_new(clingo_module_t *mod, char const *const * args, size_t n, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl) {
-    GRINGO_CLINGO_TRY {
-        *ctl = mod->newControl(n, args, logger ? [logger, data](clingo_warning_t code, char const *msg) { logger(code, msg, data); } : Gringo::Logger::Printer(nullptr), message_limit);
-    }
-    GRINGO_CLINGO_CATCH;
-}
-
 extern "C" void clingo_control_free(clingo_control_t *ctl) {
     delete ctl;
 }

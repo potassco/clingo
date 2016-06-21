@@ -127,13 +127,6 @@ size_t clingo_symbol_hash(clingo_symbol_t sym);
 bool clingo_symbol_is_equal_to(clingo_symbol_t a, clingo_symbol_t b);
 bool clingo_symbol_is_less_than(clingo_symbol_t a, clingo_symbol_t b);
 
-// {{{1 module (there should only ever be one module)
-
-typedef struct clingo_module clingo_module_t;
-
-clingo_error_t clingo_module_new(clingo_module_t **mod);
-void clingo_module_free(clingo_module_t *mod);
-
 // {{{1 solve control
 
 typedef struct clingo_solve_control clingo_solve_control_t;
@@ -438,7 +431,7 @@ clingo_error_t clingo_control_get_const(clingo_control_t *ctl, char const *name,
 clingo_error_t clingo_control_ground(clingo_control_t *ctl, clingo_part_t const *params, size_t n, clingo_ground_callback_t *cb, void *data);
 clingo_error_t clingo_control_has_const(clingo_control_t *ctl, char const *name, bool *ret);
 clingo_error_t clingo_control_load(clingo_control_t *ctl, char const *file);
-clingo_error_t clingo_control_new(clingo_module_t *mod, char const *const * args, size_t n, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl);
+clingo_error_t clingo_control_new(char const *const * args, size_t n, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl);
 clingo_error_t clingo_control_register_propagator(clingo_control_t *ctl, clingo_propagator_t propagator, void *data, bool sequential);
 clingo_error_t clingo_control_release_external(clingo_control_t *ctl, clingo_symbol_t atom);
 clingo_error_t clingo_control_solve_async(clingo_control_t *ctl, clingo_model_callback_t *mh, void *mh_data, clingo_finish_callback_t *fh, void *fh_data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_async_t **ret);
