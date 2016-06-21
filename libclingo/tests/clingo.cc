@@ -40,8 +40,7 @@ TEST_CASE("solving", "[clingo]") {
         SECTION("with control") {
             MessageVec messages;
             ModelVec models;
-            Logger logger = [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); };
-            Control ctl{{"0"}, logger, 20};
+            Control ctl{{"0"}, [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); }, 20};
             SECTION("solve") {
                 static int n = 0;
                 if (++n < 3) { // workaround for some bug with catch
@@ -190,9 +189,7 @@ TEST_CASE("solving", "[clingo]") {
             SECTION("async") {
                 ctl.add("base", {}, "{a}.");
                 ctl.ground({{"base", {}}});
-                ModelCallback mc = MCB(models);
-                FinishCallback fc;
-                auto async = ctl.solve_async(mc, fc);
+                auto async = ctl.solve_async(MCB(models));
                 REQUIRE(async.get().is_satisfiable());
                 REQUIRE(models == ModelVec({{},{Id("a")}}));
                 REQUIRE(messages.empty());
@@ -352,7 +349,7 @@ TEST_CASE("solving", "[clingo]") {
                 std::sort(symbols.begin(), symbols.end());
                 REQUIRE(symbols == SymbolVector({q, p1, p2, p3}));
                 symbols.clear();
-                for (auto it = atoms.begin(Signature("p", 1)); it.valid(); ++it) { symbols.emplace_back(it->symbol()); }
+                for (auto it = atoms.begin(Signature("p", 1)); it; ++it) { symbols.emplace_back(it->symbol()); }
                 std::sort(symbols.begin(), symbols.end());
                 REQUIRE(symbols == SymbolVector({p1, p2, p3}));
             }
@@ -440,11 +437,10 @@ TEST_CASE("solving", "[clingo]") {
                     ctl.add("pigeon", {"p", "h"}, "1 {p(P,H) : P=1..p}1 :- H=1..h."
                                                   "1 {p(P,H) : H=1..h}1 :- P=1..p.");
                     ctl.ground({{"pigeon", {Number(21), Number(20)}}});
-                    ModelCallback mh;
                     int fcalled = 0;
                     SolveResult fret;
                     FinishCallback fh = [&fret, &fcalled](SolveResult ret) { ++fcalled; fret = ret; };
-                    auto async = ctl.solve_async(mh, fh);
+                    auto async = ctl.solve_async(nullptr, fh);
                     REQUIRE(!async.wait(0.01));
                     SECTION("interrupt") { ctl.interrupt(); }
                     SECTION("cancel") { async.cancel(); }

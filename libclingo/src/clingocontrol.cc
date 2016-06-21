@@ -876,18 +876,29 @@ extern "C" clingo_error_t clingo_control_new(char const *const * args, size_t n,
     GRINGO_CLINGO_CATCH;
 }
 
-Clingo::Control::Control(StringSpan args, Logger &logger, unsigned message_limit) {
-    Gringo::handleCError(clingo_control_new(args.begin(), args.size(), [](clingo_warning_t code, char const *msg, void *data) {
-        try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
-        catch (...) { }
-    }, &logger, message_limit, &ctl_));
-}
+struct Clingo::Control::Impl {
+    Impl(Logger logger)
+    : ctl(nullptr)
+    , logger(logger) { }
+    Impl(clingo_control_t *ctl)
+    : ctl(ctl) { }
+    ~Impl() noexcept {
+        if (ctl) { clingo_control_free(ctl); }
+    }
+    operator clingo_control_t *() { return ctl; }
+    clingo_control_t *ctl;
+    Logger logger;
+    ModelCallback mh;
+    FinishCallback fh;
+};
 
-Clingo::Control::Control(StringSpan args) {
+Clingo::Control::Control(StringSpan args, Logger logger, unsigned message_limit)
+: impl_(Gringo::gringo_make_unique<Clingo::Control::Impl>(logger))
+{
     Gringo::handleCError(clingo_control_new(args.begin(), args.size(), [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
         catch (...) { }
-    }, nullptr, 20, &ctl_));
+    }, &impl_->logger, message_limit, &impl_->ctl));
 }
 
 // }}}1

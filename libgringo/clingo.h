@@ -184,10 +184,10 @@ typedef int clingo_truth_value_t;
 
 // {{{1 solve iter
 
-typedef struct clingo_solve_iterator clingo_solve_iterator_t;
-clingo_error_t clingo_solve_iterator_next(clingo_solve_iterator_t *it, clingo_model_t **m);
-clingo_error_t clingo_solve_iterator_get(clingo_solve_iterator_t *it, clingo_solve_result_bitset_t *ret);
-clingo_error_t clingo_solve_iterator_close(clingo_solve_iterator_t *it);
+typedef struct clingo_solve_iteratively clingo_solve_iteratively_t;
+clingo_error_t clingo_solve_iteratively_next(clingo_solve_iteratively_t *it, clingo_model_t **m);
+clingo_error_t clingo_solve_iteratively_get(clingo_solve_iteratively_t *it, clingo_solve_result_bitset_t *ret);
+clingo_error_t clingo_solve_iteratively_close(clingo_solve_iteratively_t *it);
 
 // {{{1 solve async
 
@@ -413,7 +413,7 @@ void clingo_version(int *major, int *minor, int *revision);
 typedef struct clingo_part {
     char const *name;
     clingo_symbol_t const *params;
-    size_t n;
+    size_t size;
 } clingo_part_t;
 
 typedef clingo_error_t clingo_model_callback_t (clingo_model_t*, void *, bool *);
@@ -436,7 +436,7 @@ clingo_error_t clingo_control_register_propagator(clingo_control_t *ctl, clingo_
 clingo_error_t clingo_control_release_external(clingo_control_t *ctl, clingo_symbol_t atom);
 clingo_error_t clingo_control_solve_async(clingo_control_t *ctl, clingo_model_callback_t *mh, void *mh_data, clingo_finish_callback_t *fh, void *fh_data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_async_t **ret);
 clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_model_callback_t *mh, void *data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_result_bitset_t *ret);
-clingo_error_t clingo_control_solve_iteratively(clingo_control_t *ctl, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_iterator_t **it);
+clingo_error_t clingo_control_solve_iteratively(clingo_control_t *ctl, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_iteratively_t **it);
 clingo_error_t clingo_control_statistics(clingo_control_t *ctl, clingo_statistics_t **stats);
 clingo_error_t clingo_control_symbolic_atoms(clingo_control_t *ctl, clingo_symbolic_atoms_t **ret);
 clingo_error_t clingo_control_theory_atoms(clingo_control_t *ctl, clingo_theory_atoms_t **ret);

@@ -30,6 +30,7 @@
 #include <vector>
 #include <cassert>
 #include <type_traits>
+#include <memory>
 
 #include <iostream>
 
@@ -59,7 +60,6 @@ inline std::ostream &operator<<(std::ostream &out, TruthValue tv) {
 }
 
 // {{{1 span
-
 
 template <class Iterator>
 class IteratorRange {
@@ -160,16 +160,16 @@ std::ostream &operator<<(std::ostream &out, Span<T, I> span) {
 
 class Signature {
 public:
+    explicit Signature(clingo_signature_t sig)
+    : sig_(sig) { }
     Signature(char const *name, uint32_t arity, bool sign = false);
     char const *name() const;
     uint32_t arity() const;
     bool sign() const;
     size_t hash() const;
 
-    bool clingo_signature_eq(clingo_signature_t a, clingo_signature_t b);
-    bool clingo_signature_lt(clingo_signature_t a, clingo_signature_t b);
-
-    operator clingo_signature_t const &() { return sig_; }
+    clingo_signature_t const &to_c() const { return sig_; }
+    clingo_signature_t &to_c() { return sig_; }
 private:
     clingo_signature_t sig_;
 };
@@ -211,7 +211,7 @@ using SymbolVector = std::vector<Symbol>;
 class Symbol {
 public:
     Symbol();
-    Symbol(clingo_symbol_t);
+    explicit Symbol(clingo_symbol_t);
     int num() const;
     char const *name() const;
     char const *string() const;
@@ -220,7 +220,8 @@ public:
     SymbolType type() const;
     std::string to_string() const;
     size_t hash() const;
-    operator clingo_symbol_t const &() { return sym_; }
+    clingo_symbol_t &to_c() { return sym_; }
+    clingo_symbol_t const &to_c() const { return sym_; }
 private:
     clingo_symbol_t sym_;
 };
@@ -254,14 +255,14 @@ struct hash<Clingo::Symbol> {
 class SymbolicAtom {
     friend class SymbolicAtomIterator;
 public:
-    SymbolicAtom(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t range)
+    explicit SymbolicAtom(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t range)
     : atoms_(atoms)
     , range_(range) { }
     Symbol symbol() const;
     literal_t literal() const;
     bool is_fact() const;
     bool is_external() const;
-    operator clingo_symbolic_atom_iterator_t() const { return range_; }
+    clingo_symbolic_atom_iterator_t to_c() const { return range_; }
 private:
     clingo_symbolic_atoms_t *atoms_;
     clingo_symbolic_atom_iterator_t range_;
@@ -269,7 +270,7 @@ private:
 
 class SymbolicAtomIterator : private SymbolicAtom, public std::iterator<std::input_iterator_tag, SymbolicAtom> {
 public:
-    SymbolicAtomIterator(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t range)
+    explicit SymbolicAtomIterator(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t range)
     : SymbolicAtom{atoms, range} { }
     SymbolicAtom &operator*() { return *this; }
     SymbolicAtom *operator->() { return this; }
@@ -277,17 +278,17 @@ public:
     SymbolicAtomIterator operator++ (int) {
         auto range = range_;
         ++(*this);
-        return {atoms_, range};
+        return SymbolicAtomIterator{atoms_, range};
     }
     bool operator==(SymbolicAtomIterator it) const;
     bool operator!=(SymbolicAtomIterator it) const { return !(*this == it); }
-    bool valid() const;
-    operator clingo_symbolic_atom_iterator_t() const { return range_; }
+    explicit operator bool() const;
+    clingo_symbolic_atom_iterator_t to_c() const { return range_; }
 };
 
 class SymbolicAtoms {
 public:
-    SymbolicAtoms(clingo_symbolic_atoms_t *atoms)
+    explicit SymbolicAtoms(clingo_symbolic_atoms_t *atoms)
     : atoms_(atoms) { }
     SymbolicAtomIterator begin() const;
     SymbolicAtomIterator begin(Signature sig) const;
@@ -295,7 +296,7 @@ public:
     SymbolicAtomIterator find(Symbol atom) const;
     std::vector<Signature> signatures() const;
     size_t length() const;
-    operator clingo_symbolic_atoms_t*() const { return atoms_; }
+    clingo_symbolic_atoms_t* to_c() const { return atoms_; }
     SymbolicAtom operator[](Symbol atom) { return *find(atom); }
 private:
     clingo_symbolic_atoms_t *atoms_;
@@ -317,7 +318,7 @@ class TheoryIterator : public std::iterator<std::random_access_iterator_tag, con
 public:
     using base = std::iterator<std::random_access_iterator_tag, const T>;
     using difference_type = typename base::difference_type;
-    TheoryIterator(clingo_theory_atoms_t *atoms, clingo_id_t const* id)
+    explicit TheoryIterator(clingo_theory_atoms_t *atoms, clingo_id_t const* id)
     : elem_(atoms)
     , id_(id) { }
     TheoryIterator& operator++() { ++id_; return *this; }
@@ -334,9 +335,9 @@ public:
     }
     TheoryIterator& operator+=(difference_type n) { id_ += n; return *this; }
     TheoryIterator& operator-=(difference_type n) { id_ -= n; return *this; }
-    friend TheoryIterator operator+(TheoryIterator it, difference_type n) { return {it.atoms(), it.id_ + n}; }
-    friend TheoryIterator operator+(difference_type n, TheoryIterator it) { return {it.atoms(), it.id_ + n}; }
-    friend TheoryIterator operator-(TheoryIterator it, difference_type n) { return {it.atoms(), it.id_ - n}; }
+    friend TheoryIterator operator+(TheoryIterator it, difference_type n) { return TheoryIterator{it.atoms(), it.id_ + n}; }
+    friend TheoryIterator operator+(difference_type n, TheoryIterator it) { return TheoryIterator{it.atoms(), it.id_ + n}; }
+    friend TheoryIterator operator-(TheoryIterator it, difference_type n) { return TheoryIterator{it.atoms(), it.id_ - n}; }
     friend difference_type operator-(TheoryIterator a, TheoryIterator b)  { return a.id_ - b.id_; }
     T operator*() { return elem_ = *id_; }
     T *operator->() { return &(elem_ = *id_); }
@@ -360,10 +361,10 @@ private:
 template <class T>
 class ToTheoryIterator {
 public:
-    ToTheoryIterator(clingo_theory_atoms_t *atoms)
+    explicit ToTheoryIterator(clingo_theory_atoms_t *atoms)
     : atoms_(atoms) { }
     T operator ()(clingo_id_t const *id) const {
-        return {atoms_, id};
+        return T{atoms_, id};
     }
 private:
     clingo_theory_atoms_t *atoms_;
@@ -376,14 +377,14 @@ using TheoryTermSpan = Span<clingo_id_t, ToTheoryIterator<TheoryTermIterator>>;
 class TheoryTerm {
     friend class TheoryIterator<TheoryTerm>;
 public:
-    TheoryTerm(clingo_theory_atoms_t *atoms, clingo_id_t id)
+    explicit TheoryTerm(clingo_theory_atoms_t *atoms, clingo_id_t id)
     : atoms_(atoms)
     , id_(id) { }
     TheoryTermType type() const;
     int number() const;
     char const *name() const;
     TheoryTermSpan arguments() const;
-    operator clingo_id_t() const { return id_; }
+    clingo_id_t to_c() const { return id_; }
     std::string to_string() const;
 private:
     TheoryTerm(clingo_theory_atoms_t *atoms)
@@ -406,14 +407,14 @@ using LiteralSpan = Span<literal_t>;
 class TheoryElement {
     friend class TheoryIterator<TheoryElement>;
 public:
-    TheoryElement(clingo_theory_atoms_t *atoms, clingo_id_t id)
+    explicit TheoryElement(clingo_theory_atoms_t *atoms, clingo_id_t id)
     : atoms_(atoms)
     , id_(id) { }
     TheoryTermSpan tuple() const;
     LiteralSpan condition() const;
     literal_t condition_literal() const;
     std::string to_string() const;
-    operator clingo_id_t() const { return id_; }
+    clingo_id_t to_c() const { return id_; }
 private:
     TheoryElement(clingo_theory_atoms_t *atoms)
     : TheoryElement(atoms, 0) { }
@@ -430,7 +431,7 @@ std::ostream &operator<<(std::ostream &out, TheoryElement term);
 class TheoryAtom {
     friend class TheoryAtomIterator;
 public:
-    TheoryAtom(clingo_theory_atoms_t *atoms, clingo_id_t id)
+    explicit TheoryAtom(clingo_theory_atoms_t *atoms, clingo_id_t id)
     : atoms_(atoms)
     , id_(id) { }
     TheoryElementSpan elements() const;
@@ -439,7 +440,7 @@ public:
     literal_t literal() const;
     std::pair<char const *, TheoryTerm> guard() const;
     std::string to_string() const;
-    operator clingo_id_t() const { return id_; }
+    clingo_id_t to_c() const { return id_; }
 private:
     TheoryAtom(clingo_theory_atoms_t *atoms)
     : TheoryAtom(atoms, 0) { }
@@ -455,7 +456,7 @@ std::ostream &operator<<(std::ostream &out, TheoryAtom term);
 
 class TheoryAtomIterator : private TheoryAtom, public std::iterator<TheoryAtom, std::random_access_iterator_tag, ptrdiff_t, TheoryAtom*, TheoryAtom> {
 public:
-    TheoryAtomIterator(clingo_theory_atoms_t *atoms, clingo_id_t id)
+    explicit TheoryAtomIterator(clingo_theory_atoms_t *atoms, clingo_id_t id)
     : TheoryAtom{atoms, id} { }
     TheoryAtomIterator& operator++() { ++id_; return *this; }
     TheoryAtomIterator operator++(int) {
@@ -471,9 +472,9 @@ public:
     }
     TheoryAtomIterator& operator+=(difference_type n) { id_ += n; return *this; }
     TheoryAtomIterator& operator-=(difference_type n) { id_ -= n; return *this; }
-    friend TheoryAtomIterator operator+(TheoryAtomIterator it, difference_type n) { return {it.atoms(), clingo_id_t(it.id() + n)}; }
-    friend TheoryAtomIterator operator+(difference_type n, TheoryAtomIterator it) { return {it.atoms(), clingo_id_t(it.id() + n)}; }
-    friend TheoryAtomIterator operator-(TheoryAtomIterator it, difference_type n) { return {it.atoms(), clingo_id_t(it.id() - n)}; }
+    friend TheoryAtomIterator operator+(TheoryAtomIterator it, difference_type n) { return TheoryAtomIterator{it.atoms(), clingo_id_t(it.id() + n)}; }
+    friend TheoryAtomIterator operator+(difference_type n, TheoryAtomIterator it) { return TheoryAtomIterator{it.atoms(), clingo_id_t(it.id() + n)}; }
+    friend TheoryAtomIterator operator-(TheoryAtomIterator it, difference_type n) { return TheoryAtomIterator{it.atoms(), clingo_id_t(it.id() - n)}; }
     friend difference_type operator-(TheoryAtomIterator a, TheoryAtomIterator b)  { return a.id() - b.id(); }
     TheoryAtom operator*() { return *this; }
     TheoryAtom *operator->() { return this; }
@@ -490,17 +491,16 @@ public:
 private:
     clingo_theory_atoms_t *&atoms() { return atoms_; }
     clingo_id_t &id() { return id_; }
-
 };
 
 class TheoryAtoms {
 public:
-    TheoryAtoms(clingo_theory_atoms_t *atoms)
+    explicit TheoryAtoms(clingo_theory_atoms_t *atoms)
     : atoms_(atoms) { }
     TheoryAtomIterator begin() const;
     TheoryAtomIterator end() const;
     size_t size() const;
-    operator clingo_theory_atoms_t*() const { return atoms_; }
+    clingo_theory_atoms_t *to_c() const { return atoms_; }
 private:
     clingo_theory_atoms_t *atoms_;
 };
@@ -509,14 +509,14 @@ private:
 
 class PropagateInit {
 public:
-    PropagateInit(clingo_propagate_init_t *init)
+    explicit PropagateInit(clingo_propagate_init_t *init)
     : init_(init) { }
     literal_t map_literal(literal_t lit) const;
     void add_watch(literal_t lit);
     int number_of_threads() const;
     SymbolicAtoms symbolic_atoms() const;
     TheoryAtoms theory_atoms() const;
-    operator clingo_propagate_init_t*() const { return init_; }
+    clingo_propagate_init_t *to_c() const { return init_; }
 private:
     clingo_propagate_init_t *init_;
 };
@@ -525,7 +525,7 @@ private:
 
 class Assignment {
 public:
-    Assignment(clingo_assignment_t *ass)
+    explicit Assignment(clingo_assignment_t *ass)
     : ass_(ass) { }
     bool has_conflict() const;
     uint32_t decision_level() const;
@@ -536,7 +536,7 @@ public:
     bool is_fixed(literal_t lit) const;
     bool is_true(literal_t lit) const;
     bool is_false(literal_t lit) const;
-    operator clingo_assignment_t*() const { return ass_; }
+    clingo_assignment_t *to_c() const { return ass_; }
 private:
     clingo_assignment_t *ass_;
 };
@@ -562,13 +562,13 @@ inline std::ostream &operator<<(std::ostream &out, ClauseType t) {
 
 class PropagateControl {
 public:
-    PropagateControl(clingo_propagate_control_t *ctl)
+    explicit PropagateControl(clingo_propagate_control_t *ctl)
     : ctl_(ctl) { }
     id_t thread_id() const;
     Assignment assignment() const;
     bool add_clause(LiteralSpan clause, ClauseType type = ClauseType::Learnt);
     bool propagate();
-    operator clingo_propagate_control_t*() const { return ctl_; }
+    clingo_propagate_control_t *to_c() const { return ctl_; }
 private:
     clingo_propagate_control_t *ctl_;
 };
@@ -586,12 +586,18 @@ public:
 
 // {{{1 symbolic literal
 
-class SymbolicLiteral : public clingo_symbolic_literal_t{
+class SymbolicLiteral {
 public:
     SymbolicLiteral(Symbol atom, bool sign)
-    : clingo_symbolic_literal_t{atom, sign} { }
-    Symbol atom() const { return clingo_symbolic_literal_t::atom; }
-    bool sign() const { return clingo_symbolic_literal_t::sign; }
+    : sym_{atom.to_c(), sign} { }
+    explicit SymbolicLiteral(clingo_symbolic_literal_t sym)
+    : sym_(sym) { }
+    Symbol atom() const { return Symbol(sym_.atom); }
+    bool sign() const { return sym_.sign; }
+    clingo_symbolic_literal_t &to_c() { return sym_; }
+    clingo_symbolic_literal_t const &to_c() const { return sym_; }
+private:
+    clingo_symbolic_literal_t sym_;
 };
 
 using SymbolicLiteralSpan = Span<SymbolicLiteral>;
@@ -615,11 +621,11 @@ inline bool operator>=(SymbolicLiteral a, SymbolicLiteral b) { return !(a < b); 
 
 class SolveControl {
 public:
-    SolveControl(clingo_solve_control_t *ctl)
+    explicit SolveControl(clingo_solve_control_t *ctl)
     : ctl_(ctl) { }
     void add_clause(SymbolicLiteralSpan clause);
     id_t thread_id() const;
-    operator clingo_solve_control_t*() const { return ctl_; }
+    clingo_solve_control_t *to_c() const { return ctl_; }
 private:
     clingo_solve_control_t *ctl_;
 };
@@ -652,7 +658,7 @@ using CostVector = std::vector<int64_t>;
 
 class Model {
 public:
-    Model(clingo_model_t *model);
+    explicit Model(clingo_model_t *model);
     bool contains(Symbol atom) const;
     bool optimality_proven() const;
     CostVector cost() const;
@@ -660,8 +666,8 @@ public:
     SolveControl context() const;
     ModelType type() const;
     uint64_t number() const;
-    operator bool() const { return model_; }
-    operator clingo_model_t*() const { return model_; }
+    explicit operator bool() const { return model_; }
+    clingo_model_t *to_c() const { return model_; }
 private:
     clingo_model_t *model_;
 };
@@ -676,14 +682,17 @@ inline std::ostream &operator<<(std::ostream &out, Model m) {
 class SolveResult {
 public:
     SolveResult() : res_(0) { }
-    SolveResult(clingo_solve_result_bitset_t res)
+    explicit SolveResult(clingo_solve_result_bitset_t res)
     : res_(res) { }
     bool is_satisfiable() const { return res_ & clingo_solve_result_satisfiable; }
     bool is_unsatisfiable() const { return res_ & clingo_solve_result_unsatisfiable; }
     bool is_unknown() const { return (res_ & 3) == 0; }
     bool is_exhausted() const { return res_ & clingo_solve_result_exhausted; }
     bool is_interrupted() const { return res_ & clingo_solve_result_interrupted; }
-    operator clingo_solve_result_bitset_t() const { return res_; }
+    clingo_solve_result_bitset_t &to_c() { return res_; }
+    clingo_solve_result_bitset_t const &to_c() const { return res_; }
+    friend bool operator==(SolveResult a, SolveResult b) { return a.res_ == b.res_; }
+    friend bool operator!=(SolveResult a, SolveResult b) { return a.res_ != b.res_; }
 private:
     clingo_solve_result_bitset_t res_;
 };
@@ -699,28 +708,28 @@ inline std::ostream &operator<<(std::ostream &out, SolveResult res) {
     return out;
 }
 
-// {{{1 solve iter
+// {{{1 solve iteratively
 
-class SolveIterator {
+class SolveIteratively {
 public:
-    SolveIterator();
-    SolveIterator(clingo_solve_iterator_t *it);
-    SolveIterator(SolveIterator &&it);
-    SolveIterator(SolveIterator const &) = delete;
-    SolveIterator &operator=(SolveIterator &&it);
-    SolveIterator &operator=(SolveIterator const &) = delete;
-    operator clingo_solve_iterator_t*() const { return iter_; }
+    SolveIteratively();
+    explicit SolveIteratively(clingo_solve_iteratively_t *it);
+    SolveIteratively(SolveIteratively &&it);
+    SolveIteratively(SolveIteratively const &) = delete;
+    SolveIteratively &operator=(SolveIteratively &&it);
+    SolveIteratively &operator=(SolveIteratively const &) = delete;
+    clingo_solve_iteratively_t *to_c() const { return iter_; }
     Model next();
     SolveResult get();
     void close();
-    ~SolveIterator() { close(); }
+    ~SolveIteratively() { close(); }
 private:
-    clingo_solve_iterator_t *iter_;
+    clingo_solve_iteratively_t *iter_;
 };
 
 class ModelIterator : public std::iterator<Model, std::input_iterator_tag> {
 public:
-    ModelIterator(SolveIterator &iter)
+    explicit ModelIterator(SolveIteratively &iter)
     : iter_(&iter)
     , model_(nullptr) { model_ = iter_->next(); }
     ModelIterator()
@@ -740,33 +749,34 @@ public:
     Model &operator*() { return model_; }
     Model *operator->() { return &**this; }
     friend bool operator==(ModelIterator a, ModelIterator b) {
-        return static_cast<clingo_model_t*>(a.model_) == static_cast<clingo_model_t*>(b.model_);
+        return a.model_.to_c() == b.model_.to_c();
     }
     friend bool operator!=(ModelIterator a, ModelIterator b) { return !(a == b); }
 private:
-    SolveIterator *iter_;
+    SolveIteratively *iter_;
     Model model_;
 };
 
-inline ModelIterator begin(SolveIterator &it) { return ModelIterator(it); };
-inline ModelIterator end(SolveIterator &) { return ModelIterator(); };
+inline ModelIterator begin(SolveIteratively &it) { return ModelIterator(it); };
+inline ModelIterator end(SolveIteratively &) { return ModelIterator(); };
 
 // {{{1 solve async
 
 class SolveAsync {
 public:
-    SolveAsync(clingo_solve_async_t *async)
+    explicit SolveAsync(clingo_solve_async_t *async)
     : async_(async) { }
     void cancel();
     SolveResult get();
     bool wait(double timeout = std::numeric_limits<double>::infinity());
-    operator clingo_solve_async_t*() const { return async_; }
+    clingo_solve_async_t *to_c() const { return async_; }
 private:
     clingo_solve_async_t *async_;
 };
 
 // {{{1 ast
 
+// TODO: work in progress...
 class Location : public clingo_location_t {
 public:
     Location(clingo_location_t loc) : clingo_location_t(loc) { }
@@ -798,9 +808,9 @@ using ASTSpan = Span<AST>;
 class AST : public clingo_ast_t {
 public:
     AST(Location location, Symbol value, ASTSpan children)
-    : clingo_ast_t{location, value, children.begin(), children.size()} { }
+    : clingo_ast_t{location, value.to_c(), children.begin(), children.size()} { }
     Location location() const { return clingo_ast_t::location; }
-    Symbol value() const { return clingo_ast_t::value; }
+    Symbol value() const { return Symbol(clingo_ast_t::value); }
     ASTSpan children() const { return {clingo_ast_t::children, clingo_ast_t::n}; }
 };
 using ASTCallback = std::function<void (AST ast)>;
@@ -846,14 +856,18 @@ inline std::ostream &operator<<(std::ostream &out, ExternalType t) {
     return out;
 }
 
-class WeightedLiteral : public clingo_weighted_literal_t {
+class WeightedLiteral {
 public:
     WeightedLiteral(clingo_literal_t lit, clingo_weight_t weight)
-    : clingo_weighted_literal_t{lit, weight} { }
-    WeightedLiteral(clingo_weighted_literal_t wlit)
-    : clingo_weighted_literal_t(wlit) { }
-    literal_t literal() const { return clingo_weighted_literal_t::literal; }
-    weight_t weight() const { return clingo_weighted_literal_t::weight; }
+    : wlit_{lit, weight} { }
+    explicit WeightedLiteral(clingo_weighted_literal_t wlit)
+    : wlit_(wlit) { }
+    literal_t literal() const { return wlit_.literal; }
+    weight_t weight() const { return wlit_.weight; }
+    clingo_weighted_literal_t const &to_c() const { return wlit_; }
+    clingo_weighted_literal_t &to_c() { return wlit_; }
+private:
+    clingo_weighted_literal_t wlit_;
 };
 
 using AtomSpan = Span<atom_t>;
@@ -861,7 +875,7 @@ using WeightedLiteralSpan = Span<WeightedLiteral>;
 
 class Backend {
 public:
-    Backend(clingo_backend_t *backend)
+    explicit Backend(clingo_backend_t *backend)
     : backend_(backend) { }
     void rule(bool choice, AtomSpan head, LiteralSpan body);
     void weight_rule(bool choice, AtomSpan head, weight_t lower, WeightedLiteralSpan body);
@@ -872,7 +886,7 @@ public:
     void heuristic(atom_t atom, HeuristicType type, int bias, unsigned priority, LiteralSpan condition);
     void acyc_edge(int node_u, int node_v, LiteralSpan condition);
     atom_t add_atom();
-    operator clingo_backend_t*() const { return backend_; }
+    clingo_backend_t *to_c() const { return backend_; }
 private:
     clingo_backend_t *backend_;
 };
@@ -882,7 +896,7 @@ private:
 template <class T>
 class KeyIterator : public std::iterator<std::random_access_iterator_tag, char const *, ptrdiff_t, ValuePointer<char const *>, char const *> {
 public:
-    KeyIterator(T const *map, size_t index = 0)
+    explicit KeyIterator(T const *map, size_t index = 0)
     : map_(map)
     , index_(index) { }
     KeyIterator& operator++() { ++index_; return *this; }
@@ -899,9 +913,9 @@ public:
     }
     KeyIterator& operator+=(difference_type n) { index_ += n; return *this; }
     KeyIterator& operator-=(difference_type n) { index_ -= n; return *this; }
-    friend KeyIterator operator+(KeyIterator it, difference_type n) { return {it.map_, it.index_ + n}; }
-    friend KeyIterator operator+(difference_type n, KeyIterator it) { return {it.map_, it.index_ + n}; }
-    friend KeyIterator operator-(KeyIterator it, difference_type n) { return {it.map_, it.index_ - n}; }
+    friend KeyIterator operator+(KeyIterator it, difference_type n) { return KeyIterator{it.map_, it.index_ + n}; }
+    friend KeyIterator operator+(difference_type n, KeyIterator it) { return KeyIterator{it.map_, it.index_ + n}; }
+    friend KeyIterator operator-(KeyIterator it, difference_type n) { return KeyIterator{it.map_, it.index_ - n}; }
     friend difference_type operator-(KeyIterator a, KeyIterator b)  { return a.index_ - b.index_; }
     reference operator*() { return map_->key_name(index_); }
     pointer operator->() { return pointer(**this); }
@@ -927,7 +941,7 @@ public:
     using difference_type = typename base::difference_type;
     using reference = typename base::reference;
     using pointer = typename base::pointer;
-    ArrayIterator(P arr, size_t index = 0)
+    explicit ArrayIterator(P arr, size_t index = 0)
     : arr_(arr)
     , index_(index) { }
     ArrayIterator& operator++() { ++index_; return *this; }
@@ -944,9 +958,9 @@ public:
     }
     ArrayIterator& operator+=(difference_type n) { index_ += n; return *this; }
     ArrayIterator& operator-=(difference_type n) { index_ -= n; return *this; }
-    friend ArrayIterator operator+(ArrayIterator it, difference_type n) { return {it.arr_, it.index_ + n}; }
-    friend ArrayIterator operator+(difference_type n, ArrayIterator it) { return {it.arr_, it.index_ + n}; }
-    friend ArrayIterator operator-(ArrayIterator it, difference_type n) { return {it.arr_, it.index_ - n}; }
+    friend ArrayIterator operator+(ArrayIterator it, difference_type n) { return ArrayIterator{it.arr_, it.index_ + n}; }
+    friend ArrayIterator operator+(difference_type n, ArrayIterator it) { return ArrayIterator{it.arr_, it.index_ + n}; }
+    friend ArrayIterator operator-(ArrayIterator it, difference_type n) { return ArrayIterator{it.arr_, it.index_ - n}; }
     friend difference_type operator-(ArrayIterator a, ArrayIterator b)  { return a.index_ - b.index_; }
     reference operator*() { return (*arr_)[index_]; }
     pointer operator->() { return pointer(**this); }
@@ -979,7 +993,7 @@ using StatisticsKeyRange = IteratorRange<StatisticsKeyIterator>;
 class Statistics {
     friend class KeyIterator<Statistics>;
 public:
-    Statistics(clingo_statistics_t *stats, unsigned key)
+    explicit Statistics(clingo_statistics_t *stats, unsigned key)
     : stats_(stats)
     , key_(key) { }
     // generic
@@ -997,6 +1011,7 @@ public:
     // leafs
     double value() const;
     operator double() const { return value(); }
+    clingo_statistics_t *to_c() const { return stats_; }
 private:
     char const *key_name(size_t index) const;
     clingo_statistics_t *stats_;
@@ -1013,7 +1028,7 @@ using ConfigurationKeyRange = IteratorRange<ConfigurationKeyIterator>;
 class Configuration {
     friend class KeyIterator<Configuration>;
 public:
-    Configuration(clingo_configuration_t *conf, clingo_id_t key)
+    explicit Configuration(clingo_configuration_t *conf, clingo_id_t key)
     : conf_(conf)
     , key_(key) { }
     // arrays
@@ -1037,7 +1052,7 @@ public:
     Configuration &operator=(char const *value);
     // generic
     char const *decription() const;
-    operator clingo_configuration_t*() const { return conf_; }
+    clingo_configuration_t *to_c() const { return conf_; }
 private:
     char const *key_name(size_t index) const;
     clingo_configuration_t *conf_;
@@ -1046,12 +1061,18 @@ private:
 
 // {{{1 control
 
-class Part : public clingo_part_t {
+class Part {
 public:
     Part(char const *name, SymbolSpan params)
-    : clingo_part_t{name, reinterpret_cast<clingo_symbol_t const*>(params.begin()), params.size()} { }
-    char const *name() const { return clingo_part_t::name; }
-    SymbolSpan params() const { return {reinterpret_cast<Symbol const*>(clingo_part_t::params), clingo_part_t::n}; }
+    : part_{name, reinterpret_cast<clingo_symbol_t const*>(params.begin()), params.size()} { }
+    explicit Part(clingo_part_t part)
+    : part_(part) { }
+    char const *name() const { return part_.name; }
+    SymbolSpan params() const { return {reinterpret_cast<Symbol const*>(part_.params), part_.size}; }
+    clingo_part_t const &to_c() const { return part_; }
+    clingo_part_t &to_c() { return part_; }
+private:
+    clingo_part_t part_;
 };
 using SymbolSpanCallback = std::function<void (SymbolSpan)>;
 using PartSpan = Span<Part>;
@@ -1090,26 +1111,20 @@ inline std::ostream &operator<<(std::ostream &out, WarningCode code) {
 }
 
 class Control {
+    struct Impl;
 public:
-    Control(StringSpan args = {});
-    // TODO: passing the logger by reference is kind of ugly
-    //       passing by value would require storing it in the associated control object
-    Control(StringSpan args, Logger &logger, unsigned message_limit);
-    Control(clingo_control_t *ctl);
+    Control(StringSpan args = {}, Logger logger = nullptr, unsigned message_limit = 20);
+    explicit Control(clingo_control_t *ctl);
+    Control(Control &&c);
     Control(Control const &) = delete;
-    Control(Control &&c)
-    : Control(nullptr) { *this = std::move(c); }
-    Control &operator=(Control &&c) {
-        std::swap(ctl_, c.ctl_);
-        return *this;
-    }
+    Control &operator=(Control &&c);
+    Control &operator=(Control const &c) = delete;
     ~Control() noexcept;
-    // TODO: consider removing the name/param part
     void add(char const *name, StringSpan params, char const *part);
     void add(AddASTCallback cb);
     void ground(PartSpan parts, GroundCallback cb = nullptr);
     SolveResult solve(ModelCallback mh = nullptr, SymbolicLiteralSpan assumptions = {});
-    SolveIterator solve_iteratively(SymbolicLiteralSpan assumptions = {});
+    SolveIteratively solve_iteratively(SymbolicLiteralSpan assumptions = {});
     void assign_external(Symbol atom, TruthValue value);
     void release_external(Symbol atom);
     SymbolicAtoms symbolic_atoms() const;
@@ -1120,14 +1135,14 @@ public:
     Symbol get_const(char const *name) const;
     void interrupt() noexcept;
     void load(char const *file);
-    SolveAsync solve_async(ModelCallback &mh, FinishCallback &fh, SymbolicLiteralSpan assumptions = {});
+    SolveAsync solve_async(ModelCallback mh = nullptr, FinishCallback fh = nullptr, SymbolicLiteralSpan assumptions = {});
     void use_enum_assumption(bool value);
     Backend backend();
     Configuration configuration();
     Statistics statistics() const;
-    operator clingo_control_t*() const;
+    clingo_control_t *to_c() const;
 private:
-    clingo_control_t *ctl_;
+    std::unique_ptr<Impl> impl_;
 };
 
 // {{{1 global functions
