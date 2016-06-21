@@ -36,39 +36,41 @@ void ClaspAPIBackend::endStep() { }
 void ClaspAPIBackend::beginStep() { }
 
 void ClaspAPIBackend::rule(const Potassco::HeadView& head, const Potassco::BodyView& body) {
-    prg_.addRule(head, body);
+    if (auto p = prg()) { p->addRule(head, body); }
 }
 
 void ClaspAPIBackend::minimize(Potassco::Weight_t prio, const Potassco::WeightLitSpan& lits) {
-    prg_.addMinimize(prio, lits);
+    if (auto p = prg()) { p->addMinimize(prio, lits); }
 }
 
 void ClaspAPIBackend::project(const Potassco::AtomSpan& atoms) {
-    prg_.addProject(atoms);
+    if (auto p = prg()) { p->addProject(atoms); }
 }
 
 void ClaspAPIBackend::output(const Potassco::StringSpan& str, const Potassco::LitSpan& condition) {
-    prg_.addOutput(str, condition);
+    if (auto p = prg()) { p->addOutput(str, condition); }
 }
 
 void ClaspAPIBackend::acycEdge(int s, int t, const Potassco::LitSpan& condition) {
-    prg_.addAcycEdge(s, t, condition);
+    if (auto p = prg()) { p->addAcycEdge(s, t, condition); }
 }
 
 void ClaspAPIBackend::heuristic(Potassco::Atom_t a, Potassco::Heuristic_t t, int bias, unsigned prio, const Potassco::LitSpan& condition) {
-    prg_.addDomHeuristic(a, t, bias, prio, condition);
+    if (auto p = prg()) { p->addDomHeuristic(a, t, bias, prio, condition); }
 }
 
 void ClaspAPIBackend::assume(const Potassco::LitSpan& lits) {
-    prg_.addAssumption(lits);
+    if (auto p = prg()) { p->addAssumption(lits); }
 }
 
 void ClaspAPIBackend::external(Potassco::Atom_t a, Potassco::Value_t v) {
-    switch (v) {
-        case Potassco::Value_t::False:   { prg_.freeze(a, Clasp::value_false); break; }
-        case Potassco::Value_t::True:    { prg_.freeze(a, Clasp::value_true); break; }
-        case Potassco::Value_t::Free:    { prg_.freeze(a, Clasp::value_free); break; }
-        case Potassco::Value_t::Release: { prg_.unfreeze(a); break; }
+    if (auto p = prg()) {
+        switch (v) {
+            case Potassco::Value_t::False:   { p->freeze(a, Clasp::value_false); break; }
+            case Potassco::Value_t::True:    { p->freeze(a, Clasp::value_true); break; }
+            case Potassco::Value_t::Free:    { p->freeze(a, Clasp::value_free); break; }
+            case Potassco::Value_t::Release: { p->unfreeze(a); break; }
+        }
     }
 }
 
@@ -79,13 +81,19 @@ void ClaspAPIBackend::theoryTerm(Potassco::Id_t, const Potassco::StringSpan&) { 
 void ClaspAPIBackend::theoryTerm(Potassco::Id_t, int, const Potassco::IdSpan&) { }
 
 void ClaspAPIBackend::theoryElement(Potassco::Id_t e, const Potassco::IdSpan&, const Potassco::LitSpan& cond) {
-    Potassco::TheoryElement const &elem = prg_.theoryData().getElement(e);
-    if (elem.condition() == Potassco::TheoryData::COND_DEFERRED) { prg_.theoryData().setCondition(e, prg_.newCondition(cond)); }
+    if (auto p = prg()) {
+        Potassco::TheoryElement const &elem = p->theoryData().getElement(e);
+        if (elem.condition() == Potassco::TheoryData::COND_DEFERRED) { p->theoryData().setCondition(e, p->newCondition(cond)); }
+    }
 }
 
 void ClaspAPIBackend::theoryAtom(Potassco::Id_t, Potassco::Id_t, const Potassco::IdSpan&) { }
 
 void ClaspAPIBackend::theoryAtom(Potassco::Id_t, Potassco::Id_t, const Potassco::IdSpan&, Potassco::Id_t, Potassco::Id_t){ }
+
+Clasp::Asp::LogicProgram *ClaspAPIBackend::prg() {
+    return ctl_.update() ? static_cast<Clasp::Asp::LogicProgram*>(ctl_.clasp_->program()) : nullptr;
+}
 
 ClaspAPIBackend::~ClaspAPIBackend() noexcept = default;
 
@@ -136,7 +144,7 @@ void ClingoControl::parse(const StringSeq& files, const ClingoOptions& opts, Cla
         outPreds.emplace_back(Location("<cmd>",1,1,"<cmd>", 1,1), x, false);
     }
     if (claspOut) {
-        out_ = gringo_make_unique<Output::OutputBase>(claspOut->theoryData(), std::move(outPreds), gringo_make_unique<ClaspAPIBackend>(*claspOut), opts.outputDebug);
+        out_ = gringo_make_unique<Output::OutputBase>(claspOut->theoryData(), std::move(outPreds), gringo_make_unique<ClaspAPIBackend>(*this), opts.outputDebug);
     }
     else {
         data_ = gringo_make_unique<Potassco::TheoryData>();
@@ -164,7 +172,11 @@ bool ClingoControl::update() {
     if (clingoMode_) {
         clasp_->update(configUpdate_);
         configUpdate_ = false;
-        return clasp_->ok();
+        if (!clasp_->ok()) { return false; }
+    }
+    if (!grounded) {
+        out_->beginStep();
+        grounded = true;
     }
     return true;
 }
@@ -180,10 +192,6 @@ void ClingoControl::ground(Gringo::Control::GroundVec const &parts, Gringo::Cont
             throw std::runtime_error("grounding stopped because of errors");
         }
         parsed = false;
-    }
-    if (!grounded) {
-        out_->beginStep();
-        grounded = true;
     }
     if (!parts.empty()) {
         Gringo::Ground::Parameters params;
@@ -320,8 +328,8 @@ bool ClingoControl::blocked() {
     return clasp_->solving();
 }
 void ClingoControl::prepare(Gringo::Control::ModelHandler mh, Gringo::Control::FinishHandler fh) {
-    grounded = false;
     if (update()) { out_->endStep(true, logger_); }
+    grounded = false;
     if (clingoMode_) {
 #if WITH_THREADS
         solveFuture_   = nullptr;

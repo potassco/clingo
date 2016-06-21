@@ -118,28 +118,25 @@ TEST_CASE("solving", "[clingo]") {
             SECTION("backend") {
                 // NOTE: ground has to be called before using the backend
                 auto backend = ctl.backend();
-                ctl.ground({});
                 literal_t a = backend.add_atom(), b = backend.add_atom();
                 backend.rule(true, {atom_t(a)}, {});
                 backend.rule(false, {atom_t(b)}, {-a});
                 ctl.solve(MCB(models));
                 REQUIRE(models == (ModelVec{{},{}}));
-                ctl.ground({});
                 backend.assume({a});
                 ctl.solve(MCB(models));
                 REQUIRE(models == (ModelVec{{}}));
-                ctl.ground({});
                 backend.minimize(1, {{a,1},{b,1}});
                 ctl.solve(MCB(models));
                 REQUIRE(ctl.statistics()["summary.costs"].size() == 1);
                 REQUIRE(ctl.statistics()["summary.costs"][size_t(0)] == 1);
+                REQUIRE(ctl.statistics()["summary.step"] == 2);
                 // Note: I don't have a good idea how to test this one
                 // void heuristic(atom_t atom, HeuristicType type, int bias, unsigned priority, LitSpan condition);
             }
             SECTION("backend-project") {
                 ctl.configuration()["solve.project"] = "1";
                 auto backend = ctl.backend();
-                ctl.ground({});
                 atom_t a = backend.add_atom(), b = backend.add_atom();
                 backend.rule(true, {a, b}, {});
                 backend.project({a});
@@ -148,19 +145,16 @@ TEST_CASE("solving", "[clingo]") {
             }
             SECTION("backend-external") {
                 auto backend = ctl.backend();
-                ctl.ground({});
                 atom_t a = backend.add_atom();
                 backend.external(a, ExternalType::Free);
                 ctl.solve(MCB(models));
                 REQUIRE(models == (ModelVec{{},{}}));
-                ctl.ground({});
                 backend.external(a, ExternalType::Release);
                 ctl.solve(MCB(models));
                 REQUIRE(models == (ModelVec{{}}));
             }
             SECTION("backend-acyc") {
                 auto backend = ctl.backend();
-                ctl.ground({});
                 atom_t a = backend.add_atom(), b = backend.add_atom();
                 backend.rule(true, {a, b}, {});
                 backend.acyc_edge(1, 2, {literal_t(a)});
@@ -170,7 +164,6 @@ TEST_CASE("solving", "[clingo]") {
             }
             SECTION("backend-weight-rule") {
                 auto backend = ctl.backend();
-                ctl.ground({});
                 atom_t a = backend.add_atom(), b = backend.add_atom();
                 backend.rule(true, {a, b}, {});
                 backend.weight_rule(false, {}, 1, {{literal_t(a),1}, {literal_t(b),1}});

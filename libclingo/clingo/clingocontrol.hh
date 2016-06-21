@@ -40,9 +40,12 @@
 
 // {{{1 declaration of ClaspAPIBackend
 
+class ClingoControl;
 class ClaspAPIBackend : public Gringo::Backend {
 public:
-    ClaspAPIBackend(Clasp::Asp::LogicProgram& out) : prg_(out) { }
+    ClaspAPIBackend(ClingoControl& ctl) : ctl_(ctl) { }
+    ClaspAPIBackend(const ClaspAPIBackend&) = delete;
+    ClaspAPIBackend& operator=(const ClaspAPIBackend&) = delete;
     void initProgram(bool incremental) override;
     void beginStep() override;
     void rule(const Potassco::HeadView& head, const Potassco::BodyView& body) override;
@@ -61,11 +64,9 @@ public:
     void theoryAtom(Potassco::Id_t atomOrZero, Potassco::Id_t termId, const Potassco::IdSpan& elements, Potassco::Id_t op, Potassco::Id_t rhs) override;
     void endStep() override;
     ~ClaspAPIBackend() noexcept override;
-
 private:
-    ClaspAPIBackend(const ClaspAPIBackend&);
-    ClaspAPIBackend& operator=(const ClaspAPIBackend&);
-    Clasp::Asp::LogicProgram& prg_;
+    Clasp::Asp::LogicProgram *prg();
+    ClingoControl& ctl_;
 };
 
 // {{{1 declaration of ClingoOptions

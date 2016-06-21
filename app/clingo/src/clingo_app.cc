@@ -125,7 +125,7 @@ void ClingoApp::validateOptions(const ProgramOptions::OptionContext& root, const
 
 ProblemType ClingoApp::getProblemType() {
     if (mode_ != mode_clasp) return Problem_t::Asp;
-	return ClaspFacade::detectProblemType(getStream());
+    return ClaspFacade::detectProblemType(getStream());
 }
 Output* ClingoApp::createOutput(ProblemType f) {
     if (mode_ == mode_gringo) return 0;
