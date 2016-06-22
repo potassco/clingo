@@ -29,20 +29,20 @@ extern "C" {
 
 // {{{1 ast
 
-enum clingo_ast_comparison {
-    clingo_ast_comparison_greater_than,
-    clingo_ast_comparison_less_than,
-    clingo_ast_comparison_less_equal,
-    clingo_ast_comparison_greater_equal,
-    clingo_ast_comparison_not_equal,
-    clingo_ast_comparison_equal
+enum clingo_ast_comparison_operator {
+    clingo_ast_comparison_operator_greater_than  = 0,
+    clingo_ast_comparison_operator_less_than     = 1,
+    clingo_ast_comparison_operator_less_equal    = 2,
+    clingo_ast_comparison_operator_greater_equal = 3,
+    clingo_ast_comparison_operator_not_equal     = 4,
+    clingo_ast_comparison_operator_equal         = 5
 };
-typedef int clingo_ast_comparison_t;
+typedef int clingo_ast_comparison_operator_t;
 
 enum clingo_ast_sign {
-    clingo_ast_sign_none,
-    clingo_ast_sign_negation,
-    clingo_ast_sign_double_negation,
+    clingo_ast_sign_none            = 0,
+    clingo_ast_sign_negation        = 1,
+    clingo_ast_sign_double_negation = 2
 };
 typedef int clingo_ast_sign_t;
 
@@ -56,75 +56,75 @@ enum clingo_ast_term_type {
     clingo_ast_term_type_interval          = 4,
     clingo_ast_term_type_function          = 5,
     clingo_ast_term_type_external_function = 6,
-    clingo_ast_term_type_pool              = 7,
+    clingo_ast_term_type_pool              = 7
 };
 typedef int clingo_ast_term_type_t;
 
-typedef struct clingo_ast_term_unary_operation clingo_ast_term_unary_operation_t;
-typedef struct clingo_ast_term_binary_operation clingo_ast_term_binary_operation_t;
-typedef struct clingo_ast_term_interval clingo_ast_term_interval_t;
-typedef struct clingo_ast_term_function clingo_ast_term_function_t;
-typedef struct clingo_ast_term_pool clingo_ast_term_pool_t;
+typedef struct clingo_ast_unary_operation clingo_ast_unary_operation_t;
+typedef struct clingo_ast_binary_operation clingo_ast_binary_operation_t;
+typedef struct clingo_ast_interval clingo_ast_term_interval_t;
+typedef struct clingo_ast_function clingo_ast_function_t;
+typedef struct clingo_ast_pool clingo_ast_pool_t;
 typedef struct clingo_ast_term {
     clingo_location_t location;
     clingo_ast_term_type_t type;
     union {
         clingo_symbol_t symbol;
         char const *variable;
-        clingo_ast_term_unary_operation_t const *unary_operation;
-        clingo_ast_term_binary_operation_t const *binary_operation;
+        clingo_ast_unary_operation_t const *unary_operation;
+        clingo_ast_binary_operation_t const *binary_operation;
         clingo_ast_term_interval_t const *interval;
-        clingo_ast_term_function_t const *function;
-        clingo_ast_term_function_t const *external_function;
-        clingo_ast_term_pool_t const *pool;
+        clingo_ast_function_t const *function;
+        clingo_ast_function_t const *external_function;
+        clingo_ast_pool_t const *pool;
     };
 } clingo_ast_term_t;
 
 // unary operation
 
-enum clingo_ast_term_unary_operator_type {
-    clingo_ast_term_unary_operator_absolute = 0,
-    clingo_ast_term_unary_operator_minus    = 1,
-    clingo_ast_term_unary_operator_negate   = 2
+enum clingo_ast_unary_operator {
+    clingo_ast_unary_operator_absolute = 0,
+    clingo_ast_unary_operator_minus    = 1,
+    clingo_ast_unary_operator_negate   = 2
 };
-typedef int clingo_ast_term_unary_operator_type_t;
+typedef int clingo_ast_unary_operator_t;
 
-struct clingo_ast_term_unary_operation {
-    clingo_ast_term_unary_operator_type_t unary_operator;
+struct clingo_ast_unary_operation {
+    clingo_ast_unary_operator_t unary_operator;
     clingo_ast_term_t argument;
 };
 
 // binary operation
 
-enum clingo_ast_term_binary_operator_type {
-    clingo_ast_term_binary_operator_xor      = 0,
-    clingo_ast_term_binary_operator_or       = 1,
-    clingo_ast_term_binary_operator_and      = 2,
-    clingo_ast_term_binary_operator_add      = 3,
-    clingo_ast_term_binary_operator_subtract = 4,
-    clingo_ast_term_binary_operator_multiply = 5,
-    clingo_ast_term_binary_operator_divide   = 6,
-    clingo_ast_term_binary_operator_modulo   = 7,
+enum clingo_ast_binary_operator {
+    clingo_ast_binary_operator_xor      = 0,
+    clingo_ast_binary_operator_or       = 1,
+    clingo_ast_binary_operator_and      = 2,
+    clingo_ast_binary_operator_add      = 3,
+    clingo_ast_binary_operator_subtract = 4,
+    clingo_ast_binary_operator_multiply = 5,
+    clingo_ast_binary_operator_divide   = 6,
+    clingo_ast_binary_operator_modulo   = 7
 
 };
-typedef int clingo_ast_term_binary_operator_type_t;
+typedef int clingo_ast_binary_operator_t;
 
-struct clingo_ast_term_binary_operation {
-    clingo_ast_term_binary_operator_type_t binary_operator;
+struct clingo_ast_binary_operation {
+    clingo_ast_binary_operator_t binary_operator;
     clingo_ast_term_t left;
     clingo_ast_term_t right;
 };
 
 // interval
 
-struct clingo_ast_term_interval {
+struct clingo_ast_interval {
     clingo_ast_term_t left;
     clingo_ast_term_t right;
 };
 
 // function
 
-struct clingo_ast_term_function {
+struct clingo_ast_function {
     char const *name;
     clingo_ast_term_t *arguments;
     size_t size;
@@ -132,7 +132,7 @@ struct clingo_ast_term_function {
 
 // pool
 
-struct clingo_ast_term_pool {
+struct clingo_ast_pool {
     clingo_ast_term_t *arguments;
     size_t size;
 };
@@ -145,18 +145,22 @@ typedef struct clingo_ast_csp_multiply_term {
     clingo_ast_term_t right;
 } clingo_ast_csp_multiply_term_t;
 
+typedef struct clingo_ast_csp_add_term {
+    clingo_location_t location;
+    clingo_ast_csp_multiply_term_t *terms;
+    size_t size;
+} clingo_ast_csp_add_term_t;
+
 typedef struct clingo_ast_csp_guard {
     clingo_location_t location;
-    clingo_ast_comparison_t comparison;
-    clingo_ast_csp_multiply_term_t *terms;
-    size_t *size;
+    clingo_ast_comparison_operator_t comparison;
+    clingo_ast_csp_add_term term;
 } clingo_ast_csp_guard_t;
 
 typedef struct clingo_ast_csp_literal {
-    clingo_ast_csp_multiply_term_t *terms;
-    size_t *terms_size;
-    clingo_ast_csp_guard *guards;
-    size_t *guards_size;
+    clingo_ast_csp_add_term_t term;
+    clingo_ast_csp_guard const *guards;
+    size_t size;
 } clingo_ast_csp_literal_t;
 
 // {{{2 ids
@@ -168,13 +172,16 @@ typedef struct clingo_ast_id {
 
 // {{{2 literals
 
-typedef struct clingo_ast_literal_symbolic clingo_ast_literal_symbolic_t;
-typedef struct clingo_ast_literal_comparison clingo_ast_literal_comparison_t;
+typedef struct clingo_ast_comparison {
+    clingo_ast_comparison_operator_t comparison;
+    clingo_ast_term_t left;
+    clingo_ast_term_t right;
+} clingo_ast_comparison_t;
 
 enum clingo_ast_literal_type {
     clingo_ast_literal_type_boolean    = 0,
     clingo_ast_literal_type_symbolic   = 1,
-    clingo_ast_literal_type_comparison = 2,
+    clingo_ast_literal_type_comparison = 2
 };
 typedef int clingo_ast_literal_type_t;
 
@@ -184,194 +191,390 @@ typedef struct clingo_ast_literal {
     clingo_ast_literal_type_t type;
     union {
         bool boolean;
-        clingo_ast_term_t *symbolic;
-        clingo_ast_literal_comparison_t *comparison;
+        clingo_ast_term_t const *symbol;
+        clingo_ast_comparison_t const *comparison;
     };
 } clingo_ast_literal_t;
-
-struct clingo_ast_literal_comparison {
-    clingo_ast_comparison_t comparison;
-    clingo_ast_term_t left;
-    clingo_ast_term_t right;
-};
 
 // {{{2 aggregates
 
 enum clingo_ast_aggregate_function {
-    // TODO
+    clingo_ast_aggregate_function_count = 0,
+    clingo_ast_aggregate_function_sum   = 1,
+    clingo_ast_aggregate_function_sump  = 2,
+    clingo_ast_aggregate_function_min   = 3,
+    clingo_ast_aggregate_function_max   = 4
 };
 typedef int clingo_ast_aggregate_function_t;
 
+typedef struct clingo_ast_aggregate_guard {
+    clingo_ast_comparison_operator_t comparison;
+    clingo_ast_term_t term;
+} clingo_ast_aggregate_guard_t;
+
 typedef struct clingo_ast_conditional_literal {
     clingo_ast_literal_t literal;
-    clingo_ast_literal_t *condition;
+    clingo_ast_literal_t const *condition;
     size_t size;
 } clingo_ast_conditional_literal_t;
 
+// lparse-style aggregate
+
 typedef struct clingo_ast_aggregate {
-    clingo_ast_conditional_literal_t *elements;
+    clingo_ast_conditional_literal_t const *elements;
     size_t size;
+    clingo_ast_aggregate_guard const *left_guard;
+    clingo_ast_aggregate_guard const *right_guard;
 } clingo_ast_aggregate_t;
 
-typedef struct clingo_ast_aggregate_guard {
-    clingo_ast_comparison_t comparison;
-    clingo_ast_term_t term;
-} clingo_ast_aggregate_guard_t;
+// body aggregate
 
 typedef struct clingo_ast_body_aggregate_element {
     clingo_ast_term_t *tuple;
     size_t tuple_size;
-    clingo_ast_literal_t *condition;
+    clingo_ast_literal_t const *condition;
     size_t condition_size;
 } clingo_ast_body_aggregate_element_t;
 
 typedef struct clingo_ast_body_aggregate {
     clingo_ast_aggregate_function function;
-    clingo_ast_body_aggregate_element *elements;
+    clingo_ast_body_aggregate_element const *elements;
     size_t size;
+    clingo_ast_aggregate_guard const *left_guard;
+    clingo_ast_aggregate_guard const *right_guard;
 } clingo_ast_body_aggregate_t;
 
+// head aggregate
+
 typedef struct clingo_ast_head_aggregate_element {
-    clingo_ast_term_t *tuple;
+    clingo_ast_term_t const *tuple;
     size_t tuple_size;
     clingo_ast_conditional_literal_t conditional_literal;
 } clingo_ast_head_aggregate_element_t;
 
 typedef struct clingo_ast_head_aggregate {
     clingo_ast_aggregate_function function;
-    clingo_ast_head_aggregate_element *elements;
+    clingo_ast_head_aggregate_element const *elements;
     size_t size;
+    clingo_ast_aggregate_guard const *left_guard;
+    clingo_ast_aggregate_guard const *right_guard;
 } clingo_ast_head_aggregate_t;
+
+// disjunction
+
+typedef struct clingo_ast_disjunction {
+    clingo_ast_conditional_literal_t const *elements;
+    size_t size;
+} clingo_ast_disjunction_t;
+
+// disjoint
+
+typedef struct clingo_ast_disjoint_element {
+    clingo_location_t location;
+    clingo_ast_term_t const *tuple;
+    size_t tuple_size;
+    clingo_ast_csp_add_term_t term;
+    clingo_ast_literal_t *const condition;
+    size_t condition_size;
+} clingo_ast_disjoint_element_t;
+
+typedef struct clingo_ast_disjoint {
+    clingo_ast_disjoint_element const *elements;
+    size_t size;
+} clingo_ast_disjoint_t;
+
+// {{{2 theory atom
+
+enum clingo_ast_theory_term_type {
+    clingo_ast_theory_term_type_symbol              = 0,
+    clingo_ast_theory_term_type_variable            = 1,
+    clingo_ast_theory_term_type_tuple               = 2,
+    clingo_ast_theory_term_type_list                = 3,
+    clingo_ast_theory_term_type_set                 = 4,
+    clingo_ast_theory_term_type_function            = 5,
+    clingo_ast_theory_term_type_unparsed_term_array = 6
+};
+typedef int clingo_ast_theory_term_type_t;
+
+typedef struct clingo_ast_theory_function clingo_ast_theory_function_t;
+typedef struct clingo_ast_theory_term_array clingo_ast_theory_term_array_t;
+
+typedef struct clingo_ast_theory_term {
+    clingo_location_t location;
+    clingo_ast_theory_term_type_t type;
+    union {
+        clingo_symbol_t symbol;
+        char const *variable;
+        clingo_ast_theory_term_array_t const *tuple;
+        clingo_ast_theory_term_array_t const *list;
+        clingo_ast_theory_term_array_t const *set;
+        clingo_ast_theory_function_t const *function;
+    };
+} clingo_ast_theory_term_t;
+
+struct clingo_ast_theory_term_array {
+    clingo_ast_theory_term_t const *terms;
+    size_t size;
+};
+
+struct clingo_ast_theory_function {
+    char const *name;
+    clingo_ast_theory_term_t const *arguments;
+    size_t size;
+};
+
+typedef struct clingo_ast_theory_unparsed_term {
+    char const *const *operators;
+    size_t size;
+    clingo_ast_theory_term_t const *term;
+} clingo_ast_theory_unparsed_term_t;
+
+struct clingo_ast_theory_unparsed_term_array {
+    clingo_ast_theory_unparsed_term_t const *term;
+    size_t size;
+};
+
+typedef struct clingo_ast_theory_atom_element {
+    clingo_ast_theory_term_t const *tuple;
+    size_t tuple_size;
+    clingo_literal_t const *condition;
+    size_t condition_size;
+} clingo_ast_theory_atom_element_t;
+
+typedef struct clingo_ast_theory_guard {
+    char const *operator_name;
+    clingo_ast_theory_term term;
+} clingo_ast_theory_guard_t;
+
+typedef struct clingo_ast_theory_atom {
+    clingo_ast_term_t term;
+    clingo_ast_theory_atom_element const *elements;
+    size_t size;
+    clingo_ast_theory_guard const *guard;
+} clingo_ast_theory_atom_t;
 
 // {{{2 head literals
 
-// TODO
+enum clingo_ast_head_literal_type {
+    clingo_ast_head_literal_type_symbolic       = 0,
+    clingo_ast_head_literal_type_disjunction    = 1,
+    clingo_ast_head_literal_type_aggregate      = 2,
+    clingo_ast_head_literal_type_head_aggregate = 3,
+    clingo_ast_head_literal_type_theory         = 4
+};
+typedef int clingo_ast_head_literal_type_t;
+
+typedef struct clingo_ast_head_literal {
+    clingo_location_t location;
+    clingo_ast_head_literal_type_t type;
+    union {
+        clingo_symbol_t symbolic;
+        clingo_ast_disjunction_t const *disjunction;
+        clingo_ast_aggregate_t const *aggregate;
+        clingo_ast_head_aggregate_t const *head_aggregate;
+        clingo_ast_theory_atom_t const *theory_atom;
+    };
+} clingo_ast_head_literal_t;
 
 // {{{2 body literals
 
 enum clingo_ast_body_literal_type {
-    // TODO
+    clingo_ast_body_literal_type_symbolic       = 0,
+    clingo_ast_body_literal_type_conditional    = 1,
+    clingo_ast_body_literal_type_aggregate      = 2,
+    clingo_ast_body_literal_type_body_aggregate = 3,
+    clingo_ast_body_literal_type_theory         = 4,
+    clingo_ast_body_literal_type_disjoint       = 5
 };
+typedef int clingo_ast_body_literal_type_t;
 
-struct clingo_ast_body_literal {
+typedef struct clingo_ast_body_literal {
     clingo_location_t location;
     clingo_ast_sign_t sign;
-    clingo_ast_body_literal_type type;
+    clingo_ast_body_literal_type_t type;
     union {
         clingo_symbol_t symbolic;
-        clingo_symbol_t conditional;
-        clingo_ast_aggregate_t *aggregate;
-        clingo_ast_head_aggregate_t *body_aggregate;
-        // TODO: theory
-        // TODO: disjoint
+        // Note: conditional literals must not have signs!!!
+        clingo_ast_conditional_literal_t const *conditional;
+        clingo_ast_aggregate_t const *aggregate;
+        clingo_ast_body_aggregate_t const *body_aggregate;
+        clingo_ast_theory_atom_t const *theory_atom;
+        clingo_ast_disjoint_t const *disjoint;
     };
+} clingo_ast_body_literal_t;
+
+// {{{2 theory definitions
+
+enum clingo_ast_theory_operator_type {
+     clingo_ast_theory_operator_type_unary        = 0,
+     clingo_ast_theory_operator_type_binary_left  = 1,
+     clingo_ast_theory_operator_type_binary_right = 2
 };
+typedef int clingo_ast_theory_operator_type_t;
 
-/*
-    // {{{2 heads
-    virtual HdLitUid headlit(LitUid lit) = 0;
-    virtual HdLitUid headaggr(Location const &loc, TheoryAtomUid atom) = 0;
-    virtual HdLitUid headaggr(Location const &loc, AggregateFunction fun, BoundVecUid bounds, HdAggrElemVecUid headaggrelemvec) = 0;
-    virtual HdLitUid headaggr(Location const &loc, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid headaggrelemvec) = 0;
-    virtual HdLitUid disjunction(Location const &loc, CondLitVecUid condlitvec) = 0;
-    // {{{2 bodies
-    virtual BdLitVecUid body() = 0;
-    virtual BdLitVecUid bodylit(BdLitVecUid body, LitUid bodylit) = 0;
-    virtual BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, TheoryAtomUid atom) = 0;
-    virtual BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, BdAggrElemVecUid bodyaggrelemvec) = 0;
-    virtual BdLitVecUid bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, CondLitVecUid bodyaggrelemvec) = 0;
-    virtual BdLitVecUid conjunction(BdLitVecUid body, Location const &loc, LitUid head, LitVecUid litvec) = 0;
-    virtual BdLitVecUid disjoint(BdLitVecUid body, Location const &loc, NAF naf, CSPElemVecUid elem) = 0;
-    // {{{2 csp constraint elements
-    virtual CSPElemVecUid cspelemvec() = 0;
-    virtual CSPElemVecUid cspelemvec(CSPElemVecUid uid, Location const &loc, TermVecUid termvec, CSPAddTermUid addterm, LitVecUid litvec) = 0;
-    // {{{2 statements
-    virtual void rule(Location const &loc, HdLitUid head) = 0;
-    virtual void rule(Location const &loc, HdLitUid head, BdLitVecUid body) = 0;
-    virtual void define(Location const &loc, String name, TermUid value, bool defaultDef, Logger &log) = 0;
-    virtual void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) = 0;
-    virtual void showsig(Location const &loc, Sig, bool csp) = 0;
-    virtual void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) = 0;
-    virtual void python(Location const &loc, String code) = 0;
-    virtual void lua(Location const &loc, String code) = 0;
-    virtual void block(Location const &loc, String name, IdVecUid args) = 0;
-    virtual void external(Location const &loc, LitUid head, BdLitVecUid body) = 0;
-    virtual void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) = 0;
-    virtual void heuristic(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) = 0;
-    virtual void project(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body) = 0;
-    virtual void project(Location const &loc, Sig sig) = 0;
-    // {{{2 theory atoms
+typedef struct clingo_ast_theory_operator_definition {
+    clingo_location_t location;
+    char const *name;
+    unsigned priority;
+    clingo_ast_theory_operator_type_t type;
+} clingo_ast_theory_operator_definition_t;
 
-    virtual TheoryTermUid theorytermset(Location const &loc, TheoryOptermVecUid args) = 0;
-    virtual TheoryTermUid theoryoptermlist(Location const &loc, TheoryOptermVecUid args) = 0;
-    virtual TheoryTermUid theorytermopterm(Location const &loc, TheoryOptermUid opterm) = 0;
-    virtual TheoryTermUid theorytermtuple(Location const &loc, TheoryOptermVecUid args) = 0;
-    virtual TheoryTermUid theorytermfun(Location const &loc, String name, TheoryOptermVecUid args) = 0;
-    virtual TheoryTermUid theorytermvalue(Location const &loc, Symbol val) = 0;
-    virtual TheoryTermUid theorytermvar(Location const &loc, String var) = 0;
+typedef struct clingo_ast_theory_term_definition {
+    clingo_location_t location;
+    char const *name;
+    clingo_ast_theory_operator_definition_t const *operators;
+    size_t size;
+} clingo_ast_theory_term_definition_t;
 
-    virtual TheoryOptermUid theoryopterm(TheoryOpVecUid ops, TheoryTermUid term) = 0;
-    virtual TheoryOptermUid theoryopterm(TheoryOptermUid opterm, TheoryOpVecUid ops, TheoryTermUid term) = 0;
+typedef struct clingo_ast_theory_guard_definition {
+    char const *const *operators;
+    char const *guard;
+} clingo_ast_theory_guard_definition_t;
 
-    virtual TheoryOpVecUid theoryops() = 0;
-    virtual TheoryOpVecUid theoryops(TheoryOpVecUid ops, String op) = 0;
+typedef struct clingo_ast_theory_atom_definition {
+    clingo_location_t location;
+    char const *name;
+    unsigned arity;
+    char const *elements;
+    clingo_ast_theory_guard_definition_t const *guard;
+} clingo_ast_theory_atom_definition_t;
 
-    virtual TheoryOptermVecUid theoryopterms() = 0;
-    virtual TheoryOptermVecUid theoryopterms(TheoryOptermVecUid opterms, TheoryOptermUid opterm) = 0;
-    virtual TheoryOptermVecUid theoryopterms(TheoryOptermUid opterm, TheoryOptermVecUid opterms) = 0;
+typedef struct clingo_ast_theory_definition {
+    char const *name;
+    clingo_ast_theory_atom_definition const *atoms;
+    size_t size;
+} clingo_ast_theory_definition_t;
 
-    virtual TheoryElemVecUid theoryelems() = 0;
-    virtual TheoryElemVecUid theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) = 0;
+// {{{2 statements
 
-    virtual TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems) = 0;
-    virtual TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, String op, TheoryOptermUid opterm) = 0;
-
-    // {{{2 theory definitions
-
-    virtual TheoryOpDefUid theoryopdef(Location const &loc, String op, unsigned priority, TheoryOperatorType type) = 0;
-    virtual TheoryOpDefVecUid theoryopdefs() = 0;
-    virtual TheoryOpDefVecUid theoryopdefs(TheoryOpDefVecUid defs, TheoryOpDefUid def) = 0;
-
-    virtual TheoryTermDefUid theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs, Logger &log) = 0;
-    virtual TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type) = 0;
-    virtual TheoryAtomDefUid theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type, TheoryOpVecUid ops, String guardDef) = 0;
-
-    virtual TheoryDefVecUid theorydefs() = 0;
-    virtual TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryTermDefUid def) = 0;
-    virtual TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid def) = 0;
-
-    virtual void theorydef(Location const &loc, String name, TheoryDefVecUid defs, Logger &log) = 0;
-
-    // }}}2
-*/
-
-enum clingo_ast_rule_head_type {
-};
-typedef int clingo_ast_rule_head_type_t;
-
-typedef struct clingo_ast_rule_head {
-    clingo_ast_rule_head_type_t type;
-    union {
-        void *todo;
-    };
-} clingo_ast_rule_head_t;
+// rule
 
 typedef struct clingo_ast_rule {
-    clingo_ast_rule_head head;
-} clingo_rule_t;
+    clingo_ast_head_literal_t head;
+    clingo_ast_head_literal_t const *body;
+    size_t size;
+} clingo_ast_rule_t;
+
+// show
+
+typedef struct clingo_ast_show_signature {
+    clingo_signature_t signature;
+    bool csp;
+} clingo_ast_show_signature_t;
+
+typedef struct clingo_ast_show_term {
+    clingo_ast_term_t const *term;
+    clingo_ast_body_literal_t const *body;
+    size_t size;
+    bool csp;
+} clingo_ast_show_term_t;
+
+// minimize
+
+typedef struct clingo_ast_minimize {
+    clingo_ast_term_t const *weight;
+    clingo_ast_term_t const *priority;
+    clingo_ast_term_t const *tuple;
+    size_t tuple_size;
+    clingo_ast_body_literal_t const *body;
+    size_t body_size;
+} clingo_ast_minimize_t;
+
+// script
+
+enum clingo_ast_script_type {
+    clingo_ast_script_type_lua    = 0,
+    clingo_ast_script_type_python = 1
+};
+typedef int clingo_ast_script_type_t;
+
+typedef struct clingo_ast_script {
+    clingo_ast_script_type_t type;
+    char const *code;
+} clingo_ast_script_t;
+
+// program
+
+typedef struct clingo_ast_program {
+    char const *name;
+    clingo_ast_id_t const *parameters;
+    size_t size;
+} clingo_ast_program_t;
+
+// external
+
+typedef struct clingo_ast_external {
+    clingo_ast_term_t atom;
+    clingo_ast_body_literal_t const *body;
+    size_t size;
+} clingo_ast_external_t;
+
+// edge
+
+typedef struct clingo_ast_edge {
+    clingo_ast_term_t u;
+    clingo_ast_term_t v;
+    clingo_ast_body_literal_t const *body;
+    size_t size;
+} clingo_ast_edge_t;
+
+// heuristic
+
+typedef struct clingo_ast_heuristic {
+    clingo_ast_term_t atom;
+    clingo_ast_body_literal_t const *body;
+    size_t size;
+    clingo_ast_term_t bias;
+    clingo_ast_term_t priority;
+    clingo_ast_term_t modifier;
+} clingo_ast_heuristic_t;
+
+// project
+
+typedef struct clingo_ast_project {
+    clingo_ast_term_t atom;
+    clingo_ast_body_literal_t const *body;
+    size_t size;
+} clingo_ast_project_t;
+
+// statement
 
 enum clingo_ast_statement_type {
-    clingo_ast_statement_type_rule = 0,
+    clingo_ast_statement_type_rule              = 0,
+    clingo_ast_statement_type_show_signature    = 1,
+    clingo_ast_statement_type_show_term         = 2,
+    clingo_ast_statement_type_minimize          = 3,
+    clingo_ast_statement_type_script            = 4,
+    clingo_ast_statement_type_program           = 5,
+    clingo_ast_statement_type_external          = 6,
+    clingo_ast_statement_type_edge              = 7,
+    clingo_ast_statement_type_heuristic         = 8,
+    clingo_ast_statement_type_project           = 9,
+    clingo_ast_statement_type_project_signatrue = 10,
+    clingo_ast_statement_type_theory_definition = 11
 };
 typedef int clingo_ast_statement_type_t;
 
 typedef struct clingo_ast_statement {
-    clingo_ast_statement_type_t type;
     clingo_location_t location;
+    clingo_ast_statement_type_t type;
     union {
-        clingo_rule_t rule;
+        clingo_ast_rule_t const *rule;
+        clingo_ast_show_signature_t const *show_signature;
+        clingo_ast_show_term_t const *show_term;
+        clingo_ast_minimize_t const *minimize;
+        clingo_ast_script_t const *script;
+        clingo_ast_program_t const *program;
+        clingo_ast_external_t const *external;
+        clingo_ast_edge_t const *edge;
+        clingo_ast_heuristic_t const *heuristic;
+        clingo_ast_project_t const *project;
+        clingo_signature_t project_signature;
+        clingo_ast_theory_definition_t const *theory_definition;
     };
 } clingo_statement_t;
+
+// }}}1
 
 #ifdef __cplusplus
 }
