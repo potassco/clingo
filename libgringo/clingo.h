@@ -198,36 +198,6 @@ clingo_error_t clingo_solve_async_cancel(clingo_solve_async_t *async);
 clingo_error_t clingo_solve_async_get(clingo_solve_async_t *async, clingo_solve_result_bitset_t *ret);
 clingo_error_t clingo_solve_async_wait(clingo_solve_async_t *async, double timeout, bool *ret);
 
-// {{{1 ast
-
-// TODO:
-//   think about a visitor:
-//     clingo_error_t clingo_ast_callback(clingo_location_t *loc, clingo_symbol_t value, size_t number_of_children, void *data)
-//     - should location be optional?
-//       if not, the location could simply be added to the arguments
-//     - allows for building an AST using a stack
-//     - adding an ast to the program could work the same way
-//       the user would have to call the clingo_ast_callback
-//       this could be done in a callback again
-//       or alternatively with an object that has to be created/freed
-typedef struct clingo_location {
-    char const *begin_file;
-    char const *end_file;
-    size_t begin_line;
-    size_t end_line;
-    size_t begin_column;
-    size_t end_column;
-} clingo_location_t;
-typedef struct clingo_ast clingo_ast_t;
-struct clingo_ast {
-    clingo_location_t location;
-    clingo_symbol_t value;
-    clingo_ast_t const *children;
-    size_t n;
-};
-typedef clingo_error_t clingo_ast_callback_t (clingo_ast_t const *, void *);
-typedef clingo_error_t clingo_add_ast_callback_t (void *, clingo_ast_callback_t *, void *);
-
 // {{{1 symbolic atoms
 
 typedef uint64_t clingo_symbolic_atom_iterator_t;
@@ -412,6 +382,15 @@ void clingo_version(int *major, int *minor, int *revision);
 
 // {{{1 control
 
+typedef struct clingo_location {
+    char const *begin_file;
+    char const *end_file;
+    size_t begin_line;
+    size_t end_line;
+    size_t begin_column;
+    size_t end_column;
+} clingo_location_t;
+
 typedef struct clingo_part {
     char const *name;
     clingo_symbol_t const *params;
@@ -423,7 +402,6 @@ typedef clingo_error_t clingo_finish_callback_t (clingo_solve_result_bitset_t re
 typedef clingo_error_t clingo_symbol_callback_t (clingo_symbol_t const *, size_t, void *);
 typedef clingo_error_t clingo_ground_callback_t (clingo_location_t, char const *, clingo_symbol_t const *, size_t, void *, clingo_symbol_callback_t *, void *);
 typedef struct clingo_control clingo_control_t;
-clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_add_ast_callback_t *cb, void *data);
 clingo_error_t clingo_control_add(clingo_control_t *ctl, char const *name, char const * const * params, size_t n, char const *part);
 clingo_error_t clingo_control_assign_external(clingo_control_t *ctl, clingo_symbol_t atom, clingo_truth_value_t value);
 clingo_error_t clingo_control_backend(clingo_control_t *ctl, clingo_backend_t **ret);
@@ -446,7 +424,18 @@ clingo_error_t clingo_control_use_enum_assumption(clingo_control_t *ctl, bool va
 void clingo_control_interrupt(clingo_control_t *ctl);
 void clingo_control_free(clingo_control_t *ctl);
 
-// TODO: should not depend on control
+// TODO: remove!!!
+typedef struct clingo_ast clingo_ast_t;
+struct clingo_ast {
+    clingo_location_t location;
+    clingo_symbol_t value;
+    clingo_ast_t const *children;
+    size_t n;
+};
+typedef clingo_error_t clingo_ast_callback_t (clingo_ast_t const *, void *);
+typedef clingo_error_t clingo_add_ast_callback_t (void *, clingo_ast_callback_t *, void *);
+
+clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_add_ast_callback_t *cb, void *data);
 clingo_error_t clingo_control_parse(clingo_control_t *ctl, char const *program, clingo_ast_callback_t *cb, void *data);
 
 // }}}1
