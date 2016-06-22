@@ -571,7 +571,7 @@ ASTBuilder::~ASTBuilder() noexcept = default;
 
 // {{{2 terms
 
-#define NEW(list) (data_.list.emplace_front(), data_.list.front())
+#define NEW(list, ...) (data_.list.emplace_front(__VA_ARGS__), data_.list.front())
 
 TermUid ASTBuilder::term(Location const &loc, Symbol val) {
     clingo_ast_term_t term;
@@ -607,8 +607,7 @@ TermUid ASTBuilder::pool_(Location const &loc, TermVec &&vec) {
     else {
         auto &pool = NEW(pools);
         pool.size = vec.size();
-        data_.termVecs.emplace_front(std::move(vec));
-        pool.arguments = data_.termVecs.front().data();
+        pool.arguments = NEW(termVecs, std::move(vec)).data();
         clingo_ast_term_t term;
         term.location = convertLoc(loc);
         term.type = clingo_ast_term_type_pool;
@@ -648,8 +647,7 @@ clingo_ast_term_t ASTBuilder::fun_(Location const &loc, String name, TermVec &&v
     auto &fun = NEW(functions);
     fun.name = name.c_str();
     fun.size = vec.size();
-    data_.termVecs.emplace_front(std::move(vec));
-    fun.arguments = data_.termVecs.front().data();
+    fun.arguments = NEW(termVecs, std::move(vec)).data();
     clingo_ast_term_t term;
     term.location = convertLoc(loc);
     term.type = external ? clingo_ast_term_type_external_function : clingo_ast_term_type_function;
