@@ -566,80 +566,116 @@ Location convertLoc(clingo_location loc) {
            ,loc.end_file, static_cast<unsigned>(loc.end_line), static_cast<unsigned>(loc.end_column)};
 }
 
-SymSpan toSpan(clingo_symbol_t const * first, size_t n) {
-    return {reinterpret_cast<Symbol const *>(first), n};
-}
-
-Potassco::Span<clingo_ast_t> toSpan(clingo_ast_t const * first, size_t n) {
-    return {static_cast<clingo_ast_t const *>(first), n};
-}
-
-bool operator==(clingo_symbol_t a, Symbol b) { return Symbol(a) == b; }
-bool operator!=(clingo_symbol_t a, Symbol b) { return Symbol(a) != b; }
-
 ASTBuilder::ASTBuilder(Callback cb) : cb_(cb) { }
 ASTBuilder::~ASTBuilder() noexcept = default;
 
 // {{{2 terms
+
+#define NEW(list) (data_.list.emplace_front(), data_.list.front())
+
 TermUid ASTBuilder::term(Location const &loc, Symbol val) {
-    return terms_.insert(typedNode("term_value", newNode(loc, val)));
+    clingo_ast_term_t term;
+    term.location = convertLoc(loc);
+    term.type = clingo_ast_term_type_symbol;
+    term.symbol = val.rep();
+    return terms_.insert(std::move(term));
 }
+
 TermUid ASTBuilder::term(Location const &loc, String name) {
-    return terms_.insert(typedNode("term_variable", newNode(loc, name.c_str())));
+    clingo_ast_term_t term;
+    term.location = convertLoc(loc);
+    term.type = clingo_ast_term_type_variable;
+    term.variable = name.c_str();
+    return terms_.insert(std::move(term));
 }
+
 TermUid ASTBuilder::term(Location const &loc, UnOp op, TermUid a) {
-    Symbol val;
-    switch (op) {
-        case UnOp::NOT: { val = Symbol::createId("~"); break;}
-        case UnOp::NEG: { val = Symbol::createId("-"); break;}
-        case UnOp::ABS: { val = Symbol::createId("|"); break;}
-    }
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, val));
-    nodeVec.emplace_back(terms_.erase(a));
-    return terms_.insert(newNode(loc, "term_unary", nodeVec));
+    auto &unop = NEW(unaryOperations);
+    unop.unary_operator = static_cast<clingo_ast_unary_operator_t>(op);
+    unop.argument = terms_.erase(a);
+    clingo_ast_term_t term;
+    term.location = convertLoc(loc);
+    term.type = clingo_ast_term_type_unary_operation;
+    term.unary_operation = &unop;
+    return terms_.insert(std::move(term));
 }
+
+TermUid ASTBuilder::pool_(Location const &loc, TermVec &&vec) {
+    if (vec.size() == 1) {
+        return terms_.insert(std::move(vec.front()));
+    }
+    else {
+        auto &pool = NEW(pools);
+        pool.size = vec.size();
+        data_.termVecs.emplace_front(std::move(vec));
+        pool.arguments = data_.termVecs.front().data();
+        clingo_ast_term_t term;
+        term.location = convertLoc(loc);
+        term.type = clingo_ast_term_type_pool;
+        term.pool = &pool;
+        return terms_.insert(std::move(term));
+    }
+}
+
 TermUid ASTBuilder::term(Location const &loc, UnOp op, TermVecUid a) {
     return term(loc, op, pool_(loc, termvecs_.erase(a)));
 }
+
 TermUid ASTBuilder::term(Location const &loc, BinOp op, TermUid a, TermUid b) {
-    Symbol val;
-    switch (op) {
-        case BinOp::ADD: { val = Symbol::createId("+"); break; }
-        case BinOp::OR:  { val = Symbol::createId("?");  break; }
-        case BinOp::SUB: { val = Symbol::createId("-"); break; }
-        case BinOp::MOD: { val = Symbol::createId("\\"); break; }
-        case BinOp::MUL: { val = Symbol::createId("*"); break; }
-        case BinOp::XOR: { val = Symbol::createId("^"); break; }
-        case BinOp::POW: { val = Symbol::createId("**"); break; }
-        case BinOp::DIV: { val = Symbol::createId("/"); break; }
-        case BinOp::AND: { val = Symbol::createId("&"); break; }
-    }
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(terms_.erase(a));
-    nodeVec.emplace_back(newNode(loc, val));
-    nodeVec.emplace_back(terms_.erase(b));
-    return terms_.insert(newNode(loc, "term_binary", nodeVec));
+    auto &binop = NEW(binaryOperations);
+    binop.binary_operator = static_cast<clingo_ast_binary_operator_t>(op);
+    binop.left = terms_.erase(a);
+    binop.right = terms_.erase(b);
+    clingo_ast_term_t term;
+    term.location = convertLoc(loc);
+    term.type = clingo_ast_term_type_binary_operation;
+    term.binary_operation = &binop;
+    return terms_.insert(std::move(term));
 }
+
 TermUid ASTBuilder::term(Location const &loc, TermUid a, TermUid b) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(terms_.erase(a));
-    nodeVec.emplace_back(terms_.erase(b));
-    return terms_.insert(newNode(loc, "term_range", nodeVec));
+    auto &interval = NEW(intervals);
+    interval.left = terms_.erase(a);
+    interval.right = terms_.erase(b);
+    clingo_ast_term_t term;
+    term.location = convertLoc(loc);
+    term.type = clingo_ast_term_type_interval;
+    term.interval = &interval;
+    return terms_.insert(std::move(term));
 }
+
+clingo_ast_term_t ASTBuilder::fun_(Location const &loc, String name, TermVec &&vec, bool external) {
+    auto &fun = NEW(functions);
+    fun.name = name.c_str();
+    fun.size = vec.size();
+    data_.termVecs.emplace_front(std::move(vec));
+    fun.arguments = data_.termVecs.front().data();
+    clingo_ast_term_t term;
+    term.location = convertLoc(loc);
+    term.type = external ? clingo_ast_term_type_external_function : clingo_ast_term_type_function;
+    term.function = &fun;
+    return term;
+}
+
 TermUid ASTBuilder::term(Location const &loc, String name, TermVecVecUid a, bool lua) {
-    TermUidVec pool;
+    TermVec pool;
     for (auto &args : termvecvecs_.erase(a)) {
-        pool.emplace_back(fun_(loc, name, args, lua));
+        pool.emplace_back(fun_(loc, name, std::move(args), lua));
     }
-    return pool_(loc, pool);
+    return pool_(loc, std::move(pool));
 }
+
 TermUid ASTBuilder::term(Location const &loc, TermVecUid a, bool forceTuple) {
-    return (termvecs_[a].size() == 1 && !forceTuple) ? termvecs_.erase(a).front() : fun_(loc, "", a, false);
+    return terms_.insert((termvecs_[a].size() == 1 && !forceTuple)
+        ? std::move(termvecs_.erase(a).front())
+        : fun_(loc, "", termvecs_.erase(a), false));
 }
+
 TermUid ASTBuilder::pool(Location const &loc, TermVecUid a) {
     return pool_(loc, termvecs_.erase(a));
 }
+
+/*
 // {{{2 csp
 CSPMulTermUid ASTBuilder::cspmulterm(Location const &loc, TermUid coe, TermUid var) {
     auto &nodeVec = newNodeVec();
@@ -1595,6 +1631,7 @@ T ASTParser::fail_(char const *message) {
 }
 
 // }}}1
+*/
 
 } } // namespace Input Gringo
 

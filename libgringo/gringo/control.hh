@@ -279,8 +279,6 @@ struct clingo_control {
     virtual void cleanupDomains() = 0;
     virtual Gringo::TheoryData const &theory() const = 0;
     virtual void registerPropagator(std::unique_ptr<Gringo::Propagator> p, bool sequential) = 0;
-    virtual void parse(char const *program, std::function<void(clingo_ast const &)> cb) = 0;
-    virtual void add(std::function<void (std::function<void (clingo_ast const &)>)> cb) = 0;
     virtual Potassco::Atom_t addProgramAtom() = 0;
     virtual Gringo::Backend *backend() = 0;
     virtual Gringo::Logger &logger() = 0;

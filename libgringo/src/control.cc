@@ -928,7 +928,7 @@ void Control::ground(PartSpan parts, GroundCallback cb) {
                 if (d.first) {
                     struct Ret { clingo_error_t ret; };
                     try {
-                        d.first(loc, name, {reinterpret_cast<Symbol const *>(args), n}, [cb, cbdata](SymbolSpan symret) {
+                        d.first(Location(loc), name, {reinterpret_cast<Symbol const *>(args), n}, [cb, cbdata](SymbolSpan symret) {
                             clingo_error_t ret = cb(reinterpret_cast<clingo_symbol_t const *>(symret.begin()), symret.size(), cbdata);
                             if (ret != clingo_error_success) { throw Ret { ret }; }
                         });
@@ -2027,6 +2027,7 @@ extern "C" clingo_error_t clingo_control_release_external(clingo_control_t *ctl,
     GRINGO_CLINGO_CATCH;
 }
 
+/*
 extern "C" clingo_error_t clingo_control_parse(clingo_control_t *ctl, char const *program, clingo_ast_callback_t *cb, void *data) {
     GRINGO_CLINGO_TRY {
         ctl->parse(program, [data, cb](clingo_ast const &ast) {
@@ -2053,6 +2054,7 @@ extern "C" clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_a
     }
     GRINGO_CLINGO_CATCH;
 }
+*/
 
 extern "C" clingo_error_t clingo_control_symbolic_atoms(clingo_control_t *ctl, clingo_symbolic_atoms_t **ret) {
     GRINGO_CLINGO_TRY { *ret = &ctl->getDomain(); }

@@ -424,6 +424,7 @@ clingo_error_t clingo_control_use_enum_assumption(clingo_control_t *ctl, bool va
 void clingo_control_interrupt(clingo_control_t *ctl);
 void clingo_control_free(clingo_control_t *ctl);
 
+/*
 // TODO: remove!!!
 typedef struct clingo_ast clingo_ast_t;
 struct clingo_ast {
@@ -437,6 +438,7 @@ typedef clingo_error_t clingo_add_ast_callback_t (void *, clingo_ast_callback_t 
 
 clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_add_ast_callback_t *cb, void *data);
 clingo_error_t clingo_control_parse(clingo_control_t *ctl, char const *program, clingo_ast_callback_t *cb, void *data);
+*/
 
 // }}}1
 

@@ -779,10 +779,9 @@ private:
 
 // {{{1 ast
 
-// TODO: work in progress...
 class Location : public clingo_location_t {
 public:
-    Location(clingo_location_t loc) : clingo_location_t(loc) { }
+    explicit Location(clingo_location_t loc) : clingo_location_t(loc) { }
     Location(char const *begin_file, char const *end_file, size_t begin_line, size_t end_line, size_t begin_column, size_t end_column)
     : clingo_location_t{begin_file, end_file, begin_line, end_line, begin_column, end_column} { }
     char const *begin_file() const { return clingo_location_t::begin_file; }
@@ -805,6 +804,7 @@ inline std::ostream &operator<<(std::ostream &out, Location loc) {
     return out;
 }
 
+/*
 class AST;
 using ASTSpan = Span<AST>;
 
@@ -818,6 +818,7 @@ public:
 };
 using ASTCallback = std::function<void (AST ast)>;
 using AddASTCallback = std::function<void (ASTCallback)>;
+*/
 
 // {{{1 control
 
@@ -1124,7 +1125,6 @@ public:
     Control &operator=(Control const &c) = delete;
     ~Control() noexcept;
     void add(char const *name, StringSpan params, char const *part);
-    void add(AddASTCallback cb);
     void ground(PartSpan parts, GroundCallback cb = nullptr);
     SolveResult solve(ModelCallback mh = nullptr, SymbolicLiteralSpan assumptions = {});
     SolveIteratively solve_iteratively(SymbolicLiteralSpan assumptions = {});

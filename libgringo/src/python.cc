@@ -181,19 +181,6 @@ Object pyGetAttr(PyObject *o, char const *attr) {
         : PyObject_GetAttrString(o, attr);
 }
 
-struct ASTOwner {
-    ASTOwner() = default;
-    ASTOwner(ASTOwner &&) = default;
-    ASTOwner(ASTOwner const &) = delete;
-    ASTOwner &operator=(ASTOwner &&) = default;
-    ASTOwner &operator=(ASTOwner const &) = delete;
-    clingo_ast root;
-    std::vector<clingo_ast> childAST;
-    std::vector<ASTOwner> childOwner;
-    std::string begin;
-    std::string end;
-};
-
 struct LocOwner {
     LocOwner(std::string &str, size_t &line, size_t &column)
     : str(str), line(line), column(column) { }
@@ -220,6 +207,7 @@ void pyToCpp(PyObject *pyLoc, Gringo::LocOwner &loc) {
     pyToCpp(pyColumn, loc.column);
 }
 
+/*
 void pyToCpp(PyObject *pyAST, Gringo::ASTOwner &ast) {
     // ast.value
     Object pyTerm = pyGetAttr(pyAST, "term");
@@ -242,6 +230,7 @@ void pyToCpp(PyObject *pyAST, Gringo::ASTOwner &ast) {
         ast.childAST.emplace_back(x.root);
     }
 }
+*/
 
 template <class T>
 void pyToCpp(PyObject *pyVec, std::vector<T> &vec) {
@@ -294,6 +283,7 @@ Object cppToPy(clingo_location const &l) {
     return dict;
 }
 
+/*
 Object cppToPy(clingo_ast const &e) {
     Object dict = PyDict_New();
     Object term = cppToPy(e.value);
@@ -304,6 +294,7 @@ Object cppToPy(clingo_ast const &e) {
     if (PyDict_SetItemString(dict, "location", loc) < 0) { throw PyException(); }
     return dict;
 }
+*/
 
 struct PyUnblock {
     PyUnblock() : state(PyEval_SaveThread()) { }
@@ -2794,6 +2785,10 @@ active; you must not call any member function during search.)";
     }
     static PyObject *parse(ControlWrap *self, PyObject *pyStr) {
         PY_TRY
+            throw std::logic_error("implement me...");
+            (void)self;
+            (void)pyStr;
+            /*
             const char *str = pyToCpp<char const *>(pyStr);
             Object list = PyList_New(0);
             self->ctl->parse(str, [list](clingo_ast const &x){
@@ -2802,10 +2797,15 @@ active; you must not call any member function during search.)";
                 if (PyList_Append(list, ast) < 0) { throw PyException(); }
             });
             return list.release();
+            */
         PY_CATCH(nullptr);
     }
     static PyObject *addAST(ControlWrap *self, PyObject *pyAST) {
         PY_TRY
+            (void)self;
+            (void)pyAST;
+            throw std::logic_error("implement me...");
+            /*
             self->ctl->add([pyAST](std::function<void (clingo_ast const &)> f) {
                 Object it = PyObject_GetIter(pyAST);
                 while (Object pyVal = PyIter_Next(it)) {
@@ -2815,6 +2815,7 @@ active; you must not call any member function during search.)";
                 }
             });
             Py_RETURN_NONE;
+            */
         PY_CATCH(nullptr);
     }
 };

@@ -31,6 +31,7 @@
 #include <vector>
 #include <memory>
 #include <forward_list>
+#include <clingo_ast.h>
 
 namespace Gringo {
 
@@ -445,14 +446,15 @@ private:
 // {{{1 declaration of ASTBuilder
 
 class ASTBuilder : public Gringo::Input::INongroundProgramBuilder {
+    /*
     // about ownership: the children of nodes are owned by the builder
     // such nodes are deleted when the next directive is parsed
     using NodeList = std::forward_list<clingo_ast>;
     using NodeVec = std::vector<clingo_ast>;
     using NodeVecList = std::forward_list<NodeVec>;
-    using TermUidVec = std::vector<TermUid>;
     using TermUidVecVec = std::vector<TermVecUid>;
-    using Callback = std::function<void (clingo_ast &ast)>;
+    */
+    using Callback = std::function<void (clingo_ast_statement const &ast)>;
 public:
     ASTBuilder(Callback cb);
     virtual ~ASTBuilder() noexcept;
@@ -468,6 +470,7 @@ public:
     TermUid term(Location const &loc, TermVecUid a, bool forceTuple) override;
     TermUid pool(Location const &loc, TermVecUid a) override;
     // {{{2 csp
+    /*
     CSPMulTermUid cspmulterm(Location const &loc, TermUid coe, TermUid var) override;
     CSPMulTermUid cspmulterm(Location const &loc, TermUid coe) override;
     CSPAddTermUid cspaddterm(Location const &loc, CSPAddTermUid a, CSPMulTermUid b, bool add) override;
@@ -565,9 +568,12 @@ public:
     TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryTermDefUid def) override;
     TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid def) override;
     void theorydef(Location const &loc, String name, TheoryDefVecUid defs, Logger &log) override;
+    */
     // }}}2
 
 private:
+
+    /*
     void initNode(clingo_ast &node, clingo_location loc, Symbol val);
     void initNode(clingo_ast &node, clingo_location loc, Symbol val, NodeVec &children);
     void initNode(clingo_ast &node, Location const &loc, Symbol val);
@@ -593,11 +599,18 @@ private:
     TermUid fun_(Location const &loc, String name, TermVecUid a, bool lua);
     TermUid pool_(Location const &loc, TermUidVec const &vec);
     void directive_(Location const &loc, char const *name, NodeVec &nodeVec);
-
+    */
 private:
-    using Terms            = Indexed<clingo_ast, TermUid>;
-    using TermVecs         = Indexed<TermUidVec, TermVecUid>;
-    using TermVecVecs      = Indexed<TermUidVecVec, TermVecVecUid>;
+    using TermVec = std::vector<clingo_ast_term_t>;
+    using TermVecVec = std::vector<TermVec>;
+
+    TermUid pool_(Location const &loc, TermVec &&vec);
+    clingo_ast_term_t fun_(Location const &loc, String name, TermVec &&vec, bool external);
+
+    using Terms            = Indexed<clingo_ast_term_t, TermUid>;
+    using TermVecs         = Indexed<TermVec, TermVecUid>;
+    using TermVecVecs      = Indexed<TermVecVec, TermVecVecUid>;
+    /*
     using IdVecs           = Indexed<NodeVec, IdVecUid>;
     using Lits             = Indexed<clingo_ast, LitUid>;
     using LitVecs          = Indexed<NodeVec, LitVecUid>;
@@ -624,12 +637,13 @@ private:
     using TheoryTermDefs  = Indexed<clingo_ast, TheoryTermDefUid>;
     using TheoryAtomDefs  = Indexed<clingo_ast, TheoryAtomDefUid>;
     using TheoryDefVecs   = Indexed<NodeVec, TheoryDefVecUid>;
+    */
 
     Callback            cb_;
-    NodeVecList         nodeVecs_;
     Terms               terms_;
     TermVecs            termvecs_;
     TermVecVecs         termvecvecs_;
+    /*
     IdVecs              idvecs_;
     Lits                lits_;
     LitVecs             litvecs_;
@@ -654,10 +668,22 @@ private:
     TheoryTermDefs      theoryTermDefs_;
     TheoryAtomDefs      theoryAtomDefs_;
     TheoryDefVecs       theoryDefVecs_;
+    */
+
+    struct Data {
+        std::forward_list<clingo_ast_unary_operation_t> unaryOperations;
+        std::forward_list<clingo_ast_binary_operation_t> binaryOperations;
+        std::forward_list<clingo_ast_term_t> terms;
+        std::forward_list<clingo_ast_pool_t> pools;
+        std::forward_list<clingo_ast_term_interval_t> intervals;
+        std::forward_list<TermVec> termVecs;
+        std::forward_list<clingo_ast_function_t> functions;
+    } data_;
 };
 
 // {{{1 declaration of ASTParser
 
+/*
 class ASTParser {
 public:
     ASTParser(Scripts &scripts, Program &prg, Output::OutputBase &out, Defines &defs, bool rewriteMinimize = false);
@@ -740,6 +766,7 @@ private:
     Symbol binop_div                   = Symbol::createId("/");
     Symbol binop_and                   = Symbol::createId("&");
 };
+*/
 
 // }}}1
 

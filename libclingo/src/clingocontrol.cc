@@ -580,6 +580,7 @@ size_t ClingoControl::length() const {
     return ret;
 }
 
+/*
 void ClingoControl::parse(char const *program, std::function<void(clingo_ast const &)> cb) {
     Gringo::Input::ASTBuilder builder(cb);
     Gringo::Input::NonGroundParser parser(builder);
@@ -601,6 +602,7 @@ void ClingoControl::add(std::function<void (std::function<void (clingo_ast const
         throw std::runtime_error("parsing failed");
     }
 }
+*/
 
 Gringo::Backend *ClingoControl::backend() { return out_->backend(); }
 Potassco::Atom_t ClingoControl::addProgramAtom() { return out_->data.newAtom(); }

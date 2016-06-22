@@ -314,8 +314,6 @@ public:
     Gringo::SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass) override;
     Gringo::TheoryData const &theory() const override { return out_->data.theoryInterface(); }
     void registerPropagator(Gringo::UProp p, bool sequential) override;
-    void parse(char const *program, std::function<void(clingo_ast const &)> cb) override;
-    void add(std::function<void (std::function<void (clingo_ast const &)>)> cb) override;
     void interrupt() override;
     Gringo::Backend *backend() override;
     Potassco::Atom_t addProgramAtom() override;
