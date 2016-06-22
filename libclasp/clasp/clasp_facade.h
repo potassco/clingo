@@ -40,6 +40,7 @@
 #include <clasp/parser.h>
 #include <clasp/logic_program.h>
 #include <clasp/enumerator.h>
+#include <clasp/solver_types.h>
 
 #if WITH_THREADS
 #include <clasp/parallel_solve.h>

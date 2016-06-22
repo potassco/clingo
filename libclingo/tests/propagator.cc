@@ -498,6 +498,7 @@ TEST_CASE("propagator", "[clingo][propagator]") {
         }
         catch (std::runtime_error const &e) { REQUIRE(e.what() == S("the answer is 42")); }
     }
+#if defined(WITH_THREADS) && WITH_THREADS == 1
     SECTION("exception-t2") {
         ctl.configuration()["solve.parallel_mode"] = "2";
         TestException p;
@@ -513,6 +514,7 @@ TEST_CASE("propagator", "[clingo][propagator]") {
             REQUIRE(e.what() == S("RUNTIME ERROR!"));
         }
     }
+#endif
     SECTION("add_clause") {
         TestAddClause p;
         ctl.register_propagator(p, false);
@@ -563,7 +565,11 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
     MessageVec messages;
     ModelVec models;
     Logger logger = [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); };
+#if defined(WITH_THREADS) && WITH_THREADS == 1
     Control ctl{{"-t14"}, logger, 20};
+#else
+    Control ctl{{}, logger, 20};
+#endif
     SECTION("sequence mining") {
         ctl.configuration()["solve"]["opt_mode"] = "optN";
         SequenceMiningPropagator p;

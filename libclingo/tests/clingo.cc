@@ -185,6 +185,7 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(optimum == (CostVector{7,5}));
             REQUIRE(messages.empty());
         }
+#if defined(WITH_THREADS) && WITH_THREADS == 1
         SECTION("async") {
             ctl.add("base", {}, "{a}.");
             ctl.ground({{"base", {}}});
@@ -193,6 +194,7 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(models == ModelVec({{},{Id("a")}}));
             REQUIRE(messages.empty());
         }
+#endif
         SECTION("model") {
             ctl.add("base", {}, "a. $x $= 1. #show b.");
             ctl.ground({{"base", {}}});
@@ -430,6 +432,7 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(ctl.get_const("a") == Number(10));
             REQUIRE(ctl.get_const("b") == Id("b"));
         }
+#if defined(WITH_THREADS) && WITH_THREADS == 1
         SECTION("async and cancel") {
             static int n = 0;
             if (++n < 3) { // workaround for some bug with catch
@@ -449,6 +452,7 @@ TEST_CASE("solving", "[clingo]") {
                 REQUIRE(fret == ret);
             }
         }
+#endif
         SECTION("ground callback") {
             ctl.add("base", {}, "a(@f(X)):- X=1..2. b(@f()).");
             ctl.ground({{"base", {}}}, [&messages](Location loc, char const *name, SymbolSpan args, SymbolSpanCallback report) {
