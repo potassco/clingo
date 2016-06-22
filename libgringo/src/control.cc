@@ -26,6 +26,9 @@
 #include <gringo/control.hh>
 #include <gringo/input/groundtermparser.hh>
 #include <clingo.hh>
+#ifdef GRINGO_NO_THREAD_LOCAL
+#   include <thread>
+#endif
 
 namespace Gringo {
 
@@ -65,8 +68,27 @@ void print(char *ret, size_t n, F f) {
     as.flush();
 }
 
-thread_local std::exception_ptr g_lastException;
-thread_local std::string g_lastMessage;
+#ifndef GRINGO_NO_THREAD_LOCAL
+    thread_local std::exception_ptr g_lastException;
+    thread_local std::string g_lastMessage;
+#else
+    struct TLData {
+        std::exception_ptr lastException;
+        std::string lastMessage;
+    };
+    std::mutex g_tLMut;
+    std::unordered_map<std::thread::id, TLData> g_tLData;
+    std::exception_ptr &tLlastException() {
+        std::lock_guard<std::mutex> lock(g_tLMut);
+        return g_tLData[std::this_thread::get_id()].lastException;
+    }
+    std::string &tLlastMessage() {
+        std::lock_guard<std::mutex> lock(g_tLMut);
+        return g_tLData[std::this_thread::get_id()].lastMessage;
+    }
+    #define g_lastException (tLlastException())
+    #define g_lastMessage (tLlastMessage())
+#endif
 
 } // namespace
 

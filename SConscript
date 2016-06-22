@@ -78,6 +78,13 @@ def CheckMyFun(context, name, code, header):
     context.Result(result)
     return result
 
+def CheckThreadLocal(context):
+    source = "thread_local int x = 0; \nint main() {\nreturn x; }"
+    context.Message('Checking for C++ thread_local keyword... ')
+    result = context.TryLink(source, '.cc')
+    context.Result(result)
+    return result
+
 def CheckLibs(context, name, libs, header):
     context.Message("Checking for C++ library {0}... ".format(name))
     libs = [libs] if isinstance(libs, types.StringTypes) else libs
@@ -171,7 +178,7 @@ env['BUILDERS']['Re2cCond'] = re2c_cond_builder
 # {{{1 Gringo specific configuration
 
 log_file = join("build", GetOption('build_dir') + ".log")
-conf = Configure(env, custom_tests={'CheckBison' : CheckBison, 'CheckRe2c' : CheckRe2c, 'CheckMyFun' : CheckMyFun, 'CheckLibs' : CheckLibs, 'CheckWithPkgConfig' : CheckWithPkgConfig, 'CheckPythonConfig' : CheckPythonConfig}, log_file=log_file)
+conf = Configure(env, custom_tests={'CheckBison' : CheckBison, 'CheckRe2c' : CheckRe2c, 'CheckMyFun' : CheckMyFun, 'CheckLibs' : CheckLibs, 'CheckWithPkgConfig' : CheckWithPkgConfig, 'CheckPythonConfig' : CheckPythonConfig, 'CheckThreadLocal' : CheckThreadLocal}, log_file=log_file)
 DEFS = {}
 failure = False
 
@@ -192,6 +199,9 @@ if not conf.CheckSHCXX():
     print 'error: no usable (shared) C++ compiler found'
     print "Please check the log file for further information: " + log_file
     Exit(1)
+
+if not conf.CheckThreadLocal():
+    DEFS["GRINGO_NO_THREAD_LOCAL"] = 1
 
 with_python = False
 if env['WITH_PYTHON'] == "auto":
@@ -394,7 +404,6 @@ cexampleProgramEnv = base_env.Clone()
 cexampleProgramEnv.Prepend(LIBPATH=[Dir(".")])
 cexampleProgramEnv.Prepend(LIBS=["clingo"])
 cexampleProgramEnv["LINKFLAGS"] = base_env["CLINKFLAGS"]
-cexampleProgramEnv.Prepend(LINKFLAGS=["-Wl,-rpath-link=" + Dir(".").path])
 cexampleProgramEnv.Append(CPPPATH = ["libgringo"])
 
 cexampleProgram = cexampleProgramEnv.Program('cexample', CEXAMPLE_SOURCES)
