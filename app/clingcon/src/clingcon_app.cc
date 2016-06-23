@@ -196,17 +196,17 @@ class Callback : public ClingoControl::Callback
 {
 public:
     Callback(clingcon::Helper* h) : h_(h) {}
-    void postGround(Clasp::ProgramBuilder & pb) {
+    virtual void postGround() override {
         if (h_)
             h_->postRead();
     }
 
-    void preSolve(Clasp::ClaspFacade &cf) {
+    virtual void preSolve() override {
         if (h_)
             h_->postEnd(); /// can return false
     }
 
-    void postSolve() {
+    virtual void postSolve() override {
         if (h_)
             h_->postSolve();
     }
