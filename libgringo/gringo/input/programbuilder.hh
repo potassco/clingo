@@ -474,10 +474,10 @@ public:
     // {{{2 term vectors
     TermVecUid termvec() override;
     TermVecUid termvec(TermVecUid uid, TermUid termUid) override;
-    /*
     // {{{2 term vector vectors
     TermVecVecUid termvecvec() override;
     TermVecVecUid termvecvec(TermVecVecUid uid, TermVecUid termvecUid) override;
+    /*
     // {{{2 literals
     LitUid boollit(Location const &loc, bool type) override;
     LitUid predlit(Location const &loc, NAF naf, bool neg, String name, TermVecVecUid argvecvecUid) override;

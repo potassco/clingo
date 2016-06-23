@@ -757,17 +757,17 @@ TermVecUid ASTBuilder::termvec(TermVecUid uid, TermUid termUid) {
     return uid;
 }
 
-/*
 // {{{2 term vector vectors
 TermVecVecUid ASTBuilder::termvecvec() {
     return termvecvecs_.emplace();
 }
 
 TermVecVecUid ASTBuilder::termvecvec(TermVecVecUid uid, TermVecUid termvecUid) {
-    termvecvecs_[uid].emplace_back(termvecUid);
+    termvecvecs_[uid].emplace_back(termvecs_.erase(termvecUid));
     return uid;
 }
 
+/*
 // {{{2 literals
 LitUid ASTBuilder::boollit(Location const &loc, bool type) {
     auto &nodeVec = newNodeVec();
