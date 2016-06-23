@@ -1257,150 +1257,13 @@ void ASTBuilder::theorydef(Location const &loc, String name, TheoryDefVecUid def
     nodeVec.emplace_back(newNode(loc, "tuple_theory_definition", newNodeVec() = theoryDefVecs_.erase(defs)));
     directive_(loc, "directive_theory", nodeVec);
 }
+*/
 
 // }}}2
 
-void ASTBuilder::initNode(clingo_ast &node, clingo_location loc, Symbol val) {
-    node.location = loc;
-    node.value = val.rep();
-    node.n = 0;
-    node.children = nullptr;
-}
-void ASTBuilder::initNode(clingo_ast &node, clingo_location loc, Symbol val, NodeVec &children) {
-    initNode(node, loc, val);
-    node.n = children.size();
-    node.children = children.data();
-}
-void ASTBuilder::initNode(clingo_ast &node, Location const &loc, Symbol val) {
-    initNode(node, convertLoc(loc), val);
-}
-void ASTBuilder::initNode(clingo_ast &node, Location const &loc, Symbol val, NodeVec &children) {
-    initNode(node, convertLoc(loc), val, children);
-}
-clingo_ast ASTBuilder::newNode(clingo_location loc, Symbol val) {
-    clingo_ast node;
-    initNode(node, loc, val);
-    return node;
-}
-clingo_ast ASTBuilder::newNode(Location const &loc, Symbol val) {
-    return newNode(convertLoc(loc), val);
-}
-clingo_ast ASTBuilder::newNode(clingo_location loc, Symbol val, NodeVec &children) {
-    clingo_ast node;
-    initNode(node, loc, val, children);
-    return node;
-}
-clingo_ast ASTBuilder::newNode(Location const &loc, Symbol val, NodeVec &children) {
-    return newNode(convertLoc(loc), val, children);
-}
-clingo_ast ASTBuilder::newNode(Location const &loc,  NAF naf) {
-    switch (naf) {
-        case NAF::POS:    { return newNode(loc, "naf_pos"); }
-        case NAF::NOT:    { return newNode(loc, "naf_not"); }
-        case NAF::NOTNOT: { return newNode(loc, "naf_not_not"); }
-    }
-    throw std::logic_error("must not happen");
-}
-clingo_ast ASTBuilder::newNode(Location const &loc,  AggregateFunction fun) {
-    switch (fun) {
-        case AggregateFunction::MIN:   { return newNode(loc, "function_min"); }
-        case AggregateFunction::MAX:   { return newNode(loc, "function_max"); }
-        case AggregateFunction::SUM:   { return newNode(loc, "function_sum"); }
-        case AggregateFunction::SUMP:  { return newNode(loc, "function_sum_plus"); }
-        case AggregateFunction::COUNT: { return newNode(loc, "function_count"); }
-    }
-    throw std::logic_error("must not happen");
-}
-clingo_ast ASTBuilder::newNode(Location const &loc,  Relation rel) {
-    switch (rel) {
-        case Relation::GT:  { return newNode(loc, ">"); }
-        case Relation::GEQ: { return newNode(loc, ">="); }
-        case Relation::LT:  { return newNode(loc, "<"); }
-        case Relation::LEQ: { return newNode(loc, "<="); }
-        case Relation::EQ:  { return newNode(loc, "=="); }
-        case Relation::NEQ: { return newNode(loc, "!="); }
-    }
-    throw std::logic_error("must not happen");
-}
-clingo_ast ASTBuilder::newNode(Location const &loc, TheoryAtomType type) {
-    switch (type) {
-        case TheoryAtomType::Any:       { return newNode(loc, "any"); }
-        case TheoryAtomType::Body:      { return newNode(loc, "body"); }
-        case TheoryAtomType::Head:      { return newNode(loc, "head"); }
-        case TheoryAtomType::Directive: { return newNode(loc, "directive"); }
-    }
-    throw std::logic_error("must not happen");
-}
-clingo_ast ASTBuilder::newNode(Location const &loc, char const *value) {
-    return newNode(loc, Symbol::createId(value));
-}
-clingo_ast ASTBuilder::newNode(Location const &loc, String value) {
-    return newNode(loc, Symbol::createId(value));
-}
-clingo_ast ASTBuilder::newNode(Location const &loc, unsigned length) {
-    return newNode(loc, Symbol::createId(std::to_string(length).c_str()));
-}
-clingo_ast ASTBuilder::newNode(Location const &loc, char const *value, NodeVec &children) {
-    return newNode(loc, Symbol::createId(value), children);
-}
-clingo_ast ASTBuilder::typedNode(char const *type, clingo_ast node) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(std::move(node));
-    return newNode(nodeVec.back().location, Symbol::createId(type), nodeVec);
-}
-ASTBuilder::NodeVec &ASTBuilder::newNodeVec() {
-    nodeVecs_.emplace_front();
-    return nodeVecs_.front();
-}
-Location ASTBuilder::dummyloc_() {
-    return {"<unavailable>", 0, 0 ,"<unavailable>", 0, 0};
-}
-clingo_ast ASTBuilder::littuple_(Location const &loc, LitVecUid a) {
-    return newNode(loc, "tuple_literal", newNodeVec() = litvecs_.erase(a));
-}
-clingo_ast ASTBuilder::littuple_(Location const &loc, BdLitVecUid a) {
-    return newNode(loc, "tuple_literal", newNodeVec() = bodies_.erase(a));
-}
-clingo_ast ASTBuilder::condlit_(Location const &loc, LitUid litUid, LitVecUid litvecUid) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.push_back(lits_.erase(litUid));
-    nodeVec.push_back(littuple_(loc, litvecUid));
-    return newNode(loc, "literal_conditional", nodeVec);
-}
-TermUid ASTBuilder::fun_(Location const &loc, String name, TermVecUid a, bool lua) {
-    auto &argVec = newNodeVec();
-    for (auto &arg : termvecs_.erase(a)) {
-        argVec.emplace_back(terms_.erase(arg));
-    }
-    if (name.empty()) {
-        assert(!lua);
-        return terms_.insert(newNode(loc, "tuple_term", argVec));
-    }
-    else {
-        auto &nodeVec = newNodeVec();
-        nodeVec.emplace_back(newNode(loc, name));
-        nodeVec.emplace_back(newNode(loc, "tuple_term", argVec));
-        return terms_.insert(newNode(loc, lua ? "term_external" : "term_function", nodeVec));
-    }
-}
-TermUid ASTBuilder::pool_(Location const &loc, TermUidVec const &vec) {
-    if (vec.size() == 1) { return vec.front(); }
-    else {
-        auto &nodeVec = newNodeVec();
-        for (auto &term : vec) {
-            nodeVec.emplace_back(terms_.erase(term));
-        }
-        return terms_.insert(newNode(loc, "term_pool", nodeVec));
-    }
-}
-void ASTBuilder::directive_(Location const &loc, char const *name, NodeVec &nodeVec) {
-    auto node = newNode(loc, name, nodeVec);
-    cb_(node);
-    nodeVecs_.clear();
-}
-
 // {{{1 definition of ASTParser
 
+/*
 ASTParser::ASTParser(Scripts &scripts, Program &prg, Output::OutputBase &out, Defines &defs, bool rewriteMinimize)
 : prg_(scripts, prg, out, defs, rewriteMinimize) { }
 
@@ -1665,9 +1528,9 @@ template <class T>
 T ASTParser::fail_(char const *message) {
     throw std::runtime_error(message);
 }
+*/
 
 // }}}1
-*/
 
 } } // namespace Input Gringo
 
