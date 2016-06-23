@@ -62,7 +62,7 @@ typedef int clingo_ast_term_type_t;
 
 typedef struct clingo_ast_unary_operation clingo_ast_unary_operation_t;
 typedef struct clingo_ast_binary_operation clingo_ast_binary_operation_t;
-typedef struct clingo_ast_interval clingo_ast_term_interval_t;
+typedef struct clingo_ast_interval clingo_ast_interval_t;
 typedef struct clingo_ast_function clingo_ast_function_t;
 typedef struct clingo_ast_pool clingo_ast_pool_t;
 typedef struct clingo_ast_term {
@@ -73,7 +73,7 @@ typedef struct clingo_ast_term {
         char const *variable;
         clingo_ast_unary_operation_t const *unary_operation;
         clingo_ast_binary_operation_t const *binary_operation;
-        clingo_ast_term_interval_t const *interval;
+        clingo_ast_interval_t const *interval;
         clingo_ast_function_t const *function;
         clingo_ast_function_t const *external_function;
         clingo_ast_pool_t const *pool;
@@ -276,7 +276,7 @@ typedef struct clingo_ast_disjoint_element {
     clingo_ast_term_t const *tuple;
     size_t tuple_size;
     clingo_ast_csp_add_term_t term;
-    clingo_ast_literal_t *const condition;
+    clingo_ast_literal_t const *condition;
     size_t condition_size;
 } clingo_ast_disjoint_element_t;
 
@@ -358,7 +358,7 @@ typedef struct clingo_ast_theory_atom {
 // {{{2 head literals
 
 enum clingo_ast_head_literal_type {
-    clingo_ast_head_literal_type_symbolic       = 0,
+    clingo_ast_head_literal_type_literal        = 0,
     clingo_ast_head_literal_type_disjunction    = 1,
     clingo_ast_head_literal_type_aggregate      = 2,
     clingo_ast_head_literal_type_head_aggregate = 3,
@@ -370,7 +370,7 @@ typedef struct clingo_ast_head_literal {
     clingo_location_t location;
     clingo_ast_head_literal_type_t type;
     union {
-        clingo_symbol_t symbolic;
+        clingo_ast_literal_t const *literal;
         clingo_ast_disjunction_t const *disjunction;
         clingo_ast_aggregate_t const *aggregate;
         clingo_ast_head_aggregate_t const *head_aggregate;
@@ -381,7 +381,7 @@ typedef struct clingo_ast_head_literal {
 // {{{2 body literals
 
 enum clingo_ast_body_literal_type {
-    clingo_ast_body_literal_type_symbolic       = 0,
+    clingo_ast_body_literal_type_literal        = 0,
     clingo_ast_body_literal_type_conditional    = 1,
     clingo_ast_body_literal_type_aggregate      = 2,
     clingo_ast_body_literal_type_body_aggregate = 3,
@@ -395,7 +395,7 @@ typedef struct clingo_ast_body_literal {
     clingo_ast_sign_t sign;
     clingo_ast_body_literal_type_t type;
     union {
-        clingo_symbol_t symbolic;
+        clingo_ast_literal_t const *literal;
         // Note: conditional literals must not have signs!!!
         clingo_ast_conditional_literal_t const *conditional;
         clingo_ast_aggregate_t const *aggregate;

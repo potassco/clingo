@@ -498,7 +498,6 @@ public:
     BoundVecUid boundvec() override;
     BoundVecUid boundvec(BoundVecUid uid, Relation rel, TermUid term) override;
     // {{{2 heads
-    /*
     HdLitUid headlit(LitUid litUid) override;
     HdLitUid headaggr(Location const &loc, TheoryAtomUid atomUid) override;
     HdLitUid headaggr(Location const &loc, AggregateFunction fun, BoundVecUid bounds, HdAggrElemVecUid headaggrelemvec) override;
@@ -515,6 +514,7 @@ public:
     // {{{2 csp constraint elements
     CSPElemVecUid cspelemvec() override;
     CSPElemVecUid cspelemvec(CSPElemVecUid uid, Location const &loc, TermVecUid termvec, CSPAddTermUid addterm, LitVecUid litvec) override;
+    /*
     // {{{2 statements
     void rule(Location const &loc, HdLitUid head) override;
     void rule(Location const &loc, HdLitUid head, BdLitVecUid body) override;
@@ -583,18 +583,17 @@ private:
     using BodyAggrElemVecs = Indexed<std::vector<clingo_ast_body_aggregate_element_t>, BdAggrElemVecUid>;
     using HeadAggrElemVecs = Indexed<std::vector<clingo_ast_head_aggregate_element_t>, HdAggrElemVecUid>;
     using Bounds           = Indexed<std::vector<clingo_ast_aggregate_guard_t>, BoundVecUid>;
+    using Bodies           = Indexed<std::vector<clingo_ast_body_literal_t>, BdLitVecUid>;
+    using Heads            = Indexed<clingo_ast_head_literal_t, HdLitUid>;
+    using TheoryAtoms      = Indexed<clingo_ast_theory_atom_t, TheoryAtomUid>;
+    using CSPElems         = Indexed<std::vector<clingo_ast_disjoint_element_t>, CSPElemVecUid>;
     /*
-    using Bodies           = Indexed<NodeVec, BdLitVecUid>;
-    using Heads            = Indexed<clingo_ast, HdLitUid>;
-    using CSPLits          = Indexed<std::pair<Location, std::pair<clingo_ast, NodeVec>>, CSPLitUid>;
-    using CSPElems         = Indexed<NodeVec, CSPElemVecUid>;
 
     using TheoryOpVecs      = Indexed<NodeVec, TheoryOpVecUid>;
     using TheoryTerms       = Indexed<clingo_ast, TheoryTermUid>;
     using RawTheoryTerms    = Indexed<NodeVec, TheoryOptermUid>;
     using RawTheoryTermVecs = Indexed<NodeVec, TheoryOptermVecUid>;
     using TheoryElementVecs = Indexed<NodeVec, TheoryElemVecUid>;
-    using TheoryAtoms       = Indexed<std::tuple<TermUid, TheoryElemVecUid, clingo_ast>, TheoryAtomUid>;
 
     using TheoryOpDefs    = Indexed<clingo_ast, TheoryOpDefUid>;
     using TheoryOpDefVecs = Indexed<NodeVec, TheoryOpDefVecUid>;
@@ -617,126 +616,52 @@ private:
     BodyAggrElemVecs    bodyaggrelemvecs_;
     HeadAggrElemVecs    headaggrelemvecs_;
     Bounds              bounds_;
-    /*
     Bodies              bodies_;
     Heads               heads_;
+    TheoryAtoms         theoryAtoms_;
     CSPElems            cspelems_;
+    /*
     TheoryOpVecs        theoryOpVecs_;
     TheoryTerms         theoryTerms_;
     RawTheoryTerms      theoryOpterms_;
     RawTheoryTermVecs   theoryOptermVecs_;
     TheoryElementVecs   theoryElems_;
-    TheoryAtoms         theoryAtoms_;
     TheoryOpDefs        theoryOpDefs_;
     TheoryOpDefVecs     theoryOpDefVecs_;
     TheoryTermDefs      theoryTermDefs_;
     TheoryAtomDefs      theoryAtomDefs_;
     TheoryDefVecs       theoryDefVecs_;
     */
+    std::vector<void *> data_;
+    std::vector<void *> arrdata_;
 
-    struct Data {
-        std::forward_list<clingo_ast_unary_operation_t> unaryOperations;
-        std::forward_list<clingo_ast_binary_operation_t> binaryOperations;
-        std::forward_list<clingo_ast_term_t> terms;
-        std::forward_list<clingo_ast_pool_t> pools;
-        std::forward_list<clingo_ast_term_interval_t> intervals;
-        std::forward_list<TermVec> termVecs;
-        std::forward_list<clingo_ast_function_t> functions;
-        std::forward_list<clingo_ast_comparison_t> comparisons;
-        std::forward_list<std::vector<clingo_ast_csp_multiply_term_t>> cspmulterms;
-        std::forward_list<clingo_ast_csp_add_term_t> cspaddterms;
-        std::forward_list<clingo_ast_csp_literal_t> csplits;
-        std::forward_list<std::vector<clingo_ast_csp_guard_t>> guardvecs;
-        std::forward_list<std::vector<clingo_ast_literal_t>> litvecs;
-    } data_;
+    template <class T>
+    T *create() {
+        data_.emplace_back(operator new(sizeof(T)));
+        return reinterpret_cast<T*>(data_.back());
+    };
+    template <class T>
+    T *create(T x) {
+        auto *r = create<T>();
+        *r = x;
+        return r;
+    };
+    template <class T>
+    T *create_array(size_t size) {
+        arrdata_.emplace_back(operator new[](sizeof(T) * size));
+        return reinterpret_cast<T*>(arrdata_.back());
+    };
+    template <class T>
+    T *create_array(std::vector<T> const &vec) {
+        auto *r = create_array<T>(vec.size());
+        std::copy(vec.begin(), vec.end(), reinterpret_cast<T*>(r));
+        return r;
+    };
 };
 
 // {{{1 declaration of ASTParser
 
-/*
-class ASTParser {
-public:
-    ASTParser(Scripts &scripts, Program &prg, Output::OutputBase &out, Defines &defs, bool rewriteMinimize = false);
-    void parse(clingo_ast const &node);
-private:
-    UnOp parseUnOp(clingo_ast const &node);
-    BinOp parseBinOp(clingo_ast const &node);
-    Symbol parseValue(clingo_ast const &node);
-    TermUid parseTerm(clingo_ast const &node);
-    TermVecUid parseTermVec(clingo_ast const &node);
-    TermVecVecUid parseArgs(clingo_ast const &node);
-    String parseID(clingo_ast const &node);
-    NAF parseNAF(clingo_ast const &node);
-    bool parseNEG(clingo_ast const &node);
-    void parseProgram(clingo_ast const &node);
-    LitUid parseLit(clingo_ast const &node);
-    LitVecUid parseLitVec(clingo_ast const &node);
-    CondLitVecUid parseConditional(CondLitVecUid uid, clingo_ast const &node);
-    HdLitUid parseHead(clingo_ast const &node);
-    BdLitVecUid parseBodyLit(BdLitVecUid uid, clingo_ast const &node);
-    BdLitVecUid parseBody(clingo_ast const &node);
-    void parseRule(clingo_ast const &node);
-    bool require_(bool cond, char const *message = "parse error");
-    template <class T>
-    T fail_(char const *message = "parse error");
-
-private:
-    NongroundProgramBuilder prg_;
-    Symbol directive_rule              = Symbol::createId("directive_rule");
-    Symbol directive_const             = Symbol::createId("directive_const");
-    Symbol directive_minimize          = Symbol::createId("directive_minimize");
-    Symbol directive_show_signature    = Symbol::createId("directive_show_signature");
-    Symbol directive_show              = Symbol::createId("directive_show");
-    Symbol directive_python            = Symbol::createId("directive_python");
-    Symbol directive_lua               = Symbol::createId("directive_lua");
-    Symbol directive_program           = Symbol::createId("directive_program");
-    Symbol directive_external          = Symbol::createId("directive_external");
-    Symbol directive_edge              = Symbol::createId("directive_edge");
-    Symbol directive_heuristic         = Symbol::createId("directive_heuristic");
-    Symbol directive_project           = Symbol::createId("directive_project");
-    Symbol directive_project_signature = Symbol::createId("directive_project_signature");
-    Symbol directive_theory            = Symbol::createId("directive_theory ");
-    Symbol literal_boolean             = Symbol::createId("literal_boolean");
-    Symbol literal_predicate           = Symbol::createId("literal_predicate");
-    Symbol literal_relation            = Symbol::createId("literal_relation");
-    Symbol literal_csp                 = Symbol::createId("literal_csp");
-    Symbol literal_conditional         = Symbol::createId("literal_conditional");
-    Symbol tuple_literal               = Symbol::createId("tuple_literal");
-    Symbol tuple_id                    = Symbol::createId("tuple_id");
-    Symbol theory_atom                 = Symbol::createId("theory_atom");
-    Symbol disjoint                    = Symbol::createId("disjoint");
-    Symbol aggregate_head              = Symbol::createId("aggregate_head");
-    Symbol aggregate_body              = Symbol::createId("aggregate_body");
-    Symbol aggregate_lparse            = Symbol::createId("aggregate_lparse");
-    Symbol id                          = Symbol::createId("id");
-    Symbol naf_pos                     = Symbol::createId("naf_pos");
-    Symbol naf_not                     = Symbol::createId("naf_not");
-    Symbol naf_not_not                 = Symbol::createId("naf_not_not");
-    Symbol neg_pos                     = Symbol::createId("neg_pos");
-    Symbol neg_not                     = Symbol::createId("neg_not");
-    Symbol tuple_term                  = Symbol::createId("tuple_term");
-    Symbol term_pool                   = Symbol::createId("term_pool");
-    Symbol term_value                  = Symbol::createId("term_value");
-    Symbol term_variable               = Symbol::createId("term_variable");
-    Symbol term_unary                  = Symbol::createId("term_unary");
-    Symbol term_binary                 = Symbol::createId("term_binary");
-    Symbol term_range                  = Symbol::createId("term_range");
-    Symbol term_external               = Symbol::createId("term_external");
-    Symbol term_function               = Symbol::createId("term_function");
-    Symbol unop_neg                    = Symbol::createId("-");
-    Symbol unop_not                    = Symbol::createId("~");
-    Symbol unop_abs                    = Symbol::createId("|");
-    Symbol binop_add                   = Symbol::createId("+");
-    Symbol binop_or                    = Symbol::createId("?");
-    Symbol binop_sub                   = Symbol::createId("-");
-    Symbol binop_mod                   = Symbol::createId("\\");
-    Symbol binop_mul                   = Symbol::createId("*");
-    Symbol binop_xor                   = Symbol::createId("^");
-    Symbol binop_pow                   = Symbol::createId("**");
-    Symbol binop_div                   = Symbol::createId("/");
-    Symbol binop_and                   = Symbol::createId("&");
-};
-*/
+// TODO...
 
 // }}}1
 
