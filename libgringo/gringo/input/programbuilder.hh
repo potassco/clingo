@@ -605,8 +605,8 @@ private:
     using CSPAddTerms      = Indexed<std::pair<Location, std::vector<clingo_ast_csp_multiply_term_t>>, CSPAddTermUid>;
     using CSPMulTerms      = Indexed<clingo_ast_csp_multiply_term_t, CSPMulTermUid>;
     using CSPLits          = Indexed<std::vector<std::tuple<Location, Relation, clingo_ast_csp_add_term_t>>, CSPLitUid>;
+    using IdVecs           = Indexed<std::vector<clingo_ast_id_t>, IdVecUid>;
     /*
-    using IdVecs           = Indexed<NodeVec, IdVecUid>;
     using Lits             = Indexed<clingo_ast, LitUid>;
     using LitVecs          = Indexed<NodeVec, LitVecUid>;
     using BodyAggrElemVecs = Indexed<NodeVec, BdAggrElemVecUid>;
@@ -639,8 +639,8 @@ private:
     CSPAddTerms         cspaddterms_;
     CSPMulTerms         cspmulterms_;
     CSPLits             csplits_;
-    /*
     IdVecs              idvecs_;
+    /*
     Lits                lits_;
     LitVecs             litvecs_;
     BodyAggrElemVecs    bodyaggrelemvecs_;

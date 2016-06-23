@@ -736,17 +736,18 @@ CSPLitUid ASTBuilder::csplit(Location const &loc, CSPAddTermUid a, Relation rel,
     return csplits_.insert(std::move(vec));
 }
 
-/*
 // {{{2 id vectors
+
 IdVecUid ASTBuilder::idvec() {
     return idvecs_.emplace();
 }
 
 IdVecUid ASTBuilder::idvec(IdVecUid uid, Location const &loc, String id) {
-    idvecs_[uid].emplace_back(typedNode("id", newNode(loc, id)));
+    idvecs_[uid].emplace_back(clingo_ast_id_t{convertLoc(loc), id.c_str()});
     return uid;
 }
 
+/*
 // {{{2 term vectors
 TermVecUid ASTBuilder::termvec() {
     return termvecs_.emplace();
