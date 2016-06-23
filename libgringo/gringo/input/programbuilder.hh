@@ -514,7 +514,6 @@ public:
     // {{{2 csp constraint elements
     CSPElemVecUid cspelemvec() override;
     CSPElemVecUid cspelemvec(CSPElemVecUid uid, Location const &loc, TermVecUid termvec, CSPAddTermUid addterm, LitVecUid litvec) override;
-    /*
     // {{{2 statements
     void rule(Location const &loc, HdLitUid head) override;
     void rule(Location const &loc, HdLitUid head, BdLitVecUid body) override;
@@ -530,6 +529,7 @@ public:
     void heuristic(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
     void project(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body) override;
     void project(Location const &loc, Sig sig) override;
+    /*
     // {{{2 theory atoms
     TheoryTermUid theorytermset(Location const &loc, TheoryOptermVecUid args) override;
     TheoryTermUid theoryoptermlist(Location const &loc, TheoryOptermVecUid args) override;
@@ -636,27 +636,16 @@ private:
     std::vector<void *> arrdata_;
 
     template <class T>
-    T *create() {
-        data_.emplace_back(operator new(sizeof(T)));
-        return reinterpret_cast<T*>(data_.back());
-    };
+    T *create();
     template <class T>
-    T *create(T x) {
-        auto *r = create<T>();
-        *r = x;
-        return r;
-    };
+    T *create(T x);
     template <class T>
-    T *create_array(size_t size) {
-        arrdata_.emplace_back(operator new[](sizeof(T) * size));
-        return reinterpret_cast<T*>(arrdata_.back());
-    };
+    T *create_array(size_t size);
     template <class T>
-    T *create_array(std::vector<T> const &vec) {
-        auto *r = create_array<T>(vec.size());
-        std::copy(vec.begin(), vec.end(), reinterpret_cast<T*>(r));
-        return r;
-    };
+    T *create_array(std::vector<T> const &vec);
+
+    void statement_(Location loc, clingo_ast_statement_type_t type, clingo_ast_statement_t &stm);
+    void clear_() noexcept;
 };
 
 // {{{1 declaration of ASTParser

@@ -566,10 +566,44 @@ Location convertLoc(clingo_location loc) {
            ,loc.end_file, static_cast<unsigned>(loc.end_line), static_cast<unsigned>(loc.end_column)};
 }
 
-ASTBuilder::ASTBuilder(Callback cb) : cb_(cb) { }
-ASTBuilder::~ASTBuilder() noexcept {
+template <class T>
+T *ASTBuilder::create() {
+    data_.emplace_back(operator new(sizeof(T)));
+    return reinterpret_cast<T*>(data_.back());
+};
+template <class T>
+T *ASTBuilder::create(T x) {
+    auto *r = create<T>();
+    *r = x;
+    return r;
+};
+template <class T>
+T *ASTBuilder::create_array(size_t size) {
+    arrdata_.emplace_back(operator new[](sizeof(T) * size));
+    return reinterpret_cast<T*>(arrdata_.back());
+};
+template <class T>
+T *ASTBuilder::create_array(std::vector<T> const &vec) {
+    auto *r = create_array<T>(vec.size());
+    std::copy(vec.begin(), vec.end(), reinterpret_cast<T*>(r));
+    return r;
+};
+
+void ASTBuilder::clear_() noexcept {
     for (auto &x : data_) { operator delete(x); }
     for (auto &x : arrdata_) { operator delete[](x); }
+}
+
+void ASTBuilder::statement_(Location loc, clingo_ast_statement_type_t type, clingo_ast_statement_t &stm) {
+    stm.location = convertLoc(loc);
+    stm.type = type;
+    cb_(stm);
+    clear_();
+}
+
+ASTBuilder::ASTBuilder(Callback cb) : cb_(cb) { }
+ASTBuilder::~ASTBuilder() noexcept {
+    clear_();
 }
 
 // {{{2 terms
@@ -1093,108 +1127,164 @@ CSPElemVecUid ASTBuilder::cspelemvec(CSPElemVecUid uid, Location const &loc, Ter
 }
 
 // {{{2 statements
-/*
+
 void ASTBuilder::rule(Location const &loc, HdLitUid head) {
-    return rule(loc, head, body());
+    rule(loc, head, body());
 }
 
 void ASTBuilder::rule(Location const &loc, HdLitUid head, BdLitVecUid body) {
-    auto nodeVec = newNodeVec();
-    nodeVec.emplace_back(heads_.erase(head));
-    nodeVec.emplace_back(littuple_(loc, body));
-    directive_(loc, "directive_rule", nodeVec);
+    auto lits = bodies_.erase(body);
+    clingo_ast_rule_t rule;
+    rule.head = heads_.erase(head);
+    rule.size = lits.size();
+    rule.body = create_array(lits);
+    clingo_ast_statement stm;
+    stm.rule = create(rule);
+    statement_(loc, clingo_ast_statement_type_rule, stm);
 }
 
 void ASTBuilder::define(Location const &loc, String name, TermUid value, bool defaultDef, Logger &) {
-    auto nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, name));
-    nodeVec.emplace_back(terms_.erase(value));
-    nodeVec.emplace_back(newNode(loc, defaultDef ? "file" : "cli"));
-    directive_(loc, "directive_const", nodeVec);
+    clingo_ast_definition_t def;
+    def.name = name.c_str();
+    def.value = terms_.erase(value);
+    def.is_default = defaultDef;
+    clingo_ast_statement stm;
+    stm.definition = create(def);
+    statement_(loc, clingo_ast_statement_type_const, stm);
 }
 
 void ASTBuilder::optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) {
-    auto nodeVec = newNodeVec();
-    nodeVec.emplace_back(terms_.erase(weight));
-    nodeVec.emplace_back(terms_.erase(priority));
-    nodeVec.emplace_back(terms_.erase(term(loc, cond, true)));
-    nodeVec.emplace_back(littuple_(loc, body));
-    directive_(loc, "directive_minimize", nodeVec);
+    auto bd = bodies_.erase(body);
+    auto tuple = termvecs_.erase(cond);
+    clingo_ast_minimize_t min;
+    min.weight     = terms_.erase(weight);
+    min.priority   = terms_.erase(priority);
+    min.body_size  = bd.size();
+    min.body       = create_array(bd);
+    min.tuple_size = tuple.size();
+    min.tuple      = create_array(tuple);
+    clingo_ast_statement stm;
+    stm.minimize = create(min);
+    statement_(loc, clingo_ast_statement_type_minimize, stm);
 }
 
 void ASTBuilder::showsig(Location const &loc, Sig sig, bool csp) {
-    auto nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, sig.name().c_str()));
-    nodeVec.emplace_back(newNode(loc, sig.arity()));
-    nodeVec.emplace_back(newNode(loc, csp ? "variable" : "atom"));
-    directive_(loc, "directive_show_signature", nodeVec);
+    clingo_ast_show_signature_t show;
+    show.signature = sig.rep();
+    show.csp = csp;
+    clingo_ast_statement stm;
+    stm.show_signature = create(show);
+    statement_(loc, clingo_ast_statement_type_show_signature, stm);
 }
 
 void ASTBuilder::show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) {
-    auto nodeVec = newNodeVec();
-    nodeVec.emplace_back(terms_.erase(t));
-    nodeVec.emplace_back(littuple_(loc, body));
-    nodeVec.emplace_back(newNode(loc, csp ? "variable" : "term"));
-    directive_(loc, "directive_show", nodeVec);
+    auto bd = bodies_.erase(body);
+    clingo_ast_show_term_t show;
+    show.term = terms_.erase(t);
+    show.csp  = csp;
+    show.body = create_array(bd);
+    show.size = bd.size();
+    clingo_ast_statement stm;
+    stm.show_term = create(show);
+    statement_(loc, clingo_ast_statement_type_show_term, stm);
 }
 
 void ASTBuilder::python(Location const &loc, String code) {
-    auto nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, code));
-    directive_(loc, "directive_python", nodeVec);
+    clingo_ast_script_t script;
+    script.code = code.c_str();
+    script.type = clingo_ast_script_type_python;
+    clingo_ast_statement stm;
+    stm.script = create(script);
+    statement_(loc, clingo_ast_statement_type_script, stm);
 }
 
 void ASTBuilder::lua(Location const &loc, String code) {
-    auto nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, code));
-    directive_(loc, "directive_lua", nodeVec);
+    clingo_ast_script_t script;
+    script.code = code.c_str();
+    script.type = clingo_ast_script_type_lua;
+    clingo_ast_statement stm;
+    stm.script = create(script);
+    statement_(loc, clingo_ast_statement_type_script, stm);
 }
 
 void ASTBuilder::block(Location const &loc, String name, IdVecUid args) {
-    auto nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, name));
-    nodeVec.emplace_back(newNode(loc, "tuple_id", newNodeVec() = idvecs_.erase(args)));
-    directive_(loc, "directive_program", nodeVec);
+    auto params = idvecs_.erase(args);
+    clingo_ast_program_t program;
+    program.name       = name.c_str();
+    program.parameters = create_array(params);
+    program.size       = params.size();
+    clingo_ast_statement stm;
+    stm.program = create(program);
+    statement_(loc, clingo_ast_statement_type_script, stm);
 }
 
 void ASTBuilder::external(Location const &loc, LitUid head, BdLitVecUid body) {
-    auto nodeVec = newNodeVec();
-    nodeVec.emplace_back(lits_.erase(head));
-    nodeVec.emplace_back(littuple_(loc, body));
-    directive_(loc, "directive_external", nodeVec);
+    auto bd = bodies_.erase(body);
+    auto lit = lits_.erase(head);
+    assert(lit.type == clingo_ast_literal_type_symbolic);
+    clingo_ast_external_t ext;
+    ext.atom = *lit.symbol;
+    ext.body = create_array(bd);
+    ext.size = bd.size();
+    clingo_ast_statement stm;
+    stm.external = create(ext);
+    statement_(loc, clingo_ast_statement_type_external, stm);
 }
 
 void ASTBuilder::edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) {
-    auto nodeVec = newNodeVec();
-    nodeVec.emplace_back(terms_.erase(term(loc, "", edges, false)));
-    nodeVec.emplace_back(littuple_(loc, body));
-    directive_(loc, "directive_edge", nodeVec);
+    auto bd = bodies_.erase(body);
+    for (auto &x : termvecvecs_.erase(edges)) {
+        assert(x.size() == 2);
+        clingo_ast_edge_t edge;
+        edge.u = x[0];
+        edge.v = x[1];
+        edge.size = bd.size();
+        edge.body = create_array(bd);
+        clingo_ast_statement stm;
+        stm.location = convertLoc(loc);
+        stm.type     = clingo_ast_statement_type_external;
+        stm.edge     = create(edge);
+        cb_(stm);
+    }
+    clear_();
 }
 
 void ASTBuilder::heuristic(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) {
-    auto nodeVec = newNodeVec();
-    nodeVec.emplace_back(lits_.erase(predlit(loc, NAF::POS, neg, name, tvvUid)));
-    nodeVec.emplace_back(littuple_(loc, body));
-    nodeVec.emplace_back(terms_.erase(a));
-    nodeVec.emplace_back(terms_.erase(b));
-    nodeVec.emplace_back(terms_.erase(mod));
-    directive_(loc, "directive_heuristic", nodeVec);
+    auto bd = bodies_.erase(body);
+    auto t = term(loc, name, tvvUid, false);
+    if (neg) { t = term(loc, UnOp::NEG, t); }
+    clingo_ast_heuristic_t heu;
+    heu.atom     = terms_.erase(t);
+    heu.bias     = terms_.erase(a);
+    heu.priority = terms_.erase(b);
+    heu.modifier = terms_.erase(mod);
+    heu.body     = create_array(bd);
+    heu.size     = bd.size();
+    clingo_ast_statement stm;
+    stm.heuristic = create(heu);
+    statement_(loc, clingo_ast_statement_type_heuristic, stm);
 }
 
 void ASTBuilder::project(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body) {
-    auto nodeVec = newNodeVec();
-    nodeVec.emplace_back(lits_.erase(predlit(loc, NAF::POS, neg, name, tvvUid)));
-    nodeVec.emplace_back(littuple_(loc, body));
-    directive_(loc, "directive_project", nodeVec);
+    auto bd = bodies_.erase(body);
+    auto t = term(loc, name, tvvUid, false);
+    if (neg) { t = term(loc, UnOp::NEG, t); }
+    clingo_ast_project_t proj;
+    proj.size = bd.size();
+    proj.body = create_array(bd);
+    proj.atom = terms_.erase(t);
+    clingo_ast_statement stm;
+    stm.project = create(proj);
+    statement_(loc, clingo_ast_statement_type_project, stm);
 }
 
 void ASTBuilder::project(Location const &loc, Sig sig) {
-    auto nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, sig.name().c_str()));
-    nodeVec.emplace_back(newNode(loc, sig.arity()));
-    directive_(loc, "directive_project_signature", nodeVec);
+    clingo_ast_statement stm;
+    stm.project_signature = sig.rep();
+    statement_(loc, clingo_ast_statement_type_project_signatrue, stm);
 }
 
+/*
 // {{{2 theory atoms
 
 TheoryTermUid ASTBuilder::theorytermset(Location const &loc, TheoryOptermVecUid args) {

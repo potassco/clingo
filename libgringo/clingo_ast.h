@@ -453,9 +453,17 @@ typedef struct clingo_ast_theory_definition {
 
 typedef struct clingo_ast_rule {
     clingo_ast_head_literal_t head;
-    clingo_ast_head_literal_t const *body;
+    clingo_ast_body_literal_t const *body;
     size_t size;
 } clingo_ast_rule_t;
+
+// definition
+
+typedef struct clingo_ast_definition {
+    char const *name;
+    clingo_ast_term_t value;
+    bool is_default;
+} clingo_ast_definition_t;
 
 // show
 
@@ -465,7 +473,7 @@ typedef struct clingo_ast_show_signature {
 } clingo_ast_show_signature_t;
 
 typedef struct clingo_ast_show_term {
-    clingo_ast_term_t const *term;
+    clingo_ast_term_t term;
     clingo_ast_body_literal_t const *body;
     size_t size;
     bool csp;
@@ -474,8 +482,8 @@ typedef struct clingo_ast_show_term {
 // minimize
 
 typedef struct clingo_ast_minimize {
-    clingo_ast_term_t const *weight;
-    clingo_ast_term_t const *priority;
+    clingo_ast_term_t weight;
+    clingo_ast_term_t priority;
     clingo_ast_term_t const *tuple;
     size_t tuple_size;
     clingo_ast_body_literal_t const *body;
@@ -543,17 +551,18 @@ typedef struct clingo_ast_project {
 
 enum clingo_ast_statement_type {
     clingo_ast_statement_type_rule              = 0,
-    clingo_ast_statement_type_show_signature    = 1,
-    clingo_ast_statement_type_show_term         = 2,
-    clingo_ast_statement_type_minimize          = 3,
-    clingo_ast_statement_type_script            = 4,
-    clingo_ast_statement_type_program           = 5,
-    clingo_ast_statement_type_external          = 6,
-    clingo_ast_statement_type_edge              = 7,
-    clingo_ast_statement_type_heuristic         = 8,
-    clingo_ast_statement_type_project           = 9,
-    clingo_ast_statement_type_project_signatrue = 10,
-    clingo_ast_statement_type_theory_definition = 11
+    clingo_ast_statement_type_const             = 1,
+    clingo_ast_statement_type_show_signature    = 2,
+    clingo_ast_statement_type_show_term         = 3,
+    clingo_ast_statement_type_minimize          = 4,
+    clingo_ast_statement_type_script            = 5,
+    clingo_ast_statement_type_program           = 6,
+    clingo_ast_statement_type_external          = 7,
+    clingo_ast_statement_type_edge              = 8,
+    clingo_ast_statement_type_heuristic         = 9,
+    clingo_ast_statement_type_project           = 10,
+    clingo_ast_statement_type_project_signatrue = 11,
+    clingo_ast_statement_type_theory_definition = 12
 };
 typedef int clingo_ast_statement_type_t;
 
@@ -562,6 +571,7 @@ typedef struct clingo_ast_statement {
     clingo_ast_statement_type_t type;
     union {
         clingo_ast_rule_t const *rule;
+        clingo_ast_definition_t const *definition;
         clingo_ast_show_signature_t const *show_signature;
         clingo_ast_show_term_t const *show_term;
         clingo_ast_minimize_t const *minimize;
@@ -574,7 +584,7 @@ typedef struct clingo_ast_statement {
         clingo_signature_t project_signature;
         clingo_ast_theory_definition_t const *theory_definition;
     };
-} clingo_statement_t;
+} clingo_ast_statement_t;
 
 // }}}1
 
