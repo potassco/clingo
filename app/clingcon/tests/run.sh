@@ -107,7 +107,7 @@ else
             opts=$(cat "$name.cmd")
             opts=(${(s: :)opts})
         fi
-        if $clingo 0 $x -Wno-operation-undefined -Wno-atom-undefined "${opts[@]}" "$@" | normalize | diff - "$name.sol"; then
+        if $clingo 0 $x -Wnone "${opts[@]}" "$@" | normalize | diff - "$name.sol"; then
             print -n "."
         else
             print -n "F"

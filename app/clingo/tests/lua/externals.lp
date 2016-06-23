@@ -1,16 +1,16 @@
 #script (lua)
 
-fun = clingo.fun
+Function = clingo.Function
 
 function main(prg)
     prg:ground({{"base", {}}})
-    prg:assign_external(fun("a"), true)
+    prg:assign_external(Function("a"), true)
     prg:solve()
-    prg:assign_external(fun("a"), false)
+    prg:assign_external(Function("a"), false)
     prg:solve()
-    prg:assign_external(fun("a"), nil)
+    prg:assign_external(Function("a"), nil)
     prg:solve()
-    prg:release_external(fun("a"))
+    prg:release_external(Function("a"))
     prg:solve()
 end
 

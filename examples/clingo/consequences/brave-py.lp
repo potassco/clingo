@@ -12,7 +12,7 @@ def is_brave(x): return x in brave
 
 def main(prg):
     prg.ground([("base", [])])
-    while prg.solve(None, on_model).satisfiable:
+    while prg.solve(on_model).satisfiable:
         prg.ground([("brave", [])])
     print "brave consequences: {0}".format(", ".join(str(x) for x in sorted(brave)))
 

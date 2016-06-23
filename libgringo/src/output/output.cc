@@ -85,8 +85,8 @@ void translateLambda(DomainData &data, AbstractOutput &out, T const &lambda) {
 
 class EndStepStatement : public Statement {
 public:
-    EndStepStatement(OutputPredicates const &outPreds, bool solve)
-    : outPreds_(outPreds), solve_(solve) { }
+    EndStepStatement(OutputPredicates const &outPreds, bool solve, Logger &log)
+    : outPreds_(outPreds), log_(log), solve_(solve) { }
     void output(DomainData &, Backend &out) const override {
         if (solve_) {
             out.endStep();
@@ -94,18 +94,19 @@ public:
     }
     void print(PrintPlain out, char const *prefix) const override {
         for (auto &x : outPreds_) {
-            if (std::get<1>(x).match("", 0)) { out << prefix << "#show " << (std::get<2>(x) ? "$" : "") << std::get<1>(x) << ".\n"; }
-            else                             { out << prefix << "#show.\n"; }
+            if (std::get<1>(x).match("", 0)) { out << prefix << "#show.\n"; }
+            else                             { out << prefix << "#show " << (std::get<2>(x) ? "$" : "") << std::get<1>(x) << ".\n"; }
         }
     }
     void translate(DomainData &data, Translator &trans) override {
-        trans.translate(data, outPreds_);
+        trans.translate(data, outPreds_, log_);
         trans.output(data, *this);
     }
     void replaceDelayed(DomainData &, LitVec &) override { }
     virtual ~EndStepStatement() { }
 private:
     OutputPredicates const &outPreds_;
+    Logger &log_;
     bool solve_;
 };
 
@@ -181,11 +182,11 @@ UAbstractOutput OutputBase::fromFormat(std::ostream &stream, OutputFormat format
                 throw std::logic_error("implement reified format");
             }
             case OutputFormat::INTERMEDIATE: {
-                backend = gringo_make_unique<IntermediateFormatBackend>(data.theory().data(), stream);
+                backend = gringo_make_unique<IntermediateFormatBackend>(stream);
                 break;
             }
             case OutputFormat::SMODELS: {
-                backend = gringo_make_unique<SmodelsFormatBackend>(stream);
+                backend = gringo_make_unique<SmodelsFormatBackend>(stream, true);
                 break;
             }
             case OutputFormat::TEXT: {
@@ -210,7 +211,7 @@ UAbstractOutput OutputBase::fromBackend(UBackend &&backend, OutputDebug debug) {
 }
 
 void OutputBase::init(bool incremental) {
-    backendLambda(data, *out_, [incremental](DomainData &, Backend &out) { out.init(incremental); });
+    backendLambda(data, *out_, [incremental](DomainData &, Backend &out) { out.initProgram(incremental); });
 }
 
 void OutputBase::output(Statement &x) {
@@ -221,18 +222,29 @@ void OutputBase::output(Statement &x) {
 void OutputBase::flush() {
     for (auto &lit : delayed_) { DelayedStatement(lit).passTo(data, *out_); }
     delayed_.clear();
+    backendLambda(data, *out_, [](DomainData &data, Backend &out) {
+        auto getCond = [&data](Id_t elem) {
+            TheoryData &td = data.theory();
+            BackendLitVec bc;
+            for (auto &lit : td.getCondition(elem)) {
+                bc.emplace_back(call(data, lit, &Literal::uid));
+            }
+            return bc;
+        };
+        Gringo::output(data.theory().data(), out, getCond);
+    });
 }
 
 void OutputBase::beginStep() {
     backendLambda(data, *out_, [](DomainData &, Backend &out) { out.beginStep(); });
 }
 
-void OutputBase::endStep(bool solve) {
+void OutputBase::endStep(bool solve, Logger &log) {
     if (!outPreds.empty()) {
         std::move(outPredsForce.begin(), outPredsForce.end(), std::back_inserter(outPreds));
         outPredsForce.clear();
     }
-    EndStepStatement(outPreds, solve).passTo(data, *out_);
+    EndStepStatement(outPreds, solve, log).passTo(data, *out_);
     // TODO: get rid of such things #d domains should be stored somewhere else
     std::set<Sig> rm;
     for (auto &x : predDoms()) {
@@ -252,7 +264,7 @@ void OutputBase::reset() {
     translateLambda(data, *out_, [](DomainData &, Translator &x) { x.reset(); });
 }
 
-void OutputBase::checkOutPreds() {
+void OutputBase::checkOutPreds(Logger &log) {
     auto le = [](OutputPredicates::value_type const &x, OutputPredicates::value_type const &y) -> bool {
         if (std::get<1>(x) != std::get<1>(y)) { return std::get<1>(x) < std::get<1>(y); }
         return std::get<2>(x) < std::get<2>(y);
@@ -266,7 +278,7 @@ void OutputBase::checkOutPreds() {
         if (!std::get<1>(x).match("", 0) && !std::get<2>(x)) {
             auto it(predDoms().find(std::get<1>(x)));
             if (it == predDoms().end()) {
-                GRINGO_REPORT(W_ATOM_UNDEFINED)
+                GRINGO_REPORT(log, clingo_warning_atom_undefined)
                     << std::get<0>(x) << ": info: no atoms over signature occur in program:\n"
                     << "  " << std::get<1>(x) << "\n";
             }
@@ -274,7 +286,7 @@ void OutputBase::checkOutPreds() {
     }
 }
 
-SymVec OutputBase::atoms(int atomset, IsTrueLookup isTrue) const {
+SymVec OutputBase::atoms(unsigned atomset, IsTrueLookup isTrue) const {
     SymVec atoms;
     translateLambda(const_cast<DomainData&>(data), *out_, [&](DomainData &data, Translator &trans) {
         trans.atoms(data, atomset, isTrue, atoms, outPreds);

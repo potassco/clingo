@@ -27,8 +27,8 @@
 #endif
 #include "clingcon_app.hh"
 #include <clingcon/appsupport.h>
-#include <clasp/parser.h>
 #include <clingcon/version.h>
+#include <clasp/parser.h>
 #include <climits>
 #include <unistd.h>
 
@@ -78,11 +78,14 @@ void ClingoApp::initOptions(ProgramOptions::OptionContext& root) {
          "      translate: print translated rules as plain text (prefix %%%%)\n"
          "      all      : combines text and translate")
         ("warn,W"                   , storeTo(grOpts_, parseWarning)->arg("<warn>")->composing(), "Enable/disable warnings:\n"
-         "      [no-]atom-undefined:        a :- b.\n"
-         "      [no-]file-included:         #include \"a.lp\". #include \"a.lp\".\n"
-         "      [no-]operation-undefined:   p(1/0).\n"
-         "      [no-]variable-unbounded:    $x > 10.\n"
-         "      [no-]global-variable:       :- #count { X } = 1, X = 1.")
+         "      none:                     disable all warnings\n"
+         "      all:                      enable all warnings\n"
+         "      [no-]atom-undefined:      a :- b.\n"
+         "      [no-]file-included:       #include \"a.lp\". #include \"a.lp\".\n"
+         "      [no-]operation-undefined: p(1/0).\n"
+         "      [no-]variable-unbounded:  $x > 10.\n"
+         "      [no-]global-variable:     :- #count { X } = 1, X = 1.\n"
+         "      [no-]other:               clasp related and uncategorized warnings")
         ("rewrite-minimize"         , flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
         ("keep-facts"               , flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
         ("foobar,@4"                , storeTo(grOpts_.foobar, parseFoobar) , "Foobar")
@@ -103,7 +106,7 @@ void ClingoApp::initOptions(ProgramOptions::OptionContext& root) {
 
 void ClingoApp::validateOptions(const ProgramOptions::OptionContext& root, const ProgramOptions::ParsedOptions& parsed, const ProgramOptions::ParsedValues& vals) {
     BaseType::validateOptions(root, parsed, vals);
-    if (parsed.count("text") > 0) { 
+    if (parsed.count("text") > 0) {
         if (parsed.count("output") > 0) {
             error("'--text' and '--output' are mutually exclusive!");
             exit(E_NO_RUN);
@@ -114,7 +117,7 @@ void ClingoApp::validateOptions(const ProgramOptions::OptionContext& root, const
         }
         mode_ = mode_gringo;
     }
-    if (parsed.count("output") > 0) { 
+    if (parsed.count("output") > 0) {
         if (parsed.count("mode") > 0 && mode_ != mode_gringo) {
             error("'--output' can only be used with '--mode=gringo'!");
             exit(E_NO_RUN);
@@ -125,7 +128,7 @@ void ClingoApp::validateOptions(const ProgramOptions::OptionContext& root, const
 
 ProblemType ClingoApp::getProblemType() {
     if (mode_ != mode_clasp) return Problem_t::Asp;
-	return ClaspFacade::detectProblemType(getStream());
+    return ClaspFacade::detectProblemType(getStream());
 }
 Output* ClingoApp::createOutput(ProblemType f) {
     if (mode_ == mode_gringo) return 0;
@@ -198,62 +201,61 @@ public:
             h_->postRead();
     }
 
-    bool preSolve(Clasp::ClaspFacade &cf) {
+    void preSolve(Clasp::ClaspFacade &cf) {
         if (h_)
             h_->postEnd(); /// can return false
     }
 
-    ///TODO: currently ignored
     void postSolve() {
-        h_->postSolve();
+        if (h_)
+            h_->postSolve();
     }
 
-    ///TODO: missing postSolve
     clingcon::Helper* h_;
 };
 
 }
 void ClingoApp::run(Clasp::ClaspFacade& clasp) {
-    using namespace std::placeholders;
-
-    if (mode_ != mode_clasp) {
-        ProblemType     pt  = getProblemType();
-        ProgramBuilder* prg = &clasp.start(claspConfig_, pt);
-        grOpts_.verbose = verbose() == UINT_MAX;
-        Asp::LogicProgram* lp = mode_ != mode_gringo ? static_cast<Asp::LogicProgram*>(prg) : nullptr;
-        std::unique_ptr<clingcon::Helper> cspapp;
-        if (lp) {
-            cspapp.reset(new clingcon::Helper(clasp.ctx,claspConfig_,lp,conf_));
+    try {
+        using namespace std::placeholders;
+        if (mode_ != mode_clasp) {
+            ProblemType     pt  = getProblemType();
+            ProgramBuilder* prg = &clasp.start(claspConfig_, pt);
+            grOpts_.verbose = verbose() == UINT_MAX;
+            Asp::LogicProgram* lp = mode_ != mode_gringo ? static_cast<Asp::LogicProgram*>(prg) : nullptr;
+            std::unique_ptr<clingcon::Helper> cspapp;
+            if (lp) {
+                cspapp.reset(new clingcon::Helper(clasp.ctx,claspConfig_,lp,conf_));
+            }
+            Callback cb(cspapp.get());
+            grd = Gringo::gringo_make_unique<ClingoControl>(module.scripts, mode_ == mode_clingo, clasp_.get(), claspConfig_,
+                                                            std::bind(&ClingoApp::handlePostGroundOptions, this, _1),
+                                                            std::bind(&ClingoApp::handlePreSolveOptions, this, _1),
+                                                            nullptr, 20,
+                                                            &cb);
+            grd->parse(claspAppOpts_.input, grOpts_, lp);
+            grd->main();
         }
-        Callback cb(cspapp.get());
-        grd = Gringo::gringo_make_unique<ClingoControl>(module.scripts, mode_ == mode_clingo, clasp_.get(), claspConfig_,
-                                                        std::bind(&ClingoApp::handlePostGroundOptions, this, _1),
-                                                        std::bind(&ClingoApp::handlePreSolveOptions, this, _1),
-                                                        &cb);
-        grd->parse(claspAppOpts_.input, grOpts_, lp);
-        grd->main();
-    }
-    else {
-        clasp.start(claspConfig_, getStream());
-        if (!clasp.incremental()) {
-            claspConfig_.releaseOptions();
-        }
-        if (claspAppOpts_.compute && clasp.program()->type() == Problem_t::Asp) {
-            bool val = claspAppOpts_.compute < 0;
-            Var  var = static_cast<Var>(!val ? claspAppOpts_.compute : -claspAppOpts_.compute);
-            static_cast<Asp::LogicProgram*>(clasp.program())->startRule().addToBody(var, val).endRule();
-        }
-        clingcon::Helper cspapp(clasp.ctx,claspConfig_,static_cast<Asp::LogicProgram*>(clasp.program()),conf_);
-        while (clasp.read()) {
-            cspapp.postRead();
-            if (handlePostGroundOptions(*clasp.program())) {
-                cspapp.postEnd();
-                clasp.prepare();
-                if (handlePreSolveOptions(clasp)) { clasp.solve(); }
-                cspapp.postSolve();
+        else {
+            clasp.start(claspConfig_, getStream());
+            handleStartOptions(clasp);
+            clingcon::Helper cspapp(clasp.ctx,claspConfig_,static_cast<Asp::LogicProgram*>(clasp.program()),conf_);
+            while (clasp.read()) {
+                cspapp.postRead();
+                if (handlePostGroundOptions(*clasp.program())) {
+                    cspapp.postEnd();
+                    clasp.prepare();
+                    if (handlePreSolveOptions(clasp)) { clasp.solve(); }
+                    cspapp.postSolve();
+                }
             }
         }
     }
+    catch (Gringo::GringoError const &e) {
+        std::cerr << e.what() << std::endl;
+        throw std::runtime_error("fatal error");
+    }
+    catch (...) { throw; }
 }
 
 // }}}

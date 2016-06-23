@@ -322,6 +322,23 @@ private:
 	SingleOwnerPtr& operator=(const SingleOwnerPtr&);
 	uintp ptr_;
 };
+template <class T>
+class FlaggedPtr {
+public:
+	FlaggedPtr() : ptr_(0) {}
+	explicit FlaggedPtr(T* ptr, bool sf = false) : ptr_(uintp(ptr)) { if (sf) flag(); }
+	bool flagged()    const  { return test_bit(ptr_, 0); }
+	T*   get()        const  { return (T*)clear_bit(ptr_, 0); }
+	T&   operator*()  const  { return *get(); }
+	T*   operator->() const  { return  get(); }
+	void swap(FlaggedPtr& o) { std::swap(ptr_, o.ptr_); }
+	void flag()   { store_set_bit(ptr_, 0); }
+	void unflag() { store_clear_bit(ptr_, 0); }
+private:
+	uintp ptr_;
+};
+template <class T>
+inline FlaggedPtr<T> make_flagged(T* ptr, bool setFlag) { return FlaggedPtr<T>(ptr, setFlag); }
 
 template <class T>
 struct Range {

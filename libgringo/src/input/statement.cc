@@ -38,10 +38,10 @@ Statement::Statement(UHeadAggr &&head, UBodyAggrVec &&body, StatementType type)
 
 // }}}
 
-void Statement::initTheory(TheoryDefs &def) {
-    head->initTheory(def, !body.empty());
+void Statement::initTheory(TheoryDefs &def, Logger &log) {
+    head->initTheory(def, !body.empty(), log);
     for (auto &lit : body) {
-        lit->initTheory(def);
+        lit->initTheory(def, log);
     }
 }
 
@@ -120,12 +120,12 @@ bool Statement::hasPool(bool beforeRewrite) const {
 // }}}
 // {{{ definition of Statement::rewrite1
 
-bool Statement::rewrite1(Projections &project) {
+bool Statement::rewrite1(Projections &project, Logger &log) {
     SimplifyState state;
-    if (!head->simplify(project, state)) { return false; }
+    if (!head->simplify(project, state, log)) { return false; }
     bool singleton = std::accumulate(body.begin(), body.end(), 0, [](unsigned x, UBodyAggr const &y){ return x + y->projectScore(); }) == 1 && head->isPredicate();
     for (auto &y : body) {
-        if (!y->simplify(project, state, singleton)) { return false; }
+        if (!y->simplify(project, state, singleton, log)) { return false; }
     }
     for (auto &y : state.dots) { body.emplace_back(gringo_make_unique<SimpleBodyLiteral>(RangeLiteral::make(y))); }
     for (auto &y : state.scripts) { body.emplace_back(gringo_make_unique<SimpleBodyLiteral>(ScriptLiteral::make(y))); }
@@ -256,12 +256,12 @@ void Statement::rewrite2() {
 // }}}
 // {{{ definition of Statement::check
 
-void Statement::check() const {
+void Statement::check(Logger &log) const {
     ChkLvlVec levels;
     levels.emplace_back(loc(), *this);
-    head->check(levels);
-    for (auto &y : body) { y->check(levels); }
-    levels.back().check();
+    head->check(levels, log);
+    for (auto &y : body) { y->check(levels, log); }
+    levels.back().check(log);
 }
 
 // }}}

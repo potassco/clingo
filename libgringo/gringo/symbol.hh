@@ -91,12 +91,13 @@ inline std::ostream &operator<<(std::ostream &out, String x) {
 class Sig {
 public:
     Sig(String name, uint32_t arity, bool sign);
+    explicit Sig(clingo_signature_t rep) : rep_(rep) {  }
     String name() const;
     Sig flipSign() const;
     uint32_t arity() const;
     bool sign() const;
     size_t hash() const;
-    uint64_t rep() const { return rep_; }
+    uint64_t const &rep() const { return rep_; }
     bool match(String n, uint32_t a, bool s = false) const {
         return name() == n && arity() == a && sign() == s;
     }
@@ -110,8 +111,7 @@ public:
     bool operator<=(Sig s) const;
     bool operator>=(Sig s) const;
 private:
-    Sig (uint64_t rep);
-    uint64_t rep_;
+    clingo_signature_t rep_;
 };
 
 inline std::ostream &operator<<(std::ostream &out, Sig x) {
@@ -123,12 +123,12 @@ inline std::ostream &operator<<(std::ostream &out, Sig x) {
 // {{{1 declaration of Symbol (flyweight)
 
 enum class SymbolType : uint8_t {
-    Inf     = clingo_symbol_type_inf,
-    Num     = clingo_symbol_type_num,
-    Str     = clingo_symbol_type_str,
-    Fun     = clingo_symbol_type_fun,
-    Special = clingo_symbol_type_fun+1,
-    Sup     = clingo_symbol_type_sup
+    Inf     = clingo_symbol_type_infimum,
+    Num     = clingo_symbol_type_number,
+    Str     = clingo_symbol_type_string,
+    Fun     = clingo_symbol_type_function,
+    Special = clingo_symbol_type_function+1,
+    Sup     = clingo_symbol_type_supremum
 };
 inline std::ostream &operator<<(std::ostream &out, SymbolType sym) {
     switch (sym) {
@@ -147,11 +147,11 @@ using SymVec = std::vector<Symbol>;
 using SymSpan = Potassco::Span<Symbol>;
 using IdSymMap = std::unordered_map<String, Symbol>;
 
-class Symbol : public clingo_symbol {
+class Symbol {
 public:
     // construction
     Symbol(); // createSpecial
-    Symbol(clingo_symbol sym);
+    explicit Symbol(clingo_symbol_t sym) : rep_(sym) { };
     static Symbol createId(String val, bool sign = false);
     static Symbol createStr(String val);
     static Symbol createNum(int num);
@@ -188,8 +188,10 @@ public:
 
     // ouput
     void print(std::ostream& out) const;
+
+    uint64_t const &rep () const { return rep_; }
 private:
-    explicit Symbol(uint64_t repr);
+    clingo_symbol_t rep_;
 };
 
 inline std::ostream& operator<<(std::ostream& out, Symbol sym) {

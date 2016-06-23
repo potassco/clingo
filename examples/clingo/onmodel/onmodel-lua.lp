@@ -28,7 +28,7 @@ function main(prg)
         print("  negative: " .. tostringTable(m:atoms{terms=true, comp=true}))
     end
     prg:ground({{"base", {}}})
-    prg:solve(nil, on_model)
+    prg:solve(on_model)
 end
 
 #end.

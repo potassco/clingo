@@ -223,7 +223,7 @@ void pyToCpp(PyObject *pyLoc, Gringo::LocOwner &loc) {
 void pyToCpp(PyObject *pyAST, Gringo::ASTOwner &ast) {
     // ast.value
     Object pyTerm = pyGetAttr(pyAST, "term");
-    pyToCpp(pyTerm, static_cast<Symbol &>(ast.root.value));
+    pyToCpp(pyTerm, reinterpret_cast<Symbol &>(ast.root.value));
     // ast.location
     Object pyLoc = pyGetAttr(pyAST, "location");
     // ast.location.begin
@@ -266,7 +266,6 @@ template <class T>
 Object cppToPy(std::vector<T> const &vals);
 template <class T>
 Object cppToPy(Potassco::Span<T> const &span);
-Object cppToPy(clingo_ast_span_t vals);
 
 Object cppToPy(char const *n) { return PyString_FromString(n); }
 Object cppToPy(std::string const &s) { return cppToPy(s.c_str()); }
@@ -410,12 +409,9 @@ std::string errorToString() {
     }
 }
 void handleError(Location const &loc, char const *msg) {
-    std::string s = errorToString();
-    GRINGO_REPORT(E_ERROR)
-        << loc << ": error: " << msg << ":\n"
-        << s
-        ;
-    throw std::runtime_error("grounding stopped because of errors");
+    std::ostringstream ss;
+    ss << loc << ": error: " << msg << ":\n" << errorToString();
+    throw GringoError(ss.str().c_str());
 }
 
 void handleError(char const *loc, char const *msg) {
@@ -947,7 +943,7 @@ like in gringo and their string representation corresponds to their gringo
 representation.
 
 Note that this class does not have a constructor. Instead there are the
-functions number(), string(), and function() to construct term objects or the
+functions Number(), String(), and Function() to construct term objects or the
 preconstructed terms Inf and Sup.)";
 
     static bool initType(PyObject *module) {
@@ -980,9 +976,9 @@ preconstructed terms Inf and Sup.)";
         }
     }
 
-    static PyObject *new_function_(char const *name, PyObject *params, PyObject *pySign) {
+    static PyObject *new_function_(char const *name, PyObject *params, PyObject *pyPos) {
         PY_TRY
-            auto sign = pyToCpp<bool>(pySign);
+            auto sign = !pyToCpp<bool>(pyPos);
             if (strcmp(name, "") == 0 && sign) {
                 PyErr_SetString(PyExc_RuntimeError, "tuples must not have signs");
                 return nullptr;
@@ -999,12 +995,12 @@ preconstructed terms Inf and Sup.)";
     }
     static PyObject *new_function(PyObject *, PyObject *args, PyObject *kwds) {
         PY_TRY
-            static char const *kwlist[] = {"name", "args", "sign", nullptr};
+            static char const *kwlist[] = {"name", "args", "positive", nullptr};
             char const *name;
-            PyObject *pySign = Py_False;
+            PyObject *pyPos = Py_True;
             PyObject *params = nullptr;
-            if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|OO", const_cast<char**>(kwlist), &name, &params, &pySign)) { return nullptr; }
-            return new_function_(name, params, pySign);
+            if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|OO", const_cast<char**>(kwlist), &name, &params, &pyPos)) { return nullptr; }
+            return new_function_(name, params, pyPos);
         PY_CATCH(nullptr);
     }
     static PyObject *new_tuple(PyObject *, PyObject *arg) {
@@ -1044,10 +1040,21 @@ preconstructed terms Inf and Sup.)";
         PY_CATCH(nullptr);
     }
 
-    static PyObject *sign(Term *self, void *) {
+    static PyObject *negative(Term *self, void *) {
         PY_TRY
             if (self->val.type() == SymbolType::Fun) {
-                return PyBool_FromLong(self->val.sign());
+                return cppToPy(self->val.sign()).release();
+            }
+            else {
+                Py_RETURN_NONE;
+            }
+        PY_CATCH(nullptr);
+    }
+
+    static PyObject *positive(Term *self, void *) {
+        PY_TRY
+            if (self->val.type() == SymbolType::Fun) {
+                return cppToPy(!self->val.sign()).release();
             }
             else {
                 Py_RETURN_NONE;
@@ -1113,7 +1120,8 @@ PyGetSetDef Term::tp_getset[] = {
     {(char *)"string", (getter)string, nullptr, (char *)"The value of a string.", nullptr},
     {(char *)"number", (getter)num, nullptr, (char *)"The value of a number.", nullptr},
     {(char *)"args", (getter)args, nullptr, (char *)"The arguments of a function.", nullptr},
-    {(char *)"sign", (getter)sign, nullptr, (char *)"The sign of a function.", nullptr},
+    {(char *)"negative", (getter)negative, nullptr, (char *)"The sign of a function.", nullptr},
+    {(char *)"positive", (getter)positive, nullptr, (char *)"The sign of a function.", nullptr},
     {(char *)"type", (getter)type_, nullptr, (char *)"The type of the term.", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
@@ -1222,11 +1230,11 @@ PyObject *getStatistics(Statistics const *stats, char const *prefix) {
                 if (strcmp(keys, "__len") == 0) {
                     std::string lenPrefix;
                     lenPrefix += prefix;
-                    lenPrefix += "__len";
+                    lenPrefix += ".__len";
                     int len = (int)(double)stats->getStat(lenPrefix.c_str());
                     Object list = PyList_New(len);
                     for (int i = 0; i < len; ++i) {
-                        Object objPrefix = PyString_FromFormat("%s%d.", prefix, i);
+                        Object objPrefix = PyString_FromFormat("%s.%d", prefix, i);
                         auto subPrefix = pyToCpp<char const *>(objPrefix);
                         Object subStats = getStatistics(stats, subPrefix);
                         if (PyList_SetItem(list, i, subStats.release()) < 0) { return nullptr; }
@@ -1235,10 +1243,11 @@ PyObject *getStatistics(Statistics const *stats, char const *prefix) {
                 }
                 else {
                     Object dict = PyDict_New();
+                    const char* sep = *prefix ? "." : "";
                     for (char const *it = keys; *it; it+= strlen(it) + 1) {
-                        int len = strlen(it);
-                        Object key = PyString_FromStringAndSize(it, len - (it[len-1] == '.'));
-                        Object objPrefix = PyString_FromFormat("%s%s", prefix, it);
+                        it += (*it == '.');
+                        Object key = PyString_FromStringAndSize(it, strlen(it));
+                        Object objPrefix = PyString_FromFormat("%s%s%s", prefix, sep, it);
                         auto subPrefix = pyToCpp<char const *>(objPrefix);
                         Object subStats = getStatistics(stats, subPrefix);
                         if (PyDict_SetItem(dict, key, subStats) < 0) { return nullptr; }
@@ -1356,15 +1365,15 @@ places like - e.g., the main function.)";
             static char const *kwlist[] = {"atoms", "terms", "shown", "csp", "comp", nullptr};
             PyObject *pyAtoms = Py_False, *pyTerms = Py_False, *pyShown = Py_False, *pyCSP = Py_False, *pyComp = Py_False;
             if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "|OOOOO", const_cast<char**>(kwlist), &pyAtoms, &pyTerms, &pyShown, &pyCSP, &pyComp)) { return nullptr; }
-            if (pyToCpp<bool>(pyAtoms)) { atomset |= Gringo::Model::ATOMS; }
-            if (pyToCpp<bool>(pyTerms)) { atomset |= Gringo::Model::TERMS; }
-            if (pyToCpp<bool>(pyShown)) { atomset |= Gringo::Model::SHOWN; }
-            if (pyToCpp<bool>(pyCSP))   { atomset |= Gringo::Model::CSP; }
-            if (pyToCpp<bool>(pyComp))  { atomset |= Gringo::Model::COMP; }
+            if (pyToCpp<bool>(pyAtoms)) { atomset |= clingo_show_type_atoms; }
+            if (pyToCpp<bool>(pyTerms)) { atomset |= clingo_show_type_terms; }
+            if (pyToCpp<bool>(pyShown)) { atomset |= clingo_show_type_shown; }
+            if (pyToCpp<bool>(pyCSP))   { atomset |= clingo_show_type_csp; }
+            if (pyToCpp<bool>(pyComp))  { atomset |= clingo_show_type_complement; }
             return cppToPy(self->model->atoms(atomset)).release();
         PY_CATCH(nullptr);
     }
-    static PyObject *optimization(Model *self, void *) {
+    static PyObject *cost(Model *self, void *) {
         PY_TRY
             return cppToPy(self->model->optimization()).release();
         PY_CATCH(nullptr);
@@ -1380,7 +1389,7 @@ places like - e.g., the main function.)";
                 else { out << val; }
             };
             std::ostringstream oss;
-            print_comma(oss, self->model->atoms(Gringo::Model::SHOWN), " ", printAtom);
+            print_comma(oss, self->model->atoms(clingo_show_type_shown), " ", printAtom);
             return cppToPy(oss.str()).release();
         PY_CATCH(nullptr);
     }
@@ -1391,10 +1400,10 @@ places like - e.g., the main function.)";
 
 PyGetSetDef Model::tp_getset[] = {
     {(char *)"context", (getter)getContext, nullptr, (char*)"SolveControl object that allows for controlling the running search.", nullptr},
-    {(char *)"optimization", (getter)optimization, nullptr,
-(char *)R"(Return the list of integer optimization values of the model.
+    {(char *)"cost", (getter)cost, nullptr,
+(char *)R"(Return the list of integer cost values of the model.
 
-The return values correspond to clasp's optimization output.)", nullptr},
+The return values correspond to clasp's cost output.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -1760,43 +1769,40 @@ PySequenceMethods Configuration::tp_as_sequence[] = {{
 // {{{1 wrap SymbolicAtom
 
 struct SymbolicAtom : public ObjectBase<SymbolicAtom> {
-    Gringo::DomainProxy::Element *elem;
+    Gringo::SymbolicAtoms *atoms;
+    Gringo::SymbolicAtomIter range;
 
     static constexpr char const *tp_type = "SymbolicAtom";
     static constexpr char const *tp_name = "clingo.SymbolicAtom";
     static constexpr char const *tp_doc = "Captures a symbolic atom and provides properties to inspect its state.";
     static PyGetSetDef tp_getset[];
 
-    static PyObject *new_(Gringo::DomainProxy::ElementPtr &&elem) {
+    static PyObject *new_(Gringo::SymbolicAtoms &atoms, Gringo::SymbolicAtomIter range) {
         Object ret(type.tp_alloc(&type, 0));
         SymbolicAtom *self = reinterpret_cast<SymbolicAtom*>(ret.get());
-        self->elem = elem.release();
+        self->atoms = &atoms;
+        self->range = range;
         return ret.release();
     }
     static PyObject *symbol(SymbolicAtom *self, void *) {
         PY_TRY
-            return Term::new_(self->elem->atom());
+            return Term::new_(self->atoms->atom(self->range));
         PY_CATCH(nullptr);
     }
     static PyObject *literal(SymbolicAtom *self, void *) {
         PY_TRY
-            return PyInt_FromLong(self->elem->literal());
+            return PyInt_FromLong(self->atoms->literal(self->range));
         PY_CATCH(nullptr);
     }
     static PyObject *is_fact(SymbolicAtom *self, void *) {
         PY_TRY
-            return cppToPy(self->elem->fact()).release();
+            return cppToPy(self->atoms->fact(self->range)).release();
         PY_CATCH(nullptr);
     }
     static PyObject *is_external(SymbolicAtom *self, void *) {
         PY_TRY
-            return cppToPy(self->elem->external()).release();
+            return cppToPy(self->atoms->external(self->range)).release();
         PY_CATCH(nullptr);
-    }
-    static void tp_dealloc(SymbolicAtom *self) {
-        delete self->elem;
-        self->elem = nullptr;
-        type.tp_free(self);
     }
 };
 
@@ -1811,61 +1817,49 @@ PyGetSetDef SymbolicAtom::tp_getset[] = {
 // {{{1 wrap SymbolicAtomIter
 
 struct SymbolicAtomIter : ObjectBase<SymbolicAtomIter> {
-    SymbolicAtom *elem;
+    SymbolicAtoms *atoms;
+    Gringo::SymbolicAtomIter range;
 
     static constexpr char const *tp_type = "SymbolicAtomIter";
     static constexpr char const *tp_name = "clingo.SymbolicAtomIter";
     static constexpr char const *tp_doc = "Class to iterate over symbolic atoms.";
 
-    static PyObject *new_(Gringo::DomainProxy::ElementPtr &&elem) {
+    static PyObject *new_(Gringo::SymbolicAtoms &atoms, Gringo::SymbolicAtomIter range) {
         Object ret(type.tp_alloc(&type, 0));
         SymbolicAtomIter *self = reinterpret_cast<SymbolicAtomIter*>(ret.get());
-        if (elem) {
-            self->elem = reinterpret_cast<SymbolicAtom*>(SymbolicAtom::new_(std::move(elem)));
-            if (!self->elem) { return nullptr; }
-        }
-        else { self->elem = nullptr; }
+        self->atoms = &atoms;
+        self->range = range;
         return ret.release();
     }
     static PyObject* tp_iter(SymbolicAtomIter *self) {
         Py_XINCREF(self);
         return reinterpret_cast<PyObject*>(self);
     }
-    static void tp_dealloc(SymbolicAtomIter *self) {
-        if (self->elem) {
-            Py_XDECREF(self->elem);
-            self->elem = nullptr;
-        }
-        type.tp_free(self);
-    }
     static PyObject* tp_iternext(SymbolicAtomIter *self) {
         PY_TRY
-            if (self->elem) {
-                Gringo::DomainProxy::ElementPtr elem = self->elem->elem->next();
-                Object oldElem = reinterpret_cast<PyObject*>(self->elem);
-                if (elem) {
-                    self->elem = reinterpret_cast<SymbolicAtom*>(SymbolicAtom::new_(std::move(elem)));
-                    if (!self->elem) { return nullptr; }
-                }
-                else { self->elem = nullptr; }
-                return oldElem.release();
+            Gringo::SymbolicAtomIter current = self->range;
+            if (self->atoms->valid(current)) {
+                self->range = self->atoms->next(current);
+                return SymbolicAtom::new_(*self->atoms, current);
             }
-            PyErr_SetNone(PyExc_StopIteration);
-            return nullptr;
+            else {
+                PyErr_SetNone(PyExc_StopIteration);
+                return nullptr;
+            }
         PY_CATCH(nullptr);
     }
 };
 
-// {{{1 wrap DomainProxy
+// {{{1 wrap SymbolicAtoms
 
-struct DomainProxy : ObjectBase<DomainProxy> {
-    Gringo::DomainProxy *proxy;
+struct SymbolicAtoms : ObjectBase<SymbolicAtoms> {
+    Gringo::SymbolicAtoms *atoms;
     static PyMethodDef tp_methods[];
     static PyMappingMethods tp_as_mapping[];
     static PyGetSetDef tp_getset[];
 
-    static constexpr char const *tp_type = "Domain";
-    static constexpr char const *tp_name = "clingo.Domain";
+    static constexpr char const *tp_type = "SymbolicAtoms";
+    static constexpr char const *tp_name = "clingo.SymbolicAtoms";
     static constexpr char const *tp_doc =
 R"(This class provides read-only access to the symbolic atoms of the grounder
 (the Herbrand base).
@@ -1887,8 +1881,8 @@ def main(prg):
     print "universe:", len(prg.symbolic_atoms)
     for x in prg.symbolic_atoms:
         print x.atom, x.is_fact, x.is_external
-    print "p(2) is in domain:", prg.symbolic_atoms[clingo.function("p", [3])] is not None
-    print "p(4) is in domain:", prg.symbolic_atoms[clingo.function("p", [6])] is not None
+    print "p(2) is in domain:", prg.symbolic_atoms[clingo.Function("p", [3])] is not None
+    print "p(4) is in domain:", prg.symbolic_atoms[clingo.Function("p", [6])] is not None
     print "domain of p/1:"
     for x in prg.symbolic_atoms.by_signature(("p", 1)):
         print x.atom, x.is_fact, x.is_external
@@ -1913,51 +1907,54 @@ p(3) False False
 p(2) False True
 signatures: [('p', 1), ('q', 1)])";
 
-    static PyObject *new_(Gringo::DomainProxy &proxy) {
+    static PyObject *new_(Gringo::SymbolicAtoms &atoms) {
         Object ret(type.tp_alloc(&type, 0));
         if (!ret) { return nullptr; }
-        DomainProxy *self = reinterpret_cast<DomainProxy*>(ret.get());
-        self->proxy = &proxy;
+        SymbolicAtoms *self = reinterpret_cast<SymbolicAtoms*>(ret.get());
+        self->atoms = &atoms;
         return ret.release();
     }
 
-    static Py_ssize_t length(DomainProxy *self) {
-        return self->proxy->length();
+    static Py_ssize_t length(SymbolicAtoms *self) {
+        return self->atoms->length();
     }
 
-    static PyObject* tp_iter(DomainProxy *self) {
+    static PyObject* tp_iter(SymbolicAtoms *self) {
         PY_TRY
-            return SymbolicAtomIter::new_(self->proxy->iter());
+            return SymbolicAtomIter::new_(*self->atoms, self->atoms->begin());
         PY_CATCH(nullptr);
     }
 
-    static PyObject* subscript(DomainProxy *self, PyObject *key) {
+    static PyObject* subscript(SymbolicAtoms *self, PyObject *key) {
         PY_TRY
             Gringo::Symbol atom;
             pyToCpp(key, atom);
-            Gringo::DomainProxy::ElementPtr elem = self->proxy->lookup(atom);
-            if (!elem) { Py_RETURN_NONE; }
-            return SymbolicAtom::new_(std::move(elem));
+            Gringo::SymbolicAtomIter range = self->atoms->lookup(atom);
+            if (self->atoms->valid(range)) { return SymbolicAtom::new_(*self->atoms, range); }
+            else                           { Py_RETURN_NONE; }
         PY_CATCH(nullptr);
     }
 
-    static PyObject* by_signature(DomainProxy *self, PyObject *pyargs) {
+    static PyObject* by_signature(SymbolicAtoms *self, PyObject *pyargs, PyObject *pykwds) {
         PY_TRY
             char const *name;
             int arity;
-            if (!PyArg_ParseTuple(pyargs, "si", &name, &arity)) { return nullptr; }
-            Gringo::DomainProxy::ElementPtr elem = self->proxy->iter(Sig(name, arity, false));
-            return SymbolicAtomIter::new_(std::move(elem));
+            PyObject *pos = Py_True;
+            char const *kwlist[] = {"name", "arity", "positive"};
+            if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "si|O", const_cast<char**>(kwlist), &name, &arity, &pos)) { return nullptr; }
+            Gringo::SymbolicAtomIter range = self->atoms->begin(Sig(name, arity, !pyToCpp<bool>(pos)));
+            return SymbolicAtomIter::new_(*self->atoms, range);
         PY_CATCH(nullptr);
     }
 
-    static PyObject* signatures(DomainProxy *self, void *) {
+    static PyObject* signatures(SymbolicAtoms *self, void *) {
         PY_TRY
-            std::vector<Sig> ret = self->proxy->signatures();
+            auto ret = self->atoms->signatures();
             Object pyRet = PyList_New(ret.size());
             int i = 0;
             for (auto &sig : ret) {
-                Object pySig = Py_BuildValue("(si)", sig.name().c_str(), (int)sig.arity());
+                Object pos = cppToPy(!sig.sign());
+                Object pySig = Py_BuildValue("(siO)", sig.name().c_str(), (int)sig.arity(), pos.get());
                 if (PyList_SetItem(pyRet, i, pySig.release()) < 0) { return nullptr; }
                 ++i;
             }
@@ -1966,29 +1963,30 @@ signatures: [('p', 1), ('q', 1)])";
     }
 };
 
-PyMethodDef DomainProxy::tp_methods[] = {
-    {"by_signature", (PyCFunction)by_signature, METH_VARARGS,
-R"(by_signature(self, name, arity) -> SymbolicAtomIter
+PyMethodDef SymbolicAtoms::tp_methods[] = {
+    {"by_signature", (PyCFunction)by_signature, METH_KEYWORDS | METH_VARARGS,
+R"(by_signature(self, name, arity, positive) -> SymbolicAtomIter
 
 Return an iterator over the symbolic atoms with the given signature.
 
 Arguments:
-name  -- the name of the signature
-arity -- the arity of the signature
+name     -- the name of the signature
+arity    -- the arity of the signature
+positive -- the sign of the signature
 )"},
     {nullptr, nullptr, 0, nullptr}
 };
 
-PyMappingMethods DomainProxy::tp_as_mapping[] = {{
+PyMappingMethods SymbolicAtoms::tp_as_mapping[] = {{
     (lenfunc)length,
     (binaryfunc)subscript,
     nullptr,
 }};
 
-PyGetSetDef DomainProxy::tp_getset[] = {
+PyGetSetDef SymbolicAtoms::tp_getset[] = {
     {(char *)"signatures", (getter)signatures, nullptr, (char *)
-R"(The list of predicate signatures (pairs of names and arities) occurring in
-the program.)"
+R"(The list of predicate signatures (triples of names, arities, and Booleans)
+occurring in the program. A true Boolean stands for a positive signature.)"
     , nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
@@ -1996,7 +1994,7 @@ the program.)"
 // {{{1 wrap PropagateInit
 
 struct PropagateInit : ObjectBase<PropagateInit> {
-    Propagator::Init *init;
+    Gringo::PropagateInit *init;
     static constexpr char const *tp_type = "PropagateInit";
     static constexpr char const *tp_name = "clingo.PropagateInit";
     static constexpr char const *tp_doc = R"(
@@ -2015,7 +2013,7 @@ solver literals.)";
     static PyGetSetDef tp_getset[];
 
     using ObjectBase<PropagateInit>::new_;
-    static PyObject *construct(Propagator::Init &init) {
+    static PyObject *construct(Gringo::PropagateInit &init) {
         PropagateInit *self = new_();
         self->init = &init;
         return reinterpret_cast<PyObject*>(self);
@@ -2026,7 +2024,7 @@ solver literals.)";
     }
 
     static PyObject *symbolicAtoms(PropagateInit *self, void *) {
-        return DomainProxy::new_(self->init->getDomain());
+        return SymbolicAtoms::new_(self->init->getDomain());
     }
 
     static PyObject *numThreads(PropagateInit *self, void *) {
@@ -2281,7 +2279,7 @@ PyGetSetDef PropagateControl::tp_getset[] = {
 class Propagator : public Gringo::Propagator {
 public:
     Propagator(PyObject *tp) : tp_(tp, true) {}
-    void init(Init &init) override {
+    void init(Gringo::PropagateInit &init) override {
         PyBlock block;
         PY_TRY
             Object i = PropagateInit::construct(init);
@@ -2368,13 +2366,12 @@ format.)";
             PyObject *pyBody = nullptr;
             PyObject *pyChoice = Py_False;
             if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "O|OO", const_cast<char**>(kwlist), &pyHead, &pyBody, &pyChoice)) { return nullptr; }
-            Gringo::Backend::AtomVec head;
+            Gringo::BackendAtomVec head;
             pyToCpp(pyHead, head);
-            Gringo::Backend::LitVec body;
+            Gringo::BackendLitVec body;
             if (pyBody) { pyToCpp(pyBody, body); }
             bool choice = pyToCpp<bool>(pyChoice);
-            self->backend->printHead(choice, head);
-            self->backend->printNormalBody(body);
+            Gringo::outputRule(*self->backend, choice, head, body);
             Py_RETURN_NONE;
         PY_CATCH(nullptr);
     }
@@ -2387,12 +2384,11 @@ format.)";
             PyObject *pyBody = nullptr;
             PyObject *pyChoice = Py_False;
             if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOO|O", const_cast<char**>(kwlist), &pyHead, &pyLower, &pyBody, &pyChoice)) { return nullptr; }
-            auto head = pyToCpp<Gringo::Backend::AtomVec>(pyHead);
+            auto head = pyToCpp<Gringo::BackendAtomVec>(pyHead);
             auto lower = pyToCpp<Potassco::Weight_t>(pyLower);
-            auto body = pyToCpp<Gringo::Backend::LitWeightVec>(pyBody);
+            auto body = pyToCpp<Gringo::BackendLitWeightVec>(pyBody);
             auto choice = pyToCpp<bool>(pyChoice);
-            self->backend->printHead(choice, head);
-            self->backend->printWeightBody(lower, body);
+            Gringo::outputRule(*self->backend, choice, head, lower, body);
             Py_RETURN_NONE;
         PY_CATCH(nullptr);
     }
@@ -2453,8 +2449,9 @@ void pycall(PyObject *fun, SymSpan args, SymVec &vals) {
 
 class PyContext : public Context {
 public:
-    PyContext()
-    : ctx(nullptr) { }
+    PyContext(Logger &log)
+    : log(log)
+    , ctx(nullptr) { }
     bool callable(String name) const override {
         return ctx && PyObject_HasAttrString(ctx, name.c_str());
     }
@@ -2467,7 +2464,7 @@ public:
             return ret;
         }
         catch (PyException const &) {
-            GRINGO_REPORT(W_OPERATION_UNDEFINED)
+            GRINGO_REPORT(log, clingo_warning_operation_undefined)
                 << loc << ": info: operation undefined:\n"
                 << errorToString()
                 ;
@@ -2477,6 +2474,7 @@ public:
     operator bool() const { return ctx; }
     virtual ~PyContext() noexcept = default;
 
+    Logger &log;
     PyObject *ctx;
 };
 
@@ -2485,7 +2483,6 @@ struct ControlWrap : ObjectBase<ControlWrap> {
     Gringo::Control *ctl;
     Gringo::Control *freeCtl;
     PyObject        *stats;
-    Propagators      propagators_;
 
     static PyGetSetDef tp_getset[];
     static PyMethodDef tp_methods[];
@@ -2524,14 +2521,12 @@ active; you must not call any member function during search.)";
         self->ctl     = nullptr;
         self->freeCtl = nullptr;
         self->stats   = nullptr;
-        new (&self->propagators_) Propagators();
         return reinterpret_cast<PyObject*>(self);
     }
     static void tp_dealloc(ControlWrap *self) {
-        module->freeControl(self->freeCtl);
+        if (self->freeCtl) { delete self->freeCtl; }
         self->ctl = self->freeCtl = nullptr;
         Py_XDECREF(self->stats);
-        self->propagators_.~Propagators();
         type.tp_free(self);
     }
     static int tp_init(ControlWrap *self, PyObject *pyargs, PyObject *pykwds) {
@@ -2540,7 +2535,6 @@ active; you must not call any member function during search.)";
             PyObject *params = nullptr;
             if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "|O", const_cast<char**>(kwlist), &params)) { return -1; }
             std::vector<char const *> args;
-            args.emplace_back("clingo");
             if (params) {
                 Object it = PyObject_GetIter(params);
                 if (!it) { return -1; }
@@ -2551,8 +2545,7 @@ active; you must not call any member function during search.)";
                 }
                 if (PyErr_Occurred()) { return -1; }
             }
-            args.emplace_back(nullptr);
-            self->ctl = self->freeCtl = module->newControl(args.size(), args.data());
+            self->ctl = self->freeCtl = module->newControl(args.size(), args.data(), nullptr, 20);
             return 0;
         PY_CATCH(-1);
     }
@@ -2589,7 +2582,7 @@ active; you must not call any member function during search.)";
             Gringo::Control::GroundVec parts;
             static char const *kwlist[] = {"parts", "context", nullptr};
             PyObject *pyParts;
-            PyContext context;
+            PyContext context(self->ctl->logger());
             if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O", const_cast<char**>(kwlist), &pyParts, &context.ctx)) { return nullptr; }
             Object it = PyObject_GetIter(pyParts);
             while (Object pyVal = PyIter_Next(it)) {
@@ -2665,9 +2658,9 @@ active; you must not call any member function during search.)";
             checkBlocked(self, "solve_async");
             Py_XDECREF(self->stats);
             self->stats = nullptr;
-            static char const *kwlist[] = {"assumptions", "on_model", "on_finish", nullptr};
+            static char const *kwlist[] = {"on_model", "on_finish", "assumptions", nullptr};
             PyObject *pyAss = nullptr, *mh = Py_None, *fh = Py_None;
-            if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOO", const_cast<char **>(kwlist), &pyAss, &mh, &fh)) { return nullptr; }
+            if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOO", const_cast<char **>(kwlist), &mh, &fh, &pyAss)) { return nullptr; }
             Gringo::Control::Assumptions ass;
             if (!getAssumptions(pyAss, ass)) { return nullptr; }
             Gringo::SolveFuture *future = self->ctl->solveAsync(
@@ -2696,10 +2689,10 @@ active; you must not call any member function during search.)";
             checkBlocked(self, "solve");
             Py_XDECREF(self->stats);
             self->stats = nullptr;
-            static char const *kwlist[] = {"assumptions", "on_model", nullptr};
+            static char const *kwlist[] = {"on_model", "assumptions", nullptr};
             PyObject *mh = Py_None;
             PyObject *pyAss = nullptr;
-            if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OO", const_cast<char **>(kwlist), &pyAss, &mh)) { return nullptr; }
+            if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OO", const_cast<char **>(kwlist), &mh, &pyAss)) { return nullptr; }
             Gringo::Control::Assumptions ass;
             if (!getAssumptions(pyAss, ass)) { return nullptr; }
             Gringo::SolveResult ret = doUnblocked([self, mh, &ass]() {
@@ -2776,7 +2769,7 @@ active; you must not call any member function during search.)";
         PY_CATCH(nullptr);
     }
     static PyObject *symbolicAtoms(ControlWrap *self, void *) {
-        return DomainProxy::new_(self->ctl->getDomain());
+        return SymbolicAtoms::new_(self->ctl->getDomain());
     }
     static PyObject *theoryIter(ControlWrap *self, void *) {
         PY_TRY
@@ -2786,8 +2779,7 @@ active; you must not call any member function during search.)";
     }
     static PyObject *registerPropagator(ControlWrap *self, PyObject *tp) {
         PY_TRY
-            self->propagators_.emplace_back(gringo_make_unique<Propagator>(tp));
-            self->ctl->registerPropagator(*self->propagators_.back(), false);
+            self->ctl->registerPropagator(gringo_make_unique<Propagator>(tp), false);
             Py_RETURN_NONE;
         PY_CATCH(nullptr);
     }
@@ -2929,19 +2921,19 @@ Arguments:
 path -- path to program)"},
     // solve_async
     {"solve_async", (PyCFunction)solve_async, METH_KEYWORDS | METH_VARARGS,
-R"(solve_async(self, assumptions, on_model, on_finish) -> SolveFuture
+R"(solve_async(self, on_model, on_finish, assumptions) -> SolveFuture
 
 Start a search process in the background and return a SolveFuture object.
 
 Keyword Arguments:
-assumptions -- list of (atom, boolean) tuples that serve as assumptions for
-               the solve call, e.g. - solving under assumptions [(function("a"),
-               True)] only admits answer sets that contain atom a
 on_model    -- optional callback for intercepting models
                a Model object is passed to the callback
 on_finish   -- optional callback called once search has finished
                a SolveResult and a Boolean indicating whether the solve call
                has been canceled is passed to the callback
+assumptions -- list of (atom, boolean) tuples that serve as assumptions for
+               the solve call, e.g. - solving under assumptions [(Function("a"),
+               True)] only admits answer sets that contain atom a
 
 Note that this function is only available in clingo with thread support
 enabled. Both the on_model and the on_finish callbacks are called from another
@@ -2962,7 +2954,7 @@ def on_finish(res, canceled):
 
 def main(prg):
     prg.ground([("base", [])])
-    f = prg.solve_async(None, on_model, on_finish)
+    f = prg.solve_async(on_model, on_finish)
     f.wait()
 
 #end.
@@ -2980,7 +2972,7 @@ Return a SolveIter object, which can be used to iterate over models.
 
 Keyword Arguments:
 assumptions -- a list of (atom, boolean) tuples that serve as assumptions for
-               the solve call, e.g. - solving under assumptions [(function("a"),
+               the solve call, e.g. - solving under assumptions [(Function("a"),
                True)] only admits answer sets that contain atom a
 
 Example:
@@ -2997,16 +2989,16 @@ def main(prg):
 #end.)"},
     // solve
     {"solve", (PyCFunction)solve, METH_KEYWORDS | METH_VARARGS,
-R"(solve(self, assumptions, on_model) -> SolveResult
+R"(solve(self, on_model, assumptions) -> SolveResult
 
 Start a search process and return a SolveResult.
 
 Keyword Arguments:
-assumptions -- a list of (atom, boolean) tuples that serve as assumptions for
-               the solve call, e.g. - solving under assumptions [(function("a"),
-               True)] only admits answer sets that contain atom a
 on_model    -- optional callback for intercepting models
                a Model object is passed to the callback
+assumptions -- a list of (atom, boolean) tuples that serve as assumptions for
+               the solve call, e.g. - solving under assumptions [(Function("a"),
+               True)] only admits answer sets that contain atom a
 
 Note that in gringo or in clingo with lparse or text output enabled this
 function just grounds and returns a SolveResult where
@@ -3070,9 +3062,9 @@ from clingo import function
 
 def main(prg):
     prg.ground([("base", [])])
-    prg.assign_external(function("b"), True)
+    prg.assign_external(Function("b"), True)
     prg.solve()
-    prg.release_external(function("b"))
+    prg.release_external(Function("b"))
     prg.solve()
 
 #end.
@@ -3166,7 +3158,7 @@ query if the search was interrupted.)"},
 
 PyGetSetDef ControlWrap::tp_getset[] = {
     {(char*)"conf", (getter)conf, nullptr, (char*)"Configuration object to change the configuration.", nullptr},
-    {(char*)"symbolic_atoms", (getter)symbolicAtoms, nullptr, (char*)"symbolicAtoms object to inspect the symbolic atoms.", nullptr},
+    {(char*)"symbolic_atoms", (getter)symbolicAtoms, nullptr, (char*)"SymbolicAtoms object to inspect the symbolic atoms.", nullptr},
     {(char*)"use_enum_assumption", (getter)get_use_enum_assumption, (setter)set_use_enum_assumption,
 (char*)R"(Boolean determining how learnt information from enumeration modes is treated.
 
@@ -3201,7 +3193,7 @@ json.dumps(prg.stats, sort_keys=True, indent=4, separators=(',', ': ')))", nullp
 static PyObject *parseTerm(PyObject *, PyObject *objString) {
     PY_TRY
         char const *current = PyString_AsString(objString);
-        Symbol value = ControlWrap::module->parseValue(current);
+        Symbol value = ControlWrap::module->parseValue(current, nullptr, 20);
         if (value.type() == SymbolType::Special) { Py_RETURN_NONE; }
         else { return Term::new_(value); }
     PY_CATCH(nullptr);
@@ -3218,9 +3210,9 @@ function also evaluates arithmetic functions.
 
 Example:
 
-clingo.parse_term('p(1+2)') == clingo.function("p", [3])
+clingo.parse_term('p(1+2)') == clingo.Function("p", [3])
 )"},
-    {"function", (PyCFunction)Term::new_function, METH_VARARGS | METH_KEYWORDS, R"(function(name, args, sign) -> Term
+    {"Function", (PyCFunction)Term::new_function, METH_VARARGS | METH_KEYWORDS, R"(Function(name, args, positive) -> Term
 
 Construct a function term.
 
@@ -3228,19 +3220,21 @@ Arguments:
 name -- the name of the function (empty for tuples)
 
 Keyword Arguments:
-args -- the arguments in form of a list of terms
-sign -- the sign of the function (tuples must not have signs)
+args     -- the arguments in form of a list of terms
+positive -- the sign of the function (tuples must not have signs)
+            (Default: True)
 
 This includes constants and tuples. Constants have an empty argument list and
-tuples have an empty name.)"},
-    {"tuple_", (PyCFunction)Term::new_tuple, METH_O, R"(tuple_(args) -> Term
+tuples have an empty name. Functions can represent classically negated atoms.
+Argument positive has to be set to False to represent such atoms.)"},
+    {"Tuple", (PyCFunction)Term::new_tuple, METH_O, R"(Tuple(args) -> Term
 
-Shortcut for function("", args).
+Shortcut for Function("", args).
 )"},
-    {"number", (PyCFunction)Term::new_number, METH_O, R"(number(num) -> Term
+    {"Number", (PyCFunction)Term::new_number, METH_O, R"(Number(num) -> Term
 
 Construct a numeric term given a number.)"},
-    {"string", (PyCFunction)Term::new_string, METH_O, R"(string(s) -> Term
+    {"String", (PyCFunction)Term::new_string, METH_O, R"(String(s) -> Term
 
 Construct a string term given a string.)"},
     {nullptr, nullptr, 0, nullptr}
@@ -3271,11 +3265,11 @@ Sup         -- represents a #sup term
 
 Functions:
 
-function()   -- create a function term
-number()     -- creat a number term
+Function()   -- create a function term
+Number()     -- creat a number term
 parse_term() -- parse ground terms
-string()     -- create a string term
-tuple_()     -- create a tuple term (shortcut)
+String()     -- create a string term
+Tuple()      -- create a tuple term (shortcut)
 
 Classes:
 
@@ -3347,7 +3341,7 @@ PyObject *initclingo_() {
         !TheoryElement::initType(m) || !TheoryAtom::initType(m)       || !TheoryAtomIter::initType(m)   ||
         !Model::initType(m)         || !SolveIter::initType(m)        || !SolveFuture::initType(m)      ||
         !ControlWrap::initType(m)   || !Configuration::initType(m)    || !SolveControl::initType(m)     ||
-        !SymbolicAtom::initType(m)  || !SymbolicAtomIter::initType(m) || !DomainProxy::initType(m)      ||
+        !SymbolicAtom::initType(m)  || !SymbolicAtomIter::initType(m) || !SymbolicAtoms::initType(m)    ||
         !TheoryTerm::initType(m)    || !PropagateInit::initType(m)    || !Assignment::initType(m)       ||
         !TermType::initType(m)      || !Term::initType(m)             || !Backend::initType(m)          ||
         PyModule_AddStringConstant(m, "__version__", GRINGO_VERSION) < 0 ||
@@ -3389,10 +3383,6 @@ Object cppRngToPy(T begin, T end) {
 template <class T>
 Object cppToPy(std::vector<T> const &vals) {
     return cppRngToPy(vals.begin(), vals.end());
-}
-
-Object cppToPy(clingo_ast_span_t vals) {
-    return cppRngToPy(vals.first, vals.first + vals.size);
 }
 
 template <class T>
@@ -3495,7 +3485,7 @@ bool Python::callable(String name) {
         return false;
     }
 }
-SymVec Python::call(Location const &loc, String name, SymSpan args) {
+SymVec Python::call(Location const &loc, String name, SymSpan args, Logger &log) {
     assert(impl);
     try {
         SymVec vals;
@@ -3503,7 +3493,7 @@ SymVec Python::call(Location const &loc, String name, SymSpan args) {
         return vals;
     }
     catch (PyException const &) {
-        GRINGO_REPORT(W_OPERATION_UNDEFINED)
+        GRINGO_REPORT(log, clingo_warning_operation_undefined)
             << loc << ": info: operation undefined:\n"
             << errorToString()
             ;
@@ -3547,15 +3537,14 @@ std::unique_ptr<PythonImpl> Python::impl = nullptr;
 
 Python::Python(GringoModule &) { }
 bool Python::exec(Location const &loc, String ) {
-    GRINGO_REPORT(E_ERROR)
-        << loc << ": error: clingo has been build without python support\n"
-        ;
-    throw std::runtime_error("grounding stopped because of errors");
+    std::stringstream ss;
+    ss << loc << ": error: clingo has been build without python support\n";
+    throw GringoError(ss.str());
 }
 bool Python::callable(String) {
     return false;
 }
-SymVec Python::call(Location const &, String , SymSpan) {
+SymVec Python::call(Location const &, String , SymSpan, Logger &) {
     return {};
 }
 void Python::main(Control &) { }

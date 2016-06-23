@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Benjamin Kaufmann
@@ -19,25 +19,29 @@
 
 // }}}
 
-#include <clingo/clingocontrol.hh>
+#include <clingo.hh>
+#include <iostream>
 
-void example1() { 
-    std::vector<char const *> args{"clingo", "-e", "brave", nullptr};
-    DefaultGringoModule module;
-    Gringo::Scripts scripts(module);
-    ClingoLib lib(scripts, args.size() - 2, args.data());
-    lib.add("base", {}, "a :- not b. b :- not a.");
-    lib.ground({{"base", {}}}, nullptr);
-    lib.solve([](Gringo::Model const &m) {
-        for (auto &atom : m.atoms(Gringo::Model::SHOWN)) {
-            std::cout << atom << " "; 
-        }
-        std::cout << std::endl;
-        return true; 
-    }, {});
-}
+using namespace Clingo;
 
-int main() {
-    example1();
+int main(int argc, char const **argv) {
+    try {
+        Logger logger = [](Clingo::WarningCode, char const *message) {
+            std::cerr << message << std::endl;
+        };
+        Control ctl{{argv+1, size_t(argc-1)}, logger, 20};
+        ctl.add("base", {}, "a :- not b. b :- not a.");
+        ctl.ground({{"base", {}}});
+        for (auto m : ctl.solve_iteratively()) {
+            std::cout << "Model:";
+            for (auto &atom : m.atoms()) {
+                std::cout << " " << atom;
+            }
+            std::cout << "\n";
+        };
+    }
+    catch (std::exception const &e) {
+        std::cerr << "example failed with: " << e.what() << std::endl;
+    }
 }
 

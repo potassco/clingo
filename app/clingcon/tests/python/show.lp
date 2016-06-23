@@ -1,7 +1,7 @@
 #script (python)
 
 import clingo
-from clingo import function, Model
+from clingo import Function, Model
 import sys
 
 models = []
@@ -13,7 +13,7 @@ def split(model):
     return sorted(str(model).split(" "))
 
 def fun(name, model):
-    return function(name, model) if len(model) > 0 else function(name)
+    return Function(name, model) if len(model) > 0 else Function(name)
 
 def on_model(model):
     models.append(fun("model", split(model)))
@@ -24,7 +24,7 @@ def on_model(model):
 
 def main(prg):
     prg.ground([("base", [])])
-    prg.solve(None, on_model)
+    prg.solve(on_model)
     prg.ground([("result", [])])
     prg.solve()
 

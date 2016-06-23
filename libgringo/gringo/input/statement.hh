@@ -33,16 +33,16 @@ enum class StatementType { RULE, EXTERNAL, WEAKCONSTRAINT };
 struct Statement : Printable, Locatable {
     Statement(UHeadAggr &&head, UBodyAggrVec &&body, StatementType type);
     virtual UStmVec unpool(bool beforeRewrite);
-    virtual bool rewrite1(Projections &project);
+    virtual bool rewrite1(Projections &project, Logger &log);
     virtual void rewrite2();
     virtual Symbol isEDB() const;
     virtual void print(std::ostream &out) const;
     virtual bool hasPool(bool beforeRewrite) const;
-    virtual void check() const;
+    virtual void check(Logger &log) const;
     virtual void replace(Defines &dx);
     virtual void toGround(ToGroundArg &x, Ground::UStmVec &stms) const;
     virtual void add(ULit &&lit);
-    virtual void initTheory(TheoryDefs &def);
+    virtual void initTheory(TheoryDefs &def, Logger &log);
     virtual ~Statement();
 
     UHeadAggr     head;

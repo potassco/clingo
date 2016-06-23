@@ -24,6 +24,8 @@
 #include "catch.hpp"
 #include "gringo/utility.hh"
 #include "gringo/logger.hh"
+#include "gringo/control.hh"
+#include "gringo/input/groundtermparser.hh"
 #include <algorithm>
 #include <unordered_map>
 
@@ -176,15 +178,15 @@ inline std::string &replace_all(std::string &haystack, std::string const &needle
 }
 
 inline std::string replace_all(std::string &&haystack, std::string const &needle, std::string const &replace) {
-	replace_all(haystack, needle, replace);
-	return std::move(haystack);
+    replace_all(haystack, needle, replace);
+    return std::move(haystack);
 }
 
 }
 
 namespace Gringo { namespace Test {
 
-// {{{ definition of helpers to initialize vectors
+// {{{1 definition of helpers to initialize vectors
 
 namespace Detail {
 
@@ -272,47 +274,33 @@ V init(T&&... args) {
     return std::move(v);
 }
 
-// }}}
-// {{{ defintion of TestMessagePrinter
+// {{{1 definition of TestLogger
 
-struct TestMessagePrinter : MessagePrinter {
-    TestMessagePrinter(std::vector<std::string> &messages)
-        : messages_(messages)                  { }
-    virtual bool check(Errors)                 { error_ = true; return true; }
-    virtual bool check(Warnings)               { return true; }
-    virtual bool hasError() const              { return error_; }
-    virtual void enable(Warnings)              { }
-    virtual void disable(Warnings)             { }
-    virtual void print(std::string const &msg) { messages_.emplace_back(msg); }
-    virtual ~TestMessagePrinter() { }
-private:
-    std::vector<std::string> &messages_;
-    bool error_ = false;
+struct TestGringoModule : Gringo::GringoModule {
+    TestGringoModule()
+    : logger([&](clingo_warning_t, char const *msg){
+        messages_.emplace_back(msg);
+    }, std::numeric_limits<unsigned>::max()) { }
+
+    Gringo::Control *newControl(int, char const * const *, Logger::Printer, unsigned) override { throw std::logic_error("TestGringoModule::newControl must not be called"); }
+    Gringo::Symbol parseValue(std::string const &str, Logger::Printer = nullptr, unsigned = 0) override {
+        return parser.parse(str, logger);
+    }
+    operator Logger &() { return logger; }
+    void reset() { messages_.clear(); }
+    std::vector<std::string> const &messages() const { return messages_; }
+    Gringo::Input::GroundTermParser parser;
+    std::vector<std::string> messages_;
+    Logger logger;
 };
 
-struct Messages {
-    Messages()
-        : oldPrinter(std::move(message_printer())) {
-        message_printer() = gringo_make_unique<Gringo::Test::TestMessagePrinter>(messages);
-    }
-    void clear() {
-        messages.clear();
-        message_printer() = gringo_make_unique<Gringo::Test::TestMessagePrinter>(messages);
-    }
-    ~Messages() {
-        message_printer() = std::move(oldPrinter);
-    }
-    std::vector<std::string>        messages;
-private:
-    std::unique_ptr<MessagePrinter> oldPrinter;
-};
-
-inline std::ostream &operator<<(std::ostream &out, Messages const &x) {
-    out << IO::to_string(x.messages);
+inline std::ostream &operator<<(std::ostream &out, TestGringoModule const &mod) {
+    using Gringo::IO::operator<<;
+    out << mod.messages();
     return out;
 }
 
-// }}}
+// }}}1
 
 } } // namespace Test Gringo
 

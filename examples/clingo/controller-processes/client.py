@@ -34,7 +34,7 @@ def main(prg):
         state = States.IDLE
         k     = 0
         prg.ground([("pigeon", []), ("sleep",  [k])])
-        prg.assign_external(clingo.function("sleep", [k]), True)
+        prg.assign_external(clingo.Function("sleep", [k]), True)
         while True:
             if state == States.SOLVE:
                 f = prg.solve_async(
@@ -51,10 +51,10 @@ def main(prg):
             elif msg == "exit":
                 return
             elif msg == "less_pigeon_please":
-                prg.assign_external(clingo.function("p"), False)
+                prg.assign_external(clingo.Function("p"), False)
                 state = States.IDLE
             elif msg == "more_pigeon_please":
-                prg.assign_external(clingo.function("p"), True)
+                prg.assign_external(clingo.Function("p"), True)
                 state = States.IDLE
             elif msg == "solve":
                 state = States.SOLVE
@@ -62,8 +62,8 @@ def main(prg):
             if ret is not None and not ret.unknown:
                 k = k + 1
                 prg.ground([("sleep", [k])])
-                prg.release_external(clingo.function("sleep", [k-1]))
-                prg.assign_external(clingo.function("sleep", [k]), True)
+                prg.release_external(clingo.Function("sleep", [k-1]))
+                prg.assign_external(clingo.Function("sleep", [k]), True)
     finally:
         conn.close()
 

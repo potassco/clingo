@@ -5,9 +5,9 @@ import clingo
 def main(prg):
     prg.ground([("pigeon", [])])
     for i in range(0,2):
-        prg.assign_external(clingo.function("p"), True)
+        prg.assign_external(clingo.Function("p"), True)
         prg.solve()
-        prg.assign_external(clingo.function("p"), False)
+        prg.assign_external(clingo.Function("p"), False)
         f = prg.solve_async()
         f.wait(0.01)
         f.cancel()

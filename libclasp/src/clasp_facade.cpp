@@ -475,8 +475,22 @@ ClaspFacade::ModelGenerator ClaspFacade::startSolve(const LitVec& a) {
 /////////////////////////////////////////////////////////////////////////////////////////
 // ClaspFacade
 /////////////////////////////////////////////////////////////////////////////////////////
-ClaspFacade::ClaspFacade() : config_(0) { step_.init(*this); }
-ClaspFacade::~ClaspFacade() {}
+ClaspFacade::ClaspFacade() : config_(0), hccUpdate_(0) { step_.init(*this); }
+ClaspFacade::~ClaspFacade() {
+	clearStats();
+}
+void ClaspFacade::clearStats() {
+	while (!solvers_.empty()) {
+		if (solvers_.back().flagged()) { delete solvers_.back().get(); }
+		solvers_.pop_back();
+	}
+	while (!hccs_.empty()) {
+		delete hccs_.back();
+		hccs_.pop_back();
+	}
+	delete hccUpdate_;
+	hccUpdate_ = 0;
+}
 
 bool ClaspFacade::prepared() const {
 	return solve_.get() && solve_->prepared;
@@ -501,6 +515,7 @@ const ClaspFacade::Summary&  ClaspFacade::summary(bool accu) const {
 }
 
 void ClaspFacade::discardProblem() {
+	clearStats();
 	config_  = 0;
 	builder_ = 0;
 	lpStats_ = 0;
@@ -537,6 +552,13 @@ void ClaspFacade::init(ClaspConfig& config, bool discard) {
 	if (!solve_.get()) { solve_ = new SolveData(); }
 	SolveData::AlgoPtr a(config.solve.createSolveObject());
 	solve_->init(a.release(), e.release());
+	if (solvers_.empty()) { 
+		solvers_.push_back(make_flagged(&ctx.solverStats(0), false));
+		solvers_.push_back(make_flagged(&ctx.solverStats(0), false));
+	}
+	if (config.solve.numSolver() > 1 && !solvers_[0].flagged()) {
+		solvers_[0] = make_flagged(new SolverStats(), true);
+	}
 	if (discard) { startStep(0); }
 }
 
@@ -594,6 +616,9 @@ bool ClaspFacade::enableProgramUpdates() {
 		accu_ = new Summary();
 		accu_->init(*this);
 		accu_->step = UINT32_MAX;
+		if (!solvers_[1].flagged()) {
+			solvers_[1] = make_flagged(new SolverStats(), true); // accu.solvers
+		}
 	}
 	return lpStats_.get() != 0; // currently only ASP supports program updates
 }
@@ -611,6 +636,9 @@ void ClaspFacade::startStep(uint32 n) {
 	step_.totalTime = -RealTime::getTime();
 	step_.cpuTime   = -ProcessTime::getTime();
 	step_.step      = n;
+	for (HccMap::iterator it = hccs_.begin(), end = hccs_.end(); it != end; ++it) {
+		(*it)->solvers.reset();
+	}
 	ctx.report(StepStart(*this));
 }
 
@@ -633,10 +661,69 @@ ClaspFacade::Result ClaspFacade::stopStep(int signal, bool complete) {
 	}
 	return result();
 }
-
+void ClaspFacade::updateHcc(uint32 scc, const SharedContext& ctx, bool accu) {
+	if (hccs_.empty()) {
+		hccs_.push_back(new HccStats(ProblemStats(), -1));
+	}
+	std::pair<HccMap::iterator, bool> np;
+	HccStats& hccAccu = **hccs_.begin();
+	np.first  = std::lower_bound(hccs_.begin() + 1, hccs_.end(), (int)scc, HccCmp());
+	np.second = np.first == hccs_.end() || (*np.first)->scc != (int)scc;
+	if (np.second) {
+		np.first = hccs_.insert(np.first, new HccStats(ctx.stats(), (int)scc));
+		hccAccu.problem.accu(ctx.stats());
+	}
+	ctx.accuStats((*np.first)->solvers);
+	ctx.accuStats(hccAccu.solvers);
+	if (accu) {
+		if (!(*np.first)->hasAccu()) { (*np.first)->accu_ = new SolverStats(); }
+		if (!hccAccu.hasAccu()) { hccAccu.accu_ = new SolverStats(); }
+		ctx.accuStats(*(*np.first)->accu_);
+		ctx.accuStats(*hccAccu.accu_);
+	}
+}
+void ClaspFacade::enableHccUpdates(const PrgDepGraph& g) {
+	if (hccUpdate_ || !g.numNonHcfs() || (!step_.stats() && hccs_.empty())) { return; }
+	struct UpdateStats : EventHandler {
+		UpdateStats(ClaspFacade& f) : self(&f), old(0) {
+			old = f.ctx.sccGraph->setRemoveHandler(this);
+		}
+		~UpdateStats() {
+			if (self->ctx.sccGraph.get()) { self->ctx.sccGraph->setRemoveHandler(old); }
+		}
+		virtual void onEvent(const Event& ev) {
+			if (const RemoveNonHcfEvent* x = event_cast<RemoveNonHcfEvent>(ev)) {
+				PrgDepGraph::NonHcfIter it = x->graph->nonHcfBegin() + x->id;
+				self->updateHcc(it->first, it->second->ctx(), self->accu_.get() != 0);
+			}
+			if (old) { old->onEvent(ev); }
+		}
+		ClaspFacade*  self;
+		EventHandler* old;
+	};
+	hccUpdate_ = new UpdateStats(*this);
+}
 void ClaspFacade::accuStep() {
-	if (accu_.get() && accu_->step != step_.step){
-		if (step_.stats()) { ctx.accuStats(); }
+	bool accu = accu_.get() && accu_->step != step_.step;
+	if (solvers_.size() > 0 && solvers_[0].flagged()) {
+		solvers_[0]->reset();
+		ctx.accuStats(*solvers_[0]);
+	}
+	if (solvers_.size() > 1 && solvers_[1].flagged()) {
+		ctx.accuStats(*solvers_[1]);
+	}
+	if (ctx.sccGraph.get() && hccUpdate_) {
+		for (PrgDepGraph::NonHcfIter it = ctx.sccGraph->nonHcfBegin(), end = ctx.sccGraph->nonHcfEnd(); it != end; ++it) {
+			updateHcc(it->first, it->second->ctx(), accu);
+		}
+	}
+	if (accu){
+		if (step_.stats() && solvers_.size() > 1) { 
+			for (uint32 i = 0; ctx.hasSolver(i); ++i) {
+				if ((i + 2) >= solvers_.size()) { solvers_.push_back(make_flagged(new SolverStats(), true)); }
+				ctx.accuStats(*solvers_[i + 2]);
+			}
+		}
 		accu_->totalTime += step_.totalTime;
 		accu_->cpuTime   += step_.cpuTime;
 		accu_->solveTime += step_.solveTime;
@@ -644,8 +731,8 @@ void ClaspFacade::accuStep() {
 		accu_->numEnum   += step_.numEnum;
 		// no aggregation
 		if (step_.numEnum) { accu_->satTime = step_.satTime; }
-		accu_->step       = step_.step;
-		accu_->result     = step_.result;
+		accu_->step   = step_.step;
+		accu_->result = step_.result;
 	}
 }
 
@@ -684,6 +771,9 @@ void ClaspFacade::prepare(EnumMode enumMode) {
 		assume_.clear();
 		prg->getAssumptions(assume_);
 		prg->getWeakBounds(en.optBound);
+	}
+	if (ctx.sccGraph.get()) {
+		enableHccUpdates(*ctx.sccGraph);
 	}
 	if (en.optMode != MinimizeMode_t::ignore && (m = ctx.minimize()) != 0) {
 		if (!m->setMode(en.optMode, en.optBound)) {
@@ -771,88 +861,68 @@ ExpectedQuantity::ExpectedQuantity(Error e) : rep(-double(int(e))) {}
 ExpectedQuantity::operator double() const { return valid() ? rep : std::numeric_limits<double>::quiet_NaN(); }
 
 ExpectedQuantity ClaspFacade::getStatImpl(const char* path, bool keys) const {
-#define GET_KEYS(o, path) ( ExpectedQuantity((o).keys(path)) )
-#define GET_OBJ(o, path)  ( ExpectedQuantity((o)[path]) )
-#define COMMON_KEYS "ctx.\0solvers.\0solver.\0costs.\0time_total\0time_cpu\0time_solve\0time_unsat\0time_sat\0enumerated\0optimal\0step\0result\0"
-	static const char* _keys[] = {"accu.\0hccs.\0hcc.\0lp.\0" COMMON_KEYS, 0, "accu.\0lp.\0" COMMON_KEYS, "accu.\0" COMMON_KEYS };
-	enum ObjId { id_hccs, id_hcc, id_lp, id_ctx, id_solvers, id_solver, id_costs, id_total, id_cpu, id_solve, id_unsat, id_sat, id_num, id_opt, id_step, id_result };
+#define ROOT_COMMON ".accu\0.ctx\0.solvers\0.solver\0.summary\0"
+	const char* const roots[] = {ROOT_COMMON, ROOT_COMMON ".lp\0", ROOT_COMMON ".lp\0.hccs\0.hcc\0"};
+#undef ROOT_COMMON
 	if (!path)  path = "";
-	std::size_t kLen = 0;
-	int         oId  = lpStats_.get() ? ((ctx.sccGraph.get() && ctx.sccGraph->numNonHcfs() != 0) ? id_hccs : id_lp) : id_ctx;
-	const char* keyL = _keys[oId];
-	bool        accu = step_.stats() != 0 && matchStatPath(path, "accu");
-	if (!*path) { 
-		if (accu || step_.stats() == 0) { keyL += 6; }
-		return keys ? ExpectedQuantity(keyL) : ExpectedQuantity::error_ambiguous_quantity;
+	const char* root = roots[lpStats_.get() != 0];
+	uint32 rOff = 0;
+	bool accu   = false;
+	if (step_.stats() == 0 || (accu = (*path == 'a' && matchStatPath(path, root + 1))) == true) {
+		rOff = std::strlen(root) + 1;
 	}
-	accu = accu && step() != 0;
-	for (const char* k = keyL + 6; (kLen = std::strlen(k)) != 0; k += kLen + 1, ++oId) {
-		bool match = k[kLen-1] == '.' ? matchStatPath(path, k, kLen-1) : std::strcmp(path, k) == 0;
-		if (match) {
-			if (!*path && !keys){ return ExpectedQuantity::error_ambiguous_quantity; }
-			switch(oId) {
-				default: {
-					const Summary* stats = accu && accu_.get() ? accu_.get() : &step_;
-					if (oId == id_costs) {
-						char* x;
-						uint32 n = (uint32)std::strtoul(path, &x, 10);
-						uint32 N = stats->optimize() && stats->costs() ? (uint32)stats->costs()->size() : 0u;
-						if (x == path) {
-							if (!*path) { return keys ? ExpectedQuantity("__len\0") : ExpectedQuantity::error_ambiguous_quantity; }
-							if (!keys && std::strcmp(path, "__len") == 0) { return ExpectedQuantity(N); }
-							return ExpectedQuantity::error_unknown_quantity;
-						}
-						if (*(path = x) == '.') { ++path; }
-						if (*path)  { return ExpectedQuantity::error_unknown_quantity; }
-						if (n >= N) { return ExpectedQuantity::error_not_available;    }
-						if (!keys)  { return ExpectedQuantity((double)stats->costs()->at(n)); }
-					}
-					if (keys)            { return ExpectedQuantity(uint32(0)); }
-					if (oId <= id_sat)   { return *((&stats->totalTime) + (oId - id_total)); }
-					if (oId == id_num)   { return ExpectedQuantity(stats->numEnum); }
-					if (oId == id_opt)   { return ExpectedQuantity(stats->optimal()); }
-					if (oId == id_step)  { return ExpectedQuantity(stats->step);    }
-					if (oId == id_result){ return ExpectedQuantity((double)stats->result); }
-					return ExpectedQuantity::error_unknown_quantity; }
-				case id_lp: if (!lpStats_.get()) { return ExpectedQuantity::error_not_available; }
-					return keys ? GET_KEYS((*lpStats_), path) : GET_OBJ((*lpStats_), path);
-				case id_ctx:     return keys ? GET_KEYS(ctx.stats(), path) : GET_OBJ(ctx.stats(), path);
-				case id_solvers: return keys ? GET_KEYS(ctx.stats(*ctx.solver(0), accu), path) : getStat(ctx, path, accu, Range32(0, ctx.concurrency()));			
-				case id_hccs: if (!ctx.sccGraph.get() || ctx.sccGraph->numNonHcfs() == 0) { return ExpectedQuantity::error_not_available; } else {
-					ExpectedQuantity res(0.0);
-					for (PrgDepGraph::NonHcfIter it = ctx.sccGraph->nonHcfBegin(), end = ctx.sccGraph->nonHcfEnd(); it != end; ++it) {
-						const SharedContext& hCtx= it->second->ctx();
-						if (keys) { return GET_KEYS(hCtx.stats(*hCtx.solver(0), accu), path); }
-						ExpectedQuantity hccAccu = getStat(hCtx, path, accu, Range32(0, hCtx.concurrency()));
-						if (!hccAccu.valid()) { return hccAccu; }
-						res.rep += hccAccu.rep;
-					}
-					return res; }
-				case id_solver:
-				case id_hcc: 
-					Range32 r(0, oId == id_solver ? ctx.concurrency() : ctx.sccGraph.get() ? ctx.sccGraph->numNonHcfs() : 0);
-					char* x;
-					r.lo = (uint32)std::strtoul(path, &x, 10);
-					if (x == path) {
-						if (!*path) { return keys ? ExpectedQuantity("__len\0") : ExpectedQuantity::error_ambiguous_quantity; }
-						if (!keys && std::strcmp(path, "__len") == 0) { return ExpectedQuantity(r.hi); }
-						return ExpectedQuantity::error_unknown_quantity;
-					}
-					if (r.lo >= r.hi)  { return ExpectedQuantity::error_not_available;    }
-					if (*(path = x) == '.') { ++path; }
-					const SharedContext* active = &ctx; 
-					if (oId == id_hcc) {
-						active = &(ctx.sccGraph->nonHcfBegin() + r.lo)->second->ctx();
-						r      = Range32(0, active->concurrency());
-					}
-					return keys ? GET_KEYS(active->stats(*active->solver(r.lo), accu), path) : getStat(*active, path, accu, r);
-			}
+#define GET_KEYS(o, path) ( ExpectedQuantity((o).keys(path)) )
+#define GET_OBJ(o, path)  ( *path ? ExpectedQuantity((o)[path]) : ExpectedQuantity::error_ambiguous_quantity )
+#define MATCH(p, k, op) if (matchStatPath(p, (k)))op;else (void)0;
+#define CASE(c, ...) case c: __VA_ARGS__ break;
+#define REQUIRE(cnd) if (!(cnd)) break;else (void)0;
+	const Summary& stats = accu && accu_.get() ? *accu_.get() : step_;
+	const SolverStats& s = stats.solvers();
+	enum RootId { id_error, id_solver, id_hccs, id_hcc };
+	RootId rId = id_error;
+	if (stats.numHcc()) { root = roots[2]; }
+	root += rOff;
+	switch (*path) {
+		default: return ExpectedQuantity::error_unknown_quantity;
+		case '\0': return keys ? ExpectedQuantity(root)  : ExpectedQuantity::error_ambiguous_quantity;
+		CASE('c', MATCH(path, "ctx", return keys ? GET_KEYS(ctx.stats(), path) : GET_OBJ(ctx.stats(), path)));
+		CASE('l', REQUIRE(lpStats_.get())
+			MATCH(path, "lp", return keys ? GET_KEYS((*lpStats_), path) : GET_OBJ((*lpStats_), path))
+		);
+		CASE('h', REQUIRE(stats.numHcc())
+			MATCH(path, "hccs", return keys ? GET_KEYS(*stats.hccs().second, path) : GET_OBJ(*stats.hccs().second, path))
+			MATCH(path, "hcc", rId = id_hcc));
+		CASE('s',
+			MATCH(path, "summary", return keys ? GET_KEYS(stats, path) : GET_OBJ(stats, path))
+			MATCH(path, "solvers", return keys ? GET_KEYS(s, path) : GET_OBJ(s, path))
+			MATCH(path, "solver", rId = id_solver)
+		);
+	}
+#undef MATCH
+#undef CASE
+#undef REQUIRE
+	if (rId == id_solver || rId == id_hcc) {
+		if (!*path) { return keys ? ExpectedQuantity("__len\0") : ExpectedQuantity::error_ambiguous_quantity; }
+		uint32 len = rId == id_solver ? stats.numSolver() : stats.numHcc();
+		int pos = 0;
+		if (matchStatPath(path, "__len")) {
+			return *path || keys ? ExpectedQuantity::error_unknown_quantity : ExpectedQuantity(len);
+		}
+		else if (!Potassco::match(path, pos) || pos < 0 || pos >= (int)len || (*path && *path++ != '.')) {
+			return ExpectedQuantity::error_unknown_quantity;
+		}
+		else if (keys) {
+			return GET_KEYS((rId == id_solver ? stats.solver(pos) : *stats.hcc(pos).second), path);
+		}
+		else {
+			return GET_OBJ((rId == id_solver ? stats.solver(pos) : *stats.hcc(pos).second), path);
 		}
 	}
-	return ExpectedQuantity::error_unknown_quantity; 
+	else {
+		return ExpectedQuantity::error_unknown_quantity;
+	}
 #undef GET_KEYS
 #undef GET_OBJ
-#undef COMMON_KEYS
 }
 
 ExpectedQuantity ClaspFacade::getStat(const char* path)const {
@@ -862,16 +932,6 @@ const char*      ClaspFacade::getKeys(const char* path)const {
 	ExpectedQuantity x = config_ && step_.totalTime >= 0.0 ? getStatImpl(path, true) : ExpectedQuantity::error_not_available;
 	if (x.valid()) { return (const char*)static_cast<uintp>(x.rep); }
 	return x.error() == ExpectedQuantity::error_unknown_quantity ? 0 : "\0";
-}
-ExpectedQuantity ClaspFacade::getStat(const SharedContext& ctx, const char* key, bool accu, const Range<uint32>& r) const {
-	if (!key || !*key) { return ExpectedQuantity::error_ambiguous_quantity; }
-	ExpectedQuantity res(0.0);
-	for (uint32 i = r.lo; i != r.hi && ctx.hasSolver(i); ++i) {
-		ExpectedQuantity x = ctx.stats(*ctx.solver(i), accu)[key];
-		if (!x.valid()) { return x; }
-		res.rep += x.rep;
-	}
-	return res;	
 }
 Enumerator* ClaspFacade::enumerator() const { return solve_.get() ? solve_->enumerator() : 0; }
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -912,5 +972,75 @@ SumVec ClaspFacade::Summary::lower() const {
 	}
 	return SumVec();
 }
-
+const SolverStats& ClaspFacade::Summary::solvers() const {
+	return *facade->solvers_[this == facade->accu_.get()];
 }
+const SolverStats& ClaspFacade::Summary::solver(uint32 i) const {
+	CLASP_FAIL_IF(i >= numSolver(), "solver index out of range");
+	if (this != facade->accu_.get() || facade->solvers_.size() == 2) {
+		return facade->ctx.solverStats(i);
+	}
+	return *facade->solvers_[i + 2];
+}
+uint32 ClaspFacade::Summary::numSolver() const {
+	if (this != facade->accu_.get() || facade->solvers_.size() == 2) {
+		return facade->ctx.concurrency();
+	}
+	return facade->solvers_.size() - 2;
+}
+uint32 ClaspFacade::Summary::numHcc() const {
+	const HccMap& hm = facade->hccs_;
+	return static_cast<uint32>(hm.size() - static_cast<uint32>(!hm.empty()));
+}
+ClaspFacade::Summary::HccPair ClaspFacade::Summary::hccs() const {
+	const HccMap& hm = facade->hccs_;
+	if (hm.empty()) { return HccPair(0, 0); }
+	return HccPair(&hm[0]->problem, this != facade->accu_.get() ? &hm[0]->solvers : hm[0]->accu_);
+}
+ClaspFacade::Summary::HccPair ClaspFacade::Summary::hcc(uint32 i) const {
+	CLASP_FAIL_IF(i >= numHcc(), "hcc index out of range");
+	const HccMap& hm = facade->hccs_;
+	return HccPair(&hm[i+1]->problem,
+		this != facade->accu_.get() ? &hm[i+1]->solvers : hm[i+1]->accu_
+	);
+}
+const char* ClaspFacade::Summary::keys(const char* p) const {
+	if (p && matchStatPath(p, "costs") && !*p) {
+		return "__len\0";
+	}
+	else if (!p || !*p) { 
+		return ".costs\0enumerated\0optimal\0result\0step\0time_total\0time_cpu\0time_solve\0time_unsat\0time_sat\0"; 
+	}
+	return 0;
+}
+ExpectedQuantity ClaspFacade::Summary::operator[](const char* key) const {
+	ExpectedQuantity r(ExpectedQuantity::error_unknown_quantity);
+	switch (key ? *key : '\0') {
+		default: break;
+		case 'c': 
+			if (matchStatPath(key, "costs")) {
+				uint32 len = optimize() && costs() ? (uint32)costs()->size() : 0u;
+				int pos = -1;
+				if      (!*key) { return ExpectedQuantity::error_ambiguous_quantity; }
+				else if (matchStatPath(key, "__len")) { r = len; }
+				else if (Potassco::match(key, pos) && pos >= 0 && uint32(pos) < len) {
+					r = double(costs()->at(pos));
+				}
+			}
+			break;
+		case 'e': if (matchStatPath(key, "enumerated")) r = numEnum; break;
+		case 'o': if (matchStatPath(key, "optimal")) r = optimal(); break;
+		case 'r': if (matchStatPath(key, "result")) r = double(result); break;
+		case 's': if (matchStatPath(key, "step")) r = step; break;
+		case 't': {
+			const double* d = &totalTime;
+			for (const char* k = "time_total\0time_cpu\0time_solve\0time_unsat\0time_sat\0"; *k; k += std::strlen(k) + 1, ++d) {
+				if (matchStatPath(key, k)) { r = *d; break; }
+			}
+			break;
+		}
+	}
+	return !*key ? r : ExpectedQuantity::error_unknown_quantity;
+}
+}
+

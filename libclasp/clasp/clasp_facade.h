@@ -26,7 +26,7 @@
 #endif
 
 #if !defined(CLASP_VERSION)
-#define CLASP_VERSION "3.2.0-RC-R51941"
+#define CLASP_VERSION "3.2.0-RC-R52052"
 #endif
 #if !defined(CLASP_LEGAL)
 #define CLASP_LEGAL \
@@ -148,7 +148,7 @@ struct SolveResult {
 };
 
 //! Provides a simplified interface to the services of the clasp library.
-class ClaspFacade : public EventHandler {
+class ClaspFacade : public ModelHandler {
 	struct SolveData;
 	struct SolveStrategy;
 public:
@@ -156,6 +156,7 @@ public:
 	//! Type summarizing one or more solving steps.
 	struct Summary {
 		typedef SharedMinimizeData SharedMinData;
+		typedef std::pair<const ProblemStats*, const SolverStats*> HccPair;
 		void init(ClaspFacade& f);
 		const SharedContext& ctx()          const { return facade->ctx; }	
 		const Asp::LpStats*  lpStats()      const { return facade->lpStats_.get(); }
@@ -172,6 +173,12 @@ public:
 		uint64               optimal()      const;
 		SumVec               lower()        const;
 		int                  stats()        const;
+		const SolverStats&   solvers()      const;
+		const SolverStats&   solver(uint32) const;
+		uint32               numSolver()    const;
+		uint32               numHcc()       const;
+		HccPair              hccs()         const;
+		HccPair              hcc(uint32)    const;
 		const ClaspFacade* facade;    /**< Facade object of this run.          */
 		double             totalTime; /**< Total wall clock time.              */
 		double             cpuTime;   /**< Total cpu time.                     */
@@ -181,6 +188,8 @@ public:
 		uint64             numEnum;   /**< Total models enumerated.            */
 		uint32             step;      /**< Step number (multishot solving).    */
 		Result             result;    /**< Result of step.                     */
+		const char*      keys(const char*) const;
+		ExpectedQuantity operator[](const char* key) const;
 	};
 	ClaspFacade();
 	~ClaspFacade();
@@ -440,23 +449,43 @@ private:
 	typedef SingleOwnerPtr<Asp::LpStats>   LpStatsPtr;
 	typedef SingleOwnerPtr<SolveData>      SolvePtr;
 	typedef SingleOwnerPtr<Summary>        SummaryPtr;
-	ExpectedQuantity getStatImpl(const char* path, bool keys)const;
-	ExpectedQuantity getStat(const SharedContext& ctx, const char* key, bool accu, const Range<uint32>& r) const;
+	typedef PodVector<FlaggedPtr<SolverStats> >::type  StatsVec;
+	struct HccStats {
+		HccStats(const ProblemStats& p, int32 s) : problem(p), scc(s) { accu_ = &solvers; }
+		~HccStats() { if (hasAccu()) delete accu_; }
+		bool hasAccu() const { return accu_ != &solvers; }
+		ProblemStats problem;
+		SolverStats  solvers;
+		SolverStats* accu_;
+		int32 scc;
+	};
+	struct HccCmp {
+		bool operator()(int32 scc, const HccStats* x) const { return scc < x->scc; }
+		bool operator()(const HccStats* x, int scc)   const { return x->scc < scc; }
+	};
+	typedef PodVector<HccStats*>::type HccMap;
+	ExpectedQuantity getStatImpl(const char* path, bool keys)const;	
 	void   init(ClaspConfig& cfg, bool discardProblem);
 	void   initBuilder(ProgramBuilder* in);
 	void   discardProblem();
 	void   startStep(uint32 num);
 	Result stopStep(int signal, bool complete);
 	void   accuStep();
+	void   updateHcc(uint32 scc, const SharedContext& ctx, bool accu);
+	void   enableHccUpdates(const PrgDepGraph& g);
 	bool   onModel(const Solver& s, const Model& m);
 	void   doUpdate(ProgramBuilder* p, bool updateConfig, void (*sig)(int));
+	void   clearStats();
 	Summary      step_;
 	LitVec       assume_;
 	ClaspConfig* config_;
 	BuilderPtr   builder_;
 	LpStatsPtr   lpStats_;
 	SummaryPtr   accu_;
-	SolvePtr     solve_; // NOTE: last so that it is destroyed first;
+	EventHandler*hccUpdate_;
+	StatsVec     solvers_; // 0: solvers, 1: accu.solvers, > 1 accu.solver.i
+	HccMap       hccs_;    // statistics for non-hcf checking
+	SolvePtr     solve_;   // NOTE: last so that it is destroyed first;
 };
 }
 #endif

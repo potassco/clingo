@@ -156,16 +156,15 @@ void Rule::translate(DomainData &data, Translator &x) {
     }
 }
 void Rule::output(DomainData &data, Backend &out) const {
-    Backend::AtomVec &hd = out.tempAtoms();
+    BackendAtomVec &hd = data.tempAtoms();
     for (auto &x : head_) {
         Potassco::Lit_t lit = call(data, x, &Literal::uid);
         assert(lit > 0);
         hd.emplace_back(static_cast<Potassco::Atom_t>(lit));
     }
-    Backend::LitVec &bd = out.tempLits();
+    BackendLitVec &bd = data.tempLits();
     for (auto &x : body_) { bd.emplace_back(call(data, x, &Literal::uid)); }
-    out.printHead(choice_, hd);
-    out.printNormalBody(bd);
+    outputRule(out, choice_, hd, bd);
 }
 
 void Rule::replaceDelayed(DomainData &data, LitVec &delayed) {
@@ -198,7 +197,7 @@ void External::translate(DomainData &data, Translator &x) {
 
 void External::output(DomainData &data, Backend &out) const {
     Atom_t head = call(data, head_, &Literal::uid);
-    out.printExternal(head, type_);
+    out.external(head, type_);
 }
 
 void External::replaceDelayed(DomainData &data, LitVec &) {
@@ -255,9 +254,9 @@ void ProjectStatement::translate(DomainData &data, Translator &x) {
 }
 
 void ProjectStatement::output(DomainData &data, Backend &out) const {
-    Backend::AtomVec atoms;
+    BackendAtomVec atoms;
     atoms.emplace_back(call(data, atom_, &Literal::uid));
-    out.printProject(atoms);
+    out.project(Potassco::toSpan(atoms));
 }
 
 void ProjectStatement::replaceDelayed(DomainData &, LitVec &) {
@@ -290,11 +289,11 @@ void HeuristicStatement::translate(DomainData &data, Translator &x) {
 
 void HeuristicStatement::output(DomainData &data, Backend &out) const {
     auto uid = call(data, atom_, &Literal::uid);
-    Backend::LitVec bd;
+    BackendLitVec bd;
     for (auto &lit : body_) {
         bd.emplace_back(call(data, lit, &Literal::uid));
     }
-    out.printHeuristic(mod_, uid, value_, priority_, bd);
+    out.heuristic(uid, mod_, value_, priority_, Potassco::toSpan(bd));
 }
 
 void HeuristicStatement::replaceDelayed(DomainData &data, LitVec &delayed) {
@@ -327,9 +326,9 @@ void EdgeStatement::translate(DomainData &data, Translator &x) {
 }
 
 void EdgeStatement::output(DomainData &data, Backend &out) const {
-    Backend::LitVec bd;
+    BackendLitVec bd;
     for (auto &x : body_) { bd.emplace_back(call(data, x, &Literal::uid)); }
-    out.printEdge(uidU_, uidV_, bd);
+    out.acycEdge(uidU_, uidV_, Potassco::toSpan(bd));
 }
 
 void EdgeStatement::replaceDelayed(DomainData &data, LitVec &delayed) {
@@ -394,7 +393,7 @@ void WeakConstraint::replaceDelayed(DomainData &data, LitVec &delayed) {
 
 // {{{1 definition of Bound
 
-bool Bound::init(DomainData &data, Translator &x) {
+bool Bound::init(DomainData &data, Translator &x, Logger &log) {
     if (modified) {
         modified = false;
         if (range_.empty()) { Rule().translate(data, x); }
@@ -403,7 +402,7 @@ bool Bound::init(DomainData &data, Translator &x) {
                 if      (range_.front()  != std::numeric_limits<int>::min()) { range_.remove(range_.front()+1, std::numeric_limits<int>::max()); }
                 else if (range_.back()+1 != std::numeric_limits<int>::max()) { range_.remove(std::numeric_limits<int>::min(), range_.back()); }
                 else                                                         { range_.clear(), range_.add(0, 1); }
-                GRINGO_REPORT(W_VARIABLE_UNBOUNDED)
+                GRINGO_REPORT(log, clingo_warning_variable_unbounded)
                     << "warning: unbounded constraint variable:\n"
                     << "  domain of '" << var << "' is set to [" << range_.front() << "," << range_.back() << "]\n"
                     ;
@@ -549,26 +548,26 @@ void Translator::addDisjointConstraint(DomainData &data, LiteralId lit) {
 void Translator::addMinimize(TupleId tuple, LiteralId cond) {
     minimize_.emplace_back(tuple, cond);
 }
-void Translator::translate(DomainData &data, OutputPredicates const &outPreds) {
+void Translator::translate(DomainData &data, OutputPredicates const &outPreds, Logger &log) {
     for (auto &x : boundMap_) {
-        if (!x.init(data, *this)) { return; }
+        if (!x.init(data, *this, log)) { return; }
     }
     for (auto &lit : disjointCons_) {
         auto &atm = data.getAtom<DisjointDomain>(lit.domain(), lit.offset());
-        atm.translate(data, *this);
+        atm.translate(data, *this, log);
     }
     for (auto &x : constraints_)  { x.translate(data, *this); }
     disjointCons_.clear();
     constraints_.clear();
     translateMinimize(data);
-    outputSymbols(data, outPreds);
+    outputSymbols(data, outPreds, log);
 }
 
 bool Translator::showBound(OutputPredicates const &outPreds, Bound const &bound) {
     return outPreds.empty() || (bound.var.type() == SymbolType::Fun && showSig(outPreds, bound.var.sig(), true));
 }
 
-void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPreds) {
+void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPreds, Logger &log) {
     { // show csp varibles
         for (auto it = boundMap_.begin() + incBoundOffset_, ie = boundMap_.end(); it != ie; ++it, ++incBoundOffset_) {
             if (it->var.type() == SymbolType::Fun) { seenSigs_.insert(std::hash<uint64_t>(), std::equal_to<uint64_t>(), it->var.sig().rep()); }
@@ -580,7 +579,7 @@ void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPred
         if (!std::get<1>(x).match("", 0, false) && std::get<2>(x)) {
             auto it(seenSigs_.find(std::hash<uint64_t>(), std::equal_to<uint64_t>(), std::get<1>(x).rep()));
             if (!it) {
-                GRINGO_REPORT(W_ATOM_UNDEFINED)
+                GRINGO_REPORT(log, clingo_warning_atom_undefined)
                     << std::get<0>(x) << ": info: no constraint variables over signature occur in program:\n"
                     << "  $" << std::get<1>(x) << "\n";
                 seenSigs_.insert(std::hash<uint64_t>(), std::equal_to<uint64_t>(), std::get<1>(x).rep());
@@ -616,8 +615,8 @@ void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPred
     for (auto &todo : cspOutput_.todo) {
         auto bound = boundMap_.find(todo.term);
         if (bound == boundMap_.end()) {
-            // TODO: W_ATOM_UNDEFINED???
-            GRINGO_REPORT(W_ATOM_UNDEFINED)
+            // TODO: clingo_warning_atom_undefined???
+            GRINGO_REPORT(log, clingo_warning_atom_undefined)
                 << "info: constraint variable does not occur in program:\n"
                 << "  $" << todo.term << "\n";
             continue;
@@ -662,24 +661,24 @@ void Translator::showCsp(Bound const &bound, IsTrueLookup isTrue, SymVec &atoms)
     atoms.emplace_back(Symbol::createFun("$", Potassco::toSpan(SymVec{bound.var, Symbol::createNum(prev)})));
 }
 
-void Translator::atoms(DomainData &data, int atomset, IsTrueLookup isTrue, SymVec &atoms, OutputPredicates const &outPreds) {
-    if (atomset & (Model::CSP | Model::SHOWN)) {
+void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup isTrue, SymVec &atoms, OutputPredicates const &outPreds) {
+    if (atomset & (clingo_show_type_csp | clingo_show_type_shown)) {
         for (auto &x : boundMap_) {
-            if (atomset & Model::CSP || (atomset & Model::SHOWN && showBound(outPreds, x))) { showCsp(x, isTrue, atoms); }
+            if (atomset & clingo_show_type_csp || (atomset & clingo_show_type_shown && showBound(outPreds, x))) { showCsp(x, isTrue, atoms); }
         }
     }
-    if (atomset & (Model::ATOMS | Model::SHOWN)) {
+    if (atomset & (clingo_show_type_atoms | clingo_show_type_shown)) {
         for (auto &x : data.predDoms()) {
             Sig sig = *x;
             auto name = sig.name();
-            if (((atomset & Model::ATOMS || (atomset & Model::SHOWN && showSig(outPreds, sig, false))) && !name.empty() && !name.startsWith("#"))) {
+            if (((atomset & clingo_show_type_atoms || (atomset & clingo_show_type_shown && showSig(outPreds, sig, false))) && !name.empty() && !name.startsWith("#"))) {
                 for (auto &y: *x) {
                     if (y.defined() && y.hasUid() && isTrue(y.uid())) { atoms.emplace_back(y); }
                 }
             }
         }
     }
-    if (atomset & Model::SHOWN) {
+    if (atomset & clingo_show_type_shown) {
         for (auto &entry : cspOutput_.table) {
             auto bound = boundMap_.find(entry.term);
             if (bound != boundMap_.end() && !showBound(outPreds, *bound) && call(data, entry.cond, &Literal::isTrue, isTrue)) {
@@ -687,7 +686,7 @@ void Translator::atoms(DomainData &data, int atomset, IsTrueLookup isTrue, SymVe
             }
         }
     }
-    if (atomset & (Model::TERMS | Model::SHOWN)) {
+    if (atomset & (clingo_show_type_terms | clingo_show_type_shown)) {
         for (auto &entry : termOutput_.table) {
             if (isTrue(call(data, entry.cond, &Literal::uid))) {
                 atoms.emplace_back(entry.term);
@@ -859,12 +858,12 @@ void Symtab::translate(DomainData &data, Translator &x) {
 }
 
 void Symtab::output(DomainData &data, Backend &out) const {
-    Backend::LitVec &bd = out.tempLits();
+    BackendLitVec &bd = data.tempLits();
     for (auto &x : body_) { bd.emplace_back(call(data, x, &Literal::uid)); }
     std::ostringstream oss;
     oss << symbol_;
     if (csp_) { oss << "=" << value_; }
-    out.printOutput(oss.str().c_str(), bd);
+    out.output(Potassco::toSpan(oss.str()), Potassco::toSpan(bd));
 }
 
 void Symtab::replaceDelayed(DomainData &data, LitVec &delayed) {
@@ -900,11 +899,11 @@ void Minimize::print(PrintPlain out, char const *prefix) const {
 }
 
 void Minimize::output(DomainData &data, Backend &x) const {
-    Backend::LitWeightVec &body = x.tempWLits();
+    BackendLitWeightVec &body = data.tempWLits();
     for (auto &y : lits_) {
         body.push_back({call(data, y.first, &Literal::uid), y.second});
     }
-    x.printMinimize(priority_, body);
+    x.minimize(priority_, Potassco::toSpan(body));
 }
 
 void Minimize::replaceDelayed(DomainData &data, LitVec &delayed) {
@@ -949,11 +948,10 @@ void WeightRule::translate(DomainData &data, Translator &x) {
 }
 
 void WeightRule::output(DomainData &data, Backend &out) const {
-    Backend::LitWeightVec lits;
+    BackendLitWeightVec lits;
     for (auto &x : body_) { lits.push_back({call(data, x.first, &Literal::uid), static_cast<Potassco::Weight_t>(x.second)}); }
-    Backend::AtomVec heads({static_cast<Potassco::Atom_t>(call(data, head_, &Literal::uid))});
-    out.printHead(false, heads);
-    out.printWeightBody(lower_, lits);
+    BackendAtomVec heads({static_cast<Potassco::Atom_t>(call(data, head_, &Literal::uid))});
+    outputRule(out, false, heads, lower_, lits);
 }
 
 void WeightRule::replaceDelayed(DomainData &data, LitVec &delayed) {

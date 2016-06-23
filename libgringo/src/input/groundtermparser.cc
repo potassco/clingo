@@ -25,7 +25,8 @@
 namespace Gringo { namespace Input {
 
 GroundTermParser::GroundTermParser() { }
-Symbol GroundTermParser::parse(std::string const &str) {
+Symbol GroundTermParser::parse(std::string const &str, Logger &log) {
+    log_ = &log;
     undefined_ = false;
     while (!empty()) { pop(); }
     push(gringo_make_unique<std::stringstream>(str), 0);
@@ -82,23 +83,23 @@ SymVec GroundTermParser::terms(unsigned uid) {
     return terms_.erase(uid);
 }
 
-void GroundTermParser::parseError(std::string const &message) {
+void GroundTermParser::parseError(std::string const &message, Logger &) {
     Location loc("<string>", line(), column(), "<string>", line(), column());
-    GRINGO_REPORT(W_OPERATION_UNDEFINED)
-        << loc << ": " << "error: " << message << "\n";
-    throw std::runtime_error("term parsing failed");
+    std::ostringstream oss;
+    oss << loc << ": " << "error: " << message << "\n";
+    throw GringoError(oss.str().c_str());
 }
 
-void GroundTermParser::lexerError(StringSpan token) {
+void GroundTermParser::lexerError(StringSpan token, Logger &) {
     Location loc("<string>", line(), column(), "<string>", line(), column());
-    GRINGO_REPORT(W_OPERATION_UNDEFINED)
-        << loc << ": " << "error: unexpected token:\n"
+    std::ostringstream oss;
+    oss << loc << ": " << "error: unexpected token:\n"
         << std::string(token.first, token.size) << "\n";
-    throw std::runtime_error("term parsing failed");
+    throw GringoError(oss.str().c_str());
 }
 
-int GroundTermParser::lex(void *pValue) {
-    return lex_impl(pValue);
+int GroundTermParser::lex(void *pValue, Logger &log) {
+    return lex_impl(pValue, log);
 }
 
 GroundTermParser::~GroundTermParser() { }

@@ -22,7 +22,6 @@
 
 #include "tests/tests.hh"
 #include "gringo/lua.hh"
-#include "gringo_module.hh"
 
 namespace Gringo { namespace Test {
 
@@ -53,104 +52,108 @@ using S = std::string;
 
 } // namespace
 
-TEST_CASE("lua", "[base]") {
-
+TEST_CASE("lua", "[base][lua]") {
+    TestGringoModule module;
+    SymSpan const empty{nullptr, 0};
     SECTION("parse") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);
-        Lua lua(getTestModule());
+        Lua lua(module);
         lua.exec(loc,
             "clingo = require(\"clingo\")\n"
             "function get() return clingo.parse_term('1') end\n"
             );
-        REQUIRE("[1]" == to_string(lua.call(loc, "get", {})));
+        REQUIRE("[1]" == to_string(lua.call(loc, "get", empty, module)));
         lua.exec(loc,
             "clingo = require(\"clingo\")\n"
             "function get() return clingo.parse_term('p(2+1)') end\n"
             );
-        REQUIRE("[p(3)]" == to_string(lua.call(loc, "get", {})));
+        REQUIRE("[p(3)]" == to_string(lua.call(loc, "get", empty, module)));
     }
 
     SECTION("values") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);
-        Lua lua(Gringo::Test::getTestModule());
+        Lua lua(module);
         lua.exec(loc,
             "clingo = require(\"clingo\")\n"
-            "x = clingo.fun(\"f\", {2, 3, 4})\n"
-            "y = clingo.fun(\"f\", {2, 3, 4}, true)\n"
+            "x = clingo.Function(\"f\", {2, 3, 4})\n"
+            "y = clingo.Function(\"f\", {2, 3, 4}, false)\n"
             "function getX() return x end\n"
-            "function fail() return clingo.fun(\"g\", {{}}) end\n"
+            "function fail() return clingo.Function(\"g\", {{}}) end\n"
             "function none() return nil end\n"
             "values = {"
-            "clingo.fun(\"f\",{1, 2, 3}),"
+            "clingo.Function(\"f\",{1, 2, 3}),"
             "clingo.Sup,"
             "clingo.Inf,"
-            "clingo.fun(\"id\"),"
-            "clingo.tuple({clingo.number(1), 2, 3}),"
+            "clingo.Function(\"id\"),"
+            "clingo.Tuple({clingo.Number(1), 2, 3}),"
             "123,"
-            "clingo.str(\"abc\"),"
+            "clingo.String(\"abc\"),"
             "\"x\","
-            "clingo.tuple(x.args),"
+            "clingo.Tuple(x.args),"
             "x.name,"
-            "tostring(x.sign),"
-            "tostring(y.sign),"
+            "tostring(x.negative),"
+            "tostring(y.negative),"
             "x,"
             "y,"
             "}\n"
             "function getValues() return values end\n"
             );
-        REQUIRE("[f(2,3,4)]" == to_string(lua.call(loc, "getX", {})));
-        REQUIRE("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",\"x\",(2,3,4),\"f\",\"false\",\"true\",f(2,3,4),-f(2,3,4)]" == to_string(lua.call(loc, "getValues", {})));
+        REQUIRE("[f(2,3,4)]" == to_string(lua.call(loc, "getX", empty, module)));
+        REQUIRE("[f(1,2,3),#sup,#inf,id,(1,2,3),123,\"abc\",\"x\",(2,3,4),\"f\",\"false\",\"true\",f(2,3,4),-f(2,3,4)]" == to_string(lua.call(loc, "getValues", empty, module)));
         {
-            Gringo::Test::Messages msg;
-            REQUIRE("[]" == to_string(lua.call(loc, "none", {})));
+            REQUIRE("[]" == to_string(lua.call(loc, "none", empty, module)));
             REQUIRE(
                 "["
                 "dummy:1:1: info: operation undefined:\n"
                 "  RuntimeError: cannot convert to value\n"
                 "stack traceback:\n"
                 "  ...\n"
-                "]" == removeTrace(IO::to_string(msg)));
+                "]" == removeTrace(IO::to_string(module)));
         }
         {
-            Gringo::Test::Messages msg;
-            REQUIRE("[]" == to_string(lua.call(loc, "fail", {})));
+            module.reset();
+            REQUIRE("[]" == to_string(lua.call(loc, "fail", empty, module)));
             REQUIRE(
                 "["
                 "dummy:1:1: info: operation undefined:\n"
                 "  RuntimeError: [string \"dummy:1:1\"]:5: cannot convert to value\n"
                 "stack traceback:\n"
                 "  ...\n"
-                "]" == removeTrace(IO::to_string(msg)));
+                "]" == removeTrace(IO::to_string(module)));
         }
         {
-            Gringo::Test::Messages msg;
-            REQUIRE_THROWS_AS(lua.exec(loc, "("), std::runtime_error);
-            REQUIRE(
-                "["
-                "dummy:1:1: error: parsing lua script failed:\n"
-                "  SyntaxError: [string \"dummy:1:1\"]:1: unexpected symbol near <eof>\n"
-                "]" == replace_all(IO::to_string(msg), "'<eof>'", "<eof>"));
+            module.reset();
+            try {
+                lua.exec(loc, "(");
+                FAIL("no exception");
+            }
+            catch (GringoError const &e) {
+                REQUIRE(
+                    "dummy:1:1: error: parsing lua script failed:\n"
+                    "  SyntaxError: [string \"dummy:1:1\"]:1: unexpected symbol near <eof>\n"
+                    "" == replace_all(e.what(), "'<eof>'", "<eof>"));
+            }
         }
     }
 
     SECTION("cmp") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);
-        Lua lua(Gringo::Test::getTestModule());
+        Lua lua(module);
         lua.exec(loc,
             "clingo = require(\"clingo\")\n"
             "function int(x) if x then return 1 else return 0 end end\n"
             "function cmp()\n"
             "  return {"
-            "int(clingo.fun(\"a\") < clingo.fun(\"b\")),"
-            "int(clingo.fun(\"b\") < clingo.fun(\"a\")),"
+            "int(clingo.Function(\"a\") < clingo.Function(\"b\")),"
+            "int(clingo.Function(\"b\") < clingo.Function(\"a\")),"
             "} end\n"
             );
-        REQUIRE("[1,0]" == to_string(lua.call(loc, "cmp", {})));
+        REQUIRE("[1,0]" == to_string(lua.call(loc, "cmp", empty, module)));
     }
 
     SECTION("callable") {
         Location loc("dummy", 1, 1, "dummy", 1, 1);
-        Lua lua(Gringo::Test::getTestModule());
+        Lua lua(module);
         lua.exec(loc,
             "function a() end\n"
             "b = 1\n"

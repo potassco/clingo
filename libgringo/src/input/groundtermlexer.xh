@@ -35,7 +35,7 @@
     WSNL       = [\t\r\n ]*;
 */
 
-int Gringo::Input::GroundTermParser::lex_impl(void *pValue) {
+int Gringo::Input::GroundTermParser::lex_impl(void *pValue, Logger &log) {
 start:
     start();
     auto &value = *static_cast<Gringo::Input::GroundTermGrammar::parser::semantic_type*>(pValue);
@@ -63,7 +63,7 @@ start:
         "?"              { return GroundTermGrammar::parser::token::QUESTION; }
         ","              { return GroundTermGrammar::parser::token::COMMA; }
         "|"              { return GroundTermGrammar::parser::token::VBAR; }
-        ANY              { lexerError(string()); goto start; }
+        ANY              { lexerError(string(), log); goto start; }
     */
     assert(false);
     return 0;

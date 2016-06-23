@@ -28,25 +28,26 @@
 #include "gringo/output/output.hh"
 #include "gringo/scripts.hh"
 
-#include "tests/gringo_module.hh"
+#include "tests/tests.hh"
 
 #include <regex>
 
 namespace Gringo { namespace Ground { namespace Test {
 
 inline void ground(std::string const &str, Output::OutputFormat fmt, std::ostream &ss) {
+    Gringo::Test::TestGringoModule module;
     Potassco::TheoryData td;
     Output::OutputBase out(td, {}, ss, fmt);
     Input::Program prg;
     Defines defs;
-    Scripts scripts(Gringo::Test::getTestModule());
+    Scripts scripts(module);
     Input::NongroundProgramBuilder pb{ scripts, prg, out, defs };
     Input::NonGroundParser ngp{ pb };
-    ngp.pushStream("-", gringo_make_unique<std::stringstream>(str));
-    ngp.parse();
-    prg.rewrite(defs);
-    Ground::Program gPrg(prg.toGround(out.data));
-    gPrg.ground(scripts, out);
+    ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module.logger);
+    ngp.parse(module.logger);
+    prg.rewrite(defs, module.logger);
+    Ground::Program gPrg(prg.toGround(out.data, module.logger));
+    gPrg.ground(scripts, out, module.logger);
 }
 
 inline std::string groundText(std::string const &str, std::initializer_list<std::string> filter = {""}) {

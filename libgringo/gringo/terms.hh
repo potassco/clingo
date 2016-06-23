@@ -25,6 +25,7 @@
 #include <gringo/term.hh>
 #include <gringo/hash_set.hh>
 #include <potassco/theory_data.h>
+#include <gringo/logger.hh>
 #include <functional>
 
 namespace Gringo {
@@ -79,7 +80,7 @@ public:
     TheoryTermDef(TheoryTermDef &&);
     ~TheoryTermDef() noexcept;
     TheoryTermDef &operator=(TheoryTermDef &&);
-    void addOpDef(TheoryOpDef &&def);
+    void addOpDef(TheoryOpDef &&def, Logger &log);
     String name() const;
     Location const &loc() const;
     void print(std::ostream &out) const;
@@ -145,8 +146,8 @@ public:
     ~TheoryDef() noexcept;
     TheoryDef &operator=(TheoryDef &&);
     String name() const;
-    void addAtomDef(TheoryAtomDef &&def);
-    void addTermDef(TheoryTermDef &&def);
+    void addAtomDef(TheoryAtomDef &&def, Logger &log);
+    void addTermDef(TheoryTermDef &&def, Logger &log);
     TheoryAtomDef const *getAtomDef(Sig name) const;
     TheoryTermDef const *getTermDef(String name) const;
     TheoryAtomDefs const &atomDefs() const;
@@ -175,7 +176,7 @@ struct CSPMulTerm {
     void collect(VarTermSet &vars) const;
     void replace(Defines &x);
     bool operator==(CSPMulTerm const &x) const;
-    bool simplify(SimplifyState &state);
+    bool simplify(SimplifyState &state, Logger &log);
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
     size_t hash() const;
     bool hasPool() const;
@@ -206,7 +207,7 @@ struct CSPAddTerm {
     CSPAddTerm(Terms &&terms);
     CSPAddTerm &operator=(CSPAddTerm &&x);
     void append(CSPMulTerm &&x);
-    bool simplify(SimplifyState &state);
+    bool simplify(SimplifyState &state, Logger &log);
     void collect(VarTermBoundVec &vars) const;
     void collect(VarTermSet &vars) const;
     void replace(Defines &x);
@@ -215,8 +216,8 @@ struct CSPAddTerm {
     std::vector<CSPAddTerm> unpool() const;
     size_t hash() const;
     bool hasPool() const;
-    void toGround(CSPGroundLit &ground, bool invert) const;
-    bool checkEval() const;
+    void toGround(CSPGroundLit &ground, bool invert, Logger &log) const;
+    bool checkEval(Logger &log) const;
     ~CSPAddTerm();
 
     Terms terms;
@@ -239,7 +240,7 @@ struct CSPRelTerm {
     void collect(VarTermSet &vars) const;
     void replace(Defines &x);
     bool operator==(CSPRelTerm const &x) const;
-    bool simplify(SimplifyState &state);
+    bool simplify(SimplifyState &state, Logger &log);
     void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
     size_t hash() const;
     bool hasPool() const;

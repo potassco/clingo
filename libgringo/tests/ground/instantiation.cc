@@ -25,7 +25,6 @@
 #include "gringo/scripts.hh"
 
 #include "tests/tests.hh"
-#include "tests/gringo_module.hh"
 
 #include <regex>
 
@@ -45,14 +44,15 @@ std::string ground(std::string const &str, std::initializer_list<std::string> fi
     Output::OutputBase out(td, {}, ss, Output::OutputFormat::TEXT);
     Input::Program prg;
     Defines defs;
-    Scripts scripts(Gringo::Test::getTestModule());
+    Gringo::Test::TestGringoModule module;
+    Scripts scripts(module);
     Input::NongroundProgramBuilder pb{ scripts, prg, out, defs };
     Input::NonGroundParser ngp{ pb };
-    ngp.pushStream("-", gringo_make_unique<std::stringstream>(str));
-    ngp.parse();
-    prg.rewrite(defs);
-    Program gPrg(prg.toGround(out.data));
-    gPrg.ground(scripts, out);
+    ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module);
+    ngp.parse(module);
+    prg.rewrite(defs, module);
+    Program gPrg(prg.toGround(out.data, module));
+    gPrg.ground(scripts, out, module);
 
     std::string line;
     std::vector<std::string> res;
@@ -89,6 +89,7 @@ std::string ground(std::string const &str, std::initializer_list<std::string> fi
     std::stringstream oss;
     std::sort(res.begin(), res.end());
     for (auto &x : res) { oss << x << "\n"; }
+    for (auto &x : module.messages()) { oss << x; }
     return oss.str();
 }
 
@@ -222,8 +223,6 @@ std::string strategicB1() {
 }
 
 TEST_CASE("ground-instantiation", "[ground]") {
-    Gringo::Test::Messages msg;
-
     SECTION("instantiateRec") {
         REQUIRE(
             "a(0).\n"
@@ -366,13 +365,14 @@ TEST_CASE("ground-instantiation", "[ground]") {
     }
 
     SECTION("min_fail") {
-        Gringo::Test::Messages msg;
         REQUIRE(
             "c.\n"
             "p(1):-not r(1).\n"
             "p(2):-not r(2).\n"
             "r(1):-not p(1).\n"
-            "r(2):-not p(2).\n" == ground(
+            "r(2):-not p(2).\n"
+            "-:27:42-43: info: atom does not occur in any rule head:\n  b\n"
+            == ground(
                 "p(X) :- not r(X), X=1..2.\n"
                 "r(X) :- not p(X), X=1..2.\n"
                 "c.\n"
@@ -401,11 +401,9 @@ TEST_CASE("ground-instantiation", "[ground]") {
                 "fmin(13) :- not not    3 #min {2:p(1); 1:r(1); 1,c:c} 3.\n"
                 "fmin(14) :- not          #min {2:p(1); 3:b;    1:c} 1.\n"
                 ));
-        REQUIRE("[-:27:42-43: info: atom does not occur in any rule head:\n  b\n]" == IO::to_string(msg));
     }
 
     SECTION("min_true") {
-        Gringo::Test::Messages msg;
         REQUIRE(
             "c.\n"
             "p(1):-not r(1).\n"
@@ -417,7 +415,10 @@ TEST_CASE("ground-instantiation", "[ground]") {
             "tmin(17).\n" "tmin(18).\n" "tmin(19).\n" "tmin(2).\n"
             "tmin(20).\n" "tmin(21).\n" "tmin(22).\n" "tmin(23).\n"
             "tmin(24).\n" "tmin(3).\n"  "tmin(4).\n"  "tmin(5).\n"
-            "tmin(6).\n"  "tmin(7).\n"  "tmin(8).\n"  "tmin(9).\n" == ground(
+            "tmin(6).\n"  "tmin(7).\n"  "tmin(8).\n"  "tmin(9).\n"
+            "-:26:39-40: info: atom does not occur in any rule head:\n  b\n"
+            "-:27:39-40: info: atom does not occur in any rule head:\n  b\n"
+            == ground(
                 "p(X) :- not r(X), X=1..2.\n"
                 "r(X) :- not p(X), X=1..2.\n"
                 "c.\n"
@@ -444,13 +445,12 @@ TEST_CASE("ground-instantiation", "[ground]") {
                 "tmin(21) :- not not 1 #max {2:p(1); 1:r(1); 3:c}.\n"
                 "tmin(22) :- not     3 #min {2:p(1); 1:r(1); 1,c:c} 3.\n"
                 "tmin(23) :-           #min {2:p(1); 3:b;    1:c} 1.\n"
-                "tmin(24) :- not not   #min {2:p(1); 3:b;    1:c} 1.\n"));
-        REQUIRE("[-:26:39-40: info: atom does not occur in any rule head:\n  b\n,-:27:39-40: info: atom does not occur in any rule head:\n  b\n]" == IO::to_string(msg));
+                "tmin(24) :- not not   #min {2:p(1); 3:b;    1:c} 1.\n"
+                ));
     }
 
     SECTION("min_open") {
         REQUIRE(
-
                 "c.\n"
                 "mfmin(10):-3<=#min{2:p(1);1:r(1)}<=3.\n"
                 "mfmin(5):-0<=#max{2:p(1);1:r(1)}<=0.\n"
@@ -521,7 +521,6 @@ TEST_CASE("ground-instantiation", "[ground]") {
     }
 
     SECTION("assign_sump") {
-        Gringo::Test::Messages msg;
         REQUIRE(
             "p(-1).\n"
             "p(-2).\n"
@@ -531,7 +530,11 @@ TEST_CASE("ground-instantiation", "[ground]") {
             "p(2).\n"
             "p(3).\n"
             "p(4).\n"
-            "s(10).\n" == ground(
+            "s(10).\n"
+            "-:2:19-20: info: tuple ignored:\n  -3\n"
+            "-:2:19-20: info: tuple ignored:\n  -2\n"
+            "-:2:19-20: info: tuple ignored:\n  -1\n"
+            == ground(
                 "p(X) :- X=-3..4.\n"
                 "s(S) :- S=#sum+ { X:p(X) }.\n"
                 ));
@@ -682,7 +685,6 @@ TEST_CASE("ground-instantiation", "[ground]") {
     }
 
     SECTION("rec_count2") {
-        Gringo::Test::Messages msg;
         REQUIRE("a:-1!=#count{0,a:a}.\n" == ground("a:-{a}!=1.\n"));
     }
 
@@ -1060,7 +1062,6 @@ TEST_CASE("ground-instantiation", "[ground]") {
             "{p(4)}.\n" == ground(
                 "{p((1..4))}."
                 "#maximize{X@0:p(X)}."));
-        Gringo::Test::Messages msg;
         REQUIRE(
             ":~.[1@1]\n"
             ":~p(1),p(1).[1@1,f,g]\n"
@@ -1078,10 +1079,11 @@ TEST_CASE("ground-instantiation", "[ground]") {
             "{p(1)}.\n"
             "{p(2)}.\n"
             "{p(3)}.\n"
-            "{p(4)}.\n" == ground(
+            "{p(4)}.\n"
+            "-:1:41-42: info: tuple ignored:\n  f@f\n"
+            == ground(
                 "{p((1..4))}."
                 "#minimize{X:p(X); X@2:p(X); f@f; 1@1; X@X,f,g:p(X),p(X)}."));
-        REQUIRE("[-:1:41-42: info: tuple ignored:\n  f@f\n]" == IO::to_string(msg));
     }
 
     SECTION("neg") {

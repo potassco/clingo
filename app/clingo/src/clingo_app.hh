@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Benjamin Kaufmann
@@ -35,26 +35,26 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     enum class ConfigUpdate { KEEP, REPLACE };
 public:
     ClingoApp();
-    const char* getName()       const { return "clingo"; }
-    const char* getVersion()    const { return GRINGO_VERSION; }
-    const char* getUsage()      const { return "[number] [options] [files]"; }
+    const char* getName()    const override { return "clingo"; }
+    const char* getVersion() const override { return GRINGO_VERSION; }
+    const char* getUsage()   const override { return "[number] [options] [files]"; }
 
-    virtual void shutdown();
+    void shutdown() override;
 protected:
     enum Mode { mode_clingo = 0, mode_clasp = 1, mode_gringo = 2 };
-    virtual void        initOptions(ProgramOptions::OptionContext& root);
-    virtual void        validateOptions(const ProgramOptions::OptionContext& root, const ProgramOptions::ParsedOptions& parsed, const ProgramOptions::ParsedValues& vals);
+    void        initOptions(ProgramOptions::OptionContext& root) override;
+    void        validateOptions(const ProgramOptions::OptionContext& root, const ProgramOptions::ParsedOptions& parsed, const ProgramOptions::ParsedValues& vals) override;
 
-    virtual ProblemType getProblemType();
-    virtual void        run(Clasp::ClaspFacade& clasp);
-    virtual Output*     createOutput(ProblemType f);
-    virtual void        printHelp(const ProgramOptions::OptionContext& root);
-    virtual void        printVersion();
+    ProblemType getProblemType() override;
+    void        run(Clasp::ClaspFacade& clasp) override;
+    Output*     createOutput(ProblemType f) override;
+    void        printHelp(const ProgramOptions::OptionContext& root) override;
+    void        printVersion() override;
 
     // -------------------------------------------------------------------------------------------
     // Event handler
-    virtual void onEvent(const Clasp::Event& ev);
-    virtual bool onModel(const Clasp::Solver& s, const Clasp::Model& m);
+    void onEvent(const Clasp::Event& ev) override;
+    bool onModel(const Clasp::Solver& s, const Clasp::Model& m) override;
     // -------------------------------------------------------------------------------------------
 private:
     ClingoApp(const ClingoApp&);

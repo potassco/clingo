@@ -42,7 +42,7 @@ using namespace Gringo;
 using namespace Gringo::Input;
 
 int GringoGroundTermGrammar_lex(void *value, void *, GroundTermParser *lexer) {
-    return lexer->lex(value);
+    return lexer->lex(value, lexer->logger());
 }
 
 %}
@@ -50,17 +50,17 @@ int GringoGroundTermGrammar_lex(void *value, void *, GroundTermParser *lexer) {
 %code {
 
 void GroundTermGrammar::parser::error(GroundTermGrammar::parser::location_type const &, std::string const &msg) {
-    lexer->parseError(msg);
+    lexer->parseError(msg, lexer->logger());
 }
 
 }
 
 // {{{1 nonterminals
 %union {
-    char const *  str;
-    int           num;
-    unsigned      uid;
-    clingo_symbol value;
+    char const *    str;
+    int             num;
+    unsigned        uid;
+    clingo_symbol_t value;
 }
 
 // {{{1 terminals
@@ -110,36 +110,36 @@ void GroundTermGrammar::parser::error(GroundTermGrammar::parser::location_type c
 
 // {{{1 the parser
 
-start : term[r] { lexer->value = $r; };
+start : term[r] { lexer->value = Symbol($r); };
 
 term
-    : term[a] XOR term[b]                     { $$ = lexer->term(BinOp::XOR, $a, $b); }
-    | term[a] QUESTION term[b]                { $$ = lexer->term(BinOp::OR, $a, $b); }
-    | term[a] AND term[b]                     { $$ = lexer->term(BinOp::AND, $a, $b); }
-    | term[a] ADD term[b]                     { $$ = lexer->term(BinOp::ADD, $a, $b); }
-    | term[a] SUB term[b]                     { $$ = lexer->term(BinOp::SUB, $a, $b); }
-    | term[a] MUL term[b]                     { $$ = lexer->term(BinOp::MUL, $a, $b); }
-    | term[a] SLASH term[b]                   { $$ = lexer->term(BinOp::DIV, $a, $b); }
-    | term[a] MOD term[b]                     { $$ = lexer->term(BinOp::MOD, $a, $b); }
-    | term[a] POW term[b]                     { $$ = lexer->term(BinOp::POW, $a, $b); }
-    | SUB term[a] %prec UMINUS                { $$ = lexer->term(UnOp::NEG, $a); }
-    | BNOT term[a] %prec UBNOT                { $$ = lexer->term(UnOp::NOT, $a); }
-    | LPAREN RPAREN                           { $$ = Symbol::createTuple(Potassco::toSpan<Symbol>()); }
-    | LPAREN COMMA RPAREN                     { $$ = Symbol::createTuple(Potassco::toSpan<Symbol>()); }
-    | LPAREN nterms[a] RPAREN                 { $$ = lexer->tuple($a, false); }
-    | LPAREN nterms[a] COMMA RPAREN           { $$ = lexer->tuple($a, true); }
-    | IDENTIFIER[a] LPAREN terms[b] RPAREN    { $$ = Symbol::createFun($a, Potassco::toSpan(lexer->terms($b))); }
-    | VBAR term[a] VBAR                       { $$ = lexer->term(UnOp::ABS, $a); }
-    | IDENTIFIER[a]                           { $$ = Symbol::createId($a); }
-    | NUMBER[a]                               { $$ = Symbol::createNum($a); }
-    | STRING[a]                               { $$ = Symbol::createStr($a); }
-    | INFIMUM[a]                              { $$ = Symbol::createInf(); }
-    | SUPREMUM[a]                             { $$ = Symbol::createSup(); }
+    : term[a] XOR term[b]                     { $$ = lexer->term(BinOp::XOR, Symbol($a), Symbol($b)).rep(); }
+    | term[a] QUESTION term[b]                { $$ = lexer->term(BinOp::OR,  Symbol($a), Symbol($b)).rep(); }
+    | term[a] AND term[b]                     { $$ = lexer->term(BinOp::AND, Symbol($a), Symbol($b)).rep(); }
+    | term[a] ADD term[b]                     { $$ = lexer->term(BinOp::ADD, Symbol($a), Symbol($b)).rep(); }
+    | term[a] SUB term[b]                     { $$ = lexer->term(BinOp::SUB, Symbol($a), Symbol($b)).rep(); }
+    | term[a] MUL term[b]                     { $$ = lexer->term(BinOp::MUL, Symbol($a), Symbol($b)).rep(); }
+    | term[a] SLASH term[b]                   { $$ = lexer->term(BinOp::DIV, Symbol($a), Symbol($b)).rep(); }
+    | term[a] MOD term[b]                     { $$ = lexer->term(BinOp::MOD, Symbol($a), Symbol($b)).rep(); }
+    | term[a] POW term[b]                     { $$ = lexer->term(BinOp::POW, Symbol($a), Symbol($b)).rep(); }
+    | SUB term[a] %prec UMINUS                { $$ = lexer->term(UnOp::NEG, Symbol($a)).rep(); }
+    | BNOT term[a] %prec UBNOT                { $$ = lexer->term(UnOp::NOT, Symbol($a)).rep(); }
+    | LPAREN RPAREN                           { $$ = Symbol::createTuple(Potassco::toSpan<Symbol>()).rep(); }
+    | LPAREN COMMA RPAREN                     { $$ = Symbol::createTuple(Potassco::toSpan<Symbol>()).rep(); }
+    | LPAREN nterms[a] RPAREN                 { $$ = lexer->tuple($a, false).rep(); }
+    | LPAREN nterms[a] COMMA RPAREN           { $$ = lexer->tuple($a, true).rep(); }
+    | IDENTIFIER[a] LPAREN terms[b] RPAREN    { $$ = Symbol::createFun($a, Potassco::toSpan(lexer->terms($b))).rep(); }
+    | VBAR term[a] VBAR                       { $$ = lexer->term(UnOp::ABS, Symbol($a)).rep(); }
+    | IDENTIFIER[a]                           { $$ = Symbol::createId($a).rep(); }
+    | NUMBER[a]                               { $$ = Symbol::createNum($a).rep(); }
+    | STRING[a]                               { $$ = Symbol::createStr($a).rep(); }
+    | INFIMUM[a]                              { $$ = Symbol::createInf().rep(); }
+    | SUPREMUM[a]                             { $$ = Symbol::createSup().rep(); }
     ;
 
 nterms
-    : term[a]                 { $$ = lexer->terms(lexer->terms(), $a);  }
-    | nterms[a] COMMA term[b] { $$ = lexer->terms($a, $b);  }
+    : term[a]                 { $$ = lexer->terms(lexer->terms(), Symbol($a));  }
+    | nterms[a] COMMA term[b] { $$ = lexer->terms($a, Symbol($b));  }
     ;
 
 terms

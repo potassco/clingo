@@ -1,5 +1,7 @@
 #script (python)
 
+import clingo
+
 def resize(l, n, d = None):
     while len(l) < n:
         l.append(d)
@@ -15,7 +17,7 @@ class Propagator:
             resize(self.pat, pat_len)
             resize(self.seq_active, seq_len, True)
 
-    def __init__(self, trace):
+    def __init__(self, trace=False):
         self.__seq_atoms = []     # [(sequence literal, [item index])]
         self.__pat_atoms = dict() # {pattern literal: [(pattern index, item index)]}
         self.__occ_list = []      # [[sequence index]]
@@ -37,20 +39,20 @@ class Propagator:
     def __add_seq_atom(self, init, sid, atom):
         resize(self.__seq_atoms, sid + 1)
         assert(self.__seq_atoms[sid] is None)
-        self.__seq_atoms[sid] = (init.map_literal(atom.literal()), [])
-        for elem in atom.elements():
-            index, item = elem.terms()
-            index = index.number()
+        self.__seq_atoms[sid] = (init.solver_literal(atom.literal), [])
+        for elem in atom.elements:
+            index, item = elem.terms
+            index = index.number
             assert(index >= 0)
             item = self.__map_item(str(item))
             resize(self.__seq_atoms[sid][1], index + 1);
             self.__seq_atoms[sid][1][index] = item
 
     def __add_pat_atoms(self, init, atom):
-        for elem in atom.elements():
-            lit = init.map_literal(elem.condition_literal())
-            index, item = elem.terms()
-            index = index.number()
+        for elem in atom.elements:
+            lit = init.solver_literal(elem.condition_literal)
+            index, item = elem.terms
+            index = index.number
             assert(index >= 0)
             item = self.__map_item(str(item))
             pat = (index, item)
@@ -70,12 +72,12 @@ class Propagator:
             sid += 1
 
     def init(self, init):
-        for atom in init.theory_iter():
-            term = atom.term()
-            args = term.args()
-            if term.name() == "seq" and len(args) == 1:
-                self.__add_seq_atom(init, args[0].number(), atom)
-            if term.name() == "pat" and len(args) == 0:
+        for atom in init.theory_atoms:
+            term = atom.term
+            args = term.args
+            if term.name == "seq" and len(args) == 1:
+                self.__add_seq_atom(init, args[0].number, atom)
+            if term.name == "pat" and len(args) == 0:
                 self.__add_pat_atoms(init, atom)
         self.__init_occ_list()
 
@@ -102,12 +104,12 @@ class Propagator:
 
     # {{{1 Propagation
 
-    def __propagate_sequence_lit(self, state, control, assign, sid, lit):
+    def __propagate_sequence_lit(self, state, control, sid, lit):
         if self.__trace:
             print "      implication:", self.__str_pat(state), "=>", ("" if lit == self.__seq_atoms[sid][0] else "-") + self.__str_seq(sid)
         state.seq_active[sid] = None
         state.stack.append(-sid-1)
-        if not assign.is_true(lit):
+        if not control.assignment.is_true(lit):
             klaus = [lit]
             for pat in state.pat:
                 if pat is not None:
@@ -115,25 +117,25 @@ class Propagator:
             return control.add_clause(klaus) and control.propagate()
         return True
 
-    def __propagate_sequence(self, state, control, assign, sid, lit, items):
+    def __propagate_sequence(self, state, control, sid, lit, items):
         if self.__trace:
             print "    propagate sequence:", self.__str_items(items)
-        if state.pat_assigned < self.__pat_len and assign.is_false(lit):
+        if state.pat_assigned < self.__pat_len and control.assignment.is_false(lit):
             return True
         iid = 0
         for pat in state.pat:
             while True:
                 if iid == len(items):
-                    return self.__propagate_sequence_lit(state, control, assign, sid, -lit)
+                    return self.__propagate_sequence_lit(state, control, sid, -lit)
                 iid+= 1
                 if pat is None or items[iid-1] == pat[1]:
                     break
-        return state.pat_assigned < self.__pat_len or self.__propagate_sequence_lit(state, control, assign, sid, lit)
+        return state.pat_assigned < self.__pat_len or self.__propagate_sequence_lit(state, control, sid, lit)
 
-    def propagate(self, control, assign, changes):
-        state = self.__state(control.id())
-        if len(state.trail) == 0 or state.trail[-1][0] < assign.decision_level():
-            state.trail.append((assign.decision_level(), len(state.stack)))
+    def propagate(self, control, changes):
+        state = self.__state(control.thread_id)
+        if len(state.trail) == 0 or state.trail[-1][0] < control.assignment.decision_level:
+            state.trail.append((control.assignment.decision_level, len(state.stack)))
         if self.__trace:
             print "propagate " + str(len(changes)) + " atoms"
         for lit in changes:
@@ -141,8 +143,9 @@ class Propagator:
                 if state.pat[pat[0]] is not None:
                     # this case should not occur if the pattern is generated properly
                     old = state.pat[pat[0]][0]
-                    assert(assign.is_true(old))
-                    return control.add_clause([-lit, -old]) and control.propagate()
+                    assert(control.assignment.is_true(old))
+                    control.add_clause([-lit, -old]) and control.propagate()
+                    return
                 else:
                     state.stack.append(pat[0])
                     state.pat_assigned+= 1
@@ -150,13 +153,11 @@ class Propagator:
                     if self.__trace:
                         print "  propagate index", str(pat[0]), "in", self.__str_pat(state)
                     for sid in self.__occ_list[pat[1]]:
-                        if state.seq_active[sid] and not self.__propagate_sequence(state, control, assign, sid, *self.__seq_atoms[sid]):
-                            return False
+                        if state.seq_active[sid] and not self.__propagate_sequence(state, control, sid, *self.__seq_atoms[sid]):
+                            return
 
-        return True
-
-    def undo(self, solver_id, undo):
-        state = self.__state(solver_id)
+    def undo(self, thread_id, assign, undo):
+        state = self.__state(thread_id)
         sid = state.trail[-1][1]
         for psid in state.stack[sid:]:
             if psid >= 0:
@@ -169,14 +170,37 @@ class Propagator:
         if self.__trace:
             print "undoing", len(undo), "literals:", self.__str_pat(state)
 
-    def model(self, control, assign):
-        return True
-
     # }}}1
 
 def main(prg):
     prg.register_propagator(Propagator(bool(prg.get_const("trace"))))
     prg.ground([("base", [])])
+    # :- not sup(U), seq(U,_,_), n == 0.
+    if prg.get_const("n").number == 0:
+        grouped = {}
+        for atom in prg.symbolic_atoms.by_signature("seq", 3):
+            grouped.setdefault(atom.symbol.args[0], []).append(atom.literal)
+        for key, value in sorted(grouped.items()):
+            a = prg.backend.add_atom()
+            for l in value:
+                prg.backend.add_rule([a], [l])
+            prg.backend.add_rule([], [-prg.symbolic_atoms[clingo.function("sup", [key])].literal, a])
+    # :- sup(U), pat(_,I), not seq(U,_,I).
+    grouped_pat, grouped_seq = {}, set()
+    for atom in prg.symbolic_atoms.by_signature("pat", 2):
+        grouped_pat.setdefault(atom.symbol.args[1], []).append(atom.literal)
+    for atom in prg.symbolic_atoms.by_signature("seq", 3):
+        grouped_seq.add((atom.symbol.args[0], atom.symbol.args[2]))
+    projected_pat, projected_seq = {}, {}
+    for key, value in sorted(grouped_pat.items()):
+        a = prg.backend.add_atom()
+        for l in value:
+            prg.backend.add_rule([a], [l])
+        projected_pat[key] = a
+    for atom in prg.symbolic_atoms.by_signature("sup", 1):
+        for key, lit in sorted(projected_pat.items()):
+            if (atom.symbol.args[0], key) not in grouped_seq:
+                prg.backend.add_rule([], [atom.literal, lit])
     prg.solve()
 
 #end.
@@ -196,10 +220,4 @@ def main(prg):
 &pat { P,I : pat(P,I) }.
 sup(U) :- &seq(U) { P,I : seq(U,P,I) }, seq(U,_,_).
 
-% Note: these rules should be generated by the python script
-% this needs an additional low level interface for the logic program
-:- not sup(U), seq(U,_,_), n == 0.
-:- sup(U), pat(_,I), not seq(U,_,I).
-
 #maximize { 1,U : sup(U) }.
-

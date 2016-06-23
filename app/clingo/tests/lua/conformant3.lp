@@ -13,10 +13,10 @@ function main(prg)
         if check then
             parts[#parts+1] = {"check", {step}}
         end
-        prg:release_external(clingo.fun("vol", {step-1}))
+        prg:release_external(clingo.Function("vol", {step-1}))
         prg:cleanup()
         prg:ground(parts)
-        prg:assign_external(clingo.fun("vol", {step}), true)
+        prg:assign_external(clingo.Function("vol", {step}), true)
         local ret = prg:solve()
         if ret.satisfiable then
             if not check and prg:get_const("nocheck") == nil then

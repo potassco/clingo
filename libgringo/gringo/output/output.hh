@@ -54,17 +54,11 @@ private:
     UBackend out_;
 };
 
-// TODO: rename (again)
 class OutputBase {
 public:
     OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, std::ostream &out, OutputFormat format = OutputFormat::INTERMEDIATE, OutputDebug debug = OutputDebug::NONE);
     OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, UBackend &&out, OutputDebug debug = OutputDebug::NONE);
     OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, UAbstractOutput &&out);
-    template <typename T>
-    OutputBase(T create, Potassco::TheoryData &data, OutputPredicates &&outPreds, OutputDebug debug = OutputDebug::NONE)
-    : outPreds(std::move(outPreds))
-    , data(data)
-    , out_(fromBackend(create(this->data.theory()), debug)) { }
 
     std::pair<Id_t, Id_t> simplify(AssignmentLookup assignment);
     void incremental();
@@ -72,9 +66,9 @@ public:
     void flush();
     void init(bool incremental);
     void beginStep();
-    void endStep(bool solve);
-    void checkOutPreds();
-    SymVec atoms(int atomset, IsTrueLookup lookup) const;
+    void endStep(bool solve, Logger &log);
+    void checkOutPreds(Logger &log);
+    SymVec atoms(unsigned atomset, IsTrueLookup lookup) const;
     std::pair<PredicateDomain::Iterator, PredicateDomain*> find(Symbol val);
     std::pair<PredicateDomain::ConstIterator, PredicateDomain const *> find(Symbol val) const;
     PredDomMap &predDoms() { return data.predDoms(); }

@@ -422,7 +422,16 @@ Output* ClaspAppBase::createOutput(ProblemType f) {
 void ClaspAppBase::storeCommandArgs(const ProgramOptions::ParsedValues&) { 
 	/* We don't need the values */
 }
-
+void ClaspAppBase::handleStartOptions(ClaspFacade& clasp) {
+	if (!clasp.incremental()) {
+		claspConfig_.releaseOptions();
+	}
+	if (claspAppOpts_.compute && clasp.program()->type() == Problem_t::Asp) {
+		bool val = claspAppOpts_.compute < 0;
+		Var  var = static_cast<Var>(!val ? claspAppOpts_.compute : -claspAppOpts_.compute);
+		static_cast<Asp::LogicProgram*>(clasp.program())->startRule().addToBody(var, val).endRule();
+	}
+}
 bool ClaspAppBase::handlePostGroundOptions(ProgramBuilder& prg) {
 	if (!claspAppOpts_.onlyPre) { 
 		if (logger_.get()) { logger_->start(prg); }
@@ -444,14 +453,7 @@ bool ClaspAppBase::handlePreSolveOptions(ClaspFacade& clasp) {
 }
 void ClaspAppBase::run(ClaspFacade& clasp) {
 	clasp.start(claspConfig_, getStream());
-	if (!clasp.incremental()) {
-		claspConfig_.releaseOptions();
-	}
-	if (claspAppOpts_.compute && clasp.program()->type() == Problem_t::Asp) {
-		bool val = claspAppOpts_.compute < 0;
-		Var  var = static_cast<Var>(!val ? claspAppOpts_.compute : -claspAppOpts_.compute);
-		static_cast<Asp::LogicProgram*>(clasp.program())->startRule().addToBody(var, val).endRule();
-	}
+	handleStartOptions(clasp);
 	while (clasp.read()) {
 		if (handlePostGroundOptions(*clasp.program())) {
 			clasp.prepare();

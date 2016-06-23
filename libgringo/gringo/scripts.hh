@@ -43,7 +43,7 @@ struct Scripts {
     bool pyExec(Location const &loc, String code);
     bool luaExec(Location const &loc, String code);
     bool callable(String name);
-    SymVec call(Location const &loc, String name, SymSpan args);
+    SymVec call(Location const &loc, String name, SymSpan args, Logger &log);
     void main(Control &ctl);
     ~Scripts();
 

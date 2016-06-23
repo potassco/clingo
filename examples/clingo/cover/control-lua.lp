@@ -41,7 +41,7 @@ function State:prepare_instance(k)
         if atom.name == "edge" then
             args = atom.args
             if args[1].number == k-1 then
-                edges[#edges + 1] = clingo.tuple{args[2], args[3]}
+                edges[#edges + 1] = clingo.Tuple{args[2], args[3]}
                 vertices[#vertices + 1] = args[2]
                 vertices[#vertices + 1] = args[3]
             end
@@ -60,13 +60,13 @@ function State:run(prg)
     pre:load("instance.lp")
     pre:load("preprocess.lp")
     pre:ground({{"base", {}}})
-    local ret = pre:solve(nil, function(...) self:on_model(...) end)
+    local ret = pre:solve(function(...) self:on_model(...) end)
     local k = 0
     while ret.satisfiable do
         k = k + 1
         pre:cleanup()
         pre:ground({{"step", {k}}}, self)
-        ret = pre:solve(nil, function(...) self:on_model(...) end)
+        ret = pre:solve(function(...) self:on_model(...) end)
     end
     self:prepare_instance(k)
     prg:load("cover.lp")

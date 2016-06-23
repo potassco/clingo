@@ -25,6 +25,7 @@
 #include <gringo/types.hh>
 #include <gringo/locatable.hh>
 #include <gringo/backend.hh>
+#include <gringo/logger.hh>
 #include <potassco/clingo.h>
 #include <clingo.h>
 
@@ -57,21 +58,31 @@ struct Context {
 
 // {{{1 declaration of Model
 
+enum class ModelType : clingo_model_type_t {
+    StableModel = clingo_model_type_stable_model,
+    BraveConsequences = clingo_model_type_brave_consequences,
+    CautiousConsequences = clingo_model_type_cautious_consequences
+};
+using Model = clingo_model;
 using Int64Vec = std::vector<int64_t>;
 
-struct Model {
-    using LitVec = std::vector<std::pair<Symbol, bool>>;
-    static const unsigned CSP   = 1;
-    static const unsigned SHOWN = 2;
-    static const unsigned ATOMS = 4;
-    static const unsigned TERMS = 8;
-    static const unsigned COMP  = 16;
-    virtual bool contains(Symbol atom) const = 0;
-    virtual SymSpan atoms(int showset) const = 0;
-    virtual Int64Vec optimization() const = 0;
+} // namespace Gringo
+
+using ShowType = clingo_show_type_bitset_t;
+struct clingo_model {
+    using LitVec = std::vector<std::pair<Gringo::Symbol, bool>>;
+    virtual bool contains(Gringo::Symbol atom) const = 0;
+    virtual Gringo::SymSpan atoms(ShowType showset) const = 0;
+    virtual Gringo::Int64Vec optimization() const = 0;
+    virtual bool optimality_proven() const = 0;
     virtual void addClause(LitVec const &lits) const = 0;
-    virtual ~Model() { }
+    virtual uint64_t number() const = 0;
+    virtual Potassco::Id_t threadId() const = 0;
+    virtual Gringo::ModelType type() const = 0;
+    virtual ~clingo_model() { }
 };
+
+namespace Gringo {
 
 // {{{1 declaration of Statistics
 
@@ -90,6 +101,24 @@ struct Statistics {
     virtual Quantity    getStat(char const* key) const = 0;
     virtual char const *getKeys(char const* key) const = 0;
     virtual ~Statistics() { }
+};
+
+class StatisticsNG {
+public:
+    enum Type { Leaf, Array, Map };
+    // generic
+    virtual Id_t root() const = 0;
+    virtual Type type(Id_t key) const = 0;
+    // Array
+    virtual size_t size(Id_t key) const = 0;
+    virtual Id_t at(Potassco::Id_t key, size_t index) const = 0;
+    // Map
+    virtual size_t subkeys(Id_t key) const = 0;
+    virtual char const *subkey(Id_t key, size_t index) const = 0;
+    virtual Id_t lookup(Id_t key, char const *name) const = 0;
+    // Leaf
+    virtual double value(Potassco::Id_t key) const = 0;
+    virtual ~StatisticsNG() noexcept = default;
 };
 
 // {{{1 declaration of SolveFuture
@@ -124,120 +153,147 @@ struct ConfigProxy {
     virtual unsigned getRootKey() = 0;
 };
 
-// {{{1 declaration of DomainProxy
+// {{{1 declaration of SymbolicAtoms
 
-struct DomainProxy {
-    struct Element;
-    using ElementPtr = std::unique_ptr<Element>;
-    struct Element {
-        virtual Symbol atom() const = 0;
-        virtual Potassco::Lit_t literal() const = 0;
-        virtual bool fact() const = 0;
-        virtual bool external() const = 0;
-        virtual ElementPtr next() = 0;
-        virtual bool valid() const = 0;
-        virtual ~Element() { };
-    };
-    virtual ElementPtr iter(Sig sig) const = 0;
-    virtual ElementPtr iter() const = 0;
-    virtual ElementPtr lookup(Symbol atom) const = 0;
-    virtual std::vector<Sig> signatures() const = 0;
+using Control = clingo_control;
+using SymbolicAtoms = clingo_symbolic_atoms;
+using SymbolicAtomIter = clingo_symbolic_atom_iterator_t;
+
+} // namespace Gringo
+
+struct clingo_symbolic_atoms {
+    virtual Gringo::Symbol atom(Gringo::SymbolicAtomIter it) const = 0;
+    virtual Potassco::Lit_t literal(Gringo::SymbolicAtomIter it) const = 0;
+    virtual bool fact(Gringo::SymbolicAtomIter it) const = 0;
+    virtual bool external(Gringo::SymbolicAtomIter it) const = 0;
+    virtual Gringo::SymbolicAtomIter next(Gringo::SymbolicAtomIter it) = 0;
+    virtual bool valid(Gringo::SymbolicAtomIter it) const = 0;
+    virtual Gringo::SymbolicAtomIter begin(Gringo::Sig sig) const = 0;
+    virtual Gringo::SymbolicAtomIter begin() const = 0;
+    virtual Gringo::SymbolicAtomIter lookup(Gringo::Symbol atom) const = 0;
+    virtual bool eq(Gringo::SymbolicAtomIter it, Gringo::SymbolicAtomIter jt) const = 0;
+    virtual Gringo::SymbolicAtomIter end() const = 0;
+    virtual std::vector<Gringo::Sig> signatures() const = 0;
     virtual size_t length() const = 0;
-    virtual ~DomainProxy() { }
+    virtual ~clingo_symbolic_atoms() noexcept = default;
 };
 
-struct TheoryData {
-    enum class TermType { Tuple, List, Set, Function, Number, Symbol };
-    enum class AtomType { Head, Body, Directive };
+namespace Gringo {
 
-    virtual TermType termType(Id_t) const = 0;
-    virtual int termNum(Id_t value) const = 0;
-    virtual char const *termName(Id_t value) const = 0;
-    virtual Potassco::IdSpan termArgs(Id_t value) const = 0;
-    virtual Potassco::IdSpan elemTuple(Id_t value) const = 0;
+using TheoryData = clingo_theory_atoms;
+
+} // namespace Gringo
+
+struct clingo_theory_atoms {
+    enum class TermType {
+        Tuple = clingo_theory_term_type_tuple,
+        List = clingo_theory_term_type_list,
+        Set = clingo_theory_term_type_set,
+        Function = clingo_theory_term_type_function,
+        Number = clingo_theory_term_type_number,
+        Symbol = clingo_theory_term_type_symbol
+    };
+    enum class AtomType {
+        Head,
+        Body,
+        Directive
+    };
+    virtual TermType termType(Gringo::Id_t) const = 0;
+    virtual int termNum(Gringo::Id_t value) const = 0;
+    virtual char const *termName(Gringo::Id_t value) const = 0;
+    virtual Potassco::IdSpan termArgs(Gringo::Id_t value) const = 0;
+    virtual Potassco::IdSpan elemTuple(Gringo::Id_t value) const = 0;
     // This shall map to ids of literals in aspif format.
-    virtual Potassco::LitSpan elemCond(Id_t value) const = 0;
-    virtual Lit_t elemCondLit(Id_t value) const = 0;
-    virtual Potassco::IdSpan atomElems(Id_t value) const = 0;
-    virtual Potassco::Id_t atomTerm(Id_t value) const = 0;
-    virtual bool atomHasGuard(Id_t value) const = 0;
-    virtual Potassco::Lit_t atomLit(Id_t value) const = 0;
-    virtual std::pair<char const *, Id_t> atomGuard(Id_t value) const = 0;
+    virtual Potassco::LitSpan elemCond(Gringo::Id_t value) const = 0;
+    virtual Gringo::Lit_t elemCondLit(Gringo::Id_t value) const = 0;
+    virtual Potassco::IdSpan atomElems(Gringo::Id_t value) const = 0;
+    virtual Potassco::Id_t atomTerm(Gringo::Id_t value) const = 0;
+    virtual bool atomHasGuard(Gringo::Id_t value) const = 0;
+    virtual Potassco::Lit_t atomLit(Gringo::Id_t value) const = 0;
+    virtual std::pair<char const *, Gringo::Id_t> atomGuard(Gringo::Id_t value) const = 0;
     virtual Potassco::Id_t numAtoms() const = 0;
-    virtual std::string termStr(Id_t value) const = 0;
-    virtual std::string elemStr(Id_t value) const = 0;
-    virtual std::string atomStr(Id_t value) const = 0;
-    virtual ~TheoryData() noexcept = default;
+    virtual std::string termStr(Gringo::Id_t value) const = 0;
+    virtual std::string elemStr(Gringo::Id_t value) const = 0;
+    virtual std::string atomStr(Gringo::Id_t value) const = 0;
+    virtual ~clingo_theory_atoms() noexcept = default;
 };
+
+namespace Gringo {
 
 // {{{1 declaration of Propagator
 
+using PropagateControl = clingo_propagate_control;
+using PropagateInit = clingo_propagate_init;
+
+} // namespace Gringo
+
+struct clingo_propagate_init {
+    virtual Gringo::TheoryData const &theory() const = 0;
+    virtual Gringo::SymbolicAtoms &getDomain() = 0;
+    virtual Gringo::Lit_t mapLit(Gringo::Lit_t lit) = 0;
+    virtual void addWatch(Gringo::Lit_t lit) = 0;
+    virtual int threads() = 0;
+    virtual ~clingo_propagate_init() noexcept = default;
+};
+
+namespace Gringo {
+
 struct Propagator : Potassco::AbstractPropagator {
-    struct Init {
-        virtual TheoryData const &theory() const = 0;
-        virtual DomainProxy &getDomain() = 0;
-        virtual Lit_t mapLit(Lit_t lit) = 0;
-        virtual void addWatch(Lit_t lit) = 0;
-        virtual int threads() = 0;
-        virtual ~Init() noexcept = default;
-    };
     virtual ~Propagator() noexcept = default;
-    virtual void init(Init &init) = 0;
+    virtual void init(Gringo::PropagateInit &init) = 0;
 };
-
-// {{{1 declaration of ASPIFWriter
-
-struct ASPIFProgram {
-    virtual Potassco::Atom_t addAtom() = 0;
-    virtual void addRule(Potassco::AtomSpan head, Potassco::LitSpan body, bool choice) = 0;
-    virtual void addWeightRule(Potassco::AtomSpan head, Potassco::Weight_t lower, Potassco::WeightLitSpan body, bool choice) = 0;
-    virtual ~ASPIFProgram() noexcept = default;
-};
+using UProp = std::unique_ptr<Propagator>;
 
 // {{{1 declaration of Control
 
 using FWStringVec = std::vector<String>;
+using Control = clingo_control;
 
-struct Control {
-    using ModelHandler = std::function<bool (Model const &)>;
-    using FinishHandler = std::function<void (SolveResult)>;
-    using Assumptions = std::vector<std::pair<Symbol, bool>>;
-    using GroundVec = std::vector<std::pair<String, SymVec>>;
-    using NewControlFunc = Control* (*)(int, char const **);
-    using FreeControlFunc = void (*)(Control *);
+} // namespace Gringo
 
-    virtual ConfigProxy &getConf() = 0;
-    virtual DomainProxy &getDomain() = 0;
+struct clingo_control {
+    using ModelHandler = std::function<bool (Gringo::Model const &)>;
+    using FinishHandler = std::function<void (Gringo::SolveResult)>;
+    using Assumptions = std::vector<std::pair<Gringo::Symbol, bool>>;
+    using GroundVec = std::vector<std::pair<Gringo::String, Gringo::SymVec>>;
+    using NewControlFunc = Gringo::Control* (*)(int, char const **);
+    using FreeControlFunc = void (*)(Gringo::Control *);
 
-    virtual void ground(GroundVec const &vec, Context *context) = 0;
-    virtual SolveResult solve(ModelHandler h, Assumptions &&assumptions) = 0;
-    virtual SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&assumptions) = 0;
-    virtual SolveIter *solveIter(Assumptions &&assumptions) = 0;
+    virtual Gringo::ConfigProxy &getConf() = 0;
+    virtual Gringo::SymbolicAtoms &getDomain() = 0;
+
+    virtual void ground(GroundVec const &vec, Gringo::Context *context) = 0;
+    virtual Gringo::SolveResult solve(ModelHandler h, Assumptions &&assumptions) = 0;
+    virtual Gringo::SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&assumptions) = 0;
+    virtual Gringo::SolveIter *solveIter(Assumptions &&assumptions) = 0;
     virtual void interrupt() = 0;
-    virtual void add(std::string const &name, FWStringVec const &params, std::string const &part) = 0;
+    virtual void add(std::string const &name, Gringo::FWStringVec const &params, std::string const &part) = 0;
     virtual void load(std::string const &filename) = 0;
-    virtual Symbol getConst(std::string const &name) = 0;
+    virtual Gringo::Symbol getConst(std::string const &name) = 0;
     virtual bool blocked() = 0;
-    virtual void assignExternal(Symbol ext, Potassco::Value_t val) = 0;
-    virtual Statistics *getStats() = 0;
+    virtual void assignExternal(Gringo::Symbol ext, Potassco::Value_t val) = 0;
+    virtual Gringo::Statistics *getStats() = 0;
+    virtual Gringo::StatisticsNG *statistics() = 0;
     virtual void useEnumAssumption(bool enable) = 0;
     virtual bool useEnumAssumption() = 0;
     virtual void cleanupDomains() = 0;
-    virtual TheoryData const &theory() const = 0;
-    virtual void registerPropagator(Propagator &p, bool sequential) = 0;
+    virtual Gringo::TheoryData const &theory() const = 0;
+    virtual void registerPropagator(std::unique_ptr<Gringo::Propagator> p, bool sequential) = 0;
     virtual void parse(char const *program, std::function<void(clingo_ast const &)> cb) = 0;
     virtual void add(std::function<void (std::function<void (clingo_ast const &)>)> cb) = 0;
     virtual Potassco::Atom_t addProgramAtom() = 0;
-    virtual Backend *backend() = 0;
-    virtual ~Control() noexcept = default;
+    virtual Gringo::Backend *backend() = 0;
+    virtual Gringo::Logger &logger() = 0;
+    virtual ~clingo_control() noexcept = default;
 };
 
-// {{{1 declaration of Gringo
+namespace Gringo {
+
+/// {{{1 declaration of GringoModule
 
 struct GringoModule {
-    virtual Control *newControl(int argc, char const **argv) = 0;
-    virtual void freeControl(Control *ctrl) = 0;
-    virtual Symbol parseValue(std::string const &repr) = 0;
+    virtual Gringo::Control *newControl(int argc, char const * const *argv, Gringo::Logger::Printer p, unsigned messageLimit) = 0;
+    virtual Gringo::Symbol parseValue(std::string const &repr, Gringo::Logger::Printer p, unsigned messageLimit) = 0;
     virtual ~GringoModule() noexcept = default;
 };
 
@@ -247,7 +303,7 @@ struct ClingoError : std::exception {
     ClingoError(clingo_error_t err) : err(err) { }
     virtual ~ClingoError() noexcept = default;
     virtual const char* what() const noexcept {
-        return clingo_error_str(err);
+        return clingo_error_string(err);
     }
     clingo_error_t const err;
 };
@@ -256,14 +312,11 @@ void inline clingo_expect(bool expr) {
     if (!expr) { throw std::runtime_error("unexpected"); }
 }
 
-#define GRINGO_CLINGO_TRY try {
-#define GRINGO_CLINGO_CATCH } \
-catch(Gringo::ClingoError &e) { return e.err; } \
-catch(std::bad_alloc &e)      { std::cerr << e.what() << std::endl; return clingo_error_bad_alloc; } \
-catch(std::runtime_error &e)  { std::cerr << e.what() << std::endl; return clingo_error_runtime; } \
-catch(std::logic_error &e)    { std::cerr << e.what() << std::endl; return clingo_error_logic; } \
-catch(...)                    { return clingo_error_unknown; } \
-return clingo_error_success;
+void handleCError(clingo_error_t code, std::exception_ptr *exc = nullptr);
+clingo_error_t handleCXXError();
+
+#define GRINGO_CLINGO_TRY try
+#define GRINGO_CLINGO_CATCH catch (...) { return Gringo::handleCXXError(); } return clingo_error_success
 
 // }}}1
 

@@ -293,7 +293,7 @@ function main(c)
             for _, l in ipairs(grouped[key]) do
                 c.backend:add_rule{{a}, {l}}
             end
-            c.backend:add_rule{{}, {-c.symbolic_atoms:lookup(clingo.fun("sup", {key})).literal, a}}
+            c.backend:add_rule{{}, {-c.symbolic_atoms:lookup(clingo.Function("sup", {key})).literal, a}}
         end
     end
     -- :- sup(U), pat(_,I), not seq(U,_,I).

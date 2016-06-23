@@ -26,7 +26,6 @@
 
 #include "tests/tests.hh"
 #include "tests/term_helper.hh"
-#include "tests/gringo_module.hh"
 
 namespace Gringo { namespace Input { namespace Test {
 
@@ -37,23 +36,36 @@ using namespace Gringo::Test;
 
 namespace {
 
-std::pair<Program, Defines> parse(std::string const &str) {
-    std::ostringstream oss;
+struct Grounder {
+    Grounder()
+    : out(td, {}, oss)
+    , scripts(module)
+    , pb{ scripts, p, out, d }
+    , ngp{ pb }
+    { }
+    Gringo::Test::TestGringoModule module;
     Potassco::TheoryData td;
-    Output::OutputBase out(td, {}, oss);
-    std::pair<Program, Defines> ret;
-    Scripts scripts(Gringo::Test::getTestModule());
-    NongroundProgramBuilder pb{ scripts, ret.first, out, ret.second };
-    NonGroundParser ngp{ pb };
-    ngp.pushStream("-", gringo_make_unique<std::stringstream>(str));
-    ngp.parse();
-    return ret;
+    std::ostringstream oss;
+    Output::OutputBase out;
+    Scripts scripts;
+    Program p;
+    Defines d;
+    NongroundProgramBuilder pb;
+    NonGroundParser ngp;
+
+};
+
+std::unique_ptr<Grounder> parse(std::string const &str) {
+    std::unique_ptr<Grounder> g = gringo_make_unique<Grounder>();
+    g->ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), g->module);
+    g->ngp.parse(g->module);
+    return g;
 }
 
-std::string rewrite(std::pair<Program, Defines> &&x) {
-    x.second.init();
-    x.first.rewrite(x.second);
-    auto str(to_string(x.first));
+std::string rewrite(std::unique_ptr<Grounder> g) {
+    g->d.init(g->module);
+    g->p.rewrite(g->d, g->module);
+    auto str(to_string(g->p));
     str.erase(std::remove(str.begin(), str.end(), '\n'), str.end());
     replace_all(str, ";[#inc_base]", "");
     replace_all(str, ":-[#inc_base].", ".");
@@ -65,14 +77,13 @@ std::string rewrite(std::pair<Program, Defines> &&x) {
 }
 
 bool check(std::string const &prg, std::string const &messages = "") {
-    Messages msg;
-    auto x = parse(prg);
-    x.first.rewrite(x.second);
-    x.first.check();
+    auto g = parse(prg);
+    g->p.rewrite(g->d, g->module);
+    g->p.check(g->module);
     if (!messages.empty()) {
-        REQUIRE(messages == to_string(msg.messages));
+        REQUIRE(messages == to_string(g->module));
     }
-    return msg.messages.empty();
+    return g->module.messages().empty();
 }
 
 } // namespace

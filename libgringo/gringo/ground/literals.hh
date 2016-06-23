@@ -45,14 +45,14 @@ inline double estimate(unsigned size, Term const &term, Term::VarSet const &boun
 using RangeLiteralShared = std::pair<UTerm, UTerm>;
 struct RangeLiteral : Literal {
     RangeLiteral(UTerm &&assign, UTerm &&left, UTerm &&right);
-    virtual void print(std::ostream &out) const;
-    virtual bool isRecursive() const;
-    virtual BodyOcc *occurrence();
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound);
-    virtual std::pair<Output::LiteralId,bool> toOutput();
-    virtual Score score(Term::VarSet const &bound);
-    virtual bool auxiliary() const { return true; }
+    void print(std::ostream &out) const override;
+    bool isRecursive() const override;
+    BodyOcc *occurrence() override;
+    void collect(VarTermBoundVec &vars) const override;
+    UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
+    std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
+    Score score(Term::VarSet const &bound, Logger &log) override;
+    bool auxiliary() const override { return true; }
     virtual ~RangeLiteral();
 
     UTerm assign;
@@ -65,14 +65,14 @@ struct RangeLiteral : Literal {
 using ScriptLiteralShared = std::pair<String, UTermVec>;
 struct ScriptLiteral : Literal {
     ScriptLiteral(UTerm &&assign, String name, UTermVec &&args);
-    virtual void print(std::ostream &out) const;
-    virtual bool isRecursive() const;
-    virtual BodyOcc *occurrence();
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound);
-    virtual std::pair<Output::LiteralId,bool> toOutput();
-    virtual Score score(Term::VarSet const &bound);
-    virtual bool auxiliary() const { return true; }
+    void print(std::ostream &out) const override;
+    bool isRecursive() const override;
+    BodyOcc *occurrence() override;
+    void collect(VarTermBoundVec &vars) const override;
+    UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
+    std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
+    Score score(Term::VarSet const &bound, Logger &log) override;
+    bool auxiliary() const override { return true; }
     virtual ~ScriptLiteral();
 
     UTerm assign;
@@ -85,14 +85,14 @@ struct ScriptLiteral : Literal {
 using RelationShared = std::tuple<Relation, UTerm, UTerm>;
 struct RelationLiteral : Literal {
     RelationLiteral(Relation rel, UTerm &&left, UTerm &&right);
-    virtual void print(std::ostream &out) const;
-    virtual bool isRecursive() const;
-    virtual BodyOcc *occurrence();
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound);
-    virtual std::pair<Output::LiteralId,bool> toOutput();
-    virtual Score score(Term::VarSet const &bound);
-    virtual bool auxiliary() const { return true; }
+    void print(std::ostream &out) const override;
+    bool isRecursive() const override;
+    BodyOcc *occurrence() override;
+    void collect(VarTermBoundVec &vars) const override;
+    UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
+    std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
+    Score score(Term::VarSet const &bound, Logger &log) override;
+    bool auxiliary() const override { return true; }
     virtual ~RelationLiteral();
 
     RelationShared shared;
@@ -103,21 +103,21 @@ struct RelationLiteral : Literal {
 
 struct PredicateLiteral : Literal, BodyOcc {
     PredicateLiteral(bool auxiliary, PredicateDomain &domain, NAF naf, UTerm &&repr);
-    virtual void print(std::ostream &out) const;
-    virtual UGTerm getRepr() const;
-    virtual bool isPositive() const;
-    virtual bool isNegative() const;
-    virtual void setType(OccurrenceType x);
-    virtual OccurrenceType getType() const;
-    virtual bool isRecursive() const;
-    virtual BodyOcc *occurrence();
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual DefinedBy &definedBy();
-    virtual UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound);
-    virtual std::pair<Output::LiteralId,bool> toOutput();
-    virtual Score score(Term::VarSet const &bound);
-    virtual void checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const;
-    virtual bool auxiliary() const { return auxiliary_; }
+    void print(std::ostream &out) const override;
+    UGTerm getRepr() const override;
+    bool isPositive() const override;
+    bool isNegative() const override;
+    void setType(OccurrenceType x) override;
+    OccurrenceType getType() const override;
+    bool isRecursive() const override;
+    BodyOcc *occurrence() override;
+    void collect(VarTermBoundVec &vars) const override;
+    DefinedBy &definedBy() override;
+    UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
+    std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
+    Score score(Term::VarSet const &bound, Logger &log) override;
+    void checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const override;
+    bool auxiliary() const override { return auxiliary_; }
     virtual ~PredicateLiteral();
 
     OccurrenceType type = OccurrenceType::POSITIVELY_STRATIFIED;
@@ -132,7 +132,7 @@ struct PredicateLiteral : Literal, BodyOcc {
 
 struct ProjectionLiteral : PredicateLiteral {
     ProjectionLiteral(bool auxiliary, PredicateDomain &dom, UTerm &&repr, bool initialized);
-    virtual UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound);
+    UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
     virtual ~ProjectionLiteral();
     bool initialized_;
 };
@@ -142,13 +142,13 @@ struct ProjectionLiteral : PredicateLiteral {
 
 struct ExternalBodyOcc : BodyOcc {
     ExternalBodyOcc();
-    virtual UGTerm getRepr() const;
-    virtual bool isPositive() const;
-    virtual bool isNegative() const;
-    virtual void setType(OccurrenceType x);
-    virtual OccurrenceType getType() const;
-    virtual DefinedBy &definedBy();
-    virtual void checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const;
+    UGTerm getRepr() const override;
+    bool isPositive() const override;
+    bool isNegative() const override;
+    void setType(OccurrenceType x) override;
+    OccurrenceType getType() const override;
+    DefinedBy &definedBy() override;
+    void checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const override;
     virtual ~ExternalBodyOcc();
     DefinedBy defs;
 };
@@ -163,8 +163,8 @@ public:
     void collectImportant(Term::VarSet &vars) override;
     void collect(VarTermBoundVec &vars) const override;
     UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
-    std::pair<Output::LiteralId,bool> toOutput() override;
-    Score score(Term::VarSet const &bound) override;
+    std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
+    Score score(Term::VarSet const &bound, Logger &log) override;
     bool auxiliary() const override { return auxiliary_; }
     virtual ~CSPLiteral() noexcept;
 

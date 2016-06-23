@@ -8,10 +8,10 @@ function on_finish(ret)
 end
 
 function main(prg)
-    local assumptions = {{clingo.fun("a"), true}}
+    local assumptions = {{clingo.Function("a"), true}}
     prg:ground({{"base", {}}})
-    prg:solve(assumptions, on_model)
-    prg:solve(assumptions, on_model)
+    prg:solve(on_model, assumptions)
+    prg:solve(on_model, assumptions)
     local it = prg:solve_iter(assumptions)
     local ret = pcall(function()
         for m in it:iter() do

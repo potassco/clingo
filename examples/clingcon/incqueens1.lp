@@ -12,10 +12,10 @@ from clingo import *
 def main(prg):
   for i in range(1, 30):
      # old assumptions are free to vary
-     prg.assign_external(function("active",[i-1]),None)
+     prg.assign_external(Function("active",[i-1]),None)
      prg.ground([("step",[i])])
      # new assumption is true for this step
-     prg.assign_external(function("active",[i]),True)
+     prg.assign_external(Function("active",[i]),True)
      prg.solve()
 #end.
 

@@ -5,13 +5,13 @@ function main(prg)
     while true do
         parts = {}
         if step > 1 then
-            prg:release_external(clingo.fun("volatile", {step-1}))
+            prg:release_external(clingo.Function("volatile", {step-1}))
         else
             parts[#parts+1] = {"base", {}}
         end
         parts[#parts+1] = {"cumulative", {step}}
         prg:ground(parts)
-        prg:assign_external(clingo.fun("volatile", {step}), true)
+        prg:assign_external(clingo.Function("volatile", {step}), true)
         ret = prg:solve()
         if ret.satisfiable then
             break

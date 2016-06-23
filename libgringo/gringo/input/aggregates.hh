@@ -31,22 +31,22 @@ namespace Gringo { namespace Input {
 struct TupleBodyAggregate : BodyAggregate {
     TupleBodyAggregate(NAF naf, bool removedAssignment, bool translated, AggregateFunction fun, BoundVec &&bounds, BodyAggrElemVec &&elems); // NOTE: private
     TupleBodyAggregate(NAF naf, AggregateFunction fun, BoundVec &&bounds, BodyAggrElemVec &&elems);
-    virtual bool rewriteAggregates(UBodyAggrVec &aggr);
-    virtual bool isAssignment() const;
-    virtual void removeAssignment();
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual bool operator==(BodyAggregate const &other) const;
-    virtual void print(std::ostream &out) const;
-    virtual size_t hash() const;
-    virtual TupleBodyAggregate *clone() const;
-    virtual void unpool(UBodyAggrVec &x, bool beforeRewrite);
-    virtual bool simplify(Projections &project, SimplifyState &state, bool singleton);
-    virtual void assignLevels(AssignLevel &lvl);
-    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen);
-    virtual bool hasPool(bool beforeRewrite) const;
-    virtual void check(ChkLvlVec &lvl) const;
-    virtual void replace(Defines &dx);
-    virtual CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const;
+    bool rewriteAggregates(UBodyAggrVec &aggr) override;
+    bool isAssignment() const override;
+    void removeAssignment() override;
+    void collect(VarTermBoundVec &vars) const override;
+    bool operator==(BodyAggregate const &other) const override;
+    void print(std::ostream &out) const override;
+    size_t hash() const override;
+    TupleBodyAggregate *clone() const override;
+    void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
+    bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
+    void assignLevels(AssignLevel &lvl) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen) override;
+    bool hasPool(bool beforeRewrite) const override;
+    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void replace(Defines &dx) override;
+    CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     virtual ~TupleBodyAggregate();
 
     NAF naf;
@@ -61,22 +61,22 @@ struct TupleBodyAggregate : BodyAggregate {
 
 struct LitBodyAggregate : BodyAggregate {
     LitBodyAggregate(NAF naf, AggregateFunction fun, BoundVec &&bounds, CondLitVec &&elems);
-    virtual bool rewriteAggregates(UBodyAggrVec &aggr);
-    virtual bool isAssignment() const;
-    virtual void removeAssignment();
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual bool operator==(BodyAggregate const &other) const;
-    virtual void print(std::ostream &out) const;
-    virtual size_t hash() const;
-    virtual LitBodyAggregate *clone() const;
-    virtual void unpool(UBodyAggrVec &x, bool beforeRewrite);
-    virtual bool simplify(Projections &project, SimplifyState &state, bool singleton);
-    virtual void assignLevels(AssignLevel &lvl);
-    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen);
-    virtual bool hasPool(bool beforeRewrite) const;
-    virtual void check(ChkLvlVec &lvl) const;
-    virtual void replace(Defines &dx);
-    virtual CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const;
+    bool rewriteAggregates(UBodyAggrVec &aggr) override;
+    bool isAssignment() const override;
+    void removeAssignment() override;
+    void collect(VarTermBoundVec &vars) const override;
+    bool operator==(BodyAggregate const &other) const override;
+    void print(std::ostream &out) const override;
+    size_t hash() const override;
+    LitBodyAggregate *clone() const override;
+    void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
+    bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
+    void assignLevels(AssignLevel &lvl) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen) override;
+    bool hasPool(bool beforeRewrite) const override;
+    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void replace(Defines &dx) override;
+    CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     virtual ~LitBodyAggregate();
 
     NAF naf;
@@ -94,22 +94,22 @@ struct Conjunction : BodyAggregate {
 
     Conjunction(ULit &&head, ULitVec &&cond);
     Conjunction(ElemVec &&elems);
-    virtual bool rewriteAggregates(UBodyAggrVec &aggr);
-    virtual bool isAssignment() const;
-    virtual void removeAssignment();
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual bool operator==(BodyAggregate const &other) const;
-    virtual void print(std::ostream &out) const;
-    virtual size_t hash() const;
-    virtual Conjunction *clone() const;
-    virtual void unpool(UBodyAggrVec &x, bool beforeRewrite);
-    virtual bool simplify(Projections &project, SimplifyState &state, bool singleton);
-    virtual void assignLevels(AssignLevel &lvl);
-    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen);
-    virtual bool hasPool(bool beforeRewrite) const;
-    virtual void check(ChkLvlVec &lvl) const;
-    virtual void replace(Defines &dx);
-    virtual CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const;
+    bool rewriteAggregates(UBodyAggrVec &aggr) override;
+    bool isAssignment() const override;
+    void removeAssignment() override;
+    void collect(VarTermBoundVec &vars) const override;
+    bool operator==(BodyAggregate const &other) const override;
+    void print(std::ostream &out) const override;
+    size_t hash() const override;
+    Conjunction *clone() const override;
+    void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
+    bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
+    void assignLevels(AssignLevel &lvl) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen) override;
+    bool hasPool(bool beforeRewrite) const override;
+    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void replace(Defines &dx) override;
+    CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     virtual ~Conjunction();
 
     ElemVec elems;
@@ -119,25 +119,25 @@ struct Conjunction : BodyAggregate {
 
 struct SimpleBodyLiteral : BodyAggregate {
     SimpleBodyLiteral(ULit &&lit);
-    virtual unsigned projectScore() const { return lit->projectScore(); }
-    virtual Location const &loc() const;
-    virtual void loc(Location const &loc);
-    virtual bool rewriteAggregates(UBodyAggrVec &aggr);
-    virtual void removeAssignment();
-    virtual bool isAssignment() const;
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual bool operator==(BodyAggregate const &other) const;
-    virtual void print(std::ostream &out) const;
-    virtual size_t hash() const;
-    virtual SimpleBodyLiteral *clone() const;
-    virtual void unpool(UBodyAggrVec &x, bool beforeRewrite);
-    virtual bool simplify(Projections &project, SimplifyState &state, bool singleton);
-    virtual void assignLevels(AssignLevel &lvl);
-    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen);
-    virtual bool hasPool(bool beforeRewrite) const;
-    virtual void check(ChkLvlVec &lvl) const;
-    virtual void replace(Defines &dx);
-    virtual CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const;
+    unsigned projectScore() const override { return lit->projectScore(); }
+    Location const &loc() const override;
+    void loc(Location const &loc) override;
+    bool rewriteAggregates(UBodyAggrVec &aggr) override;
+    void removeAssignment() override;
+    bool isAssignment() const override;
+    void collect(VarTermBoundVec &vars) const override;
+    bool operator==(BodyAggregate const &other) const override;
+    void print(std::ostream &out) const override;
+    size_t hash() const override;
+    SimpleBodyLiteral *clone() const override;
+    void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
+    bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
+    void assignLevels(AssignLevel &lvl) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen) override;
+    bool hasPool(bool beforeRewrite) const override;
+    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void replace(Defines &dx) override;
+    CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     virtual ~SimpleBodyLiteral();
 
     ULit lit;
@@ -169,22 +169,22 @@ using CSPElemVec = std::vector<CSPElem>;
 
 struct DisjointAggregate : BodyAggregate {
     DisjointAggregate(NAF naf, CSPElemVec &&elems);
-    virtual bool rewriteAggregates(UBodyAggrVec &aggr);
-    virtual bool isAssignment() const;
-    virtual void removeAssignment();
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual bool operator==(BodyAggregate const &other) const;
-    virtual void print(std::ostream &out) const;
-    virtual size_t hash() const;
-    virtual DisjointAggregate *clone() const;
-    virtual void unpool(UBodyAggrVec &x, bool beforeRewrite);
-    virtual bool simplify(Projections &project, SimplifyState &state, bool singleton);
-    virtual void assignLevels(AssignLevel &lvl);
-    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen);
-    virtual bool hasPool(bool beforeRewrite) const;
-    virtual void check(ChkLvlVec &lvl) const;
-    virtual void replace(Defines &dx);
-    virtual CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const;
+    bool rewriteAggregates(UBodyAggrVec &aggr) override;
+    bool isAssignment() const override;
+    void removeAssignment() override;
+    void collect(VarTermBoundVec &vars) const override;
+    bool operator==(BodyAggregate const &other) const override;
+    void print(std::ostream &out) const override;
+    size_t hash() const override;
+    DisjointAggregate *clone() const override;
+    void unpool(UBodyAggrVec &x, bool beforeRewrite) override;
+    bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) override;
+    void assignLevels(AssignLevel &lvl) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen) override;
+    bool hasPool(bool beforeRewrite) const override;
+    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void replace(Defines &dx) override;
+    CreateBody toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     virtual ~DisjointAggregate();
 
     NAF        naf;
@@ -198,20 +198,20 @@ struct DisjointAggregate : BodyAggregate {
 struct TupleHeadAggregate : HeadAggregate {
     TupleHeadAggregate(AggregateFunction fun, bool translated, BoundVec &&bounds, HeadAggrElemVec &&elems); // NOTE: private
     TupleHeadAggregate(AggregateFunction fun, BoundVec &&bounds, HeadAggrElemVec &&elems);
-    virtual UHeadAggr rewriteAggregates(UBodyAggrVec &aggr);
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual bool operator==(HeadAggregate const &other) const;
-    virtual void print(std::ostream &out) const;
-    virtual size_t hash() const;
-    virtual TupleHeadAggregate *clone() const;
-    virtual void unpool(UHeadAggrVec &x, bool beforeRewrite);
-    virtual bool simplify(Projections &project, SimplifyState &state);
-    virtual void assignLevels(AssignLevel &lvl);
-    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
-    virtual bool hasPool(bool beforeRewrite) const;
-    virtual void check(ChkLvlVec &lvl) const;
-    virtual void replace(Defines &dx);
-    virtual CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const;
+    UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
+    void collect(VarTermBoundVec &vars) const override;
+    bool operator==(HeadAggregate const &other) const override;
+    void print(std::ostream &out) const override;
+    size_t hash() const override;
+    TupleHeadAggregate *clone() const override;
+    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
+    void assignLevels(AssignLevel &lvl) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
+    bool hasPool(bool beforeRewrite) const override;
+    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void replace(Defines &dx) override;
+    CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const override;
     virtual ~TupleHeadAggregate();
 
     AggregateFunction fun;
@@ -224,20 +224,20 @@ struct TupleHeadAggregate : HeadAggregate {
 
 struct LitHeadAggregate : HeadAggregate {
     LitHeadAggregate(AggregateFunction fun, BoundVec &&bounds, CondLitVec &&elems);
-    virtual UHeadAggr rewriteAggregates(UBodyAggrVec &aggr);
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual bool operator==(HeadAggregate const &other) const;
-    virtual void print(std::ostream &out) const;
-    virtual size_t hash() const;
-    virtual LitHeadAggregate *clone() const;
-    virtual void unpool(UHeadAggrVec &x, bool beforeRewrite);
-    virtual bool simplify(Projections &project, SimplifyState &state);
-    virtual void assignLevels(AssignLevel &lvl);
-    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
-    virtual bool hasPool(bool beforeRewrite) const;
-    virtual void check(ChkLvlVec &lvl) const;
-    virtual void replace(Defines &dx);
-    virtual CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const;
+    UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
+    void collect(VarTermBoundVec &vars) const override;
+    bool operator==(HeadAggregate const &other) const override;
+    void print(std::ostream &out) const override;
+    size_t hash() const override;
+    LitHeadAggregate *clone() const override;
+    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
+    void assignLevels(AssignLevel &lvl) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
+    bool hasPool(bool beforeRewrite) const override;
+    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void replace(Defines &dx) override;
+    CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const override;
     virtual ~LitHeadAggregate();
 
     AggregateFunction fun;
@@ -255,20 +255,20 @@ struct Disjunction : HeadAggregate {
 
     Disjunction(CondLitVec &&elems);
     Disjunction(ElemVec &&elems);
-    virtual UHeadAggr rewriteAggregates(UBodyAggrVec &aggr);
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual bool operator==(HeadAggregate const &other) const;
-    virtual void print(std::ostream &out) const;
-    virtual size_t hash() const;
-    virtual Disjunction *clone() const;
-    virtual void unpool(UHeadAggrVec &x, bool beforeRewrite);
-    virtual bool simplify(Projections &project, SimplifyState &state);
-    virtual void assignLevels(AssignLevel &lvl);
-    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
-    virtual bool hasPool(bool beforeRewrite) const;
-    virtual void check(ChkLvlVec &lvl) const;
-    virtual void replace(Defines &dx);
-    virtual CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const;
+    UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
+    void collect(VarTermBoundVec &vars) const override;
+    bool operator==(HeadAggregate const &other) const override;
+    void print(std::ostream &out) const override;
+    size_t hash() const override;
+    Disjunction *clone() const override;
+    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
+    void assignLevels(AssignLevel &lvl) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
+    bool hasPool(bool beforeRewrite) const override;
+    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void replace(Defines &dx) override;
+    CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const override;
     virtual ~Disjunction();
 
     ElemVec elems;
@@ -278,24 +278,24 @@ struct Disjunction : HeadAggregate {
 
 struct SimpleHeadLiteral : HeadAggregate {
     SimpleHeadLiteral(ULit &&lit);
-    virtual bool isPredicate() const { return true; }
-    virtual Location const &loc() const;
-    virtual void loc(Location const &loc);
-    virtual UHeadAggr rewriteAggregates(UBodyAggrVec &aggr);
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual bool operator==(HeadAggregate const &other) const;
-    virtual void print(std::ostream &out) const;
-    virtual size_t hash() const;
-    virtual SimpleHeadLiteral *clone() const;
-    virtual void unpool(UHeadAggrVec &x, bool beforeRewrite);
-    virtual bool simplify(Projections &project, SimplifyState &state);
-    virtual void assignLevels(AssignLevel &lvl);
-    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
-    virtual bool hasPool(bool beforeRewrite) const;
-    virtual void check(ChkLvlVec &lvl) const;
-    virtual void replace(Defines &dx);
-    virtual CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const;
-    virtual Symbol isEDB() const;
+    virtual bool isPredicate() const override { return true; }
+    Location const &loc() const override;
+    void loc(Location const &loc) override;
+    UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
+    void collect(VarTermBoundVec &vars) const override;
+    bool operator==(HeadAggregate const &other) const override;
+    void print(std::ostream &out) const override;
+    size_t hash() const override;
+    SimpleHeadLiteral *clone() const override;
+    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
+    void assignLevels(AssignLevel &lvl) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
+    bool hasPool(bool beforeRewrite) const override;
+    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void replace(Defines &dx) override;
+    CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const override;
+    Symbol isEDB() const override;
     virtual ~SimpleHeadLiteral();
 
     ULit lit;
@@ -307,20 +307,20 @@ struct SimpleHeadLiteral : HeadAggregate {
 struct MinimizeHeadLiteral : HeadAggregate {
     MinimizeHeadLiteral(UTerm &&weight, UTerm &&priority, UTermVec &&tuple);
     MinimizeHeadLiteral(UTermVec &&tuple);
-    virtual UHeadAggr rewriteAggregates(UBodyAggrVec &aggr);
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual bool operator==(HeadAggregate const &other) const;
-    virtual void print(std::ostream &out) const;
-    virtual size_t hash() const;
-    virtual MinimizeHeadLiteral *clone() const;
-    virtual void unpool(UHeadAggrVec &x, bool beforeRewrite);
-    virtual bool simplify(Projections &project, SimplifyState &state);
-    virtual void assignLevels(AssignLevel &lvl);
-    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
-    virtual bool hasPool(bool beforeRewrite) const;
-    virtual void check(ChkLvlVec &lvl) const;
-    virtual void replace(Defines &x);
-    virtual CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const;
+    UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
+    void collect(VarTermBoundVec &vars) const override;
+    bool operator==(HeadAggregate const &other) const override;
+    void print(std::ostream &out) const override;
+    size_t hash() const override;
+    MinimizeHeadLiteral *clone() const override;
+    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
+    void assignLevels(AssignLevel &lvl) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
+    bool hasPool(bool beforeRewrite) const override;
+    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void replace(Defines &x) override;
+    CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const override;
     virtual ~MinimizeHeadLiteral();
 
 private:
@@ -335,20 +335,20 @@ private:
 
 struct EdgeHeadAtom : HeadAggregate {
     EdgeHeadAtom(UTerm &&u, UTerm &&v);
-    virtual UHeadAggr rewriteAggregates(UBodyAggrVec &aggr);
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual bool operator==(HeadAggregate const &other) const;
-    virtual void print(std::ostream &out) const;
-    virtual size_t hash() const;
-    virtual EdgeHeadAtom *clone() const;
-    virtual void unpool(UHeadAggrVec &x, bool beforeRewrite);
-    virtual bool simplify(Projections &project, SimplifyState &state);
-    virtual void assignLevels(AssignLevel &lvl);
-    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
-    virtual bool hasPool(bool beforeRewrite) const;
-    virtual void check(ChkLvlVec &lvl) const;
-    virtual void replace(Defines &x);
-    virtual CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const;
+    UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
+    void collect(VarTermBoundVec &vars) const override;
+    bool operator==(HeadAggregate const &other) const override;
+    void print(std::ostream &out) const override;
+    size_t hash() const override;
+    EdgeHeadAtom *clone() const override;
+    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
+    void assignLevels(AssignLevel &lvl) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
+    bool hasPool(bool beforeRewrite) const override;
+    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void replace(Defines &x) override;
+    CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const override;
     virtual ~EdgeHeadAtom();
 
 private:
@@ -360,20 +360,20 @@ private:
 
 struct ProjectHeadAtom : HeadAggregate {
     ProjectHeadAtom(UTerm &&atom);
-    virtual UHeadAggr rewriteAggregates(UBodyAggrVec &aggr);
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual bool operator==(HeadAggregate const &other) const;
-    virtual void print(std::ostream &out) const;
-    virtual size_t hash() const;
-    virtual ProjectHeadAtom *clone() const;
-    virtual void unpool(UHeadAggrVec &x, bool beforeRewrite);
-    virtual bool simplify(Projections &project, SimplifyState &state);
-    virtual void assignLevels(AssignLevel &lvl);
-    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
-    virtual bool hasPool(bool beforeRewrite) const;
-    virtual void check(ChkLvlVec &lvl) const;
-    virtual void replace(Defines &x);
-    virtual CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const;
+    UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
+    void collect(VarTermBoundVec &vars) const override;
+    bool operator==(HeadAggregate const &other) const override;
+    void print(std::ostream &out) const override;
+    size_t hash() const override;
+    ProjectHeadAtom *clone() const override;
+    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
+    void assignLevels(AssignLevel &lvl) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
+    bool hasPool(bool beforeRewrite) const override;
+    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void replace(Defines &x) override;
+    CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const override;
     virtual ~ProjectHeadAtom();
 
 private:
@@ -384,20 +384,20 @@ private:
 
 struct HeuristicHeadAtom : HeadAggregate {
     HeuristicHeadAtom(UTerm &&atom, UTerm &&bias, UTerm &&priority, UTerm &&mod);
-    virtual UHeadAggr rewriteAggregates(UBodyAggrVec &aggr);
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual bool operator==(HeadAggregate const &other) const;
-    virtual void print(std::ostream &out) const;
-    virtual size_t hash() const;
-    virtual HeuristicHeadAtom *clone() const;
-    virtual void unpool(UHeadAggrVec &x, bool beforeRewrite);
-    virtual bool simplify(Projections &project, SimplifyState &state);
-    virtual void assignLevels(AssignLevel &lvl);
-    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
-    virtual bool hasPool(bool beforeRewrite) const;
-    virtual void check(ChkLvlVec &lvl) const;
-    virtual void replace(Defines &x);
-    virtual CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const;
+    UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
+    void collect(VarTermBoundVec &vars) const override;
+    bool operator==(HeadAggregate const &other) const override;
+    void print(std::ostream &out) const override;
+    size_t hash() const override;
+    HeuristicHeadAtom *clone() const override;
+    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
+    void assignLevels(AssignLevel &lvl) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
+    bool hasPool(bool beforeRewrite) const override;
+    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void replace(Defines &x) override;
+    CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const override;
     virtual ~HeuristicHeadAtom();
 
 private:
@@ -411,20 +411,20 @@ private:
 
 struct ShowHeadLiteral : HeadAggregate {
     ShowHeadLiteral(UTerm &&term, bool csp);
-    virtual UHeadAggr rewriteAggregates(UBodyAggrVec &aggr);
-    virtual void collect(VarTermBoundVec &vars) const;
-    virtual bool operator==(HeadAggregate const &other) const;
-    virtual void print(std::ostream &out) const;
-    virtual size_t hash() const;
-    virtual ShowHeadLiteral *clone() const;
-    virtual void unpool(UHeadAggrVec &x, bool beforeRewrite);
-    virtual bool simplify(Projections &project, SimplifyState &state);
-    virtual void assignLevels(AssignLevel &lvl);
-    virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen);
-    virtual bool hasPool(bool beforeRewrite) const;
-    virtual void check(ChkLvlVec &lvl) const;
-    virtual void replace(Defines &x);
-    virtual CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const;
+    UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
+    void collect(VarTermBoundVec &vars) const override;
+    bool operator==(HeadAggregate const &other) const override;
+    void print(std::ostream &out) const override;
+    size_t hash() const override;
+    ShowHeadLiteral *clone() const override;
+    void unpool(UHeadAggrVec &x, bool beforeRewrite) override;
+    bool simplify(Projections &project, SimplifyState &state, Logger &log) override;
+    void assignLevels(AssignLevel &lvl) override;
+    void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) override;
+    bool hasPool(bool beforeRewrite) const override;
+    void check(ChkLvlVec &lvl, Logger &log) const override;
+    void replace(Defines &x) override;
+    CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const override;
     virtual ~ShowHeadLiteral();
 
 private:

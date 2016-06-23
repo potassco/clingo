@@ -198,7 +198,7 @@ private:
 // {{{1 declaration of functions to work with aggregates
 
 int clamp(int64_t x);
-bool neutral(SymVec const &tuple, AggregateFunction fun, Location const &loc);
+bool neutral(SymVec const &tuple, AggregateFunction fun, Location const &loc, Logger &log);
 int toInt(IntervalSet<Symbol>::LBound const &x);
 int toInt(IntervalSet<Symbol>::RBound const &x);
 Symbol getWeight(AggregateFunction fun, SymVec const &x);
@@ -277,7 +277,7 @@ public:
     // }}}2
     void setRecursive(bool recursive) { data_->recursive = recursive; }
     void init(AggregateFunction fun, DisjunctiveBounds &&bounds, bool monotone);
-    void accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &cond);
+    void accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &cond, Logger &log);
     Interval range() const { return data_->range.range(); }
     AggregateFunction fun() const { return data_->range.fun; }
     DisjunctiveBounds const &bounds() const { return data_->range.bounds; }
@@ -341,7 +341,7 @@ public:
     AssignmentAggregateData &operator=(AssignmentAggregateData const &) = default;
     ~AssignmentAggregateData() noexcept = default;
     operator Symbol const &() const { return value_; }
-    void accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &cond);
+    void accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &cond, Logger &log);
     BodyAggregateElements const &elems() const { return elems_; }
     void setEnqueued(bool enqueued) { enqueued_ = enqueued; }
     bool enqueued() const { return enqueued_; }
@@ -545,7 +545,7 @@ public:
     LiteralId lit() const { return lit_; }
     void setLit(LiteralId lit) { lit_ = lit; }
     DisjointElemSet const &elems() const { return elems_; }
-    bool translate(DomainData &data, Translator &x);
+    bool translate(DomainData &data, Translator &x, Logger &log);
 
 private:
     Symbol value_;
@@ -684,7 +684,7 @@ public:
     bool headFact() const { return fact_ && !recursive_; }
     void setRecursive(bool recursive) { recursive_ = recursive; }
     void init(AggregateFunction fun, DisjunctiveBounds &&bounds);
-    void accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LiteralId head, LitVec &cond);
+    void accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LiteralId head, LitVec &cond, Logger &log);
     Interval range() const { return range_.range(); }
     AggregateFunction fun() const { return range_.fun; }
     DisjunctiveBounds const &bounds() const { return range_.bounds; }
@@ -1222,7 +1222,22 @@ public:
     bool canSimplify() const {
         return domains_.empty() && clauses_.empty() && formulas_.empty() && theory_.empty();
     }
-    Gringo::TheoryData const &theoryInterface() const { return *this; }
+    Gringo::TheoryData const &theoryInterface() const {
+        return *this;
+    }
+    BackendAtomVec &tempAtoms() {
+        hd_.clear();
+        return hd_;
+    }
+    BackendLitVec &tempLits() {
+        bd_.clear();
+        return bd_;
+    }
+    BackendLitWeightVec &tempWLits() {
+        wb_.clear();
+        return wb_;
+    }
+
 private:
     Gringo::TheoryData::TermType termType(Id_t) const override;
     int termNum(Id_t value) const override;
@@ -1242,6 +1257,9 @@ private:
     std::string atomStr(Id_t value) const override;
 
 private:
+    BackendAtomVec hd_;
+    BackendLitVec bd_;
+    BackendLitWeightVec wb_;
     std::vector<Lit_t> tempLits_;
     Gringo::Output::TheoryData theory_;
     PredDomMap predDomains_;

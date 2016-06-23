@@ -2,13 +2,13 @@
 
 function main(prg)
     on_model = function (m)
-        m.context:add_clause({{clingo.fun("a"), false}, {clingo.fun("b"), false}})
-        m.context:add_nogood({{clingo.fun("c"), true}, {clingo.fun("d"), true}})
+        m.context:add_clause({{clingo.Function("a"), false}, {clingo.Function("b"), false}})
+        m.context:add_nogood({{clingo.Function("c"), true}, {clingo.Function("d"), true}})
     end
 
     prg.conf.solve.models = 0
     prg:ground({{"base", {}}})
-    prg:solve(nil, on_model)
+    prg:solve(on_model)
     print "and again"
     prg:solve()
 end

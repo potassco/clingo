@@ -92,24 +92,24 @@ class Solver:
                          , ("state", [t])
                          ])
         self.__prg.ground(parts)
-        self.__prg.assign_external(clingo.function("horizon", [self.__horizon]), True)
+        self.__prg.assign_external(clingo.Function("horizon", [self.__horizon]), True)
 
     def __next(self):
         assert(self.__horizon < 30)
-        self.__prg.assign_external(clingo.function("horizon", [self.__horizon]), False)
+        self.__prg.assign_external(clingo.Function("horizon", [self.__horizon]), False)
         self.__horizon += 1
         self.__prg.ground([ ("trans", [self.__horizon])
                           , ("check", [self.__horizon])
                           , ("state", [self.__horizon])
                           ])
-        self.__prg.assign_external(clingo.function("horizon", [self.__horizon]), True)
+        self.__prg.assign_external(clingo.Function("horizon", [self.__horizon]), True)
 
     def start(self, board):
         self.__assign = []
         for robot, (x, y) in board.pos.items():
-            self.__assign.append(clingo.function("pos", [clingo.function(robot), x+1, y+1, 0]))
-        self.__assign.append(clingo.function("target",
-            [ clingo.function(board.current_target[0])
+            self.__assign.append(clingo.Function("pos", [clingo.Function(robot), x+1, y+1, 0]))
+        self.__assign.append(clingo.Function("target",
+            [ clingo.Function(board.current_target[0])
             , board.current_target[2] + 1
             , board.current_target[3] + 1
             ]))

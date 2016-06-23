@@ -39,20 +39,20 @@ uint64_t combine(uint16_t u, uintptr_t ptr, uint8_t l) {
 }
 uint64_t combine(uint16_t u, int32_t num) { return static_cast<uint64_t>(u) << 48 | static_cast<uint64_t>(static_cast<uint32_t>(num)); }
 uint64_t setUpper(uint16_t u, uint64_t rep) { return combine(u, 0, 0) | (rep & 0xFFFFFFFFFFFF); }
-uint64_t setLower(uint8_t l, uint8_t rep) {
-    assert(l <= lowerMax);
-    return combine(0, 0, l) | (rep & 0xFFFFFFFFFFFFFFFC);
-}
+//uint64_t setLower(uint8_t l, uint8_t rep) {
+//    assert(l <= lowerMax);
+//    return combine(0, 0, l) | (rep & 0xFFFFFFFFFFFFFFFC);
+//}
 
 enum class SymbolType_ : uint8_t {
-    Inf = clingo_symbol_type_inf,
-    Num = clingo_symbol_type_num,
-    IdP = clingo_symbol_type_num+1,
-    IdN = clingo_symbol_type_num+2,
-    Str = clingo_symbol_type_str,
-    Fun = clingo_symbol_type_fun,
-    Special = clingo_symbol_type_fun+1,
-    Sup = clingo_symbol_type_sup
+    Inf = clingo_symbol_type_infimum,
+    Num = clingo_symbol_type_number,
+    IdP = clingo_symbol_type_number+1,
+    IdN = clingo_symbol_type_number+2,
+    Str = clingo_symbol_type_string,
+    Fun = clingo_symbol_type_function,
+    Special = clingo_symbol_type_function+1,
+    Sup = clingo_symbol_type_supremum
 };
 SymbolType_ symbolType_(uint64_t rep) { return static_cast<SymbolType_>(upper(rep)); }
 template <class T>
@@ -240,28 +240,25 @@ String String::fromRep(uintptr_t t) { return String(t); }
 // {{{1 definition of Signature
 
 Sig::Sig(String name, uint32_t arity, bool sign)
-: rep_(encodeSig(name, arity, sign)) { }
-
-Sig::Sig(uint64_t rep)
-: rep_(rep) { }
+: Sig{encodeSig(name, arity, sign)} { }
 
 String Sig::name() const {
-    uint16_t u = upper(rep_);
-    return u < upperMax ? toString(rep_) : cast<USig::Type>(rep_)->first;
+    uint16_t u = upper(rep());
+    return u < upperMax ? toString(rep()) : cast<USig::Type>(rep())->first;
 }
 
 Sig Sig::flipSign() const {
-    return Sig(rep_ ^ 1);
+    return Sig(rep() ^ 1);
 }
 
 uint32_t Sig::arity() const {
-    uint16_t u = upper(rep_);
-    return u < upperMax ? u : cast<USig::Type>(rep_)->second;
+    uint16_t u = upper(rep());
+    return u < upperMax ? u : cast<USig::Type>(rep())->second;
 }
 
-bool Sig::sign() const { return lower(rep_); }
+bool Sig::sign() const { return lower(rep()); }
 
-size_t Sig::hash() const { return get_value_hash(rep_); }
+size_t Sig::hash() const { return get_value_hash(rep()); }
 
 namespace {
 bool less(Sig const &a, Sig const &b) {
@@ -271,8 +268,8 @@ bool less(Sig const &a, Sig const &b) {
 }
 }
 
-bool Sig::operator==(Sig s) const { return rep_ == s.rep_; }
-bool Sig::operator!=(Sig s) const { return rep_ != s.rep_; }
+bool Sig::operator==(Sig s) const { return rep() == s.rep(); }
+bool Sig::operator!=(Sig s) const { return rep() != s.rep(); }
 bool Sig::operator<(Sig s) const { return *this != s && less(*this, s); }
 bool Sig::operator>(Sig s) const { return *this != s && less(s, *this); }
 bool Sig::operator<=(Sig s) const { return *this == s || less(*this, s); }
@@ -281,12 +278,6 @@ bool Sig::operator>=(Sig s) const { return *this == s || less(s, *this); }
 // {{{1 definition of Symbol
 
 // {{{2 construction
-
-Symbol::Symbol(clingo_symbol sym)
-: clingo_symbol{sym.rep} { }
-
-Symbol::Symbol(uint64_t rep)
-: clingo_symbol{rep} { }
 
 Symbol::Symbol()
 : Symbol(combine(static_cast<uint16_t>(SymbolType_::Special), 0, 0)) { }
@@ -324,7 +315,7 @@ Symbol Symbol::createFun(String name, SymSpan args, bool sign) {
 // {{{2 inspection
 
 SymbolType Symbol::type() const {
-    auto t = symbolType_(rep);
+    auto t = symbolType_(rep_);
     switch (t) {
         case SymbolType_::IdP: { return SymbolType::Fun; }
         case SymbolType_::IdN: { return SymbolType::Fun; }
@@ -334,20 +325,20 @@ SymbolType Symbol::type() const {
 
 int32_t Symbol::num() const {
     assert(type() == SymbolType::Num);
-    return static_cast<int32_t>(static_cast<uint32_t>(rep));
+    return static_cast<int32_t>(static_cast<uint32_t>(rep_));
 }
 
 String Symbol::string() const {
     assert(type() == SymbolType::Str);
-    return toString(rep);
+    return toString(rep_);
 }
 
 Sig Symbol::sig() const{
     assert(type() == SymbolType::Fun);
-    switch (symbolType_(rep)) {
-        case SymbolType_::IdP: { return Sig(toString(rep), 0, false); }
-        case SymbolType_::IdN: { return Sig(toString(rep), 0, true); }
-        default:               { return cast<Fun>(rep)->sig(); }
+    switch (symbolType_(rep_)) {
+        case SymbolType_::IdP: { return Sig(toString(rep_), 0, false); }
+        case SymbolType_::IdN: { return Sig(toString(rep_), 0, true); }
+        default:               { return cast<Fun>(rep_)->sig(); }
     }
 }
 
@@ -357,28 +348,28 @@ bool Symbol::hasSig() const {
 
 String Symbol::name() const {
     assert(type() == SymbolType::Fun);
-    switch (symbolType_(rep)) {
+    switch (symbolType_(rep_)) {
         case SymbolType_::IdP:
-        case SymbolType_::IdN: { return toString(rep); }
-        default:               { return cast<Fun>(rep)->sig().name(); }
+        case SymbolType_::IdN: { return toString(rep_); }
+        default:               { return cast<Fun>(rep_)->sig().name(); }
     }
 }
 
 SymSpan Symbol::args() const {
     assert(type() == SymbolType::Fun);
-    switch (symbolType_(rep)) {
+    switch (symbolType_(rep_)) {
         case SymbolType_::IdP:
         case SymbolType_::IdN: { return SymSpan{nullptr, 0}; }
-        default:               { return cast<Fun>(rep)->args(); }
+        default:               { return cast<Fun>(rep_)->args(); }
     }
 }
 bool Symbol::sign() const {
     assert(type() == SymbolType::Fun || type() == SymbolType::Num);
-    switch (symbolType_(rep)) {
+    switch (symbolType_(rep_)) {
         case SymbolType_::Num: { return num() < 0; }
         case SymbolType_::IdP: { return false; }
         case SymbolType_::IdN: { return true; }
-        default:               { return cast<Fun>(rep)->sig().sign(); }
+        default:               { return cast<Fun>(rep_)->sig().sign(); }
     }
 }
 
@@ -386,12 +377,12 @@ bool Symbol::sign() const {
 
 Symbol Symbol::flipSign() const {
     assert(type() == SymbolType::Fun || type() == SymbolType::Num);
-    switch (symbolType_(rep)) {
+    switch (symbolType_(rep_)) {
         case SymbolType_::Num: { return Symbol::createNum(-num()); }
-        case SymbolType_::IdP: { return Symbol(setUpper(static_cast<uint16_t>(SymbolType_::IdN), rep)); }
-        case SymbolType_::IdN: { return Symbol(setUpper(static_cast<uint16_t>(SymbolType_::IdP), rep)); }
+        case SymbolType_::IdP: { return Symbol(setUpper(static_cast<uint16_t>(SymbolType_::IdN), rep_)); }
+        case SymbolType_::IdN: { return Symbol(setUpper(static_cast<uint16_t>(SymbolType_::IdP), rep_)); }
         default: {
-            auto f = cast<Fun>(rep);
+            auto f = cast<Fun>(rep_);
             auto s = f->sig();
             return createFun(s.name(), f->args(), !s.sign());
         }
@@ -399,8 +390,8 @@ Symbol Symbol::flipSign() const {
 }
 
 Symbol Symbol::replace(IdSymMap const &map) const {
-    assert(symbolType_(rep) != SymbolType_::IdN);
-    switch(symbolType_(rep)) {
+    assert(symbolType_(rep_) != SymbolType_::IdN);
+    switch(symbolType_(rep_)) {
         case SymbolType_::Fun: {
             SymVec vals;
             for (auto &x : args()) { vals.emplace_back(x.replace(map)); }
@@ -416,11 +407,11 @@ Symbol Symbol::replace(IdSymMap const &map) const {
 
 // {{{2 comparison
 
-size_t Symbol::hash() const { return get_value_hash(rep); }
+size_t Symbol::hash() const { return get_value_hash(rep_); }
 
 namespace {
 bool less(Symbol const &a, Symbol const &b) {
-    auto ta = symbolType_(a.rep), tb = symbolType_(b.rep);
+    auto ta = symbolType_(a.rep()), tb = symbolType_(b.rep());
     if (ta != tb) { return ta < tb; }
     switch(ta) {
         case SymbolType_::Num: { return a.num() < b.num(); }
@@ -442,8 +433,8 @@ bool less(Symbol const &a, Symbol const &b) {
 }
 }
 
-bool Symbol::operator==(Symbol const &other) const { return rep == other.rep; }
-bool Symbol::operator!=(Symbol const &other) const { return rep != other.rep; }
+bool Symbol::operator==(Symbol const &other) const { return rep_ == other.rep_; }
+bool Symbol::operator!=(Symbol const &other) const { return rep_ != other.rep_; }
 
 bool Symbol::operator<(Symbol const &other) const  { return (*this != other) && less(*this, other); }
 bool Symbol::operator>(Symbol const &other) const  { return (*this != other) && less(other, *this); }
@@ -453,7 +444,7 @@ bool Symbol::operator>=(Symbol const &other) const { return (*this == other) || 
 // {{{2 output
 
 void Symbol::print(std::ostream& out) const {
-    switch(symbolType_(rep)) {
+    switch(symbolType_(rep_)) {
         case SymbolType_::Num: { out << num(); break; }
         case SymbolType_::IdN: { out << "-"; }
         case SymbolType_::IdP: {

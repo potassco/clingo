@@ -28,110 +28,99 @@
 #include <memory>
 
 #include <iostream>
+#include <clingo.h>
 
 namespace Gringo {
 
-// {{{ declaration of Warnings and Errors
+// {{{1 declaration of GringoError
 
-enum Warnings {
-    W_OPERATION_UNDEFINED,   //< Undefined arithmetic operation or weight of aggregate.
-    W_ATOM_UNDEFINED,        //< Undefined atom in program.
-    W_FILE_INCLUDED,         //< Same file included multiple times.
-    W_VARIABLE_UNBOUNDED,    //< CSP Domain undefined.
-    W_GLOBAL_VARIABLE,       //< Global variable in tuple of aggregate element.
-    W_TOTAL,                 //< Not a warning but the total number of warnings.
+class GringoError : public std::runtime_error {
+public:
+    GringoError(char const *msg) : std::runtime_error(msg) { }
 };
 
-enum Errors { E_ERROR };
-
-// }}}
-// {{{ declaration of MessagePrinter
-
-struct MessagePrinter {
-    virtual bool check(Errors id) = 0;
-    virtual bool check(Warnings id) = 0;
-    virtual bool hasError() const = 0;
-    virtual void enable(Warnings id) = 0;
-    virtual void disable(Warnings id) = 0;
-    virtual void print(std::string const &msg) = 0;
-    virtual ~MessagePrinter() { }
+class MessageLimitError : public std::runtime_error {
+public:
+    MessageLimitError(char const *msg) : std::runtime_error(msg) { }
 };
 
-// }}}
-// {{{ declaration of DefaultMessagePrinter
+// {{{1 declaration of Logger
 
-struct DefaultMessagePrinter : MessagePrinter {
-    virtual bool check(Errors id);
-    virtual bool check(Warnings id);
-    virtual bool hasError() const;
-    virtual void enable(Warnings id);
-    virtual void disable(Warnings id);
-    virtual void print(std::string const &msg);
-    virtual ~DefaultMessagePrinter();
+using Warnings = clingo_warning;
+using Errors = clingo_error;
+
+class Logger {
+public:
+    using Printer = std::function<void (clingo_warning_t, char const *)>;
+    Logger(Printer p = nullptr, unsigned limit = 20)
+    : p_(p)
+    , limit_(limit) { }
+    bool check(Errors id);
+    bool check(Warnings id);
+    bool hasError() const;
+    void enable(Warnings id, bool enable);
+    void print(clingo_warning_t code, char const *msg);
+    ~Logger();
 private:
-    std::bitset<Warnings::W_TOTAL> disabled_;
-    unsigned messageLimit_ = 20;
+    Printer p_;
+    unsigned limit_;
+    std::bitset<clingo_warning_other+1> disabled_;
     bool error_ = false;
 };
 
-inline std::unique_ptr<MessagePrinter> &message_printer() {
-    static std::unique_ptr<MessagePrinter> x(new DefaultMessagePrinter());
-    return x;
-}
-inline void reset_message_printer() {
-    message_printer().reset(new DefaultMessagePrinter());
-}
+// }}}1
 
-// }}}
+// {{{1 definition of Logger
 
-// {{{ definition of DefaultMessagePrinter
-
-inline bool DefaultMessagePrinter::check(Errors) {
-    if (!messageLimit_ && error_) { throw std::runtime_error("too many messages."); }
-    if (messageLimit_) { --messageLimit_; }
+inline bool Logger::check(Errors) {
+    if (!limit_ && error_) { throw MessageLimitError("too many messages."); }
+    if (limit_) { --limit_; }
     error_ = true;
     return true;
 }
 
-inline bool DefaultMessagePrinter::check(Warnings id) {
-    if (!messageLimit_ && error_) { throw std::runtime_error("too many messages."); }
-    return !disabled_[id] && messageLimit_ && (--messageLimit_, true);
+inline bool Logger::check(Warnings id) {
+    if (!limit_ && error_) { throw MessageLimitError("too many messages."); }
+    return !disabled_[id] && limit_ && (--limit_, true);
 }
 
-inline bool DefaultMessagePrinter::hasError() const {
+inline bool Logger::hasError() const {
     return error_;
 }
 
-inline void DefaultMessagePrinter::enable(Warnings id) {
-    disabled_[id] = false;
+inline void Logger::enable(Warnings id, bool enabled) {
+    disabled_[id] = !enabled;
 }
 
-inline void DefaultMessagePrinter::disable(Warnings id) {
-    disabled_[id] = true;
+inline void Logger::print(clingo_warning_t code, char const *msg) {
+    if (p_) { p_(code, msg); }
+    else {
+        fprintf(stderr, "%s\n", msg);
+        fflush(stderr);
+    }
 }
 
-inline void DefaultMessagePrinter::print(std::string const &msg) {
-    fprintf(stderr, "%s\n", msg.c_str());
-    fflush(stderr);
-}
+inline Logger::~Logger() { }
 
-inline DefaultMessagePrinter::~DefaultMessagePrinter() { }
+// {{{1 definition of Report
 
-// }}}
-// {{{ definition of Report
-
-struct Report {
-    ~Report() { message_printer()->print(out.str()); }
+class Report {
+public:
+    Report(Logger &p, clingo_warning_t code) : p_(p), code_(code) { }
+    ~Report() { p_.print(code_, out.str().c_str()); }
     std::ostringstream out;
+private:
+    Logger &p_;
+    clingo_warning_t code_;
 };
 
-// }}}
+// }}}1
 
 } // namespace GRINGO
 
-#define GRINGO_REPORT(id) \
-if (!message_printer()->check(id)) { } \
-else Gringo::Report().out
+#define GRINGO_REPORT(p, id) \
+if (!(p).check(id)) { } \
+else Gringo::Report(p, id).out
 
 #endif // _GRINGO_REPORT_HH
 

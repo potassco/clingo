@@ -48,9 +48,9 @@ TEST_CASE("output-theory", "[output]") {
             "    &a/0 : group, head"
             "}.";
         REQUIRE(
+            "1 0 1 1 0 0\n"
             "9 1 0 1 a\n"
             "9 5 1 0 0\n"
-            "1 0 1 1 0 0\n"
             "0\n" ==
             Gringo::Ground::Test::groundAspif(
                 theory +
@@ -64,9 +64,9 @@ TEST_CASE("output-theory", "[output]") {
             "    &a/0 : group, body"
             "}.";
         REQUIRE(
+            "1 0 0 0 1 1\n"
             "9 1 0 1 a\n"
             "9 5 1 0 0\n"
-            "1 0 0 0 1 1\n"
             "0\n" ==
             Gringo::Ground::Test::groundAspif(
                 theory +
@@ -104,102 +104,103 @@ TEST_CASE("output-theory", "[output]") {
             "  &a/0 : group, head\n"
             "}.\n";
         REQUIRE(
+            "1 0 1 1 0 0\n"
             "9 1 0 1 a\n"
             "9 4 0 0 0\n"
             "9 5 1 0 1 0\n"
-            "1 0 1 1 0 0\n"
             "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { : }."));
         REQUIRE(
+            "1 0 1 1 0 0\n"
             "9 1 0 1 a\n"
             "9 0 1 1\n"
             "9 4 0 2 1 1 0\n"
             "9 5 1 0 1 0\n"
-            "1 0 1 1 0 0\n"
             "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { 1,1 }."));
         REQUIRE(
+            "1 0 1 1 0 0\n"
             "9 1 0 1 a\n"
             "9 2 1 -1 0\n"
             "9 4 0 1 1 0\n"
             "9 5 1 0 1 0\n"
-            "1 0 1 1 0 0\n"
             "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { () }."));
         REQUIRE(
+            "1 0 1 1 0 0\n"
             "9 1 0 1 a\n"
             "9 1 1 4 #sup\n"
             "9 4 0 1 1 0\n"
             "9 5 1 0 1 0\n"
-            "1 0 1 1 0 0\n"
             "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { #sup }."));
         REQUIRE(
+            "1 0 1 1 0 0\n"
             "9 1 0 1 a\n"
             "9 1 1 4 #inf\n"
             "9 4 0 1 1 0\n"
             "9 5 1 0 1 0\n"
-            "1 0 1 1 0 0\n"
             "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { #inf }."));
         REQUIRE(
+            "1 0 1 1 0 0\n"
             "9 1 0 1 a\n"
             "9 0 2 1\n"
             "9 1 1 1 f\n"
             "9 2 3 1 1 2\n"
             "9 4 0 1 3 0\n"
             "9 5 1 0 1 0\n"
-            "1 0 1 1 0 0\n"
             "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { f(1) }."));
         REQUIRE(
+            "1 0 1 1 0 0\n"
             "9 1 0 1 a\n"
             "9 0 1 1\n"
             "9 2 2 -1 1 1\n"
             "9 4 0 1 2 0\n"
             "9 5 1 0 1 0\n"
-            "1 0 1 1 0 0\n"
             "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { (1,) }."));
         REQUIRE(
+            "1 0 1 1 0 0\n"
             "9 1 0 1 a\n"
             "9 0 1 1\n"
             "9 0 2 2\n"
             "9 2 3 -1 2 1 2\n"
             "9 4 0 1 3 0\n"
             "9 5 1 0 1 0\n"
-            "1 0 1 1 0 0\n"
             "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { (1,2) }."));
         REQUIRE(
+            "1 0 1 1 0 0\n"
             "9 1 0 1 a\n"
             "9 0 1 1\n"
             "9 0 2 2\n"
             "9 2 3 -2 2 1 2\n"
             "9 4 0 1 3 0\n"
             "9 5 1 0 1 0\n"
-            "1 0 1 1 0 0\n"
             "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { {1,2} }."));
         REQUIRE(
+            "1 0 1 1 0 0\n"
             "9 1 0 1 a\n"
             "9 0 1 1\n"
             "9 0 2 2\n"
             "9 2 3 -3 2 1 2\n"
             "9 4 0 1 3 0\n"
             "9 5 1 0 1 0\n"
-            "1 0 1 1 0 0\n"
             "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { [1,2] }."));
         REQUIRE(
+            "1 0 1 1 0 0\n"
             "9 1 0 1 a\n"
             "9 0 2 1\n"
             "9 1 1 1 -\n"
             "9 2 3 1 1 2\n"
             "9 4 0 1 3 0\n"
             "9 5 1 0 1 0\n"
-            "1 0 1 1 0 0\n"
             "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { (-1) }."));
         REQUIRE(
+            "1 0 1 1 0 0\n"
             "9 1 0 1 a\n"
             "9 0 2 1\n"
             "9 1 1 1 -\n"
             "9 2 3 1 1 2\n"
             "9 4 0 1 3 0\n"
             "9 5 1 0 1 0\n"
-            "1 0 1 1 0 0\n"
             "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { X } :- X=-1."));
         REQUIRE(
+            "1 0 1 1 0 0\n"
             "9 1 0 1 a\n"
             "9 0 3 1\n"
             "9 1 2 1 +\n"
@@ -208,9 +209,9 @@ TEST_CASE("output-theory", "[output]") {
             "9 2 5 1 1 4\n"
             "9 4 0 1 5 0\n"
             "9 5 1 0 1 0\n"
-            "1 0 1 1 0 0\n"
             "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { - + 1 }."));
         REQUIRE(
+            "1 0 1 1 0 0\n"
             "9 1 0 1 a\n"
             "9 0 2 1\n"
             "9 0 3 2\n"
@@ -218,9 +219,9 @@ TEST_CASE("output-theory", "[output]") {
             "9 2 4 1 2 2 3\n"
             "9 4 0 1 4 0\n"
             "9 5 1 0 1 0\n"
-            "1 0 1 1 0 0\n"
             "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { 1^2 }."));
         REQUIRE(
+            "1 0 1 1 0 0\n"
             "9 1 0 1 a\n"
             "9 0 2 1\n"
             "9 0 4 2\n"
@@ -231,7 +232,6 @@ TEST_CASE("output-theory", "[output]") {
             "9 2 7 1 2 2 6\n"
             "9 4 0 1 7 0\n"
             "9 5 1 0 1 0\n"
-            "1 0 1 1 0 0\n"
             "0\n" == Gringo::Ground::Test::groundAspif(theory + "&a { 1+2*3 }."));
     }
 }

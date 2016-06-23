@@ -83,34 +83,34 @@ CSPLiteral *CSPLiteral::clone() const {
 
 // {{{1 definition of Literal::simplify
 
-bool PredicateLiteral::simplify(Projections &project, SimplifyState &state, bool positional, bool singleton) {
+bool PredicateLiteral::simplify(Logger &log, Projections &project, SimplifyState &state, bool positional, bool singleton) {
     if (singleton && positional && naf == NAF::POS) {
         positional = false;
     }
-    auto ret(repr->simplify(state, positional, false));
+    auto ret(repr->simplify(state, positional, false, log));
     ret.update(repr);
     if (ret.undefined()) { return false; }
-    if (repr->simplify(state, positional, false).update(repr).project) {
+    if (repr->simplify(state, positional, false, log).update(repr).project) {
         auto rep(project.add(*repr));
         Term::replace(repr, std::move(rep));
     }
     return true;
 }
-bool RelationLiteral::simplify(Projections &, SimplifyState &state, bool, bool) {
-    if (left->simplify(state, false, false).update(left).undefined()) { return false; }
-    if (right->simplify(state, false, false).update(right).undefined()) { return false; }
+bool RelationLiteral::simplify(Logger &log, Projections &, SimplifyState &state, bool, bool) {
+    if (left->simplify(state, false, false, log).update(left).undefined()) { return false; }
+    if (right->simplify(state, false, false, log).update(right).undefined()) { return false; }
     return true;
 }
-bool RangeLiteral::simplify(Projections &, SimplifyState &, bool, bool) {
+bool RangeLiteral::simplify(Logger &, Projections &, SimplifyState &, bool, bool) {
     throw std::logic_error("RangeLiteral::simplify should never be called  if used properly");
 }
-bool FalseLiteral::simplify(Projections &, SimplifyState &, bool, bool) { return true; }
-bool ScriptLiteral::simplify(Projections &, SimplifyState &, bool, bool) {
+bool FalseLiteral::simplify(Logger &, Projections &, SimplifyState &, bool, bool) { return true; }
+bool ScriptLiteral::simplify(Logger &, Projections &, SimplifyState &, bool, bool) {
     throw std::logic_error("ScriptLiteral::simplify should never be called  if used properly");
 }
-bool CSPLiteral::simplify(Projections &, SimplifyState &state, bool, bool) {
+bool CSPLiteral::simplify(Logger &log, Projections &, SimplifyState &state, bool, bool) {
     for (auto &x : terms) {
-        if (!x.simplify(state)) { return false; };
+        if (!x.simplify(state, log)) { return false; };
     }
     return true;
 }

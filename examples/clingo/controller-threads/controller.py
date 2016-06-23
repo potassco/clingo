@@ -98,7 +98,7 @@ class SolveThread(Thread):
         self.prg = clingo.Control()
         self.prg.load("client.lp")
         self.prg.ground([("pigeon", []), ("sleep",  [self.k])])
-        self.prg.assign_external(clingo.function("sleep", [self.k]), True)
+        self.prg.assign_external(clingo.Function("sleep", [self.k]), True)
         self.state = SolveThread.STATE_IDLE
         self.input = Connection()
         self.output = connection
@@ -115,10 +115,10 @@ class SolveThread(Thread):
         elif msg == "exit":
             self.state = SolveThread.STATE_EXIT
         elif msg == "less_pigeon_please":
-            self.prg.assign_external(clingo.function("p"), False)
+            self.prg.assign_external(clingo.Function("p"), False)
             self.state = SolveThread.STATE_IDLE
         elif msg == "more_pigeon_please":
-            self.prg.assign_external(clingo.function("p"), True)
+            self.prg.assign_external(clingo.Function("p"), True)
             self.state = SolveThread.STATE_IDLE
         elif msg == "solve":
             self.state = SolveThread.STATE_SOLVE
@@ -140,8 +140,8 @@ class SolveThread(Thread):
             elif ret is not None and not ret.unknown:
                 self.k = self.k + 1
                 self.prg.ground([("sleep", [self.k])])
-                self.prg.release_external(clingo.function("sleep", [self.k-1]))
-                self.prg.assign_external(clingo.function("sleep", [self.k]), True)
+                self.prg.release_external(clingo.Function("sleep", [self.k-1]))
+                self.prg.assign_external(clingo.Function("sleep", [self.k]), True)
 
 ct = Controller()
 st = SolveThread(ct.input)

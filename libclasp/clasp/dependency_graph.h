@@ -32,6 +32,7 @@ namespace Clasp {
 class Solver;
 class SharedContext;
 struct SolverStats;
+class EventHandler;
 struct SolveTestEvent : SolveEvent<SolveTestEvent> {
 	SolveTestEvent(const Solver& s, uint32 scc, bool partial);
 	int    result;     // -1: before test, 0: unstable, 1: stable
@@ -44,6 +45,12 @@ struct SolveTestEvent : SolveEvent<SolveTestEvent> {
 	uint64 conflicts() const;
 	uint64 choices()   const;
 };
+struct RemoveNonHcfEvent : Event_t<RemoveNonHcfEvent> {
+	RemoveNonHcfEvent(const Asp::PrgDepGraph& g, uint32 nonHcfId, Event::Subsystem);
+	const Asp::PrgDepGraph* graph;
+	uint32 id;
+};
+
 struct LoopReason_t {
 	enum Type { Explicit = 0u, Implicit = 1u, };
 };
@@ -238,6 +245,8 @@ public:
 
 	//! Removes inactive non-hcfs.
 	void simplify(const Solver& s);
+	//! Sets dedicated handler for RemoveNonHcfEvents fired when a non-hcf is removed.
+	EventHandler* setRemoveHandler(EventHandler* h) { EventHandler* t = removeHandler_; removeHandler_ = h; return t; }
 
 	//! Number of atoms in graph.
 	uint32 numAtoms() const { return (uint32)atoms_.size();  }
@@ -270,7 +279,6 @@ public:
 	NonHcfIter     nonHcfBegin() const { return components_.empty() ? NonHcfIter(0) : &components_[0]; }
 	NonHcfIter     nonHcfEnd()   const { return nonHcfBegin() + components_.size(); }
 	uint32         numNonHcfs()  const { return (uint32)components_.size(); }
-	void           accuStats()   const;
 private:
 	typedef PodVector<AtomNode>::type      AtomVec;
 	typedef PodVector<BodyNode>::type      BodyVec;
@@ -293,6 +301,7 @@ private:
 	AtomVec        atoms_;
 	BodyVec        bodies_;
 	ComponentMap   components_;
+	EventHandler*  removeHandler_;
 	uint32         seenComponents_ : 31;
 	uint32         mapType_        :  1;
 };

@@ -78,16 +78,18 @@ HeadAggrElemVec hdvec7() { return hdelemvec(termvec(pool(val(NUM(1)), val(NUM(2)
 HeadAggrElemVec hdvec8() { return hdelemvec(termvec(val(NUM(1))), lit("p", "q"), litvec()); }
 
 std::string simplify(UBodyAggr &&x) {
+    Gringo::Test::TestGringoModule log;
     Projections project;
     SimplifyState state;
-    x->simplify(project, state, false);
+    x->simplify(project, state, false, log);
     return to_string(std::make_pair(std::move(x), std::move(state.dots)));
 }
 
 std::string simplify(UHeadAggr &&x) {
+    Gringo::Test::TestGringoModule log;
     Projections project;
     SimplifyState state;
-    x->simplify(project, state);
+    x->simplify(project, state, log);
     return to_string(std::make_pair(std::move(x), std::move(state.dots)));
 }
 

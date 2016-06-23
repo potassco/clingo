@@ -1,6 +1,6 @@
 #script(python)
 
-from clingo import function, SolveResult
+from clingo import Function, SolveResult
 from sys import stderr
 
 def main(prg):
@@ -13,9 +13,9 @@ def main(prg):
     parts.append(("state", [t]))
     while True:
         prg.ground(parts)
-        prg.release_external(function("volatile", [t-1]))
+        prg.release_external(Function("volatile", [t-1]))
         prg.cleanup()
-        prg.assign_external(function("volatile", [t]), True)
+        prg.assign_external(Function("volatile", [t]), True)
         ret = prg.solve()
         if ret.satisfiable is False and t > 20: break
         if ret.satisfiable is True:

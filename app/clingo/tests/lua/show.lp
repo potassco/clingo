@@ -19,16 +19,16 @@ function split(model)
 end
 
 function on_model(model)
-    models[#models+1] = clingo.fun("model", split(model))
-    models[#models+1] = clingo.fun("shown", normalize(model:atoms{shown=true}))
-    models[#models+1] = clingo.fun("atoms", normalize(model:atoms{atoms=true}))
-    models[#models+1] = clingo.fun("terms", normalize(model:atoms{terms=true}))
-    models[#models+1] = clingo.fun("csp",   normalize(model:atoms{csp=true}))
+    models[#models+1] = clingo.Function("model", split(model))
+    models[#models+1] = clingo.Function("shown", normalize(model:atoms{shown=true}))
+    models[#models+1] = clingo.Function("atoms", normalize(model:atoms{atoms=true}))
+    models[#models+1] = clingo.Function("terms", normalize(model:atoms{terms=true}))
+    models[#models+1] = clingo.Function("csp",   normalize(model:atoms{csp=true}))
 end
 
 function main(prg)
     prg:ground({{"base", {}}})
-    prg:solve(nil, on_model)
+    prg:solve(on_model)
     prg:ground({{"result", {}}})
     prg:solve()
 end

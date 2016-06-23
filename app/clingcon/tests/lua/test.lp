@@ -15,8 +15,8 @@ end
 function on_model(x)
     print("Answer: 42")
     print(
-           "hasA(" ..        tostring(x:contains(clingo.fun("a"))) .. ") "
-        .. "hasVolatile(" .. tostring(x:contains(clingo.fun("volatile", {9}))) .. ") "
+           "hasA(" ..        tostring(x:contains(clingo.Function("a"))) .. ") "
+        .. "hasVolatile(" .. tostring(x:contains(clingo.Function("volatile", {9}))) .. ") "
         .. "model(" ..       table.concat(sorted(map(tostring, x:atoms{shown=true})), ",") .. ") ")
 end
 
@@ -28,12 +28,12 @@ function main (prg)
     prg:solve()
     parts = {}
     prg:add("test", {"x"}, "test(x).")
-    parts[#parts+1] = {"test", {clingo.fun("f", {1,2})}}
+    parts[#parts+1] = {"test", {clingo.Function("f", {1,2})}}
     for i=1,n do
         parts[#parts+1] = {"cumulative", {i}}
         prg:ground(parts)
         parts = {}
-        ret = prg:solve(nil, on_model)
+        ret = prg:solve(on_model)
         print("Answer: 42")
         print(tostring(ret))
     end

@@ -39,13 +39,12 @@ bool Scripts::callable(String name) {
 void Scripts::main(Control &ctl) {
     if (py.callable("main")) { return py.main(ctl); }
     if (lua.callable("main")) { return lua.main(ctl); }
-
 }
-SymVec Scripts::call(Location const &loc, String name, SymSpan args) {
+SymVec Scripts::call(Location const &loc, String name, SymSpan args, Logger &log) {
     if (context && context->callable(name)) { return context->call(loc, name, args); }
-    if (py.callable(name)) { return py.call(loc, name, args); }
-    if (lua.callable(name)) { return lua.call(loc, name, args); }
-    GRINGO_REPORT(W_OPERATION_UNDEFINED)
+    if (py.callable(name)) { return py.call(loc, name, args, log); }
+    if (lua.callable(name)) { return lua.call(loc, name, args, log); }
+    GRINGO_REPORT(log, clingo_warning_operation_undefined)
         << loc << ": info: operation undefined:\n"
         << "  function '" << name << "' not found\n"
         ;

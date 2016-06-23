@@ -73,13 +73,13 @@ void Program::add(UStm &&stm) {
     }
 }
 
-void Program::add(TheoryDef &&def) {
+void Program::add(TheoryDef &&def, Logger &log) {
     auto it = theoryDefs_.find(def.name());
     if (it == theoryDefs_.end()) {
         theoryDefs_.push(std::move(def));
     }
     else {
-        GRINGO_REPORT(E_ERROR)
+        GRINGO_REPORT(log, clingo_error_fatal)
             << def.loc() << ": error: redefinition of theory:" << "\n"
             << "  " << def.name() << "\n"
             << it->loc() << ": note: theory first defined here\n";
@@ -87,7 +87,7 @@ void Program::add(TheoryDef &&def) {
 
 }
 
-void Program::rewrite(Defines &defs) {
+void Program::rewrite(Defines &defs, Logger &log) {
     for (auto &block : blocks_) {
         // {{{3 replacing definitions
         Defines incDefs;
@@ -96,13 +96,13 @@ void Program::rewrite(Defines &defs) {
         AuxGen gen;
         for (auto &param : block.params) {
             args.emplace_back(gen.uniqueVar(param.first, 0, "#Inc"));
-            incDefs.add(param.first, param.second, get_clone(args.back()), false);
+            incDefs.add(param.first, param.second, get_clone(args.back()), false, log);
         }
         sigs_.push(Sig(block.name, args.size(), false));
         UTerm blockTerm(args.empty()
             ? (UTerm)make_locatable<ValTerm>(block.loc, Symbol::createId(block.name))
             : make_locatable<FunctionTerm>(block.loc, block.name, get_clone(args)));
-        incDefs.init();
+        incDefs.init(log);
 
         for (auto &fact : block.addedEdb) { sigs_.push(fact.sig()); }
         auto replace = [&](Defines &defs, Symbol fact) -> Symbol {
@@ -139,8 +139,8 @@ void Program::rewrite(Defines &defs) {
             else { sigs_.push(std::get<1>(*block.edb).back().sig()); }
         };
         auto rewrite1 = [&](UStm &x) -> void {
-            x->initTheory(theoryDefs_);
-            if (x->rewrite1(project_)) {
+            x->initTheory(theoryDefs_, log);
+            if (x->rewrite1(project_, log)) {
                 if (x->hasPool(false)) { for (auto &y : x->unpool(false)) { rewrite2(y); } }
                 else                   { rewrite2(x); }
             }
@@ -170,16 +170,16 @@ void Program::rewrite(Defines &defs) {
     // }}}3
 }
 
-void Program::check() {
+void Program::check(Logger &log) {
     for (auto &block : blocks_) {
-        for (auto &stm : block.stms) { stm->check(); }
+        for (auto &stm : block.stms) { stm->check(log); }
     }
     std::unordered_map<Sig, Location> seenSigs;
     for (auto &def : theoryDefs_) {
         for (auto &atomDef : def.atomDefs()) {
             auto seenSig = seenSigs.emplace(atomDef.sig(), atomDef.loc());
             if (!seenSig.second) {
-                GRINGO_REPORT(E_ERROR)
+                GRINGO_REPORT(log, clingo_error_fatal)
                     << atomDef.loc() << ": error: multiple definitions for theory atom:" << "\n"
                     << "  " << atomDef.sig() << "\n"
                     << seenSig.first->second << ": note: first defined here\n";
@@ -205,7 +205,7 @@ void Program::print(std::ostream &out) const {
     for (auto &x : stms_) { out << *x << "\n"; }
 }
 
-Ground::Program Program::toGround(DomainData &domains) {
+Ground::Program Program::toGround(DomainData &domains, Logger &log) {
     Ground::UStmVec stms;
     stms.emplace_back(make_locatable<Ground::ExternalRule>(Location("#external", 1, 1, "#external", 1, 1)));
     ToGroundArg arg(auxNames_, domains);
@@ -235,7 +235,7 @@ Ground::Program Program::toGround(DomainData &domains) {
     }
     std::sort(undef.begin(), undef.end(), [](Ground::UndefVec::value_type const &a, Ground::UndefVec::value_type const &b) { return a.first < b.first; });
     for (auto &x : undef) {
-        GRINGO_REPORT(W_ATOM_UNDEFINED)
+        GRINGO_REPORT(log, clingo_warning_atom_undefined)
             << x.first << ": info: atom does not occur in any rule head:\n"
             << "  " << *x.second << "\n";
     }

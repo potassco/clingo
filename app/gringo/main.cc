@@ -52,8 +52,9 @@ struct GringoOptions {
     bool                         wNoFileIncluded       = false;
     bool                         wNoVariableUnbounded  = false;
     bool                         wNoGlobalVariable     = false;
+    bool                         wNoOther              = false;
     bool                         rewriteMinimize       = false;
-    bool                        keepFacts             = false;
+    bool                         keepFacts             = false;
     Foobar foobar;
 };
 
@@ -86,36 +87,40 @@ static inline bool parseFoobar(const std::string& str, GringoOptions::Foobar& fo
 struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     using StringVec = std::vector<std::string>;
     IncrementalControl(Gringo::Output::OutputBase &out, StringVec const &files, GringoOptions const &opts)
-        : out(out)
-        , scripts(*this)
-        , pb(scripts, prg, out, defs, opts.rewriteMinimize)
-        , parser(pb)
-        , opts(opts) {
+    : out(out)
+    , scripts(*this)
+    , pb(scripts, prg, out, defs, opts.rewriteMinimize)
+    , parser(pb)
+    , opts(opts) {
         using namespace Gringo;
         out.keepFacts = opts.keepFacts;
-        if (opts.wNoOperationUndefined) { message_printer()->disable(W_OPERATION_UNDEFINED); }
-        if (opts.wNoAtomUndef)          { message_printer()->disable(W_ATOM_UNDEFINED); }
-        if (opts.wNoFileIncluded)       { message_printer()->disable(W_FILE_INCLUDED); }
-        if (opts.wNoVariableUnbounded)  { message_printer()->disable(W_VARIABLE_UNBOUNDED); }
-        if (opts.wNoGlobalVariable)     { message_printer()->disable(W_GLOBAL_VARIABLE); }
+        logger_.enable(clingo_warning_operation_undefined, !opts.wNoOperationUndefined);
+        logger_.enable(clingo_warning_atom_undefined, !opts.wNoAtomUndef);
+        logger_.enable(clingo_warning_variable_unbounded, !opts.wNoVariableUnbounded);
+        logger_.enable(clingo_warning_file_included, !opts.wNoFileIncluded);
+        logger_.enable(clingo_warning_global_variable, !opts.wNoGlobalVariable);
+        logger_.enable(clingo_warning_other, !opts.wNoOther);
         for (auto &x : opts.defines) {
             LOG << "define: " << x << std::endl;
-            parser.parseDefine(x);
+            parser.parseDefine(x, logger_);
         }
         for (auto &x : files) {
             LOG << "file: " << x << std::endl;
-            parser.pushFile(std::string(x));
+            parser.pushFile(std::string(x), logger_);
         }
         if (files.empty()) {
             LOG << "reading from stdin" << std::endl;
-            parser.pushFile("-");
+            parser.pushFile("-", logger_);
         }
         parse();
-        }
+    }
+    Gringo::Logger &logger() override {
+        return logger_;
+    }
     void parse() {
         if (!parser.empty()) {
-            parser.parse();
-            defs.init();
+            parser.parse(logger_);
+            defs.init(logger_);
             parsed = true;
         }
     }
@@ -126,10 +131,10 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
         parse();
         if (parsed) {
             LOG << "************** parsed program **************" << std::endl << prg;
-            prg.rewrite(defs);
+            prg.rewrite(defs, logger_);
             LOG << "************* rewritten program ************" << std::endl << prg;
-            prg.check();
-            if (Gringo::message_printer()->hasError()) {
+            prg.check(logger_);
+            if (logger_.hasError()) {
                 throw std::runtime_error("grounding stopped because of errors");
             }
             parsed = false;
@@ -141,17 +146,17 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
         if (!parts.empty()) {
             Gringo::Ground::Parameters params;
             for (auto &x : parts) { params.add(x.first, Gringo::SymVec(x.second)); }
-            Gringo::Ground::Program gPrg(prg.toGround(out.data));
+            Gringo::Ground::Program gPrg(prg.toGround(out.data, logger_));
             LOG << "************* intermediate program *************" << std::endl << gPrg << std::endl;
             LOG << "*************** grounded program ***************" << std::endl;
-            gPrg.ground(params, scripts, out, false);
+            gPrg.ground(params, scripts, out, false, logger_);
         }
     }
     void add(std::string const &name, Gringo::FWStringVec const &params, std::string const &part) override {
         Gringo::Location loc("<block>", 1, 1, "<block>", 1, 1);
         Gringo::Input::IdVec idVec;
         for (auto &x : params) { idVec.emplace_back(loc, x); }
-        parser.pushBlock(name, std::move(idVec), part);
+        parser.pushBlock(name, std::move(idVec), part, logger_);
         parse();
     }
     Gringo::Symbol getConst(std::string const &name) override {
@@ -159,20 +164,20 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
         auto ret = defs.defs().find(name.c_str());
         if (ret != defs.defs().end()) {
             bool undefined = false;
-            Gringo::Symbol val = std::get<2>(ret->second)->eval(undefined);
+            Gringo::Symbol val = std::get<2>(ret->second)->eval(undefined, logger_);
             if (!undefined) { return val; }
         }
         return Gringo::Symbol();
     }
     void load(std::string const &filename) override {
-        parser.pushFile(std::string(filename));
+        parser.pushFile(std::string(filename), logger_);
         parse();
     }
     bool blocked() override { return false; }
     Gringo::SolveResult solve(ModelHandler, Assumptions &&ass) override {
         if (!ass.empty()) { std::cerr << "warning: the lparse format does not support assumptions" << std::endl; }
         grounded = false;
-        out.endStep(true);
+        out.endStep(true, logger_);
         out.reset();
         const_cast<Potassco::TheoryData&>(out.data.theory().data()).reset();
         return {Gringo::SolveResult::Unknown, false, false};
@@ -185,6 +190,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     }
     Gringo::SolveFuture *solveAsync(ModelHandler, FinishHandler, Assumptions &&) override { throw std::runtime_error("asynchronous solving not supported"); }
     Gringo::Statistics *getStats() override { throw std::runtime_error("statistics not supported (yet)"); }
+    Gringo::StatisticsNG *statistics() override { throw std::runtime_error("statistics not supported (yet)"); }
     void assignExternal(Gringo::Symbol ext, Potassco::Value_t val) override {
         auto atm = out.find(ext);
         if (atm.second && atm.first->hasUid()) {
@@ -193,16 +199,15 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
             out.output(external);
         }
     }
-    Gringo::DomainProxy &getDomain() override { throw std::runtime_error("domain introspection not supported"); }
+    Gringo::SymbolicAtoms &getDomain() override { throw std::runtime_error("domain introspection not supported"); }
     Gringo::ConfigProxy &getConf() override { throw std::runtime_error("configuration not supported"); }
-    void registerPropagator(Gringo::Propagator &, bool) override { throw std::runtime_error("theory propagators not supported"); }
+    void registerPropagator(Gringo::UProp, bool) override { throw std::runtime_error("theory propagators not supported"); }
     void useEnumAssumption(bool) override { }
     bool useEnumAssumption() override { return false; }
     virtual ~IncrementalControl() { }
-    Gringo::Symbol parseValue(std::string const &str) override { return termParser.parse(str); }
-    Control *newControl(int, char const **) override { throw std::logic_error("new control instances not supported"); }
+    Gringo::Symbol parseValue(std::string const &str, Gringo::Logger::Printer, unsigned) override { return termParser.parse(str, logger_); }
+    Gringo::Control *newControl(int, char const * const *, Gringo::Logger::Printer, unsigned) override { throw std::logic_error("new control instances not supported"); }
     Gringo::TheoryData const &theory() const override { return out.data.theoryInterface(); }
-    void freeControl(Control *) override { }
     void cleanupDomains() override { }
     void parse(char const *, std::function<void (clingo_ast_t const &)>) override { throw std::logic_error("AST parsing not supported"); }
     void add(std::function<void (std::function<void (clingo_ast_t const &)>)>) override { throw std::logic_error("AST parsing not supported"); }
@@ -216,6 +221,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     Gringo::Input::NongroundProgramBuilder pb;
     Gringo::Input::NonGroundParser         parser;
     GringoOptions const                   &opts;
+    Gringo::Logger                         logger_;
     bool                                   parsed = false;
     bool                                   grounded = false;
 };
@@ -226,17 +232,30 @@ static bool parseConst(const std::string& str, std::vector<std::string>& out) {
     return true;
 }
 
-static bool parseWarning(const std::string& str, GringoOptions& out) {
-    if (str == "no-atom-undefined")      { out.wNoAtomUndef          = true;  return true; }
-    if (str ==    "atom-undefined")      { out.wNoAtomUndef          = false; return true; }
-    if (str == "no-file-included")       { out.wNoFileIncluded       = true;  return true; }
-    if (str ==    "file-included")       { out.wNoFileIncluded       = false; return true; }
-    if (str == "no-operation-undefined") { out.wNoOperationUndefined = true;  return true; }
-    if (str ==    "operation-undefined") { out.wNoOperationUndefined = false; return true; }
-    if (str == "no-variable-unbounded")  { out.wNoVariableUnbounded  = true;  return true; }
-    if (str ==    "variable-unbounded")  { out.wNoVariableUnbounded  = false; return true; }
-    if (str == "no-global-variable")     { out.wNoGlobalVariable     = true;  return true; }
-    if (str ==    "global-variable")     { out.wNoGlobalVariable     = false; return true; }
+inline void enableAll(GringoOptions& out, bool enable) {
+    out.wNoAtomUndef          = !enable;
+    out.wNoFileIncluded       = !enable;
+    out.wNoOperationUndefined = !enable;
+    out.wNoVariableUnbounded  = !enable;
+    out.wNoGlobalVariable     = !enable;
+    out.wNoOther              = !enable;
+}
+
+inline bool parseWarning(const std::string& str, GringoOptions& out) {
+    if (str == "none")                     { enableAll(out, false);             return true; }
+    if (str == "all")                      { enableAll(out, true);              return true; }
+    if (str == "no-atom-undefined")        { out.wNoAtomUndef          = true;  return true; }
+    if (str ==    "atom-undefined")        { out.wNoAtomUndef          = false; return true; }
+    if (str == "no-file-included")         { out.wNoFileIncluded       = true;  return true; }
+    if (str ==    "file-included")         { out.wNoFileIncluded       = false; return true; }
+    if (str == "no-operation-undefined")   { out.wNoOperationUndefined = true;  return true; }
+    if (str ==    "operation-undefined")   { out.wNoOperationUndefined = false; return true; }
+    if (str == "no-variable-unbounded")    { out.wNoVariableUnbounded  = true;  return true; }
+    if (str ==    "variable-unbounded")    { out.wNoVariableUnbounded  = false; return true; }
+    if (str == "no-global-variable")       { out.wNoGlobalVariable     = true;  return true; }
+    if (str ==    "global-variable")       { out.wNoGlobalVariable     = false; return true; }
+    if (str == "no-other")                 { out.wNoOther              = true;  return true; }
+    if (str ==    "other")                 { out.wNoOther              = false; return true; }
     return false;
 }
 
@@ -249,7 +268,6 @@ struct GringoApp : public ProgramOptions::Application {
     using StringSeq = std::vector<std::string>;
     virtual const char* getName() const    { return "gringo"; }
     virtual const char* getVersion() const { return GRINGO_VERSION; }
-protected:
     virtual void initOptions(ProgramOptions::OptionContext& root) {
         using namespace ProgramOptions;
         grOpts_.defines.clear();
@@ -278,11 +296,14 @@ protected:
              "      translate: print translated rules as plain text (prefix %%%%)\n"
              "      all      : combines text and translate")
             ("warn,W", storeTo(grOpts_, parseWarning)->arg("<warn>")->composing(), "Enable/disable warnings:\n"
-             "      [no-]atom-undefined:        a :- b.\n"
-             "      [no-]file-included:         #include \"a.lp\". #include \"a.lp\".\n"
-             "      [no-]operation-undefined:   p(1/0).\n"
-             "      [no-]variable-unbounded:    $x > 10.\n"
-             "      [no-]global-variable:       :- #count { X } = 1, X = 1.")
+             "      none:                     disable all warnings\n"
+             "      all:                      enable all warnings\n"
+             "      [no-]atom-undefined:      a :- b.\n"
+             "      [no-]file-included:       #include \"a.lp\". #include \"a.lp\".\n"
+             "      [no-]operation-undefined: p(1/0).\n"
+             "      [no-]variable-unbounded:  $x > 10.\n"
+             "      [no-]global-variable:     :- #count { X } = 1, X = 1.\n"
+             "      [no-]other:               uncategorized warnings")
             ("rewrite-minimize", flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
             ("keep-facts", flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
             ("foobar,@4", storeTo(grOpts_.foobar, parseFoobar), "Foobar")
@@ -352,16 +373,23 @@ protected:
     }
 
     virtual void run() {
-        using namespace Gringo;
-        grOpts_.verbose = verbose() == UINT_MAX;
-        Output::OutputPredicates outPreds;
-        for (auto &x : grOpts_.foobar) {
-            outPreds.emplace_back(Location("<cmd>",1,1,"<cmd>", 1,1), x, false);
+        try {
+            using namespace Gringo;
+            grOpts_.verbose = verbose() == UINT_MAX;
+            Output::OutputPredicates outPreds;
+            for (auto &x : grOpts_.foobar) {
+                outPreds.emplace_back(Location("<cmd>",1,1,"<cmd>", 1,1), x, false);
+            }
+            Potassco::TheoryData data;
+            data.update();
+            Output::OutputBase out(data, std::move(outPreds), std::cout, grOpts_.outputFormat, grOpts_.outputDebug);
+            ground(out);
         }
-        Potassco::TheoryData data;
-        data.update();
-        Output::OutputBase out(data, std::move(outPreds), std::cout, grOpts_.outputFormat, grOpts_.outputDebug);
-        ground(out);
+        catch (Gringo::GringoError const &e) {
+            std::cerr << e.what() << std::endl;
+            throw std::runtime_error("fatal error");
+        }
+        catch (...) { throw; }
     }
 private:
     StringSeq     input_;

@@ -279,6 +279,74 @@ void sort_unique(T &vec) {
     sort_unique(vec, std::less<typename std::remove_reference<decltype(*vec.begin())>::type>());
 }
 
+// {{{1 custom streams
+
+class CountBuf : public std::streambuf {
+public:
+    CountBuf() = default;
+    size_t count() const { return count_; }
+protected:
+    int_type overflow(int_type ch) override {
+        count_++;
+        return ch;
+    }
+    std::streamsize xsputn(const char_type*, std::streamsize count) override {
+        count_ += count;
+        return count;
+    }
+private:
+    size_t count_ = 0;
+};
+
+class CountStream : public std::ostream {
+public:
+    CountStream() : std::ostream(&buf_) {
+        exceptions(std::ios_base::badbit | std::ios_base::failbit | std::ios_base::eofbit);
+    }
+    size_t count() const { return buf_.count(); }
+private:
+    CountBuf buf_;
+};
+
+class ArrayBuf : public std::streambuf {
+public:
+    ArrayBuf(char *begin, size_t size) {
+        setg(begin, begin, begin + size);
+        setp(begin, begin + size);
+    }
+    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override {
+        if (dir == std::ios_base::cur)      { off += offset(which); }
+        else if (dir == std::ios_base::end) { off = size() - off; }
+        return seekpos(off, which);
+    }
+    pos_type seekpos(pos_type off, std::ios_base::openmode which) override {
+        if (off >= 0 && off <= size()) {
+            if (which & std::ios_base::in) { gbump(off - offset(which)); }
+            else                           { pbump(off - offset(which)); }
+            return off;
+        }
+        return std::streambuf::seekpos(off, which);
+    }
+private:
+    off_type size() const { return egptr() - eback(); }
+    off_type offset(std::ios_base::openmode which) const {
+        return (which & std::ios_base::out)
+            ? pptr() - pbase()
+            : gptr() - eback();
+    }
+};
+
+class ArrayStream : public std::iostream {
+public:
+    ArrayStream(char *begin, size_t size)
+    : std::iostream(&buf_)
+    , buf_(begin, size) {
+        exceptions(std::ios_base::badbit | std::ios_base::failbit | std::ios_base::eofbit);
+    }
+private:
+    ArrayBuf buf_;
+};
+
 // }}}1
 
 // {{{ definition of gringo_make_unique

@@ -49,14 +49,14 @@ struct Free {
 };
 
 template <typename T>
-void report_included(T const &loc, char const *filename) {
-    GRINGO_REPORT(W_FILE_INCLUDED) << loc << ": warning: already included file:\n"
+void report_included(T const &loc, char const *filename, Logger &log) {
+    GRINGO_REPORT(log, clingo_warning_file_included) << loc << ": warning: already included file:\n"
         << "  " << filename << "\n";
 }
 
 template <typename T>
-void report_not_found(T const &loc, char const *filename) {
-    GRINGO_REPORT(E_ERROR) << loc << ": error: file could not be opened:\n"
+void report_not_found(T const &loc, char const *filename, Logger &log) {
+    GRINGO_REPORT(log, clingo_error_fatal) << loc << ": error: file could not be opened:\n"
         << "  " << filename << "\n";
 }
 
@@ -154,11 +154,11 @@ NonGroundParser::NonGroundParser(INongroundProgramBuilder &pb)
     , _filename("") { }
 
 void NonGroundParser::parseError(Location const &loc, std::string const &msg) {
-    GRINGO_REPORT(E_ERROR) << loc << ": error: " << msg << "\n";
+    GRINGO_REPORT(*log_, clingo_error_fatal) << loc << ": error: " << msg << "\n";
 }
 
 void NonGroundParser::lexerError(StringSpan token) {
-    GRINGO_REPORT(E_ERROR) << filename() << ":" << line() << ":" << column() << ": error: lexer error, unexpected " << std::string(token.first, token.first + token.size) << "\n";
+    GRINGO_REPORT(*log_, clingo_error_fatal) << filename() << ":" << line() << ":" << column() << ": error: lexer error, unexpected " << std::string(token.first, token.first + token.size) << "\n";
 }
 
 bool NonGroundParser::push(std::string const &filename, bool include) {
@@ -175,27 +175,27 @@ void NonGroundParser::pop() { LexerState::pop(); }
 
 String NonGroundParser::filename() const { return LexerState::data().first; }
 
-void NonGroundParser::pushFile(std::string &&file) {
+void NonGroundParser::pushFile(std::string &&file, Logger &log) {
     auto checked = check_file(file);
     if (!checked.empty() && !filenames_.insert(checked).second) {
-        report_included("<cmd>", file.c_str());
+        report_included("<cmd>", file.c_str(), log);
     }
     else if (checked.empty() || !push(file)) {
-        report_not_found("<cmd>", file.c_str());
+        report_not_found("<cmd>", file.c_str(), log);
     }
 }
 
-void NonGroundParser::pushStream(std::string &&file, std::unique_ptr<std::istream> in) {
+void NonGroundParser::pushStream(std::string &&file, std::unique_ptr<std::istream> in, Logger &log) {
     auto res = filenames_.insert(std::move(file));
     if (!res.second) {
-        report_included("<cmd>", res.first->c_str());
+        report_included("<cmd>", res.first->c_str(), log);
     }
     else if (!push(*res.first, std::move(in))) {
-        report_not_found("<cmd>", res.first->c_str());
+        report_not_found("<cmd>", res.first->c_str(), log);
     }
 }
 
-void NonGroundParser::pushBlock(std::string const &name, IdVec const &vec, std::string const &block) {
+void NonGroundParser::pushBlock(std::string const &name, IdVec const &vec, std::string const &block, Logger &) {
     LexerState::push(gringo_make_unique<std::istringstream>(block), {"<block>", {name.c_str(), vec}});
 }
 
@@ -228,11 +228,11 @@ int NonGroundParser::lex(void *pValue, Location &loc) {
     return 0;
 }
 
-void NonGroundParser::include(String file, Location const &loc, bool inbuilt) {
+void NonGroundParser::include(String file, Location const &loc, bool inbuilt, Logger &log) {
     if (inbuilt) {
         if (file == "incmode") {
             if (incmodeIncluded_) {
-                report_included(loc, "<incmode>");
+                report_included(loc, "<incmode>", log);
             }
             else {
                 push("<incmode>", gringo_make_unique<std::istringstream>(R"(
@@ -247,9 +247,9 @@ function get(val, default)
 end
 
 function main(prg)
-    local imin   = get(prg:get_const("imin"), clingo.number(0))
+    local imin   = get(prg:get_const("imin"), clingo.Number(0))
     local imax   = prg:get_const("imax")
-    local istop  = get(prg:get_const("istop"), clingo.str("SAT"))
+    local istop  = get(prg:get_const("istop"), clingo.String("SAT"))
 
     local step, ret = 0, None
     while (imax == nil or step < imax.number) and
@@ -260,14 +260,14 @@ function main(prg)
         local parts = {}
         table.insert(parts, {"check", {step}})
         if step > 0 then
-            prg:release_external(clingo.fun("query", {step-1}))
+            prg:release_external(clingo.Function("query", {step-1}))
             prg:cleanup()
             table.insert(parts, {"step", {step}})
         else
             table.insert(parts, {"base", {}})
         end
         prg:ground(parts)
-        prg:assign_external(clingo.fun("query", {step}), true)
+        prg:assign_external(clingo.Function("query", {step}), true)
         ret, step = prg:solve(), step+1
     end
 end
@@ -281,22 +281,23 @@ end
             }
         }
         else {
-            report_not_found(loc, (std::string("<") + file.c_str() + ">").c_str());
+            report_not_found(loc, (std::string("<") + file.c_str() + ">").c_str(), log);
         }
     }
     else {
         auto paths = check_file(file.c_str(), loc.beginFilename.c_str());
         if (!paths.first.empty() && !filenames_.insert(paths.first).second) {
-            report_included(loc, file.c_str());
+            report_included(loc, file.c_str(), log);
         }
         else if (paths.first.empty() || !push(paths.second, true)) {
-            report_not_found(loc, file.c_str());
+            report_not_found(loc, file.c_str(), log);
         }
     }
 }
 
-bool NonGroundParser::parseDefine(std::string const &define) {
-    pushStream("<" + define + ">", gringo_make_unique<std::stringstream>(define));
+bool NonGroundParser::parseDefine(std::string const &define, Logger &log) {
+    log_ = &log;
+    pushStream("<" + define + ">", gringo_make_unique<std::stringstream>(define), log);
     _startSymbol = NonGroundGrammar::parser::token::PARSE_DEF;
     NonGroundGrammar::parser parser(this);
     auto ret = parser.parse();
@@ -331,7 +332,8 @@ void NonGroundParser::start(Location &loc) {
     loc.beginColumn   = column();
 }
 
-bool NonGroundParser::parse() {
+bool NonGroundParser::parse(Logger &log) {
+    log_ = &log;
     condition(yycnormal);
     theoryLexing_ = TheoryLexing::Disabled;
     _startSymbol = NonGroundGrammar::parser::token::PARSE_LP;

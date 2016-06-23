@@ -156,9 +156,9 @@ while True:
     t += 1
     c.ground([("step", [t])])
     c.ground([("check", [t])])
-    c.release_external(clingo.function("query", [t-1]))
-    c.assign_external(clingo.function("query", [t]), True)
-    if c.solve(None, on_model).satisfiable:
+    c.release_external(clingo.Function("query", [t-1]))
+    c.assign_external(clingo.Function("query", [t]), True)
+    if c.solve(on_model).satisfiable:
         break
 
 MainWindow().run(Plan(field, init, jumps))

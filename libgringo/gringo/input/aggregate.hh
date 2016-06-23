@@ -86,7 +86,7 @@ struct CheckLevel {
     CheckLevel(Location const &loc, Printable const &p);
     CheckLevel(CheckLevel &&);
     SC::VarNode &var(VarTerm &var);
-    void check();
+    void check(Logger &log);
     ~CheckLevel();
 
     Location         loc;
@@ -132,17 +132,17 @@ struct ToGroundArg {
 
 struct BodyAggregate : Printable, Hashable, Locatable, Clonable<BodyAggregate>, Comparable<BodyAggregate> {
     //! Removes RawTheoryTerms from TheoryLiterals
-    virtual void initTheory(TheoryDefs &def) { (void)def; };
+    virtual void initTheory(TheoryDefs &def, Logger &log) { (void)def; (void)log; };
     virtual unsigned projectScore() const { return 2; }
     //! Unpool the aggregate and aggregate elements.
     virtual void unpool(UBodyAggrVec &x, bool beforeRewrite) = 0;
     //! Simplify the aggregate and aggregate elements.
     //! \pre Must be called after unpool.
-    virtual bool simplify(Projections &project, SimplifyState &state, bool singleton) = 0;
+    virtual bool simplify(Projections &project, SimplifyState &state, bool singleton, Logger &log) = 0;
     //! Assign levels to variables using the VarCollector.
     //! \pre Must be called after simplify.
     virtual void assignLevels(AssignLevel &lvl) = 0;
-    virtual void check(ChkLvlVec &lvl) const = 0;
+    virtual void check(ChkLvlVec &lvl, Logger &log) const = 0;
     //! Rewrite arithmetics.
     //! \pre Requires variables assigned to levels.
     virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &assign, AuxGen &auxGen) = 0;
@@ -172,17 +172,17 @@ struct BodyAggregate : Printable, Hashable, Locatable, Clonable<BodyAggregate>, 
 
 struct HeadAggregate : Printable, Hashable, Locatable, Clonable<HeadAggregate>, Comparable<HeadAggregate> {
     //! Removes RawTheoryTerms from TheoryLiterals
-    virtual void initTheory(TheoryDefs &def, bool hasBody) { (void)def; (void)hasBody; }
+    virtual void initTheory(TheoryDefs &def, bool hasBody, Logger &log) { (void)def; (void)hasBody; (void)log; }
     virtual bool isPredicate() const { return false; }
     //! Unpool the aggregate and aggregate elements.
     virtual void unpool(UHeadAggrVec &x, bool beforeRewrite) = 0;
     //! Simplify the aggregate and aggregate elements.
     //! \pre Must be called after unpool.
-    virtual bool simplify(Projections &project, SimplifyState &state) = 0;
+    virtual bool simplify(Projections &project, SimplifyState &state, Logger &log) = 0;
     //! Assign levels to variables using the VarCollector.
     //! \pre Must be called after simplify.
     virtual void assignLevels(AssignLevel &lvl) = 0;
-    virtual void check(ChkLvlVec &lvl) const = 0;
+    virtual void check(ChkLvlVec &lvl, Logger &log) const = 0;
     //! Rewrite arithmetics.
     //! \pre Requires variables assigned to levels.
     virtual void rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) = 0;

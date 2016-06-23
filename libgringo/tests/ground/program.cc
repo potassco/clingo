@@ -25,7 +25,6 @@
 #include "gringo/scripts.hh"
 
 #include "tests/tests.hh"
-#include "tests/gringo_module.hh"
 
 namespace Gringo { namespace Ground { namespace Test {
 
@@ -38,18 +37,19 @@ namespace {
 typedef std::string S;
 
 Program parse(std::string const &str) {
+    Gringo::Test::TestGringoModule module;
     std::ostringstream oss;
     Potassco::TheoryData td;
     Output::OutputBase out(td, {}, oss);
     Input::Program prg;
     Defines defs;
-    Scripts scripts(Gringo::Test::getTestModule());
+    Scripts scripts(module);
     Input::NongroundProgramBuilder pb{ scripts, prg, out, defs };
     Input::NonGroundParser ngp{ pb };
-    ngp.pushStream("-", gringo_make_unique<std::stringstream>(str));
-    ngp.parse();
-    prg.rewrite(defs);
-    return prg.toGround(out.data);
+    ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module.logger);
+    ngp.parse(module.logger);
+    prg.rewrite(defs, module.logger);
+    return prg.toGround(out.data, module.logger);
 }
 
 std::string toString(Program const &p) {
@@ -65,11 +65,9 @@ std::string toString(Program const &p) {
 
 // }}}
 
-TEST_CASE("ground-program") {
-    Gringo::Test::Messages msg;
+TEST_CASE("ground-program", "[ground]") {
 
     SECTION("toGround") {
-        Gringo::Test::Messages msg;
         REQUIRE(
             "% component\n"
             "#external." ==
@@ -231,7 +229,6 @@ TEST_CASE("ground-program") {
     }
 
     SECTION("analyze") {
-        Gringo::Test::Messages msg;
         REQUIRE(
             "% component\n#external.\n"
             "% positive component\n"
@@ -251,7 +248,6 @@ TEST_CASE("ground-program") {
             "% component\n"
             "b:-x,a!,not a!." ==
             toString(parse("x:-x.a:-not b.b:-not a,a,x.")));
-        // TODO: all the other statements are missing
     }
 
 }

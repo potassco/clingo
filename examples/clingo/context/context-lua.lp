@@ -19,7 +19,7 @@ end
 
 function State:run(prg)
     prg:ground({{"base", {}}}, self)
-    prg:solve(nil, function (...) self:on_model(...) end)
+    prg:solve(function (...) self:on_model(...) end)
 end
 
 function main(prg) 

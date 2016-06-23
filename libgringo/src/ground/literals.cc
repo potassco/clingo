@@ -36,17 +36,17 @@ struct RangeBinder : Binder {
     RangeBinder(UTerm &&assign, RangeLiteralShared &range)
         : assign(std::move(assign))
         , range(range) { }
-    virtual IndexUpdater *getUpdater() { return nullptr; }
-    virtual void match() {
+    IndexUpdater *getUpdater() override { return nullptr; }
+    void match(Logger &log) override {
         bool undefined = false;
-        Symbol l{range.first->eval(undefined)}, r{range.second->eval(undefined)};
+        Symbol l{range.first->eval(undefined, log)}, r{range.second->eval(undefined, log)};
         if (!undefined && l.type() == SymbolType::Num && r.type() == SymbolType::Num) {
             current = l.num();
             end     = r.num();
         }
         else {
             if (!undefined) {
-                GRINGO_REPORT(W_OPERATION_UNDEFINED)
+                GRINGO_REPORT(log, clingo_warning_operation_undefined)
                     << (range.first->loc() + range.second->loc()) << ": info: interval undefined:\n"
                     << "  " << *range.first << ".." << *range.second << "\n";
             }
@@ -54,14 +54,12 @@ struct RangeBinder : Binder {
             end     = 0;
         }
     }
-    virtual bool next() {
+    bool next() override {
         // Note: if assign does not match it is not a variable and will not match at all
         //       if assign is just a number, then this is handled in the corresponding Binder
         return current <= end && assign->match(Symbol::createNum(current++));
     }
-    virtual void start()  { }
-    virtual void finish() { }
-    virtual void print(std::ostream &out) const { out << *assign << "=" << *range.first << ".." << *range.second; }
+    void print(std::ostream &out) const override { out << *assign << "=" << *range.first << ".." << *range.second; }
     virtual ~RangeBinder() { }
 
     UTerm               assign;
@@ -78,30 +76,28 @@ struct RangeMatcher : Binder {
     RangeMatcher(Term &assign, RangeLiteralShared &range)
         : assign(assign)
         , range(range) { }
-    virtual IndexUpdater *getUpdater() { return nullptr; }
-    virtual void match() {
+    IndexUpdater *getUpdater() override { return nullptr; }
+    void match(Logger &log) override {
         bool undefined = false;
-        Symbol l{range.first->eval(undefined)}, r{range.second->eval(undefined)}, a{assign.eval(undefined)};
+        Symbol l{range.first->eval(undefined, log)}, r{range.second->eval(undefined, log)}, a{assign.eval(undefined, log)};
         if (!undefined && l.type() == SymbolType::Num && r.type() == SymbolType::Num) {
             firstMatch = a.type() == SymbolType::Num && l.num() <= a.num() && a.num() <= r.num();
         }
         else {
             if (!undefined) {
-                GRINGO_REPORT(W_OPERATION_UNDEFINED)
+                GRINGO_REPORT(log, clingo_warning_operation_undefined)
                     << (range.first->loc() + range.second->loc()) << ": info: interval undefined:\n"
                     << "  " << *range.first << ".." << *range.second << "\n";
             }
             firstMatch = false;
         }
     }
-    virtual bool next() {
+    bool next() override {
         bool m = firstMatch;
         firstMatch = false;
         return m;
     }
-    virtual void start()  { }
-    virtual void finish() { }
-    virtual void print(std::ostream &out) const { out << assign << "=" << *range.first << ".." << *range.second; }
+    void print(std::ostream &out) const override { out << assign << "=" << *range.first << ".." << *range.second; }
     Term               &assign;
     RangeLiteralShared &range;
     bool                firstMatch = false;
@@ -116,26 +112,24 @@ struct ScriptBinder : Binder {
         : scripts(scripts)
         , assign(std::move(assign))
         , shared(shared) { }
-    virtual IndexUpdater *getUpdater() { return nullptr; }
-    virtual void match() {
+    IndexUpdater *getUpdater() override { return nullptr; }
+    void match(Logger &log) override {
         SymVec args;
         bool undefined = false;
-        for (auto &x : std::get<1>(shared)) { args.emplace_back(x->eval(undefined)); }
+        for (auto &x : std::get<1>(shared)) { args.emplace_back(x->eval(undefined, log)); }
         if (!undefined) {
-            matches = scripts.call(assign->loc(), std::get<0>(shared), Potassco::toSpan(args));
+            matches = scripts.call(assign->loc(), std::get<0>(shared), Potassco::toSpan(args), log);
         }
         else { matches = {}; }
         current = matches.begin();
     }
-    virtual bool next() {
+    bool next() override {
         while (current != matches.end()) {
             if (assign->match(*current++)) { return true; }
         }
         return false;
     }
-    virtual void start()  { }
-    virtual void finish() { }
-    virtual void print(std::ostream &out) const {
+    void print(std::ostream &out) const override {
         out << *assign << "=" << std::get<0>(shared) << "(";
         print_comma(out, std::get<1>(shared), ",", [](std::ostream &out, UTerm const &term) { out << *term; });
         out << ")";
@@ -156,12 +150,12 @@ struct ScriptBinder : Binder {
 struct RelationMatcher : Binder {
     RelationMatcher(RelationShared &shared)
         : shared(shared) { }
-    virtual IndexUpdater *getUpdater() { return nullptr; }
-    virtual void match() {
+    IndexUpdater *getUpdater() override { return nullptr; }
+    void match(Logger &log) override {
         bool undefined = false;
-        Symbol l(std::get<1>(shared)->eval(undefined));
+        Symbol l(std::get<1>(shared)->eval(undefined, log));
         if (undefined) { firstMatch = false; return; }
-        Symbol r(std::get<2>(shared)->eval(undefined));
+        Symbol r(std::get<2>(shared)->eval(undefined, log));
         if (undefined) { firstMatch = false; return; }
         switch (std::get<0>(shared)) {
             case Relation::GT:  { firstMatch = l >  r; break; }
@@ -172,14 +166,12 @@ struct RelationMatcher : Binder {
             case Relation::EQ:  { firstMatch = l == r; break; }
         }
     }
-    virtual bool next() {
+    bool next() override {
         bool ret = firstMatch;
         firstMatch = false;
         return ret;
     }
-    virtual void start()  { }
-    virtual void finish() { }
-    virtual void print(std::ostream &out) const { out << *std::get<1>(shared) << std::get<0>(shared) << *std::get<2>(shared); }
+    void print(std::ostream &out) const override { out << *std::get<1>(shared) << std::get<0>(shared) << *std::get<2>(shared); }
     virtual ~RelationMatcher() { }
 
     RelationShared &shared;
@@ -193,23 +185,21 @@ struct AssignBinder : Binder {
     AssignBinder(UTerm &&lhs, Term &rhs)
         : lhs(std::move(lhs))
         , rhs(rhs) { }
-    virtual IndexUpdater *getUpdater() { return nullptr; }
-    virtual void match() {
+    IndexUpdater *getUpdater() override { return nullptr; }
+    void match(Logger &log) override {
         bool undefined = false;
-        Symbol valRhs = rhs.eval(undefined);
+        Symbol valRhs = rhs.eval(undefined, log);
         if (!undefined) {
             firstMatch = lhs->match(valRhs);
         }
         else { firstMatch = false; }
     }
-    virtual bool next() {
+    bool next() override {
         bool ret = firstMatch;
         firstMatch = false;
         return ret;
     }
-    virtual void start()  { }
-    virtual void finish() { }
-    virtual void print(std::ostream &out) const { out << *lhs << "=" << rhs; }
+    void print(std::ostream &out) const override { out << *lhs << "=" << rhs; }
     UTerm lhs;
     Term &rhs;
     bool firstMatch = false;
@@ -223,18 +213,16 @@ struct AssignBinder : Binder {
 struct CSPLiteralMatcher : Binder {
     CSPLiteralMatcher(CSPLiteralShared &terms)
         : terms(terms) { }
-    virtual IndexUpdater *getUpdater() { return nullptr; }
-    virtual void match() {
-        firstMatch = std::get<1>(terms).checkEval() && std::get<2>(terms).checkEval();
+    IndexUpdater *getUpdater() override { return nullptr; }
+    void match(Logger &log) override {
+        firstMatch = std::get<1>(terms).checkEval(log) && std::get<2>(terms).checkEval(log);
     }
-    virtual bool next() {
+    bool next() override {
         bool ret = firstMatch;
         firstMatch = false;
         return ret;
     }
-    virtual void start()  { }
-    virtual void finish() { }
-    virtual void print(std::ostream &out) const { out << std::get<1>(terms) << std::get<0>(terms) << std::get<2>(terms); }
+    void print(std::ostream &out) const override { out << std::get<1>(terms) << std::get<0>(terms) << std::get<2>(terms); }
     virtual ~CSPLiteralMatcher() { }
 
     CSPLiteralShared &terms;
@@ -395,32 +383,32 @@ UIdx ProjectionLiteral::index(Scripts &, BinderType type, Term::VarSet &bound) {
 // }}}
 // {{{ definition of *Literal::score
 
-Literal::Score RangeLiteral::score(Term::VarSet const &) {
+Literal::Score RangeLiteral::score(Term::VarSet const &, Logger &log) {
     if (range.first->getInvertibility() == Term::CONSTANT && range.second->getInvertibility() == Term::CONSTANT) {
         bool undefined = false;
-        Symbol l(range.first->eval(undefined));
-        Symbol r(range.second->eval(undefined));
+        Symbol l(range.first->eval(undefined, log));
+        Symbol r(range.second->eval(undefined, log));
         return (l.type() == SymbolType::Num && r.type() == SymbolType::Num) ? r.num() - l.num() : -1;
     }
     return 0;
 }
-Literal::Score ScriptLiteral::score(Term::VarSet const &) {
+Literal::Score ScriptLiteral::score(Term::VarSet const &, Logger &) {
     return 0;
 }
-Literal::Score RelationLiteral::score(Term::VarSet const &) {
+Literal::Score RelationLiteral::score(Term::VarSet const &, Logger &) {
     return -1;
 }
-Literal::Score PredicateLiteral::score(Term::VarSet const &bound) {
+Literal::Score PredicateLiteral::score(Term::VarSet const &bound, Logger &) {
     return naf == NAF::POS ? estimate(domain.size(), *repr, bound) : 0;
 }
 
 // }}}
 // {{{ definition of *Literal::toOutput
 
-std::pair<Output::LiteralId,bool> RangeLiteral::toOutput()     { return {Output::LiteralId(), true}; }
-std::pair<Output::LiteralId,bool> ScriptLiteral::toOutput()    { return {Output::LiteralId(), true}; }
-std::pair<Output::LiteralId,bool> RelationLiteral::toOutput()  { return {Output::LiteralId(), true}; }
-std::pair<Output::LiteralId,bool> PredicateLiteral::toOutput() {
+std::pair<Output::LiteralId,bool> RangeLiteral::toOutput(Logger &)     { return {Output::LiteralId(), true}; }
+std::pair<Output::LiteralId,bool> ScriptLiteral::toOutput(Logger &)    { return {Output::LiteralId(), true}; }
+std::pair<Output::LiteralId,bool> RelationLiteral::toOutput(Logger &)  { return {Output::LiteralId(), true}; }
+std::pair<Output::LiteralId,bool> PredicateLiteral::toOutput(Logger &) {
     if (offset == InvalidId) {
         assert(naf == NAF::NOT);
         return {Output::LiteralId(), true};
@@ -483,16 +471,16 @@ UIdx CSPLiteral::index(Scripts &, BinderType, Term::VarSet &) {
     return gringo_make_unique<CSPLiteralMatcher>(terms_);
 }
 
-Literal::Score CSPLiteral::score(Term::VarSet const &) {
+Literal::Score CSPLiteral::score(Term::VarSet const &, Logger &) {
     return std::numeric_limits<Literal::Score>::infinity();
 }
 
-std::pair<Output::LiteralId,bool> CSPLiteral::toOutput() {
+std::pair<Output::LiteralId,bool> CSPLiteral::toOutput(Logger &log) {
     if (auxiliary()) { return {Output::LiteralId(),true}; }
     CSPGroundLit add;
     std::get<0>(add) = std::get<0>(terms_);
-    std::get<1>(terms_).toGround(add, false);
-    std::get<2>(terms_).toGround(add, true);
+    std::get<1>(terms_).toGround(add, false, log);
+    std::get<2>(terms_).toGround(add, true, log);
     return {Output::LiteralId{NAF::POS, Output::AtomType::LinearConstraint, data_.cspAtom(std::move(add)), 0}, false};
 }
 

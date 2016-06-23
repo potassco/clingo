@@ -1,17 +1,17 @@
 #script (python)
 
 import sys
-from clingo import function
+from clingo import Function
 
 def main(prg):
     prg.ground([("base", [])])
-    prg.assign_external(function("a"), True)
+    prg.assign_external(Function("a"), True)
     prg.solve()
-    prg.assign_external(function("a"), False)
+    prg.assign_external(Function("a"), False)
     prg.solve()
-    prg.assign_external(function("a"), None)
+    prg.assign_external(Function("a"), None)
     prg.solve()
-    prg.release_external(function("a"))
+    prg.release_external(Function("a"))
     prg.solve()
 
 #end.

@@ -87,11 +87,11 @@ int clamp(int64_t x) {
     return int(x);
 }
 
-bool defined(SymVec const &tuple, AggregateFunction fun, Location const &loc) {
+bool defined(SymVec const &tuple, AggregateFunction fun, Location const &loc, Logger &log) {
     if (tuple.empty()) {
         if (fun == AggregateFunction::COUNT) { return true; }
         else {
-            GRINGO_REPORT(W_OPERATION_UNDEFINED)
+            GRINGO_REPORT(log, clingo_warning_operation_undefined)
                 << loc << ": info: empty tuple ignored\n";
             return false;
         }
@@ -107,7 +107,7 @@ bool defined(SymVec const &tuple, AggregateFunction fun, Location const &loc) {
             else {
                 std::ostringstream s;
                 print_comma(s, tuple, ",");
-                GRINGO_REPORT(W_OPERATION_UNDEFINED)
+                GRINGO_REPORT(log, clingo_warning_operation_undefined)
                     << loc << ": info: tuple ignored:\n"
                     << "  " << s.str() << "\n";
                 return false;
@@ -118,11 +118,11 @@ bool defined(SymVec const &tuple, AggregateFunction fun, Location const &loc) {
 }
 
 
-bool neutral(SymVec const &tuple, AggregateFunction fun, Location const &loc) {
+bool neutral(SymVec const &tuple, AggregateFunction fun, Location const &loc, Logger &log) {
     if (tuple.empty()) {
         if (fun == AggregateFunction::COUNT) { return false; }
         else {
-            GRINGO_REPORT(W_OPERATION_UNDEFINED)
+            GRINGO_REPORT(log, clingo_warning_operation_undefined)
                 << loc << ": info: empty tuple ignored\n";
             return true;
         }
@@ -139,7 +139,7 @@ bool neutral(SymVec const &tuple, AggregateFunction fun, Location const &loc) {
         if (ret && tuple.front() != Symbol::createNum(0)) {
             std::ostringstream s;
             print_comma(s, tuple, ",");
-            GRINGO_REPORT(W_OPERATION_UNDEFINED)
+            GRINGO_REPORT(log, clingo_warning_operation_undefined)
                 << loc << ": info: tuple ignored:\n"
                 << "  " << s.str() << "\n";
         }
@@ -346,9 +346,6 @@ void BodyAggregateElements_::accumulate(DomainData &data, TupleId tuple, LitVec 
         // remap tuple offsets if rebuild is necessary
         HashSet<uint64_t> tuples(tuples_.size() + 1, tuples_.reserved());
         tuples.swap(tuples_);
-        if (tuples.reserved() >= tuples_.reserved()) {
-            std::cerr << tuples.size() << " / " << tuples.load() << " / " << tuples.reserved() << " < " << tuples_.reserved() << std::endl;
-        }
         assert(tuples.reserved() < tuples_.reserved());
         visitClause([&](uint32_t &to, ClauseId) {
             to = (tuples_.offset(insertTuple(tuples.at(to >> 1)).first) << 1) | (to & 1);
@@ -401,8 +398,8 @@ BodyAggregateElements BodyAggregateAtom::elems() const {
     return data_->elems.elems();
 }
 
-void BodyAggregateAtom::accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &lits) {
-    if (neutral(tuple, data_->range.fun, loc)) { return; }
+void BodyAggregateAtom::accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &lits, Logger &log) {
+    if (neutral(tuple, data_->range.fun, loc, log)) { return; }
     bool inserted, fact, remove;
     data_->elems.accumulate(data, data.tuple(tuple), lits, inserted, fact, remove);
     if (!fact || inserted || remove) {
@@ -415,8 +412,8 @@ BodyAggregateAtom::~BodyAggregateAtom() noexcept = default;
 
 // {{{1 definition of AssignmentAggregateAtom
 
-void AssignmentAggregateData::accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &lits) {
-    if (neutral(tuple, fun_, loc)) { return; }
+void AssignmentAggregateData::accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &lits, Logger &log) {
+    if (neutral(tuple, fun_, loc, log)) { return; }
     auto ret(elems_.push(std::piecewise_construct, std::forward_as_tuple(data.tuple(tuple)), std::forward_as_tuple()));
     auto &elem = ret.first->second;
     // the tuple was fact
@@ -642,7 +639,7 @@ void DisjointAtom::accumulate(DomainData &data, SymVec const &tuple, CSPGroundAd
     elem.first->second.emplace_back(std::move(value), fixed, data.clause(get_clone(lits)));
 }
 
-bool DisjointAtom::translate(DomainData &data, Translator &x) {
+bool DisjointAtom::translate(DomainData &data, Translator &x, Logger &log) {
     std::set<int> values;
     std::vector<std::map<int, LiteralId>> layers;
     for (auto &elem : elems_) {
@@ -690,7 +687,7 @@ bool DisjointAtom::translate(DomainData &data, Translator &x) {
                         values = std::move(nextValues);
                     }
                     for (auto i : values) { b->add(i, i+1); }
-                    b->init(data, x);
+                    b->init(data, x, log);
 
                     // create a new variable with the respective bound
                     // b = value + fixed
@@ -848,12 +845,12 @@ void HeadAggregateAtom::init(AggregateFunction fun, DisjunctiveBounds &&bounds) 
     initialized_ = true;
 }
 
-void HeadAggregateAtom::accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LiteralId head, LitVec &lits) {
+void HeadAggregateAtom::accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LiteralId head, LitVec &lits, Logger &log) {
     // Elements are grouped by their tuples.
     // Each tuple is associated with a vector of pairs of head literals and a condition.
     // If the head is a fact, this is represented with an invalid literal.
     // If a tuple is a fact, this is represented with the first element of the vector being having an invalid head and an empty condition.
-    if (!Gringo::Output::defined(tuple, range_.fun, loc)) { return; }
+    if (!Gringo::Output::defined(tuple, range_.fun, loc, log)) { return; }
     auto ret(elems_.push(std::piecewise_construct, std::forward_as_tuple(data.tuple(tuple)), std::forward_as_tuple()));
     auto &elem = ret.first->second;
     bool fact = lits.empty() && !head.valid();
@@ -865,7 +862,7 @@ void HeadAggregateAtom::accumulate(DomainData &data, Location const &loc, SymVec
         std::swap(elem.front(), elem.back());
         remove = !ret.second;
     }
-    if ((!ret.second && !remove) || neutral(tuple, range_.fun, loc)) { return; }
+    if ((!ret.second && !remove) || neutral(tuple, range_.fun, loc, log)) { return; }
     range_.accumulate(tuple, fact, remove);
     fact_ = range_.fact();
 }
@@ -1056,20 +1053,6 @@ LiteralId TheoryLiteral::translate(Translator &trans) {
             auto ret = atm.hasGuard()
                 ? data.addAtom(newAtom, atm.name(), Potassco::toSpan(atm.elems()), atm.op(), atm.guard())
                 : data.addAtom(newAtom, atm.name(), Potassco::toSpan(atm.elems()));
-            // output newly inserted theory atoms
-            if (ret.second) {
-                backendLambda(data_, trans, [&ret](DomainData &data, Backend &out){
-                    auto getCond = [&data](Id_t elem) {
-                        TheoryData &td = data.theory();
-                        Backend::LitVec bc;
-                        for (auto &lit : td.getCondition(elem)) {
-                            bc.emplace_back(call(data, lit, &Literal::uid));
-                        }
-                        return bc;
-                    };
-                    out.printTheoryAtom(ret.first, getCond);
-                });
-            }
             if (ret.first.atom() != 0) {
                 // assign the literal of the theory atom
                 if (!atm.lit()) { atm.setLit({NAF::POS, AtomType::Aux, ret.first.atom(), 0}); }

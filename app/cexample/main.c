@@ -1,84 +1,65 @@
-#include <cclingo.h>
+#include <clingo.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-int report_error(clingo_error_t err) {
-    if (err != clingo_error_success) {
-        printf("an error occurred: %s\n", clingo_error_str(err));
-        return 1;
+#define EM(e, msg) \
+    ret = (e); \
+    if (ret != 0) { \
+        fprintf(stderr, "example failed with: %s\n", (msg) ? (msg) : "unknown error"); \
+        goto cleanup; \
     }
-    return 0;
-}
+#define E(e) EM((e), clingo_error_message())
+#define A(ptr, type, old_n, new_n, msg) \
+    if (old_n < new_n) { \
+        type *ptr ## _new = (type*)realloc(ptr, new_n * sizeof(type)); \
+        EM(ptr ## _new ? clingo_error_success : clingo_error_bad_alloc, (msg)); \
+        ptr = ptr ## _new; \
+        old_n = new_n; \
+    }
 
-int on_model(clingo_model_t *model, void *data) {
+void logger(clingo_warning_t code, char const *message, void *data) {
+    (void)code;
     (void)data;
-    // NOTE: should a mechanism to report errors be added?
-    clingo_value_span_t atoms;
-    if (report_error(clingo_model_atoms(model, clingo_show_type_atoms | clingo_show_type_csp, &atoms))) {
-        return 0;
-    }
-    printf("Model:");
-    clingo_value_t const *it, *ie;
-    for (it = atoms.data, ie = it + atoms.size; it != ie; ++it) {
-        char *str;
-        if (report_error(clingo_value_to_string(*it, &str))) {
-            free((void*)atoms.data);
-            return 0;
-        }
-        printf(" %s", str);
-        free(str);
-    }
-    printf("\n");
-    return 1;
-}
-
-int solve(clingo_control_t *ctl) {
-    clingo_solve_result_t ret;
-    if (report_error(clingo_control_solve(ctl, 0, &on_model, 0, &ret))) { return 0; }
-    printf("the solve result is: %d\n", ret);
-    return 1;
-}
-int solve_iter(clingo_control_t *ctl) {
-    clingo_solve_iter_t *it;
-    if (report_error(clingo_control_solve_iter(ctl, 0, &it))) { return 0; }
-    for (;;) {
-        clingo_model_t *m;
-        if (report_error(clingo_solve_iter_next(it, &m))) { return 0; }
-        if (!m) { break; }
-        on_model(m, 0);
-    }
-    clingo_solve_result_t ret;
-    if (report_error(clingo_solve_iter_get(it, &ret))) { return 0; }
-    printf("the solve result is: %d\n", ret);
-    if (report_error(clingo_solve_iter_close(it))) { return 0; }
-    return 1;
-}
-
-int run(clingo_control_t *ctl) {
-    char const *base_params[] = { 0 };
-    if (report_error(clingo_control_add(ctl, "base", base_params, "a :- not b. b :- not a."))) { return 0; }
-    clingo_value_t empty[] = {};
-    clingo_part_t part_vec[] = { {"base", { empty, 0 } } };
-    clingo_part_span_t part_span = { part_vec, 1 };
-    if (report_error(clingo_control_ground(ctl, part_span, 0, 0))) { return 0; }
-    if (!solve(ctl)) { return 0; }
-    if (!solve_iter(ctl)) { return 0; }
-    return 1;
+    fprintf(stderr, "%s\n", message);
+    fflush(stderr);
 }
 
 int main(int argc, char const **argv) {
-    clingo_module_t *mod;
-    if (report_error(clingo_module_new(&mod))) {
-        return 1;
+    clingo_error_t ret;
+    clingo_control_t *ctl = NULL;
+    clingo_solve_iteratively_t *solve_it = NULL;
+    clingo_part_t parts[] = {{ "base", NULL, 0 }};
+    clingo_symbol_t *atoms = NULL;
+    size_t n;
+    size_t atoms_n = 0;
+    char *str = NULL;
+    size_t str_n = 0;
+    E(clingo_control_new(argv+1, argc-1, &logger, NULL, 20, &ctl));
+    E(clingo_control_add(ctl, "base", NULL, 0, "a :- not b. b :- not a."));
+    E(clingo_control_ground(ctl, parts, 1, NULL, NULL));
+    E(clingo_control_solve_iteratively(ctl, NULL, 0, &solve_it));
+    for (;;) {
+        clingo_model_t *m;
+        clingo_symbol_t const *atoms_it, *atoms_ie;
+        E(clingo_solve_iteratively_next(solve_it, &m));
+        if (!m) { break; }
+        E(clingo_model_atoms_size(m, clingo_show_type_atoms | clingo_show_type_csp, &n));
+        A(atoms, clingo_symbol_t, atoms_n, n, "failed to allocate memory for atoms");
+        E(clingo_model_atoms(m, clingo_show_type_atoms | clingo_show_type_csp, atoms, n));
+        printf("Model:");
+        for (atoms_it = atoms, atoms_ie = atoms + n; atoms_it != atoms_ie; ++atoms_it) {
+            E(clingo_symbol_to_string_size(*atoms_it, &n));
+            A(str, char, str_n, n, "failed to allocate memory for symbol's string");
+            E(clingo_symbol_to_string(*atoms_it, str, n));
+            printf(" %s", str);
+        }
+        printf("\n");
     }
-    clingo_control_t *ctl;
-    if (report_error(clingo_control_new(mod, argc, argv, &ctl))) {
-        clingo_module_free(mod);
-        return 1;
-    }
-    run(ctl);
-
-    clingo_control_free(ctl);
-    clingo_module_free(mod);
+cleanup:
+    if (str)      { free(str); }
+    if (atoms)    { free(atoms); }
+    if (solve_it) { clingo_solve_iteratively_close(solve_it); }
+    if (ctl)      { clingo_control_free(ctl); }
+    return ret;
 }
 

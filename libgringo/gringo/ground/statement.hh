@@ -34,7 +34,7 @@ public:
     virtual bool isNormal() const = 0;
     virtual void analyze(Dep::Node &node, Dep &dep) = 0;
     virtual void startLinearize(bool active) = 0;
-    virtual void linearize(Scripts &scripts, bool positive) = 0;
+    virtual void linearize(Scripts &scripts, bool positive, Logger &log) = 0;
     virtual void enqueue(Queue &q) = 0;
     virtual ~Statement() { }
 };

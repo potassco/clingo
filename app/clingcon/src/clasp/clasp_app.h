@@ -128,7 +128,8 @@ protected:
 	virtual Output*       createOutput(ProblemType f);
 	virtual void          storeCommandArgs(const ProgramOptions::ParsedValues& values);
 	// -------------------------------------------------------------------------------------------
-	// Helper functions that subclasses should call during run
+	// Helper functions that subclasses might call during run
+	void handleStartOptions(ClaspFacade& clasp);
 	bool handlePostGroundOptions(ProgramBuilder& prg);
 	bool handlePreSolveOptions(ClaspFacade& clasp);
 	// -------------------------------------------------------------------------------------------

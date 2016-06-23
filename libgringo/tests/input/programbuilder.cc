@@ -25,7 +25,6 @@
 
 #include "tests/tests.hh"
 #include "tests/term_helper.hh"
-#include "tests/gringo_module.hh"
 
 #include <climits>
 #include <sstream>
@@ -65,6 +64,7 @@ struct Builder {
     void test_hdaggr();
     void test_rule();
 
+    Gringo::Test::TestGringoModule module;
     std::ostringstream oss;
     Potassco::TheoryData td;
     Output::OutputBase out;
@@ -84,7 +84,7 @@ using namespace Gringo::IO;
 Builder::Builder()
     : out(td, {}, oss)
     , l("dummy", 1, 1, "dummy", 1, 1)
-    , scripts(Gringo::Test::getTestModule())
+    , scripts(module)
     , p(scripts, prg, out, defs) { }
 
 void Builder::setUp() {

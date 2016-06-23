@@ -20,7 +20,6 @@
 
 #include "tests/tests.hh"
 #include "tests/term_helper.hh"
-#include "tests/gringo_module.hh"
 
 #include <climits>
 #include <sstream>
@@ -33,7 +32,6 @@ TEST_CASE("input-parse_term", "[input]") {
 
     SECTION("parse") {
         TestGringoModule m;
-        Messages msg;
         REQUIRE_THROWS_AS(m.parseValue("a."), std::runtime_error);
         REQUIRE(Symbol() == m.parseValue("x+y"));
         REQUIRE(NUM(1) == m.parseValue("1"));
