@@ -494,11 +494,11 @@ public:
     // {{{2 head aggregate elements
     HdAggrElemVecUid headaggrelemvec() override;
     HdAggrElemVecUid headaggrelemvec(HdAggrElemVecUid uid, TermVecUid termvec, LitUid lit, LitVecUid litvec) override;
-    /*
     // {{{2 bounds
     BoundVecUid boundvec() override;
     BoundVecUid boundvec(BoundVecUid uid, Relation rel, TermUid term) override;
     // {{{2 heads
+    /*
     HdLitUid headlit(LitUid litUid) override;
     HdLitUid headaggr(Location const &loc, TheoryAtomUid atomUid) override;
     HdLitUid headaggr(Location const &loc, AggregateFunction fun, BoundVecUid bounds, HdAggrElemVecUid headaggrelemvec) override;
@@ -582,12 +582,12 @@ private:
     using CondLitVecs      = Indexed<std::vector<clingo_ast_conditional_literal_t>, CondLitVecUid>;
     using BodyAggrElemVecs = Indexed<std::vector<clingo_ast_body_aggregate_element_t>, BdAggrElemVecUid>;
     using HeadAggrElemVecs = Indexed<std::vector<clingo_ast_head_aggregate_element_t>, HdAggrElemVecUid>;
+    using Bounds           = Indexed<std::vector<clingo_ast_aggregate_guard_t>, BoundVecUid>;
     /*
     using Bodies           = Indexed<NodeVec, BdLitVecUid>;
     using Heads            = Indexed<clingo_ast, HdLitUid>;
     using CSPLits          = Indexed<std::pair<Location, std::pair<clingo_ast, NodeVec>>, CSPLitUid>;
     using CSPElems         = Indexed<NodeVec, CSPElemVecUid>;
-    using Bounds           = Indexed<NodeVec, BoundVecUid>;
 
     using TheoryOpVecs      = Indexed<NodeVec, TheoryOpVecUid>;
     using TheoryTerms       = Indexed<clingo_ast, TheoryTermUid>;
@@ -616,8 +616,8 @@ private:
     CondLitVecs         condlitvecs_;
     BodyAggrElemVecs    bodyaggrelemvecs_;
     HeadAggrElemVecs    headaggrelemvecs_;
-    /*
     Bounds              bounds_;
+    /*
     Bodies              bodies_;
     Heads               heads_;
     CSPElems            cspelems_;

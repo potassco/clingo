@@ -887,21 +887,23 @@ HdAggrElemVecUid ASTBuilder::headaggrelemvec(HdAggrElemVecUid uid, TermVecUid te
     headaggrelemvecs_[uid].emplace_back(elem);
     return uid;
 }
-/*
+
 // {{{2 bounds
+
 BoundVecUid ASTBuilder::boundvec() {
     return bounds_.emplace();
 }
 
 BoundVecUid ASTBuilder::boundvec(BoundVecUid uid, Relation rel, TermUid term) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(dummyloc_(), rel));
-    nodeVec.emplace_back(terms_.erase(term));
-    bounds_[uid].emplace_back(newNode(dummyloc_(), "guard", nodeVec));
+    clingo_ast_aggregate_guard_t guard;
+    guard.term = terms_.erase(term);
+    guard.comparison = static_cast<clingo_ast_comparison_operator_t>(rel);
+    bounds_[uid].emplace_back(guard);
     return uid;
 }
 
 // {{{2 heads
+/*
 HdLitUid ASTBuilder::headlit(LitUid litUid) {
     auto lit = lits_.erase(litUid);
     return heads_.insert(newNode(convertLoc(lit.location), "tuple_literal", newNodeVec() = {lit}));
@@ -939,6 +941,7 @@ HdLitUid ASTBuilder::disjunction(Location const &loc, CondLitVecUid condlitvec) 
 }
 
 // {{{2 bodies
+
 BdLitVecUid ASTBuilder::body() {
     return bodies_.emplace();
 }
