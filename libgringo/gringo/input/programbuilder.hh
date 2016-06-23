@@ -446,16 +446,8 @@ private:
 // {{{1 declaration of ASTBuilder
 
 class ASTBuilder : public Gringo::Input::INongroundProgramBuilder {
-    /*
-    // about ownership: the children of nodes are owned by the builder
-    // such nodes are deleted when the next directive is parsed
-    using NodeList = std::forward_list<clingo_ast>;
-    using NodeVec = std::vector<clingo_ast>;
-    using NodeVecList = std::forward_list<NodeVec>;
-    using TermUidVecVec = std::vector<TermVecUid>;
-    */
-    using Callback = std::function<void (clingo_ast_statement const &ast)>;
 public:
+    using Callback = std::function<void (clingo_ast_statement const &ast)>;
     ASTBuilder(Callback cb);
     virtual ~ASTBuilder() noexcept;
 
@@ -470,17 +462,16 @@ public:
     TermUid term(Location const &loc, TermVecUid a, bool forceTuple) override;
     TermUid pool(Location const &loc, TermVecUid a) override;
     // {{{2 csp
-    /*
     CSPMulTermUid cspmulterm(Location const &loc, TermUid coe, TermUid var) override;
     CSPMulTermUid cspmulterm(Location const &loc, TermUid coe) override;
     CSPAddTermUid cspaddterm(Location const &loc, CSPAddTermUid a, CSPMulTermUid b, bool add) override;
     CSPAddTermUid cspaddterm(Location const &, CSPMulTermUid b) override;
-    LitUid csplit(CSPLitUid a) override;
     CSPLitUid csplit(Location const &loc, CSPLitUid a, Relation rel, CSPAddTermUid b) override;
     CSPLitUid csplit(Location const &loc, CSPAddTermUid a, Relation rel, CSPAddTermUid b) override;
     // {{{2 id vectors
     IdVecUid idvec() override;
     IdVecUid idvec(IdVecUid uid, Location const &loc, String id) override;
+    /*
     // {{{2 term vectors
     TermVecUid termvec() override;
     TermVecUid termvec(TermVecUid uid, TermUid termUid) override;
@@ -491,6 +482,7 @@ public:
     LitUid boollit(Location const &loc, bool type) override;
     LitUid predlit(Location const &loc, NAF naf, bool neg, String name, TermVecVecUid argvecvecUid) override;
     LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) override;
+    LitUid csplit(CSPLitUid a) override;
     // {{{2 literal vectors
     LitVecUid litvec() override;
     LitVecUid litvec(LitVecUid uid, LitUid literalUid) override;
@@ -610,6 +602,9 @@ private:
     using Terms            = Indexed<clingo_ast_term_t, TermUid>;
     using TermVecs         = Indexed<TermVec, TermVecUid>;
     using TermVecVecs      = Indexed<TermVecVec, TermVecVecUid>;
+    using CSPAddTerms      = Indexed<std::pair<Location, std::vector<clingo_ast_csp_multiply_term_t>>, CSPAddTermUid>;
+    using CSPMulTerms      = Indexed<clingo_ast_csp_multiply_term_t, CSPMulTermUid>;
+    using CSPLits          = Indexed<std::vector<std::tuple<Location, Relation, clingo_ast_csp_add_term_t>>, CSPLitUid>;
     /*
     using IdVecs           = Indexed<NodeVec, IdVecUid>;
     using Lits             = Indexed<clingo_ast, LitUid>;
@@ -620,8 +615,6 @@ private:
     using Bodies           = Indexed<NodeVec, BdLitVecUid>;
     using Heads            = Indexed<clingo_ast, HdLitUid>;
     using CSPLits          = Indexed<std::pair<Location, std::pair<clingo_ast, NodeVec>>, CSPLitUid>;
-    using CSPAddTerms      = Indexed<NodeVec, CSPAddTermUid>;
-    using CSPMulTerms      = Indexed<clingo_ast, CSPMulTermUid>;
     using CSPElems         = Indexed<NodeVec, CSPElemVecUid>;
     using Bounds           = Indexed<NodeVec, BoundVecUid>;
 
@@ -643,6 +636,9 @@ private:
     Terms               terms_;
     TermVecs            termvecs_;
     TermVecVecs         termvecvecs_;
+    CSPAddTerms         cspaddterms_;
+    CSPMulTerms         cspmulterms_;
+    CSPLits             csplits_;
     /*
     IdVecs              idvecs_;
     Lits                lits_;
@@ -653,9 +649,6 @@ private:
     Bounds              bounds_;
     Bodies              bodies_;
     Heads               heads_;
-    CSPLits             csplits_;
-    CSPAddTerms         cspaddterms_;
-    CSPMulTerms         cspmulterms_;
     CSPElems            cspelems_;
     TheoryOpVecs        theoryOpVecs_;
     TheoryTerms         theoryTerms_;
@@ -678,6 +671,7 @@ private:
         std::forward_list<clingo_ast_term_interval_t> intervals;
         std::forward_list<TermVec> termVecs;
         std::forward_list<clingo_ast_function_t> functions;
+        std::forward_list<std::vector<clingo_ast_csp_multiply_term_t>> cspmulterms;
     } data_;
 };
 

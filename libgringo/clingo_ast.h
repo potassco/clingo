@@ -141,8 +141,8 @@ struct clingo_ast_pool {
 
 typedef struct clingo_ast_csp_multiply_term {
     clingo_location_t location;
-    clingo_ast_term_t left;
-    clingo_ast_term_t right;
+    clingo_ast_term_t coefficient;
+    clingo_ast_term_t const *variable;
 } clingo_ast_csp_multiply_term_t;
 
 typedef struct clingo_ast_csp_add_term {
@@ -181,7 +181,8 @@ typedef struct clingo_ast_comparison {
 enum clingo_ast_literal_type {
     clingo_ast_literal_type_boolean    = 0,
     clingo_ast_literal_type_symbolic   = 1,
-    clingo_ast_literal_type_comparison = 2
+    clingo_ast_literal_type_comparison = 2,
+    clingo_ast_literal_type_csp        = 3
 };
 typedef int clingo_ast_literal_type_t;
 
@@ -193,6 +194,7 @@ typedef struct clingo_ast_literal {
         bool boolean;
         clingo_ast_term_t const *symbol;
         clingo_ast_comparison_t const *comparison;
+        clingo_ast_csp_literal const *csp;
     };
 } clingo_ast_literal_t;
 

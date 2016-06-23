@@ -576,15 +576,15 @@ ASTBuilder::~ASTBuilder() noexcept = default;
 TermUid ASTBuilder::term(Location const &loc, Symbol val) {
     clingo_ast_term_t term;
     term.location = convertLoc(loc);
-    term.type = clingo_ast_term_type_symbol;
-    term.symbol = val.rep();
+    term.type     = clingo_ast_term_type_symbol;
+    term.symbol   = val.rep();
     return terms_.insert(std::move(term));
 }
 
 TermUid ASTBuilder::term(Location const &loc, String name) {
     clingo_ast_term_t term;
     term.location = convertLoc(loc);
-    term.type = clingo_ast_term_type_variable;
+    term.type     = clingo_ast_term_type_variable;
     term.variable = name.c_str();
     return terms_.insert(std::move(term));
 }
@@ -592,10 +592,10 @@ TermUid ASTBuilder::term(Location const &loc, String name) {
 TermUid ASTBuilder::term(Location const &loc, UnOp op, TermUid a) {
     auto &unop = NEW(unaryOperations);
     unop.unary_operator = static_cast<clingo_ast_unary_operator_t>(op);
-    unop.argument = terms_.erase(a);
+    unop.argument       = terms_.erase(a);
     clingo_ast_term_t term;
-    term.location = convertLoc(loc);
-    term.type = clingo_ast_term_type_unary_operation;
+    term.location        = convertLoc(loc);
+    term.type            = clingo_ast_term_type_unary_operation;
     term.unary_operation = &unop;
     return terms_.insert(std::move(term));
 }
@@ -606,12 +606,12 @@ TermUid ASTBuilder::pool_(Location const &loc, TermVec &&vec) {
     }
     else {
         auto &pool = NEW(pools);
-        pool.size = vec.size();
+        pool.size      = vec.size();
         pool.arguments = NEW(termVecs, std::move(vec)).data();
         clingo_ast_term_t term;
         term.location = convertLoc(loc);
-        term.type = clingo_ast_term_type_pool;
-        term.pool = &pool;
+        term.type     = clingo_ast_term_type_pool;
+        term.pool     = &pool;
         return terms_.insert(std::move(term));
     }
 }
@@ -623,34 +623,34 @@ TermUid ASTBuilder::term(Location const &loc, UnOp op, TermVecUid a) {
 TermUid ASTBuilder::term(Location const &loc, BinOp op, TermUid a, TermUid b) {
     auto &binop = NEW(binaryOperations);
     binop.binary_operator = static_cast<clingo_ast_binary_operator_t>(op);
-    binop.left = terms_.erase(a);
-    binop.right = terms_.erase(b);
+    binop.left            = terms_.erase(a);
+    binop.right           = terms_.erase(b);
     clingo_ast_term_t term;
-    term.location = convertLoc(loc);
-    term.type = clingo_ast_term_type_binary_operation;
+    term.location         = convertLoc(loc);
+    term.type             = clingo_ast_term_type_binary_operation;
     term.binary_operation = &binop;
     return terms_.insert(std::move(term));
 }
 
 TermUid ASTBuilder::term(Location const &loc, TermUid a, TermUid b) {
     auto &interval = NEW(intervals);
-    interval.left = terms_.erase(a);
+    interval.left  = terms_.erase(a);
     interval.right = terms_.erase(b);
     clingo_ast_term_t term;
     term.location = convertLoc(loc);
-    term.type = clingo_ast_term_type_interval;
+    term.type     = clingo_ast_term_type_interval;
     term.interval = &interval;
     return terms_.insert(std::move(term));
 }
 
 clingo_ast_term_t ASTBuilder::fun_(Location const &loc, String name, TermVec &&vec, bool external) {
     auto &fun = NEW(functions);
-    fun.name = name.c_str();
-    fun.size = vec.size();
+    fun.name      = name.c_str();
+    fun.size      = vec.size();
     fun.arguments = NEW(termVecs, std::move(vec)).data();
     clingo_ast_term_t term;
     term.location = convertLoc(loc);
-    term.type = external ? clingo_ast_term_type_external_function : clingo_ast_term_type_function;
+    term.type     = external ? clingo_ast_term_type_external_function : clingo_ast_term_type_function;
     term.function = &fun;
     return term;
 }
@@ -673,65 +673,70 @@ TermUid ASTBuilder::pool(Location const &loc, TermVecUid a) {
     return pool_(loc, termvecs_.erase(a));
 }
 
-/*
 // {{{2 csp
+
 CSPMulTermUid ASTBuilder::cspmulterm(Location const &loc, TermUid coe, TermUid var) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(terms_.erase(coe));
-    nodeVec.emplace_back(terms_.erase(var));
-    return cspmulterms_.insert(newNode(loc, "cspterm_multiplication", nodeVec));
+    clingo_ast_csp_multiply_term_t term;
+    term.location    = convertLoc(loc);
+    term.coefficient = terms_.erase(coe);
+    term.variable    = &NEW(terms, terms_.erase(var));
+    return cspmulterms_.insert(std::move(term));
 }
 
 CSPMulTermUid ASTBuilder::cspmulterm(Location const &loc, TermUid coe) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(terms_.erase(coe));
-    return cspmulterms_.insert(newNode(loc, "cspterm_constant", nodeVec));
+    clingo_ast_csp_multiply_term_t term;
+    term.location    = convertLoc(loc);
+    term.coefficient = terms_.erase(coe);
+    term.variable    = nullptr;
+    return cspmulterms_.insert(std::move(term));
 }
 
 CSPAddTermUid ASTBuilder::cspaddterm(Location const &loc, CSPAddTermUid a, CSPMulTermUid b, bool add) {
-    auto node = cspmulterms_.erase(b);
+    auto &addterm = cspaddterms_[a];
+    addterm.first = loc;
+    addterm.second.emplace_back(cspmulterms_.erase(b));
     if (!add) {
-        auto &nodeVec = newNodeVec();
-        nodeVec.emplace_back(newNode(loc, "-"));
-        nodeVec.emplace_back(node.children[0]);
-        const_cast<clingo_ast&>(node.children[0]) = newNode(loc, "term_unary", nodeVec);
+        clingo_ast_unary_operation_t &unop = NEW(unaryOperations);
+        unop.unary_operator = clingo_ast_unary_operator_minus;
+        unop.argument       = addterm.second.back().coefficient;
+        clingo_ast_term_t term;
+        term.type            = clingo_ast_term_type_unary_operation;
+        term.location        = addterm.second.back().coefficient.location;
+        term.unary_operation = &unop;
+        addterm.second.back().coefficient = term;
     }
-    cspaddterms_[a].emplace_back(std::move(node));
     return a;
 }
 
-CSPAddTermUid ASTBuilder::cspaddterm(Location const &, CSPMulTermUid b) {
-    auto a = cspaddterms_.emplace();
-    cspaddterms_[a].emplace_back(cspmulterms_.erase(b));
-    return a;
-}
-
-LitUid ASTBuilder::csplit(CSPLitUid a) {
-    auto lit = csplits_.erase(a);
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(lit.second.first);
-    nodeVec.emplace_back(newNode(lit.first, "tuple_guard", newNodeVec() = std::move(lit.second.second)));
-    return lits_.insert(newNode(lit.first, "literal_csp", nodeVec));
+CSPAddTermUid ASTBuilder::cspaddterm(Location const &loc, CSPMulTermUid b) {
+    return cspaddterms_.emplace(loc, std::initializer_list<clingo_ast_csp_multiply_term_t>{cspmulterms_.erase(b)});
 }
 
 CSPLitUid ASTBuilder::csplit(Location const &loc, CSPLitUid a, Relation rel, CSPAddTermUid b) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, rel));
-    nodeVec.emplace_back(newNode(loc, "cspterm_sum", newNodeVec() = cspaddterms_.erase(b)));
-    csplits_[a].first = loc;
-    csplits_[a].second.second.emplace_back(newNode(loc, "guard_csp", nodeVec));
+    auto &lit = csplits_[a];
+    auto rep = cspaddterms_.erase(b);
+    clingo_ast_csp_add_term_t term;
+    term.size     = rep.second.size();
+    term.location = convertLoc(rep.first);
+    term.terms    = NEW(cspmulterms, std::move(rep.second)).data();
+    lit.emplace_back(loc, rel, std::move(term));
     return a;
 }
 
 CSPLitUid ASTBuilder::csplit(Location const &loc, CSPAddTermUid a, Relation rel, CSPAddTermUid b) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, inv(rel)));
-    nodeVec.emplace_back(newNode(loc, "cspterm_sum", newNodeVec() = cspaddterms_.erase(a)));
-    return csplits_.insert({loc, {
-        newNode(loc, "cspterm_sum", newNodeVec() = cspaddterms_.erase(b)),
-        {newNode(loc, "guard_csp", nodeVec)}} });
+    auto repa = cspaddterms_.erase(a), repb = cspaddterms_.erase(b);
+    clingo_ast_csp_add_term terma, termb;
+    terma.location = convertLoc(repa.first);
+    terma.size     = repa.second.size();
+    terma.terms    = NEW(cspmulterms, std::move(repa.second)).data();
+    termb.location = convertLoc(repb.first);
+    termb.size     = repb.second.size();
+    termb.terms    = NEW(cspmulterms, std::move(repb.second)).data();
+    CSPLits::ValueType vec = {{loc, rel, terma}, {loc, rel, termb}};
+    return csplits_.insert(std::move(vec));
 }
 
+/*
 // {{{2 id vectors
 IdVecUid ASTBuilder::idvec() {
     return idvecs_.emplace();
@@ -784,6 +789,14 @@ LitUid ASTBuilder::rellit(Location const &loc, Relation rel, TermUid termUidLeft
     nodeVec.emplace_back(newNode(loc, rel));
     nodeVec.emplace_back(terms_.erase(termUidRight));
     return lits_.insert(newNode(loc, "literal_relation", nodeVec));
+}
+
+LitUid ASTBuilder::csplit(CSPLitUid a) {
+    auto lit = csplits_.erase(a);
+    auto &nodeVec = newNodeVec();
+    nodeVec.emplace_back(lit.second.first);
+    nodeVec.emplace_back(newNode(lit.first, "tuple_guard", newNodeVec() = std::move(lit.second.second)));
+    return lits_.insert(newNode(lit.first, "literal_csp", nodeVec));
 }
 
 // {{{2 literal vectors
