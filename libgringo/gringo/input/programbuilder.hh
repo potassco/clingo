@@ -485,7 +485,6 @@ public:
     // {{{2 literal vectors
     LitVecUid litvec() override;
     LitVecUid litvec(LitVecUid uid, LitUid literalUid) override;
-    /*
     // {{{2 conditional literals
     CondLitVecUid condlitvec() override;
     CondLitVecUid condlitvec(CondLitVecUid uid, LitUid litUid, LitVecUid litvecUid) override;
@@ -495,6 +494,7 @@ public:
     // {{{2 head aggregate elements
     HdAggrElemVecUid headaggrelemvec() override;
     HdAggrElemVecUid headaggrelemvec(HdAggrElemVecUid uid, TermVecUid termvec, LitUid lit, LitVecUid litvec) override;
+    /*
     // {{{2 bounds
     BoundVecUid boundvec() override;
     BoundVecUid boundvec(BoundVecUid uid, Relation rel, TermUid term) override;
@@ -564,35 +564,6 @@ public:
     // }}}2
 
 private:
-
-    /*
-    void initNode(clingo_ast &node, clingo_location loc, Symbol val);
-    void initNode(clingo_ast &node, clingo_location loc, Symbol val, NodeVec &children);
-    void initNode(clingo_ast &node, Location const &loc, Symbol val);
-    void initNode(clingo_ast &node, Location const &loc, Symbol val, NodeVec &children);
-    clingo_ast newNode(clingo_location loc, Symbol val);
-    clingo_ast newNode(Location const &loc, Symbol val);
-    clingo_ast newNode(clingo_location loc, Symbol val, NodeVec &children);
-    clingo_ast newNode(Location const &loc, Symbol val, NodeVec &children);
-    clingo_ast newNode(Location const &loc,  NAF naf);
-    clingo_ast newNode(Location const &loc,  AggregateFunction fun);
-    clingo_ast newNode(Location const &loc,  Relation rel);
-    clingo_ast newNode(Location const &loc, TheoryAtomType type);
-    clingo_ast newNode(Location const &loc, char const *value);
-    clingo_ast newNode(Location const &loc, String value);
-    clingo_ast newNode(Location const &loc, unsigned length);
-    clingo_ast newNode(Location const &loc, char const *value, NodeVec &children);
-    clingo_ast typedNode(char const *type, clingo_ast node);
-    NodeVec &newNodeVec();
-    Location dummyloc_();
-    clingo_ast littuple_(Location const &loc, LitVecUid a);
-    clingo_ast littuple_(Location const &loc, BdLitVecUid a);
-    clingo_ast condlit_(Location const &loc, LitUid litUid, LitVecUid litvecUid);
-    TermUid fun_(Location const &loc, String name, TermVecUid a, bool lua);
-    TermUid pool_(Location const &loc, TermUidVec const &vec);
-    void directive_(Location const &loc, char const *name, NodeVec &nodeVec);
-    */
-private:
     using TermVec = std::vector<clingo_ast_term_t>;
     using TermVecVec = std::vector<TermVec>;
 
@@ -608,10 +579,10 @@ private:
     using IdVecs           = Indexed<std::vector<clingo_ast_id_t>, IdVecUid>;
     using Lits             = Indexed<clingo_ast_literal_t, LitUid>;
     using LitVecs          = Indexed<std::vector<clingo_ast_literal_t>, LitVecUid>;
+    using CondLitVecs      = Indexed<std::vector<clingo_ast_conditional_literal_t>, CondLitVecUid>;
+    using BodyAggrElemVecs = Indexed<std::vector<clingo_ast_body_aggregate_element_t>, BdAggrElemVecUid>;
+    using HeadAggrElemVecs = Indexed<std::vector<clingo_ast_head_aggregate_element_t>, HdAggrElemVecUid>;
     /*
-    using BodyAggrElemVecs = Indexed<NodeVec, BdAggrElemVecUid>;
-    using CondLitVecs      = Indexed<NodeVec, CondLitVecUid>;
-    using HeadAggrElemVecs = Indexed<NodeVec, HdAggrElemVecUid>;
     using Bodies           = Indexed<NodeVec, BdLitVecUid>;
     using Heads            = Indexed<clingo_ast, HdLitUid>;
     using CSPLits          = Indexed<std::pair<Location, std::pair<clingo_ast, NodeVec>>, CSPLitUid>;
@@ -642,10 +613,10 @@ private:
     IdVecs              idvecs_;
     Lits                lits_;
     LitVecs             litvecs_;
-    /*
+    CondLitVecs         condlitvecs_;
     BodyAggrElemVecs    bodyaggrelemvecs_;
     HeadAggrElemVecs    headaggrelemvecs_;
-    CondLitVecs         condlitvecs_;
+    /*
     Bounds              bounds_;
     Bodies              bodies_;
     Heads               heads_;
@@ -676,6 +647,7 @@ private:
         std::forward_list<clingo_ast_csp_add_term_t> cspaddterms;
         std::forward_list<clingo_ast_csp_literal_t> csplits;
         std::forward_list<std::vector<clingo_ast_csp_guard_t>> guardvecs;
+        std::forward_list<std::vector<clingo_ast_literal_t>> litvecs;
     } data_;
 };
 

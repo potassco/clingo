@@ -834,42 +834,60 @@ LitVecUid ASTBuilder::litvec(LitVecUid uid, LitUid literalUid) {
 }
 
 // {{{2 conditional literals
-/*
+
 CondLitVecUid ASTBuilder::condlitvec() {
     return condlitvecs_.emplace();
 }
 
 CondLitVecUid ASTBuilder::condlitvec(CondLitVecUid uid, LitUid litUid, LitVecUid litvecUid) {
-    condlitvecs_[uid].emplace_back(condlit_(convertLoc(lits_[litUid].location), litUid, litvecUid));
+    clingo_ast_conditional_literal_t lit;
+    auto &cond = NEW(litvecs, litvecs_.erase(litvecUid));
+    lit.size      = cond.size();
+    lit.condition = cond.data();
+    lit.literal   = lits_.erase(litUid);
+    condlitvecs_[uid].emplace_back(lit);
     return uid;
 }
 
 // {{{2 body aggregate elements
+
 BdAggrElemVecUid ASTBuilder::bodyaggrelemvec() {
     return bodyaggrelemvecs_.emplace();
 }
 
 BdAggrElemVecUid ASTBuilder::bodyaggrelemvec(BdAggrElemVecUid uid, TermVecUid termvec, LitVecUid litvec) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(terms_.erase(term(dummyloc_(), termvec, true)));
-    nodeVec.emplace_back(littuple_(dummyloc_(), litvec));
-    bodyaggrelemvecs_[uid].emplace_back(newNode(dummyloc_(), "element_aggregate_body", nodeVec));
+    clingo_ast_body_aggregate_element_t elem;
+    auto &cond = NEW(litvecs, litvecs_.erase(litvec));
+    auto &tuple = NEW(termVecs, termvecs_.erase(termvec));
+    elem.condition_size = cond.size();
+    elem.condition      = cond.data();
+    elem.tuple_size     = tuple.size();
+    elem.tuple          = tuple.data();
+    bodyaggrelemvecs_[uid].emplace_back(elem);
     return uid;
 }
 
 // {{{2 head aggregate elements
+
 HdAggrElemVecUid ASTBuilder::headaggrelemvec() {
     return headaggrelemvecs_.emplace();
 }
 
-HdAggrElemVecUid ASTBuilder::headaggrelemvec(HdAggrElemVecUid uid, TermVecUid termvec, LitUid lit, LitVecUid litvec) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(terms_.erase(term(dummyloc_(), termvec, true)));
-    nodeVec.emplace_back(condlit_(dummyloc_(), lit, litvec));
-    headaggrelemvecs_[uid].emplace_back(newNode(dummyloc_(), "element_aggregate_head", nodeVec));
+HdAggrElemVecUid ASTBuilder::headaggrelemvec(HdAggrElemVecUid uid, TermVecUid termvec, LitUid litUid, LitVecUid litvec) {
+    clingo_ast_head_aggregate_element_t elem;
+    auto &cond = NEW(litvecs, litvecs_.erase(litvec));
+    clingo_ast_conditional_literal_t lit;
+    lit.size      = cond.size();
+    lit.condition = cond.data();
+    lit.literal   = lits_.erase(litUid);
+    auto &tuple = NEW(termVecs, termvecs_.erase(termvec));
+    elem.conditional_literal = lit;
+    elem.tuple_size          = tuple.size();
+    elem.tuple               = tuple.data();
+    headaggrelemvecs_[uid].emplace_back(elem);
     return uid;
 }
-
+/*
 // {{{2 bounds
 BoundVecUid ASTBuilder::boundvec() {
     return bounds_.emplace();
