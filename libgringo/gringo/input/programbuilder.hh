@@ -477,7 +477,6 @@ public:
     // {{{2 term vector vectors
     TermVecVecUid termvecvec() override;
     TermVecVecUid termvecvec(TermVecVecUid uid, TermVecUid termvecUid) override;
-    /*
     // {{{2 literals
     LitUid boollit(Location const &loc, bool type) override;
     LitUid predlit(Location const &loc, NAF naf, bool neg, String name, TermVecVecUid argvecvecUid) override;
@@ -486,6 +485,7 @@ public:
     // {{{2 literal vectors
     LitVecUid litvec() override;
     LitVecUid litvec(LitVecUid uid, LitUid literalUid) override;
+    /*
     // {{{2 conditional literals
     CondLitVecUid condlitvec() override;
     CondLitVecUid condlitvec(CondLitVecUid uid, LitUid litUid, LitVecUid litvecUid) override;
@@ -604,11 +604,11 @@ private:
     using TermVecVecs      = Indexed<TermVecVec, TermVecVecUid>;
     using CSPAddTerms      = Indexed<std::pair<Location, std::vector<clingo_ast_csp_multiply_term_t>>, CSPAddTermUid>;
     using CSPMulTerms      = Indexed<clingo_ast_csp_multiply_term_t, CSPMulTermUid>;
-    using CSPLits          = Indexed<std::vector<std::tuple<Location, Relation, clingo_ast_csp_add_term_t>>, CSPLitUid>;
+    using CSPLits          = Indexed<std::pair<Location, std::vector<std::pair<Relation, clingo_ast_csp_add_term_t>>>, CSPLitUid>;
     using IdVecs           = Indexed<std::vector<clingo_ast_id_t>, IdVecUid>;
+    using Lits             = Indexed<clingo_ast_literal_t, LitUid>;
+    using LitVecs          = Indexed<std::vector<clingo_ast_literal_t>, LitVecUid>;
     /*
-    using Lits             = Indexed<clingo_ast, LitUid>;
-    using LitVecs          = Indexed<NodeVec, LitVecUid>;
     using BodyAggrElemVecs = Indexed<NodeVec, BdAggrElemVecUid>;
     using CondLitVecs      = Indexed<NodeVec, CondLitVecUid>;
     using HeadAggrElemVecs = Indexed<NodeVec, HdAggrElemVecUid>;
@@ -640,9 +640,9 @@ private:
     CSPMulTerms         cspmulterms_;
     CSPLits             csplits_;
     IdVecs              idvecs_;
-    /*
     Lits                lits_;
     LitVecs             litvecs_;
+    /*
     BodyAggrElemVecs    bodyaggrelemvecs_;
     HeadAggrElemVecs    headaggrelemvecs_;
     CondLitVecs         condlitvecs_;
@@ -671,7 +671,11 @@ private:
         std::forward_list<clingo_ast_term_interval_t> intervals;
         std::forward_list<TermVec> termVecs;
         std::forward_list<clingo_ast_function_t> functions;
+        std::forward_list<clingo_ast_comparison_t> comparisons;
         std::forward_list<std::vector<clingo_ast_csp_multiply_term_t>> cspmulterms;
+        std::forward_list<clingo_ast_csp_add_term_t> cspaddterms;
+        std::forward_list<clingo_ast_csp_literal_t> csplits;
+        std::forward_list<std::vector<clingo_ast_csp_guard_t>> guardvecs;
     } data_;
 };
 

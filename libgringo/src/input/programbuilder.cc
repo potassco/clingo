@@ -719,7 +719,8 @@ CSPLitUid ASTBuilder::csplit(Location const &loc, CSPLitUid a, Relation rel, CSP
     term.size     = rep.second.size();
     term.location = convertLoc(rep.first);
     term.terms    = NEW(cspmulterms, std::move(rep.second)).data();
-    lit.emplace_back(loc, rel, std::move(term));
+    lit.first = loc;
+    lit.second.emplace_back(rel, std::move(term));
     return a;
 }
 
@@ -732,7 +733,7 @@ CSPLitUid ASTBuilder::csplit(Location const &loc, CSPAddTermUid a, Relation rel,
     termb.location = convertLoc(repb.first);
     termb.size     = repb.second.size();
     termb.terms    = NEW(cspmulterms, std::move(repb.second)).data();
-    CSPLits::ValueType vec = {{loc, rel, terma}, {loc, rel, termb}};
+    CSPLits::ValueType vec = { loc, {{rel, terma}, {rel, termb}} };
     return csplits_.insert(std::move(vec));
 }
 
@@ -767,40 +768,62 @@ TermVecVecUid ASTBuilder::termvecvec(TermVecVecUid uid, TermVecUid termvecUid) {
     return uid;
 }
 
-/*
 // {{{2 literals
+
 LitUid ASTBuilder::boollit(Location const &loc, bool type) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, type ? "true" : "false"));
-    return lits_.insert(newNode(loc, "literal_boolean", nodeVec));
+    clingo_ast_literal_t lit;
+    lit.location = convertLoc(loc);
+    lit.sign     = clingo_ast_sign_none;
+    lit.type     = clingo_ast_literal_type_boolean;
+    lit.boolean  = type;
+    return lits_.insert(std::move(lit));
 }
 
 LitUid ASTBuilder::predlit(Location const &loc, NAF naf, bool neg, String name, TermVecVecUid argvecvecUid) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, naf));
-    nodeVec.emplace_back(newNode(loc, neg ? "neg_not" : "neg_pos"));
-    nodeVec.emplace_back(newNode(loc, name.c_str()));
-    nodeVec.emplace_back(terms_.erase(term(loc, "", argvecvecUid, false)));
-    return lits_.insert(newNode(loc, "literal_predicate", nodeVec));
+    auto t = term(loc, name, argvecvecUid, false);
+    if (neg) { t = term(loc, UnOp::NEG, t); }
+    clingo_ast_literal_t lit;
+    lit.location = convertLoc(loc);
+    lit.sign     = static_cast<clingo_ast_sign_t>(naf);
+    lit.type     = clingo_ast_literal_type_symbolic;
+    lit.symbol   = &NEW(terms, terms_.erase(t));
+    return lits_.insert(std::move(lit));
 }
 
 LitUid ASTBuilder::rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(terms_.erase(termUidLeft));
-    nodeVec.emplace_back(newNode(loc, rel));
-    nodeVec.emplace_back(terms_.erase(termUidRight));
-    return lits_.insert(newNode(loc, "literal_relation", nodeVec));
+    auto &comp = NEW(comparisons);
+    comp.comparison = static_cast<clingo_ast_comparison_operator_t>(rel);
+    comp.left       = terms_.erase(termUidLeft);
+    comp.right      = terms_.erase(termUidRight);
+    clingo_ast_literal_t lit;
+    lit.location   = convertLoc(loc);
+    lit.sign       = clingo_ast_sign_none;
+    lit.type       = clingo_ast_literal_type_comparison;
+    lit.comparison = &comp;
+    return lits_.insert(std::move(lit));
 }
 
 LitUid ASTBuilder::csplit(CSPLitUid a) {
-    auto lit = csplits_.erase(a);
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(lit.second.first);
-    nodeVec.emplace_back(newNode(lit.first, "tuple_guard", newNodeVec() = std::move(lit.second.second)));
-    return lits_.insert(newNode(lit.first, "literal_csp", nodeVec));
+    auto rep = csplits_.erase(a);
+    assert(rep.second.size() > 1);
+    auto &guards = NEW(guardvecs);
+    for (auto it = rep.second.begin() + 1, ie = rep.second.end(); it != ie; ++it) {
+        guards.emplace_back(clingo_ast_csp_guard_t{static_cast<clingo_ast_comparison_operator_t>(it->first), it->second});
+    }
+    auto &csp = NEW(csplits);
+    csp.term   = rep.second.front().second;
+    csp.size   = rep.second.size() - 1;
+    csp.guards = guards.data();
+    clingo_ast_literal_t lit;
+    lit.location = convertLoc(rep.first);
+    lit.sign     = clingo_ast_sign_none;
+    lit.type     = clingo_ast_literal_type_csp;
+    lit.csp      = &csp;
+    return lits_.insert(std::move(lit));
 }
 
 // {{{2 literal vectors
+
 LitVecUid ASTBuilder::litvec() {
     return litvecs_.emplace();
 }
@@ -811,6 +834,7 @@ LitVecUid ASTBuilder::litvec(LitVecUid uid, LitUid literalUid) {
 }
 
 // {{{2 conditional literals
+/*
 CondLitVecUid ASTBuilder::condlitvec() {
     return condlitvecs_.emplace();
 }

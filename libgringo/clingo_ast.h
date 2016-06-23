@@ -152,7 +152,6 @@ typedef struct clingo_ast_csp_add_term {
 } clingo_ast_csp_add_term_t;
 
 typedef struct clingo_ast_csp_guard {
-    clingo_location_t location;
     clingo_ast_comparison_operator_t comparison;
     clingo_ast_csp_add_term term;
 } clingo_ast_csp_guard_t;
@@ -160,6 +159,7 @@ typedef struct clingo_ast_csp_guard {
 typedef struct clingo_ast_csp_literal {
     clingo_ast_csp_add_term_t term;
     clingo_ast_csp_guard const *guards;
+    // NOTE: size must be at least one
     size_t size;
 } clingo_ast_csp_literal_t;
 
