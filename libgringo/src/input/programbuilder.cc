@@ -747,17 +747,17 @@ IdVecUid ASTBuilder::idvec(IdVecUid uid, Location const &loc, String id) {
     return uid;
 }
 
-/*
 // {{{2 term vectors
 TermVecUid ASTBuilder::termvec() {
     return termvecs_.emplace();
 }
 
 TermVecUid ASTBuilder::termvec(TermVecUid uid, TermUid termUid) {
-    termvecs_[uid].emplace_back(termUid);
+    termvecs_[uid].emplace_back(terms_.erase(termUid));
     return uid;
 }
 
+/*
 // {{{2 term vector vectors
 TermVecVecUid ASTBuilder::termvecvec() {
     return termvecvecs_.emplace();

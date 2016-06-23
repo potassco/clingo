@@ -471,10 +471,10 @@ public:
     // {{{2 id vectors
     IdVecUid idvec() override;
     IdVecUid idvec(IdVecUid uid, Location const &loc, String id) override;
-    /*
     // {{{2 term vectors
     TermVecUid termvec() override;
     TermVecUid termvec(TermVecUid uid, TermUid termUid) override;
+    /*
     // {{{2 term vector vectors
     TermVecVecUid termvecvec() override;
     TermVecVecUid termvecvec(TermVecVecUid uid, TermVecUid termvecUid) override;
