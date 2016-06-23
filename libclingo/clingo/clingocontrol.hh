@@ -253,6 +253,15 @@ private:
 
 class ClingoControl : public Gringo::Control, private Gringo::ConfigProxy, private Gringo::DomainProxy {
 public:
+    class Callback {
+    public:
+        virtual void postGround() {}
+        virtual void preSolve() {}
+        virtual void postSolve() {}
+        /// virtual void onModel()
+        /// returning some terms to be stored in the model ? for the theory
+    };
+
     using StringVec        = std::vector<std::string>;
     using ExternalVec      = std::vector<std::pair<Gringo::Symbol, Potassco::Value_t>>;
     using StringSeq        = ProgramOptions::StringSeq;
@@ -260,7 +269,7 @@ public:
     using PreSolveFunc     = std::function<bool (Clasp::ClaspFacade &)>;
     enum class ConfigUpdate { KEEP, REPLACE };
 
-    ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf);
+    ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Callback* cb = nullptr);
     void prepare(Gringo::Control::ModelHandler mh, Gringo::Control::FinishHandler fh);
     void commitExternals();
     void parse();
@@ -332,6 +341,7 @@ public:
     Clasp::Cli::ClaspCliConfig                               &claspConfig_;
     PostGroundFunc                                            pgf_;
     PreSolveFunc                                              psf_;
+    Callback*                                                 cb_;
     std::unique_ptr<Potassco::TheoryData>                     data_;
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>> propagators_;
     ClingoPropagatorLock                                      propLock_;

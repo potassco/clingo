@@ -189,37 +189,27 @@ void ClingoApp::onEvent(Event const& ev) {
 namespace
 {
 
-class Callback
+class Callback : public ClingoControl::Callback
 {
 public:
-    Callback(Callback&) = delete;
-    Callback(const Callback&) = delete;
-    using PostGroundFunc   = std::function<bool (Clasp::ProgramBuilder &)>;
-    using PreSolveFunc     = std::function<bool (Clasp::ClaspFacade &)>;
-    Callback(clingcon::Helper& h, PostGroundFunc pgf, PreSolveFunc psf) : h_(h), pgf_(pgf), psf_(psf) {}
-    bool postGround(Clasp::ProgramBuilder & pb) {
-        h_.postRead();
-        return pgf_(pb);
+    Callback(clingcon::Helper* h) : h_(h) {}
+    void postGround(Clasp::ProgramBuilder & pb) {
+        if (h_)
+            h_->postRead();
     }
 
     bool preSolve(Clasp::ClaspFacade &cf) {
-        h_.postEnd();
-        if (!psf_(cf))
-            return false;
-        return true;
-
+        if (h_)
+            h_->postEnd(); /// can return false
     }
 
     ///TODO: currently ignored
     void postSolve() {
-        h_.postSolve();
+        h_->postSolve();
     }
 
     ///TODO: missing postSolve
-    clingcon::Helper& h_;
-    PostGroundFunc pgf_;
-    PreSolveFunc psf_;
-
+    clingcon::Helper* h_;
 };
 
 }
@@ -231,15 +221,15 @@ void ClingoApp::run(Clasp::ClaspFacade& clasp) {
         ProgramBuilder* prg = &clasp.start(claspConfig_, pt);
         grOpts_.verbose = verbose() == UINT_MAX;
         Asp::LogicProgram* lp = mode_ != mode_gringo ? static_cast<Asp::LogicProgram*>(prg) : nullptr;
+        std::unique_ptr<clingcon::Helper> cspapp;
         if (lp) {
-            clingcon::Helper cspapp(clasp.ctx,claspConfig_,lp,conf_);
-            Callback cb(cspapp, std::bind(&ClingoApp::handlePostGroundOptions, this, _1), std::bind(&ClingoApp::handlePreSolveOptions, this, _1));
-            grd = Gringo::gringo_make_unique<ClingoControl>(module.scripts, mode_ == mode_clingo, clasp_.get(), claspConfig_, std::bind(&Callback::postGround, &cb, _1), std::bind(&Callback::preSolve, &cb, _1));
+            cspapp.reset(new clingcon::Helper(clasp.ctx,claspConfig_,lp,conf_));
         }
-        else {
-            grd = Gringo::gringo_make_unique<ClingoControl>(module.scripts, mode_ == mode_clingo, clasp_.get(), claspConfig_, std::bind(&ClingoApp::handlePostGroundOptions, this, _1), std::bind(&ClingoApp::handlePreSolveOptions, this, _1));
-        }
-            
+        Callback cb(cspapp.get());
+        grd = Gringo::gringo_make_unique<ClingoControl>(module.scripts, mode_ == mode_clingo, clasp_.get(), claspConfig_,
+                                                        std::bind(&ClingoApp::handlePostGroundOptions, this, _1),
+                                                        std::bind(&ClingoApp::handlePreSolveOptions, this, _1),
+                                                        &cb);
         grd->parse(claspAppOpts_.input, grOpts_, lp);
         grd->main();
     }

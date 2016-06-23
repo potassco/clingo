@@ -118,12 +118,13 @@ ClaspAPIBackend::~ClaspAPIBackend() noexcept = default;
 // {{{1 definition of ClingoControl
 
 #define LOG if (verbose_) std::cerr
-ClingoControl::ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf)
+ClingoControl::ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Callback* cb)
     : scripts_(scripts)
     , clasp_(clasp)
     , claspConfig_(claspConfig)
     , pgf_(pgf)
     , psf_(psf)
+    , cb_(cb)
     , clingoMode_(clingoMode) { }
 
 void ClingoControl::parse() {
@@ -354,6 +355,7 @@ void ClingoControl::prepare(Gringo::Control::ModelHandler mh, Gringo::Control::F
         finishHandler_ = fh;
         modelHandler_  = mh;
         Clasp::ProgramBuilder *prg = clasp_->program();
+        if (cb_) cb_->postGround();
         if (pgf_) { pgf_(*prg); }
         if (!propagators_.empty()) {
             clasp_->program()->endProgram();
@@ -363,6 +365,7 @@ void ClingoControl::prepare(Gringo::Control::ModelHandler mh, Gringo::Control::F
             }
             propLock_.init(clasp_->config()->numSolver());
         }
+        if (cb_) cb_->preSolve();
         clasp_->prepare(enableEnumAssupmption_ ? Clasp::ClaspFacade::enum_volatile : Clasp::ClaspFacade::enum_static);
         if (psf_) { psf_(*clasp_);}
     }
@@ -390,7 +393,9 @@ Clasp::LitVec ClingoControl::toClaspAssumptions(Gringo::Control::Assumptions &&a
 
 Gringo::SolveResult ClingoControl::solve(ModelHandler h, Assumptions &&ass) {
     prepare(h, nullptr);
-    return clingoMode_ ? convert(clasp_->solve(nullptr, toClaspAssumptions(std::move(ass)))) : Gringo::SolveResult(Gringo::SolveResult::Unknown, false, false);
+    auto ret = clingoMode_ ? convert(clasp_->solve(nullptr, toClaspAssumptions(std::move(ass)))) : Gringo::SolveResult(Gringo::SolveResult::Unknown, false, false);
+    if (cb_) cb_->postSolve();
+    return ret;
 }
 
 void ClingoControl::registerPropagator(Gringo::Propagator &p, bool sequential) {
