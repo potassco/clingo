@@ -100,12 +100,13 @@ ClaspAPIBackend::~ClaspAPIBackend() noexcept = default;
 // {{{1 definition of ClingoControl
 
 #define LOG if (verbose_) std::cerr
-ClingoControl::ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Gringo::Logger::Printer printer, unsigned messageLimit)
+ClingoControl::ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Gringo::Logger::Printer printer, unsigned messageLimit, Callback* cb)
 : scripts_(scripts)
 , clasp_(clasp)
 , claspConfig_(claspConfig)
 , pgf_(pgf)
 , psf_(psf)
+, cb_(cb)
 , logger_(printer, messageLimit)
 , clingoStatsNg_(clingoStats_)
 , clingoMode_(clingoMode) { }
@@ -223,7 +224,7 @@ void ClingoControl::main() {
 bool ClingoControl::onModel(Clasp::Model const &m) {
     if (!modelHandler_) { return true; }
     std::lock_guard<decltype(propLock_)> lock(propLock_);
-    return modelHandler_(ClingoModel(*this, &m));
+    return modelHandler_(ClingoModel(*this, std::move(cb_ ? cb_->onModel(m) : Gringo::SymVec()) , &m));
 }
 void ClingoControl::onFinish(Clasp::ClaspFacade::Result ret) {
     if (finishHandler_) {
@@ -338,6 +339,7 @@ void ClingoControl::prepare(Gringo::Control::ModelHandler mh, Gringo::Control::F
         finishHandler_ = fh;
         modelHandler_  = mh;
         Clasp::ProgramBuilder *prg = clasp_->program();
+        if (cb_) cb_->postGround();
         if (pgf_) { pgf_(*prg); }
         if (!propagators_.empty()) {
             clasp_->program()->endProgram();
@@ -347,6 +349,7 @@ void ClingoControl::prepare(Gringo::Control::ModelHandler mh, Gringo::Control::F
             }
             propLock_.init(clasp_->ctx.concurrency());
         }
+        if (cb_) cb_->preSolve();
         clasp_->prepare(enableEnumAssupmption_ ? Clasp::ClaspFacade::enum_volatile : Clasp::ClaspFacade::enum_static);
         if (psf_) { psf_(*clasp_);}
     }
@@ -374,7 +377,9 @@ Clasp::LitVec ClingoControl::toClaspAssumptions(Gringo::Control::Assumptions &&a
 
 Gringo::SolveResult ClingoControl::solve(ModelHandler h, Assumptions &&ass) {
     prepare(h, nullptr);
-    return clingoMode_ ? convert(clasp_->solve(nullptr, toClaspAssumptions(std::move(ass)))) : Gringo::SolveResult(Gringo::SolveResult::Unknown, false, false);
+    auto ret = clingoMode_ ? convert(clasp_->solve(nullptr, toClaspAssumptions(std::move(ass)))) : Gringo::SolveResult(Gringo::SolveResult::Unknown, false, false);
+    if (cb_) cb_->postSolve();
+    return ret;
 }
 
 void ClingoControl::registerPropagator(std::unique_ptr<Gringo::Propagator> p, bool sequential) {

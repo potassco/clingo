@@ -1,0 +1,291 @@
+// {{{ GPL License 
+
+// This file is part of gringo - a grounder for logic programs.
+// Copyright (C) 2013  Benjamin Kaufmann
+// Copyright (C) 2013  Roland Kaminski
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+// }}}
+
+#ifdef WITH_PYTHON
+#  include <Python.h>
+#endif
+#ifdef WITH_LUA
+#  include <lua.h>
+#endif
+#include "clingcon_app.hh"
+#include <clingcon/appsupport.h>
+#include <clingcon/version.h>
+#include <clasp/parser.h>
+#include <climits>
+#include <unistd.h>
+
+using namespace Clasp;
+using namespace Clasp::Cli;
+
+// {{{ declaration of ClingoApp
+
+ClingoApp::ClingoApp() { }
+
+static bool parseConst(const std::string& str, std::vector<std::string>& out) {
+    out.push_back(str);
+    return true;
+}
+
+static bool parseText(const std::string&, ClingoOptions& out) {
+    out.outputFormat = Gringo::Output::OutputFormat::TEXT;
+    return true;
+}
+
+void ClingoApp::initOptions(ProgramOptions::OptionContext& root) {
+    using namespace ProgramOptions;
+    BaseType::initOptions(root);
+    grOpts_.defines.clear();
+    grOpts_.verbose = false;
+    OptionGroup gringo("Gringo Options");
+    gringo.addOptions()
+        ("text", storeTo(grOpts_, parseText)->flag(), "Print plain text format")
+        ("const,c", storeTo(grOpts_.defines, parseConst)->composing()->arg("<id>=<term>"), "Replace term occurrences of <id> with <term>")
+        ("output,o", storeTo(grOpts_.outputFormat = Gringo::Output::OutputFormat::INTERMEDIATE, values<Gringo::Output::OutputFormat>()
+          ("intermediate", Gringo::Output::OutputFormat::INTERMEDIATE)
+          ("text", Gringo::Output::OutputFormat::TEXT)
+          ("reify", Gringo::Output::OutputFormat::REIFY)
+          ("smodels", Gringo::Output::OutputFormat::SMODELS)), "Choose output format:\n"
+             "      intermediate: print intermediate format\n"
+             "      text        : print plain text format\n"
+             "      reify       : print program as reified facts\n"
+             "      smodels     : print smodels format\n"
+             "                    (only supports basic features)")
+        ("output-debug", storeTo(grOpts_.outputDebug = Gringo::Output::OutputDebug::NONE, values<Gringo::Output::OutputDebug>()
+          ("none", Gringo::Output::OutputDebug::NONE)
+          ("text", Gringo::Output::OutputDebug::TEXT)
+          ("translate", Gringo::Output::OutputDebug::TRANSLATE)
+          ("all", Gringo::Output::OutputDebug::ALL)), "Print debug information during output:\n"
+         "      none     : no additional info\n"
+         "      text     : print rules as plain text (prefix %%)\n"
+         "      translate: print translated rules as plain text (prefix %%%%)\n"
+         "      all      : combines text and translate")
+        ("warn,W"                   , storeTo(grOpts_, parseWarning)->arg("<warn>")->composing(), "Enable/disable warnings:\n"
+         "      none:                     disable all warnings\n"
+         "      all:                      enable all warnings\n"
+         "      [no-]atom-undefined:      a :- b.\n"
+         "      [no-]file-included:       #include \"a.lp\". #include \"a.lp\".\n"
+         "      [no-]operation-undefined: p(1/0).\n"
+         "      [no-]variable-unbounded:  $x > 10.\n"
+         "      [no-]global-variable:     :- #count { X } = 1, X = 1.\n"
+         "      [no-]other:               clasp related and uncategorized warnings")
+        ("rewrite-minimize"         , flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
+        ("keep-facts"               , flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
+        ("foobar,@4"                , storeTo(grOpts_.foobar, parseFoobar) , "Foobar")
+        ;
+    root.add(gringo);
+
+    OptionGroup basic("Basic Options");
+    basic.addOptions()
+        ("mode", storeTo(mode_ = mode_clingo, values<Mode>()
+            ("clingo", mode_clingo)
+            ("clasp", mode_clasp)
+            ("gringo", mode_gringo)), 
+         "Run in {clingo|clasp|gringo} mode\n")
+        ;
+    root.add(basic);
+    clingcon::Helper::addOptions(root, conf_);
+}
+
+void ClingoApp::validateOptions(const ProgramOptions::OptionContext& root, const ProgramOptions::ParsedOptions& parsed, const ProgramOptions::ParsedValues& vals) {
+    BaseType::validateOptions(root, parsed, vals);
+    if (parsed.count("text") > 0) {
+        if (parsed.count("output") > 0) {
+            error("'--text' and '--output' are mutually exclusive!");
+            exit(E_NO_RUN);
+        }
+        if (parsed.count("mode") > 0 && mode_ != mode_gringo) {
+            error("'--text' can only be used with '--mode=gringo'!");
+            exit(E_NO_RUN);
+        }
+        mode_ = mode_gringo;
+    }
+    if (parsed.count("output") > 0) {
+        if (parsed.count("mode") > 0 && mode_ != mode_gringo) {
+            error("'--output' can only be used with '--mode=gringo'!");
+            exit(E_NO_RUN);
+        }
+        mode_ = mode_gringo;
+    }
+}
+
+ProblemType ClingoApp::getProblemType() {
+    if (mode_ != mode_clasp) return Problem_t::Asp;
+    return ClaspFacade::detectProblemType(getStream());
+}
+Output* ClingoApp::createOutput(ProblemType f) {
+    if (mode_ == mode_gringo) return 0;
+    return BaseType::createOutput(f);
+}
+
+void ClingoApp::printHelp(const ProgramOptions::OptionContext& root) {
+    BaseType::printHelp(root);
+    printf("\nclingo is part of Potassco: %s\n", "http://potassco.sourceforge.net/#clingo");
+    printf("Get help/report bugs via : http://sourceforge.net/projects/potassco/support\n");
+    fflush(stdout);
+}
+
+void ClingoApp::printVersion() {
+    ProgramOptions::Application::printVersion();
+    printf("\n");
+    printf("libgringo version " GRINGO_VERSION "\n");
+    printf("libclingcon version " LIBCLINGCON_VERSION "\n");
+    printf("Configuration: "
+#ifdef WITH_PYTHON
+        "with Python " PY_VERSION
+#else
+        "without Python"
+#endif
+        ", "
+#ifdef WITH_LUA
+        "with " LUA_RELEASE
+#else
+        "without Lua"
+#endif
+        "\n");
+    printf("Copyright (C) Roland Kaminski\n");
+    printf("License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n");
+    printf("Gringo is free software: you are free to change and redistribute it.\n");
+    printf("There is NO WARRANTY, to the extent permitted by law.\n");
+    printf("\n");   
+    BaseType::printLibClaspVersion();
+}
+bool ClingoApp::onModel(Clasp::Solver const& s, Clasp::Model const& m) {
+    bool ret = !grd || grd->onModel(m);
+    return BaseType::onModel(s, m) && ret;
+}
+void ClingoApp::shutdown() {
+    // TODO: can be removed in future...
+    //       or could be bound differently given the new interface...
+#if WITH_THREADS
+    if (grd) {
+        grd->solveIter_   = nullptr;
+        grd->solveFuture_ = nullptr;
+    }
+#endif
+    Clasp::Cli::ClaspAppBase::shutdown();
+}
+void ClingoApp::onEvent(Event const& ev) {
+#if WITH_THREADS
+    Clasp::ClaspFacade::StepReady const *r = Clasp::event_cast<Clasp::ClaspFacade::StepReady>(ev);
+    if (r && grd) { grd->onFinish(r->summary->result); }
+#endif
+    BaseType::onEvent(ev);
+}
+namespace
+{
+
+class Callback : public ClingoControl::Callback
+{
+public:
+    Callback(clingcon::Helper* h) : h_(h) {}
+    virtual void postGround() override {
+        if (h_)
+            h_->postRead();
+    }
+
+    virtual void preSolve() override {
+        if (h_)
+            h_->postEnd(); /// can return false
+    }
+
+    virtual void postSolve() override {
+        if (h_)
+            h_->postSolve();
+    }
+
+    virtual Gringo::SymVec onModel(const Clasp::Model& m) override {
+        Gringo::SymVec ret;
+        if (h_)
+        {
+            auto to = h_->theoryOutput();
+            const char* name;
+            order::int32 value;
+            if (to->first(m,name,value))
+            {
+                ret.emplace_back(convert(name,value));
+                while(to->next(name,value))
+                    ret.emplace_back(convert(name,value));
+            }
+        }
+        return ret;
+    }
+
+private:
+
+    Gringo::Symbol convert(const char* name, int32 value)
+    {
+        ///TODO: it would be better if i would return a function symbol instead of a string name
+        /// for gringo: actually this function symbol exists already in gringo ?
+        Gringo::SymVec params;
+        params.emplace_back(Gringo::Symbol::createStr(Gringo::String(name)));
+        params.emplace_back(Gringo::Symbol::createNum(value));
+        return Gringo::Symbol::createFun("csp",params);
+    }
+
+    clingcon::Helper* h_;
+};
+
+}
+void ClingoApp::run(Clasp::ClaspFacade& clasp) {
+    try {
+        using namespace std::placeholders;
+        if (mode_ != mode_clasp) {
+            ProblemType     pt  = getProblemType();
+            ProgramBuilder* prg = &clasp.start(claspConfig_, pt);
+            grOpts_.verbose = verbose() == UINT_MAX;
+            Asp::LogicProgram* lp = mode_ != mode_gringo ? static_cast<Asp::LogicProgram*>(prg) : nullptr;
+            std::unique_ptr<clingcon::Helper> cspapp;
+            if (lp) {
+                cspapp.reset(new clingcon::Helper(clasp.ctx,claspConfig_,lp,conf_));
+            }
+            Callback cb(cspapp.get());
+            grd = Gringo::gringo_make_unique<ClingoControl>(module.scripts, mode_ == mode_clingo, clasp_.get(), claspConfig_,
+                                                            std::bind(&ClingoApp::handlePostGroundOptions, this, _1),
+                                                            std::bind(&ClingoApp::handlePreSolveOptions, this, _1),
+                                                            nullptr, 20,
+                                                            &cb);
+            grd->parse(claspAppOpts_.input, grOpts_, lp);
+            grd->main();
+        }
+        else {
+            clasp.start(claspConfig_, getStream());
+            handleStartOptions(clasp);
+            clingcon::Helper cspapp(clasp.ctx,claspConfig_,static_cast<Asp::LogicProgram*>(clasp.program()),conf_);
+            while (clasp.read()) {
+                cspapp.postRead();
+                if (handlePostGroundOptions(*clasp.program())) {
+                    cspapp.postEnd();
+                    clasp.prepare();
+                    if (handlePreSolveOptions(clasp)) { clasp.solve(); }
+                    cspapp.postSolve();
+                }
+            }
+        }
+    }
+    catch (Gringo::GringoError const &e) {
+        std::cerr << e.what() << std::endl;
+        throw std::runtime_error("fatal error");
+    }
+    catch (...) { throw; }
+}
+
+// }}}
+

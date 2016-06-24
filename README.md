@@ -6,6 +6,8 @@ Clingo combines both gringo and clasp into a monolithic system. This way it
 offers more control over the grounding and solving process than gringo and
 clasp can offer individually - e.g., incremental grounding and solving.
 
+Clingo extends the possibilities of Clingo by linear constraints over Integers.
+
 The Python and Lua gringo modules offer the functionality of clingo in the
 respective scripting language.
 

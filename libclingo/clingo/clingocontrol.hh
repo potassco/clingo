@@ -246,6 +246,14 @@ private:
 class ClingoSolveIter;
 class ClingoControl : public clingo_control, private Gringo::ConfigProxy, private Gringo::SymbolicAtoms {
 public:
+    class Callback {
+    public:
+        virtual void postGround() {}
+        virtual void preSolve() {}
+        virtual void postSolve() {}
+        virtual Gringo::SymVec onModel(const Clasp::Model& ) { return Gringo::SymVec(); }
+    };
+
     using StringVec        = std::vector<std::string>;
     using ExternalVec      = std::vector<std::pair<Gringo::Symbol, Potassco::Value_t>>;
     using StringSeq        = ProgramOptions::StringSeq;
@@ -253,7 +261,7 @@ public:
     using PreSolveFunc     = std::function<bool (Clasp::ClaspFacade &)>;
     enum class ConfigUpdate { KEEP, REPLACE };
 
-    ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Gringo::Logger::Printer printer, unsigned messageLimit);
+    ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Gringo::Logger::Printer printer, unsigned messageLimit, Callback* cb = nullptr);
     ~ClingoControl() noexcept override;
     void prepare(Gringo::Control::ModelHandler mh, Gringo::Control::FinishHandler fh);
     void commitExternals();
@@ -335,6 +343,7 @@ public:
     Clasp::Cli::ClaspCliConfig                               &claspConfig_;
     PostGroundFunc                                            pgf_;
     PreSolveFunc                                              psf_;
+    Callback*                                                 cb_;
     std::unique_ptr<Potassco::TheoryData>                     data_;
     std::vector<Gringo::UProp>                                props_;
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>> propagators_;
@@ -359,8 +368,8 @@ public:
 
 class ClingoModel : public Gringo::Model {
 public:
-    ClingoModel(ClingoControl &ctl, Clasp::Model const *model = nullptr)
-    : ctl_(ctl)
+    ClingoModel(ClingoControl &ctl, Gringo::SymVec theoryOutput = Gringo::SymVec(), Clasp::Model const *model = nullptr)
+        : ctl_(ctl), theoryOutput_(std::move(theoryOutput))
     , model_(model) { }
     void reset(Clasp::Model const &m) { model_ = &m; }
     bool contains(Gringo::Symbol atom) const override {
@@ -369,6 +378,8 @@ public:
     }
     Gringo::SymSpan atoms(unsigned atomset) const override {
         atms_ = out().atoms(atomset, [this, atomset](unsigned uid) { return bool(atomset & clingo_show_type_complement) ^ model_->isTrue(lp().getLiteral(uid)); });
+        if (atomset & clingo_show_type_theory && !(bool)(atomset & clingo_show_type_complement))
+            atms_.insert(atms_.end(), theoryOutput_.begin(), theoryOutput_.end());
         return Potassco::toSpan(atms_);
     }
     Gringo::Int64Vec optimization() const override {
@@ -400,6 +411,7 @@ private:
     Gringo::Output::OutputBase const &out() const { return *ctl_.out_; };
     Clasp::SharedContext const &ctx() const       { return ctl_.clasp_->ctx; };
     ClingoControl          &ctl_;
+    Gringo::SymVec         theoryOutput_;
     Clasp::Model const     *model_;
     mutable Gringo::SymVec  atms_;
 };

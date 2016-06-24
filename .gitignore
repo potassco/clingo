@@ -1,4 +1,5 @@
 *.swp
+make.sh
 .sconf_temp
 .sconsign.dblite
 build
