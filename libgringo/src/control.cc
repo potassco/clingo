@@ -25,6 +25,8 @@
 
 #include <gringo/control.hh>
 #include <gringo/input/groundtermparser.hh>
+#include <gringo/input/programbuilder.hh>
+#include <gringo/input/nongroundparser.hh>
 #include <clingo.hh>
 #ifdef GRINGO_NO_THREAD_LOCAL
 #   include <thread>
@@ -1863,6 +1865,18 @@ extern "C" clingo_error_t clingo_parse_term(char const *str, clingo_logger_t *lo
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" clingo_error_t clingo_parse_program(char const *program, unsigned message_limit, clingo_ast_callback_t *cb, void *cb_data, clingo_logger_t *logger, void *logger_data) {
+    GRINGO_CLINGO_TRY {
+        Input::ASTBuilder builder([cb, cb_data](clingo_ast_statement_t const &stm) { handleCError(cb(&stm, cb_data)); });
+        Input::NonGroundParser parser(builder);
+        Logger log([logger, logger_data](clingo_warning_t cond, char const *msg) { logger(cond, msg, logger_data); }, message_limit);
+        parser.pushStream("<string>", Gringo::gringo_make_unique<std::istringstream>(program), log);
+        parser.parse(log);
+        if (log.hasError()) { throw std::runtime_error("syntax error"); }
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" void clingo_version(int *major, int *minor, int *revision) {
     *major = CLINGO_VERSION_MAJOR;
     *minor = CLINGO_VERSION_MINOR;
@@ -2028,16 +2042,6 @@ extern "C" clingo_error_t clingo_control_release_external(clingo_control_t *ctl,
 }
 
 /*
-extern "C" clingo_error_t clingo_control_parse(clingo_control_t *ctl, char const *program, clingo_ast_callback_t *cb, void *data) {
-    GRINGO_CLINGO_TRY {
-        ctl->parse(program, [data, cb](clingo_ast const &ast) {
-            auto ret = cb(&ast, data);
-            if (ret != 0) { throw ClingoError(ret); }
-        });
-    }
-    GRINGO_CLINGO_CATCH;
-}
-
 extern "C" clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_add_ast_callback_t *cb, void *data) {
     GRINGO_CLINGO_TRY {
         ctl->add([ctl, data, cb](std::function<void (clingo_ast const &)> f) {

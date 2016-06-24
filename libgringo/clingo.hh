@@ -59,6 +59,149 @@ inline std::ostream &operator<<(std::ostream &out, TruthValue tv) {
     return out;
 }
 
+// {{{1 variant
+
+namespace Detail {
+
+template <class T>
+typename std::enable_if<std::is_copy_constructible<T>::value>::type copy_if_possible(T &dest, T const &src) {
+    new (&dest) T(src);
+}
+
+template <class T>
+typename std::enable_if<!std::is_copy_constructible<T>::value>::type copy_if_possible(T &, T const &) {
+    throw std::runtime_error("variant not copyable");
+}
+
+template <class T>
+typename std::enable_if<std::is_copy_constructible<T>::value || std::is_move_constructible<T>::value>::type move_if_possible(T &dest, T &&src) {
+    new (&dest) T(src);
+}
+
+template <class T>
+typename std::enable_if<!std::is_move_constructible<T>::value && !std::is_copy_constructible<T>::value>::type move_if_possible(T &, T &&) {
+    throw std::runtime_error("variant neither moveable nor copyable");
+}
+
+template <class T, class... U>
+struct TypeInList : std::false_type { };
+
+template <class T, class... U>
+struct TypeInList<T, T, U...> : std::true_type { };
+
+template <class T, class V, class... U>
+struct TypeInList<T, V, U...> : TypeInList<T, U...> { };
+
+template <unsigned, class... U>
+union VariantHolder;
+
+template <unsigned n, class T>
+union VariantHolder<n, T> {
+    VariantHolder() { }
+    ~VariantHolder() { }
+    constexpr unsigned type(T *) const { return n; }
+    template <class V>
+    constexpr unsigned type(V *) const { return 0; }
+    void get(T** p) { *p = &h; }
+    void copy(unsigned type, VariantHolder const &other) { if (type == n) { copy_if_possible(h, other.h); } }
+    void move(unsigned type, VariantHolder &other) { if (type == n) { new (&h) T(std::move(other.h)); } }
+    template <class... Args>
+    void emplace(T *, Args&& ...x) { new (&h) T(std::forward<Args>(x)...); }
+    void destroy(unsigned type) { if (n == type) { h.~T(); } }
+    T h;
+};
+template <unsigned n, class T, class S, class... U>
+union VariantHolder<n, T, S, U...> {
+    VariantHolder() { }
+    ~VariantHolder() { }
+    constexpr unsigned type(T *) const { return n; }
+    template <class V>
+    constexpr unsigned type(V *p) const { return data.type(p); }
+    void get(T** p) { *p = &h; }
+    template <class V>
+    void get(V** p) { data.get(p); }
+    template <class... Args>
+    void emplace(T *, Args&& ...x) { new (&h) T(std::forward<Args>(x)...); }
+    template <class V, class... Args>
+    void emplace(V *p, Args&& ...x) { data.emplace(p, std::forward<Args>(x)...); }
+    void copy(unsigned type, VariantHolder const &other) {
+        if (type == n) { copy_if_possible(h, other.h); }
+        data.copy(type, other.data);
+    }
+    void move(unsigned type, VariantHolder &other) {
+        if (type == n) { new (&h) T(std::move(other.h)); }
+        data.move(type, other.data);
+    }
+    void destroy(unsigned type) {
+        if (n == type) { h.~T(); }
+        data.destroy(type);
+    }
+    T h;
+    VariantHolder<n+1, S, U...> data;
+};
+
+} // Detail
+
+template <class... T>
+class Variant {
+public:
+    Variant()
+    : type_(0) { }
+    Variant(Variant const &other)
+    : type_(0) {
+        data_.copy(other.type_, other.data_);
+        type_ = other.type_;
+    }
+    Variant(Variant &&other)
+    : type_(0) {
+        data_.move(other.type_, other.data_);
+        type_ = other.type_;
+    }
+    template <class U>
+    Variant(U &&u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type * = nullptr)
+    : type_(0) {
+        emplace<U>(std::forward<U>(u));
+    }
+    Variant &operator=(Variant const &other) {
+        data_.destroy(type_);
+        data_.copy(other.type_, other.data_);
+        type_ = other.type_;
+        return *this;
+    }
+    Variant &operator=(Variant &&other) {
+        data_.destroy(type_);
+        data_.move(other.type_, other.data_);
+        type_ = other.type_;
+        return *this;
+    }
+    template <class U>
+    typename std::enable_if<Detail::TypeInList<U, T...>::value, Variant>::type &operator=(U &&u) {
+        data_.destroy(type_);
+        emplace<U>(std::forward<U>(u));
+        return *this;
+    }
+    template <class U>
+    U &get() {
+        U* p;
+        if (type_ != data_.type(static_cast<U*>(nullptr))) { throw std::bad_cast(); }
+        data_.get(&p);
+        return *p;
+    }
+    template <class U, class... Args>
+    void emplace(Args&& ...x) {
+        data_.destroy(type_);
+        data_.emplace(static_cast<U*>(nullptr), std::forward<Args>(x)...);
+        type_ = data_.type(static_cast<U*>(nullptr));
+    }
+    template <class U>
+    bool is() const { return data_.type(static_cast<U*>(nullptr)) == type_; }
+    bool empty() const { return type_ == 0; }
+    ~Variant() { data_.destroy(type_); }
+private:
+    unsigned type_;
+    Detail::VariantHolder<1, T...> data_;
+};
+
 // {{{1 span
 
 template <class Iterator>
@@ -777,7 +920,7 @@ private:
     clingo_solve_async_t *async_;
 };
 
-// {{{1 ast
+// {{{1 location
 
 class Location : public clingo_location_t {
 public:
@@ -804,21 +947,614 @@ inline std::ostream &operator<<(std::ostream &out, Location loc) {
     return out;
 }
 
-/*
-class AST;
-using ASTSpan = Span<AST>;
+// {{{1 ast
 
-class AST : public clingo_ast_t {
-public:
-    AST(Location location, Symbol value, ASTSpan children)
-    : clingo_ast_t{location, value.to_c(), children.begin(), children.size()} { }
-    Location location() const { return clingo_ast_t::location; }
-    Symbol value() const { return Symbol(clingo_ast_t::value); }
-    ASTSpan children() const { return {clingo_ast_t::children, clingo_ast_t::n}; }
+namespace AST {
+
+enum class ComparisonOperator : clingo_ast_comparison_operator_t {
+    GreaterThan  = clingo_ast_comparison_operator_greater_than,
+    LessThan     = clingo_ast_comparison_operator_less_than,
+    LessEqual    = clingo_ast_comparison_operator_less_equal,
+    GreaterEqual = clingo_ast_comparison_operator_greater_equal,
+    NotEqual     = clingo_ast_comparison_operator_not_equal,
+    Equal        = clingo_ast_comparison_operator_equal
 };
-using ASTCallback = std::function<void (AST ast)>;
-using AddASTCallback = std::function<void (ASTCallback)>;
+
+inline std::ostream &operator<<(std::ostream &out, ComparisonOperator op) {
+    switch (op) {
+        case ComparisonOperator::GreaterThan:  { out << ">"; break; }
+        case ComparisonOperator::LessThan:     { out << "<"; break; }
+        case ComparisonOperator::LessEqual:    { out << "<="; break; }
+        case ComparisonOperator::GreaterEqual: { out << ">="; break; }
+        case ComparisonOperator::NotEqual:     { out << "!="; break; }
+        case ComparisonOperator::Equal:        { out << "="; break; }
+    }
+    return out;
+}
+
+enum class Sign : clingo_ast_sign_t {
+    None = clingo_ast_sign_none,
+    Negation = clingo_ast_sign_negation,
+    DoubleNegation = clingo_ast_sign_double_negation
+};
+
+inline std::ostream &operator<<(std::ostream &out, Sign op) {
+    switch (op) {
+        case Sign::None:           { out << ""; break; }
+        case Sign::Negation:       { out << "not "; break; }
+        case Sign::DoubleNegation: { out << "not not "; break; }
+    }
+    return out;
+}
+
+// {{{2 terms
+
+// variable
+
+struct Variable {
+    std::string name;
+};
+struct UnaryOperation;
+struct BinaryOperation;
+struct Interval;
+struct Function;
+struct Pool;
+
+// TODO: seeing this the variant can hold a unique_ptr internally as well
+
+using UUnaryOperation = std::unique_ptr<UnaryOperation>;
+using UBinaryOperation = std::unique_ptr<BinaryOperation>;
+using UInterval = std::unique_ptr<Interval>;
+using UFunction = std::unique_ptr<Function>;
+using UPool = std::unique_ptr<Pool>;
+
+struct Term {
+    Location location;
+    Variant<Symbol, Variable, UUnaryOperation, UBinaryOperation, UInterval, UFunction, UPool> value;
+};
+
+// unary operation
+
+enum UnaryOperator : clingo_ast_unary_operator_t {
+    Absolute = clingo_ast_unary_operator_absolute,
+    Minus    = clingo_ast_unary_operator_minus,
+    Negate   = clingo_ast_unary_operator_negate
+};
+
+inline std::ostream &operator<<(std::ostream &out, UnaryOperator op) {
+    switch (op) {
+        case UnaryOperator::Absolute: { out << "|"; break; }
+        case UnaryOperator::Minus:    { out << "-"; break; }
+        case UnaryOperator::Negate:   { out << "~"; break; }
+    }
+    return out;
+}
+
+struct UnaryOperation {
+    ~UnaryOperation() noexcept;
+
+    UnaryOperator unary_operator;
+    Term          argument;
+};
+
+// binary operation
+
+enum class BinaryOperator : clingo_ast_binary_operator_t {
+    XOr      = clingo_ast_binary_operator_xor,
+    Or       = clingo_ast_binary_operator_or,
+    And      = clingo_ast_binary_operator_and,
+    Add      = clingo_ast_binary_operator_add,
+    Subtract = clingo_ast_binary_operator_subtract,
+    Multiply = clingo_ast_binary_operator_multiply,
+    Divide   = clingo_ast_binary_operator_divide,
+    Modulo   = clingo_ast_binary_operator_modulo
+};
+
+inline std::ostream &operator<<(std::ostream &out, BinaryOperator op) {
+    switch (op) {
+        case BinaryOperator::XOr:      { out << "^"; break; }
+        case BinaryOperator::Or:       { out << "?"; break; }
+        case BinaryOperator::And:      { out << "&"; break; }
+        case BinaryOperator::Add:      { out << "+"; break; }
+        case BinaryOperator::Subtract: { out << "-"; break; }
+        case BinaryOperator::Multiply: { out << "*"; break; }
+        case BinaryOperator::Divide:   { out << "/"; break; }
+        case BinaryOperator::Modulo:   { out << "\\"; break; }
+    }
+    return out;
+}
+
+struct BinaryOperation {
+    ~BinaryOperation() noexcept;
+
+    BinaryOperator binary_operator;
+    Term           left;
+    Term           right;
+};
+
+// interval
+
+struct Interval {
+    ~Interval() noexcept;
+
+    Term left;
+    Term right;
+};
+
+// function
+
+struct Function {
+    ~Function() noexcept;
+
+    std::string name;
+    std::vector<Term> arguments;
+    bool external;
+};
+
+// pool
+
+struct Pool {
+    ~Pool() noexcept;
+
+    std::vector<Term> arguments;
+};
+
+inline UnaryOperation::~UnaryOperation() noexcept = default;
+inline BinaryOperation::~BinaryOperation() noexcept = default;
+inline Interval::~Interval() noexcept = default;
+inline Function::~Function() noexcept = default;
+inline Pool::~Pool() noexcept = default;
+
+// {{{2 csp
+
+struct CSPMultiply {
+    Location location;
+    Term coefficient;
+    // Note: can be empty
+    Term variable;
+};
+
+struct CSPAdd {
+    Location location;
+    std::vector<CSPMultiply> terms;
+};
+
+struct CSPGuard {
+    ComparisonOperator comparison;
+    CSPAdd term;
+};
+
+struct CSPLiteral {
+    CSPAdd term;
+    std::vector<CSPGuard> guards;
+};
+
+// {{{2 ids
+
+struct Id {
+    Location location;
+    std::string id;
+};
+
+// {{{2 literals
+
+struct Comparison {
+    ComparisonOperator comparison;
+    Term left;
+    Term right;
+};
+
+struct Literal {
+    Location location;
+    Sign sign;
+    Variant<bool, Term, Comparison, CSPLiteral> value;
+};
+
+/*
+// {{{2 aggregates
+
+enum clingo_ast_aggregate_function {
+    clingo_ast_aggregate_function_count = 0,
+    clingo_ast_aggregate_function_sum   = 1,
+    clingo_ast_aggregate_function_sump  = 2,
+    clingo_ast_aggregate_function_min   = 3,
+    clingo_ast_aggregate_function_max   = 4
+};
+typedef int clingo_ast_aggregate_function_t;
+
+typedef struct clingo_ast_aggregate_guard {
+    clingo_ast_comparison_operator_t comparison;
+    clingo_ast_term_t term;
+} clingo_ast_aggregate_guard_t;
+
+typedef struct clingo_ast_conditional_literal {
+    clingo_ast_literal_t literal;
+    clingo_ast_literal_t const *condition;
+    size_t size;
+} clingo_ast_conditional_literal_t;
+
+// lparse-style aggregate
+
+typedef struct clingo_ast_aggregate {
+    clingo_ast_conditional_literal_t const *elements;
+    size_t size;
+    clingo_ast_aggregate_guard const *left_guard;
+    clingo_ast_aggregate_guard const *right_guard;
+} clingo_ast_aggregate_t;
+
+// body aggregate
+
+typedef struct clingo_ast_body_aggregate_element {
+    clingo_ast_term_t *tuple;
+    size_t tuple_size;
+    clingo_ast_literal_t const *condition;
+    size_t condition_size;
+} clingo_ast_body_aggregate_element_t;
+
+typedef struct clingo_ast_body_aggregate {
+    clingo_ast_aggregate_function function;
+    clingo_ast_body_aggregate_element const *elements;
+    size_t size;
+    clingo_ast_aggregate_guard const *left_guard;
+    clingo_ast_aggregate_guard const *right_guard;
+} clingo_ast_body_aggregate_t;
+
+// head aggregate
+
+typedef struct clingo_ast_head_aggregate_element {
+    clingo_ast_term_t const *tuple;
+    size_t tuple_size;
+    clingo_ast_conditional_literal_t conditional_literal;
+} clingo_ast_head_aggregate_element_t;
+
+typedef struct clingo_ast_head_aggregate {
+    clingo_ast_aggregate_function function;
+    clingo_ast_head_aggregate_element const *elements;
+    size_t size;
+    clingo_ast_aggregate_guard const *left_guard;
+    clingo_ast_aggregate_guard const *right_guard;
+} clingo_ast_head_aggregate_t;
+
+// disjunction
+
+typedef struct clingo_ast_disjunction {
+    clingo_ast_conditional_literal_t const *elements;
+    size_t size;
+} clingo_ast_disjunction_t;
+
+// disjoint
+
+typedef struct clingo_ast_disjoint_element {
+    clingo_location_t location;
+    clingo_ast_term_t const *tuple;
+    size_t tuple_size;
+    clingo_ast_csp_add_term_t term;
+    clingo_ast_literal_t const *condition;
+    size_t condition_size;
+} clingo_ast_disjoint_element_t;
+
+typedef struct clingo_ast_disjoint {
+    clingo_ast_disjoint_element const *elements;
+    size_t size;
+} clingo_ast_disjoint_t;
+
+// {{{2 theory atom
+
+enum clingo_ast_theory_term_type {
+    clingo_ast_theory_term_type_symbol              = 0,
+    clingo_ast_theory_term_type_variable            = 1,
+    clingo_ast_theory_term_type_tuple               = 2,
+    clingo_ast_theory_term_type_list                = 3,
+    clingo_ast_theory_term_type_set                 = 4,
+    clingo_ast_theory_term_type_function            = 5,
+    clingo_ast_theory_term_type_unparsed_term_array = 6
+};
+typedef int clingo_ast_theory_term_type_t;
+
+typedef struct clingo_ast_theory_function clingo_ast_theory_function_t;
+typedef struct clingo_ast_theory_term_array clingo_ast_theory_term_array_t;
+typedef struct clingo_ast_theory_unparsed_term_array clingo_ast_theory_unparsed_term_array_t;
+
+typedef struct clingo_ast_theory_term {
+    clingo_location_t location;
+    clingo_ast_theory_term_type_t type;
+    union {
+        clingo_symbol_t symbol;
+        char const *variable;
+        clingo_ast_theory_term_array_t const *tuple;
+        clingo_ast_theory_term_array_t const *list;
+        clingo_ast_theory_term_array_t const *set;
+        clingo_ast_theory_function_t const *function;
+        clingo_ast_theory_unparsed_term_array_t const *unparsed_array;
+    };
+} clingo_ast_theory_term_t;
+
+struct clingo_ast_theory_term_array {
+    clingo_ast_theory_term_t const *terms;
+    size_t size;
+};
+
+struct clingo_ast_theory_function {
+    char const *name;
+    clingo_ast_theory_term_t const *arguments;
+    size_t size;
+};
+
+typedef struct clingo_ast_theory_unparsed_term {
+    char const *const *operators;
+    size_t size;
+    clingo_ast_theory_term_t term;
+} clingo_ast_theory_unparsed_term_t;
+
+struct clingo_ast_theory_unparsed_term_array {
+    clingo_ast_theory_unparsed_term_t const *terms;
+    size_t size;
+};
+
+typedef struct clingo_ast_theory_atom_element {
+    clingo_ast_theory_term_t const *tuple;
+    size_t tuple_size;
+    clingo_ast_literal_t const *condition;
+    size_t condition_size;
+} clingo_ast_theory_atom_element_t;
+
+typedef struct clingo_ast_theory_guard {
+    char const *operator_name;
+    clingo_ast_theory_term term;
+} clingo_ast_theory_guard_t;
+
+typedef struct clingo_ast_theory_atom {
+    clingo_ast_term_t term;
+    clingo_ast_theory_atom_element const *elements;
+    size_t size;
+    clingo_ast_theory_guard const *guard;
+} clingo_ast_theory_atom_t;
+
+// {{{2 head literals
+
+enum clingo_ast_head_literal_type {
+    clingo_ast_head_literal_type_literal        = 0,
+    clingo_ast_head_literal_type_disjunction    = 1,
+    clingo_ast_head_literal_type_aggregate      = 2,
+    clingo_ast_head_literal_type_head_aggregate = 3,
+    clingo_ast_head_literal_type_theory         = 4
+};
+typedef int clingo_ast_head_literal_type_t;
+
+typedef struct clingo_ast_head_literal {
+    clingo_location_t location;
+    clingo_ast_head_literal_type_t type;
+    union {
+        clingo_ast_literal_t const *literal;
+        clingo_ast_disjunction_t const *disjunction;
+        clingo_ast_aggregate_t const *aggregate;
+        clingo_ast_head_aggregate_t const *head_aggregate;
+        clingo_ast_theory_atom_t const *theory_atom;
+    };
+} clingo_ast_head_literal_t;
+
+// {{{2 body literals
+
+enum clingo_ast_body_literal_type {
+    clingo_ast_body_literal_type_literal        = 0,
+    clingo_ast_body_literal_type_conditional    = 1,
+    clingo_ast_body_literal_type_aggregate      = 2,
+    clingo_ast_body_literal_type_body_aggregate = 3,
+    clingo_ast_body_literal_type_theory         = 4,
+    clingo_ast_body_literal_type_disjoint       = 5
+};
+typedef int clingo_ast_body_literal_type_t;
+
+typedef struct clingo_ast_body_literal {
+    clingo_location_t location;
+    clingo_ast_sign_t sign;
+    clingo_ast_body_literal_type_t type;
+    union {
+        clingo_ast_literal_t const *literal;
+        // Note: conditional literals must not have signs!!!
+        clingo_ast_conditional_literal_t const *conditional;
+        clingo_ast_aggregate_t const *aggregate;
+        clingo_ast_body_aggregate_t const *body_aggregate;
+        clingo_ast_theory_atom_t const *theory_atom;
+        clingo_ast_disjoint_t const *disjoint;
+    };
+} clingo_ast_body_literal_t;
+
+// {{{2 theory definitions
+
+enum clingo_ast_theory_operator_type {
+     clingo_ast_theory_operator_type_unary        = 0,
+     clingo_ast_theory_operator_type_binary_left  = 1,
+     clingo_ast_theory_operator_type_binary_right = 2
+};
+typedef int clingo_ast_theory_operator_type_t;
+
+typedef struct clingo_ast_theory_operator_definition {
+    clingo_location_t location;
+    char const *name;
+    unsigned priority;
+    clingo_ast_theory_operator_type_t type;
+} clingo_ast_theory_operator_definition_t;
+
+typedef struct clingo_ast_theory_term_definition {
+    clingo_location_t location;
+    char const *name;
+    clingo_ast_theory_operator_definition_t const *operators;
+    size_t size;
+} clingo_ast_theory_term_definition_t;
+
+typedef struct clingo_ast_theory_guard_definition {
+    char const *guard;
+    char const *const *operators;
+    size_t size;
+} clingo_ast_theory_guard_definition_t;
+
+enum clingo_ast_theory_atom_definition_type {
+    clingo_ast_theory_atom_definition_type_head      = 0,
+    clingo_ast_theory_atom_definition_type_body      = 1,
+    clingo_ast_theory_atom_definition_type_any       = 2,
+    clingo_ast_theory_atom_definition_type_directive = 3,
+};
+typedef int clingo_ast_theory_atom_definition_type_t;
+
+typedef struct clingo_ast_theory_atom_definition {
+    clingo_location_t location;
+    clingo_ast_theory_atom_definition_type_t type;
+    char const *name;
+    unsigned arity;
+    char const *elements;
+    clingo_ast_theory_guard_definition_t const *guard;
+} clingo_ast_theory_atom_definition_t;
+
+typedef struct clingo_ast_theory_definition {
+    char const *name;
+    clingo_ast_theory_term_definition_t const *terms;
+    size_t terms_size;
+    clingo_ast_theory_atom_definition_t const *atoms;
+    size_t atoms_size;
+} clingo_ast_theory_definition_t;
+
+// {{{2 statements
+
+// rule
+
+typedef struct clingo_ast_rule {
+    clingo_ast_head_literal_t head;
+    clingo_ast_body_literal_t const *body;
+    size_t size;
+} clingo_ast_rule_t;
+
+// definition
+
+typedef struct clingo_ast_definition {
+    char const *name;
+    clingo_ast_term_t value;
+    bool is_default;
+} clingo_ast_definition_t;
+
+// show
+
+typedef struct clingo_ast_show_signature {
+    clingo_signature_t signature;
+    bool csp;
+} clingo_ast_show_signature_t;
+
+typedef struct clingo_ast_show_term {
+    clingo_ast_term_t term;
+    clingo_ast_body_literal_t const *body;
+    size_t size;
+    bool csp;
+} clingo_ast_show_term_t;
+
+// minimize
+
+typedef struct clingo_ast_minimize {
+    clingo_ast_term_t weight;
+    clingo_ast_term_t priority;
+    clingo_ast_term_t const *tuple;
+    size_t tuple_size;
+    clingo_ast_body_literal_t const *body;
+    size_t body_size;
+} clingo_ast_minimize_t;
+
+// script
+
+enum clingo_ast_script_type {
+    clingo_ast_script_type_lua    = 0,
+    clingo_ast_script_type_python = 1
+};
+typedef int clingo_ast_script_type_t;
+
+typedef struct clingo_ast_script {
+    clingo_ast_script_type_t type;
+    char const *code;
+} clingo_ast_script_t;
+
+// program
+
+typedef struct clingo_ast_program {
+    char const *name;
+    clingo_ast_id_t const *parameters;
+    size_t size;
+} clingo_ast_program_t;
+
+// external
+
+typedef struct clingo_ast_external {
+    clingo_ast_term_t atom;
+    clingo_ast_body_literal_t const *body;
+    size_t size;
+} clingo_ast_external_t;
+
+// edge
+
+typedef struct clingo_ast_edge {
+    clingo_ast_term_t u;
+    clingo_ast_term_t v;
+    clingo_ast_body_literal_t const *body;
+    size_t size;
+} clingo_ast_edge_t;
+
+// heuristic
+
+typedef struct clingo_ast_heuristic {
+    clingo_ast_term_t atom;
+    clingo_ast_body_literal_t const *body;
+    size_t size;
+    clingo_ast_term_t bias;
+    clingo_ast_term_t priority;
+    clingo_ast_term_t modifier;
+} clingo_ast_heuristic_t;
+
+// project
+
+typedef struct clingo_ast_project {
+    clingo_ast_term_t atom;
+    clingo_ast_body_literal_t const *body;
+    size_t size;
+} clingo_ast_project_t;
+
+// statement
+
+enum clingo_ast_statement_type {
+    clingo_ast_statement_type_rule              = 0,
+    clingo_ast_statement_type_const             = 1,
+    clingo_ast_statement_type_show_signature    = 2,
+    clingo_ast_statement_type_show_term         = 3,
+    clingo_ast_statement_type_minimize          = 4,
+    clingo_ast_statement_type_script            = 5,
+    clingo_ast_statement_type_program           = 6,
+    clingo_ast_statement_type_external          = 7,
+    clingo_ast_statement_type_edge              = 8,
+    clingo_ast_statement_type_heuristic         = 9,
+    clingo_ast_statement_type_project           = 10,
+    clingo_ast_statement_type_project_signatrue = 11,
+    clingo_ast_statement_type_theory_definition = 12
+};
+typedef int clingo_ast_statement_type_t;
+
+typedef struct clingo_ast_statement {
+    clingo_location_t location;
+    clingo_ast_statement_type_t type;
+    union {
+        clingo_ast_rule_t const *rule;
+        clingo_ast_definition_t const *definition;
+        clingo_ast_show_signature_t const *show_signature;
+        clingo_ast_show_term_t const *show_term;
+        clingo_ast_minimize_t const *minimize;
+        clingo_ast_script_t const *script;
+        clingo_ast_program_t const *program;
+        clingo_ast_external_t const *external;
+        clingo_ast_edge_t const *edge;
+        clingo_ast_heuristic_t const *heuristic;
+        clingo_ast_project_t const *project;
+        clingo_signature_t project_signature;
+        clingo_ast_theory_definition_t const *theory_definition;
+    };
+} clingo_ast_statement_t;
 */
+
+} // namespace
 
 // {{{1 control
 

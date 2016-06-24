@@ -580,30 +580,6 @@ size_t ClingoControl::length() const {
     return ret;
 }
 
-/*
-void ClingoControl::parse(char const *program, std::function<void(clingo_ast const &)> cb) {
-    Gringo::Input::ASTBuilder builder(cb);
-    Gringo::Input::NonGroundParser parser(builder);
-    parser.pushStream("<string>", Gringo::gringo_make_unique<std::istringstream>(program), logger_);
-    parser.parse(logger_);
-    // TODO: implement better error handling
-    if (logger_.hasError()) {
-        throw std::runtime_error("TODO: syntax errors here should not be fatal");
-    }
-}
-
-void ClingoControl::add(std::function<void (std::function<void (clingo_ast const &)>)> cb) {
-    Gringo::Input::ASTParser p(scripts_, prg_, *out_, defs_);
-    cb([&p](clingo_ast_t const &ast) {
-        p.parse(ast);
-    });
-    defs_.init(logger_);
-    if (logger_.hasError()) {
-        throw std::runtime_error("parsing failed");
-    }
-}
-*/
-
 Gringo::Backend *ClingoControl::backend() { return out_->backend(); }
 Potassco::Atom_t ClingoControl::addProgramAtom() { return out_->data.newAtom(); }
 
