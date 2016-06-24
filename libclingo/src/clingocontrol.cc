@@ -224,7 +224,7 @@ void ClingoControl::main() {
 bool ClingoControl::onModel(Clasp::Model const &m) {
     if (!modelHandler_) { return true; }
     std::lock_guard<decltype(propLock_)> lock(propLock_);
-    return modelHandler_(ClingoModel(*this, std::move(cb_->onModel(m)), &m));
+    return modelHandler_(ClingoModel(*this, std::move(cb_ ? cb_->onModel(m) : Gringo::SymVec()) , &m));
 }
 void ClingoControl::onFinish(Clasp::ClaspFacade::Result ret) {
     if (finishHandler_) {

@@ -55,7 +55,7 @@ opts.AddVariables(
     ('WITH_LUA'      , 'enable lua integration; None, "auto", library name, or path'),
     ('WITH_CSP'      , 'enable csp integration; None, or something'),
     ('WITH_THREADS'  , 'enable thread support in clasp library; "posix", "windows", or None'),
-    ('TESTS'         , 'enable specific unit tests; [libgringo, libreify, liblp, liborder, libclingcon]'),
+    ('TESTS'         , 'enable specific unit tests; [libgringo, libclingo, clingo, libreify, liblp, liborder, libclingcon]'),
     )
 
 env = Environment()
