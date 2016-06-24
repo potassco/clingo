@@ -20,4 +20,5 @@ script:
   - echo "CXXFLAGS = ['-std=c++11', '-O2', '-W', '-Wall']" >> build/debug.py
   - echo "LINKFLAGS = ['-std=c++11']" >> build/debug.py
   - scons -j3
+  - scons -j3 example cexample
   - scons -j3 test
