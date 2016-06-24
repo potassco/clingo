@@ -300,6 +300,7 @@ typedef int clingo_ast_theory_term_type_t;
 
 typedef struct clingo_ast_theory_function clingo_ast_theory_function_t;
 typedef struct clingo_ast_theory_term_array clingo_ast_theory_term_array_t;
+typedef struct clingo_ast_theory_unparsed_term_array clingo_ast_theory_unparsed_term_array_t;
 
 typedef struct clingo_ast_theory_term {
     clingo_location_t location;
@@ -311,6 +312,7 @@ typedef struct clingo_ast_theory_term {
         clingo_ast_theory_term_array_t const *list;
         clingo_ast_theory_term_array_t const *set;
         clingo_ast_theory_function_t const *function;
+        clingo_ast_theory_unparsed_term_array_t const *unparsed_array;
     };
 } clingo_ast_theory_term_t;
 
@@ -328,18 +330,18 @@ struct clingo_ast_theory_function {
 typedef struct clingo_ast_theory_unparsed_term {
     char const *const *operators;
     size_t size;
-    clingo_ast_theory_term_t const *term;
+    clingo_ast_theory_term_t term;
 } clingo_ast_theory_unparsed_term_t;
 
 struct clingo_ast_theory_unparsed_term_array {
-    clingo_ast_theory_unparsed_term_t const *term;
+    clingo_ast_theory_unparsed_term_t const *terms;
     size_t size;
 };
 
 typedef struct clingo_ast_theory_atom_element {
     clingo_ast_theory_term_t const *tuple;
     size_t tuple_size;
-    clingo_literal_t const *condition;
+    clingo_ast_literal_t const *condition;
     size_t condition_size;
 } clingo_ast_theory_atom_element_t;
 

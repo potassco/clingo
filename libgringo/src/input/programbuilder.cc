@@ -457,11 +457,11 @@ TheoryOpVecUid NongroundProgramBuilder::theoryops(TheoryOpVecUid ops, String op)
 TheoryOptermVecUid NongroundProgramBuilder::theoryopterms() {
     return theoryOptermVecs_.emplace();
 }
-TheoryOptermVecUid NongroundProgramBuilder::theoryopterms(TheoryOptermVecUid opterms, TheoryOptermUid opterm) {
+TheoryOptermVecUid NongroundProgramBuilder::theoryopterms(TheoryOptermVecUid opterms, Location const &, TheoryOptermUid opterm) {
     theoryOptermVecs_[opterms].emplace_back(gringo_make_unique<Output::RawTheoryTerm>(theoryOpterms_.erase(opterm)));
     return opterms;
 }
-TheoryOptermVecUid NongroundProgramBuilder::theoryopterms(TheoryOptermUid opterm, TheoryOptermVecUid opterms) {
+TheoryOptermVecUid NongroundProgramBuilder::theoryopterms(Location const &, TheoryOptermUid opterm, TheoryOptermVecUid opterms) {
     theoryOptermVecs_[opterms].insert(theoryOptermVecs_[opterms].begin(), gringo_make_unique<Output::RawTheoryTerm>(theoryOpterms_.erase(opterm)));
     return opterms;
 }
@@ -477,7 +477,7 @@ TheoryElemVecUid NongroundProgramBuilder::theoryelems(TheoryElemVecUid elems, Th
 TheoryAtomUid NongroundProgramBuilder::theoryatom(TermUid term, TheoryElemVecUid elems) {
     return theoryAtoms_.emplace(terms_.erase(term), theoryElems_.erase(elems));
 }
-TheoryAtomUid NongroundProgramBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, String op, TheoryOptermUid opterm) {
+TheoryAtomUid NongroundProgramBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, String op, Location const &, TheoryOptermUid opterm) {
     return theoryAtoms_.emplace(terms_.erase(term), theoryElems_.erase(elems), op, gringo_make_unique<Output::RawTheoryTerm>(theoryOpterms_.erase(opterm)));
 }
 
@@ -1284,52 +1284,93 @@ void ASTBuilder::project(Location const &loc, Sig sig) {
     statement_(loc, clingo_ast_statement_type_project_signatrue, stm);
 }
 
-/*
 // {{{2 theory atoms
 
+TheoryTermUid ASTBuilder::theorytermarr_(Location const &loc, TheoryOptermVecUid args, clingo_ast_theory_term_type_t type) {
+    auto a = theoryOptermVecs_.erase(args);
+    clingo_ast_theory_term_array_t arr;
+    arr.size = a.size();
+    arr.terms = create_array(a);
+    clingo_ast_theory_term_t term;
+    term.type = type;
+    term.location = convertLoc(loc);
+    term.set = create(arr);
+    return theoryTerms_.insert(std::move(term));
+}
+
 TheoryTermUid ASTBuilder::theorytermset(Location const &loc, TheoryOptermVecUid args) {
-    return theoryTerms_.insert(newNode(loc, "theory_term_set", newNodeVec() = theoryOptermVecs_.erase(args)));
+    return theorytermarr_(loc, args, clingo_ast_theory_term_type_set);
 }
 
 TheoryTermUid ASTBuilder::theoryoptermlist(Location const &loc, TheoryOptermVecUid args) {
-    return theoryTerms_.insert(newNode(loc, "theory_term_list", newNodeVec() = theoryOptermVecs_.erase(args)));
+    return theorytermarr_(loc, args, clingo_ast_theory_term_type_list);
 }
 
 TheoryTermUid ASTBuilder::theorytermtuple(Location const &loc, TheoryOptermVecUid args) {
-    return theoryTerms_.insert(newNode(loc, "theory_term_tuple", newNodeVec() = theoryOptermVecs_.erase(args)));
+    return theorytermarr_(loc, args, clingo_ast_theory_term_type_tuple);
+}
+
+clingo_ast_theory_term_t ASTBuilder::opterm_(Location const &loc, TheoryOptermUid opterm) {
+    auto terms = theoryOpterms_.erase(opterm);
+    clingo_ast_theory_unparsed_term_array arr;
+    arr.size  = terms.size();
+    arr.terms = create_array(terms);
+    clingo_ast_theory_term_t term;
+    term.location       = convertLoc(loc);
+    term.type           = clingo_ast_theory_term_type_unparsed_term_array;
+    term.unparsed_array = create(arr);
+    return term;
 }
 
 TheoryTermUid ASTBuilder::theorytermopterm(Location const &loc, TheoryOptermUid opterm) {
-    return theoryTerms_.insert(newNode(loc, "theory_term_operator", newNodeVec() = theoryOpterms_.erase(opterm)));
+    return theoryTerms_.insert(opterm_(loc, opterm));
 }
 
 TheoryTermUid ASTBuilder::theorytermfun(Location const &loc, String name, TheoryOptermVecUid args) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, name));
-    nodeVec.emplace_back(newNode(loc, "tuple_theory_term", newNodeVec() = theoryOptermVecs_.erase(args)));
-    return theoryTerms_.insert(newNode(loc, "theory_term_function", nodeVec));
+    auto a = theoryOptermVecs_.erase(args);
+    clingo_ast_theory_function_t fun;
+    fun.name = name.c_str();
+    fun.size = a.size();
+    fun.arguments = create_array(a);
+    clingo_ast_theory_term_t term;
+    term.type = clingo_ast_theory_term_type_function;
+    term.location = convertLoc(loc);
+    term.function = create(fun);
+    return theoryTerms_.insert(std::move(term));
 }
 
 TheoryTermUid ASTBuilder::theorytermvalue(Location const &loc, Symbol val) {
-    return theoryTerms_.insert(newNode(loc, "theory_term_constant", newNodeVec() = {newNode(loc, val)}));
+    clingo_ast_theory_term_t term;
+    term.type = clingo_ast_theory_term_type_symbol;
+    term.location = convertLoc(loc);
+    term.symbol = val.rep();
+    return theoryTerms_.insert(std::move(term));
 }
 
 TheoryTermUid ASTBuilder::theorytermvar(Location const &loc, String var) {
-    return theoryTerms_.insert(newNode(loc, "theory_term_variable", newNodeVec() = {newNode(loc, var)}));
+    clingo_ast_theory_term_t term;
+    term.type = clingo_ast_theory_term_type_variable;
+    term.location = convertLoc(loc);
+    term.variable = var.c_str();
+    return theoryTerms_.insert(std::move(term));
+}
+
+clingo_ast_theory_unparsed_term_t ASTBuilder::opterm_(TheoryOpVecUid ops, TheoryTermUid term) {
+    auto o = theoryOpVecs_.erase(ops);
+    clingo_ast_theory_unparsed_term_t t;
+    t.size = o.size();
+    t.operators = create_array(o);
+    t.term = theoryTerms_.erase(term);
+    return t;
 }
 
 TheoryOptermUid ASTBuilder::theoryopterm(TheoryOpVecUid ops, TheoryTermUid term) {
-    return theoryOpterms_.insert({newNode(dummyloc_(), "element_theory_term_operator", newNodeVec() = {
-        newNode(dummyloc_(), "tuple_theory_operator", newNodeVec() = theoryOpVecs_.erase(ops)),
-        theoryTerms_.erase(term)
-    })});
+    return theoryOpterms_.insert({opterm_(ops, term)});
 }
 
 TheoryOptermUid ASTBuilder::theoryopterm(TheoryOptermUid opterm, TheoryOpVecUid ops, TheoryTermUid term) {
-    theoryOpterms_[opterm].push_back({newNode(dummyloc_(), "element_theory_term_operator", newNodeVec() = {
-        newNode(dummyloc_(), "tuple_theory_operator", newNodeVec() = theoryOpVecs_.erase(ops)),
-        theoryTerms_.erase(term)
-    })});
+    auto o = theoryOpVecs_.erase(ops);
+    theoryOpterms_[opterm].emplace_back(opterm_(ops, term));
     return opterm;
 }
 
@@ -1338,7 +1379,7 @@ TheoryOpVecUid ASTBuilder::theoryops() {
 }
 
 TheoryOpVecUid ASTBuilder::theoryops(TheoryOpVecUid ops, String op) {
-    theoryOpVecs_[ops].emplace_back(newNode(dummyloc_(), op));
+    theoryOpVecs_[ops].emplace_back(op.c_str());
     return ops;
 }
 
@@ -1346,13 +1387,13 @@ TheoryOptermVecUid ASTBuilder::theoryopterms() {
     return theoryOptermVecs_.emplace();
 }
 
-TheoryOptermVecUid ASTBuilder::theoryopterms(TheoryOptermVecUid opterms, TheoryOptermUid opterm) {
-    theoryOptermVecs_[opterms].emplace_back(newNode(dummyloc_(), "theory_term_operator", newNodeVec() = theoryOpterms_.erase(opterm)));
+TheoryOptermVecUid ASTBuilder::theoryopterms(TheoryOptermVecUid opterms, Location const &loc, TheoryOptermUid opterm) {
+    theoryOptermVecs_[opterms].emplace_back(opterm_(loc, opterm));
     return opterms;
 }
 
-TheoryOptermVecUid ASTBuilder::theoryopterms(TheoryOptermUid opterm, TheoryOptermVecUid opterms) {
-    theoryOptermVecs_[opterms].emplace(theoryOptermVecs_[opterms].begin(), newNode(dummyloc_(), "theory_term_operator", newNodeVec() = theoryOpterms_.erase(opterm)));
+TheoryOptermVecUid ASTBuilder::theoryopterms(Location const &loc, TheoryOptermUid opterm, TheoryOptermVecUid opterms) {
+    theoryOptermVecs_[opterms].emplace(theoryOptermVecs_[opterms].begin(), opterm_(loc, opterm));
     return opterms;
 }
 
@@ -1361,26 +1402,43 @@ TheoryElemVecUid ASTBuilder::theoryelems() {
 }
 
 TheoryElemVecUid ASTBuilder::theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) {
-    theoryElems_[elems].emplace_back(newNode(dummyloc_(), "theory_element", newNodeVec() = {
-        newNode(dummyloc_(), "tuple_theory_term", newNodeVec() = theoryOptermVecs_.erase(opterms)),
-        littuple_(dummyloc_(), cond)
-    }));
+    auto ops = theoryOptermVecs_.erase(opterms);
+    auto cnd = litvecs_.erase(cond);
+    clingo_ast_theory_atom_element_t elem;
+    elem.tuple_size     = ops.size();
+    elem.tuple          = create_array(ops);
+    elem.condition_size = cnd.size();
+    elem.condition      = create_array(cnd);
+    theoryElems_[elems].emplace_back(elem);
     return elems;
 }
 
 TheoryAtomUid ASTBuilder::theoryatom(TermUid term, TheoryElemVecUid elems) {
-    return theoryAtoms_.emplace(term, elems, newNode(dummyloc_(), "null"));
+    auto elms = theoryElems_.erase(elems);
+    clingo_ast_theory_atom_t atom;
+    atom.term = terms_.erase(term);
+    atom.elements = create_array(elms);
+    atom.size = elms.size();
+    atom.guard = nullptr;
+    return theoryAtoms_.insert(std::move(atom));
 }
 
-TheoryAtomUid ASTBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, String op, TheoryOptermUid opterm) {
-    return theoryAtoms_.emplace(term, elems, newNode(dummyloc_(), "theory_guard", newNodeVec() = {
-        newNode(dummyloc_(), op),
-        newNode(dummyloc_(), "theory_term_operator", newNodeVec() = theoryOpterms_.erase(opterm))
-    }));
+TheoryAtomUid ASTBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, String op, Location const &loc, TheoryOptermUid opterm) {
+    auto elms = theoryElems_.erase(elems);
+    clingo_ast_theory_guard_t guard;
+    guard.term = opterm_(loc, opterm);
+    guard.operator_name = op.c_str();
+    clingo_ast_theory_atom_t atom;
+    atom.term = terms_.erase(term);
+    atom.elements = create_array(elms);
+    atom.size = elms.size();
+    atom.guard = create(guard);
+    return theoryAtoms_.insert(std::move(atom));
 }
 
 // {{{2 theory definitions
 
+/*
 TheoryOpDefUid ASTBuilder::theoryopdef(Location const &loc, String op, unsigned priority, TheoryOperatorType type) {
     auto &nodeVec = newNodeVec();
     nodeVec.emplace_back(newNode(loc, op));

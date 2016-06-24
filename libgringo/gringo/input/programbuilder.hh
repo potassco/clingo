@@ -197,14 +197,14 @@ public:
     virtual TheoryOpVecUid theoryops(TheoryOpVecUid ops, String op) = 0;
 
     virtual TheoryOptermVecUid theoryopterms() = 0;
-    virtual TheoryOptermVecUid theoryopterms(TheoryOptermVecUid opterms, TheoryOptermUid opterm) = 0;
-    virtual TheoryOptermVecUid theoryopterms(TheoryOptermUid opterm, TheoryOptermVecUid opterms) = 0;
+    virtual TheoryOptermVecUid theoryopterms(TheoryOptermVecUid opterms, Location const &loc, TheoryOptermUid opterm) = 0;
+    virtual TheoryOptermVecUid theoryopterms(Location const &loc, TheoryOptermUid opterm, TheoryOptermVecUid opterms) = 0;
 
     virtual TheoryElemVecUid theoryelems() = 0;
     virtual TheoryElemVecUid theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) = 0;
 
     virtual TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems) = 0;
-    virtual TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, String op, TheoryOptermUid opterm) = 0;
+    virtual TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, String op, Location const &loc, TheoryOptermUid opterm) = 0;
 
     // {{{2 theory definitions
 
@@ -345,14 +345,14 @@ public:
     TheoryOpVecUid theoryops(TheoryOpVecUid ops, String op) override;
 
     TheoryOptermVecUid theoryopterms() override;
-    TheoryOptermVecUid theoryopterms(TheoryOptermVecUid opterms, TheoryOptermUid opterm) override;
-    TheoryOptermVecUid theoryopterms(TheoryOptermUid opterm, TheoryOptermVecUid opterms) override;
+    TheoryOptermVecUid theoryopterms(TheoryOptermVecUid opterms, Location const &loc, TheoryOptermUid opterm) override;
+    TheoryOptermVecUid theoryopterms(Location const &loc, TheoryOptermUid opterm, TheoryOptermVecUid opterms) override;
 
     TheoryElemVecUid theoryelems() override;
     TheoryElemVecUid theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) override;
 
     TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems) override;
-    TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, String op, TheoryOptermUid opterm) override;
+    TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, String op, Location const &loc, TheoryOptermUid opterm) override;
 
     // {{{2 theory definitions
 
@@ -529,7 +529,6 @@ public:
     void heuristic(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
     void project(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body) override;
     void project(Location const &loc, Sig sig) override;
-    /*
     // {{{2 theory atoms
     TheoryTermUid theorytermset(Location const &loc, TheoryOptermVecUid args) override;
     TheoryTermUid theoryoptermlist(Location const &loc, TheoryOptermVecUid args) override;
@@ -543,12 +542,13 @@ public:
     TheoryOpVecUid theoryops() override;
     TheoryOpVecUid theoryops(TheoryOpVecUid ops, String op) override;
     TheoryOptermVecUid theoryopterms() override;
-    TheoryOptermVecUid theoryopterms(TheoryOptermVecUid opterms, TheoryOptermUid opterm) override;
-    TheoryOptermVecUid theoryopterms(TheoryOptermUid opterm, TheoryOptermVecUid opterms) override;
+    TheoryOptermVecUid theoryopterms(TheoryOptermVecUid opterms, Location const &loc, TheoryOptermUid opterm) override;
+    TheoryOptermVecUid theoryopterms(Location const &loc, TheoryOptermUid opterm, TheoryOptermVecUid opterms) override;
     TheoryElemVecUid theoryelems() override;
     TheoryElemVecUid theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) override;
     TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems) override;
-    TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, String op, TheoryOptermUid opterm) override;
+    TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, String op, Location const &loc, TheoryOptermUid opterm) override;
+    /*
     // {{{2 theory definitions
     TheoryOpDefUid theoryopdef(Location const &loc, String op, unsigned priority, TheoryOperatorType type) override;
     TheoryOpDefVecUid theoryopdefs() override;
@@ -569,32 +569,34 @@ private:
 
     TermUid pool_(Location const &loc, TermVec &&vec);
     clingo_ast_term_t fun_(Location const &loc, String name, TermVec &&vec, bool external);
+    TheoryTermUid theorytermarr_(Location const &loc, TheoryOptermVecUid args, clingo_ast_theory_term_type_t type);
+    clingo_ast_theory_unparsed_term_t opterm_(TheoryOpVecUid ops, TheoryTermUid term);
+    clingo_ast_theory_term_t opterm_(Location const &loc, TheoryOptermUid opterm);
 
-    using Terms            = Indexed<clingo_ast_term_t, TermUid>;
-    using TermVecs         = Indexed<TermVec, TermVecUid>;
-    using TermVecVecs      = Indexed<TermVecVec, TermVecVecUid>;
-    using CSPAddTerms      = Indexed<std::pair<Location, std::vector<clingo_ast_csp_multiply_term_t>>, CSPAddTermUid>;
-    using CSPMulTerms      = Indexed<clingo_ast_csp_multiply_term_t, CSPMulTermUid>;
-    using CSPLits          = Indexed<std::pair<Location, std::vector<std::pair<Relation, clingo_ast_csp_add_term_t>>>, CSPLitUid>;
-    using IdVecs           = Indexed<std::vector<clingo_ast_id_t>, IdVecUid>;
-    using Lits             = Indexed<clingo_ast_literal_t, LitUid>;
-    using LitVecs          = Indexed<std::vector<clingo_ast_literal_t>, LitVecUid>;
-    using CondLitVecs      = Indexed<std::vector<clingo_ast_conditional_literal_t>, CondLitVecUid>;
-    using BodyAggrElemVecs = Indexed<std::vector<clingo_ast_body_aggregate_element_t>, BdAggrElemVecUid>;
-    using HeadAggrElemVecs = Indexed<std::vector<clingo_ast_head_aggregate_element_t>, HdAggrElemVecUid>;
-    using Bounds           = Indexed<std::vector<clingo_ast_aggregate_guard_t>, BoundVecUid>;
-    using Bodies           = Indexed<std::vector<clingo_ast_body_literal_t>, BdLitVecUid>;
-    using Heads            = Indexed<clingo_ast_head_literal_t, HdLitUid>;
-    using TheoryAtoms      = Indexed<clingo_ast_theory_atom_t, TheoryAtomUid>;
-    using CSPElems         = Indexed<std::vector<clingo_ast_disjoint_element_t>, CSPElemVecUid>;
+    using Terms             = Indexed<clingo_ast_term_t, TermUid>;
+    using TermVecs          = Indexed<TermVec, TermVecUid>;
+    using TermVecVecs       = Indexed<TermVecVec, TermVecVecUid>;
+    using CSPAddTerms       = Indexed<std::pair<Location, std::vector<clingo_ast_csp_multiply_term_t>>, CSPAddTermUid>;
+    using CSPMulTerms       = Indexed<clingo_ast_csp_multiply_term_t, CSPMulTermUid>;
+    using CSPLits           = Indexed<std::pair<Location, std::vector<std::pair<Relation, clingo_ast_csp_add_term_t>>>, CSPLitUid>;
+    using IdVecs            = Indexed<std::vector<clingo_ast_id_t>, IdVecUid>;
+    using Lits              = Indexed<clingo_ast_literal_t, LitUid>;
+    using LitVecs           = Indexed<std::vector<clingo_ast_literal_t>, LitVecUid>;
+    using CondLitVecs       = Indexed<std::vector<clingo_ast_conditional_literal_t>, CondLitVecUid>;
+    using BodyAggrElemVecs  = Indexed<std::vector<clingo_ast_body_aggregate_element_t>, BdAggrElemVecUid>;
+    using HeadAggrElemVecs  = Indexed<std::vector<clingo_ast_head_aggregate_element_t>, HdAggrElemVecUid>;
+    using Bounds            = Indexed<std::vector<clingo_ast_aggregate_guard_t>, BoundVecUid>;
+    using Bodies            = Indexed<std::vector<clingo_ast_body_literal_t>, BdLitVecUid>;
+    using Heads             = Indexed<clingo_ast_head_literal_t, HdLitUid>;
+    using TheoryAtoms       = Indexed<clingo_ast_theory_atom_t, TheoryAtomUid>;
+    using CSPElems          = Indexed<std::vector<clingo_ast_disjoint_element_t>, CSPElemVecUid>;
+    using TheoryOpVecs      = Indexed<std::vector<char const *>, TheoryOpVecUid>;
+    using TheoryTerms       = Indexed<clingo_ast_theory_term_t, TheoryTermUid>;
+    using RawTheoryTerms    = Indexed<std::vector<clingo_ast_theory_unparsed_term_t>, TheoryOptermUid>;
+    using RawTheoryTermVecs = Indexed<std::vector<clingo_ast_theory_term_t>, TheoryOptermVecUid>;
+    using TheoryElementVecs = Indexed<std::vector<clingo_ast_theory_atom_element>, TheoryElemVecUid>;
+
     /*
-
-    using TheoryOpVecs      = Indexed<NodeVec, TheoryOpVecUid>;
-    using TheoryTerms       = Indexed<clingo_ast, TheoryTermUid>;
-    using RawTheoryTerms    = Indexed<NodeVec, TheoryOptermUid>;
-    using RawTheoryTermVecs = Indexed<NodeVec, TheoryOptermVecUid>;
-    using TheoryElementVecs = Indexed<NodeVec, TheoryElemVecUid>;
-
     using TheoryOpDefs    = Indexed<clingo_ast, TheoryOpDefUid>;
     using TheoryOpDefVecs = Indexed<NodeVec, TheoryOpDefVecUid>;
     using TheoryTermDefs  = Indexed<clingo_ast, TheoryTermDefUid>;
@@ -620,12 +622,12 @@ private:
     Heads               heads_;
     TheoryAtoms         theoryAtoms_;
     CSPElems            cspelems_;
-    /*
     TheoryOpVecs        theoryOpVecs_;
     TheoryTerms         theoryTerms_;
     RawTheoryTerms      theoryOpterms_;
     RawTheoryTermVecs   theoryOptermVecs_;
     TheoryElementVecs   theoryElems_;
+    /*
     TheoryOpDefs        theoryOpDefs_;
     TheoryOpDefVecs     theoryOpDefVecs_;
     TheoryTermDefs      theoryTermDefs_;

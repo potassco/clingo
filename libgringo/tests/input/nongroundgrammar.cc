@@ -146,14 +146,14 @@ public:
     virtual TheoryOpVecUid theoryops(TheoryOpVecUid ops, String op) override;
 
     virtual TheoryOptermVecUid theoryopterms() override;
-    virtual TheoryOptermVecUid theoryopterms(TheoryOptermVecUid opterms, TheoryOptermUid opterm) override;
-    virtual TheoryOptermVecUid theoryopterms(TheoryOptermUid opterm, TheoryOptermVecUid opterms) override;
+    virtual TheoryOptermVecUid theoryopterms(TheoryOptermVecUid opterms, Location const &loc, TheoryOptermUid opterm) override;
+    virtual TheoryOptermVecUid theoryopterms(Location const &loc, TheoryOptermUid opterm, TheoryOptermVecUid opterms) override;
 
     virtual TheoryElemVecUid theoryelems() override;
     virtual TheoryElemVecUid theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) override;
 
     virtual TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems) override;
-    virtual TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, String op, TheoryOptermUid opterm) override;
+    virtual TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, String op, Location const &loc, TheoryOptermUid opterm) override;
     // }}}
     // {{{ theory definitions
 
@@ -786,12 +786,12 @@ TheoryOptermVecUid TestNongroundProgramBuilder::theoryopterms() {
     return theoryOptermVecs_.emplace();
 }
 
-TheoryOptermVecUid TestNongroundProgramBuilder::theoryopterms(TheoryOptermVecUid opterms, TheoryOptermUid opterm) {
+TheoryOptermVecUid TestNongroundProgramBuilder::theoryopterms(TheoryOptermVecUid opterms, Location const &, TheoryOptermUid opterm) {
     theoryOptermVecs_[opterms].emplace_back(theoryOpterms_.erase(opterm));
     return opterms;
 }
 
-TheoryOptermVecUid TestNongroundProgramBuilder::theoryopterms(TheoryOptermUid opterm, TheoryOptermVecUid opterms) {
+TheoryOptermVecUid TestNongroundProgramBuilder::theoryopterms(Location const &, TheoryOptermUid opterm, TheoryOptermVecUid opterms) {
     theoryOptermVecs_[opterms].emplace(theoryOptermVecs_[opterms].begin(), theoryOpterms_.erase(opterm));
     return opterms;
 }
@@ -815,7 +815,7 @@ TheoryAtomUid TestNongroundProgramBuilder::theoryatom(TermUid term, TheoryElemVe
     return theoryAtoms_.emplace(str());
 }
 
-TheoryAtomUid TestNongroundProgramBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, String op, TheoryOptermUid opterm) {
+TheoryAtomUid TestNongroundProgramBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, String op, Location const &, TheoryOptermUid opterm) {
     current_ << "&" << terms_.erase(term) << "{";
     print(theoryElemVecs_.erase(elems), " ; ");
     current_ << "} " << op << " " << theoryOpterms_.erase(opterm);
