@@ -548,7 +548,6 @@ public:
     TheoryElemVecUid theoryelems(TheoryElemVecUid elems, TheoryOptermVecUid opterms, LitVecUid cond) override;
     TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems) override;
     TheoryAtomUid theoryatom(TermUid term, TheoryElemVecUid elems, String op, Location const &loc, TheoryOptermUid opterm) override;
-    /*
     // {{{2 theory definitions
     TheoryOpDefUid theoryopdef(Location const &loc, String op, unsigned priority, TheoryOperatorType type) override;
     TheoryOpDefVecUid theoryopdefs() override;
@@ -560,7 +559,6 @@ public:
     TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryTermDefUid def) override;
     TheoryDefVecUid theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid def) override;
     void theorydef(Location const &loc, String name, TheoryDefVecUid defs, Logger &log) override;
-    */
     // }}}2
 
 private:
@@ -572,6 +570,17 @@ private:
     TheoryTermUid theorytermarr_(Location const &loc, TheoryOptermVecUid args, clingo_ast_theory_term_type_t type);
     clingo_ast_theory_unparsed_term_t opterm_(TheoryOpVecUid ops, TheoryTermUid term);
     clingo_ast_theory_term_t opterm_(Location const &loc, TheoryOptermUid opterm);
+    template <class T>
+    T *create_();
+    template <class T>
+    T *create_(T x);
+    template <class T>
+    T *createArray_(size_t size);
+    template <class T>
+    T *createArray_(std::vector<T> const &vec);
+
+    void statement_(Location loc, clingo_ast_statement_type_t type, clingo_ast_statement_t &stm);
+    void clear_() noexcept;
 
     using Terms             = Indexed<clingo_ast_term_t, TermUid>;
     using TermVecs          = Indexed<TermVec, TermVecUid>;
@@ -595,14 +604,11 @@ private:
     using RawTheoryTerms    = Indexed<std::vector<clingo_ast_theory_unparsed_term_t>, TheoryOptermUid>;
     using RawTheoryTermVecs = Indexed<std::vector<clingo_ast_theory_term_t>, TheoryOptermVecUid>;
     using TheoryElementVecs = Indexed<std::vector<clingo_ast_theory_atom_element>, TheoryElemVecUid>;
-
-    /*
-    using TheoryOpDefs    = Indexed<clingo_ast, TheoryOpDefUid>;
-    using TheoryOpDefVecs = Indexed<NodeVec, TheoryOpDefVecUid>;
-    using TheoryTermDefs  = Indexed<clingo_ast, TheoryTermDefUid>;
-    using TheoryAtomDefs  = Indexed<clingo_ast, TheoryAtomDefUid>;
-    using TheoryDefVecs   = Indexed<NodeVec, TheoryDefVecUid>;
-    */
+    using TheoryOpDefs      = Indexed<clingo_ast_theory_operator_definition_t, TheoryOpDefUid>;
+    using TheoryOpDefVecs   = Indexed<std::vector<clingo_ast_theory_operator_definition_t>, TheoryOpDefVecUid>;
+    using TheoryTermDefs    = Indexed<clingo_ast_theory_term_definition_t, TheoryTermDefUid>;
+    using TheoryAtomDefs    = Indexed<clingo_ast_theory_atom_definition_t, TheoryAtomDefUid>;
+    using TheoryDefVecs     = Indexed<std::pair<std::vector<clingo_ast_theory_term_definition_t>, std::vector<clingo_ast_theory_atom_definition_t>>, TheoryDefVecUid>;
 
     Callback            cb_;
     Terms               terms_;
@@ -627,27 +633,13 @@ private:
     RawTheoryTerms      theoryOpterms_;
     RawTheoryTermVecs   theoryOptermVecs_;
     TheoryElementVecs   theoryElems_;
-    /*
     TheoryOpDefs        theoryOpDefs_;
     TheoryOpDefVecs     theoryOpDefVecs_;
     TheoryTermDefs      theoryTermDefs_;
     TheoryAtomDefs      theoryAtomDefs_;
     TheoryDefVecs       theoryDefVecs_;
-    */
     std::vector<void *> data_;
     std::vector<void *> arrdata_;
-
-    template <class T>
-    T *create();
-    template <class T>
-    T *create(T x);
-    template <class T>
-    T *create_array(size_t size);
-    template <class T>
-    T *create_array(std::vector<T> const &vec);
-
-    void statement_(Location loc, clingo_ast_statement_type_t type, clingo_ast_statement_t &stm);
-    void clear_() noexcept;
 };
 
 // {{{1 declaration of ASTParser

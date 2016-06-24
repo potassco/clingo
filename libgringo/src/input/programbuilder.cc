@@ -567,24 +567,24 @@ Location convertLoc(clingo_location loc) {
 }
 
 template <class T>
-T *ASTBuilder::create() {
+T *ASTBuilder::create_() {
     data_.emplace_back(operator new(sizeof(T)));
     return reinterpret_cast<T*>(data_.back());
 };
 template <class T>
-T *ASTBuilder::create(T x) {
-    auto *r = create<T>();
+T *ASTBuilder::create_(T x) {
+    auto *r = create_<T>();
     *r = x;
     return r;
 };
 template <class T>
-T *ASTBuilder::create_array(size_t size) {
+T *ASTBuilder::createArray_(size_t size) {
     arrdata_.emplace_back(operator new[](sizeof(T) * size));
     return reinterpret_cast<T*>(arrdata_.back());
 };
 template <class T>
-T *ASTBuilder::create_array(std::vector<T> const &vec) {
-    auto *r = create_array<T>(vec.size());
+T *ASTBuilder::createArray_(std::vector<T> const &vec) {
+    auto *r = createArray_<T>(vec.size());
     std::copy(vec.begin(), vec.end(), reinterpret_cast<T*>(r));
     return r;
 };
@@ -625,7 +625,7 @@ TermUid ASTBuilder::term(Location const &loc, String name) {
 }
 
 TermUid ASTBuilder::term(Location const &loc, UnOp op, TermUid a) {
-    auto unop = create<clingo_ast_unary_operation_t>();
+    auto unop = create_<clingo_ast_unary_operation_t>();
     unop->unary_operator = static_cast<clingo_ast_unary_operator_t>(op);
     unop->argument       = terms_.erase(a);
     clingo_ast_term_t term;
@@ -640,9 +640,9 @@ TermUid ASTBuilder::pool_(Location const &loc, TermVec &&vec) {
         return terms_.insert(std::move(vec.front()));
     }
     else {
-        auto pool = create<clingo_ast_pool_t>();
+        auto pool = create_<clingo_ast_pool_t>();
         pool->size      = vec.size();
-        pool->arguments = create_array(vec);
+        pool->arguments = createArray_(vec);
         clingo_ast_term_t term;
         term.location = convertLoc(loc);
         term.type     = clingo_ast_term_type_pool;
@@ -656,7 +656,7 @@ TermUid ASTBuilder::term(Location const &loc, UnOp op, TermVecUid a) {
 }
 
 TermUid ASTBuilder::term(Location const &loc, BinOp op, TermUid a, TermUid b) {
-    auto *binop = create<clingo_ast_binary_operation_t>();
+    auto *binop = create_<clingo_ast_binary_operation_t>();
     binop->binary_operator = static_cast<clingo_ast_binary_operator_t>(op);
     binop->left            = terms_.erase(a);
     binop->right           = terms_.erase(b);
@@ -668,7 +668,7 @@ TermUid ASTBuilder::term(Location const &loc, BinOp op, TermUid a, TermUid b) {
 }
 
 TermUid ASTBuilder::term(Location const &loc, TermUid a, TermUid b) {
-    auto interval = create<clingo_ast_interval_t>();
+    auto interval = create_<clingo_ast_interval_t>();
     interval->left  = terms_.erase(a);
     interval->right = terms_.erase(b);
     clingo_ast_term_t term;
@@ -679,10 +679,10 @@ TermUid ASTBuilder::term(Location const &loc, TermUid a, TermUid b) {
 }
 
 clingo_ast_term_t ASTBuilder::fun_(Location const &loc, String name, TermVec &&vec, bool external) {
-    auto fun = create<clingo_ast_function_t>();
+    auto fun = create_<clingo_ast_function_t>();
     fun->name      = name.c_str();
     fun->size      = vec.size();
-    fun->arguments = create_array(vec);
+    fun->arguments = createArray_(vec);
     clingo_ast_term_t term;
     term.location = convertLoc(loc);
     term.type     = external ? clingo_ast_term_type_external_function : clingo_ast_term_type_function;
@@ -714,7 +714,7 @@ CSPMulTermUid ASTBuilder::cspmulterm(Location const &loc, TermUid coe, TermUid v
     clingo_ast_csp_multiply_term_t term;
     term.location    = convertLoc(loc);
     term.coefficient = terms_.erase(coe);
-    term.variable    = create(terms_.erase(var));
+    term.variable    = create_(terms_.erase(var));
     return cspmulterms_.insert(std::move(term));
 }
 
@@ -731,7 +731,7 @@ CSPAddTermUid ASTBuilder::cspaddterm(Location const &loc, CSPAddTermUid a, CSPMu
     addterm.first = loc;
     addterm.second.emplace_back(cspmulterms_.erase(b));
     if (!add) {
-        auto unop = create<clingo_ast_unary_operation_t>();
+        auto unop = create_<clingo_ast_unary_operation_t>();
         unop->unary_operator = clingo_ast_unary_operator_minus;
         unop->argument       = addterm.second.back().coefficient;
         clingo_ast_term_t term;
@@ -753,7 +753,7 @@ CSPLitUid ASTBuilder::csplit(Location const &loc, CSPLitUid a, Relation rel, CSP
     clingo_ast_csp_add_term_t term;
     term.size     = rep.second.size();
     term.location = convertLoc(rep.first);
-    term.terms    = create_array(rep.second);
+    term.terms    = createArray_(rep.second);
     lit.first = loc;
     lit.second.emplace_back(rel, std::move(term));
     return a;
@@ -764,10 +764,10 @@ CSPLitUid ASTBuilder::csplit(Location const &loc, CSPAddTermUid a, Relation rel,
     clingo_ast_csp_add_term terma, termb;
     terma.location = convertLoc(repa.first);
     terma.size     = repa.second.size();
-    terma.terms    = create_array(repa.second);
+    terma.terms    = createArray_(repa.second);
     termb.location = convertLoc(repb.first);
     termb.size     = repb.second.size();
-    termb.terms    = create_array(repb.second);
+    termb.terms    = createArray_(repb.second);
     CSPLits::ValueType vec = { loc, {{rel, terma}, {rel, termb}} };
     return csplits_.insert(std::move(vec));
 }
@@ -821,12 +821,12 @@ LitUid ASTBuilder::predlit(Location const &loc, NAF naf, bool neg, String name, 
     lit.location = convertLoc(loc);
     lit.sign     = static_cast<clingo_ast_sign_t>(naf);
     lit.type     = clingo_ast_literal_type_symbolic;
-    lit.symbol   = create(terms_.erase(t));
+    lit.symbol   = create_(terms_.erase(t));
     return lits_.insert(std::move(lit));
 }
 
 LitUid ASTBuilder::rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) {
-    auto comp = create<clingo_ast_comparison_t>();
+    auto comp = create_<clingo_ast_comparison_t>();
     comp->comparison = static_cast<clingo_ast_comparison_operator_t>(rel);
     comp->left       = terms_.erase(termUidLeft);
     comp->right      = terms_.erase(termUidRight);
@@ -841,13 +841,13 @@ LitUid ASTBuilder::rellit(Location const &loc, Relation rel, TermUid termUidLeft
 LitUid ASTBuilder::csplit(CSPLitUid a) {
     auto rep = csplits_.erase(a);
     assert(rep.second.size() > 1);
-    auto guards = create_array<clingo_ast_csp_guard_t>(rep.second.size()-1);
+    auto guards = createArray_<clingo_ast_csp_guard_t>(rep.second.size()-1);
     auto guardsit = guards;
     for (auto it = rep.second.begin() + 1, ie = rep.second.end(); it != ie; ++it, ++guardsit) {
         guardsit->comparison = static_cast<clingo_ast_comparison_operator_t>(it->first);
         guardsit->term = it->second;
     }
-    auto csp = create<clingo_ast_csp_literal_t>();
+    auto csp = create_<clingo_ast_csp_literal_t>();
     csp->term   = rep.second.front().second;
     csp->size   = rep.second.size() - 1;
     csp->guards = guards;
@@ -880,7 +880,7 @@ CondLitVecUid ASTBuilder::condlitvec(CondLitVecUid uid, LitUid litUid, LitVecUid
     auto cond = litvecs_.erase(litvecUid);
     clingo_ast_conditional_literal_t lit;
     lit.size      = cond.size();
-    lit.condition = create_array(cond);
+    lit.condition = createArray_(cond);
     lit.literal   = lits_.erase(litUid);
     condlitvecs_[uid].emplace_back(lit);
     return uid;
@@ -897,9 +897,9 @@ BdAggrElemVecUid ASTBuilder::bodyaggrelemvec(BdAggrElemVecUid uid, TermVecUid te
     auto cond = litvecs_.erase(litvec);
     auto tuple = termvecs_.erase(termvec);
     elem.condition_size = cond.size();
-    elem.condition      = create_array(cond);
+    elem.condition      = createArray_(cond);
     elem.tuple_size     = tuple.size();
-    elem.tuple          = create_array(tuple);
+    elem.tuple          = createArray_(tuple);
     bodyaggrelemvecs_[uid].emplace_back(elem);
     return uid;
 }
@@ -915,12 +915,12 @@ HdAggrElemVecUid ASTBuilder::headaggrelemvec(HdAggrElemVecUid uid, TermVecUid te
     auto cond = litvecs_.erase(litvec);
     clingo_ast_conditional_literal_t lit;
     lit.size      = cond.size();
-    lit.condition = create_array(cond);
+    lit.condition = createArray_(cond);
     lit.literal   = lits_.erase(litUid);
     auto tuple = termvecs_.erase(termvec);
     elem.conditional_literal = lit;
     elem.tuple_size          = tuple.size();
-    elem.tuple               = create_array(tuple);
+    elem.tuple               = createArray_(tuple);
     headaggrelemvecs_[uid].emplace_back(elem);
     return uid;
 }
@@ -944,7 +944,7 @@ BoundVecUid ASTBuilder::boundvec(BoundVecUid uid, Relation rel, TermUid term) {
 HdLitUid ASTBuilder::headlit(LitUid litUid) {
     clingo_ast_head_literal_t head;
     head.type     = clingo_ast_head_literal_type_literal;
-    head.literal  = create(lits_.erase(litUid));
+    head.literal  = create_(lits_.erase(litUid));
     head.location = head.literal->location;
     return heads_.insert(std::move(head));
 }
@@ -953,7 +953,7 @@ HdLitUid ASTBuilder::headaggr(Location const &loc, TheoryAtomUid atomUid) {
     clingo_ast_head_literal_t head;
     head.location    = convertLoc(loc);
     head.type        = clingo_ast_head_literal_type_theory;
-    head.theory_atom = create(theoryAtoms_.erase(atomUid));
+    head.theory_atom = create_(theoryAtoms_.erase(atomUid));
     return heads_.insert(std::move(head));
 }
 
@@ -964,13 +964,13 @@ HdLitUid ASTBuilder::headaggr(Location const &loc, AggregateFunction fun, BoundV
     clingo_ast_head_aggregate_t aggr;
     aggr.function    = static_cast<clingo_ast_aggregate_function>(fun);
     aggr.size        = elems.size();
-    aggr.elements    = create_array(elems);
-    aggr.left_guard  = guards.size() > 0 ? create(guards[0]) : nullptr;
-    aggr.right_guard = guards.size() > 1 ? create(guards[1]) : nullptr;
+    aggr.elements    = createArray_(elems);
+    aggr.left_guard  = guards.size() > 0 ? create_(guards[0]) : nullptr;
+    aggr.right_guard = guards.size() > 1 ? create_(guards[1]) : nullptr;
     clingo_ast_head_literal_t head;
     head.location       = convertLoc(loc);
     head.type           = clingo_ast_head_literal_type_head_aggregate;
-    head.head_aggregate = create(aggr);
+    head.head_aggregate = create_(aggr);
     return heads_.insert(std::move(head));
 }
 
@@ -982,13 +982,13 @@ HdLitUid ASTBuilder::headaggr(Location const &loc, AggregateFunction fun, BoundV
     assert(guards.size() < 3);
     clingo_ast_aggregate_t aggr;
     aggr.size        = elems.size();
-    aggr.elements    = create_array(elems);
-    aggr.left_guard  = guards.size() > 0 ? create(guards[0]) : nullptr;
-    aggr.right_guard = guards.size() > 1 ? create(guards[1]) : nullptr;
+    aggr.elements    = createArray_(elems);
+    aggr.left_guard  = guards.size() > 0 ? create_(guards[0]) : nullptr;
+    aggr.right_guard = guards.size() > 1 ? create_(guards[1]) : nullptr;
     clingo_ast_head_literal_t head;
     head.location  = convertLoc(loc);
     head.type      = clingo_ast_head_literal_type_aggregate;
-    head.aggregate = create(aggr);
+    head.aggregate = create_(aggr);
     return heads_.insert(std::move(head));
 }
 
@@ -996,11 +996,11 @@ HdLitUid ASTBuilder::disjunction(Location const &loc, CondLitVecUid condlitvec) 
     auto elems = condlitvecs_.erase(condlitvec);
     clingo_ast_disjunction_t disj;
     disj.size     = elems.size();
-    disj.elements = create_array(elems);
+    disj.elements = createArray_(elems);
     clingo_ast_head_literal_t head;
     head.location    = convertLoc(loc);
     head.type        = clingo_ast_head_literal_type_disjunction;
-    head.disjunction = create(disj);
+    head.disjunction = create_(disj);
     return heads_.insert(std::move(head));
 }
 
@@ -1016,7 +1016,7 @@ BdLitVecUid ASTBuilder::bodylit(BdLitVecUid body, LitUid bodylit) {
     bd.location = lit.location;
     bd.sign     = static_cast<clingo_ast_sign_t>(clingo_ast_sign_none);
     bd.type     = clingo_ast_body_literal_type_literal;;
-    bd.literal  = create(lit);
+    bd.literal  = create_(lit);
     bodies_[body].emplace_back(bd);
     return body;
 }
@@ -1026,7 +1026,7 @@ BdLitVecUid ASTBuilder::bodyaggr(BdLitVecUid body, Location const &loc, NAF naf,
     bd.location    = convertLoc(loc);
     bd.sign        = static_cast<clingo_ast_sign_t>(naf);
     bd.type        = clingo_ast_body_literal_type_theory;;
-    bd.theory_atom = create(theoryAtoms_.erase(atomUid));
+    bd.theory_atom = create_(theoryAtoms_.erase(atomUid));
     bodies_[body].emplace_back(bd);
     return body;
 }
@@ -1040,14 +1040,14 @@ BdLitVecUid ASTBuilder::bodyaggr(BdLitVecUid body, Location const &loc, NAF naf,
     clingo_ast_body_aggregate_t aggr;
     aggr.function    = static_cast<clingo_ast_aggregate_function>(fun);
     aggr.size        = elems.size();
-    aggr.elements    = create_array(elems);
-    aggr.left_guard  = guards.size() > 0 ? create(guards[0]) : nullptr;
-    aggr.right_guard = guards.size() > 1 ? create(guards[1]) : nullptr;
+    aggr.elements    = createArray_(elems);
+    aggr.left_guard  = guards.size() > 0 ? create_(guards[0]) : nullptr;
+    aggr.right_guard = guards.size() > 1 ? create_(guards[1]) : nullptr;
     clingo_ast_body_literal_t bd;
     bd.location       = convertLoc(loc);
     bd.sign           = static_cast<clingo_ast_sign_t>(naf);
     bd.type           = clingo_ast_body_literal_type_body_aggregate;
-    bd.body_aggregate = create(aggr);
+    bd.body_aggregate = create_(aggr);
     bodies_[body].emplace_back(bd);
     return body;
 }
@@ -1060,14 +1060,14 @@ BdLitVecUid ASTBuilder::bodyaggr(BdLitVecUid body, Location const &loc, NAF naf,
     assert(guards.size() < 3);
     clingo_ast_aggregate_t aggr;
     aggr.size        = elems.size();
-    aggr.elements    = create_array(elems);
-    aggr.left_guard  = guards.size() > 0 ? create(guards[0]) : nullptr;
-    aggr.right_guard = guards.size() > 1 ? create(guards[1]) : nullptr;
+    aggr.elements    = createArray_(elems);
+    aggr.left_guard  = guards.size() > 0 ? create_(guards[0]) : nullptr;
+    aggr.right_guard = guards.size() > 1 ? create_(guards[1]) : nullptr;
     clingo_ast_body_literal_t bd;
     bd.location  = convertLoc(loc);
     bd.sign      = static_cast<clingo_ast_sign_t>(naf);
     bd.type      = clingo_ast_body_literal_type_aggregate;
-    bd.aggregate = create(aggr);
+    bd.aggregate = create_(aggr);
     bodies_[body].emplace_back(bd);
     return body;
 }
@@ -1077,12 +1077,12 @@ BdLitVecUid ASTBuilder::conjunction(BdLitVecUid body, Location const &loc, LitUi
     clingo_ast_conditional_literal_t lit;
     lit.literal   = lits_.erase(head);
     lit.size      = cond.size();
-    lit.condition = create_array(cond);
+    lit.condition = createArray_(cond);
     clingo_ast_body_literal_t bd;
     bd.location    = convertLoc(loc);
     bd.sign        = clingo_ast_sign_none;
     bd.type        = clingo_ast_body_literal_type_conditional;
-    bd.conditional = create(lit);
+    bd.conditional = create_(lit);
     bodies_[body].emplace_back(bd);
     return body;
 }
@@ -1091,12 +1091,12 @@ BdLitVecUid ASTBuilder::disjoint(BdLitVecUid body, Location const &loc, NAF naf,
     auto elems = cspelems_.erase(elem);
     clingo_ast_disjoint_t disj;
     disj.size     = elems.size();
-    disj.elements = create_array(elems);
+    disj.elements = createArray_(elems);
     clingo_ast_body_literal_t bd;
     bd.location    = convertLoc(loc);
     bd.sign        = static_cast<clingo_ast_sign_t>(naf);
     bd.type        = clingo_ast_body_literal_type_disjoint;
-    bd.disjoint    = create(disj);
+    bd.disjoint    = create_(disj);
     bodies_[body].emplace_back(bd);
     return body;
 }
@@ -1114,13 +1114,13 @@ CSPElemVecUid ASTBuilder::cspelemvec(CSPElemVecUid uid, Location const &loc, Ter
     clingo_ast_csp_add_term_t term;
     term.size     = rep.second.size();
     term.location = convertLoc(rep.first);
-    term.terms    = create_array(rep.second);
+    term.terms    = createArray_(rep.second);
     clingo_ast_disjoint_element_t elem;
     elem.term           = term;
     elem.location       = convertLoc(loc);
-    elem.tuple          = create_array(tuple);
+    elem.tuple          = createArray_(tuple);
     elem.tuple_size     = tuple.size();
-    elem.condition      = create_array(cond);
+    elem.condition      = createArray_(cond);
     elem.condition_size = cond.size();
     cspelems_[uid].emplace_back(elem);
     return uid;
@@ -1137,9 +1137,9 @@ void ASTBuilder::rule(Location const &loc, HdLitUid head, BdLitVecUid body) {
     clingo_ast_rule_t rule;
     rule.head = heads_.erase(head);
     rule.size = lits.size();
-    rule.body = create_array(lits);
+    rule.body = createArray_(lits);
     clingo_ast_statement stm;
-    stm.rule = create(rule);
+    stm.rule = create_(rule);
     statement_(loc, clingo_ast_statement_type_rule, stm);
 }
 
@@ -1149,7 +1149,7 @@ void ASTBuilder::define(Location const &loc, String name, TermUid value, bool de
     def.value = terms_.erase(value);
     def.is_default = defaultDef;
     clingo_ast_statement stm;
-    stm.definition = create(def);
+    stm.definition = create_(def);
     statement_(loc, clingo_ast_statement_type_const, stm);
 }
 
@@ -1160,11 +1160,11 @@ void ASTBuilder::optimize(Location const &loc, TermUid weight, TermUid priority,
     min.weight     = terms_.erase(weight);
     min.priority   = terms_.erase(priority);
     min.body_size  = bd.size();
-    min.body       = create_array(bd);
+    min.body       = createArray_(bd);
     min.tuple_size = tuple.size();
-    min.tuple      = create_array(tuple);
+    min.tuple      = createArray_(tuple);
     clingo_ast_statement stm;
-    stm.minimize = create(min);
+    stm.minimize = create_(min);
     statement_(loc, clingo_ast_statement_type_minimize, stm);
 }
 
@@ -1173,7 +1173,7 @@ void ASTBuilder::showsig(Location const &loc, Sig sig, bool csp) {
     show.signature = sig.rep();
     show.csp = csp;
     clingo_ast_statement stm;
-    stm.show_signature = create(show);
+    stm.show_signature = create_(show);
     statement_(loc, clingo_ast_statement_type_show_signature, stm);
 }
 
@@ -1182,10 +1182,10 @@ void ASTBuilder::show(Location const &loc, TermUid t, BdLitVecUid body, bool csp
     clingo_ast_show_term_t show;
     show.term = terms_.erase(t);
     show.csp  = csp;
-    show.body = create_array(bd);
+    show.body = createArray_(bd);
     show.size = bd.size();
     clingo_ast_statement stm;
-    stm.show_term = create(show);
+    stm.show_term = create_(show);
     statement_(loc, clingo_ast_statement_type_show_term, stm);
 }
 
@@ -1194,7 +1194,7 @@ void ASTBuilder::python(Location const &loc, String code) {
     script.code = code.c_str();
     script.type = clingo_ast_script_type_python;
     clingo_ast_statement stm;
-    stm.script = create(script);
+    stm.script = create_(script);
     statement_(loc, clingo_ast_statement_type_script, stm);
 }
 
@@ -1203,7 +1203,7 @@ void ASTBuilder::lua(Location const &loc, String code) {
     script.code = code.c_str();
     script.type = clingo_ast_script_type_lua;
     clingo_ast_statement stm;
-    stm.script = create(script);
+    stm.script = create_(script);
     statement_(loc, clingo_ast_statement_type_script, stm);
 }
 
@@ -1211,10 +1211,10 @@ void ASTBuilder::block(Location const &loc, String name, IdVecUid args) {
     auto params = idvecs_.erase(args);
     clingo_ast_program_t program;
     program.name       = name.c_str();
-    program.parameters = create_array(params);
+    program.parameters = createArray_(params);
     program.size       = params.size();
     clingo_ast_statement stm;
-    stm.program = create(program);
+    stm.program = create_(program);
     statement_(loc, clingo_ast_statement_type_script, stm);
 }
 
@@ -1224,10 +1224,10 @@ void ASTBuilder::external(Location const &loc, LitUid head, BdLitVecUid body) {
     assert(lit.type == clingo_ast_literal_type_symbolic);
     clingo_ast_external_t ext;
     ext.atom = *lit.symbol;
-    ext.body = create_array(bd);
+    ext.body = createArray_(bd);
     ext.size = bd.size();
     clingo_ast_statement stm;
-    stm.external = create(ext);
+    stm.external = create_(ext);
     statement_(loc, clingo_ast_statement_type_external, stm);
 }
 
@@ -1239,11 +1239,11 @@ void ASTBuilder::edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body
         edge.u = x[0];
         edge.v = x[1];
         edge.size = bd.size();
-        edge.body = create_array(bd);
+        edge.body = createArray_(bd);
         clingo_ast_statement stm;
         stm.location = convertLoc(loc);
         stm.type     = clingo_ast_statement_type_external;
-        stm.edge     = create(edge);
+        stm.edge     = create_(edge);
         cb_(stm);
     }
     clear_();
@@ -1258,10 +1258,10 @@ void ASTBuilder::heuristic(Location const &loc, bool neg, String name, TermVecVe
     heu.bias     = terms_.erase(a);
     heu.priority = terms_.erase(b);
     heu.modifier = terms_.erase(mod);
-    heu.body     = create_array(bd);
+    heu.body     = createArray_(bd);
     heu.size     = bd.size();
     clingo_ast_statement stm;
-    stm.heuristic = create(heu);
+    stm.heuristic = create_(heu);
     statement_(loc, clingo_ast_statement_type_heuristic, stm);
 }
 
@@ -1271,10 +1271,10 @@ void ASTBuilder::project(Location const &loc, bool neg, String name, TermVecVecU
     if (neg) { t = term(loc, UnOp::NEG, t); }
     clingo_ast_project_t proj;
     proj.size = bd.size();
-    proj.body = create_array(bd);
+    proj.body = createArray_(bd);
     proj.atom = terms_.erase(t);
     clingo_ast_statement stm;
-    stm.project = create(proj);
+    stm.project = create_(proj);
     statement_(loc, clingo_ast_statement_type_project, stm);
 }
 
@@ -1289,12 +1289,12 @@ void ASTBuilder::project(Location const &loc, Sig sig) {
 TheoryTermUid ASTBuilder::theorytermarr_(Location const &loc, TheoryOptermVecUid args, clingo_ast_theory_term_type_t type) {
     auto a = theoryOptermVecs_.erase(args);
     clingo_ast_theory_term_array_t arr;
-    arr.size = a.size();
-    arr.terms = create_array(a);
+    arr.size  = a.size();
+    arr.terms = createArray_(a);
     clingo_ast_theory_term_t term;
-    term.type = type;
+    term.type     = type;
     term.location = convertLoc(loc);
-    term.set = create(arr);
+    term.set      = create_(arr);
     return theoryTerms_.insert(std::move(term));
 }
 
@@ -1314,11 +1314,11 @@ clingo_ast_theory_term_t ASTBuilder::opterm_(Location const &loc, TheoryOptermUi
     auto terms = theoryOpterms_.erase(opterm);
     clingo_ast_theory_unparsed_term_array arr;
     arr.size  = terms.size();
-    arr.terms = create_array(terms);
+    arr.terms = createArray_(terms);
     clingo_ast_theory_term_t term;
     term.location       = convertLoc(loc);
     term.type           = clingo_ast_theory_term_type_unparsed_term_array;
-    term.unparsed_array = create(arr);
+    term.unparsed_array = create_(arr);
     return term;
 }
 
@@ -1329,27 +1329,27 @@ TheoryTermUid ASTBuilder::theorytermopterm(Location const &loc, TheoryOptermUid 
 TheoryTermUid ASTBuilder::theorytermfun(Location const &loc, String name, TheoryOptermVecUid args) {
     auto a = theoryOptermVecs_.erase(args);
     clingo_ast_theory_function_t fun;
-    fun.name = name.c_str();
-    fun.size = a.size();
-    fun.arguments = create_array(a);
+    fun.name      = name.c_str();
+    fun.size      = a.size();
+    fun.arguments = createArray_(a);
     clingo_ast_theory_term_t term;
-    term.type = clingo_ast_theory_term_type_function;
+    term.type     = clingo_ast_theory_term_type_function;
     term.location = convertLoc(loc);
-    term.function = create(fun);
+    term.function = create_(fun);
     return theoryTerms_.insert(std::move(term));
 }
 
 TheoryTermUid ASTBuilder::theorytermvalue(Location const &loc, Symbol val) {
     clingo_ast_theory_term_t term;
-    term.type = clingo_ast_theory_term_type_symbol;
+    term.type     = clingo_ast_theory_term_type_symbol;
     term.location = convertLoc(loc);
-    term.symbol = val.rep();
+    term.symbol   = val.rep();
     return theoryTerms_.insert(std::move(term));
 }
 
 TheoryTermUid ASTBuilder::theorytermvar(Location const &loc, String var) {
     clingo_ast_theory_term_t term;
-    term.type = clingo_ast_theory_term_type_variable;
+    term.type     = clingo_ast_theory_term_type_variable;
     term.location = convertLoc(loc);
     term.variable = var.c_str();
     return theoryTerms_.insert(std::move(term));
@@ -1358,9 +1358,9 @@ TheoryTermUid ASTBuilder::theorytermvar(Location const &loc, String var) {
 clingo_ast_theory_unparsed_term_t ASTBuilder::opterm_(TheoryOpVecUid ops, TheoryTermUid term) {
     auto o = theoryOpVecs_.erase(ops);
     clingo_ast_theory_unparsed_term_t t;
-    t.size = o.size();
-    t.operators = create_array(o);
-    t.term = theoryTerms_.erase(term);
+    t.size      = o.size();
+    t.operators = createArray_(o);
+    t.term      = theoryTerms_.erase(term);
     return t;
 }
 
@@ -1406,9 +1406,9 @@ TheoryElemVecUid ASTBuilder::theoryelems(TheoryElemVecUid elems, TheoryOptermVec
     auto cnd = litvecs_.erase(cond);
     clingo_ast_theory_atom_element_t elem;
     elem.tuple_size     = ops.size();
-    elem.tuple          = create_array(ops);
+    elem.tuple          = createArray_(ops);
     elem.condition_size = cnd.size();
-    elem.condition      = create_array(cnd);
+    elem.condition      = createArray_(cnd);
     theoryElems_[elems].emplace_back(elem);
     return elems;
 }
@@ -1416,39 +1416,35 @@ TheoryElemVecUid ASTBuilder::theoryelems(TheoryElemVecUid elems, TheoryOptermVec
 TheoryAtomUid ASTBuilder::theoryatom(TermUid term, TheoryElemVecUid elems) {
     auto elms = theoryElems_.erase(elems);
     clingo_ast_theory_atom_t atom;
-    atom.term = terms_.erase(term);
-    atom.elements = create_array(elms);
-    atom.size = elms.size();
-    atom.guard = nullptr;
+    atom.term     = terms_.erase(term);
+    atom.elements = createArray_(elms);
+    atom.size     = elms.size();
+    atom.guard    = nullptr;
     return theoryAtoms_.insert(std::move(atom));
 }
 
 TheoryAtomUid ASTBuilder::theoryatom(TermUid term, TheoryElemVecUid elems, String op, Location const &loc, TheoryOptermUid opterm) {
     auto elms = theoryElems_.erase(elems);
     clingo_ast_theory_guard_t guard;
-    guard.term = opterm_(loc, opterm);
+    guard.term          = opterm_(loc, opterm);
     guard.operator_name = op.c_str();
     clingo_ast_theory_atom_t atom;
-    atom.term = terms_.erase(term);
-    atom.elements = create_array(elms);
-    atom.size = elms.size();
-    atom.guard = create(guard);
+    atom.term     = terms_.erase(term);
+    atom.elements = createArray_(elms);
+    atom.size     = elms.size();
+    atom.guard    = create_(guard);
     return theoryAtoms_.insert(std::move(atom));
 }
 
 // {{{2 theory definitions
 
-/*
 TheoryOpDefUid ASTBuilder::theoryopdef(Location const &loc, String op, unsigned priority, TheoryOperatorType type) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, op));
-    nodeVec.emplace_back(newNode(loc, priority));
-    switch (type) {
-        case TheoryOperatorType::Unary:       { nodeVec.emplace_back(newNode(loc, "unary")); break; }
-        case TheoryOperatorType::BinaryLeft:  { nodeVec.emplace_back(newNode(loc, "binary_left")); break; }
-        case TheoryOperatorType::BinaryRight: { nodeVec.emplace_back(newNode(loc, "binary_right")); break; }
-    }
-    return theoryOpDefs_.emplace(newNode(loc, "theory_definition_operator", nodeVec));
+    clingo_ast_theory_operator_definition_t def;
+    def.location = convertLoc(loc);
+    def.priority = priority;
+    def.name     = op.c_str();
+    def.type     = static_cast<clingo_ast_theory_operator_type_t>(type);
+    return theoryOpDefs_.insert(std::move(def));
 }
 
 TheoryOpDefVecUid ASTBuilder::theoryopdefs() {
@@ -1461,33 +1457,40 @@ TheoryOpDefVecUid ASTBuilder::theoryopdefs(TheoryOpDefVecUid defs, TheoryOpDefUi
 }
 
 TheoryTermDefUid ASTBuilder::theorytermdef(Location const &loc, String name, TheoryOpDefVecUid defs, Logger &) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, name));
-    nodeVec.emplace_back(newNode(loc, "tuple_theory_definition_operator", newNodeVec() = theoryOpDefVecs_.erase(defs)));
-    return theoryTermDefs_.insert(newNode(loc, "theory_definition_term", nodeVec));
+    auto dfs = theoryOpDefVecs_.erase(defs);
+    clingo_ast_theory_term_definition_t def;
+    def.location  = convertLoc(loc);
+    def.name      = name.c_str();
+    def.operators = createArray_(dfs);
+    def.size      = dfs.size();
+    return theoryTermDefs_.insert(std::move(def));
 }
 
 TheoryAtomDefUid ASTBuilder::theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, name));
-    nodeVec.emplace_back(newNode(loc, arity));
-    nodeVec.emplace_back(newNode(loc, termDef));
-    nodeVec.emplace_back(newNode(loc, type));
-    nodeVec.emplace_back(newNode(loc, "null"));
-    return theoryAtomDefs_.insert(newNode(loc, "theory_definition_atom", nodeVec));
+    clingo_ast_theory_atom_definition_t def;
+    def.location = convertLoc(loc);
+    def.name     = name.c_str();
+    def.arity    = arity;
+    def.elements = termDef.c_str();
+    def.type     = static_cast<clingo_ast_theory_atom_definition_type_t>(type);
+    def.guard    = nullptr;
+    return theoryAtomDefs_.insert(std::move(def));
 }
 
 TheoryAtomDefUid ASTBuilder::theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type, TheoryOpVecUid ops, String guardDef) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, name));
-    nodeVec.emplace_back(newNode(loc, arity));
-    nodeVec.emplace_back(newNode(loc, termDef));
-    nodeVec.emplace_back(newNode(loc, type));
-    nodeVec.emplace_back(newNode(loc, "guard", newNodeVec() = {
-        newNode(loc, "tuple_theory_operator", newNodeVec() = theoryOpVecs_.erase(ops)),
-        newNode(loc, guardDef)
-    }));
-    return theoryAtomDefs_.insert(newNode(loc, "theory_definition_atom", nodeVec));
+    auto o = theoryOpVecs_.erase(ops);
+    clingo_ast_theory_guard_definition_t guard;
+    guard.guard     = guardDef.c_str();
+    guard.operators = createArray_(o);
+    guard.size      = o.size();
+    clingo_ast_theory_atom_definition_t def;
+    def.location = convertLoc(loc);
+    def.name     = name.c_str();
+    def.arity    = arity;
+    def.elements = termDef.c_str();
+    def.type     = static_cast<clingo_ast_theory_atom_definition_type_t>(type);
+    def.guard    = create_(guard);
+    return theoryAtomDefs_.insert(std::move(def));
 }
 
 TheoryDefVecUid ASTBuilder::theorydefs() {
@@ -1495,22 +1498,27 @@ TheoryDefVecUid ASTBuilder::theorydefs() {
 }
 
 TheoryDefVecUid ASTBuilder::theorydefs(TheoryDefVecUid defs, TheoryTermDefUid def) {
-    theoryDefVecs_[defs].emplace_back(theoryTermDefs_.erase(def));
+    theoryDefVecs_[defs].first.emplace_back(theoryTermDefs_.erase(def));
     return defs;
 }
 
 TheoryDefVecUid ASTBuilder::theorydefs(TheoryDefVecUid defs, TheoryAtomDefUid def) {
-    theoryDefVecs_[defs].emplace_back(theoryAtomDefs_.erase(def));
+    theoryDefVecs_[defs].second.emplace_back(theoryAtomDefs_.erase(def));
     return defs;
 }
 
 void ASTBuilder::theorydef(Location const &loc, String name, TheoryDefVecUid defs, Logger &) {
-    auto &nodeVec = newNodeVec();
-    nodeVec.emplace_back(newNode(loc, name));
-    nodeVec.emplace_back(newNode(loc, "tuple_theory_definition", newNodeVec() = theoryDefVecs_.erase(defs)));
-    directive_(loc, "directive_theory", nodeVec);
+    auto d = theoryDefVecs_.erase(defs);
+    clingo_ast_theory_definition_t def;
+    def.name = name.c_str();
+    def.terms_size = d.first.size();
+    def.terms      = createArray_(d.first);
+    def.atoms_size = d.second.size();
+    def.atoms      = createArray_(d.second);
+    clingo_ast_statement stm;
+    stm.theory_definition = create_(def);
+    statement_(loc, clingo_ast_statement_type_script, stm);
 }
-*/
 
 // }}}2
 

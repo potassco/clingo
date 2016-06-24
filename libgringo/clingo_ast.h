@@ -431,12 +431,22 @@ typedef struct clingo_ast_theory_term_definition {
 } clingo_ast_theory_term_definition_t;
 
 typedef struct clingo_ast_theory_guard_definition {
-    char const *const *operators;
     char const *guard;
+    char const *const *operators;
+    size_t size;
 } clingo_ast_theory_guard_definition_t;
+
+enum clingo_ast_theory_atom_definition_type {
+    clingo_ast_theory_atom_definition_type_head      = 0,
+    clingo_ast_theory_atom_definition_type_body      = 1,
+    clingo_ast_theory_atom_definition_type_any       = 2,
+    clingo_ast_theory_atom_definition_type_directive = 3,
+};
+typedef int clingo_ast_theory_atom_definition_type_t;
 
 typedef struct clingo_ast_theory_atom_definition {
     clingo_location_t location;
+    clingo_ast_theory_atom_definition_type_t type;
     char const *name;
     unsigned arity;
     char const *elements;
@@ -445,8 +455,10 @@ typedef struct clingo_ast_theory_atom_definition {
 
 typedef struct clingo_ast_theory_definition {
     char const *name;
-    clingo_ast_theory_atom_definition const *atoms;
-    size_t size;
+    clingo_ast_theory_term_definition_t const *terms;
+    size_t terms_size;
+    clingo_ast_theory_atom_definition_t const *atoms;
+    size_t atoms_size;
 } clingo_ast_theory_definition_t;
 
 // {{{2 statements
