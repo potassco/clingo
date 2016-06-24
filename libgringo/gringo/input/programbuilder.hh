@@ -31,7 +31,6 @@
 #include <vector>
 #include <memory>
 #include <forward_list>
-#include <clingo_ast.h>
 
 namespace Gringo {
 
