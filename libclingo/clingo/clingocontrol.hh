@@ -251,8 +251,7 @@ public:
         virtual void postGround() {}
         virtual void preSolve() {}
         virtual void postSolve() {}
-        /// virtual void onModel()
-        /// returning some terms to be stored in the model ? for the theory
+        virtual Gringo::SymVec onModel(const Clasp::Model& ) { return Gringo::SymVec(); }
     };
 
     using StringVec        = std::vector<std::string>;
@@ -369,8 +368,8 @@ public:
 
 class ClingoModel : public Gringo::Model {
 public:
-    ClingoModel(ClingoControl &ctl, Clasp::Model const *model = nullptr)
-    : ctl_(ctl)
+    ClingoModel(ClingoControl &ctl, Gringo::SymVec theoryOutput = Gringo::SymVec(), Clasp::Model const *model = nullptr)
+        : ctl_(ctl), theoryOutput_(std::move(theoryOutput))
     , model_(model) { }
     void reset(Clasp::Model const &m) { model_ = &m; }
     bool contains(Gringo::Symbol atom) const override {
@@ -379,6 +378,8 @@ public:
     }
     Gringo::SymSpan atoms(unsigned atomset) const override {
         atms_ = out().atoms(atomset, [this, atomset](unsigned uid) { return bool(atomset & clingo_show_type_complement) ^ model_->isTrue(lp().getLiteral(uid)); });
+        if (atomset & clingo_show_type_theory && !(bool)(atomset & clingo_show_type_complement))
+            atms_.insert(atms_.end(), theoryOutput_.begin(), theoryOutput_.end());
         return Potassco::toSpan(atms_);
     }
     Gringo::Int64Vec optimization() const override {
@@ -410,6 +411,7 @@ private:
     Gringo::Output::OutputBase const &out() const { return *ctl_.out_; };
     Clasp::SharedContext const &ctx() const       { return ctl_.clasp_->ctx; };
     ClingoControl          &ctl_;
+    Gringo::SymVec         theoryOutput_;
     Clasp::Model const     *model_;
     mutable Gringo::SymVec  atms_;
 };

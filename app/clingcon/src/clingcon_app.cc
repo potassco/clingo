@@ -211,6 +211,35 @@ public:
             h_->postSolve();
     }
 
+    virtual Gringo::SymVec onModel(const Clasp::Model& m) override {
+        Gringo::SymVec ret;
+        if (h_)
+        {
+            auto to = h_->theoryOutput();
+            const char* name;
+            order::int32 value;
+            if (to->first(m,name,value))
+            {
+                ret.emplace_back(convert(name,value));
+                while(to->next(name,value))
+                    ret.emplace_back(convert(name,value));
+            }
+        }
+        return ret;
+    }
+
+private:
+
+    Gringo::Symbol convert(const char* name, int32 value)
+    {
+        ///TODO: it would be better if i would return a function symbol instead of a string name
+        /// for gringo: actually this function symbol exists already in gringo ?
+        Gringo::SymVec params;
+        params.emplace_back(Gringo::Symbol::createStr(Gringo::String(name)));
+        params.emplace_back(Gringo::Symbol::createNum(value));
+        return Gringo::Symbol::createFun("csp",params);
+    }
+
     clingcon::Helper* h_;
 };
 

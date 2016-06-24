@@ -1362,10 +1362,11 @@ places like - e.g., the main function.)";
     static PyObject *atoms(Model *self, PyObject *pyargs, PyObject *pykwds) {
         PY_TRY
             unsigned atomset = 0;
-            static char const *kwlist[] = {"atoms", "terms", "shown", "csp", "comp", nullptr};
-            PyObject *pyAtoms = Py_False, *pyTerms = Py_False, *pyShown = Py_False, *pyCSP = Py_False, *pyComp = Py_False;
-            if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "|OOOOO", const_cast<char**>(kwlist), &pyAtoms, &pyTerms, &pyShown, &pyCSP, &pyComp)) { return nullptr; }
+            static char const *kwlist[] = {"atoms", "theory", "terms", "shown", "csp", "comp", nullptr};
+            PyObject *pyAtoms = Py_False, *pyTheory = Py_False, *pyTerms = Py_False, *pyShown = Py_False, *pyCSP = Py_False, *pyComp = Py_False;
+            if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "|OOOOO", const_cast<char**>(kwlist), &pyAtoms, &pyTheory, &pyTerms, &pyShown, &pyCSP, &pyComp)) { return nullptr; }
             if (pyToCpp<bool>(pyAtoms)) { atomset |= clingo_show_type_atoms; }
+            if (pyToCpp<bool>(pyTheory)){ atomset |= clingo_show_type_theory; }
             if (pyToCpp<bool>(pyTerms)) { atomset |= clingo_show_type_terms; }
             if (pyToCpp<bool>(pyShown)) { atomset |= clingo_show_type_shown; }
             if (pyToCpp<bool>(pyCSP))   { atomset |= clingo_show_type_csp; }
