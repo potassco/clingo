@@ -96,6 +96,13 @@ struct VariantHolder<n> {
     typename std::enable_if<!std::is_copy_constructible<V>::value>::type copy_if_possible(void *) {
         throw std::runtime_error("variant not copyable");
     }
+    template <bool allow_empty, class V>
+    void accept(V &&visitor, typename std::enable_if<allow_empty>::type * = nullptr) const {
+        if (type_ == 0) { visitor.visit(); }
+    }
+    template <bool allow_empty, class V>
+    void accept(V &&, typename std::enable_if<!allow_empty>::type * = nullptr) const {
+    }
     unsigned type_ = 0;
     void *data_ = nullptr;
 };
@@ -120,6 +127,16 @@ struct VariantHolder<n, T, U...> : VariantHolder<n+1, U...>{
         }
         Helper::copy(src);
     }
+    template <bool allow_empty, class V>
+    void accept(V &&visitor) {
+        if (n == type_) { visitor.visit(*static_cast<T*>(data_)); }
+        Helper::template accept<allow_empty, V>(std::forward<V>(visitor));
+    }
+    template <bool allow_empty, class V>
+    void accept(V &&visitor) const {
+        if (n == type_) { visitor.visit(*static_cast<T const*>(data_)); }
+        Helper::template accept<allow_empty, V>(std::forward<V>(visitor));
+    }
     void destroy() {
         if (n == type_) { delete static_cast<T*>(data_); }
         Helper::destroy();
@@ -132,6 +149,7 @@ template <bool allow_empty, class... T>
 class Variant {
 public:
     using CompatibleVariant = Variant<!allow_empty, T...>;
+    friend CompatibleVariant;
     Variant() { static_assert(allow_empty, "empty variant not permitted"); }
     Variant(Variant const &other)           : Variant(other.data_) { }
     Variant(CompatibleVariant const &other) : Variant(other.data_) { }
@@ -139,15 +157,19 @@ public:
     Variant(CompatibleVariant &&other) { data_.swap(other.data_); }
     template <class U>
     Variant(U &&u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type * = nullptr) { emplace<U>(std::forward<U>(u)); }
+    template <class U>
+    Variant(U &u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type * = nullptr) { emplace<U>(u); }
+    template <class U>
+    Variant(U const &u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type * = nullptr) { emplace<U>(u); }
     template <class U, class... Args>
     static Variant make(Args&& ...args) {
         Variant<true, T...> x;
         x.data_.emplace(static_cast<U*>(nullptr), std::forward<Args>(args)...);
-        return x;
+        return std::move(x);
     }
     ~Variant() { data_.destroy(); }
-    Variant &operator=(Variant const &other) { *this = other.data_; }
-    Variant &operator=(CompatibleVariant const &other) { *this = other.data_; }
+    Variant &operator=(Variant const &other) { return *this = other.data_; }
+    Variant &operator=(CompatibleVariant const &other) { return *this = other.data_; }
     Variant &operator=(Variant &&other) { return *this = std::move(other.data_); }
     Variant &operator=(CompatibleVariant &&other) { return *this = std::move(other.data_); }
     void clear() {
@@ -156,12 +178,26 @@ public:
     }
     template <class U>
     typename std::enable_if<Detail::TypeInList<U, T...>::value, Variant>::type &operator=(U &&u) {
-        Variant x(std::forward<U>(u));
-        data_.swap(x.data_);
+        emplace<U>(std::forward<U>(u));
+        return *this;
+    }
+    template <class U>
+    typename std::enable_if<Detail::TypeInList<U, T...>::value, Variant>::type &operator=(U &u) {
+        emplace<U>(u);
+        return *this;
+    }
+    template <class U>
+    typename std::enable_if<Detail::TypeInList<U, T...>::value, Variant>::type &operator=(U const &u) {
+        emplace<U>(u);
         return *this;
     }
     template <class U>
     U &get() {
+        if (!data_.check_type(static_cast<U*>(nullptr))) { throw std::bad_cast(); }
+        return *static_cast<U*>(data_.data_);
+    }
+    template <class U>
+    U const &get() const {
         if (!data_.check_type(static_cast<U*>(nullptr))) { throw std::bad_cast(); }
         return *static_cast<U*>(data_.data_);
     }
@@ -174,26 +210,35 @@ public:
     template <class U>
     bool is() const { return data_.check_type(static_cast<U*>(nullptr)); }
     bool empty() const { return data_.check_type(); }
-    void swap(Variant &other)           { swap(other.data_); }
-    void swap(CompatibleVariant &other) { swap(other.data_); }
+    void swap(Variant &other)           { swap_(other.data_); }
+    void swap(CompatibleVariant &other) {
+        if (!allow_empty) { swap_(other.data_); }
+        else              { other.swap_(data_); }
+    }
+    template <class V>
+    void accept(V &&visitor) {
+        data_.template accept<allow_empty, V>(std::forward<V>(visitor));
+    }
 private:
     using Holder = Detail::VariantHolder<1, T...>;
     Variant(Holder const &data) {
-        if (!allow_empty && data.check_type()) { throw std::runtime_error("copying empty variant"); }
+        if (!allow_empty && data.check_type()) { throw std::logic_error("copying empty variant"); }
         data_.copy(data);
     }
     Variant &operator=(Holder const &data) {
+        if (!allow_empty && data.check_type()) { throw std::logic_error("assigning empty variant"); }
         Variant x(data);
         data_.swap(x.data_);
         return *this;
     }
     Variant &operator=(Holder &&data) {
+        if (!allow_empty && data.check_type()) { throw std::logic_error("assigning empty variant"); }
         data_.swap(data);
         data.destroy();
         return *this;
     }
     void swap_(Holder &data) {
-        if (!allow_empty && data.check_type()) { throw std::runtime_error("swapping empty variant"); }
+        if (!allow_empty && data.check_type()) { throw std::logic_error("swapping empty variant"); }
         data_.swap(data_);
     }
 
