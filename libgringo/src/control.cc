@@ -1121,12 +1121,129 @@ char const *add_string(char const *str) {
     return ret;
 }
 
-void parse_program(char const *program, std::function<void (AST::Statement &stm)> cb, Logger logger, unsigned message_limit) {
-    (void)program;
-    (void)cb;
-    (void)logger;
-    (void)message_limit;
+namespace AST { namespace {
+
+#define ARR(in, out) \
+std::vector<out> conv ## out ## Vec(in const *arr, size_t size) { \
+    std::vector<out> ret; \
+    for (auto it = arr, ie = arr + size; it != ie; ++it) { \
+        ret.emplace_back(conv ## out(*it)); \
+    } \
+    return ret; \
+}
+
+Term convTerm(clingo_ast_term_t const &term) {
+    (void)term;
     throw std::logic_error("implement me!!!");
+}
+
+ARR(clingo_ast_term_t, Term)
+
+HeadLiteral convHeadLiteral(clingo_ast_head_literal_t const &head) {
+    (void)head;
+    throw std::logic_error("implement me!!!");
+}
+
+BodyLiteral convBodyLiteral(clingo_ast_body_literal_t const &body) {
+    (void)body;
+    throw std::logic_error("implement me!!!");
+}
+ARR(clingo_ast_body_literal_t, BodyLiteral)
+
+Id convId(clingo_ast_id_t const &id) {
+    return {Location(id.location), id.id};
+}
+
+ARR(clingo_ast_id_t, Id)
+
+TheoryTermDefinition convTheoryTermDefinition(clingo_ast_theory_term_definition_t const &def) {
+    (void)def;
+    throw std::logic_error("implement me!!!");
+}
+ARR(clingo_ast_theory_term_definition_t, TheoryTermDefinition)
+
+TheoryAtomDefinition convTheoryAtomDefinition(clingo_ast_theory_atom_definition_t const &def) {
+    (void)def;
+    throw std::logic_error("implement me!!!");
+}
+ARR(clingo_ast_theory_atom_definition_t, TheoryAtomDefinition)
+
+
+void convStatement(clingo_ast_statement_t const *stm, StatementCallback &cb) {
+    switch (static_cast<enum clingo_ast_statement_type>(stm->type)) {
+        case clingo_ast_statement_type_rule: {
+            cb(Statement{Location(stm->location), Rule{convHeadLiteral(stm->rule->head), convBodyLiteralVec(stm->rule->body, stm->rule->size)}});
+            break;
+        }
+        case clingo_ast_statement_type_const: {
+            cb(Statement{Location(stm->location), Definition{stm->definition->name, convTerm(stm->definition->value), stm->definition->is_default}});
+            break;
+        }
+        case clingo_ast_statement_type_show_signature: {
+            cb(Statement{Location(stm->location), ShowSignature{Signature(stm->show_signature->signature), stm->show_signature->csp}});
+            break;
+        }
+        case clingo_ast_statement_type_show_term: {
+            cb(Statement{Location(stm->location), ShowTerm{convTerm(stm->show_term->term), convBodyLiteralVec(stm->show_term->body, stm->show_term->size), stm->show_term->csp}});
+            break;
+        }
+        case clingo_ast_statement_type_minimize: {
+            auto &min = *stm->minimize;
+            cb(Statement{Location(stm->location), Minimize{convTerm(min.weight), convTerm(min.priority), convTermVec(min.tuple, min.tuple_size), convBodyLiteralVec(min.body, min.body_size)}});
+            break;
+        }
+        case clingo_ast_statement_type_script: {
+            cb(Statement{Location(stm->location), Script{static_cast<ScriptType>(stm->script->type), stm->script->code}});
+            break;
+        }
+        case clingo_ast_statement_type_program: {
+            cb(Statement{Location(stm->location), Program{stm->program->name, convIdVec(stm->program->parameters, stm->program->size)}});
+            break;
+        }
+        case clingo_ast_statement_type_external: {
+            cb(Statement{Location(stm->location), External{convTerm(stm->external->atom), convBodyLiteralVec(stm->external->body, stm->external->size)}});
+            break;
+        }
+        case clingo_ast_statement_type_edge: {
+            cb(Statement{Location(stm->location), Edge{convTerm(stm->edge->u), convTerm(stm->edge->v), convBodyLiteralVec(stm->edge->body, stm->edge->size)}});
+            break;
+        }
+        case clingo_ast_statement_type_heuristic: {
+            auto &heu = *stm->heuristic;
+            cb(Statement{Location(stm->location), Heuristic{convTerm(heu.atom), convBodyLiteralVec(heu.body, heu.size), convTerm(heu.bias), convTerm(heu.priority), convTerm(heu.modifier)}});
+            break;
+        }
+        case clingo_ast_statement_type_project: {
+            cb(Statement{Location(stm->location), Project{convTerm(stm->project->atom), convBodyLiteralVec(stm->project->body, stm->project->size)}});
+            break;
+        }
+        case clingo_ast_statement_type_project_signatrue: {
+            cb(Statement{Location(stm->location), ProjectSignature{Signature(stm->project_signature)}});
+            break;
+        }
+        case clingo_ast_statement_type_theory_definition: {
+            auto &def = *stm->theory_definition;
+            cb(Statement{Location(stm->location), TheoryDefinition{def.name, convTheoryTermDefinitionVec(def.terms, def.terms_size), convTheoryAtomDefinitionVec(def.atoms, def.atoms_size)}});
+            break;
+        }
+    }
+}
+
+#undef ARR
+
+} } // namespace AST
+
+void parse_program(char const *program, StatementCallback cb, Logger logger, unsigned message_limit) {
+    using Data = std::pair<StatementCallback &, std::exception_ptr>;
+    Data data(cb, nullptr);
+    handleCError(clingo_parse_program(program, [](clingo_ast_statement_t const *stm, void *data) -> clingo_error_t {
+        auto &d = *static_cast<Data*>(data);
+        CLINGO_CALLBACK_TRY { AST::convStatement(stm, d.first); }
+        CLINGO_CALLBACK_CATCH(d.second);
+    }, &data, [](clingo_warning_t code, char const *msg, void *data) {
+        try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
+        catch (...) { }
+    }, &logger, message_limit));
 }
 
 // }}}1
@@ -1879,7 +1996,7 @@ extern "C" clingo_error_t clingo_parse_term(char const *str, clingo_logger_t *lo
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_parse_program(char const *program, unsigned message_limit, clingo_ast_callback_t *cb, void *cb_data, clingo_logger_t *logger, void *logger_data) {
+extern "C" clingo_error_t clingo_parse_program(char const *program, clingo_ast_callback_t *cb, void *cb_data, clingo_logger_t *logger, void *logger_data, unsigned message_limit) {
     GRINGO_CLINGO_TRY {
         Input::ASTBuilder builder([cb, cb_data](clingo_ast_statement_t const &stm) { handleCError(cb(&stm, cb_data)); });
         Input::NonGroundParser parser(builder);

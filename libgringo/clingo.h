@@ -961,7 +961,7 @@ typedef struct clingo_ast_statement {
 
 typedef clingo_error_t clingo_ast_callback_t (clingo_ast_statement_t const *, void *);
 clingo_error_t clingo_parse_term(char const *str, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_symbol_t *ret);
-clingo_error_t clingo_parse_program(char const *program, unsigned message_limit, clingo_ast_callback_t *cb, void *cb_data, clingo_logger_t *logger, void *logger_data);
+clingo_error_t clingo_parse_program(char const *program, clingo_ast_callback_t *cb, void *cb_data, clingo_logger_t *logger, void *logger_data, unsigned message_limit);
 clingo_error_t clingo_add_string(char const *str, char const **ret);
 void clingo_version(int *major, int *minor, int *revision);
 
