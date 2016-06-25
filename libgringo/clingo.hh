@@ -63,26 +63,6 @@ inline std::ostream &operator<<(std::ostream &out, TruthValue tv) {
 
 namespace Detail {
 
-template <class T>
-typename std::enable_if<std::is_copy_constructible<T>::value>::type copy_if_possible(T &dest, T const &src) {
-    new (&dest) T(src);
-}
-
-template <class T>
-typename std::enable_if<!std::is_copy_constructible<T>::value>::type copy_if_possible(T &, T const &) {
-    throw std::runtime_error("variant not copyable");
-}
-
-template <class T>
-typename std::enable_if<std::is_copy_constructible<T>::value || std::is_move_constructible<T>::value>::type move_if_possible(T &dest, T &&src) {
-    new (&dest) T(src);
-}
-
-template <class T>
-typename std::enable_if<!std::is_move_constructible<T>::value && !std::is_copy_constructible<T>::value>::type move_if_possible(T &, T &&) {
-    throw std::runtime_error("variant neither moveable nor copyable");
-}
-
 template <class T, class... U>
 struct TypeInList : std::false_type { };
 
@@ -93,113 +73,132 @@ template <class T, class V, class... U>
 struct TypeInList<T, V, U...> : TypeInList<T, U...> { };
 
 template <unsigned, class... U>
-union VariantHolder;
+struct VariantHolder;
 
-template <unsigned n, class T>
-union VariantHolder<n, T> {
-    VariantHolder() { }
-    ~VariantHolder() { }
-    constexpr unsigned type(T *) const { return n; }
+template <unsigned n>
+struct VariantHolder<n> {
+    bool check_type() const { return type_ == 0; }
+    void emplace() { }
+    void copy(VariantHolder const &) { }
+    void destroy() {
+        type_ = 0;
+        data_ = nullptr;
+    }
+    void swap(VariantHolder &other) {
+        std::swap(type_, other.type_);
+        std::swap(data_, other.data_);
+    }
     template <class V>
-    constexpr unsigned type(V *) const { return 0; }
-    void get(T** p) { *p = &h; }
-    void copy(unsigned type, VariantHolder const &other) { if (type == n) { copy_if_possible(h, other.h); } }
-    void move(unsigned type, VariantHolder &other) { if (type == n) { new (&h) T(std::move(other.h)); } }
-    template <class... Args>
-    void emplace(T *, Args&& ...x) { new (&h) T(std::forward<Args>(x)...); }
-    void destroy(unsigned type) { if (n == type) { h.~T(); } }
-    T h;
+    typename std::enable_if<std::is_copy_constructible<V>::value>::type copy_if_possible(void *src) {
+        data_ = new V(*static_cast<V const*>(src));
+    }
+    template <class V>
+    typename std::enable_if<!std::is_copy_constructible<V>::value>::type copy_if_possible(void *) {
+        throw std::runtime_error("variant not copyable");
+    }
+    unsigned type_ = 0;
+    void *data_ = nullptr;
 };
-template <unsigned n, class T, class S, class... U>
-union VariantHolder<n, T, S, U...> {
-    VariantHolder() { }
-    ~VariantHolder() { }
-    constexpr unsigned type(T *) const { return n; }
-    template <class V>
-    constexpr unsigned type(V *p) const { return data.type(p); }
-    void get(T** p) { *p = &h; }
-    template <class V>
-    void get(V** p) { data.get(p); }
+
+template <unsigned n, class T, class... U>
+struct VariantHolder<n, T, U...> : VariantHolder<n+1, U...>{
+    using Helper = VariantHolder<n+1, U...>;
+    using Helper::check_type;
+    using Helper::emplace;
+    using Helper::data_;
+    using Helper::type_;
+    bool check_type(T *) const { return type_ == n; }
     template <class... Args>
-    void emplace(T *, Args&& ...x) { new (&h) T(std::forward<Args>(x)...); }
-    template <class V, class... Args>
-    void emplace(V *p, Args&& ...x) { data.emplace(p, std::forward<Args>(x)...); }
-    void copy(unsigned type, VariantHolder const &other) {
-        if (type == n) { copy_if_possible(h, other.h); }
-        data.copy(type, other.data);
+    void emplace(T *, Args&& ...x) {
+        data_ = new T(std::forward<Args>(x)...);
+        type_ = n;
     }
-    void move(unsigned type, VariantHolder &other) {
-        if (type == n) { new (&h) T(std::move(other.h)); }
-        data.move(type, other.data);
+    void copy(VariantHolder const &src) {
+        if (src.type_ == n) {
+            Helper::template copy_if_possible<T>(src.data_);
+            type_ = src.type_;
+        }
+        Helper::copy(src);
     }
-    void destroy(unsigned type) {
-        if (n == type) { h.~T(); }
-        data.destroy(type);
+    void destroy() {
+        if (n == type_) { delete static_cast<T*>(data_); }
+        Helper::destroy();
     }
-    T h;
-    VariantHolder<n+1, S, U...> data;
 };
 
 } // Detail
 
-template <class... T>
+template <bool allow_empty, class... T>
 class Variant {
 public:
-    Variant()
-    : type_(0) { }
-    Variant(Variant const &other)
-    : type_(0) {
-        data_.copy(other.type_, other.data_);
-        type_ = other.type_;
-    }
-    Variant(Variant &&other)
-    : type_(0) {
-        data_.move(other.type_, other.data_);
-        type_ = other.type_;
-    }
+    using CompatibleVariant = Variant<!allow_empty, T...>;
+    Variant() { static_assert(allow_empty, "empty variant not permitted"); }
+    Variant(Variant const &other)           : Variant(other.data_) { }
+    Variant(CompatibleVariant const &other) : Variant(other.data_) { }
+    Variant(Variant &&other)           { data_.swap(other.data_); }
+    Variant(CompatibleVariant &&other) { data_.swap(other.data_); }
     template <class U>
-    Variant(U &&u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type * = nullptr)
-    : type_(0) {
-        emplace<U>(std::forward<U>(u));
+    Variant(U &&u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type * = nullptr) { emplace<U>(std::forward<U>(u)); }
+    template <class U, class... Args>
+    static Variant make(Args&& ...args) {
+        Variant<true, T...> x;
+        x.data_.emplace(static_cast<U*>(nullptr), std::forward<Args>(args)...);
+        return x;
     }
-    Variant &operator=(Variant const &other) {
-        data_.destroy(type_);
-        data_.copy(other.type_, other.data_);
-        type_ = other.type_;
-        return *this;
-    }
-    Variant &operator=(Variant &&other) {
-        data_.destroy(type_);
-        data_.move(other.type_, other.data_);
-        type_ = other.type_;
-        return *this;
+    ~Variant() { data_.destroy(); }
+    Variant &operator=(Variant const &other) { *this = other.data_; }
+    Variant &operator=(CompatibleVariant const &other) { *this = other.data_; }
+    Variant &operator=(Variant &&other) { return *this = std::move(other.data_); }
+    Variant &operator=(CompatibleVariant &&other) { return *this = std::move(other.data_); }
+    void clear() {
+        static_assert(allow_empty, "clearing variant not permitted");
+        data_.destroy();
     }
     template <class U>
     typename std::enable_if<Detail::TypeInList<U, T...>::value, Variant>::type &operator=(U &&u) {
-        data_.destroy(type_);
-        emplace<U>(std::forward<U>(u));
+        Variant x(std::forward<U>(u));
+        data_.swap(x.data_);
         return *this;
     }
     template <class U>
     U &get() {
-        U* p;
-        if (type_ != data_.type(static_cast<U*>(nullptr))) { throw std::bad_cast(); }
-        data_.get(&p);
-        return *p;
+        if (!data_.check_type(static_cast<U*>(nullptr))) { throw std::bad_cast(); }
+        return *static_cast<U*>(data_.data_);
     }
     template <class U, class... Args>
-    void emplace(Args&& ...x) {
-        data_.destroy(type_);
-        data_.emplace(static_cast<U*>(nullptr), std::forward<Args>(x)...);
-        type_ = data_.type(static_cast<U*>(nullptr));
+    void emplace(Args&& ...args) {
+        Variant<true, T...> x;
+        x.data_.emplace(static_cast<U*>(nullptr), std::forward<Args>(args)...);
+        data_.swap(x.data_);
     }
     template <class U>
-    bool is() const { return data_.type(static_cast<U*>(nullptr)) == type_; }
-    bool empty() const { return type_ == 0; }
-    ~Variant() { data_.destroy(type_); }
+    bool is() const { return data_.check_type(static_cast<U*>(nullptr)); }
+    bool empty() const { return data_.check_type(); }
+    void swap(Variant &other)           { swap(other.data_); }
+    void swap(CompatibleVariant &other) { swap(other.data_); }
 private:
-    unsigned type_;
-    Detail::VariantHolder<1, T...> data_;
+    using Holder = Detail::VariantHolder<1, T...>;
+    Variant(Holder const &data) {
+        if (!allow_empty && data.check_type()) { throw std::runtime_error("copying empty variant"); }
+        data_.copy(data);
+    }
+    Variant &operator=(Holder const &data) {
+        Variant x(data);
+        data_.swap(x.data_);
+        return *this;
+    }
+    Variant &operator=(Holder &&data) {
+        data_.swap(data);
+        data.destroy();
+        return *this;
+    }
+    void swap_(Holder &data) {
+        if (!allow_empty && data.check_type()) { throw std::runtime_error("swapping empty variant"); }
+        data_.swap(data_);
+    }
+
+private:
+    Holder data_;
 };
 
 // {{{1 span
@@ -991,26 +990,27 @@ inline std::ostream &operator<<(std::ostream &out, Sign op) {
 
 // variable
 
-struct Variable {
-    std::string name;
-};
+struct Variable;
 struct UnaryOperation;
 struct BinaryOperation;
 struct Interval;
 struct Function;
 struct Pool;
 
-// TODO: seeing this the variant can hold a unique_ptr internally as well
-
-using UUnaryOperation = std::unique_ptr<UnaryOperation>;
-using UBinaryOperation = std::unique_ptr<BinaryOperation>;
-using UInterval = std::unique_ptr<Interval>;
-using UFunction = std::unique_ptr<Function>;
-using UPool = std::unique_ptr<Pool>;
-
 struct Term {
     Location location;
-    Variant<Symbol, Variable, UUnaryOperation, UBinaryOperation, UInterval, UFunction, UPool> value;
+    Variant<false, Symbol, Variable, UnaryOperation, BinaryOperation, Interval, Function, Pool> data;
+};
+
+struct OptionalTerm {
+    Location location;
+    Variant<true, Symbol, Variable, UnaryOperation, BinaryOperation, Interval, Function, Pool> data;
+};
+
+// Variable
+
+struct Variable {
+    std::string name;
 };
 
 // unary operation
@@ -1110,8 +1110,7 @@ inline Pool::~Pool() noexcept = default;
 struct CSPMultiply {
     Location location;
     Term coefficient;
-    // Note: can be empty
-    Term variable;
+    OptionalTerm variable;
 };
 
 struct CSPAdd {
@@ -1147,7 +1146,7 @@ struct Comparison {
 struct Literal {
     Location location;
     Sign sign;
-    Variant<bool, Term, Comparison, CSPLiteral> value;
+    Variant<false, bool, Term, Comparison, CSPLiteral> data;
 };
 
 /*

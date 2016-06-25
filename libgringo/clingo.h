@@ -510,12 +510,12 @@ typedef struct clingo_ast_csp_add_term {
 
 typedef struct clingo_ast_csp_guard {
     clingo_ast_comparison_operator_t comparison;
-    clingo_ast_csp_add_term term;
+    clingo_ast_csp_add_term_t term;
 } clingo_ast_csp_guard_t;
 
 typedef struct clingo_ast_csp_literal {
     clingo_ast_csp_add_term_t term;
-    clingo_ast_csp_guard const *guards;
+    clingo_ast_csp_guard_t const *guards;
     // NOTE: size must be at least one
     size_t size;
 } clingo_ast_csp_literal_t;
@@ -551,7 +551,7 @@ typedef struct clingo_ast_literal {
         bool boolean;
         clingo_ast_term_t const *symbol;
         clingo_ast_comparison_t const *comparison;
-        clingo_ast_csp_literal const *csp;
+        clingo_ast_csp_literal_t const *csp;
     };
 } clingo_ast_literal_t;
 
@@ -582,8 +582,8 @@ typedef struct clingo_ast_conditional_literal {
 typedef struct clingo_ast_aggregate {
     clingo_ast_conditional_literal_t const *elements;
     size_t size;
-    clingo_ast_aggregate_guard const *left_guard;
-    clingo_ast_aggregate_guard const *right_guard;
+    clingo_ast_aggregate_guard_t const *left_guard;
+    clingo_ast_aggregate_guard_t const *right_guard;
 } clingo_ast_aggregate_t;
 
 // body aggregate
@@ -596,11 +596,11 @@ typedef struct clingo_ast_body_aggregate_element {
 } clingo_ast_body_aggregate_element_t;
 
 typedef struct clingo_ast_body_aggregate {
-    clingo_ast_aggregate_function function;
-    clingo_ast_body_aggregate_element const *elements;
+    clingo_ast_aggregate_function_t function;
+    clingo_ast_body_aggregate_element_t const *elements;
     size_t size;
-    clingo_ast_aggregate_guard const *left_guard;
-    clingo_ast_aggregate_guard const *right_guard;
+    clingo_ast_aggregate_guard_t const *left_guard;
+    clingo_ast_aggregate_guard_t const *right_guard;
 } clingo_ast_body_aggregate_t;
 
 // head aggregate
@@ -612,11 +612,11 @@ typedef struct clingo_ast_head_aggregate_element {
 } clingo_ast_head_aggregate_element_t;
 
 typedef struct clingo_ast_head_aggregate {
-    clingo_ast_aggregate_function function;
-    clingo_ast_head_aggregate_element const *elements;
+    clingo_ast_aggregate_function_t function;
+    clingo_ast_head_aggregate_element_t const *elements;
     size_t size;
-    clingo_ast_aggregate_guard const *left_guard;
-    clingo_ast_aggregate_guard const *right_guard;
+    clingo_ast_aggregate_guard_t const *left_guard;
+    clingo_ast_aggregate_guard_t const *right_guard;
 } clingo_ast_head_aggregate_t;
 
 // disjunction
@@ -638,7 +638,7 @@ typedef struct clingo_ast_disjoint_element {
 } clingo_ast_disjoint_element_t;
 
 typedef struct clingo_ast_disjoint {
-    clingo_ast_disjoint_element const *elements;
+    clingo_ast_disjoint_element_t const *elements;
     size_t size;
 } clingo_ast_disjoint_t;
 
@@ -704,14 +704,14 @@ typedef struct clingo_ast_theory_atom_element {
 
 typedef struct clingo_ast_theory_guard {
     char const *operator_name;
-    clingo_ast_theory_term term;
+    clingo_ast_theory_term_t term;
 } clingo_ast_theory_guard_t;
 
 typedef struct clingo_ast_theory_atom {
     clingo_ast_term_t term;
-    clingo_ast_theory_atom_element const *elements;
+    clingo_ast_theory_atom_element_t const *elements;
     size_t size;
-    clingo_ast_theory_guard const *guard;
+    clingo_ast_theory_guard_t const *guard;
 } clingo_ast_theory_atom_t;
 
 // {{{2 head literals
