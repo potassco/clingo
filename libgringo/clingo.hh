@@ -96,13 +96,8 @@ struct VariantHolder<n> {
     typename std::enable_if<!std::is_copy_constructible<V>::value>::type copy_if_possible(void *) {
         throw std::runtime_error("variant not copyable");
     }
-    template <bool allow_empty, class V>
-    void accept(V &&visitor, typename std::enable_if<allow_empty>::type * = nullptr) const {
-        if (type_ == 0) { visitor.visit(); }
-    }
-    template <bool allow_empty, class V>
-    void accept(V &&, typename std::enable_if<!allow_empty>::type * = nullptr) const {
-    }
+    template <class V>
+    void accept(V &&) const { }
     unsigned type_ = 0;
     void *data_ = nullptr;
 };
@@ -127,15 +122,15 @@ struct VariantHolder<n, T, U...> : VariantHolder<n+1, U...>{
         }
         Helper::copy(src);
     }
-    template <bool allow_empty, class V>
+    template <class V>
     void accept(V &&visitor) {
         if (n == type_) { visitor.visit(*static_cast<T*>(data_)); }
-        Helper::template accept<allow_empty, V>(std::forward<V>(visitor));
+        Helper::template accept<V>(std::forward<V>(visitor));
     }
-    template <bool allow_empty, class V>
+    template <class V>
     void accept(V &&visitor) const {
         if (n == type_) { visitor.visit(*static_cast<T const*>(data_)); }
-        Helper::template accept<allow_empty, V>(std::forward<V>(visitor));
+        Helper::template accept<V>(std::forward<V>(visitor));
     }
     void destroy() {
         if (n == type_) { delete static_cast<T*>(data_); }
@@ -145,16 +140,11 @@ struct VariantHolder<n, T, U...> : VariantHolder<n+1, U...>{
 
 } // Detail
 
-template <bool allow_empty, class... T>
+template <class... T>
 class Variant {
 public:
-    using CompatibleVariant = Variant<!allow_empty, T...>;
-    friend CompatibleVariant;
-    Variant() { static_assert(allow_empty, "empty variant not permitted"); }
-    Variant(Variant const &other)           : Variant(other.data_) { }
-    Variant(CompatibleVariant const &other) : Variant(other.data_) { }
-    Variant(Variant &&other)           { data_.swap(other.data_); }
-    Variant(CompatibleVariant &&other) { data_.swap(other.data_); }
+    Variant(Variant const &other) : Variant(other.data_) { }
+    Variant(Variant &&other)      { data_.swap(other.data_); }
     template <class U>
     Variant(U &&u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type * = nullptr) { emplace<U>(std::forward<U>(u)); }
     template <class U>
@@ -163,19 +153,13 @@ public:
     Variant(U const &u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type * = nullptr) { emplace<U>(u); }
     template <class U, class... Args>
     static Variant make(Args&& ...args) {
-        Variant<true, T...> x;
+        Variant<T...> x;
         x.data_.emplace(static_cast<U*>(nullptr), std::forward<Args>(args)...);
         return std::move(x);
     }
     ~Variant() { data_.destroy(); }
     Variant &operator=(Variant const &other) { return *this = other.data_; }
-    Variant &operator=(CompatibleVariant const &other) { return *this = other.data_; }
     Variant &operator=(Variant &&other) { return *this = std::move(other.data_); }
-    Variant &operator=(CompatibleVariant &&other) { return *this = std::move(other.data_); }
-    void clear() {
-        static_assert(allow_empty, "clearing variant not permitted");
-        data_.destroy();
-    }
     template <class U>
     typename std::enable_if<Detail::TypeInList<U, T...>::value, Variant>::type &operator=(U &&u) {
         emplace<U>(std::forward<U>(u));
@@ -203,43 +187,32 @@ public:
     }
     template <class U, class... Args>
     void emplace(Args&& ...args) {
-        Variant<true, T...> x;
+        Variant<T...> x;
         x.data_.emplace(static_cast<U*>(nullptr), std::forward<Args>(args)...);
         data_.swap(x.data_);
     }
     template <class U>
     bool is() const { return data_.check_type(static_cast<U*>(nullptr)); }
-    bool empty() const { return data_.check_type(); }
-    void swap(Variant &other)           { swap_(other.data_); }
-    void swap(CompatibleVariant &other) {
-        if (!allow_empty) { swap_(other.data_); }
-        else              { other.swap_(data_); }
-    }
+    void swap(Variant &other) { data_.swap(other.data_); }
     template <class V>
     void accept(V &&visitor) {
-        data_.template accept<allow_empty, V>(std::forward<V>(visitor));
+        data_.template accept<V>(std::forward<V>(visitor));
     }
 private:
     using Holder = Detail::VariantHolder<1, T...>;
+    Variant() { }
     Variant(Holder const &data) {
-        if (!allow_empty && data.check_type()) { throw std::logic_error("copying empty variant"); }
         data_.copy(data);
     }
     Variant &operator=(Holder const &data) {
-        if (!allow_empty && data.check_type()) { throw std::logic_error("assigning empty variant"); }
         Variant x(data);
         data_.swap(x.data_);
         return *this;
     }
     Variant &operator=(Holder &&data) {
-        if (!allow_empty && data.check_type()) { throw std::logic_error("assigning empty variant"); }
         data_.swap(data);
         data.destroy();
         return *this;
-    }
-    void swap_(Holder &data) {
-        if (!allow_empty && data.check_type()) { throw std::logic_error("swapping empty variant"); }
-        data_.swap(data_);
     }
 
 private:
@@ -1044,18 +1017,13 @@ struct Pool;
 
 struct Term {
     Location location;
-    Variant<false, Symbol, Variable, UnaryOperation, BinaryOperation, Interval, Function, Pool> data;
-};
-
-struct OptionalTerm {
-    Location location;
-    Variant<true, Symbol, Variable, UnaryOperation, BinaryOperation, Interval, Function, Pool> data;
+    Variant<Symbol, Variable, UnaryOperation, BinaryOperation, Interval, Function, Pool> data;
 };
 
 // Variable
 
 struct Variable {
-    std::string name;
+    char const *name;
 };
 
 // unary operation
@@ -1131,7 +1099,7 @@ struct Interval {
 struct Function {
     ~Function() noexcept;
 
-    std::string name;
+    char const *name;
     std::vector<Term> arguments;
     bool external;
 };
@@ -1155,7 +1123,7 @@ inline Pool::~Pool() noexcept = default;
 struct CSPMultiply {
     Location location;
     Term coefficient;
-    OptionalTerm variable;
+    std::unique_ptr<Term> variable;
 };
 
 struct CSPAdd {
@@ -1177,7 +1145,7 @@ struct CSPLiteral {
 
 struct Id {
     Location location;
-    std::string id;
+    char const *id;
 };
 
 // {{{2 literals
@@ -1191,412 +1159,333 @@ struct Comparison {
 struct Literal {
     Location location;
     Sign sign;
-    Variant<false, bool, Term, Comparison, CSPLiteral> data;
+    Variant<bool, Term, Comparison, CSPLiteral> data;
 };
 
-/*
 // {{{2 aggregates
 
-enum clingo_ast_aggregate_function {
-    clingo_ast_aggregate_function_count = 0,
-    clingo_ast_aggregate_function_sum   = 1,
-    clingo_ast_aggregate_function_sump  = 2,
-    clingo_ast_aggregate_function_min   = 3,
-    clingo_ast_aggregate_function_max   = 4
+enum class AggregateFunction : clingo_ast_aggregate_function_t {
+    Count   = clingo_ast_aggregate_function_count,
+    Sum     = clingo_ast_aggregate_function_sum,
+    SumPlus = clingo_ast_aggregate_function_sump,
+    Min     = clingo_ast_aggregate_function_min,
+    Max     = clingo_ast_aggregate_function_max
 };
-typedef int clingo_ast_aggregate_function_t;
 
-typedef struct clingo_ast_aggregate_guard {
-    clingo_ast_comparison_operator_t comparison;
-    clingo_ast_term_t term;
-} clingo_ast_aggregate_guard_t;
+inline std::ostream &operator<<(std::ostream &out, AggregateFunction op) {
+    switch (op) {
+        case AggregateFunction::Count:   { out << "#count"; break; }
+        case AggregateFunction::Sum:     { out << "#sum"; break; }
+        case AggregateFunction::SumPlus: { out << "#sum+"; break; }
+        case AggregateFunction::Min:     { out << "#min"; break; }
+        case AggregateFunction::Max:     { out << "#max"; break; }
+    }
+    return out;
+}
 
-typedef struct clingo_ast_conditional_literal {
-    clingo_ast_literal_t literal;
-    clingo_ast_literal_t const *condition;
-    size_t size;
-} clingo_ast_conditional_literal_t;
+struct AggregateGuard {
+    ComparisonOperator comparison;
+    Term term;
+};
+
+struct ConditionalLiteral {
+    Literal literal;
+    std::vector<Literal> condition;
+};
 
 // lparse-style aggregate
 
-typedef struct clingo_ast_aggregate {
-    clingo_ast_conditional_literal_t const *elements;
-    size_t size;
-    clingo_ast_aggregate_guard const *left_guard;
-    clingo_ast_aggregate_guard const *right_guard;
-} clingo_ast_aggregate_t;
+struct Aggregate {
+    std::vector<ConditionalLiteral> elements;
+    std::unique_ptr<AggregateGuard> left_guard;
+    std::unique_ptr<AggregateGuard> right_guard;
+};
 
 // body aggregate
 
-typedef struct clingo_ast_body_aggregate_element {
-    clingo_ast_term_t *tuple;
-    size_t tuple_size;
-    clingo_ast_literal_t const *condition;
-    size_t condition_size;
-} clingo_ast_body_aggregate_element_t;
+struct BodyAggregateElement {
+    std::vector<Term> tuple;
+    std::vector<Literal> condition;
+};
 
-typedef struct clingo_ast_body_aggregate {
-    clingo_ast_aggregate_function function;
-    clingo_ast_body_aggregate_element const *elements;
-    size_t size;
-    clingo_ast_aggregate_guard const *left_guard;
-    clingo_ast_aggregate_guard const *right_guard;
-} clingo_ast_body_aggregate_t;
+struct BodyAggregate {
+    AggregateFunction function;
+    std::vector<BodyAggregateElement> elements;
+    std::unique_ptr<AggregateGuard> left_guard;
+    std::unique_ptr<AggregateGuard> right_guard;
+};
 
 // head aggregate
 
-typedef struct clingo_ast_head_aggregate_element {
-    clingo_ast_term_t const *tuple;
-    size_t tuple_size;
-    clingo_ast_conditional_literal_t conditional_literal;
-} clingo_ast_head_aggregate_element_t;
+struct HeadAggregateElement {
+    std::vector<Term> tuple;
+    ConditionalLiteral condition;
+};
 
-typedef struct clingo_ast_head_aggregate {
-    clingo_ast_aggregate_function function;
-    clingo_ast_head_aggregate_element const *elements;
-    size_t size;
-    clingo_ast_aggregate_guard const *left_guard;
-    clingo_ast_aggregate_guard const *right_guard;
-} clingo_ast_head_aggregate_t;
+struct HeadAggregate {
+    AggregateFunction function;
+    std::vector<HeadAggregateElement> elements;
+    std::unique_ptr<AggregateGuard> left_guard;
+    std::unique_ptr<AggregateGuard> right_guard;
+};
 
 // disjunction
 
-typedef struct clingo_ast_disjunction {
-    clingo_ast_conditional_literal_t const *elements;
-    size_t size;
-} clingo_ast_disjunction_t;
+struct Disjunction {
+    std::vector<ConditionalLiteral> elements;
+};
 
 // disjoint
 
-typedef struct clingo_ast_disjoint_element {
-    clingo_location_t location;
-    clingo_ast_term_t const *tuple;
-    size_t tuple_size;
-    clingo_ast_csp_add_term_t term;
-    clingo_ast_literal_t const *condition;
-    size_t condition_size;
-} clingo_ast_disjoint_element_t;
+struct DisjointElement {
+    Location location;
+    std::vector<Term> tuple;
+    CSPAdd term;
+    std::vector<Literal> condition;
+};
 
-typedef struct clingo_ast_disjoint {
-    clingo_ast_disjoint_element const *elements;
-    size_t size;
-} clingo_ast_disjoint_t;
+struct Disjoint {
+    std::vector<DisjointElement> elements;
+};
 
 // {{{2 theory atom
 
-enum clingo_ast_theory_term_type {
-    clingo_ast_theory_term_type_symbol              = 0,
-    clingo_ast_theory_term_type_variable            = 1,
-    clingo_ast_theory_term_type_tuple               = 2,
-    clingo_ast_theory_term_type_list                = 3,
-    clingo_ast_theory_term_type_set                 = 4,
-    clingo_ast_theory_term_type_function            = 5,
-    clingo_ast_theory_term_type_unparsed_term_array = 6
-};
-typedef int clingo_ast_theory_term_type_t;
-
-typedef struct clingo_ast_theory_function clingo_ast_theory_function_t;
-typedef struct clingo_ast_theory_term_array clingo_ast_theory_term_array_t;
-typedef struct clingo_ast_theory_unparsed_term_array clingo_ast_theory_unparsed_term_array_t;
-
-typedef struct clingo_ast_theory_term {
-    clingo_location_t location;
-    clingo_ast_theory_term_type_t type;
-    union {
-        clingo_symbol_t symbol;
-        char const *variable;
-        clingo_ast_theory_term_array_t const *tuple;
-        clingo_ast_theory_term_array_t const *list;
-        clingo_ast_theory_term_array_t const *set;
-        clingo_ast_theory_function_t const *function;
-        clingo_ast_theory_unparsed_term_array_t const *unparsed_array;
-    };
-} clingo_ast_theory_term_t;
-
-struct clingo_ast_theory_term_array {
-    clingo_ast_theory_term_t const *terms;
-    size_t size;
+enum class TheoryTermSequenceType : int {
+    Tuple = 0,
+    List  = 1,
+    Set   = 2
 };
 
-struct clingo_ast_theory_function {
+struct TheoryFunction;
+struct TheoryTermSequence;
+struct TheoryUnparsedTerm;
+
+struct TheoryTerm {
+    Location location;
+    Variant<Symbol, Variable, TheoryTermSequence, std::vector<TheoryUnparsedTerm>> data;
+};
+
+struct TheoryTermSequence {
+    TheoryTermSequenceType type;
+    std::vector<TheoryTerm> terms;
+};
+
+struct TheoryFunction {
     char const *name;
-    clingo_ast_theory_term_t const *arguments;
-    size_t size;
+    std::vector<TheoryTerm> arguments;
 };
 
-typedef struct clingo_ast_theory_unparsed_term {
-    char const *const *operators;
-    size_t size;
-    clingo_ast_theory_term_t term;
-} clingo_ast_theory_unparsed_term_t;
-
-struct clingo_ast_theory_unparsed_term_array {
-    clingo_ast_theory_unparsed_term_t const *terms;
-    size_t size;
+struct TheoryUnparsedTerm {
+    std::vector<char const *> operators;
+    TheoryTerm term;
 };
 
-typedef struct clingo_ast_theory_atom_element {
-    clingo_ast_theory_term_t const *tuple;
-    size_t tuple_size;
-    clingo_ast_literal_t const *condition;
-    size_t condition_size;
-} clingo_ast_theory_atom_element_t;
+struct TheoryAtomElement {
+    std::vector<TheoryTerm> tuple;
+    std::vector<Literal> condition;
+};
 
-typedef struct clingo_ast_theory_guard {
+struct TheoryGuard {
     char const *operator_name;
-    clingo_ast_theory_term term;
-} clingo_ast_theory_guard_t;
+    TheoryTerm term;
+};
 
-typedef struct clingo_ast_theory_atom {
-    clingo_ast_term_t term;
-    clingo_ast_theory_atom_element const *elements;
-    size_t size;
-    clingo_ast_theory_guard const *guard;
-} clingo_ast_theory_atom_t;
+struct TheoryAtom {
+    Term term;
+    std::vector<TheoryAtomElement> elements;
+    std::unique_ptr<TheoryGuard> guard;
+};
 
 // {{{2 head literals
 
-enum clingo_ast_head_literal_type {
-    clingo_ast_head_literal_type_literal        = 0,
-    clingo_ast_head_literal_type_disjunction    = 1,
-    clingo_ast_head_literal_type_aggregate      = 2,
-    clingo_ast_head_literal_type_head_aggregate = 3,
-    clingo_ast_head_literal_type_theory         = 4
+struct HeadLiteral {
+    Location location;
+    Variant<Literal, Disjunction, Aggregate, HeadAggregate, TheoryAtom> data;
 };
-typedef int clingo_ast_head_literal_type_t;
-
-typedef struct clingo_ast_head_literal {
-    clingo_location_t location;
-    clingo_ast_head_literal_type_t type;
-    union {
-        clingo_ast_literal_t const *literal;
-        clingo_ast_disjunction_t const *disjunction;
-        clingo_ast_aggregate_t const *aggregate;
-        clingo_ast_head_aggregate_t const *head_aggregate;
-        clingo_ast_theory_atom_t const *theory_atom;
-    };
-} clingo_ast_head_literal_t;
 
 // {{{2 body literals
 
-enum clingo_ast_body_literal_type {
-    clingo_ast_body_literal_type_literal        = 0,
-    clingo_ast_body_literal_type_conditional    = 1,
-    clingo_ast_body_literal_type_aggregate      = 2,
-    clingo_ast_body_literal_type_body_aggregate = 3,
-    clingo_ast_body_literal_type_theory         = 4,
-    clingo_ast_body_literal_type_disjoint       = 5
+struct BodyLiteral {
+    Location location;
+    Sign sign;
+    Variant<Literal, ConditionalLiteral, Aggregate, BodyAggregate, TheoryAtom, Disjoint> data;
 };
-typedef int clingo_ast_body_literal_type_t;
-
-typedef struct clingo_ast_body_literal {
-    clingo_location_t location;
-    clingo_ast_sign_t sign;
-    clingo_ast_body_literal_type_t type;
-    union {
-        clingo_ast_literal_t const *literal;
-        // Note: conditional literals must not have signs!!!
-        clingo_ast_conditional_literal_t const *conditional;
-        clingo_ast_aggregate_t const *aggregate;
-        clingo_ast_body_aggregate_t const *body_aggregate;
-        clingo_ast_theory_atom_t const *theory_atom;
-        clingo_ast_disjoint_t const *disjoint;
-    };
-} clingo_ast_body_literal_t;
 
 // {{{2 theory definitions
 
-enum clingo_ast_theory_operator_type {
-     clingo_ast_theory_operator_type_unary        = 0,
-     clingo_ast_theory_operator_type_binary_left  = 1,
-     clingo_ast_theory_operator_type_binary_right = 2
+enum class TheoryOperatorType : clingo_ast_theory_operator_type_t {
+     Unary       = clingo_ast_theory_operator_type_unary,
+     BinaryLeft  = clingo_ast_theory_operator_type_binary_left,
+     BinaryRight = clingo_ast_theory_operator_type_binary_right
 };
-typedef int clingo_ast_theory_operator_type_t;
 
-typedef struct clingo_ast_theory_operator_definition {
-    clingo_location_t location;
+inline std::ostream &operator<<(std::ostream &out, TheoryOperatorType op) {
+    switch (op) {
+        case TheoryOperatorType::Unary:       { out << "unary"; break; }
+        case TheoryOperatorType::BinaryLeft:  { out << "unary"; break; }
+        case TheoryOperatorType::BinaryRight: { out << "unary"; break; }
+    }
+    return out;
+}
+
+struct TheoryOperatorDefinition {
+    Location location;
     char const *name;
     unsigned priority;
-    clingo_ast_theory_operator_type_t type;
-} clingo_ast_theory_operator_definition_t;
-
-typedef struct clingo_ast_theory_term_definition {
-    clingo_location_t location;
-    char const *name;
-    clingo_ast_theory_operator_definition_t const *operators;
-    size_t size;
-} clingo_ast_theory_term_definition_t;
-
-typedef struct clingo_ast_theory_guard_definition {
-    char const *guard;
-    char const *const *operators;
-    size_t size;
-} clingo_ast_theory_guard_definition_t;
-
-enum clingo_ast_theory_atom_definition_type {
-    clingo_ast_theory_atom_definition_type_head      = 0,
-    clingo_ast_theory_atom_definition_type_body      = 1,
-    clingo_ast_theory_atom_definition_type_any       = 2,
-    clingo_ast_theory_atom_definition_type_directive = 3,
+    TheoryOperatorType type;
 };
-typedef int clingo_ast_theory_atom_definition_type_t;
 
-typedef struct clingo_ast_theory_atom_definition {
-    clingo_location_t location;
-    clingo_ast_theory_atom_definition_type_t type;
+struct TheoryTermDefinition {
+    Location location;
+    char const *name;
+    std::vector<TheoryOperatorDefinition> operators;
+};
+
+struct TheoryGuardDefinition {
+    char const *guard;
+    std::vector<const char *> operators;
+};
+
+enum class TheoryAtomDefinitionType : clingo_ast_theory_atom_definition_type_t {
+    Head      = clingo_ast_theory_atom_definition_type_head,
+    Body      = clingo_ast_theory_atom_definition_type_body,
+    Any       = clingo_ast_theory_atom_definition_type_any,
+    Directive = clingo_ast_theory_atom_definition_type_directive
+};
+
+inline std::ostream &operator<<(std::ostream &out, TheoryAtomDefinitionType op) {
+    switch (op) {
+        case TheoryAtomDefinitionType::Head:      { out << "head"; break; }
+        case TheoryAtomDefinitionType::Body:      { out << "body"; break; }
+        case TheoryAtomDefinitionType::Any:       { out << "any"; break; }
+        case TheoryAtomDefinitionType::Directive: { out << "directive"; break; }
+    }
+    return out;
+}
+
+struct TheoryAtomDefinition {
+    Location location;
+    TheoryAtomDefinitionType type;
     char const *name;
     unsigned arity;
     char const *elements;
-    clingo_ast_theory_guard_definition_t const *guard;
-} clingo_ast_theory_atom_definition_t;
+    std::unique_ptr<TheoryGuardDefinition> guard;
+};
 
-typedef struct clingo_ast_theory_definition {
+struct TheoryDefinition {
     char const *name;
-    clingo_ast_theory_term_definition_t const *terms;
-    size_t terms_size;
-    clingo_ast_theory_atom_definition_t const *atoms;
-    size_t atoms_size;
-} clingo_ast_theory_definition_t;
+    std::vector<TheoryTermDefinition> terms;
+    std::vector<TheoryAtomDefinition> atoms;
+};
 
 // {{{2 statements
 
 // rule
 
-typedef struct clingo_ast_rule {
-    clingo_ast_head_literal_t head;
-    clingo_ast_body_literal_t const *body;
-    size_t size;
-} clingo_ast_rule_t;
+struct Rule {
+    HeadLiteral head;
+    std::vector<BodyLiteral> body;
+};
 
 // definition
 
-typedef struct clingo_ast_definition {
+struct Definition {
     char const *name;
-    clingo_ast_term_t value;
+    Term value;
     bool is_default;
-} clingo_ast_definition_t;
+};
 
 // show
 
-typedef struct clingo_ast_show_signature {
-    clingo_signature_t signature;
+struct ShowSignature {
+    Signature signature;
     bool csp;
-} clingo_ast_show_signature_t;
+};
 
-typedef struct clingo_ast_show_term {
-    clingo_ast_term_t term;
-    clingo_ast_body_literal_t const *body;
-    size_t size;
+struct ShowTerm {
+    Term term;
+    std::vector<BodyLiteral> body;
     bool csp;
-} clingo_ast_show_term_t;
+};
 
 // minimize
 
-typedef struct clingo_ast_minimize {
-    clingo_ast_term_t weight;
-    clingo_ast_term_t priority;
-    clingo_ast_term_t const *tuple;
-    size_t tuple_size;
-    clingo_ast_body_literal_t const *body;
-    size_t body_size;
-} clingo_ast_minimize_t;
+struct Minimize {
+    Term weight;
+    Term priority;
+    std::vector<Term> tuple;
+    std::vector<BodyLiteral> body;
+};
 
 // script
 
-enum clingo_ast_script_type {
-    clingo_ast_script_type_lua    = 0,
-    clingo_ast_script_type_python = 1
+enum class ScriptType : clingo_ast_script_type_t {
+    Lua    = clingo_ast_script_type_lua,
+    Python = clingo_ast_script_type_python
 };
-typedef int clingo_ast_script_type_t;
 
-typedef struct clingo_ast_script {
-    clingo_ast_script_type_t type;
+inline std::ostream &operator<<(std::ostream &out, ScriptType op) {
+    switch (op) {
+        case ScriptType::Lua:    { out << "lua"; break; }
+        case ScriptType::Python: { out << "python"; break; }
+    }
+    return out;
+}
+
+struct Script {
+    ScriptType type;
     char const *code;
-} clingo_ast_script_t;
+};
 
 // program
 
-typedef struct clingo_ast_program {
+struct Program {
     char const *name;
-    clingo_ast_id_t const *parameters;
-    size_t size;
-} clingo_ast_program_t;
+    std::vector<Id> parameters;
+};
 
 // external
 
-typedef struct clingo_ast_external {
-    clingo_ast_term_t atom;
-    clingo_ast_body_literal_t const *body;
-    size_t size;
-} clingo_ast_external_t;
+struct External {
+    Term atom;
+    std::vector<BodyLiteral> body;
+};
 
 // edge
 
-typedef struct clingo_ast_edge {
-    clingo_ast_term_t u;
-    clingo_ast_term_t v;
-    clingo_ast_body_literal_t const *body;
-    size_t size;
-} clingo_ast_edge_t;
+struct Edge {
+    Term u;
+    Term v;
+    std::vector<BodyLiteral> body;
+};
 
 // heuristic
 
-typedef struct clingo_ast_heuristic {
-    clingo_ast_term_t atom;
-    clingo_ast_body_literal_t const *body;
-    size_t size;
-    clingo_ast_term_t bias;
-    clingo_ast_term_t priority;
-    clingo_ast_term_t modifier;
-} clingo_ast_heuristic_t;
+struct Heuristic {
+    Term atom;
+    std::vector<BodyLiteral> body;
+    Term bias;
+    Term priority;
+    Term modifier;
+};
 
 // project
 
-typedef struct clingo_ast_project {
-    clingo_ast_term_t atom;
-    clingo_ast_body_literal_t const *body;
-    size_t size;
-} clingo_ast_project_t;
+struct Project {
+    Term atom;
+    std::vector<BodyLiteral> body;
+};
+
+struct ProjectSignature {
+    Signature signature;
+};
 
 // statement
 
-enum clingo_ast_statement_type {
-    clingo_ast_statement_type_rule              = 0,
-    clingo_ast_statement_type_const             = 1,
-    clingo_ast_statement_type_show_signature    = 2,
-    clingo_ast_statement_type_show_term         = 3,
-    clingo_ast_statement_type_minimize          = 4,
-    clingo_ast_statement_type_script            = 5,
-    clingo_ast_statement_type_program           = 6,
-    clingo_ast_statement_type_external          = 7,
-    clingo_ast_statement_type_edge              = 8,
-    clingo_ast_statement_type_heuristic         = 9,
-    clingo_ast_statement_type_project           = 10,
-    clingo_ast_statement_type_project_signatrue = 11,
-    clingo_ast_statement_type_theory_definition = 12
+struct Statement {
+    Location location;
+    Variant<Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, Project, ProjectSignature, TheoryDefinition> data;
 };
-typedef int clingo_ast_statement_type_t;
-
-typedef struct clingo_ast_statement {
-    clingo_location_t location;
-    clingo_ast_statement_type_t type;
-    union {
-        clingo_ast_rule_t const *rule;
-        clingo_ast_definition_t const *definition;
-        clingo_ast_show_signature_t const *show_signature;
-        clingo_ast_show_term_t const *show_term;
-        clingo_ast_minimize_t const *minimize;
-        clingo_ast_script_t const *script;
-        clingo_ast_program_t const *program;
-        clingo_ast_external_t const *external;
-        clingo_ast_edge_t const *edge;
-        clingo_ast_heuristic_t const *heuristic;
-        clingo_ast_project_t const *project;
-        clingo_signature_t project_signature;
-        clingo_ast_theory_definition_t const *theory_definition;
-    };
-} clingo_ast_statement_t;
-*/
 
 } // namespace
 
@@ -1930,7 +1819,9 @@ private:
 
 // {{{1 global functions
 
+void parse_program(char const *program, std::function<void (AST::Statement &stm)> cb, Logger logger = nullptr, unsigned message_limit = 20);
 Symbol parse_term(char const *str, Logger logger = nullptr, unsigned message_limit = 20);
+char const *add_string(char const *str);
 
 // }}}1
 

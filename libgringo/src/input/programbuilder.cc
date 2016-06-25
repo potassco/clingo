@@ -961,6 +961,9 @@ HdLitUid ASTBuilder::headaggr(Location const &loc, AggregateFunction fun, BoundV
     auto guards = bounds_.erase(bounds);
     auto elems = headaggrelemvecs_.erase(headaggrelemvec);
     assert(guards.size() < 3);
+    if (!guards.empty()) {
+        guards.front().comparison = static_cast<clingo_ast_comparison_operator_t>(inv(static_cast<Relation>(guards.front().comparison)));
+    }
     clingo_ast_head_aggregate_t aggr;
     aggr.function    = static_cast<clingo_ast_aggregate_function>(fun);
     aggr.size        = elems.size();
@@ -980,6 +983,9 @@ HdLitUid ASTBuilder::headaggr(Location const &loc, AggregateFunction fun, BoundV
     auto guards = bounds_.erase(bounds);
     auto elems = condlitvecs_.erase(headaggrelemvec);
     assert(guards.size() < 3);
+    if (!guards.empty()) {
+        guards.front().comparison = static_cast<clingo_ast_comparison_operator_t>(inv(static_cast<Relation>(guards.front().comparison)));
+    }
     clingo_ast_aggregate_t aggr;
     aggr.size        = elems.size();
     aggr.elements    = createArray_(elems);
@@ -1037,6 +1043,9 @@ BdLitVecUid ASTBuilder::bodyaggr(BdLitVecUid body, Location const &loc, NAF naf,
     auto guards = bounds_.erase(bounds);
     auto elems = bodyaggrelemvecs_.erase(bodyaggrelemvec);
     assert(guards.size() < 3);
+    if (!guards.empty()) {
+        guards.front().comparison = static_cast<clingo_ast_comparison_operator_t>(inv(static_cast<Relation>(guards.front().comparison)));
+    }
     clingo_ast_body_aggregate_t aggr;
     aggr.function    = static_cast<clingo_ast_aggregate_function>(fun);
     aggr.size        = elems.size();
@@ -1058,6 +1067,9 @@ BdLitVecUid ASTBuilder::bodyaggr(BdLitVecUid body, Location const &loc, NAF naf,
     auto guards = bounds_.erase(bounds);
     auto elems = condlitvecs_.erase(bodyaggrelemvec);
     assert(guards.size() < 3);
+    if (!guards.empty()) {
+        guards.front().comparison = static_cast<clingo_ast_comparison_operator_t>(inv(static_cast<Relation>(guards.front().comparison)));
+    }
     clingo_ast_aggregate_t aggr;
     aggr.size        = elems.size();
     aggr.elements    = createArray_(elems);

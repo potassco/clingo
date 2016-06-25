@@ -1115,6 +1115,20 @@ Symbol parse_term(char const *str, Logger logger, unsigned message_limit) {
     return Symbol(ret);
 }
 
+char const *add_string(char const *str) {
+    char const *ret;
+    handleCError(clingo_add_string(str, &ret));
+    return ret;
+}
+
+void parse_program(char const *program, std::function<void (AST::Statement &stm)> cb, Logger logger, unsigned message_limit) {
+    (void)program;
+    (void)cb;
+    (void)logger;
+    (void)message_limit;
+    throw std::logic_error("implement me!!!");
+}
+
 // }}}1
 
 } // namespace Clingo
@@ -1874,6 +1888,11 @@ extern "C" clingo_error_t clingo_parse_program(char const *program, unsigned mes
         parser.parse(log);
         if (log.hasError()) { throw std::runtime_error("syntax error"); }
     }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" clingo_error_t clingo_add_string(char const *str, char const **ret) {
+    GRINGO_CLINGO_TRY { *ret = String(str).c_str(); }
     GRINGO_CLINGO_CATCH;
 }
 
