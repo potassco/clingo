@@ -1058,10 +1058,6 @@ struct Function;
 struct Pool;
 
 struct Term {
-    Term(Term const &) = default;
-    Term(Term &&) = default;
-    Term &operator=(Term const &) = default;
-    Term &operator=(Term &&) = default;
     Location location;
     Variant<Symbol, Variable, UnaryOperation, BinaryOperation, Interval, Function, Pool> data;
 };
@@ -1090,12 +1086,6 @@ inline std::ostream &operator<<(std::ostream &out, UnaryOperator op) {
 }
 
 struct UnaryOperation {
-    UnaryOperation(UnaryOperation const &) = default;
-    UnaryOperation(UnaryOperation &&) = default;
-    UnaryOperation &operator=(UnaryOperation const &) = default;
-    UnaryOperation &operator=(UnaryOperation &&) = default;
-    ~UnaryOperation() noexcept;
-
     UnaryOperator unary_operator;
     Term          argument;
 };
@@ -1128,12 +1118,6 @@ inline std::ostream &operator<<(std::ostream &out, BinaryOperator op) {
 }
 
 struct BinaryOperation {
-    BinaryOperation(BinaryOperation const &) = default;
-    BinaryOperation(BinaryOperation &&) = default;
-    BinaryOperation &operator=(BinaryOperation const &) = default;
-    BinaryOperation &operator=(BinaryOperation &&) = default;
-    ~BinaryOperation() noexcept;
-
     BinaryOperator binary_operator;
     Term           left;
     Term           right;
@@ -1142,8 +1126,6 @@ struct BinaryOperation {
 // interval
 
 struct Interval {
-    ~Interval() noexcept;
-
     Term left;
     Term right;
 };
@@ -1151,8 +1133,6 @@ struct Interval {
 // function
 
 struct Function {
-    ~Function() noexcept;
-
     char const *name;
     std::vector<Term> arguments;
     bool external;
@@ -1161,52 +1141,28 @@ struct Function {
 // pool
 
 struct Pool {
-    ~Pool() noexcept;
-
     std::vector<Term> arguments;
 };
-
-inline UnaryOperation::~UnaryOperation() noexcept = default;
-inline BinaryOperation::~BinaryOperation() noexcept = default;
-inline Interval::~Interval() noexcept = default;
-inline Function::~Function() noexcept = default;
-inline Pool::~Pool() noexcept = default;
 
 // {{{2 csp
 
 struct CSPMultiply {
-    CSPMultiply(CSPMultiply &&) = default;
-    CSPMultiply &operator=(CSPMultiply const &) = default;
-    CSPMultiply &operator=(CSPMultiply &&) = default;
-    CSPMultiply(CSPMultiply const &) = default;
     Location location;
     Term coefficient;
     Optional<Term> variable;
 };
 
 struct CSPAdd {
-    CSPAdd(CSPAdd const &) = default;
-    CSPAdd(CSPAdd &&) = default;
-    CSPAdd &operator=(CSPAdd const &) = default;
-    CSPAdd &operator=(CSPAdd &&) = default;
     Location location;
     std::vector<CSPMultiply> terms;
 };
 
 struct CSPGuard {
-    CSPGuard(CSPGuard const &) = default;
-    CSPGuard(CSPGuard &&) = default;
-    CSPGuard &operator=(CSPGuard const &) = default;
-    CSPGuard &operator=(CSPGuard &&) = default;
     ComparisonOperator comparison;
     CSPAdd term;
 };
 
 struct CSPLiteral {
-    CSPLiteral(CSPLiteral const &) = default;
-    CSPLiteral(CSPLiteral &&) = default;
-    CSPLiteral &operator=(CSPLiteral const &) = default;
-    CSPLiteral &operator=(CSPLiteral &&) = default;
     CSPAdd term;
     std::vector<CSPGuard> guards;
 };
@@ -1214,10 +1170,6 @@ struct CSPLiteral {
 // {{{2 ids
 
 struct Id {
-    Id(Id const &) = default;
-    Id(Id &&) = default;
-    Id &operator=(Id const &) = default;
-    Id &operator=(Id &&) = default;
     Location location;
     char const *id;
 };
@@ -1225,20 +1177,12 @@ struct Id {
 // {{{2 literals
 
 struct Comparison {
-    Comparison(Comparison const &) = default;
-    Comparison(Comparison &&) = default;
-    Comparison &operator=(Comparison const &) = default;
-    Comparison &operator=(Comparison &&) = default;
     ComparisonOperator comparison;
     Term left;
     Term right;
 };
 
 struct Literal {
-    Literal(Literal const &) = default;
-    Literal(Literal &&) = default;
-    Literal &operator=(Literal const &) = default;
-    Literal &operator=(Literal &&) = default;
     Location location;
     Sign sign;
     Variant<bool, Term, Comparison, CSPLiteral> data;
@@ -1266,19 +1210,11 @@ inline std::ostream &operator<<(std::ostream &out, AggregateFunction op) {
 }
 
 struct AggregateGuard {
-    AggregateGuard(AggregateGuard const &) = default;
-    AggregateGuard(AggregateGuard &&) = default;
-    AggregateGuard &operator=(AggregateGuard const &) = default;
-    AggregateGuard &operator=(AggregateGuard &&) = default;
     ComparisonOperator comparison;
     Term term;
 };
 
 struct ConditionalLiteral {
-    ConditionalLiteral(ConditionalLiteral const &) = default;
-    ConditionalLiteral(ConditionalLiteral &&) = default;
-    ConditionalLiteral &operator=(ConditionalLiteral const &) = default;
-    ConditionalLiteral &operator=(ConditionalLiteral &&) = default;
     Literal literal;
     std::vector<Literal> condition;
 };
@@ -1286,10 +1222,6 @@ struct ConditionalLiteral {
 // lparse-style aggregate
 
 struct Aggregate {
-    Aggregate(Aggregate const &) = default;
-    Aggregate(Aggregate &&) = default;
-    Aggregate &operator=(Aggregate const &) = default;
-    Aggregate &operator=(Aggregate &&) = default;
     std::vector<ConditionalLiteral> elements;
     Optional<AggregateGuard> left_guard;
     Optional<AggregateGuard> right_guard;
@@ -1298,19 +1230,11 @@ struct Aggregate {
 // body aggregate
 
 struct BodyAggregateElement {
-    BodyAggregateElement(BodyAggregateElement const &) = default;
-    BodyAggregateElement(BodyAggregateElement &&) = default;
-    BodyAggregateElement &operator=(BodyAggregateElement const &) = default;
-    BodyAggregateElement &operator=(BodyAggregateElement &&) = default;
     std::vector<Term> tuple;
     std::vector<Literal> condition;
 };
 
 struct BodyAggregate {
-    BodyAggregate(BodyAggregate const &) = default;
-    BodyAggregate(BodyAggregate &&) = default;
-    BodyAggregate &operator=(BodyAggregate const &) = default;
-    BodyAggregate &operator=(BodyAggregate &&) = default;
     AggregateFunction function;
     std::vector<BodyAggregateElement> elements;
     Optional<AggregateGuard> left_guard;
@@ -1320,19 +1244,11 @@ struct BodyAggregate {
 // head aggregate
 
 struct HeadAggregateElement {
-    HeadAggregateElement(HeadAggregateElement const &) = default;
-    HeadAggregateElement(HeadAggregateElement &&) = default;
-    HeadAggregateElement &operator=(HeadAggregateElement const &) = default;
-    HeadAggregateElement &operator=(HeadAggregateElement &&) = default;
     std::vector<Term> tuple;
     ConditionalLiteral condition;
 };
 
 struct HeadAggregate {
-    HeadAggregate(HeadAggregate const &) = default;
-    HeadAggregate(HeadAggregate &&) = default;
-    HeadAggregate &operator=(HeadAggregate const &) = default;
-    HeadAggregate &operator=(HeadAggregate &&) = default;
     AggregateFunction function;
     std::vector<HeadAggregateElement> elements;
     Optional<AggregateGuard> left_guard;
@@ -1342,20 +1258,12 @@ struct HeadAggregate {
 // disjunction
 
 struct Disjunction {
-    Disjunction(Disjunction const &) = default;
-    Disjunction(Disjunction &&) = default;
-    Disjunction &operator=(Disjunction const &) = default;
-    Disjunction &operator=(Disjunction &&) = default;
     std::vector<ConditionalLiteral> elements;
 };
 
 // disjoint
 
 struct DisjointElement {
-    DisjointElement(DisjointElement const &) = default;
-    DisjointElement(DisjointElement &&) = default;
-    DisjointElement &operator=(DisjointElement const &) = default;
-    DisjointElement &operator=(DisjointElement &&) = default;
     Location location;
     std::vector<Term> tuple;
     CSPAdd term;
@@ -1363,10 +1271,6 @@ struct DisjointElement {
 };
 
 struct Disjoint {
-    Disjoint(Disjoint const &) = default;
-    Disjoint(Disjoint &&) = default;
-    Disjoint &operator=(Disjoint const &) = default;
-    Disjoint &operator=(Disjoint &&) = default;
     std::vector<DisjointElement> elements;
 };
 
@@ -1383,64 +1287,36 @@ struct TheoryTermSequence;
 struct TheoryUnparsedTerm;
 
 struct TheoryTerm {
-    TheoryTerm(TheoryTerm const &) = default;
-    TheoryTerm(TheoryTerm &&) = default;
-    TheoryTerm &operator=(TheoryTerm const &) = default;
-    TheoryTerm &operator=(TheoryTerm &&) = default;
     Location location;
     Variant<Symbol, Variable, TheoryTermSequence, std::vector<TheoryUnparsedTerm>> data;
 };
 
 struct TheoryTermSequence {
-    TheoryTermSequence(TheoryTermSequence const &) = default;
-    TheoryTermSequence(TheoryTermSequence &&) = default;
-    TheoryTermSequence &operator=(TheoryTermSequence const &) = default;
-    TheoryTermSequence &operator=(TheoryTermSequence &&) = default;
     TheoryTermSequenceType type;
     std::vector<TheoryTerm> terms;
 };
 
 struct TheoryFunction {
-    TheoryFunction(TheoryFunction const &) = default;
-    TheoryFunction(TheoryFunction &&) = default;
-    TheoryFunction &operator=(TheoryFunction const &) = default;
-    TheoryFunction &operator=(TheoryFunction &&) = default;
     char const *name;
     std::vector<TheoryTerm> arguments;
 };
 
 struct TheoryUnparsedTerm {
-    TheoryUnparsedTerm(TheoryUnparsedTerm const &) = default;
-    TheoryUnparsedTerm(TheoryUnparsedTerm &&) = default;
-    TheoryUnparsedTerm &operator=(TheoryUnparsedTerm const &) = default;
-    TheoryUnparsedTerm &operator=(TheoryUnparsedTerm &&) = default;
     std::vector<char const *> operators;
     TheoryTerm term;
 };
 
 struct TheoryAtomElement {
-    TheoryAtomElement(TheoryAtomElement const &) = default;
-    TheoryAtomElement(TheoryAtomElement &&) = default;
-    TheoryAtomElement &operator=(TheoryAtomElement const &) = default;
-    TheoryAtomElement &operator=(TheoryAtomElement &&) = default;
     std::vector<TheoryTerm> tuple;
     std::vector<Literal> condition;
 };
 
 struct TheoryGuard {
-    TheoryGuard(TheoryGuard const &) = default;
-    TheoryGuard(TheoryGuard &&) = default;
-    TheoryGuard &operator=(TheoryGuard const &) = default;
-    TheoryGuard &operator=(TheoryGuard &&) = default;
     char const *operator_name;
     TheoryTerm term;
 };
 
 struct TheoryAtom {
-    TheoryAtom(TheoryAtom const &) = default;
-    TheoryAtom(TheoryAtom &&) = default;
-    TheoryAtom &operator=(TheoryAtom const &) = default;
-    TheoryAtom &operator=(TheoryAtom &&) = default;
     Term term;
     std::vector<TheoryAtomElement> elements;
     Optional<TheoryGuard> guard;
@@ -1449,10 +1325,6 @@ struct TheoryAtom {
 // {{{2 head literals
 
 struct HeadLiteral {
-    HeadLiteral(HeadLiteral const &) = default;
-    HeadLiteral(HeadLiteral &&) = default;
-    HeadLiteral &operator=(HeadLiteral const &) = default;
-    HeadLiteral &operator=(HeadLiteral &&) = default;
     Location location;
     Variant<Literal, Disjunction, Aggregate, HeadAggregate, TheoryAtom> data;
 };
@@ -1460,10 +1332,6 @@ struct HeadLiteral {
 // {{{2 body literals
 
 struct BodyLiteral {
-    BodyLiteral(BodyLiteral const &) = default;
-    BodyLiteral(BodyLiteral &&) = default;
-    BodyLiteral &operator=(BodyLiteral const &) = default;
-    BodyLiteral &operator=(BodyLiteral &&) = default;
     Location location;
     Sign sign;
     Variant<Literal, ConditionalLiteral, Aggregate, BodyAggregate, TheoryAtom, Disjoint> data;
@@ -1487,10 +1355,6 @@ inline std::ostream &operator<<(std::ostream &out, TheoryOperatorType op) {
 }
 
 struct TheoryOperatorDefinition {
-    TheoryOperatorDefinition(TheoryOperatorDefinition const &) = default;
-    TheoryOperatorDefinition(TheoryOperatorDefinition &&) = default;
-    TheoryOperatorDefinition &operator=(TheoryOperatorDefinition const &) = default;
-    TheoryOperatorDefinition &operator=(TheoryOperatorDefinition &&) = default;
     Location location;
     char const *name;
     unsigned priority;
@@ -1498,20 +1362,12 @@ struct TheoryOperatorDefinition {
 };
 
 struct TheoryTermDefinition {
-    TheoryTermDefinition(TheoryTermDefinition const &) = default;
-    TheoryTermDefinition(TheoryTermDefinition &&) = default;
-    TheoryTermDefinition &operator=(TheoryTermDefinition const &) = default;
-    TheoryTermDefinition &operator=(TheoryTermDefinition &&) = default;
     Location location;
     char const *name;
     std::vector<TheoryOperatorDefinition> operators;
 };
 
 struct TheoryGuardDefinition {
-    TheoryGuardDefinition(TheoryGuardDefinition const &) = default;
-    TheoryGuardDefinition(TheoryGuardDefinition &&) = default;
-    TheoryGuardDefinition &operator=(TheoryGuardDefinition const &) = default;
-    TheoryGuardDefinition &operator=(TheoryGuardDefinition &&) = default;
     char const *guard;
     std::vector<const char *> operators;
 };
@@ -1534,10 +1390,6 @@ inline std::ostream &operator<<(std::ostream &out, TheoryAtomDefinitionType op) 
 }
 
 struct TheoryAtomDefinition {
-    TheoryAtomDefinition(TheoryAtomDefinition const &) = default;
-    TheoryAtomDefinition(TheoryAtomDefinition &&) = default;
-    TheoryAtomDefinition &operator=(TheoryAtomDefinition const &) = default;
-    TheoryAtomDefinition &operator=(TheoryAtomDefinition &&) = default;
     Location location;
     TheoryAtomDefinitionType type;
     char const *name;
@@ -1547,10 +1399,6 @@ struct TheoryAtomDefinition {
 };
 
 struct TheoryDefinition {
-    TheoryDefinition(TheoryDefinition const &) = default;
-    TheoryDefinition(TheoryDefinition &&) = default;
-    TheoryDefinition &operator=(TheoryDefinition const &) = default;
-    TheoryDefinition &operator=(TheoryDefinition &&) = default;
     char const *name;
     std::vector<TheoryTermDefinition> terms;
     std::vector<TheoryAtomDefinition> atoms;
@@ -1561,10 +1409,6 @@ struct TheoryDefinition {
 // rule
 
 struct Rule {
-    Rule(Rule const &) = default;
-    Rule(Rule &&) = default;
-    Rule &operator=(Rule const &) = default;
-    Rule &operator=(Rule &&) = default;
     HeadLiteral head;
     std::vector<BodyLiteral> body;
 };
@@ -1572,10 +1416,6 @@ struct Rule {
 // definition
 
 struct Definition {
-    Definition(Definition const &) = default;
-    Definition(Definition &&) = default;
-    Definition &operator=(Definition const &) = default;
-    Definition &operator=(Definition &&) = default;
     char const *name;
     Term value;
     bool is_default;
@@ -1584,19 +1424,11 @@ struct Definition {
 // show
 
 struct ShowSignature {
-    ShowSignature(ShowSignature const &) = default;
-    ShowSignature(ShowSignature &&) = default;
-    ShowSignature &operator=(ShowSignature const &) = default;
-    ShowSignature &operator=(ShowSignature &&) = default;
     Signature signature;
     bool csp;
 };
 
 struct ShowTerm {
-    ShowTerm(ShowTerm const &) = default;
-    ShowTerm(ShowTerm &&) = default;
-    ShowTerm &operator=(ShowTerm const &) = default;
-    ShowTerm &operator=(ShowTerm &&) = default;
     Term term;
     std::vector<BodyLiteral> body;
     bool csp;
@@ -1605,10 +1437,6 @@ struct ShowTerm {
 // minimize
 
 struct Minimize {
-    Minimize(Minimize const &) = default;
-    Minimize(Minimize &&) = default;
-    Minimize &operator=(Minimize const &) = default;
-    Minimize &operator=(Minimize &&) = default;
     Term weight;
     Term priority;
     std::vector<Term> tuple;
@@ -1631,10 +1459,6 @@ inline std::ostream &operator<<(std::ostream &out, ScriptType op) {
 }
 
 struct Script {
-    Script(Script const &) = default;
-    Script(Script &&) = default;
-    Script &operator=(Script const &) = default;
-    Script &operator=(Script &&) = default;
     ScriptType type;
     char const *code;
 };
@@ -1642,10 +1466,6 @@ struct Script {
 // program
 
 struct Program {
-    Program(Program const &) = default;
-    Program(Program &&) = default;
-    Program &operator=(Program const &) = default;
-    Program &operator=(Program &&) = default;
     char const *name;
     std::vector<Id> parameters;
 };
@@ -1653,10 +1473,6 @@ struct Program {
 // external
 
 struct External {
-    External(External const &) = default;
-    External(External &&) = default;
-    External &operator=(External const &) = default;
-    External &operator=(External &&) = default;
     Term atom;
     std::vector<BodyLiteral> body;
 };
@@ -1664,10 +1480,6 @@ struct External {
 // edge
 
 struct Edge {
-    Edge(Edge const &) = default;
-    Edge(Edge &&) = default;
-    Edge &operator=(Edge const &) = default;
-    Edge &operator=(Edge &&) = default;
     Term u;
     Term v;
     std::vector<BodyLiteral> body;
@@ -1676,10 +1488,6 @@ struct Edge {
 // heuristic
 
 struct Heuristic {
-    Heuristic(Heuristic const &) = default;
-    Heuristic(Heuristic &&) = default;
-    Heuristic &operator=(Heuristic const &) = default;
-    Heuristic &operator=(Heuristic &&) = default;
     Term atom;
     std::vector<BodyLiteral> body;
     Term bias;
@@ -1690,29 +1498,17 @@ struct Heuristic {
 // project
 
 struct Project {
-    Project(Project const &) = default;
-    Project(Project &&) = default;
-    Project &operator=(Project const &) = default;
-    Project &operator=(Project &&) = default;
     Term atom;
     std::vector<BodyLiteral> body;
 };
 
 struct ProjectSignature {
-    ProjectSignature(ProjectSignature const &) = default;
-    ProjectSignature(ProjectSignature &&) = default;
-    ProjectSignature &operator=(ProjectSignature const &) = default;
-    ProjectSignature &operator=(ProjectSignature &&) = default;
     Signature signature;
 };
 
 // statement
 
 struct Statement {
-    Statement(Statement const &) = default;
-    Statement(Statement &&) = default;
-    Statement &operator=(Statement const &) = default;
-    Statement &operator=(Statement &&) = default;
     Location location;
     Variant<Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, Project, ProjectSignature, TheoryDefinition> data;
 };
