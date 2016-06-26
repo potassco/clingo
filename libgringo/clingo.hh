@@ -112,7 +112,7 @@ struct VariantHolder<n, T, U...> : VariantHolder<n+1, U...>{
     bool check_type(T *) const { return type_ == n; }
     template <class... Args>
     void emplace(T *, Args&& ...x) {
-        data_ = new T(std::forward<Args>(x)...);
+        data_ = new T{std::forward<Args>(x)...};
         type_ = n;
     }
     void copy(VariantHolder const &src) {
@@ -143,11 +143,12 @@ struct VariantHolder<n, T, U...> : VariantHolder<n+1, U...>{
 template <class T>
 class Optional {
 public:
+    Optional() { }
     Optional(T const &x) : data_(new T(x)) { }
     Optional(T &x) : data_(new T(x)) { }
     Optional(T &&x) : data_(new T(std::move(x))) { }
     template <class... Args>
-    Optional(Args&&... x) : data_(new T(std::forward<Args>(x)...)) { }
+    Optional(Args&&... x) : data_(new T{std::forward<Args>(x)...}) { }
     Optional(Optional &&opt) : data_(opt.data_.release()) { }
     Optional(Optional const &opt) : data_(opt ? new T(*opt.get()) : nullptr) { }
     Optional &operator=(T const &x) {
@@ -174,7 +175,7 @@ public:
     template <class... Args>
     void emplace(Args&&... x) {
         clear();
-        data_(new T(std::forward<Args>(x)...));
+        data_(new T{std::forward<Args>(x)...});
     }
     void clear() { data_.reset(nullptr); }
     explicit operator bool() const { return data_.get(); }
@@ -1288,7 +1289,7 @@ struct TheoryUnparsedTerm;
 
 struct TheoryTerm {
     Location location;
-    Variant<Symbol, Variable, TheoryTermSequence, std::vector<TheoryUnparsedTerm>> data;
+    Variant<Symbol, Variable, TheoryTermSequence, TheoryFunction, std::vector<TheoryUnparsedTerm>> data;
 };
 
 struct TheoryTermSequence {
@@ -1369,7 +1370,7 @@ struct TheoryTermDefinition {
 
 struct TheoryGuardDefinition {
     char const *guard;
-    std::vector<const char *> operators;
+    std::vector<char const *> operators;
 };
 
 enum class TheoryAtomDefinitionType : clingo_ast_theory_atom_definition_type_t {
