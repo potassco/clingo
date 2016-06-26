@@ -1121,7 +1121,52 @@ char const *add_string(char const *str) {
     return ret;
 }
 
-namespace AST { namespace {
+namespace AST {
+
+namespace {
+
+template <class T>
+struct PrintWrapper {
+    T const &vec;
+    char const *pre;
+    char const *sep;
+    char const *post;
+    bool empty;
+    friend std::ostream &operator<<(std::ostream &out, PrintWrapper x) {
+        using namespace std;
+        auto it = std::begin(x.vec), ie = std::end(x.vec);
+        if (it != ie) {
+            out << x.pre;
+            out << *it;
+            for (++it; it != ie; ++it) {
+                out << x.sep << *it;
+            }
+            out << x.post;
+        }
+        else if (x.empty) {
+            out << x.pre;
+            out << x.post;
+        }
+        return out;
+    }
+};
+
+
+template <class T>
+PrintWrapper<T> print(T const &vec, char const *pre, char const *sep, char const *post, bool empty) {
+    return {vec, pre, sep, post, empty};
+}
+
+PrintWrapper<std::vector<BodyLiteral>> print_body(std::vector<BodyLiteral> const &vec, char const *pre = " : ") {
+    return print(vec, pre, "; ", ".", false);
+}
+
+template <class T>
+PrintWrapper<std::vector<T>> print_arguments(std::vector<T> const &vec, bool empty) {
+    return print(vec, "(", ",", ")", empty);
+}
+
+// {{{2 C -> C++
 
 #define ARR(in, out) \
 std::vector<out> conv ## out ## Vec(in const *arr, size_t size) { \
@@ -1132,7 +1177,7 @@ std::vector<out> conv ## out ## Vec(in const *arr, size_t size) { \
     return ret; \
 }
 
-// {{{2 terms
+// {{{3 terms
 
 Id convId(clingo_ast_id_t const &id) {
     return {Location(id.location), id.id};
@@ -1235,7 +1280,7 @@ TheoryTerm convTheoryTerm(clingo_ast_theory_term_t const &term) {
     throw std::logic_error("cannot happen");
 }
 
-// {{{2 literal
+// {{{3 literal
 
 CSPGuard convCSPGuard(clingo_ast_csp_guard_t const &guard) {
     return {static_cast<ComparisonOperator>(guard.comparison), convCSPAdd(guard.term)};
@@ -1263,7 +1308,7 @@ Literal convLiteral(clingo_ast_literal_t const &lit) {
 }
 ARR(clingo_ast_literal_t, Literal)
 
-// {{{2 aggregates
+// {{{3 aggregates
 
 Optional<AggregateGuard> convAggregateGuard(clingo_ast_aggregate_guard_t const *guard) {
     return guard
@@ -1318,7 +1363,7 @@ BodyAggregateElement convBodyAggregateElement(clingo_ast_body_aggregate_element_
 }
 ARR(clingo_ast_body_aggregate_element_t, BodyAggregateElement)
 
-// {{{2 head literal
+// {{{3 head literal
 
 HeadLiteral convHeadLiteral(clingo_ast_head_literal_t const &head) {
     switch (static_cast<enum clingo_ast_head_literal_type>(head.type)) {
@@ -1343,7 +1388,7 @@ HeadLiteral convHeadLiteral(clingo_ast_head_literal_t const &head) {
     throw std::logic_error("cannot happen");
 }
 
-// {{{2 body literal
+// {{{3 body literal
 
 BodyLiteral convBodyLiteral(clingo_ast_body_literal_t const &body) {
     switch (static_cast<enum clingo_ast_body_literal_type>(body.type)) {
@@ -1372,7 +1417,7 @@ BodyLiteral convBodyLiteral(clingo_ast_body_literal_t const &body) {
 }
 ARR(clingo_ast_body_literal_t, BodyLiteral)
 
-// {{{2 statement
+// {{{3 statement
 
 TheoryOperatorDefinition convTheoryOperatorDefinition(clingo_ast_theory_operator_definition_t const &def) {
     return {Location{def.location}, def.name, def.priority, static_cast<TheoryOperatorType>(def.type)};
@@ -1458,7 +1503,319 @@ void convStatement(clingo_ast_statement_t const *stm, StatementCallback &cb) {
 
 #undef ARR
 
-} } // namespace AST
+// }}}3
+
+// }}}2
+
+} // namespace
+
+// {{{2 printing
+
+// {{{3 statement
+
+std::ostream &operator<<(std::ostream &out, TheoryDefinition const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, TheoryAtomDefinition const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, TheoryGuardDefinition const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, TheoryTermDefinition const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, TheoryOperatorDefinition const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, BodyLiteral const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, HeadLiteral const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, TheoryAtom const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, TheoryGuard const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, TheoryAtomElement const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, TheoryUnparsedTermElement const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, TheoryFunction const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, TheoryTermSequence const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, TheoryTerm const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, TheoryUnparsedTerm const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Disjoint const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, DisjointElement const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Disjunction const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, HeadAggregate const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, HeadAggregateElement const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, BodyAggregate const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, BodyAggregateElement const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Aggregate const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, ConditionalLiteral const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Literal const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Boolean const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Comparison const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Id const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, CSPLiteral const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, CSPGuard const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, CSPAdd const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, CSPMultiply const &x) {
+    (void)x;
+    throw std::logic_error("implement me!!!");
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Pool const &x) {
+    // NOTE: at the momement the program builder is very explicit about pool arguments of literals
+    //       this should be relaxed a bit to make the interface simpler
+    //       if during rewriting a term that is not function is encountered in a literal
+    //       then there should be a runtime error
+    // NOTE: there is no representation for an empty pool
+    if (x.arguments.empty()) { out << "(1/0)"; }
+    else                     { out << print(x.arguments, "(", ",", ")", true); }
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Function const &x) {
+    out << (x.external ? "@" : "") << x.name << print(x.arguments, "(", ",", (x.name[0] == '\0' && x.arguments.size() == 1) ? ",)" : ")", true);
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Interval const &x) {
+    out << "(" << x.left << ".." << x.right << ")";
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, BinaryOperation const &x) {
+    out << "(" << x.left << x.binary_operator << x.right << ")";
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, UnaryOperation const &x) {
+    out << left_hand_side(x.unary_operator) << x.argument << right_hand_side(x.unary_operator);
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Variable const &x) {
+    out << x.name;
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Term const &x) {
+    out << x.data;
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Rule const &x) {
+    out << x.head << print_body(x.body);
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Definition const &x) {
+    out << "#const " << x.name << " = " << x.value << ".";
+    if (x.is_default) { out << " [default]"; }
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, ShowSignature const &x) {
+    out << (x.csp ? "$" : "") << x.signature << ".";
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, ShowTerm const &x) {
+    out << (x.csp ? "$" : "") << x.term << print_body(x.body);
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Minimize const &x) {
+    out << print_body(x.body, ":~ ") << " [" << x.weight << "@" << x.priority << print(x.tuple, ",", ",", "", false) << "]";
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Script const &x) {
+    out << "#script (" << x.type << ")\n" << x.code << "\n#end.";
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Program const &x) {
+    out << "#program " << x.name << print_arguments(x.parameters, false) << ".";
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, External const &x) {
+    out << "#external " << x.atom << print_body(x.body);
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Edge const &x) {
+    out << "#edge (" << x.u << "," << x.v << ")" << print_body(x.body);
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Heuristic const &x) {
+    out << "#heuristic " << x.atom << print_body(x.body) << " [" << x.bias<< "@" << x.priority << "," << x.modifier << "]";
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Project const &x) {
+    out << "#project " << x.atom << print_body(x.body);
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, ProjectSignature const &x) {
+    out << "#project " << x.signature << ".";
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, Statement const &x) {
+    out << x.data;
+    return out;
+}
+// }}}3
+
+// }}}2
+
+} // namespace AST
 
 void parse_program(char const *program, StatementCallback cb, Logger logger, unsigned message_limit) {
     using Data = std::pair<StatementCallback &, std::exception_ptr>;

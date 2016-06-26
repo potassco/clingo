@@ -84,7 +84,7 @@ struct VariantHolder<n> {
         type_ = 0;
         data_ = nullptr;
     }
-    void print(std::ostream &) { }
+    void print(std::ostream &) const { }
     void swap(VariantHolder &other) {
         std::swap(type_, other.type_);
         std::swap(data_, other.data_);
@@ -137,7 +137,7 @@ struct VariantHolder<n, T, U...> : VariantHolder<n+1, U...>{
         if (n == type_) { delete static_cast<T*>(data_); }
         Helper::destroy();
     }
-    void print(std::ostream &out) {
+    void print(std::ostream &out) const {
         if (n == type_) { out << *static_cast<T const*>(data_); }
         Helper::print(out);
     }
@@ -1089,13 +1089,20 @@ enum UnaryOperator : clingo_ast_unary_operator_t {
     Negate   = clingo_ast_unary_operator_negate
 };
 
-inline std::ostream &operator<<(std::ostream &out, UnaryOperator op) {
+inline char const *left_hand_side(UnaryOperator op) {
     switch (op) {
-        case UnaryOperator::Absolute: { out << "|"; break; }
-        case UnaryOperator::Minus:    { out << "-"; break; }
-        case UnaryOperator::Negate:   { out << "~"; break; }
+        case UnaryOperator::Absolute: { return "|"; }
+        case UnaryOperator::Minus:    { return "-"; }
+        case UnaryOperator::Negate:   { return "~"; }
     }
-    return out;
+}
+
+inline char const *right_hand_side(UnaryOperator op) {
+    switch (op) {
+        case UnaryOperator::Absolute: { return "|"; }
+        case UnaryOperator::Minus:    { return ""; }
+        case UnaryOperator::Negate:   { return ""; }
+    }
 }
 
 struct UnaryOperation {
@@ -1324,7 +1331,6 @@ enum class TheoryTermSequenceType : int {
 struct TheoryFunction;
 struct TheoryTermSequence;
 struct TheoryUnparsedTerm;
-std::ostream &operator<<(std::ostream &out, TheoryUnparsedTerm const &x);
 
 struct TheoryTerm {
     Location location;
@@ -1480,7 +1486,7 @@ struct Definition {
     Term value;
     bool is_default;
 };
-std::ostream &operator<<(std::ostream &out, Disjunction const &x);
+std::ostream &operator<<(std::ostream &out, Definition const &x);
 
 // show
 
