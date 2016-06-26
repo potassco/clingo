@@ -1198,10 +1198,10 @@ CSPAdd convCSPAdd(clingo_ast_csp_add_term_t const &term) {
 TheoryTerm convTheoryTerm(clingo_ast_theory_term_t const &term);
 ARR(clingo_ast_theory_term_t, TheoryTerm)
 
-TheoryUnparsedTerm convTheoryUnparsedTerm(clingo_ast_theory_unparsed_term_t const &term) {
+TheoryUnparsedTermElement convTheoryUnparsedTermElement(clingo_ast_theory_unparsed_term_t const &term) {
     return {std::vector<char const *>{term.operators, term.operators + term.size}, convTheoryTerm(term.term)};
 }
-ARR(clingo_ast_theory_unparsed_term_t, TheoryUnparsedTerm);
+ARR(clingo_ast_theory_unparsed_term_t, TheoryUnparsedTermElement);
 
 TheoryTerm convTheoryTerm(clingo_ast_theory_term_t const &term) {
     switch (static_cast<enum clingo_ast_theory_term_type>(term.type)) {
@@ -1229,7 +1229,7 @@ TheoryTerm convTheoryTerm(clingo_ast_theory_term_t const &term) {
         }
         case clingo_ast_theory_term_type_unparsed_term_array: {
             auto &x = *term.unparsed_array;
-            return {Location{term.location}, convTheoryUnparsedTermVec(x.terms, x.size)};
+            return {Location{term.location}, TheoryUnparsedTerm{convTheoryUnparsedTermElementVec(x.terms, x.size)}};
         }
     }
     throw std::logic_error("cannot happen");
@@ -1245,7 +1245,7 @@ ARR(clingo_ast_csp_guard_t, CSPGuard)
 Literal convLiteral(clingo_ast_literal_t const &lit) {
     switch (static_cast<enum clingo_ast_literal_type>(lit.type)) {
         case clingo_ast_literal_type_boolean: {
-            return {Location(lit.location), static_cast<Sign>(lit.sign), lit.boolean};
+            return {Location(lit.location), static_cast<Sign>(lit.sign), Boolean{lit.boolean}};
         }
         case clingo_ast_literal_type_symbolic: {
             return {Location(lit.location), static_cast<Sign>(lit.sign), convTerm(*lit.symbol)};

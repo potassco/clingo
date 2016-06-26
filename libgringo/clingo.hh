@@ -84,6 +84,7 @@ struct VariantHolder<n> {
         type_ = 0;
         data_ = nullptr;
     }
+    void print(std::ostream &) { }
     void swap(VariantHolder &other) {
         std::swap(type_, other.type_);
         std::swap(data_, other.data_);
@@ -135,6 +136,10 @@ struct VariantHolder<n, T, U...> : VariantHolder<n+1, U...>{
     void destroy() {
         if (n == type_) { delete static_cast<T*>(data_); }
         Helper::destroy();
+    }
+    void print(std::ostream &out) {
+        if (n == type_) { out << *static_cast<T const*>(data_); }
+        Helper::print(out);
     }
 };
 
@@ -241,6 +246,11 @@ public:
     void accept(V &&visitor) {
         data_.template accept<V>(std::forward<V>(visitor));
     }
+    friend std::ostream &operator<<(std::ostream &out, Variant const &x) {
+        x.data_.print(out);
+        return out;
+    }
+
 private:
     using Holder = Detail::VariantHolder<1, T...>;
     Variant() { }
@@ -1062,12 +1072,14 @@ struct Term {
     Location location;
     Variant<Symbol, Variable, UnaryOperation, BinaryOperation, Interval, Function, Pool> data;
 };
+std::ostream &operator<<(std::ostream &out, Term const &term);
 
 // Variable
 
 struct Variable {
     char const *name;
 };
+std::ostream &operator<<(std::ostream &out, Variable const &x);
 
 // unary operation
 
@@ -1090,6 +1102,7 @@ struct UnaryOperation {
     UnaryOperator unary_operator;
     Term          argument;
 };
+std::ostream &operator<<(std::ostream &out, UnaryOperation const &x);
 
 // binary operation
 
@@ -1123,6 +1136,7 @@ struct BinaryOperation {
     Term           left;
     Term           right;
 };
+std::ostream &operator<<(std::ostream &out, BinaryOperation const &x);
 
 // interval
 
@@ -1130,6 +1144,7 @@ struct Interval {
     Term left;
     Term right;
 };
+std::ostream &operator<<(std::ostream &out, Interval const &x);
 
 // function
 
@@ -1138,12 +1153,14 @@ struct Function {
     std::vector<Term> arguments;
     bool external;
 };
+std::ostream &operator<<(std::ostream &out, Function const &x);
 
 // pool
 
 struct Pool {
     std::vector<Term> arguments;
 };
+std::ostream &operator<<(std::ostream &out, Pool const &x);
 
 // {{{2 csp
 
@@ -1152,21 +1169,25 @@ struct CSPMultiply {
     Term coefficient;
     Optional<Term> variable;
 };
+std::ostream &operator<<(std::ostream &out, CSPMultiply const &x);
 
 struct CSPAdd {
     Location location;
     std::vector<CSPMultiply> terms;
 };
+std::ostream &operator<<(std::ostream &out, CSPAdd const &x);
 
 struct CSPGuard {
     ComparisonOperator comparison;
     CSPAdd term;
 };
+std::ostream &operator<<(std::ostream &out, CSPGuard const &x);
 
 struct CSPLiteral {
     CSPAdd term;
     std::vector<CSPGuard> guards;
 };
+std::ostream &operator<<(std::ostream &out, CSPLiteral const &x);
 
 // {{{2 ids
 
@@ -1174,6 +1195,7 @@ struct Id {
     Location location;
     char const *id;
 };
+std::ostream &operator<<(std::ostream &out, Id const &x);
 
 // {{{2 literals
 
@@ -1182,12 +1204,19 @@ struct Comparison {
     Term left;
     Term right;
 };
+std::ostream &operator<<(std::ostream &out, Comparison const &x);
+
+struct Boolean {
+    bool value;
+};
+std::ostream &operator<<(std::ostream &out, Boolean const &x);
 
 struct Literal {
     Location location;
     Sign sign;
-    Variant<bool, Term, Comparison, CSPLiteral> data;
+    Variant<Boolean, Term, Comparison, CSPLiteral> data;
 };
+std::ostream &operator<<(std::ostream &out, Literal const &x);
 
 // {{{2 aggregates
 
@@ -1219,6 +1248,7 @@ struct ConditionalLiteral {
     Literal literal;
     std::vector<Literal> condition;
 };
+std::ostream &operator<<(std::ostream &out, ConditionalLiteral const &x);
 
 // lparse-style aggregate
 
@@ -1227,6 +1257,7 @@ struct Aggregate {
     Optional<AggregateGuard> left_guard;
     Optional<AggregateGuard> right_guard;
 };
+std::ostream &operator<<(std::ostream &out, Aggregate const &x);
 
 // body aggregate
 
@@ -1234,6 +1265,7 @@ struct BodyAggregateElement {
     std::vector<Term> tuple;
     std::vector<Literal> condition;
 };
+std::ostream &operator<<(std::ostream &out, BodyAggregateElement const &x);
 
 struct BodyAggregate {
     AggregateFunction function;
@@ -1241,6 +1273,7 @@ struct BodyAggregate {
     Optional<AggregateGuard> left_guard;
     Optional<AggregateGuard> right_guard;
 };
+std::ostream &operator<<(std::ostream &out, BodyAggregate const &x);
 
 // head aggregate
 
@@ -1248,6 +1281,7 @@ struct HeadAggregateElement {
     std::vector<Term> tuple;
     ConditionalLiteral condition;
 };
+std::ostream &operator<<(std::ostream &out, HeadAggregateElement const &x);
 
 struct HeadAggregate {
     AggregateFunction function;
@@ -1255,12 +1289,14 @@ struct HeadAggregate {
     Optional<AggregateGuard> left_guard;
     Optional<AggregateGuard> right_guard;
 };
+std::ostream &operator<<(std::ostream &out, HeadAggregate const &x);
 
 // disjunction
 
 struct Disjunction {
     std::vector<ConditionalLiteral> elements;
 };
+std::ostream &operator<<(std::ostream &out, Disjunction const &x);
 
 // disjoint
 
@@ -1270,10 +1306,12 @@ struct DisjointElement {
     CSPAdd term;
     std::vector<Literal> condition;
 };
+std::ostream &operator<<(std::ostream &out, DisjointElement const &x);
 
 struct Disjoint {
     std::vector<DisjointElement> elements;
 };
+std::ostream &operator<<(std::ostream &out, Disjoint const &x);
 
 // {{{2 theory atom
 
@@ -1286,42 +1324,55 @@ enum class TheoryTermSequenceType : int {
 struct TheoryFunction;
 struct TheoryTermSequence;
 struct TheoryUnparsedTerm;
+std::ostream &operator<<(std::ostream &out, TheoryUnparsedTerm const &x);
 
 struct TheoryTerm {
     Location location;
-    Variant<Symbol, Variable, TheoryTermSequence, TheoryFunction, std::vector<TheoryUnparsedTerm>> data;
+    Variant<Symbol, Variable, TheoryTermSequence, TheoryFunction, TheoryUnparsedTerm> data;
 };
+std::ostream &operator<<(std::ostream &out, TheoryTerm const &x);
 
 struct TheoryTermSequence {
     TheoryTermSequenceType type;
     std::vector<TheoryTerm> terms;
 };
+std::ostream &operator<<(std::ostream &out, TheoryTermSequence const &x);
 
 struct TheoryFunction {
     char const *name;
     std::vector<TheoryTerm> arguments;
 };
+std::ostream &operator<<(std::ostream &out, TheoryFunction const &x);
 
-struct TheoryUnparsedTerm {
+struct TheoryUnparsedTermElement {
     std::vector<char const *> operators;
     TheoryTerm term;
 };
+std::ostream &operator<<(std::ostream &out, TheoryUnparsedTermElement const &x);
+
+struct TheoryUnparsedTerm {
+    std::vector<TheoryUnparsedTermElement> elements;
+};
+std::ostream &operator<<(std::ostream &out, TheoryUnparsedTerm const &x);
 
 struct TheoryAtomElement {
     std::vector<TheoryTerm> tuple;
     std::vector<Literal> condition;
 };
+std::ostream &operator<<(std::ostream &out, TheoryAtomElement const &x);
 
 struct TheoryGuard {
     char const *operator_name;
     TheoryTerm term;
 };
+std::ostream &operator<<(std::ostream &out, TheoryGuard const &x);
 
 struct TheoryAtom {
     Term term;
     std::vector<TheoryAtomElement> elements;
     Optional<TheoryGuard> guard;
 };
+std::ostream &operator<<(std::ostream &out, TheoryAtom const &x);
 
 // {{{2 head literals
 
@@ -1329,6 +1380,7 @@ struct HeadLiteral {
     Location location;
     Variant<Literal, Disjunction, Aggregate, HeadAggregate, TheoryAtom> data;
 };
+std::ostream &operator<<(std::ostream &out, HeadLiteral const &x);
 
 // {{{2 body literals
 
@@ -1337,6 +1389,7 @@ struct BodyLiteral {
     Sign sign;
     Variant<Literal, ConditionalLiteral, Aggregate, BodyAggregate, TheoryAtom, Disjoint> data;
 };
+std::ostream &operator<<(std::ostream &out, BodyLiteral const &x);
 
 // {{{2 theory definitions
 
@@ -1361,17 +1414,20 @@ struct TheoryOperatorDefinition {
     unsigned priority;
     TheoryOperatorType type;
 };
+std::ostream &operator<<(std::ostream &out, TheoryOperatorDefinition const &x);
 
 struct TheoryTermDefinition {
     Location location;
     char const *name;
     std::vector<TheoryOperatorDefinition> operators;
 };
+std::ostream &operator<<(std::ostream &out, TheoryTermDefinition const &x);
 
 struct TheoryGuardDefinition {
     char const *guard;
     std::vector<char const *> operators;
 };
+std::ostream &operator<<(std::ostream &out, TheoryGuardDefinition const &x);
 
 enum class TheoryAtomDefinitionType : clingo_ast_theory_atom_definition_type_t {
     Head      = clingo_ast_theory_atom_definition_type_head,
@@ -1398,12 +1454,14 @@ struct TheoryAtomDefinition {
     char const *elements;
     Optional<TheoryGuardDefinition> guard;
 };
+std::ostream &operator<<(std::ostream &out, TheoryAtomDefinition const &x);
 
 struct TheoryDefinition {
     char const *name;
     std::vector<TheoryTermDefinition> terms;
     std::vector<TheoryAtomDefinition> atoms;
 };
+std::ostream &operator<<(std::ostream &out, TheoryDefinition const &x);
 
 // {{{2 statements
 
@@ -1413,6 +1471,7 @@ struct Rule {
     HeadLiteral head;
     std::vector<BodyLiteral> body;
 };
+std::ostream &operator<<(std::ostream &out, Rule const &x);
 
 // definition
 
@@ -1421,6 +1480,7 @@ struct Definition {
     Term value;
     bool is_default;
 };
+std::ostream &operator<<(std::ostream &out, Disjunction const &x);
 
 // show
 
@@ -1428,12 +1488,14 @@ struct ShowSignature {
     Signature signature;
     bool csp;
 };
+std::ostream &operator<<(std::ostream &out, ShowSignature const &x);
 
 struct ShowTerm {
     Term term;
     std::vector<BodyLiteral> body;
     bool csp;
 };
+std::ostream &operator<<(std::ostream &out, ShowTerm const &x);
 
 // minimize
 
@@ -1443,6 +1505,7 @@ struct Minimize {
     std::vector<Term> tuple;
     std::vector<BodyLiteral> body;
 };
+std::ostream &operator<<(std::ostream &out, Minimize const &x);
 
 // script
 
@@ -1463,6 +1526,7 @@ struct Script {
     ScriptType type;
     char const *code;
 };
+std::ostream &operator<<(std::ostream &out, Script const &x);
 
 // program
 
@@ -1470,6 +1534,7 @@ struct Program {
     char const *name;
     std::vector<Id> parameters;
 };
+std::ostream &operator<<(std::ostream &out, Program const &x);
 
 // external
 
@@ -1477,6 +1542,7 @@ struct External {
     Term atom;
     std::vector<BodyLiteral> body;
 };
+std::ostream &operator<<(std::ostream &out, External const &x);
 
 // edge
 
@@ -1485,6 +1551,7 @@ struct Edge {
     Term v;
     std::vector<BodyLiteral> body;
 };
+std::ostream &operator<<(std::ostream &out, Edge const &x);
 
 // heuristic
 
@@ -1495,6 +1562,7 @@ struct Heuristic {
     Term priority;
     Term modifier;
 };
+std::ostream &operator<<(std::ostream &out, Heuristic const &x);
 
 // project
 
@@ -1502,10 +1570,12 @@ struct Project {
     Term atom;
     std::vector<BodyLiteral> body;
 };
+std::ostream &operator<<(std::ostream &out, Project const &x);
 
 struct ProjectSignature {
     Signature signature;
 };
+std::ostream &operator<<(std::ostream &out, ProjectSignature const &x);
 
 // statement
 
@@ -1513,6 +1583,7 @@ struct Statement {
     Location location;
     Variant<Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, Project, ProjectSignature, TheoryDefinition> data;
 };
+std::ostream &operator<<(std::ostream &out, Statement const &x);
 
 } // namespace
 
