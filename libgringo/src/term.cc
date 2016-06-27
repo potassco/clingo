@@ -775,6 +775,13 @@ double PoolTerm::estimate(double, VarSet const &) const {
 
 Symbol PoolTerm::isEDB() const { return {}; }
 
+bool PoolTerm::isAtom() const {
+    for (auto &x : args) {
+        if (!x->isAtom()) { return false; }
+    }
+    return true;
+}
+
 PoolTerm::~PoolTerm() { }
 
 // {{{1 definition of ValTerm
@@ -870,6 +877,10 @@ double ValTerm::estimate(double, VarSet const &) const {
 }
 
 Symbol ValTerm::isEDB() const { return value; }
+
+bool ValTerm::isAtom() const {
+    return value.type() == SymbolType::Fun;
+}
 
 ValTerm::~ValTerm() { }
 
@@ -1260,7 +1271,7 @@ UGTerm UnOpTerm::gterm(RenameMap &names, ReferenceMap &refs) const {
     if (op == UnOp::NEG) {
         UGFunTerm fun(arg->gfunterm(names, refs));
         if (fun) {
-            fun->sign = not fun->sign;
+            fun->sign = !fun->sign;
             return std::move(fun);
         }
     }
@@ -1286,6 +1297,9 @@ double UnOpTerm::estimate(double, VarSet const &) const {
     return 0;
 }
 Symbol UnOpTerm::isEDB() const { return {}; }
+bool UnOpTerm::isAtom() const {
+    return op == UnOp::NEG && arg->isAtom();
+}
 UnOpTerm::~UnOpTerm() { }
 
 // {{{1 definition of BinOpTerm
@@ -1868,6 +1882,9 @@ Symbol FunctionTerm::isEDB() const {
     return Symbol::createFun(name, Potassco::toSpan(cache));
 }
 
+bool FunctionTerm::isAtom() const {
+    return true;
+}
 
 FunctionTerm::~FunctionTerm() { }
 

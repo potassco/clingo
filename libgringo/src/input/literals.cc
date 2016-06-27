@@ -417,7 +417,9 @@ UTerm CSPLiteral::headRepr() const {
 PredicateLiteral::PredicateLiteral(NAF naf, UTerm &&repr, bool auxiliary)
 : naf(naf)
 , auxiliary_(auxiliary)
-, repr(std::move(repr)) { }
+, repr(std::move(repr)) {
+    assert(this->repr->isAtom());
+}
 
 PredicateLiteral::~PredicateLiteral() { }
 

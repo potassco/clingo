@@ -51,7 +51,7 @@ enum class SymbolType_ : uint8_t {
     IdN = clingo_symbol_type_number+2,
     Str = clingo_symbol_type_string,
     Fun = clingo_symbol_type_function,
-    Special = clingo_symbol_type_function+1,
+    Special = clingo_symbol_type_supremum-1,
     Sup = clingo_symbol_type_supremum
 };
 SymbolType_ symbolType_(uint64_t rep) { return static_cast<SymbolType_>(upper(rep)); }

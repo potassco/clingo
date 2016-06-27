@@ -154,7 +154,7 @@ TEST_CASE("input-literal", "[input]") {
     }
 
     SECTION("rewrite") {
-        REQUIRE("3" == to_string(rewrite(pred(NAF::POS, binop(BinOp::ADD, val(NUM(1)), val(NUM(2)))))));
+        REQUIRE("p(3)" == to_string(rewrite(pred(NAF::POS, fun("p", binop(BinOp::ADD, val(NUM(1)), val(NUM(2))))))));
         REQUIRE("3>7" == to_string(rewrite(rel(Relation::GT, binop(BinOp::ADD, val(NUM(1)), val(NUM(2))), binop(BinOp::ADD, val(NUM(3)), val(NUM(4)))))));
         REQUIRE("3$*$5$+4$*$y$<=42" ==
             to_string(rewrite(csplit(

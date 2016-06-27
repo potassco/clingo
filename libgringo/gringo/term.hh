@@ -240,6 +240,7 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
     virtual double estimate(double size, VarSet const &bound) const = 0;
     virtual Symbol isEDB() const = 0;
     virtual int toNum(bool &undefined, Logger &log);
+    virtual bool isAtom() const { return false; }
 
     virtual ~Term() { }
 
@@ -449,6 +450,7 @@ struct PoolTerm : public Term {
     virtual UTerm replace(Defines &defs, bool replace = true);
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
+    virtual bool isAtom() const;
     virtual ~PoolTerm();
 
     UTermVec args;
@@ -486,6 +488,7 @@ struct ValTerm : public Term {
     virtual UTerm replace(Defines &defs, bool replace = true);
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
+    virtual bool isAtom() const;
     virtual ~ValTerm();
 
     Symbol value;
@@ -564,6 +567,7 @@ struct UnOpTerm : public Term {
     virtual UTerm replace(Defines &defs, bool replace = true);
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
+    virtual bool isAtom() const;
     virtual ~UnOpTerm();
 
     UnOp const op;
@@ -718,6 +722,7 @@ struct FunctionTerm : public Term {
     virtual UTerm replace(Defines &defs, bool replace = true);
     virtual double estimate(double size, VarSet const &bound) const;
     virtual Symbol isEDB() const;
+    virtual bool isAtom() const;
     virtual ~FunctionTerm();
 
     String name;
