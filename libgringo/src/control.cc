@@ -1158,7 +1158,7 @@ PrintWrapper<T> print(T const &vec, char const *pre, char const *sep, char const
 }
 
 PrintWrapper<std::vector<BodyLiteral>> print_body(std::vector<BodyLiteral> const &vec, char const *pre = " : ") {
-    return print(vec, pre, "; ", ".", false);
+    return print(vec, vec.empty() ? "" : pre, "; ", ".", true);
 }
 
 template <class T>
@@ -1514,11 +1514,12 @@ void convStatement(clingo_ast_statement_t const *stm, StatementCallback &cb) {
 // {{{3 statement
 
 std::ostream &operator<<(std::ostream &out, TheoryDefinition const &x) {
-    out << "#theory " << x.name << "{\n";
+    out << "#theory " << x.name << " {\n";
     bool comma = false;
     for (auto &y : x.terms) {
         if (comma) { out << ";\n"; }
-        out << "  " << y.name << " {\n" << print(y.operators, "    ", ";\n", "\n", true) << "}";
+        else       { comma = true; }
+        out << "  " << y.name << " {\n" << print(y.operators, "    ", ";\n", "\n", true) << "  }";
     }
     for (auto &y : x.atoms) {
         if (comma) { out << ";\n"; }
@@ -1531,13 +1532,14 @@ std::ostream &operator<<(std::ostream &out, TheoryDefinition const &x) {
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryAtomDefinition const &x) {
-    out << "&" << x.name << "/" << x.arity << " : " << x.elements << " " << x.type;
-    if (x.guard) { out << *x.guard.get(); }
+    out << "&" << x.name << "/" << x.arity << " : " << x.elements;
+    if (x.guard) { out << ", " << *x.guard.get(); }
+    out << ", " << x.type;
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryGuardDefinition const &x) {
-    out << " { " << print(x.operators, "", ", ", "", false) << " }" << x.guard;
+    out << "{ " << print(x.operators, "", ", ", "", false) << " }, " << x.guard;
     return out;
 }
 
@@ -1708,7 +1710,9 @@ std::ostream &operator<<(std::ostream &out, Pool const &x) {
 }
 
 std::ostream &operator<<(std::ostream &out, Function const &x) {
-    out << (x.external ? "@" : "") << x.name << print(x.arguments, "(", ",", (x.name[0] == '\0' && x.arguments.size() == 1) ? ",)" : ")", true);
+    bool tc = x.name[0] == '\0' && x.arguments.size() == 1;
+    bool ey = x.name[0] == '\0' || !x.arguments.empty();
+    out << (x.external ? "@" : "") << x.name << print(x.arguments, "(", ",", tc ? ",)" : ")", ey);
     return out;
 }
 
@@ -1738,7 +1742,7 @@ std::ostream &operator<<(std::ostream &out, Term const &x) {
 }
 
 std::ostream &operator<<(std::ostream &out, Rule const &x) {
-    out << x.head << print_body(x.body);
+    out << x.head << print_body(x.body, " :- ");
     return out;
 }
 
@@ -1749,12 +1753,12 @@ std::ostream &operator<<(std::ostream &out, Definition const &x) {
 }
 
 std::ostream &operator<<(std::ostream &out, ShowSignature const &x) {
-    out << (x.csp ? "$" : "") << x.signature << ".";
+    out << "#show " << (x.csp ? "$" : "") << x.signature << ".";
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, ShowTerm const &x) {
-    out << (x.csp ? "$" : "") << x.term << print_body(x.body);
+    out << "#show " << (x.csp ? "$" : "") << x.term << print_body(x.body);
     return out;
 }
 
@@ -1764,7 +1768,11 @@ std::ostream &operator<<(std::ostream &out, Minimize const &x) {
 }
 
 std::ostream &operator<<(std::ostream &out, Script const &x) {
-    out << "#script (" << x.type << ")\n" << x.code << "\n#end.";
+    std::string s = x.code;
+    if (!s.empty() && s.back() == '\n') {
+        s.back() = '.';
+    }
+    out << s;
     return out;
 }
 

@@ -592,6 +592,8 @@ T *ASTBuilder::createArray_(std::vector<T> const &vec) {
 void ASTBuilder::clear_() noexcept {
     for (auto &x : data_) { operator delete(x); }
     for (auto &x : arrdata_) { operator delete[](x); }
+    data_.clear();
+    arrdata_.clear();
 }
 
 void ASTBuilder::statement_(Location loc, clingo_ast_statement_type_t type, clingo_ast_statement_t &stm) {
@@ -1227,7 +1229,7 @@ void ASTBuilder::block(Location const &loc, String name, IdVecUid args) {
     program.size       = params.size();
     clingo_ast_statement stm;
     stm.program = create_(program);
-    statement_(loc, clingo_ast_statement_type_script, stm);
+    statement_(loc, clingo_ast_statement_type_program, stm);
 }
 
 void ASTBuilder::external(Location const &loc, LitUid head, BdLitVecUid body) {
@@ -1254,7 +1256,7 @@ void ASTBuilder::edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body
         edge.body = createArray_(bd);
         clingo_ast_statement stm;
         stm.location = convertLoc(loc);
-        stm.type     = clingo_ast_statement_type_external;
+        stm.type     = clingo_ast_statement_type_edge;
         stm.edge     = create_(edge);
         cb_(stm);
     }
@@ -1529,7 +1531,7 @@ void ASTBuilder::theorydef(Location const &loc, String name, TheoryDefVecUid def
     def.atoms      = createArray_(d.second);
     clingo_ast_statement stm;
     stm.theory_definition = create_(def);
-    statement_(loc, clingo_ast_statement_type_script, stm);
+    statement_(loc, clingo_ast_statement_type_theory_definition, stm);
 }
 
 // }}}2
