@@ -1565,7 +1565,7 @@ std::ostream &operator<<(std::ostream &out, HeadLiteral const &x) {
 
 std::ostream &operator<<(std::ostream &out, TheoryAtom const &x) {
     out << "&" << x.term << " { " << print(x.elements, "", "; ", "", false) << " }";
-    if (x.guard) { out << *x.guard.get(); }
+    if (x.guard) { out << " " << *x.guard.get(); }
     return out;
 }
 
@@ -1580,17 +1580,20 @@ std::ostream &operator<<(std::ostream &out, TheoryAtomElement const &x) {
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryUnparsedTermElement const &x) {
-    out << print(x.operators, "", " ", " ", false) << x.term;
+    out << print(x.operators, " ", " ", " ", false) << x.term;
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryFunction const &x) {
-    out << x.name << print(x.arguments, "(", ",", ")", true);
+    out << x.name << print(x.arguments, "(", ",", ")", !x.arguments.empty());
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryTermSequence const &x) {
-    out << print(x.terms, left_hand_side(x.type), ",", right_hand_side(x.type), true);
+    bool tc = x.terms.size() == 1 && x.type == TheoryTermSequenceType::Tuple;
+    out << print(x.terms, left_hand_side(x.type), ",", "", true);
+    if (tc) { out << ",)"; }
+    else    { out << right_hand_side(x.type); }
     return out;
 }
 
@@ -1600,7 +1603,9 @@ std::ostream &operator<<(std::ostream &out, TheoryTerm const &x) {
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryUnparsedTerm const &x) {
+    if (x.elements.size() > 1) { out << "("; }
     out << print(x.elements, "", "", "", false);
+    if (x.elements.size() > 1) { out << ")"; }
     return out;
 }
 
@@ -1705,7 +1710,7 @@ std::ostream &operator<<(std::ostream &out, Pool const &x) {
     //       then there should be a runtime error
     // NOTE: there is no representation for an empty pool
     if (x.arguments.empty()) { out << "(1/0)"; }
-    else                     { out << print(x.arguments, "(", ",", ")", true); }
+    else                     { out << print(x.arguments, "(", ";", ")", true); }
     return out;
 }
 

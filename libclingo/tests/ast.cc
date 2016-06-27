@@ -55,6 +55,7 @@ std::string parse(char const *prg) {
 
 TEST_CASE("parse-ast", "[clingo]") {
     SECTION("statement") {
+        REQUIRE(parse("a.") == "a.");
         REQUIRE(parse("a:-b.") == "a :- b.");
         REQUIRE(parse("#const a=10.") == "#const a = 10. [default]");
         REQUIRE(parse("#show a/1.") == "#show a/1.");
@@ -80,6 +81,8 @@ TEST_CASE("parse-ast", "[clingo]") {
     }
     SECTION("body literal") {
         REQUIRE(parse(":-a.") == "#false :- a.");
+        REQUIRE(parse(":-not a.") == "#false :- not a.");
+        REQUIRE(parse(":-not not a.") == "#false :- not not a.");
         REQUIRE(parse(":-a:b.") == "#false :- a : b.");
         REQUIRE(parse(":-a:b,c;d.") == "#false :- a : b, c; d.");
         REQUIRE(parse(":-1{a:b,c;e}2.") == "#false :- 1 <= { a : b, c; e :  } <= 2.");
@@ -96,12 +99,50 @@ TEST_CASE("parse-ast", "[clingo]") {
         REQUIRE(parse("{a:b,c;e}2.") == "2 >= { a : b, c; e :  }.");
         REQUIRE(parse("1#min{1,2:h:b,c;1:e}2.") == "1 <= #min { 1,2 : h : b, c; 1 : e :  } <= 2.");
         REQUIRE(parse("&p { 1 : a,b; 2 : c }.") == "&p { 1 : a,b; 2 : c }.");
+        REQUIRE(parse("&p { 1 : a,b; 2 : c } ** 33.") == "&p { 1 : a,b; 2 : c } ** 33.");
     }
     SECTION("literal") {
-        // TODO: ...
+        REQUIRE(parse("#true.") == "#true.");
+        REQUIRE(parse("#false.") == "#false.");
+        REQUIRE(parse("a.") == "a.");
+        REQUIRE(parse("not a.") == "not a.");
+        REQUIRE(parse("not not a.") == "not not a.");
+        REQUIRE(parse("1 != 3.") == "1!=3.");
+        REQUIRE(parse("1 $< 2 $< 3.") == "1$<2$<3.");
+        REQUIRE(parse("1 $< 2 $< 3.") == "1$<2$<3.");
     }
     SECTION("terms") {
-        // TODO: ...
+        REQUIRE(parse("p(a).") == "p(a).");
+        REQUIRE(parse("p(X).") == "p(X).");
+        REQUIRE(parse("p(-a).") == "p(-a).");
+        REQUIRE(parse("p(~a).") == "p(~a).");
+        REQUIRE(parse("p(|a|).") == "p(|a|).");
+        REQUIRE(parse("p((a+b)).") == "p((a+b)).");
+        REQUIRE(parse("p((a-b)).") == "p((a-b)).");
+        REQUIRE(parse("p((a*b)).") == "p((a*b)).");
+        REQUIRE(parse("p((a/b)).") == "p((a/b)).");
+        REQUIRE(parse("p((a\\b)).") == "p((a\\b)).");
+        REQUIRE(parse("p((a?b)).") == "p((a?b)).");
+        REQUIRE(parse("p((a^b)).") == "p((a^b)).");
+        REQUIRE(parse("p(a..b).") == "p((a..b)).");
+        REQUIRE(parse("p((),(1,),f(),f(1,2)).") == "p((),(1,),f,f(1,2)).");
+        REQUIRE(parse("p(a;b).") == "(p(a);p(b)).");
+        REQUIRE(parse("p((a,;b)).") == "p(((a,);b)).");
+        REQUIRE(parse("1 $+ 3 $* $x $+ 7 $< 2 $< 3.") == "1$+3$*x$+7$<2$<3.");
+    }
+    SECTION("theory terms") {
+        REQUIRE(parse("&p{ } !! a.") == "&p {  } !! a.");
+        REQUIRE(parse("&p{ } !! X.") == "&p {  } !! X.");
+        REQUIRE(parse("&p{ } !! [].") == "&p {  } !! [].");
+        REQUIRE(parse("&p{ } !! [1].") == "&p {  } !! [1].");
+        REQUIRE(parse("&p{ } !! [1,2].") == "&p {  } !! [1,2].");
+        REQUIRE(parse("&p{ } !! ().") == "&p {  } !! ().");
+        REQUIRE(parse("&p{ } !! (a).") == "&p {  } !! a.");
+        REQUIRE(parse("&p{ } !! (a,).") == "&p {  } !! (a,).");
+        REQUIRE(parse("&p{ } !! {}.") == "&p {  } !! {}.");
+        REQUIRE(parse("&p{ } !! f().") == "&p {  } !! f.");
+        REQUIRE(parse("&p{ } !! f(a,1).") == "&p {  } !! f(a,1).");
+        REQUIRE(parse("&p{ } !! 1 + (x + y * z).") == "&p {  } !! (1 + (x + y * z)).");
     }
 }
 

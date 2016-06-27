@@ -441,9 +441,9 @@ typedef struct clingo_ast_term {
 // unary operation
 
 enum clingo_ast_unary_operator {
-    clingo_ast_unary_operator_absolute = 0,
-    clingo_ast_unary_operator_minus    = 1,
-    clingo_ast_unary_operator_negate   = 2
+    clingo_ast_unary_operator_minus    = 0,
+    clingo_ast_unary_operator_negate   = 1,
+    clingo_ast_unary_operator_absolute = 2
 };
 typedef int clingo_ast_unary_operator_t;
 

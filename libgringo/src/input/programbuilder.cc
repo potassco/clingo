@@ -1381,7 +1381,6 @@ TheoryOptermUid ASTBuilder::theoryopterm(TheoryOpVecUid ops, TheoryTermUid term)
 }
 
 TheoryOptermUid ASTBuilder::theoryopterm(TheoryOptermUid opterm, TheoryOpVecUid ops, TheoryTermUid term) {
-    auto o = theoryOpVecs_.erase(ops);
     theoryOpterms_[opterm].emplace_back(opterm_(ops, term));
     return opterm;
 }
