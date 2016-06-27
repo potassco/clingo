@@ -79,6 +79,7 @@ template <unsigned n>
 struct VariantHolder<n> {
     bool check_type() const { return type_ == 0; }
     void emplace() { }
+    void emplace2() { }
     void copy(VariantHolder const &) { }
     void destroy() {
         type_ = 0;
@@ -108,12 +109,19 @@ struct VariantHolder<n, T, U...> : VariantHolder<n+1, U...>{
     using Helper = VariantHolder<n+1, U...>;
     using Helper::check_type;
     using Helper::emplace;
+    using Helper::emplace2;
     using Helper::data_;
     using Helper::type_;
     bool check_type(T *) const { return type_ == n; }
     template <class... Args>
     void emplace(T *, Args&& ...x) {
         data_ = new T{std::forward<Args>(x)...};
+        type_ = n;
+    }
+    // NOTE: http://www.open-std.org/jtc1/sc22/wg21/docs/cwg_defects.html#1467
+    template <class... Args>
+    void emplace2(T *, Args&& ...x) {
+        data_ = new T(std::forward<Args>(x)...);
         type_ = n;
     }
     void copy(VariantHolder const &src) {
@@ -194,11 +202,11 @@ public:
     Variant(Variant const &other) : Variant(other.data_) { }
     Variant(Variant &&other)      { data_.swap(other.data_); }
     template <class U>
-    Variant(U &&u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type * = nullptr) { emplace<U>(std::forward<U>(u)); }
+    Variant(U &&u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type * = nullptr) { emplace2<U>(std::forward<U>(u)); }
     template <class U>
-    Variant(U &u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type * = nullptr) { emplace<U>(u); }
+    Variant(U &u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type * = nullptr) { emplace2<U>(u); }
     template <class U>
-    Variant(U const &u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type * = nullptr) { emplace<U>(u); }
+    Variant(U const &u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type * = nullptr) { emplace2<U>(u); }
     template <class U, class... Args>
     static Variant make(Args&& ...args) {
         Variant<T...> x;
@@ -210,17 +218,17 @@ public:
     Variant &operator=(Variant &&other) { return *this = std::move(other.data_); }
     template <class U>
     typename std::enable_if<Detail::TypeInList<U, T...>::value, Variant>::type &operator=(U &&u) {
-        emplace<U>(std::forward<U>(u));
+        emplace2<U>(std::forward<U>(u));
         return *this;
     }
     template <class U>
     typename std::enable_if<Detail::TypeInList<U, T...>::value, Variant>::type &operator=(U &u) {
-        emplace<U>(u);
+        emplace2<U>(u);
         return *this;
     }
     template <class U>
     typename std::enable_if<Detail::TypeInList<U, T...>::value, Variant>::type &operator=(U const &u) {
-        emplace<U>(u);
+        emplace2<U>(u);
         return *this;
     }
     template <class U>
@@ -266,6 +274,12 @@ private:
         data_.swap(data);
         data.destroy();
         return *this;
+    }
+    template <class U, class... Args>
+    void emplace2(Args&& ...args) {
+        Variant<T...> x;
+        x.data_.emplace2(static_cast<U*>(nullptr), std::forward<Args>(args)...);
+        data_.swap(x.data_);
     }
 
 private:
