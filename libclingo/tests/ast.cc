@@ -53,7 +53,7 @@ std::string parse(char const *prg) {
 
 }
 
-TEST_CASE("ast", "[clingo]") {
+TEST_CASE("parse-ast", "[clingo]") {
     SECTION("statement") {
         REQUIRE(parse("a:-b.") == "a :- b.");
         REQUIRE(parse("#const a=10.") == "#const a = 10. [default]");
@@ -79,13 +79,23 @@ TEST_CASE("ast", "[clingo]") {
         REQUIRE(parse("#theory x { &a/0 : t, {+, -}, u, any }.") == "#theory x {\n  &a/0 : t, { +, - }, u, any\n}.");
     }
     SECTION("body literal") {
-        // TODO: ...
+        REQUIRE(parse(":-a.") == "#false :- a.");
+        REQUIRE(parse(":-a:b.") == "#false :- a : b.");
+        REQUIRE(parse(":-a:b,c;d.") == "#false :- a : b, c; d.");
+        REQUIRE(parse(":-1{a:b,c;e}2.") == "#false :- 1 <= { a : b, c; e :  } <= 2.");
+        REQUIRE(parse(":-{a:b,c;e}2.") == "#false :- 2 >= { a : b, c; e :  }.");
+        REQUIRE(parse(":-1#min{1,2:b,c;1:e}2.") == "#false :- 1 <= #min { 1,2 : b, c; 1 : e } <= 2.");
+        REQUIRE(parse(":-&p { 1 : a,b; 2 : c }.") == "#false :- &p { 1 : a,b; 2 : c }.");
+        REQUIRE(parse(":-#disjoint {1,2:$x:a,b}.") == "#false :- #disjoint { 1,2 : 1$*x : a,b }.");
     }
     SECTION("head literal") {
-        // TODO: ...
-    }
-    SECTION("aggregates") {
-        // TODO: ...
+        REQUIRE(parse("a.") == "a.");
+        REQUIRE(parse("a:b.") == "a : b.");
+        REQUIRE(parse("a:b,c;d.") == "d : ; a : b, c.");
+        REQUIRE(parse("1{a:b,c;e}2.") == "1 <= { a : b, c; e :  } <= 2.");
+        REQUIRE(parse("{a:b,c;e}2.") == "2 >= { a : b, c; e :  }.");
+        REQUIRE(parse("1#min{1,2:h:b,c;1:e}2.") == "1 <= #min { 1,2 : h : b, c; 1 : e :  } <= 2.");
+        REQUIRE(parse("&p { 1 : a,b; 2 : c }.") == "&p { 1 : a,b; 2 : c }.");
     }
     SECTION("literal") {
         // TODO: ...

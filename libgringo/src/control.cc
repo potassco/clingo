@@ -1639,7 +1639,7 @@ std::ostream &operator<<(std::ostream &out, BodyAggregate const &x) {
 }
 
 std::ostream &operator<<(std::ostream &out, BodyAggregateElement const &x) {
-    out << print(x.tuple, "", ",", "", false) << " : " << print(x.condition, "", ",", "", false);
+    out << print(x.tuple, "", ",", "", false) << " : " << print(x.condition, "", ", ", "", false);
     return out;
 }
 

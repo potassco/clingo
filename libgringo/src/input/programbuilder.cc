@@ -1040,8 +1040,6 @@ BdLitVecUid ASTBuilder::bodyaggr(BdLitVecUid body, Location const &loc, NAF naf,
 }
 
 BdLitVecUid ASTBuilder::bodyaggr(BdLitVecUid body, Location const &loc, NAF naf, AggregateFunction fun, BoundVecUid bounds, BdAggrElemVecUid bodyaggrelemvec) {
-    (void)fun;
-    assert(fun == AggregateFunction::COUNT);
     auto guards = bounds_.erase(bounds);
     auto elems = bodyaggrelemvecs_.erase(bodyaggrelemvec);
     assert(guards.size() < 3);
