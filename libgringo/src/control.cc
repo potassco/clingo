@@ -1514,194 +1514,185 @@ void convStatement(clingo_ast_statement_t const *stm, StatementCallback &cb) {
 // {{{3 statement
 
 std::ostream &operator<<(std::ostream &out, TheoryDefinition const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << "#theory " << x.name << "{\n";
+    bool comma = false;
+    for (auto &y : x.terms) {
+        if (comma) { out << ";\n"; }
+        out << "  " << y.name << " {\n" << print(y.operators, "    ", ";\n", "\n", true) << "}";
+    }
+    for (auto &y : x.atoms) {
+        if (comma) { out << ";\n"; }
+        else       { comma = true; }
+        out << "  " << y;
+    }
+    if (comma) { out << "\n"; }
+    out << "}.";
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryAtomDefinition const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << "&" << x.name << "/" << x.arity << " : " << x.elements << " " << x.type;
+    if (x.guard) { out << *x.guard.get(); }
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryGuardDefinition const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << " { " << print(x.operators, "", ", ", "", false) << " }" << x.guard;
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryTermDefinition const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << x.name << " {\n" << print(x.operators, "  ", ";\n", "\n", true) << "}";
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryOperatorDefinition const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << x.name << " : " << x.priority << ", " << x.type;
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, BodyLiteral const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << x.sign << x.data;
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, HeadLiteral const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << x.data;
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryAtom const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << "&" << x.term << " { " << print(x.elements, "", "; ", "", false) << " }";
+    if (x.guard) { out << *x.guard.get(); }
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryGuard const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << x.operator_name << " " << x.term;
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryAtomElement const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << print(x.tuple, "", ",", "", false) << " : " << print(x.condition, "", ",", "", false);
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryUnparsedTermElement const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << print(x.operators, "", " ", " ", false) << x.term;
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryFunction const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << x.name << print(x.arguments, "(", ",", ")", true);
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryTermSequence const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << print(x.terms, left_hand_side(x.type), ",", right_hand_side(x.type), true);
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryTerm const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << x.data;
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryUnparsedTerm const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << print(x.elements, "", "", "", false);
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, Disjoint const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << "#disjoint { " << print(x.elements, "", "; ", "", false) << " }";
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, DisjointElement const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << print(x.tuple, "", ",", "", false) << " : " << x.term << " : " << print(x.condition, "", ",", "", false);
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, Disjunction const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << print(x.elements, "", "; ", "", false);
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, HeadAggregate const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    if (x.left_guard) { out << x.left_guard->term << " " << x.left_guard->comparison << " "; }
+    out << x.function << " { " << print(x.elements, "", "; ", "", false) << " }";
+    if (x.right_guard) { out << " " << x.right_guard->comparison << " " << x.right_guard->term; }
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, HeadAggregateElement const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << print(x.tuple, "", ",", "", false) << " : " << x.condition;
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, BodyAggregate const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    if (x.left_guard) { out << x.left_guard->term << " " << x.left_guard->comparison << " "; }
+    out << x.function << " { " << print(x.elements, "", "; ", "", false) << " }";
+    if (x.right_guard) { out << " " << x.right_guard->comparison << " " << x.right_guard->term; }
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, BodyAggregateElement const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << print(x.tuple, "", ",", "", false) << " : " << print(x.condition, "", ",", "", false);
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, Aggregate const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    if (x.left_guard) { out << x.left_guard->term << " " << x.left_guard->comparison << " "; }
+    out << "{ " << print(x.elements, "", "; ", "", false) << " }";
+    if (x.right_guard) { out << " " << x.right_guard->comparison << " " << x.right_guard->term; }
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, ConditionalLiteral const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << x.literal << print(x.condition, " : ", ", ", "", true);
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, Literal const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << x.sign << x.data;
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, Boolean const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << (x.value ? "#true" : "#false");
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, Comparison const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << x.left << x.comparison << x.right;
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, Id const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << x.id;
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, CSPLiteral const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << x.term;
+    for (auto &y : x.guards) { out << y; }
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, CSPGuard const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    out << "$" << x.comparison << x.term;
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, CSPAdd const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    if (x.terms.empty()) { out << "0"; }
+    else                 { out << print(x.terms, "", "$+", "", false); }
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, CSPMultiply const &x) {
-    (void)x;
-    throw std::logic_error("implement me!!!");
+    if (x.variable) { out << x.coefficient << "$*" << *x.variable.get(); }
+    else            { out << x.coefficient; }
     return out;
 }
 

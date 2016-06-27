@@ -185,6 +185,8 @@ public:
     }
     T *get() { return data_.get(); }
     T const *get() const { return data_.get(); }
+    T *operator->() { return get(); }
+    T const *operator->() const { return get(); }
     template <class... Args>
     void emplace(Args&&... x) {
         clear();
@@ -1341,6 +1343,22 @@ enum class TheoryTermSequenceType : int {
     List  = 1,
     Set   = 2
 };
+inline char const *left_hand_side(TheoryTermSequenceType x) {
+    switch (x) {
+        case TheoryTermSequenceType::Tuple: { return "("; }
+        case TheoryTermSequenceType::List:  { return "["; }
+        case TheoryTermSequenceType::Set:   { return "{"; }
+    }
+    return "";
+}
+inline char const *right_hand_side(TheoryTermSequenceType x) {
+    switch (x) {
+        case TheoryTermSequenceType::Tuple: { return ")"; }
+        case TheoryTermSequenceType::List:  { return "]"; }
+        case TheoryTermSequenceType::Set:   { return "}"; }
+    }
+    return "";
+}
 
 struct TheoryFunction;
 struct TheoryTermSequence;
