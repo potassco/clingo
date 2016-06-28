@@ -124,7 +124,7 @@ public:
     virtual void python(Location const &loc, String code) override;
     virtual void lua(Location const &loc, String code) override;
     virtual void block(Location const &loc, String name, IdVecUid args) override;
-    virtual void external(Location const &loc, LitUid head, BdLitVecUid body) override;
+    virtual void external(Location const &loc, TermUid head, BdLitVecUid body) override;
     virtual void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) override;
     virtual void heuristic(Location const &loc, TermUid termUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
     virtual void project(Location const &loc, TermUid termUid, BdLitVecUid body) override;
@@ -645,8 +645,8 @@ void TestNongroundProgramBuilder::block(Location const &, String name, IdVecUid 
     statements_.emplace_back(str());
 }
 
-void TestNongroundProgramBuilder::external(Location const &, LitUid head, BdLitVecUid bodyuid) {
-    current_ << "#external " << lits_.erase(head);
+void TestNongroundProgramBuilder::external(Location const &, TermUid head, BdLitVecUid bodyuid) {
+    current_ << "#external " << terms_.erase(head);
     StringVec body(bodies_.erase(bodyuid));
     if (!body.empty()) {
         current_ << ":";

@@ -853,9 +853,9 @@ statement
 // {{{2 external
 
 statement
-    : EXTERNAL atom[hd] COLON bodydot[bd] { BUILDER.external(@$, BUILDER.predlit(@hd, NAF::POS, $hd), $bd); }
-    | EXTERNAL atom[hd] COLON DOT         { BUILDER.external(@$, BUILDER.predlit(@hd, NAF::POS, $hd), BUILDER.body()); }
-    | EXTERNAL atom[hd] DOT               { BUILDER.external(@$, BUILDER.predlit(@hd, NAF::POS, $hd), BUILDER.body()); }
+    : EXTERNAL atom[hd] COLON bodydot[bd] { BUILDER.external(@$, $hd, $bd); }
+    | EXTERNAL atom[hd] COLON DOT         { BUILDER.external(@$, $hd, BUILDER.body()); }
+    | EXTERNAL atom[hd] DOT               { BUILDER.external(@$, $hd, BUILDER.body()); }
     ;
 
 // {{{1 theory
