@@ -1364,12 +1364,12 @@ places like - e.g., the main function.)";
             unsigned atomset = 0;
             static char const *kwlist[] = {"atoms", "terms", "shown", "csp", "theory", "comp", nullptr};
             PyObject *pyAtoms = Py_False, *pyTheory = Py_False, *pyTerms = Py_False, *pyShown = Py_False, *pyCSP = Py_False, *pyComp = Py_False;
-            if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "|OOOOOO", const_cast<char**>(kwlist), &pyAtoms, &pyTheory, &pyTerms, &pyShown, &pyCSP, &pyComp)) { return nullptr; }
+            if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "|OOOOOO", const_cast<char**>(kwlist), &pyAtoms, &pyTerms, &pyShown, &pyCSP, &pyTheory, &pyComp)) { return nullptr; }
             if (pyToCpp<bool>(pyAtoms)) { atomset |= clingo_show_type_atoms; }
-            if (pyToCpp<bool>(pyTheory)){ atomset |= clingo_show_type_theory; }
             if (pyToCpp<bool>(pyTerms)) { atomset |= clingo_show_type_terms; }
             if (pyToCpp<bool>(pyShown)) { atomset |= clingo_show_type_shown; }
             if (pyToCpp<bool>(pyCSP))   { atomset |= clingo_show_type_csp; }
+            if (pyToCpp<bool>(pyTheory)){ atomset |= clingo_show_type_theory; }
             if (pyToCpp<bool>(pyComp))  { atomset |= clingo_show_type_complement; }
             return cppToPy(self->model->atoms(atomset)).release();
         PY_CATCH(nullptr);

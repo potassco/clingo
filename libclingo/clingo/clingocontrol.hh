@@ -263,7 +263,7 @@ public:
     bool onModel(Clasp::Model const &m);
     void onFinish(Clasp::ClaspFacade::Result ret);
     bool update();
-    
+
     Clasp::LitVec toClaspAssumptions(Gringo::Control::Assumptions &&ass) const;
     
     virtual void postGround(Clasp::ProgramBuilder& prg) { if (pgf_) { pgf_(prg); } }
