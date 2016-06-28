@@ -263,8 +263,14 @@ public:
     bool onModel(Clasp::Model const &m);
     void onFinish(Clasp::ClaspFacade::Result ret);
     bool update();
-
+    
     Clasp::LitVec toClaspAssumptions(Gringo::Control::Assumptions &&ass) const;
+    
+    virtual void postGround(Clasp::ProgramBuilder& prg) { if (pgf_) { pgf_(prg); } }
+    virtual void prePrepare(Clasp::ClaspFacade& ) { }
+    virtual void preSolve(Clasp::ClaspFacade& clasp) { if (psf_) { psf_(clasp);} }
+    virtual void postSolve(Clasp::ClaspFacade& ) {}
+    virtual Gringo::SymVec addToModel(Clasp::Model const& ) { return Gringo::SymVec(); }
 
     // {{{2 SymbolicAtoms interface
 
@@ -281,15 +287,6 @@ public:
     bool external(Gringo::SymbolicAtomIter it) const override;
     Gringo::SymbolicAtomIter next(Gringo::SymbolicAtomIter it) override;
     bool valid(Gringo::SymbolicAtomIter it) const override;
-    
-    
-    // {{{2 Callback interface
-    
-    virtual void postGround(Clasp::ProgramBuilder& prg) { if (pgf_) { pgf_(prg); } }
-    virtual void prePrepare(Clasp::ClaspFacade& ) { }
-    virtual void preSolve(Clasp::ClaspFacade& clasp) { if (psf_) { psf_(clasp);} }
-    virtual void postSolve(Clasp::ClaspFacade& ) {}
-    virtual Gringo::SymVec addToModel(Clasp::Model const& ) { return Gringo::SymVec(); }
 
     // {{{2 ConfigProxy interface
 
