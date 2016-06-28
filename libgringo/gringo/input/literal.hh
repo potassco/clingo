@@ -82,6 +82,7 @@ struct Literal : Printable, Hashable, Locatable, Comparable<Literal>, Clonable<L
     virtual UTerm headRepr() const = 0;
     virtual bool auxiliary() const = 0;
     virtual void auxiliary(bool auxiliary) = 0;
+    virtual void getNeg(std::function<void (Sig)> f) const = 0;
     virtual ~Literal() { }
 };
 

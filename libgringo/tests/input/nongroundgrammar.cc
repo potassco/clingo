@@ -71,7 +71,7 @@ public:
     // }}}
     // {{{ literals
     virtual LitUid boollit(Location const &loc, bool type) override;
-    virtual LitUid predlit(Location const &loc, NAF naf, bool neg, String name, TermVecVecUid argvecvecUid) override;
+    virtual LitUid predlit(Location const &loc, NAF naf, TermUid termUid) override;
     virtual LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) override;
     // }}}
     // {{{ literal vectors
@@ -126,8 +126,8 @@ public:
     virtual void block(Location const &loc, String name, IdVecUid args) override;
     virtual void external(Location const &loc, LitUid head, BdLitVecUid body) override;
     virtual void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) override;
-    virtual void heuristic(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
-    virtual void project(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body) override;
+    virtual void heuristic(Location const &loc, TermUid termUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
+    virtual void project(Location const &loc, TermUid termUid, BdLitVecUid body) override;
     virtual void project(Location const &loc, Sig sig) override;
     // }}}
     // {{{ theory atoms
@@ -290,16 +290,18 @@ TermUid TestNongroundProgramBuilder::term(Location const &, String name) {
 
 TermUid TestNongroundProgramBuilder::term(Location const &, UnOp op, TermUid a) {
     if(op == UnOp::ABS) { current_ << "|"; }
-    else { current_ << "(" << op; }
-    current_ << terms_.erase(a) << (op == UnOp::ABS ? "|" : ")");
+    else { current_ << op; }
+    current_ << terms_.erase(a) << (op == UnOp::ABS ? "|" : "");
     return terms_.emplace(str());
 }
 
 TermUid TestNongroundProgramBuilder::term(Location const &, UnOp op, TermVecUid a) {
+    auto v = termvecs_.erase(a);
     if(op == UnOp::ABS) { current_ << "|"; }
-    else { current_ << op << "("; }
-    print(termvecs_.erase(a), ";");
-    current_ << (op == UnOp::ABS ? "|" : ")");
+    else { current_ << op << (v.size() > 1 ? "(" : ""); }
+    print(v, ";");
+    if(op == UnOp::ABS) { current_ << "|"; }
+    else if (v.size() > 1) { current_ << ")"; }
     return terms_.emplace(str());
 }
 
@@ -400,14 +402,9 @@ LitUid TestNongroundProgramBuilder::boollit(Location const &, bool type) {
     return lits_.emplace(type ? "#true" : "#false");
 }
 
-LitUid TestNongroundProgramBuilder::predlit(Location const &, NAF naf, bool neg, String name, TermVecVecUid tvvUid) {
+LitUid TestNongroundProgramBuilder::predlit(Location const &, NAF naf, TermUid termUid) {
     print(naf);
-    if (neg) { current_ << "-"; }
-    current_ << name;
-    bool nempty = termvecvecs_[tvvUid].size() > 1 || !termvecvecs_[tvvUid].front().empty();
-    if (nempty) { current_ << "("; }
-    print(termvecvecs_.erase(tvvUid));
-    if (nempty) { current_ << ")"; }
+    current_ << terms_.erase(termUid);
     return lits_.emplace(str());
 }
 
@@ -672,12 +669,8 @@ void TestNongroundProgramBuilder::edge(Location const &, TermVecVecUid edges, Bd
     statements_.emplace_back(str());
 }
 
-void TestNongroundProgramBuilder::heuristic(Location const &, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid bodyuid, TermUid a, TermUid b, TermUid mod) {
-    current_ << "#heuristic " << (neg ? "-" : "") << name;
-    bool nempty = termvecvecs_[tvvUid].size() > 1 || !termvecvecs_[tvvUid].front().empty();
-    if (nempty) { current_ << "("; }
-    print(termvecvecs_.erase(tvvUid));
-    if (nempty) { current_ << ")"; }
+void TestNongroundProgramBuilder::heuristic(Location const &, TermUid termUid, BdLitVecUid bodyuid, TermUid a, TermUid b, TermUid mod) {
+    current_ << "#heuristic " << terms_.erase(termUid);
     StringVec body(bodies_.erase(bodyuid));
     if (!body.empty()) {
         current_ << ":";
@@ -687,12 +680,8 @@ void TestNongroundProgramBuilder::heuristic(Location const &, bool neg, String n
     statements_.emplace_back(str());
 }
 
-void TestNongroundProgramBuilder::project(Location const &, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid bodyuid) {
-    current_ << "#project " << (neg ? "-" : "") << name;
-    bool nempty = termvecvecs_[tvvUid].size() > 1 || !termvecvecs_[tvvUid].front().empty();
-    if (nempty) { current_ << "("; }
-    print(termvecvecs_.erase(tvvUid));
-    if (nempty) { current_ << ")"; }
+void TestNongroundProgramBuilder::project(Location const &, TermUid termUid, BdLitVecUid bodyuid) {
+    current_ << "#project " << terms_.erase(termUid);
     StringVec body(bodies_.erase(bodyuid));
     if (!body.empty()) {
         current_ << ":";
@@ -985,8 +974,8 @@ TEST_CASE("input-nongroundprogrambuilder", "[input]") {
         REQUIRE("#program base().\np(((1,2,3)))." == parse("p((1,2,3))."));
         REQUIRE("#program base().\np((();();();(1,2);(3,)))." == parse("p((;;;1,2;3,))."));
         // unary operations
-        REQUIRE("#program base().\np((-1))." == parse("p(-1)."));
-        REQUIRE("#program base().\np((~1))." == parse("p(~1)."));
+        REQUIRE("#program base().\np(-1)." == parse("p(-1)."));
+        REQUIRE("#program base().\np(~1)." == parse("p(~1)."));
         // binary operations
         REQUIRE("#program base().\np((1**2))." == parse("p(1**2)."));
         REQUIRE("#program base().\np((1\\2))." == parse("p(1\\2)."));
@@ -1203,7 +1192,7 @@ TEST_CASE("input-nongroundprogrambuilder", "[input]") {
         REQUIRE("#program base().\n:~p(X,Y);r;s.[X@0]" == parse(":~ p(X,Y),r,s. [X]"));
         REQUIRE("#program base().\n:~p(X,Y);s.[X@Y,a]\n:~q(Y).[Y@f]\n:~.[1@0]" == parse("#minimize { X@Y,a : p(X,Y),s; Y@f : q(Y); 1 }."));
         REQUIRE("#program base()." == parse("#minimize { }."));
-        REQUIRE("#program base().\n:~p(X,Y);r.[(-X)@Y,a]\n:~q(Y).[(-Y)@f]\n:~.[(-2)@0]" == parse("#maximize { X@Y,a : p(X,Y), r; Y@f : q(Y); 2 }."));
+        REQUIRE("#program base().\n:~p(X,Y);r.[-X@Y,a]\n:~q(Y).[-Y@f]\n:~.[-2@0]" == parse("#maximize { X@Y,a : p(X,Y), r; Y@f : q(Y); 2 }."));
         REQUIRE("#program base()." == parse("#maximize { }."));
     }
 
@@ -1211,7 +1200,7 @@ TEST_CASE("input-nongroundprogrambuilder", "[input]") {
         REQUIRE("#program base().\n#showsig p/1." == parse("#show p/1."));
         REQUIRE("#program base().\n#showsig p/1." == parse("#show p  /  1."));
         REQUIRE("#program base().\n#showsig -p/1." == parse("#show -p/1."));
-        REQUIRE("#program base().\n#show ((-p)/(-1))." == parse("#show -p/-1."));
+        REQUIRE("#program base().\n#show (-p/-1)." == parse("#show -p/-1."));
         REQUIRE("#program base().\n#show X:p(X);1<=#count{q(X):p(X)}." == parse("#show X:p(X), 1 { q(X):p(X) }."));
     }
 

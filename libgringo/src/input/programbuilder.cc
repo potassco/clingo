@@ -178,8 +178,8 @@ LitUid NongroundProgramBuilder::boollit(Location const &loc, bool type) {
     return rellit(loc, type ? Relation::EQ : Relation::NEQ, term(loc, Symbol::createNum(0)), term(loc, Symbol::createNum(0)));
 }
 
-LitUid NongroundProgramBuilder::predlit(Location const &loc, NAF naf, bool neg, String name, TermVecVecUid tvvUid) {
-    return lits_.insert(make_locatable<PredicateLiteral>(loc, naf, terms_.erase(predRep(loc, neg, name, tvvUid))));
+LitUid NongroundProgramBuilder::predlit(Location const &loc, NAF naf, TermUid term) {
+    return lits_.insert(make_locatable<PredicateLiteral>(loc, naf, terms_.erase(term)));
 }
 
 LitUid NongroundProgramBuilder::rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) {
@@ -318,7 +318,7 @@ void NongroundProgramBuilder::optimize(Location const &loc, TermUid weight, Term
     if (rewriteMinimize_) {
         auto argsUid = termvec(termvec(termvec(), priority), weight);
         termvec(argsUid, term(loc, cond, true));
-        auto predUid = predlit(loc, NAF::POS, false, "_criteria", termvecvec(termvecvec(), argsUid));
+        auto predUid = predlit(loc, NAF::POS, term(loc, "_criteria", termvecvec(termvecvec(), argsUid), false));
         rule(loc, headlit(predUid), body);
         out.outPredsForce.emplace_back(loc, Sig("_criteria", 3, false), false);
     }
@@ -367,22 +367,12 @@ void NongroundProgramBuilder::edge(Location const &loc, TermVecVecUid edgesUid, 
     }
 }
 
-TermUid NongroundProgramBuilder::predRep(Location const &loc, bool neg, String name, TermVecVecUid tvvUid) {
-    if (neg) {
-        for (auto &x : termvecvecs_[tvvUid]) { prg_.addClassicalNegation(Sig(name, x.size(), false)); }
-    }
-    TermUid t = term(loc, name, tvvUid, false);
-    if (neg) { t = term(loc, UnOp::NEG, t); }
-    return t;
-
+void NongroundProgramBuilder::heuristic(Location const &loc, TermUid termUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) {
+    prg_.add(make_locatable<Statement>(loc, make_locatable<HeuristicHeadAtom>(loc, terms_.erase(termUid), terms_.erase(a), terms_.erase(b), terms_.erase(mod)), bodies_.erase(body), StatementType::RULE));
 }
 
-void NongroundProgramBuilder::heuristic(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) {
-    prg_.add(make_locatable<Statement>(loc, make_locatable<HeuristicHeadAtom>(loc, terms_.erase(predRep(loc, neg, name, tvvUid)), terms_.erase(a), terms_.erase(b), terms_.erase(mod)), bodies_.erase(body), StatementType::RULE));
-}
-
-void NongroundProgramBuilder::project(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body) {
-    prg_.add(make_locatable<Statement>(loc, make_locatable<ProjectHeadAtom>(loc, terms_.erase(predRep(loc, neg, name, tvvUid))), bodies_.erase(body), StatementType::RULE));
+void NongroundProgramBuilder::project(Location const &loc, TermUid termUid, BdLitVecUid body) {
+    prg_.add(make_locatable<Statement>(loc, make_locatable<ProjectHeadAtom>(loc, terms_.erase(termUid)), bodies_.erase(body), StatementType::RULE));
 }
 
 void NongroundProgramBuilder::project(Location const &loc, Sig sig) {
@@ -393,8 +383,7 @@ void NongroundProgramBuilder::project(Location const &loc, Sig sig) {
         ss << "X" << i;
         tv = termvec(tv, term(loc, ss.str().c_str()));
     }
-    auto tvv = termvecvec(termvecvec(), tv);
-    project(loc, s.sign(), s.name(), tvv, body());
+    project(loc, predRep(loc, s.sign(), s.name(), termvecvec(termvecvec(), tv)), body());
 }
 
 // {{{2 theory
@@ -816,14 +805,12 @@ LitUid ASTBuilder::boollit(Location const &loc, bool type) {
     return lits_.insert(std::move(lit));
 }
 
-LitUid ASTBuilder::predlit(Location const &loc, NAF naf, bool neg, String name, TermVecVecUid argvecvecUid) {
-    auto t = term(loc, name, argvecvecUid, false);
-    if (neg) { t = term(loc, UnOp::NEG, t); }
+LitUid ASTBuilder::predlit(Location const &loc, NAF naf, TermUid termUid) {
     clingo_ast_literal_t lit;
     lit.location = convertLoc(loc);
     lit.sign     = static_cast<clingo_ast_sign_t>(naf);
     lit.type     = clingo_ast_literal_type_symbolic;
-    lit.symbol   = create_(terms_.erase(t));
+    lit.symbol   = create_(terms_.erase(termUid));
     return lits_.insert(std::move(lit));
 }
 
@@ -1261,12 +1248,10 @@ void ASTBuilder::edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body
     clear_();
 }
 
-void ASTBuilder::heuristic(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) {
+void ASTBuilder::heuristic(Location const &loc, TermUid termUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) {
     auto bd = bodies_.erase(body);
-    auto t = term(loc, name, tvvUid, false);
-    if (neg) { t = term(loc, UnOp::NEG, t); }
     clingo_ast_heuristic_t heu;
-    heu.atom     = terms_.erase(t);
+    heu.atom     = terms_.erase(termUid);
     heu.bias     = terms_.erase(a);
     heu.priority = terms_.erase(b);
     heu.modifier = terms_.erase(mod);
@@ -1277,14 +1262,12 @@ void ASTBuilder::heuristic(Location const &loc, bool neg, String name, TermVecVe
     statement_(loc, clingo_ast_statement_type_heuristic, stm);
 }
 
-void ASTBuilder::project(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body) {
+void ASTBuilder::project(Location const &loc, TermUid termUid, BdLitVecUid body) {
     auto bd = bodies_.erase(body);
-    auto t = term(loc, name, tvvUid, false);
-    if (neg) { t = term(loc, UnOp::NEG, t); }
     clingo_ast_project_t proj;
     proj.size = bd.size();
     proj.body = createArray_(bd);
-    proj.atom = terms_.erase(t);
+    proj.atom = terms_.erase(termUid);
     clingo_ast_statement stm;
     stm.project = create_(proj);
     statement_(loc, clingo_ast_statement_type_project, stm);

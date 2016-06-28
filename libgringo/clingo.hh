@@ -1111,6 +1111,7 @@ inline char const *left_hand_side(UnaryOperator op) {
         case UnaryOperator::Minus:    { return "-"; }
         case UnaryOperator::Negate:   { return "~"; }
     }
+    return "";
 }
 
 inline char const *right_hand_side(UnaryOperator op) {
@@ -1119,6 +1120,7 @@ inline char const *right_hand_side(UnaryOperator op) {
         case UnaryOperator::Minus:    { return ""; }
         case UnaryOperator::Negate:   { return ""; }
     }
+    return "";
 }
 
 struct UnaryOperation {

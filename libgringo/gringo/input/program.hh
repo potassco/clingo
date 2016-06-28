@@ -53,14 +53,11 @@ using BlockMap = UniqueVec<Block, HashKey<Term>, EqualToKey<Term>>;
 
 class Program {
 public:
-    using ClassicalNegationList = UniqueVec<Sig>;
-
     Program();
     Program(Program &&x);
     void begin(Location const &loc, String name, IdVec &&params);
     void add(UStm &&stm);
     void add(TheoryDef &&def, Logger &log);
-    void addClassicalNegation(Sig x);
     void rewrite(Defines &defs, Logger &log);
     void check(Logger &log);
     void print(std::ostream &out) const;
@@ -79,7 +76,6 @@ private:
     Block                *current_;
     Projections           project_;
     UStmVec               stms_;
-    ClassicalNegationList neg_;
     TheoryDefs            theoryDefs_;
 };
 

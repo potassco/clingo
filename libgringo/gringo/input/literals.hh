@@ -48,8 +48,8 @@ struct PredicateLiteral : Literal {
     UTerm headRepr() const override;
     bool auxiliary() const override { return auxiliary_; }
     void auxiliary(bool auxiliary) override { auxiliary_ = auxiliary; }
+    void getNeg(std::function<void (Sig)> f) const override;
     virtual ~PredicateLiteral();
-
 
     NAF naf;
     bool auxiliary_;
@@ -91,6 +91,7 @@ struct RelationLiteral : Literal {
     virtual ~RelationLiteral();
     static ULit make(Term::ArithmeticsMap::value_type::value_type &x);
     static ULit make(Literal::AssignVec::value_type &x);
+    void getNeg(std::function<void (Sig)>) const override { }
 
     Relation rel;
     UTerm left;
@@ -120,6 +121,7 @@ struct RangeLiteral : Literal {
     void auxiliary(bool) override { }
     virtual ~RangeLiteral();
     static ULit make(SimplifyState::DotsMap::value_type &dots);
+    void getNeg(std::function<void (Sig)>) const override { }
 
     UTerm assign;
     UTerm lower;
@@ -149,6 +151,7 @@ struct ScriptLiteral : Literal {
     void auxiliary(bool) override { }
     virtual ~ScriptLiteral();
     static ULit make(SimplifyState::ScriptMap::value_type &script);
+    void getNeg(std::function<void (Sig)>) const override { }
 
     UTerm assign;
     String name;
@@ -177,6 +180,7 @@ struct FalseLiteral : Literal {
     UTerm headRepr() const override;
     bool auxiliary() const override { return true; }
     void auxiliary(bool) override { }
+    void getNeg(std::function<void (Sig)>) const override { }
     virtual ~FalseLiteral();
 };
 
@@ -206,6 +210,7 @@ struct CSPLiteral : Literal {
     UTerm headRepr() const override;
     bool auxiliary() const override { return auxiliary_; }
     void auxiliary(bool auxiliary) override { auxiliary_ = auxiliary; }
+    void getNeg(std::function<void (Sig)>) const override { }
     virtual ~CSPLiteral();
 
     Terms terms;

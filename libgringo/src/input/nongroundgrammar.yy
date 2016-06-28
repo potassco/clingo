@@ -174,7 +174,7 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
 // }}}2
 
 // TODO: improve naming scheme
-%type <term>            constterm term tuple theory_atom_name
+%type <term>            constterm term tuple theory_atom_name atom
 %type <termvec>         termvec ntermvec consttermvec unaryargvec optimizetuple tuplevec tuplevec_sem
 %type <termvecvec>      argvec constargvec binaryargvec
 %type <lit>             literal
@@ -190,7 +190,6 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
 %type <head>            head
 %type <uid>             lubodyaggregate luheadaggregate
 %type <str>             identifier theory_definition_identifier
-%type <pair>            atom
 %type <fun>             aggregatefunction
 %type <aggr>            bodyaggregate headaggregate
 %type <rel>             cmp csp_rel
@@ -477,10 +476,10 @@ cmp
     ;
 
 atom
-    : identifier[id]                                  { $$ = { $id, BUILDER.termvecvec(BUILDER.termvecvec(), BUILDER.termvec()) << 1u }; }
-    | identifier[id] LPAREN argvec[tvv] RPAREN[r]     { $$ = { $id, $tvv << 1u }; }
-    | SUB identifier[id]                              { $$ = { $id, BUILDER.termvecvec(BUILDER.termvecvec(), BUILDER.termvec()) << 1u | 1u }; }
-    | SUB identifier[id] LPAREN argvec[tvv] RPAREN[r] { $$ = { $id, $tvv << 1u | 1u }; }
+    : identifier[id]                                  { $$ = BUILDER.predRep(@$, false, String::fromRep($id), BUILDER.termvecvec(BUILDER.termvecvec(), BUILDER.termvec())); }
+    | identifier[id] LPAREN argvec[tvv] RPAREN[r]     { $$ = BUILDER.predRep(@$, false, String::fromRep($id), $tvv); }
+    | SUB identifier[id]                              { $$ = BUILDER.predRep(@$, true, String::fromRep($id), BUILDER.termvecvec(BUILDER.termvecvec(), BUILDER.termvec())); }
+    | SUB identifier[id] LPAREN argvec[tvv] RPAREN[r] { $$ = BUILDER.predRep(@$, true, String::fromRep($id), $tvv); }
     ;
 
 literal
@@ -490,9 +489,9 @@ literal
     |         FALSE                    { $$ = BUILDER.boollit(@$, false); }
     |     NOT FALSE                    { $$ = BUILDER.boollit(@$, true); }
     | NOT NOT FALSE                    { $$ = BUILDER.boollit(@$, false); }
-    |         atom[a]                  { $$ = BUILDER.predlit(@$, NAF::POS, $a.second & 1, String::fromRep($a.first), TermVecVecUid($a.second >> 1u)); }
-    |     NOT atom[a]                  { $$ = BUILDER.predlit(@$, NAF::NOT, $a.second & 1, String::fromRep($a.first), TermVecVecUid($a.second >> 1u)); }
-    | NOT NOT atom[a]                  { $$ = BUILDER.predlit(@$, NAF::NOTNOT, $a.second & 1, String::fromRep($a.first), TermVecVecUid($a.second >> 1u)); }
+    |         atom[a]                  { $$ = BUILDER.predlit(@$, NAF::POS, $a); }
+    |     NOT atom[a]                  { $$ = BUILDER.predlit(@$, NAF::NOT, $a); }
+    | NOT NOT atom[a]                  { $$ = BUILDER.predlit(@$, NAF::NOTNOT, $a); }
     |         term[l] cmp[rel] term[r] { $$ = BUILDER.rellit(@$, $rel, $l, $r); }
     |     NOT term[l] cmp[rel] term[r] { $$ = BUILDER.rellit(@$, neg($rel), $l, $r); }
     | NOT NOT term[l] cmp[rel] term[r] { $$ = BUILDER.rellit(@$, $rel, $l, $r); }
@@ -798,8 +797,8 @@ statement
 // {{{2 heuristic
 
 statement
-    : HEURISTIC atom[a] bodyconddot[body] LBRACK term[t] AT term[p] COMMA term[mod] RBRACK { BUILDER.heuristic(@$, $a.second & 1, String::fromRep($a.first), TermVecVecUid($a.second >> 1u), $body, $t, $p, $mod); }
-    | HEURISTIC atom[a] bodyconddot[body] LBRACK term[t]            COMMA term[mod] RBRACK { BUILDER.heuristic(@$, $a.second & 1, String::fromRep($a.first), TermVecVecUid($a.second >> 1u), $body, $t, BUILDER.term(@$, Symbol::createNum(0)), $mod); }
+    : HEURISTIC atom[a] bodyconddot[body] LBRACK term[t] AT term[p] COMMA term[mod] RBRACK { BUILDER.heuristic(@$, $a, $body, $t, $p, $mod); }
+    | HEURISTIC atom[a] bodyconddot[body] LBRACK term[t]            COMMA term[mod] RBRACK { BUILDER.heuristic(@$, $a, $body, $t, BUILDER.term(@$, Symbol::createNum(0)), $mod); }
     ;
 
 // {{{2 project
@@ -807,7 +806,7 @@ statement
 statement
     : PROJECT identifier[name] SLASH NUMBER[arity] DOT     { BUILDER.project(@$, Sig(String::fromRep($name), $arity, false)); }
     | PROJECT SUB identifier[name] SLASH NUMBER[arity] DOT { BUILDER.project(@$, Sig(String::fromRep($name), $arity, true)); }
-    | PROJECT atom[a] bodyconddot[body]                    { BUILDER.project(@$, $a.second & 1, String::fromRep($a.first), TermVecVecUid($a.second >> 1u), $body); }
+    | PROJECT atom[a] bodyconddot[body]                    { BUILDER.project(@$, $a, $body); }
     ;
 
 // {{{2 constants
@@ -854,9 +853,9 @@ statement
 // {{{2 external
 
 statement
-    : EXTERNAL atom[hd] COLON bodydot[bd] { BUILDER.external(@$, BUILDER.predlit(@hd, NAF::POS, $hd.second & 1, String::fromRep($hd.first), TermVecVecUid($hd.second >> 1u)), $bd); }
-    | EXTERNAL atom[hd] COLON DOT         { BUILDER.external(@$, BUILDER.predlit(@hd, NAF::POS, $hd.second & 1, String::fromRep($hd.first), TermVecVecUid($hd.second >> 1u)), BUILDER.body()); }
-    | EXTERNAL atom[hd] DOT               { BUILDER.external(@$, BUILDER.predlit(@hd, NAF::POS, $hd.second & 1, String::fromRep($hd.first), TermVecVecUid($hd.second >> 1u)), BUILDER.body()); }
+    : EXTERNAL atom[hd] COLON bodydot[bd] { BUILDER.external(@$, BUILDER.predlit(@hd, NAF::POS, $hd), $bd); }
+    | EXTERNAL atom[hd] COLON DOT         { BUILDER.external(@$, BUILDER.predlit(@hd, NAF::POS, $hd), BUILDER.body()); }
+    | EXTERNAL atom[hd] DOT               { BUILDER.external(@$, BUILDER.predlit(@hd, NAF::POS, $hd), BUILDER.body()); }
     ;
 
 // {{{1 theory

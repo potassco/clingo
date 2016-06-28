@@ -99,7 +99,7 @@ void Builder::setUp() {
 // {{{ auxiliary functions
 
 LitUid Builder::lit(const char *name) {
-    return p.predlit(l, NAF::POS, false, name, p.termvecvec(p.termvecvec(), p.termvec()));
+    return p.predlit(l, NAF::POS, p.predRep(l, false, name, p.termvecvec(p.termvecvec(), p.termvec())));
 }
 
 LitVecUid Builder::litvec(Lits names) {
@@ -158,7 +158,7 @@ HdLitUid Builder::headaggr(AggregateFunction fun, Bounds bounds, HeadAggrElems e
 
 void Builder::test_term() {
     auto t = [&](TermUid uid) -> std::string {
-        p.rule(l, p.headlit(p.predlit(l, NAF::POS, false, "p", p.termvecvec(p.termvecvec(), p.termvec(p.termvec(), uid)))));
+        p.rule(l, p.headlit(p.predlit(l, NAF::POS, p.predRep(l, false, "p", p.termvecvec(p.termvecvec(), p.termvec(p.termvec(), uid))))));
         auto s(to_string(prg));
         setUp();
         if (!s.empty()) { s.pop_back(); }
@@ -193,10 +193,10 @@ void Builder::test_literal() {
     };
     REQUIRE("0=0." == t(p.boollit(l, true)));
     REQUIRE("0!=0." == t(p.boollit(l, false)));
-    REQUIRE("p." == t(p.predlit(l, NAF::POS, false, "p", p.termvecvec(p.termvecvec(), p.termvec()))));
-    REQUIRE("(-p)." == t(p.predlit(l, NAF::POS, true, "p", p.termvecvec(p.termvecvec(), p.termvec()))));
-    REQUIRE("not p." == t(p.predlit(l, NAF::NOT, false, "p", p.termvecvec(p.termvecvec(), p.termvec()))));
-    REQUIRE("not not p." == t(p.predlit(l, NAF::NOTNOT, false, "p", p.termvecvec(p.termvecvec(), p.termvec()))));
+    REQUIRE("p." == t(lit("p")));
+    REQUIRE("(-p)." == t(p.predlit(l, NAF::POS, p.predRep(l, true, "p", p.termvecvec(p.termvecvec(), p.termvec())))));
+    REQUIRE("not p." == t(p.predlit(l, NAF::NOT, p.predRep(l, false, "p", p.termvecvec(p.termvecvec(), p.termvec())))));
+    REQUIRE("not not p." == t(p.predlit(l, NAF::NOTNOT, p.predRep(l, false, "p", p.termvecvec(p.termvecvec(), p.termvec())))));
     REQUIRE("1<2." == t(p.rellit(l, Relation::LT, p.term(l, NUM(1)), p.term(l, NUM(2)))));
     REQUIRE("1>2." == t(p.rellit(l, Relation::GT, p.term(l, NUM(1)), p.term(l, NUM(2)))));
 }

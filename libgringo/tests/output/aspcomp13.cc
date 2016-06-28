@@ -793,7 +793,7 @@ TEST_CASE("output-aspcomp2013", "[output][aspcomp]") {
             "[move(1,up,4,5),move(2,right,2,5),move(3,left,6,4),move(4,left,5,5),move(5,left,7,5),move(6,down,7,3)],"
             "[move(1,up,4,5),move(2,right,2,5),move(3,right,2,4),move(4,left,5,5),move(5,left,7,5),move(6,down,7,3)]],"
             "[-:56:22-23: info: global variable in tuple of aggregate element:\n  T\n"
-            ",-:51:72-93: info: atom does not occur in any rule head:\n  not checking_solution\n"
+            ",-:51:76-93: info: atom does not occur in any rule head:\n  checking_solution\n"
             ",-:56:94-111: info: atom does not occur in any rule head:\n  checking_solution\n])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
@@ -894,7 +894,6 @@ TEST_CASE("output-aspcomp2013", "[output][aspcomp]") {
                 "\n"
                 "state(1,full,X,Y) :- full(X,Y).\n"
                 "state(1,empty,X,Y) :- empty(X,Y).\n", {"move("})));
-        //REQUIRE("[-:56:22-23: info: global variable in tuple of aggregate element:\n  T\n,-:51:72-93: info: atom does not occur in any rule head:\n  not checking_solution\n,-:56:94-111: info: atom does not occur in any rule head:\n  checking_solution\n]" == IO::to_string(msg));
     }
 
 
@@ -1052,8 +1051,8 @@ TEST_CASE("output-aspcomp2013", "[output][aspcomp]") {
             "[on_instance(j1,1),on_instance(j2,2),on_instance(j3,2),penalty(j2,3),penalty(j3,0),start(j1,0),start(j2,8),start(j3,2),tot_penalty(3)],"
             "[on_instance(j1,1),on_instance(j2,2),on_instance(j3,2),penalty(j2,3),penalty(j3,0),start(j1,0),start(j2,8),start(j3,3),tot_penalty(3)],"
             "[on_instance(j1,1),on_instance(j2,2),on_instance(j3,2),penalty(j2,3),penalty(j3,0),start(j1,0),start(j2,8),start(j3,4),tot_penalty(3)]],"
-            "[-:33:47-68: info: atom does not occur in any rule head:\n  not checking_solution\n"
-            ",-:34:79-100: info: atom does not occur in any rule head:\n  not checking_solution\n])" == IO::to_string(solve(
+            "[-:33:51-68: info: atom does not occur in any rule head:\n  checking_solution\n"
+            ",-:34:83-100: info: atom does not occur in any rule head:\n  checking_solution\n])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "max_value(20).\n"
@@ -1222,7 +1221,6 @@ TEST_CASE("output-aspcomp2013", "[output][aspcomp]") {
                 "   I != CI,\n"
                 "   must_not_schedule(J).\n"
                 , {"start(","on_instance(","penalty(","tot_penalty(","rescheduled("})));
-        //REQUIRE("[-:33:47-68: info: atom does not occur in any rule head:\n  not checking_solution\n,-:34:79-100: info: atom does not occur in any rule head:\n  not checking_solution\n]" == IO::to_string(msg));
     }
 
 // {{{1 N17 Qualitative Spatial Reasoning
@@ -2264,29 +2262,29 @@ TEST_CASE("output-aspcomp2013", "[output][aspcomp]") {
         // Author: Marcello Balduccini, Martin Gebser*
         REQUIRE(
             "([[active(0),active(3)]],"
-            "[-:33:26-38: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:34:26-38: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:36:29-41: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:37:29-41: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:40:29-41: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:41:29-41: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:48:39-51: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:49:39-51: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:57:24-36: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:71:64-76: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:72:64-76: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:73:64-76: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:75:64-76: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:76:64-76: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:84:64-76: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:85:64-76: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:86:64-76: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:99:98-110: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:99:112-124: info: atom does not occur in any rule head:\n  not input(W)\n"
-            ",-:100:98-110: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:100:112-124: info: atom does not occur in any rule head:\n  not input(W)\n"
-            ",-:101:98-110: info: atom does not occur in any rule head:\n  not input(V)\n"
-            ",-:101:112-124: info: atom does not occur in any rule head:\n  not input(W)\n])" == IO::to_string(solve(
+            "[-:33:30-38: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:34:30-38: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:36:33-41: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:37:33-41: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:40:33-41: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:41:33-41: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:48:43-51: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:49:43-51: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:57:28-36: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:71:68-76: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:72:68-76: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:73:68-76: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:75:68-76: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:76:68-76: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:84:68-76: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:85:68-76: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:86:68-76: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:99:102-110: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:99:116-124: info: atom does not occur in any rule head:\n  input(W)\n"
+            ",-:100:102-110: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:100:116-124: info: atom does not occur in any rule head:\n  input(W)\n"
+            ",-:101:102-110: info: atom does not occur in any rule head:\n  input(V)\n"
+            ",-:101:116-124: info: atom does not occur in any rule head:\n  input(W)\n])" == IO::to_string(solve(
                 "% instance\n"
                 "\n"
                 "vertex(0). vertex(1). vertex(2). vertex(3). vertex(4). \n"

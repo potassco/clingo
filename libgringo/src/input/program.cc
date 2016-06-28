@@ -188,10 +188,6 @@ void Program::check(Logger &log) {
     }
 }
 
-void Program::addClassicalNegation(Sig x) {
-    neg_.push(x);
-}
-
 void Program::print(std::ostream &out) const {
     for (auto &def : theoryDefs_) {
         out << def << "\n";
@@ -206,24 +202,33 @@ void Program::print(std::ostream &out) const {
 }
 
 Ground::Program Program::toGround(DomainData &domains, Logger &log) {
+    HashSet<uint64_t> neg;
+    Ground::Program::ClassicalNegationVec negate;
+    auto gn = [&neg, &negate, &domains](Sig x) {
+        if (neg.insert(std::hash<uint64_t>(), std::equal_to<uint64_t>(), x.rep()).second) {
+            negate.emplace_back(domains.add(x.flipSign()), domains.add(x));
+        }
+    };
     Ground::UStmVec stms;
     stms.emplace_back(make_locatable<Ground::ExternalRule>(Location("#external", 1, 1, "#external", 1, 1)));
     ToGroundArg arg(auxNames_, domains);
     Ground::SEdbVec edb;
     for (auto &block : blocks_) {
         edb.emplace_back(block.edb);
-        for (auto &x : block.stms) { x->toGround(arg, stms); }
+        for (auto &x : block.stms) {
+            x->getNeg(gn);
+            x->toGround(arg, stms);
+        }
     }
-    for (auto &x : stms_) { x->toGround(arg, stms); }
+    for (auto &x : stms_) {
+        x->getNeg(gn);
+        x->toGround(arg, stms);
+    }
     Ground::Statement::Dep dep;
     for (auto &x : stms) {
         bool normal(x->isNormal());
         auto &node(dep.add(std::move(x), normal));
         node.stm->analyze(node, dep);
-    }
-    Ground::Program::ClassicalNegationVec negate;
-    for (auto &x : neg_) {
-        negate.emplace_back(domains.add(x), domains.add(x.flipSign()));
     }
     Ground::Program prg(std::move(edb), dep.analyze(), std::move(negate));
     for (auto &sig : sigs_) {

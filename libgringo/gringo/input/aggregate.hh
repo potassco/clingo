@@ -195,6 +195,7 @@ struct HeadAggregate : Printable, Hashable, Locatable, Clonable<HeadAggregate>, 
     virtual void replace(Defines &dx) = 0;
     virtual CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const = 0;
     virtual Symbol isEDB() const;
+    virtual void getNeg(std::function<void (Sig)> f) const = 0;
     virtual ~HeadAggregate() { }
 };
 

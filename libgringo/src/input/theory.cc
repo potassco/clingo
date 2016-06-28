@@ -487,6 +487,8 @@ void HeadTheoryLiteral::initTheory(TheoryDefs &defs, bool hasBody, Logger &log) 
     atom_.initTheory(loc(), defs, false, hasBody, log);
 }
 
+void HeadTheoryLiteral::getNeg(std::function<void (Sig)>) const { }
+
 // {{{1 definition of BodyTheoryLiteral
 
 BodyTheoryLiteral::BodyTheoryLiteral(NAF naf, TheoryAtom &&atom, bool rewritten)

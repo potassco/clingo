@@ -101,6 +101,11 @@ enum TheoryDefVecUid    : unsigned { };
 
 class INongroundProgramBuilder {
 public:
+    TermUid predRep(Location const &loc, bool neg, String name, TermVecVecUid tvvUid) {
+        TermUid t = term(loc, name, tvvUid, false);
+        if (neg) { t = term(loc, UnOp::NEG, t); }
+        return t;
+    }
     // {{{2 terms
     virtual TermUid term(Location const &loc, Symbol val) = 0;                                // constant
     virtual TermUid term(Location const &loc, String name) = 0;                            // variable
@@ -130,7 +135,7 @@ public:
     virtual TermVecVecUid termvecvec(TermVecVecUid uid, TermVecUid termvecUid) = 0;
     // {{{2 literals
     virtual LitUid boollit(Location const &loc, bool type) = 0;
-    virtual LitUid predlit(Location const &loc, NAF naf, bool neg, String name, TermVecVecUid argvecvecUid) = 0;
+    virtual LitUid predlit(Location const &loc, NAF naf, TermUid atom) = 0;
     virtual LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) = 0;
     // {{{2 literal vectors
     virtual LitVecUid litvec() = 0;
@@ -176,8 +181,8 @@ public:
     virtual void block(Location const &loc, String name, IdVecUid args) = 0;
     virtual void external(Location const &loc, LitUid head, BdLitVecUid body) = 0;
     virtual void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) = 0;
-    virtual void heuristic(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) = 0;
-    virtual void project(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body) = 0;
+    virtual void heuristic(Location const &loc, TermUid termUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) = 0;
+    virtual void project(Location const &loc, TermUid termUid, BdLitVecUid body) = 0;
     virtual void project(Location const &loc, Sig sig) = 0;
     // {{{2 theory atoms
 
@@ -278,7 +283,7 @@ public:
     TermVecVecUid termvecvec(TermVecVecUid uid, TermVecUid termvecUid) override;
     // {{{2 literals
     LitUid boollit(Location const &loc, bool type) override;
-    LitUid predlit(Location const &loc, NAF naf, bool neg, String name, TermVecVecUid argvecvecUid) override;
+    LitUid predlit(Location const &loc, NAF naf, TermUid term) override;
     LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) override;
     // {{{2 literal vectors
     LitVecUid litvec() override;
@@ -324,8 +329,8 @@ public:
     void block(Location const &loc, String name, IdVecUid args) override;
     void external(Location const &loc, LitUid head, BdLitVecUid body) override;
     void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) override;
-    void heuristic(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
-    void project(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body) override;
+    void heuristic(Location const &loc, TermUid termUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
+    void project(Location const &loc, TermUid termUid, BdLitVecUid body) override;
     void project(Location const &loc, Sig sig) override;
     // }}}2
     // {{{2 theory atoms
@@ -373,8 +378,6 @@ public:
     virtual ~NongroundProgramBuilder();
 
 private:
-    TermUid predRep(Location const &loc, bool neg, String name, TermVecVecUid tvvUid);
-
     using Terms            = Indexed<UTerm, TermUid>;
     using TermVecs         = Indexed<UTermVec, TermVecUid>;
     using TermVecVecs      = Indexed<UTermVecVec, TermVecVecUid>;
@@ -478,7 +481,7 @@ public:
     TermVecVecUid termvecvec(TermVecVecUid uid, TermVecUid termvecUid) override;
     // {{{2 literals
     LitUid boollit(Location const &loc, bool type) override;
-    LitUid predlit(Location const &loc, NAF naf, bool neg, String name, TermVecVecUid argvecvecUid) override;
+    LitUid predlit(Location const &loc, NAF naf, TermUid term) override;
     LitUid rellit(Location const &loc, Relation rel, TermUid termUidLeft, TermUid termUidRight) override;
     LitUid csplit(CSPLitUid a) override;
     // {{{2 literal vectors
@@ -525,8 +528,8 @@ public:
     void block(Location const &loc, String name, IdVecUid args) override;
     void external(Location const &loc, LitUid head, BdLitVecUid body) override;
     void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) override;
-    void heuristic(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
-    void project(Location const &loc, bool neg, String name, TermVecVecUid tvvUid, BdLitVecUid body) override;
+    void heuristic(Location const &loc, TermUid termUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
+    void project(Location const &loc, TermUid termUid, BdLitVecUid body) override;
     void project(Location const &loc, Sig sig) override;
     // {{{2 theory atoms
     TheoryTermUid theorytermset(Location const &loc, TheoryOptermVecUid args) override;

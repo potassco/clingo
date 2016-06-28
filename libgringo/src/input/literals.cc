@@ -421,6 +421,11 @@ PredicateLiteral::PredicateLiteral(NAF naf, UTerm &&repr, bool auxiliary)
     assert(this->repr->isAtom());
 }
 
+void PredicateLiteral::getNeg(std::function<void (Sig)> f) const {
+    Sig sig(repr->getSig());
+    if (sig.sign()) { f(sig); }
+}
+
 PredicateLiteral::~PredicateLiteral() { }
 
 // {{{1 definition of ProjectionLiteral

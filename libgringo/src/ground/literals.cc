@@ -245,7 +245,7 @@ void PredicateLiteral::checkDefined(LocSet &done, SigSet const &edb, UndefVec &u
     if (!auxiliary_ && defs.empty() && done.find(repr->loc()) == done.end() && edb.find(repr->getSig()) == edb.end()) {
         // accumulate warnings in array of printables ..
         done.insert(repr->loc());
-        undef.emplace_back(repr->loc(), this);
+        undef.emplace_back(repr->loc(), repr.get());
     }
 }
 
