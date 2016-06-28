@@ -1362,7 +1362,7 @@ places like - e.g., the main function.)";
     static PyObject *atoms(Model *self, PyObject *pyargs, PyObject *pykwds) {
         PY_TRY
             unsigned atomset = 0;
-            static char const *kwlist[] = {"atoms", "theory", "terms", "shown", "csp", "comp", nullptr};
+            static char const *kwlist[] = {"atoms", "terms", "shown", "csp", "theory", "comp", nullptr};
             PyObject *pyAtoms = Py_False, *pyTheory = Py_False, *pyTerms = Py_False, *pyShown = Py_False, *pyCSP = Py_False, *pyComp = Py_False;
             if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "|OOOOOO", const_cast<char**>(kwlist), &pyAtoms, &pyTheory, &pyTerms, &pyShown, &pyCSP, &pyComp)) { return nullptr; }
             if (pyToCpp<bool>(pyAtoms)) { atomset |= clingo_show_type_atoms; }
@@ -1423,6 +1423,8 @@ terms -- select all terms displayed with #show statements in the model
 shown -- select all atoms and terms as outputted by clingo
          (Default: False)
 csp   -- select all csp assignments (independent of #show statements)
+         (Default: False)
+theory-- select all theory specific terms
          (Default: False)
 comp  -- return the complement of the answer set w.r.t. to the Herbrand
          base accumulated so far (does not affect csp assignments)
