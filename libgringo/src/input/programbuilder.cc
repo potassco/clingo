@@ -1597,7 +1597,6 @@ private:
         return ret; \
     }
 
-    /*
     bool require_(bool cond, char const *message) {
         if (!cond) { fail_<void>(message); }
         return false;
@@ -1607,7 +1606,6 @@ private:
     T fail_(char const *message) {
         throw std::runtime_error(message);
     }
-    */
 
     Location parseLocation(clingo_location_t const &loc) {
         (void)loc;
@@ -1630,6 +1628,57 @@ private:
     }
     ARR(clingo_ast_term_t, termvec, parseTerm)
 
+    TheoryTermUid parseTheoryTerm(clingo_ast_theory_term_t const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+
+    TheoryOptermUid parseTheoryOpterm(clingo_ast_theory_term_t const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+
+    // {{{2 literals
+
+    LitUid parseLiteral(clingo_ast_literal_t const &x, enum clingo_ast_sign extraSign = clingo_ast_sign_none) {
+        (void)x;
+        (void)extraSign;
+        throw std::logic_error("implement me!!!");
+    }
+    ARR(clingo_ast_literal_t, litvec, parseLiteral)
+
+    // {{{2 aggregates
+
+    BoundVecUid parseBounds(clingo_ast_aggregate_guard_t const *left, clingo_ast_aggregate_guard_t const *right) {
+        (void)left;
+        (void)right;
+        throw std::logic_error("implement me!!!");
+    }
+
+    CondLitVecUid parseCondLitVec(clingo_ast_conditional_literal_t const *vec, size_t size) {
+        (void)vec;
+        (void)size;
+        throw std::logic_error("implement me!!!");
+    }
+
+    BdAggrElemVecUid parseBdAggrElemVec(clingo_ast_body_aggregate_element_t const *vec, size_t size) {
+        (void)vec;
+        (void)size;
+        throw std::logic_error("implement me!!!");
+    }
+
+    TheoryElemVecUid parseTheoryElemVec(clingo_ast_theory_atom_element_t const *vec, size_t size) {
+        (void)vec;
+        (void)size;
+        throw std::logic_error("implement me!!!");
+    }
+
+    CSPElemVecUid parseCSPElemVec(clingo_ast_disjoint_element_t const *vec, size_t size) {
+        (void)vec;
+        (void)size;
+        throw std::logic_error("implement me!!!");
+    }
+
     // {{{2 heads
 
     HdLitUid parseHeadLiteral(clingo_ast_head_literal_t const &x) {
@@ -1640,22 +1689,65 @@ private:
     // {{{2 bodies
 
     BdLitVecUid parseBodyLiteralVec(clingo_ast_body_literal_t const *lit, size_t size) {
-        (void)lit;
-        (void)size;
-        throw std::logic_error("implement me!!!");
+        auto ret = prg_.body();
+        for (auto it = lit, ie = lit + size; it != ie; ++it) {
+            switch (static_cast<enum clingo_ast_body_literal_type>(it->type)) {
+                case clingo_ast_body_literal_type_literal: {
+                    ret = prg_.bodylit(ret, parseLiteral(*it->literal, static_cast<enum clingo_ast_sign>(lit->sign)));
+                    break;
+                }
+                case clingo_ast_body_literal_type_conditional: {
+                    require_(static_cast<NAF>(lit->sign) == NAF::POS, "conditional literals must hot have a sign");
+                    auto &y = *it->conditional;
+                    ret = prg_.conjunction(ret, parseLocation(it->location), parseLiteral(y.literal), parseLiteralVec(y.condition, y.size));
+                    break;
+                }
+                case clingo_ast_body_literal_type_aggregate: {
+                    auto &y = *it->aggregate;
+                    ret = prg_.bodyaggr(ret, parseLocation(it->location), static_cast<NAF>(it->sign), AggregateFunction::COUNT, parseBounds(y.left_guard, y.right_guard), parseCondLitVec(y.elements, y.size));
+                    break;
+                }
+                case clingo_ast_body_literal_type_body_aggregate: {
+                    auto &y = *it->body_aggregate;
+                    ret = prg_.bodyaggr(ret, parseLocation(it->location), static_cast<NAF>(it->sign), AggregateFunction::COUNT, parseBounds(y.left_guard, y.right_guard), parseBdAggrElemVec(y.elements, y.size));
+                    break;
+                }
+                case clingo_ast_body_literal_type_theory: {
+                    auto &y = *it->theory_atom;
+                    ret = y.guard
+                        ? prg_.bodyaggr(ret, parseLocation(it->location), static_cast<NAF>(it->sign), prg_.theoryatom(parseTerm(y.term), parseTheoryElemVec(y.elements, y.size), y.guard->operator_name, parseLocation(it->location), parseTheoryOpterm(y.guard->term)))
+                        : prg_.bodyaggr(ret, parseLocation(it->location), static_cast<NAF>(it->sign), prg_.theoryatom(parseTerm(y.term), parseTheoryElemVec(y.elements, y.size)));
+                    break;
+                }
+                case clingo_ast_body_literal_type_disjoint: {
+                    auto &y = *it->disjoint;
+                    ret = prg_.disjoint(ret, parseLocation(it->location), static_cast<NAF>(it->sign), parseCSPElemVec(y.elements, y.size));
+                    break;
+                }
+            }
+        }
+        return ret;
     }
 
     // {{{2 theory definitions
 
+    String parseTheoryOp(char const *str) { return str; }
+    ARR(char const *, theoryops, parseTheoryOp)
+
+    TheoryOpDefUid parseTheoryOpDef(clingo_ast_theory_operator_definition_t const &x) {
+        return prg_.theoryopdef(parseLocation(x.location), x.name, x.priority, static_cast<TheoryOperatorType>(x.type));
+    }
+    ARR(clingo_ast_theory_operator_definition_t, theoryopdefs, parseTheoryOpDef)
+
     TheoryAtomDefUid parseTheoryAtomDefinition(clingo_ast_theory_atom_definition_t const &x) {
-        (void)x;
-        throw std::logic_error("implement me!!!");
+        return x.guard
+            ? prg_.theoryatomdef(parseLocation(x.location), x.name, x.arity, x.elements, static_cast<TheoryAtomType>(x.type), parseTheoryOpVec(x.guard->operators, x.guard->size), x.guard->guard)
+            : prg_.theoryatomdef(parseLocation(x.location), x.name, x.arity, x.elements, static_cast<TheoryAtomType>(x.type));
     }
     ARR(clingo_ast_theory_atom_definition_t, theorydefs, parseTheoryAtomDefinition)
 
     TheoryTermDefUid parseTheoryTermDefinition(clingo_ast_theory_term_definition_t const &x) {
-        (void)x;
-        throw std::logic_error("implement me!!!");
+        return prg_.theorytermdef(parseLocation(x.location), x.name, parseTheoryOpDefVec(x.operators, x.size), log_);
     }
     ARR(clingo_ast_theory_term_definition_t, theorydefs, parseTheoryTermDefinition)
 
