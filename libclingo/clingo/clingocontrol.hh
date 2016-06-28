@@ -366,7 +366,7 @@ public:
 class ClingoModel : public Gringo::Model {
 public:
     ClingoModel(ClingoControl &ctl, Gringo::SymVec theoryOutput = Gringo::SymVec(), Clasp::Model const *model = nullptr)
-        : ctl_(ctl), theoryOutput_(std::move(theoryOutput))
+    : ctl_(ctl), theoryOutput_(std::move(theoryOutput))
     , model_(model) { }
     void reset(Clasp::Model const &m) { model_ = &m; }
     bool contains(Gringo::Symbol atom) const override {
@@ -409,7 +409,7 @@ private:
     Gringo::Output::OutputBase const &out() const { return *ctl_.out_; };
     Clasp::SharedContext const &ctx() const       { return ctl_.clasp_->ctx; };
     ClingoControl          &ctl_;
-    Gringo::SymVec         theoryOutput_;
+    Gringo::SymVec          theoryOutput_;
     Clasp::Model const     *model_;
     mutable Gringo::SymVec  atms_;
 };
