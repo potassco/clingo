@@ -2659,6 +2659,22 @@ extern "C" clingo_error_t clingo_backend_add_atom(clingo_backend_t *backend, cli
 
 // {{{1 control
 
+struct clingo_program_builder : clingo_control_t { };
+clingo_error_t clingo_program_builder_begin(clingo_program_builder_t *bld) {
+    GRINGO_CLINGO_TRY { bld->beginAdd(); }
+    GRINGO_CLINGO_CATCH;
+}
+
+clingo_error_t clingo_program_builder_add(clingo_program_builder_t *bld, clingo_ast_statement_t const *stm) {
+    GRINGO_CLINGO_TRY { bld->add(*stm); }
+    GRINGO_CLINGO_CATCH;
+}
+
+clingo_error_t clingo_program_builder_end(clingo_program_builder_t *bld) {
+    GRINGO_CLINGO_TRY { bld->endAdd(); }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" void clingo_control_free(clingo_control_t *ctl) {
     delete ctl;
 }
@@ -2766,24 +2782,10 @@ extern "C" clingo_error_t clingo_control_release_external(clingo_control_t *ctl,
     GRINGO_CLINGO_CATCH;
 }
 
-/*
-extern "C" clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_add_ast_callback_t *cb, void *data) {
-    GRINGO_CLINGO_TRY {
-        ctl->add([ctl, data, cb](std::function<void (clingo_ast const &)> f) {
-            auto ref = std::make_pair(f, ctl);
-            using RefType = decltype(ref);
-            auto ret = cb(data, [](clingo_ast_t const *ast, void *data) -> clingo_error_t {
-                auto &ref = *static_cast<RefType*>(data);
-                GRINGO_CLINGO_TRY {
-                    ref.first(static_cast<clingo_ast const &>(*ast));
-                } GRINGO_CLINGO_CATCH;
-            }, static_cast<void*>(&ref));
-            if (ret != 0) { throw ClingoError(ret); }
-        });
-    }
+clingo_error_t clingo_control_program_builder(clingo_control_t *ctl, clingo_program_builder_t **ret) {
+    GRINGO_CLINGO_TRY { *ret = static_cast<clingo_program_builder_t*>(ctl); }
     GRINGO_CLINGO_CATCH;
 }
-*/
 
 extern "C" clingo_error_t clingo_control_symbolic_atoms(clingo_control_t *ctl, clingo_symbolic_atoms_t **ret) {
     GRINGO_CLINGO_TRY { *ret = &ctl->getDomain(); }

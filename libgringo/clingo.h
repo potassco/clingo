@@ -497,12 +497,14 @@ struct clingo_ast_pool {
 
 // {{{2 csp
 
+// TODO: rename multiply -> product
 typedef struct clingo_ast_csp_multiply_term {
     clingo_location_t location;
     clingo_ast_term_t coefficient;
     clingo_ast_term_t const *variable;
 } clingo_ast_csp_multiply_term_t;
 
+// TODO: rename add -> sum
 typedef struct clingo_ast_csp_add_term {
     clingo_location_t location;
     clingo_ast_csp_multiply_term_t *terms;
@@ -966,6 +968,13 @@ clingo_error_t clingo_parse_program(char const *program, clingo_ast_callback_t *
 clingo_error_t clingo_add_string(char const *str, char const **ret);
 void clingo_version(int *major, int *minor, int *revision);
 
+// {{{1 program builder
+
+typedef struct clingo_program_builder clingo_program_builder_t;
+clingo_error_t clingo_program_builder_begin(clingo_program_builder_t *bld);
+clingo_error_t clingo_program_builder_add(clingo_program_builder_t *bld, clingo_ast_statement_t const *stm);
+clingo_error_t clingo_program_builder_end(clingo_program_builder_t *bld);
+
 // {{{1 control
 
 typedef struct clingo_part {
@@ -1001,6 +1010,7 @@ clingo_error_t clingo_control_use_enum_assumption(clingo_control_t *ctl, bool va
 clingo_error_t clingo_control_begin_add_ast(clingo_control_t *ctl);
 clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_ast_statement_t const *stm);
 clingo_error_t clingo_control_end_add_ast(clingo_control_t *ctl);
+clingo_error_t clingo_control_program_builder(clingo_control_t *ctl, clingo_program_builder_t **ret);
 void clingo_control_interrupt(clingo_control_t *ctl);
 void clingo_control_free(clingo_control_t *ctl);
 

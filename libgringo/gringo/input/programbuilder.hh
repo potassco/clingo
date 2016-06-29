@@ -644,7 +644,7 @@ private:
     std::vector<void *> arrdata_;
 };
 
-void parseStatement(INongroundProgramBuilder &prg, clingo_ast_statement_t const &stm);
+void parseStatement(INongroundProgramBuilder &prg, Logger &log, clingo_ast_statement_t const &stm);
 
 // }}}1
 

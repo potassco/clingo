@@ -188,6 +188,15 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     void interrupt() override {
         throw std::runtime_error("interrupting not supported in gringo");
     }
+    void beginAdd() override {
+        parse();
+    }
+    void add(clingo_ast_statement_t const &stm) override {
+        Gringo::Input::parseStatement(pb, logger_, stm);
+    }
+    void endAdd() override {
+        defs.init(logger_);
+    }
     Gringo::SolveFuture *solveAsync(ModelHandler, FinishHandler, Assumptions &&) override { throw std::runtime_error("asynchronous solving not supported"); }
     Gringo::Statistics *getStats() override { throw std::runtime_error("statistics not supported (yet)"); }
     Gringo::StatisticsNG *statistics() override { throw std::runtime_error("statistics not supported (yet)"); }
@@ -220,6 +229,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     Gringo::Input::NonGroundParser         parser;
     GringoOptions const                   &opts;
     Gringo::Logger                         logger_;
+    std::unique_ptr<Gringo::Input::NongroundProgramBuilder> builder;
     bool                                   parsed = false;
     bool                                   grounded = false;
 };

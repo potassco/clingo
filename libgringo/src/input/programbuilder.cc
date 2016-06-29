@@ -1608,8 +1608,7 @@ private:
     }
 
     Location parseLocation(clingo_location_t const &loc) {
-        (void)loc;
-        throw std::logic_error("implement me!!!");
+        return Location(loc.begin_file, loc.begin_line, loc.begin_column, loc.end_file, loc.end_line, loc.end_column);
     }
 
     // {{{2 terms
@@ -1623,67 +1622,229 @@ private:
     }
 
     TermUid parseTerm(clingo_ast_term_t const &x) {
-        (void)x;
-        throw std::logic_error("implement me!!!");
+        switch (static_cast<enum clingo_ast_term_type>(x.type)) {
+            case clingo_ast_term_type_symbol: {
+                return prg_.term(parseLocation(x.location), Symbol(x.symbol));
+            }
+            case clingo_ast_term_type_variable: {
+                return prg_.term(parseLocation(x.location), x.variable);
+            }
+            case clingo_ast_term_type_unary_operation: {
+                auto &y = *x.unary_operation;
+                return prg_.term(parseLocation(x.location), static_cast<UnOp>(y.unary_operator), parseTerm(y.argument));
+            }
+            case clingo_ast_term_type_binary_operation: {
+                auto &y = *x.binary_operation;
+                return prg_.term(parseLocation(x.location), static_cast<BinOp>(y.binary_operator), parseTerm(y.left), parseTerm(y.right));
+            }
+            case clingo_ast_term_type_interval: {
+                auto &y = *x.interval;
+                return prg_.term(parseLocation(x.location), parseTerm(y.left), parseTerm(y.right));
+            }
+            case clingo_ast_term_type_function:
+            case clingo_ast_term_type_external_function: {
+                auto &y = *x.function;
+                return prg_.term(parseLocation(x.location), y.name, prg_.termvecvec(prg_.termvecvec(), parseTermVec(y.arguments, y.size)), x.type == clingo_ast_term_type_external_function);
+            }
+            case clingo_ast_term_type_pool: {
+                auto &y = *x.pool;
+                return prg_.pool(parseLocation(x.location), parseTermVec(y.arguments, y.size));
+            }
+        }
+        return static_cast<TermUid>(0);
     }
     ARR(clingo_ast_term_t, termvec, parseTerm)
 
+    CSPMulTermUid parseCSPMulTerm(clingo_ast_csp_multiply_term_t const &x) {
+        return x.variable
+            ? prg_.cspmulterm(parseLocation(x.location), parseTerm(x.coefficient), parseTerm(*x.variable))
+            : prg_.cspmulterm(parseLocation(x.location), parseTerm(x.coefficient));
+    }
+
+    CSPAddTermUid parseCSPAddTerm(clingo_ast_csp_add_term_t const &x) {
+        require_(x.size > 0, "csp sums terms must not be empty");
+        auto it = x.terms, ie = it + x.size;
+        auto ret = prg_.cspaddterm(parseLocation(x.location), parseCSPMulTerm(*it));
+        for (++it; it != ie; ++it) {
+            ret = prg_.cspaddterm(parseLocation(x.location), ret, parseCSPMulTerm(*it), true);
+        }
+        return ret;
+    }
+
     TheoryTermUid parseTheoryTerm(clingo_ast_theory_term_t const &x) {
-        (void)x;
-        throw std::logic_error("implement me!!!");
+        switch (static_cast<enum clingo_ast_theory_term_type>(x.type)) {
+            case clingo_ast_theory_term_type_symbol: {
+                return prg_.theorytermvalue(parseLocation(x.location), Symbol(x.symbol));
+            }
+            case clingo_ast_theory_term_type_variable: {
+                return prg_.theorytermvar(parseLocation(x.location), x.variable);
+            }
+            case clingo_ast_theory_term_type_tuple: {
+                auto y = *x.tuple;
+                return prg_.theorytermtuple(parseLocation(x.location), parseTheoryOptermVec(y.terms, y.size));
+            }
+            case clingo_ast_theory_term_type_list: {
+                auto y = *x.list;
+                return prg_.theoryoptermlist(parseLocation(x.location), parseTheoryOptermVec(y.terms, y.size));
+            }
+            case clingo_ast_theory_term_type_set: {
+                auto y = *x.set;
+                return prg_.theorytermset(parseLocation(x.location), parseTheoryOptermVec(y.terms, y.size));
+            }
+            case clingo_ast_theory_term_type_function: {
+                auto y = *x.function;
+                return prg_.theorytermfun(parseLocation(x.location), y.name, parseTheoryOptermVec(y.arguments, y.size));
+            }
+            case clingo_ast_theory_term_type_unparsed_term_array: {
+                return prg_.theorytermopterm(parseLocation(x.location), parseTheoryOpterm(*x.unparsed_array));
+            }
+        }
+        return static_cast<TheoryTermUid>(0);
+    }
+
+    TheoryOptermUid parseTheoryOpterm(clingo_ast_theory_unparsed_term_array_t const &x) {
+        require_(x.size > 0, "unparsed term arrays must not be empty");
+        auto it = x.terms, ie = it + x.size;
+        auto ret = prg_.theoryopterm(parseTheoryOpVec(it->operators, it->size), parseTheoryTerm(it->term));
+        for (++it; it != ie; ++it) {
+            require_(it->size > 1, "at least one operator necessary on right-hand-side of unparsed theory term");
+            ret = prg_.theoryopterm(ret, parseTheoryOpVec(it->operators, it->size), parseTheoryTerm(it->term));
+        }
+        return ret;
     }
 
     TheoryOptermUid parseTheoryOpterm(clingo_ast_theory_term_t const &x) {
-        (void)x;
-        throw std::logic_error("implement me!!!");
+        return (x.type == clingo_ast_theory_term_type_unparsed_term_array)
+            ? parseTheoryOpterm(*x.unparsed_array)
+            : prg_.theoryopterm(prg_.theoryops(), parseTheoryTerm(x));
+    }
+    TheoryOptermVecUid parseTheoryOptermVec(clingo_ast_theory_term_t const *vec, size_t size) {
+        auto ret = prg_.theoryopterms();
+        for (auto it = vec, ie = it + size; it != ie; ++it) {
+            ret = prg_.theoryopterms(ret, parseLocation(it->location), parseTheoryOpterm(*it));
+        }
+        return ret;
     }
 
     // {{{2 literals
 
+    NAF parseSign(enum clingo_ast_sign a, enum clingo_ast_sign b = clingo_ast_sign_none) {
+        switch (a) {
+            case clingo_ast_sign_none:            { return static_cast<NAF>(b); }
+            case clingo_ast_sign_negation:        { return static_cast<NAF>(b == clingo_ast_sign_negation ? clingo_ast_sign_double_negation : clingo_ast_sign_negation); }
+            case clingo_ast_sign_double_negation: { return static_cast<NAF>(b == clingo_ast_sign_negation ? clingo_ast_sign_negation : clingo_ast_sign_double_negation); }
+        }
+        return static_cast<NAF>(clingo_ast_sign_none);
+    }
+
     LitUid parseLiteral(clingo_ast_literal_t const &x, enum clingo_ast_sign extraSign = clingo_ast_sign_none) {
-        (void)x;
-        (void)extraSign;
-        throw std::logic_error("implement me!!!");
+        switch (static_cast<enum clingo_ast_literal_type>(x.type)) {
+            case clingo_ast_literal_type_boolean: {
+                return prg_.boollit(parseLocation(x.location), extraSign != clingo_ast_sign_negation ? !x.boolean : x.boolean);
+            }
+            case clingo_ast_literal_type_symbolic: {
+                return prg_.predlit(parseLocation(x.location), parseSign(static_cast<enum clingo_ast_sign>(x.sign), extraSign), parseTerm(*x.symbol));
+            }
+            case clingo_ast_literal_type_comparison: {
+                auto &y = *x.comparison;
+                Relation rel = static_cast<Relation>(y.comparison);
+                if (extraSign == clingo_ast_sign_negation) { rel = neg(rel); }
+                if (x.sign == clingo_ast_sign_negation)    { rel = neg(rel); }
+                return prg_.rellit(parseLocation(x.location), rel, parseTerm(y.left), parseTerm(y.right));
+            }
+            case clingo_ast_literal_type_csp: {
+                auto &y = *x.csp;
+                require_(x.sign == clingo_ast_sign_none && extraSign == clingo_ast_sign_none, "csp literals must not have signs");
+                require_(y.size > 0, "csp literals need at least one guard");
+                auto it = y.guards, ie = it + y.size;
+                auto ret = prg_.csplit(parseLocation(x.location), parseCSPAddTerm(y.term), static_cast<Relation>(it->comparison), parseCSPAddTerm(it->term));
+                for (++it; it != ie; ++it) {
+                    ret = prg_.csplit(parseLocation(x.location), ret, static_cast<Relation>(it->comparison), parseCSPAddTerm(it->term));
+                }
+                return prg_.csplit(ret);
+            }
+        }
+        return static_cast<LitUid>(0);
     }
     ARR(clingo_ast_literal_t, litvec, parseLiteral)
 
     // {{{2 aggregates
 
     BoundVecUid parseBounds(clingo_ast_aggregate_guard_t const *left, clingo_ast_aggregate_guard_t const *right) {
-        (void)left;
-        (void)right;
-        throw std::logic_error("implement me!!!");
+        auto ret = prg_.boundvec();
+        if (left)  { ret = prg_.boundvec(ret, inv(static_cast<Relation>(left->comparison)), parseTerm(left->term)); }
+        if (right) { ret = prg_.boundvec(ret, static_cast<Relation>(right->comparison), parseTerm(left->term)); }
+        return ret;
     }
 
     CondLitVecUid parseCondLitVec(clingo_ast_conditional_literal_t const *vec, size_t size) {
-        (void)vec;
-        (void)size;
-        throw std::logic_error("implement me!!!");
+        auto ret = prg_.condlitvec();
+        for (auto it = vec, ie = it + size; it != ie; ++it) {
+            ret = prg_.condlitvec(ret, parseLiteral(it->literal), parseLiteralVec(it->condition, it->size));
+        }
+        return ret;
+    }
+
+    HdAggrElemVecUid parseHdAggrElemVec(clingo_ast_head_aggregate_element_t const *vec, size_t size) {
+        auto ret = prg_.headaggrelemvec();
+        for (auto it = vec, ie = it + size; it != ie; ++it) {
+            auto x = it->conditional_literal;
+            ret = prg_.headaggrelemvec(ret, parseTermVec(it->tuple, it->tuple_size), parseLiteral(x.literal), parseLiteralVec(x.condition, x.size));
+        }
+        return ret;
     }
 
     BdAggrElemVecUid parseBdAggrElemVec(clingo_ast_body_aggregate_element_t const *vec, size_t size) {
-        (void)vec;
-        (void)size;
-        throw std::logic_error("implement me!!!");
+        auto ret = prg_.bodyaggrelemvec();
+        for (auto it = vec, ie = it + size; it != ie; ++it) {
+            ret = prg_.bodyaggrelemvec(ret, parseTermVec(it->tuple, it->tuple_size), parseLiteralVec(it->condition, it->condition_size));
+        }
+        return ret;
     }
 
     TheoryElemVecUid parseTheoryElemVec(clingo_ast_theory_atom_element_t const *vec, size_t size) {
-        (void)vec;
-        (void)size;
-        throw std::logic_error("implement me!!!");
+        auto ret = prg_.theoryelems();
+        for (auto it = vec, ie = it + size; it != ie; ++it) {
+            ret = prg_.theoryelems(ret, parseTheoryOptermVec(it->tuple, it->tuple_size), parseLiteralVec(it->condition, it->condition_size));
+        }
+        return ret;
     }
 
     CSPElemVecUid parseCSPElemVec(clingo_ast_disjoint_element_t const *vec, size_t size) {
-        (void)vec;
-        (void)size;
-        throw std::logic_error("implement me!!!");
+        auto ret = prg_.cspelemvec();
+        for (auto it = vec, ie = it + size; it != ie; ++it) {
+            ret = prg_.cspelemvec(ret, parseLocation(it->location), parseTermVec(it->tuple, it->tuple_size), parseCSPAddTerm(it->term), parseLiteralVec(it->condition, it->condition_size));
+        }
+        return ret;
     }
 
     // {{{2 heads
 
     HdLitUid parseHeadLiteral(clingo_ast_head_literal_t const &x) {
-        (void)x;
-        throw std::logic_error("implement me!!!");
+        switch (static_cast<enum clingo_ast_head_literal_type>(x.type)) {
+            case clingo_ast_head_literal_type_literal: {
+                return prg_.headlit(parseLiteral(*x.literal));
+            }
+            case clingo_ast_head_literal_type_disjunction: {
+                auto &y = *x.disjunction;
+                return prg_.disjunction(parseLocation(x.location), parseCondLitVec(y.elements, y.size));
+            }
+            case clingo_ast_head_literal_type_aggregate: {
+                auto &y = *x.aggregate;
+                return prg_.headaggr(parseLocation(x.location), AggregateFunction::COUNT, parseBounds(y.left_guard, y.right_guard), parseCondLitVec(y.elements, y.size));
+            }
+            case clingo_ast_head_literal_type_head_aggregate: {
+                auto &y = *x.head_aggregate;
+                return prg_.headaggr(parseLocation(x.location), AggregateFunction::COUNT, parseBounds(y.left_guard, y.right_guard), parseHdAggrElemVec(y.elements, y.size));
+            }
+            case clingo_ast_head_literal_type_theory: {
+                auto &y = *x.theory_atom;
+                return y.guard
+                    ? prg_.headaggr(parseLocation(x.location), prg_.theoryatom(parseTerm(y.term), parseTheoryElemVec(y.elements, y.size), y.guard->operator_name, parseLocation(x.location), parseTheoryOpterm(y.guard->term)))
+                    : prg_.headaggr(parseLocation(x.location), prg_.theoryatom(parseTerm(y.term), parseTheoryElemVec(y.elements, y.size)));
+            }
+        }
+        return static_cast<HdLitUid>(0);
     }
 
     // {{{2 bodies
@@ -1693,11 +1854,11 @@ private:
         for (auto it = lit, ie = lit + size; it != ie; ++it) {
             switch (static_cast<enum clingo_ast_body_literal_type>(it->type)) {
                 case clingo_ast_body_literal_type_literal: {
-                    ret = prg_.bodylit(ret, parseLiteral(*it->literal, static_cast<enum clingo_ast_sign>(lit->sign)));
+                    ret = prg_.bodylit(ret, parseLiteral(*it->literal, static_cast<enum clingo_ast_sign>(it->sign)));
                     break;
                 }
                 case clingo_ast_body_literal_type_conditional: {
-                    require_(static_cast<NAF>(lit->sign) == NAF::POS, "conditional literals must hot have a sign");
+                    require_(static_cast<NAF>(it->sign) == NAF::POS, "conditional literals must hot have a sign");
                     auto &y = *it->conditional;
                     ret = prg_.conjunction(ret, parseLocation(it->location), parseLiteral(y.literal), parseLiteralVec(y.condition, y.size));
                     break;
@@ -1757,7 +1918,6 @@ private:
     Logger &log_;
     INongroundProgramBuilder &prg_;
 };
-
 
 }
 
