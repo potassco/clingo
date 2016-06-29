@@ -265,7 +265,7 @@ public:
     bool update();
 
     Clasp::LitVec toClaspAssumptions(Gringo::Control::Assumptions &&ass) const;
-    
+
     virtual void postGround(Clasp::ProgramBuilder& prg) { if (pgf_) { pgf_(prg); } }
     virtual void prePrepare(Clasp::ClaspFacade& ) { }
     virtual void preSolve(Clasp::ClaspFacade& clasp) { if (psf_) { psf_(clasp);} }
