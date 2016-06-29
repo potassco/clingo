@@ -366,7 +366,7 @@ public:
 class ClingoModel : public Gringo::Model {
 public:
     ClingoModel(ClingoControl &ctl, Clasp::Model const *model = nullptr)
-        : ctl_(ctl), model_(model) { }
+    : ctl_(ctl), model_(model) { }
     void reset(Clasp::Model const &m) { model_ = &m; }
     bool contains(Gringo::Symbol atom) const override {
         auto atm = out().find(atom);
