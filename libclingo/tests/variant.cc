@@ -20,9 +20,22 @@ struct D {
     std::string &r;
 };
 
+struct DA {
+    int visit(int const &x, int y) {
+        return y + 1 + x;
+    }
+    int visit(std::string const &, int y) {
+        return y + 2;
+    }
+    int visit(std::unique_ptr<int> const &, int y) {
+        return y + 3;
+    }
+};
+
 TEST_CASE("visitor", "[clingo]") {
     V x{10};
     REQUIRE(x.is<int>());
+    REQUIRE(x.accept(DA(), 3) == 14);
     REQUIRE(!x.is<std::string>());
     REQUIRE(x.get<int>() == 10);
     std::string s = "s1";
@@ -47,6 +60,7 @@ TEST_CASE("visitor", "[clingo]") {
     REQUIRE(r == "s1");
     x.accept(D(r));
     REQUIRE(r == "s1");
+    REQUIRE(x.accept(DA(), 3) == 5);
 
     x = V::make<std::unique_ptr<int>>(nullptr);
     REQUIRE(!x.get<std::unique_ptr<int>>());
