@@ -270,7 +270,7 @@ public:
     virtual void prePrepare(Clasp::ClaspFacade& ) { }
     virtual void preSolve(Clasp::ClaspFacade& clasp) { if (psf_) { psf_(clasp);} }
     virtual void postSolve(Clasp::ClaspFacade& ) {}
-    virtual Gringo::SymVec addToModel(Clasp::Model const& ) { return Gringo::SymVec(); }
+    virtual void addToModel(Clasp::Model const&, Gringo::SymVec& ) { }
 
     // {{{2 SymbolicAtoms interface
 
@@ -365,9 +365,8 @@ public:
 
 class ClingoModel : public Gringo::Model {
 public:
-    ClingoModel(ClingoControl &ctl, Gringo::SymVec theoryOutput = Gringo::SymVec(), Clasp::Model const *model = nullptr)
-        : ctl_(ctl), theoryOutput_(std::move(theoryOutput))
-    , model_(model) { }
+    ClingoModel(ClingoControl &ctl, Clasp::Model const *model = nullptr)
+        : ctl_(ctl), model_(model) { }
     void reset(Clasp::Model const &m) { model_ = &m; }
     bool contains(Gringo::Symbol atom) const override {
         auto atm = out().find(atom);
@@ -376,7 +375,7 @@ public:
     Gringo::SymSpan atoms(unsigned atomset) const override {
         atms_ = out().atoms(atomset, [this, atomset](unsigned uid) { return bool(atomset & clingo_show_type_complement) ^ model_->isTrue(lp().getLiteral(uid)); });
         if (atomset & clingo_show_type_theory && !(bool)(atomset & clingo_show_type_complement)) {
-            atms_.insert(atms_.end(), theoryOutput_.begin(), theoryOutput_.end());
+            ctl_.addToModel(*model_,atms_);
         }
         return Potassco::toSpan(atms_);
     }
@@ -409,7 +408,6 @@ private:
     Gringo::Output::OutputBase const &out() const { return *ctl_.out_; };
     Clasp::SharedContext const &ctx() const       { return ctl_.clasp_->ctx; };
     ClingoControl          &ctl_;
-    Gringo::SymVec         theoryOutput_;
     Clasp::Model const     *model_;
     mutable Gringo::SymVec  atms_;
 };
