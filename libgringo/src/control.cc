@@ -887,6 +887,20 @@ char const *Configuration::key_name(size_t index) const {
 
 // {{{1 control
 
+void ProgramBuilder::begin() {
+    handleCError(clingo_program_builder_begin(builder_));
+}
+void ProgramBuilder::add(AST::Statement const &stm) {
+    (void)stm;
+    throw std::logic_error("implement me!!!");
+}
+
+void ProgramBuilder::end() {
+    handleCError(clingo_program_builder_end(builder_));
+}
+
+// {{{1 control
+
 struct Control::Impl {
     Impl(Logger logger)
     : ctl(nullptr)
@@ -1102,6 +1116,12 @@ Statistics Control::statistics() const {
     unsigned key;
     handleCError(clingo_statistics_root(stats, &key));
     return Statistics{stats, key};
+}
+
+ProgramBuilder Control::builder() {
+    clingo_program_builder_t *ret;
+    handleCError(clingo_control_program_builder(impl_->ctl, &ret));
+    return ProgramBuilder{ret};
 }
 
 // {{{1 global functions

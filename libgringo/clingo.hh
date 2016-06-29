@@ -1871,6 +1871,21 @@ private:
     unsigned key_;
 };
 
+// {{{1 program builder
+
+class ProgramBuilder {
+public:
+    explicit ProgramBuilder(clingo_program_builder_t *builder)
+    : builder_(builder) { }
+    void begin();
+    void add(AST::Statement const &stm);
+    void end();
+    clingo_program_builder_t *to_c() const { return builder_; }
+private:
+    clingo_program_builder_t *builder_;
+
+};
+
 // {{{1 control
 
 class Part {
@@ -1949,6 +1964,14 @@ public:
     SolveAsync solve_async(ModelCallback mh = nullptr, FinishCallback fh = nullptr, SymbolicLiteralSpan assumptions = {});
     void use_enum_assumption(bool value);
     Backend backend();
+    ProgramBuilder builder();
+    template <class F>
+    void with_builder(F f) {
+        ProgramBuilder b = builder();
+        b.begin();
+        f(b);
+        b.end();
+    }
     Configuration configuration();
     Statistics statistics() const;
     clingo_control_t *to_c() const;
