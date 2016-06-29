@@ -1353,13 +1353,14 @@ places like - e.g., the main function.)";
     static PyObject *atoms(Model *self, PyObject *pyargs, PyObject *pykwds) {
         PY_TRY
             unsigned atomset = 0;
-            static char const *kwlist[] = {"atoms", "terms", "shown", "csp", "comp", nullptr};
-            PyObject *pyAtoms = Py_False, *pyTerms = Py_False, *pyShown = Py_False, *pyCSP = Py_False, *pyComp = Py_False;
-            if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "|OOOOO", const_cast<char**>(kwlist), &pyAtoms, &pyTerms, &pyShown, &pyCSP, &pyComp)) { return nullptr; }
+            static char const *kwlist[] = {"atoms", "terms", "shown", "csp", "extra", "comp", nullptr};
+            PyObject *pyAtoms = Py_False, *pyTerms = Py_False, *pyShown = Py_False, *pyCSP = Py_False, *pyExtra = Py_False, *pyComp = Py_False;
+            if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "|OOOOOO", const_cast<char**>(kwlist), &pyAtoms, &pyTerms, &pyShown, &pyCSP, &pyExtra, &pyComp)) { return nullptr; }
             if (pyToCpp<bool>(pyAtoms)) { atomset |= clingo_show_type_atoms; }
             if (pyToCpp<bool>(pyTerms)) { atomset |= clingo_show_type_terms; }
             if (pyToCpp<bool>(pyShown)) { atomset |= clingo_show_type_shown; }
             if (pyToCpp<bool>(pyCSP))   { atomset |= clingo_show_type_csp; }
+            if (pyToCpp<bool>(pyExtra)) { atomset |= clingo_show_type_extra; }
             if (pyToCpp<bool>(pyComp))  { atomset |= clingo_show_type_complement; }
             return cppToPy(self->model->atoms(atomset)).release();
         PY_CATCH(nullptr);
@@ -1413,6 +1414,8 @@ terms -- select all terms displayed with #show statements in the model
 shown -- select all atoms and terms as outputted by clingo
          (Default: False)
 csp   -- select all csp assignments (independent of #show statements)
+         (Default: False)
+extra -- select terms added by clingo extensions
          (Default: False)
 comp  -- return the complement of the answer set w.r.t. to the Herbrand
          base accumulated so far (does not affect csp assignments)

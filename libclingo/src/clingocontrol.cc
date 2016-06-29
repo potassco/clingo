@@ -338,7 +338,7 @@ void ClingoControl::prepare(Gringo::Control::ModelHandler mh, Gringo::Control::F
         finishHandler_ = fh;
         modelHandler_  = mh;
         Clasp::ProgramBuilder *prg = clasp_->program();
-        if (pgf_) { pgf_(*prg); }
+        postGround(*prg);
         if (!propagators_.empty()) {
             clasp_->program()->endProgram();
             for (auto&& pp : propagators_) {
@@ -347,8 +347,9 @@ void ClingoControl::prepare(Gringo::Control::ModelHandler mh, Gringo::Control::F
             }
             propLock_.init(clasp_->ctx.concurrency());
         }
+        prePrepare(*clasp_);
         clasp_->prepare(enableEnumAssupmption_ ? Clasp::ClaspFacade::enum_volatile : Clasp::ClaspFacade::enum_static);
-        if (psf_) { psf_(*clasp_);}
+        preSolve(*clasp_);
     }
     if (data_) { data_->reset(); }
     out_->reset();
@@ -374,7 +375,9 @@ Clasp::LitVec ClingoControl::toClaspAssumptions(Gringo::Control::Assumptions &&a
 
 Gringo::SolveResult ClingoControl::solve(ModelHandler h, Assumptions &&ass) {
     prepare(h, nullptr);
-    return clingoMode_ ? convert(clasp_->solve(nullptr, toClaspAssumptions(std::move(ass)))) : Gringo::SolveResult(Gringo::SolveResult::Unknown, false, false);
+    auto ret = clingoMode_ ? convert(clasp_->solve(nullptr, toClaspAssumptions(std::move(ass)))) : Gringo::SolveResult(Gringo::SolveResult::Unknown, false, false);
+    postSolve(*clasp_);
+    return ret;
 }
 
 void ClingoControl::registerPropagator(std::unique_ptr<Gringo::Propagator> p, bool sequential) {
