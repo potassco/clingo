@@ -374,7 +374,7 @@ public:
     }
     Gringo::SymSpan atoms(unsigned atomset) const override {
         atms_ = out().atoms(atomset, [this, atomset](unsigned uid) { return bool(atomset & clingo_show_type_complement) ^ model_->isTrue(lp().getLiteral(uid)); });
-        if (atomset & clingo_show_type_theory && !(bool)(atomset & clingo_show_type_complement)) {
+        if ((atomset & clingo_show_type_extra) && !(atomset & clingo_show_type_complement)) {
             ctl_.addToModel(*model_,atms_);
         }
         return Potassco::toSpan(atms_);
