@@ -1166,8 +1166,8 @@ struct Model {
         lua_getfield(L, 2, "csp");
         if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_csp; }
         lua_pop(L, 1);
-        lua_getfield(L, 2, "theory");
-        if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_theory; }
+        lua_getfield(L, 2, "extra");
+        if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_extra; }
         lua_pop(L, 1);
         lua_getfield(L, 2, "comp");
         if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_complement; }
