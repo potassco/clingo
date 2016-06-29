@@ -269,8 +269,8 @@ public:
     virtual void postGround(Clasp::ProgramBuilder& prg) { if (pgf_) { pgf_(prg); } }
     virtual void prePrepare(Clasp::ClaspFacade& ) { }
     virtual void preSolve(Clasp::ClaspFacade& clasp) { if (psf_) { psf_(clasp);} }
-    virtual void postSolve(Clasp::ClaspFacade& ) {}
-    virtual void addToModel(Clasp::Model const&, Gringo::SymVec& ) { }
+    virtual void postSolve(Clasp::ClaspFacade& ) { }
+    virtual void addToModel(Clasp::Model const&, bool /*complement*/, Gringo::SymVec& ) { }
 
     // {{{2 SymbolicAtoms interface
 
@@ -374,8 +374,8 @@ public:
     }
     Gringo::SymSpan atoms(unsigned atomset) const override {
         atms_ = out().atoms(atomset, [this, atomset](unsigned uid) { return bool(atomset & clingo_show_type_complement) ^ model_->isTrue(lp().getLiteral(uid)); });
-        if ((atomset & clingo_show_type_extra) && !(atomset & clingo_show_type_complement)) {
-            ctl_.addToModel(*model_,atms_);
+        if (atomset & clingo_show_type_extra){
+            ctl_.addToModel(*model_, atomset & clingo_show_type_complement, atms_);
         }
         return Potassco::toSpan(atms_);
     }
