@@ -885,14 +885,178 @@ char const *Configuration::key_name(size_t index) const {
     return ret;
 }
 
-// {{{1 control
+// {{{1 program builder
+
+namespace AST { namespace {
+
+struct ASTToC {
+    template <class T>
+    T *create_() {
+        data_.emplace_back(operator new(sizeof(T)));
+        return reinterpret_cast<T*>(data_.back());
+    };
+    template <class T>
+    T *create_(T x) {
+        auto *r = create_<T>();
+        *r = x;
+        return r;
+    };
+    template <class T>
+    T *createArray_(size_t size) {
+        arrdata_.emplace_back(operator new[](sizeof(T) * size));
+        return reinterpret_cast<T*>(arrdata_.back());
+    };
+    template <class T, class F>
+    auto createArray_(std::vector<T> const &vec, F f) -> decltype(f(std::declval<ASTToC &>(), std::declval<T>()))* {
+        using U = decltype(f(std::declval<ASTToC &>(), std::declval<T>()));
+        auto r = createArray_<U>(vec.size()), jt = r;
+        for (auto it = vec.begin(), ie = vec.end(); it != ie; ++it, ++jt) { *jt = f(*this, *it); }
+        return r;
+    };
+
+    ~ASTToC() noexcept {
+        for (auto &x : data_) { operator delete(x); }
+        for (auto &x : arrdata_) { operator delete[](x); }
+        data_.clear();
+        arrdata_.clear();
+    }
+
+    std::vector<void *> data_;
+    std::vector<void *> arrdata_;
+};
+
+struct HeadVisitor {
+    clingo_ast_head_literal_t visit(Literal const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_head_literal_t visit(Disjunction const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_head_literal_t visit(Aggregate const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_head_literal_t visit(HeadAggregate const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_head_literal_t visit(TheoryAtom const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+
+    HeadLiteral const &lit;
+    ASTToC &data;
+};
+
+struct BodyVisitor {
+    clingo_ast_body_literal_t visit(Literal const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_body_literal_t visit(ConditionalLiteral const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_body_literal_t visit(Aggregate const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_body_literal_t visit(BodyAggregate const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_body_literal_t visit(TheoryAtom const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_body_literal_t visit(Disjoint const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+
+    ASTToC &data;
+    BodyLiteral const &lit;
+};
+
+clingo_ast_body_literal_t convBodyLiteral(ASTToC &data, BodyLiteral const &x) {
+    return x.data.accept(BodyVisitor{data, x});
+}
+
+struct StmVisitor {
+    clingo_ast_statement_t *visit(Rule const &x) {
+        auto *rule = data.create_<clingo_ast_rule_t>();
+        rule->head = x.head.data.accept(HeadVisitor{x.head, data});
+        rule->size = x.body.size();
+        rule->body = data.createArray_(x.body, convBodyLiteral);
+        auto ret = data.create_<clingo_ast_statement_t>();
+        ret->location = stm.location;
+        ret->rule     = rule;
+        return ret;
+    }
+    clingo_ast_statement_t *visit(Definition const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_statement_t *visit(ShowSignature const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_statement_t *visit(ShowTerm const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_statement_t *visit(Minimize const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_statement_t *visit(Script const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_statement_t *visit(Program const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_statement_t *visit(External const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_statement_t *visit(Edge const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_statement_t *visit(Heuristic const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_statement_t *visit(Project const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_statement_t *visit(ProjectSignature const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_statement_t *visit(TheoryDefinition const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+
+    ASTToC &data;
+    Statement const &stm;
+};
+
+} } // namespace AST
 
 void ProgramBuilder::begin() {
     handleCError(clingo_program_builder_begin(builder_));
 }
 void ProgramBuilder::add(AST::Statement const &stm) {
-    (void)stm;
-    throw std::logic_error("implement me!!!");
+    AST::ASTToC data;
+    handleCError(clingo_program_builder_add(builder_, stm.data.accept(AST::StmVisitor{data, stm})));
 }
 
 void ProgramBuilder::end() {
