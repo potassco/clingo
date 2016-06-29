@@ -265,6 +265,12 @@ public:
     bool update();
 
     Clasp::LitVec toClaspAssumptions(Gringo::Control::Assumptions &&ass) const;
+    
+    virtual void postGround(Clasp::ProgramBuilder& prg) { if (pgf_) { pgf_(prg); } }
+    virtual void prePrepare(Clasp::ClaspFacade& ) { }
+    virtual void preSolve(Clasp::ClaspFacade& clasp) { if (psf_) { psf_(clasp);} }
+    virtual void postSolve(Clasp::ClaspFacade& ) { }
+    virtual void addToModel(Clasp::Model const&, bool /*complement*/, Gringo::SymVec& ) { }
 
     // {{{2 SymbolicAtoms interface
 
@@ -360,8 +366,7 @@ public:
 class ClingoModel : public Gringo::Model {
 public:
     ClingoModel(ClingoControl &ctl, Clasp::Model const *model = nullptr)
-    : ctl_(ctl)
-    , model_(model) { }
+    : ctl_(ctl), model_(model) { }
     void reset(Clasp::Model const &m) { model_ = &m; }
     bool contains(Gringo::Symbol atom) const override {
         auto atm = out().find(atom);
@@ -369,6 +374,9 @@ public:
     }
     Gringo::SymSpan atoms(unsigned atomset) const override {
         atms_ = out().atoms(atomset, [this, atomset](unsigned uid) { return bool(atomset & clingo_show_type_complement) ^ model_->isTrue(lp().getLiteral(uid)); });
+        if (atomset & clingo_show_type_extra){
+            ctl_.addToModel(*model_, atomset & clingo_show_type_complement, atms_);
+        }
         return Potassco::toSpan(atms_);
     }
     Gringo::Int64Vec optimization() const override {

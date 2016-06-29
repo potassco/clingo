@@ -149,8 +149,9 @@ enum clingo_show_type {
     clingo_show_type_shown      = 2,
     clingo_show_type_atoms      = 4,
     clingo_show_type_terms      = 8,
-    clingo_show_type_all        = 15,
-    clingo_show_type_complement = 16
+    clingo_show_type_extra      = 16,
+    clingo_show_type_all        = 31,
+    clingo_show_type_complement = 32
 };
 typedef unsigned clingo_show_type_bitset_t;
 

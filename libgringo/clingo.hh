@@ -648,6 +648,7 @@ public:
         Shown      = clingo_show_type_shown,
         Atoms      = clingo_show_type_atoms,
         Terms      = clingo_show_type_terms,
+        Theory     = clingo_show_type_extra,
         All        = clingo_show_type_all,
         Complement = clingo_show_type_complement
     };
