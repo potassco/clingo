@@ -1166,6 +1166,7 @@ struct ASTToC {
 
     clingo_ast_disjoint_element_t convDisjointElement(DisjointElement const &x) {
         clingo_ast_disjoint_element_t ret;
+        ret.location       = x.location;
         ret.tuple          = convTermVec(x.tuple);
         ret.tuple_size     = x.tuple.size();
         ret.term           = convCSPAdd(x.term);
