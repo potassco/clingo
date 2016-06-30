@@ -999,79 +999,79 @@ struct ASTToC {
 
     // {{{2 statement
 
-    clingo_ast_statement_t *visit(Rule const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(Rule const &x, Statement const &stm) {
         auto *rule = create_<clingo_ast_rule_t>();
         rule->head = x.head.data.accept(*this, x.head);
         rule->size = x.body.size();
         rule->body = convBodyLiteralVec(x.body);
-        auto ret = create_<clingo_ast_statement_t>();
-        ret->type     = clingo_ast_statement_type_rule;
-        ret->location = stm.location;
-        ret->rule     = rule;
+        clingo_ast_statement_t ret;
+        ret.type     = clingo_ast_statement_type_rule;
+        ret.location = stm.location;
+        ret.rule     = rule;
         return ret;
     }
-    clingo_ast_statement_t *visit(Definition const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(Definition const &x, Statement const &stm) {
         auto *definition = create_<clingo_ast_definition_t>();
         definition->is_default = x.is_default;
         definition->name       = x.name;
         definition->value      = convTerm(x.value);
-        auto ret = create_<clingo_ast_statement_t>();
-        ret->type       = clingo_ast_statement_type_const;
-        ret->location   = stm.location;
-        ret->definition = definition;
+        clingo_ast_statement_t ret;
+        ret.type       = clingo_ast_statement_type_const;
+        ret.location   = stm.location;
+        ret.definition = definition;
         return ret;
     }
-    clingo_ast_statement_t *visit(ShowSignature const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(ShowSignature const &x, Statement const &stm) {
         (void)x;
         (void)stm;
         throw std::logic_error("implement me!!!");
     }
-    clingo_ast_statement_t *visit(ShowTerm const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(ShowTerm const &x, Statement const &stm) {
         (void)x;
         (void)stm;
         throw std::logic_error("implement me!!!");
     }
-    clingo_ast_statement_t *visit(Minimize const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(Minimize const &x, Statement const &stm) {
         (void)x;
         (void)stm;
         throw std::logic_error("implement me!!!");
     }
-    clingo_ast_statement_t *visit(Script const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(Script const &x, Statement const &stm) {
         (void)x;
         (void)stm;
         throw std::logic_error("implement me!!!");
     }
-    clingo_ast_statement_t *visit(Program const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(Program const &x, Statement const &stm) {
         (void)x;
         (void)stm;
         throw std::logic_error("implement me!!!");
     }
-    clingo_ast_statement_t *visit(External const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(External const &x, Statement const &stm) {
         (void)x;
         (void)stm;
         throw std::logic_error("implement me!!!");
     }
-    clingo_ast_statement_t *visit(Edge const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(Edge const &x, Statement const &stm) {
         (void)x;
         (void)stm;
         throw std::logic_error("implement me!!!");
     }
-    clingo_ast_statement_t *visit(Heuristic const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(Heuristic const &x, Statement const &stm) {
         (void)x;
         (void)stm;
         throw std::logic_error("implement me!!!");
     }
-    clingo_ast_statement_t *visit(Project const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(Project const &x, Statement const &stm) {
         (void)x;
         (void)stm;
         throw std::logic_error("implement me!!!");
     }
-    clingo_ast_statement_t *visit(ProjectSignature const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(ProjectSignature const &x, Statement const &stm) {
         (void)x;
         (void)stm;
         throw std::logic_error("implement me!!!");
     }
-    clingo_ast_statement_t *visit(TheoryDefinition const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(TheoryDefinition const &x, Statement const &stm) {
         (void)x;
         (void)stm;
         throw std::logic_error("implement me!!!");
@@ -1123,7 +1123,8 @@ void ProgramBuilder::begin() {
 }
 
 void ProgramBuilder::add(AST::Statement const &stm) {
-    handleCError(clingo_program_builder_add(builder_, stm.data.accept(AST::ASTToC{}, stm)));
+    auto x = stm.data.accept(AST::ASTToC{}, stm);
+    handleCError(clingo_program_builder_add(builder_, &x));
 }
 
 void ProgramBuilder::end() {
