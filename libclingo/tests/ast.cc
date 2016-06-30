@@ -57,7 +57,7 @@ ModelVec solve(char const *prg, PartSpan parts = {{"base", {}}}) {
     Control ctl{{"0"}, [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); }, 20};
     ctl.with_builder([prg](ProgramBuilder &b){
         parse_program(prg, [&b](AST::Statement const &stm) {
-            std::cerr << stm << std::endl;
+            //std::cerr << stm << std::endl;
             b.add(stm);
         });
     });
