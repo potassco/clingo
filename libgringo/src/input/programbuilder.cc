@@ -1710,7 +1710,7 @@ private:
         auto it = x.terms, ie = it + x.size;
         auto ret = prg_.theoryopterm(parseTheoryOpVec(it->operators, it->size), parseTheoryTerm(it->term));
         for (++it; it != ie; ++it) {
-            require_(it->size > 1, "at least one operator necessary on right-hand-side of unparsed theory term");
+            require_(it->size > 0, "at least one operator necessary on right-hand-side of unparsed theory term");
             ret = prg_.theoryopterm(ret, parseTheoryOpVec(it->operators, it->size), parseTheoryTerm(it->term));
         }
         return ret;

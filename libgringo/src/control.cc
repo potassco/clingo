@@ -1007,16 +1007,16 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_theory_term_t visit(TheoryTermSequence const &term, TheoryTermTag) {
-        auto sequence = create_<clingo_ast_theory_function_t>();
-        sequence->arguments = convTheoryTermVec(term.terms);
-        sequence->size      = term.terms.size();
+        auto sequence = create_<clingo_ast_theory_term_array_t>();
+        sequence->terms = convTheoryTermVec(term.terms);
+        sequence->size  = term.terms.size();
         clingo_ast_theory_term_t ret;
         switch (term.type) {
             case TheoryTermSequenceType::Set:   { ret.type = clingo_ast_theory_term_type_set; break; }
             case TheoryTermSequenceType::List:  { ret.type = clingo_ast_theory_term_type_list; break; }
             case TheoryTermSequenceType::Tuple: { ret.type = clingo_ast_theory_term_type_tuple; break; }
         }
-        ret.function = sequence;
+        ret.set = sequence;
         return ret;
     }
     clingo_ast_theory_term_t visit(TheoryFunction const &term, TheoryTermTag) {

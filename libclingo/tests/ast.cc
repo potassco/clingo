@@ -56,14 +56,30 @@ ModelVec solve(char const *prg, PartSpan parts = {{"base", {}}}) {
     ModelVec models;
     Control ctl{{"0"}, [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); }, 20};
     ctl.with_builder([prg](ProgramBuilder &b){
-        parse_program(prg, [&b](AST::Statement const &stm) {
-            //std::cerr << stm << std::endl;
-            b.add(stm);
-        });
+        parse_program(prg, [&b](AST::Statement const &stm) { b.add(stm); });
     });
     ctl.ground(parts);
     ctl.solve(MCB(models));
     return models;
+}
+
+using StringVec = std::vector<std::string>;
+StringVec parse_theory(char const *prg, char const *theory) {
+    MessageVec messages;
+    ModelVec models;
+    Control ctl{{"0"}, [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); }, 20};
+    ctl.with_builder([prg, theory](ProgramBuilder &b){
+        parse_program(theory, [&b](AST::Statement const &stm) { b.add(stm); });
+        parse_program(prg, [&b](AST::Statement const &stm) { b.add(stm); });
+    });
+    ctl.ground({{"base", {}}});
+    StringVec ret;
+    for (auto x : ctl.theory_atoms()) {
+        std::ostringstream oss;
+        oss << x;
+        ret.emplace_back(oss.str());
+    }
+    return ret;
 }
 
 } // namespace
@@ -235,7 +251,34 @@ TEST_CASE("add-ast", "[clingo]") {
         REQUIRE(solve("12 $< 1 $+ 3 $* $x $+ 7 $< 17. 0 $<= x $<= 4.") == ModelVec({{Function("$", {Id("x"), Number(2)})}}));
     }
     SECTION("theory") {
-        // TODO: do the theory stuff differently...
+        char const *theory = R"(
+#theory x {
+    t {
+        * : 1, binary, left;
+        ^ : 2, binary, right;
+        - : 3, unary
+    };
+    &a/0 : t, directive;
+    &b/0 : t, {=}, t, any
+}.
+)";
+        REQUIRE(parse("&p{ } !! 1 + (x + y * z).") == "&p {  } !! (1 + (x + y * z)).");
+        REQUIRE(parse_theory("&a{}.", theory) == StringVec({"&a{}"}));
+        REQUIRE(parse_theory("&a{1,2,3:a,b}. {a;b}.", theory) == StringVec({"&a{1,2,3: a,b}"}));
+        REQUIRE(parse_theory("&b{} = a.", theory) == StringVec({"&b{}=a"}));
+        REQUIRE(parse_theory("&b{} = X:-X=1.", theory) == StringVec({"&b{}=1"}));
+        REQUIRE(parse_theory("&b{} = [].", theory) == StringVec({"&b{}=[]"}));
+        REQUIRE(parse_theory("&b{} = [1].", theory) == StringVec({"&b{}=[1]"}));
+        REQUIRE(parse_theory("&b{} = [1,2].", theory) == StringVec({"&b{}=[1,2]"}));
+        REQUIRE(parse_theory("&b{} = ().", theory) == StringVec({"&b{}=()"}));
+        REQUIRE(parse_theory("&b{} = (a).", theory) == StringVec({"&b{}=a"}));
+        REQUIRE(parse_theory("&b{} = (a,).", theory) == StringVec({"&b{}=(a,)"}));
+        REQUIRE(parse_theory("&b{} = {}.", theory) == StringVec({"&b{}={}"}));
+        REQUIRE(parse_theory("&b{} = f().", theory) == StringVec({"&b{}=f()"}));
+        REQUIRE(parse_theory("&b{} = f(a,1).", theory) == StringVec({"&b{}=f(a,1)"}));
+        REQUIRE(parse_theory("&b{} = a*x.", theory) == StringVec({"&b{}=(a*x)"}));
+        REQUIRE(parse_theory("&b{} = -a*x*y^z^u.", theory) == StringVec({"&b{}=(((-a)*x)*(y^(z^u)))"}));
+        REQUIRE(parse_theory("&b{} = -(a*x*y^z^u).", theory) == StringVec({"&b{}=(-((a*x)*(y^(z^u))))"}));
     }
 }
 
