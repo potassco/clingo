@@ -897,39 +897,70 @@ struct ASTToC {
     }
 
     clingo_ast_term_t visit(Symbol const &x, Term const &term) {
-        (void)x;
-        (void)term;
-        throw std::logic_error("implement me!!!");
+        clingo_ast_term_t ret;
+        ret.location = term.location;
+        ret.type     = clingo_ast_term_type_variable;
+        ret.symbol   = x.to_c();
+        return ret;
     }
     clingo_ast_term_t visit(Variable const &x, Term const &term) {
-        (void)x;
-        (void)term;
-        throw std::logic_error("implement me!!!");
+        clingo_ast_term_t ret;
+        ret.location = term.location;
+        ret.type     = clingo_ast_term_type_variable;
+        ret.variable = x.name;
+        return ret;
     }
     clingo_ast_term_t visit(UnaryOperation const &x, Term const &term) {
-        (void)x;
-        (void)term;
-        throw std::logic_error("implement me!!!");
+        auto unary_operation = create_<clingo_ast_unary_operation_t>();
+        unary_operation->unary_operator = static_cast<clingo_ast_unary_operator_t>(x.unary_operator);
+        unary_operation->argument       = convTerm(x.argument);
+        clingo_ast_term_t ret;
+        ret.location        = term.location;
+        ret.type            = clingo_ast_term_type_unary_operation;
+        ret.unary_operation = unary_operation;
+        return ret;
     }
     clingo_ast_term_t visit(BinaryOperation const &x, Term const &term) {
-        (void)x;
-        (void)term;
-        throw std::logic_error("implement me!!!");
+        auto binary_operation = create_<clingo_ast_binary_operation_t>();
+        binary_operation->binary_operator = static_cast<clingo_ast_binary_operator_t>(x.binary_operator);
+        binary_operation->left            = convTerm(x.left);
+        binary_operation->right           = convTerm(x.right);
+        clingo_ast_term_t ret;
+        ret.location         = term.location;
+        ret.type             = clingo_ast_term_type_binary_operation;
+        ret.binary_operation = binary_operation;
+        return ret;
     }
     clingo_ast_term_t visit(Interval const &x, Term const &term) {
-        (void)x;
-        (void)term;
-        throw std::logic_error("implement me!!!");
+        auto interval = create_<clingo_ast_interval_t>();
+        interval->left  = convTerm(x.left);
+        interval->right = convTerm(x.right);
+        clingo_ast_term_t ret;
+        ret.location = term.location;
+        ret.type     = clingo_ast_term_type_interval;
+        ret.interval = interval;
+        return ret;
     }
     clingo_ast_term_t visit(Function const &x, Term const &term) {
-        (void)x;
-        (void)term;
-        throw std::logic_error("implement me!!!");
+        auto function = create_<clingo_ast_function_t>();
+        function->name      = x.name;
+        function->arguments = convTermVec(x.arguments);
+        function->size      = x.arguments.size();
+        clingo_ast_term_t ret;
+        ret.location = term.location;
+        ret.type     = x.external ? clingo_ast_term_type_external_function : clingo_ast_term_type_function;
+        ret.function = function;
+        return ret;
     }
     clingo_ast_term_t visit(Pool const &x, Term const &term) {
-        (void)x;
-        (void)term;
-        throw std::logic_error("implement me!!!");
+        auto pool = create_<clingo_ast_pool_t>();
+        pool->arguments = convTermVec(x.arguments);
+        pool->size      = x.arguments.size();
+        clingo_ast_term_t ret;
+        ret.location = term.location;
+        ret.type     = clingo_ast_term_type_pool;
+        ret.pool     = pool;
+        return ret;
     }
     clingo_ast_term_t convTerm(Term const &x) {
         return x.data.accept(*this, x);
@@ -941,35 +972,77 @@ struct ASTToC {
         return createArray_(x, static_cast<clingo_ast_term_t (ASTToC::*)(Term const &)>(&ASTToC::convTerm));
     }
 
+    clingo_ast_csp_multiply_term_t convCSPMultiply(CSPMultiply const &x) {
+        clingo_ast_csp_multiply_term_t ret;
+        ret.location    = x.location;
+        ret.variable    = convTerm(x.variable);
+        ret.coefficient = convTerm(x.coefficient);
+        return ret;
+    }
     clingo_ast_csp_add_term_t convCSPAdd(CSPAdd const &x) {
-        (void)x;
-        throw std::logic_error("implement me!!!");
+        clingo_ast_csp_add_term_t ret;
+        ret.location = x.location;
+        ret.terms    = createArray_(x.terms, &ASTToC::convCSPMultiply);
+        ret.size     = x.terms.size();
+        return ret;
+    }
+
+    clingo_ast_theory_unparsed_term_t convTheoryUnparsedTermElement(TheoryUnparsedTermElement const &x) {
+        clingo_ast_theory_unparsed_term_t ret;
+        ret.term      = convTheoryTerm(x.term);
+        ret.operators = createArray_(x.operators, &ASTToC::identity<char const *>);
+        ret.size      = x.operators.size();
+        return ret;
     }
 
     clingo_ast_theory_term_t visit(Symbol const &term, TheoryTerm const &x) {
-        (void)x;
-        (void)term;
-        throw std::logic_error("implement me!!!");
+        clingo_ast_theory_term_t ret;
+        ret.type     = clingo_ast_theory_term_type_symbol;
+        ret.location = x.location;
+        ret.symbol   = term.to_c();
+        return ret;
     }
     clingo_ast_theory_term_t visit(Variable const &term, TheoryTerm const &x) {
-        (void)x;
-        (void)term;
-        throw std::logic_error("implement me!!!");
+        clingo_ast_theory_term_t ret;
+        ret.type     = clingo_ast_theory_term_type_variable;
+        ret.location = x.location;
+        ret.variable = term.name;
+        return ret;
     }
     clingo_ast_theory_term_t visit(TheoryTermSequence const &term, TheoryTerm const &x) {
-        (void)x;
-        (void)term;
-        throw std::logic_error("implement me!!!");
+        auto sequence = create_<clingo_ast_theory_function_t>();
+        sequence->arguments = convTheoryTermVec(term.terms);
+        sequence->size      = term.terms.size();
+        clingo_ast_theory_term_t ret;
+        switch (term.type) {
+            case TheoryTermSequenceType::Set:   { ret.type = clingo_ast_theory_term_type_set; break; }
+            case TheoryTermSequenceType::List:  { ret.type = clingo_ast_theory_term_type_list; break; }
+            case TheoryTermSequenceType::Tuple: { ret.type = clingo_ast_theory_term_type_tuple; break; }
+        }
+        ret.location = x.location;
+        ret.function = sequence;
+        return ret;
     }
     clingo_ast_theory_term_t visit(TheoryFunction const &term, TheoryTerm const &x) {
-        (void)x;
-        (void)term;
-        throw std::logic_error("implement me!!!");
+        auto function = create_<clingo_ast_theory_function_t>();
+        function->name      = term.name;
+        function->arguments = convTheoryTermVec(term.arguments);
+        function->size      = term.arguments.size();
+        clingo_ast_theory_term_t ret;
+        ret.type     = clingo_ast_theory_term_type_function;
+        ret.location = x.location;
+        ret.function = function;
+        return ret;
     }
     clingo_ast_theory_term_t visit(TheoryUnparsedTerm const &term, TheoryTerm const &x) {
-        (void)x;
-        (void)term;
-        throw std::logic_error("implement me!!!");
+        auto unparsed_array = create_<clingo_ast_theory_unparsed_term_array>();
+        unparsed_array->terms = createArray_(term.elements, &ASTToC::convTheoryUnparsedTermElement);
+        unparsed_array->size  = term.elements.size();
+        clingo_ast_theory_term_t ret;
+        ret.type           = clingo_ast_theory_term_type_unparsed_term_array;
+        ret.location       = x.location;
+        ret.unparsed_array = unparsed_array;
+        return ret;
     }
     clingo_ast_theory_term_t convTheoryTerm(TheoryTerm const &x) {
         return x.data.accept(*this, x);
@@ -980,25 +1053,48 @@ struct ASTToC {
 
     // {{{2 literal
 
+    clingo_ast_csp_guard_t convCSPGuard(CSPGuard const &x) {
+        clingo_ast_csp_guard_t ret;
+        ret.comparison = static_cast<clingo_ast_comparison_operator_t>(x.comparison);
+        ret.term       = convCSPAdd(x.term);
+        return ret;
+    }
+
     clingo_ast_literal_t visit(Boolean const &x, Literal const &lit) {
-        (void)x;
-        (void)lit;
-        throw std::logic_error("implement me!!!");
+        clingo_ast_literal_t ret;
+        ret.location = lit.location;
+        ret.type     = clingo_ast_literal_type_boolean;
+        ret.boolean  = x.value;
+        return ret;
     }
     clingo_ast_literal_t visit(Term const &x, Literal const &lit) {
-        (void)x;
-        (void)lit;
-        throw std::logic_error("implement me!!!");
+        clingo_ast_literal_t ret;
+        ret.location = lit.location;
+        ret.type     = clingo_ast_literal_type_symbolic;
+        ret.symbol   = create_<clingo_ast_term_t>(convTerm(x));
+        return ret;
     }
     clingo_ast_literal_t visit(Comparison const &x, Literal const &lit) {
-        (void)x;
-        (void)lit;
-        throw std::logic_error("implement me!!!");
+        auto comparison = create_<clingo_ast_comparison_t>();
+        comparison->comparison = static_cast<clingo_ast_comparison_operator_t>(x.comparison);
+        comparison->left       = convTerm(x.left);
+        comparison->right      = convTerm(x.right);
+        clingo_ast_literal_t ret;
+        ret.location   = lit.location;
+        ret.type       = clingo_ast_literal_type_comparison;
+        ret.comparison = comparison;
+        return ret;
     }
     clingo_ast_literal_t visit(CSPLiteral const &x, Literal const &lit) {
-        (void)x;
-        (void)lit;
-        throw std::logic_error("implement me!!!");
+        auto csp = create_<clingo_ast_csp_literal_t>();
+        csp->term   = convCSPAdd(x.term);
+        csp->guards = createArray_(x.guards, &ASTToC::convCSPGuard);
+        csp->size   = x.guards.size();
+        clingo_ast_literal_t ret;
+        ret.location = lit.location;
+        ret.type     = clingo_ast_literal_type_csp;
+        ret.csp      = csp;
+        return ret;
     }
     clingo_ast_literal_t convLiteral(Literal const &x) {
         return x.data.accept(*this, x);
