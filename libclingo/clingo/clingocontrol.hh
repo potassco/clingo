@@ -326,7 +326,7 @@ public:
     Gringo::Logger &logger() override { return logger_; }
     void beginAdd() override { parse(); }
     void add(clingo_ast_statement_t const &stm) override { Gringo::Input::parseStatement(*pb_, logger_, stm); }
-    void endAdd() override { defs_.init(logger_); }
+    void endAdd() override { defs_.init(logger_); parsed = true; }
 
     // }}}2
 

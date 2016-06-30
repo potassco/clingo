@@ -51,7 +51,22 @@ std::string parse(char const *prg) {
     return ret;
 }
 
+ModelVec solve(char const *prg, PartSpan parts = {{"base", {}}}) {
+    MessageVec messages;
+    ModelVec models;
+    Control ctl{{"0"}, [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); }, 20};
+    ctl.with_builder([prg](ProgramBuilder &b){
+        parse_program(prg, [&b](AST::Statement const &stm) {
+            std::cerr << stm << std::endl;
+            b.add(stm);
+        });
+    });
+    ctl.ground(parts);
+    ctl.solve(MCB(models));
+    return models;
 }
+
+} // namespace
 
 TEST_CASE("parse-ast", "[clingo]") {
     SECTION("statement") {
@@ -144,6 +159,42 @@ TEST_CASE("parse-ast", "[clingo]") {
         REQUIRE(parse("&p{ } !! f(a,1).") == "&p {  } !! f(a,1).");
         REQUIRE(parse("&p{ } !! 1 + (x + y * z).") == "&p {  } !! (1 + (x + y * z)).");
     }
+}
+
+TEST_CASE("add-ast", "[clingo]") {
+    SECTION("statement") {
+        REQUIRE(solve("a.") == ModelVec({{Id("a")}}));
+        REQUIRE(solve("a. c. b :- a, c.") == ModelVec({{Id("a"), Id("b"), Id("c")}}));
+        REQUIRE(solve("#const a=10. p(a).") == ModelVec({{Function("p", {Number(10)})}}));
+        REQUIRE(solve("a. b. #show a/0.") == ModelVec({{Id("a")}}));
+        REQUIRE(solve("$a$=1. $b$=2. #show $a/0.") == ModelVec({{Function("$", {Id("a"), Number(1)})}}));
+        REQUIRE(solve("a. #show b : a.") == ModelVec({{Id("a"), Id("b")}}));
+        REQUIRE(solve("$a$=1. $b$=2. #show. #show $a.") == ModelVec({{Function("$", {Id("a"), Number(1)})}}));
+        REQUIRE(solve("#minimize{ 1:b; 2:a }. {a;b}. :- not a, not b.") == ModelVec({{Id("b")}}));
+#ifdef WITH_LUA
+        // NOTE: at the moment it is not possible to add additional script code - it is simply ignored
+        REQUIRE(solve("#script (lua) function x() return 32; end #end. p(@x()).") == ModelVec({{}}));
+#endif
+        REQUIRE(solve("#edge (u,v) : a. #edge (v,u) : b. {a;b}.") == ModelVec({{}, {Id("a")}, {Id("b")}}));
+        REQUIRE(solve("#theory x {}.") == ModelVec({{}}));
+        // these just test parsing...
+        REQUIRE(solve("#external a.") == ModelVec({{}}));
+        REQUIRE(solve("#heuristic a : b, c. [1@2,level]") == ModelVec({{}}));
+        REQUIRE(solve("#project a.") == ModelVec({{}}));
+        REQUIRE(solve("#project a/0.") == ModelVec({{}}));
+    }
+    SECTION("body literal") {
+        REQUIRE(solve("{a}. :-a.") == ModelVec({{}}));
+        REQUIRE(solve("{a}. :-not a.") == ModelVec({{Id("a")}}));
+        REQUIRE(solve("{a}. :-not not a.") == ModelVec({{}}));
+        REQUIRE(solve(":-a:b.") == ModelVec({}));
+        REQUIRE(solve(":-0{a:b;c}1. {a;b;c}.") == ModelVec({{Id("a"), Id("b"), Id("c")}}));
+        REQUIRE(solve(":-0#min{1,2:a,b;2:c}2. {a;b;c}.") == ModelVec({{}, {Id("a")}, {Id("b")}}));
+        auto c = [](char const *name, int value) { return Function("$", {Id(name), Number(value)}); };
+        REQUIRE(solve("1 $<= $x $<= 2. 1 $<= $y $<= 2. :- #disjoint {1:$x; 2:$y}.") == ModelVec({{c("x", 1), c("y", 1)}, {c("x", 2), c("y", 2)}}));
+    }
+
+    // TODO: do the theory stuff differently...
 }
 
 } } // namespace Test Clingo

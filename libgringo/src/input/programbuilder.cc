@@ -1740,7 +1740,7 @@ private:
     LitUid parseLiteral(clingo_ast_literal_t const &x, enum clingo_ast_sign extraSign = clingo_ast_sign_none) {
         switch (static_cast<enum clingo_ast_literal_type>(x.type)) {
             case clingo_ast_literal_type_boolean: {
-                return prg_.boollit(parseLocation(x.location), extraSign != clingo_ast_sign_negation ? !x.boolean : x.boolean);
+                return prg_.boollit(parseLocation(x.location), extraSign != clingo_ast_sign_negation ? x.boolean : !x.boolean);
             }
             case clingo_ast_literal_type_symbolic: {
                 return prg_.predlit(parseLocation(x.location), parseSign(static_cast<enum clingo_ast_sign>(x.sign), extraSign), parseTerm(*x.symbol));
@@ -1773,7 +1773,7 @@ private:
     BoundVecUid parseBounds(clingo_ast_aggregate_guard_t const *left, clingo_ast_aggregate_guard_t const *right) {
         auto ret = prg_.boundvec();
         if (left)  { ret = prg_.boundvec(ret, inv(static_cast<Relation>(left->comparison)), parseTerm(left->term)); }
-        if (right) { ret = prg_.boundvec(ret, static_cast<Relation>(right->comparison), parseTerm(left->term)); }
+        if (right) { ret = prg_.boundvec(ret, static_cast<Relation>(right->comparison), parseTerm(right->term)); }
         return ret;
     }
 
@@ -1835,7 +1835,7 @@ private:
             }
             case clingo_ast_head_literal_type_head_aggregate: {
                 auto &y = *x.head_aggregate;
-                return prg_.headaggr(parseLocation(x.location), AggregateFunction::COUNT, parseBounds(y.left_guard, y.right_guard), parseHdAggrElemVec(y.elements, y.size));
+                return prg_.headaggr(parseLocation(x.location), static_cast<AggregateFunction>(y.function), parseBounds(y.left_guard, y.right_guard), parseHdAggrElemVec(y.elements, y.size));
             }
             case clingo_ast_head_literal_type_theory: {
                 auto &y = *x.theory_atom;
@@ -1870,7 +1870,7 @@ private:
                 }
                 case clingo_ast_body_literal_type_body_aggregate: {
                     auto &y = *it->body_aggregate;
-                    ret = prg_.bodyaggr(ret, parseLocation(it->location), static_cast<NAF>(it->sign), AggregateFunction::COUNT, parseBounds(y.left_guard, y.right_guard), parseBdAggrElemVec(y.elements, y.size));
+                    ret = prg_.bodyaggr(ret, parseLocation(it->location), static_cast<NAF>(it->sign), static_cast<AggregateFunction>(y.function), parseBounds(y.left_guard, y.right_guard), parseBdAggrElemVec(y.elements, y.size));
                     break;
                 }
                 case clingo_ast_body_literal_type_theory: {

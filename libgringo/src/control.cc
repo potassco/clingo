@@ -896,74 +896,71 @@ struct ASTToC {
         return {id.location, id.id};
     }
 
-    clingo_ast_term_t visit(Symbol const &x, Term const &term) {
+    struct TermTag {};
+
+    clingo_ast_term_t visit(Symbol const &x, TermTag) {
         clingo_ast_term_t ret;
-        ret.location = term.location;
-        ret.type     = clingo_ast_term_type_variable;
+        ret.type     = clingo_ast_term_type_symbol;
         ret.symbol   = x.to_c();
         return ret;
     }
-    clingo_ast_term_t visit(Variable const &x, Term const &term) {
+    clingo_ast_term_t visit(Variable const &x, TermTag) {
         clingo_ast_term_t ret;
-        ret.location = term.location;
         ret.type     = clingo_ast_term_type_variable;
         ret.variable = x.name;
         return ret;
     }
-    clingo_ast_term_t visit(UnaryOperation const &x, Term const &term) {
+    clingo_ast_term_t visit(UnaryOperation const &x, TermTag) {
         auto unary_operation = create_<clingo_ast_unary_operation_t>();
         unary_operation->unary_operator = static_cast<clingo_ast_unary_operator_t>(x.unary_operator);
         unary_operation->argument       = convTerm(x.argument);
         clingo_ast_term_t ret;
-        ret.location        = term.location;
         ret.type            = clingo_ast_term_type_unary_operation;
         ret.unary_operation = unary_operation;
         return ret;
     }
-    clingo_ast_term_t visit(BinaryOperation const &x, Term const &term) {
+    clingo_ast_term_t visit(BinaryOperation const &x, TermTag) {
         auto binary_operation = create_<clingo_ast_binary_operation_t>();
         binary_operation->binary_operator = static_cast<clingo_ast_binary_operator_t>(x.binary_operator);
         binary_operation->left            = convTerm(x.left);
         binary_operation->right           = convTerm(x.right);
         clingo_ast_term_t ret;
-        ret.location         = term.location;
         ret.type             = clingo_ast_term_type_binary_operation;
         ret.binary_operation = binary_operation;
         return ret;
     }
-    clingo_ast_term_t visit(Interval const &x, Term const &term) {
+    clingo_ast_term_t visit(Interval const &x, TermTag) {
         auto interval = create_<clingo_ast_interval_t>();
         interval->left  = convTerm(x.left);
         interval->right = convTerm(x.right);
         clingo_ast_term_t ret;
-        ret.location = term.location;
         ret.type     = clingo_ast_term_type_interval;
         ret.interval = interval;
         return ret;
     }
-    clingo_ast_term_t visit(Function const &x, Term const &term) {
+    clingo_ast_term_t visit(Function const &x, TermTag) {
         auto function = create_<clingo_ast_function_t>();
         function->name      = x.name;
         function->arguments = convTermVec(x.arguments);
         function->size      = x.arguments.size();
         clingo_ast_term_t ret;
-        ret.location = term.location;
         ret.type     = x.external ? clingo_ast_term_type_external_function : clingo_ast_term_type_function;
         ret.function = function;
         return ret;
     }
-    clingo_ast_term_t visit(Pool const &x, Term const &term) {
+    clingo_ast_term_t visit(Pool const &x, TermTag) {
         auto pool = create_<clingo_ast_pool_t>();
         pool->arguments = convTermVec(x.arguments);
         pool->size      = x.arguments.size();
         clingo_ast_term_t ret;
-        ret.location = term.location;
         ret.type     = clingo_ast_term_type_pool;
         ret.pool     = pool;
         return ret;
     }
     clingo_ast_term_t convTerm(Term const &x) {
-        return x.data.accept(*this, x);
+        auto ret = x.data.accept(*this, TermTag{});
+        ret.location = x.location;
+        return ret;
     }
     clingo_ast_term_t *convTerm(Optional<Term> const &x) {
         return x ? create_(convTerm(*x.get())) : nullptr;
@@ -995,21 +992,21 @@ struct ASTToC {
         return ret;
     }
 
-    clingo_ast_theory_term_t visit(Symbol const &term, TheoryTerm const &x) {
+    struct TheoryTermTag { };
+
+    clingo_ast_theory_term_t visit(Symbol const &term, TheoryTermTag) {
         clingo_ast_theory_term_t ret;
         ret.type     = clingo_ast_theory_term_type_symbol;
-        ret.location = x.location;
         ret.symbol   = term.to_c();
         return ret;
     }
-    clingo_ast_theory_term_t visit(Variable const &term, TheoryTerm const &x) {
+    clingo_ast_theory_term_t visit(Variable const &term, TheoryTermTag) {
         clingo_ast_theory_term_t ret;
         ret.type     = clingo_ast_theory_term_type_variable;
-        ret.location = x.location;
         ret.variable = term.name;
         return ret;
     }
-    clingo_ast_theory_term_t visit(TheoryTermSequence const &term, TheoryTerm const &x) {
+    clingo_ast_theory_term_t visit(TheoryTermSequence const &term, TheoryTermTag) {
         auto sequence = create_<clingo_ast_theory_function_t>();
         sequence->arguments = convTheoryTermVec(term.terms);
         sequence->size      = term.terms.size();
@@ -1019,33 +1016,32 @@ struct ASTToC {
             case TheoryTermSequenceType::List:  { ret.type = clingo_ast_theory_term_type_list; break; }
             case TheoryTermSequenceType::Tuple: { ret.type = clingo_ast_theory_term_type_tuple; break; }
         }
-        ret.location = x.location;
         ret.function = sequence;
         return ret;
     }
-    clingo_ast_theory_term_t visit(TheoryFunction const &term, TheoryTerm const &x) {
+    clingo_ast_theory_term_t visit(TheoryFunction const &term, TheoryTermTag) {
         auto function = create_<clingo_ast_theory_function_t>();
         function->name      = term.name;
         function->arguments = convTheoryTermVec(term.arguments);
         function->size      = term.arguments.size();
         clingo_ast_theory_term_t ret;
         ret.type     = clingo_ast_theory_term_type_function;
-        ret.location = x.location;
         ret.function = function;
         return ret;
     }
-    clingo_ast_theory_term_t visit(TheoryUnparsedTerm const &term, TheoryTerm const &x) {
+    clingo_ast_theory_term_t visit(TheoryUnparsedTerm const &term, TheoryTermTag) {
         auto unparsed_array = create_<clingo_ast_theory_unparsed_term_array>();
         unparsed_array->terms = createArray_(term.elements, &ASTToC::convTheoryUnparsedTermElement);
         unparsed_array->size  = term.elements.size();
         clingo_ast_theory_term_t ret;
         ret.type           = clingo_ast_theory_term_type_unparsed_term_array;
-        ret.location       = x.location;
         ret.unparsed_array = unparsed_array;
         return ret;
     }
     clingo_ast_theory_term_t convTheoryTerm(TheoryTerm const &x) {
-        return x.data.accept(*this, x);
+        auto ret = x.data.accept(*this, TheoryTermTag{});
+        ret.location = x.location;
+        return ret;
     }
     clingo_ast_theory_term_t *convTheoryTermVec(std::vector<TheoryTerm> const &x) {
         return createArray_(x, &ASTToC::convTheoryTerm);
@@ -1060,44 +1056,43 @@ struct ASTToC {
         return ret;
     }
 
-    clingo_ast_literal_t visit(Boolean const &x, Literal const &lit) {
+    clingo_ast_literal_t visit(Boolean const &x) {
         clingo_ast_literal_t ret;
-        ret.location = lit.location;
         ret.type     = clingo_ast_literal_type_boolean;
         ret.boolean  = x.value;
         return ret;
     }
-    clingo_ast_literal_t visit(Term const &x, Literal const &lit) {
+    clingo_ast_literal_t visit(Term const &x) {
         clingo_ast_literal_t ret;
-        ret.location = lit.location;
         ret.type     = clingo_ast_literal_type_symbolic;
         ret.symbol   = create_<clingo_ast_term_t>(convTerm(x));
         return ret;
     }
-    clingo_ast_literal_t visit(Comparison const &x, Literal const &lit) {
+    clingo_ast_literal_t visit(Comparison const &x) {
         auto comparison = create_<clingo_ast_comparison_t>();
         comparison->comparison = static_cast<clingo_ast_comparison_operator_t>(x.comparison);
         comparison->left       = convTerm(x.left);
         comparison->right      = convTerm(x.right);
         clingo_ast_literal_t ret;
-        ret.location   = lit.location;
         ret.type       = clingo_ast_literal_type_comparison;
         ret.comparison = comparison;
         return ret;
     }
-    clingo_ast_literal_t visit(CSPLiteral const &x, Literal const &lit) {
+    clingo_ast_literal_t visit(CSPLiteral const &x) {
         auto csp = create_<clingo_ast_csp_literal_t>();
         csp->term   = convCSPAdd(x.term);
         csp->guards = createArray_(x.guards, &ASTToC::convCSPGuard);
         csp->size   = x.guards.size();
         clingo_ast_literal_t ret;
-        ret.location = lit.location;
         ret.type     = clingo_ast_literal_type_csp;
         ret.csp      = csp;
         return ret;
     }
     clingo_ast_literal_t convLiteral(Literal const &x) {
-        return x.data.accept(*this, x);
+        auto ret = x.data.accept(*this);
+        ret.sign     = static_cast<clingo_ast_sign_t>(x.sign);
+        ret.location = x.location;
+        return ret;
     }
     clingo_ast_literal_t *convLiteralVec(std::vector<Literal> const &x) {
         return createArray_(x, &ASTToC::convLiteral);
@@ -1181,31 +1176,30 @@ struct ASTToC {
 
     // {{{2 head literal
 
-    clingo_ast_head_literal_t visit(Literal const &x, HeadLiteral const &lit) {
+    struct HeadLiteralTag { };
+
+    clingo_ast_head_literal_t visit(Literal const &x, HeadLiteralTag) {
         clingo_ast_head_literal_t ret;
-        ret.location = lit.location;
         ret.type     = clingo_ast_head_literal_type_literal;
         ret.literal  = create_<clingo_ast_literal_t>(convLiteral(x));
         return ret;
     }
-    clingo_ast_head_literal_t visit(Disjunction const &x, HeadLiteral const &lit) {
+    clingo_ast_head_literal_t visit(Disjunction const &x, HeadLiteralTag) {
         auto disjunction = create_<clingo_ast_disjunction_t>();
         disjunction->size     = x.elements.size();
         disjunction->elements = createArray_(x.elements, &ASTToC::convConditionalLiteral);
         clingo_ast_head_literal_t ret;
-        ret.location    = lit.location;
         ret.type        = clingo_ast_head_literal_type_disjunction;
         ret.disjunction = disjunction;
         return ret;
     }
-    clingo_ast_head_literal_t visit(Aggregate const &x, HeadLiteral const &lit) {
+    clingo_ast_head_literal_t visit(Aggregate const &x, HeadLiteralTag) {
         clingo_ast_head_literal_t ret;
-        ret.location    = lit.location;
-        ret.type        = clingo_ast_head_literal_type_aggregate;
-        ret.aggregate   = create_<clingo_ast_aggregate_t>(convAggregate(x));
+        ret.type      = clingo_ast_head_literal_type_aggregate;
+        ret.aggregate = create_<clingo_ast_aggregate_t>(convAggregate(x));
         return ret;
     }
-    clingo_ast_head_literal_t visit(HeadAggregate const &x, HeadLiteral const &lit) {
+    clingo_ast_head_literal_t visit(HeadAggregate const &x, HeadLiteralTag) {
         auto head_aggregate = create_<clingo_ast_head_aggregate_t>();
         head_aggregate->left_guard  = convAggregateGuard(x.left_guard);
         head_aggregate->right_guard = convAggregateGuard(x.right_guard);
@@ -1213,46 +1207,45 @@ struct ASTToC {
         head_aggregate->size        = x.elements.size();
         head_aggregate->elements    = createArray_(x.elements, &ASTToC::convHeadAggregateElement);
         clingo_ast_head_literal_t ret;
-        ret.location       = lit.location;
         ret.type           = clingo_ast_head_literal_type_head_aggregate;
         ret.head_aggregate = head_aggregate;
         return ret;
     }
-    clingo_ast_head_literal_t visit(TheoryAtom const &x, HeadLiteral const &lit) {
+    clingo_ast_head_literal_t visit(TheoryAtom const &x, HeadLiteralTag) {
         clingo_ast_head_literal_t ret;
-        ret.location    = lit.location;
         ret.type        = clingo_ast_head_literal_type_theory;
         ret.theory_atom = create_<clingo_ast_theory_atom_t>(convTheoryAtom(x));
+        return ret;
+    }
+    clingo_ast_head_literal_t convHeadLiteral(HeadLiteral const &lit) {
+        auto ret = lit.data.accept(*this, HeadLiteralTag{});
+        ret.location = lit.location;
         return ret;
     }
 
     // {{{2 body literal
 
-    clingo_ast_body_literal_t visit(Literal const &x, BodyLiteral const &lit) {
+    struct BodyLiteralTag { };
+
+    clingo_ast_body_literal_t visit(Literal const &x, BodyLiteralTag) {
         clingo_ast_body_literal_t ret;
-        ret.sign     = static_cast<clingo_ast_sign_t>(lit.sign);
-        ret.location = lit.location;
         ret.type     = clingo_ast_body_literal_type_literal;
         ret.literal  = create_<clingo_ast_literal_t>(convLiteral(x));
         return ret;
     }
-    clingo_ast_body_literal_t visit(ConditionalLiteral const &x, BodyLiteral const &lit) {
+    clingo_ast_body_literal_t visit(ConditionalLiteral const &x, BodyLiteralTag) {
         clingo_ast_body_literal_t ret;
-        ret.sign        = static_cast<clingo_ast_sign_t>(lit.sign);
-        ret.location    = lit.location;
         ret.type        = clingo_ast_body_literal_type_conditional;
         ret.conditional = create_<clingo_ast_conditional_literal_t>(convConditionalLiteral(x));
         return ret;
     }
-    clingo_ast_body_literal_t visit(Aggregate const &x, BodyLiteral const &lit) {
+    clingo_ast_body_literal_t visit(Aggregate const &x, BodyLiteralTag) {
         clingo_ast_body_literal_t ret;
-        ret.sign      = static_cast<clingo_ast_sign_t>(lit.sign);
-        ret.location  = lit.location;
         ret.type      = clingo_ast_body_literal_type_aggregate;
         ret.aggregate = create_<clingo_ast_aggregate_t>(convAggregate(x));
         return ret;
     }
-    clingo_ast_body_literal_t visit(BodyAggregate const &x, BodyLiteral const &lit) {
+    clingo_ast_body_literal_t visit(BodyAggregate const &x, BodyLiteralTag) {
         auto body_aggregate = create_<clingo_ast_body_aggregate_t>();
         body_aggregate->left_guard  = convAggregateGuard(x.left_guard);
         body_aggregate->right_guard = convAggregateGuard(x.right_guard);
@@ -1260,34 +1253,31 @@ struct ASTToC {
         body_aggregate->size        = x.elements.size();
         body_aggregate->elements    = createArray_(x.elements, &ASTToC::convBodyAggregateElement);
         clingo_ast_body_literal_t ret;
-        ret.sign     = static_cast<clingo_ast_sign_t>(lit.sign);
-        ret.location = lit.location;
         ret.type     = clingo_ast_body_literal_type_body_aggregate;
         ret.body_aggregate = body_aggregate;
         return ret;
     }
-    clingo_ast_body_literal_t visit(TheoryAtom const &x, BodyLiteral const &lit) {
+    clingo_ast_body_literal_t visit(TheoryAtom const &x, BodyLiteralTag) {
         clingo_ast_body_literal_t ret;
-        ret.sign        = static_cast<clingo_ast_sign_t>(lit.sign);
-        ret.location    = lit.location;
         ret.type        = clingo_ast_body_literal_type_theory;
         ret.theory_atom = create_<clingo_ast_theory_atom_t>(convTheoryAtom(x));
         return ret;
     }
-    clingo_ast_body_literal_t visit(Disjoint const &x, BodyLiteral const &lit) {
+    clingo_ast_body_literal_t visit(Disjoint const &x, BodyLiteralTag) {
         auto disjoint = create_<clingo_ast_disjoint_t>();
         disjoint->size     = x.elements.size();
         disjoint->elements = createArray_(x.elements, &ASTToC::convDisjointElement);
         clingo_ast_body_literal_t ret;
-        ret.sign     = static_cast<clingo_ast_sign_t>(lit.sign);
-        ret.location = lit.location;
         ret.type     = clingo_ast_body_literal_type_disjoint;
         ret.disjoint = disjoint;
         return ret;
     }
 
     clingo_ast_body_literal_t convBodyLiteral(BodyLiteral const &x) {
-        return x.data.accept(*this, x);
+        auto ret = x.data.accept(*this, BodyLiteralTag{});
+        ret.sign     = static_cast<clingo_ast_sign_t>(x.sign);
+        ret.location = x.location;
+        return ret;
     }
 
     clingo_ast_body_literal_t* convBodyLiteralVec(std::vector<BodyLiteral> const &x) {
@@ -1335,39 +1325,36 @@ struct ASTToC {
 
     // {{{2 statement
 
-    clingo_ast_statement_t visit(Rule const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(Rule const &x) {
         auto *rule = create_<clingo_ast_rule_t>();
-        rule->head = x.head.data.accept(*this, x.head);
+        rule->head = convHeadLiteral(x.head);
         rule->size = x.body.size();
         rule->body = convBodyLiteralVec(x.body);
         clingo_ast_statement_t ret;
         ret.type     = clingo_ast_statement_type_rule;
-        ret.location = stm.location;
         ret.rule     = rule;
         return ret;
     }
-    clingo_ast_statement_t visit(Definition const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(Definition const &x) {
         auto *definition = create_<clingo_ast_definition_t>();
         definition->is_default = x.is_default;
         definition->name       = x.name;
         definition->value      = convTerm(x.value);
         clingo_ast_statement_t ret;
         ret.type       = clingo_ast_statement_type_const;
-        ret.location   = stm.location;
         ret.definition = definition;
         return ret;
     }
-    clingo_ast_statement_t visit(ShowSignature const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(ShowSignature const &x) {
         auto *show_signature = create_<clingo_ast_show_signature_t>();
         show_signature->csp       = x.csp;
         show_signature->signature = x.signature.to_c();
         clingo_ast_statement_t ret;
         ret.type           = clingo_ast_statement_type_show_signature;
-        ret.location       = stm.location;
         ret.show_signature = show_signature;
         return ret;
     }
-    clingo_ast_statement_t visit(ShowTerm const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(ShowTerm const &x) {
         auto *show_term = create_<clingo_ast_show_term_t>();
         show_term->csp  = x.csp;
         show_term->term = convTerm(x.term);
@@ -1375,11 +1362,10 @@ struct ASTToC {
         show_term->size = x.body.size();
         clingo_ast_statement_t ret;
         ret.type      = clingo_ast_statement_type_show_term;
-        ret.location  = stm.location;
         ret.show_term = show_term;
         return ret;
     }
-    clingo_ast_statement_t visit(Minimize const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(Minimize const &x) {
         auto *minimize = create_<clingo_ast_minimize_t>();
         minimize->weight     = convTerm(x.weight);
         minimize->priority   = convTerm(x.priority);
@@ -1388,56 +1374,51 @@ struct ASTToC {
         minimize->body       = convBodyLiteralVec(x.body);
         minimize->body_size  = x.body.size();
         clingo_ast_statement_t ret;
-        ret.type      = clingo_ast_statement_type_minimize;
-        ret.location  = stm.location;
+        ret.type     = clingo_ast_statement_type_minimize;
         ret.minimize = minimize;
         return ret;
     }
-    clingo_ast_statement_t visit(Script const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(Script const &x) {
         auto *script = create_<clingo_ast_script_t>();
         script->type = static_cast<clingo_ast_script_type_t>(x.type);
         script->code = x.code;
         clingo_ast_statement_t ret;
-        ret.type     = clingo_ast_statement_type_script;
-        ret.location = stm.location;
-        ret.script   = script;
+        ret.type   = clingo_ast_statement_type_script;
+        ret.script = script;
         return ret;
     }
-    clingo_ast_statement_t visit(Program const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(Program const &x) {
         auto *program = create_<clingo_ast_program_t>();
         program->name       = x.name;
         program->parameters = createArray_(x.parameters, &ASTToC::convId);
         program->size       = x.parameters.size();
         clingo_ast_statement_t ret;
-        ret.type     = clingo_ast_statement_type_program;
-        ret.location = stm.location;
-        ret.program  = program;
+        ret.type    = clingo_ast_statement_type_program;
+        ret.program = program;
         return ret;
     }
-    clingo_ast_statement_t visit(External const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(External const &x) {
         auto *external = create_<clingo_ast_external_t>();
         external->atom = convTerm(x.atom);
         external->body = convBodyLiteralVec(x.body);
         external->size = x.body.size();
         clingo_ast_statement_t ret;
         ret.type     = clingo_ast_statement_type_external;
-        ret.location = stm.location;
         ret.external = external;
         return ret;
     }
-    clingo_ast_statement_t visit(Edge const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(Edge const &x) {
         auto *edge = create_<clingo_ast_edge_t>();
         edge->u    = convTerm(x.u);
         edge->v    = convTerm(x.v);
         edge->body = convBodyLiteralVec(x.body);
         edge->size = x.body.size();
         clingo_ast_statement_t ret;
-        ret.type     = clingo_ast_statement_type_edge;
-        ret.location = stm.location;
-        ret.edge     = edge;
+        ret.type = clingo_ast_statement_type_edge;
+        ret.edge = edge;
         return ret;
     }
-    clingo_ast_statement_t visit(Heuristic const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(Heuristic const &x) {
         auto *heuristic = create_<clingo_ast_heuristic_t>();
         heuristic->atom     = convTerm(x.atom);
         heuristic->bias     = convTerm(x.bias);
@@ -1447,29 +1428,26 @@ struct ASTToC {
         heuristic->size     = x.body.size();
         clingo_ast_statement_t ret;
         ret.type      = clingo_ast_statement_type_heuristic;
-        ret.location  = stm.location;
         ret.heuristic = heuristic;
         return ret;
     }
-    clingo_ast_statement_t visit(Project const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(Project const &x) {
         auto *project = create_<clingo_ast_project_t>();
         project->atom = convTerm(x.atom);
         project->body = convBodyLiteralVec(x.body);
         project->size = x.body.size();
         clingo_ast_statement_t ret;
-        ret.type     = clingo_ast_statement_type_project;
-        ret.location = stm.location;
-        ret.project  = project;
+        ret.type    = clingo_ast_statement_type_project;
+        ret.project = project;
         return ret;
     }
-    clingo_ast_statement_t visit(ProjectSignature const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(ProjectSignature const &x) {
         clingo_ast_statement_t ret;
         ret.type              = clingo_ast_statement_type_project_signature;
-        ret.location          = stm.location;
         ret.project_signature = x.signature.to_c();
         return ret;
     }
-    clingo_ast_statement_t visit(TheoryDefinition const &x, Statement const &stm) {
+    clingo_ast_statement_t visit(TheoryDefinition const &x) {
         auto *theory_definition = create_<clingo_ast_theory_definition_t>();
         theory_definition->name       = x.name;
         theory_definition->terms      = createArray_(x.terms, &ASTToC::convTheoryTermDefinition);
@@ -1478,7 +1456,6 @@ struct ASTToC {
         theory_definition->atoms_size = x.atoms.size();
         clingo_ast_statement_t ret;
         ret.type              = clingo_ast_statement_type_theory_definition;
-        ret.location          = stm.location;
         ret.theory_definition = theory_definition;
         return ret;
     }
@@ -1532,7 +1509,9 @@ void ProgramBuilder::begin() {
 }
 
 void ProgramBuilder::add(AST::Statement const &stm) {
-    auto x = stm.data.accept(AST::ASTToC{}, stm);
+    AST::ASTToC a;
+    auto x = stm.data.accept(a);
+    x.location = stm.location;
     handleCError(clingo_program_builder_add(builder_, &x));
 }
 
