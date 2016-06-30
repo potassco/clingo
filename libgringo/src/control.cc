@@ -890,6 +890,48 @@ char const *Configuration::key_name(size_t index) const {
 namespace AST { namespace {
 
 struct ASTToC {
+    // {{{2 term
+
+    clingo_ast_term_t visit(Symbol const &x, Term const &term) {
+        (void)x;
+        (void)term;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_term_t visit(Variable const &x, Term const &term) {
+        (void)x;
+        (void)term;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_term_t visit(UnaryOperation const &x, Term const &term) {
+        (void)x;
+        (void)term;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_term_t visit(BinaryOperation const &x, Term const &term) {
+        (void)x;
+        (void)term;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_term_t visit(Interval const &x, Term const &term) {
+        (void)x;
+        (void)term;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_term_t visit(Function const &x, Term const &term) {
+        (void)x;
+        (void)term;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_term_t visit(Pool const &x, Term const &term) {
+        (void)x;
+        (void)term;
+        throw std::logic_error("implement me!!!");
+    }
+
+    clingo_ast_term_t convTerm(Term const &x) {
+        return x.data.accept(*this, x);
+    }
+
     // {{{2 head literal
 
     clingo_ast_head_literal_t visit(Literal const &x, HeadLiteral const &lit) {
@@ -963,14 +1005,21 @@ struct ASTToC {
         rule->size = x.body.size();
         rule->body = convBodyLiteralVec(x.body);
         auto ret = create_<clingo_ast_statement_t>();
+        ret->type     = clingo_ast_statement_type_rule;
         ret->location = stm.location;
         ret->rule     = rule;
         return ret;
     }
     clingo_ast_statement_t *visit(Definition const &x, Statement const &stm) {
-        (void)x;
-        (void)stm;
-        throw std::logic_error("implement me!!!");
+        auto *definition = create_<clingo_ast_definition_t>();
+        definition->is_default = x.is_default;
+        definition->name       = x.name;
+        definition->value      = convTerm(x.value);
+        auto ret = create_<clingo_ast_statement_t>();
+        ret->type       = clingo_ast_statement_type_const;
+        ret->location   = stm.location;
+        ret->definition = definition;
+        return ret;
     }
     clingo_ast_statement_t *visit(ShowSignature const &x, Statement const &stm) {
         (void)x;
@@ -1072,6 +1121,7 @@ struct ASTToC {
 void ProgramBuilder::begin() {
     handleCError(clingo_program_builder_begin(builder_));
 }
+
 void ProgramBuilder::add(AST::Statement const &stm) {
     handleCError(clingo_program_builder_add(builder_, stm.data.accept(AST::ASTToC{}, stm)));
 }
