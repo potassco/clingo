@@ -892,6 +892,10 @@ namespace AST { namespace {
 struct ASTToC {
     // {{{2 term
 
+    clingo_ast_id_t convId(Id const &id) {
+        return {id.location, id.id};
+    }
+
     clingo_ast_term_t visit(Symbol const &x, Term const &term) {
         (void)x;
         (void)term;
@@ -927,74 +931,310 @@ struct ASTToC {
         (void)term;
         throw std::logic_error("implement me!!!");
     }
-
     clingo_ast_term_t convTerm(Term const &x) {
         return x.data.accept(*this, x);
+    }
+    clingo_ast_term_t *convTerm(Optional<Term> const &x) {
+        return x ? create_(convTerm(*x.get())) : nullptr;
+    }
+    clingo_ast_term_t *convTermVec(std::vector<Term> const &x) {
+        return createArray_(x, static_cast<clingo_ast_term_t (ASTToC::*)(Term const &)>(&ASTToC::convTerm));
+    }
+
+    clingo_ast_csp_add_term_t convCSPAdd(CSPAdd const &x) {
+        (void)x;
+        throw std::logic_error("implement me!!!");
+    }
+
+    clingo_ast_theory_term_t visit(Symbol const &term, TheoryTerm const &x) {
+        (void)x;
+        (void)term;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_theory_term_t visit(Variable const &term, TheoryTerm const &x) {
+        (void)x;
+        (void)term;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_theory_term_t visit(TheoryTermSequence const &term, TheoryTerm const &x) {
+        (void)x;
+        (void)term;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_theory_term_t visit(TheoryFunction const &term, TheoryTerm const &x) {
+        (void)x;
+        (void)term;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_theory_term_t visit(TheoryUnparsedTerm const &term, TheoryTerm const &x) {
+        (void)x;
+        (void)term;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_theory_term_t convTheoryTerm(TheoryTerm const &x) {
+        return x.data.accept(*this, x);
+    }
+    clingo_ast_theory_term_t *convTheoryTermVec(std::vector<TheoryTerm> const &x) {
+        return createArray_(x, &ASTToC::convTheoryTerm);
+    }
+
+    // {{{2 literal
+
+    clingo_ast_literal_t visit(Boolean const &x, Literal const &lit) {
+        (void)x;
+        (void)lit;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_literal_t visit(Term const &x, Literal const &lit) {
+        (void)x;
+        (void)lit;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_literal_t visit(Comparison const &x, Literal const &lit) {
+        (void)x;
+        (void)lit;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_literal_t visit(CSPLiteral const &x, Literal const &lit) {
+        (void)x;
+        (void)lit;
+        throw std::logic_error("implement me!!!");
+    }
+    clingo_ast_literal_t convLiteral(Literal const &x) {
+        return x.data.accept(*this, x);
+    }
+    clingo_ast_literal_t *convLiteralVec(std::vector<Literal> const &x) {
+        return createArray_(x, &ASTToC::convLiteral);
+    }
+
+    // {{{2 aggregates
+
+    clingo_ast_aggregate_guard_t *convAggregateGuard(Optional<AggregateGuard> const &guard) {
+        return guard
+            ? create_<clingo_ast_aggregate_guard_t>({static_cast<clingo_ast_comparison_operator_t>(guard->comparison), convTerm(guard->term)})
+            : nullptr;
+    }
+
+    clingo_ast_conditional_literal_t convConditionalLiteral(ConditionalLiteral const &x) {
+        clingo_ast_conditional_literal_t ret;
+        ret.literal   = convLiteral(x.literal);
+        ret.condition = convLiteralVec(x.condition);
+        ret.size      = x.condition.size();
+        return ret;
+    }
+
+    clingo_ast_theory_guard_t *convTheoryGuard(Optional<TheoryGuard> const &x) {
+        return x
+            ? create_<clingo_ast_theory_guard_t>({x->operator_name, convTheoryTerm(x->term)})
+            : nullptr;
+    }
+
+    clingo_ast_theory_atom_element_t convTheoryAtomElement(TheoryAtomElement const &x) {
+        clingo_ast_theory_atom_element_t ret;
+        ret.tuple          = convTheoryTermVec(x.tuple);
+        ret.tuple_size     = x.tuple.size();
+        ret.condition      = convLiteralVec(x.condition);
+        ret.condition_size = x.condition.size();
+        return ret;
+    }
+
+    clingo_ast_body_aggregate_element_t convBodyAggregateElement(BodyAggregateElement const &x) {
+        clingo_ast_body_aggregate_element_t ret;
+        ret.tuple          = convTermVec(x.tuple);
+        ret.tuple_size     = x.tuple.size();
+        ret.condition      = convLiteralVec(x.condition);
+        ret.condition_size = x.condition.size();
+        return ret;
+    }
+
+    clingo_ast_head_aggregate_element_t convHeadAggregateElement(HeadAggregateElement const &x) {
+        clingo_ast_head_aggregate_element_t ret;
+        ret.tuple               = convTermVec(x.tuple);
+        ret.tuple_size          = x.tuple.size();
+        ret.conditional_literal = convConditionalLiteral(x.condition);
+        return ret;
+    }
+
+    clingo_ast_aggregate_t convAggregate(Aggregate const &x) {
+        clingo_ast_aggregate_t ret;
+        ret.left_guard  = convAggregateGuard(x.left_guard);
+        ret.right_guard = convAggregateGuard(x.right_guard);
+        ret.size        = x.elements.size();
+        ret.elements    = createArray_(x.elements, &ASTToC::convConditionalLiteral);
+        return ret;
+    }
+
+    clingo_ast_theory_atom_t convTheoryAtom(TheoryAtom const &x) {
+        clingo_ast_theory_atom_t ret;
+        ret.term     = convTerm(x.term);
+        ret.guard    = convTheoryGuard(x.guard);
+        ret.elements = createArray_(x.elements, &ASTToC::convTheoryAtomElement);
+        ret.size     = x.elements.size();
+        return ret;
+    }
+
+    clingo_ast_disjoint_element_t convDisjointElement(DisjointElement const &x) {
+        clingo_ast_disjoint_element_t ret;
+        ret.tuple          = convTermVec(x.tuple);
+        ret.tuple_size     = x.tuple.size();
+        ret.term           = convCSPAdd(x.term);
+        ret.condition      = convLiteralVec(x.condition);
+        ret.condition_size = x.condition.size();
+        return ret;
     }
 
     // {{{2 head literal
 
     clingo_ast_head_literal_t visit(Literal const &x, HeadLiteral const &lit) {
-        (void)x;
-        (void)lit;
-        throw std::logic_error("implement me!!!");
+        clingo_ast_head_literal_t ret;
+        ret.location = lit.location;
+        ret.type     = clingo_ast_head_literal_type_literal;
+        ret.literal  = create_<clingo_ast_literal_t>(convLiteral(x));
+        return ret;
     }
     clingo_ast_head_literal_t visit(Disjunction const &x, HeadLiteral const &lit) {
-        (void)x;
-        (void)lit;
-        throw std::logic_error("implement me!!!");
+        auto disjunction = create_<clingo_ast_disjunction_t>();
+        disjunction->size     = x.elements.size();
+        disjunction->elements = createArray_(x.elements, &ASTToC::convConditionalLiteral);
+        clingo_ast_head_literal_t ret;
+        ret.location    = lit.location;
+        ret.type        = clingo_ast_head_literal_type_disjunction;
+        ret.disjunction = disjunction;
+        return ret;
     }
     clingo_ast_head_literal_t visit(Aggregate const &x, HeadLiteral const &lit) {
-        (void)x;
-        (void)lit;
-        throw std::logic_error("implement me!!!");
+        clingo_ast_head_literal_t ret;
+        ret.location    = lit.location;
+        ret.type        = clingo_ast_head_literal_type_aggregate;
+        ret.aggregate   = create_<clingo_ast_aggregate_t>(convAggregate(x));
+        return ret;
     }
     clingo_ast_head_literal_t visit(HeadAggregate const &x, HeadLiteral const &lit) {
-        (void)x;
-        (void)lit;
-        throw std::logic_error("implement me!!!");
+        auto head_aggregate = create_<clingo_ast_head_aggregate_t>();
+        head_aggregate->left_guard  = convAggregateGuard(x.left_guard);
+        head_aggregate->right_guard = convAggregateGuard(x.right_guard);
+        head_aggregate->function    = static_cast<clingo_ast_aggregate_function_t>(x.function);
+        head_aggregate->size        = x.elements.size();
+        head_aggregate->elements    = createArray_(x.elements, &ASTToC::convHeadAggregateElement);
+        clingo_ast_head_literal_t ret;
+        ret.location       = lit.location;
+        ret.type           = clingo_ast_head_literal_type_head_aggregate;
+        ret.head_aggregate = head_aggregate;
+        return ret;
     }
     clingo_ast_head_literal_t visit(TheoryAtom const &x, HeadLiteral const &lit) {
-        (void)x;
-        (void)lit;
-        throw std::logic_error("implement me!!!");
+        clingo_ast_head_literal_t ret;
+        ret.location    = lit.location;
+        ret.type        = clingo_ast_head_literal_type_theory;
+        ret.theory_atom = create_<clingo_ast_theory_atom_t>(convTheoryAtom(x));
+        return ret;
     }
 
     // {{{2 body literal
 
     clingo_ast_body_literal_t visit(Literal const &x, BodyLiteral const &lit) {
-        (void)x;
-        (void)lit;
-        throw std::logic_error("implement me!!!");
+        clingo_ast_body_literal_t ret;
+        ret.sign     = static_cast<clingo_ast_sign_t>(lit.sign);
+        ret.location = lit.location;
+        ret.type     = clingo_ast_body_literal_type_literal;
+        ret.literal  = create_<clingo_ast_literal_t>(convLiteral(x));
+        return ret;
     }
     clingo_ast_body_literal_t visit(ConditionalLiteral const &x, BodyLiteral const &lit) {
-        (void)x;
-        (void)lit;
-        throw std::logic_error("implement me!!!");
+        clingo_ast_body_literal_t ret;
+        ret.sign        = static_cast<clingo_ast_sign_t>(lit.sign);
+        ret.location    = lit.location;
+        ret.type        = clingo_ast_body_literal_type_conditional;
+        ret.conditional = create_<clingo_ast_conditional_literal_t>(convConditionalLiteral(x));
+        return ret;
     }
     clingo_ast_body_literal_t visit(Aggregate const &x, BodyLiteral const &lit) {
-        (void)x;
-        (void)lit;
-        throw std::logic_error("implement me!!!");
+        clingo_ast_body_literal_t ret;
+        ret.sign      = static_cast<clingo_ast_sign_t>(lit.sign);
+        ret.location  = lit.location;
+        ret.type      = clingo_ast_body_literal_type_aggregate;
+        ret.aggregate = create_<clingo_ast_aggregate_t>(convAggregate(x));
+        return ret;
     }
     clingo_ast_body_literal_t visit(BodyAggregate const &x, BodyLiteral const &lit) {
-        (void)x;
-        (void)lit;
-        throw std::logic_error("implement me!!!");
+        auto body_aggregate = create_<clingo_ast_body_aggregate_t>();
+        body_aggregate->left_guard  = convAggregateGuard(x.left_guard);
+        body_aggregate->right_guard = convAggregateGuard(x.right_guard);
+        body_aggregate->function    = static_cast<clingo_ast_aggregate_function_t>(x.function);
+        body_aggregate->size        = x.elements.size();
+        body_aggregate->elements    = createArray_(x.elements, &ASTToC::convBodyAggregateElement);
+        clingo_ast_body_literal_t ret;
+        ret.sign     = static_cast<clingo_ast_sign_t>(lit.sign);
+        ret.location = lit.location;
+        ret.type     = clingo_ast_body_literal_type_body_aggregate;
+        ret.body_aggregate = body_aggregate;
+        return ret;
     }
     clingo_ast_body_literal_t visit(TheoryAtom const &x, BodyLiteral const &lit) {
-        (void)x;
-        (void)lit;
-        throw std::logic_error("implement me!!!");
+        clingo_ast_body_literal_t ret;
+        ret.sign        = static_cast<clingo_ast_sign_t>(lit.sign);
+        ret.location    = lit.location;
+        ret.type        = clingo_ast_body_literal_type_theory;
+        ret.theory_atom = create_<clingo_ast_theory_atom_t>(convTheoryAtom(x));
+        return ret;
     }
     clingo_ast_body_literal_t visit(Disjoint const &x, BodyLiteral const &lit) {
-        (void)x;
-        (void)lit;
-        throw std::logic_error("implement me!!!");
+        auto disjoint = create_<clingo_ast_disjoint_t>();
+        disjoint->size     = x.elements.size();
+        disjoint->elements = createArray_(x.elements, &ASTToC::convDisjointElement);
+        clingo_ast_body_literal_t ret;
+        ret.sign     = static_cast<clingo_ast_sign_t>(lit.sign);
+        ret.location = lit.location;
+        ret.type     = clingo_ast_body_literal_type_disjoint;
+        ret.disjoint = disjoint;
+        return ret;
+    }
+
+    clingo_ast_body_literal_t convBodyLiteral(BodyLiteral const &x) {
+        return x.data.accept(*this, x);
     }
 
     clingo_ast_body_literal_t* convBodyLiteralVec(std::vector<BodyLiteral> const &x) {
-        return createArray_(x, [this](BodyLiteral const &x) { return x.data.accept(*this, x); });
+        return createArray_(x, &ASTToC::convBodyLiteral);
+    }
+
+    // {{{2 theory definitions
+
+    clingo_ast_theory_operator_definition_t convTheoryOperatorDefinition(TheoryOperatorDefinition const &x) {
+        clingo_ast_theory_operator_definition_t ret;
+        ret.type     = static_cast<clingo_ast_theory_operator_type_t>(x.type);
+        ret.priority = x.priority;
+        ret.location = x.location;
+        ret.name     = x.name;
+        return ret;
+    }
+
+    clingo_ast_theory_term_definition_t convTheoryTermDefinition(TheoryTermDefinition const &x) {
+        clingo_ast_theory_term_definition_t ret;
+        ret.name      = x.name;
+        ret.location  = x.location;
+        ret.operators = createArray_(x.operators, &ASTToC::convTheoryOperatorDefinition);
+        ret.size      = x.operators.size();
+        return ret;
+    }
+
+    clingo_ast_theory_guard_definition_t convTheoryGuardDefinition(TheoryGuardDefinition const &x) {
+        clingo_ast_theory_guard_definition_t ret;
+        ret.guard     = x.guard;
+        ret.operators = createArray_(x.operators, &ASTToC::identity<char const *>);
+        ret.size      = x.operators.size();
+        return ret;
+    }
+
+    clingo_ast_theory_atom_definition_t convTheoryAtomDefinition(TheoryAtomDefinition const &x) {
+        clingo_ast_theory_atom_definition_t ret;
+        ret.name     = x.name;
+        ret.arity    = x.arity;
+        ret.location = x.location;
+        ret.type     = static_cast<clingo_ast_theory_atom_definition_type_t>(x.type);
+        ret.elements = x.elements;
+        ret.guard    = x.guard ? create_<clingo_ast_theory_guard_definition_t>(convTheoryGuardDefinition(*x.guard.get())) : nullptr;
+        return ret;
     }
 
     // {{{2 statement
@@ -1022,62 +1262,135 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_statement_t visit(ShowSignature const &x, Statement const &stm) {
-        (void)x;
-        (void)stm;
-        throw std::logic_error("implement me!!!");
+        auto *show_signature = create_<clingo_ast_show_signature_t>();
+        show_signature->csp       = x.csp;
+        show_signature->signature = x.signature.to_c();
+        clingo_ast_statement_t ret;
+        ret.type           = clingo_ast_statement_type_show_signature;
+        ret.location       = stm.location;
+        ret.show_signature = show_signature;
+        return ret;
     }
     clingo_ast_statement_t visit(ShowTerm const &x, Statement const &stm) {
-        (void)x;
-        (void)stm;
-        throw std::logic_error("implement me!!!");
+        auto *show_term = create_<clingo_ast_show_term_t>();
+        show_term->csp  = x.csp;
+        show_term->term = convTerm(x.term);
+        show_term->body = convBodyLiteralVec(x.body);
+        show_term->size = x.body.size();
+        clingo_ast_statement_t ret;
+        ret.type      = clingo_ast_statement_type_show_term;
+        ret.location  = stm.location;
+        ret.show_term = show_term;
+        return ret;
     }
     clingo_ast_statement_t visit(Minimize const &x, Statement const &stm) {
-        (void)x;
-        (void)stm;
-        throw std::logic_error("implement me!!!");
+        auto *minimize = create_<clingo_ast_minimize_t>();
+        minimize->weight     = convTerm(x.weight);
+        minimize->priority   = convTerm(x.priority);
+        minimize->tuple      = convTermVec(x.tuple);
+        minimize->tuple_size = x.tuple.size();
+        minimize->body       = convBodyLiteralVec(x.body);
+        minimize->body_size  = x.body.size();
+        clingo_ast_statement_t ret;
+        ret.type      = clingo_ast_statement_type_minimize;
+        ret.location  = stm.location;
+        ret.minimize = minimize;
+        return ret;
     }
     clingo_ast_statement_t visit(Script const &x, Statement const &stm) {
-        (void)x;
-        (void)stm;
-        throw std::logic_error("implement me!!!");
+        auto *script = create_<clingo_ast_script_t>();
+        script->type = static_cast<clingo_ast_script_type_t>(x.type);
+        script->code = x.code;
+        clingo_ast_statement_t ret;
+        ret.type     = clingo_ast_statement_type_script;
+        ret.location = stm.location;
+        ret.script   = script;
+        return ret;
     }
     clingo_ast_statement_t visit(Program const &x, Statement const &stm) {
-        (void)x;
-        (void)stm;
-        throw std::logic_error("implement me!!!");
+        auto *program = create_<clingo_ast_program_t>();
+        program->name       = x.name;
+        program->parameters = createArray_(x.parameters, &ASTToC::convId);
+        program->size       = x.parameters.size();
+        clingo_ast_statement_t ret;
+        ret.type     = clingo_ast_statement_type_program;
+        ret.location = stm.location;
+        ret.program  = program;
+        return ret;
     }
     clingo_ast_statement_t visit(External const &x, Statement const &stm) {
-        (void)x;
-        (void)stm;
-        throw std::logic_error("implement me!!!");
+        auto *external = create_<clingo_ast_external_t>();
+        external->atom = convTerm(x.atom);
+        external->body = convBodyLiteralVec(x.body);
+        external->size = x.body.size();
+        clingo_ast_statement_t ret;
+        ret.type     = clingo_ast_statement_type_external;
+        ret.location = stm.location;
+        ret.external = external;
+        return ret;
     }
     clingo_ast_statement_t visit(Edge const &x, Statement const &stm) {
-        (void)x;
-        (void)stm;
-        throw std::logic_error("implement me!!!");
+        auto *edge = create_<clingo_ast_edge_t>();
+        edge->u    = convTerm(x.u);
+        edge->v    = convTerm(x.v);
+        edge->body = convBodyLiteralVec(x.body);
+        edge->size = x.body.size();
+        clingo_ast_statement_t ret;
+        ret.type     = clingo_ast_statement_type_edge;
+        ret.location = stm.location;
+        ret.edge     = edge;
+        return ret;
     }
     clingo_ast_statement_t visit(Heuristic const &x, Statement const &stm) {
-        (void)x;
-        (void)stm;
-        throw std::logic_error("implement me!!!");
+        auto *heuristic = create_<clingo_ast_heuristic_t>();
+        heuristic->atom     = convTerm(x.atom);
+        heuristic->bias     = convTerm(x.bias);
+        heuristic->priority = convTerm(x.priority);
+        heuristic->modifier = convTerm(x.modifier);
+        heuristic->body     = convBodyLiteralVec(x.body);
+        heuristic->size     = x.body.size();
+        clingo_ast_statement_t ret;
+        ret.type      = clingo_ast_statement_type_heuristic;
+        ret.location  = stm.location;
+        ret.heuristic = heuristic;
+        return ret;
     }
     clingo_ast_statement_t visit(Project const &x, Statement const &stm) {
-        (void)x;
-        (void)stm;
-        throw std::logic_error("implement me!!!");
+        auto *project = create_<clingo_ast_project_t>();
+        project->atom = convTerm(x.atom);
+        project->body = convBodyLiteralVec(x.body);
+        project->size = x.body.size();
+        clingo_ast_statement_t ret;
+        ret.type     = clingo_ast_statement_type_project;
+        ret.location = stm.location;
+        ret.project  = project;
+        return ret;
     }
     clingo_ast_statement_t visit(ProjectSignature const &x, Statement const &stm) {
-        (void)x;
-        (void)stm;
-        throw std::logic_error("implement me!!!");
+        clingo_ast_statement_t ret;
+        ret.type              = clingo_ast_statement_type_project_signature;
+        ret.location          = stm.location;
+        ret.project_signature = x.signature.to_c();
+        return ret;
     }
     clingo_ast_statement_t visit(TheoryDefinition const &x, Statement const &stm) {
-        (void)x;
-        (void)stm;
-        throw std::logic_error("implement me!!!");
+        auto *theory_definition = create_<clingo_ast_theory_definition_t>();
+        theory_definition->name       = x.name;
+        theory_definition->terms      = createArray_(x.terms, &ASTToC::convTheoryTermDefinition);
+        theory_definition->terms_size = x.terms.size();
+        theory_definition->atoms      = createArray_(x.atoms, &ASTToC::convTheoryAtomDefinition);
+        theory_definition->atoms_size = x.atoms.size();
+        clingo_ast_statement_t ret;
+        ret.type              = clingo_ast_statement_type_theory_definition;
+        ret.location          = stm.location;
+        ret.theory_definition = theory_definition;
+        return ret;
     }
 
     // {{{2 aux
+
+    template <class T>
+    T identity(T t) { return t; }
 
     template <class T>
     T *create_() {
@@ -1096,10 +1409,10 @@ struct ASTToC {
         return reinterpret_cast<T*>(arrdata_.back());
     };
     template <class T, class F>
-    auto createArray_(std::vector<T> const &vec, F f) -> decltype(f(std::declval<T>()))* {
-        using U = decltype(f(std::declval<T>()));
+    auto createArray_(std::vector<T> const &vec, F f) -> decltype((this->*f)(std::declval<T>()))* {
+        using U = decltype((this->*f)(std::declval<T>()));
         auto r = createArray_<U>(vec.size()), jt = r;
-        for (auto it = vec.begin(), ie = vec.end(); it != ie; ++it, ++jt) { *jt = f(*it); }
+        for (auto it = vec.begin(), ie = vec.end(); it != ie; ++it, ++jt) { *jt = (this->*f)(*it); }
         return r;
     };
 
@@ -1741,7 +2054,7 @@ void convStatement(clingo_ast_statement_t const *stm, StatementCallback &cb) {
             cb({Location(stm->location), Project{convTerm(stm->project->atom), convBodyLiteralVec(stm->project->body, stm->project->size)}});
             break;
         }
-        case clingo_ast_statement_type_project_signatrue: {
+        case clingo_ast_statement_type_project_signature: {
             cb({Location(stm->location), ProjectSignature{Signature(stm->project_signature)}});
             break;
         }

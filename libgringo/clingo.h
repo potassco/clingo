@@ -936,7 +936,7 @@ enum clingo_ast_statement_type {
     clingo_ast_statement_type_edge              = 8,
     clingo_ast_statement_type_heuristic         = 9,
     clingo_ast_statement_type_project           = 10,
-    clingo_ast_statement_type_project_signatrue = 11,
+    clingo_ast_statement_type_project_signature = 11,
     clingo_ast_statement_type_theory_definition = 12
 };
 typedef int clingo_ast_statement_type_t;

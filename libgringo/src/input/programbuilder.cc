@@ -1274,7 +1274,7 @@ void ASTBuilder::project(Location const &loc, TermUid termUid, BdLitVecUid body)
 void ASTBuilder::project(Location const &loc, Sig sig) {
     clingo_ast_statement stm;
     stm.project_signature = sig.rep();
-    statement_(loc, clingo_ast_statement_type_project_signatrue, stm);
+    statement_(loc, clingo_ast_statement_type_project_signature, stm);
 }
 
 // {{{2 theory atoms
@@ -1575,7 +1575,7 @@ public:
                 auto &y = *stm.project;
                 return prg_.project(parseLocation(stm.location), parseTerm(y.atom), parseBodyLiteralVec(y.body, y.size));
             }
-            case clingo_ast_statement_type_project_signatrue: {
+            case clingo_ast_statement_type_project_signature: {
                 return prg_.project(parseLocation(stm.location), Sig(stm.project_signature));
             }
             case clingo_ast_statement_type_theory_definition: {
