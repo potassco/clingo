@@ -657,7 +657,7 @@ bool Translator::showSig(OutputPredicates const &outPreds, Sig sig, bool csp) {
 void Translator::showCsp(Bound const &bound, IsTrueLookup isTrue, SymVec &atoms) {
     assert(!bound.atoms.empty());
     int prev = bound.atoms.front().first;
-    for (auto it = bound.atoms.begin()+1; it != bound.atoms.end() && !isTrue(it->second); ++it);
+    for (auto it = bound.atoms.begin()+1; it != bound.atoms.end() && !isTrue(it->second); ++it) { prev = it->first; }
     atoms.emplace_back(Symbol::createFun("$", Potassco::toSpan(SymVec{bound.var, Symbol::createNum(prev)})));
 }
 
