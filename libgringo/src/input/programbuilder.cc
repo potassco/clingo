@@ -1644,7 +1644,10 @@ private:
             case clingo_ast_term_type_function:
             case clingo_ast_term_type_external_function: {
                 auto &y = *x.function;
-                return prg_.term(parseLocation(x.location), y.name, prg_.termvecvec(prg_.termvecvec(), parseTermVec(y.arguments, y.size)), x.type == clingo_ast_term_type_external_function);
+                require_(y.name[0] != '\0' || x.type != clingo_ast_term_type_external_function, "external functions must have a name");
+                return y.name[0] != '\0'
+                    ? prg_.term(parseLocation(x.location), y.name, prg_.termvecvec(prg_.termvecvec(), parseTermVec(y.arguments, y.size)), x.type == clingo_ast_term_type_external_function)
+                    : prg_.term(parseLocation(x.location), parseTermVec(y.arguments, y.size), true);
             }
             case clingo_ast_term_type_pool: {
                 auto &y = *x.pool;

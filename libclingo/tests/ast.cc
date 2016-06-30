@@ -193,8 +193,50 @@ TEST_CASE("add-ast", "[clingo]") {
         auto c = [](char const *name, int value) { return Function("$", {Id(name), Number(value)}); };
         REQUIRE(solve("1 $<= $x $<= 2. 1 $<= $y $<= 2. :- #disjoint {1:$x; 2:$y}.") == ModelVec({{c("x", 1), c("y", 1)}, {c("x", 2), c("y", 2)}}));
     }
-
-    // TODO: do the theory stuff differently...
+    SECTION("head literal") {
+        REQUIRE(solve("a.") == ModelVec({{Id("a")}}));
+        REQUIRE(solve("not a.") == ModelVec({{}}));
+        REQUIRE(solve("not not a.") == ModelVec({}));
+        REQUIRE(solve("a:b;c.{b}.") == ModelVec({{Id("a"), Id("b")}, {Id("b"), Id("c")}, {Id("c")}}));
+        REQUIRE(solve("1{a:b;b}2.") == ModelVec({{Id("a"), Id("b")}, {Id("b")}}));
+        REQUIRE(solve("#min{1,2:a;2:c}1.") == ModelVec({{Id("a")}, {Id("a"), Id("c")}}));
+    }
+    SECTION("literal") {
+        REQUIRE(solve("a.") == ModelVec({{Id("a")}}));
+        REQUIRE(solve("1=1.") == ModelVec({{}}));
+        REQUIRE(solve("1!=1.") == ModelVec({}));
+        REQUIRE(solve("#true.") == ModelVec({{}}));
+        REQUIRE(solve("#false.") == ModelVec({}));
+        REQUIRE(solve("1 $< 2 $< 3.") == ModelVec({{}}));
+        REQUIRE(solve("2 $< 3 $< 1.") == ModelVec({}));
+    }
+    SECTION("terms") {
+        auto t = [](char const *s) { return ModelVec({{parse_term(s)}}); };
+        auto tt = [](std::initializer_list<char const *> l) {
+            SymbolVector ret;
+            for (auto &s : l) { ret.emplace_back(parse_term(s)); }
+            return ModelVec{ret};
+        };
+        REQUIRE(solve("p(a).") == t("p(a)"));
+        REQUIRE(solve("p(X) :- X=a.") == t("p(a)"));
+        REQUIRE(solve("p(-1).") == t("p(-1)"));
+        REQUIRE(solve("p(|1|).") == t("p(|1|)"));
+        REQUIRE(solve("p((3+2)).") == t("p(5)"));
+        REQUIRE(solve("p((3-2)).") == t("p(1)"));
+        REQUIRE(solve("p((3*2)).") == t("p(6)"));
+        REQUIRE(solve("p((7/2)).") == t("p(3)"));
+        REQUIRE(solve("p((7\\2)).") == t("p(1)"));
+        REQUIRE(solve("p((7?2)).") == t("p(7)"));
+        REQUIRE(solve("p((7^2)).") == t("p(5)"));
+        REQUIRE(solve("p(3..3).") == t("p(3)"));
+        REQUIRE(solve("p(a;b).") == tt({"p(a)", "p(b)"}));
+        REQUIRE(solve("p((),(1,),f(),f(1,2)).") == t("p((),(1,),f,f(1,2))"));
+        REQUIRE(solve("p((a,;b)).") == tt({"p(b)", "p((a,))"}));
+        REQUIRE(solve("12 $< 1 $+ 3 $* $x $+ 7 $< 17. 0 $<= x $<= 4.") == ModelVec({{Function("$", {Id("x"), Number(2)})}}));
+    }
+    SECTION("theory") {
+        // TODO: do the theory stuff differently...
+    }
 }
 
 } } // namespace Test Clingo
