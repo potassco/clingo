@@ -1656,7 +1656,7 @@ struct Statement {
 };
 std::ostream &operator<<(std::ostream &out, Statement const &x);
 
-} // namespace
+} // namespace AST
 
 // {{{1 control
 

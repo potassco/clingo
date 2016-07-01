@@ -2426,6 +2426,733 @@ choice -- whether to add a disjunctive or choice rule (Default: False)
     {nullptr, nullptr, 0, nullptr}
 };
 
+// {{{1 wrap AST
+
+namespace AST {
+
+struct ComparisonOperator : EnumType<ComparisonOperator> {
+    static constexpr char const *tp_type = "ComparisonOperator";
+    static constexpr char const *tp_name = "clingo.ast.ComparisonOperator";
+    static constexpr char const *tp_doc =
+R"(Enumeration of comparison operators.
+
+ComparisonOperator.GreaterThan  -- the > operator
+ComparisonOperator.LessThan     -- the < operator
+ComparisonOperator.LessEqual    -- the <= operator
+ComparisonOperator.GreaterEqual -- the >= operator
+ComparisonOperator.NotEqual     -- the != operator
+ComparisonOperator.Equal        -- the = operator)";
+
+    static constexpr clingo_ast_comparison_operator_t values[] = {
+        clingo_ast_comparison_operator_greater_than,
+        clingo_ast_comparison_operator_less_than,
+        clingo_ast_comparison_operator_less_equal,
+        clingo_ast_comparison_operator_greater_equal,
+        clingo_ast_comparison_operator_not_equal,
+        clingo_ast_comparison_operator_equal
+    };
+    static constexpr const char * strings[] = {
+        "GreaterThan",
+        "LessThan",
+        "GreaterEqual",
+        "GreaterEqual",
+        "NotEqual",
+        "Equal"
+    };
+    static PyObject *tp_repr(EnumType *self) {
+        switch (self->offset) {
+            case 0: { return PyString_FromString(">"); }
+            case 1: { return PyString_FromString("<"); }
+            case 2: { return PyString_FromString(">="); }
+            case 3: { return PyString_FromString("<="); }
+            case 4: { return PyString_FromString("!="); }
+            case 5: { return PyString_FromString("="); }
+        }
+        return nullptr;
+    }
+};
+
+constexpr clingo_ast_comparison_operator_t ComparisonOperator::values[];
+constexpr const char * ComparisonOperator::strings[];
+
+struct ASTType : EnumType<ASTType> {
+    enum T { TermVariable };
+    static constexpr char const *tp_type = "ASTType";
+    static constexpr char const *tp_name = "clingo.ast.ASTType";
+    static constexpr char const *tp_doc =
+R"(Enumeration of ast node types.
+
+ASTType.TermVariable -- variable in a term
+and many more...)";
+
+    static constexpr T values[] = {
+        TermVariable
+    };
+    static constexpr const char * strings[] = {
+        "TermVariable"
+    };
+};
+
+constexpr ASTType::T ASTType::values[];
+constexpr const char * ASTType::strings[];
+
+struct Sign : EnumType<Sign> {
+    static constexpr char const *tp_type = "Sign";
+    static constexpr char const *tp_name = "clingo.ast.Sign";
+    static constexpr char const *tp_doc =
+R"(The available signs for literals.
+
+Sign.None           --
+Sign.Negation       -- not
+Sign.DoubleNegation -- not not)";
+
+    static constexpr clingo_ast_sign_t values[] = {
+        clingo_ast_sign_none,
+        clingo_ast_sign_negation,
+        clingo_ast_sign_double_negation
+    };
+    static constexpr const char * strings[] = {
+        "None",
+        "Negation",
+        "DoubleNegation"
+    };
+    static PyObject *tp_repr(EnumType *self) {
+        switch (self->offset) {
+            case 0: { return PyString_FromString(""); }
+            case 1: { return PyString_FromString("not "); }
+            case 2: { return PyString_FromString("not not "); }
+        }
+        return nullptr;
+    }
+};
+
+constexpr clingo_ast_sign_t Sign::values[];
+constexpr const char * Sign::strings[];
+
+struct AST : ObjectBase<AST> {
+    PyObject *fields_;
+    static constexpr char const *tp_type = "AST";
+    static constexpr char const *tp_name = "clingo.ast.AST";
+    static constexpr char const *tp_doc = "Node in the abstract syntax tree.";
+    static PyObject *new_(ASTType::T t) {
+        PY_TRY
+            AST *self = reinterpret_cast<AST*>(type.tp_alloc(&type, 0));
+            if (!self) { return nullptr; }
+            self->fields_ = PyDict_New();
+            if (!self->fields_) { return nullptr; }
+            Object pyt = ASTType::getAttr(t);
+            if (PyDict_SetItemString(self->fields_, "type", pyt.get()) < 0) { return nullptr; }
+            return reinterpret_cast<PyObject*>(self);
+        PY_CATCH(nullptr);
+    }
+    static int tp_setattro(AST *self, PyObject *name, PyObject *pyValue) {
+        PY_TRY
+            int ret = PyObject_HasAttr(reinterpret_cast<PyObject*>(self), name);
+            if (ret < 0) { return -1; }
+            return ret
+                ? PyObject_GenericSetAttr(reinterpret_cast<PyObject*>(self), name, pyValue)
+                : PyDict_SetItem(self->fields_, name, pyValue);
+        PY_CATCH(-1);
+    }
+    static PyObject *tp_getattro(AST *self, PyObject *name) {
+        PY_TRY
+            auto ret = PyDict_GetItem(self->fields_, name);
+            Py_XINCREF(ret);
+            return ret
+                ? ret
+                : PyObject_GenericGetAttr(reinterpret_cast<PyObject*>(self), name);
+        PY_CATCH(nullptr);
+    }
+    static void tp_dealloc(AST *self) {
+        Py_XDECREF(self->fields_);
+        type.tp_free(self);
+    }
+    static PyObject *tp_repr(AST *self) {
+        PY_TRY
+            (void)self;
+            throw std::logic_error("implement me!!!");
+        PY_CATCH(nullptr);
+    }
+    static long tp_hash(AST *self) {
+        PY_TRY
+            (void)self;
+            throw std::logic_error("implement me!!!");
+        PY_CATCH(-1);
+    }
+    static PyObject *tp_richcompare(AST *self, PyObject *b, int op) {
+        PY_TRY
+            CHECK_CMP(OBBASE(self), b, op)
+            throw std::logic_error("implement me!!!");
+        PY_CATCH(nullptr);
+    }
+};
+
+PyObject *createVariable(PyObject *, PyObject *name) {
+    PY_TRY
+        Object ret = AST::new_(ASTType::TermVariable);
+        if (PyObject_SetAttrString(ret.get(), "name", name) < 0) { return nullptr; }
+        return ret.release();
+    PY_CATCH(nullptr);
+}
+
+/*
+
+// {{{2 terms
+
+// variable
+
+struct Variable;
+struct UnaryOperation;
+struct BinaryOperation;
+struct Interval;
+struct Function;
+struct Pool;
+
+struct Term {
+    Location location;
+    Variant<Symbol, Variable, UnaryOperation, BinaryOperation, Interval, Function, Pool> data;
+};
+std::ostream &operator<<(std::ostream &out, Term const &term);
+
+// Variable
+
+struct Variable {
+    char const *name;
+};
+std::ostream &operator<<(std::ostream &out, Variable const &x);
+
+// unary operation
+
+enum UnaryOperator : clingo_ast_unary_operator_t {
+    Absolute = clingo_ast_unary_operator_absolute,
+    Minus    = clingo_ast_unary_operator_minus,
+    Negate   = clingo_ast_unary_operator_negate
+};
+
+inline char const *left_hand_side(UnaryOperator op) {
+    switch (op) {
+        case UnaryOperator::Absolute: { return "|"; }
+        case UnaryOperator::Minus:    { return "-"; }
+        case UnaryOperator::Negate:   { return "~"; }
+    }
+    return "";
+}
+
+inline char const *right_hand_side(UnaryOperator op) {
+    switch (op) {
+        case UnaryOperator::Absolute: { return "|"; }
+        case UnaryOperator::Minus:    { return ""; }
+        case UnaryOperator::Negate:   { return ""; }
+    }
+    return "";
+}
+
+struct UnaryOperation {
+    UnaryOperator unary_operator;
+    Term          argument;
+};
+std::ostream &operator<<(std::ostream &out, UnaryOperation const &x);
+
+// binary operation
+
+enum class BinaryOperator : clingo_ast_binary_operator_t {
+    XOr      = clingo_ast_binary_operator_xor,
+    Or       = clingo_ast_binary_operator_or,
+    And      = clingo_ast_binary_operator_and,
+    Add      = clingo_ast_binary_operator_add,
+    Subtract = clingo_ast_binary_operator_subtract,
+    Multiply = clingo_ast_binary_operator_multiply,
+    Divide   = clingo_ast_binary_operator_divide,
+    Modulo   = clingo_ast_binary_operator_modulo
+};
+
+inline std::ostream &operator<<(std::ostream &out, BinaryOperator op) {
+    switch (op) {
+        case BinaryOperator::XOr:      { out << "^"; break; }
+        case BinaryOperator::Or:       { out << "?"; break; }
+        case BinaryOperator::And:      { out << "&"; break; }
+        case BinaryOperator::Add:      { out << "+"; break; }
+        case BinaryOperator::Subtract: { out << "-"; break; }
+        case BinaryOperator::Multiply: { out << "*"; break; }
+        case BinaryOperator::Divide:   { out << "/"; break; }
+        case BinaryOperator::Modulo:   { out << "\\"; break; }
+    }
+    return out;
+}
+
+struct BinaryOperation {
+    BinaryOperator binary_operator;
+    Term           left;
+    Term           right;
+};
+std::ostream &operator<<(std::ostream &out, BinaryOperation const &x);
+
+// interval
+
+struct Interval {
+    Term left;
+    Term right;
+};
+std::ostream &operator<<(std::ostream &out, Interval const &x);
+
+// function
+
+struct Function {
+    char const *name;
+    std::vector<Term> arguments;
+    bool external;
+};
+std::ostream &operator<<(std::ostream &out, Function const &x);
+
+// pool
+
+struct Pool {
+    std::vector<Term> arguments;
+};
+std::ostream &operator<<(std::ostream &out, Pool const &x);
+
+// {{{2 csp
+
+struct CSPMultiply {
+    Location location;
+    Term coefficient;
+    Optional<Term> variable;
+};
+std::ostream &operator<<(std::ostream &out, CSPMultiply const &x);
+
+struct CSPAdd {
+    Location location;
+    std::vector<CSPMultiply> terms;
+};
+std::ostream &operator<<(std::ostream &out, CSPAdd const &x);
+
+struct CSPGuard {
+    ComparisonOperator comparison;
+    CSPAdd term;
+};
+std::ostream &operator<<(std::ostream &out, CSPGuard const &x);
+
+struct CSPLiteral {
+    CSPAdd term;
+    std::vector<CSPGuard> guards;
+};
+std::ostream &operator<<(std::ostream &out, CSPLiteral const &x);
+
+// {{{2 ids
+
+struct Id {
+    Location location;
+    char const *id;
+};
+std::ostream &operator<<(std::ostream &out, Id const &x);
+
+// {{{2 literals
+
+struct Comparison {
+    ComparisonOperator comparison;
+    Term left;
+    Term right;
+};
+std::ostream &operator<<(std::ostream &out, Comparison const &x);
+
+struct Boolean {
+    bool value;
+};
+std::ostream &operator<<(std::ostream &out, Boolean const &x);
+
+struct Literal {
+    Location location;
+    Sign sign;
+    Variant<Boolean, Term, Comparison, CSPLiteral> data;
+};
+std::ostream &operator<<(std::ostream &out, Literal const &x);
+
+// {{{2 aggregates
+
+enum class AggregateFunction : clingo_ast_aggregate_function_t {
+    Count   = clingo_ast_aggregate_function_count,
+    Sum     = clingo_ast_aggregate_function_sum,
+    SumPlus = clingo_ast_aggregate_function_sump,
+    Min     = clingo_ast_aggregate_function_min,
+    Max     = clingo_ast_aggregate_function_max
+};
+
+inline std::ostream &operator<<(std::ostream &out, AggregateFunction op) {
+    switch (op) {
+        case AggregateFunction::Count:   { out << "#count"; break; }
+        case AggregateFunction::Sum:     { out << "#sum"; break; }
+        case AggregateFunction::SumPlus: { out << "#sum+"; break; }
+        case AggregateFunction::Min:     { out << "#min"; break; }
+        case AggregateFunction::Max:     { out << "#max"; break; }
+    }
+    return out;
+}
+
+struct AggregateGuard {
+    ComparisonOperator comparison;
+    Term term;
+};
+
+struct ConditionalLiteral {
+    Literal literal;
+    std::vector<Literal> condition;
+};
+std::ostream &operator<<(std::ostream &out, ConditionalLiteral const &x);
+
+// lparse-style aggregate
+
+struct Aggregate {
+    std::vector<ConditionalLiteral> elements;
+    Optional<AggregateGuard> left_guard;
+    Optional<AggregateGuard> right_guard;
+};
+std::ostream &operator<<(std::ostream &out, Aggregate const &x);
+
+// body aggregate
+
+struct BodyAggregateElement {
+    std::vector<Term> tuple;
+    std::vector<Literal> condition;
+};
+std::ostream &operator<<(std::ostream &out, BodyAggregateElement const &x);
+
+struct BodyAggregate {
+    AggregateFunction function;
+    std::vector<BodyAggregateElement> elements;
+    Optional<AggregateGuard> left_guard;
+    Optional<AggregateGuard> right_guard;
+};
+std::ostream &operator<<(std::ostream &out, BodyAggregate const &x);
+
+// head aggregate
+
+struct HeadAggregateElement {
+    std::vector<Term> tuple;
+    ConditionalLiteral condition;
+};
+std::ostream &operator<<(std::ostream &out, HeadAggregateElement const &x);
+
+struct HeadAggregate {
+    AggregateFunction function;
+    std::vector<HeadAggregateElement> elements;
+    Optional<AggregateGuard> left_guard;
+    Optional<AggregateGuard> right_guard;
+};
+std::ostream &operator<<(std::ostream &out, HeadAggregate const &x);
+
+// disjunction
+
+struct Disjunction {
+    std::vector<ConditionalLiteral> elements;
+};
+std::ostream &operator<<(std::ostream &out, Disjunction const &x);
+
+// disjoint
+
+struct DisjointElement {
+    Location location;
+    std::vector<Term> tuple;
+    CSPAdd term;
+    std::vector<Literal> condition;
+};
+std::ostream &operator<<(std::ostream &out, DisjointElement const &x);
+
+struct Disjoint {
+    std::vector<DisjointElement> elements;
+};
+std::ostream &operator<<(std::ostream &out, Disjoint const &x);
+
+// {{{2 theory atom
+
+enum class TheoryTermSequenceType : int {
+    Tuple = 0,
+    List  = 1,
+    Set   = 2
+};
+inline char const *left_hand_side(TheoryTermSequenceType x) {
+    switch (x) {
+        case TheoryTermSequenceType::Tuple: { return "("; }
+        case TheoryTermSequenceType::List:  { return "["; }
+        case TheoryTermSequenceType::Set:   { return "{"; }
+    }
+    return "";
+}
+inline char const *right_hand_side(TheoryTermSequenceType x) {
+    switch (x) {
+        case TheoryTermSequenceType::Tuple: { return ")"; }
+        case TheoryTermSequenceType::List:  { return "]"; }
+        case TheoryTermSequenceType::Set:   { return "}"; }
+    }
+    return "";
+}
+
+struct TheoryFunction;
+struct TheoryTermSequence;
+struct TheoryUnparsedTerm;
+
+struct TheoryTerm {
+    Location location;
+    Variant<Symbol, Variable, TheoryTermSequence, TheoryFunction, TheoryUnparsedTerm> data;
+};
+std::ostream &operator<<(std::ostream &out, TheoryTerm const &x);
+
+struct TheoryTermSequence {
+    TheoryTermSequenceType type;
+    std::vector<TheoryTerm> terms;
+};
+std::ostream &operator<<(std::ostream &out, TheoryTermSequence const &x);
+
+struct TheoryFunction {
+    char const *name;
+    std::vector<TheoryTerm> arguments;
+};
+std::ostream &operator<<(std::ostream &out, TheoryFunction const &x);
+
+struct TheoryUnparsedTermElement {
+    std::vector<char const *> operators;
+    TheoryTerm term;
+};
+std::ostream &operator<<(std::ostream &out, TheoryUnparsedTermElement const &x);
+
+struct TheoryUnparsedTerm {
+    std::vector<TheoryUnparsedTermElement> elements;
+};
+std::ostream &operator<<(std::ostream &out, TheoryUnparsedTerm const &x);
+
+struct TheoryAtomElement {
+    std::vector<TheoryTerm> tuple;
+    std::vector<Literal> condition;
+};
+std::ostream &operator<<(std::ostream &out, TheoryAtomElement const &x);
+
+struct TheoryGuard {
+    char const *operator_name;
+    TheoryTerm term;
+};
+std::ostream &operator<<(std::ostream &out, TheoryGuard const &x);
+
+struct TheoryAtom {
+    Term term;
+    std::vector<TheoryAtomElement> elements;
+    Optional<TheoryGuard> guard;
+};
+std::ostream &operator<<(std::ostream &out, TheoryAtom const &x);
+
+// {{{2 head literals
+
+struct HeadLiteral {
+    Location location;
+    Variant<Literal, Disjunction, Aggregate, HeadAggregate, TheoryAtom> data;
+};
+std::ostream &operator<<(std::ostream &out, HeadLiteral const &x);
+
+// {{{2 body literals
+
+struct BodyLiteral {
+    Location location;
+    Sign sign;
+    Variant<Literal, ConditionalLiteral, Aggregate, BodyAggregate, TheoryAtom, Disjoint> data;
+};
+std::ostream &operator<<(std::ostream &out, BodyLiteral const &x);
+
+// {{{2 theory definitions
+
+enum class TheoryOperatorType : clingo_ast_theory_operator_type_t {
+     Unary       = clingo_ast_theory_operator_type_unary,
+     BinaryLeft  = clingo_ast_theory_operator_type_binary_left,
+     BinaryRight = clingo_ast_theory_operator_type_binary_right
+};
+
+inline std::ostream &operator<<(std::ostream &out, TheoryOperatorType op) {
+    switch (op) {
+        case TheoryOperatorType::Unary:       { out << "unary"; break; }
+        case TheoryOperatorType::BinaryLeft:  { out << "unary"; break; }
+        case TheoryOperatorType::BinaryRight: { out << "unary"; break; }
+    }
+    return out;
+}
+
+struct TheoryOperatorDefinition {
+    Location location;
+    char const *name;
+    unsigned priority;
+    TheoryOperatorType type;
+};
+std::ostream &operator<<(std::ostream &out, TheoryOperatorDefinition const &x);
+
+struct TheoryTermDefinition {
+    Location location;
+    char const *name;
+    std::vector<TheoryOperatorDefinition> operators;
+};
+std::ostream &operator<<(std::ostream &out, TheoryTermDefinition const &x);
+
+struct TheoryGuardDefinition {
+    char const *guard;
+    std::vector<char const *> operators;
+};
+std::ostream &operator<<(std::ostream &out, TheoryGuardDefinition const &x);
+
+enum class TheoryAtomDefinitionType : clingo_ast_theory_atom_definition_type_t {
+    Head      = clingo_ast_theory_atom_definition_type_head,
+    Body      = clingo_ast_theory_atom_definition_type_body,
+    Any       = clingo_ast_theory_atom_definition_type_any,
+    Directive = clingo_ast_theory_atom_definition_type_directive
+};
+
+inline std::ostream &operator<<(std::ostream &out, TheoryAtomDefinitionType op) {
+    switch (op) {
+        case TheoryAtomDefinitionType::Head:      { out << "head"; break; }
+        case TheoryAtomDefinitionType::Body:      { out << "body"; break; }
+        case TheoryAtomDefinitionType::Any:       { out << "any"; break; }
+        case TheoryAtomDefinitionType::Directive: { out << "directive"; break; }
+    }
+    return out;
+}
+
+struct TheoryAtomDefinition {
+    Location location;
+    TheoryAtomDefinitionType type;
+    char const *name;
+    unsigned arity;
+    char const *elements;
+    Optional<TheoryGuardDefinition> guard;
+};
+std::ostream &operator<<(std::ostream &out, TheoryAtomDefinition const &x);
+
+struct TheoryDefinition {
+    char const *name;
+    std::vector<TheoryTermDefinition> terms;
+    std::vector<TheoryAtomDefinition> atoms;
+};
+std::ostream &operator<<(std::ostream &out, TheoryDefinition const &x);
+
+// {{{2 statements
+
+// rule
+
+struct Rule {
+    HeadLiteral head;
+    std::vector<BodyLiteral> body;
+};
+std::ostream &operator<<(std::ostream &out, Rule const &x);
+
+// definition
+
+struct Definition {
+    char const *name;
+    Term value;
+    bool is_default;
+};
+std::ostream &operator<<(std::ostream &out, Definition const &x);
+
+// show
+
+struct ShowSignature {
+    Signature signature;
+    bool csp;
+};
+std::ostream &operator<<(std::ostream &out, ShowSignature const &x);
+
+struct ShowTerm {
+    Term term;
+    std::vector<BodyLiteral> body;
+    bool csp;
+};
+std::ostream &operator<<(std::ostream &out, ShowTerm const &x);
+
+// minimize
+
+struct Minimize {
+    Term weight;
+    Term priority;
+    std::vector<Term> tuple;
+    std::vector<BodyLiteral> body;
+};
+std::ostream &operator<<(std::ostream &out, Minimize const &x);
+
+// script
+
+enum class ScriptType : clingo_ast_script_type_t {
+    Lua    = clingo_ast_script_type_lua,
+    Python = clingo_ast_script_type_python
+};
+
+inline std::ostream &operator<<(std::ostream &out, ScriptType op) {
+    switch (op) {
+        case ScriptType::Lua:    { out << "lua"; break; }
+        case ScriptType::Python: { out << "python"; break; }
+    }
+    return out;
+}
+
+struct Script {
+    ScriptType type;
+    char const *code;
+};
+std::ostream &operator<<(std::ostream &out, Script const &x);
+
+// program
+
+struct Program {
+    char const *name;
+    std::vector<Id> parameters;
+};
+std::ostream &operator<<(std::ostream &out, Program const &x);
+
+// external
+
+struct External {
+    Term atom;
+    std::vector<BodyLiteral> body;
+};
+std::ostream &operator<<(std::ostream &out, External const &x);
+
+// edge
+
+struct Edge {
+    Term u;
+    Term v;
+    std::vector<BodyLiteral> body;
+};
+std::ostream &operator<<(std::ostream &out, Edge const &x);
+
+// heuristic
+
+struct Heuristic {
+    Term atom;
+    std::vector<BodyLiteral> body;
+    Term bias;
+    Term priority;
+    Term modifier;
+};
+std::ostream &operator<<(std::ostream &out, Heuristic const &x);
+
+// project
+
+struct Project {
+    Term atom;
+    std::vector<BodyLiteral> body;
+};
+std::ostream &operator<<(std::ostream &out, Project const &x);
+
+struct ProjectSignature {
+    Signature signature;
+};
+std::ostream &operator<<(std::ostream &out, ProjectSignature const &x);
+
+// statement
+
+struct Statement {
+    Location location;
+    Variant<Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, Project, ProjectSignature, TheoryDefinition> data;
+};
+std::ostream &operator<<(std::ostream &out, Statement const &x);
+
+*/
+
+} // namespace AST
+
 // {{{1 wrap Control
 
 void pycall(PyObject *fun, SymSpan args, SymVec &vals) {
@@ -3205,7 +3932,16 @@ static PyObject *parseTerm(PyObject *, PyObject *objString) {
 
 // {{{1 gringo module
 
-static PyMethodDef clingoMethods[] = {
+static PyMethodDef clingoASTModuleMethods[] = {
+    {"Variable", (PyCFunction)AST::createVariable, METH_O,
+R"(Variable(name)
+
+Create a variable with the given name.)"},
+    {nullptr, nullptr, 0, nullptr}
+};
+static char const *clingoASTModuleDoc = "The clingo.ast-" GRINGO_VERSION " module.";
+
+static PyMethodDef clingoModuleMethods[] = {
     {"parse_term", (PyCFunction)parseTerm, METH_O,
 R"(parse_term(s) -> term
 
@@ -3243,7 +3979,7 @@ Construct a numeric term given a number.)"},
 Construct a string term given a string.)"},
     {nullptr, nullptr, 0, nullptr}
 };
-static char const *strGrMod =
+static char const *clingoModuleDoc =
 "The clingo-" GRINGO_VERSION R"( module.
 
 This module provides functions and classes to work with ground terms and to
@@ -3323,9 +4059,21 @@ q(@seq(1,2)).
 static struct PyModuleDef clingoModule = {
     PyModuleDef_HEAD_INIT,
     "clingo",
-    strGrMod,
+    clingoModuleDoc,
     -1,
-    clingoMethods,
+    clingoModuleMethods,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr
+};
+
+static struct PyModuleDef clingoASTModule = {
+    PyModuleDef_HEAD_INIT,
+    "clingo",
+    clingoASTModuleDoc,
+    -1,
+    clingoASTModuleMethods,
     nullptr,
     nullptr,
     nullptr,
@@ -3333,24 +4081,44 @@ static struct PyModuleDef clingoModule = {
 };
 #endif
 
-PyObject *initclingo_() {
-    if (!PyEval_ThreadsInitialized()) { PyEval_InitThreads(); }
+PyObject *initclingoast_() {
+    PY_TRY
+        using namespace AST;
 #if PY_MAJOR_VERSION >= 3
-    Object m = PyModule_Create(&clingoModule);
+        Object m = PyModule_Create(&clingoASTModuleMethods);
 #else
-    Object m = Py_InitModule3("clingo", clingoMethods, strGrMod);
+        Object m = Py_InitModule3("clingo.ast", clingoASTModuleMethods, clingoASTModuleDoc);
 #endif
-    if (!m ||
-        !SolveResult::initType(m)   || !TheoryTermType::initType(m)   || !PropagateControl::initType(m) ||
-        !TheoryElement::initType(m) || !TheoryAtom::initType(m)       || !TheoryAtomIter::initType(m)   ||
-        !Model::initType(m)         || !SolveIter::initType(m)        || !SolveFuture::initType(m)      ||
-        !ControlWrap::initType(m)   || !Configuration::initType(m)    || !SolveControl::initType(m)     ||
-        !SymbolicAtom::initType(m)  || !SymbolicAtomIter::initType(m) || !SymbolicAtoms::initType(m)    ||
-        !TheoryTerm::initType(m)    || !PropagateInit::initType(m)    || !Assignment::initType(m)       ||
-        !TermType::initType(m)      || !Term::initType(m)             || !Backend::initType(m)          ||
-        PyModule_AddStringConstant(m, "__version__", GRINGO_VERSION) < 0 ||
-        false) { return nullptr; }
-    return m.release();
+        if (!m ||
+            !ComparisonOperator::initType(m) || !Sign::initType(m) || !Gringo::AST::AST::initType(m) ||
+            !ASTType::initType(m) ||
+            false) { return nullptr; }
+        return m.release();
+    PY_CATCH(nullptr);
+}
+
+PyObject *initclingo_() {
+    PY_TRY
+        if (!PyEval_ThreadsInitialized()) { PyEval_InitThreads(); }
+#if PY_MAJOR_VERSION >= 3
+        Object m = PyModule_Create(&clingoModule);
+#else
+        Object m = Py_InitModule3("clingo", clingoModuleMethods, clingoModuleDoc);
+#endif
+        if (!m ||
+            !SolveResult::initType(m)   || !TheoryTermType::initType(m)   || !PropagateControl::initType(m) ||
+            !TheoryElement::initType(m) || !TheoryAtom::initType(m)       || !TheoryAtomIter::initType(m)   ||
+            !Model::initType(m)         || !SolveIter::initType(m)        || !SolveFuture::initType(m)      ||
+            !ControlWrap::initType(m)   || !Configuration::initType(m)    || !SolveControl::initType(m)     ||
+            !SymbolicAtom::initType(m)  || !SymbolicAtomIter::initType(m) || !SymbolicAtoms::initType(m)    ||
+            !TheoryTerm::initType(m)    || !PropagateInit::initType(m)    || !Assignment::initType(m)       ||
+            !TermType::initType(m)      || !Term::initType(m)             || !Backend::initType(m)          ||
+            PyModule_AddStringConstant(m, "__version__", GRINGO_VERSION) < 0 ||
+            false) { return nullptr; }
+        Object a{initclingoast_(), true};
+        if (PyModule_AddObject(m, "ast", a.release()) < 0) { return nullptr; }
+        return m.release();
+    PY_CATCH(nullptr);
 }
 
 // }}}1
@@ -3405,6 +4173,8 @@ struct PythonInit {
         if (selfInit) {
 #if PY_MAJOR_VERSION >= 3
             PyImport_AppendInittab("clingo", &initclingo_);
+#else
+            PyImport_AppendInittab("clingo", []() { initclingo_(); });
 #endif
             Py_Initialize();
         }
@@ -3427,13 +4197,6 @@ struct PythonImpl {
                 PySys_SetArgvEx(1, const_cast<char**>(argv), 0);
 #endif
             }
-#if PY_MAJOR_VERSION < 3
-            Object sysModules = {PyImport_GetModuleDict(), true};
-            Object clingoStr = PyString_FromString("clingo");
-            int ret = PyDict_Contains(sysModules, clingoStr);
-            if (ret == -1) { throw PyException(); }
-            if (ret == 0 && !initclingo_()) { throw PyException(); }
-#endif
             Object clingoModule = PyImport_ImportModule("clingo");
             Object mainModule = PyImport_ImportModule("__main__");
             main = PyModule_GetDict(mainModule);
