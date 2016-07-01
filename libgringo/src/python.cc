@@ -2476,7 +2476,7 @@ constexpr clingo_ast_comparison_operator_t ComparisonOperator::values[];
 constexpr const char * ComparisonOperator::strings[];
 
 struct ASTType : EnumType<ASTType> {
-    enum T { TermVariable };
+    enum T { TermVariable, TermUnaryOperation, TermBinaryOperation };
     static constexpr char const *tp_type = "ASTType";
     static constexpr char const *tp_name = "clingo.ast.ASTType";
     static constexpr char const *tp_doc =
@@ -2545,6 +2545,16 @@ struct AST : ObjectBase<AST> {
             return reinterpret_cast<PyObject*>(self);
         PY_CATCH(nullptr);
     }
+    static PyObject *new_(ASTType::T type, char const **kwlist, PyObject**vals) {
+        PY_TRY
+            Object ret = new_(type);
+            auto jt = vals;
+            for (auto it = kwlist; *it; ++it) {
+                if (PyObject_SetAttrString(ret.get(), *it, *jt++) < 0) { return nullptr; }
+            }
+            return ret.release();
+        PY_CATCH(nullptr);
+    }
     static int tp_setattro(AST *self, PyObject *name, PyObject *pyValue) {
         PY_TRY
             int ret = PyObject_HasAttr(reinterpret_cast<PyObject*>(self), name);
@@ -2569,22 +2579,28 @@ struct AST : ObjectBase<AST> {
     }
     static PyObject *tp_repr(AST *self) {
         PY_TRY
+            // gigantic switch
             (void)self;
             throw std::logic_error("implement me!!!");
         PY_CATCH(nullptr);
     }
     static long tp_hash(AST *self) {
         PY_TRY
+            // hash of the dictionary object excluding locations
             (void)self;
             throw std::logic_error("implement me!!!");
         PY_CATCH(-1);
     }
     static PyObject *tp_richcompare(AST *self, PyObject *b, int op) {
         PY_TRY
+            // compare the dictionary object excluding locations
             CHECK_CMP(OBBASE(self), b, op)
             throw std::logic_error("implement me!!!");
         PY_CATCH(nullptr);
     }
+    // TODO: from C which can reuse the create functions below
+    // TODO: to C
+    // TODO: the keys method of the dictionary should be exposed!
 };
 
 PyObject *createVariable(PyObject *, PyObject *name) {
@@ -2592,6 +2608,24 @@ PyObject *createVariable(PyObject *, PyObject *name) {
         Object ret = AST::new_(ASTType::TermVariable);
         if (PyObject_SetAttrString(ret.get(), "name", name) < 0) { return nullptr; }
         return ret.release();
+    PY_CATCH(nullptr);
+}
+
+PyObject *createUnaryOperation(PyObject *, PyObject *pyargs, PyObject *pykwds) {
+    PY_TRY
+        static char const *kwlist[] = {"unary_operation", "left", nullptr};
+        PyObject* vals[] = { nullptr, nullptr };
+        if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OO", const_cast<char**>(kwlist), &vals[0], &vals[1])) { return nullptr; }
+        return AST::new_(ASTType::TermUnaryOperation, kwlist, vals);
+    PY_CATCH(nullptr);
+}
+
+PyObject *createBinaryOperation(PyObject *, PyObject *pyargs, PyObject *pykwds) {
+    PY_TRY
+        static char const *kwlist[] = {"binary_operation", "left", "right", nullptr};
+        PyObject* vals[] = { nullptr, nullptr, nullptr };
+        if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2])) { return nullptr; }
+        return AST::new_(ASTType::TermBinaryOperation, kwlist, vals);
     PY_CATCH(nullptr);
 }
 
@@ -3933,10 +3967,9 @@ static PyObject *parseTerm(PyObject *, PyObject *objString) {
 // {{{1 gringo module
 
 static PyMethodDef clingoASTModuleMethods[] = {
-    {"Variable", (PyCFunction)AST::createVariable, METH_O,
-R"(Variable(name)
-
-Create a variable with the given name.)"},
+    {"Variable", (PyCFunction)AST::createVariable, METH_O, nullptr},
+    {"UnaryOperation", (PyCFunction)AST::createUnaryOperation, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"BinaryOperation", (PyCFunction)AST::createBinaryOperation, METH_VARARGS | METH_KEYWORDS, nullptr},
     {nullptr, nullptr, 0, nullptr}
 };
 static char const *clingoASTModuleDoc = "The clingo.ast-" GRINGO_VERSION " module.";
