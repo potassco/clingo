@@ -45,8 +45,8 @@ using weight_t = clingo_weight_t;
 using atom_t = clingo_atom_t;
 
 enum class TruthValue {
-    Free = clingo_truth_value_free,
-    True = clingo_truth_value_true,
+    Free  = clingo_truth_value_free,
+    True  = clingo_truth_value_true,
     False = clingo_truth_value_false
 };
 
@@ -457,9 +457,9 @@ struct hash<Clingo::Signature> {
 // {{{1 symbol
 
 enum class SymbolType : clingo_symbol_type_t {
-    Infimum = clingo_symbol_type_infimum,
-    Number = clingo_symbol_type_number,
-    String = clingo_symbol_type_string,
+    Infimum  = clingo_symbol_type_infimum,
+    Number   = clingo_symbol_type_number,
+    String   = clingo_symbol_type_string,
     Function = clingo_symbol_type_function,
     Supremum = clingo_symbol_type_supremum
 };
@@ -1163,26 +1163,26 @@ std::ostream &operator<<(std::ostream &out, UnaryOperation const &x);
 // binary operation
 
 enum class BinaryOperator : clingo_ast_binary_operator_t {
-    XOr      = clingo_ast_binary_operator_xor,
-    Or       = clingo_ast_binary_operator_or,
-    And      = clingo_ast_binary_operator_and,
-    Add      = clingo_ast_binary_operator_add,
-    Subtract = clingo_ast_binary_operator_subtract,
-    Multiply = clingo_ast_binary_operator_multiply,
-    Divide   = clingo_ast_binary_operator_divide,
-    Modulo   = clingo_ast_binary_operator_modulo
+    XOr            = clingo_ast_binary_operator_xor,
+    Or             = clingo_ast_binary_operator_or,
+    And            = clingo_ast_binary_operator_and,
+    Plus           = clingo_ast_binary_operator_plus,
+    Minus          = clingo_ast_binary_operator_minus,
+    Multiplication = clingo_ast_binary_operator_multiplication,
+    Division       = clingo_ast_binary_operator_division,
+    Modulo         = clingo_ast_binary_operator_modulo
 };
 
 inline std::ostream &operator<<(std::ostream &out, BinaryOperator op) {
     switch (op) {
-        case BinaryOperator::XOr:      { out << "^"; break; }
-        case BinaryOperator::Or:       { out << "?"; break; }
-        case BinaryOperator::And:      { out << "&"; break; }
-        case BinaryOperator::Add:      { out << "+"; break; }
-        case BinaryOperator::Subtract: { out << "-"; break; }
-        case BinaryOperator::Multiply: { out << "*"; break; }
-        case BinaryOperator::Divide:   { out << "/"; break; }
-        case BinaryOperator::Modulo:   { out << "\\"; break; }
+        case BinaryOperator::XOr:            { out << "^"; break; }
+        case BinaryOperator::Or:             { out << "?"; break; }
+        case BinaryOperator::And:            { out << "&"; break; }
+        case BinaryOperator::Plus:           { out << "+"; break; }
+        case BinaryOperator::Minus:          { out << "-"; break; }
+        case BinaryOperator::Multiplication: { out << "*"; break; }
+        case BinaryOperator::Division:       { out << "/"; break; }
+        case BinaryOperator::Modulo:         { out << "\\"; break; }
     }
     return out;
 }

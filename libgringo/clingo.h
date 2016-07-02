@@ -456,14 +456,14 @@ struct clingo_ast_unary_operation {
 // binary operation
 
 enum clingo_ast_binary_operator {
-    clingo_ast_binary_operator_xor      = 0,
-    clingo_ast_binary_operator_or       = 1,
-    clingo_ast_binary_operator_and      = 2,
-    clingo_ast_binary_operator_add      = 3,
-    clingo_ast_binary_operator_subtract = 4,
-    clingo_ast_binary_operator_multiply = 5,
-    clingo_ast_binary_operator_divide   = 6,
-    clingo_ast_binary_operator_modulo   = 7
+    clingo_ast_binary_operator_xor            = 0,
+    clingo_ast_binary_operator_or             = 1,
+    clingo_ast_binary_operator_and            = 2,
+    clingo_ast_binary_operator_plus           = 3,
+    clingo_ast_binary_operator_minus          = 4,
+    clingo_ast_binary_operator_multiplication = 5,
+    clingo_ast_binary_operator_division       = 6,
+    clingo_ast_binary_operator_modulo         = 7
 
 };
 typedef int clingo_ast_binary_operator_t;
@@ -498,27 +498,25 @@ struct clingo_ast_pool {
 
 // {{{2 csp
 
-// TODO: rename multiply -> product
-typedef struct clingo_ast_csp_multiply_term {
+typedef struct clingo_ast_csp_product_term {
     clingo_location_t location;
     clingo_ast_term_t coefficient;
     clingo_ast_term_t const *variable;
-} clingo_ast_csp_multiply_term_t;
+} clingo_ast_csp_product_term_t;
 
-// TODO: rename add -> sum
-typedef struct clingo_ast_csp_add_term {
+typedef struct clingo_ast_csp_sum_term {
     clingo_location_t location;
-    clingo_ast_csp_multiply_term_t *terms;
+    clingo_ast_csp_product_term_t *terms;
     size_t size;
-} clingo_ast_csp_add_term_t;
+} clingo_ast_csp_sum_term_t;
 
 typedef struct clingo_ast_csp_guard {
     clingo_ast_comparison_operator_t comparison;
-    clingo_ast_csp_add_term_t term;
+    clingo_ast_csp_sum_term_t term;
 } clingo_ast_csp_guard_t;
 
 typedef struct clingo_ast_csp_literal {
-    clingo_ast_csp_add_term_t term;
+    clingo_ast_csp_sum_term_t term;
     clingo_ast_csp_guard_t const *guards;
     // NOTE: size must be at least one
     size_t size;
@@ -555,7 +553,7 @@ typedef struct clingo_ast_literal {
         bool boolean;
         clingo_ast_term_t const *symbol;
         clingo_ast_comparison_t const *comparison;
-        clingo_ast_csp_literal_t const *csp;
+        clingo_ast_csp_literal_t const *csp_literal;
     };
 } clingo_ast_literal_t;
 
@@ -636,7 +634,7 @@ typedef struct clingo_ast_disjoint_element {
     clingo_location_t location;
     clingo_ast_term_t const *tuple;
     size_t tuple_size;
-    clingo_ast_csp_add_term_t term;
+    clingo_ast_csp_sum_term_t term;
     clingo_ast_literal_t const *condition;
     size_t condition_size;
 } clingo_ast_disjoint_element_t;
@@ -649,19 +647,19 @@ typedef struct clingo_ast_disjoint {
 // {{{2 theory atom
 
 enum clingo_ast_theory_term_type {
-    clingo_ast_theory_term_type_symbol              = 0,
-    clingo_ast_theory_term_type_variable            = 1,
-    clingo_ast_theory_term_type_tuple               = 2,
-    clingo_ast_theory_term_type_list                = 3,
-    clingo_ast_theory_term_type_set                 = 4,
-    clingo_ast_theory_term_type_function            = 5,
-    clingo_ast_theory_term_type_unparsed_term_array = 6
+    clingo_ast_theory_term_type_symbol        = 0,
+    clingo_ast_theory_term_type_variable      = 1,
+    clingo_ast_theory_term_type_tuple         = 2,
+    clingo_ast_theory_term_type_list          = 3,
+    clingo_ast_theory_term_type_set           = 4,
+    clingo_ast_theory_term_type_function      = 5,
+    clingo_ast_theory_term_type_unparsed_term = 6
 };
 typedef int clingo_ast_theory_term_type_t;
 
 typedef struct clingo_ast_theory_function clingo_ast_theory_function_t;
 typedef struct clingo_ast_theory_term_array clingo_ast_theory_term_array_t;
-typedef struct clingo_ast_theory_unparsed_term_array clingo_ast_theory_unparsed_term_array_t;
+typedef struct clingo_ast_theory_unparsed_term clingo_ast_theory_unparsed_term_t;
 
 typedef struct clingo_ast_theory_term {
     clingo_location_t location;
@@ -673,7 +671,7 @@ typedef struct clingo_ast_theory_term {
         clingo_ast_theory_term_array_t const *list;
         clingo_ast_theory_term_array_t const *set;
         clingo_ast_theory_function_t const *function;
-        clingo_ast_theory_unparsed_term_array_t const *unparsed_array;
+        clingo_ast_theory_unparsed_term_t const *unparsed_term;
     };
 } clingo_ast_theory_term_t;
 
@@ -688,14 +686,14 @@ struct clingo_ast_theory_function {
     size_t size;
 };
 
-typedef struct clingo_ast_theory_unparsed_term {
+typedef struct clingo_ast_theory_unparsed_term_element {
     char const *const *operators;
     size_t size;
     clingo_ast_theory_term_t term;
-} clingo_ast_theory_unparsed_term_t;
+} clingo_ast_theory_unparsed_term_element_t;
 
-struct clingo_ast_theory_unparsed_term_array {
-    clingo_ast_theory_unparsed_term_t const *terms;
+struct clingo_ast_theory_unparsed_term {
+    clingo_ast_theory_unparsed_term_element_t const *elements;
     size_t size;
 };
 
@@ -725,7 +723,7 @@ enum clingo_ast_head_literal_type {
     clingo_ast_head_literal_type_disjunction    = 1,
     clingo_ast_head_literal_type_aggregate      = 2,
     clingo_ast_head_literal_type_head_aggregate = 3,
-    clingo_ast_head_literal_type_theory         = 4
+    clingo_ast_head_literal_type_theory_atom    = 4
 };
 typedef int clingo_ast_head_literal_type_t;
 
@@ -748,7 +746,7 @@ enum clingo_ast_body_literal_type {
     clingo_ast_body_literal_type_conditional    = 1,
     clingo_ast_body_literal_type_aggregate      = 2,
     clingo_ast_body_literal_type_body_aggregate = 3,
-    clingo_ast_body_literal_type_theory         = 4,
+    clingo_ast_body_literal_type_theory_atom    = 4,
     clingo_ast_body_literal_type_disjoint       = 5
 };
 typedef int clingo_ast_body_literal_type_t;
@@ -925,19 +923,19 @@ typedef struct clingo_ast_project {
 // statement
 
 enum clingo_ast_statement_type {
-    clingo_ast_statement_type_rule              = 0,
-    clingo_ast_statement_type_const             = 1,
-    clingo_ast_statement_type_show_signature    = 2,
-    clingo_ast_statement_type_show_term         = 3,
-    clingo_ast_statement_type_minimize          = 4,
-    clingo_ast_statement_type_script            = 5,
-    clingo_ast_statement_type_program           = 6,
-    clingo_ast_statement_type_external          = 7,
-    clingo_ast_statement_type_edge              = 8,
-    clingo_ast_statement_type_heuristic         = 9,
-    clingo_ast_statement_type_project           = 10,
-    clingo_ast_statement_type_project_signature = 11,
-    clingo_ast_statement_type_theory_definition = 12
+    clingo_ast_statement_type_rule                   = 0,
+    clingo_ast_statement_type_const                  = 1,
+    clingo_ast_statement_type_show_signature         = 2,
+    clingo_ast_statement_type_show_term              = 3,
+    clingo_ast_statement_type_minimize               = 4,
+    clingo_ast_statement_type_script                 = 5,
+    clingo_ast_statement_type_program                = 6,
+    clingo_ast_statement_type_external               = 7,
+    clingo_ast_statement_type_edge                   = 8,
+    clingo_ast_statement_type_heuristic              = 9,
+    clingo_ast_statement_type_project_atom           = 10,
+    clingo_ast_statement_type_project_atom_signature = 11,
+    clingo_ast_statement_type_theory_definition      = 12
 };
 typedef int clingo_ast_statement_type_t;
 
@@ -955,7 +953,7 @@ typedef struct clingo_ast_statement {
         clingo_ast_external_t const *external;
         clingo_ast_edge_t const *edge;
         clingo_ast_heuristic_t const *heuristic;
-        clingo_ast_project_t const *project;
+        clingo_ast_project_t const *project_atom;
         clingo_signature_t project_signature;
         clingo_ast_theory_definition_t const *theory_definition;
     };

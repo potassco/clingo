@@ -702,7 +702,7 @@ TermUid ASTBuilder::pool(Location const &loc, TermVecUid a) {
 // {{{2 csp
 
 CSPMulTermUid ASTBuilder::cspmulterm(Location const &loc, TermUid coe, TermUid var) {
-    clingo_ast_csp_multiply_term_t term;
+    clingo_ast_csp_product_term_t term;
     term.location    = convertLoc(loc);
     term.coefficient = terms_.erase(coe);
     term.variable    = create_(terms_.erase(var));
@@ -710,7 +710,7 @@ CSPMulTermUid ASTBuilder::cspmulterm(Location const &loc, TermUid coe, TermUid v
 }
 
 CSPMulTermUid ASTBuilder::cspmulterm(Location const &loc, TermUid coe) {
-    clingo_ast_csp_multiply_term_t term;
+    clingo_ast_csp_product_term_t term;
     term.location    = convertLoc(loc);
     term.coefficient = terms_.erase(coe);
     term.variable    = nullptr;
@@ -735,13 +735,13 @@ CSPAddTermUid ASTBuilder::cspaddterm(Location const &loc, CSPAddTermUid a, CSPMu
 }
 
 CSPAddTermUid ASTBuilder::cspaddterm(Location const &loc, CSPMulTermUid b) {
-    return cspaddterms_.emplace(loc, std::initializer_list<clingo_ast_csp_multiply_term_t>{cspmulterms_.erase(b)});
+    return cspaddterms_.emplace(loc, std::initializer_list<clingo_ast_csp_product_term_t>{cspmulterms_.erase(b)});
 }
 
 CSPLitUid ASTBuilder::csplit(Location const &loc, CSPLitUid a, Relation rel, CSPAddTermUid b) {
     auto &lit = csplits_[a];
     auto rep = cspaddterms_.erase(b);
-    clingo_ast_csp_add_term_t term;
+    clingo_ast_csp_sum_term_t term;
     term.size     = rep.second.size();
     term.location = convertLoc(rep.first);
     term.terms    = createArray_(rep.second);
@@ -752,7 +752,7 @@ CSPLitUid ASTBuilder::csplit(Location const &loc, CSPLitUid a, Relation rel, CSP
 
 CSPLitUid ASTBuilder::csplit(Location const &loc, CSPAddTermUid a, Relation rel, CSPAddTermUid b) {
     auto repa = cspaddterms_.erase(a), repb = cspaddterms_.erase(b);
-    clingo_ast_csp_add_term terma, termb;
+    clingo_ast_csp_sum_term terma, termb;
     terma.location = convertLoc(repa.first);
     terma.size     = repa.second.size();
     terma.terms    = createArray_(repa.second);
@@ -842,9 +842,9 @@ LitUid ASTBuilder::csplit(CSPLitUid a) {
     csp->guards = guards;
     clingo_ast_literal_t lit;
     lit.location = convertLoc(rep.first);
-    lit.sign     = clingo_ast_sign_none;
-    lit.type     = clingo_ast_literal_type_csp;
-    lit.csp      = csp;
+    lit.sign        = clingo_ast_sign_none;
+    lit.type        = clingo_ast_literal_type_csp;
+    lit.csp_literal = csp;
     return lits_.insert(std::move(lit));
 }
 
@@ -941,7 +941,7 @@ HdLitUid ASTBuilder::headlit(LitUid litUid) {
 HdLitUid ASTBuilder::headaggr(Location const &loc, TheoryAtomUid atomUid) {
     clingo_ast_head_literal_t head;
     head.location    = convertLoc(loc);
-    head.type        = clingo_ast_head_literal_type_theory;
+    head.type        = clingo_ast_head_literal_type_theory_atom;
     head.theory_atom = create_(theoryAtoms_.erase(atomUid));
     return heads_.insert(std::move(head));
 }
@@ -1020,7 +1020,7 @@ BdLitVecUid ASTBuilder::bodyaggr(BdLitVecUid body, Location const &loc, NAF naf,
     clingo_ast_body_literal_t bd;
     bd.location    = convertLoc(loc);
     bd.sign        = static_cast<clingo_ast_sign_t>(naf);
-    bd.type        = clingo_ast_body_literal_type_theory;;
+    bd.type        = clingo_ast_body_literal_type_theory_atom;;
     bd.theory_atom = create_(theoryAtoms_.erase(atomUid));
     bodies_[body].emplace_back(bd);
     return body;
@@ -1110,7 +1110,7 @@ CSPElemVecUid ASTBuilder::cspelemvec(CSPElemVecUid uid, Location const &loc, Ter
     auto tuple = termvecs_.erase(termvec);
     auto rep = cspaddterms_.erase(addterm);
     auto cond = litvecs_.erase(litvec);
-    clingo_ast_csp_add_term_t term;
+    clingo_ast_csp_sum_term_t term;
     term.size     = rep.second.size();
     term.location = convertLoc(rep.first);
     term.terms    = createArray_(rep.second);
@@ -1267,14 +1267,14 @@ void ASTBuilder::project(Location const &loc, TermUid termUid, BdLitVecUid body)
     proj.body = createArray_(bd);
     proj.atom = terms_.erase(termUid);
     clingo_ast_statement stm;
-    stm.project = create_(proj);
-    statement_(loc, clingo_ast_statement_type_project, stm);
+    stm.project_atom = create_(proj);
+    statement_(loc, clingo_ast_statement_type_project_atom, stm);
 }
 
 void ASTBuilder::project(Location const &loc, Sig sig) {
     clingo_ast_statement stm;
     stm.project_signature = sig.rep();
-    statement_(loc, clingo_ast_statement_type_project_signature, stm);
+    statement_(loc, clingo_ast_statement_type_project_atom_signature, stm);
 }
 
 // {{{2 theory atoms
@@ -1305,13 +1305,13 @@ TheoryTermUid ASTBuilder::theorytermtuple(Location const &loc, TheoryOptermVecUi
 
 clingo_ast_theory_term_t ASTBuilder::opterm_(Location const &loc, TheoryOptermUid opterm) {
     auto terms = theoryOpterms_.erase(opterm);
-    clingo_ast_theory_unparsed_term_array arr;
-    arr.size  = terms.size();
-    arr.terms = createArray_(terms);
+    clingo_ast_theory_unparsed_term arr;
+    arr.size     = terms.size();
+    arr.elements = createArray_(terms);
     clingo_ast_theory_term_t term;
-    term.location       = convertLoc(loc);
-    term.type           = clingo_ast_theory_term_type_unparsed_term_array;
-    term.unparsed_array = create_(arr);
+    term.location      = convertLoc(loc);
+    term.type          = clingo_ast_theory_term_type_unparsed_term;
+    term.unparsed_term = create_(arr);
     return term;
 }
 
@@ -1348,9 +1348,9 @@ TheoryTermUid ASTBuilder::theorytermvar(Location const &loc, String var) {
     return theoryTerms_.insert(std::move(term));
 }
 
-clingo_ast_theory_unparsed_term_t ASTBuilder::opterm_(TheoryOpVecUid ops, TheoryTermUid term) {
+clingo_ast_theory_unparsed_term_element_t ASTBuilder::opterm_(TheoryOpVecUid ops, TheoryTermUid term) {
     auto o = theoryOpVecs_.erase(ops);
-    clingo_ast_theory_unparsed_term_t t;
+    clingo_ast_theory_unparsed_term_element_t t;
     t.size      = o.size();
     t.operators = createArray_(o);
     t.term      = theoryTerms_.erase(term);
@@ -1571,11 +1571,11 @@ public:
                 auto &y = *stm.heuristic;
                 return prg_.heuristic(parseLocation(stm.location), parseTerm(y.atom), parseBodyLiteralVec(y.body, y.size), parseTerm(y.bias), parseTerm(y.priority), parseTerm(y.modifier));
             }
-            case clingo_ast_statement_type_project: {
-                auto &y = *stm.project;
+            case clingo_ast_statement_type_project_atom: {
+                auto &y = *stm.project_atom;
                 return prg_.project(parseLocation(stm.location), parseTerm(y.atom), parseBodyLiteralVec(y.body, y.size));
             }
-            case clingo_ast_statement_type_project_signature: {
+            case clingo_ast_statement_type_project_atom_signature: {
                 return prg_.project(parseLocation(stm.location), Sig(stm.project_signature));
             }
             case clingo_ast_statement_type_theory_definition: {
@@ -1658,13 +1658,13 @@ private:
     }
     ARR(clingo_ast_term_t, termvec, parseTerm)
 
-    CSPMulTermUid parseCSPMulTerm(clingo_ast_csp_multiply_term_t const &x) {
+    CSPMulTermUid parseCSPMulTerm(clingo_ast_csp_product_term_t const &x) {
         return x.variable
             ? prg_.cspmulterm(parseLocation(x.location), parseTerm(x.coefficient), parseTerm(*x.variable))
             : prg_.cspmulterm(parseLocation(x.location), parseTerm(x.coefficient));
     }
 
-    CSPAddTermUid parseCSPAddTerm(clingo_ast_csp_add_term_t const &x) {
+    CSPAddTermUid parseCSPAddTerm(clingo_ast_csp_sum_term_t const &x) {
         require_(x.size > 0, "csp sums terms must not be empty");
         auto it = x.terms, ie = it + x.size;
         auto ret = prg_.cspaddterm(parseLocation(x.location), parseCSPMulTerm(*it));
@@ -1698,16 +1698,16 @@ private:
                 auto y = *x.function;
                 return prg_.theorytermfun(parseLocation(x.location), y.name, parseTheoryOptermVec(y.arguments, y.size));
             }
-            case clingo_ast_theory_term_type_unparsed_term_array: {
-                return prg_.theorytermopterm(parseLocation(x.location), parseTheoryOpterm(*x.unparsed_array));
+            case clingo_ast_theory_term_type_unparsed_term: {
+                return prg_.theorytermopterm(parseLocation(x.location), parseTheoryOpterm(*x.unparsed_term));
             }
         }
         return static_cast<TheoryTermUid>(0);
     }
 
-    TheoryOptermUid parseTheoryOpterm(clingo_ast_theory_unparsed_term_array_t const &x) {
+    TheoryOptermUid parseTheoryOpterm(clingo_ast_theory_unparsed_term_t const &x) {
         require_(x.size > 0, "unparsed term arrays must not be empty");
-        auto it = x.terms, ie = it + x.size;
+        auto it = x.elements, ie = it + x.size;
         auto ret = prg_.theoryopterm(parseTheoryOpVec(it->operators, it->size), parseTheoryTerm(it->term));
         for (++it; it != ie; ++it) {
             require_(it->size > 0, "at least one operator necessary on right-hand-side of unparsed theory term");
@@ -1717,8 +1717,8 @@ private:
     }
 
     TheoryOptermUid parseTheoryOpterm(clingo_ast_theory_term_t const &x) {
-        return (x.type == clingo_ast_theory_term_type_unparsed_term_array)
-            ? parseTheoryOpterm(*x.unparsed_array)
+        return (x.type == clingo_ast_theory_term_type_unparsed_term)
+            ? parseTheoryOpterm(*x.unparsed_term)
             : prg_.theoryopterm(prg_.theoryops(), parseTheoryTerm(x));
     }
     TheoryOptermVecUid parseTheoryOptermVec(clingo_ast_theory_term_t const *vec, size_t size) {
@@ -1756,7 +1756,7 @@ private:
                 return prg_.rellit(parseLocation(x.location), rel, parseTerm(y.left), parseTerm(y.right));
             }
             case clingo_ast_literal_type_csp: {
-                auto &y = *x.csp;
+                auto &y = *x.csp_literal;
                 require_(x.sign == clingo_ast_sign_none && extraSign == clingo_ast_sign_none, "csp literals must not have signs");
                 require_(y.size > 0, "csp literals need at least one guard");
                 auto it = y.guards, ie = it + y.size;
@@ -1840,7 +1840,7 @@ private:
                 auto &y = *x.head_aggregate;
                 return prg_.headaggr(parseLocation(x.location), static_cast<AggregateFunction>(y.function), parseBounds(y.left_guard, y.right_guard), parseHdAggrElemVec(y.elements, y.size));
             }
-            case clingo_ast_head_literal_type_theory: {
+            case clingo_ast_head_literal_type_theory_atom: {
                 auto &y = *x.theory_atom;
                 return y.guard
                     ? prg_.headaggr(parseLocation(x.location), prg_.theoryatom(parseTerm(y.term), parseTheoryElemVec(y.elements, y.size), y.guard->operator_name, parseLocation(x.location), parseTheoryOpterm(y.guard->term)))
@@ -1876,7 +1876,7 @@ private:
                     ret = prg_.bodyaggr(ret, parseLocation(it->location), static_cast<NAF>(it->sign), static_cast<AggregateFunction>(y.function), parseBounds(y.left_guard, y.right_guard), parseBdAggrElemVec(y.elements, y.size));
                     break;
                 }
-                case clingo_ast_body_literal_type_theory: {
+                case clingo_ast_body_literal_type_theory_atom: {
                     auto &y = *it->theory_atom;
                     ret = y.guard
                         ? prg_.bodyaggr(ret, parseLocation(it->location), static_cast<NAF>(it->sign), prg_.theoryatom(parseTerm(y.term), parseTheoryElemVec(y.elements, y.size), y.guard->operator_name, parseLocation(it->location), parseTheoryOpterm(y.guard->term)))

@@ -570,7 +570,7 @@ private:
     TermUid pool_(Location const &loc, TermVec &&vec);
     clingo_ast_term_t fun_(Location const &loc, String name, TermVec &&vec, bool external);
     TheoryTermUid theorytermarr_(Location const &loc, TheoryOptermVecUid args, clingo_ast_theory_term_type_t type);
-    clingo_ast_theory_unparsed_term_t opterm_(TheoryOpVecUid ops, TheoryTermUid term);
+    clingo_ast_theory_unparsed_term_element_t opterm_(TheoryOpVecUid ops, TheoryTermUid term);
     clingo_ast_theory_term_t opterm_(Location const &loc, TheoryOptermUid opterm);
     template <class T>
     T *create_();
@@ -587,9 +587,9 @@ private:
     using Terms             = Indexed<clingo_ast_term_t, TermUid>;
     using TermVecs          = Indexed<TermVec, TermVecUid>;
     using TermVecVecs       = Indexed<TermVecVec, TermVecVecUid>;
-    using CSPAddTerms       = Indexed<std::pair<Location, std::vector<clingo_ast_csp_multiply_term_t>>, CSPAddTermUid>;
-    using CSPMulTerms       = Indexed<clingo_ast_csp_multiply_term_t, CSPMulTermUid>;
-    using CSPLits           = Indexed<std::pair<Location, std::vector<std::pair<Relation, clingo_ast_csp_add_term_t>>>, CSPLitUid>;
+    using CSPAddTerms       = Indexed<std::pair<Location, std::vector<clingo_ast_csp_product_term_t>>, CSPAddTermUid>;
+    using CSPMulTerms       = Indexed<clingo_ast_csp_product_term_t, CSPMulTermUid>;
+    using CSPLits           = Indexed<std::pair<Location, std::vector<std::pair<Relation, clingo_ast_csp_sum_term_t>>>, CSPLitUid>;
     using IdVecs            = Indexed<std::vector<clingo_ast_id_t>, IdVecUid>;
     using Lits              = Indexed<clingo_ast_literal_t, LitUid>;
     using LitVecs           = Indexed<std::vector<clingo_ast_literal_t>, LitVecUid>;
@@ -603,7 +603,7 @@ private:
     using CSPElems          = Indexed<std::vector<clingo_ast_disjoint_element_t>, CSPElemVecUid>;
     using TheoryOpVecs      = Indexed<std::vector<char const *>, TheoryOpVecUid>;
     using TheoryTerms       = Indexed<clingo_ast_theory_term_t, TheoryTermUid>;
-    using RawTheoryTerms    = Indexed<std::vector<clingo_ast_theory_unparsed_term_t>, TheoryOptermUid>;
+    using RawTheoryTerms    = Indexed<std::vector<clingo_ast_theory_unparsed_term_element_t>, TheoryOptermUid>;
     using RawTheoryTermVecs = Indexed<std::vector<clingo_ast_theory_term_t>, TheoryOptermVecUid>;
     using TheoryElementVecs = Indexed<std::vector<clingo_ast_theory_atom_element>, TheoryElemVecUid>;
     using TheoryOpDefs      = Indexed<clingo_ast_theory_operator_definition_t, TheoryOpDefUid>;

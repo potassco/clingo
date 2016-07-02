@@ -969,23 +969,23 @@ struct ASTToC {
         return createArray_(x, static_cast<clingo_ast_term_t (ASTToC::*)(Term const &)>(&ASTToC::convTerm));
     }
 
-    clingo_ast_csp_multiply_term_t convCSPMultiply(CSPMultiply const &x) {
-        clingo_ast_csp_multiply_term_t ret;
+    clingo_ast_csp_product_term_t convCSPMultiply(CSPMultiply const &x) {
+        clingo_ast_csp_product_term_t ret;
         ret.location    = x.location;
         ret.variable    = convTerm(x.variable);
         ret.coefficient = convTerm(x.coefficient);
         return ret;
     }
-    clingo_ast_csp_add_term_t convCSPAdd(CSPAdd const &x) {
-        clingo_ast_csp_add_term_t ret;
+    clingo_ast_csp_sum_term_t convCSPAdd(CSPAdd const &x) {
+        clingo_ast_csp_sum_term_t ret;
         ret.location = x.location;
         ret.terms    = createArray_(x.terms, &ASTToC::convCSPMultiply);
         ret.size     = x.terms.size();
         return ret;
     }
 
-    clingo_ast_theory_unparsed_term_t convTheoryUnparsedTermElement(TheoryUnparsedTermElement const &x) {
-        clingo_ast_theory_unparsed_term_t ret;
+    clingo_ast_theory_unparsed_term_element_t convTheoryUnparsedTermElement(TheoryUnparsedTermElement const &x) {
+        clingo_ast_theory_unparsed_term_element_t ret;
         ret.term      = convTheoryTerm(x.term);
         ret.operators = createArray_(x.operators, &ASTToC::identity<char const *>);
         ret.size      = x.operators.size();
@@ -1030,12 +1030,12 @@ struct ASTToC {
         return ret;
     }
     clingo_ast_theory_term_t visit(TheoryUnparsedTerm const &term, TheoryTermTag) {
-        auto unparsed_array = create_<clingo_ast_theory_unparsed_term_array>();
-        unparsed_array->terms = createArray_(term.elements, &ASTToC::convTheoryUnparsedTermElement);
-        unparsed_array->size  = term.elements.size();
+        auto unparsed_term = create_<clingo_ast_theory_unparsed_term>();
+        unparsed_term->elements = createArray_(term.elements, &ASTToC::convTheoryUnparsedTermElement);
+        unparsed_term->size     = term.elements.size();
         clingo_ast_theory_term_t ret;
-        ret.type           = clingo_ast_theory_term_type_unparsed_term_array;
-        ret.unparsed_array = unparsed_array;
+        ret.type          = clingo_ast_theory_term_type_unparsed_term;
+        ret.unparsed_term = unparsed_term;
         return ret;
     }
     clingo_ast_theory_term_t convTheoryTerm(TheoryTerm const &x) {
@@ -1084,8 +1084,8 @@ struct ASTToC {
         csp->guards = createArray_(x.guards, &ASTToC::convCSPGuard);
         csp->size   = x.guards.size();
         clingo_ast_literal_t ret;
-        ret.type     = clingo_ast_literal_type_csp;
-        ret.csp      = csp;
+        ret.type        = clingo_ast_literal_type_csp;
+        ret.csp_literal = csp;
         return ret;
     }
     clingo_ast_literal_t convLiteral(Literal const &x) {
@@ -1214,7 +1214,7 @@ struct ASTToC {
     }
     clingo_ast_head_literal_t visit(TheoryAtom const &x, HeadLiteralTag) {
         clingo_ast_head_literal_t ret;
-        ret.type        = clingo_ast_head_literal_type_theory;
+        ret.type        = clingo_ast_head_literal_type_theory_atom;
         ret.theory_atom = create_<clingo_ast_theory_atom_t>(convTheoryAtom(x));
         return ret;
     }
@@ -1260,7 +1260,7 @@ struct ASTToC {
     }
     clingo_ast_body_literal_t visit(TheoryAtom const &x, BodyLiteralTag) {
         clingo_ast_body_literal_t ret;
-        ret.type        = clingo_ast_body_literal_type_theory;
+        ret.type        = clingo_ast_body_literal_type_theory_atom;
         ret.theory_atom = create_<clingo_ast_theory_atom_t>(convTheoryAtom(x));
         return ret;
     }
@@ -1438,13 +1438,13 @@ struct ASTToC {
         project->body = convBodyLiteralVec(x.body);
         project->size = x.body.size();
         clingo_ast_statement_t ret;
-        ret.type    = clingo_ast_statement_type_project;
-        ret.project = project;
+        ret.type         = clingo_ast_statement_type_project_atom;
+        ret.project_atom = project;
         return ret;
     }
     clingo_ast_statement_t visit(ProjectSignature const &x) {
         clingo_ast_statement_t ret;
-        ret.type              = clingo_ast_statement_type_project_signature;
+        ret.type              = clingo_ast_statement_type_project_atom_signature;
         ret.project_signature = x.signature.to_c();
         return ret;
     }
@@ -1870,12 +1870,12 @@ Optional<Term> convTerm(clingo_ast_term_t const *term) {
 
 // csp
 
-CSPMultiply convCSPMultiply(clingo_ast_csp_multiply_term const &term) {
+CSPMultiply convCSPMultiply(clingo_ast_csp_product_term const &term) {
     return {Location{term.location}, convTerm(term.coefficient), convTerm(term.variable)};
 }
-ARR(clingo_ast_csp_multiply_term, CSPMultiply)
+ARR(clingo_ast_csp_product_term, CSPMultiply)
 
-CSPAdd convCSPAdd(clingo_ast_csp_add_term_t const &term) {
+CSPAdd convCSPAdd(clingo_ast_csp_sum_term_t const &term) {
     return {Location{term.location}, convCSPMultiplyVec(term.terms, term.size)};
 }
 
@@ -1884,10 +1884,10 @@ CSPAdd convCSPAdd(clingo_ast_csp_add_term_t const &term) {
 TheoryTerm convTheoryTerm(clingo_ast_theory_term_t const &term);
 ARR(clingo_ast_theory_term_t, TheoryTerm)
 
-TheoryUnparsedTermElement convTheoryUnparsedTermElement(clingo_ast_theory_unparsed_term_t const &term) {
+TheoryUnparsedTermElement convTheoryUnparsedTermElement(clingo_ast_theory_unparsed_term_element_t const &term) {
     return {std::vector<char const *>{term.operators, term.operators + term.size}, convTheoryTerm(term.term)};
 }
-ARR(clingo_ast_theory_unparsed_term_t, TheoryUnparsedTermElement);
+ARR(clingo_ast_theory_unparsed_term_element_t, TheoryUnparsedTermElement);
 
 TheoryTerm convTheoryTerm(clingo_ast_theory_term_t const &term) {
     switch (static_cast<enum clingo_ast_theory_term_type>(term.type)) {
@@ -1913,9 +1913,9 @@ TheoryTerm convTheoryTerm(clingo_ast_theory_term_t const &term) {
             auto &x = *term.function;
             return {Location{term.location}, TheoryFunction{x.name, convTheoryTermVec(x.arguments, x.size)}};
         }
-        case clingo_ast_theory_term_type_unparsed_term_array: {
-            auto &x = *term.unparsed_array;
-            return {Location{term.location}, TheoryUnparsedTerm{convTheoryUnparsedTermElementVec(x.terms, x.size)}};
+        case clingo_ast_theory_term_type_unparsed_term: {
+            auto &x = *term.unparsed_term;
+            return {Location{term.location}, TheoryUnparsedTerm{convTheoryUnparsedTermElementVec(x.elements, x.size)}};
         }
     }
     throw std::logic_error("cannot happen");
@@ -1941,7 +1941,7 @@ Literal convLiteral(clingo_ast_literal_t const &lit) {
             return {Location(lit.location), static_cast<Sign>(lit.sign), Comparison{static_cast<ComparisonOperator>(c.comparison), convTerm(c.left), convTerm(c.right)}};
         }
         case clingo_ast_literal_type_csp: {
-            auto &c = *lit.csp;
+            auto &c = *lit.csp_literal;
             return {Location(lit.location), static_cast<Sign>(lit.sign), CSPLiteral{convCSPAdd(c.term), convCSPGuardVec(c.guards, c.size)}};
         }
     }
@@ -2022,7 +2022,7 @@ HeadLiteral convHeadLiteral(clingo_ast_head_literal_t const &head) {
             auto &a = *head.head_aggregate;
             return {Location{head.location}, HeadAggregate{static_cast<AggregateFunction>(a.function), convHeadAggregateElementVec(a.elements, a.size), convAggregateGuard(a.left_guard), convAggregateGuard(a.right_guard)}};
         }
-        case clingo_ast_head_literal_type_theory: {
+        case clingo_ast_head_literal_type_theory_atom: {
             return {Location{head.location}, convTheoryAtom(*head.theory_atom)};
         }
     }
@@ -2046,7 +2046,7 @@ BodyLiteral convBodyLiteral(clingo_ast_body_literal_t const &body) {
             auto &a = *body.body_aggregate;
             return {Location{body.location}, static_cast<Sign>(body.sign), BodyAggregate{static_cast<AggregateFunction>(a.function), convBodyAggregateElementVec(a.elements, a.size), convAggregateGuard(a.left_guard), convAggregateGuard(a.right_guard)}};
         }
-        case clingo_ast_body_literal_type_theory: {
+        case clingo_ast_body_literal_type_theory_atom: {
             return {Location{body.location}, static_cast<Sign>(body.sign), convTheoryAtom(*body.theory_atom)};
         }
         case clingo_ast_body_literal_type_disjoint: {
@@ -2126,11 +2126,11 @@ void convStatement(clingo_ast_statement_t const *stm, StatementCallback &cb) {
             cb({Location(stm->location), Heuristic{convTerm(heu.atom), convBodyLiteralVec(heu.body, heu.size), convTerm(heu.bias), convTerm(heu.priority), convTerm(heu.modifier)}});
             break;
         }
-        case clingo_ast_statement_type_project: {
-            cb({Location(stm->location), Project{convTerm(stm->project->atom), convBodyLiteralVec(stm->project->body, stm->project->size)}});
+        case clingo_ast_statement_type_project_atom: {
+            cb({Location(stm->location), Project{convTerm(stm->project_atom->atom), convBodyLiteralVec(stm->project_atom->body, stm->project_atom->size)}});
             break;
         }
-        case clingo_ast_statement_type_project_signature: {
+        case clingo_ast_statement_type_project_atom_signature: {
             cb({Location(stm->location), ProjectSignature{Signature(stm->project_signature)}});
             break;
         }

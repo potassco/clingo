@@ -2693,10 +2693,10 @@ enum class BinaryOperator : clingo_ast_binary_operator_t {
     XOr      = clingo_ast_binary_operator_xor,
     Or       = clingo_ast_binary_operator_or,
     And      = clingo_ast_binary_operator_and,
-    Add      = clingo_ast_binary_operator_add,
-    Subtract = clingo_ast_binary_operator_subtract,
-    Multiply = clingo_ast_binary_operator_multiply,
-    Divide   = clingo_ast_binary_operator_divide,
+    Add      = clingo_ast_binary_operator_plus,
+    Subtract = clingo_ast_binary_operator_minus,
+    Multiply = clingo_ast_binary_operator_multiplication,
+    Divide   = clingo_ast_binary_operator_division,
     Modulo   = clingo_ast_binary_operator_modulo
 };
 
