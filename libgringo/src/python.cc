@@ -2476,7 +2476,7 @@ constexpr clingo_ast_comparison_operator_t ComparisonOperator::values[];
 constexpr const char * ComparisonOperator::strings[];
 
 struct ASTType : EnumType<ASTType> {
-    enum T { TermVariable, TermUnaryOperation, TermBinaryOperation };
+    enum T { TermVariable, TermSymbol, TermUnaryOperation, TermBinaryOperation, TermInterval, TermFunction, TermPool };
     static constexpr char const *tp_type = "ASTType";
     static constexpr char const *tp_name = "clingo.ast.ASTType";
     static constexpr char const *tp_doc =
@@ -2486,10 +2486,22 @@ ASTType.TermVariable -- variable in a term
 and many more...)";
 
     static constexpr T values[] = {
-        TermVariable
+        TermVariable,
+        TermSymbol,
+        TermUnaryOperation,
+        TermBinaryOperation,
+        TermInterval,
+        TermFunction,
+        TermPool,
     };
     static constexpr const char * strings[] = {
-        "TermVariable"
+        "TermVariable",
+        "TermSymbol",
+        "TermUnaryOperation",
+        "TermBinaryOperation",
+        "TermInterval",
+        "TermFunction",
+        "TermPool",
     };
 };
 
@@ -2603,147 +2615,126 @@ struct AST : ObjectBase<AST> {
     // TODO: the keys method of the dictionary should be exposed!
 };
 
-PyObject *createVariable(PyObject *, PyObject *name) {
-    PY_TRY
-        Object ret = AST::new_(ASTType::TermVariable);
-        if (PyObject_SetAttrString(ret.get(), "name", name) < 0) { return nullptr; }
-        return ret.release();
-    PY_CATCH(nullptr);
-}
+// TODO: these functions can be generated using a small script
 
-PyObject *createUnaryOperation(PyObject *, PyObject *pyargs, PyObject *pykwds) {
-    PY_TRY
-        static char const *kwlist[] = {"unary_operation", "left", nullptr};
-        PyObject* vals[] = { nullptr, nullptr };
-        if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OO", const_cast<char**>(kwlist), &vals[0], &vals[1])) { return nullptr; }
-        return AST::new_(ASTType::TermUnaryOperation, kwlist, vals);
-    PY_CATCH(nullptr);
+#define CREATE1(N,T,arg) \
+PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
+    PY_TRY \
+        static char const *kwlist[] = {#arg, nullptr}; \
+        PyObject* vals[] = { nullptr }; \
+        if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "O", const_cast<char**>(kwlist), &vals[0])) { return nullptr; } \
+        return AST::new_(ASTType::T##N, kwlist, vals); \
+    PY_CATCH(nullptr); \
 }
-
-PyObject *createBinaryOperation(PyObject *, PyObject *pyargs, PyObject *pykwds) {
-    PY_TRY
-        static char const *kwlist[] = {"binary_operation", "left", "right", nullptr};
-        PyObject* vals[] = { nullptr, nullptr, nullptr };
-        if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2])) { return nullptr; }
-        return AST::new_(ASTType::TermBinaryOperation, kwlist, vals);
-    PY_CATCH(nullptr);
+#define CREATE2(N,T,a1,a2) \
+PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
+    PY_TRY \
+        static char const *kwlist[] = {#a1,#a2, nullptr}; \
+        PyObject* vals[] = { nullptr, nullptr }; \
+        if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OO", const_cast<char**>(kwlist), &vals[0], &vals[1])) { return nullptr; } \
+        return AST::new_(ASTType::T##N, kwlist, vals); \
+    PY_CATCH(nullptr); \
 }
-
-/*
+#define CREATE3(N,T,a1,a2,a3) \
+PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
+    PY_TRY \
+        static char const *kwlist[] = {#a1, #a2, #a3, nullptr}; \
+        PyObject* vals[] = { nullptr, nullptr }; \
+        if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2])) { return nullptr; } \
+        return AST::new_(ASTType::T##N, kwlist, vals); \
+    PY_CATCH(nullptr); \
+}
 
 // {{{2 terms
 
-// variable
+CREATE1(Variable, Term, name)
+CREATE1(Symbol, Term, symbol)
+CREATE2(UnaryOperation, Term, unary_operator, argument)
+CREATE3(BinaryOperation, Term, binary_operator, left, right)
+CREATE2(Interval, Term, left, right)
+CREATE2(Function, Term, name, arguments)
+CREATE1(Pool, Term, arguments)
 
-struct Variable;
-struct UnaryOperation;
-struct BinaryOperation;
-struct Interval;
-struct Function;
-struct Pool;
+struct UnaryOperator : EnumType<UnaryOperator> {
+    static constexpr char const *tp_type = "UnaryOperator";
+    static constexpr char const *tp_name = "clingo.ast.UnaryOperator";
+    static constexpr char const *tp_doc =
+R"(Enumeration of unary operators.
 
-struct Term {
-    Location location;
-    Variant<Symbol, Variable, UnaryOperation, BinaryOperation, Interval, Function, Pool> data;
+UnaryOperator.Negation -- bitwise negation
+UnaryOperator.Minus    -- unary minus
+UnaryOperator.Absolute -- absolute value
+)";
+
+    static constexpr clingo_ast_unary_operator_t values[] = {
+        clingo_ast_unary_operator_absolute,
+        clingo_ast_unary_operator_minus,
+        clingo_ast_unary_operator_negation,
+    };
+    static constexpr const char * strings[] = {
+        "Absolute",
+        "Minus",
+        "Negation",
+    };
 };
-std::ostream &operator<<(std::ostream &out, Term const &term);
 
-// Variable
+constexpr clingo_ast_unary_operator_t UnaryOperator::values[];
+constexpr const char * UnaryOperator::strings[];
 
-struct Variable {
-    char const *name;
-};
-std::ostream &operator<<(std::ostream &out, Variable const &x);
+struct BinaryOperator : EnumType<BinaryOperator> {
+    static constexpr char const *tp_type = "BinaryOperator";
+    static constexpr char const *tp_name = "clingo.ast.BinaryOperator";
+    static constexpr char const *tp_doc =
+R"(Enumeration of binary operators.
 
-// unary operation
-
-enum UnaryOperator : clingo_ast_unary_operator_t {
-    Absolute = clingo_ast_unary_operator_absolute,
-    Minus    = clingo_ast_unary_operator_minus,
-    Negate   = clingo_ast_unary_operator_negate
-};
-
-inline char const *left_hand_side(UnaryOperator op) {
-    switch (op) {
-        case UnaryOperator::Absolute: { return "|"; }
-        case UnaryOperator::Minus:    { return "-"; }
-        case UnaryOperator::Negate:   { return "~"; }
+BinaryOperator.XOr            -- bitwise exclusive or
+BinaryOperator.Or             -- bitwise or
+BinaryOperator.And            -- bitwise and
+BinaryOperator.Plus           -- arithmetic addition
+BinaryOperator.Minus          -- arithmetic substraction and classical negation
+BinaryOperator.Multiplication -- arithmetic multipilcation
+BinaryOperator.Division       -- arithmetic division
+BinaryOperator.Modulo         -- arithmetic modulo
+)";
+    static constexpr clingo_ast_binary_operator_t values[] = {
+        clingo_ast_binary_operator_xor,
+        clingo_ast_binary_operator_or,
+        clingo_ast_binary_operator_and,
+        clingo_ast_binary_operator_plus,
+        clingo_ast_binary_operator_minus,
+        clingo_ast_binary_operator_multiplication,
+        clingo_ast_binary_operator_division,
+        clingo_ast_binary_operator_modulo,
+    };
+    static constexpr const char * strings[] = {
+        "XOr",
+        "Or",
+        "And",
+        "Plus",
+        "Minus",
+        "Multiplication",
+        "Division",
+        "Modulo",
+    };
+    static PyObject *tp_repr(EnumType *self) {
+        switch (self->offset) {
+            case 0: { return PyString_FromString("^"); }
+            case 1: { return PyString_FromString("|"); }
+            case 2: { return PyString_FromString("&"); }
+            case 3: { return PyString_FromString("+"); }
+            case 4: { return PyString_FromString("-"); }
+            case 5: { return PyString_FromString("*"); }
+            case 6: { return PyString_FromString("/"); }
+            case 7: { return PyString_FromString("\\"); }
+        }
+        return nullptr;
     }
-    return "";
-}
-
-inline char const *right_hand_side(UnaryOperator op) {
-    switch (op) {
-        case UnaryOperator::Absolute: { return "|"; }
-        case UnaryOperator::Minus:    { return ""; }
-        case UnaryOperator::Negate:   { return ""; }
-    }
-    return "";
-}
-
-struct UnaryOperation {
-    UnaryOperator unary_operator;
-    Term          argument;
-};
-std::ostream &operator<<(std::ostream &out, UnaryOperation const &x);
-
-// binary operation
-
-enum class BinaryOperator : clingo_ast_binary_operator_t {
-    XOr      = clingo_ast_binary_operator_xor,
-    Or       = clingo_ast_binary_operator_or,
-    And      = clingo_ast_binary_operator_and,
-    Add      = clingo_ast_binary_operator_plus,
-    Subtract = clingo_ast_binary_operator_minus,
-    Multiply = clingo_ast_binary_operator_multiplication,
-    Divide   = clingo_ast_binary_operator_division,
-    Modulo   = clingo_ast_binary_operator_modulo
 };
 
-inline std::ostream &operator<<(std::ostream &out, BinaryOperator op) {
-    switch (op) {
-        case BinaryOperator::XOr:      { out << "^"; break; }
-        case BinaryOperator::Or:       { out << "?"; break; }
-        case BinaryOperator::And:      { out << "&"; break; }
-        case BinaryOperator::Add:      { out << "+"; break; }
-        case BinaryOperator::Subtract: { out << "-"; break; }
-        case BinaryOperator::Multiply: { out << "*"; break; }
-        case BinaryOperator::Divide:   { out << "/"; break; }
-        case BinaryOperator::Modulo:   { out << "\\"; break; }
-    }
-    return out;
-}
+constexpr clingo_ast_binary_operator_t BinaryOperator::values[];
+constexpr const char * BinaryOperator::strings[];
 
-struct BinaryOperation {
-    BinaryOperator binary_operator;
-    Term           left;
-    Term           right;
-};
-std::ostream &operator<<(std::ostream &out, BinaryOperation const &x);
-
-// interval
-
-struct Interval {
-    Term left;
-    Term right;
-};
-std::ostream &operator<<(std::ostream &out, Interval const &x);
-
-// function
-
-struct Function {
-    char const *name;
-    std::vector<Term> arguments;
-    bool external;
-};
-std::ostream &operator<<(std::ostream &out, Function const &x);
-
-// pool
-
-struct Pool {
-    std::vector<Term> arguments;
-};
-std::ostream &operator<<(std::ostream &out, Pool const &x);
+/*
 
 // {{{2 csp
 
@@ -3967,9 +3958,13 @@ static PyObject *parseTerm(PyObject *, PyObject *objString) {
 // {{{1 gringo module
 
 static PyMethodDef clingoASTModuleMethods[] = {
-    {"Variable", (PyCFunction)AST::createVariable, METH_O, nullptr},
+    {"Variable", (PyCFunction)AST::createVariable, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"Symbol", (PyCFunction)AST::createSymbol, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"UnaryOperation", (PyCFunction)AST::createUnaryOperation, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"BinaryOperation", (PyCFunction)AST::createBinaryOperation, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"Interval", (PyCFunction)AST::createInterval, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"Function", (PyCFunction)AST::createFunction, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"Pool", (PyCFunction)AST::createPool, METH_VARARGS | METH_KEYWORDS, nullptr},
     {nullptr, nullptr, 0, nullptr}
 };
 static char const *clingoASTModuleDoc = "The clingo.ast-" GRINGO_VERSION " module.";
@@ -4123,8 +4118,8 @@ PyObject *initclingoast_() {
         Object m = Py_InitModule3("clingo.ast", clingoASTModuleMethods, clingoASTModuleDoc);
 #endif
         if (!m ||
-            !ComparisonOperator::initType(m) || !Sign::initType(m) || !Gringo::AST::AST::initType(m) ||
-            !ASTType::initType(m) ||
+            !ComparisonOperator::initType(m) || !Sign::initType(m)          || !Gringo::AST::AST::initType(m) ||
+            !ASTType::initType(m)            || !UnaryOperator::initType(m) || !BinaryOperator::initType(m)   ||
             false) { return nullptr; }
         return m.release();
     PY_CATCH(nullptr);

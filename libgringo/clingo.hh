@@ -1133,14 +1133,14 @@ std::ostream &operator<<(std::ostream &out, Variable const &x);
 enum UnaryOperator : clingo_ast_unary_operator_t {
     Absolute = clingo_ast_unary_operator_absolute,
     Minus    = clingo_ast_unary_operator_minus,
-    Negate   = clingo_ast_unary_operator_negate
+    Negation = clingo_ast_unary_operator_negation
 };
 
 inline char const *left_hand_side(UnaryOperator op) {
     switch (op) {
         case UnaryOperator::Absolute: { return "|"; }
         case UnaryOperator::Minus:    { return "-"; }
-        case UnaryOperator::Negate:   { return "~"; }
+        case UnaryOperator::Negation: { return "~"; }
     }
     return "";
 }
@@ -1149,7 +1149,7 @@ inline char const *right_hand_side(UnaryOperator op) {
     switch (op) {
         case UnaryOperator::Absolute: { return "|"; }
         case UnaryOperator::Minus:    { return ""; }
-        case UnaryOperator::Negate:   { return ""; }
+        case UnaryOperator::Negation: { return ""; }
     }
     return "";
 }
