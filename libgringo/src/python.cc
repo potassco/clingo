@@ -538,6 +538,10 @@ struct EnumType : ObjectBase<T> {
         }
         return PyErr_Format(PyExc_RuntimeError, "should not happen");
     }
+    template <class U>
+    static auto getValue(U *self) -> decltype(self->values[0]) {
+        return self->values[self->offset];
+    }
 
     static int addAttr() {
         for (unsigned i = 0; i < sizeof(T::values) / sizeof(*T::values); ++i) {
@@ -2589,11 +2593,58 @@ struct AST : ObjectBase<AST> {
         Py_XDECREF(self->fields_);
         type.tp_free(self);
     }
+    Object getValue(char const *key) {
+        Object value{PyDict_GetItemString(fields_, key), true};
+        if (!value) {
+            std::ostringstream oss;
+            oss << "expected " << key << " in AST";
+            throw std::runtime_error(oss.str());
+        }
+        return value;
+    }
+    static void printObject(std::ostream &out, PyObject *o) {
+        Object r = PyObject_Repr(o);
+        out << pyToCpp<char const *>(r.get());
+    }
+
     static PyObject *tp_repr(AST *self) {
         PY_TRY
-            // gigantic switch
-            (void)self;
-            throw std::logic_error("implement me!!!");
+            std::ostringstream out;
+            Object type = self->getValue("type");
+            auto inst = PyObject_IsInstance(type, reinterpret_cast<PyObject*>(&ASTType::type));
+            if (inst < 0) { return nullptr; }
+            if (!inst) { throw std::runtime_error("AST node with unknow type"); }
+            switch (ASTType::getValue(reinterpret_cast<ASTType*>(type.get()))) {
+                case ASTType::TermVariable: { return PyObject_Str(self->getValue("name")); }
+                case ASTType::TermSymbol:   { return PyObject_Repr(self->getValue("symbol")); }
+                case ASTType::TermUnaryOperation: {
+                    printObject(out, self->getValue("argument"));
+                    throw std::logic_error("unary operation...");
+                }
+                case ASTType::TermBinaryOperation: {
+                    // TODO: make this more compact
+                    //       see c++ interface ...
+                    out << "(";
+                    printObject(out, self->getValue("left"));
+                    printObject(out, self->getValue("binary_operator"));
+                    printObject(out, self->getValue("right"));
+                    out << ")";
+                    return cppToPy(out.str()).release();
+                }
+                case ASTType::TermInterval: {
+                    out << "(";
+                    printObject(out, self->getValue("left"));
+                    out << "..";
+                    printObject(out, self->getValue("right"));
+                    out << ")";
+                }
+                case ASTType::TermFunction: {
+                    throw std::logic_error("implement me!!!");
+                }
+                case ASTType::TermPool: {
+                    throw std::logic_error("implement me!!!");
+                }
+            }
         PY_CATCH(nullptr);
     }
     static long tp_hash(AST *self) {
