@@ -89,6 +89,7 @@ void incRef(T *object) {
 
 struct PyException : std::exception { };
 
+struct Iter;
 struct Object {
     Object()
     : obj(nullptr) { }
@@ -102,18 +103,59 @@ struct Object {
     Object(Object &&other) : obj(other.obj) {
         other.obj = nullptr;
     }
+    // {{{2 object protocol
+    template <class... Args>
+    Object call(char const *name, Args &&... args) {
+        return PyObject_CallMethodObjArgs(obj, Object{PyString_FromString(name)}, static_cast<PyObject*>(args)..., nullptr);
+    }
+    ssize_t size() {
+        auto ret = PyObject_Size(obj);
+        if (PyErr_Occurred()) { throw PyException(); }
+        return ret;
+    }
+    bool empty() { return size() == 0; }
+    Object getItem(Object o) {
+        return PyObject_GetItem(obj, o);
+    }
+    Object getItem(char const *key) {
+        return PyObject_GetItem(obj, Object{PyString_FromString(key)});
+    }
+    Object repr() { return PyObject_Repr(obj); }
+    Object str() { return PyObject_Str(obj); }
+    bool isTrue() {
+        auto ret = PyObject_IsTrue(obj);
+        if (PyErr_Occurred()) { throw PyException(); }
+        return ret;
+    }
+    bool isInstance(PyObject *type) {
+        auto inst = PyObject_IsInstance(obj, type);
+        if (PyErr_Occurred()) { throw PyException(); }
+        return inst;
+    }
+    Iter iter();
+
+    // }}}2
     bool none() const                      { return obj == Py_None; }
     bool valid() const                     { return obj; }
     PyObject *get() const                  { return obj; }
     PyObject *release()                    { PyObject *ret = obj; obj = nullptr; return ret; }
     PyObject *operator->() const           { return get(); }
-    operator bool() const                  { return valid(); }
+    explicit operator bool() const         { return valid(); }
     operator PyObject*() const             { return get(); }
     Object &operator=(PyObject *other)     { Py_XDECREF(obj); obj = other; return *this; }
     Object &operator=(Object const &other) { Py_XDECREF(obj); obj = other.obj; Py_XINCREF(obj); return *this; }
     ~Object()                              { Py_XDECREF(obj); }
     PyObject *obj;
 };
+
+struct Iter {
+    Object next() {
+        return {PyIter_Next(iter)};
+    }
+    Object iter;
+};
+Iter Object::iter() { return {PyObject_GetIter(obj)}; }
+
 
 // NOTE: all the functions below can use execptions
 //       to remove all the annoying return value checking
@@ -247,6 +289,42 @@ T pyToCpp(PyObject *py) {
     T ret;
     pyToCpp(py, ret);
     return ret;
+}
+
+std::ostream &operator<<(std::ostream &out, PyObject *o) {
+    return out << pyToCpp<char const *>(Object{PyObject_Str(o)}.get());
+}
+
+std::ostream &operator<<(std::ostream &out, Object o) {
+    return out << o.get();
+}
+
+struct PrintWrapper {
+    Object list;
+    char const *pre;
+    char const *sep;
+    char const *post;
+    bool empty;
+    friend std::ostream &operator<<(std::ostream &out, PrintWrapper x) {
+        auto it = x.list.iter();
+        if (Object o = it.next()) {
+            out << x.pre;
+            out << o;
+            while ((o = it.next())) {
+                out << x.sep << o;
+            }
+            out << x.post;
+        }
+        else if (x.empty) {
+            out << x.pre;
+            out << x.post;
+        }
+        return out;
+    }
+};
+
+PrintWrapper printList(Object list, char const *pre, char const *sep, char const *post, bool empty) {
+    return {list, pre, sep, post, empty};
 }
 
 PyObject *cppToPy(Symbol val);
@@ -2434,6 +2512,47 @@ choice -- whether to add a disjunctive or choice rule (Default: False)
 
 namespace AST {
 
+// {{{2 macros
+
+#define CREATE1(N,a1) \
+PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
+    PY_TRY \
+        static char const *kwlist[] = {#a1, nullptr}; \
+        PyObject* vals[] = { nullptr }; \
+        if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "O", const_cast<char**>(kwlist), &vals[0])) { return nullptr; } \
+        return AST::new_(ASTType::N, kwlist, vals); \
+    PY_CATCH(nullptr); \
+}
+#define CREATE2(N,a1,a2) \
+PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
+    PY_TRY \
+        static char const *kwlist[] = {#a1,#a2, nullptr}; \
+        PyObject* vals[] = { nullptr, nullptr }; \
+        if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OO", const_cast<char**>(kwlist), &vals[0], &vals[1])) { return nullptr; } \
+        return AST::new_(ASTType::N, kwlist, vals); \
+    PY_CATCH(nullptr); \
+}
+#define CREATE3(N,a1,a2,a3) \
+PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
+    PY_TRY \
+        static char const *kwlist[] = {#a1, #a2, #a3, nullptr}; \
+        PyObject* vals[] = { nullptr, nullptr, nullptr }; \
+        if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2])) { return nullptr; } \
+        return AST::new_(ASTType::N, kwlist, vals); \
+    PY_CATCH(nullptr); \
+}
+#define CREATE4(N,a1,a2,a3,a4) \
+PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
+    PY_TRY \
+        static char const *kwlist[] = {#a1, #a2, #a3, #a4, nullptr}; \
+        PyObject* vals[] = { nullptr, nullptr, nullptr, nullptr }; \
+        if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2], &vals[3])) { return nullptr; } \
+        return AST::new_(ASTType::N, kwlist, vals); \
+    PY_CATCH(nullptr); \
+}
+
+// {{{2 enums
+
 struct ComparisonOperator : EnumType<ComparisonOperator> {
     static constexpr char const *tp_type = "ComparisonOperator";
     static constexpr char const *tp_name = "clingo.ast.ComparisonOperator";
@@ -2480,32 +2599,31 @@ constexpr clingo_ast_comparison_operator_t ComparisonOperator::values[];
 constexpr const char * ComparisonOperator::strings[];
 
 struct ASTType : EnumType<ASTType> {
-    enum T { TermVariable, TermSymbol, TermUnaryOperation, TermBinaryOperation, TermInterval, TermFunction, TermPool };
+    enum T {
+        Id,
+        Variable, Symbol, UnaryOperation, BinaryOperation, Interval, Function, Pool,
+        CSPProduct, CSPSum, CSPGuard,
+        CSPLiteral,
+    };
     static constexpr char const *tp_type = "ASTType";
     static constexpr char const *tp_name = "clingo.ast.ASTType";
     static constexpr char const *tp_doc =
 R"(Enumeration of ast node types.
 
-ASTType.TermVariable -- variable in a term
+ASTType.Variable -- variable in a term
 and many more...)";
 
     static constexpr T values[] = {
-        TermVariable,
-        TermSymbol,
-        TermUnaryOperation,
-        TermBinaryOperation,
-        TermInterval,
-        TermFunction,
-        TermPool,
+        Id,
+        Variable, Symbol, UnaryOperation, BinaryOperation, Interval, Function, Pool,
+        CSPProduct, CSPSum, CSPGuard,
+        CSPLiteral
     };
     static constexpr const char * strings[] = {
-        "TermVariable",
-        "TermSymbol",
-        "TermUnaryOperation",
-        "TermBinaryOperation",
-        "TermInterval",
-        "TermFunction",
-        "TermPool",
+        "Id",
+        "Variable", "Symbol", "UnaryOperation", "BinaryOperation", "Interval", "Function", "Pool",
+        "CSPProduct", "CSPSum", "CSPGuard",
+        "CSPLiteral",
     };
 };
 
@@ -2545,168 +2663,9 @@ Sign.DoubleNegation -- not not)";
 constexpr clingo_ast_sign_t Sign::values[];
 constexpr const char * Sign::strings[];
 
-struct AST : ObjectBase<AST> {
-    PyObject *fields_;
-    static constexpr char const *tp_type = "AST";
-    static constexpr char const *tp_name = "clingo.ast.AST";
-    static constexpr char const *tp_doc = "Node in the abstract syntax tree.";
-    static PyObject *new_(ASTType::T t) {
-        PY_TRY
-            AST *self = reinterpret_cast<AST*>(type.tp_alloc(&type, 0));
-            if (!self) { return nullptr; }
-            self->fields_ = PyDict_New();
-            if (!self->fields_) { return nullptr; }
-            Object pyt = ASTType::getAttr(t);
-            if (PyDict_SetItemString(self->fields_, "type", pyt.get()) < 0) { return nullptr; }
-            return reinterpret_cast<PyObject*>(self);
-        PY_CATCH(nullptr);
-    }
-    static PyObject *new_(ASTType::T type, char const **kwlist, PyObject**vals) {
-        PY_TRY
-            Object ret = new_(type);
-            auto jt = vals;
-            for (auto it = kwlist; *it; ++it) {
-                if (PyObject_SetAttrString(ret.get(), *it, *jt++) < 0) { return nullptr; }
-            }
-            return ret.release();
-        PY_CATCH(nullptr);
-    }
-    static int tp_setattro(AST *self, PyObject *name, PyObject *pyValue) {
-        PY_TRY
-            int ret = PyObject_HasAttr(reinterpret_cast<PyObject*>(self), name);
-            if (ret < 0) { return -1; }
-            return ret
-                ? PyObject_GenericSetAttr(reinterpret_cast<PyObject*>(self), name, pyValue)
-                : PyDict_SetItem(self->fields_, name, pyValue);
-        PY_CATCH(-1);
-    }
-    static PyObject *tp_getattro(AST *self, PyObject *name) {
-        PY_TRY
-            auto ret = PyDict_GetItem(self->fields_, name);
-            Py_XINCREF(ret);
-            return ret
-                ? ret
-                : PyObject_GenericGetAttr(reinterpret_cast<PyObject*>(self), name);
-        PY_CATCH(nullptr);
-    }
-    static void tp_dealloc(AST *self) {
-        Py_XDECREF(self->fields_);
-        type.tp_free(self);
-    }
-    Object getValue(char const *key) {
-        Object value{PyDict_GetItemString(fields_, key), true};
-        if (!value) {
-            std::ostringstream oss;
-            oss << "expected " << key << " in AST";
-            throw std::runtime_error(oss.str());
-        }
-        return value;
-    }
-    static void printObject(std::ostream &out, PyObject *o) {
-        Object r = PyObject_Repr(o);
-        out << pyToCpp<char const *>(r.get());
-    }
-
-    static PyObject *tp_repr(AST *self) {
-        PY_TRY
-            std::ostringstream out;
-            Object type = self->getValue("type");
-            auto inst = PyObject_IsInstance(type, reinterpret_cast<PyObject*>(&ASTType::type));
-            if (inst < 0) { return nullptr; }
-            if (!inst) { throw std::runtime_error("AST node with unknow type"); }
-            switch (ASTType::getValue(reinterpret_cast<ASTType*>(type.get()))) {
-                case ASTType::TermVariable: { return PyObject_Str(self->getValue("name")); }
-                case ASTType::TermSymbol:   { return PyObject_Repr(self->getValue("symbol")); }
-                case ASTType::TermUnaryOperation: {
-                    printObject(out, self->getValue("argument"));
-                    throw std::logic_error("unary operation...");
-                }
-                case ASTType::TermBinaryOperation: {
-                    // TODO: make this more compact
-                    //       see c++ interface ...
-                    out << "(";
-                    printObject(out, self->getValue("left"));
-                    printObject(out, self->getValue("binary_operator"));
-                    printObject(out, self->getValue("right"));
-                    out << ")";
-                    return cppToPy(out.str()).release();
-                }
-                case ASTType::TermInterval: {
-                    out << "(";
-                    printObject(out, self->getValue("left"));
-                    out << "..";
-                    printObject(out, self->getValue("right"));
-                    out << ")";
-                }
-                case ASTType::TermFunction: {
-                    throw std::logic_error("implement me!!!");
-                }
-                case ASTType::TermPool: {
-                    throw std::logic_error("implement me!!!");
-                }
-            }
-        PY_CATCH(nullptr);
-    }
-    static long tp_hash(AST *self) {
-        PY_TRY
-            // hash of the dictionary object excluding locations
-            (void)self;
-            throw std::logic_error("implement me!!!");
-        PY_CATCH(-1);
-    }
-    static PyObject *tp_richcompare(AST *self, PyObject *b, int op) {
-        PY_TRY
-            // compare the dictionary object excluding locations
-            CHECK_CMP(OBBASE(self), b, op)
-            throw std::logic_error("implement me!!!");
-        PY_CATCH(nullptr);
-    }
-    // TODO: from C which can reuse the create functions below
-    // TODO: to C
-    // TODO: the keys method of the dictionary should be exposed!
-};
-
-// TODO: these functions can be generated using a small script
-
-#define CREATE1(N,T,arg) \
-PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
-    PY_TRY \
-        static char const *kwlist[] = {#arg, nullptr}; \
-        PyObject* vals[] = { nullptr }; \
-        if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "O", const_cast<char**>(kwlist), &vals[0])) { return nullptr; } \
-        return AST::new_(ASTType::T##N, kwlist, vals); \
-    PY_CATCH(nullptr); \
-}
-#define CREATE2(N,T,a1,a2) \
-PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
-    PY_TRY \
-        static char const *kwlist[] = {#a1,#a2, nullptr}; \
-        PyObject* vals[] = { nullptr, nullptr }; \
-        if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OO", const_cast<char**>(kwlist), &vals[0], &vals[1])) { return nullptr; } \
-        return AST::new_(ASTType::T##N, kwlist, vals); \
-    PY_CATCH(nullptr); \
-}
-#define CREATE3(N,T,a1,a2,a3) \
-PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
-    PY_TRY \
-        static char const *kwlist[] = {#a1, #a2, #a3, nullptr}; \
-        PyObject* vals[] = { nullptr, nullptr }; \
-        if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2])) { return nullptr; } \
-        return AST::new_(ASTType::T##N, kwlist, vals); \
-    PY_CATCH(nullptr); \
-}
-
-// {{{2 terms
-
-CREATE1(Variable, Term, name)
-CREATE1(Symbol, Term, symbol)
-CREATE2(UnaryOperation, Term, unary_operator, argument)
-CREATE3(BinaryOperation, Term, binary_operator, left, right)
-CREATE2(Interval, Term, left, right)
-CREATE2(Function, Term, name, arguments)
-CREATE1(Pool, Term, arguments)
-
 struct UnaryOperator : EnumType<UnaryOperator> {
+    static PyMethodDef tp_methods[];
+
     static constexpr char const *tp_type = "UnaryOperator";
     static constexpr char const *tp_name = "clingo.ast.UnaryOperator";
     static constexpr char const *tp_doc =
@@ -2727,6 +2686,31 @@ UnaryOperator.Absolute -- absolute value
         "Minus",
         "Negation",
     };
+    static PyObject *leftHandSide(UnaryOperator *self) {
+        switch (static_cast<enum clingo_ast_unary_operator>(self->values[self->offset])) {
+            case clingo_ast_unary_operator_absolute: { return PyString_FromString("|"); }
+            case clingo_ast_unary_operator_minus:    { return PyString_FromString("-"); }
+            case clingo_ast_unary_operator_negation: { return PyString_FromString("~"); }
+        }
+        return PyString_FromString("");
+    }
+    static PyObject *rightHandSide(UnaryOperator *self) {
+        return self->values[self->offset] == clingo_ast_unary_operator_absolute
+            ? PyString_FromString("|")
+            : PyString_FromString("");
+    }
+};
+
+PyMethodDef UnaryOperator::tp_methods[] = {
+    { "left_hand_side", (PyCFunction)leftHandSide, METH_NOARGS,
+R"(left_hand_side(self) -> str
+
+Left-hand side representation of the operator.)"},
+    { "right_hand_side", (PyCFunction)rightHandSide, METH_NOARGS,
+R"(right_hand_side(self) -> str
+
+Right-hand side representation of the operator.)"},
+    { nullptr, nullptr, 0, nullptr }
 };
 
 constexpr clingo_ast_unary_operator_t UnaryOperator::values[];
@@ -2785,42 +2769,170 @@ BinaryOperator.Modulo         -- arithmetic modulo
 constexpr clingo_ast_binary_operator_t BinaryOperator::values[];
 constexpr const char * BinaryOperator::strings[];
 
+// }}}2
+
+struct AST : ObjectBase<AST> {
+    PyObject *fields_;
+    static constexpr char const *tp_type = "AST";
+    static constexpr char const *tp_name = "clingo.ast.AST";
+    static constexpr char const *tp_doc = "Node in the abstract syntax tree.";
+    static PyObject *new_(ASTType::T t) {
+        PY_TRY
+            AST *self = reinterpret_cast<AST*>(type.tp_alloc(&type, 0));
+            if (!self) { return nullptr; }
+            self->fields_ = PyDict_New();
+            if (!self->fields_) { return nullptr; }
+            Object pyt = ASTType::getAttr(t);
+            if (PyDict_SetItemString(self->fields_, "type", pyt.get()) < 0) { return nullptr; }
+            return reinterpret_cast<PyObject*>(self);
+        PY_CATCH(nullptr);
+    }
+    static PyObject *new_(ASTType::T type, char const **kwlist, PyObject**vals) {
+        PY_TRY
+            Object ret = new_(type);
+            auto jt = vals;
+            for (auto it = kwlist; *it; ++it) {
+                if (PyObject_SetAttrString(ret.get(), *it, *jt++) < 0) { return nullptr; }
+            }
+            return ret.release();
+        PY_CATCH(nullptr);
+    }
+    static int tp_setattro(AST *self, PyObject *name, PyObject *pyValue) {
+        PY_TRY
+            int ret = PyObject_HasAttr(reinterpret_cast<PyObject*>(self), name);
+            if (ret < 0) { return -1; }
+            return ret
+                ? PyObject_GenericSetAttr(reinterpret_cast<PyObject*>(self), name, pyValue)
+                : PyDict_SetItem(self->fields_, name, pyValue);
+        PY_CATCH(-1);
+    }
+    static PyObject *tp_getattro(AST *self, PyObject *name) {
+        PY_TRY
+            auto ret = PyDict_GetItem(self->fields_, name);
+            Py_XINCREF(ret);
+            return ret
+                ? ret
+                : PyObject_GenericGetAttr(reinterpret_cast<PyObject*>(self), name);
+        PY_CATCH(nullptr);
+    }
+    static void tp_dealloc(AST *self) {
+        Py_XDECREF(self->fields_);
+        type.tp_free(self);
+    }
+    Object getValue(char const *key) {
+        Object value{PyDict_GetItemString(fields_, key), true};
+        if (!value) {
+            std::ostringstream oss;
+            oss << "expected " << key << " in AST";
+            throw std::runtime_error(oss.str());
+        }
+        return value;
+    }
+
+    static PyObject *tp_repr(AST *self) {
+        PY_TRY
+            std::ostringstream out;
+            Object type = self->getValue("type");
+            if (!type.isInstance(reinterpret_cast<PyObject*>(&ASTType::type))) {
+                throw std::runtime_error("AST node with unknow type");
+            }
+            switch (ASTType::getValue(reinterpret_cast<ASTType*>(type.get()))) {
+                // {{{2 terms
+                case ASTType::Id: { return self->getValue("id").str().release(); }
+                case ASTType::Variable: { return self->getValue("name").str().release(); }
+                case ASTType::Symbol:   { return self->getValue("symbol").str().release(); }
+                case ASTType::UnaryOperation: {
+                    Object unop = self->getValue("unary_operator");
+                    out << unop.call("left_hand_side") << self->getValue("argument") << unop.call("right_hand_side");
+                    break;
+                }
+                case ASTType::BinaryOperation: {
+                    out << "(" << self->getValue("left") << self->getValue("binary_operator") << self->getValue("right") << ")";
+                    break;
+                }
+                case ASTType::Interval: {
+                    out << "(" << self->getValue("left") << ".." << self->getValue("right") << ")";
+                    break;
+                }
+                case ASTType::Function: {
+                    Object name = self->getValue("name"), args = self->getValue("arguments");
+                    bool tc = name.size() == 0 && args.size() == 1;
+                    bool ey = name.size() == 0 && args.size() > 0;
+                    out << (self->getValue("external").isTrue() ? "@" : "") << name << printList(args, "(", ",", tc ? ",)" : ")", ey);
+                    break;
+                }
+                case ASTType::Pool: {
+                    Object args = self->getValue("arguments");
+                    if (args.empty()) { out << "(1/0)"; }
+                    else              { out << printList(args, "(", ";", ")", true); }
+                    break;
+                }
+                case ASTType::CSPProduct: {
+                    auto var = self->getValue("variable");
+                    auto coe = self->getValue("coefficient");
+                    if (!var.none()) { out << coe << "$*" << "$" << var; }
+                    else             { out << coe; }
+                    break;
+                }
+                case ASTType::CSPSum: {
+                    auto terms = self->getValue("terms");
+                    if (terms.empty()) { out << "0"; }
+                    else               { out << printList(terms, "", "$+", "", false); }
+                    break;
+                }
+                case ASTType::CSPGuard: {
+                    out << "$" << self->getValue("comparison") << self->getValue("term");
+                    break;
+                }
+                // {{{2 literals
+                case ASTType::CSPLiteral: {
+                    out << self->getValue("term") << printList(self->getValue("guards"), "", "", "", false);
+                    break;
+                }
+                // }}}2
+            }
+            return cppToPy(out.str()).release();
+        PY_CATCH(nullptr);
+    }
+    static long tp_hash(AST *self) {
+        PY_TRY
+            // hash of the dictionary object excluding locations
+            (void)self;
+            throw std::logic_error("implement me!!!");
+        PY_CATCH(-1);
+    }
+    static PyObject *tp_richcompare(AST *self, PyObject *b, int op) {
+        PY_TRY
+            // compare the dictionary object excluding locations
+            CHECK_CMP(OBBASE(self), b, op)
+            throw std::logic_error("implement me!!!");
+        PY_CATCH(nullptr);
+    }
+    // TODO: from C which can reuse the create functions below
+    // TODO: to C
+    // TODO: the keys method of the dictionary should be exposed!
+};
+
+// {{{2 terms
+
+CREATE2(Id, location, id)
+CREATE2(Variable, location, name)
+CREATE2(Symbol, location, symbol)
+CREATE3(UnaryOperation, location, unary_operator, argument)
+CREATE4(BinaryOperation, location, binary_operator, left, right)
+CREATE3(Interval, location, left, right)
+CREATE4(Function, location, name, arguments, external)
+CREATE2(Pool, location, arguments)
+CREATE3(CSPProduct, location, coefficient, variable)
+CREATE2(CSPSum, location, terms)
+CREATE2(CSPGuard, comparison, term)
+
+// {{{2 literals
+
+CREATE3(CSPLiteral, location, term, guards)
+
 /*
-
 // {{{2 csp
-
-struct CSPMultiply {
-    Location location;
-    Term coefficient;
-    Optional<Term> variable;
-};
-std::ostream &operator<<(std::ostream &out, CSPMultiply const &x);
-
-struct CSPAdd {
-    Location location;
-    std::vector<CSPMultiply> terms;
-};
-std::ostream &operator<<(std::ostream &out, CSPAdd const &x);
-
-struct CSPGuard {
-    ComparisonOperator comparison;
-    CSPAdd term;
-};
-std::ostream &operator<<(std::ostream &out, CSPGuard const &x);
-
-struct CSPLiteral {
-    CSPAdd term;
-    std::vector<CSPGuard> guards;
-};
-std::ostream &operator<<(std::ostream &out, CSPLiteral const &x);
-
-// {{{2 ids
-
-struct Id {
-    Location location;
-    char const *id;
-};
-std::ostream &operator<<(std::ostream &out, Id const &x);
 
 // {{{2 literals
 
@@ -2928,7 +3040,7 @@ std::ostream &operator<<(std::ostream &out, Disjunction const &x);
 struct DisjointElement {
     Location location;
     std::vector<Term> tuple;
-    CSPAdd term;
+    CSPSum term;
     std::vector<Literal> condition;
 };
 std::ostream &operator<<(std::ostream &out, DisjointElement const &x);
@@ -4009,6 +4121,7 @@ static PyObject *parseTerm(PyObject *, PyObject *objString) {
 // {{{1 gringo module
 
 static PyMethodDef clingoASTModuleMethods[] = {
+    {"Id", (PyCFunction)AST::createId, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"Variable", (PyCFunction)AST::createVariable, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"Symbol", (PyCFunction)AST::createSymbol, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"UnaryOperation", (PyCFunction)AST::createUnaryOperation, METH_VARARGS | METH_KEYWORDS, nullptr},
@@ -4016,6 +4129,10 @@ static PyMethodDef clingoASTModuleMethods[] = {
     {"Interval", (PyCFunction)AST::createInterval, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"Function", (PyCFunction)AST::createFunction, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"Pool", (PyCFunction)AST::createPool, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"CSPProduct", (PyCFunction)AST::createCSPProduct, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"CSPSum", (PyCFunction)AST::createCSPSum, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"CSPGuard", (PyCFunction)AST::createCSPGuard, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"CSPLiteral", (PyCFunction)AST::createCSPLiteral, METH_VARARGS | METH_KEYWORDS, nullptr},
     {nullptr, nullptr, 0, nullptr}
 };
 static char const *clingoASTModuleDoc = "The clingo.ast-" GRINGO_VERSION " module.";
