@@ -969,17 +969,17 @@ struct ASTToC {
         return createArray_(x, static_cast<clingo_ast_term_t (ASTToC::*)(Term const &)>(&ASTToC::convTerm));
     }
 
-    clingo_ast_csp_product_term_t convCSPMultiply(CSPMultiply const &x) {
+    clingo_ast_csp_product_term_t convCSPProduct(CSPProduct const &x) {
         clingo_ast_csp_product_term_t ret;
         ret.location    = x.location;
         ret.variable    = convTerm(x.variable);
         ret.coefficient = convTerm(x.coefficient);
         return ret;
     }
-    clingo_ast_csp_sum_term_t convCSPAdd(CSPAdd const &x) {
+    clingo_ast_csp_sum_term_t convCSPAdd(CSPSum const &x) {
         clingo_ast_csp_sum_term_t ret;
         ret.location = x.location;
-        ret.terms    = createArray_(x.terms, &ASTToC::convCSPMultiply);
+        ret.terms    = createArray_(x.terms, &ASTToC::convCSPProduct);
         ret.size     = x.terms.size();
         return ret;
     }
@@ -1870,13 +1870,13 @@ Optional<Term> convTerm(clingo_ast_term_t const *term) {
 
 // csp
 
-CSPMultiply convCSPMultiply(clingo_ast_csp_product_term const &term) {
+CSPProduct convCSPProduct(clingo_ast_csp_product_term const &term) {
     return {Location{term.location}, convTerm(term.coefficient), convTerm(term.variable)};
 }
-ARR(clingo_ast_csp_product_term, CSPMultiply)
+ARR(clingo_ast_csp_product_term, CSPProduct)
 
-CSPAdd convCSPAdd(clingo_ast_csp_sum_term_t const &term) {
-    return {Location{term.location}, convCSPMultiplyVec(term.terms, term.size)};
+CSPSum convCSPAdd(clingo_ast_csp_sum_term_t const &term) {
+    return {Location{term.location}, convCSPProductVec(term.terms, term.size)};
 }
 
 // theory
@@ -2332,23 +2332,19 @@ std::ostream &operator<<(std::ostream &out, CSPGuard const &x) {
     return out;
 }
 
-std::ostream &operator<<(std::ostream &out, CSPAdd const &x) {
+std::ostream &operator<<(std::ostream &out, CSPSum const &x) {
     if (x.terms.empty()) { out << "0"; }
     else                 { out << print(x.terms, "", "$+", "", false); }
     return out;
 }
 
-std::ostream &operator<<(std::ostream &out, CSPMultiply const &x) {
+std::ostream &operator<<(std::ostream &out, CSPProduct const &x) {
     if (x.variable) { out << x.coefficient << "$*" << *x.variable.get(); }
     else            { out << x.coefficient; }
     return out;
 }
 
 std::ostream &operator<<(std::ostream &out, Pool const &x) {
-    // NOTE: at the momement the program builder is very explicit about pool arguments of literals
-    //       this should be relaxed a bit to make the interface simpler
-    //       if during rewriting a term that is not function is encountered in a literal
-    //       then there should be a runtime error
     // NOTE: there is no representation for an empty pool
     if (x.arguments.empty()) { out << "(1/0)"; }
     else                     { out << print(x.arguments, "(", ";", ")", true); }

@@ -1220,27 +1220,27 @@ std::ostream &operator<<(std::ostream &out, Pool const &x);
 
 // {{{2 csp
 
-struct CSPMultiply {
+struct CSPProduct {
     Location location;
     Term coefficient;
     Optional<Term> variable;
 };
-std::ostream &operator<<(std::ostream &out, CSPMultiply const &x);
+std::ostream &operator<<(std::ostream &out, CSPProduct const &x);
 
-struct CSPAdd {
+struct CSPSum {
     Location location;
-    std::vector<CSPMultiply> terms;
+    std::vector<CSPProduct> terms;
 };
-std::ostream &operator<<(std::ostream &out, CSPAdd const &x);
+std::ostream &operator<<(std::ostream &out, CSPSum const &x);
 
 struct CSPGuard {
     ComparisonOperator comparison;
-    CSPAdd term;
+    CSPSum term;
 };
 std::ostream &operator<<(std::ostream &out, CSPGuard const &x);
 
 struct CSPLiteral {
-    CSPAdd term;
+    CSPSum term;
     std::vector<CSPGuard> guards;
 };
 std::ostream &operator<<(std::ostream &out, CSPLiteral const &x);
@@ -1359,7 +1359,7 @@ std::ostream &operator<<(std::ostream &out, Disjunction const &x);
 struct DisjointElement {
     Location location;
     std::vector<Term> tuple;
-    CSPAdd term;
+    CSPSum term;
     std::vector<Literal> condition;
 };
 std::ostream &operator<<(std::ostream &out, DisjointElement const &x);
