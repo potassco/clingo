@@ -120,6 +120,9 @@ struct Object {
     Object getItem(char const *key) {
         return PyObject_GetItem(obj, Object{PyString_FromString(key)});
     }
+    Object getAttr(char const *key) {
+        return PyObject_GetAttrString(obj, key);
+    }
     Object repr() { return PyObject_Repr(obj); }
     Object str() { return PyObject_Str(obj); }
     bool isTrue() {
@@ -2550,8 +2553,67 @@ PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
         return AST::new_(ASTType::N, kwlist, vals); \
     PY_CATCH(nullptr); \
 }
+#define CREATE5(N,a1,a2,a3,a4,a5) \
+PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
+    PY_TRY \
+        static char const *kwlist[] = {#a1, #a2, #a3, #a4, #a5, nullptr}; \
+        PyObject* vals[] = { nullptr, nullptr, nullptr, nullptr, nullptr }; \
+        if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOOOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2], &vals[3], &vals[4])) { return nullptr; } \
+        return AST::new_(ASTType::N, kwlist, vals); \
+    PY_CATCH(nullptr); \
+}
+#define CREATE6(N,a1,a2,a3,a4,a5,a6) \
+PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
+    PY_TRY \
+        static char const *kwlist[] = {#a1, #a2, #a3, #a4, #a5, #a6, nullptr, nullptr}; \
+        PyObject* vals[] = { nullptr, nullptr, nullptr, nullptr, nullptr }; \
+        if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOOOOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2], &vals[3], &vals[4], &vals[5])) { return nullptr; } \
+        return AST::new_(ASTType::N, kwlist, vals); \
+    PY_CATCH(nullptr); \
+}
 
 // {{{2 enums
+
+struct AggregateFunction : EnumType<AggregateFunction> {
+    static constexpr char const *tp_type = "AggregateFunction";
+    static constexpr char const *tp_name = "clingo.ast.AggregateFunction";
+    static constexpr char const *tp_doc =
+R"(Enumeration of aggegate functions.
+
+AggregateFunction.Count   -- the #count function
+AggregateFunction.Sum     -- the #sum function
+AggregateFunction.SumPlus -- the #sum+ function
+AggregateFunction.Min     -- the #min function
+AggregateFunction.Max     -- the #max function)";
+
+    static constexpr clingo_ast_aggregate_function_t values[] = {
+        clingo_ast_aggregate_function_count,
+        clingo_ast_aggregate_function_sum,
+        clingo_ast_aggregate_function_sump,
+        clingo_ast_aggregate_function_min,
+        clingo_ast_aggregate_function_max
+    };
+    static constexpr const char * strings[] = {
+        "Count",
+        "Sum",
+        "SumPlus",
+        "Min",
+        "Max",
+    };
+    static PyObject *tp_repr(EnumType *self) {
+        switch (static_cast<enum clingo_ast_aggregate_function>(values[self->offset])) {
+            case clingo_ast_aggregate_function_count: { return PyString_FromString("#count"); }
+            case clingo_ast_aggregate_function_sum:   { return PyString_FromString("#sum"); }
+            case clingo_ast_aggregate_function_sump:  { return PyString_FromString("#sum+"); }
+            case clingo_ast_aggregate_function_min:   { return PyString_FromString("#min"); }
+            case clingo_ast_aggregate_function_max:   { return PyString_FromString("#max"); }
+        }
+        return nullptr;
+    }
+};
+
+constexpr clingo_ast_aggregate_function_t AggregateFunction::values[];
+constexpr const char * AggregateFunction::strings[];
 
 struct ComparisonOperator : EnumType<ComparisonOperator> {
     static constexpr char const *tp_type = "ComparisonOperator";
@@ -2603,27 +2665,27 @@ struct ASTType : EnumType<ASTType> {
         Id,
         Variable, Symbol, UnaryOperation, BinaryOperation, Interval, Function, Pool,
         CSPProduct, CSPSum, CSPGuard,
-        CSPLiteral,
+        BooleanLiteral, SymbolicLiteral, ComparisonLiteral, CSPLiteral,
+        AggregateGuard, ConditionalLiteral, BodyLiteralAggregate, BodyTupleAggregateElement, BodyTupleAggregate, HeadLiteralAggregate, HeadTupleAggregateElement, HeadTupleAggregate, Disjunction, DisjointElement, Disjoint,
     };
     static constexpr char const *tp_type = "ASTType";
     static constexpr char const *tp_name = "clingo.ast.ASTType";
     static constexpr char const *tp_doc =
-R"(Enumeration of ast node types.
-
-ASTType.Variable -- variable in a term
-and many more...)";
+R"(Enumeration of ast node types.)";
 
     static constexpr T values[] = {
         Id,
         Variable, Symbol, UnaryOperation, BinaryOperation, Interval, Function, Pool,
         CSPProduct, CSPSum, CSPGuard,
-        CSPLiteral
+        BooleanLiteral, SymbolicLiteral, ComparisonLiteral, CSPLiteral,
+        AggregateGuard, ConditionalLiteral, BodyLiteralAggregate, BodyTupleAggregateElement, BodyTupleAggregate, HeadLiteralAggregate, HeadTupleAggregateElement, HeadTupleAggregate, Disjunction, DisjointElement, Disjoint,
     };
     static constexpr const char * strings[] = {
         "Id",
         "Variable", "Symbol", "UnaryOperation", "BinaryOperation", "Interval", "Function", "Pool",
         "CSPProduct", "CSPSum", "CSPGuard",
-        "CSPLiteral",
+        "BooleanLiteral", "SymbolicLiteral", "ComparisonLiteral", "CSPLiteral",
+        "AggregateGuard", "ConditionalLiteral", "BodyLiteralAggregate", "BodyTupleAggregateElement", "BodyTupleAggregate", "HeadLiteralAggregate", "HeadTupleAggregateElement", "HeadTupleAggregate", "Disjunction", "DisjointElement", "Disjoint",
     };
 };
 
@@ -2837,7 +2899,7 @@ struct AST : ObjectBase<AST> {
                 throw std::runtime_error("AST node with unknow type");
             }
             switch (ASTType::getValue(reinterpret_cast<ASTType*>(type.get()))) {
-                // {{{2 terms
+                // {{{2 term
                 case ASTType::Id: { return self->getValue("id").str().release(); }
                 case ASTType::Variable: { return self->getValue("name").str().release(); }
                 case ASTType::Symbol:   { return self->getValue("symbol").str().release(); }
@@ -2880,15 +2942,89 @@ struct AST : ObjectBase<AST> {
                     else               { out << printList(terms, "", "$+", "", false); }
                     break;
                 }
+                // {{{2 literal
+                case ASTType::BooleanLiteral: {
+                    out << (self->getValue("value").isTrue() ? "#true" : "#false");
+                    break;
+                }
+                case ASTType::SymbolicLiteral: {
+                    out << self->getValue("sign") << self->getValue("term");
+                    break;
+                }
+                case ASTType::ComparisonLiteral: {
+                    out << self->getValue("left") << self->getValue("comparison") << self->getValue("right");
+                    break;
+                }
                 case ASTType::CSPGuard: {
                     out << "$" << self->getValue("comparison") << self->getValue("term");
                     break;
                 }
-                // {{{2 literals
                 case ASTType::CSPLiteral: {
                     out << self->getValue("term") << printList(self->getValue("guards"), "", "", "", false);
                     break;
                 }
+                // {{{2 aggregate
+                case ASTType::AggregateGuard: {
+                    out << "AggregateGuard(" << self->getValue("comparison") << ", " << self->getValue("term") << ")";
+                    break;
+                }
+                case ASTType::ConditionalLiteral: {
+                    out << self->getValue("literal") << printList(self->getValue("condition"), " : ", ", ", "", true);
+                    break;
+                }
+                case ASTType::BodyLiteralAggregate: {
+                    auto left = self->getValue("left_guard"), right = self->getValue("right_guard");
+                    out << self->getValue("sign");
+                    if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
+                    out << "{ " << printList(self->getValue("elements"), "", "; ", "", false) << " }";
+                    if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
+                    break;
+                }
+                case ASTType::BodyTupleAggregateElement: {
+                    out << printList(self->getValue("tuple"), "", ",", "", false) << " : " << printList(self->getValue("condition"), "", ", ", "", false);
+                    break;
+                }
+                case ASTType::BodyTupleAggregate: {
+                    auto left = self->getValue("left_guard"), right = self->getValue("right_guard");
+                    out << self->getValue("sign");
+                    if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
+                    out << self->getValue("function") << " { " << printList(self->getValue("elements"), "", "; ", "", false) << " }";
+                    if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
+                    break;
+                }
+                case ASTType::HeadLiteralAggregate: {
+                    auto left = self->getValue("left_guard"), right = self->getValue("right_guard");
+                    if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
+                    out << "{ " << printList(self->getValue("elements"), "", "; ", "", false) << " }";
+                    if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
+                    break;
+                }
+                case ASTType::HeadTupleAggregateElement: {
+                    out << printList(self->getValue("tuple"), "", ",", "", false) << " : " << self->getValue("condition");
+                    break;
+                }
+                case ASTType::HeadTupleAggregate: {
+                    auto left = self->getValue("left_guard"), right = self->getValue("right_guard");
+                    if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
+                    out << self->getValue("function") << " { " << printList(self->getValue("elements"), "", "; ", "", false) << " }";
+                    if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
+                    break;
+                }
+                case ASTType::Disjunction: {
+                    out << printList(self->getValue("elements"), "", "; ", "", false);
+                    break;
+                }
+                case ASTType::DisjointElement: {
+                    out << printList(self->getValue("tuple"), "", ",", "", false) << " : " << self->getValue("term") << " : " << printList(self->getValue("condition"), "", ",", "", false);
+                    break;
+                }
+                case ASTType::Disjoint: {
+                    out << self->getValue("sign") << "#disjoint { " << printList(self->getValue("elements"), "", "; ", "", false) << " }";
+                    break;
+                }
+                // {{{2 theory atom
+                // {{{2 theory definition
+                // {{{2 statement
                 // }}}2
             }
             return cppToPy(out.str()).release();
@@ -2925,131 +3061,30 @@ CREATE4(Function, location, name, arguments, external)
 CREATE2(Pool, location, arguments)
 CREATE3(CSPProduct, location, coefficient, variable)
 CREATE2(CSPSum, location, terms)
+
+// {{{2 literals
+
+CREATE2(BooleanLiteral, location, value)
+CREATE3(SymbolicLiteral, location, sign, term)
+CREATE4(ComparisonLiteral, location, comparison, left, right)
 CREATE2(CSPGuard, comparison, term)
-
-// {{{2 literals
-
 CREATE3(CSPLiteral, location, term, guards)
-
-/*
-// {{{2 csp
-
-// {{{2 literals
-
-struct Comparison {
-    ComparisonOperator comparison;
-    Term left;
-    Term right;
-};
-std::ostream &operator<<(std::ostream &out, Comparison const &x);
-
-struct Boolean {
-    bool value;
-};
-std::ostream &operator<<(std::ostream &out, Boolean const &x);
-
-struct Literal {
-    Location location;
-    Sign sign;
-    Variant<Boolean, Term, Comparison, CSPLiteral> data;
-};
-std::ostream &operator<<(std::ostream &out, Literal const &x);
 
 // {{{2 aggregates
 
-enum class AggregateFunction : clingo_ast_aggregate_function_t {
-    Count   = clingo_ast_aggregate_function_count,
-    Sum     = clingo_ast_aggregate_function_sum,
-    SumPlus = clingo_ast_aggregate_function_sump,
-    Min     = clingo_ast_aggregate_function_min,
-    Max     = clingo_ast_aggregate_function_max
-};
+CREATE2(AggregateGuard, comparison, term)
+CREATE3(ConditionalLiteral, location, literal, condition)
+CREATE5(BodyLiteralAggregate, location, sign, left_guard, elements, right_guard)
+CREATE2(BodyTupleAggregateElement, tuple, condition)
+CREATE6(BodyTupleAggregate, location, sign, left_guard, function, elements, right_guard)
+CREATE4(HeadLiteralAggregate, location, left_guard, elements, right_guard)
+CREATE2(HeadTupleAggregateElement, tuple, condition)
+CREATE5(HeadTupleAggregate, location, left_guard, function, elements, right_guard)
+CREATE2(Disjunction, location, elements)
+CREATE4(DisjointElement, location, tuple, term, condition)
+CREATE3(Disjoint, location, sign, elements)
 
-inline std::ostream &operator<<(std::ostream &out, AggregateFunction op) {
-    switch (op) {
-        case AggregateFunction::Count:   { out << "#count"; break; }
-        case AggregateFunction::Sum:     { out << "#sum"; break; }
-        case AggregateFunction::SumPlus: { out << "#sum+"; break; }
-        case AggregateFunction::Min:     { out << "#min"; break; }
-        case AggregateFunction::Max:     { out << "#max"; break; }
-    }
-    return out;
-}
-
-struct AggregateGuard {
-    ComparisonOperator comparison;
-    Term term;
-};
-
-struct ConditionalLiteral {
-    Literal literal;
-    std::vector<Literal> condition;
-};
-std::ostream &operator<<(std::ostream &out, ConditionalLiteral const &x);
-
-// lparse-style aggregate
-
-struct Aggregate {
-    std::vector<ConditionalLiteral> elements;
-    Optional<AggregateGuard> left_guard;
-    Optional<AggregateGuard> right_guard;
-};
-std::ostream &operator<<(std::ostream &out, Aggregate const &x);
-
-// body aggregate
-
-struct BodyAggregateElement {
-    std::vector<Term> tuple;
-    std::vector<Literal> condition;
-};
-std::ostream &operator<<(std::ostream &out, BodyAggregateElement const &x);
-
-struct BodyAggregate {
-    AggregateFunction function;
-    std::vector<BodyAggregateElement> elements;
-    Optional<AggregateGuard> left_guard;
-    Optional<AggregateGuard> right_guard;
-};
-std::ostream &operator<<(std::ostream &out, BodyAggregate const &x);
-
-// head aggregate
-
-struct HeadAggregateElement {
-    std::vector<Term> tuple;
-    ConditionalLiteral condition;
-};
-std::ostream &operator<<(std::ostream &out, HeadAggregateElement const &x);
-
-struct HeadAggregate {
-    AggregateFunction function;
-    std::vector<HeadAggregateElement> elements;
-    Optional<AggregateGuard> left_guard;
-    Optional<AggregateGuard> right_guard;
-};
-std::ostream &operator<<(std::ostream &out, HeadAggregate const &x);
-
-// disjunction
-
-struct Disjunction {
-    std::vector<ConditionalLiteral> elements;
-};
-std::ostream &operator<<(std::ostream &out, Disjunction const &x);
-
-// disjoint
-
-struct DisjointElement {
-    Location location;
-    std::vector<Term> tuple;
-    CSPSum term;
-    std::vector<Literal> condition;
-};
-std::ostream &operator<<(std::ostream &out, DisjointElement const &x);
-
-struct Disjoint {
-    std::vector<DisjointElement> elements;
-};
-std::ostream &operator<<(std::ostream &out, Disjoint const &x);
-
+/*
 // {{{2 theory atom
 
 enum class TheoryTermSequenceType : int {
@@ -3130,7 +3165,7 @@ std::ostream &operator<<(std::ostream &out, TheoryAtom const &x);
 
 struct HeadLiteral {
     Location location;
-    Variant<Literal, Disjunction, Aggregate, HeadAggregate, TheoryAtom> data;
+    Variant<Literal, Disjunction, Aggregate, HeadTupleAggregate, TheoryAtom> data;
 };
 std::ostream &operator<<(std::ostream &out, HeadLiteral const &x);
 
@@ -3139,7 +3174,7 @@ std::ostream &operator<<(std::ostream &out, HeadLiteral const &x);
 struct BodyLiteral {
     Location location;
     Sign sign;
-    Variant<Literal, ConditionalLiteral, Aggregate, BodyAggregate, TheoryAtom, Disjoint> data;
+    Variant<Literal, ConditionalLiteral, Aggregate, BodyTupleAggregate, TheoryAtom, Disjoint> data;
 };
 std::ostream &operator<<(std::ostream &out, BodyLiteral const &x);
 
@@ -4132,7 +4167,21 @@ static PyMethodDef clingoASTModuleMethods[] = {
     {"CSPProduct", (PyCFunction)AST::createCSPProduct, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"CSPSum", (PyCFunction)AST::createCSPSum, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"CSPGuard", (PyCFunction)AST::createCSPGuard, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"BooleanLiteral", (PyCFunction)AST::createBooleanLiteral, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"SymbolicLiteral", (PyCFunction)AST::createSymbolicLiteral, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"ComparisonLiteral", (PyCFunction)AST::createComparisonLiteral, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"CSPLiteral", (PyCFunction)AST::createCSPLiteral, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"AggregateGuard", (PyCFunction)AST::createAggregateGuard, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"ConditionalLiteral", (PyCFunction)AST::createConditionalLiteral, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"BodyLiteralAggregate", (PyCFunction)AST::createBodyLiteralAggregate, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"BodyTupleAggregateElement", (PyCFunction)AST::createBodyTupleAggregateElement, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"BodyTupleAggregate", (PyCFunction)AST::createBodyTupleAggregate, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"HeadLiteralAggregate", (PyCFunction)AST::createHeadLiteralAggregate, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"HeadTupleAggregateElement", (PyCFunction)AST::createHeadTupleAggregateElement, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"HeadTupleAggregate", (PyCFunction)AST::createHeadTupleAggregate, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"Disjunction", (PyCFunction)AST::createDisjunction, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"DisjointElement", (PyCFunction)AST::createDisjointElement, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"Disjoint", (PyCFunction)AST::createDisjoint, METH_VARARGS | METH_KEYWORDS, nullptr},
     {nullptr, nullptr, 0, nullptr}
 };
 static char const *clingoASTModuleDoc = "The clingo.ast-" GRINGO_VERSION " module.";
@@ -4288,6 +4337,7 @@ PyObject *initclingoast_() {
         if (!m ||
             !ComparisonOperator::initType(m) || !Sign::initType(m)          || !Gringo::AST::AST::initType(m) ||
             !ASTType::initType(m)            || !UnaryOperator::initType(m) || !BinaryOperator::initType(m)   ||
+            !AggregateFunction::initType(m)  ||
             false) { return nullptr; }
         return m.release();
     PY_CATCH(nullptr);
