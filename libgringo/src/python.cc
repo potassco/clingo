@@ -4377,7 +4377,7 @@ theory_term = Symbol
                , elements : TheoryUnparsedTermElement
                              ( operators : str*
                              , term      : theory_term
-                             )
+                             )+
                )
 
 -- Literals
@@ -4487,29 +4487,29 @@ head = literal
 -- Theory Definitions
 
 theory = TheoryDefinition
-          ( location  : Location
-          , name      : str
-          , terms     : TheoryTermDefinition
-                         ( location  : Location
-                         , name      : str
-                         , operators : TheoryOperatorDefinition
-                                        ( location      : Location
-                                        , name          : str
-                                        , priority      : int
-                                        , operator_type : TheoryOperatorType
-                                        )
-                         )
-          , atoms     : TheoryAtomDefinition
-                         ( location  : Location
-                         , atom_type : TheoryAtomType
-                         , name      : str
-                         , arity     : int
-                         , elements  : str*
-                         , guard     : TheoryGuardDefinition
-                                        ( operators : str*
-                                        , term      : str
-                                        )?
-                         )
+          ( location : Location
+          , name     : str
+          , terms    : TheoryTermDefinition
+                        ( location  : Location
+                        , name      : str
+                        , operators : TheoryOperatorDefinition
+                                       ( location      : Location
+                                       , name          : str
+                                       , priority      : int
+                                       , operator_type : TheoryOperatorType
+                                       )*
+                        )
+          , atoms    : TheoryAtomDefinition
+                        ( location  : Location
+                        , atom_type : TheoryAtomType
+                        , name      : str
+                        , arity     : int
+                        , elements  : str*
+                        , guard     : TheoryGuardDefinition
+                                       ( operators : str*
+                                       , term      : str
+                                       )?
+                        )
           )
 
 -- Statements
