@@ -790,7 +790,7 @@ typedef struct clingo_ast_theory_term_definition {
 } clingo_ast_theory_term_definition_t;
 
 typedef struct clingo_ast_theory_guard_definition {
-    char const *guard;
+    char const *term;
     char const *const *operators;
     size_t size;
 } clingo_ast_theory_guard_definition_t;

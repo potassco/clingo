@@ -1307,7 +1307,7 @@ struct ASTToC {
 
     clingo_ast_theory_guard_definition_t convTheoryGuardDefinition(TheoryGuardDefinition const &x) {
         clingo_ast_theory_guard_definition_t ret;
-        ret.guard     = x.guard;
+        ret.term      = x.term;
         ret.operators = createArray_(x.operators, &ASTToC::identity<char const *>);
         ret.size      = x.operators.size();
         return ret;
@@ -1432,7 +1432,7 @@ struct ASTToC {
         ret.heuristic = heuristic;
         return ret;
     }
-    clingo_ast_statement_t visit(Project const &x) {
+    clingo_ast_statement_t visit(ProjectAtom const &x) {
         auto *project = create_<clingo_ast_project_t>();
         project->atom = convTerm(x.atom);
         project->body = convBodyLiteralVec(x.body);
@@ -1802,11 +1802,6 @@ PrintWrapper<std::vector<BodyLiteral>> print_body(std::vector<BodyLiteral> const
     return print(vec, vec.empty() ? "" : pre, "; ", ".", true);
 }
 
-template <class T>
-PrintWrapper<std::vector<T>> print_arguments(std::vector<T> const &vec, bool empty) {
-    return print(vec, "(", ",", ")", empty);
-}
-
 // {{{2 C -> C++
 
 #define ARR(in, out) \
@@ -2067,7 +2062,7 @@ ARR(clingo_ast_theory_operator_definition_t, TheoryOperatorDefinition)
 
 Optional<TheoryGuardDefinition> convTheoryGuardDefinition(clingo_ast_theory_guard_definition_t const *def) {
     return def
-        ? Optional<TheoryGuardDefinition>{def->guard, std::vector<char const *>{def->operators, def->operators + def->size}}
+        ? Optional<TheoryGuardDefinition>{def->term, std::vector<char const *>{def->operators, def->operators + def->size}}
         : Optional<TheoryGuardDefinition>{};
 }
 
@@ -2127,7 +2122,7 @@ void convStatement(clingo_ast_statement_t const *stm, StatementCallback &cb) {
             break;
         }
         case clingo_ast_statement_type_project_atom: {
-            cb({Location(stm->location), Project{convTerm(stm->project_atom->atom), convBodyLiteralVec(stm->project_atom->body, stm->project_atom->size)}});
+            cb({Location(stm->location), ProjectAtom{convTerm(stm->project_atom->atom), convBodyLiteralVec(stm->project_atom->body, stm->project_atom->size)}});
             break;
         }
         case clingo_ast_statement_type_project_atom_signature: {
@@ -2180,7 +2175,7 @@ std::ostream &operator<<(std::ostream &out, TheoryAtomDefinition const &x) {
 }
 
 std::ostream &operator<<(std::ostream &out, TheoryGuardDefinition const &x) {
-    out << "{ " << print(x.operators, "", ", ", "", false) << " }, " << x.guard;
+    out << "{ " << print(x.operators, "", ", ", "", false) << " }, " << x.term;
     return out;
 }
 
@@ -2419,7 +2414,7 @@ std::ostream &operator<<(std::ostream &out, Script const &x) {
 }
 
 std::ostream &operator<<(std::ostream &out, Program const &x) {
-    out << "#program " << x.name << print_arguments(x.parameters, false) << ".";
+    out << "#program " << x.name << print(x.parameters, "(", ",", ")", false) << ".";
     return out;
 }
 
@@ -2438,7 +2433,7 @@ std::ostream &operator<<(std::ostream &out, Heuristic const &x) {
     return out;
 }
 
-std::ostream &operator<<(std::ostream &out, Project const &x) {
+std::ostream &operator<<(std::ostream &out, ProjectAtom const &x) {
     out << "#project " << x.atom << print_body(x.body);
     return out;
 }

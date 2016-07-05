@@ -1473,8 +1473,8 @@ enum class TheoryOperatorType : clingo_ast_theory_operator_type_t {
 inline std::ostream &operator<<(std::ostream &out, TheoryOperatorType op) {
     switch (op) {
         case TheoryOperatorType::Unary:       { out << "unary"; break; }
-        case TheoryOperatorType::BinaryLeft:  { out << "unary"; break; }
-        case TheoryOperatorType::BinaryRight: { out << "unary"; break; }
+        case TheoryOperatorType::BinaryLeft:  { out << "binary, left"; break; }
+        case TheoryOperatorType::BinaryRight: { out << "binary, right"; break; }
     }
     return out;
 }
@@ -1495,7 +1495,7 @@ struct TheoryTermDefinition {
 std::ostream &operator<<(std::ostream &out, TheoryTermDefinition const &x);
 
 struct TheoryGuardDefinition {
-    char const *guard;
+    char const *term;
     std::vector<char const *> operators;
 };
 std::ostream &operator<<(std::ostream &out, TheoryGuardDefinition const &x);
@@ -1637,11 +1637,11 @@ std::ostream &operator<<(std::ostream &out, Heuristic const &x);
 
 // project
 
-struct Project {
+struct ProjectAtom {
     Term atom;
     std::vector<BodyLiteral> body;
 };
-std::ostream &operator<<(std::ostream &out, Project const &x);
+std::ostream &operator<<(std::ostream &out, ProjectAtom const &x);
 
 struct ProjectSignature {
     Signature signature;
@@ -1652,7 +1652,7 @@ std::ostream &operator<<(std::ostream &out, ProjectSignature const &x);
 
 struct Statement {
     Location location;
-    Variant<Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, Project, ProjectSignature, TheoryDefinition> data;
+    Variant<Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, ProjectAtom, ProjectSignature, TheoryDefinition> data;
 };
 std::ostream &operator<<(std::ostream &out, Statement const &x);
 

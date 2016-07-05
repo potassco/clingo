@@ -1472,7 +1472,7 @@ TheoryAtomDefUid ASTBuilder::theoryatomdef(Location const &loc, String name, uns
 TheoryAtomDefUid ASTBuilder::theoryatomdef(Location const &loc, String name, unsigned arity, String termDef, TheoryAtomType type, TheoryOpVecUid ops, String guardDef) {
     auto o = theoryOpVecs_.erase(ops);
     clingo_ast_theory_guard_definition_t guard;
-    guard.guard     = guardDef.c_str();
+    guard.term      = guardDef.c_str();
     guard.operators = createArray_(o);
     guard.size      = o.size();
     clingo_ast_theory_atom_definition_t def;
@@ -1905,7 +1905,7 @@ private:
 
     TheoryAtomDefUid parseTheoryAtomDefinition(clingo_ast_theory_atom_definition_t const &x) {
         return x.guard
-            ? prg_.theoryatomdef(parseLocation(x.location), x.name, x.arity, x.elements, static_cast<TheoryAtomType>(x.type), parseTheoryOpVec(x.guard->operators, x.guard->size), x.guard->guard)
+            ? prg_.theoryatomdef(parseLocation(x.location), x.name, x.arity, x.elements, static_cast<TheoryAtomType>(x.type), parseTheoryOpVec(x.guard->operators, x.guard->size), x.guard->term)
             : prg_.theoryatomdef(parseLocation(x.location), x.name, x.arity, x.elements, static_cast<TheoryAtomType>(x.type));
     }
     ARR(clingo_ast_theory_atom_definition_t, theorydefs, parseTheoryAtomDefinition)

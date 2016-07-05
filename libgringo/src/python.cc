@@ -120,6 +120,9 @@ struct Object {
     Object getItem(char const *key) {
         return PyObject_GetItem(obj, Object{PyString_FromString(key)});
     }
+    Object getItem(int key) {
+        return PyObject_GetItem(obj, Object{PyInt_FromLong(key)});
+    }
     Object getAttr(char const *key) {
         return PyObject_GetAttrString(obj, key);
     }
@@ -136,6 +139,16 @@ struct Object {
         return inst;
     }
     Iter iter();
+    friend bool operator==(Object a, Object b) {
+        auto ret = PyObject_RichCompareBool(a, b, Py_EQ);
+        if (ret < 0) { throw PyException(); }
+        return ret;
+    }
+    friend bool operator!=(Object a, Object b) {
+        auto ret = PyObject_RichCompareBool(a, b, Py_NE);
+        if (ret < 0) { throw PyException(); }
+        return ret;
+    }
 
     // }}}2
     bool none() const                      { return obj == Py_None; }
@@ -158,6 +171,46 @@ struct Iter {
     Object iter;
 };
 Iter Object::iter() { return {PyObject_GetIter(obj)}; }
+
+template <class T>
+class ValuePointer {
+public:
+    ValuePointer(T value) : value_(value) { }
+    T &operator*() { return value_; }
+    T *operator->() { return &value_; }
+private:
+    T value_;
+};
+
+class IterIterator : std::iterator<std::forward_iterator_tag, Object, ptrdiff_t, ValuePointer<Object>, Object> {
+public:
+    IterIterator() = default;
+    IterIterator(IterIterator const &) = default;
+    IterIterator(Iter it, Object current)
+    : it_(it)
+    , current_(current) { }
+    IterIterator& operator++() { current_ = it_.next(); return *this; }
+    IterIterator operator++(int) {
+        IterIterator t(*this);
+        ++*this;
+        return t;
+    }
+    reference operator*() { return current_; }
+    pointer operator->() { return pointer(**this); }
+
+    friend bool operator==(IterIterator a, IterIterator b) { return a.current_.get() == b.current_.get(); }
+    friend bool operator!=(IterIterator a, IterIterator b) { return !(a == b); }
+    friend void swap(IterIterator a, IterIterator b) {
+        std::swap(a.it_, b.it_);
+        std::swap(a.current_, b.current_);
+    }
+private:
+    Iter it_;
+    Object current_;
+};
+
+IterIterator begin(Iter it) { return {it, it.next()}; }
+IterIterator end(Iter it) { return {it, nullptr}; }
 
 
 // NOTE: all the functions below can use execptions
@@ -328,6 +381,9 @@ struct PrintWrapper {
 
 PrintWrapper printList(Object list, char const *pre, char const *sep, char const *post, bool empty) {
     return {list, pre, sep, post, empty};
+}
+PrintWrapper printBody(Object list, char const *pre = " : ") {
+    return printList(list, list.empty() ? "" : pre, "; ", ".", true);
 }
 
 PyObject *cppToPy(Symbol val);
@@ -2665,8 +2721,12 @@ struct ASTType : EnumType<ASTType> {
         Id,
         Variable, Symbol, UnaryOperation, BinaryOperation, Interval, Function, Pool,
         CSPProduct, CSPSum, CSPGuard,
-        BooleanLiteral, SymbolicLiteral, ComparisonLiteral, CSPLiteral,
-        AggregateGuard, ConditionalLiteral, BodyLiteralAggregate, BodyTupleAggregateElement, BodyTupleAggregate, HeadLiteralAggregate, HeadTupleAggregateElement, HeadTupleAggregate, Disjunction, DisjointElement, Disjoint,
+        BooleanConstant, SymbolicAtom, Comparison, CSPLiteral,
+        AggregateGuard, ConditionalLiteral, Aggregate, BodyAggregateElement, BodyAggregate, HeadAggregateElement, HeadAggregate, Disjunction, DisjointElement, Disjoint,
+        TheorySequence, TheoryFunction, TheoryUnparsedTermElement, TheoryUnparsedTerm, TheoryGuard, TheoryAtomElement, TheoryAtom,
+        Literal,
+        TheoryOperatorDefinition, TheoryTermDefinition, TheoryGuardDefinition, TheoryAtomDefinition, TheoryDefinition,
+        Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, ProjectAtom, ProjectSignature,
     };
     static constexpr char const *tp_type = "ASTType";
     static constexpr char const *tp_name = "clingo.ast.ASTType";
@@ -2677,15 +2737,23 @@ R"(Enumeration of ast node types.)";
         Id,
         Variable, Symbol, UnaryOperation, BinaryOperation, Interval, Function, Pool,
         CSPProduct, CSPSum, CSPGuard,
-        BooleanLiteral, SymbolicLiteral, ComparisonLiteral, CSPLiteral,
-        AggregateGuard, ConditionalLiteral, BodyLiteralAggregate, BodyTupleAggregateElement, BodyTupleAggregate, HeadLiteralAggregate, HeadTupleAggregateElement, HeadTupleAggregate, Disjunction, DisjointElement, Disjoint,
+        BooleanConstant, SymbolicAtom, Comparison, CSPLiteral,
+        AggregateGuard, ConditionalLiteral, Aggregate, BodyAggregateElement, BodyAggregate, HeadAggregateElement, HeadAggregate, Disjunction, DisjointElement, Disjoint,
+        TheorySequence, TheoryFunction, TheoryUnparsedTermElement, TheoryUnparsedTerm, TheoryGuard, TheoryAtomElement, TheoryAtom,
+        Literal,
+        TheoryOperatorDefinition, TheoryTermDefinition, TheoryGuardDefinition, TheoryAtomDefinition, TheoryDefinition,
+        Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, ProjectAtom, ProjectSignature,
     };
     static constexpr const char * strings[] = {
         "Id",
         "Variable", "Symbol", "UnaryOperation", "BinaryOperation", "Interval", "Function", "Pool",
         "CSPProduct", "CSPSum", "CSPGuard",
-        "BooleanLiteral", "SymbolicLiteral", "ComparisonLiteral", "CSPLiteral",
-        "AggregateGuard", "ConditionalLiteral", "BodyLiteralAggregate", "BodyTupleAggregateElement", "BodyTupleAggregate", "HeadLiteralAggregate", "HeadTupleAggregateElement", "HeadTupleAggregate", "Disjunction", "DisjointElement", "Disjoint",
+        "BooleanConstant", "SymbolicAtom", "Comparison", "CSPLiteral",
+        "AggregateGuard", "ConditionalLiteral", "Aggregate", "BodyAggregateElement", "BodyAggregate", "HeadAggregateElement", "HeadAggregate", "Disjunction", "DisjointElement", "Disjoint",
+        "TheorySequence", "TheoryFunction", "TheoryUnparsedTermElement", "TheoryUnparsedTerm", "TheoryGuard", "TheoryAtomElement", "TheoryAtom",
+        "Literal",
+        "TheoryOperatorDefinition", "TheoryTermDefinition", "TheoryGuardDefinition", "TheoryAtomDefinition", "TheoryDefinition",
+        "Rule", "Definition", "ShowSignature", "ShowTerm", "Minimize", "Script", "Program", "External", "Edge", "Heuristic", "ProjectAtom", "ProjectSignature",
     };
 };
 
@@ -2831,6 +2899,165 @@ BinaryOperator.Modulo         -- arithmetic modulo
 constexpr clingo_ast_binary_operator_t BinaryOperator::values[];
 constexpr const char * BinaryOperator::strings[];
 
+struct TheorySequenceType : EnumType<TheorySequenceType> {
+    enum T { Set, Tuple, List };
+    static PyMethodDef tp_methods[];
+
+    static constexpr char const *tp_type = "TheorySequenceType";
+    static constexpr char const *tp_name = "clingo.ast.TheorySequenceType";
+    static constexpr char const *tp_doc =
+R"(Enumeration of theory term sequence types.
+
+TheorySequenceType.Tuple -- sequence enclosed in parenthesis
+TheorySequenceType.List  -- sequence enclosed in brackets
+TheorySequenceType.Set   -- sequence enclosed in braces
+)";
+
+    static constexpr T values[] = {
+        Set,
+        Tuple,
+        List,
+    };
+    static constexpr const char * strings[] = {
+        "Set",
+        "Tuple",
+        "List",
+    };
+    static PyObject *leftHandSide(TheorySequenceType *self) {
+        switch (self->values[self->offset]) {
+            case Set:   { return PyString_FromString("{"); }
+            case Tuple: { return PyString_FromString("("); }
+            case List:  { return PyString_FromString("["); }
+        }
+        return PyString_FromString("");
+    }
+    static PyObject *rightHandSide(TheorySequenceType *self) {
+        switch (self->values[self->offset]) {
+            case Set:   { return PyString_FromString("}"); }
+            case Tuple: { return PyString_FromString(")"); }
+            case List:  { return PyString_FromString("]"); }
+        }
+        return PyString_FromString("");
+    }
+};
+
+PyMethodDef TheorySequenceType::tp_methods[] = {
+    { "left_hand_side", (PyCFunction)leftHandSide, METH_NOARGS,
+R"(left_hand_side(self) -> str
+
+Left-hand side representation of the sequence.)"},
+    { "right_hand_side", (PyCFunction)rightHandSide, METH_NOARGS,
+R"(right_hand_side(self) -> str
+
+Right-hand side representation of the sequence.)"},
+    { nullptr, nullptr, 0, nullptr }
+};
+
+constexpr TheorySequenceType::T TheorySequenceType::values[];
+constexpr const char * TheorySequenceType::strings[];
+
+struct TheoryOperatorType : EnumType<TheoryOperatorType> {
+    static constexpr char const *tp_type = "TheoryOperatorType";
+    static constexpr char const *tp_name = "clingo.ast.TheoryOperatorType";
+    static constexpr char const *tp_doc =
+R"(Enumeration of operator types.
+
+TheoryOperatorType.Unary       -- unary operator
+TheoryOperatorType.BinaryLeft  -- binary left associative operator
+TheoryOperatorType.BinaryRight -- binary right associative operator)";
+
+    static constexpr clingo_ast_theory_operator_type_t values[] = {
+        clingo_ast_theory_operator_type_unary,
+        clingo_ast_theory_operator_type_binary_left,
+        clingo_ast_theory_operator_type_binary_right
+    };
+    static constexpr const char * strings[] = {
+        "Unary",
+        "BinaryLeft",
+        "BinaryRight"
+    };
+    static PyObject *tp_repr(EnumType *self) {
+        switch (self->offset) {
+            case 0: { return PyString_FromString("unary"); }
+            case 1: { return PyString_FromString("binary, left"); }
+            case 2: { return PyString_FromString("binary, right"); }
+        }
+        return nullptr;
+    }
+};
+
+constexpr clingo_ast_theory_operator_type_t TheoryOperatorType::values[];
+constexpr const char * TheoryOperatorType::strings[];
+
+struct TheoryAtomType : EnumType<TheoryAtomType> {
+    static constexpr char const *tp_type = "TheoryAtomType";
+    static constexpr char const *tp_name = "clingo.ast.TheoryAtomType";
+    static constexpr char const *tp_doc =
+R"(Enumeration of theory atom types.
+
+TheoryAtomType.Any       -- atom can occur anywhere
+TheoryAtomType.Body      -- atom can only occur in rule bodies
+TheoryAtomType.Head      -- atom can only occur in rule heads
+TheoryAtomType.Directive -- atom can only occrur in facts
+)";
+
+    static constexpr clingo_ast_theory_atom_definition_type_t values[] = {
+        clingo_ast_theory_atom_definition_type_any,
+        clingo_ast_theory_atom_definition_type_body,
+        clingo_ast_theory_atom_definition_type_head,
+        clingo_ast_theory_atom_definition_type_directive
+    };
+    static constexpr const char * strings[] = {
+        "Any",
+        "Body",
+        "Head",
+        "Directive"
+    };
+    static PyObject *tp_repr(EnumType *self) {
+        switch (static_cast<enum clingo_ast_theory_atom_definition_type>(values[self->offset])) {
+            case clingo_ast_theory_atom_definition_type_any:       { return PyString_FromString("any"); }
+            case clingo_ast_theory_atom_definition_type_body:      { return PyString_FromString("body"); }
+            case clingo_ast_theory_atom_definition_type_head:      { return PyString_FromString("head"); }
+            case clingo_ast_theory_atom_definition_type_directive: { return PyString_FromString("directive"); }
+        }
+        return nullptr;
+    }
+};
+
+constexpr clingo_ast_theory_atom_definition_type_t TheoryAtomType::values[];
+constexpr const char * TheoryAtomType::strings[];
+
+struct ScriptType : EnumType<ScriptType> {
+    enum T { Python, Lua };
+    static constexpr char const *tp_type = "ScriptType";
+    static constexpr char const *tp_name = "clingo.ast.ScriptType";
+    static constexpr char const *tp_doc =
+R"(Enumeration of theory atom types.
+
+ScriptType.Python -- python code
+ScriptType.Lua    -- lua code
+)";
+
+    static constexpr T values[] = {
+        Python,
+        Lua
+    };
+    static constexpr const char * strings[] = {
+        "Python",
+        "Lua",
+    };
+    static PyObject *tp_repr(EnumType *self) {
+        switch (values[self->offset]) {
+            case Python: { return PyString_FromString("python"); }
+            case Lua:    { return PyString_FromString("lua"); }
+        }
+        return nullptr;
+    }
+};
+
+constexpr ScriptType::T ScriptType::values[];
+constexpr const char * ScriptType::strings[];
+
 // }}}2
 
 struct AST : ObjectBase<AST> {
@@ -2943,15 +3170,19 @@ struct AST : ObjectBase<AST> {
                     break;
                 }
                 // {{{2 literal
-                case ASTType::BooleanLiteral: {
+                case ASTType::Literal: {
+                    out << self->getValue("sign") << self->getValue("atom");
+                    break;
+                }
+                case ASTType::BooleanConstant: {
                     out << (self->getValue("value").isTrue() ? "#true" : "#false");
                     break;
                 }
-                case ASTType::SymbolicLiteral: {
-                    out << self->getValue("sign") << self->getValue("term");
+                case ASTType::SymbolicAtom: {
+                    out << self->getValue("term");
                     break;
                 }
-                case ASTType::ComparisonLiteral: {
+                case ASTType::Comparison: {
                     out << self->getValue("left") << self->getValue("comparison") << self->getValue("right");
                     break;
                 }
@@ -2972,38 +3203,29 @@ struct AST : ObjectBase<AST> {
                     out << self->getValue("literal") << printList(self->getValue("condition"), " : ", ", ", "", true);
                     break;
                 }
-                case ASTType::BodyLiteralAggregate: {
+                case ASTType::Aggregate: {
                     auto left = self->getValue("left_guard"), right = self->getValue("right_guard");
-                    out << self->getValue("sign");
                     if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
                     out << "{ " << printList(self->getValue("elements"), "", "; ", "", false) << " }";
                     if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
                     break;
                 }
-                case ASTType::BodyTupleAggregateElement: {
+                case ASTType::BodyAggregateElement: {
                     out << printList(self->getValue("tuple"), "", ",", "", false) << " : " << printList(self->getValue("condition"), "", ", ", "", false);
                     break;
                 }
-                case ASTType::BodyTupleAggregate: {
+                case ASTType::BodyAggregate: {
                     auto left = self->getValue("left_guard"), right = self->getValue("right_guard");
-                    out << self->getValue("sign");
                     if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
                     out << self->getValue("function") << " { " << printList(self->getValue("elements"), "", "; ", "", false) << " }";
                     if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
                     break;
                 }
-                case ASTType::HeadLiteralAggregate: {
-                    auto left = self->getValue("left_guard"), right = self->getValue("right_guard");
-                    if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
-                    out << "{ " << printList(self->getValue("elements"), "", "; ", "", false) << " }";
-                    if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
-                    break;
-                }
-                case ASTType::HeadTupleAggregateElement: {
+                case ASTType::HeadAggregateElement: {
                     out << printList(self->getValue("tuple"), "", ",", "", false) << " : " << self->getValue("condition");
                     break;
                 }
-                case ASTType::HeadTupleAggregate: {
+                case ASTType::HeadAggregate: {
                     auto left = self->getValue("left_guard"), right = self->getValue("right_guard");
                     if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
                     out << self->getValue("function") << " { " << printList(self->getValue("elements"), "", "; ", "", false) << " }";
@@ -3019,12 +3241,136 @@ struct AST : ObjectBase<AST> {
                     break;
                 }
                 case ASTType::Disjoint: {
-                    out << self->getValue("sign") << "#disjoint { " << printList(self->getValue("elements"), "", "; ", "", false) << " }";
+                    out << "#disjoint { " << printList(self->getValue("elements"), "", "; ", "", false) << " }";
                     break;
                 }
                 // {{{2 theory atom
+                case ASTType::TheorySequence: {
+                    auto type = self->getValue("sequence_type"), terms = self->getValue("terms");
+                    bool tc = terms.size() == 1 && type == Object{TheorySequenceType::getAttr(TheorySequenceType::Tuple)};
+                    out << type.call("left_hand_side") << printList(terms, "", ",", "", true) << (tc ? "," : "") << type.call("right_hand_side");
+                    break;
+                }
+                case ASTType::TheoryFunction: {
+                    auto args = self->getValue("arguments");
+                    out << self->getValue("name") << printList(args, "(", ",", ")", !args.empty());
+                    break;
+                }
+                case ASTType::TheoryUnparsedTermElement: {
+                    out << printList(self->getValue("operators"), "", " ", " ", false) << self->getValue("term");
+                    break;
+                }
+                case ASTType::TheoryUnparsedTerm: {
+                    auto elems = self->getValue("elements");
+                    bool pp = elems.size() != 1 || !elems.getItem(0).getAttr("operators").empty();
+                    out << (pp ? "(" : "") << printList(elems, "", " ", "", false) << (pp ? ")" : "");
+                    break;
+                }
+                case ASTType::TheoryGuard: {
+                    out << self->getValue("operator_name") << " " << self->getValue("term");
+                    break;
+                }
+                case ASTType::TheoryAtomElement: {
+                    out << printList(self->getValue("tuple"), "", ",", "", false) << " : " << printList(self->getValue("condition"), "", ",", "", false);
+                    break;
+                }
+                case ASTType::TheoryAtom: {
+                    auto guard = self->getValue("guard");
+                    out << "&" << self->getValue("term") << " { " << printList(self->getValue("elements"), "", "; ", "", false) << " }";
+                    if (!guard.none()) { out << " " << guard; }
+                    break;
+                }
                 // {{{2 theory definition
+                case ASTType::TheoryOperatorDefinition: {
+                    out << self->getValue("name") << " : " << self->getValue("priority") << ", " << self->getValue("operator_type");
+                    break;
+                }
+                case ASTType::TheoryTermDefinition: {
+                    out << self->getValue("name") << " {\n" << printList(self->getValue("operators"), "  ", ";\n", "\n", true) << "}";
+                    break;
+                }
+                case ASTType::TheoryGuardDefinition: {
+                    out << "{ " << printList(self->getValue("operators"), "", ", ", "", false) << " }, " << self->getValue("term");
+                    break;
+                }
+                case ASTType::TheoryAtomDefinition: {
+                    auto guard = self->getValue("guard");
+                    out << "&" << self->getValue("name") << "/" << self->getValue("arity") << " : " << self->getValue("elements");
+                    if (!guard.none()) { out << ", " << guard; }
+                    out << ", " << self->getValue("atom_type");
+                    break;
+                }
+                case ASTType::TheoryDefinition: {
+                    out << "#theory " << self->getValue("name") << " {\n";
+                    bool comma = false;
+                    for (auto y : self->getValue("terms").iter()) {
+                        if (comma) { out << ";\n"; }
+                        else       { comma = true; }
+                        out << "  " << y.getAttr("name") << " {\n" << printList(y.getAttr("operators"), "    ", ";\n", "\n", true) << "  }";
+                    }
+                    for (auto y : self->getValue("atoms").iter()) {
+                        if (comma) { out << ";\n"; }
+                        else       { comma = true; }
+                        out << "  " << y;
+                    }
+                    if (comma) { out << "\n"; }
+                    out << "}.";
+                    break;
+                }
                 // {{{2 statement
+                case ASTType::Rule: {
+                    out << self->getValue("head") << printBody(self->getValue("body"), " :- ");
+                    break;
+                }
+                case ASTType::Definition: {
+                    out << "#const " << self->getValue("name") << " = " << self->getValue("value") << ".";
+                    if (self->getValue("is_default")) { out << " [default]"; }
+                    break;
+                }
+                case ASTType::ShowSignature: {
+                    out << "#show " << (self->getValue("csp") ? "$" : "") << self->getValue("name") << "/" << self->getValue("arity") << ".";
+                    break;
+                }
+                case ASTType::ShowTerm: {
+                    out << "#show " << (self->getValue("csp") ? "$" : "") << self->getValue("term") << printBody(self->getValue("body"));
+                    break;
+                }
+                case ASTType::Minimize: {
+                    out << printBody(self->getValue("body"), ":~ ") << " [" << self->getValue("weight") << "@" << self->getValue("priority") << printList(self->getValue("tuple"), ",", ",", "", false) << "]";
+                    break;
+                }
+                case ASTType::Script: {
+                    std::string s = pyToCpp<char const *>(self->getValue("code"));
+                    if (!s.empty() && s.back() == '\n') {
+                        s.back() = '.';
+                    }
+                    out << s;
+                    break;
+                }
+                case ASTType::Program: {
+                    out << "#program " << self->getValue("name") << printList(self->getValue("parameters"), "(", ",", ")", false) << ".";
+                    break;
+                }
+                case ASTType::External: {
+                    out << "#external " << self->getValue("atom") << printBody(self->getValue("body"));
+                    break;
+                }
+                case ASTType::Edge: {
+                    out << "#edge (" << self->getValue("u") << "," << self->getValue("v") << ")" << printBody(self->getValue("body"));
+                    break;
+                }
+                case ASTType::Heuristic: {
+                    out << "#heuristic " << self->getValue("atom") << printBody(self->getValue("body")) << " [" << self->getValue("bias")<< "@" << self->getValue("priority") << "," << self->getValue("modifier") << "]";
+                    break;
+                }
+                case ASTType::ProjectAtom: {
+                    out << "#project " << self->getValue("atom") << printBody(self->getValue("body"));
+                    break;
+                }
+                case ASTType::ProjectSignature: {
+                    out << "#project " << self->getValue("name") << "/" << self->getValue("arity") << ".";
+                    break;
+                }
                 // }}}2
             }
             return cppToPy(out.str()).release();
@@ -3064,315 +3410,60 @@ CREATE2(CSPSum, location, terms)
 
 // {{{2 literals
 
-CREATE2(BooleanLiteral, location, value)
-CREATE3(SymbolicLiteral, location, sign, term)
-CREATE4(ComparisonLiteral, location, comparison, left, right)
+CREATE1(BooleanConstant, value)
+CREATE1(SymbolicAtom, term)
+CREATE3(Comparison, comparison, left, right)
 CREATE2(CSPGuard, comparison, term)
 CREATE3(CSPLiteral, location, term, guards)
+CREATE3(Literal, location, sign, atom)
 
 // {{{2 aggregates
 
 CREATE2(AggregateGuard, comparison, term)
 CREATE3(ConditionalLiteral, location, literal, condition)
-CREATE5(BodyLiteralAggregate, location, sign, left_guard, elements, right_guard)
-CREATE2(BodyTupleAggregateElement, tuple, condition)
-CREATE6(BodyTupleAggregate, location, sign, left_guard, function, elements, right_guard)
-CREATE4(HeadLiteralAggregate, location, left_guard, elements, right_guard)
-CREATE2(HeadTupleAggregateElement, tuple, condition)
-CREATE5(HeadTupleAggregate, location, left_guard, function, elements, right_guard)
+CREATE4(Aggregate, location, left_guard, elements, right_guard)
+CREATE2(BodyAggregateElement, tuple, condition)
+CREATE5(BodyAggregate, location, left_guard, function, elements, right_guard)
+CREATE2(HeadAggregateElement, tuple, condition)
+CREATE5(HeadAggregate, location, left_guard, function, elements, right_guard)
 CREATE2(Disjunction, location, elements)
 CREATE4(DisjointElement, location, tuple, term, condition)
-CREATE3(Disjoint, location, sign, elements)
+CREATE2(Disjoint, location, elements)
 
-/*
 // {{{2 theory atom
 
-enum class TheoryTermSequenceType : int {
-    Tuple = 0,
-    List  = 1,
-    Set   = 2
-};
-inline char const *left_hand_side(TheoryTermSequenceType x) {
-    switch (x) {
-        case TheoryTermSequenceType::Tuple: { return "("; }
-        case TheoryTermSequenceType::List:  { return "["; }
-        case TheoryTermSequenceType::Set:   { return "{"; }
-    }
-    return "";
-}
-inline char const *right_hand_side(TheoryTermSequenceType x) {
-    switch (x) {
-        case TheoryTermSequenceType::Tuple: { return ")"; }
-        case TheoryTermSequenceType::List:  { return "]"; }
-        case TheoryTermSequenceType::Set:   { return "}"; }
-    }
-    return "";
-}
-
-struct TheoryFunction;
-struct TheoryTermSequence;
-struct TheoryUnparsedTerm;
-
-struct TheoryTerm {
-    Location location;
-    Variant<Symbol, Variable, TheoryTermSequence, TheoryFunction, TheoryUnparsedTerm> data;
-};
-std::ostream &operator<<(std::ostream &out, TheoryTerm const &x);
-
-struct TheoryTermSequence {
-    TheoryTermSequenceType type;
-    std::vector<TheoryTerm> terms;
-};
-std::ostream &operator<<(std::ostream &out, TheoryTermSequence const &x);
-
-struct TheoryFunction {
-    char const *name;
-    std::vector<TheoryTerm> arguments;
-};
-std::ostream &operator<<(std::ostream &out, TheoryFunction const &x);
-
-struct TheoryUnparsedTermElement {
-    std::vector<char const *> operators;
-    TheoryTerm term;
-};
-std::ostream &operator<<(std::ostream &out, TheoryUnparsedTermElement const &x);
-
-struct TheoryUnparsedTerm {
-    std::vector<TheoryUnparsedTermElement> elements;
-};
-std::ostream &operator<<(std::ostream &out, TheoryUnparsedTerm const &x);
-
-struct TheoryAtomElement {
-    std::vector<TheoryTerm> tuple;
-    std::vector<Literal> condition;
-};
-std::ostream &operator<<(std::ostream &out, TheoryAtomElement const &x);
-
-struct TheoryGuard {
-    char const *operator_name;
-    TheoryTerm term;
-};
-std::ostream &operator<<(std::ostream &out, TheoryGuard const &x);
-
-struct TheoryAtom {
-    Term term;
-    std::vector<TheoryAtomElement> elements;
-    Optional<TheoryGuard> guard;
-};
-std::ostream &operator<<(std::ostream &out, TheoryAtom const &x);
-
-// {{{2 head literals
-
-struct HeadLiteral {
-    Location location;
-    Variant<Literal, Disjunction, Aggregate, HeadTupleAggregate, TheoryAtom> data;
-};
-std::ostream &operator<<(std::ostream &out, HeadLiteral const &x);
-
-// {{{2 body literals
-
-struct BodyLiteral {
-    Location location;
-    Sign sign;
-    Variant<Literal, ConditionalLiteral, Aggregate, BodyTupleAggregate, TheoryAtom, Disjoint> data;
-};
-std::ostream &operator<<(std::ostream &out, BodyLiteral const &x);
+CREATE3(TheorySequence, location, sequence_type, terms)
+CREATE3(TheoryFunction, location, name, arguments)
+CREATE2(TheoryUnparsedTermElement, operators, term)
+CREATE2(TheoryUnparsedTerm, location, elements)
+CREATE2(TheoryGuard, operator_name, term)
+CREATE2(TheoryAtomElement, tuple, condition)
+CREATE4(TheoryAtom, location, term, elements, guard)
 
 // {{{2 theory definitions
 
-enum class TheoryOperatorType : clingo_ast_theory_operator_type_t {
-     Unary       = clingo_ast_theory_operator_type_unary,
-     BinaryLeft  = clingo_ast_theory_operator_type_binary_left,
-     BinaryRight = clingo_ast_theory_operator_type_binary_right
-};
-
-inline std::ostream &operator<<(std::ostream &out, TheoryOperatorType op) {
-    switch (op) {
-        case TheoryOperatorType::Unary:       { out << "unary"; break; }
-        case TheoryOperatorType::BinaryLeft:  { out << "unary"; break; }
-        case TheoryOperatorType::BinaryRight: { out << "unary"; break; }
-    }
-    return out;
-}
-
-struct TheoryOperatorDefinition {
-    Location location;
-    char const *name;
-    unsigned priority;
-    TheoryOperatorType type;
-};
-std::ostream &operator<<(std::ostream &out, TheoryOperatorDefinition const &x);
-
-struct TheoryTermDefinition {
-    Location location;
-    char const *name;
-    std::vector<TheoryOperatorDefinition> operators;
-};
-std::ostream &operator<<(std::ostream &out, TheoryTermDefinition const &x);
-
-struct TheoryGuardDefinition {
-    char const *guard;
-    std::vector<char const *> operators;
-};
-std::ostream &operator<<(std::ostream &out, TheoryGuardDefinition const &x);
-
-enum class TheoryAtomDefinitionType : clingo_ast_theory_atom_definition_type_t {
-    Head      = clingo_ast_theory_atom_definition_type_head,
-    Body      = clingo_ast_theory_atom_definition_type_body,
-    Any       = clingo_ast_theory_atom_definition_type_any,
-    Directive = clingo_ast_theory_atom_definition_type_directive
-};
-
-inline std::ostream &operator<<(std::ostream &out, TheoryAtomDefinitionType op) {
-    switch (op) {
-        case TheoryAtomDefinitionType::Head:      { out << "head"; break; }
-        case TheoryAtomDefinitionType::Body:      { out << "body"; break; }
-        case TheoryAtomDefinitionType::Any:       { out << "any"; break; }
-        case TheoryAtomDefinitionType::Directive: { out << "directive"; break; }
-    }
-    return out;
-}
-
-struct TheoryAtomDefinition {
-    Location location;
-    TheoryAtomDefinitionType type;
-    char const *name;
-    unsigned arity;
-    char const *elements;
-    Optional<TheoryGuardDefinition> guard;
-};
-std::ostream &operator<<(std::ostream &out, TheoryAtomDefinition const &x);
-
-struct TheoryDefinition {
-    char const *name;
-    std::vector<TheoryTermDefinition> terms;
-    std::vector<TheoryAtomDefinition> atoms;
-};
-std::ostream &operator<<(std::ostream &out, TheoryDefinition const &x);
+CREATE4(TheoryOperatorDefinition, location, name, priority, operator_type)
+CREATE3(TheoryTermDefinition, location, name, operators)
+CREATE2(TheoryGuardDefinition, operators, term)
+CREATE6(TheoryAtomDefinition, location, atom_type, name, arity, elements, guard)
+CREATE3(TheoryDefinition, name, terms, atoms)
 
 // {{{2 statements
 
-// rule
+CREATE3(Rule, location, head, body)
+CREATE4(Definition, location, name, value, is_default)
+CREATE4(ShowSignature, location, name, arity, csp)
+CREATE4(ShowTerm, location, term, body, csp)
+CREATE5(Minimize, location, weight, priority, tuple, body)
+CREATE3(Script, location, script_type, code)
+CREATE3(Program, location, name, parameters)
+CREATE3(External, location, atom, body)
+CREATE4(Edge, location, u, v, body)
+CREATE6(Heuristic, location, atom, body, bias, priority, modifier)
+CREATE3(ProjectAtom, location, atom, body)
+CREATE3(ProjectSignature, location, name, arity)
 
-struct Rule {
-    HeadLiteral head;
-    std::vector<BodyLiteral> body;
-};
-std::ostream &operator<<(std::ostream &out, Rule const &x);
-
-// definition
-
-struct Definition {
-    char const *name;
-    Term value;
-    bool is_default;
-};
-std::ostream &operator<<(std::ostream &out, Definition const &x);
-
-// show
-
-struct ShowSignature {
-    Signature signature;
-    bool csp;
-};
-std::ostream &operator<<(std::ostream &out, ShowSignature const &x);
-
-struct ShowTerm {
-    Term term;
-    std::vector<BodyLiteral> body;
-    bool csp;
-};
-std::ostream &operator<<(std::ostream &out, ShowTerm const &x);
-
-// minimize
-
-struct Minimize {
-    Term weight;
-    Term priority;
-    std::vector<Term> tuple;
-    std::vector<BodyLiteral> body;
-};
-std::ostream &operator<<(std::ostream &out, Minimize const &x);
-
-// script
-
-enum class ScriptType : clingo_ast_script_type_t {
-    Lua    = clingo_ast_script_type_lua,
-    Python = clingo_ast_script_type_python
-};
-
-inline std::ostream &operator<<(std::ostream &out, ScriptType op) {
-    switch (op) {
-        case ScriptType::Lua:    { out << "lua"; break; }
-        case ScriptType::Python: { out << "python"; break; }
-    }
-    return out;
-}
-
-struct Script {
-    ScriptType type;
-    char const *code;
-};
-std::ostream &operator<<(std::ostream &out, Script const &x);
-
-// program
-
-struct Program {
-    char const *name;
-    std::vector<Id> parameters;
-};
-std::ostream &operator<<(std::ostream &out, Program const &x);
-
-// external
-
-struct External {
-    Term atom;
-    std::vector<BodyLiteral> body;
-};
-std::ostream &operator<<(std::ostream &out, External const &x);
-
-// edge
-
-struct Edge {
-    Term u;
-    Term v;
-    std::vector<BodyLiteral> body;
-};
-std::ostream &operator<<(std::ostream &out, Edge const &x);
-
-// heuristic
-
-struct Heuristic {
-    Term atom;
-    std::vector<BodyLiteral> body;
-    Term bias;
-    Term priority;
-    Term modifier;
-};
-std::ostream &operator<<(std::ostream &out, Heuristic const &x);
-
-// project
-
-struct Project {
-    Term atom;
-    std::vector<BodyLiteral> body;
-};
-std::ostream &operator<<(std::ostream &out, Project const &x);
-
-struct ProjectSignature {
-    Signature signature;
-};
-std::ostream &operator<<(std::ostream &out, ProjectSignature const &x);
-
-// statement
-
-struct Statement {
-    Location location;
-    Variant<Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, Project, ProjectSignature, TheoryDefinition> data;
-};
-std::ostream &operator<<(std::ostream &out, Statement const &x);
-
-*/
+// }}}2
 
 } // namespace AST
 
@@ -3561,8 +3652,8 @@ active; you must not call any member function during search.)";
         PY_TRY
             Object model(Model::new_(m));
             Object ret = PyObject_CallFunction(mh, const_cast<char*>("O"), model.get());
-            if (ret == Py_None) { return true; }
-            else                { return pyToCpp<bool>(ret); }
+            if (ret.none()) { return true; }
+            else            { return pyToCpp<bool>(ret); }
         PY_HANDLE("<on_model>", "error in model callback");
 
     }
@@ -4167,21 +4258,45 @@ static PyMethodDef clingoASTModuleMethods[] = {
     {"CSPProduct", (PyCFunction)AST::createCSPProduct, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"CSPSum", (PyCFunction)AST::createCSPSum, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"CSPGuard", (PyCFunction)AST::createCSPGuard, METH_VARARGS | METH_KEYWORDS, nullptr},
-    {"BooleanLiteral", (PyCFunction)AST::createBooleanLiteral, METH_VARARGS | METH_KEYWORDS, nullptr},
-    {"SymbolicLiteral", (PyCFunction)AST::createSymbolicLiteral, METH_VARARGS | METH_KEYWORDS, nullptr},
-    {"ComparisonLiteral", (PyCFunction)AST::createComparisonLiteral, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"BooleanConstant", (PyCFunction)AST::createBooleanConstant, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"SymbolicAtom", (PyCFunction)AST::createSymbolicAtom, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"Comparison", (PyCFunction)AST::createComparison, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"CSPLiteral", (PyCFunction)AST::createCSPLiteral, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"AggregateGuard", (PyCFunction)AST::createAggregateGuard, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"ConditionalLiteral", (PyCFunction)AST::createConditionalLiteral, METH_VARARGS | METH_KEYWORDS, nullptr},
-    {"BodyLiteralAggregate", (PyCFunction)AST::createBodyLiteralAggregate, METH_VARARGS | METH_KEYWORDS, nullptr},
-    {"BodyTupleAggregateElement", (PyCFunction)AST::createBodyTupleAggregateElement, METH_VARARGS | METH_KEYWORDS, nullptr},
-    {"BodyTupleAggregate", (PyCFunction)AST::createBodyTupleAggregate, METH_VARARGS | METH_KEYWORDS, nullptr},
-    {"HeadLiteralAggregate", (PyCFunction)AST::createHeadLiteralAggregate, METH_VARARGS | METH_KEYWORDS, nullptr},
-    {"HeadTupleAggregateElement", (PyCFunction)AST::createHeadTupleAggregateElement, METH_VARARGS | METH_KEYWORDS, nullptr},
-    {"HeadTupleAggregate", (PyCFunction)AST::createHeadTupleAggregate, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"Aggregate", (PyCFunction)AST::createAggregate, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"BodyAggregateElement", (PyCFunction)AST::createBodyAggregateElement, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"BodyAggregate", (PyCFunction)AST::createBodyAggregate, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"HeadAggregateElement", (PyCFunction)AST::createHeadAggregateElement, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"HeadAggregate", (PyCFunction)AST::createHeadAggregate, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"Disjunction", (PyCFunction)AST::createDisjunction, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"DisjointElement", (PyCFunction)AST::createDisjointElement, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"Disjoint", (PyCFunction)AST::createDisjoint, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"TheoryFunction", (PyCFunction)AST::createTheoryFunction, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"TheorySequence", (PyCFunction)AST::createTheorySequence, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"TheoryUnparsedTermElement", (PyCFunction)AST::createTheoryUnparsedTermElement, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"TheoryUnparsedTerm", (PyCFunction)AST::createTheoryUnparsedTerm, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"TheoryGuard", (PyCFunction)AST::createTheoryGuard, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"TheoryAtomElement", (PyCFunction)AST::createTheoryAtomElement, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"TheoryAtom", (PyCFunction)AST::createTheoryAtom, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"Literal", (PyCFunction)AST::createLiteral, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"TheoryOperatorDefinition", (PyCFunction)AST::createTheoryOperatorDefinition, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"TheoryTermDefinition", (PyCFunction)AST::createTheoryTermDefinition, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"TheoryGuardDefinition", (PyCFunction)AST::createTheoryGuardDefinition, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"TheoryAtomDefinition", (PyCFunction)AST::createTheoryAtomDefinition, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"TheoryDefinition", (PyCFunction)AST::createTheoryDefinition, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"Rule", (PyCFunction)AST::createRule, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"Definition", (PyCFunction)AST::createDefinition, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"ShowSignature", (PyCFunction)AST::createShowSignature, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"ShowTerm", (PyCFunction)AST::createShowTerm, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"Minimize", (PyCFunction)AST::createMinimize, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"Script", (PyCFunction)AST::createScript, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"Program", (PyCFunction)AST::createProgram, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"External", (PyCFunction)AST::createExternal, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"Edge", (PyCFunction)AST::createEdge, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"Heuristic", (PyCFunction)AST::createHeuristic, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"ProjectAtom", (PyCFunction)AST::createProjectAtom, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"ProjectSignature", (PyCFunction)AST::createProjectSignature, METH_VARARGS | METH_KEYWORDS, nullptr},
     {nullptr, nullptr, 0, nullptr}
 };
 static char const *clingoASTModuleDoc = "The clingo.ast-" GRINGO_VERSION " module.";
@@ -4335,9 +4450,10 @@ PyObject *initclingoast_() {
         Object m = Py_InitModule3("clingo.ast", clingoASTModuleMethods, clingoASTModuleDoc);
 #endif
         if (!m ||
-            !ComparisonOperator::initType(m) || !Sign::initType(m)          || !Gringo::AST::AST::initType(m) ||
-            !ASTType::initType(m)            || !UnaryOperator::initType(m) || !BinaryOperator::initType(m)   ||
-            !AggregateFunction::initType(m)  ||
+            !ComparisonOperator::initType(m) || !Sign::initType(m)               || !Gringo::AST::AST::initType(m)   ||
+            !ASTType::initType(m)            || !UnaryOperator::initType(m)      || !BinaryOperator::initType(m)     ||
+            !AggregateFunction::initType(m)  || !TheorySequenceType::initType(m) || !TheoryOperatorType::initType(m) ||
+            !TheoryAtomType::initType(m)     || !ScriptType::initType(m)         ||
             false) { return nullptr; }
         return m.release();
     PY_CATCH(nullptr);
