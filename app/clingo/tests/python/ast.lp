@@ -47,7 +47,7 @@ def test():
     thd_t = ast.TheoryTermDefinition(loc, "t", [thd_o])
     thd_g = ast.TheoryGuardDefinition([">", "<"], "t")
     thd_a = ast.TheoryAtomDefinition(loc, ast.TheoryAtomType.Any, "p", 2, "t", thd_g)
-    thd_d = ast.TheoryDefinition("x", [thd_t], [thd_a])
+    thd_d = ast.TheoryDefinition(loc, "x", [thd_t], [thd_a])
     stm_r = ast.Rule(loc, lit_s, [lit_s])
     stm_c = ast.Definition(loc, "x", trm_s, True)
     stm_s = ast.ShowSignature(loc, "x", 2, True)

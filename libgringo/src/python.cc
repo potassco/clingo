@@ -3446,7 +3446,6 @@ CREATE4(TheoryOperatorDefinition, location, name, priority, operator_type)
 CREATE3(TheoryTermDefinition, location, name, operators)
 CREATE2(TheoryGuardDefinition, operators, term)
 CREATE6(TheoryAtomDefinition, location, atom_type, name, arity, elements, guard)
-CREATE3(TheoryDefinition, name, terms, atoms)
 
 // {{{2 statements
 
@@ -3462,6 +3461,7 @@ CREATE4(Edge, location, u, v, body)
 CREATE6(Heuristic, location, atom, body, bias, priority, modifier)
 CREATE3(ProjectAtom, location, atom, body)
 CREATE3(ProjectSignature, location, name, arity)
+CREATE4(TheoryDefinition, location, name, terms, atoms)
 
 // }}}2
 
@@ -4299,7 +4299,293 @@ static PyMethodDef clingoASTModuleMethods[] = {
     {"ProjectSignature", (PyCFunction)AST::createProjectSignature, METH_VARARGS | METH_KEYWORDS, nullptr},
     {nullptr, nullptr, 0, nullptr}
 };
-static char const *clingoASTModuleDoc = "The clingo.ast-" GRINGO_VERSION " module.";
+static char const *clingoASTModuleDoc = "The clingo.ast-" GRINGO_VERSION " module."
+R"(
+
+
+The grammar below defines valid ASTs. For each upper case identifier there is a
+matching function in the module. Arguments follow in paranthesis: each having a
+type given on the right-hand side of the colon. The symbols ?, *, and + are
+used to denote optional arguments (None encodes abscence), list arguments, and
+non-empty list arguments.
+
+-- Terms
+
+term = Symbol
+        ( location : Location
+        , symbol   : clingo.Term
+        )
+     | Variable
+        ( location : Location
+        , name     : str
+        )
+     | UnaryOperation
+        ( location : Location
+        , operator : UnaryOperator
+        , argument : term
+        )
+     | BinaryOperation
+        ( location : Location
+        , operator : BinaryOperator
+        , left     : term
+        , right    : term
+        )
+     | Interval
+        ( location : Location
+        , left     : term
+        , right    : term
+        )
+     | Function
+        ( location  : Location
+        , name      : str
+        , arguments : term*
+        , external  : bool
+        )
+     | Pool
+        ( location  : Location
+        , arguments : term*
+        )
+
+csp_term = CSPSum
+            ( location : Location
+            , terms    : CSPProduct
+                          ( location    : Location
+                          , coefficient : term
+                          , variable    : term?
+                          )*
+
+theory_term = Symbol
+               ( location : Location
+               , symbol   : clingo.Term
+               )
+            | Variable
+               ( location : Location
+               , name     : str
+               )
+            | TheoryTermSequence
+               ( location : Location
+               , sequence_type : TheorySequenceType
+               , terms         : theory_term*
+               )
+            | TheoryFunction
+               ( location  : Location
+               , name      : str
+               , arguments : theory_term*
+               )
+            | TheoryUnparsedTerm
+               ( location : Location
+               , elements : TheoryUnparsedTermElement
+                             ( operators : str*
+                             , term      : theory_term
+                             )
+               )
+
+-- Literals
+
+literal = Literal
+           ( location : Location
+           , sign     : Sign
+           , atom     : Comparison
+                         ( comparison : ComparisonOperator
+                         , left       : term
+                         , right      : term
+                         )
+                      | BooleanConstant
+                         ( value : bool
+                         )
+                      | SymbolicAtom
+                         ( term : term
+                         )
+        | CSPLiteral
+           ( location : Location
+           , term     : csp_term
+           , guards   : CSPGuard
+                         ( comparison : ComparisonOperator
+                         , term       : csp_term
+                         )+
+
+-- Head and Body Literals
+
+aggregate_guard = AggregateGuard
+                   ( comparison : ComparisonOperator
+                   , term       : Term
+                   )
+
+conditional_literal = ConditionalLiteral
+                       ( location  : Location
+                       , literal   : Literal
+                       , condition : Literal*
+                       )
+
+aggregate = Aggregate
+             ( location    : Location
+             , elements    : conditional_literal*
+             , left_guard  : aggregate_guard?
+             , right_guard : aggregate_guard?
+             )
+
+theory_atom = TheoryAtom
+               ( location : Location
+               , term     : term
+               , elements : TheoryAtomElement
+                             ( tuple     : theory_term*
+                             , condition : literal*
+                             )*
+               , guard    : TheoryGuard
+                             ( operator_name : TheoryTerm
+                             , term          : theory_term
+                             )?
+
+body_atom = Aggregate
+          | BodyAggregate
+             ( location    : Location
+             , function    : AggregateFunction
+             , elements    : BodyAggregateElement
+                              ( tuple     : term*
+                              , condition : literal*
+                              )*
+             , left_guard  : aggregate_guard?
+             , right_guard : aggregate_guard?
+             )
+          | Disjoint
+             ( location : Location
+             , elements : DisjointElement
+                           ( location  : Location
+                           , tuple     : term*
+                           , term      : csp_term
+                           , condition : literal*
+                           )*
+             )
+          | theory_atom
+
+body_literal = literal
+             | conditional_literal
+             | Literal
+                ( location : Location
+                , sign     : Sign
+                , atom     : body_aggregate
+                )
+
+head = literal
+     | Aggregate
+     | HeadAggregate
+        ( location    : Location
+        , function    : AggregateFunction
+        , elements    : HeadAggregateElement
+                         ( tuple     : term*
+                         , condition : conditional_literal
+                         )*
+        , left_guard  : aggregate_guard?
+        , right_guard : aggregate_guard?
+        )
+     | Disjunction
+        ( location : Location
+        , elements : conditional_literal*
+        )
+     | theory_atom
+
+-- Theory Definitions
+
+theory = TheoryDefinition
+          ( location  : Location
+          , name      : str
+          , terms     : TheoryTermDefinition
+                         ( location  : Location
+                         , name      : str
+                         , operators : TheoryOperatorDefinition
+                                        ( location      : Location
+                                        , name          : str
+                                        , priority      : int
+                                        , operator_type : TheoryOperatorType
+                                        )
+                         )
+          , atoms     : TheoryAtomDefinition
+                         ( location  : Location
+                         , atom_type : TheoryAtomType
+                         , name      : str
+                         , arity     : int
+                         , elements  : str*
+                         , guard     : TheoryGuardDefinition
+                                        ( operators : str*
+                                        , term      : str
+                                        )?
+                         )
+          )
+
+-- Statements
+
+statement = Rule
+             ( location : Location
+             , head     : head
+             , body     : body_literal*
+             )
+          | Definition
+             ( location   : Location
+             , name       : str
+             , value      : term
+             , is_default : bool
+          | ShowSignature
+             ( location   : Location
+             , name       : str
+             , arity      : int
+             , csp        : bool
+             )
+          | ShowTerm
+             ( location : Location
+             , term     : term
+             , body     : body_literal*
+             , csp      : bool
+             )
+          | Minimize
+             ( location : Location
+             , weight   : term
+             , priority : term
+             , tuple    : term*
+             , body     : body_literal*
+             )
+          | Script
+             ( location    : Location
+             , script_type : ScriptType
+             , code        : str
+             )
+          | Program
+             ( location   : Location
+             , name       : str
+             , parameters : Id
+                             ( location : Location
+                             , id       : str
+                             )*
+             )
+          | External
+             ( location : Location
+             , atom     : term
+             , body     : body_literal*
+             )
+          | Edge
+             ( location : Location
+             , u        : term
+             , v        : term
+             , body     : body_literal*
+             )
+          | Heuristic
+             ( location : Location
+             , atom     : term
+             , body     : body_literal*
+             , bias     : term
+             , priority : term
+             , modifier : term
+             )
+          | ProjectAtom
+             ( location : Location
+             , atom     : term
+             , body     : body_literal*
+             )
+          | ShowSignature
+             ( location   : Location
+             , name       : str
+             , arity      : int
+             )
+)";
 
 static PyMethodDef clingoModuleMethods[] = {
     {"parse_term", (PyCFunction)parseTerm, METH_O,
