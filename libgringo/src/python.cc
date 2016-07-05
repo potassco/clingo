@@ -2621,8 +2621,8 @@ PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
 #define CREATE6(N,a1,a2,a3,a4,a5,a6) \
 PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
     PY_TRY \
-        static char const *kwlist[] = {#a1, #a2, #a3, #a4, #a5, #a6, nullptr, nullptr}; \
-        PyObject* vals[] = { nullptr, nullptr, nullptr, nullptr, nullptr }; \
+        static char const *kwlist[] = {#a1, #a2, #a3, #a4, #a5, #a6, nullptr}; \
+        PyObject* vals[] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }; \
         if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOOOOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2], &vals[3], &vals[4], &vals[5])) { return nullptr; } \
         return AST::new_(ASTType::N, kwlist, vals); \
     PY_CATCH(nullptr); \
