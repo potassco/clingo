@@ -55,6 +55,7 @@ TEST_CASE("visitor", "[clingo]") {
     x = y;
     REQUIRE(x.get<std::string>() == "s1");
 
+#if (__clang__ || __GNUC__ >= 5)
     std::string r;
     y.accept(D(r));
     REQUIRE(r == "s1");
@@ -68,6 +69,7 @@ TEST_CASE("visitor", "[clingo]") {
     x.swap(y);
     REQUIRE(!y.get<std::unique_ptr<int>>());
     REQUIRE(x.get<std::string>() == "s1");
+#endif
 };
 
 } } // namespace Test Clingo

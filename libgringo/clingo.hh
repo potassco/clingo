@@ -130,41 +130,41 @@ struct VariantHolder<n, T, U...> : VariantHolder<n+1, U...>{
         Helper::copy(src);
     }
     template <class V, class... Args>
-    using Ret_ = decltype(std::declval<V>().visit(std::declval<T&>()));
+    using Ret_ = decltype(std::declval<V>().visit(std::declval<T&>(), std::declval<Args>()...));
     template <class V, class... Args>
     using ConstRet_ = decltype(std::declval<V>().visit(std::declval<T const&>(), std::declval<Args>()...));
     // non-const
     template <class V, class U1, class... U2, class... Args>
-    auto accept_(V &&visitor, Args &&... args) -> Ret_<V, Args...> {
+    Ret_<V, Args...> accept_(V &&visitor, Args &&... args) {
         static_assert(std::is_same<Ret_<V, Args...>, typename Helper::template Ret_<V, Args...>>::value, "");
         return n == type_
             ? visitor.visit(*static_cast<T*>(data_), std::forward<Args>(args)...)
             : Helper::template accept<V>(std::forward<V>(visitor), std::forward<Args>(args)...);
     }
     template <class V, class... Args>
-    auto accept_(V &&visitor, Args &&... args) -> Ret_<V, Args...> {
+    Ret_<V, Args...> accept_(V &&visitor, Args &&... args) {
         assert(n == type_);
         return visitor.visit(*static_cast<T*>(data_), std::forward<Args>(args)...);
     }
     template <class V, class... Args>
-    auto accept(V &&visitor, Args &&... args) -> Ret_<V, Args...> {
+    Ret_<V, Args...> accept(V &&visitor, Args &&... args) {
         return accept_<V, U...>(std::forward<V>(visitor), std::forward<Args>(args)...);
     }
     // const
     template <class V, class U1, class... U2, class... Args>
-    auto accept_(V &&visitor, Args &&... args) const -> ConstRet_<V, Args...> {
+    ConstRet_<V, Args...> accept_(V &&visitor, Args &&... args) const {
         static_assert(std::is_same<ConstRet_<V, Args...>, typename Helper::template ConstRet_<V, Args...>>::value, "");
         return n == type_
             ? visitor.visit(*static_cast<T const *>(data_), std::forward<Args>(args)...)
             : Helper::template accept<V>(std::forward<V>(visitor), std::forward<Args>(args)...);
     }
     template <class V, class... Args>
-    auto accept_(V &&visitor, Args &&... args) const -> ConstRet_<V, Args...> {
+    ConstRet_<V, Args...> accept_(V &&visitor, Args &&... args) const {
         assert(n == type_);
         return visitor.visit(*static_cast<T const *>(data_), std::forward<Args>(args)...);
     }
     template <class V, class... Args>
-    auto accept(V &&visitor, Args &&... args) const -> ConstRet_<V, Args...> {
+    ConstRet_<V, Args...> accept(V &&visitor, Args &&... args) const {
         return accept_<V, U...>(std::forward<V>(visitor), std::forward<Args>(args)...);
     }
     void destroy() {
@@ -280,11 +280,11 @@ public:
     bool is() const { return data_.check_type(static_cast<U*>(nullptr)); }
     void swap(Variant &other) { data_.swap(other.data_); }
     template <class V, class... Args>
-    auto accept(V &&visitor, Args &&... args) -> typename Holder::template Ret_<V, Args...> {
+    typename Holder::template Ret_<V, Args...> accept(V &&visitor, Args &&... args) {
         return data_.template accept(std::forward<V>(visitor), std::forward<Args>(args)...);
     }
     template <class V, class... Args>
-    auto accept(V &&visitor, Args &&... args) const -> typename Holder::template ConstRet_<V, Args...> {
+    typename Holder::template ConstRet_<V, Args...> accept(V &&visitor, Args &&... args) const {
         return data_.template accept(std::forward<V>(visitor), std::forward<Args>(args)...);
     }
     friend std::ostream &operator<<(std::ostream &out, Variant const &x) {

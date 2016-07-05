@@ -189,20 +189,20 @@ TEST_CASE("add-ast", "[clingo]") {
         REQUIRE(solve("#minimize{ 1:b; 2:a }. {a;b}. :- not a, not b.") == ModelVec({{Id("b")}}));
 #ifdef WITH_LUA
         // NOTE: at the moment it is not possible to add additional script code - it is simply ignored
-        REQUIRE(solve("#script (lua) function x() return 32; end #end. p(@x()).") == ModelVec({{}}));
+        REQUIRE(solve("#script (lua) function x() return 32; end #end. p(@x()).") == ModelVec({SymbolVector{}}));
 #endif
         REQUIRE(solve("#edge (u,v) : a. #edge (v,u) : b. {a;b}.") == ModelVec({{}, {Id("a")}, {Id("b")}}));
-        REQUIRE(solve("#theory x {}.") == ModelVec({{}}));
+        REQUIRE(solve("#theory x {}.") == ModelVec({SymbolVector{}}));
         // these just test parsing...
-        REQUIRE(solve("#external a.") == ModelVec({{}}));
-        REQUIRE(solve("#heuristic a : b, c. [1@2,level]") == ModelVec({{}}));
-        REQUIRE(solve("#project a.") == ModelVec({{}}));
-        REQUIRE(solve("#project a/0.") == ModelVec({{}}));
+        REQUIRE(solve("#external a.") == ModelVec({SymbolVector{}}));
+        REQUIRE(solve("#heuristic a : b, c. [1@2,level]") == ModelVec({SymbolVector{}}));
+        REQUIRE(solve("#project a.") == ModelVec({SymbolVector{}}));
+        REQUIRE(solve("#project a/0.") == ModelVec({SymbolVector{}}));
     }
     SECTION("body literal") {
-        REQUIRE(solve("{a}. :-a.") == ModelVec({{}}));
+        REQUIRE(solve("{a}. :-a.") == ModelVec({SymbolVector{}}));
         REQUIRE(solve("{a}. :-not a.") == ModelVec({{Id("a")}}));
-        REQUIRE(solve("{a}. :-not not a.") == ModelVec({{}}));
+        REQUIRE(solve("{a}. :-not not a.") == ModelVec({SymbolVector{}}));
         REQUIRE(solve(":-a:b.") == ModelVec({}));
         REQUIRE(solve(":-0{a:b;c}1. {a;b;c}.") == ModelVec({{Id("a"), Id("b"), Id("c")}}));
         REQUIRE(solve(":-0#min{1,2:a,b;2:c}2. {a;b;c}.") == ModelVec({{}, {Id("a")}, {Id("b")}}));
@@ -211,7 +211,7 @@ TEST_CASE("add-ast", "[clingo]") {
     }
     SECTION("head literal") {
         REQUIRE(solve("a.") == ModelVec({{Id("a")}}));
-        REQUIRE(solve("not a.") == ModelVec({{}}));
+        REQUIRE(solve("not a.") == ModelVec({SymbolVector{}}));
         REQUIRE(solve("not not a.") == ModelVec({}));
         REQUIRE(solve("a:b;c.{b}.") == ModelVec({{Id("a"), Id("b")}, {Id("b"), Id("c")}, {Id("c")}}));
         REQUIRE(solve("1{a:b;b}2.") == ModelVec({{Id("a"), Id("b")}, {Id("b")}}));
@@ -219,11 +219,11 @@ TEST_CASE("add-ast", "[clingo]") {
     }
     SECTION("literal") {
         REQUIRE(solve("a.") == ModelVec({{Id("a")}}));
-        REQUIRE(solve("1=1.") == ModelVec({{}}));
+        REQUIRE(solve("1=1.") == ModelVec({SymbolVector{}}));
         REQUIRE(solve("1!=1.") == ModelVec({}));
-        REQUIRE(solve("#true.") == ModelVec({{}}));
+        REQUIRE(solve("#true.") == ModelVec({SymbolVector{}}));
         REQUIRE(solve("#false.") == ModelVec({}));
-        REQUIRE(solve("1 $< 2 $< 3.") == ModelVec({{}}));
+        REQUIRE(solve("1 $< 2 $< 3.") == ModelVec({SymbolVector{}}));
         REQUIRE(solve("2 $< 3 $< 1.") == ModelVec({}));
     }
     SECTION("terms") {
