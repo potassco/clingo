@@ -299,7 +299,7 @@ TEST_CASE("solving", "[clingo]") {
                 REQUIRE(atom.literal() > 0);
                 for (auto elem : atom.elements()) {
                     ++count;
-                    REQUIRE(elem.condition_literal() > 0);
+                    REQUIRE(elem.condition_id() > 0);
                     REQUIRE(elem.tuple().size() == 3);
                     auto it = elem.tuple().begin();
                     REQUIRE(it->type() == TheoryTermType::Number);

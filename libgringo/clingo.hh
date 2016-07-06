@@ -673,7 +673,7 @@ public:
     , id_(id) { }
     TheoryTermSpan tuple() const;
     LiteralSpan condition() const;
-    literal_t condition_literal() const;
+    literal_t condition_id() const;
     std::string to_string() const;
     clingo_id_t to_c() const { return id_; }
 private:

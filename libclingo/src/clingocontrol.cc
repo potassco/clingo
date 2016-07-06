@@ -123,7 +123,7 @@ void ClingoControl::parse() {
 
 Potassco::Lit_t ClingoPropagateInit::mapLit(Lit_t lit) {
     const auto& prg = static_cast<Clasp::Asp::LogicProgram&>(*static_cast<ClingoControl&>(c_).clasp_->program());
-    return Clasp::encodeLit(Clasp::Asp::solverLiteral(prg, lit));
+    return Clasp::encodeLit(prg.getLiteral(lit));
 }
 
 int ClingoPropagateInit::threads() {

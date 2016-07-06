@@ -681,7 +681,7 @@ struct TheoryElement : Object<TheoryElement> {
         return 1;
     }
 
-    static int conditionLiteral(lua_State *L) {
+    static int conditionId(lua_State *L) {
         auto self = Object::self(L);
         lua_pushnumber(L, protect(L, [self]() { return self->data->elemCondLit(self->idx); }));
         return 1;
@@ -698,7 +698,7 @@ struct TheoryElement : Object<TheoryElement> {
         char const *field = luaL_checkstring(L, 2);
         if (strcmp(field, "terms") == 0) { return terms(L); }
         else if (strcmp(field, "condition") == 0) { return condition(L); }
-        else if (strcmp(field, "condition_literal") == 0) { return conditionLiteral(L); }
+        else if (strcmp(field, "condition_id") == 0) { return conditionId(L); }
         else {
             lua_getmetatable(L, 1);
             lua_getfield(L, -1, field);

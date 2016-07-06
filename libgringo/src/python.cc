@@ -860,7 +860,7 @@ terms and a set of literals.)";
             return list.release();
         PY_CATCH(nullptr);
     }
-    static PyObject *condition_literal(TheoryElement *self, void *) {
+    static PyObject *condition_id(TheoryElement *self, void *) {
         PY_TRY
             return PyInt_FromLong(self->data->elemCondLit(self->value));
         PY_CATCH(nullptr);
@@ -886,9 +886,10 @@ The tuple of the element.)", nullptr},
     {(char *)"condition", (getter)condition, nullptr, (char *)R"(condition -> [Term]
 
 The conditon of the element.)", nullptr},
-    {(char *)"condition_literal", (getter)condition_literal, nullptr, (char *)R"(condition_literal -> int
+    {(char *)"condition_id", (getter)condition_id, nullptr, (char *)R"(condition_id -> int
 
-The single program literal associated with the condition.)", nullptr},
+Each condition has an id. This id can be passed to PropagateInit.solver_literal
+    to obtain a solver literal equivalent to the condition.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 

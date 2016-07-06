@@ -411,9 +411,9 @@ LiteralSpan TheoryElement::condition() const {
     return {ret, n};
 }
 
-literal_t TheoryElement::condition_literal() const {
+literal_t TheoryElement::condition_id() const {
     clingo_literal_t ret;
-    handleCError(clingo_theory_atoms_element_condition_literal(atoms_, id_, &ret));
+    handleCError(clingo_theory_atoms_element_condition_id(atoms_, id_, &ret));
     return ret;
 }
 
@@ -2772,7 +2772,7 @@ extern "C" clingo_error_t clingo_theory_atoms_element_condition(clingo_theory_at
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_theory_atoms_element_condition_literal(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_literal_t *ret) {
+extern "C" clingo_error_t clingo_theory_atoms_element_condition_id(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_literal_t *ret) {
     GRINGO_CLINGO_TRY { *ret = atoms->elemCondLit(value); }
     GRINGO_CLINGO_CATCH;
 }

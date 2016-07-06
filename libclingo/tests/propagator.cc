@@ -158,7 +158,7 @@ private:
 
     void add_pattern_atoms(PropagateInit &init, TheoryAtom const &atom) {
         for (auto elem : atom.elements()) {
-            literal_t lit = init.map_literal(elem.condition_literal());
+            literal_t lit = init.map_literal(elem.condition_id());
             auto args = elem.tuple();
             int index = args[0].number();
             assert(index >= 0);

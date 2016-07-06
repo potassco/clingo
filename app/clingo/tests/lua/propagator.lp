@@ -137,7 +137,7 @@ end
 
 function Propagator:__add_pat_atoms(init, atom)
     for _, elem in ipairs(atom.elements) do
-        local lit = init:solver_literal(elem.condition_literal)
+        local lit = init:solver_literal(elem.condition_id)
         local index, item = elem.terms[1].number + 1, elem.terms[2]
         assert(index >= 1)
         local item = self:__map_item(tostring(item))

@@ -49,7 +49,7 @@ class Propagator:
 
     def __add_pat_atoms(self, init, atom):
         for elem in atom.elements:
-            lit = init.solver_literal(elem.condition_literal)
+            lit = init.solver_literal(elem.condition_id)
             index, item = elem.terms
             index = index.number
             assert(index >= 0)
