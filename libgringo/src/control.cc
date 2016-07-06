@@ -2334,7 +2334,7 @@ std::ostream &operator<<(std::ostream &out, CSPSum const &x) {
 }
 
 std::ostream &operator<<(std::ostream &out, CSPProduct const &x) {
-    if (x.variable) { out << x.coefficient << "$*" << *x.variable.get(); }
+    if (x.variable) { out << x.coefficient << "$*$" << *x.variable.get(); }
     else            { out << x.coefficient; }
     return out;
 }
