@@ -2174,8 +2174,8 @@ literals.  There is a surjective mapping from program atoms to solver literals.
 
 All methods called during propagation use solver literals whereas
 SymbolicAtom.literal() and TheoryAtom.literal() return program literals.  The
-function PropagateInit.solver_literal() can be used to map program literals to
-solver literals.)";
+function PropagateInit.solver_literal() can be used to map program literals or
+condition ids to solver literals.)";
     static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
 
@@ -2223,7 +2223,7 @@ PyMethodDef PropagateInit::tp_methods[] = {
 Add a watch for the solver literal in the given phase.)"},
     {"solver_literal", (PyCFunction)mapLit, METH_O, R"(solver_literal(self, lit) -> int
 
-Map the given program literal to its solver literal.)"},
+Map the given program literal or condition id to its solver literal.)"},
     {nullptr, nullptr, 0, nullptr}
 };
 
