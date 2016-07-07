@@ -50,7 +50,7 @@ def test():
     thd_d = ast.TheoryDefinition(loc, "x", [thd_t], [thd_a])
     stm_r = ast.Rule(loc, lit_s, [lit_s])
     stm_c = ast.Definition(loc, "x", trm_s, True)
-    stm_s = ast.ShowSignature(loc, "x", 2, True)
+    stm_s = ast.ShowSignature(loc, "x", 2, True, True)
     stm_t = ast.ShowTerm(loc, trm_s, [lit_s], True)
     stm_m = ast.Minimize(loc, trm_s, trm_s, [trm_v], [lit_s])
     stm_p = ast.Script(loc, ast.ScriptType.Python, "blub!")
@@ -59,7 +59,7 @@ def test():
     stm_a = ast.Edge(loc, trm_s, trm_s, [lit_s])
     stm_h = ast.Heuristic(loc, trm_s, [lit_s], trm_s, trm_s, trm_s)
     stm_x = ast.ProjectAtom(loc, trm_s, [lit_s])
-    stm_y = ast.ProjectSignature(loc, "p", 2)
+    stm_y = ast.ProjectSignature(loc, "p", 2, True)
     return add([
         (id_i, "i", ast.ASTType.Id),
         (trm_v, "X", ast.ASTType.Variable),

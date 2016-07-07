@@ -137,8 +137,13 @@ struct Object {
         if (PyErr_Occurred()) { throw PyException(); }
         return ret;
     }
-    bool isInstance(PyObject *type) {
+    bool isInstance(Object type) {
         auto inst = PyObject_IsInstance(obj, type);
+        if (PyErr_Occurred()) { throw PyException(); }
+        return inst;
+    }
+    bool isInstance(PyTypeObject &type) {
+        auto inst = PyObject_IsInstance(obj, reinterpret_cast<PyObject*>(&type));
         if (PyErr_Occurred()) { throw PyException(); }
         return inst;
     }
@@ -148,11 +153,11 @@ struct Object {
         if (ret < 0) { throw PyException(); }
         return ret;
     }
-    friend bool operator!=(Object a, Object b) {
-        auto ret = PyObject_RichCompareBool(a, b, Py_NE);
-        if (ret < 0) { throw PyException(); }
-        return ret;
-    }
+    //friend bool operator!=(Object a, Object b) {
+    //    auto ret = PyObject_RichCompareBool(a, b, Py_NE);
+    //    if (ret < 0) { throw PyException(); }
+    //    return ret;
+    //}
 
     // }}}2
     bool none() const                      { return obj == Py_None; }
@@ -229,10 +234,10 @@ public:
 
     friend bool operator==(IterIterator a, IterIterator b) { return a.current_.get() == b.current_.get(); }
     friend bool operator!=(IterIterator a, IterIterator b) { return !(a == b); }
-    friend void swap(IterIterator a, IterIterator b) {
-        std::swap(a.it_, b.it_);
-        std::swap(a.current_, b.current_);
-    }
+    //friend void swap(IterIterator a, IterIterator b) {
+    //    std::swap(a.it_, b.it_);
+    //    std::swap(a.current_, b.current_);
+    //}
 private:
     Iter it_;
     Object current_;
@@ -301,63 +306,6 @@ void pyToCpp(PyObject *pyPair, Potassco::WeightLit_t &x) {
     std::pair<Lit_t &, Weight_t &> y{ x.lit, x.weight };
     pyToCpp(pyPair, y);
 }
-
-Object pyGetAttr(PyObject *o, char const *attr) {
-    return PyMapping_Check(o) && PyMapping_HasKeyString(o, const_cast<char *>(attr))
-        ? PyMapping_GetItemString(o, const_cast<char *>(attr))
-        : PyObject_GetAttrString(o, attr);
-}
-
-struct LocOwner {
-    LocOwner(std::string &str, size_t &line, size_t &column)
-    : str(str), line(line), column(column) { }
-    std::string &str;
-    size_t &line;
-    size_t &column;
-};
-
-void pyToCpp(PyObject *pyStr, std::string &str) {
-    char const *cstr = PyString_AsString(pyStr);
-    if (!cstr) { throw PyException(); }
-    str = cstr;
-}
-
-void pyToCpp(PyObject *pyLoc, Gringo::LocOwner &loc) {
-    // location.filename
-    Object pyName = pyGetAttr(pyLoc, "filename");
-    pyToCpp(pyName, loc.str);
-    // location.line
-    Object pyLine = pyGetAttr(pyLoc, "line");
-    pyToCpp(pyLine, loc.line);
-    // location.column
-    Object pyColumn = pyGetAttr(pyLoc, "column");
-    pyToCpp(pyColumn, loc.column);
-}
-
-/*
-void pyToCpp(PyObject *pyAST, Gringo::ASTOwner &ast) {
-    // ast.value
-    Object pyTerm = pyGetAttr(pyAST, "term");
-    pyToCpp(pyTerm, reinterpret_cast<Symbol &>(ast.root.value));
-    // ast.location
-    Object pyLoc = pyGetAttr(pyAST, "location");
-    // ast.location.begin
-    Object pyBegin = pyGetAttr(pyLoc, "begin");
-    LocOwner begin(ast.begin, ast.root.location.begin_line, ast.root.location.begin_column);
-    pyToCpp(pyBegin, begin);
-    ast.root.location.begin_file = ast.begin.c_str();
-    // ast.location.end
-    Object pyEnd = pyGetAttr(pyLoc, "end");
-    LocOwner end(ast.end, ast.root.location.end_line, ast.root.location.end_column);
-    ast.root.location.end_file = ast.end.c_str();
-    // ast.children
-    Object pyChildren = pyGetAttr(pyLoc, "children");
-    pyToCpp(pyChildren, ast.childOwner);
-    for (auto &x : ast.childOwner) {
-        ast.childAST.emplace_back(x.root);
-    }
-}
-*/
 
 template <class T>
 void pyToCpp(PyObject *pyVec, std::vector<T> &vec) {
@@ -431,38 +379,6 @@ template <class T>
 Object cppToPy(T n, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr) {
     return PyInt_FromLong(n);
 }
-
-Object cppToPy(clingo_location const &l) {
-    Object dict = PyDict_New();
-    auto add = [](char const *n, size_t l, size_t c) -> Object {
-        Object loc = PyDict_New();
-        Object name = cppToPy(n);
-        if (PyDict_SetItemString(loc, "filename", name) < 0) { throw PyException(); }
-        Object line = cppToPy(l);
-        if (PyDict_SetItemString(loc, "line", line) < 0) { throw PyException(); }
-        Object column = cppToPy(c);
-        if (PyDict_SetItemString(loc, "filename", column) < 0) { throw PyException(); }
-        return loc;
-    };
-    Object begin = add(l.begin_file, l.begin_line, l.begin_column);
-    if (PyDict_SetItemString(dict, "begin", begin) < 0) { throw PyException(); }
-    Object end = add(l.end_file, l.end_line, l.end_column);
-    if (PyDict_SetItemString(dict, "end", end) < 0) { throw PyException(); }
-    return dict;
-}
-
-/*
-Object cppToPy(clingo_ast const &e) {
-    Object dict = PyDict_New();
-    Object term = cppToPy(e.value);
-    if (PyDict_SetItemString(dict, "term", term) < 0) { throw PyException(); }
-    Object children = cppToPy(e.children);
-    if (PyDict_SetItemString(dict, "children", children) < 0) { throw PyException(); }
-    Object loc = cppToPy(static_cast<clingo_location const &>(e.location));
-    if (PyDict_SetItemString(dict, "location", loc) < 0) { throw PyException(); }
-    return dict;
-}
-*/
 
 struct PyUnblock {
     PyUnblock() : state(PyEval_SaveThread()) { }
@@ -706,11 +622,6 @@ struct EnumType : ObjectBase<T> {
         }
         return PyErr_Format(PyExc_RuntimeError, "should not happen");
     }
-    template <class U>
-    static auto getValue(U *self) -> decltype(self->values[0]) {
-        return self->values[self->offset];
-    }
-
     static int addAttr() {
         for (unsigned i = 0; i < sizeof(T::values) / sizeof(*T::values); ++i) {
             Object elem(new_(i));
@@ -729,6 +640,15 @@ struct EnumType : ObjectBase<T> {
         return doCmp(self->offset, reinterpret_cast<EnumType*>(b)->offset, op);
     }
 };
+template <class T>
+auto enumValue(Object self) -> decltype(std::declval<T*>()->values[0]) {
+    if (!self.isInstance(T::type)) {
+        throw std::runtime_error("not an enumeration object");
+    }
+    auto *p = reinterpret_cast<T*>(self.get());
+    return p->values[p->offset];
+}
+
 
 // }}}1
 
@@ -3153,10 +3073,10 @@ struct AST : ObjectBase<AST> {
         PY_TRY
             std::ostringstream out;
             Object type = self->getValue("type");
-            if (!type.isInstance(reinterpret_cast<PyObject*>(&ASTType::type))) {
-                throw std::runtime_error("AST node with unknow type");
+            if (!type.isInstance(ASTType::type)) {
+                throw std::runtime_error("AST node with unknown type");
             }
-            switch (ASTType::getValue(reinterpret_cast<ASTType*>(type.get()))) {
+            switch (enumValue<ASTType>(type)) {
                 // {{{3 term
                 case ASTType::Id: { return self->getValue("id").str().release(); }
                 case ASTType::Variable: { return self->getValue("name").str().release(); }
@@ -3359,7 +3279,7 @@ struct AST : ObjectBase<AST> {
                     break;
                 }
                 case ASTType::ShowSignature: {
-                    out << "#show " << (self->getValue("csp").isTrue() ? "$" : "") << self->getValue("name") << "/" << self->getValue("arity") << ".";
+                    out << "#show " << (self->getValue("csp").isTrue() ? "$" : "") << (self->getValue("positive").isTrue() ? "" : "-") << self->getValue("name") << "/" << self->getValue("arity") << ".";
                     break;
                 }
                 case ASTType::ShowTerm: {
@@ -3399,7 +3319,7 @@ struct AST : ObjectBase<AST> {
                     break;
                 }
                 case ASTType::ProjectSignature: {
-                    out << "#project " << self->getValue("name") << "/" << self->getValue("arity") << ".";
+                    out << "#project " << (self->getValue("positive").isTrue() ? "" : "-") << self->getValue("name") << "/" << self->getValue("arity") << ".";
                     break;
                 }
                 // }}}3
@@ -3479,7 +3399,7 @@ CREATE6(TheoryAtomDefinition, location, atom_type, name, arity, elements, guard)
 
 CREATE3(Rule, location, head, body)
 CREATE4(Definition, location, name, value, is_default)
-CREATE4(ShowSignature, location, name, arity, csp)
+CREATE5(ShowSignature, location, name, arity, positive, csp)
 CREATE4(ShowTerm, location, term, body, csp)
 CREATE5(Minimize, location, weight, priority, tuple, body)
 CREATE3(Script, location, script_type, code)
@@ -3488,10 +3408,31 @@ CREATE3(External, location, atom, body)
 CREATE4(Edge, location, u, v, body)
 CREATE6(Heuristic, location, atom, body, bias, priority, modifier)
 CREATE3(ProjectAtom, location, atom, body)
-CREATE3(ProjectSignature, location, name, arity)
+CREATE4(ProjectSignature, location, name, arity, positive)
 CREATE4(TheoryDefinition, location, name, terms, atoms)
 
 // {{{2 C -> Py
+
+// {{{3 location
+
+Object cppToPy(clingo_location_t const &l) {
+    Object dict = PyDict_New();
+    auto add = [](char const *n, size_t l, size_t c) -> Object {
+        Object loc = PyDict_New();
+        Object name = cppToPy(n);
+        if (PyDict_SetItemString(loc, "filename", name) < 0) { throw PyException(); }
+        Object line = cppToPy(l);
+        if (PyDict_SetItemString(loc, "line", line) < 0) { throw PyException(); }
+        Object column = cppToPy(c);
+        if (PyDict_SetItemString(loc, "column", column) < 0) { throw PyException(); }
+        return loc;
+    };
+    Object begin = add(l.begin_file, l.begin_line, l.begin_column);
+    if (PyDict_SetItemString(dict, "begin", begin) < 0) { throw PyException(); }
+    Object end = add(l.end_file, l.end_line, l.end_column);
+    if (PyDict_SetItemString(dict, "end", end) < 0) { throw PyException(); }
+    return dict;
+}
 
 // {{{3 terms
 
@@ -3697,10 +3638,12 @@ Object cppToPy(clingo_ast_head_literal_t const &head) {
 Object cppToPy(clingo_ast_body_literal_t const &body) {
     switch (static_cast<enum clingo_ast_body_literal_type>(body.type)) {
         case clingo_ast_body_literal_type_literal: {
-            return call(createLiteral, cppToPy(body.location), Sign::getAttr(body.sign), cppToPy(*body.literal));
+            assert(body.sign == clingo_ast_sign_none);
+            return cppToPy(*body.literal);
         }
         case clingo_ast_body_literal_type_conditional: {
-            return call(createLiteral, cppToPy(body.location), Sign::getAttr(body.sign), cppToPy(*body.conditional));
+            assert(body.sign == clingo_ast_sign_none);
+            return cppToPy(*body.conditional);
         }
         case clingo_ast_body_literal_type_aggregate: {
             return call(createLiteral, cppToPy(body.location), Sign::getAttr(body.sign), cppToPy(body.location, *body.aggregate));
@@ -3750,7 +3693,7 @@ Object cppToPy(clingo_ast_statement_t const &stm) {
         }
         case clingo_ast_statement_type_show_signature: {
             auto sig = Sig(stm.show_signature->signature);
-            return call(createShowSignature, cppToPy(stm.location), cppToPy(sig.name().c_str()), cppToPy(sig.arity()), cppToPy(stm.show_signature->csp));
+            return call(createShowSignature, cppToPy(stm.location), cppToPy(sig.name().c_str()), cppToPy(sig.arity()), cppToPy(!sig.sign()), cppToPy(stm.show_signature->csp));
         }
         case clingo_ast_statement_type_show_term: {
             return call(createShowTerm, cppToPy(stm.location), cppToPy(stm.show_term->term), cppToPy(stm.show_term->body, stm.show_term->size), cppToPy(stm.show_term->csp));
@@ -3780,7 +3723,7 @@ Object cppToPy(clingo_ast_statement_t const &stm) {
         }
         case clingo_ast_statement_type_project_atom_signature: {
             auto sig = Sig(stm.project_signature);
-            return call(createProjectSignature, cppToPy(stm.location), cppToPy(sig.name().c_str()), cppToPy(sig.arity()));
+            return call(createProjectSignature, cppToPy(stm.location), cppToPy(sig.name().c_str()), cppToPy(sig.arity()), cppToPy(!sig.sign()));
         }
         case clingo_ast_statement_type_theory_definition: {
             auto &def = *stm.theory_definition;
@@ -3818,7 +3761,724 @@ PyObject *parseProgram(PyObject *, PyObject *args, PyObject *kwds) {
 
 // {{{2 Py -> C
 
-// TODO...
+struct ASTToC {
+
+    clingo_location_t convLocation(Object x) {
+        clingo_location_t ret;
+        Object begin = x.getItem("begin");
+        Object end   = x.getItem("end");
+        ret.begin_file   = convString(begin.getItem("filename"));
+        ret.begin_line   = pyToCpp<size_t>(begin.getItem("line"));
+        ret.begin_column = pyToCpp<size_t>(begin.getItem("column"));
+        ret.end_file     = convString(end.getItem("filename"));
+        ret.end_line     = pyToCpp<size_t>(end.getItem("line"));
+        ret.end_column   = pyToCpp<size_t>(end.getItem("column"));
+        return ret;
+    }
+
+    char const *convString(Object x) {
+        char const *ret;
+        handleCError(clingo_add_string(pyToCpp<char const *>(x), &ret));
+        return ret;
+    }
+
+    // {{{2 term
+
+    clingo_ast_id_t convId(Object x) {
+        return {convLocation(x.getAttr("location")), convString(x)};
+    }
+
+    clingo_ast_term_t convTerm(Object x) {
+        clingo_ast_term_t ret;
+        ret.location = convLocation(x.getAttr("location"));
+        switch (enumValue<ASTType>(x.getAttr("type"))) {
+            case ASTType::Variable: {
+                ret.type     = clingo_ast_term_type_variable;
+                ret.variable = convString(x.getAttr("name"));
+                return ret;
+            }
+            case ASTType::Symbol: {
+                ret.type   = clingo_ast_term_type_symbol;
+                ret.symbol = pyToCpp<Symbol>(x.getAttr("symbol")).rep();
+                return ret;
+            }
+            case ASTType::UnaryOperation: {
+                auto unary_operation = create_<clingo_ast_unary_operation_t>();
+                unary_operation->unary_operator = enumValue<UnaryOperator>(x.getAttr("unary_operator"));
+                unary_operation->argument       = convTerm(x.getAttr("argument"));
+                ret.type            = clingo_ast_term_type_unary_operation;
+                ret.unary_operation = unary_operation;
+                return ret;
+            }
+            case ASTType::BinaryOperation: {
+                auto binary_operation = create_<clingo_ast_binary_operation_t>();
+                binary_operation->binary_operator = enumValue<BinaryOperator>(x.getAttr("binary_operator"));
+                binary_operation->left            = convTerm(x.getAttr("left"));
+                binary_operation->right           = convTerm(x.getAttr("right"));
+                ret.type             = clingo_ast_term_type_binary_operation;
+                ret.binary_operation = binary_operation;
+                return ret;
+            }
+            case ASTType::Interval: {
+                auto interval = create_<clingo_ast_interval_t>();
+                interval->left  = convTerm(x.getAttr("left"));
+                interval->right = convTerm(x.getAttr("right"));
+                ret.type     = clingo_ast_term_type_interval;
+                ret.interval = interval;
+                return ret;
+            }
+            case ASTType::Function: {
+                auto function = create_<clingo_ast_function_t>();
+                auto args = x.getAttr("arguments");
+                function->name      = convString(x.getAttr("name"));
+                function->arguments = convTermVec(args);
+                function->size      = args.size();
+                ret.type     = x.getAttr("external").isTrue() ? clingo_ast_term_type_external_function : clingo_ast_term_type_function;
+                ret.function = function;
+                return ret;
+            }
+            case ASTType::Pool: {
+                auto pool = create_<clingo_ast_pool_t>();
+                auto args = x.getAttr("arguments");
+                pool->arguments = convTermVec(args);
+                pool->size      = args.size();
+                ret.type     = clingo_ast_term_type_pool;
+                ret.pool     = pool;
+                return ret;
+            }
+            default: {
+                throw std::runtime_error("term expected");
+            }
+        }
+    }
+
+    clingo_ast_term_t *convTermVec(Object x) {
+        return createArray_(x, &ASTToC::convTerm);
+    }
+
+    clingo_ast_term_t *convTermOpt(Object x) {
+        return !x.none() ? create_(convTerm(x)) : nullptr;
+    }
+
+    clingo_ast_csp_product_term_t convCSPProduct(Object x) {
+        clingo_ast_csp_product_term_t ret;
+        ret.location    = convLocation(x.getAttr("location"));
+        ret.variable    = convTermOpt(x.getAttr("variable"));
+        ret.coefficient = convTerm(x.getAttr("coefficient"));
+        return ret;
+    }
+
+    clingo_ast_csp_sum_term_t convCSPAdd(Object x) {
+        clingo_ast_csp_sum_term_t ret;
+        auto terms = x.getAttr("terms");
+        ret.location = convLocation(x.getAttr("location"));
+        ret.terms    = createArray_(terms, &ASTToC::convCSPProduct);
+        ret.size     = terms.size();
+        return ret;
+    }
+
+    clingo_ast_theory_unparsed_term_element_t convTheoryUnparsedTermElement(Object x) {
+        auto ops= x.getAttr("operators");
+        clingo_ast_theory_unparsed_term_element_t ret;
+        ret.term      = convTheoryTerm(x.getAttr("term"));
+        ret.operators = createArray_(ops, &ASTToC::convString);
+        ret.size      = ops.size();
+        return ret;
+    }
+
+    clingo_ast_theory_term_t convTheoryTerm(Object x) {
+        clingo_ast_theory_term_t ret;
+        ret.location = convLocation(x.getAttr("location"));
+        switch (enumValue<ASTType>(x.getAttr("type"))) {
+            case ASTType::Variable: {
+                ret.type     = clingo_ast_theory_term_type_variable;
+                ret.variable = convString(x.getAttr("name"));
+                return ret;
+            }
+            case ASTType::Symbol: {
+                ret.type   = clingo_ast_theory_term_type_symbol;
+                ret.symbol = pyToCpp<Symbol>(x.getAttr("symbol")).rep();
+                return ret;
+            }
+            case ASTType::TheorySequence: {
+                auto sequence = create_<clingo_ast_theory_term_array_t>();
+                auto terms = x.getAttr("terms");
+                sequence->terms = convTheoryTermVec(terms);
+                sequence->size  = terms.size();
+                switch (enumValue<TheorySequenceType>(x.getAttr("sequence_type"))) {
+                    case TheorySequenceType::Set:   { ret.type = clingo_ast_theory_term_type_set; break; }
+                    case TheorySequenceType::List:  { ret.type = clingo_ast_theory_term_type_list; break; }
+                    case TheorySequenceType::Tuple: { ret.type = clingo_ast_theory_term_type_tuple; break; }
+                }
+                ret.set = sequence;
+                return ret;
+            }
+            case ASTType::TheoryFunction: {
+                auto function = create_<clingo_ast_theory_function_t>();
+                auto args = x.getAttr("arguments");
+                function->name      = convString(x.getAttr("name"));
+                function->arguments = convTheoryTermVec(args);
+                function->size      = args.size();
+                ret.type     = clingo_ast_theory_term_type_function;
+                ret.function = function;
+                return ret;
+            }
+            case ASTType::TheoryUnparsedTerm: {
+                auto unparsed_term = create_<clingo_ast_theory_unparsed_term>();
+                auto elems = x.getAttr("elements");
+                unparsed_term->elements = createArray_(elems, &ASTToC::convTheoryUnparsedTermElement);
+                unparsed_term->size     = elems.size();
+                ret.type          = clingo_ast_theory_term_type_unparsed_term;
+                ret.unparsed_term = unparsed_term;
+                return ret;
+
+            }
+            default: {
+                throw std::runtime_error("theory term expected");
+            }
+        }
+        return ret;
+    }
+    clingo_ast_theory_term_t *convTheoryTermVec(Object x) {
+        return createArray_(x, &ASTToC::convTheoryTerm);
+    }
+
+    // {{{2 literal
+
+    clingo_ast_csp_guard_t convCSPGuard(Object x) {
+        clingo_ast_csp_guard_t ret;
+        ret.comparison = enumValue<ComparisonOperator>(x.getAttr("comparison"));
+        ret.term       = convCSPAdd(x.getAttr("term"));
+        return ret;
+    }
+
+    clingo_ast_literal_t convLiteral(Object x) {
+        clingo_ast_literal_t ret;
+        ret.location = convLocation(x.getAttr("location"));
+        if (enumValue<ASTType>(x.getAttr("type")) == ASTType::CSPLiteral) {
+            auto csp = create_<clingo_ast_csp_literal_t>();
+            auto guards = x.getAttr("guards");
+            csp->term   = convCSPAdd(x.getAttr("term"));
+            csp->guards = createArray_(guards, &ASTToC::convCSPGuard);
+            csp->size   = guards.size();
+            ret.sign        = clingo_ast_sign_none;
+            ret.type        = clingo_ast_literal_type_csp;
+            ret.csp_literal = csp;
+            return ret;
+        }
+        auto atom = x.getAttr("atom");
+        ret.sign = enumValue<Sign>(x.getAttr("sign"));
+        switch (enumValue<ASTType>(atom.getAttr("type"))) {
+            case ASTType::BooleanConstant: {
+                ret.type     = clingo_ast_literal_type_boolean;
+                ret.boolean  = pyToCpp<bool>(atom.getAttr("value"));
+                return ret;
+            }
+            case ASTType::SymbolicAtom: {
+                ret.type   = clingo_ast_literal_type_symbolic;
+                ret.symbol = create_<clingo_ast_term_t>(convTerm(atom.getAttr("term")));
+                return ret;
+            }
+            case ASTType::Comparison: {
+                auto comparison = create_<clingo_ast_comparison_t>();
+                comparison->comparison = enumValue<ComparisonOperator>(atom.getAttr("comparison"));
+                comparison->left       = convTerm(atom.getAttr("left"));
+                comparison->right      = convTerm(atom.getAttr("right"));
+                ret.type       = clingo_ast_literal_type_comparison;
+                ret.comparison = comparison;
+                return ret;
+            }
+            case ASTType::CSPLiteral: {
+            }
+            default: {
+                throw std::runtime_error("literal expected");
+            }
+        }
+    }
+    clingo_ast_literal_t *convLiteralVec(Object &x) {
+        return createArray_(x, &ASTToC::convLiteral);
+    }
+
+    // {{{2 aggregates
+
+    clingo_ast_aggregate_guard_t *convAggregateGuardOpt(Object x) {
+        return !x.none()
+            ? create_<clingo_ast_aggregate_guard_t>({enumValue<ComparisonOperator>(x.getAttr("comparison")), convTerm(x.getAttr("term"))})
+            : nullptr;
+    }
+
+    clingo_ast_conditional_literal_t convConditionalLiteral(Object x) {
+        clingo_ast_conditional_literal_t ret;
+        auto cond = x.getAttr("condition");
+        ret.literal   = convLiteral(x.getAttr("literal"));
+        ret.condition = convLiteralVec(cond);
+        ret.size      = cond.size();
+        return ret;
+    }
+
+    clingo_ast_theory_guard_t *convTheoryGuardOpt(Object x) {
+        return !x.none()
+            ? create_<clingo_ast_theory_guard_t>({convString(x.getAttr("operator_name")), convTheoryTerm(x.getAttr("term"))})
+            : nullptr;
+    }
+
+    clingo_ast_theory_atom_element_t convTheoryAtomElement(Object x) {
+        clingo_ast_theory_atom_element_t ret;
+        auto tuple = x.getAttr("tuple"), cond = x.getAttr("condition");
+        ret.tuple          = convTheoryTermVec(tuple);
+        ret.tuple_size     = tuple.size();
+        ret.condition      = convLiteralVec(cond);
+        ret.condition_size = cond.size();
+        return ret;
+    }
+
+    clingo_ast_body_aggregate_element_t convBodyAggregateElement(Object x) {
+        clingo_ast_body_aggregate_element_t ret;
+        auto tuple = x.getAttr("tuple"), cond = x.getAttr("condition");
+        ret.tuple          = convTermVec(tuple);
+        ret.tuple_size     = tuple.size();
+        ret.condition      = convLiteralVec(cond);
+        ret.condition_size = cond.size();
+        return ret;
+    }
+
+    clingo_ast_head_aggregate_element_t convHeadAggregateElement(Object x) {
+        clingo_ast_head_aggregate_element_t ret;
+        auto tuple = x.getAttr("tuple");
+        ret.tuple               = convTermVec(tuple);
+        ret.tuple_size          = tuple.size();
+        ret.conditional_literal = convConditionalLiteral(x.getAttr("condition"));
+        return ret;
+    }
+
+    clingo_ast_aggregate_t convAggregate(Object x) {
+        clingo_ast_aggregate_t ret;
+        auto elems = x.getAttr("elements");
+        ret.left_guard  = convAggregateGuardOpt(x.getAttr("left_guard"));
+        ret.right_guard = convAggregateGuardOpt(x.getAttr("right_guard"));
+        ret.size        = elems.size();
+        ret.elements    = createArray_(elems, &ASTToC::convConditionalLiteral);
+        return ret;
+    }
+
+    clingo_ast_theory_atom_t convTheoryAtom(Object x) {
+        clingo_ast_theory_atom_t ret;
+        auto elems = x.getAttr("elements");
+        ret.term     = convTerm(x.getAttr("term"));
+        ret.guard    = convTheoryGuardOpt(x.getAttr("guard"));
+        ret.elements = createArray_(elems, &ASTToC::convTheoryAtomElement);
+        ret.size     = elems.size();
+        return ret;
+    }
+
+    clingo_ast_disjoint_element_t convDisjointElement(Object x) {
+        clingo_ast_disjoint_element_t ret;
+        auto tuple = x.getAttr("tuple"), cond = x.getAttr("condition");
+        ret.location       = convLocation(x.getAttr("location"));
+        ret.tuple          = convTermVec(tuple);
+        ret.tuple_size     = tuple.size();
+        ret.term           = convCSPAdd(x.getAttr("term"));
+        ret.condition      = convLiteralVec(cond);
+        ret.condition_size = cond.size();
+        return ret;
+    }
+
+    // {{{2 head literal
+
+    clingo_ast_head_literal_t convHeadLiteral(Object x) {
+        clingo_ast_head_literal_t ret;
+        ret.location = convLocation(x.getAttr("location"));
+        switch (enumValue<ASTType>(x.getAttr("type"))) {
+            case ASTType::CSPLiteral:
+            case ASTType::Literal: {
+                ret.type    = clingo_ast_head_literal_type_literal;
+                ret.literal = create_<clingo_ast_literal_t>(convLiteral(x));
+                return ret;
+            }
+            case ASTType::Aggregate: {
+                ret.type      = clingo_ast_head_literal_type_aggregate;
+                ret.aggregate = create_<clingo_ast_aggregate_t>(convAggregate(x));
+                return ret;
+            }
+            case ASTType::HeadAggregate: {
+                auto head_aggregate = create_<clingo_ast_head_aggregate_t>();
+                auto elems = x.getAttr("elements");
+                head_aggregate->left_guard  = convAggregateGuardOpt(x.getAttr("left_guard"));
+                head_aggregate->right_guard = convAggregateGuardOpt(x.getAttr("right_guard"));
+                head_aggregate->function    = enumValue<AggregateFunction>(x.getAttr("function"));
+                head_aggregate->size        = elems.size();
+                head_aggregate->elements    = createArray_(elems, &ASTToC::convHeadAggregateElement);
+                ret.type           = clingo_ast_head_literal_type_head_aggregate;
+                ret.head_aggregate = head_aggregate;
+                return ret;
+            }
+            case ASTType::Disjunction: {
+                auto disjunction = create_<clingo_ast_disjunction_t>();
+                auto elems = x.getAttr("elements");
+                disjunction->size     = elems.size();
+                disjunction->elements = createArray_(elems, &ASTToC::convConditionalLiteral);
+                ret.type        = clingo_ast_head_literal_type_disjunction;
+                ret.disjunction = disjunction;
+                return ret;
+            }
+            case ASTType::TheoryAtom: {
+                ret.type        = clingo_ast_head_literal_type_theory_atom;
+                ret.theory_atom = create_<clingo_ast_theory_atom_t>(convTheoryAtom(x));
+                return ret;
+            }
+            default: {
+                throw std::runtime_error("head literal expected");
+            }
+        }
+        return ret;
+    }
+
+    // {{{2 body literal
+
+    clingo_ast_body_literal_t convBodyLiteral(Object x) {
+        clingo_ast_body_literal_t ret;
+        ret.location = convLocation(x.getAttr("location"));
+        if (enumValue<ASTType>(x.getAttr("type")) == ASTType::ConditionalLiteral) {
+            ret.sign        = clingo_ast_sign_none;
+            ret.type        = clingo_ast_body_literal_type_conditional;
+            ret.conditional = create_<clingo_ast_conditional_literal_t>(convConditionalLiteral(x));
+            return ret;
+        }
+        else if (enumValue<ASTType>(x.getAttr("type")) == ASTType::CSPLiteral) {
+            ret.sign    = clingo_ast_sign_none;
+            ret.type    = clingo_ast_body_literal_type_literal;
+            ret.literal = create_<clingo_ast_literal_t>(convLiteral(x));
+            return ret;
+        }
+        auto atom = x.getAttr("atom");
+        switch (enumValue<ASTType>(atom.getAttr("type"))) {
+            case ASTType::Aggregate: {
+                ret.sign      = enumValue<Sign>(x.getAttr("sign"));
+                ret.type      = clingo_ast_body_literal_type_aggregate;
+                ret.aggregate = create_<clingo_ast_aggregate_t>(convAggregate(atom));
+                return ret;
+            }
+            case ASTType::BodyAggregate: {
+                auto body_aggregate = create_<clingo_ast_body_aggregate_t>();
+                auto elems = atom.getAttr("elements");
+                body_aggregate->left_guard  = convAggregateGuardOpt(atom.getAttr("left_guard"));
+                body_aggregate->right_guard = convAggregateGuardOpt(atom.getAttr("right_guard"));
+                body_aggregate->function    = enumValue<AggregateFunction>(atom.getAttr("function"));
+                body_aggregate->size        = elems.size();
+                body_aggregate->elements    = createArray_(elems, &ASTToC::convBodyAggregateElement);
+                ret.sign           = enumValue<Sign>(x.getAttr("sign"));
+                ret.type           = clingo_ast_body_literal_type_body_aggregate;
+                ret.body_aggregate = body_aggregate;
+                return ret;
+            }
+            case ASTType::TheoryAtom: {
+                ret.sign        = enumValue<Sign>(x.getAttr("sign"));
+                ret.type        = clingo_ast_body_literal_type_theory_atom;
+                ret.theory_atom = create_<clingo_ast_theory_atom_t>(convTheoryAtom(atom));
+                return ret;
+            }
+            case ASTType::Disjoint: {
+                auto disjoint = create_<clingo_ast_disjoint_t>();
+                auto elems = atom.getAttr("elements");
+                disjoint->size     = elems.size();
+                disjoint->elements = createArray_(elems, &ASTToC::convDisjointElement);
+                ret.sign     = enumValue<Sign>(x.getAttr("sign"));
+                ret.type     = clingo_ast_body_literal_type_disjoint;
+                ret.disjoint = disjoint;
+                return ret;
+            }
+            default: {
+                ret.sign    = clingo_ast_sign_none;
+                ret.type    = clingo_ast_body_literal_type_literal;
+                ret.literal = create_<clingo_ast_literal_t>(convLiteral(x));
+                return ret;
+            }
+        }
+    }
+    clingo_ast_body_literal_t *convBodyLiteralVec(Object x) {
+        return createArray_(x, &ASTToC::convBodyLiteral);
+    }
+
+    // {{{2 theory definitions
+
+    clingo_ast_theory_operator_definition_t convTheoryOperatorDefinition(Object x) {
+        clingo_ast_theory_operator_definition_t ret;
+        ret.type     = enumValue<TheoryOperatorType>(x.getAttr("operator_type"));
+        ret.priority = pyToCpp<unsigned>(x.getAttr("priority"));
+        ret.location = convLocation(x.getAttr("location"));
+        ret.name     = convString(x.getAttr("name"));
+        return ret;
+    }
+
+    clingo_ast_theory_term_definition_t convTheoryTermDefinition(Object x) {
+        clingo_ast_theory_term_definition_t ret;
+        auto ops = x.getAttr("operators");
+        ret.name      = convString(x.getAttr("name"));
+        ret.location  = convLocation(x.getAttr("location"));
+        ret.operators = createArray_(ops, &ASTToC::convTheoryOperatorDefinition);
+        ret.size      = ops.size();
+        return ret;
+    }
+
+    clingo_ast_theory_guard_definition_t *convTheoryGuardDefinitionOpt(Object x) {
+        if (x.none()) { return nullptr; }
+        auto ret = create_<clingo_ast_theory_guard_definition_t>();
+        auto ops = x.getAttr("operators");
+        ret->term      = convString(x.getAttr("term"));
+        ret->operators = createArray_(ops, &ASTToC::convString);
+        ret->size      = ops.size();
+        return ret;
+    }
+
+    clingo_ast_theory_atom_definition_t convTheoryAtomDefinition(Object x) {
+        clingo_ast_theory_atom_definition_t ret;
+        auto guard = x.getAttr("guard");
+        ret.name     = convString(x.getAttr("name"));
+        ret.arity    = pyToCpp<unsigned>(x.getAttr("arity"));
+        ret.location = convLocation(x.getAttr("location"));
+        ret.type     = enumValue<TheoryAtomType>(x.getAttr("atom_type"));
+        ret.elements = convString(x.getAttr("elements"));
+        ret.guard    = convTheoryGuardDefinitionOpt(x.getAttr("guard"));
+        return ret;
+    }
+
+    // {{{2 statement
+
+    clingo_ast_statement_t convStatement(Object x) {
+        clingo_ast_statement_t ret;
+        ret.location = convLocation(x.getAttr("location"));
+        switch (enumValue<ASTType>(x.getAttr("type"))) {
+            case ASTType::Rule: {
+                auto *rule = create_<clingo_ast_rule_t>();
+                auto body = x.getAttr("body");
+                rule->head = convHeadLiteral(x.getAttr("head"));
+                rule->size = body.size();
+                rule->body = convBodyLiteralVec(body);
+                ret.type = clingo_ast_statement_type_rule;
+                ret.rule = rule;
+                return ret;
+            }
+            case ASTType::Definition: {
+                auto *definition = create_<clingo_ast_definition_t>();
+                definition->is_default = pyToCpp<bool>(x.getAttr("is_default"));
+                definition->name       = convString(x.getAttr("name"));
+                definition->value      = convTerm(x.getAttr("value"));
+                ret.type       = clingo_ast_statement_type_const;
+                ret.definition = definition;
+                return ret;
+            }
+            case ASTType::ShowSignature: {
+                auto *show_signature = create_<clingo_ast_show_signature_t>();
+                show_signature->csp       = pyToCpp<bool>(x.getAttr("csp"));
+                show_signature->signature = Sig(convString(x.getAttr("name")), pyToCpp<unsigned>(x.getAttr("arity")), !pyToCpp<bool>(x.getAttr("positive"))).rep();
+                ret.type           = clingo_ast_statement_type_show_signature;
+                ret.show_signature = show_signature;
+                return ret;
+            }
+            case ASTType::ShowTerm: {
+                auto *show_term = create_<clingo_ast_show_term_t>();
+                auto body = x.getAttr("body");
+                show_term->csp  = pyToCpp<bool>(x.getAttr("csp"));
+                show_term->term = convTerm(x.getAttr("term"));
+                show_term->body = convBodyLiteralVec(body);
+                show_term->size = body.size();
+                ret.type      = clingo_ast_statement_type_show_term;
+                ret.show_term = show_term;
+                return ret;
+            }
+            case ASTType::Minimize: {
+                auto *minimize = create_<clingo_ast_minimize_t>();
+                auto tuple = x.getAttr("tuple"), body = x.getAttr("body");
+                minimize->weight     = convTerm(x.getAttr("weight"));
+                minimize->priority   = convTerm(x.getAttr("priority"));
+                minimize->tuple      = convTermVec(tuple);
+                minimize->tuple_size = tuple.size();
+                minimize->body       = convBodyLiteralVec(body);
+                minimize->body_size  = body.size();
+                ret.type     = clingo_ast_statement_type_minimize;
+                ret.minimize = minimize;
+                return ret;
+            }
+            case ASTType::Script: {
+                auto *script = create_<clingo_ast_script_t>();
+                script->type = enumValue<ScriptType>(x.getAttr("script_type"));
+                script->code = convString(x.getAttr("code"));
+                ret.type   = clingo_ast_statement_type_script;
+                ret.script = script;
+                return ret;
+            }
+            case ASTType::Program: {
+                auto *program = create_<clingo_ast_program_t>();
+                auto params = x.getAttr("parameters");
+                program->name       = convString(x.getAttr("name"));
+                program->parameters = createArray_(params, &ASTToC::convId);
+                program->size       = params.size();
+                ret.type    = clingo_ast_statement_type_program;
+                ret.program = program;
+                return ret;
+            }
+            case ASTType::External: {
+                auto *external = create_<clingo_ast_external_t>();
+                auto body = x.getAttr("body");
+                external->atom = convTerm(x.getAttr("atom"));
+                external->body = convBodyLiteralVec(body);
+                external->size = body.size();
+                ret.type     = clingo_ast_statement_type_external;
+                ret.external = external;
+                return ret;
+            }
+            case ASTType::Edge: {
+                auto *edge = create_<clingo_ast_edge_t>();
+                auto body = x.getAttr("body");
+                edge->u    = convTerm(x.getAttr("u"));
+                edge->v    = convTerm(x.getAttr("v"));
+                edge->body = convBodyLiteralVec(body);
+                edge->size = body.size();
+                ret.type = clingo_ast_statement_type_edge;
+                ret.edge = edge;
+                return ret;
+            }
+            case ASTType::Heuristic: {
+                auto *heuristic = create_<clingo_ast_heuristic_t>();
+                auto body = x.getAttr("body");
+                heuristic->atom     = convTerm(x.getAttr("atom"));
+                heuristic->bias     = convTerm(x.getAttr("bias"));
+                heuristic->priority = convTerm(x.getAttr("priority"));
+                heuristic->modifier = convTerm(x.getAttr("modifier"));
+                heuristic->body     = convBodyLiteralVec(body);
+                heuristic->size     = body.size();
+                ret.type      = clingo_ast_statement_type_heuristic;
+                ret.heuristic = heuristic;
+                return ret;
+            }
+            case ASTType::ProjectAtom: {
+                auto *project = create_<clingo_ast_project_t>();
+                auto body = x.getAttr("body");
+                project->atom = convTerm(x.getAttr("atom"));
+                project->body = convBodyLiteralVec(body);
+                project->size = body.size();
+                ret.type         = clingo_ast_statement_type_project_atom;
+                ret.project_atom = project;
+                return ret;
+            }
+            case ASTType::ProjectSignature: {
+                ret.type              = clingo_ast_statement_type_project_atom_signature;
+                ret.project_signature = Sig(convString(x.getAttr("name")), pyToCpp<unsigned>(x.getAttr("arity")), !pyToCpp<bool>(x.getAttr("positive"))).rep();
+                return ret;
+            }
+            case ASTType::TheoryDefinition: {
+                auto *theory_definition = create_<clingo_ast_theory_definition_t>();
+                auto terms = x.getAttr("terms"), atoms = x.getAttr("atoms");
+                theory_definition->name       = convString(x.getAttr("name"));
+                theory_definition->terms      = createArray_(terms, &ASTToC::convTheoryTermDefinition);
+                theory_definition->terms_size = terms.size();
+                theory_definition->atoms      = createArray_(atoms, &ASTToC::convTheoryAtomDefinition);
+                theory_definition->atoms_size = atoms.size();
+                ret.type              = clingo_ast_statement_type_theory_definition;
+                ret.theory_definition = theory_definition;
+                return ret;
+            }
+            default: {
+                throw std::runtime_error("statement expected");
+            }
+        }
+    }
+
+    // {{{2 aux
+
+    template <class T>
+    T *create_() {
+        data_.emplace_back(operator new(sizeof(T)));
+        return reinterpret_cast<T*>(data_.back());
+    };
+    template <class T>
+    T *create_(T x) {
+        auto *r = create_<T>();
+        *r = x;
+        return r;
+    };
+    template <class T>
+    T *createArray_(size_t size) {
+        arrdata_.emplace_back(operator new[](sizeof(T) * size));
+        return reinterpret_cast<T*>(arrdata_.back());
+    };
+    template <class F>
+    auto createArray_(Object vec, F f) -> decltype((this->*f)(std::declval<Object>()))* {
+        using U = decltype((this->*f)(std::declval<Object>()));
+        auto r = createArray_<U>(vec.size()), jt = r;
+        for (auto x : vec.iter()) { *jt++ = (this->*f)(x); }
+        return r;
+    };
+
+    ~ASTToC() noexcept {
+        for (auto &x : data_) { operator delete(x); }
+        for (auto &x : arrdata_) { operator delete[](x); }
+        data_.clear();
+        arrdata_.clear();
+    }
+
+    std::vector<void *> data_;
+    std::vector<void *> arrdata_;
+
+    // }}}2
+};
+
+// {{{1 wrap ProgramBuilder
+
+struct ProgramBuilder : ObjectBase<ProgramBuilder> {
+    clingo_program_builder_t *builder;
+    static PyMethodDef tp_methods[];
+
+    static constexpr char const *tp_type = "ProgramBuilder";
+    static constexpr char const *tp_name = "clingo.ProgramBuilder";
+    static constexpr char const *tp_doc =
+R"(Object to build non-ground programs.)";
+
+    static PyObject *new_(clingo_program_builder_t *builder) {
+        ProgramBuilder *self;
+        self = reinterpret_cast<ProgramBuilder*>(type.tp_alloc(&type, 0));
+        if (!self) { return nullptr; }
+        self->builder = builder;
+        return reinterpret_cast<PyObject*>(self);
+    }
+    static PyObject* add(ProgramBuilder *self, PyObject *pyStm) {
+        PY_TRY
+            ASTToC toc;
+            auto stm = toc.convStatement(Object{pyStm, true});
+            handleCError(clingo_program_builder_add(self->builder, &stm));
+            Py_RETURN_NONE;
+        PY_CATCH(nullptr);
+    }
+    static PyObject *enter(ProgramBuilder *self) {
+        Py_INCREF(self);
+        handleCError(clingo_program_builder_begin(self->builder));
+        return (PyObject*)self;
+    }
+    static PyObject *exit(ProgramBuilder *self, PyObject *) {
+        PY_TRY
+            handleCError(clingo_program_builder_end(self->builder));
+            return cppToPy(false).release();
+        PY_CATCH(nullptr);
+    }
+};
+
+PyMethodDef ProgramBuilder::tp_methods[] = {
+    {"__enter__",      (PyCFunction)enter,      METH_NOARGS,
+R"(__enter__(self) -> ProgramBuilder
+
+Returns self.)"},
+    {"add",            (PyCFunction)add,        METH_O,
+R"(add(self, statement) -> None
+
+Adds a statement in form of an ast.AST node to the program.)"},
+    {"__exit__",       (PyCFunction)exit,       METH_VARARGS,
+R"(__exit__(self, type, value, traceback) -> bool
+
+Follows python __exit__ conventions. Does not suppress exceptions.
+
+Stops the current search. It is necessary to call this method after each search.)"},
+    {nullptr, nullptr, 0, nullptr}
+};
 
 // {{{1 wrap Control
 
@@ -4180,39 +4840,9 @@ active; you must not call any member function during search.)";
     static PyObject *backend(ControlWrap *self, void *) {
         return Backend::new_(*self->ctl);
     }
-    static PyObject *parse(ControlWrap *self, PyObject *pyStr) {
+    static PyObject *builder(ControlWrap *self) {
         PY_TRY
-            throw std::logic_error("implement me...");
-            (void)self;
-            (void)pyStr;
-            /*
-            const char *str = pyToCpp<char const *>(pyStr);
-            Object list = PyList_New(0);
-            self->ctl->parse(str, [list](clingo_ast const &x){
-                Object ast = cppToPy(x);
-                if (!ast) { throw PyException(); }
-                if (PyList_Append(list, ast) < 0) { throw PyException(); }
-            });
-            return list.release();
-            */
-        PY_CATCH(nullptr);
-    }
-    static PyObject *addAST(ControlWrap *self, PyObject *pyAST) {
-        PY_TRY
-            (void)self;
-            (void)pyAST;
-            throw std::logic_error("implement me...");
-            /*
-            self->ctl->add([pyAST](std::function<void (clingo_ast const &)> f) {
-                Object it = PyObject_GetIter(pyAST);
-                while (Object pyVal = PyIter_Next(it)) {
-                    ASTOwner ast;
-                    pyToCpp(pyAST, ast);
-                    f(ast.root);
-                }
-            });
-            Py_RETURN_NONE;
-            */
+            return ProgramBuilder::new_(reinterpret_cast<clingo_program_builder_t*>(self->ctl));
         PY_CATCH(nullptr);
     }
 };
@@ -4220,32 +4850,27 @@ active; you must not call any member function during search.)";
 Gringo::GringoModule *ControlWrap::module  = nullptr;
 
 PyMethodDef ControlWrap::tp_methods[] = {
-    // add_ast
-    {"add_ast", (PyCFunction)addAST, METH_O,
-R"(add_ast(self, [clingo_ast]) -> None
+    // builder
+    {"builder", (PyCFunction)builder, METH_NOARGS,
+R"(builder(self) -> ProgramBuilder
 
-Add the given list of abstract syntax trees to the program.
+Return a builder to construct non-ground logic programs.
 
-The given ASTs must have the same format as in the output of parse().  The
-input must not necessarily be a dictionary.  Any object that either implements
-the dictionary protocoll or has the required attributes suffices.)"},
-    // parse
-    {"parse", (PyCFunction)parse, METH_O,
-R"(parse(self, prg) -> [clingo_ast]
+Example:
 
-Parse the program given as string to obtain list of ASTs representing the
-statements in the program.
+#script (python)
 
-clingo_ast is dictionary of form
-  { "value"    : Term
-  , "location" : { "begin": Loc, "end": Loc }
-  , "children" : [clingo_ast]
-  }
-and Loc is a dictionary of form
-  { "filename" : str
-  , "line"     : int
-  , "column"   : int
-  }.)"},
+import clingo
+
+def main(prg):
+    s = "a."
+    with prg.builder() as b:
+        clingo.parse_program(s, lambda stm: b.add(stm))
+    prg.ground([("base", [])])
+    prg.solve()
+
+#end.
+)"},
     // ground
     {"ground", (PyCFunction)ground, METH_KEYWORDS | METH_VARARGS,
 R"(ground(self, parts, context) -> None
@@ -4881,6 +5506,7 @@ statement = Rule
              ( location   : Location
              , name       : str
              , arity      : int
+             , sign       : bool
              , csp        : bool
              )
           | ShowTerm
@@ -4933,10 +5559,11 @@ statement = Rule
              , atom     : term
              , body     : body_literal*
              )
-          | ShowSignature
+          | ProjectSignature
              ( location   : Location
              , name       : str
              , arity      : int
+             , positive   : bool
              )
 )";
 
@@ -5027,6 +5654,7 @@ Backend          -- extend the logic program
 Configuration    -- modify/inspect the solver configuration
 Control          -- controls the grounding/solving process
 Model            -- provides access to a model during solve call
+ProgramBuilder   -- extend a non-ground logic program
 PropagateControl -- controls running search in a custom propagator
 PropagateInit    -- object to initialize custom propagators
 SolveControl     -- controls running search in a model handler
@@ -5116,13 +5744,14 @@ PyObject *initclingo_() {
         Object m = Py_InitModule3("clingo", clingoModuleMethods, clingoModuleDoc);
 #endif
         if (!m ||
-            !SolveResult::initType(m)   || !TheoryTermType::initType(m)   || !PropagateControl::initType(m) ||
-            !TheoryElement::initType(m) || !TheoryAtom::initType(m)       || !TheoryAtomIter::initType(m)   ||
-            !Model::initType(m)         || !SolveIter::initType(m)        || !SolveFuture::initType(m)      ||
-            !ControlWrap::initType(m)   || !Configuration::initType(m)    || !SolveControl::initType(m)     ||
-            !SymbolicAtom::initType(m)  || !SymbolicAtomIter::initType(m) || !SymbolicAtoms::initType(m)    ||
-            !TheoryTerm::initType(m)    || !PropagateInit::initType(m)    || !Assignment::initType(m)       ||
-            !TermType::initType(m)      || !Term::initType(m)             || !Backend::initType(m)          ||
+            !SolveResult::initType(m)    || !TheoryTermType::initType(m)   || !PropagateControl::initType(m) ||
+            !TheoryElement::initType(m)  || !TheoryAtom::initType(m)       || !TheoryAtomIter::initType(m)   ||
+            !Model::initType(m)          || !SolveIter::initType(m)        || !SolveFuture::initType(m)      ||
+            !ControlWrap::initType(m)    || !Configuration::initType(m)    || !SolveControl::initType(m)     ||
+            !SymbolicAtom::initType(m)   || !SymbolicAtomIter::initType(m) || !SymbolicAtoms::initType(m)    ||
+            !TheoryTerm::initType(m)     || !PropagateInit::initType(m)    || !Assignment::initType(m)       ||
+            !TermType::initType(m)       || !Term::initType(m)             || !Backend::initType(m)          ||
+            !ProgramBuilder::initType(m) ||
             PyModule_AddStringConstant(m, "__version__", GRINGO_VERSION) < 0 ||
             false) { return nullptr; }
         Object a{initclingoast_(), true};
