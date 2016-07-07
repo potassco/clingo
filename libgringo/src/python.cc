@@ -4427,6 +4427,7 @@ struct ASTToC {
 
 struct ProgramBuilder : ObjectBase<ProgramBuilder> {
     clingo_program_builder_t *builder;
+    bool locked;
     static PyMethodDef tp_methods[];
 
     static constexpr char const *tp_type = "ProgramBuilder";
@@ -4439,10 +4440,12 @@ R"(Object to build non-ground programs.)";
         self = reinterpret_cast<ProgramBuilder*>(type.tp_alloc(&type, 0));
         if (!self) { return nullptr; }
         self->builder = builder;
+        self->locked  = true;
         return reinterpret_cast<PyObject*>(self);
     }
     static PyObject* add(ProgramBuilder *self, PyObject *pyStm) {
         PY_TRY
+            if (self->locked) { throw std::runtime_error("__enter__ has not been called"); }
             ASTToC toc;
             auto stm = toc.convStatement(Object{pyStm, true});
             handleCError(clingo_program_builder_add(self->builder, &stm));
@@ -4450,12 +4453,18 @@ R"(Object to build non-ground programs.)";
         PY_CATCH(nullptr);
     }
     static PyObject *enter(ProgramBuilder *self) {
-        Py_INCREF(self);
-        handleCError(clingo_program_builder_begin(self->builder));
-        return (PyObject*)self;
+        PY_TRY
+            if (!self->locked) { throw std::runtime_error("__enter__ already called"); }
+            self->locked = false;
+            handleCError(clingo_program_builder_begin(self->builder));
+            Py_INCREF(self);
+            return reinterpret_cast<PyObject*>(self);
+        PY_CATCH(nullptr);
     }
     static PyObject *exit(ProgramBuilder *self, PyObject *) {
         PY_TRY
+            if (self->locked) { throw std::runtime_error("__enter__ has not been called"); }
+            self->locked = true;
             handleCError(clingo_program_builder_end(self->builder));
             return cppToPy(false).release();
         PY_CATCH(nullptr);
@@ -4466,7 +4475,9 @@ PyMethodDef ProgramBuilder::tp_methods[] = {
     {"__enter__",      (PyCFunction)enter,      METH_NOARGS,
 R"(__enter__(self) -> ProgramBuilder
 
-Returns self.)"},
+Begin building a program.
+
+Must be called before adding statements.)"},
     {"add",            (PyCFunction)add,        METH_O,
 R"(add(self, statement) -> None
 
@@ -4474,9 +4485,10 @@ Adds a statement in form of an ast.AST node to the program.)"},
     {"__exit__",       (PyCFunction)exit,       METH_VARARGS,
 R"(__exit__(self, type, value, traceback) -> bool
 
-Follows python __exit__ conventions. Does not suppress exceptions.
+Finish building a program.
 
-Stops the current search. It is necessary to call this method after each search.)"},
+Follows python __exit__ conventions. Does not suppress exceptions.
+)"},
     {nullptr, nullptr, 0, nullptr}
 };
 
