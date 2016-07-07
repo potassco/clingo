@@ -743,7 +743,7 @@ R"(Enumeration of the different types of theory terms.
 TheoryTermType objects cannot be constructed from python. Instead the
 following preconstructed objects are available:
 
-TheoryTermType.Function -- a function theor term
+TheoryTermType.Function -- a function theory term
 TheoryTermType.Number   -- a numeric theory term
 TheoryTermType.Symbol   -- a symbolic theory term
 TheoryTermType.List     -- a list theory term
@@ -1080,9 +1080,9 @@ preconstructed objects are available:
 
 TermType.Number   -- a numeric term - e.g., 1
 TermType.String   -- a string term - e.g., "a"
-TermType.Function -- a numeric theory term - e.g., c, (1, "a"), or f(1,"a")
-TermType.Inf      -- a tuple theory term - i.e., #inf
-TermType.Sup      -- a set theory term - i.e., #sup)";
+TermType.Function -- a numeric term - e.g., c, (1, "a"), or f(1,"a")
+TermType.Inf      -- the #inf term
+TermType.Sup      -- the #sup term)";
 
     static constexpr Type values[] =          {  Number,   String,   Function,   Inf,   Sup };
     static constexpr const char * strings[] = { "Number", "String", "Function", "Inf", "Sup" };
@@ -3815,6 +3815,10 @@ PyObject *parseProgram(PyObject *, PyObject *args, PyObject *kwds) {
 }
 
 // }}}3
+
+// {{{2 Py -> C
+
+// TODO...
 
 // {{{1 wrap Control
 
