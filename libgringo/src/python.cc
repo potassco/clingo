@@ -102,7 +102,7 @@ struct Iter;
 struct Object {
     Object()
     : obj(nullptr) { }
-    Object(nullptr_t) : Object() { }
+    Object(std::nullptr_t) : Object() { }
     Object(PyObject *obj) : Object(obj, false) { }
     Object(PyObject *obj, bool inc) : obj(obj) {
         if (inc) { Py_XINCREF(obj); }
@@ -311,7 +311,7 @@ struct Tuple : Object {
 };
 
 struct List : Object {
-    List(nullptr_t)
+    List(std::nullptr_t)
     : Object{} { }
     List(Object x)
     : Object(x) { }
