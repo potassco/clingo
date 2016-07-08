@@ -3221,7 +3221,9 @@ extern "C" clingo_error_t clingo_parse_program(char const *program, clingo_ast_c
     GRINGO_CLINGO_TRY {
         Input::ASTBuilder builder([cb, cb_data](clingo_ast_statement_t const &stm) { handleCError(cb(&stm, cb_data)); });
         Input::NonGroundParser parser(builder);
-        Logger log([logger, logger_data](clingo_warning_t cond, char const *msg) { logger(cond, msg, logger_data); }, message_limit);
+        Logger::Printer printer;
+        if (logger) { printer = [logger, logger_data](clingo_warning_t cond, char const *msg) { logger(cond, msg, logger_data); }; }
+        Logger log(printer, message_limit);
         parser.pushStream("<string>", Gringo::gringo_make_unique<std::istringstream>(program), log);
         parser.parse(log);
         if (log.hasError()) { throw std::runtime_error("syntax error"); }

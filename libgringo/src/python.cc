@@ -3199,12 +3199,19 @@ struct AST : ObjectBase<AST> {
             return ret.release();
         PY_CATCH(nullptr);
     }
-    static int tp_setattro(AST *self, PyObject *name, PyObject *pyValue) {
+    static int tp_setattro(AST *self, PyObject *pyName, PyObject *pyValue) {
         PY_TRY
-            self->children = nullptr;
+            Object name{pyName, true};
+            Object value{pyValue, true};
             Object s{reinterpret_cast<PyObject*>(self), true};
-            if (s.hasAttr({name, true})) { s.setAttr({name, true}, {pyValue, true}); }
-            else                         { self->fields_.setItem({name, true}, {pyValue, true}); }
+            self->children = nullptr;
+            if (PyObject_GenericSetAttr(s, name, value) < 0) {
+                if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                    PyErr_Clear();
+                    self->fields_.setItem(name, value);
+                }
+                else { throw PyException(); }
+            }
             return 0;
         PY_CATCH(-1);
     }
@@ -3944,7 +3951,7 @@ struct ASTToC {
     // {{{3 term
 
     clingo_ast_id_t convId(Object x) {
-        return {convLocation(x.getAttr("location")), convString(x)};
+        return {convLocation(x.getAttr("location")), convString(x.getAttr("id"))};
     }
 
     clingo_ast_term_t convTerm(Object x) {
