@@ -3429,7 +3429,7 @@ struct AST : ObjectBase<AST> {
                 }
                 // }}}3
             }
-            return cppToPy(out.str()).release();
+            return cppToPy(out.str());
         PY_CATCH(nullptr);
     }
     static long tp_hash(AST *self) {
