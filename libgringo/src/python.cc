@@ -3879,17 +3879,17 @@ Object cppToPy(clingo_ast_statement_t const &stm) {
             return call(createProgram, cppToPy(stm.location), cppToPy(stm.program->name), cppToPy(stm.program->parameters, stm.program->size));
         }
         case clingo_ast_statement_type_external: {
-            return call(createExternal, cppToPy(stm.location), cppToPy(stm.external->atom), cppToPy(stm.external->body, stm.external->size));
+            return call(createExternal, cppToPy(stm.location), call(createSymbolicAtom, cppToPy(stm.external->atom)), cppToPy(stm.external->body, stm.external->size));
         }
         case clingo_ast_statement_type_edge: {
             return call(createEdge, cppToPy(stm.location), cppToPy(stm.edge->u), cppToPy(stm.edge->v), cppToPy(stm.edge->body, stm.edge->size));
         }
         case clingo_ast_statement_type_heuristic: {
             auto &heu = *stm.heuristic;
-            return call(createHeuristic, cppToPy(stm.location), cppToPy(heu.atom), cppToPy(heu.body, heu.size), cppToPy(heu.bias), cppToPy(heu.priority), cppToPy(heu.modifier));
+            return call(createHeuristic, cppToPy(stm.location), call(createSymbolicAtom, cppToPy(heu.atom)), cppToPy(heu.body, heu.size), cppToPy(heu.bias), cppToPy(heu.priority), cppToPy(heu.modifier));
         }
         case clingo_ast_statement_type_project_atom: {
-            return call(createProjectAtom, cppToPy(stm.location), cppToPy(stm.project_atom->atom), cppToPy(stm.project_atom->body, stm.project_atom->size));
+            return call(createProjectAtom, cppToPy(stm.location), call(createSymbolicAtom, cppToPy(stm.project_atom->atom)), cppToPy(stm.project_atom->body, stm.project_atom->size));
         }
         case clingo_ast_statement_type_project_atom_signature: {
             auto sig = Sig(stm.project_signature);
@@ -4118,6 +4118,9 @@ struct ASTToC {
         return ret;
     }
 
+    clingo_ast_term_t convSymbolicAtom(Object x) {
+        return convTerm(x.getAttr("term"));
+    }
     clingo_ast_literal_t convLiteral(Object x) {
         clingo_ast_literal_t ret;
         ret.location = convLocation(x.getAttr("location"));
@@ -4142,7 +4145,7 @@ struct ASTToC {
             }
             case ASTType::SymbolicAtom: {
                 ret.type   = clingo_ast_literal_type_symbolic;
-                ret.symbol = create_<clingo_ast_term_t>(convTerm(atom.getAttr("term")));
+                ret.symbol = create_<clingo_ast_term_t>(convSymbolicAtom(atom));
                 return ret;
             }
             case ASTType::Comparison: {
@@ -4486,7 +4489,7 @@ struct ASTToC {
             case ASTType::External: {
                 auto *external = create_<clingo_ast_external_t>();
                 auto body = x.getAttr("body");
-                external->atom = convTerm(x.getAttr("atom"));
+                external->atom = convSymbolicAtom(x.getAttr("atom"));
                 external->body = convBodyLiteralVec(body);
                 external->size = body.size();
                 ret.type     = clingo_ast_statement_type_external;
@@ -4507,7 +4510,7 @@ struct ASTToC {
             case ASTType::Heuristic: {
                 auto *heuristic = create_<clingo_ast_heuristic_t>();
                 auto body = x.getAttr("body");
-                heuristic->atom     = convTerm(x.getAttr("atom"));
+                heuristic->atom     = convSymbolicAtom(x.getAttr("atom"));
                 heuristic->bias     = convTerm(x.getAttr("bias"));
                 heuristic->priority = convTerm(x.getAttr("priority"));
                 heuristic->modifier = convTerm(x.getAttr("modifier"));
@@ -4520,7 +4523,7 @@ struct ASTToC {
             case ASTType::ProjectAtom: {
                 auto *project = create_<clingo_ast_project_t>();
                 auto body = x.getAttr("body");
-                project->atom = convTerm(x.getAttr("atom"));
+                project->atom = convSymbolicAtom(x.getAttr("atom"));
                 project->body = convBodyLiteralVec(body);
                 project->size = body.size();
                 ret.type         = clingo_ast_statement_type_project_atom;
@@ -5525,6 +5528,10 @@ theory_term = Symbol
 
 -- Literals
 
+symbolic_atom = SymbolicAtom
+                 ( term : term
+                 )
+
 literal = Literal
            ( location : Location
            , sign     : Sign
@@ -5536,9 +5543,9 @@ literal = Literal
                       | BooleanConstant
                          ( value : bool
                          )
-                      | SymbolicAtom
-                         ( term : term
-                         )
+                      | symbolic_atom
+           )
+
         | CSPLiteral
            ( location : Location
            , term     : csp_term
@@ -5606,7 +5613,7 @@ body_literal = literal
              | Literal
                 ( location : Location
                 , sign     : Sign
-                , atom     : body_aggregate
+                , atom     : body_atom
                 )
 
 head = literal
@@ -5702,7 +5709,7 @@ statement = Rule
              )
           | External
              ( location : Location
-             , atom     : term
+             , atom     : symbolic_atom
              , body     : body_literal*
              )
           | Edge
@@ -5713,7 +5720,7 @@ statement = Rule
              )
           | Heuristic
              ( location : Location
-             , atom     : term
+             , atom     : symbolic_atom
              , body     : body_literal*
              , bias     : term
              , priority : term
@@ -5721,7 +5728,7 @@ statement = Rule
              )
           | ProjectAtom
              ( location : Location
-             , atom     : term
+             , atom     : symbolic_atom
              , body     : body_literal*
              )
           | ProjectSignature
