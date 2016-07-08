@@ -61,6 +61,15 @@
 #define GRINGO_STRUCT_EXTRA
 #endif
 
+#define PY_TRY try {
+#define PY_CATCH(ret) \
+} \
+catch (std::bad_alloc const &e) { PyErr_SetString(PyExc_MemoryError, e.what()); } \
+catch (PyException const &e)    { } \
+catch (std::exception const &e) { PyErr_SetString(PyExc_RuntimeError, e.what()); } \
+catch (...)                     { PyErr_SetString(PyExc_RuntimeError, "unknown error"); } \
+return (ret)
+
 namespace Gringo {
 
 using Id_t = uint32_t;
@@ -89,19 +98,28 @@ void incRef(T *object) {
 
 struct PyException : std::exception { };
 
+// TODO: remove!!!
+struct PyRef : PyObject { };
+struct PyRet {
+    PyRet() { }
+    PyObject o;
+};
+
 struct Iter;
 struct Object {
     Object()
     : obj(nullptr) { }
-    Object(PyObject *obj, bool inc = false) : obj(obj) {
+    Object(nullptr_t) : Object() { }
+    Object(PyRef *obj) : Object(obj, true) { }
+    Object(PyObject *obj) : Object(obj, false) { }
+    Object(PyObject *obj, bool inc) : obj(obj) {
         if (inc) { Py_XINCREF(obj); }
         if (!obj && PyErr_Occurred()) { throw PyException(); }
     }
-    Object(Object const &other) : obj(other.obj) {
-        Py_XINCREF(obj);
+    Object(Object const &other) : Object(other.obj, true) {
     }
-    Object(Object &&other) : obj(other.obj) {
-        other.obj = nullptr;
+    Object(Object &&other) : obj(nullptr) {
+        std::swap(other.obj, obj);
     }
     // {{{2 object protocol
     template <class... Args>
@@ -127,8 +145,38 @@ struct Object {
     Object getItem(int key) {
         return PyObject_GetItem(obj, Object{PyInt_FromLong(key)});
     }
+    void setItem(char const *key, Object val) {
+        if (PyObject_SetItem(obj, Object{PyString_FromString(key)}, val) < 0) {
+            throw PyException();
+        }
+    }
+    void setItem(Object key, Object val) {
+        if (PyObject_SetItem(obj, key, val) < 0) {
+            throw PyException();
+        }
+    }
     Object getAttr(char const *key) {
         return PyObject_GetAttrString(obj, key);
+    }
+    void setAttr(char const *key, Object val) {
+        if (PyObject_SetAttrString(obj, key, val.get()) < 0) {
+            throw PyException();
+        }
+    }
+    void setAttr(Object key, Object val) {
+        if (PyObject_SetAttr(obj, key, val) < 0) {
+            throw PyException();
+        }
+    }
+    bool hasAttr(char const *key) {
+        int ret = PyObject_HasAttrString(obj, key);
+        if (ret < 0) { throw PyException(); }
+        return ret;
+    }
+    bool hasAttr(Object key) {
+        int ret = PyObject_HasAttr(obj, key);
+        if (ret < 0) { throw PyException(); }
+        return ret;
     }
     Object repr() { return PyObject_Repr(obj); }
     Object str() { return PyObject_Str(obj); }
@@ -165,12 +213,82 @@ struct Object {
     PyObject *get() const                  { return obj; }
     PyObject *release()                    { PyObject *ret = obj; obj = nullptr; return ret; }
     PyObject *operator->() const           { return get(); }
-    explicit operator bool() const         { return valid(); }
+    operator PyObject*()                   { return get(); }
     operator PyObject*() const             { return get(); }
+    operator PyRet*()                      { return reinterpret_cast<PyRet*>(release()); }
     Object &operator=(PyObject *other)     { Py_XDECREF(obj); obj = other; return *this; }
     Object &operator=(Object const &other) { Py_XDECREF(obj); obj = other.obj; Py_XINCREF(obj); return *this; }
     ~Object()                              { Py_XDECREF(obj); }
     PyObject *obj;
+};
+
+template <class T>
+struct ParsePtr {
+    ParsePtr(T &x) : x(x) { }
+    T *get() { return &x; }
+    T &x;
+};
+
+template <>
+struct ParsePtr<Object> {
+    ParsePtr(Object &x) : x(x) { x = nullptr; }
+    PyObject **get() { return &x.obj; }
+    ~ParsePtr() { Py_XINCREF(x.obj); }
+    Object &x;
+};
+
+template <class... T>
+void ParseTupleAndKeywords(Object pyargs, Object pykwds, char const *fmt, char const * const* kwds, T &...x) {
+    PyArg_ParseTupleAndKeywords(pyargs, pykwds, fmt, const_cast<char**>(kwds), ParsePtr<T>(x).get()...);
+}
+template <class>
+struct Void {
+    using Type = void;
+};
+
+template <class B, class Enable = void>
+struct GetDestructor {
+    static constexpr std::nullptr_t value = nullptr;
+};
+
+template <class B>
+struct GetDestructor<B, typename Void<decltype(&B::tp_dealloc)>::Type> {
+    static void value(PyObject *self) {
+        reinterpret_cast<B*>(self)->tp_dealloc();
+        B::type.tp_free(self);
+    };
+};
+
+template <class T, Object (T::*f)(void *)>
+constexpr getter to_getter() {
+    return [](PyObject *o, void *p) -> PyObject* {
+        PY_TRY { return (reinterpret_cast<T*>(o)->*f)(p).release(); }
+        PY_CATCH(nullptr);
+    };
+};
+
+template <class T, Object (T::*f)()>
+constexpr PyCFunction to_function() {
+    return [](PyObject *self, PyObject *) -> PyObject* {
+        PY_TRY { return (reinterpret_cast<T*>(self)->*f)().release(); }
+        PY_CATCH(nullptr);
+    };
+};
+
+template <class T, Object (T::*f)(Object)>
+constexpr PyCFunction to_function() {
+    return [](PyObject *self, PyObject *params) -> PyObject* {
+        PY_TRY { return (reinterpret_cast<T*>(self)->*f)({params, true}).release(); }
+        PY_CATCH(nullptr);
+    };
+};
+
+template <class T, Object (T::*f)(Object, Object)>
+constexpr PyCFunctionWithKeywords to_function() {
+    return [](PyObject *self, PyObject *params, PyObject keywords) -> PyObject* {
+        PY_TRY { return (reinterpret_cast<T*>(self)->*f)({params, true}, {keywords, true}).release(); }
+        PY_CATCH(nullptr);
+    };
 };
 
 struct Iter : Object {
@@ -188,12 +306,11 @@ struct Tuple : Object {
     : Object{PyTuple_Pack(sizeof...(args), static_cast<PyObject*>(Object(args))...)} { }
 };
 
-struct Dict : Object {
-    Dict()
-    : Object{PyDict_New()} {}
-};
-
 struct List : Object {
+    List(nullptr_t)
+    : Object{} { }
+    List(Object x)
+    : Object(x) { }
     List(size_t size = 0)
     : Object{PyList_New(size)} { }
     void append(Object x) {
@@ -201,9 +318,19 @@ struct List : Object {
     }
 };
 
+struct Dict : Object {
+    Dict()
+    : Object{PyDict_New()} {}
+    List keys() { return {PyDict_Keys(obj)}; }
+};
+
 template <class... Args>
 Object call(PyCFunctionWithKeywords f, Args&&... args) {
     return f(nullptr, Tuple{std::forward<Args>(args)...}, Dict{});
+}
+template <class... Args>
+Object call(PyRet *(*f)(PyObject *, PyObject *, PyObject *), Args&&... args) {
+    return &f(nullptr, Tuple{std::forward<Args>(args)...}, Dict{})->o;
 }
 
 template <class T>
@@ -284,19 +411,19 @@ template <class T, class U>
 void pyToCpp(PyObject *pyPair, std::pair<T, U> &x) {
     Object it = PyObject_GetIter(pyPair);
     Object pyVal = PyIter_Next(it);
-    if (!pyVal) {
+    if (!pyVal.valid()) {
         PyErr_SetString(PyExc_RuntimeError, "pair expected");
         throw PyException();
     }
     pyToCpp(pyVal, x.first);
     pyVal = PyIter_Next(it);
-    if (!pyVal) {
+    if (!pyVal.valid()) {
         PyErr_SetString(PyExc_RuntimeError, "pair expected");
         throw PyException();
     }
     pyToCpp(pyVal, x.second);
     pyVal = PyIter_Next(it);
-    if (pyVal) {
+    if (pyVal.valid()) {
         PyErr_SetString(PyExc_RuntimeError, "pair expected");
         throw PyException();
     }
@@ -310,7 +437,8 @@ void pyToCpp(PyObject *pyPair, Potassco::WeightLit_t &x) {
 template <class T>
 void pyToCpp(PyObject *pyVec, std::vector<T> &vec) {
     Object it = PyObject_GetIter(pyVec);
-    while (Object pyVal = PyIter_Next(it)) {
+    Object pyVal;
+    while ((pyVal = PyIter_Next(it)).valid()) {
         T ret;
         pyToCpp(pyVal, ret);
         vec.emplace_back(std::move(ret));
@@ -340,10 +468,11 @@ struct PrintWrapper {
     bool empty;
     friend std::ostream &operator<<(std::ostream &out, PrintWrapper x) {
         auto it = x.list.iter();
-        if (Object o = it.next()) {
+        Object o = it.next();
+        if (o.valid()) {
             out << x.pre;
             out << o;
-            while ((o = it.next())) {
+            while ((o = it.next()).valid()) {
                 out << x.sep << o;
             }
             out << x.post;
@@ -407,15 +536,6 @@ Object pyExec(char const *str, char const *filename, PyObject *globals, PyObject
 #endif
 }
 
-#define PY_TRY try {
-#define PY_CATCH(ret) \
-} \
-catch (std::bad_alloc const &e) { PyErr_SetString(PyExc_MemoryError, e.what()); } \
-catch (PyException const &e)    { } \
-catch (std::exception const &e) { PyErr_SetString(PyExc_RuntimeError, e.what()); } \
-catch (...)                     { PyErr_SetString(PyExc_RuntimeError, "unknown error"); } \
-return (ret)
-
 #define PY_HANDLE(func, msg) \
 } \
 catch (PyException const &e) { handleError(func, msg); throw std::logic_error("cannot happen"); }
@@ -469,11 +589,10 @@ std::string errorToString() {
         Object tbModule = PyImport_ImportModule("traceback");
         Object tbDict   = {PyModule_GetDict(tbModule), true};
         Object tbFE     = {PyDict_GetItemString(tbDict, "format_exception"), true};
-        Object ret      = PyObject_CallFunctionObjArgs(tbFE, type.get(), value ? value.get() : Py_None, traceback ? traceback.get() : Py_None, nullptr);
-        Object it       = PyObject_GetIter(ret);
+        Object ret      = PyObject_CallFunctionObjArgs(tbFE, type.get(), value.valid() ? value.get() : Py_None, traceback.valid() ? traceback.get() : Py_None, nullptr);
         std::ostringstream oss;
-        while (Object line = PyIter_Next(it)) {
-            oss << "  " << pyToCpp<char const *>(line);
+        for (auto line : ret.iter()) {
+            oss << "  " << line.str();
         }
         PyErr_Clear();
         return oss.str();
@@ -502,7 +621,6 @@ struct ObjectBase {
     static constexpr reprfunc tp_repr = nullptr;
     static reprfunc tp_str;
     static constexpr hashfunc tp_hash = nullptr;
-    static constexpr destructor tp_dealloc = nullptr;
     static constexpr richcmpfunc tp_richcompare = nullptr;
     static constexpr getiterfunc tp_iter = nullptr;
     static constexpr iternextfunc tp_iternext = nullptr;
@@ -546,7 +664,7 @@ PyTypeObject ObjectBase<T>::type = {
     T::tp_name,                                       // tp_name
     sizeof(T),                                        // tp_basicsize
     0,                                                // tp_itemsize
-    reinterpret_cast<destructor>(T::tp_dealloc),      // tp_dealloc
+    GetDestructor<T>::value,                          // tp_dealloc
     nullptr,                                          // tp_print
     nullptr,                                          // tp_getattr
     nullptr,                                          // tp_setattr
@@ -625,7 +743,7 @@ struct EnumType : ObjectBase<T> {
     static int addAttr() {
         for (unsigned i = 0; i < sizeof(T::values) / sizeof(*T::values); ++i) {
             Object elem(new_(i));
-            if (!elem) { return -1; }
+            if (!elem.valid()) { return -1; }
             if (PyDict_SetItemString(ObjectBase<T>::type.tp_dict, T::strings[i], elem) < 0) { return -1; }
         }
         return 0;
@@ -724,10 +842,10 @@ elements.)";
         PY_TRY
             Potassco::IdSpan span = self->data->termArgs(self->value);
             Object list = PyList_New(span.size);
-            if (!list) { return nullptr; }
+            if (!list.valid()) { return nullptr; }
             for (size_t i = 0; i < span.size; ++i) {
                 Object arg = new_(self->data, *(span.first + i));
-                if (!arg) { return nullptr; }
+                if (!arg.valid()) { return nullptr; }
                 if (PyList_SetItem(list, i, arg.release()) < 0) { return nullptr; }
             }
             return list.release();
@@ -738,9 +856,9 @@ elements.)";
             return PyString_FromString(self->data->termStr(self->value).c_str());
         PY_CATCH(nullptr);
     }
-    static PyObject *termType(TheoryTerm *self, void *) {
+    Object termType(void *) {
         PY_TRY
-            return TheoryTermType::getAttr(self->data->termType(self->value));
+            return TheoryTermType::getAttr(data->termType(value));
         PY_CATCH(nullptr);
     }
     static long tp_hash(TheoryTerm *self) {
@@ -755,7 +873,7 @@ elements.)";
 };
 
 PyGetSetDef TheoryTerm::tp_getset[] = {
-    {(char *)"type", (getter)termType, nullptr, (char *)R"(type -> TheoryTermType
+    {(char *)"type", to_getter<TheoryTerm, &TheoryTerm::termType>(), nullptr, (char *)R"(type -> TheoryTermType
 
 The type of the theory term.)", nullptr},
     {(char *)"name", (getter)name, nullptr, (char *)R"(name -> str
@@ -1560,10 +1678,9 @@ See Control.solve_async for an example.)";
         return reinterpret_cast<PyObject*>(self);
     }
 
-    static void tp_dealloc(SolveFuture *self) {
-        Py_XDECREF(self->mh);
-        Py_XDECREF(self->fh);
-        type.tp_free(self);
+    void tp_dealloc() {
+        Py_XDECREF(mh);
+        Py_XDECREF(fh);
     }
 
     static PyObject *get(SolveFuture *self, PyObject *) {
@@ -1754,7 +1871,7 @@ Expected Answer Sets:
     static PyObject *new_(unsigned key, Gringo::ConfigProxy &proxy) {
         PY_TRY
             Object ret(type.tp_alloc(&type, 0));
-            if (!ret) { return nullptr; }
+            if (!ret.valid()) { return nullptr; }
             Configuration *self = reinterpret_cast<Configuration*>(ret.get());
             self->proxy = &proxy;
             self->key   = key;
@@ -1806,7 +1923,7 @@ Expected Answer Sets:
             unsigned key;
             if (self->proxy->hasSubKey(self->key, current, &key)) {
                 Object pyStr(PyObject_Str(pyValue));
-                if (!pyStr) { return -1; }
+                if (!pyStr.valid()) { return -1; }
                 char const *value = PyString_AsString(pyStr);
                 if (!value) { return -1; }
                 self->proxy->setKeyValue(key, value);
@@ -1996,7 +2113,7 @@ signatures: [('p', 1), ('q', 1)])";
 
     static PyObject *new_(Gringo::SymbolicAtoms &atoms) {
         Object ret(type.tp_alloc(&type, 0));
-        if (!ret) { return nullptr; }
+        if (!ret.valid()) { return nullptr; }
         SymbolicAtoms *self = reinterpret_cast<SymbolicAtoms*>(ret.get());
         self->atoms = &atoms;
         return ret.release();
@@ -2525,55 +2642,55 @@ choice -- whether to add a disjunctive or choice rule (Default: False)
 // {{{3 macros
 
 #define CREATE1(N,a1) \
-PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
+PyRet *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
     PY_TRY \
         static char const *kwlist[] = {#a1, nullptr}; \
-        PyObject* vals[] = { nullptr }; \
+        PyRef* vals[] = { nullptr }; \
         if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "O", const_cast<char**>(kwlist), &vals[0])) { return nullptr; } \
         return AST::new_(ASTType::N, kwlist, vals); \
     PY_CATCH(nullptr); \
 }
 #define CREATE2(N,a1,a2) \
-PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
+PyRet *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
     PY_TRY \
         static char const *kwlist[] = {#a1,#a2, nullptr}; \
-        PyObject* vals[] = { nullptr, nullptr }; \
+        PyRef* vals[] = { nullptr, nullptr }; \
         if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OO", const_cast<char**>(kwlist), &vals[0], &vals[1])) { return nullptr; } \
         return AST::new_(ASTType::N, kwlist, vals); \
     PY_CATCH(nullptr); \
 }
 #define CREATE3(N,a1,a2,a3) \
-PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
+PyRet *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
     PY_TRY \
         static char const *kwlist[] = {#a1, #a2, #a3, nullptr}; \
-        PyObject* vals[] = { nullptr, nullptr, nullptr }; \
+        PyRef* vals[] = { nullptr, nullptr, nullptr }; \
         if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2])) { return nullptr; } \
         return AST::new_(ASTType::N, kwlist, vals); \
     PY_CATCH(nullptr); \
 }
 #define CREATE4(N,a1,a2,a3,a4) \
-PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
+PyRet *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
     PY_TRY \
         static char const *kwlist[] = {#a1, #a2, #a3, #a4, nullptr}; \
-        PyObject* vals[] = { nullptr, nullptr, nullptr, nullptr }; \
+        PyRef* vals[] = { nullptr, nullptr, nullptr, nullptr }; \
         if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2], &vals[3])) { return nullptr; } \
         return AST::new_(ASTType::N, kwlist, vals); \
     PY_CATCH(nullptr); \
 }
 #define CREATE5(N,a1,a2,a3,a4,a5) \
-PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
+PyRet *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
     PY_TRY \
         static char const *kwlist[] = {#a1, #a2, #a3, #a4, #a5, nullptr}; \
-        PyObject* vals[] = { nullptr, nullptr, nullptr, nullptr, nullptr }; \
+        PyRef* vals[] = { nullptr, nullptr, nullptr, nullptr, nullptr }; \
         if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOOOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2], &vals[3], &vals[4])) { return nullptr; } \
         return AST::new_(ASTType::N, kwlist, vals); \
     PY_CATCH(nullptr); \
 }
 #define CREATE6(N,a1,a2,a3,a4,a5,a6) \
-PyObject *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
+PyRet *create ## N(PyObject *, PyObject *pyargs, PyObject *pykwds) { \
     PY_TRY \
         static char const *kwlist[] = {#a1, #a2, #a3, #a4, #a5, #a6, nullptr}; \
-        PyObject* vals[] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }; \
+        PyRef* vals[] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }; \
         if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOOOOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2], &vals[3], &vals[4], &vals[5])) { return nullptr; } \
         return AST::new_(ASTType::N, kwlist, vals); \
     PY_CATCH(nullptr); \
@@ -3012,7 +3129,9 @@ constexpr const char * ScriptType::strings[];
 // }}}3
 
 struct AST : ObjectBase<AST> {
-    PyObject *fields_;
+    Dict fields_;
+    List children;
+    static PyGetSetDef tp_getset[];
     static constexpr char const *tp_type = "AST";
     static constexpr char const *tp_name = "clingo.ast.AST";
     static constexpr char const *tp_doc = "Node in the abstract syntax tree.";
@@ -3020,33 +3139,43 @@ struct AST : ObjectBase<AST> {
         PY_TRY
             AST *self = reinterpret_cast<AST*>(type.tp_alloc(&type, 0));
             if (!self) { return nullptr; }
-            self->fields_ = PyDict_New();
-            if (!self->fields_) { return nullptr; }
-            Object pyt = ASTType::getAttr(t);
-            if (PyDict_SetItemString(self->fields_, "type", pyt.get()) < 0) { return nullptr; }
+            new (&self->fields_) Dict();
+            new (&self->children) List();
+            self->fields_.setItem("type", ASTType::getAttr(t));
             return reinterpret_cast<PyObject*>(self);
         PY_CATCH(nullptr);
     }
-    static PyObject *new_(ASTType::T type, char const **kwlist, PyObject**vals) {
+    Object childKeys(void *) {
+        if (!children.valid()) {
+            children = List();
+            for (auto x : fields_.iter()) {
+                if (fields_.getItem(x).isInstance(type)) {
+                    children.append(x);
+                }
+            }
+        }
+        return List{children};
+    }
+    static PyRet *new_(ASTType::T type, char const **kwlist, PyRef **vals) {
         PY_TRY
             Object ret = new_(type);
             auto jt = vals;
             for (auto it = kwlist; *it; ++it) {
-                if (PyObject_SetAttrString(ret.get(), *it, *jt++) < 0) { return nullptr; }
+                ret.setAttr(*it, *jt++);
             }
-            return ret.release();
+            return ret;
         PY_CATCH(nullptr);
     }
-    static int tp_setattro(AST *self, PyObject *name, PyObject *pyValue) {
+    static int tp_setattro(AST *self, PyRef *name, PyRef *pyValue) {
         PY_TRY
-            int ret = PyObject_HasAttr(reinterpret_cast<PyObject*>(self), name);
-            if (ret < 0) { return -1; }
-            return ret
-                ? PyObject_GenericSetAttr(reinterpret_cast<PyObject*>(self), name, pyValue)
-                : PyDict_SetItem(self->fields_, name, pyValue);
+            self->children = nullptr;
+            Object s{reinterpret_cast<PyObject*>(self), true};
+            if (s.hasAttr({name, true})) { s.setAttr(name, pyValue); }
+            else                         { self->fields_.setItem(name, pyValue); }
+            return 0;
         PY_CATCH(-1);
     }
-    static PyObject *tp_getattro(AST *self, PyObject *name) {
+    static PyObject *tp_getattro(AST *self, PyRef *name) {
         PY_TRY
             auto ret = PyDict_GetItem(self->fields_, name);
             Py_XINCREF(ret);
@@ -3055,21 +3184,15 @@ struct AST : ObjectBase<AST> {
                 : PyObject_GenericGetAttr(reinterpret_cast<PyObject*>(self), name);
         PY_CATCH(nullptr);
     }
-    static void tp_dealloc(AST *self) {
-        Py_XDECREF(self->fields_);
-        type.tp_free(self);
+    void tp_dealloc() {
+        fields_.~Dict();
+        children.~List();
     }
     Object getValue(char const *key) {
-        Object value{PyDict_GetItemString(fields_, key), true};
-        if (!value) {
-            std::ostringstream oss;
-            oss << "expected " << key << " in AST";
-            throw std::runtime_error(oss.str());
-        }
-        return value;
+        return fields_.getItem(key);
     }
 
-    static PyObject *tp_repr(AST *self) {
+    static PyRet *tp_repr(AST *self) {
         PY_TRY
             std::ostringstream out;
             Object type = self->getValue("type");
@@ -3078,9 +3201,9 @@ struct AST : ObjectBase<AST> {
             }
             switch (enumValue<ASTType>(type)) {
                 // {{{3 term
-                case ASTType::Id: { return self->getValue("id").str().release(); }
-                case ASTType::Variable: { return self->getValue("name").str().release(); }
-                case ASTType::Symbol:   { return self->getValue("symbol").str().release(); }
+                case ASTType::Id: { return self->getValue("id").str(); }
+                case ASTType::Variable: { return self->getValue("name").str(); }
+                case ASTType::Symbol:   { return self->getValue("symbol").str(); }
                 case ASTType::UnaryOperation: {
                     Object unop = self->getValue("unary_operator");
                     out << unop.call("left_hand_side") << self->getValue("argument") << unop.call("right_hand_side");
@@ -3324,7 +3447,7 @@ struct AST : ObjectBase<AST> {
                 }
                 // }}}3
             }
-            return cppToPy(out.str()).release();
+            return cppToPy(out.str());
         PY_CATCH(nullptr);
     }
     static long tp_hash(AST *self) {
@@ -3341,6 +3464,11 @@ struct AST : ObjectBase<AST> {
             throw std::logic_error("implement me!!!");
         PY_CATCH(nullptr);
     }
+};
+
+PyGetSetDef AST::tp_getset[] = {
+    {(char*)"_child_keys", to_getter<AST, &AST::childKeys>(), nullptr, (char*)"List of names of all AST child nodes.", nullptr},
+    {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
 // {{{3 terms
@@ -3410,6 +3538,8 @@ CREATE6(Heuristic, location, atom, body, bias, priority, modifier)
 CREATE3(ProjectAtom, location, atom, body)
 CREATE4(ProjectSignature, location, name, arity, positive)
 CREATE4(TheoryDefinition, location, name, terms, atoms)
+
+// }}}3
 
 // {{{2 C -> Py
 
@@ -3782,7 +3912,7 @@ struct ASTToC {
         return ret;
     }
 
-    // {{{2 term
+    // {{{3 term
 
     clingo_ast_id_t convId(Object x) {
         return {convLocation(x.getAttr("location")), convString(x)};
@@ -3943,7 +4073,7 @@ struct ASTToC {
         return createArray_(x, &ASTToC::convTheoryTerm);
     }
 
-    // {{{2 literal
+    // {{{3 literal
 
     clingo_ast_csp_guard_t convCSPGuard(Object x) {
         clingo_ast_csp_guard_t ret;
@@ -3999,7 +4129,7 @@ struct ASTToC {
         return createArray_(x, &ASTToC::convLiteral);
     }
 
-    // {{{2 aggregates
+    // {{{3 aggregates
 
     clingo_ast_aggregate_guard_t *convAggregateGuardOpt(Object x) {
         return !x.none()
@@ -4083,7 +4213,7 @@ struct ASTToC {
         return ret;
     }
 
-    // {{{2 head literal
+    // {{{3 head literal
 
     clingo_ast_head_literal_t convHeadLiteral(Object x) {
         clingo_ast_head_literal_t ret;
@@ -4133,7 +4263,7 @@ struct ASTToC {
         return ret;
     }
 
-    // {{{2 body literal
+    // {{{3 body literal
 
     clingo_ast_body_literal_t convBodyLiteral(Object x) {
         clingo_ast_body_literal_t ret;
@@ -4199,7 +4329,7 @@ struct ASTToC {
         return createArray_(x, &ASTToC::convBodyLiteral);
     }
 
-    // {{{2 theory definitions
+    // {{{3 theory definitions
 
     clingo_ast_theory_operator_definition_t convTheoryOperatorDefinition(Object x) {
         clingo_ast_theory_operator_definition_t ret;
@@ -4242,7 +4372,7 @@ struct ASTToC {
         return ret;
     }
 
-    // {{{2 statement
+    // {{{3 statement
 
     clingo_ast_statement_t convStatement(Object x) {
         clingo_ast_statement_t ret;
@@ -4384,7 +4514,7 @@ struct ASTToC {
         }
     }
 
-    // {{{2 aux
+    // {{{3 aux
 
     template <class T>
     T *create_() {
@@ -4420,8 +4550,10 @@ struct ASTToC {
     std::vector<void *> data_;
     std::vector<void *> arrdata_;
 
-    // }}}2
+    // }}}3
 };
+
+// }}}2
 
 // {{{1 wrap ProgramBuilder
 
@@ -4443,46 +4575,39 @@ R"(Object to build non-ground programs.)";
         self->locked  = true;
         return reinterpret_cast<PyObject*>(self);
     }
-    static PyObject* add(ProgramBuilder *self, PyObject *pyStm) {
-        PY_TRY
-            if (self->locked) { throw std::runtime_error("__enter__ has not been called"); }
-            ASTToC toc;
-            auto stm = toc.convStatement(Object{pyStm, true});
-            handleCError(clingo_program_builder_add(self->builder, &stm));
-            Py_RETURN_NONE;
-        PY_CATCH(nullptr);
+    Object add(Object pyStm) {
+        if (locked) { throw std::runtime_error("__enter__ has not been called"); }
+        ASTToC toc;
+        auto stm = toc.convStatement(Object{pyStm, true});
+        handleCError(clingo_program_builder_add(builder, &stm));
+        Py_RETURN_NONE;
     }
-    static PyObject *enter(ProgramBuilder *self) {
-        PY_TRY
-            if (!self->locked) { throw std::runtime_error("__enter__ already called"); }
-            self->locked = false;
-            handleCError(clingo_program_builder_begin(self->builder));
-            Py_INCREF(self);
-            return reinterpret_cast<PyObject*>(self);
-        PY_CATCH(nullptr);
+    Object enter() {
+        if (!locked) { throw std::runtime_error("__enter__ already called"); }
+        locked = false;
+        handleCError(clingo_program_builder_begin(builder));
+        return {reinterpret_cast<PyObject*>(this), true};
     }
-    static PyObject *exit(ProgramBuilder *self, PyObject *) {
-        PY_TRY
-            if (self->locked) { throw std::runtime_error("__enter__ has not been called"); }
-            self->locked = true;
-            handleCError(clingo_program_builder_end(self->builder));
-            return cppToPy(false).release();
-        PY_CATCH(nullptr);
+    Object exit() {
+        if (locked) { throw std::runtime_error("__enter__ has not been called"); }
+        locked = true;
+        handleCError(clingo_program_builder_end(builder));
+        return cppToPy(false).release();
     }
 };
 
 PyMethodDef ProgramBuilder::tp_methods[] = {
-    {"__enter__",      (PyCFunction)enter,      METH_NOARGS,
+    {"__enter__", to_function<ProgramBuilder, &ProgramBuilder::enter>(), METH_NOARGS,
 R"(__enter__(self) -> ProgramBuilder
 
 Begin building a program.
 
 Must be called before adding statements.)"},
-    {"add",            (PyCFunction)add,        METH_O,
+    {"add", to_function<ProgramBuilder, &ProgramBuilder::add>(), METH_O,
 R"(add(self, statement) -> None
 
 Adds a statement in form of an ast.AST node to the program.)"},
-    {"__exit__",       (PyCFunction)exit,       METH_VARARGS,
+    {"__exit__", to_function<ProgramBuilder, &ProgramBuilder::exit>(), METH_VARARGS,
 R"(__exit__(self, type, value, traceback) -> bool
 
 Finish building a program.
@@ -4583,27 +4708,21 @@ active; you must not call any member function during search.)";
         self->stats   = nullptr;
         return reinterpret_cast<PyObject*>(self);
     }
-    static void tp_dealloc(ControlWrap *self) {
-        if (self->freeCtl) { delete self->freeCtl; }
-        self->ctl = self->freeCtl = nullptr;
-        Py_XDECREF(self->stats);
-        type.tp_free(self);
+    void tp_dealloc() {
+        if (freeCtl) { delete freeCtl; }
+        ctl = freeCtl = nullptr;
+        Py_XDECREF(stats);
     }
     static int tp_init(ControlWrap *self, PyObject *pyargs, PyObject *pykwds) {
         PY_TRY
             static char const *kwlist[] = {"args", nullptr};
-            PyObject *params = nullptr;
+            PyRef *params = nullptr;
             if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "|O", const_cast<char**>(kwlist), &params)) { return -1; }
             std::vector<char const *> args;
             if (params) {
-                Object it = PyObject_GetIter(params);
-                if (!it) { return -1; }
-                while (Object pyVal = PyIter_Next(it)) {
-                    char const *x = PyString_AsString(pyVal);
-                    if (!x) { return -1; }
-                    args.emplace_back(x);
+                for (Object pyVal : Object{params}.iter()) {
+                    args.emplace_back(pyToCpp<char const *>(pyVal));
                 }
-                if (PyErr_Occurred()) { return -1; }
             }
             self->ctl = self->freeCtl = module->newControl(args.size(), args.data(), nullptr, 20);
             return 0;
@@ -4612,15 +4731,13 @@ active; you must not call any member function during search.)";
     static PyObject *add(ControlWrap *self, PyObject *args) {
         PY_TRY
             checkBlocked(self, "add");
-            char     *name;
-            PyObject *pyParams;
-            char     *part;
+            char  *name;
+            PyRef *pyParams;
+            char  *part;
             if (!PyArg_ParseTuple(args, "sOs", &name, &pyParams, &part)) { return nullptr; }
             FWStringVec params;
-            Object it = PyObject_GetIter(pyParams);
-            while (Object pyVal = PyIter_Next(it)) {
-                auto val = pyToCpp<char const *>(pyVal);
-                params.emplace_back(val);
+            for (auto pyVal : Object{pyParams}.iter()) {
+                params.emplace_back(pyToCpp<char const *>(pyVal));
             }
             self->ctl->add(name, params, part);
             Py_RETURN_NONE;
@@ -4641,18 +4758,17 @@ active; you must not call any member function during search.)";
             checkBlocked(self, "ground");
             Gringo::Control::GroundVec parts;
             static char const *kwlist[] = {"parts", "context", nullptr};
-            PyObject *pyParts;
+            PyRef *pyParts;
             PyContext context(self->ctl->logger());
             if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O", const_cast<char**>(kwlist), &pyParts, &context.ctx)) { return nullptr; }
-            Object it = PyObject_GetIter(pyParts);
-            while (Object pyVal = PyIter_Next(it)) {
+            for (auto pyVal : Object{pyParts}.iter()) {
                 Object jt = PyObject_GetIter(pyVal);
                 Object pyName = PyIter_Next(jt);
-                if (!pyName) { return PyErr_Format(PyExc_RuntimeError, "tuple of name and arguments expected"); }
+                if (!pyName.valid()) { return PyErr_Format(PyExc_RuntimeError, "tuple of name and arguments expected"); }
                 Object pyArgs = PyIter_Next(jt);
-                if (!pyArgs) { return PyErr_Format(PyExc_RuntimeError, "tuple of name and arguments expected"); }
+                if (!pyArgs.valid()) { return PyErr_Format(PyExc_RuntimeError, "tuple of name and arguments expected"); }
                 Object pyNext = PyIter_Next(jt);
-                if (pyNext) { return PyErr_Format(PyExc_RuntimeError, "tuple of name and arguments expected"); }
+                if (pyNext.valid()) { return PyErr_Format(PyExc_RuntimeError, "tuple of name and arguments expected"); }
                 auto name = pyToCpp<char const *>(pyName);
                 auto args = pyToCpp<SymVec>(pyArgs);
                 parts.emplace_back(name, args);
@@ -4692,17 +4808,18 @@ active; you must not call any member function during search.)";
         PY_TRY
             if (pyAss && pyAss != Py_None) {
                 Object it = PyObject_GetIter(pyAss);
-                if (!it) { return false; }
-                while (Object pyPair = PyIter_Next(it)) {
+                if (!it.valid()) { return false; }
+                Object pyPair;
+                while ((pyPair = PyIter_Next(it)).valid()) {
                     Object pyPairIt = PyObject_GetIter(pyPair);
-                    if (!pyPairIt) { return false; }
+                    if (!pyPairIt.valid()) { return false; }
                     Object pyAtom = PyIter_Next(pyPairIt);
-                    if (!pyAtom) {
+                    if (!pyAtom.valid()) {
                         if (!PyErr_Occurred()) { PyErr_Format(PyExc_RuntimeError, "tuple expected"); }
                         return false;
                     }
                     Object pyBool = PyIter_Next(pyPairIt);
-                    if (!pyBool) {
+                    if (!pyBool.valid()) {
                         if (!PyErr_Occurred()) { PyErr_Format(PyExc_RuntimeError, "tuple expected"); }
                         return false;
                     }
@@ -5737,7 +5854,7 @@ PyObject *initclingoast_() {
 #else
         Object m = Py_InitModule3("clingo.ast", clingoASTModuleMethods, clingoASTModuleDoc);
 #endif
-        if (!m ||
+        if (!m.valid() ||
             !ComparisonOperator::initType(m) || !Sign::initType(m)               || !AST::initType(m)   ||
             !ASTType::initType(m)            || !UnaryOperator::initType(m)      || !BinaryOperator::initType(m)     ||
             !AggregateFunction::initType(m)  || !TheorySequenceType::initType(m) || !TheoryOperatorType::initType(m) ||
@@ -5755,7 +5872,7 @@ PyObject *initclingo_() {
 #else
         Object m = Py_InitModule3("clingo", clingoModuleMethods, clingoModuleDoc);
 #endif
-        if (!m ||
+        if (!m.valid() ||
             !SolveResult::initType(m)    || !TheoryTermType::initType(m)   || !PropagateControl::initType(m) ||
             !TheoryElement::initType(m)  || !TheoryAtom::initType(m)       || !TheoryAtomIter::initType(m)   ||
             !Model::initType(m)          || !SolveIter::initType(m)        || !SolveFuture::initType(m)      ||
