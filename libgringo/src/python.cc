@@ -493,6 +493,8 @@ Object cppToPy(std::vector<T> const &vals);
 template <class T>
 Object cppToPy(Potassco::Span<T> const &span);
 template <class T>
+Object cppToPy(std::initializer_list<T> l);
+template <class T>
 Object cppToPy(T const *arr, size_t size);
 
 Object cppToPy(char const *n) { return PyString_FromString(n); }
@@ -3127,16 +3129,65 @@ struct AST : ObjectBase<AST> {
             return reinterpret_cast<PyObject*>(self);
         PY_CATCH(nullptr);
     }
-    Object childKeys(void *) {
-        if (!children.valid()) {
-            children = List();
-            for (auto x : fields_.iter()) {
-                if (fields_.getItem(x).isInstance(type)) {
-                    children.append(x);
-                }
-            }
+    Object childKeys_() {
+        auto ret = [](std::initializer_list<char const *> l) { return cppToPy(l); };
+        switch (enumValue<ASTType>(getValue("type"))) {
+            case ASTType::Id:                        { return ret({ }); }
+            case ASTType::Variable:                  { return ret({ }); }
+            case ASTType::Symbol:                    { return ret({ }); }
+            case ASTType::UnaryOperation:            { return ret({ "argument" }); }
+            case ASTType::BinaryOperation:           { return ret({ "left", "right" }); }
+            case ASTType::Interval:                  { return ret({ "left", "right" }); }
+            case ASTType::Function:                  { return ret({ "arguments" }); }
+            case ASTType::Pool:                      { return ret({ "arguments" }); }
+            case ASTType::CSPProduct:                { return ret({ "coefficient", "variable" }); }
+            case ASTType::CSPSum:                    { return ret({ "terms" }); }
+            case ASTType::CSPGuard:                  { return ret({ "term", "guards" }); }
+            case ASTType::BooleanConstant:           { return ret({ }); }
+            case ASTType::SymbolicAtom:              { return ret({ "term" }); }
+            case ASTType::Comparison:                { return ret({ "left", "right" }); }
+            case ASTType::CSPLiteral:                { return ret({ "term" }); }
+            case ASTType::AggregateGuard:            { return ret({ "guards" }); }
+            case ASTType::ConditionalLiteral:        { return ret({ "literal", "condition" }); }
+            case ASTType::Aggregate:                 { return ret({ "left_guard", "elements", "right_guard" }); }
+            case ASTType::BodyAggregateElement:      { return ret({ "tuple", "condition" }); }
+            case ASTType::BodyAggregate:             { return ret({ "left_guard", "elements", "right_guard" }); }
+            case ASTType::HeadAggregateElement:      { return ret({ "tuple", "condition" }); }
+            case ASTType::HeadAggregate:             { return ret({ "left_guard", "elements", "right_guard" }); }
+            case ASTType::Disjunction:               { return ret({ "elements" }); }
+            case ASTType::DisjointElement:           { return ret({ "tuple", "term", "condition" }); }
+            case ASTType::Disjoint:                  { return ret({ "elements" }); }
+            case ASTType::TheorySequence:            { return ret({ "terms" }); }
+            case ASTType::TheoryFunction:            { return ret({ "arguments" }); }
+            case ASTType::TheoryUnparsedTermElement: { return ret({ "term" }); }
+            case ASTType::TheoryUnparsedTerm:        { return ret({ "elements" }); }
+            case ASTType::TheoryGuard:               { return ret({ "term" }); }
+            case ASTType::TheoryAtomElement:         { return ret({ "tuple", "condition" }); }
+            case ASTType::TheoryAtom:                { return ret({ "term", "elements", "guard" }); }
+            case ASTType::Literal:                   { return ret({ "atom" }); }
+            case ASTType::TheoryOperatorDefinition:  { return ret({ }); }
+            case ASTType::TheoryTermDefinition:      { return ret({ "operators" }); }
+            case ASTType::TheoryGuardDefinition:     { return ret({ }); }
+            case ASTType::TheoryAtomDefinition:      { return ret({ "guard" }); }
+            case ASTType::TheoryDefinition:          { return ret({ "terms", "atoms" }); }
+            case ASTType::Rule:                      { return ret({ "head", "body" }); }
+            case ASTType::Definition:                { return ret({ "value" }); }
+            case ASTType::ShowSignature:             { return ret({ }); }
+            case ASTType::ShowTerm:                  { return ret({ "term", "body" }); }
+            case ASTType::Minimize:                  { return ret({ "weight", "priority", "tuple", "body" }); }
+            case ASTType::Script:                    { return ret({ }); }
+            case ASTType::Program:                   { return ret({ "parameters" }); }
+            case ASTType::External:                  { return ret({ "atom", "body" }); }
+            case ASTType::Edge:                      { return ret({ "u", "v", "body" }); }
+            case ASTType::Heuristic:                 { return ret({ "atom", "body", "bias", "priority", "modifier" }); }
+            case ASTType::ProjectAtom:               { return ret({ "atom", "body" }); }
+            case ASTType::ProjectSignature:          { return ret({ }); }
         }
-        return List{children};
+        throw std::logic_error("cannot happen");
+    }
+    Object childKeys(void *) {
+        if (!children.valid()) { children = childKeys_(); }
+        return children;
     }
     static PyObject *new_(ASTType::T type, char const **kwlist, PyObject **vals) {
         PY_TRY
@@ -5517,7 +5568,7 @@ theory_atom = TheoryAtom
                              , condition : literal*
                              )*
                , guard    : TheoryGuard
-                             ( operator_name : TheoryTerm
+                             ( operator_name : str
                              , term          : theory_term
                              )?
 
@@ -5906,6 +5957,11 @@ Object cppToPy(std::vector<T> const &vals) {
 template <class T>
 Object cppToPy(Potassco::Span<T> const &span) {
     return cppRngToPy(span.first, span.first + span.size);
+}
+
+template <class T>
+Object cppToPy(std::initializer_list<T> l) {
+    return cppRngToPy(l.begin(), l.end());
 }
 
 template <class T>
