@@ -17,7 +17,7 @@ class Transformer:
             else:
                 return self.visit_children(x, *args, **kwargs)
         elif isinstance(x, list):
-            return [self.visit(y) for y in x]
+            return [self.visit(y, *args, **kwargs) for y in x]
         elif x is None:
             return x
         else:
