@@ -725,8 +725,8 @@ DefaultUnfoundedCheck::UfsType DefaultUnfoundedCheck::findNonHcfUfs(Solver& s) {
 	HccIter hEnd = graph_->nonHcfEnd();
 	for (uint32 checks = graph_->numNonHcfs(); checks--;) {
 		s.stats.addTest(s.numFreeVars() != 0);
-		hIt->second->assumptionsFromAssignment(s, loopAtoms_);
-		if (!hIt->second->test(hIt->first, s, loopAtoms_, invalidQ_) || s.hasConflict()) {
+		(*hIt)->assumptionsFromAssignment(s, loopAtoms_);
+		if (!(*hIt)->test(s, loopAtoms_, invalidQ_) || s.hasConflict()) {
 			uint32 pos = 0, minDL = UINT32_MAX;
 			for (VarVec::const_iterator it = invalidQ_.begin(), end = invalidQ_.end(); it != end; ++it) {
 				if (s.isTrue(graph_->getAtom(*it).lit) && s.level(graph_->getAtom(*it).lit.var()) < minDL) {

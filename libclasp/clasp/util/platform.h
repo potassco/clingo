@@ -33,6 +33,13 @@
 #if defined(_MSC_VER) && _MSC_VER >= 1200
 #define CLASP_PRAGMA_TODO(X) __pragma(message(__FILE__ "(" STRING(__LINE__) ") : TODO: " X))
 #define FUNC_NAME __FUNCTION__
+#define CLASP_WARNING_BEGIN_RELAXED \
+	__pragma(warning(push))\
+	__pragma(warning (disable : 4200))
+
+#define CLASP_WARNING_END_RELAXED \
+	__pragma(warning(pop))
+
 #include <basetsd.h>
 #if _MSC_VER >= 1600
 #include <stdint.h>
@@ -103,6 +110,24 @@ bool aligned(void* mem) {
 #endif
 }
 
+#if !defined(CLASP_WARNING_BEGIN_RELAXED)
+#	undef CLASP_WARNING_END_RELAXED
+#	if defined(__clang__)
+#		define CLASP_WARNING_BEGIN_RELAXED \
+		_Pragma("clang diagnostic push") \
+		_Pragma("clang diagnostic ignored \"-Wzero-length-array\"")
+#		define CLASP_WARNING_END_RELAXED _Pragma("clang diagnostic pop")
+#	elif defined(__GNUC__)
+#		define CLASP_WARNING_BEGIN_RELAXED \
+		_Pragma("GCC diagnostic push")\
+		_Pragma("GCC diagnostic ignored \"-pedantic\"")
+#		define CLASP_WARNING_END_RELAXED _Pragma("GCC diagnostic pop")
+#	else
+#		define CLASP_WARNING_BEGIN_RELAXED
+#		define CLASP_WARNING_END_RELAXED
+#	endif
+#endif
+
 #if !defined(CLASP_HAS_STATIC_ASSERT)
 #	if defined(__cplusplus) && __cplusplus >= 201103L 
 #		define CLASP_HAS_STATIC_ASSERT 1
@@ -125,16 +150,21 @@ template <>     struct static_assertion<true> {};
 #endif
 #endif
 
-extern const char* clasp_format_error(const char* m, ...);
 extern const char* clasp_format(char* buf, unsigned size, const char* m, ...);
+struct ClaspErrorString {
+	ClaspErrorString(const char* fmt, ...);
+	const char* c_str() const { return str; }
+	operator const char*() const { return c_str(); }
+	char str[1024];
+};
 
-#define CLASP_FAIL_IF(exp, fmt, ...) \
-	(void)( (!(exp)) || (throw std::logic_error(clasp_format_error(fmt, ##__VA_ARGS__ )), 0))	
+#define CLASP_FAIL_IF(exp, ...) \
+	(void)( (!(exp)) || (throw std::logic_error(ClaspErrorString(__VA_ARGS__ ).c_str()), 0))	
 
 #ifndef CLASP_NO_ASSERT_CONTRACT
 
 #define CLASP_ASSERT_CONTRACT_MSG(exp, msg) \
-	(void)( (!!(exp)) || (throw std::logic_error(clasp_format_error("%s@%d: contract violated: %s", FUNC_NAME, __LINE__, (msg))), 0))
+	(void)( (!!(exp)) || (throw std::logic_error(ClaspErrorString("%s@%d: contract violated: %s", FUNC_NAME, __LINE__, (msg)).c_str()), 0))
 
 #else
 #include <cassert>

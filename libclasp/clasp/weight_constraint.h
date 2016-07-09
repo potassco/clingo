@@ -21,7 +21,6 @@
 #define CLASP_SMODELS_CONSTRAINTS_H_INCLUDED
 
 #ifdef _MSC_VER
-#pragma warning (disable : 4200) // nonstandard extension used : zero-sized array
 #pragma once
 #endif
 
@@ -171,7 +170,9 @@ private:
 		uint32  sz : 30; // number of literals
 		uint32  rc : 1;  // ref counted?
 		uint32  w  : 1;  // has weights?
+CLASP_WARNING_BEGIN_RELAXED
 		Literal lits[0]; // Literals of constraint: ~B [Bw], l1 [w1], ..., ln-1 [Wn-1]
+CLASP_WARNING_END_RELAXED
 	};
 	WeightConstraint(Solver& s, SharedContext* ctx, Literal W, const WeightLitsRep& , WL* out, uint32 act = 3u);
 	WeightConstraint(Solver& s, const WeightConstraint& other);
@@ -212,7 +213,9 @@ private:
 	uint32   active_ :  2; // which of the two sub-constraints is currently unit?
 	uint32   watched_:  2; // which constraint is watched (3 both, 2 ignore, FTB_BFB, FFB_BTB)
 	weight_t bound_[2];    // FFB_BTB: (sumW-bound)+1 / FTB_BFB: bound
+CLASP_WARNING_BEGIN_RELAXED
 	UndoInfo undo_[0];     // undo stack + seen flag for each literal
+CLASP_WARNING_END_RELAXED
 };
 }
 

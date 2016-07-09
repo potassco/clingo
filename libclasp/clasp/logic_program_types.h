@@ -23,7 +23,6 @@
 
 #ifdef _MSC_VER
 #pragma once
-#pragma warning (disable : 4200) // nonstandard extension used : zero-sized array
 #endif
 #include <clasp/claspfwd.h>
 #include <clasp/literal.h>
@@ -558,6 +557,7 @@ private:
 	weight_t boundImpl()   const { return static_cast<weight_t>(!hasWeights() ? (weight_t)data_.lits[0] : data_.ext[0]->bound); }
 	Literal* goals_end()         { return goals_begin() + size(); }
 	Literal* goals_begin()       { return reinterpret_cast<Literal*>( data_.lits + (type() == Body_t::Normal ? 0 : SumExtra::LIT_OFFSET) ); }
+CLASP_WARNING_BEGIN_RELAXED
 	struct SumExtra {
 		enum { LIT_OFFSET = sizeof(void*)/sizeof(uint32) };
 		static SumExtra* create(uint32 size);
@@ -581,6 +581,7 @@ private:
 		uint32    lits[0];
 		SumExtra* ext[0]; }; 
 	}         data_;          // <ext>*?, B+: [0, posSize_), B-: [posSize_, size_)
+CLASP_WARNING_END_RELAXED
 };
 
 //! The head of a disjunctive rule.
@@ -601,7 +602,9 @@ public:
 private:
 	explicit PrgDisj(uint32 id, const VarVec& atoms);
 	~PrgDisj();
+CLASP_WARNING_BEGIN_RELAXED
 	Var atoms_[0]; // atoms in disjunction
+CLASP_WARNING_END_RELAXED
 };
 
 inline ValueRep getMergeValue(const PrgNode* lhs, const PrgNode* rhs) {

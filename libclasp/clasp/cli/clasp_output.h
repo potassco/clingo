@@ -96,6 +96,7 @@ protected:
 	void         printWitness(const OutputTable& out, const Model& m, UPtr data);
 	virtual UPtr doPrint(const OutPair& out, uintp data);
 	UPair        numCons(const OutputTable& out, const Model& m) const;
+	bool         stats(const ClaspFacade::Summary& summary) const;
 private:
 	Output(const Output&);
 	Output& operator=(const Output&);
@@ -106,26 +107,6 @@ private:
 	Model     saved_   ; // most recent model
 	uint32    verbose_ ; // verbosity level
 	uint8     quiet_[3]; // quiet levels for models, optimize, calls
-};
-
-//! Interface for printing statistics.
-class StatsVisitor {
-public:
-	virtual ~StatsVisitor();
-	virtual void visitStats(const ClaspFacade::Summary& summary);
-	// compound
-	virtual void visitSolverStats(const SolverStats& stats, bool accu);
-	virtual void visitProblemStats(const ProblemStats& stats, const Asp::LpStats* lp);
-	virtual void visitThreads(const ClaspFacade::Summary& summary);
-	virtual void visitHccs(const ClaspFacade::Summary& summary);
-	virtual void visitThread(uint32, const SolverStats& stats) { visitSolverStats(stats, false); }
-	virtual void visitHcc(uint32, const ProblemStats& p, const SolverStats& s);
-	// leafs
-	virtual void visitLogicProgramStats(const Asp::LpStats& stats) = 0;
-	virtual void visitProblemStats(const ProblemStats& stats) = 0;
-	virtual void visitCoreSolverStats(double cpuTime, uint64 models, const SolverStats& stats, bool accu) = 0;
-	virtual void visitExtSolverStats(const ExtendedStats& stats, bool accu) = 0;
-	virtual void visitJumpStats(const JumpStats& stats, bool accu) = 0;
 };
 
 //! Prints models and solving statistics in Json-format to stdout.
@@ -141,25 +122,15 @@ public:
 private:
 	virtual void startStep(const ClaspFacade&);
 	virtual void stopStep(const ClaspFacade::Summary& summary);
-	virtual void visitThreads(const ClaspFacade::Summary& s)     { pushObject("Thread", type_array); StatsVisitor::visitThreads(s);   popObject(); }
-	virtual void visitThread(uint32 i, const SolverStats& stats) { pushObject(0, type_object);       StatsVisitor::visitThread(i, stats); popObject(); }
-	virtual void visitHccs(const ClaspFacade::Summary& s)        { 
-		pushObject("Tester");
-		StatsVisitor::visitHccs(s);
-		if (*objStack_.rbegin() == '[') { popObject(); }
-		popObject();
-	}
-	virtual void visitHcc(uint32 i, const ProblemStats& p, const SolverStats& s) { 
-		if (*objStack_.rbegin() != '[') { pushObject("HCC", type_array); }
-		pushObject(0, type_object);
-		StatsVisitor::visitHcc(i, p, s);
-		popObject();
-	}
+	virtual bool visitThreads(Operation op);
+	virtual bool visitTester(Operation op);
+	virtual bool visitHccs(Operation op);
+	
+	virtual void visitThread(uint32, const SolverStats& stats);
+	virtual void visitHcc(uint32, const ProblemStats& p, const SolverStats& s);
 	virtual void visitLogicProgramStats(const Asp::LpStats& stats);
 	virtual void visitProblemStats(const ProblemStats& stats);
-	virtual void visitCoreSolverStats(double cpuTime, uint64 models, const SolverStats& stats, bool accu);
-	virtual void visitExtSolverStats(const ExtendedStats& stats, bool accu);
-	virtual void visitJumpStats(const JumpStats& stats, bool accu);
+	virtual void visitSolverStats(const SolverStats& stats);
 	virtual UPtr doPrint(const OutPair& out, UPtr data);
 	enum ObjType { type_object, type_array };
 	void pushObject(const char* k = 0, ObjType t = type_object);
@@ -173,6 +144,9 @@ private:
 	void printModel(const OutputTable& out, const Model& m, PrintLevel x);
 	void printCosts(const SumVec& costs, const char* name = "Costs");
 	void printCons(const UPair& cons);
+	void printCoreStats(const CoreStats&);
+	void printExtStats(const ExtendedStats&, bool generator);
+	void printJumpStats(const JumpStats&);
 	void startModel();
 	bool hasWitness() const { return !objStack_.empty() && *objStack_.rbegin() == '['; }
 	uint32 indent()   const { return static_cast<uint32>(objStack_.size() * 2); }
@@ -234,23 +208,23 @@ public:
 	//! Prints a comment message.
 	void comment(uint32 v, const char* fmt, ...) const;
 protected:
-	virtual void visitProblemStats(const ProblemStats& stats, const Asp::LpStats* lp);
-	virtual void visitSolverStats(const Clasp::SolverStats& s, bool accu);
+	virtual bool visitThreads(Operation op);
+	virtual bool visitTester(Operation op);
+	
+	virtual void visitThread(uint32, const SolverStats& stats);
+	virtual void visitHcc(uint32, const ProblemStats& p, const SolverStats& s);
 	virtual void visitLogicProgramStats(const Asp::LpStats& stats);
 	virtual void visitProblemStats(const ProblemStats& stats);
-	virtual void visitCoreSolverStats(double cpuTime, uint64 models, const SolverStats& stats, bool accu);
-	virtual void visitExtSolverStats(const ExtendedStats& stats, bool accu);
-	virtual void visitJumpStats(const JumpStats& stats, bool accu);
-	virtual void visitThreads(const ClaspFacade::Summary& s)   { startSection("Thread");   StatsVisitor::visitThreads(s); }
-	virtual void visitThread(uint32 i, const SolverStats& s)   { startObject("Thread", i); StatsVisitor::visitThread(i, s); }
-	virtual void visitHccs(const ClaspFacade::Summary& s)      { startSection("Tester"); StatsVisitor::visitHccs(s); }
-	virtual void visitHcc(uint32 i, const ProblemStats& p, const SolverStats& s) { startObject("HCC", i);    StatsVisitor::visitHcc(i, p, s); }
+	virtual void visitSolverStats(const SolverStats& stats);
+
 	virtual UPtr doPrint(const OutPair& out, UPtr data);
 	const char* fieldSeparator() const;
 	int         printSep(CategoryKey c) const;
 	void        printCosts(const SumVec&) const;
 	void        printBounds(const SumVec& upper, const SumVec& lower) const;
-	void        startSection(const char* n)     const;
+	void        printStats(const SolverStats& stats) const;
+	void        printJumps(const JumpStats&) const;
+	bool        startSection(const char* n)  const;
 	void        startObject(const char* n, uint32 i) const;
 	void        setState(uint32 state, uint32 verb, const char* st);
 	void        printSolveProgress(const Event& ev);
@@ -262,6 +236,7 @@ private:
 	int    line_;  // lines to print until next separator
 	uint32 state_; // active state
 	char   ifs_[2];// field separator
+	bool   accu_;
 };
 //@}
 

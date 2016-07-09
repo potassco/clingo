@@ -32,6 +32,15 @@ struct Clause_t {
 	static bool isVolatile(Clause_t p) { return (static_cast<unsigned>(p)& static_cast<unsigned>(Volatile)) != 0; }
 	static bool isStatic(Clause_t p) { return (static_cast<unsigned>(p)& static_cast<unsigned>(Static)) != 0; }
 };
+//! Supported statistics types.
+struct Statistics_t {
+	POTASSCO_ENUM_CONSTANTS(Statistics_t,
+		Empty = 0, /**< Empty (invalid) object. */
+		Value = 1, /**< Single statistic value that is convertible to a double.    */
+		Array = 2, /**< Composite object mapping int keys to statistics types.   */
+		Map   = 3  /**< Composite object mapping string keys to statistics types.*/
+	);
+};
 
 //! Represents an assignment of a particular solver.
 class AbstractAssignment {
@@ -91,5 +100,61 @@ public:
 	virtual void undo(const AbstractSolver& solver, const ChangeList& undo) = 0;
 	virtual void check(AbstractSolver& solver) = 0;
 };
+
+//! Base class for providing (solver) statistics.
+/*!
+ * Functions in this interface taking a key as parameter
+ * assume that the key is valid and throw a std::logic_error
+ * if this precondition is violated.
+ */
+class AbstractStatistics {
+public:
+	typedef uint64_t Key_t;
+	
+	virtual ~AbstractStatistics();
+
+	//! Returns the root key of this statistic object.
+	virtual Key_t        root()         const = 0;
+	//! Returns the type of the object with the given key.
+	virtual Statistics_t type(Key_t key) const = 0;
+	//! Returns the child count of the object with the given key or 0 if it is a value.
+	virtual size_t       size(Key_t key) const = 0;
+	/*!
+	 * \name Array
+	 * Functions in this group shall only be called on Array objects.
+	 */
+	//@{
+	//! Returns the element at the given zero-based index.
+	/*!
+	 * \pre index < size(key)
+	 */
+	virtual Key_t at(Key_t arr, size_t index) const = 0;
+	//@}
+
+	/*!
+	 * \name Map
+	 * Functions in this group shall only be called on Map objects.
+	 */
+	//@{
+	//! Returns the i'th key of the given map.
+	/*!
+	 * \pre i < size(mapK)
+	 * \note The order of keys in a map is unspecified and might change
+	 * after a solve operation.
+	 */
+	virtual const char* key(Key_t mapK, size_t i) const = 0;
+	//! Returns the element stored in the map under the given name.
+	virtual Key_t       get(Key_t mapK, const char* at) const = 0;
+	//@}
+	/*!
+	 * \name Value
+	 * Functions in this group shall only be called on Value objects.
+	 */
+	//@{
+	//! Returns the statistic value associated with the given key.
+	virtual double value(Key_t key) const = 0;
+	//@}
+};
+
 }
 #endif

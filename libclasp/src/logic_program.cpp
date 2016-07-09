@@ -61,37 +61,44 @@ uint32 BodyStats::sum() const {
 	return std::accumulate(key, key + numKeys(), uint32(0));
 }
 
+namespace {
+template <unsigned i>
+double sumBodies(const LpStats* self) { return self->bodies[i].sum(); }
+template <unsigned i>
+double sumRules(const LpStats* self) { return self->rules[i].sum(); }
+double sumEqs(const LpStats* self)   { return self->eqs(); }
+}
 #define LP_STATS( APPLY )                                        \
-	APPLY("atoms"               , atoms)                         \
-	APPLY("atoms_aux"           , auxAtoms)                      \
-	APPLY("disjunctions"        , disjunctions[0])               \
-	APPLY("disjunctions_non_hcf", disjunctions[1])               \
-	APPLY("bodies"              , bodies[0].sum())               \
-	APPLY("bodies_tr"           , bodies[1].sum())               \
-	APPLY("sum_bodies"          , bodies[0][Body_t::Sum])        \
-	APPLY("sum_bodies_tr"       , bodies[1][Body_t::Sum])        \
-	APPLY("count_bodies"        , bodies[0][Body_t::Count])      \
-	APPLY("count_bodies_tr"     , bodies[1][Body_t::Count])      \
-	APPLY("sccs"                , sccs)                          \
-	APPLY("sccs_non_hcf"        , nonHcfs)                       \
-	APPLY("gammas"              , gammas)                        \
-	APPLY("ufs_nodes"           , ufsNodes)                      \
-	APPLY("rules"               , rules[0].sum())                \
-	APPLY("rules_normal"        , rules[0][RK(Normal)])          \
-	APPLY("rules_choice"        , rules[0][RK(Choice)])          \
-	APPLY("rules_minimize"      , rules[0][RK(Minimize)])        \
-	APPLY("rules_acyc"          , rules[0][RK(Acyc)])            \
-	APPLY("rules_heuristic"     , rules[0][RK(Heuristic)])       \
-	APPLY("rules_tr"            , rules[1].sum())                \
-	APPLY("rules_tr_normal"     , rules[1][RK(Normal)])          \
-	APPLY("rules_tr_choice"     , rules[1][RK(Choice)])          \
-	APPLY("rules_tr_minimize"   , rules[1][RK(Minimize)])        \
-	APPLY("rules_tr_acyc"       , rules[1][RK(Acyc)])            \
-	APPLY("rules_tr_heuristic"  , rules[1][RK(Heuristic)])       \
-	APPLY("eqs"                 , eqs())                         \
-	APPLY("eqs_atom"            , eqs(Var_t::Atom))          \
-	APPLY("eqs_body"            , eqs(Var_t::Body))          \
-	APPLY("eqs_other"           , eqs(Var_t::Hybrid))
+	APPLY("atoms"               , VALUE(atoms))                  \
+	APPLY("atoms_aux"           , VALUE(auxAtoms))               \
+	APPLY("disjunctions"        , VALUE(disjunctions[0]))        \
+	APPLY("disjunctions_non_hcf", VALUE(disjunctions[1]))        \
+	APPLY("bodies"              , FUNC(sumBodies<0>))            \
+	APPLY("bodies_tr"           , FUNC(sumBodies<1>))            \
+	APPLY("sum_bodies"          , VALUE(bodies[0][Body_t::Sum])) \
+	APPLY("sum_bodies_tr"       , VALUE(bodies[1][Body_t::Sum])) \
+	APPLY("count_bodies"        , VALUE(bodies[0][Body_t::Count]))\
+	APPLY("count_bodies_tr"     , VALUE(bodies[1][Body_t::Count]))\
+	APPLY("sccs"                , VALUE(sccs))                   \
+	APPLY("sccs_non_hcf"        , VALUE(nonHcfs))                \
+	APPLY("gammas"              , VALUE(gammas))                 \
+	APPLY("ufs_nodes"           , VALUE(ufsNodes))               \
+	APPLY("rules"               , FUNC(sumRules<0>))             \
+	APPLY("rules_normal"        , VALUE(rules[0][RK(Normal)]))   \
+	APPLY("rules_choice"        , VALUE(rules[0][RK(Choice)]))   \
+	APPLY("rules_minimize"      , VALUE(rules[0][RK(Minimize)])) \
+	APPLY("rules_acyc"          , VALUE(rules[0][RK(Acyc)]))     \
+	APPLY("rules_heuristic"     , VALUE(rules[0][RK(Heuristic)]))\
+	APPLY("rules_tr"            , FUNC(sumRules<1>))             \
+	APPLY("rules_tr_normal"     , VALUE(rules[1][RK(Normal)]))   \
+	APPLY("rules_tr_choice"     , VALUE(rules[1][RK(Choice)]))   \
+	APPLY("rules_tr_minimize"   , VALUE(rules[1][RK(Minimize)])) \
+	APPLY("rules_tr_acyc"       , VALUE(rules[1][RK(Acyc)]))     \
+	APPLY("rules_tr_heuristic"  , VALUE(rules[1][RK(Heuristic)]))\
+	APPLY("eqs"                 , FUNC(sumEqs))                  \
+	APPLY("eqs_atom"            , VALUE(eqs_[Var_t::Atom-1]))    \
+	APPLY("eqs_body"            , VALUE(eqs_[Var_t::Body-1]))    \
+	APPLY("eqs_other"           , VALUE(eqs_[Var_t::Hybrid-1]))
 
 void LpStats::reset() {
 	std::memset(this, 0, sizeof(LpStats));
@@ -122,19 +129,28 @@ void LpStats::accu(const LpStats& o) {
 		eqs_[i] += o.eqs_[i];
 	}
 }
-double LpStats::operator[](const char* key) const {
-#define MAP_IF(x, A) if (std::strcmp(key, x) == 0)  return double( (A) );
-	LP_STATS(MAP_IF)
-#undef MAP_IF
-	return -1.0;
-}
-const char* LpStats::keys(const char* path) {
-	if (!path || !*path) {
-#define KEY(x, y) x "\0"
-		return LP_STATS(KEY);
+
+static const char* lpStats_s[] = {
+#define KEY(x, y) x,
+	LP_STATS(KEY)
 #undef KEY
-	}
-	return 0;
+	"lp"
+};
+uint32 LpStats::size() {
+	return (sizeof(lpStats_s)/sizeof(const char*))-1;
+}
+const char* LpStats::key(uint32 i) {
+	return i < size() ? lpStats_s[i] : throw std::out_of_range("LpStats::key");
+}
+StatisticObject LpStats::at(const char* k) const {
+#define MAP_IF(x, A) if (std::strcmp(k, x) == 0)  return A;
+#define VALUE(X) StatisticObject::value(&(X))
+#define FUNC(F) StatisticObject::value<LpStats, F>(this)
+	LP_STATS(MAP_IF)
+#undef VALUE
+#undef FUNC
+#undef MAP_IF
+	throw std::out_of_range("LpStats::at");
 }
 #undef LP_STATS
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -171,7 +187,6 @@ bool toConstraint(NT* node, const LogicProgram& prg, ClauseCreator& c) {
 
 LogicProgram::LogicProgram() : theory_(0), input_(1, 1), auxData_(0), incData_(0) {
 	CLASP_FAIL_IF(!init_trueAtom_g, "invalid static init");
-	accu = 0;
 }
 LogicProgram::~LogicProgram() { dispose(true); }
 LogicProgram::Incremental::Incremental() : startScc(0) {}
@@ -301,7 +316,6 @@ bool LogicProgram::doEndProgram() {
 		addConstraints();
 		addDomRules();
 		addAcycConstraint();
-		if (accu) { accu->accu(stats); }
 	}
 	return ctx()->ok();
 }
@@ -529,7 +543,7 @@ void LogicProgram::accept(Potassco::AbstractProgram& out) {
 #define check_not_frozen() CLASP_ASSERT_CONTRACT_MSG(!frozen(), "Can't update frozen program!")
 #define check_modular(x, atomId) (void)( (!!(x)) || (throw RedefinitionError((atomId), this->findName((atomId))), 0))
 RedefinitionError::RedefinitionError(unsigned atomId, const char* name)
-	: std::logic_error(clasp_format_error("redefinition of atom <'%s',%u>", name && *name ? name : "_", atomId)) {
+	: std::logic_error(ClaspErrorString("redefinition of atom <'%s',%u>", name && *name ? name : "_", atomId).c_str()) {
 }
 
 Atom_t LogicProgram::newAtom() {

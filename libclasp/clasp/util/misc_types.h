@@ -302,8 +302,10 @@ struct Ownership_t {
 template <class T, class D = DeleteObject>
 class SingleOwnerPtr {
 public:
-	         SingleOwnerPtr()       : ptr_(0) {}
-	explicit SingleOwnerPtr(T* ptr) : ptr_( set_bit(uintp(ptr),0) ) {}
+	SingleOwnerPtr() : ptr_(0) {}
+	explicit SingleOwnerPtr(T* ptr, Ownership_t::Type t = Ownership_t::Acquire) 
+		: ptr_(uintp(ptr) | uintp(t == Ownership_t::Acquire)) {
+	}
 	~SingleOwnerPtr()       { *this = 0; }
 	bool is_owner()   const { return test_bit(ptr_, 0); }
 	T*   get()        const { return (T*)clear_bit(ptr_, 0); }

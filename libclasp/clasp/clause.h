@@ -21,7 +21,6 @@
 #define CLASP_CLAUSE_H_INCLUDED
 
 #ifdef _MSC_VER
-#pragma warning (disable : 4200) // nonstandard extension used : zero-sized array
 #pragma once
 #endif
 
@@ -71,7 +70,9 @@ private:
 	typedef Clasp::Atomic_t<int32>::type RCType;
 	RCType  refCount_;
 	uint32  size_type_;
+CLASP_WARNING_BEGIN_RELAXED
 	Literal lits_[0];
+CLASP_WARNING_END_RELAXED
 };
 
 //! A helper-class for creating/adding clauses.
@@ -484,7 +485,9 @@ private:
 	uint32    str_ : 1; // removed literal(s) during simplify?
 	uint32    xPos_: 1; // position of ai in lits_ or 0 if no atom
 	uint32    other_;   // stores the position of a literal that was recently true
+CLASP_WARNING_BEGIN_RELAXED
 	Literal   lits_[0]; // S ai B1...Bm S a1...an
+CLASP_WARNING_END_RELAXED
 };
 
 namespace mt {

@@ -52,7 +52,7 @@ namespace Clasp {
 			T val;
 		} type;
 	};
-};
+}
 
 #if WITH_THREADS
 #if !defined(CLASP_USE_STD_THREAD)

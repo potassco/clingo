@@ -29,7 +29,7 @@ namespace {
 		bool operator()(const GenericWatch&w) const { return (*this)(w.con);  }
 		const ConstraintSet* set;
 	};
-};
+}
 DecisionHeuristic::~DecisionHeuristic() {}
 /////////////////////////////////////////////////////////////////////////////////////////
 // CCMinRecursive

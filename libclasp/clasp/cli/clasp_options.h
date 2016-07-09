@@ -21,7 +21,6 @@
 #define CLASP_CLI_CLASP_OPTIONS_H_INCLUDED
 
 #ifdef _MSC_VER
-#pragma warning (disable : 4200) // nonstandard extension used : zero-sized array
 #pragma once
 #endif
 
@@ -118,7 +117,7 @@ public:
 	static const KeyType KEY_TESTER;  /**< Root key for tester options, i.e. "tester." */
 	static const KeyType KEY_SOLVER;  /**< Root key for (array of) solver options, i.e. "solver." */
 	
-	//! Returns true if k is a leaf, i.e. has not subkeys.
+	//! Returns true if k is a leaf, i.e. has no subkeys.
 	static bool  isLeafKey(KeyType k);
 
 	//! Retrieves a handle to the specified key.
@@ -159,23 +158,14 @@ public:
 	//! Returns the name of the i'th subkey of k or 0 if no such subkey exists.
 	const char* getSubkey(KeyType k, uint32 i) const;
 	
-	//! Creates and returns a null-terminated string representation of the value of the given key.
+	//! Creates and returns a string representation of the value of the given key.
 	/*!
 	 * \param key  A valid handle to a key.
 	 * \param[out] value The current value of the key.
 	 * \return The length of value or < 0 if k either has no value (-1) or an error occurred while writing the value (< -1).
-   */
+	 */
 	int getValue(KeyType k, std::string& value) const;
 	 
-	/*! 
-	 * \overload int getValue(KeyType k, std::string& out) const;
-	 *
-	 * \note If value is not 0, the function allocates memory for storing value. 
-	 *   It is the caller's responsibility to eventually release the returned 
-	 *   value via a call to releaseValue().
-   */
-	int  getValue(KeyType key, char** value) const;
-	
 	//! Writes a null-terminated string representation of the value of the given key into the supplied buffer.
 	/*!
 	 * \overload int getValue(KeyType k, std::string& out) const;
@@ -185,9 +175,6 @@ public:
 	 *   never writes more than bufSize bytes into the buffer.
 	 */
 	int getValue(KeyType key, char* buffer, std::size_t bufSize) const;
-	
-	//! Releases the given string previously allocated by queryKeyValue().
-	void releaseValue(const char* value) const;
 	
 	//! Sets the option identified by the given key.
 	/*!

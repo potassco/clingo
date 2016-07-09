@@ -133,7 +133,9 @@ private:
 		static   uint32 flagSize(uint32 preds) { return (preds+31)/32; }
 		weight_t lower;
 		weight_t slack;
+CLASP_WARNING_BEGIN_RELAXED
 		uint32   flags[0];
+CLASP_WARNING_END_RELAXED
 	};
 	// data for each atom
 	struct AtomData {

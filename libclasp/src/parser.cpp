@@ -37,21 +37,22 @@
 #pragma warning (disable : 4996)
 #endif
 const char* clasp_format(char* buf, unsigned size, const char* fmt, ...) {
-	if (size) { buf[0] = 0; --size; }
+	if (!size) return buf;
+	*buf = 0;
 	va_list args;
 	va_start(args, fmt);
-	vsnprintf(buf, size, fmt, args);
+	int r = vsnprintf(buf, size, fmt, args);
+	if (r < 0 || unsigned(r) >= size) { buf[size-1] = 0; }
 	va_end(args);
 	return buf;
 }
-const char* clasp_format_error(const char* fmt, ...) {
-	static char buf[1024];
-	buf[0] = 0;
+ClaspErrorString::ClaspErrorString(const char* fmt, ...) {
+	*str = 0;
 	va_list args;
 	va_start(args, fmt);
-	vsnprintf(buf, 1023, fmt, args);
+	int res = vsnprintf(str, sizeof(str), fmt, args);
 	va_end(args);
-	return buf;
+	if (res < 0 || std::size_t(res) >= sizeof(str)) { str[sizeof(str)-1] = 0; }
 }
 namespace Clasp {
 using Potassco::ParseError;

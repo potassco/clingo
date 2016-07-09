@@ -85,8 +85,8 @@
 #if defined(CLASP_CONTEXT_OPTIONS)
 #define SELF CLASP_CONTEXT_OPTIONS
 GROUP_BEGIN(SELF)
-OPTION(stats, ",s"  , ARG(implicit("1")->arg("{0..2}")), "Maintain {0=no|1=basic|2=extended} statistics", STORE_LEQ(SELF.stats,2u), GET(SELF.stats))
-OPTION(share, "!,@1", ARG(defaultsTo("auto")->state(Value::value_defaulted), DEFINE_ENUM_MAPPING(ContextParams::ShareMode, \
+OPTION(stats, ",s"  , ARG(implicit("1")->arg("{0..2}")), "Enable {1=basic|2=full} statistics", STORE_LEQ(SELF.stats,2u), GET(SELF.stats))
+OPTION(share, "!,@1", ARG_EXT(defaultsTo("auto")->state(Value::value_defaulted), DEFINE_ENUM_MAPPING(ContextParams::ShareMode, \
        MAP("no"  , ContextParams::share_no)  , MAP("all", ContextParams::share_all),\
        MAP("auto", ContextParams::share_auto), MAP("problem", ContextParams::share_problem),\
        MAP("learnt", ContextParams::share_learnt))),\
@@ -119,7 +119,7 @@ GROUP_END(SELF)
 #if defined(CLASP_SOLVER_OPTIONS)
 #define SELF CLASP_SOLVER_OPTIONS
 GROUP_BEGIN(SELF)
-OPTION(opt_strategy , ""  , ARG(arg("<arg>")->implicit("1"), DEFINE_ENUM_MAPPING(MinimizeMode_t::Strategy,\
+OPTION(opt_strategy , ""  , ARG_EXT(arg("<arg>")->implicit("1"), DEFINE_ENUM_MAPPING(MinimizeMode_t::Strategy,\
        MAP("bb", MinimizeMode_t::opt_bb), MAP("usc", MinimizeMode_t::opt_usc))),  "Configure optimization strategy\n" \
        "      %A: {bb|usc}[,<n>]\n" \
        "        bb : branch and bound based optimization with <n = {0..3}>\n"  \
@@ -137,7 +137,7 @@ OPTION(opt_strategy , ""  , ARG(arg("<arg>")->implicit("1"), DEFINE_ENUM_MAPPING
        GET(static_cast<MinimizeMode_t::Strategy>(SELF.optStrat), SELF.optParam))
 OPTION(opt_heuristic, ""  , ARG(implicit("1")->arg("{0..3}")), "Use opt. in {1=sign|2=model|3=both} heuristics", STORE_LEQ(SELF.optHeu,  3u), GET(SELF.optHeu))
 OPTION(restart_on_model, "", ARG(flag()), "Restart after each model\n", STORE_FLAG(SELF.restartOnModel), GET(SELF.restartOnModel))
-OPTION(lookahead    , "!", ARG(implicit("atom"), DEFINE_ENUM_MAPPING(VarType, \
+OPTION(lookahead    , "!", ARG_EXT(implicit("atom"), DEFINE_ENUM_MAPPING(VarType, \
        MAP("atom", Var_t::Atom), MAP("body", Var_t::Body), MAP("hybrid", Var_t::Hybrid))),\
        "Configure failed-literal detection (fld)\n" \
        "      %A: <type>[,<limit>] / Implicit: %I\n" \
@@ -147,7 +147,7 @@ OPTION(lookahead    , "!", ARG(implicit("atom"), DEFINE_ENUM_MAPPING(VarType, \
        VarType type; uint32 limit = (SELF.lookOps = 0u);\
        return ITE(arg.off(), SET(SELF.lookType, 0u), arg>>type>>opt(limit) && SET(SELF.lookType, (uint32)type)) && SET_OR_ZERO(SELF.lookOps, limit);},\
        GET_IF(SELF.lookType, (VarType)SELF.lookType, SELF.lookOps))
-OPTION(heuristic, "", ARG(arg("<heu>"), DEFINE_ENUM_MAPPING(Heuristic_t::Type, \
+OPTION(heuristic, "", ARG_EXT(arg("<heu>"), DEFINE_ENUM_MAPPING(Heuristic_t::Type, \
        MAP("berkmin", Heuristic_t::Berkmin), MAP("vmtf"  , Heuristic_t::Vmtf), \
        MAP("vsids"  , Heuristic_t::Vsids)  , MAP("domain", Heuristic_t::Domain), \
        MAP("unit"   , Heuristic_t::Unit)   , MAP("auto", Heuristic_t::Default), MAP("none"  , Heuristic_t::None))), \
@@ -186,7 +186,7 @@ OPTION(seed          , ""   , ARG(arg("<n>")),"Set random number generator's see
 OPTION(no_lookback   , ""   , ARG(flag()), "Disable all lookback strategies\n", STORE_FLAG(SELF.search),GET(static_cast<bool>(SELF.search == SolverStrategies::no_learning)))
 OPTION(forget_on_step, ""   , ARG(arg("<bits>")), "Configure forgetting on (incremental) step\n"\
        "      Forget {1=heuristic|2=signs|4=nogood activities|8=learnt nogoods}\n", STORE_LEQ(SELF.forgetSet, 15u), GET(SELF.forgetSet))
-OPTION(strengthen    , "!"  , ARG(arg("<X>"), DEFINE_ENUM_MAPPING(SolverStrategies::CCMinType, \
+OPTION(strengthen    , "!"  , ARG_EXT(arg("<X>"), DEFINE_ENUM_MAPPING(SolverStrategies::CCMinType, \
        MAP("local", SolverStrategies::cc_local), MAP("recursive", SolverStrategies::cc_recursive))), \
        "Use MiniSAT-like conflict nogood strengthening\n" \
        "      %A: <mode>[,<type>][,<keep>]\n" \
@@ -206,7 +206,7 @@ OPTION(contraction , "!"  , NO_ARG, "Configure handling of long learnt nogoods\n
        "        <rep>: Replace literal blocks with {1=decisions|2=uips} ([0]=disable)\n", FUN(arg) { uint32 n = 0; uint32 r = 0;\
        return (arg.off() || (arg>>n>>opt(r) && n != 0u)) && SET_OR_FILL(SELF.compress, n) && SET_LEQ(SELF.ccRepMode, r,3u);},\
        GET_IF(SELF.compress, SELF.compress, SELF.ccRepMode))
-OPTION(loops, "" , ARG(arg("<type>"), DEFINE_ENUM_MAPPING(DefaultUnfoundedCheck::ReasonStrategy,\
+OPTION(loops, "" , ARG_EXT(arg("<type>"), DEFINE_ENUM_MAPPING(DefaultUnfoundedCheck::ReasonStrategy,\
        MAP("common"  , DefaultUnfoundedCheck::common_reason)  , MAP("shared", DefaultUnfoundedCheck::shared_reason), \
        MAP("distinct", DefaultUnfoundedCheck::distinct_reason), MAP("no", DefaultUnfoundedCheck::only_reason))),\
        "Configure learning of loop nogoods\n" \
@@ -286,7 +286,7 @@ GROUP_END(SELF)
 #if defined(NOTIFY_SUBGROUPS)
 GROUP_BEGIN(SELF)
 #endif
-OPTION(deletion    , "!,d", ARG(defaultsTo("basic,75,0")->state(Value::value_defaulted), DEFINE_ENUM_MAPPING(ReduceStrategy::Algorithm,\
+OPTION(deletion    , "!,d", ARG_EXT(defaultsTo("basic,75,0")->state(Value::value_defaulted), DEFINE_ENUM_MAPPING(ReduceStrategy::Algorithm,\
        MAP("basic", ReduceStrategy::reduce_linear), MAP("sort", ReduceStrategy::reduce_stable),\
        MAP("ipSort", ReduceStrategy::reduce_sort) , MAP("ipHeap", ReduceStrategy::reduce_heap))),
        "Configure deletion algorithm [%D]\n" \
@@ -349,7 +349,7 @@ OPTION(backprop   , "!,@1", ARG(flag())    , "Use backpropagation in ASP-preproc
 OPTION(no_gamma   , ",@1" , ARG(flag())    , "Do not add gamma rules for non-hcf disjunctions", STORE_FLAG(SELF.noGamma), GET(SELF.noGamma))
 OPTION(eq_dfs     , ",@2" , ARG(flag())    , "Enable df-order in eq-preprocessing", STORE_FLAG(SELF.dfOrder), GET(SELF.dfOrder))
 OPTION(dlp_old_map, ",@3" , ARG(flag())    , "Enable old mapping for disjunctive LPs", STORE_FLAG(SELF.oldMap), GET(SELF.oldMap))
-OPTION(trans_ext  , "!", ARG(arg("<mode>"), DEFINE_ENUM_MAPPING(Asp::LogicProgram::ExtendedRuleMode,\
+OPTION(trans_ext  , "!", ARG_EXT(arg("<mode>"), DEFINE_ENUM_MAPPING(Asp::LogicProgram::ExtendedRuleMode,\
        MAP("no"    , Asp::LogicProgram::mode_native)          , MAP("all" , Asp::LogicProgram::mode_transform),\
        MAP("choice", Asp::LogicProgram::mode_transform_choice), MAP("card", Asp::LogicProgram::mode_transform_card),\
        MAP("weight", Asp::LogicProgram::mode_transform_weight), MAP("scc" , Asp::LogicProgram::mode_transform_scc),\
@@ -377,7 +377,7 @@ OPTION(solve_limit , "", ARG(arg("<n>[,<m>]")), "Stop search after <n> conflicts
        return (arg.off() || arg>>n>>opt(m)) && (SELF.limit=SolveLimits(n == UINT32_MAX ? UINT64_MAX : n, m == UINT32_MAX ? UINT64_MAX : m), true);},\
        GET((uint32)Range<uint64>(0u,UINT32_MAX).clamp(SELF.limit.conflicts),(uint32)Range<uint64>(0u,UINT32_MAX).clamp(SELF.limit.restarts)))
 #if defined(WITH_THREADS) && WITH_THREADS == 1
-OPTION(parallel_mode, ",t", ARG(arg("<arg>"), DEFINE_ENUM_MAPPING(SolveOptions::Algorithm::SearchMode,\
+OPTION(parallel_mode, ",t", ARG_EXT(arg("<arg>"), DEFINE_ENUM_MAPPING(SolveOptions::Algorithm::SearchMode,\
        MAP("compete", SolveOptions::Algorithm::mode_compete), MAP("split", SolveOptions::Algorithm::mode_split))),\
        "Run parallel search with given number of threads\n" \
        "      %A: <n {1..64}>[,<mode {compete|split}>]\n"   \
@@ -394,7 +394,7 @@ OPTION(global_restarts, ",@1", ARG(implicit("5")->arg("<X>")), "Configure global
          && SELF.restarts.maxR && SELF.restarts.sched.type != ScheduleStrategy::User);},\
        GET_IF(SELF.restarts.maxR, SELF.restarts.maxR, SELF.restarts.sched))
 OPTION(dist_mode  , ",@2" , ARG(defaultsTo("0")->state(Value::value_defaulted)), "Use {0=global|1=thread} distribution", STORE_LEQ(SELF.distribute.mode,1u), GET(SELF.distribute.mode))
-OPTION(distribute, "!,@1", ARG(defaultsTo("conflict,4"), DEFINE_ENUM_MAPPING(Distributor::Policy::Types,\
+OPTION(distribute, "!,@1", ARG_EXT(defaultsTo("conflict,4"), DEFINE_ENUM_MAPPING(Distributor::Policy::Types,\
        MAP("all", Distributor::Policy::all), MAP("short", Distributor::Policy::implicit),\
        MAP("conflict", Distributor::Policy::conflict), MAP("loop" , Distributor::Policy::loop))),\
        "Configure nogood distribution [%D]\n" \
@@ -406,13 +406,13 @@ OPTION(distribute, "!,@1", ARG(defaultsTo("conflict,4"), DEFINE_ENUM_MAPPING(Dis
        return ITE(arg.off(), (SELF.distribute.policy()=Distributor::Policy(0,0,0), true),\
          arg>>type>>opt(lbd = 4)>>opt(size = UINT32_MAX) && SET(SELF.distribute.types, (uint32)type) && SET(SELF.distribute.lbd, lbd) && SET_OR_FILL(SELF.distribute.size, size));},\
        GET_IF(SELF.distribute.types, (Distributor::Policy::Types)SELF.distribute.types, SELF.distribute.lbd,SELF.distribute.size))
-OPTION(integrate, ",@1", ARG(defaultsTo("gp")->state(Value::value_defaulted), COMBINE_2(\
+OPTION(integrate, ",@1", ARG_EXT(defaultsTo("gp")->state(Value::value_defaulted),\
        DEFINE_ENUM_MAPPING(SolveOptions::Integration::Filter, \
        MAP("all", SolveOptions::Integration::filter_no), MAP("gp", SolveOptions::Integration::filter_gp),\
-       MAP("unsat", SolveOptions::Integration::filter_sat), MAP("active", SolveOptions::Integration::filter_heuristic)),\
+       MAP("unsat", SolveOptions::Integration::filter_sat), MAP("active", SolveOptions::Integration::filter_heuristic))\
        DEFINE_ENUM_MAPPING(SolveOptions::Integration::Topology, \
        MAP("all" , SolveOptions::Integration::topo_all) , MAP("ring" , SolveOptions::Integration::topo_ring),\
-       MAP("cube", SolveOptions::Integration::topo_cube), MAP("cubex", SolveOptions::Integration::topo_cubex)))),\
+       MAP("cube", SolveOptions::Integration::topo_cube), MAP("cubex", SolveOptions::Integration::topo_cubex))),\
        "Configure nogood integration [%D]\n" \
        "      %A: <pick>[,<n>][,<topo>]\n"                                           \
        "        <pick>: Add {all|unsat|gp(unsat wrt guiding path)|active} nogoods\n" \
@@ -422,7 +422,7 @@ OPTION(integrate, ",@1", ARG(defaultsTo("gp")->state(Value::value_defaulted), CO
        return arg>>pick>>opt(n = 1024)>>opt(topo = SolveOptions::Integration::topo_all) && SET(SELF.integrate.filter, (uint32)pick) && SET_OR_FILL(SELF.integrate.grace, n) && SET(SELF.integrate.topo, (uint32)topo);},\
        GET((SolveOptions::Integration::Filter)SELF.integrate.filter, SELF.integrate.grace, (SolveOptions::Integration::Topology)SELF.integrate.topo))
 #endif
-OPTION(enum_mode   , ",e", ARG(defaultsTo("auto")->state(Value::value_defaulted), DEFINE_ENUM_MAPPING(SolveOptions::EnumType,\
+OPTION(enum_mode   , ",e", ARG_EXT(defaultsTo("auto")->state(Value::value_defaulted), DEFINE_ENUM_MAPPING(SolveOptions::EnumType,\
        MAP("bt", SolveOptions::enum_bt), MAP("record", SolveOptions::enum_record), MAP("domRec", SolveOptions::enum_dom_record),\
        MAP("brave", SolveOptions::enum_brave), MAP("cautious", SolveOptions::enum_cautious),\
        MAP("auto", SolveOptions::enum_auto), MAP("user", SolveOptions::enum_user))),\
@@ -434,7 +434,7 @@ OPTION(enum_mode   , ",e", ARG(defaultsTo("auto")->state(Value::value_defaulted)
        "        brave   : Compute brave consequences (union of models)\n" \
        "        cautious: Compute cautious consequences (intersection of models)\n" \
        "        auto    : Use bt for enumeration and record for optimization", STORE(SELF.enumMode), GET(SELF.enumMode))
-OPTION(opt_mode   , "", ARG(arg("<mode>"), DEFINE_ENUM_MAPPING(MinimizeMode_t::Mode,\
+OPTION(opt_mode   , "", ARG_EXT(arg("<mode>"), DEFINE_ENUM_MAPPING(MinimizeMode_t::Mode,\
        MAP("opt" , MinimizeMode_t::optimize), MAP("enum"  , MinimizeMode_t::enumerate),\
        MAP("optN", MinimizeMode_t::enumOpt) , MAP("ignore", MinimizeMode_t::ignore))),\
        "Configure optimization algorithm\n"\
@@ -460,4 +460,5 @@ GROUP_END(SELF)
 #undef OPTION
 #undef NOTIFY_SUBGROUPS
 #undef ARG
+#undef ARG_EXT
 #undef NO_ARG

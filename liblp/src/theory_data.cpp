@@ -19,6 +19,11 @@
 //
 #ifdef _MSC_VER
 #pragma warning (disable : 4996) // std::copy unsafe
+#pragma warning (disable : 4200) // zero-sized array
+#elif __clang__
+#pragma clang diagnostic ignored "-Wzero-length-array"
+#elif __GNUC__
+#pragma GCC diagnostic ignored "-pedantic"
 #endif
 #include <potassco/theory_data.h>
 #include <memory>

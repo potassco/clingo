@@ -170,7 +170,8 @@ void EnumerationConstraint::modelHeuristic(Solver& s) {
 /////////////////////////////////////////////////////////////////////////////////////////
 // Enumerator
 /////////////////////////////////////////////////////////////////////////////////////////
-Enumerator::Enumerator() : mini_(0), queue_(0) {}
+void Model::reset() { std::memset(this, 0, sizeof(Model)); }
+Enumerator::Enumerator() : mini_(0), queue_(0) { model_.reset(); }
 Enumerator::~Enumerator()                            { delete queue_; }
 void Enumerator::setDisjoint(Solver& s, bool b)const { constraint(s)->setDisjoint(b);    }
 void Enumerator::setIgnoreSymmetric(bool b)          { model_.sym = static_cast<uint32>(b == false); }
@@ -179,12 +180,8 @@ void Enumerator::doReset()                           {}
 void Enumerator::reset() {
 	if (mini_) { mini_ = 0; }
 	if (queue_){ delete queue_; queue_ = 0; }
+	model_.reset();
 	model_.ctx   = this;
-	model_.values= 0;
-	model_.costs = 0;
-	model_.num   = 0;
-	model_.opt   = 0;
-	model_.def   = 0;
 	model_.sym   = 1;
 	model_.type  = uint32(modelType());
 	model_.sId   = 0;

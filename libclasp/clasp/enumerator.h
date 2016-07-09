@@ -50,6 +50,7 @@ struct Model {
 	bool     isDef(Literal p) const  { return isTrue(p) && (def || ((type & Cautious) == 0u) || !isEst(p));  }
 	//! True if p is part of the current estimate of consequences.
 	bool     isEst(Literal p) const  { assert(hasVar(p.var())); return ((*values)[p.var()] & estMask(p)) != 0; }
+	void reset();
 	uint64            num;    // running number of this model
 	const Enumerator* ctx;    // ctx in which model was found
 	const ValueVec*   values; // variable assignment or consequences

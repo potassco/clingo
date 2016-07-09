@@ -21,7 +21,6 @@
 #define CLASP_MINIMIZE_CONSTRAINT_H_INCLUDED
 
 #ifdef _MSC_VER
-#pragma warning (disable : 4200) // nonstandard extension used : zero-sized array
 #pragma once
 #endif
 
@@ -210,7 +209,9 @@ private:
 public:
 	WeightVec     weights; // sparse vectors of weights - only used for multi-level constraints
 	PrioVec       prios;   // (optional): maps levels to original priorities
+CLASP_WARNING_BEGIN_RELAXED
 	WeightLiteral lits[0]; // (shared) literals - terminated with lit_true()
+CLASP_WARNING_END_RELAXED
 private: 
 	~SharedMinimizeData();
 	void destroy() const;

@@ -20,12 +20,13 @@
 #ifndef CLASP_CLASP_FWD_H_INCLUDED
 #define CLASP_CLASP_FWD_H_INCLUDED
 namespace Potassco {
-	class TheoryAtom;
-	class TheoryTerm;
-	class TheoryData;
-	template <class T> struct Span;
-	struct Heuristic_t;
-	class BufferedStream;
+class TheoryAtom;
+class TheoryTerm;
+class TheoryData;
+template <class T> struct Span;
+struct Heuristic_t;
+class BufferedStream;
+class AbstractStatistics;
 }
 //! Root namespace for all types and functions of libclasp.
 namespace Clasp { 

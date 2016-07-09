@@ -503,7 +503,7 @@ void ParallelSolve::solveParallel(uint32 id) {
 		// in requestWork.
 		thread_[id]->attach(*shared_->ctx);
 		BasicSolve solve(s, p, limits());
-		agg.enableStats(s.stats);
+		agg.enable(s.stats);
 		for (GpType t; requestWork(s, a); solve.reset()) {
 			agg.accu(s.stats);
 			s.stats.reset();

@@ -76,9 +76,9 @@ void format(const Clasp::BasicSolveEvent& ev, char* out, uint32 outSize) {
 void format(const Clasp::SolveTestEvent&  ev, char* out, uint32 outSize) {
 	char buf[1024]; int n;
 	char ct = ev.partial ? 'P' : 'F';
-	if (ev.result == -1) { n = sprintf(buf, "%2u:%c| HC: %-5u %-60s|", ev.solver->id(), ct, ev.scc, "..."); }
+	if (ev.result == -1) { n = sprintf(buf, "%2u:%c| HC: %-5u %-60s|", ev.solver->id(), ct, ev.hcc, "..."); }
 	else                 {
-		n = sprintf(buf, "%2u:%c| HC: %-5u %-4s|%8u/%-8u|%10" PRIu64"/%-6.3f| T: %-15.3f|", ev.solver->id(), ct, ev.scc, (ev.result == 1 ? "OK" : "FAIL")
+		n = sprintf(buf, "%2u:%c| HC: %-5u %-4s|%8u/%-8u|%10" PRIu64"/%-6.3f| T: %-15.3f|", ev.solver->id(), ct, ev.hcc, (ev.result == 1 ? "OK" : "FAIL")
 		  , ev.solver->numConstraints()
 		  , ev.solver->numLearntConstraints()
 		  , ev.conflicts()
@@ -157,7 +157,7 @@ void Output::stopStep(const ClaspFacade::Summary& s){
 	}
 	if (callQ() == print_all) { 
 		printSummary(s, false);
-		if (s.stats()) { printStatistics(s, false); }
+		if (stats(s)) { printStatistics(s, false); }
 	}
 	else if (callQ() == print_best) {
 		summary_ = &s;
@@ -166,10 +166,10 @@ void Output::stopStep(const ClaspFacade::Summary& s){
 void Output::shutdown(const ClaspFacade::Summary& summary) {
 	if (summary_) {
 		printSummary(*summary_, false);
-		if (summary_->stats()) { printStatistics(*summary_, false); }
+		if (stats(summary)) { printStatistics(*summary_, false); }
 	}
 	printSummary(summary, true);
-	if (summary.stats()) { printStatistics(summary, true); }
+	if (stats(summary)) { printStatistics(summary, true); }
 	shutdown();
 }
 // Returns the number of consequences and estimates in m.
@@ -239,50 +239,8 @@ void Output::printWitness(const OutputTable& out, const Model& m, uintp data) {
 	}
 }
 uintp Output::doPrint(const OutPair&, UPtr x) { return x; }
-/////////////////////////////////////////////////////////////////////////////////////////
-// StatsVisitor
-/////////////////////////////////////////////////////////////////////////////////////////
-StatsVisitor::~StatsVisitor() {}
-void StatsVisitor::visitStats(const ClaspFacade::Summary& summary) {
-	const SharedContext& ctx = summary.ctx();
-	visitSolverStats(summary.solvers(), true);
-	visitProblemStats(ctx.stats(), summary.lpStats());
-	if (summary.stats() > 1 && summary.numSolver() > 1) {
-		visitThreads(summary);
-	}
-	if (summary.numHcc() != 0) { visitHccs(summary); }
-}
-void StatsVisitor::visitProblemStats(const Clasp::ProblemStats& stats, const Clasp::Asp::LpStats* lp) {
-	if (lp) { visitLogicProgramStats(*lp); }
-	visitProblemStats(stats);
-}
-
-void StatsVisitor::visitSolverStats(const Clasp::SolverStats& stats, bool accu) {
-	ExtendedStats e;
-	const ExtendedStats* ext = stats.extra ? stats.extra : &e;
-	visitCoreSolverStats(ext->cpuTime, ext->models, stats, accu);
-	if (stats.extra) { visitExtSolverStats(*stats.extra, accu); }
-	if (stats.jumps) { visitJumpStats(*stats.jumps, accu); }
-}
-
-void StatsVisitor::visitThreads(const ClaspFacade::Summary& summary) {
-	for (uint32 i = 0, end = summary.numSolver(); i != end; ++i) {
-		visitThread(i, summary.solver(i));
-	}
-}
-void StatsVisitor::visitHccs(const ClaspFacade::Summary& summary) {
-	visitProblemStats(*summary.hccs().first, 0);
-	visitSolverStats(*summary.hccs().second, false);
-	if (summary.stats() > 1) {
-		for (uint32 i = 0, end = summary.numHcc(); i != end; ++i) {
-			const ClaspFacade::Summary::HccPair& p = summary.hcc(i);
-			visitHcc(i, *p.first, *p.second);
-		}
-	}
-}
-void StatsVisitor::visitHcc(uint32, const ProblemStats& p, const SolverStats& s) {
-	visitProblemStats(p, 0);
-	visitSolverStats(s, false);
+bool Output::stats(const ClaspFacade::Summary& summary) const {
+	return summary.facade->config()->context().stats != 0;
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // JsonOutput
@@ -329,10 +287,43 @@ void JsonOutput::stopStep(const ClaspFacade::Summary& s) {
 	while (popObject() != '{') { ; }
 }
 
-void JsonOutput::visitCoreSolverStats(double cpuTime, uint64 models, const SolverStats& st, bool accu) {
+bool JsonOutput::visitThreads(Operation op) {
+	if      (op == Enter) { pushObject("Thread", type_array); }
+	else if (op == Leave) { popObject(); }
+	return true;
+}
+bool JsonOutput::visitTester(Operation op) {
+	if      (op == Enter) { pushObject("Tester"); }
+	else if (op == Leave) { popObject(); }
+	return true;
+}
+bool JsonOutput::visitHccs(Operation op) {
+	if      (op == Enter) { pushObject("HCC", type_array); }
+	else if (op == Leave) { popObject(); }
+	return true;
+}
+void JsonOutput::visitThread(uint32, const SolverStats& stats) {
+	pushObject(0, type_object);
+	JsonOutput::visitSolverStats(stats);
+	popObject();
+}
+void JsonOutput::visitHcc(uint32, const ProblemStats& p, const SolverStats& s) {
+	pushObject(0, type_object);
+	JsonOutput::visitProblemStats(p);
+	JsonOutput::visitSolverStats(s);
+	popObject();
+}
+
+void JsonOutput::visitSolverStats(const SolverStats& stats) {
+	printCoreStats(stats);
+	if (stats.extra) { 
+		printExtStats(*stats.extra, objStack_.size() == 2);
+		printJumpStats(stats.extra->jumps);
+	}
+}
+
+void JsonOutput::printCoreStats(const CoreStats& st) {
 	pushObject("Core");
-	if (!accu) { printKeyValue("CPU", cpuTime); }
-	printKeyValue("Models"     , models);
 	printKeyValue("Choices"    , st.choices);
 	printKeyValue("Conflicts"  , st.conflicts);
 	printKeyValue("Backtracks" , st.backtracks());
@@ -343,8 +334,10 @@ void JsonOutput::visitCoreSolverStats(double cpuTime, uint64 models, const Solve
 	popObject(); // Core
 }
 
-void JsonOutput::visitExtSolverStats(const ExtendedStats& stx, bool accu) {
+void JsonOutput::printExtStats(const ExtendedStats& stx, bool generator) {
 	pushObject("More");
+	printKeyValue("CPU", stx.cpuTime);
+	printKeyValue("Models", stx.models);
 	if (stx.domChoices) {
 		printKeyValue("DomChoices", stx.domChoices);
 	}
@@ -393,12 +386,12 @@ void JsonOutput::visitExtSolverStats(const ExtendedStats& stx, bool accu) {
 		printKeyValue("Integrated", stx.integrated);
 		printKeyValue("Units", stx.intImps);
 		printKeyValue("AvgJump", stx.avgIntJump());
-		if (accu) { printKeyValue("Ratio", stx.intRatio()); }
+		if (generator) { printKeyValue("Ratio", stx.intRatio()); }
 		popObject();
 	}
 	popObject(); // More
 }
-void JsonOutput::visitJumpStats(const JumpStats& st, bool) {
+void JsonOutput::printJumpStats(const JumpStats& st) {
 	pushObject("Jumps");
 	printKeyValue("Sum", st.jumps);
 	printKeyValue("Max", st.maxJump);
@@ -601,7 +594,7 @@ void JsonOutput::printSummary(const ClaspFacade::Summary& run, bool final) {
 	if (verbosity()) {
 		if (run.result.interrupted()){ printKeyValue(run.result.signal != SIGALRM ? "INTERRUPTED" : "TIME LIMIT", uint32(1));  }
 		pushObject("Models");
-		printKeyValue("Number", run.enumerated());
+		printKeyValue("Number", run.numEnum);
 		printKeyValue("More"  , run.complete() ? "no" : "yes");
 		if (run.sat()) {
 			if (run.consequences()){ 
@@ -638,7 +631,7 @@ void JsonOutput::printSummary(const ClaspFacade::Summary& run, bool final) {
 void JsonOutput::printStatistics(const ClaspFacade::Summary& summary, bool) {
 	if (hasWitness()) { popObject(); }
 	pushObject("Stats", type_object); 
-	StatsVisitor::visitStats(summary);
+	summary.accept(*this);
 	popObject();
 }
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -743,12 +736,12 @@ void TextOutput::printSummary(const ClaspFacade::Summary& run, bool final) {
 	if      (run.unsat()) { res = result[res_unsat]; }
 	else if (run.sat())   { res = !run.optimum() ? result[res_sat] : result[res_opt]; }
 	if (std::strlen(res)) { printLN(cat_result, "%s", res); }
-	if (verbosity() || run.stats()) {
+	if (verbosity() || stats(run)) {
 		printBR(cat_comment);
 		if (run.result.interrupted()){ printKeyValue((run.result.signal != SIGALRM ? "INTERRUPTED" : "TIME LIMIT"), "%u\n", uint32(1));  }
 		const char* const moreStr = run.complete() ? "" :  "+";
 		printKey("Models");
-		printf("%" PRIu64 "%s\n", run.enumerated(), moreStr);
+		printf("%" PRIu64 "%s\n", run.numEnum, moreStr);
 		if (run.sat()) {
 			if (run.consequences()) { printLN(cat_comment, "  %-*s: %s", width_-2, run.consequences(), (run.complete()?"yes":"unknown")); }
 			if (run.costs())        { printKeyValue("  Optimum", "%s\n", run.optimum()?"yes":"unknown"); }
@@ -784,7 +777,8 @@ void TextOutput::printSummary(const ClaspFacade::Summary& run, bool final) {
 }
 void TextOutput::printStatistics(const ClaspFacade::Summary& run, bool) {
 	printBR(cat_comment);
-	StatsVisitor::visitStats(run);
+	accu_ = true;
+	run.accept(*this);
 }
 void TextOutput::startStep(const ClaspFacade& f) {
 	Output::startStep(f);
@@ -941,23 +935,32 @@ void TextOutput::printCosts(const SumVec& costs) const {
 		}
 	}
 }
-void TextOutput::startSection(const char* n) const {
+bool TextOutput::startSection(const char* n) const {
 	printLN(cat_comment, "============ %s Stats ============", n);
 	printBR(cat_comment);
+	return true;
 }
 void TextOutput::startObject(const char* n, uint32 i) const {
 	printLN(cat_comment, "[%s %u]", n, i);
 	printBR(cat_comment);
 }
-void TextOutput::visitProblemStats(const ProblemStats& stats, const Asp::LpStats* lp) {
-	StatsVisitor::visitProblemStats(stats, lp);
-	printBR(cat_comment);
+bool TextOutput::visitThreads(Operation op) {
+	accu_ = false;
+	return op != Enter || startSection("Thread");
 }
-void TextOutput::visitSolverStats(const Clasp::SolverStats& s, bool accu) {
-	StatsVisitor::visitSolverStats(s, accu);
-	printBR(cat_comment);
+bool TextOutput::visitTester(Operation op) {
+	accu_ = false;
+	return op != Enter || startSection("Tester");
 }
-	
+void TextOutput::visitThread(uint32 i, const SolverStats& stats) {
+	startObject("Thread", i); 
+	TextOutput::visitSolverStats(stats);
+}
+void TextOutput::visitHcc(uint32 i, const ProblemStats& p, const SolverStats& s) {
+	startObject("HCC", i);
+	TextOutput::visitProblemStats(p);
+	TextOutput::visitSolverStats(s);
+}
 void TextOutput::visitLogicProgramStats(const Asp::LpStats& lp) {
 	using namespace Asp;
 	uint32 rFinal = lp.rules[1].sum(), rOriginal = lp.rules[0].sum();
@@ -1022,11 +1025,16 @@ void TextOutput::visitProblemStats(const ProblemStats& ps) {
 	if (ps.acycEdges) {
 		printKeyValue("Acyc-Edges", "%-8u\n", ps.acycEdges);
 	}
+	printBR(cat_comment);
 }
-void TextOutput::visitCoreSolverStats(double cpuTime, uint64 models, const SolverStats& st, bool accu) {
-	if (!accu) {
-		printKeyValue("CPU Time",  "%.3fs\n", cpuTime);
-		printKeyValue("Models", "%" PRIu64"\n", models);
+void TextOutput::visitSolverStats(const Clasp::SolverStats& st) {
+	printStats(st);
+	printBR(cat_comment);
+}
+void TextOutput::printStats(const Clasp::SolverStats& st) const {
+	if (!accu_ && st.extra) {
+		printKeyValue("CPU Time", "%.3fs\n", st.extra->cpuTime);
+		printKeyValue("Models", "%" PRIu64"\n", st.extra->models);
 	}
 	printKeyValue("Choices", "%-8" PRIu64, st.choices);
 	if (st.extra && st.extra->domChoices) { printf(" (Domain: %" PRIu64")", st.extra->domChoices); }
@@ -1038,8 +1046,8 @@ void TextOutput::visitCoreSolverStats(double cpuTime, uint64 models, const Solve
 		printf(" (Average: %.2f Last: %" PRIu64")", st.avgRestart(), st.lastRestart);
 	}
 	printf("\n");
-}
-void TextOutput::visitExtSolverStats(const ExtendedStats& stx, bool accu) {
+	if (!st.extra) return;
+	const ExtendedStats& stx = *st.extra;
 	if (stx.hccTests) {
 		printKeyValue("Stab. Tests", "%-8" PRIu64, stx.hccTests);
 		printf(" (Full: %" PRIu64" Partial: %" PRIu64")\n", stx.hccTests - stx.hccPartial, stx.hccPartial);
@@ -1047,11 +1055,11 @@ void TextOutput::visitExtSolverStats(const ExtendedStats& stx, bool accu) {
 	if (stx.models) {
 		printKeyValue("Model-Level", "%-8.1f\n", stx.avgModel());
 	}
-	printKeyValue("Problems", "%-8" PRIu64,  (uint64)stx.gps);
+	printKeyValue("Problems", "%-8" PRIu64, (uint64)stx.gps);
 	printf(" (Average Length: %.2f Splits: %" PRIu64")\n", stx.avgGp(), (uint64)stx.splits);
 	uint64 sum = stx.lemmas();
 	printKeyValue("Lemmas", "%-8" PRIu64, sum);
-	printf(" (Deleted: %" PRIu64")\n",  stx.deleted);
+	printf(" (Deleted: %" PRIu64")\n", stx.deleted);
 	printKeyValue("  Binary", "%-8" PRIu64, uint64(stx.binary));
 	printf(" (Ratio: %6.2f%%)\n", percent(stx.binary, sum));
 	printKeyValue("  Ternary", "%-8" PRIu64, uint64(stx.ternary));
@@ -1066,12 +1074,13 @@ void TextOutput::visitExtSolverStats(const ExtendedStats& stx, bool accu) {
 		printKeyValue("  Distributed", "%-8" PRIu64, stx.distributed);
 		printf(" (Ratio: %6.2f%% Average LBD: %.2f) \n", stx.distRatio()*100.0, stx.avgDistLbd());
 		printKeyValue("  Integrated", "%-8" PRIu64, stx.integrated);
-		if (accu){ printf(" (Ratio: %6.2f%% ", stx.intRatio()*100.0); }
-		else     { printf(" ("); }
+		if (accu_) { printf(" (Ratio: %6.2f%% ", stx.intRatio()*100.0); }
+		else { printf(" ("); }
 		printf("Unit: %" PRIu64" Average Jumps: %.2f)\n", stx.intImps, stx.avgIntJump());
-	}	
+	}
+	printJumps(stx.jumps);
 }
-void TextOutput::visitJumpStats(const JumpStats& st, bool) {
+void TextOutput::printJumps(const JumpStats& st) const {
 	printKeyValue("Backjumps", "%-8" PRIu64, st.jumps);
 	printf(" (Average: %5.2f Max: %3u Sum: %6" PRIu64")\n", st.avgJump(), st.maxJump, st.jumpSum);
 	printKeyValue("  Executed", "%-8" PRIu64, st.jumps-st.bounded);

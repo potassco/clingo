@@ -27,9 +27,12 @@
 #include <clasp/logic_program_types.h>
 #include <clasp/program_builder.h>
 #include <clasp/util/hash_map.h>
+#include <clasp/statistics.h>
 namespace Clasp { namespace Asp {
 
 struct RuleStats {
+	typedef uint32& Ref_t;
+	typedef uint32 const& CRef_t;
 	enum Key {
 		Normal    = Head_t::Disjunctive,/**< Normal or disjunctive rules. */
 		Choice    = Head_t::Choice,     /**< Choice rules. */
@@ -39,22 +42,24 @@ struct RuleStats {
 		Key__num
 	};
 	static const char* toStr(int k);
-	static uint32      numKeys()    { return Key__num; }
-	void up(Key k, int amount)      { key[k] += static_cast<uint32>(amount); }
-	uint32& operator[](int k)       { return key[k]; }
-	uint32  operator[](int k) const { return key[k]; }
-	uint32  sum()             const;
+	static uint32      numKeys()   { return Key__num; }
+	void up(Key k, int amount)     { key[k] += static_cast<uint32>(amount); }
+	Ref_t  operator[](int k)       { return key[k]; }
+	CRef_t operator[](int k) const { return key[k]; }
+	uint32 sum()             const;
 	uint32 key[Key__num]; /**< Number of rules. */
 };
 
 struct BodyStats {
+	typedef uint32& Ref_t;
+	typedef uint32 const& CRef_t;
 	typedef Body_t Key;
 	static const char* toStr(int k);
-	static uint32      numKeys()    { return Body_t::eMax + 1; }
-	void up(Key k, int amount)      { key[k] += static_cast<uint32>(amount); }
-	uint32& operator[](int k)       { return key[k]; }
-	uint32  operator[](int k) const { return key[k]; }
-	uint32  sum()             const;
+	static uint32      numKeys()   { return Body_t::eMax + 1; }
+	void up(Key k, int amount)     { key[k] += static_cast<uint32>(amount); }
+	Ref_t  operator[](int k)       { return key[k]; }
+	CRef_t operator[](int k) const { return key[k]; }
+	uint32 sum()             const;
 	uint32 key[Body_t::eMax + 1];
 };
 
@@ -67,8 +72,6 @@ public:
 	uint32 eqs(VarType t)    const { return eqs_[t-1]; }
 	void   incEqs(VarType t)       { ++eqs_[t-1]; }
 	void   accu(const LpStats& o);
-	double operator[](const char* key) const;
-	static const char* keys(const char* path);
 	RuleStats rules[2];        /**< RuleStats (initial, final). */
 	BodyStats bodies[2];       /**< BodyStats (initial, final). */
 	uint32    atoms;           /**< Number of program atoms.    */
@@ -78,6 +81,10 @@ public:
 	uint32    nonHcfs;         /**< How many non head-cycle free components?*/
 	uint32    gammas;          /**< How many non-hcf gamma rules */
 	uint32    ufsNodes;        /**< How many nodes in the positive BADG? */
+	// StatisticObject
+	static uint32 size();
+	static const char* key(uint32 i);
+	StatisticObject at(const char* k) const;
 private:
 	uint32    eqs_[3]; /**< How many equivalences?: eqs[0]: Atom-Atom, eqs[1]: Body-Body, eqs[2]: Other */
 };
@@ -398,8 +405,7 @@ public:
 	 * \pre cId was previously returned by newCondition() in the current step.
 	 */
 	bool    extractCondition(Id_t cId, Potassco::LitVec& lits) const;
-	LpStats  stats;
-	LpStats* accu;
+	LpStats stats;
 	//@}
 
 	/*!
@@ -585,8 +591,8 @@ private:
 
 //! Returns the internal solver literal that is associated with the given atom literal.
 /*!
-* \pre The prg is frozen and atomLit is a known atom in prg.
-*/
+ * \pre The prg is frozen and atomLit is a known atom in prg.
+ */
 inline Literal solverLiteral(const LogicProgram& prg, Potassco::Lit_t atomLit) {
 	CLASP_ASSERT_CONTRACT(prg.frozen() && prg.validAtom(Potassco::atom(atomLit)));
 	return prg.getLiteral(Potassco::id(atomLit));

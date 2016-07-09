@@ -16,7 +16,7 @@ function main(prg)
         prg:ground("p", {i})
         prg:solve()
         stats = prg:getStats()
-        print("M", ":", stats.numEnum)
+        print("M", ":", stats.summary.models.enumerated)
     end
 end
 

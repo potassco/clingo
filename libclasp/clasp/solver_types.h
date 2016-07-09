@@ -20,7 +20,6 @@
 #ifndef CLASP_SOLVER_TYPES_H_INCLUDED
 #define CLASP_SOLVER_TYPES_H_INCLUDED
 #ifdef _MSC_VER
-#pragma warning (disable : 4200) // nonstandard extension used : zero-sized array
 #pragma once
 #endif
 
@@ -103,7 +102,9 @@ private:
 	uint32 cap_;
 	uint32 pos_;
 	uint32 num_;
+CLASP_WARNING_BEGIN_RELAXED
 	uint32 buffer_[0];
+CLASP_WARNING_END_RELAXED
 };
 
 struct BlockLimit {
@@ -126,18 +127,15 @@ struct BlockLimit {
 ///////////////////////////////////////////////////////////////////////////////
 // Statistics
 ///////////////////////////////////////////////////////////////////////////////
-inline bool matchStatPath(const char*& x, const char* path, std::size_t len) {
-	return std::strncmp(x, path, len) == 0 && (!x[len] || x[len++] == '.') && ((x += len) != 0);
-}
-inline bool matchStatPath(const char*& x, const char* path) {
-	return matchStatPath(x, path, std::strlen(path));
-}
-
-#define CLASP_STAT_ACCU(m, k, a, accu) accu;
+class StatisticObject;
+class StatsMap;
 #define CLASP_STAT_DEFINE(m, k, a, accu) m
-#define CLASP_STAT_GET(m, k, a, accu) if (std::strcmp(key, k) == 0) { return double( (a) ); }
-#define CLASP_STAT_KEY(m, k, a, accu) k "\0"
 #define NO_ARG
+#define CLASP_DECLARE_ISTATS(T) \
+	void accu(const T& o);\
+	static uint32 size();\
+	static const char* key(uint32 i);\
+	StatisticObject at(const char* key) const
 
 //! A struct for holding core statistics used by a solver.
 /*!
@@ -145,76 +143,90 @@ inline bool matchStatPath(const char*& x, const char* path) {
  * can be used by heuristics.
  */
 struct CoreStats {
-#define CLASP_CORE_STATS(STAT, SELF, OTHER)     \
-	STAT(uint64 choices;    , "choices"           , SELF.choices    , SELF.choices    += OTHER.choices   )\
-	STAT(uint64 conflicts;  , "conflicts"         , SELF.conflicts  , SELF.conflicts  += OTHER.conflicts )\
-	STAT(uint64 analyzed;   , "conflicts_analyzed", SELF.analyzed   , SELF.analyzed   += OTHER.analyzed  )\
-	STAT(uint64 restarts;   , "restarts"          , SELF.restarts   , SELF.restarts   += OTHER.restarts  )\
-	STAT(uint64 lastRestart;, "restarts_last"     , SELF.lastRestart, SELF.lastRestart = std::max(SELF.lastRestart, OTHER.lastRestart))
+#define CLASP_CORE_STATS(STAT, LHS, RHS)     \
+	STAT(uint64 choices;    , "choices"           , VALUE(choices)    , LHS.choices    += RHS.choices   )\
+	STAT(uint64 conflicts;  , "conflicts"         , VALUE(conflicts)  , LHS.conflicts  += RHS.conflicts )\
+	STAT(uint64 analyzed;   , "conflicts_analyzed", VALUE(analyzed)   , LHS.analyzed   += RHS.analyzed  )\
+	STAT(uint64 restarts;   , "restarts"          , VALUE(restarts)   , LHS.restarts   += RHS.restarts  )\
+	STAT(uint64 lastRestart;, "restarts_last"     , VALUE(lastRestart), LHS.lastRestart = std::max(LHS.lastRestart, RHS.lastRestart))
 
 	CoreStats() { reset(); }
-	void reset() { std::memset(this, 0, sizeof(CoreStats)); }
-	void accu(const CoreStats& o) {
-		CLASP_CORE_STATS(CLASP_STAT_ACCU, (*this), o)
-	}
-	double operator[](const char* key) const {
-		CLASP_CORE_STATS(CLASP_STAT_GET, (*this), NO_ARG)
-		return -1.0;
-	}
-	static const char* keys(const char* path) {
-		if (!path || !*path) return CLASP_CORE_STATS(CLASP_STAT_KEY,NO_ARG,NO_ARG);
-		return 0;
-	}
+	void reset();
 	uint64 backtracks() const { return conflicts-analyzed; }
 	uint64 backjumps()  const { return analyzed; }
 	double avgRestart() const { return ratio(analyzed, restarts); }
+	CLASP_DECLARE_ISTATS(CoreStats);
 	CLASP_CORE_STATS(CLASP_STAT_DEFINE, NO_ARG, NO_ARG)
 };
 
-//! A struct for holding (optional) extra statistics.
+//! A struct for holding (optional) jump statistics.
+struct JumpStats {
+#define CLASP_JUMP_STATS(STAT, LHS, RHS)     \
+	STAT(uint64 jumps;    , "jumps"          , VALUE(jumps)    , LHS.jumps    += RHS.jumps)   \
+	STAT(uint64 bounded;  , "jumps_bounded"  , VALUE(bounded)  , LHS.bounded  += RHS.bounded)  \
+	STAT(uint64 jumpSum;  , "levels"         , VALUE(jumpSum)  , LHS.jumpSum  += RHS.jumpSum)  \
+	STAT(uint64 boundSum; , "levels_bounded" , VALUE(boundSum) , LHS.boundSum += RHS.boundSum) \
+	STAT(uint32 maxJump;  , "max"            , VALUE(maxJump)  , MAX_MEM(LHS.maxJump, RHS.maxJump))   \
+	STAT(uint32 maxJumpEx;, "max_executed"   , VALUE(maxJumpEx), MAX_MEM(LHS.maxJumpEx,RHS.maxJumpEx)) \
+	STAT(uint32 maxBound; , "max_bounded"    , VALUE(maxBound) , MAX_MEM(LHS.maxBound, RHS.maxBound)) 
+
+	JumpStats() { reset(); }
+	void reset();
+	void update(uint32 dl, uint32 uipLevel, uint32 bLevel) {
+		++jumps;
+		jumpSum += dl - uipLevel;
+		maxJump = std::max(maxJump, dl - uipLevel);
+		if (uipLevel < bLevel) {
+			++bounded;
+			boundSum += bLevel - uipLevel;
+			maxJumpEx = std::max(maxJumpEx, dl - bLevel);
+			maxBound = std::max(maxBound, bLevel - uipLevel);
+		}
+		else { maxJumpEx = maxJump; }
+	}
+	uint64 jumped()     const { return jumpSum - boundSum; }
+	double jumpedRatio()const { return ratio(jumped(), jumpSum); }
+	double avgBound()   const { return ratio(boundSum, bounded); }
+	double avgJump()    const { return ratio(jumpSum, jumps); }
+	double avgJumpEx()  const { return ratio(jumped(), jumps); }
+	CLASP_DECLARE_ISTATS(JumpStats);
+	CLASP_JUMP_STATS(CLASP_STAT_DEFINE, NO_ARG, NO_ARG)
+};
+
+//! A struct for holding (optional) extended statistics.
 struct ExtendedStats {
 	typedef ConstraintType type_t;
 	typedef uint64 Array[Constraint_t::Type__max];
-#define CLASP_EXTENDED_STATS(STAT, SELF, OTHER)     \
-	STAT(uint64 domChoices; /**< "domain" choices   */, "domain_choices"        , SELF.domChoices , SELF.domChoices += OTHER.domChoices) \
-	STAT(uint64 models;     /**< number of models   */, "models"                , SELF.models     , SELF.models     += OTHER.models)     \
-	STAT(uint64 modelLits;  /**< DLs in models      */, "models_level"          , SELF.modelLits  , SELF.modelLits  += OTHER.modelLits)  \
-	STAT(uint64 hccTests;   /**< stability tests    */, "hcc_tests"             , SELF.hccTests   , SELF.hccTests   += OTHER.hccTests)   \
-	STAT(uint64 hccPartial; /**< partial stab. tests*/, "hcc_partial"           , SELF.hccPartial , SELF.hccPartial += OTHER.hccPartial) \
-	STAT(uint64 deleted;    /**< lemmas deleted     */, "lemmas_deleted"        , SELF.deleted    , SELF.deleted    += OTHER.deleted)    \
-	STAT(uint64 distributed;/**< lemmas distributed */, "distributed"           , SELF.distributed, SELF.distributed+= OTHER.distributed)\
-	STAT(uint64 sumDistLbd; /**< sum of lemma lbds  */, "distributed_sum_lbd"   , SELF.sumDistLbd , SELF.sumDistLbd += OTHER.sumDistLbd) \
-	STAT(uint64 integrated; /**< lemmas integrated  */, "integrated"            , SELF.integrated , SELF.integrated += OTHER.integrated) \
-	STAT(Array learnts;  /**< lemmas of type t-1    */, "lemmas"                , SELF.lemmas()   , NO_ARG)   \
-	STAT(Array lits;     /**< lits of type t-1      */, "lits_learnt"           , SELF.learntLits(), NO_ARG)  \
-	STAT(uint32 binary;  /**< binary lemmas         */, "lemmas_binary"         , SELF.binary  , SELF.binary  += OTHER.binary)  \
-	STAT(uint32 ternary; /**< ternary lemmas        */, "lemmas_ternary"        , SELF.ternary , SELF.ternary += OTHER.ternary) \
-	STAT(double cpuTime; /**< cpu time used         */, "cpu_time"              , SELF.cpuTime , SELF.cpuTime += OTHER.cpuTime) \
-	STAT(uint64 intImps; /**< implications on integrating*/, "integrated_imps"  , SELF.intImps , SELF.intImps+= OTHER.intImps)  \
-	STAT(uint64 intJumps;/**< backjumps on integrating  */ , "integrated_jumps" , SELF.intJumps, SELF.intJumps+=OTHER.intJumps) \
-	STAT(uint64 gpLits;  /**< lits in received gps  */, "guiding_paths_lits"    , SELF.gpLits  , SELF.gpLits  += OTHER.gpLits)  \
-	STAT(uint32 gps;     /**< guiding paths received*/, "guiding_paths"         , SELF.gps     , SELF.gps     += OTHER.gps)     \
-	STAT(uint32 splits;  /**< split requests handled*/, "splits"                , SELF.splits  , SELF.splits  += OTHER.splits)  \
-	STAT(NO_ARG       , "lemmas_conflict", SELF.lemmas(Constraint_t::Conflict), SELF.learnts[0] += OTHER.learnts[0]) \
-	STAT(NO_ARG       , "lemmas_loop"    , SELF.lemmas(Constraint_t::Loop)    , SELF.learnts[1] += OTHER.learnts[1]) \
-	STAT(NO_ARG       , "lemmas_other"   , SELF.lemmas(Constraint_t::Other)   , SELF.learnts[2] += OTHER.learnts[2]) \
-	STAT(NO_ARG       , "lits_conflict"  , SELF.lits[Constraint_t::Conflict-1], SELF.lits[0]    += OTHER.lits[0])    \
-	STAT(NO_ARG       , "lits_loop"      , SELF.lits[Constraint_t::Loop-1]    , SELF.lits[1]    += OTHER.lits[1])    \
-	STAT(NO_ARG       , "lits_other"     , SELF.lits[Constraint_t::Other-1]   , SELF.lits[2]    += OTHER.lits[2])
+#define CLASP_EXTENDED_STATS(STAT, LHS, RHS)     \
+	STAT(uint64 domChoices; /**< "domain" choices   */, "domain_choices"        , VALUE(domChoices) , LHS.domChoices += RHS.domChoices) \
+	STAT(uint64 models;     /**< number of models   */, "models"                , VALUE(models)     , LHS.models     += RHS.models)     \
+	STAT(uint64 modelLits;  /**< DLs in models      */, "models_level"          , VALUE(modelLits)  , LHS.modelLits  += RHS.modelLits)  \
+	STAT(uint64 hccTests;   /**< stability tests    */, "hcc_tests"             , VALUE(hccTests)   , LHS.hccTests   += RHS.hccTests)   \
+	STAT(uint64 hccPartial; /**< partial stab. tests*/, "hcc_partial"           , VALUE(hccPartial) , LHS.hccPartial += RHS.hccPartial) \
+	STAT(uint64 deleted;    /**< lemmas deleted     */, "lemmas_deleted"        , VALUE(deleted)    , LHS.deleted    += RHS.deleted)    \
+	STAT(uint64 distributed;/**< lemmas distributed */, "distributed"           , VALUE(distributed), LHS.distributed+= RHS.distributed)\
+	STAT(uint64 sumDistLbd; /**< sum of lemma lbds  */, "distributed_sum_lbd"   , VALUE(sumDistLbd) , LHS.sumDistLbd += RHS.sumDistLbd) \
+	STAT(uint64 integrated; /**< lemmas integrated  */, "integrated"            , VALUE(integrated) , LHS.integrated += RHS.integrated) \
+	STAT(Array learnts;  /**< lemmas of type t-1    */, "lemmas"                , MEM_FUN(lemmas)   , NO_ARG)   \
+	STAT(Array lits;     /**< lits of type t-1      */, "lits_learnt"           , MEM_FUN(learntLits), NO_ARG)  \
+	STAT(uint32 binary;  /**< binary lemmas         */, "lemmas_binary"         , VALUE(binary)  , LHS.binary  += RHS.binary)  \
+	STAT(uint32 ternary; /**< ternary lemmas        */, "lemmas_ternary"        , VALUE(ternary) , LHS.ternary += RHS.ternary) \
+	STAT(double cpuTime; /**< cpu time used         */, "cpu_time"              , VALUE(cpuTime) , LHS.cpuTime += RHS.cpuTime) \
+	STAT(uint64 intImps; /**< implications on integrating*/, "integrated_imps"  , VALUE(intImps) , LHS.intImps+= RHS.intImps)  \
+	STAT(uint64 intJumps;/**< backjumps on integrating  */ , "integrated_jumps" , VALUE(intJumps), LHS.intJumps+=RHS.intJumps) \
+	STAT(uint64 gpLits;  /**< lits in received gps  */, "guiding_paths_lits"    , VALUE(gpLits)  , LHS.gpLits  += RHS.gpLits)  \
+	STAT(uint32 gps;     /**< guiding paths received*/, "guiding_paths"         , VALUE(gps)     , LHS.gps     += RHS.gps)     \
+	STAT(uint32 splits;  /**< split requests handled*/, "splits"                , VALUE(splits)  , LHS.splits  += RHS.splits)  \
+	STAT(NO_ARG       , "lemmas_conflict", VALUE(learnts[0]), LHS.learnts[0] += RHS.learnts[0]) \
+	STAT(NO_ARG       , "lemmas_loop"    , VALUE(learnts[1]), LHS.learnts[1] += RHS.learnts[1]) \
+	STAT(NO_ARG       , "lemmas_other"   , VALUE(learnts[2]), LHS.learnts[2] += RHS.learnts[2]) \
+	STAT(NO_ARG       , "lits_conflict"  , VALUE(lits[0])   , LHS.lits[0]    += RHS.lits[0])    \
+	STAT(NO_ARG       , "lits_loop"      , VALUE(lits[1])   , LHS.lits[1]    += RHS.lits[1])    \
+	STAT(NO_ARG       , "lits_other"     , VALUE(lits[2])   , LHS.lits[2]    += RHS.lits[2])    \
+	STAT(JumpStats jumps;  , "jumps"     , MAP(jumps)       , LHS.jumps.accu(RHS.jumps))
 	
 	ExtendedStats() { reset(); }
-	void reset() { std::memset(this, 0, sizeof(ExtendedStats)); }
-	void accu(const ExtendedStats& o) {
-		CLASP_EXTENDED_STATS(CLASP_STAT_ACCU, (*this), o)
-	}
-	double operator[](const char* key) const {
-		CLASP_EXTENDED_STATS(CLASP_STAT_GET, (*this), NO_ARG)
-		return -1.0;
-	}
-	static const char* keys(const char* path) {
-		if (!path || !*path) { return CLASP_EXTENDED_STATS(CLASP_STAT_KEY,NO_ARG,NO_ARG); }
-		return 0;
-	}
+	void reset();
 	void addLearnt(uint32 size, type_t t) {
 		if (t == Constraint_t::Static) return;
 		learnts[t-1]+= 1;
@@ -232,70 +244,27 @@ struct ExtendedStats {
 	double avgIntJump()    const { return ratio(intJumps, intImps); }
 	double avgGp()         const { return ratio(gpLits, gps); }
 	double intRatio()      const { return ratio(integrated, distributed); }
+	CLASP_DECLARE_ISTATS(ExtendedStats);
 	CLASP_EXTENDED_STATS(CLASP_STAT_DEFINE,NO_ARG,NO_ARG)
 };
 
-//! A struct for holding (optional) jump statistics.
-struct JumpStats {
-#define CLASP_JUMP_STATS(STAT, SELF, OTHER)     \
-	STAT(uint64 jumps;    , "jumps"    , SELF.jumps    , SELF.jumps    += OTHER.jumps)   \
-	STAT(uint64 bounded;  , "jumps_bounded"  , SELF.bounded  , SELF.bounded  += OTHER.bounded)  \
-	STAT(uint64 jumpSum;  , "levels", SELF.jumpSum  , SELF.jumpSum  += OTHER.jumpSum)  \
-	STAT(uint64 boundSum; , "levels_bounded" , SELF.boundSum , SELF.boundSum += OTHER.boundSum) \
-	STAT(uint32 maxJump;  , "max"  , SELF.maxJump  , MAX_MEM(SELF.maxJump, OTHER.maxJump))   \
-	STAT(uint32 maxJumpEx;, "max_executed", SELF.maxJumpEx, MAX_MEM(SELF.maxJumpEx,OTHER.maxJumpEx)) \
-	STAT(uint32 maxBound; , "max_bounded", SELF.maxBound , MAX_MEM(SELF.maxBound, OTHER.maxBound)) 
-
-	JumpStats() { reset(); }
-	void reset(){ std::memset(this, 0, sizeof(*this)); }
-	void accu(const JumpStats& o) {
-#define MAX_MEM(X,Y) X = std::max((X), (Y))
-		CLASP_JUMP_STATS(CLASP_STAT_ACCU, (*this), o)
-#undef MAX_MEM
-	}
-	double operator[](const char* key) const {
-		CLASP_JUMP_STATS(CLASP_STAT_GET, (*this), NO_ARG)
-		return -1.0;
-	}
-	static const char* keys(const char* path) {
-		if (!path || !*path) { return CLASP_JUMP_STATS(CLASP_STAT_KEY,NO_ARG,NO_ARG); }
-		return 0;
-	}
-	void update(uint32 dl, uint32 uipLevel, uint32 bLevel) {
-		++jumps;
-		jumpSum += dl - uipLevel; 
-		maxJump = std::max(maxJump, dl - uipLevel);
-		if (uipLevel < bLevel) {
-			++bounded;
-			boundSum += bLevel - uipLevel;
-			maxJumpEx = std::max(maxJumpEx, dl - bLevel);
-			maxBound  = std::max(maxBound, bLevel - uipLevel);
-		}
-		else { maxJumpEx = maxJump; }
-	}
-	uint64 jumped()     const { return jumpSum - boundSum; }
-	double jumpedRatio()const { return ratio(jumped(), jumpSum); }
-	double avgBound()   const { return ratio(boundSum, bounded); }
-	double avgJump()    const { return ratio(jumpSum, jumps); }
-	double avgJumpEx()  const { return ratio(jumped(), jumps); }
-	CLASP_JUMP_STATS(CLASP_STAT_DEFINE,NO_ARG,NO_ARG)
-};
 //! A struct for aggregating statistics maintained in a solver object.
 struct SolverStats : public CoreStats {
 	SolverStats();
 	SolverStats(const SolverStats& o);
 	~SolverStats();
-	bool enableStats(const SolverStats& other);
-	int  level() const;
 	bool enableExtended();
-	bool enableJump();
+	bool enable(const SolverStats& o) { return !o.extra || enableExtended(); }
 	void enableLimit(uint32 size);
 	void reset();
 	void accu(const SolverStats& o);
+	void accu(const SolverStats& o, bool enableRhs);
 	void swapStats(SolverStats& o);
-	double operator[](const char* key) const;
-	const char* subKeys(const char* p) const;
-	const char* keys(const char* path) const;
+	void flush() const;
+	uint32 size() const;
+	const char* key(uint32 i) const;
+	StatisticObject at(const char* key) const;
+	void addTo(const char* key, StatsMap& solving, StatsMap* accu) const;
 	inline void addLearnt(uint32 size, ConstraintType t);
 	inline void addConflict(uint32 dl, uint32 uipLevel, uint32 bLevel, uint32 lbd);
 	inline void addDeleted(uint32 num);
@@ -311,7 +280,7 @@ struct SolverStats : public CoreStats {
 	inline void addPath(const LitVec::size_type& sz);
 	DynamicLimit*  limit; /**< Optional dynamic limit.       */
 	ExtendedStats* extra; /**< Optional extended statistics. */
-	JumpStats*     jumps; /**< Optional jump statistics.     */
+	SolverStats*   multi; /**< Not owned: set to accu stats in multishot solving. */
 private: SolverStats& operator=(const SolverStats&);
 };
 inline void SolverStats::addLearnt(uint32 size, ConstraintType t)  { if (extra) { extra->addLearnt(size, t); } }
@@ -331,26 +300,11 @@ inline void SolverStats::addIntegratedAsserting(uint32 rDL, uint32 jDL) {
 inline void SolverStats::addConflict(uint32 dl, uint32 uipLevel, uint32 bLevel, uint32 lbd) {
 	++analyzed;
 	if (limit) { limit->update(dl, lbd); }
-	if (jumps) { jumps->update(dl, uipLevel, bLevel); }
+	if (extra) { extra->jumps.update(dl, uipLevel, bLevel); }
 }
-inline const char* SolverStats::keys(const char* path) const {
-	if (!path || !*path) {
-		if (jumps && extra) { return CLASP_CORE_STATS(CLASP_STAT_KEY, NO_ARG, NO_ARG) ".jumps\0.extra\0"; }
-		if (extra)          { return CLASP_CORE_STATS(CLASP_STAT_KEY, NO_ARG, NO_ARG) ".extra\0"; }
-		if (jumps)          { return CLASP_CORE_STATS(CLASP_STAT_KEY, NO_ARG, NO_ARG) ".jumps\0"; }
-		return CoreStats::keys(path);
-	}
-	return subKeys(path);
-}
-#undef CLASP_STAT_ACCU
 #undef CLASP_STAT_DEFINE
-#undef CLASP_STAT_GET
-#undef CLASP_STAT_KEY
-#undef CLASP_CORE_STATS
-#undef CLASP_EXTENDED_STATS
-#undef CLASP_JUMP_STATS
 #undef NO_ARG
-
+#undef CLASP_DECLARE_ISTATS
 ///////////////////////////////////////////////////////////////////////////////
 // Clauses
 ///////////////////////////////////////////////////////////////////////////////
