@@ -21,12 +21,11 @@
 #define CLASP_CLASP_FACADE_H_INCLUDED
 
 #ifdef _MSC_VER
-#pragma warning (disable : 4200) // nonstandard extension used : zero-sized array
 #pragma once
 #endif
 
 #if !defined(CLASP_VERSION)
-#define CLASP_VERSION "3.2.0-RC-R52052"
+#define CLASP_VERSION "3.2.0-RC-R52352"
 #endif
 #if !defined(CLASP_LEGAL)
 #define CLASP_LEGAL \
@@ -111,20 +110,6 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////////
 // ClaspFacade
 /////////////////////////////////////////////////////////////////////////////////////////
-//! A (positive) numeric value.
-struct ExpectedQuantity {
-	enum Error { error_none = 0, error_unknown_quantity = 1, error_ambiguous_quantity = 2, error_not_available = 3 };
-	ExpectedQuantity(double d);
-	ExpectedQuantity(uint32 x) : rep(static_cast<double>(x)) {}
-	ExpectedQuantity(uint64 x) : rep(static_cast<double>(x)) {}
-	explicit ExpectedQuantity(const void* x) : rep(static_cast<double>(reinterpret_cast<uintp>(x))) {}
-	ExpectedQuantity(Error e);
-	bool     valid()  const { return error() == error_none; }
-	Error    error()  const;
-	operator double() const;
-	double rep;
-};
-
 //! Result of a solving step.
 struct SolveResult {
 	//! Possible solving results.
@@ -154,43 +139,40 @@ class ClaspFacade : public ModelHandler {
 	struct SolveStrategy;
 public:
 	typedef SolveResult Result;
+	typedef Potassco::AbstractStatistics AbstractStatistics;
 	//! Type summarizing one or more solving steps.
 	struct Summary {
-		typedef SharedMinimizeData SharedMinData;
-		typedef std::pair<const ProblemStats*, const SolverStats*> HccPair;
+		typedef const ClaspFacade* FacadePtr;
 		void init(ClaspFacade& f);
-		const SharedContext& ctx()          const { return facade->ctx; }	
-		const Asp::LpStats*  lpStats()      const { return facade->lpStats_.get(); }
-		uint64               enumerated()   const { return numEnum; }
-		bool                 sat()          const { return result.sat();   }
+		// Problem (stats) - not accumulated.
+		const Asp::LpStats*  lpStep()       const;
+		const Asp::LpStats*  lpStats()      const;
+		const SharedContext& ctx()          const { return facade->ctx; }
+		// Solve result - not accumulated.
+		bool                 sat()          const { return result.sat(); }
 		bool                 unsat()        const { return result.unsat(); }
 		bool                 complete()     const { return result.exhausted(); }
-		const char*          consequences() const;
-		bool                 optimize()     const;
-		bool                 hasLower()     const;
-		const Model*         model()        const;
-		const SumVec*        costs()        const { return model() ? model()->costs : 0; }
 		bool                 optimum()      const { return costs() && (complete() || model()->opt); }
-		uint64               optimal()      const;
+		// Model enumeration - not accumulated.
+		const Model*         model()        const;
+		const char*          consequences() const; /**< Cautious/brave reasoning active? */
+		bool                 optimize()     const; /**< Optimization active? */
+		const SumVec*        costs()        const; /**< Models have associated costs? */
+		uint64               optimal()      const; /**< Number of optimal models found. */
+		bool                 hasLower()     const;
 		SumVec               lower()        const;
-		int                  stats()        const;
-		const SolverStats&   solvers()      const;
-		const SolverStats&   solver(uint32) const;
-		uint32               numSolver()    const;
-		uint32               numHcc()       const;
-		HccPair              hccs()         const;
-		HccPair              hcc(uint32)    const;
-		const ClaspFacade* facade;    /**< Facade object of this run.          */
-		double             totalTime; /**< Total wall clock time.              */
-		double             cpuTime;   /**< Total cpu time.                     */
-		double             solveTime; /**< Wall clock time for solving.        */
-		double             unsatTime; /**< Wall clock time to prove unsat.     */
-		double             satTime;   /**< Wall clock time to first model.     */
-		uint64             numEnum;   /**< Total models enumerated.            */
-		uint32             step;      /**< Step number (multishot solving).    */
-		Result             result;    /**< Result of step.                     */
-		const char*      keys(const char*) const;
-		ExpectedQuantity operator[](const char* key) const;
+		// Statistics - possibly accumulated.
+		void accept(StatsVisitor& out) const;
+		FacadePtr facade;    /**< Facade object of this run.          */
+		double    totalTime; /**< Total wall clock time.              */
+		double    cpuTime;   /**< Total cpu time.                     */
+		double    solveTime; /**< Wall clock time for solving.        */
+		double    unsatTime; /**< Wall clock time to prove unsat.     */
+		double    satTime;   /**< Wall clock time to first model.     */
+		uint64    numEnum;   /**< Total models enumerated.            */
+		uint64    numOptimal;/**< Optimal models enumerated.          */
+		uint32    step;      /**< Step number (multishot solving).    */
+		Result    result;    /**< Result of step.                     */
 	};
 	ClaspFacade();
 	~ClaspFacade();
@@ -229,10 +211,16 @@ public:
 	bool               incremental()         const;
 	//! Returns the active enumerator or 0 if there is none.
 	Enumerator*        enumerator()          const;
-	//! Returns the value of the given stats counter or ExpectedQuantity::error_not_available if the current step has no result yet.
-	ExpectedQuantity   getStat(const char* path)const;
-	//! Returns double-null-terminated string of supported stats keys or ExpectedQuantity::error_not_available if the current step has no result yet.
+	//! Returns the value of the given stats counter or throws an exception if this is not possible.
+	/*!
+	 * \pre The current step has a result, i.e. solved() is true.
+	 * \throw std::out_of_range path does not reference a valid object.
+	 * \throw std::bad_cast path references a composite object that is not a value.
+	 */
+	double             getStat(const char* path)const;
+	//! Returns double-null-terminated string of supported stats keys.
 	const char*        getKeys(const char* path)const;
+	AbstractStatistics*getStats()               const;
 	//@}
 	
 	//! Event type used to signal that a new step has started.
@@ -446,47 +434,29 @@ public:
 	ProgramBuilder&    update(bool updateConfig, void (*sigQ)(int));
 	ProgramBuilder&    update(bool updateConfig = false);
 private:
+	struct Statistics;
 	typedef SingleOwnerPtr<ProgramBuilder> BuilderPtr;
-	typedef SingleOwnerPtr<Asp::LpStats>   LpStatsPtr;
 	typedef SingleOwnerPtr<SolveData>      SolvePtr;
 	typedef SingleOwnerPtr<Summary>        SummaryPtr;
-	typedef PodVector<FlaggedPtr<SolverStats> >::type  StatsVec;
-	struct HccStats {
-		HccStats(const ProblemStats& p, int32 s) : problem(p), scc(s) { accu_ = &solvers; }
-		~HccStats() { if (hasAccu()) delete accu_; }
-		bool hasAccu() const { return accu_ != &solvers; }
-		ProblemStats problem;
-		SolverStats  solvers;
-		SolverStats* accu_;
-		int32 scc;
-	};
-	struct HccCmp {
-		bool operator()(int32 scc, const HccStats* x) const { return scc < x->scc; }
-		bool operator()(const HccStats* x, int scc)   const { return x->scc < scc; }
-	};
-	typedef PodVector<HccStats*>::type HccMap;
-	ExpectedQuantity getStatImpl(const char* path, bool keys)const;	
+	typedef SingleOwnerPtr<Statistics>     StatsPtr;
+	StatisticObject getStatImpl(const char* path) const;
 	void   init(ClaspConfig& cfg, bool discardProblem);
 	void   initBuilder(ProgramBuilder* in);
+	bool   isAsp() const { return program() && type_ == Problem_t::Asp; }
 	void   discardProblem();
 	void   startStep(uint32 num);
 	Result stopStep(int signal, bool complete);
-	void   accuStep();
-	void   updateHcc(uint32 scc, const SharedContext& ctx, bool accu);
-	void   enableHccUpdates(const PrgDepGraph& g);
+	void   updateStats();
 	bool   onModel(const Solver& s, const Model& m);
 	void   doUpdate(ProgramBuilder* p, bool updateConfig, void (*sig)(int));
-	void   clearStats();
+	ProblemType  type_;
 	Summary      step_;
 	LitVec       assume_;
 	ClaspConfig* config_;
 	BuilderPtr   builder_;
-	LpStatsPtr   lpStats_;
 	SummaryPtr   accu_;
-	EventHandler*hccUpdate_;
-	StatsVec     solvers_; // 0: solvers, 1: accu.solvers, > 1 accu.solver.i
-	HccMap       hccs_;    // statistics for non-hcf checking
-	SolvePtr     solve_;   // NOTE: last so that it is destroyed first;
+	StatsPtr     stats_; // statistics: only if requested
+	SolvePtr     solve_; // NOTE: last so that it is destroyed first;
 };
 }
 #endif

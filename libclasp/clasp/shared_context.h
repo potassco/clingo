@@ -20,7 +20,6 @@
 #ifndef CLASP_SHARED_CONTEXT_H_INCLUDED
 #define CLASP_SHARED_CONTEXT_H_INCLUDED
 #ifdef _MSC_VER
-#pragma warning (disable : 4200) // nonstandard extension used : zero-sized array
 #pragma once
 #endif
 #include <clasp/claspfwd.h>
@@ -37,6 +36,7 @@ namespace Clasp {
 class Assignment;
 class SharedLiterals;
 struct SolverStats;
+class StatisticObject;
 typedef Asp::PrgDepGraph PrgDepGraph;
 
 class EventHandler : public ModelHandler {
@@ -194,7 +194,7 @@ private:
 struct ProblemStats {
 	ProblemStats() { reset(); }
 	struct { uint32 num, eliminated, frozen; } vars;
-	struct { uint32 binary, ternary, other;  } constraints;
+	struct { uint32 other, binary, ternary; } constraints;
 	uint32  acycEdges;
 	uint32  complexity;
 	void    reset() { std::memset(this, 0, sizeof(*this)); }
@@ -217,8 +217,10 @@ struct ProblemStats {
 		constraints.ternary += o.constraints.ternary;
 		acycEdges           += o.acycEdges;
 	}
-	double operator[](const char* key) const;
-	static const char* keys(const char* = 0);
+	// StatisticObject
+	static uint32 size();
+	static const char* key(uint32 i);
+	StatisticObject at(const char* k) const;
 };
 
 //! Stores static information about a variable.
@@ -606,9 +608,6 @@ public:
 	//! Configures the statistic object of attached solvers.
 	/*!
 	 * The level determines the amount of extra statistics.
-	 * Currently two levels are supported:
-	 *  - Level 1 enables ExtendedStats
-	 *  - Level 2 enables ExtendedStats and JumpStats
 	 * \see ExtendedStats
 	 * \see JumpStats
    */

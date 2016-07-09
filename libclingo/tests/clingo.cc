@@ -65,21 +65,24 @@ TEST_CASE("solving", "[clingo]") {
             ctl.add("pigeon", {"p", "h"}, "1 {p(P,H) : P=1..p}1 :- H=1..h."
                                           "1 {p(P,H) : H=1..h}1 :- P=1..p.");
             ctl.ground({{"pigeon", {Number(6), Number(5)}}});
+            auto conf = ctl.configuration();
+            conf["stats"] = "2";
             REQUIRE(ctl.solve(MCB(models)).is_unsatisfiable());
             std::vector<std::string> keys_root;
             auto stats = ctl.statistics();
             std::copy(stats.keys().begin(), stats.keys().end(), std::back_inserter(keys_root));
             std::sort(keys_root.begin(), keys_root.end());
-            std::vector<std::string> keys_check = { ".ctx", ".lp", ".solver", ".solvers", ".summary" };
+            std::vector<std::string> keys_check = { ".accu", ".problem", ".solving", ".summary" };
             REQUIRE(keys_root == keys_check);
-            REQUIRE(stats["solver"].type() == StatisticsType::Array);
-            REQUIRE(stats["solvers"].type() == StatisticsType::Map);
-            REQUIRE(stats["summary.time_cpu"].type() == StatisticsType::Value);
-            REQUIRE(stats["summary.time_cpu"] >= 0.0);
-            REQUIRE(stats["solver"].size() == 1);
-            REQUIRE(stats["solver"][size_t(0)]["conflicts"] > 0);
+            auto solving = stats["solving"];
+            REQUIRE(solving["solver"].type() == StatisticsType::Array);
+            REQUIRE(solving["solvers"].type() == StatisticsType::Map);
+            REQUIRE(stats["summary.times.cpu"].type() == StatisticsType::Value);
+            REQUIRE(stats["summary.times.cpu"] >= 0.0);
+            REQUIRE(solving["solver"].size() == 1);
+            REQUIRE(solving["solver"][size_t(0)]["conflicts"] > 0);
             int nloop = 0;
-            for (auto s : stats["solver"]) {
+            for (auto s : stats["solving.solver"]) {
                 REQUIRE(s["conflicts"] > 0);
                 ++nloop;
             }
@@ -127,7 +130,7 @@ TEST_CASE("solving", "[clingo]") {
             ctl.solve(MCB(models));
             REQUIRE(ctl.statistics()["summary.costs"].size() == 1);
             REQUIRE(ctl.statistics()["summary.costs"][size_t(0)] == 1);
-            REQUIRE(ctl.statistics()["summary.step"] == 2);
+            REQUIRE(ctl.statistics()["summary.call"] == 2);
             // Note: I don't have a good idea how to test this one
             // void heuristic(atom_t atom, HeuristicType type, int bias, unsigned priority, LitSpan condition);
         }

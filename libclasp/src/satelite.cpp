@@ -20,9 +20,6 @@
 #include <clasp/satelite.h>
 #include <clasp/clause.h>
 
-#ifdef _MSC_VER
-#pragma warning (disable : 4200) // nonstandard extension used : zero-sized array
-#endif
 namespace Clasp { namespace SatElite {
 /////////////////////////////////////////////////////////////////////////////////////////
 // SatElite preprocessing

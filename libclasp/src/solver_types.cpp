@@ -20,6 +20,7 @@
 #include <clasp/solver_types.h>
 #include <clasp/solver.h>
 #include <clasp/clause.h>
+#include <clasp/statistics.h>
 #include <new>
 namespace Clasp {
 ///////////////////////////////////////////////////////////////////////////////
@@ -29,8 +30,8 @@ SearchLimits::SearchLimits() {
 	std::memset(this, 0, sizeof(SearchLimits));
 	restart.conflicts = UINT64_MAX;
 	conflicts = UINT64_MAX;
-	memory    = UINT64_MAX;
-	learnts   = UINT32_MAX;
+	memory = UINT64_MAX;
+	learnts = UINT32_MAX;
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // DynamicLimit
@@ -48,11 +49,11 @@ void DynamicLimit::init(float k, Type t, uint32 uLimit) {
 	resetRun();
 	std::memset(&adjust, 0, sizeof(adjust));
 	adjust.limit = uLimit;
-	adjust.rk    = k;
-	adjust.type  = t;
+	adjust.rk = k;
+	adjust.type = t;
 }
 void DynamicLimit::destroy() {
-	this->~DynamicLimit(); 
+	this->~DynamicLimit();
 	::operator delete(this);
 }
 void DynamicLimit::resetRun() {
@@ -66,13 +67,13 @@ void DynamicLimit::update(uint32 dl, uint32 lbd) {
 	// update global avg
 	++adjust.samples;
 	++global.samples;
-	global.sum[lbd_limit]   += lbd;
+	global.sum[lbd_limit] += lbd;
 	global.sum[level_limit] += dl;
 	// update moving avg
-	sum_[lbd_limit]   += lbd;
+	sum_[lbd_limit] += lbd;
 	sum_[level_limit] += dl;
 	if (++num_ > cap_) {
-		sum_[lbd_limit]   -= (buffer_[pos_] & 127u);
+		sum_[lbd_limit] -= (buffer_[pos_] & 127u);
 		sum_[level_limit] -= (buffer_[pos_] >> 7u);
 	}
 	buffer_[pos_++] = ((dl << 7) + lbd);
@@ -84,14 +85,14 @@ uint32 DynamicLimit::restart(uint32 maxLBD, float k) {
 		Type nt = global.avg(lbd_limit) > maxLBD ? level_limit : lbd_limit;
 		if (nt == adjust.type) {
 			double rLen = adjust.avgRestart();
-			bool   sx   = num_ >= adjust.limit;
-			float  rk   = adjust.rk;
+			bool   sx = num_ >= adjust.limit;
+			float  rk = adjust.rk;
 			uint32 uLim = adjust.limit;
-			if      (rLen >= 16000.0){ rk += 0.1f;  uLim = 16000; }
-			else if (sx)             { rk += 0.05f; uLim = std::max(uint32(16000), uLim-10000); }
+			if (rLen >= 16000.0) { rk += 0.1f;  uLim = 16000; }
+			else if (sx) { rk += 0.05f; uLim = std::max(uint32(16000), uLim-10000); }
 			else if (rLen >= 4000.0) { rk += 0.05f; }
 			else if (rLen >= 1000.0) { uLim += 10000u; }
-			else if (rk > k)         { rk -= 0.05f; }
+			else if (rk > k) { rk -= 0.05f; }
 			init(rk, nt, uLim);
 		}
 		else { init(k, nt); }
@@ -99,39 +100,83 @@ uint32 DynamicLimit::restart(uint32 maxLBD, float k) {
 	else { resetRun(); }
 	return adjust.limit;
 }
-BlockLimit::BlockLimit(uint32 windowSize, double R) 
+BlockLimit::BlockLimit(uint32 windowSize, double R)
 	: ema(0.0), alpha(2.0/(windowSize+1))
 	, next(windowSize), inc(50), n(0)
 	, span(windowSize)
-	, r(static_cast<float>(R)) {
+	, r(static_cast<float>(R)) {}
+
+/////////////////////////////////////////////////////////////////////////////////////////
+// Statistics
+/////////////////////////////////////////////////////////////////////////////////////////
+#define NO_ARG
+#define CLASP_STAT_ACCU(m, k, a, accu) accu;
+#define CLASP_STAT_KEY(m, k, a, accu)  k,
+#define CLASP_STAT_GET(m, k, a, accu) if (std::strcmp(key, k) == 0) { return a; }
+#define CLASP_DEFINE_ISTATS_COMMON(T, STATS, name) \
+	static const char* const T ## _s[] = { STATS(CLASP_STAT_KEY, NO_ARG, NO_ARG) name };\
+	uint32 T::size()                     { return (sizeof(T ## _s)/sizeof(T ## _s[0]))-1; } \
+	const char* T::key(uint32 i)         { return i < size() ? T ## _s[i] : throw std::out_of_range(#T "::key"); } \
+	void T::accu(const T& o)             { STATS(CLASP_STAT_ACCU, (*this), o);}
+/////////////////////////////////////////////////////////////////////////////////////////
+// CoreStats
+/////////////////////////////////////////////////////////////////////////////////////////
+CLASP_DEFINE_ISTATS_COMMON(CoreStats, CLASP_CORE_STATS, "core")
+StatisticObject CoreStats::at(const char* key) const {
+#define VALUE(X) StatisticObject::value(&X)
+	CLASP_CORE_STATS(CLASP_STAT_GET, NO_ARG, NO_ARG);
+#undef VALUE
+	throw std::out_of_range("CoreStats::at");
+}
+void CoreStats::reset() { std::memset(this, 0, sizeof(*this)); }
+/////////////////////////////////////////////////////////////////////////////////////////
+// JumpStats
+/////////////////////////////////////////////////////////////////////////////////////////
+#define MAX_MEM(X, Y) X = std::max((X), (Y))
+CLASP_DEFINE_ISTATS_COMMON(JumpStats, CLASP_JUMP_STATS, "jumps")
+#undef MAX_MEM
+StatisticObject JumpStats::at(const char* key) const {
+#define VALUE(X) StatisticObject::value(&X)
+	CLASP_JUMP_STATS(CLASP_STAT_GET, NO_ARG, NO_ARG);
+#undef VALUE
+	throw std::out_of_range("JumpStats::at");
+}
+void JumpStats::reset() { std::memset(this, 0, sizeof(*this)); }
+/////////////////////////////////////////////////////////////////////////////////////////
+// ExtendedStats
+/////////////////////////////////////////////////////////////////////////////////////////
+CLASP_DEFINE_ISTATS_COMMON(ExtendedStats, CLASP_EXTENDED_STATS, "extra")
+namespace {
+double _lemmas(const ExtendedStats* self)     { return static_cast<double>(self->lemmas()); }
+double _learntLits(const ExtendedStats* self) { return static_cast<double>(self->learntLits()); }
+}
+StatisticObject ExtendedStats::at(const char* key) const {
+#define VALUE(X) StatisticObject::value(&X)
+#define MEM_FUN(X) StatisticObject::value<ExtendedStats, _ ## X>(this)
+#define MAP(X) StatisticObject::map(&X)
+	CLASP_EXTENDED_STATS(CLASP_STAT_GET, NO_ARG, NO_ARG);
+#undef VALUE
+#undef MEM_FUN
+#undef MAP
+	throw std::out_of_range("ExtendedStats::at");
+}
+void ExtendedStats::reset() { 
+	std::memset(this, 0, sizeof(ExtendedStats) - sizeof(JumpStats)); 
+	jumps.reset(); 
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // SolverStats
 /////////////////////////////////////////////////////////////////////////////////////////
-SolverStats::SolverStats() : limit(0), extra(0), jumps(0) {}
-SolverStats::SolverStats(const SolverStats& o) : CoreStats(o), limit(0), extra(0), jumps(0) { 
-	enableStats(o); 
+SolverStats::SolverStats() : limit(0), extra(0), multi(0) {}
+SolverStats::SolverStats(const SolverStats& o) : CoreStats(o), limit(0), extra(0), multi(0) { 
+	if (o.extra && enableExtended()) { extra->accu(*o.extra); }
 }
 SolverStats::~SolverStats() { 
-	delete jumps; 
 	delete extra;
 	if (limit) limit->destroy();
 }
-int SolverStats::level() const { 
-	return (extra != 0) + (jumps != 0); 
-}
-bool SolverStats::enableStats(const SolverStats& o) {
-	if (o.extra && !enableExtended()) { return false; }
-	if (o.jumps && !enableJump())     { return false; }
-	return true;
-}
-bool SolverStats::enableExtended() { 
-	if (!extra) { extra = new (std::nothrow) ExtendedStats(); }
-	return extra != 0;
-}
-bool SolverStats::enableJump() {
-	if (!jumps) { jumps = new (std::nothrow) JumpStats(); }
-	return jumps != 0;
+bool SolverStats::enableExtended() {
+	return extra != 0 || (extra = new (std::nothrow) ExtendedStats()) != 0;
 }
 void SolverStats::enableLimit(uint32 size) { 
 	if (limit && limit->window() != size) { limit->destroy(); limit = 0; }
@@ -141,35 +186,55 @@ void SolverStats::reset() {
 	CoreStats::reset();
 	if (limit) limit->reset();
 	if (extra) extra->reset();
-	if (jumps) jumps->reset();
 }
 void SolverStats::accu(const SolverStats& o) {
 	CoreStats::accu(o);
 	if (extra && o.extra) extra->accu(*o.extra);
-	if (jumps && o.jumps) jumps->accu(*o.jumps);
+}
+void SolverStats::accu(const SolverStats& o, bool enableRhs) {
+	if (enableRhs) { enable(o); }
+	accu(o);
+}
+void SolverStats::flush() const {
+	if (multi) {
+		multi->enable(*this);
+		multi->accu(*this);
+		multi->flush();
+	}
 }
 void SolverStats::swapStats(SolverStats& o) {
 	std::swap(static_cast<CoreStats&>(*this), static_cast<CoreStats&>(o));
 	std::swap(extra, o.extra);
-	std::swap(jumps, o.jumps);
 }
-double SolverStats::operator[](const char* path) const {
-	bool ext = matchStatPath(path, "extra");
-	if (ext || matchStatPath(path, "jumps")) {
-		if (!*path)      { return -2.0; }
-		if (ext && extra){ return (*extra)[path]; }
-		if (!ext&& jumps){ return (*jumps)[path]; }
-		return -3.0; 
+uint32 SolverStats::size() const {
+	return CoreStats::size() + (extra != 0);
+}
+const char* SolverStats::key(uint32 i) const {
+	if (i >= size()) { throw std::out_of_range("SolverStats::key"); }
+	return i < CoreStats::size() ? CoreStats::key(i) : "extra";
+}
+template <unsigned n>
+static bool matchPath(const char*& path, const char (&key)[n]) {
+	std::size_t kLen = n-1;
+	return std::strncmp(path, key, kLen) == 0 && (!path[kLen] || path[kLen++] == '.') && (path += kLen) != 0;
+}
+StatisticObject SolverStats::at(const char* k) const {
+	if (extra && matchPath(k, "extra")) {
+		return !*k ? StatisticObject::map(extra) : extra->at(k);
 	}
-	return CoreStats::operator[](path);
-}
-const char* SolverStats::subKeys(const char* path) const {
-	bool ext = matchStatPath(path, "extra");
-	if (ext || matchStatPath(path, "jumps")) {
-		return ext ? ExtendedStats::keys(path) : JumpStats::keys(path); 
+	else {
+		return CoreStats::at(k);
 	}
-	return 0;
 }
+void SolverStats::addTo(const char* key, StatsMap& solving, StatsMap* accu) const {
+	solving.add(key, StatisticObject::map(this));
+	if (accu && this->multi) { multi->addTo(key, *accu, 0); }
+}
+#undef NO_ARG
+#undef CLASP_STAT_ACCU
+#undef CLASP_STAT_KEY
+#undef CLASP_STAT_GET
+#undef CLASP_DEFINE_ISTATS_COMMON
 /////////////////////////////////////////////////////////////////////////////////////////
 // ClauseHead
 /////////////////////////////////////////////////////////////////////////////////////////

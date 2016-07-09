@@ -244,15 +244,15 @@ public:
 		return ebo_.buf[n];
 	}
 	
-	//! same as operator[] but throws std::range_error if pre-condition is not met.
+	//! same as operator[] but throws std::out_of_range if pre-condition is not met.
 	const_reference at(size_type n) const {
 		if (n < size()) return ebo_.buf[n];
-		throw std::range_error("pod_vector::at");
+		throw std::out_of_range("pod_vector::at");
 	}
-	//! same as operator[] but throws std::range_error if pre-condition is not met.
+	//! same as operator[] but throws std::out_of_range if pre-condition is not met.
 	reference at(size_type n) {
 		if (n < size()) return ebo_.buf[n];
-		throw std::range_error("pod_vector::at");
+		throw std::out_of_range("pod_vector::at");
 	}
 	
 	//! equivalent to *begin()

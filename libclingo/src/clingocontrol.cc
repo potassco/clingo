@@ -591,15 +591,12 @@ ClingoControl::~ClingoControl() noexcept = default;
 // {{{1 definition of ClingoStatistics
 
 Gringo::Statistics::Quantity ClingoStatistics::getStat(char const* key) const {
-    if (!clasp) { return std::numeric_limits<double>::quiet_NaN(); }
-    auto ret = clasp->getStat(key);
-    switch (ret.error()) {
-        case Clasp::ExpectedQuantity::error_ambiguous_quantity: { return Gringo::Statistics::error_ambiguous_quantity; }
-        case Clasp::ExpectedQuantity::error_not_available:      { return Gringo::Statistics::error_not_available; }
-        case Clasp::ExpectedQuantity::error_unknown_quantity:   { return Gringo::Statistics::error_unknown_quantity; }
-        case Clasp::ExpectedQuantity::error_none:               { return (double)ret; }
+    try {
+        return clasp && clasp->solved() ? clasp->getStat(key) : Gringo::Statistics::error_not_available;
     }
-    return std::numeric_limits<double>::quiet_NaN();
+    catch (const std::logic_error&) { return Gringo::Statistics::error_unknown_quantity; }
+    catch (const std::bad_cast&)    { return Gringo::Statistics::error_ambiguous_quantity; }
+    catch (...)                     { return Gringo::Statistics::error_not_available; }
 }
 char const *ClingoStatistics::getKeys(char const* key) const {
     if (!clasp) { return ""; }

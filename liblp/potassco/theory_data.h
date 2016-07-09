@@ -22,7 +22,14 @@
 
 #ifdef _MSC_VER
 #pragma once
-#pragma warning (disable : 4200) // nonstandard extension used : zero-sized array
+#pragma warning (push)
+#pragma warning (disable : 4200) // zero-sized array
+#elif __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wzero-length-array"
+#elif __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-pedantic"
 #endif
 #include <potassco/basic_types.h>
 #include <iterator>
@@ -353,6 +360,10 @@ inline void print(AbstractProgram& out, const TheoryAtom& a) {
 	if (a.guard()) { out.theoryAtom(a.atom(), a.term(), a.elements(), *a.guard(), *a.rhs()); }
 	else           { out.theoryAtom(a.atom(), a.term(), a.elements()); }
 }
-
 }
+#ifdef _MSC_VER
+#pragma warning (pop)
+#elif __GNUC__
+#pragma GCC diagnostic pop
+#endif
 #endif

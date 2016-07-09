@@ -163,7 +163,7 @@ void ClaspAppBase::validateOptions(const ProgramOptions::OptionContext&, const P
 	}
 	for (std::size_t i = 1; i < app.input.size(); ++i) {
 		if (!isStdIn(app.input[i]) && !std::ifstream(app.input[i].c_str()).is_open()) {
-			throw Error(clasp_format_error("'%s': could not open input file!", app.input[i].c_str()));
+			throw Error(ClaspErrorString("'%s': could not open input file!", app.input[i].c_str()).c_str());
 		}
 	}
 	if (app.onlyPre && pt != Problem_t::Asp) {
@@ -351,12 +351,11 @@ void ClaspAppBase::printDefaultConfigs() const {
 	}
 }
 void ClaspAppBase::writeNonHcfs(const PrgDepGraph& graph) const {
-	uint32 scc = 0;
-	char   buf[10];
-	for (PrgDepGraph::NonHcfIter it = graph.nonHcfBegin(), end = graph.nonHcfEnd(); it != end; ++it, ++scc) {
-		snprintf(buf, 10, ".%u", scc);
+	char buf[10];
+	for (PrgDepGraph::NonHcfIter it = graph.nonHcfBegin(), end = graph.nonHcfEnd(); it != end; ++it) {
+		snprintf(buf, 10, ".%u", (*it)->id());
 		WriteCnf cnf(claspAppOpts_.hccOut + buf);
-		const SharedContext& ctx = it->second->ctx();
+		const SharedContext& ctx = (*it)->ctx();
 		cnf.writeHeader(ctx.numVars(), ctx.numConstraints());
 		cnf.write(ctx.numVars(), ctx.shortImplications());
 		Solver::DBRef db = ctx.master()->constraints();

@@ -21,7 +21,6 @@
 #define CLASP_CLASP_APP_H_INCLUDED
 
 #ifdef _MSC_VER
-#pragma warning (disable : 4200) // nonstandard extension used : zero-sized array
 #pragma once
 #endif
 #include <program_opts/typed_value.h>

@@ -8,9 +8,9 @@ function main(prg)
     prg:solve()
     print(json.encode(prg.stats)) -- no pretty printing support
 
-    print("lp.bodies", prg.stats["lp"]["bodies"])
+    print("lp.bodies", prg.stats["problem"]["lp"]["bodies"])
     -- lua tables also support dot access
-    print("lp.bodies", prg.stats.lp.bodies)
+    print("lp.bodies", prg.stats.problem.lp.bodies)
     print("optimization", prg.stats.summary.costs[1])
 
 end

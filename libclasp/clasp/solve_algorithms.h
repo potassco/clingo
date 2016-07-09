@@ -21,7 +21,6 @@
 #define CLASP_SOLVE_ALGORITHMS_H_INCLUDED
 
 #ifdef _MSC_VER
-#pragma warning (disable : 4200) // nonstandard extension used : zero-sized array
 #pragma once
 #endif
 

@@ -166,19 +166,18 @@ static std::string& xconvert(std::string& out, X x) { \
 #define CLASP_ASP_OPTIONS
 #define CLASP_SOLVER_OPTIONS
 #define CLASP_SEARCH_OPTIONS
-#define COMBINE_2(a, b) a b
-#define ARG(a, ...) __VA_ARGS__
+#define ARG_EXT(a, X) X
+#define ARG(a)
 #define NO_ARG
 #include <clasp/cli/clasp_cli_options.inl>
 namespace Cli {
 DEFINE_ENUM_MAPPING(ConfigKey, \
   MAP("auto",   config_default), MAP("frumpy", config_frumpy), MAP("jumpy",  config_jumpy), \
   MAP("tweety", config_tweety) , MAP("handy" , config_handy) ,\
-  MAP("crafty", config_crafty) , MAP("trendy", config_trendy), MAP("many", config_many));
+  MAP("crafty", config_crafty) , MAP("trendy", config_trendy), MAP("many", config_many))
 }
 #undef MAP
 #undef DEFINE_ENUM_MAPPING
-#undef COMBINE_2
 /////////////////////////////////////////////////////////////////////////////////////////
 // Conversion functions for complex clasp types
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -456,7 +455,7 @@ ConfigIter ClaspCliConfig::getConfig(ConfigKey k) {
 				#include <clasp/cli/clasp_cli_configs.inl>
 				);
 		case config_default: return ConfigIter("/default\0/\0/\0");
-		default            : throw std::logic_error(clasp_format_error("Invalid config key '%d'", (int)k));
+		default            : throw std::logic_error(ClaspErrorString("Invalid config key '%d'", (int)k).c_str());
 	}
 }
 ConfigIter ClaspCliConfig::getConfig(uint8 key, std::string& tempMem) {
@@ -585,7 +584,8 @@ void ClaspCliConfig::createOptions() {
 #define CLASP_SOLVER_OPTIONS
 #define CLASP_SEARCH_OPTIONS
 #define OPTION(k, e, a, d, ...) keyToCliName(cmdName, #k, e); opts_->addOptions()(cmdName.c_str(),static_cast<ProgOption*>( createOption(opt_##k)a ), d);
-#define ARG(a, ...) ->a
+#define ARG(a) ->a
+#define ARG_EXT(a, X) ARG(a)
 #define NO_ARG
 #include <clasp/cli/clasp_cli_options.inl>
 	opts_->addOptions()("tester", createOption(meta_tester)->arg("<options>"), "Pass (quoted) string of %A to tester");
@@ -713,15 +713,6 @@ int ClaspCliConfig::getValue(KeyType key, std::string& out) const {
 	}
 	catch (...) { return -2; }
 }
-int ClaspCliConfig::getValue(KeyType key, char** value) const {
-	if (value) { *value = 0; }
-	std::string temp;
-	int ret = getValue(key, temp);
-	if (ret <= 0 || !value) { return ret; }
-	if ((*value = (char*)malloc(temp.length() + 1)) == 0) { return -2; }
-	std::strcpy(*value, temp.c_str());
-	return static_cast<int>(temp.length());
-}
 int ClaspCliConfig::getValue(KeyType key, char* buffer, std::size_t bufSize) const {
 	std::string temp;
 	int ret = getValue(key, temp);
@@ -741,9 +732,6 @@ std::string ClaspCliConfig::getValue(const char* path) const {
 bool ClaspCliConfig::hasValue(const char* path) const {
 	int nVals;
 	return getKeyInfo(getKey(KEY_ROOT, path), 0, 0, 0, &nVals) == 1 && nVals > 0;
-}
-void ClaspCliConfig::releaseValue(const char* value) const {
-	if (value) { free((void*)value); }
 }
 
 int ClaspCliConfig::setValue(KeyType key, const char* value) {

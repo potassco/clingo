@@ -32,11 +32,10 @@ namespace Clasp {
 class Solver;
 class SharedContext;
 struct SolverStats;
-class EventHandler;
 struct SolveTestEvent : SolveEvent<SolveTestEvent> {
-	SolveTestEvent(const Solver& s, uint32 scc, bool partial);
+	SolveTestEvent(const Solver& s, uint32 hcc, bool partial);
 	int    result;     // -1: before test, 0: unstable, 1: stable
-	uint32 scc     :31;// scc under test
+	uint32 hcc     :31;// hcc under test
 	uint32 partial : 1;// partial test?
 	uint64 confDelta;  // conflicts before test
 	uint64 choiceDelta;// choices before test
@@ -45,12 +44,6 @@ struct SolveTestEvent : SolveEvent<SolveTestEvent> {
 	uint64 conflicts() const;
 	uint64 choices()   const;
 };
-struct RemoveNonHcfEvent : Event_t<RemoveNonHcfEvent> {
-	RemoveNonHcfEvent(const Asp::PrgDepGraph& g, uint32 nonHcfId, Event::Subsystem);
-	const Asp::PrgDepGraph* graph;
-	uint32 id;
-};
-
 struct LoopReason_t {
 	enum Type { Explicit = 0u, Implicit = 1u, };
 };
@@ -78,13 +71,15 @@ public:
 	//! Type for storing a non head-cycle-free component of a disjunctive program.
 	class NonHcfComponent {
 	public:
-		explicit NonHcfComponent(const PrgDepGraph& dep, SharedContext& generator, Configuration* c, uint32 scc, const VarVec& atoms, const VarVec& bodies);
+		explicit NonHcfComponent(uint32 id, const PrgDepGraph& dep, SharedContext& generator, Configuration* c, uint32 scc, const VarVec& atoms, const VarVec& bodies);
 		~NonHcfComponent();
 		void assumptionsFromAssignment(const Solver& generator, LitVec& assumptionsOut) const;
-		bool test(uint32 scc, const Solver& generator, const LitVec& assumptions, VarVec& unfoundedOut)  const;
-		bool simplify(uint32 scc, const Solver& generator) const;
+		bool test(const Solver& generator, const LitVec& assumptions, VarVec& unfoundedOut)  const;
+		bool simplify(const Solver& generator) const;
 		const SharedContext& ctx() const { return *prg_; }
 		void update(const SharedContext& generator);
+		uint32 id()  const { return id_; }
+		uint32 scc() const { return scc_; }
 	private:
 		friend class PrgDepGraph;
 		NonHcfComponent(const NonHcfComponent&);
@@ -93,12 +88,32 @@ public:
 		const PrgDepGraph* dep_;
 		SharedContext*     prg_;
 		ComponentMap*      comp_;
+		uint32             id_;
+		uint32             scc_;
 	};
-	typedef std::pair<uint32, NonHcfComponent*> ComponentPair;
-	typedef const ComponentPair* NonHcfIter;
+	class NonHcfStats {
+	public:
+		NonHcfStats(PrgDepGraph& g, uint32 level, bool inc);
+		~NonHcfStats();
+		void accept(StatsVisitor& out, bool final) const;
+		void startStep(uint32 statsLevel);
+		void endStep();
+		void addTo(StatsMap& problem, StatsMap& solving, StatsMap* accu) const;
+	private:
+		friend class PrgDepGraph;
+		void addHcc(const NonHcfComponent&);
+		void removeHcc(const NonHcfComponent&);
+		NonHcfStats(const NonHcfStats&);
+		NonHcfStats& operator=(const NonHcfStats&);
+		struct Data;
+		PrgDepGraph* graph_;
+		Data*        data_;
+	};
+	typedef PodVector<NonHcfComponent*>::type ComponentVec;
+	typedef ComponentVec::const_iterator NonHcfIter;
 	//! Base type for nodes.
 	struct Node {
-		Node(Literal l = Literal(0, false), uint32 sc = PrgNode::noScc) 
+		Node(Literal l = Literal(0, false), uint32 sc = PrgNode::noScc)
 			: lit(l), scc(sc), data(0), adj_(0), sep_(0) {}
 		Literal lit;       // literal of this node
 		uint32  scc   : 28;// scc of this node
@@ -113,7 +128,7 @@ public:
 	 * are those bodies from the same SCC that contain the atom positively.
 	 */
 	struct AtomNode : public Node {
-		enum Property { property_in_choice = 1u, property_in_disj = 2u, property_in_ext = 4u, property_in_non_hcf = 8u};
+		enum Property { property_in_choice = 1u, property_in_disj = 2u, property_in_ext = 4u, property_in_non_hcf = 8u };
 		AtomNode() {}
 		void  set(Property p)         { data |= (uint32)p; }
 		void  setProperties(uint32 f) { assert(f < 8); data |= f; }
@@ -135,7 +150,7 @@ public:
 		 * In that case, the returned list looks like this:
 		 * [Bn1, ..., Bnj, idMax, Bext1, pos1, ..., Bextn, posn, idMax], where
 		 * each Bni is a normal body, each Bexti is an extended body and posi is the
-		 * position of this atom in Bexti. 
+		 * position of this atom in Bexti.
 		 */
 		const NodeId* succs()        const { return sep_; }
 		//! Calls the given function object p once for each body containing this atom.
@@ -149,10 +164,10 @@ public:
 		}
 	};
 	enum { sentinel_atom = 0u };
-	
+
 	//! A body node.
 	/*!
-	 * The PBDAG stores a node of type BodyNode for each body that defines 
+	 * The PBDAG stores a node of type BodyNode for each body that defines
 	 * a non-trivially connected atom.
 	 * The predecessors of a BodyNode are the body's subgoals.
 	 * Its successors are the heads that are defined by the body.
@@ -161,7 +176,7 @@ public:
 	 * the same SCC are stored as AtomNodes. All other subgoals are stored as literals.
 	 */
 	struct BodyNode : public Node {
-		enum Flag { flag_has_bound = 1u, flag_has_weights = 2u, flag_has_delta = 4u, flag_seen  = 8u };
+		enum Flag { flag_has_bound = 1u, flag_has_weights = 2u, flag_has_delta = 4u, flag_seen = 8u };
 		explicit BodyNode(PrgBody* b, uint32 scc) : Node(b->literal(), scc) {
 			if (scc == PrgNode::noScc || b->type() == Body_t::Normal) {
 				data = 0;
@@ -172,7 +187,7 @@ public:
 		}
 		bool seen() const { return (data & flag_seen) != 0; }
 		void seen(bool b) { if (b) data |= flag_seen; else data &= ~uint32(flag_seen); }
-		
+
 		//! Heads (i.e. successors): atoms from same SCC precede those from other SCCs.
 		/*!
 		 * \note Disjunctive heads are stored in flattened atom-lists, where the
@@ -192,14 +207,14 @@ public:
 		/*!
 		 * \note If extended() is true, the body stores all its subgoals and preds looks
 		 * like this: [a1, [w1], ..., aj, [wj], idMax, l1, [w1], ..., lk, [wk], idMax], where
-		 * each ai is an atom from the same SCC, each li is a literal of a subgoal from 
+		 * each ai is an atom from the same SCC, each li is a literal of a subgoal from
 		 * other SCCs and wi is an optional weight (only for weight rules).
 		 */
 		const NodeId* preds()       const { assert(scc != PrgNode::noScc); return sep_; }
 		//! Returns idx of atomId in preds.
-		uint32        get_pred_idx(NodeId atomId) const { 
+		uint32        get_pred_idx(NodeId atomId) const {
 			const uint32 inc = pred_inc();
-			      uint32 idx = 0;
+			uint32 idx = 0;
 			for (const NodeId* x = preds(); *x != idMax; x += inc, ++idx) {
 				if (*x == atomId) return idx;
 			}
@@ -212,17 +227,17 @@ public:
 		/*!
 		 * \pre i in [0, num_preds())
 		 */
-		uint32        pred_weight(uint32 i, bool ext) const { 
+		uint32        pred_weight(uint32 i, bool ext) const {
 			return !sum()
-				? 1 
+				? 1
 				: *(preds() + (i*pred_inc()) + (1+uint32(ext)));
 		}
 		//! Number of predecessors (counting external subgoals).
 		uint32        num_preds() const {
 			if (scc == PrgNode::noScc) return 0;
-			uint32 p        = 0;
-			const NodeId* x = preds();
-			const uint32 inc= pred_inc();
+			uint32 p = 0;
+			const NodeId*  x = preds();
+			const uint32 inc = pred_inc();
 			for (; *x != idMax; x += inc) { ++p; }
 			x += extended();
 			for (; *x != idMax; x += inc) { ++p; }
@@ -245,11 +260,8 @@ public:
 
 	//! Removes inactive non-hcfs.
 	void simplify(const Solver& s);
-	//! Sets dedicated handler for RemoveNonHcfEvents fired when a non-hcf is removed.
-	EventHandler* setRemoveHandler(EventHandler* h) { EventHandler* t = removeHandler_; removeHandler_ = h; return t; }
-
 	//! Number of atoms in graph.
-	uint32 numAtoms() const { return (uint32)atoms_.size();  }
+	uint32 numAtoms() const { return (uint32)atoms_.size(); }
 	//! Number of bodies in graph.
 	uint32 numBodies()const { return (uint32)bodies_.size(); }
 	//! Sum of atoms and bodies.
@@ -269,20 +281,20 @@ public:
 	//! Calls the given function object p once for each body-literal.
 	template <class P>
 	void visitBodyLiterals(const BodyNode& n, const P& p) const {
-		const NodeId* x  = n.preds();
+		const NodeId*  x = n.preds();
 		const uint32 inc = n.pred_inc();
-		uint32       i   = 0;
+		uint32         i = 0;
 		for (; *x != idMax; x += inc, ++i) { p(getAtom(*x).lit, i, false); }
 		x += n.extended();
-		for (; *x != idMax; x += inc, ++i) { p(Literal::fromRep(*x),i, true); }
+		for (; *x != idMax; x += inc, ++i) { p(Literal::fromRep(*x), i, true); }
 	}
-	NonHcfIter     nonHcfBegin() const { return components_.empty() ? NonHcfIter(0) : &components_[0]; }
-	NonHcfIter     nonHcfEnd()   const { return nonHcfBegin() + components_.size(); }
-	uint32         numNonHcfs()  const { return (uint32)components_.size(); }
+	NonHcfIter   nonHcfBegin() const { return components_.begin(); }
+	NonHcfIter   nonHcfEnd()   const { return components_.end(); }
+	uint32       numNonHcfs()  const { return (uint32)components_.size(); }
+	NonHcfStats* enableNonHcfStats(uint32 level, bool incremental);
 private:
-	typedef PodVector<AtomNode>::type      AtomVec;
-	typedef PodVector<BodyNode>::type      BodyVec;
-	typedef PodVector<ComponentPair>::type ComponentMap;
+	typedef PodVector<AtomNode>::type AtomVec;
+	typedef PodVector<BodyNode>::type BodyVec;
 	PrgDepGraph(const PrgDepGraph&);
 	PrgDepGraph& operator=(const PrgDepGraph&);
 	inline bool    relevantPrgAtom(const Solver& s, PrgAtom* a) const;
@@ -297,11 +309,11 @@ private:
 	void           addPreds(const LogicProgram& prg, PrgBody*, uint32 bScc, VarVec& preds) const;
 	void           initBody(uint32 id, const VarVec& preds, const VarVec& atHeads);
 	void           initAtom(uint32 id, uint32 prop, const VarVec& adj, uint32 preds);
-	void           addNonHcf(SharedContext& ctx, Configuration* c, uint32 scc);
+	void           addNonHcf(uint32 id, SharedContext& ctx, Configuration* c, uint32 scc);
 	AtomVec        atoms_;
 	BodyVec        bodies_;
-	ComponentMap   components_;
-	EventHandler*  removeHandler_;
+	ComponentVec   components_;
+	NonHcfStats*   stats_;
 	uint32         seenComponents_ : 31;
 	uint32         mapType_        :  1;
 };

@@ -20,6 +20,7 @@
 #include <clasp/shared_context.h>
 #include <clasp/solver.h>
 #include <clasp/clause.h>
+#include <clasp/statistics.h>
 #include <clasp/minimize_constraint.h>
 #include <clasp/dependency_graph.h>
 #include <potassco/basic_types.h>
@@ -27,23 +28,33 @@
 #include <clasp/util/thread.h>
 #endif
 namespace Clasp {
-double ProblemStats::operator[](const char* key) const {
-#define RETURN_IF(x, y) if (std::strcmp(key, #x) == 0) return double(y)
-	RETURN_IF(vars, vars.num);
-	RETURN_IF(vars_eliminated, vars.eliminated);
-	RETURN_IF(vars_frozen, vars.frozen);
-	RETURN_IF(constraints, constraints.other);
-	RETURN_IF(constraints_binary, constraints.binary);
-	RETURN_IF(constraints_ternary, constraints.ternary);
-	RETURN_IF(acyc_edges, acycEdges);
-	RETURN_IF(complexity, complexity);
-	return -1.0;
-#undef RETURN_IF
+#define PS_STATS( APPLY ) \
+	APPLY(vars               , VALUE(vars.num))            \
+	APPLY(vars_eliminated    , VALUE(vars.eliminated))     \
+	APPLY(vars_frozen        , VALUE(vars.frozen))         \
+	APPLY(constraints        , VALUE(constraints.other))   \
+	APPLY(constraints_binary , VALUE(constraints.binary))  \
+	APPLY(constraints_ternary, VALUE(constraints.ternary)) \
+	APPLY(acyc_edges         , VALUE(acycEdges))           \
+	APPLY(complexity         , VALUE(complexity))
+
+static const char* const stats_s[] = {
+#define KEY(X,Y) #X,
+	PS_STATS(KEY)
+#undef KEY
+	"ctx"
+};
+uint32 ProblemStats::size()             { return (sizeof(stats_s)/sizeof(stats_s[0])) - 1; }
+const char* ProblemStats::key(uint32 i) { return i < size() ? stats_s[i] : throw std::out_of_range("ProblemStats::key"); }
+StatisticObject ProblemStats::at(const char* key) const {
+#define VALUE(X) StatisticObject::value(&X)
+#define APPLY(x, y) if (std::strcmp(key, #x) == 0) return y;
+	PS_STATS(APPLY)
+	throw std::out_of_range("ProblemStats::at");
+#undef VALUE
+#undef APPLY
 }
-const char* ProblemStats::keys(const char* k) {
-	if (!k || !*k) { return "vars\0vars_eliminated\0vars_frozen\0constraints\0constraints_binary\0constraints_ternary\0complexity\0acyc_edges\0"; }
-	return 0;
-}
+#undef PS_STATS
 /////////////////////////////////////////////////////////////////////////////////////////
 // EventHandler
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -711,7 +722,6 @@ SharedContext::SharedContext()
 bool SharedContext::ok() const { return master()->decisionLevel() || !master()->hasConflict() || master()->hasStopConflict(); }
 void SharedContext::enableStats(uint32 lev) {
 	if (lev > 0) { master()->stats.enableExtended(); }
-	if (lev > 1) { master()->stats.enableJump();     }
 }
 SharedContext::~SharedContext() {
 	while (!solvers_.empty()) { delete solvers_.back(); solvers_.pop_back(); }
@@ -990,7 +1000,7 @@ void SharedContext::detach(Solver& s, bool reset) {
 	s.popAuxVar();
 }
 void SharedContext::initStats(Solver& s) const {
-	s.stats.enableStats(master()->stats);
+	s.stats.enable(master()->stats);
 	s.stats.reset();
 }
 SolverStats& SharedContext::solverStats(uint32 sId) const {
@@ -999,8 +1009,7 @@ SolverStats& SharedContext::solverStats(uint32 sId) const {
 }
 const SolverStats& SharedContext::accuStats(SolverStats& out) const {
 	for (uint32 i = 0; i != solvers_.size(); ++i) {
-		out.enableStats(solvers_[i]->stats);
-		out.accu(solvers_[i]->stats);
+		out.accu(solvers_[i]->stats, true);
 	}
 	return out;
 }
