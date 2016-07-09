@@ -5,7 +5,7 @@ import clingo.ast
 
 class Transformer:
     def visit_children(self, x, *args, **kwargs):
-        for key in x._child_keys:
+        for key in x.child_keys:
             setattr(x, key, self.visit(getattr(x, key), *args, **kwargs))
         return x
 

@@ -277,6 +277,21 @@ struct Dict : Object {
     Dict()
     : Object{PyDict_New()} {}
     List keys() { return {PyDict_Keys(obj)}; }
+    List values() { return {PyDict_Values(obj)}; }
+    List items() { return {PyDict_Items(obj)}; }
+    void delItem(Object name) {
+        if (PyDict_DelItem(obj, name) < 0) { throw PyException(); }
+    }
+    Py_ssize_t length() {
+        auto ret = PyDict_Size(obj);
+        if (ret == -1) { throw PyException(); }
+        return ret;
+    }
+    bool contains(Object key) {
+        auto ret = PyDict_Contains(obj, key);
+        if (ret == -1) { throw PyException(); }
+        return ret;
+    }
 };
 
 template <class... Args>
@@ -534,6 +549,8 @@ void handleError(char const *loc, char const *msg) {
 
 namespace Detail {
 
+// object protocol
+
 template <class>
 struct Void {
     using Type = void;
@@ -675,6 +692,239 @@ struct GetIterNext<B, typename Void<decltype(&B::tp_iternext)>::Type> {
     };
 };
 
+// mapping protocol
+
+template <class B, class Enable = void>
+struct GetMPLength {
+    static constexpr std::nullptr_t value = nullptr;
+    static constexpr bool has_mapping = false;
+};
+template <class B>
+struct GetMPLength<B, typename Void<decltype(&B::mp_length)>::Type> {
+    static Py_ssize_t value(PyObject *self) {
+        PY_TRY { return reinterpret_cast<B*>(self)->mp_length(); }
+        PY_CATCH(-1);
+    };
+    static constexpr bool has_mapping = true;
+};
+
+template <class B, class Enable = void>
+struct GetMPSubscipt {
+    static constexpr std::nullptr_t value = nullptr;
+    static constexpr bool has_mapping = GetMPLength<B>::has_mapping;
+};
+template <class B>
+struct GetMPSubscipt<B, typename Void<decltype(&B::mp_subscript)>::Type> {
+    static PyObject *value(PyObject *self, PyObject *name) {
+        PY_TRY { return reinterpret_cast<B*>(self)->mp_subscript({name, true}).release(); }
+        PY_CATCH(nullptr);
+    };
+    static constexpr bool has_mapping = true;
+};
+
+template <class B, class Enable = void>
+struct GetMPAssSubscipt {
+    static constexpr std::nullptr_t value = nullptr;
+    static constexpr bool has_mapping = GetMPSubscipt<B>::has_mapping;
+};
+template <class B>
+struct GetMPAssSubscipt<B, typename Void<decltype(&B::mp_ass_subscript)>::Type> {
+    static int value(PyObject *self, PyObject *name, PyObject *value) {
+        PY_TRY { return (reinterpret_cast<B*>(self)->mp_ass_subscript({name, true}, {value, true}), 0); }
+        PY_CATCH(-1);
+    };
+    static constexpr bool has_mapping = true;
+};
+
+template <class B, class Enable = void>
+struct GetAsMapping {
+    static constexpr PyMappingMethods *value = nullptr;
+};
+template <class B>
+struct GetAsMapping<B, typename std::enable_if<GetMPAssSubscipt<B>::has_mapping>::type> {
+    static PyMappingMethods value[];
+};
+template <class B>
+PyMappingMethods GetAsMapping<B, typename std::enable_if<GetMPAssSubscipt<B>::has_mapping>::type>::value[] = {{
+    GetMPLength<B>::value,
+    GetMPSubscipt<B>::value,
+    GetMPAssSubscipt<B>::value,
+}};
+
+// sequence protocol
+
+// Py_ssize_t sq_length(PyObject *self)
+template <class B, class Enable = void>
+struct GetSQLength {
+    static constexpr std::nullptr_t value = nullptr;
+    static constexpr bool has_sequence = false;
+};
+template <class B>
+struct GetSQLength<B, typename Void<decltype(&B::sq_length)>::Type> {
+    static Py_ssize_t value(PyObject *self) {
+        PY_TRY { return reinterpret_cast<B*>(self)->sq_length(); }
+        PY_CATCH(-1);
+    };
+    static constexpr bool has_sequence = true;
+};
+
+// PyObject* sq_concat(PyObject *o1, PyObject *o2)
+template <class B, class Enable = void>
+struct GetSQConcat {
+    static constexpr std::nullptr_t value = nullptr;
+    static constexpr bool has_sequence = GetSQLength<B>::has_sequence;
+};
+template <class B>
+struct GetSQConcat<B, typename Void<decltype(&B::sq_concat)>::Type> {
+    static PyObject *value(PyObject *self, PyObject *other) {
+        PY_TRY { return reinterpret_cast<B*>(self)->sq_concat({other, true}).release(); }
+        PY_CATCH(nullptr);
+    };
+    static constexpr bool has_sequence = true;
+};
+
+// PyObject* sq_repeat(PyObject *o, Py_ssize_t count)
+template <class B, class Enable = void>
+struct GetSQRepeat {
+    static constexpr std::nullptr_t value = nullptr;
+    static constexpr bool has_sequence = GetSQConcat<B>::has_sequence;
+};
+template <class B>
+struct GetSQRepeat<B, typename Void<decltype(&B::sq_repeat)>::Type> {
+    static PyObject *value(PyObject *self, Py_ssize_t count) {
+        PY_TRY { return reinterpret_cast<B*>(self)->sq_repeat(count).release(); }
+        PY_CATCH(nullptr);
+    };
+    static constexpr bool has_sequence = true;
+};
+
+// PyObject* sq_item(PyObject *o, Py_ssize_t i)
+template <class B, class Enable = void>
+struct GetSQItem {
+    static constexpr std::nullptr_t value = nullptr;
+    static constexpr bool has_sequence = GetSQRepeat<B>::has_sequence;
+};
+template <class B>
+struct GetSQItem<B, typename Void<decltype(&B::sq_item)>::Type> {
+    static PyObject *value(PyObject *self, Py_ssize_t index) {
+        PY_TRY { return reinterpret_cast<B*>(self)->sq_item(index).release(); }
+        PY_CATCH(nullptr);
+    };
+    static constexpr bool has_sequence = true;
+};
+
+// PyObject* sq_slice(PyObject *o, Py_ssize_t i1, Py_ssize_t i2)
+template <class B, class Enable = void>
+struct GetSQSlice {
+    static constexpr std::nullptr_t value = nullptr;
+    static constexpr bool has_sequence = GetSQItem<B>::has_sequence;
+};
+template <class B>
+struct GetSQSlice<B, typename Void<decltype(&B::sq_slice)>::Type> {
+    static PyObject *value(PyObject *self, Py_ssize_t left, Py_ssize_t right) {
+        PY_TRY { return reinterpret_cast<B*>(self)->sq_slice(left, right).release(); }
+        PY_CATCH(nullptr);
+    };
+    static constexpr bool has_sequence = true;
+};
+
+// int sq_ass_item(PyObject *o, Py_ssize_t i, PyObject *v)
+template <class B, class Enable = void>
+struct GetSQAssItem {
+    static constexpr std::nullptr_t value = nullptr;
+    static constexpr bool has_sequence = GetSQSlice<B>::has_sequence;
+};
+template <class B>
+struct GetSQAssItem<B, typename Void<decltype(&B::sq_ass_item)>::Type> {
+    static int value(PyObject *self, Py_ssize_t index, PyObject *value) {
+        PY_TRY { return (reinterpret_cast<B*>(self)->sq_ass_item(index, {value, true}), 0); }
+        PY_CATCH(-1);
+    };
+    static constexpr bool has_sequence = true;
+};
+
+// int sq_ass_slice(PyObject *o, Py_ssize_t i1, Py_ssize_t i2, PyObject *v)
+template <class B, class Enable = void>
+struct GetSQAssSlice {
+    static constexpr std::nullptr_t value = nullptr;
+    static constexpr bool has_sequence = GetSQAssItem<B>::has_sequence;
+};
+template <class B>
+struct GetSQAssSlice<B, typename Void<decltype(&B::sq_ass_slice)>::Type> {
+    static int value(PyObject *self, Py_ssize_t left, Py_ssize_t right, PyObject *value) {
+        PY_TRY { return (reinterpret_cast<B*>(self)->sq_ass_slice(left, right, {value, true}), 0); }
+        PY_CATCH(-1);
+    };
+    static constexpr bool has_sequence = true;
+};
+
+// int sq_contains(PyObject *o, PyObject *value)
+template <class B, class Enable = void>
+struct GetSQContains {
+    static constexpr std::nullptr_t value = nullptr;
+    static constexpr bool has_sequence = GetSQAssSlice<B>::has_sequence;
+};
+template <class B>
+struct GetSQContains<B, typename Void<decltype(&B::sq_contains)>::Type> {
+    static int value(PyObject *self, PyObject *value) {
+        PY_TRY { return reinterpret_cast<B*>(self)->sq_contains({value, true}); }
+        PY_CATCH(-1);
+    };
+    static constexpr bool has_sequence = true;
+};
+
+// PyObject* sq_inplace_concat(PyObject *o1, PyObject *o2)
+template <class B, class Enable = void>
+struct GetSQInplaceConcat {
+    static constexpr std::nullptr_t value = nullptr;
+    static constexpr bool has_sequence = GetSQContains<B>::has_sequence;
+};
+template <class B>
+struct GetSQInplaceConcat<B, typename Void<decltype(&B::sq_inplace_concat)>::Type> {
+    static PyObject *value(PyObject *self, PyObject *other) {
+        PY_TRY { return reinterpret_cast<B*>(self)->sq_inplace_concat({other, true}); Py_XINCREF(self); return self; }
+        PY_CATCH(nullptr);
+    };
+    static constexpr bool has_sequence = true;
+};
+
+// PyObject* sq_inplace_repeat(PyObject *o, Py_ssize_t count)
+template <class B, class Enable = void>
+struct GetSQInplaceRepeat {
+    static constexpr std::nullptr_t value = nullptr;
+    static constexpr bool has_sequence = GetSQInplaceConcat<B>::has_sequence;
+};
+template <class B>
+struct GetSQInplaceRepeat<B, typename Void<decltype(&B::sq_inplace_repeat)>::Type> {
+    static PyObject *value(PyObject *self, Py_ssize_t count) {
+        PY_TRY { reinterpret_cast<B*>(self)->sq_inplace_repeat(count); Py_XINCREF(self); return self; }
+        PY_CATCH(nullptr);
+    };
+    static constexpr bool has_sequence = true;
+};
+
+template <class B, class Enable = void>
+struct GetAsSequnce {
+    static constexpr PySequenceMethods *value = nullptr;
+};
+template <class B>
+struct GetAsSequnce<B, typename std::enable_if<GetSQInplaceRepeat<B>::has_sequence>::type> {
+    static PySequenceMethods value[];
+};
+template <class B>
+PySequenceMethods GetAsSequnce<B, typename std::enable_if<GetSQInplaceRepeat<B>::has_sequence>::type>::value[] = {{
+    GetSQLength<B>::value,
+    GetSQConcat<B>::value,
+    GetSQRepeat<B>::value,
+    GetSQItem<B>::value,
+    GetSQSlice<B>::value,
+    GetSQAssItem<B>::value,
+    GetSQAssSlice<B>::value,
+    GetSQContains<B>::value,
+    GetSQInplaceConcat<B>::value,
+    GetSQInplaceRepeat<B>::value,
+}};
+
 } // namespace Detail
 
 template <class T>
@@ -684,8 +934,6 @@ struct ObjectBase {
 
     static constexpr initproc tp_init = nullptr;
     static constexpr newfunc tp_new = nullptr;
-    static constexpr PySequenceMethods *tp_as_sequence = nullptr;
-    static constexpr PyMappingMethods *tp_as_mapping = nullptr;
     static constexpr PyGetSetDef *tp_getset = nullptr;
     static PyMethodDef tp_methods[];
 
@@ -740,7 +988,6 @@ private:
         PY_TRY { return (reinterpret_cast<T*>(self)->*f)({params, true}, {keywords, true}).release(); }
         PY_CATCH(nullptr);
     };
-
 };
 
 template <class T>
@@ -759,8 +1006,8 @@ PyTypeObject ObjectBase<T>::type = {
     nullptr,                                          // tp_compare
     Detail::GetRepr<T>::value,                        // tp_repr
     nullptr,                                          // tp_as_number
-    T::tp_as_sequence,                                // tp_as_sequence
-    T::tp_as_mapping,                                 // tp_as_mapping
+    Detail::GetAsSequnce<T>::value,                   // tp_as_sequence
+    Detail::GetAsMapping<T>::value,                   // tp_as_mapping
     Detail::GetHash<T>::value,                        // tp_hash
     nullptr,                                          // tp_call
     Detail::GetStr<T>::value,                         // tp_str
@@ -1853,7 +2100,6 @@ struct Configuration : ObjectBase<Configuration> {
     char const* help;
     Gringo::ConfigProxy *proxy;
     static PyGetSetDef tp_getset[];
-    static PySequenceMethods tp_as_sequence[];
 
     static constexpr char const *tp_type = "Configuration";
     static constexpr char const *tp_name = "clingo.Configuration";
@@ -1954,18 +2200,16 @@ Expected Answer Sets:
         }
     }
 
-    static Py_ssize_t length(Configuration *self) {
-        return self->arrLen;
+    Py_ssize_t sq_length() {
+        return arrLen;
     }
 
-    static PyObject* item(Configuration *self, Py_ssize_t index) {
-        PY_TRY
-            if (index < 0 || index >= self->arrLen) {
-                PyErr_Format(PyExc_IndexError, "invalid index");
-                return nullptr;
-            }
-            return new_(self->proxy->getArrKey(self->key, index), *self->proxy);
-        PY_CATCH(nullptr);
+    Object sq_item(Py_ssize_t index) {
+        if (index < 0 || index >= arrLen) {
+            PyErr_Format(PyExc_IndexError, "invalid index");
+            return nullptr;
+        }
+        return new_(proxy->getArrKey(key, index), *proxy);
     }
 };
 
@@ -1977,19 +2221,6 @@ PyGetSetDef Configuration::tp_getset[] = {
 The list is None if the current object is not an option group.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
-
-PySequenceMethods Configuration::tp_as_sequence[] = {{
-    (lenfunc)length,
-    nullptr,
-    nullptr,
-    (ssizeargfunc)item,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-}};
 
 // {{{1 wrap SymbolicAtom
 
@@ -2075,7 +2306,6 @@ struct SymbolicAtomIter : ObjectBase<SymbolicAtomIter> {
 struct SymbolicAtoms : ObjectBase<SymbolicAtoms> {
     Gringo::SymbolicAtoms *atoms;
     static PyMethodDef tp_methods[];
-    static PyMappingMethods tp_as_mapping[];
     static PyGetSetDef tp_getset[];
 
     static constexpr char const *tp_type = "SymbolicAtoms";
@@ -2135,20 +2365,18 @@ signatures: [('p', 1), ('q', 1)])";
         return ret.release();
     }
 
-    static Py_ssize_t length(SymbolicAtoms *self) {
-        return self->atoms->length();
+    Py_ssize_t mp_length() {
+        return atoms->length();
     }
 
     Object tp_iter() { return SymbolicAtomIter::new_(*atoms, atoms->begin()); }
 
-    static PyObject* subscript(SymbolicAtoms *self, PyObject *key) {
-        PY_TRY
-            Gringo::Symbol atom;
-            pyToCpp(key, atom);
-            Gringo::SymbolicAtomIter range = self->atoms->lookup(atom);
-            if (self->atoms->valid(range)) { return SymbolicAtom::new_(*self->atoms, range); }
-            else                           { Py_RETURN_NONE; }
-        PY_CATCH(nullptr);
+    Object mp_subscript(Object key) {
+        Gringo::Symbol atom;
+        pyToCpp(key, atom);
+        Gringo::SymbolicAtomIter range = atoms->lookup(atom);
+        if (atoms->valid(range)) { return SymbolicAtom::new_(*atoms, range); }
+        else                     { Py_RETURN_NONE; }
     }
 
     static PyObject* by_signature(SymbolicAtoms *self, PyObject *pyargs, PyObject *pykwds) {
@@ -2192,12 +2420,6 @@ positive -- the sign of the signature
 )"},
     {nullptr, nullptr, 0, nullptr}
 };
-
-PyMappingMethods SymbolicAtoms::tp_as_mapping[] = {{
-    (lenfunc)length,
-    (binaryfunc)subscript,
-    nullptr,
-}};
 
 PyGetSetDef SymbolicAtoms::tp_getset[] = {
     {(char *)"signatures", (getter)signatures, nullptr, (char *)
@@ -3131,10 +3353,12 @@ constexpr const char * ScriptType::strings[];
 struct AST : ObjectBase<AST> {
     Dict fields_;
     List children;
+    static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
     static constexpr char const *tp_type = "AST";
     static constexpr char const *tp_name = "clingo.ast.AST";
     static constexpr char const *tp_doc = "Node in the abstract syntax tree.";
+    // TODO: construction should be possible from an ASTType with keyword arguments
     static PyObject *new_(ASTType::T t) {
         PY_TRY
             AST *self = reinterpret_cast<AST*>(type.tp_alloc(&type, 0));
@@ -3143,6 +3367,16 @@ struct AST : ObjectBase<AST> {
             new (&self->children) List();
             self->fields_.setItem("type", ASTType::getAttr(t));
             return reinterpret_cast<PyObject*>(self);
+        PY_CATCH(nullptr);
+    }
+    static PyObject *new_(ASTType::T type, char const **kwlist, PyObject **vals) {
+        PY_TRY
+            Object ret = new_(type);
+            auto jt = vals;
+            for (auto it = kwlist; *it; ++it) {
+                ret.setAttr(*it, {*jt++, true});
+            }
+            return ret.release();
         PY_CATCH(nullptr);
     }
     Object childKeys_() {
@@ -3204,16 +3438,6 @@ struct AST : ObjectBase<AST> {
     Object childKeys() {
         if (!children.valid()) { children = childKeys_(); }
         return children;
-    }
-    static PyObject *new_(ASTType::T type, char const **kwlist, PyObject **vals) {
-        PY_TRY
-            Object ret = new_(type);
-            auto jt = vals;
-            for (auto it = kwlist; *it; ++it) {
-                ret.setAttr(*it, {*jt++, true});
-            }
-            return ret.release();
-        PY_CATCH(nullptr);
     }
     void tp_setattro(Object name, Object value) {
         children = nullptr;
@@ -3504,10 +3728,41 @@ struct AST : ObjectBase<AST> {
         (void)b;
         throw std::logic_error("implement me!!!");
     }
+
+    Py_ssize_t mp_length() { return fields_.length(); }
+    Object mp_subscript(Object name) { return fields_.getItem(name); }
+    void mp_ass_subscript(Object name, Object value) {
+        if (value) { fields_.setItem(name, value); }
+        else       { fields_.delItem(name); }
+    }
+    Object keys() { return fields_.keys(); }
+    Object values() { return fields_.values(); }
+    Object items() { return fields_.items(); }
+    bool sq_contains(Object value) { return fields_.contains(value); }
+    Object tp_iter() { return fields_.iter(); }
+};
+
+PyMethodDef AST::tp_methods[] = {
+    {"keys", to_function<&AST::keys>(), METH_NOARGS,
+R"(keys(self) -> list
+
+The list of keys of the AST node.
+)"},
+    {"values", to_function<&AST::values>(), METH_NOARGS,
+R"(values(self) -> list
+
+The list of values of the AST node.
+)"},
+    {"items", to_function<&AST::items>(), METH_NOARGS,
+R"(items(self) -> list
+
+The list of items of the AST node.
+)"},
+    {nullptr, nullptr, 0, nullptr}
 };
 
 PyGetSetDef AST::tp_getset[] = {
-    {(char*)"_child_keys", to_getter<&AST::childKeys>(), nullptr, (char*)"List of names of all AST child nodes.", nullptr},
+    {(char*)"child_keys", to_getter<&AST::childKeys>(), nullptr, (char*)"List of names of all AST child nodes.", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
