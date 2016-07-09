@@ -662,6 +662,19 @@ struct GetSetAttrO<B, typename Void<decltype(&B::tp_setattro)>::Type> {
     };
 };
 
+template <class B, class Enable = void>
+struct GetIterNext {
+    static constexpr std::nullptr_t value = nullptr;
+};
+
+template <class B>
+struct GetIterNext<B, typename Void<decltype(&B::tp_iternext)>::Type> {
+    static PyObject *value(PyObject *self) {
+        PY_TRY { return reinterpret_cast<B*>(self)->tp_iternext().release(); }
+        PY_CATCH(nullptr);
+    };
+};
+
 } // namespace Detail
 
 template <class T>
@@ -669,7 +682,6 @@ struct ObjectBase {
     PyObject_HEAD
     static PyTypeObject type;
 
-    static constexpr iternextfunc tp_iternext = nullptr;
     static constexpr initproc tp_init = nullptr;
     static constexpr newfunc tp_new = nullptr;
     static constexpr PySequenceMethods *tp_as_sequence = nullptr;
@@ -762,7 +774,7 @@ PyTypeObject ObjectBase<T>::type = {
     Detail::GetRichCompare<T>::value,                 // tp_richcompare
     0,                                                // tp_weaklistoffset
     Detail::GetIter<T>::value,                        // tp_iter
-    reinterpret_cast<iternextfunc>(T::tp_iternext),   // tp_iternext
+    Detail::GetIterNext<T>::value,                    // tp_iternext
     T::tp_methods,                                    // tp_methods
     nullptr,                                          // tp_members
     T::tp_getset,                                     // tp_getset
@@ -1119,41 +1131,22 @@ R"(Object to iterate over all theory atoms.)";
         return reinterpret_cast<PyObject*>(self);
     }
     Object tp_iter() { return toPy(); }
-    static PyObject* get(TheoryAtomIter *self) {
-        return TheoryAtom::new_(self->data, self->offset);
-    }
-    static PyObject* tp_iternext(TheoryAtomIter *self) {
-        PY_TRY
-            if (self->offset < self->data->numAtoms()) {
-                Object next = get(self);
-                ++self->offset;
-                return next.release();
-            } else {
-                PyErr_SetNone(PyExc_StopIteration);
-                return nullptr;
-            }
-        PY_CATCH(nullptr);
-    }
-    static PyObject *enter(TheoryAtomIter *self) {
-        Py_INCREF(self);
-        return (PyObject*)self;
-    }
-    static PyObject *exit(TheoryAtomIter *, PyObject *) {
-        return cppToPy(false).release();
+    Object get() { return TheoryAtom::new_(data, offset); }
+    Object tp_iternext() {
+        if (offset < data->numAtoms()) {
+            Object next = get();
+            ++offset;
+            return next;
+        } else {
+            PyErr_SetNone(PyExc_StopIteration);
+            return nullptr;
+        }
     }
 };
 
 PyMethodDef TheoryAtomIter::tp_methods[] = {
-    {"__enter__", (PyCFunction)enter, METH_NOARGS,
-R"(__enter__(self) -> TheoryAtomIter
-
-Returns self.)"},
-    {"get", (PyCFunction)get, METH_NOARGS,
+    {"get", to_function<&TheoryAtomIter::get>(), METH_NOARGS,
 R"(get(self) -> TheoryAtom)"},
-    {"__exit__", (PyCFunction)exit, METH_VARARGS,
-R"(__exit__(self, type, value, traceback) -> bool
-
-Follows python __exit__ conventions. Does not suppress exceptions.)"},
     {nullptr, nullptr, 0, nullptr}
 };
 
@@ -1810,39 +1803,30 @@ thread-safe though.)";
         return reinterpret_cast<PyObject*>(self);
     }
     Object tp_iter() { return toPy(); }
-    static PyObject* get(SolveIter *self) {
-        PY_TRY
-            return SolveResult::new_(doUnblocked([self]() { return self->solve_iter->get(); }));
-        PY_CATCH(nullptr);
+    Object get() {
+        return SolveResult::new_(doUnblocked([this]() { return solve_iter->get(); }));
     }
-    static PyObject* tp_iternext(SolveIter *self) {
-        PY_TRY
-            if (Gringo::Model const *m = doUnblocked([self]() { return self->solve_iter->next(); })) {
-                return Model::new_(*m);
-            } else {
-                PyErr_SetNone(PyExc_StopIteration);
-                return nullptr;
-            }
-        PY_CATCH(nullptr);
+    Object tp_iternext() {
+        if (Gringo::Model const *m = doUnblocked([this]() { return solve_iter->next(); })) {
+            return Model::new_(*m);
+        } else {
+            PyErr_SetNone(PyExc_StopIteration);
+            return nullptr;
+        }
     }
-    static PyObject *enter(SolveIter *self) {
-        Py_INCREF(self);
-        return (PyObject*)self;
-    }
-    static PyObject *exit(SolveIter *self, PyObject *) {
-        PY_TRY
-            doUnblocked([self]() { return self->solve_iter->close(); });
-            return cppToPy(false).release();
-        PY_CATCH(nullptr);
+    Object enter() { return toPy(); }
+    Object exit() {
+        doUnblocked([this]() { return solve_iter->close(); });
+        Py_RETURN_FALSE;
     }
 };
 
 PyMethodDef SolveIter::tp_methods[] = {
-    {"__enter__",      (PyCFunction)enter,      METH_NOARGS,
+    {"__enter__", to_function<&SolveIter::enter>(), METH_NOARGS,
 R"(__enter__(self) -> SolveIter
 
 Returns self.)"},
-    {"get",            (PyCFunction)get,        METH_NOARGS,
+    {"get", to_function<&SolveIter::get>(), METH_NOARGS,
 R"(get(self) -> SolveResult
 
 Return the result of the search.
@@ -1850,7 +1834,7 @@ Return the result of the search.
 Note that this function might start a search for the next model and then return
 a result accordingly. The function might be called after iteration to check if
 the search has been interrupted.)"},
-    {"__exit__",       (PyCFunction)exit,       METH_VARARGS,
+    {"__exit__", to_function<&SolveIter::exit>(), METH_VARARGS,
 R"(__exit__(self, type, value, traceback) -> bool
 
 Follows python __exit__ conventions. Does not suppress exceptions.
@@ -2073,18 +2057,16 @@ struct SymbolicAtomIter : ObjectBase<SymbolicAtomIter> {
         return ret.release();
     }
     Object tp_iter() { return toPy(); }
-    static PyObject* tp_iternext(SymbolicAtomIter *self) {
-        PY_TRY
-            Gringo::SymbolicAtomIter current = self->range;
-            if (self->atoms->valid(current)) {
-                self->range = self->atoms->next(current);
-                return SymbolicAtom::new_(*self->atoms, current);
-            }
-            else {
-                PyErr_SetNone(PyExc_StopIteration);
-                return nullptr;
-            }
-        PY_CATCH(nullptr);
+    Object tp_iternext() {
+        Gringo::SymbolicAtomIter current = range;
+        if (atoms->valid(current)) {
+            range = atoms->next(current);
+            return SymbolicAtom::new_(*atoms, current);
+        }
+        else {
+            PyErr_SetNone(PyExc_StopIteration);
+            return nullptr;
+        }
     }
 };
 
