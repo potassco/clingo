@@ -560,6 +560,8 @@ void handleError(char const *loc, char const *msg) {
     handleError(l, msg);
 }
 
+namespace Detail {
+
 template <class>
 struct Void {
     using Type = void;
@@ -602,12 +604,26 @@ struct GetStr<B, typename Void<decltype(&B::tp_str)>::Type> {
     };
 };
 
+template <class B, class Enable = void>
+struct GetHash {
+    static constexpr std::nullptr_t value = nullptr;
+};
+
+template <class B>
+struct GetHash<B, typename Void<decltype(&B::tp_hash)>::Type> {
+    static long value(PyObject *self) {
+        PY_TRY { return reinterpret_cast<B*>(self)->tp_hash(); }
+        PY_CATCH(-1);
+    };
+};
+
+} // namespace Detail
+
 template <class T>
 struct ObjectBase {
     PyObject_HEAD
     static PyTypeObject type;
 
-    static constexpr hashfunc tp_hash = nullptr;
     static constexpr richcmpfunc tp_richcompare = nullptr;
     static constexpr getiterfunc tp_iter = nullptr;
     static constexpr iternextfunc tp_iternext = nullptr;
@@ -683,18 +699,18 @@ PyTypeObject ObjectBase<T>::type = {
     T::tp_name,                                       // tp_name
     sizeof(T),                                        // tp_basicsize
     0,                                                // tp_itemsize
-    GetDestructor<T>::value,                          // tp_dealloc
+    Detail::GetDestructor<T>::value,                  // tp_dealloc
     nullptr,                                          // tp_print
     nullptr,                                          // tp_getattr
     nullptr,                                          // tp_setattr
     nullptr,                                          // tp_compare
-    GetRepr<T>::value,                                // tp_repr
+    Detail::GetRepr<T>::value,                        // tp_repr
     nullptr,                                          // tp_as_number
     T::tp_as_sequence,                                // tp_as_sequence
     T::tp_as_mapping,                                 // tp_as_mapping
-    reinterpret_cast<hashfunc>(T::tp_hash),           // tp_hash
+    Detail::GetHash<T>::value,                        // tp_hash
     nullptr,                                          // tp_call
-    GetStr<T>::value,                                 // tp_str
+    Detail::GetStr<T>::value,                         // tp_str
     reinterpret_cast<getattrofunc>(T::tp_getattro),   // tp_getattro
     reinterpret_cast<setattrofunc>(T::tp_setattro),   // tp_setattro
     nullptr,                                          // tp_as_buffer
@@ -768,8 +784,8 @@ struct EnumType : ObjectBase<T> {
         return 0;
     }
 
-    static long tp_hash(EnumType *self) {
-        return static_cast<long>(self->offset);
+    long tp_hash() {
+        return static_cast<long>(offset);
     }
 
     static PyObject *tp_richcompare(EnumType *self, PyObject *b, int op) {
@@ -872,8 +888,8 @@ elements.)";
             return TheoryTermType::getAttr(data->termType(value));
         PY_CATCH(nullptr);
     }
-    static long tp_hash(TheoryTerm *self) {
-        return self->value;
+    long tp_hash() {
+        return value;
     }
     static PyObject *tp_richcompare(TheoryTerm *self, PyObject *b, int op) {
         PY_TRY
@@ -948,8 +964,8 @@ terms and a set of literals.)";
     Object tp_repr() {
         return PyString_FromString(data->elemStr(value).c_str());
     }
-    static long tp_hash(TheoryElement *self) {
-        return self->value;
+    long tp_hash() {
+        return value;
     }
     static PyObject *tp_richcompare(TheoryElement *self, PyObject *b, int op) {
         CHECK_CMP(OBBASE(self), b, op)
@@ -1025,8 +1041,8 @@ R"(TheoryAtom objects represent theory atoms.)";
     Object tp_repr() {
         return PyString_FromString(data->atomStr(value).c_str());
     }
-    static long tp_hash(TheoryAtom *self) {
-        return self->value;
+    long tp_hash() {
+        return value;
     }
     static PyObject *tp_richcompare(TheoryAtom *self, PyObject *b, int op) {
         CHECK_CMP(OBBASE(self), b, op)
@@ -1311,8 +1327,8 @@ preconstructed terms Inf and Sup.)";
         return PyString_FromString(oss.str().c_str());
     }
 
-    static long tp_hash(Term *self) {
-        return self->val.hash();
+    long tp_hash() {
+        return val.hash();
     }
 
     static PyObject *tp_richcompare(Term *self, PyObject *b, int op) {
@@ -3494,12 +3510,9 @@ struct AST : ObjectBase<AST> {
             return cppToPy(out.str());
         PY_CATCH(nullptr);
     }
-    static long tp_hash(AST *self) {
-        PY_TRY
-            // hash of the dictionary object excluding locations
-            (void)self;
-            throw std::logic_error("implement me!!!");
-        PY_CATCH(-1);
+    long tp_hash() {
+        // hash of the dictionary object excluding locations
+        throw std::logic_error("implement me!!!");
     }
     static PyObject *tp_richcompare(AST *self, PyObject *b, int op) {
         PY_TRY
