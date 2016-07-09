@@ -487,45 +487,17 @@ Object pyExec(char const *str, char const *filename, PyObject *globals, PyObject
 } \
 catch (PyException const &e) { handleError(func, msg); throw std::logic_error("cannot happen"); }
 
-#define CHECK_CMP(a, b, op) \
-    if ((a)->ob_type != (b)->ob_type) { \
-        if ((a)->ob_type != (b)->ob_type) { \
-            return cppToPy(false).release(); \
-        } \
-        else if ((op) == Py_NE && (a)->ob_type != (b)->ob_type) { \
-            return cppToPy(true).release(); \
-        } \
-    } \
-    if (!checkCmp((a), (b), (op))) { return nullptr; }
 template <class T>
-bool checkCmp(T *self, PyObject *b, int op) {
-    if (b->ob_type == self->ob_type) { return true; }
-    else {
-        const char *ops = "<";
-        switch (op) {
-            case Py_LT: { ops = "<";  break; }
-            case Py_LE: { ops = "<="; break; }
-            case Py_EQ: { ops = "=="; break; }
-            case Py_NE: { ops = "!="; break; }
-            case Py_GT: { ops = ">";  break; }
-            case Py_GE: { ops = ">="; break; }
-        }
-        PyErr_Format(PyExc_TypeError, "unorderable types: %s() %s %s()", self->ob_type->tp_name, ops, b->ob_type->tp_name);
-        return false;
-    }
-}
-
-template <class T>
-PyObject *doCmp(T const &a, T const &b, int op) {
+Object doCmp(T const &a, T const &b, int op) {
     switch (op) {
-        case Py_LT: { return cppToPy(a <  b).release(); }
-        case Py_LE: { return cppToPy(a <= b).release(); }
-        case Py_EQ: { return cppToPy(a == b).release(); }
-        case Py_NE: { return cppToPy(a != b).release(); }
-        case Py_GT: { return cppToPy(a >  b).release(); }
-        case Py_GE: { return cppToPy(a >= b).release(); }
+        case Py_LT: { return cppToPy(a <  b); }
+        case Py_LE: { return cppToPy(a <= b); }
+        case Py_EQ: { return cppToPy(a == b); }
+        case Py_NE: { return cppToPy(a != b); }
+        case Py_GT: { return cppToPy(a >  b); }
+        case Py_GE: { return cppToPy(a >= b); }
     }
-    return cppToPy(false).release();
+    Py_RETURN_FALSE;
 }
 
 std::string errorToString() {
@@ -617,6 +589,40 @@ struct GetHash<B, typename Void<decltype(&B::tp_hash)>::Type> {
     };
 };
 
+template <class B, class Enable = void>
+struct GetRichCompare {
+    static constexpr std::nullptr_t value = nullptr;
+};
+
+template <class B>
+struct GetRichCompare<B, typename Void<decltype(&B::tp_richcompare)>::Type> {
+    static PyObject *value(PyObject *pySelf, PyObject *pyB, int op) {
+        PY_TRY {
+            auto self = reinterpret_cast<B*>(pySelf);
+            Object b{pyB, true};
+            if (!b.isInstance(self->type)) {
+                if      (op == Py_EQ) { Py_RETURN_FALSE; }
+                else if (op == Py_NE) { Py_RETURN_TRUE; }
+                else {
+                    const char *ops = "<";
+                    switch (op) {
+                        case Py_LT: { ops = "<";  break; }
+                        case Py_LE: { ops = "<="; break; }
+                        case Py_EQ: { ops = "=="; break; }
+                        case Py_NE: { ops = "!="; break; }
+                        case Py_GT: { ops = ">";  break; }
+                        case Py_GE: { ops = ">="; break; }
+                    }
+                    PyErr_Format(PyExc_TypeError, "unorderable types: %s() %s %s()", self->type.tp_name, ops, pyB->ob_type->tp_name);
+                    return nullptr;
+                }
+            }
+            return self->tp_richcompare(*reinterpret_cast<B*>(pyB), op).release();
+        }
+        PY_CATCH(nullptr);
+    };
+};
+
 } // namespace Detail
 
 template <class T>
@@ -624,7 +630,6 @@ struct ObjectBase {
     PyObject_HEAD
     static PyTypeObject type;
 
-    static constexpr richcmpfunc tp_richcompare = nullptr;
     static constexpr getiterfunc tp_iter = nullptr;
     static constexpr iternextfunc tp_iternext = nullptr;
     static constexpr initproc tp_init = nullptr;
@@ -718,7 +723,7 @@ PyTypeObject ObjectBase<T>::type = {
     T::tp_doc,                                        // tp_doc
     nullptr,                                          // tp_traverse
     nullptr,                                          // tp_clear
-    reinterpret_cast<richcmpfunc>(T::tp_richcompare), // tp_richcompare
+    Detail::GetRichCompare<T>::value,                 // tp_richcompare
     0,                                                // tp_weaklistoffset
     reinterpret_cast<getiterfunc>(T::tp_iter),        // tp_iter
     reinterpret_cast<iternextfunc>(T::tp_iternext),   // tp_iternext
@@ -788,9 +793,8 @@ struct EnumType : ObjectBase<T> {
         return static_cast<long>(offset);
     }
 
-    static PyObject *tp_richcompare(EnumType *self, PyObject *b, int op) {
-        CHECK_CMP(OBBASE(self), b, op)
-        return doCmp(self->offset, reinterpret_cast<EnumType*>(b)->offset, op);
+    Object tp_richcompare(EnumType b, int op) {
+        return doCmp(offset, b.offset, op);
     }
 };
 template <class T>
@@ -884,18 +888,13 @@ elements.)";
         return PyString_FromString(data->termStr(value).c_str());
     }
     Object termType() {
-        PY_TRY
-            return TheoryTermType::getAttr(data->termType(value));
-        PY_CATCH(nullptr);
+        return TheoryTermType::getAttr(data->termType(value));
     }
     long tp_hash() {
         return value;
     }
-    static PyObject *tp_richcompare(TheoryTerm *self, PyObject *b, int op) {
-        PY_TRY
-            CHECK_CMP(OBBASE(self), b, op)
-            return doCmp(self->value, reinterpret_cast<TheoryTerm*>(b)->value, op);
-        PY_CATCH(nullptr);
+    Object tp_richcompare(TheoryTerm &b, int op) {
+        return doCmp(value, b.value, op);
     }
 };
 
@@ -967,9 +966,8 @@ terms and a set of literals.)";
     long tp_hash() {
         return value;
     }
-    static PyObject *tp_richcompare(TheoryElement *self, PyObject *b, int op) {
-        CHECK_CMP(OBBASE(self), b, op)
-        return doCmp(self->value, reinterpret_cast<TheoryElement*>(b)->value, op);
+    Object tp_richcompare(TheoryElement &b, int op) {
+        return doCmp(value, b.value, op);
     }
 };
 
@@ -1044,9 +1042,8 @@ R"(TheoryAtom objects represent theory atoms.)";
     long tp_hash() {
         return value;
     }
-    static PyObject *tp_richcompare(TheoryAtom *self, PyObject *b, int op) {
-        CHECK_CMP(OBBASE(self), b, op)
-        return doCmp(self->value, reinterpret_cast<TheoryAtom*>(b)->value, op);
+    Object tp_richcompare(TheoryAtom &b, int op) {
+        return doCmp(value, b.value, op);
     }
 };
 
@@ -1331,10 +1328,8 @@ preconstructed terms Inf and Sup.)";
         return val.hash();
     }
 
-    static PyObject *tp_richcompare(Term *self, PyObject *b, int op) {
-        CHECK_CMP(OBBASE(self), b, op)
-        // Note: should not throw
-        return doCmp(self->val, reinterpret_cast<Term*>(b)->val, op);
+    Object tp_richcompare(Term &b, int op) {
+        return doCmp(val, b.val, op);
     }
 };
 
@@ -3514,12 +3509,10 @@ struct AST : ObjectBase<AST> {
         // hash of the dictionary object excluding locations
         throw std::logic_error("implement me!!!");
     }
-    static PyObject *tp_richcompare(AST *self, PyObject *b, int op) {
-        PY_TRY
-            // compare the dictionary object excluding locations
-            CHECK_CMP(OBBASE(self), b, op)
-            throw std::logic_error("implement me!!!");
-        PY_CATCH(nullptr);
+    Object tp_richcompare(AST &b, int op) {
+        (void)op;
+        (void)b;
+        throw std::logic_error("implement me!!!");
     }
 };
 
