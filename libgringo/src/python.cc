@@ -235,38 +235,6 @@ void ParseTupleAndKeywords(Object pyargs, Object pykwds, char const *fmt, char c
     PyArg_ParseTupleAndKeywords(pyargs, pykwds, fmt, const_cast<char**>(kwds), ParsePtr<T>(x).get()...);
 }
 
-template <class T, Object (T::*f)(void *)>
-constexpr getter to_getter() {
-    return [](PyObject *o, void *p) -> PyObject* {
-        PY_TRY { return (reinterpret_cast<T*>(o)->*f)(p).release(); }
-        PY_CATCH(nullptr);
-    };
-};
-
-template <class T, Object (T::*f)()>
-constexpr PyCFunction to_function() {
-    return [](PyObject *self, PyObject *) -> PyObject* {
-        PY_TRY { return (reinterpret_cast<T*>(self)->*f)().release(); }
-        PY_CATCH(nullptr);
-    };
-};
-
-template <class T, Object (T::*f)(Object)>
-constexpr PyCFunction to_function() {
-    return [](PyObject *self, PyObject *params) -> PyObject* {
-        PY_TRY { return (reinterpret_cast<T*>(self)->*f)({params, true}).release(); }
-        PY_CATCH(nullptr);
-    };
-};
-
-template <class T, Object (T::*f)(Object, Object)>
-constexpr PyCFunctionWithKeywords to_function() {
-    return [](PyObject *self, PyObject *params, PyObject *keywords) -> PyObject* {
-        PY_TRY { return (reinterpret_cast<T*>(self)->*f)({params, true}, {keywords, true}).release(); }
-        PY_CATCH(nullptr);
-    };
-};
-
 template <Object (&f)(Object, Object)>
 struct ToFunction {
     static PyObject *value(PyObject *, PyObject *params, PyObject *keywords) {
@@ -669,7 +637,41 @@ struct ObjectBase {
         if (!self) { return nullptr; }
         return self;
     }
+
+protected:
     Object toPy() { return {reinterpret_cast<PyObject*>(this), true}; }
+
+    template <Object (T::*f)()>
+    static PyObject *to_getter_(PyObject *o, void *) {
+        PY_TRY { return (reinterpret_cast<T*>(o)->*f)().release(); }
+        PY_CATCH(nullptr);
+    };
+    template <Object (T::*f)()>
+    static getter to_getter() { return to_getter_<f>; };
+
+    template <Object (T::*f)()>
+    static PyObject *to_function_(PyObject *self, PyObject *) {
+        PY_TRY { return (reinterpret_cast<T*>(self)->*f)().release(); }
+        PY_CATCH(nullptr);
+    };
+    template <Object (T::*f)()>
+    static PyCFunction to_function() { return to_function_<f>; }
+
+    template <Object (T::*f)(Object)>
+    static PyObject *to_function_(PyObject *self, PyObject *params) {
+        PY_TRY { return (reinterpret_cast<T*>(self)->*f)({params, true}).release(); }
+        PY_CATCH(nullptr);
+    };
+    template <Object (T::*f)(Object)>
+    static PyCFunction to_function() { return to_function_<f>; }
+
+    template <Object (T::*f)(Object, Object)>
+    static PyObject *to_function_(PyObject *self, PyObject *params, PyObject *keywords) {
+        PY_TRY { return (reinterpret_cast<T*>(self)->*f)({params, true}, {keywords, true}).release(); }
+        PY_CATCH(nullptr);
+    };
+    template <Object (T::*f)(Object, Object)>
+    static PyCFunction to_function() { return reinterpret_cast<PyCFunction>(to_function_<f>); }
 };
 
 template <class T>
@@ -845,33 +847,27 @@ elements.)";
         self->data = data;
         return reinterpret_cast<PyObject*>(self);
     }
-    static PyObject *name(TheoryTerm *self, void *) {
-        PY_TRY
-            return PyString_FromString(self->data->termName(self->value));
-        PY_CATCH(nullptr);
+    Object name() {
+        return PyString_FromString(data->termName(value));
     }
-    static PyObject *number(TheoryTerm *self, void *) {
-        PY_TRY
-            return PyInt_FromLong(self->data->termNum(self->value));
-        PY_CATCH(nullptr);
+    Object number() {
+        return PyInt_FromLong(data->termNum(value));
     }
-    static PyObject *args(TheoryTerm *self, void *) {
-        PY_TRY
-            Potassco::IdSpan span = self->data->termArgs(self->value);
-            Object list = PyList_New(span.size);
-            if (!list.valid()) { return nullptr; }
-            for (size_t i = 0; i < span.size; ++i) {
-                Object arg = new_(self->data, *(span.first + i));
-                if (!arg.valid()) { return nullptr; }
-                if (PyList_SetItem(list, i, arg.release()) < 0) { return nullptr; }
-            }
-            return list.release();
-        PY_CATCH(nullptr);
+    Object args() {
+        Potassco::IdSpan span = data->termArgs(value);
+        Object list = PyList_New(span.size);
+        if (!list.valid()) { return nullptr; }
+        for (size_t i = 0; i < span.size; ++i) {
+            Object arg = new_(data, *(span.first + i));
+            if (!arg.valid()) { return nullptr; }
+            if (PyList_SetItem(list, i, arg.release()) < 0) { return nullptr; }
+        }
+        return list;
     }
     Object tp_repr() {
         return PyString_FromString(data->termStr(value).c_str());
     }
-    Object termType(void *) {
+    Object termType() {
         PY_TRY
             return TheoryTermType::getAttr(data->termType(value));
         PY_CATCH(nullptr);
@@ -888,16 +884,16 @@ elements.)";
 };
 
 PyGetSetDef TheoryTerm::tp_getset[] = {
-    {(char *)"type", to_getter<TheoryTerm, &TheoryTerm::termType>(), nullptr, (char *)R"(type -> TheoryTermType
+    {(char *)"type", to_getter<&TheoryTerm::termType>(), nullptr, (char *)R"(type -> TheoryTermType
 
 The type of the theory term.)", nullptr},
-    {(char *)"name", (getter)name, nullptr, (char *)R"(name -> str
+    {(char *)"name", to_getter<&TheoryTerm::name>(), nullptr, (char *)R"(name -> str
 
 The name of the TheoryTerm\n(for symbols and functions).)", nullptr},
-    {(char *)"args", (getter)args, nullptr, (char *)R"(args -> [Term]
+    {(char *)"args", to_getter<&TheoryTerm::args>(), nullptr, (char *)R"(args -> [Term]
 
 The arguments of the TheoryTerm (for functions, tuples, list, and sets).)", nullptr},
-    {(char *)"number", (getter)number, nullptr, (char *)R"(number -> integer
+    {(char *)"number", to_getter<&TheoryTerm::number>(), nullptr, (char *)R"(number -> integer
 
 The numeric representation of the TheoryTerm (for numbers).)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
@@ -3196,7 +3192,7 @@ struct AST : ObjectBase<AST> {
         }
         throw std::logic_error("cannot happen");
     }
-    Object childKeys(void *) {
+    Object childKeys() {
         if (!children.valid()) { children = childKeys_(); }
         return children;
     }
@@ -3515,7 +3511,7 @@ struct AST : ObjectBase<AST> {
 };
 
 PyGetSetDef AST::tp_getset[] = {
-    {(char*)"_child_keys", to_getter<AST, &AST::childKeys>(), nullptr, (char*)"List of names of all AST child nodes.", nullptr},
+    {(char*)"_child_keys", to_getter<&AST::childKeys>(), nullptr, (char*)"List of names of all AST child nodes.", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -4644,17 +4640,17 @@ R"(Object to build non-ground programs.)";
 };
 
 PyMethodDef ProgramBuilder::tp_methods[] = {
-    {"__enter__", to_function<ProgramBuilder, &ProgramBuilder::enter>(), METH_NOARGS,
+    {"__enter__", to_function<&ProgramBuilder::enter>(), METH_NOARGS,
 R"(__enter__(self) -> ProgramBuilder
 
 Begin building a program.
 
 Must be called before adding statements.)"},
-    {"add", to_function<ProgramBuilder, &ProgramBuilder::add>(), METH_O,
+    {"add", to_function<&ProgramBuilder::add>(), METH_O,
 R"(add(self, statement) -> None
 
 Adds a statement in form of an ast.AST node to the program.)"},
-    {"__exit__", to_function<ProgramBuilder, &ProgramBuilder::exit>(), METH_VARARGS,
+    {"__exit__", to_function<&ProgramBuilder::exit>(), METH_VARARGS,
 R"(__exit__(self, type, value, traceback) -> bool
 
 Finish building a program.
