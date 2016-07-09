@@ -623,6 +623,19 @@ struct GetRichCompare<B, typename Void<decltype(&B::tp_richcompare)>::Type> {
     };
 };
 
+template <class B, class Enable = void>
+struct GetIter {
+    static constexpr std::nullptr_t value = nullptr;
+};
+
+template <class B>
+struct GetIter<B, typename Void<decltype(&B::tp_iter)>::Type> {
+    static PyObject *value(PyObject *self) {
+        PY_TRY { return reinterpret_cast<B*>(self)->tp_iter().release(); }
+        PY_CATCH(nullptr);
+    };
+};
+
 } // namespace Detail
 
 template <class T>
@@ -630,7 +643,6 @@ struct ObjectBase {
     PyObject_HEAD
     static PyTypeObject type;
 
-    static constexpr getiterfunc tp_iter = nullptr;
     static constexpr iternextfunc tp_iternext = nullptr;
     static constexpr initproc tp_init = nullptr;
     static constexpr newfunc tp_new = nullptr;
@@ -725,7 +737,7 @@ PyTypeObject ObjectBase<T>::type = {
     nullptr,                                          // tp_clear
     Detail::GetRichCompare<T>::value,                 // tp_richcompare
     0,                                                // tp_weaklistoffset
-    reinterpret_cast<getiterfunc>(T::tp_iter),        // tp_iter
+    Detail::GetIter<T>::value,                        // tp_iter
     reinterpret_cast<iternextfunc>(T::tp_iternext),   // tp_iternext
     T::tp_methods,                                    // tp_methods
     nullptr,                                          // tp_members
@@ -1082,10 +1094,7 @@ R"(Object to iterate over all theory atoms.)";
         self->offset = offset;
         return reinterpret_cast<PyObject*>(self);
     }
-    static PyObject* tp_iter(PyObject *self) {
-        Py_INCREF(self);
-        return self;
-    }
+    Object tp_iter() { return toPy(); }
     static PyObject* get(TheoryAtomIter *self) {
         return TheoryAtom::new_(self->data, self->offset);
     }
@@ -1776,10 +1785,7 @@ thread-safe though.)";
         self->solve_iter = &iter;
         return reinterpret_cast<PyObject*>(self);
     }
-    static PyObject* tp_iter(PyObject *self) {
-        Py_INCREF(self);
-        return self;
-    }
+    Object tp_iter() { return toPy(); }
     static PyObject* get(SolveIter *self) {
         PY_TRY
             return SolveResult::new_(doUnblocked([self]() { return self->solve_iter->get(); }));
@@ -2049,10 +2055,7 @@ struct SymbolicAtomIter : ObjectBase<SymbolicAtomIter> {
         self->range = range;
         return ret.release();
     }
-    static PyObject* tp_iter(SymbolicAtomIter *self) {
-        Py_XINCREF(self);
-        return reinterpret_cast<PyObject*>(self);
-    }
+    Object tp_iter() { return toPy(); }
     static PyObject* tp_iternext(SymbolicAtomIter *self) {
         PY_TRY
             Gringo::SymbolicAtomIter current = self->range;
@@ -2137,11 +2140,7 @@ signatures: [('p', 1), ('q', 1)])";
         return self->atoms->length();
     }
 
-    static PyObject* tp_iter(SymbolicAtoms *self) {
-        PY_TRY
-            return SymbolicAtomIter::new_(*self->atoms, self->atoms->begin());
-        PY_CATCH(nullptr);
-    }
+    Object tp_iter() { return SymbolicAtomIter::new_(*atoms, atoms->begin()); }
 
     static PyObject* subscript(SymbolicAtoms *self, PyObject *key) {
         PY_TRY
