@@ -636,6 +636,32 @@ struct GetIter<B, typename Void<decltype(&B::tp_iter)>::Type> {
     };
 };
 
+template <class B, class Enable = void>
+struct GetGetAttrO {
+    static constexpr std::nullptr_t value = nullptr;
+};
+
+template <class B>
+struct GetGetAttrO<B, typename Void<decltype(&B::tp_getattro)>::Type> {
+    static PyObject *value(PyObject *self, PyObject *name) {
+        PY_TRY { return reinterpret_cast<B*>(self)->tp_getattro({name, true}).release(); }
+        PY_CATCH(nullptr);
+    };
+};
+
+template <class B, class Enable = void>
+struct GetSetAttrO {
+    static constexpr std::nullptr_t value = nullptr;
+};
+
+template <class B>
+struct GetSetAttrO<B, typename Void<decltype(&B::tp_setattro)>::Type> {
+    static int value(PyObject *self, PyObject *name, PyObject *value) {
+        PY_TRY { return (reinterpret_cast<B*>(self)->tp_setattro({name, true}, {value, true}), 0); }
+        PY_CATCH(-1);
+    };
+};
+
 } // namespace Detail
 
 template <class T>
@@ -646,8 +672,6 @@ struct ObjectBase {
     static constexpr iternextfunc tp_iternext = nullptr;
     static constexpr initproc tp_init = nullptr;
     static constexpr newfunc tp_new = nullptr;
-    static constexpr getattrofunc tp_getattro = nullptr;
-    static constexpr setattrofunc tp_setattro = nullptr;
     static constexpr PySequenceMethods *tp_as_sequence = nullptr;
     static constexpr PyMappingMethods *tp_as_mapping = nullptr;
     static constexpr PyGetSetDef *tp_getset = nullptr;
@@ -672,39 +696,39 @@ struct ObjectBase {
     }
 
 protected:
+    // TODO: think about making Object functions callable without this fuss...
     Object toPy() { return {reinterpret_cast<PyObject*>(this), true}; }
+    template <Object (T::*f)()>
+    static getter to_getter() { return to_getter_<f>; };
+    template <Object (T::*f)()>
+    static PyCFunction to_function() { return to_function_<f>; }
+    template <Object (T::*f)(Object)>
+    static PyCFunction to_function() { return to_function_<f>; }
+    template <Object (T::*f)(Object, Object)>
+    static PyCFunction to_function() { return reinterpret_cast<PyCFunction>(to_function_<f>); }
 
+private:
     template <Object (T::*f)()>
     static PyObject *to_getter_(PyObject *o, void *) {
         PY_TRY { return (reinterpret_cast<T*>(o)->*f)().release(); }
         PY_CATCH(nullptr);
     };
     template <Object (T::*f)()>
-    static getter to_getter() { return to_getter_<f>; };
-
-    template <Object (T::*f)()>
     static PyObject *to_function_(PyObject *self, PyObject *) {
         PY_TRY { return (reinterpret_cast<T*>(self)->*f)().release(); }
         PY_CATCH(nullptr);
     };
-    template <Object (T::*f)()>
-    static PyCFunction to_function() { return to_function_<f>; }
-
     template <Object (T::*f)(Object)>
     static PyObject *to_function_(PyObject *self, PyObject *params) {
         PY_TRY { return (reinterpret_cast<T*>(self)->*f)({params, true}).release(); }
         PY_CATCH(nullptr);
     };
-    template <Object (T::*f)(Object)>
-    static PyCFunction to_function() { return to_function_<f>; }
-
     template <Object (T::*f)(Object, Object)>
     static PyObject *to_function_(PyObject *self, PyObject *params, PyObject *keywords) {
         PY_TRY { return (reinterpret_cast<T*>(self)->*f)({params, true}, {keywords, true}).release(); }
         PY_CATCH(nullptr);
     };
-    template <Object (T::*f)(Object, Object)>
-    static PyCFunction to_function() { return reinterpret_cast<PyCFunction>(to_function_<f>); }
+
 };
 
 template <class T>
@@ -728,8 +752,8 @@ PyTypeObject ObjectBase<T>::type = {
     Detail::GetHash<T>::value,                        // tp_hash
     nullptr,                                          // tp_call
     Detail::GetStr<T>::value,                         // tp_str
-    reinterpret_cast<getattrofunc>(T::tp_getattro),   // tp_getattro
-    reinterpret_cast<setattrofunc>(T::tp_setattro),   // tp_setattro
+    Detail::GetGetAttrO<T>::value,                    // tp_getattro
+    Detail::GetSetAttrO<T>::value,                    // tp_setattro
     nullptr,                                          // tp_as_buffer
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,         // tp_flags
     T::tp_doc,                                        // tp_doc
@@ -1915,42 +1939,35 @@ Expected Answer Sets:
         PY_CATCH(nullptr);
     }
 
-    static PyObject *tp_getattro(Configuration *self, PyObject *name) {
-        PY_TRY
-            auto current = pyToCpp<char const *>(name);
-            bool desc = strncmp("__desc_", current, 7) == 0;
-            if (desc) { current += 7; }
-            unsigned key;
-            if (self->proxy->hasSubKey(self->key, current, &key)) {
-                Object subKey(new_(key, *self->proxy));
-                Configuration *sub = reinterpret_cast<Configuration*>(subKey.get());
-                if (desc) { return PyString_FromString(sub->help); }
-                else if (sub->nValues < 0) { return subKey.release(); }
-                else {
-                    std::string value;
-                    if (!sub->proxy->getKeyValue(sub->key, value)) { Py_RETURN_NONE; }
-                    return PyString_FromString(value.c_str());
-                }
+    Object tp_getattro(Object name) {
+        auto current = pyToCpp<char const *>(name);
+        bool desc = strncmp("__desc_", current, 7) == 0;
+        if (desc) { current += 7; }
+        unsigned subkey;
+        if (proxy->hasSubKey(key, current, &subkey)) {
+            Object subKey(new_(subkey, *proxy));
+            Configuration *sub = reinterpret_cast<Configuration*>(subKey.get());
+            if (desc) { return PyString_FromString(sub->help); }
+            else if (sub->nValues < 0) { return subKey.release(); }
+            else {
+                std::string value;
+                if (!sub->proxy->getKeyValue(sub->key, value)) { Py_RETURN_NONE; }
+                return PyString_FromString(value.c_str());
             }
-            return PyObject_GenericGetAttr(reinterpret_cast<PyObject*>(self), name);
-        PY_CATCH(nullptr);
+        }
+        return PyObject_GenericGetAttr(reinterpret_cast<PyObject*>(this), name);
     }
 
-    static int tp_setattro(Configuration *self, PyObject *name, PyObject *pyValue) {
-        PY_TRY
-            char const *current = PyString_AsString(name);
-            if (!current) { return -1; }
-            unsigned key;
-            if (self->proxy->hasSubKey(self->key, current, &key)) {
-                Object pyStr(PyObject_Str(pyValue));
-                if (!pyStr.valid()) { return -1; }
-                char const *value = PyString_AsString(pyStr);
-                if (!value) { return -1; }
-                self->proxy->setKeyValue(key, value);
-                return 0;
-            }
-            return PyObject_GenericSetAttr(reinterpret_cast<PyObject*>(self), name, pyValue);
-        PY_CATCH(-1);
+    void tp_setattro(Object name, Object pyValue) {
+        char const *current = pyToCpp<char const *>(name);
+        unsigned subkey;
+        if (proxy->hasSubKey(key, current, &subkey)) {
+            char const *value = pyToCpp<char const *>(pyValue.str());
+            proxy->setKeyValue(subkey, value);
+        }
+        else {
+            if (PyObject_GenericSetAttr(reinterpret_cast<PyObject*>(this), name, pyValue) < 0) { throw PyException(); }
+        }
     }
 
     static Py_ssize_t length(Configuration *self) {
@@ -3216,30 +3233,22 @@ struct AST : ObjectBase<AST> {
             return ret.release();
         PY_CATCH(nullptr);
     }
-    static int tp_setattro(AST *self, PyObject *pyName, PyObject *pyValue) {
-        PY_TRY
-            Object name{pyName, true};
-            Object value{pyValue, true};
-            Object s{reinterpret_cast<PyObject*>(self), true};
-            self->children = nullptr;
-            if (PyObject_GenericSetAttr(s, name, value) < 0) {
-                if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
-                    PyErr_Clear();
-                    self->fields_.setItem(name, value);
-                }
-                else { throw PyException(); }
+    void tp_setattro(Object name, Object value) {
+        children = nullptr;
+        if (PyObject_GenericSetAttr(toPy(), name, value) < 0) {
+            if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                PyErr_Clear();
+                fields_.setItem(name, value);
             }
-            return 0;
-        PY_CATCH(-1);
+            else { throw PyException(); }
+        }
     }
-    static PyObject *tp_getattro(AST *self, PyObject *name) {
-        PY_TRY
-            auto ret = PyDict_GetItem(self->fields_, name);
-            Py_XINCREF(ret);
-            return ret
-                ? ret
-                : PyObject_GenericGetAttr(reinterpret_cast<PyObject*>(self), name);
-        PY_CATCH(nullptr);
+    Object tp_getattro(Object name) {
+        auto ret = PyDict_GetItem(fields_, name);
+        Py_XINCREF(ret);
+        return ret
+            ? ret
+            : PyObject_GenericGetAttr(reinterpret_cast<PyObject*>(this), name);
     }
     void tp_dealloc() {
         fields_.~Dict();
