@@ -99,121 +99,207 @@ void incRef(T *object) {
 struct PyException : std::exception { };
 
 struct Iter;
-struct Object {
-    Object()
-    : obj(nullptr) { }
-    Object(std::nullptr_t) : Object() { }
-    Object(PyObject *obj) : Object(obj, false) { }
-    Object(PyObject *obj, bool inc) : obj(obj) {
-        if (inc) { Py_XINCREF(obj); }
-        if (!obj && PyErr_Occurred()) { throw PyException(); }
-    }
-    Object(Object const &other) : Object(other.obj, true) {
-    }
-    Object(Object &&other) : obj(nullptr) {
-        std::swap(other.obj, obj);
-    }
+struct Object;
+struct Reference;
+
+template <class T>
+struct ObjectProtocoll {
     // {{{2 object protocol
     template <class... Args>
-    Object call(char const *name, Args &&... args) {
-        return PyObject_CallMethodObjArgs(obj, Object{PyString_FromString(name)}, static_cast<PyObject*>(Object(args))..., nullptr);
-    }
+    Object call(char const *name, Args &&... args);
     template <class... Args>
-    Object operator()(Args &&... args) {
-        return PyObject_CallFunctionObjArgs(obj, static_cast<PyObject*>(Object(args))..., nullptr);
-    }
-    ssize_t size() {
-        auto ret = PyObject_Size(obj);
-        if (PyErr_Occurred()) { throw PyException(); }
-        return ret;
-    }
+    Object operator()(Args &&... args);
+    ssize_t size();
     bool empty() { return size() == 0; }
-    Object getItem(Object o) {
-        return PyObject_GetItem(obj, o);
-    }
-    Object getItem(char const *key) {
-        return PyObject_GetItem(obj, Object{PyString_FromString(key)});
-    }
-    Object getItem(int key) {
-        return PyObject_GetItem(obj, Object{PyInt_FromLong(key)});
-    }
-    void setItem(char const *key, Object val) {
-        if (PyObject_SetItem(obj, Object{PyString_FromString(key)}, val) < 0) {
-            throw PyException();
-        }
-    }
-    void setItem(Object key, Object val) {
-        if (PyObject_SetItem(obj, key, val) < 0) {
-            throw PyException();
-        }
-    }
-    Object getAttr(char const *key) {
-        return PyObject_GetAttrString(obj, key);
-    }
-    void setAttr(char const *key, Object val) {
-        if (PyObject_SetAttrString(obj, key, val.get()) < 0) {
-            throw PyException();
-        }
-    }
-    void setAttr(Object key, Object val) {
-        if (PyObject_SetAttr(obj, key, val) < 0) {
-            throw PyException();
-        }
-    }
-    bool hasAttr(char const *key) {
-        int ret = PyObject_HasAttrString(obj, key);
-        if (ret < 0) { throw PyException(); }
-        return ret;
-    }
-    bool hasAttr(Object key) {
-        int ret = PyObject_HasAttr(obj, key);
-        if (ret < 0) { throw PyException(); }
-        return ret;
-    }
-    Object repr() { return PyObject_Repr(obj); }
-    Object str() { return PyObject_Str(obj); }
-    bool isTrue() {
-        auto ret = PyObject_IsTrue(obj);
-        if (PyErr_Occurred()) { throw PyException(); }
-        return ret;
-    }
-    bool isInstance(Object type) {
-        auto inst = PyObject_IsInstance(obj, type);
-        if (PyErr_Occurred()) { throw PyException(); }
-        return inst;
-    }
-    bool isInstance(PyTypeObject &type) {
-        auto inst = PyObject_IsInstance(obj, reinterpret_cast<PyObject*>(&type));
-        if (PyErr_Occurred()) { throw PyException(); }
-        return inst;
-    }
+    Object getItem(Reference o);
+    Object getItem(char const *key);
+    Object getItem(int key);
+    void setItem(char const *key, Reference val);
+    void setItem(Reference key, Reference val);
+    Object getAttr(char const *key);
+    void setAttr(char const *key, Reference val);
+    void setAttr(Reference key, Reference val);
+    bool hasAttr(char const *key);
+    bool hasAttr(Reference key);
+    Object repr();
+    Object str();
+    bool isTrue();
+    bool isInstance(Reference type);
+    bool isInstance(PyTypeObject &type);
     Iter iter();
-    friend bool operator==(Object a, Object b) {
-        auto ret = PyObject_RichCompareBool(a, b, Py_EQ);
-        if (ret < 0) { throw PyException(); }
-        return ret;
-    }
-    //friend bool operator!=(Object a, Object b) {
+    friend bool operator==(Reference a, Reference b);
+    //friend bool operator!=(Reference a, Reference b) {
     //    auto ret = PyObject_RichCompareBool(a, b, Py_NE);
     //    if (ret < 0) { throw PyException(); }
     //    return ret;
     //}
 
     // }}}2
-    bool none() const                      { return obj == Py_None; }
-    bool valid() const                     { return obj; }
+    bool none() const;
+    bool valid() const;
+
+    PyObject *toPy() const;
+};
+
+struct Reference : ObjectProtocoll<Reference> {
+    Reference() : obj(nullptr) { }
+    Reference(Object obj);
+    Reference(std::nullptr_t) : Reference{} { }
+    Reference(PyObject *obj) : obj(obj) {
+        if (!obj && PyErr_Occurred()) { throw PyException(); }
+    }
+    PyObject *toPy() const { return obj; }
+    PyObject *obj;
+};
+
+struct Object : ObjectProtocoll<Object>{
+    Object() : obj(nullptr) { }
+    Object(std::nullptr_t) : Object() { }
+    Object(Reference ref) : obj(ref.toPy()) { Py_XINCREF(obj); }
+    Object(PyObject *obj) : Object(obj, false) { }
+    Object(PyObject *obj, bool inc) : obj(obj) {
+        if (inc) { Py_XINCREF(obj); }
+        if (!obj && PyErr_Occurred()) { throw PyException(); }
+    }
+    Object(Object const &other) : obj(other.toPy()) {
+        Py_XINCREF(obj);
+    }
+    Object(Object &&other) : obj(nullptr) {
+        std::swap(other.obj, obj);
+    }
+    PyObject *toPy() const                 { return obj; }
     PyObject *get() const                  { return obj; }
     PyObject *release()                    { PyObject *ret = obj; obj = nullptr; return ret; }
     PyObject *operator->() const           { return get(); }
-    operator PyObject*()                   { return get(); }
-    operator PyObject*() const             { return get(); }
     Object &operator=(PyObject *other)     { Py_XDECREF(obj); obj = other; return *this; }
     Object &operator=(Object const &other) { Py_XDECREF(obj); obj = other.obj; Py_XINCREF(obj); return *this; }
     ~Object()                              { Py_XDECREF(obj); }
     PyObject *obj;
 };
 
+Reference::Reference(Object obj) : obj(obj.toPy()) { }
+
+struct Iter : Object {
+    Iter(Object iter)
+    : Object(iter) { }
+    Object next() {
+        return {PyIter_Next(toPy())};
+    }
+};
+
 Object None() { Py_RETURN_NONE; }
+
+template <class T>
+PyObject *ObjectProtocoll<T>::toPy() const { return static_cast<T const *>(this)->toPy(); }
+
+template <class T>
+template <class... Args>
+Object ObjectProtocoll<T>::call(char const *name, Args &&... args) {
+    return PyObject_CallMethodObjArgs(toPy(), Object{PyString_FromString(name)}.toPy(), Reference(args).toPy()..., nullptr);
+}
+template <class T>
+template <class... Args>
+Object ObjectProtocoll<T>::operator()(Args &&... args) {
+    return PyObject_CallFunctionObjArgs(toPy(), Reference(args).toPy()..., nullptr);
+}
+template <class T>
+ssize_t ObjectProtocoll<T>::size() {
+    auto ret = PyObject_Size(toPy());
+    if (PyErr_Occurred()) { throw PyException(); }
+    return ret;
+}
+template <class T>
+Object ObjectProtocoll<T>::getItem(Reference o) {
+    return PyObject_GetItem(toPy(), o.toPy());
+}
+template <class T>
+Object ObjectProtocoll<T>::getItem(char const *key) {
+    return getItem(Object{PyString_FromString(key)});
+}
+template <class T>
+Object ObjectProtocoll<T>::getItem(int key) {
+    return getItem(Object{PyInt_FromLong(key)});
+}
+template <class T>
+void ObjectProtocoll<T>::setItem(char const *key, Reference val) {
+    return setItem(Object{PyString_FromString(key)}, val);
+}
+template <class T>
+void ObjectProtocoll<T>::setItem(Reference key, Reference val) {
+    if (PyObject_SetItem(toPy(), key.toPy(), val.toPy()) < 0) {
+        throw PyException();
+    }
+}
+template <class T>
+Object ObjectProtocoll<T>::getAttr(char const *key) {
+    return PyObject_GetAttrString(toPy(), key);
+}
+template <class T>
+void ObjectProtocoll<T>::setAttr(char const *key, Reference val) {
+    if (PyObject_SetAttrString(toPy(), key, val.toPy()) < 0) {
+        throw PyException();
+    }
+}
+template <class T>
+void ObjectProtocoll<T>::setAttr(Reference key, Reference val) {
+    if (PyObject_SetAttr(toPy(), key, val.toPy()) < 0) {
+        throw PyException();
+    }
+}
+template <class T>
+bool ObjectProtocoll<T>::hasAttr(char const *key) {
+    int ret = PyObject_HasAttrString(toPy(), key);
+    if (ret < 0) { throw PyException(); }
+    return ret;
+}
+template <class T>
+bool ObjectProtocoll<T>::hasAttr(Reference key) {
+    int ret = PyObject_HasAttr(toPy(), key);
+    if (ret < 0) { throw PyException(); }
+    return ret;
+}
+template <class T>
+Object ObjectProtocoll<T>::repr() { return PyObject_Repr(toPy()); }
+template <class T>
+Object ObjectProtocoll<T>::str() { return PyObject_Str(toPy()); }
+template <class T>
+bool ObjectProtocoll<T>::isTrue() {
+    auto ret = PyObject_IsTrue(toPy());
+    if (PyErr_Occurred()) { throw PyException(); }
+    return ret;
+}
+template <class T>
+bool ObjectProtocoll<T>::isInstance(Reference type) {
+    auto inst = PyObject_IsInstance(toPy(), type);
+    if (PyErr_Occurred()) { throw PyException(); }
+    return inst;
+}
+template <class T>
+bool ObjectProtocoll<T>::isInstance(PyTypeObject &type) {
+    auto inst = PyObject_IsInstance(toPy(), reinterpret_cast<PyObject*>(&type));
+    if (PyErr_Occurred()) { throw PyException(); }
+    return inst;
+}
+template <class T>
+Iter ObjectProtocoll<T>::iter() {
+    return {PyObject_GetIter(toPy())};
+}
+bool operator==(Reference a, Reference b) {
+    auto ret = PyObject_RichCompareBool(a.toPy(), b.toPy(), Py_EQ);
+    if (ret < 0) { throw PyException(); }
+    return ret;
+}
+//friend bool operator!=(Object a, Object b) {
+//    auto ret = PyObject_RichCompareBool(a, b, Py_NE);
+//    if (ret < 0) { throw PyException(); }
+//    return ret;
+//}
+
+// }}}2
+template <class T>
+bool ObjectProtocoll<T>::none() const { return toPy() == Py_None; }
+template <class T>
+bool ObjectProtocoll<T>::valid() const { return toPy(); }
 
 template <class T>
 struct ParsePtr {
@@ -230,30 +316,28 @@ struct ParsePtr<Object> {
     Object &x;
 };
 
+template <>
+struct ParsePtr<Reference> {
+    ParsePtr(Reference &x) : x(x) { }
+    PyObject **get() { return &x.obj; }
+    Reference &x;
+};
+
 template <class... T>
-void ParseTupleAndKeywords(Object pyargs, Object pykwds, char const *fmt, char const * const* kwds, T &...x) {
-    PyArg_ParseTupleAndKeywords(pyargs, pykwds, fmt, const_cast<char**>(kwds), ParsePtr<T>(x).get()...);
+void ParseTupleAndKeywords(Reference pyargs, Reference pykwds, char const *fmt, char const * const* kwds, T &...x) {
+    PyArg_ParseTupleAndKeywords(pyargs.toPy(), pykwds.toPy(), fmt, const_cast<char**>(kwds), ParsePtr<T>(x).get()...);
 }
 
-template <Object (&f)(Object, Object)>
+template <Object (&f)(Reference, Reference)>
 struct ToFunction {
     static PyObject *value(PyObject *, PyObject *params, PyObject *keywords) {
-        PY_TRY { return f({params, true}, {keywords, true}).release(); }
+        PY_TRY { return f(params, keywords).release(); }
         PY_CATCH(nullptr);
     };
 };
 
-template <Object (&f)(Object, Object)>
+template <Object (&f)(Reference, Reference)>
 constexpr PyCFunction to_function() { return reinterpret_cast<PyCFunction>(ToFunction<f>::value); }
-
-struct Iter : Object {
-    Iter(Object iter)
-    : Object(iter) { }
-    Object next() {
-        return {PyIter_Next(*this)};
-    }
-};
-Iter Object::iter() { return {PyObject_GetIter(obj)}; }
 
 struct Tuple : Object {
     template <class... Args>
@@ -268,34 +352,33 @@ struct List : Object {
     : Object(x) { }
     List(size_t size = 0)
     : Object{PyList_New(size)} { }
-    void append(Object x) {
-        if (PyList_Append(*this, x) < 0) { throw PyException(); }
+    void append(Reference x) {
+        if (PyList_Append(toPy(), x.toPy()) < 0) { throw PyException(); }
     }
 };
 
 struct Dict : Object {
-    Dict()
-    : Object{PyDict_New()} {}
+    Dict() : Object{PyDict_New()} {}
     List keys() { return {PyDict_Keys(obj)}; }
     List values() { return {PyDict_Values(obj)}; }
     List items() { return {PyDict_Items(obj)}; }
-    void delItem(Object name) {
-        if (PyDict_DelItem(obj, name) < 0) { throw PyException(); }
+    void delItem(Reference name) {
+        if (PyDict_DelItem(obj, name.toPy()) < 0) { throw PyException(); }
     }
     Py_ssize_t length() {
         auto ret = PyDict_Size(obj);
         if (ret == -1) { throw PyException(); }
         return ret;
     }
-    bool contains(Object key) {
-        auto ret = PyDict_Contains(obj, key);
+    bool contains(Reference key) {
+        auto ret = PyDict_Contains(obj, key.toPy());
         if (ret == -1) { throw PyException(); }
         return ret;
     }
 };
 
 template <class... Args>
-Object call(Object (&f)(Object, Object), Args&&... args) {
+Object call(Object (&f)(Reference, Reference), Args&&... args) {
     return f(Tuple{std::forward<Args>(args)...}, Dict{});
 }
 
@@ -347,78 +430,66 @@ IterIterator end(Iter it) { return {it, nullptr}; }
 //       this exception should simply be handled in PY_CATCH
 
 template <class T>
-void pyToCpp(PyObject *pyVec, std::vector<T> &vec);
+void pyToCpp(Reference pyVec, std::vector<T> &vec);
 
-void pyToCpp(PyObject *pyBool, bool &x) {
-    x = PyObject_IsTrue(pyBool);
-    if (PyErr_Occurred()) { throw PyException(); }
+void pyToCpp(Reference pyBool, bool &x) {
+    x = pyBool.isTrue();
 }
 
-void pyToCpp(PyObject *pyStr, char const *&x) {
-    x = PyString_AsString(pyStr);
+void pyToCpp(Reference pyStr, char const *&x) {
+    x = PyString_AsString(pyStr.toPy());
     if (!x) { throw PyException(); }
 }
 
 template <class T>
-void pyToCpp(PyObject *pyNum, T &x, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr) {
-    x = PyInt_AsLong(pyNum);
+void pyToCpp(Reference pyNum, T &x, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr) {
+    x = PyInt_AsLong(pyNum.toPy());
     if (PyErr_Occurred()) { throw PyException(); }
 }
 
 template <class T>
-void pyToCpp(PyObject *pyNum, T &x, typename std::enable_if<std::is_floating_point<T>::value>::type* = nullptr) {
-    x = PyFloat_AsDouble(pyNum);
+void pyToCpp(Reference pyNum, T &x, typename std::enable_if<std::is_floating_point<T>::value>::type* = nullptr) {
+    x = PyFloat_AsDouble(pyNum.toPy());
     if (PyErr_Occurred()) { throw PyException(); }
 }
 
-void pyToCpp(PyObject *obj, Symbol &val);
+void pyToCpp(Reference obj, Symbol &val);
 
 template <class T, class U>
-void pyToCpp(PyObject *pyPair, std::pair<T, U> &x) {
-    Object it = PyObject_GetIter(pyPair);
-    Object pyVal = PyIter_Next(it);
-    if (!pyVal.valid()) {
-        PyErr_SetString(PyExc_RuntimeError, "pair expected");
-        throw PyException();
-    }
+void pyToCpp(Reference pyPair, std::pair<T, U> &x) {
+    auto it = pyPair.iter();
+    Object pyVal = it.next();
+    if (!pyVal.valid()) { throw std::runtime_error("pair expected"); }
     pyToCpp(pyVal, x.first);
-    pyVal = PyIter_Next(it);
-    if (!pyVal.valid()) {
-        PyErr_SetString(PyExc_RuntimeError, "pair expected");
-        throw PyException();
-    }
+    pyVal = it.next();
+    if (!pyVal.valid()) { throw std::runtime_error("pair expected"); }
     pyToCpp(pyVal, x.second);
-    pyVal = PyIter_Next(it);
-    if (pyVal.valid()) {
-        PyErr_SetString(PyExc_RuntimeError, "pair expected");
-        throw PyException();
-    }
+    pyVal = it.next();
+    if (pyVal.valid()) { throw std::runtime_error("pair expected"); }
 }
 
-void pyToCpp(PyObject *pyPair, Potassco::WeightLit_t &x) {
+void pyToCpp(Reference pyPair, Potassco::WeightLit_t &x) {
     std::pair<Lit_t &, Weight_t &> y{ x.lit, x.weight };
     pyToCpp(pyPair, y);
 }
 
 template <class T>
-void pyToCpp(PyObject *pyVec, std::vector<T> &vec) {
-    Object it = PyObject_GetIter(pyVec);
-    Object pyVal;
-    while ((pyVal = PyIter_Next(it)).valid()) {
+void pyToCpp(Reference pyVec, std::vector<T> &vec) {
+    for (auto x : pyVec.iter()) {
         T ret;
-        pyToCpp(pyVal, ret);
+        pyToCpp(x, ret);
         vec.emplace_back(std::move(ret));
     }
 }
 
 template <class T>
-T pyToCpp(PyObject *py) {
+T pyToCpp(Reference py) {
     T ret;
     pyToCpp(py, ret);
     return ret;
 }
 
-std::ostream &operator<<(std::ostream &out, Object o) {
+std::ostream &operator<<(std::ostream &out, Reference o) {
     return out << pyToCpp<char const *>(o.str());
 }
 
@@ -445,10 +516,10 @@ struct PrintWrapper {
     }
 };
 
-PrintWrapper printList(Object list, char const *pre, char const *sep, char const *post, bool empty) {
+PrintWrapper printList(Reference list, char const *pre, char const *sep, char const *post, bool empty) {
     return {list, pre, sep, post, empty};
 }
-PrintWrapper printBody(Object list, char const *pre = " : ") {
+PrintWrapper printBody(Reference list, char const *pre = " : ") {
     return printList(list, list.empty() ? "" : pre, "; ", ".", true);
 }
 
@@ -521,9 +592,9 @@ std::string errorToString() {
         PyErr_Fetch(&type.obj, &value.obj, &traceback.obj);
         PyErr_NormalizeException(&type.obj, &value.obj, &traceback.obj);
         Object tbModule = PyImport_ImportModule("traceback");
-        Object tbDict   = {PyModule_GetDict(tbModule), true};
-        Object tbFE     = {PyDict_GetItemString(tbDict, "format_exception"), true};
-        Object ret      = PyObject_CallFunctionObjArgs(tbFE, type.get(), value.valid() ? value.get() : Py_None, traceback.valid() ? traceback.get() : Py_None, nullptr);
+        Object tbDict   = {PyModule_GetDict(tbModule.toPy()), true};
+        Object tbFE     = {PyDict_GetItemString(tbDict.toPy(), "format_exception"), true};
+        Object ret      = PyObject_CallFunctionObjArgs(tbFE.toPy(), type.get(), value.valid() ? value.get() : Py_None, traceback.valid() ? traceback.get() : Py_None, nullptr);
         std::ostringstream oss;
         for (auto line : ret.iter()) {
             oss << "  " << line.str();
@@ -630,8 +701,7 @@ struct GetRichCompare<B, typename Void<decltype(&B::tp_richcompare)>::Type> {
                         case Py_GT: { ops = ">";  break; }
                         case Py_GE: { ops = ">="; break; }
                     }
-                    PyErr_Format(PyExc_TypeError, "unorderable types: %s() %s %s()", self->type.tp_name, ops, pyB->ob_type->tp_name);
-                    return nullptr;
+                    return PyErr_Format(PyExc_TypeError, "unorderable types: %s() %s %s()", self->type.tp_name, ops, pyB->ob_type->tp_name);
                 }
             }
             return self->tp_richcompare(*reinterpret_cast<B*>(pyB), op).release();
@@ -661,7 +731,7 @@ struct GetGetAttrO {
 template <class B>
 struct GetGetAttrO<B, typename Void<decltype(&B::tp_getattro)>::Type> {
     static PyObject *value(PyObject *self, PyObject *name) {
-        PY_TRY { return reinterpret_cast<B*>(self)->tp_getattro({name, true}).release(); }
+        PY_TRY { return reinterpret_cast<B*>(self)->tp_getattro(Reference{name}).release(); }
         PY_CATCH(nullptr);
     };
 };
@@ -674,7 +744,7 @@ struct GetSetAttrO {
 template <class B>
 struct GetSetAttrO<B, typename Void<decltype(&B::tp_setattro)>::Type> {
     static int value(PyObject *self, PyObject *name, PyObject *value) {
-        PY_TRY { return (reinterpret_cast<B*>(self)->tp_setattro({name, true}, {value, true}), 0); }
+        PY_TRY { return (reinterpret_cast<B*>(self)->tp_setattro(Reference{name}, Reference{value}), 0); }
         PY_CATCH(-1);
     };
 };
@@ -716,7 +786,7 @@ struct GetMPSubscipt {
 template <class B>
 struct GetMPSubscipt<B, typename Void<decltype(&B::mp_subscript)>::Type> {
     static PyObject *value(PyObject *self, PyObject *name) {
-        PY_TRY { return reinterpret_cast<B*>(self)->mp_subscript({name, true}).release(); }
+        PY_TRY { return reinterpret_cast<B*>(self)->mp_subscript(Reference{name}).release(); }
         PY_CATCH(nullptr);
     };
     static constexpr bool has_mapping = true;
@@ -730,7 +800,7 @@ struct GetMPAssSubscipt {
 template <class B>
 struct GetMPAssSubscipt<B, typename Void<decltype(&B::mp_ass_subscript)>::Type> {
     static int value(PyObject *self, PyObject *name, PyObject *value) {
-        PY_TRY { return (reinterpret_cast<B*>(self)->mp_ass_subscript({name, true}, {value, true}), 0); }
+        PY_TRY { return (reinterpret_cast<B*>(self)->mp_ass_subscript(Reference{name}, Reference{value}), 0); }
         PY_CATCH(-1);
     };
     static constexpr bool has_mapping = true;
@@ -777,7 +847,7 @@ struct GetSQConcat {
 template <class B>
 struct GetSQConcat<B, typename Void<decltype(&B::sq_concat)>::Type> {
     static PyObject *value(PyObject *self, PyObject *other) {
-        PY_TRY { return reinterpret_cast<B*>(self)->sq_concat({other, true}).release(); }
+        PY_TRY { return reinterpret_cast<B*>(self)->sq_concat(Reference{other}).release(); }
         PY_CATCH(nullptr);
     };
     static constexpr bool has_sequence = true;
@@ -837,7 +907,7 @@ struct GetSQAssItem {
 template <class B>
 struct GetSQAssItem<B, typename Void<decltype(&B::sq_ass_item)>::Type> {
     static int value(PyObject *self, Py_ssize_t index, PyObject *value) {
-        PY_TRY { return (reinterpret_cast<B*>(self)->sq_ass_item(index, {value, true}), 0); }
+        PY_TRY { return (reinterpret_cast<B*>(self)->sq_ass_item(index, Reference{value}), 0); }
         PY_CATCH(-1);
     };
     static constexpr bool has_sequence = true;
@@ -852,7 +922,7 @@ struct GetSQAssSlice {
 template <class B>
 struct GetSQAssSlice<B, typename Void<decltype(&B::sq_ass_slice)>::Type> {
     static int value(PyObject *self, Py_ssize_t left, Py_ssize_t right, PyObject *value) {
-        PY_TRY { return (reinterpret_cast<B*>(self)->sq_ass_slice(left, right, {value, true}), 0); }
+        PY_TRY { return (reinterpret_cast<B*>(self)->sq_ass_slice(left, right, Reference{value}), 0); }
         PY_CATCH(-1);
     };
     static constexpr bool has_sequence = true;
@@ -867,7 +937,7 @@ struct GetSQContains {
 template <class B>
 struct GetSQContains<B, typename Void<decltype(&B::sq_contains)>::Type> {
     static int value(PyObject *self, PyObject *value) {
-        PY_TRY { return reinterpret_cast<B*>(self)->sq_contains({value, true}); }
+        PY_TRY { return reinterpret_cast<B*>(self)->sq_contains(Reference{value}); }
         PY_CATCH(-1);
     };
     static constexpr bool has_sequence = true;
@@ -882,7 +952,7 @@ struct GetSQInplaceConcat {
 template <class B>
 struct GetSQInplaceConcat<B, typename Void<decltype(&B::sq_inplace_concat)>::Type> {
     static PyObject *value(PyObject *self, PyObject *other) {
-        PY_TRY { return reinterpret_cast<B*>(self)->sq_inplace_concat({other, true}); Py_XINCREF(self); return self; }
+        PY_TRY { return reinterpret_cast<B*>(self)->sq_inplace_concat(Reference{other}); Py_XINCREF(self); return self; }
         PY_CATCH(nullptr);
     };
     static constexpr bool has_sequence = true;
@@ -937,10 +1007,10 @@ struct ObjectBase {
     static constexpr PyGetSetDef *tp_getset = nullptr;
     static PyMethodDef tp_methods[];
 
-    static bool initType(PyObject *module) {
+    static bool initType(Reference module) {
         if (PyType_Ready(&type) < 0) { return false; }
         Py_INCREF(&type);
-        if (PyModule_AddObject(module, T::tp_type, (PyObject*)&type) < 0) { return false; }
+        if (PyModule_AddObject(module.toPy(), T::tp_type, (PyObject*)&type) < 0) { return false; }
         return true;
     }
 
@@ -962,9 +1032,9 @@ protected:
     static getter to_getter() { return to_getter_<f>; };
     template <Object (T::*f)()>
     static PyCFunction to_function() { return to_function_<f>; }
-    template <Object (T::*f)(Object)>
+    template <Object (T::*f)(Reference)>
     static PyCFunction to_function() { return to_function_<f>; }
-    template <Object (T::*f)(Object, Object)>
+    template <Object (T::*f)(Reference, Reference)>
     static PyCFunction to_function() { return reinterpret_cast<PyCFunction>(to_function_<f>); }
 
 private:
@@ -978,14 +1048,14 @@ private:
         PY_TRY { return (reinterpret_cast<T*>(self)->*f)().release(); }
         PY_CATCH(nullptr);
     };
-    template <Object (T::*f)(Object)>
+    template <Object (T::*f)(Reference)>
     static PyObject *to_function_(PyObject *self, PyObject *params) {
-        PY_TRY { return (reinterpret_cast<T*>(self)->*f)({params, true}).release(); }
+        PY_TRY { return (reinterpret_cast<T*>(self)->*f)(params).release(); }
         PY_CATCH(nullptr);
     };
-    template <Object (T::*f)(Object, Object)>
+    template <Object (T::*f)(Reference, Reference)>
     static PyObject *to_function_(PyObject *self, PyObject *params, PyObject *keywords) {
-        PY_TRY { return (reinterpret_cast<T*>(self)->*f)({params, true}, {keywords, true}).release(); }
+        PY_TRY { return (reinterpret_cast<T*>(self)->*f)(params, keywords).release(); }
         PY_CATCH(nullptr);
     };
 };
@@ -1049,8 +1119,8 @@ template <class T>
 struct EnumType : ObjectBase<T> {
     unsigned offset;
 
-    static bool initType(PyObject *module) {
-        return  ObjectBase<T>::initType(module) && addAttr() >= 0;
+    static bool initType(Reference module) {
+        return ObjectBase<T>::initType(module) && addAttr() >= 0;
     }
     static PyObject *new_(unsigned offset) {
         EnumType *self;
@@ -1079,7 +1149,7 @@ struct EnumType : ObjectBase<T> {
         for (unsigned i = 0; i < sizeof(T::values) / sizeof(*T::values); ++i) {
             Object elem(new_(i));
             if (!elem.valid()) { return -1; }
-            if (PyDict_SetItemString(ObjectBase<T>::type.tp_dict, T::strings[i], elem) < 0) { return -1; }
+            if (PyDict_SetItemString(ObjectBase<T>::type.tp_dict, T::strings[i], elem.toPy()) < 0) { return -1; }
         }
         return 0;
     }
@@ -1175,7 +1245,7 @@ elements.)";
         for (size_t i = 0; i < span.size; ++i) {
             Object arg = new_(data, *(span.first + i));
             if (!arg.valid()) { return nullptr; }
-            if (PyList_SetItem(list, i, arg.release()) < 0) { return nullptr; }
+            if (PyList_SetItem(list.toPy(), i, arg.release()) < 0) { return nullptr; }
         }
         return list;
     }
@@ -1234,7 +1304,7 @@ terms and a set of literals.)";
             Object list = PyList_New(span.size);
             for (size_t i = 0; i < span.size; ++i) {
                 Object arg = TheoryTerm::new_(self->data, *(span.first + i));
-                if (PyList_SetItem(list, i, arg.release()) < 0) { return nullptr; }
+                if (PyList_SetItem(list.toPy(), i, arg.release()) < 0) { return nullptr; }
             }
             return list.release();
         PY_CATCH(nullptr);
@@ -1245,7 +1315,7 @@ terms and a set of literals.)";
             Object list = PyList_New(span.size);
             for (size_t i = 0; i < span.size; ++i) {
                 Object arg = PyInt_FromLong(*(span.first + i));
-                if (PyList_SetItem(list, i, arg.release()) < 0) { return nullptr; }
+                if (PyList_SetItem(list.toPy(), i, arg.release()) < 0) { return nullptr; }
             }
             return list.release();
         PY_CATCH(nullptr);
@@ -1304,7 +1374,7 @@ R"(TheoryAtom objects represent theory atoms.)";
             Object list = PyList_New(span.size);
             for (size_t i = 0; i < span.size; ++i) {
                 Object arg = TheoryElement::new_(self->data, *(span.first + i));
-                if (PyList_SetItem(list, i, arg.release()) < 0) { return nullptr; }
+                if (PyList_SetItem(list.toPy(), i, arg.release()) < 0) { return nullptr; }
             }
             return list.release();
         PY_CATCH(nullptr);
@@ -1325,9 +1395,9 @@ R"(TheoryAtom objects represent theory atoms.)";
             std::pair<char const *, Id_t> guard = self->data->atomGuard(self->value);
             Object tuple = PyTuple_New(2);
             Object op = PyString_FromString(guard.first);
-            if (PyTuple_SetItem(tuple, 0, op.release()) < 0) { return nullptr; }
+            if (PyTuple_SetItem(tuple.toPy(), 0, op.release()) < 0) { return nullptr; }
             Object term = TheoryTerm::new_(self->data, guard.second);
-            if (PyTuple_SetItem(tuple, 1, term.release()) < 0) { return nullptr; }
+            if (PyTuple_SetItem(tuple.toPy(), 1, term.release()) < 0) { return nullptr; }
             return tuple.release();
         PY_CATCH(nullptr);
     }
@@ -1441,16 +1511,16 @@ Note that this class does not have a constructor. Instead there are the
 functions Number(), String(), and Function() to construct term objects or the
 preconstructed terms Inf and Sup.)";
 
-    static bool initType(PyObject *module) {
+    static bool initType(Reference module) {
         if (!ObjectBase<Term>::initType(module)) { return false; }
         inf = type.tp_alloc(&type, 0);
         if (!inf) { return false; }
         reinterpret_cast<Term*>(inf)->val = Symbol::createInf();
-        if (PyModule_AddObject(module, "Inf", inf) < 0) { return false; }
+        if (PyModule_AddObject(module.toPy(), "Inf", inf) < 0) { return false; }
         sup = type.tp_alloc(&type, 0);
         reinterpret_cast<Term*>(sup)->val = Symbol::createSup();
         if (!sup) { return false; }
-        if (PyModule_AddObject(module, "Sup", sup) < 0) { return false; }
+        if (PyModule_AddObject(module.toPy(), "Sup", sup) < 0) { return false; }
         return true;
     }
 
@@ -1728,7 +1798,7 @@ PyObject *getStatistics(Statistics const *stats, char const *prefix) {
                         Object objPrefix = PyString_FromFormat("%s.%d", prefix, i);
                         auto subPrefix = pyToCpp<char const *>(objPrefix);
                         Object subStats = getStatistics(stats, subPrefix);
-                        if (PyList_SetItem(list, i, subStats.release()) < 0) { return nullptr; }
+                        if (PyList_SetItem(list.toPy(), i, subStats.release()) < 0) { return nullptr; }
                     }
                     return list.release();
                 }
@@ -1741,7 +1811,7 @@ PyObject *getStatistics(Statistics const *stats, char const *prefix) {
                         Object objPrefix = PyString_FromFormat("%s%s%s", prefix, sep, it);
                         auto subPrefix = pyToCpp<char const *>(objPrefix);
                         Object subStats = getStatistics(stats, subPrefix);
-                        if (PyDict_SetItem(dict, key, subStats) < 0) { return nullptr; }
+                        if (PyDict_SetItem(dict.toPy(), key.toPy(), subStats.toPy()) < 0) { return nullptr; }
                     }
                     return dict.release();
                 }
@@ -2162,14 +2232,14 @@ Expected Answer Sets:
                 for (int i = 0; i < self->nSubkeys; ++i) {
                     char const *key = self->proxy->getSubKeyName(self->key, i);
                     Object pyString = PyString_FromString(key);
-                    if (PyList_SetItem(list, i, pyString.release()) < 0) { return nullptr; }
+                    if (PyList_SetItem(list.toPy(), i, pyString.release()) < 0) { return nullptr; }
                 }
                 return list.release();
             }
         PY_CATCH(nullptr);
     }
 
-    Object tp_getattro(Object name) {
+    Object tp_getattro(Reference name) {
         auto current = pyToCpp<char const *>(name);
         bool desc = strncmp("__desc_", current, 7) == 0;
         if (desc) { current += 7; }
@@ -2178,17 +2248,17 @@ Expected Answer Sets:
             Object subKey(new_(subkey, *proxy));
             Configuration *sub = reinterpret_cast<Configuration*>(subKey.get());
             if (desc) { return PyString_FromString(sub->help); }
-            else if (sub->nValues < 0) { return subKey.release(); }
+            else if (sub->nValues < 0) { return subKey; }
             else {
                 std::string value;
                 if (!sub->proxy->getKeyValue(sub->key, value)) { Py_RETURN_NONE; }
                 return PyString_FromString(value.c_str());
             }
         }
-        return PyObject_GenericGetAttr(reinterpret_cast<PyObject*>(this), name);
+        return PyObject_GenericGetAttr(reinterpret_cast<PyObject*>(this), name.toPy());
     }
 
-    void tp_setattro(Object name, Object pyValue) {
+    void tp_setattro(Reference name, Reference pyValue) {
         char const *current = pyToCpp<char const *>(name);
         unsigned subkey;
         if (proxy->hasSubKey(key, current, &subkey)) {
@@ -2196,7 +2266,7 @@ Expected Answer Sets:
             proxy->setKeyValue(subkey, value);
         }
         else {
-            if (PyObject_GenericSetAttr(reinterpret_cast<PyObject*>(this), name, pyValue) < 0) { throw PyException(); }
+            if (PyObject_GenericSetAttr(reinterpret_cast<PyObject*>(this), name.toPy(), pyValue.toPy()) < 0) { throw PyException(); }
         }
     }
 
@@ -2371,7 +2441,7 @@ signatures: [('p', 1), ('q', 1)])";
 
     Object tp_iter() { return SymbolicAtomIter::new_(*atoms, atoms->begin()); }
 
-    Object mp_subscript(Object key) {
+    Object mp_subscript(Reference key) {
         Gringo::Symbol atom;
         pyToCpp(key, atom);
         Gringo::SymbolicAtomIter range = atoms->lookup(atom);
@@ -2399,7 +2469,7 @@ signatures: [('p', 1), ('q', 1)])";
             for (auto &sig : ret) {
                 Object pos = cppToPy(!sig.sign());
                 Object pySig = Py_BuildValue("(siO)", sig.name().c_str(), (int)sig.arity(), pos.get());
-                if (PyList_SetItem(pyRet, i, pySig.release()) < 0) { return nullptr; }
+                if (PyList_SetItem(pyRet.toPy(), i, pySig.release()) < 0) { return nullptr; }
                 ++i;
             }
             return pyRet.release();
@@ -2721,37 +2791,37 @@ public:
         PY_TRY
             Object i = PropagateInit::construct(init);
             Object n = PyString_FromString("init");
-            Object ret = PyObject_CallMethodObjArgs(tp_, n.get(), i.get(), nullptr);
+            Object ret = PyObject_CallMethodObjArgs(tp_.toPy(), n.get(), i.get(), nullptr);
         PY_HANDLE("Propagator::init", "error during initialization")
     }
     void propagate(Potassco::AbstractSolver &solver, Potassco::LitSpan const &changes) override {
         PyBlock block;
         PY_TRY
-            if (!PyObject_HasAttrString(tp_, "propagate")) { return; }
+            if (!PyObject_HasAttrString(tp_.toPy(), "propagate")) { return; }
             Object c = PropagateControl::construct(solver);
             Object l = cppToPy(changes);
             Object n = PyString_FromString("propagate");
-            Object ret = PyObject_CallMethodObjArgs(tp_, n, c.get(), l.get(), nullptr);
+            Object ret = PyObject_CallMethodObjArgs(tp_.toPy(), n.toPy(), c.get(), l.get(), nullptr);
         PY_HANDLE("Propagator::propagate", "error during propagation")
     }
     void undo(Potassco::AbstractSolver const &solver, Potassco::LitSpan const &undo) override {
         PyBlock block;
         PY_TRY
-            if (!PyObject_HasAttrString(tp_, "undo")) { return; }
+            if (!PyObject_HasAttrString(tp_.toPy(), "undo")) { return; }
             Object i = PyInt_FromLong(solver.id());
             Object a = Assignment::construct(solver.assignment());
             Object l = cppToPy(undo);
             Object n = PyString_FromString("undo");
-            Object ret = PyObject_CallMethodObjArgs(tp_, n, i.get(), a.get(), l.get(), nullptr);
+            Object ret = PyObject_CallMethodObjArgs(tp_.toPy(), n.toPy(), i.get(), a.get(), l.get(), nullptr);
         PY_HANDLE("Propagator::undo", "error during undo")
     }
     void check(Potassco::AbstractSolver &solver) override {
         PyBlock block;
         PY_TRY
-            if (!PyObject_HasAttrString(tp_, "check")) { return; }
+            if (!PyObject_HasAttrString(tp_.toPy(), "check")) { return; }
             Object c = PropagateControl::construct(solver);
             Object n = PyString_FromString("check");
-            Object ret = PyObject_CallMethodObjArgs(tp_, n, c.get(), nullptr);
+            Object ret = PyObject_CallMethodObjArgs(tp_.toPy(), n.toPy(), c.get(), nullptr);
         PY_HANDLE("Propagator::check", "error during check")
     }
     ~Propagator() noexcept = default;
@@ -2876,45 +2946,45 @@ choice -- whether to add a disjunctive or choice rule (Default: False)
 // {{{3 macros
 
 #define CREATE1(N,a1) \
-Object create ## N(Object pyargs, Object pykwds) { \
+Object create ## N(Reference pyargs, Reference pykwds) { \
     static char const *kwlist[] = {#a1, nullptr}; \
     PyObject* vals[] = { nullptr }; \
-    if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "O", const_cast<char**>(kwlist), &vals[0])) { return nullptr; } \
+    if (!PyArg_ParseTupleAndKeywords(pyargs.toPy(), pykwds.toPy(), "O", const_cast<char**>(kwlist), &vals[0])) { return nullptr; } \
     return AST::new_(ASTType::N, kwlist, vals); \
 }
 #define CREATE2(N,a1,a2) \
-Object create ## N(Object pyargs, Object pykwds) { \
+Object create ## N(Reference pyargs, Reference pykwds) { \
     static char const *kwlist[] = {#a1,#a2, nullptr}; \
     PyObject* vals[] = { nullptr, nullptr }; \
-    if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OO", const_cast<char**>(kwlist), &vals[0], &vals[1])) { return nullptr; } \
+    if (!PyArg_ParseTupleAndKeywords(pyargs.toPy(), pykwds.toPy(), "OO", const_cast<char**>(kwlist), &vals[0], &vals[1])) { return nullptr; } \
     return AST::new_(ASTType::N, kwlist, vals); \
 }
 #define CREATE3(N,a1,a2,a3) \
-Object create ## N(Object pyargs, Object pykwds) { \
+Object create ## N(Reference pyargs, Reference pykwds) { \
     static char const *kwlist[] = {#a1, #a2, #a3, nullptr}; \
     PyObject* vals[] = { nullptr, nullptr, nullptr }; \
-    if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2])) { return nullptr; } \
+    if (!PyArg_ParseTupleAndKeywords(pyargs.toPy(), pykwds.toPy(), "OOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2])) { return nullptr; } \
     return AST::new_(ASTType::N, kwlist, vals); \
 }
 #define CREATE4(N,a1,a2,a3,a4) \
-Object create ## N(Object pyargs, Object pykwds) { \
+Object create ## N(Reference pyargs, Reference pykwds) { \
     static char const *kwlist[] = {#a1, #a2, #a3, #a4, nullptr}; \
     PyObject* vals[] = { nullptr, nullptr, nullptr, nullptr }; \
-    if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2], &vals[3])) { return nullptr; } \
+    if (!PyArg_ParseTupleAndKeywords(pyargs.toPy(), pykwds.toPy(), "OOOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2], &vals[3])) { return nullptr; } \
     return AST::new_(ASTType::N, kwlist, vals); \
 }
 #define CREATE5(N,a1,a2,a3,a4,a5) \
-Object create ## N(Object pyargs, Object pykwds) { \
+Object create ## N(Reference pyargs, Reference pykwds) { \
     static char const *kwlist[] = {#a1, #a2, #a3, #a4, #a5, nullptr}; \
     PyObject* vals[] = { nullptr, nullptr, nullptr, nullptr, nullptr }; \
-    if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOOOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2], &vals[3], &vals[4])) { return nullptr; } \
+    if (!PyArg_ParseTupleAndKeywords(pyargs.toPy(), pykwds.toPy(), "OOOOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2], &vals[3], &vals[4])) { return nullptr; } \
     return AST::new_(ASTType::N, kwlist, vals); \
 }
 #define CREATE6(N,a1,a2,a3,a4,a5,a6) \
-Object create ## N(Object pyargs, Object pykwds) { \
+Object create ## N(Reference pyargs, Reference pykwds) { \
     static char const *kwlist[] = {#a1, #a2, #a3, #a4, #a5, #a6, nullptr}; \
     PyObject* vals[] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }; \
-    if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOOOOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2], &vals[3], &vals[4], &vals[5])) { return nullptr; } \
+    if (!PyArg_ParseTupleAndKeywords(pyargs.toPy(), pykwds.toPy(), "OOOOOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2], &vals[3], &vals[4], &vals[5])) { return nullptr; } \
     return AST::new_(ASTType::N, kwlist, vals); \
 }
 
@@ -3374,7 +3444,7 @@ struct AST : ObjectBase<AST> {
             Object ret = new_(type);
             auto jt = vals;
             for (auto it = kwlist; *it; ++it) {
-                ret.setAttr(*it, {*jt++, true});
+                ret.setAttr(*it, *jt++);
             }
             return ret.release();
         PY_CATCH(nullptr);
@@ -3439,9 +3509,9 @@ struct AST : ObjectBase<AST> {
         if (!children.valid()) { children = childKeys_(); }
         return children;
     }
-    void tp_setattro(Object name, Object value) {
+    void tp_setattro(Reference name, Reference value) {
         children = nullptr;
-        if (PyObject_GenericSetAttr(toPy(), name, value) < 0) {
+        if (PyObject_GenericSetAttr(toPy().toPy(), name.toPy(), value.toPy()) < 0) {
             if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
                 PyErr_Clear();
                 fields_.setItem(name, value);
@@ -3449,12 +3519,12 @@ struct AST : ObjectBase<AST> {
             else { throw PyException(); }
         }
     }
-    Object tp_getattro(Object name) {
-        auto ret = PyDict_GetItem(fields_, name);
+    Object tp_getattro(Reference name) {
+        auto ret = PyDict_GetItem(fields_.toPy(), name.toPy());
         Py_XINCREF(ret);
         return ret
             ? ret
-            : PyObject_GenericGetAttr(reinterpret_cast<PyObject*>(this), name);
+            : PyObject_GenericGetAttr(reinterpret_cast<PyObject*>(this), name.toPy());
     }
     void tp_dealloc() {
         fields_.~Dict();
@@ -3730,15 +3800,15 @@ struct AST : ObjectBase<AST> {
     }
 
     Py_ssize_t mp_length() { return fields_.length(); }
-    Object mp_subscript(Object name) { return fields_.getItem(name); }
-    void mp_ass_subscript(Object name, Object value) {
-        if (value) { fields_.setItem(name, value); }
-        else       { fields_.delItem(name); }
+    Object mp_subscript(Reference name) { return fields_.getItem(name); }
+    void mp_ass_subscript(Reference name, Reference value) {
+        if (value.valid()) { fields_.setItem(name, value); }
+        else               { fields_.delItem(name); }
     }
     Object keys() { return fields_.keys(); }
     Object values() { return fields_.values(); }
     Object items() { return fields_.items(); }
-    bool sq_contains(Object value) { return fields_.contains(value); }
+    bool sq_contains(Reference value) { return fields_.contains(value); }
     Object tp_iter() { return fields_.iter(); }
 };
 
@@ -3845,17 +3915,17 @@ Object cppToPy(clingo_location_t const &l) {
     auto add = [](char const *n, size_t l, size_t c) -> Object {
         Object loc = PyDict_New();
         Object name = cppToPy(n);
-        if (PyDict_SetItemString(loc, "filename", name) < 0) { throw PyException(); }
+        if (PyDict_SetItemString(loc.toPy(), "filename", name.toPy()) < 0) { throw PyException(); }
         Object line = cppToPy(l);
-        if (PyDict_SetItemString(loc, "line", line) < 0) { throw PyException(); }
+        if (PyDict_SetItemString(loc.toPy(), "line", line.toPy()) < 0) { throw PyException(); }
         Object column = cppToPy(c);
-        if (PyDict_SetItemString(loc, "column", column) < 0) { throw PyException(); }
+        if (PyDict_SetItemString(loc.toPy(), "column", column.toPy()) < 0) { throw PyException(); }
         return loc;
     };
     Object begin = add(l.begin_file, l.begin_line, l.begin_column);
-    if (PyDict_SetItemString(dict, "begin", begin) < 0) { throw PyException(); }
+    if (PyDict_SetItemString(dict.toPy(), "begin", begin.toPy()) < 0) { throw PyException(); }
     Object end = add(l.end_file, l.end_line, l.end_column);
-    if (PyDict_SetItemString(dict, "end", end) < 0) { throw PyException(); }
+    if (PyDict_SetItemString(dict.toPy(), "end", end.toPy()) < 0) { throw PyException(); }
     return dict;
 }
 
@@ -4159,9 +4229,9 @@ Object cppToPy(clingo_ast_statement_t const &stm) {
 }
 
 // TODO: consider exposing the logger to python...
-Object parseProgram(Object args, Object kwds) {
+Object parseProgram(Reference args, Reference kwds) {
     static char const *kwlist[] = {"program", "callback", nullptr};
-    Object str, cb;
+    Reference str, cb;
     ParseTupleAndKeywords(args, kwds, "OO", kwlist, str, cb);
     using Data = std::pair<Object, std::exception_ptr>;
     Data data{cb, std::exception_ptr()};
@@ -4184,7 +4254,7 @@ Object parseProgram(Object args, Object kwds) {
 // {{{2 Py -> C
 
 struct ASTToC {
-    clingo_location_t convLocation(Object x) {
+    clingo_location_t convLocation(Reference x) {
         clingo_location_t ret;
         Object begin = x.getItem("begin");
         Object end   = x.getItem("end");
@@ -4197,7 +4267,7 @@ struct ASTToC {
         return ret;
     }
 
-    char const *convString(Object x) {
+    char const *convString(Reference x) {
         char const *ret;
         handleCError(clingo_add_string(pyToCpp<char const *>(x), &ret));
         return ret;
@@ -4205,11 +4275,11 @@ struct ASTToC {
 
     // {{{3 term
 
-    clingo_ast_id_t convId(Object x) {
+    clingo_ast_id_t convId(Reference x) {
         return {convLocation(x.getAttr("location")), convString(x.getAttr("id"))};
     }
 
-    clingo_ast_term_t convTerm(Object x) {
+    clingo_ast_term_t convTerm(Reference x) {
         clingo_ast_term_t ret;
         ret.location = convLocation(x.getAttr("location"));
         switch (enumValue<ASTType>(x.getAttr("type"))) {
@@ -4273,15 +4343,15 @@ struct ASTToC {
         }
     }
 
-    clingo_ast_term_t *convTermVec(Object x) {
+    clingo_ast_term_t *convTermVec(Reference x) {
         return createArray_(x, &ASTToC::convTerm);
     }
 
-    clingo_ast_term_t *convTermOpt(Object x) {
+    clingo_ast_term_t *convTermOpt(Reference x) {
         return !x.none() ? create_(convTerm(x)) : nullptr;
     }
 
-    clingo_ast_csp_product_term_t convCSPProduct(Object x) {
+    clingo_ast_csp_product_term_t convCSPProduct(Reference x) {
         clingo_ast_csp_product_term_t ret;
         ret.location    = convLocation(x.getAttr("location"));
         ret.variable    = convTermOpt(x.getAttr("variable"));
@@ -4289,7 +4359,7 @@ struct ASTToC {
         return ret;
     }
 
-    clingo_ast_csp_sum_term_t convCSPAdd(Object x) {
+    clingo_ast_csp_sum_term_t convCSPAdd(Reference x) {
         clingo_ast_csp_sum_term_t ret;
         auto terms = x.getAttr("terms");
         ret.location = convLocation(x.getAttr("location"));
@@ -4298,7 +4368,7 @@ struct ASTToC {
         return ret;
     }
 
-    clingo_ast_theory_unparsed_term_element_t convTheoryUnparsedTermElement(Object x) {
+    clingo_ast_theory_unparsed_term_element_t convTheoryUnparsedTermElement(Reference x) {
         auto ops= x.getAttr("operators");
         clingo_ast_theory_unparsed_term_element_t ret;
         ret.term      = convTheoryTerm(x.getAttr("term"));
@@ -4307,7 +4377,7 @@ struct ASTToC {
         return ret;
     }
 
-    clingo_ast_theory_term_t convTheoryTerm(Object x) {
+    clingo_ast_theory_term_t convTheoryTerm(Reference x) {
         clingo_ast_theory_term_t ret;
         ret.location = convLocation(x.getAttr("location"));
         switch (enumValue<ASTType>(x.getAttr("type"))) {
@@ -4360,23 +4430,23 @@ struct ASTToC {
         }
         return ret;
     }
-    clingo_ast_theory_term_t *convTheoryTermVec(Object x) {
+    clingo_ast_theory_term_t *convTheoryTermVec(Reference x) {
         return createArray_(x, &ASTToC::convTheoryTerm);
     }
 
     // {{{3 literal
 
-    clingo_ast_csp_guard_t convCSPGuard(Object x) {
+    clingo_ast_csp_guard_t convCSPGuard(Reference x) {
         clingo_ast_csp_guard_t ret;
         ret.comparison = enumValue<ComparisonOperator>(x.getAttr("comparison"));
         ret.term       = convCSPAdd(x.getAttr("term"));
         return ret;
     }
 
-    clingo_ast_term_t convSymbolicAtom(Object x) {
+    clingo_ast_term_t convSymbolicAtom(Reference x) {
         return convTerm(x.getAttr("term"));
     }
-    clingo_ast_literal_t convLiteral(Object x) {
+    clingo_ast_literal_t convLiteral(Reference x) {
         clingo_ast_literal_t ret;
         ret.location = convLocation(x.getAttr("location"));
         if (enumValue<ASTType>(x.getAttr("type")) == ASTType::CSPLiteral) {
@@ -4419,19 +4489,19 @@ struct ASTToC {
             }
         }
     }
-    clingo_ast_literal_t *convLiteralVec(Object &x) {
+    clingo_ast_literal_t *convLiteralVec(Reference x) {
         return createArray_(x, &ASTToC::convLiteral);
     }
 
     // {{{3 aggregates
 
-    clingo_ast_aggregate_guard_t *convAggregateGuardOpt(Object x) {
+    clingo_ast_aggregate_guard_t *convAggregateGuardOpt(Reference x) {
         return !x.none()
             ? create_<clingo_ast_aggregate_guard_t>({enumValue<ComparisonOperator>(x.getAttr("comparison")), convTerm(x.getAttr("term"))})
             : nullptr;
     }
 
-    clingo_ast_conditional_literal_t convConditionalLiteral(Object x) {
+    clingo_ast_conditional_literal_t convConditionalLiteral(Reference x) {
         clingo_ast_conditional_literal_t ret;
         auto cond = x.getAttr("condition");
         ret.literal   = convLiteral(x.getAttr("literal"));
@@ -4440,13 +4510,13 @@ struct ASTToC {
         return ret;
     }
 
-    clingo_ast_theory_guard_t *convTheoryGuardOpt(Object x) {
+    clingo_ast_theory_guard_t *convTheoryGuardOpt(Reference x) {
         return !x.none()
             ? create_<clingo_ast_theory_guard_t>({convString(x.getAttr("operator_name")), convTheoryTerm(x.getAttr("term"))})
             : nullptr;
     }
 
-    clingo_ast_theory_atom_element_t convTheoryAtomElement(Object x) {
+    clingo_ast_theory_atom_element_t convTheoryAtomElement(Reference x) {
         clingo_ast_theory_atom_element_t ret;
         auto tuple = x.getAttr("tuple"), cond = x.getAttr("condition");
         ret.tuple          = convTheoryTermVec(tuple);
@@ -4456,7 +4526,7 @@ struct ASTToC {
         return ret;
     }
 
-    clingo_ast_body_aggregate_element_t convBodyAggregateElement(Object x) {
+    clingo_ast_body_aggregate_element_t convBodyAggregateElement(Reference x) {
         clingo_ast_body_aggregate_element_t ret;
         auto tuple = x.getAttr("tuple"), cond = x.getAttr("condition");
         ret.tuple          = convTermVec(tuple);
@@ -4466,7 +4536,7 @@ struct ASTToC {
         return ret;
     }
 
-    clingo_ast_head_aggregate_element_t convHeadAggregateElement(Object x) {
+    clingo_ast_head_aggregate_element_t convHeadAggregateElement(Reference x) {
         clingo_ast_head_aggregate_element_t ret;
         auto tuple = x.getAttr("tuple");
         ret.tuple               = convTermVec(tuple);
@@ -4475,7 +4545,7 @@ struct ASTToC {
         return ret;
     }
 
-    clingo_ast_aggregate_t convAggregate(Object x) {
+    clingo_ast_aggregate_t convAggregate(Reference x) {
         clingo_ast_aggregate_t ret;
         auto elems = x.getAttr("elements");
         ret.left_guard  = convAggregateGuardOpt(x.getAttr("left_guard"));
@@ -4485,7 +4555,7 @@ struct ASTToC {
         return ret;
     }
 
-    clingo_ast_theory_atom_t convTheoryAtom(Object x) {
+    clingo_ast_theory_atom_t convTheoryAtom(Reference x) {
         clingo_ast_theory_atom_t ret;
         auto elems = x.getAttr("elements");
         ret.term     = convTerm(x.getAttr("term"));
@@ -4495,7 +4565,7 @@ struct ASTToC {
         return ret;
     }
 
-    clingo_ast_disjoint_element_t convDisjointElement(Object x) {
+    clingo_ast_disjoint_element_t convDisjointElement(Reference x) {
         clingo_ast_disjoint_element_t ret;
         auto tuple = x.getAttr("tuple"), cond = x.getAttr("condition");
         ret.location       = convLocation(x.getAttr("location"));
@@ -4625,7 +4695,7 @@ struct ASTToC {
 
     // {{{3 theory definitions
 
-    clingo_ast_theory_operator_definition_t convTheoryOperatorDefinition(Object x) {
+    clingo_ast_theory_operator_definition_t convTheoryOperatorDefinition(Reference x) {
         clingo_ast_theory_operator_definition_t ret;
         ret.type     = enumValue<TheoryOperatorType>(x.getAttr("operator_type"));
         ret.priority = pyToCpp<unsigned>(x.getAttr("priority"));
@@ -4634,7 +4704,7 @@ struct ASTToC {
         return ret;
     }
 
-    clingo_ast_theory_term_definition_t convTheoryTermDefinition(Object x) {
+    clingo_ast_theory_term_definition_t convTheoryTermDefinition(Reference x) {
         clingo_ast_theory_term_definition_t ret;
         auto ops = x.getAttr("operators");
         ret.name      = convString(x.getAttr("name"));
@@ -4644,7 +4714,7 @@ struct ASTToC {
         return ret;
     }
 
-    clingo_ast_theory_guard_definition_t *convTheoryGuardDefinitionOpt(Object x) {
+    clingo_ast_theory_guard_definition_t *convTheoryGuardDefinitionOpt(Reference x) {
         if (x.none()) { return nullptr; }
         auto ret = create_<clingo_ast_theory_guard_definition_t>();
         auto ops = x.getAttr("operators");
@@ -4654,7 +4724,7 @@ struct ASTToC {
         return ret;
     }
 
-    clingo_ast_theory_atom_definition_t convTheoryAtomDefinition(Object x) {
+    clingo_ast_theory_atom_definition_t convTheoryAtomDefinition(Reference x) {
         clingo_ast_theory_atom_definition_t ret;
         auto guard = x.getAttr("guard");
         ret.name     = convString(x.getAttr("name"));
@@ -4668,7 +4738,7 @@ struct ASTToC {
 
     // {{{3 statement
 
-    clingo_ast_statement_t convStatement(Object x) {
+    clingo_ast_statement_t convStatement(Reference x) {
         clingo_ast_statement_t ret;
         ret.location = convLocation(x.getAttr("location"));
         switch (enumValue<ASTType>(x.getAttr("type"))) {
@@ -4827,7 +4897,7 @@ struct ASTToC {
         return reinterpret_cast<T*>(arrdata_.back());
     };
     template <class F>
-    auto createArray_(Object vec, F f) -> decltype((this->*f)(std::declval<Object>()))* {
+    auto createArray_(Reference vec, F f) -> decltype((this->*f)(std::declval<Object>()))* {
         using U = decltype((this->*f)(std::declval<Object>()));
         auto r = createArray_<U>(vec.size()), jt = r;
         for (auto x : vec.iter()) { *jt++ = (this->*f)(x); }
@@ -4869,7 +4939,7 @@ R"(Object to build non-ground programs.)";
         self->locked  = true;
         return reinterpret_cast<PyObject*>(self);
     }
-    Object add(Object pyStm) {
+    Object add(Reference pyStm) {
         if (locked) { throw std::runtime_error("__enter__ has not been called"); }
         ASTToC toc;
         auto stm = toc.convStatement(pyStm);
@@ -4918,11 +4988,11 @@ void pycall(PyObject *fun, SymSpan args, SymVec &vals) {
     int i = 0;
     for (auto &val : args) {
         Object pyVal = Term::new_(val);
-        if (PyTuple_SetItem(params, i, pyVal.release()) < 0) { throw PyException(); }
+        if (PyTuple_SetItem(params.toPy(), i, pyVal.release()) < 0) { throw PyException(); }
         ++i;
     }
-    Object ret = PyObject_Call(fun, params, Py_None);
-    if (PyList_Check(ret)) { pyToCpp(ret, vals); }
+    Object ret = PyObject_Call(fun, params.toPy(), Py_None);
+    if (PyList_Check(ret.toPy())) { pyToCpp(ret, vals); }
     else { vals.emplace_back(pyToCpp<Symbol>(ret)); }
 }
 
@@ -4939,7 +5009,7 @@ public:
         try {
             Object fun = PyObject_GetAttrString(ctx, name.c_str());
             SymVec ret;
-            pycall(fun, args, ret);
+            pycall(fun.toPy(), args, ret);
             return ret;
         }
         catch (PyException const &) {
@@ -5014,7 +5084,7 @@ active; you must not call any member function during search.)";
             if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "|O", const_cast<char**>(kwlist), &params)) { return -1; }
             std::vector<char const *> args;
             if (params) {
-                for (Object pyVal : Object{params, true}.iter()) {
+                for (Object pyVal : Reference{params}.iter()) {
                     args.emplace_back(pyToCpp<char const *>(pyVal));
                 }
             }
@@ -5056,12 +5126,12 @@ active; you must not call any member function during search.)";
             PyContext context(self->ctl->logger());
             if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O", const_cast<char**>(kwlist), &pyParts, &context.ctx)) { return nullptr; }
             for (auto pyVal : Object{pyParts, true}.iter()) {
-                Object jt = PyObject_GetIter(pyVal);
-                Object pyName = PyIter_Next(jt);
+                Object jt = PyObject_GetIter(pyVal.toPy());
+                Object pyName = PyIter_Next(jt.toPy());
                 if (!pyName.valid()) { return PyErr_Format(PyExc_RuntimeError, "tuple of name and arguments expected"); }
-                Object pyArgs = PyIter_Next(jt);
+                Object pyArgs = PyIter_Next(jt.toPy());
                 if (!pyArgs.valid()) { return PyErr_Format(PyExc_RuntimeError, "tuple of name and arguments expected"); }
-                Object pyNext = PyIter_Next(jt);
+                Object pyNext = PyIter_Next(jt.toPy());
                 if (pyNext.valid()) { return PyErr_Format(PyExc_RuntimeError, "tuple of name and arguments expected"); }
                 auto name = pyToCpp<char const *>(pyName);
                 auto args = pyToCpp<SymVec>(pyArgs);
@@ -5104,15 +5174,15 @@ active; you must not call any member function during search.)";
                 Object it = PyObject_GetIter(pyAss);
                 if (!it.valid()) { return false; }
                 Object pyPair;
-                while ((pyPair = PyIter_Next(it)).valid()) {
-                    Object pyPairIt = PyObject_GetIter(pyPair);
+                while ((pyPair = PyIter_Next(it.toPy())).valid()) {
+                    Object pyPairIt = PyObject_GetIter(pyPair.toPy());
                     if (!pyPairIt.valid()) { return false; }
-                    Object pyAtom = PyIter_Next(pyPairIt);
+                    Object pyAtom = PyIter_Next(pyPairIt.toPy());
                     if (!pyAtom.valid()) {
                         if (!PyErr_Occurred()) { PyErr_Format(PyExc_RuntimeError, "tuple expected"); }
                         return false;
                     }
-                    Object pyBool = PyIter_Next(pyPairIt);
+                    Object pyBool = PyIter_Next(pyPairIt.toPy());
                     if (!pyBool.valid()) {
                         if (!PyErr_Occurred()) { PyErr_Format(PyExc_RuntimeError, "tuple expected"); }
                         return false;
@@ -5168,7 +5238,7 @@ active; you must not call any member function during search.)";
             if (!getAssumptions(pyAss, ass)) { return nullptr; }
             Gringo::SolveResult ret = doUnblocked([self, mh, &ass]() {
                 return self->ctl->solve(
-                    mh == Py_None ? Control::ModelHandler(nullptr) : [mh](Gringo::Model const &m) { PyBlock block; return on_model(m, Object(mh, true)); },
+                    mh == Py_None ? Control::ModelHandler(nullptr) : [mh](Gringo::Model const &m) { PyBlock block; return on_model(m, mh); },
                     std::move(ass)); });
             return SolveResult::new_(ret);
         PY_CATCH(nullptr);
@@ -6179,10 +6249,10 @@ PyObject *initclingo_() {
             !TheoryTerm::initType(m)     || !PropagateInit::initType(m)    || !Assignment::initType(m)       ||
             !TermType::initType(m)       || !Term::initType(m)             || !Backend::initType(m)          ||
             !ProgramBuilder::initType(m) ||
-            PyModule_AddStringConstant(m, "__version__", GRINGO_VERSION) < 0 ||
+            PyModule_AddStringConstant(m.toPy(), "__version__", GRINGO_VERSION) < 0 ||
             false) { return nullptr; }
         Object a{initclingoast_(), true};
-        if (PyModule_AddObject(m, "ast", a.release()) < 0) { return nullptr; }
+        if (PyModule_AddObject(m.toPy(), "ast", a.release()) < 0) { return nullptr; }
         return m.release();
     PY_CATCH(nullptr);
 }
@@ -6191,13 +6261,13 @@ PyObject *initclingo_() {
 
 // {{{1 auxiliary functions and objects
 
-void pyToCpp(PyObject *obj, Symbol &val) {
-    if (obj->ob_type == &Term::type) { val = reinterpret_cast<Term*>(obj)->val; }
-    else if (PyTuple_Check(obj))     { val = Symbol::createTuple(Potassco::toSpan(pyToCpp<SymVec>(obj))); }
-    else if (PyInt_Check(obj))       { val = Symbol::createNum(pyToCpp<int>(obj)); }
-    else if (PyString_Check(obj))    { val = Symbol::createStr(pyToCpp<char const *>(obj)); }
+void pyToCpp(Reference obj, Symbol &val) {
+    if (obj.isInstance(Term::type))      { val = reinterpret_cast<Term*>(obj.toPy())->val; }
+    else if (PyTuple_Check(obj.toPy()))  { val = Symbol::createTuple(Potassco::toSpan(pyToCpp<SymVec>(obj))); }
+    else if (PyInt_Check(obj.toPy()))    { val = Symbol::createNum(pyToCpp<int>(obj)); }
+    else if (PyString_Check(obj.toPy())) { val = Symbol::createStr(pyToCpp<char const *>(obj)); }
     else {
-        PyErr_Format(PyExc_RuntimeError, "cannot convert to value: unexpected %s() object", obj->ob_type->tp_name);
+        PyErr_Format(PyExc_RuntimeError, "cannot convert to value: unexpected %s() object", obj.toPy()->ob_type->tp_name);
         throw PyException();
     }
 }
@@ -6212,7 +6282,7 @@ Object cppRngToPy(T begin, T end) {
     int i = 0;
     for (auto it = begin; it != end; ++it) {
         Object pyVal = cppToPy(*it);
-        if (PyList_SetItem(list, i, pyVal.release()) < 0) { throw PyException(); }
+        if (PyList_SetItem(list.toPy(), i, pyVal.release()) < 0) { throw PyException(); }
         ++i;
     }
     return list.release();
@@ -6279,7 +6349,7 @@ struct PythonImpl {
             }
             Object clingoModule = PyImport_ImportModule("clingo");
             Object mainModule = PyImport_ImportModule("__main__");
-            main = PyModule_GetDict(mainModule);
+            main = PyModule_GetDict(mainModule.toPy());
             if (!main) { throw PyException(); }
         PY_HANDLE("<internal>", "could not initialize python interpreter");
     }
@@ -6291,18 +6361,18 @@ struct PythonImpl {
     bool callable(String name) {
         if (!PyMapping_HasKeyString(main, const_cast<char *>(name.c_str()))) { return false; }
         Object fun = PyMapping_GetItemString(main, const_cast<char *>(name.c_str()));
-        return PyCallable_Check(fun);
+        return PyCallable_Check(fun.toPy());
     }
     void call(String name, SymSpan args, SymVec &vals) {
         Object fun = PyMapping_GetItemString(main, const_cast<char*>(name.c_str()));
-        pycall(fun, args, vals);
+        pycall(fun.toPy(), args, vals);
     }
     void call(Gringo::Control &ctl) {
         Object fun = PyMapping_GetItemString(main, const_cast<char*>("main"));
         Object params = PyTuple_New(1);
         Object param(ControlWrap::new_(ctl));
-        if (PyTuple_SetItem(params, 0, param.release()) < 0) { throw PyException(); }
-        Object ret = PyObject_Call(fun, params, Py_None);
+        if (PyTuple_SetItem(params.toPy(), 0, param.release()) < 0) { throw PyException(); }
+        Object ret = PyObject_Call(fun.toPy(), params.toPy(), Py_None);
     }
     PythonInit init;
     PyObject  *main;
