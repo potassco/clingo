@@ -126,6 +126,7 @@ struct ObjectProtocoll {
     bool isTrue();
     bool isInstance(Reference type);
     bool isInstance(PyTypeObject &type);
+    Object richCompare(Reference other, int op);
     Iter iter();
     friend bool operator==(Reference a, Reference b);
     //friend bool operator!=(Reference a, Reference b) {
@@ -287,16 +288,20 @@ template <class T>
 Iter ObjectProtocoll<T>::iter() {
     return {PyObject_GetIter(toPy_())};
 }
+template <class T>
+Object ObjectProtocoll<T>::richCompare(Reference other, int op) {
+    return PyObject_RichCompare(toPy_(), other.toPy(), op);
+}
 bool operator==(Reference a, Reference b) {
     auto ret = PyObject_RichCompareBool(a.toPy(), b.toPy(), Py_EQ);
     if (ret < 0) { throw PyException(); }
     return ret;
 }
-//bool operator!=(Object a, Object b) {
-//    auto ret = PyObject_RichCompareBool(a, b, Py_NE);
-//    if (ret < 0) { throw PyException(); }
-//    return ret;
-//}
+bool operator!=(Object a, Object b) {
+    auto ret = PyObject_RichCompareBool(a.toPy(), b.toPy(), Py_NE);
+    if (ret < 0) { throw PyException(); }
+    return ret;
+}
 
 // }}}2
 template <class T>
@@ -358,10 +363,14 @@ struct List : Object {
     void append(Reference x) {
         if (PyList_Append(toPy(), x.toPy()) < 0) { throw PyException(); }
     }
+    void sort() {
+        if (PyList_Sort(toPy()) < 0) { throw PyException(); }
+    }
 };
 
 struct Dict : Object {
     Dict() : Object{PyDict_New()} {}
+    Dict(Object dict) : Object{dict} {}
     List keys() { return {PyDict_Keys(obj)}; }
     List values() { return {PyDict_Values(obj)}; }
     List items() { return {PyDict_Items(obj)}; }
@@ -424,7 +433,6 @@ private:
 
 IterIterator begin(Iter it) { return {it, it.next()}; }
 IterIterator end(Iter it) { return {it, nullptr}; }
-
 
 // NOTE: all the functions below can use execptions
 //       to remove all the annoying return value checking
@@ -1032,6 +1040,8 @@ struct ObjectBase : ObjectProtocoll<T> {
 protected:
     template <Object (T::*f)()>
     static getter to_getter() { return to_getter_<f>; };
+    template <void (T::*f)(Reference)>
+    static setter to_setter() { return to_setter_<f>; };
     template <Object (T::*f)()>
     static PyCFunction to_function() { return to_function_<Object, f>; }
     template <Reference (T::*f)()>
@@ -1046,6 +1056,11 @@ private:
     static PyObject *to_getter_(PyObject *o, void *) {
         PY_TRY { return (reinterpret_cast<T*>(o)->*f)().release(); }
         PY_CATCH(nullptr);
+    };
+    template <void (T::*f)(Reference)>
+    static int to_setter_(PyObject *self, PyObject *value, void *) {
+        PY_TRY { return ((reinterpret_cast<T*>(self)->*f)(Reference{value}), 0); }
+        PY_CATCH(-1);
     };
     template <class R, R (T::*f)()>
     static PyObject *to_function_(PyObject *self, PyObject *) {
@@ -1167,7 +1182,7 @@ struct EnumType : ObjectBase<T> {
     }
 };
 template <class T>
-auto enumValue(Object self) -> decltype(std::declval<T*>()->values[0]) {
+auto enumValue(Reference self) -> decltype(std::declval<T*>()->values[0]) {
     if (!self.isInstance(T::type)) {
         throw std::runtime_error("not an enumeration object");
     }
@@ -3425,21 +3440,53 @@ constexpr const char * ScriptType::strings[];
 // }}}3
 
 struct AST : ObjectBase<AST> {
+    ASTType::T type_;
     Dict fields_;
     List children;
     static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
     static constexpr char const *tp_type = "AST";
     static constexpr char const *tp_name = "clingo.ast.AST";
-    static constexpr char const *tp_doc = "Node in the abstract syntax tree.";
-    // TODO: construction should be possible from an ASTType with keyword arguments
+    static constexpr char const *tp_doc = R"(AST(type, **arguments) -> AST
+
+Node in the abstract syntax tree.
+
+Arguments:
+type -- value in the enumeration ASTType
+
+Additionally, the functions takes an arbitrary number of keyword arguments.
+These should contain the required fields of the node but can also be set
+later.
+
+AST nodes can be structually compared ignoring the location.
+
+Note that it is also possible to create AST nodes using one of the functions
+provided in this module.
+)";
+    static PyObject *tp_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
+        PY_TRY
+            AST *self = reinterpret_cast<AST*>(type->tp_alloc(type, 0));
+            if (!self) { return nullptr; }
+            new (&self->fields_) Dict();
+            new (&self->children) List(nullptr);
+            Reference pyType;
+            if (PyArg_ParseTuple(args, "O", &pyType.obj) < 0) { return nullptr; }
+            self->type_ = enumValue<ASTType>(pyType);
+            if (kwargs) {
+                for (auto item : Dict{Reference{kwargs}}.items().iter()) {
+                    self->fields_.setItem(item.getItem(0), item.getItem(1));
+                }
+            }
+            return reinterpret_cast<PyObject*>(self);
+        PY_CATCH(nullptr);
+    }
     static PyObject *new_(ASTType::T t) {
         PY_TRY
             AST *self = reinterpret_cast<AST*>(type.tp_alloc(&type, 0));
             if (!self) { return nullptr; }
             new (&self->fields_) Dict();
-            new (&self->children) List();
-            self->fields_.setItem("type", ASTType::getAttr(t));
+            new (&self->children) List(nullptr);
+            self->type_ = t;
             return reinterpret_cast<PyObject*>(self);
         PY_CATCH(nullptr);
     }
@@ -3455,7 +3502,7 @@ struct AST : ObjectBase<AST> {
     }
     Object childKeys_() {
         auto ret = [](std::initializer_list<char const *> l) { return cppToPy(l); };
-        switch (enumValue<ASTType>(fields_.getItem("type"))) {
+        switch (type_) {
             case ASTType::Id:                        { return ret({ }); }
             case ASTType::Variable:                  { return ret({ }); }
             case ASTType::Symbol:                    { return ret({ }); }
@@ -3513,6 +3560,12 @@ struct AST : ObjectBase<AST> {
         if (!children.valid()) { children = childKeys_(); }
         return children;
     }
+    Object getType() {
+        return ASTType::getAttr(type_);
+    }
+    void setType(Reference value) {
+        type_ = enumValue<ASTType>(value);
+    }
     void tp_setattro(Reference name, Reference value) {
         children = nullptr;
         if (PyObject_GenericSetAttr(toPy(), name.toPy(), value.toPy()) < 0) {
@@ -3538,11 +3591,7 @@ struct AST : ObjectBase<AST> {
     Object tp_repr() {
         PY_TRY
             std::ostringstream out;
-            Object type = fields_.getItem("type");
-            if (!type.isInstance(ASTType::type)) {
-                throw std::runtime_error("AST node with unknown type");
-            }
-            switch (enumValue<ASTType>(type)) {
+            switch (type_) {
                 // {{{3 term
                 case ASTType::Id: { return fields_.getItem("id").str(); }
                 case ASTType::Variable: { return fields_.getItem("name").str(); }
@@ -3793,14 +3842,24 @@ struct AST : ObjectBase<AST> {
             return cppToPy(out.str());
         PY_CATCH(nullptr);
     }
-    long tp_hash() {
-        // hash of the dictionary object excluding locations
-        throw std::logic_error("implement me!!!");
+
+    List toList() {
+        List k;
+        Object loc = PyString_FromString("location");
+        for (auto x : keys().iter()) {
+            if (x != loc) { k.append(x); }
+        }
+        k.sort();
+        List ret;
+        ret.append(ASTType::getAttr(type_));
+        for (auto x : k.iter()) {
+            ret.append(Tuple{x, mp_subscript(x)});
+        }
+        return ret;
     }
+
     Object tp_richcompare(AST &b, int op) {
-        (void)op;
-        (void)b;
-        throw std::logic_error("implement me!!!");
+        return toList().richCompare(b.toList(), op);
     }
 
     Py_ssize_t mp_length() { return fields_.length(); }
@@ -3837,6 +3896,7 @@ The list of items of the AST node.
 
 PyGetSetDef AST::tp_getset[] = {
     {(char*)"child_keys", to_getter<&AST::childKeys>(), nullptr, (char*)"List of names of all AST child nodes.", nullptr},
+    {(char*)"type", to_getter<&AST::getType>(), to_setter<&AST::setType>(), (char*)"The type of the node.", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
