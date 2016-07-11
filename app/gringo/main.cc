@@ -43,19 +43,19 @@
 
 struct GringoOptions {
     using Foobar = std::vector<Gringo::Sig>;
-    ProgramOptions::StringSeq    defines;
-    Gringo::Output::OutputDebug  outputDebug           = Gringo::Output::OutputDebug::NONE;
-    Gringo::Output::OutputFormat outputFormat          = Gringo::Output::OutputFormat::INTERMEDIATE;
-    bool                         verbose               = false;
-    bool                         wNoOperationUndefined = false;
-    bool                         wNoAtomUndef          = false;
-    bool                         wNoFileIncluded       = false;
-    bool                         wNoVariableUnbounded  = false;
-    bool                         wNoGlobalVariable     = false;
-    bool                         wNoOther              = false;
-    bool                         rewriteMinimize       = false;
-    bool                         keepFacts             = false;
-    Foobar foobar;
+    ProgramOptions::StringSeq     defines;
+    Gringo::Output::OutputOptions outputOptions;
+    Gringo::Output::OutputFormat  outputFormat          = Gringo::Output::OutputFormat::INTERMEDIATE;
+    bool                          verbose               = false;
+    bool                          wNoOperationUndefined = false;
+    bool                          wNoAtomUndef          = false;
+    bool                          wNoFileIncluded       = false;
+    bool                          wNoVariableUnbounded  = false;
+    bool                          wNoGlobalVariable     = false;
+    bool                          wNoOther              = false;
+    bool                          rewriteMinimize       = false;
+    bool                          keepFacts             = false;
+    Foobar                        foobar;
 };
 
 static inline std::vector<std::string> split(std::string const &source, char const *delimiter = " ", bool keepEmpty = false) {
@@ -293,7 +293,7 @@ struct GringoApp : public ProgramOptions::Application {
              "      reify       : print program as reified facts\n"
              "      smodels     : print smodels format\n"
              "                    (only supports basic features)")
-            ("output-debug", storeTo(grOpts_.outputDebug = Gringo::Output::OutputDebug::NONE, values<Gringo::Output::OutputDebug>()
+            ("output-debug", storeTo(grOpts_.outputOptions.debug = Gringo::Output::OutputDebug::NONE, values<Gringo::Output::OutputDebug>()
               ("none", Gringo::Output::OutputDebug::NONE)
               ("text", Gringo::Output::OutputDebug::TEXT)
               ("translate", Gringo::Output::OutputDebug::TRANSLATE)
@@ -313,6 +313,8 @@ struct GringoApp : public ProgramOptions::Application {
              "      [no-]other:               uncategorized warnings")
             ("rewrite-minimize", flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
             ("keep-facts", flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
+            ("reify-sccs", flag(grOpts_.outputOptions.reifySCCs = false), "Calculate SCCs for reified output")
+            ("reify-steps", flag(grOpts_.outputOptions.reifySteps = false), "Add step numbers to reified output")
             ("foobar,@4", storeTo(grOpts_.foobar, parseFoobar), "Foobar")
             ;
         root.add(gringo);
@@ -389,7 +391,7 @@ struct GringoApp : public ProgramOptions::Application {
             }
             Potassco::TheoryData data;
             data.update();
-            Output::OutputBase out(data, std::move(outPreds), std::cout, grOpts_.outputFormat, grOpts_.outputDebug);
+            Output::OutputBase out(data, std::move(outPreds), std::cout, grOpts_.outputFormat, grOpts_.outputOptions);
             ground(out);
         }
         catch (Gringo::GringoError const &e) {

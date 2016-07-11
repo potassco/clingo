@@ -54,10 +54,16 @@ private:
     UBackend out_;
 };
 
+struct OutputOptions {
+    OutputDebug debug      = OutputDebug::NONE;
+    bool        reifySCCs  = false;
+    bool        reifySteps = false;
+};
+
 class OutputBase {
 public:
-    OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, std::ostream &out, OutputFormat format = OutputFormat::INTERMEDIATE, OutputDebug debug = OutputDebug::NONE);
-    OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, UBackend &&out, OutputDebug debug = OutputDebug::NONE);
+    OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, std::ostream &out, OutputFormat format = OutputFormat::INTERMEDIATE, OutputOptions opts = OutputOptions());
+    OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, UBackend &&out, OutputOptions opts = OutputOptions());
     OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, UAbstractOutput &&out);
 
     std::pair<Id_t, Id_t> simplify(AssignmentLookup assignment);
@@ -79,8 +85,8 @@ public:
     Backend *backend();
     void reset();
 private:
-    UAbstractOutput fromFormat(std::ostream &out, OutputFormat format, OutputDebug debug);
-    UAbstractOutput fromBackend(UBackend &&out, OutputDebug debug);
+    UAbstractOutput fromFormat(std::ostream &out, OutputFormat format, OutputOptions opts);
+    UAbstractOutput fromBackend(UBackend &&out, OutputOptions opts);
 
 public:
     SymVec tempVals_;

@@ -73,19 +73,19 @@ private:
 
 struct ClingoOptions {
     using Foobar = std::vector<Gringo::Sig>;
-    ProgramOptions::StringSeq    defines;
-    Gringo::Output::OutputDebug  outputDebug  = Gringo::Output::OutputDebug::NONE;
-    Gringo::Output::OutputFormat outputFormat = Gringo::Output::OutputFormat::INTERMEDIATE;
-    bool verbose               = false;
-    bool wNoOperationUndefined = false;
-    bool wNoAtomUndef          = false;
-    bool wNoFileIncluded       = false;
-    bool wNoVariableUnbounded  = false;
-    bool wNoGlobalVariable     = false;
-    bool wNoOther              = false;
-    bool rewriteMinimize       = false;
-    bool keepFacts             = false;
-    Foobar foobar;
+    ProgramOptions::StringSeq     defines;
+    Gringo::Output::OutputOptions outputOptions;
+    Gringo::Output::OutputFormat  outputFormat          = Gringo::Output::OutputFormat::INTERMEDIATE;
+    bool                          verbose               = false;
+    bool                          wNoOperationUndefined = false;
+    bool                          wNoAtomUndef          = false;
+    bool                          wNoFileIncluded       = false;
+    bool                          wNoVariableUnbounded  = false;
+    bool                          wNoGlobalVariable     = false;
+    bool                          wNoOther              = false;
+    bool                          rewriteMinimize       = false;
+    bool                          keepFacts             = false;
+    Foobar                        foobar;
 };
 
 inline void enableAll(ClingoOptions& out, bool enable) {

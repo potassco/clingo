@@ -143,11 +143,11 @@ void ClingoControl::parse(const StringSeq& files, const ClingoOptions& opts, Cla
         outPreds.emplace_back(Location("<cmd>",1,1,"<cmd>", 1,1), x, false);
     }
     if (claspOut) {
-        out_ = gringo_make_unique<Output::OutputBase>(claspOut->theoryData(), std::move(outPreds), gringo_make_unique<ClaspAPIBackend>(*this), opts.outputDebug);
+        out_ = gringo_make_unique<Output::OutputBase>(claspOut->theoryData(), std::move(outPreds), gringo_make_unique<ClaspAPIBackend>(*this), opts.outputOptions);
     }
     else {
         data_ = gringo_make_unique<Potassco::TheoryData>();
-        out_ = gringo_make_unique<Output::OutputBase>(*data_, std::move(outPreds), std::cout, opts.outputFormat, opts.outputDebug);
+        out_ = gringo_make_unique<Output::OutputBase>(*data_, std::move(outPreds), std::cout, opts.outputFormat, opts.outputOptions);
     }
     out_->keepFacts = opts.keepFacts;
     pb_ = gringo_make_unique<Input::NongroundProgramBuilder>(scripts_, prg_, *out_, defs_, opts.rewriteMinimize);
@@ -671,7 +671,7 @@ void ClingoLib::initOptions(ProgramOptions::OptionContext& root) {
     gringo.addOptions()
         ("verbose,V"                , flag(grOpts_.verbose = false), "Enable verbose output")
         ("const,c"                  , storeTo(grOpts_.defines, parseConst)->composing()->arg("<id>=<term>"), "Replace term occurences of <id> with <term>")
-        ("output-debug", storeTo(grOpts_.outputDebug = Gringo::Output::OutputDebug::NONE, values<Gringo::Output::OutputDebug>()
+        ("output-debug", storeTo(grOpts_.outputOptions.debug = Gringo::Output::OutputDebug::NONE, values<Gringo::Output::OutputDebug>()
           ("none", Gringo::Output::OutputDebug::NONE)
           ("text", Gringo::Output::OutputDebug::TEXT)
           ("translate", Gringo::Output::OutputDebug::TRANSLATE)

@@ -149,16 +149,16 @@ void BackendOutput::output(DomainData &data, Statement &stm) {
 
 // {{{1 definition of OutputBase
 
-OutputBase::OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, std::ostream &out, OutputFormat format, OutputDebug debug)
+OutputBase::OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, std::ostream &out, OutputFormat format, OutputOptions opts)
 : outPreds(std::move(outPreds))
 , data(data)
-, out_(fromFormat(out, format, debug))
+, out_(fromFormat(out, format, opts))
 { }
 
-OutputBase::OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, UBackend &&out, OutputDebug debug)
+OutputBase::OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, UBackend &&out, OutputOptions opts)
 : outPreds(std::move(outPreds))
 , data(data)
-, out_(fromBackend(std::move(out), debug))
+, out_(fromBackend(std::move(out), opts))
 { }
 
 OutputBase::OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, UAbstractOutput &&out)
@@ -167,11 +167,11 @@ OutputBase::OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, 
 , out_(std::move(out))
 { }
 
-UAbstractOutput OutputBase::fromFormat(std::ostream &stream, OutputFormat format, OutputDebug debug) {
+UAbstractOutput OutputBase::fromFormat(std::ostream &stream, OutputFormat format, OutputOptions opts) {
     if (format == OutputFormat::TEXT) {
         UAbstractOutput out;
         out = gringo_make_unique<TextOutput>("", stream);
-        if (debug == OutputDebug::TEXT) {
+        if (opts.debug == OutputDebug::TEXT) {
             out = gringo_make_unique<TextOutput>("% ", std::cerr, std::move(out));
         }
         return out;
@@ -180,7 +180,7 @@ UAbstractOutput OutputBase::fromFormat(std::ostream &stream, OutputFormat format
         UBackend backend;
         switch (format) {
             case OutputFormat::REIFY: {
-                backend = gringo_make_unique<Reify::Reifier>(stream, true, true);
+                backend = gringo_make_unique<Reify::Reifier>(stream, opts.reifySCCs, opts.reifySteps);
                 break;
             }
             case OutputFormat::INTERMEDIATE: {
@@ -195,18 +195,18 @@ UAbstractOutput OutputBase::fromFormat(std::ostream &stream, OutputFormat format
                 throw std::logic_error("cannot happen");
             }
         }
-        return fromBackend(std::move(backend), debug);
+        return fromBackend(std::move(backend), opts);
     }
 }
 
-UAbstractOutput OutputBase::fromBackend(UBackend &&backend, OutputDebug debug) {
+UAbstractOutput OutputBase::fromBackend(UBackend &&backend, OutputOptions opts) {
     UAbstractOutput out;
     out = gringo_make_unique<BackendOutput>(std::move(backend));
-    if (debug == OutputDebug::TRANSLATE || debug == OutputDebug::ALL) {
+    if (opts.debug == OutputDebug::TRANSLATE || opts.debug == OutputDebug::ALL) {
         out = gringo_make_unique<TextOutput>("%% ", std::cerr, std::move(out));
     }
     out = gringo_make_unique<TranslatorOutput>(std::move(out));
-    if (debug == OutputDebug::TEXT || debug == OutputDebug::ALL) {
+    if (opts.debug == OutputDebug::TEXT || opts.debug == OutputDebug::ALL) {
         out = gringo_make_unique<TextOutput>("% ", std::cerr, std::move(out));
     }
     return out;
