@@ -554,9 +554,6 @@ struct ClaspFacade::Statistics {
 	typedef StatsVec<SolverStats>        SolverVec;
 	typedef SingleOwnerPtr<Asp::LpStats> LpStatsPtr;
 	typedef PrgDepGraph::NonHcfStats     TesterStats;
-	// DEPRECATED
-	typedef PodVector<char>::type StrType;
-	typedef Clasp::HashMap_t<StatisticObject, StrType, StatisticObject::Hasher>::map_type Obj2Keys;
 	ClaspFacade*  self_;
 	LpStatsPtr    lp_;      // level 0 and asp
 	SolverStats   solvers_; // level 0
@@ -565,11 +562,10 @@ struct ClaspFacade::Statistics {
 	TesterStats*  tester_;  // level > 0 and nonhcfs
 	uint32        level_;   // active stats level
 	// For clingo stats interface
-	Obj2Keys      keyLists_; // for supporting deprecated clingo interface
 	class ClingoView : public ClaspStatistics {
 	public:
 		explicit ClingoView(const ClaspFacade& f);
-		void update(const Statistics& s, Obj2Keys& keyList);
+		void update(const Statistics& s);
 	private:
 		struct StepStats {
 			SummaryStats times;
@@ -596,7 +592,6 @@ void ClaspFacade::Statistics::initLevel(uint32 level) {
 	if (level_ < level) {
 		if (incremental() && !solvers_.multi) { solvers_.multi = new SolverStats(); }
 		level_ = level;
-		keyLists_.clear();
 	}
 	if (self_->isAsp() && !lp_.get()) {
 		lp_ = new Asp::LpStats();
@@ -633,7 +628,7 @@ void ClaspFacade::Statistics::end() {
 		solver_[i]->flush();
 	}
 	if (tester_) { tester_->endStep(); }
-	if (clingo_) { clingo_->update(*this, keyLists_); }
+	if (clingo_) { clingo_->update(*this); }
 }
 void ClaspFacade::Statistics::addTo(StatsMap& solving, StatsMap* accu) const {
 	solvers_.addTo("solvers", solving, accu);
@@ -664,7 +659,7 @@ void ClaspFacade::Statistics::accept(StatsVisitor& out, bool final) const {
 Potassco::AbstractStatistics* ClaspFacade::Statistics::getClingo() {
 	if (!clingo_) {
 		clingo_ = new ClingoView(*this->self_);
-		clingo_->update(*this, keyLists_);
+		clingo_->update(*this);
 	}
 	return clingo_;
 }
@@ -691,19 +686,15 @@ ClaspFacade::Statistics::ClingoView::ClingoView(const ClaspFacade& f) {
 	}
 	setRoot(keys_.toStats());
 }
-void ClaspFacade::Statistics::ClingoView::update(const ClaspFacade::Statistics& stats, ClaspFacade::Statistics::Obj2Keys& keyList) {
+void ClaspFacade::Statistics::ClingoView::update(const ClaspFacade::Statistics& stats) {
 	if (stats.level_ > 0 && accu_.get() && keys_.add("accu", accu_->toStats())) {
 		accu_->step.addTo(*accu_);
 		accu_->add("solving", accu_->solving_.toStats());
-		keyList.erase(keys_.toStats());
 	}
 	stats.addTo(solving_, stats.level_ > 0 && accu_.get() ? &accu_->solving_ : 0);
 	if (stats.tester_) {
 		stats.tester_->addTo(problem_, solving_, stats.level_ > 0 && accu_.get() ? &accu_->solving_ : 0);
-		keyList.erase(problem_.toStats());
 	}
-	keyList.erase(solving_.toStats());
-	if (accu_.get()) { keyList.erase(accu_->toStats()); }
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // ClaspFacade
@@ -1002,50 +993,6 @@ bool ClaspFacade::onModel(const Solver& s, const Model& m) {
 	if (++step_.numEnum == 1) { step_.satTime = step_.unsatTime - step_.solveTime; }
 	if (m.opt) { ++step_.numOptimal; }
 	return solve_->update(s, m);
-}
-StatisticObject ClaspFacade::getStatImpl(const char* path) const {
-	ClaspStatistics* stats = solved() ? static_cast<ClaspStatistics*>(getStats()) : 0;
-	CLASP_ASSERT_CONTRACT_MSG(stats, "statistics not (yet) available!");
-	return stats->findObject(stats->root(), path);
-}
-double ClaspFacade::getStat(const char* path) const {
-	double res = 0.0;
-	try {
-		StatisticObject o = getStatImpl(path);
-		res = o.type() == Potassco::Statistics_t::Value ? o.value() : throw std::bad_cast();
-	}
-	catch (const std::logic_error&) { 
-		const char* x   = std::strrchr(path, '.');
-		std::size_t len = x ? static_cast<std::size_t>(x - path) : 0;
-		if (!len || std::strcmp(x, ".__len") != 0 || len >= 1024) { throw; }
-		char temp[1024];
-		path = (const char*)std::memcpy(temp, path, len);
-		temp[len] = 0;
-		StatisticObject o = getStatImpl(path);
-		res = o.type() == Potassco::Statistics_t::Array ? static_cast<double>(o.size()) : throw std::bad_cast();
-	}
-	return res;
-}
-const char* ClaspFacade::getKeys(const char* path) const {
-	StatisticObject o = getStatImpl(path);
-	if (o.type() == Potassco::Statistics_t::Array) {
-		return "__len\0";
-	}
-	else if (o.type() == Potassco::Statistics_t::Map) {
-		Statistics::StrType& kl = static_cast<Statistics*>(stats_.get())->keyLists_[o];
-		if (kl.empty()) {
-			for (uint32 i = 0, end = o.size(); i != end; ++i) {
-				const char* k = o.key(i);
-				if (o.at(k).type() != Potassco::Statistics_t::Value) {
-					kl.push_back('.');
-				}
-				kl.insert(kl.end(), k, k + std::strlen(k) + 1);
-			}
-			kl.push_back(0);
-		}
-		return &kl[0];
-	}
-	return 0;
 }
 Enumerator* ClaspFacade::enumerator() const { return solve_.get() ? solve_->enumerator() : 0; }
 Potassco::AbstractStatistics* ClaspFacade::getStats() const {
