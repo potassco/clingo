@@ -311,13 +311,24 @@ claspLibS = claspEnv.StaticLibrary('libclasp_shared', shared(claspEnv, LIBCLASP_
 # {{{1 Gringo: Library
 
 LIBGRINGO_SOURCES = find_files(env, 'libgringo/src')
-LIBGRINGO_HEADERS = [Dir('#libgringo'), 'libgringo/src'] + LIBLP_HEADERS
+LIBGRINGO_HEADERS = [Dir('#libgringo'), 'libgringo/src', 'libreify'] + LIBLP_HEADERS
 
 gringoEnv = env.Clone()
 gringoEnv.Append(CPPPATH = LIBGRINGO_HEADERS)
 
 gringoLib  = gringoEnv.StaticLibrary('libgringo', LIBGRINGO_SOURCES)
 gringoLibS = gringoEnv.StaticLibrary('libgringo_shared', shared(gringoEnv, LIBGRINGO_SOURCES))
+
+# {{{1 Reify: Library
+
+LIBREIFY_SOURCES = find_files(env, 'libreify/src')
+LIBREIFY_HEADERS = [Dir('#libreify'), 'libreify/src'] + LIBGRINGO_HEADERS
+
+reifyEnv = env.Clone()
+reifyEnv.Append(CPPPATH = LIBREIFY_HEADERS)
+
+reifyLib  = reifyEnv.StaticLibrary('libreify', LIBREIFY_SOURCES)
+reifyLibS = reifyEnv.StaticLibrary('libreify_shared', shared(reifyEnv, LIBREIFY_SOURCES))
 
 # {{{1 Clingo: Library
 
@@ -331,20 +342,9 @@ clingoLib  = clingoEnv.StaticLibrary('libclingo', LIBCLINGO_SOURCES)
 clingoLibS = clingoEnv.StaticLibrary('libclingo_shared', shared(clingoEnv, LIBCLINGO_SOURCES))
 
 clingoSharedEnv = clingoEnv.Clone()
-clingoSharedEnv.Prepend(LIBS = [gringoLibS, claspLibS, optsLibS, lpLibS])
+clingoSharedEnv.Prepend(LIBS = [gringoLibS, reifyLibS, claspLibS, optsLibS, lpLibS])
 clingoSharedLib = clingoSharedEnv.SharedLibrary('libclingo', shared(clingoEnv, LIBCLINGO_SOURCES))
 clingoSharedEnv.Alias('libclingo', clingoSharedLib)
-
-# {{{1 Reify: Library
-
-LIBREIFY_SOURCES = find_files(env, 'libreify/src')
-LIBREIFY_HEADERS = [Dir('#libreify'), 'libreify/src'] + LIBGRINGO_HEADERS
-
-reifyEnv = env.Clone()
-reifyEnv.Append(CPPPATH = LIBREIFY_HEADERS)
-
-reifyLib  = reifyEnv.StaticLibrary('libreify', LIBREIFY_SOURCES)
-#reifyLibS = reifyEnv.StaticLibrary('libreify_shared', shared(reifyEnv, LIBREIFY_SOURCES))
 
 # {{{1 Gringo: Program
 
@@ -352,7 +352,7 @@ GRINGO_SOURCES = find_files(env, 'app/gringo')
 
 gringoProgramEnv = gringoEnv.Clone()
 gringoProgramEnv.Append(CPPPATH = LIBOPTS_HEADERS)
-gringoProgramEnv.Prepend(LIBS=[ gringoLib, optsLib, lpLib ])
+gringoProgramEnv.Prepend(LIBS=[ gringoLib, optsLib, reifyLib, lpLib ])
 
 gringoProgram = gringoProgramEnv.Program('gringo', GRINGO_SOURCES)
 gringoProgramEnv.Alias('gringo', gringoProgram)
@@ -365,7 +365,7 @@ if not env.GetOption('clean'):
 CLINGO_SOURCES = find_files(env, 'app/clingo/src')
 
 clingoProgramEnv = claspEnv.Clone()
-clingoProgramEnv.Prepend(LIBS=[ clingoLib, gringoLib, claspLib, optsLib, lpLib ])
+clingoProgramEnv.Prepend(LIBS=[ clingoLib, gringoLib, reifyLib, claspLib, optsLib, lpLib ])
 clingoProgramEnv.Append(CPPPATH = LIBCLINGO_HEADERS)
 
 clingoProgram  = clingoProgramEnv.Program('clingo', CLINGO_SOURCES)
@@ -379,7 +379,7 @@ if not env.GetOption('clean'):
 WEB_SOURCES = [ clingoProgramEnv.Object(x) for x in find_files(env, 'app/clingo/src') if x != 'app/clingo/src/main.cc' ] + find_files(env, 'app/web')
 
 webProgramEnv = claspEnv.Clone()
-webProgramEnv.Prepend(LIBS=[ clingoLib, gringoLib, claspLib, optsLib, lpLib ])
+webProgramEnv.Prepend(LIBS=[ clingoLib, gringoLib, reifyLib, claspLib, optsLib, lpLib ])
 webProgramEnv.Append(CPPPATH = LIBCLINGO_HEADERS + [Dir('#app/clingo/src')])
 
 webProgram  = webProgramEnv.Program('clingo.html', WEB_SOURCES)
@@ -445,7 +445,7 @@ if with_python:
 
     pyclingoEnv = clingoEnv.Clone()
     pyclingoEnv["LIBPREFIX"] = ""
-    pyclingoEnv.Prepend(LIBS   = [clingoLibS, gringoLibS, claspLibS, optsLibS, lpLibS])
+    pyclingoEnv.Prepend(LIBS   = [clingoLibS, gringoLibS, claspLibS, optsLibS, reifyLibS, lpLibS])
 
     pyclingo = pyclingoEnv.SharedLibrary('python/clingo.so', PYCLINGO_SOURCES)
     pyclingoEnv.Alias('pyclingo', pyclingo)
@@ -457,7 +457,7 @@ if with_lua:
 
     luaclingoEnv = clingoEnv.Clone()
     luaclingoEnv["LIBPREFIX"] = ""
-    luaclingoEnv.Prepend(LIBS   = [clingoLibS, gringoLibS, claspLibS, optsLibS, lpLibS])
+    luaclingoEnv.Prepend(LIBS   = [clingoLibS, gringoLibS, claspLibS, optsLibS, reifyLibS, lpLibS])
 
     luaclingo = luaclingoEnv.SharedLibrary('lua/clingo.so', LUACLINGO_SOURCES)
     luaclingoEnv.Alias('luaclingo', luaclingo)
@@ -470,7 +470,7 @@ TEST_LIBGRINGO_SOURCES  = find_files(env, 'libgringo/tests')
 
 gringoTestEnv                = claspEnv.Clone()
 gringoTestEnv.Append(CPPPATH = LIBGRINGO_HEADERS + LIBCLASP_HEADERS)
-gringoTestEnv.Prepend(LIBS   = [gringoLib, claspLib, lpLib])
+gringoTestEnv.Prepend(LIBS   = [gringoLib, claspLib, reifyLib, lpLib])
 
 testGringoProgram = gringoTestEnv.Program('test_libgringo', TEST_LIBGRINGO_SOURCES)
 AlwaysBuild(gringoTestEnv.Alias('test-libgringo', [testGringoProgram], testGringoProgram[0].path + (" " + GetOption("test_case") if GetOption("test_case") else "")))
@@ -509,7 +509,7 @@ TEST_CLINGO_SOURCES  = find_files(env, 'libclingo/tests')
 
 clingoTestEnv                = env.Clone()
 clingoTestEnv.Append(CPPPATH = LIBCLINGO_HEADERS)
-clingoTestEnv.Prepend(LIBS   = [clingoLib, gringoLib, claspLib, optsLib, lpLib])
+clingoTestEnv.Prepend(LIBS   = [clingoLib, gringoLib, claspLib, optsLib, reifyLib, lpLib])
 
 clingoTestProgram = clingoTestEnv.Program('test_libclingo', TEST_CLINGO_SOURCES)
 AlwaysBuild(clingoTestEnv.Alias('test-libclingo', [clingoTestProgram], clingoTestProgram[0].path))

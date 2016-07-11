@@ -22,6 +22,7 @@
 #include "gringo/logger.hh"
 #include "gringo/output/aggregates.hh"
 #include "gringo/output/backends.hh"
+#include "reify/program.hh"
 #include <cstring>
 
 namespace Gringo { namespace Output {
@@ -179,7 +180,8 @@ UAbstractOutput OutputBase::fromFormat(std::ostream &stream, OutputFormat format
         UBackend backend;
         switch (format) {
             case OutputFormat::REIFY: {
-                throw std::logic_error("implement reified format");
+                backend = gringo_make_unique<Reify::Reifier>(stream, true, true);
+                break;
             }
             case OutputFormat::INTERMEDIATE: {
                 backend = gringo_make_unique<IntermediateFormatBackend>(stream);
