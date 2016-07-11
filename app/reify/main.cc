@@ -40,8 +40,8 @@ protected:
         using namespace ProgramOptions;
         OptionGroup reify("Reify Options");
         reify.addOptions()
-            ("calculate-sccs,c", flag(opts_.calculateSCCs), "calculate strongly connected components\n")
-            ("reify-step,s", flag(opts_.reifyStep), "attach current step number to generated facts\n");
+            ("sccs,c", flag(opts_.calculateSCCs), "calculate strongly connected components\n")
+            ("steps,s", flag(opts_.reifyStep), "add step numbers to generated facts\n");
         root.add(reify);
         OptionGroup basic("Basic Options");
         basic.addOptions()
