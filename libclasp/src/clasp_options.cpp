@@ -295,11 +295,11 @@ enum { key_leaf = 0, key_solver = -1, key_asp = -2, key_solve = -3, key_tester =
 // nodes_g[-k]: entry for key k
 static const NodeKey nodes_g[] = {
 /* 0: config */ {"configuration", KEY_INIT_DESC("Initializes this configuration\n"), 0,0},
-/* 1: */ {"solver.", "Solver Options", option_category_solver_begin, option_category_search_end},
-/* 2: */ {"asp.", "Asp Options", option_category_asp_begin, option_category_asp_end},
-/* 3: */ {"solve.", "Solve Options", option_category_solve_begin, option_category_solve_end},
-/* 4: */ {"tester.", "Tester Options", key_solver  , option_category_context_end},
-/* 5: */ {".", "Options", key_tester, option_category_context_end}
+/* 1: */ {"solver", "Solver Options", option_category_solver_begin, option_category_search_end},
+/* 2: */ {"asp"   , "Asp Options"   , option_category_asp_begin, option_category_asp_end},
+/* 3: */ {"solve" , "Solve Options" , option_category_solve_begin, option_category_solve_end},
+/* 4: */ {"tester", "Tester Options", key_solver  , option_category_context_end},
+/* 5: */ {""      , "Options"       , key_tester, option_category_context_end}
 };
 static uint32 makeKeyHandle(int16 kId, uint32 mode, uint32 sId) {
 	assert(sId <= 255 && mode <= 255);
@@ -624,18 +624,17 @@ bool ClaspCliConfig::assignDefaults(const ProgramOptions::ParsedOptions& exclude
 void ClaspCliConfig::releaseOptions() {
 	opts_ = 0;
 }
-bool ClaspCliConfig::match(const char*& path, const char* what, bool matchDot) const {
-	const char* t = path;
-	while (*t == *what && *what) { ++t; ++what; }
-	if (matchDot) {
-		t    += (*t == '.');
-		what += (!*t && *what == '.');
+bool ClaspCliConfig::match(const char*& path, const char* what) const {
+	std::size_t wLen = std::strlen(what);
+	if (strncmp(path, what, wLen) != 0 || (path[wLen] && path[wLen++] != '.')) {
+		return false;
 	}
-	return !*what && (path=t) == t;
+	path += wLen;
+	return true;
 }
 ClaspCliConfig::KeyType ClaspCliConfig::getKey(KeyType k, const char* path) const {
 	int16 id = decodeKey(k);
-	if (!isValidId(id) || !path || !*path || (match(path, ".") && !*path)) {
+	if (!isValidId(id) || !path || !*path || (*path == '.' && !*++path)) {
 		return k;
 	}
 	if (isLeafId(id)){ return KEY_INVALID; }

@@ -25,7 +25,7 @@
 #endif
 
 #if !defined(CLASP_VERSION)
-#define CLASP_VERSION "3.2.0-RC-R52368"
+#define CLASP_VERSION "3.2.0-RC-R52380"
 #endif
 #if !defined(CLASP_LEGAL)
 #define CLASP_LEGAL \
@@ -199,6 +199,8 @@ public:
 	const Summary&     summary()             const { return step_; }
 	//! Returns the summary of the active (accu = false) or all steps.
 	const Summary&     summary(bool accu)    const;
+	//! Returns solving statistics or throws std::logic_error if step is not yet solved.
+	AbstractStatistics*getStats()            const;
 	//! Returns the active configuration.
 	const ClaspConfig* config()              const { return config_;}
 	//! Returns the current solving step (starts at 0).
@@ -211,16 +213,6 @@ public:
 	bool               incremental()         const;
 	//! Returns the active enumerator or 0 if there is none.
 	Enumerator*        enumerator()          const;
-	//! Returns the value of the given stats counter or throws an exception if this is not possible.
-	/*!
-	 * \pre The current step has a result, i.e. solved() is true.
-	 * \throw std::out_of_range path does not reference a valid object.
-	 * \throw std::bad_cast path references a composite object that is not a value.
-	 */
-	double             getStat(const char* path)const;
-	//! Returns double-null-terminated string of supported stats keys.
-	const char*        getKeys(const char* path)const;
-	AbstractStatistics*getStats()               const;
 	//@}
 	
 	//! Event type used to signal that a new step has started.
@@ -439,7 +431,6 @@ private:
 	typedef SingleOwnerPtr<SolveData>      SolvePtr;
 	typedef SingleOwnerPtr<Summary>        SummaryPtr;
 	typedef SingleOwnerPtr<Statistics>     StatsPtr;
-	StatisticObject getStatImpl(const char* path) const;
 	void   init(ClaspConfig& cfg, bool discardProblem);
 	void   initBuilder(ProgramBuilder* in);
 	bool   isAsp() const { return program() && type_ == Problem_t::Asp; }

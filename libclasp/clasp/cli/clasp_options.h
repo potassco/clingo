@@ -286,7 +286,7 @@ private:
 	bool             isGenerator() const { return (cliMode & mode_tester) == 0; }
 	const UserConfig*active()const       { return isGenerator() ? this : testerConfig(); }
 	UserConfig*      active()            { return isGenerator() ? this : testerConfig(); }
-	bool             match(const char*& path, const char* what, bool matchDot = true) const;
+	bool             match(const char*& path, const char* what) const;
 	static OptIndex  index_g;
 	OptionsPtr       opts_;
 	std::string      config_[2];
