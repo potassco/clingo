@@ -1470,25 +1470,25 @@ struct ASTToC {
     T *create_() {
         data_.emplace_back(operator new(sizeof(T)));
         return reinterpret_cast<T*>(data_.back());
-    };
+    }
     template <class T>
     T *create_(T x) {
         auto *r = create_<T>();
         *r = x;
         return r;
-    };
+    }
     template <class T>
     T *createArray_(size_t size) {
         arrdata_.emplace_back(operator new[](sizeof(T) * size));
         return reinterpret_cast<T*>(arrdata_.back());
-    };
+    }
     template <class T, class F>
     auto createArray_(std::vector<T> const &vec, F f) -> decltype((this->*f)(std::declval<T>()))* {
         using U = decltype((this->*f)(std::declval<T>()));
         auto r = createArray_<U>(vec.size()), jt = r;
         for (auto it = vec.begin(), ie = vec.end(); it != ie; ++it, ++jt) { *jt = (this->*f)(*it); }
         return r;
-    };
+    }
 
     ~ASTToC() noexcept {
         for (auto &x : data_) { operator delete(x); }
@@ -1882,7 +1882,7 @@ ARR(clingo_ast_theory_term_t, TheoryTerm)
 TheoryUnparsedTermElement convTheoryUnparsedTermElement(clingo_ast_theory_unparsed_term_element_t const &term) {
     return {std::vector<char const *>{term.operators, term.operators + term.size}, convTheoryTerm(term.term)};
 }
-ARR(clingo_ast_theory_unparsed_term_element_t, TheoryUnparsedTermElement);
+ARR(clingo_ast_theory_unparsed_term_element_t, TheoryUnparsedTermElement)
 
 TheoryTerm convTheoryTerm(clingo_ast_theory_term_t const &term) {
     switch (static_cast<enum clingo_ast_theory_term_type>(term.type)) {
@@ -1983,7 +1983,7 @@ TheoryAtom convTheoryAtom(clingo_ast_theory_atom_t const &atom) {
 DisjointElement convDisjointElement(clingo_ast_disjoint_element_t const &elem) {
     return {Location{elem.location}, convTermVec(elem.tuple, elem.tuple_size), convCSPAdd(elem.term), convLiteralVec(elem.condition, elem.condition_size)};
 }
-ARR(clingo_ast_disjoint_element_t, DisjointElement);
+ARR(clingo_ast_disjoint_element_t, DisjointElement)
 
 // head aggregates
 

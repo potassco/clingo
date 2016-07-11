@@ -1039,9 +1039,9 @@ struct ObjectBase : ObjectProtocoll<T> {
 
 protected:
     template <Object (T::*f)()>
-    static getter to_getter() { return to_getter_<f>; };
+    static getter to_getter() { return to_getter_<f>; }
     template <void (T::*f)(Reference)>
-    static setter to_setter() { return to_setter_<f>; };
+    static setter to_setter() { return to_setter_<f>; }
     template <Object (T::*f)()>
     static PyCFunction to_function() { return to_function_<Object, f>; }
     template <Reference (T::*f)()>
@@ -1056,27 +1056,27 @@ private:
     static PyObject *to_getter_(PyObject *o, void *) {
         PY_TRY { return (reinterpret_cast<T*>(o)->*f)().release(); }
         PY_CATCH(nullptr);
-    };
+    }
     template <void (T::*f)(Reference)>
     static int to_setter_(PyObject *self, PyObject *value, void *) {
         PY_TRY { return ((reinterpret_cast<T*>(self)->*f)(Reference{value}), 0); }
         PY_CATCH(-1);
-    };
+    }
     template <class R, R (T::*f)()>
     static PyObject *to_function_(PyObject *self, PyObject *) {
         PY_TRY { return (reinterpret_cast<T*>(self)->*f)().release(); }
         PY_CATCH(nullptr);
-    };
+    }
     template <class R, R (T::*f)(Reference)>
     static PyObject *to_function_(PyObject *self, PyObject *params) {
         PY_TRY { return (reinterpret_cast<T*>(self)->*f)(params).release(); }
         PY_CATCH(nullptr);
-    };
+    }
     template <class R, R (T::*f)(Reference, Reference)>
     static PyObject *to_function_(PyObject *self, PyObject *params, PyObject *keywords) {
         PY_TRY { return (reinterpret_cast<T*>(self)->*f)(params, keywords).release(); }
         PY_CATCH(nullptr);
-    };
+    }
 };
 
 template <class T>
@@ -4925,25 +4925,25 @@ struct ASTToC {
     T *create_() {
         data_.emplace_back(operator new(sizeof(T)));
         return reinterpret_cast<T*>(data_.back());
-    };
+    }
     template <class T>
     T *create_(T x) {
         auto *r = create_<T>();
         *r = x;
         return r;
-    };
+    }
     template <class T>
     T *createArray_(size_t size) {
         arrdata_.emplace_back(operator new[](sizeof(T) * size));
         return reinterpret_cast<T*>(arrdata_.back());
-    };
+    }
     template <class F>
     auto createArray_(Reference vec, F f) -> decltype((this->*f)(std::declval<Object>()))* {
         using U = decltype((this->*f)(std::declval<Object>()));
         auto r = createArray_<U>(vec.size()), jt = r;
         for (auto x : vec.iter()) { *jt++ = (this->*f)(x); }
         return r;
-    };
+    }
 
     ~ASTToC() noexcept {
         for (auto &x : data_) { operator delete(x); }
@@ -6245,7 +6245,7 @@ static struct PyModuleDef clingoModule = {
 
 static struct PyModuleDef clingoASTModule = {
     PyModuleDef_HEAD_INIT,
-    "clingo",
+    "clingo.ast",
     clingoASTModuleDoc,
     -1,
     clingoASTModuleMethods,
@@ -6259,7 +6259,8 @@ static struct PyModuleDef clingoASTModule = {
 PyObject *initclingoast_() {
     PY_TRY
 #if PY_MAJOR_VERSION >= 3
-        Object m = PyModule_Create(&clingoASTModuleMethods);
+        Object m = PyModule_Create(&clingoASTModule);
+        Reference{PySys_GetObject("modules")}.setItem(clingoASTModule.m_name, m);
 #else
         Object m = Py_InitModule3("clingo.ast", clingoASTModuleMethods, clingoASTModuleDoc);
 #endif

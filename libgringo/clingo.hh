@@ -1020,8 +1020,8 @@ private:
     Model model_;
 };
 
-inline ModelIterator begin(SolveIteratively &it) { return ModelIterator(it); };
-inline ModelIterator end(SolveIteratively &) { return ModelIterator(); };
+inline ModelIterator begin(SolveIteratively &it) { return ModelIterator(it); }
+inline ModelIterator end(SolveIteratively &) { return ModelIterator(); }
 
 // {{{1 solve async
 

@@ -102,7 +102,7 @@ inline bool ground(ClingoState &state) {
         return true;
     }
     return false;
-};
+}
 
 inline Models solve(ClingoState &state, std::string const &str, Filter filter = {""}, std::initializer_list<Clasp::wsum_t> minimize = {}) {
     state.parser.pushStream("-", gringo_make_unique<std::stringstream>(str), state.module);

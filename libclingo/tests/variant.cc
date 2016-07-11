@@ -70,6 +70,6 @@ TEST_CASE("visitor", "[clingo]") {
     REQUIRE(!y.get<std::unique_ptr<int>>());
     REQUIRE(x.get<std::string>() == "s1");
 #endif
-};
+}
 
 } } // namespace Test Clingo

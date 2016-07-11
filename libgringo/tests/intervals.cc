@@ -34,8 +34,8 @@ using S = std::string;
 
 namespace {
 
-LB lb(int x, bool y) { return {x, y}; };
-RB rb(int x, bool y) { return {x, y}; };
+LB lb(int x, bool y) { return {x, y}; }
+RB rb(int x, bool y) { return {x, y}; }
 std::string print(IS const &x) {
     auto f = [](std::ostream &out, IV const &x) {
         out

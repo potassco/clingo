@@ -33,7 +33,7 @@ TEST_CASE("parse_term", "[clingo]") {
     messages.clear();
     REQUIRE_THROWS(parse_term("10+a", logger));
     REQUIRE(messages.size() == 0);
-};
+}
 
 TEST_CASE("solving", "[clingo]") {
     SECTION("with control") {
