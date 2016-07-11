@@ -53,6 +53,8 @@ public:
     Graph();
     Graph(Graph &&g);
     Graph(Graph const &) = delete;
+    Graph &operator=(Graph &&) = default;
+    Graph &operator=(Graph const &) = delete;
     SCCVec tarjan();
     template <class... U>
     Node &insertNode(U &&...x);

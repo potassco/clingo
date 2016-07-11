@@ -1,7 +1,7 @@
 // {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
-// Copyright (C) 2013  Roland Kaminski
+// Author: Roland Kaminski
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,255 +19,217 @@
 // }}}
 
 #include "reify/program.hh"
+#include "gringo/symbol.hh"
 #include <iostream>
 #include <algorithm>
+#include <sstream>
 #include <cassert>
+
+namespace Reify {
 
 // {{{1 Reifier
 
-Reify::Reifier::Reifier(std::ostream &out, bool calculateSCCs)
-: calculateSCCs(calculateSCCs)
-, out_(out) { }
+Reifier::Reifier(std::ostream &out, bool calculateSCCs, bool reifyStep)
+: out_(out)
+, calculateSCCs_(calculateSCCs)
+, reifyStep_(reifyStep) { }
 
-Reify::Reifier::~Reifier() = default;
+Reifier::~Reifier() noexcept = default;
 
-unsigned Reify::Reifier::printLits(LitWeightVec const &wlits) {
-    LitVec key;
-    for (auto &elem : wlits) { key.emplace_back(elem.first); }
-    std::sort(key.begin(), key.end());
-    key.erase(std::unique(key.begin(), key.end()), key.end());
-    auto res = lits_.emplace(std::move(key), 0);
-    if (res.second) {
-        res.first->second = lits_.size();
-        for (auto &lit : res.first->first) { printFact("lits", res.first->second, lit); }
-    }
-    return res.first->second;
+template<typename... T>
+void Reifier::printFact(char const *name, T const &...args) {
+    out_ << name << "(";
+    printComma(out_, args...);
+    out_ << ").\n";
+}
+template<typename... T>
+void Reifier::printStepFact(char const *name, T const &...args) {
+    if (reifyStep_) { printFact(name, args..., step_); }
+    else            { printFact(name, args...); }
 }
 
-unsigned Reify::Reifier::printWLits(LitWeightVec const &wlits) {
-    LitWeightVec key = wlits;
-    std::sort(key.begin(), key.end());
-    // Note: relies on unspecified behavior
-    auto cmp = [](LitWeight &a, LitWeight &b) -> bool {
-        if (a.first == b.first) {
-            a.second += b.second;
-            return true;
+template <class M, class T>
+size_t Reifier::tuple(M &map, char const *name, T const &args) {
+    return tuple(map, name, toVec(args));
+}
+
+template <class M, class T>
+size_t Reifier::tuple(M &map, char const *name, std::vector<T> &&args) {
+    auto ret = map.emplace(std::move(args), map.size());
+    if (ret.second) {
+        printStepFact(name, ret.first->second);
+        for (auto &x : ret.first->first) {
+            printStepFact(name, ret.first->second, x);
         }
-        return false;
-    };
-    key.erase(std::unique(key.begin(), key.end(), cmp), key.end());
-    auto res = wlits_.emplace(std::move(key), 0);
-    if (res.second) {
-        res.first->second = wlits_.size();
-        for (auto &elem : res.first->first) { printFact("wlits", res.first->second, elem.first, elem.second); }
     }
-    return res.first->second;
-
+    return ret.first->second;
 }
 
-unsigned Reify::Reifier::printAtoms(AtomVec const &atoms) {
-    AtomVec key = atoms;
-    std::sort(key.begin(), key.end());
-    key.erase(std::unique(key.begin(), key.end()), key.end());
-    auto res = atoms_.emplace(std::move(key), 0);
-    if (res.second) {
-        res.first->second = atoms_.size();
-        for (auto &atom : res.first->first) { printFact("atoms", res.first->second, atom); }
-    }
-    return res.first->second;
+size_t Reifier::theoryTuple(IdSpan const &args) {
+    return tuple(stepData_.theoryTuples, "theory_tuple", args);
 }
 
-void Reify::Reifier::printSCCs() {
-    assert(calculateSCCs);
-    unsigned i = 1;
-    for (auto &scc : graph_.tarjan()) {
+size_t Reifier::theoryElementTuple(IdSpan const &args) {
+    return tuple(stepData_.theoryElementTuples, "theory_element_tuple", args);
+}
+
+size_t Reifier::litTuple(LitSpan const &args) {
+    return tuple(stepData_.litTuples, "literal_tuple", args);
+}
+
+size_t Reifier::litTuple(WeightLitSpan const &args) {
+    std::vector<Lit_t> lits;
+    lits.reserve(args.size);
+    for (auto &x : args) { lits.emplace_back(x.lit); }
+    return tuple(stepData_.litTuples, "literal_tuple", Potassco::toSpan(lits));
+}
+
+size_t Reifier::weightLitTuple(WeightLitSpan const &args) {
+    WLVec lits;
+    lits.reserve(args.size);
+    for (auto &x : args) { lits.emplace_back(x.weight, x.lit); }
+    return tuple(stepData_.weightLitTuples, "literal_tuple", std::move(lits));
+}
+
+size_t Reifier::atomTuple(AtomSpan const &args) {
+    return tuple(stepData_.atomTuples, "atom_tuple", args);
+}
+
+Reifier::Graph::Node &Reifier::addNode(Atom_t atom) {
+    auto & node = stepData_.nodes_[atom];
+    if (!node) { node = &stepData_.graph_.insertNode(atom); }
+    return *node;
+}
+
+void Reifier::initProgram(bool incremental) {
+    if (incremental) { printFact("tag", "incremental"); }
+}
+
+void Reifier::beginStep() { }
+
+void Reifier::rule(HeadView const &head, BodyView const &body) {
+    char const *h = head.type == Potassco::Head_t::Disjunctive ? "disjunction" : "choice";
+    std::ostringstream hss, bss;
+    hss << h << "(" << atomTuple(head.atoms) << ")";
+    if (body.type == Potassco::Body_t::Normal) {
+        bss << "normal(" << litTuple(body.lits) << ")";
+        printStepFact("rule", hss.str(), bss.str());
+    }
+    else {
+        bss << "sum(" << body.bound << "," << weightLitTuple(body.lits) << ")";
+        printStepFact("rule", hss.str(), weightLitTuple(body.lits), "aggregate");
+    }
+    if (calculateSCCs_) {
+        for (auto &atom : head.atoms) {
+            Graph::Node &u = addNode(atom);
+            for (auto &elem : body.lits) {
+                if (elem.lit > 0) {
+                    Graph::Node &v = addNode(elem.lit);
+                    u.insertEdge(v);
+                }
+            }
+        }
+    }
+}
+
+void Reifier::minimize(Weight_t prio, const WeightLitSpan& lits) {
+    printStepFact("minimize", prio, weightLitTuple(lits));
+}
+
+void Reifier::project(const AtomSpan& atoms) {
+    for (auto &x : atoms) { printStepFact("project", x); }
+}
+
+void Reifier::output(const StringSpan& str, const LitSpan& condition) {
+    printStepFact("output", str, litTuple(condition));
+}
+
+void Reifier::external(Atom_t a, Value_t v) {
+    char const *type = "";
+    switch (v) {
+        case Value_t::Free:    { type = "free";    break; }
+        case Value_t::False:   { type = "false";   break; }
+        case Value_t::True:    { type = "true";    break; }
+        case Value_t::Release: { type = "release"; break; }
+    }
+    printStepFact("heuristic", a, type);
+}
+
+void Reifier::assume(const LitSpan& lits) {
+    for (auto &x : lits) { printStepFact("assume", x); }
+}
+
+void Reifier::heuristic(Atom_t a, Heuristic_t t, int bias, unsigned prio, const LitSpan& condition) {
+    char const *type = "";
+    switch (t) {
+        case Heuristic_t::Level:  { type = "level";  break; }
+        case Heuristic_t::Sign:   { type = "sign";   break; }
+        case Heuristic_t::Factor: { type = "factor"; break; }
+        case Heuristic_t::Init:   { type = "init";   break; }
+        case Heuristic_t::True:   { type = "true";   break; }
+        case Heuristic_t::False:  { type = "false";  break; }
+    }
+    printStepFact("heuristic", a, type, bias, prio, litTuple(condition));
+}
+
+void Reifier::acycEdge(int s, int t, const LitSpan& condition) {
+    printStepFact("edge", s, t, litTuple(condition));
+}
+
+void Reifier::theoryTerm(Id_t termId, int number) {
+    printStepFact("theory_number", termId, number);
+}
+
+void Reifier::theoryTerm(Id_t termId, const StringSpan& name) {
+    auto s = Gringo::quote(name);
+    s.insert(s.begin(), '"');
+    s.push_back('"');
+    printStepFact("theory_string", termId, s);
+}
+
+void Reifier::theoryTerm(Id_t termId, int cId, IdSpan const &args) {
+    if (cId >= 0) {
+        printStepFact("theory_function", termId, cId, theoryTuple(args));
+    }
+    else {
+        char const *type = "";
+        switch (cId) {
+            case -1: { type = "tuple"; break; }
+            case -2: { type = "set";   break; }
+            case -3: { type = "list";  break; }
+        }
+        printStepFact("theory_sequence", termId, type, theoryTuple(args));
+    }
+}
+
+void Reifier::theoryElement(Id_t elementId, IdSpan const &terms, const LitSpan& cond) {
+    printStepFact("theory_element", elementId, theoryTuple(terms), litTuple(cond));
+}
+
+void Reifier::theoryAtom(Id_t atomOrZero, Id_t termId, IdSpan const &elements) {
+    printStepFact("theory_atom", atomOrZero, termId, theoryElementTuple(elements));
+}
+
+void Reifier::theoryAtom(Id_t atomOrZero, Id_t termId, IdSpan const &elements, Id_t op, Id_t rhs) {
+    printStepFact("theory_atom", atomOrZero, termId, theoryElementTuple(elements), op, rhs);
+}
+
+void Reifier::endStep() {
+    size_t i = 0;
+    for (auto &scc : stepData_.graph_.tarjan()) {
         if (scc.size() > 1) {
             for (auto &node : scc) {
-                printFact("scc", i, node->data);
+                printStepFact("scc", i, node->data);
             }
         }
         ++i;
     }
+    stepData_ = StepData();
+    ++step_;
 }
 
-// {{{1 Rule
-
-Reify::Rule::Rule(Rule &&) = default;
-
-Reify::Rule::Rule(AtomVec const &head, LitWeightVec const &body, uint32_t bound)
-: type_(RuleType::Weight)
-, bound_(bound)
-, head_(head)
-, body_(body) { }
-
-Reify::Rule::Rule(AtomVec const &head, LitVec const &body, bool choice)
-: type_(choice ? RuleType::Choice : (head.size() == 1 ? RuleType::Normal : RuleType::Disjunctive))
-, bound_(0)
-, head_(head) {
-    body_.reserve(body.size());
-    for (auto &atom : body) {
-        body_.emplace_back(atom, 1);
-        bound_ += 1;
-    }
+void Reifier::parse(std::istream &in) {
+    Potassco::readAspif(in, *this);
 }
 
-void Reify::Rule::printLparse(std::ostream &out) {
-    bool card = true;
-    switch (type_) {
-        case RuleType::Choice:      { out << "3 " << head_.size(); break; }
-        case RuleType::Normal:      { out << "1"; break; }
-        case RuleType::Disjunctive: { out << "8 " << head_.size(); break; }
-        case RuleType::Weight:      {
-            for (auto &x : body_) {
-                if (x.second != 1) {
-                    card = false;
-                    break;
-                }
-            }
-            out << (card ? "2" : "5"); break;
-        }
-    }
-    for (auto &atom : head_) { out << " " << atom; }
-    if (type_ == RuleType::Weight && !card) { out << " " << bound_; }
-    out << " " << body_.size() << " " << std::count_if(body_.begin(), body_.end(), [](LitWeight const &elem) { return elem.first < 0; });
-    if (type_ == RuleType::Weight && card) { out << " " << bound_; }
-    for (auto &elem : body_) {
-        if (elem.first < 0) { out << " " << -elem.first; }
-    }
-    for (auto &elem : body_) {
-        if (elem.first > 0) { out << " " << elem.first; }
-    }
-    if (type_ == RuleType::Weight && !card) {
-        for (auto &elem : body_) {
-            if (elem.first < 0) { out << " " << elem.second; }
-        }
-        for (auto &elem : body_) {
-            if (elem.first > 0) { out << " " << elem.second; }
-        }
-    }
-    out << "\n";
-}
-
-Reify::Graph::Node &Reify::Reifier::addNode(Atom atom) {
-    assert(calculateSCCs);
-    auto & node = nodes_[atom];
-    if (!node) { node = &graph_.insertNode(atom); }
-    return *node;
-}
-
-void Reify::Rule::printReified(Reifier &reifier) {
-    switch (type_) {
-        case RuleType::Choice: {
-            unsigned head = reifier.printAtoms(head_);
-            unsigned body = reifier.printLits(body_);
-            reifier.printFact("choice", head, body);
-            break;
-        }
-        case RuleType::Normal: {
-            unsigned body = reifier.printLits(body_);
-            reifier.printFact("normal", head_.front(), body);
-            break;
-        }
-        case RuleType::Disjunctive: {
-            unsigned head = reifier.printAtoms(head_);
-            unsigned body = reifier.printLits(body_);
-            reifier.printFact("disjunction", head, body);
-            break;
-        }
-        case RuleType::Weight: {
-            unsigned body = reifier.printWLits(body_);
-            reifier.printFact("weight", head_.front(), bound_, body);
-            break;
-        }
-    }
-    if (reifier.calculateSCCs) {
-        for (auto &atom : head_) {
-            Reify::Graph::Node & head = reifier.addNode(atom);
-            for (auto &elem : body_) {
-                if (elem.first > 0) {
-                    Reify::Graph::Node & body = reifier.addNode(elem.first);
-                    head.insertEdge(body);
-                }
-            }
-        }
-    }
-}
-
- // {{{1 Program
-
-void Reify::Program::addRule(Rule &&rule) {
-    rules_.emplace_back(std::move(rule));
-}
-
-void Reify::Program::addMinimize(LitWeightVec const &body) {
-    minimize_.emplace_back(body);
-}
-
-void Reify::Program::addCompute(Lit lit) {
-    compute_.emplace_back(lit);
-}
-
-void Reify::Program::showAtom(Atom atom, std::string &&name) {
-    symbols_.emplace_back(atom, std::move(name));
-}
-
-void Reify::Program::printLparse(std::ostream &out) {
-    for (auto &rule : rules_) {
-        rule.printLparse(out);
-    }
-    for (auto &minimize : minimize_) {
-        out << "6 0 " << minimize.size() << " " << std::count_if(minimize.begin(), minimize.end(), [](LitWeight const &elem) { return elem.first < 0; });
-        for (auto &elem : minimize) {
-            if (elem.first < 0) { out << " " << -elem.first; }
-        }
-        for (auto &elem : minimize) {
-            if (elem.first > 0) { out << " " << elem.first; }
-        }
-        for (auto &elem : minimize) {
-            if (elem.first < 0) { out << " " << elem.second; }
-        }
-        for (auto &elem : minimize) {
-            if (elem.first > 0) { out << " " << elem.second; }
-        }
-        out << "\n";
-    }
-    out << "0\n";
-    for (auto &elem : symbols_) {
-        out << elem.first << " " << elem.second << "\n";
-    }
-    out << "0\n";
-    out << "B+\n";
-    for (auto &lit : compute_) {
-        if (lit > 0) { out << lit << "\n"; }
-    }
-    out << "0\n";
-    out << "B-\n";
-    for (auto &lit : compute_) {
-        if (lit < 0) { out << -lit << "\n"; }
-    }
-    out << "0\n";
-    out << models_ << "\n";
-}
-
-void Reify::Program::printReified(Reifier &reifier) {
-    for (auto &rule : rules_) {
-        rule.printReified(reifier);
-    }
-    if (reifier.calculateSCCs) {
-        reifier.printSCCs();
-    }
-    for (auto &lit : compute_) {
-        reifier.printFact("compute", lit);
-    }
-    for (auto &entry : symbols_) {
-        reifier.printFact("show", entry.first, entry.second);
-    }
-    Weight priority = 0;
-    for (auto &minimize : minimize_) {
-        Size body = reifier.printWLits(minimize);
-        reifier.printFact("minimize", priority, body);
-        ++priority;
-    }
-    reifier.printFact("models", models_);
-}
-
+} // namespace Reify

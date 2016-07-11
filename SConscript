@@ -414,7 +414,7 @@ cexampleProgramEnv.Alias('cexample', cexampleProgram)
 REIFY_SOURCES = find_files(env, 'app/reify')
 
 reifyProgramEnv = reifyEnv.Clone()
-reifyProgramEnv.Prepend(LIBS=[ reifyLib, optsLib ])
+reifyProgramEnv.Prepend(LIBS=[ reifyLib, optsLib, lpLib ])
 reifyProgramEnv.Append(CPPPATH = LIBOPTS_HEADERS)
 
 reifyProgram = reifyProgramEnv.Program('reify', REIFY_SOURCES)

@@ -201,10 +201,10 @@ inline std::ostream& operator<<(std::ostream& out, Symbol sym) {
 
 // {{{1 definition of quote/unquote
 
-inline std::string quote(char const *str) {
+inline std::string quote(StringSpan str) {
     std::string res;
-    for (char const *c = str; *c; ++c) {
-        switch (*c) {
+    for (auto c : str) {
+        switch (c) {
             case '\n': {
                 res.push_back('\\');
                 res.push_back('n');
@@ -221,12 +221,15 @@ inline std::string quote(char const *str) {
                 break;
             }
             default: {
-                res.push_back(*c);
+                res.push_back(c);
                 break;
             }
         }
     }
     return res;
+}
+inline std::string quote(char const *str) {
+    return quote({str, strlen(str)});
 }
 
 inline std::string unquote(StringSpan str) {

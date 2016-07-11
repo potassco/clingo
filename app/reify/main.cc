@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of reify - a grounder for logic programs.
 // Copyright (C) 2013  Roland Kaminski
@@ -18,46 +18,48 @@
 
 // }}}
 
+#include <fstream>
 #include <program_opts/application.h>
 #include <program_opts/typed_value.h>
-#include "reify/reify.hh"
+#include "reify/program.hh"
 #include "gringo/version.hh"
 
 struct ReifyOptions {
     bool calculateSCCs = false;
+    bool reifyStep     = false;
 };
 
 class ReifyApp : public ProgramOptions::Application {
 public:
-	virtual const char* getName() const    { return "reify"; }
+    virtual const char* getName() const    { return "reify"; }
 
-	virtual const char* getVersion() const { return GRINGO_VERSION; }
+    virtual const char* getVersion() const { return GRINGO_VERSION; }
 
 protected:
-	virtual void initOptions(ProgramOptions::OptionContext& root) {
+    virtual void initOptions(ProgramOptions::OptionContext& root) {
         using namespace ProgramOptions;
         OptionGroup reify("Reify Options");
         reify.addOptions()
-            ("calculate-sccs,c", flag(opts_.calculateSCCs),
-             "calculate strongly connected components\n");
+            ("calculate-sccs,c", flag(opts_.calculateSCCs), "calculate strongly connected components\n")
+            ("reify-step,s", flag(opts_.reifyStep), "attach current step number to generated facts\n");
         root.add(reify);
         OptionGroup basic("Basic Options");
         basic.addOptions()
             ("file,f,@2", storeTo(input_), "Input files")
             ;
-    	root.add(basic);
+        root.add(basic);
     }
 
-	virtual void validateOptions(const ProgramOptions::OptionContext&, const ProgramOptions::ParsedOptions&, const ProgramOptions::ParsedValues&) { }
+    virtual void validateOptions(const ProgramOptions::OptionContext&, const ProgramOptions::ParsedOptions&, const ProgramOptions::ParsedValues&) { }
 
-	virtual void setup() { }
-    
+    virtual void setup() { }
+
     static bool parsePositional(std::string const &, std::string& out) {
         out = "file";
         return true;
     }
 
-	virtual ProgramOptions::PosOption getPositional() const { return parsePositional; }
+    virtual ProgramOptions::PosOption getPositional() const { return parsePositional; }
 
     virtual void printHelp(const ProgramOptions::OptionContext& root) {
         printf("%s version %s\n", getName(), getVersion());
@@ -78,8 +80,15 @@ protected:
         fflush(stdout);
     }
 
-	virtual void run() {
-        Reify::reify(input_, opts_.calculateSCCs);
+    virtual void run() {
+        Reify::Reifier reify(std::cout, opts_.calculateSCCs, opts_.reifyStep);
+        if (input_.empty() || input_ == "-") {
+            reify.parse(std::cin);
+        }
+        else {
+            std::ifstream ifs(input_);
+            reify.parse(ifs);
+        }
     }
 private:
     std::string input_;
@@ -87,7 +96,7 @@ private:
 };
 
 int main(int argc, char **argv) {
-	ReifyApp app;
-	return app.main(argc, argv);
+    ReifyApp app;
+    return app.main(argc, argv);
 }
 
