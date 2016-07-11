@@ -120,6 +120,8 @@ bool aligned(void* mem) {
 #	elif defined(__GNUC__)
 #		define CLASP_WARNING_BEGIN_RELAXED \
 		_Pragma("GCC diagnostic push")\
+		_Pragma("GCC diagnostic ignored \"-Wpragmas\"")\
+		_Pragma("GCC diagnostic ignored \"-Wpedantic\"")\
 		_Pragma("GCC diagnostic ignored \"-pedantic\"")
 #		define CLASP_WARNING_END_RELAXED _Pragma("GCC diagnostic pop")
 #	else

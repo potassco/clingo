@@ -29,6 +29,8 @@
 #pragma clang diagnostic ignored "-Wzero-length-array"
 #elif __GNUC__
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wpedantic"
 #pragma GCC diagnostic ignored "-pedantic"
 #endif
 #include <potassco/basic_types.h>

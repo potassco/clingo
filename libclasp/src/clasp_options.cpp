@@ -30,6 +30,7 @@
 #include <cctype>
 #ifdef _MSC_VER
 #pragma warning (disable : 4996)
+#pragma warning (disable : 4290) // C++ exception specification ignored
 #endif
 /////////////////////////////////////////////////////////////////////////////////////////
 // Helper MACROS
@@ -105,7 +106,7 @@ static const char* enumToString(int x, const char* k1, int v1, ...) {
 }
 struct ArgString {
 	ArgString(const char* x) : in(x) { }
-	~ArgString() { CLASP_FAIL_IF(ok() && *in && !off(), "Unused argument!"); }
+	~ArgString() throw (std::logic_error) { CLASP_FAIL_IF(ok() && *in && !off(), "Unused argument!"); }
 	bool ok()       const { return in != 0; }
 	bool off()      const { return ok() && stringTo(in, bk_lib::off); }
 	bool empty()    const { return ok() && !*in; }

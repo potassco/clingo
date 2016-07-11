@@ -23,6 +23,8 @@
 #elif __clang__
 #pragma clang diagnostic ignored "-Wzero-length-array"
 #elif __GNUC__
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wpedantic"
 #pragma GCC diagnostic ignored "-pedantic"
 #endif
 #include <potassco/theory_data.h>
