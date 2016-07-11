@@ -1790,54 +1790,31 @@ This is equivalent to satisfiable is None.)", nullptr},
 
 // {{{1 wrap Statistics
 
-PyObject *getStatistics(Statistics const *stats, char const *prefix) {
-    PY_TRY
-        Statistics::Quantity ret = stats->getStat(prefix);
-        switch (ret.error()) {
-            case Statistics::error_none: {
-                double val = ret;
-                return val == (int)val ? PyLong_FromDouble(val) : PyFloat_FromDouble(val);
-            }
-            case Statistics::error_not_available: {
-                return PyErr_Format(PyExc_RuntimeError, "error_not_available: %s", prefix);
-            }
-            case Statistics::error_unknown_quantity: {
-                return PyErr_Format(PyExc_RuntimeError, "error_unknown_quantity: %s", prefix);
-            }
-            case Statistics::error_ambiguous_quantity: {
-                char const *keys = stats->getKeys(prefix);
-                if (!keys) { return PyErr_Format(PyExc_RuntimeError, "error zero keys string: %s", prefix); }
-                if (strcmp(keys, "__len") == 0) {
-                    std::string lenPrefix;
-                    lenPrefix += prefix;
-                    lenPrefix += ".__len";
-                    int len = (int)(double)stats->getStat(lenPrefix.c_str());
-                    Object list = PyList_New(len);
-                    for (int i = 0; i < len; ++i) {
-                        Object objPrefix = PyString_FromFormat("%s.%d", prefix, i);
-                        auto subPrefix = pyToCpp<char const *>(objPrefix);
-                        Object subStats = getStatistics(stats, subPrefix);
-                        if (PyList_SetItem(list.toPy(), i, subStats.release()) < 0) { return nullptr; }
-                    }
-                    return list.release();
-                }
-                else {
-                    Object dict = PyDict_New();
-                    const char* sep = *prefix ? "." : "";
-                    for (char const *it = keys; *it; it+= strlen(it) + 1) {
-                        it += (*it == '.');
-                        Object key = PyString_FromStringAndSize(it, strlen(it));
-                        Object objPrefix = PyString_FromFormat("%s%s%s", prefix, sep, it);
-                        auto subPrefix = pyToCpp<char const *>(objPrefix);
-                        Object subStats = getStatistics(stats, subPrefix);
-                        if (PyDict_SetItem(dict.toPy(), key.toPy(), subStats.toPy()) < 0) { return nullptr; }
-                    }
-                    return dict.release();
-                }
-            }
+Object getStatistics(Potassco::AbstractStatistics const *stats, Potassco::AbstractStatistics::Key_t key) {
+    switch (stats->type(key)) {
+        case Potassco::Statistics_t::Value: {
+            return cppToPy(stats->value(key));
         }
-        return PyErr_Format(PyExc_RuntimeError, "error unhandled prefix: %s", prefix);
-    PY_CATCH(nullptr);
+        case Potassco::Statistics_t::Array: {
+            size_t e = stats->size(key);
+            List list{e};
+            for (size_t i = 0; i != e; ++i) {
+                list.append(getStatistics(stats, stats->at(key, i)));
+            }
+            return list;
+        }
+        case Potassco::Statistics_t::Map: {
+            Dict dict;
+            for (size_t i = 0, e = stats->size(key); i != e; ++i) {
+                auto name = stats->key(key, i);
+                dict.setItem(name, getStatistics(stats, stats->get(key, name)));
+            }
+            return dict;
+        }
+        default: {
+            throw std::logic_error("cannot happen");
+        }
+    }
 }
 
 // {{{1 wrap SolveControl
@@ -5346,8 +5323,8 @@ active; you must not call any member function during search.)";
         PY_TRY
             checkBlocked(self, "stats");
             if (!self->stats) {
-                Statistics *stats = self->ctl->getStats();
-                self->stats = getStatistics(stats, "");
+                auto *stats = self->ctl->statistics();
+                self->stats = getStatistics(stats, stats->root()).release();
             }
             Py_XINCREF(self->stats);
             return self->stats;

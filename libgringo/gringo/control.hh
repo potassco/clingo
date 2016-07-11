@@ -84,43 +84,6 @@ struct clingo_model {
 
 namespace Gringo {
 
-// {{{1 declaration of Statistics
-
-struct Statistics {
-    enum Error { error_none = 0, error_unknown_quantity = 1, error_ambiguous_quantity = 2, error_not_available = 3 };
-    struct Quantity {
-        Quantity(double d) : rep(d) { assert(d >= 0.0); }
-        Quantity(Error e) : rep(-double(int(e))) { assert(e != error_none); }
-        bool     valid()  const { return error() == error_none; }
-        Error    error()  const { return rep >= 0.0 ? error_none : static_cast<Error>(int(-rep)); }
-        operator bool()   const { return valid(); }
-        operator double() const { return valid() ? rep : std::numeric_limits<double>::quiet_NaN(); }
-    private:
-        double rep;
-    };
-    virtual Quantity    getStat(char const* key) const = 0;
-    virtual char const *getKeys(char const* key) const = 0;
-    virtual ~Statistics() { }
-};
-
-class StatisticsNG {
-public:
-    enum Type { Leaf, Array, Map };
-    // generic
-    virtual Id_t root() const = 0;
-    virtual Type type(Id_t key) const = 0;
-    // Array
-    virtual size_t size(Id_t key) const = 0;
-    virtual Id_t at(Potassco::Id_t key, size_t index) const = 0;
-    // Map
-    virtual size_t subkeys(Id_t key) const = 0;
-    virtual char const *subkey(Id_t key, size_t index) const = 0;
-    virtual Id_t lookup(Id_t key, char const *name) const = 0;
-    // Leaf
-    virtual double value(Potassco::Id_t key) const = 0;
-    virtual ~StatisticsNG() noexcept = default;
-};
-
 // {{{1 declaration of SolveFuture
 
 struct SolveFuture {
@@ -272,7 +235,6 @@ struct clingo_control {
     virtual Gringo::Symbol getConst(std::string const &name) = 0;
     virtual bool blocked() = 0;
     virtual void assignExternal(Gringo::Symbol ext, Potassco::Value_t val) = 0;
-    virtual Gringo::Statistics *getStats() = 0;
     virtual Potassco::AbstractStatistics *statistics() = 0;
     virtual void useEnumAssumption(bool enable) = 0;
     virtual bool useEnumAssumption() = 0;

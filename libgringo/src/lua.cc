@@ -62,6 +62,7 @@ auto protect(lua_State *L, T f) -> decltype(f()) {
     catch (...)                     { luaL_error(L, "unknown error"); }
     throw std::logic_error("cannot happen");
 }
+#define PROTECT(E) (protect(L, [&]{ return (E); }))
 
 struct Any {
     struct PlaceHolder {
@@ -1247,56 +1248,34 @@ luaL_Reg const Model::meta[] = {
 
 // {{{1 wrap Statistics
 
-int newStatistics(lua_State *L, Statistics const *stats) {
-    char const *prefix = lua_tostring(L, -1); // stack + 1
-    auto ret           = protect(L, [stats, prefix]{ return stats->getStat(prefix); });
-    switch (ret.error()) {
-        case Statistics::error_none: {
-            lua_pop(L, 1);
-            lua_pushnumber(L, (double)ret);
+int newStatistics(lua_State *L, Potassco::AbstractStatistics const *stats, Potassco::AbstractStatistics::Key_t key) {
+    switch (protect(L, [stats, key]{ return stats->type(key); })) {
+        case Potassco::Statistics_t::Value: {
+            lua_pushnumber(L, PROTECT(stats->value(key)));
             return 1;
         }
-        case Statistics::error_not_available: {
-            return luaL_error(L, "error_not_available: %s", prefix);
-        }
-        case Statistics::error_unknown_quantity: {
-            return luaL_error(L, "error_unknown_quantity: %s", prefix);
-        }
-        case Statistics::error_ambiguous_quantity: {
-            char const *keys = protect(L, [stats, prefix]() { return stats->getKeys(prefix); });
-            if (!keys) { luaL_error(L, "error zero keys string: %s", prefix); }
-            lua_newtable(L); // stack + 2
-            for (char const *it = keys, *sep = *prefix ? "." : ""; *it; it+= strlen(it) + 1) {
-                if (strcmp(it, "__len") == 0) {
-                    int len = (int)(double)protect(L, [stats, prefix]{ return stats->getStat((std::string(prefix) + ".__len").c_str()); });
-                    for (int i = 1; i <= len; ++i) {
-                        lua_pushvalue(L, -2);
-                        lua_pushliteral(L, ".");
-                        lua_pushinteger(L, i-1);
-                        lua_concat(L, 3);        // stack + 3
-                        newStatistics(L, stats); // stack + 3
-                        lua_rawseti(L, -2, i);   // stack + 2
-                    }
-                    break;
-                }
-                else {
-                    it += (*it == '.');
-                    lua_pushlstring(L, it, strlen(it)); // stack + 3
-                    lua_pushvalue(L, -3);
-                    lua_pushstring(L, sep);
-                    lua_pushstring(L, it);
-                    lua_concat(L, 3);        // stack + 4
-                    newStatistics(L, stats); // stack + 4
-                    lua_rawset(L, -3);       // stack + 2
-                }
+        case Potassco::Statistics_t::Array: {
+            lua_newtable(L);                                         // stack + 1
+            for (size_t i = 0, e = PROTECT(stats->size(key)); i != e; ++i) {
+                newStatistics(L, stats, PROTECT(stats->at(key, i))); // stack + 2
+                lua_rawseti(L, -2, i+1);                             // stack + 1
             }
-            lua_replace(L, -2);
             return 1;
         }
-
+        case Potassco::Statistics_t::Map: {
+            lua_newtable(L);                                             // stack + 1
+            for (size_t i = 0, e = PROTECT(stats->size(key)); i != e; ++i) {
+                auto name = PROTECT(stats->key(key, i));
+                lua_pushstring(L, name);                                 // stack + 2
+                newStatistics(L, stats, PROTECT(stats->get(key, name))); // stack + 3
+                lua_rawset(L, -3);                                       // stack + 1
+            }
+            return 1;
+        }
+        default: {
+            return luaL_error(L, "cannot happen");
+        }
     }
-    assert(false);
-    return 1;
 }
 
 // {{{1 wrap SolveFuture
@@ -1995,10 +1974,9 @@ struct ControlWrap {
             lua_pushstring(L, "stats");      // stack +1
             lua_rawget(L, 1);                // stack +0
             if (lua_isnil(L, -1)) {
-                auto stats = protect(L, [&ctl](){ return ctl.getStats(); });
+                auto stats = protect(L, [&ctl](){ return ctl.statistics(); });
                 lua_pop(L, 1);               // stack -1
-                lua_pushliteral(L, "");      // stack +1
-                newStatistics(L, stats);     // stack +0
+                newStatistics(L, stats, stats->root());     // stack +0
                 lua_pushstring(L, "stats");  // stack +1
                 lua_pushvalue(L, -2);        // stack +1
                 lua_rawset(L, 1);            // stack -2

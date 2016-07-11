@@ -198,7 +198,6 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
         defs.init(logger_);
     }
     Gringo::SolveFuture *solveAsync(ModelHandler, FinishHandler, Assumptions &&) override { throw std::runtime_error("asynchronous solving not supported"); }
-    Gringo::Statistics *getStats() override { throw std::runtime_error("statistics not supported (yet)"); }
     Potassco::AbstractStatistics *statistics() override { throw std::runtime_error("statistics not supported (yet)"); }
     void assignExternal(Gringo::Symbol ext, Potassco::Value_t val) override {
         auto atm = out.find(ext);

@@ -418,10 +418,6 @@ void ClingoControl::assignExternal(Gringo::Symbol ext, Potassco::Value_t val) {
         }
     }
 }
-ClingoStatistics *ClingoControl::getStats() {
-    clingoStats_.clasp = clasp_;
-    return &clingoStats_;
-}
 
 Potassco::AbstractStatistics *ClingoControl::statistics() {
     return clasp_->getStats();
@@ -585,21 +581,6 @@ Gringo::Backend *ClingoControl::backend() { return out_->backend(); }
 Potassco::Atom_t ClingoControl::addProgramAtom() { return out_->data.newAtom(); }
 
 ClingoControl::~ClingoControl() noexcept = default;
-
-// {{{1 definition of ClingoStatistics
-
-Gringo::Statistics::Quantity ClingoStatistics::getStat(char const* key) const {
-    try {
-        return clasp && clasp->solved() ? clasp->getStat(key) : Gringo::Statistics::error_not_available;
-    }
-    catch (const std::logic_error&) { return Gringo::Statistics::error_unknown_quantity; }
-    catch (const std::bad_cast&)    { return Gringo::Statistics::error_ambiguous_quantity; }
-    catch (...)                     { return Gringo::Statistics::error_not_available; }
-}
-char const *ClingoStatistics::getKeys(char const* key) const {
-    if (!clasp) { return ""; }
-    return clasp->getKeys(key);
-}
 
 // {{{1 definition of ClingoSolveIter
 

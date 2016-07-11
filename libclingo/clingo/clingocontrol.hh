@@ -140,15 +140,6 @@ static inline bool parseFoobar(const std::string& str, ClingoOptions::Foobar& fo
     return true;
 }
 
-// {{{1 declaration of ClingoStatistics
-
-struct ClingoStatistics : Gringo::Statistics {
-    Quantity    getStat(char const* key) const override;
-    char const *getKeys(char const* key) const override;
-
-    Clasp::ClaspFacade *clasp = nullptr;
-};
-
 // {{{1 declaration of ClingoSolveFuture
 
 Gringo::SolveResult convert(Clasp::ClaspFacade::Result res);
@@ -270,7 +261,6 @@ public:
     std::string str();
     void assignExternal(Gringo::Symbol ext, Potassco::Value_t) override;
     Gringo::Symbol getConst(std::string const &name) override;
-    ClingoStatistics *getStats() override;
     Potassco::AbstractStatistics *statistics() override;
     Gringo::ConfigProxy &getConf() override;
     void useEnumAssumption(bool enable) override;
@@ -307,7 +297,6 @@ public:
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>> propagators_;
     ClingoPropagatorLock                                      propLock_;
     Gringo::Logger                                            logger_;
-    ClingoStatistics                                          clingoStats_;
 #if WITH_THREADS
     std::unique_ptr<ClingoSolveFuture> solveFuture_;
 #endif
