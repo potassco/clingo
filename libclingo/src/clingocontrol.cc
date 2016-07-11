@@ -107,7 +107,6 @@ ClingoControl::ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::C
 , pgf_(pgf)
 , psf_(psf)
 , logger_(printer, messageLimit)
-, clingoStatsNg_(clingoStats_)
 , clingoMode_(clingoMode) { }
 
 void ClingoControl::parse() {
@@ -424,9 +423,8 @@ ClingoStatistics *ClingoControl::getStats() {
     return &clingoStats_;
 }
 
-Gringo::StatisticsNG *ClingoControl::statistics() {
-    clingoStats_.clasp = clasp_;
-    return &clingoStatsNg_;
+Potassco::AbstractStatistics *ClingoControl::statistics() {
+    return clasp_->getStats();
 }
 
 void ClingoControl::useEnumAssumption(bool enable) {
@@ -601,91 +599,6 @@ Gringo::Statistics::Quantity ClingoStatistics::getStat(char const* key) const {
 char const *ClingoStatistics::getKeys(char const* key) const {
     if (!clasp) { return ""; }
     return clasp->getKeys(key);
-}
-
-Potassco::Id_t ClingoStatisticsNG::root() const {
-    auto ret = keys_.push(Gringo::gringo_make_unique<Key>(""));
-    return keys_.offset(ret.first);
-}
-
-Potassco::Id_t ClingoStatisticsNG::add(std::string const &path, char const *name) const {
-    auto p = path;
-    if (!p.empty()) { p+= '.'; }
-    p+= name;
-    auto ret = keys_.push(Gringo::gringo_make_unique<Key>(std::move(p)));
-    return keys_.offset(ret.first);
-}
-
-size_t ClingoStatisticsNG::size(Potassco::Id_t key) const {
-    if (type(key) != Array) { throw std::runtime_error("not an array"); }
-    auto &k = *keys_.at(key);
-    std::string path = k.path + ".__len";
-    size_t len = (size_t)(double)stats_.getStat(path.c_str());
-    return len;
-}
-
-size_t ClingoStatisticsNG::subkeys(Potassco::Id_t key) const {
-    if (type(key) != Map) { throw std::runtime_error("not a map"); }
-    auto &k = *keys_.at(key);
-    char const *keys = stats_.getKeys(k.path.c_str());
-    size_t numKeys = 0;
-    for (char const *it = keys; *it; it+= strlen(it) + 1, ++numKeys) { }
-    return numKeys;
-}
-
-char const *ClingoStatisticsNG::subkey(Potassco::Id_t key, size_t index) const {
-    if (type(key) != Map) { throw std::runtime_error("not a map"); }
-    auto &k = *keys_.at(key);
-    char const *keys = stats_.getKeys(k.path.c_str());
-    for (char const *it = keys; *it; it+= strlen(it) + 1, --index) {
-        if (index == 0) {
-            size_t n = strlen(it);
-            if (n > 0 && it[n-1] == '.') { --n; }
-            return k.keys.emplace(it, it + n).first->c_str();
-        }
-    }
-    throw std::runtime_error("key not found");
-}
-
-Potassco::Id_t ClingoStatisticsNG::lookup(Potassco::Id_t key, char const *name) const {
-    if (type(key) != Map) { throw std::runtime_error("not a map"); }
-    auto &k = *keys_.at(key);
-    return add(k.path, name);
-}
-
-Potassco::Id_t ClingoStatisticsNG::at(Potassco::Id_t key, size_t index) const {
-    if (type(key) != Array) { throw std::runtime_error("not an array"); }
-    auto &k = *keys_.at(key);
-    return add(k.path, std::to_string(index).c_str());
-}
-
-ClingoStatisticsNG::Type ClingoStatisticsNG::type(Potassco::Id_t key) const {
-    auto &k = *keys_.at(key);
-    auto ret = stats_.getStat(k.path.c_str());
-    switch (ret.error()) {
-        case Gringo::Statistics::error_none:               { return Leaf; }
-        case Gringo::Statistics::error_ambiguous_quantity: {
-            char const *keys = stats_.getKeys(k.path.c_str());
-            return strcmp(keys, "__len") == 0 ? Array : Map;
-        }
-        case Gringo::Statistics::error_not_available:      { throw std::runtime_error("not available"); }
-        case Gringo::Statistics::error_unknown_quantity:   { throw std::runtime_error("unknown quantity"); }
-    }
-    throw std::logic_error("cannot happen");
-    return Leaf;
-}
-
-double ClingoStatisticsNG::value(Potassco::Id_t key) const {
-    auto &k = *keys_.at(key);
-    auto ret = stats_.getStat(k.path.c_str());
-    switch (ret.error()) {
-        case Gringo::Statistics::error_none:               { return ret; }
-        case Gringo::Statistics::error_ambiguous_quantity: { throw std::runtime_error("not a leaf"); }
-        case Gringo::Statistics::error_not_available:      { throw std::runtime_error("not available"); }
-        case Gringo::Statistics::error_unknown_quantity:   { throw std::runtime_error("unknown quantity"); }
-    }
-    throw std::logic_error("cannot happen");
-    return 0;
 }
 
 // {{{1 definition of ClingoSolveIter

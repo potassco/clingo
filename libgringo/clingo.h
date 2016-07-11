@@ -361,21 +361,22 @@ clingo_error_t clingo_configuration_description(clingo_configuration_t *conf, cl
 // {{{1 statistics
 
 enum clingo_statistics_type {
-    clingo_statistics_type_value = 0,
-    clingo_statistics_type_array = 1,
-    clingo_statistics_type_map   = 2
+    clingo_statistics_type_empty = 0,
+    clingo_statistics_type_value = 1,
+    clingo_statistics_type_array = 2,
+    clingo_statistics_type_map   = 3
 };
 typedef int clingo_statistics_type_t;
 
 typedef struct clingo_statistic clingo_statistics_t;
-clingo_error_t clingo_statistics_array_at(clingo_statistics_t *stats, clingo_id_t key, size_t index, clingo_id_t *ret);
-clingo_error_t clingo_statistics_array_size(clingo_statistics_t *stats, clingo_id_t key, size_t *ret);
-clingo_error_t clingo_statistics_map_at(clingo_statistics_t *stats, clingo_id_t key, char const *name, clingo_id_t *ret);
-clingo_error_t clingo_statistics_map_size(clingo_statistics_t *stats, clingo_id_t key, size_t *n);
-clingo_error_t clingo_statistics_map_subkey_name(clingo_statistics_t *stats, clingo_id_t key, size_t index, char const **name);
-clingo_error_t clingo_statistics_root(clingo_statistics_t *stats, clingo_id_t *ret);
-clingo_error_t clingo_statistics_type(clingo_statistics_t *stats, clingo_id_t key, clingo_statistics_type_t *ret);
-clingo_error_t clingo_statistics_value_get(clingo_statistics_t *stats, clingo_id_t key, double *value);
+clingo_error_t clingo_statistics_array_at(clingo_statistics_t *stats, uint64_t key, size_t index, uint64_t *ret);
+clingo_error_t clingo_statistics_array_size(clingo_statistics_t *stats, uint64_t key, size_t *ret);
+clingo_error_t clingo_statistics_map_at(clingo_statistics_t *stats, uint64_t key, char const *name, uint64_t *ret);
+clingo_error_t clingo_statistics_map_size(clingo_statistics_t *stats, uint64_t key, size_t *n);
+clingo_error_t clingo_statistics_map_subkey_name(clingo_statistics_t *stats, uint64_t key, size_t index, char const **name);
+clingo_error_t clingo_statistics_root(clingo_statistics_t *stats, uint64_t *ret);
+clingo_error_t clingo_statistics_type(clingo_statistics_t *stats, uint64_t key, clingo_statistics_type_t *ret);
+clingo_error_t clingo_statistics_value_get(clingo_statistics_t *stats, uint64_t key, double *value);
 
 // {{{1 ast
 

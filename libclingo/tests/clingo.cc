@@ -72,7 +72,7 @@ TEST_CASE("solving", "[clingo]") {
             auto stats = ctl.statistics();
             std::copy(stats.keys().begin(), stats.keys().end(), std::back_inserter(keys_root));
             std::sort(keys_root.begin(), keys_root.end());
-            std::vector<std::string> keys_check = { ".accu", ".problem", ".solving", ".summary" };
+            std::vector<std::string> keys_check = { "accu", "problem", "solving", "summary" };
             REQUIRE(keys_root == keys_check);
             auto solving = stats["solving"];
             REQUIRE(solving["solver"].type() == StatisticsType::Array);

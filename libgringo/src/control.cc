@@ -761,7 +761,7 @@ size_t Statistics::size() const {
 }
 
 Statistics Statistics::operator[](size_t index) const {
-    clingo_id_t ret;
+    uint64_t ret;
     handleCError(clingo_statistics_array_at(stats_, key_, index, &ret));
     return Statistics{stats_, ret};
 }
@@ -775,7 +775,7 @@ StatisticsArrayIterator Statistics::end() const {
 }
 
 Statistics Statistics::operator[](char const *name) const {
-    clingo_id_t ret;
+    uint64_t ret;
     handleCError(clingo_statistics_map_at(stats_, key_, name, &ret));
     return Statistics{stats_, ret};
 }
@@ -1734,7 +1734,7 @@ Configuration Control::configuration() {
 Statistics Control::statistics() const {
     clingo_statistics_t *stats;
     handleCError(clingo_control_statistics(const_cast<clingo_control_t*>(impl_->ctl), &stats));
-    unsigned key;
+    uint64_t key;
     handleCError(clingo_statistics_root(stats, &key));
     return Statistics{stats, key};
 }
@@ -3158,44 +3158,44 @@ extern "C" clingo_error_t clingo_configuration_value_is_assigned(clingo_configur
 
 // {{{1 statistics
 
-struct clingo_statistic : public StatisticsNG { };
+struct clingo_statistic : public Potassco::AbstractStatistics { };
 
-extern "C" clingo_error_t clingo_statistics_root(clingo_statistics_t *stats, clingo_id_t *ret) {
+extern "C" clingo_error_t clingo_statistics_root(clingo_statistics_t *stats, uint64_t *ret) {
     GRINGO_CLINGO_TRY { *ret = stats->root(); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_statistics_type(clingo_statistics_t *stats, clingo_id_t key, clingo_statistics_type_t *ret) {
+extern "C" clingo_error_t clingo_statistics_type(clingo_statistics_t *stats, uint64_t key, clingo_statistics_type_t *ret) {
     GRINGO_CLINGO_TRY { *ret = stats->type(key); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_statistics_array_size(clingo_statistics_t *stats, clingo_id_t key, size_t *ret) {
+extern "C" clingo_error_t clingo_statistics_array_size(clingo_statistics_t *stats, uint64_t key, size_t *ret) {
     GRINGO_CLINGO_TRY { *ret = stats->size(key); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_statistics_array_at(clingo_statistics_t *stats, clingo_id_t key, size_t index, clingo_id_t *ret) {
+extern "C" clingo_error_t clingo_statistics_array_at(clingo_statistics_t *stats, uint64_t key, size_t index, uint64_t *ret) {
     GRINGO_CLINGO_TRY { *ret = stats->at(key, index); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_statistics_map_size(clingo_statistics_t *stats, clingo_id_t key, size_t *n) {
-    GRINGO_CLINGO_TRY { *n = stats->subkeys(key); }
+extern "C" clingo_error_t clingo_statistics_map_size(clingo_statistics_t *stats, uint64_t key, size_t *n) {
+    GRINGO_CLINGO_TRY { *n = stats->size(key); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_statistics_map_subkey_name(clingo_statistics_t *stats, clingo_id_t key, size_t index, char const **name) {
-    GRINGO_CLINGO_TRY { *name = stats->subkey(key, index); }
+extern "C" clingo_error_t clingo_statistics_map_subkey_name(clingo_statistics_t *stats, uint64_t key, size_t index, char const **name) {
+    GRINGO_CLINGO_TRY { *name = stats->key(key, index); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_statistics_map_at(clingo_statistics_t *stats, clingo_id_t key, char const *name, clingo_id_t *ret) {
-    GRINGO_CLINGO_TRY { *ret = stats->lookup(key, name); }
+extern "C" clingo_error_t clingo_statistics_map_at(clingo_statistics_t *stats, uint64_t key, char const *name, uint64_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = stats->get(key, name); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_statistics_value_get(clingo_statistics_t *stats, clingo_id_t key, double *value) {
+extern "C" clingo_error_t clingo_statistics_value_get(clingo_statistics_t *stats, uint64_t key, double *value) {
     GRINGO_CLINGO_TRY { *value = stats->value(key); }
     GRINGO_CLINGO_CATCH;
 }

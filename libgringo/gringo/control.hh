@@ -273,7 +273,7 @@ struct clingo_control {
     virtual bool blocked() = 0;
     virtual void assignExternal(Gringo::Symbol ext, Potassco::Value_t val) = 0;
     virtual Gringo::Statistics *getStats() = 0;
-    virtual Gringo::StatisticsNG *statistics() = 0;
+    virtual Potassco::AbstractStatistics *statistics() = 0;
     virtual void useEnumAssumption(bool enable) = 0;
     virtual bool useEnumAssumption() = 0;
     virtual void cleanupDomains() = 0;

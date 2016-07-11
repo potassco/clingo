@@ -1835,7 +1835,7 @@ using StatisticsKeyRange = IteratorRange<StatisticsKeyIterator>;
 class Statistics {
     friend class KeyIterator<Statistics>;
 public:
-    explicit Statistics(clingo_statistics_t *stats, unsigned key)
+    explicit Statistics(clingo_statistics_t *stats, uint64_t key)
     : stats_(stats)
     , key_(key) { }
     // generic
@@ -1857,7 +1857,7 @@ public:
 private:
     char const *key_name(size_t index) const;
     clingo_statistics_t *stats_;
-    unsigned key_;
+    uint64_t key_;
 };
 
 // {{{1 configuration
