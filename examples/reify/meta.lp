@@ -18,31 +18,23 @@
 % along with this program.  If not, see <http://www.gnu.org/licenses/>.   %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-lits(B) :- normal(A,B).
-lits(B) :- choice(A,B).
-%lits(B) :- disjunction(A,B).
+conjunction(B) :- literal_tuple(B),
+        hold(L) : literal_tuple(B, L), L > 0;
+    not hold(L) : literal_tuple(B,-L), L > 0.
 
-body(B) :- lits(B),
-        hold(L) : lits(B, L), L > 0;
-    not hold(L) : lits(B,-L), L > 0.
+body(normal(B)) :- rule(_,normal(B)), conjunction(B).
+body(sum(B,G))  :- rule(_,sum(B,G)),
+    #sum { W,L :     hold(L), weighted_literal_tuple(B, L,W), L > 0 ;
+           W,L : not hold(L), weighted_literal_tuple(B,-L,W), L > 0 } >= G.
 
-hold(A) :- normal(A,B), body(B).
-hold(A) :- weight(A,G,B),
-    #sum  { W,L :     hold(L), wlits(B, L,W), L > 0;
-            W,L : not hold(L), wlits(B,-L,W), L > 0 } >= G.
-% hold(A) : atoms(H,A)   :- disjunction(H,B), body(B).
-{ hold(A) : atoms(H,A) } :- choice(H,B), body(B).
+  hold(A) : atom_tuple(H,A)   :- rule(disjunction(H),B), body(B).
+{ hold(A) : atom_tuple(H,A) } :- rule(     choice(H),B), body(B).
 
- :- compute( L), L > 0, not hold(L).
- :- compute(-L), L > 0,     hold(L).
+optimize(J,W,Q) :- output(_optimize(J,W,Q),B), conjunction(B).
+ :- output(_query,B), not conjunction(B).
 
-hide(A,_criteria(J,W,Q)) :- show(A,_criteria(J,W,Q)).
-hide(A,_query)           :- show(A,_query).
-hide(A,_optimize(J,W,Q)) :- show(A,_optimize(J,W,Q)).
-
-optimize(J,W,Q) :- hold(A), show(A,_optimize(J,W,Q)).
-
- :- not hold(A), show(A,_query).
-
+hide(_criteria(J,W,Q)) :- output(_criteria(J,W,Q),_).
+hide(_query)           :- output(_query,_).
+hide(_optimize(J,W,Q)) :- output(_optimize(J,W,Q),_).
 #show.
-#show T : show(A,T), hold(A), not hide(A,T).
+#show T : output(T,B), conjunction(B), not hide(T).

@@ -91,7 +91,7 @@ private:
     Graph::Node &addNode(Atom_t atom);
 
 private:
-    using WLVec = std::vector<std::pair<Weight_t, Lit_t>>;
+    using WLVec = std::vector<std::pair<Lit_t, Weight_t>>;
     struct StepData {
         std::unordered_map<std::vector<Id_t>, size_t, Hash<std::vector<Id_t>>> theoryTuples;
         std::unordered_map<std::vector<Id_t>, size_t, Hash<std::vector<Id_t>>> theoryElementTuples;

@@ -87,8 +87,8 @@ size_t Reifier::litTuple(WeightLitSpan const &args) {
 size_t Reifier::weightLitTuple(WeightLitSpan const &args) {
     WLVec lits;
     lits.reserve(args.size);
-    for (auto &x : args) { lits.emplace_back(x.weight, x.lit); }
-    return tuple(stepData_.weightLitTuples, "literal_tuple", std::move(lits));
+    for (auto &x : args) { lits.emplace_back(x.lit, x.weight); }
+    return tuple(stepData_.weightLitTuples, "weighted_literal_tuple", std::move(lits));
 }
 
 size_t Reifier::atomTuple(AtomSpan const &args) {
@@ -116,8 +116,8 @@ void Reifier::rule(HeadView const &head, BodyView const &body) {
         printStepFact("rule", hss.str(), bss.str());
     }
     else {
-        bss << "sum(" << body.bound << "," << weightLitTuple(body.lits) << ")";
-        printStepFact("rule", hss.str(), weightLitTuple(body.lits), "aggregate");
+        bss << "sum(" << weightLitTuple(body.lits) << "," << body.bound << ")";
+        printStepFact("rule", hss.str(), bss.str());
     }
     if (calculateSCCs_) {
         for (auto &atom : head.atoms) {
