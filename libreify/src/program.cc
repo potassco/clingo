@@ -152,7 +152,7 @@ void Reifier::external(Atom_t a, Value_t v) {
         case Value_t::True:    { type = "true";    break; }
         case Value_t::Release: { type = "release"; break; }
     }
-    printStepFact("heuristic", a, type);
+    printStepFact("external", a, type);
 }
 
 void Reifier::assume(const LitSpan& lits) {
@@ -224,8 +224,10 @@ void Reifier::endStep() {
         }
         ++i;
     }
-    stepData_ = StepData();
-    ++step_;
+    if (reifyStep_) {
+        stepData_ = StepData();
+        ++step_;
+    }
 }
 
 void Reifier::parse(std::istream &in) {

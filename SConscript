@@ -483,7 +483,7 @@ TEST_LIBREIFY_SOURCES  = find_files(env, 'libreify/tests')
 
 reifyTestEnv                = env.Clone()
 reifyTestEnv.Append(CPPPATH = LIBREIFY_HEADERS)
-reifyTestEnv.Prepend(LIBS   = [reifyLib])
+reifyTestEnv.Prepend(LIBS   = [reifyLib, lpLib])
 
 testReifyProgram = reifyTestEnv.Program('test_libreify', TEST_LIBREIFY_SOURCES)
 AlwaysBuild(reifyTestEnv.Alias('test-libreify', [testReifyProgram], testReifyProgram[0].path))
