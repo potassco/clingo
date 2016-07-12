@@ -1,8 +1,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % This file is part of clingo.                                             %
-% Copyright (C) 2015  Martin Gebser                                       %
-% Copyright (C) 2015  Roland Kaminski                                     %
-% Copyright (C) 2015  Torsten Schaub                                      %
+%                                                                         %
+% Authors: Martin Gebser, Roland Kaminski, Torsten Schaub                 %
 %                                                                         %
 % This program is free software: you can redistribute it and/or modify    %
 % it under the terms of the GNU General Public License as published by    %
@@ -20,7 +19,7 @@
 
 cxopt(card).  cxopt(incl).  cxopt(pref).
 
-criteria(J,W,Q,A) :- show(A,_criteria(J,W,Q)).
+criteria(J,W,Q,A) :- output(_criteria(J,W,Q),A).
 criteria(J,W,A) :- criteria(J,W,Q,A).
 
 cxopt(J,W,O)    :- criteria(J,W,_,_), cxopt(O), optimize(J,W,O).
@@ -46,27 +45,27 @@ bot :- check(J1), equal(J1), #false : chain(J1,J2).
 
 %%%%%%%%%% check cardinality criteria
 
-equal(J,W,card) :- cxopt(J,W,card), #sum { -1,Q : not not hold(A),       criteria(J,W,Q,A);
-                                            1,Q :         true(atom(A)), criteria(J,W,Q,A) } >= 0.
-worse(J)        :- cxopt(J,W,card), #sum { -1,Q : not not hold(A),       criteria(J,W,Q,A);
-                                            1,Q :         true(atom(A)), criteria(J,W,Q,A) } >= 1.
+equal(J,W,card) :- cxopt(J,W,card), #sum { -1,Q : not not conjunction(A),  criteria(J,W,Q,A) ;
+                                            1,Q :         true(normal(A)), criteria(J,W,Q,A) } >= 0.
+worse(J)        :- cxopt(J,W,card), #sum { -1,Q : not not conjunction(A),  criteria(J,W,Q,A) ;
+                                            1,Q :         true(normal(A)), criteria(J,W,Q,A) } >= 1.
 %%%%%%%%%% check inclusion criteria
 
-ndiff(A) :- cxopt(J,W,incl), criteria(J,W,A), true(atom(A)).
-ndiff(A) :- cxopt(J,W,incl), criteria(J,W,A), not hold(A).
+ndiff(A) :- cxopt(J,W,incl), criteria(J,W,A), true(normal(A)).
+ndiff(A) :- cxopt(J,W,incl), criteria(J,W,A), not conjunction(A).
 
 equal(J,W,incl) :- cxopt(J,W,incl), ndiff(A) : criteria(J,W,A).
-worse(J)        :- cxopt(J,W,incl), criteria(J,W,A), true(atom(A)), not hold(A).
+worse(J)        :- cxopt(J,W,incl), criteria(J,W,A), true(normal(A)), not conjunction(A).
 
 %%%%%%%%%% check preference criteria (relative to user predicate prefer/2)
 
-cando(A) :- cxopt(J,W,pref), criteria(J,W,A), fail(A),     hold(A).
-nocan(A) :- cxopt(J,W,pref), criteria(J,W,A), true(A).
-nocan(A) :- cxopt(J,W,pref), criteria(J,W,A), not hold(A).
+cando(A) :- cxopt(J,W,pref), criteria(J,W,A), fail(normal(A)),     conjunction(A).
+nocan(A) :- cxopt(J,W,pref), criteria(J,W,A), true(normal(A)).
+nocan(A) :- cxopt(J,W,pref), criteria(J,W,A), not conjunction(A).
 
-condo(A) :- cxopt(J,W,pref), criteria(J,W,A), true(A), not hold(A).
-nocon(A) :- cxopt(J,W,pref), criteria(J,W,A), fail(A).
-nocon(A) :- cxopt(J,W,pref), criteria(J,W,A), hold(A).
+condo(A) :- cxopt(J,W,pref), criteria(J,W,A), true(normal(A)), not conjunction(A).
+nocon(A) :- cxopt(J,W,pref), criteria(J,W,A), fail(normal(A)).
+nocon(A) :- cxopt(J,W,pref), criteria(J,W,A),     conjunction(A).
 
 cando(J,W,A)    :- cxopt(J,W,pref), criteria(J,W,A), criteria(J,W,A'), prefer(A,A'), A != A', cando(A), condo(A').
 
