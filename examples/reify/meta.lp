@@ -1,8 +1,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % This file is part of clingo.                                            %
-% Copyright (C) 2015  Martin Gebser                                       %
-% Copyright (C) 2015  Roland Kaminski                                     %
-% Copyright (C) 2015  Torsten Schaub                                      %
+%                                                                         %
+% Authors: Martin Gebser, Roland Kaminski, Torsten Schaub                 %
 %                                                                         %
 % This program is free software: you can redistribute it and/or modify    %
 % it under the terms of the GNU General Public License as published by    %
