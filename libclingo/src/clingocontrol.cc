@@ -607,6 +607,9 @@ Gringo::SolveResult ClingoSolveIter::get() {
 // {{{1 definition of ClingoSolveFuture
 
 Gringo::SolveResult convert(Clasp::ClaspFacade::Result res) {
+    if (res.interrupted() && res.signal == SIGINT) {
+        throw std::runtime_error("solving stopped by signal");
+    }
     Gringo::SolveResult::Satisfiabily sat = Gringo::SolveResult::Satisfiable;
     switch (res) {
         case Clasp::ClaspFacade::Result::SAT:     { sat = Gringo::SolveResult::Satisfiable; break; }
@@ -621,10 +624,8 @@ ClingoSolveFuture::ClingoSolveFuture(Clasp::ClaspFacade::AsyncResult const &res)
     : future(res) { }
 Gringo::SolveResult ClingoSolveFuture::get() {
     if (!done) {
-        bool stop = future.interrupted() == SIGINT;
-        ret       = convert(future.get());
         done      = true;
-        if (stop) { throw std::runtime_error("solving stopped by signal"); }
+        ret       = convert(future.get());
     }
     return ret;
 }
