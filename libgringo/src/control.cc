@@ -169,7 +169,7 @@ bool operator>=(Signature a, Signature b) { return !clingo_signature_is_less_tha
 // {{{1 symbol
 
 Symbol::Symbol() {
-    clingo_symbol_create_num(0, &sym_);
+    clingo_symbol_create_number(0, &sym_);
 }
 
 Symbol::Symbol(clingo_symbol_t sym)
@@ -177,7 +177,7 @@ Symbol::Symbol(clingo_symbol_t sym)
 
 Symbol Number(int num) {
     clingo_symbol_t sym;
-    clingo_symbol_create_num(num, &sym);
+    clingo_symbol_create_number(num, &sym);
     return Symbol(sym);
 }
 
@@ -211,7 +211,7 @@ Symbol Function(char const *name, SymbolSpan args, bool positive) {
     return Symbol(sym);
 }
 
-int Symbol::num() const {
+int Symbol::number() const {
     int ret;
     handleCError(clingo_symbol_number(sym_, &ret));
     return ret;
@@ -241,7 +241,7 @@ bool Symbol::is_negative() const {
     return ret;
 }
 
-SymbolSpan Symbol::args() const {
+SymbolSpan Symbol::arguments() const {
     clingo_symbol_t const *ret;
     size_t n;
     handleCError(clingo_symbol_arguments(sym_, &ret, &n));
@@ -2550,7 +2550,7 @@ extern "C" bool clingo_signature_is_less_than(clingo_signature_t a, clingo_signa
 
 // {{{1 value
 
-extern "C" void clingo_symbol_create_num(int num, clingo_symbol_t *val) {
+extern "C" void clingo_symbol_create_number(int num, clingo_symbol_t *val) {
     *val = Symbol::createNum(num).rep();
 }
 

@@ -333,8 +333,8 @@ public:
         p2h_[0] = 0;
         for (auto it = init.symbolic_atoms().begin(Signature("place", 2)), ie = init.symbolic_atoms().end(); it != ie; ++it) {
             literal_t lit = init.map_literal(it->literal());
-            p = it->symbol().args()[0].num();
-            h = it->symbol().args()[1].num();
+            p = it->symbol().arguments()[0].number();
+            h = it->symbol().arguments()[1].number();
             p2h_[lit] = h;
             init.add_watch(lit);
             nHole = std::max(h, nHole);
@@ -583,7 +583,7 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
         if (n == 0) {
             std::map<Symbol, std::vector<literal_t>> grouped;
             for (auto it = ctl.symbolic_atoms().begin({"seq", 3}), ie = ctl.symbolic_atoms().end(); it != ie; ++it) {
-                grouped[it->symbol().args().front()].emplace_back(it->literal());
+                grouped[it->symbol().arguments().front()].emplace_back(it->literal());
             }
             for (auto &elem : grouped) {
                 auto atom = ctl.backend().add_atom();
@@ -597,10 +597,10 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
         std::map<Symbol, std::vector<literal_t>> grouped_pat;
         std::unordered_set<Symbol> grouped_seq;
         for (auto it = ctl.symbolic_atoms().begin({"pat", 2}), ie = ctl.symbolic_atoms().end(); it != ie; ++it) {
-            grouped_pat[it->symbol().args()[1]].emplace_back(it->literal());
+            grouped_pat[it->symbol().arguments()[1]].emplace_back(it->literal());
         }
         for (auto it = ctl.symbolic_atoms().begin({"seq", 3}), ie = ctl.symbolic_atoms().end(); it != ie; ++it) {
-            grouped_seq.emplace(Function("", {it->symbol().args()[0], it->symbol().args()[2]}));
+            grouped_seq.emplace(Function("", {it->symbol().arguments()[0], it->symbol().arguments()[2]}));
         }
         std::map<Symbol, atom_t> projected_pat;
         for (auto &pat : grouped_pat) {
@@ -612,7 +612,7 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
         }
         for (auto it = ctl.symbolic_atoms().begin({"sup", 1}), ie = ctl.symbolic_atoms().end(); it != ie; ++it) {
             for (auto &pat : projected_pat) {
-                if (grouped_seq.find(Function("", {it->symbol().args().front(), pat.first})) == grouped_seq.end()) {
+                if (grouped_seq.find(Function("", {it->symbol().arguments().front(), pat.first})) == grouped_seq.end()) {
                     ctl.backend().rule(false, {}, {it->literal(), literal_t(pat.second)});
                 }
             }

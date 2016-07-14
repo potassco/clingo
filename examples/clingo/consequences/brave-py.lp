@@ -6,7 +6,7 @@ brave = set()
 
 def on_model(m):
     for x in m.atoms(atoms=True):
-        if x.name == "holds": brave.add(x.args[0])
+        if x.name == "holds": brave.add(x.arguments[0])
 
 def is_brave(x): return x in brave
 

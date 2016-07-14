@@ -23,8 +23,8 @@ class Board:
 
     def __on_model(self, m):
         for atom in m.atoms(atoms=True):
-            if atom.name == "barrier" and len(atom.args) == 4:
-                x, y, dx, dy = [n.number for n in atom.args]
+            if atom.name == "barrier" and len(atom.arguments) == 4:
+                x, y, dx, dy = [n.number for n in atom.arguments]
                 self.blocked.add((x - 1     , y - 1     ,  dx,  dy))
                 self.blocked.add((x - 1 + dx, y - 1     , -dx,  dy))
                 self.blocked.add((x - 1     , y - 1 + dy,  dx, -dy))
@@ -33,13 +33,13 @@ class Board:
                     self.barriers.add(('west', x if dx == 1 else x - 1, y - 1))
                 else:
                     self.barriers.add(('north', x - 1, y if dy == 1 else y - 1))
-            elif atom.name == "dim" and len(atom.args) == 1:
-                self.size = max(self.size, atom.args[0].number)
-            elif atom.name == "available_target" and len(atom.args) == 4:
-                c, s, x, y = [(n.number if n.type == clingo.TermType.Number else str(n)) for n in atom.args]
+            elif atom.name == "dim" and len(atom.arguments) == 1:
+                self.size = max(self.size, atom.arguments[0].number)
+            elif atom.name == "available_target" and len(atom.arguments) == 4:
+                c, s, x, y = [(n.number if n.type == clingo.SymbolType.Number else str(n)) for n in atom.arguments]
                 self.targets.add((c, s, x - 1, y - 1))
-            elif atom.name == "initial_pos" and len(atom.args) == 3:
-                c, x, y = [(n.number if n.type == clingo.TermType.Number else str(n)) for n in atom.args]
+            elif atom.name == "initial_pos" and len(atom.arguments) == 3:
+                c, x, y = [(n.number if n.type == clingo.SymbolType.Number else str(n)) for n in atom.arguments]
                 self.pos[c] = (x - 1, y - 1)
         for d in range(0, self.size):
             self.blocked.add((d            ,             0,  0, -1))
@@ -149,8 +149,8 @@ class Solver:
     def __on_model(self, m):
         self.__solution = []
         for atom in m.atoms(atoms=True):
-            if atom.name == "move" and len(atom.args) == 4:
-                c, x, y, t = [(n.number if n.type == clingo.TermType.Number else str(n)) for n in atom.args]
+            if atom.name == "move" and len(atom.arguments) == 4:
+                c, x, y, t = [(n.number if n.type == clingo.SymbolType.Number else str(n)) for n in atom.arguments]
                 self.__solution.append((c, x, y, t))
         self.__solution.sort(key=lambda x: x[3])
         p = None

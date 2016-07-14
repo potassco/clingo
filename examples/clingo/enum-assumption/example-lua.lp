@@ -1,7 +1,7 @@
 #script (lua)
 
 function main(prg)
-    prg.conf.solve.models = 0
+    prg.configuration.solve.models = 0
     print(prg.use_enum_assumption)
     prg:ground({{"base", {}}})
     prg.use_enum_assumption = true

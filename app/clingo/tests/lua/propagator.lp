@@ -173,7 +173,7 @@ end
 function Propagator:init(init)
     for atom in init.theory_atoms do
         term = atom.term
-        args = term.args
+        args = term.arguments
         if term.name == "seq" and #args == 1 then
             self:__add_seq_atom(init, args[1].number + 1, atom)
         end
@@ -277,14 +277,14 @@ end
 -- {{{1 Main
 
 function main(c)
-    c.conf.solve.opt_mode = "optN"
+    c.configuration.solve.opt_mode = "optN"
     c:ground({ {"base", {}} })
     c:register_propagator(Propagator.new())
     -- :- not sup(U), seq(U,_,_), n == 0.
     if c:get_const("n").number == 0 then
         local grouped = {}
         for atom in c.symbolic_atoms:by_signature("seq", 3) do
-            table.append(table.setdefault(grouped, atom.symbol.args[1].number, {}), atom.literal)
+            table.append(table.setdefault(grouped, atom.symbol.arguments[1].number, {}), atom.literal)
         end
         local keys = table.keys(grouped)
         table.sort(keys)
@@ -299,10 +299,10 @@ function main(c)
     -- :- sup(U), pat(_,I), not seq(U,_,I).
     local grouped_pat, grouped_seq = {}, {}
     for atom in c.symbolic_atoms:by_signature("pat", 2) do
-        table.append(table.setdefault(grouped_pat, tostring(atom.symbol.args[2]), {}), atom.literal)
+        table.append(table.setdefault(grouped_pat, tostring(atom.symbol.arguments[2]), {}), atom.literal)
     end
     for atom in c.symbolic_atoms:by_signature("seq", 3) do
-        local a, b = atom.symbol.args[1], atom.symbol.args[3]
+        local a, b = atom.symbol.arguments[1], atom.symbol.arguments[3]
         grouped_seq[tostring(a) .. "," .. tostring(b)] = true
     end
     local projected_pat, projected_seq = {}, {}
@@ -317,7 +317,7 @@ function main(c)
     end
     for atom in c.symbolic_atoms:by_signature("sup", 1) do
         for _, key in ipairs(keys) do
-            local a, b = atom.symbol.args[1], key
+            local a, b = atom.symbol.arguments[1], key
             if not grouped_seq[tostring(a) .. "," .. tostring(b)] then
                 c.backend:add_rule{{}, {atom.literal, projected_pat[key]}}
             end

@@ -6,7 +6,7 @@ function main(prg)
         m.context:add_nogood({{clingo.Function("c"), true}, {clingo.Function("d"), true}})
     end
 
-    prg.conf.solve.models = 0
+    prg.configuration.solve.models = 0
     prg:ground({{"base", {}}})
     prg:solve(on_model)
     print "and again"

@@ -29,7 +29,7 @@ class App:
 
         if self.args.scratch or count == 1:
             for option in self.args.option:
-                setattr(self.control.conf, option[0], option[1])
+                setattr(self.control.configuration, option[0], option[1])
             parts.append(("base", []))
 
         if kind:
@@ -65,10 +65,10 @@ class App:
                     args = {"sort_keys": True, "indent": 0, "separators": (',', ': ')}
                     stats = {}
                     for x in ["step", "enumerated", "time_cpu", "time_solve", "time_sat", "time_unsat", "time_total"]:
-                        stats[x] = self.control.stats[x]
+                        stats[x] = self.control.statistics[x]
                     for x in ["lp", "ctx", "solvers"]:
-                        for y in self.control.stats[x]:
-                            stats[y] = self.control.stats[x][y]
+                        for y in self.control.statistics[x]:
+                            stats[y] = self.control.statistics[x][y]
                     print json.dumps(stats, *args)
                 if ret.satisfiable:
                     break

@@ -27,7 +27,7 @@ namespace Clingo { namespace Test {
 TEST_CASE("parse_term", "[clingo]") {
     MessageVec messages;
     Logger logger = [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); };
-    REQUIRE(parse_term("10+1").num() == 11);
+    REQUIRE(parse_term("10+1").number() == 11);
     REQUIRE_THROWS(parse_term("10+", logger));
     //REQUIRE(messages == (MessageVec{{WarningCode::Runtime, "<string>:1:5: error: syntax error, unexpected <EOF>\n"}}));
     messages.clear();
@@ -461,8 +461,8 @@ TEST_CASE("solving", "[clingo]") {
             ctl.ground({{"base", {}}}, [&messages](Location loc, char const *name, SymbolSpan args, SymbolSpanCallback report) {
                 if (strcmp(name, "f") == 0 && args.size() == 1) {
                     Symbol front = *args.begin();
-                    report({Number(front.num() + 1), Number(front.num() + 10)});
-                    report({Number(front.num() + 20)});
+                    report({Number(front.number() + 1), Number(front.number() + 10)});
+                    report({Number(front.number() + 20)});
                 }
                 else {
                     std::ostringstream oss;

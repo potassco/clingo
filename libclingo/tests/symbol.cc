@@ -50,7 +50,7 @@ TEST_CASE("symbol", "[clingo]") {
         std::vector<Symbol> args;
         // numbers
         auto sym = Number(42);
-        REQUIRE(42 == sym.num());
+        REQUIRE(42 == sym.number());
         args.emplace_back(sym);
         // inf
         sym = Infimum();
@@ -77,8 +77,8 @@ TEST_CASE("symbol", "[clingo]") {
         REQUIRE(!sym.is_negative());
         REQUIRE(S("f") == sym.name());
         REQUIRE("f(42,#inf,#sup,\"x\",-x)" == sym.to_string());
-        REQUIRE((args.size() == sym.args().size() && std::equal(args.begin(), args.end(), sym.args().begin())));
-        try { sym.num(); }
+        REQUIRE((args.size() == sym.arguments().size() && std::equal(args.begin(), args.end(), sym.arguments().begin())));
+        try { sym.number(); }
         catch (std::exception const &e) { REQUIRE(e.what() == S("unexpected")); }
         // comparison
         auto a = Number(1), b = Number(2);

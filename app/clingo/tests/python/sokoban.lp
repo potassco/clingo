@@ -4,8 +4,8 @@ from clingo import Function, SolveResult
 from sys import stderr
 
 def main(prg):
-    prg.conf.solve.opt_mode = "optN"
-    prg.conf.solve.models  = 0
+    prg.configuration.solve.opt_mode = "optN"
+    prg.configuration.solve.models  = 0
     t = 0
     e = 2
     parts = []

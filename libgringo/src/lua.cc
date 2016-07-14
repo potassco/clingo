@@ -147,7 +147,7 @@ Symbol luaToVal(lua_State *L, int idx) {
         case LUA_TUSERDATA: {
             bool check = false;
             if (lua_getmetatable(L, idx)) {                        // +1
-                lua_getfield(L, LUA_REGISTRYINDEX, "clingo.Term"); // +1
+                lua_getfield(L, LUA_REGISTRYINDEX, "clingo.Symbol"); // +1
                 check = lua_rawequal(L, -1, -2);
                 lua_pop(L, 2);                                     // -2
             }
@@ -630,7 +630,7 @@ struct TheoryTerm {
         char const *field = luaL_checkstring(L, 2);
         if (strcmp(field, "type") == 0) { return type(L); }
         else if (strcmp(field, "name") == 0) { return name(L); }
-        else if (strcmp(field, "args") == 0) { return args(L); }
+        else if (strcmp(field, "arguments") == 0) { return args(L); }
         else if (strcmp(field, "number") == 0) { return number(L); }
         else {
             lua_getmetatable(L, 1);
@@ -829,7 +829,7 @@ struct TheoryIter {
 
 // {{{1 wrap Term
 
-struct TermType {
+struct SymbolType {
     enum Type { Number, String, Function, Inf, Sup };
     static int addToRegistry(lua_State *L) {
         lua_createtable(L, 0, 5);
@@ -848,12 +848,12 @@ struct TermType {
         *(Type*)lua_newuserdata(L, sizeof(Type)) = Inf;
         luaL_getmetatable(L, typeName);
         lua_setmetatable(L, -2);
-        lua_setfield(L, -2, "Inf");
+        lua_setfield(L, -2, "Infimum");
         *(Type*)lua_newuserdata(L, sizeof(Type)) = Sup;
         luaL_getmetatable(L, typeName);
         lua_setmetatable(L, -2);
-        lua_setfield(L, -2, "Sup");
-        lua_setfield(L, -2, "TermType");
+        lua_setfield(L, -2, "Supremum");
+        lua_setfield(L, -2, "SymbolType");
         return 0;
     }
     static int eq(lua_State *L) {
@@ -879,18 +879,18 @@ struct TermType {
             case Number:   { lua_pushstring(L, "Number"); break; }
             case String:   { lua_pushstring(L, "String"); break; }
             case Function: { lua_pushstring(L, "Function"); break; }
-            case Inf:      { lua_pushstring(L, "Inf"); break; }
-            case Sup:      { lua_pushstring(L, "Sup"); break; }
+            case Inf:      { lua_pushstring(L, "Infimum"); break; }
+            case Sup:      { lua_pushstring(L, "Supremum"); break; }
         }
         return 1;
     }
     static luaL_Reg const meta[];
-    static constexpr char const *typeName = "clingo.TermType";
+    static constexpr char const *typeName = "clingo.SymbolType";
 };
 
-constexpr char const *TermType::typeName;
+constexpr char const *SymbolType::typeName;
 
-luaL_Reg const TermType::meta[] = {
+luaL_Reg const SymbolType::meta[] = {
     {"__eq", eq},
     {"__lt", lt},
     {"__le", le},
@@ -900,14 +900,14 @@ luaL_Reg const TermType::meta[] = {
 
 struct Term {
     static int new_(lua_State *L, Symbol v) {
-        if (v.type() == SymbolType::Sup) {
+        if (v.type() == Gringo::SymbolType::Sup) {
             lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
-            lua_getfield(L, -1, "Sup");
+            lua_getfield(L, -1, "Supremum");
             lua_replace(L, -2);
         }
-        else if (v.type() == SymbolType::Inf) {
+        else if (v.type() == Gringo::SymbolType::Inf) {
             lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
-            lua_getfield(L, -1, "Inf");
+            lua_getfield(L, -1, "Infimum");
             lua_replace(L, -2);
         }
         else {
@@ -921,11 +921,11 @@ struct Term {
         *(Symbol*)lua_newuserdata(L, sizeof(Symbol)) = Symbol::createSup();
         luaL_getmetatable(L, typeName);
         lua_setmetatable(L, -2);
-        lua_setfield(L, -2, "Sup");
+        lua_setfield(L, -2, "Supremum");
         *(Symbol*)lua_newuserdata(L, sizeof(Symbol)) = Symbol::createInf();
         luaL_getmetatable(L, typeName);
         lua_setmetatable(L, -2);
-        lua_setfield(L, -2, "Inf");
+        lua_setfield(L, -2, "Infimum");
         return 0;
     }
     static int newFun(lua_State *L) {
@@ -954,10 +954,10 @@ struct Term {
     static int newString(lua_State *L) {
         return Term::new_(L, Symbol::createStr(luaL_checkstring(L, 1)));
     }
-    VALUE_CMP(Term)
+    VALUE_CMP(Symbol)
     static int name(lua_State *L) {
         Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
-        if (val.type() == SymbolType::Fun) {
+        if (val.type() == Gringo::SymbolType::Fun) {
             lua_pushstring(L, protect(L, [val]() { return val.name().c_str(); }));
         }
         else {
@@ -967,7 +967,7 @@ struct Term {
     }
     static int string(lua_State *L) {
         Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
-        if (val.type() == SymbolType::Str) {
+        if (val.type() == Gringo::SymbolType::Str) {
             lua_pushstring(L, protect(L, [val]() { return val.string().c_str(); }));
         }
         else {
@@ -977,7 +977,7 @@ struct Term {
     }
     static int number(lua_State *L) {
         Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
-        if (val.type() == SymbolType::Num) {
+        if (val.type() == Gringo::SymbolType::Num) {
             lua_pushnumber(L, protect(L, [val]() { return val.num(); }));
         }
         else {
@@ -987,7 +987,7 @@ struct Term {
     }
     static int negative(lua_State *L) {
         Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
-        if (val.type() == SymbolType::Fun) {
+        if (val.type() == Gringo::SymbolType::Fun) {
             lua_pushboolean(L, protect(L, [val]() { return val.sign(); }));
         }
         else {
@@ -997,7 +997,7 @@ struct Term {
     }
     static int positive(lua_State *L) {
         Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
-        if (val.type() == SymbolType::Fun) {
+        if (val.type() == Gringo::SymbolType::Fun) {
             lua_pushboolean(L, protect(L, [val]() { return !val.sign(); }));
         }
         else {
@@ -1007,7 +1007,7 @@ struct Term {
     }
     static int args(lua_State *L) {
         Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
-        if (val.type() == SymbolType::Fun) {
+        if (val.type() == Gringo::SymbolType::Fun) {
             lua_createtable(L, val.args().size, 0);
             int i = 1;
             for (auto &x : val.args()) {
@@ -1034,44 +1034,44 @@ struct Term {
     static int type(lua_State *L) {
         Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
         lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
-        lua_getfield(L, -1, "TermType");
+        lua_getfield(L, -1, "SymbolType");
         char const *field = "";
         switch (val.type()) {
-            case SymbolType::Str:     { field = "String"; break; }
-            case SymbolType::Num:     { field = "Number"; break; }
-            case SymbolType::Inf:     { field = "Inf"; break; }
-            case SymbolType::Sup:     { field = "Sup"; break; }
-            case SymbolType::Fun:     { field = "Function"; break; }
-            case SymbolType::Special: { luaL_error(L, "must not happen"); }
+            case Gringo::SymbolType::Str:     { field = "String"; break; }
+            case Gringo::SymbolType::Num:     { field = "Number"; break; }
+            case Gringo::SymbolType::Inf:     { field = "Infimum"; break; }
+            case Gringo::SymbolType::Sup:     { field = "Supremum"; break; }
+            case Gringo::SymbolType::Fun:     { field = "Function"; break; }
+            case Gringo::SymbolType::Special: { luaL_error(L, "must not happen"); }
         }
         lua_getfield(L, -1, field);
         return 1;
     }
     static int index(lua_State *L) {
         char const *field = luaL_checkstring(L, 2);
-        if      (strcmp(field, "positive") == 0) { return positive(L); }
-        else if (strcmp(field, "negative") == 0) { return negative(L); }
-        else if (strcmp(field, "args") == 0) { return args(L); }
-        else if (strcmp(field, "name") == 0) { return name(L); }
-        else if (strcmp(field, "string") == 0) { return string(L); }
-        else if (strcmp(field, "number") == 0) { return number(L); }
-        else if (strcmp(field, "type") == 0) { return type(L); }
+        if      (strcmp(field, "positive") == 0)  { return positive(L); }
+        else if (strcmp(field, "negative") == 0)  { return negative(L); }
+        else if (strcmp(field, "arguments") == 0) { return args(L); }
+        else if (strcmp(field, "name") == 0)      { return name(L); }
+        else if (strcmp(field, "string") == 0)    { return string(L); }
+        else if (strcmp(field, "number") == 0)    { return number(L); }
+        else if (strcmp(field, "type") == 0)      { return type(L); }
         else {
             lua_getmetatable(L, 1);
             lua_getfield(L, -1, field);
             return 1;
         }
     }
-    static constexpr char const *typeName = "clingo.Term";
+    static constexpr char const *typeName = "clingo.Symbol";
     static luaL_Reg const meta[];
 };
 
 constexpr char const *Term::typeName;
 luaL_Reg const Term::meta[] = {
     {"__tostring", toString},
-    {"__eq", eqTerm},
-    {"__lt", ltTerm},
-    {"__le", leTerm},
+    {"__eq", eqSymbol},
+    {"__lt", ltSymbol},
+    {"__le", leSymbol},
     {nullptr, nullptr}
 };
 
@@ -1200,7 +1200,7 @@ struct Model {
         lua_pushstring(L, protect(L, [model, rep]() {
             auto printAtom = [](std::ostream &out, Symbol val) {
                 auto sig = val.sig();
-                if (val.type() == SymbolType::Fun && sig.name() == "$" && sig.arity() == 2 && !sig.sign()) {
+                if (val.type() == Gringo::SymbolType::Fun && sig.name() == "$" && sig.arity() == 2 && !sig.sign()) {
                     auto args = val.args().first;
                     out << args[0] << "=" << args[1];
                 }
@@ -1342,7 +1342,7 @@ struct SolveIter {
     }
     static int get(lua_State *L) {
         Gringo::SolveIter *& iter = *(Gringo::SolveIter **)luaL_checkudata(L, 1, typeName);
-        lua_pushnumber(L, protect(L, [iter]() { return (int)iter->get(); }));
+        SolveResult::new_(L, PROTECT(iter->get()));
         return 1;
     }
     static luaL_Reg const meta[];
@@ -1398,7 +1398,7 @@ struct Configuration {
         bool desc = strncmp("__desc_", name, 7) == 0;
         if (desc) { name += 7; }
         unsigned key;
-        bool hasSubKey = protect(L, [self, name, &key] { return self.proxy->hasSubKey(self.key, name, &key); });
+        bool hasSubKey = PROTECT(self.proxy->hasSubKey(self.key, name, &key));
         if (hasSubKey) {
             new_(L, key, *self.proxy);
             auto &sub = *(Configuration *)lua_touserdata(L, -1);
@@ -1409,7 +1409,7 @@ struct Configuration {
             else if (sub.nValues < 0) { return 1; }
             else {
                 std::string *value = AnyWrap::new_<std::string>(L);
-                bool ret = protect(L, [&sub, value]() { return sub.proxy->getKeyValue(sub.key, *value); });
+                bool ret = PROTECT(sub.proxy->getKeyValue(sub.key, *value));
                 if (ret) {
                     lua_pushstring(L, value->c_str());
                     return 1;
@@ -1840,8 +1840,8 @@ struct ControlWrap {
         checkBlocked(L, ctl, "get_const");
         char const *name = luaL_checkstring(L, 2);
         Symbol ret = protect(L, [&ctl, name]() { return ctl.getConst(name); });
-        if (ret.type() == SymbolType::Special) { lua_pushnil(L); }
-        else                                   { Term::new_(L, ret); }
+        if (ret.type() == Gringo::SymbolType::Special) { lua_pushnil(L); }
+        else                                           { Term::new_(L, ret); }
         return 1;
     }
 
@@ -1872,7 +1872,7 @@ struct ControlWrap {
     static int solve(lua_State *L) {
         auto &ctl = get_self(L).ctl;
         checkBlocked(L, ctl, "solve");
-        lua_pushstring(L, "stats");
+        lua_pushstring(L, "statistics");
         lua_pushnil(L);
         lua_rawset(L, 1);
         int mhIndex = !lua_isnone(L, 2) && !lua_isnil(L, 2) ? 2 : 0;
@@ -1913,7 +1913,7 @@ struct ControlWrap {
     static int solve_iter(lua_State *L) {
         auto &ctl = get_self(L).ctl;
         checkBlocked(L, ctl, "solve_iter");
-        lua_pushstring(L, "stats");
+        lua_pushstring(L, "statistics");
         lua_pushnil(L);
         lua_rawset(L, 1);
         int assIdx  = !lua_isnone(L, 2) && !lua_isnil(L, 2) ? 2 : 0;
@@ -1966,25 +1966,25 @@ struct ControlWrap {
         char const *name = luaL_checkstring(L, 2);
         if (strcmp(name, "use_enum_assumption") == 0) {
             bool enabled = protect(L, [&ctl]() { return ctl.useEnumAssumption(); });
-            lua_pushboolean(L, enabled);     // stack +1
+            lua_pushboolean(L, enabled);                // stack +1
             return 1;
         }
-        else if (strcmp(name, "stats") == 0) {
-            checkBlocked(L, ctl, "stats");
-            lua_pushstring(L, "stats");      // stack +1
-            lua_rawget(L, 1);                // stack +0
+        else if (strcmp(name, "statistics") == 0) {
+            checkBlocked(L, ctl, "statistics");
+            lua_pushstring(L, "statistics");            // stack +1
+            lua_rawget(L, 1);                           // stack +0
             if (lua_isnil(L, -1)) {
                 auto stats = protect(L, [&ctl](){ return ctl.statistics(); });
-                lua_pop(L, 1);               // stack -1
-                newStatistics(L, stats, stats->root());     // stack +0
-                lua_pushstring(L, "stats");  // stack +1
-                lua_pushvalue(L, -2);        // stack +1
-                lua_rawset(L, 1);            // stack -2
+                lua_pop(L, 1);                          // stack -1
+                newStatistics(L, stats, stats->root()); // stack +0
+                lua_pushstring(L, "statistics");        // stack +1
+                lua_pushvalue(L, -2);                   // stack +1
+                lua_rawset(L, 1);                       // stack -2
             }
             return 1;
         }
-        else if (strcmp(name, "conf") == 0) {
-            checkBlocked(L, ctl, "conf");
+        else if (strcmp(name, "configuration") == 0) {
+            checkBlocked(L, ctl, "configuration");
             Gringo::ConfigProxy *proxy;
             unsigned key;
             protect(L, [&ctl, &proxy, &key]() -> void {
@@ -2518,7 +2518,7 @@ int ControlWrap::registerPropagator(lua_State *L) {
 int parseTerm(lua_State *L) {
     char const *str = luaL_checkstring(L, 1);
     Symbol val = protect(L, [str]() { return ControlWrap::module->parseValue(str, nullptr, 20); });
-    if (val.type() == SymbolType::Special) { lua_pushnil(L); }
+    if (val.type() == Gringo::SymbolType::Special) { lua_pushnil(L); }
     else { Term::new_(L, val); }
     return 1;
 }
@@ -2538,7 +2538,7 @@ int luaopen_clingo(lua_State* L) {
     };
 
     lua_regMeta(L, Term::typeName,           Term::meta, Term::index);
-    lua_regMeta(L, TermType::typeName,       TermType::meta);
+    lua_regMeta(L, SymbolType::typeName,     SymbolType::meta);
     lua_regMeta(L, Model::typeName,          Model::meta, Model::index);
     lua_regMeta(L, SolveControl::typeName,   SolveControl::meta);
     lua_regMeta(L, SolveFuture::typeName,    SolveFuture::meta);
@@ -2567,7 +2567,7 @@ int luaopen_clingo(lua_State* L) {
     lua_pushstring(L, GRINGO_VERSION);
     lua_setfield(L, -2, "__version__");
 
-    TermType::addToRegistry(L);
+    SymbolType::addToRegistry(L);
     Term::addToRegistry(L);
     TheoryTermType::addToRegistry(L);
 

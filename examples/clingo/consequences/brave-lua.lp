@@ -5,7 +5,7 @@ brave = {}
 function on_model(m)
     for _, x in ipairs(m:atoms{atoms=true}) do
         if x.name == "holds" then
-            brave[tostring(x.args[1])] = true
+            brave[tostring(x.arguments[1])] = true
         end
     end
 end

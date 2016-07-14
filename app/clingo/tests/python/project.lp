@@ -91,7 +91,7 @@ def on_model(model):
     
     for atom in model.atoms(atoms=True):
         if atom.name()=="pattern":
-            args= atom.args()
+            args = atom.arguments
             pattern[ args[0] ]=args[1]
     
     found=False
@@ -106,8 +106,8 @@ def main(prg):
     #Chargement du jeu de données
     theseq = readsequence("we_cmp.seq.minepi")
     genASPsequence(theseq, prg)
-    prg.conf.solve.project = 1
-    prg.conf.solve.models  = 0
+    prg.configuration.solve.project = 1
+    prg.configuration.solve.models  = 0
     d = prg.get_const("ml")
     if d is None:
         d=4

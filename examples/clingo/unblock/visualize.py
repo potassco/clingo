@@ -148,17 +148,17 @@ for f in sys.argv[1:]: c.load(f)
 def make_on_model(field, stone, move, target):
     def on_model(m):
         for atom in m.atoms(atoms=True):
-            if atom.name == "field" and len(atom.args) == 2:
-                x, y = [n.number for n in atom.args]
+            if atom.name == "field" and len(atom.arguments) == 2:
+                x, y = [n.number for n in atom.arguments]
                 field.append((x, y))
-            elif atom.name == "stone" and len(atom.args) == 5:
-                s, d, x, y, l = [(n.number if n.type == clingo.TermType.Number else str(n)) for n in atom.args]
+            elif atom.name == "stone" and len(atom.arguments) == 5:
+                s, d, x, y, l = [(n.number if n.type == clingo.SymbolType.Number else str(n)) for n in atom.arguments]
                 stone.append((s, d, x, y, l))
-            elif atom.name == "move" and len(atom.args) == 4:
-                t, s, d, xy = [(n.number if n.type == clingo.TermType.Number else str(n)) for n in atom.args]
+            elif atom.name == "move" and len(atom.arguments) == 4:
+                t, s, d, xy = [(n.number if n.type == clingo.SymbolType.Number else str(n)) for n in atom.arguments]
                 move.setdefault(t, []).append((s, d, xy))
-            elif atom.name == "target" and len(atom.args) == 3:
-                s, x, y = [(n.number if n.type == clingo.TermType.Number else str(n)) for n in atom.args]
+            elif atom.name == "target" and len(atom.arguments) == 3:
+                s, x, y = [(n.number if n.type == clingo.SymbolType.Number else str(n)) for n in atom.arguments]
                 target.append((s, x, y))
         return False
     return on_model

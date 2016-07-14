@@ -73,7 +73,7 @@ class Propagator:
     def init(self, init):
         for atom in init.theory_atoms:
             term = atom.term
-            args = term.args
+            args = term.arguments
             if term.name == "seq" and len(args) == 1:
                 self.__add_seq_atom(init, args[0].number, atom)
             if term.name == "pat" and len(args) == 0:
@@ -164,14 +164,14 @@ class Propagator:
     # }}}1
 
 def main(prg):
-    prg.conf.solve.opt_mode = "optN"
+    prg.configuration.solve.opt_mode = "optN"
     prg.register_propagator(Propagator())
     prg.ground([("base", [])])
     # :- not sup(U), seq(U,_,_), n == 0.
     if prg.get_const("n").number == 0:
         grouped = {}
         for atom in prg.symbolic_atoms.by_signature("seq", 3):
-            grouped.setdefault(atom.symbol.args[0], []).append(atom.literal)
+            grouped.setdefault(atom.symbol.arguments[0], []).append(atom.literal)
         for key, value in sorted(grouped.items()):
             a = prg.backend.add_atom()
             for l in value:
@@ -180,9 +180,9 @@ def main(prg):
     # :- sup(U), pat(_,I), not seq(U,_,I).
     grouped_pat, grouped_seq = {}, set()
     for atom in prg.symbolic_atoms.by_signature("pat", 2):
-        grouped_pat.setdefault(atom.symbol.args[1], []).append(atom.literal)
+        grouped_pat.setdefault(atom.symbol.arguments[1], []).append(atom.literal)
     for atom in prg.symbolic_atoms.by_signature("seq", 3):
-        grouped_seq.add((atom.symbol.args[0], atom.symbol.args[2]))
+        grouped_seq.add((atom.symbol.arguments[0], atom.symbol.arguments[2]))
     projected_pat, projected_seq = {}, {}
     for key, value in sorted(grouped_pat.items()):
         a = prg.backend.add_atom()
@@ -191,7 +191,7 @@ def main(prg):
         projected_pat[key] = a
     for atom in prg.symbolic_atoms.by_signature("sup", 1):
         for key, lit in sorted(projected_pat.items()):
-            if (atom.symbol.args[0], key) not in grouped_seq:
+            if (atom.symbol.arguments[0], key) not in grouped_seq:
                 prg.backend.add_rule([], [atom.literal, lit])
     prg.solve()
 

@@ -137,14 +137,14 @@ def make_on_model(field, init, jumps):
     sy = { "east": 0, "west":  0, "north": -2, "south": 2 }
     def on_model(m):
         for atom in m.atoms(atoms=True):
-            if atom.name == "field" and len(atom.args) == 2:
-                x, y = [n.number for n in atom.args]
+            if atom.name == "field" and len(atom.arguments) == 2:
+                x, y = [n.number for n in atom.arguments]
                 field.append((x, y))
-            elif atom.name == "stone" and len(atom.args) == 2:
-                x, y = [n.number for n in atom.args]
+            elif atom.name == "stone" and len(atom.arguments) == 2:
+                x, y = [n.number for n in atom.arguments]
                 init.append((x, y))
-            elif atom.name == "jump" and len(atom.args) == 4:
-                ox, oy, d, t = [(n.number if n.type == clingo.TermType.Number else str(n)) for n in atom.args]
+            elif atom.name == "jump" and len(atom.arguments) == 4:
+                ox, oy, d, t = [(n.number if n.type == clingo.SymbolType.Number else str(n)) for n in atom.arguments]
                 jumps.setdefault(t, []).append((ox, oy, ox + sx[d], oy + sy[d]))
         return False
     return on_model
