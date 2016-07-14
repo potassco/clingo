@@ -3166,7 +3166,7 @@ struct UnaryOperator : EnumType<UnaryOperator> {
 R"(Enumeration of unary operators.
 
 UnaryOperator.Negation -- bitwise negation
-UnaryOperator.Minus    -- unary minus
+UnaryOperator.Minus    -- unary minus and classical negation
 UnaryOperator.Absolute -- absolute value
 )";
 
@@ -3220,7 +3220,7 @@ BinaryOperator.XOr            -- bitwise exclusive or
 BinaryOperator.Or             -- bitwise or
 BinaryOperator.And            -- bitwise and
 BinaryOperator.Plus           -- arithmetic addition
-BinaryOperator.Minus          -- arithmetic substraction and classical negation
+BinaryOperator.Minus          -- arithmetic substraction
 BinaryOperator.Multiplication -- arithmetic multipilcation
 BinaryOperator.Division       -- arithmetic division
 BinaryOperator.Modulo         -- arithmetic modulo
