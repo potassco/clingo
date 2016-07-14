@@ -105,7 +105,7 @@ typedef struct clingo_symbolic_literal {
 
 // construction
 
-void clingo_symbol_create_num(int num, clingo_symbol_t *sym);
+void clingo_symbol_create_number(int num, clingo_symbol_t *sym);
 void clingo_symbol_create_supremum(clingo_symbol_t *sym);
 void clingo_symbol_create_infimum(clingo_symbol_t *sym);
 clingo_error_t clingo_symbol_create_string(char const *str, clingo_symbol_t *sym);

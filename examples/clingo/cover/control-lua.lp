@@ -27,7 +27,7 @@ function State:on_model(m)
     self.last = m:atoms{atoms=true}
     for key,atom in ipairs(self.last) do
         if atom.name == "leaf" then
-            local args = atom.args
+            local args = atom.arguments
             self.leaves[args[1]] = args[2]
         end
     end
@@ -39,7 +39,7 @@ function State:prepare_instance(k)
     vertices = {}
     for key,atom in ipairs(self.last) do
         if atom.name == "edge" then
-            args = atom.args
+            args = atom.arguments
             if args[1].number == k-1 then
                 edges[#edges + 1] = clingo.Tuple{args[2], args[3]}
                 vertices[#vertices + 1] = args[2]
@@ -47,7 +47,7 @@ function State:prepare_instance(k)
             end
         end
         if atom.name == "cover" then
-            cover[#cover + 1] = atom.args[2]
+            cover[#cover + 1] = atom.arguments[2]
         end
     end
     self.edge = function (self) return edges end

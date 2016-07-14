@@ -7,7 +7,7 @@ def main(prg):
         m.context.add_clause([(clingo.Function("a"), False), (clingo.Function("b"), False)])
         m.context.add_nogood([(clingo.Function("c"), True), (clingo.Function("d"), True)])
 
-    prg.conf.solve.models = 0
+    prg.configuration.solve.models = 0
     prg.ground([("base", [])])
     prg.solve(on_model = on_model)
     print "and again"

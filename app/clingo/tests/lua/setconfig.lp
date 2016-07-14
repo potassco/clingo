@@ -3,11 +3,11 @@
 function main(prg)
     prg:ground({{"step1", {}}})
     prg:assign_external(clingo.Function("f"), true)
-    prg.conf.solve.models = 1
+    prg.configuration.solve.models = 1
     prg:solve()
     prg:ground({{"step2", {}}})
     prg:assign_external(clingo.Function("f"), false)
-    prg.conf.solve.models = 0
+    prg.configuration.solve.models = 0
     prg:solve()
 end
 

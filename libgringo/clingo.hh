@@ -472,12 +472,12 @@ class Symbol {
 public:
     Symbol();
     explicit Symbol(clingo_symbol_t);
-    int num() const;
+    int number() const;
     char const *name() const;
     char const *string() const;
     bool is_positive() const;
     bool is_negative() const;
-    SymbolSpan args() const;
+    SymbolSpan arguments() const;
     SymbolType type() const;
     std::string to_string() const;
     size_t hash() const;

@@ -10,7 +10,7 @@ end
 function convert_term(t)
     if t.type == clingo.TheoryTermType.Function then
         a = {}
-        for i, x in ipairs(t.args) do
+        for i, x in ipairs(t.arguments) do
             a[#a+1] = convert_term(x)
         end
         return clingo.Tuple({t.name, clingo.Tuple(a)})

@@ -15,7 +15,7 @@ class State:
         self.last = m.atoms(atoms=True)
         for atom in self.last:
             if atom.name == "leaf":
-                args = atom.args
+                args = atom.arguments
                 self.leaves[args[0]] = args[1]
 
     def prepare_instance(self, k):
@@ -24,13 +24,13 @@ class State:
         vertices = set()
         for atom in self.last:
             if atom.name == "edge":
-                args = atom.args
+                args = atom.arguments
                 if args[0].number == k-1:
                     edges.append((args[1], args[2]))
                     vertices.add(args[1])
                     vertices.add(args[2])
             if atom.name == "cover":
-                cover.append(atom.args[1])
+                cover.append(atom.arguments[1])
         vertices = list(vertices)
         setattr(self, "edge", lambda: edges)
         setattr(self, "cover", lambda: cover)

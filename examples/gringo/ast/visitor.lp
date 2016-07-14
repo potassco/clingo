@@ -36,7 +36,7 @@ class TermTransformer(Transformer):
         # but this case could occur in a valid AST
         fun = term.symbol
         assert(fun.type == clingo.SymbolType.Function)
-        term.symbol = clingo.Function(fun.name, fun.args + [self.parameter], fun.positive)
+        term.symbol = clingo.Function(fun.name, fun.arguments + [self.parameter], fun.positive)
         return term
 
 class ProgramTransformer(Transformer):
