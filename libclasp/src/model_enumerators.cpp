@@ -168,7 +168,7 @@ bool ModelEnumerator::BacktrackFinder::doUpdate(Solver& s) {
 	if (hasModel()) {
 		bool   ok = true;
 		uint32 sp = (opts & ModelEnumerator::project_save_progress) != 0 ? Solver::undo_save_phases : 0;
-		s.undoUntil(s.backtrackLevel(), sp);
+		s.undoUntil(s.backtrackLevel(), sp|Solver::undo_pop_bt_level);
 		ClauseRep rep = ClauseCreator::prepare(s, solution, 0, Constraint_t::Conflict);
 		if (rep.size == 0 || s.isFalse(rep.lits[0])) { // The decision stack is already ordered.
 			ok = s.backtrack();
@@ -184,7 +184,7 @@ bool ModelEnumerator::BacktrackFinder::doUpdate(Solver& s) {
 			s.assume(~x);
 			// Remember that we must backtrack the current decision
 			// level in order to guarantee a different projected solution.
-			s.setProjectLevel(s.decisionLevel());
+			s.setBacktrackLevel(s.decisionLevel(), Solver::undo_pop_proj_level);
 			// Attach nogood to the current decision literal.
 			// Once we backtrack to x, the then obsolete nogood is destroyed
 			// keeping the number of projection nogoods linear in the number of (projection) atoms.
@@ -215,10 +215,10 @@ void ModelEnumerator::BacktrackFinder::doCommitModel(Enumerator& ctx, Solver& s)
 			}
 		}
 		// Remember initial decisions that are projection vars.
-		for (dl = s.backtrackLevel(); dl < s.decisionLevel(); ++dl) {
+		for (dl = s.rootLevel(); dl < s.decisionLevel(); ++dl) {
 			if (!s.varInfo(s.decision(dl+1).var()).project()) { break; }
 		}
-		s.setProjectLevel(dl);
+		s.setBacktrackLevel(dl, Solver::undo_pop_proj_level);
 		if (solution.empty()) { solution.push_back(lit_false()); }
 	}
 	else {

@@ -484,9 +484,9 @@ bool Solver::popRootLevel(uint32 n, LitVec* popped, bool aux)  {
 			if (aux || !auxVar(x.var())) { popped->push_back(x); }
 		}
 	}
-	levels_.root       = newRoot;
-	levels_.backtrack  = rootLevel();
-	levels_.isProject  = 0;
+	levels_.root  = newRoot;
+	levels_.flip = rootLevel();
+	levels_.mode = 0;
 	impliedLits_.front = 0;
 	bool tagActive     = isTrue(tagLiteral());
 	// go back to new root level and re-assert still implied literals
@@ -504,9 +504,9 @@ bool Solver::clearAssumptions()  {
 
 void Solver::clearStopConflict() {
 	if (hasStopConflict()) {
-		levels_.root      = conflict_[1].rep();
-		levels_.backtrack = conflict_[2].rep();
-		assign_.front     = conflict_[3].rep();
+		levels_.root  = conflict_[1].rep();
+		levels_.flip  = conflict_[2].rep();
+		assign_.front = conflict_[3].rep();
 		conflict_.clear();
 	}
 }
@@ -931,8 +931,8 @@ bool Solver::backtrack() {
 			return false;
 		}
 		lastChoiceInverted = ~decision(decisionLevel());
-		levels_.backtrack = decisionLevel() - 1;
-		undoUntil(backtrackLevel(), undo_pop_proj_level);
+		undoUntil(decisionLevel() - 1, undo_pop_proj_level);
+		setBacktrackLevel(decisionLevel(), undo_pop_bt_level);
 	} while (hasConflict() || !force(lastChoiceInverted, 0));
 	// remember flipped literal for copyGuidingPath()
 	impliedLits_.add(decisionLevel(), ImpliedLiteral(lastChoiceInverted, decisionLevel(), 0));
@@ -972,9 +972,8 @@ uint32 Solver::undoUntilImpl(uint32 level, bool forceSave) {
 }
 uint32 Solver::undoUntil(uint32 level, uint32 mode) {
 	assert(backtrackLevel() >= rootLevel());
-	const uint32 pop_mask = undo_pop_bt_level|undo_pop_proj_level;
-	if (level < backtrackLevel() && (mode & pop_mask) > levels_.isProject) {
-		levels_.backtrack = std::max(rootLevel(), level);
+	if (level < backtrackLevel() && mode >= levels_.mode) {
+		levels_.flip = std::max(rootLevel(), level);
 	}
 	level = undoUntilImpl(level, (mode & undo_save_phases) != 0);
 	if (impliedLits_.active(level)) {

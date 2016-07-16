@@ -56,7 +56,7 @@ namespace Clasp {
  * The solver will never backjump above that level and conflicts on the backtrack-level 
  * are resolved by backtracking, i.e. flipping the corresponding decision literal.
  *
- * \see "Conflict-Driven Answer Set Enumeration" for a detailed description of this approach. 
+ * \see "Conflict-Driven Answer Set Enumeration" for a detailed description of this approach.
  *
  */
 class Solver {
@@ -175,8 +175,8 @@ public:
 	 * above the root-level. 
 	 */
 	void pushRootLevel(uint32 i = 1) { 
-		levels_.root      = std::min(decisionLevel(), levels_.root+i);
-		levels_.backtrack = std::max(levels_.backtrack, levels_.root);
+		levels_.root = std::min(decisionLevel(), levels_.root+i);
+		levels_.flip = std::max(levels_.flip, levels_.root);
 	}
 	
 	//! Moves the root-level i levels up (i.e. towards the top-level).
@@ -244,20 +244,21 @@ public:
 		++stats.restarts;
 		ccInfo_.score().bumpActivity();
 	}
-
+	enum UndoMode { undo_default = 0u, undo_pop_bt_level = 1u, undo_pop_proj_level = 2u, undo_save_phases = 4u };
 	//! Sets the backtracking level to dl.
-	void setBacktrackLevel(uint32 dl) {
-		levels_.backtrack = std::max(std::min(dl, decisionLevel()), rootLevel());
-	}
-	//! Sets the backtracking and projection level to dl.
-	void setProjectLevel(uint32 dl) {
-		setBacktrackLevel(dl);
-		levels_.isProject = 1;
+	/*!
+	 * Depending on mode, the backtracking level either applies
+	 * to normal or projective solution enumeration.
+	 * \see "Solution Enumeration for Projected Boolean Search Problems".
+	 */
+	void setBacktrackLevel(uint32 dl, UndoMode mode = undo_pop_bt_level) {
+		if (uint32(mode) >= levels_.mode) {
+			levels_.flip = std::max(std::min(dl, decisionLevel()), rootLevel());
+			levels_.mode = std::max(uint32(mode & 3u), uint32(undo_pop_bt_level));
+		}
 	}
 	//! Returns the current backtracking level.
-	uint32 backtrackLevel() const { return levels_.backtrack; }
-	//! Returns the current projection level.
-	uint32 projectLevel()   const { return levels_.isProject ? backtrackLevel() : rootLevel(); }
+	uint32 backtrackLevel() const { return levels_.flip; }
 	//! Returns the backjump level during an undo operation.
 	uint32 jumpLevel()      const { return decisionLevel() - levels_.jump; }
 
@@ -475,7 +476,7 @@ public:
 	 */
 	bool resolveConflict();
 
-	//! Backtracks the last decision and sets the backtrack-level to the resulting decision level.
+	//! Backtracks the last decision and updates the backtrack-level if necessary.
 	/*!
 	 * \return
 	 *  - true if backtracking was possible
@@ -483,16 +484,13 @@ public:
 	 */
 	bool backtrack();
 
-	enum UndoMode { undo_default = 0u, undo_pop_bt_level = 1u, undo_pop_proj_level = 2u, undo_save_phases = 4u };
 	//! Undoes all assignments up to (but not including) decision level dl.
 	/*!
 	 * \post decision level == max(min(decisionLevel(), dl), max(rootLevel(), backtrackLevel()))
 	 * \return The decision level after undoing assignments.
-	 * \note
-	 *   If dl < backtrackLevel(), the function
-	 *     - sets dl to backtrackLevel(), if undoMode is undo_default,
-	 *     - sets backtrack level to max(projectLevel(), dl), if undoMode contains undo_pop_bt_level,
-	 *     - sets backtrack level to max(rootLevel(), dl), if undoMode contains undo_pop_proj_level.
+	 * \note 
+	 *   undoUntil() stops at the current backtrack level unless undoMode includes the mode
+	 *   that was used when setting the backtrack level.
 	 * \note
 	 *   If undoMode contains undo_save_phases, the functions saves the values of variables that are undone.
 	 *   Otherwise, phases are only saved if indicated by the active strategy.
@@ -792,11 +790,11 @@ private:
 		ConstraintDB* undo;
 	};
 	struct DecisionLevels : public PodVector<DLevel>::type {
-		DecisionLevels() : root(0), backtrack(0), isProject(0), jump(0) {}
-		uint32 root;           // root level
-		uint32 backtrack : 31; // backtrack level
-		uint32 isProject : 1;  // backtrack level is the project level
-		uint32 jump;           // length of active undo
+		DecisionLevels() : root(0), flip(0), mode(0), jump(0) {}
+		uint32 root;      // root level
+		uint32 flip : 30; // backtrack level
+		uint32 mode :  2; // type of backtrack level
+		uint32 jump;      // length of active undo
 	};
 	typedef PodVector<Antecedent>::type ReasonVec;
 	typedef PodVector<WatchList>::type  Watches;
