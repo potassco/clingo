@@ -1585,7 +1585,7 @@ SolveResult Control::solve(ModelCallback mh, SymbolicLiteralSpan assumptions) {
     Data data(mh, nullptr);
     handleCError(clingo_control_solve(*impl_, [](clingo_model_t *m, void *data, bool *ret) -> clingo_error_t {
         auto &d = *static_cast<Data*>(data);
-        CLINGO_CALLBACK_TRY { *ret = d.first(Model(m)); }
+        CLINGO_CALLBACK_TRY { *ret = !d.first || d.first(Model(m)); }
         CLINGO_CALLBACK_CATCH(d.second);
     }, &data, reinterpret_cast<clingo_symbolic_literal_t const *>(assumptions.begin()), assumptions.size(), &ret));
     return SolveResult{ret};
