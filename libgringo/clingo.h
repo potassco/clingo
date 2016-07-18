@@ -18,6 +18,11 @@
 
 // }}}
 
+//! @file clingo.h
+//! Single header containing the whole clingo API.
+//!
+//! @author Roland Kaminski
+
 #ifndef CLINGO_H
 #define CLINGO_H
 
@@ -977,42 +982,246 @@ clingo_error_t clingo_program_builder_end(clingo_program_builder_t *bld);
 
 // {{{1 control
 
+//! @defgroup Control
+//! Contains functions to control the grounding and solving process.
+//!
+//! The following code shows how to ground and solve a simple logic program,
+//! and print its answer sets.
+//! ~~~~~~~~~~~~~~~{.c}
+//! #include <clingo.h>
+//! #include <stdlib.h>
+//! #include <stdio.h>
+//!
+//! clingo_error_t on_model(clingo_model_t *model, void *data, bool *goon) {
+//!   clingo_error_t ret = 0;
+//!   clingo_symbol_t *atoms = NULL;
+//!   size_t atoms_n;
+//!   clingo_symbol_t const *it, *ie;
+//!   char *str = NULL;
+//!   size_t str_n = 0;
+//!   if (clingo_model_atoms_size(model, clingo_show_type_shown, &atoms_n)) { goto error; }
+//!   if (!(atoms = malloc(sizeof(*atoms) * atoms_n))) { goto error; }
+//!   if (clingo_model_atoms(model, clingo_show_type_shown, atoms, atoms_n)) { goto error; }
+//!   printf("Model:");
+//!   for (it = atoms, ie = atoms + atoms_n; it != ie; ++it) {
+//!     size_t n;
+//!     char *str_new;
+//!     if (clingo_symbol_to_string_size(*it, &n)) { goto error; }
+//!     if (str_n < n) {
+//!       if (!(str_new = realloc(str, sizeof(*str) * n))) { goto error; }
+//!       str = str_new;
+//!       str_n = n;
+//!     }
+//!     if (clingo_symbol_to_string(*it, str, n)) { goto error; }
+//!     printf(" %s", str);
+//!   }
+//!   printf("\n");
+//!   *goon = true;
+//!   goto out;
+//! error:
+//!   ret = clingo_error_unknown;
+//! out:
+//!   if (atoms) { free(atoms); }
+//!   if (str)   { free(str); }
+//!   return ret;
+//! }
+//!
+//! int main(int argc, char const **argv) {
+//!   int ret = 0;
+//!   clingo_solve_result_bitset_t solve_ret;
+//!   clingo_control_t *ctl = NULL;
+//!   clingo_part_t parts[] = {{ "base", NULL, 0 }};
+//!   // create a control object and pass command line arguments
+//!   if (clingo_control_new(argv+1, argc-1, NULL, NULL, 20, &ctl) != 0) { goto error; }
+//!   // add a logic program to the base part
+//!   if (clingo_control_add(ctl, "base", NULL, 0, "a :- not b. b :- not a.")) { goto error; }
+//!   // ground the base part
+//!   if (clingo_control_ground(ctl, parts, 1, NULL, NULL)) { goto error; }
+//!   // solve using a model callback
+//!   if (clingo_control_solve(ctl, on_model, NULL, NULL, 0, &solve_ret)) { goto error; }
+//!   goto out;
+//! error:
+//!   ret = 1;
+//! out:
+//!   if (ctl) { clingo_control_free(ctl); }
+//!   return ret;
+//! }
+//! ~~~~~~~~~~~~~~~
+
+//! @addtogroup Control
+//! @{
+
+//! @enum clingo_solve_result
+//! Enumeration of bit masks for solve call results.
+//!
+//! Note that neither ::clingo_solve_result_satisfiable nor
+//! ::clingo_solve_result_exhausted is set if the search is interrupted and no
+//! model was found.
+//!
+//! @var clingo_solve_result::clingo_solve_result_satisfiable
+//! The last solve call found a solution.
+//! @var clingo_solve_result::clingo_solve_result_unsatisfiable
+//! The last solve call did not find a solution.
+//! @var clingo_solve_result::clingo_solve_result_exhausted
+//! The last solve call completely exhausted the search space.
+//! @var clingo_solve_result::clingo_solve_result_interrupted
+//! The last solve call was interruped.
+//! @see clingo_control_interrupt()
 typedef struct clingo_part {
     char const *name;
     clingo_symbol_t const *params;
     size_t size;
 } clingo_part_t;
-
 typedef clingo_error_t clingo_model_callback_t (clingo_model_t*, void *, bool *);
 typedef clingo_error_t clingo_finish_callback_t (clingo_solve_result_bitset_t res, void *);
 typedef clingo_error_t clingo_symbol_callback_t (clingo_symbol_t const *, size_t, void *);
-typedef clingo_error_t clingo_ground_callback_t (clingo_location_t, char const *, clingo_symbol_t const *, size_t, void *, clingo_symbol_callback_t *, void *);
+
+//! Callback function to implement external functions.
+//!
+//! If an external function of form `\@name(parameters)` occurs in a logic
+//! program, then this function is called with its location, name, parameters,
+//! and a callback to inject symbols as arguments.
+//!
+//! Note that the symbol callback might fail. In this case the callback must
+//! return its error code. If an error not related to clingo occurs, this
+//! function shall return clingo_error_unknown.
+//!
+//! @param[in] location location from which the external function was called
+//! @param[in] name name of the called external function
+//! @param[in] arguments arguments of the called external function
+//! @param[in] arguments_size number of arguments
+//! @param[in] data user data of the callback
+//! @param[in] symbol_callback function to inject symbols
+//! @param[in] symbol_callback_data user data for the symbol callback
+//!            (must be passed untouched)
+//! @return error code in case of errors
+//!
+//! The following example implements the external function \@f() returning 42.
+//! ~~~~~~~~~~~~~~~{.c}
+//! clingo_error_t
+//! ground_callback(clingo_location_t location,
+//!                 char const *name,
+//!                 clingo_symbol_t const *arguments,
+//!                 size_t arguments_size,
+//!                 void *data,
+//!                 clingo_symbol_callback_t *symbol_callback,
+//!                 void *symbol_callback_data) {
+//!   if (strcmp(name, "f") == 0 && arguments_size == 0) {
+//!     clingo_symbol_t sym;
+//!     clingo_symbol_create_number(42, &s);
+//!     return symbol_callback(&s, 1, symbol_callback_data);
+//!   }
+//!   return 0;
+//! }
+//! ~~~~~~~~~~~~~~~
+typedef clingo_error_t clingo_ground_callback_t (clingo_location_t location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data);
+
+//! Control object holding grounding and solving state.
 typedef struct clingo_control clingo_control_t;
-clingo_error_t clingo_control_add(clingo_control_t *ctl, char const *name, char const * const * params, size_t n, char const *part);
-clingo_error_t clingo_control_assign_external(clingo_control_t *ctl, clingo_symbol_t atom, clingo_truth_value_t value);
-clingo_error_t clingo_control_backend(clingo_control_t *ctl, clingo_backend_t **ret);
-clingo_error_t clingo_control_cleanup(clingo_control_t *ctl);
-clingo_error_t clingo_control_configuration(clingo_control_t *ctl, clingo_configuration_t **conf);
-clingo_error_t clingo_control_get_const(clingo_control_t *ctl, char const *name, clingo_symbol_t *ret);
-clingo_error_t clingo_control_ground(clingo_control_t *ctl, clingo_part_t const *params, size_t n, clingo_ground_callback_t *cb, void *data);
-clingo_error_t clingo_control_has_const(clingo_control_t *ctl, char const *name, bool *ret);
+
+//! Create a new control object.
+//!
+//! A control object has to be freed using clingo_control_free(). Note that
+//! only gringo options (without --text) and clasp's search options are
+//! supported as arguments. Furthermore, a Control object is blocked while a
+//! search call is active; you must not call any member function during search.
+//!
+//! If the logger is NULL, messages are printed to stderr.
+//!
+//! @param[in] arguments C string array of command line arguments
+//! @param[in] arguments_size size of the arguments array
+//! @param[in] logger callback functions for warnings and info messages
+//! @param[in] logger_data userdata for the logger callback
+//! @param[in] message_limit maximum number of times the logger callback is called
+//! @param[out] resulting control object
+//! @return error code if memory allocation fails or argument parsing fails
+
+clingo_error_t clingo_control_new(char const *const * arguments, size_t arguments_size, clingo_logger_t *logger, void *logger_data, unsigned message_limit, clingo_control_t **control);
+
+//! Free a control object created with clingo_control_new().
+//! @param[in] control the target
+void clingo_control_free(clingo_control_t *control);
+
+//! @name Grounding Functions
+//! @{
+
+//! Extend the logic program with a program in a file.
+//!
+//! @param[in] control the target
+//! @param[in] file path to the file
+//! @return error code if memory allocation fails or parsing fails
 clingo_error_t clingo_control_load(clingo_control_t *ctl, char const *file);
-clingo_error_t clingo_control_new(char const *const * args, size_t n, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl);
-clingo_error_t clingo_control_register_propagator(clingo_control_t *ctl, clingo_propagator_t propagator, void *data, bool sequential);
-clingo_error_t clingo_control_release_external(clingo_control_t *ctl, clingo_symbol_t atom);
-clingo_error_t clingo_control_solve_async(clingo_control_t *ctl, clingo_model_callback_t *mh, void *mh_data, clingo_finish_callback_t *fh, void *fh_data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_async_t **ret);
+
+//! Extend the logic program with the given non-ground logic program in string form.
+//!
+//! This function puts the given program into a block of form: `#program name(parameters).`
+//!
+//! @param[in] control the target
+//! @param[in] name name of the program block
+//! @param[in] parameters string array of parameters of the program block
+//! @param[in] parameters_size number of parameters
+//! @param[in] program string representation of the program
+//! @return error code if memory allocation fails or parsing fails
+clingo_error_t clingo_control_add(clingo_control_t *control, char const *name, char const * const * parameters, size_t parameters_size, char const *program);
+
+//! Ground the selected parts of the current (non-ground) logic program.
+//!
+//! Note that parts of a logic program without an explicit #program
+//! specification are by default put into a program called base without
+//! arguments.
+//!
+//! @param[in] control the target
+//! @param[in] parts array of parts to ground
+//! @param[in] parts_size size of the parts array
+//! @param[in] ground_callback callback to implement external functions
+//! @param[in] ground_callback_data user data for ground_callback
+//! @return error code if memory allocation fails or extenal function call fails
+clingo_error_t clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t parts_size, clingo_ground_callback_t *ground_callback, void *ground_callback_data);
+
+//! @}
+
+//! @name Solving Functions
+//! @{
+
 clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_model_callback_t *mh, void *data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_result_bitset_t *ret);
 clingo_error_t clingo_control_solve_iteratively(clingo_control_t *ctl, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_iteratively_t **it);
+clingo_error_t clingo_control_solve_async(clingo_control_t *ctl, clingo_model_callback_t *mh, void *mh_data, clingo_finish_callback_t *fh, void *fh_data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_async_t **ret);
+clingo_error_t clingo_control_cleanup(clingo_control_t *ctl);
+clingo_error_t clingo_control_assign_external(clingo_control_t *ctl, clingo_symbol_t atom, clingo_truth_value_t value);
+clingo_error_t clingo_control_release_external(clingo_control_t *ctl, clingo_symbol_t atom);
+clingo_error_t clingo_control_register_propagator(clingo_control_t *ctl, clingo_propagator_t propagator, void *data, bool sequential);
 clingo_error_t clingo_control_statistics(clingo_control_t *ctl, clingo_statistics_t **stats);
+//! Interrupts the active solve call.
+//!
+//! @param[in] control the target
+void clingo_control_interrupt(clingo_control_t *ctl);
+
+//! @}
+
+//! @name Configuration Functions
+//! @{
+clingo_error_t clingo_control_configuration(clingo_control_t *ctl, clingo_configuration_t **conf);
+clingo_error_t clingo_control_use_enum_assumption(clingo_control_t *ctl, bool value);
+//! @}
+
+//! @name Program Inspection Functions
+//! @{
+clingo_error_t clingo_control_get_const(clingo_control_t *ctl, char const *name, clingo_symbol_t *ret);
+clingo_error_t clingo_control_has_const(clingo_control_t *ctl, char const *name, bool *ret);
 clingo_error_t clingo_control_symbolic_atoms(clingo_control_t *ctl, clingo_symbolic_atoms_t **ret);
 clingo_error_t clingo_control_theory_atoms(clingo_control_t *ctl, clingo_theory_atoms_t **ret);
-clingo_error_t clingo_control_use_enum_assumption(clingo_control_t *ctl, bool value);
+//! @}
+
+//! @name Program Modification Functions
+//! @{
+clingo_error_t clingo_control_backend(clingo_control_t *ctl, clingo_backend_t **ret);
+clingo_error_t clingo_control_program_builder(clingo_control_t *ctl, clingo_program_builder_t **ret);
 clingo_error_t clingo_control_begin_add_ast(clingo_control_t *ctl);
 clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_ast_statement_t const *stm);
 clingo_error_t clingo_control_end_add_ast(clingo_control_t *ctl);
-clingo_error_t clingo_control_program_builder(clingo_control_t *ctl, clingo_program_builder_t **ret);
-void clingo_control_interrupt(clingo_control_t *ctl);
-void clingo_control_free(clingo_control_t *ctl);
+//! @}
+
+//! @}
 
 // }}}1
 
