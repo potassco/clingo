@@ -23,6 +23,13 @@
 //!
 //! @author Roland Kaminski
 
+//! @mainpage Clingo C Interface
+//! This interface provides functions to ground and solve logic programs.
+//!
+//! The documentation is structured into different modules.
+//! To get an overview, checkout the [Modules](modules.html) page.
+//! To get started, take a look at the documentation of the @ref Control module.
+
 #ifndef CLINGO_H
 #define CLINGO_H
 
