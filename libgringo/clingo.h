@@ -84,6 +84,8 @@ typedef int clingo_warning_t;
 char const *clingo_warning_string(clingo_warning_t code);
 typedef void clingo_logger_t(clingo_warning_t, char const *, void *);
 
+void clingo_version(int *major, int *minor, int *revision);
+
 // {{{1 signature
 
 typedef uint64_t clingo_signature_t;
@@ -114,6 +116,9 @@ typedef struct clingo_symbolic_literal {
     clingo_symbol_t symbol;
     bool positive;
 } clingo_symbolic_literal_t;
+
+clingo_error_t clingo_add_string(char const *str, char const **ret);
+clingo_error_t clingo_parse_term(char const *str, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_symbol_t *ret);
 
 // construction
 
@@ -391,6 +396,12 @@ clingo_error_t clingo_statistics_type(clingo_statistics_t *stats, uint64_t key, 
 clingo_error_t clingo_statistics_value_get(clingo_statistics_t *stats, uint64_t key, double *value);
 
 // {{{1 ast
+
+//! @defgroup AST
+//! Functions and data structures to work with program ASTs.
+
+//! @addtogroup AST
+//! @{
 
 typedef struct clingo_location {
     char const *begin_file;
@@ -972,20 +983,28 @@ typedef struct clingo_ast_statement {
     };
 } clingo_ast_statement_t;
 
-// {{{1 global functions
+// }}}2
 
 typedef clingo_error_t clingo_ast_callback_t (clingo_ast_statement_t const *, void *);
-clingo_error_t clingo_parse_term(char const *str, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_symbol_t *ret);
 clingo_error_t clingo_parse_program(char const *program, clingo_ast_callback_t *cb, void *cb_data, clingo_logger_t *logger, void *logger_data, unsigned message_limit);
-clingo_error_t clingo_add_string(char const *str, char const **ret);
-void clingo_version(int *major, int *minor, int *revision);
+
+//! @}
 
 // {{{1 program builder
+
+//! @defgroup ProgramBuilder Program Builder
+//! Add ASTs to a logic program.
+//! @ingroup AST
+
+//! @addtogroup ProgramBuilder
+//! @{
 
 typedef struct clingo_program_builder clingo_program_builder_t;
 clingo_error_t clingo_program_builder_begin(clingo_program_builder_t *bld);
 clingo_error_t clingo_program_builder_add(clingo_program_builder_t *bld, clingo_ast_statement_t const *stm);
 clingo_error_t clingo_program_builder_end(clingo_program_builder_t *bld);
+
+//! @}
 
 // {{{1 control
 
@@ -994,7 +1013,7 @@ clingo_error_t clingo_program_builder_end(clingo_program_builder_t *bld);
 //! its answer sets.
 
 //! @defgroup Control
-//! Contains functions to control the grounding and solving process.
+//! Functions to control the grounding and solving process.
 //!
 //! For an example see \ref control.c.
 
@@ -1016,25 +1035,43 @@ clingo_error_t clingo_program_builder_end(clingo_program_builder_t *bld);
 //! The last solve call completely exhausted the search space.
 //! @var clingo_solve_result::clingo_solve_result_interrupted
 //! The last solve call was interruped.
+//!
 //! @see clingo_control_interrupt()
+
+//! @typedef clingo_solve_result_bitset_t
+//! Corresponding type to ::clingo_solve_result
+
+//! Control object holding grounding and solving state.
+typedef struct clingo_control clingo_control_t;
+
+//! Struct used to specify the program parts that have to be grounded.
+//! @see clingo_control_ground()
 typedef struct clingo_part {
-    char const *name;
-    clingo_symbol_t const *params;
-    size_t size;
+    char const *name;              //!< name of the program part
+    clingo_symbol_t const *params; //!< array of parameters
+    size_t size;                   //!< number of parameters
 } clingo_part_t;
-typedef clingo_error_t clingo_model_callback_t (clingo_model_t*, void *, bool *);
-typedef clingo_error_t clingo_finish_callback_t (clingo_solve_result_bitset_t res, void *);
-typedef clingo_error_t clingo_symbol_callback_t (clingo_symbol_t const *, size_t, void *);
+
+//! Callback function to inject symbols.
+//!
+//! @param symbols array of symbols
+//! @param symbols_size size fo the symbol array
+//! @param data user data of the callback
+//! @return error code if memory allocation fails
+//!
+//! @see ::clingo_symbol_callback_t
+typedef clingo_error_t clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t symbols_size, void *data);
 
 //! Callback function to implement external functions.
 //!
-//! If an external function of form `\@name(parameters)` occurs in a logic
+//! If an external function of form <tt>\@name(parameters)</tt> occurs in a logic
 //! program, then this function is called with its location, name, parameters,
 //! and a callback to inject symbols as arguments.
 //!
-//! Note that the symbol callback might fail. In this case the callback must
-//! return its error code. If an error not related to clingo occurs, this
-//! function shall return clingo_error_unknown.
+//! If a (non-recoverable) clingo API function fails in this callback, for
+//! example the symbol callback, its error code shall be returned.  In case of
+//! errors not related to clingo, this function can return
+//! ::clingo_error_unknown to stop grounding with an error.
 //!
 //! @param[in] location location from which the external function was called
 //! @param[in] name name of the called external function
@@ -1045,6 +1082,7 @@ typedef clingo_error_t clingo_symbol_callback_t (clingo_symbol_t const *, size_t
 //! @param[in] symbol_callback_data user data for the symbol callback
 //!            (must be passed untouched)
 //! @return error code in case of errors
+//! @see clingo_control_ground()
 //!
 //! The following example implements the external function \@f() returning 42.
 //! ~~~~~~~~~~~~~~~{.c}
@@ -1064,10 +1102,37 @@ typedef clingo_error_t clingo_symbol_callback_t (clingo_symbol_t const *, size_t
 //!   return 0;
 //! }
 //! ~~~~~~~~~~~~~~~
-typedef clingo_error_t clingo_ground_callback_t (clingo_location_t location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data);
 
-//! Control object holding grounding and solving state.
-typedef struct clingo_control clingo_control_t;
+typedef clingo_error_t clingo_ground_callback_t (clingo_location_t location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data);
+//! Callback function to intercept models.
+//!
+//! If a (non-recoverable) clingo API function fails in this callback, its
+//! error code shall be returned.  In case of errors not related to clingo,
+//! ::clingo_error_unknown, this function can return ::clingo_error_unknown to
+//! stop solving with an error.
+//!
+//! @param[in] model the current model
+//! @param[in] data userdata of the callback
+//! @param[out] goon weather to continue search
+//! @return error code in case of errors
+//!
+//! @see clingo_control_solve()
+//! @see clingo_control_solve_async()
+typedef clingo_error_t clingo_model_callback_t (clingo_model_t *model, void *data, bool *goon);
+
+//! Callback function called at the end of an asynchronous solve operation.
+//!
+//! If a (non-recoverable) clingo API function fails in this callback, its
+//! error code shall be returned.  In case of errors not related to clingo,
+//! this function can return ::clingo_error_unknown to stop solving with an
+//! error.
+//!
+//! @param[in] result result of the solve call
+//! @param[in] data userdata of the callback
+//! @return error code in case of errors
+//!
+//! @see clingo_control_solve_async()
+typedef clingo_error_t clingo_finish_callback_t (clingo_solve_result_bitset_t result, void *data);
 
 //! Create a new control object.
 //!
@@ -1085,7 +1150,6 @@ typedef struct clingo_control clingo_control_t;
 //! @param[in] message_limit maximum number of times the logger callback is called
 //! @param[out] resulting control object
 //! @return error code if memory allocation fails or argument parsing fails
-
 clingo_error_t clingo_control_new(char const *const * arguments, size_t arguments_size, clingo_logger_t *logger, void *logger_data, unsigned message_limit, clingo_control_t **control);
 
 //! Free a control object created with clingo_control_new().

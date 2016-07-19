@@ -3392,7 +3392,7 @@ Control::Assumptions toAss(clingo_symbolic_literal_t const * assumptions, size_t
 extern "C" clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_model_callback_t *model_handler, void *data, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_result_bitset_t *ret) {
     GRINGO_CLINGO_TRY {
         *ret = static_cast<clingo_solve_result_bitset_t>(ctl->solve([model_handler, data](Model const &m) {
-            bool ret;
+            bool ret = true;
             auto err = model_handler(static_cast<clingo_model*>(const_cast<Model*>(&m)), data, &ret);
             if (err != 0) { throw ClingoError(err); }
             return ret;
@@ -3508,7 +3508,7 @@ extern "C" clingo_error_t clingo_control_solve_async(clingo_control_t *ctl, clin
         }
         *ret = static_cast<clingo_solve_async_t*>(ctl->solveAsync(
             [mh, mh_data](Gringo::Model const &m) {
-                bool result;
+                bool result = true;
                 auto code = mh(&const_cast<Gringo::Model &>(m), mh_data, &result);
                 if (code != 0) { throw ClingoError(code); }
                 return result;
