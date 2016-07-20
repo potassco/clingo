@@ -481,7 +481,7 @@ clingo_error_t clingo_solve_async_wait(clingo_solve_async_t *async, double timeo
 //! Inspection of atoms occuring in ground logic programs.
 //! @ingroup Control
 
-//! @addtogroup SolveAsync
+//! @addtogroup SymbolicAtoms
 //! @{
 
 typedef uint64_t clingo_symbolic_atom_iterator_t;
@@ -1500,14 +1500,55 @@ clingo_error_t clingo_control_ground(clingo_control_t *control, clingo_part_t co
 //! @name Solving Functions
 //! @{
 
-clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_model_callback_t *mh, void *data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_result_bitset_t *ret);
-clingo_error_t clingo_control_solve_iteratively(clingo_control_t *ctl, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_iteratively_t **it);
-clingo_error_t clingo_control_solve_async(clingo_control_t *ctl, clingo_model_callback_t *mh, void *mh_data, clingo_finish_callback_t *fh, void *fh_data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_async_t **ret);
-clingo_error_t clingo_control_cleanup(clingo_control_t *ctl);
-clingo_error_t clingo_control_assign_external(clingo_control_t *ctl, clingo_symbol_t atom, clingo_truth_value_t value);
-clingo_error_t clingo_control_release_external(clingo_control_t *ctl, clingo_symbol_t atom);
-clingo_error_t clingo_control_register_propagator(clingo_control_t *ctl, clingo_propagator_t propagator, void *data, bool sequential);
-clingo_error_t clingo_control_statistics(clingo_control_t *ctl, clingo_statistics_t **stats);
+//! Solve the currently grounded logic program.
+//!
+//! @param[in] control the target
+//! @param[in] model_callback optional callback to intercept models
+//! @param[in] model_callback_data userdata for model callback
+//! @param[in] assumptions array of assumptions to solve under
+//! @param[in] assumptions_size number of assumptions
+//! @param[out] result the result of the search
+//! @return error code if memory allocation fails or runtime error if solving fails
+clingo_error_t clingo_control_solve(clingo_control_t *control, clingo_model_callback_t *model_callback, void *model_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_result_bitset_t *result);
+//! Solve the currently grounded logic program enumerating models iteratively.
+//!
+//! See module @ref SolveIter for more information.
+//!
+//! @param[in] control the target
+//! @param[in] assumptions array of assumptions to solve under
+//! @param[in] assumptions_size number of assumptions
+//! @param[out] handle handle to the current search to enumerate models
+//! @return error code if memory allocation fails or runtime error if solving could not be started
+clingo_error_t clingo_control_solve_iteratively(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_iteratively_t **handle);
+//! Solve the currently grounded logic program asynchronously in the background.
+//!
+//! See module @ref SolveAsync for more information.
+//!
+//! @param[in] control the target
+//! @param[in] model_callback optional callback to intercept models
+//! @param[in] model_callback_data userdata for model callback
+//! @param[in] finish_callback optional callback called just before the end of the search
+//! @param[in] finish_callback_data userdata for finish callback
+//! @param[in] assumptions array of assumptions to solve under
+//! @param[in] assumptions_size number of assumptions
+//! @param[out] handle handle to the current search
+//! @return error code if memory allocation fails or runtime error if solving could not be started
+clingo_error_t clingo_control_solve_async(clingo_control_t *control, clingo_model_callback_t *model_callback, void *model_callback_data, clingo_finish_callback_t *finish_callback, void *finish_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_async_t **handle);
+//! Cleanup the domains of clingo's grounding component using the solving
+//! component's top level assignment.
+//!
+//! This function removes atoms from domains that are false and marks atoms as
+//! facts that are true.  When multi-shot solving, this can result in smaller
+//! groundings because less rules have to be instantiated and more
+//! simplifications can be applied.
+//!
+//! @param[in] control the target
+//! @return error if memory allocation fails
+clingo_error_t clingo_control_cleanup(clingo_control_t *control);
+clingo_error_t clingo_control_assign_external(clingo_control_t *control, clingo_symbol_t atom, clingo_truth_value_t value);
+clingo_error_t clingo_control_release_external(clingo_control_t *control, clingo_symbol_t atom);
+clingo_error_t clingo_control_register_propagator(clingo_control_t *control, clingo_propagator_t propagator, void *data, bool sequential);
+clingo_error_t clingo_control_statistics(clingo_control_t *control, clingo_statistics_t **stats);
 //! Interrupts the active solve call.
 //!
 //! @param[in] control the target
