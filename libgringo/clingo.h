@@ -137,67 +137,253 @@ typedef int clingo_truth_value_t;
 // {{{1 signature and symbols
 
 //! @defgroup Symbols Symbols
-//! Working with (evaluated) ground terms.
+//! Working with (evaluated) ground terms and related functions.
+//!
+//! Note that all functions in this module are thread-safe.
 
 //! @addtogroup Symbols
 //! @{
 
+//! Represents a signature.
+//!
+//! Signatures have a name and an arity, and can be positive or negative (to
+//! represent classical negation).
 typedef uint64_t clingo_signature_t;
 
-clingo_error_t clingo_signature_create(char const *name, uint32_t arity, bool positive, clingo_signature_t *ret);
-char const *clingo_signature_name(clingo_signature_t sig);
-uint32_t clingo_signature_arity(clingo_signature_t sig);
-bool clingo_signature_is_positive(clingo_signature_t sig);
-bool clingo_signature_is_negative(clingo_signature_t sig);
-size_t clingo_signature_hash(clingo_signature_t sig);
-bool clingo_signature_is_equal_to(clingo_signature_t a, clingo_signature_t b);
-bool clingo_signature_is_less_than(clingo_signature_t a, clingo_signature_t b);
+//! @name Signature Functions
+//! @{
 
+//! Create a new signature.
+//!
+//! @param[in] name name of the signature
+//! @param[in] arity arity of the signature
+//! @param[in] positive false if the signature has a classical negation sign
+//! @param[out] signature the resulting signature
+//! @return error if memory allocation fails
+clingo_error_t clingo_signature_create(char const *name, uint32_t arity, bool positive, clingo_signature_t *signature);
+//! Get the name of a signature.
+//!
+//! @param[in] signature the target signature
+//! @return the name of the signature
+char const *clingo_signature_name(clingo_signature_t signature);
+//! Get the arity of a signature.
+//!
+//! @param[in] signature the target signature
+//! @return the arity of the signature
+uint32_t clingo_signature_arity(clingo_signature_t signature);
+//! Weather the signature is positive (is not classically negated).
+//!
+//! @param[in] signature the target signature
+//! @return weather the signature has no sign
+bool clingo_signature_is_positive(clingo_signature_t signature);
+//! Weather the signature is negative (is classically negated).
+//!
+//! @param[in] signature the target signature
+//! @return weather the signature has a sign
+bool clingo_signature_is_negative(clingo_signature_t signature);
+//! Check if two signatures are equal.
+//!
+//! @param[in] a first signature
+//! @param[in] b second signature
+//! @return weather a == b
+bool clingo_signature_is_equal_to(clingo_signature_t a, clingo_signature_t b);
+//! Check if a signature is less than another signature.
+//!
+//! Signatures are compared first by sign (non signed < signed), then by arity,
+//! then by name.
+//!
+//! @param[in] a first signature
+//! @param[in] b second signature
+//! @return weather a < b
+bool clingo_signature_is_less_than(clingo_signature_t a, clingo_signature_t b);
+//! Calculate a hash code of a signature.
+//!
+//! @param[in] signature the target signature
+//! @return the hash code of the signature
+size_t clingo_signature_hash(clingo_signature_t signature);
+
+//! @}
+
+//! Enumeration of available symbol types.
 enum clingo_symbol_type {
-    clingo_symbol_type_infimum  = 0,
-    clingo_symbol_type_number   = 1,
-    clingo_symbol_type_string   = 4,
-    clingo_symbol_type_function = 5,
-    clingo_symbol_type_supremum = 7
+    clingo_symbol_type_infimum  = 0, //!< the `#inf` symbol
+    clingo_symbol_type_number   = 1, //!< a numeric symbol - e.g., `1`
+    clingo_symbol_type_string   = 4, //!< a string symbol - e.g., `"a"`
+    clingo_symbol_type_function = 5, //!< a numeric symbol - e.g., `c`, `(1, "a")`, or `f(1,"a")`
+    clingo_symbol_type_supremum = 7  //!< the `#sup` symbol
 };
+//! Corresponding type to ::clingo_symbol_type.
 typedef int clingo_symbol_type_t;
 
+//! Represents a symbol.
+//!
+//! This includes numbers, strings, functions (including constants when
+//! arguments are empty and tuples when the name is empty), `#inf` and `#sup`.
 typedef uint64_t clingo_symbol_t;
 
+//! Represents a symbolic literal.
 typedef struct clingo_symbolic_literal {
-    clingo_symbol_t symbol;
-    bool positive;
+    clingo_symbol_t symbol; //!< the associated symbol (must be a function)
+    bool positive;          //!< weather the literal has a sign
 } clingo_symbolic_literal_t;
 
-clingo_error_t clingo_add_string(char const *str, char const **ret);
-clingo_error_t clingo_parse_term(char const *str, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_symbol_t *ret);
+//! @name Symbol Construction Functions
+//! @{
 
-// construction
+//! Construct a symbol representing a number.
+//!
+//! @param[in] number the number
+//! @param[out] symbol the resulting symbol
+void clingo_symbol_create_number(int number, clingo_symbol_t *symbol);
+//! Construct a symbol representing #sup.
+//!
+//! @param[out] symbol the resulting symbol
+void clingo_symbol_create_supremum(clingo_symbol_t *symbol);
+//! Construct a symbol representing #inf.
+//!
+//! @param[out] symbol the resulting symbol
+void clingo_symbol_create_infimum(clingo_symbol_t *symbol);
+//! Construct a symbol representing a string.
+//!
+//! @param[in] string the string
+//! @param[out] symbol the resulting symbol
+//! @return error if memory allocation fails
+clingo_error_t clingo_symbol_create_string(char const *string, clingo_symbol_t *symbol);
+//! Construct a symbol representing an id.
+//!
+//! Note that this is just a shortcut for clingo_symbol_create_function() with empty arguments.
+//!
+//! @param[in] name the name
+//! @param[in] positive weather the symbol has a classical negation sign
+//! @param[out] symbol the resulting symbol
+//! @return error if memory allocation fails
+clingo_error_t clingo_symbol_create_id(char const *name, bool positive, clingo_symbol_t *symbol);
+//! Construct a symbol representing a function or tuple.
+//!
+//! Note that to create tuples the empty string has to be used as name.
+//!
+//! @param[in] name the name of the function
+//! @param[in] arguments the arguments of the function
+//! @param[in] arguments_size the number of arguments
+//! @param[in] positive weather the symbol has a classical negation sign
+//! @param[out] symbol the resulting symbol
+//! @return error if memory allocation fails
+clingo_error_t clingo_symbol_create_function(char const *name, clingo_symbol_t const *arguments, size_t arguments_size, bool positive, clingo_symbol_t *symbol);
 
-void clingo_symbol_create_number(int num, clingo_symbol_t *sym);
-void clingo_symbol_create_supremum(clingo_symbol_t *sym);
-void clingo_symbol_create_infimum(clingo_symbol_t *sym);
-clingo_error_t clingo_symbol_create_string(char const *str, clingo_symbol_t *sym);
-clingo_error_t clingo_symbol_create_id(char const *id, bool positive, clingo_symbol_t *sym);
-clingo_error_t clingo_symbol_create_function(char const *name, clingo_symbol_t const *args, size_t n, bool positive, clingo_symbol_t *sym);
+//! @}
 
-// inspection
+//! @name Symbol Inspection Functions
+//! @{
 
-clingo_error_t clingo_symbol_number(clingo_symbol_t sym, int *num);
-clingo_error_t clingo_symbol_name(clingo_symbol_t sym, char const **name);
-clingo_error_t clingo_symbol_string(clingo_symbol_t sym, char const **str);
-clingo_error_t clingo_symbol_is_positive(clingo_symbol_t sym, bool *positive);
-clingo_error_t clingo_symbol_is_negative(clingo_symbol_t sym, bool *negative);
-clingo_error_t clingo_symbol_arguments(clingo_symbol_t sym, clingo_symbol_t const **args, size_t *n);
-clingo_symbol_type_t clingo_symbol_type(clingo_symbol_t sym);
-clingo_error_t clingo_symbol_to_string_size(clingo_symbol_t sym, size_t *n);
-clingo_error_t clingo_symbol_to_string(clingo_symbol_t sym, char *ret, size_t n);
+//! Get the number of a symbol.
+//!
+//! @param[in] symbol the target symbol
+//! @param[out] number the resulting number
+//! @return runtime error if symbol is not of type ::clingo_symbol_type_number
+clingo_error_t clingo_symbol_number(clingo_symbol_t symbol, int *number);
+//! Get the name of a symbol.
+//!
+//! @param[in] symbol the target symbol
+//! @param[out] name the resulting name
+//! @return runtime error if symbol is not of type ::clingo_symbol_type_function
+clingo_error_t clingo_symbol_name(clingo_symbol_t symbol, char const **name);
+//! Get the string of a symbol.
+//!
+//! @param[in] symbol the target symbol
+//! @param[out] string the resulting string
+//! @return runtime error if symbol is not of type ::clingo_symbol_type_string
+clingo_error_t clingo_symbol_string(clingo_symbol_t symbol, char const **str);
+//! Check if a function is positive (does not have a sign).
+//!
+//! @param[in] symbol the target symbol
+//! @param[out] positive the result
+//! @return runtime error if symbol is not of type ::clingo_symbol_type_function
+clingo_error_t clingo_symbol_is_positive(clingo_symbol_t symbol, bool *positive);
+//! Check if a function is negative (does have a sign).
+//!
+//! @param[in] symbol the target symbol
+//! @param[out] negative the result
+//! @return runtime error if symbol is not of type ::clingo_symbol_type_function
+clingo_error_t clingo_symbol_is_negative(clingo_symbol_t symbol, bool *negative);
+//! Get the arguments of a symbol.
+//!
+//! @param[in] symbol the target symbol
+//! @param[out] arguments the resulting arguments
+//! @param[out] arguments_size the number of arguments
+//! @return runtime error if symbol is not of type ::clingo_symbol_type_function
+clingo_error_t clingo_symbol_arguments(clingo_symbol_t symbol, clingo_symbol_t const **arguments, size_t *arguments_size);
+//! Get the type of a symbol.
+//!
+//! @param[in] symbol the target symbol
+//! @return the type of the symbol
+clingo_symbol_type_t clingo_symbol_type(clingo_symbol_t symbol);
+//! Get the size of the string representation of a symbol (including the terminating 0).
+//!
+//! @param[in] symbol the target symbol
+//! @param[out] size the resulting size
+//! @return error if memory allocation fails
+clingo_error_t clingo_symbol_to_string_size(clingo_symbol_t symbol, size_t *size);
+//! Get the string representation of a symbol.
+//!
+//! @param[in] symbol the target symbol
+//! @param[out] string the resulting string
+//! @param[in] size the size of the string
+//! @return error if memory allocation fails or runtime error if the size is too small
+//!
+//! @see clingo_symbol_to_string_size()
+clingo_error_t clingo_symbol_to_string(clingo_symbol_t symbol, char *string, size_t size);
 
-// comparison
+//! @}
 
-size_t clingo_symbol_hash(clingo_symbol_t sym);
+//! @name Symbol Comparison Functions
+//! @{
+
+//! Check if two symbols are equal.
+//!
+//! @param[in] a first symbol
+//! @param[in] b second symbol
+//! @return weather a == b
 bool clingo_symbol_is_equal_to(clingo_symbol_t a, clingo_symbol_t b);
+//! Check if a symbol is less than another symbol.
+//!
+//! Symbols are first compared by type.  If the types are equal the values are
+//! compared (where strings are compared using strcmp).  Functions are first
+//! compared by signature and then lexicographically by arguments.
+//!
+//! @param[in] a first symbol
+//! @param[in] b second symbol
+//! @return weather a < b
 bool clingo_symbol_is_less_than(clingo_symbol_t a, clingo_symbol_t b);
+//! Calculate a hash code of a symbol.
+//!
+//! @param[in] symbol the target symbol
+//! @return the hash code of the symbol
+size_t clingo_symbol_hash(clingo_symbol_t symbol);
+
+//! @}
+
+//! Internalize a string.
+//!
+//! This functions takes a string as input and returns an equal unique string
+//! that is (at the moment) not freed until the program is closed.  All strings
+//! returned from clingo API functions are internalized and must not be freed.
+//!
+//! @param[in] string the string to internalize
+//! @param[out] result the internalized string
+//! @return error if memory allocation fails
+clingo_error_t clingo_add_string(char const *string, char const **result);
+//! Parse a term in string form.
+//!
+//! The result of this function is a symbol. The input term can contain
+//! unevaluated functions, which are evaluated during parsing.
+//!
+//! @param[in] string the string to parse
+//! @param[in] logger optional logger to report warnings during parsing
+//! @param[in] logger_data user data for the logger
+//! @param[in] message_limit maximum number of times to call the logger
+//! @param[out] symbol the resulting symbol
+//! @return error if memory allocation or runtime error if parsing fails
+clingo_error_t clingo_parse_term(char const *string, clingo_logger_t *logger, void *logger_data, unsigned message_limit, clingo_symbol_t *symbol);
 
 //! @}
 
