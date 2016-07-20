@@ -559,24 +559,24 @@ template <class T>
 T *ASTBuilder::create_() {
     data_.emplace_back(operator new(sizeof(T)));
     return reinterpret_cast<T*>(data_.back());
-};
+}
 template <class T>
 T *ASTBuilder::create_(T x) {
     auto *r = create_<T>();
     *r = x;
     return r;
-};
+}
 template <class T>
 T *ASTBuilder::createArray_(size_t size) {
     arrdata_.emplace_back(operator new[](sizeof(T) * size));
     return reinterpret_cast<T*>(arrdata_.back());
-};
+}
 template <class T>
 T *ASTBuilder::createArray_(std::vector<T> const &vec) {
     auto *r = createArray_<T>(vec.size());
     std::copy(vec.begin(), vec.end(), reinterpret_cast<T*>(r));
     return r;
-};
+}
 
 void ASTBuilder::clear_() noexcept {
     for (auto &x : data_) { operator delete(x); }

@@ -33,11 +33,6 @@
 #ifndef CLINGO_H
 #define CLINGO_H
 
-#define CLINGO_VERSION "5.0.0"
-#define CLINGO_VERSION_MAJOR 5
-#define CLINGO_VERSION_MINOR 0
-#define CLINGO_VERSION_REVISION 0
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -46,47 +41,106 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-// {{{1 basic types
+// {{{1 basic types and error/warning handling
 
+//! @defgroup BasicTypes Basic Data Types and Functions
+//! Data types and functions used throughout all modules and version information.
+
+//! @addtogroup BasicTypes
+//! @{
+
+//! Major version number.
+#define CLINGO_VERSION_MAJOR 5
+//! Minor version number.
+#define CLINGO_VERSION_MINOR 0
+//! Revision number.
+#define CLINGO_VERSION_REVISION 0
+//! String representation of version.
+#define CLINGO_VERSION #CLINGO_VERSION_MAJOR "." #CLINGO_VERSION_MINOR "." #CLINGO_VERSION_REVISION
+
+//! Signed integer type used for aspif and solver literals.
 typedef int32_t clingo_literal_t;
-typedef uint32_t clingo_id_t;
-typedef int32_t clingo_weight_t;
+//! Signed integer type used for aspif atoms.
 typedef uint32_t clingo_atom_t;
+//! Unsigned integer type used in various places.
+typedef uint32_t clingo_id_t;
+//! Signed integer type for weights in sum aggregates and minimize constraints.
+typedef int32_t clingo_weight_t;
 
-// {{{1 errors and warnings
-
-// Note: Errors can be recovered from. If a control function fails, the
-//       corresponding control object must be destroyed.
+//! Enumeration of error codes.
+//!
+//! Note that most errors can only be recovered from if explicitly mentioned;
+//! most functions do not provide strong exception guarantees.  This means that
+//! in case of errors associated objects cannot be used further.  If such an
+//! object has a free function, this function can still and should be called.
 enum clingo_error {
-    clingo_error_success   = 0,
-    clingo_error_fatal     = 1,
-    clingo_error_runtime   = 2,
-    clingo_error_logic     = 3,
-    clingo_error_bad_alloc = 4,
-    clingo_error_unknown   = 5
+    clingo_error_success   = 0, //!< successful API calls
+    clingo_error_fatal     = 1, //!< invalid input
+    clingo_error_runtime   = 2, //!< wrong usage of the clingo interface
+    clingo_error_logic     = 3, //!< internal error that should not occur in practice
+    clingo_error_bad_alloc = 4, //!< memory could not be allocated
+    clingo_error_unknown   = 5  //!< errors unrelated to clingo
 };
+//! Corresponding type to ::clingo_error.
 typedef int clingo_error_t;
-
+//! Convert error code into string.
 char const *clingo_error_string(clingo_error_t code);
+//! Get last error message.
+//!
+//! The message is set if an API call fails.
+//! @return error message or NULL
 char const *clingo_error_message();
 
+//! Enumeration of warning codes.
 enum clingo_warning {
-    clingo_warning_operation_undefined = 0, //< Undefined arithmetic operation or weight of aggregate.
-    clingo_warning_fatal               = 1, //< To report multiple errors, a corresponding error is raised later
-    clingo_warning_atom_undefined      = 2, //< Undefined atom in program.
-    clingo_warning_file_included       = 3, //< Same file included multiple times.
-    clingo_warning_variable_unbounded  = 4, //< CSP Domain undefined.
-    clingo_warning_global_variable     = 5, //< Global variable in tuple of aggregate element.
-    clingo_warning_other               = 6, //< Other kinds of warnings
+    clingo_warning_operation_undefined = 0, //!< undefined arithmetic operation or weight of aggregate
+    clingo_warning_fatal               = 1, //!< to report multiple errors; a corresponding error is raised later
+    clingo_warning_atom_undefined      = 2, //!< undefined atom in program
+    clingo_warning_file_included       = 3, //!< same file included multiple times
+    clingo_warning_variable_unbounded  = 4, //!< CSP Domain undefined
+    clingo_warning_global_variable     = 5, //!< global variable in tuple of aggregate element
+    clingo_warning_other               = 6, //!< other kinds of warnings
 };
+//! Corresponding type to ::clingo_warning.
 typedef int clingo_warning_t;
-
+//! Convert warning code into string.
 char const *clingo_warning_string(clingo_warning_t code);
-typedef void clingo_logger_t(clingo_warning_t, char const *, void *);
+//! Callback to intercept warning messages.
+//!
+//! @param[in] code associated warning code
+//! @param[in] message warning message
+//! @param[in] data user data for callback
+//!
+//! @see clingo_control_new()
+//! @see clingo_parse_term()
+//! @see clingo_parse_program()
+typedef void clingo_logger_t(clingo_warning_t code, char const *message, void *data);
 
+//! Obtain the clingo version.
+//!
+//! @param[out] major major version number
+//! @param[out] minor minor version number
+//! @param[out] revision revision number
 void clingo_version(int *major, int *minor, int *revision);
 
-// {{{1 signature
+//! Represents three-valued truth values.
+enum clingo_truth_value {
+    clingo_truth_value_free  = 0, //!< no truth value
+    clingo_truth_value_true  = 1, //!< true
+    clingo_truth_value_false = 2  //!< false
+};
+//! Corresponding type to ::clingo_truth_value.
+typedef int clingo_truth_value_t;
+
+//! @}
+
+// {{{1 signature and symbols
+
+//! @defgroup Symbols Symbols
+//! Working with (evaluated) ground terms.
+
+//! @addtogroup Symbols
+//! @{
 
 typedef uint64_t clingo_signature_t;
 
@@ -98,8 +152,6 @@ bool clingo_signature_is_negative(clingo_signature_t sig);
 size_t clingo_signature_hash(clingo_signature_t sig);
 bool clingo_signature_is_equal_to(clingo_signature_t a, clingo_signature_t b);
 bool clingo_signature_is_less_than(clingo_signature_t a, clingo_signature_t b);
-
-// {{{1 symbol
 
 enum clingo_symbol_type {
     clingo_symbol_type_infimum  = 0,
@@ -147,13 +199,20 @@ size_t clingo_symbol_hash(clingo_symbol_t sym);
 bool clingo_symbol_is_equal_to(clingo_symbol_t a, clingo_symbol_t b);
 bool clingo_symbol_is_less_than(clingo_symbol_t a, clingo_symbol_t b);
 
-// {{{1 solve control
+//! @}
+
+// {{{1 model and solve control
+
+//! @defgroup Model Model Inspection
+//! Inspection of models and a high level interface to add constraints during solving.
+//! @ingroup Control
+
+//! @addtogroup Model
+//! @{
 
 typedef struct clingo_solve_control clingo_solve_control_t;
 clingo_error_t clingo_solve_control_thread_id(clingo_solve_control_t *ctl, clingo_id_t *ret);
 clingo_error_t clingo_solve_control_add_clause(clingo_solve_control_t *ctl, clingo_symbolic_literal_t const *clause, size_t n);
-
-// {{{1 model
 
 enum clingo_model_type {
     clingo_model_type_stable_model          = 0,
@@ -184,8 +243,11 @@ clingo_error_t clingo_model_cost_size(clingo_model_t *m, size_t *n);
 clingo_error_t clingo_model_cost(clingo_model_t *m, int64_t *ret, size_t n);
 clingo_error_t clingo_model_type(clingo_model_t *m, clingo_model_type_t *ret);
 
+//! @}
+
 // {{{1 solve result
 
+// NOTE: documented in Control Module
 enum clingo_solve_result {
     clingo_solve_result_satisfiable   = 1,
     clingo_solve_result_unsatisfiable = 2,
@@ -194,30 +256,47 @@ enum clingo_solve_result {
 };
 typedef unsigned clingo_solve_result_bitset_t;
 
-// {{{1 truth value
-
-enum clingo_truth_value {
-    clingo_truth_value_free  = 0,
-    clingo_truth_value_true  = 1,
-    clingo_truth_value_false = 2
-};
-typedef int clingo_truth_value_t;
 
 // {{{1 solve iter
+
+//! @defgroup SolveIter Iterative Solving
+//! Iterative enumeration of models (without using callbacks).
+//! @ingroup Control
+
+//! @addtogroup SolveIter
+//! @{
 
 typedef struct clingo_solve_iteratively clingo_solve_iteratively_t;
 clingo_error_t clingo_solve_iteratively_next(clingo_solve_iteratively_t *it, clingo_model_t **m);
 clingo_error_t clingo_solve_iteratively_get(clingo_solve_iteratively_t *it, clingo_solve_result_bitset_t *ret);
 clingo_error_t clingo_solve_iteratively_close(clingo_solve_iteratively_t *it);
 
+//! @}
+
 // {{{1 solve async
+
+//! @defgroup SolveAsync Asynchronous Solving
+//! Asynchronous solving.
+//! @ingroup Control
+
+//! @addtogroup SolveAsync
+//! @{
 
 typedef struct clingo_solve_async clingo_solve_async_t;
 clingo_error_t clingo_solve_async_cancel(clingo_solve_async_t *async);
 clingo_error_t clingo_solve_async_get(clingo_solve_async_t *async, clingo_solve_result_bitset_t *ret);
 clingo_error_t clingo_solve_async_wait(clingo_solve_async_t *async, double timeout, bool *ret);
 
+//! @}
+
 // {{{1 symbolic atoms
+
+//! @defgroup SymbolicAtoms Symbolic Atom Inspection
+//! Inspection of atoms occuring in ground logic programs.
+//! @ingroup Control
+
+//! @addtogroup SolveAsync
+//! @{
 
 typedef uint64_t clingo_symbolic_atom_iterator_t;
 
@@ -236,7 +315,16 @@ clingo_error_t clingo_symbolic_atoms_is_external(clingo_symbolic_atoms_t *dom, c
 clingo_error_t clingo_symbolic_atoms_next(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, clingo_symbolic_atom_iterator_t *next);
 clingo_error_t clingo_symbolic_atoms_is_valid(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *valid);
 
+//! @}
+
 // {{{1 theory atoms
+
+//! @defgroup TheoryAtoms Theory Atom Inspection
+//! Inspection of theory atoms occuring in ground logic programs.
+//! @ingroup Control
+
+//! @addtogroup TheoryAtoms
+//! @{
 
 enum clingo_theory_term_type {
     clingo_theory_term_type_tuple,
@@ -269,7 +357,17 @@ clingo_error_t clingo_theory_atoms_element_to_string(clingo_theory_atoms_t *atom
 clingo_error_t clingo_theory_atoms_atom_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t value, size_t *n);
 clingo_error_t clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t n);
 
-// {{{1 propagate init
+//! @}
+
+// {{{1 propagator
+
+//! @defgroup Propagator Theory Propagation
+//! Extend the search with propagators for arbitrary theories.
+//!
+//! @ingroup Control
+
+//! @addtogroup Propagator
+//! @{
 
 typedef struct clingo_propagate_init clingo_propagate_init_t;
 clingo_error_t clingo_propagate_init_map_literal(clingo_propagate_init_t *init, clingo_literal_t lit, clingo_literal_t *ret);
@@ -277,8 +375,6 @@ clingo_error_t clingo_propagate_init_add_watch(clingo_propagate_init_t *init, cl
 int clingo_propagate_init_number_of_threads(clingo_propagate_init_t *init);
 clingo_error_t clingo_propagate_init_symbolic_atoms(clingo_propagate_init_t *init, clingo_symbolic_atoms_t **ret);
 clingo_error_t clingo_propagate_init_theory_atoms(clingo_propagate_init_t *init, clingo_theory_atoms_t **ret);
-
-// {{{1 assignment
 
 typedef struct clingo_assignment clingo_assignment_t;
 bool clingo_assignment_has_conflict(clingo_assignment_t *ass);
@@ -290,8 +386,6 @@ clingo_error_t clingo_assignment_decision(clingo_assignment_t *ass, uint32_t lev
 clingo_error_t clingo_assignment_is_fixed(clingo_assignment_t *ass, clingo_literal_t lit, bool *ret);
 clingo_error_t clingo_assignment_is_true(clingo_assignment_t *ass, clingo_literal_t lit, bool *ret);
 clingo_error_t clingo_assignment_is_false(clingo_assignment_t *ass, clingo_literal_t lit, bool *ret);
-
-// {{{1 propagate control
 
 enum clingo_clause_type {
     clingo_clause_type_learnt          = 0,
@@ -307,8 +401,6 @@ clingo_assignment_t *clingo_propagate_control_assignment(clingo_propagate_contro
 clingo_error_t clingo_propagate_control_add_clause(clingo_propagate_control_t *ctl, clingo_literal_t const *clause, size_t n, clingo_clause_type_t prop, bool *ret);
 clingo_error_t clingo_propagate_control_propagate(clingo_propagate_control_t *ctl, bool *ret);
 
-// {{{1 propagator
-
 typedef struct clingo_propagator {
     clingo_error_t (*init) (clingo_propagate_init_t *ctl, void *data);
     clingo_error_t (*propagate) (clingo_propagate_control_t *ctl, clingo_literal_t const *changes, size_t n, void *data);
@@ -316,7 +408,16 @@ typedef struct clingo_propagator {
     clingo_error_t (*check) (clingo_propagate_control_t *ctl, void *data);
 } clingo_propagator_t;
 
+//! @}
+
 // {{{1 backend
+
+//! @defgroup ProgramBuilder Program Building
+//! Add non-ground program representations (ASTs) to logic programs or extend the ground (aspif) program.
+//! @ingroup Control
+
+//! @addtogroup ProgramBuilder
+//! @{
 
 enum clingo_heuristic_type {
     clingo_heuristic_type_level  = 0,
@@ -352,7 +453,16 @@ clingo_error_t clingo_backend_heuristic(clingo_backend_t *backend, clingo_atom_t
 clingo_error_t clingo_backend_acyc_edge(clingo_backend_t *backend, int node_u, int node_v, clingo_literal_t const *condition, size_t condition_n);
 clingo_error_t clingo_backend_add_atom(clingo_backend_t *backend, clingo_atom_t *ret);
 
+//! @}
+
 // {{{1 configuration
+
+//! @defgroup Configuration Solver Configuration
+//! Configuration of search and enumeration algorithms.
+//! @ingroup Control
+
+//! @addtogroup Configuration
+//! @{
 
 enum clingo_configuration_type {
     clingo_configuration_type_value = 1,
@@ -375,7 +485,16 @@ clingo_error_t clingo_configuration_root(clingo_configuration_t *conf, clingo_id
 clingo_error_t clingo_configuration_type(clingo_configuration_t *conf, clingo_id_t key, clingo_configuration_type_bitset_t *ret);
 clingo_error_t clingo_configuration_description(clingo_configuration_t *conf, clingo_id_t key, char const **ret);
 
+//! @}
+
 // {{{1 statistics
+
+//! @defgroup Statistics Statistics
+//! Inspect search and problem statistics.
+//! @ingroup Control
+
+//! @addtogroup Statistics
+//! @{
 
 enum clingo_statistics_type {
     clingo_statistics_type_empty = 0,
@@ -395,9 +514,11 @@ clingo_error_t clingo_statistics_root(clingo_statistics_t *stats, uint64_t *ret)
 clingo_error_t clingo_statistics_type(clingo_statistics_t *stats, uint64_t key, clingo_statistics_type_t *ret);
 clingo_error_t clingo_statistics_value_get(clingo_statistics_t *stats, uint64_t key, double *value);
 
+//! @}
+
 // {{{1 ast
 
-//! @defgroup AST
+//! @defgroup AST Abstract Syntax Trees
 //! Functions and data structures to work with program ASTs.
 
 //! @addtogroup AST
@@ -992,10 +1113,6 @@ clingo_error_t clingo_parse_program(char const *program, clingo_ast_callback_t *
 
 // {{{1 program builder
 
-//! @defgroup ProgramBuilder Program Builder
-//! Add ASTs to a logic program.
-//! @ingroup AST
-
 //! @addtogroup ProgramBuilder
 //! @{
 
@@ -1012,7 +1129,7 @@ clingo_error_t clingo_program_builder_end(clingo_program_builder_t *bld);
 //! The example shows how to ground and solve a simple logic program, and print
 //! its answer sets.
 
-//! @defgroup Control
+//! @defgroup Control Grounding and Solving
 //! Functions to control the grounding and solving process.
 //!
 //! For an example see \ref control.c.
@@ -1039,7 +1156,7 @@ clingo_error_t clingo_program_builder_end(clingo_program_builder_t *bld);
 //! @see clingo_control_interrupt()
 
 //! @typedef clingo_solve_result_bitset_t
-//! Corresponding type to ::clingo_solve_result
+//! Corresponding type to ::clingo_solve_result.
 
 //! Control object holding grounding and solving state.
 typedef struct clingo_control clingo_control_t;
