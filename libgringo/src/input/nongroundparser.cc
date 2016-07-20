@@ -56,7 +56,7 @@ void report_included(T const &loc, char const *filename, Logger &log) {
 
 template <typename T>
 void report_not_found(T const &loc, char const *filename, Logger &log) {
-    GRINGO_REPORT(log, clingo_error_fatal) << loc << ": error: file could not be opened:\n"
+    GRINGO_REPORT(log, clingo_error_runtime) << loc << ": error: file could not be opened:\n"
         << "  " << filename << "\n";
 }
 
@@ -154,11 +154,11 @@ NonGroundParser::NonGroundParser(INongroundProgramBuilder &pb)
     , _filename("") { }
 
 void NonGroundParser::parseError(Location const &loc, std::string const &msg) {
-    GRINGO_REPORT(*log_, clingo_error_fatal) << loc << ": error: " << msg << "\n";
+    GRINGO_REPORT(*log_, clingo_error_runtime) << loc << ": error: " << msg << "\n";
 }
 
 void NonGroundParser::lexerError(StringSpan token) {
-    GRINGO_REPORT(*log_, clingo_error_fatal) << filename() << ":" << line() << ":" << column() << ": error: lexer error, unexpected " << std::string(token.first, token.first + token.size) << "\n";
+    GRINGO_REPORT(*log_, clingo_error_runtime) << filename() << ":" << line() << ":" << column() << ": error: lexer error, unexpected " << std::string(token.first, token.first + token.size) << "\n";
 }
 
 bool NonGroundParser::push(std::string const &filename, bool include) {

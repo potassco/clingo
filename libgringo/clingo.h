@@ -75,11 +75,10 @@ typedef int32_t clingo_weight_t;
 //! object has a free function, this function can still and should be called.
 enum clingo_error {
     clingo_error_success   = 0, //!< successful API calls
-    clingo_error_fatal     = 1, //!< invalid input
-    clingo_error_runtime   = 2, //!< wrong usage of the clingo interface
-    clingo_error_logic     = 3, //!< internal error that should not occur in practice
-    clingo_error_bad_alloc = 4, //!< memory could not be allocated
-    clingo_error_unknown   = 5  //!< errors unrelated to clingo
+    clingo_error_runtime   = 1, //!< wrong usage of the clingo interface or invalid input
+    clingo_error_logic     = 2, //!< internal error that should not occur in practice
+    clingo_error_bad_alloc = 3, //!< memory could not be allocated
+    clingo_error_unknown   = 4  //!< errors unrelated to clingo
 };
 //! Corresponding type to ::clingo_error.
 typedef int clingo_error_t;
@@ -94,7 +93,7 @@ char const *clingo_error_message();
 //! Enumeration of warning codes.
 enum clingo_warning {
     clingo_warning_operation_undefined = 0, //!< undefined arithmetic operation or weight of aggregate
-    clingo_warning_fatal               = 1, //!< to report multiple errors; a corresponding error is raised later
+    clingo_warning_runtime_error       = 1, //!< to report multiple errors; a corresponding runtime error is raised later
     clingo_warning_atom_undefined      = 2, //!< undefined atom in program
     clingo_warning_file_included       = 3, //!< same file included multiple times
     clingo_warning_variable_unbounded  = 4, //!< CSP Domain undefined
@@ -159,7 +158,9 @@ typedef uint64_t clingo_signature_t;
 //! @param[in] arity arity of the signature
 //! @param[in] positive false if the signature has a classical negation sign
 //! @param[out] signature the resulting signature
-//! @return error if memory allocation fails
+//! @return
+//! - ::clingo_error_sucess
+//! - ::clingo_error_bad_alloc
 clingo_error_t clingo_signature_create(char const *name, uint32_t arity, bool positive, clingo_signature_t *signature);
 //! Get the name of a signature.
 //!
@@ -235,11 +236,11 @@ typedef struct clingo_symbolic_literal {
 //! @param[in] number the number
 //! @param[out] symbol the resulting symbol
 void clingo_symbol_create_number(int number, clingo_symbol_t *symbol);
-//! Construct a symbol representing #sup.
+//! Construct a symbol representing \#sup.
 //!
 //! @param[out] symbol the resulting symbol
 void clingo_symbol_create_supremum(clingo_symbol_t *symbol);
-//! Construct a symbol representing #inf.
+//! Construct a symbol representing \#inf.
 //!
 //! @param[out] symbol the resulting symbol
 void clingo_symbol_create_infimum(clingo_symbol_t *symbol);
@@ -247,7 +248,9 @@ void clingo_symbol_create_infimum(clingo_symbol_t *symbol);
 //!
 //! @param[in] string the string
 //! @param[out] symbol the resulting symbol
-//! @return error if memory allocation fails
+//! @return
+//! - ::clingo_error_sucess
+//! - ::clingo_error_bad_alloc
 clingo_error_t clingo_symbol_create_string(char const *string, clingo_symbol_t *symbol);
 //! Construct a symbol representing an id.
 //!
@@ -256,7 +259,9 @@ clingo_error_t clingo_symbol_create_string(char const *string, clingo_symbol_t *
 //! @param[in] name the name
 //! @param[in] positive weather the symbol has a classical negation sign
 //! @param[out] symbol the resulting symbol
-//! @return error if memory allocation fails
+//! @return
+//! - ::clingo_error_sucess
+//! - ::clingo_error_bad_alloc
 clingo_error_t clingo_symbol_create_id(char const *name, bool positive, clingo_symbol_t *symbol);
 //! Construct a symbol representing a function or tuple.
 //!
@@ -267,7 +272,9 @@ clingo_error_t clingo_symbol_create_id(char const *name, bool positive, clingo_s
 //! @param[in] arguments_size the number of arguments
 //! @param[in] positive weather the symbol has a classical negation sign
 //! @param[out] symbol the resulting symbol
-//! @return error if memory allocation fails
+//! @return
+//! - ::clingo_error_sucess
+//! - ::clingo_error_bad_alloc
 clingo_error_t clingo_symbol_create_function(char const *name, clingo_symbol_t const *arguments, size_t arguments_size, bool positive, clingo_symbol_t *symbol);
 
 //! @}
@@ -279,38 +286,50 @@ clingo_error_t clingo_symbol_create_function(char const *name, clingo_symbol_t c
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] number the resulting number
-//! @return runtime error if symbol is not of type ::clingo_symbol_type_number
+//! @return
+//! - ::clingo_error_sucess
+//! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_number
 clingo_error_t clingo_symbol_number(clingo_symbol_t symbol, int *number);
 //! Get the name of a symbol.
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] name the resulting name
-//! @return runtime error if symbol is not of type ::clingo_symbol_type_function
+//! @return
+//! - ::clingo_error_sucess
+//! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
 clingo_error_t clingo_symbol_name(clingo_symbol_t symbol, char const **name);
 //! Get the string of a symbol.
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] string the resulting string
-//! @return runtime error if symbol is not of type ::clingo_symbol_type_string
+//! @return
+//! - ::clingo_error_sucess
+//! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_string
 clingo_error_t clingo_symbol_string(clingo_symbol_t symbol, char const **str);
 //! Check if a function is positive (does not have a sign).
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] positive the result
-//! @return runtime error if symbol is not of type ::clingo_symbol_type_function
+//! @return
+//! - ::clingo_error_sucess
+//! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
 clingo_error_t clingo_symbol_is_positive(clingo_symbol_t symbol, bool *positive);
 //! Check if a function is negative (does have a sign).
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] negative the result
-//! @return runtime error if symbol is not of type ::clingo_symbol_type_function
+//! @return
+//! - ::clingo_error_sucess
+//! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
 clingo_error_t clingo_symbol_is_negative(clingo_symbol_t symbol, bool *negative);
 //! Get the arguments of a symbol.
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] arguments the resulting arguments
 //! @param[out] arguments_size the number of arguments
-//! @return runtime error if symbol is not of type ::clingo_symbol_type_function
+//! @return
+//! - ::clingo_error_sucess
+//! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
 clingo_error_t clingo_symbol_arguments(clingo_symbol_t symbol, clingo_symbol_t const **arguments, size_t *arguments_size);
 //! Get the type of a symbol.
 //!
@@ -321,14 +340,18 @@ clingo_symbol_type_t clingo_symbol_type(clingo_symbol_t symbol);
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] size the resulting size
-//! @return error if memory allocation fails
+//! @return
+//! - ::clingo_error_sucess
+//! - ::clingo_error_bad_alloc
 clingo_error_t clingo_symbol_to_string_size(clingo_symbol_t symbol, size_t *size);
 //! Get the string representation of a symbol.
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] string the resulting string
 //! @param[in] size the size of the string
-//! @return error if memory allocation fails or runtime error if the size is too small
+//! @return
+//! - ::clingo_error_sucess
+//! - ::clingo_error_bad_alloc
 //!
 //! @see clingo_symbol_to_string_size()
 clingo_error_t clingo_symbol_to_string(clingo_symbol_t symbol, char *string, size_t size);
@@ -370,7 +393,9 @@ size_t clingo_symbol_hash(clingo_symbol_t symbol);
 //!
 //! @param[in] string the string to internalize
 //! @param[out] result the internalized string
-//! @return error if memory allocation fails
+//! @return
+//! - ::clingo_error_sucess
+//! - ::clingo_error_bad_alloc
 clingo_error_t clingo_add_string(char const *string, char const **result);
 //! Parse a term in string form.
 //!
@@ -382,7 +407,10 @@ clingo_error_t clingo_add_string(char const *string, char const **result);
 //! @param[in] logger_data user data for the logger
 //! @param[in] message_limit maximum number of times to call the logger
 //! @param[out] symbol the resulting symbol
-//! @return error if memory allocation or runtime error if parsing fails
+//! @return
+//! - ::clingo_error_sucess
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if parsing fails
 clingo_error_t clingo_parse_term(char const *string, clingo_logger_t *logger, void *logger_data, unsigned message_limit, clingo_symbol_t *symbol);
 
 //! @}
@@ -1360,8 +1388,9 @@ typedef struct clingo_part {
 //! @param symbols array of symbols
 //! @param symbols_size size fo the symbol array
 //! @param data user data of the callback
-//! @return error code if memory allocation fails
-//!
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
 //! @see ::clingo_symbol_callback_t
 typedef clingo_error_t clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t symbols_size, void *data);
 
@@ -1384,7 +1413,7 @@ typedef clingo_error_t clingo_symbol_callback_t (clingo_symbol_t const *symbols,
 //! @param[in] symbol_callback function to inject symbols
 //! @param[in] symbol_callback_data user data for the symbol callback
 //!            (must be passed untouched)
-//! @return error code in case of errors
+//! @return error code
 //! @see clingo_control_ground()
 //!
 //! The following example implements the external function \@f() returning 42.
@@ -1417,7 +1446,7 @@ typedef clingo_error_t clingo_ground_callback_t (clingo_location_t location, cha
 //! @param[in] model the current model
 //! @param[in] data userdata of the callback
 //! @param[out] goon weather to continue search
-//! @return error code in case of errors
+//! @return error code
 //!
 //! @see clingo_control_solve()
 //! @see clingo_control_solve_async()
@@ -1432,7 +1461,7 @@ typedef clingo_error_t clingo_model_callback_t (clingo_model_t *model, void *dat
 //!
 //! @param[in] result result of the solve call
 //! @param[in] data userdata of the callback
-//! @return error code in case of errors
+//! @return error code
 //!
 //! @see clingo_control_solve_async()
 typedef clingo_error_t clingo_finish_callback_t (clingo_solve_result_bitset_t result, void *data);
@@ -1452,7 +1481,10 @@ typedef clingo_error_t clingo_finish_callback_t (clingo_solve_result_bitset_t re
 //! @param[in] logger_data userdata for the logger callback
 //! @param[in] message_limit maximum number of times the logger callback is called
 //! @param[out] resulting control object
-//! @return error code if memory allocation fails or argument parsing fails
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if argument parsing fails
 clingo_error_t clingo_control_new(char const *const * arguments, size_t arguments_size, clingo_logger_t *logger, void *logger_data, unsigned message_limit, clingo_control_t **control);
 
 //! Free a control object created with clingo_control_new().
@@ -1466,7 +1498,10 @@ void clingo_control_free(clingo_control_t *control);
 //!
 //! @param[in] control the target
 //! @param[in] file path to the file
-//! @return error code if memory allocation fails or parsing fails
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if parsing or checking fails
 clingo_error_t clingo_control_load(clingo_control_t *ctl, char const *file);
 
 //! Extend the logic program with the given non-ground logic program in string form.
@@ -1478,7 +1513,10 @@ clingo_error_t clingo_control_load(clingo_control_t *ctl, char const *file);
 //! @param[in] parameters string array of parameters of the program block
 //! @param[in] parameters_size number of parameters
 //! @param[in] program string representation of the program
-//! @return error code if memory allocation fails or parsing fails
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if parsing fails
 clingo_error_t clingo_control_add(clingo_control_t *control, char const *name, char const * const * parameters, size_t parameters_size, char const *program);
 
 //! Ground the selected parts of the current (non-ground) logic program.
@@ -1493,6 +1531,10 @@ clingo_error_t clingo_control_add(clingo_control_t *control, char const *name, c
 //! @param[in] ground_callback callback to implement external functions
 //! @param[in] ground_callback_data user data for ground_callback
 //! @return error code if memory allocation fails or extenal function call fails
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
+//! - error code of ground callback
 clingo_error_t clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t parts_size, clingo_ground_callback_t *ground_callback, void *ground_callback_data);
 
 //! @}
@@ -1508,7 +1550,11 @@ clingo_error_t clingo_control_ground(clingo_control_t *control, clingo_part_t co
 //! @param[in] assumptions array of assumptions to solve under
 //! @param[in] assumptions_size number of assumptions
 //! @param[out] result the result of the search
-//! @return error code if memory allocation fails or runtime error if solving fails
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving fails
+//! - error code of model callback
 clingo_error_t clingo_control_solve(clingo_control_t *control, clingo_model_callback_t *model_callback, void *model_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_result_bitset_t *result);
 //! Solve the currently grounded logic program enumerating models iteratively.
 //!
@@ -1518,7 +1564,10 @@ clingo_error_t clingo_control_solve(clingo_control_t *control, clingo_model_call
 //! @param[in] assumptions array of assumptions to solve under
 //! @param[in] assumptions_size number of assumptions
 //! @param[out] handle handle to the current search to enumerate models
-//! @return error code if memory allocation fails or runtime error if solving could not be started
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving could not be started
 clingo_error_t clingo_control_solve_iteratively(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_iteratively_t **handle);
 //! Solve the currently grounded logic program asynchronously in the background.
 //!
@@ -1532,7 +1581,10 @@ clingo_error_t clingo_control_solve_iteratively(clingo_control_t *control, cling
 //! @param[in] assumptions array of assumptions to solve under
 //! @param[in] assumptions_size number of assumptions
 //! @param[out] handle handle to the current search
-//! @return error code if memory allocation fails or runtime error if solving could not be started
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving could not be started
 clingo_error_t clingo_control_solve_async(clingo_control_t *control, clingo_model_callback_t *model_callback, void *model_callback_data, clingo_finish_callback_t *finish_callback, void *finish_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_async_t **handle);
 //! Cleanup the domains of clingo's grounding component using the solving
 //! component's top level assignment.
@@ -1543,7 +1595,9 @@ clingo_error_t clingo_control_solve_async(clingo_control_t *control, clingo_mode
 //! simplifications can be applied.
 //!
 //! @param[in] control the target
-//! @return error if memory allocation fails
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
 clingo_error_t clingo_control_cleanup(clingo_control_t *control);
 clingo_error_t clingo_control_assign_external(clingo_control_t *control, clingo_symbol_t atom, clingo_truth_value_t value);
 clingo_error_t clingo_control_release_external(clingo_control_t *control, clingo_symbol_t atom);

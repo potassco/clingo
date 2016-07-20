@@ -100,7 +100,6 @@ void handleCError(clingo_error_t code, std::exception_ptr *exc) {
         char const *msg = clingo_error_message();
         if (!msg) { msg = "no message"; }
         switch (code) {
-            case clingo_error_fatal:     { throw std::runtime_error(msg); }
             case clingo_error_runtime:   { throw std::runtime_error(msg); }
             case clingo_error_logic:     { throw std::logic_error(msg); }
             case clingo_error_bad_alloc: { throw std::bad_alloc(); }
@@ -111,12 +110,12 @@ void handleCError(clingo_error_t code, std::exception_ptr *exc) {
 
 clingo_error_t handleCXXError() {
     try { throw; }
-    catch (Gringo::GringoError const &e)       { g_lastException = std::current_exception(); return clingo_error_fatal; }
+    catch (Gringo::GringoError const &e)       { g_lastException = std::current_exception(); return clingo_error_runtime; }
     // Note: a ClingoError is throw after an exception is set or a user error is thrown so either
     //       - g_lastException is already set, or
     //       - there was a user error (currently not associated to an error message)
     catch (Gringo::ClingoError const &e)       { return e.err; }
-    catch (Gringo::MessageLimitError const &e) { g_lastException = std::current_exception(); return clingo_error_fatal; }
+    catch (Gringo::MessageLimitError const &e) { g_lastException = std::current_exception(); return clingo_error_runtime; }
     catch (std::bad_alloc const &e)            { g_lastException = std::current_exception(); return clingo_error_bad_alloc; }
     catch (std::runtime_error const &e)        { g_lastException = std::current_exception(); return clingo_error_runtime; }
     catch (std::logic_error const &e)          { g_lastException = std::current_exception(); return clingo_error_logic; }
@@ -2492,7 +2491,6 @@ extern "C" char const *clingo_error_string(clingo_error_t code) {
         case clingo_error_runtime:               { return "runtime error"; }
         case clingo_error_bad_alloc:             { return "bad allocation"; }
         case clingo_error_logic:                 { return "logic error"; }
-        case clingo_error_fatal:                 { return "fatal error"; }
         case clingo_error_unknown:               { return "unknown error"; }
     }
     return nullptr;
@@ -2500,8 +2498,8 @@ extern "C" char const *clingo_error_string(clingo_error_t code) {
 
 extern "C" char const *clingo_warning_string(clingo_warning_t code) {
     switch (static_cast<clingo_warning>(code)) {
-        case clingo_warning_operation_undefined: { return "operation_undefined"; }
-        case clingo_warning_fatal:               { return "fatal"; }
+        case clingo_warning_operation_undefined: { return "operation undefined"; }
+        case clingo_warning_runtime_error:       { return "runtime errer"; }
         case clingo_warning_atom_undefined:      { return "atom undefined"; }
         case clingo_warning_file_included:       { return "file included"; }
         case clingo_warning_variable_unbounded:  { return "variable unbounded"; }

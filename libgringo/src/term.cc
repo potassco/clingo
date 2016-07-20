@@ -40,7 +40,7 @@ void Defines::add(Location const &loc, String name, UTerm &&value, bool defaultD
     if (it == defs_.end())                           { defs_.emplace(name, make_tuple(defaultDef, loc, std::move(value))); }
     else if (std::get<0>(it->second) && !defaultDef) { it->second = make_tuple(defaultDef, loc, std::move(value)); }
     else if (std::get<0>(it->second) || !defaultDef) {
-        GRINGO_REPORT(log, clingo_error_fatal)
+        GRINGO_REPORT(log, clingo_error_runtime)
             << loc << ": error: redefinition of constant:\n"
             << "  #const " << name << "=" << *value << ".\n"
             << std::get<1>(it->second) << ": note: constant also defined here\n";
@@ -76,7 +76,7 @@ void Defines::init(Logger &log) {
                     << std::get<1>(x->data->second) << ": note: cycle involves definition:\n"
                     << "  #const " << x->data->first << "=" << *std::get<2>(x->data->second) << ".\n";
             }
-            GRINGO_REPORT(log, clingo_error_fatal) << msg.str();
+            GRINGO_REPORT(log, clingo_error_runtime) << msg.str();
         }
         for (auto &x : scc) { Term::replace(std::get<2>(x->data->second), std::get<2>(x->data->second)->replace(*this, true)); }
     }

@@ -1939,7 +1939,6 @@ using ModelCallback = std::function<bool (Model)>;
 using FinishCallback = std::function<void (SolveResult)>;
 
 enum class ErrorCode : clingo_error_t {
-    Fatal = clingo_error_fatal,
     Runtime = clingo_error_runtime,
     Logic = clingo_error_logic,
     BadAlloc = clingo_error_bad_alloc,
@@ -1953,6 +1952,7 @@ inline std::ostream &operator<<(std::ostream &out, ErrorCode code) {
 
 enum class WarningCode : clingo_warning_t {
     OperationUndefined = clingo_warning_operation_undefined,
+    RuntimeError = clingo_warning_runtime_error,
     AtomUndefined = clingo_warning_atom_undefined,
     FileIncluded = clingo_warning_file_included,
     VariableUnbounded = clingo_warning_variable_unbounded,

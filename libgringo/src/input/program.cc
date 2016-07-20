@@ -79,7 +79,7 @@ void Program::add(TheoryDef &&def, Logger &log) {
         theoryDefs_.push(std::move(def));
     }
     else {
-        GRINGO_REPORT(log, clingo_error_fatal)
+        GRINGO_REPORT(log, clingo_error_runtime)
             << def.loc() << ": error: redefinition of theory:" << "\n"
             << "  " << def.name() << "\n"
             << it->loc() << ": note: theory first defined here\n";
@@ -179,7 +179,7 @@ void Program::check(Logger &log) {
         for (auto &atomDef : def.atomDefs()) {
             auto seenSig = seenSigs.emplace(atomDef.sig(), atomDef.loc());
             if (!seenSig.second) {
-                GRINGO_REPORT(log, clingo_error_fatal)
+                GRINGO_REPORT(log, clingo_error_runtime)
                     << atomDef.loc() << ": error: multiple definitions for theory atom:" << "\n"
                     << "  " << atomDef.sig() << "\n"
                     << seenSig.first->second << ": note: first defined here\n";
