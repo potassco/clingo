@@ -1599,11 +1599,57 @@ clingo_error_t clingo_control_solve_async(clingo_control_t *control, clingo_mode
 //! - ::clingo_error_success
 //! - ::clingo_error_bad_alloc
 clingo_error_t clingo_control_cleanup(clingo_control_t *control);
+//! Assign a truth value to an external atom.
+//!
+//! If the atom does not exist or is not external this is a noop.
+//!
+//! @param[in] control the target
+//! @param[in] atom atom to assign
+//! @param[in] value the truth value
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
 clingo_error_t clingo_control_assign_external(clingo_control_t *control, clingo_symbol_t atom, clingo_truth_value_t value);
+//! Release an external atom.
+//!
+//! After this call an external atom is no longer external and subject to
+//! program simplifications.  If the atom does not exist or is not external
+//! this is a noop.
+//!
+//! @param[in] control the target
+//! @param[in] atom atom to release
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
 clingo_error_t clingo_control_release_external(clingo_control_t *control, clingo_symbol_t atom);
+//! Register a custom propagator with the control object.
+//!
+//! If the sequential flag is set to true, the propagator is called
+//! sequentially when solving with multiple threads.
+//!
+//! For more information see the @ref Propagator module.
+//!
+//! @param[in] control the target
+//! @param[in] propagator the propagator
+//! @param[in] data user data passed to the propagator functions
+//! @param[in] sequential weather the propagator should be called sequentially
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
 clingo_error_t clingo_control_register_propagator(clingo_control_t *control, clingo_propagator_t propagator, void *data, bool sequential);
-clingo_error_t clingo_control_statistics(clingo_control_t *control, clingo_statistics_t **stats);
-//! Interrupts the active solve call.
+//! Get a statistics object to inspect solver statistics.
+//!
+//! Statistics are updated after a solve call.
+//!
+//! For more information see the @ref Statistics module.
+//!
+//! @param[in] control the target
+//! @param[out] statistics the statistics object
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
+clingo_error_t clingo_control_statistics(clingo_control_t *control, clingo_statistics_t **statistics);
+//! Interrupt the active solve call (or the following solve call right at the beginning).
 //!
 //! @param[in] control the target
 void clingo_control_interrupt(clingo_control_t *ctl);
