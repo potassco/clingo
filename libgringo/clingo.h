@@ -424,38 +424,52 @@ clingo_error_t clingo_parse_term(char const *string, clingo_logger_t *logger, vo
 //! @addtogroup Model
 //! @{
 
+//! Object to add clauses during search.
 typedef struct clingo_solve_control clingo_solve_control_t;
-clingo_error_t clingo_solve_control_thread_id(clingo_solve_control_t *control, clingo_id_t *ret);
-clingo_error_t clingo_solve_control_add_clause(clingo_solve_control_t *control, clingo_symbolic_literal_t const *clause, size_t n);
 
+//! Object representing a model.
+typedef struct clingo_model clingo_model_t;
+
+//! Enumeration for the different model types.
 enum clingo_model_type {
-    clingo_model_type_stable_model          = 0,
-    clingo_model_type_brave_consequences    = 1,
-    clingo_model_type_cautious_consequences = 2
+    clingo_model_type_stable_model          = 0, //!< The model represents a stable model.
+    clingo_model_type_brave_consequences    = 1, //!< The model represents a set of brave consequences.
+    clingo_model_type_cautious_consequences = 2  //!< The model represents a set of cautious consequences.
 };
+//! Corresponding type to ::clingo_model_type.
 typedef int clingo_model_type_t;
 
+//! Enumeration of bit flags to select symbols in models.
 enum clingo_show_type {
-    clingo_show_type_csp        = 1,
-    clingo_show_type_shown      = 2,
-    clingo_show_type_atoms      = 4,
-    clingo_show_type_terms      = 8,
-    clingo_show_type_extra      = 16,
-    clingo_show_type_all        = 31,
-    clingo_show_type_complement = 32
+    clingo_show_type_csp        = 1,  //!< Select CSP assignments.
+    clingo_show_type_shown      = 2,  //!< Select shown atoms and terms.
+    clingo_show_type_atoms      = 4,  //!< Select all atoms.
+    clingo_show_type_terms      = 8,  //!< Select all terms.
+    clingo_show_type_extra      = 16, //!< Select symbols added by extensions.
+    clingo_show_type_all        = 31, //!< Select everything.
+    clingo_show_type_complement = 32  //!< Select false instead of true atoms (::clingo_show_type_atoms) or terms (::clingo_show_type_terms).
 };
+//! Corresponding type to ::clingo_show_type.
 typedef unsigned clingo_show_type_bitset_t;
 
-typedef struct clingo_model clingo_model_t;
+//! @name Functions for Inspecting Models
+//! @{
 clingo_error_t clingo_model_atoms_size(clingo_model_t *m, clingo_show_type_bitset_t show, size_t *n);
 clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type_bitset_t show, clingo_symbol_t *ret, size_t n);
 clingo_error_t clingo_model_contains(clingo_model_t *m, clingo_symbol_t atom, bool *ret);
-clingo_error_t clingo_model_context(clingo_model_t *m, clingo_solve_control_t **ret);
 clingo_error_t clingo_model_number(clingo_model_t *m, uint64_t *n);
 clingo_error_t clingo_model_optimality_proven(clingo_model_t *m, bool *ret);
 clingo_error_t clingo_model_cost_size(clingo_model_t *m, size_t *n);
 clingo_error_t clingo_model_cost(clingo_model_t *m, int64_t *ret, size_t n);
 clingo_error_t clingo_model_type(clingo_model_t *m, clingo_model_type_t *ret);
+//! @}
+
+//! @name Functions for Adding Clauses
+//! @{
+clingo_error_t clingo_model_context(clingo_model_t *m, clingo_solve_control_t **ret);
+clingo_error_t clingo_solve_control_thread_id(clingo_solve_control_t *control, clingo_id_t *ret);
+clingo_error_t clingo_solve_control_add_clause(clingo_solve_control_t *control, clingo_symbolic_literal_t const *clause, size_t n);
+//! @}
 
 //! @}
 
