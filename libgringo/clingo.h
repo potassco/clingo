@@ -425,8 +425,8 @@ clingo_error_t clingo_parse_term(char const *string, clingo_logger_t *logger, vo
 //! @{
 
 typedef struct clingo_solve_control clingo_solve_control_t;
-clingo_error_t clingo_solve_control_thread_id(clingo_solve_control_t *ctl, clingo_id_t *ret);
-clingo_error_t clingo_solve_control_add_clause(clingo_solve_control_t *ctl, clingo_symbolic_literal_t const *clause, size_t n);
+clingo_error_t clingo_solve_control_thread_id(clingo_solve_control_t *control, clingo_id_t *ret);
+clingo_error_t clingo_solve_control_add_clause(clingo_solve_control_t *control, clingo_symbolic_literal_t const *clause, size_t n);
 
 enum clingo_model_type {
     clingo_model_type_stable_model          = 0,
@@ -610,16 +610,16 @@ enum clingo_clause_type {
 typedef int clingo_clause_type_t;
 
 typedef struct clingo_propagate_control clingo_propagate_control_t;
-clingo_id_t clingo_propagate_control_thread_id(clingo_propagate_control_t *ctl);
-clingo_assignment_t *clingo_propagate_control_assignment(clingo_propagate_control_t *ctl);
-clingo_error_t clingo_propagate_control_add_clause(clingo_propagate_control_t *ctl, clingo_literal_t const *clause, size_t n, clingo_clause_type_t prop, bool *ret);
-clingo_error_t clingo_propagate_control_propagate(clingo_propagate_control_t *ctl, bool *ret);
+clingo_id_t clingo_propagate_control_thread_id(clingo_propagate_control_t *control);
+clingo_assignment_t *clingo_propagate_control_assignment(clingo_propagate_control_t *control);
+clingo_error_t clingo_propagate_control_add_clause(clingo_propagate_control_t *control, clingo_literal_t const *clause, size_t n, clingo_clause_type_t prop, bool *ret);
+clingo_error_t clingo_propagate_control_propagate(clingo_propagate_control_t *control, bool *ret);
 
 typedef struct clingo_propagator {
-    clingo_error_t (*init) (clingo_propagate_init_t *ctl, void *data);
-    clingo_error_t (*propagate) (clingo_propagate_control_t *ctl, clingo_literal_t const *changes, size_t n, void *data);
-    clingo_error_t (*undo) (clingo_propagate_control_t *ctl, clingo_literal_t const *changes, size_t n, void *data);
-    clingo_error_t (*check) (clingo_propagate_control_t *ctl, void *data);
+    clingo_error_t (*init) (clingo_propagate_init_t *control, void *data);
+    clingo_error_t (*propagate) (clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t n, void *data);
+    clingo_error_t (*undo) (clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t n, void *data);
+    clingo_error_t (*check) (clingo_propagate_control_t *control, void *data);
 } clingo_propagator_t;
 
 //! @}
@@ -1502,7 +1502,7 @@ void clingo_control_free(clingo_control_t *control);
 //! - ::clingo_error_success
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if parsing or checking fails
-clingo_error_t clingo_control_load(clingo_control_t *ctl, char const *file);
+clingo_error_t clingo_control_load(clingo_control_t *control, char const *file);
 
 //! Extend the logic program with the given non-ground logic program in string form.
 //!
@@ -1652,7 +1652,7 @@ clingo_error_t clingo_control_statistics(clingo_control_t *control, clingo_stati
 //! Interrupt the active solve call (or the following solve call right at the beginning).
 //!
 //! @param[in] control the target
-void clingo_control_interrupt(clingo_control_t *ctl);
+void clingo_control_interrupt(clingo_control_t *control);
 
 //! @}
 
@@ -1667,8 +1667,7 @@ void clingo_control_interrupt(clingo_control_t *ctl);
 //! @param[out] configuration the configuration object
 //! @return
 //! - ::clingo_error_success
-//! - ::clingo_error_bad_alloc
-clingo_error_t clingo_control_configuration(clingo_control_t *ctl, clingo_configuration_t **configuration);
+clingo_error_t clingo_control_configuration(clingo_control_t *control, clingo_configuration_t **configuration);
 //! Configure how learnt constraints are handled during enumeration.
 //!
 //! If the enumeration assumption is enabled, then all information learnt from
@@ -1683,25 +1682,72 @@ clingo_error_t clingo_control_configuration(clingo_control_t *ctl, clingo_config
 //! @param[in] enable weather to enable the assumption
 //! @return
 //! - ::clingo_error_success
-//! - ::clingo_error_bad_alloc
-clingo_error_t clingo_control_use_enumeration_assumption(clingo_control_t *ctl, bool enable);
+clingo_error_t clingo_control_use_enumeration_assumption(clingo_control_t *control, bool enable);
 //! @}
 
 //! @name Program Inspection Functions
 //! @{
-clingo_error_t clingo_control_get_const(clingo_control_t *ctl, char const *name, clingo_symbol_t *ret);
-clingo_error_t clingo_control_has_const(clingo_control_t *ctl, char const *name, bool *ret);
-clingo_error_t clingo_control_symbolic_atoms(clingo_control_t *ctl, clingo_symbolic_atoms_t **ret);
-clingo_error_t clingo_control_theory_atoms(clingo_control_t *ctl, clingo_theory_atoms_t **ret);
+
+//! Return the symbol for a constant definition of form: #const name = symbol.
+//!
+//! @param[in] control the target
+//! @param[in] name the name of the constant
+//! @param[out] symbol the resulting symbol
+//! @return
+//! - ::clingo_error_success
+clingo_error_t clingo_control_get_const(clingo_control_t *control, char const *name, clingo_symbol_t *symbol);
+//! Check if there is a constant definition given for the given constant.
+//!
+//! @param[in] control the target
+//! @param[in] name the name of the constant
+//! @return
+//! - ::clingo_error_success
+//!
+//! @see clingo_control_get_const()
+clingo_error_t clingo_control_has_const(clingo_control_t *control, char const *name, bool *ret);
+//! Get an object to inspect symbolic atoms (the relevant Herbrand base) used
+//! for grounding.
+//!
+//! For more information see the @ref SymbolicAtoms module.
+//!
+//! @param[in] control the target
+//! @param[out] atoms the symbolic atoms object
+//! @return
+//! - ::clingo_error_success
+clingo_error_t clingo_control_symbolic_atoms(clingo_control_t *control, clingo_symbolic_atoms_t **atoms);
+//! Get an object to inspect theory atoms that occur in the grounding.
+//!
+//! For more information see the @ref TheoryAtoms module.
+//!
+//! @param[in] control the target
+//! @param[out] atoms the theory atoms object
+//! @return
+//! - ::clingo_error_success
+clingo_error_t clingo_control_theory_atoms(clingo_control_t *control, clingo_theory_atoms_t **atoms);
 //! @}
 
 //! @name Program Modification Functions
 //! @{
-clingo_error_t clingo_control_backend(clingo_control_t *ctl, clingo_backend_t **ret);
-clingo_error_t clingo_control_program_builder(clingo_control_t *ctl, clingo_program_builder_t **ret);
-clingo_error_t clingo_control_begin_add_ast(clingo_control_t *ctl);
-clingo_error_t clingo_control_add_ast(clingo_control_t *ctl, clingo_ast_statement_t const *stm);
-clingo_error_t clingo_control_end_add_ast(clingo_control_t *ctl);
+
+//! Get an object to add ground directives to the program.
+//!
+//! For more information see the @ref ProgramBuilder module.
+//!
+//! @param[in] control the target
+//! @param[out] backend the backend objet
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_bad_alloc
+clingo_error_t clingo_control_backend(clingo_control_t *control, clingo_backend_t **backend);
+//! Get an object to add non-ground directives to the program.
+//!
+//! For more information see the @ref ProgramBuilder module.
+//!
+//! @param[in] control the target
+//! @param[out] builder the program builder objet
+//! @return
+//! - ::clingo_error_success
+clingo_error_t clingo_control_program_builder(clingo_control_t *control, clingo_program_builder_t **builder);
 //! @}
 
 //! @}
