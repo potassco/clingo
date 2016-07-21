@@ -925,7 +925,7 @@ public:
     bool contains(Symbol atom) const;
     bool optimality_proven() const;
     CostVector cost() const;
-    SymbolVector atoms(ShowType show = ShowType::Shown) const;
+    SymbolVector symbols(ShowType show = ShowType::Shown) const;
     SolveControl context() const;
     ModelType type() const;
     uint64_t number() const;
@@ -936,7 +936,7 @@ private:
 };
 
 inline std::ostream &operator<<(std::ostream &out, Model m) {
-    out << SymbolSpan(m.atoms(ShowType::Shown));
+    out << SymbolSpan(m.symbols(ShowType::Shown));
     return out;
 }
 

@@ -8,7 +8,7 @@ def solve(s):
         clingo.parse_program(s, lambda stm: b.add(stm))
     prg.ground([("base", [])])
     ret = []
-    prg.solve(on_model=lambda m: ret.append(sorted(m.atoms(shown=True))))
+    prg.solve(on_model=lambda m: ret.append(sorted(m.symbols(shown=True))))
     return str(sorted(ret))
 
 def parse(s):

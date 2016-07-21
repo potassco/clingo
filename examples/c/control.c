@@ -11,11 +11,11 @@ clingo_error_t on_model(clingo_model_t *model, void *data, bool *goon) {
   char *str = NULL;
   size_t str_n = 0;
   // determine the number of (shown) symbols in the model
-  if ((ret = clingo_model_atoms_size(model, clingo_show_type_shown, &atoms_n))) { goto error; }
+  if ((ret = clingo_model_symbols_size(model, clingo_show_type_shown, &atoms_n))) { goto error; }
   // allocate required memory to hold all the symbols
   if (!(atoms = (clingo_symbol_t*)malloc(sizeof(*atoms) * atoms_n))) { goto error; }
   // retrieve the symbols in the model
-  if ((ret = clingo_model_atoms(model, clingo_show_type_shown, atoms, atoms_n))) { goto error; }
+  if ((ret = clingo_model_symbols(model, clingo_show_type_shown, atoms, atoms_n))) { goto error; }
   printf("Model:");
   for (it = atoms, ie = atoms + atoms_n; it != ie; ++it) {
     size_t n;

@@ -619,12 +619,12 @@ CostVector Model::cost() const {
     return ret;
 }
 
-SymbolVector Model::atoms(ShowType show) const {
+SymbolVector Model::symbols(ShowType show) const {
     SymbolVector ret;
     size_t n;
-    handleCError(clingo_model_atoms_size(model_, show, &n));
+    handleCError(clingo_model_symbols_size(model_, show, &n));
     ret.resize(n);
-    handleCError(clingo_model_atoms(model_, show, reinterpret_cast<clingo_symbol_t *>(ret.data()), n));
+    handleCError(clingo_model_symbols(model_, show, reinterpret_cast<clingo_symbol_t *>(ret.data()), n));
     return ret;
 }
 
@@ -2960,7 +2960,7 @@ extern "C" clingo_error_t clingo_model_contains(clingo_model_t *m, clingo_symbol
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_model_atoms_size(clingo_model_t *m, clingo_show_type_bitset_t show, size_t *n) {
+extern "C" clingo_error_t clingo_model_symbols_size(clingo_model_t *m, clingo_show_type_bitset_t show, size_t *n) {
     GRINGO_CLINGO_TRY {
         // TODO: implement matching C++ functions ...
         SymSpan atoms = m->atoms(show);
@@ -2969,7 +2969,7 @@ extern "C" clingo_error_t clingo_model_atoms_size(clingo_model_t *m, clingo_show
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_model_atoms(clingo_model_t *m, clingo_show_type_bitset_t show, clingo_symbol_t *ret, size_t n) {
+extern "C" clingo_error_t clingo_model_symbols(clingo_model_t *m, clingo_show_type_bitset_t show, clingo_symbol_t *ret, size_t n) {
     GRINGO_CLINGO_TRY {
         // TODO: implement matching C++ functions ...
         SymSpan atoms = m->atoms(show);

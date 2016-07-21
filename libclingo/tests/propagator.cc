@@ -622,7 +622,7 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
             int opt = m.cost()[0];
             if (opt == optimum) {
                 models.emplace_back();
-                for (auto sym : m.atoms(ShowType::Shown)) {
+                for (auto sym : m.symbols(ShowType::Shown)) {
                     models.back().emplace_back(sym);
                 }
                 std::sort(models.back().begin(), models.back().end());

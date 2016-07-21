@@ -22,7 +22,7 @@ class Board:
         ctl.solve(on_model=self.__on_model)
 
     def __on_model(self, m):
-        for atom in m.atoms(atoms=True):
+        for atom in m.symbols(atoms=True):
             if atom.name == "barrier" and len(atom.arguments) == 4:
                 x, y, dx, dy = [n.number for n in atom.arguments]
                 self.blocked.add((x - 1     , y - 1     ,  dx,  dy))
@@ -148,7 +148,7 @@ class Solver:
 
     def __on_model(self, m):
         self.__solution = []
-        for atom in m.atoms(atoms=True):
+        for atom in m.symbols(atoms=True):
             if atom.name == "move" and len(atom.arguments) == 4:
                 c, x, y, t = [(n.number if n.type == clingo.SymbolType.Number else str(n)) for n in atom.arguments]
                 self.__solution.append((c, x, y, t))

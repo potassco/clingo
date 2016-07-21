@@ -147,7 +147,7 @@ c.add("check", ["k"], "#external query(k).")
 for f in sys.argv[1:]: c.load(f)
 def make_on_model(field, stone, move, target):
     def on_model(m):
-        for atom in m.atoms(atoms=True):
+        for atom in m.symbols(atoms=True):
             if atom.name == "field" and len(atom.arguments) == 2:
                 x, y = [n.number for n in atom.arguments]
                 field.append((x, y))

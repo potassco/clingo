@@ -17,7 +17,7 @@ function on_model(x)
     print(
            "hasA(" ..        tostring(x:contains(clingo.Function("a"))) .. ") "
         .. "hasVolatile(" .. tostring(x:contains(clingo.Function("volatile", {9}))) .. ") "
-        .. "model(" ..       table.concat(sorted(map(tostring, x:atoms{shown=true})), ",") .. ") ")
+        .. "model(" ..       table.concat(sorted(map(tostring, x:symbols{shown=true})), ",") .. ") ")
 end
 
 function main (prg)

@@ -34,7 +34,7 @@ int main(int argc, char const **argv) {
         ctl.ground({{"base", {}}});
         for (auto m : ctl.solve_iteratively()) {
             std::cout << "Model:";
-            for (auto &atom : m.atoms()) {
+            for (auto &atom : m.symbols()) {
                 std::cout << " " << atom;
             }
             std::cout << "\n";

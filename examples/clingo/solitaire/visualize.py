@@ -136,7 +136,7 @@ def make_on_model(field, init, jumps):
     sx = { "east": 2, "west": -2, "north":  0, "south": 0 }
     sy = { "east": 0, "west":  0, "north": -2, "south": 2 }
     def on_model(m):
-        for atom in m.atoms(atoms=True):
+        for atom in m.symbols(atoms=True):
             if atom.name == "field" and len(atom.arguments) == 2:
                 x, y = [n.number for n in atom.arguments]
                 field.append((x, y))

@@ -20,10 +20,10 @@ end
 
 function on_model(model)
     models[#models+1] = clingo.Function("model", split(model))
-    models[#models+1] = clingo.Function("shown", normalize(model:atoms{shown=true}))
-    models[#models+1] = clingo.Function("atoms", normalize(model:atoms{atoms=true}))
-    models[#models+1] = clingo.Function("terms", normalize(model:atoms{terms=true}))
-    models[#models+1] = clingo.Function("csp",   normalize(model:atoms{csp=true}))
+    models[#models+1] = clingo.Function("shown", normalize(model:symbols{shown=true}))
+    models[#models+1] = clingo.Function("atoms", normalize(model:symbols{atoms=true}))
+    models[#models+1] = clingo.Function("terms", normalize(model:symbols{terms=true}))
+    models[#models+1] = clingo.Function("csp",   normalize(model:symbols{csp=true}))
 end
 
 function main(prg)

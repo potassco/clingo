@@ -3,7 +3,7 @@
 brave = {}
 
 function on_model(m)
-    for _, x in ipairs(m:atoms{atoms=true}) do
+    for _, x in ipairs(m:symbols{atoms=true}) do
         if x.name == "holds" then
             brave[tostring(x.arguments[1])] = true
         end

@@ -43,9 +43,9 @@ int main(int argc, char const **argv) {
         clingo_symbol_t const *atoms_it, *atoms_ie;
         E(clingo_solve_iteratively_next(solve_it, &m));
         if (!m) { break; }
-        E(clingo_model_atoms_size(m, clingo_show_type_atoms | clingo_show_type_csp, &n));
+        E(clingo_model_symbols_size(m, clingo_show_type_atoms | clingo_show_type_csp, &n));
         A(atoms, clingo_symbol_t, atoms_n, n, "failed to allocate memory for atoms");
-        E(clingo_model_atoms(m, clingo_show_type_atoms | clingo_show_type_csp, atoms, n));
+        E(clingo_model_symbols(m, clingo_show_type_atoms | clingo_show_type_csp, atoms, n));
         printf("Model:");
         for (atoms_it = atoms, atoms_ie = atoms + n; atoms_it != atoms_ie; ++atoms_it) {
             E(clingo_symbol_to_string_size(*atoms_it, &n));

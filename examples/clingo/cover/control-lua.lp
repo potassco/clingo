@@ -24,7 +24,7 @@ function State:fix(k)
 end
 
 function State:on_model(m)
-    self.last = m:atoms{atoms=true}
+    self.last = m:symbols{atoms=true}
     for key,atom in ipairs(self.last) do
         if atom.name == "leaf" then
             local args = atom.arguments

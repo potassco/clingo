@@ -33,7 +33,7 @@ struct MCB {
     }
     bool operator()(Model m) {
         models.emplace_back();
-        for (auto sym : m.atoms(ShowType::Shown)) {
+        for (auto sym : m.symbols(ShowType::Shown)) {
             models.back().emplace_back(sym);
         }
         std::sort(models.back().begin(), models.back().end());

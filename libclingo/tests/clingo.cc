@@ -180,7 +180,7 @@ TEST_CASE("solving", "[clingo]") {
             SymbolVector model;
             CostVector optimum;
             REQUIRE(ctl.solve([&optimum, &model](Model m) {
-                model = m.atoms();
+                model = m.symbols();
                 optimum = m.cost();
                 return true;
             }).is_satisfiable());
@@ -203,11 +203,11 @@ TEST_CASE("solving", "[clingo]") {
             ctl.ground({{"base", {}}});
             REQUIRE(ctl.solve([](Model m) {
                 REQUIRE(m.type() == ModelType::StableModel);
-                REQUIRE(m.atoms(ShowType::Atoms) == (SymbolVector{Id("a")}));
-                REQUIRE(m.atoms(ShowType::Terms) == (SymbolVector{Id("b")}));
-                REQUIRE(m.atoms(ShowType::CSP) == (SymbolVector{Function("$", {Id("x"), Number(1)})}));
-                REQUIRE(m.atoms(ShowType::Shown) == (SymbolVector{Function("$", {Id("x"), Number(1)}), Id("a"), Id("b")}));
-                REQUIRE(m.atoms(ShowType::Atoms | ShowType::Complement).size() == 0);
+                REQUIRE(m.symbols(ShowType::Atoms) == (SymbolVector{Id("a")}));
+                REQUIRE(m.symbols(ShowType::Terms) == (SymbolVector{Id("b")}));
+                REQUIRE(m.symbols(ShowType::CSP) == (SymbolVector{Function("$", {Id("x"), Number(1)})}));
+                REQUIRE(m.symbols(ShowType::Shown) == (SymbolVector{Function("$", {Id("x"), Number(1)}), Id("a"), Id("b")}));
+                REQUIRE(m.symbols(ShowType::Atoms | ShowType::Complement).size() == 0);
                 REQUIRE( m.contains(Id("a")));
                 REQUIRE(!m.contains(Id("b")));
                 return true;

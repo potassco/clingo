@@ -5,7 +5,7 @@ import clingo
 brave = set()
 
 def on_model(m):
-    for x in m.atoms(atoms=True):
+    for x in m.symbols(atoms=True):
         if x.name == "holds": brave.add(x.arguments[0])
 
 def is_brave(x): return x in brave

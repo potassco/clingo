@@ -1241,7 +1241,7 @@ struct Model {
 constexpr char const *Model::typeName;
 luaL_Reg const Model::meta[] = {
     {"__tostring", toString},
-    {"atoms", atoms},
+    {"symbols", atoms},
     {"contains", contains},
     {nullptr, nullptr}
 };

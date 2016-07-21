@@ -1972,8 +1972,8 @@ The return values correspond to clasp's cost output.)", nullptr},
 };
 
 PyMethodDef Model::tp_methods[] = {
-    {"atoms", (PyCFunction)atoms, METH_VARARGS | METH_KEYWORDS,
-R"(atoms(self, atoms, terms, shown, csp, comp)
+    {"symbols", (PyCFunction)atoms, METH_VARARGS | METH_KEYWORDS,
+R"(symbols(self, atoms, terms, shown, csp, comp)
         -> list of terms
 
 Return the list of atoms, terms, or CSP assignments in the model.

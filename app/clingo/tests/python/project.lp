@@ -89,7 +89,7 @@ def genASPsequence(seq, prg):
 def on_model(model):
     pattern={} # map qui associe le numero d'instance à un numero de structure
     
-    for atom in model.atoms(atoms=True):
+    for atom in model.symbols(atoms=True):
         if atom.name()=="pattern":
             args = atom.arguments
             pattern[ args[0] ]=args[1]

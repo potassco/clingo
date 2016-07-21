@@ -12,7 +12,7 @@ class State:
         return self.leaves.get(k.number-1, [])
 
     def on_model(self, m):
-        self.last = m.atoms(atoms=True)
+        self.last = m.symbols(atoms=True)
         for atom in self.last:
             if atom.name == "leaf":
                 args = atom.arguments
