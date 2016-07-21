@@ -1716,6 +1716,7 @@ clingo_error_t clingo_control_get_const(clingo_control_t *control, char const *n
 //! @param[in] name the name of the constant
 //! @return
 //! - ::clingo_error_success
+//! - ::clingo_error_runtime if constant definition does not exist
 //!
 //! @see clingo_control_get_const()
 clingo_error_t clingo_control_has_const(clingo_control_t *control, char const *name, bool *ret);
