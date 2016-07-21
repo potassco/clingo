@@ -5338,16 +5338,16 @@ active; you must not call any member function during search.)";
             return self->stats;
         PY_CATCH(nullptr);
     }
-    static int set_use_enum_assumption(ControlWrap *self, PyObject *pyEnable, void *) {
+    static int set_use_enumeration_assumption(ControlWrap *self, PyObject *pyEnable, void *) {
         PY_TRY
-            checkBlocked(self, "use_enum_assumption");
+            checkBlocked(self, "use_enumeration_assumption");
             int enable = PyObject_IsTrue(pyEnable);
             if (enable < 0) { return -1; }
             self->ctl->useEnumAssumption(enable);
             return 0;
         PY_CATCH(-1);
     }
-    static PyObject *get_use_enum_assumption(ControlWrap *self, void *) {
+    static PyObject *get_use_enumeration_assumption(ControlWrap *self, void *) {
         PY_TRY
             return PyBool_FromLong(self->ctl->useEnumAssumption());
         PY_CATCH(nullptr);
@@ -5724,7 +5724,7 @@ query if the search was interrupted.)"},
 PyGetSetDef ControlWrap::tp_getset[] = {
     {(char*)"configuration", (getter)conf, nullptr, (char*)"Configuration object to change the configuration.", nullptr},
     {(char*)"symbolic_atoms", (getter)symbolicAtoms, nullptr, (char*)"SymbolicAtoms object to inspect the symbolic atoms.", nullptr},
-    {(char*)"use_enum_assumption", (getter)get_use_enum_assumption, (setter)set_use_enum_assumption,
+    {(char*)"use_enumeration_assumption", (getter)get_use_enumeration_assumption, (setter)set_use_enumeration_assumption,
 (char*)R"(Boolean determining how learnt information from enumeration modes is treated.
 
 If the enumeration assumption is enabled, then all information learnt from

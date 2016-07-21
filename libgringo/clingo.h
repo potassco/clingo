@@ -1658,8 +1658,33 @@ void clingo_control_interrupt(clingo_control_t *ctl);
 
 //! @name Configuration Functions
 //! @{
-clingo_error_t clingo_control_configuration(clingo_control_t *ctl, clingo_configuration_t **conf);
-clingo_error_t clingo_control_use_enum_assumption(clingo_control_t *ctl, bool value);
+
+//! Get a configuration object to change the solver configuration.
+//!
+//! For more information see the @ref Configuration module.
+//!
+//! @param[in] control the target
+//! @param[out] configuration the configuration object
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
+clingo_error_t clingo_control_configuration(clingo_control_t *ctl, clingo_configuration_t **configuration);
+//! Configure how learnt constraints are handled during enumeration.
+//!
+//! If the enumeration assumption is enabled, then all information learnt from
+//! the solvers's various enumeration modes is removed after a solve call. This
+//! includes enumeration of cautious or brave consequences, enumeration of
+//! answer sets with or without projection, or finding optimal models; as well
+//! as clauses/nogoods added with clingo_solve_control_add_clause().
+//!
+//! Note that initially the enumeration assumption is enabled.
+//!
+//! @param[in] control the target
+//! @param[in] enable weather to enable the assumption
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
+clingo_error_t clingo_control_use_enumeration_assumption(clingo_control_t *ctl, bool enable);
 //! @}
 
 //! @name Program Inspection Functions

@@ -1952,9 +1952,9 @@ struct ControlWrap {
     static int newindex(lua_State *L) {
         auto &ctl = get_self(L).ctl;
         char const *name = luaL_checkstring(L, 2);
-        if (strcmp(name, "use_enum_assumption") == 0) {
+        if (strcmp(name, "use_enumeration_assumption") == 0) {
             bool enabled = lua_toboolean(L, 3);
-            checkBlocked(L, ctl, "use_enum_assumption");
+            checkBlocked(L, ctl, "use_enumeration_assumption");
             protect(L, [&ctl, enabled]() { ctl.useEnumAssumption(enabled); });
             return 0;
         }
@@ -1964,7 +1964,7 @@ struct ControlWrap {
     static int index(lua_State *L) {
         auto &ctl = get_self(L).ctl;
         char const *name = luaL_checkstring(L, 2);
-        if (strcmp(name, "use_enum_assumption") == 0) {
+        if (strcmp(name, "use_enumeration_assumption") == 0) {
             bool enabled = protect(L, [&ctl]() { return ctl.useEnumAssumption(); });
             lua_pushboolean(L, enabled);                // stack +1
             return 1;

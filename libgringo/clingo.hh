@@ -1992,7 +1992,7 @@ public:
     void interrupt() noexcept;
     void load(char const *file);
     SolveAsync solve_async(ModelCallback mh = nullptr, FinishCallback fh = nullptr, SymbolicLiteralSpan assumptions = {});
-    void use_enum_assumption(bool value);
+    void use_enumeration_assumption(bool value);
     Backend backend();
     ProgramBuilder builder();
     template <class F>

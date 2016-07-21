@@ -1712,8 +1712,8 @@ SolveAsync Control::solve_async(ModelCallback mh, FinishCallback fh, SymbolicLit
     return SolveAsync{ret};
 }
 
-void Control::use_enum_assumption(bool value) {
-    handleCError(clingo_control_use_enum_assumption(*impl_, value));
+void Control::use_enumeration_assumption(bool value) {
+    handleCError(clingo_control_use_enumeration_assumption(*impl_, value));
 }
 
 Backend Control::backend() {
@@ -3518,7 +3518,7 @@ extern "C" clingo_error_t clingo_control_solve_async(clingo_control_t *ctl, clin
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" clingo_error_t clingo_control_use_enum_assumption(clingo_control_t *ctl, bool value) {
+extern "C" clingo_error_t clingo_control_use_enumeration_assumption(clingo_control_t *ctl, bool value) {
     GRINGO_CLINGO_TRY { ctl->useEnumAssumption(value); }
     GRINGO_CLINGO_CATCH;
 }

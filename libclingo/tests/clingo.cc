@@ -398,19 +398,19 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(models == ModelVec{{}});
             REQUIRE(messages == MessageVec({{WarningCode::OperationUndefined, "<block>:1:3-6: info: operation undefined:\n  (1+a)\n"}}));
         }
-        SECTION("use_enum_assumption") {
+        SECTION("use_enumeration_assumption") {
             ctl.add("base", {}, "{p;q}.");
             ctl.ground({{"base", {}}});
-            ctl.use_enum_assumption(false);
+            ctl.use_enumeration_assumption(false);
             REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
             REQUIRE(models.size() == 4);
             REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
             REQUIRE(models.size() <= 4);
         }
-        SECTION("use_enum_assumption") {
+        SECTION("use_enumeration_assumption") {
             ctl.add("base", {}, "{p;q}.");
             ctl.ground({{"base", {}}});
-            ctl.use_enum_assumption(false);
+            ctl.use_enumeration_assumption(false);
             REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
             REQUIRE(models.size() == 4);
             REQUIRE(ctl.solve(MCB(models)).is_satisfiable());
