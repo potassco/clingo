@@ -322,7 +322,7 @@ public:
         return atm.second && atm.first->hasUid() && model_->isTrue(lp().getLiteral(atm.first->uid()));
     }
     Gringo::SymSpan atoms(unsigned atomset) const override {
-        atms_ = out().atoms(atomset, [this, atomset](unsigned uid) { return bool(atomset & clingo_show_type_complement) ^ model_->isTrue(lp().getLiteral(uid)); });
+        atms_ = out().atoms(atomset, [this](unsigned uid) { return model_->isTrue(lp().getLiteral(uid)); });
         if (atomset & clingo_show_type_extra){
             ctl_.addToModel(*model_, atomset & clingo_show_type_complement, atms_);
         }

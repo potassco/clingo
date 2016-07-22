@@ -417,8 +417,31 @@ clingo_error_t clingo_parse_term(char const *string, clingo_logger_t *logger, vo
 
 // {{{1 model and solve control
 
+//! @example model.c
+//! The example shows how to inspect a model.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! $ ./model 0
+//! Stable model:
+//!   shown: c
+//!   atoms: b
+//!   terms: c
+//!  ~atoms: a
+//! Stable model:
+//!   shown: a
+//!   atoms: a
+//!   terms:
+//!  ~atoms: b
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
+
 //! @defgroup Model Model Inspection
 //! Inspection of models and a high level interface to add constraints during solving.
+//
+//! For an example see \ref model.c.
 //! @ingroup Control
 
 //! @addtogroup Model
@@ -1453,6 +1476,16 @@ clingo_error_t clingo_program_builder_end(clingo_program_builder_t *bld);
 //! @example control.c
 //! The example shows how to ground and solve a simple logic program, and print
 //! its answer sets.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! ./control 0
+//! Model: a
+//! Model: b
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
 
 //! @defgroup Control Grounding and Solving
 //! Functions to control the grounding and solving process.
