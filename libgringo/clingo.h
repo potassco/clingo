@@ -417,8 +417,31 @@ clingo_error_t clingo_parse_term(char const *string, clingo_logger_t *logger, vo
 
 // {{{1 model and solve control
 
+//! @example model.c
+//! The example shows how to inspect a model.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! $ ./model 0
+//! Stable model:
+//!   shown: c
+//!   atoms: b
+//!   terms: c
+//!  ~atoms: a
+//! Stable model:
+//!   shown: a
+//!   atoms: a
+//!   terms:
+//!  ~atoms: b
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
+
 //! @defgroup Model Model Inspection
 //! Inspection of models and a high level interface to add constraints during solving.
+//
+//! For an example see @ref model.c.
 //! @ingroup Control
 
 //! @addtogroup Model
@@ -584,33 +607,133 @@ typedef unsigned clingo_solve_result_bitset_t;
 
 // {{{1 solve iter
 
+//! @example solve-iteratively.c
+//! The example shows how to iteratively enumerate models.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! ./solve-iteratively 0
+//! Model: a
+//! Model: b
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
+
 //! @defgroup SolveIter Iterative Solving
 //! Iterative enumeration of models (without using callbacks).
+//!
+//! For an example see @ref solve-iteratively.c.
 //! @ingroup Control
 
 //! @addtogroup SolveIter
 //! @{
 
+//! Search handle to enumerate models iteratively.
+//!
+//! @see clingo_control_solve_iteratively()
 typedef struct clingo_solve_iteratively clingo_solve_iteratively_t;
-clingo_error_t clingo_solve_iteratively_next(clingo_solve_iteratively_t *it, clingo_model_t **m);
-clingo_error_t clingo_solve_iteratively_get(clingo_solve_iteratively_t *it, clingo_solve_result_bitset_t *ret);
-clingo_error_t clingo_solve_iteratively_close(clingo_solve_iteratively_t *it);
+//! Get the next model.
+//!
+//! @param[in] handle the target
+//! @param[out] model the next model
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving fails
+clingo_error_t clingo_solve_iteratively_next(clingo_solve_iteratively_t *handle, clingo_model_t **model);
+//! Get the solve result.
+//!
+//! @param[in] handle the target
+//! @param[out] result the solve result
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving fails
+clingo_error_t clingo_solve_iteratively_get(clingo_solve_iteratively_t *handle, clingo_solve_result_bitset_t *result);
+//! Closes an active search.
+//!
+//! There must be no function calls on the associated control object until this function has been called.
+//!
+//! @param[in] handle the target
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving fails
+clingo_error_t clingo_solve_iteratively_close(clingo_solve_iteratively_t *handle);
 
 //! @}
 
 // {{{1 solve async
 
+//! @example solve-async.c
+//! The example shows how to solve in the background.
+//!
+//! ## Output (approximately) ##
+//!
+//! ~~~~~~~~~~~~
+//! ./solve-async 0
+//! pi = 3.
+//! 1415926535 8979323846 2643383279 5028841971 6939937510 5820974944
+//! 5923078164 0628620899 8628034825 3421170679 8214808651 3282306647
+//! 0938446095 5058223172 5359408128 4811174502 8410270193 8521105559
+//! 6446229489 5493038196 4428810975 6659334461 2847564823 3786783165
+//! 2712019091 4564856692 3460348610 4543266482 1339360726 0249141273
+//! 7245870066 0631558817 4881520920 9628292540 9171536436 7892590360
+//! 0113305305 4882046652 1384146951 9415116094 3305727036 5759591953
+//! 0921861173 8193261179 3105118548 0744623799 6274956735 1885752724
+//! 8912279381 8301194912 ...
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
+
 //! @defgroup SolveAsync Asynchronous Solving
-//! Asynchronous solving.
+//! Start solving in the background.
+//!
+//! For an example see @ref solve-async.c.
 //! @ingroup Control
 
 //! @addtogroup SolveAsync
 //! @{
 
+//! Search handle to an asynchronous solve call.
+//!
+//! @see clingo_control_solve_async()
 typedef struct clingo_solve_async clingo_solve_async_t;
-clingo_error_t clingo_solve_async_cancel(clingo_solve_async_t *async);
-clingo_error_t clingo_solve_async_get(clingo_solve_async_t *async, clingo_solve_result_bitset_t *ret);
-clingo_error_t clingo_solve_async_wait(clingo_solve_async_t *async, double timeout, bool *ret);
+//! Get the solve result.
+//!
+//! Blocks until the search is completed.
+//!
+//! @param[in] handle the target
+//! @param[out] result the solve result
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving fails
+clingo_error_t clingo_solve_async_get(clingo_solve_async_t *async, clingo_solve_result_bitset_t *result);
+//! Wait for the specified amount of time to check if the search has finished.
+//!
+//! If the time is set to zero, this function can be used to poll if the search
+//! is still running.
+//!
+//! @param[in] handle the target
+//! @param[in] timeout the maximum time to wait
+//! @param[out] result weather the search is still running
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving fails
+clingo_error_t clingo_solve_async_wait(clingo_solve_async_t *handle, double timeout, bool *result);
+//! Stop the running search.
+//!
+//! Blocks until the search is stopped.
+//!
+//! @param[in] handle the target
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving fails
+clingo_error_t clingo_solve_async_cancel(clingo_solve_async_t *handle);
 
 //! @}
 
@@ -1453,11 +1576,21 @@ clingo_error_t clingo_program_builder_end(clingo_program_builder_t *bld);
 //! @example control.c
 //! The example shows how to ground and solve a simple logic program, and print
 //! its answer sets.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! ./control 0
+//! Model: a
+//! Model: b
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
 
 //! @defgroup Control Grounding and Solving
 //! Functions to control the grounding and solving process.
 //!
-//! For an example see \ref control.c.
+//! For an example see @ref control.c.
 
 //! @addtogroup Control
 //! @{

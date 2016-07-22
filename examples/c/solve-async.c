@@ -43,20 +43,44 @@ out:
   return ret;
 }
 
+clingo_error_t on_finish(clingo_solve_result_bitset_t result, bool *finished) {
+  (void)result;
+  *finished = true;
+  return 0;
+}
+
 int main(int argc, char const **argv) {
   char const *error_message;
   int ret = 0;
+  bool finished = false;
+  uint64_t samples = 0;
+  uint64_t incircle = 0;
+  uint64_t x, y;
   clingo_solve_result_bitset_t solve_ret;
   clingo_control_t *ctl = NULL;
+  clingo_solve_async_t *async = NULL;
   clingo_part_t parts[] = {{ "base", NULL, 0 }};
   // create a control object and pass command line arguments
   if (clingo_control_new(argv+1, argc-1, NULL, NULL, 20, &ctl) != 0) { goto error; }
   // add a logic program to the base part
-  if (clingo_control_add(ctl, "base", NULL, 0, "a :- not b. b :- not a.")) { goto error; }
+  if (clingo_control_add(ctl, "base", NULL, 0, "#const n = 17."
+                                               "1 { p(X); q(X) } 1 :- X = 1..n."
+                                               ":- not n+1 { p(1..n); q(1..n) }.")) { goto error; }
   // ground the base part
   if (clingo_control_ground(ctl, parts, 1, NULL, NULL)) { goto error; }
   // solve using a model callback
-  if (clingo_control_solve(ctl, on_model, NULL, NULL, 0, &solve_ret)) { goto error; }
+  if (clingo_control_solve_async(ctl, on_model, NULL, (clingo_finish_callback_t*)on_finish, &finished, NULL, 0, &async)) { goto error; }
+  // let's approximate pi
+  do {
+    ++samples;
+    x = rand();
+    y = rand();
+    if (x * x + y * y <= (uint64_t)RAND_MAX * RAND_MAX) { incircle+= 1; }
+  }
+  while (!finished);
+  printf("pi = %g\n", 4.0*incircle/samples);
+  // get the result (and make sure the search is finished because calling the finish handler is still part of the search)
+  if (clingo_solve_async_get(async, &solve_ret)) { goto error; }
   goto out;
 error:
   if (!(error_message = clingo_error_message())) { error_message = "error"; }

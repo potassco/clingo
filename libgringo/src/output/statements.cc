@@ -662,6 +662,7 @@ void Translator::showCsp(Bound const &bound, IsTrueLookup isTrue, SymVec &atoms)
 }
 
 void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup isTrue, SymVec &atoms, OutputPredicates const &outPreds) {
+    auto isComp = atomset & clingo_show_type_complement ? [isTrue](unsigned x) -> bool { return !isTrue(x); } : isTrue;
     if (atomset & (clingo_show_type_csp | clingo_show_type_shown)) {
         for (auto &x : boundMap_) {
             if (atomset & clingo_show_type_csp || (atomset & clingo_show_type_shown && showBound(outPreds, x))) { showCsp(x, isTrue, atoms); }
@@ -673,7 +674,7 @@ void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup isTrue, 
             auto name = sig.name();
             if (((atomset & clingo_show_type_atoms || (atomset & clingo_show_type_shown && showSig(outPreds, sig, false))) && !name.empty() && !name.startsWith("#"))) {
                 for (auto &y: *x) {
-                    if (y.defined() && y.hasUid() && isTrue(y.uid())) { atoms.emplace_back(y); }
+                    if (y.defined() && y.hasUid() && isComp(y.uid())) { atoms.emplace_back(y); }
                 }
             }
         }
@@ -681,14 +682,14 @@ void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup isTrue, 
     if (atomset & clingo_show_type_shown) {
         for (auto &entry : cspOutput_.table) {
             auto bound = boundMap_.find(entry.term);
-            if (bound != boundMap_.end() && !showBound(outPreds, *bound) && call(data, entry.cond, &Literal::isTrue, isTrue)) {
+            if (bound != boundMap_.end() && !showBound(outPreds, *bound) && call(data, entry.cond, &Literal::isTrue, isComp)) {
                 showCsp(*bound, isTrue, atoms);
             }
         }
     }
     if (atomset & (clingo_show_type_terms | clingo_show_type_shown)) {
         for (auto &entry : termOutput_.table) {
-            if (isTrue(call(data, entry.cond, &Literal::uid))) {
+            if (isComp(call(data, entry.cond, &Literal::uid))) {
                 atoms.emplace_back(entry.term);
             }
         }

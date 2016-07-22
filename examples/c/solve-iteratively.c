@@ -2,8 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-clingo_error_t on_model(clingo_model_t *model, void *data, bool *goon) {
-  (void)data;
+clingo_error_t print_model(clingo_model_t *model) {
   clingo_error_t ret = 0;
   clingo_symbol_t *atoms = NULL;
   size_t atoms_n;
@@ -33,7 +32,6 @@ clingo_error_t on_model(clingo_model_t *model, void *data, bool *goon) {
     printf(" %s", str);
   }
   printf("\n");
-  *goon = true;
   goto out;
 error:
   if (!ret) { ret = clingo_error_unknown; }
@@ -46,7 +44,8 @@ out:
 int main(int argc, char const **argv) {
   char const *error_message;
   int ret = 0;
-  clingo_solve_result_bitset_t solve_ret;
+  clingo_solve_iteratively_t *it = NULL;
+  clingo_model_t *model;
   clingo_control_t *ctl = NULL;
   clingo_part_t parts[] = {{ "base", NULL, 0 }};
   // create a control object and pass command line arguments
@@ -56,13 +55,21 @@ int main(int argc, char const **argv) {
   // ground the base part
   if (clingo_control_ground(ctl, parts, 1, NULL, NULL)) { goto error; }
   // solve using a model callback
-  if (clingo_control_solve(ctl, on_model, NULL, NULL, 0, &solve_ret)) { goto error; }
+  if (clingo_control_solve_iteratively(ctl, NULL, 0, &it)) { goto error; }
+  for (;;) {
+    // get the next model
+    if (clingo_solve_iteratively_next(it, &model)) { goto error; }
+    // stop if the search space has been exhausted or the requested number of models found
+    if (!model) { break; }
+    if (print_model(model)) { goto error; }
+  }
   goto out;
 error:
   if (!(error_message = clingo_error_message())) { error_message = "error"; }
   printf("%s\n", error_message);
   ret = 1;
 out:
+  if (it)  { clingo_solve_iteratively_close(it); }
   if (ctl) { clingo_control_free(ctl); }
   return ret;
 }
