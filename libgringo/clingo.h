@@ -854,7 +854,7 @@ clingo_error_t clingo_symbolic_atoms_is_external(clingo_symbolic_atoms_t *atoms,
 //! Returns the (numeric) aspif literal corresponding to the given symbolic atom.
 //!
 //! Such a literal can be mapped to a solver literal (see the \ref Propagator
-//! module) or be used to in rules in aspif format (see the \ref ProgramBuilder
+//! module) or be used in rules in aspif format (see the \ref ProgramBuilder
 //! module).
 //!
 //! @param[in] atoms the target
