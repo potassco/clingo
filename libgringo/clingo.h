@@ -84,9 +84,8 @@ enum clingo_error {
 typedef int clingo_error_t;
 //! Convert error code into string.
 char const *clingo_error_string(clingo_error_t code);
-//! Get last error message.
-//!
-//! The message is set if an API call fails.
+//! Get the last error message set if an API call fails.
+//! @note Each thread has its own local error message.
 //! @return error message or NULL
 char const *clingo_error_message();
 
