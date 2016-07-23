@@ -5960,7 +5960,7 @@ theory_atom = TheoryAtom
                              , term          : theory_term
                              )?
 
-body_atom = Aggregate
+body_atom = aggregate
           | BodyAggregate
              ( location    : Location
              , left_guard  : aggregate_guard?
@@ -5991,7 +5991,7 @@ body_literal = literal
                 )
 
 head = literal
-     | Aggregate
+     | aggregate
      | HeadAggregate
         ( location    : Location
         , left_guard  : aggregate_guard?
