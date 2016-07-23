@@ -96,7 +96,7 @@ enum clingo_warning {
     clingo_warning_runtime_error       = 1, //!< to report multiple errors; a corresponding runtime error is raised later
     clingo_warning_atom_undefined      = 2, //!< undefined atom in program
     clingo_warning_file_included       = 3, //!< same file included multiple times
-    clingo_warning_variable_unbounded  = 4, //!< CSP Domain undefined
+    clingo_warning_variable_unbounded  = 4, //!< CSP variable with unbounded domain
     clingo_warning_global_variable     = 5, //!< global variable in tuple of aggregate element
     clingo_warning_other               = 6, //!< other kinds of warnings
 };
