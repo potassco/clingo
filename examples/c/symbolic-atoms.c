@@ -39,7 +39,7 @@ out:
 
 int main(int argc, char const **argv) {
   char const *error_message;
-  string_buffer_t buf;
+  string_buffer_t buf = {NULL, 0};
   int ret = 0;
   clingo_control_t *ctl = NULL;
   clingo_part_t parts[] = {{ "base", NULL, 0 }};

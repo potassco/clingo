@@ -740,8 +740,25 @@ clingo_error_t clingo_solve_async_cancel(clingo_solve_async_t *handle);
 
 // {{{1 symbolic atoms
 
+//! @example symbolic-atoms.c
+//! The example shows how to iterate over symbolic atoms.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! ./symbolic-atoms 0
+//! Symbolic atoms:
+//!   b
+//!   c, external
+//!   a, fact
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
+
 //! @defgroup SymbolicAtoms Symbolic Atom Inspection
 //! Inspection of atoms occuring in ground logic programs.
+//!
+//! For an example see @ref symbolic-atoms.c.
 //! @ingroup Control
 
 //! @addtogroup SymbolicAtoms
@@ -762,6 +779,13 @@ typedef struct clingo_symbolic_atoms clingo_symbolic_atoms_t;
 //! ::clingo_control_cleanup(), and functions that modify the underlying
 //! non-ground program.
 typedef uint64_t clingo_symbolic_atom_iterator_t;
+//! Count the number of occurring in a logic program.
+//!
+//! @param[in] atoms the target
+//! @param[out] size the number of atoms
+//! @return
+//! - ::clingo_error_success
+clingo_error_t clingo_symbolic_atoms_size(clingo_symbolic_atoms_t *atoms, size_t *size);
 //! Get a forward iterator to the beginning of the sequence of all symbolic
 //! atoms optionally restricted to a given signature.
 //!
@@ -796,13 +820,68 @@ clingo_error_t clingo_symbolic_atoms_find(clingo_symbolic_atoms_t *atoms, clingo
 //! @return
 //! - ::clingo_error_success
 clingo_error_t clingo_symbolic_atoms_iterator_is_equal_to(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t a, clingo_symbolic_atom_iterator_t b, bool *equal);
-clingo_error_t clingo_symbolic_atoms_signatures_size(clingo_symbolic_atoms_t *atoms, size_t *size);
-clingo_error_t clingo_symbolic_atoms_signatures(clingo_symbolic_atoms_t *atoms, clingo_signature_t *signatures, size_t sizen);
-clingo_error_t clingo_symbolic_atoms_size(clingo_symbolic_atoms_t *atoms, size_t *size);
+//! Get the symbolic representation of an atom.
+//!
+//! @param[in] atoms the target
+//! @param[in] iterator iterator to the atom
+//! @param[out] symbol the resulting symbol
+//! @return
+//! - ::clingo_error_success
 clingo_error_t clingo_symbolic_atoms_symbol(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t iterator, clingo_symbol_t *symbol);
-clingo_error_t clingo_symbolic_atoms_literal(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t iterator, clingo_literal_t *literal);
+//! Check whether an atom is a fact.
+//!
+//! @note This does not determine if an atom is a cautious consequence: the
+//! grounding or solving component's simplifications can only detect this in
+//! some cases.
+//!
+//! @param[in] atoms the target
+//! @param[in] iterator iterator to the atom
+//! @param[out] fact whether the atom is a fact
+//! @return
+//! - ::clingo_error_success
 clingo_error_t clingo_symbolic_atoms_is_fact(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t iterator, bool *fact);
+//! Check whether an atom is external.
+//!
+//! An atom is external, if it has been defined using an external directive, and
+//! has not been released or defined by a rule.
+//!
+//! @param[in] atoms the target
+//! @param[in] iterator iterator to the atom
+//! @param[out] external whether the atom is a external
+//! @return
+//! - ::clingo_error_success
 clingo_error_t clingo_symbolic_atoms_is_external(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t iterator, bool *external);
+//! Returns the (numeric) aspif literal corresponding to the given symbolic atom.
+//!
+//! Such a literal can be mapped to a solver literal (see the \ref Propagator
+//! module) or be used to in rules in aspif format (see the \ref ProgramBuilder
+//! module).
+//!
+//! @param[in] atoms the target
+//! @param[in] iterator iterator to the atom
+//! @param[out] external whether the atom is a external
+//! @return
+//! - ::clingo_error_success
+clingo_error_t clingo_symbolic_atoms_literal(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t iterator, clingo_literal_t *literal);
+//! Get the number of different predicate signatures used in the program.
+//!
+//! @param[in] atoms the target
+//! @param[out] size the number of signatures
+//! @return
+//! - ::clingo_error_success
+clingo_error_t clingo_symbolic_atoms_signatures_size(clingo_symbolic_atoms_t *atoms, size_t *size);
+//! Get the predicate signatures occurring in a logic program.
+//!
+//! @param[in] atoms the target
+//! @param[out] signatures the resulting signatures
+//! @param[in] size the number of signatures
+//! @return
+//! - ::clingo_error_success
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if the size is too small
+//!
+//! @see clingo_symbolic_atoms_signatures_size()
+clingo_error_t clingo_symbolic_atoms_signatures(clingo_symbolic_atoms_t *atoms, clingo_signature_t *signatures, size_t size);
 //! Get an iterator to the next element in the sequence of symbolic atoms.
 //!
 //! @param[in] atoms the target
