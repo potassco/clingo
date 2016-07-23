@@ -711,7 +711,7 @@ typedef struct clingo_solve_async clingo_solve_async_t;
 //! - ::clingo_error_success
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
-clingo_error_t clingo_solve_async_get(clingo_solve_async_t *async, clingo_solve_result_bitset_t *result);
+clingo_error_t clingo_solve_async_get(clingo_solve_async_t *handle, clingo_solve_result_bitset_t *result);
 //! Wait for the specified amount of time to check if the search has finished.
 //!
 //! If the time is set to zero, this function can be used to poll if the search
