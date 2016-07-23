@@ -859,7 +859,7 @@ clingo_error_t clingo_symbolic_atoms_is_external(clingo_symbolic_atoms_t *atoms,
 //!
 //! @param[in] atoms the target
 //! @param[in] iterator iterator to the atom
-//! @param[out] external whether the atom is a external
+//! @param[out] literal the associated literal
 //! @return
 //! - ::clingo_error_success
 clingo_error_t clingo_symbolic_atoms_literal(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t iterator, clingo_literal_t *literal);
