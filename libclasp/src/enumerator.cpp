@@ -181,10 +181,10 @@ void Enumerator::reset() {
 	if (mini_) { mini_ = 0; }
 	if (queue_){ delete queue_; queue_ = 0; }
 	model_.reset();
-	model_.ctx   = this;
-	model_.sym   = 1;
-	model_.type  = uint32(modelType());
-	model_.sId   = 0;
+	model_.ctx  = this;
+	model_.sym  = 1;
+	model_.type = uint32(modelType());
+	model_.sId  = 0;
 	doReset();
 }
 int  Enumerator::init(SharedContext& ctx, OptMode oMode, int limit)  { 

@@ -148,7 +148,10 @@ void PrgDepGraph::addSccs(LogicProgram& prg, const AtomList& sccAtoms, const Non
 			initAtom(a->id(), prop, adj, nPred);
 			adj.clear(); ext.clear();
 		}
-	}	
+	}
+	if (nonHcfs.size() != 0 && stats_ == 0 && nonHcfs.config && nonHcfs.config->context().stats) {
+		stats_ = enableNonHcfStats(nonHcfs.config->context().stats, prg.isIncremental());
+	}
 	// "update" existing non-hcf components
 	for (NonHcfIter it = nonHcfBegin(), end = nonHcfEnd(); it != end; ++it) {
 		(*it)->update(ctx);
@@ -624,7 +627,6 @@ PrgDepGraph::NonHcfComponent::NonHcfComponent(uint32 id, const PrgDepGraph& dep,
 	prg_->startAddConstraints();
 	comp_->addAtomConstraints(*prg_);
 	comp_->addBodyConstraints(generator, dep, scc, *prg_);
-	prg_->enableStats(uint32(generator.stats.extra != 0));
 	prg_->endInit(true);
 }
 
@@ -634,7 +636,6 @@ PrgDepGraph::NonHcfComponent::~NonHcfComponent() {
 }
 
 void PrgDepGraph::NonHcfComponent::update(const SharedContext& generator) {
-	prg_->enableStats(uint32(generator.solverStats(0).extra != 0));
 	for (uint32 i = 0; generator.hasSolver(i); ++i) {
 		if (!prg_->hasSolver(i)) { prg_->attach(prg_->pushSolver());   }
 		else                     { prg_->initStats(*prg_->solver(i)); }

@@ -79,7 +79,6 @@ void ClaspAppOptions::initOptions(ProgramOptions::OptionContext& root) {
 		 "        <call>: print {0=all|1=last|2=no} call steps      [2]")
 		("pre" , flag(onlyPre), "Run preprocessing and exit")
 		("print-portfolio" , flag(printPort), "Print default portfolio and exit")
-		("parse-ext", notify(this, &ClaspAppOptions::mappedOpts)->flag(), "Enable extensions in smodels and dimacs input")
 		("outf,@1", storeTo(outf)->arg("<n>"), "Use {0=default|1=competition|2=JSON|3=no} output")
 		("out-atomf,@1" , storeTo(outAtom), "Set atom format string (<Pre>?%%s<Post>?)")
 		("out-ifs,@1"   , notify(this, &ClaspAppOptions::mappedOpts), "Set internal field separator")
@@ -112,7 +111,7 @@ bool ClaspAppOptions::mappedOpts(ClaspAppOptions* this_, const std::string& name
 	else if (name == "lemma-out-lbd") {
 		return  bk_lib::string_cast(value, x) && x < Clasp::LBD_MAX && (this_->lemmaLbd = (uint8)x, true);
 	}
-	return name == "parse-ext";
+	return false;
 }
 bool ClaspAppOptions::validateOptions(const ProgramOptions::ParsedOptions&) {
 	if (quiet[1] == static_cast<uint8>(UCHAR_MAX)) { quiet[1] = quiet[0]; }
@@ -168,11 +167,6 @@ void ClaspAppBase::validateOptions(const ProgramOptions::OptionContext&, const P
 	}
 	if (app.onlyPre && pt != Problem_t::Asp) {
 		throw Error("Option '--pre' only supported for ASP!");
-	}
-	if (parsed.count("parse-ext") != 0) {
-		claspConfig_.parse.enableMinimize();
-		claspConfig_.parse.enableAcycEdges();
-		claspConfig_.parse.enableProject();
 	}
 	setExitCode(0);
 	storeCommandArgs(values);

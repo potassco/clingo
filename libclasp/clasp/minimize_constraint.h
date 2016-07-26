@@ -121,7 +121,7 @@ public:
 	wsum_t         adjust(uint32 x) const{ return adjust_[x]; }
 	const wsum_t*  adjust()         const{ return &adjust_[0]; }
 	//! Returns the current (ajusted and possibly tentative) optimum for level x.
-	wsum_t         optimum(uint32 x)const{ return adjust(x) + sum(x); }
+	wsum_t         optimum(uint32 x)const;
 	//! Returns the highest level of the literal with the given index i.
 	uint32         level(uint32 i)  const{ return numRules() == 1 ? 0 : weights[lits[i].second].level; }
 	//! Returns the most important weight of the literal with the given index i.
@@ -266,12 +266,6 @@ private:
 	LitVec lits_;
 };
 
-struct OptBound : SolveEvent<OptBound> {
-	OptBound(const Solver& s, uint32 level, wsum_t low, wsum_t up) : SolveEvent(s, Event::verbosity_high), lower(low), upper(up), at(level) {}
-	wsum_t lower;
-	wsum_t upper;
-	uint32 at;
-};
 //! Base class for implementing (mulit-level) minimize statements.
 /*!
  * \ingroup constraint
@@ -324,7 +318,7 @@ public:
 protected:
 	MinimizeConstraint(SharedData* s);
 	~MinimizeConstraint();
-	void reportBound(const Solver& s, uint32 level, wsum_t low, wsum_t up) const;
+	void reportLower(Solver& s, uint32 level, wsum_t low) const;
 	bool prepare(Solver& s, bool useTag);
 	SharedData* shared_; // common shared data
 	Literal     tag_;    // (optional) literal for tagging reasons
@@ -398,7 +392,7 @@ public:
 	 * called in order to continue optimization.
 	 * \return false if search-space is exceeded w.r.t this constraint.
 	 */
-	bool       commitLowerBound(const Solver& s, bool upShared);
+	bool       commitLowerBound(Solver& s, bool upShared);
 	
 	//! Removes the local upper bound of this constraint and therefore disables it.
 	/*!

@@ -265,6 +265,7 @@ struct ParallelSolve::SharedData {
 	BarrierSemaphore workSem;     // work-semaphore
 	Queue            workQ;       // work-queue (must be protected by workSem)
 	uint32           nextId;      // next solver id to use
+	LowerBound       lower_;      // last reported lower bound (if any)
 	atomic<int>      workReq;     // > 0: someone needs work
 	atomic<uint32>   restartReq;  // == numThreads(): restart
 	atomic<uint32>   control;     // set of active message flags
@@ -694,8 +695,18 @@ bool ParallelSolve::commitUnsat(Solver& s) {
 		lock.unlock();
 	}
 	if (!thread_[s.id()]->disjointPath()) {
-		if (result) { ++shared_->modCount; }
-		else        { terminate(s, true);  }
+		if (result) { 
+			++shared_->modCount;
+			if (s.lower.bound > 0) {
+				lock.lock();
+				if (s.lower.bound > shared_->lower_.bound || s.lower.level > shared_->lower_.level) {
+					shared_->lower_ = s.lower;
+					reportUnsat(s);
+				}
+				lock.unlock();
+			}
+		}
+		else { terminate(s, true);  }
 	}
 	return result;
 }

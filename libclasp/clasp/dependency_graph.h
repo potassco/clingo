@@ -291,6 +291,7 @@ public:
 	NonHcfIter   nonHcfBegin() const { return components_.begin(); }
 	NonHcfIter   nonHcfEnd()   const { return components_.end(); }
 	uint32       numNonHcfs()  const { return (uint32)components_.size(); }
+	NonHcfStats* nonHcfStats() const { return stats_; }
 	NonHcfStats* enableNonHcfStats(uint32 level, bool incremental);
 private:
 	typedef PodVector<AtomNode>::type AtomVec;

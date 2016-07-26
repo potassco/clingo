@@ -125,6 +125,10 @@ wsum_t SharedMinimizeData::incLower(uint32 at, wsum_t low){
 wsum_t SharedMinimizeData::lower(uint32 lev) const {
 	return lower_[lev];
 }
+wsum_t SharedMinimizeData::optimum(uint32 lev) const { 
+	wsum_t o = sum(lev);
+	return o + (o != maxBound() ? adjust(lev) : 0);
+}
 void SharedMinimizeData::markOptimal() {
 	optGen_ = generation();
 }
@@ -161,11 +165,9 @@ void MinimizeConstraint::destroy(Solver* s, bool d) {
 	shared_ = 0;
 	Constraint::destroy(s, d);
 }
-void MinimizeConstraint::reportBound(const Solver& s, uint32 lev, wsum_t low, wsum_t up) const {
-	wsum_t adj = shared_->adjust(lev);
-	low += adj;
-	if (up != INT64_MAX) { up += adj; }
-	s.sharedContext()->report(OptBound(s, lev, low, up));
+void MinimizeConstraint::reportLower(Solver& s, uint32 lev, wsum_t low) const {
+	s.lower.level = lev;
+	s.lower.bound = low + shared_->adjust(lev);
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // DefaultMinimize
@@ -406,14 +408,11 @@ bool DefaultMinimize::minimize(Solver& s, Literal p, CCMinRecursive* rec) {
 // DefaultMinimize - bound management
 /////////////////////////////////////////////////////////////////////////////////////////
 // Stores the current sum as the shared optimum.
-void DefaultMinimize::commitUpperBound(const Solver& s)  {
+void DefaultMinimize::commitUpperBound(const Solver&)  {
 	shared_->setOptimum(sum());
 	if (step_.type == MinimizeMode_t::bb_step_inc) { step_.size *= 2; }
-	if (step_.type && step_.lev < size_ && shared_->checkNext()) {
-		reportBound(s, step_.lev, stepLow(), sum()[step_.lev]);
-	}
 }
-bool DefaultMinimize::commitLowerBound(const Solver& s, bool upShared) {
+bool DefaultMinimize::commitLowerBound(Solver& s, bool upShared) {
 	bool act  = active() && shared_->checkNext();
 	bool more = step_.lev < size_ && (step_.size > 1 || step_.lev != size_-1);
 	if (act && step_.type && step_.lev < size_) {
@@ -421,7 +420,7 @@ bool DefaultMinimize::commitLowerBound(const Solver& s, bool upShared) {
 		wsum_t L = opt()[x] + 1;
 		if (upShared) { 
 			wsum_t sv = shared_->incLower(x, L);
-			if (sv == L) { reportBound(s, x, sv, shared_->upper(x)); } 
+			if (sv == L) { reportLower(s, x, sv); }
 			else         { L = sv; }
 		}
 		stepLow()= L;
@@ -1070,7 +1069,6 @@ bool UncoreMinimize::handleModel(Solver& s) {
 	upper_= shared_->upper(level_);
 	valid_= 1;
 	if (sat_) { setLower(sum_[level_]); }
-	reportBound(s, level_, lower_, upper_);
 	return true;
 }
 
@@ -1107,7 +1105,7 @@ bool UncoreMinimize::handleUnsat(Solver& s, bool up, LitVec& out) {
 			}
 			sat_ = !validLowerBound();
 			if (up && shared_->incLower(level_, lower_) == lower_) { 
-				reportBound(s, level_, lower_, upper_);
+				reportLower(s, level_, lower_);
 			}
 		}
 		else {

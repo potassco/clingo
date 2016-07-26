@@ -596,15 +596,15 @@ void ClaspFacade::Statistics::initLevel(uint32 level) {
 	if (self_->isAsp() && !lp_.get()) {
 		lp_ = new Asp::LpStats();
 	}
-	if (self_->ctx.sccGraph.get() && self_->ctx.sccGraph->numNonHcfs() && level != 0 && !tester_) {
-		tester_ = self_->ctx.sccGraph->enableNonHcfStats(level, incremental());
+	if (self_->ctx.sccGraph.get() && self_->ctx.sccGraph->numNonHcfs() && !tester_) {
+		tester_ = self_->ctx.sccGraph->nonHcfStats();
 	}
 }
 void ClaspFacade::Statistics::start(uint32 level) {
 	// cleanup previous state
 	solvers_.reset();
 	solver_.reset();
-	if (tester_) { tester_->startStep(level); }
+	if (tester_) { tester_->startStep(self_->config()->testerConfig() ? self_->config()->testerConfig()->context().stats : 0); }
 	// init next step
 	initLevel(level);
 	if (lp_.get() && self_->step_.lpStep()) {

@@ -29,6 +29,9 @@
 #include <potassco/clingo.h>
 namespace Clasp {
 
+template <class T>
+double _getValue(const T* v) { return static_cast<double>(*v); }
+
 //! Discriminated union representing either a single statistic value or a composite.
 class StatisticObject {
 public:
@@ -39,7 +42,7 @@ public:
 	//! Creates a Value object - static_cast<double>(*obj) shall be valid.
 	template <class T>
 	static StatisticObject value(const T* obj) {
-		return value<T, &StatisticObject::_getValue>(obj);
+		return value<T, _getValue>(obj);
 	}
 	//! Creates a mapped Value object: f(obj) -> double
 	template <class T, double(*op)(const T*)>
@@ -140,8 +143,6 @@ private:
 		types_.push_back(vtab);
 		return static_cast<uint32>(types_.size() - 1);
 	}
-	template <class T>
-	static double _getValue(const T* v) { return static_cast<double>(*v); }
 	template <class T, double(*f)(const T*)>
 	static uint32 registerValue();
 	template <class T>

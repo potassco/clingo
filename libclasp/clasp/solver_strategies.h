@@ -478,6 +478,11 @@ public:
 	virtual ~ModelHandler();
 	virtual bool onModel(const Solver&, const Model&) = 0;
 };
+struct LowerBound {
+	LowerBound() : level(0), bound(0) {}
+	uint32 level;
+	wsum_t bound;
+};
 
 }
 #endif

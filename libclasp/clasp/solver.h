@@ -621,6 +621,7 @@ public:
 
 	mutable RNG rng;   /**< Random number generator for this object.     */
 	ValueVec    model; /**< Stores the last model (if any).              */
+	LowerBound  lower; /**< Stores the last lower bound found (if any).  */
 	SolverStats stats; /**< Stores statistics about the solving process. */
 	//@}
 

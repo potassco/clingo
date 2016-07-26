@@ -840,12 +840,13 @@ void TextOutput::printSolveProgress(const Event& ev) {
 		printLN(cat_comment, "%2u:L| %-30s %-38s |", log->solver->id(), line, log->msg);
 		return;
 	}
-	else if (const OptBound* bnd = event_cast<OptBound>(ev))              {
-		if (bnd->upper != INT64_MAX) {
-			clasp_format(line, sizeof(line), "%2u:B| @Level %-6u [%17" PRId64 ";%-17" PRId64 "]%20c", bnd->solver->id(), bnd->at, bnd->lower, bnd->upper, '|');
+	else if (const OptLower* bnd = event_cast<OptLower>(ev))              {
+		if      (optQ() != print_all)     { return; }
+		else if (bnd->upper != INT64_MAX) {
+			clasp_format(line, sizeof(line), "Estimate@L%-2u: %-8.4f [%8" PRId64 "; %-8" PRId64 "]", bnd->at, double(bnd->upper - bnd->lower)/double(bnd->lower), bnd->lower, bnd->upper);
 		}
 		else {
-			clasp_format(line, sizeof(line), "%2u:B| @Level %-6u [%17" PRId64 ";%-17c]%20c", bnd->solver->id(), bnd->at, bnd->lower, '*', '|');
+			clasp_format(line, sizeof(line), "Estimate@L%-2u: %-8.4f [%8" PRId64 "; %-8.4f]", bnd->at, std::numeric_limits<double>::infinity(), bnd->lower, std::numeric_limits<double>::infinity());
 		}
 	}
 	else                                                                  { return; }
@@ -853,13 +854,13 @@ void TextOutput::printSolveProgress(const Event& ev) {
 	if ((lEnd == '\n' && --line_ == 0) || newEvent) {
 		if (line_ <= 0) {
 			line_ = 20;
-			if ((verbosity() & 1) != 0) {
+			if (verbosity() > 1 && (verbosity() & 1) != 0) {
 				printf("%s%s\n"
 					"%sID:T       Vars           Constraints         State            Limits       |\n"
 					"%s       #free/#fixed   #problem/#learnt  #conflicts/ratio #conflict/#learnt  |\n"
 					"%s%s\n", format[cat_comment], rowSep, format[cat_comment], format[cat_comment], format[cat_comment], rowSep);
 			}
-			else {
+			else if (verbosity() > 1) {
 				printf("%s%s\n"
 					"%sID:T       Info                     Info                      Info          |\n"
 					"%s%s\n", format[cat_comment], rowSep, format[cat_comment], format[cat_comment], rowSep);

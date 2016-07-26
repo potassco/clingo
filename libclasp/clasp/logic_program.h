@@ -503,7 +503,7 @@ private:
 	PrgAtom* resize(Atom_t atomId);
 	PrgAtom* setExternal(Atom_t atomId, ValueRep v);
 	void     addRule(const HeadData& head, const SBody& body);
-	void     addFact(const VarVec& head, PrgBody& trueBody);
+	void     addFact(const VarVec& head);
 	void     addIntegrity(const SBody& body);
 	void     freezeTheory();
 	bool     handleNatively(Head_t ht, const BodyData& i) const;

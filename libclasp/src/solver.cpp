@@ -1760,6 +1760,7 @@ ValueRep Solver::search(SearchLimits& limit, double rf) {
 	assert(!isFalse(tagLiteral()));
 	SearchLimits::BlockPtr block = limit.restart.block;
 	rf = std::max(0.0, std::min(1.0, rf));
+	lower = LowerBound();
 	if (limit.restart.local && decisionLevel() == rootLevel()) { cflStamp_.assign(decisionLevel()+1, 0); }
 	do {
 		for (bool conflict = hasConflict() || !propagate() || !simplify(), local = limit.restart.local;;) {

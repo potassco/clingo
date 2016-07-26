@@ -59,7 +59,8 @@ const char* StatisticObject::key(uint32 i) const {
 	return static_cast<const M*>(tid())->key(self(), i);
 }
 static inline StatisticObject check(StatisticObject o) {
-	return !o.empty() ? o : throw std::out_of_range("StatisticObject");
+	if (!o.empty()) { return o; }
+	throw std::out_of_range("StatisticObject");
 }
 StatisticObject StatisticObject::at(const char* k) const {
 	CLASP_FAIL_IF(type() != Potassco::Statistics_t::Map, "type error");
@@ -104,7 +105,10 @@ struct ClaspStatistics::Impl {
 	}
 	StatisticObject get(Key_t k) const {
 		RegMap::const_iterator it = map_.find(k);
-		return it != map_.end() && it->second == gc_ ? StatisticObject::fromRep(k) : throw std::logic_error("invalid key");
+		if (it != map_.end() && it->second == gc_) {
+			return StatisticObject::fromRep(k);
+		}
+		throw std::logic_error("invalid key");
 	}
 	void update(const StatisticObject& root) {
 		++gc_;

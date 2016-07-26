@@ -85,7 +85,6 @@
 #if defined(CLASP_CONTEXT_OPTIONS)
 #define SELF CLASP_CONTEXT_OPTIONS
 GROUP_BEGIN(SELF)
-OPTION(stats, ",s"  , ARG(implicit("1")->arg("{0..2}")), "Enable {1=basic|2=full} statistics", STORE_LEQ(SELF.stats,2u), GET(SELF.stats))
 OPTION(share, "!,@1", ARG_EXT(defaultsTo("auto")->state(Value::value_defaulted), DEFINE_ENUM_MAPPING(ContextParams::ShareMode, \
        MAP("no"  , ContextParams::share_no)  , MAP("all", ContextParams::share_all),\
        MAP("auto", ContextParams::share_auto), MAP("problem", ContextParams::share_problem),\
@@ -112,6 +111,24 @@ OPTION(sat_prepro    , "!,@1", ARG(implicit("2")), "Run SatELite-like preprocess
          ITE(pre.type, str<<pre.type<<pre.limIters<<pre.limOcc<<pre.limTime<<pre.limFrozen<<pre.limClause, str<<off);})
 GROUP_END(SELF)
 #undef CLASP_CONTEXT_OPTIONS
+#undef SELF
+#endif
+
+//! Global options only valid in facade.
+#if defined(CLASP_GLOBAL_OPTIONS)
+#define SELF CLASP_GLOBAL_OPTIONS
+GROUP_BEGIN(SELF)
+OPTION(stats, ",s", ARG(implicit("1")->arg("<n>[,<t>]")), "Enable {1=basic|2=full} statistics (<t> for tester)",\
+    FUN(arg) { uint32 s = 0; uint32 t = 0;\
+      return (arg.off() || (arg >> s && s > 0)) && arg >> opt(t) && arg.empty()
+        && SET(SELF.stats, s) && ((!SELF.testerConfig() && t == 0) || SET(SELF.addTesterConfig()->stats, t));
+    },\
+    GET_FUN(str) { ITE(!SELF.testerConfig() || !SELF.testerConfig()->stats, str << SELF.stats, str << SELF.stats << SELF.testerConfig()->stats); })
+OPTION(parse_ext, "!", ARG(flag()), "Enable extensions in smodels and dimacs input",\
+    FUN(arg) { bool b = false; return (arg.off() || arg >> b) && SET(SELF.parse.ext, (b ? unsigned(ParserOptions::parse_full):0u)); }, \
+    GET((SELF.parse.ext != 0)))
+GROUP_END(SELF)
+#undef CLASP_GLOBAL_OPTIONS
 #undef SELF
 #endif
 
@@ -374,7 +391,7 @@ GROUP_END(SELF)
 GROUP_BEGIN(SELF)
 OPTION(solve_limit , "", ARG(arg("<n>[,<m>]")), "Stop search after <n> conflicts or <m> restarts\n", FUN(arg) {\
        uint32 n = UINT32_MAX; uint32 m = UINT32_MAX;\
-       return (arg.off() || arg>>n>>opt(m)) && (SELF.limit=SolveLimits(n == UINT32_MAX ? UINT64_MAX : n, m == UINT32_MAX ? UINT64_MAX : m), true);},\
+       return ((arg.off() && arg.peek() != '0') || arg>>n>>opt(m)) && (SELF.limit=SolveLimits(n == UINT32_MAX ? UINT64_MAX : n, m == UINT32_MAX ? UINT64_MAX : m), true);},\
        GET((uint32)Range<uint64>(0u,UINT32_MAX).clamp(SELF.limit.conflicts),(uint32)Range<uint64>(0u,UINT32_MAX).clamp(SELF.limit.restarts)))
 #if defined(WITH_THREADS) && WITH_THREADS == 1
 OPTION(parallel_mode, ",t", ARG_EXT(arg("<arg>"), DEFINE_ENUM_MAPPING(SolveOptions::Algorithm::SearchMode,\

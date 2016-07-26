@@ -163,6 +163,7 @@ static std::string& xconvert(std::string& out, X x) { \
 }
 #define OPTION(k, e, a, d, ...) a
 #define CLASP_CONTEXT_OPTIONS
+#define CLASP_GLOBAL_OPTIONS
 #define CLASP_SOLVE_OPTIONS
 #define CLASP_ASP_OPTIONS
 #define CLASP_SOLVER_OPTIONS
@@ -249,7 +250,8 @@ enum OptionKey {
 	detail__before_options = -1,
 	meta_config = 0,
 #define CLASP_CONTEXT_OPTIONS  GRP(option_category_nodes_end,   option_category_context_begin),
-#define CLASP_SOLVER_OPTIONS   GRP(option_category_context_end, option_category_solver_begin), 
+#define CLASP_GLOBAL_OPTIONS   GRP(option_category_context_end, option_category_global_begin),
+#define CLASP_SOLVER_OPTIONS   GRP(option_category_global_end,  option_category_solver_begin), 
 #define CLASP_SEARCH_OPTIONS   GRP(option_category_solver_end,  option_category_search_begin),
 #define CLASP_ASP_OPTIONS      GRP(option_category_search_end,  option_category_asp_begin),
 #define CLASP_SOLVE_OPTIONS    GRP(option_category_asp_end,     option_category_solve_begin),
@@ -263,7 +265,8 @@ enum OptionKey {
 	meta_tester = detail__num_options
 };
 static inline bool isOption(int k)       { return k >= option_category_nodes_end && k < detail__num_options; }
-static inline bool isTesterOption(int k) { return k >= option_category_nodes_end && k < option_category_search_end; }
+static inline bool isGlobalOption(int k) { return k >= option_category_global_begin && k < option_category_global_end; }
+static inline bool isTesterOption(int k) { return k >= option_category_nodes_end && k < option_category_search_end && !isGlobalOption(k); }
 static inline bool isSolverOption(int k) { return k >= option_category_solver_begin && k < option_category_search_end; }
 #if WITH_THREADS
 #define MANY_DESC  "        many  : Use default portfolio to configure solver(s)\n"
@@ -298,8 +301,8 @@ static const NodeKey nodes_g[] = {
 /* 1: */ {"solver", "Solver Options", option_category_solver_begin, option_category_search_end},
 /* 2: */ {"asp"   , "Asp Options"   , option_category_asp_begin, option_category_asp_end},
 /* 3: */ {"solve" , "Solve Options" , option_category_solve_begin, option_category_solve_end},
-/* 4: */ {"tester", "Tester Options", key_solver  , option_category_context_end},
-/* 5: */ {""      , "Options"       , key_tester, option_category_context_end}
+/* 4: */ {"tester", "Tester Options", key_solver, option_category_context_end},
+/* 5: */ {""      , "Options"       , key_tester, option_category_global_end}
 };
 static uint32 makeKeyHandle(int16 kId, uint32 mode, uint32 sId) {
 	assert(sId <= 255 && mode <= 255);
@@ -323,6 +326,7 @@ static Name2Id options_g[detail__num_options+1] = {
 	{"configuration", meta_config},
 #define OPTION(k, e, ...) { #k, opt_##k }, 
 #define CLASP_CONTEXT_OPTIONS
+#define CLASP_GLOBAL_OPTIONS
 #define CLASP_SOLVER_OPTIONS
 #define CLASP_SEARCH_OPTIONS
 #define CLASP_ASP_OPTIONS     
@@ -545,6 +549,7 @@ void ClaspCliConfig::RawConfig::addArg(const char* arg) {
 }
 void ClaspCliConfig::RawConfig::addArg(const std::string& arg) { addArg(arg.c_str()); }
 ClaspCliConfig::ClaspCliConfig()  {
+	initTester_ = true;
 	static_assert(
 		(option_category_context_begin< option_category_solver_begin) &&
 		(option_category_solver_begin < option_category_search_begin) &&
@@ -555,16 +560,22 @@ ClaspCliConfig::ClaspCliConfig()  {
 ClaspCliConfig::~ClaspCliConfig() {}
 void ClaspCliConfig::reset() {
 	config_[0] = config_[1] = "";
+	initTester_ = true;
 	ClaspConfig::reset();
 }
 
 void ClaspCliConfig::prepare(SharedContext& ctx) {
+	if (testerConfig()) {
+		// Force init
+		ClaspCliConfig::config("tester");
+	}
 	ClaspConfig::prepare(ctx);
 }
 Configuration* ClaspCliConfig::config(const char* n) {
 	if (n && std::strcmp(n, "tester") == 0) {
-		if (!testerConfig()) {
+		if (!testerConfig() || (!testerConfig()->hasConfig && initTester_)) {
 			setAppOpt(meta_tester, "--config=auto");
+			initTester_ = false;
 		}
 		return testerConfig();
 	}
@@ -580,6 +591,7 @@ void ClaspCliConfig::createOptions() {
 	opts_->addOptions()("configuration", createOption(meta_config)->defaultsTo("auto")->state(Value::value_defaulted), KEY_INIT_DESC("Configure default configuration [%D]\n"));
 	std::string cmdName;
 #define CLASP_CONTEXT_OPTIONS
+#define CLASP_GLOBAL_OPTIONS
 #define CLASP_SOLVE_OPTIONS
 #define CLASP_ASP_OPTIONS
 #define CLASP_SOLVER_OPTIONS
@@ -603,7 +615,7 @@ void ClaspCliConfig::addOptions(OptionContext& root) {
 	configOpts.addOption(*(opts_->end()-1));
 	for (Options::option_iterator it = opts_->begin() + 1, end = opts_->end() - 1; it != end; ++it) {
 		int oId = static_cast<ProgOption*>(it->get()->value())->option();
-		if      (oId < option_category_context_end) { configOpts.addOption(*it); }
+		if      (oId < option_category_global_end)  { configOpts.addOption(*it); }
 		else if (oId < opt_no_lookback)             { search.addOption(*it); }
 		else if (oId < option_category_solver_end)  { lookback.addOption(*it); }
 		else if (oId < opt_restarts)                { search.addOption(*it); }
@@ -737,7 +749,10 @@ bool ClaspCliConfig::hasValue(const char* path) const {
 int ClaspCliConfig::setValue(KeyType key, const char* value) {
 	int16 id = decodeKey(key);
 	if (!isLeafId(id)) { return -1; }
-	if ((decodeMode(key) & mode_tester) != 0) { addTesterConfig(); }
+	if ((decodeMode(key) & mode_tester) != 0) {
+		addTesterConfig();
+		initTester_ = false;
+	}
 	ScopedSet scope(*this, decodeMode(key), decodeSolver(key));
 	try         { return setActive(id, value); }
 	catch (...) { return -2; }
@@ -790,6 +805,7 @@ int ClaspCliConfig::applyActive(int o, const char* _val_, std::string* _val_out_
 			if (_desc_out_){ *_desc_out_ = d; }\
 			return 1;
 		#define CLASP_CONTEXT_OPTIONS (*ctxOpts)
+		#define CLASP_GLOBAL_OPTIONS (*this)
 		#define CLASP_ASP_OPTIONS asp
 		#define CLASP_SOLVE_OPTIONS solve
 		#define CLASP_SOLVER_OPTIONS (*solver)
@@ -868,6 +884,7 @@ int ClaspCliConfig::setAppOpt(int o, const char* _val_) {
 	}
 	else if (o == meta_tester && isGenerator()) {
 		addTesterConfig();
+		initTester_ = false;
 		RawConfig config("<tester>");
 		config.addArg(_val_);
 		ParsedOpts ex;

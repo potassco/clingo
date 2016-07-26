@@ -290,6 +290,7 @@ private:
 	static OptIndex  index_g;
 	OptionsPtr       opts_;
 	std::string      config_[2];
+	bool             initTester_;
 };
 void validate(const char* ctx, const SolverParams& solver, const SolveParams& search);
 //@}

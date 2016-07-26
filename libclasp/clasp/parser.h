@@ -49,6 +49,7 @@ struct ParserOptions {
 		parse_acyc_edge = 2u, /*!< Parse acyc info in smodels, dimacs, and pb format. */
 		parse_minimize  = 4u, /*!< Parse cost function in dimacs format. */
 		parse_project   = 8u, /*!< Parse project directive in dimacs and pb format. */
+		parse_full      = 15u
 	};
 	ParserOptions() : ext(0) {}
 	ParserOptions& enableHeuristic() { ext |= parse_heuristic; return *this; }

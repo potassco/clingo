@@ -840,7 +840,7 @@ void LogicProgram::doGetAssumptions(LitVec& out) const {
 void LogicProgram::addRule(const HeadData& head, const SBody& body) {
 	if (head.size() <= 1 && head.type == Head_t::Disjunctive) {
 		if      (head.empty()) { addIntegrity(body); return; }
-		else if (body.empty()) { addFact(head.atoms, *getBodyFor(body)); return; }
+		else if (body.empty()) { addFact(head.atoms); return; }
 	}
 	PrgBody* b = getBodyFor(body);
 	// only a non-false body can define atoms
@@ -868,7 +868,8 @@ void LogicProgram::addRule(const HeadData& head, const SBody& body) {
 		}
 	}
 }
-void LogicProgram::addFact(const VarVec& head, PrgBody& trueBody) {
+void LogicProgram::addFact(const VarVec& head) {
+	PrgBody* T = 0;
 	for (VarVec::const_iterator it = head.begin(), end = head.end(); it != end; ++it) {
 		PrgAtom* a = resize(*it);
 		check_modular(isNew(*it) || a->frozen() || a->value() == value_false, *it);
@@ -887,8 +888,9 @@ void LogicProgram::addFact(const VarVec& head, PrgBody& trueBody) {
 			delete a;
 		}
 		else {
-			trueBody.addHead(a, PrgEdge::Normal);
-			assignValue(a, value_true, PrgEdge::newEdge(trueBody, PrgEdge::Normal));
+			if (!T) { T = getTrueBody(); }
+			T->addHead(a, PrgEdge::Normal);
+			assignValue(a, value_true, PrgEdge::newEdge(*T, PrgEdge::Normal));
 		}
 	}
 }
@@ -1661,6 +1663,7 @@ bool LogicProgram::simplifyBody(const BodyView& body, BodyData& out, BodyData::M
 		out.reset();
 		if (bt == BOT) { return false; }
 		bt = Body_t::Normal;
+		meta = BodyData::Meta();
 	}
 	if (bt != Body_t::Sum && maxW > 1) {
 		for (BodyData::BodyLitVec::iterator it = sBody.begin(), end = sBody.end(); it != end; ++it) {

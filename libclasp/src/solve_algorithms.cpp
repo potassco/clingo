@@ -337,6 +337,13 @@ bool SolveAlgorithm::reportModel(Solver& s) const {
 		if (!res || (res = !interrupted()) == false || !enum_->commitSymmetric(s)) { return res; }
 	}
 }
+bool SolveAlgorithm::reportUnsat(Solver& s) const {
+	if (enumerator()->optimize() && s.lower.bound > 0) {
+		OptLower bnd(s, s.lower.level, s.lower.bound, enumerator()->minimizer()->optimum(s.lower.level));
+		s.sharedContext()->report(bnd);
+	}
+	return true;
+}
 bool SolveAlgorithm::moreModels(const Solver& s) const {
 	return s.decisionLevel() != 0 || !s.symmetric().empty() || (!s.sharedContext()->preserveModels() && s.sharedContext()->numEliminatedVars());
 }
@@ -383,7 +390,7 @@ int SequentialSolve::doNext(int last) {
 		last = solve_->solve();
  		if (last != value_true) {
  			if      (last == value_free || term_ > 0) { return value_free; }
-			else if (enumerator().commitUnsat(s))     { solve_->reset(); }
+			else if (enumerator().commitUnsat(s))     { reportUnsat(s); solve_->reset(); }
 			else if (enumerator().commitComplete())   { break; }
  			else {
 				enumerator().end(s);
@@ -415,7 +422,7 @@ bool SequentialSolve::doSolve(SharedContext& ctx, const LitVec& gp) {
 		}
 		if      (res != value_false)           { more = (res == value_free || moreModels(s)); break; }
 		else if (interrupted())                { more = true; break; }
-		else if (enumerator().commitUnsat(s))  { enumerator().update(s); }
+		else if (enumerator().commitUnsat(s))  { reportUnsat(s); enumerator().update(s); }
 		else if (enumerator().commitComplete()){ more = false; break; }
 		else                                   { enumerator().end(s); more = enumerator().start(s, gp); }
 	}
