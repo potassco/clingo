@@ -114,12 +114,6 @@ struct BasicSolveEvent : SolveEvent<BasicSolveEvent> {
 	uint64 cLimit; // next conflict limit
 	uint32 lLimit; // next learnt limit
 };
-struct OptLower : SolveEvent<OptLower> {
-	OptLower(const Solver& s, uint32 level, wsum_t low, wsum_t up) : SolveEvent(s, Event::verbosity_low), at(level), lower(low), upper(up) {}
-	uint32 at;
-	wsum_t lower;
-	wsum_t upper;
-};
 ///////////////////////////////////////////////////////////////////////////////
 // General solve
 ///////////////////////////////////////////////////////////////////////////////

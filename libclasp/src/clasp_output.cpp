@@ -145,6 +145,11 @@ bool Output::onModel(const Solver& s, const Model& m) {
 	}
 	return true;
 }
+bool Output::onUnsat(const Solver& s, const Model& m) {
+	if (!m.ctx || !m.ctx->optimize() || s.lower.bound <= 0 || optQ() != print_all) { return true; }
+	printLower(s.lower, m.num ? m.costs : 0);
+	return true;
+}
 void Output::startStep(const ClaspFacade&) { clearModel(); summary_ = 0; }
 void Output::stopStep(const ClaspFacade::Summary& s){
 	if (getModel()) {
@@ -242,6 +247,7 @@ uintp Output::doPrint(const OutPair&, UPtr x) { return x; }
 bool Output::stats(const ClaspFacade::Summary& summary) const {
 	return summary.facade->config()->context().stats != 0;
 }
+void Output::printLower(const LowerBound&, const SumVec*) {}
 /////////////////////////////////////////////////////////////////////////////////////////
 // JsonOutput
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -840,15 +846,6 @@ void TextOutput::printSolveProgress(const Event& ev) {
 		printLN(cat_comment, "%2u:L| %-30s %-38s |", log->solver->id(), line, log->msg);
 		return;
 	}
-	else if (const OptLower* bnd = event_cast<OptLower>(ev))              {
-		if      (optQ() != print_all)     { return; }
-		else if (bnd->upper != INT64_MAX) {
-			clasp_format(line, sizeof(line), "Estimate@L%-2u: %-8.4f [%8" PRId64 "; %-8" PRId64 "]", bnd->at, double(bnd->upper - bnd->lower)/double(bnd->lower), bnd->lower, bnd->upper);
-		}
-		else {
-			clasp_format(line, sizeof(line), "Estimate@L%-2u: %-8.4f [%8" PRId64 "; %-8.4f]", bnd->at, std::numeric_limits<double>::infinity(), bnd->lower, std::numeric_limits<double>::infinity());
-		}
-	}
 	else                                                                  { return; }
 	bool newEvent = ((uint32)ev_.fetch_and_store(static_cast<int>(ev.id))) != ev.id;
 	if ((lEnd == '\n' && --line_ == 0) || newEvent) {
@@ -909,6 +906,23 @@ void TextOutput::printModel(const OutputTable& out, const Model& m, PrintLevel x
 			printf("\n");
 		}
 	}
+	fflush(stdout);
+}
+void TextOutput::printLower(const LowerBound& bnd, const SumVec* upper) {
+	printf("%s%-12s: ", format[cat_comment], "Progression");
+	if (upper && upper->size() > bnd.level) {
+		const char* next = *fieldSeparator() != '\n' ? "" : format[cat_comment];
+		for (uint32 i = 0; i != bnd.level; ++i) {
+			printf("%" PRId64 "%s%s", (*upper)[i], fieldSeparator(), next);
+		}
+		wsum_t ub = (*upper)[bnd.level];
+		int w = 1; for (wsum_t x = ub; x > 9; ++w) { x /= 10; }
+		printf("[%*" PRId64 ";%" PRId64 "] (Error: %g)", w, bnd.bound, ub, double(ub - bnd.bound)/double(bnd.bound));
+	}
+	else {
+		printf("[%" PRId64 ";inf]", bnd.bound);
+	}
+	printf("\n");
 	fflush(stdout);
 }
 

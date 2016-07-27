@@ -338,11 +338,11 @@ bool SolveAlgorithm::reportModel(Solver& s) const {
 	}
 }
 bool SolveAlgorithm::reportUnsat(Solver& s) const {
-	if (enumerator()->optimize() && s.lower.bound > 0) {
-		OptLower bnd(s, s.lower.level, s.lower.bound, enumerator()->minimizer()->optimum(s.lower.level));
-		s.sharedContext()->report(bnd);
-	}
-	return true;
+	const Model&  m = enum_->lastModel();
+	EventHandler* h = s.sharedContext()->eventHandler();
+	bool r1 = !onModel_ || onModel_->onUnsat(s, m);
+	bool r2 = !h || h->onUnsat(s, m);
+	return r1 && r2;
 }
 bool SolveAlgorithm::moreModels(const Solver& s) const {
 	return s.decisionLevel() != 0 || !s.symmetric().empty() || (!s.sharedContext()->preserveModels() && s.sharedContext()->numEliminatedVars());

@@ -149,6 +149,7 @@ protected:
 	// Event handler
 	virtual void onEvent(const Event& ev);
 	virtual bool onModel(const Solver& s, const Model& m);
+	virtual bool onUnsat(const Solver& s, const Model& m);
 	// -------------------------------------------------------------------------------------------
 	// Status information & output
 	int  exitCode(const RunSummary& sol)    const;

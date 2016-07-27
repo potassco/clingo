@@ -477,6 +477,7 @@ class ModelHandler {
 public:
 	virtual ~ModelHandler();
 	virtual bool onModel(const Solver&, const Model&) = 0;
+	virtual bool onUnsat(const Solver&, const Model&);
 };
 struct LowerBound {
 	LowerBound() : level(0), bound(0) {}

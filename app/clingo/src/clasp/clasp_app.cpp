@@ -256,6 +256,15 @@ bool ClaspAppBase::onModel(const Solver& s, const Model& m) {
 	}
 	return ret;
 }
+bool ClaspAppBase::onUnsat(const Solver& s, const Model& m) {
+	bool ret = true;
+	if (out_.get() && !out_->quiet()) {
+		blockSignals();
+		ret = out_->onUnsat(s, m);
+		unblockSignals(true);
+	}
+	return ret;
+}
 
 int ClaspAppBase::exitCode(const RunSummary& run) const {
 	int ec = 0;

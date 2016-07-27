@@ -75,9 +75,13 @@ public:
 	//! Handles ClaspFacade events by forwarding calls to startStep() and stopStep().
 	virtual void onEvent(const Event& ev);
 	//! Checks quiet-levels and forwards to printModel() if appropriate.
-	virtual bool onModel(const Solver& s, const Model& m);	
+	virtual bool onModel(const Solver& s, const Model& m);
+	//! Checks quiet-levels and forwards to printLower() if appropriate.
+	virtual bool onUnsat(const Solver& s, const Model& m);
 	//! Shall print the given model.
 	virtual void printModel(const OutputTable& out, const Model& m, PrintLevel x) = 0;
+	//! May print the given lower bound.
+	virtual void printLower(const LowerBound& bnd, const SumVec* upper);
 	//! A solving step has started.
 	virtual void startStep(const ClaspFacade&);
 	//! A solving step has stopped.
@@ -188,6 +192,8 @@ public:
 	 * elements e are printed as format[cat_atom] and separated by the internal field separator.
 	 */
 	virtual void printModel(const OutputTable& out, const Model& m, PrintLevel x);
+	//! Prints the given lower bound and all upper bounds that are known to be optimal.
+	virtual void printLower(const LowerBound& bnd, const SumVec* upper);
 	//! Called once a solving step has completed.
 	/*!
 	 * Always prints "format[cat_result] result[s.result()]".

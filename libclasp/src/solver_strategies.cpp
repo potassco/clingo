@@ -298,5 +298,5 @@ DecisionHeuristic* Heuristic_t::create(Type id, const HeuParams& p) {
 }
 
 ModelHandler::~ModelHandler() {}
-
+bool ModelHandler::onUnsat(const Solver&, const Model&) { return true; }
 }
