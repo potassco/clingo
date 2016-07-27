@@ -51,7 +51,7 @@ HeuParams::HeuParams() {
 	moms  = 1;
 }
 SolverParams::SolverParams() {
-	struct X { uint32 strat[2]; uint32 self[3]; };
+	struct X { uint32 strat[2]; uint32 self[4]; };
 	static_assert(sizeof(SolverParams) == sizeof(X), "Unsupported Padding");
 	std::memset(&seed, 0, sizeof(uint32)*2);
 	seed = RNG().seed();

@@ -517,7 +517,7 @@ template <class ScoreType>
 void ClaspVsids_t<ScoreType>::setConfig(const HeuParams& params) {
 	addOther(types_ = TypeSet(), params.other != HeuParams::other_auto ? params.other : static_cast<uint32>(HeuParams::other_no));
 	scType_ = params.score != HeuParams::score_auto ? params.score : static_cast<uint32>(HeuParams::score_min);
-	decay_  = 1.0 / initDecay(params.param);
+	decay_  = Decay(params.decay.init ? initDecay(params.decay.init) : 0.0, initDecay(params.param), params.decay.bump, params.decay.freq);
 	acids_  = params.acids != 0;
 	nant_   = params.nant != 0;
 	if (params.moms) { types_.addSet(Constraint_t::Static); }
@@ -626,7 +626,12 @@ void ClaspVsids_t<ScoreType>::newConstraint(const Solver& s, const Literal* firs
 			}
 		}
 		if (t == Constraint_t::Conflict) {
-			if (!acids_) { inc_ *= decay_; }
+			if (decay_.next && --decay_.next == 0 && decay_.lo < decay_.hi) {
+				decay_.lo  += decay_.bump / 100.0;
+				decay_.next = decay_.freq;
+				decay_.df   = 1.0 / decay_.lo;
+			}
+			if (!acids_) { inc_ *= decay_.df; }
 			else         { inc_ += 1.0; }
 		}
 	}

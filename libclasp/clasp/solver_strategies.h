@@ -149,6 +149,12 @@ struct HeuParams {
 	enum Score      { score_auto = 0u, score_min  = 1u, score_set = 2u, score_multi_set = 3u };
 	enum DomPref    { pref_atom  = 0u, pref_scc   = 1u, pref_hcc  = 2u, pref_disj = 4u, pref_min  = 8u, pref_show = 16u };
 	enum DomMod     { mod_none   = 0u, mod_level  = 1u, mod_spos  = 2u, mod_true  = 3u, mod_sneg  = 4u, mod_false = 5u, mod_init = 6u, mod_factor = 7u };
+	//! Values for dynamic decaying scheme.
+	struct VsidsDecay {
+		uint32 init: 10; /*!< Starting decay factor: 1/0.<init>. */
+		uint32 bump:  7; /*!< Decay decrease value : <bump>/100. */
+		uint32 freq: 15; /*!< Update decay factor every <freq> conflicts. */
+	};
 	HeuParams();
 	uint32 param    : 16; /*!< Extra parameter for heuristic with meaning depending on type */
 	uint32 score    : 2;  /*!< Type of scoring during resolution. */
@@ -159,6 +165,10 @@ struct HeuParams {
 	uint32 acids    : 1;  /*!< Only for Vsids/Dom. */
 	uint32 domPref  : 5;  /*!< Default pref for doamin heuristic (set of DomPref). */
 	uint32 domMod   : 3;  /*!< Default mod for domain heuristic (one of DomMod). */
+	union {
+		uint32     extra;
+		VsidsDecay decay; /*!< Only for Vsids/Dom. */
+	};
 };
 
 

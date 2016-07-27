@@ -185,6 +185,15 @@ OPTION(sign_def   , ""    , ARG(arg("<n>")), "Default sign: {0=asp|1=pos|2=neg|3
 OPTION(sign_fix   , "!"   , ARG(flag())    , "Disable sign heuristics and use default signs only", STORE_FLAG(SELF.signFix), GET(SELF.signFix))
 OPTION(berk_huang , "!,@2", ARG(flag())    , "Enable/Disable Huang-scoring in Berkmin", STORE_FLAG(SELF.heuristic.huang), GET(SELF.heuristic.huang))
 OPTION(vsids_acids, "!,@2", ARG(flag())    , "Enable/Disable acids-scheme in Vsids/Domain", STORE_FLAG(SELF.heuristic.acids), GET(SELF.heuristic.acids))
+OPTION(vsids_progress, ",@2", NO_ARG, "Enable dynamic decaying scheme in Vsids/Domain\n"\
+       "      %A: <n>[,<i {1..100}>][,<c>]|(0=disable)\n"\
+       "        <n> : Set initial decay factor to 1.0/0.<n>\n"\
+       "        <i> : Set decay update to <i>/100.0      [1]\n"\
+       "        <c> : Decrease decay every <c> conflicts [5000]", \
+       FUN(arg) { uint32 n = 80; uint32 i = 1; uint32 c = 5000; \
+       return ITE(arg.off(), SET(SELF.heuristic.decay.init, 0), (arg >> n >> opt(i) >> opt(c))\
+         && SET(SELF.heuristic.decay.init, n) && SET_LEQ(SELF.heuristic.decay.bump, i, 100) && SET(SELF.heuristic.decay.freq, c));}, \
+       GET_IF(SELF.heuristic.decay.init, SELF.heuristic.decay.init, SELF.heuristic.decay.bump, SELF.heuristic.decay.freq))
 OPTION(nant       , "!,@2", ARG(flag())    , "Prefer negative antecedents of P in heuristic", STORE_FLAG(SELF.heuristic.nant), GET(SELF.heuristic.nant))
 OPTION(dom_mod    , ",@2" , NO_ARG         , "Default modification for domain heuristic\n"\
        "      %A: <mod>[,<pick>]\n"\

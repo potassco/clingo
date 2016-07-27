@@ -286,10 +286,19 @@ protected:
 		const ScoreVec& sc_;
 	};
 	typedef bk_lib::indexed_priority_queue<CmpScore> VarOrder;
+	struct Decay : Range<double>{
+		Decay(double x = 0.0, double y = 0.95, uint32 b = 0, uint32 f = 0) : Range<double>(x, y), bump(b), freq(f), next(f) {
+			this->df = 1.0 / (freq && lo > 0.0 ? lo : hi);
+		}
+		double df; // active decay factor for evsids (>= 1.0)
+		uint32 bump;
+		uint32 freq : 16;
+		uint32 next : 16;
+	};
 	ScoreVec score_; // vsids score for each variable
 	OccVec   occ_;   // occurrence balance of each variable
 	VarOrder vars_;  // priority heap of variables
-	double   decay_; // decay factor for evsids (>= 1.0)
+	Decay    decay_; // (dynamic) decaying strategy
 	double   inc_;   // var bump for evsids or conflict index for acids (increased on conflict)
 	TypeSet  types_; // set of constraints to score
 	uint32   scType_;// score type (one of HeuParams::Score) 
