@@ -839,15 +839,22 @@ void SharedContext::popVars(uint32 nVars) {
 		stats_.vars.num -= nVars;
 	}
 	else {
-		for (Var v = numVars(); nVars--; --v) {
+		if (step_.var() > newVars) {
+			varInfo_[step_.var()] = varInfo_.back();
+			varInfo_.pop_back();
+			step_ = lit_false();
+		}
+		for (Var v = numVars(); v && nVars; --nVars, --v) {
 			stats_.vars.eliminated -= eliminated(v);
-			stats_.vars.frozen     -= varInfo(v).frozen();
+			stats_.vars.frozen -= varInfo(v).frozen();
 			--stats_.vars.num;
 			varInfo_.pop_back();
 		}
-		if (!validVar(step_.var()) && numVars()) {
-			varInfo_.pop_back();
-			step_ = lit_false();
+		for (SolverVec::size_type i = solvers_.size(); i--;) {
+			solvers_[i]->updateVars();
+		}
+		if (step_ == lit_false()) {
+			startAddConstraints();
 		}
 	}
 }

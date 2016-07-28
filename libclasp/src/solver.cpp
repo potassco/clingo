@@ -197,22 +197,7 @@ void Solver::resetConfig() {
 }
 void Solver::startInit(uint32 numConsGuess, const SolverParams& params) {
 	assert(!lazyRem_ && decisionLevel() == 0);
-	if (numVars() > shared_->numVars()) {
-		uint32 j = 0, units = assign_.units();
-		uint32 max = shared_->numVars() - (shared_->stepLiteral().var() != 0);
-		for (uint32 i = 0, end = assign_.trail.size(); i != end; ++i) {
-			if (assign_.trail[i].var() <= max) { assign_.trail[j++] = assign_.trail[i]; }
-			else {
-				units -= (i < units);
-				assign_.front -= (i < assign_.front);
-				lastSimp_ -= (i < lastSimp_);
-			}
-		}
-		shrinkVecTo(assign_.trail, j);
-		assign_.setUnits(units);
-	}
-	assign_.resize(shared_->numVars() + 1);
-	watches_.resize(assign_.numVars()<<1);
+	updateVars();
 	// pre-allocate some memory
 	assign_.trail.reserve(numVars());
 	constraints_.reserve(numConsGuess/2);
@@ -251,6 +236,32 @@ void Solver::startInit(uint32 numConsGuess, const SolverParams& params) {
 	postHead_ = &sent_list; // disable post propagators during setup
 	initPost_ = 0;          // defer calls to PostPropagator::init()
 	heuristic_->startInit(*this);
+}
+
+void Solver::updateVars() {
+	uint32 sVars = numVars(), pVars = shared_->numVars();
+	assign_.resize(pVars + 1);
+	watches_.resize(assign_.numVars()<<1);
+	if (sVars > pVars) {
+		uint32 j   = 0, units = assign_.units();
+		uint32 rem = sVars - pVars;
+		uint32 max = pVars + 1;
+		// cleanup assignment
+		for (uint32 i = 0, end = assign_.trail.size(); i != end; ++i) {
+			Var v = assign_.trail[i].var();
+			if (v < max) { assign_.trail[j++] = assign_.trail[i]; }
+			else {
+				units -= (i < units);
+				assign_.front -= (i < assign_.front);
+				lastSimp_ -= (i < lastSimp_);
+			}
+		}
+		shrinkVecTo(assign_.trail, j);
+		assign_.setUnits(units);
+		if (heuristic_.get()) {
+			heuristic_->updateVar(*this, max, rem);
+		}
+	}
 }
 
 bool Solver::cloneDB(const ConstraintDB& db) {

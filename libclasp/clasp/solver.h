@@ -78,6 +78,7 @@ private:
 	void reset();
 	void resetConfig();
 	void startInit(uint32 constraintGuess, const SolverParams& params);
+	void updateVars();
 	bool cloneDB(const ConstraintDB& db);
 	bool preparePost();
 	bool endInit();

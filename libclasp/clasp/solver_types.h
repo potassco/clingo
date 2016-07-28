@@ -683,13 +683,13 @@ public:
 	bool   markUnits()                 { while (units_ != front) { setSeen(trail[units_++].var(), 3u); }  return true; }
 	void   setUnits(uint32 ts)         { units_ = ts; }
 	void   resetPrefs()                { pref_.assign(pref_.size(), ValueSet()); }
+	void   clear(Var v)                { assign_[v] = 0; }
+	void   saveAndClear(Var v)         { pref_[v].save(value(v)); clear(v); }
 	//@}
 private:
 	static const uint32 elim_mask = uint32(0xFFFFFFF0u);
 	Assignment(const Assignment&);
 	Assignment& operator=(const Assignment&);
-	void    clear(Var v)              { assign_[v]= 0; }
-	void    saveAndClear(Var v)       { pref_[v].save(value(v)); clear(v); }
 	template <void (Assignment::*op)(Var v)>
 	void popUntil(Literal stop) {
 		Literal p;

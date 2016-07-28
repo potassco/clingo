@@ -732,9 +732,13 @@ public:
 	 */
 	Var     addVar(VarType type, uint8 flags = VarInfo::Nant | VarInfo::Input) { return addVars(1, type, flags); }
 	Var     addVars(uint32 nVars, VarType type, uint8 flags = VarInfo::Nant | VarInfo::Input);
-	//! Removes the n most recently added variables.
+	//! Removes the n most recently added problem variables.
 	/*!
-	 * \pre The variables have not yet been committed by a call to startAddConstraints().
+	 * \pre The variables have either not yet been committed by a call to startAddConstraints()
+	 *      or they do not occur in any constraint.
+	 *
+	 * \note The special step var is not considered to be a problem variable and is
+	 *       hence not counted towards n.
 	 */
 	void    popVars(uint32 n = 1);
 	//! Requests a special variable for tagging volatile knowledge in incremental setting.
