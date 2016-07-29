@@ -41,7 +41,7 @@ bool ProgramBuilder::startProgram(SharedContext& ctx) {
 bool ProgramBuilder::updateProgram() {
 	CLASP_ASSERT_CONTRACT_MSG(ctx_, "startProgram() not called!");
 	bool up = frozen();
-	bool ok = ctx_->ok() && ctx_->unfreeze() && doUpdateProgram();
+	bool ok = ctx_->ok() && ctx_->unfreeze() && doUpdateProgram() && (ctx_->setSolveMode(SharedContext::solve_multi), true);
 	frozen_ = ctx_->frozen();
 	if (up && !frozen()){ ctx_->report(Event::subsystem_load); }
 	return ok;
@@ -58,9 +58,6 @@ bool ProgramBuilder::endProgram() {
 }
 void ProgramBuilder::getAssumptions(LitVec& out) const {
 	CLASP_ASSERT_CONTRACT(ctx_ && frozen());
-	if (!isSentinel(ctx_->stepLiteral())) {
-		out.push_back(ctx_->stepLiteral());
-	}
 	doGetAssumptions(out);
 }
 void ProgramBuilder::getWeakBounds(SumVec& out) const {

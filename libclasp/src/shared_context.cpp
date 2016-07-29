@@ -201,7 +201,13 @@ ShortImplicationsGraph::~ShortImplicationsGraph() {
 	PodVector<ImplicationList>::destruct(graph_);
 }
 void ShortImplicationsGraph::resize(uint32 nodes) {
-	if (graph_.capacity() >= nodes) {
+	if (nodes <= graph_.size()) {
+		while (graph_.size() != nodes) { 
+			graph_.back().clear(true);
+			graph_.pop_back();
+		}
+	}
+	else if (graph_.capacity() >= nodes) {
 		graph_.resize(nodes);
 	}
 	else {
@@ -812,10 +818,19 @@ bool SharedContext::unfreeze() {
 }
 
 bool SharedContext::unfreezeStep() {
-	for (SolverVec::size_type i = solvers_.size(); i-- ; ) {
+	Var tag = step_.var();
+	for (SolverVec::size_type i = solvers_.size(); i--;) {
 		Solver& s = *solvers_[i];
-		if (!s.validVar(step_.var())) { continue; }
-		s.endStep(lastTopLevel_, configuration()->solver(s.id()));
+		if (!s.validVar(tag)) { continue; }
+		if (!s.endStep(lastTopLevel_, configuration()->solver(s.id()))) {
+			return false;
+		}
+	}
+	if (tag) {
+		varInfo_[tag] = VarInfo();
+		step_ = lit_false();
+		popVars(1);
+		++stats_.vars.num;
 	}
 	return !master()->hasConflict();
 }
@@ -839,27 +854,22 @@ void SharedContext::popVars(uint32 nVars) {
 		stats_.vars.num -= nVars;
 	}
 	else {
-		if (step_.var() > newVars) {
-			varInfo_[step_.var()] = varInfo_.back();
-			varInfo_.pop_back();
-			step_ = lit_false();
-		}
 		for (Var v = numVars(); v && nVars; --nVars, --v) {
 			stats_.vars.eliminated -= eliminated(v);
 			stats_.vars.frozen -= varInfo(v).frozen();
 			--stats_.vars.num;
 			varInfo_.pop_back();
 		}
+		btig_.resize((numVars()+1)<<1);
 		for (SolverVec::size_type i = solvers_.size(); i--;) {
 			solvers_[i]->updateVars();
 		}
-		if (step_ == lit_false()) {
-			startAddConstraints();
-		}
+		lastTopLevel_ = std::min(lastTopLevel_, master()->assign_.front);
 	}
 }
 
-void SharedContext::requestStepVar()  { if (step_ == lit_true()) { step_= lit_false(); } }
+void SharedContext::setSolveMode(SolveMode m) { share_.solveM = m; }
+void SharedContext::requestStepVar() { if (step_ == lit_true()) { step_ = lit_false(); } }
 void SharedContext::setFrozen(Var v, bool b) {
 	assert(validVar(v)); 
 	if (v && b != varInfo_[v].has(VarInfo::Frozen)) {
@@ -889,15 +899,15 @@ void SharedContext::eliminate(Var v) {
 	}
 }
 
-Literal SharedContext::addAuxLit() {
+Literal SharedContext::addStepLit() {
 	VarInfo nv; nv.set(VarInfo::Frozen);
 	varInfo_.push_back(nv);
-	return posLit(numVars());
+	btig_.resize((numVars() + 1) << 1);
+	return posLit(master()->pushAuxVar());
 }
 Solver& SharedContext::startAddConstraints(uint32 constraintGuess) {
-	if (!unfreeze())              { return *master(); }
-	if (master()->isFalse(step_)) { step_= addAuxLit(); }
-	btig_.resize((numVars()+1)<<1);
+	if (!unfreeze()) { return *master(); }
+	btig_.resize((numVars() + 1 + uint32(step_ == lit_false() || solveMode() == solve_multi))<<1);
 	master()->startInit(constraintGuess, configuration()->solver(0));
 	return *master();
 }
@@ -954,15 +964,18 @@ bool SharedContext::endInit(bool attachAll) {
 	satPrepro.swap(temp);
 	bool ok = !master()->hasConflict() && master()->preparePost() && (!temp.get() || temp->preprocess(*this)) && master()->endInit();
 	satPrepro.swap(temp);
-	btig_.markShared(concurrency() > 1);
 	master()->dbIdx_ = (uint32)master()->constraints_.size();
-	lastTopLevel_ = (uint32)master()->assign_.front;
+	lastTopLevel_    = (uint32)master()->assign_.front;
 	stats_.constraints.other  = master()->constraints_.size();
 	stats_.constraints.binary = btig_.numBinary();
 	stats_.constraints.ternary= btig_.numTernary();
 	stats_.acycEdges          = extGraph.get() ? extGraph->edges() : 0;
 	stats_.complexity         = std::max(stats_.complexity, problemComplexity());
-	share_.frozen             = 1;
+	if (ok && step_ == lit_false()) { 
+		step_ = addStepLit();
+	}
+	btig_.markShared(concurrency() > 1);
+	share_.frozen = 1;
 	for (uint32 i = ok && attachAll ? 1 : concurrency(); i != concurrency(); ++i) {
 		if (!hasSolver(i)) { pushSolver(); }
 		if (!attach(i))    { ok = false; break; }

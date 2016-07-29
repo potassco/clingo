@@ -92,6 +92,7 @@ void ModelEnumerator::RecordFinder::doCommitModel(Enumerator& en, Solver& s) {
 				solution.push_back(~s.trueLit(i));
 			}
 		}
+		solution.push_back(~s.sharedContext()->stepLiteral());
 	}
 	else {
 		const bool project = ctx.projectionEnabled();
@@ -285,8 +286,6 @@ void ModelEnumerator::initProjection(SharedContext& ctx) {
 	if (!projectionEnabled()) { return; }
 	const OutputTable& out = ctx.output;
 	char const filter = static_cast<char>(options_ >> 24);
-	// Make sure that nogoods are tagged with step literal.
-	addProject(ctx, ctx.stepLiteral().var());
 	if (out.projectMode() == OutputTable::project_output) {
 		// Mark all relevant output variables.
 		for (OutputTable::pred_iterator it = out.pred_begin(), end = out.pred_end(); it != end; ++it) {

@@ -197,9 +197,13 @@ void Solver::resetConfig() {
 }
 void Solver::startInit(uint32 numConsGuess, const SolverParams& params) {
 	assert(!lazyRem_ && decisionLevel() == 0);
+	if (watches_.empty()) {
+		assign_.trail.reserve(shared_->numVars() + 2);
+		watches_.reserve((shared_->numVars() + 2)<<1);
+		assign_.reserve(shared_->numVars() + 2);
+	}
 	updateVars();
 	// pre-allocate some memory
-	assign_.trail.reserve(numVars());
 	constraints_.reserve(numConsGuess/2);
 	levels_.reserve(25);
 	if (undoHead_ == 0)  {
@@ -239,28 +243,12 @@ void Solver::startInit(uint32 numConsGuess, const SolverParams& params) {
 }
 
 void Solver::updateVars() {
-	uint32 sVars = numVars(), pVars = shared_->numVars();
-	assign_.resize(pVars + 1);
-	watches_.resize(assign_.numVars()<<1);
-	if (sVars > pVars) {
-		uint32 j   = 0, units = assign_.units();
-		uint32 rem = sVars - pVars;
-		uint32 max = pVars + 1;
-		// cleanup assignment
-		for (uint32 i = 0, end = assign_.trail.size(); i != end; ++i) {
-			Var v = assign_.trail[i].var();
-			if (v < max) { assign_.trail[j++] = assign_.trail[i]; }
-			else {
-				units -= (i < units);
-				assign_.front -= (i < assign_.front);
-				lastSimp_ -= (i < lastSimp_);
-			}
-		}
-		shrinkVecTo(assign_.trail, j);
-		assign_.setUnits(units);
-		if (heuristic_.get()) {
-			heuristic_->updateVar(*this, max, rem);
-		}
+	if (numVars() > shared_->numVars()) {
+		popVars(numVars() - shared_->numVars());
+	}
+	else {
+		assign_.resize(shared_->numVars() + 1);
+		watches_.resize(assign_.numVars()<<1);
 	}
 }
 
@@ -300,28 +288,14 @@ bool Solver::endInit() {
 bool Solver::endStep(uint32 top, const SolverParams& params) {
 	if (!popRootLevel(rootLevel())) { return false; }
 	popAuxVar();
-	uint32 tp = std::min(top, (uint32)lastSimp_);
 	Literal x = shared_->stepLiteral();
-	Solver* m = !isMaster() ? shared_->master() : 0;
-	if (value(x.var()) == value_free){ 
-		force(~x, lit_true());
-	}
-	if (simplify()) {
-		while (tp < (uint32)assign_.trail.size()) {
-			Var v = assign_.trail[tp].var();
-			if      (v == x.var()){ std::swap(assign_.trail[tp], assign_.trail.back()); assign_.undoLast(); }
-			else if (m)           { m->force(assign_.trail[tp++]); }
-			else                  { ++tp; }
+	top = std::min(top, (uint32)lastSimp_);
+	if ((value(x.var()) != value_free || force(~x)) && simplify() && this != shared_->master()) {
+		Solver& m = *shared_->master();
+		for (uint32 end = (uint32)assign_.trail.size(); top < end; ++top) {
+			Literal u = assign_.trail[top];
+			if (u.var() != x.var() && !m.force(u)) { break; }
 		}
-		if (x.var() && value(x.var()) != value_free) {
-			LitVec::iterator it = std::find(assign_.trail.begin(), assign_.trail.end(), trueLit(x.var()));
-			if (it != assign_.trail.end()) {
-				std::swap(*it, assign_.trail.back());
-				assign_.undoLast();
-			}
-		}
-		assign_.qReset();
-		assign_.setUnits(lastSimp_ = (uint32)assign_.trail.size()); 
 	}
 	if (params.forgetLearnts())   { reduceLearnts(1.0f); }
 	if (params.forgetHeuristic()) { resetHeuristic(); }
@@ -399,48 +373,15 @@ Var Solver::pushAuxVar() {
 void Solver::popAuxVar(uint32 num, ConstraintDB* auxCons) {
 	num = numVars() >= shared_->numVars() ? std::min(numVars() - shared_->numVars(), num) : 0;
 	if (!num) { return; }
-	// 1. find first dl containing one of the aux vars
+	Dirty dirty;
+	lazyRem_ = &dirty;
+	// 1. remove aux vars and cleanup assignment
 	shared_->report("removing aux vars", this);
-	Literal aux = posLit(assign_.numVars() - num);
-	uint32  dl  = decisionLevel() + 1;
-	for (ImpliedList::iterator it = impliedLits_.begin(); it != impliedLits_.end(); ++it) {
-		if (!(it->lit < aux)) { dl = std::min(dl, it->level); }
-	}
-	for (Var v = aux.var(), end = aux.var()+num; v != end; ++v) {
-		if (value(v) != value_free){ dl = std::min(dl, level(v)); }
-	}
-	// 2. remove aux vars from assignment and watch lists
-	if (dl > rootLevel()) {
-		undoUntil(dl-1, undo_pop_proj_level);
-	}
-	else {
-		popRootLevel((rootLevel() - dl) + 1);
-		if (dl == 0) { // top-level has aux vars - cleanup manually
-			uint32 j = shared_->numUnary(), units = assign_.units();
-			for (uint32 i = j, end = assign_.trail.size(); i != end; ++i) {
-				if (assign_.trail[i] < aux) { assign_.trail[j++] = assign_.trail[i]; }
-				else                        {
-					units         -= (i < units);
-					assign_.front -= (i < assign_.front);
-					lastSimp_     -= (i < lastSimp_);
-				}
-			}
-			shrinkVecTo(assign_.trail, j);
-			assign_.setUnits(units);
-		}
-	}
-	for (uint32 n = num; n--;) { 
-		watches_.back().clear(true);
-		watches_.pop_back();
-		watches_.back().clear(true);
-		watches_.pop_back();
-	}
-	// 3. remove constraints over aux
+	Literal aux = popVars(num);
+	// 2. remove constraints over aux
 	shared_->report("removing aux constraints", this);
 	ConstraintDB::size_type i, j, end = learnts_.size();
 	LitVec cc;
-	Dirty dirty;
-	lazyRem_ = &dirty;
 	for (i = j = 0; i != end; ++i) {
 		learnts_[j++] = learnts_[i];
 		ClauseHead* c = learnts_[i]->clause();
@@ -455,13 +396,52 @@ void Solver::popAuxVar(uint32 num, ConstraintDB* auxCons) {
 	}
 	learnts_.erase(learnts_.begin()+j, learnts_.end());
 	if (auxCons) { destroyDB(*auxCons); }
-	// 4. cleanup watch list
+	// 3. cleanup watch list
 	lazyRem_ = 0;
 	shared_->report("removing aux watches", this);
 	dirty.cleanup(watches_, levels_);
+}
+Literal Solver::popVars(uint32 num) {
+	Literal pop = posLit(assign_.numVars() - num);
+	uint32  dl  = decisionLevel() + 1;
+	for (ImpliedList::iterator it = impliedLits_.begin(); it != impliedLits_.end(); ++it) {
+		if (!(it->lit < pop)) { dl = std::min(dl, it->level); }
+	}
+	for (Var v = pop.var(), end = pop.var()+num; v != end; ++v) {
+		if (value(v) != value_free) { dl = std::min(dl, level(v)); }
+	}
+	// remove aux vars from assignment and watch lists
+	if (dl > rootLevel()) {
+		undoUntil(dl-1, undo_pop_proj_level);
+	}
+	else {
+		popRootLevel((rootLevel() - dl) + 1);
+		if (dl == 0) { // top-level has aux vars - cleanup manually
+			uint32 j = shared_->numUnary(), units = assign_.units();
+			for (uint32 i = j, end = assign_.trail.size(); i != end; ++i) {
+				if (assign_.trail[i] < pop) { assign_.trail[j++] = assign_.trail[i]; }
+				else {
+					units         -= (i < units);
+					assign_.front -= (i < assign_.front);
+					lastSimp_     -= (i < lastSimp_);
+				}
+			}
+			shrinkVecTo(assign_.trail, j);
+			assign_.setUnits(units);
+		}
+	}
+	for (uint32 n = num; n--;) {
+		watches_.back().clear(true);
+		watches_.pop_back();
+		watches_.back().clear(true);
+		watches_.pop_back();
+	}
 	assign_.resize(assign_.numVars()-num);
 	if (!validVar(tag_.var())) { tag_ = lit_true(); }
-	heuristic_->updateVar(*this, aux.var(), num);
+	if (heuristic_.get()) {
+		heuristic_->updateVar(*this, pop.var(), num);
+	}
+	return pop;
 }
 
 bool Solver::pushRoot(const LitVec& path) {

@@ -595,7 +595,11 @@ public:
 	const Antecedent& reason(Var v)const { return reason_[v]; }
 	//! Returns the reason data associated with v.
 	uint32            data(Var v)  const { return reason_.data(v); }
-
+	
+	void reserve(uint32 n) {
+		assign_.reserve(n);
+		reason_.reserve(n);
+	}
 	//! Resize to nv variables.
 	void resize(uint32 nv) {
 		assign_.resize(nv);

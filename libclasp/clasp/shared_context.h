@@ -581,6 +581,7 @@ public:
 	enum ResizeMode { resize_reserve = 0u, resize_push = 1u, resize_pop = 2u, resize_resize = 3u};
 	enum PreproMode { prepro_preserve_models = 1u, prepro_preserve_shown  = 2u };
 	enum ReportMode { report_default = 0u, report_conflict = 1u };
+	enum SolveMode  { solve_once = 0u, solve_multi = 1u };
 	/*!
 	 * \name Configuration
 	 */
@@ -592,6 +593,8 @@ public:
 	void       reset();
 	//! Enables event reporting via the given event handler.
 	void       setEventHandler(LogPtr r, ReportMode m = report_default) { progress_ = r; share_.report = uint32(m); }
+	//! Sets solve mode, which can be used by other objects to query whether multi-shot solving is active.
+	void       setSolveMode(SolveMode m);
 	//! Sets how to handle physical sharing of constraints.
 	void       setShareMode(ContextParams::ShareMode m);
 	//! Sets whether the short implication graph should be used for storing short learnt constraints.
@@ -637,6 +640,8 @@ public:
 	bool       physicalShareProblem()          const { return (share_.shareM & ContextParams::share_problem) != 0; }
 	//! Returns whether short constraints of type t can be stored in the short implication graph.
 	bool       allowImplicit(ConstraintType t) const { return t != Constraint_t::Static ? share_.shortM != ContextParams::short_explicit : !isShared(); }
+	//! Returns the configured solve mode.
+	SolveMode  solveMode() const { return static_cast<SolveMode>(share_.solveM); }
 	//@}
 
 	/*!
@@ -681,7 +686,6 @@ public:
 	//! Returns true if v is currently eliminated, i.e. no longer part of the problem.
 	bool       eliminated(Var v)    const;
 	bool       marked(Literal p)    const { return varInfo(p.var()).has(VarInfo::Mark_p + p.sign()); }
-	Literal    stepLiteral()        const { return step_; }
 	//! Returns the number of problem constraints.
 	uint32     numConstraints()     const;
 	//! Returns the number of binary constraints.
@@ -736,13 +740,8 @@ public:
 	/*!
 	 * \pre The variables have either not yet been committed by a call to startAddConstraints()
 	 *      or they do not occur in any constraint.
-	 *
-	 * \note The special step var is not considered to be a problem variable and is
-	 *       hence not counted towards n.
 	 */
 	void    popVars(uint32 n = 1);
-	//! Requests a special variable for tagging volatile knowledge in incremental setting.
-	void    requestStepVar();
 	//! Freezes/defreezes a variable (a frozen var is exempt from Sat-preprocessing).
 	void    setFrozen(Var v, bool b);
 	//! Marks/unmarks v as projection variable.
@@ -785,7 +784,15 @@ public:
 	Output  output;
 	//! Set of heuristic modifications.
 	DomTab  heuristic;
-
+	//! Requests a special variable for tagging volatile knowledge in multi-shot solving.
+	/*!
+	 * The step variable is created on the next call to endInit() and removed on the next
+	 * call to unfreeze().
+	 * Once the step variable S is set, learnt constraints containing ~S are
+	 * considered to be "volatile" and removed on the next call to unfreeze().
+	 * For this to work correctly, S shall be a root assumption during search.
+	 */
+	void    requestStepVar();
 	//! Finishes initialization of the master solver.
 	/*!
 	 * The function must be called once before search is started. After endInit()
@@ -809,6 +816,8 @@ public:
 	 * from multiple threads.
 	 */
 	//@{
+	//! Returns the active step literal (see requestStepVar()).
+	Literal  stepLiteral() const { return step_; }
 	//! Attaches the solver with the given id to this object.
 	/*!
 	 * \note It is safe to attach multiple solvers concurrently
@@ -818,7 +827,6 @@ public:
 	 */
 	bool     attach(uint32 id) { return attach(*solver(id)); }
 	bool     attach(Solver& s);
-	
 	
 	//! Detaches the solver with the given id from this object.
 	/*!
@@ -869,7 +877,7 @@ private:
 	SharedContext(const SharedContext&);
 	SharedContext& operator=(const SharedContext&);
 	bool    unfreezeStep();
-	Literal addAuxLit();
+	Literal addStepLit();
 	typedef SingleOwnerPtr<Configuration> Config;
 	typedef PodVector<VarInfo>::type      VarVec;
 	void    setPreproMode(uint32 m, bool b);
@@ -884,15 +892,17 @@ private:
 	Literal      step_;          // literal for tagging enumeration/step constraints
 	uint32       lastTopLevel_;  // size of master's top-level after last init
 	struct Share {               // Additional data
-		uint32 count   :11;        //   max number of objects sharing this object
-		uint32 winner  :11;        //   id of solver that terminated the search
+		uint32 count   :10;        //   max number of objects sharing this object
+		uint32 winner  :10;        //   id of solver that terminated the search
 		uint32 shareM  : 3;        //   physical sharing mode
 		uint32 shortM  : 1;        //   short clause mode
+		uint32 solveM  : 1;        //   solve mode
 		uint32 frozen  : 1;        //   is adding of problem constraints allowed?
 		uint32 seed    : 1;        //   set seed of new solvers
 		uint32 satPreM : 2;        //   preprocessing mode
 		uint32 report  : 2;        //   report mode
-		Share() : count(1), winner(0), shareM((uint32)ContextParams::share_auto), shortM(0), frozen(0), seed(0), satPreM(0), report(0) {}
+		uint32 reserved: 1;
+		Share() : count(1), winner(0), shareM((uint32)ContextParams::share_auto), shortM(0), solveM(0), frozen(0), seed(0), satPreM(0), report(0) {}
 	}            share_;
 };
 //@}

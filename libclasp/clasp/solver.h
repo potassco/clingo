@@ -845,6 +845,7 @@ private:
 	DBInfo  reduceLinear(uint32 maxR, const CmpScore& cmp);
 	DBInfo  reduceSort(uint32 maxR, const CmpScore& cmp);
 	DBInfo  reduceSortInPlace(uint32 maxR, const CmpScore& cmp, bool onlyPartialSort);
+	Literal popVars(uint32 num);
 	ConstraintDB* allocUndo(Constraint* c);
 	SharedContext*    shared_;      // initialized by master thread - otherwise read-only!
 	SolverStrategies  strategy_;    // strategies used by this object

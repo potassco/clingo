@@ -88,7 +88,7 @@ bool EnumerationConstraint::start(Solver& s, const LitVec& path, bool disjoint) 
 	flags_ = 0;
 	root_  = s.rootLevel();
 	setDisjoint(disjoint);
-	if (s.pushRoot(path)) {
+	if (s.pushRoot(path) && s.pushRoot(s.sharedContext()->stepLiteral())) {
 		integrateBound(s);
 		return true;
 	}

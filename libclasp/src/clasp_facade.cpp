@@ -202,6 +202,9 @@ public:
 		this->state   = 0;
 		this->signal  = 0;
 		f.assume_.insert(f.assume_.end(), a.begin(), a.end());
+		if (!isSentinel(f.ctx.stepLiteral())) {
+			f.assume_.push_back(f.ctx.stepLiteral());
+		}
 		preSolve();
 		this->state = state_running;
 		facade->interrupt(0); // handle pending interrupts
@@ -298,12 +301,14 @@ struct ClaspFacade::SolveData {
 	void prepareEnum(SharedContext& ctx, int64 numM, EnumOptions::OptMode opt, EnumMode mode) {
 		CLASP_FAIL_IF(active, "Solve operation still active");
 		if (ctx.ok() && !ctx.frozen() && !prepared) {
+			if (mode == enum_volatile && ctx.solveMode() == SharedContext::solve_multi) {
+				ctx.requestStepVar();
+			}
 			int lim = en->init(ctx, opt, (int)Range<int64>(-1, INT_MAX).clamp(numM));
 			if (lim == 0 || numM < 0) {
 				numM = lim;
 			}
 			algo->setEnumLimit(numM ? static_cast<uint64>(numM) : UINT64_MAX);
-			if (mode == enum_static) { ctx.addUnary(ctx.stepLiteral()); }
 			costs.data = lastModel();
 			prepared = true;
 		}
@@ -812,7 +817,7 @@ bool ClaspFacade::enableProgramUpdates() {
 	CLASP_ASSERT_CONTRACT(!solving() && !program()->frozen());
 	if (!accu_.get()) {
 		builder_->updateProgram();
-		ctx.requestStepVar();
+		ctx.setSolveMode(SharedContext::solve_multi);
 		enableSolveInterrupts();
 		accu_ = new Summary();
 		accu_->init(*this);
@@ -906,6 +911,7 @@ void ClaspFacade::prepare(EnumMode enumMode) {
 	if (solved()) {
 		doUpdate(0, false, SIG_DFL);
 		solve_->prepareEnum(ctx, en.numModels, en.optMode, enumMode);
+		ctx.endInit();
 	}
 	if (prepared()) { return; }
 	SharedMinimizeData* m = 0;
@@ -918,7 +924,7 @@ void ClaspFacade::prepare(EnumMode enumMode) {
 	stats_->start(uint32(config_->context().stats));
 	if (en.optMode != MinimizeMode_t::ignore && (m = ctx.minimize()) != 0) {
 		if (!m->setMode(en.optMode, en.optBound)) {
-			assume_.push_back(~ctx.stepLiteral());
+			assume_.push_back(lit_false());
 		}
 		if (en.optMode == MinimizeMode_t::enumerate && en.optBound.empty()) {
 			ctx.warn("opt-mode=enum: no bound given, optimize statement ignored.");

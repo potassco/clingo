@@ -768,7 +768,7 @@ void DomainHeuristic::initScores(Solver& s, bool moms) {
 		if (!actions_.empty()) {
 			actions_.back().next = 0;
 		}
-		if ((nKey - dKey) > dKey && isSentinel(s.sharedContext()->stepLiteral())) {
+		if ((nKey - dKey) > dKey && s.sharedContext()->solveMode() == SharedContext::solve_once) {
 			PrioVec(prios_.begin(), prios_.begin()+dKey).swap(prios_);
 		}
 		domSeen_ = domTab.size();
