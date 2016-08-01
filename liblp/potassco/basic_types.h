@@ -61,10 +61,15 @@ struct Head_t {
 //! Supported rule body types.
 struct Body_t {
 	POTASSCO_ENUM_CONSTANTS(Body_t, Normal = 0, Sum = 1, Count = 2);
-	static const Weight_t BOUND_NONE = static_cast<Weight_t>(-1);
-	static bool hasBound(Body_t t)   { return t != Normal; }
-	static bool hasWeights(Body_t t) { return t == Sum; }
 };
+//! Type representing an external value.
+struct Value_t {
+	POTASSCO_ENUM_CONSTANTS(Value_t,
+		Free  = 0, True    = 1,
+		False = 2, Release = 3
+	);
+};
+
 //! A span consists of a starting address and a length.
 /*!
  * A span does not own the data and it is in general not safe to store a span.
@@ -84,28 +89,6 @@ typedef Span<Lit_t>       LitSpan;
 typedef Span<WeightLit_t> WeightLitSpan;
 typedef Span<char>        StringSpan;
 
-//! A type representing a view of rule head.
-struct HeadView {
-	typedef AtomSpan::iterator iterator;
-	Head_t   type;  // type of head
-	AtomSpan atoms; // contained atoms
-};
-
-//! A type representing a view of a rule body.
-struct BodyView {
-	typedef WeightLitSpan::iterator iterator;
-	Body_t        type;  // type of body
-	Weight_t      bound; // optional lower bound - only if type != Normal
-	WeightLitSpan lits;  // body literals - weights only relevant if type = Sum
-};
-
-//! Type representing an external value.
-struct Value_t {
-	POTASSCO_ENUM_CONSTANTS(Value_t,
-		Free  = 0, True    = 1,
-		False = 2, Release = 3
-	);
-};
 
 //! Supported heuristic modifications.
 struct Heuristic_t {
@@ -133,26 +116,38 @@ class AbstractProgram {
 public:
 	virtual ~AbstractProgram();
 	//! Called once to prepare for a new logic program.
-	virtual void initProgram(bool incremental) = 0;
+	virtual void initProgram(bool incremental);
 	//! Called once before rules and directives of the current program step are added.
-	virtual void beginStep() = 0;
+	virtual void beginStep();
+	
 	//! Add the given rule to the program.
-	virtual void rule(const HeadView& head, const BodyView& body) = 0;
+	virtual void rule(Head_t ht, const AtomSpan& head, const LitSpan& body) = 0;
+	//! Add the given sum rule to the program.
+	virtual void rule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body) = 0;
 	//! Add the given minimize statement to the program.
 	virtual void minimize(Weight_t prio, const WeightLitSpan& lits) = 0;
-	//! Mark the given list of atoms as projection atoms.
-	virtual void project(const AtomSpan& atoms) = 0;
-	//! Output str whenever condition is true in a stable model.
-	virtual void output(const StringSpan& str, const LitSpan& condition) = 0;
-	//! If v is not equal to Value_t::Release, mark a as external and assume value v. Otherwise, treat a as regular atom.
-	virtual void external(Atom_t a, Value_t v) = 0;
-	//! Assume the given literals to true during solving.
-	virtual void assume(const LitSpan& lits) = 0;
-	//! Apply the given heuristic modification to atom a whenever condition is true.
-	virtual void heuristic(Atom_t a, Heuristic_t t, int bias, unsigned prio, const LitSpan& condition) = 0;
-	//! Assume an edge between s and t whenever condition is true.
-	virtual void acycEdge(int s, int t, const LitSpan& condition) = 0;
 	
+	/*!
+	* \name Advanced
+	* Functions for adding advanced constructs.
+	* By default, functions in this group throw a std::logic_error()
+	* to signal that advanced constructs are not supported.
+	*/
+	//@{
+	//! Mark the given list of atoms as projection atoms.
+	virtual void project(const AtomSpan& atoms);
+	//! Output str whenever condition is true in a stable model.
+	virtual void output(const StringSpan& str, const LitSpan& condition);
+	//! If v is not equal to Value_t::Release, mark a as external and assume value v. Otherwise, treat a as regular atom.
+	virtual void external(Atom_t a, Value_t v);
+	//! Assume the given literals to true during solving.
+	virtual void assume(const LitSpan& lits);
+	//! Apply the given heuristic modification to atom a whenever condition is true.
+	virtual void heuristic(Atom_t a, Heuristic_t t, int bias, unsigned prio, const LitSpan& condition);
+	//! Assume an edge between s and t whenever condition is true.
+	virtual void acycEdge(int s, int t, const LitSpan& condition);
+	//@}
+
 	/*!
 	 * \name Theory data
 	 * Functions for adding theory statements.
@@ -160,22 +155,22 @@ public:
 	 * Note, ids shall be unique within one step.
 	 */
 	//@{
-	//! Adds a new number term.
+	//! Add a new number term.
 	virtual void theoryTerm(Id_t termId, int number);
-	//! Adds a new symbolic term.
+	//! Add a new symbolic term.
 	virtual void theoryTerm(Id_t termId, const StringSpan& name);
-	//! Adds a new compound (function or tuple) term.
+	//! Add a new compound (function or tuple) term.
 	virtual void theoryTerm(Id_t termId, int cId, const IdSpan& args);
-	//! Adds a new theory atom element.
+	//! Add a new theory atom element.
 	virtual void theoryElement(Id_t elementId, const IdSpan& terms, const LitSpan& cond);
-	//! Adds a new theory atom consisting of the given elements, which have to be added eventually.
+	//! Add a new theory atom consisting of the given elements, which have to be added eventually.
 	virtual void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements);
-	//! Adds a new theory atom with guard and right hand side.
+	//! Add a new theory atom with guard and right hand side.
 	virtual void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements, Id_t op, Id_t rhs);
 	//@}
 
 	//! Called once after all rules and directives of the current program step were added.
-	virtual void endStep() = 0;
+	virtual void endStep();
 };
 typedef int(*ErrorHandler)(int line, const char* what);
 
@@ -196,33 +191,16 @@ inline Lit_t       neg(Lit_t lit)                { return -lit; }
 inline Weight_t    weight(Atom_t)                { return 1; }
 inline Weight_t    weight(Lit_t)                 { return 1; }
 inline Weight_t    weight(const WeightLit_t& w)  { return w.weight; }
-inline Head_t      type(const HeadView& h)       { return h.type; }
-inline Body_t      type(const BodyView& b)       { return b.type; }
-inline bool        hasWeights(const BodyView& b) { return Body_t::hasWeights(b.type); }
-inline bool        hasBound(const BodyView& b)   { return Body_t::hasBound(b.type); }
 template <class T>
 inline bool        empty(const Span<T>& s)       { return s.size == 0; }
-inline bool        empty(const HeadView& h)      { return empty(h.atoms); }
-inline bool        empty(const BodyView& b)      { return empty(b.lits); }
 template <class T>
 inline std::size_t size(const Span<T>& s)        { return s.size; }
-inline std::size_t size(const HeadView& h)       { return size(h.atoms); }
-inline std::size_t size(const BodyView& b)       { return size(b.lits); }
 template <class T> 
-inline const T*           begin(const Span<T>& s)  { return s.first; }
-inline HeadView::iterator begin(const HeadView& h) { return begin(h.atoms); }
-inline BodyView::iterator begin(const BodyView& b) { return begin(b.lits); }
+inline const T*    begin(const Span<T>& s)       { return s.first; }
 template <class T> 
-inline const T*           end(const Span<T>& s)    { return begin(s) + s.size; }
-inline HeadView::iterator end(const HeadView& h)   { return end(h.atoms); }
-inline BodyView::iterator end(const BodyView& b)   { return end(b.lits); }
+inline const T*    end(const Span<T>& s)         { return begin(s) + s.size; }
 template <class T>
-inline const T&           at(const Span<T>& s, std::size_t pos)  { return s[pos]; }
-inline const Atom_t&      at(const HeadView& h, std::size_t pos) { return h.atoms[pos]; }
-inline const WeightLit_t& at(const BodyView& b, std::size_t pos) { return b.lits[pos]; }
-
-inline const AtomSpan&      span(const HeadView& h) { return h.atoms; }
-inline const WeightLitSpan& span(const BodyView& b) { return b.lits; }
+inline const T&    at(const Span<T>& s, std::size_t pos) { return s[pos]; }
 ///@}
 
 /*!
@@ -243,35 +221,6 @@ inline Span<T> toSpan() { return toSpan(static_cast<const T*>(0), 0); }
 template <class C>
 inline Span<typename C::value_type> toSpan(const C& c) {
 	return !c.empty() ? toSpan(&c[0], c.size()) : toSpan<typename C::value_type>();
-}
-//! Creates head F.
-inline HeadView toHead() {
-	Potassco::HeadView h ={Potassco::Head_t::Disjunctive, Potassco::toSpan<Potassco::Atom_t>()};
-	return h;
-}
-//! Creates a head from an atom span.
-inline HeadView toHead(const Potassco::AtomSpan& atoms, Potassco::Head_t type = Potassco::Head_t::Disjunctive) {
-	Potassco::HeadView h = {type, atoms};
-	return h;
-}
-//! Creates a head from a single atom.
-inline HeadView toHead(Potassco::Atom_t& atom, Potassco::Head_t type = Potassco::Head_t::Disjunctive) {
-	return toHead(Potassco::toSpan(&atom, 1), type);
-}
-//! Creates body T.
-inline BodyView toBody() {
-	Potassco::BodyView b ={Potassco::Body_t::Normal, Potassco::Body_t::BOUND_NONE, Potassco::toSpan<WeightLit_t>()};
-	return b;
-}
-//! Creates a normal body from a literal span.
-inline BodyView toBody(const Potassco::WeightLitSpan& lits) {
-	Potassco::BodyView b = {Potassco::Body_t::Normal, Potassco::Body_t::BOUND_NONE, lits};
-	return b;
-}
-//! Creates a body from a literal span.
-inline BodyView toBody(const Potassco::WeightLitSpan& lits, Weight_t bound, Body_t type = Body_t::Sum) {
-	Potassco::BodyView b = {type, bound, lits};
-	return b;
 }
 //! Returns the string representation of the given heuristic modifier.
 inline const char* toString(Heuristic_t t) {
@@ -301,5 +250,37 @@ inline bool operator!=(Lit_t lhs, const WeightLit_t& rhs) { return !(lhs == rhs)
 inline bool operator!=(const WeightLit_t& lhs, Lit_t rhs) { return rhs != lhs; }
 inline bool operator<(const WeightLit_t& lhs, const WeightLit_t& rhs) { return lhs.lit != rhs.lit ? lhs.lit < rhs.lit : lhs.weight < rhs.weight; }
 ///@}
+
+class RawStack {
+public:
+	RawStack();
+	RawStack(const RawStack& other);
+	RawStack& operator=(const RawStack& other);
+	//! Swaps this and other.
+	void     swap(RawStack& other);
+	//! Reserves space for at least cap bytes or throws std::bad_alloc on out of memory.
+	void     reserve(uint32_t cap);
+	//! Returns the current stack capacity in bytes.
+	uint32_t capacity() const;
+	//! Returns the top position of the stack.
+	uint32_t top() const;
+	//! Returns the data beginning at the given index.
+	void*    get(uint32_t idx) const;
+	//! Same as pop(top()).
+	void     clear();
+	//! Moves top to idx.
+	void     setTop(uint32_t idx);
+protected:
+	~RawStack();
+	//! Pushes n bytes and returns the position of the first byte pushed.
+	uint32_t push_(uint32_t n);
+	//! Pops n bytes and returns the new top.
+	uint32_t pop_(uint32_t n);
+private:
+	unsigned char* mem_;
+	uint32_t       top_;
+	uint32_t       cap_;
+};
+
 }
 #endif

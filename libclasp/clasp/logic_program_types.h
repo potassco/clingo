@@ -26,11 +26,11 @@
 #endif
 #include <clasp/claspfwd.h>
 #include <clasp/literal.h>
-#include <potassco/basic_types.h>
+#include <potassco/rule_utils.h>
 #include <functional>
 namespace Potassco {
 	typedef Clasp::PodVector<Lit_t>::type       LitVec;
-	typedef Clasp::PodVector<WeightLit_t>::type BodyLitVec;
+	typedef Clasp::PodVector<WeightLit_t>::type WLitVec;
 }
 namespace Clasp {
 class ClauseCreator;
@@ -178,77 +178,21 @@ typedef bk_lib::pod_vector<PrgEdge> EdgeVec;
 inline bool isChoice(EdgeType t) { return t >= PrgEdge::Choice;  }
 
 using Potassco::Body_t;
-using Potassco::BodyView;
-struct BodyData {
-	typedef Potassco::BodyLitVec       BodyLitVec;
-	typedef BodyLitVec::value_type     LitType;
-	typedef BodyLitVec::const_iterator iterator;
-	typedef Potassco::Body_t Type;
-	BodyLitVec lits; // literals of body
-	Type       type; // type of body
-	weight_t   bound;// optional bound
-	BodyData& reset(Type t = Body_t::Normal);
-	BodyData& add(Atom_t v, bool pos, weight_t w = 1);
-	BodyData& swap(BodyData& o);
-	bool     empty() const { return lits.empty(); }
-	unsigned size()  const { return (unsigned)lits.size();  }
-	wsum_t   sum()   const;
-	iterator begin() const { return lits.begin(); }
-	iterator end()   const { return lits.end(); }
-	LitType const* find(Literal x) const;
-	LitType*       find(Literal x) { return const_cast<LitType*>(const_cast<const BodyData*>(this)->find(x)); }
-	struct Meta {
-		Meta() : pos(0), hash(0), id(varMax) {}
-		uint32 pos;  // positive size of body
-		uint32 hash; // hash value of the body
-		uint32 id;   // id of existing program body that is eq to this object
-	};
-	BodyView toView() const { 
-		BodyView v = {type, bound, Potassco::toSpan(lits)};
-		return v;
-	}
-};
 using Potassco::Head_t;
-using Potassco::HeadView;
-struct HeadData {
-	typedef Potassco::Head_t Type;
-	typedef VarVec::const_iterator iterator;
-	VarVec atoms;
-	Type   type;
-	HeadData& reset(Type t = Head_t::Disjunctive);
-	HeadData& add(Atom_t atom)  { atoms.push_back(atom); return *this; }
-	HeadData& swap(HeadData& o);
-	bool     empty() const { return atoms.empty(); }
-	unsigned size()  const { return (unsigned)atoms.size();  }
-	iterator begin() const { return atoms.begin(); }
-	iterator end()   const { return atoms.end(); }
-	HeadView toView() const { 
-		HeadView v = {type, Potassco::toSpan(atoms)};
-		return v;
-	}
-};
-class RuleView {
-public:
-	RuleView();
-	RuleView(const HeadData& head, const BodyData& body);
-	RuleView(const HeadView& head, const BodyView& body);
-	bool isPrimitive() const { return body.type == Body_t::Normal || (head.type == Head_t::Disjunctive && Potassco::size(head) <= 1); }
-	HeadView head;
-	BodyView body;
-};
-
+using Potassco::WeightLitSpan;
+typedef Potassco::Rule_t Rule;
 class RuleTransform {
 public:
 	struct ProgramAdapter {
 		virtual Atom_t newAtom() = 0;
-		virtual void addRule(const HeadView& head, const BodyView& body) = 0;
+		virtual void addRule(const Rule& r) = 0;
 	protected: ~ProgramAdapter() {}
 	};
 	enum Strategy { strategy_default, strategy_select_no_aux, strategy_split_aux };
 	RuleTransform(ProgramAdapter& prg);
 	RuleTransform(LogicProgram& prg);
 	~RuleTransform();
-	uint32 transform(const RuleView&, Strategy s = strategy_default);
+	uint32 transform(const Rule& r, Strategy s = strategy_default);
 private:
 	RuleTransform(const RuleTransform&);
 	RuleTransform& operator=(const RuleTransform&);
@@ -432,25 +376,26 @@ public:
 	//! Creates a new body node and connects the node to its predecessors.
 	/*!
 	 * \param prg     The program in which the new body is used.
-	 * \param meta    Meta data for the new body node.
-	 * \param body    The rule body for which a node is to be created.
+	 * \param id      The id for the new body node.
+	 * \param rule    The rule for which a body node is to be created.
+	 * \param pos     Positive body size.
 	 * \param addDeps If true, add an edge between each atom subgoal and the new node.
 	 */
-	static PrgBody* create(LogicProgram& prg, const BodyData::Meta& meta, const BodyView& body, bool addDeps);
-	//! Destroys a body node created via create(LogicProgram& prg, uint32 id, const Rule& rule, const Rule::RData& rInfo).
+	static PrgBody* create(LogicProgram& prg, uint32 id, const Rule& rule, uint32 pos, bool addDeps);
+	//! Destroys a body node created via create().
 	void     destroy();
 	Body_t   type()  const { return Body_t(static_cast<Body_t>(type_)); }
 	//! Returns the number of atoms in the body.
 	uint32   size()  const { return size_; }
 	bool     noScc() const { return size() == 0 || goal(0).sign(); }
 	//! Returns the bound of this body, or size() if the body is a normal body.
-	weight_t bound() const { return static_cast<weight_t>(type() == Body_t::Normal ? (weight_t)size() : boundImpl()); }
-	//! Returns the sum of the subgoals weights, or size() if the body is not a SUM_BODY.
-	weight_t sumW()  const { return static_cast<weight_t>(type() != Body_t::Sum    ? (weight_t)size() : data_.ext[0]->sumW); }
+	weight_t bound() const { if (type() == Body_t::Normal) return (weight_t)size(); else return hasWeights() ? sumData()->bound : aggData().bound; }
+	//! Returns the sum of the subgoals weights, or size() if the body is not a sum with weights.
+	weight_t sumW()  const { return static_cast<weight_t>(!hasWeights() ? (weight_t)size() : sumData()->sumW); }
 	//! Returns the idx'th subgoal as a literal.
 	Literal  goal(uint32 idx)  const { assert(idx < size()); return *(goals_begin()+idx); }
 	//! Returns the weight of the idx'th subgoal.
-	weight_t weight(uint32 idx)const { assert(idx < size()); return !hasWeights() ? 1 : data_.ext[0]->weights[idx]; }  
+	weight_t weight(uint32 idx)const { assert(idx < size()); return !hasWeights() ? 1 : sumData()->weights[idx]; }  
 	//! Returns true if the body node is supported.
 	/*!
 	 * A normal body is supported, iff all of its positive subgoals are supported.
@@ -459,11 +404,11 @@ public:
 	 */
 	bool     isSupported() const { return unsupp_ <= 0; }
 	//! Returns true if this body defines any head.
-	bool     hasHeads()    const { return extHead() ? !heads_.ext->empty()  : extHead_ != 0; }
+	bool     hasHeads()    const { return isSmallHead() ? head_ != 0 : !largeHead()->empty(); }
 	bool     inRule()      const { return hasHeads() || freeze_; }
 	
-	head_iterator heads_begin() const { return !extHead() ? heads_.simp          : heads_.ext->begin(); }
-	head_iterator heads_end()   const { return !extHead() ? heads_.simp+extHead_ : heads_.ext->end(); }
+	head_iterator heads_begin() const { return isSmallHead() ? smallHead()       : largeHead()->begin(); }
+	head_iterator heads_end()   const { return isSmallHead() ? smallHead()+head_ : largeHead()->end(); }
 	goal_iterator goals_begin() const { return const_cast<PrgBody*>(this)->goals_begin(); }
 	goal_iterator goals_end()   const { return goals_begin() + size(); }
 	//! Adds a rule edge between this body and the given head.
@@ -510,6 +455,7 @@ public:
 	bool     simplify(LogicProgram& prg, bool strong, uint32* eqId = 0) {
 		return simplifyBody(prg, strong, eqId) && simplifyHeads(prg, strong);
 	}
+	bool     toData(const LogicProgram& prg, Potassco::RuleBuilder& out) const;
 	//! Notifies the body node about the fact that its positive subgoal v is supported.
 	/*!
 	 * \return true if the body is now also supported, false otherwise.
@@ -543,7 +489,27 @@ public:
 	NodeType nodeType() const  { return PrgNode::Body; }
 private:
 	static const uint32 maxSize = (1u<<26)-1;
-	explicit PrgBody(LogicProgram& prg, const BodyData::Meta& meta, const BodyView& body, bool addDep);
+	typedef unsigned char byte_t;
+CLASP_WARNING_BEGIN_RELAXED
+	struct SumData {
+		enum { LIT_OFFSET = sizeof(void*)/sizeof(uint32) };
+		static SumData* create(uint32 size, weight_t bnd, weight_t ws);
+		void     destroy();
+		weight_t bound;
+		weight_t sumW;
+		weight_t weights[0];
+	};
+	struct Agg {
+		union {
+			SumData* sum;
+			weight_t bound;
+		};
+		Literal lits[0];
+	};
+	struct Norm { Literal lits[0]; };
+	PrgBody(uint32 id, LogicProgram& prg, const Potassco::LitSpan& lits, uint32 pos, bool addDeps);
+	PrgBody(uint32 id, LogicProgram& prg, const Potassco::Sum_t& sum, bool hasWeights, uint32 pos, bool addDeps);
+	void init(Body_t t, uint32 sz);
 	~PrgBody();
 	uint32   findLit(const LogicProgram& prg, Literal p) const;
 	bool     normalize(const LogicProgram& prg, weight_t bound, weight_t sumW, weight_t reachW, uint32& hashOut);
@@ -553,43 +519,35 @@ private:
 	bool     blockedHead(PrgEdge it, const AtomState& rs) const;
 	void     addHead(PrgEdge h);
 	bool     eraseHead(PrgEdge h);
-	bool     extHead()     const { return extHead_ == 3u; }
-	weight_t boundImpl()   const { return static_cast<weight_t>(!hasWeights() ? (weight_t)data_.lits[0] : data_.ext[0]->bound); }
+	bool     isSmallHead() const { return head_ != 3u; }
+	byte_t*  data()        const { return const_cast<unsigned char*>(static_cast<const unsigned char*>(data_)); }
+	PrgEdge* smallHead()   const { return const_cast<PrgEdge*>(headData_.sm); }
+	EdgeVec* largeHead()   const { return headData_.ext; }
+	SumData* sumData()     const { return aggData().sum;}
+	Agg&     aggData()     const { return *reinterpret_cast<Agg*>(data()); }
+	Literal* goals_begin()       { return type() == Body_t::Normal ? reinterpret_cast<Norm*>(data())->lits  : aggData().lits; }
 	Literal* goals_end()         { return goals_begin() + size(); }
-	Literal* goals_begin()       { return reinterpret_cast<Literal*>( data_.lits + (type() == Body_t::Normal ? 0 : SumExtra::LIT_OFFSET) ); }
-CLASP_WARNING_BEGIN_RELAXED
-	struct SumExtra {
-		enum { LIT_OFFSET = sizeof(void*)/sizeof(uint32) };
-		static SumExtra* create(uint32 size);
-		void     destroy();
-		weight_t bound;
-		weight_t sumW;
-		weight_t weights[0];
-	};
+	
+	uint32    size_   : 25; // |B|
+	uint32    head_   :  2; // simple or extended head?
+	uint32    type_   :  2; // body type
+	uint32    sBody_  :  1; // simplify body?
+	uint32    sHead_  :  1; // simplify head?
+	uint32    freeze_ :  1; // keep body even if it does not occur in a rule?
+	weight_t  unsupp_;      // <= 0 -> body is supported
 	union Head {
-		PrgEdge  simp[2];
+		PrgEdge  sm[2];
 		EdgeVec* ext;
-	}         heads_;         // successors of this body
-	uint32    size_     : 25; // |B|
-	uint32    extHead_  :  2; // simple or extended head?
-	uint32    type_     :  2; // body type
-	uint32    sBody_    :  1; // simplify body?
-	uint32    sHead_    :  1; // simplify head?
-	uint32    freeze_   :  1; // keep body even if it does not occur in a rule?
-	weight_t  unsupp_;        // <= 0 -> body is supported
-	struct { union {
-		uint32    lits[0];
-		SumExtra* ext[0]; }; 
-	}         data_;          // <ext>*?, B+: [0, posSize_), B-: [posSize_, size_)
+	}         headData_;    // successors of this body
+	byte_t    data_[0];     // empty or one of Agg|Norm
 CLASP_WARNING_END_RELAXED
 };
-
 //! The head of a disjunctive rule.
 class PrgDisj : public PrgHead {
 public:
 	typedef const Var* atom_iterator;
 	//! Constructor for disjunctions.
-	static PrgDisj* create(uint32 id, const VarVec& heads);
+	static PrgDisj* create(uint32 id, const Potassco::AtomSpan& head);
 	//! Destroys a disjunction created via create().
 	void          destroy();
 	void          detach(LogicProgram& prg);
@@ -600,7 +558,7 @@ public:
 	//! Propagates the assignment of an atom in this disjunction.
 	bool          propagateAssigned(LogicProgram& prg, PrgHead* at, EdgeType t);
 private:
-	explicit PrgDisj(uint32 id, const VarVec& atoms);
+	explicit PrgDisj(uint32 id, const Potassco::AtomSpan& head);
 	~PrgDisj();
 CLASP_WARNING_BEGIN_RELAXED
 	Var atoms_[0]; // atoms in disjunction

@@ -82,7 +82,7 @@ void LpConvert::run() {
 	std::istream& in = iFile.is_open() ? iFile : std::cin;
 	std::ostream& os = oFile.is_open() ? oFile : std::cout;
 	if (in.peek() == 'a') {
-		Potassco::SmodelsOutput writer(os, potassco_);
+		Potassco::SmodelsOutput writer(os, potassco_, 0);
 		Potassco::SmodelsConvert converter(writer, potassco_);
 		Potassco::readAspif(in, converter, &error);
 	}

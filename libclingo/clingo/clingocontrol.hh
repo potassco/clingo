@@ -48,7 +48,8 @@ public:
     ClaspAPIBackend& operator=(const ClaspAPIBackend&) = delete;
     void initProgram(bool incremental) override;
     void beginStep() override;
-    void rule(const Potassco::HeadView& head, const Potassco::BodyView& body) override;
+    void rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, const Potassco::LitSpan& body) override;
+    void rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, Potassco::Weight_t bound, const Potassco::WeightLitSpan& body) override;
     void minimize(Potassco::Weight_t prio, const Potassco::WeightLitSpan& lits) override;
     void project(const Potassco::AtomSpan& atoms) override;
     void output(const Potassco::StringSpan& str, const Potassco::LitSpan& condition) override;

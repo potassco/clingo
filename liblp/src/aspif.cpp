@@ -22,6 +22,7 @@
 #include <ostream>
 #include <vector>
 #include <cstring>
+#include <functional>
 #if defined(_MSC_VER)
 #pragma warning (disable : 4996)
 #endif
@@ -29,12 +30,6 @@ namespace Potassco {
 /////////////////////////////////////////////////////////////////////////////////////////
 // AspifInput
 /////////////////////////////////////////////////////////////////////////////////////////
-struct AspifInput::ParseData {
-	std::vector<Atom_t>      atoms;
-	std::vector<WeightLit_t> bodyLits;
-	std::vector<Lit_t>       lits;
-	std::vector<char>        name;
-};
 AspifInput::AspifInput(AbstractProgram& out) : out_(out), data_(0) {}
 AspifInput::~AspifInput() {  }
 
@@ -50,49 +45,38 @@ bool AspifInput::doAttach(bool& inc) {
 }
 bool AspifInput::doParse() {
 #define CR(r) Directive_t::r
-	ParseData data;
+	BasicStack data;
 	data_ = &data;
 	out_.beginStep();
 	for (unsigned rt; (rt = matchPos(Directive_t::eMax, "rule type or 0 expected")) != 0; ) {
+		data.clear();
 		switch (rt) {
 			default: require(false, "unrecognized rule type");
 			{case CR(Rule):
-				data.atoms.clear();
-				Head_t ht = static_cast<Head_t>(matchPos(Head_t::eMax, "invalid head type"));
-				for (unsigned n = matchPos("number of head atoms expected"); n--; ) {
-					data.atoms.push_back(matchAtom());
-				}
+				Head_t  ht = static_cast<Head_t>(matchPos(Head_t::eMax, "invalid head type"));
+				uint32_t n = matchAtoms();
 				Body_t  bt = static_cast<Body_t>(matchPos(Body_t::eMax, "invalid body type"));
-				Weight_t B = Body_t::hasBound(bt) ? matchInt() : Body_t::BOUND_NONE;
-				data.bodyLits.clear();
-				for (unsigned n = matchPos("number of body literals expected"); n--;) {
-					WeightLit_t w = {matchLit(), 1};
-					if (Body_t::hasWeights(bt)) { w.weight = (int)matchPos(INT_MAX, "non-negative weight expected!"); }
-					data.bodyLits.push_back(w);
+				if (bt == Body_t::Normal) {
+					LitSpan body = data.popSpan<Lit_t>(matchLits());
+					out_.rule(ht, data.popSpan<Atom_t>(n), body);
 				}
-				out_.rule(toHead(toSpan(data.atoms), ht), toBody(toSpan(data.bodyLits), B, bt));
+				else {
+					Weight_t bound = matchInt();
+					WeightLitSpan body = data.popSpan<WeightLit_t>(matchWLits(0));
+					out_.rule(ht, data.popSpan<Atom_t>(n), bound, body);
+				}
 				break;}
 			{case CR(Minimize):
 				Weight_t prio = matchInt();
-				data.bodyLits.clear();
-				for (unsigned n = matchPos("number of body literals expected"); n--; ) {
-					WeightLit_t w;
-					w.lit    = matchLit();
-					w.weight = matchInt();
-					data.bodyLits.push_back(w);
-				}
-				out_.minimize(prio, toSpan(data.bodyLits));
+				out_.minimize(prio, data.popSpan<WeightLit_t>(matchWLits(INT_MIN)));
 				break;}
-			case CR(Project): 
-				data.atoms.clear();
-				for (unsigned n = matchPos("number of atoms expected"); n--; ) {
-					data.atoms.push_back(matchAtom());
-				}
-				out_.project(toSpan(data.atoms));
+			case CR(Project):
+				out_.project(data.popSpan<Atom_t>(matchAtoms()));
 				break;
 			{case CR(Output): 
-				StringSpan name = matchString();
-				out_.output(name, matchLits(data.lits));
+				uint32_t len = matchString();
+				LitSpan lits = data.popSpan<Lit_t>(matchLits());
+				out_.output(data.popSpan<char>(len), lits);
 				break;}
 			case CR(External): 
 				if (Atom_t atom = matchAtom()) {
@@ -101,19 +85,19 @@ bool AspifInput::doParse() {
 				}
 				break;
 			case CR(Assume):
-				out_.assume(matchLits(data.lits));
+				out_.assume(data.popSpan<Lit_t>(matchLits()));
 				break;
 			{case CR(Heuristic):
 				Heuristic_t type = static_cast<Heuristic_t>(matchPos(Heuristic_t::eMax, "invalid heuristic modifier"));	
 				Atom_t      atom = matchAtom();
 				int         bias = matchInt();
 				unsigned    prio = matchPos(INT_MAX, "invalid heuristic priority");
-				out_.heuristic(atom, type, bias, prio, matchLits(data.lits));
+				out_.heuristic(atom, type, bias, prio, data.popSpan<Lit_t>(matchLits()));
 				break;}
 			{case CR(Edge): 
 				unsigned start = matchPos(INT_MAX, "invalid edge, start node expected");
 				unsigned end   = matchPos(INT_MAX, "invalid edge, end node expected");
-				out_.acycEdge((int)start, (int)end, matchLits(data.lits));
+				out_.acycEdge((int)start, (int)end, data.popSpan<Lit_t>(matchLits()));
 				break;}
 			case CR(Theory): matchTheory(matchPos()); break;
 			case CR(Comment): skipLine(); break;
@@ -123,20 +107,35 @@ bool AspifInput::doParse() {
 	out_.endStep();
 	data_ = 0;
 	return true;
+}	
+
+uint32_t AspifInput::matchAtoms() {
+	uint32_t len = matchPos("number of atoms expected");
+	for (Atom_t* ptr = data_->makeSpan<Atom_t>(len), *end = ptr + len; ptr != end;) { *ptr++ = matchAtom(); }
+	return len;
 }
-StringSpan AspifInput::matchString() {
-	data_->name.resize(matchPos("non-negative string length expected"));
+uint32_t AspifInput::matchLits() {
+	uint32_t len = matchPos("number of literals expected");
+	for (Lit_t* ptr = data_->makeSpan<Lit_t>(len), *end = ptr + len; ptr != end;) { *ptr++ = matchLit(); }
+	return len;
+}
+uint32_t AspifInput::matchWLits(int32_t minW) {
+	uint32_t len = matchPos("number of literals expected");
+	for (WLit_t* ptr = data_->makeSpan<WeightLit_t>(len), *end = ptr + len; ptr != end;) { *ptr++ = matchWLit(minW); }
+	return len;
+}
+uint32_t AspifInput::matchTermList() {
+	uint32_t len = matchPos("number of terms expected");
+	for (Id_t* ptr = data_->makeSpan<Id_t>(len), *end = ptr + len; ptr != end;) { *ptr++ = matchPos(); }
+	return len;
+}
+uint32_t AspifInput::matchString() {
+	uint32_t len = matchPos("non-negative string length expected");
 	stream()->get();
-	if (int len = (int)data_->name.size()) {
-		require(stream()->copy(&data_->name[0], len) == len, "invalid string");
-	}
-	return toSpan(data_->name);
+	require(stream()->copy(data_->makeSpan<char>(len), (int)len) == (int)len, "invalid string");
+	return len;
 }
-AtomSpan AspifInput::matchTermList() {
-	data_->atoms.clear();
-	for (unsigned n = matchPos(); n--;) { data_->atoms.push_back(matchPos()); }
-	return toSpan(data_->atoms);
-}
+
 void AspifInput::matchTheory(unsigned rt) {
 	Id_t tId = matchPos();
 	switch (rt) {
@@ -145,30 +144,31 @@ void AspifInput::matchTheory(unsigned rt) {
 			out_.theoryTerm(tId, matchInt());
 			break;
 		case Theory_t::Symbol:
-			out_.theoryTerm(tId, matchString());
+			out_.theoryTerm(tId, data_->popSpan<char>(matchString()));
 			break;
 		case Theory_t::Compound: {
 			int type = matchInt(Tuple_t::eMin, INT_MAX, "unrecognized compound term type");
-			out_.theoryTerm(tId, type, matchTermList());
+			out_.theoryTerm(tId, type, data_->popSpan<Id_t>(matchTermList()));
 			break; 
 		}
 		case Theory_t::Element: {
-			AtomSpan ids = matchTermList();
-			out_.theoryElement(tId, ids, matchLits(data_->lits));
+			uint32_t nt = matchTermList();
+			LitSpan lits = data_->popSpan<Lit_t>(matchLits());
+			out_.theoryElement(tId, data_->popSpan<Id_t>(nt), lits);
 			break;
 		}
 		case Theory_t::Atom: // fall through
 		case Theory_t::AtomWithGuard: {
 			Id_t termId = matchPos();
-			AtomSpan ids = matchTermList();
+			uint32_t nt = matchTermList();
 			if (rt == Theory_t::Atom) {
-				out_.theoryAtom(tId, termId, ids);
+				out_.theoryAtom(tId, termId, data_->popSpan<Id_t>(nt));
 			}
 			else {
 				Id_t opId = matchPos();
-				out_.theoryAtom(tId, termId, ids, opId, matchPos());
+				out_.theoryAtom(tId, termId, data_->popSpan<Id_t>(nt), opId, matchPos());
 			}
-			break; 
+			break;
 		}
 	}
 }
@@ -224,18 +224,15 @@ void AspifOutput::initProgram(bool inc) {
 	if (inc) os_ << " incremental";
 	os_ << "\n";
 }
-void AspifOutput::rule(const HeadView& head, const BodyView& body) {
-	startDir(Directive_t::Rule).add(static_cast<int>(type(head))).add(span(head));
-	if (body.type == Body_t::Normal) {
-		add(static_cast<int>(Body_t::Normal)).add(static_cast<int>(size(body)));
-		for (const WeightLit_t* x = begin(body); x != end(body); ++x) {
-			add(lit(*x));
-		}
-	}
-	else {
-		add(static_cast<int>(Body_t::Sum)).add(static_cast<int>(body.bound)).add(span(body));
-	}
-	endDir();
+void AspifOutput::rule(Head_t ht, const AtomSpan& head, const LitSpan& body) {
+	startDir(Directive_t::Rule).add(static_cast<int>(ht)).add(head)
+		.add(static_cast<int>(Body_t::Normal)).add(body)
+		.endDir();
+}
+void AspifOutput::rule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body) {
+	startDir(Directive_t::Rule).add(static_cast<int>(ht)).add(head)
+		.add(static_cast<int>(Body_t::Sum)).add(static_cast<int>(bound)).add(body)
+		.endDir();
 }
 void AspifOutput::minimize(Weight_t prio, const WeightLitSpan& lits) {
 	startDir(Directive_t::Minimize).add(prio).add(lits).endDir();

@@ -26,7 +26,7 @@
 namespace Potassco {
 namespace Test {
 namespace Aspif {
-
+const Weight_t BOUND_NONE = -1;
 static void finalize(std::stringstream& str) {
 	str << "0\n";
 }
@@ -35,23 +35,26 @@ static void rule(std::ostream& os, const Rule& r) {
 	os << r.head.size();
 	for (auto x : r.head) { os << " " << x; }
 	os << " " << (unsigned)r.bt << " ";
-	if (r.bnd != Body_t::BOUND_NONE) {
-		os << r.bnd << " ";
+	if (r.bt == Body_t::Sum) { 
+		os << r.bnd << " " << r.body.size();
+		std::for_each(begin(r.body), end(r.body), [&os](WeightLit_t x) { os << " " << x.lit << " " << x.weight; });
 	}
-	os << r.body.size();
-	for (auto&& x : r.body) { 
-		os << " " << lit(x);
-		if (r.bt == Body_t::Sum) {
-			os << " " << weight(x);
-		}
+	else {
+		os << r.body.size();
+		std::for_each(begin(r.body), end(r.body), [&os](WeightLit_t x) { os << " " << x.lit; });
 	}
 	os << "\n";
 }
 
 class ReadObserver : public Test::ReadObserver {
 public:
-	virtual void rule(const HeadView& head, const BodyView& body) override {
-		rules.push_back({head.type, {begin(head), end(head)}, body.type, body.bound, {begin(body), end(body)}});
+	virtual void rule(Head_t ht, const AtomSpan& head, const LitSpan& body) override {
+		rules.push_back({ht, {begin(head), end(head)}, Body_t::Normal, BOUND_NONE, {}});
+		Vec<WeightLit_t>& wb = rules.back().body;
+		std::for_each(begin(body), end(body), [&wb](Lit_t x) {wb.push_back({x, 1}); });
+	}
+	virtual void rule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body) override {
+		rules.push_back({ht, {begin(head), end(head)}, Body_t::Sum, bound, {begin(body), end(body)}});
 	}
 	virtual void minimize(Weight_t prio, const WeightLitSpan& lits) override {
 		min.push_back({prio, {begin(lits), end(lits)}});
@@ -91,7 +94,42 @@ static int compareRead(std::stringstream& input, ReadObserver& observer, const R
 	}
 	return subset.second;
 }
-
+TEST_CASE("BasicStack", "[stack]") {
+	BasicStack stack;
+	SECTION("empty stack is empty") {
+		REQUIRE(stack.top() == 0u);
+	}
+	SECTION("char is aligned to int") {
+		stack.push('x');
+		REQUIRE(stack.top() == sizeof(int32_t));
+	}
+	SECTION("char span is aligned to multiple of int") {
+		char* x = stack.makeSpan<char>(13);
+		REQUIRE(stack.top() == 16);
+		StringSpan y = stack.popSpan<char>(13);
+		REQUIRE(x == y.first);
+	}
+	SECTION("stack push uint") {
+		stack.push(92u);
+		REQUIRE(stack.pop<uint32_t>() == 92u);
+		REQUIRE(stack.top() == 0u);
+	}
+	SECTION("stack push wlit") {
+		WeightLit_t wl = {-123, 99};
+		stack.push(wl);
+		REQUIRE(stack.pop<WeightLit_t>() == wl);
+		REQUIRE(stack.top() == 0u);
+	}
+	SECTION("stack make span") {
+		Lit_t* x = stack.makeSpan<Lit_t>(3);
+		x[0] = 123;
+		x[1] = -456;
+		x[2] = 789;
+		Lit_t cmp[3] = {123, -456, 789};
+		LitSpan span = stack.popSpan<Lit_t>(3);
+		REQUIRE(std::equal(Potassco::begin(span), Potassco::end(span), cmp));
+	}
+}
 TEST_CASE("Intermediate Format Reader ", "[aspif]") {
 	std::stringstream input;
 	ReadObserver observer;
@@ -103,7 +141,7 @@ TEST_CASE("Intermediate Format Reader ", "[aspif]") {
 		REQUIRE(observer.incremental == false);
 	}
 	SECTION("read empty rule") {
-		rule(input, {Head_t::Disjunctive, {}, Body_t::Normal, Body_t::BOUND_NONE, {}});
+		rule(input, {Head_t::Disjunctive, {}, Body_t::Normal, BOUND_NONE, {}});
 		finalize(input);
 		REQUIRE(readAspif(input, observer) == 0);
 		REQUIRE(observer.rules.size() == 1);
@@ -112,10 +150,10 @@ TEST_CASE("Intermediate Format Reader ", "[aspif]") {
 	}
 	SECTION("read rules") {
 		Rule rules[] = {
-			{Head_t::Disjunctive, {1}, Body_t::Normal, Body_t::BOUND_NONE, {{-2, 1}, {3, 1}, {-4, 1}}},
-			{Head_t::Disjunctive, {1, 2, 3}, Body_t::Normal, Body_t::BOUND_NONE, {{5, 1}, {-6, 1}}},
-			{Head_t::Disjunctive, {}, Body_t::Normal, Body_t::BOUND_NONE, {{1, 1}, {2, 1}}},
-			{Head_t::Choice, {1, 2, 3}, Body_t::Normal, Body_t::BOUND_NONE, {{5, 1}, {-6, 1}}},
+			{Head_t::Disjunctive, {1}, Body_t::Normal, BOUND_NONE, {{-2, 1}, {3, 1}, {-4, 1}}},
+			{Head_t::Disjunctive, {1, 2, 3}, Body_t::Normal, BOUND_NONE, {{5, 1}, {-6, 1}}},
+			{Head_t::Disjunctive, {}, Body_t::Normal, BOUND_NONE, {{1, 1}, {2, 1}}},
+			{Head_t::Choice, {1, 2, 3}, Body_t::Normal, BOUND_NONE, {{5, 1}, {-6, 1}}},
 			// weight
 			{Head_t::Disjunctive, {1}, Body_t::Sum, 1, {{2, 1}, {-3, 2}, {-4, 3}, {5, 1}}},
 			{Head_t::Disjunctive, {2}, Body_t::Sum, 1, {{3, 1}, {-4, 1}, {5, 1}}},
@@ -249,9 +287,9 @@ TEST_CASE("Intermediate Format Reader supports incremental programs", "[aspif]")
 		REQUIRE(observer.nStep == 2);
 	}
 	SECTION("read rules in each steps") {
-		rule(input, {Head_t::Disjunctive, {1,2}, Body_t::Normal, Body_t::BOUND_NONE, {}});
+		rule(input, {Head_t::Disjunctive, {1,2}, Body_t::Normal, BOUND_NONE, {}});
 		finalize(input);
-		rule(input, {Head_t::Disjunctive, {3, 4}, Body_t::Normal, Body_t::BOUND_NONE, {}});
+		rule(input, {Head_t::Disjunctive, {3, 4}, Body_t::Normal, BOUND_NONE, {}});
 		finalize(input);
 		REQUIRE(readAspif(input, observer) == 0);
 		REQUIRE(observer.incremental == true);
@@ -284,10 +322,10 @@ TEST_CASE("Test AspifOutput", "[aspif]") {
 	writer.beginStep();
 	SECTION("Writer writes rules") {
 		Rule rules[] = {
-			{Head_t::Disjunctive, {1}, Body_t::Normal, Body_t::BOUND_NONE, {{-2, 1}, {3, 1}, {-4, 1}}},
-			{Head_t::Disjunctive, {1, 2, 3}, Body_t::Normal, Body_t::BOUND_NONE, {{5, 1}, {-6, 1}}},
-			{Head_t::Disjunctive, {}, Body_t::Normal, Body_t::BOUND_NONE, {{1, 1}, {2, 1}}},
-			{Head_t::Choice, {1, 2, 3}, Body_t::Normal, Body_t::BOUND_NONE, {{5, 1}, {-6, 1}}},
+			{Head_t::Disjunctive, {1}, Body_t::Normal, BOUND_NONE, {{-2, 1}, {3, 1}, {-4, 1}}},
+			{Head_t::Disjunctive, {1, 2, 3}, Body_t::Normal, BOUND_NONE, {{5, 1}, {-6, 1}}},
+			{Head_t::Disjunctive, {}, Body_t::Normal, BOUND_NONE, {{1, 1}, {2, 1}}},
+			{Head_t::Choice, {1, 2, 3}, Body_t::Normal, BOUND_NONE, {{5, 1}, {-6, 1}}},
 			// weight
 			{Head_t::Disjunctive, {1}, Body_t::Sum, 1, {{2, 1}, {-3, 2}, {-4, 3}, {5, 1}}},
 			{Head_t::Disjunctive, {2}, Body_t::Sum, 1, {{3, 1}, {-4, 1}, {5, 1}}},
@@ -295,10 +333,16 @@ TEST_CASE("Test AspifOutput", "[aspif]") {
 			{Head_t::Choice, {1, 2}, Body_t::Sum, 1, {{2, 1}, {-3, 2}, {-4, 3}, {5, 1}}},
 			{Head_t::Disjunctive, {}, Body_t::Sum, 1, {{2, 1}, {-3, 2}, {-4, 3}, {5, 1}}},
 		};
+		Vec<Lit_t> temp;
 		for (auto&& r : rules) {
-			HeadView h = {r.ht, toSpan(r.head)};
-			BodyView b = {r.bt, r.bnd, toSpan(r.body)};
-			writer.rule(h, b);
+			if (r.bt == Body_t::Normal) {
+				temp.clear();
+				std::transform(r.body.begin(), r.body.end(), std::back_inserter(temp), [](const WeightLit_t& x) { return x.lit; });
+				writer.rule(r.ht, toSpan(r.head), toSpan(temp));
+			}
+			else {
+				writer.rule(r.ht, toSpan(r.head), r.bnd, toSpan(r.body));
+			}
 		}
 		writer.endStep();
 		readAspif(out, observer);

@@ -21,8 +21,10 @@
 #include <potassco/match_basic_types.h>
 namespace Potassco {
 
-//! Returns the id of a basic smodels rule that corresponds to the given rule or 0 if it can't be expressed as one rule.
-int isSmodelsRule(const HeadView& head, const BodyView& body);
+//! Returns a non-zero value if head can be represented in smodels format (i.e. not empty).
+int isSmodelsHead(Head_t ht, const AtomSpan& head);
+//! Returns a non-zero value if rule can be represented in smodels format.
+int isSmodelsRule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body);
 
 class AtomTable {
 public:
@@ -60,6 +62,11 @@ protected:
 	virtual bool readSymbols();
 	virtual bool readCompute(const char* sec, bool val);
 	virtual bool readExtra();
+	
+	//! Pushes literals to stack and returns the number of pushed literals.
+	uint32_t matchBody(BasicStack& stack);
+	//! Pushes literals and bound to stack and returns the number of pushed literals.
+	uint32_t matchSum(BasicStack& stack, bool weights);
 private:
 	struct NodeTab;
 	struct SymTab;
@@ -81,11 +88,13 @@ int readSmodels(std::istream& prg, AbstractProgram& out, ErrorHandler h = 0, con
  */
 class SmodelsOutput : public AbstractProgram {
 public:
-	SmodelsOutput(std::ostream& os, bool enableClaspExt);
+	SmodelsOutput(std::ostream& os, bool enableClaspExt, Atom_t falseAtom);
 	virtual void initProgram(bool);
 	virtual void beginStep();
-	//! Writes the given rule provided that isSmodelsRule(head, body) returns a non-zero value.
-	virtual void rule(const HeadView& head, const BodyView& body);
+	//! Writes the given rule provided that isSmodelsHead(head) returns a non-zero value.
+	virtual void rule(Head_t t, const AtomSpan& head, const LitSpan& body);
+	//! Writes the given rule provided that isSmodelsRule(head, bound, body) returns a non-zero value.
+	virtual void rule(Head_t t, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body);
 	//! Writes the given minimize rule while ignoring its priority.
 	virtual void minimize(Weight_t prio, const WeightLitSpan& lits);
 	//! Writes the entry (a, str) to the symbol table provided that condition equals a.
@@ -100,17 +109,12 @@ public:
 	virtual void assume(const LitSpan& lits);
 	//! Requires enableClaspExt or throws exception.
 	virtual void external(Atom_t a, Value_t v);
-	//! Not supported - throws exception.
-	virtual void project(const AtomSpan& atoms);
-	//! Not supported - throws exception.
-	virtual void acycEdge(int s, int t, const LitSpan& condition);
-	//! Not supported - throws exception.
-	virtual void heuristic(Atom_t a, Heuristic_t t, int bias, unsigned prio, const LitSpan& condition);
 	virtual void endStep();
 protected:
 	SmodelsOutput& startRule(int rt);
-	SmodelsOutput& add(const HeadView& head);
-	SmodelsOutput& add(int rt, const WeightLitSpan& lits, unsigned bnd);
+	SmodelsOutput& add(Head_t ht, const AtomSpan& head);
+	SmodelsOutput& add(const LitSpan&  lits);
+	SmodelsOutput& add(Weight_t bound, const WeightLitSpan& lits, bool card);
 	SmodelsOutput& add(unsigned i);
 	SmodelsOutput& endRule();
 	void require(bool cnd, const char* msg) const;
@@ -121,9 +125,11 @@ private:
 	SmodelsOutput(const SmodelsOutput&);
 	SmodelsOutput& operator=(const SmodelsOutput&);
 	std::ostream& os_;
+	Atom_t       false_;
 	int          sec_;
 	bool         ext_;
 	bool         inc_;
+	bool         fHead_;
 };
 
 }

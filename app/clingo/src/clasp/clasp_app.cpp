@@ -429,9 +429,8 @@ void ClaspAppBase::handleStartOptions(ClaspFacade& clasp) {
 		claspConfig_.releaseOptions();
 	}
 	if (claspAppOpts_.compute && clasp.program()->type() == Problem_t::Asp) {
-		bool val = claspAppOpts_.compute < 0;
-		Var  var = static_cast<Var>(!val ? claspAppOpts_.compute : -claspAppOpts_.compute);
-		static_cast<Asp::LogicProgram*>(clasp.program())->startRule().addToBody(var, val).endRule();
+		Potassco::Lit_t lit = Potassco::neg(claspAppOpts_.compute);
+		static_cast<Asp::LogicProgram*>(clasp.program())->addRule(Potassco::Head_t::Disjunctive, Potassco::toSpan<Potassco::Atom_t>(), Potassco::toSpan(&lit, 1));
 	}
 }
 bool ClaspAppBase::handlePostGroundOptions(ProgramBuilder& prg) {

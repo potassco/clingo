@@ -24,66 +24,20 @@
 #include <clasp/weight_constraint.h>
 #include <clasp/util/misc_types.h>
 
-namespace Clasp { namespace Asp {
-enum {
-	weight_check = bk_lib::detail::same_type<Potassco::Weight_t, weight_t>::value,
-	atom_check   = bk_lib::detail::same_type<Potassco::Atom_t, Var>::value,
-	id_check     = bk_lib::detail::same_type<Potassco::Id_t, uint32>::value,
-};
-/////////////////////////////////////////////////////////////////////////////////////////
-// types for handling input rules
-/////////////////////////////////////////////////////////////////////////////////////////
-HeadData& HeadData::reset(Type t) {
-	static_assert(weight_check && atom_check && id_check, "incompatible types detected");
-	type = t;
-	atoms.clear();
-	return *this;
-}
-HeadData& HeadData::swap(HeadData& o) {
-	std::swap(type, o.type);
-	std::swap(atoms, o.atoms);
-	return *this;
-}
-
-BodyData& BodyData::reset(Type t) {
-	lits.clear();
-	type  = t;
-	bound = 0;
-	return *this;
-}
-BodyData& BodyData::swap(BodyData& o) {
-	std::swap(lits, o.lits);
-	std::swap(type, o.type);
-	std::swap(bound, o.bound);
-	return *this;
-}
-
-BodyData::LitType const* BodyData::find(Literal x) const {
-	for (BodyLitVec::const_iterator it = begin(), end = this->end(); it != end; ++it) {
-		if (it->lit == toInt(x)) { return &*it; }
-	}
-	return 0;
-}
-wsum_t BodyData::sum() const {
-	wsum_t accu = 0;
-	for (BodyLitVec::const_iterator it = begin(), end = this->end(); it != end; ++it) { accu += it->weight; }
-	return accu;
-}
-BodyData& BodyData::add(Atom_t v, bool pos, weight_t w) {
-	LitType wl = { (pos ? Potassco::lit(v) : Potassco::neg(v)), w };
-	if (w) lits.push_back(wl);
-	return *this;
-}
-RuleView::RuleView() {}
-RuleView::RuleView(const HeadData& h, const BodyData& b) : head(h.toView()), body(b.toView()) {}
-RuleView::RuleView(const HeadView& h, const BodyView& b) : head(h), body(b) {}
+namespace Clasp {
+namespace Asp {
+static_assert((bk_lib::detail::same_type<Potassco::Weight_t, weight_t>::value), "unexpected weight type");
+static_assert((bk_lib::detail::same_type<Potassco::Atom_t, Var>::value)       , "unexpected atom type");
+static_assert((bk_lib::detail::same_type<Potassco::Id_t, uint32>::value)      , "unexpected id type");
+static_assert((bk_lib::detail::same_type<Potassco::Lit_t, int32>::value)      , "unexpected literal type");
+static_assert((bk_lib::detail::same_type<Potassco::Weight_t, int32>::value)   , "unexpected weight type");
 /////////////////////////////////////////////////////////////////////////////////////////
 // class RuleTransform
 //
 // class for transforming extended rules to normal rules
 /////////////////////////////////////////////////////////////////////////////////////////
 struct RuleTransform::Impl {
-	Impl() : adapt_(0), prg_(0) { body_.reset(); }
+	Impl() : adapt_(0), prg_(0) { }
 	struct TodoItem {
 		TodoItem(uint32 i, weight_t w, Atom_t v) : idx(i), bound(w), head(v) {}
 		uint32   idx;
@@ -97,30 +51,36 @@ struct RuleTransform::Impl {
 		}
 	};
 	typedef PodQueue<TodoItem> TodoQueue;
+	typedef Potassco::LitVec  LitVec;
+	typedef Potassco::WLitVec WLitVec;
 	ProgramAdapter* adapt_;
 	LogicProgram*   prg_;
-	BodyData        body_;
+	LitVec          lits_;
+	WLitVec         agg_;
 	SumVec          sumR_;
 	VarVec          aux_;
 	TodoQueue       todo_;
+	weight_t        bound_;
 	Atom_t newAtom() const { return prg_ ? prg_->newAtom() : adapt_->newAtom(); }
-	uint32 addRule(const HeadView& h, const BodyView& b) const {
-		if (prg_){ prg_->addRule(h, b); }
-		else     { adapt_->addRule(h, b); }
+	uint32 addRule(const Rule& r) const {
+		if (prg_){ prg_->addRule(r); }
+		else     { adapt_->addRule(r); }
 		return 1;
 	}
-	uint32 addRule(Atom_t h, const BodyView& b) const {
-		HeadView head = { Head_t::Disjunctive, Potassco::toSpan(&h, static_cast<std::size_t>(h != 0)) };
-		return addRule(head, b);
+	uint32 addRule(Head_t ht, const Potassco::AtomSpan& head, const Potassco::LitSpan& b) const {
+		return addRule(Rule::normal(ht, head, b));
 	}
-	uint32 transform(const RuleView& r, Strategy s);
+	uint32 addRule(Atom_t h, const Potassco::LitSpan& b) const {
+		return addRule(Head_t::Disjunctive, Potassco::toSpan(&h, static_cast<std::size_t>(h != 0)), b);
+	}
+	uint32 transform(Atom_t head, weight_t bound, const Potassco::WeightLitSpan& lits, Strategy s);
 	uint32 transformSelect(Atom_t head);
 	uint32 transformSplit(Atom_t head);
 	uint32 transformChoice(const Potassco::AtomSpan& r);
 	uint32 transformDisjunction(const Potassco::AtomSpan& r);
 	uint32 addRule(Atom_t head, bool add, uint32 idx, weight_t bound);
 	Atom_t getAuxVar(uint32 idx, weight_t bound) {
-		assert(bound > 0 && idx < body_.size());
+		assert(bound > 0 && idx < agg_.size());
 		uint32 k = static_cast<uint32>(bound - 1);
 		if (aux_[k] == 0) {
 			todo_.push(TodoItem(idx, bound, aux_[k] = newAtom()));
@@ -128,6 +88,7 @@ struct RuleTransform::Impl {
 		return aux_[k];
 	}
 };
+
 RuleTransform::RuleTransform(ProgramAdapter& prg) : impl_(new Impl()) {
 	impl_->adapt_ = &prg;
 }
@@ -137,26 +98,35 @@ RuleTransform::RuleTransform(LogicProgram& prg) : impl_(new Impl()) {
 RuleTransform::~RuleTransform() {
 	delete impl_;
 }
-uint32 RuleTransform::transform(const RuleView& r, Strategy s) {
-	if (r.body.type != Body_t::Normal) {
-		return impl_->transform(r, s);
+
+uint32 RuleTransform::transform(const Rule& r, Strategy s) {
+	if (r.sum()) {
+		Atom_t h = !Potassco::empty(r.head) ? r.head[0] : 0;
+		bool aux = r.ht == Head_t::Choice || size(r.head) > 1;
+		if (aux) {
+			h = impl_->newAtom();
+			Potassco::Lit_t bl = Potassco::lit(h);
+			impl_->addRule(r.ht, r.head, Potassco::toSpan(&bl, 1));
+		}
+		return uint32(aux) + impl_->transform(h, r.agg.bound, r.agg.lits, s);
 	}
-	else if (Potassco::size(r.head) > static_cast<uint32>(r.head.type == Head_t::Disjunctive)) {
-		impl_->body_.reset();
-		uint32 nAux = (Potassco::size(r.body) > 1) && (Potassco::size(r.head) > 1);
+	else if (size(r.head) > static_cast<uint32>(r.ht == Head_t::Disjunctive)) {
+		impl_->lits_.clear();
+		uint32 nAux = (size(r.cond) > 1) && (size(r.head) > 1);
 		if (nAux) {
 			// make body eq to a new aux atom
 			Atom_t auxB = impl_->newAtom();
-			impl_->addRule(auxB, r.body);
-			impl_->body_.add(auxB, true);
+			impl_->addRule(auxB, r.cond);
+			impl_->lits_.push_back(Potassco::lit(auxB));
 		}
 		else {
-			impl_->body_.lits.assign(Potassco::begin(r.body), Potassco::end(r.body));
+			impl_->lits_.assign(begin(r.cond), end(r.cond));
 		}
-		return nAux + (r.head.type == Head_t::Choice ? impl_->transformChoice(span(r.head)) : impl_->transformDisjunction(span(r.head)));
+		return nAux + (r.ht == Head_t::Choice ? impl_->transformChoice(r.head) : impl_->transformDisjunction(r.head));
 	}
-	return impl_->addRule(r.head, r.body);
+	return impl_->addRule(r);
 }
+
 // A choice rule {h1,...hn} :- BODY is replaced with:
 // h1   :- BODY, not aux1.
 // aux1 :- not h1.
@@ -165,73 +135,65 @@ uint32 RuleTransform::transform(const RuleView& r, Strategy s) {
 // auxN :- not hn.
 uint32 RuleTransform::Impl::transformChoice(const Potassco::AtomSpan& atoms) {
 	uint32 nRule = 0;
-	Potassco::WeightLit_t bLit = {0, 1};
-	BodyView bAux = { Body_t::Normal, 1, Potassco::toSpan(&bLit, 1) };
+	Potassco::Lit_t   bLit = 0;
+	Potassco::LitSpan bAux = Potassco::toSpan(&bLit, 1);
 	Atom_t hAux;
 	for (Potassco::AtomSpan::iterator it = Potassco::begin(atoms), end = Potassco::end(atoms); it != end; ++it) {
 		hAux = newAtom();
-		bLit.lit = Potassco::neg(*it);
-		body_.add(hAux, false, 1);
-		nRule += addRule(*it, body_.toView());
+		bLit = Potassco::neg(*it);
+		lits_.push_back(Potassco::neg(hAux));
+		nRule += addRule(*it, Potassco::toSpan(lits_));
 		nRule += addRule(hAux, bAux);
-		body_.lits.pop_back();
+		lits_.pop_back();
 	}
 	return nRule;
 }
+
 // A disjunctive rule h1|...|hn :- BODY is replaced with:
 // hi   :- BODY, {not hj | 1 <= j != i <= n}.
 uint32 RuleTransform::Impl::transformDisjunction(const Potassco::AtomSpan& atoms) {
-	uint32 bIdx = body_.size();
+	uint32 bIdx = lits_.size();
 	for (Potassco::AtomSpan::iterator it = Potassco::begin(atoms) + 1, end = Potassco::end(atoms); it != end; ++it) {
-		body_.add(*it, false, 1);
+		lits_.push_back(Potassco::neg(*it));
 	}
 	uint32 nRule = 0;
 	for (Potassco::AtomSpan::iterator it = Potassco::begin(atoms), end = Potassco::end(atoms);;) {
-		nRule += addRule(*it, body_.toView());
+		nRule += addRule(*it, Potassco::toSpan(lits_));
 		if (++it == end) { break; }
-		body_.lits[bIdx++].lit = Potassco::neg(*(it-1));
+		lits_[bIdx++] = Potassco::neg(*(it-1));
 	}
 	return nRule;
 }
-uint32 RuleTransform::Impl::transform(const RuleView& r, Strategy s) {
-	body_.reset(r.body.type);
-	body_.bound = r.body.bound;
-	body_.lits.assign(Potassco::begin(r.body), Potassco::end(r.body));
-	if (r.body.type == Body_t::Sum) {
-		std::stable_sort(body_.lits.begin(), body_.lits.end(), CmpW());
+
+uint32 RuleTransform::Impl::transform(Atom_t head, weight_t bound, const Potassco::WeightLitSpan& wlits, Strategy s) {
+	bound_ = bound;
+	agg_.assign(begin(wlits), end(wlits));
+	if (!isSorted(agg_.begin(), agg_.end(), CmpW())) {
+		std::stable_sort(agg_.begin(), agg_.end(), CmpW());
 	}
 	wsum_t sum = 0;
-	weight_t m = r.body.type == Body_t::Sum ? body_.bound : 1;
-	sumR_.resize(body_.size());
-	for (uint32 i = body_.size(); i--;) {
-		body_.lits[i].weight = std::min(body_.lits[i].weight, m);
-		sumR_[i] = (sum += body_.lits[i].weight);
-		CLASP_FAIL_IF(body_.lits[i].weight < 0 || sum > CLASP_WEIGHT_T_MAX, "invalid weight rule");
+	sumR_.resize(agg_.size());
+	for (uint32 i = agg_.size(); i--;) {
+		agg_[i].weight = std::min(agg_[i].weight, bound_);
+		sumR_[i] = (sum += agg_[i].weight);
+		CLASP_FAIL_IF(agg_[i].weight < 0 || sum > CLASP_WEIGHT_T_MAX, "invalid weight rule");
 	}
-	if (body_.bound > sum) {
-		return 0;
+	if      (bound_ > sum) { return 0; }
+	else if (bound_ <= 0)  { return addRule(head, Potassco::toSpan<Potassco::Lit_t>()); }
+	else if ((sum - agg_.back().weight) < bound_) { // normal rule
+		lits_.clear();
+		for (WLitVec::const_iterator it = agg_.begin(), end = agg_.end(); it != end; ++it) {
+			lits_.push_back(lit(*it));
+		}
+		return addRule(head, Potassco::toSpan(lits_));
 	}
-	if (body_.bound <= 0) {
-		body_.reset();
-		return addRule(r.head, body_.toView());
+	else {
+		return ((s == strategy_select_no_aux || (sum < 6 && s == strategy_default))
+			? transformSelect(head)
+			: transformSplit(head));
 	}
-	if ((sum - body_.lits.back().weight) < body_.bound) {
-		body_.type  = Body_t::Normal;
-		body_.bound = (weight_t)body_.lits.size();
-		return addRule(r.head, body_.toView());
-	}
-	Atom_t h = !Potassco::empty(r.head) ? *Potassco::begin(r.head) : 0;
-	bool aux = r.head.type == Head_t::Choice || Potassco::size(r.head) > 1;
-	if (aux) {
-		h = newAtom();
-		Potassco::WeightLit_t wl = { Potassco::lit(h), 1 };
-		BodyView auxBody = { Body_t::Normal, 1, Potassco::toSpan(&wl, 1) };
-		addRule(r.head, auxBody);
-	}	
-	return static_cast<uint32>(aux) + ((s == strategy_select_no_aux || (sum < 6 && s == strategy_default))
-		? transformSelect(h)
-		: transformSplit(h));
 }
+
 // Exponential transformation of cardinality and weight constraint.
 // Creates minimal subsets, no aux atoms.
 // E.g. a rule h = 2 {a,b,c,d} is translated into the following six rules:
@@ -242,26 +204,25 @@ uint32 RuleTransform::Impl::transform(const RuleView& r, Strategy s) {
 // h :- b, d.
 // h :- c, d.
 uint32 RuleTransform::Impl::transformSelect(Atom_t h) {
-	BodyData nb; nb.reset();
+	lits_.clear();
 	uint32 nRule = 0;
-	wsum_t cw = 0, bound = body_.bound;
-	assert(sumR_[0] >= bound && cw < bound);
+	wsum_t cw = 0;
+	assert(sumR_[0] >= bound_ && cw < bound_);
 	aux_.clear();
-	for (uint32 it = 0, end = (uint32)body_.size();;) {
-		while (cw < bound) {
-			cw += Potassco::weight(body_.lits[it]);
-			Potassco::WeightLit_t x = { Potassco::lit(body_.lits[it]), 1 };
-			nb.lits.push_back(x);
+	for (uint32 it = 0, end = (uint32)agg_.size();;) {
+		while (cw < bound_) {
+			cw += Potassco::weight(agg_[it]);
+			lits_.push_back(Potassco::lit(agg_[it]));
 			aux_.push_back(it++);
 		}
-		nRule += addRule(h, nb.toView());
+		nRule += addRule(h, Potassco::toSpan(lits_));
 		do {
 			if (aux_.empty()) { return nRule; }
 			it = aux_.back();
 			aux_.pop_back();
-			nb.lits.pop_back();
-			cw -= Potassco::weight(body_.lits[it]);
-		} while (++it == end || (cw + sumR_[it]) < bound);
+			lits_.pop_back();
+			cw -= Potassco::weight(agg_[it]);
+		} while (++it == end || (cw + sumR_[it]) < bound_);
 	}
 }
 // Quadratic transformation of cardinality and weight constraint.
@@ -276,7 +237,7 @@ uint32 RuleTransform::Impl::transformSelect(Atom_t h) {
 // aux_2_1 :- c.
 // aux_2_1 :- d.
 uint32 RuleTransform::Impl::transformSplit(Atom_t h) {
-	const weight_t bound = body_.bound;
+	const weight_t bound = bound_;
 	uint32 nRule = 0;
 	uint32 level = 0;
 	aux_.resize(bound, 0);
@@ -289,32 +250,40 @@ uint32 RuleTransform::Impl::transformSplit(Atom_t h) {
 			level = i.idx;
 			aux_.assign(bound, 0);
 		}
-		// For a todo item i with head h and lit x = body.lits[i.idx] create at most two rules:
+		// For a todo item i with head h and lit x = agg_[i.idx] create at most two rules:
 		// r1: h :- x, aux(i.idx+1, i.bound-weight(x))
 		// r2: h :- aux(i.idx+1, i.bound).
 		// The first rule r1 represents the case where x is true, while
 		// the second rule encodes the case where the literal is false.
-		nRule += addRule(i.head, true,  i.idx, i.bound - body_.lits[i.idx].weight);
+		nRule += addRule(i.head, true,  i.idx, i.bound - agg_[i.idx].weight);
 		nRule += addRule(i.head, false, i.idx, i.bound);
 	}
 	return nRule;
 }
-// Creates a rule head :- body.lits[idx], aux(idx+1, bound) or head :- aux(idx+1, bound) or depending on add.
+
+// Creates a rule head :- agg_[idx], aux(idx+1, bound) or head :- aux(idx+1, bound) or depending on add.
 uint32 RuleTransform::Impl::addRule(Atom_t head, bool add, uint32 bIdx, weight_t bound) {
-	const weight_t minW = body_.lits.back().weight;
+	const weight_t minW = agg_.back().weight;
 	const wsum_t   maxW = sumR_[bIdx + 1];
 	if (bound <= 0) {
 		assert(add);
-		return addRule(head, toBody(Potassco::toSpan(&body_.lits[bIdx], 1)));
+		lits_.assign(1, agg_[bIdx].lit);
+		return addRule(head, Potassco::toSpan(lits_));
 	}
 	if ((maxW - minW) < bound) {
 		// remaining literals are all needed to satisfy bound
 		bIdx += static_cast<uint32>(!add);
-		return maxW >= bound ? addRule(head, toBody(Potassco::toSpan(&body_.lits[bIdx], body_.lits.size() - bIdx))) : 0;
+		if (maxW >= bound) {
+			lits_.clear();
+			for (; bIdx != agg_.size(); ++bIdx) { lits_.push_back(agg_[bIdx].lit); }
+			return addRule(head, Potassco::toSpan(lits_));
+		}
+		return 0;
 	}
-	Potassco::WeightLit_t lits[2] = { body_.lits[bIdx], {Potassco::lit(getAuxVar(bIdx + 1, bound)), 1} };
-	uint32 first = static_cast<uint32>(!add);
-	return addRule(head, toBody(Potassco::toSpan(lits + first, 2 - first)));
+	lits_.clear();
+	if (add) { lits_.push_back(agg_[bIdx].lit); }
+	lits_.push_back(Potassco::lit(getAuxVar(bIdx + 1, bound)));
+	return addRule(head, Potassco::toSpan(lits_));
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // class SccChecker
@@ -683,57 +652,77 @@ bool PrgAtom::addConstraints(const LogicProgram& prg, ClauseCreator& gc) {
 	if (nant ||	hasDep(PrgAtom::dep_neg)) { ctx.setNant(var(), true); }
 	return gc.end(ClauseCreator::clause_force_simplify);
 }
-
 /////////////////////////////////////////////////////////////////////////////////////////
 // class PrgBody
 /////////////////////////////////////////////////////////////////////////////////////////
-PrgBody::PrgBody(LogicProgram& prg, const BodyData::Meta& meta, const BodyView& body, bool addDeps)
-	: PrgNode(meta.id, true)
-	, size_(Potassco::size(body)), extHead_(0), type_(body.type), sBody_(0), sHead_(0), freeze_(0), unsupp_(0) {
-	Literal* lits  = goals_begin();
-	Literal* p[2]  = {lits, lits + meta.pos};
-	weight_t sw[2] = {0,0}; // sum of positive/negative weights
-	const bool W   = type() == Body_t::Sum;
-	if (W) {
-		data_.ext[0] = SumExtra::create(Potassco::size(body));
-	}
-	weight_t   w   = 1;
-	// store B+ followed by B- followed by optional weights
-	for (BodyView::iterator it = Potassco::begin(body), end = Potassco::end(body); it != end; ++it) {
-		Literal x    = toLit(it->lit);
-		CLASP_ASSERT_CONTRACT_MSG(!isSentinel(x), "body not simplified");
-		*p[x.sign()] = x;
-		if (W) {   w = it->weight; data_.ext[0]->weights[p[x.sign()] - lits] = w; }
-		++p[x.sign()];
-		sw[x.sign()] += w;
-		if (addDeps) { prg.getAtom(x.var())->addDep(meta.id, !x.sign()); }
-	}
-	if (body.type == Body_t::Count) {
-		data_.lits[0] = body.bound;
-	}
-	else if (W) {
-		data_.ext[0]->bound = body.bound;
-		data_.ext[0]->sumW  = sw[0] + sw[1];
-	}
-	unsupp_ = static_cast<weight_t>(this->bound() - sw[1]);
-	if (bound() == 0) {
-		assignValue(value_true);
-		markDirty();
+PrgBody::PrgBody(uint32 id, LogicProgram& prg, const Potassco::LitSpan& lits, uint32 pos, bool addDeps)
+	: PrgNode(id, true) {
+	init(Body_t::Normal, Potassco::size(lits));
+	Norm* c = new (data_)Norm();
+	unsupp_ = pos;
+	// store B+ followed by B-
+	Literal* p[2] = {c->lits, c->lits + pos};
+	for (Potassco::LitSpan::iterator it = Potassco::begin(lits), end = Potassco::end(lits); it != end; ++it) {
+		CLASP_ASSERT_CONTRACT_MSG(*it != 0, "body not simplified");
+		Literal*& n = p[*it < 0];
+		*n = toLit(*it);
+		if (addDeps) { prg.getAtom(n->var())->addDep(id, !n->sign()); }
+		++n;
 	}
 }
 
-PrgBody* PrgBody::create(LogicProgram& prg, const BodyData::Meta& meta, const BodyView& body, bool addDeps) {
-	uint32 bytes = sizeof(PrgBody) + (Potassco::size(body) * sizeof(Literal));
-	if (body.type != Body_t::Normal) {
-		bytes += (SumExtra::LIT_OFFSET * sizeof(uint32));
+PrgBody::PrgBody(uint32 id, LogicProgram& prg, const Potassco::Sum_t& sum, bool hasWeights, uint32 pos, bool addDeps)
+	: PrgNode(id, true) {
+	init(hasWeights ? Body_t::Sum : Body_t::Count, Potassco::size(sum.lits));
+	Agg* a = new (data_) Agg();
+	if (!hasWeights) {
+		a->bound = sum.bound;
+		unsupp_  = sum.bound - static_cast<weight_t>(size_ - pos);
 	}
-	return new (::operator new(bytes)) PrgBody(prg, meta, body, addDeps);
+	else {
+		a->sum  = SumData::create(size_, sum.bound, 0);
+		unsupp_ = sum.bound;
+	}
+	// store B+ followed by B- followed by optional weights
+	Literal* base = a->lits;
+	Literal* p[2] = {base, base + pos};
+	weight_t* weights = hasWeights ? a->sum->weights : 0;
+	for (Potassco::WeightLitSpan::iterator it = Potassco::begin(sum.lits), end = Potassco::end(sum.lits); it != end; ++it) {
+		CLASP_ASSERT_CONTRACT_MSG(it->lit != 0 && it->weight > 0, "body not simplified");
+		Literal*& n = p[it->lit < 0];
+		*n = toLit(Potassco::lit(*it));
+		if (weights) { weights[n - base] = it->weight; a->sum->sumW += it->weight; if (n->sign()) { unsupp_ -= it->weight; } }
+		if (addDeps) { prg.getAtom(n->var())->addDep(id, !n->sign()); }
+		++n;
+	}
+}
+void PrgBody::init(Body_t t, uint32 sz) {
+	size_ = sz, head_ = 0, type_ = t, sBody_ = 0, sHead_ = 0, freeze_ = 0;
+}
+PrgBody* PrgBody::create(LogicProgram& prg, uint32 id, const Rule& r, uint32 pos, bool addDeps) {
+	static_assert(sizeof(PrgBody) == 24 && sizeof(Agg) == sizeof(void*), "unexpected alignment");
+	PrgBody* ret = 0;
+	if (r.normal()) {
+		uint32 bytes = sizeof(PrgBody) + (Potassco::size(r.cond) * sizeof(Literal));
+		ret = new (::operator new(bytes)) PrgBody(id, prg, r.cond, pos, addDeps);
+	}
+	else {
+		const Potassco::Sum_t& sum = r.agg;
+		uint32 bytes = sizeof(PrgBody) + (Potassco::size(r.agg.lits) * sizeof(Literal)) + sizeof(Agg);
+		ret = new (::operator new(bytes)) PrgBody(id, prg, sum, r.bt == Body_t::Sum, pos, addDeps);
+		CLASP_ASSERT_CONTRACT_MSG(ret->bound() > 0 && ret->sumW() > ret->bound(), "body not simplified");
+	}
+	if (ret->bound() == 0) {
+		ret->assignValue(value_true);
+		ret->markDirty();
+	}
+	return ret;
 }
 
 PrgBody::~PrgBody() {
 	clearHeads();
 	if (hasWeights()) {
-		data_.ext[0]->destroy();
+		sumData()->destroy();
 	}
 }
 
@@ -742,11 +731,14 @@ void PrgBody::destroy() {
 	::operator delete(this);
 }
 
-PrgBody::SumExtra* PrgBody::SumExtra::create(uint32 size) {
-	uint32 bytes = sizeof(SumExtra) + (size * sizeof(weight_t));
-	return new (::operator new(bytes)) SumExtra;
+PrgBody::SumData* PrgBody::SumData::create(uint32 size, weight_t b, weight_t s) {
+	uint32 bytes = sizeof(SumData) + (size * sizeof(weight_t));
+	SumData* ret = new (::operator new(bytes)) SumData();
+	ret->bound = b;
+	ret->sumW = s;
+	return ret;
 }
-void PrgBody::SumExtra::destroy() {
+void PrgBody::SumData::destroy() {
 	::operator delete(this);
 }
 
@@ -771,8 +763,8 @@ bool PrgBody::resetSupported() {
 
 // Removes all heads from this body *without* notifying them
 void PrgBody::clearHeads() {
-	if (extHead()) { delete heads_.ext; }
-	extHead_ = 0;
+	if (!isSmallHead()) { delete largeHead(); }
+	head_ = 0;
 }
 
 // Makes h a head-successor of this body and adds this
@@ -792,17 +784,17 @@ void PrgBody::addHead(PrgHead* h, EdgeType t) {
 	addHead(fwdEdge);
 	h->addSupport(bwdEdge);
 	// mark head-set as dirty
-	if (extHead_ > 1) {  sHead_ = 1; }
+	if (head_ > 1) {  sHead_ = 1; }
 }
 
 void PrgBody::addHead(PrgEdge h) {
-	if      (extHead_ < 2u) { heads_.simp[extHead_++] = h; }
-	else if (extHead())     { heads_.ext->push_back(h);    }
+	if      (head_ < 2u)    { smallHead()[head_++] = h; }
+	else if (!isSmallHead()){ largeHead()->push_back(h);    }
 	else                    {
-		EdgeVec* t  = new EdgeVec(heads_.simp, heads_.simp+2);
+		EdgeVec* t  = new EdgeVec(heads_begin(), heads_end());
+		headData_.ext = t;
+		head_ = 3u;
 		t->push_back(h);
-		heads_.ext  = t;
-		extHead_    = 3u;
 	}
 }
 
@@ -816,18 +808,40 @@ void PrgBody::removeHead(PrgHead* h, EdgeType t) {
 bool PrgBody::hasHead(PrgHead* h, EdgeType t) const {
 	if (!hasHeads()) { return false;  }
 	PrgEdge x = PrgEdge::newEdge(*h, t);
-	head_iterator it = sHead_ != 0 || !extHead() ? std::find(heads_begin(), heads_end(), x) : std::lower_bound(heads_begin(), heads_end(), x);
+	head_iterator it = sHead_ != 0 || isSmallHead() ? std::find(heads_begin(), heads_end(), x) : std::lower_bound(heads_begin(), heads_end(), x);
 	return it != heads_end() && *it == x;
 }
 
 bool PrgBody::eraseHead(PrgEdge h) {
 	PrgEdge* it = const_cast<PrgEdge*>(std::find(heads_begin(), heads_end(), h));
-	if (it != heads_end()) {
-		if (extHead()) { heads_.ext->erase(it); }
-		else           { *it = heads_.simp[1]; --extHead_; }
-		return true;
+	if      (it == heads_end()) { return false; }
+	else if (isSmallHead())     { *it = smallHead()[1]; --head_; }
+	else                        { largeHead()->erase(it); }
+	return true;
+}
+
+bool PrgBody::toData(const LogicProgram& prg, Potassco::RuleBuilder& out) const {
+	Body_t bt = type();
+	weight_t sum = 0, bound = this->bound();
+	bt == Body_t::Normal ?  out.startBody() : out.startSum(bound);
+	for (uint32 i = 0, end = size(); i != end; ++i) {
+		Potassco::WeightLit_t wl = {toInt(goal(i)), weight(i)};
+		if (!prg.frozen() || prg.inProgram(Potassco::atom(wl))) {
+			out.addGoal(wl);
+			sum += wl.weight;
+		}
+		else if (wl.lit < 0)           { bound -= weight(i); }
+		else if (bt == Body_t::Normal) { return false; }
 	}
-	return false;
+	if (bt != Body_t::Normal) {
+		out.setBound(bound);
+		if (bound <= 0 || bound >= sum) {
+			if      (bound > sum) { return false; }
+			else if (bound <= 0)  { out.clearBody(); }
+			else                  { out.weaken(Body_t::Normal); }
+		}
+	}
+	return true;
 }
 
 // Simplifies the body by removing assigned atoms & replacing eq atoms.
@@ -843,7 +857,7 @@ bool PrgBody::simplifyBody(LogicProgram& prg, bool strong, uint32* eqId) {
 	SharedContext& ctx = *prg.ctx();
 	uint32 oldHash     = 0;
 	weight_t bound     = this->bound();
-	weight_t w         = 1, *jw = hasWeights() ? data_.ext[0]->weights : 0;
+	weight_t w         = 1, *jw = hasWeights() ? sumData()->weights : 0;
 	Literal* lits      = goals_begin();
 	Literal* j         = lits;
 	AtomState& todo    = prg.atomState();
@@ -887,18 +901,15 @@ bool PrgBody::simplifyBody(LogicProgram& prg, bool strong, uint32* eqId) {
 		else { // body contains aLit more than once
 			if (type() != Body_t::Normal) { // merge subgoal
 				if (!jw) {
-					SumExtra* extra = SumExtra::create(size());
-					extra->bound    = this->bound();
-					extra->sumW     = this->sumW();
-					type_           = Body_t::Sum;
-					w               = 1;
-					std::fill_n(extra->weights, size(), w);
-					data_.ext[0]    = extra;
-					jw              = extra->weights + (it - lits);
+					SumData* sum = SumData::create(size(), this->bound(), this->sumW());
+					std::fill_n(sum->weights, size(), w = 1);
+					aggData().sum = sum;
+					type_ = Body_t::Sum;
+					jw    = sum->weights + (it - lits);
 				}
 				else { w = weight(uint32(it - lits)); }
 				uint32 pos = findLit(prg, aLit);
-				data_.ext[0]->weights[pos] += w;
+				sumData()->weights[pos] += w;
 			}
 			else { // ignore if normal
 				--bound;
@@ -913,7 +924,7 @@ bool PrgBody::simplifyBody(LogicProgram& prg, bool strong, uint32* eqId) {
 	// and restore pos | neg partition in case
 	// we changed some positive goals to negative ones
 	size_          = j - lits;
-	if (jw) jw     = data_.ext[0]->weights;
+	if (jw) jw     = sumData()->weights;
 	uint32 newHash = 0;
 	weight_t sumW  = 0, reachW = 0;
 	for (uint32 p = 0, n = size_, i, h; p < n;) {
@@ -936,7 +947,7 @@ bool PrgBody::simplifyBody(LogicProgram& prg, bool strong, uint32* eqId) {
 		reachW += w;
 		if (ctx.marked(posLit(v)) && ctx.marked(negLit(v))) {
 			// body contains aLit and ~aLit
-			if  (type() != Body_t::Sum) { reachW -= 1; }
+			if  (!hasWeights()) { reachW -= 1; }
 			else {
 				Literal other = prg.getAtom(a)->literal() ^ !goal(i).sign();
 				uint32 pos    = findLit(prg, other);
@@ -963,21 +974,21 @@ bool PrgBody::normalize(const LogicProgram& prg, weight_t bound, weight_t sumW, 
 	Body_t nt = (sumW == bound || size() == 1) ? Body_t::Normal : type();
 	bool ok = true;
 	if (sumW >= bound && type() != Body_t::Normal) {
-		if (type() == Body_t::Sum) {
-			data_.ext[0]->bound   = bound;
-			data_.ext[0]->sumW    = sumW;
+		if (hasWeights()) {
+			sumData()->bound = bound;
+			sumData()->sumW  = sumW;
 		}
-		else if (type() == Body_t::Count) {
-			data_.lits[0] = bound;
+		else {
+			aggData().bound = bound;
 		}
 	}
 	if (bound <= 0) {
 		for (uint32 i = 0, myId = id(); i != size_; ++i) {
 			prg.getAtom(goal(i).var())->removeDep(myId, !goal(i).sign());
 		}
-		size_  = 0; hashOut = 0, unsupp_ = 0;
-		nt     = Body_t::Normal;
-		ok     = assignValue(value_true);
+		size_ = 0; hashOut = 0, unsupp_ = 0;
+		nt    = Body_t::Normal;
+		ok    = assignValue(value_true);
 	}
 	else if (reachW < bound) {
 		ok     = assignValue(value_false);
@@ -986,13 +997,13 @@ bool PrgBody::normalize(const LogicProgram& prg, weight_t bound, weight_t sumW, 
 	}
 	if (nt != type()) {
 		assert(nt == Body_t::Normal);
-		if (type() == Body_t::Sum) {
-			data_.ext[0]->destroy();
+		Literal* from = aggData().lits;
+		if (hasWeights()) {
+			sumData()->destroy();
 		}
-		Literal* to   = reinterpret_cast<Literal*>(data_.lits);
-		Literal* from = goals_begin();
+		Literal* to = (new (data_)Norm())->lits;
 		std::copy(from, from+size(), to);
-		type_         = nt;
+		type_ = nt;
 	}
 	return ok;
 }
@@ -1012,8 +1023,8 @@ void PrgBody::prepareSimplifyHeads(LogicProgram& prg, AtomState& rs) {
 			*j = *--end;
 		}
 	}
-	if (extHead()) { shrinkVecTo(*heads_.ext, size); }
-	else           { extHead_ = size; }
+	if (isSmallHead()) { head_ = size; }
+	else               { shrinkVecTo(*largeHead(), size); }
 }
 
 // Simplifies the heads of this body wrt target.
@@ -1042,8 +1053,8 @@ bool PrgBody::simplifyHeadsImpl(LogicProgram& prg, PrgBody& target, AtomState& r
 			if (merge) { target.addHead(cur, it->type()); }
 		}
 	}
-	if (extHead()) { shrinkVecTo(*heads_.ext, newSize); }
-	else           { extHead_ = (j - heads_.simp); }
+	if (isSmallHead()) { head_ = newSize; }
+	else               { shrinkVecTo(*largeHead(), newSize); }
 	return !block;
 }
 
@@ -1103,11 +1114,11 @@ bool PrgBody::superfluousHead(const LogicProgram& prg, const PrgHead* head, PrgE
 		uint32 atomId = it.node();	
 		weight_t    w = 1;
 		if (rs.inBody(posLit(atomId))) {
-			if (type() == Body_t::Sum) {
-				const Literal* lits = goals_begin();
-				const Literal* x    = std::find(lits, lits + size(), posLit(atomId));	
+			if (hasWeights()) {
+				const Literal* lits = aggData().lits;
+				const Literal* x    = std::find(lits, lits + size(), posLit(atomId));
 				assert(x != lits + size());
-				w                   = data_.ext[0]->weights[ x - lits ];
+				w = sumData()->weights[ x - lits ];
 			}
 			if (it.isChoice() || (sumW() - w) < bound()) {
 				return true;
@@ -1151,11 +1162,11 @@ bool PrgBody::superfluousHead(const LogicProgram& prg, const PrgHead* head, PrgE
 bool PrgBody::blockedHead(PrgEdge it, const AtomState& rs) const {
 	if (it.isAtom() && it.isNormal() && rs.inBody(negLit(it.node()))) {
 		weight_t w = 1;
-		if (type() == Body_t::Sum) {
-			const Literal* lits = goals_begin();
+		if (hasWeights()) {
+			const Literal* lits = aggData().lits;
 			const Literal* x    = std::find(lits, lits + size(), negLit(it.node()));	
 			assert(x != lits + size());
-			w                   = data_.ext[0]->weights[ x - lits ];
+			w = sumData()->weights[ x - lits ];
 		}
 		return (sumW() - w) < bound();
 	}
@@ -1232,9 +1243,9 @@ bool PrgBody::propagateValue(LogicProgram& prg, bool backprop) {
 	if (val == value_false) { clearHeads(); }
 	// propagate value backward
 	if (backprop && relevant()) {
-		const uint32 W = type() == Body_t::Sum;
+		const uint32 W = hasWeights();
 		weight_t MAX_W = 1;
-		weight_t* wPos = W == 0 ? &MAX_W : data_.ext[0]->weights;
+		weight_t* wPos = W == 0 ? &MAX_W : sumData()->weights;
 		MAX_W          = *std::max_element(wPos, wPos + (size() * W));
 		weight_t bound = value()==value_false ? this->bound() : (sumW() - this->bound())+1;
 		if (MAX_W >= bound) {
@@ -1331,16 +1342,13 @@ uint32 PrgBody::scc(const LogicProgram& prg) const {
 //
 // Head of a disjunctive rule
 /////////////////////////////////////////////////////////////////////////////////////////
-PrgDisj* PrgDisj::create(uint32 id, const VarVec& heads) {
-	void* m = ::operator new(sizeof(PrgDisj) + (heads.size()*sizeof(Var)));
-	return new (m) PrgDisj(id, heads);
+PrgDisj* PrgDisj::create(uint32 id, const Potassco::AtomSpan& head) {
+	void* m = ::operator new(sizeof(PrgDisj) + (Potassco::size(head)*sizeof(Var)));
+	return new (m) PrgDisj(id, head);
 }
 
-PrgDisj::PrgDisj(uint32 id, const VarVec& atoms) : PrgHead(id, PrgNode::Disj, (uint32)atoms.size()) {
-	Var* a  = atoms_;
-	for (VarVec::const_iterator it = atoms.begin(), end = atoms.end(); it != end; ++it) {
-		*a++ = *it;
-	}
+PrgDisj::PrgDisj(uint32 id, const Potassco::AtomSpan& head) : PrgHead(id, PrgNode::Disj, (uint32)Potassco::size(head)) {
+	std::copy(Potassco::begin(head), Potassco::end(head), atoms_);
 	std::sort(atoms_, atoms_+size());
 }
 PrgDisj::~PrgDisj() {}
@@ -1386,5 +1394,4 @@ bool PrgDisj::propagateAssigned(LogicProgram& prg, PrgHead* head, EdgeType t) {
 	}
 	return true;
 }
-
 } }

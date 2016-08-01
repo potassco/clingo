@@ -48,30 +48,34 @@ enum class Rule_t : unsigned {
 
 class ReadObserver : public Test::ReadObserver {
 public:
-	virtual void rule(const HeadView& head, const BodyView& body) override {
-		if (size(head) == 0) {
-			if (head.type == Head_t::Choice) return;
-			compute.push_back(-lit(*begin(body)));
+	virtual void rule(Head_t ht, const AtomSpan& head, const LitSpan& body) override {
+		if (empty(head)) {
+			if (ht == Head_t::Choice) return;
+			compute.push_back(-lit(body[0]));
 		}
 		else {
 			Rule_t rt = Rule_t::Basic;
-			std::vector<int> r(1, *begin(head));
-			if (size(head) > 1 || head.type == Head_t::Choice) {
-				REQUIRE(body.type == Body_t::Normal);
+			std::vector<int> r(1, at(head, 0));
+			if (size(head) > 1 || ht == Head_t::Choice) {
 				r[0] = size(head);
 				r.insert(r.end(), begin(head), end(head));
-				rt = head.type == Head_t::Choice ? Rule_t::Choice : Rule_t::Disjunctive;
+				rt = ht == Head_t::Choice ? Rule_t::Choice : Rule_t::Disjunctive;
 			}
-			else if (body.type != Body_t::Normal) {
-				r.push_back(body.bound);
-				rt = body.type == Body_t::Sum ? Rule_t::Weight : Rule_t::Cardinality;
-			}
-			for (auto&& x : body) {
-				r.push_back(lit(x));
-				if (rt == Rule_t::Weight) r.push_back(weight(x));
-			}
+			r.insert(r.end(), begin(body), end(body));
 			rules[rt].push_back(std::move(r));
 		}
+	}
+	virtual void rule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body) override {
+		int rt = isSmodelsRule(ht, head, bound, body);
+		REQUIRE(rt != 0);
+		REQUIRE(size(head) == 1);
+		std::vector<int> r(1, at(head, 0));
+		r.push_back(bound);
+		for (auto&& x : body) {
+			r.push_back(lit(x));
+			if (rt == (int)Rule_t::Weight) r.push_back(weight(x));
+		}
+		rules[static_cast<Rule_t>(rt)].push_back(std::move(r));
 	}
 	virtual void minimize(Weight_t prio, const WeightLitSpan& lits) override {
 		std::vector<int> r; r.reserve((size(lits) * 2) + 1);
@@ -226,7 +230,7 @@ TEST_CASE("SmodelsExtReader ", "[smodels][smodels_ext]") {
 
 TEST_CASE("Write smodels", "[smodels]") {
 	std::stringstream str, exp;
-	SmodelsOutput writer(str, false);
+	SmodelsOutput writer(str, false, 0);
 	ReadObserver observer;
 	writer.initProgram(false);
 	SECTION("empty program is valid") {
@@ -236,8 +240,8 @@ TEST_CASE("Write smodels", "[smodels]") {
 	}
 	SECTION("body literals are correctly reordered") {
 		Atom_t a = 1;
-		Vec<WeightLit_t> body ={{2, 1}, {-3, 1}, {-4, 1}, {5, 1}};
-		writer.rule({Head_t::Disjunctive, toSpan(&a, 1)}, {Body_t::Normal, Body_t::BOUND_NONE, toSpan(body)});
+		Vec<Lit_t> body ={2, -3, -4, 5};
+		writer.rule(Head_t::Disjunctive, toSpan(&a, 1), toSpan(body));
 		writer.endStep();
 		REQUIRE(readSmodels(str, observer) == 0);
 		REQUIRE(observer.rules[Rule_t::Basic].size() == 1);
@@ -247,17 +251,17 @@ TEST_CASE("Write smodels", "[smodels]") {
 	SECTION("body literals with weights are correctly reordered") {
 		Atom_t a = 1;
 		Vec<WeightLit_t> body ={{2, 2}, {-3, 1}, {-4, 3}, {5, 4}};
-		writer.rule({Head_t::Disjunctive, toSpan(&a, 1)}, {Body_t::Sum, 4, toSpan(body)});
+		writer.rule(Head_t::Disjunctive, toSpan(&a, 1), 4, toSpan(body));
 		writer.endStep();
 		REQUIRE(readSmodels(str, observer) == 0);
 		REQUIRE(observer.rules[Rule_t::Weight].size() == 1);
 		RawRule r ={1, 4, -3, 1, -4, 3, 2, 2, 5, 4};
 		REQUIRE(observer.rules[Rule_t::Weight][0] == r);
 	}
-	SECTION("weights in count bodies are ignored") {
+	SECTION("weights are removed from count bodies") {
 		Atom_t a = 1;
-		Vec<WeightLit_t> body ={{2, 2}, {-3, 1}, {-4, 3}, {5, 4}};
-		writer.rule({Head_t::Disjunctive, toSpan(&a, 1)}, {Body_t::Count, 3, toSpan(body)});
+		Vec<WeightLit_t> body ={{2, 1}, {-3, 1}, {-4, 1}, {5, 1}};
+		writer.rule(Head_t::Disjunctive, toSpan(&a, 1), 3, toSpan(body));
 		writer.endStep();
 		REQUIRE(readSmodels(str, observer) == 0);
 		REQUIRE(observer.rules[Rule_t::Cardinality].size() == 1);
@@ -266,8 +270,8 @@ TEST_CASE("Write smodels", "[smodels]") {
 	}
 	SECTION("all head atoms are written") {
 		Vec<Atom_t> atoms ={1, 2, 3, 4};
-		writer.rule({Head_t::Disjunctive, toSpan(atoms)}, {Body_t::Normal, Body_t::BOUND_NONE, toSpan<WeightLit_t>()});
-		writer.rule({Head_t::Choice, toSpan(atoms)}, {Body_t::Normal, Body_t::BOUND_NONE, toSpan<WeightLit_t>()});
+		writer.rule(Head_t::Disjunctive, toSpan(atoms), toSpan<Lit_t>());
+		writer.rule(Head_t::Choice, toSpan(atoms), toSpan<Lit_t>());
 		writer.endStep();
 		REQUIRE(readSmodels(str, observer) == 0);
 		REQUIRE(observer.rules[Rule_t::Disjunctive].size() == 1);
@@ -298,12 +302,12 @@ TEST_CASE("Write smodels", "[smodels]") {
 		std::string an = "Hallo";
 		writer.output(toSpan(an), toSpan(&a, 1));
 		Atom_t b = 2;
-		REQUIRE_THROWS(writer.rule({Head_t::Disjunctive, toSpan(&b, 1)}, {Body_t::Normal, Body_t::BOUND_NONE, toSpan<WeightLit_t>()}));
+		REQUIRE_THROWS(writer.rule(Head_t::Disjunctive, toSpan(&b, 1), toSpan<Lit_t>()));
 	}
 	SECTION("compute statement is written via assume") {
 		Atom_t a = 1;
-		Vec<WeightLit_t> body ={{2, 1}, {-3, 1}, {-4, 1}, {5, 1}};
-		writer.rule({Head_t::Disjunctive, toSpan(&a, 1)}, {Body_t::Normal, Body_t::BOUND_NONE, toSpan(body)});
+		Vec<Lit_t> body ={2, -3, -4, 5};
+		writer.rule(Head_t::Disjunctive, toSpan(&a, 1), toSpan(body));
 		Lit_t na = -1;
 		writer.assume(toSpan(&na, 1));
 		writer.endStep();
@@ -378,15 +382,15 @@ TEST_CASE("Match heuristic predicate", "[smodels]") {
 
 TEST_CASE("SmodelsOutput supports extended programs", "[smodels_ext]") {
 	std::stringstream str, exp;
-	SmodelsOutput out(str, true);
+	SmodelsOutput out(str, true, 0);
 	SmodelsConvert writer(out, true);
 	writer.initProgram(true);
 	writer.beginStep();
 	exp << "90 0\n";
-	Vec<Atom_t>      head ={1, 2};
-	Vec<WeightLit_t> body ={{3, 1}, {-4, 1}};
-	Vec<WeightLit_t> min ={{-1, 2}, {2, 1}};
-	writer.rule({Head_t::Choice, toSpan(head)}, {Body_t::Normal, Body_t::BOUND_NONE, toSpan(body)});
+	Vec<Atom_t>      head = {1, 2};
+	Vec<Lit_t>       body = {3, -4};
+	Vec<WeightLit_t> min  = {{-1, 2}, {2, 1}};
+	writer.rule(Head_t::Choice, toSpan(head), toSpan(body));
 	exp << (int)Rule_t::Choice << " 2 2 3 2 1 5 4\n";
 	writer.external(3, Value_t::False);
 	writer.external(4, Value_t::False);
@@ -401,7 +405,7 @@ TEST_CASE("SmodelsOutput supports extended programs", "[smodels_ext]") {
 	writer.beginStep();
 	exp << "90 0\n";
 	head[0] = 3; head[1] = 4;
-	writer.rule({Head_t::Choice, toSpan(head)}, {Body_t::Normal, Body_t::BOUND_NONE, {nullptr, 0}});
+	writer.rule(Head_t::Choice, toSpan(head), toSpan<Lit_t>());
 	exp << (int)Rule_t::Choice << " 2 4 5 0 0\n";
 	writer.endStep();
 	exp << "0\n0\nB+\n0\nB-\n1\n0\n1\n";
@@ -410,25 +414,24 @@ TEST_CASE("SmodelsOutput supports extended programs", "[smodels_ext]") {
 
 
 TEST_CASE("Convert to smodels", "[convert]") {
-	using BodyLits = std::initializer_list<WeightLit_t>;
+	using BodyLits = std::initializer_list<Lit_t>;
+	using AggLits  = std::initializer_list<WeightLit_t>;
 	ReadObserver observer;
 	SmodelsConvert convert(observer, true);
 	convert.initProgram(false);
 	convert.beginStep();
 	SECTION("convert rule") {
 		Atom_t a = 1;
-		HeadView head = {Head_t::Disjunctive, {&a, 1}};
-		BodyLits lits = {{4, 1}, {-3, 1}, {-2, 1}, {5, 1}};
-		convert.rule(head, {Body_t::Normal, Body_t::BOUND_NONE, {begin(lits), lits.size()}});
+		BodyLits lits = {4, -3, -2, 5};
+		convert.rule(Head_t::Disjunctive, {&a, 1}, {begin(lits), lits.size()});
 		REQUIRE(observer.rules[Rule_t::Basic].size() == 1);
 		RawRule r ={convert.get(a), convert.get(4), convert.get(-3), convert.get(-2), convert.get(5)};
 		REQUIRE(observer.rules[Rule_t::Basic][0] == r);
 	}
 	SECTION("convert mixed rule") {
 		std::initializer_list<Atom_t> h = {1, 2, 3};
-		HeadView head = {Head_t::Choice, {begin(h), h.size()}};
-		BodyLits lits = {{4, 2}, {-3, 3}, {-2, 1}, {5, 4}};
-		convert.rule(head, {Body_t::Sum, 3, {begin(lits), lits.size()}});
+		AggLits  lits = {{4, 2}, {-3, 3}, {-2, 1}, {5, 4}};
+		convert.rule(Head_t::Choice, {begin(h), h.size()}, 3, {begin(lits), lits.size()});
 		REQUIRE(observer.rules[Rule_t::Choice].size() == 1);
 		REQUIRE(observer.rules[Rule_t::Weight].size() == 1);
 		int aux = (int)convert.maxAtom();
@@ -439,8 +442,8 @@ TEST_CASE("Convert to smodels", "[convert]") {
 	}
 
 	SECTION("convert minimize") {
-		BodyLits m1 = {{4, 1}, {-3, -2}, {-2, 1}, {5, -1}};
-		BodyLits m2 = {{8, 1}, {-7, 2}, {-6, 1}, {9, 1}};
+		AggLits m1 = {{4, 1}, {-3, -2}, {-2, 1}, {5, -1}};
+		AggLits m2 = {{8, 1}, {-7, 2}, {-6, 1}, {9, 1}};
 		convert.minimize(3, {begin(m2), 2});
 		convert.minimize(10, {begin(m1), m1.size()});
 		convert.minimize(3, {begin(m2)+2, 2});
@@ -518,7 +521,7 @@ TEST_CASE("Convert to smodels", "[convert]") {
 		}
 		SECTION("unnamed atom requires aux name") {
 			Atom_t a = 1;
-			convert.rule({Head_t::Choice, {&a, 1}}, {Body_t::Normal, Body_t::BOUND_NONE, {nullptr, 0}});
+			convert.rule(Head_t::Choice, {&a, 1}, toSpan<Lit_t>());
 			convert.heuristic(a, Heuristic_t::Sign, -1, 2, toSpan<Lit_t>());
 			convert.endStep();
 			REQUIRE(observer.rules[Rule_t::Basic].size() == 1);
@@ -536,12 +539,12 @@ using Potassco::toSpan;
 TEST_CASE("Test Atom to directive conversion", "[clasp]") {
 	ReadObserver observer;
 	std::stringstream str;
-	SmodelsOutput writer(str, false);
+	SmodelsOutput writer(str, false, 0);
 	SmodelsInput::Options opts; opts.enableClaspExt().convertEdges().convertHeuristic();
 	std::vector<Atom_t> atoms = {1, 2, 3, 4, 5, 6};
 	writer.initProgram(false);
 	writer.beginStep();
-	writer.rule({Potassco::Head_t::Choice, Potassco::toSpan(atoms)}, {Potassco::Body_t::Normal, 0, Potassco::toSpan<Potassco::WeightLit_t>()});
+	writer.rule(Potassco::Head_t::Choice, Potassco::toSpan(atoms), Potassco::toSpan<Potassco::Lit_t>());
 	SECTION("_edge(X,Y) atoms are converted to edges directives") {
 		Lit_t a = 1, b = 2, c = 3;
 		writer.output(toSpan("_edge(1,2)"), toSpan(&a, 1));

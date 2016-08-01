@@ -30,7 +30,8 @@ public:
 	virtual void initProgram(bool incremental);
 	virtual void beginStep();
 	//! Converts the given rule into one or more smodels rules.
-	virtual void rule(const HeadView& head, const BodyView& body);
+	virtual void rule(Head_t t, const AtomSpan& head, const LitSpan& body);
+	virtual void rule(Head_t t, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body);
 	//! Converts literals associated with a priority to a set of corresponding smodels minimize rules.
 	virtual void minimize(Weight_t prio, const WeightLitSpan& lits);
 	//! Adds an atom named str that is equivalent to the condition to the symbol table.
@@ -41,9 +42,7 @@ public:
 	virtual void heuristic(Atom_t a, Heuristic_t t, int bias, unsigned prio, const LitSpan& condition);
 	// Adds an _edge(s,t) predicate to the symbol table that is equivalent to condition.
 	virtual void acycEdge(int s, int t, const LitSpan& condition);
-	
-	virtual void assume(const LitSpan& lits);
-	virtual void project(const AtomSpan& atoms);
+
 	virtual void endStep();
 
 	// returns the output literal associated to in.

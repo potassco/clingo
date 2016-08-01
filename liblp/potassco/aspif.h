@@ -35,11 +35,13 @@ protected:
 	virtual bool doParse();
 	virtual void matchTheory(unsigned t);
 private:
-	StringSpan matchString();
-	AtomSpan   matchTermList();
-	struct ParseData;
+	uint32_t matchAtoms();
+	uint32_t matchLits();
+	uint32_t matchWLits(int32_t minW);
+	uint32_t matchString();
+	uint32_t matchTermList();
 	AbstractProgram& out_;
-	ParseData*       data_;
+	BasicStack*      data_;
 };
 
 //! Writes a program in potassco's asp intermediate format to the given output stream.
@@ -48,7 +50,8 @@ public:
 	AspifOutput(std::ostream& os);
 	virtual void initProgram(bool incremental);
 	virtual void beginStep();
-	virtual void rule(const HeadView& head, const BodyView& body);
+	virtual void rule(Head_t ht, const AtomSpan& head, const LitSpan& body);
+	virtual void rule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& lits);
 	virtual void minimize(Weight_t prio, const WeightLitSpan& lits);
 	virtual void output(const StringSpan& str, const LitSpan& cond);
 	virtual void external(Atom_t a, Value_t v);

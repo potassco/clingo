@@ -77,13 +77,6 @@ size_t Reifier::litTuple(LitSpan const &args) {
     return tuple(stepData_.litTuples, "literal_tuple", args);
 }
 
-size_t Reifier::litTuple(WeightLitSpan const &args) {
-    std::vector<Lit_t> lits;
-    lits.reserve(args.size);
-    for (auto &x : args) { lits.emplace_back(x.lit); }
-    return tuple(stepData_.litTuples, "literal_tuple", Potassco::toSpan(lits));
-}
-
 size_t Reifier::weightLitTuple(WeightLitSpan const &args) {
     WLVec lits;
     lits.reserve(args.size);
@@ -107,26 +100,32 @@ void Reifier::initProgram(bool incremental) {
 
 void Reifier::beginStep() { }
 
-void Reifier::rule(HeadView const &head, BodyView const &body) {
-    char const *h = head.type == Potassco::Head_t::Disjunctive ? "disjunction" : "choice";
+void Reifier::rule(Head_t ht, const AtomSpan& head, const LitSpan& body) {
+    char const *h = ht == Potassco::Head_t::Disjunctive ? "disjunction" : "choice";
     std::ostringstream hss, bss;
-    hss << h << "(" << atomTuple(head.atoms) << ")";
-    if (body.type == Potassco::Body_t::Normal) {
-        bss << "normal(" << litTuple(body.lits) << ")";
-        printStepFact("rule", hss.str(), bss.str());
-    }
-    else {
-        bss << "sum(" << weightLitTuple(body.lits) << "," << body.bound << ")";
-        printStepFact("rule", hss.str(), bss.str());
-    }
-    if (calculateSCCs_) {
-        for (auto &atom : head.atoms) {
-            Graph::Node &u = addNode(atom);
-            for (auto &elem : body.lits) {
-                if (elem.lit > 0) {
-                    Graph::Node &v = addNode(elem.lit);
-                    u.insertEdge(v);
-                }
+    hss << h << "(" << atomTuple(head) << ")";
+    bss << "normal(" << litTuple(body) << ")";
+    printStepFact("rule", hss.str(), bss.str());
+    if (calculateSCCs_) { calculateSCCs(head, body); }
+}
+
+void Reifier::rule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body) {
+    char const *h = ht == Potassco::Head_t::Disjunctive ? "disjunction" : "choice";
+    std::ostringstream hss, bss;
+    hss << h << "(" << atomTuple(head) << ")";
+    bss << "sum(" << weightLitTuple(body) << "," << bound << ")";
+    printStepFact("rule", hss.str(), bss.str());
+    if (calculateSCCs_) { calculateSCCs(head, body); }
+}
+
+template <class L>
+void Reifier::calculateSCCs(const AtomSpan& head, const Potassco::Span<L>& body) {
+    for (auto &atom : head) {
+        Graph::Node &u = addNode(atom);
+        for (auto &elem : body) {
+            if (Potassco::lit(elem) > 0) {
+                Graph::Node &v = addNode(Potassco::lit(elem));
+                u.insertEdge(v);
             }
         }
     }

@@ -36,6 +36,7 @@
 #include <potassco/basic_types.h>
 #include <iterator>
 #include <utility>
+#include <new>
 namespace Potassco {
 
 class TheoryData;
@@ -243,17 +244,19 @@ public:
 
 	template <class F>
 	void filter(const F& f) {
-		TheoryAtom** j = atoms_.data + frame_.atom;
-		for (atom_iterator it = j, end = atoms_.data + atoms_.sz; it != end; ++it) {
+		TheoryAtom** j = atoms() + frame_.atom;
+		uint32_t pop = 0;
+		for (atom_iterator it = j, end = atoms() + numAtoms(); it != end; ++it) {
 			Id_t atom = (*it)->atom();
 			if (!atom || !f(**it)) {
 				*j++ = const_cast<TheoryAtom*>(*it);
 			}
 			else {
+				pop += sizeof(*it);
 				TheoryAtom::destroy(const_cast<TheoryAtom*>(*it));
 			}
 		}
-		atoms_.sz = static_cast<uint32_t>(j - atoms_.data);
+		atoms_.setTop(atoms_.top() - pop);
 	}
 
 	class Visitor {
@@ -272,22 +275,25 @@ public:
 	//! If t is a compound term, visits subterms added in the current step.
 	void accept(const TheoryTerm& t, Visitor& out) const;
 private:
+	struct PtrStack : public RawStack {
+		typedef void* value_type;
+		void push(void* ptr) { new (get(push_(sizeof(value_type)))) value_type(ptr); }
+	};
+	struct TermStack : public RawStack {
+		void push(const TheoryTerm& t) { new (get(push_(sizeof(TheoryTerm)))) TheoryTerm(t); }
+	};
 	TheoryData(const TheoryData&);
 	TheoryData& operator=(const TheoryData&);
 	struct DestroyT;
-	template <class T>
-	struct Vec {
-		Vec() : sz(0), cap(0), data(0) {}
-		uint32_t sz;
-		uint32_t cap;
-		T*     data;
-	};
-	template <class T>
-	void grow(Vec<T>& vec, uint32_t ns, const T& def) const;
-	TheoryTerm& setTerm(Id_t);
-	Vec<TheoryAtom*>    atoms_;
-	Vec<TheoryElement*> elems_;
-	Vec<TheoryTerm>     terms_;
+	TheoryTerm&     setTerm(Id_t);
+	TheoryTerm*     terms()    const;
+	TheoryElement** elems()    const;
+	TheoryAtom**    atoms()    const;
+	uint32_t        numTerms() const;
+	uint32_t        numElems() const;
+	PtrStack  atoms_;
+	PtrStack  elems_;
+	TermStack terms_;
 	struct Up {
 		Up() : atom(0), term(0), elem(0) {}
 		uint32_t atom;

@@ -77,21 +77,23 @@ private:
 	virtual StrategyType* doAccept(std::istream& str, const ParserOptions& o) = 0;
 	StrategyType* strat_;
 };
-//! Reads a logic program in smodels-internal format.
+
+//! Reads a logic program in smodels-internal or aspif format.
 class AspParser : public ProgramParser {
 public:
 	static bool accept(char c);
 	explicit AspParser(Asp::LogicProgram& prg);
 	~AspParser();
-	enum Format { format_smodels = -1, format_clasp = 1 };
+	enum Format { format_smodels = -1, format_aspif = 1 };
 	static void write(Asp::LogicProgram& prg, std::ostream& os);
 	static void write(Asp::LogicProgram& prg, std::ostream& os, Format f);
 protected:
 	virtual StrategyType* doAccept(std::istream& str, const ParserOptions& o);
 private:
-	struct LogicProgram;
-	LogicProgram* program_;
-	StrategyType* reader_;
+	struct SmAdapter;
+	Asp::LogicProgram*         lp_;
+	StrategyType*              in_;
+	Potassco::AbstractProgram* out_;
 };
 /////////////////////////////////////////////////////////////////////////////////////////
 // SAT parsing 

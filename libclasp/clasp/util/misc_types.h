@@ -296,6 +296,17 @@ inline compose_2_2<OP1, OP2,OP3> compose22(const OP1& op1, const OP2& op2, const
 	return compose_2_2<OP1, OP2, OP3>(op1, op2, op3);
 }
 
+//! TODO: replace with std::is_sorted once we switch to C++11
+template <class ForwardIterator, class Compare>
+bool isSorted(ForwardIterator first, ForwardIterator last, Compare comp) {
+	if (first != last) {
+		for (ForwardIterator n = first; ++n != last; ++first) { 
+			if (comp(*n, *first)) return false;
+		}
+	}
+	return true;
+}
+
 struct Ownership_t {
 	enum Type { Retain = 0, Acquire = 1 };
 };

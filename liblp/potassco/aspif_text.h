@@ -30,14 +30,14 @@ protected:
 	virtual bool doParse();
 	bool parseStatements();
 private:
-	void skipws();
-	void matchDirective();
-	void matchRule(char peek);
-	void matchAtoms(const char* seps);
-	void matchLits();
-	void matchCondition();
-	void matchAgg();
-	bool match(const char* ts, bool required = true);
+	void   skipws();
+	void   matchDirective();
+	void   matchRule(char peek);
+	void   matchAtoms(const char* seps);
+	void   matchLits();
+	void   matchCondition();
+	void   matchAgg();
+	bool   match(const char* ts, bool required = true);
 	Atom_t matchId();
 	Lit_t  matchLit();
 	int    matchInt();
@@ -48,8 +48,9 @@ private:
 	void   push(char c);
 	void   endString();
 	AbstractProgram* out_;
-	struct ParseData;
-	ParseData* data_;
+	BasicStack       data_;
+	uint32_t         strStart_;
+	uint32_t         strPos_;
 };
 
 }

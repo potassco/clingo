@@ -86,15 +86,28 @@ inline Lit_t matchLit(BufferedStream& str, unsigned aMax = atomMax, const char* 
 	if (str.match(x) && x != 0 && x >= -max && x <= max) { return static_cast<Lit_t>(x); }
 	throw ParseError(str.line(), err);
 }
-template <class C>
-LitSpan matchLits(BufferedStream& str, C& c, unsigned aMax) {
-	c.clear();
-	for (unsigned n = matchPos(str, "number of literals expected"); n--;) {
-		c.push_back(matchLit(str, aMax));
-	}
-	return toSpan(c);
+inline WeightLit_t matchWLit(BufferedStream& str, unsigned aMax = atomMax, Weight_t minW = 0, const char* err = "weight literal expected") {
+	WeightLit_t wl;
+	wl.lit    = matchLit(str, aMax, err);
+	wl.weight = matchInt(str, minW, INT_MAX, "invalid weight literal weight");
+	return wl;
 }
-
+class BasicStack : public RawStack {
+public:
+	void push(int32_t x) { push(static_cast<uint32_t>(x)); }
+	void push(uint32_t x);
+	void push(WeightLit_t x);
+	template <class T> T       pop() { const T* x;  pop(&x, 1); return *x; }
+	template <class T> T*      makeSpan(uint32_t len) { T* x; push(&x, len); return x; }
+	template <class T> Span<T> popSpan(uint32_t len) { const T* x; pop(&x, len); return toSpan(x, len); }
+protected:
+	template <class T>
+	void pop(const T**, uint32_t len);
+	void pop(const char**, uint32_t len);
+	template <class T>
+	void push(T**, uint32_t len);
+	void push(char**, uint32_t len);
+};
 class ProgramReader {
 public:
 	ProgramReader();
@@ -108,20 +121,20 @@ public:
 	void setMaxVar(unsigned v) { varMax_ = v; }
 protected:
 	typedef BufferedStream StreamType;
+	typedef WeightLit_t WLit_t;
 	virtual bool doAttach(bool& inc) = 0;
 	virtual bool doParse() = 0;
 	virtual void doReset();
 	StreamType*  stream() const;
-	char         peek(bool skipws) const;
-	bool         require(bool cnd, const char* msg) const;
+	char     peek(bool skipws) const;
+	bool     require(bool cnd, const char* msg) const;
 	bool     match(const char* word, bool skipWs = true) { return Potassco::match(*stream(), word, skipWs); }
 	int      matchInt(int min = INT_MIN, int max = INT_MAX, const char* err = "integer expected") { return Potassco::matchInt(*stream(), min, max, err); }
 	unsigned matchPos(unsigned max = static_cast<unsigned>(-1), const char* err = "unsigned integer expected") { return Potassco::matchPos(*stream(), max, err); }
 	unsigned matchPos(const char* err) { return matchPos(static_cast<unsigned>(-1), err); }
 	Atom_t   matchAtom(const char* err = "atom expected") { return Potassco::matchAtom(*stream(), varMax_, err); }
 	Lit_t    matchLit(const char* err = "literal expected") { return Potassco::matchLit(*stream(), varMax_, err); }
-	template <class C>
-	LitSpan  matchLits(C& c) { return Potassco::matchLits(*stream(), c, varMax_); }
+	WLit_t   matchWLit(int min, const char* err = "weight literal expected") { return Potassco::matchWLit(*stream(), varMax_, min, err); }
 	void     skipLine();
 private:
 	ProgramReader(const ProgramReader&);

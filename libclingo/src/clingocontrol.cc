@@ -35,8 +35,12 @@ void ClaspAPIBackend::endStep() { }
 
 void ClaspAPIBackend::beginStep() { }
 
-void ClaspAPIBackend::rule(const Potassco::HeadView& head, const Potassco::BodyView& body) {
-    if (auto p = prg()) { p->addRule(head, body); }
+void ClaspAPIBackend::rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, const Potassco::LitSpan& body) {
+    if (auto p = prg()) { p->addRule(ht, head, body); }
+}
+
+void ClaspAPIBackend::rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, Potassco::Weight_t bound, const Potassco::WeightLitSpan& body) {
+    if (auto p = prg()) { p->addRule(ht, head, bound, body); }
 }
 
 void ClaspAPIBackend::minimize(Potassco::Weight_t prio, const Potassco::WeightLitSpan& lits) {

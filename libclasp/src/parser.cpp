@@ -101,73 +101,25 @@ void ProgramParser::reset() {
 	strat_ = 0;
 }
 /////////////////////////////////////////////////////////////////////////////////////////
-// AspParser::LogicProgram
+// AspParser::SmAdapter
 // 
-// Callback interface for parser -> adds elements to Asp::LogicProgram
+// Callback interface for smodels parser
 /////////////////////////////////////////////////////////////////////////////////////////
-struct AspParser::LogicProgram : public Potassco::AbstractProgram  // for aspif input
-                               , public Potassco::AtomTable {      // for smodels input
+struct AspParser::SmAdapter : public Asp::LogicProgramAdapter, public Potassco::AtomTable {
 	typedef Clasp::HashMap_t<ConstString, Var, StrHash, StrEq>::map_type StrMap;
 	typedef SingleOwnerPtr<StrMap> StrMapPtr;
-	LogicProgram(Asp::LogicProgram& prg) : Potassco::AbstractProgram(), builder_(&prg) {}
-	void initProgram(bool inc) { inc_ = inc; }
-	void beginStep() {
-		if (inc_) { builder_->updateProgram(); }
-	}
-	void rule(const Potassco::HeadView& head, const Potassco::BodyView& body) {
-		builder_->addRule(head, body);
-	}
-	void minimize(Potassco::Weight_t prio, const Potassco::WeightLitSpan& lits) {
-		builder_->addMinimize(prio, lits);
-	}
-	void project(const Potassco::AtomSpan& atoms) {
-		builder_->addProject(atoms);
-	}
-	void output(const Potassco::StringSpan& str, const Potassco::LitSpan& cond) {
-		builder_->addOutput(ConstString(str), cond);
-	}
-	void external(Potassco::Atom_t a, Potassco::Value_t v) {
-		if (v != Potassco::Value_t::Release) { builder_->freeze(a, static_cast<ValueRep>(v)); }
-		else { builder_->unfreeze(a); }
-	}
-	void assume(const Potassco::LitSpan& lits) {
-		builder_->addAssumption(lits);
-	}
-	void heuristic(Potassco::Atom_t a, Potassco::Heuristic_t t, int bias, unsigned prio, const Potassco::LitSpan& cond) {
-		builder_->addDomHeuristic(a, t, bias, prio, cond);
-	}
-	void acycEdge(int s, int t, const Potassco::LitSpan& cond) {
-		builder_->addAcycEdge(static_cast<uint32>(s), static_cast<uint32>(t), cond);
-	}
-	void theoryTerm(Potassco::Id_t termId, int number) {
-		builder_->theoryData().addTerm(termId, number);
-	}
-	void theoryTerm(Potassco::Id_t termId, const Potassco::StringSpan& name) {
-		builder_->theoryData().addTerm(termId, name);
-	}
-	void theoryTerm(Potassco::Id_t termId, int cId, const Potassco::IdSpan& args) {
-		if (cId >= 0) { builder_->theoryData().addTerm(termId, static_cast<Potassco::Id_t>(cId), args); }
-		else          { builder_->theoryData().addTerm(termId, static_cast<Potassco::Tuple_t>(cId), args); }
-	}
-	void theoryElement(Potassco::Id_t elementId, const Potassco::IdSpan& terms, const Potassco::LitSpan& cond) {
-		builder_->theoryData().addElement(elementId, terms, builder_->newCondition(cond));
-	}
-	void theoryAtom(Potassco::Id_t atomOrZero, Potassco::Id_t termId, const Potassco::IdSpan& elements) {
-		builder_->theoryData().addAtom(atomOrZero, termId, elements);
-	}
-	void theoryAtom(Potassco::Id_t atomOrZero, Potassco::Id_t termId, const Potassco::IdSpan& elements, Potassco::Id_t op, Potassco::Id_t rhs) {
-		builder_->theoryData().addAtom(atomOrZero, termId, elements, op, rhs);
-	}
+	SmAdapter(Asp::LogicProgram& prg) : Asp::LogicProgramAdapter(prg) {}
 	void endStep() {
-		if (fmt_ == format_smodels && inc_ && builder_->ctx()->hasMinimize()) {
-			builder_->ctx()->removeMinimize();
+		Asp::LogicProgramAdapter::endStep();
+		if (inc_ && lp_->ctx()->hasMinimize()) {
+			lp_->ctx()->removeMinimize();
 		}
 		if (!inc_) { atoms_ = 0; }
 	}
 	void add(Potassco::Atom_t id, const Potassco::StringSpan& name, bool output) {
 		ConstString n(name);
 		if (atoms_.get()) { atoms_->insert(StrMap::value_type(n, id)); }
-		if (output) { builder_->addOutput(n, id); }
+		if (output) { lp_->addOutput(n, id); }
 	}
 	Potassco::Atom_t find(const Potassco::StringSpan& name) {
 		if (!atoms_.get()) { return 0; }
@@ -175,91 +127,55 @@ struct AspParser::LogicProgram : public Potassco::AbstractProgram  // for aspif 
 		StrMap::iterator it = atoms_->find(n);
 		return it != atoms_->end() ? it->second : 0;
 	}
-	const Potassco::TheoryData& data() { return builder_->theoryData(); }
-	Potassco::TheoryData&    addData() { return builder_->theoryData(); }
-	Potassco::LitSpan condition(Potassco::Id_t id) {
-		builder_->extractCondition(id, cond_);
-		return Potassco::toSpan(cond_);
-	}
-	Potassco::Id_t addCondition(const Potassco::LitSpan& span) {
-		return builder_->newCondition(span);
-	}
-	Asp::LogicProgram* builder_;
-	ParserOptions      options_;
-	StrMapPtr          atoms_;
-	VarVec             ids_;
-	Potassco::LitVec   cond_;
-	Format             fmt_;
-	bool               inc_;
+	StrMapPtr atoms_;
 };
 /////////////////////////////////////////////////////////////////////////////////////////
 // AspParser 
 /////////////////////////////////////////////////////////////////////////////////////////
 AspParser::AspParser(Asp::LogicProgram& prg)
-	: program_(new AspParser::LogicProgram(prg))
-	, reader_(0) {}
+	: lp_(&prg)
+	, in_(0)
+	, out_(0) {}
 AspParser::~AspParser() {
-	delete reader_;
-	delete program_;
+	delete in_;
+	delete out_;
 }
 bool AspParser::accept(char c) { return Potassco::BufferedStream::isDigit(c) || c == 'a'; }
 
 AspParser::StrategyType* AspParser::doAccept(std::istream& str, const ParserOptions& o) {
-	delete reader_;
-	program_->options_ = o;
+	delete in_;
+	delete out_;
 	if (Potassco::BufferedStream::isDigit((char)str.peek())) {
+		out_ = new SmAdapter(*lp_);
 		Potassco::SmodelsInput::Options so;
 		so.enableClaspExt();
 		if (o.isEnabled(ParserOptions::parse_heuristic)) {
 			so.convertHeuristic();
-			program_->atoms_ = new AspParser::LogicProgram::StrMap();
+			static_cast<SmAdapter*>(out_)->atoms_ = new AspParser::SmAdapter::StrMap();
 		}
 		if (o.isEnabled(ParserOptions::parse_acyc_edge)) {
 			so.convertEdges();
 		}
-		reader_ = new Potassco::SmodelsInput(*program_, so, program_);
-		program_->fmt_ = format_smodels;
+		in_ = new Potassco::SmodelsInput(*out_, so, static_cast<SmAdapter*>(out_));
 	}
 	else {
-		reader_ = new Potassco::AspifInput(*program_);
-		program_->fmt_ = format_clasp;
+		out_ = new Asp::LogicProgramAdapter(*lp_);
+		in_ = new Potassco::AspifInput(*out_);
 	}
-	return reader_->accept(str) ? reader_ : 0;
+	return in_->accept(str) ? in_ : 0;
 }
 
 void AspParser::write(Asp::LogicProgram& prg, std::ostream& os) {
-	write(prg, os, prg.supportsSmodels() ? format_smodels : format_clasp);
+	write(prg, os, prg.supportsSmodels() ? format_smodels : format_aspif);
 }
 void AspParser::write(Asp::LogicProgram& prg, std::ostream& os, Format f) {
 	using namespace Potassco;
 	SingleOwnerPtr<AbstractProgram> out;
-	if (f == format_clasp) {
+	if (f == format_aspif) {
 		out.reset(new Potassco::AspifOutput(os));
 	}
 	else {
-		struct SmodelsAdapter : public Potassco::SmodelsOutput {
-			SmodelsAdapter(Asp::LogicProgram& prg, std::ostream& os) : Potassco::SmodelsOutput(os, true), prg_(&prg), false_(0) {}
-			virtual void rule(const HeadView& head, const BodyView& body) {
-				if (Potassco::size(head) > 0) {
-					Potassco::SmodelsOutput::rule(head, body);
-				}
-				else if (head.type == Potassco::Head_t::Disjunctive) {
-					if (!false_) { false_ = prg_->falseAtom(); }
-					HeadView F = {head.type, Potassco::toSpan(&false_, 1)};
-					Potassco::SmodelsOutput::rule(F, body);
-				}
-			}
-			virtual void endStep() {
-				if (false_) {
-					Potassco::Lit_t c = Potassco::neg(false_);
-					Potassco::SmodelsOutput::assume(Potassco::toSpan(&c, 1));
-				}
-				Potassco::SmodelsOutput::endStep();
-			}
-			Asp::LogicProgram* prg_;
-			Potassco::Atom_t   false_;
-		};
-		out.reset(new SmodelsAdapter(prg, os));
+		out.reset(new Potassco::SmodelsOutput(os, true, prg.falseAtom()));
 	}
 	if (prg.startAtom() == 1) { out->initProgram(prg.isIncremental()); }
 	out->beginStep();

@@ -19,24 +19,8 @@
 #include <potassco/aspif_text.h>
 #include <cctype>
 #include <cstring>
-#include <vector>
 namespace Potassco {
-
-struct AspifTextInput::ParseData {
-	std::vector<Atom_t>      atoms_;
-	std::vector<Lit_t>       lits_;
-	std::vector<WeightLit_t> wLits_;
-	std::vector<char>        str_;
-	AtomSpan      atoms() const { return toSpan(atoms_); }
-	LitSpan       lits()  const { return toSpan(lits_); }
-	WeightLitSpan wLits() const { return toSpan(wLits_); }
-	StringSpan    str()   const { 
-		return toSpan(&str_[0], str_.size() - 1); 
-	}
-	void clear() { atoms_.clear(); lits_.clear(); wLits_.clear(); str_.clear(); }
-};
-
-AspifTextInput::AspifTextInput(AbstractProgram* out) : out_(out), data_(0) {}
+AspifTextInput::AspifTextInput(AbstractProgram* out) : out_(out), strStart_(0), strPos_(0) {}
 bool AspifTextInput::doAttach(bool& inc) {
 	char n = peek(true);
 	if (out_ && (!n || std::islower(static_cast<unsigned char>(n)) || std::strchr(".#%{:", n))) {
@@ -52,56 +36,62 @@ bool AspifTextInput::doAttach(bool& inc) {
 }
 
 bool AspifTextInput::doParse() {
-	ParseData data;
-	data_ = &data;
 	out_->beginStep();
 	if (!parseStatements()) { return false; }
 	out_->endStep();
+	BasicStack().swap(data_);
 	return true;
 }
 
 bool AspifTextInput::parseStatements() {
 	require(out_ != 0, "output not set");
 	for (char c; (c = peek(true)) != 0;) {
-		data_->clear();
+		data_.clear();
 		if      (c == '.') { match("."); }
 		else if (c == '#') { matchDirective(); }
 		else if (c == '%') { skipLine(); }
 		else               { matchRule(c); }
 	}
-	data_->clear();
+	data_.clear();
 	return true;
 }
 
 void AspifTextInput::matchRule(char c) {
-	HeadView H; H.type = Head_t::Disjunctive;
-	BodyView B; B.type = Body_t::Normal; B.bound = Body_t::BOUND_NONE;
+	Head_t ht = Head_t::Disjunctive;
+	Body_t bt = Body_t::Normal;
 	if (c != ':') {
-		if (c == '{') { match("{"); H.type = Head_t::Choice; matchAtoms(";,"); match("}"); }
+		if (c == '{') { match("{"); ht = Head_t::Choice; matchAtoms(";,"); match("}"); }
 		else          { matchAtoms(";|"); }
 	}
+	else { data_.push(0u); }
 	if (match(":-", false)) {
 		c = peek(true);
 		if (!StreamType::isDigit(c) && c != '-') {
 			matchLits();
 		}
 		else {
-			B.bound = matchInt();
+			Weight_t bound = matchInt();
 			matchAgg();
-			B.type = Body_t::Sum;
+			data_.push(bound);
+			bt = Body_t::Sum;
 		}
+	}
+	else {
+		data_.push(0u);
 	}
 	match(".");
-	H.atoms = data_->atoms();
-	if (B.type == Body_t::Normal) {
-		LitSpan body = data_->lits();
-		for (LitSpan::iterator it = Potassco::begin(body), end = Potassco::end(body); it != end; ++it) {
-			WeightLit_t wl = {*it, 1};
-			data_->wLits_.push_back(wl);
-		}
+	if (bt == Body_t::Normal) {
+		LitSpan  body = data_.popSpan<Lit_t>(data_.pop<uint32_t>());
+		AtomSpan head = data_.popSpan<Atom_t>(data_.pop<uint32_t>());
+		out_->rule(ht, head, body);
 	}
-	B.lits = data_->wLits();
-	out_->rule(H, B);
+	else {
+		typedef WeightLitSpan WLitSpan;
+		Weight_t bound = data_.pop<Weight_t>();
+		WLitSpan body = data_.popSpan<WeightLit_t>(data_.pop<uint32_t>());
+		AtomSpan head = data_.popSpan<Atom_t>(data_.pop<uint32_t>());
+		out_->rule(ht, head, bound, body);
+	}
 }
 
 void AspifTextInput::matchDirective() {
@@ -109,21 +99,25 @@ void AspifTextInput::matchDirective() {
 		matchAgg();
 		Weight_t prio = match("@", false) ? matchInt() : 0;
 		match(".");
-		out_->minimize(prio, data_->wLits());
+		out_->minimize(prio, data_.popSpan<WeightLit_t>(data_.pop<uint32_t>()));
 	}
 	else if (match("#project", false)) {
+		uint32_t n = 0;
 		if (match("{", false) && !match("}", false)) {
 			matchAtoms(",");
 			match("}");
+			n = data_.pop<uint32_t>();
 		}
 		match(".");
-		out_->project(data_->atoms());
+		out_->project(data_.popSpan<Atom_t>(n));
 	}
 	else if (match("#output", false)) {
 		matchTerm();
 		matchCondition();
 		match(".");
-		out_->output(data_->str(), data_->lits());
+		LitSpan   cond = data_.popSpan<Lit_t>(data_.pop<uint32_t>());
+		StringSpan str = data_.popSpan<char>(data_.pop<uint32_t>());
+		out_->output(str, cond);
 	}
 	else if (match("#external", false)) {
 		Atom_t  a = matchId();
@@ -139,12 +133,14 @@ void AspifTextInput::matchDirective() {
 		out_->external(a, v);
 	}
 	else if (match("#assume", false)) {
+		uint32_t n = 0;
 		if (match("{", false) && !match("}", false)) {
 			matchLits();
 			match("}");
+			n = data_.pop<uint32_t>();
 		}
 		match(".");
-		out_->assume(data_->lits());
+		out_->assume(data_.popSpan<Lit_t>(n));
 	}
 	else if (match("#heuristic", false)) {
 		Atom_t a = matchId();
@@ -165,14 +161,14 @@ void AspifTextInput::matchDirective() {
 		require(h >= 0, "unrecognized heuristic modification");
 		skipws();
 		match("]");
-		out_->heuristic(a, static_cast<Heuristic_t>(h), v, static_cast<unsigned>(p), data_->lits());
+		out_->heuristic(a, static_cast<Heuristic_t>(h), v, static_cast<unsigned>(p), data_.popSpan<Lit_t>(data_.pop<uint32_t>()));
 	}
 	else if (match("#edge", false)) {
 		int s, t;
 		match("("), s = matchInt(), match(","), t = matchInt(), match(")");
 		matchCondition();
 		match(".");
-		out_->acycEdge(s, t, data_->lits());
+		out_->acycEdge(s, t, data_.popSpan<Lit_t>(data_.pop<uint32_t>()));
 	}
 	else if (match("#step", false)) {
 		require(incremental(), "#step requires incremental program");
@@ -202,13 +198,15 @@ bool AspifTextInput::match(const char* term, bool req) {
 		while (*term) { push(*term++); }
 		push('\0');
 		endString();
-		return require(false, &data_->str_[0]);
+		return require(false, data_.popSpan<char>(data_.pop<uint32_t>()).first);
 	}
 }
 void AspifTextInput::matchAtoms(const char* seps) {
-	for (;;) {
-		data_->atoms_.push_back(matchId());
+	for (uint32_t n = 0;;) {
+		data_.push(matchId());
+		++n;
 		if (!std::strchr(seps, stream()->peek())) {
+			data_.push(n);
 			break;
 		}
 		stream()->get();
@@ -216,23 +214,28 @@ void AspifTextInput::matchAtoms(const char* seps) {
 	}
 }
 void AspifTextInput::matchLits() {
+	uint32_t n = 1;
 	do {
-		data_->lits_.push_back(matchLit());
-	} while (match(",", false));
+		data_.push(matchLit());
+	} while (match(",", false) && ++n);
+	data_.push(n);
 }
 void AspifTextInput::matchCondition() {
 	if (match(":", false)) { matchLits(); }
+	else                   { data_.push(0u); }
 }
 void AspifTextInput::matchAgg() {
+	uint32_t n = 0;
 	if (match("{") && !match("}", false)) {
 		do {
 			WeightLit_t wl = {matchLit(), 1};
 			if (match("=", false)) { wl.weight = matchInt(); }
-			data_->wLits_.push_back(wl);
+			data_.push(wl);
 		}
-		while (match(",", false));
+		while (++n && match(",", false));
 		match("}");
 	}
+	data_.push(n);
 }
 
 Lit_t AspifTextInput::matchLit() {
@@ -262,13 +265,14 @@ Atom_t AspifTextInput::matchId() {
 	}
 }
 void AspifTextInput::startString() {
-	data_->str_.clear();
+	strStart_ = strPos_ = data_.top();
 }
 void AspifTextInput::endString() {
-	data_->str_.push_back(0);
+	data_.push(uint32_t(strPos_ - strStart_));
 }
 void AspifTextInput::push(char c) {
-	data_->str_.push_back(c);
+	if (strPos_ == data_.top()) { data_.push(0); }
+	*(char*)data_.get(strPos_++) = c;
 }
 
 void AspifTextInput::matchTerm() {

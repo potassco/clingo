@@ -36,10 +36,9 @@ using Potassco::Atom_t;
 using Potassco::Weight_t;
 using Potassco::WeightLit_t;
 using Potassco::Heuristic_t;
+using Potassco::Head_t;
 using Potassco::Value_t;
 using Potassco::LitSpan;
-using Potassco::HeadView;
-using Potassco::BodyView;
 using Potassco::IdSpan;
 using Potassco::AtomSpan;
 using Potassco::WeightLitSpan;
@@ -54,7 +53,8 @@ public:
 
     void initProgram(bool incremental) override;
     void beginStep() override;
-    void rule(const HeadView& head, const BodyView& body) override;
+    void rule(Head_t ht, const AtomSpan& head, const LitSpan& body) override;
+    void rule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body) override; 
     void minimize(Weight_t prio, const WeightLitSpan& lits) override;
     void project(const AtomSpan& atoms) override;
     void output(const StringSpan& str, const LitSpan& condition) override;
@@ -74,6 +74,8 @@ public:
 
 private:
     using Graph = Gringo::Graph<Atom_t>;
+    template <class L>
+    void calculateSCCs(const AtomSpan& head, const Potassco::Span<L>& body);
     template<typename... T>
     void printFact(char const *name, T const &...args);
     template<typename... T>
@@ -84,7 +86,6 @@ private:
     size_t tuple(M &map, char const *name, std::vector<T> &&args);
     size_t theoryTuple(IdSpan const &args);
     size_t litTuple(LitSpan const &args);
-    size_t litTuple(WeightLitSpan const &args);
     size_t atomTuple(AtomSpan const &args);
     size_t theoryElementTuple(IdSpan const &args);
     size_t weightLitTuple(WeightLitSpan const &args);

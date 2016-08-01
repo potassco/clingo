@@ -32,12 +32,21 @@ static std::string fmterror(const char* msg, unsigned line) {
 	return std::string(buf).append(msg);
 }
 AbstractProgram::~AbstractProgram() {}
+void AbstractProgram::initProgram(bool) {}
+void AbstractProgram::beginStep() {}
+void AbstractProgram::project(const AtomSpan&) { throw std::logic_error("projection directive not supported"); }
+void AbstractProgram::output(const StringSpan&, const LitSpan&) { throw std::logic_error("output directive not supported"); }
+void AbstractProgram::external(Atom_t, Value_t) { throw std::logic_error("external directive not supported"); }
+void AbstractProgram::assume(const LitSpan&) { throw std::logic_error("assumption directive not supported"); }
+void AbstractProgram::heuristic(Atom_t, Heuristic_t, int, unsigned, const LitSpan&) { throw std::logic_error("heuristic directive not supported"); }
+void AbstractProgram::acycEdge(int, int, const LitSpan&) { throw std::logic_error("edge directive not supported"); }
 void AbstractProgram::theoryTerm(Id_t, int) { throw std::logic_error("theory data not supported"); }
 void AbstractProgram::theoryTerm(Id_t, const StringSpan&)  { throw std::logic_error("theory data not supported"); }
 void AbstractProgram::theoryTerm(Id_t, int, const IdSpan&) { throw std::logic_error("theory data not supported"); }
 void AbstractProgram::theoryElement(Id_t, const IdSpan&, const LitSpan&) { throw std::logic_error("theory data not supported"); }
 void AbstractProgram::theoryAtom(Id_t, Id_t, const IdSpan&) { throw std::logic_error("theory data not supported"); }
 void AbstractProgram::theoryAtom(Id_t, Id_t, const IdSpan&, Id_t, Id_t) { throw std::logic_error("theory data not supported"); }
+void AbstractProgram::endStep() {}
 const StringSpan Heuristic_t::pred ={"_heuristic(", 11};
 ParseError::ParseError(unsigned a_line, const char* a_msg) 
 	: std::logic_error(fmterror(a_msg, a_line))
@@ -263,7 +272,106 @@ int matchEdgePred(const char*& in, StringSpan& n0, StringSpan& n1) {
 	}
 	return 0;
 }
-
-
+/////////////////////////////////////////////////////////////////////////////////////////
+// Data stack
+/////////////////////////////////////////////////////////////////////////////////////////
+RawStack::RawStack() : mem_(0), top_(0), cap_(0) {}
+RawStack::~RawStack() { std::free(mem_); }
+RawStack::RawStack(const RawStack& other) {
+	mem_ = (unsigned char*)std::malloc(other.top());
+	std::memcpy(mem_, other.mem_, other.top());
+	top_ = cap_ = other.top();
+}
+RawStack& RawStack::operator=(const RawStack& other) {
+	RawStack(other).swap(*this);
+	return *this;
+}
+void RawStack::swap(RawStack& other) {
+	std::swap(mem_, other.mem_);
+	std::swap(top_, other.top_);
+	std::swap(cap_, other.cap_);
+}
+uint32_t RawStack::top() const {
+	return top_;
+}
+uint32_t RawStack::capacity() const {
+	return cap_;
+}
+void RawStack::clear() {
+	top_ = 0;
+}
+void RawStack::reserve(uint32_t nc) {
+	if (nc > capacity()) {
+		unsigned char* t = (unsigned char*)std::realloc(mem_, nc);
+		if (!t) throw std::bad_alloc();
+		mem_ = t;
+		cap_ = nc;
+	}
 }
 
+void RawStack::setTop(uint32_t idx) {
+	assert(idx <= cap_);
+	top_ = idx;
+}
+uint32_t RawStack::pop_(uint32_t sz) {
+	assert(sz <= top_);
+	return top_ -= sz;
+}
+uint32_t RawStack::push_(uint32_t nSize) {
+	uint32_t ret = top_;
+	if ((top_ += nSize) >= ret) {
+		if (top_ > cap_) {
+			uint32_t nc = (capacity() * 3) >> 1;
+			if (top_ > nc) { nc = top_ > 64u ? top_ : 64u; }
+			reserve(nc);
+		}
+		return ret;
+	}
+	else {
+		throw std::bad_alloc();
+	}
+}
+void* RawStack::get(uint32_t idx) const {
+	assert(idx <= cap_);
+	return mem_ + idx;
+}
+
+void BasicStack::push(uint32_t obj) {
+	uint32_t* x; push(&x, 1);
+	*x = obj;
+}
+void BasicStack::push(WeightLit_t obj) {
+	WeightLit_t* x; push(&x, 1);
+	*x = obj;
+}
+template <class T>
+void BasicStack::push(T** x, uint32_t len) {
+	*x = (T*)get(push_(sizeof(T) * len));
+}
+void BasicStack::push(char** x, uint32_t len) {
+	if (uint32_t mod = (len & (sizeof(uint32_t)-1))) {
+		len += sizeof(uint32_t) - mod;
+	}
+	*x = (char*)get(push_(len));
+}
+template <class T>
+void BasicStack::pop(const T** x, uint32_t len) {
+	this->setTop(this->top() - (sizeof(T) * len));
+	*x = (T*)this->get(this->top());
+}
+void BasicStack::pop(const char** x, uint32_t len) {
+	if (uint32_t mod = (len & (sizeof(uint32_t)-1))) {
+		len += sizeof(uint32_t) - mod;
+	}
+	setTop(top() - len);
+	*x = (char*)this->get(top());
+}
+#define INSTANTIATE_STACK(T) \
+template void BasicStack::push(T**, uint32_t);\
+template void BasicStack::pop(const T**, uint32_t)
+
+INSTANTIATE_STACK(uint32_t);
+INSTANTIATE_STACK(int32_t);
+INSTANTIATE_STACK(WeightLit_t);
+#undef INSTANTIATE_STACK
+}

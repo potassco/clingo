@@ -202,104 +202,97 @@ const TheoryTerm& TheoryData::addTerm(Id_t termId, Tuple_t type, const IdSpan& a
 }
 void TheoryData::removeTerm(Id_t termId) {
 	if (hasTerm(termId)) {
-		DestroyT()(terms_.data[termId]);
-		terms_.data[termId] = Term();
+		DestroyT()(terms()[termId]);
+		terms()[termId] = Term();
 	}
 }
-template <class T>
-void TheoryData::grow(TheoryData::Vec<T>& vec, uint32_t ns, const T& def) const {
-	if (vec.cap < ns) {
-		uint32_t new_cap = (vec.cap*3)>>1;
-		FAIL_IF(new_cap < vec.cap, "vector: max capacity exceeded!");
-		if (ns > new_cap) { new_cap = ns > 8u ? ns : 8u; }
-		T* temp = (T*)::operator new(new_cap * sizeof(T));
-		std::memcpy(temp, vec.data, vec.sz*sizeof(T));
-		::operator delete(vec.data);
-		vec.cap  = new_cap;
-		vec.data = temp;
-	}
-	if (ns > vec.sz) {
-		std::fill_n(vec.data + vec.sz, ns - vec.sz, def);
-	}
-	vec.sz = ns;
+const TheoryElement& TheoryData::addElement(Id_t id, const IdSpan& terms, Id_t cId) {
+	while (numElems() <= id) { elems_.push(static_cast<TheoryElement*>(0)); }
+	FAIL_IF(elems()[id] != 0, "Redefinition of theory element!");
+	return *(elems()[id] = TheoryElement::newElement(terms, cId));
 }
 
-const TheoryElement& TheoryData::addElement(Id_t id, const IdSpan& terms, Id_t cId) {
-	if (id >= elems_.sz) {
-		grow(elems_, id + 1, static_cast<TheoryElement*>(0));
-	}
-	FAIL_IF(elems_.data[id] != 0, "Redefinition of theory element!");
-	return *(elems_.data[id] = TheoryElement::newElement(terms, cId));
-}
 const TheoryAtom& TheoryData::addAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elems) {
-	grow(atoms_, atoms_.sz + 1, TheoryAtom::newAtom(atomOrZero, termId, elems));
-	return *atoms_.data[atoms_.sz - 1];
+	atoms_.push(static_cast<TheoryAtom*>(0));
+	return *(atoms()[numAtoms()-1] = TheoryAtom::newAtom(atomOrZero, termId, elems));
 }
 const TheoryAtom& TheoryData::addAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elems, Id_t op, Id_t rhs) {
-	grow(atoms_, atoms_.sz + 1, TheoryAtom::newAtom(atomOrZero, termId, elems, op, rhs));
-	return *atoms_.data[atoms_.sz - 1];
+	atoms_.push(static_cast<TheoryAtom*>(0));
+	return *(atoms()[numAtoms()-1] = TheoryAtom::newAtom(atomOrZero, termId, elems, op, rhs));
 }
+
 TheoryTerm& TheoryData::setTerm(Id_t id) {
-	if (id >= terms_.sz) {
-		grow(terms_, id + 1, TheoryTerm());
-	}
-	FAIL_IF(terms_.data[id].valid(), "Redefinition of theory term!");
-	return terms_.data[id];
+	while (numTerms() <= id) { terms_.push(TheoryTerm()); }
+	FAIL_IF(terms()[id].valid(), "Redefinition of theory term!");
+	return terms()[id];
 }
 void TheoryData::setCondition(Id_t elementId, Id_t newCond) {
 	FAIL_IF(getElement(elementId).condition() != COND_DEFERRED, "Precondition violated!");
-	elems_.data[elementId]->setCondition(newCond);
+	elems()[elementId]->setCondition(newCond);
 }
 
 void TheoryData::reset() {
 	DestroyT destroy;
-	std::for_each(terms_.data, terms_.data + terms_.sz, destroy);
-	std::for_each(elems_.data, elems_.data + elems_.sz, destroy);
-	std::for_each(atoms_.data, atoms_.data + atoms_.sz, destroy);
-	::operator delete(terms_.data);
-	::operator delete(elems_.data);
-	::operator delete(atoms_.data);
-	terms_ = Vec<TheoryTerm>();
-	elems_ = Vec<TheoryElement*>();
-	atoms_ = Vec<TheoryAtom*>();
+	std::for_each(terms(), terms() + numTerms(), destroy);
+	std::for_each(elems(), elems() + numElems(), destroy);
+	std::for_each(atoms(), atoms() + numAtoms(), destroy);
+	PtrStack().swap(terms_);
+	PtrStack().swap(elems_);
+	TermStack().swap(atoms_);
 	frame_ = Up();
 }
 void TheoryData::update() {
 	frame_.atom = numAtoms();
-	frame_.term = terms_.sz;
-	frame_.elem = elems_.sz;
+	frame_.term = numTerms();
+	frame_.elem = numElems();
 }
+TheoryTerm* TheoryData::terms() const {
+	return static_cast<TheoryTerm*>(terms_.get(0));
+}
+TheoryElement** TheoryData::elems() const {
+	return static_cast<TheoryElement**>(elems_.get(0));
+}
+TheoryAtom** TheoryData::atoms() const {
+	return static_cast<TheoryAtom**>(atoms_.get(0));
+}
+
 uint32_t TheoryData::numAtoms() const {
-	return atoms_.sz;
+	return atoms_.top() / sizeof(TheoryAtom*);
+}
+uint32_t TheoryData::numTerms() const {
+	return terms_.top() / sizeof(TheoryTerm);
+}
+uint32_t TheoryData::numElems() const {
+	return elems_.top() / sizeof(TheoryElement*);
 }
 TheoryData::atom_iterator TheoryData::begin() const { 
-	return atoms_.data;
+	return atoms();
 }
 TheoryData::atom_iterator TheoryData::currBegin() const { 
-	return atoms_.data + frame_.atom; 
+	return begin() + frame_.atom; 
 }
 TheoryData::atom_iterator TheoryData::end() const { 
-	return atoms_.data + atoms_.sz;
+	return begin() + numAtoms();
 }
 bool TheoryData::hasTerm(Id_t id) const { 
-	return id < terms_.sz && terms_.data[id].valid(); 
+	return id < numTerms() && terms()[id].valid(); 
 }
 bool TheoryData::isNewTerm(Id_t id) const {
 	return hasTerm(id) && id >= frame_.term;
 }
 bool TheoryData::hasElement(Id_t id) const { 
-	return id < elems_.sz && elems_.data[id] != 0; 
+	return id < numElems() && elems()[id] != 0; 
 }
 bool TheoryData::isNewElement(Id_t id) const { 
 	return hasElement(id) && id >= frame_.elem;
 }
 const TheoryTerm& TheoryData::getTerm(Id_t id) const {
 	FAIL_IF(!hasTerm(id), "Invalid term id!");
-	return terms_.data[id];
+	return terms()[id];
 }
 const TheoryElement& TheoryData::getElement(Id_t id) const {
 	FAIL_IF(!hasElement(id), "Invalid element id!");
-	return *elems_.data[id];
+	return *elems()[id];
 }
 void TheoryData::accept(Visitor& out) const {
 	for (atom_iterator aIt = currBegin(), aEnd = end(); aIt != aEnd; ++aIt) {

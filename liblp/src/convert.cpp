@@ -67,9 +67,10 @@ struct SmodelsConvert::SmData {
 	};
 	typedef std::vector<Atom>           AtomMap;
 	typedef std::vector<Atom_t>         AtomVec;
-	typedef std::vector<WeightLit_t>    BodyVec;
+	typedef std::vector<Lit_t>          LitVec;
+	typedef std::vector<WeightLit_t>    WLitVec;
 	typedef std::vector<Heuristic>      HeuVec;
-	typedef std::map<Weight_t, BodyVec> MinMap;
+	typedef std::map<Weight_t, WLitVec> MinMap;
 	typedef std::vector<Symbol>         OutVec;
 	SmData() : next_(2) {}
 	~SmData() {
@@ -78,8 +79,6 @@ struct SmodelsConvert::SmData {
 			delete [] it->second;
 		}
 	}
-	HeadView mapHead(const HeadView& h);
-	BodyView mapBody(const BodyView& b);
 	Atom_t newAtom()   { return next_++; }
 	Atom_t falseAtom() { return 1; }
 	bool   mapped(Atom_t a) const {
@@ -95,14 +94,25 @@ struct SmodelsConvert::SmData {
 		Lit_t x = static_cast<Lit_t>(mapAtom(atom(in)));
 		return in < 0 ? -x : x;
 	}
+	WeightLit_t mapLit(WeightLit_t in) {
+		in.lit = mapLit(in.lit);
+		return in;
+	}
 	Atom_t mapHeadAtom(Atom_t a) {
 		Atom& x = mapAtom(a);
 		x.head = 1;
 		return x;
 	}
+	AtomSpan mapHead(const AtomSpan& h);
+	template <class T>
+	Span<T>  mapLits(const Span<T>& in, std::vector<T>& out) {
+		out.clear();
+		for (typename Span<T>::iterator x = begin(in); x != end(in); ++x) { out.push_back(mapLit(*x)); }
+		return toSpan(out);
+	}
 	const char* addOutput(Atom_t atom, const StringSpan&, bool addHash);
 	void addMinimize(Weight_t prio, const WeightLitSpan& lits) {
-		BodyVec& body = minimize_[prio];
+		WLitVec& body = minimize_[prio];
 		body.reserve(body.size() + size(lits));
 		for (const WeightLit_t* it = begin(lits); it != end(lits); ++it) {
 			WeightLit_t x = *it;
@@ -135,30 +145,21 @@ struct SmodelsConvert::SmData {
 	AtomMap atoms_;    // maps input atoms to output atoms
 	MinMap  minimize_; // maps priorities to minimize statements
 	AtomVec head_;     // active rule head
-	BodyVec body_;     // active rule body
+	LitVec  lits_;     // active body literals
+	WLitVec wlits_;    // active weight body literals
 	AtomVec extern_;   // external atoms
 	HeuVec  heuristic_;// list of heuristic modifications not yet processed
 	SymTab  symTab_;
 	OutVec  output_;   // list of output atoms not yet processed
 	Atom_t  next_;     // next unused output atom
 };
-HeadView SmodelsConvert::SmData::mapHead(const HeadView& h) {
+AtomSpan SmodelsConvert::SmData::mapHead(const AtomSpan& h) {
 	head_.clear();
 	for (const Atom_t* x = begin(h); x != end(h); ++x) {
 		head_.push_back(mapHeadAtom(*x));
 	}
-	if (head_.empty() && h.type != Head_t::Choice) {
-		head_.push_back(falseAtom());
-	}
-	return toHead(toSpan(head_), h.type);	
-}
-BodyView SmodelsConvert::SmData::mapBody(const BodyView& body) {
-	body_.clear();
-	for (const WeightLit_t* x = begin(body); x != end(body); ++x) {
-		WeightLit_t w = {mapLit(lit(*x)), x->weight};
-		body_.push_back(w);
-	}
-	return toBody(toSpan(body_), body.bound, body.type);
+	if (head_.empty()) { head_.push_back(falseAtom()); }
+	return toSpan(head_);
 }
 const char* SmodelsConvert::SmData::addOutput(Atom_t atom, const StringSpan& str, bool addHash) {
 	char* n = new char[str.size + 1];
@@ -189,15 +190,10 @@ const char* SmodelsConvert::getName(Atom_t a) const {
 }
 Atom_t SmodelsConvert::makeAtom(const LitSpan& cond, bool named) {
 	Atom_t id = 0;
-	if (size(cond) != 1 || *begin(cond) < 0 || (data_->mapAtom(atom(*begin(cond))).show && named)) {
+	if (size(cond) != 1 || cond[0] < 0 || (data_->mapAtom(atom(cond[0])).show && named)) {
 		// aux :- cond.
 		Atom_t aux = (id = data_->newAtom());
-		data_->body_.clear();
-		for (const Lit_t* x = begin(cond); x != end(cond); ++x) {
-			WeightLit_t w = {data_->mapLit(*x), 1};
-			data_->body_.push_back(w);
-		}
-		out_.rule(toHead(aux), toBody(toSpan(data_->body_)));
+		out_.rule(Head_t::Disjunctive, toSpan(&aux, 1), data_->mapLits(cond, data_->lits_));
 	}
 	else {
 		SmData::Atom& ma = data_->mapAtom(atom(*begin(cond)));
@@ -212,26 +208,25 @@ void SmodelsConvert::initProgram(bool inc) {
 void SmodelsConvert::beginStep() {
 	out_.beginStep();
 }
-void SmodelsConvert::assume(const LitSpan&) {
-	throw std::logic_error("assumption directive not supported!");
-}
-void SmodelsConvert::project(const AtomSpan&) {
-	throw std::logic_error("projection directive not supported!");
-}
-void SmodelsConvert::rule(const HeadView& head, const BodyView& body) {
-	HeadView mHead = data_->mapHead(head);
-	if (size(mHead) == 0) {
-		return;
+void SmodelsConvert::rule(Head_t ht, const AtomSpan& head, const LitSpan& body) {
+	if (!empty(head) || ht == Head_t::Disjunctive) {
+		AtomSpan mHead = data_->mapHead(head);
+		out_.rule(ht, mHead, data_->mapLits(body, data_->lits_));
 	}
-	BodyView mBody = data_->mapBody(body);
-	if (isSmodelsRule(mHead, mBody)) {
-		out_.rule(mHead, mBody);
-		return;
+}
+void SmodelsConvert::rule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body) {
+	if (!empty(head) || ht == Head_t::Disjunctive) {
+		AtomSpan      mHead = data_->mapHead(head);
+		WeightLitSpan mBody = data_->mapLits(body, data_->wlits_);
+		if (isSmodelsRule(ht, mHead, bound, mBody)) {
+			out_.rule(ht, mHead, bound, mBody);
+			return;
+		}
+		Atom_t aux = data_->newAtom();
+		data_->lits_.assign(1, lit(aux));
+		out_.rule(Head_t::Disjunctive, toSpan(&aux, 1), bound, mBody);
+		out_.rule(ht, mHead, toSpan(data_->lits_));
 	}
-	Atom_t aux = data_->newAtom();
-	out_.rule(toHead(aux), mBody);
-	WeightLit_t auxLit = {static_cast<Lit_t>(aux), 1};
-	out_.rule(mHead, toBody(toSpan(&auxLit, 1)));
 }
 
 void SmodelsConvert::minimize(Weight_t prio, const WeightLitSpan& lits) {
@@ -275,27 +270,27 @@ void SmodelsConvert::endStep() {
 }
 void SmodelsConvert::flushMinimize() {
 	for (SmData::MinMap::iterator it = data_->minimize_.begin(), end = data_->minimize_.end(); it != end; ++it) {
-		BodyView mBody = data_->mapBody(toBody(toSpan(it->second), 0));
-		out_.minimize(it->first, span(mBody));
+		out_.minimize(it->first, data_->mapLits(toSpan(it->second), data_->wlits_));
 	}
 }
 void SmodelsConvert::flushExternal() {
-	BodyView T = toBody(toSpan<WeightLit_t>());
+	LitSpan T = toSpan<Lit_t>();
+	data_->head_.clear();
 	for (SmData::AtomVec::const_iterator it = data_->extern_.begin(), end = data_->extern_.end(); it != end; ++it) {
 		SmData::Atom& a = data_->mapAtom(*it);
 		Value_t vt = static_cast<Value_t>(a.extn);
 		if (!ext_) {
+			if (a.head) { continue; }
 			Atom_t at = a;
-			if (!a.head && vt == Value_t::True) {
-				out_.rule(toHead(at), T);
-			}
-			else if (!a.head && vt == Value_t::Free) {
-				out_.rule(toHead(at, Head_t::Choice), T);
-			}
+			if      (vt == Value_t::Free) { data_->head_.push_back(at); }
+			else if (vt == Value_t::True) { out_.rule(Head_t::Disjunctive, toSpan(&at, 1), T); }
 		}
 		else {
 			out_.external(a, vt);
 		}
+	}
+	if (!data_->head_.empty()) {
+		out_.rule(Head_t::Choice, toSpan(data_->head_), T);
 	}
 }
 void SmodelsConvert::flushHeuristic() {

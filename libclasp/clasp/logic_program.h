@@ -96,7 +96,6 @@ public:
 private:
 	unsigned atomId_;
 };
-
 using Potassco::TheoryData;
 
 //! A class for defining a logic program.
@@ -288,8 +287,10 @@ public:
 	 *       unfreeze() is implicitly called. In the latter case, the rule is interpreted
 	 *       as an integrity constraint.
 	 */
-	LogicProgram& addRule(const RuleView& rule);
-	LogicProgram& addRule(const HeadView& head, const BodyView& body) { return addRule(RuleView(head, body)); }	
+	LogicProgram& addRule(const Rule& rule);
+	LogicProgram& addRule(Head_t ht, const Potassco::AtomSpan& head, const Potassco::LitSpan& body);
+	LogicProgram& addRule(Head_t ht, const Potassco::AtomSpan& head, Potassco::Weight_t bound, const Potassco::WeightLitSpan& lits);
+	LogicProgram& addRule(Potassco::RuleBuilder& rb);
 	LogicProgram& addMinimize(weight_t, const Potassco::WeightLitSpan& lits);
 	
 	//! Adds an edge to the extended (user-defined) dependency graph.
@@ -310,52 +311,6 @@ public:
 	
 	//! Returns an object for adding theory data to this program.
 	TheoryData&   theoryData();
-	//@}
-
-	/*!
-	 * \name Rule builder functions
-	 *
-	 * Functions in this group return builder objects for creating program rules.
-	 * Only one rule shall be under construction at any one time.
-	 */
-	//@{
-	class RuleBuilder {
-	public:
-		typedef RuleBuilder Self;
-		//! Adds the atom with the given id to the head of the rule under construction.
-		Self& addHead(Atom_t atomId);
-		//! Adds the given subgoal to the body of the rule under construction.
-		Self& addToBody(Atom_t atomId, bool pos, weight_t w = 1);
-		//! Finishes the construction of the rule and adds it to the program.
-		LogicProgram& endRule();
-	private:
-		friend class LogicProgram;
-		RuleBuilder(LogicProgram& prg);
-		LogicProgram* prg_;
-	};
-	class MinBuilder {
-	public:
-		typedef MinBuilder Self;
-		//! Adds the given subgoal to the minimize statement under construction.
-		Self& addToBody(Atom_t atomId, bool pos, weight_t w = 1);
-		//! Finishes the construction of the rule and adds it to the program.
-		LogicProgram& endRule();
-	private:
-		friend class LogicProgram;
-		MinBuilder(LogicProgram& prg);
-		LogicProgram* prg_;
-	};
-	typedef RuleBuilder RB;
-	typedef MinBuilder  MB;
-	//! Returns a builder for creating a normal or disjunctive rule.
-	RB startRule();
-	//! Returns a builder for creating a choice rule.
-	RB startChoiceRule();
-	//! Returns a builder for creating a weight constraint rule.
-	RB startWeightRule(weight_t bound);
-	//! Returns a builder for creating a minimize statement.
-	MB startMinimizeRule(weight_t prio);
-	
 	//@}
 
 	/*!
@@ -418,6 +373,12 @@ public:
 	typedef PrgHead*const*                        HeadIter;
 	typedef std::pair<EdgeIterator, EdgeIterator> EdgeRange;
 	typedef std::pair<HeadIter, HeadIter>         HeadRange;
+	struct SRule {
+		SRule() : hash(0), pos(0), bid(varMax) {}
+		uint32 hash; // hash value of the body
+		uint32 pos;  // positive size of body
+		uint32 bid;  // id of existing body or varMax
+	};
 	const AspOptions& options()    const { return opts_; }
 	bool       hasConflict()       const { return getTrueAtom()->literal() != lit_true(); }
 	bool       ok()                const { return !hasConflict() && ProgramBuilder::ok(); }
@@ -434,15 +395,15 @@ public:
 	HeadIter   disj_end()          const { return disj_begin() + numDisjunctions(); }
 	HeadIter   atom_begin()        const { return reinterpret_cast<HeadIter>(&atoms_[0]); }
 	HeadIter   atom_end()          const { return atom_begin() + (numAtoms()+1); }
-	VarIter    unfreeze_begin()    const { return incData_?incData_->update.begin() : activeHead_.end(); }
-	VarIter    unfreeze_end()      const { return incData_?incData_->update.end()   : activeHead_.end(); }
+	VarIter    unfreeze_begin()    const { return incData_?incData_->update.begin() : propQ_.end(); }
+	VarIter    unfreeze_end()      const { return incData_?incData_->update.end()   : propQ_.end(); }
 	bool       validAtom(Id_t aId) const { return aId < (uint32)atoms_.size(); }
 	bool       validBody(Id_t bId) const { return bId < numBodies(); }
 	bool       validDisj(Id_t dId) const { return dId < numDisjunctions(); }
 	Literal    getDomLiteral(Atom_t a) const;
 	bool       isFact(PrgAtom* a)  const;
 	const char*findName(Atom_t x)  const;
-	bool       simplifyRule(const RuleView& r, HeadData& head, BodyData& body, BodyData::Meta* meta = 0);
+	bool       simplifyRule(const Rule& r, Potassco::RuleBuilder& out, SRule& meta);
 	Atom_t     falseAtom();
 	VarVec&    getSupportedBodies(bool sorted);
 	uint32     update(PrgBody* b, uint32 oldHash, uint32 newHash);
@@ -472,21 +433,21 @@ private:
 	struct DomRule { uint32 atom : 29; uint32 type : 3; Id_t cond; int16 bias; uint16 prio; };
 	struct Eq      { Atom_t var; Literal lit; };
 	struct TFilter { bool operator()(const Potassco::TheoryAtom& atom) const; LogicProgram* self; };
-	struct Rule    { HeadData head; BodyData body; void reset() { head.reset(); body.reset(); }};
-	struct Min     { weight_t prio; BodyData::BodyLitVec lits; };
+	struct Min     { weight_t prio; Potassco::WLitVec lits; };
 	struct CmpMin  { bool operator()(const Min* m1, const Min* m2) const { return m1->prio < m2->prio; } };
-	struct SBody : BodyData { mutable BodyData::Meta meta; void reset() { BodyData::reset(); meta = BodyData::Meta(); }};
+	typedef Potassco::RuleBuilder           RuleBuilder;
 	typedef std::pair<Id_t, ConstString>    ShowPair;
 	typedef PodVector<ShowPair>::type       ShowVec;
 	typedef PodVector<DomRule>::type        DomRules;
 	typedef PodVector<AcycArc>::type        AcycRules;
-	typedef PodVector<Rule*>::type          RuleList;
+	typedef PodVector<RuleBuilder*>::type   RuleList;
 	typedef PodVector<Min*>::type           MinList;
 	typedef PodVector<uint8>::type          SccMap;
 	typedef PodVector<Eq>::type             EqVec;
 	typedef Clasp::HashMap_t<uint32, uint32>::multi_map_type IndexMap;
 	typedef IndexMap::iterator              IndexIter;
 	typedef std::pair<IndexIter, IndexIter> IndexRange;
+	typedef Potassco::WLitVec               LpWLitVec;
 	typedef Potassco::LitVec                LpLitVec;
 	typedef Range<uint32>                   AtomRange;
 	// ------------------------------------------------------------------------
@@ -502,23 +463,25 @@ private:
 	bool     isNew(Atom_t atomId) const { return atomId >= startAtom(); }
 	PrgAtom* resize(Atom_t atomId);
 	PrgAtom* setExternal(Atom_t atomId, ValueRep v);
-	void     addRule(const HeadData& head, const SBody& body);
-	void     addFact(const VarVec& head);
-	void     addIntegrity(const SBody& body);
+	void     addRule(const Rule& r, const SRule& meta);
+	void     addFact(const Potassco::AtomSpan& head);
+	void     addIntegrity(const Rule& b, const SRule& meta);
+	bool     handleNatively(const Rule& r) const;
+	bool     transformNoAux(const Rule& r) const;
 	void     freezeTheory();
-	bool     handleNatively(Head_t ht, const BodyData& i) const;
-	bool     transformNoAux(Head_t ht, const BodyData& i) const;
 	void     transformExtended();
 	void     transformIntegrity(uint32 nAtoms, uint32 maxAux);
-	bool     simplifyRule(const RuleView& r) { return simplifyRule(r, activeHead_, activeBody_, &activeBody_.meta); }
-	PrgBody* getBodyFor(const SBody& body, bool addDeps = true);
+	PrgBody* getBodyFor(const Rule& r, const SRule& m, bool addDeps = true);
 	PrgBody* getTrueBody();
-	PrgDisj* getDisjFor(const VarVec& heads, uint32 headHash);
-	PrgBody* assignBodyFor(const SBody& body, EdgeType x, bool strongSimp);
-	bool     equalLits(const PrgBody& b, const BodyData::BodyLitVec& lits, bool sorted);
-	uint32   findEqBody(BodyData& body, uint32 hash);
+	PrgDisj* getDisjFor(const Potassco::AtomSpan& heads, uint32 headHash);
+	PrgBody* assignBodyFor(const Rule& r, const SRule& m, EdgeType x, bool strongSimp);
+	bool     equalLits(const PrgBody& b, const WeightLitSpan& lits) const;
+	bool     simplifyNormal(Head_t ht, const Potassco::AtomSpan& head, const Potassco::LitSpan& body, RuleBuilder& out, SRule& info);
+	bool     simplifySum(Head_t ht, const Potassco::AtomSpan& head, const Potassco::Sum_t& body, RuleBuilder& out, SRule& info);
+	bool     pushHead(Head_t ht, const Potassco::AtomSpan& head, weight_t slack, RuleBuilder& out);
+	ValueRep litVal(const PrgAtom* a, bool pos) const;
+	uint32   findBody(uint32 hash, Body_t type, uint32 size, weight_t bound = -1, Potassco::WeightLit_t* wlits = 0);
 	uint32   findEqBody(const PrgBody* b, uint32 hash);
-	bool     simplifyBody(const BodyView& r, BodyData& body, BodyData::Meta* meta);
 	uint32   removeBody(PrgBody* b, uint32 oldHash);
 	Literal  getEqAtomLit(Literal lit, const BodyList& supports, Preprocessor& p, const SccMap& x);
 	bool     positiveLoopSafe(PrgBody* b, PrgBody* root) const;
@@ -553,9 +516,7 @@ private:
 	// ------------------------------------------------------------------------
 	void deleteAtoms(uint32 start);
 	PrgAtom* getTrueAtom() const { return atoms_[0]; }
-	Rule        rule_;        // active rule
-	SBody       activeBody_;  // simplified body of active rule
-	HeadData    activeHead_;  // simplified head of active rule
+	RuleBuilder rule_;        // temporary: active rule
 	AtomState   atomState_;   // which atoms appear in the active rule?
 	IndexMap    bodyIndex_;   // hash -> body id
 	IndexMap    disjIndex_;   // hash -> disjunction id
@@ -588,7 +549,6 @@ private:
 	}*          incData_;     // additional state for handling incrementally defined programs
 	AspOptions  opts_;        // preprocessing
 };
-
 //! Returns the internal solver literal that is associated with the given atom literal.
 /*!
  * \pre The prg is frozen and atomLit is a known atom in prg.
@@ -598,6 +558,31 @@ inline Literal solverLiteral(const LogicProgram& prg, Potassco::Lit_t atomLit) {
 	return prg.getLiteral(Potassco::id(atomLit));
 }
 
+class LogicProgramAdapter : public Potassco::AbstractProgram {
+public:
+	LogicProgramAdapter(LogicProgram& prg);
+	void initProgram(bool inc);
+	void beginStep();
+	void endStep();
+	void rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, const Potassco::LitSpan& body);
+	void rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, Potassco::Weight_t bound, const Potassco::WeightLitSpan& body);
+	void minimize(Potassco::Weight_t prio, const Potassco::WeightLitSpan& lits);
+	void project(const Potassco::AtomSpan& atoms);
+	void output(const Potassco::StringSpan& str, const Potassco::LitSpan& cond);
+	void external(Potassco::Atom_t a, Potassco::Value_t v);
+	void assume(const Potassco::LitSpan& lits);
+	void heuristic(Potassco::Atom_t a, Potassco::Heuristic_t t, int bias, unsigned prio, const Potassco::LitSpan& cond);
+	void acycEdge(int s, int t, const Potassco::LitSpan& cond);
+	void theoryTerm(Potassco::Id_t termId, int number);
+	void theoryTerm(Potassco::Id_t termId, const Potassco::StringSpan& name);
+	void theoryTerm(Potassco::Id_t termId, int cId, const Potassco::IdSpan& args);
+	void theoryElement(Potassco::Id_t elementId, const Potassco::IdSpan& terms, const Potassco::LitSpan& cond);
+	void theoryAtom(Potassco::Id_t atomOrZero, Potassco::Id_t termId, const Potassco::IdSpan& elements);
+	void theoryAtom(Potassco::Id_t atomOrZero, Potassco::Id_t termId, const Potassco::IdSpan& elements, Potassco::Id_t op, Potassco::Id_t rhs);
+protected:
+	Asp::LogicProgram* lp_;
+	bool               inc_;
+};
 
 } } // end namespace Asp
 #endif

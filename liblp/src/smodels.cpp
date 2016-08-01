@@ -18,9 +18,9 @@
 // 
 #include <potassco/smodels.h>
 #include <ostream>
-#include <vector>
 #include <string>
 #include <cstring>
+#include <vector>
 #if (defined(__cplusplus) && __cplusplus >= 201103L) || (defined(_MSC_VER) && _MSC_VER > 1500) || (defined(_LIBCPP_VERSION))
 #include <unordered_map>
 typedef std::unordered_map<std::string, Potassco::Id_t> StrMap;
@@ -41,20 +41,18 @@ enum SmodelsRule {
 	Disjunctive = 8,
 	ClaspIncrement = 90, ClaspAssignExt = 91, ClaspReleaseExt = 92
 };
+int isSmodelsHead(Head_t t, const AtomSpan& head) {
+	if (empty(head))         { return End; }
+	if (t == Head_t::Choice) { return Choice; }
+	return size(head) == 1 ? Basic : Disjunctive;
+}
 
-int isSmodelsRule(const HeadView& head, const BodyView& body) {
-	if (size(head) == 0) { return End; }
-	int ret = Basic;
-	if (head.type == Head_t::Choice || size(head) > 1) {
-		ret = head.type == Head_t::Choice ? Choice : Disjunctive;
+int isSmodelsRule(Head_t t, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body) {
+	if (isSmodelsHead(t, head) != Basic || bound < 0) { return End; }
+	for (WeightLitSpan::iterator it = begin(body), end = Potassco::end(body); it != end; ++it) {
+		if (weight(*it) != 1) { return Weight; }
 	}
-	if (body.type == Body_t::Normal) {
-		return ret;
-	}
-	else if (ret != Basic) {
-		return End;
-	}
-	return body.type == Body_t::Sum ? Weight : Cardinality;
+	return Cardinality;
 }
 AtomTable::~AtomTable() {}
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -112,68 +110,78 @@ bool SmodelsInput::doParse() {
 	return false;
 }
 
-static BodyView matchBody(BufferedStream& str, std::vector<WeightLit_t>& lits, Body_t type) {
-	Weight_t bound = Body_t::BOUND_NONE;
-	lits.clear();
-	if (type == Body_t::Sum) { bound = (Weight_t)matchPos(str); }
-	unsigned len = matchPos(str);
-	unsigned neg = matchPos(str);
-	if (type == Body_t::Count) { bound = (Weight_t)matchPos(str); }
-	for (; len--;) {
-		WeightLit_t w ={static_cast<Lit_t>(matchAtom(str)), 1};
-		if (neg) { w.lit *= -1; --neg; }
-		lits.push_back(w);
+uint32_t SmodelsInput::matchBody(BasicStack& stack) {
+	uint32_t len = matchPos();
+	uint32_t neg = matchPos();
+	for (Lit_t* x = stack.makeSpan<Lit_t>(len), *end = x + len; x != end; ++x) {
+		*x = lit(matchAtom());
+		if (neg) { *x *= -1; --neg; }
 	}
-	if (type == Body_t::Sum) {
-		for (unsigned i = 0, len = (unsigned)lits.size(); i != len; ++i) {
-			lits[i].weight = (Weight_t)matchPos(str, "non-negative weight expected");
-		}
-	}
-	return toBody(toSpan(lits), bound, type);
+	return len;
 }
 
+uint32_t SmodelsInput::matchSum(BasicStack& stack, bool weights) {
+	uint32_t bnd = matchPos();
+	uint32_t len = matchPos();
+	uint32_t neg = matchPos();
+	if (!weights) { std::swap(len, bnd); std::swap(bnd, neg); }
+	WeightLit_t* wl = stack.makeSpan<WeightLit_t>(len);
+	for (WeightLit_t* x = wl, *end = wl + len; x != end; ++x) {
+		WeightLit_t lit = {static_cast<Lit_t>(matchAtom()), 1};
+		if (neg) { lit.lit *= -1; --neg; }
+		*x = lit;
+	}
+	if (weights) {
+		for (WeightLit_t* x = wl, *end = wl + len; x != end; ++x) {
+			x->weight = (Weight_t)matchPos("non-negative weight expected");
+		}
+	}
+	stack.push(bnd);
+	return len;
+}
 bool SmodelsInput::readRules() {
-	std::vector<WeightLit_t> bodyLits;
-	std::vector<Atom_t>      atoms;
+	BasicStack data;
 	Weight_t minPrio = 0;
 	for (unsigned rt; (rt = matchPos("rule type expected")) != 0;) {
+		data.clear();
+		Atom_t rHead;
 		switch (rt) {
 			default: require(false, "unrecognized rule type");
-			case Cardinality: // fall through
-			case Weight:      // fall through
+			case Choice: case Disjunctive: { // n a1..an
+				rHead = matchAtom("positive head size expected");
+				for (unsigned i = rHead; i--;) { data.push(matchAtom()); }
+				LitSpan  body = data.popSpan<Lit_t>(matchBody(data));
+				AtomSpan head = data.popSpan<Atom_t>(rHead);
+				out_.rule(rt == Choice ? Head_t::Choice : Head_t::Disjunctive, head, body);
+				break; }
 			case Basic:
-				if (Atom_t a = matchAtom()) {
-					Body_t t = rt == Basic ? Body_t::Normal : (rt == Weight ? Body_t::Sum : Body_t::Count);
-					BodyView body = matchBody(*stream(), bodyLits, t);
-					out_.rule(toHead(a), body);
-				}
+				rHead = matchAtom();
+				out_.rule(Head_t::Disjunctive, toSpan(&rHead, 1), data.popSpan<Lit_t>(matchBody(data)));
 				break;
-			case Disjunctive: // fall through
-			case Choice:      // n a1..an normal body
-				if (unsigned n = matchPos()) {
-					atoms.clear();
-					while (n--) { atoms.push_back(matchAtom()); }
-					BodyView body = matchBody(*stream(), bodyLits, Body_t::Normal);
-					out_.rule(toHead(toSpan(atoms), rt == Choice ? Head_t::Choice : Head_t::Disjunctive), body);
-				}
-				else { require(false, "positive head size expected"); }
-				break;
-			case Optimize:
-				require(matchBody(*stream(), bodyLits, Body_t::Sum).bound == 0, "unrecognized type of optimize rule");
-				out_.minimize(minPrio++, toSpan(bodyLits));
-				break;
+			case Cardinality: // fall through
+			case Weight:{     // fall through
+				rHead = matchAtom();
+				uint32_t nLits = matchSum(data, rt != Cardinality);
+				Weight_t bound = (Weight_t)data.pop<uint32_t>();
+				out_.rule(Head_t::Disjunctive, toSpan(&rHead, 1), bound, data.popSpan<WeightLit_t>(nLits));
+				break; }
+			case Optimize: {
+				uint32_t nLits = matchSum(data, true);
+				require(data.pop<uint32_t>() == 0, "unrecognized type of optimize rule");
+				out_.minimize(minPrio++, data.popSpan<WeightLit_t>(nLits));
+				break; }
 			case ClaspIncrement:
 				require(opts_.claspExt && matchPos() == 0, "unrecognized rule type");
 				break;
 			case ClaspAssignExt:
 			case ClaspReleaseExt:
 				require(opts_.claspExt, "unrecognized rule type");
-				if (Atom_t a = matchAtom()) {
-					Value_t v = Value_t::Release;
-					if (rt == ClaspAssignExt) {
-						v = static_cast<Value_t>((matchPos(2, "0..2 expected") ^ 3) - 1);
-					}
-					out_.external(a, v);
+				rHead = matchAtom();
+				if (rt == ClaspAssignExt) {
+					out_.external(rHead, static_cast<Value_t>((matchPos(2, "0..2 expected") ^ 3) - 1));
+				}
+				else {
+					out_.external(rHead, Value_t::Release);
 				}
 				break;
 		}
@@ -191,7 +199,7 @@ bool SmodelsInput::readSymbols() {
 	for (Lit_t atom; (atom = (Lit_t)matchPos()) != 0;) {
 		name.clear();
 		stream()->get();
-		for (char c; (c = stream()->get()) != '\n';) { 
+		for (char c; (c = stream()->get()) != '\n';) {
 			require(c != 0, "atom name expected!");
 			name += c;
 		}
@@ -217,7 +225,7 @@ bool SmodelsInput::readSymbols() {
 			out_.heuristic(x, it->type, it->bias, it->prio, toSpan(&it->cond, 1));
 		}
 	}
-	if (!incremental()) { 
+	if (!incremental()) {
 		delete nodes_;
 		if (delSyms_) delete atoms_;
 		nodes_ = 0;
@@ -228,12 +236,9 @@ bool SmodelsInput::readSymbols() {
 
 bool SmodelsInput::readCompute(const char* comp, bool val) {
 	require(match(comp) && stream()->get() == '\n', "compute statement expected");
-	WeightLit_t w ={0, 1};
-	HeadView F = toHead();
-	BodyView u = toBody(toSpan(&w, 1));
-	while ((w.lit = (Lit_t)matchPos()) != 0) {
-		if (val) { w.lit = -w.lit; }
-		out_.rule(F, u);
+	for (Lit_t x; (x = (Lit_t)matchPos()) != 0;) {
+		if (val) { x = neg(x); }
+		out_.rule(Head_t::Disjunctive, toSpan<Atom_t>(), toSpan(&x, 1));
 	}
 	return true;
 }
@@ -255,46 +260,45 @@ int readSmodels(std::istream& in, AbstractProgram& out, ErrorHandler err, const 
 /////////////////////////////////////////////////////////////////////////////////////////
 // SmodelsOutput
 /////////////////////////////////////////////////////////////////////////////////////////
-static inline WeightLit_t convert(const WeightLit_t& x) {
-	if (x.weight >= 0) { return x; }
-	WeightLit_t ret = {-x.lit, -x.weight};
-	return ret;
+namespace {
+	struct Atom     { template <class T> Atom_t operator()(T x) const { return atom(x); } };
+	struct SmWeight { uint32_t operator()(const WeightLit_t& x) const { return static_cast<unsigned>(x.weight >= 0 ? x.weight : -x.weight); } };
+	inline Lit_t smLit(const WeightLit_t& x) { return x.weight >= 0 ? x.lit : -x.lit; }
+	inline Lit_t smLit(Lit_t x)              { return x; }
+	template <class T>
+	static unsigned negSize(const Potassco::Span<T>& lits) {
+		unsigned r = 0;
+		for (const T* it = Potassco::begin(lits), *end = Potassco::end(lits); it != end; ++it) { r += smLit(*it) < 0; }
+		return r;
+	}
+	template <class T, class Op>
+	static void print(std::ostream& os, const Span<T>& span, unsigned neg, unsigned pos, Op op) {
+		for (const T* it = begin(span); neg; ++it) { if (smLit(*it)  < 0) { os << " " << op(*it); --neg; } }
+		for (const T* it = begin(span); pos; ++it) { if (smLit(*it) >= 0) { os << " " << op(*it); --pos; } }
+	}
 }
-SmodelsOutput::SmodelsOutput(std::ostream& os, bool ext) : os_(os), sec_(0), ext_(ext), inc_(false) {}
+SmodelsOutput::SmodelsOutput(std::ostream& os, bool ext, Atom_t fAtom) : os_(os), false_(fAtom), sec_(0), ext_(ext), inc_(false), fHead_(false) {}
 SmodelsOutput& SmodelsOutput::startRule(int rt) { os_ << rt; return *this; }
 SmodelsOutput& SmodelsOutput::add(unsigned i)   { os_ << " " << i; return *this; }
-SmodelsOutput& SmodelsOutput::add(const HeadView& head) {
-	if (head.type == Head_t::Choice || size(head) > 1) { add((unsigned)size(head)); }
+SmodelsOutput& SmodelsOutput::add(Head_t ht, const AtomSpan& head) {
+	if (ht == Head_t::Choice || size(head) > 1) { add((unsigned)size(head)); }
 	for (const Atom_t* x = begin(head); x != end(head); ++x) { add(*x); }
 	return *this;
 }
-SmodelsOutput& SmodelsOutput::add(int rt, const WeightLitSpan& body, unsigned bnd) {
-	unsigned neg = 0;
-	for (const WeightLit_t* x = begin(body); x != end(body); ++x) { 
-		neg += static_cast<unsigned>(lit(convert(*x)) < 0);
-	}
-	if (rt == Weight) { add(bnd); }
-	add((unsigned)size(body)).add(neg);
-	if (rt == Cardinality)  { add(bnd); }
-	unsigned n[2] = {neg, ((unsigned)size(body)) - neg};
-	for (unsigned i = 0, k; i != 2; ++i) {
-		if ((k = n[i]) == 0) { continue; }
-		for (const WeightLit_t* x = begin(body); x != end(body); ++x) { 
-			if (unsigned(lit(convert(*x)) > 0) == i) { add(atom(*x)); if (++k == n[i]) break; }
-		}
-	}
-	if (rt == Weight || rt == Optimize) {
-		for (unsigned i = 0, k; i != 2; ++i) {
-			if ((k = n[i]) == 0) { continue; }
-			for (const WeightLit_t* x = begin(body); x != end(body); ++x) { 
-				WeightLit_t p = convert(*x);
-				if (unsigned(lit(p) > 0) == i) { 
-					add((unsigned)weight(p));
-					if (++k == n[i]) break;
-				}
-			}
-		}
-	}
+
+SmodelsOutput& SmodelsOutput::add(const LitSpan& lits) {
+	unsigned neg = negSize(lits), size = Potassco::size(lits);
+	add(size).add(neg);
+	print(os_, lits, neg, size - neg, Atom());
+	return *this;
+}
+SmodelsOutput& SmodelsOutput::add(Weight_t bnd, const WeightLitSpan& lits, bool card) {
+	unsigned neg = negSize(lits), size = Potassco::size(lits);
+	if (!card) { add(static_cast<unsigned>(bnd)); }
+	add(size).add(neg);
+	if (card)  { add(static_cast<unsigned>(bnd)); }
+	print(os_, lits, neg, size - neg, Atom());
+	if (!card) { print(os_, lits, neg, size - neg, SmWeight()); }
 	return *this;
 }
 SmodelsOutput& SmodelsOutput::endRule() {
@@ -311,15 +315,35 @@ void SmodelsOutput::initProgram(bool b) {
 void SmodelsOutput::beginStep() {
 	if (ext_ && inc_) { startRule(ClaspIncrement).add(0).endRule(); }
 	sec_ = 0;
+	fHead_ = false;
 }
-void SmodelsOutput::rule(const HeadView& head, const BodyView& body) {
+void SmodelsOutput::rule(Head_t ht, const AtomSpan& head, const LitSpan& body) {
 	require(sec_ == 0, "adding rules after symbols not supported");
-	SmodelsRule rt = (SmodelsRule)isSmodelsRule(head, body);
+	if (empty(head)) {
+		if (ht == Head_t::Choice) { return; }
+		else {
+			require(false_ != 0, "empty head requires false atom");
+			fHead_ = true;
+			return SmodelsOutput::rule(ht, toSpan(&false_, 1), body);
+		}
+	}
+	SmodelsRule rt = (SmodelsRule)isSmodelsHead(ht, head);
 	require(rt != End, "unsupported rule type");
-	startRule(rt).add(head).add(rt, span(body), static_cast<unsigned>(body.bound)).endRule();
+	startRule(rt).add(ht, head).add(body).endRule();
+}
+void SmodelsOutput::rule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body) {
+	require(sec_ == 0, "adding rules after symbols not supported");
+	if (empty(head)) {
+		require(false_ != 0, "empty head requires false atom");
+		fHead_ = true;
+		return SmodelsOutput::rule(ht, toSpan(&false_, 1), bound, body);
+	}
+	SmodelsRule rt = (SmodelsRule)isSmodelsRule(ht, head, bound, body);
+	require(rt != End, "unsupported rule type");
+	startRule(rt).add(ht, head).add(bound, body, rt == Cardinality).endRule();
 }
 void SmodelsOutput::minimize(Weight_t, const WeightLitSpan& lits) {
-	startRule(Optimize).add(0).add(Optimize, lits, unsigned(0)).endRule();
+	startRule(Optimize).add(0, lits, false).endRule();
 }
 void SmodelsOutput::output(const StringSpan& str, const LitSpan& cond) {
 	require(sec_ <= 1, "adding symbols after compute not supported");
@@ -349,16 +373,10 @@ void SmodelsOutput::assume(const LitSpan& lits) {
 	for (const Lit_t* x = begin(lits); x != end(lits); ++x) {
 		if (lit(*x) < 0) { os_ << atom(*x) << "\n"; }
 	}
+	if (fHead_ && false_) {
+		os_ << false_ << "\n";
+	}
 	os_ << "0\n";
-}
-void SmodelsOutput::project(const AtomSpan&) {
-	require(false, "projection directive not supported in smodels format");
-}
-void SmodelsOutput::acycEdge(int, int, const LitSpan&) {
-	require(false, "edge directive not supported in smodels format");
-}
-void SmodelsOutput::heuristic(Atom_t, Heuristic_t, int, unsigned, const LitSpan&) {
-	require(false, "heuristic directive not supported in smodels format");
 }
 void SmodelsOutput::endStep() {
 	if (sec_ < 2) { SmodelsOutput::assume(Potassco::toSpan<Lit_t>()); }
