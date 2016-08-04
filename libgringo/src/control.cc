@@ -3391,7 +3391,7 @@ extern "C" clingo_error_t clingo_control_solve(clingo_control_t *ctl, clingo_mod
     GRINGO_CLINGO_TRY {
         *ret = static_cast<clingo_solve_result_bitset_t>(ctl->solve([model_handler, data](Model const &m) {
             bool ret = true;
-            auto err = model_handler(static_cast<clingo_model*>(const_cast<Model*>(&m)), data, &ret);
+            auto err = model_handler ? model_handler(static_cast<clingo_model*>(const_cast<Model*>(&m)), data, &ret) : 0;
             if (err != 0) { throw ClingoError(err); }
             return ret;
         }, toAss(assumptions, n)));
@@ -3507,11 +3507,11 @@ extern "C" clingo_error_t clingo_control_solve_async(clingo_control_t *ctl, clin
         *ret = static_cast<clingo_solve_async_t*>(ctl->solveAsync(
             [mh, mh_data](Gringo::Model const &m) {
                 bool result = true;
-                auto code = mh(&const_cast<Gringo::Model &>(m), mh_data, &result);
+                auto code = mh ? mh(&const_cast<Gringo::Model &>(m), mh_data, &result) : 0;
                 if (code != 0) { throw ClingoError(code); }
                 return result;
             }, [fh, fh_data](Gringo::SolveResult ret) {
-                auto code = fh(ret, fh_data);
+                auto code = fh ? fh(ret, fh_data) : 0;
                 if (code != 0) { throw ClingoError(code); }
             }, std::move(ass)));
     }
