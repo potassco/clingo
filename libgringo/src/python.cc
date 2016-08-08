@@ -4284,15 +4284,15 @@ Object parseProgram(Reference args, Reference kwds) {
     ParseTupleAndKeywords(args, kwds, "OO", kwlist, str, cb);
     using Data = std::pair<Object, std::exception_ptr>;
     Data data{cb, std::exception_ptr()};
-    handleCError(clingo_parse_program(pyToCpp<char const *>(str), [](clingo_ast_statement_t const *stm, void *d) -> clingo_error_t {
+    handleCError(clingo_parse_program(pyToCpp<char const *>(str), [](clingo_ast_statement_t const *stm, void *d) -> bool {
         auto &data = *static_cast<Data*>(d);
         try {
             data.first(cppToPy(*stm));
-            return clingo_error_success;
+            return true;
         }
         catch (...) {
             data.second = std::current_exception();
-            return clingo_error_unknown;
+            return false;
         }
     }, &data, nullptr, nullptr, 20), &data.second);
     return None();

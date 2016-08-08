@@ -2,9 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define EM(e, msg) \
-    ret = (e); \
-    if (ret != 0) { \
+#define EM(ret, msg) \
+    if (!(ret)) { \
         fprintf(stderr, "example failed with: %s\n", (msg) ? (msg) : "unknown error"); \
         goto cleanup; \
     }
@@ -12,7 +11,7 @@
 #define A(ptr, type, old_n, new_n, msg) \
     if (old_n < new_n) { \
         type *ptr ## _new = (type*)realloc(ptr, new_n * sizeof(type)); \
-        EM(ptr ## _new ? clingo_error_success : clingo_error_bad_alloc, (msg)); \
+        EM(ptr ## _new, (msg)); \
         ptr = ptr ## _new; \
         old_n = new_n; \
     }
@@ -25,7 +24,6 @@ void logger(clingo_warning_t code, char const *message, void *data) {
 }
 
 int main(int argc, char const **argv) {
-    clingo_error_t ret;
     clingo_control_t *ctl = NULL;
     clingo_solve_iteratively_t *solve_it = NULL;
     clingo_part_t parts[] = {{ "base", NULL, 0 }};
@@ -60,6 +58,6 @@ cleanup:
     if (atoms)    { free(atoms); }
     if (solve_it) { clingo_solve_iteratively_close(solve_it); }
     if (ctl)      { clingo_control_free(ctl); }
-    return ret;
+    return clingo_error_code();
 }
 

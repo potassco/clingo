@@ -743,7 +743,7 @@ Gringo::Symbol DefaultGringoModule::parseValue(std::string const &str, Gringo::L
     return parser.parse(str, logger);
 }
 
-extern "C" clingo_error_t clingo_control_new(char const *const * args, size_t n, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl) {
+extern "C" bool clingo_control_new(char const *const * args, size_t n, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl) {
     GRINGO_CLINGO_TRY {
         static std::mutex mut;
         static DefaultGringoModule mod;

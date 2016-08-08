@@ -262,24 +262,17 @@ struct GringoModule {
 
 // {{{1 declaration of ClingoError
 
-struct ClingoError : std::exception {
-    ClingoError(clingo_error_t err) : err(err) { }
-    virtual ~ClingoError() noexcept = default;
-    virtual const char* what() const noexcept {
-        return clingo_error_string(err);
-    }
-    clingo_error_t const err;
-};
+struct ClingoError : std::exception { };
 
 void inline clingo_expect(bool expr) {
     if (!expr) { throw std::runtime_error("unexpected"); }
 }
 
-void handleCError(clingo_error_t code, std::exception_ptr *exc = nullptr);
-clingo_error_t handleCXXError();
+void handleCError(bool ret, std::exception_ptr *exc = nullptr);
+void handleCXXError();
 
 #define GRINGO_CLINGO_TRY try
-#define GRINGO_CLINGO_CATCH catch (...) { return Gringo::handleCXXError(); } return clingo_error_success
+#define GRINGO_CLINGO_CATCH catch (...) { Gringo::handleCXXError(); return false; } return true
 
 // }}}1
 
