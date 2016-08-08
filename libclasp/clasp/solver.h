@@ -778,6 +778,7 @@ public:
 	void destroyDB(ConstraintDB& db);
 	SolverStrategies&  strategies() { return strategy_; }
 	bool resolveToInput(const LitVec& conflictClause, LitVec& out, uint32& lbd) const;
+	void resolveToCore(LitVec& out);
 	//@}
 private:
 	struct DLevel {

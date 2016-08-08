@@ -509,7 +509,7 @@ private:
 	void     init();
 	uint32   initRoot(Solver& s);
 	bool     initLevel(Solver& s);
-	uint32   analyze(Solver& s, LitVec& cfl, weight_t& minW, LitVec& poppedOther);
+	uint32   analyze(Solver& s, weight_t& minW, LitVec& poppedOther);
 	bool     pushPath(Solver& s);
 	void     integrateOpt(Solver& s);
 	bool     popPath(Solver& s, uint32 dl, LitVec& out);
@@ -531,7 +531,7 @@ private:
 	LitSet    assume_;    // current set of assumptions
 	LitSet    todo_;      // core(s) not yet represented as constraint
 	LitVec    fix_;       // set of fixed literals
-	LitVec    conflict_;  // current conflict
+	LitVec    conflict_;  // temporary: conficting set of assumptions
 	WCTemp    temp_;      // temporary: used for creating weight constraints
 	wsum_t    lower_;     // lower bound of active level
 	wsum_t    upper_;     // upper bound of active level

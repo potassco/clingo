@@ -80,8 +80,8 @@ public:
 	virtual bool onUnsat(const Solver& s, const Model& m);
 	//! Shall print the given model.
 	virtual void printModel(const OutputTable& out, const Model& m, PrintLevel x) = 0;
-	//! May print the given lower bound.
-	virtual void printLower(const LowerBound& bnd, const SumVec* upper);
+	//! Called on unsat - may print new info.
+	virtual void printUnsat(const OutputTable& out, const LowerBound* lower, const Model* prevModel);
 	//! A solving step has started.
 	virtual void startStep(const ClaspFacade&);
 	//! A solving step has stopped.
@@ -192,8 +192,8 @@ public:
 	 * elements e are printed as format[cat_atom] and separated by the internal field separator.
 	 */
 	virtual void printModel(const OutputTable& out, const Model& m, PrintLevel x);
-	//! Prints the given lower bound and all upper bounds that are known to be optimal.
-	virtual void printLower(const LowerBound& bnd, const SumVec* upper);
+	//! Prints the given lower bound and upper bounds that are known to be optimal.
+	virtual void printUnsat(const OutputTable& out, const LowerBound* lower, const Model* prevModel);
 	//! Called once a solving step has completed.
 	/*!
 	 * Always prints "format[cat_result] result[s.result()]".
@@ -234,6 +234,8 @@ protected:
 	void        startObject(const char* n, uint32 i) const;
 	void        setState(uint32 state, uint32 verb, const char* st);
 	void        printSolveProgress(const Event& ev);
+	void        printValues(const OutputTable& out, const Model& m);
+	void        printMeta(const OutputTable& out, const Model& m);
 private:
 	typedef Clasp::Atomic_t<int>::type EvType;
 	double stTime_;// time on state enter

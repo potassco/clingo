@@ -25,7 +25,7 @@
 
 namespace Clasp {
 
-#ifdef _DEBUG
+#if defined(_DEBUG) && _DEBUG
 	template <class Type>
 	struct PodVector {
 		typedef std::vector<Type> type;

@@ -491,6 +491,7 @@ public:
 };
 struct LowerBound {
 	LowerBound() : level(0), bound(0) {}
+	void reset() { level = 0; bound = 0; }
 	uint32 level;
 	wsum_t bound;
 };

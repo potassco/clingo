@@ -56,10 +56,11 @@ struct Model {
 	const ValueVec*   values; // variable assignment or consequences
 	const SumVec*     costs;  // associated costs (or 0)
 	uint32            sId :16;// id of solver that found the model
-	uint32            type:13;// type of model
+	uint32            type:12;// type of model
 	uint32            opt : 1;// whether the model is optimal w.r.t costs (0: unknown)
 	uint32            def : 1;// whether the model is definite w.r.t consequences (0: unknown)
 	uint32            sym : 1;// whether symmetric models are possible
+	uint32            up  : 1;// whether the model was updated on last unsat 
 };
 
 /**
@@ -70,7 +71,7 @@ struct Model {
 //! Options for configuring enumeration.
 struct EnumOptions {  
 	typedef MinimizeMode OptMode;
-	enum EnumType { enum_auto = 0, enum_bt  = 1, enum_record  = 2, enum_dom_record = 3, enum_consequences = 4, enum_brave = 5, enum_cautious = 6, enum_user = 8 };
+	enum EnumType { enum_auto = 0, enum_bt  = 1, enum_record  = 2, enum_dom_record = 3, enum_consequences = 4, enum_brave = 5, enum_cautious = 6, enum_query = 7, enum_user = 8 };
 	EnumOptions() : numModels(-1), enumMode(enum_auto), optMode(MinimizeMode_t::optimize), project(0), maxSat(false) {}
 	static Enumerator* createModelEnumerator(const EnumOptions& opts);
 	static Enumerator* createConsEnumerator(const EnumOptions& opts);
@@ -245,6 +246,7 @@ protected:
 	 */
 	virtual ConPtr doInit(SharedContext& ctx, SharedMinimizeData* min, int numModels) = 0;
 	virtual void   doReset();
+	Model&         model();
 private:
 	class SharedQueue;
 	Enumerator(const Enumerator&);

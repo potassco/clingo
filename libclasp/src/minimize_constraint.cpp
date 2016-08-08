@@ -1081,13 +1081,8 @@ bool UncoreMinimize::handleUnsat(Solver& s, bool up, LitVec& out) {
 	do {
 		if (sat_ == 0) {
 			if (s.hasStopConflict()) { return false; }
-			conflict_ = s.conflict();
-			if (s.searchMode() == SolverStrategies::no_learning) {
-				conflict_.clear();
-				for (uint32 i = 1, end = s.decisionLevel(); i <= end; ++i) { conflict_.push_back(s.decision(i)); }
-			}
 			weight_t mw;
-			uint32 cs = analyze(s, conflict_, mw, out);
+			uint32 cs = analyze(s, mw, out);
 			if (!cs) {
 				todo_.clear();
 				return false;
@@ -1140,12 +1135,10 @@ bool UncoreMinimize::handleUnsat(Solver& s, bool up, LitVec& out) {
 
 // Analyzes the current root level conflict and stores the set of our assumptions
 // that caused the conflict in todo_.
-uint32 UncoreMinimize::analyze(Solver& s, LitVec& rhs, weight_t& minW, LitVec& poppedOther) {
-	uint32 marked = 0;                // number of literals to resolve out
-	uint32 tPos   = s.trail().size(); // current position in trail
-	uint32 cs     = 0, dl, roots = 0;
-	minW          = std::numeric_limits<weight_t>::max();
-	uint32 minDL  = s.decisionLevel();
+uint32 UncoreMinimize::analyze(Solver& s, weight_t& minW, LitVec& poppedOther) {
+	uint32 cs    = 0;
+	uint32 minDL = s.decisionLevel();
+	minW         = std::numeric_limits<weight_t>::max();
 	if (!todo_.empty() && todo_.back().id) { 
 		cs   = 1;
 		minW = getData(todo_.back().id).weight;
@@ -1154,34 +1147,16 @@ uint32 UncoreMinimize::analyze(Solver& s, LitVec& rhs, weight_t& minW, LitVec& p
 	if (s.decisionLevel() <= eRoot_) {
 		return cs;
 	}
-	// resolve all-last uip
-	Literal p;
-	for (Var v;;) {
-		// process current rhs
-		for (LitVec::size_type i = 0; i != rhs.size(); ++i) {
-			if (!s.seen(v = rhs[i].var())) {
-				assert(s.level(v) <= s.decisionLevel());
-				s.markSeen(v);
-				++marked;
-			}
-		}
-		rhs.clear();
-		if (marked-- == 0) { break; }
-		// search for the last assigned literal that needs to be analyzed...
-		while (!s.seen(s.trail()[--tPos].var())) { ; }	
-		p  = s.trail()[tPos];
-		dl = s.level(p.var());
-		assert(dl);
-		s.clearSeen(p.var());
-		if      (!s.reason(p).isNull()) { s.reason(p, rhs); }
-		else if (p == s.decision(dl) && dl > eRoot_ && dl <= aTop_) {
-			s.markSeen(p);
-			++roots;
-		}
+	conflict_.clear();
+	s.resolveToCore(conflict_);
+	for (LitVec::const_iterator it = conflict_.begin(), end = conflict_.end(); it != end; ++it) {
+		s.markSeen(*it);
 	}
 	// map marked root decisions back to our assumptions
+	Literal p;
+	uint32 roots = (uint32)conflict_.size(), dl;
 	for (LitSet::iterator it = assume_.begin(), end = assume_.end(); it != end && roots; ++it) {
-		if (s.seen(p = it->lit) && (dl = s.level(p.var())) != 0) {
+		if (s.seen(p = it->lit) && (dl = s.level(p.var())) > eRoot_ && dl <= aTop_) {
 			assert(p == s.decision(dl) && getData(it->id).assume);
 			if (dl < minDL) { minDL = dl; }
 			minW = std::min(getData(it->id).weight, minW);
@@ -1193,7 +1168,7 @@ uint32 UncoreMinimize::analyze(Solver& s, LitVec& rhs, weight_t& minW, LitVec& p
 	}
 	popPath(s, minDL - (minDL != 0), poppedOther);
 	if (roots) { // clear remaining levels - can only happen if someone messed with our assumptions
-		for (uint32 i = s.decisionLevel(); i; --i) { s.clearSeen(s.decision(i).var()); }
+		for (LitVec::const_iterator it = conflict_.begin(), end = conflict_.end(); it != end; ++it) { s.clearSeen(it->var()); }
 	}
 	return cs;
 }

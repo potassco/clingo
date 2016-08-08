@@ -1020,7 +1020,6 @@ void LogicProgram::updateFrozenAtoms() {
 
 void LogicProgram::prepareProgram(bool checkSccs) {
 	assert(!frozen());
-	freezeTheory();
 	uint32 nAtoms  = (uint32)atoms_.size();
 	input_.hi = nAtoms;
 	for (uint32 i = 0; i != RuleStats::numKeys(); ++i) {
@@ -1032,6 +1031,7 @@ void LogicProgram::prepareProgram(bool checkSccs) {
 	statsId_ = 1;
 	transformExtended();
 	updateFrozenAtoms();
+	freezeTheory();
 	PrgAtom* suppAtom = 0;
 	if (opts_.suppMod) {
 		VarVec h;
