@@ -143,11 +143,17 @@ bool Output::onModel(const Solver& s, const Model& m) {
 		if (m.opt == 1 && !m.consequences()) { printModel(s.outputTable(), m, print_best); clearModel(); }
 		else                                 { saveModel(m); }
 	}
+	if (saved_.num != m.num) { clearModel(); }
 	return true;
 }
 bool Output::onUnsat(const Solver& s, const Model& m) {
-	if (!m.ctx || !m.ctx->optimize() || s.lower.bound <= 0 || optQ() != print_all) { return true; }
-	printLower(s.lower, m.num ? m.costs : 0);
+	if (m.ctx) {
+		const LowerBound* lower = m.ctx->optimize() && s.lower.bound > 0 ? &s.lower : 0;
+		const Model*  prevModel = m.num ? &m : 0;
+		if (modelQ() == print_all || optQ() == print_all) {
+			printUnsat(s.outputTable(), lower, prevModel);
+		}
+	}
 	return true;
 }
 void Output::startStep(const ClaspFacade&) { clearModel(); summary_ = 0; }
@@ -159,6 +165,9 @@ void Output::stopStep(const ClaspFacade::Summary& s){
 		}
 		printModel(s.ctx().output, *getModel(), print_best);
 		clearModel();
+	}
+	else if (modelQ() == print_all && s.model() && s.model()->up && !s.model()->def) {
+		printModel(s.ctx().output, *s.model(), print_all);
 	}
 	if (callQ() == print_all) { 
 		printSummary(s, false);
@@ -243,11 +252,11 @@ void Output::printWitness(const OutputTable& out, const Model& m, uintp data) {
 		if (D == onlyD) { return; }
 	}
 }
+void Output::printUnsat(const OutputTable&, const LowerBound*, const Model*) {}
 uintp Output::doPrint(const OutPair&, UPtr x) { return x; }
 bool Output::stats(const ClaspFacade::Summary& summary) const {
 	return summary.facade->config()->context().stats != 0;
 }
-void Output::printLower(const LowerBound&, const SumVec*) {}
 /////////////////////////////////////////////////////////////////////////////////////////
 // JsonOutput
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -883,46 +892,58 @@ uintp TextOutput::doPrint(const OutPair& s, UPtr data) {
 	else        { accu += printf(format[cat_atom] + !s.second.sign(), static_cast<int>(s.second.var())); }
 	return data;
 }
-void TextOutput::printModel(const OutputTable& out, const Model& m, PrintLevel x) {
-	if (x == modelQ()) {
-		comment(1, "Answer: %" PRIu64"\n", m.num);
-		printf("%s", format[cat_value]);
-		UPair data;
-		printWitness(out, m, reinterpret_cast<UPtr>(&data));
-		if (*format[cat_value_term]) {
-			printSep(cat_value);
-			printf("%s", format[cat_value_term]); 
-		}
+void TextOutput::printValues(const OutputTable& out, const Model& m) {
+	printf("%s", format[cat_value]);
+	UPair data;
+	printWitness(out, m, reinterpret_cast<UPtr>(&data));
+	if (*format[cat_value_term]) {
+		printSep(cat_value);
+		printf("%s", format[cat_value_term]);
+	}
+	printf("\n");
+}
+void TextOutput::printMeta(const OutputTable& out, const Model& m) {
+	if (m.consequences()) {
+		UPair cons = numCons(out, m);
+		printLN(cat_comment, "Consequences: [%u;%u]", cons.first, cons.first + cons.second);
+	}
+	if (m.costs) {
+		printf("%s", format[cat_objective]);
+		printCosts(*m.costs);
 		printf("\n");
 	}
+}
+void TextOutput::printModel(const OutputTable& out, const Model& m, PrintLevel x) {
+	if (x == modelQ()) {
+		comment(1, "%s: %" PRIu64"\n", !m.up ? "Answer" : "Update", m.num);
+		printValues(out, m);
+	}
 	if (x == optQ()) {
-		if (m.consequences()) {
-			UPair cons = numCons(out, m);
-			printLN(cat_comment, "Consequences: [%u;%u]", cons.first, cons.first + cons.second);
-		}
-		if (m.costs) {
-			printf("%s", format[cat_objective]);
-			printCosts(*m.costs);
-			printf("\n");
-		}
+		printMeta(out, m);
 	}
 	fflush(stdout);
 }
-void TextOutput::printLower(const LowerBound& bnd, const SumVec* upper) {
-	printf("%s%-12s: ", format[cat_comment], "Progression");
-	if (upper && upper->size() > bnd.level) {
-		const char* next = *fieldSeparator() != '\n' ? "" : format[cat_comment];
-		for (uint32 i = 0; i != bnd.level; ++i) {
-			printf("%" PRId64 "%s%s", (*upper)[i], fieldSeparator(), next);
+void TextOutput::printUnsat(const OutputTable& out, const LowerBound* lower, const Model* prevModel) {
+	if (lower && optQ() == print_all) {
+		const SumVec* costs = prevModel ? prevModel->costs : 0;
+		printf("%s%-12s: ", format[cat_comment], "Progression");
+		if (costs && costs->size() > lower->level) {
+			const char* next = *fieldSeparator() != '\n' ? "" : format[cat_comment];
+			for (uint32 i = 0; i != lower->level; ++i) {
+				printf("%" PRId64 "%s%s", (*costs)[i], fieldSeparator(), next);
+			}
+			wsum_t ub = (*costs)[lower->level];
+			int w = 1; for (wsum_t x = ub; x > 9; ++w) { x /= 10; }
+			printf("[%*" PRId64 ";%" PRId64 "] (Error: %g)", w, lower->bound, ub, double(ub - lower->bound)/double(lower->bound));
 		}
-		wsum_t ub = (*upper)[bnd.level];
-		int w = 1; for (wsum_t x = ub; x > 9; ++w) { x /= 10; }
-		printf("[%*" PRId64 ";%" PRId64 "] (Error: %g)", w, bnd.bound, ub, double(ub - bnd.bound)/double(bnd.bound));
+		else {
+			printf("[%" PRId64 ";inf]", lower->bound);
+		}
+		printf("\n");
 	}
-	else {
-		printf("[%" PRId64 ";inf]", bnd.bound);
+	if (prevModel && prevModel->up && optQ() == print_all) {
+		printMeta(out, *prevModel);
 	}
-	printf("\n");
 	fflush(stdout);
 }
 
@@ -1025,7 +1046,7 @@ void TextOutput::visitLogicProgramStats(const Asp::LpStats& lp) {
 	printKey("Tight");
 	if      (lp.sccs == 0)              { printf("Yes"); }
 	else if (lp.sccs != PrgNode::noScc) { printf("%-8s (SCCs: %u Non-Hcfs: %u Nodes: %u Gammas: %u)", "No", lp.sccs, lp.nonHcfs, lp.ufsNodes, lp.gammas); }
-	else                                 { printf("N/A"); }
+	else                                { printf("N/A"); }
 	printf("\n");
 }
 void TextOutput::visitProblemStats(const ProblemStats& ps) {

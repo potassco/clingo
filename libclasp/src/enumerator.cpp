@@ -221,6 +221,7 @@ bool Enumerator::commitModel(Solver& s) {
 		model_.sId    = s.id();
 		model_.values = &s.model;
 		model_.costs  = 0;
+		model_.up     = 0;
 		if (minimizer()) {
 			costs_.resize(minimizer()->numRules());
 			std::transform(minimizer()->adjust(), minimizer()->adjust()+costs_.size(), minimizer()->sum(), costs_.begin(), std::plus<wsum_t>());
@@ -267,6 +268,9 @@ bool Enumerator::supportsSplitting(const SharedContext& ctx) const {
 }
 int Enumerator::unsatType() const {
 	return !optimize() ? unsat_stop : unsat_cont;
+}
+Model& Enumerator::model() {
+	return model_;
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // EnumOptions

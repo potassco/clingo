@@ -458,7 +458,7 @@ bool Solver::pushRoot(const LitVec& path) {
 
 bool Solver::pushRoot(Literal x) {
 	if (hasConflict())                 { return false; }
-	if (decisionLevel()!= rootLevel()) { popRootLevel();  }
+	if (decisionLevel()!= rootLevel()) { popRootLevel(0);  }
 	if (queueSize() && !propagate())   { return false;    }
 	if (value(x.var()) != value_free)  { return isTrue(x);}
 	assume(x); --stats.choices;
@@ -1118,6 +1118,38 @@ bool Solver::resolveToInput(const LitVec& in, LitVec& out, uint32& outLbd) {
 	}
 	return !unknown;
 }
+void Solver::resolveToCore(LitVec& out) {
+	CLASP_ASSERT_CONTRACT_MSG(hasConflict() && !hasStopConflict(), "Function requires valid conflict");
+	cc_.clear();
+	std::swap(cc_, conflict_);
+	if (searchMode() == SolverStrategies::no_learning) {
+		for (uint32 i = 1, end = decisionLevel() + 1; i != end; ++i) { cc_.push_back(decision(i)); }
+	}
+	const LitVec& trail = assign_.trail;
+	const LitVec* r = &cc_;
+	// resolve all-last uip
+	for (uint32 marked = 0, tPos = (uint32)trail.size();; r = &conflict_) {
+		for (LitVec::const_iterator it = r->begin(), end = r->end(); it != end; ++it) {
+			if (!seen(it->var())) {
+				assert(level(it->var()) <= decisionLevel());
+				markSeen(it->var());
+				++marked;
+			}
+		}
+		if (marked-- == 0) { break; }
+		// search for the last marked literal
+		while (!seen(trail[--tPos].var())) { ; }
+		Literal p = trail[tPos];
+		uint32 dl = level(p.var());
+		assert(dl);
+		clearSeen(p.var());
+		conflict_.clear();
+		if      (!reason(p).isNull()) { reason(p).reason(*this, p, conflict_); }
+		else if (p == decision(dl))   { out.push_back(p); }
+	}
+	// restore original conflict
+	std::swap(cc_, conflict_);
+}
 
 // computes the First-UIP clause and stores it in cc_, where cc_[0] is the asserting literal (inverted UIP)
 // and cc_[1] is a literal from the asserting level (if > 0)
@@ -1751,7 +1783,7 @@ ValueRep Solver::search(SearchLimits& limit, double rf) {
 	assert(!isFalse(tagLiteral()));
 	SearchLimits::BlockPtr block = limit.restart.block;
 	rf = std::max(0.0, std::min(1.0, rf));
-	lower = LowerBound();
+	lower.reset();
 	if (limit.restart.local && decisionLevel() == rootLevel()) { cflStamp_.assign(decisionLevel()+1, 0); }
 	do {
 		for (bool conflict = hasConflict() || !propagate() || !simplify(), local = limit.restart.local;;) {

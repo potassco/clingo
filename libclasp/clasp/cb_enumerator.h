@@ -38,15 +38,19 @@ public:
 		Brave    = Model::Brave,
 		Cautious = Model::Cautious,
 	};
+	enum Algo { Default, Query };
 	/*!
 	 * \param type Type of consequences to compute.
 	 */
-	explicit CBConsequences(Type type);
+	explicit CBConsequences(Type type, Algo a = Default);
 	~CBConsequences();
 	int  modelType() const { return type_; }
 	bool exhaustive()const { return true; }
+	bool supportsSplitting(const SharedContext& problem) const;
+	int  unsatType() const;
 private:
 	class  CBFinder;
+	class  QueryFinder;
 	class  SharedConstraint;
 	ConPtr doInit(SharedContext& ctx, SharedMinimizeData* m, int numModels);
 	void   addLit(SharedContext& ctx, Literal p);
@@ -54,6 +58,7 @@ private:
 	LitVec            cons_;
 	SharedConstraint* shared_;
 	Type              type_;
+	Algo              algo_;
 };
 
 }

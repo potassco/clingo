@@ -450,7 +450,7 @@ OPTION(integrate, ",@1", ARG_EXT(defaultsTo("gp")->state(Value::value_defaulted)
 #endif
 OPTION(enum_mode   , ",e", ARG_EXT(defaultsTo("auto")->state(Value::value_defaulted), DEFINE_ENUM_MAPPING(SolveOptions::EnumType,\
        MAP("bt", SolveOptions::enum_bt), MAP("record", SolveOptions::enum_record), MAP("domRec", SolveOptions::enum_dom_record),\
-       MAP("brave", SolveOptions::enum_brave), MAP("cautious", SolveOptions::enum_cautious),\
+       MAP("brave", SolveOptions::enum_brave), MAP("cautious", SolveOptions::enum_cautious), MAP("query", SolveOptions::enum_query),\
        MAP("auto", SolveOptions::enum_auto), MAP("user", SolveOptions::enum_user))),\
        "Configure enumeration algorithm [%D]\n" \
        "      %A: {bt|record|brave|cautious|auto}\n" \
