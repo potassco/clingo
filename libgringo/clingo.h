@@ -196,7 +196,7 @@ bool clingo_signature_is_negative(clingo_signature_t signature);
 bool clingo_signature_is_equal_to(clingo_signature_t a, clingo_signature_t b);
 //! Check if a signature is less than another signature.
 //!
-//! Signatures are compared first by sign (non signed < signed), then by arity,
+//! Signatures are compared first by sign (unsigned < signed), then by arity,
 //! then by name.
 //!
 //! @param[in] a first signature
