@@ -150,7 +150,7 @@ typedef int clingo_truth_value_t;
 //! @addtogroup Symbols
 //! @{
 
-//! Represents a signature.
+//! Represents a predicate signature.
 //!
 //! Signatures have a name and an arity, and can be positive or negative (to
 //! represent classical negation).
