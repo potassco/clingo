@@ -762,7 +762,7 @@ typedef struct clingo_symbolic_atoms clingo_symbolic_atoms_t;
 //! ::clingo_control_cleanup(), and functions that modify the underlying
 //! non-ground program.
 typedef uint64_t clingo_symbolic_atom_iterator_t;
-//! Count the number of occurring in a logic program.
+//! Get the number of different atoms occurring in a logic program.
 //!
 //! @param[in] atoms the target
 //! @param[out] size the number of atoms
