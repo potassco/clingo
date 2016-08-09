@@ -1788,6 +1788,8 @@ typedef bool clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t sy
 typedef bool clingo_ground_callback_t (clingo_location_t location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data);
 //! Callback function to intercept models.
 //!
+//! The model callback is invoked once for each model found by clingo.
+//!
 //! If a (non-recoverable) clingo API function fails in this callback, its
 //! error code shall be returned.  In case of errors not related to clingo,
 //! ::clingo_error_unknown, this function can return ::clingo_error_unknown to
