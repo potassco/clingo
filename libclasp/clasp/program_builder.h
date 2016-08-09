@@ -134,19 +134,22 @@ public:
 	bool addObjective(const WeightLitVec& min);
 	//! Adds v to the set of projection vars.
 	void addProject(Var v);
+	//! Adds x to the set of initial assumptions.
+	void addAssumption(Literal x);
 private:
 	typedef PodVector<uint8>::type VarState;
 	bool doStartProgram();
 	ProgramParser* doCreateParser();
-	int  doType() const                   { return Problem_t::Sat; }
-	bool doUpdateProgram()                { return !frozen(); }
-	void doGetAssumptions(LitVec&) const  { }
+	int  doType() const                    { return Problem_t::Sat; }
+	bool doUpdateProgram()                 { return !frozen(); }
+	void doGetAssumptions(LitVec& a) const { a.insert(a.end(), assume_.begin(), assume_.end()); }
 	bool doEndProgram();
 	bool satisfied(LitVec& clause);
 	bool markAssigned();
 	void markLit(Literal x) { varState_[x.var()] |= 1 + x.sign(); }
 	VarState varState_;
 	LitVec   softClauses_;
+	LitVec   assume_;
 	wsum_t   hardWeight_;
 	Var      vars_;
 	uint32   pos_;
@@ -193,6 +196,8 @@ public:
 	bool    addObjective(const WeightLitVec& min);
 	//! Adds v to the set of projection vars.
 	void    addProject(Var v);
+	//! Adds x to the set of initial assumptions.
+	void    addAssumption(Literal x);
 	//! Only allow solutions where the sum of violated soft constraint is less than bound.
 	bool    setSoftBound(wsum_t bound);
 private:
@@ -204,9 +209,9 @@ private:
 	typedef Clasp::HashMap_t<PKey, Literal, PKey, PKey>::map_type ProductIndex;
 	bool doStartProgram();
 	void doGetWeakBounds(SumVec& out) const;
-	int  doType() const                   { return Problem_t::Pb; }
-	bool doUpdateProgram()                { return !frozen(); }
-	void doGetAssumptions(LitVec&) const  { }
+	int  doType() const                    { return Problem_t::Pb; }
+	bool doUpdateProgram()                 { return !frozen(); }
+	void doGetAssumptions(LitVec& a) const { a.insert(a.end(), assume_.begin(), assume_.end()); }
 	ProgramParser* doCreateParser();
 	bool doEndProgram();
 	bool productSubsumed(LitVec& lits, PKey& prod);
@@ -214,6 +219,7 @@ private:
 	Var  getAuxVar();
 	ProductIndex products_;
 	PKey         prod_;
+	LitVec       assume_;
 	uint32       auxVar_;
 	uint32       endVar_;
 	wsum_t       soft_;

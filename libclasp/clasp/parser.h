@@ -45,17 +45,21 @@ ProblemType detectProblemType(std::istream& prg);
 //! Parse additional information in symbol table/comments.
 struct ParserOptions {
 	enum Extension {
-		parse_heuristic = 1u, /*!< Parse _heuristic(...) pred in smodels format. */
+		parse_heuristic = 1u, /*!< Parse heuristic info in smodels, dimacs, and pb format. */
 		parse_acyc_edge = 2u, /*!< Parse acyc info in smodels, dimacs, and pb format. */
 		parse_minimize  = 4u, /*!< Parse cost function in dimacs format. */
 		parse_project   = 8u, /*!< Parse project directive in dimacs and pb format. */
-		parse_full      = 15u
+		parse_assume    = 16u,/*!< Parse assumption directive in dimacs and pb format. */
+		parse_output    = 32u,/*!< Parse output directive in dimacs and pb format. */
+		parse_full      = 63u
 	};
 	ParserOptions() : ext(0) {}
 	ParserOptions& enableHeuristic() { ext |= parse_heuristic; return *this; }
 	ParserOptions& enableAcycEdges() { ext |= parse_acyc_edge; return *this; }
 	ParserOptions& enableMinimize()  { ext |= parse_minimize; return *this; }
 	ParserOptions& enableProject()   { ext |= parse_project; return *this; }
+	ParserOptions& enableAssume()    { ext |= parse_assume;  return *this;}
+	ParserOptions& enableOutput()    { ext |= parse_output;  return *this; }
 	bool isEnabled(Extension e) const { return (ext & static_cast<uint8>(e)) != 0u; }
 	bool isEnabled(uint8 f) const { return (ext & f) != 0u;  }
 	uint8 ext;
@@ -104,7 +108,21 @@ public:
 	ParserOptions options;
 protected:
 	bool skipLines(char start);
-	void parseGraph(const char* pre, ExtDepGraph& graph);
+	void parseExt(const char* pre, uint32 maxVar, SharedContext& ctx);
+	// <project> ::= { <var> } <EOL>
+	void parseProject(uint32 maxVar, SharedContext& ctx);
+	// <assume> ::= { <literal> } <EOL>
+	void parseAssume(uint32 maxVar);
+	// <heuristic> ::= <type> <var> <bias> <prio> <literal_condition>
+	void parseHeuristic(uint32 maxVar, SharedContext& ctx);
+	// <output> ::= "range" <var_lo> <var_hi>
+	//           |  <literal_condition> <string> <EOL>
+	void parseOutput(uint32 maxVar, SharedContext& ctx);
+	void parseGraph(uint32 maxVar, const char* pre, ExtDepGraph& graph);
+	virtual void addObjective(const WeightLitVec& vec) = 0;
+	virtual void addAssumption(Literal x) = 0;
+private:
+	Literal matchLit(Var max);
 };
 
 class DimacsReader : public SatReader {
@@ -114,6 +132,8 @@ public:
 protected:
 	virtual bool doAttach(bool& inc);
 	virtual bool doParse();
+	virtual void addObjective(const WeightLitVec& vec);
+	virtual void addAssumption(Literal x);
 private:
 	SatBuilder* program_;
 	Var         numVar_;
@@ -127,6 +147,8 @@ public:
 protected:
 	virtual bool doAttach(bool& inc);
 	virtual bool doParse();
+	virtual void addObjective(const WeightLitVec& vec);
+	virtual void addAssumption(Literal x);
 	void parseOptObjective();
 	void parseConstraint();
 	void parseSum();
