@@ -1944,7 +1944,7 @@ bool clingo_control_solve_iteratively(clingo_control_t *control, clingo_symbolic
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving could not be started
 bool clingo_control_solve_async(clingo_control_t *control, clingo_model_callback_t *model_callback, void *model_callback_data, clingo_finish_callback_t *finish_callback, void *finish_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_async_t **handle);
-//! Cleanup the domains of clingo's grounding component using the solving
+//! Clean up the domains of clingo's grounding component using the solving
 //! component's top level assignment.
 //!
 //! This function removes atoms from domains that are false and marks atoms as
