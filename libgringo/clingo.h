@@ -2028,7 +2028,7 @@ bool clingo_control_configuration(clingo_control_t *control, clingo_configuratio
 //! answer sets with or without projection, or finding optimal models, as well
 //! as clauses/nogoods added with clingo_solve_control_add_clause().
 //!
-//! @note Initially the enumeration assumption is enabled.
+//! @note Initially, the enumeration assumption is enabled.
 //!
 //! @param[in] control the target
 //! @param[in] enable whether to enable the assumption
