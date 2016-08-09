@@ -1958,7 +1958,7 @@ bool clingo_control_solve_async(clingo_control_t *control, clingo_model_callback
 bool clingo_control_cleanup(clingo_control_t *control);
 //! Assign a truth value to an external atom.
 //!
-//! If the atom does not exist or is not external this is a noop.
+//! If the atom does not exist or is not external, this is a noop.
 //!
 //! @param[in] control the target
 //! @param[in] atom atom to assign
@@ -1969,7 +1969,7 @@ bool clingo_control_assign_external(clingo_control_t *control, clingo_symbol_t a
 //! Release an external atom.
 //!
 //! After this call an external atom is no longer external and subject to
-//! program simplifications.  If the atom does not exist or is not external
+//! program simplifications.  If the atom does not exist or is not external,
 //! this is a noop.
 //!
 //! @param[in] control the target
