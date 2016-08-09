@@ -1882,6 +1882,8 @@ bool clingo_control_add(clingo_control_t *control, char const *name, char const 
 
 //! Ground the selected @link ::clingo_part parts @endlink of the current (non-ground) logic program.
 //!
+//! After grounding, logic programs can be solved with ::clingo_control_solve.
+//!
 //! @note Parts of a logic program without an explicit `#program`
 //! specification are by default put into a program called `base` without
 //! arguments.
@@ -1903,7 +1905,7 @@ bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts
 //! @name Solving Functions
 //! @{
 
-//! Solve the currently grounded logic program.
+//! Solve the currently @link ::clingo_control_ground grounded @endlink logic program.
 //!
 //! @param[in] control the target
 //! @param[in] model_callback optional callback to intercept models
@@ -1916,7 +1918,7 @@ bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts
 //! - ::clingo_error_runtime if solving fails
 //! - error code of model callback
 bool clingo_control_solve(clingo_control_t *control, clingo_model_callback_t *model_callback, void *model_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_result_bitset_t *result);
-//! Solve the currently grounded logic program enumerating models iteratively.
+//! Solve the currently @link ::clingo_control_ground grounded @endlink logic program enumerating models iteratively.
 //!
 //! See the @ref SolveIter module for more information.
 //!
@@ -1928,7 +1930,7 @@ bool clingo_control_solve(clingo_control_t *control, clingo_model_callback_t *mo
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving could not be started
 bool clingo_control_solve_iteratively(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_iteratively_t **handle);
-//! Solve the currently grounded logic program asynchronously in the background.
+//! Solve the currently @link ::clingo_control_ground grounded @endlink logic program asynchronously in the background.
 //!
 //! See the @ref SolveAsync module for more information.
 //!
