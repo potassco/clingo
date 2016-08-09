@@ -1024,7 +1024,7 @@ bool clingo_theory_atoms_element_to_string(clingo_theory_atoms_t *atoms, clingo_
 //! @param[in] atoms the target
 //! @param[out] size the resulting number
 //! @return whether the call was successful
-clingo_error_t clingo_theory_atoms_size(clingo_theory_atoms_t *atoms, size_t *size);
+bool clingo_theory_atoms_size(clingo_theory_atoms_t *atoms, size_t *size);
 //! Get the theory term associated with the theory atom.
 //!
 //! @param[in] atoms container where the atom is stored
