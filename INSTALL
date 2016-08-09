@@ -100,7 +100,7 @@ If python support is enabled, the additional target pyclingo is available.
 This will build a library called clingo that can be imported in python. Make
 sure it is put somewhere under the PYTHONPATH. Then import clingo in your
 python script. The module itself is documented using python's docstrings.
-    build/release/python/clingo.{so,dll,dynlib}
+    build/release/python/clingo.{so,dll,dylib}
 
 The documentation for the clingo module is available online:
     http://potassco.sourceforge.net/clingo.html
@@ -112,7 +112,7 @@ If lua support is enabled, the additional target pyclingo is available.
     scons --build-dir=release luaclingo
 
 This will build a library called clingo that can be imported in lua:
-    build/release/lua/clingo.{so,dll,dynlib}
+    build/release/lua/clingo.{so,dll,dylib}
 
 Enabling Threading
 ------------------
