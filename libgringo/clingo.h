@@ -1,6 +1,6 @@
 // {{{ GPL License
 
-// This file is part of gringo - a grounder for logic programs.
+// This file is part of gringo---a grounder for logic programs.
 // Copyright Roland Kaminski
 
 // This program is free software: you can redistribute it and/or modify
@@ -72,7 +72,7 @@ typedef int32_t clingo_weight_t;
 //! @note Errors can only be recovered from if explicitly mentioned; most
 //! functions do not provide strong exception guarantees.  This means that in
 //! case of errors associated objects cannot be used further.  If such an
-//! object has a free function, this function can still and should be called.
+//! object has a free function, this function can and should still be called.
 enum clingo_error {
     clingo_error_success   = 0, //!< successful API calls
     clingo_error_runtime   = 1, //!< wrong usage of the clingo API or invalid input
@@ -150,7 +150,7 @@ typedef int clingo_truth_value_t;
 //! @addtogroup Symbols
 //! @{
 
-//! Represents a signature.
+//! Represents a predicate signature.
 //!
 //! Signatures have a name and an arity, and can be positive or negative (to
 //! represent classical negation).
@@ -165,7 +165,7 @@ typedef uint64_t clingo_signature_t;
 //! @param[in] arity arity of the signature
 //! @param[in] positive false if the signature has a classical negation sign
 //! @param[out] signature the resulting signature
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_signature_create(char const *name, uint32_t arity, bool positive, clingo_signature_t *signature);
 //! Get the name of a signature.
@@ -178,12 +178,12 @@ char const *clingo_signature_name(clingo_signature_t signature);
 //! @param[in] signature the target signature
 //! @return the arity of the signature
 uint32_t clingo_signature_arity(clingo_signature_t signature);
-//! Weather the signature is positive (is not classically negated).
+//! Whether the signature is positive (is not classically negated).
 //!
 //! @param[in] signature the target signature
 //! @return whether the signature has no sign
 bool clingo_signature_is_positive(clingo_signature_t signature);
-//! Weather the signature is negative (is classically negated).
+//! Whether the signature is negative (is classically negated).
 //!
 //! @param[in] signature the target signature
 //! @return whether the signature has a sign
@@ -196,7 +196,7 @@ bool clingo_signature_is_negative(clingo_signature_t signature);
 bool clingo_signature_is_equal_to(clingo_signature_t a, clingo_signature_t b);
 //! Check if a signature is less than another signature.
 //!
-//! Signatures are compared first by sign (non signed < signed), then by arity,
+//! Signatures are compared first by sign (unsigned < signed), then by arity,
 //! then by name.
 //!
 //! @param[in] a first signature
@@ -214,9 +214,9 @@ size_t clingo_signature_hash(clingo_signature_t signature);
 //! Enumeration of available symbol types.
 enum clingo_symbol_type {
     clingo_symbol_type_infimum  = 0, //!< the <tt>\#inf</tt> symbol
-    clingo_symbol_type_number   = 1, //!< a numeric symbol - e.g., `1`
-    clingo_symbol_type_string   = 4, //!< a string symbol - e.g., `"a"`
-    clingo_symbol_type_function = 5, //!< a numeric symbol - e.g., `c`, `(1, "a")`, or `f(1,"a")`
+    clingo_symbol_type_number   = 1, //!< a numeric symbol, e.g., `1`
+    clingo_symbol_type_string   = 4, //!< a string symbol, e.g., `"a"`
+    clingo_symbol_type_function = 5, //!< a numeric symbol, e.g., `c`, `(1, "a")`, or `f(1,"a")`
     clingo_symbol_type_supremum = 7  //!< the <tt>\#sup</tt> symbol
 };
 //! Corresponding type to ::clingo_symbol_type.
@@ -246,7 +246,7 @@ void clingo_symbol_create_number(int number, clingo_symbol_t *symbol);
 //!
 //! @param[out] symbol the resulting symbol
 void clingo_symbol_create_supremum(clingo_symbol_t *symbol);
-//! Construct a symbol representing \#inf.
+//! Construct a symbol representing <tt>\#inf</tt>.
 //!
 //! @param[out] symbol the resulting symbol
 void clingo_symbol_create_infimum(clingo_symbol_t *symbol);
@@ -254,7 +254,7 @@ void clingo_symbol_create_infimum(clingo_symbol_t *symbol);
 //!
 //! @param[in] string the string
 //! @param[out] symbol the resulting symbol
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_symbol_create_string(char const *string, clingo_symbol_t *symbol);
 //! Construct a symbol representing an id.
@@ -265,7 +265,7 @@ bool clingo_symbol_create_string(char const *string, clingo_symbol_t *symbol);
 //! @param[in] name the name
 //! @param[in] positive whether the symbol has a classical negation sign
 //! @param[out] symbol the resulting symbol
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_symbol_create_id(char const *name, bool positive, clingo_symbol_t *symbol);
 //! Construct a symbol representing a function or tuple.
@@ -277,7 +277,7 @@ bool clingo_symbol_create_id(char const *name, bool positive, clingo_symbol_t *s
 //! @param[in] arguments_size the number of arguments
 //! @param[in] positive whether the symbol has a classical negation sign
 //! @param[out] symbol the resulting symbol
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_symbol_create_function(char const *name, clingo_symbol_t const *arguments, size_t arguments_size, bool positive, clingo_symbol_t *symbol);
 
@@ -290,35 +290,35 @@ bool clingo_symbol_create_function(char const *name, clingo_symbol_t const *argu
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] number the resulting number
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_number
 bool clingo_symbol_number(clingo_symbol_t symbol, int *number);
 //! Get the name of a symbol.
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] name the resulting name
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
 bool clingo_symbol_name(clingo_symbol_t symbol, char const **name);
 //! Get the string of a symbol.
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] string the resulting string
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_string
 bool clingo_symbol_string(clingo_symbol_t symbol, char const **string);
 //! Check if a function is positive (does not have a sign).
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] positive the result
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
 bool clingo_symbol_is_positive(clingo_symbol_t symbol, bool *positive);
-//! Check if a function is negative (does have a sign).
+//! Check if a function is negative (has a sign).
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] negative the result
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
 bool clingo_symbol_is_negative(clingo_symbol_t symbol, bool *negative);
 //! Get the arguments of a symbol.
@@ -326,7 +326,7 @@ bool clingo_symbol_is_negative(clingo_symbol_t symbol, bool *negative);
 //! @param[in] symbol the target symbol
 //! @param[out] arguments the resulting arguments
 //! @param[out] arguments_size the number of arguments
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
 bool clingo_symbol_arguments(clingo_symbol_t symbol, clingo_symbol_t const **arguments, size_t *arguments_size);
 //! Get the type of a symbol.
@@ -338,7 +338,7 @@ clingo_symbol_type_t clingo_symbol_type(clingo_symbol_t symbol);
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] size the resulting size
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_symbol_to_string_size(clingo_symbol_t symbol, size_t *size);
 //! Get the string representation of a symbol.
@@ -346,7 +346,7 @@ bool clingo_symbol_to_string_size(clingo_symbol_t symbol, size_t *size);
 //! @param[in] symbol the target symbol
 //! @param[out] string the resulting string
 //! @param[in] size the size of the string
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //!
 //! @see clingo_symbol_to_string_size()
@@ -365,7 +365,7 @@ bool clingo_symbol_to_string(clingo_symbol_t symbol, char *string, size_t size);
 bool clingo_symbol_is_equal_to(clingo_symbol_t a, clingo_symbol_t b);
 //! Check if a symbol is less than another symbol.
 //!
-//! Symbols are first compared by type.  If the types are equal the values are
+//! Symbols are first compared by type.  If the types are equal, the values are
 //! compared (where strings are compared using strcmp).  Functions are first
 //! compared by signature and then lexicographically by arguments.
 //!
@@ -389,7 +389,7 @@ size_t clingo_symbol_hash(clingo_symbol_t symbol);
 //!
 //! @param[in] string the string to internalize
 //! @param[out] result the internalized string
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_add_string(char const *string, char const **result);
 //! Parse a term in string form.
@@ -402,7 +402,7 @@ bool clingo_add_string(char const *string, char const **result);
 //! @param[in] logger_data user data for the logger
 //! @param[in] message_limit maximum number of times to call the logger
 //! @param[out] symbol the resulting symbol
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if parsing fails
 bool clingo_parse_term(char const *string, clingo_logger_t *logger, void *logger_data, unsigned message_limit, clingo_symbol_t *symbol);
@@ -433,9 +433,9 @@ bool clingo_parse_term(char const *string, clingo_logger_t *logger, void *logger
 //! ## Code ##
 
 //! @defgroup Model Model Inspection
-//! Inspection of models and a high level interface to add constraints during solving.
+//! Inspection of models and a high-level interface to add constraints during solving.
 //
-//! For an example see @ref model.c.
+//! For an example, see @ref model.c.
 //! @ingroup Control
 
 //! @addtogroup Model
@@ -489,20 +489,20 @@ bool clingo_model_number(clingo_model_t *model, uint64_t *number);
 //! @param[in] model the target
 //! @param[in] show which symbols to select
 //! @param[out] size the number symbols
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_model_symbols_size(clingo_model_t *model, clingo_show_type_bitset_t show, size_t *size);
 //! Get the symbols of the selected types in the model.
 //!
 //! @note CSP assignments are represented using functions with name "$"
-//! where the first argument is the name of the CSP variable and the second its
+//! where the first argument is the name of the CSP variable and the second one its
 //! value.
 //!
 //! @param[in] model the target
 //! @param[in] show which symbols to select
 //! @param[out] symbols the resulting symbols
 //! @param[in] size the number of selected symbols
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if the size is too small
 //!
@@ -526,14 +526,14 @@ bool clingo_model_cost_size(clingo_model_t *model, size_t *size);
 //! @param[in] model the target
 //! @param[out] costs the resulting costs
 //! @param[in] size the number of costs
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if the size is too small
 //!
 //! @see clingo_model_cost_size()
 //! @see clingo_model_optimality_proven()
 bool clingo_model_cost(clingo_model_t *model, int64_t *costs, size_t size);
-//! Weather the optimality of a model has been proven.
+//! Whether the optimality of a model has been proven.
 //!
 //! @param[in] model the target
 //! @param[out] proven whether the optimality has been proven
@@ -568,7 +568,7 @@ bool clingo_solve_control_thread_id(clingo_solve_control_t *control, clingo_id_t
 //! @param[in] control the target
 //! @param[in] clause array of literals representing the clause
 //! @param[in] size the size of the literal array
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if adding the clause fails
 bool clingo_solve_control_add_clause(clingo_solve_control_t *control, clingo_symbolic_literal_t const *clause, size_t size);
@@ -606,7 +606,10 @@ typedef unsigned clingo_solve_result_bitset_t;
 //! @defgroup SolveIter Iterative Solving
 //! Iterative enumeration of models (without using callbacks).
 //!
-//! For an example see @ref solve-iteratively.c.
+//! Clingo provides two ways to handle solving: @ref SolveIter and @ref SolveAsync.
+//! With iterative solving, models are enumerated one by one by calling ::clingo_control_solve_iteratively in a loop.
+//!
+//! For an example, see @ref solve-iteratively.c.
 //! @ingroup Control
 
 //! @addtogroup SolveIter
@@ -620,7 +623,7 @@ typedef struct clingo_solve_iteratively clingo_solve_iteratively_t;
 //!
 //! @param[in] handle the target
 //! @param[out] model the next model
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 bool clingo_solve_iteratively_next(clingo_solve_iteratively_t *handle, clingo_model_t **model);
@@ -628,7 +631,7 @@ bool clingo_solve_iteratively_next(clingo_solve_iteratively_t *handle, clingo_mo
 //!
 //! @param[in] handle the target
 //! @param[out] result the solve result
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 bool clingo_solve_iteratively_get(clingo_solve_iteratively_t *handle, clingo_solve_result_bitset_t *result);
@@ -637,7 +640,7 @@ bool clingo_solve_iteratively_get(clingo_solve_iteratively_t *handle, clingo_sol
 //! There must be no function calls on the associated control object until this function has been called.
 //!
 //! @param[in] handle the target
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 bool clingo_solve_iteratively_close(clingo_solve_iteratively_t *handle);
@@ -668,9 +671,13 @@ bool clingo_solve_iteratively_close(clingo_solve_iteratively_t *handle);
 //! ## Code ##
 
 //! @defgroup SolveAsync Asynchronous Solving
-//! Start solving in the background.
+//! Solve in the background and notify about new models.
 //!
-//! For an example see @ref solve-async.c.
+//! Clingo provides two ways to handle solving: @ref SolveIter and @ref SolveAsync.
+//! With asynchronous solving, the solving process is executed in the background,
+//! and each newly found model is signalled via a @link ::clingo_model_callback_t model callback@endlink.
+//!
+//! For an example, see @ref solve-async.c.
 //! @ingroup Control
 
 //! @addtogroup SolveAsync
@@ -686,7 +693,7 @@ typedef struct clingo_solve_async clingo_solve_async_t;
 //!
 //! @param[in] handle the target
 //! @param[out] result the solve result
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 bool clingo_solve_async_get(clingo_solve_async_t *handle, clingo_solve_result_bitset_t *result);
@@ -698,7 +705,7 @@ bool clingo_solve_async_get(clingo_solve_async_t *handle, clingo_solve_result_bi
 //! @param[in] handle the target
 //! @param[in] timeout the maximum time to wait
 //! @param[out] result whether the search is still running
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 bool clingo_solve_async_wait(clingo_solve_async_t *handle, double timeout, bool *result);
@@ -707,7 +714,7 @@ bool clingo_solve_async_wait(clingo_solve_async_t *handle, double timeout, bool 
 //! Blocks until the search is stopped.
 //!
 //! @param[in] handle the target
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 bool clingo_solve_async_cancel(clingo_solve_async_t *handle);
@@ -734,13 +741,13 @@ bool clingo_solve_async_cancel(clingo_solve_async_t *handle);
 //! @defgroup SymbolicAtoms Symbolic Atom Inspection
 //! Inspection of atoms occuring in ground logic programs.
 //!
-//! For an example see @ref symbolic-atoms.c.
+//! For an example, see @ref symbolic-atoms.c.
 //! @ingroup Control
 
 //! @addtogroup SymbolicAtoms
 //! @{
 
-//! Object to inspect symbolic atoms in a program - the relevant Herbrand base
+//! Object to inspect symbolic atoms in a program---the relevant Herbrand base
 //! gringo uses to instantiate programs.
 //!
 //! @see clingo_control_symbolic_atoms()
@@ -755,7 +762,7 @@ typedef struct clingo_symbolic_atoms clingo_symbolic_atoms_t;
 //! ::clingo_control_cleanup(), and functions that modify the underlying
 //! non-ground program.
 typedef uint64_t clingo_symbolic_atom_iterator_t;
-//! Count the number of occurring in a logic program.
+//! Get the number of different atoms occurring in a logic program.
 //!
 //! @param[in] atoms the target
 //! @param[out] size the number of atoms
@@ -800,7 +807,7 @@ bool clingo_symbolic_atoms_iterator_is_equal_to(clingo_symbolic_atoms_t *atoms, 
 bool clingo_symbolic_atoms_symbol(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t iterator, clingo_symbol_t *symbol);
 //! Check whether an atom is a fact.
 //!
-//! @note This does not determine if an atom is a cautious consequence: the
+//! @note This does not determine if an atom is a cautious consequence. The
 //! grounding or solving component's simplifications can only detect this in
 //! some cases.
 //!
@@ -811,7 +818,7 @@ bool clingo_symbolic_atoms_symbol(clingo_symbolic_atoms_t *atoms, clingo_symboli
 bool clingo_symbolic_atoms_is_fact(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t iterator, bool *fact);
 //! Check whether an atom is external.
 //!
-//! An atom is external, if it has been defined using an external directive, and
+//! An atom is external if it has been defined using an external directive and
 //! has not been released or defined by a rule.
 //!
 //! @param[in] atoms the target
@@ -841,7 +848,7 @@ bool clingo_symbolic_atoms_signatures_size(clingo_symbolic_atoms_t *atoms, size_
 //! @param[in] atoms the target
 //! @param[out] signatures the resulting signatures
 //! @param[in] size the number of signatures
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if the size is too small
 //!
@@ -887,12 +894,12 @@ bool clingo_symbolic_atoms_is_valid(clingo_symbolic_atoms_t *atoms, clingo_symbo
 
 //! Enumeration of theory term types.
 enum clingo_theory_term_type {
-    clingo_theory_term_type_tuple,    //!< a tuple term - e.g., `(1,2,3)`
-    clingo_theory_term_type_list,     //!< a list term - e.g., `[1,2,3]`
-    clingo_theory_term_type_set,      //!< a set term - e.g., `{1,2,3}`
-    clingo_theory_term_type_function, //!< a function term - e.g., `f(1,2,3)`
-    clingo_theory_term_type_number,   //!< a number term - e.g., `42`
-    clingo_theory_term_type_symbol    //!< a symbol term - e.g., `c`
+    clingo_theory_term_type_tuple,    //!< a tuple term, e.g., `(1,2,3)`
+    clingo_theory_term_type_list,     //!< a list term, e.g., `[1,2,3]`
+    clingo_theory_term_type_set,      //!< a set term, e.g., `{1,2,3}`
+    clingo_theory_term_type_function, //!< a function term, e.g., `f(1,2,3)`
+    clingo_theory_term_type_number,   //!< a number term, e.g., `42`
+    clingo_theory_term_type_symbol    //!< a symbol term, e.g., `c`
 };
 //! Corresponding type to ::clingo_theory_term_type.
 typedef int clingo_theory_term_type_t;
@@ -1860,7 +1867,7 @@ bool clingo_program_builder_end(clingo_program_builder_t *bld);
 //! @defgroup Control Grounding and Solving
 //! Functions to control the grounding and solving process.
 //!
-//! For an example see @ref control.c.
+//! For an example, see @ref control.c.
 
 //! @addtogroup Control
 //! @{
@@ -1890,6 +1897,15 @@ bool clingo_program_builder_end(clingo_program_builder_t *bld);
 typedef struct clingo_control clingo_control_t;
 
 //! Struct used to specify the program parts that have to be grounded.
+//!
+//! Programs may be structured into parts, which can be grounded independently with ::clingo_control_ground.
+//! Program parts are mainly interesting for incremental grounding and multi-shot solving.
+//! For single-shot solving, program parts are not needed.
+//!
+//! @note Parts of a logic program without an explicit `#program`
+//! specification are by default put into a program called `base` without
+//! arguments.
+//!
 //! @see clingo_control_ground()
 typedef struct clingo_part {
     char const *name;              //!< name of the program part
@@ -1902,7 +1918,7 @@ typedef struct clingo_part {
 //! @param symbols array of symbols
 //! @param symbols_size size fo the symbol array
 //! @param data user data of the callback
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! @see ::clingo_ground_callback_t
 typedef bool clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t symbols_size, void *data);
@@ -1915,7 +1931,7 @@ typedef bool clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t sy
 //! be called multiple times; all symbols passed are injected.
 //!
 //! If a (non-recoverable) clingo API function fails in this callback, for
-//! example the symbol callback, its error code shall be returned.  In case of
+//! example, the symbol callback, its error code shall be returned.  In case of
 //! errors not related to clingo, this function can return
 //! ::clingo_error_unknown to stop grounding with an error.
 //!
@@ -1930,7 +1946,7 @@ typedef bool clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t sy
 //! @return whether the call was successful
 //! @see clingo_control_ground()
 //!
-//! The following example implements the external function \@f() returning 42.
+//! The following example implements the external function <tt>\@f()</tt> returning 42.
 //! ~~~~~~~~~~~~~~~{.c}
 //! bool
 //! ground_callback(clingo_location_t location,
@@ -1951,6 +1967,8 @@ typedef bool clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t sy
 
 typedef bool clingo_ground_callback_t (clingo_location_t location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data);
 //! Callback function to intercept models.
+//!
+//! The model callback is invoked once for each model found by clingo (@link SolveAsync asynchronously@endlink).
 //!
 //! If a (non-recoverable) clingo API function fails in this callback, its
 //! error code shall be returned.  In case of errors not related to clingo,
@@ -1984,8 +2002,8 @@ typedef bool clingo_finish_callback_t (clingo_solve_result_bitset_t result, void
 //!
 //! A control object has to be freed using clingo_control_free().
 //!
-//! @note Only gringo options (without --text) and clasp's search options are
-//! supported as arguments. Furthermore, a Control object is blocked while a
+//! @note Only gringo options (without <code>\-\-text</code>) and clasp's search options are
+//! supported as arguments. Furthermore, a control object is blocked while a
 //! search call is active; you must not call any member function during search.
 //!
 //! If the logger is NULL, messages are printed to stderr.
@@ -1996,7 +2014,7 @@ typedef bool clingo_finish_callback_t (clingo_solve_result_bitset_t result, void
 //! @param[in] logger_data userdata for the logger callback
 //! @param[in] message_limit maximum number of times the logger callback is called
 //! @param[out] control resulting control object
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if argument parsing fails
 bool clingo_control_new(char const *const * arguments, size_t arguments_size, clingo_logger_t *logger, void *logger_data, unsigned message_limit, clingo_control_t **control);
@@ -2012,7 +2030,7 @@ void clingo_control_free(clingo_control_t *control);
 //!
 //! @param[in] control the target
 //! @param[in] file path to the file
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if parsing or checking fails
 bool clingo_control_load(clingo_control_t *control, char const *file);
@@ -2021,20 +2039,24 @@ bool clingo_control_load(clingo_control_t *control, char const *file);
 //!
 //! This function puts the given program into a block of form: <tt>\#program name(parameters).</tt>
 //!
+//! After extending the logic program, the corresponding program parts are typically grounded with ::clingo_control_ground.
+//!
 //! @param[in] control the target
 //! @param[in] name name of the program block
 //! @param[in] parameters string array of parameters of the program block
 //! @param[in] parameters_size number of parameters
 //! @param[in] program string representation of the program
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if parsing fails
 bool clingo_control_add(clingo_control_t *control, char const *name, char const * const * parameters, size_t parameters_size, char const *program);
 
-//! Ground the selected parts of the current (non-ground) logic program.
+//! Ground the selected @link ::clingo_part parts @endlink of the current (non-ground) logic program.
 //!
-//! @note Parts of a logic program without an explicit \#program
-//! specification are by default put into a program called base without
+//! After grounding, logic programs can be solved with ::clingo_control_solve.
+//!
+//! @note Parts of a logic program without an explicit `#program`
+//! specification are by default put into a program called `base` without
 //! arguments.
 //!
 //! @param[in] control the target
@@ -2042,9 +2064,11 @@ bool clingo_control_add(clingo_control_t *control, char const *name, char const 
 //! @param[in] parts_size size of the parts array
 //! @param[in] ground_callback callback to implement external functions
 //! @param[in] ground_callback_data user data for ground_callback
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - error code of ground callback
+//!
+//! @see clingo_part
 bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t parts_size, clingo_ground_callback_t *ground_callback, void *ground_callback_data);
 
 //! @}
@@ -2052,7 +2076,7 @@ bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts
 //! @name Solving Functions
 //! @{
 
-//! Solve the currently grounded logic program.
+//! Solve the currently @link ::clingo_control_ground grounded @endlink logic program.
 //!
 //! @param[in] control the target
 //! @param[in] model_callback optional callback to intercept models
@@ -2060,26 +2084,26 @@ bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts
 //! @param[in] assumptions array of assumptions to solve under
 //! @param[in] assumptions_size number of assumptions
 //! @param[out] result the result of the search
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 //! - error code of model callback
 bool clingo_control_solve(clingo_control_t *control, clingo_model_callback_t *model_callback, void *model_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_result_bitset_t *result);
-//! Solve the currently grounded logic program enumerating models iteratively.
+//! Solve the currently @link ::clingo_control_ground grounded @endlink logic program enumerating models iteratively.
 //!
-//! See module @ref SolveIter for more information.
+//! See the @ref SolveIter module for more information.
 //!
 //! @param[in] control the target
 //! @param[in] assumptions array of assumptions to solve under
 //! @param[in] assumptions_size number of assumptions
 //! @param[out] handle handle to the current search to enumerate models
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving could not be started
 bool clingo_control_solve_iteratively(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_iteratively_t **handle);
-//! Solve the currently grounded logic program asynchronously in the background.
+//! Solve the currently @link ::clingo_control_ground grounded @endlink logic program asynchronously in the background.
 //!
-//! See module @ref SolveAsync for more information.
+//! See the @ref SolveAsync module for more information.
 //!
 //! @param[in] control the target
 //! @param[in] model_callback optional callback to intercept models
@@ -2089,41 +2113,41 @@ bool clingo_control_solve_iteratively(clingo_control_t *control, clingo_symbolic
 //! @param[in] assumptions array of assumptions to solve under
 //! @param[in] assumptions_size number of assumptions
 //! @param[out] handle handle to the current search
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving could not be started
 bool clingo_control_solve_async(clingo_control_t *control, clingo_model_callback_t *model_callback, void *model_callback_data, clingo_finish_callback_t *finish_callback, void *finish_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_async_t **handle);
-//! Cleanup the domains of clingo's grounding component using the solving
+//! Clean up the domains of clingo's grounding component using the solving
 //! component's top level assignment.
 //!
 //! This function removes atoms from domains that are false and marks atoms as
-//! facts that are true.  When multi-shot solving, this can result in smaller
+//! facts that are true.  With multi-shot solving, this can result in smaller
 //! groundings because less rules have to be instantiated and more
 //! simplifications can be applied.
 //!
 //! @param[in] control the target
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_control_cleanup(clingo_control_t *control);
 //! Assign a truth value to an external atom.
 //!
-//! If the atom does not exist or is not external this is a noop.
+//! If the atom does not exist or is not external, this is a noop.
 //!
 //! @param[in] control the target
 //! @param[in] atom atom to assign
 //! @param[in] value the truth value
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_control_assign_external(clingo_control_t *control, clingo_symbol_t atom, clingo_truth_value_t value);
 //! Release an external atom.
 //!
-//! After this call an external atom is no longer external and subject to
-//! program simplifications.  If the atom does not exist or is not external
+//! After this call, an external atom is no longer external and subject to
+//! program simplifications.  If the atom does not exist or is not external,
 //! this is a noop.
 //!
 //! @param[in] control the target
 //! @param[in] atom atom to release
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_control_release_external(clingo_control_t *control, clingo_symbol_t atom);
 //! Register a custom propagator with the control object.
@@ -2131,24 +2155,24 @@ bool clingo_control_release_external(clingo_control_t *control, clingo_symbol_t 
 //! If the sequential flag is set to true, the propagator is called
 //! sequentially when solving with multiple threads.
 //!
-//! For more information see the @ref Propagator module.
+//! See the @ref Propagator module for more information.
 //!
 //! @param[in] control the target
 //! @param[in] propagator the propagator
 //! @param[in] data user data passed to the propagator functions
 //! @param[in] sequential whether the propagator should be called sequentially
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_control_register_propagator(clingo_control_t *control, clingo_propagator_t propagator, void *data, bool sequential);
 //! Get a statistics object to inspect solver statistics.
 //!
 //! Statistics are updated after a solve call.
 //!
-//! For more information see the @ref Statistics module.
+//! See the @ref Statistics module for more information.
 //!
 //! @param[in] control the target
 //! @param[out] statistics the statistics object
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_control_statistics(clingo_control_t *control, clingo_statistics_t **statistics);
 //! Interrupt the active solve call (or the following solve call right at the beginning).
@@ -2163,7 +2187,7 @@ void clingo_control_interrupt(clingo_control_t *control);
 
 //! Get a configuration object to change the solver configuration.
 //!
-//! For more information see the @ref Configuration module.
+//! See the @ref Configuration module for more information.
 //!
 //! @param[in] control the target
 //! @param[out] configuration the configuration object
@@ -2172,12 +2196,12 @@ bool clingo_control_configuration(clingo_control_t *control, clingo_configuratio
 //! Configure how learnt constraints are handled during enumeration.
 //!
 //! If the enumeration assumption is enabled, then all information learnt from
-//! the solvers's various enumeration modes is removed after a solve call. This
+//! the solver's various enumeration modes is removed after a solve call. This
 //! includes enumeration of cautious or brave consequences, enumeration of
-//! answer sets with or without projection, or finding optimal models; as well
+//! answer sets with or without projection, or finding optimal models, as well
 //! as clauses/nogoods added with clingo_solve_control_add_clause().
 //!
-//! @note Initially the enumeration assumption is enabled.
+//! @note Initially, the enumeration assumption is enabled.
 //!
 //! @param[in] control the target
 //! @param[in] enable whether to enable the assumption
@@ -2188,19 +2212,19 @@ bool clingo_control_use_enumeration_assumption(clingo_control_t *control, bool e
 //! @name Program Inspection Functions
 //! @{
 
-//! Return the symbol for a constant definition of form: \#const name = symbol.
+//! Return the symbol for a constant definition of form: `#const name = symbol`.
 //!
 //! @param[in] control the target
 //! @param[in] name the name of the constant
 //! @param[out] symbol the resulting symbol
 //! @return whether the call was successful
 bool clingo_control_get_const(clingo_control_t *control, char const *name, clingo_symbol_t *symbol);
-//! Check if there is a constant definition given for the given constant.
+//! Check if there is a constant definition for the given constant.
 //!
 //! @param[in] control the target
 //! @param[in] name the name of the constant
 //! @param[out] exists whether a matching constant definition exists
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if constant definition does not exist
 //!
 //! @see clingo_control_get_const()
@@ -2208,7 +2232,7 @@ bool clingo_control_has_const(clingo_control_t *control, char const *name, bool 
 //! Get an object to inspect symbolic atoms (the relevant Herbrand base) used
 //! for grounding.
 //!
-//! For more information see the @ref SymbolicAtoms module.
+//! See the @ref SymbolicAtoms module for more information.
 //!
 //! @param[in] control the target
 //! @param[out] atoms the symbolic atoms object
@@ -2216,7 +2240,7 @@ bool clingo_control_has_const(clingo_control_t *control, char const *name, bool 
 bool clingo_control_symbolic_atoms(clingo_control_t *control, clingo_symbolic_atoms_t **atoms);
 //! Get an object to inspect theory atoms that occur in the grounding.
 //!
-//! For more information see the @ref TheoryAtoms module.
+//! See the @ref TheoryAtoms module for more information.
 //!
 //! @param[in] control the target
 //! @param[out] atoms the theory atoms object
@@ -2229,16 +2253,16 @@ bool clingo_control_theory_atoms(clingo_control_t *control, clingo_theory_atoms_
 
 //! Get an object to add ground directives to the program.
 //!
-//! For more information see the @ref ProgramBuilder module.
+//! See the @ref ProgramBuilder module for more information.
 //!
 //! @param[in] control the target
 //! @param[out] backend the backend objet
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_control_backend(clingo_control_t *control, clingo_backend_t **backend);
 //! Get an object to add non-ground directives to the program.
 //!
-//! For more information see the @ref ProgramBuilder module.
+//! See the @ref ProgramBuilder module for more information.
 //!
 //! @param[in] control the target
 //! @param[out] builder the program builder objet
