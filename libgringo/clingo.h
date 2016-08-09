@@ -1820,7 +1820,7 @@ typedef bool clingo_finish_callback_t (clingo_solve_result_bitset_t result, void
 //!
 //! A control object has to be freed using clingo_control_free().
 //!
-//! @note Only gringo options (without --text) and clasp's search options are
+//! @note Only gringo options (without <code>\-\-text</code>) and clasp's search options are
 //! supported as arguments. Furthermore, a Control object is blocked while a
 //! search call is active; you must not call any member function during search.
 //!
