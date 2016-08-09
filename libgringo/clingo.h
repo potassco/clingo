@@ -1948,7 +1948,7 @@ bool clingo_control_solve_async(clingo_control_t *control, clingo_model_callback
 //! component's top level assignment.
 //!
 //! This function removes atoms from domains that are false and marks atoms as
-//! facts that are true.  When multi-shot solving, this can result in smaller
+//! facts that are true.  With multi-shot solving, this can result in smaller
 //! groundings because less rules have to be instantiated and more
 //! simplifications can be applied.
 //!
