@@ -165,7 +165,7 @@ typedef uint64_t clingo_signature_t;
 //! @param[in] arity arity of the signature
 //! @param[in] positive false if the signature has a classical negation sign
 //! @param[out] signature the resulting signature
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_signature_create(char const *name, uint32_t arity, bool positive, clingo_signature_t *signature);
 //! Get the name of a signature.
@@ -254,7 +254,7 @@ void clingo_symbol_create_infimum(clingo_symbol_t *symbol);
 //!
 //! @param[in] string the string
 //! @param[out] symbol the resulting symbol
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_symbol_create_string(char const *string, clingo_symbol_t *symbol);
 //! Construct a symbol representing an id.
@@ -265,7 +265,7 @@ bool clingo_symbol_create_string(char const *string, clingo_symbol_t *symbol);
 //! @param[in] name the name
 //! @param[in] positive whether the symbol has a classical negation sign
 //! @param[out] symbol the resulting symbol
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_symbol_create_id(char const *name, bool positive, clingo_symbol_t *symbol);
 //! Construct a symbol representing a function or tuple.
@@ -277,7 +277,7 @@ bool clingo_symbol_create_id(char const *name, bool positive, clingo_symbol_t *s
 //! @param[in] arguments_size the number of arguments
 //! @param[in] positive whether the symbol has a classical negation sign
 //! @param[out] symbol the resulting symbol
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_symbol_create_function(char const *name, clingo_symbol_t const *arguments, size_t arguments_size, bool positive, clingo_symbol_t *symbol);
 
@@ -290,35 +290,35 @@ bool clingo_symbol_create_function(char const *name, clingo_symbol_t const *argu
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] number the resulting number
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_number
 bool clingo_symbol_number(clingo_symbol_t symbol, int *number);
 //! Get the name of a symbol.
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] name the resulting name
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
 bool clingo_symbol_name(clingo_symbol_t symbol, char const **name);
 //! Get the string of a symbol.
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] string the resulting string
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_string
 bool clingo_symbol_string(clingo_symbol_t symbol, char const **string);
 //! Check if a function is positive (does not have a sign).
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] positive the result
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
 bool clingo_symbol_is_positive(clingo_symbol_t symbol, bool *positive);
 //! Check if a function is negative (does have a sign).
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] negative the result
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
 bool clingo_symbol_is_negative(clingo_symbol_t symbol, bool *negative);
 //! Get the arguments of a symbol.
@@ -326,7 +326,7 @@ bool clingo_symbol_is_negative(clingo_symbol_t symbol, bool *negative);
 //! @param[in] symbol the target symbol
 //! @param[out] arguments the resulting arguments
 //! @param[out] arguments_size the number of arguments
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
 bool clingo_symbol_arguments(clingo_symbol_t symbol, clingo_symbol_t const **arguments, size_t *arguments_size);
 //! Get the type of a symbol.
@@ -338,7 +338,7 @@ clingo_symbol_type_t clingo_symbol_type(clingo_symbol_t symbol);
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] size the resulting size
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_symbol_to_string_size(clingo_symbol_t symbol, size_t *size);
 //! Get the string representation of a symbol.
@@ -346,7 +346,7 @@ bool clingo_symbol_to_string_size(clingo_symbol_t symbol, size_t *size);
 //! @param[in] symbol the target symbol
 //! @param[out] string the resulting string
 //! @param[in] size the size of the string
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //!
 //! @see clingo_symbol_to_string_size()
@@ -389,7 +389,7 @@ size_t clingo_symbol_hash(clingo_symbol_t symbol);
 //!
 //! @param[in] string the string to internalize
 //! @param[out] result the internalized string
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_add_string(char const *string, char const **result);
 //! Parse a term in string form.
@@ -402,7 +402,7 @@ bool clingo_add_string(char const *string, char const **result);
 //! @param[in] logger_data user data for the logger
 //! @param[in] message_limit maximum number of times to call the logger
 //! @param[out] symbol the resulting symbol
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if parsing fails
 bool clingo_parse_term(char const *string, clingo_logger_t *logger, void *logger_data, unsigned message_limit, clingo_symbol_t *symbol);
@@ -489,7 +489,7 @@ bool clingo_model_number(clingo_model_t *model, uint64_t *number);
 //! @param[in] model the target
 //! @param[in] show which symbols to select
 //! @param[out] size the number symbols
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_model_symbols_size(clingo_model_t *model, clingo_show_type_bitset_t show, size_t *size);
 //! Get the symbols of the selected types in the model.
@@ -502,7 +502,7 @@ bool clingo_model_symbols_size(clingo_model_t *model, clingo_show_type_bitset_t 
 //! @param[in] show which symbols to select
 //! @param[out] symbols the resulting symbols
 //! @param[in] size the number of selected symbols
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if the size is too small
 //!
@@ -568,7 +568,7 @@ bool clingo_solve_control_thread_id(clingo_solve_control_t *control, clingo_id_t
 //! @param[in] control the target
 //! @param[in] clause array of literals representing the clause
 //! @param[in] size the size of the literal array
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if adding the clause fails
 bool clingo_solve_control_add_clause(clingo_solve_control_t *control, clingo_symbolic_literal_t const *clause, size_t size);
@@ -620,7 +620,7 @@ typedef struct clingo_solve_iteratively clingo_solve_iteratively_t;
 //!
 //! @param[in] handle the target
 //! @param[out] model the next model
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 bool clingo_solve_iteratively_next(clingo_solve_iteratively_t *handle, clingo_model_t **model);
@@ -628,7 +628,7 @@ bool clingo_solve_iteratively_next(clingo_solve_iteratively_t *handle, clingo_mo
 //!
 //! @param[in] handle the target
 //! @param[out] result the solve result
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 bool clingo_solve_iteratively_get(clingo_solve_iteratively_t *handle, clingo_solve_result_bitset_t *result);
@@ -637,7 +637,7 @@ bool clingo_solve_iteratively_get(clingo_solve_iteratively_t *handle, clingo_sol
 //! There must be no function calls on the associated control object until this function has been called.
 //!
 //! @param[in] handle the target
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 bool clingo_solve_iteratively_close(clingo_solve_iteratively_t *handle);
@@ -686,7 +686,7 @@ typedef struct clingo_solve_async clingo_solve_async_t;
 //!
 //! @param[in] handle the target
 //! @param[out] result the solve result
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 bool clingo_solve_async_get(clingo_solve_async_t *handle, clingo_solve_result_bitset_t *result);
@@ -698,7 +698,7 @@ bool clingo_solve_async_get(clingo_solve_async_t *handle, clingo_solve_result_bi
 //! @param[in] handle the target
 //! @param[in] timeout the maximum time to wait
 //! @param[out] result whether the search is still running
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 bool clingo_solve_async_wait(clingo_solve_async_t *handle, double timeout, bool *result);
@@ -707,7 +707,7 @@ bool clingo_solve_async_wait(clingo_solve_async_t *handle, double timeout, bool 
 //! Blocks until the search is stopped.
 //!
 //! @param[in] handle the target
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 bool clingo_solve_async_cancel(clingo_solve_async_t *handle);
@@ -841,7 +841,7 @@ bool clingo_symbolic_atoms_signatures_size(clingo_symbolic_atoms_t *atoms, size_
 //! @param[in] atoms the target
 //! @param[out] signatures the resulting signatures
 //! @param[in] size the number of signatures
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if the size is too small
 //!
@@ -1739,7 +1739,7 @@ typedef struct clingo_part {
 //! @param symbols array of symbols
 //! @param symbols_size size fo the symbol array
 //! @param data user data of the callback
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! @see ::clingo_symbol_callback_t
 typedef bool clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t symbols_size, void *data);
@@ -1832,7 +1832,7 @@ typedef bool clingo_finish_callback_t (clingo_solve_result_bitset_t result, void
 //! @param[in] logger_data userdata for the logger callback
 //! @param[in] message_limit maximum number of times the logger callback is called
 //! @param[out] control resulting control object
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if argument parsing fails
 bool clingo_control_new(char const *const * arguments, size_t arguments_size, clingo_logger_t *logger, void *logger_data, unsigned message_limit, clingo_control_t **control);
@@ -1848,7 +1848,7 @@ void clingo_control_free(clingo_control_t *control);
 //!
 //! @param[in] control the target
 //! @param[in] file path to the file
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if parsing or checking fails
 bool clingo_control_load(clingo_control_t *control, char const *file);
@@ -1862,7 +1862,7 @@ bool clingo_control_load(clingo_control_t *control, char const *file);
 //! @param[in] parameters string array of parameters of the program block
 //! @param[in] parameters_size number of parameters
 //! @param[in] program string representation of the program
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if parsing fails
 bool clingo_control_add(clingo_control_t *control, char const *name, char const * const * parameters, size_t parameters_size, char const *program);
@@ -1878,7 +1878,7 @@ bool clingo_control_add(clingo_control_t *control, char const *name, char const 
 //! @param[in] parts_size size of the parts array
 //! @param[in] ground_callback callback to implement external functions
 //! @param[in] ground_callback_data user data for ground_callback
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - error code of ground callback
 bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t parts_size, clingo_ground_callback_t *ground_callback, void *ground_callback_data);
@@ -1896,7 +1896,7 @@ bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts
 //! @param[in] assumptions array of assumptions to solve under
 //! @param[in] assumptions_size number of assumptions
 //! @param[out] result the result of the search
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 //! - error code of model callback
@@ -1909,7 +1909,7 @@ bool clingo_control_solve(clingo_control_t *control, clingo_model_callback_t *mo
 //! @param[in] assumptions array of assumptions to solve under
 //! @param[in] assumptions_size number of assumptions
 //! @param[out] handle handle to the current search to enumerate models
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving could not be started
 bool clingo_control_solve_iteratively(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_iteratively_t **handle);
@@ -1925,7 +1925,7 @@ bool clingo_control_solve_iteratively(clingo_control_t *control, clingo_symbolic
 //! @param[in] assumptions array of assumptions to solve under
 //! @param[in] assumptions_size number of assumptions
 //! @param[out] handle handle to the current search
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving could not be started
 bool clingo_control_solve_async(clingo_control_t *control, clingo_model_callback_t *model_callback, void *model_callback_data, clingo_finish_callback_t *finish_callback, void *finish_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_async_t **handle);
@@ -1938,7 +1938,7 @@ bool clingo_control_solve_async(clingo_control_t *control, clingo_model_callback
 //! simplifications can be applied.
 //!
 //! @param[in] control the target
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_control_cleanup(clingo_control_t *control);
 //! Assign a truth value to an external atom.
@@ -1948,7 +1948,7 @@ bool clingo_control_cleanup(clingo_control_t *control);
 //! @param[in] control the target
 //! @param[in] atom atom to assign
 //! @param[in] value the truth value
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_control_assign_external(clingo_control_t *control, clingo_symbol_t atom, clingo_truth_value_t value);
 //! Release an external atom.
@@ -1959,7 +1959,7 @@ bool clingo_control_assign_external(clingo_control_t *control, clingo_symbol_t a
 //!
 //! @param[in] control the target
 //! @param[in] atom atom to release
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_control_release_external(clingo_control_t *control, clingo_symbol_t atom);
 //! Register a custom propagator with the control object.
@@ -1973,7 +1973,7 @@ bool clingo_control_release_external(clingo_control_t *control, clingo_symbol_t 
 //! @param[in] propagator the propagator
 //! @param[in] data user data passed to the propagator functions
 //! @param[in] sequential whether the propagator should be called sequentially
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_control_register_propagator(clingo_control_t *control, clingo_propagator_t propagator, void *data, bool sequential);
 //! Get a statistics object to inspect solver statistics.
@@ -1984,7 +1984,7 @@ bool clingo_control_register_propagator(clingo_control_t *control, clingo_propag
 //!
 //! @param[in] control the target
 //! @param[out] statistics the statistics object
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_control_statistics(clingo_control_t *control, clingo_statistics_t **statistics);
 //! Interrupt the active solve call (or the following solve call right at the beginning).
@@ -2036,7 +2036,7 @@ bool clingo_control_get_const(clingo_control_t *control, char const *name, cling
 //! @param[in] control the target
 //! @param[in] name the name of the constant
 //! @param[out] exists whether a matching constant definition exists
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if constant definition does not exist
 //!
 //! @see clingo_control_get_const()
@@ -2069,7 +2069,7 @@ bool clingo_control_theory_atoms(clingo_control_t *control, clingo_theory_atoms_
 //!
 //! @param[in] control the target
 //! @param[out] backend the backend objet
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_control_backend(clingo_control_t *control, clingo_backend_t **backend);
 //! Get an object to add non-ground directives to the program.
