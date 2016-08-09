@@ -1,6 +1,6 @@
 // {{{ GPL License
 
-// This file is part of gringo - a grounder for logic programs.
+// This file is part of gringo---a grounder for logic programs.
 // Copyright Roland Kaminski
 
 // This program is free software: you can redistribute it and/or modify
@@ -747,7 +747,7 @@ bool clingo_solve_async_cancel(clingo_solve_async_t *handle);
 //! @addtogroup SymbolicAtoms
 //! @{
 
-//! Object to inspect symbolic atoms in a program - the relevant Herbrand base
+//! Object to inspect symbolic atoms in a program---the relevant Herbrand base
 //! gringo uses to instantiate programs.
 //!
 //! @see clingo_control_symbolic_atoms()
@@ -884,12 +884,12 @@ bool clingo_symbolic_atoms_is_valid(clingo_symbolic_atoms_t *atoms, clingo_symbo
 
 //! Enumeration of theory term types.
 enum clingo_theory_term_type {
-    clingo_theory_term_type_tuple,    //!< a tuple term - e.g., `(1,2,3)`
-    clingo_theory_term_type_list,     //!< a list term - e.g., `[1,2,3]`
-    clingo_theory_term_type_set,      //!< a set term - e.g., `{1,2,3}`
-    clingo_theory_term_type_function, //!< a function term - e.g., `f(1,2,3)`
-    clingo_theory_term_type_number,   //!< a number term - e.g., `42`
-    clingo_theory_term_type_symbol    //!< a symbol term - e.g., `c`
+    clingo_theory_term_type_tuple,    //!< a tuple term, e.g., `(1,2,3)`
+    clingo_theory_term_type_list,     //!< a list term, e.g., `[1,2,3]`
+    clingo_theory_term_type_set,      //!< a set term, e.g., `{1,2,3}`
+    clingo_theory_term_type_function, //!< a function term, e.g., `f(1,2,3)`
+    clingo_theory_term_type_number,   //!< a number term, e.g., `42`
+    clingo_theory_term_type_symbol    //!< a symbol term, e.g., `c`
 };
 //! Corresponding type to ::clingo_theory_term_type.
 typedef int clingo_theory_term_type_t;
