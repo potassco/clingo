@@ -72,7 +72,7 @@ typedef int32_t clingo_weight_t;
 //! @note Errors can only be recovered from if explicitly mentioned; most
 //! functions do not provide strong exception guarantees.  This means that in
 //! case of errors associated objects cannot be used further.  If such an
-//! object has a free function, this function can still and should be called.
+//! object has a free function, this function can and should still be called.
 enum clingo_error {
     clingo_error_success   = 0, //!< successful API calls
     clingo_error_runtime   = 1, //!< wrong usage of the clingo API or invalid input
