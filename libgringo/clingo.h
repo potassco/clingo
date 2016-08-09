@@ -2025,7 +2025,7 @@ bool clingo_control_configuration(clingo_control_t *control, clingo_configuratio
 //! If the enumeration assumption is enabled, then all information learnt from
 //! the solver's various enumeration modes is removed after a solve call. This
 //! includes enumeration of cautious or brave consequences, enumeration of
-//! answer sets with or without projection, or finding optimal models; as well
+//! answer sets with or without projection, or finding optimal models, as well
 //! as clauses/nogoods added with clingo_solve_control_add_clause().
 //!
 //! @note Initially the enumeration assumption is enabled.
