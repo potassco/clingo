@@ -2046,7 +2046,7 @@ bool clingo_control_use_enumeration_assumption(clingo_control_t *control, bool e
 //! @param[out] symbol the resulting symbol
 //! @return whether the call was successful
 bool clingo_control_get_const(clingo_control_t *control, char const *name, clingo_symbol_t *symbol);
-//! Check if there is a constant definition given for the given constant.
+//! Check if there is a constant definition for the given constant.
 //!
 //! @param[in] control the target
 //! @param[in] name the name of the constant
