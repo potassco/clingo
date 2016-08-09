@@ -99,7 +99,7 @@ public:
 		void   pop(Literal p)  { value_[p.var()] = 0; }
 		void   fix(Literal p)  { value_[p.var()] = trueValue(p); }
 	private:
-		~State() {}
+		~State() { delete [] value_; }
 		typedef Clasp::Atomic_t<uint8>::type  ValueType;
 		typedef Clasp::Atomic_t<uint32>::type SizeType;
 		typedef ValueType* ValueVec;

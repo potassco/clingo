@@ -183,29 +183,110 @@ void AspParser::write(Asp::LogicProgram& prg, std::ostream& os, Format f) {
 	out->endStep();
 }
 /////////////////////////////////////////////////////////////////////////////////////////
-// Common sat parsing
+// clasp specific extensions for Dimacs/OPB
 /////////////////////////////////////////////////////////////////////////////////////////
 SatReader::SatReader() {}
 bool SatReader::skipLines(char c) {
 	while (peek(true) == c) { skipLine(); }
 	return true;
 }
-void SatReader::parseGraph(const char* pre, ExtDepGraph& graph) {
+Literal SatReader::matchLit(Var max) {
+	for (char c; (c = stream()->peek()) == ' ' || c == '\t';) { stream()->get(); }
+	bool sign = stream()->peek() == '-';
+	if (sign) { stream()->get(); }
+	if (stream()->peek() == 'x') { stream()->get(); }
+	int64 id;
+	require(stream()->match(id) && id >= 0 && id <= (int64)max, "identifier expected");
+	return Literal(static_cast<uint32>(id), sign);
+}
+void SatReader::parseGraph(uint32 maxVar, const char* pre, ExtDepGraph& graph) {
 	int maxNode = matchPos("graph: positive number of nodes expected");
 	while (match(pre)) {
 		if      (match("node ")) { skipLine(); }
 		else if (match("arc "))  {
-			int neg = match("-");
-			match("x"); /* ignore lit prefix */
-			Var lit = matchAtom("graph: invalid edge variable");
+			Literal lit = matchLit(maxVar);
 			Var beg = matchPos(maxNode, "graph: invalid start node");
 			Var end = matchPos(maxNode, "graph: invalid end node");
-			graph.addEdge(Literal(lit, neg != 0), beg, end);
+			graph.addEdge(lit, beg, end);
 		}
 		else if (match("endgraph")) { return; }
 		else { break; }
 	}
 	require(false, "graph: endgraph expected");
+}
+void SatReader::parseProject(uint32 maxVar, SharedContext& ctx) {
+	for (unsigned n = this->line(); (stream()->skipWs(), this->line() == n);) {
+		Literal x = matchLit(maxVar);
+		if (x == lit_true()) break;
+		require(!x.sign(), "project: positive literal expected");
+		ctx.output.addProject(x);
+	}
+}
+void SatReader::parseAssume(uint32 maxVar) {
+	for (unsigned n = this->line(); (stream()->skipWs(), this->line() == n);) {
+		Literal x = matchLit(maxVar);
+		if (x == lit_true()) { break; }
+		addAssumption(x);
+	}
+}
+void SatReader::parseHeuristic(uint32 maxVar, SharedContext& ctx) {
+	using Potassco::Heuristic_t;
+	Heuristic_t type = static_cast<Heuristic_t>(matchPos(Heuristic_t::eMax, "heuristic: modifier expected"));
+	Literal atom = matchLit(maxVar);
+	require(!atom.sign(), "heuristic: positive literal expected");
+	int16    bias = (int16)matchInt(INT16_MIN, INT16_MAX, "heuristic: bias expected");
+	uint16   prio = (uint16)matchPos(UINT16_MAX, "heuristic: priority expected");
+	ctx.heuristic.add(atom.var(), type, bias, prio, matchLit(maxVar));
+}
+void SatReader::parseOutput(uint32 maxVar, SharedContext& ctx) {
+	if (match("range ")) {
+		Literal lo = matchLit(maxVar);
+		Literal hi = matchLit(maxVar);
+		require(lo.var() <= hi.var(), "output: invalid range");
+		ctx.output.setVarRange(Range32(lo.var(), hi.var() + 1));
+	}
+	else {
+		Literal cond = matchLit(maxVar);
+		while (peek(false) == ' ') { stream()->get(); }
+		std::string name;
+		for (char c; (c = stream()->get()) != '\n' && c;) { name += c; }
+		name.erase(name.find_last_not_of(" \t")+1);
+		ctx.output.add(ConstString(Potassco::toSpan(name)), cond);
+	}
+}
+void SatReader::parseExt(const char* pre, uint32 maxVar, SharedContext& ctx) {
+	const bool acyc = options.isEnabled(ParserOptions::parse_acyc_edge);
+	const bool minw = options.isEnabled(ParserOptions::parse_minimize);
+	const bool proj = options.isEnabled(ParserOptions::parse_project);
+	const bool heur = options.isEnabled(ParserOptions::parse_heuristic);
+	const bool assu = options.isEnabled(ParserOptions::parse_assume);
+	uint32     outp = options.isEnabled(ParserOptions::parse_output);
+	for (ExtDepGraph* g = 0; match(pre);) {
+		if (acyc && match("graph ")) {
+			require(g == 0, "graph: only one graph supported");
+			g = ctx.extGraph.get();
+			if (!g) { ctx.extGraph = (g = new ExtDepGraph()); }
+			else { g->update(); }
+			parseGraph(maxVar, pre, *g);
+			g->finalize(ctx);
+		}
+		else if (minw && match("minweight ")) {
+			WeightLitVec min;
+			for (int lit, weight, max = static_cast<int>(maxVar); (lit = matchInt(-max, max)) != 0;) {
+				weight = matchInt(CLASP_WEIGHT_T_MIN, CLASP_WEIGHT_T_MAX, "minweight: weight expected");
+				min.push_back(WeightLiteral(toLit(lit), weight));
+			}
+			addObjective(min);
+		}
+		else if (proj && match("project "))   { parseProject(maxVar, ctx); }
+		else if (heur && match("heuristic ")) { parseHeuristic(maxVar, ctx); }
+		else if (assu && match("assume "))    { parseAssume(maxVar); }
+		else if (outp && match("output "))    {
+			if (outp++ == 1) { ctx.output.setVarRange(Range32(0, 0)); }
+			parseOutput(maxVar, ctx);
+		}
+		else { skipLine(); }
+	}
 }
 
 SatParser::SatParser(SatBuilder& prg) : reader_(new DimacsReader(prg)) {}
@@ -236,34 +317,8 @@ bool DimacsReader::doAttach(bool& inc) {
 	while (stream()->peek() == ' ')  { stream()->get(); };
 	require(stream()->get() == '\n', "invalid extra characters in problem line");
 	program_->prepareProblem(numVar_, cw, numC);
-	if (options.isEnabled(ParserOptions::parse_acyc_edge | ParserOptions::parse_minimize)) {
-		const bool acyc = options.isEnabled(ParserOptions::parse_acyc_edge);
-		const bool minw = options.isEnabled(ParserOptions::parse_minimize);
-		const bool proj = options.isEnabled(ParserOptions::parse_project);
-		for (ExtDepGraph* g = 0; match("c "); ) {
-			if (acyc && match("graph ")) {
-				require(g == 0, "graph: only one graph supported");
-				g = program_->ctx()->extGraph.get();
-				if (!g) { program_->ctx()->extGraph = (g = new ExtDepGraph()); }
-				else    { g->update(); }
-				parseGraph("c ", *g);
-				g->finalize(*program_->ctx());
-			}
-			else if (minw && match("minweight")) {
-				WeightLitVec min;
-				for (int lit, weight, max = static_cast<int>(numVar_); (lit = matchInt(-max, max)) != 0; ) {
-					weight = matchInt(CLASP_WEIGHT_T_MIN, CLASP_WEIGHT_T_MAX, "minweight: weight expected");
-					min.push_back(WeightLiteral(toLit(lit), weight));
-				}
-				program_->addObjective(min);
-			}
-			else if (proj && match("project ")) {
-				for (Var v; (v = matchPos("project: variable or 0 expected")) != 0;) {
-					program_->addProject(v);
-				}
-			}
-			else { skipLine(); }
-		}
+	if (options.ext != 0) {
+		parseExt("c ", numVar_, *program_->ctx());
 	}
 	return true;
 }
@@ -283,10 +338,23 @@ bool DimacsReader::doParse() {
 	require(!more(), "unrecognized format");
 	return true;
 }
+void DimacsReader::addObjective(const WeightLitVec& vec) {
+	program_->addObjective(vec);
+}
+void DimacsReader::addAssumption(Literal x) {
+	program_->addAssumption(x);
+}
 /////////////////////////////////////////////////////////////////////////////////////////
 // OpbReader
 /////////////////////////////////////////////////////////////////////////////////////////
 OpbReader::OpbReader(PBBuilder& prg) : program_(&prg) {}
+
+void OpbReader::addObjective(const WeightLitVec& vec) {
+	program_->addObjective(vec);
+}
+void OpbReader::addAssumption(Literal x) {
+	program_->addAssumption(x);
+}
 
 // * #variable= int #constraint= int [#product= int sizeproduct= int] [#soft= int mincost= int maxcost= int sumcost= int]
 // where [] indicate optional parts, i.e.
@@ -323,27 +391,9 @@ bool OpbReader::doAttach(bool& inc) {
 	return true;
 }
 bool OpbReader::doParse() {
-	if (options.isEnabled(ParserOptions::parse_acyc_edge | ParserOptions::parse_project)) {
-		const bool graph = options.isEnabled(ParserOptions::parse_acyc_edge);
-		const bool proj  = options.isEnabled(ParserOptions::parse_project);
-		for (ExtDepGraph* g = 0; match("*"); ) {
-			if (graph && match("graph ")) {
-				require(g == 0, "graph: only one graph supported");
-				g = program_->ctx()->extGraph.get();
-				if (!g) { program_->ctx()->extGraph = (g = new ExtDepGraph()); }
-				else    { g->update(); }
-				parseGraph("* ", *g);
-				g->finalize(*program_->ctx());
-			}
-			else if (proj && match("project ")) {
-				while (match("x")) { // <atom>*
-					Var var = matchAtom();
-					require(var <= program_->numVars() + 1, "identifier out of range");
-					program_->addProject(var);
-				}
-			}
-			else { skipLine(); }
-		}
+	if (options.ext && options.ext != ParserOptions::parse_minimize) {
+		options.ext &= ~uint8(ParserOptions::parse_minimize);
+		parseExt("* ", program_->numVars() + 1, *program_->ctx());
 	}
 	skipLines('*');
 	parseOptObjective();

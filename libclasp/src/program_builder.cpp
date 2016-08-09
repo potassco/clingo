@@ -112,6 +112,9 @@ bool SatBuilder::addObjective(const WeightLitVec& min) {
 void SatBuilder::addProject(Var v) {
 	ctx()->output.addProject(posLit(v));
 }
+void SatBuilder::addAssumption(Literal x) {
+	assume_.push_back(x);
+}
 bool SatBuilder::addClause(LitVec& clause, wsum_t cw) {
 	if (!ctx()->ok() || satisfied(clause)) { return ctx()->ok(); }
 	CLASP_ASSERT_CONTRACT_MSG(cw >= 0 && (cw <= std::numeric_limits<weight_t>::max() || cw == hardWeight_), "Clause weight out of bounds!");
@@ -149,6 +152,7 @@ bool SatBuilder::satisfied(LitVec& cc) {
 bool SatBuilder::doStartProgram() {
 	vars_ = ctx()->numVars();
 	pos_  = 0;
+	assume_.clear();
 	return markAssigned();
 }
 ProgramParser* SatBuilder::doCreateParser() {
@@ -231,6 +235,9 @@ bool PBBuilder::addObjective(const WeightLitVec& min) {
 void PBBuilder::addProject(Var v) {
 	ctx()->output.addProject(posLit(v));
 }
+void PBBuilder::addAssumption(Literal x) {
+	assume_.push_back(x);
+}
 bool PBBuilder::setSoftBound(wsum_t b) {
 	if (b > 0) { soft_ = b-1; }
 	return true;
@@ -300,6 +307,7 @@ void PBBuilder::addProductConstraints(Literal eqLit, LitVec& lits) {
 bool PBBuilder::doStartProgram() {
 	auxVar_ = ctx()->numVars() + 1;
 	soft_   = std::numeric_limits<wsum_t>::max();
+	assume_.clear();
 	return true;
 }
 bool PBBuilder::doEndProgram() {
