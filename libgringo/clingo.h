@@ -435,7 +435,7 @@ bool clingo_parse_term(char const *string, clingo_logger_t *logger, void *logger
 //! @defgroup Model Model Inspection
 //! Inspection of models and a high level interface to add constraints during solving.
 //
-//! For an example see @ref model.c.
+//! For an example, see @ref model.c.
 //! @ingroup Control
 
 //! @addtogroup Model
@@ -606,7 +606,7 @@ typedef unsigned clingo_solve_result_bitset_t;
 //! @defgroup SolveIter Iterative Solving
 //! Iterative enumeration of models (without using callbacks).
 //!
-//! For an example see @ref solve-iteratively.c.
+//! For an example, see @ref solve-iteratively.c.
 //! @ingroup Control
 
 //! @addtogroup SolveIter
@@ -670,7 +670,7 @@ bool clingo_solve_iteratively_close(clingo_solve_iteratively_t *handle);
 //! @defgroup SolveAsync Asynchronous Solving
 //! Start solving in the background.
 //!
-//! For an example see @ref solve-async.c.
+//! For an example, see @ref solve-async.c.
 //! @ingroup Control
 
 //! @addtogroup SolveAsync
@@ -734,7 +734,7 @@ bool clingo_solve_async_cancel(clingo_solve_async_t *handle);
 //! @defgroup SymbolicAtoms Symbolic Atom Inspection
 //! Inspection of atoms occuring in ground logic programs.
 //!
-//! For an example see @ref symbolic-atoms.c.
+//! For an example, see @ref symbolic-atoms.c.
 //! @ingroup Control
 
 //! @addtogroup SymbolicAtoms
@@ -1697,7 +1697,7 @@ bool clingo_program_builder_end(clingo_program_builder_t *bld);
 //! @defgroup Control Grounding and Solving
 //! Functions to control the grounding and solving process.
 //!
-//! For an example see @ref control.c.
+//! For an example, see @ref control.c.
 
 //! @addtogroup Control
 //! @{
