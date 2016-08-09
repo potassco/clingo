@@ -1868,6 +1868,8 @@ bool clingo_control_load(clingo_control_t *control, char const *file);
 //!
 //! This function puts the given program into a block of form: <tt>\#program name(parameters).</tt>
 //!
+//! After extending the logic program, the corresponding program parts are typically grounded with ::clingo_control_ground.
+//!
 //! @param[in] control the target
 //! @param[in] name name of the program block
 //! @param[in] parameters string array of parameters of the program block
