@@ -1751,7 +1751,7 @@ typedef bool clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t sy
 //! and a callback to inject symbols as arguments.
 //!
 //! If a (non-recoverable) clingo API function fails in this callback, for
-//! example the symbol callback, its error code shall be returned.  In case of
+//! example, the symbol callback, its error code shall be returned.  In case of
 //! errors not related to clingo, this function can return
 //! ::clingo_error_unknown to stop grounding with an error.
 //!
@@ -1766,7 +1766,7 @@ typedef bool clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t sy
 //! @return whether the call was successful
 //! @see clingo_control_ground()
 //!
-//! The following example implements the external function \@f() returning 42.
+//! The following example implements the external function <tt>\@f()</tt> returning 42.
 //! ~~~~~~~~~~~~~~~{.c}
 //! bool
 //! ground_callback(clingo_location_t location,
