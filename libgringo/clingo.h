@@ -871,6 +871,16 @@ bool clingo_symbolic_atoms_is_valid(clingo_symbolic_atoms_t *atoms, clingo_symbo
 //! @defgroup TheoryAtoms Theory Atom Inspection
 //! Inspection of theory atoms occuring in ground logic programs.
 //! @ingroup Control
+//!
+//! During grounding, theory atoms get consecutive numbers starting with zero.
+//! The total number of theory atoms can be obtained using
+//! clingo_theory_atoms_size().
+//!
+//! @attention
+//! All structural information about theory atoms, elements, and terms is reset
+//! after @link clingo_control_solve() solving@endlink.  If afterward fresh
+//! theory atoms are @link clingo_control_ground() grounded@endlink, previously
+//! used ids are reused.
 
 //! @addtogroup TheoryAtoms
 //! @{
@@ -930,7 +940,7 @@ bool clingo_theory_atoms_term_arguments(clingo_theory_atoms_t *atoms, clingo_id_
 //! @param[in] atoms container where the term is stored
 //! @param[in] term id of the term
 //! @param[out] size the resulting size
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_theory_atoms_term_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t term, size_t *size);
 //! Get the string representation of the given theory term.
@@ -939,7 +949,7 @@ bool clingo_theory_atoms_term_to_string_size(clingo_theory_atoms_t *atoms, cling
 //! @param[in] term id of the term
 //! @param[out] string the resulting string
 //! @param[in] size the size of the string
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if the size is too small
 //! - ::clingo_error_bad_alloc
 //!
@@ -984,7 +994,7 @@ bool clingo_theory_atoms_element_condition_id(clingo_theory_atoms_t *atoms, clin
 //! @param[in] atoms container where the element is stored
 //! @param[in] element id of the element
 //! @param[out] size the resulting size
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_theory_atoms_element_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t element, size_t *size);
 //! Get the string representation of the given theory element.
@@ -993,7 +1003,7 @@ bool clingo_theory_atoms_element_to_string_size(clingo_theory_atoms_t *atoms, cl
 //! @param[in] element id of the element
 //! @param[out] string the resulting string
 //! @param[in] size the size of the string
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if the size is too small
 //! - ::clingo_error_bad_alloc
 bool clingo_theory_atoms_element_to_string(clingo_theory_atoms_t *atoms, clingo_id_t element, char *string, size_t size);
@@ -1001,13 +1011,68 @@ bool clingo_theory_atoms_element_to_string(clingo_theory_atoms_t *atoms, clingo_
 
 //! @name Theory Atom Inspection
 //! @{
-bool clingo_theory_atoms_atom_term(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t *ret);
-bool clingo_theory_atoms_atom_elements(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n);
-bool clingo_theory_atoms_atom_has_guard(clingo_theory_atoms_t *atoms, clingo_id_t value, bool *ret);
-bool clingo_theory_atoms_atom_guard(clingo_theory_atoms_t *atoms, clingo_id_t value, char const **ret_op, clingo_id_t *ret_term);
-bool clingo_theory_atoms_atom_literal(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_literal_t *ret);
-bool clingo_theory_atoms_atom_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t value, size_t *n);
-bool clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t n);
+
+//! Get the total number of theory atoms.
+//!
+//! @param[in] atoms the target
+//! @param[out] size the resulting number
+//! @return whether the call was successful
+clingo_error_t clingo_theory_atoms_size(clingo_theory_atoms_t *atoms, size_t *size);
+//! Get the theory term associated with the theory atom.
+//!
+//! @param[in] atoms container where the atom is stored
+//! @param[in] atom id of the atom
+//! @param[out] term the resulting term id
+//! @return whether the call was successful
+bool clingo_theory_atoms_atom_term(clingo_theory_atoms_t *atoms, clingo_id_t atom, clingo_id_t *term);
+//! Get the theory elements associated with the theory atom.
+//!
+//! @param[in] atoms container where the atom is stored
+//! @param[in] atom id of the atom
+//! @param[out] elements the resulting array of elements
+//! @param[out] size the number of elements
+//! @return whether the call was successful
+bool clingo_theory_atoms_atom_elements(clingo_theory_atoms_t *atoms, clingo_id_t atom, clingo_id_t const **elements, size_t *size);
+//! Whether the theory atom has a guard.
+//!
+//! @param[in] atoms container where the atom is stored
+//! @param[in] atom id of the atom
+//! @param[out] has_guard whether the theory atom has a guard
+//! @return whether the call was successful
+bool clingo_theory_atoms_atom_has_guard(clingo_theory_atoms_t *atoms, clingo_id_t atom, bool *has_guard);
+//! Get the guard consisting of a theory operator and a theory term of the given theory atom.
+//!
+//! @param[in] atoms container where the atom is stored
+//! @param[in] atom id of the atom
+//! @param[out] connective the resulting theory operator
+//! @param[out] term the resulting term
+//! @return whether the call was successful
+bool clingo_theory_atoms_atom_guard(clingo_theory_atoms_t *atoms, clingo_id_t atom, char const **connective, clingo_id_t *term);
+//! Get the aspif literal associated with the given theory atom.
+//!
+//! @param[in] atoms container where the atom is stored
+//! @param[in] atom id of the atom
+//! @param[out] literal the resulting literal
+//! @return whether the call was successful
+bool clingo_theory_atoms_atom_literal(clingo_theory_atoms_t *atoms, clingo_id_t atom, clingo_literal_t *literal);
+//! Get the size of the string representation of the given theory atom (including the terminating 0).
+//!
+//! @param[in] atoms container where the atom is stored
+//! @param[in] atom id of the element
+//! @param[out] size the resulting size
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+bool clingo_theory_atoms_atom_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t atom, size_t *size);
+//! Get the string representation of the given theory atom.
+//!
+//! @param[in] atoms container where the atom is stored
+//! @param[in] atom id of the element
+//! @param[out] string the resulting string
+//! @param[in] size the size of the string
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime if the size is too small
+//! - ::clingo_error_bad_alloc
+bool clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms, clingo_id_t atom, char *string, size_t size);
 //! @}
 
 //! @}
@@ -1839,14 +1904,15 @@ typedef struct clingo_part {
 //! @param data user data of the callback
 //! @return whether the call was successful, might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-//! @see ::clingo_symbol_callback_t
+//! @see ::clingo_ground_callback_t
 typedef bool clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t symbols_size, void *data);
 
 //! Callback function to implement external functions.
 //!
-//! If an external function of form <tt>\@name(parameters)</tt> occurs in a logic
-//! program, then this function is called with its location, name, parameters,
-//! and a callback to inject symbols as arguments.
+//! If an external function of form <tt>\@name(parameters)</tt> occurs in a
+//! logic program, then this function is called with its location, name,
+//! parameters, and a callback to inject symbols as arguments. The callback can
+//! be called multiple times; all symbols passed are injected.
 //!
 //! If a (non-recoverable) clingo API function fails in this callback, for
 //! example the symbol callback, its error code shall be returned.  In case of
@@ -1876,8 +1942,8 @@ typedef bool clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t sy
 //!                 void *symbol_callback_data) {
 //!   if (strcmp(name, "f") == 0 && arguments_size == 0) {
 //!     clingo_symbol_t sym;
-//!     clingo_symbol_create_number(42, &s);
-//!     return symbol_callback(&s, 1, symbol_callback_data);
+//!     clingo_symbol_create_number(42, &sym);
+//!     return symbol_callback(&sym, 1, symbol_callback_data);
 //!   }
 //!   return 0;
 //! }
