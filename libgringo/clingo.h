@@ -1968,7 +1968,7 @@ bool clingo_control_cleanup(clingo_control_t *control);
 bool clingo_control_assign_external(clingo_control_t *control, clingo_symbol_t atom, clingo_truth_value_t value);
 //! Release an external atom.
 //!
-//! After this call an external atom is no longer external and subject to
+//! After this call, an external atom is no longer external and subject to
 //! program simplifications.  If the atom does not exist or is not external,
 //! this is a noop.
 //!
