@@ -2039,7 +2039,7 @@ bool clingo_control_use_enumeration_assumption(clingo_control_t *control, bool e
 //! @name Program Inspection Functions
 //! @{
 
-//! Return the symbol for a constant definition of form: \#const name = symbol.
+//! Return the symbol for a constant definition of form: `#const name = symbol`.
 //!
 //! @param[in] control the target
 //! @param[in] name the name of the constant
