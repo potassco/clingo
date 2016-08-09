@@ -178,12 +178,12 @@ char const *clingo_signature_name(clingo_signature_t signature);
 //! @param[in] signature the target signature
 //! @return the arity of the signature
 uint32_t clingo_signature_arity(clingo_signature_t signature);
-//! Weather the signature is positive (is not classically negated).
+//! Whether the signature is positive (is not classically negated).
 //!
 //! @param[in] signature the target signature
 //! @return whether the signature has no sign
 bool clingo_signature_is_positive(clingo_signature_t signature);
-//! Weather the signature is negative (is classically negated).
+//! Whether the signature is negative (is classically negated).
 //!
 //! @param[in] signature the target signature
 //! @return whether the signature has a sign
@@ -526,14 +526,14 @@ bool clingo_model_cost_size(clingo_model_t *model, size_t *size);
 //! @param[in] model the target
 //! @param[out] costs the resulting costs
 //! @param[in] size the number of costs
-//! @return whether the call was successful, might set one of the following error codes:
+//! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if the size is too small
 //!
 //! @see clingo_model_cost_size()
 //! @see clingo_model_optimality_proven()
 bool clingo_model_cost(clingo_model_t *model, int64_t *costs, size_t size);
-//! Weather the optimality of a model has been proven.
+//! Whether the optimality of a model has been proven.
 //!
 //! @param[in] model the target
 //! @param[out] proven whether the optimality has been proven
