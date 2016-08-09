@@ -433,7 +433,7 @@ bool clingo_parse_term(char const *string, clingo_logger_t *logger, void *logger
 //! ## Code ##
 
 //! @defgroup Model Model Inspection
-//! Inspection of models and a high level interface to add constraints during solving.
+//! Inspection of models and a high-level interface to add constraints during solving.
 //
 //! For an example, see @ref model.c.
 //! @ingroup Control
@@ -495,7 +495,7 @@ bool clingo_model_symbols_size(clingo_model_t *model, clingo_show_type_bitset_t 
 //! Get the symbols of the selected types in the model.
 //!
 //! @note CSP assignments are represented using functions with name "$"
-//! where the first argument is the name of the CSP variable and the second its
+//! where the first argument is the name of the CSP variable and the second one its
 //! value.
 //!
 //! @param[in] model the target
