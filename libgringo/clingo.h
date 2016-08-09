@@ -214,9 +214,9 @@ size_t clingo_signature_hash(clingo_signature_t signature);
 //! Enumeration of available symbol types.
 enum clingo_symbol_type {
     clingo_symbol_type_infimum  = 0, //!< the <tt>\#inf</tt> symbol
-    clingo_symbol_type_number   = 1, //!< a numeric symbol - e.g., `1`
-    clingo_symbol_type_string   = 4, //!< a string symbol - e.g., `"a"`
-    clingo_symbol_type_function = 5, //!< a numeric symbol - e.g., `c`, `(1, "a")`, or `f(1,"a")`
+    clingo_symbol_type_number   = 1, //!< a numeric symbol, e.g., `1`
+    clingo_symbol_type_string   = 4, //!< a string symbol, e.g., `"a"`
+    clingo_symbol_type_function = 5, //!< a numeric symbol, e.g., `c`, `(1, "a")`, or `f(1,"a")`
     clingo_symbol_type_supremum = 7  //!< the <tt>\#sup</tt> symbol
 };
 //! Corresponding type to ::clingo_symbol_type.
