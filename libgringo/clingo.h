@@ -807,7 +807,7 @@ bool clingo_symbolic_atoms_iterator_is_equal_to(clingo_symbolic_atoms_t *atoms, 
 bool clingo_symbolic_atoms_symbol(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t iterator, clingo_symbol_t *symbol);
 //! Check whether an atom is a fact.
 //!
-//! @note This does not determine if an atom is a cautious consequence: the
+//! @note This does not determine if an atom is a cautious consequence. The
 //! grounding or solving component's simplifications can only detect this in
 //! some cases.
 //!
@@ -818,7 +818,7 @@ bool clingo_symbolic_atoms_symbol(clingo_symbolic_atoms_t *atoms, clingo_symboli
 bool clingo_symbolic_atoms_is_fact(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t iterator, bool *fact);
 //! Check whether an atom is external.
 //!
-//! An atom is external, if it has been defined using an external directive, and
+//! An atom is external if it has been defined using an external directive and
 //! has not been released or defined by a rule.
 //!
 //! @param[in] atoms the target
