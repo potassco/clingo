@@ -887,30 +887,128 @@ enum clingo_theory_term_type {
 //! Corresponding type to ::clingo_theory_term_type.
 typedef int clingo_theory_term_type_t;
 
-//! Represents a (ground) theory term.
+//! Conntainer that stores theory atoms, elements, and terms.
 typedef struct clingo_theory_atoms clingo_theory_atoms_t;
-//! Get the type of a theory term.
+
+//! @name Theory Term Inspection
+//! @{
+
+//! Get the type of the given theory term.
 //!
-//! @todo TODO
-bool clingo_theory_atoms_term_type(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_theory_term_type_t *ret);
-bool clingo_theory_atoms_term_number(clingo_theory_atoms_t *atoms, clingo_id_t value, int *num);
-bool clingo_theory_atoms_term_name(clingo_theory_atoms_t *atoms, clingo_id_t value, char const **ret);
-bool clingo_theory_atoms_term_arguments(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n);
-bool clingo_theory_atoms_element_tuple(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n);
-bool clingo_theory_atoms_element_condition(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_literal_t const **ret, size_t *n);
-bool clingo_theory_atoms_element_condition_id(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_literal_t *ret);
-bool clingo_theory_atoms_atom_elements(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n);
+//! @param[in] atoms container where the term is stored
+//! @param[in] term id of the term
+//! @param[out] type the resulting type
+//! @return whether the call was successful
+bool clingo_theory_atoms_term_type(clingo_theory_atoms_t *atoms, clingo_id_t term, clingo_theory_term_type_t *type);
+//! Get the number of the given numeric theory term.
+//!
+//! @pre The term must be of type ::clingo_theory_term_type_number.
+//! @param[in] atoms container where the term is stored
+//! @param[in] term id of the term
+//! @param[out] number the resulting number
+//! @return whether the call was successful
+bool clingo_theory_atoms_term_number(clingo_theory_atoms_t *atoms, clingo_id_t term, int *number);
+//! Get the name of the given constant or function theory term.
+//!
+//! @pre The term must be of type ::clingo_theory_term_type_function or ::clingo_theory_term_type_symbol.
+//! @param[in] atoms container where the term is stored
+//! @param[in] term id of the term
+//! @param[out] name the resulting name
+//! @return whether the call was successful
+bool clingo_theory_atoms_term_name(clingo_theory_atoms_t *atoms, clingo_id_t term, char const **name);
+//! Get the arguments of the given function theory term.
+//!
+//! @pre The term must be of type ::clingo_theory_term_type_function.
+//! @param[in] atoms container where the term is stored
+//! @param[in] term id of the term
+//! @param[out] arguments the resulting arguments in form of an array of term ids
+//! @param[out] size the number of arguments
+//! @return whether the call was successful
+bool clingo_theory_atoms_term_arguments(clingo_theory_atoms_t *atoms, clingo_id_t term, clingo_id_t const **arguments, size_t *size);
+//! Get the size of the string representation of the given theory term (including the terminating 0).
+//!
+//! @param[in] atoms container where the term is stored
+//! @param[in] term id of the term
+//! @param[out] size the resulting size
+//! @return whether the call was successful, might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+bool clingo_theory_atoms_term_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t term, size_t *size);
+//! Get the string representation of the given theory term.
+//!
+//! @param[in] atoms container where the term is stored
+//! @param[in] term id of the term
+//! @param[out] string the resulting string
+//! @param[in] size the size of the string
+//! @return whether the call was successful, might set one of the following error codes:
+//! - ::clingo_error_runtime if the size is too small
+//! - ::clingo_error_bad_alloc
+//!
+//! @see clingo_theory_atoms_term_to_string_size()
+bool clingo_theory_atoms_term_to_string(clingo_theory_atoms_t *atoms, clingo_id_t term, char *string, size_t size);
+//! @}
+
+//! @name Theory Element Inspection
+//! @{
+
+//! Get the tuple (array of theory terms) of the given theory element.
+//!
+//! @param[in] atoms container where the element is stored
+//! @param[in] element id of the element
+//! @param[out] tuple the resulting array of term ids
+//! @param[out] size the number of term ids
+//! @return whether the call was successful
+bool clingo_theory_atoms_element_tuple(clingo_theory_atoms_t *atoms, clingo_id_t element, clingo_id_t const **tuple, size_t *size);
+//! Get the condition (array of aspif literals) of the given theory element.
+//!
+//! @param[in] atoms container where the element is stored
+//! @param[in] element id of the element
+//! @param[out] condition the resulting array of aspif literals
+//! @param[out] size the number of term literals
+//! @return whether the call was successful
+bool clingo_theory_atoms_element_condition(clingo_theory_atoms_t *atoms, clingo_id_t element, clingo_literal_t const **condition, size_t *size);
+//! Get the id of the condition of the given theory element.
+//!
+//! @note
+//! This id can be mapped to a solver literal using clingo_propagate_init_map_literal().
+//! This id is not (necessarily) an aspif literal;
+//! to get aspif literals use clingo_theory_atoms_element_condition().
+//!
+//! @param[in] atoms container where the element is stored
+//! @param[in] element id of the element
+//! @param[out] condition the resulting array of aspif literals
+//! @param[out] size the number of term literals
+//! @return whether the call was successful
+bool clingo_theory_atoms_element_condition_id(clingo_theory_atoms_t *atoms, clingo_id_t element, clingo_literal_t *condition);
+//! Get the size of the string representation of the given theory element (including the terminating 0).
+//!
+//! @param[in] atoms container where the element is stored
+//! @param[in] element id of the element
+//! @param[out] size the resulting size
+//! @return whether the call was successful, might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+bool clingo_theory_atoms_element_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t element, size_t *size);
+//! Get the string representation of the given theory element.
+//!
+//! @param[in] atoms container where the element is stored
+//! @param[in] element id of the element
+//! @param[out] string the resulting string
+//! @param[in] size the size of the string
+//! @return whether the call was successful, might set one of the following error codes:
+//! - ::clingo_error_runtime if the size is too small
+//! - ::clingo_error_bad_alloc
+bool clingo_theory_atoms_element_to_string(clingo_theory_atoms_t *atoms, clingo_id_t element, char *string, size_t size);
+//! @}
+
+//! @name Theory Atom Inspection
+//! @{
 bool clingo_theory_atoms_atom_term(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t *ret);
+bool clingo_theory_atoms_atom_elements(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n);
 bool clingo_theory_atoms_atom_has_guard(clingo_theory_atoms_t *atoms, clingo_id_t value, bool *ret);
-bool clingo_theory_atoms_atom_literal(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_literal_t *ret);
 bool clingo_theory_atoms_atom_guard(clingo_theory_atoms_t *atoms, clingo_id_t value, char const **ret_op, clingo_id_t *ret_term);
-bool clingo_theory_atoms_size(clingo_theory_atoms_t *atoms, size_t *ret);
-bool clingo_theory_atoms_term_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t value, size_t *n);
-bool clingo_theory_atoms_term_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t n);
-bool clingo_theory_atoms_element_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t value, size_t *n);
-bool clingo_theory_atoms_element_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t n);
+bool clingo_theory_atoms_atom_literal(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_literal_t *ret);
 bool clingo_theory_atoms_atom_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t value, size_t *n);
 bool clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t n);
+//! @}
 
 //! @}
 
