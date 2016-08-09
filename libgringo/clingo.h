@@ -606,6 +606,9 @@ typedef unsigned clingo_solve_result_bitset_t;
 //! @defgroup SolveIter Iterative Solving
 //! Iterative enumeration of models (without using callbacks).
 //!
+//! Clingo provides two ways to handle solving: @ref SolveIter and @ref SolveAsync.
+//! With iterative solving, models are enumerated one by one by calling ::clingo_control_solve_iteratively in a loop.
+//!
 //! For an example, see @ref solve-iteratively.c.
 //! @ingroup Control
 
@@ -668,7 +671,11 @@ bool clingo_solve_iteratively_close(clingo_solve_iteratively_t *handle);
 //! ## Code ##
 
 //! @defgroup SolveAsync Asynchronous Solving
-//! Start solving in the background.
+//! Solve in the background and notify about new models.
+//!
+//! Clingo provides two ways to handle solving: @ref SolveIter and @ref SolveAsync.
+//! With asynchronous solving, the solving process is executed in the background,
+//! and each newly found model is signalled via a @link ::clingo_model_callback_t model callback@endlink.
 //!
 //! For an example, see @ref solve-async.c.
 //! @ingroup Control
@@ -1797,7 +1804,7 @@ typedef bool clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t sy
 typedef bool clingo_ground_callback_t (clingo_location_t location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data);
 //! Callback function to intercept models.
 //!
-//! The model callback is invoked once for each model found by clingo.
+//! The model callback is invoked once for each model found by clingo (@link SolveAsync asynchronously@endlink).
 //!
 //! If a (non-recoverable) clingo API function fails in this callback, its
 //! error code shall be returned.  In case of errors not related to clingo,
