@@ -314,7 +314,7 @@ bool clingo_symbol_string(clingo_symbol_t symbol, char const **string);
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if symbol is not of type ::clingo_symbol_type_function
 bool clingo_symbol_is_positive(clingo_symbol_t symbol, bool *positive);
-//! Check if a function is negative (does have a sign).
+//! Check if a function is negative (has a sign).
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] negative the result
@@ -365,7 +365,7 @@ bool clingo_symbol_to_string(clingo_symbol_t symbol, char *string, size_t size);
 bool clingo_symbol_is_equal_to(clingo_symbol_t a, clingo_symbol_t b);
 //! Check if a symbol is less than another symbol.
 //!
-//! Symbols are first compared by type.  If the types are equal the values are
+//! Symbols are first compared by type.  If the types are equal, the values are
 //! compared (where strings are compared using strcmp).  Functions are first
 //! compared by signature and then lexicographically by arguments.
 //!
