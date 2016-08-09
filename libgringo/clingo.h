@@ -246,7 +246,7 @@ void clingo_symbol_create_number(int number, clingo_symbol_t *symbol);
 //!
 //! @param[out] symbol the resulting symbol
 void clingo_symbol_create_supremum(clingo_symbol_t *symbol);
-//! Construct a symbol representing \#inf.
+//! Construct a symbol representing <tt>\#inf</tt>.
 //!
 //! @param[out] symbol the resulting symbol
 void clingo_symbol_create_infimum(clingo_symbol_t *symbol);
