@@ -1918,7 +1918,7 @@ bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts
 bool clingo_control_solve(clingo_control_t *control, clingo_model_callback_t *model_callback, void *model_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_result_bitset_t *result);
 //! Solve the currently grounded logic program enumerating models iteratively.
 //!
-//! See module @ref SolveIter for more information.
+//! See the @ref SolveIter module for more information.
 //!
 //! @param[in] control the target
 //! @param[in] assumptions array of assumptions to solve under
@@ -1930,7 +1930,7 @@ bool clingo_control_solve(clingo_control_t *control, clingo_model_callback_t *mo
 bool clingo_control_solve_iteratively(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_iteratively_t **handle);
 //! Solve the currently grounded logic program asynchronously in the background.
 //!
-//! See module @ref SolveAsync for more information.
+//! See the @ref SolveAsync module for more information.
 //!
 //! @param[in] control the target
 //! @param[in] model_callback optional callback to intercept models
@@ -1982,7 +1982,7 @@ bool clingo_control_release_external(clingo_control_t *control, clingo_symbol_t 
 //! If the sequential flag is set to true, the propagator is called
 //! sequentially when solving with multiple threads.
 //!
-//! For more information see the @ref Propagator module.
+//! See the @ref Propagator module for more information.
 //!
 //! @param[in] control the target
 //! @param[in] propagator the propagator
@@ -1995,7 +1995,7 @@ bool clingo_control_register_propagator(clingo_control_t *control, clingo_propag
 //!
 //! Statistics are updated after a solve call.
 //!
-//! For more information see the @ref Statistics module.
+//! See the @ref Statistics module for more information.
 //!
 //! @param[in] control the target
 //! @param[out] statistics the statistics object
@@ -2014,7 +2014,7 @@ void clingo_control_interrupt(clingo_control_t *control);
 
 //! Get a configuration object to change the solver configuration.
 //!
-//! For more information see the @ref Configuration module.
+//! See the @ref Configuration module for more information.
 //!
 //! @param[in] control the target
 //! @param[out] configuration the configuration object
@@ -2059,7 +2059,7 @@ bool clingo_control_has_const(clingo_control_t *control, char const *name, bool 
 //! Get an object to inspect symbolic atoms (the relevant Herbrand base) used
 //! for grounding.
 //!
-//! For more information see the @ref SymbolicAtoms module.
+//! See the @ref SymbolicAtoms module for more information.
 //!
 //! @param[in] control the target
 //! @param[out] atoms the symbolic atoms object
@@ -2067,7 +2067,7 @@ bool clingo_control_has_const(clingo_control_t *control, char const *name, bool 
 bool clingo_control_symbolic_atoms(clingo_control_t *control, clingo_symbolic_atoms_t **atoms);
 //! Get an object to inspect theory atoms that occur in the grounding.
 //!
-//! For more information see the @ref TheoryAtoms module.
+//! See the @ref TheoryAtoms module for more information.
 //!
 //! @param[in] control the target
 //! @param[out] atoms the theory atoms object
@@ -2080,7 +2080,7 @@ bool clingo_control_theory_atoms(clingo_control_t *control, clingo_theory_atoms_
 
 //! Get an object to add ground directives to the program.
 //!
-//! For more information see the @ref ProgramBuilder module.
+//! See the @ref ProgramBuilder module for more information.
 //!
 //! @param[in] control the target
 //! @param[out] backend the backend objet
@@ -2089,7 +2089,7 @@ bool clingo_control_theory_atoms(clingo_control_t *control, clingo_theory_atoms_
 bool clingo_control_backend(clingo_control_t *control, clingo_backend_t **backend);
 //! Get an object to add non-ground directives to the program.
 //!
-//! For more information see the @ref ProgramBuilder module.
+//! See the @ref ProgramBuilder module for more information.
 //!
 //! @param[in] control the target
 //! @param[out] builder the program builder objet
