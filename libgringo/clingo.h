@@ -1727,6 +1727,15 @@ bool clingo_program_builder_end(clingo_program_builder_t *bld);
 typedef struct clingo_control clingo_control_t;
 
 //! Struct used to specify the program parts that have to be grounded.
+//!
+//! Programs may be structured into parts, which can be grounded independently with ::clingo_control_ground.
+//! Program parts are mainly interesting for incremental grounding and multi-shot solving.
+//! For single-shot solving, program parts are not needed.
+//!
+//! @note Parts of a logic program without an explicit `#program`
+//! specification are by default put into a program called `base` without
+//! arguments.
+//!
 //! @see clingo_control_ground()
 typedef struct clingo_part {
     char const *name;              //!< name of the program part
@@ -1869,10 +1878,10 @@ bool clingo_control_load(clingo_control_t *control, char const *file);
 //! - ::clingo_error_runtime if parsing fails
 bool clingo_control_add(clingo_control_t *control, char const *name, char const * const * parameters, size_t parameters_size, char const *program);
 
-//! Ground the selected parts of the current (non-ground) logic program.
+//! Ground the selected @link ::clingo_part parts @endlink of the current (non-ground) logic program.
 //!
-//! @note Parts of a logic program without an explicit \#program
-//! specification are by default put into a program called base without
+//! @note Parts of a logic program without an explicit `#program`
+//! specification are by default put into a program called `base` without
 //! arguments.
 //!
 //! @param[in] control the target
@@ -1883,6 +1892,8 @@ bool clingo_control_add(clingo_control_t *control, char const *name, char const 
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - error code of ground callback
+//!
+//! @see clingo_part
 bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t parts_size, clingo_ground_callback_t *ground_callback, void *ground_callback_data);
 
 //! @}
