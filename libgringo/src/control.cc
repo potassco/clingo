@@ -540,9 +540,9 @@ bool Assignment::is_false(literal_t lit) const {
 
 // {{{1 propagate control
 
-literal_t PropagateInit::map_literal(literal_t lit) const {
+literal_t PropagateInit::solver_literal(literal_t lit) const {
     literal_t ret;
-    handleCError(clingo_propagate_init_map_literal(init_, lit, &ret));
+    handleCError(clingo_propagate_init_solver_literal(init_, lit, &ret));
     return ret;
 }
 
@@ -2859,7 +2859,7 @@ extern "C" bool clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms,
 
 // {{{1 propagate init
 
-extern "C" bool clingo_propagate_init_map_literal(clingo_propagate_init_t *init, clingo_literal_t lit, clingo_literal_t *ret) {
+extern "C" bool clingo_propagate_init_solver_literal(clingo_propagate_init_t *init, clingo_literal_t lit, clingo_literal_t *ret) {
     GRINGO_CLINGO_TRY { *ret = init->mapLit(lit); }
     GRINGO_CLINGO_CATCH;
 }

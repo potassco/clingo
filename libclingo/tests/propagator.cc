@@ -146,7 +146,7 @@ private:
     void add_sequence_atom(PropagateInit &init, int sid, TheoryAtom const &atom) {
         reserve(sequence_atoms_, sid);
         assert(sequence_atoms_[sid].literal == 0 && sequence_atoms_[sid].items.empty());
-        sequence_atoms_[sid].literal = init.map_literal(atom.literal());
+        sequence_atoms_[sid].literal = init.solver_literal(atom.literal());
         for (auto elem : atom.elements()) {
             int index = elem.tuple()[0].number();
             assert(index >= 0);
@@ -158,7 +158,7 @@ private:
 
     void add_pattern_atoms(PropagateInit &init, TheoryAtom const &atom) {
         for (auto elem : atom.elements()) {
-            literal_t lit = init.map_literal(elem.condition_id());
+            literal_t lit = init.solver_literal(elem.condition_id());
             auto args = elem.tuple();
             int index = args[0].number();
             assert(index >= 0);
@@ -332,7 +332,7 @@ public:
         state_.clear();
         p2h_[0] = 0;
         for (auto it = init.symbolic_atoms().begin(Signature("place", 2)), ie = init.symbolic_atoms().end(); it != ie; ++it) {
-            literal_t lit = init.map_literal(it->literal());
+            literal_t lit = init.solver_literal(it->literal());
             p = it->symbol().arguments()[0].number();
             h = it->symbol().arguments()[1].number();
             p2h_[lit] = h;
@@ -383,9 +383,9 @@ private:
 class TestAssignment : public Propagator {
 public:
     void init(PropagateInit &init) override {
-        a_ = init.map_literal(init.symbolic_atoms().find(Id("a"))->literal());
-        b_ = init.map_literal(init.symbolic_atoms().find(Id("b"))->literal());
-        c_ = init.map_literal(init.symbolic_atoms().find(Id("c"))->literal());
+        a_ = init.solver_literal(init.symbolic_atoms().find(Id("a"))->literal());
+        b_ = init.solver_literal(init.symbolic_atoms().find(Id("b"))->literal());
+        c_ = init.solver_literal(init.symbolic_atoms().find(Id("c"))->literal());
         init.add_watch(a_);
         init.add_watch(b_);
     }
@@ -430,8 +430,8 @@ private:
 class TestAddClause : public Propagator {
 public:
     void init(PropagateInit &init) override {
-        a_ = init.map_literal(init.symbolic_atoms().find(Id("a"))->literal());
-        b_ = init.map_literal(init.symbolic_atoms().find(Id("b"))->literal());
+        a_ = init.solver_literal(init.symbolic_atoms().find(Id("a"))->literal());
+        b_ = init.solver_literal(init.symbolic_atoms().find(Id("b"))->literal());
         init.add_watch(a_);
         init.add_watch(b_);
     }

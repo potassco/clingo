@@ -772,7 +772,7 @@ class PropagateInit {
 public:
     explicit PropagateInit(clingo_propagate_init_t *init)
     : init_(init) { }
-    literal_t map_literal(literal_t lit) const;
+    literal_t solver_literal(literal_t lit) const;
     void add_watch(literal_t lit);
     int number_of_threads() const;
     SymbolicAtoms symbolic_atoms() const;

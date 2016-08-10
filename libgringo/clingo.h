@@ -986,7 +986,7 @@ bool clingo_theory_atoms_element_condition(clingo_theory_atoms_t *atoms, clingo_
 //! Get the id of the condition of the given theory element.
 //!
 //! @note
-//! This id can be mapped to a solver literal using clingo_propagate_init_map_literal().
+//! This id can be mapped to a solver literal using clingo_propagate_init_solver_literal().
 //! This id is not (necessarily) an aspif literal;
 //! to get aspif literals use clingo_theory_atoms_element_condition().
 //!
@@ -1093,20 +1093,55 @@ bool clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms, clingo_id_
 //! @addtogroup Propagator
 //! @{
 
+//! Object to initialize a used-defined propagator before each solving step.
+//!
+//! Each @link SymbolicAtoms symbolic@endlink or @link TheoryAtoms theory atom@endlink is uniquely associated with an aspif atom in form of a positive integer (@ref ::clingo_literal_t).
+//! Aspif literals additionally are signed to represent default negation.
+//! Furthermore, there are non-zero integer solver literals (also represented using @ref ::clingo_literal_t).
+//! There is a surjective mapping from program atoms to solver literals.
+//!
+//! All methods called during propagation use solver literals whereas clingo_symbolic_atoms_literal() and clingo_theory_atoms_atom_literal() return program literals.
+//! The function clingo_propagate_init_solver_literal() can be used to map program literals or @link clingo_theory_atoms_element_condition_id() condition ids@endlink to solver literals.
 typedef struct clingo_propagate_init clingo_propagate_init_t;
 
 //! @name Initialization Functions
 //! @{
 
-bool clingo_propagate_init_map_literal(clingo_propagate_init_t *init, clingo_literal_t lit, clingo_literal_t *ret);
-bool clingo_propagate_init_add_watch(clingo_propagate_init_t *init, clingo_literal_t lit);
+//! Map the given program literal or condition id to its solver literal.
+//!
+//! @param[in] init the target
+//! @param[in] aspif_literal the aspif literal to map
+//! @param[out] solver_literal the resulting solver literal
+//! @return whether the call was successful
+bool clingo_propagate_init_solver_literal(clingo_propagate_init_t *init, clingo_literal_t aspif_literal, clingo_literal_t *solver_literal);
+//! Add a watch for the solver literal in the given phase.
+//!
+//! @param[in] init the target
+//! @param[out] solver_literal the solver literal
+//! @return whether the call was successful
+bool clingo_propagate_init_add_watch(clingo_propagate_init_t *init, clingo_literal_t solver_literal);
+//! Get an object to inspect the symbolic atoms.
+//!
+//! @param[in] init the target
+//! @param[out] atoms the resulting object
+//! @return whether the call was successful
+bool clingo_propagate_init_symbolic_atoms(clingo_propagate_init_t *init, clingo_symbolic_atoms_t **atoms);
+//! Get an object to inspect the theory atoms.
+//!
+//! @param[in] init the target
+//! @param[out] atoms the resulting object
+//! @return whether the call was successful
+bool clingo_propagate_init_theory_atoms(clingo_propagate_init_t *init, clingo_theory_atoms_t **atoms);
+//! Get the number of threads used in subsequent solving.
+//!
+//! @param[in] init the target
+//! @return the number of threads
+//! @see clingo_propagate_control_thread_id()
 int clingo_propagate_init_number_of_threads(clingo_propagate_init_t *init);
-bool clingo_propagate_init_symbolic_atoms(clingo_propagate_init_t *init, clingo_symbolic_atoms_t **ret);
-bool clingo_propagate_init_theory_atoms(clingo_propagate_init_t *init, clingo_theory_atoms_t **ret);
 
 //! @}
 
-//! Represents a (three-valued) assignment of a particular solver.
+//! Represents a (partial) assignment of a particular solver.
 //!
 //! An assignment assigns truth values to a set of literals.
 //! A literal is assigned to either @link clingo_assignment_truth_value() true or false, or is unassigned@endlink.
@@ -1130,7 +1165,7 @@ uint32_t clingo_assignment_decision_level(clingo_assignment_t *assignment);
 //! @param[in] assignment the target assignment
 //! @return whether the assignment is conflicting
 bool clingo_assignment_has_conflict(clingo_assignment_t *assignment);
-//! Check if the given literal is part of a (three-valued) assignment.
+//! Check if the given literal is part of a (partial) assignment.
 //!
 //! @param[in] assignment the target assignment
 //! @param[in] literal the literal
@@ -1183,30 +1218,136 @@ bool clingo_assignment_truth_value(clingo_assignment_t *assignment, clingo_liter
 
 //! @}
 
+//! Enumeration of clause types determining the lifetime of a clause.
+//!
+//! Clauses in the solver are either cleaned up based on a configurable deletion policy or at the end of a solving step.
+//! The values of this enumeration determine if a clause is subject to one of the above deletion strategies.
 enum clingo_clause_type {
-    clingo_clause_type_learnt          = 0,
-    clingo_clause_type_static          = 1,
-    clingo_clause_type_volatile        = 2,
-    clingo_clause_type_volatile_static = 3
+    clingo_clause_type_learnt          = 0, //!< clause is subject to the solvers deletion policy
+    clingo_clause_type_static          = 1, //!< clause is not subject to the solvers deletion policy
+    clingo_clause_type_volatile        = 2, //!< like ::clingo_clause_type_learnt but the clause is deleted after a solving step
+    clingo_clause_type_volatile_static = 3  //!< like ::clingo_clause_type_static but the clause is deleted after a solving step
 };
+//! Corresponding type to ::clingo_clause_type.
 typedef int clingo_clause_type_t;
 
+//! This object can be used to add clauses and propagate literals while solving.
 typedef struct clingo_propagate_control clingo_propagate_control_t;
 
 //! @name Propagation Functions
 //! @{
 
+//! Get the id of the underlying solver thread.
+//!
+//! Thread ids are consecutive numbers starting with zero.
+//!
+//! @param[in] control the target
+//! @return the thread id
 clingo_id_t clingo_propagate_control_thread_id(clingo_propagate_control_t *control);
+//! Get the assignment associated with the underlying solver.
+//!
+//! @param[in] control the target
+//! @return the assignment
 clingo_assignment_t *clingo_propagate_control_assignment(clingo_propagate_control_t *control);
-bool clingo_propagate_control_add_clause(clingo_propagate_control_t *control, clingo_literal_t const *clause, size_t n, clingo_clause_type_t prop, bool *ret);
-bool clingo_propagate_control_propagate(clingo_propagate_control_t *control, bool *ret);
+//! Add the given clause to the solver.
+//!
+//! This method sets its result to false if the current propagation must be stopped for the solver to backtrack.
+//!
+//! @attention No further calls on the control object or functions on the assignment should be called when the result of this method is false.
+//!
+//! @param[in] control the target
+//! @param[in] clause the clause to add
+//! @param[in] size the size of the clause
+//! @param[in] type the clause type determining its lifetime
+//! @param[out] result result indicating whether propagation has to be stopped
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+bool clingo_propagate_control_add_clause(clingo_propagate_control_t *control, clingo_literal_t const *clause, size_t size, clingo_clause_type_t type, bool *result);
+//! Propagate implied literals (resulting from added clauses).
+//!
+//! This method sets its result to false if the current propagation must be stopped for the solver to backtrack.
+//!
+//! @attention No further calls on the control object or functions on the assignment should be called when the result of this method is false.
+//!
+//! @param[in] control the target
+//! @param[out] result result indicating whether propagation has to be stopped
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+bool clingo_propagate_control_propagate(clingo_propagate_control_t *control, bool *result);
 
 //! @}
 
+//! An instance of this struct has to be registered with a solver to implement a custom propagator.
+//!
+//! Not all callbacks have to be implemented and can be set to NULL if not needed.
+//! @see Propagator
 typedef struct clingo_propagator {
+    //! This function is called once before each solving step.
+    //! It is used to map relevant program literals to solver literals, add watches for solver literals, and initialize the data structures used during propagation.
+    //!
+    //! @note This is the last point to access symbolic and theory atoms.
+    //! Once the search has started, they are no longer accessible.
+    //!
+    //! @param[in] control control object for the target solver
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
     bool (*init) (clingo_propagate_init_t *control, void *data);
-    bool (*propagate) (clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t n, void *data);
-    bool (*undo) (clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t n, void *data);
+    //! Can be used to propagate solver literals given a @link clingo_assignment_t partial assignment@endlink.
+    //!
+    //! Called during propagation with a non-empty array of @link clingo_propagate_init_add_watch() watched solver literals@endlink
+    //! that have been assigned to true since the last call to either propagate, undo, (or the start of the search) - the change set.
+    //! Only watched solver literals are contained in the change set.
+    //! Each literal in the change set is true w.r.t. the current @link clingo_assignment_t assignment@endlink.
+    //! @ref clingo_propagate_control_add_clause() can be used to add clauses.
+    //! If a clause is unit resulting, it can be propagated using @ref clingo_propagate_control_propagate().
+    //! If the result of either of the two methods is false, the propagate function must return immediately.
+    //!
+    //! The following snippet shows how to use the methods to add clauses and propagate consequences within the callback.
+    //! The important point is to return true (true to indicate there was no error) if the result of either of the methods is false.
+    //! ~~~~~~~~~~~~~~~{.c}
+    //! bool result;
+    //! clingo_literal_t clause[] = { ... };
+    //!
+    //! // add a clause
+    //! if (!clingo_propagate_control_add_clause(control, clause, clingo_clause_type_learnt, &result) { return false; }
+    //! if (!result) { return true; }
+    //! // propagate its consequences
+    //! if (!clingo_propagate_control_propagate(control, &result) { return false; }
+    //! if (!result) { return true; }
+    //!
+    //! // add further clauses and propagate them
+    //! ...
+    //!
+    //! return true;
+    //! ~~~~~~~~~~~~~~~
+    //!
+    //! @note
+    //! This function can be called from different solving threads.
+    //! Each thread has its own assignment and id, which can be obtained using @ref clingo_propagate_control_thread_id().
+    //!
+    //! @param[in] control control object for the target solver
+    //! @param[in] changes the change set
+    //! @param[in] size the size of the change set
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*propagate) (clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, void *data);
+    //! Called whenever a solver undos assignments to watched solver literals.
+    //!
+    //! This callback is meant to update assignment dependend state in the propagator.
+    //!
+    //! @note No clauses must be propagated in this callback.
+    //!
+    //! @param[in] control control object for the target solver
+    //! @param[in] changes the change set
+    //! @param[in] size the size of the change set
+    //! @param[in] data user data for the callback
+    bool (*undo) (clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, void *data);
+    //! This function is similar to @ref clingo_propagate_control_propagate() but is only called on total assignments without a change set.
+    //!
+    //! @note This function is called even if no watches have been added.
+    //! @param[in] control control object for the target solver
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
     bool (*check) (clingo_propagate_control_t *control, void *data);
 } clingo_propagator_t;
 
@@ -2038,7 +2179,8 @@ typedef bool clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t sy
 //!     clingo_symbol_create_number(42, &sym);
 //!     return symbol_callback(&sym, 1, symbol_callback_data);
 //!   }
-//!   return 0;
+//!   clingo_set_error(clingo_error_runtime, "function not found");
+//!   return false;
 //! }
 //! ~~~~~~~~~~~~~~~
 
