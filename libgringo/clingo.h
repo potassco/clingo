@@ -992,8 +992,7 @@ bool clingo_theory_atoms_element_condition(clingo_theory_atoms_t *atoms, clingo_
 //!
 //! @param[in] atoms container where the element is stored
 //! @param[in] element id of the element
-//! @param[out] condition the resulting array of aspif literals
-//! @param[out] size the number of term literals
+//! @param[out] condition the resulting condition id
 //! @return whether the call was successful
 bool clingo_theory_atoms_element_condition_id(clingo_theory_atoms_t *atoms, clingo_id_t element, clingo_literal_t *condition);
 //! Get the size of the string representation of the given theory element (including the terminating 0).
@@ -1095,22 +1094,94 @@ bool clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms, clingo_id_
 //! @{
 
 typedef struct clingo_propagate_init clingo_propagate_init_t;
+
+//! @name Initialization Functions
+//! @{
+
 bool clingo_propagate_init_map_literal(clingo_propagate_init_t *init, clingo_literal_t lit, clingo_literal_t *ret);
 bool clingo_propagate_init_add_watch(clingo_propagate_init_t *init, clingo_literal_t lit);
 int clingo_propagate_init_number_of_threads(clingo_propagate_init_t *init);
 bool clingo_propagate_init_symbolic_atoms(clingo_propagate_init_t *init, clingo_symbolic_atoms_t **ret);
 bool clingo_propagate_init_theory_atoms(clingo_propagate_init_t *init, clingo_theory_atoms_t **ret);
 
+//! @}
+
+//! Represents a (three-valued) assignment of a particular solver.
+//!
+//! An assignment assigns truth values to a set of literals.
+//! A literal is assigned to either @link clingo_assignment_truth_value() true or false, or is unassigned@endlink.
+//! Furthermore, each assigned literal is associated with a @link clingo_assignment_level() decision level@endlink.
+//! There is exactly one @link clingo_assignment_decision() decision literal@endlink for each decision level greater than zero.
+//! Assignments to all other literals on the same level are consequences implied by the current and possibly previous decisions.
+//! Assignments on level zero are immediate consequences of the current program.
+//! Decision levels are consecutive numbers starting with zero up to and including the @link clingo_assignment_decision_level() current decision level@endlink.
 typedef struct clingo_assignment clingo_assignment_t;
-bool clingo_assignment_has_conflict(clingo_assignment_t *ass);
-uint32_t clingo_assignment_decision_level(clingo_assignment_t *ass);
-bool clingo_assignment_has_literal(clingo_assignment_t *ass, clingo_literal_t lit);
-bool clingo_assignment_truth_value(clingo_assignment_t *ass, clingo_literal_t lit, clingo_truth_value_t *ret);
-bool clingo_assignment_level(clingo_assignment_t *ass, clingo_literal_t lit, uint32_t *ret);
-bool clingo_assignment_decision(clingo_assignment_t *ass, uint32_t level, clingo_literal_t *ret);
-bool clingo_assignment_is_fixed(clingo_assignment_t *ass, clingo_literal_t lit, bool *ret);
-bool clingo_assignment_is_true(clingo_assignment_t *ass, clingo_literal_t lit, bool *ret);
-bool clingo_assignment_is_false(clingo_assignment_t *ass, clingo_literal_t lit, bool *ret);
+
+//! @name Assignment Functions
+//! @{
+
+//! Get the current decision level.
+//!
+//! @param[in] assignment the target assignment
+//! @return the decision level
+uint32_t clingo_assignment_decision_level(clingo_assignment_t *assignment);
+//! Check if the given assignment is conflicting.
+//!
+//! @param[in] assignment the target assignment
+//! @return whether the assignment is conflicting
+bool clingo_assignment_has_conflict(clingo_assignment_t *assignment);
+//! Check if the given literal is part of a (three-valued) assignment.
+//!
+//! @param[in] assignment the target assignment
+//! @param[in] literal the literal
+//! @return whether the literal is valid
+bool clingo_assignment_has_literal(clingo_assignment_t *assignment, clingo_literal_t literal);
+//! Determine the decision level of a given literal.
+//!
+//! @param[in] assignment the target assignment
+//! @param[in] literal the literal
+//! @param[out] level the resulting level
+//! @return whether the call was successful
+bool clingo_assignment_level(clingo_assignment_t *assignment, clingo_literal_t literal, uint32_t *level);
+//! Determine the decision literal given a decision level.
+//!
+//! @param[in] assignment the target assignment
+//! @param[in] level the level
+//! @param[out] literal the resulting literal
+//! @return whether the call was successful
+bool clingo_assignment_decision(clingo_assignment_t *assignment, uint32_t level, clingo_literal_t *literal);
+//! Check if a literal has a fixed truth value.
+//!
+//! @param[in] assignment the target assignment
+//! @param[in] literal the literal
+//! @param[out] is_fixed whether the literal is fixed
+//! @return whether the call was successful
+bool clingo_assignment_is_fixed(clingo_assignment_t *assignment, clingo_literal_t literal, bool *is_fixed);
+//! Check if a literal is true.
+//!
+//! @param[in] assignment the target assignment
+//! @param[in] literal the literal
+//! @param[out] is_true whether the literal is true
+//! @return whether the call was successful
+//! @see clingo_assignment_truth_value()
+bool clingo_assignment_is_true(clingo_assignment_t *assignment, clingo_literal_t literal, bool *is_true);
+//! Check if a literal has a fixed truth value.
+//!
+//! @param[in] assignment the target assignment
+//! @param[in] literal the literal
+//! @param[out] is_false whether the literal is false
+//! @return whether the call was successful
+//! @see clingo_assignment_truth_value()
+bool clingo_assignment_is_false(clingo_assignment_t *assignment, clingo_literal_t literal, bool *is_false);
+//! Determine the truth value of a given literal.
+//!
+//! @param[in] assignment the target assignment
+//! @param[in] literal the literal
+//! @param[out] value the resulting truth value
+//! @return whether the call was successful
+bool clingo_assignment_truth_value(clingo_assignment_t *assignment, clingo_literal_t literal, clingo_truth_value_t *value);
+
+//! @}
 
 enum clingo_clause_type {
     clingo_clause_type_learnt          = 0,
@@ -1121,10 +1192,16 @@ enum clingo_clause_type {
 typedef int clingo_clause_type_t;
 
 typedef struct clingo_propagate_control clingo_propagate_control_t;
+
+//! @name Propagation Functions
+//! @{
+
 clingo_id_t clingo_propagate_control_thread_id(clingo_propagate_control_t *control);
 clingo_assignment_t *clingo_propagate_control_assignment(clingo_propagate_control_t *control);
 bool clingo_propagate_control_add_clause(clingo_propagate_control_t *control, clingo_literal_t const *clause, size_t n, clingo_clause_type_t prop, bool *ret);
 bool clingo_propagate_control_propagate(clingo_propagate_control_t *control, bool *ret);
+
+//! @}
 
 typedef struct clingo_propagator {
     bool (*init) (clingo_propagate_init_t *control, void *data);
@@ -1902,7 +1979,7 @@ typedef struct clingo_control clingo_control_t;
 //! Program parts are mainly interesting for incremental grounding and multi-shot solving.
 //! For single-shot solving, program parts are not needed.
 //!
-//! @note Parts of a logic program without an explicit `#program`
+//! @note Parts of a logic program without an explicit <tt>\#program</tt>
 //! specification are by default put into a program called `base` without
 //! arguments.
 //!
@@ -2055,7 +2132,7 @@ bool clingo_control_add(clingo_control_t *control, char const *name, char const 
 //!
 //! After grounding, logic programs can be solved with ::clingo_control_solve.
 //!
-//! @note Parts of a logic program without an explicit `#program`
+//! @note Parts of a logic program without an explicit <tt>\#program</tt>
 //! specification are by default put into a program called `base` without
 //! arguments.
 //!
@@ -2212,7 +2289,7 @@ bool clingo_control_use_enumeration_assumption(clingo_control_t *control, bool e
 //! @name Program Inspection Functions
 //! @{
 
-//! Return the symbol for a constant definition of form: `#const name = symbol`.
+//! Return the symbol for a constant definition of form: <tt>\#const name = symbol</tt>.
 //!
 //! @param[in] control the target
 //! @param[in] name the name of the constant
