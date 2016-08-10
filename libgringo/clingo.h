@@ -1085,9 +1085,21 @@ bool clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms, clingo_id_
 
 // {{{1 propagator
 
+//! @example propagator.c
+//! The example shows how to write a simple propagator.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! TODO!!!!!!!!
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
+
 //! @defgroup Propagator Theory Propagation
 //! Extend the search with propagators for arbitrary theories.
 //!
+//! For an example, see @ref propagator.c.
 //! @ingroup Control
 
 //! @addtogroup Propagator
