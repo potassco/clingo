@@ -1,6 +1,8 @@
 #include <clingo.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <assert.h>
 
 bool on_model(clingo_model_t *model, void *data, bool *goon) {
   (void)data;
@@ -73,85 +75,115 @@ typedef struct {
 typedef struct {
     // mapping from aspif literals capturing pigeon placements to hole numbers
     // (aspif literal -> hole number or zero)
-    clingo_literal_t *pigeons;
+    int *pigeons;
     size_t pigeons_size;
     // array of states
-    clingo_literal_t **states;
+    state_t *states;
     size_t states_size;
 } pigeon_propagator_t;
 
+bool get_arg(clingo_symbol_t sym, int offset, int *num) {
+    clingo_symbol_t const *args;
+    size_t args_size;
+    if (!clingo_symbol_arguments(sym, &args, &args_size)) { return false; }
+    if (!clingo_symbol_number(args[offset], num)) { return false; }
+    return true;
+}
+
 bool init(clingo_propagate_init_t *init, pigeon_propagator_t *data) {
-    printf("%s\n", "init!!!!");
-    clingo_set_error(clingo_error_logic, "implement me!!!");
-    return false;
-}
-
-bool propagate(clingo_propagate_control_t *init, const clingo_literal_t *changes, size_t size, pigeon_propagator_t *data) {
-    clingo_set_error(clingo_error_logic, "implement me!!!");
-    return false;
-}
-
-bool undo(clingo_propagate_control_t *init, const clingo_literal_t *changes, size_t size, pigeon_propagator_t *data) {
-    clingo_set_error(clingo_error_logic, "implement me!!!");
-    return false;
-}
-/*
-class PigeonPropagator : public Propagator {
-public:
-    void init(PropagateInit &init) override {
-        unsigned nHole = 0, nPig = 0, nWatch = 0, p, h;
-        state_.clear();
-        p2h_[0] = 0;
-        for (auto it = init.symbolic_atoms().begin(Signature("place", 2)), ie = init.symbolic_atoms().end(); it != ie; ++it) {
-            literal_t lit = init.solver_literal(it->literal());
-            p = it->symbol().arguments()[0].number();
-            h = it->symbol().arguments()[1].number();
-            p2h_[lit] = h;
-            init.add_watch(lit);
-            nHole = std::max(h, nHole);
-            nPig  = std::max(p, nPig);
-            ++nWatch;
-        }
-        assert(p2h_[0] == 0);
-        for (unsigned i = 0, end = init.number_of_threads(); i != end; ++i) {
-            state_.emplace_back(nHole + 1, 0);
-            assert(state_.back().size() == nHole + 1);
-        }
+    int holes = 0;
+    size_t threads = clingo_propagate_init_number_of_threads(init);
+    clingo_literal_t max = 0;
+    clingo_symbolic_atoms_t *atoms;
+    clingo_signature_t sig;
+    clingo_symbolic_atom_iterator_t atoms_it, atoms_ie;
+    if (data->states != NULL) {
+        clingo_set_error(clingo_error_runtime, "multi-shot solving is not supported");
+        return false;
     }
-    void propagate(PropagateControl &ctl, LiteralSpan changes) override {
-        assert(ctl.thread_id() < state_.size());
-        Hole2Lit& holes = state_[ctl.thread_id()];
-        for (literal_t lit : changes) {
-            literal_t& prev = holes[ p2h_[lit] ];
-            if (prev == 0) { prev = lit; }
+    if (!(data->states = (state_t*)malloc(sizeof(*data->states) * threads))) {
+        clingo_set_error(clingo_error_bad_alloc, "allocation failed");
+        return false;
+    }
+    memset(data->states, 0, sizeof(*data->states) * threads);
+    data->states_size = threads;
+
+    if (!clingo_propagate_init_symbolic_atoms(init, &atoms)) { return false; }
+    if (!clingo_signature_create("place", 2, true, &sig)) { return false; }
+    if (!clingo_symbolic_atoms_end(atoms, &atoms_ie)) { return false; }
+    for (int pass = 0; pass < 2; ++pass) {
+        if (!clingo_symbolic_atoms_begin(atoms, &sig, &atoms_it)) { return false; }
+        if (pass == 1) {
+            if (!(data->pigeons = (int*)malloc(sizeof(*data->pigeons) * (max + 1)))) {
+                clingo_set_error(clingo_error_bad_alloc, "allocation failed");
+                return false;
+            }
+            data->pigeons_size = max + 1;
+        }
+        while (true) {
+            int h;
+            bool equal;
+            clingo_literal_t lit;
+            clingo_symbol_t sym;
+            if (!clingo_symbolic_atoms_iterator_is_equal_to(atoms, atoms_it, atoms_ie, &equal)) { return false; }
+            if (equal) { break; }
+            if (!clingo_symbolic_atoms_literal(atoms, atoms_it, &lit)) { return false; }
+            if (!clingo_propagate_init_solver_literal(init, lit, &lit)) { return false; }
+            if (pass == 0) {
+                assert(lit > 0);
+                if (lit > max) { max = lit; }
+            }
             else {
-                if (!ctl.add_clause({-lit, -prev}) || !ctl.propagate()) {
-                    return;
-                }
-                assert(false);
+                if (!clingo_symbolic_atoms_symbol(atoms, atoms_it, &sym)) { return false; }
+                if (!get_arg(sym, 1, &h)) { return false; }
+                data->pigeons[lit] = h;
+                if (!clingo_propagate_init_add_watch(init, lit)) { return false; }
+                if (h > holes)   { holes = h; }
             }
+            if (!clingo_symbolic_atoms_next(atoms, atoms_it, &atoms_it)) { return false; }
         }
     }
-    void undo(PropagateControl const &ctl, LiteralSpan undo) override {
-        assert(ctl.thread_id() < state_.size());
-        Hole2Lit& holes = state_[ctl.thread_id()];
-        for (literal_t lit : undo) {
-            unsigned hole = p2h_[lit];
-            if (holes[hole] == lit) {
-                holes[hole] = 0;
-            }
+    for (size_t i = 0; i < threads; ++i) {
+        if (!(data->states[i].holes = (clingo_literal_t*)malloc(sizeof(*data->states[i].holes) * (holes + 1)))) {
+            clingo_set_error(clingo_error_bad_alloc, "allocation failed");
+            return false;
+        }
+        memset(data->states[i].holes, 0, sizeof(*data->states[i].holes) * (holes + 1));
+        data->states[i].size = holes + 1;
+    }
+    return true;
+}
+
+bool propagate(clingo_propagate_control_t *control, const clingo_literal_t *changes, size_t size, pigeon_propagator_t *data) {
+    state_t state = data->states[clingo_propagate_control_thread_id(control)];
+    for (size_t i = 0; i < size; ++i) {
+        clingo_literal_t lit = changes[i];
+        clingo_literal_t *prev = state.holes + data->pigeons[lit];
+        if (*prev == 0) { *prev = lit; }
+        else {
+            clingo_literal_t clause[] = { -lit, -*prev };
+            bool result;
+            if (!clingo_propagate_control_add_clause(control, clause, sizeof(clause)/sizeof(*clause), clingo_clause_type_learnt, &result)) { return false; }
+            if (!result) { return true; }
+            if (!clingo_propagate_control_propagate(control, &result)) { return false; }
+            if (!result) { return true; }
+            assert(false);
         }
     }
-private:
-    using Lit2Hole = std::unordered_map<literal_t, unsigned>;
-    using Hole2Lit = std::vector<literal_t>;
-    using State    = std::vector<Hole2Lit>;
+    return true;
+}
 
-    Lit2Hole p2h_;
-    State    state_;
-};
-
-*/
+bool undo(clingo_propagate_control_t *control, const clingo_literal_t *changes, size_t size, pigeon_propagator_t *data) {
+    state_t state = data->states[clingo_propagate_control_thread_id(control)];
+    for (size_t i = 0; i < size; ++i) {
+        clingo_literal_t lit = changes[i];
+        int hole = data->pigeons[lit];
+        if (state.holes[hole] == lit) {
+            state.holes[hole] = 0;
+        }
+    }
+    return true;
+}
 
 int main(int argc, char const **argv) {
   char const *error_message;
@@ -196,7 +228,15 @@ error:
   ret = clingo_error_code();
 
 out:
-  // TODO: free prop_data
+  if (prop_data.pigeons) { free(prop_data.pigeons); }
+  if (prop_data.states_size > 0) {
+      for (size_t i = 0; i < prop_data.states_size; ++i) {
+          if (prop_data.states[i].holes) {
+              free(prop_data.states[i].holes);
+          }
+      }
+      free(prop_data.states);
+  }
   if (ctl) { clingo_control_free(ctl); }
 
   return ret;
