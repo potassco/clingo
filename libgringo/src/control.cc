@@ -2482,8 +2482,8 @@ void parse_program(char const *program, StatementCallback cb, Logger logger, uns
 
 extern "C" void clingo_set_error(clingo_error_t code, char const *message) {
     g_lastCode = code;
-    try         { g_lastMessage = message; }
-    catch (...) { g_lastMessage.clear(); }
+    try         { g_lastException = std::make_exception_ptr(std::runtime_error(message)); }
+    catch (...) { g_lastException = nullptr; }
 }
 extern "C" char const *clingo_error_message() {
     if (g_lastException) {
