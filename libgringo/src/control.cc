@@ -3450,19 +3450,19 @@ public:
     : prop_(prop)
     , data_(data) { }
     void init(Gringo::PropagateInit &init) override {
-        if (!prop_.init(&init, data_)) { throw ClingoError(); }
+        if (prop_.init && !prop_.init(&init, data_)) { throw ClingoError(); }
     }
 
     void propagate(Potassco::AbstractSolver& solver, const ChangeList& changes) override {
-        if (!prop_.propagate(static_cast<clingo_propagate_control_t*>(&solver), changes.first, changes.size, data_)) { throw ClingoError(); }
+        if (prop_.propagate && !prop_.propagate(static_cast<clingo_propagate_control_t*>(&solver), changes.first, changes.size, data_)) { throw ClingoError(); }
     }
 
     void undo(const Potassco::AbstractSolver& solver, const ChangeList& undo) override {
-        if (!prop_.undo(static_cast<clingo_propagate_control_t*>(&const_cast<Potassco::AbstractSolver&>(solver)), undo.first, undo.size, data_)) { throw ClingoError(); }
+        if (prop_.undo && !prop_.undo(static_cast<clingo_propagate_control_t*>(&const_cast<Potassco::AbstractSolver&>(solver)), undo.first, undo.size, data_)) { throw ClingoError(); }
     }
 
     void check(Potassco::AbstractSolver& solver) override {
-        if (!prop_.check(static_cast<clingo_propagate_control_t*>(&solver), data_)) { throw ClingoError(); }
+        if (prop_.check && !prop_.check(static_cast<clingo_propagate_control_t*>(&solver), data_)) { throw ClingoError(); }
     }
 private:
     clingo_propagator_t prop_;
