@@ -70,30 +70,26 @@ public:
 	struct Options {
 		Options() : lbdMax(UINT32_MAX), domOut(false), logText(false) {}
 		uint32 lbdMax;  // only log lemmas with lbd <= lbdMax
-		bool   domOut;  // only log lemmas that be expressed over out variables
+		bool   domOut;  // only log lemmas that can be expressed over out variables
 		bool   logText; // log lemmas in ground lp format
 	};
 	LemmaLogger(const std::string& outFile, const Options& opts);
 	~LemmaLogger();
-	void start(ProgramBuilder& prg);
+	void startStep(ProgramBuilder& prg, bool inc);
 	void add(const Solver& s, const LitVec& cc, const ConstraintInfo& info);
 	void close();
 private:
-	typedef PodVector<char>::type BufT;
 	typedef PodVector<uint32>::type Var2Idx;
 	LemmaLogger(const LemmaLogger&);
 	LemmaLogger& operator=(const LemmaLogger&);
-	void formatDimacs(const LitVec& cc, uint32 lbd, BufT& out) const;
-	void formatOpb(const LitVec& cc, uint32 lbd, BufT& out)    const;
-	void formatAspif(const LitVec& cc, uint32 lbd, BufT& out)  const;
-	void formatText(const LitVec& cc, const OutputTable& tab, uint32 lbd, BufT& out) const;
-	void append(BufT& out, const char* fmt, int data) const;
-	void appendText(BufT& out, const char* str) const;
+	void formatAspif(const LitVec& cc, uint32 lbd)  const;
+	void formatText(const LitVec& cc, const OutputTable& tab, uint32 lbd) const;
 	FILE*            str_;
 	Potassco::LitVec solver2asp_;
 	Var2Idx          solver2NameIdx_;
 	ProblemType      inputType_;
 	Options          options_;
+	int              step_;
 };
 /////////////////////////////////////////////////////////////////////////////////////////
 // clasp specific application options
@@ -107,6 +103,7 @@ struct ClaspAppOptions {
 	bool validateOptions(const ProgramOptions::ParsedOptions& parsed);
 	StringSeq   input;     // list of input files - only first used!
 	std::string lemmaLog;  // optional file name for writing learnt lemmas
+	std::string lemmaIn;   // optional file name for reading learnt lemmas
 	std::string hccOut;    // optional file name for writing scc programs
 	std::string outAtom;   // optional format string for atoms
 	uint32      outf;      // output format
@@ -167,18 +164,21 @@ protected:
 	void printTemplate()                    const;
 	void printDefaultConfigs()              const;
 	void printLibClaspVersion()             const;
-	std::istream&   getStream();
+	std::istream& getStream();
 	// -------------------------------------------------------------------------------------------  
 	// Functions called in handlePreSolveOptions()
 	void writeNonHcfs(const PrgDepGraph& graph) const;
+	typedef Potassco::ProgramReader     LemmaReader;
 	typedef SingleOwnerPtr<Output>      OutPtr;
 	typedef SingleOwnerPtr<ClaspFacade> ClaspPtr;
 	typedef SingleOwnerPtr<LemmaLogger> LogPtr;
+	typedef SingleOwnerPtr<LemmaReader> LemmaPtr;
 	ClaspCliConfig  claspConfig_;
 	ClaspAppOptions claspAppOpts_;
 	ClaspPtr        clasp_;
 	OutPtr          out_;
 	LogPtr          logger_;
+	LemmaPtr        lemmaIn_;
 };
 /////////////////////////////////////////////////////////////////////////////////////////
 // clasp application

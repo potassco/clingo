@@ -21,6 +21,7 @@
 #include <clasp/solver.h>
 #include <clasp/dependency_graph.h>
 #include <clasp/parser.h>
+#include <potassco/aspif.h>
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
@@ -83,6 +84,7 @@ void ClaspAppOptions::initOptions(ProgramOptions::OptionContext& root) {
 		("out-atomf,@1" , storeTo(outAtom), "Set atom format string (<Pre>?%%s<Post>?)")
 		("out-ifs,@1"   , notify(this, &ClaspAppOptions::mappedOpts), "Set internal field separator")
 		("out-hide-aux,@1" , flag(hideAux), "Hide auxiliary atoms in answers")
+		("lemma-in,@1"     , storeTo(lemmaIn)->arg("<file>"), "Read additional lemmas from %A")
 		("lemma-out,@1"    , storeTo(lemmaLog)->arg("<file>"), "Log learnt lemmas to %A")
 		("lemma-out-lbd,@1", storeTo(lemma.lbdMax)->arg("<n>"), "Only log lemmas with lbd <= %A")
 		("lemma-out-dom,@1", notify(this, &ClaspAppOptions::mappedOpts), "Log lemmas over <arg {input|output}> variables")
@@ -157,9 +159,13 @@ void ClaspAppBase::validateOptions(const ProgramOptions::OptionContext&, const P
 	}
 	ClaspAppOptions& app = claspAppOpts_;
 	if (!app.lemmaLog.empty() && !isStdOut(app.lemmaLog)) {
-		if (std::find(app.input.begin(), app.input.end(), app.lemmaLog) != app.input.end()) {
+		if (std::find(app.input.begin(), app.input.end(), app.lemmaLog) != app.input.end() || app.lemmaIn == app.lemmaLog) {
 			throw Error("'lemma-out': cowardly refusing to overwrite input file!");
 		}
+	}
+	if (!app.lemmaIn.empty() && !isStdIn(app.lemmaIn) && !std::ifstream(app.lemmaIn.c_str()).is_open()) {
+		error("'lemma-in': could not open file!");
+		exit(E_NO_RUN);
 	}
 	for (std::size_t i = 1; i < app.input.size(); ++i) {
 		if (!isStdIn(app.input[i]) && !std::ifstream(app.input[i].c_str()).is_open()) {
@@ -194,6 +200,7 @@ void ClaspAppBase::setup() {
 void ClaspAppBase::shutdown() {
 	if (!clasp_.get()) { return; }
 	if (logger_.get()) { logger_->close(); }
+	lemmaIn_ = 0;
 	const ClaspFacade::Summary& result = clasp_->shutdown();
 	if (shutdownTime_g) {
 		shutdownTime_g += RealTime::getTime();
@@ -433,10 +440,30 @@ void ClaspAppBase::handleStartOptions(ClaspFacade& clasp) {
 		Potassco::Lit_t lit = Potassco::neg(claspAppOpts_.compute);
 		static_cast<Asp::LogicProgram*>(clasp.program())->addRule(Potassco::Head_t::Disjunctive, Potassco::toSpan<Potassco::Atom_t>(), Potassco::toSpan(&lit, 1));
 	}
+	if (!claspAppOpts_.lemmaIn.empty()) {
+		class LemmaIn : public Potassco::AspifInput {
+		public:
+			typedef Potassco::AbstractProgram PrgAdapter;
+			LemmaIn(const std::string& fn, PrgAdapter* prg) : Potassco::AspifInput(*prg), prg_(prg) {
+				if (!isStdIn(fn)) { file_.open(fn.c_str()); }
+				CLASP_FAIL_IF(!accept(getStream()), "'lemma-in': invalid input file");
+			}
+			~LemmaIn() { delete prg_; }
+		private:
+			std::istream& getStream() { return file_.is_open() ? file_ : std::cin; }
+			PrgAdapter*   prg_;
+			std::ifstream file_;
+		};
+		SingleOwnerPtr<Potassco::AbstractProgram> prgTemp;
+		if (clasp.program()->type() == Problem_t::Asp) { prgTemp = new Asp::LogicProgramAdapter(*static_cast<Asp::LogicProgram*>(clasp.program())); }
+		else { prgTemp = new BasicProgramAdapter(*clasp.program()); }
+		lemmaIn_ = new LemmaIn(claspAppOpts_.lemmaIn, prgTemp.release());
+	}
 }
 bool ClaspAppBase::handlePostGroundOptions(ProgramBuilder& prg) {
 	if (!claspAppOpts_.onlyPre) { 
-		if (logger_.get()) { logger_->start(prg); }
+		if (lemmaIn_.get()) { lemmaIn_->parse(); }
+		if (logger_.get())  { logger_->startStep(prg, clasp_->incremental()); }
 		return true; 
 	}
 	prg.endProgram();
@@ -488,11 +515,17 @@ void ClaspApp::printHelp(const ProgramOptions::OptionContext& root) {
 LemmaLogger::LemmaLogger(const std::string& to, const Options& o)
 	: str_(isStdOut(to) ? stdout : fopen(to.c_str(), "w"))
 	, inputType_(Problem_t::Asp)
-	, options_(o) {
+	, options_(o)
+	, step_(0) {
 	CLASP_FAIL_IF(!str_, "Could not open lemma log file '%s'!", to.c_str());
 }
 LemmaLogger::~LemmaLogger() { close(); }
-void LemmaLogger::start(ProgramBuilder& prg) {
+void LemmaLogger::startStep(ProgramBuilder& prg, bool inc) {
+	++step_;
+	if (!options_.logText) {
+		if (step_ == 1) { fprintf(str_, "asp 1 0 0%s\n", inc ? " incremental" : ""); }
+		else            { fprintf(str_, "0\n"); }
+	}
 	if ((inputType_ = static_cast<Problem_t::Type>(prg.type())) == Problem_t::Asp && prg.endProgram()) {
 		// create solver variable to potassco literal mapping
 		Asp::LogicProgram& asp = static_cast<Asp::LogicProgram&>(prg);
@@ -529,88 +562,61 @@ void LemmaLogger::add(const Solver& s, const LitVec& cc, const ConstraintInfo& i
 		if (!s.resolveToFlagged(cc, vf, temp, lbd) || lbd > options_.lbdMax) { return; }
 		out = &temp;
 	}
-	PodVector<char>::type buf;
-	buf.reserve(cc.size() * 2);
-	if (options_.logText) {
-		formatText(*out, s.sharedContext()->output, lbd, buf);
-	}
-	else {
-		switch (inputType_) {
-			case Problem_t::Asp: formatAspif(*out, lbd, buf);  break;
-			case Problem_t::Sat: formatDimacs(*out, lbd, buf); break;
-			case Problem_t::Pb:  formatOpb(*out, lbd, buf);    break;
-			default: break;
-		}
-	}
-	if (!buf.empty()) { fwrite(&buf[0], sizeof(char), buf.size(), str_); }
+	if (options_.logText) { formatText(*out, s.sharedContext()->output, lbd); }
+	else                  { formatAspif(*out, lbd); }
 }
-void LemmaLogger::append(BufT& out, const char* fmt, int data) const {
-	char temp[1024];
-	int w = snprintf(temp, sizeof(temp), fmt, data);
-	CLASP_FAIL_IF(w < 0 || w >= (int)sizeof(temp), "Invalid format!");
-	out.insert(out.end(), temp, temp + w);
-}
-void LemmaLogger::appendText(BufT& out, const char* txt) const {
-	out.insert(out.end(), txt, txt + std::strlen(txt));
-}
-void LemmaLogger::formatDimacs(const LitVec& cc, uint32, BufT& buf) const {
-	for (LitVec::const_iterator it = cc.begin(), end = cc.end(); it != end; ++it) {
-		append(buf, "%d ", toInt(*it));
-	}
-	append(buf, "%d\n", 0);
-}
-void LemmaLogger::formatOpb(const LitVec& cc, uint32, BufT& buf) const {
-	for (LitVec::const_iterator it = cc.begin(), end = cc.end(); it != end; ++it) {
-		append(buf, "%+d ", it->sign() ? -1 : 1);
-		append(buf, "x%d ", Potassco::atom(toInt(*it)));
-	}
-	append(buf, ">= %d;\n", 1);
-}
-void LemmaLogger::formatAspif(const LitVec& cc, uint32, BufT& out) const {
-	append(out, "1 0 0 0 %d", (int)cc.size());
+void LemmaLogger::formatAspif(const LitVec& cc, uint32) const {
+	char temp[20];
+	std::string out; out.reserve((cc.size() * 10) + 8);
+	out.append(clasp_format(temp, sizeof(temp), "1 0 0 0 %u", (uint32)cc.size()));
 	for (LitVec::const_iterator it = cc.begin(), end = cc.end(); it != end; ++it) {
 		Literal sLit = ~*it; // clause -> constraint
-		Potassco::Lit_t a = sLit.var() < solver2asp_.size() ? solver2asp_[sLit.var()] : 0;
-		if (!a) { out.clear(); return; }
-		if (sLit.sign() != (a < 0)) { a = -a; }
-		append(out, " %d", a);
+		Potassco::Lit_t a = toInt(sLit);
+		if (inputType_ == Problem_t::Asp) {
+			a = sLit.var() < solver2asp_.size() ? solver2asp_[sLit.var()] : 0;
+			if (!a) { return; }
+			if (sLit.sign() != (a < 0)) { a = -a; }
+		}
+		out.append(clasp_format(temp, sizeof(temp), " %d", a));
 	}
-	out.push_back('\n');
+	out.append(1, '\n');
+	fwrite(out.c_str(), sizeof(char), out.size(), str_);
 }
-void LemmaLogger::formatText(const LitVec& cc, const OutputTable& tab, uint32 lbd, BufT& out) const {
-	appendText(out, ":-");
-	const char* sep = " ";
+void LemmaLogger::formatText(const LitVec& cc, const OutputTable& tab, uint32 lbd) const {
+	std::string out; out.reserve(std::max(uint32(cc.size() * 10), uint32(1024)));
+	const char* sep = ":- ";
+	char temp[40];
 	for (LitVec::const_iterator it = cc.begin(), end = cc.end(); it != end; ++it) {
 		Literal sLit = ~*it; // clause -> constraint
 		uint32 idx = sLit.var() < solver2NameIdx_.size() ? solver2NameIdx_[sLit.var()] : UINT32_MAX;
-		appendText(out, sep);
+		out.append(sep);
+		sep = ", ";
 		if (idx != UINT32_MAX) {
 			const OutputTable::PredType& p = *(tab.pred_begin() + idx);
 			assert(sLit.var() == p.cond.var());
-			if (sLit.sign() != p.cond.sign()) { appendText(out, "not "); }
-			appendText(out, p.name.c_str());
+			if (sLit.sign() != p.cond.sign()) { out.append("not "); }
+			out.append(p.name.c_str());
 		}
 		else {
 			if (inputType_ == Problem_t::Asp) {
 				Potassco::Lit_t a = sLit.var() < solver2asp_.size() ? solver2asp_[sLit.var()] : 0;
-				if (!a) { out.clear(); return; }
+				if (!a) { return; }
 				if (sLit.sign() != (a < 0)) { a = -a; }
 				sLit = Literal(Potassco::atom(a), a < 0);
 			}
-			char temp[100];
-			appendText(out, clasp_format(temp, sizeof(temp), "%s__atom(%u)", sLit.sign() ? "not " : "", sLit.var()));
+			out.append(clasp_format(temp, sizeof(temp), "%s__atom(%u)", sLit.sign() ? "not " : "", sLit.var()));
 		}
-		sep = ", ";
 	}
-	out.push_back('.');
-	append(out, " %%lbd=%d\n", (int)lbd);
+	out.append(clasp_format(temp, sizeof(temp), ".  %%lbd = %u\n", lbd));
+	fwrite(out.c_str(), sizeof(char), out.size(), str_);
 }
 void LemmaLogger::close() {
 	if (!str_) { return; }
-	solver2asp_.clear();
+	fprintf(str_, "0\n");
 	fflush(str_);
 	if (str_ != stdout) { fclose(str_); }
 	str_ = 0;
+	solver2asp_.clear();
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // WriteCnf
