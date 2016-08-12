@@ -29,6 +29,9 @@
 //! The documentation is structured into different modules.
 //! To get an overview, checkout the [Modules](modules.html) page.
 //! To get started, take a look at the documentation of the @ref Control module.
+//!
+//! @note Each module comes with an example highlighting key functionality.
+//! The example should be studied along with the module documentation.
 
 #ifndef CLINGO_H
 #define CLINGO_H
@@ -875,19 +878,40 @@ bool clingo_symbolic_atoms_is_valid(clingo_symbolic_atoms_t *atoms, clingo_symbo
 
 // {{{1 theory atoms
 
+//! @example theory-atoms.c
+//! The example shows how to inspect and use theory atoms.
+//!
+//! @paragraph
+//!
+//! This is a very simple example that uses the @link ProgramBuilding backend@endlink to let theory atoms affect answer sets.
+//! In general, the backend can be used to implement a custom theory by translating it to a logic program.
+//! On the other hand, a @link Propagator propagator@endlink can be used to implement a custom theory without adding any constraints in advance.
+//! Or both approaches can be combined.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! ./theory-atoms 0
+//! number of grounded theory atoms: 2
+//! theory atom b/1 has a guard: true
+//! Model: y
+//! Model: x y
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
+
 //! @defgroup TheoryAtoms Theory Atom Inspection
 //! Inspection of theory atoms occuring in ground logic programs.
 //! @ingroup Control
 //!
 //! During grounding, theory atoms get consecutive numbers starting with zero.
-//! The total number of theory atoms can be obtained using
-//! clingo_theory_atoms_size().
+//! The total number of theory atoms can be obtained using clingo_theory_atoms_size().
 //!
 //! @attention
-//! All structural information about theory atoms, elements, and terms is reset
-//! after @link clingo_control_solve() solving@endlink.  If afterward fresh
-//! theory atoms are @link clingo_control_ground() grounded@endlink, previously
-//! used ids are reused.
+//! All structural information about theory atoms, elements, and terms is reset after @link clingo_control_solve() solving@endlink.
+//! If afterward fresh theory atoms are @link clingo_control_ground() grounded@endlink, previously used ids are reused.
+//!
+//! For an example, see @ref theory-atoms.c.
 
 //! @addtogroup TheoryAtoms
 //! @{
@@ -904,7 +928,7 @@ enum clingo_theory_term_type {
 //! Corresponding type to ::clingo_theory_term_type.
 typedef int clingo_theory_term_type_t;
 
-//! Conntainer that stores theory atoms, elements, and terms.
+//! Container that stores theory atoms, elements, and terms (see @ref clingo_control_theory_atoms()).
 typedef struct clingo_theory_atoms clingo_theory_atoms_t;
 
 //! @name Theory Term Inspection
@@ -2449,7 +2473,9 @@ bool clingo_control_configuration(clingo_control_t *control, clingo_configuratio
 //! answer sets with or without projection, or finding optimal models, as well
 //! as clauses/nogoods added with clingo_solve_control_add_clause().
 //!
-//! @note Initially, the enumeration assumption is enabled.
+//! @attention For practical purposes, this option is only interesting for single-shot solving
+//! or before the last solve call to squeeze out a tiny bit of performance.
+//! Initially, the enumeration assumption is enabled.
 //!
 //! @param[in] control the target
 //! @param[in] enable whether to enable the assumption
