@@ -821,10 +821,9 @@ bool SharedContext::unfreezeStep() {
 	Var tag = step_.var();
 	for (SolverVec::size_type i = solvers_.size(); i--;) {
 		Solver& s = *solvers_[i];
+		share_.frozen = i > 0;
 		if (!s.validVar(tag)) { continue; }
-		if (!s.endStep(lastTopLevel_, configuration()->solver(s.id()))) {
-			return false;
-		}
+		s.endStep(lastTopLevel_, configuration()->solver(s.id()));
 	}
 	if (tag) {
 		varInfo_[tag] = VarInfo();
@@ -875,13 +874,6 @@ void SharedContext::setFrozen(Var v, bool b) {
 	if (v && b != varInfo_[v].has(VarInfo::Frozen)) {
 		varInfo_[v].toggle(VarInfo::Frozen);
 		b ? ++stats_.vars.frozen : --stats_.vars.frozen;
-	}
-}
-
-void SharedContext::setProject(Var v, bool b) {
-	assert(validVar(v));
-	if (v && b != varInfo_[v].has(VarInfo::Project)) {
-		varInfo_[v].toggle(VarInfo::Project);
 	}
 }
 

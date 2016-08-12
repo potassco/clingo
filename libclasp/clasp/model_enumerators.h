@@ -87,6 +87,7 @@ public:
 	void     setStrategy(Strategy st = strategy_auto, uint32 projection = 0, char filter = '_');
 	bool     projectionEnabled()const { return projectOpts() != 0; }
 	Strategy strategy()         const { return static_cast<Strategy>(options_ & 3u); }
+	bool     project(Var v)     const;
 protected:
 	bool   supportsRestarts() const { return optimize() || strategy() == strategy_record; }
 	bool   supportsParallel() const { return !projectionEnabled() || strategy() != strategy_backtrack; }
@@ -99,6 +100,7 @@ private:
 	class ModelFinder;
 	class BacktrackFinder;
 	class RecordFinder;
+	typedef PodVector<uint32>::type WordVec;
 	void    initProjection(SharedContext& ctx);
 	void    addProject(SharedContext& ctx, Var v);
 	uint32  projectOpts()    const { return (options_ >> 4) & strategy_opts_mask; }
@@ -106,6 +108,7 @@ private:
 	bool    trivial()        const { return (options_ & trivial_flag) == trivial_flag; }
 	LitVec  domRec_;
 	uint32  options_;
+	WordVec project_;
 };
 
 }

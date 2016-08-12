@@ -777,7 +777,7 @@ public:
 	void setHeuristic(DecisionHeuristic* h, Ownership_t::Type own);
 	void destroyDB(ConstraintDB& db);
 	SolverStrategies&  strategies() { return strategy_; }
-	bool resolveToInput(const LitVec& conflictClause, LitVec& out, uint32& lbd) const;
+	bool resolveToFlagged(const LitVec& conflictClause, uint8 vflag, LitVec& out, uint32& lbd) const;
 	void resolveToCore(LitVec& out);
 	//@}
 private:
@@ -829,7 +829,7 @@ private:
 	void    undoLevel(bool sp);
 	uint32  analyzeConflict();
 	bool    isModel();
-	bool    resolveToInput(const LitVec& conflictClause, LitVec& out, uint32& lbd);
+	bool    resolveToFlagged(const LitVec& conflictClause, uint8 vf, LitVec& out, uint32& lbd);
 	void    otfs(Antecedent& lhs, const Antecedent& rhs, Literal p, bool final);
 	ClauseHead* otfsRemove(ClauseHead* c, const LitVec* newC);
 	uint32  ccMinimize(LitVec& cc, LitVec& removed, uint32 antes, CCMinRecursive* ccMin);
