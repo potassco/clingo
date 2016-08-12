@@ -226,14 +226,14 @@ struct ProblemStats {
 //! Stores static information about a variable.
 struct VarInfo {
 	enum Flag {
-		Mark_p = 0x1u, // mark for positive literal
-		Mark_n = 0x2u, // mark for negative literal
-		Nant   = 0x4u, // var in NAnt(P)?
-		Project= 0x8u, // do we project on this var?
-		Body   = 0x10u,// is this var representing a body?
-		Eq     = 0x20u,// is this var representing both a body and an atom?
-		Input  = 0x40u,// is this var an input variable?
-		Frozen = 0x80u // is the variable frozen?
+		Mark_p = 0x1u,  // mark for positive literal
+		Mark_n = 0x2u,  // mark for negative literal
+		Input  = 0x4u,  // is this var an input variable?
+		Body   = 0x8u,  // is this var representing a body?
+		Eq     = 0x10u, // is this var representing both a body and an atom?
+		Nant   = 0x20u, // var in NAnt(P)?
+		Frozen = 0x40u, // is the variable frozen?
+		Output = 0x80u  // is the variable an output variable?
 	};
 	static uint8 flags(VarType t) {
 		if (t == Var_t::Body)  { return VarInfo::Body; }
@@ -245,12 +245,12 @@ struct VarInfo {
 	VarType type()          const { return has(VarInfo::Eq) ? Var_t::Hybrid : VarType(Var_t::Atom + has(VarInfo::Body)); }
 	//! Returns whether var is part of negative antecedents (occurs negatively or in the head of a choice rule).
 	bool    nant()          const { return has(VarInfo::Nant); }
-	//! Returns true if var is a projection variable.
-	bool    project()       const { return has(VarInfo::Project);}
 	//! Returns true if var is excluded from variable elimination.
 	bool    frozen()        const { return has(VarInfo::Frozen); }
 	//! Returns true if var is an input variable.
 	bool    input()         const { return has(VarInfo::Input); }
+	//! Returns true if var is marked as output variable.
+	bool    output()        const { return has(VarInfo::Output); }
 	//! Returns the preferred sign of this variable w.r.t its type.
 	/*!
 	 * \return false (i.e no sign) if var originated from body, otherwise true.
@@ -259,6 +259,7 @@ struct VarInfo {
 	
 	bool    has(Flag f)     const { return (rep & flag(f)) != 0; }
 	bool    has(uint32 f)   const { return (rep & f) != 0;       }
+	bool    hasAll(uint32 f)const { return (rep & f) == f; }
 	void    set(Flag f)           { rep |= flag(f); }
 	void    toggle(Flag f)        { rep ^= flag(f); }
 	static uint8 flag(Flag x)     { return uint8(x); }
@@ -744,10 +745,10 @@ public:
 	void    popVars(uint32 n = 1);
 	//! Freezes/defreezes a variable (a frozen var is exempt from Sat-preprocessing).
 	void    setFrozen(Var v, bool b);
-	//! Marks/unmarks v as projection variable.
-	void    setProject(Var v, bool b);
 	//! Marks/unmarks v as input variable.
 	void    setInput(Var v, bool b) { set(v, VarInfo::Input, b); }
+	//! Marks/unmarks v as output variable.
+	void    setOutput(Var v, bool b) { set(v, VarInfo::Output, b); }
 	//! Marks/unmarks v as part of negative antecedents.
 	void    setNant(Var v, bool b)  { set(v, VarInfo::Nant, b); }
 	void    setVarEq(Var v, bool b) { set(v, VarInfo::Eq, b); }

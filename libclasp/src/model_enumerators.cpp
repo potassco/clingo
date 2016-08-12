@@ -27,15 +27,6 @@ class ModelEnumerator::ModelFinder : public EnumerationConstraint {
 protected:
 	explicit ModelFinder() : EnumerationConstraint() {}
 	bool hasModel() const { return !solution.empty(); }
-	void destroy(Solver* s, bool detach) {
-		if (s && s->sharedContext()->master() == s && s->sharedContext()->output.projectMode() != OutputTable::project_explicit) {
-			SharedContext& problem = const_cast<SharedContext&>(*s->sharedContext());
-			for (Var v = 1, end = problem.numVars(); v <= end; ++v) {
-				problem.setProject(v, false);
-			}
-		}
-		EnumerationConstraint::destroy(s, detach);
-	}
 	LitVec solution;
 };
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -88,7 +79,7 @@ void ModelEnumerator::RecordFinder::doCommitModel(Enumerator& en, Solver& s) {
 	}
 	else if (!dom) {
 		for (Var i = 1, end = s.numProblemVars(); i <= end; ++i) {
-			if (s.varInfo(i).project()) {
+			if (ctx.project(i)) {
 				solution.push_back(~s.trueLit(i));
 			}
 		}
@@ -97,7 +88,7 @@ void ModelEnumerator::RecordFinder::doCommitModel(Enumerator& en, Solver& s) {
 	else {
 		const bool project = ctx.projectionEnabled();
 		for (LitVec::const_iterator it = dom->begin(), end = dom->end(); it != end; ++it) {
-			if (s.isTrue(*it) && (!project || s.sharedContext()->varInfo(it->var()).project())) { solution.push_back(~*it); }
+			if (s.isTrue(*it) && (!project || ctx.project(it->var()))) { solution.push_back(~*it); }
 		}
 		solution.push_back(~s.sharedContext()->stepLiteral());
 	}
@@ -211,13 +202,13 @@ void ModelEnumerator::BacktrackFinder::doCommitModel(Enumerator& ctx, Solver& s)
 		// Remember the current projected assignment as a nogood.
 		solution.clear();
 		for (Var i = 1, end = s.numProblemVars(); i <= end; ++i) {
-			if (s.varInfo(i).project()) {
+			if (en.project(i)) {
 				solution.push_back(~s.trueLit(i));
 			}
 		}
 		// Remember initial decisions that are projection vars.
 		for (dl = s.rootLevel(); dl < s.decisionLevel(); ++dl) {
-			if (!s.varInfo(s.decision(dl+1).var()).project()) { break; }
+			if (!en.project(s.decision(dl+1).var())) { break; }
 		}
 		s.setBacktrackLevel(dl, Solver::undo_pop_proj_level);
 		if (solution.empty()) { solution.push_back(lit_false()); }
@@ -266,7 +257,7 @@ EnumerationConstraint* ModelEnumerator::doInit(SharedContext& ctx, SharedMinimiz
 	bool trivial = optOne || std::abs(numModels) == 1;
 	if (optOne && projectionEnabled()) {
 		for (const WeightLiteral* it =  minimizer()->lits; !isSentinel(it->first) && trivial; ++it) {
-			trivial = ctx.varInfo(it->first.var()).project();
+			trivial = project(it->first.var());
 		}
 		if (!trivial) { ctx.warn("Projection: Optimization may depend on enumeration order."); }
 	}
@@ -283,6 +274,7 @@ EnumerationConstraint* ModelEnumerator::doInit(SharedContext& ctx, SharedMinimiz
 }
 
 void ModelEnumerator::initProjection(SharedContext& ctx) {
+	project_.clear();
 	if (!projectionEnabled()) { return; }
 	const OutputTable& out = ctx.output;
 	char const filter = static_cast<char>(options_ >> 24);
@@ -305,8 +297,16 @@ void ModelEnumerator::initProjection(SharedContext& ctx) {
 }
 
 void ModelEnumerator::addProject(SharedContext& ctx, Var v) {
-	ctx.setProject(v, true);
+	const uint32 wIdx = v / 32;
+	const uint32 bIdx = v & 31;
+	if (wIdx >= project_.size()) { project_.resize(wIdx + 1, 0); }
+	store_set_bit(project_[wIdx], bIdx);
 	ctx.setFrozen(v, true);
+}
+bool ModelEnumerator::project(Var v) const {
+	const uint32 wIdx = v / 32;
+	const uint32 bIdx = v & 31;
+	return wIdx < project_.size() && test_bit(project_[wIdx], bIdx);
 }
 
 }

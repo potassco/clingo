@@ -82,6 +82,7 @@ protected:
 	void addMinLit(weight_t prio, WeightLiteral x);
 	void setFrozen(bool frozen)  { frozen_ = frozen; }
 	void setCtx(SharedContext* x){ ctx_    = x; }
+	void markOutputVariables() const;
 private:
 	typedef SingleOwnerPtr<MinimizeBuilder> MinBuildPtr;
 	typedef SingleOwnerPtr<ProgramParser>   ParserPtr;

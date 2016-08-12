@@ -79,6 +79,15 @@ bool ProgramBuilder::parseProgram(std::istream& input) {
 void ProgramBuilder::addMinLit(weight_t prio, WeightLiteral x) {
 	ctx_->addMinimize(x, prio);
 }
+void ProgramBuilder::markOutputVariables() const {
+	const OutputTable& out = ctx_->output;
+	for (OutputTable::range_iterator it = out.vars_begin(), end = out.vars_end(); it != end; ++it) {
+		ctx_->setOutput(*it, true);
+	}
+	for (OutputTable::pred_iterator it = out.pred_begin(), end = out.pred_end(); it != end; ++it) {
+		ctx_->setOutput(it->cond.var(), true);
+	}
+}
 void ProgramBuilder::doGetWeakBounds(SumVec&) const  {}
 /////////////////////////////////////////////////////////////////////////////////////////
 // class SatBuilder
@@ -189,6 +198,7 @@ bool SatBuilder::doEndProgram() {
 				else if (elim){ ctx()->eliminate(v); }
 			}
 		}
+		markOutputVariables();
 	}
 	return ok;
 }
@@ -314,6 +324,7 @@ bool PBBuilder::doEndProgram() {
 	while (auxVar_ != endVar_) {
 		if (!ctx()->addUnary(negLit(getAuxVar()))) { return false; }
 	}
+	markOutputVariables();
 	return true;
 }
 ProgramParser* PBBuilder::doCreateParser() {

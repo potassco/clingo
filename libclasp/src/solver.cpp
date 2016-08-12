@@ -290,7 +290,10 @@ bool Solver::endStep(uint32 top, const SolverParams& params) {
 	popAuxVar();
 	Literal x = shared_->stepLiteral();
 	top = std::min(top, (uint32)lastSimp_);
-	if ((value(x.var()) != value_free || force(~x)) && simplify() && this != shared_->master()) {
+	if (PostPropagator* pp = getPost(PostPropagator::priority_reserved_look)) {
+		pp->destroy(this, true);
+	}
+	if ((value(x.var()) != value_free || force(~x)) && simplify() && this != shared_->master() && shared_->ok()) {
 		Solver& m = *shared_->master();
 		for (uint32 end = (uint32)assign_.trail.size(); top < end; ++top) {
 			Literal u = assign_.trail[top];
@@ -1057,38 +1060,34 @@ inline ClauseHead* clause(const Antecedent& ante) {
 	return ante.isNull() || ante.type() != Antecedent::Generic ? 0 : ante.constraint()->clause();
 }
 
-bool Solver::resolveToInput(const LitVec& in, LitVec& out, uint32& outLbd) const {
-	return const_cast<Solver&>(*this).resolveToInput(in, out, outLbd);
+bool Solver::resolveToFlagged(const LitVec& in, uint8 vf, LitVec& out, uint32& outLbd) const {
+	return const_cast<Solver&>(*this).resolveToFlagged(in, vf, out, outLbd);
 }
-bool Solver::resolveToInput(const LitVec& in, LitVec& out, uint32& outLbd) {
-	LitVec temp;
+bool Solver::resolveToFlagged(const LitVec& in, const uint8 vf, LitVec& out, uint32& outLbd) {
 	const LitVec& trail = assign_.trail;
-	const LitVec* r = &in;
-	uint32 unknown = 0;
-	out.clear();
-	for (LitVec::size_type tp = trail.size(), marked = 0;;) {
-		// resolve p out of out
-		for (LitVec::const_iterator it = r->begin(), end = r->end(); it != end; ++it) {
-			Literal x = *it;
-			if (!seen(x.var())) {
-				markSeen(x.var());
-				if (inputVar(x)) { markLevel(level(x.var())); out.push_back(x ^ isTrue(x)); }
-				else             { ++marked; }
+	const LitVec* rhs   = &in;
+	LitVec temp; out.clear();
+	bool ok = true, first = true;
+	for (LitVec::size_type tp = trail.size(), resolve = 0;; first = false) {
+		Literal p; Var v;
+		for (LitVec::const_iterator it = rhs->begin(), end = rhs->end(); it != end; ++it) {
+			p = *it ^ first; v = p.var();
+			if (!seen(v)) {
+				markSeen(v);
+				if      (varInfo(v).hasAll(vf)) { markLevel(level(v)); out.push_back(~p); }
+				else if (!reason(p).isNull())   { ++resolve; }
+				else                            { clearSeen(v); ok = false; break; }
 			}
 		}
-		temp.clear();
-		if (!marked) { break; }
-		r = &temp;
-		// find next marked unnamed literal
-		while (!seen(trail[--tp]) || inputVar(trail[tp])) { ; }
-		Literal p = trail[tp];
-		clearSeen(p.var());
-		--marked;
-		unknown += (uint32)reason(p).isNull();
-		if (!unknown) { reason(p, temp); }
+		if (resolve-- == 0) { break; }
+		// find next literal to resolve
+		while (!seen(trail[--tp]) || varInfo(trail[tp].var()).hasAll(vf)) { ; }
+		clearSeen((p = trail[tp]).var());
+		reason(p, temp);
+		rhs = &temp;
 	}
 	LitVec::size_type outSize = out.size();
-	if (!unknown && r != &in) {
+	if (ok && !first) {
 		uint32 old = strategy_.ccMinKeepAct;
 		strategy_.ccMinKeepAct = 1;
 		uint32 antes = SolverStrategies::all_antes;
@@ -1102,7 +1101,7 @@ bool Solver::resolveToInput(const LitVec& in, LitVec& out, uint32& outLbd) {
 		}
 		strategy_.ccMinKeepAct = old;
 	}
-	outLbd = unknown;
+	outLbd = 0;
 	for (uint32 i = 0, dl, root = 0; i != outSize; ++i) {
 		Var v = out[i].var();
 		dl    = level(v);
@@ -1116,7 +1115,7 @@ bool Solver::resolveToInput(const LitVec& in, LitVec& out, uint32& outLbd) {
 		clearSeen(v = out.back().var());
 		unmarkLevel(level(v));
 	}
-	return !unknown;
+	return ok;
 }
 void Solver::resolveToCore(LitVec& out) {
 	CLASP_ASSERT_CONTRACT_MSG(hasConflict() && !hasStopConflict(), "Function requires valid conflict");

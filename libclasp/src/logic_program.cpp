@@ -1324,7 +1324,8 @@ void LogicProgram::prepareOutputTable() {
 	std::stable_sort(show_.begin(), show_.end(), compose22(std::less<Id_t>(), select1st<ShowPair>(), select1st<ShowPair>()));
 	for (ShowVec::iterator it = show_.begin(), end = show_.end(); it != end; ++it) {
 		Literal lit = getLiteral(it->first);
-		if      (!isSentinel(lit))  { out.add(it->second, lit, it->first); }
+		bool isAtom = it->first < inputEnd();
+		if      (!isSentinel(lit))  { out.add(it->second, lit, it->first); if (isAtom) ctx()->setOutput(lit.var(), true); }
 		else if (lit == lit_true()) { out.add(it->second); }
 	}
 	if (!auxData_->project.empty()) {
