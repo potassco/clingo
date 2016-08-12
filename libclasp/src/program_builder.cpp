@@ -330,5 +330,46 @@ bool PBBuilder::doEndProgram() {
 ProgramParser* PBBuilder::doCreateParser() {
 	return new SatParser(*this);
 }
+/////////////////////////////////////////////////////////////////////////////////////////
+// class BasicProgramAdapter
+/////////////////////////////////////////////////////////////////////////////////////////
+BasicProgramAdapter::BasicProgramAdapter(ProgramBuilder& prg) : prg_(&prg), inc_(false) {
+	int t = prg_->type();
+	CLASP_FAIL_IF(t != ProblemType::Sat && t != ProblemType::Pb, "unknown program type");
+}
+void BasicProgramAdapter::initProgram(bool inc) { inc_ = inc; }
+void BasicProgramAdapter::beginStep() { if (inc_ || prg_->frozen()) { prg_->updateProgram(); } }
 
+void BasicProgramAdapter::rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, const Potassco::LitSpan& body) {
+	using namespace Potassco;
+	CLASP_FAIL_IF(ht != Head_t::Disjunctive || !empty(head), "unsupported rule type");
+	if (prg_->type() == Problem_t::Sat) {
+		clause_.clear();
+		for (LitSpan::iterator it = begin(body), end = Potassco::end(body); it != end; ++it) { clause_.push_back(~toLit(*it)); }
+		static_cast<SatBuilder&>(*prg_).addClause(clause_);
+	}
+	else {
+		constraint_.clear();
+		for (LitSpan::iterator it = begin(body), end = Potassco::end(body); it != end; ++it) { constraint_.push_back(WeightLiteral(~toLit(*it), 1)); }
+		static_cast<PBBuilder&>(*prg_).addConstraint(constraint_, 1);
+	}
+}
+void BasicProgramAdapter::rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, Potassco::Weight_t bound, const Potassco::WeightLitSpan& body) {
+	using namespace Potassco;
+	CLASP_FAIL_IF(ht != Head_t::Disjunctive || !empty(head) || prg_->type() == Problem_t::Sat, "unsupported rule type");
+	constraint_.clear();
+	Potassco::Weight_t sum = 0;
+	for (WeightLitSpan::iterator it = begin(body), end = Potassco::end(body); it != end; ++it) { 
+		constraint_.push_back(WeightLiteral(~toLit(it->lit), it->weight));
+		sum += it->weight;
+	}
+	static_cast<PBBuilder&>(*prg_).addConstraint(constraint_, (sum - bound) + 1);
+}
+void BasicProgramAdapter::minimize(Potassco::Weight_t prio, const Potassco::WeightLitSpan& lits) {
+	CLASP_FAIL_IF(prio != 0 || prg_->type() == Problem_t::Sat, "unsupported rule type");
+	using namespace Potassco;
+	constraint_.clear();
+	for (WeightLitSpan::iterator it = begin(lits), end = Potassco::end(lits); it != end; ++it) { constraint_.push_back(WeightLiteral(toLit(it->lit), it->weight)); }
+	static_cast<PBBuilder&>(*prg_).addObjective(constraint_);
+}
 }

@@ -29,6 +29,7 @@
 #include <clasp/literal.h>
 #include <clasp/util/misc_types.h>
 #include <clasp/util/hash_map.h>
+#include <potassco/basic_types.h>
 #include <iosfwd>
 
 namespace Clasp {
@@ -225,6 +226,21 @@ private:
 	uint32       endVar_;
 	wsum_t       soft_;
 };
+
+class BasicProgramAdapter : public Potassco::AbstractProgram {
+public:
+	BasicProgramAdapter(ProgramBuilder& prg);
+	void initProgram(bool inc);
+	void beginStep();
+	void rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, const Potassco::LitSpan& body);
+	void rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, Potassco::Weight_t bound, const Potassco::WeightLitSpan& body);
+	void minimize(Potassco::Weight_t prio, const Potassco::WeightLitSpan& lits);
+protected:
+	ProgramBuilder* prg_;
+	LitVec          clause_;
+	WeightLitVec    constraint_;
+	bool            inc_;
+};
+
 }
 #endif
-
