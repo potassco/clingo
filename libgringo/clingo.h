@@ -1086,13 +1086,14 @@ bool clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms, clingo_id_
 // {{{1 propagator
 
 //! @example propagator.c
-//! The example shows how to write a simple propagator.
+//! The example shows how to write a simple propagator for the pigeon hole problem. For
+//! a detailed description of what is implemented here and some background, take a look at the following paper:
+//!
+//! http://www.cs.uni-potsdam.de/wv/pdfformat/gekakaosscwa16b.pdf
 //!
 //! ## Output ##
 //!
-//! ~~~~~~~~~~~~
-//! TODO!!!!!!!!
-//! ~~~~~~~~~~~~
+//! The output is empty because the pigeon hole problem is unsatisfiable.
 //!
 //! ## Code ##
 
@@ -1289,6 +1290,18 @@ bool clingo_propagate_control_propagate(clingo_propagate_control_t *control, boo
 
 //! @}
 
+//! Typedef for @ref ::clingo_propagator::init().
+typedef bool (*clingo_propagator_init_callback_t) (clingo_propagate_init_t *, void *);
+
+//! Typedef for @ref ::clingo_propagator::propagate().
+typedef bool (*clingo_propagator_propagate_callback_t) (clingo_propagate_control_t *, clingo_literal_t const *, size_t, void *);
+
+//! Typedef for @ref ::clingo_propagator::undo().
+typedef bool (*clingo_propagator_undo_callback_t) (clingo_propagate_control_t *, clingo_literal_t const *, size_t, void *);
+
+//! Typedef for @ref ::clingo_propagator::check().
+typedef bool (*clingo_propagator_check_callback_t) (clingo_propagate_control_t *, void *);
+
 //! An instance of this struct has to be registered with a solver to implement a custom propagator.
 //!
 //! Not all callbacks have to be implemented and can be set to NULL if not needed.
@@ -1303,6 +1316,7 @@ typedef struct clingo_propagator {
     //! @param[in] control control object for the target solver
     //! @param[in] data user data for the callback
     //! @return whether the call was successful
+    //! @see ::clingo_propagator_init_callback_t
     bool (*init) (clingo_propagate_init_t *control, void *data);
     //! Can be used to propagate solver literals given a @link clingo_assignment_t partial assignment@endlink.
     //!
@@ -1342,6 +1356,7 @@ typedef struct clingo_propagator {
     //! @param[in] size the size of the change set
     //! @param[in] data user data for the callback
     //! @return whether the call was successful
+    //! @see ::clingo_propagator_propagate_callback_t
     bool (*propagate) (clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, void *data);
     //! Called whenever a solver undos assignments to watched solver literals.
     //!
@@ -1353,6 +1368,7 @@ typedef struct clingo_propagator {
     //! @param[in] changes the change set
     //! @param[in] size the size of the change set
     //! @param[in] data user data for the callback
+    //! @see ::clingo_propagator_undo_callback_t
     bool (*undo) (clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, void *data);
     //! This function is similar to @ref clingo_propagate_control_propagate() but is only called on total assignments without a change set.
     //!
@@ -1360,6 +1376,7 @@ typedef struct clingo_propagator {
     //! @param[in] control control object for the target solver
     //! @param[in] data user data for the callback
     //! @return whether the call was successful
+    //! @see ::clingo_propagator_check_callback_t
     bool (*check) (clingo_propagate_control_t *control, void *data);
 } clingo_propagator_t;
 
