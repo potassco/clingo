@@ -881,9 +881,9 @@ bool clingo_symbolic_atoms_is_valid(clingo_symbolic_atoms_t *atoms, clingo_symbo
 //! @example theory-atoms.c
 //! The example shows how to inspect and use theory atoms.
 //!
-//! @paragraph
+//! @verbatim@endverbatim
 //!
-//! This is a very simple example that uses the @link ProgramBuilding backend@endlink to let theory atoms affect answer sets.
+//! This is a very simple example that uses the @link ProgramBuilder backend@endlink to let theory atoms affect answer sets.
 //! In general, the backend can be used to implement a custom theory by translating it to a logic program.
 //! On the other hand, a @link Propagator propagator@endlink can be used to implement a custom theory without adding any constraints in advance.
 //! Or both approaches can be combined.
@@ -1456,30 +1456,141 @@ bool clingo_backend_add_atom(clingo_backend_t *backend, clingo_atom_t *ret);
 //! @defgroup Configuration Solver Configuration
 //! Configuration of search and enumeration algorithms.
 //! @ingroup Control
+//!
+//! Entries in a configuration are organized hierarchically.
+//! Subentries are either accessed by name for map entries or by offset for array entries.
+//! Value entries have a string value that can be inspected or modified.
 
 //! @addtogroup Configuration
 //! @{
 
+//! Enumeration for entries of the configuration.
 enum clingo_configuration_type {
-    clingo_configuration_type_value = 1,
-    clingo_configuration_type_array = 2,
-    clingo_configuration_type_map   = 4
+    clingo_configuration_type_value = 1, //!< the entry is a (string) value
+    clingo_configuration_type_array = 2, //!< the entry is an array
+    clingo_configuration_type_map   = 4  //!< the entry is a map
 };
+//! Bitset for values of type ::clingo_configuration_type.
 typedef unsigned clingo_configuration_type_bitset_t;
 
+//! Handle for to the solver configuration.
 typedef struct clingo_configuration clingo_configuration_t;
-bool clingo_configuration_array_at(clingo_configuration_t *conf, clingo_id_t key, size_t idx, clingo_id_t *ret);
-bool clingo_configuration_array_size(clingo_configuration_t *conf, clingo_id_t key, size_t *ret);
-bool clingo_configuration_map_at(clingo_configuration_t *conf, clingo_id_t key, char const *name, clingo_id_t* subkey);
-bool clingo_configuration_map_size(clingo_configuration_t *conf, clingo_id_t key, size_t* subkey);
-bool clingo_configuration_map_subkey_name(clingo_configuration_t *conf, clingo_id_t key, size_t index, char const **name);
-bool clingo_configuration_value_is_assigned(clingo_configuration_t *conf, clingo_id_t key, bool *ret);
-bool clingo_configuration_value_get_size(clingo_configuration_t *conf, clingo_id_t key, size_t *n);
-bool clingo_configuration_value_get(clingo_configuration_t *conf, clingo_id_t key, char *ret, size_t n);
-bool clingo_configuration_value_set(clingo_configuration_t *conf, clingo_id_t key, char const *val);
-bool clingo_configuration_root(clingo_configuration_t *conf, clingo_id_t *ret);
-bool clingo_configuration_type(clingo_configuration_t *conf, clingo_id_t key, clingo_configuration_type_bitset_t *ret);
-bool clingo_configuration_description(clingo_configuration_t *conf, clingo_id_t key, char const **ret);
+
+//! Get the root key of the configuration.
+//!
+//! @param[in] configuration the target configuration
+//! @param[out] key the root key
+//! @return whether the call was successful
+bool clingo_configuration_root(clingo_configuration_t *configuration, clingo_id_t *key);
+//! Get the type of a key.
+//!
+//! @note The type is bitset, an entry can have multiple (but at least one) type.
+//!
+//! @param[in] configuration the target configuration
+//! @param[in] key the key
+//! @param[out] type the resulting type
+//! @return whether the call was successful
+bool clingo_configuration_type(clingo_configuration_t *configuration, clingo_id_t key, clingo_configuration_type_bitset_t *type);
+//! Get the description of an entry.
+//!
+//! @param[in] configuration the target configuration
+//! @param[in] key the key
+//! @param[out] description the description
+//! @return whether the call was successful
+bool clingo_configuration_description(clingo_configuration_t *configuration, clingo_id_t key, char const **description);
+
+//! @name Functions to access arrays
+//! @{
+
+//! Get the size of an array entry.
+//!
+//! @pre The @link clingo_configuration_type() type@endlink of the entry must be @ref ::clingo_configuration_type_array.
+//! @param[in] configuration the target configuration
+//! @param[in] key the key
+//! @param[out] size the resulting size
+//! @return whether the call was successful
+bool clingo_configuration_array_size(clingo_configuration_t *configuration, clingo_id_t key, size_t *size);
+//! Get the subkey at the give offset of an array entry.
+//!
+//! @note Some array entries, like fore example the solver configuration, can be accessed past there actual size to add subentries.
+//! @pre The @link clingo_configuration_type() type@endlink of the entry must be @ref ::clingo_configuration_type_array.
+//! @param[in] configuration the target configuration
+//! @param[in] key the key
+//! @param[in] offset the offset in the array
+//! @param[out] subkey the resulting subkey
+//! @return whether the call was successful
+bool clingo_configuration_array_at(clingo_configuration_t *configuration, clingo_id_t key, size_t offset, clingo_id_t *subkey);
+//! @}
+
+//! @name Functions to access maps
+//! @{
+
+//! Get the number of subkeys of a map entry.
+//!
+//! @pre The @link clingo_configuration_type() type@endlink of the entry must be @ref ::clingo_configuration_type_map.
+//! @param[in] configuration the target configuration
+//! @param[in] key the key
+//! @param[out] size the resulting number
+//! @return whether the call was successful
+bool clingo_configuration_map_size(clingo_configuration_t *configuration, clingo_id_t key, size_t* size);
+//! Get the name associated with the offsetth subkey.
+//!
+//! @pre The @link clingo_configuration_type() type@endlink of the entry must be @ref ::clingo_configuration_type_map.
+//! @param[in] configuration the target configuration
+//! @param[in] key the key
+//! @param[in] offset the offset of the name
+//! @param[out] name the resulting name
+//! @return whether the call was successful
+bool clingo_configuration_map_subkey_name(clingo_configuration_t *configuration, clingo_id_t key, size_t offset, char const **name);
+//! Lookup a subkey under the given name.
+//!
+//! @pre The @link clingo_configuration_type() type@endlink of the entry must be @ref ::clingo_configuration_type_map.
+//! @param[in] configuration the target configuration
+//! @param[in] key the key
+//! @param[in] name the name to lookup the subkey
+//! @param[out] subkey the resulting subkey
+//! @return whether the call was successful
+bool clingo_configuration_map_at(clingo_configuration_t *configuration, clingo_id_t key, char const *name, clingo_id_t* subkey);
+//! @}
+
+//! @name Functions to access values
+//! @{
+
+//! Check whether a entry has a value.
+//!
+//! @pre The @link clingo_configuration_type() type@endlink of the entry must be @ref ::clingo_configuration_type_value.
+//! @param[in] configuration the target configuration
+//! @param[in] key the key
+//! @param[out] assigned whether the entry has a value
+//! @return whether the call was successful
+bool clingo_configuration_value_is_assigned(clingo_configuration_t *configuration, clingo_id_t key, bool *assigned);
+//! Get the size of the string value of the given entry.
+//!
+//! @pre The @link clingo_configuration_type() type@endlink of the entry must be @ref ::clingo_configuration_type_value.
+//! @param[in] configuration the target configuration
+//! @param[in] key the key
+//! @param[out] size the resulting size
+//! @return whether the call was successful
+bool clingo_configuration_value_get_size(clingo_configuration_t *configuration, clingo_id_t key, size_t *size);
+//! Get the string value of the given entry.
+//!
+//! @pre The @link clingo_configuration_type() type@endlink of the entry must be @ref ::clingo_configuration_type_value.
+//! @pre The given size must be larger or equal to size of the value.
+//! @param[in] configuration the target configuration
+//! @param[in] key the key
+//! @param[out] value the resulting string value
+//! @param[in] size the size of the given char array
+//! @return whether the call was successful
+bool clingo_configuration_value_get(clingo_configuration_t *configuration, clingo_id_t key, char *value, size_t size);
+//! Set the value of an entry.
+//!
+//! @pre The @link clingo_configuration_type() type@endlink of the entry must be @ref ::clingo_configuration_type_value.
+//! @param[in] configuration the target configuration
+//! @param[in] key the key
+//! @param[in] value the value to set
+//! @return whether the call was successful
+bool clingo_configuration_value_set(clingo_configuration_t *configuration, clingo_id_t key, char const *value);
+//! @}
 
 //! @}
 
