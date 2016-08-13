@@ -1,15 +1,14 @@
 #script (lua)
 
---[[
 function main(prg)
     step = 1
     stop = 10
     while true do
         if step > 1 then
-            prg:release_external(clingo.Fun("volatile", {step-1}))
+            prg:release_external(clingo.Function("volatile", {step-1}))
         end
-        prg:ground("cumulative", {step})
-        prg:assign_external(clingo.Fun("volatile", {step}), true)
+        prg:ground({{"cumulative", {step}}})
+        prg:assign_external(clingo.Function("volatile", {step}), true)
         ret = prg:solve()
         if step == stop then
             break
@@ -17,7 +16,6 @@ function main(prg)
         step = step + 1
     end
 end
---]]
 
 #end.
 
