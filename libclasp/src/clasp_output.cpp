@@ -104,6 +104,7 @@ Output::Output(uint32 verb) : summary_(0), verbose_(0) {
 	std::memset(quiet_, 0, sizeof(quiet_));
 	setCallQuiet(print_no);
 	setVerbosity(verb);
+	clearModel();
 }
 Output::~Output() {}
 void Output::setVerbosity(uint32 verb) {
@@ -143,7 +144,6 @@ bool Output::onModel(const Solver& s, const Model& m) {
 		if (m.opt == 1 && !m.consequences()) { printModel(s.outputTable(), m, print_best); clearModel(); }
 		else                                 { saveModel(m); }
 	}
-	if (saved_.num != m.num) { clearModel(); }
 	return true;
 }
 bool Output::onUnsat(const Solver& s, const Model& m) {

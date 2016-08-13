@@ -96,7 +96,7 @@ protected:
 	typedef std::pair<uint32, uint32> UPair;
 	const Model* getModel() const { return saved_.values ? &saved_ : 0; }
 	void         saveModel(const Model& m);
-	void         clearModel() { saved_.values = 0; }
+	void         clearModel() { saved_.reset(); }
 	void         printWitness(const OutputTable& out, const Model& m, UPtr data);
 	virtual UPtr doPrint(const OutPair& out, uintp data);
 	UPair        numCons(const OutputTable& out, const Model& m) const;
