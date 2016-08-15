@@ -562,12 +562,13 @@ void LemmaLogger::add(const Solver& s, const LitVec& cc, const ConstraintInfo& i
 		if (!s.resolveToFlagged(cc, vf, temp, lbd) || lbd > options_.lbdMax) { return; }
 		out = &temp;
 	}
-	if (options_.logText) { formatText(*out, s.sharedContext()->output, lbd); }
-	else                  { formatAspif(*out, lbd); }
+	std::string lemma;
+	if (options_.logText) { formatText(*out, s.sharedContext()->output, lbd, lemma); }
+	else                  { formatAspif(*out, lbd, lemma); }
 }
-void LemmaLogger::formatAspif(const LitVec& cc, uint32) const {
+void LemmaLogger::formatAspif(const LitVec& cc, uint32, std::string& out) const {
 	char temp[20];
-	std::string out; out.reserve((cc.size() * 10) + 8);
+	out.reserve((cc.size() * 10) + 8);
 	out.append(clasp_format(temp, sizeof(temp), "1 0 0 0 %u", (uint32)cc.size()));
 	for (LitVec::const_iterator it = cc.begin(), end = cc.end(); it != end; ++it) {
 		Literal sLit = ~*it; // clause -> constraint
@@ -580,10 +581,9 @@ void LemmaLogger::formatAspif(const LitVec& cc, uint32) const {
 		out.append(clasp_format(temp, sizeof(temp), " %d", a));
 	}
 	out.append(1, '\n');
-	fwrite(out.c_str(), sizeof(char), out.size(), str_);
 }
-void LemmaLogger::formatText(const LitVec& cc, const OutputTable& tab, uint32 lbd) const {
-	std::string out; out.reserve(std::max(uint32(cc.size() * 10), uint32(1024)));
+void LemmaLogger::formatText(const LitVec& cc, const OutputTable& tab, uint32 lbd, std::string& out) const {
+	out.reserve(std::max(uint32(cc.size() * 10), uint32(1024)));
 	const char* sep = ":- ";
 	char temp[40];
 	for (LitVec::const_iterator it = cc.begin(), end = cc.end(); it != end; ++it) {
@@ -608,7 +608,6 @@ void LemmaLogger::formatText(const LitVec& cc, const OutputTable& tab, uint32 lb
 		}
 	}
 	out.append(clasp_format(temp, sizeof(temp), ".  %%lbd = %u\n", lbd));
-	fwrite(out.c_str(), sizeof(char), out.size(), str_);
 }
 void LemmaLogger::close() {
 	if (!str_) { return; }

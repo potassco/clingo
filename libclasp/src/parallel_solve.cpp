@@ -201,20 +201,18 @@ struct ParallelSolve::SharedData {
 	}
 	const LitVec* requestWork(const Solver& s) {
 		const uint64 m(uint64(1) << s.id());
-		const bool split = allowSplit();
-		uint64 init = initVec;
-		if ((init & m) == m) {
-			if (!split) {
+		if ((initVec & m) == m) {
+			if (!allowSplit()) {
 				// portfolio mode - all solvers can start with initial path
 				initVec -= m;
 				return path;
 			}
-			else if (initVec.compare_and_swap(0, init) == init) {
+			else if (initVec.fetch_and_store(0) != 0) {
 				// splitting mode - only one solver must start with initial path
 				return path;
 			}
 		}
-		if (!split) { return 0; }
+		if (!allowSplit()) { return 0; }
 		// try to get work from split
 		ctx->report(MessageEvent(s, "SPLIT", MessageEvent::sent));
 		const uint32 flags = uint32(terminate_flag) | uint32(sync_flag);

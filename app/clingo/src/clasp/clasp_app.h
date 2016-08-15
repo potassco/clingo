@@ -82,8 +82,8 @@ private:
 	typedef PodVector<uint32>::type Var2Idx;
 	LemmaLogger(const LemmaLogger&);
 	LemmaLogger& operator=(const LemmaLogger&);
-	void formatAspif(const LitVec& cc, uint32 lbd)  const;
-	void formatText(const LitVec& cc, const OutputTable& tab, uint32 lbd) const;
+	void formatAspif(const LitVec& cc, uint32 lbd, std::string& out)  const;
+	void formatText(const LitVec& cc, const OutputTable& tab, uint32 lbd, std::string& out) const;
 	FILE*            str_;
 	Potassco::LitVec solver2asp_;
 	Var2Idx          solver2NameIdx_;
