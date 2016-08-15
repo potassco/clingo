@@ -1453,13 +1453,32 @@ bool clingo_backend_add_atom(clingo_backend_t *backend, clingo_atom_t *ret);
 
 // {{{1 configuration
 
+//! @example configuration.c
+//! The example shows how to configure the solver.
+//!
+//! @note It is also possible to loop over all configuration entries.
+//! This can be done in a similar fashion as in the @ref statistics.c example.
+//! But note that, unlike with statistics entries, a configuration entry can have more than one type.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~
+//! ./configuration
+//! Model: a
+//! Model: b
+//! ~~~~~~~~
+//!
+//! ## Code ##
+
 //! @defgroup Configuration Solver Configuration
 //! Configuration of search and enumeration algorithms.
-//! @ingroup Control
 //!
 //! Entries in a configuration are organized hierarchically.
 //! Subentries are either accessed by name for map entries or by offset for array entries.
 //! Value entries have a string value that can be inspected or modified.
+//!
+//! For an example, see @ref configuration.c.
+//! @ingroup Control
 
 //! @addtogroup Configuration
 //! @{
@@ -1510,7 +1529,7 @@ bool clingo_configuration_description(clingo_configuration_t *configuration, cli
 //! @param[out] size the resulting size
 //! @return whether the call was successful
 bool clingo_configuration_array_size(clingo_configuration_t *configuration, clingo_id_t key, size_t *size);
-//! Get the subkey at the give offset of an array entry.
+//! Get the subkey at the given offset of an array entry.
 //!
 //! @note Some array entries, like fore example the solver configuration, can be accessed past there actual size to add subentries.
 //! @pre The @link clingo_configuration_type() type@endlink of the entry must be @ref ::clingo_configuration_type_array.
@@ -1545,6 +1564,7 @@ bool clingo_configuration_map_subkey_name(clingo_configuration_t *configuration,
 //! Lookup a subkey under the given name.
 //!
 //! @pre The @link clingo_configuration_type() type@endlink of the entry must be @ref ::clingo_configuration_type_map.
+//! @note Multiple levels can be looked up by concatenating keys with a period.
 //! @param[in] configuration the target configuration
 //! @param[in] key the key
 //! @param[in] name the name to lookup the subkey
@@ -1596,30 +1616,139 @@ bool clingo_configuration_value_set(clingo_configuration_t *configuration, cling
 
 // {{{1 statistics
 
+//! @example statistics.c
+//! The example shows how to inspect statistics.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~
+//! ./statistics 0
+//! Model: a
+//! Model: b
+//! problem:
+//!   lp:
+//!     atoms:
+//!       2
+//!     atoms_aux:
+//!       0
+//!     ...
+//! solving:
+//!   ...
+//! summary:
+//!   ...
+//! accu:
+//!   times:
+//!     ...
+//!   models:
+//!     ...
+//!   solving:
+//!     ...
+//! ~~~~~~~~
+//!
+//! ## Code ##
+
 //! @defgroup Statistics Statistics
 //! Inspect search and problem statistics.
+//!
 //! @ingroup Control
+//! For an example, see @ref statistics.c.
 
 //! @addtogroup Statistics
 //! @{
 
+//! Enumeration for entries of the statistics.
 enum clingo_statistics_type {
-    clingo_statistics_type_empty = 0,
-    clingo_statistics_type_value = 1,
-    clingo_statistics_type_array = 2,
-    clingo_statistics_type_map   = 3
+    clingo_statistics_type_empty = 0, //!< the entry is invalid (has neither of the types below)
+    clingo_statistics_type_value = 1, //!< the entry is a (string) value
+    clingo_statistics_type_array = 2, //!< the entry is an array
+    clingo_statistics_type_map   = 3  //!< the entry is a map
 };
+//! Corresponding type to ::clingo_solve_result.
 typedef int clingo_statistics_type_t;
 
+//! Handle for to the solver statistics.
 typedef struct clingo_statistic clingo_statistics_t;
-bool clingo_statistics_array_at(clingo_statistics_t *stats, uint64_t key, size_t index, uint64_t *ret);
-bool clingo_statistics_array_size(clingo_statistics_t *stats, uint64_t key, size_t *ret);
-bool clingo_statistics_map_at(clingo_statistics_t *stats, uint64_t key, char const *name, uint64_t *ret);
-bool clingo_statistics_map_size(clingo_statistics_t *stats, uint64_t key, size_t *n);
-bool clingo_statistics_map_subkey_name(clingo_statistics_t *stats, uint64_t key, size_t index, char const **name);
-bool clingo_statistics_root(clingo_statistics_t *stats, uint64_t *ret);
-bool clingo_statistics_type(clingo_statistics_t *stats, uint64_t key, clingo_statistics_type_t *ret);
-bool clingo_statistics_value_get(clingo_statistics_t *stats, uint64_t key, double *value);
+
+//! Get the root key of the statistics.
+//!
+//! @param[in] statistics the target statistics
+//! @param[out] key the root key
+//! @return whether the call was successful
+bool clingo_statistics_root(clingo_statistics_t *statistics, uint64_t *key);
+//! Get the type of a key.
+//!
+//! @param[in] statistics the target statistics
+//! @param[in] key the key
+//! @param[out] type the resulting type
+//! @return whether the call was successful
+bool clingo_statistics_type(clingo_statistics_t *statistics, uint64_t key, clingo_statistics_type_t *type);
+
+//! @name Functions to access arrays
+//! @{
+
+//! Get the size of an array entry.
+//!
+//! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_array.
+//! @param[in] statistics the target statistics
+//! @param[in] key the key
+//! @param[out] size the resulting size
+//! @return whether the call was successful
+bool clingo_statistics_array_size(clingo_statistics_t *statistics, uint64_t key, size_t *size);
+//! Get the subkey at the given offset of an array entry.
+//!
+//! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_array.
+//! @param[in] statistics the target statistics
+//! @param[in] key the key
+//! @param[in] offset the offset in the array
+//! @param[out] subkey the resulting subkey
+//! @return whether the call was successful
+bool clingo_statistics_array_at(clingo_statistics_t *statistics, uint64_t key, size_t offset, uint64_t *subkey);
+//! @}
+
+//! @name Functions to access maps
+//! @{
+
+//! Get the number of subkeys of a map entry.
+//!
+//! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_map.
+//! @param[in] statistics the target statistics
+//! @param[in] key the key
+//! @param[out] size the resulting number
+//! @return whether the call was successful
+bool clingo_statistics_map_size(clingo_statistics_t *statistics, uint64_t key, size_t *size);
+//! Get the name associated with the offsetth subkey.
+//!
+//! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_map.
+//! @param[in] statistics the target statistics
+//! @param[in] key the key
+//! @param[in] offset the offset of the name
+//! @param[out] name the resulting name
+//! @return whether the call was successful
+bool clingo_statistics_map_subkey_name(clingo_statistics_t *statistics, uint64_t key, size_t offset, char const **name);
+//! Lookup a subkey under the given name.
+//!
+//! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_map.
+//! @note Multiple levels can be looked up by concatenating keys with a period.
+//! @param[in] statistics the target statistics
+//! @param[in] key the key
+//! @param[in] name the name to lookup the subkey
+//! @param[out] subkey the resulting subkey
+//! @return whether the call was successful
+bool clingo_statistics_map_at(clingo_statistics_t *statistics, uint64_t key, char const *name, uint64_t *subkey);
+//! @}
+
+//! @name Functions to inspect values
+//! @{
+
+//! Get the value of the given entry.
+//!
+//! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_value.
+//! @param[in] statistics the target statistics
+//! @param[in] key the key
+//! @param[out] value the resulting value
+//! @return whether the call was successful
+bool clingo_statistics_value_get(clingo_statistics_t *statistics, uint64_t key, double *value);
+//! @}
 
 //! @}
 
@@ -2552,6 +2681,13 @@ bool clingo_control_register_propagator(clingo_control_t *control, clingo_propag
 //! Statistics are updated after a solve call.
 //!
 //! See the @ref Statistics module for more information.
+//!
+//! @attention
+//! The level of detail of the statistics depends on the stats option
+//! (which can be set using @ref Configuration module or passed as an option when @link clingo_control_new creating the control object@endlink).
+//! The default level zero only provides basic statistics,
+//! level one provides extended and accumulated statistics,
+//! and level two provides per-thread statistics.
 //!
 //! @param[in] control the target
 //! @param[out] statistics the statistics object
