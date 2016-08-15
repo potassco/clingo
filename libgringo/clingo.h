@@ -1415,39 +1415,122 @@ typedef struct clingo_propagator {
 //! @addtogroup ProgramBuilder
 //! @{
 
+//! Enumeration of different heuristic modifiers.
 enum clingo_heuristic_type {
-    clingo_heuristic_type_level  = 0,
-    clingo_heuristic_type_sign   = 1,
-    clingo_heuristic_type_factor = 2,
-    clingo_heuristic_type_init   = 3,
-    clingo_heuristic_type_true   = 4,
-    clingo_heuristic_type_false  = 5
+    clingo_heuristic_type_level  = 0, //!< set the level of an atom
+    clingo_heuristic_type_sign   = 1, //!< configure which sign to chose for an atom
+    clingo_heuristic_type_factor = 2, //!< modify VSIDS factor of an atom
+    clingo_heuristic_type_init   = 3, //!< modify the initial VSIDS score of an atom
+    clingo_heuristic_type_true   = 4, //!< set the level of an atom and choose a positive sign
+    clingo_heuristic_type_false  = 5  //!< set the level of an atom and choose a negative sign
 };
+//! Corresponding type to ::clingo_heuristic_type.
 typedef int clingo_heuristic_type_t;
 
+//! Enumeration of different external statements.
 enum clingo_external_type {
-    clingo_external_type_free    = 0,
-    clingo_external_type_true    = 1,
-    clingo_external_type_false   = 2,
-    clingo_external_type_release = 3,
+    clingo_external_type_free    = 0, //!< allow an external to be assigned freely
+    clingo_external_type_true    = 1, //!< assign an external to true
+    clingo_external_type_false   = 2, //!< assign an external to false
+    clingo_external_type_release = 3, //!< no longer treat an atom as external
 };
+//! Corresponding type to ::clingo_external_type.
 typedef int clingo_external_type_t;
 
+//! A Literal with an associated weight.
 typedef struct clingo_weighted_literal {
     clingo_literal_t literal;
     clingo_weight_t weight;
 } clingo_weighted_literal_t;
 
+//! Handle to the backend to add directives in aspif format.
 typedef struct clingo_backend clingo_backend_t;
-bool clingo_backend_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head, size_t head_n, clingo_literal_t const *body, size_t body_n);
-bool clingo_backend_weight_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head, size_t head_n, clingo_weight_t lower, clingo_weighted_literal_t const *body, size_t body_n);
-bool clingo_backend_minimize(clingo_backend_t *backend, clingo_weight_t prio, clingo_weighted_literal_t const* lits, size_t lits_n);
-bool clingo_backend_project(clingo_backend_t *backend, clingo_atom_t const *atoms, size_t n);
-bool clingo_backend_external(clingo_backend_t *backend, clingo_atom_t atom, clingo_external_type_t v);
-bool clingo_backend_assume(clingo_backend_t *backend, clingo_literal_t const *literals, size_t n);
-bool clingo_backend_heuristic(clingo_backend_t *backend, clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority, clingo_literal_t const *condition, size_t condition_n);
-bool clingo_backend_acyc_edge(clingo_backend_t *backend, int node_u, int node_v, clingo_literal_t const *condition, size_t condition_n);
-bool clingo_backend_add_atom(clingo_backend_t *backend, clingo_atom_t *ret);
+
+//! Add a rule to the program.
+//!
+//! @param[in] backend the target backend
+//! @param[in] choice determines if the head is a choice or a disjunction
+//! @param[in] head the head atoms
+//! @param[in] head_size the number of atoms in the head
+//! @param[in] body the body literals
+//! @param[in] body_size the number of literals in the body
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+bool clingo_backend_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head, size_t head_size, clingo_literal_t const *body, size_t body_size);
+//! Add a weight rule to the program.
+//!
+//! @attention All weights and the lower bound must be positive.
+//! @param[in] backend the target backend
+//! @param[in] choice determines if the head is a choice or a disjunction
+//! @param[in] head the head atoms
+//! @param[in] head_size the number of atoms in the head
+//! @param[in] lower_bound the lower bound of the weight rule
+//! @param[in] body the weighted body literals
+//! @param[in] body_size the number of weighted literals in the body
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+bool clingo_backend_weight_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head, size_t head_size, clingo_weight_t lower_bound, clingo_weighted_literal_t const *body, size_t body_size);
+//! Add a minimize constraint (or weak constraint) to the program.
+//!
+//! @param[in] backend the target backend
+//! @param[in] priority the priority of the constraint
+//! @param[in] literals the weighted literals whose sum to minimize
+//! @param[in] size the number of weighted literals
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+bool clingo_backend_minimize(clingo_backend_t *backend, clingo_weight_t priority, clingo_weighted_literal_t const* literals, size_t size);
+//! Add a projection directive.
+//!
+//! @param[in] backend the target backend
+//! @param[in] atoms the atoms to project on
+//! @param[in] size the number of atoms
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+bool clingo_backend_project(clingo_backend_t *backend, clingo_atom_t const *atoms, size_t size);
+//! Add an external statement.
+//!
+//! @param[in] backend the target backend
+//! @param[in] atom the external atom
+//! @param[in] type the type of the external statement
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+bool clingo_backend_external(clingo_backend_t *backend, clingo_atom_t atom, clingo_external_type_t type);
+//! Add an assumption directive.
+//!
+//! @param[in] backend the target backend
+//! @param[in] literals the literals to assume (positive literals are true and negative literals false for the next solve call)
+//! @param[in] size the number of atoms
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+bool clingo_backend_assume(clingo_backend_t *backend, clingo_literal_t const *literals, size_t size);
+//! Add an heuristic directive.
+//!
+//! @param[in] backend the target backend
+//! @param[in] atom the target atom
+//! @param[in] type the type of the heuristic modification
+//! @param[in] bias the heuristic bias
+//! @param[in] priority the heuristic priority
+//! @param[in] condition the condition under which to apply the heuristic modification
+//! @param[in] size the number of atoms in the condition
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+bool clingo_backend_heuristic(clingo_backend_t *backend, clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority, clingo_literal_t const *condition, size_t size);
+//! Add an edge directive.
+//!
+//! @param[in] backend the target backend
+//! @param[in] node_u the start vertex of the edge
+//! @param[in] node_v the end vertex of the edge
+//! @param[in] condition the condition under which the edge is part of the graph
+//! @param[in] size the number of atoms in the condition
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+bool clingo_backend_acyc_edge(clingo_backend_t *backend, int node_u, int node_v, clingo_literal_t const *condition, size_t size);
+//! Get a fresh atom to be used in aspif directives.
+//!
+//! @param[in] backend the target backend
+//! @param[out] atom the resulting atom
+//! @return whether the call was successful
+bool clingo_backend_add_atom(clingo_backend_t *backend, clingo_atom_t *atom);
 
 //! @}
 
@@ -1756,6 +1839,12 @@ bool clingo_statistics_value_get(clingo_statistics_t *statistics, uint64_t key, 
 
 //! @defgroup AST Abstract Syntax Trees
 //! Functions and data structures to work with program ASTs.
+//!
+//! @warning There might still be changes to this part of the API and there is not much documentation yet.
+//! In its current form the interface is rather large
+//! but has the advantage that the structure of a logic program is (hopefully) self-explanatory.
+//! The API could also be much reduced by, for example, just providing one node type as done in [clingo's python API](http://potassco.sourceforge.net/doc/pyclingo/clingo.ast.html).
+//! [Feedback would be very welcome!](https://github.com/potassco/clingo/issues)
 
 //! @addtogroup AST
 //! @{
@@ -2343,7 +2432,18 @@ typedef struct clingo_ast_statement {
 // }}}2
 
 typedef bool clingo_ast_callback_t (clingo_ast_statement_t const *, void *);
-bool clingo_parse_program(char const *program, clingo_ast_callback_t *cb, void *cb_data, clingo_logger_t *logger, void *logger_data, unsigned message_limit);
+//! Parse the given program and return an abstract syntax tree for each statement via a callback.
+//!
+//! @param[in] program the program in gringo syntax
+//! @param[in] callback the callback reporting statements
+//! @param[in] callback_data userdata for the callback
+//! @param[in] logger callback to report messages during parsing
+//! @param[in] logger_data userdata for the logger
+//! @param[in] message_limit the maximum number of times the logger is called
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime if parsing fails
+//! - ::clingo_error_bad_alloc
+bool clingo_parse_program(char const *program, clingo_ast_callback_t *callback, void *callback_data, clingo_logger_t *logger, void *logger_data, unsigned message_limit);
 
 //! @}
 
@@ -2352,10 +2452,28 @@ bool clingo_parse_program(char const *program, clingo_ast_callback_t *cb, void *
 //! @addtogroup ProgramBuilder
 //! @{
 
+//! Object to build non-ground programs.
 typedef struct clingo_program_builder clingo_program_builder_t;
-bool clingo_program_builder_begin(clingo_program_builder_t *bld);
-bool clingo_program_builder_add(clingo_program_builder_t *bld, clingo_ast_statement_t const *stm);
-bool clingo_program_builder_end(clingo_program_builder_t *bld);
+
+//! Begin building a program.
+//!
+//! @param builder the target program builder
+//! @return whether the call was successful
+bool clingo_program_builder_begin(clingo_program_builder_t *builder);
+//! Adds a statement to the program.
+//!
+//! @attention @ref clingo_program_builder_begin() must be called before adding statements and @ref clingo_program_builder_end() must be called after all statements have been added.
+//! @param builder the target program builder
+//! @param statement the statement to add
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime for statements of invalid form
+//! - ::clingo_error_bad_alloc
+bool clingo_program_builder_add(clingo_program_builder_t *builder, clingo_ast_statement_t const *statement);
+//! End building a program.
+//!
+//! @param builder the target program builder
+//! @return whether the call was successful
+bool clingo_program_builder_end(clingo_program_builder_t *builder);
 
 //! @}
 
