@@ -2,6 +2,7 @@ body {
     background-color: #CCC;
     color: black;
     margin: 0;
+    overflow-y: scroll;
 }
 
 div.contents {
