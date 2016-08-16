@@ -80,7 +80,7 @@ extern "C" {
 
 //! Signed integer type used for aspif and solver literals.
 typedef int32_t clingo_literal_t;
-//! Signed integer type used for aspif atoms.
+//! Unsigned integer type used for aspif atoms.
 typedef uint32_t clingo_atom_t;
 //! Unsigned integer type used in various places.
 typedef uint32_t clingo_id_t;
