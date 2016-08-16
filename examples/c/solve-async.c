@@ -1,6 +1,7 @@
 #include <clingo.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdatomic.h>
 
 bool on_model(clingo_model_t *model, void *data, bool *goon) {
   (void)data;
@@ -63,16 +64,16 @@ out:
   return ret;
 }
 
-bool on_finish(clingo_solve_result_bitset_t result, bool *finished) {
+bool on_finish(clingo_solve_result_bitset_t result, atomic_flag *running) {
   (void)result;
-  *finished = true;
+  atomic_flag_clear(running);
   return true;
 }
 
 int main(int argc, char const **argv) {
   char const *error_message;
   int ret = 0;
-  bool finished = false;
+  atomic_flag running = ATOMIC_FLAG_INIT;
   uint64_t samples = 0;
   uint64_t incircle = 0;
   uint64_t x, y;
@@ -92,22 +93,21 @@ int main(int argc, char const **argv) {
   // ground the base part
   if (!clingo_control_ground(ctl, parts, 1, NULL, NULL)) { goto error; }
 
+  atomic_flag_test_and_set(&running);
   // solve using a model callback
-  if (!clingo_control_solve_async(ctl, on_model, NULL, (clingo_finish_callback_t*)on_finish, &finished, NULL, 0, &async)) { goto error; }
+  if (!clingo_control_solve_async(ctl, on_model, NULL, (clingo_finish_callback_t*)on_finish, &running, NULL, 0, &async)) { goto error; }
 
   // let's approximate pi
-  do {
+  while (atomic_flag_test_and_set(&running)) {
     ++samples;
     x = rand();
     y = rand();
     if (x * x + y * y <= (uint64_t)RAND_MAX * RAND_MAX) { incircle+= 1; }
   }
 
-  while (!finished);
-
   printf("pi = %g\n", 4.0*incircle/samples);
 
-  // get the result (and make sure the search is finished because calling the finish handler is still part of the search)
+  // get the result (and make sure the search is running because calling the finish handler is still part of the search)
   if (!clingo_solve_async_get(async, &solve_ret)) { goto error; }
 
   goto out;
