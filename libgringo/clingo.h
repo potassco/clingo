@@ -158,6 +158,19 @@ enum clingo_truth_value {
 //! Corresponding type to ::clingo_truth_value.
 typedef int clingo_truth_value_t;
 
+//! Represents a source code location marking its beginnig and end.
+//!
+//! @note Not all locations refer to physical files.
+//! By convention, such locations use a name put in angular brackets as filename.
+typedef struct clingo_location {
+    char const *begin_file; //!< the file where the location begins
+    char const *end_file;   //!< the file where the location ends
+    size_t begin_line;      //!< the line where the location begins
+    size_t end_line;        //!< the line where the location ends
+    size_t begin_column;    //!< the column where the location begins
+    size_t end_column;      //!< the column where the location ends
+} clingo_location_t;
+
 //! @}
 
 // {{{1 signature and symbols
@@ -1923,15 +1936,6 @@ bool clingo_statistics_value_get(clingo_statistics_t *statistics, uint64_t key, 
 
 //! @addtogroup AST
 //! @{
-
-typedef struct clingo_location {
-    char const *begin_file;
-    char const *end_file;
-    size_t begin_line;
-    size_t end_line;
-    size_t begin_column;
-    size_t end_column;
-} clingo_location_t;
 
 enum clingo_ast_comparison_operator {
     clingo_ast_comparison_operator_greater_than  = 0,
