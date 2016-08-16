@@ -21,25 +21,34 @@
 #include <potassco/match_basic_types.h>
 #include <new>
 namespace Potassco {
+/*!
+ * \addtogroup BasicTypes
+ */
+///@{
 
 //! A sum aggregate with a lower bound.
 struct Sum_t {
-	WeightLitSpan lits;
-	Weight_t      bound;
+	WeightLitSpan lits;  /**< Weight literals of the aggregate. */
+	Weight_t      bound; /**< Lower bound of the aggregate. */
 };
 //! A type that can represent an aspif rule.
 struct Rule_t {
-	Head_t   ht;
-	AtomSpan head;
-	Body_t   bt;
+	Head_t   ht;   /**< Head type of the rule. */
+	AtomSpan head; /**< Head atoms of the rule. */
+	Body_t   bt;   /**< Type of rule body. */
 	union {
 		LitSpan cond;
 		Sum_t   agg;
 	};
+	//! Named constructor for creating a rule.
 	static Rule_t normal(Head_t ht, const AtomSpan& head, const LitSpan& body);
+	//! Named constructor for creating a sum rule.
 	static Rule_t sum(Head_t ht, const AtomSpan& head, const Sum_t& sum);
+	//! Named constructor for creating a sum rule.
 	static Rule_t sum(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& lits);
+	//! Returns whether the rule has a normal body, i.e. whether the body is a conjunction of literals.
 	bool normal() const { return bt == Body_t::Normal; }
+	//! Returns whether the body of the rule is a sum aggregate.
 	bool sum()    const { return bt != Body_t::Normal; }
 };
 
@@ -127,6 +136,7 @@ private:
 	RuleInfo* info() const;
 	Data data_;
 };
+///@}
 
 }
 #endif

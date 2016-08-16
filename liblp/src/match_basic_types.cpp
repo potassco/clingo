@@ -157,11 +157,13 @@ bool ProgramReader::accept(std::istream& str) {
 bool ProgramReader::incremental() const {
 	return inc_;
 }
-bool ProgramReader::parse() {
+bool ProgramReader::parse(ReadMode m) {
 	if (str_ == 0)  { throw ParseError(1, "no input stream"); }
-	if (!doParse()) { return false; }
-	stream()->skipWs();
-	require(!more() || incremental(), "invalid extra input");
+	do {
+		if (!doParse()) { return false; }
+		stream()->skipWs();
+		require(!more() || incremental(), "invalid extra input");
+	} while (m == ReadMode::Complete && more());
 	return true;
 }
 bool ProgramReader::more() {
@@ -181,8 +183,9 @@ void ProgramReader::skipLine() {
 }
 int readProgram(std::istream& str, ProgramReader& reader, ErrorHandler err) {
 	try {
-		if (!reader.accept(str)) { throw ParseError(1, "invalid input format"); }
-		do { reader.parse(); } while (reader.more());
+		if (!reader.accept(str) || !reader.parse(ProgramReader::Complete)) { 
+			throw ParseError(reader.line(), "invalid input format"); 
+		}
 	}
 	catch (const ParseError& e) {
 		if (!err) { throw; }
@@ -208,7 +211,7 @@ bool match(const char*& input, const char* word) {
 bool matchAtomArg(const char*& input, StringSpan& arg) {
 	const char* scan = input;
 	for (int p = 0; *scan; ++scan) {
-		if (*scan == '(') { ++p; }
+		if      (*scan == '(') { ++p; }
 		else if (*scan == ')') { if (--p < 0) { break; } }
 		else if (*scan == ',') { if (p == 0) { break; } }
 		else if (*scan == '"') {

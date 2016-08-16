@@ -42,8 +42,13 @@ namespace Potassco {
 class TheoryData;
 struct FuncData;
 
+/*!
+ * \addtogroup BasicTypes
+ */
+///@{
 //! Supported aspif theory directives.
 struct Theory_t {
+	//! Named constants.
 	POTASSCO_ENUM_CONSTANTS(Theory_t,
 		Number  = 0, Symbol = 1, Compound = 2, Reserved = 3,
 		Element = 4,
@@ -51,7 +56,9 @@ struct Theory_t {
 	);
 };
 
+//! Supported aspif theory tuple types.
 struct Tuple_t {
+	//! Named constants.
 	POTASSCO_ENUM_CONSTANTS_T(Tuple_t, int, -3, Bracket = -3, Brace = -2, Paren = -1);
 };
 //! Returns starting and ending delimiters of the given tuple type.
@@ -64,11 +71,15 @@ inline const char* toString(Tuple_t t) {
 //! A term is either a number, symbolic, or compound term (function or tuple).
 class TheoryTerm {
 public:
+	//! Iterator type for iterating over arguments of a compound term.
 	typedef const Id_t* iterator;
 	//! Creates an invalid term.
 	TheoryTerm();
+	//! Creates a number term.
 	explicit TheoryTerm(int num);
+	//! Creates a symbolic term.
 	explicit TheoryTerm(const char* sym);
+	//! Creates a compound term.
 	explicit TheoryTerm(const FuncData* c);
 	//! Returns whether this object holds a valid number, symbol or compound.
 	bool        valid()      const;
@@ -108,13 +119,19 @@ private:
 //! A basic building block for a theory atom.
 class TheoryElement {
 public:
+	//! Iterator type for iterating over the terms of an element.
 	typedef const Id_t* iterator;
+	//! Creates a new TheoryElement over the given terms.
 	static TheoryElement* newElement(const IdSpan& terms, Id_t condition);
+	//! Destroys the given TheoryElement.
 	static void destroy(TheoryElement* a);
 	//! Returns the number of terms belonging to this element.
 	uint32_t size()  const { return nTerms_; }
+	//! Returns an iterator pointing to the first term of this element.
 	iterator begin() const { return term_; }
+	//! Returns an iterator one past the last term of this element.
 	iterator end()   const { return begin() + size(); }
+	//! Returns the terms of this element.
 	IdSpan   terms() const { return toSpan(begin(), size()); }
 	//! Returns the condition associated with this element.
 	Id_t     condition() const;
@@ -132,10 +149,13 @@ private:
 //! A theory atom.
 class TheoryAtom {
 public:
+	//! Iterator type for iterating over the elements of a theory atom.
 	typedef const Id_t* iterator;
-	
+	//! Creates a new theory atom.
 	static TheoryAtom* newAtom(Id_t atom, Id_t term, const IdSpan& elements);
+	//! Creates a new theory atom with guard.
 	static TheoryAtom* newAtom(Id_t atom, Id_t term, const IdSpan& elements, Id_t op, Id_t rhs);
+	//! Destroys the given theory atom.
 	static void  destroy(TheoryAtom* a);
 	
 	//! Returns the associated program atom or 0 if this originated from a directive.
@@ -168,15 +188,19 @@ private:
 //! A type for storing and looking up theory atoms and their elements and terms.
 class TheoryData {
 public:
+	//! Iterator type for iterating over the theory atoms of a TheoryData object.
 	typedef const TheoryAtom*const* atom_iterator;
 	typedef TheoryTerm    Term;
 	typedef TheoryElement Element;
 	TheoryData();
 	~TheoryData();
+	//! Sentinel for marking a condition to be set later.
 	static const Id_t COND_DEFERRED = static_cast<Id_t>(-1);
 	
-	void update();
+	//! Resets this object to the state after default construction.
 	void reset();
+	//! May be called to distinguish between the current and a previous incremental step.
+	void update();
 
 	//! Adds a new theory atom.
 	/*!
@@ -184,6 +208,7 @@ public:
 	 * eventually added via addElement().
 	 */
 	const TheoryAtom& addAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements);
+	//! Adds a new theory atom with guard and right hand side.
 	const TheoryAtom& addAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements, Id_t op, Id_t rhs);
 
 	//! Adds a new theory atom element with the given id.
@@ -203,6 +228,7 @@ public:
 	const TheoryTerm& addTerm(Id_t termId, int number);
 	//! Adds a new symbolic term with the given name and id.
 	const TheoryTerm& addTerm(Id_t termId, const StringSpan& name);
+	//! Adds a new symbolic term with the given name and id.
 	const TheoryTerm& addTerm(Id_t termId, const char* name);
 	//! Adds a new function term with the given id.
 	/*!
@@ -215,7 +241,7 @@ public:
 
 	//! Removes the term with the given id.
 	/*!
-	 * \note It's the caller's responsibility to ensure that the removed term is not referenced
+	 * \note It is the caller's responsibility to ensure that the removed term is not referenced
 	 * by any theory element.
 	 * \note The term id of a removed term may be reused in a subsequent call to addTerm().
 	 */
@@ -242,6 +268,7 @@ public:
 	//! Returns the element with the given id or throws if no such element exists.
 	const Element& getElement(Id_t e)   const;
 
+	//! Removes all theory atoms a for which f(a) returns true.
 	template <class F>
 	void filter(const F& f) {
 		TheoryAtom** j = atoms() + frame_.atom;
@@ -258,12 +285,15 @@ public:
 		}
 		atoms_.setTop(atoms_.top() - pop);
 	}
-
+	//! Interface for visiting a theory.
 	class Visitor {
 	public:
 		virtual ~Visitor();
+		//! Visit a theory term. Should call data.accept(t, *this) to visit any arguments of the term.
 		virtual void visit(const TheoryData& data, Id_t termId, const TheoryTerm& t) = 0;
+		//! Visit a theory element. Should call data.accept(e, *this) to visit the terms of the element.
 		virtual void visit(const TheoryData& data, Id_t elemId, const TheoryElement& e) = 0;
+		//! Visit the theory atom. Should call data.accept(a, *this) to visit the elements of the atom.
 		virtual void visit(const TheoryData& data, const TheoryAtom& a) = 0;
 	};
 	//! Calls out.visit(*this, a) for all atoms a in [currBegin(), end()).
@@ -368,6 +398,7 @@ inline void print(AbstractProgram& out, const TheoryAtom& a) {
 	if (a.guard()) { out.theoryAtom(a.atom(), a.term(), a.elements(), *a.guard(), *a.rhs()); }
 	else           { out.theoryAtom(a.atom(), a.term(), a.elements()); }
 }
+///@}
 }
 #ifdef _MSC_VER
 #pragma warning (pop)

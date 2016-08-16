@@ -48,7 +48,7 @@ bool AspifTextInput::parseStatements() {
 	for (char c; (c = peek(true)) != 0;) {
 		data_.clear();
 		if      (c == '.') { match("."); }
-		else if (c == '#') { matchDirective(); }
+		else if (c == '#') { if (!matchDirective()) break; }
 		else if (c == '%') { skipLine(); }
 		else               { matchRule(c); }
 	}
@@ -94,7 +94,7 @@ void AspifTextInput::matchRule(char c) {
 	}
 }
 
-void AspifTextInput::matchDirective() {
+bool AspifTextInput::matchDirective() {
 	if (match("#minimize", false)) {
 		matchAgg();
 		Weight_t prio = match("@", false) ? matchInt() : 0;
@@ -173,8 +173,7 @@ void AspifTextInput::matchDirective() {
 	else if (match("#step", false)) {
 		require(incremental(), "#step requires incremental program");
 		match(".");
-		out_->endStep();
-		out_->beginStep();
+		return false;
 	}
 	else if (match("#incremental", false)) {
 		match(".");
@@ -182,6 +181,7 @@ void AspifTextInput::matchDirective() {
 	else {
 		require(false, "unrecognized directive");
 	}
+	return true;
 }
 
 void AspifTextInput::skipws() {

@@ -21,17 +21,30 @@
 #include <potassco/match_basic_types.h>
 namespace Potassco {
 
+//! Class for parsing logic programs in ground text format.
+/*!
+ * \addtogroup ParseType
+ */
 class AspifTextInput : public ProgramReader {
 public:
+	//! Creates a new object and associates it with the given output if any.
 	AspifTextInput(AbstractProgram* out);
+	//! Sets the program to which parsed elements should be output.
 	void setOutput(AbstractProgram& out);
 protected:
+	//! Checks whether stream starts with a valid token.
 	virtual bool doAttach(bool& inc);
+	//! Attempts to parses the current step or throws an exception on error.
+	/*!
+	 * The function calls beginStep()/endStep() on the associated
+	 * output object before/after parsing the current step.
+	 */
 	virtual bool doParse();
+	//! Parses statements until next step directive or input is exhausted.
 	bool parseStatements();
 private:
 	void   skipws();
-	void   matchDirective();
+	bool   matchDirective();
 	void   matchRule(char peek);
 	void   matchAtoms(const char* seps);
 	void   matchLits();

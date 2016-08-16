@@ -139,6 +139,7 @@ TEST_CASE("Text reader ", "[text]") {
 		input << "#step.\n";
 		input << "{x2}.\n";
 		REQUIRE(read(prg, input));
+		REQUIRE(prg.parse());
 		REQUIRE(output.str() == 
 			"asp 1 0 0 incremental\n"
 			"1 1 1 1 0 0\n"

@@ -21,19 +21,29 @@
 #include <potassco/basic_types.h>
 namespace Potassco {
 
+/*!
+ * \defgroup Clingo Clingo
+ * \brief Interfaces for communicating with a solver.
+ */
+///@{
+
 //! Supported clause types in theory propagation.
 struct Clause_t {
+	//! Named constants.
 	POTASSCO_ENUM_CONSTANTS(Clause_t,
 		Learnt         = 0, /**< Cumulative removable (i.e. subject to nogood deletion) clause. */
 		Static         = 1, /**< Cumulative unremovable clause. */
 		Volatile       = 2, /**< Removable clause associated with current solving step.   */
 		VolatileStatic = 3  /**< Unremovable clause associated with current solving step. */
 	);
+	//! Returns whether p is either Volatile or VolatileStatic.
 	static bool isVolatile(Clause_t p) { return (static_cast<unsigned>(p)& static_cast<unsigned>(Volatile)) != 0; }
-	static bool isStatic(Clause_t p) { return (static_cast<unsigned>(p)& static_cast<unsigned>(Static)) != 0; }
+	//! Returns whether p is either Static or VolatileStatic.
+	static bool isStatic(Clause_t p)   { return (static_cast<unsigned>(p)& static_cast<unsigned>(Static)) != 0; }
 };
 //! Supported statistics types.
 struct Statistics_t {
+	//! Named constants.
 	POTASSCO_ENUM_CONSTANTS(Statistics_t,
 		Empty = 0, /**< Empty (invalid) object. */
 		Value = 1, /**< Single statistic value that is convertible to a double.    */
@@ -94,10 +104,14 @@ public:
 //! Base class for implementing propagators.
 class AbstractPropagator {
 public:
+	//! Type for representing a set of literals that have recently changed.
 	typedef Potassco::LitSpan ChangeList;
 	virtual ~AbstractPropagator();
+	//! Shall propagate the newly assigned literals given in changes.
 	virtual void propagate(AbstractSolver& solver,  const ChangeList& changes) = 0;
+	//! May update internal state of the newly unassigned literals given in undo.
 	virtual void undo(const AbstractSolver& solver, const ChangeList& undo) = 0;
+	//! Similar to propagate but called on total assignment without a list of changes.
 	virtual void check(AbstractSolver& solver) = 0;
 };
 
@@ -109,6 +123,7 @@ public:
  */
 class AbstractStatistics {
 public:
+	//! Opaque type for representing (sub) keys.
 	typedef uint64_t Key_t;
 	
 	virtual ~AbstractStatistics();
@@ -155,6 +170,7 @@ public:
 	virtual double value(Key_t key) const = 0;
 	//@}
 };
+///@}
 
 }
 #endif
