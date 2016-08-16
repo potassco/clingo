@@ -30,6 +30,9 @@
 //! To get an overview, checkout the [Modules](modules.html) page.
 //! To get started, take a look at the documentation of the @ref Control module.
 //!
+//! For information about the syntax and semantics of the clingo language,
+//! take a look the [Potassco Guide](http://sourceforge.net/projects/potassco/files/guide/).
+//!
 //! @note Each module comes with an example highlighting key functionality.
 //! The example should be studied along with the module documentation.
 
@@ -145,10 +148,28 @@ typedef int clingo_truth_value_t;
 
 // {{{1 signature and symbols
 
+//! @example symbol.c
+//! The example shows how to create and inspect symbols.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! $ ./symbol 0
+//! the hash of 42 is 281474976710698
+//! the hash of x is 562949963481760
+//! the hash of x(42,x) is 1407374893613792
+//! 42 is equal to 42
+//! 42 is not equal to x
+//! 42 is less than x
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
 //! @defgroup Symbols Symbols
 //! Working with (evaluated) ground terms and related functions.
 //!
 //! @note All functions in this module are thread-safe.
+//!
+//! For an example, see @ref symbol.c.
 
 //! @addtogroup Symbols
 //! @{
@@ -437,7 +458,7 @@ bool clingo_parse_term(char const *string, clingo_logger_t *logger, void *logger
 
 //! @defgroup Model Model Inspection
 //! Inspection of models and a high-level interface to add constraints during solving.
-//
+//!
 //! For an example, see @ref model.c.
 //! @ingroup Control
 
@@ -1408,9 +1429,27 @@ typedef struct clingo_propagator {
 
 // {{{1 backend
 
+//! @example backend.c
+//! The example shows how to used the backend to extend a grounded program.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! ./backend 0
+//! Model: a b
+//! Model: a b c
+//! Model:
+//! Model: a
+//! Model: b
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
+
 //! @defgroup ProgramBuilder Program Building
 //! Add non-ground program representations (ASTs) to logic programs or extend the ground (aspif) program.
 //! @ingroup Control
+//!
+//! For an example, see @ref backend.c.
 
 //! @addtogroup ProgramBuilder
 //! @{
@@ -1845,6 +1884,8 @@ bool clingo_statistics_value_get(clingo_statistics_t *statistics, uint64_t key, 
 //! but has the advantage that the structure of a logic program is (hopefully) self-explanatory.
 //! The API could also be much reduced by, for example, just providing one node type as done in [clingo's python API](http://potassco.sourceforge.net/doc/pyclingo/clingo.ast.html).
 //! [Feedback would be very welcome!](https://github.com/potassco/clingo/issues)
+//!
+//! @todo add example
 
 //! @addtogroup AST
 //! @{
