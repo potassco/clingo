@@ -49,8 +49,22 @@ extern "C" {
 
 // {{{1 basic types and error/warning handling
 
+//! @example version.c
+//! The example shows how to get version information.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! $ ./version
+//! Hello, this is clingo version...
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
+
 //! @defgroup BasicTypes Basic Data Types and Functions
 //! Data types and functions used throughout all modules and version information.
+//!
+//! For an example, see @ref version.c.
 
 //! @addtogroup BasicTypes
 //! @{
@@ -164,6 +178,7 @@ typedef int clingo_truth_value_t;
 //! ~~~~~~~~~~~~
 //!
 //! ## Code ##
+
 //! @defgroup Symbols Symbols
 //! Working with (evaluated) ground terms and related functions.
 //!
@@ -1449,7 +1464,8 @@ typedef struct clingo_propagator {
 //! Add non-ground program representations (ASTs) to logic programs or extend the ground (aspif) program.
 //! @ingroup Control
 //!
-//! For an example, see @ref backend.c.
+//! For an example about ground logic programs, see @ref backend.c.
+//! For an example about non-ground logic programs, see @ref ast.c and the @ref AST module.
 
 //! @addtogroup ProgramBuilder
 //! @{
@@ -1876,6 +1892,24 @@ bool clingo_statistics_value_get(clingo_statistics_t *statistics, uint64_t key, 
 
 // {{{1 ast
 
+//! @example ast.c
+//! The example shows how to rewrite a non-ground logic program.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~
+//! ./ast 0
+//! Solving with enable = false...
+//! Model:
+//! Solving with enable = true...
+//! Model: enable a
+//! Model: enable b
+//! Solving with enable = false...
+//! Model:
+//! ~~~~~~~~
+//!
+//! ## Code ##
+
 //! @defgroup AST Abstract Syntax Trees
 //! Functions and data structures to work with program ASTs.
 //!
@@ -1885,7 +1919,7 @@ bool clingo_statistics_value_get(clingo_statistics_t *statistics, uint64_t key, 
 //! The API could also be much reduced by, for example, just providing one node type as done in [clingo's python API](http://potassco.sourceforge.net/doc/pyclingo/clingo.ast.html).
 //! [Feedback would be very welcome!](https://github.com/potassco/clingo/issues)
 //!
-//! @todo add example
+//! For an example, see @ref ast.c.
 
 //! @addtogroup AST
 //! @{
