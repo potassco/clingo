@@ -791,7 +791,7 @@ bool clingo_solve_async_cancel(clingo_solve_async_t *handle);
 //! ## Code ##
 
 //! @defgroup SymbolicAtoms Symbolic Atom Inspection
-//! Inspection of atoms occuring in ground logic programs.
+//! Inspection of atoms occurring in ground logic programs.
 //!
 //! For an example, see @ref symbolic-atoms.c.
 //! @ingroup Control
@@ -950,7 +950,7 @@ bool clingo_symbolic_atoms_is_valid(clingo_symbolic_atoms_t *atoms, clingo_symbo
 //! ## Code ##
 
 //! @defgroup TheoryAtoms Theory Atom Inspection
-//! Inspection of theory atoms occuring in ground logic programs.
+//! Inspection of theory atoms occurring in ground logic programs.
 //! @ingroup Control
 //!
 //! During grounding, theory atoms get consecutive numbers starting with zero.
@@ -1431,9 +1431,9 @@ typedef struct clingo_propagator {
     //! @return whether the call was successful
     //! @see ::clingo_propagator_propagate_callback_t
     bool (*propagate) (clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, void *data);
-    //! Called whenever a solver undos assignments to watched solver literals.
+    //! Called whenever a solver undoes assignments to watched solver literals.
     //!
-    //! This callback is meant to update assignment dependend state in the propagator.
+    //! This callback is meant to update assignment dependent state in the propagator.
     //!
     //! @note No clauses must be propagated in this callback.
     //!
@@ -2515,9 +2515,9 @@ typedef bool clingo_ast_callback_t (clingo_ast_statement_t const *, void *);
 //!
 //! @param[in] program the program in gringo syntax
 //! @param[in] callback the callback reporting statements
-//! @param[in] callback_data userdata for the callback
+//! @param[in] callback_data user data for the callback
 //! @param[in] logger callback to report messages during parsing
-//! @param[in] logger_data userdata for the logger
+//! @param[in] logger_data user data for the logger
 //! @param[in] message_limit the maximum number of times the logger is called
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if parsing fails
@@ -2594,7 +2594,7 @@ bool clingo_program_builder_end(clingo_program_builder_t *builder);
 //! @var clingo_solve_result::clingo_solve_result_exhausted
 //! The last solve call completely exhausted the search space.
 //! @var clingo_solve_result::clingo_solve_result_interrupted
-//! The last solve call was interruped.
+//! The last solve call was interrupted.
 //!
 //! @see clingo_control_interrupt()
 
@@ -2624,7 +2624,7 @@ typedef struct clingo_part {
 //! Callback function to inject symbols.
 //!
 //! @param symbols array of symbols
-//! @param symbols_size size fo the symbol array
+//! @param symbols_size size of the symbol array
 //! @param data user data of the callback
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
@@ -2685,7 +2685,7 @@ typedef bool clingo_ground_callback_t (clingo_location_t location, char const *n
 //! stop solving with an error.
 //!
 //! @param[in] model the current model
-//! @param[in] data userdata of the callback
+//! @param[in] data user data of the callback
 //! @param[out] goon whether to continue search
 //! @return whether the call was successful
 //!
@@ -2701,7 +2701,7 @@ typedef bool clingo_model_callback_t (clingo_model_t *model, void *data, bool *g
 //! error.
 //!
 //! @param[in] result result of the solve call
-//! @param[in] data userdata of the callback
+//! @param[in] data user data of the callback
 //! @return whether the call was successful
 //!
 //! @see clingo_control_solve_async()
@@ -2720,7 +2720,7 @@ typedef bool clingo_finish_callback_t (clingo_solve_result_bitset_t result, void
 //! @param[in] arguments C string array of command line arguments
 //! @param[in] arguments_size size of the arguments array
 //! @param[in] logger callback functions for warnings and info messages
-//! @param[in] logger_data userdata for the logger callback
+//! @param[in] logger_data user data for the logger callback
 //! @param[in] message_limit maximum number of times the logger callback is called
 //! @param[out] control resulting control object
 //! @return whether the call was successful; might set one of the following error codes:
@@ -2789,7 +2789,7 @@ bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts
 //!
 //! @param[in] control the target
 //! @param[in] model_callback optional callback to intercept models
-//! @param[in] model_callback_data userdata for model callback
+//! @param[in] model_callback_data user data for model callback
 //! @param[in] assumptions array of assumptions to solve under
 //! @param[in] assumptions_size number of assumptions
 //! @param[out] result the result of the search
@@ -2816,9 +2816,9 @@ bool clingo_control_solve_iteratively(clingo_control_t *control, clingo_symbolic
 //!
 //! @param[in] control the target
 //! @param[in] model_callback optional callback to intercept models
-//! @param[in] model_callback_data userdata for model callback
+//! @param[in] model_callback_data user data for model callback
 //! @param[in] finish_callback optional callback called just before the end of the search
-//! @param[in] finish_callback_data userdata for finish callback
+//! @param[in] finish_callback_data user data for finish callback
 //! @param[in] assumptions array of assumptions to solve under
 //! @param[in] assumptions_size number of assumptions
 //! @param[out] handle handle to the current search
@@ -2915,7 +2915,7 @@ bool clingo_control_configuration(clingo_control_t *control, clingo_configuratio
 //! the solver's various enumeration modes is removed after a solve call. This
 //! includes enumeration of cautious or brave consequences, enumeration of
 //! answer sets with or without projection, or finding optimal models, as well
-//! as clauses/nogoods added with clingo_solve_control_add_clause().
+//! as clauses added with clingo_solve_control_add_clause().
 //!
 //! @attention For practical purposes, this option is only interesting for single-shot solving
 //! or before the last solve call to squeeze out a tiny bit of performance.
@@ -2974,7 +2974,7 @@ bool clingo_control_theory_atoms(clingo_control_t *control, clingo_theory_atoms_
 //! See the @ref ProgramBuilder module for more information.
 //!
 //! @param[in] control the target
-//! @param[out] backend the backend objet
+//! @param[out] backend the backend object
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 bool clingo_control_backend(clingo_control_t *control, clingo_backend_t **backend);
@@ -2983,7 +2983,7 @@ bool clingo_control_backend(clingo_control_t *control, clingo_backend_t **backen
 //! See the @ref ProgramBuilder module for more information.
 //!
 //! @param[in] control the target
-//! @param[out] builder the program builder objet
+//! @param[out] builder the program builder object
 //! @return whether the call was successful
 bool clingo_control_program_builder(clingo_control_t *control, clingo_program_builder_t **builder);
 //! @}
@@ -2997,5 +2997,3 @@ bool clingo_control_program_builder(clingo_control_t *control, clingo_program_bu
 #endif
 
 #endif
-
-
