@@ -30,6 +30,8 @@
 //! To get an overview, checkout the [Modules](modules.html) page.
 //! To get started, take a look at the documentation of the @ref Control module.
 //!
+//! The source code of clingo is available on [github.com/potassco/clingo](https://github.com/potassco/clingo).
+//!
 //! For information about the syntax and semantics of the clingo language,
 //! take a look the [Potassco Guide](http://sourceforge.net/projects/potassco/files/guide/).
 //!
