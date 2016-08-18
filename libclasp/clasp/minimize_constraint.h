@@ -34,7 +34,8 @@ class MinimizeConstraint;
 class WeightConstraint;
 
 //! Supported minimization modes.
-/*! 
+/*!
+ * \ingroup constraint
  * Defines the possible minimization modes used during solving.
  * If optimize is used, a valid candidate model is a solution that is
  * strictly smaller than all previous solutions. Otherwise,
@@ -84,8 +85,8 @@ public:
 	//! A type to represent a weight at a certain level.
 	/*!
 	 * Objects of this type are used to create sparse vectors of weights. E.g.
-	 * a weight vector (w1@L1, w2@L3, w3@L5) is represented as [<L1,1,w1><L3,1,w2><L5,0,w3>], 
-	 * where each <level, next, weight>-tuple is an object of type LevelWeight.
+	 * a weight vector (w1\@L1, w2\@L3, w3\@L5) is represented as \[\<L1,1,w1\>\<L3,1,w2\>\<L5,0,w3\>\], 
+	 * where each \<level, next, weight\>-tuple is an object of type LevelWeight.
 	 */
 	struct LevelWeight {
 		LevelWeight(uint32 l, weight_t w) : level(l), next(0), weight(w) {}
@@ -146,6 +147,7 @@ public:
 	
 	//! Attaches a new minimize constraint to this data object.
 	/*!
+	 * \param s      Solver in which the new minimize constraint should apply.
 	 * \param strat  The optimization strategy to use (see MinimizeMode_t::Strategy).
 	 * \param param  Parameter to pass to the optimization strategy.
 	 * \param addRef If true, the ref count of the shared object is increased. 
@@ -219,6 +221,9 @@ private:
 	SharedMinimizeData& operator=(const SharedMinimizeData&);
 };
 //! Helper class for creating minimize constraints.
+/*!
+ * \ingroup constraint
+ */
 class MinimizeBuilder {
 public:
 	typedef SharedMinimizeData SharedData;
@@ -326,6 +331,7 @@ protected:
 
 //! Minimization via branch and bound.
 /*!
+ * \ingroup constraint
  * The class supports both basic branch and bound as well as
  * hierarchical branch and bound (with or without varying step sizes).
  */
@@ -441,6 +447,9 @@ private:
 };
 
 //! Minimization via unsat cores.
+/*!
+ * \ingroup constraint
+ */
 class UncoreMinimize : public MinimizeConstraint {
 public:
 	// constraint interface

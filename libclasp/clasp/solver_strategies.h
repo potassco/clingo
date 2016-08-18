@@ -40,8 +40,8 @@ namespace Clasp {
  *  - luby's sequence     : X = n1 * luby(k)(k >= 0) 
  *  .
  * Furthermore, an inner-outer scheme can be applied to the selected sequence.
- * In that case, the sequence is repeated every <limit>+j restarts, where
- * <limit> is the initial outer-limit and j is the number of times the
+ * In that case, the sequence is repeated every \<limit\>+j restarts, where
+ * \<limit\> is the initial outer-limit and j is the number of times the
  * sequence was already repeated.
  *
  * \note For luby's seqeuence, j is not a repetition counter
@@ -151,9 +151,9 @@ struct HeuParams {
 	enum DomMod     { mod_none   = 0u, mod_level  = 1u, mod_spos  = 2u, mod_true  = 3u, mod_sneg  = 4u, mod_false = 5u, mod_init = 6u, mod_factor = 7u };
 	//! Values for dynamic decaying scheme.
 	struct VsidsDecay {
-		uint32 init: 10; /*!< Starting decay factor: 1/0.<init>. */
-		uint32 bump:  7; /*!< Decay decrease value : <bump>/100. */
-		uint32 freq: 15; /*!< Update decay factor every <freq> conflicts. */
+		uint32 init: 10; /*!< Starting decay factor: 1/0.\<init\>. */
+		uint32 bump:  7; /*!< Decay decrease value : \<bump\>/100. */
+		uint32 freq: 15; /*!< Update decay factor every \<freq\> conflicts. */
 	};
 	HeuParams();
 	uint32 param    : 16; /*!< Extra parameter for heuristic with meaning depending on type */
@@ -311,16 +311,17 @@ struct ReduceParams {
 
 //! Parameter-Object for grouping solve-related options.
 /*!
- * \ingroup solver
+ * \ingroup enumerator
  */
 struct SolveParams {
 	//! Creates a default-initialized object.
 	/*!
 	 * The following parameters are used:
-	 * restart      : quadratic: 100*1.5^k / no restarts after first solution
-	 * deletion     : initial size: vars()/3, grow factor: 1.1, max factor: 3.0, do not reduce on restart
-	 * randomization: disabled
-	 * randomProp   : 0.0 (disabled)
+	 * - restart      : quadratic: 100*1.5^k / no restarts after first solution
+	 * - deletion     : initial size: vars()/3, grow factor: 1.1, max factor: 3.0, do not reduce on restart
+	 * - randomization: disabled
+	 * - randomProp   : 0.0 (disabled)
+	 * .
 	 */
 	SolveParams();
 	uint32  prepare(bool withLookback);
@@ -354,8 +355,8 @@ struct SatPreParams {
 	uint32 limIters : 11; /**< Max. number of iterations.                         (0=no limit)*/
 	uint32 limTime  : 12; /**< Max. runtime in sec, checked after each iteration. (0=no limit)*/
 	uint32 limFrozen:  7; /**< Run only if percent of frozen vars < maxFrozen.    (0=no limit)*/
-	uint32 limClause: 16; /**< Run only if #clauses < (limClause*1000)            (0=no limit)*/ 
-	uint32 limOcc   : 16; /**< Skip v, if #occ(v) >= limOcc && #occ(~v) >= limOcc.(0=no limit)*/
+	uint32 limClause: 16; /**< Run only if \#clauses \< (limClause*1000)          (0=no limit)*/ 
+	uint32 limOcc   : 16; /**< Skip v, if \#occ(v) \>= limOcc && \#occ(~v) \>= limOcc.(0=no limit) */
 	bool clauseLimit(uint32 nc)           const { return limClause && nc > (limClause*1000u); }
 	bool occLimit(uint32 pos, uint32 neg) const { return limOcc && pos > (limOcc-1u) && neg > (limOcc-1u); }
 	uint32 bce()                          const { return type != sat_pre_no ? type - 1 : 0; }

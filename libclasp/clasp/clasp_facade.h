@@ -25,7 +25,7 @@
 #endif
 
 #if !defined(CLASP_VERSION)
-#define CLASP_VERSION "3.2.0-R52871"
+#define CLASP_VERSION "3.2.0-R52878"
 #endif
 #if !defined(CLASP_LEGAL)
 #define CLASP_LEGAL \
@@ -59,11 +59,18 @@ namespace Clasp {
  * This file provides a facade around the clasp library.
  * I.e. a simplified interface for (multishot) solving a problem using
  * some configuration (set of parameters).
+ * \ingroup facade
  */
 namespace Clasp {
 /////////////////////////////////////////////////////////////////////////////////////////
 // Configuration
 /////////////////////////////////////////////////////////////////////////////////////////	
+/*!
+ * \defgroup facade Facade
+ * \brief Simplified interface for (multishot) solving.
+ *
+ * @{
+ */
 //! Configuration object for configuring solving via the ClaspFacade.
 class ClaspConfig : public BasicSatConfig {
 public:
@@ -93,8 +100,9 @@ public:
 	UserConfig*    addTesterConfig();
 	//! Registers c as additional callback for when addPost() is called.
 	/*! 
-	 * \param ownership if Ownership_t::Acquire, ownership of c is transferred to the configuration object.
-	 * \param once      whether c should be called once in the first step or also in each subsequent step.
+	 * \param c         Additional configuration to apply.
+	 * \param ownership If Ownership_t::Acquire, ownership of c is transferred to the configuration object.
+	 * \param once      Whether c should be called once in the first step or also in each subsequent step.
 	 */ 
 	void           addConfigurator(Configurator* c, Ownership_t::Type ownership = Ownership_t::Retain, bool once = true);
 	SolveOptions   solve; /*!< Options for solve algorithm and enumerator. */
@@ -449,5 +457,8 @@ private:
 	StatsPtr     stats_; // statistics: only if requested
 	SolvePtr     solve_; // NOTE: last so that it is destroyed first;
 };
+
+//!@}
+
 }
 #endif

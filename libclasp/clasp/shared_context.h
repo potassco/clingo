@@ -69,8 +69,10 @@ struct LogEvent : Event_t<LogEvent> {
 	const char*   msg;
 };
 
-/*!
- * \addtogroup solver
+
+/**
+ * \defgroup shared Shared types
+ * \brief Types shared between solvers.
  */
 //@{
 //! Base class for preprocessors working on clauses only.
@@ -177,12 +179,6 @@ private:
 	LitVec     units_;   // initial unit clauses
 	Range32    seen_;    // vars seen in previous step
 };
-//@}
-
-/**
- * \defgroup shared Types shared between solvers.
- */
-//@{
 
 ///////////////////////////////////////////////////////////////////////////////
 // Problem statistics
@@ -731,8 +727,8 @@ public:
 	
 	//! Adds a new variable and returns its numerical id.
 	/*!
-	 * \param type Type of variable.
-	 * \param inf  Additional information associated with the new variable.
+	 * \param type  Type of variable.
+	 * \param flags Additional information associated with the new variable.
 	 * \note Problem variables are numbered from 1 onwards!
 	 */
 	Var     addVar(VarType type, uint8 flags = VarInfo::Nant | VarInfo::Input) { return addVars(1, type, flags); }
@@ -777,7 +773,7 @@ public:
 	bool    addTernary(Literal x, Literal y, Literal z);
 	//! A convenience method for adding constraints to the master.
 	void    add(Constraint* c);
-	//! Add weak constraint :~ x.first [x.second@p].
+	//! Add weak constraint :~ x.first \[x.second\@p\].
 	void    addMinimize(WeightLiteral x, weight_t p);
 	//! Returns a pointer to an optimized representation of all minimize constraints in this problem.
 	MinPtr  minimize();

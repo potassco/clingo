@@ -32,6 +32,7 @@ namespace Clasp { namespace SatElite {
 
 //! SatElite preprocessor for clauses
 /*!
+ * \ingroup shared
  * The preprocessor implements subsumption, self-subsumption, variable elimination,
  * and (optionally) blocked clause elimination.
  * \see 

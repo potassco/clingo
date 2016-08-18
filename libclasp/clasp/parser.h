@@ -38,6 +38,10 @@ namespace Clasp {
 /////////////////////////////////////////////////////////////////////////////////////////
 // PARSING BASE
 /////////////////////////////////////////////////////////////////////////////////////////
+/*!
+ * \addtogroup problem
+ */
+//@{
 
 //! Auto-detect type of program given in prg.
 ProblemType detectProblemType(std::istream& prg);
@@ -175,5 +179,7 @@ protected:
 private:
 	SatReader* reader_;
 };
+//@}
+
 }
 #endif

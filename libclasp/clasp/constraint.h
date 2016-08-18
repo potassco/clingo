@@ -41,7 +41,8 @@ class  ClauseHead;
 struct CCMinRecursive;
 
 /**
- * \defgroup constraint Boolean Constraints
+ * \defgroup constraint Constraints
+ * \brief Boolean Constraints, post propagators, and related types.
  */
 //@{
 

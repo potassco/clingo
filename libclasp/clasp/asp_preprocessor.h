@@ -29,7 +29,7 @@
 namespace Clasp { namespace Asp {
 
 /**
- * \ingroup problem Problem specification
+ * \addtogroup asp
  */
 //@{
 

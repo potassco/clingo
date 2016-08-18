@@ -29,6 +29,9 @@
 namespace Clasp {
 
 //! An array of literals that can be shared between threads.
+/*!
+ * \ingroup shared
+ */
 class SharedLiterals {
 public:
 	//! Creates a shareable (ref-counted) object containing the literals in lits.
@@ -302,6 +305,9 @@ private:
 };
 
 //! Class for representing a clause in a solver.
+/*!
+ * \ingroup constraint
+ */
 class Clause : public ClauseHead {
 public:
 	typedef Constraint::PropResult PropResult;
@@ -334,10 +340,10 @@ public:
 	 * Propagation is restricted to the head.
 	 * The tail is only needed to compute reasons from assignments.
 	 *
-	 * \param s     Solver in which the new clause is to be used.
-	 * \param rep   The raw representation of the clause.
-	 * \param tail  The starting index of the tail (first literal that should be temporarily removed from the clause).
-	 * \param exten Extend head part of clause as tail literals become free?
+	 * \param s       Solver in which the new clause is to be used.
+	 * \param rep     The raw representation of the clause.
+	 * \param tailPos The starting index of the tail (first literal that should be temporarily removed from the clause).
+	 * \param extend  Extend head part of clause as tail literals become free?
 	 */
 	static ClauseHead*  newContractedClause(Solver& s, const ClauseRep& rep, uint32 tailPos, bool extend);
 	
@@ -438,6 +444,7 @@ public:
 	* \param c1     First clause of the new constraint.
 	* \param atoms  Set of atoms in the loop.
 	* \param nAtoms Number of atoms in the loop.
+	* \param updateHeuristic Whether to notify heuristic about new constraint.
 	*
 	* \pre The clause given in c1 is prepared and c1.size > 1 and c1.lits[0] is a literal in atoms.
 	* \see ClauseCreator::prepare()
@@ -494,6 +501,7 @@ namespace mt {
 
 //! Stores the local part of a shared clause.
 /*!
+ * \ingroup constraint
  * The local part of a shared clause consists of a
  * clause head and and a pointer to the shared literals.
  * Since the local part is owned by a particular solver

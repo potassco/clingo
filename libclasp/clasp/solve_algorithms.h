@@ -31,6 +31,9 @@
  */
 namespace Clasp {
 
+///! \addtogroup enumerator
+//@{
+
 //! Type for holding global solve limits.
 struct SolveLimits {
 	explicit SolveLimits(uint64 conf = UINT64_MAX, uint64 r = UINT64_MAX) 
@@ -51,8 +54,8 @@ class BasicSolve {
 public:
 	//! Creates a new object for solving with the given solver using the given solving options.
 	/*!
+	 * If an optional solve limit is given, solving stops once this limit is reached.
 	 * \pre s is attached to a problem (SharedContext).
-	 * \param lim Solving limits to apply.
 	 */
 	BasicSolve(Solver& s, const SolveParams& p, const SolveLimits& lim = SolveLimits());
 	BasicSolve(Solver& s, const SolveLimits& lim = SolveLimits());
@@ -85,6 +88,7 @@ public:
 	//! Returns whether the given problem is satisfiable under the given assumptions.
 	/*!
 	 * Calls assume(assumptions) followed by solve() but does not maintain any solving state.
+	 * \param assumptions Possibly empty set of assumptions to apply before solving.
 	 * \param init Call InitParams::randomize() before starting search?
 	 */
 	bool     satisfiable(const LitVec& assumptions, bool init);
@@ -120,14 +124,14 @@ struct BasicSolveEvent : SolveEvent<BasicSolveEvent> {
 class Enumerator;
 //! Interface for complex solve algorithms.
 /*!
- * \ingroup solver
+ * \ingroup enumerator
  * \relates Solver
  * SolveAlgorithms implement complex algorithms like enumeration or optimization.
  */
 class SolveAlgorithm {
 public:
 	/*!
-	 * \param lim An optional solve limit applied in solve().
+	 * \param limit An optional solve limit applied in solve().
 	 */
 	explicit SolveAlgorithm(const SolveLimits& limit = SolveLimits());
 	virtual ~SolveAlgorithm();
@@ -259,6 +263,7 @@ struct BasicSolveOptions {
 	void            setSolvers(uint32)        {}
 	bool            defaultPortfolio() const  { return false; }
 };
+//@}
 
 }
 #endif

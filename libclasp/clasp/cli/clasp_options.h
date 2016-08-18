@@ -37,9 +37,12 @@ namespace Clasp {
 namespace Cli {
 
 /**
- * \defgroup cli Types to be used by the command-line interface.
+ * \defgroup cli Cli
+ * \brief Types to be used by the command-line interface.
+ * \ingroup facade
+ * @{
  */
-//@{
+
 class ClaspCliConfig;
 class ConfigIter {
 public:
@@ -160,7 +163,7 @@ public:
 	
 	//! Creates and returns a string representation of the value of the given key.
 	/*!
-	 * \param key  A valid handle to a key.
+	 * \param k  A valid handle to a key.
 	 * \param[out] value The current value of the key.
 	 * \return The length of value or < 0 if k either has no value (-1) or an error occurred while writing the value (< -1).
 	 */
@@ -168,13 +171,14 @@ public:
 	 
 	//! Writes a null-terminated string representation of the value of the given key into the supplied buffer.
 	/*!
-	 * \overload int getValue(KeyType k, std::string& out) const;
+	 * \overload int getValue(KeyType k, std::string& value) const;
+	 * \param k A valid handle to a key.
 	 * \param[out] buffer The current value of the key.
 	 * \param bufSize The size of buffer.
 	 * \note Although the number returned can be larger than the bufSize, the function
 	 *   never writes more than bufSize bytes into the buffer.
 	 */
-	int getValue(KeyType key, char* buffer, std::size_t bufSize) const;
+	int getValue(KeyType k, char* buffer, std::size_t bufSize) const;
 	
 	//! Sets the option identified by the given key.
 	/*!
@@ -225,6 +229,7 @@ public:
 	//! Populates this configuration with the options given in [first, last) and finalizes it.
 	/*!
 	 * \param [first, last) a range of options in argv format.
+	 * \param t Problem type for which this configuration is created. Used to set defaults.
 	 */
 	template <class IT>
 	bool setConfig(IT first, IT last, ProblemType t) {

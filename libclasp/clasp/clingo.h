@@ -23,6 +23,13 @@
 #include <clasp/clasp_facade.h>
 namespace Clasp {
 
+/*!
+ * \defgroup clingo Clingo
+ * \brief Additional classes mainly used by clingo.
+ * \ingroup facade
+ * @{
+ */
+
 class ClingoPropagatorLock {
 public:
 	virtual ~ClingoPropagatorLock();
@@ -96,6 +103,6 @@ private:
 	LitVec watches_;
 	VarVec seen_;
 };
-
+///@}
 }
 #endif

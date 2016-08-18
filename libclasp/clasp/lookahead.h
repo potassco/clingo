@@ -34,6 +34,10 @@
 #include <clasp/solver.h>
 #include <clasp/constraint.h>
 namespace Clasp { 
+/*!
+ * \addtogroup constraint
+ */
+//@{
 
 //! Type used to store lookahead-information for one variable.
 struct VarScore {
@@ -150,7 +154,7 @@ public:
 	};
 	static bool isType(uint32 t) { return t != 0 && t <= Var_t::Hybrid; }
 	/*!
-	 * \param t Lookahead-type to use.
+	 * \param p Lookahead parameters to use.
 	 */
 	explicit Lookahead(const Params& p);
 	~Lookahead();
@@ -202,9 +206,11 @@ private:
 	uint32     top_;   // size of top-level
 	uint32     limit_; // stop lookahead after this number of applications
 };
+//@}
 
 //! Heuristic that uses the results of lookahead.
 /*!
+ * \ingroup heuristic
  * The heuristic uses a Lookahead post propagator to select a literal with the highest score,
  * where the score is determined by counting assignments made during
  * failed-literal detection. hybrid_lookahead simply selects the literal that

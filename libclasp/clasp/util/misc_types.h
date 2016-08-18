@@ -33,7 +33,8 @@
 namespace Clasp {
 
 /*!
- * \defgroup misc Miscellaneous and Internal Stuff not specific to clasp.
+ * \defgroup misc Miscellaneous
+ * \brief Miscellaneous and Internal Stuff not specific to clasp.
  */
 //@{
 
