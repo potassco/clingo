@@ -106,6 +106,7 @@ public:
 	 * \param W The literal that is associated with the constraint.
 	 * \param lits The literals of the weight constraint.
 	 * \param bound The lower bound of the weight constraint.
+	 * \param creationFlags Set of CreationFlags to apply.
 	 * \note Cardinality constraint are represented as weight constraints with all weights equal to 1.
 	 * \note If creationFlags contains create_eq_bound, a constraint W == (lits == bound) is created that
 	 * is represented by up to two weight constraints.

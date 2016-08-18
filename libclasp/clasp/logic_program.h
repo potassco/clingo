@@ -29,7 +29,12 @@
 #include <clasp/util/hash_map.h>
 #include <clasp/statistics.h>
 namespace Clasp { namespace Asp {
-
+/*!
+ * \defgroup asp Asp
+ * \brief Classes and functions for defining logic programs.
+ * \ingroup problem
+ */
+//@{
 struct RuleStats {
 	typedef uint32& Ref_t;
 	typedef uint32 const& CRef_t;
@@ -583,6 +588,7 @@ protected:
 	Asp::LogicProgram* lp_;
 	bool               inc_;
 };
+//@}
 
 } } // end namespace Asp
 #endif

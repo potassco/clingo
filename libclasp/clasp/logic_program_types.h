@@ -42,7 +42,10 @@ typedef PodVector<PrgDisj*>::type DisjList;
 const   ValueRep value_weak_true = 3; /**< true but no proof */
 using Potassco::Atom_t;
 using Potassco::Id_t;
-
+/*!
+ * \addtogroup asp
+ */
+//@{
 //! A node of a program-dependency graph.
 /*!
  * A node represents a relevant part in a logic program. Each node
@@ -201,9 +204,6 @@ private:
 };
 
 //! Used during rule simplification.
-/**
- * \ingroup problem
- */
 class AtomState {
 public:
 	static const uint8 pos_flag    = 0x1u; // in positive body of active rule
@@ -444,7 +444,7 @@ public:
 	 *
 	 * \param[in] prg    The program containing this body.
 	 * \param[in] strong If true, treats atoms that have no variable associated as false. 
-	 * \param[out]eqId   The id of a body in prg that is equivalent to this body.
+	 * \param[out] eqId  The id of a body in prg that is equivalent to this body.
 	 *
 	 * \return
 	 *  - true if simplification was successful
@@ -628,6 +628,6 @@ public:
 	}
 	Configuration* config;
 };
-
+//@}
 } }
 #endif

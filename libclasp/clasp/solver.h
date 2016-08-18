@@ -30,7 +30,8 @@
 namespace Clasp {
 
 /**
- * \defgroup solver Solver and related classes.
+ * \defgroup solver Solver
+ * \brief Solver and related classes.
  */
 //@{
 
@@ -186,7 +187,7 @@ public:
 	 * resets the current backtrack-level, and re-assigns any implied literals.
 	 * \param      i      Number of root decisions to pop.
 	 * \param[out] popped Optional storage for popped root decisions.
-	 * \param      filter Whether or not aux variables should be added to popped.
+	 * \param      aux    Whether or not aux variables should be added to popped.
 	 * \post decisionLevel() == rootLevel()
 	 * \note The function first calls clearStopConflict() to remove any stop conflicts.
 	 * \note The function *does not* propagate any asserted literals. It is
@@ -279,7 +280,7 @@ public:
 	 *   - any literals that are implied on a level <= rootLevel() because of newly learnt
 	 *     information. This particularly includes literals that were flipped during model enumeration.
 	 * 
-	 * \param[out] gp where to store the guiding path
+	 * \param[out] out Where to store the guiding path.
 	 */
 	void copyGuidingPath(LitVec& out);
 
@@ -903,10 +904,17 @@ inline Literal Solver::defaultLit(Var v) const {
 		case SolverStrategies::sign_rnd : return Literal(v, rng.drand() < 0.5);
 	}
 }
+struct NewConflictEvent : SolveEvent<NewConflictEvent> {
+	NewConflictEvent(const Solver& s, const LitVec& c, const ConstraintInfo& i) : SolveEvent<NewConflictEvent>(s, verbosity_quiet), learnt(&c), info(i) {}
+	const LitVec*  learnt;
+	ConstraintInfo info;
+};
 //@}
 
 /**
  * \defgroup heuristic Decision Heuristics
+ * \brief Decision heuristics and related classes.
+ * \ingroup solver
  */
 //@{
 
@@ -1059,13 +1067,6 @@ public:
 protected:
 	Literal doSelect(Solver& s);
 };
-
-struct NewConflictEvent : SolveEvent<NewConflictEvent> {
-	NewConflictEvent(const Solver& s, const LitVec& c, const ConstraintInfo& i) : SolveEvent<NewConflictEvent>(s, verbosity_quiet), learnt(&c), info(i) { }
-	const LitVec*  learnt;
-	ConstraintInfo info;
-};
-
 //@}
 }
 #endif

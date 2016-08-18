@@ -41,6 +41,7 @@ public:
 	enum Algo { Default, Query };
 	/*!
 	 * \param type Type of consequences to compute.
+	 * \param a Type of algorithm to apply if type is Cautious.
 	 */
 	explicit CBConsequences(Type type, Algo a = Default);
 	~CBConsequences();

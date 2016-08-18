@@ -42,6 +42,13 @@ namespace Clasp {
 //! Namespace for types and functions needed for implementing multi-threaded parallel solving.
 namespace mt {
 
+/**
+ * \defgroup mt Multi-threading
+ * \brief Parallel solving and related classes.
+ * \ingroup enumerator
+ */
+//@{
+
 class ParallelHandler;
 class ParallelSolve;
 
@@ -350,7 +357,7 @@ private:
 	RawStack       blocks_;    // allocated node blocks
 	uint32         numThread_; // number of threads, i.e. size of array thread_
 };
-
+//@}
 } }
 #endif
 

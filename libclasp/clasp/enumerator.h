@@ -64,7 +64,8 @@ struct Model {
 };
 
 /**
- * \defgroup enumerator Enumerators and related classes
+ * \defgroup enumerator Solving
+ * \brief Enumerators and solve algorithms.
  */
 //@{
 

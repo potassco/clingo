@@ -35,8 +35,8 @@
 namespace Clasp {
 
 /**
- * \defgroup problem Problem specification
- * Classes and functions for defining input programs.
+ * \defgroup problem Input
+ * \brief Classes and functions for defining input programs.
  */
 //@{
 

@@ -73,16 +73,16 @@ public:
 		project_dom_lits      = 8, /*!< In strategy record, project only on true domain literals. */ 
 	};
 	/*! 
-	 * \param p The printer to use for outputting results.
+	 * \param st Enumeration strategy to apply.
 	 */
 	explicit ModelEnumerator(Strategy st = strategy_auto);
 	~ModelEnumerator();
 	
 	//! Configure strategy.
 	/*!
-	 * \params st         Enumeration algorithm to use. 
-	 * \params projection The set of ProjectOptions to be applied or 0 to disable projective enumeration.
-	 * \params filter     Ignore output predicates starting with filter in projective enumeration.
+	 * \param st         Enumeration strategy to use. 
+	 * \param projection The set of ProjectOptions to be applied or 0 to disable projective enumeration.
+	 * \param filter     Ignore output predicates starting with filter in projective enumeration.
 	 */
 	void     setStrategy(Strategy st = strategy_auto, uint32 projection = 0, char filter = '_');
 	bool     projectionEnabled()const { return projectOpts() != 0; }

@@ -79,8 +79,8 @@ public:
 	
 	//! Creates a literal of the variable var with sign s.
 	/*!
-	 * \param var The literal's variable.
-	 * \param s true if new literal should be negative.
+	 * \param var  The literal's variable.
+	 * \param sign true if new literal should be negative.
 	 * \pre var < varMax
 	 */
 	Literal(Var var, bool sign) : rep_( (var<<sign_bit) + (uint32(sign)<<flag_bit) ) {

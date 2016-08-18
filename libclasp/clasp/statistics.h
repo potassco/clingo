@@ -234,6 +234,11 @@ private:
 	bool own_;
 };
 
+/**
+ * \addtogroup facade
+ */
+//@{
+
 class ClaspStatistics : public Potassco::AbstractStatistics {
 public:
 	typedef Potassco::Statistics_t Type;
@@ -286,6 +291,7 @@ public:
 	virtual void visitProblemStats(const ProblemStats& stats) = 0;
 	virtual void visitSolverStats(const SolverStats& stats) = 0;
 };
+//@}
 
 }
 #endif

@@ -397,6 +397,7 @@ private:
 
 //! Acyclicity checker that operates on a ExtDepGraph.
 /*!
+ * \ingroup constraint
  * \see "SAT Modulo Graphs: Acyclicity" by M. Gebser, T. Janhunen, and J. Rintanen.
  */
 class AcyclicityCheck : public PostPropagator {
