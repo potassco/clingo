@@ -1703,7 +1703,7 @@ bool clingo_configuration_array_at(clingo_configuration_t *configuration, clingo
 //! @param[out] size the resulting number
 //! @return whether the call was successful
 bool clingo_configuration_map_size(clingo_configuration_t *configuration, clingo_id_t key, size_t* size);
-//! Get the name associated with the offsetth subkey.
+//! Get the name associated with the offset-th subkey.
 //!
 //! @pre The @link clingo_configuration_type() type@endlink of the entry must be @ref ::clingo_configuration_type_map.
 //! @param[in] configuration the target configuration
@@ -1867,7 +1867,7 @@ bool clingo_statistics_array_at(clingo_statistics_t *statistics, uint64_t key, s
 //! @param[out] size the resulting number
 //! @return whether the call was successful
 bool clingo_statistics_map_size(clingo_statistics_t *statistics, uint64_t key, size_t *size);
-//! Get the name associated with the offsetth subkey.
+//! Get the name associated with the offset-th subkey.
 //!
 //! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_map.
 //! @param[in] statistics the target statistics
