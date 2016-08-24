@@ -335,7 +335,7 @@ ProgramParser* PBBuilder::doCreateParser() {
 /////////////////////////////////////////////////////////////////////////////////////////
 BasicProgramAdapter::BasicProgramAdapter(ProgramBuilder& prg) : prg_(&prg), inc_(false) {
 	int t = prg_->type();
-	CLASP_FAIL_IF(t != ProblemType::Sat && t != ProblemType::Pb, "unknown program type");
+	CLASP_FAIL_IF(t != Problem_t::Sat && t != Problem_t::Pb, "unknown program type");
 }
 void BasicProgramAdapter::initProgram(bool inc) { inc_ = inc; }
 void BasicProgramAdapter::beginStep() { if (inc_ || prg_->frozen()) { prg_->updateProgram(); } }

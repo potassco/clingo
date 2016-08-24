@@ -92,6 +92,9 @@ typedef uintptr_t uintp;
 #ifndef INT16_MIN
 #define	INT16_MIN (-INT16_MAX - 1)
 #endif
+#ifndef UINT16_MAX
+#define	UINT16_MAX (65535U)
+#endif
 #ifndef FUNC_NAME
 #define FUNC_NAME __FILE__
 #endif

@@ -29,7 +29,25 @@ inline long long strtoll(const char* str, char** endptr, int base) { return  _st
 #endif
 #endif
 
-#ifdef _WIN32
+#if defined(__CYGWIN__) || defined (__MINGW32__)
+#include <locale>
+typedef std::locale locale_t;
+inline double strtod_l(const char* x, char** end, const locale_t& loc) {
+	std::size_t xLen = std::strlen(x);
+	const char* err  = x;
+	bk_lib::detail::input_stream<char> str(x, xLen);
+	str.imbue(loc);
+	double out;
+	if (str >> out) {
+		if (str.eof()) { err += xLen; }
+		else           { err += static_cast<std::size_t>(str.tellg()); }
+	}
+	if (end) { *end = const_cast<char*>(err); }
+	return out;
+}
+inline void freelocale(const locale_t&) {}
+inline locale_t default_locale() { return std::locale::classic(); }
+#elif defined(_WIN32)
 typedef _locale_t  locale_t;
 #define strtod_l   _strtod_l
 #define freelocale _free_locale
@@ -40,7 +58,6 @@ inline locale_t    default_locale() { return newlocale(LC_ALL_MASK, "C", 0); }
 #endif
 static struct LocaleHolder {
 	~LocaleHolder() { freelocale(loc_);  }
-	operator locale_t() const { return loc_; }
 	locale_t loc_;
 } default_locale_g = { default_locale() };
 
@@ -188,7 +205,7 @@ int xconvert(const char* x, unsigned long long& out, const char** errPos, int) {
 int xconvert(const char* x, double& out, const char** errPos, int) {
 	if (empty(x, errPos)) { return 0; }
 	char* err;
-	out = strtod_l(x, &err, default_locale_g);
+	out = strtod_l(x, &err, default_locale_g.loc_);
 	return parsed(err != x, err, errPos);
 }
 

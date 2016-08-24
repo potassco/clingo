@@ -163,7 +163,7 @@ bool ProgramReader::parse(ReadMode m) {
 		if (!doParse()) { return false; }
 		stream()->skipWs();
 		require(!more() || incremental(), "invalid extra input");
-	} while (m == ReadMode::Complete && more());
+	} while (m == Complete && more());
 	return true;
 }
 bool ProgramReader::more() {
