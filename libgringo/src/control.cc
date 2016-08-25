@@ -30,6 +30,7 @@
 #include <clingo.hh>
 #ifdef GRINGO_NO_THREAD_LOCAL
 #   include <thread>
+#   include <mutex>
 #endif
 
 namespace Gringo {
@@ -92,7 +93,7 @@ void print(char *ret, size_t n, F f) {
     }
     clingo_error_t &tLlastCode() {
         std::lock_guard<std::mutex> lock(g_tLMut);
-        return g_tLData[std::this_thread::get_id()].lastMessage;
+        return g_tLData[std::this_thread::get_id()].lastCode;
     }
     #define g_lastException (tLlastException())
     #define g_lastMessage (tLlastMessage())
