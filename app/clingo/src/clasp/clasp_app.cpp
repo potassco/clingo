@@ -529,7 +529,7 @@ void LemmaLogger::startStep(ProgramBuilder& prg, bool inc) {
 	if ((inputType_ = static_cast<Problem_t::Type>(prg.type())) == Problem_t::Asp && prg.endProgram()) {
 		// create solver variable to potassco literal mapping
 		Asp::LogicProgram& asp = static_cast<Asp::LogicProgram&>(prg);
-		for (Asp::Atom_t a = asp.startAtom(); a != asp.inputEnd(); ++a) {
+		for (Asp::Atom_t a = asp.startAtom(); a != asp.startAuxAtom(); ++a) {
 			Literal sLit = asp.getLiteral(a);
 			if (sLit.var() >= solver2asp_.size()) {
 				solver2asp_.resize(sLit.var() + 1, 0);

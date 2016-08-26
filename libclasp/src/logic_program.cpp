@@ -185,7 +185,7 @@ bool toConstraint(NT* node, const LogicProgram& prg, ClauseCreator& c) {
 }
 }
 
-LogicProgram::LogicProgram() : theory_(0), input_(1, 1), auxData_(0), incData_(0) {
+LogicProgram::LogicProgram() : theory_(0), input_(1, UINT32_MAX), auxData_(0), incData_(0) {
 	CLASP_FAIL_IF(!init_trueAtom_g, "invalid static init");
 }
 LogicProgram::~LogicProgram() { dispose(true); }
@@ -235,7 +235,7 @@ bool LogicProgram::doStartProgram() {
 	atomState_.set(0, AtomState::fact_flag);
 	incData_ = 0;
 	auxData_ = new Aux();
-	input_   = AtomRange(1, 1);
+	input_   = AtomRange(1, UINT32_MAX);
 	statsId_ = 0;
 	return true;
 }
@@ -261,12 +261,13 @@ bool LogicProgram::doUpdateProgram() {
 	if (theory_) { theory_->update(); }
 	incData_->update.clear();
 	incData_->frozen.swap(incData_->update);
+	input_.hi = std::min(input_.hi, endAtom());
 	// reset prop queue and add supported atoms from previous steps
 	// {ai | ai in P}.
 	PrgBody* support = input_.hi > 1 ? getTrueBody() : 0;
 	propQ_.clear();
-	for (Atom_t i = 1, end = input_.hi; i != end; ++i) {
-		if (getRootId(i) >= input_.hi) {
+	for (Atom_t i = 1, end = startAuxAtom(); i != end; ++i) {
+		if (getRootId(i) >= end) {
 			// atom is equivalent to some aux atom - make i the new root
 			uint32 r = getRootId(i);
 			std::swap(atoms_[i], atoms_[r]);
@@ -300,11 +301,11 @@ bool LogicProgram::doUpdateProgram() {
 	// this is safe because aux atoms are never part of the input program
 	// it is necessary in order to free their ids, i.e. the id of an aux atom
 	// from step I might be needed for a program atom in step I+1
-	deleteAtoms(input_.hi);
-	atoms_.erase(atoms_.begin()+input_.hi, atoms_.end());
+	deleteAtoms(startAuxAtom());
+	atoms_.erase(atoms_.begin()+startAuxAtom(), atoms_.end());
 	uint32 nAtoms = (uint32)atoms_.size();
 	atomState_.resize(nAtoms);
-	input_ = AtomRange(nAtoms, nAtoms);
+	input_ = AtomRange(nAtoms, UINT32_MAX);
 	stats.reset();
 	statsId_ = 0;
 	return true;
@@ -610,6 +611,15 @@ LogicProgram& LogicProgram::unfreeze(Atom_t atomId) {
 		a->addSupport(PrgEdge::noEdge());
 	}
 	return *this;
+}
+void LogicProgram::setMaxInputAtom(uint32 n) {
+	check_not_frozen();
+	resize(n++);
+	CLASP_ASSERT_CONTRACT_MSG(n >= startAtom(), "invalid input range");
+	input_.hi = n;
+}
+Atom_t LogicProgram::startAuxAtom() const {
+	return validAtom(input_.hi) ? input_.hi : (uint32)atoms_.size();
 }
 bool LogicProgram::supportsSmodels() const {
 	if (incData_ || theory_)        { return false; }
@@ -1009,6 +1019,7 @@ void LogicProgram::updateFrozenAtoms() {
 		}
 		else {
 			assert(a->relevant() && a->supports() == 0);
+			CLASP_ASSERT_CONTRACT_MSG(id < startAuxAtom(), "frozen atom shall be an input atom");
 			if (!support) { support = getTrueBody(); }
  			a->setIgnoreScc(true);
 			support->addHead(a, PrgEdge::GammaChoice);
@@ -1020,8 +1031,8 @@ void LogicProgram::updateFrozenAtoms() {
 
 void LogicProgram::prepareProgram(bool checkSccs) {
 	assert(!frozen());
-	uint32 nAtoms  = (uint32)atoms_.size();
-	input_.hi = nAtoms;
+	uint32 nAtoms = (input_.hi = std::min(input_.hi, endAtom()));
+	stats.auxAtoms += endAtom() - nAtoms;
 	for (uint32 i = 0; i != RuleStats::numKeys(); ++i) {
 		stats.rules[1][i] += stats.rules[0][i];
 	}
@@ -1324,7 +1335,7 @@ void LogicProgram::prepareOutputTable() {
 	std::stable_sort(show_.begin(), show_.end(), compose22(std::less<Id_t>(), select1st<ShowPair>(), select1st<ShowPair>()));
 	for (ShowVec::iterator it = show_.begin(), end = show_.end(); it != end; ++it) {
 		Literal lit = getLiteral(it->first);
-		bool isAtom = it->first < inputEnd();
+		bool isAtom = it->first < startAuxAtom();
 		if      (!isSentinel(lit))  { out.add(it->second, lit, it->first); if (isAtom) ctx()->setOutput(lit.var(), true); }
 		else if (lit == lit_true()) { out.add(it->second); }
 	}
@@ -1365,7 +1376,7 @@ bool LogicProgram::addConstraints() {
 	}
 	// add atoms from this step
 	const bool freezeAll = incData_ && ctx()->satPrepro.get() != 0;
-	const uint32 hiAtom  = input_.hi;
+	const uint32 hiAtom  = startAuxAtom();
 	uint32 id = startAtom();
 	for (AtomList::const_iterator it = atoms_.begin()+startAtom(), end = atoms_.end(); it != end; ++it, ++id) {
 		if (!toConstraint(*it, *this, gc)) { return false; }

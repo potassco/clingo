@@ -236,6 +236,17 @@ public:
 	 * \return The new atom's id.
 	 */
 	Atom_t newAtom();
+	
+	//! Sets atomId as the last input atom of the current step.
+	/*!
+	* All (new or existing) atoms with a larger id than atomId
+	* are considered to be auxiliary and automatically removed before
+	* a new incremental step is started.
+	*
+	* \pre atomId >= startAtom()
+	* \post startAuxAtom() == atomId + 1
+	*/
+	void   setMaxInputAtom(uint32 atomId);
 
 	//! Adds a new conjunctive condition to the program.
 	/*!
@@ -341,6 +352,10 @@ public:
 	uint32 numDisjunctions() const { return (uint32)disjunctions_.size(); }
 	//! Returns the id of the first atom of the current step.
 	Atom_t startAtom()       const { return input_.lo; }
+	//! Returns an id one past the last valid atom id in the program.
+	Atom_t endAtom()         const { return numAtoms() + 1; }
+	//! Returns the id of the first atom that is not an input atom or endAtom() if no such atoms exists.
+	Atom_t startAuxAtom()    const;
 	//! Returns whether a is an atom in the (simplified) program.
 	bool   inProgram(Atom_t a)  const;
 	//! Returns whether a is an external atom, i.e. is frozen in this step.
@@ -387,7 +402,6 @@ public:
 	const AspOptions& options()    const { return opts_; }
 	bool       hasConflict()       const { return getTrueAtom()->literal() != lit_true(); }
 	bool       ok()                const { return !hasConflict() && ProgramBuilder::ok(); }
-	Atom_t     inputEnd()          const { return input_.hi; }
 	PrgAtom*   getAtom(Id_t atomId)const { return atoms_[atomId]; }
 	PrgHead*   getHead(PrgEdge it) const { return it.isAtom() ? (PrgHead*)getAtom(it.node()) : (PrgHead*)getDisj(it.node()); }
 	PrgNode*   getSupp(PrgEdge it) const { return it.isBody() ? (PrgNode*)getBody(it.node()) : (PrgNode*)getDisj(it.node()); }
