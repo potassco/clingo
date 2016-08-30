@@ -32,6 +32,7 @@ namespace Clasp {
 		static void destruct(type& t) {t.clear();}
 	};
 #else
+	//! Type selector for a vector type optimized for storing POD-types.
 	template <class Type>
 	struct PodVector {
 		typedef bk_lib::pod_vector<Type> type;
@@ -69,7 +70,7 @@ void moveDown(T& t, typename T::size_type from, typename T::size_type to) {
 	}
 	shrinkVecTo(t, to);
 }
-
+//! A simple vector-based fifo queue for storing POD-types.
 template <class T>
 struct PodQueue {
 	typedef typename PodVector<T>::type  vec_type;

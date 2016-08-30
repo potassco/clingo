@@ -23,8 +23,17 @@
 #ifdef _MSC_VER
 #pragma once
 #endif
+/*!
+ * \file
+ * \brief Atomic types suitable for the active thread configuration.
+ *
+ * \note If libclasp is not configured with thread support,
+ * types from this file are not necessarily atomic and must not be accessed
+ * from multiple threads.
+ */
 
 namespace Clasp {
+	//! Possible libclasp thread configurations.
 	enum ThreadConfig {
 		clasp_single_threaded = 0,
 		clasp_multi_threaded  = 1
@@ -55,6 +64,12 @@ namespace Clasp {
 }
 
 #if WITH_THREADS
+/*!
+ * \def NS_ATOMIC
+ * Namespace containing the underlying atomic type.
+ * Can be either std or tbb depending on whether support for
+ * C++11 threads is enabled.
+ */
 #if !defined(CLASP_USE_STD_THREAD)
 #include <tbb/atomic.h>
 #define NS_ATOMIC tbb
@@ -63,45 +78,46 @@ namespace Clasp {
 #define NS_ATOMIC std
 #endif
 namespace Clasp { namespace mt {
-		template <class T>
-		class atomic : private NS_ATOMIC::atomic<T> {
-		public:
-			typedef NS_ATOMIC::atomic<T> native_type;
-			native_type& native() { return *this; }
+	//! Atomic type with sequentially consistent loads and stores.
+	template <class T>
+	class atomic : private NS_ATOMIC::atomic<T> {
+	public:
+		typedef NS_ATOMIC::atomic<T> native_type;
+		native_type& native() { return *this; }
 
-			T operator=(T value) { return native_type::operator=(value); }
-			  operator T() const { return native_type::operator T(); }
+		T operator=(T value) { return native_type::operator=(value); }
+			operator T() const { return native_type::operator T(); }
 			
-			using native_type::operator+=;
-			using native_type::operator-=;
-			using native_type::operator++;
-			using native_type::operator--;
+		using native_type::operator+=;
+		using native_type::operator-=;
+		using native_type::operator++;
+		using native_type::operator--;
 #if defined(CLASP_USE_STD_THREAD)
-			T compare_and_swap(T new_value, T comparand) {
-				native_type::compare_exchange_strong(comparand, new_value);
-				return comparand;
-			}
-			T fetch_and_store(T value) { return native_type::exchange(value); }
-			T fetch_and_or(T value)    { return native_type::fetch_or(value); }
-			T fetch_and_and(T value)   { return native_type::fetch_and(value); }
+		T compare_and_swap(T new_value, T comparand) {
+			native_type::compare_exchange_strong(comparand, new_value);
+			return comparand;
+		}
+		T fetch_and_store(T value) { return native_type::exchange(value); }
+		T fetch_and_or(T value)    { return native_type::fetch_or(value); }
+		T fetch_and_and(T value)   { return native_type::fetch_and(value); }
 #else
-			using native_type::compare_and_swap;
-			using native_type::fetch_and_store;
-			T fetch_and_or(T value) {
-				T x;
-				do { x = this->load(); } while (this->compare_and_swap(x|value, x) != x);
-				return x;
-			}
-			T fetch_and_and(T value) {
-				T x;
-				do { x = this->load(); } while (this->compare_and_swap(x&value, x) != x);
-				return x;
-			}
+		using native_type::compare_and_swap;
+		using native_type::fetch_and_store;
+		T fetch_and_or(T value) {
+			T x;
+			do { x = this->load(); } while (this->compare_and_swap(x|value, x) != x);
+			return x;
+		}
+		T fetch_and_and(T value) {
+			T x;
+			do { x = this->load(); } while (this->compare_and_swap(x&value, x) != x);
+			return x;
+		}
 #endif
-		};
-	}
-}
+	};
+}}
 namespace Clasp {
+	//! Selects an atomic ype suitable for multi-threading.
 	template <class T>
 	struct Atomic_t<T, clasp_multi_threaded> {
 		typedef Clasp::mt::atomic<T> type;

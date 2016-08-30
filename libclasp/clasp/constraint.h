@@ -30,8 +30,7 @@
 
 /*!
  * \file 
- * Defines the base classes for boolean constraints.
- * 
+ * \brief Defines the base classes for boolean constraints.
  */
 namespace Clasp {
 
@@ -43,16 +42,15 @@ struct CCMinRecursive;
 /**
  * \defgroup constraint Constraints
  * \brief Boolean Constraints, post propagators, and related types.
- */
-//@{
+ * @{ */
 
 //! Constraint types distinguished by a Solver.
 struct Constraint_t {
 	enum Type { 
-		Static     = 0, /**< an unremovable constraint (e.g. a problem constraint)      */
-		Conflict   = 1, /**< a removable constraint derived from conflict analysis      */
-		Loop       = 2, /**< a removable constraint derived from unfounded set checking */
-		Other      = 3, /**< a removable constraint learnt by some other means          */
+		Static     = 0, //!< An unremovable constraint (e.g. a problem constraint).
+		Conflict   = 1, //!< A removable constraint derived from conflict analysis.
+		Loop       = 2, //!< A removable constraint derived from unfounded set checking.
+		Other      = 3, //!< A removable constraint learnt by some other means.
 		Type__max  = Other
 	};
 	struct Set {
@@ -81,15 +79,16 @@ public:
 	//! Type used as return type for Constraint::propagate.
 	struct PropResult {
 		explicit PropResult(bool a_ok = true, bool a_keepWatch = true) : ok(a_ok), keepWatch(a_keepWatch) {}
-		bool ok;         /**< true if propagation completes without conflict     */
-		bool keepWatch;  /**< true if constraint wants to keep the current watch */
+		bool ok;         //!< true if propagation completes without conflict.
+		bool keepWatch;  //!< true if constraint wants to keep the current watch.
 	};
 	Constraint();
 
 	/*!
-	 * \name Mandatory functions to be implemented by all constraints.
-	 */
-	//@{
+	 * \name Mandatory functions
+	 * Functions that must be implemented by all constraints.
+	 * @{ */
+	
 	/*!
 	 * Propagate is called for each constraint that watches p. It shall enqueue 
 	 * all consequences of p becoming true.
@@ -117,15 +116,15 @@ public:
 	//@}
 
 	/*!
-	 * \name Additional functions.
-	 */
-	//@{
-	
+	 * \name Additional functions
+	 * Functions that can be implemented by constraints.
+	 * @{ */
 	//! Called when the given solver removes a decision level watched by this constraint.
 	virtual void undoLevel(Solver& s);
 	
 	/*!
-	 * Simplify this constraint.
+	 * \brief Simplify this constraint.
+	 *
 	 * \pre s.decisionLevel() == 0 and the current assignment is fully propagated.
 	 * \return
 	 *  true if this constraint can be ignored (e.g. is satisfied),
@@ -138,7 +137,12 @@ public:
 	 */
 	virtual bool simplify(Solver& s, bool reinit = false);
 	
-	//! Default is to call delete this.
+	/*!
+	 * \brief Delete this constraint.
+	 * \note The default implementation simply calls delete this.
+	 * \param s The solver in which this constraint is used (can be 0).
+	 * \param detach Whether the constraint shall detach itself from the given solver.
+	 */
 	virtual void destroy(Solver* s = 0, bool detach = false);
 
 	//! Shall return whether the constraint is valid (i.e. not conflicting) w.r.t the current assignment in s.
@@ -175,13 +179,13 @@ public:
 	//@}
 
 	/*!
-	 * \name Functions that are primarily relevant for learnt constraints.
+	 * \name Functions for learnt constraints
 	 *
 	 * Learnt constraints can be created and deleted dynamically during the search-process and 
 	 * are subject to nogood-deletion.
 	 * A learnt constraint shall at least define the methods type() and locked().
-	 */
-	//@{
+	 * @{ */
+	
 	typedef ConstraintType  Type;
 	typedef ConstraintScore ScoreType;
 	typedef ConstraintInfo  InfoType;
@@ -223,6 +227,14 @@ private:
 	Constraint(const Constraint&);
 	Constraint& operator=(const Constraint&);
 };
+//@}
+
+/**
+* \defgroup propagator Propagators
+* \brief Post propagators and related types.
+* \ingroup constraint
+* @{
+*/
 
 //! Base class for post propagators.
 /*!
@@ -257,11 +269,11 @@ public:
 	PostPropagator* next; // main propagation lists of post propagators
 	//! Default priorities for post propagators.
 	enum Priority {
-		priority_class_simple    = 0,    /**< Starting priority of simple post propagators. */
-		priority_reserved_msg    = 0,    /**< Reserved priority for message/termination handlers (if any). */
-		priority_reserved_ufs    = 10,   /**< Reserved priority for the default unfounded set checker (if any). */
-		priority_reserved_look   = 1023, /**< Reserved priority for the default lookahead operator (if any). */
-		priority_class_general   = 1024, /**< Priortiy of extended post propagators. */
+		priority_class_simple    = 0,    //!< Starting priority of simple post propagators.
+		priority_reserved_msg    = 0,    //!< Reserved priority for message/termination handlers (if any).
+		priority_reserved_ufs    = 10,   //!< Reserved priority for the default unfounded set checker (if any).
+		priority_reserved_look   = 1023, //!< Reserved priority for the default lookahead operator (if any).
+		priority_class_general   = 1024, //!< Priortiy of extended post propagators.
 	};
 
 	//! Shall return a value representing the priority of this propagator.
@@ -346,6 +358,7 @@ private:
 	PostPropagator& operator=(const PostPropagator&);
 };
 
+//! A special post propagator used to handle messages and signals.
 class MessageHandler : public PostPropagator {
 public:
 	MessageHandler();
@@ -373,8 +386,11 @@ private:
 	PropagatorList& operator=(const PropagatorList&);
 	PostPropagator* head_;// head of pp-list
 };
-
 //@}
+
+/**
+* \addtogroup constraint
+* @{ */
 
 //! Stores a reference to the constraint that implied a literal.
 /*!
@@ -556,6 +572,13 @@ public:
 private:
 	enum { TYPE_SHIFT = 28, AUX_BIT = 30, TAG_BIT = 31, TYPE_MASK = (3u << TYPE_SHIFT) };
 };
+//@}
+
+/**
+* \defgroup shared_con Shared
+* \brief %Constraint data that can safely be shared between solvers.
+* \ingroup constraint
+*/
 
 }
 #endif

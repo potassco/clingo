@@ -17,6 +17,8 @@
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
+//! \file
+//! \brief Model enumeration with minimization and projection.
 #ifndef CLASP_MODEL_ENUMERATORS_H
 #define CLASP_MODEL_ENUMERATORS_H
 
@@ -32,7 +34,7 @@ namespace Clasp {
 //! Class for model enumeration with minimization and projection.
 /*!
  * This class implements algorithms for enumerating models with or without optimization
- * and/or projection. It supports two different algorithms (strategies), first, enumeration
+ * and/or projection. It supports two different algorithms (strategies). First, enumeration
  * via restricted backjumping, and second, enumeration via recording of solution nogoods.
  *
  * The first strategy, strategy_backtrack, maintains a special backtracking level to
@@ -60,17 +62,17 @@ class ModelEnumerator : public Enumerator {
 public:
 	//! Enumeration algorithms.
 	enum Strategy {
-		strategy_auto      = 0, /*!< Use strategy best suited to problem. */
-		strategy_backtrack = 1, /*!< Use backtrack-based enumeration.     */
-		strategy_record    = 2  /*!< Use nogood-based enumeration.        */
+		strategy_auto      = 0, //!< Use strategy best suited to problem.
+		strategy_backtrack = 1, //!< Use backtrack-based enumeration.
+		strategy_record    = 2  //!< Use nogood-based enumeration.
 	};
 	//! Projective solution enumeration and options.
 	enum ProjectOptions {
-		project_enable_simple = 1, /*!< Enable projective solution enumeration. */
-		project_use_heuristic = 2, /*!< Use heuristic when selecting a literal from a projection nogood. */
-		project_save_progress = 4, /*!< Enable progress saving after the first solution was found. */
-		project_enable_full   = 6, /*!< Enable projective solution enumeration with heuristic and progress saving. */
-		project_dom_lits      = 8, /*!< In strategy record, project only on true domain literals. */ 
+		project_enable_simple = 1, //!< Enable projective solution enumeration.
+		project_use_heuristic = 2, //!< Use heuristic when selecting a literal from a projection nogood.
+		project_save_progress = 4, //!< Enable progress saving after the first solution was found.
+		project_enable_full   = 6, //!< Enable projective solution enumeration with heuristic and progress saving.
+		project_dom_lits      = 8, //!< In strategy record, project only on true domain literals.
 	};
 	/*! 
 	 * \param st Enumeration strategy to apply.

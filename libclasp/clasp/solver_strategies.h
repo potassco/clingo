@@ -28,7 +28,7 @@
 
 /*!
  * \file 
- * Contains strategies and options used to configure solvers and search.
+ * \brief Contains strategies and options used to configure solvers and search.
  */
 namespace Clasp {
 //! Implements clasp's configurable schedule-strategies.
@@ -52,6 +52,7 @@ namespace Clasp {
  */
 struct ScheduleStrategy {
 public:
+	//! Supported strategies.
 	enum Type { Geometric = 0, Arithmetic = 1, Luby = 2, User = 3 }; 
 	
 	ScheduleStrategy(Type t = Geometric, uint32 b = 100, double g = 1.5, uint32 o = 0);
@@ -77,45 +78,50 @@ public:
 	uint32 len;       // length of sequence (0 if infinite) (once reached, sequence is repeated and len increased)
 	float  grow;      // update parameter n2
 };
-
+//! Returns the idx'th value of the luby sequence.
 uint32 lubyR(uint32 idx);
+//! Returns the idx'th value of the geometric sequence with the given growth factor.
 double growR(uint32 idx, double g);
+//! Returns the idx'th value of the arithmetic sequence with the given addend.
 double addR(uint32 idx, double a);
 
 class DecisionHeuristic;
-
+//! Parameter-Object for grouping solver strategies.
 struct SolverStrategies {
 	//! Clasp's two general search strategies.
 	enum SearchStrategy {
-		use_learning = 0, /*!< Analyze conflicts and learn First-1-UIP-clause */
-		no_learning  = 1  /*!< Don't analyze conflicts - chronological backtracking */
+		use_learning = 0, //!< Analyze conflicts and learn First-1-UIP-clause.
+		no_learning  = 1  //!< Don't analyze conflicts - chronological backtracking.
 	};
 	//! Default sign heuristic.
 	enum SignHeu {
-		sign_atom = 0, /*!< Prefer negative literal for atoms. */
-		sign_pos  = 1, /*!< Prefer positive literal.           */
-		sign_neg  = 2, /*!< Prefer negative literal.           */
-		sign_rnd  = 3, /*!< Prefer random literal.             */
+		sign_atom = 0, //!< Prefer negative literal for atoms.
+		sign_pos  = 1, //!< Prefer positive literal.
+		sign_neg  = 2, //!< Prefer negative literal.
+		sign_rnd  = 3, //!< Prefer random literal.
 	};
+	//! Conflict clause minimization strategy.
 	enum CCMinType {
-		cc_local     = 0,
-		cc_recursive = 1,
+		cc_local     = 0, //!< Basic algorithm.
+		cc_recursive = 1, //!< Extended algorithm.
 	};
 	//! Antecedents to consider during conflict clause minimization.
 	enum CCMinAntes {
-		no_antes     = 0,  /*!< Don't minimize first-uip-clauses. */
-		all_antes    = 1,  /*!< Consider all antecedents.         */
-		short_antes  = 2,  /*!< Consider only short antecedents.  */
-		binary_antes = 3,  /*!< Consider only binary antecedents. */
+		no_antes     = 0,  //!< Don't minimize conflict clauses.
+		all_antes    = 1,  //!< Consider all antecedents.
+		short_antes  = 2,  //!< Consider only short antecedents.
+		binary_antes = 3,  //!< Consider only binary antecedents.
 	};
 	//! Simplifications for long conflict clauses.
 	enum CCRepMode {
-		cc_no_replace  = 0,/*!< Don't replace literals in conflict clauses. */
-		cc_rep_decision= 1,/*!< Replace conflict clause with decision sequence. */
-		cc_rep_uip     = 2,/*!< Replace conflict clause with all uip clause. */
-		cc_rep_dynamic = 3,/*!< Dynamically select between cc_rep_decision and cc_rep_uip. */
+		cc_no_replace  = 0,//!< Don't replace literals in conflict clauses.
+		cc_rep_decision= 1,//!< Replace conflict clause with decision sequence.
+		cc_rep_uip     = 2,//!< Replace conflict clause with all uip clause.
+		cc_rep_dynamic = 3,//!< Dynamically select between cc_rep_decision and cc_rep_uip.
 	};
+	//! Strategy for initializing watched literals in clauses.
 	enum WatchInit  { watch_first = 0, watch_rand = 1, watch_least = 2 };
+	//! Strategy for integrating new information in parallel solving.
 	enum UpdateMode { update_on_propagate = 0, update_on_conflict  = 1 };
 
 	SolverStrategies();
@@ -140,14 +146,18 @@ struct SolverStrategies {
 	uint32    signDef       : 2;  /*!< Default sign heuristic.        */
 	uint32    signFix       : 1;  /*!< Disable all sign heuristics and always use default sign. */
 	uint32    reserved      : 1;
-	uint32    hasConfig     : 1;  // config applied to solver?
-	uint32    id            : 6;  // Solver id - SHALL ONLY BE SET BY Shared Context!
+	uint32    hasConfig     : 1;  /*!< Config applied to solver? */
+	uint32    id            : 6;  /*!< Solver id - SHALL ONLY BE SET BY Shared Context! */
 };
-
+//! Parameter-Object for grouping additional heuristic options.
 struct HeuParams {
+	//! Strategy for scoring clauses not learnt by conflict analysis.
 	enum ScoreOther { other_no   = 0u, other_loop = 1u, other_all = 2u, other_auto = 3u };
+	//! Strategy for scoring during conflict analysis.
 	enum Score      { score_auto = 0u, score_min  = 1u, score_set = 2u, score_multi_set = 3u };
+	//! Global preference for domain heuristic.
 	enum DomPref    { pref_atom  = 0u, pref_scc   = 1u, pref_hcc  = 2u, pref_disj = 4u, pref_min  = 8u, pref_show = 16u };
+	//! Global modification for domain heuristic.
 	enum DomMod     { mod_none   = 0u, mod_level  = 1u, mod_spos  = 2u, mod_true  = 3u, mod_sneg  = 4u, mod_false = 5u, mod_init = 6u, mod_factor = 7u };
 	//! Values for dynamic decaying scheme.
 	struct VsidsDecay {
@@ -156,7 +166,7 @@ struct HeuParams {
 		uint32 freq: 15; /*!< Update decay factor every \<freq\> conflicts. */
 	};
 	HeuParams();
-	uint32 param    : 16; /*!< Extra parameter for heuristic with meaning depending on type */
+	uint32 param    : 16; /*!< Extra parameter for heuristic with meaning depending on type. */
 	uint32 score    : 2;  /*!< Type of scoring during resolution. */
 	uint32 other    : 2;  /*!< Consider other learnt nogoods in heuristic. */
 	uint32 moms     : 1;  /*!< Use MOMS-score as top-level heuristic. */
@@ -170,7 +180,6 @@ struct HeuParams {
 		VsidsDecay decay; /*!< Only for Vsids/Dom. */
 	};
 };
-
 
 //! Parameter-Object for configuring a solver.
 struct SolverParams : SolverStrategies  {
@@ -229,22 +238,23 @@ struct RestartParams {
 struct ReduceStrategy {
 	//! Reduction algorithm to use during solving.
 	enum Algorithm {
-		reduce_linear = 0, /*!< Linear algorithm from clasp-1.3.x. */
-		reduce_stable = 1, /*!< Sort constraints by score but keep order in learnt db. */
-		reduce_sort   = 2, /*!< Sort learnt db by score and remove fraction with lowest score. */
-		reduce_heap   = 3  /*!< Similar to reduce_sort but only partially sorts learnt db.  */
+		reduce_linear = 0, //!< Linear algorithm from clasp-1.3.x.
+		reduce_stable = 1, //!< Sort constraints by score but keep order in learnt db.
+		reduce_sort   = 2, //!< Sort learnt db by score and remove fraction with lowest score.
+		reduce_heap   = 3  //!< Similar to reduce_sort but only partially sorts learnt db.
 	};
 	//! Score to measure "activity" of learnt constraints.
 	enum Score {
-		score_act  = 0, /*!< Activity only: how often constraint is used during conflict analysis. */
-		score_lbd  = 1, /*!< Use literal block distance as activity. */
-		score_both = 2  /*!< Use activity and lbd together. */
+		score_act  = 0, //!< Activity only: how often constraint is used during conflict analysis.
+		score_lbd  = 1, //!< Use literal block distance as activity.
+		score_both = 2  //!< Use activity and lbd together.
 	};
+	//! Strategy for estimating size of problem.
 	enum EstimateSize {
-		est_dynamic         = 0,
-		est_con_complexity  = 1,
-		est_num_constraints = 2,
-		est_num_vars        = 3
+		est_dynamic         = 0, //!< Dynamically decide whether to use number of variables or constraints.
+		est_con_complexity  = 1, //!< Measure size in terms of constraint complexities.
+		est_num_constraints = 2, //!< Measure size in terms of number constraints.
+		est_num_vars        = 3  //!< Measure size in terms of number variable.
 	};
 	static uint32 scoreAct(const ConstraintScore& sc)  { return sc.activity(); }
 	static uint32 scoreLbd(const ConstraintScore& sc)  { return uint32(LBD_MAX+1)-sc.lbd(); }
@@ -275,12 +285,13 @@ struct ReduceStrategy {
 
 //! Aggregates parameters for the nogood deletion heuristic used during search.
 /*!
- * S:delCond {yes,no}
- * no:del {0}[0]
- * no:del | delCond in {no}
- * deletion | delCond in {yes}
- * del-* | delCond in {yes}
- * {delCond=yes, del-grow=no, del-cfl=no}
+ * - S:delCond {yes,no}
+ * - no:del {0}[0]
+ * - no:del | delCond in {no}
+ * - deletion | delCond in {yes}
+ * - del-* | delCond in {yes}
+ * - {delCond=yes, del-grow=no, del-cfl=no}
+ * .
  */
 struct ReduceParams {
 	ReduceParams() : cflSched(ScheduleStrategy::none()), growSched(ScheduleStrategy::def())
@@ -451,6 +462,7 @@ struct Heuristic_t {
 	static DecisionHeuristic* create(Type t, const HeuParams& p);
 };
 
+//! Basic configuration for one or more SAT solvers.
 class BasicSatConfig : public UserConfiguration, public ContextParams {
 public:
 	typedef Heuristic_t::Creator HeuristicCreator;
@@ -484,12 +496,14 @@ struct SolveEvent : Event_t<T> {
 	const Solver* solver;
 };
 struct Model;
+//! Base class for handling results of a solve operation.
 class ModelHandler {
 public:
 	virtual ~ModelHandler();
 	virtual bool onModel(const Solver&, const Model&) = 0;
 	virtual bool onUnsat(const Solver&, const Model&);
 };
+//! Type for storing the lower bound of a minimize statement.
 struct LowerBound {
 	LowerBound() : level(0), bound(0) {}
 	void reset() { level = 0; bound = 0; }

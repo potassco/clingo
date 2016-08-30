@@ -26,8 +26,9 @@
 
 /*!
  * \file 
- * Defines lookahead related types. Lookahead can be used
- * as a post propagator (e.g. failed-literal detection) and
+ * \brief Defines lookahead related types. 
+ *
+ * Lookahead can be used as a post propagator (e.g. failed-literal detection) and
  * optionally as an heuristic. 
  */
 
@@ -35,7 +36,7 @@
 #include <clasp/constraint.h>
 namespace Clasp { 
 /*!
- * \addtogroup constraint
+ * \addtogroup propagator
  */
 //@{
 
@@ -120,13 +121,13 @@ struct ScoreLook {
 		score[lhs].score(lhsMax, lhsMin);
 		return lhsMin > min || (lhsMin == min && lhsMax > max);
 	}
-	VarScores score;  // score[v] stores lookahead score of v
-	VarVec    deps;   // tested vars and those that follow from them
-	VarType   types;  // var types to consider
-	Var       best;   // var with best score among those in deps
-	Mode      mode;   // score mode
-	bool      addDeps;// add/score dependent vars?
-	bool      nant;   // score only atoms in NegAnte(P)?
+	VarScores score;  //!< score[v] stores lookahead score of v
+	VarVec    deps;   //!< Tested vars and those that follow from them.
+	VarType   types;  //!< Var types to consider.
+	Var       best;   //!< Var with best score among those in deps.
+	Mode      mode;   //!< Score mode to apply.
+	bool      addDeps;//!< Add/score dependent vars?
+	bool      nant;   //!< Score only atoms in NegAnte(P)?
 };
 
 class UnitHeuristic;
@@ -141,6 +142,7 @@ class UnitHeuristic;
  */
 class Lookahead : public PostPropagator {
 public:
+	//! Set of parameters to configure lookahead.
 	struct Params {
 		Params(VarType t = Var_t::Atom) : type(t), lim(0), topLevelImps(true), restrictNant(false) {}
 		Params& lookahead(VarType t){ type         = t; return *this; }
@@ -166,13 +168,12 @@ public:
 	bool    empty() const { return head()->next == head_id; }
 	//! Adds literal p to the lookahead list.
 	void    append(Literal p, bool testBoth);
-	//! Single-step lookahead on all vars in the loookahead list.
+	//! Executes a single-step lookahead on all vars in the loookahead list.
 	bool    propagateFixpoint(Solver& s, PostPropagator*);
 	//! Returns PostPropagator::priority_reserved_look.
 	uint32  priority() const;
 	void    destroy(Solver* s, bool detach);
-	//! Updates state with lookahead result.
-	ScoreLook score;
+	ScoreLook score; //!< State of last lookahead operation.
 	//! Returns "best" literal w.r.t scoring of last lookahead or lit_true() if no such literal exists.
 	Literal heuristic(Solver& s);
 	void    detach(Solver& s);
@@ -213,9 +214,9 @@ private:
  * \ingroup heuristic
  * The heuristic uses a Lookahead post propagator to select a literal with the highest score,
  * where the score is determined by counting assignments made during
- * failed-literal detection. hybrid_lookahead simply selects the literal that
- * derived the most literals. uniform_lookahead behaves similar to the smodels
- * lookahead heuristic (the literal that maximizes the minimum is selected).
+ * failed-literal detection. For hybrid_lookahead, the heuristic selects the literal that
+ * derived the most literals. On the other hand, for uniform_lookahead the heuristic is similar to 
+ * the smodels lookahead heuristic and selects the literal that maximizes the minimum.
  * \see Patrik Simons: "Extending and Implementing the Stable Model Semantics" for a
  * detailed description of the lookahead heuristic.
  * 
@@ -223,7 +224,7 @@ private:
  *       did not fail in a previous call to Lookahead::propagateFixpoint(). I.e. if
  *       priorities are correct for all post propagators in s, the lookahead operations can't fail.
  *
- * \note If no Lookahead post propagator exists in the solver, the heuristic simply selects the first free variable!
+ * \note If no Lookahead post propagator exists in the solver, the heuristic selects the first free variable!
  */
 class UnitHeuristic : public SelectFirst {
 public:

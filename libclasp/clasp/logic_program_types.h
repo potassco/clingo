@@ -20,10 +20,13 @@
 
 #ifndef CLASP_LOGIC_PROGRAM_TYPES_H_INCLUDED
 #define CLASP_LOGIC_PROGRAM_TYPES_H_INCLUDED
-
 #ifdef _MSC_VER
 #pragma once
 #endif
+/*!
+ * \file
+ * \brief Basic types for working with a logic program.
+ */
 #include <clasp/claspfwd.h>
 #include <clasp/literal.h>
 #include <potassco/rule_utils.h>
@@ -184,17 +187,21 @@ using Potassco::Body_t;
 using Potassco::Head_t;
 using Potassco::WeightLitSpan;
 typedef Potassco::Rule_t Rule;
+//! A class for translating extended rules to normal rules. 
 class RuleTransform {
 public:
+	//! Interface that must be implemented to get the result of a transformation.
 	struct ProgramAdapter {
 		virtual Atom_t newAtom() = 0;
 		virtual void addRule(const Rule& r) = 0;
 	protected: ~ProgramAdapter() {}
 	};
+	//! Supported transformation strategies.
 	enum Strategy { strategy_default, strategy_select_no_aux, strategy_split_aux };
 	RuleTransform(ProgramAdapter& prg);
 	RuleTransform(LogicProgram& prg);
 	~RuleTransform();
+	//! Transforms the given (extended) rule to a set of normal rules.
 	uint32 transform(const Rule& r, Strategy s = strategy_default);
 private:
 	RuleTransform(const RuleTransform&);
@@ -203,19 +210,19 @@ private:
 	Impl* impl_;
 };
 
-//! Used during rule simplification.
+//! A set of flags used during rule simplification.
 class AtomState {
 public:
-	static const uint8 pos_flag    = 0x1u; // in positive body of active rule
-	static const uint8 neg_flag    = 0x2u; // in negative body of active rule
-	static const uint8 head_flag   = 0x4u; // in normal head of active rule
-	static const uint8 choice_flag = 0x8u; // in choice head of active rule
-	static const uint8 disj_flag   = 0x10u;// in disjunctive head of active rule
-	static const uint8 rule_mask   = 0x1Fu;// in active rule
-	static const uint8 fact_flag   = 0x20u;// atom is a fact (sticky)
-	static const uint8 false_flag  = 0x40u;// atom is false  (sticky)
-	static const uint8 simp_mask   = 0x7fu;// in active rule or assigned
-	static const uint8 dom_flag    = 0x80u;// var of atom is a dom var (sticky)
+	static const uint8 pos_flag    = 0x1u; //!< In positive body of active rule
+	static const uint8 neg_flag    = 0x2u; //!< In negative body of active rule
+	static const uint8 head_flag   = 0x4u; //!< In normal head of active rule
+	static const uint8 choice_flag = 0x8u; //!< In choice head of active rule
+	static const uint8 disj_flag   = 0x10u;//!< In disjunctive head of active rule
+	static const uint8 rule_mask   = 0x1Fu;//!< In active rule
+	static const uint8 fact_flag   = 0x20u;//!< Atom is a fact (sticky)
+	static const uint8 false_flag  = 0x40u;//!< Atom is false  (sticky)
+	static const uint8 simp_mask   = 0x7fu;//!< In active rule or assigned
+	static const uint8 dom_flag    = 0x80u;//!< Var of atom is a dom var (sticky)
 	AtomState() {}
 	void  swap(AtomState& o) { state_.swap(o.state_); }
 	//! Does t.node() appear in the head of the active rule?
@@ -259,11 +266,10 @@ private:
 	StateVec state_;
 };
 
-
 //! A head node of a program-dependency graph.
 /*!
- * A head node stores its possible supports and is
- * either an atom or a disjunction.
+ * A head node is either an atom or a disjunction 
+ * and stores its possible supports.
  */
 class PrgHead : public PrgNode {
 public:
@@ -373,7 +379,7 @@ public:
 	typedef EdgeIterator   head_iterator;
 	typedef const Literal* goal_iterator;
 	
-	//! Creates a new body node and connects the node to its predecessors.
+	//! Creates a new body node and (optionally) connects it to its predecessors (i.e. atoms).
 	/*!
 	 * \param prg     The program in which the new body is used.
 	 * \param id      The id for the new body node.
@@ -576,6 +582,7 @@ bool mergeValue(NT* lhs, NT* rhs){
 	  &&   (rhs->value() == mv || rhs->assignValue(mv));
 }
 
+//! A class for computing strongly connected components of the positive atom-body dependency graph.
 class SccChecker {
 public:
 	SccChecker(LogicProgram& prg, AtomList& sccAtoms, uint32 startScc);
@@ -609,7 +616,7 @@ private:
 	uint32        count_;
 	uint32        sccs_;
 };
-
+//! A set of ids of strongly connected components having at least one head-cycle.
 struct NonHcfSet : private PodVector<uint32>::type {
 public:
 	typedef PodVector<uint32>::type base_type;

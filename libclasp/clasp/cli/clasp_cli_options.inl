@@ -19,7 +19,10 @@
 //
 /*!
  * \file 
- * Supermacros for describing clasp's options.
+ * \brief Supermacros for describing clasp's options.
+ * \code
+ * OPTION(key, "ext", ARG(...), "help", set, get)
+ * \endcode
  * An option consists of:
  *  - a key  (valid and unique c identifier in 'snake_case')
  *  - a key extension ("[!][,<alias>][,@<level>]") as understood by ProgramOptions::OptionInitHelper
@@ -28,14 +31,13 @@
  *  - a set action to be executed when a value (string) for the option is found in a source
  *  - a get action to be executed when the current value for an option is requested
  *  . 
- * OPTION(key, "ext", ARG(...), "help", set, get).
  * 
  * \note In the implementation of ClaspCliConfig, each key is mapped to an enumeration constant and 
- * the stringified version of key (i.e. #key) is used to identify options. 
+ * the stringified version of key (i.e. \#key) is used to identify options. 
  * Furthermore, the key is also used for generating command-line option names.
  * As a convention, compound keys using 'snake_case' to separate words 
  * are mapped to dash-separated command-line option names. 
- * E.g. an <option_like_this> is mapped to the command-line option "option-like-this".
+ * E.g. an \<option_like_this\> is mapped to the command-line option "option-like-this".
  *
  * \note ClaspCliConfig assumes a certain option order. In particular, context options shall
  * precede all solver/search options, which in turn shall precede global asp/solving options.

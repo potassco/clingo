@@ -30,7 +30,7 @@
 #include <clasp/solver_strategies.h>
 /*!
  * \file 
- * Contains some types shared between different solvers
+ * \brief Contains common types shared between different solvers.
  */
 namespace Clasp {
 class Assignment;
@@ -38,15 +38,48 @@ class SharedLiterals;
 struct SolverStats;
 class StatisticObject;
 typedef Asp::PrgDepGraph PrgDepGraph;
+//! An immutable string type that implements efficient copying.
+/*!
+ * \ingroup misc
+ */
+class ConstString {
+public:
+	ConstString();
+	ConstString(const char* str);
+	ConstString(const StrView& str);
+	ConstString(const ConstString& other);
+	~ConstString();
+	ConstString& operator=(const ConstString& rhs);
+	const char* c_str()     const { return str_; }
+	operator const char* () const { return c_str(); }
+	void swap(ConstString& o);
+private:
+	const char* str_;
+};
+/**
+* \defgroup shared %SharedContext
+* \brief %SharedContext and related types.
+*/
 
+//! Base class for event handlers.
+/*!
+ * \ingroup shared
+ */
 class EventHandler : public ModelHandler {
 public:	
+	//! Creates a handler for events with given verbosity or lower.
 	explicit EventHandler(Event::Verbosity verbosity = Event::verbosity_quiet);
 	virtual ~EventHandler();
+	//! Sets the verbosity for the given event source.
+	/*!
+	 * Events with higher verbosity are not dispatched to this handler.
+	 */
 	void setVerbosity(Event::Subsystem sys, Event::Verbosity verb);
+	//! Sets the active event source to sys if sys is not yet active.
 	bool setActive(Event::Subsystem sys);
 	Event::Subsystem active() const;
 	uint32 verbosity(Event::Subsystem sys) const { return (uint32(verb_) >> (uint32(sys)<<VERB_SHIFT)) & uint32(VERB_MAX); }
+	//! Calls onEvent(ev) if ev has acceptable verbosity.
 	void dispatch(const Event& ev)               { if (ev.verb <= verbosity(static_cast<Event::Subsystem>(ev.system))) { onEvent(ev); } }
 	virtual void onEvent(const Event& /* ev */)  {}
 	virtual bool onModel(const Solver&, const Model&) { return true; }
@@ -59,6 +92,9 @@ private:
 };
 
 //! Event type for log or warning messages.
+/*!
+ * \ingroup enumerator
+ */
 struct LogEvent : Event_t<LogEvent> {
 	enum Type { Message = 'M', Warning = 'W' };
 	LogEvent(Subsystem sys, Verbosity verb, Type t, const Solver* s, const char* what) : Event_t<LogEvent>(sys, verb), solver(s), msg(what) {
@@ -69,13 +105,10 @@ struct LogEvent : Event_t<LogEvent> {
 	const char*   msg;
 };
 
-
-/**
- * \defgroup shared Shared types
- * \brief Types shared between solvers.
- */
-//@{
 //! Base class for preprocessors working on clauses only.
+/*!
+ * \ingroup shared
+ */
 class SatPreprocessor {
 public:
 	//! A clause class optimized for preprocessing.
@@ -183,10 +216,11 @@ private:
 ///////////////////////////////////////////////////////////////////////////////
 // Problem statistics
 ///////////////////////////////////////////////////////////////////////////////
-//! A struct for aggregating basic problem statistics.
 /*!
- * Maintained in SharedContext.
+ * \addtogroup shared
+ * @{
  */
+//! A struct for aggregating basic problem statistics.
 struct ProblemStats {
 	ProblemStats() { reset(); }
 	struct { uint32 num, eliminated, frozen; } vars;
@@ -221,15 +255,16 @@ struct ProblemStats {
 
 //! Stores static information about a variable.
 struct VarInfo {
+	//! Possible flags.
 	enum Flag {
-		Mark_p = 0x1u,  // mark for positive literal
-		Mark_n = 0x2u,  // mark for negative literal
-		Input  = 0x4u,  // is this var an input variable?
-		Body   = 0x8u,  // is this var representing a body?
-		Eq     = 0x10u, // is this var representing both a body and an atom?
-		Nant   = 0x20u, // var in NAnt(P)?
-		Frozen = 0x40u, // is the variable frozen?
-		Output = 0x80u  // is the variable an output variable?
+		Mark_p = 0x1u,  //!< Mark for positive literal.
+		Mark_n = 0x2u,  //!< Mark for negative literal.
+		Input  = 0x4u,  //!< Is this var an input variable?
+		Body   = 0x8u,  //!< Is this var representing a body?
+		Eq     = 0x10u, //!< Is this var representing both a body and an atom?
+		Nant   = 0x20u, //!< Is this var in NAnt(P)?
+		Frozen = 0x40u, //!< Is the variable frozen?
+		Output = 0x80u  //!< Is the variable an output variable?
 	};
 	static uint8 flags(VarType t) {
 		if (t == Var_t::Body)  { return VarInfo::Body; }
@@ -263,6 +298,9 @@ struct VarInfo {
 };
 
 //! A class for efficiently storing and propagating binary and ternary clauses.
+/*!
+ * \ingroup shared_con
+ */
 class ShortImplicationsGraph {
 public:
 	ShortImplicationsGraph();
@@ -425,21 +463,6 @@ private:
 	Policy policy_;
 };
 
-class ConstString {
-public:
-	ConstString();
-	ConstString(const char* str);
-	ConstString(const StrView& str);
-	ConstString(const ConstString& other);
-	~ConstString();
-	ConstString& operator=(const ConstString& rhs);
-	const char* c_str()     const { return str_; }
-	operator const char* () const { return c_str(); }
-	void swap(ConstString& o);
-private:
-	const char* str_;
-};
-
 //! Output table that contains predicates to be output on model.
 class OutputTable {
 public:
@@ -506,10 +529,11 @@ private:
 	Range32 vars_;
 	char    hide_;
 };
-
+//! A type for storing information to be used in clasp's domain heuristic.
 class DomainTable {
 public:
 	DomainTable();
+	//! A type storing a single domain modification for a variable.
 	class ValueType {
 	public:
 		ValueType(Var v, DomModType t, int16 bias, uint16 prio, Literal cond);
@@ -581,8 +605,8 @@ public:
 	enum SolveMode  { solve_once = 0u, solve_multi = 1u };
 	/*!
 	 * \name Configuration
-	 */
-	//@{
+	 * \brief Functions for creating and configuring a shared context.
+	 * @{ */
 	//! Creates a new object for sharing variables and the binary and ternary implication graph.
 	explicit SharedContext();
 	~SharedContext();
@@ -617,7 +641,7 @@ public:
 	 * \note If ownership is Ownership_t::Acquire, ownership of c is transferred.
 	 */
 	void       setConfiguration(Configuration* c, Ownership_t::Type ownership);
-	SatPrePtr  satPrepro;  /*!< Preprocessor for simplifying problem.                  */
+	SatPrePtr  satPrepro;  /*!< Preprocessor for simplifying the problem.              */
 	SccGraph   sccGraph;   /*!< Program dependency graph - only used for ASP-problems. */
 	ExtGraph   extGraph;   /*!< External dependency graph - given by user.             */
 	
@@ -643,7 +667,7 @@ public:
 
 	/*!
 	 * \name Problem introspection
-	 * Functions for querying information about the problem.
+	 * \brief Functions for querying information about the problem.
 	 */
 	//@{
 	//! Returns true unless the master has an unresolvable top-level conflict.
@@ -652,6 +676,7 @@ public:
 	bool       frozen()             const { return share_.frozen;}
 	//! Returns whether more than one solver is actively working on the problem.
 	bool       isShared()           const { return frozen() && concurrency() > 1; } 
+	//! Returns whether the problem is more than a simple CNF.
 	bool       isExtended()         const { return stats_.vars.frozen != 0; }
 	//! Returns whether this object has a solver associcated with the given id.
 	bool       hasSolver(uint32 id) const { return id < solvers_.size(); }
@@ -700,7 +725,8 @@ public:
 
 	/*!
 	 * \name Problem setup
-	 * Functions for specifying the problem.
+	 * \brief Functions for specifying the problem.
+	 *
 	 * Problem specification is a four-stage process:
 	 * -# Add variables to the SharedContext object.
 	 * -# Call startAddConstraints().
@@ -714,8 +740,7 @@ public:
 	 * access the context.
 	 *
 	 * \note !frozen() is a precondition for all functions in this group!
-	 */
-	//@{
+	 * @{ */
 	//! Unfreezes a frozen program and prepares it for updates.
 	/*!
 	 * The function also triggers forgetting of volatile knowledge and removes
@@ -811,8 +836,7 @@ public:
 	 * 
 	 * \note If not otherwise noted, the functions in this group can be safely called 
 	 * from multiple threads.
-	 */
-	//@{
+	 * @{ */
 	//! Returns the active step literal (see requestStepVar()).
 	Literal  stepLiteral() const { return step_; }
 	//! Attaches the solver with the given id to this object.

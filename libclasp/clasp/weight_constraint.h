@@ -60,32 +60,37 @@ struct WeightLitsRep {
  * \ingroup constraint
  * This class represents a constraint of type W == w1*x1 ... wn*xn >= B,
  * where W and each xi are literals and B and each wi are strictly positive integers.
+ *
  * The class is used to represent smodels-like weight constraint, i.e.
  * the body of a basic weight rule. In this case W is the literal associated with the body.
  * A cardinality constraint is handled like a weight constraint where all weights are equal to 1.
  *
- * The class implements the following four inference rules:
- * Let L be the set of literals of the constraint,
- * let sumTrue be the sum of the weights of all literals l in L that are currently true,
- * let sumReach be the sum of the weights of all literals l in L that are currently not false,
- * let U = {l in L | value(l.var()) == value_free}
- * - FTB: If sumTrue >= bound: set W to true.
- * - BFB: If W is false: set false all literals l in U for which sumTrue + weight(l) >= bound.
- * - FFB: If sumReach < bound: set W to false.
- * - BTB: If W is true: set true all literals l in U for which sumReach - weight(l) < bound.
+ * <b>Given a WeightConstraint with bound \p B and set of literals \p L</b>,
+ * -  let \p sumTrue be the sum of the weights of all literals \p l in \p L that are currently true,
+ * - \p sumReach be the sum of the weights of all literals \p l in \p L that are currently not false, and
+ * - \p U be the set of literals \p l in \p L that are currently unassigned
+ * .
+ * <b>the class implements the following four inference rules</b>:
+ * - \b FTB: If \p sumTrue >= \p B: assign \p W to true.
+ * - \b BFB: If \p W is false: set false all literals \p l in \p U for which \p sumTrue + weight(\p l) >= \p B.
+ * - \b FFB: If \p sumReach < \p B: assign \p W to false.
+ * - \b BTB: If \p W is true: set true all literals \p l in \p U for which \p sumReach - weight(\p l) < \p B.
+ * .
  */
 class WeightConstraint : public Constraint {
 public:
+	//! Flags controlling weight constraint creation.
 	enum CreationFlags {
-		create_explicit  = 1u, /**< Force creation of explicit constraint even if size/bound is small. */
-		create_no_add    = 3u, /**< Do not add constraint to solver db.    */
-		create_sat       = 4u, /**< Force creation even if constraint is always satisfied.*/
-		create_no_freeze = 8u, /**< Do not freeze variables in constraint. */
-		create_no_share  =16u, /**< Do not allow sharing of literals.      */
-		create_eq_bound  =32u, /**< Create equality instead of less-than constraint. */
-		create_only_btb  =64u, /**< Only create FFB_BTB constraint. */
-		create_only_bfb  =128u,/**< Only create FTB_BFB constraint. */
+		create_explicit  = 1u, //!< Force creation of explicit constraint even if size/bound is small.
+		create_no_add    = 3u, //!< Do not add constraint to solver db.
+		create_sat       = 4u, //!< Force creation even if constraint is always satisfied.
+		create_no_freeze = 8u, //!< Do not freeze variables in constraint.
+		create_no_share  =16u, //!< Do not allow sharing of literals between threads.
+		create_eq_bound  =32u, //!< Create equality instead of greater-or-equal constraint.
+		create_only_btb  =64u, //!< Only create FFB_BTB constraint.
+		create_only_bfb  =128u,//!< Only create FTB_BFB constraint.
 	};
+	//! Type used to communicate result of create().
 	class CPair {
 	public:
 		CPair() { con[0] = con[1] = 0; }
@@ -130,18 +135,19 @@ public:
 	uint32 estimateComplexity(const Solver& s) const;
 	/*!
 	 * Logically, we distinguish two constraints: 
-	 * FFB_BTB for handling forward false body and backward true body and
-	 * FTB_BFB for handling forward true body and backward false body.
+	 * - FFB_BTB for handling forward false body and backward true body and
+	 * - FTB_BFB for handling forward true body and backward false body.
+	 * .
 	 * Physically, we store the literals in one array: ~W=1, l0=w0,...,ln-1=wn-1.
 	 */
 	enum ActiveConstraint {
-		FFB_BTB   = 0, /**< (SumW-bound)+1 [~W=1, l0=w0,..., ln-1=wn-1]; */
-		FTB_BFB   = 1, /**< bound          [ W=1,~l0=w0,...,~ln-1=wn-1]  */
+		FFB_BTB   = 0, //!< (\p SumW - \p B)+1 [~W=1, l0=w0,..., ln-1=wn-1]
+		FTB_BFB   = 1, //!< \p B [ W=1,~l0=w0,...,~ln-1=wn-1]
 	};
 	/*!
 	 * Returns the i'th literal of constraint c, i.e.
-	 *  li, iff c == FFB_BTB
-	 * ~li, iff c == FTB_BFB.
+	 * - li, iff c == FFB_BTB
+	 * - ~li, iff c == FTB_BFB.
 	 */
 	Literal  lit(uint32 i, ActiveConstraint c) const { return Literal::fromId( lits_->lit(i).id() ^ c ); }
 	//! Returns the weight of the i'th literal or 1 if constraint is a cardinality constraint.

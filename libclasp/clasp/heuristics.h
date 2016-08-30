@@ -26,8 +26,7 @@
 
 /*!
  * \file 
- * Defines various decision heuristics to be used in clasp.
- * 
+ * \brief Defines various decision heuristics to be used in clasp.
  */
 
 #include <clasp/solver.h>
@@ -36,12 +35,10 @@
 #include <list>
 namespace Clasp { 
 
-// Some lookback heuristics to be used together with learning.
-
 //! Computes a moms-like score for var v.
 uint32 momsScore(const Solver& s, Var v);
 
-//! A variant of the BerkMin decision heuristic from the BerkMin Sat-Solver
+//! A variant of the BerkMin decision heuristic from the BerkMin Sat-Solver.
 /*!
  * \ingroup heuristic
  * \see E. Goldberg, Y. Navikov: "BerkMin: a Fast and Robust Sat-Solver"

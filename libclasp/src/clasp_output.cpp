@@ -800,14 +800,14 @@ void TextOutput::startStep(const ClaspFacade& f) {
 	if (callQ() != print_no) { comment(1, "%s\n", rowSep); comment(2, "%-13s: %d\n", "Call", f.step()+1); }
 }
 void TextOutput::onEvent(const Event& ev) {
-	typedef SatElite::SatElite::Progress SatPre;
+	typedef SatElite::Progress SatPre;
 	if (ev.verb <= verbosity()) {
 		if      (ev.system == 0)      { setState(0,0,0); }
 		else if (ev.system == state_) {
 			if      (ev.system == Event::subsystem_solve)       { printSolveProgress(ev); }
 			else if (const SatPre* sat = event_cast<SatPre>(ev)){
-				if      (sat->op != SatElite::SatElite::Progress::event_algorithm) { comment(2, "Sat-Prepro   : %c: %8u/%-8u\r", (char)sat->op, sat->cur, sat->max); }
-				else if (sat->cur!= sat->max)                                      {
+				if      (sat->op != SatElite::Progress::event_algorithm) { comment(2, "Sat-Prepro   : %c: %8u/%-8u\r", (char)sat->op, sat->cur, sat->max); }
+				else if (sat->cur!= sat->max)                            {
 					setState(0,0,0); comment(2, "Sat-Prepro   :\r");
 					state_ = Event::subsystem_prepare;
 				}

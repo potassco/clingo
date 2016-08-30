@@ -30,8 +30,9 @@
 namespace Clasp {
 
 /**
+ * \file
  * \defgroup solver Solver
- * \brief Solver and related classes.
+ * \brief %Solver and related classes.
  */
 //@{
 
@@ -52,7 +53,7 @@ namespace Clasp {
  * Once search terminates assumptions can be undone by calling clearAssumptions
  * and a new a search can be started using different assumptions.
  *
- * For model enumeration the solver maintains a backtrack-level which restricts
+ * For model enumeration the solver maintains a backtrack-level that restricts
  * backjumping in order to prevent repeating already enumerated solutions.
  * The solver will never backjump above that level and conflicts on the backtrack-level 
  * are resolved by backtracking, i.e. flipping the corresponding decision literal.
@@ -66,16 +67,11 @@ public:
 	typedef const ConstraintDB&               DBRef;
 	typedef SingleOwnerPtr<DecisionHeuristic> HeuristicPtr;
 private:
-	/*!
-	 * \name Construction/Destruction/Setup
-	 */
-	//@{
 	friend class SharedContext;
-	//! Creates an empty solver object with all strategies set to their default value.
+	// Creates an empty solver object with all strategies set to their default value.
 	Solver(SharedContext* ctx, uint32 id);
-	//! Destroys the solver object and all contained constraints.
 	~Solver();
-	//! Resets a solver object to the state it had after construction.
+	// Resets a solver object to the state it had after construction.
 	void reset();
 	void resetConfig();
 	void startInit(uint32 constraintGuess, const SolverParams& params);
@@ -84,7 +80,6 @@ private:
 	bool preparePost();
 	bool endInit();
 	bool endStep(uint32 top, const SolverParams& params);
-	//@}
 public:
 	typedef SolverStrategies::SearchStrategy SearchMode;
 	typedef SolverStrategies::UpdateMode     UpdateMode;
@@ -93,7 +88,7 @@ public:
 	const SharedContext*    sharedContext() const { return shared_; }
 	//! Returns a pointer to the sat-preprocessor used by this solver.
 	SatPreprocessor*        satPrepro()     const;
-	//! Returns the solve parameters for this object.
+	//! Returns the solver's solve parameters.
 	const SolveParams&      searchConfig()  const;
 	SearchMode              searchMode()    const { return static_cast<SearchMode>(strategy_.search); }
 	UpdateMode              updateMode()    const { return static_cast<UpdateMode>(strategy_.upMode); }
@@ -106,6 +101,10 @@ public:
 	const OutputTable&      outputTable()   const { return shared_->output; }
 	Literal                 tagLiteral()    const { return tag_; }
 	bool                    isMaster()      const { return this == sharedContext()->master(); }
+	/*!
+	 * \name Setup functions
+	 * Functions in this group are typically used before a search is started.
+	 * @{ */
 	//! Adds the problem constraint c to the solver.
 	/*!
 	 * Problem constraints shall only be added to the master solver of 
@@ -141,14 +140,33 @@ public:
 	 * \note The function shall not be called during propagation of any other post propagator.
 	 */
 	void                    removePost(PostPropagator* p);
+	
+	//! Adds path to the current root-path and adjusts the root-level accordingly.
+	bool pushRoot(const LitVec& path);
+	bool pushRoot(Literal p);
+	void setEnumerationConstraint(Constraint* c);
+	//! Requests a special aux variable for tagging conditional knowledge.
 	/*!
-	 * \name CDNL-functions.
+	 * Once a tag variable t is set, learnt clauses containing ~t are
+	 * tagged as "conditional". Conditional clauses are removed once t becomes
+	 * unassigned or Solver::removeConditional() is called. Furthermore, calling
+	 * Solver::strengthenConditional() removes ~t from conditional clauses and
+	 * transforms them to unconditional knowledge.
+	 *
+	 * \note Typically, the tag variable is a root assumption and hence true during
+	 *       the whole search.
 	 */
-	//@{
+	Var  pushTagVar(bool pushToRoot);
+	//@}
+
+	/*!
+	 * \name CDNL functions
+	 * Top level functions that are important to the CDNL algorithm.
+	 * @{ */
+
 	//! Searches for a model as long as the given limit is not reached.
 	/*!
-	 * The search function implements the CDNL-algorithm.
-	 * It searches for a model as long as none of the limits given by limit
+	 * The function searches for a model as long as none of the limits given by limit
 	 * is reached. The limits are updated during search.
 	 *
 	 * \param limit Imposed limit on conflicts and number of learnt constraints.
@@ -163,12 +181,6 @@ public:
 	 */
 	ValueRep search(SearchLimits& limit, double randf = 0.0);
 	ValueRep search(uint64 maxC, uint32 maxL, bool local = false, double rp  = 0.0);
-
-	//! Adds path to the current root-path and adjusts the root-level accordingly.
-	bool pushRoot(const LitVec& path);
-	bool pushRoot(Literal p);
-	
-	void setEnumerationConstraint(Constraint* c);
 
 	//! Moves the root-level i levels down (i.e. away from the top-level).
 	/*!
@@ -294,18 +306,7 @@ public:
 	//! Shuffle constraints upon next simplification.
 	void shuffleOnNextSimplify(){ shufSimp_ = 1; }
 
-	//! Requests a special aux variable for tagging conditional knowledge.
-	/*!
-	 * Once a tag variable t is set, learnt clauses containing ~t are
-	 * tagged as "conditional". Conditional clauses are removed once t becomes
-	 * unassigned or Solver::removeConditional() is called. Furthermore, calling 
-	 * Solver::strengthenConditional() removes ~t from conditional clauses and
-	 * transforms them to unconditional knowledge.
-	 *
-	 * \note Typically, the tag variable is a root assumption and hence true during 
-	 *       the whole search.
-	 */
-	Var  pushTagVar(bool pushToRoot);
+
 	//! Removes all conditional knowledge, i.e. all previously tagged learnt clauses.
 	/*!
 	 * \see Solver::pushTagVar()
@@ -515,12 +516,11 @@ public:
 	//@}  
 	
 	/*!
-	 * \name state inspection
+	 * \name State inspection
 	 * Functions for inspecting the state of the solver & search.
 	 * \note validVar(v) is a precondition for all functions that take a variable as 
 	 * parameter.
-	 */
-	//@{
+	 * @{ */
 	//! Returns the number of problem variables.
 	uint32   numProblemVars()       const { return shared_->numVars(); }
 	//! Returns the number of active solver-local aux variables.
@@ -621,18 +621,17 @@ public:
 		return *learnts_[ idx ];
 	}
 
-	mutable RNG rng;   /**< Random number generator for this object.     */
-	ValueVec    model; /**< Stores the last model (if any).              */
-	LowerBound  lower; /**< Stores the last lower bound found (if any).  */
-	SolverStats stats; /**< Stores statistics about the solving process. */
+	mutable RNG rng;   //!< Random number generator for this object.
+	ValueVec    model; //!< Stores the last model (if any).
+	LowerBound  lower; //!< Stores the last lower bound found (if any).
+	SolverStats stats; //!< Stores statistics about the solving process.
 	//@}
 
 	/*!
 	 * \name Watch management
 	 * Functions for setting/removing watches.
 	 * \pre validVar(v)
-	 */
-	//@{
+	 * @{ */
 	//! Returns the number of constraints watching the literal p.
 	uint32        numWatches(Literal p)              const;
 	//! Returns true if the constraint c watches the literal p.
@@ -686,8 +685,7 @@ public:
 	 * \name Misc functions
 	 * Low-level implementation functions. Use with care and only if you
 	 * know what you are doing!
-	 */
-	//@{
+	 * @{ */
 	bool addPost(PostPropagator* p, bool init);
 	//! Updates the reason for p being true.
 	/*!
@@ -882,7 +880,7 @@ private:
 inline bool isRevLit(const Solver& s, Literal p, uint32 maxL) {
 	return s.isFalse(p) && (s.seen(p) || s.level(p.var()) < maxL);
 }
-
+//! Simplifies the constraints in db and removes those that are satisfied.
 template <class C>
 void simplifyDB(Solver& s, C& db, bool shuffle) {
 	typename C::size_type j = 0;
@@ -893,8 +891,9 @@ void simplifyDB(Solver& s, C& db, bool shuffle) {
 	}
 	shrinkVecTo(db, j);
 }
+//! Destroys (and optionally detaches) all constraints in db.
 void destroyDB(Solver::ConstraintDB& db, Solver* s, bool detach);
-
+//! Returns the default decision literal of the given variable.
 inline Literal Solver::defaultLit(Var v) const {
 	switch(strategy_.signDef) {
 		default: // 
@@ -904,10 +903,11 @@ inline Literal Solver::defaultLit(Var v) const {
 		case SolverStrategies::sign_rnd : return Literal(v, rng.drand() < 0.5);
 	}
 }
+//! Event type optionally emitted after a conflict.
 struct NewConflictEvent : SolveEvent<NewConflictEvent> {
 	NewConflictEvent(const Solver& s, const LitVec& c, const ConstraintInfo& i) : SolveEvent<NewConflictEvent>(s, verbosity_quiet), learnt(&c), info(i) {}
-	const LitVec*  learnt;
-	ConstraintInfo info;
+	const LitVec*  learnt; //!< Learnt conflict clause.
+	ConstraintInfo info;   //!< Additional information associated with the conflict clause. 
 };
 //@}
 
@@ -917,7 +917,6 @@ struct NewConflictEvent : SolveEvent<NewConflictEvent> {
  * \ingroup solver
  */
 //@{
-
 //! Base class for decision heuristics to be used in a Solver.
 /*! 
  * During search the decision heuristic is used whenever the DPLL-procedure must pick 
@@ -933,7 +932,7 @@ public:
 	 * The default-implementation is a noop.
 	 * \param s The solver in which this heuristic is used.
 	 */
-	virtual void startInit(const Solver& /* s */) {}  
+	virtual void startInit(const Solver& s) { (void)s; }
 
 	/*!
 	 * Called once after all problem constraints are known to the solver
@@ -941,13 +940,13 @@ public:
 	 * The default-implementation is a noop.
 	 * \param s The solver in which this heuristic is used.
 	 */
-	virtual void endInit(Solver& /* s */) { }
+	virtual void endInit(Solver& s) { (void)s; }
 
 	//! Called once if s switches to a different heuristic.
-	virtual void detach(Solver& /* s */) {}
+	virtual void detach(Solver& s) { (void)s; }
 
 	//! Called if configuration has changed.
-	virtual void setConfig(const HeuParams& /* p */) {}
+	virtual void setConfig(const HeuParams& p) { (void)p; }
 	
 	/*!
 	 * Called if the state of one or more variables changed. 
@@ -961,7 +960,7 @@ public:
 	 * \param n The range of variables affected, i.e. [v, v+n).
 	 * \note Use s.validVar(v) and s.auxVar(v) to determine the reason for the update.
 	 */
-	virtual void updateVar(const Solver& /* s */, Var /* v */, uint32 /* n */) = 0;
+	virtual void updateVar(const Solver& s, Var v, uint32 n) = 0;
 	
 	/*!
 	 * Called on decision level 0. Variables that are assigned on this level
@@ -972,7 +971,7 @@ public:
 	 * \param s The solver that reached decision level 0.
 	 * \param st The position in the trail of the first new learnt fact.
 	 */
-	virtual void simplify(const Solver& /* s */, LitVec::size_type /* st */) { }
+	virtual void simplify(const Solver& s, LitVec::size_type st) { (void)s; (void)st; }
 	
 	/*!
 	 * Called whenever the solver backracks.
@@ -981,7 +980,7 @@ public:
 	 * \param s The solver that is about to backtrack.
 	 * \param st Position in the trail of the first literal that will be backtracked.
 	 */
-	virtual void undoUntil(const Solver& /* s */, LitVec::size_type /* st */) {}
+	virtual void undoUntil(const Solver& s, LitVec::size_type st) { (void)s; (void)st; }
 	
 	/*!
 	 * Called whenever a new constraint is added to the solver s.
@@ -992,7 +991,7 @@ public:
 	 * \param t Type of the new constraint.
 	 * \note first points to an array of size size.
 	 */
-	virtual void newConstraint(const Solver&, const Literal* /* first */, LitVec::size_type /* size */, ConstraintType /* t */) {}
+	virtual void newConstraint(const Solver& s, const Literal* first, LitVec::size_type size, ConstraintType t) { (void)s; (void)first; (void)size; (void)t; }
 	
 	/*!
 	 * Called for each new reason-set that is traversed during conflict analysis.
@@ -1004,14 +1003,14 @@ public:
 	 * in lits during the first call to updateReason. On that first call resolveLit
 	 * is the sentinel-literal.
 	 */
-	virtual void updateReason(const Solver& /* s */, const LitVec& /* lits */, Literal /* resolveLit */) {}
+	virtual void updateReason(const Solver& s, const LitVec& lits, Literal resolveLit) { (void)s; (void)lits; (void)resolveLit; }
 
 	//! Shall bump the activity of literals in lits by lits.second * adj.
 	/*!
 	 * The default-implementation is a noop and always returns false.
 	 * \return true if heuristic supports activities, false otherwise.
 	 */
-	virtual bool bump(const Solver& /* s */, const WeightLitVec& /* lits */, double /* adj */) { return false; }
+	virtual bool bump(const Solver& s, const WeightLitVec& lits, double adj) { (void)s; (void)lits; (void)adj; return false; }
 	
 	/*! 
 	 * Called whenever the solver must pick a new variable to branch on. 
@@ -1032,7 +1031,7 @@ public:
 	 *  - a literal that is currently free or
 	 *  - a sentinel literal. In that case, the heuristic shall have asserted a literal!
 	 */ 
-	virtual Literal doSelect(Solver& /* s */) = 0;
+	virtual Literal doSelect(Solver& s) = 0;
 
 	/*! 
 	 * Shall select one of the literals in the range [first, last).
@@ -1042,7 +1041,8 @@ public:
 	 * \pre [first, last) is not empty and all literals in the range are currently unassigned.
 	 * \note The default implementation returns *first.
 	 */
-	virtual Literal selectRange(Solver& /* s */, const Literal* first, const Literal* /* last */) {
+	virtual Literal selectRange(Solver& s, const Literal* first, const Literal* last) {
+		(void)s; (void)last;
 		return *first;
 	}
 	static Literal selectLiteral(Solver& s, Var v, int signScore) {
@@ -1059,11 +1059,10 @@ private:
 	DecisionHeuristic(const DecisionHeuristic&);
 	DecisionHeuristic& operator=(const DecisionHeuristic&);
 };
-
 //! Selects the first free literal w.r.t to the initial variable order.
 class SelectFirst : public DecisionHeuristic {
 public:
-	void updateVar(const Solver& /* s */, Var /* v */, uint32 /* n */) {}
+	void updateVar(const Solver&, Var, uint32) {}
 protected:
 	Literal doSelect(Solver& s);
 };

@@ -88,11 +88,11 @@ uint32 DynamicLimit::restart(uint32 maxLBD, float k) {
 			bool   sx = num_ >= adjust.limit;
 			float  rk = adjust.rk;
 			uint32 uLim = adjust.limit;
-			if (rLen >= 16000.0) { rk += 0.1f;  uLim = 16000; }
-			else if (sx) { rk += 0.05f; uLim = std::max(uint32(16000), uLim-10000); }
-			else if (rLen >= 4000.0) { rk += 0.05f; }
-			else if (rLen >= 1000.0) { uLim += 10000u; }
-			else if (rk > k) { rk -= 0.05f; }
+			if      (rLen >= 16000.0) { rk += 0.1f;  uLim = 16000; }
+			else if (sx)              { rk += 0.05f; uLim = std::max(uint32(16000), uLim-10000); }
+			else if (rLen >= 4000.0)  { rk += 0.05f; }
+			else if (rLen >= 1000.0)  { uLim += 10000u; }
+			else if (rk > k)          { rk -= 0.05f; }
 			init(rk, nt, uLim);
 		}
 		else { init(k, nt); }

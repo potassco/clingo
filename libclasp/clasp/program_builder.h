@@ -35,6 +35,7 @@
 namespace Clasp {
 
 /**
+ * \file
  * \defgroup problem Input
  * \brief Classes and functions for defining input programs.
  */
@@ -227,6 +228,7 @@ private:
 	wsum_t       soft_;
 };
 
+//! Adapts a Sat or PB builder to the Potassco::AbstractProgram interface.
 class BasicProgramAdapter : public Potassco::AbstractProgram {
 public:
 	BasicProgramAdapter(ProgramBuilder& prg);

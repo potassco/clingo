@@ -25,7 +25,7 @@
 #endif
 
 #if !defined(CLASP_VERSION)
-#define CLASP_VERSION "3.2.0-R52905"
+#define CLASP_VERSION "3.2.0-R52958"
 #endif
 #if !defined(CLASP_LEGAL)
 #define CLASP_LEGAL \
@@ -44,6 +44,7 @@
 #if WITH_THREADS
 #include <clasp/parallel_solve.h>
 namespace Clasp {
+	//! Options for controlling enumeration and solving.
 	struct SolveOptions : Clasp::mt::ParallelSolveOptions, EnumOptions {};
 }
 #else
@@ -56,6 +57,8 @@ namespace Clasp {
 
 /*!
  * \file
+ * \brief High-level API
+ *
  * This file provides a facade around the clasp library.
  * I.e. a simplified interface for (multishot) solving a problem using
  * some configuration (set of parameters).
@@ -74,6 +77,7 @@ namespace Clasp {
 //! Configuration object for configuring solving via the ClaspFacade.
 class ClaspConfig : public BasicSatConfig {
 public:
+	//! Interface for injecting user-provided post propagators.
 	class Configurator {
 	public:
 		virtual ~Configurator();
@@ -122,13 +126,14 @@ private:
 struct SolveResult {
 	//! Possible solving results.
 	enum Base {
-		UNKNOWN  = 0, /**< Satisfiability unknown - a given solve limit was hit.  */
-		SAT      = 1, /**< Problem is satisfiable (a model was found).            */
-		UNSAT    = 2, /**< Problem is unsatisfiable.                              */
+		UNKNOWN  = 0, //!< Satisfiability unknown - a given solve limit was hit.
+		SAT      = 1, //!< Problem is satisfiable (a model was found).
+		UNSAT    = 2, //!< Problem is unsatisfiable.
 	};
+	//! Additional flags applicable to a solve result.
 	enum Ext {
-		EXT_EXHAUST  = 4, /**< Search space is exhausted.            */
-		EXT_INTERRUPT= 8, /**< The run was interrupted from outside. */
+		EXT_EXHAUST  = 4, //!< Search space is exhausted.
+		EXT_INTERRUPT= 8, //!< The run was interrupted from outside.
 	};
 	bool sat()        const { return *this == SAT; }
 	bool unsat()      const { return *this == UNSAT; }
@@ -137,8 +142,8 @@ struct SolveResult {
 	bool interrupted()const { return (flags & EXT_INTERRUPT) != 0; }
 	operator Base()   const { return static_cast<Base>(flags & 3u);}
 	operator double() const { return (double(signal)*256.0) + flags; }
-	uint8 flags;  // result flags
-	uint8 signal; // term signal or 0
+	uint8 flags;  //!< Set of Base and Ext flags.
+	uint8 signal; //!< Term signal or 0.
 };
 
 //! Provides a simplified interface to the services of the clasp library.
@@ -152,16 +157,21 @@ public:
 	struct Summary {
 		typedef const ClaspFacade* FacadePtr;
 		void init(ClaspFacade& f);
-		// Problem (stats) - not accumulated.
+		//! Logic program elements added in the current step or 0 if not an asp problem.
 		const Asp::LpStats*  lpStep()       const;
+		//! Logic program stats or 0 if not an asp problem.
 		const Asp::LpStats*  lpStats()      const;
+		//! Active problem.
 		const SharedContext& ctx()          const { return facade->ctx; }
-		// Solve result - not accumulated.
+		/*!
+		 * \name Result functions
+		 * Solve and enumeration result - not accumulated.
+		 * @{
+		 */
 		bool                 sat()          const { return result.sat(); }
 		bool                 unsat()        const { return result.unsat(); }
 		bool                 complete()     const { return result.exhausted(); }
 		bool                 optimum()      const { return costs() && (complete() || model()->opt); }
-		// Model enumeration - not accumulated.
 		const Model*         model()        const;
 		const char*          consequences() const; /**< Cautious/brave reasoning active? */
 		bool                 optimize()     const; /**< Optimization active? */
@@ -169,30 +179,27 @@ public:
 		uint64               optimal()      const; /**< Number of optimal models found. */
 		bool                 hasLower()     const;
 		SumVec               lower()        const;
-		// Statistics - possibly accumulated.
+		//@}
+		//! Visits this summary object.
 		void accept(StatsVisitor& out) const;
-		FacadePtr facade;    /**< Facade object of this run.          */
-		double    totalTime; /**< Total wall clock time.              */
-		double    cpuTime;   /**< Total cpu time.                     */
-		double    solveTime; /**< Wall clock time for solving.        */
-		double    unsatTime; /**< Wall clock time to prove unsat.     */
-		double    satTime;   /**< Wall clock time to first model.     */
-		uint64    numEnum;   /**< Total models enumerated.            */
-		uint64    numOptimal;/**< Optimal models enumerated.          */
-		uint32    step;      /**< Step number (multishot solving).    */
-		Result    result;    /**< Result of step.                     */
+		FacadePtr facade;    //!< Facade object of this run.
+		double    totalTime; //!< Total wall clock time.
+		double    cpuTime;   //!< Total cpu time.              
+		double    solveTime; //!< Wall clock time for solving.
+		double    unsatTime; //!< Wall clock time to prove unsat.
+		double    satTime;   //!< Wall clock time to first model.
+		uint64    numEnum;   //!< Total models enumerated.
+		uint64    numOptimal;//!< Optimal models enumerated.
+		uint32    step;      //!< Step number (multishot solving).
+		Result    result;    //!< Result of step.
 	};
 	ClaspFacade();
 	~ClaspFacade();
-	
-	//! Tries to detect the problem type from the given input stream.
-	static ProblemType detectProblemType(std::istream& str);
 
 	/*!
 	 * \name Query functions
 	 * Functions for checking the state of this object.
-	 */
-	//@{
+	 * @{ */
 	//! Returns whether the problem is still valid.
 	bool               ok()                  const { return program() ? program()->ok() : ctx.ok(); }
 	//! Returns whether the active step is ready for solving.
@@ -234,15 +241,14 @@ public:
 		const Summary* summary;
 	};
 
+	SharedContext ctx; //!< Context-object used to store problem.
+
 	/*!
 	 * \name Start functions
 	 * Functions for defining a problem.
 	 * Calling one of the start functions discards any previous problem
 	 * and emits a StepStart event.
-	 */
-	//@{
-	SharedContext ctx; /*!< Context-object used to store problem. */
-
+	 * @{ */
 	//! Starts definition of an ASP-problem.
 	Asp::LogicProgram& startAsp(ClaspConfig& config, bool enableProgramUpdates = false);
 	//! Starts definition of a SAT-problem.
@@ -261,17 +267,23 @@ public:
 	bool               enableProgramUpdates();
 	//! Enables support for (asynchronous) solve interrupts.
 	void               enableSolveInterrupts();
-
-	//@}
-	enum EnumMode { enum_volatile, enum_static };
-	
+	//! Tries to detect the problem type from the given input stream.
+	static ProblemType detectProblemType(std::istream& str);
 	//! Tries to read the next program part from the stream passed to start().
 	/*!
 	 * \return false if nothing was read because the stream is exhausted, solving was interrupted,
 	 * or the problem is unconditionally unsat.
 	 */
 	bool               read();
+	//@}
 	
+	
+	/*!
+	* \name Solve functions
+	* Functions for solving a problem.
+	* @{ */
+	
+	enum EnumMode { enum_volatile, enum_static };
 	//! Finishes the definition of a problem and prepares it for solving.
 	/*!
 	 * \pre !solving()
@@ -296,14 +308,19 @@ public:
 	 */
 	Result             solve(EventHandler* eh = 0, const LitVec& a = LitVec());
 
+	//! A generator for querying models one-by-one.
 	class ModelGenerator {
 	public:
 		explicit ModelGenerator(SolveStrategy& impl);
 		ModelGenerator(const ModelGenerator&);
 		~ModelGenerator();
+		//! Searches for the next model and returns whether one was found.
 		bool         next()   const;
+		//! Returns the last model found.
 		const Model& model()  const;
+		//! Stops the generator so that further calls to next() will return false.
 		void         stop()   const;
+		//! Returns the result of the last call to next().
 		Result       result() const;
 	private:
 		ModelGenerator& operator=(const ModelGenerator&);
@@ -433,6 +450,7 @@ public:
 	 */
 	ProgramBuilder&    update(bool updateConfig, void (*sigQ)(int));
 	ProgramBuilder&    update(bool updateConfig = false);
+	//@}
 private:
 	struct Statistics;
 	typedef SingleOwnerPtr<ProgramBuilder> BuilderPtr;
@@ -457,6 +475,14 @@ private:
 	StatsPtr     stats_; // statistics: only if requested
 	SolvePtr     solve_; // NOTE: last so that it is destroyed first;
 };
+
+/** 
+ * \example example2.cpp
+ * This is an example of how to use the ClaspFacade class for basic solving.
+ *
+ * \example example3.cpp
+ * This is an example of how to use the ClaspFacade class for async solving.
+ */
 
 //!@}
 

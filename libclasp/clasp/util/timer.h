@@ -24,21 +24,29 @@
 #ifdef _MSC_VER
 #pragma once
 #endif
-
+/*!
+ * \file
+ * \brief Defines various types for getting absolute times.
+ */
 namespace Clasp {
 
+//! A type for getting the current process time.
 struct ProcessTime {
 	static double getTime();
 };
-
+//! A type for getting the current thread time.
 struct ThreadTime {
 	static double getTime();
 };
-
+//! A tpe for getting the current wall-clock time.
 struct RealTime {
 	static double getTime();
 };
-	
+//! A class for measuring elapsed time.
+/*!
+ * \tparam TimeType must provide a single static function
+ * TimeType::getTime() returning an absolute time.
+ */
 template <class TimeType>
 class Timer {
 public:
@@ -47,11 +55,11 @@ public:
 	void   start()   { start_ = TimeType::getTime(); }
 	void   stop()    { split(TimeType::getTime()); }
 	void   reset()   { *this  = Timer(); }
-	//! same as stop(), start();
+	//! Same as stop(), start();
 	void   lap()     { double t; split(t = TimeType::getTime()); start_ = t; }
-	//! elapsed time (in seconds) for last start-stop cycle
+	//! Returns the elapsed time (in seconds) for last start-stop cycle.
 	double elapsed() const { return split_; }
-	//! total elapsed time for all start-stop cycles 
+	//! Returns the total elapsed time for all start-stop cycles.
 	double total()   const { return total_; }
 private:
 	void split(double t) { total_ += (split_ = t-start_); }

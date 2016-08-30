@@ -28,7 +28,7 @@
 #include <algorithm>
 /*!
  * \file 
- * Some utility types and functions.
+ * \brief Some utility types and functions.
  */
 namespace Clasp {
 
@@ -40,7 +40,7 @@ namespace Clasp {
 
 template <class T>
 inline T bit_mask(unsigned n) { return static_cast<T>(1) << n; }
-// returns whether bit n is set in x
+//! Returns whether bit n is set in x.
 template <class T>
 inline bool test_bit(T x, unsigned n) { return (x & bit_mask<T>(n)) != 0; }
 template <class T>
@@ -68,7 +68,7 @@ inline uint32 log2(uint32 x) {
 	return ln;
 }
 
-// Computes n choose k.
+//! Computes n choose k.
 inline uint64 choose(unsigned n, unsigned k) {
 	if (k == 0) return 1;
 	if (k > n) return 0;
@@ -83,7 +83,7 @@ inline uint64 choose(unsigned n, unsigned k) {
 inline double ratio(uint64 x, uint64 y)   { return y ? static_cast<double>(x) / static_cast<double>(y) : 0; }
 inline double percent(uint64 x, uint64 y) {	return ratio(x, y) * 100.0; }
 
-//! A very simple but fast Pseudo-random number generator
+//! A very simple but fast Pseudo-random number generator.
 /*!
  * \note This class is a replacement for the standard rand-function. It is provided
  * in order to get reproducible random numbers among different compilers.
@@ -128,35 +128,38 @@ private:
 	uint32 seed_;
 };
 
-// exponential moving average
-// ema = currentEma + ((double(sample) - currentEma)*alpha);
+//! Updates the given exponential moving average with the given sample.
+/*!
+ * Computes ema = currentEma + ((double(sample) - currentEma)*alpha);
+ */
 template <class T>
 inline double exponentialMovingAverage(double currentEma, T sample, double alpha) {
 	return (static_cast<double>(sample) * alpha) + (currentEma * (1.0 - alpha));
 }
+//! Updates the given moving average with the given sample.
 template <class T>
 inline double cumulativeMovingAverage(double currentAvg, T sample, uint64 numSeen) {
 	return (static_cast<double>(sample) + (currentAvg * numSeen)) / static_cast<double>(numSeen + 1);
 }
 
-//! An unary operator function that calls p->destroy()
+//! An unary operator function that calls p->destroy().
 struct DestroyObject {
 	template <class T> void operator()(T* p) const { if (p) p->destroy(); }
 };
-//! An unary operator function that calls delete p
+//! An unary operator function that calls delete p.
 struct DeleteObject {
 	template <class T> void operator()(T* p) const { delete p; }
 };
-//! An unary operator function that calls p->release()
+//! An unary operator function that calls p->release().
 struct ReleaseObject {
 	template <class T> void operator()(T* p) const { if (p) p->release(); }
 };
-
+//! An unary operator function that returns whether its argument is 0.
 struct IsNull {
 	template <class T> bool operator()(const T& p) const { return p == 0; }
 };
 
-//! A predicate that checks whether a std::pair contains a certain value
+//! A predicate that checks whether a std::pair contains a certain value.
 template <class T>
 struct PairContains {
 	PairContains(const T& p) : p_(p) {}
@@ -166,7 +169,7 @@ struct PairContains {
 	T p_;
 };
 
-//! Removes from the container c the first occurrence of a value v for which p(v) returns true
+//! Removes from the container c the first occurrence of a value v for which p(v) returns true.
 /*!
  * \pre C is a container that provides back() and pop_back()
  * \note Removal is implemented by replacing the element to be removed with 
@@ -183,7 +186,7 @@ void remove_first_if(C& cont, const P& p) {
 	}
 }
 
-//! An unary operator function that simply returns its argument
+//! An unary operator function that simply returns its argument.
 template <class T>
 struct identity : std::unary_function<T, T>{
 	T&        operator()(T& x)      const { return x; }
@@ -191,7 +194,7 @@ struct identity : std::unary_function<T, T>{
 };
 
 
-//! An unary operator function that returns the first value of a std::pair
+//! An unary operator function that returns the first value of a std::pair.
 template <class P>
 struct select1st : std::unary_function<P, typename P::first_type> {
 	typename P::first_type& operator()(P& x) const {
@@ -202,7 +205,7 @@ struct select1st : std::unary_function<P, typename P::first_type> {
 	}
 };
 
-//! An unary operator function that returns the second value of a std::pair
+//! An unary operator function that returns the second value of a std::pair.
 template <class P>
 struct select2nd : std::unary_function<P, typename P::second_type> {
 	typename P::second_type& operator()(P& x) const {
@@ -213,7 +216,7 @@ struct select2nd : std::unary_function<P, typename P::second_type> {
 	}
 };
 
-//! An unary operator function that returns Op1(Op2(x))
+//! An unary operator function that returns Op1(Op2(x)).
 template <class OP1, class OP2>
 struct compose_1 : public std::unary_function<
                             typename OP2::argument_type, 
@@ -239,7 +242,7 @@ inline compose_1<OP1, OP2> compose1(const OP1& op1, const OP2& op2) {
 	return compose_1<OP1, OP2>(op1, op2);
 }
 
-//! An unary operator function that returns OP1(OP2(x), OP3(x))
+//! An unary operator function that returns OP1(OP2(x), OP3(x)).
 template <class OP1, class OP2, class OP3>
 struct compose_2_1 : public std::unary_function<
                             typename OP2::argument_type, 
@@ -268,7 +271,7 @@ inline compose_2_1<OP1, OP2,OP3> compose2(const OP1& op1, const OP2& op2, const 
 }
 
 
-//! A binary operator function that returns OP1(OP2(x), OP3(y))
+//! A binary operator function that returns OP1(OP2(x), OP3(y)).
 template <class OP1, class OP2, class OP3>
 struct compose_2_2 : public std::binary_function<
                             typename OP2::argument_type, 
@@ -308,9 +311,11 @@ bool isSorted(ForwardIterator first, ForwardIterator last, Compare comp) {
 	return true;
 }
 
+//! Possible ownership operations.
 struct Ownership_t {
 	enum Type { Retain = 0, Acquire = 1 };
 };
+//! A smart pointer that optionally owns its pointee.
 template <class T, class D = DeleteObject>
 class SingleOwnerPtr {
 public:
@@ -354,6 +359,7 @@ private:
 template <class T>
 inline FlaggedPtr<T> make_flagged(T* ptr, bool setFlag) { return FlaggedPtr<T>(ptr, setFlag); }
 
+//! A (numerical) range represented by a low and a high value.
 template <class T>
 struct Range {
 	Range(T x, T y) : lo(x), hi(y) { if (x > y)  { hi = x;  lo = y; } }
@@ -369,6 +375,7 @@ template <class T>
 inline bool operator==(const Range<T>& lhs, const Range<T>& rhs) {
 	return lhs.lo == rhs.lo && lhs.hi == rhs.hi;
 }
+//! An iterator type for iterating over a range of numerical values.
 template <class T>
 struct num_iterator : std::iterator<std::random_access_iterator_tag, T> {
 	explicit num_iterator(const T& val) : val_(val) {}
@@ -399,15 +406,18 @@ private:
 
 //! Base class for library events.
 struct Event {
+	//! Set of known event sources.
 	enum Subsystem { subsystem_facade = 0, subsystem_load = 1, subsystem_prepare = 2, subsystem_solve = 3 };
+	//! Possible verbosity levels.
 	enum Verbosity { verbosity_quiet  = 0, verbosity_low  = 1, verbosity_high    = 2, verbosity_max   = 3 };
 	explicit Event(Subsystem sys, uint32 evId, Verbosity verbosity) : system(sys), verb(verbosity), op(0), id(evId) {}
-	uint32 system : 2; // one of Event::Subsystem - subsystem that produced the event
-	uint32 verb   : 2; // one of Event::Verbosity - the verbosity level of this event
-	uint32 op     : 8; // operation that triggered the event
-	uint32 id     : 16;// type id of event
+	uint32 system : 2; //!< One of Event::Subsystem - subsystem that produced the event.
+	uint32 verb   : 2; //!< One of Event::Verbosity - the verbosity level of this event.
+	uint32 op     : 8; //!< Operation that triggered the event.
+	uint32 id     : 16;//!< Type id of event.
 	static uint32 nextId();
 };
+//! CRTP-base class for events of type T that registers an id for type T.
 template <class T>
 struct Event_t : Event {
 	Event_t(Subsystem sys, Verbosity verb) : Event(sys, id_s, verb) {}

@@ -17,6 +17,8 @@
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
+//! \file
+//! \brief Types and functions for accessing statistics.
 #ifndef CLASP_STATISTICS_H_INCLUDED
 #define CLASP_STATISTICS_H_INCLUDED
 
@@ -190,7 +192,7 @@ uint32 StatisticObject::registerValue() {
 	static uint32 id = StatisticObject::registerType(&vtab_s);
 	return id;
 }
-
+//! A type that maps string keys to statistic objects.
 class StatsMap {
 public:
 	// StatisticObject
@@ -205,6 +207,7 @@ private:
 	typedef PodVector<std::pair<const char*, StatisticObject> >::type MapType;
 	MapType keys_;
 };
+//! An array of statistic objects.
 template <class T, Potassco::Statistics_t::E ElemType = Potassco::Statistics_t::Map>
 class StatsVec : private PodVector<T*>::type {
 public:
@@ -234,11 +237,10 @@ private:
 	bool own_;
 };
 
-/**
- * \addtogroup facade
+//! A class for traversing and querying statistics.
+/*!
+ * \ingroup clingo
  */
-//@{
-
 class ClaspStatistics : public Potassco::AbstractStatistics {
 public:
 	typedef Potassco::Statistics_t Type;
@@ -273,7 +275,10 @@ struct JumpStats;
 struct ExtendedStats;
 struct ProblemStats;
 
-//! Interface for printing statistics.
+//! Interface for visiting statistics.
+/*!
+ * \ingroup facade
+ */
 class StatsVisitor {
 public:
 	enum Operation { Enter, Leave } ;
@@ -291,7 +296,6 @@ public:
 	virtual void visitProblemStats(const ProblemStats& stats) = 0;
 	virtual void visitSolverStats(const SolverStats& stats) = 0;
 };
-//@}
 
 }
 #endif

@@ -32,18 +32,23 @@ class OptionContext;
 class OptionGroup;
 class ParsedOptions;
 }
+/*!
+ * \file
+ * \brief Types and functions for processing command-line options.
+ */
 namespace Clasp { 
 //! Namespace for types and functions used by the command-line interface.
 namespace Cli {
 
 /**
  * \defgroup cli Cli
- * \brief Types to be used by the command-line interface.
+ * \brief Types mainly relevant to the command-line interface.
  * \ingroup facade
  * @{
  */
 
 class ClaspCliConfig;
+//! Class for iterating over a set of configurations.
 class ConfigIter {
 public:
 	const char* name() const;
@@ -57,6 +62,9 @@ private:
 	const char* base_;
 };
 //! Valid configuration keys.
+/*!
+ * \see clasp_cli_configs.inl
+ */
 enum ConfigKey {
 #define CONFIG(id,k,c,s,p) config_##k,
 #define CLASP_CLI_DEFAULT_CONFIGS config_default = 0,
@@ -70,7 +78,7 @@ enum ConfigKey {
 	config_tester_default= config_tester,
 };
 /*!
- * Configuration object for storing/processing command-line options.
+ * \brief Class for storing/processing command-line options.
  *
  * Caveats (when using incrementally, e.g. from clingo):
  * - supp-models: State Transition (yes<->no) not supported.
@@ -111,14 +119,13 @@ public:
 	 *
 	 * The functions in this group do not throw exceptions but 
 	 * signal logic errors via return values < 0.
-	 */
-	//@{
+	 * @{ */
 
 	typedef uint32 KeyType;	
-	static const KeyType KEY_INVALID; /**< Invalid key used to signal errors. */
-	static const KeyType KEY_ROOT;    /**< Root key of a configuration, i.e. "." */
-	static const KeyType KEY_TESTER;  /**< Root key for tester options, i.e. "tester." */
-	static const KeyType KEY_SOLVER;  /**< Root key for (array of) solver options, i.e. "solver." */
+	static const KeyType KEY_INVALID; //!< Invalid key used to signal errors.
+	static const KeyType KEY_ROOT;    //!< Root key of a configuration, i.e. "."
+	static const KeyType KEY_TESTER;  //!< Root key for tester options, i.e. "tester."
+	static const KeyType KEY_SOLVER;  //!< Root key for (array of) solver options, i.e. "solver."
 	
 	//! Returns true if k is a leaf, i.e. has no subkeys.
 	static bool  isLeafKey(KeyType k);
@@ -171,7 +178,6 @@ public:
 	 
 	//! Writes a null-terminated string representation of the value of the given key into the supplied buffer.
 	/*!
-	 * \overload int getValue(KeyType k, std::string& value) const;
 	 * \param k A valid handle to a key.
 	 * \param[out] buffer The current value of the key.
 	 * \param bufSize The size of buffer.
@@ -199,8 +205,7 @@ public:
 	 *
 	 * The functions in this group wrap the key-based functions and
 	 * signal logic errors by throwing exceptions.
-	 */
-	//@{
+	 * @{ */
 	//! Returns the value of the option identified by the given key.
 	std::string getValue(const char* key) const;
 	//! Returns true if the given key has an associated value.
@@ -214,8 +219,9 @@ public:
 	
 	/*!
 	 * \name App interface 
-	 */
-	//@{
+	 * 
+	 * Functions for connecting a configuration with the ProgramOptions library.
+	 * @{ */
 	//! Adds all available options to root.
 	/*!
 	 * Once options are added, root can be used with an option source (e.g. the command-line)
@@ -297,6 +303,7 @@ private:
 	std::string      config_[2];
 	bool             initTester_;
 };
+//! Validates the given solver configuration and throws an exception if invalid.
 void validate(const char* ctx, const SolverParams& solver, const SolveParams& search);
 //@}
 

@@ -32,7 +32,7 @@
 #include <potassco/match_basic_types.h>
 /*!
  * \file 
- * Contains parsers for supported input formats.
+ * \brief Defines parsers for supported input formats.
  */
 namespace Clasp {
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -48,13 +48,14 @@ ProblemType detectProblemType(std::istream& prg);
 
 //! Parse additional information in symbol table/comments.
 struct ParserOptions {
+	//! Supported parser extensions.
 	enum Extension {
-		parse_heuristic = 1u, /*!< Parse heuristic info in smodels, dimacs, and pb format. */
-		parse_acyc_edge = 2u, /*!< Parse acyc info in smodels, dimacs, and pb format. */
-		parse_minimize  = 4u, /*!< Parse cost function in dimacs format. */
-		parse_project   = 8u, /*!< Parse project directive in dimacs and pb format. */
-		parse_assume    = 16u,/*!< Parse assumption directive in dimacs and pb format. */
-		parse_output    = 32u,/*!< Parse output directive in dimacs and pb format. */
+		parse_heuristic = 1u, //!< Parse heuristic info in smodels, dimacs, and pb format.
+		parse_acyc_edge = 2u, //!< Parse acyc info in smodels, dimacs, and pb format.
+		parse_minimize  = 4u, //!< Parse cost function in dimacs format.
+		parse_project   = 8u, //!< Parse project directive in dimacs and pb format.
+		parse_assume    = 16u,//!< Parse assumption directive in dimacs and pb format.
+		parse_output    = 32u,//!< Parse output directive in dimacs and pb format.
 		parse_full      = 63u
 	};
 	ParserOptions() : ext(0) {}
@@ -68,7 +69,7 @@ struct ParserOptions {
 	bool isEnabled(uint8 f) const { return (ext & f) != 0u;  }
 	uint8 ext;
 };
-
+//! Base class for parsers.
 class ProgramParser {
 public:
 	typedef Potassco::ProgramReader StrategyType;
@@ -86,7 +87,7 @@ private:
 	StrategyType* strat_;
 };
 
-//! Reads a logic program in smodels-internal or aspif format.
+//! Parser for logic programs in smodels-internal or aspif format.
 class AspParser : public ProgramParser {
 public:
 	static bool accept(char c);
@@ -106,6 +107,7 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////////
 // SAT parsing 
 /////////////////////////////////////////////////////////////////////////////////////////
+//! Base class for dimacs and opb parser.
 class SatReader : public Potassco::ProgramReader {
 public:
 	SatReader();
@@ -128,7 +130,7 @@ protected:
 private:
 	Literal matchLit(Var max);
 };
-
+//! Parser for (extended) dimacs format.
 class DimacsReader : public SatReader {
 public:
 	static bool accept(char c) { return c == 'c' || c == 'p'; }
@@ -143,7 +145,7 @@ private:
 	Var         numVar_;
 	bool        wcnf_;
 };
-
+//! Parser for opb format.
 class OpbReader : public SatReader {
 public:
 	OpbReader(PBBuilder&);
@@ -168,7 +170,7 @@ private:
 		bool         eq;
 	}          active_;
 };
-
+//! Parser for SAT or PB problems.
 class SatParser : public ProgramParser {
 public:
 	explicit SatParser(SatBuilder& prg);

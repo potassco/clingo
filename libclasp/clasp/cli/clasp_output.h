@@ -32,21 +32,18 @@ void format(const Clasp::mt::MessageEvent& ev, char* out, uint32 outSize);
 
 /*!
  * \addtogroup cli
- */
-//@{
-
+ * @{ */
 /*!
- *
- * Interface for printing status and input format dependent information,
+ * \brief Interface for printing status and input format dependent information,
  * like models, optimization values, and summaries.
  */
 class Output : public EventHandler {
 public:
 	//! Supported levels for printing models, optimize values, and individual calls.
 	enum PrintLevel { 
-		print_all  = 0, /**< Print all models, optimize values, or calls.       */
-		print_best = 1, /**< Only print last model, optimize value, or call.    */
-		print_no   = 2, /**< Do not print any models, optimize values, or calls.*/
+		print_all  = 0, //!< Print all models, optimize values, or calls.
+		print_best = 1, //!< Only print last model, optimize value, or call.
+		print_no   = 2, //!< Do not print any models, optimize values, or calls.
 	};
 	explicit Output(uint32 verb = 1);
 	virtual ~Output();
@@ -173,12 +170,13 @@ private:
  */
 class TextOutput : public Output, private StatsVisitor {
 public:
+	//! Supported text formats.
 	enum Format      { format_asp, format_aspcomp, format_sat09, format_pb09 };
 	enum ResultStr   { res_unknonw = 0, res_sat = 1, res_unsat = 2, res_opt = 3, num_str };
 	enum CategoryKey { cat_comment, cat_value, cat_objective, cat_result, cat_value_term, cat_atom, num_cat };
 	
-	const char* result[num_str]; /**< Default result strings. */
-	const char* format[num_cat]; /**< Format strings.         */
+	const char* result[num_str]; //!< Default result strings.
+	const char* format[num_cat]; //!< Format strings.
 
 	TextOutput(uint32 verbosity, Format f, const char* catAtom = 0, char ifs = ' ');
 	~TextOutput();

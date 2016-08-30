@@ -31,7 +31,7 @@
 #include <numeric>
 /*!
  * \file 
- * Contains some types used by a Solver
+ * \brief Types and functions used by a Solver
  */
 namespace Clasp {
 class SharedLiterals;
@@ -53,45 +53,66 @@ struct SearchLimits {
 	SearchLimits();
 	uint64 used;
 	struct {
-		uint64   conflicts; /*!< Soft limit on number of conflicts for restart. */
-		LimitPtr dynamic;   /*!< Use dynamic restarts based on lbd or conflict level. */
-		BlockPtr block;     /*!< Optional strategy to increase restart limit. */
-		bool     local;     /*!< Apply conflict limit against active branch.  */
-	} restart;
-	uint64 conflicts; /*!< Soft limit on number of conflicts. */
-	uint64 memory;    /*!< Soft memory limit for learnt lemmas (in bytes). */
-	uint32 learnts;   /*!< Limit on number of learnt lemmas. */
+		uint64   conflicts; //!< Soft limit on number of conflicts for restart.
+		LimitPtr dynamic;   //!< Use dynamic restarts based on lbd or conflict level.
+		BlockPtr block;     //!< Optional strategy to increase restart limit.
+		bool     local;     //!< Apply conflict limit against active branch.
+	} restart;            //!< Restart limits.
+	uint64 conflicts; //!< Soft limit on number of conflicts.
+	uint64 memory;    //!< Soft memory limit for learnt lemmas (in bytes).
+	uint32 learnts;   //!< Limit on number of learnt lemmas.
 };
 
+//! Type for implementing Glucose-style dynamic restarts.
+/*!
+ * \see  G. Audemard, L. Simon. "Refining Restarts Strategies for SAT and UNSAT"
+ * \note In contrast to Glucose's dynamic restarts, this class also implements
+ * a heuristic for dynamically adjusting the margin ratio K.
+ */
 struct DynamicLimit {
 	enum Type { lbd_limit, level_limit };
+	//! Creates new limit with bounded queue of the given window size.
 	static DynamicLimit* create(uint32 window);
+	//! Destroys this object and its bounded queue.
 	void   destroy();
-	// resets moving average and adjust
+	//! Resets moving average and adjust limit.
 	void   init(float k, Type type, uint32 uLimit = 16000);
-	// resets moving average
+	//! Resets moving average, i.e. clears the bounded queue.
 	void   resetRun();
-	// resets moving and global average
+	//! Resets moving and global average.
 	void   reset();
+	//! Adds an observation and updates the moving average. Typically called on conflict.
 	void   update(uint32 conflictLevel, uint32 lbd);
+	//! Notifies this object about a restart.
+	/*!
+	 * The function checks whether to adjust the active margin ratio and/or
+	 * whether to switch from LBD based to conflict level based restarts.
+	 *
+	 * \param maxLBD Threshold for switching between lbd and conflict level queue.
+	 * \param k Lower bound for margin ratio.
+	 */
 	uint32 restart(uint32 maxLBD, float k);
-	
+	//! Returns the number of updates since last restart.
 	uint32 runLen()  const { return num_;  }
+	//! Returns the maximal size of the bounded queue.
 	uint32 window()  const { return cap_; }
+	//! Returns whether it is time to restart.
 	bool   reached() const { return runLen() >= window() && (sma(adjust.type) * adjust.rk) > global.avg(adjust.type); }
 	struct {
+		//! Returns the global lbd or conflict level average.
 		double avg(Type t) const { return ratio(sum[t], samples); }
-		uint64 sum[2]; /**< Sum of lbds/conflict levels since last call to resetGlobal(). */
-		uint64 samples;/**< Samples since last call to resetGlobal().                     */
-	} global;
+		uint64 sum[2]; //!< Sum of lbds/conflict levels since last call to resetGlobal().
+		uint64 samples;//!< Samples since last call to resetGlobal().
+	} global; //!< Global lbd/conflict level data.
 	struct {
+		//! Returns the average restart length, i.e. number of conflicts between restarts.
 		double avgRestart() const { return ratio(samples, restarts); }
-		uint32 limit;   /**< Number of conflicts before an update is forced. */
-		uint32 restarts;/**< Number of restarts since last update.           */
-		uint32 samples; /**< Number of samples since last update.            */
-		float  rk;      /**< LBD/CFL dynamic limit factor (typically < 1.0). */
-		Type   type;    /**< Dynamic limit based on lbd or confllict level.  */
-	} adjust;
+		uint32 limit;   //!< Number of conflicts before an update is forced.
+		uint32 restarts;//!< Number of restarts since last update.
+		uint32 samples; //!< Number of samples since last update.
+		float  rk;      //!< BD/CFL dynamic limit factor (typically < 1.0).
+		Type   type;    //!< Dynamic limit based on lbd or confllict level.
+	} adjust; //!< Data for dynamically adjusting margin ratio (rk).
 private: 
 	DynamicLimit(uint32 size);
 	DynamicLimit(const DynamicLimit&);
@@ -107,6 +128,11 @@ CLASP_WARNING_BEGIN_RELAXED
 CLASP_WARNING_END_RELAXED
 };
 
+//! Type for implementing Glucose-style blocking of restarts.
+/*!
+ * \see G. Audemard, L. Simon "Refining Restarts Strategies for SAT and UNSAT"
+ * \see A. Biere, A. Froehlich "Evaluating CDCL Variable Scoring Schemes"
+ */
 struct BlockLimit {
 	explicit BlockLimit(uint32 windowSize, double R = 1.4);
 	bool push(uint32 nAssign) {
@@ -115,20 +141,24 @@ struct BlockLimit {
 			: cumulativeMovingAverage(ema, nAssign, n);
 		return ++n >= next;
 	}
+	//! Returns the exponential moving average scaled by r.
 	double scaled() const { return ema * r; }
-	double ema;   // current exponential moving average
-	double alpha; // smoothing factor: 2/(span+1)
-	uint64 next;  // enable once n >= next
-	uint64 inc;   // block restart for next inc conflict
-	uint64 n;     // number of data points seen
-	uint32 span;  // minimum observation window
-	float  r;     // scale factor for ema
+	double ema;   //!< Current exponential moving average.
+	double alpha; //!< Smoothing factor: 2/(span+1).
+	uint64 next;  //!< Enable once n >= next.
+	uint64 inc;   //!< Block restart for next inc conflicts.
+	uint64 n;     //!< Number of data points seen so far.
+	uint32 span;  //!< Minimum observation window.
+	float  r;     //!< Scale factor for ema.
 };
 ///////////////////////////////////////////////////////////////////////////////
 // Statistics
 ///////////////////////////////////////////////////////////////////////////////
 class StatisticObject;
 class StatsMap;
+#if !defined(DOXY)
+#define DOXY(X)
+#endif
 #define CLASP_STAT_DEFINE(m, k, a, accu) m
 #define NO_ARG
 #define CLASP_DECLARE_ISTATS(T) \
@@ -144,11 +174,11 @@ class StatsMap;
  */
 struct CoreStats {
 #define CLASP_CORE_STATS(STAT, LHS, RHS)     \
-	STAT(uint64 choices;    , "choices"           , VALUE(choices)    , LHS.choices    += RHS.choices   )\
-	STAT(uint64 conflicts;  , "conflicts"         , VALUE(conflicts)  , LHS.conflicts  += RHS.conflicts )\
-	STAT(uint64 analyzed;   , "conflicts_analyzed", VALUE(analyzed)   , LHS.analyzed   += RHS.analyzed  )\
-	STAT(uint64 restarts;   , "restarts"          , VALUE(restarts)   , LHS.restarts   += RHS.restarts  )\
-	STAT(uint64 lastRestart;, "restarts_last"     , VALUE(lastRestart), LHS.lastRestart = std::max(LHS.lastRestart, RHS.lastRestart))
+	STAT(uint64 choices;    DOXY(number of choices)     , "choices"           , VALUE(choices)    , LHS.choices    += RHS.choices   )\
+	STAT(uint64 conflicts;  DOXY(number of conflicts)   , "conflicts"         , VALUE(conflicts)  , LHS.conflicts  += RHS.conflicts )\
+	STAT(uint64 analyzed;   DOXY(number of conflicts analyzed), "conflicts_analyzed", VALUE(analyzed)   , LHS.analyzed   += RHS.analyzed  )\
+	STAT(uint64 restarts;   DOXY(number of restarts)    , "restarts"          , VALUE(restarts)   , LHS.restarts   += RHS.restarts  )\
+	STAT(uint64 lastRestart;DOXY(length of last restart), "restarts_last"     , VALUE(lastRestart), LHS.lastRestart = std::max(LHS.lastRestart, RHS.lastRestart))
 
 	CoreStats() { reset(); }
 	void reset();
@@ -158,17 +188,16 @@ struct CoreStats {
 	CLASP_DECLARE_ISTATS(CoreStats);
 	CLASP_CORE_STATS(CLASP_STAT_DEFINE, NO_ARG, NO_ARG)
 };
-
 //! A struct for holding (optional) jump statistics.
 struct JumpStats {
 #define CLASP_JUMP_STATS(STAT, LHS, RHS)     \
-	STAT(uint64 jumps;    , "jumps"          , VALUE(jumps)    , LHS.jumps    += RHS.jumps)   \
-	STAT(uint64 bounded;  , "jumps_bounded"  , VALUE(bounded)  , LHS.bounded  += RHS.bounded)  \
-	STAT(uint64 jumpSum;  , "levels"         , VALUE(jumpSum)  , LHS.jumpSum  += RHS.jumpSum)  \
-	STAT(uint64 boundSum; , "levels_bounded" , VALUE(boundSum) , LHS.boundSum += RHS.boundSum) \
-	STAT(uint32 maxJump;  , "max"            , VALUE(maxJump)  , MAX_MEM(LHS.maxJump, RHS.maxJump))   \
-	STAT(uint32 maxJumpEx;, "max_executed"   , VALUE(maxJumpEx), MAX_MEM(LHS.maxJumpEx,RHS.maxJumpEx)) \
-	STAT(uint32 maxBound; , "max_bounded"    , VALUE(maxBound) , MAX_MEM(LHS.maxBound, RHS.maxBound)) 
+	STAT(uint64 jumps;    DOXY(number of backjumps)                  , "jumps"          , VALUE(jumps)    , LHS.jumps    += RHS.jumps)   \
+	STAT(uint64 bounded;  DOXY(backjumps bounded by root level)      , "jumps_bounded"  , VALUE(bounded)  , LHS.bounded  += RHS.bounded)  \
+	STAT(uint64 jumpSum;  DOXY(levels removed by jumps)              , "levels"         , VALUE(jumpSum)  , LHS.jumpSum  += RHS.jumpSum)  \
+	STAT(uint64 boundSum; DOXY(levels kept because of root level)    , "levels_bounded" , VALUE(boundSum) , LHS.boundSum += RHS.boundSum) \
+	STAT(uint32 maxJump;  DOXY(longest backjump)                     , "max"            , VALUE(maxJump)  , MAX_MEM(LHS.maxJump, RHS.maxJump))   \
+	STAT(uint32 maxJumpEx;DOXY(longest unbounded backjump)           , "max_executed"   , VALUE(maxJumpEx), MAX_MEM(LHS.maxJumpEx,RHS.maxJumpEx)) \
+	STAT(uint32 maxBound; DOXY(max levels kept because of root level), "max_bounded"    , VALUE(maxBound) , MAX_MEM(LHS.maxBound, RHS.maxBound)) 
 
 	JumpStats() { reset(); }
 	void reset();
@@ -196,34 +225,35 @@ struct JumpStats {
 //! A struct for holding (optional) extended statistics.
 struct ExtendedStats {
 	typedef ConstraintType type_t;
+	//! An array for storing a value[t-1] for each learnt Constraint_t::Type t.
 	typedef uint64 Array[Constraint_t::Type__max];
 #define CLASP_EXTENDED_STATS(STAT, LHS, RHS)     \
-	STAT(uint64 domChoices; /**< "domain" choices   */, "domain_choices"        , VALUE(domChoices) , LHS.domChoices += RHS.domChoices) \
-	STAT(uint64 models;     /**< number of models   */, "models"                , VALUE(models)     , LHS.models     += RHS.models)     \
-	STAT(uint64 modelLits;  /**< DLs in models      */, "models_level"          , VALUE(modelLits)  , LHS.modelLits  += RHS.modelLits)  \
-	STAT(uint64 hccTests;   /**< stability tests    */, "hcc_tests"             , VALUE(hccTests)   , LHS.hccTests   += RHS.hccTests)   \
-	STAT(uint64 hccPartial; /**< partial stab. tests*/, "hcc_partial"           , VALUE(hccPartial) , LHS.hccPartial += RHS.hccPartial) \
-	STAT(uint64 deleted;    /**< lemmas deleted     */, "lemmas_deleted"        , VALUE(deleted)    , LHS.deleted    += RHS.deleted)    \
-	STAT(uint64 distributed;/**< lemmas distributed */, "distributed"           , VALUE(distributed), LHS.distributed+= RHS.distributed)\
-	STAT(uint64 sumDistLbd; /**< sum of lemma lbds  */, "distributed_sum_lbd"   , VALUE(sumDistLbd) , LHS.sumDistLbd += RHS.sumDistLbd) \
-	STAT(uint64 integrated; /**< lemmas integrated  */, "integrated"            , VALUE(integrated) , LHS.integrated += RHS.integrated) \
-	STAT(Array learnts;  /**< lemmas of type t-1    */, "lemmas"                , MEM_FUN(lemmas)   , NO_ARG)   \
-	STAT(Array lits;     /**< lits of type t-1      */, "lits_learnt"           , MEM_FUN(learntLits), NO_ARG)  \
-	STAT(uint32 binary;  /**< binary lemmas         */, "lemmas_binary"         , VALUE(binary)  , LHS.binary  += RHS.binary)  \
-	STAT(uint32 ternary; /**< ternary lemmas        */, "lemmas_ternary"        , VALUE(ternary) , LHS.ternary += RHS.ternary) \
-	STAT(double cpuTime; /**< cpu time used         */, "cpu_time"              , VALUE(cpuTime) , LHS.cpuTime += RHS.cpuTime) \
-	STAT(uint64 intImps; /**< implications on integrating*/, "integrated_imps"  , VALUE(intImps) , LHS.intImps+= RHS.intImps)  \
-	STAT(uint64 intJumps;/**< backjumps on integrating  */ , "integrated_jumps" , VALUE(intJumps), LHS.intJumps+=RHS.intJumps) \
-	STAT(uint64 gpLits;  /**< lits in received gps  */, "guiding_paths_lits"    , VALUE(gpLits)  , LHS.gpLits  += RHS.gpLits)  \
-	STAT(uint32 gps;     /**< guiding paths received*/, "guiding_paths"         , VALUE(gps)     , LHS.gps     += RHS.gps)     \
-	STAT(uint32 splits;  /**< split requests handled*/, "splits"                , VALUE(splits)  , LHS.splits  += RHS.splits)  \
-	STAT(NO_ARG       , "lemmas_conflict", VALUE(learnts[0]), LHS.learnts[0] += RHS.learnts[0]) \
-	STAT(NO_ARG       , "lemmas_loop"    , VALUE(learnts[1]), LHS.learnts[1] += RHS.learnts[1]) \
-	STAT(NO_ARG       , "lemmas_other"   , VALUE(learnts[2]), LHS.learnts[2] += RHS.learnts[2]) \
-	STAT(NO_ARG       , "lits_conflict"  , VALUE(lits[0])   , LHS.lits[0]    += RHS.lits[0])    \
-	STAT(NO_ARG       , "lits_loop"      , VALUE(lits[1])   , LHS.lits[1]    += RHS.lits[1])    \
-	STAT(NO_ARG       , "lits_other"     , VALUE(lits[2])   , LHS.lits[2]    += RHS.lits[2])    \
-	STAT(JumpStats jumps;  , "jumps"     , MAP(jumps)       , LHS.jumps.accu(RHS.jumps))
+	STAT(uint64 domChoices; DOXY(number of domain choices)   , "domain_choices"        , VALUE(domChoices) , LHS.domChoices += RHS.domChoices) \
+	STAT(uint64 models;     DOXY(number of models)           , "models"                , VALUE(models)     , LHS.models     += RHS.models)     \
+	STAT(uint64 modelLits;  DOXY(decision levels in models)  , "models_level"          , VALUE(modelLits)  , LHS.modelLits  += RHS.modelLits)  \
+	STAT(uint64 hccTests;   DOXY(number of stability tests)  , "hcc_tests"             , VALUE(hccTests)   , LHS.hccTests   += RHS.hccTests)   \
+	STAT(uint64 hccPartial; DOXY(number of partial tests)    , "hcc_partial"           , VALUE(hccPartial) , LHS.hccPartial += RHS.hccPartial) \
+	STAT(uint64 deleted;    DOXY(lemmas deleted )            , "lemmas_deleted"        , VALUE(deleted)    , LHS.deleted    += RHS.deleted)    \
+	STAT(uint64 distributed;DOXY(lemmas distributed )        , "distributed"           , VALUE(distributed), LHS.distributed+= RHS.distributed)\
+	STAT(uint64 sumDistLbd; DOXY(lbds of distributed lemmas) , "distributed_sum_lbd"   , VALUE(sumDistLbd) , LHS.sumDistLbd += RHS.sumDistLbd) \
+	STAT(uint64 integrated; DOXY(lemmas integrated )         , "integrated"            , VALUE(integrated) , LHS.integrated += RHS.integrated) \
+	STAT(Array learnts;     DOXY(lemmas of each learnt type) , "lemmas"                , MEM_FUN(lemmas)   , NO_ARG)   \
+	STAT(Array lits;        DOXY(lits of each learnt type)   , "lits_learnt"           , MEM_FUN(learntLits), NO_ARG)  \
+	STAT(uint32 binary;     DOXY(number of binary lemmas)    , "lemmas_binary"         , VALUE(binary)  , LHS.binary  += RHS.binary)  \
+	STAT(uint32 ternary;    DOXY(number of ternary lemmas)   , "lemmas_ternary"        , VALUE(ternary) , LHS.ternary += RHS.ternary) \
+	STAT(double cpuTime;    DOXY(cpu time used )             , "cpu_time"              , VALUE(cpuTime) , LHS.cpuTime += RHS.cpuTime) \
+	STAT(uint64 intImps;    DOXY(implications on integrating), "integrated_imps"       , VALUE(intImps) , LHS.intImps+= RHS.intImps)  \
+	STAT(uint64 intJumps;   DOXY(backjumps on integrating)   , "integrated_jumps"      , VALUE(intJumps), LHS.intJumps+=RHS.intJumps) \
+	STAT(uint64 gpLits;     DOXY(lits in received gps)       , "guiding_paths_lits"    , VALUE(gpLits)  , LHS.gpLits  += RHS.gpLits)  \
+	STAT(uint32 gps;        DOXY(guiding paths received)     , "guiding_paths"         , VALUE(gps)     , LHS.gps     += RHS.gps)     \
+	STAT(uint32 splits;     DOXY(split requests handled)     , "splits"                , VALUE(splits)  , LHS.splits  += RHS.splits)  \
+	STAT(NO_ARG       , "lemmas_conflict", VALUE(learnts[0]) , LHS.learnts[0] += RHS.learnts[0]) \
+	STAT(NO_ARG       , "lemmas_loop"    , VALUE(learnts[1]) , LHS.learnts[1] += RHS.learnts[1]) \
+	STAT(NO_ARG       , "lemmas_other"   , VALUE(learnts[2]) , LHS.learnts[2] += RHS.learnts[2]) \
+	STAT(NO_ARG       , "lits_conflict"  , VALUE(lits[0])    , LHS.lits[0]    += RHS.lits[0])    \
+	STAT(NO_ARG       , "lits_loop"      , VALUE(lits[1])    , LHS.lits[1]    += RHS.lits[1])    \
+	STAT(NO_ARG       , "lits_other"     , VALUE(lits[2])    , LHS.lits[2]    += RHS.lits[2])    \
+	STAT(JumpStats jumps;DOXY(backjump statistics)           , "jumps"                 , MAP(jumps)     , LHS.jumps.accu(RHS.jumps))
 	
 	ExtendedStats() { reset(); }
 	void reset();
@@ -234,15 +264,24 @@ struct ExtendedStats {
 		binary      += (size == 2);
 		ternary     += (size == 3);
 	}
+	//! Total number of lemmas learnt.
 	uint64 lemmas()        const { return std::accumulate(learnts, learnts+Constraint_t::Type__max, uint64(0)); }
+	//! Total number of literals in all learnt lemmas.
 	uint64 learntLits()    const { return std::accumulate(lits, lits+Constraint_t::Type__max, uint64(0)); }
+	//! Number of lemmas of learnt type t.
 	uint64 lemmas(type_t t)const { return learnts[t-1]; }
+	//! Average length of lemmas of learnt type t.
 	double avgLen(type_t t)const { return ratio(lits[t-1], lemmas(t)); }
+	//! Average decision level on which models were found.
 	double avgModel()      const { return ratio(modelLits, models);    }
+	//! Ratio of lemmas that were distributed to other threads.
 	double distRatio()     const { return ratio(distributed, learnts[0] + learnts[1]);  }
+	//! Average lbd of lemmas that were distributed to other threads.
 	double avgDistLbd()    const { return ratio(sumDistLbd, distributed); }
 	double avgIntJump()    const { return ratio(intJumps, intImps); }
+	//! Average length (i.e. number of literals) of guiding paths.
 	double avgGp()         const { return ratio(gpLits, gps); }
+	//! Ratio of lemmas integrated.
 	double intRatio()      const { return ratio(integrated, distributed); }
 	CLASP_DECLARE_ISTATS(ExtendedStats);
 	CLASP_EXTENDED_STATS(CLASP_STAT_DEFINE,NO_ARG,NO_ARG)
@@ -304,6 +343,7 @@ inline void SolverStats::addConflict(uint32 dl, uint32 uipLevel, uint32 bLevel, 
 }
 #undef CLASP_STAT_DEFINE
 #undef NO_ARG
+#undef DOXY
 #undef CLASP_DECLARE_ISTATS
 ///////////////////////////////////////////////////////////////////////////////
 // Clauses

@@ -17,6 +17,8 @@
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
+//! \file
+//! \brief Types and functions for SAT-based preprocessing.
 #ifndef CLASP_SATELITE_H_INCLUDED
 #define CLASP_SATELITE_H_INCLUDED
 
@@ -28,9 +30,8 @@
 #include <clasp/util/indexed_priority_queue.h>
 #include <ctime>
 
-namespace Clasp { namespace SatElite {
-
-//! SatElite preprocessor for clauses
+namespace Clasp {
+//! SatElite preprocessor for clauses.
 /*!
  * \ingroup shared
  * The preprocessor implements subsumption, self-subsumption, variable elimination,
@@ -47,6 +48,7 @@ public:
 	SatElite();
 	~SatElite();
 	Clasp::SatPreprocessor* clone();
+	//! Event type for providing information on preprocessing progress.
 	struct Progress : public Event_t<Progress> {
 		enum EventOp { event_algorithm = '*', event_bce = 'B', event_var_elim = 'E', event_subsumption = 'S', };
 		Progress(SatElite* p, EventOp o, uint32 i, uint32 m) : Event_t<Progress>(Event::subsystem_prepare, Event::verbosity_high), self(p), cur(i), max(m) {
@@ -164,5 +166,5 @@ private:
 	uint32      facts_;     // [facts_, solver.trail.size()): new top-level facts
 	std::time_t timeout_;   // stop once time > timeout_
 };
-}}
+}
 #endif

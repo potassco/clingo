@@ -43,8 +43,8 @@ public:
 	Preprocessor() : prg_(0), dfs_(true) {}
 	//! Possible eq-preprocessing types.
 	enum EqType {
-		no_eq,    /*!< no eq-preprocessing, associate a new var with each supported atom and body */
-		full_eq   /*!< check for all kinds of equivalences between atoms and bodies               */
+		no_eq,    //!< No eq-preprocessing, associate a new var with each supported atom and body.
+		full_eq   //!< Check for all kinds of equivalences between atoms and bodies.
 	};
 
 	const LogicProgram* program() const  { return prg_; }

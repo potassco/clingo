@@ -19,6 +19,11 @@
 //
 #ifndef CLASP_CLASP_FWD_H_INCLUDED
 #define CLASP_CLASP_FWD_H_INCLUDED
+/*!
+ * \file
+ * \brief Forward declarations of important clasp and potassco types.
+ */
+
 namespace Potassco {
 class TheoryAtom;
 class TheoryTerm;
@@ -38,6 +43,7 @@ class Constraint;
 class ConstraintInfo;
 class Solver;
 struct Model;
+//! Supported problem types.
 struct Problem_t {
 	enum Type {Sat = 0, Pb = 1, Asp = 2};
 };

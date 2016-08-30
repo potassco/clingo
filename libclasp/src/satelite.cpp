@@ -20,7 +20,7 @@
 #include <clasp/satelite.h>
 #include <clasp/clause.h>
 
-namespace Clasp { namespace SatElite {
+namespace Clasp {
 /////////////////////////////////////////////////////////////////////////////////////////
 // SatElite preprocessing
 //
@@ -611,9 +611,8 @@ void SatElite::doExtendModel(ValueVec& m, LitVec& unconstr) {
 	}
 	unconstr.erase(j, unconstr.end());
 }
-}
 SatPreprocessor* SatPreParams::create(const SatPreParams& opts) {
-	if (opts.type != 0) { return new SatElite::SatElite(); }
+	if (opts.type != 0) { return new SatElite(); }
 	return 0;
 }
 }

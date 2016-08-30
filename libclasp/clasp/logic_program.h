@@ -30,68 +30,89 @@
 #include <clasp/statistics.h>
 namespace Clasp { namespace Asp {
 /*!
+ * \file
  * \defgroup asp Asp
  * \brief Classes and functions for defining logic programs.
  * \ingroup problem
  */
 //@{
+
+//! A struct for counting program rules and directives.
 struct RuleStats {
 	typedef uint32& Ref_t;
 	typedef uint32 const& CRef_t;
+	//! Rules and directives counted by this object.
 	enum Key {
-		Normal    = Head_t::Disjunctive,/**< Normal or disjunctive rules. */
-		Choice    = Head_t::Choice,     /**< Choice rules. */
-		Minimize  ,                     /**< Distinct minimize constraints. */
-		Acyc      ,                     /**< Edge directives. */
-		Heuristic ,                     /**< Heuristic directives. */
+		Normal    = Head_t::Disjunctive,//!< Normal or disjunctive rules.
+		Choice    = Head_t::Choice,     //!< Choice rules.
+		Minimize  ,                     //!< Distinct minimize constraints.
+		Acyc      ,                     //!< Edge directives.
+		Heuristic ,                     //!< Heuristic directives.
 		Key__num
 	};
+	//! Returns a string representation of the given key.
 	static const char* toStr(int k);
+	//! Returns the number of keys distinguished by this type.
 	static uint32      numKeys()   { return Key__num; }
+	//! Updates the number of rules of the given type.
 	void up(Key k, int amount)     { key[k] += static_cast<uint32>(amount); }
+	//! Returns the number of rules of the given type.
 	Ref_t  operator[](int k)       { return key[k]; }
+	//! @copydoc operator[](int k)
 	CRef_t operator[](int k) const { return key[k]; }
+	//! Returns the sum of all rules.
 	uint32 sum()             const;
-	uint32 key[Key__num]; /**< Number of rules. */
+	uint32 key[Key__num]; //!< @private
 };
-
+//! A struct for counting distinct program bodies.
 struct BodyStats {
 	typedef uint32& Ref_t;
 	typedef uint32 const& CRef_t;
+	//! Body types distinguished by this object.
 	typedef Body_t Key;
+	//! Returns a string representation of the given key.
 	static const char* toStr(int k);
+	//! Returns the number of keys distinguished by this type.
 	static uint32      numKeys()   { return Body_t::eMax + 1; }
+	//! Updates the number of bodies of the given type.
 	void up(Key k, int amount)     { key[k] += static_cast<uint32>(amount); }
+	//! Returns the number of bodies of the given type.
 	Ref_t  operator[](int k)       { return key[k]; }
+	//! @copydoc operator[](int k)
 	CRef_t operator[](int k) const { return key[k]; }
+	//! Returns the sum of all bodies.
 	uint32 sum()             const;
-	uint32 key[Body_t::eMax + 1];
+	uint32 key[Body_t::eMax + 1]; //!< @private
 };
 
-//! Program statistics for *one* incremental step.
+//! A type for maintaining a set of program statistics.
 class LpStats {
 public:
 	LpStats() { reset(); }
 	void   reset();
+	//! Returns the sum of all equivalences.
 	uint32 eqs()             const { return eqs(Var_t::Atom) + eqs(Var_t::Body) + eqs(Var_t::Hybrid); }
+	//! Returns the number of equivalences of the given type.
 	uint32 eqs(VarType t)    const { return eqs_[t-1]; }
+	//! Increments the number of equivalences of the given type.
 	void   incEqs(VarType t)       { ++eqs_[t-1]; }
+	//! Computes *this += o.
 	void   accu(const LpStats& o);
 	RuleStats rules[2];        /**< RuleStats (initial, final). */
 	BodyStats bodies[2];       /**< BodyStats (initial, final). */
 	uint32    atoms;           /**< Number of program atoms.    */
-	uint32    auxAtoms;        /**< Number of aux atoms created */
+	uint32    auxAtoms;        /**< Number of aux atoms created. */
 	uint32    disjunctions[2]; /**< Number of disjunctions (initial, non-hcf). */
 	uint32    sccs;            /**< How many strongly connected components? */
 	uint32    nonHcfs;         /**< How many non head-cycle free components?*/
-	uint32    gammas;          /**< How many non-hcf gamma rules */
-	uint32    ufsNodes;        /**< How many nodes in the positive BADG? */
+	uint32    gammas;          /**< How many non-hcf gamma rules. */
+	uint32    ufsNodes;        /**< How many nodes in the positive dependency graph? */
 	// StatisticObject
 	static uint32 size();
 	static const char* key(uint32 i);
 	StatisticObject at(const char* k) const;
 private:
-	uint32    eqs_[3]; /**< How many equivalences?: eqs[0]: Atom-Atom, eqs[1]: Body-Body, eqs[2]: Other */
+	uint32 eqs_[3];
 };
 //! Exception type for signaling an invalid incremental program update.
 class RedefinitionError : public std::logic_error {
@@ -114,15 +135,15 @@ public:
 	~LogicProgram();
 	//! Defines the possible modes for handling extended rules, i.e. choice, cardinality, and weight rules.
 	enum ExtendedRuleMode {
-		mode_native           = 0, /**< Handle extended rules natively.                          */
-		mode_transform        = 1, /**< Transform extended rules to normal rules.                */
-		mode_transform_choice = 2, /**< Transform only choice rules to normal rules.             */
-		mode_transform_card   = 3, /**< Transform only cardinality rules to normal rules.        */
-		mode_transform_weight = 4, /**< Transform cardinality- and weight rules to normal rules. */
-		mode_transform_scc    = 5, /**< Transform recursive cardinality- and weight rules to normal rules. */
-		mode_transform_nhcf   = 6, /**< Transform cardinality- and weight rules in non-hcf components to normal rules. */
-		mode_transform_integ  = 7, /**< Transform cardinality-based integrity constraints.       */
-		mode_transform_dynamic= 8  /**< Heuristically decide whether or not to transform a particular extended rule. */
+		mode_native           = 0, //!< Handle extended rules natively.
+		mode_transform        = 1, //!< Transform extended rules to normal rules.
+		mode_transform_choice = 2, //!< Transform only choice rules to normal rules.
+		mode_transform_card   = 3, //!< Transform only cardinality rules to normal rules.
+		mode_transform_weight = 4, //!< Transform cardinality- and weight rules to normal rules.
+		mode_transform_scc    = 5, //!< Transform recursive cardinality- and weight rules to normal rules.
+		mode_transform_nhcf   = 6, //!< Transform cardinality- and weight rules in non-hcf components to normal rules.
+		mode_transform_integ  = 7, //!< Transform cardinality-based integrity constraints.
+		mode_transform_dynamic= 8  //!< Heuristically decide whether or not to transform a particular extended rule.
 	};
 
 	//! Options for the Asp-Preprocessor.
@@ -140,14 +161,14 @@ public:
 		AspOptions& noEq()                  { iters   = 0; return *this;}
 		AspOptions& disableGamma()          { noGamma = 1; return *this;}
 		AspOptions& ext(ExtendedRuleMode m) { erMode  = m; return *this;}
-		TrMode erMode;       /**< ExtendedRuleMode.                                        */
-		uint32 iters    : 26;/**< Number of iterations - 0 = disabled.                     */
-		uint32 noSCC    :  1;/**< Disable scc checking                                     */
-		uint32 suppMod  :  1;/**< Disable scc checking and compute supported models.       */
-		uint32 dfOrder  :  1;/**< Classify in depth-first order?                           */
-		uint32 backprop :  1;/**< Enable backpropagation?                                  */
-		uint32 oldMap   :  1;/**< Use old and larger mapping for disjunctive programs.     */
-		uint32 noGamma  :  1;/**< Disable creation of gamma rules for non-hcf disjunctions?*/
+		TrMode erMode;       //!< How to handle extended rules?
+		uint32 iters    : 26;//!< Number of iterations in eq-preprocessing or 0 to disable.
+		uint32 noSCC    :  1;//!< Disable scc checking?
+		uint32 suppMod  :  1;//!< Disable scc checking and compute supported models.
+		uint32 dfOrder  :  1;//!< Visit nodes in eq-preprocessing in depth-first order?
+		uint32 backprop :  1;//!< Enable backpropagation during preprocessing?
+		uint32 oldMap   :  1;//!< Use old and larger mapping for disjunctive programs.
+		uint32 noGamma  :  1;//!< Disable creation of (shifted) gamma rules for non-hcf disjunctions?
 	};
 
 	/*!
@@ -176,7 +197,7 @@ public:
 	 *  - Atoms introduced in step i are either:
 	 *    - solely defined in step i OR,
 	 *    - marked as frozen in step i and solely defined in step i+k OR,
-	 *    - forced to false by a acompute statement in step 0
+	 *    - forced to false by a compute statement in step 0.
 	 *
 	 * \pre The program is either frozen or at step 0.
 	 * \post The program is no longer frozen and calling program mutating functions is valid again.
@@ -202,7 +223,7 @@ public:
 	 */
 	bool end() { return endProgram(); }
 
-	//! Calls out on the simplified program.
+	//! Visits the the simplified program by notifying out on its elements.
 	void accept(Potassco::AbstractProgram& out);
 	
 	//! Disposes (parts of) the internal representation of the logic program.
@@ -231,10 +252,7 @@ public:
 	 */
 	//@{
 
-	//! Adds a new atom to the program.
-	/*!
-	 * \return The new atom's id.
-	 */
+	//! Adds a new atom to the program and returns the new atom's id.
 	Atom_t newAtom();
 	
 	//! Sets atomId as the last input atom of the current step.
@@ -251,10 +269,12 @@ public:
 	//! Adds a new conjunctive condition to the program.
 	/*!
 	 * \param cond A (possibly empty) list of atom literals.
+	 * \return The id of the new condition, which can be later passed to
+	 * extractCondition() or getLiteral().
 	 */
 	Id_t   newCondition(const Potassco::LitSpan& cond);
 
-	//! Adds the given str to the problem's output table.
+	//! Adds the given string to the problem's output table.
 	/*!
 	 * \param str The string to add.
 	 * \param cond The condition under which str should be considered part of a model.
@@ -307,7 +327,13 @@ public:
 	LogicProgram& addRule(Head_t ht, const Potassco::AtomSpan& head, const Potassco::LitSpan& body);
 	LogicProgram& addRule(Head_t ht, const Potassco::AtomSpan& head, Potassco::Weight_t bound, const Potassco::WeightLitSpan& lits);
 	LogicProgram& addRule(Potassco::RuleBuilder& rb);
-	LogicProgram& addMinimize(weight_t, const Potassco::WeightLitSpan& lits);
+	//! Adds the given minimize statement.
+	/*!
+	 * \param prio The priority of the minimize statement.
+	 * \param lits The literals to minimize.
+	 * \note All minimize statements of the same priority are merged into one.
+	 */
+	LogicProgram& addMinimize(weight_t prio, const Potassco::WeightLitSpan& lits);
 	
 	//! Adds an edge to the extended (user-defined) dependency graph.
 	LogicProgram& addAcycEdge(uint32 n1, uint32 n2, const Potassco::LitSpan& condition) { return addAcycEdge(n1, n2, newCondition(condition)); }
@@ -321,7 +347,7 @@ public:
 	
 	//! Forces the given literals to be true during solving.
 	/*!
-	 * Assumptions are retracted on next program update.
+	 * Assumptions are retracted on the next program update.
 	 */
 	LogicProgram& addAssumption(const Potassco::LitSpan& cube);
 	
@@ -343,6 +369,7 @@ public:
 	bool   isIncremental()   const { return incData_ != 0; }
 	//! Returns whether the program contains any minimize statements.
 	bool   hasMinimize()     const { return !minimize_.empty(); }
+	//! Returns whether the program contains any theory data.
 	bool   hasTheoryData()   const { return theory_ != 0; }
 	//! Returns the number of atoms in the logic program.
 	uint32 numAtoms()        const { return (uint32)atoms_.size()-1; }
@@ -380,7 +407,7 @@ public:
 	 * \pre cId was previously returned by newCondition() in the current step.
 	 */
 	bool    extractCondition(Id_t cId, Potassco::LitVec& lits) const;
-	LpStats stats;
+	LpStats stats; //!< Statistics of the current step.
 	//@}
 
 	/*!
@@ -576,7 +603,7 @@ inline Literal solverLiteral(const LogicProgram& prg, Potassco::Lit_t atomLit) {
 	CLASP_ASSERT_CONTRACT(prg.frozen() && prg.validAtom(Potassco::atom(atomLit)));
 	return prg.getLiteral(Potassco::id(atomLit));
 }
-
+//! Adapts a LogicProgram object to the Potassco::AbstractProgram interface.
 class LogicProgramAdapter : public Potassco::AbstractProgram {
 public:
 	LogicProgramAdapter(LogicProgram& prg);

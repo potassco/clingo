@@ -17,7 +17,8 @@
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
-
+//! \file
+//! \brief Global and platform-dependent stuff.
 #ifndef CLASP_PLATFORM_H_INCLUDED
 #define CLASP_PLATFORM_H_INCLUDED
 #ifdef _MSC_VER

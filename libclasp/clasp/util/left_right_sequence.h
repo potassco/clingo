@@ -44,7 +44,7 @@ public:
 
 	typedef typename bk_lib::detail::align_of<left_type>::type  left_align_type;
 	typedef typename bk_lib::detail::align_of<right_type>::type right_align_type;
-
+///@cond
 	typedef typename bk_lib::detail::if_then_else<
 		sizeof(left_type) >= sizeof(right_type), 
 		left_type,
@@ -53,7 +53,7 @@ public:
 		sizeof(left_align_type) >= sizeof(right_align_type), 
 		left_align_type,
 		right_align_type>::type align_type;
-		
+///@endcond
 	left_right_rep() : buf_(0), cap_(0), free_(0), left_(0), right_(0) {}
 	
 	bool      empty()         const { return left_ == 0 && right_ == cap_; }

@@ -19,11 +19,13 @@
 //
 #ifndef CLASP_MINIMIZE_CONSTRAINT_H_INCLUDED
 #define CLASP_MINIMIZE_CONSTRAINT_H_INCLUDED
-
 #ifdef _MSC_VER
 #pragma once
 #endif
-
+/*!
+* \file
+* \brief Types and functions for implementing minimization constraints.
+*/
 #include <clasp/constraint.h>
 #include <clasp/util/atomic.h>
 #include <clasp/solver_strategies.h>
@@ -43,33 +45,34 @@ class WeightConstraint;
  */
 struct MinimizeMode_t {
 	enum Mode {
-		ignore    = 0, /**< Ignore optimize statements during solving. */
-		optimize  = 1, /**< Optimize via a decreasing bound. */
-		enumerate = 2, /**< Enumerate models with cost less or equal to a fixed bound. */
-		enumOpt   = 3, /**< Enumerate models with cost equal to optimum. */
+		ignore    = 0, //!< Ignore optimize statements during solving.
+		optimize  = 1, //!< Optimize via a decreasing bound.
+		enumerate = 2, //!< Enumerate models with cost less or equal to a fixed bound.
+		enumOpt   = 3, //!< Enumerate models with cost equal to optimum.
 	};
 	//! Strategy to use when optimization is active.
 	enum Strategy {
-		opt_bb = 0, /*!< Branch and bound based optimization.   */
-		opt_usc= 1, /*!< Unsatisfiable-core based optimization. */
+		opt_bb = 0, //!< Branch and bound based optimization.
+		opt_usc= 1, //!< Unsatisfiable-core based optimization.
 	};
 	//! Options for branch and bound based optimization.
 	enum BBOption {
-		bb_step_def  = 0u, /*!< Branch and bound with fixed step of size 1. */
-		bb_step_hier = 1u, /*!< Hierarchical branch and bound. */
-		bb_step_inc  = 2u, /*!< Hierarchical branch and bound with increasing steps. */
-		bb_step_dec  = 3u, /*!< Hierarchical branch and bound with decreasing steps. */
+		bb_step_def  = 0u, //!< Branch and bound with fixed step of size 1.
+		bb_step_hier = 1u, //!< Hierarchical branch and bound.
+		bb_step_inc  = 2u, //!< Hierarchical branch and bound with increasing steps.
+		bb_step_dec  = 3u, //!< Hierarchical branch and bound with decreasing steps.
 	};
 	//! Options for unsatisfiable-core based optimization.
 	enum UscOption {
-		usc_preprocess = 1u, /*!< Enable (disjoint) preprocessing. */
-		usc_imp_only   = 2u, /*!< Only add constraints for one direction (instead of eq). */
-		usc_clauses    = 4u, /*!< Only add clauses (instead of cardinality constraints).  */
-		usc_stratify   = 8u, /*!< Use stratified heuristic for weighted optimization.     */
+		usc_preprocess = 1u, //!< Enable (disjoint) preprocessing.
+		usc_imp_only   = 2u, //!< Only add constraints for one direction (instead of eq).
+		usc_clauses    = 4u, //!< Only add clauses (instead of cardinality constraints).
+		usc_stratify   = 8u, //!< Use stratified heuristic for weighted optimization.
 	};
+	//! Heuristic options common to all optimization strategies.
 	enum Heuristic {
-		heu_sign  = 1,  /*!< Use optimize statements in sign heuristic. */ 
-		heu_model = 2,  /*!< Apply model heuristic when optimizing.     */
+		heu_sign  = 1,  //!< Use optimize statements in sign heuristic.
+		heu_model = 2,  //!< Apply model heuristic when optimizing.
 	};
 	static bool supportsSplitting(Strategy s) { return s != opt_usc; }
 };
@@ -77,7 +80,7 @@ typedef MinimizeMode_t::Mode MinimizeMode;
 
 //! A type holding data (possibly) shared between a set of minimize constraints.
 /*!
- * \ingroup shared
+ * \ingroup shared_con
  */
 class SharedMinimizeData {
 public:
@@ -90,9 +93,9 @@ public:
 	 */
 	struct LevelWeight {
 		LevelWeight(uint32 l, weight_t w) : level(l), next(0), weight(w) {}
-		uint32   level : 31; /**< The level of this weight. */
-		uint32   next  :  1; /**< Does this weight belong to a sparse vector of weights? */
-		weight_t weight;     /**< The weight at this level. */
+		uint32   level : 31; //!< The level of this weight.
+		uint32   next  :  1; //!< Does this weight belong to a sparse vector of weights?
+		weight_t weight;     //!< The weight at this level.
 	};
 	//! A type for holding sparse vectors of level weights of a multi-level constraint.
 	typedef PodVector<LevelWeight>::type WeightVec;

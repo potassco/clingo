@@ -62,7 +62,7 @@ struct DefaultDeleter {
 };
 }
 
-//! A (base) class for distributing items between n different threads
+//! A (base) class for distributing items between n different threads.
 /*!
  * Logically, the class maintains n queues, one for each
  * involved thread. Threads must register themselves by

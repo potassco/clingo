@@ -19,15 +19,16 @@
 //
 /*!
  * \file 
- * Supermacros for defining clasp's default configurations.
+ * \brief Supermacros for defining clasp's default configurations.
+ * \code
+ * CONFIG(sId, name, "<common>", "<stand-alone>", "<portfolio>")
+ * \endcode
+ *
  * A configuration consists of a solver id and a name followed by three option strings:
  * - "<common>"     : options that are always part of the configuration
  * - "<stand-alone>": options to add if configuration is used as a stand-alone configuration (e.g. global options)
  * - "<portfolio>"  : options to add if configuration is used in a portfolio
  * .
- * 
- * CONFIG(sId, name, "<common>", "<stand-alone>", "<portfolio>").
- *
  * \note The solver id is used to identify a configuration in the default portfolio.
  */
 

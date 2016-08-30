@@ -29,7 +29,7 @@
 #include <limits>
 /*!
  * \file 
- * Contains the definition of the class Literal.
+ * \brief Types and functions related to literals and variables.
  */
 namespace Clasp {
 /*!
@@ -196,19 +196,19 @@ typedef int64 wsum_t;
 #define CLASP_WEIGHT_SUM_MAX INT64_MAX
 #define CLASP_WEIGHT_SUM_MIN INT64_MIN
 
-typedef PodVector<Var>::type      VarVec;    /**< A vector of variables.  */
-typedef PodVector<Literal>::type  LitVec;    /**< A vector of literals.   */
-typedef PodVector<weight_t>::type WeightVec; /**< A vector of weights.    */
-typedef PodVector<wsum_t>::type   SumVec;    /**< A vector of sums of weights. */
-typedef std::pair<Literal, weight_t>   WeightLiteral; /**< A weight-literal. */
-typedef PodVector<WeightLiteral>::type WeightLitVec;  /**< A vector of weight-literals. */
+typedef PodVector<Var>::type      VarVec;    //!< A vector of variables.
+typedef PodVector<Literal>::type  LitVec;    //!< A vector of literals.
+typedef PodVector<weight_t>::type WeightVec; //!< A vector of weights.
+typedef PodVector<wsum_t>::type   SumVec;    //!< A vector of sums of weights.
+typedef std::pair<Literal, weight_t>   WeightLiteral; //!< A literal associated with a weight.
+typedef PodVector<WeightLiteral>::type WeightLitVec;  //!< A vector of weight-literals.
 ///////////////////////////////////////////////////////////////////////////////
 // Truth values
 ///////////////////////////////////////////////////////////////////////////////
-typedef uint8 ValueRep;           /**< Type of the three value-literals. */
-const ValueRep value_true   = 1;  /**< Value used for variables that are true. */
-const ValueRep value_false  = 2;  /**< Value used for variables that are false. */
-const ValueRep value_free   = 0;  /**< Value used for variables that are unassigned. */
+typedef uint8 ValueRep;           //!< Type of the three value-literals.
+const ValueRep value_true   = 1;  //!< Value used for variables that are true.
+const ValueRep value_false  = 2;  //!< Value used for variables that are false.
+const ValueRep value_free   = 0;  //!< Value used for variables that are unassigned.
 typedef PodVector<ValueRep>::type ValueVec;
 
 //! Returns the value that makes the literal lit true.

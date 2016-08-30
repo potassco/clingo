@@ -30,7 +30,7 @@ namespace Clasp {
 
 //! An array of literals that can be shared between threads.
 /*!
- * \ingroup shared
+ * \ingroup shared_con
  */
 class SharedLiterals {
 public:
@@ -108,15 +108,15 @@ public:
 	 */
 	enum Status {
 		// BASE STATUS
-		status_open         = 0,  /**< Clause is neither sat, unsat, or unit.       */
-		status_sat          = 1,  /**< At least one literal is true.                */
-		status_unsat        = 2,  /**< All literals are false.                      */
-		status_unit         = 4,  /**< All but one literal false.                   */
+		status_open         = 0,  //!< Clause is neither sat, unsat, or unit.
+		status_sat          = 1,  //!< At least one literal is true.
+		status_unsat        = 2,  //!< All literals are false.
+		status_unit         = 4,  //!< All but one literal false.
 		// COMPLEX STATUS
-		status_sat_asserting= 5,  /**< Sat but literal is implied on lower dl.      */
-		status_asserting    = 6,  /**< Unsat but literal is implied on second highest dl. */
-		status_subsumed     = 9,  /**< Sat and one literal is true on level 0.      */
-		status_empty        = 10, /**< Unsat and all literals are false on level 0. */
+		status_sat_asserting= 5,  //!< Sat but literal is implied on lower dl.
+		status_asserting    = 6,  //!< Unsat but literal is implied on second highest dl.
+		status_subsumed     = 9,  //!< Sat and one literal is true on level 0.
+		status_empty        = 10, //!< Unsat and all literals are false on level 0.
 	};
 	//! A type for storing the result of a clause insertion operation.
 	struct Result {
@@ -174,23 +174,23 @@ public:
 	//! Flags controlling clause creation and integration.
 	enum CreateFlag {
 		// REPRESENTATION
-		clause_no_add        = 1,  /**< Do not add clause to solver db. */
-		clause_explicit      = 2,  /**< Force creation of explicit clause even if size <= 3. */
+		clause_no_add        = 1,  //!< Do not add clause to solver db.
+		clause_explicit      = 2,  //!< Force creation of explicit clause even if size <= 3.
 		// STATUS
-		clause_not_sat       = 4,  /**< Do not add clause if it is satisfied (but not asserting) w.r.t current assignment. */
-		clause_not_root_sat  = 8,  /**< Do not add clause if it is satisfied w.r.t the root assignment.      */
-		clause_not_conflict  = 16, /**< Do not add clause if it is conflicting w.r.t the current assignment. */
+		clause_not_sat       = 4,  //!< Do not add clause if it is satisfied (but not asserting) w.r.t current assignment.
+		clause_not_root_sat  = 8,  //!< Do not add clause if it is satisfied w.r.t the root assignment.
+		clause_not_conflict  = 16, //!< Do not add clause if it is conflicting w.r.t the current assignment.
 		// INTEGRATE
-		clause_no_release    = 32, /**< Do not call release on shared literals.         */
-		clause_int_lbd       = 64, /**< Compute lbd when integrating asserting clauses. */
+		clause_no_release    = 32, //!< Do not call release on shared literals.
+		clause_int_lbd       = 64, //!< Compute lbd when integrating asserting clauses.
 		// PREPARE
-		clause_no_prepare    = 128,/**< Assume clause is already ordered w.r.t watches. */
-		clause_force_simplify= 256,/**< Call simplify() on create.                      */
-		clause_no_heuristic  = 512,/**< Do not notify heuristic about new clause.       */
+		clause_no_prepare    = 128,//!< Assume clause is already ordered w.r.t watches.
+		clause_force_simplify= 256,//!< Call simplify() on create.
+		clause_no_heuristic  = 512,//!< Do not notify heuristic about new clause.
 		// WATCH MODE - only for problem clauses
-		clause_watch_first   =1024,/**< Watch first free literals.                      */
-		clause_watch_rand    =2048,/**< Watch rand literals.                            */
-		clause_watch_least   =4096,/**< Watch least watched literals.                   */
+		clause_watch_first   =1024,//!< Watch first free literals.
+		clause_watch_rand    =2048,//!< Watch rand literals.
+		clause_watch_least   =4096,//!< Watch least watched literals.
 	};	
 	//! Returns the status of the given clause w.r.t s.
 	static Status    status(const Solver& s, const Literal* clause_begin, const Literal* clause_end);

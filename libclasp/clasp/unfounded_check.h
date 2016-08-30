@@ -33,7 +33,7 @@ class LoopFormula;
 
 //! Clasp's default unfounded set checker.
 /*!
- * \ingroup constraint
+ * \ingroup propagator
  * Searches for unfounded atoms by checking the positive dependency graph (PDG)
  *
  * Basic Idea:

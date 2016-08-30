@@ -32,14 +32,15 @@ namespace Clasp {
 class Solver;
 class SharedContext;
 struct SolverStats;
+//! Event type used to signal a (partial) check in disjunctive solving.
 struct SolveTestEvent : SolveEvent<SolveTestEvent> {
 	SolveTestEvent(const Solver& s, uint32 hcc, bool partial);
-	int    result;     // -1: before test, 0: unstable, 1: stable
-	uint32 hcc     :31;// hcc under test
-	uint32 partial : 1;// partial test?
-	uint64 confDelta;  // conflicts before test
-	uint64 choiceDelta;// choices before test
-	double time;       // time for test
+	int    result;     //!< -1: before test, 0: unstable, 1: stable
+	uint32 hcc     :31;//!< hcc under test
+	uint32 partial : 1;//!< partial test?
+	uint64 confDelta;  //!< conflicts before test
+	uint64 choiceDelta;//!< choices before test
+	double time;       //!< time for test
 	
 	uint64 conflicts() const;
 	uint64 choices()   const;
@@ -52,7 +53,7 @@ typedef LoopReason_t::Type LoopType;
 namespace Asp {
 //! (Positive) Body-Atom-Dependency Graph.
 /*!
- * \ingroup shared
+ * \ingroup shared_con
  *
  * Represents the PBADG of a logic program. Once initialized, the
  * PBDAG is static and read-only and thus can be shared between multiple solvers.
@@ -91,6 +92,7 @@ public:
 		uint32             id_;
 		uint32             scc_;
 	};
+	//! A class for storing statistics on checking of non head-cycle-free components.
 	class NonHcfStats {
 	public:
 		NonHcfStats(PrgDepGraph& g, uint32 level, bool inc);
@@ -322,10 +324,10 @@ private:
 
 //! External dependency graph.
 /*!
- * \ingroup shared
+ * \ingroup shared_con
  *
- * Represents external dependencies explicitly given
- * by the user. For example, via the graph block in extended dimacs format.  
+ * Represents external dependencies explicitly given by the user.
+ * For example, via aspif edge directives or the graph block in extended dimacs format.
  * \note Initialization is *not* thread-safe, i.e. must be done only once by one thread.
  */
 class ExtDepGraph {
@@ -397,8 +399,8 @@ private:
 
 //! Acyclicity checker that operates on a ExtDepGraph.
 /*!
- * \ingroup constraint
- * \see "SAT Modulo Graphs: Acyclicity" by M. Gebser, T. Janhunen, and J. Rintanen.
+ * \ingroup propagator
+ * \see M. Gebser, T. Janhunen, and J. Rintanen: "SAT Modulo Graphs: Acyclicity"
  */
 class AcyclicityCheck : public PostPropagator {
 public:

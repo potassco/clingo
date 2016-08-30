@@ -19,6 +19,10 @@
 //
 #ifndef CLASP_CLINGO_H_INCLUDED
 #define CLASP_CLINGO_H_INCLUDED
+/*!
+ * \file
+ * \brief Types for implementing theory propagation from clingo.
+ */
 #include <potassco/clingo.h>
 #include <clasp/clasp_facade.h>
 namespace Clasp {
@@ -27,9 +31,14 @@ namespace Clasp {
  * \defgroup clingo Clingo
  * \brief Additional classes mainly used by clingo.
  * \ingroup facade
- * @{
- */
+ * @{ */
 
+//! Lock interface called by libclasp during (multi-threaded) theory propagation.
+/*!
+ * The interface may be implemented by the application to lock 
+ * certain global data structures. For example, in clingo, 
+ * this interface wraps python's global interpreter lock.
+ */
 class ClingoPropagatorLock {
 public:
 	virtual ~ClingoPropagatorLock();
@@ -37,6 +46,12 @@ public:
 	virtual void unlock() = 0;
 };
 
+//! Adaptor for a Potassco::AbstractPropagator.
+/*!
+ * The class adapts a given Potassco::AbstractPropagator so that
+ * it is usable as a PostPropagator within libclasp.
+ * \note This class is meant to be a final class.
+ */
 class ClingoPropagator : public Clasp::PostPropagator {
 public:
 	typedef Potassco::AbstractPropagator::ChangeList ChangeList;
@@ -82,18 +97,31 @@ private:
 	size_t     epoch_;   // number of calls into callback
 };
 
+//! Initialization adaptor for a Potassco::AbstractPropagator.
+/*!
+ * The class provides a function for registering watches for the propagator.
+ * Furthermore, it can be added to a clasp configuration so that 
+ * a (suitably adapted) propagator is added to solvers that are attached to the configuration.
+ */
 class ClingoPropagatorInit : public ClaspConfig::Configurator {
 public:
+	//! Creates a new adaptor.
+	/*!
+	 * \param cb The (theory) propagator that should be added to solvers.
+	 * \param lock An optional lock that should be applied during theory propagation.
+	 */
 	ClingoPropagatorInit(Potassco::AbstractPropagator& cb, ClingoPropagatorLock* lock = 0);
 	~ClingoPropagatorInit();
 	// base class
 	virtual void prepare(SharedContext&);
+	//! Adds a ClingoPropagator adapting the propagator() to s.
 	virtual bool addPost(Solver& s);
 
 	// for clingo
 	//! Registers a watch for lit and returns encodeLit(lit).
 	Potassco::Lit_t addWatch(Literal lit);
 
+	//! Returns the propagator that was given on construction.
 	Potassco::AbstractPropagator* propagator() const { return prop_; }
 private:
 	ClingoPropagatorInit(const ClingoPropagatorInit&);

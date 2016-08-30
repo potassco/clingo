@@ -34,18 +34,30 @@
 #endif
 
 namespace Clasp {
+	//! Selector for a hash (multi) map.
+	/*!
+	 * \tparam K Key type of the hash map.
+	 * \tparam V Value type of the hash map.
+	 * \tparam H Hash function for hashing keys.
+	 * \tparam E Comparison function for checking equality of keys.
+	 * \note Can be replaced with std::unordered_map/unordered_multimap once we switch to C++11
+	 */
 	template<class K, class V, class H = HASH_NS::hash<K>, class E = std::equal_to<K>, class A = std::allocator< std::pair<const K, V> > >
 	struct HashMap_t { 
 		typedef HASH_NS::unordered_map<K, V, H, E,A>      map_type; 
 		typedef HASH_NS::unordered_multimap<K, V, H, E,A> multi_map_type; 
 	};
+	//! Selector for a hash (multi) set.
 	template<class K, class H = HASH_NS::hash<K>, class E = std::equal_to<K>, class A = std::allocator< K > >
 	struct HashSet_t { 
 		typedef HASH_NS::unordered_set<K, H, E,A>      set_type; 
 		typedef HASH_NS::unordered_multiset<K, H, E,A> multi_set_type; 
 	};
 
-// http://research.microsoft.com/en-us/people/palarson/
+//! Hasher for strings.
+/*!
+ * \see http://research.microsoft.com/en-us/people/palarson/
+ */
 struct StrHash {
 	std::size_t operator()(const char* str) const {
 		std::size_t h = 0;
@@ -55,6 +67,7 @@ struct StrHash {
 		return h;
 	}
 };
+//! Comparison function for C-strings to be used with hash map/set.
 struct StrEq {
 	bool operator()(const char* lhs, const char* rhs) const { return std::strcmp(lhs, rhs) == 0; }
 };

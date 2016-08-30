@@ -35,8 +35,7 @@
 
 /*!
  * \file 
- * Defines classes controlling multi-threaded parallel solving.
- * 
+ * \brief Defines classes controlling multi-threaded parallel solving.
  */
 namespace Clasp { 
 //! Namespace for types and functions needed for implementing multi-threaded parallel solving.
@@ -52,7 +51,9 @@ namespace mt {
 class ParallelHandler;
 class ParallelSolve;
 
+//! Options for controlling parallel solving.
 struct ParallelSolveOptions : BasicSolveOptions {
+	//! Nogood distribution options.
 	struct Distribution : Distributor::Policy {
 		enum Mode { mode_global = 0, mode_local = 1 };
 		Distribution(Mode m = mode_global) : Distributor::Policy(), mode(m) {}
@@ -60,13 +61,16 @@ struct ParallelSolveOptions : BasicSolveOptions {
 		uint32 mode;
 	};
 	ParallelSolveOptions() {}
+	//! Algorithm options.
 	struct Algorithm {
+		//! Possible search strategies.
 		enum SearchMode { mode_split = 0, mode_compete  = 1 };
 		Algorithm() : threads(1), mode(mode_compete) {}
 		uint32     threads;
 		SearchMode mode;
 	};
-	struct Integration { /**< Nogood integration options. */
+	//! Nogood integration options.
+	struct Integration {
 		static const uint32 GRACE_MAX = (1u<<28)-1;
 		Integration() :  grace(1024), filter(filter_gp), topo(topo_all) {}
 		enum Filter   { filter_no = 0, filter_gp = 1, filter_sat = 2, filter_heuristic = 3 };
@@ -75,15 +79,16 @@ struct ParallelSolveOptions : BasicSolveOptions {
 		uint32 filter: 2;  /**< Filter for integrating shared nogoods (one of Filter). */   
 		uint32 topo  : 2;  /**< Integration topology */
 	};
-	struct GRestarts {   /**< Options for configuring global restarts. */
+	//! Global restart options.
+	struct GRestarts {
 		GRestarts():maxR(0) {}
 		uint32           maxR;
 		ScheduleStrategy sched;
 	};
-	Integration  integrate; /**< Nogood integration parameters.     */
-	Distribution distribute;/**< Nogood distribution parameters.    */
-	GRestarts    restarts;  /**< Global restart strategy.           */
-	Algorithm    algorithm; /**< Parallel algorithm to use.         */
+	Integration  integrate; //!< Nogood integration options to apply during search.
+	Distribution distribute;//!< Nogood distribution options to apply during search.
+	GRestarts    restarts;  //!< Global restart strategy to apply during search.
+	Algorithm    algorithm; //!< Parallel algorithm to use.
 	//! Allocates a new solve object.
 	SolveAlgorithm* createSolveObject() const;
 	//! Returns the number of threads that can run concurrently on the current hardware.
@@ -172,7 +177,7 @@ private:
 	uint32            intFlags_;     // bitset controlling clause integration
 	bool              modeSplit_;
 };
-
+//! An event type for debugging messages sent between threads.
 struct MessageEvent : SolveEvent<MessageEvent> {
 	enum Action { sent, received, completed };
 	MessageEvent(const Solver& s, const char* message, Action a, double t = 0.0) 
@@ -302,7 +307,7 @@ private:
 		}
 	} gp_;
 };
-
+//! A class that uses a global list to exchange nogoods between threads.
 class GlobalDistribution : public Distributor {
 public:
 	explicit GlobalDistribution(const Policy& p, uint32 maxShare, uint32 topo);
@@ -335,7 +340,7 @@ private:
 	Queue*           queue_;
 	ThreadInfo*      threadId_;
 };
-
+//! A class that uses thread-local lists to exchange nogoods between threads.
 class LocalDistribution : public Distributor {
 public:
 	explicit LocalDistribution(const Policy& p, uint32 maxShare, uint32 topo);

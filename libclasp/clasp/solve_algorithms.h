@@ -27,7 +27,7 @@
 #include <clasp/solver_strategies.h>
 /*!
  * \file 
- * Defines top-level functions for solving problems.
+ * \brief Defines top-level functions for solving problems.
  */
 namespace Clasp {
 
@@ -109,14 +109,15 @@ private:
 	Limits  limits_; // active solving limits
 	State*  state_;  // internal solving state
 };
-
+//! Event type for reporting basic solve events like restarts or deletion.
 struct BasicSolveEvent : SolveEvent<BasicSolveEvent> {
+	//! Type of operation that emitted the event.
 	enum EventOp { event_none = 0, event_deletion = 'D', event_exit = 'E', event_grow = 'G', event_restart = 'R' };
 	BasicSolveEvent(const Solver& s, EventOp a_op, uint64 cLim, uint32 lLim) : SolveEvent<BasicSolveEvent>(s, verbosity_max), cLimit(cLim), lLimit(lLim) {
 		op = a_op;
 	}
-	uint64 cLimit; // next conflict limit
-	uint32 lLimit; // next learnt limit
+	uint64 cLimit; //!< Next conflict limit
+	uint32 lLimit; //!< Next learnt limit
 };
 ///////////////////////////////////////////////////////////////////////////////
 // General solve
@@ -235,7 +236,7 @@ private:
 	double         time_;
 	int            last_;
 };
-
+//! A class that implements clasp's sequential solving algorithm.
 class SequentialSolve : public SolveAlgorithm {
 public:
 	explicit SequentialSolve(const SolveLimits& limit = SolveLimits());
@@ -254,8 +255,9 @@ private:
 	volatile int term_;
 };
 
+//! Options for controlling solving.
 struct BasicSolveOptions {
-	SolveLimits     limit;  /**< Solve limit (disabled by default). */
+	SolveLimits     limit;  //!< Solve limit (disabled by default).
 	SolveAlgorithm* createSolveObject() const { return new SequentialSolve(limit); }
 	static uint32   supportedSolvers()        { return 1; }
 	static uint32   recommendedSolvers()      { return 1; }
