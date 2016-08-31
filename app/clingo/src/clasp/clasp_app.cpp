@@ -87,6 +87,7 @@ void ClaspAppOptions::initOptions(ProgramOptions::OptionContext& root) {
 		("lemma-in,@1"     , storeTo(lemmaIn)->arg("<file>"), "Read additional lemmas from %A")
 		("lemma-out,@1"    , storeTo(lemmaLog)->arg("<file>"), "Log learnt lemmas to %A")
 		("lemma-out-lbd,@1", storeTo(lemma.lbdMax)->arg("<n>"), "Only log lemmas with lbd <= %A")
+		("lemma-out-max,@1", storeTo(lemma.logMax)->arg("<n>"), "Stop logging after %A lemmas")
 		("lemma-out-dom,@1", notify(this, &ClaspAppOptions::mappedOpts), "Log lemmas over <arg {input|output}> variables")
 		("lemma-out-txt,@1", flag(lemma.logText), "Log lemmas as ground integrity constraints")
 		("hcc-out,@1", storeTo(hccOut)->arg("<file>"), "Write non-hcf programs to %A.#scc")
@@ -521,6 +522,7 @@ LemmaLogger::LemmaLogger(const std::string& to, const Options& o)
 }
 LemmaLogger::~LemmaLogger() { close(); }
 void LemmaLogger::startStep(ProgramBuilder& prg, bool inc) {
+	logged_ = 0;
 	++step_;
 	if (!options_.logText) {
 		if (step_ == 1) { fprintf(str_, "asp 1 0 0%s\n", inc ? " incremental" : ""); }
@@ -556,7 +558,7 @@ void LemmaLogger::add(const Solver& s, const LitVec& cc, const ConstraintInfo& i
 	LitVec temp;
 	const LitVec* out = &cc;
 	uint32 lbd = info.lbd();
-	if (lbd > options_.lbdMax) { return; }
+	if (lbd > options_.lbdMax || logged_ >= options_.logMax) { return; }
 	if (info.aux() || options_.domOut || std::find_if(cc.begin(), cc.end(), std::not1(std::bind1st(std::mem_fun(&Solver::inputVar), &s))) != cc.end()) {
 		uint8 vf = options_.domOut ? VarInfo::Input|VarInfo::Output : VarInfo::Input;
 		if (!s.resolveToFlagged(cc, vf, temp, lbd) || lbd > options_.lbdMax) { return; }
@@ -565,6 +567,8 @@ void LemmaLogger::add(const Solver& s, const LitVec& cc, const ConstraintInfo& i
 	std::string lemma;
 	if (options_.logText) { formatText(*out, s.sharedContext()->output, lbd, lemma); }
 	else                  { formatAspif(*out, lbd, lemma); }
+	fwrite(lemma.c_str(), sizeof(char), lemma.size(), str_);
+	++logged_;
 }
 void LemmaLogger::formatAspif(const LitVec& cc, uint32, std::string& out) const {
 	char temp[20];
@@ -611,7 +615,7 @@ void LemmaLogger::formatText(const LitVec& cc, const OutputTable& tab, uint32 lb
 }
 void LemmaLogger::close() {
 	if (!str_) { return; }
-	fprintf(str_, "0\n");
+	if (!options_.logText) { fprintf(str_, "0\n"); }
 	fflush(str_);
 	if (str_ != stdout) { fclose(str_); }
 	str_ = 0;

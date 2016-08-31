@@ -68,7 +68,8 @@ private:
 class LemmaLogger {
 public:
 	struct Options {
-		Options() : lbdMax(UINT32_MAX), domOut(false), logText(false) {}
+		Options() : logMax(UINT32_MAX), lbdMax(UINT32_MAX), domOut(false), logText(false) {}
+		uint32 logMax;  // log at most logMax lemmas
 		uint32 lbdMax;  // only log lemmas with lbd <= lbdMax
 		bool   domOut;  // only log lemmas that can be expressed over out variables
 		bool   logText; // log lemmas in ground lp format
@@ -80,6 +81,7 @@ public:
 	void close();
 private:
 	typedef PodVector<uint32>::type Var2Idx;
+	typedef Atomic_t<uint32>::type Counter;
 	LemmaLogger(const LemmaLogger&);
 	LemmaLogger& operator=(const LemmaLogger&);
 	void formatAspif(const LitVec& cc, uint32 lbd, std::string& out)  const;
@@ -90,6 +92,7 @@ private:
 	ProblemType      inputType_;
 	Options          options_;
 	int              step_;
+	Counter          logged_;
 };
 /////////////////////////////////////////////////////////////////////////////////////////
 // clasp specific application options
