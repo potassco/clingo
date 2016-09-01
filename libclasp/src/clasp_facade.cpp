@@ -148,7 +148,7 @@ void ClaspConfig::prepare(SharedContext& ctx) {
 		numS = solve.supportedSolvers();
 	}
 	if (numS > solve.recommendedSolvers()) {
-		ctx.warn(ClaspErrorString("Oversubscription: #Threads=%u exceeds logical CPUs=%u.", numS, solve.recommendedSolvers()));
+		ctx.warn(ClaspStringBuffer().appendFormat("Oversubscription: #Threads=%u exceeds logical CPUs=%u.", numS, solve.recommendedSolvers()));
 	}
 	for (uint32 i = 0; i != numS; ++i) {
 		if (solver(i).heuId == Heuristic_t::Domain) {

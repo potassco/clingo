@@ -46,13 +46,55 @@ const char* clasp_format(char* buf, unsigned size, const char* fmt, ...) {
 	va_end(args);
 	return buf;
 }
-ClaspErrorString::ClaspErrorString(const char* fmt, ...) {
-	*str = 0;
-	va_list args;
-	va_start(args, fmt);
-	int res = vsnprintf(str, sizeof(str), fmt, args);
-	va_end(args);
-	if (res < 0 || std::size_t(res) >= sizeof(str)) { str[sizeof(str)-1] = 0; }
+ClaspStringBuffer& ClaspStringBuffer::append(const char* str) {
+	size_t cap = static_cast<size_t>(end_ - pos_);
+	size_t len = std::strlen(str);
+	if (len < cap || grow(len)) {
+		std::memcpy(pos_, str, len + 1);
+		pos_ += len;
+	}
+	else {
+		std::memcpy(pos_, str, cap);
+		(pos_ = end_)[-1] = 0;
+	}
+	return *this;
+}
+ClaspStringBuffer& ClaspStringBuffer::appendFormat(const char* fmt, ...) {
+	for (;;) {
+		va_list args;
+		va_start(args, fmt);
+		size_t cap = static_cast<size_t>(end_ - pos_);
+		int res = cap ? vsnprintf(pos_, cap, fmt, args) : 0;
+		va_end(args);
+		if (res < 0 || size_t(res) >= cap) { // overflow - grow buffer
+			if (!grow(res > 0 ? size_t(res) : cap + 1)) {
+				(pos_ = end_)[-1] = 0; // out of memory - truncate and return
+				return *this;
+			}
+		}
+		else {
+			pos_ += res;
+			return *this;
+		}
+	}
+}
+bool ClaspStringBuffer::grow(size_t n) {
+	size_t nc = static_cast<size_t>(end_ - buf_) * 2;
+	size_t ns = static_cast<size_t>(pos_ - buf_) + n + 1;
+	if (nc < ns) { nc = ns; }
+	if (char* nb = (char*)std::realloc(buf_ == fix_ ? 0 : buf_, nc)) {
+		if (buf_ == fix_) {
+			std::memcpy(nb, fix_, sizeof(fix_));
+		}
+		pos_ = nb + (pos_ - buf_);
+		end_ = nb + nc;
+		buf_ = nb;
+		return true;
+	}
+	return false;
+}
+ClaspStringBuffer::~ClaspStringBuffer() {
+	if (buf_ != fix_) { std::free(buf_); }
 }
 namespace Clasp {
 using Potassco::ParseError;

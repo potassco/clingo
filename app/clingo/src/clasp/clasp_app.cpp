@@ -170,7 +170,7 @@ void ClaspAppBase::validateOptions(const ProgramOptions::OptionContext&, const P
 	}
 	for (std::size_t i = 1; i < app.input.size(); ++i) {
 		if (!isStdIn(app.input[i]) && !std::ifstream(app.input[i].c_str()).is_open()) {
-			throw Error(ClaspErrorString("'%s': could not open input file!", app.input[i].c_str()).c_str());
+			throw Error(ClaspStringBuffer().appendFormat("'%s': could not open input file!", app.input[i].c_str()).c_str());
 		}
 	}
 	if (app.onlyPre && pt != Problem_t::Asp) {
@@ -564,16 +564,14 @@ void LemmaLogger::add(const Solver& s, const LitVec& cc, const ConstraintInfo& i
 		if (!s.resolveToFlagged(cc, vf, temp, lbd) || lbd > options_.lbdMax) { return; }
 		out = &temp;
 	}
-	std::string lemma;
+	ClaspStringBuffer lemma;
 	if (options_.logText) { formatText(*out, s.sharedContext()->output, lbd, lemma); }
 	else                  { formatAspif(*out, lbd, lemma); }
 	fwrite(lemma.c_str(), sizeof(char), lemma.size(), str_);
 	++logged_;
 }
-void LemmaLogger::formatAspif(const LitVec& cc, uint32, std::string& out) const {
-	char temp[20];
-	out.reserve((cc.size() * 10) + 8);
-	out.append(clasp_format(temp, sizeof(temp), "1 0 0 0 %u", (uint32)cc.size()));
+void LemmaLogger::formatAspif(const LitVec& cc, uint32, ClaspStringBuffer& out) const {
+	out.appendFormat("1 0 0 0 %u", (uint32)cc.size());
 	for (LitVec::const_iterator it = cc.begin(), end = cc.end(); it != end; ++it) {
 		Literal sLit = ~*it; // clause -> constraint
 		Potassco::Lit_t a = toInt(sLit);
@@ -582,24 +580,20 @@ void LemmaLogger::formatAspif(const LitVec& cc, uint32, std::string& out) const 
 			if (!a) { return; }
 			if (sLit.sign() != (a < 0)) { a = -a; }
 		}
-		out.append(clasp_format(temp, sizeof(temp), " %d", a));
+		out.appendFormat(" %d", a);
 	}
-	out.append(1, '\n');
+	out.append("\n");
 }
-void LemmaLogger::formatText(const LitVec& cc, const OutputTable& tab, uint32 lbd, std::string& out) const {
-	out.reserve(std::max(uint32(cc.size() * 10), uint32(1024)));
-	const char* sep = ":- ";
-	char temp[40];
+void LemmaLogger::formatText(const LitVec& cc, const OutputTable& tab, uint32 lbd, ClaspStringBuffer& out) const {
+	out.append(":-");
+	const char* sep = " ";
 	for (LitVec::const_iterator it = cc.begin(), end = cc.end(); it != end; ++it) {
 		Literal sLit = ~*it; // clause -> constraint
 		uint32 idx = sLit.var() < solver2NameIdx_.size() ? solver2NameIdx_[sLit.var()] : UINT32_MAX;
-		out.append(sep);
-		sep = ", ";
 		if (idx != UINT32_MAX) {
 			const OutputTable::PredType& p = *(tab.pred_begin() + idx);
 			assert(sLit.var() == p.cond.var());
-			if (sLit.sign() != p.cond.sign()) { out.append("not "); }
-			out.append(p.name.c_str());
+			out.appendFormat("%s%s%s", sep, sLit.sign() != p.cond.sign() ? "not " : "", p.name.c_str());
 		}
 		else {
 			if (inputType_ == Problem_t::Asp) {
@@ -608,10 +602,11 @@ void LemmaLogger::formatText(const LitVec& cc, const OutputTable& tab, uint32 lb
 				if (sLit.sign() != (a < 0)) { a = -a; }
 				sLit = Literal(Potassco::atom(a), a < 0);
 			}
-			out.append(clasp_format(temp, sizeof(temp), "%s__atom(%u)", sLit.sign() ? "not " : "", sLit.var()));
+			out.appendFormat("%s%s__atom(%u)", sep, sLit.sign() ? "not " : "", sLit.var());
 		}
+		sep = ", ";
 	}
-	out.append(clasp_format(temp, sizeof(temp), ".  %%lbd = %u\n", lbd));
+	out.appendFormat(".  %%lbd = %u\n", lbd);
 }
 void LemmaLogger::close() {
 	if (!str_) { return; }

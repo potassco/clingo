@@ -57,7 +57,7 @@ private:
 	const char* str_;
 };
 /**
-* \defgroup shared %SharedContext
+* \defgroup shared SharedContext
 * \brief %SharedContext and related types.
 */
 

@@ -216,7 +216,7 @@ StatisticObject ClaspStatistics::findObject(Key_t root, const char* path, Key_t*
 			o = o[uint32(pos)];
 		}
 		else { 
-			throw std::out_of_range(ClaspErrorString("invalid path: '%s' at key '%s'", parent, top).c_str());
+			throw std::out_of_range(ClaspStringBuffer().appendFormat("invalid path: '%s' at key '%s'", parent, top).c_str());
 		}
 		t = o.type();
 	}
@@ -226,7 +226,7 @@ StatisticObject ClaspStatistics::findObject(Key_t root, const char* path, Key_t*
 
 StatisticObject StatsMap::at(const char* k) const {
 	if (const StatisticObject* o = find(k)) { return *o; }
-	throw std::out_of_range(ClaspErrorString("StatsMap::at with key '%s'", k).c_str());
+	throw std::out_of_range(ClaspStringBuffer().appendFormat("StatsMap::at with key '%s'", k).c_str());
 }
 const StatisticObject* StatsMap::find(const char* k) const {
 	for (MapType::const_iterator it = keys_.begin(), end = keys_.end(); it != end; ++it) {

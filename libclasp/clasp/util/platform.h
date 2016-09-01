@@ -155,22 +155,35 @@ template <>     struct static_assertion<true> {};
 #define static_assert(x, message) typedef bool clasp_static_assertion[sizeof(static_assertion< (x) >)]  __attribute__((__unused__))
 #endif
 #endif
-
+#include <stdlib.h>
+#include <string.h>
 extern const char* clasp_format(char* buf, unsigned size, const char* m, ...);
-struct ClaspErrorString {
-	ClaspErrorString(const char* fmt, ...);
-	const char* c_str() const { return str; }
+class ClaspStringBuffer {
+public:
+	ClaspStringBuffer() { fix_[0] = 0; buf_ = pos_ = fix_; end_ = buf_ + sizeof(fix_); }
+	~ClaspStringBuffer();
+	const char* c_str() const { return buf_; }
 	operator const char*() const { return c_str(); }
-	char str[1024];
+	ClaspStringBuffer& appendFormat(const char* fmt, ...);
+	ClaspStringBuffer& append(const char* str);
+	size_t size() const { return static_cast<size_t>(pos_ - buf_); }
+private:
+	ClaspStringBuffer(const ClaspStringBuffer&);
+	ClaspStringBuffer& operator=(const ClaspStringBuffer&);
+	bool grow(size_t nItems);
+	char* buf_;
+	char* pos_;
+	char* end_;
+	char  fix_[512];
 };
 
 #define CLASP_FAIL_IF(exp, ...) \
-	(void)( (!(exp)) || (throw std::logic_error(ClaspErrorString(__VA_ARGS__ ).c_str()), 0))	
+	(void)( (!(exp)) || (throw std::logic_error(ClaspStringBuffer().appendFormat(__VA_ARGS__).c_str()), 0))	
 
 #ifndef CLASP_NO_ASSERT_CONTRACT
 
 #define CLASP_ASSERT_CONTRACT_MSG(exp, msg) \
-	(void)( (!!(exp)) || (throw std::logic_error(ClaspErrorString("%s@%d: contract violated: %s", FUNC_NAME, __LINE__, (msg)).c_str()), 0))
+	(void)( (!!(exp)) || (throw std::logic_error(ClaspStringBuffer().appendFormat("%s@%d: contract violated: %s", FUNC_NAME, __LINE__, (msg)).c_str()), 0))
 
 #else
 #include <cassert>
@@ -184,8 +197,6 @@ struct ClaspErrorString {
 #define CLASP_PRAGMA_TODO(X)
 #endif
 
-#include <stdlib.h>
-#include <string.h>
 #if _WIN32||_WIN64
 #include <malloc.h>
 inline void* alignedAlloc(size_t size, size_t align) { return _aligned_malloc(size, align); }

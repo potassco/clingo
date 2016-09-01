@@ -462,7 +462,7 @@ ConfigIter ClaspCliConfig::getConfig(ConfigKey k) {
 				#include <clasp/cli/clasp_cli_configs.inl>
 				);
 		case config_default: return ConfigIter("/default\0/\0/\0");
-		default            : throw std::logic_error(ClaspErrorString("Invalid config key '%d'", (int)k).c_str());
+		default            : throw std::logic_error(ClaspStringBuffer().appendFormat("Invalid config key '%d'", (int)k).c_str());
 	}
 }
 ConfigIter ClaspCliConfig::getConfig(uint8 key, std::string& tempMem) {
