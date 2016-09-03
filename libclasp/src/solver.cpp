@@ -244,7 +244,7 @@ void Solver::startInit(uint32 numConsGuess, const SolverParams& params) {
 
 void Solver::updateVars() {
 	if (numVars() > shared_->numVars()) {
-		popVars(numVars() - shared_->numVars());
+		popVars(numVars() - shared_->numVars(), false, 0);
 	}
 	else {
 		assign_.resize(shared_->numVars() + 1);
@@ -376,35 +376,15 @@ Var Solver::pushAuxVar() {
 void Solver::popAuxVar(uint32 num, ConstraintDB* auxCons) {
 	num = numVars() >= shared_->numVars() ? std::min(numVars() - shared_->numVars(), num) : 0;
 	if (!num) { return; }
+	shared_->report("removing aux vars", this);
 	Dirty dirty;
 	lazyRem_ = &dirty;
-	// 1. remove aux vars and cleanup assignment
-	shared_->report("removing aux vars", this);
-	Literal aux = popVars(num);
-	// 2. remove constraints over aux
-	shared_->report("removing aux constraints", this);
-	ConstraintDB::size_type i, j, end = learnts_.size();
-	LitVec cc;
-	for (i = j = 0; i != end; ++i) {
-		learnts_[j++] = learnts_[i];
-		ClauseHead* c = learnts_[i]->clause();
-		if (c && c->aux()) {
-			cc.clear();
-			c->toLits(cc);
-			if (std::find_if(cc.begin(), cc.end(), std::not1(std::bind2nd(std::less<Literal>(), aux))) != cc.end()) {
-				c->destroy(this, true);
-				--j;
-			}
-		}
-	}
-	learnts_.erase(learnts_.begin()+j, learnts_.end());
-	if (auxCons) { destroyDB(*auxCons); }
-	// 3. cleanup watch list
+	popVars(num, true, auxCons);
 	lazyRem_ = 0;
 	shared_->report("removing aux watches", this);
 	dirty.cleanup(watches_, levels_);
 }
-Literal Solver::popVars(uint32 num) {
+Literal Solver::popVars(uint32 num, bool popLearnt, ConstraintDB* popAux) {
 	Literal pop = posLit(assign_.numVars() - num);
 	uint32  dl  = decisionLevel() + 1;
 	for (ImpliedList::iterator it = impliedLits_.begin(); it != impliedLits_.end(); ++it) {
@@ -413,7 +393,7 @@ Literal Solver::popVars(uint32 num) {
 	for (Var v = pop.var(), end = pop.var()+num; v != end; ++v) {
 		if (value(v) != value_free) { dl = std::min(dl, level(v)); }
 	}
-	// remove aux vars from assignment and watch lists
+	// 1. remove aux vars from assignment and watch lists
 	if (dl > rootLevel()) {
 		undoUntil(dl-1, undo_pop_proj_level);
 	}
@@ -439,6 +419,27 @@ Literal Solver::popVars(uint32 num) {
 		watches_.back().clear(true);
 		watches_.pop_back();
 	}
+	// 2. remove learnt constraints over aux
+	if (popLearnt) {
+		shared_->report("removing aux constraints", this);
+		ConstraintDB::size_type i, j, end = learnts_.size();
+		LitVec cc;
+		for (i = j = 0; i != end; ++i) {
+			learnts_[j++] = learnts_[i];
+			ClauseHead* c = learnts_[i]->clause();
+			if (c && c->aux()) {
+				cc.clear();
+				c->toLits(cc);
+				if (std::find_if(cc.begin(), cc.end(), std::not1(std::bind2nd(std::less<Literal>(), pop))) != cc.end()) {
+					c->destroy(this, true);
+					--j;
+				}
+			}
+		}
+		learnts_.erase(learnts_.begin()+j, learnts_.end());
+	}
+	if (popAux) { destroyDB(*popAux); }
+	// 3. remove vars from solver and heuristic
 	assign_.resize(assign_.numVars()-num);
 	if (!validVar(tag_.var())) { tag_ = lit_true(); }
 	if (heuristic_.get()) {
