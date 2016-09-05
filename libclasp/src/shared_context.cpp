@@ -532,40 +532,53 @@ void SatPreprocessor::Clause::destroy() {
 /////////////////////////////////////////////////////////////////////////////////////////
 // ConstString
 /////////////////////////////////////////////////////////////////////////////////////////
-namespace {
-	const char* mkstring(const char* str, std::size_t len) {
-		if (!len) return "";
-		char* ret = (char*)::operator new(len + 2);
-		*ret++ = 1;
-		*std::copy(str, str + len, ret) = 0;
-		return ret;
+struct StrRef {
+	typedef Atomic_t<uint32>::type RefCount;
+	static uint64      lit(const char* str) { 
+		if (!str) str = "";
+		return set_bit(static_cast<uint64>(reinterpret_cast<uintp>(str)), 63);
 	}
-	unsigned char& ref(const char* str) {
-		return *reinterpret_cast<unsigned char*>(const_cast<char*>(str - 1));
+	static uint64      create(const char* str, std::size_t len) {
+		char*   mem = (char*)malloc(sizeof(RefCount) + len + 1);
+		RefCount* p = new (mem) RefCount();
+		std::memcpy(mem + sizeof(RefCount), str, len);
+		mem[sizeof(RefCount) + len] = 0;
+		*p = 1;
+		return static_cast<uint64>(reinterpret_cast<uintp>(mem));
 	}
-	void release(const char* str) {
-		if (*str && --ref(str) == 0) {
-			::operator delete(const_cast<char*>(str - 1));
+	static RefCount*   asShared(uint64 ref) {
+		return !test_bit(ref, 63) ? reinterpret_cast<RefCount*>(static_cast<uintp>(ref)) : 0;
+	}
+	static uint64      share(uint64 ref) {
+		if (RefCount* p = asShared(ref)) { ++*p; }
+		return ref;
+	}
+	static uint64      release(uint64 ref) {
+		RefCount* p = asShared(ref);
+		if (p && !--*p) {
+			p->~RefCount();
+			free((void*)p);
 		}
+		return 0;
 	}
-	const char* copy(const char* str) { 
-		if (!*str || ++ref(str) != 0) return str;
-		--ref(str);
-		return mkstring(str, std::strlen(str));
+	static const char* get(uint64 ref) {
+		return reinterpret_cast<const char*>(static_cast<uintp>(
+			!test_bit(ref, 63)
+			? ref + sizeof(RefCount)
+			: clear_bit(ref, 63)));
 	}
-}
-
-ConstString::ConstString() : str_("") {}
-ConstString::ConstString(const char* str) : str_(mkstring(str, str ? std::strlen(str) : 0)) {}
-ConstString::ConstString(const StrView& str) : str_(mkstring(Potassco::begin(str), str.size)) {}
-ConstString::ConstString(const ConstString& other) : str_(copy(other.str_)) {}
-ConstString::~ConstString() { release(str_); }
+};
+ConstString::ConstString(const char* str, Ownership_t::Type o) : ref_(str && *str && o == Ownership_t::Acquire ? StrRef::create(str, std::strlen(str)) : StrRef::lit(str)) {}
+ConstString::ConstString(const StrView& str) : ref_(str.size ? StrRef::create(str.first, str.size) : StrRef::lit("")) {}
+ConstString::ConstString(const ConstString& other) : ref_(StrRef::share(other.ref_)) { }
+ConstString::~ConstString() {  StrRef::release(ref_); }
+void ConstString::swap(ConstString& rhs) { std::swap(ref_, rhs.ref_); }
 ConstString& ConstString::operator=(const ConstString& rhs) {
 	ConstString temp(rhs);
 	swap(temp);
 	return *this;
 }
-void ConstString::swap(ConstString& rhs) { std::swap(str_, rhs.str_); }
+const char* ConstString::c_str() const { return StrRef::get(ref_); }
 /////////////////////////////////////////////////////////////////////////////////////////
 // OutputTable
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -579,7 +592,8 @@ void OutputTable::setFilter(char c) {
 	hide_ = c;
 }
 bool OutputTable::filter(const NameType& n) const {
-	return !*n || *n == hide_;
+	char c = *n;
+	return c == hide_ || !c;
 }
 bool OutputTable::add(const NameType& fact) {
 	if (!filter(fact)) {
