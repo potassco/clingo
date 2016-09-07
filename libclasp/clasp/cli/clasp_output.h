@@ -173,7 +173,7 @@ public:
 	//! Supported text formats.
 	enum Format      { format_asp, format_aspcomp, format_sat09, format_pb09 };
 	enum ResultStr   { res_unknonw = 0, res_sat = 1, res_unsat = 2, res_opt = 3, num_str };
-	enum CategoryKey { cat_comment, cat_value, cat_objective, cat_result, cat_value_term, cat_atom, num_cat };
+	enum CategoryKey { cat_comment, cat_value, cat_objective, cat_result, cat_value_term, cat_atom_name, cat_atom_var, num_cat };
 	
 	const char* result[num_str]; //!< Default result strings.
 	const char* format[num_cat]; //!< Format strings.
@@ -236,6 +236,7 @@ protected:
 	void        printMeta(const OutputTable& out, const Model& m);
 private:
 	typedef Clasp::Atomic_t<int>::type EvType;
+	std::string fmt_;
 	double stTime_;// time on state enter
 	EvType ev_;    // last event type
 	int    width_; // output width

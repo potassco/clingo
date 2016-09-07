@@ -1201,25 +1201,26 @@ bool UncoreMinimize::addCore(Solver& s, const LitPair* lits, uint32 cs, weight_t
 				temp_.add(s, p);
 			}
 			weight_t cw = core.weight;
-			if (!closeCore(s, x, temp_.bound <= 1) || !addCore(s, temp_, cw)) {
+			if (!closeCore(s, x, temp_.bound <= 1) || !addOllCon(s, temp_, cw)) {
 				return false;
 			}
 		}
 	}
 	// add new core
-	if ((options_ & MinimizeMode_t::usc_clauses) == 0u) {
-		temp_.start(2);
-		for (uint32 i = 0; i != cs; ++i) { temp_.add(s, lits[i].lit); }
-		if (!temp_.unsat()) { 
-			return addCore(s, temp_, w);
-		}
-		Literal fix = !temp_.lits.empty() ? temp_.lits[0].first : lits[0].lit;
-		return temp_.bound < 2 || fixLit(s, fix);
-	}
-	return addClauses(s, lits, cs, w);
+	return (options_ & MinimizeMode_t::usc_clauses) == 0u
+		? addOll(s, lits, cs, w)
+		: addPmr(s, lits, cs, w);
 }
-
-bool UncoreMinimize::addClauses(Solver& s, const LitPair* lits, uint32 size, weight_t w) {
+bool UncoreMinimize::addOll(Solver& s, const LitPair* lits, uint32 size, weight_t w) {
+	temp_.start(2);
+	for (uint32 i = 0; i != size; ++i) { temp_.add(s, lits[i].lit); }
+	if (!temp_.unsat()) {
+		return addOllCon(s, temp_, w);
+	}
+	Literal fix = !temp_.lits.empty() ? temp_.lits[0].first : lits[0].lit;
+	return temp_.bound < 2 || fixLit(s, fix);
+}
+bool UncoreMinimize::addPmr(Solver& s, const LitPair* lits, uint32 size, weight_t w) {
 	if (size == 1) { 
 		return fixLit(s, lits[0].lit); 
 	}
@@ -1231,17 +1232,17 @@ bool UncoreMinimize::addClauses(Solver& s, const LitPair* lits, uint32 size, wei
 		Literal cn = posLit(s.pushAuxVar());
 		auxAdd_ += 2;
 		addLit(cn, w);
-		if (!add(comp_disj, s, bn, an, bp)) { return false; }
-		if (!add(comp_conj, s, cn, an, bp)) { return false; }
+		if (!addPmrCon(comp_disj, s, bn, an, bp)) { return false; }
+		if (!addPmrCon(comp_conj, s, cn, an, bp)) { return false; }
 		bp = bn;
 	}
 	Literal an = lits[i].lit;
 	Literal cn = posLit(s.pushAuxVar());
 	++auxAdd_;
 	addLit(cn, w);
-	return add(comp_conj, s, cn, an, bp);
+	return addPmrCon(comp_conj, s, cn, an, bp);
 }
-bool UncoreMinimize::add(CompType c, Solver& s, Literal head, Literal body1, Literal body2) {
+bool UncoreMinimize::addPmrCon(CompType c, Solver& s, Literal head, Literal body1, Literal body2) {
 	typedef ClauseCreator::Result Result;
 	const uint32 flags = ClauseCreator::clause_explicit | ClauseCreator::clause_not_root_sat | ClauseCreator::clause_no_add;
 	const bool    sign = c == comp_conj;
@@ -1263,7 +1264,7 @@ bool UncoreMinimize::add(CompType c, Solver& s, Literal head, Literal body1, Lit
 	}
 	return true;
 }
-bool UncoreMinimize::addCore(Solver& s, const WCTemp& wc, weight_t weight) {
+bool UncoreMinimize::addOllCon(Solver& s, const WCTemp& wc, weight_t weight) {
 	typedef WeightConstraint::CPair ResPair;
 	weight_t B = wc.bound;
 	if (B <= 0) { 

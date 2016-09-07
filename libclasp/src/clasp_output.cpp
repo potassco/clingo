@@ -675,12 +675,13 @@ TextOutput::TextOutput(uint32 verbosity, Format f, const char* catAtom, char ifs
 	format[cat_objective]  = "Optimization: ";
 	format[cat_result]     = "";
 	format[cat_value_term] = "";
-	format[cat_atom]       = "%s";
+	format[cat_atom_name]  = "%s";
+	format[cat_atom_var]   = "-%d";
 	if (f == format_aspcomp) {
 		format[cat_comment]   = "% ";
 		format[cat_value]     = "ANSWER\n";
 		format[cat_objective] = "COST ";
-		format[cat_atom]      = "%s.";
+		format[cat_atom_name] = "%s.";
 		result[res_sat]       = "";
 		result[res_unsat]     = "INCONSISTENT";
 		result[res_opt]       = "OPTIMUM";
@@ -693,30 +694,40 @@ TextOutput::TextOutput(uint32 verbosity, Format f, const char* catAtom, char ifs
 		format[cat_objective] = "o ";
 		format[cat_result]    = "s ";
 		format[cat_value_term]= "0";
-		format[cat_atom]      = "-%d";
 		if (f == format_pb09) {
 			format[cat_value_term]= "";
-			format[cat_atom]      = "-x%d";
+			format[cat_atom_var]  = "-x%d";
 			setModelQuiet(print_best);
 		}
 	}
 	if (catAtom && *catAtom) {
-		format[cat_atom] = catAtom;
-		char ca = f == format_sat09 || f == format_pb09 ? 'd' : 's';
-		while (*catAtom) {
-			if      (*catAtom == '\n'){ break; }
-			else if (*catAtom == '%') {
-				if      (!*++catAtom)    { ca = '%'; break; }
-				else if (*catAtom == ca) { ca = 0; }
-				else if (*catAtom != '%'){ break; }
+		char f = 0;
+		for (const char* x = catAtom; *x; ++x) {
+			CLASP_FAIL_IF(*x == '\n', "cat_atom: Invalid format string - new line not allowed!");
+			if (*x == '%')  {
+				CLASP_FAIL_IF(!*++x, "cat_atom: Invalid format string - missing format specifier!");
+				if (*x != '%') {
+					CLASP_FAIL_IF(f, "cat_atom: Invalid format string - too many arguments!");
+					CLASP_FAIL_IF(std::strchr("sd0", *x) == 0, "cat_atom: Invalid format string - invalid format specifier!");
+					f = *x;
+				}
 			}
-			++catAtom;
 		}
-		CLASP_FAIL_IF(ca != 0         , "cat_atom: Invalid format string - format '%%%c' expected!", ca);
-		CLASP_FAIL_IF(*catAtom == '\n', "cat_atom: Invalid format string - new line not allowed!");
-		CLASP_FAIL_IF(*catAtom != 0   , "cat_atom: Invalid format string - '%%%c' too many arguments!", *catAtom);
+		if (f == '0') {
+			std::size_t len = std::strlen(catAtom);
+			fmt_.reserve((len * 2) + 2);
+			fmt_.append(catAtom).append(1, '\0').append(1, '-').append(catAtom);
+			std::string::size_type p = fmt_.find("%0") + 1;
+			fmt_[p] = 's';
+			fmt_[len + 2 + p] = 'd';
+			format[cat_atom_name] = fmt_.c_str();
+			format[cat_atom_var]  = fmt_.c_str() + len + 1;
+		}
+		else {
+			format[f == 's' ? cat_atom_name : cat_atom_var] = catAtom;
+		}
 	}
-	CLASP_FAIL_IF((f == format_sat09 || f == format_pb09) && *format[cat_atom] != '-' , "cat_atom: Invalid format string - must start with '-'!");
+	CLASP_FAIL_IF(*format[cat_atom_var] != '-' , "cat_atom: Invalid format string - must start with '-'!");
 	ifs_[0] = ifs;
 	ifs_[1] = 0;
 	width_  = 13+(int)strlen(format[cat_comment]);
@@ -888,8 +899,8 @@ uintp TextOutput::doPrint(const OutPair& s, UPtr data) {
 	if      (accu < maxLine) { accu += printSep(cat_value); }
 	else if (!maxLine)       { maxLine = s.first || *fieldSeparator() != ' ' ? UINT32_MAX : 70; }
 	else                     { printf("\n%s", format[cat_value]); accu = 0; }
-	if (s.first){ accu += printf(format[cat_atom], s.first); }
-	else        { accu += printf(format[cat_atom] + !s.second.sign(), static_cast<int>(s.second.var())); }
+	if (s.first){ accu += printf(format[cat_atom_name], s.first); }
+	else        { accu += printf(format[cat_atom_var] + !s.second.sign(), static_cast<int>(s.second.var())); }
 	return data;
 }
 void TextOutput::printValues(const OutputTable& out, const Model& m) {

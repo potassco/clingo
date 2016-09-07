@@ -65,7 +65,7 @@ inline bool isStdOut(const std::string& out){ return out == "-" || out == "stdou
 // ClaspAppOptions
 /////////////////////////////////////////////////////////////////////////////////////////
 namespace Cli {
-ClaspAppOptions::ClaspAppOptions() : outf(0), compute(0), ifs(' '), hideAux(false), onlyPre(false), printPort(false) {
+ClaspAppOptions::ClaspAppOptions() : outf(0), compute(0), ifs(' '), hideAux(false), onlyPre(0), printPort(false) {
 	quiet[0] = quiet[1] = quiet[2] = static_cast<uint8>(UCHAR_MAX);
 }
 void ClaspAppOptions::initOptions(ProgramOptions::OptionContext& root) {
@@ -78,10 +78,11 @@ void ClaspAppOptions::initOptions(ProgramOptions::OptionContext& root) {
 		 "        <mod> : print {0=all|1=last|2=no} models\n"
 		 "        <cost>: print {0=all|1=last|2=no} optimize values [<m>]\n"
 		 "        <call>: print {0=all|1=last|2=no} call steps      [2]")
-		("pre" , flag(onlyPre), "Run preprocessing and exit")
+		("pre", notify(this, &ClaspAppOptions::mappedOpts)->arg("<fmt>")->implicit("1"), "Print simplified program and exit\n"
+		 "      %A: Output format: {1=auto|2=aspif}")
 		("print-portfolio" , flag(printPort), "Print default portfolio and exit")
 		("outf,@1", storeTo(outf)->arg("<n>"), "Use {0=default|1=competition|2=JSON|3=no} output")
-		("out-atomf,@1" , storeTo(outAtom), "Set atom format string (<Pre>?%%s<Post>?)")
+		("out-atomf,@1" , storeTo(outAtom), "Set atom format string (<Pre>?%%0<Post>?)")
 		("out-ifs,@1"   , notify(this, &ClaspAppOptions::mappedOpts), "Set internal field separator")
 		("out-hide-aux,@1" , flag(hideAux), "Hide auxiliary atoms in answers")
 		("lemma-in,@1"     , storeTo(lemmaIn)->arg("<file>"), "Read additional lemmas from %A")
@@ -114,6 +115,9 @@ bool ClaspAppOptions::mappedOpts(ClaspAppOptions* this_, const std::string& name
 	}
 	else if (name == "lemma-out-dom") {
 		return (this_->lemma.domOut = (strcasecmp(value.c_str(), "output") == 0)) == true || strcasecmp(value.c_str(), "input") == 0;
+	}
+	else if (name == "pre") {
+		return value.size() == 1 && (this_->onlyPre = static_cast<uint8>(Potassco::BufferedStream::toDigit(value[0]))) <= 2;
 	}
 	return false;
 }
@@ -469,7 +473,9 @@ bool ClaspAppBase::handlePostGroundOptions(ProgramBuilder& prg) {
 	}
 	prg.endProgram();
 	if (prg.type() == Problem_t::Asp) {
-		AspParser::write(static_cast<Asp::LogicProgram&>(prg), std::cout);
+		Asp::LogicProgram& asp = static_cast<Asp::LogicProgram&>(prg);
+		AspParser::Format outf = claspAppOpts_.onlyPre == 2 || !asp.supportsSmodels() ? AspParser::format_aspif : AspParser::format_smodels;
+		AspParser::write(asp, std::cout, outf);
 	}
 	else {
 		error("Option '--pre': unsupported input format!");

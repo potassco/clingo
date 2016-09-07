@@ -115,7 +115,7 @@ struct ClaspAppOptions {
 	char        ifs;       // output field separator
 	bool        hideAux;   // output aux atoms?
 	uint8       quiet[3];  // configure printing of models, optimization values, and call steps
-	bool        onlyPre;   // run preprocessor and exit
+	uint8       onlyPre;   // run preprocessor and exit
 	bool        printPort; // print portfolio and exit
 	enum OutputFormat { out_def = 0, out_comp = 1, out_json = 2, out_none = 3 };
 };
