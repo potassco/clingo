@@ -1,4 +1,4 @@
-// {{{ GPL License 
+// {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
 // Copyright (C) 2013  Benjamin Kaufmann
@@ -23,7 +23,7 @@
 
 class ExitException : public std::exception {
 public:
-    ExitException(int status) : status_(status) { 
+    ExitException(int status) : status_(status) {
         std::ostringstream oss;
         oss << "exited with status: " << status_;
         msg_ = oss.str();
@@ -48,7 +48,6 @@ extern "C" int run(char const *program, char const *options) {
         auto exit(Gringo::onExit([orig]{ std::cin.rdbuf(orig); }));
         std::istringstream input(program);
         std::cin.rdbuf(input.rdbuf());
-        Gringo::reset_message_printer();
         std::vector<std::vector<char>> opts;
         opts.emplace_back(std::initializer_list<char>{'c','l','i','n','g','o','\0'});
         std::istringstream iss(options);
