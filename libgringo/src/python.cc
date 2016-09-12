@@ -6509,7 +6509,7 @@ Python::Python(GringoModule &) { }
 bool Python::exec(Location const &loc, String ) {
     std::stringstream ss;
     ss << loc << ": error: clingo has been build without python support\n";
-    throw GringoError(ss.str());
+    throw GringoError(ss.str().c_str());
 }
 bool Python::callable(String) {
     return false;
