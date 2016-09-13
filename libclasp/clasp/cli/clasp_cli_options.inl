@@ -126,7 +126,7 @@ OPTION(stats, ",s", ARG(implicit("1")->arg("<n>[,<t>]")), "Enable {1=basic|2=ful
         && SET(SELF.stats, s) && ((!SELF.testerConfig() && t == 0) || SET(SELF.addTesterConfig()->stats, t));
     },\
     GET_FUN(str) { ITE(!SELF.testerConfig() || !SELF.testerConfig()->stats, str << SELF.stats, str << SELF.stats << SELF.testerConfig()->stats); })
-OPTION(parse_ext, "!", ARG(flag()), "Enable extensions in smodels and dimacs input",\
+OPTION(parse_ext, "!", ARG(flag()), "Enable extensions in non-aspif input",\
     FUN(arg) { bool b = false; return (arg.off() || arg >> b) && SET(SELF.parse.ext, (b ? unsigned(ParserOptions::parse_full):0u)); }, \
     GET((SELF.parse.ext != 0)))
 GROUP_END(SELF)
@@ -146,7 +146,7 @@ OPTION(opt_strategy , ""  , ARG_EXT(arg("<arg>")->implicit("1"), DEFINE_ENUM_MAP
        "          1: hierarchical algorithm and constant steps\n"                 \
        "          2: hierarchical algorithm and exponentially increasing steps\n" \
        "          3: hierarchical algorithm and exponentially decreasing steps\n" \
-       "        usc: unsatisfiable-core guided optimization (<n = {0..15}>)\n"    \
+       "        usc: unsatisfiable-core guided optimization (bitmask <n = {0..15}>)\n"\
        "          1: enable disjoint-core preprocessing\n"                        \
        "          2: disable redundant (symmetry) constraints\n"                  \
        "          4: enable PMRES instead of OLL algorithm\n"                     \
@@ -213,8 +213,8 @@ OPTION(acyc_prop, ",@2", ARG(implicit("1")->arg("{0..1}")), "Acyc propagate with
        FUN(arg) { uint32 x; return arg>>x && SET_LEQ(SELF.acycFwd, (1u-x), 1u); }, GET(1u-SELF.acycFwd))
 OPTION(seed          , ""   , ARG(arg("<n>")),"Set random number generator's seed to %A", STORE(SELF.seed), GET(SELF.seed))
 OPTION(no_lookback   , ""   , ARG(flag()), "Disable all lookback strategies\n", STORE_FLAG(SELF.search),GET(static_cast<bool>(SELF.search == SolverStrategies::no_learning)))
-OPTION(forget_on_step, ""   , ARG(arg("<bits>")), "Configure forgetting on (incremental) step\n"\
-       "      Forget {1=heuristic|2=signs|4=nogood activities|8=learnt nogoods}\n", STORE_LEQ(SELF.forgetSet, 15u), GET(SELF.forgetSet))
+OPTION(forget_on_step, ""   , ARG(arg("<mask>")), "Configure forgetting on (incremental) step\n"\
+       "      Forget {1=heuristic,2=signs,4=nogood activities,8=learnt nogoods}\n", STORE_LEQ(SELF.forgetSet, 15u), GET(SELF.forgetSet))
 OPTION(strengthen    , "!"  , ARG_EXT(arg("<X>"), DEFINE_ENUM_MAPPING(SolverStrategies::CCMinType, \
        MAP("local", SolverStrategies::cc_local), MAP("recursive", SolverStrategies::cc_recursive))), \
        "Use MiniSAT-like conflict nogood strengthening\n" \
@@ -257,7 +257,7 @@ GROUP_BEGIN(SELF)
 OPTION(partial_check, "", ARG(implicit("50")), "Configure partial stability tests\n" \
        "      %A: <p>[,<h>] / Implicit: %I\n" \
        "        <p>: Partial check skip percentage\n"    \
-       "        <h>: Init/update value for high bound (0 = umax)", FUN(arg) {\
+       "        <h>: Init/update value for high bound ([0]=umax)", FUN(arg) {\
        uint32 p = 0; uint32 h = 0; \
        return (arg.off() || (arg>>p>>opt(h) && p)) && SET_LEQ(SELF.fwdCheck.highPct, p, 100u) && SET_OR_ZERO(SELF.fwdCheck.highStep, h);},\
        GET_IF(SELF.fwdCheck.highPct, SELF.fwdCheck.highPct, SELF.fwdCheck.highStep))
@@ -463,6 +463,8 @@ OPTION(enum_mode   , ",e", ARG_EXT(defaultsTo("auto")->state(Value::value_defaul
        "        brave   : Compute brave consequences (union of models)\n" \
        "        cautious: Compute cautious consequences (intersection of models)\n" \
        "        auto    : Use bt for enumeration and record for optimization", STORE(SELF.enumMode), GET(SELF.enumMode))
+OPTION(project, "", ARG(implicit("6")), "Enable projective solution enumeration", STORE_LEQ(SELF.project, 7u), GET(SELF.project))
+OPTION(models, ",n", ARG(arg("<n>")), "Compute at most %A models (0 for all)\n", STORE(SELF.numModels), GET(SELF.numModels))
 OPTION(opt_mode   , "", ARG_EXT(arg("<mode>"), DEFINE_ENUM_MAPPING(MinimizeMode_t::Mode,\
        MAP("opt" , MinimizeMode_t::optimize), MAP("enum"  , MinimizeMode_t::enumerate),\
        MAP("optN", MinimizeMode_t::enumOpt) , MAP("ignore", MinimizeMode_t::ignore))),\
@@ -476,9 +478,7 @@ OPTION(opt_bound, "!" , ARG(arg("<opt>...")), "Initialize objective function(s)"
        SumVec B; \
        return (arg.off() || arg>>B) && (SELF.optBound.swap(B), true);},\
        GET_IF(!SELF.optBound.empty(), SELF.optBound))
-OPTION(opt_sat    , ""   , ARG(flag())         , "Treat DIMACS input as MaxSAT optimization problem", STORE(SELF.maxSat), GET(SELF.maxSat))
-OPTION(project    , ""   , ARG(implicit("6"))  , "Project models to named atoms", STORE_LEQ(SELF.project,7u), GET(SELF.project))
-OPTION(models     , ",n", ARG(arg("<n>"))      , "Compute at most %A models (0 for all)\n", STORE(SELF.numModels), GET(SELF.numModels))
+OPTION(opt_sat    , ""   , ARG(flag())         , "Treat dimacs input as MaxSAT optimization problem", STORE(SELF.maxSat), GET(SELF.maxSat))
 GROUP_END(SELF)
 #undef CLASP_SOLVE_OPTIONS
 #undef SELF
