@@ -30,6 +30,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <cassert>
+#include <iterator>
 #include <potassco/basic_types.h>
 
 namespace Gringo {
@@ -674,7 +675,8 @@ T get_clone(T const &x) {
 
 template <class S, class T, class U>
 void print_comma(S &out, T const &x, const char *sep, U const &f) {
-    using namespace std;
+	using std::begin;
+	using std::end;
     auto it(begin(x)), ie(end(x));
     if (it != ie) {
         f(out, *it);

@@ -325,7 +325,7 @@ Gringo::SolveFuture *ClingoControl::solveAsync(ModelHandler mh, FinishHandler fh
 #endif
 }
 void ClingoControl::interrupt() {
-    clasp_->interrupt(SIGUSR1);
+    clasp_->interrupt(30);
 }
 bool ClingoControl::blocked() {
     return clasp_->solving();
@@ -449,9 +449,6 @@ union SymbolicAtomOffset {
     SymbolicAtomOffset(uint32_t domain_offset, bool domain_advance, uint32_t atom_offset, bool atom_advance)
     : data{domain_offset, domain_advance, atom_offset, atom_advance} { }
     clingo_symbolic_atom_iterator_t repr;
-    friend bool operator==(SymbolicAtomOffset const &a, SymbolicAtomOffset const &b) {
-        return a.data.domain_offset == b.data.domain_offset && a.data.atom_offset == b.data.atom_offset;
-    }
     struct {
         clingo_symbolic_atom_iterator_t domain_offset : 31;
         clingo_symbolic_atom_iterator_t domain_advance : 1;
@@ -459,6 +456,10 @@ union SymbolicAtomOffset {
         clingo_symbolic_atom_iterator_t atom_advance : 1;
     } data;
 };
+
+bool operator==(SymbolicAtomOffset const &a, SymbolicAtomOffset const &b) {
+	return a.data.domain_offset == b.data.domain_offset && a.data.atom_offset == b.data.atom_offset;
+}
 
 SymbolicAtomOffset &toOffset(clingo_symbolic_atom_iterator_t &it) {
     return reinterpret_cast<SymbolicAtomOffset &>(it);

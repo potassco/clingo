@@ -26,6 +26,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <memory>
+#include <functional>
 
 #include <iostream>
 #include <clingo.h>

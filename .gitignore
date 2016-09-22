@@ -4,3 +4,7 @@
 build
 *.pyc
 doc
+*.opendb
+Debug
+.vs
+*.db

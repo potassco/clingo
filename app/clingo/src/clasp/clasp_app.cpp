@@ -218,7 +218,7 @@ void ClaspAppBase::shutdown() {
 }
 
 void ClaspAppBase::run() {
-	if (out_.get()) { out_->run(getName(), getVersion(), &claspAppOpts_.input[0], &claspAppOpts_.input[0] + claspAppOpts_.input.size()); }
+	if (out_.get()) { out_->run(getName(), getVersion(), claspAppOpts_.input.data(), claspAppOpts_.input.data() + claspAppOpts_.input.size()); }
 	try        { run(*clasp_); }
 	catch(...) {
 		try { blockSignals(); setExitCode(E_ERROR); throw; }

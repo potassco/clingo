@@ -1282,7 +1282,7 @@ UGFunTerm UnOpTerm::gfunterm(RenameMap &names, ReferenceMap &refs) const {
     if (op != UnOp::NEG) { return nullptr; }
     UGFunTerm fun(arg->gfunterm(names, refs));
     if (!fun) { return nullptr; }
-    fun->sign = not fun->sign;
+    fun->sign = ! fun->sign;
     return fun;
 }
 

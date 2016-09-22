@@ -28,7 +28,6 @@
 #include "clingo_app.hh"
 #include <clasp/parser.h>
 #include <climits>
-#include <unistd.h>
 
 using namespace Clasp;
 using namespace Clasp::Cli;
