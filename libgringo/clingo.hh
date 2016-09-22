@@ -281,11 +281,11 @@ public:
     void swap(Variant &other) { data_.swap(other.data_); }
     template <class V, class... Args>
     typename Holder::template Ret_<V, Args...> accept(V &&visitor, Args &&... args) {
-        return data_.template accept(std::forward<V>(visitor), std::forward<Args>(args)...);
+        return data_.accept(std::forward<V>(visitor), std::forward<Args>(args)...);
     }
     template <class V, class... Args>
     typename Holder::template ConstRet_<V, Args...> accept(V &&visitor, Args &&... args) const {
-        return data_.template accept(std::forward<V>(visitor), std::forward<Args>(args)...);
+        return data_.accept(std::forward<V>(visitor), std::forward<Args>(args)...);
     }
     friend std::ostream &operator<<(std::ostream &out, Variant const &x) {
         x.data_.print(out);
