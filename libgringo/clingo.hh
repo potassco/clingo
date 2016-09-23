@@ -129,44 +129,47 @@ struct VariantHolder<n, T, U...> : VariantHolder<n+1, U...>{
         }
         Helper::copy(src);
     }
+    // NOTE: workaround for visual studio (C++14 can also simply use auto)
+#   define GRINGO_VARIANT_RET(Type) decltype(std::declval<V>().visit(std::declval<Type&>(), std::declval<Args>()...))
     template <class V, class... Args>
-    using Ret_ = decltype(std::declval<V>().visit(std::declval<T&>(), std::declval<Args>()...));
+    using Ret_ = GRINGO_VARIANT_RET(T);
     template <class V, class... Args>
-    using ConstRet_ = decltype(std::declval<V>().visit(std::declval<T const&>(), std::declval<Args>()...));
+    using ConstRet_ = GRINGO_VARIANT_RET(T const);
     // non-const
     template <class V, class U1, class... U2, class... Args>
-    Ret_<V, Args...> accept_(V &&visitor, Args &&... args) {
+    auto accept_(V &&visitor, Args &&... args) -> GRINGO_VARIANT_RET(T) {
         static_assert(std::is_same<Ret_<V, Args...>, typename Helper::template Ret_<V, Args...>>::value, "");
         return n == type_
             ? visitor.visit(*static_cast<T*>(data_), std::forward<Args>(args)...)
             : Helper::template accept<V>(std::forward<V>(visitor), std::forward<Args>(args)...);
     }
     template <class V, class... Args>
-    Ret_<V, Args...> accept_(V &&visitor, Args &&... args) {
+    auto accept_(V &&visitor, Args &&... args) -> GRINGO_VARIANT_RET(T) {
         assert(n == type_);
         return visitor.visit(*static_cast<T*>(data_), std::forward<Args>(args)...);
     }
     template <class V, class... Args>
-    Ret_<V, Args...> accept(V &&visitor, Args &&... args) {
+    auto accept(V &&visitor, Args &&... args) -> GRINGO_VARIANT_RET(T) {
         return accept_<V, U...>(std::forward<V>(visitor), std::forward<Args>(args)...);
     }
     // const
     template <class V, class U1, class... U2, class... Args>
-    ConstRet_<V, Args...> accept_(V &&visitor, Args &&... args) const {
+    auto accept_(V &&visitor, Args &&... args) const -> GRINGO_VARIANT_RET(T const) {
         static_assert(std::is_same<ConstRet_<V, Args...>, typename Helper::template ConstRet_<V, Args...>>::value, "");
         return n == type_
             ? visitor.visit(*static_cast<T const *>(data_), std::forward<Args>(args)...)
             : Helper::template accept<V>(std::forward<V>(visitor), std::forward<Args>(args)...);
     }
     template <class V, class... Args>
-    ConstRet_<V, Args...> accept_(V &&visitor, Args &&... args) const {
+    auto accept_(V &&visitor, Args &&... args) const -> GRINGO_VARIANT_RET(T const) {
         assert(n == type_);
         return visitor.visit(*static_cast<T const *>(data_), std::forward<Args>(args)...);
     }
     template <class V, class... Args>
-    ConstRet_<V, Args...> accept(V &&visitor, Args &&... args) const {
+    auto accept(V &&visitor, Args &&... args) const -> GRINGO_VARIANT_RET(T const) {
         return accept_<V, U...>(std::forward<V>(visitor), std::forward<Args>(args)...);
     }
+#   undef GRINGO_VARIANT_RET
     void destroy() {
         if (n == type_) { delete static_cast<T*>(data_); }
         Helper::destroy();
