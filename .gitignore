@@ -6,5 +6,6 @@ build
 doc
 *.opendb
 Debug
+Release
 .vs
 *.db
