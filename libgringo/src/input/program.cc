@@ -214,6 +214,10 @@ Ground::Program Program::toGround(DomainData &domains, Logger &log) {
     ToGroundArg arg(auxNames_, domains);
     Ground::SEdbVec edb;
     for (auto &block : blocks_) {
+        for (auto &x : block.edb->second) {
+            auto sig = x.sig();
+            if (sig.sign()) { gn(sig); }
+        }
         edb.emplace_back(block.edb);
         for (auto &x : block.stms) {
             x->getNeg(gn);

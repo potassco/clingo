@@ -25,6 +25,20 @@
 namespace Gringo { namespace Output { namespace Test {
 
 TEST_CASE("output-lparse", "[output]") {
+    SECTION("bug-classical-negation") {
+        REQUIRE(
+            "([],[])" ==
+            IO::to_string(solve(
+                "p. -p."
+            ))
+        );
+        REQUIRE(
+            "([[-p]],[])" ==
+            IO::to_string(solve(
+                "-p."
+            ))
+        );
+    }
     SECTION("unpool") {
         REQUIRE(
             "([[a(1),a(2),a(4)]],[])" ==
