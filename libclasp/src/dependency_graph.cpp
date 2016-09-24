@@ -264,7 +264,7 @@ uint32 PrgDepGraph::addHeads(const LogicProgram& prg, PrgBody* b, VarVec& heads)
 			heads.push_back(sentinel_atom);
 		}
 	}
-	return heads.size();
+	return sizeVec(heads);
 }
 
 // Adds the atoms from the given disjunction to atoms and returns the disjunction's scc.
@@ -284,7 +284,7 @@ uint32 PrgDepGraph::getAtoms(const LogicProgram& prg, PrgDisj* d, VarVec& atoms)
 // Initializes preds and succs lists of the body node with the given id.
 void PrgDepGraph::initBody(uint32 id, const VarVec& preds, const VarVec& atHeads) {
 	BodyNode* bn = &bodies_[id];
-	uint32 nSuccs= atHeads.size();
+	uint32 nSuccs= sizeVec(atHeads);
 	bn->adj_     = new NodeId[nSuccs + preds.size()];
 	bn->sep_     = bn->adj_ + nSuccs;
 	NodeId* sSame= bn->adj_;
@@ -735,7 +735,7 @@ void PrgDepGraph::NonHcfStats::accept(StatsVisitor& out, bool final) const {
 	if (data_->components && out.visitHccs(StatsVisitor::Enter)) {
 		const Data::SolverVec& solver = final ? data_->components->accu : data_->components->solvers;
 		const Data::ProblemVec&   hcc = data_->components->problem;
-		for (uint32 i = 0, end = hcc.size(); i != end; ++i) {
+		for (uint32 i = 0, end = sizeVec(hcc); i != end; ++i) {
 			out.visitHcc(i, *hcc[i], *solver[i]);
 		}
 		out.visitHccs(StatsVisitor::Leave);
@@ -860,7 +860,7 @@ uint64 ExtDepGraph::attach(Solver& s, Constraint& p, uint64 genId) {
 }
 void ExtDepGraph::detach(Solver* s, Constraint& p) {
 	if (s) {
-		for (uint32 i = fwdArcs_.size(); i--; ) {
+		for (ArcVec::size_type i = fwdArcs_.size(); i--; ) {
 			s->removeWatch(fwdArcs_[i].lit, &p);
 		}
 	}

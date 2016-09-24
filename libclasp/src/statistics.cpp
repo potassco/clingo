@@ -112,7 +112,7 @@ struct ClaspStatistics::Impl {
 	}
 	void update(const StatisticObject& root) {
 		++gc_;
-		rem_ += (map_.size() - visit(root));
+		rem_ += (sizeVec(map_) - visit(root));
 		if (rem_ > (map_.size() >> 1)) {
 			for (RegMap::iterator it = map_.begin(), end = map_.end(); it != end;) {
 				if (it->second == gc_) { ++it; }
@@ -160,10 +160,10 @@ size_t ClaspStatistics::size(Key_t key) const {
 	return getObject(key).size();
 }
 ClaspStatistics::Key_t ClaspStatistics::at(Key_t arrK, size_t index) const {
-	return impl_->add(getObject(arrK)[index]);
+	return impl_->add(getObject(arrK)[toU32(index)]);
 }
 const char* ClaspStatistics::key(Key_t mapK, size_t i) const {
-	return getObject(mapK).key(i);
+	return getObject(mapK).key(toU32(i));
 }
 ClaspStatistics::Key_t ClaspStatistics::get(Key_t key, const char* path) const {
 	return impl_->add(!std::strchr(path, '.')

@@ -24,7 +24,7 @@
 #include <fstream>
 #include <iostream>
 #include <cctype>
-
+#include <cstdlib>
 using namespace ProgramOptions;
 
 class LpConvert : public ProgramOptions::Application {

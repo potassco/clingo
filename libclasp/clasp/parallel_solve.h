@@ -280,7 +280,6 @@ private:
 	void add(ClauseHead* h);
 	void clearDB(Solver* s);
 	bool integrate(Solver& s);
-	typedef LitVec::size_type size_type;
 	typedef PodVector<Constraint*>::type ClauseDB;
 	typedef SharedLiterals**             RecBuffer;
 	enum { RECEIVE_BUFFER_SIZE = 32 };
@@ -290,8 +289,8 @@ private:
 	Clasp::mt::thread  thread_;     // active thread or empty for master
 	RecBuffer          received_;   // received clauses not yet integrated
 	ClauseDB           integrated_; // my integrated clauses
-	size_type          recEnd_;     // where to put next received clause
-	size_type          intEnd_;     // where to put next clause
+	uint32             recEnd_;     // where to put next received clause
+	uint32             intEnd_;     // where to put next clause
 	uint32             error_:30;   // error code or 0 if ok
 	uint32             win_  : 1;   // 1 if thread was the first to terminate the search
 	uint32             up_   : 1;   // 1 if next propagate should check for new lemmas/models

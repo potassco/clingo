@@ -166,7 +166,7 @@ public:
 	 * \pre clause is a set (i.e. does not contain l more than once)
 	 * \return true if clause was added. False if adding the clause makes the problem UNSAT
 	 */
-	bool addClause(const LitVec& cl) { return addClause(!cl.empty() ? &cl[0] : 0, cl.size()); }
+	bool addClause(const LitVec& cl) { return addClause(!cl.empty() ? &cl[0] : 0, sizeVec(cl)); }
 	bool addClause(const Literal* clause, uint32 size);
 	//! Runs the preprocessor on all clauses that were previously added.
 	/*!
@@ -349,7 +349,7 @@ public:
 	uint32 numTernary()const { return tern_[0]; }
 	uint32 numLearnt() const { return bin_[1] + tern_[1]; }
 	uint32 numEdges(Literal p) const;
-	uint32 size() const      { return graph_.size(); }
+	uint32 size()      const { return sizeVec(graph_); }
 	//! Applies op on all unary- and binary implications following from p.
 	/*!
 	 * OP must provide two functions:

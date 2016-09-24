@@ -322,7 +322,7 @@ bool Solver::add(const ClauseRep& c, bool isNew) {
 	}
 	else {
 		Literal u = c.size ? c.lits[0] : lit_false();
-		uint32  ts= trail().size();
+		uint32  ts= sizeVec(trail());
 		force(u);
 		added     = int(ts != trail().size());
 	}
@@ -401,7 +401,7 @@ Literal Solver::popVars(uint32 num, bool popLearnt, ConstraintDB* popAux) {
 		popRootLevel((rootLevel() - dl) + 1);
 		if (dl == 0) { // top-level has aux vars - cleanup manually
 			uint32 j = shared_->numUnary(), units = assign_.units();
-			for (uint32 i = j, end = assign_.trail.size(); i != end; ++i) {
+			for (uint32 i = j, end = sizeVec(assign_.trail); i != end; ++i) {
 				if (assign_.trail[i] < pop) { assign_.trail[j++] = assign_.trail[i]; }
 				else {
 					units         -= (i < units);
@@ -947,7 +947,7 @@ bool ImpliedList::assign(Solver& s) {
 	}
 	lits.erase(j, lits.end());
 	level = DL * uint32(!lits.empty());
-	front = level > s.rootLevel() ? front  : lits.size();
+	front = level > s.rootLevel() ? front  : sizeVec(lits);
 	return ok;
 }
 bool Solver::isUndoLevel() const {
@@ -1003,7 +1003,7 @@ uint32 Solver::inDegree(WeightLitVec& out) {
 	assert(!hasConflict());
 	out.reserve((numAssignedVars()-levelStart(1))/10);
 	uint32 maxIn = 1;
-	uint32 i = assign_.trail.size(), stop = levelStart(1);
+	uint32 i = sizeVec(assign_.trail), stop = levelStart(1);
 	for (LitVec temp; i-- != stop; ) {
 		Literal x    = assign_.trail[i];
 		uint32  xLev = assign_.level(x.var());
@@ -1523,7 +1523,7 @@ uint32 Solver::finalizeConflictClause(LitVec& cc, ConstraintInfo& info, uint32 c
 		}
 		else {
 			// replace cc with all uip clause
-			uint32 marked = cc.size() - 1;
+			uint32 marked = sizeVec(cc) - 1;
 			while (cc.size() > 1) { markSeen(~cc.back()); cc.pop_back(); }
 			for (LitVec::const_iterator tr = assign_.trail.end(), next, stop; marked;) {
 				while (!seen(*--tr)) { ; }
@@ -1541,7 +1541,7 @@ uint32 Solver::finalizeConflictClause(LitVec& cc, ConstraintInfo& info, uint32 c
 					}
 				}
 			}
-			lbd = cc.size();
+			lbd = sizeVec(cc);
 		}
 	}
 	info.setScore(makeScore(ccInfo_.activity(), lbd));
@@ -1580,7 +1580,7 @@ bool Solver::decideNextBranch(double f) {
 	return assume(choice);
 }
 void Solver::resetLearntActivities() {
-	for (uint32 i = 0, end = learnts_.size(); i != end; ++i) {
+	for (ConstraintDB::size_type i = 0, end = learnts_.size(); i != end; ++i) {
 		learnts_[i]->resetActivity();
 	}
 }
@@ -1650,7 +1650,7 @@ Solver::DBInfo Solver::reduceSort(uint32 maxR, const CmpScore& sc) {
 	bool isGlue, isLocked;
 	for (LitVec::size_type i = 0; i != learnts_.size(); ++i) {
 		Constraint* c = learnts_[i];
-		CmpScore::ViewPair vp(i, c->activity());
+		CmpScore::ViewPair vp(toU32(i), c->activity());
 		res.pinned += (isGlue   = sc.isGlue(vp.second));
 		res.locked += (isLocked = c->locked(*this));
 		if (!isLocked && !isGlue && !sc.isFrozen(vp.second)) {
@@ -1752,7 +1752,7 @@ uint32 Solver::countLevels(const Literal* first, const Literal* last, uint32 max
 	if (maxLevel < 2) { return uint32(maxLevel && first != last); }
 	CLASP_FAIL_IF(ccMin_ && !ccMin_->todo.empty(), "Must not be called during minimization!");
 	uint32 n = 0;
-	for (uint32 epoch = incEpoch(levels_.size() + 1); first != last; ++first) {
+	for (uint32 epoch = incEpoch(sizeVec(levels_) + 1); first != last; ++first) {
 		assert(value(first->var()) != value_free);
 		uint32& levEpoch = epoch_[level(first->var())];
 		if (levEpoch != epoch) {

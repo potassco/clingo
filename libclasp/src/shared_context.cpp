@@ -959,7 +959,7 @@ int SharedContext::addImp(ImpGraph::ImpType t, const Literal* lits, ConstraintTy
 	return int(btig_.add(t, learnt, lits));
 }
 
-uint32 SharedContext::numConstraints() const { return numBinary() + numTernary() + master()->constraints_.size(); }
+uint32 SharedContext::numConstraints() const { return numBinary() + numTernary() + sizeVec(master()->constraints_); }
 
 bool SharedContext::endInit(bool attachAll) {
 	assert(!frozen());
@@ -972,7 +972,7 @@ bool SharedContext::endInit(bool attachAll) {
 	satPrepro.swap(temp);
 	master()->dbIdx_ = (uint32)master()->constraints_.size();
 	lastTopLevel_    = (uint32)master()->assign_.front;
-	stats_.constraints.other  = master()->constraints_.size();
+	stats_.constraints.other  = sizeVec(master()->constraints_);
 	stats_.constraints.binary = btig_.numBinary();
 	stats_.constraints.ternary= btig_.numTernary();
 	stats_.acycEdges          = extGraph.get() ? extGraph->edges() : 0;
@@ -1083,7 +1083,7 @@ void SharedContext::simplify(bool shuffle) {
 			db.erase(std::remove_if(db.begin(), db.end(), IsNull()), db.end());
 		}
 	}
-	master()->dbIdx_ = db.size();
+	master()->dbIdx_ = sizeVec(db);
 }
 void SharedContext::removeConstraint(uint32 idx, bool detach) {
 	Solver::ConstraintDB& db = master()->constraints_;
@@ -1094,7 +1094,7 @@ void SharedContext::removeConstraint(uint32 idx, bool detach) {
 		x.dbIdx_ -= (idx < x.dbIdx_);
 	}
 	db.erase(db.begin()+idx);
-	master()->dbIdx_ = db.size();
+	master()->dbIdx_ = sizeVec(db);
 	c->destroy(master(), detach);
 }
 

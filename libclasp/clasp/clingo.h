@@ -92,9 +92,9 @@ private:
 	LitVec     clause_;  // active clause to be added (received from theory propagator)
 	ClauseDB   db_;      // clauses added with flag static
 	size_t     init_;    // offset into watches separating old and newly added ones
-	size_t     level_;   // highest decision level in trail
 	size_t     prop_;    // offset into trail: literals [0, prop_) were propagated
 	size_t     epoch_;   // number of calls into callback
+	uint32     level_;   // highest decision level in trail
 };
 
 //! Initialization adaptor for a Potassco::AbstractPropagator.

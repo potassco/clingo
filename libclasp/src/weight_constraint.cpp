@@ -338,7 +338,7 @@ bool WeightConstraint::integrateRoot(Solver& s) {
 	}
 	// propagate assigned literals in assignment order
 	const LitVec& trail = s.trail();
-	const uint32  end   = trail.size() - s.queueSize();
+	const uint32  end   = sizeVec(trail) - s.queueSize();
 	GenericWatch* w     = 0;
 	for (uint32 i = s.levelStart(low); i != end && np; ++i) {
 		Literal p = trail[i];

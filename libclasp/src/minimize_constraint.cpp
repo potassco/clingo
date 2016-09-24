@@ -908,7 +908,7 @@ bool UncoreMinimize::initLevel(Solver& s) {
 UncoreMinimize::LitData& UncoreMinimize::addLit(Literal p, weight_t w) {
 	assert(w > 0);
 	litData_.push_back(LitData(w, true, 0));
-	assume_.push_back(LitPair(~p, litData_.size()));
+	assume_.push_back(LitPair(~p, sizeVec(litData_)));
 	if (nextW_ && w > nextW_) {
 		nextW_ = w;
 	}
@@ -927,7 +927,7 @@ bool UncoreMinimize::pushPath(Solver& s) {
 		ok       = ok && s.simplify() && s.propagate();
 		initRoot(s);
 		assert(s.queueSize() == 0);
-		for (uint32 i = 0, end = assume_.size(), dl; i != end; ++i) {
+		for (uint32 i = 0, end = sizeVec(assume_), dl; i != end; ++i) {
 			LitData& x = getData(assume_[i].id);
 			if (x.assume) {
 				assume_[j++] = assume_[i];
@@ -958,7 +958,7 @@ bool UncoreMinimize::pushPath(Solver& s) {
 					LitPair core(~lit, assume_[i].id);
 					dl   = s.decisionLevel();
 					ok   = addCore(s, &core, 1, x.weight);
-					end  = assume_.size();
+					end  = sizeVec(assume_);
 					path = path || (ok && s.decisionLevel() != dl);
 					--j;
 				}

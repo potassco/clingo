@@ -482,8 +482,8 @@ public:
 	BasicSatConfig();
 	void               prepare(SharedContext&);
 	const CtxOpts&     context()            const { return *this; }
-	uint32             numSolver()          const { return solver_.size(); }
-	uint32             numSearch()          const { return search_.size(); }
+	uint32             numSolver()          const { return sizeVec(solver_); }
+	uint32             numSearch()          const { return sizeVec(search_); }
 	const SolverOpts&  solver(uint32 i)     const { return solver_[i % solver_.size() ]; }
 	const SearchOpts&  search(uint32 i)     const { return search_[i % search_.size() ]; }
 	DecisionHeuristic* heuristic(uint32 i)  const;

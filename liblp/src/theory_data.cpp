@@ -53,7 +53,7 @@ FuncData* FuncData::newFunc(int32_t base, const IdSpan& args) {
 	std::size_t nb = nBytes<FuncData>(args);
 	FuncData* f = new (::operator new(nb)) FuncData;
 	f->base = base;
-	f->size = args.size;
+	f->size = static_cast<uint32_t>(Potassco::size(args));
 	std::memcpy(f->args, begin(args), f->size * sizeof(Id_t));
 	return f;
 }
@@ -110,7 +110,7 @@ uint32_t TheoryTerm::size()   const { return type() == Theory_t::Compound ? func
 TheoryTerm::iterator TheoryTerm::begin() const { return type() == Theory_t::Compound ? func()->args : 0; }
 TheoryTerm::iterator TheoryTerm::end()   const { return type() == Theory_t::Compound ? func()->args + func()->size : 0; }
 
-TheoryElement::TheoryElement(const IdSpan& terms, Id_t c) : nTerms_(terms.size), nCond_(c != 0) {
+TheoryElement::TheoryElement(const IdSpan& terms, Id_t c) : nTerms_(static_cast<uint32_t>(Potassco::size(terms))), nCond_(c != 0) {
 	std::memcpy(term_, Potassco::begin(terms), nTerms_ * sizeof(Id_t));
 	if (nCond_ != 0) { term_[nTerms_] = c; }
 }
@@ -136,7 +136,7 @@ TheoryAtom::TheoryAtom(Id_t a, Id_t term, const IdSpan& args, Id_t* op, Id_t* rh
 	: atom_(a)
 	, guard_(op != 0)
 	, termId_(term)
-	, nTerms_(args.size) {
+	, nTerms_(static_cast<uint32_t>(Potassco::size(args))) {
 	std::memcpy(term_, Potassco::begin(args), nTerms_ * sizeof(Id_t));
 	if (op) { 
 		term_[nTerms_] = *op; 

@@ -269,11 +269,11 @@ struct ClaspFacade::SolveData {
 		};
 		typedef PodVector<LevelRef*>::type ElemVec;
 		uint32 size() const {
-			return data && data->costs ? data->costs->size() : 0;
+			return data && data->costs ? sizeVec(*data->costs) : 0;
 		}
 		StatisticObject at(uint32 i) const {
 			CLASP_FAIL_IF(i >= size(), "invalid key");
-			while (i >= refs.size()) { refs.push_back(new LevelRef(this, refs.size())); }
+			while (i >= refs.size()) { refs.push_back(new LevelRef(this, sizeVec(refs))); }
 			return StatisticObject::value<LevelRef, &LevelRef::value>(refs[i]);
 		}
 		const Model*    data;
@@ -616,9 +616,9 @@ void ClaspFacade::Statistics::start(uint32 level) {
 		lp_->accu(*self_->step_.lpStep());
 	}
 	if (level > 1 && solver_.size() < self_->ctx.concurrency()) {
-		uint32 sz = solver_.size();
+		uint32 sz = sizeVec(solver_);
 		solver_.growTo(self_->ctx.concurrency());
-		for (const bool inc = incremental() && (accu_.growTo(solver_.size()), true); sz != solver_.size(); ++sz) {
+		for (const bool inc = incremental() && (accu_.growTo(sizeVec(solver_)), true); sz != sizeVec(solver_); ++sz) {
 			if (!inc) { solver_[sz] = &self_->ctx.solverStats(sz); }
 			else      { (solver_[sz] = new SolverStats())->multi = (accu_[sz] = new SolverStats()); }
 		}
@@ -628,7 +628,7 @@ void ClaspFacade::Statistics::start(uint32 level) {
 void ClaspFacade::Statistics::end() {
 	self_->ctx.accuStats(solvers_); // compute solvers = sum(solver[1], ... , solver[n])
 	solvers_.flush();
-	for (uint32 i = incremental() ? 0 : solver_.size(), end = solver_.size(); i != end && self_->ctx.hasSolver(i); ++i) {
+	for (uint32 i = incremental() ? 0 : sizeVec(solver_), end = sizeVec(solver_); i != end && self_->ctx.hasSolver(i); ++i) {
 		solver_[i]->accu(self_->ctx.solverStats(i), true);
 		solver_[i]->flush();
 	}
@@ -646,10 +646,11 @@ void ClaspFacade::Statistics::accept(StatsVisitor& out, bool final) const {
 		out.visitSolverStats(final ? *solvers_.multi : solvers_);
 		if (lp_.get()) { out.visitLogicProgramStats(*lp_); }
 		out.visitProblemStats(self_->ctx.stats());
-		uint32 nThreads = final ? accu_.size() : self_->ctx.concurrency();
 		const SolverVec& solver = final ? accu_ : solver_;
-		if (nThreads > 1 && solver.size() > 1 && out.visitThreads(StatsVisitor::Enter)) {
-			for (uint32 i = 0, end = std::min(solver.size(), nThreads); i != end; ++i) {
+		const uint32 nThreads = final ? (uint32)accu_.size() : self_->ctx.concurrency();
+		const uint32 nSolver  = (uint32)solver.size();
+		if (nThreads > 1 && nSolver > 1 && out.visitThreads(StatsVisitor::Enter)) {
+			for (uint32 i = 0, end = std::min(nSolver, nThreads); i != end; ++i) {
 				out.visitThread(i, *solver[i]);
 			}
 			out.visitThreads(StatsVisitor::Leave);

@@ -44,7 +44,10 @@ namespace Clasp {
 		}
 	};
 #endif
-
+inline uint32 toU32(uint32 x) { return x; }
+inline uint32 toU32(uint64 x) { assert(x <= static_cast<uint64>(UINT32_MAX)); return static_cast<uint32>(x); }
+template <class T>
+inline uint32 sizeVec(const T& c) { return toU32(c.size()); }
 template <class T>
 inline void releaseVec(T& t) {
 	T().swap(t);

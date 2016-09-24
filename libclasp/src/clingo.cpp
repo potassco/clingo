@@ -33,7 +33,7 @@ namespace Clasp { namespace {
 		OP op_;
 	};
 	struct Nop { void operator()() const {} };
-	struct Inc { Inc(uint32& e) : epoch_(&e) {} void operator()() const { ++*epoch_; } uint32* epoch_; };
+	struct Inc { Inc(LitVec::size_type& e) : epoch_(&e) {} void operator()() const { ++*epoch_; } LitVec::size_type* epoch_; };
 	typedef Scoped<Potassco::AbstractPropagator, ClingoPropagatorLock, &ClingoPropagatorLock::lock, &ClingoPropagatorLock::unlock, Inc> ScopedLock;
 	typedef Scoped<ClingoPropagator, ClingoPropagatorLock, &ClingoPropagatorLock::unlock, &ClingoPropagatorLock::lock, Nop> ScopedUnlock;
 }
@@ -83,7 +83,7 @@ bool ClingoPropagator::Control::propagate() {
 	ScopedUnlock unlocked(ctx_->lock_, ctx_);
 	if (s_->hasConflict())    { return false; }
 	if (s_->queueSize() == 0) { return true;  }
-	uint32 epoch = ctx_->epoch_;
+	ClingoPropagator::size_t epoch = ctx_->epoch_;
 	return (state_ & state_prop) != 0u && s_->propagateUntil(unlocked.obj_) && epoch == ctx_->epoch_;
 }
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -98,7 +98,7 @@ ClingoPropagator::ClingoPropagator(const LitVec& watches, Potassco::AbstractProp
 	: watches_(watches)
 	, call_(&cb)
 	, lock_(ctrl)
-	, init_(0), level_(0), prop_(0), epoch_(0) {
+	, init_(0), prop_(0), epoch_(0), level_(0) {
 }
 uint32 ClingoPropagator::priority() const { return static_cast<uint32>(priority_class_general); }
 
@@ -113,7 +113,7 @@ bool ClingoPropagator::init(Solver& s) {
 	for (size_t max = watches_.size(); init_ != max; ++init_) {
 		Literal p = watches_[init_];
 		if (s.value(p.var()) == value_free || s.level(p.var()) > s.rootLevel()) {
-			s.addWatch(p, this, init_);
+			s.addWatch(p, this, toU32(init_));
 		}
 		else if (s.isTrue(p)) {
 			ClingoPropagator::propagate(s, p, ignore);
@@ -182,7 +182,7 @@ bool ClingoPropagator::addClause(Solver& s, uint32 st) {
 	bool isStatic = Potassco::Clause_t::isStatic(static_cast<Potassco::Clause_t>(clause_.back().rep()));
 	clause_.pop_back();
 	if (!s.isFalse(clause_[0]) || isStatic || s.force(clause_[0], this)) {
-		ClauseCreator::Result res = ClauseCreator::create(s, ClauseRep::prepared(&clause_[0], clause_.size(), Constraint_t::Other), ccFlags_s[int(isStatic)]);
+		ClauseCreator::Result res = ClauseCreator::create(s, ClauseRep::prepared(&clause_[0], sizeVec(clause_), Constraint_t::Other), ccFlags_s[int(isStatic)]);
 		if (res.local && isStatic) { db_.push_back(res.local); }
 	}
 	clause_.clear();

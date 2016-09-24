@@ -395,8 +395,8 @@ struct num_iterator : std::iterator<std::random_access_iterator_tag, T> {
 	num_iterator& operator--(int)    { num_iterator t(*this); --*this; return t; }
 	num_iterator& operator+=(difference_type n) { val_ += n; return *this; }
 	num_iterator& operator-=(difference_type n) { val_ -= n; return *this; }
-	num_iterator  operator+(difference_type n) const { return num_iterator(val_ + n); }
-	num_iterator  operator-(difference_type n) const { return num_iterator(val_ - n); }
+	num_iterator  operator+(difference_type n) const { return num_iterator(static_cast<T>(val_ + n)); }
+	num_iterator  operator-(difference_type n) const { return num_iterator(static_cast<T>(val_ - n)); }
 	value_type    operator[](difference_type n)const { return val_ + n; }
 	friend num_iterator operator+(difference_type n, num_iterator it) { return num_iterator(it.val_ + n); }
 private:

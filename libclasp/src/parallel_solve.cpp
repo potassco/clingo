@@ -919,7 +919,7 @@ bool ParallelHandler::simplify(Solver& s, bool sh) {
 		}
 	}
 	shrinkVecTo(integrated_, j);
-	if (intEnd_ > integrated_.size()) intEnd_ = integrated_.size();
+	if (intEnd_ > sizeVec(integrated_)) intEnd_ = sizeVec(integrated_);
 	return false;
 }
 

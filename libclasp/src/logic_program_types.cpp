@@ -152,7 +152,7 @@ uint32 RuleTransform::Impl::transformChoice(const Potassco::AtomSpan& atoms) {
 // A disjunctive rule h1|...|hn :- BODY is replaced with:
 // hi   :- BODY, {not hj | 1 <= j != i <= n}.
 uint32 RuleTransform::Impl::transformDisjunction(const Potassco::AtomSpan& atoms) {
-	uint32 bIdx = lits_.size();
+	uint32 bIdx = sizeVec(lits_);
 	for (Potassco::AtomSpan::iterator it = Potassco::begin(atoms) + 1, end = Potassco::end(atoms); it != end; ++it) {
 		lits_.push_back(Potassco::neg(*it));
 	}
@@ -173,7 +173,7 @@ uint32 RuleTransform::Impl::transform(Atom_t head, weight_t bound, const Potassc
 	}
 	wsum_t sum = 0;
 	sumR_.resize(agg_.size());
-	for (uint32 i = agg_.size(); i--;) {
+	for (WLitVec::size_type i = agg_.size(); i--;) {
 		agg_[i].weight = std::min(agg_[i].weight, bound_);
 		sumR_[i] = (sum += agg_[i].weight);
 		CLASP_FAIL_IF(agg_[i].weight < 0 || sum > CLASP_WEIGHT_T_MAX, "invalid weight rule");
@@ -657,7 +657,7 @@ bool PrgAtom::addConstraints(const LogicProgram& prg, ClauseCreator& gc) {
 /////////////////////////////////////////////////////////////////////////////////////////
 PrgBody::PrgBody(uint32 id, LogicProgram& prg, const Potassco::LitSpan& lits, uint32 pos, bool addDeps)
 	: PrgNode(id, true) {
-	init(Body_t::Normal, Potassco::size(lits));
+	init(Body_t::Normal, toU32(Potassco::size(lits)));
 	Norm* c = new (data_)Norm();
 	unsupp_ = pos;
 	// store B+ followed by B-
@@ -673,7 +673,7 @@ PrgBody::PrgBody(uint32 id, LogicProgram& prg, const Potassco::LitSpan& lits, ui
 
 PrgBody::PrgBody(uint32 id, LogicProgram& prg, const Potassco::Sum_t& sum, bool hasWeights, uint32 pos, bool addDeps)
 	: PrgNode(id, true) {
-	init(hasWeights ? Body_t::Sum : Body_t::Count, Potassco::size(sum.lits));
+	init(hasWeights ? Body_t::Sum : Body_t::Count, toU32(Potassco::size(sum.lits)));
 	Agg* a = new (data_) Agg();
 	if (!hasWeights) {
 		a->bound = sum.bound;
@@ -703,12 +703,12 @@ PrgBody* PrgBody::create(LogicProgram& prg, uint32 id, const Rule& r, uint32 pos
 	static_assert(sizeof(PrgBody) == 24 && sizeof(Agg) == sizeof(void*), "unexpected alignment");
 	PrgBody* ret = 0;
 	if (r.normal()) {
-		uint32 bytes = sizeof(PrgBody) + (Potassco::size(r.cond) * sizeof(Literal));
+		size_t bytes = sizeof(PrgBody) + (Potassco::size(r.cond) * sizeof(Literal));
 		ret = new (::operator new(bytes)) PrgBody(id, prg, r.cond, pos, addDeps);
 	}
 	else {
 		const Potassco::Sum_t& sum = r.agg;
-		uint32 bytes = sizeof(PrgBody) + (Potassco::size(r.agg.lits) * sizeof(Literal)) + sizeof(Agg);
+		size_t bytes = sizeof(PrgBody) + (Potassco::size(r.agg.lits) * sizeof(Literal)) + sizeof(Agg);
 		ret = new (::operator new(bytes)) PrgBody(id, prg, sum, r.bt == Body_t::Sum, pos, addDeps);
 		CLASP_ASSERT_CONTRACT_MSG(ret->bound() > 0 && ret->sumW() > ret->bound(), "body not simplified");
 	}

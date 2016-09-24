@@ -57,7 +57,7 @@ public:
 			Rule_t rt = Rule_t::Basic;
 			std::vector<int> r(1, at(head, 0));
 			if (size(head) > 1 || ht == Head_t::Choice) {
-				r[0] = size(head);
+				r[0] = static_cast<int>(size(head));
 				r.insert(r.end(), begin(head), end(head));
 				rt = ht == Head_t::Choice ? Rule_t::Choice : Rule_t::Disjunctive;
 			}

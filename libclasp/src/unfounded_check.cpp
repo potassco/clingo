@@ -478,7 +478,7 @@ bool DefaultUnfoundedCheck::findSource(NodeId headId) {
 	if (newSource != 0) {
 		// some atoms in unfounded_ have a new source
 		// clear queue and check possible candidates for atoms that are still unfounded
-		uint32 visited = ufs_.vec.size();
+		uint32 visited = sizeVec(ufs_.vec);
 		ufs_.clear();
 		if (visited != newSource) {
 			// add elements that are still unfounded
@@ -740,7 +740,7 @@ DefaultUnfoundedCheck::UfsType DefaultUnfoundedCheck::findNonHcfUfs(Solver& s) {
 			}
 			invalidQ_.clear();
 			loopAtoms_.clear();
-			mini_->scc = hIt - graph_->nonHcfBegin();
+			mini_->scc = static_cast<uint32>(hIt - graph_->nonHcfBegin());
 			return ufs_non_poly;
 		}
 		if (++hIt == hEnd) { hIt = graph_->nonHcfBegin(); }

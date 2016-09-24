@@ -911,7 +911,7 @@ bool LogicProgram::handleNatively(const Rule& r) const {
 }
 
 bool LogicProgram::transformNoAux(const Rule& r) const {
-	return r.ht == Head_t::Disjunctive && r.sum() && (r.agg.bound == 1 || (r.agg.lits.size <= 6 && choose(r.agg.lits.size, r.agg.bound) <= 15));
+	return r.ht == Head_t::Disjunctive && r.sum() && (r.agg.bound == 1 || (Potassco::size(r.agg.lits) <= 6 && choose(toU32(Potassco::size(r.agg.lits)), r.agg.bound) <= 15));
 }
 
 void LogicProgram::transformExtended() {
@@ -1173,7 +1173,7 @@ void LogicProgram::finalizeDisjunctions(Preprocessor& p, uint32 numSccs) {
 	RuleTransform shifter(tr);
 	Potassco::LitVec rb;
 	VarVec rh;
-	for (uint32 id = 0, maxId = disj.size(); id != maxId; ++id) {
+	for (uint32 id = 0, maxId = sizeVec(disj); id != maxId; ++id) {
 		PrgDisj* d = disj[id];
 		Literal dx = d->inUpper() ? d->literal() : bot;
 		d->resetId(id, true); // id changed during scc checking
@@ -1316,7 +1316,7 @@ void LogicProgram::prepareComponents() {
 				}
 			}
 		}
-		incTrAux(tr.atoms.size());
+		incTrAux(sizeVec(tr.atoms));
 		while (!tr.atoms.empty()) {
 			PrgAtom* ax = getAtom(tr.atoms.back());
 			tr.atoms.pop_back();
@@ -1957,7 +1957,7 @@ VarVec& LogicProgram::getSupportedBodies(bool sorted) {
 
 Atom_t LogicProgram::falseAtom() {
 	Atom_t aFalse = 0;
-	for (VarVec::size_type i = 1; i < atoms_.size() && !aFalse; ++i) {
+	for (Var i = 1; i < atoms_.size() && !aFalse; ++i) {
 		if (atoms_[i]->value() == value_false || atomState_.isSet(i, AtomState::false_flag)) {
 			aFalse = i;
 		}
