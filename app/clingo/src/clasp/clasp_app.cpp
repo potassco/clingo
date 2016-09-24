@@ -59,8 +59,10 @@ namespace Clasp {
 /////////////////////////////////////////////////////////////////////////////////////////
 unsigned doubleMode_g = ((unsigned)(sizeof(void*)*CHAR_BIT)) < 64;
 double shutdownTime_g;
-inline bool isStdIn(const std::string& in)  { return in == "-" || in == "stdin"; }
-inline bool isStdOut(const std::string& out){ return out == "-" || out == "stdout"; }
+static const std::string stdinStr  = "stdin";
+static const std::string stdoutStr = "stdout";
+inline bool isStdIn(const std::string& in)   { return in == "-" || in == stdinStr; }
+inline bool isStdOut(const std::string& out) { return out == "-" || out == stdoutStr; }
 /////////////////////////////////////////////////////////////////////////////////////////
 // ClaspAppOptions
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -218,7 +220,10 @@ void ClaspAppBase::shutdown() {
 }
 
 void ClaspAppBase::run() {
-	if (out_.get()) { out_->run(getName(), getVersion(), &claspAppOpts_.input[0], &claspAppOpts_.input[0] + claspAppOpts_.input.size()); }
+	if (out_.get()) {
+		Potassco::Span<std::string> in = !claspAppOpts_.input.empty() ? Potassco::toSpan(claspAppOpts_.input) : Potassco::toSpan(&stdinStr, 1);
+		out_->run(getName(), getVersion(), Potassco::begin(in), Potassco::end(in));
+	}
 	try        { run(*clasp_); }
 	catch(...) {
 		try { blockSignals(); setExitCode(E_ERROR); throw; }
@@ -384,19 +389,20 @@ void ClaspAppBase::writeNonHcfs(const PrgDepGraph& graph) const {
 		cnf.close();
 	}
 }
-std::istream& ClaspAppBase::getStream() {
-	ProgramOptions::StringSeq& input = claspAppOpts_.input;
-	if (input.empty() || isStdIn(input[0])) {
-		input.resize(1, "stdin");
-		return std::cin;
+std::istream& ClaspAppBase::getStream(bool reopen) const {
+	static std::ifstream file;
+	static bool isOpen = false;
+	if (!isOpen || reopen) {
+		file.close();
+		isOpen = true;
+		if (!claspAppOpts_.input.empty() && !isStdIn(claspAppOpts_.input[0])) {
+			file.open(claspAppOpts_.input[0].c_str());
+			if (!file.is_open()) {
+				throw std::runtime_error(ClaspStringBuffer().appendFormat("Can not read from '%s'", claspAppOpts_.input[0].c_str()).c_str());
+			}
+		}
 	}
-	else {
-		static std::ifstream file;
-		if (file.is_open()) return file;
-		file.open(input[0].c_str());
-		if (!file) { throw std::runtime_error("Can not read from '"+input[0]+"'");  }
-		return file;
-	}
+	return file.is_open() ? file : std::cin;
 }
 
 // Creates output object suitable for given input format

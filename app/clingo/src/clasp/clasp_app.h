@@ -167,7 +167,7 @@ protected:
 	void printTemplate()                    const;
 	void printDefaultConfigs()              const;
 	void printLibClaspVersion()             const;
-	std::istream& getStream();
+	std::istream& getStream(bool reopen = false) const;
 	// -------------------------------------------------------------------------------------------  
 	// Functions called in handlePreSolveOptions()
 	void writeNonHcfs(const PrgDepGraph& graph) const;
