@@ -65,7 +65,7 @@
 #define PY_CATCH(ret) \
 } \
 catch (std::bad_alloc const &e) { PyErr_SetString(PyExc_MemoryError, e.what()); } \
-catch (PyException const &e)    { } \
+catch (PyException const &)     { } \
 catch (std::exception const &e) { PyErr_SetString(PyExc_RuntimeError, e.what()); } \
 catch (...)                     { PyErr_SetString(PyExc_RuntimeError, "unknown error"); } \
 return (ret)
@@ -590,7 +590,7 @@ Object pyExec(char const *str, char const *filename, PyObject *globals, PyObject
 
 #define PY_HANDLE(func, msg) \
 } \
-catch (PyException const &e) { handleError(func, msg); throw std::logic_error("cannot happen"); }
+catch (PyException const &) { handleError(func, msg); throw std::logic_error("cannot happen"); }
 
 template <class T>
 Object doCmp(T const &a, T const &b, int op) {
@@ -637,7 +637,7 @@ void handleError(char const *loc, char const *msg) {
     handleError(l, msg);
 }
 
-namespace Detail {
+namespace PythonDetail {
 
 // object protocol
 
@@ -1014,7 +1014,7 @@ PySequenceMethods GetAsSequnce<B, typename std::enable_if<GetSQInplaceRepeat<B>:
     GetSQInplaceRepeat<B>::value,
 }};
 
-} // namespace Detail
+} // namespace PythonDetail
 
 template <class T>
 struct ObjectBase : ObjectProtocoll<T> {
@@ -1096,29 +1096,29 @@ PyTypeObject ObjectBase<T>::type = {
     T::tp_name,                                       // tp_name
     sizeof(T),                                        // tp_basicsize
     0,                                                // tp_itemsize
-    Detail::GetDestructor<T>::value,                  // tp_dealloc
+    PythonDetail::GetDestructor<T>::value,            // tp_dealloc
     nullptr,                                          // tp_print
     nullptr,                                          // tp_getattr
     nullptr,                                          // tp_setattr
     nullptr,                                          // tp_compare
-    Detail::GetRepr<T>::value,                        // tp_repr
+    PythonDetail::GetRepr<T>::value,                  // tp_repr
     nullptr,                                          // tp_as_number
-    Detail::GetAsSequnce<T>::value,                   // tp_as_sequence
-    Detail::GetAsMapping<T>::value,                   // tp_as_mapping
-    Detail::GetHash<T>::value,                        // tp_hash
+    PythonDetail::GetAsSequnce<T>::value,             // tp_as_sequence
+    PythonDetail::GetAsMapping<T>::value,             // tp_as_mapping
+    PythonDetail::GetHash<T>::value,                  // tp_hash
     nullptr,                                          // tp_call
-    Detail::GetStr<T>::value,                         // tp_str
-    Detail::GetGetAttrO<T>::value,                    // tp_getattro
-    Detail::GetSetAttrO<T>::value,                    // tp_setattro
+    PythonDetail::GetStr<T>::value,                   // tp_str
+    PythonDetail::GetGetAttrO<T>::value,              // tp_getattro
+    PythonDetail::GetSetAttrO<T>::value,              // tp_setattro
     nullptr,                                          // tp_as_buffer
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,         // tp_flags
     T::tp_doc,                                        // tp_doc
     nullptr,                                          // tp_traverse
     nullptr,                                          // tp_clear
-    Detail::GetRichCompare<T>::value,                 // tp_richcompare
+    PythonDetail::GetRichCompare<T>::value,           // tp_richcompare
     0,                                                // tp_weaklistoffset
-    Detail::GetIter<T>::value,                        // tp_iter
-    Detail::GetIterNext<T>::value,                    // tp_iternext
+    PythonDetail::GetIter<T>::value,                  // tp_iter
+    PythonDetail::GetIterNext<T>::value,              // tp_iternext
     T::tp_methods,                                    // tp_methods
     nullptr,                                          // tp_members
     T::tp_getset,                                     // tp_getset
@@ -1219,7 +1219,7 @@ TheoryTermType.List     -- a list theory term
 TheoryTermType.Tuple    -- a tuple theory term
 TheoryTermType.Set      -- a set theory term)";
 
-    static constexpr Gringo::TheoryData::TermType values[] = {
+    static constexpr Gringo::TheoryData::TermType const values[] = {
         Gringo::TheoryData::TermType::Function,
         Gringo::TheoryData::TermType::Number,
         Gringo::TheoryData::TermType::Symbol,
@@ -1227,7 +1227,7 @@ TheoryTermType.Set      -- a set theory term)";
         Gringo::TheoryData::TermType::Tuple,
         Gringo::TheoryData::TermType::Set
     };
-    static constexpr const char * strings[] = {
+    static constexpr const char * const strings[] = {
         "Function",
         "Number",
         "Symbol",
@@ -1237,8 +1237,8 @@ TheoryTermType.Set      -- a set theory term)";
     };
 };
 
-constexpr TheoryData::TermType TheoryTermType::values[];
-constexpr const char * TheoryTermType::strings[];
+constexpr Gringo::TheoryData::TermType const TheoryTermType::values[];
+constexpr const char * const TheoryTermType::strings[];
 
 struct TheoryTerm : ObjectBase<TheoryTerm> {
     Gringo::TheoryData const *data;
@@ -1512,12 +1512,12 @@ SymbolType.Function -- a numeric symbol - e.g., c, (1, "a"), or f(1,"a")
 SymbolType.Infimum  -- the #inf symbol
 SymbolType.Supremum -- the #sup symbol)";
 
-    static constexpr Type values[] =          {  Number,   String,   Function,   Inf,       Sup };
-    static constexpr const char * strings[] = { "Number", "String", "Function", "Infimum", "Supremum" };
+    static constexpr Type const values[] =          {  Number,   String,   Function,   Inf,       Sup };
+    static constexpr const char * const strings[] = { "Number", "String", "Function", "Infimum", "Supremum" };
 };
 
-constexpr SymbolType::Type SymbolType::values[];
-constexpr const char * SymbolType::strings[];
+constexpr SymbolType::Type const SymbolType::values[];
+constexpr const char * const SymbolType::strings[];
 
 struct Symbol : ObjectBase<Symbol> {
     Gringo::Symbol val;
@@ -1695,7 +1695,7 @@ preconstructed symbols Infimum and Supremum.)";
     }
 
     long tp_hash() {
-        return val.hash();
+        return static_cast<long>(val.hash());
     }
 
     Object tp_richcompare(Symbol &b, int op) {
@@ -3006,14 +3006,14 @@ AggregateFunction.SumPlus -- the #sum+ function
 AggregateFunction.Min     -- the #min function
 AggregateFunction.Max     -- the #max function)";
 
-    static constexpr clingo_ast_aggregate_function_t values[] = {
+    static constexpr clingo_ast_aggregate_function_t const values[] = {
         clingo_ast_aggregate_function_count,
         clingo_ast_aggregate_function_sum,
         clingo_ast_aggregate_function_sump,
         clingo_ast_aggregate_function_min,
         clingo_ast_aggregate_function_max
     };
-    static constexpr const char * strings[] = {
+    static constexpr const char * const strings[] = {
         "Count",
         "Sum",
         "SumPlus",
@@ -3032,8 +3032,8 @@ AggregateFunction.Max     -- the #max function)";
     }
 };
 
-constexpr clingo_ast_aggregate_function_t AggregateFunction::values[];
-constexpr const char * AggregateFunction::strings[];
+constexpr clingo_ast_aggregate_function_t const AggregateFunction::values[];
+constexpr const char * const AggregateFunction::strings[];
 
 struct ComparisonOperator : EnumType<ComparisonOperator> {
     static constexpr char const *tp_type = "ComparisonOperator";
@@ -3048,7 +3048,7 @@ ComparisonOperator.GreaterEqual -- the >= operator
 ComparisonOperator.NotEqual     -- the != operator
 ComparisonOperator.Equal        -- the = operator)";
 
-    static constexpr clingo_ast_comparison_operator_t values[] = {
+    static constexpr clingo_ast_comparison_operator_t const values[] = {
         clingo_ast_comparison_operator_greater_than,
         clingo_ast_comparison_operator_less_than,
         clingo_ast_comparison_operator_less_equal,
@@ -3056,7 +3056,7 @@ ComparisonOperator.Equal        -- the = operator)";
         clingo_ast_comparison_operator_not_equal,
         clingo_ast_comparison_operator_equal
     };
-    static constexpr const char * strings[] = {
+    static constexpr const char * const strings[] = {
         "GreaterThan",
         "LessThan",
         "LessEqual",
@@ -3077,8 +3077,8 @@ ComparisonOperator.Equal        -- the = operator)";
     }
 };
 
-constexpr clingo_ast_comparison_operator_t ComparisonOperator::values[];
-constexpr const char * ComparisonOperator::strings[];
+constexpr clingo_ast_comparison_operator_t const ComparisonOperator::values[];
+constexpr const char * const ComparisonOperator::strings[];
 
 struct ASTType : EnumType<ASTType> {
     enum T {
@@ -3097,7 +3097,7 @@ struct ASTType : EnumType<ASTType> {
     static constexpr char const *tp_doc =
 R"(Enumeration of ast node types.)";
 
-    static constexpr T values[] = {
+    static constexpr T const values[] = {
         Id,
         Variable, Symbol, UnaryOperation, BinaryOperation, Interval, Function, Pool,
         CSPProduct, CSPSum, CSPGuard,
@@ -3108,7 +3108,7 @@ R"(Enumeration of ast node types.)";
         TheoryOperatorDefinition, TheoryTermDefinition, TheoryGuardDefinition, TheoryAtomDefinition, TheoryDefinition,
         Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, ProjectAtom, ProjectSignature,
     };
-    static constexpr const char * strings[] = {
+    static constexpr const char * const strings[] = {
         "Id",
         "Variable", "Symbol", "UnaryOperation", "BinaryOperation", "Interval", "Function", "Pool",
         "CSPProduct", "CSPSum", "CSPGuard",
@@ -3121,8 +3121,8 @@ R"(Enumeration of ast node types.)";
     };
 };
 
-constexpr ASTType::T ASTType::values[];
-constexpr const char * ASTType::strings[];
+constexpr ASTType::T const ASTType::values[];
+constexpr const char * const ASTType::strings[];
 
 struct Sign : EnumType<Sign> {
     static constexpr char const *tp_type = "Sign";
@@ -3134,12 +3134,12 @@ Sign.None           --
 Sign.Negation       -- not
 Sign.DoubleNegation -- not not)";
 
-    static constexpr clingo_ast_sign_t values[] = {
+    static constexpr clingo_ast_sign_t const values[] = {
         clingo_ast_sign_none,
         clingo_ast_sign_negation,
         clingo_ast_sign_double_negation
     };
-    static constexpr const char * strings[] = {
+    static constexpr const char * const strings[] = {
         "None",
         "Negation",
         "DoubleNegation"
@@ -3154,8 +3154,8 @@ Sign.DoubleNegation -- not not)";
     }
 };
 
-constexpr clingo_ast_sign_t Sign::values[];
-constexpr const char * Sign::strings[];
+constexpr clingo_ast_sign_t const Sign::values[];
+constexpr const char * const Sign::strings[];
 
 struct UnaryOperator : EnumType<UnaryOperator> {
     static PyMethodDef tp_methods[];
@@ -3170,12 +3170,12 @@ UnaryOperator.Minus    -- unary minus and classical negation
 UnaryOperator.Absolute -- absolute value
 )";
 
-    static constexpr clingo_ast_unary_operator_t values[] = {
+    static constexpr clingo_ast_unary_operator_t const values[] = {
         clingo_ast_unary_operator_absolute,
         clingo_ast_unary_operator_minus,
         clingo_ast_unary_operator_negation,
     };
-    static constexpr const char * strings[] = {
+    static constexpr const char * const strings[] = {
         "Absolute",
         "Minus",
         "Negation",
@@ -3207,8 +3207,8 @@ Right-hand side representation of the operator.)"},
     { nullptr, nullptr, 0, nullptr }
 };
 
-constexpr clingo_ast_unary_operator_t UnaryOperator::values[];
-constexpr const char * UnaryOperator::strings[];
+constexpr clingo_ast_unary_operator_t const UnaryOperator::values[];
+constexpr const char * const UnaryOperator::strings[];
 
 struct BinaryOperator : EnumType<BinaryOperator> {
     static constexpr char const *tp_type = "BinaryOperator";
@@ -3225,7 +3225,7 @@ BinaryOperator.Multiplication -- arithmetic multipilcation
 BinaryOperator.Division       -- arithmetic division
 BinaryOperator.Modulo         -- arithmetic modulo
 )";
-    static constexpr clingo_ast_binary_operator_t values[] = {
+    static constexpr clingo_ast_binary_operator_t const values[] = {
         clingo_ast_binary_operator_xor,
         clingo_ast_binary_operator_or,
         clingo_ast_binary_operator_and,
@@ -3235,7 +3235,7 @@ BinaryOperator.Modulo         -- arithmetic modulo
         clingo_ast_binary_operator_division,
         clingo_ast_binary_operator_modulo,
     };
-    static constexpr const char * strings[] = {
+    static constexpr const char * const strings[] = {
         "XOr",
         "Or",
         "And",
@@ -3260,8 +3260,8 @@ BinaryOperator.Modulo         -- arithmetic modulo
     }
 };
 
-constexpr clingo_ast_binary_operator_t BinaryOperator::values[];
-constexpr const char * BinaryOperator::strings[];
+constexpr clingo_ast_binary_operator_t const BinaryOperator::values[];
+constexpr const char * const BinaryOperator::strings[];
 
 struct TheorySequenceType : EnumType<TheorySequenceType> {
     enum T { Set, Tuple, List };
@@ -3277,12 +3277,12 @@ TheorySequenceType.List  -- sequence enclosed in brackets
 TheorySequenceType.Set   -- sequence enclosed in braces
 )";
 
-    static constexpr T values[] = {
+    static constexpr T const values[] = {
         Set,
         Tuple,
         List,
     };
-    static constexpr const char * strings[] = {
+    static constexpr const char * const strings[] = {
         "Set",
         "Tuple",
         "List",
@@ -3317,8 +3317,8 @@ Right-hand side representation of the sequence.)"},
     { nullptr, nullptr, 0, nullptr }
 };
 
-constexpr TheorySequenceType::T TheorySequenceType::values[];
-constexpr const char * TheorySequenceType::strings[];
+constexpr TheorySequenceType::T const TheorySequenceType::values[];
+constexpr const char * const TheorySequenceType::strings[];
 
 struct TheoryOperatorType : EnumType<TheoryOperatorType> {
     static constexpr char const *tp_type = "TheoryOperatorType";
@@ -3330,12 +3330,12 @@ TheoryOperatorType.Unary       -- unary operator
 TheoryOperatorType.BinaryLeft  -- binary left associative operator
 TheoryOperatorType.BinaryRight -- binary right associative operator)";
 
-    static constexpr clingo_ast_theory_operator_type_t values[] = {
+    static constexpr clingo_ast_theory_operator_type_t const values[] = {
         clingo_ast_theory_operator_type_unary,
         clingo_ast_theory_operator_type_binary_left,
         clingo_ast_theory_operator_type_binary_right
     };
-    static constexpr const char * strings[] = {
+    static constexpr const char * const strings[] = {
         "Unary",
         "BinaryLeft",
         "BinaryRight"
@@ -3350,8 +3350,8 @@ TheoryOperatorType.BinaryRight -- binary right associative operator)";
     }
 };
 
-constexpr clingo_ast_theory_operator_type_t TheoryOperatorType::values[];
-constexpr const char * TheoryOperatorType::strings[];
+constexpr clingo_ast_theory_operator_type_t const TheoryOperatorType::values[];
+constexpr const char * const TheoryOperatorType::strings[];
 
 struct TheoryAtomType : EnumType<TheoryAtomType> {
     static constexpr char const *tp_type = "TheoryAtomType";
@@ -3365,13 +3365,13 @@ TheoryAtomType.Head      -- atom can only occur in rule heads
 TheoryAtomType.Directive -- atom can only occrur in facts
 )";
 
-    static constexpr clingo_ast_theory_atom_definition_type_t values[] = {
+    static constexpr clingo_ast_theory_atom_definition_type_t const values[] = {
         clingo_ast_theory_atom_definition_type_any,
         clingo_ast_theory_atom_definition_type_body,
         clingo_ast_theory_atom_definition_type_head,
         clingo_ast_theory_atom_definition_type_directive
     };
-    static constexpr const char * strings[] = {
+    static constexpr const char * const strings[] = {
         "Any",
         "Body",
         "Head",
@@ -3388,8 +3388,8 @@ TheoryAtomType.Directive -- atom can only occrur in facts
     }
 };
 
-constexpr clingo_ast_theory_atom_definition_type_t TheoryAtomType::values[];
-constexpr const char * TheoryAtomType::strings[];
+constexpr clingo_ast_theory_atom_definition_type_t const TheoryAtomType::values[];
+constexpr const char * const TheoryAtomType::strings[];
 
 struct ScriptType : EnumType<ScriptType> {
     enum T { Python, Lua };
@@ -3402,11 +3402,11 @@ ScriptType.Python -- python code
 ScriptType.Lua    -- lua code
 )";
 
-    static constexpr T values[] = {
+    static constexpr T const values[] = {
         Python,
         Lua
     };
-    static constexpr const char * strings[] = {
+    static constexpr const char * const strings[] = {
         "Python",
         "Lua",
     };
@@ -3419,8 +3419,8 @@ ScriptType.Lua    -- lua code
     }
 };
 
-constexpr ScriptType::T ScriptType::values[];
-constexpr const char * ScriptType::strings[];
+constexpr ScriptType::T const ScriptType::values[];
+constexpr const char * const ScriptType::strings[];
 
 // }}}3
 
@@ -6450,7 +6450,7 @@ bool Python::callable(String name) {
     try {
         return impl && impl->callable(name);
     }
-    catch (PyException const &e) {
+    catch (PyException const &) {
         PyErr_Clear();
         return false;
     }
