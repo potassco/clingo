@@ -72,7 +72,7 @@ public:
     double loadMax() const { return 0.8; }
 #endif
     double load() const { return static_cast<double>(size()) / reserved_; }
-    size_t size() const { return size_; }
+    SizeType size() const { return size_; }
     bool empty() const { return size_ == 0; }
     void clear() {
         std::fill(table_.get(), table_.get() + reserved(), Literals::open);
@@ -131,7 +131,7 @@ public:
     }
     ValueType &at(SizeType offset) { return table_[offset]; }
     ValueType const &at(SizeType offset) const { return table_[offset]; }
-    SizeType offset(ValueType &val) const { return &val - table_.get(); }
+    SizeType offset(ValueType &val) const { return static_cast<SizeType>(&val - table_.get()); }
     template <typename Hasher, typename EqualTo, typename... Args>
     bool erase(Hasher const &hasher, EqualTo const &equalTo, Args const&... val) {
         if (auto ret = find(hasher, equalTo, val...)) {
@@ -148,7 +148,7 @@ public:
 private:
     SizeType grow_(SizeType n, SizeType r) {
         if (n > maxSize()) { throw std::overflow_error("container size exceeded"); }
-        if (n > 11) { n = std::min<SizeType>(std::max(n / loadMax() + 1.0, r * 2.0), maxSize()); }
+        if (n > 11) { n = std::min(static_cast<SizeType>(std::max(n / loadMax() + 1.0, r * 2.0)), maxSize()); }
         return n < 4 ? n : nextPrime(n);
     }
 #ifdef GRINGO_PROBE_LINEAR
@@ -301,7 +301,7 @@ public:
 
     template <typename T, typename... A>
     std::pair<Iterator,bool> findPush(T const &key, A&&... args) {
-        SizeType offset = vec_.size();
+        SizeType offset = static_cast<SizeType>(vec_.size());
         auto res = set_.insert(
             [this, offset, &key](SizeType a) { return a != offset ? Hash::operator()(vec_[a]) : Hash::operator()(key); },
             [this, offset, &key](SizeType a, SizeType b) { return b != offset ? a == b : EqualTo::operator()(vec_[a], key); },
@@ -312,7 +312,7 @@ public:
         return {vec_.begin() + res.first, res.second};
     }
     std::pair<Iterator,bool> push(Value &&val) {
-        SizeType offset = vec_.size();
+        SizeType offset = static_cast<SizeType>(vec_.size());
         auto res = set_.insert(
             [this, offset, &val](SizeType a) { return a != offset ? Hash::operator()(vec_[a]) : Hash::operator()(val); },
             [this, offset, &val](SizeType a, SizeType b) { return b != offset ? a == b : EqualTo::operator()(vec_[a], val); },
@@ -323,7 +323,7 @@ public:
         return {vec_.begin() + res.first, res.second};
     }
     SizeType offset(ConstIterator it) const {
-        return it - begin();
+        return static_cast<SizeType>(it - begin());
     }
     template <typename... A>
     std::pair<Iterator,bool> push(A&&... args) {
@@ -331,7 +331,7 @@ public:
     }
     template <class U>
     Iterator find(U const &val) {
-        SizeType offset = vec_.size();
+        SizeType offset = static_cast<SizeType>(vec_.size());
         auto res = set_.find(
             [this, offset, &val](SizeType a) { return a != offset ? Hash::operator()(vec_[a]) : Hash::operator()(val); },
             [this, offset, &val](SizeType a, SizeType b) { return b != offset ? a == b : EqualTo::operator()(vec_[a], val); },
@@ -356,7 +356,7 @@ public:
     Value const &front() const { return vec_.front(); }
     void rebuild() {
         set_.clear();
-        for (SizeType i = 0, e = vec_.size(); i != e; ++i) {
+        for (SizeType i = 0, e = static_cast<SizeType>(vec_.size()); i != e; ++i) {
             set_.insert(
                 [this](SizeType a) { return Hash::operator()(vec_[a]); },
                 [](SizeType, SizeType) { return false; },
@@ -379,7 +379,7 @@ public:
     // Note that it is inserted again after the next call to rebuild, erase or sort.
     // It is best not to use this function!
     void hide(Iterator it) {
-        SizeType offset = it - begin();
+        SizeType offset = static_cast<SizeType>(it - begin());
         set_.erase(
             [this](SizeType a) { return Hash::operator()(vec_[a]); },
             [](SizeType a, SizeType b) { return a == b; },
@@ -394,7 +394,7 @@ public:
     Iterator end() { return vec_.end(); }
     ConstIterator begin() const { return vec_.begin(); }
     ConstIterator end() const { return vec_.end(); }
-    SizeType size() const { return vec_.size(); }
+    SizeType size() const { return static_cast<SizeType>(vec_.size()); }
     bool empty() const { return vec_.empty(); }
     void clear() {
         vec_.clear();
@@ -471,7 +471,7 @@ public:
     template <typename It>
     std::pair<SizeType, bool> push(It ib, SizeType size) {
         auto &d = data(size);
-        SizeType offset = size > 0 ? d.values.size() / size : 0;
+        SizeType offset = size > 0 ? static_cast<SizeType>(d.values.size()) / size : 0;
         auto ret = d.set.insert(
             [this, offset, &d, ib, size](SizeType a) {
                 auto it = d.values.begin() + size_t(a) * size;
@@ -492,7 +492,7 @@ public:
         return push(ib, std::distance(ie, ib));
     }
     std::pair<SizeType,bool> push(Vec const &val) {
-        return push(val.begin(), val.size());
+        return push(val.begin(), static_cast<SizeType>(val.size()));
     }
     std::pair<SizeType,bool> push(std::initializer_list<ValueType> val) {
         return push(val.begin(), val.size());

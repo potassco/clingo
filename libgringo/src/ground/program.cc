@@ -30,7 +30,7 @@ namespace Gringo { namespace Ground {
 Parameters::Parameters() = default;
 Parameters::~Parameters() { }
 void Parameters::add(String name, SymVec &&args) {
-    params[Sig((std::string("#inc_") + name.c_str()).c_str(), args.size(), false)].emplace(std::move(args));
+    params[Sig((std::string("#inc_") + name.c_str()).c_str(), static_cast<uint32_t>(args.size()), false)].emplace(std::move(args));
 }
 bool Parameters::find(Sig sig) const {
     auto it = params.find(sig);
@@ -108,8 +108,8 @@ void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputB
                 assert(it != out.predDoms().end());
                 auto ret((*it)->define(z, true));
                 if (!std::get<2>(ret)) {
-                    Potassco::Id_t offset = std::get<0>(ret) - (*it)->begin();
-                    Potassco::Id_t domain = it - out.predDoms().begin();
+                    Potassco::Id_t offset = static_cast<Id_t>(std::get<0>(ret) - (*it)->begin());
+                    Potassco::Id_t domain = static_cast<Id_t>(it - out.predDoms().begin());
                     out.output(out.tempRule(false).addHead({NAF::POS, Output::AtomType::Predicate, offset, domain}));
                 }
             }

@@ -322,8 +322,8 @@ public:
     }
     pos_type seekpos(pos_type off, std::ios_base::openmode which) override {
         if (off >= 0 && off <= size()) {
-            if (which & std::ios_base::in) { gbump(off - offset(which)); }
-            else                           { pbump(off - offset(which)); }
+            if (which & std::ios_base::in) { gbump(static_cast<int>(off - offset(which))); }
+            else                           { pbump(static_cast<int>(off - offset(which))); }
             return off;
         }
         return std::streambuf::seekpos(off, which);
@@ -696,9 +696,9 @@ void print_comma(S &out, T const &x, const char *sep) {
 
 template <class T>
 inline void cross_product(std::vector<std::vector<T>> &vec) {
-    unsigned size = 1;
+    size_t size = 1;
     for (auto &x : vec) {
-        unsigned n = x.size();
+        size_t n = x.size();
         if (n == 0) {
             vec.clear();
             return;

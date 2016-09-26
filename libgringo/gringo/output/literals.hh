@@ -1146,7 +1146,7 @@ public:
     template <class D, typename... Args>
     D &add(Args &&... args) {
         domains_.emplace_back(gringo_make_unique<D>(std::forward<Args>(args)...));
-        domains_.back()->setDomainOffset(domains_.size() - 1);
+        domains_.back()->setDomainOffset(static_cast<Id_t>(domains_.size() - 1));
         return static_cast<D&>(*domains_.back());
     }
     template <class D>

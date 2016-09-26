@@ -43,6 +43,15 @@
     <Filter Include="Source Files\generated\groundtermgrammar">
       <UniqueIdentifier>{ab272ebf-a728-48fe-9228-80b9a4971fc0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\generated">
+      <UniqueIdentifier>{2fd361e6-9537-490a-91d5-4fed4f64fd14}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\generated\groundtermgrammar">
+      <UniqueIdentifier>{aaee4362-47ab-453c-ba8c-56bc1cd2f1dc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\generated\nongroundgrammar">
+      <UniqueIdentifier>{29a02235-853a-4c75-bd74-e66a3c771faa}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\libgringo\clingo.h">
@@ -218,6 +227,30 @@
     </ClInclude>
     <ClInclude Include="..\..\libgringo\gringo\output\types.hh">
       <Filter>Header Files\gringo\output</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libgringo\generated\input\nongroundgrammar\grammar.hh">
+      <Filter>Header Files\generated\nongroundgrammar</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libgringo\generated\input\nongroundgrammar\location.hh">
+      <Filter>Header Files\generated\nongroundgrammar</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libgringo\generated\input\nongroundgrammar\position.hh">
+      <Filter>Header Files\generated\nongroundgrammar</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libgringo\generated\input\nongroundgrammar\stack.hh">
+      <Filter>Header Files\generated\nongroundgrammar</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libgringo\generated\input\groundtermgrammar\grammar.hh">
+      <Filter>Header Files\generated\groundtermgrammar</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libgringo\generated\input\groundtermgrammar\location.hh">
+      <Filter>Header Files\generated\groundtermgrammar</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libgringo\generated\input\groundtermgrammar\position.hh">
+      <Filter>Header Files\generated\groundtermgrammar</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libgringo\generated\input\groundtermgrammar\stack.hh">
+      <Filter>Header Files\generated\groundtermgrammar</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

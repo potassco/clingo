@@ -6,6 +6,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <PreprocessorDefinitions>WITH_THREADS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4521</DisableSpecificWarnings>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup />

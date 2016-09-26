@@ -157,7 +157,7 @@ T nextPrime(T n) {
         return *std::lower_bound(smallPrimes.begin(), smallPrimes.end(), n);
     }
     T k = n / l;
-    T i = std::lower_bound(indices.begin(), indices.end(), n - k * l) - indices.begin();
+    T i = static_cast<T>(std::lower_bound(indices.begin(), indices.end(), n - k * l) - indices.begin());
     n = l * k + *(indices.begin() + i);
     while (!isPrime(n)) {
         if (++i == indices.size()) {

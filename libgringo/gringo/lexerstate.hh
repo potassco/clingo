@@ -260,7 +260,7 @@ int LexerState<T>::line() const {
 
 template <class T>
 int LexerState<T>::column() const {
-    return state().cursor_ - state().offset_ + 1;
+    return static_cast<int>(state().cursor_ - state().offset_ + 1);
 }
 
 template <class T>

@@ -243,7 +243,7 @@ public:
                 offset = intervalOffset++;
                 auto &atom = idx.domain_[offset];
                 if (type == BinderType::OLD && atom.generation() >= idx.domain_.generation()) {
-                    rangeOffset = idx.index_.size();
+                    rangeOffset = static_cast<SizeType>(idx.index_.size());
                     return false;
                 }
             }
@@ -394,7 +394,7 @@ public:
                 // Note: intended for non-recursive case only
                 auto it = atoms_.find(repr.eval(undefined, log));
                 if (!undefined && it != atoms_.end() && it->defined()) {
-                    offset = it - begin();
+                    offset = static_cast<SizeType>(it - begin());
                     return true;
                 }
                 break;
@@ -403,7 +403,7 @@ public:
                 auto it = atoms_.find(repr.eval(undefined, log));
                 if (!undefined && it != atoms_.end()) {
                     if (!it->fact()) {
-                        offset = it - begin();
+                        offset = static_cast<SizeType>(it - begin());
                         return true;
                     }
                 }
@@ -418,7 +418,7 @@ public:
             case RECNAF::RECNOT: {
                 auto it = reserve(repr.eval(undefined, log));
                 if (!undefined && !it->fact()) {
-                    offset = it - begin();
+                    offset = static_cast<SizeType>(it - begin());
                     return true;
                 }
                 break;
@@ -427,7 +427,7 @@ public:
                 // Note: intended for recursive case only
                 auto it = reserve(repr.eval(undefined, log));
                 if (!undefined) {
-                    offset = it - begin();
+                    offset = static_cast<SizeType>(it - begin());
                     return true;
                 }
                 break;
@@ -446,21 +446,21 @@ public:
             switch (type) {
                 case BinderType::OLD: {
                     if (it->generation() <  generation_) {
-                        offset = it - begin();
+                        offset = static_cast<SizeType>(it - begin());
                         return true;
                     }
                     break;
                 }
                 case BinderType::ALL: {
                     if (it->generation() <=  generation_) {
-                        offset = it - begin();
+                        offset = static_cast<SizeType>(it - begin());
                         return true;
                     }
                     break;
                 }
                 case BinderType::NEW: {
                     if (it->generation() == generation_) {
-                        offset = it - begin();
+                        offset = static_cast<SizeType>(it - begin());
                         return true;
                     }
                     break;
@@ -495,7 +495,7 @@ public:
                 f(*it);
             }
         }
-        importedDelayed = delayed_.size();
+        importedDelayed = static_cast<SizeType>(delayed_.size());
         return ret;
     }
 
@@ -552,7 +552,7 @@ public:
         for (auto it = delayed_.begin() + initDelayedOffset_, ie = delayed_.end(); it != ie; ++it) {
             operator[](*it).setGeneration(0);
         }
-        initDelayedOffset_ = delayed_.size();
+        initDelayedOffset_ = static_cast<Id_t>(delayed_.size());
     }
     // A domain is enqueued for two grounding iterations.
     // This gives atoms a chance to go from state Open -> New -> Old.
@@ -560,9 +560,9 @@ public:
     bool dequeue() override {
         --enqueued_;
         assert(0 <= enqueued_ && enqueued_ <= 2);
-        return enqueued_;
+        return enqueued_ > 0;
     }
-    bool isEnqueued() const override { return enqueued_; }
+    bool isEnqueued() const override { return enqueued_ > 0; }
     void nextGeneration() override { ++generation_; }
     OffsetVec &delayed() { return delayed_; }
     Iterator find(Symbol x) { return atoms_.find(x); }
