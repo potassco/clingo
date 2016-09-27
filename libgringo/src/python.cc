@@ -641,7 +641,7 @@ namespace PythonDetail {
 
 // macros
 
-#define CHECK_EXPRESSION(E) decltype((E), void())
+#define CHECK_EXPRESSION(E) decltype(static_cast<void>(E))
 
 #define WRAP_FUNCTION(F) \
 template <class B, class Enable = void> \
