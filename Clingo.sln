@@ -21,6 +21,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libclingo", "build_vc\libcl
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "clingo", "build_vc\clingo\clingo.vcxproj", "{03B6F660-EF04-49CF-90ED-BEF8ABB56F02}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pyclingo", "build_vc\pyclingo\pyclingo.vcxproj", "{FFC3A214-2C98-4F53-AD78-811F7A3D2CFF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -145,6 +147,22 @@ Global
 		{03B6F660-EF04-49CF-90ED-BEF8ABB56F02}.ReleaseScript|x64.Build.0 = ReleaseScript|x64
 		{03B6F660-EF04-49CF-90ED-BEF8ABB56F02}.ReleaseScript|x86.ActiveCfg = ReleaseScript|Win32
 		{03B6F660-EF04-49CF-90ED-BEF8ABB56F02}.ReleaseScript|x86.Build.0 = ReleaseScript|Win32
+		{FFC3A214-2C98-4F53-AD78-811F7A3D2CFF}.Debug|x64.ActiveCfg = ReleaseScript|x64
+		{FFC3A214-2C98-4F53-AD78-811F7A3D2CFF}.Debug|x64.Build.0 = ReleaseScript|x64
+		{FFC3A214-2C98-4F53-AD78-811F7A3D2CFF}.Debug|x86.ActiveCfg = ReleaseScript|Win32
+		{FFC3A214-2C98-4F53-AD78-811F7A3D2CFF}.Debug|x86.Build.0 = ReleaseScript|Win32
+		{FFC3A214-2C98-4F53-AD78-811F7A3D2CFF}.DebugScript|x64.ActiveCfg = ReleaseScript|x64
+		{FFC3A214-2C98-4F53-AD78-811F7A3D2CFF}.DebugScript|x64.Build.0 = ReleaseScript|x64
+		{FFC3A214-2C98-4F53-AD78-811F7A3D2CFF}.DebugScript|x86.ActiveCfg = ReleaseScript|Win32
+		{FFC3A214-2C98-4F53-AD78-811F7A3D2CFF}.DebugScript|x86.Build.0 = ReleaseScript|Win32
+		{FFC3A214-2C98-4F53-AD78-811F7A3D2CFF}.Release|x64.ActiveCfg = ReleaseScript|x64
+		{FFC3A214-2C98-4F53-AD78-811F7A3D2CFF}.Release|x64.Build.0 = ReleaseScript|x64
+		{FFC3A214-2C98-4F53-AD78-811F7A3D2CFF}.Release|x86.ActiveCfg = ReleaseScript|Win32
+		{FFC3A214-2C98-4F53-AD78-811F7A3D2CFF}.Release|x86.Build.0 = ReleaseScript|Win32
+		{FFC3A214-2C98-4F53-AD78-811F7A3D2CFF}.ReleaseScript|x64.ActiveCfg = ReleaseScript|x64
+		{FFC3A214-2C98-4F53-AD78-811F7A3D2CFF}.ReleaseScript|x64.Build.0 = ReleaseScript|x64
+		{FFC3A214-2C98-4F53-AD78-811F7A3D2CFF}.ReleaseScript|x86.ActiveCfg = ReleaseScript|Win32
+		{FFC3A214-2C98-4F53-AD78-811F7A3D2CFF}.ReleaseScript|x86.Build.0 = ReleaseScript|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

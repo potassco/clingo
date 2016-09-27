@@ -662,7 +662,7 @@ void Translator::showCsp(Bound const &bound, IsTrueLookup isTrue, SymVec &atoms)
 }
 
 void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup isTrue, SymVec &atoms, OutputPredicates const &outPreds) {
-    auto isComp = atomset & clingo_show_type_complement ? [isTrue](unsigned x) -> bool { return !isTrue(x); } : isTrue;
+    auto isComp = [isTrue, atomset](unsigned x) { return (atomset & clingo_show_type_complement) ? !isTrue(x) : isTrue(x); };
     if (atomset & (clingo_show_type_csp | clingo_show_type_shown)) {
         for (auto &x : boundMap_) {
             if (atomset & clingo_show_type_csp || (atomset & clingo_show_type_shown && showBound(outPreds, x))) { showCsp(x, isTrue, atoms); }
