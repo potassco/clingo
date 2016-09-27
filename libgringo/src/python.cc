@@ -639,33 +639,62 @@ void handleError(char const *loc, char const *msg) {
 
 namespace PythonDetail {
 
+// macros
+
+#define CHECK_EXPRESSION(E) decltype((E), void())
+
+#define WRAP_FUNCTION(F) \
+template <class B, class Enable = void> \
+struct Get_##F { \
+    static constexpr std::nullptr_t value = nullptr; \
+}; \
+template <class B> \
+struct Get_##F<B, CHECK_EXPRESSION(&B::F)>
+
+#define BEGIN_PROTOCOL(F) \
+template <class B, class Enable = void> \
+struct Get_##F { \
+    static constexpr std::nullptr_t value = nullptr; \
+    static constexpr bool has_protocol = false; \
+}; \
+template <class B> \
+struct Get_##F<B, CHECK_EXPRESSION(&B::F)> { \
+    static constexpr bool has_protocol = true;
+
+#define NEXT_PROTOCOL(G,F) \
+}; \
+template <class B, class Enable = void> \
+struct Get_##F { \
+    static constexpr std::nullptr_t value = nullptr; \
+    static constexpr bool has_protocol = Get_##G<B>::has_protocol; \
+}; \
+template <class B> \
+struct Get_##F<B, CHECK_EXPRESSION(&B::F)> { \
+    static constexpr bool has_protocol = true;
+
+#define END_PROTOCOL(G, F, T) \
+}; \
+template <class B, class Enable = void> \
+struct Get_##F { \
+    static constexpr T* value = nullptr; \
+}; \
+template <class B> \
+struct Get_##F<B, typename std::enable_if<Get_##G<B>::has_protocol>::type> { \
+    static T value[]; \
+}; \
+template <class B> \
+T Get_##F<B, typename std::enable_if<Get_##G<B>::has_protocol>::type>::value[] =
+
 // object protocol
 
-template <class>
-struct Void {
-    using Type = void;
-};
-
-template <class B, class Enable = void>
-struct GetDestructor {
-    static constexpr std::nullptr_t value = nullptr;
-};
-
-template <class B>
-struct GetDestructor<B, typename Void<decltype(&B::tp_dealloc)>::Type> {
+WRAP_FUNCTION(tp_dealloc) {
     static void value(PyObject *self) {
         reinterpret_cast<B*>(self)->tp_dealloc();
         B::type.tp_free(self);
     };
 };
 
-template <class B, class Enable = void>
-struct GetRepr {
-    static constexpr std::nullptr_t value = nullptr;
-};
-
-template <class B>
-struct GetRepr<B, typename Void<decltype(&B::tp_repr)>::Type> {
+WRAP_FUNCTION(tp_repr) {
     static PyObject *value(PyObject *self) {
         PY_TRY { return reinterpret_cast<B*>(self)->tp_repr().release(); }
         PY_CATCH(nullptr);
@@ -673,36 +702,24 @@ struct GetRepr<B, typename Void<decltype(&B::tp_repr)>::Type> {
 };
 
 template <class B, class Enable = void>
-struct GetStr : GetRepr<B, void> { };
+struct Get_tp_str : Get_tp_repr<B, void> { };
 
 template <class B>
-struct GetStr<B, typename Void<decltype(&B::tp_str)>::Type> {
+struct Get_tp_str<B, CHECK_EXPRESSION(&B::tp_str)> {
     static PyObject *value(PyObject *self) {
         PY_TRY { return reinterpret_cast<B*>(self)->tp_str().release(); }
         PY_CATCH(nullptr);
     };
 };
 
-template <class B, class Enable = void>
-struct GetHash {
-    static constexpr std::nullptr_t value = nullptr;
-};
-
-template <class B>
-struct GetHash<B, typename Void<decltype(&B::tp_hash)>::Type> {
+WRAP_FUNCTION(tp_hash) {
     static long value(PyObject *self) {
         PY_TRY { return reinterpret_cast<B*>(self)->tp_hash(); }
         PY_CATCH(-1);
     };
 };
 
-template <class B, class Enable = void>
-struct GetRichCompare {
-    static constexpr std::nullptr_t value = nullptr;
-};
-
-template <class B>
-struct GetRichCompare<B, typename Void<decltype(&B::tp_richcompare)>::Type> {
+WRAP_FUNCTION(tp_richcompare) {
     static PyObject *value(PyObject *pySelf, PyObject *pyB, int op) {
         PY_TRY {
             auto self = reinterpret_cast<B*>(pySelf);
@@ -729,52 +746,28 @@ struct GetRichCompare<B, typename Void<decltype(&B::tp_richcompare)>::Type> {
     };
 };
 
-template <class B, class Enable = void>
-struct GetIter {
-    static constexpr std::nullptr_t value = nullptr;
-};
-
-template <class B>
-struct GetIter<B, typename Void<decltype(&B::tp_iter)>::Type> {
+WRAP_FUNCTION(tp_iter) {
     static PyObject *value(PyObject *self) {
         PY_TRY { return reinterpret_cast<B*>(self)->tp_iter().release(); }
         PY_CATCH(nullptr);
     };
 };
 
-template <class B, class Enable = void>
-struct GetGetAttrO {
-    static constexpr std::nullptr_t value = nullptr;
-};
-
-template <class B>
-struct GetGetAttrO<B, typename Void<decltype(&B::tp_getattro)>::Type> {
+WRAP_FUNCTION(tp_getattro) {
     static PyObject *value(PyObject *self, PyObject *name) {
         PY_TRY { return reinterpret_cast<B*>(self)->tp_getattro(Reference{name}).release(); }
         PY_CATCH(nullptr);
     };
 };
 
-template <class B, class Enable = void>
-struct GetSetAttrO {
-    static constexpr std::nullptr_t value = nullptr;
-};
-
-template <class B>
-struct GetSetAttrO<B, typename Void<decltype(&B::tp_setattro)>::Type> {
+WRAP_FUNCTION(tp_setattro) {
     static int value(PyObject *self, PyObject *name, PyObject *value) {
         PY_TRY { return (reinterpret_cast<B*>(self)->tp_setattro(Reference{name}, Reference{value}), 0); }
         PY_CATCH(-1);
     };
 };
 
-template <class B, class Enable = void>
-struct GetIterNext {
-    static constexpr std::nullptr_t value = nullptr;
-};
-
-template <class B>
-struct GetIterNext<B, typename Void<decltype(&B::tp_iternext)>::Type> {
+WRAP_FUNCTION(tp_iternext) {
     static PyObject *value(PyObject *self) {
         PY_TRY { return reinterpret_cast<B*>(self)->tp_iternext().release(); }
         PY_CATCH(nullptr);
@@ -783,235 +776,90 @@ struct GetIterNext<B, typename Void<decltype(&B::tp_iternext)>::Type> {
 
 // mapping protocol
 
-template <class B, class Enable = void>
-struct GetMPLength {
-    static constexpr std::nullptr_t value = nullptr;
-    static constexpr bool has_mapping = false;
-};
-template <class B>
-struct GetMPLength<B, typename Void<decltype(&B::mp_length)>::Type> {
+BEGIN_PROTOCOL(mp_length)
     static Py_ssize_t value(PyObject *self) {
         PY_TRY { return reinterpret_cast<B*>(self)->mp_length(); }
         PY_CATCH(-1);
-    };
-    static constexpr bool has_mapping = true;
-};
-
-template <class B, class Enable = void>
-struct GetMPSubscipt {
-    static constexpr std::nullptr_t value = nullptr;
-    static constexpr bool has_mapping = GetMPLength<B>::has_mapping;
-};
-template <class B>
-struct GetMPSubscipt<B, typename Void<decltype(&B::mp_subscript)>::Type> {
+    }
+NEXT_PROTOCOL(mp_length, mp_subscript)
     static PyObject *value(PyObject *self, PyObject *name) {
         PY_TRY { return reinterpret_cast<B*>(self)->mp_subscript(Reference{name}).release(); }
         PY_CATCH(nullptr);
-    };
-    static constexpr bool has_mapping = true;
-};
-
-template <class B, class Enable = void>
-struct GetMPAssSubscipt {
-    static constexpr std::nullptr_t value = nullptr;
-    static constexpr bool has_mapping = GetMPSubscipt<B>::has_mapping;
-};
-template <class B>
-struct GetMPAssSubscipt<B, typename Void<decltype(&B::mp_ass_subscript)>::Type> {
+    }
+NEXT_PROTOCOL(mp_subscript, mp_ass_subscript)
     static int value(PyObject *self, PyObject *name, PyObject *value) {
         PY_TRY { return (reinterpret_cast<B*>(self)->mp_ass_subscript(Reference{name}, Reference{value}), 0); }
         PY_CATCH(-1);
-    };
-    static constexpr bool has_mapping = true;
-};
-
-template <class B, class Enable = void>
-struct GetAsMapping {
-    static constexpr PyMappingMethods *value = nullptr;
-};
-template <class B>
-struct GetAsMapping<B, typename std::enable_if<GetMPAssSubscipt<B>::has_mapping>::type> {
-    static PyMappingMethods value[];
-};
-template <class B>
-PyMappingMethods GetAsMapping<B, typename std::enable_if<GetMPAssSubscipt<B>::has_mapping>::type>::value[] = {{
-    GetMPLength<B>::value,
-    GetMPSubscipt<B>::value,
-    GetMPAssSubscipt<B>::value,
+    }
+END_PROTOCOL(mp_ass_subscript, tp_as_mapping, PyMappingMethods) {{
+    Get_mp_length<B>::value,
+    Get_mp_subscript<B>::value,
+    Get_mp_ass_subscript<B>::value,
 }};
 
 // sequence protocol
 
-// Py_ssize_t sq_length(PyObject *self)
-template <class B, class Enable = void>
-struct GetSQLength {
-    static constexpr std::nullptr_t value = nullptr;
-    static constexpr bool has_sequence = false;
-};
-template <class B>
-struct GetSQLength<B, typename Void<decltype(&B::sq_length)>::Type> {
+BEGIN_PROTOCOL(sq_length)
     static Py_ssize_t value(PyObject *self) {
         PY_TRY { return reinterpret_cast<B*>(self)->sq_length(); }
         PY_CATCH(-1);
     };
-    static constexpr bool has_sequence = true;
-};
-
-// PyObject* sq_concat(PyObject *o1, PyObject *o2)
-template <class B, class Enable = void>
-struct GetSQConcat {
-    static constexpr std::nullptr_t value = nullptr;
-    static constexpr bool has_sequence = GetSQLength<B>::has_sequence;
-};
-template <class B>
-struct GetSQConcat<B, typename Void<decltype(&B::sq_concat)>::Type> {
+NEXT_PROTOCOL(sq_length, sq_concat)
     static PyObject *value(PyObject *self, PyObject *other) {
         PY_TRY { return reinterpret_cast<B*>(self)->sq_concat(Reference{other}).release(); }
         PY_CATCH(nullptr);
     };
-    static constexpr bool has_sequence = true;
-};
-
-// PyObject* sq_repeat(PyObject *o, Py_ssize_t count)
-template <class B, class Enable = void>
-struct GetSQRepeat {
-    static constexpr std::nullptr_t value = nullptr;
-    static constexpr bool has_sequence = GetSQConcat<B>::has_sequence;
-};
-template <class B>
-struct GetSQRepeat<B, typename Void<decltype(&B::sq_repeat)>::Type> {
+NEXT_PROTOCOL(sq_concat, sq_repeat)
     static PyObject *value(PyObject *self, Py_ssize_t count) {
         PY_TRY { return reinterpret_cast<B*>(self)->sq_repeat(count).release(); }
         PY_CATCH(nullptr);
     };
-    static constexpr bool has_sequence = true;
-};
-
-// PyObject* sq_item(PyObject *o, Py_ssize_t i)
-template <class B, class Enable = void>
-struct GetSQItem {
-    static constexpr std::nullptr_t value = nullptr;
-    static constexpr bool has_sequence = GetSQRepeat<B>::has_sequence;
-};
-template <class B>
-struct GetSQItem<B, typename Void<decltype(&B::sq_item)>::Type> {
+NEXT_PROTOCOL(sq_repeat, sq_item)
     static PyObject *value(PyObject *self, Py_ssize_t index) {
         PY_TRY { return reinterpret_cast<B*>(self)->sq_item(index).release(); }
         PY_CATCH(nullptr);
     };
-    static constexpr bool has_sequence = true;
-};
-
-// PyObject* sq_slice(PyObject *o, Py_ssize_t i1, Py_ssize_t i2)
-template <class B, class Enable = void>
-struct GetSQSlice {
-    static constexpr std::nullptr_t value = nullptr;
-    static constexpr bool has_sequence = GetSQItem<B>::has_sequence;
-};
-template <class B>
-struct GetSQSlice<B, typename Void<decltype(&B::sq_slice)>::Type> {
+NEXT_PROTOCOL(sq_item, sq_slice)
     static PyObject *value(PyObject *self, Py_ssize_t left, Py_ssize_t right) {
         PY_TRY { return reinterpret_cast<B*>(self)->sq_slice(left, right).release(); }
         PY_CATCH(nullptr);
     };
-    static constexpr bool has_sequence = true;
-};
-
-// int sq_ass_item(PyObject *o, Py_ssize_t i, PyObject *v)
-template <class B, class Enable = void>
-struct GetSQAssItem {
-    static constexpr std::nullptr_t value = nullptr;
-    static constexpr bool has_sequence = GetSQSlice<B>::has_sequence;
-};
-template <class B>
-struct GetSQAssItem<B, typename Void<decltype(&B::sq_ass_item)>::Type> {
+NEXT_PROTOCOL(sq_slice, sq_ass_item)
     static int value(PyObject *self, Py_ssize_t index, PyObject *value) {
         PY_TRY { return (reinterpret_cast<B*>(self)->sq_ass_item(index, Reference{value}), 0); }
         PY_CATCH(-1);
     };
-    static constexpr bool has_sequence = true;
-};
-
-// int sq_ass_slice(PyObject *o, Py_ssize_t i1, Py_ssize_t i2, PyObject *v)
-template <class B, class Enable = void>
-struct GetSQAssSlice {
-    static constexpr std::nullptr_t value = nullptr;
-    static constexpr bool has_sequence = GetSQAssItem<B>::has_sequence;
-};
-template <class B>
-struct GetSQAssSlice<B, typename Void<decltype(&B::sq_ass_slice)>::Type> {
+NEXT_PROTOCOL(sq_ass_item, sq_ass_slice)
     static int value(PyObject *self, Py_ssize_t left, Py_ssize_t right, PyObject *value) {
         PY_TRY { return (reinterpret_cast<B*>(self)->sq_ass_slice(left, right, Reference{value}), 0); }
         PY_CATCH(-1);
     };
-    static constexpr bool has_sequence = true;
-};
-
-// int sq_contains(PyObject *o, PyObject *value)
-template <class B, class Enable = void>
-struct GetSQContains {
-    static constexpr std::nullptr_t value = nullptr;
-    static constexpr bool has_sequence = GetSQAssSlice<B>::has_sequence;
-};
-template <class B>
-struct GetSQContains<B, typename Void<decltype(&B::sq_contains)>::Type> {
+NEXT_PROTOCOL(sq_ass_slice, sq_contains)
     static int value(PyObject *self, PyObject *value) {
         PY_TRY { return reinterpret_cast<B*>(self)->sq_contains(Reference{value}); }
         PY_CATCH(-1);
     };
-    static constexpr bool has_sequence = true;
-};
-
-// PyObject* sq_inplace_concat(PyObject *o1, PyObject *o2)
-template <class B, class Enable = void>
-struct GetSQInplaceConcat {
-    static constexpr std::nullptr_t value = nullptr;
-    static constexpr bool has_sequence = GetSQContains<B>::has_sequence;
-};
-template <class B>
-struct GetSQInplaceConcat<B, typename Void<decltype(&B::sq_inplace_concat)>::Type> {
+NEXT_PROTOCOL(sq_contains, sq_inplace_concat)
     static PyObject *value(PyObject *self, PyObject *other) {
         PY_TRY { return reinterpret_cast<B*>(self)->sq_inplace_concat(Reference{other}); Py_XINCREF(self); return self; }
         PY_CATCH(nullptr);
     };
-    static constexpr bool has_sequence = true;
-};
-
-// PyObject* sq_inplace_repeat(PyObject *o, Py_ssize_t count)
-template <class B, class Enable = void>
-struct GetSQInplaceRepeat {
-    static constexpr std::nullptr_t value = nullptr;
-    static constexpr bool has_sequence = GetSQInplaceConcat<B>::has_sequence;
-};
-template <class B>
-struct GetSQInplaceRepeat<B, typename Void<decltype(&B::sq_inplace_repeat)>::Type> {
+NEXT_PROTOCOL(sq_inplace_concat, sq_inplace_repeat)
     static PyObject *value(PyObject *self, Py_ssize_t count) {
         PY_TRY { reinterpret_cast<B*>(self)->sq_inplace_repeat(count); Py_XINCREF(self); return self; }
         PY_CATCH(nullptr);
     };
-    static constexpr bool has_sequence = true;
-};
-
-template <class B, class Enable = void>
-struct GetAsSequnce {
-    static constexpr PySequenceMethods *value = nullptr;
-};
-template <class B>
-struct GetAsSequnce<B, typename std::enable_if<GetSQInplaceRepeat<B>::has_sequence>::type> {
-    static PySequenceMethods value[];
-};
-template <class B>
-PySequenceMethods GetAsSequnce<B, typename std::enable_if<GetSQInplaceRepeat<B>::has_sequence>::type>::value[] = {{
-    GetSQLength<B>::value,
-    GetSQConcat<B>::value,
-    GetSQRepeat<B>::value,
-    GetSQItem<B>::value,
-    GetSQSlice<B>::value,
-    GetSQAssItem<B>::value,
-    GetSQAssSlice<B>::value,
-    GetSQContains<B>::value,
-    GetSQInplaceConcat<B>::value,
-    GetSQInplaceRepeat<B>::value,
+END_PROTOCOL(sq_inplace_repeat, tp_as_sequence, PySequenceMethods) {{
+    Get_sq_length<B>::value,
+    Get_sq_concat<B>::value,
+    Get_sq_repeat<B>::value,
+    Get_sq_item<B>::value,
+    Get_sq_slice<B>::value,
+    Get_sq_ass_item<B>::value,
+    Get_sq_ass_slice<B>::value,
+    Get_sq_contains<B>::value,
+    Get_sq_inplace_concat<B>::value,
+    Get_sq_inplace_repeat<B>::value,
 }};
 
 } // namespace PythonDetail
@@ -1093,52 +941,52 @@ PyMethodDef ObjectBase<T>::tp_methods[] = {{nullptr, nullptr, 0, nullptr}};
 template <class T>
 PyTypeObject ObjectBase<T>::type = {
     PyVarObject_HEAD_INIT(nullptr, 0)
-    T::tp_name,                                       // tp_name
-    sizeof(T),                                        // tp_basicsize
-    0,                                                // tp_itemsize
-    PythonDetail::GetDestructor<T>::value,            // tp_dealloc
-    nullptr,                                          // tp_print
-    nullptr,                                          // tp_getattr
-    nullptr,                                          // tp_setattr
-    nullptr,                                          // tp_compare
-    PythonDetail::GetRepr<T>::value,                  // tp_repr
-    nullptr,                                          // tp_as_number
-    PythonDetail::GetAsSequnce<T>::value,             // tp_as_sequence
-    PythonDetail::GetAsMapping<T>::value,             // tp_as_mapping
-    PythonDetail::GetHash<T>::value,                  // tp_hash
-    nullptr,                                          // tp_call
-    PythonDetail::GetStr<T>::value,                   // tp_str
-    PythonDetail::GetGetAttrO<T>::value,              // tp_getattro
-    PythonDetail::GetSetAttrO<T>::value,              // tp_setattro
-    nullptr,                                          // tp_as_buffer
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,         // tp_flags
-    T::tp_doc,                                        // tp_doc
-    nullptr,                                          // tp_traverse
-    nullptr,                                          // tp_clear
-    PythonDetail::GetRichCompare<T>::value,           // tp_richcompare
-    0,                                                // tp_weaklistoffset
-    PythonDetail::GetIter<T>::value,                  // tp_iter
-    PythonDetail::GetIterNext<T>::value,              // tp_iternext
-    T::tp_methods,                                    // tp_methods
-    nullptr,                                          // tp_members
-    T::tp_getset,                                     // tp_getset
-    nullptr,                                          // tp_base
-    nullptr,                                          // tp_dict
-    nullptr,                                          // tp_descr_get
-    nullptr,                                          // tp_descr_set
-    0,                                                // tp_dictoffset
-    reinterpret_cast<initproc>(T::tp_init),           // tp_init
-    nullptr,                                          // tp_alloc
-    reinterpret_cast<newfunc>(T::tp_new),             // tp_new
-    nullptr,                                          // tp_free
-    nullptr,                                          // tp_is_gc
-    nullptr,                                          // tp_bases
-    nullptr,                                          // tp_mro
-    nullptr,                                          // tp_cache
-    nullptr,                                          // tp_subclasses
-    nullptr,                                          // tp_weaklist
-    nullptr,                                          // tp_del
-    0,                                                // tp_version_tag
+    T::tp_name,                                 // tp_name
+    sizeof(T),                                  // tp_basicsize
+    0,                                          // tp_itemsize
+    PythonDetail::Get_tp_dealloc<T>::value,     // tp_dealloc
+    nullptr,                                    // tp_print
+    nullptr,                                    // tp_getattr
+    nullptr,                                    // tp_setattr
+    nullptr,                                    // tp_compare
+    PythonDetail::Get_tp_repr<T>::value,        // tp_repr
+    nullptr,                                    // tp_as_number
+    PythonDetail::Get_tp_as_sequence<T>::value, // tp_as_sequence
+    PythonDetail::Get_tp_as_mapping<T>::value,  // tp_as_mapping
+    PythonDetail::Get_tp_hash<T>::value,        // tp_hash
+    nullptr,                                    // tp_call
+    PythonDetail::Get_tp_str<T>::value,         // tp_str
+    PythonDetail::Get_tp_getattro<T>::value,    // tp_getattro
+    PythonDetail::Get_tp_setattro<T>::value,    // tp_setattro
+    nullptr,                                    // tp_as_buffer
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   // tp_flags
+    T::tp_doc,                                  // tp_doc
+    nullptr,                                    // tp_traverse
+    nullptr,                                    // tp_clear
+    PythonDetail::Get_tp_richcompare<T>::value, // tp_richcompare
+    0,                                          // tp_weaklistoffset
+    PythonDetail::Get_tp_iter<T>::value,        // tp_iter
+    PythonDetail::Get_tp_iternext<T>::value,    // tp_iternext
+    T::tp_methods,                              // tp_methods
+    nullptr,                                    // tp_members
+    T::tp_getset,                               // tp_getset
+    nullptr,                                    // tp_base
+    nullptr,                                    // tp_dict
+    nullptr,                                    // tp_descr_get
+    nullptr,                                    // tp_descr_set
+    0,                                          // tp_dictoffset
+    reinterpret_cast<initproc>(T::tp_init),     // tp_init
+    nullptr,                                    // tp_alloc
+    reinterpret_cast<newfunc>(T::tp_new),       // tp_new
+    nullptr,                                    // tp_free
+    nullptr,                                    // tp_is_gc
+    nullptr,                                    // tp_bases
+    nullptr,                                    // tp_mro
+    nullptr,                                    // tp_cache
+    nullptr,                                    // tp_subclasses
+    nullptr,                                    // tp_weaklist
+    nullptr,                                    // tp_del
+    0,                                          // tp_version_tag
     GRINGO_STRUCT_EXTRA
 };
 
