@@ -129,6 +129,7 @@
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseScript|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\global-properties.props" />
+    <Import Project="..\script.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -161,8 +162,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseScript|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(PYTHON_PATH_WIN64)\include;..\..\libgringo;..\..\liblp;..\..\libreify;..\..\libgringo\generated;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
-    <LibraryPath>$(PYTHON_PATH_WIN64)\libs;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64</LibraryPath>
+    <IncludePath>$(PYTHON_ROOT)\include;$(LUA_ROOT)\include;..\..\libgringo;..\..\liblp;..\..\libreify;..\..\libgringo\generated;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64;$(PYTHON_ROOT)\libs;$(LUA_ROOT)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -284,7 +285,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;WITH_PYTHON;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;WITH_LUA;WITH_PYTHON;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)/x/y/%(RelativeDir)</ObjectFileName>
     </ClCompile>
     <Link>
