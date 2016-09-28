@@ -133,9 +133,6 @@ if parse_ret.action == "run":
             if f.endswith(".lp"):
                 total+= 1
                 b = os.path.join(root, f[:-3])
-                print ("-" * 79)
-                print (b + ".lp")
-                print ("." * 79)
                 sys.stdout.flush()
                 args = [clingo, "0", b + ".lp", "-Wnone"]
                 if os.path.exists(b + ".cmd"):
@@ -147,25 +144,26 @@ if parse_ret.action == "run":
                 sol  = reorder(open(b + ".sol").read())
                 if norm != sol:
                     failed+= 1
-                    print ("failed")
-                    print ("!" * 79)
+                    print
+                    print ("-" * 79)
                     print (" ".join(args))
-                    print ("!" * 79)
+                    print ("." * 79)
+                    print
+                    print ("FAILED:")
                     d = dl.Differ()
                     for line in list(d.compare(sol.splitlines(), norm.splitlines())):
                         if not line.startswith(" "):
                             print (line)
-                else:
-                    print ("ok")
+                    print
                 sys.stdout.flush()
 
-    print ("-" * 79)
-    print ("Result")
-    print ("." * 79)
+    print ("=" * 79)
     if failed > 0:
-        print ("FAILED ({} of {})".format(failed, total))
+        print ("Some tests failed ({} of {} test cases)".format(failed, total))
+        print
         exit(1)
     else:
-        print ("OK ({})".format(total))
+        print ("All tests passed ({} test cases)".format(total))
+        print
         exit(0)
 
