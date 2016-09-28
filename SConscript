@@ -518,7 +518,7 @@ if "libclingo" in env["TESTS"]:
 
 # {{{1 Clingo: Tests
 
-clingoTestCommand = env.Command('clingo-test', clingoProgram, '/bin/zsh app/clingo/tests/run.sh $SOURCE' + (" -- -t8" if env["WITH_THREADS"] is not None else ""))
+clingoTestCommand = env.Command('clingo-test', clingoProgram, 'python app/clingo/tests/run.py -c $SOURCE run' + (" -- -t8" if env["WITH_THREADS"] is not None else ""))
 env.AlwaysBuild(env.Alias('test-clingo', [clingoTestCommand]))
 if "clingo" in env["TESTS"]:
     env.AlwaysBuild(env.Alias('test', [clingoTestCommand]))
