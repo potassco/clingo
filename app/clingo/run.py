@@ -78,6 +78,7 @@ for root, dirs, files in os.walk(wd):
             if os.path.exists(b + ".cmd"):
                 for x in open(b + ".cmd"):
                     args.extend(x.strip().split())
+            args.extend(sys.argv[1:])
             out, err = sp.Popen(args, stdout=sp.PIPE, universal_newlines=True).communicate()
             norm = normalize(out)
             sol  = reorder(open(b + ".sol").read())
