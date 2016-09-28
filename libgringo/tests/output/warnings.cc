@@ -68,8 +68,10 @@ TEST_CASE("output-warnings", "[output]") {
         REQUIRE("([],[-:1:1-12: error: cyclic constant definition:\n  #const a=b.\n-:2:1-12: note: cycle involves definition:\n  #const b=a.\n])" == IO::to_string(solve("#const a=b.\n#const b=a.\n")));
         REQUIRE("([[]],[])" == IO::to_string(solve("#const a=a.\n")));
         REQUIRE("([],[-:2:1-12: error: redefinition of constant:\n  #const a=2.\n-:1:1-12: note: constant also defined here\n])" == IO::to_string(solve("#const a=1.\n#const a=2.\np(a).\n")));
+#ifndef _MSC_VER
         std::ofstream("/tmp/wincluded.lp");
         REQUIRE("([[]],[-:1:30-59: warning: already included file:\n  /tmp/wincluded.lp\n])" == IO::to_string(solve("#include \"/tmp/wincluded.lp\".#include \"/tmp/wincluded.lp\".")));
+#endif
         REQUIRE(
             "([[x=1,y=-1,z=0]],"
             "[warning: unbounded constraint variable:\n  domain of 'x' is set to [1,1]\n"

@@ -1204,8 +1204,10 @@ TEST_CASE("input-nongroundprogrambuilder", "[input]") {
     }
 
     SECTION("include") {
+#ifndef _MSC_VER
         std::ofstream("/tmp/test_include.lp") << "b.\n";
         REQUIRE("#program base().\na.\nb.\n#program base().\nc.\nd." == parse("a.\n#include \"/tmp/test_include.lp\".\nc.\nd.\n"));
+#endif
     }
 
     SECTION("csp") {
