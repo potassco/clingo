@@ -40,8 +40,8 @@ struct Grounder {
     Grounder()
     : out(td, {}, oss)
     , scripts(module)
-    , pb{ scripts, p, out, d }
-    , ngp{ pb }
+    , pb( scripts, p, out, d )
+    , ngp( pb )
     { }
     Gringo::Test::TestGringoModule module;
     Potassco::TheoryData td;

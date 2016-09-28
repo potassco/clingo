@@ -34,9 +34,9 @@ using namespace Gringo::IO;
 namespace {
 
 typedef SafetyChecker<std::string, std::string> C;
-typedef std::tuple<std::string, std::initializer_list<std::string>, std::initializer_list<std::string>> T;
+typedef std::tuple<std::string, std::vector<std::string>, std::vector<std::string>> T;
 
-std::string check(std::initializer_list<T> list) {
+std::string check(std::vector<T> list) {
     C dep;
     std::unordered_map<std::string, C::VarNode*> vars;
     auto iv = [&vars, &dep](std::string const &y) -> C::VarNode& {

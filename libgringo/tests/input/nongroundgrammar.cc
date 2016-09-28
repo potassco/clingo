@@ -26,7 +26,6 @@
 
 #include <climits>
 #include <sstream>
-#include <unistd.h>
 
 namespace Gringo { namespace Input { namespace Test {
 

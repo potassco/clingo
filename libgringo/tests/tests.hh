@@ -39,6 +39,8 @@ template <class T>
 std::ostream &operator<<(std::ostream &out, std::unique_ptr<T> const &x);
 template <class... T>
 std::ostream &operator<<(std::ostream &out, std::vector<T...> const &x);
+template <class T>
+std::ostream &operator<<(std::ostream &out, std::initializer_list<T> const &x);
 template <class... T>
 std::ostream &operator<<(std::ostream &out, std::set<T...> const &x);
 template <class T, class U>
@@ -82,6 +84,18 @@ std::ostream &operator<<(std::ostream &out, std::vector<T...> const &vec) {
     }
     out << "]";
     return out;
+}
+
+template <class T>
+std::ostream &operator<<(std::ostream &out, std::initializer_list<T> const &vec) {
+	out << "[";
+	auto it(vec.begin()), end(vec.end());
+	if (it != end) {
+		out << *it;
+		for (++it; it != end; ++it) { out << "," << *it; }
+	}
+	out << "]";
+	return out;
 }
 
 template <class... T>

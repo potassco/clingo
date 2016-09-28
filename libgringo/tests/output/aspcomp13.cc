@@ -1227,6 +1227,7 @@ TEST_CASE("output-aspcomp2013", "[output][aspcomp]") {
 
     SECTION("aspcomp2013_17") {
         // Author: Jason Jingshi Li
+#ifndef _MSC_VER
         REQUIRE(
             "([[label(0,1,rpi),label(0,2,rd),label(1,2,rd)],"
             "[label(0,1,rpi),label(0,2,rf),label(1,2,rd)],"
@@ -1611,6 +1612,7 @@ TEST_CASE("output-aspcomp2013", "[output][aspcomp]") {
                 "% roi o roi = r> mi oi \n"
                 "label(X,Z,rpi) | label(X,Z,rmi) | label(X,Z,roi) :- label(X,Y,roi), label(Y,Z,roi).\n"
                 , {"label("})));
+#endif
     }
 
 // N18 too big

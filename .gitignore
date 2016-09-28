@@ -10,5 +10,6 @@ Release
 ReleaseScript
 .vs
 *.db
+*.vcxproj.user
 x64
 libgringo/generated

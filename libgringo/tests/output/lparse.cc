@@ -1083,11 +1083,17 @@ TEST_CASE("output-lparse", "[output]") {
                 "a(1).\n"
                 "{ p(X+1) : a(X) }.\n")));
         REQUIRE(
+            "([[p(1)]],[-:3:17-18: info: operation undefined:\n  (1*X+1)\n])" ==
+            IO::to_string(solve(
+                "a(a).\n"
+                "a(1).\n"
+                "X <= { p(X) } < X+1 :- a(X).\n", { "p(" })));
+		REQUIRE(
             "([[p(1)]],[-:3:1-2: info: operation undefined:\n  (1*X+-1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"
-                "X-1 < { p(X) } < X+1 :- a(X).\n", {"p("})));
+                "X-1 < { p(X) } <= X :- a(X).\n", {"p("})));
     }
 
     SECTION("undefinedConjunction") {
