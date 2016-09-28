@@ -142,7 +142,7 @@ if parse_ret.action == "run":
                     for x in open(b + ".cmd"):
                         args.extend(x.strip().split())
                 args.extend(extra_argv)
-                out, err = sp.Popen(args, stdout=sp.PIPE, universal_newlines=True).communicate()
+                out, err = sp.Popen(args, stderr=sp.PIPE, stdout=sp.PIPE, universal_newlines=True).communicate()
                 norm = normalize(out)
                 sol  = reorder(open(b + ".sol").read())
                 if norm != sol:
