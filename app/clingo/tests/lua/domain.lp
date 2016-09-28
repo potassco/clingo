@@ -6,6 +6,8 @@ q(X) :- p(X).
 
 #script (lua)
 
+
+
 clingo = require("clingo")
 
 function main(prg)
@@ -25,6 +27,7 @@ function main(prg)
         out = out .. " sig(" .. x[1] .. "," .. tostring(x[2]) .. ")"
     end
     print (out)
+    io.flush()
 end
 
 #end. 

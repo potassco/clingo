@@ -73,6 +73,7 @@ for root, dirs, files in os.walk(wd):
             print "-" * 79
             print b + ".lp"
             print "." * 79
+            sys.stdout.flush()
             args = [clingo, "0", b + ".lp", "-Wnone"]
             if os.path.exists(b + ".cmd"):
                 for x in open(b + ".cmd"):
@@ -83,6 +84,8 @@ for root, dirs, files in os.walk(wd):
             if norm != sol:
                 print "failed"
                 print "!" * 79
+                print " ".join(args)
+                print "!" * 79
                 d = dl.Differ()
                 for line in list(d.compare(sol.splitlines(), norm.splitlines())):
                     if not line.startswith(" "):
@@ -90,6 +93,7 @@ for root, dirs, files in os.walk(wd):
                 success = False
             else:
                 print "ok"
+            sys.stdout.flush()
 
 print "-" * 79
 print "Result"

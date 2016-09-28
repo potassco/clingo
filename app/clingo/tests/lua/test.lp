@@ -18,6 +18,7 @@ function on_model(x)
            "hasA(" ..        tostring(x:contains(clingo.Function("a"))) .. ") "
         .. "hasVolatile(" .. tostring(x:contains(clingo.Function("volatile", {9}))) .. ") "
         .. "model(" ..       table.concat(sorted(map(tostring, x:symbols{shown=true})), ",") .. ") ")
+    io.flush()
 end
 
 function main (prg)
@@ -36,6 +37,7 @@ function main (prg)
         ret = prg:solve(on_model)
         print("Answer: 42")
         print(tostring(ret))
+        io.flush()
     end
 end
 
