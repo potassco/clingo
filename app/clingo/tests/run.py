@@ -14,6 +14,7 @@ Additional options can be passed to clingo by adding them at the end of the comm
 parser.add_argument('-c', '--clingo', default=None, help="path to clingo executable")
 
 subparsers = parser.add_subparsers(dest="action", help="sub-command --help")
+subparsers.required = True
 parser_run = subparsers.add_parser('run', help='run all tests')
 parser_normalize = subparsers.add_parser('normalize', help='normalize the output of clingo')
 parser_normalize.add_argument("file")
@@ -25,6 +26,11 @@ if "--" in argv:
     argv       = argv[:argv.index("--")]
 
 parse_ret = parser.parse_args(argv)
+
+if parse_ret.action is None:
+    print (parser.usage)
+    exit(0)
+
 clingo = parse_ret.clingo
 
 def find_clingo():
@@ -51,7 +57,7 @@ if clingo is None:
     clingo = find_clingo()
 
 if clingo is None:
-    print "no usable clingo version found"
+    print ("no usable clingo version found")
     exit(1)
 
 def reorder(out):
@@ -127,9 +133,9 @@ if parse_ret.action == "run":
             if f.endswith(".lp"):
                 total+= 1
                 b = os.path.join(root, f[:-3])
-                print "-" * 79
-                print b + ".lp"
-                print "." * 79
+                print ("-" * 79)
+                print (b + ".lp")
+                print ("." * 79)
                 sys.stdout.flush()
                 args = [clingo, "0", b + ".lp", "-Wnone"]
                 if os.path.exists(b + ".cmd"):
@@ -141,25 +147,25 @@ if parse_ret.action == "run":
                 sol  = reorder(open(b + ".sol").read())
                 if norm != sol:
                     failed+= 1
-                    print "failed"
-                    print "!" * 79
-                    print " ".join(args)
-                    print "!" * 79
+                    print ("failed")
+                    print ("!" * 79)
+                    print (" ".join(args))
+                    print ("!" * 79)
                     d = dl.Differ()
                     for line in list(d.compare(sol.splitlines(), norm.splitlines())):
                         if not line.startswith(" "):
-                            print line
+                            print (line)
                 else:
-                    print "ok"
+                    print ("ok")
                 sys.stdout.flush()
 
-    print "-" * 79
-    print "Result"
-    print "." * 79
+    print ("-" * 79)
+    print ("Result")
+    print ("." * 79)
     if failed > 0:
-        print "FAILED ({} of {})".format(failed, total)
+        print ("FAILED ({} of {})".format(failed, total))
         exit(1)
     else:
-        print "OK ({})".format(total)
+        print ("OK ({})".format(total))
         exit(0)
 
