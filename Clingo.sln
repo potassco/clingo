@@ -25,6 +25,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pyclingo", "build_vc\pyclin
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test_libgringo", "build_vc\test_libgringo\test_libgringo.vcxproj", "{F5FBE1A9-1CC1-453E-86FE-695548B80830}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test_libclingo", "build_vc\test_libclingo\test_libclingo.vcxproj", "{97D7009D-D2FC-4DB9-BC82-A09B2A22F6A9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -179,6 +181,22 @@ Global
 		{F5FBE1A9-1CC1-453E-86FE-695548B80830}.ReleaseScript|x64.Build.0 = ReleaseScript|x64
 		{F5FBE1A9-1CC1-453E-86FE-695548B80830}.ReleaseScript|x86.ActiveCfg = ReleaseScript|Win32
 		{F5FBE1A9-1CC1-453E-86FE-695548B80830}.ReleaseScript|x86.Build.0 = ReleaseScript|Win32
+		{97D7009D-D2FC-4DB9-BC82-A09B2A22F6A9}.Debug|x64.ActiveCfg = Debug|x64
+		{97D7009D-D2FC-4DB9-BC82-A09B2A22F6A9}.Debug|x64.Build.0 = Debug|x64
+		{97D7009D-D2FC-4DB9-BC82-A09B2A22F6A9}.Debug|x86.ActiveCfg = Debug|Win32
+		{97D7009D-D2FC-4DB9-BC82-A09B2A22F6A9}.Debug|x86.Build.0 = Debug|Win32
+		{97D7009D-D2FC-4DB9-BC82-A09B2A22F6A9}.DebugScript|x64.ActiveCfg = Debug|x64
+		{97D7009D-D2FC-4DB9-BC82-A09B2A22F6A9}.DebugScript|x64.Build.0 = Debug|x64
+		{97D7009D-D2FC-4DB9-BC82-A09B2A22F6A9}.DebugScript|x86.ActiveCfg = Debug|Win32
+		{97D7009D-D2FC-4DB9-BC82-A09B2A22F6A9}.DebugScript|x86.Build.0 = Debug|Win32
+		{97D7009D-D2FC-4DB9-BC82-A09B2A22F6A9}.Release|x64.ActiveCfg = Release|x64
+		{97D7009D-D2FC-4DB9-BC82-A09B2A22F6A9}.Release|x64.Build.0 = Release|x64
+		{97D7009D-D2FC-4DB9-BC82-A09B2A22F6A9}.Release|x86.ActiveCfg = Release|Win32
+		{97D7009D-D2FC-4DB9-BC82-A09B2A22F6A9}.Release|x86.Build.0 = Release|Win32
+		{97D7009D-D2FC-4DB9-BC82-A09B2A22F6A9}.ReleaseScript|x64.ActiveCfg = ReleaseScript|x64
+		{97D7009D-D2FC-4DB9-BC82-A09B2A22F6A9}.ReleaseScript|x64.Build.0 = ReleaseScript|x64
+		{97D7009D-D2FC-4DB9-BC82-A09B2A22F6A9}.ReleaseScript|x86.ActiveCfg = ReleaseScript|Win32
+		{97D7009D-D2FC-4DB9-BC82-A09B2A22F6A9}.ReleaseScript|x86.Build.0 = ReleaseScript|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
