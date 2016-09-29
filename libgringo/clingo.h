@@ -49,6 +49,23 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
+#if defined _WIN32 || defined __CYGWIN__
+#   ifdef BUILDING_DLL
+#       define DLL_PUBLIC __declspec (dllexport)
+#   else
+#       define DLL_PUBLIC __declspec (dllimport)
+#   endif
+#   define DLL_PRIVATE
+#else
+#   if __GNUC__ >= 4
+#       define DLL_PUBLIC  __attribute__ ((visibility ("default")))
+#       define DLL_PRIVATE __attribute__ ((visibility ("hidden")))
+#   else
+#       define DLL_PUBLIC
+#       define DLL_PRIVATE
+#   endif
+#endif
+
 // {{{1 basic types and error/warning handling
 
 //! @example version.c
