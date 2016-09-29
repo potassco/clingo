@@ -1459,105 +1459,111 @@ struct ASTToC {
     clingo_ast_statement_t visit(TheoryDefinition const &x) {
         auto *theory_definition = create_<clingo_ast_theory_definition_t>();
         theory_definition->name       = x.name;
-        theory_definition->terms      = createArray_(x.terms, &ASTToC::convTheoryTermDefinition);
-        theory_definition->terms_size = x.terms.size();
-        theory_definition->atoms      = createArray_(x.atoms, &ASTToC::convTheoryAtomDefinition);
-        theory_definition->atoms_size = x.atoms.size();
-        clingo_ast_statement_t ret;
-        ret.type              = clingo_ast_statement_type_theory_definition;
-        ret.theory_definition = theory_definition;
-        return ret;
-    }
+theory_definition->terms = createArray_(x.terms, &ASTToC::convTheoryTermDefinition);
+theory_definition->terms_size = x.terms.size();
+theory_definition->atoms = createArray_(x.atoms, &ASTToC::convTheoryAtomDefinition);
+theory_definition->atoms_size = x.atoms.size();
+clingo_ast_statement_t ret;
+ret.type = clingo_ast_statement_type_theory_definition;
+ret.theory_definition = theory_definition;
+return ret;
+	}
 
-    // {{{2 aux
+	// {{{2 aux
 
-    template <class T>
-    T identity(T t) { return t; }
+	template <class T>
+	T identity(T t) { return t; }
 
-    template <class T>
-    T *create_() {
-        data_.emplace_back(operator new(sizeof(T)));
-        return reinterpret_cast<T*>(data_.back());
-    }
-    template <class T>
-    T *create_(T x) {
-        auto *r = create_<T>();
-        *r = x;
-        return r;
-    }
-    template <class T>
-    T *createArray_(size_t size) {
-        arrdata_.emplace_back(operator new[](sizeof(T) * size));
-        return reinterpret_cast<T*>(arrdata_.back());
-    }
-    template <class T, class F>
-    auto createArray_(std::vector<T> const &vec, F f) -> decltype((this->*f)(std::declval<T>()))* {
-        using U = decltype((this->*f)(std::declval<T>()));
-        auto r = createArray_<U>(vec.size()), jt = r;
-        for (auto it = vec.begin(), ie = vec.end(); it != ie; ++it, ++jt) { *jt = (this->*f)(*it); }
-        return r;
-    }
+	template <class T>
+	T *create_() {
+		data_.emplace_back(operator new(sizeof(T)));
+		return reinterpret_cast<T*>(data_.back());
+	}
+	template <class T>
+	T *create_(T x) {
+		auto *r = create_<T>();
+		*r = x;
+		return r;
+	}
+	template <class T>
+	T *createArray_(size_t size) {
+		arrdata_.emplace_back(operator new[](sizeof(T) * size));
+		return reinterpret_cast<T*>(arrdata_.back());
+	}
+	template <class T, class F>
+	auto createArray_(std::vector<T> const &vec, F f) -> decltype((this->*f)(std::declval<T>()))* {
+		using U = decltype((this->*f)(std::declval<T>()));
+		auto r = createArray_<U>(vec.size()), jt = r;
+		for (auto it = vec.begin(), ie = vec.end(); it != ie; ++it, ++jt) { *jt = (this->*f)(*it); }
+		return r;
+	}
 
-    ~ASTToC() noexcept {
-        for (auto &x : data_) { operator delete(x); }
-        for (auto &x : arrdata_) { operator delete[](x); }
-        data_.clear();
-        arrdata_.clear();
-    }
+	~ASTToC() noexcept {
+		for (auto &x : data_) { operator delete(x); }
+		for (auto &x : arrdata_) { operator delete[](x); }
+		data_.clear();
+		arrdata_.clear();
+	}
 
-    std::vector<void *> data_;
-    std::vector<void *> arrdata_;
+	std::vector<void *> data_;
+	std::vector<void *> arrdata_;
 
-    // }}}2
+	// }}}2
 };
 
 } } // namespace AST
 
 void ProgramBuilder::begin() {
-    handleCError(clingo_program_builder_begin(builder_));
+	handleCError(clingo_program_builder_begin(builder_));
 }
 
 void ProgramBuilder::add(AST::Statement const &stm) {
-    AST::ASTToC a;
-    auto x = stm.data.accept(a);
-    x.location = stm.location;
-    handleCError(clingo_program_builder_add(builder_, &x));
+	AST::ASTToC a;
+	auto x = stm.data.accept(a);
+	x.location = stm.location;
+	handleCError(clingo_program_builder_add(builder_, &x));
 }
 
 void ProgramBuilder::end() {
-    handleCError(clingo_program_builder_end(builder_));
+	handleCError(clingo_program_builder_end(builder_));
 }
 
 // {{{1 control
 
 struct Control::Impl {
-    Impl(Logger logger)
-    : ctl(nullptr)
-    , logger(logger) { }
-    Impl(clingo_control_t *ctl)
-    : ctl(ctl) { }
-    ~Impl() noexcept {
-        if (ctl) { clingo_control_free(ctl); }
-    }
-    operator clingo_control_t *() { return ctl; }
-    clingo_control_t *ctl;
-    Logger logger;
-    ModelCallback mh;
-    FinishCallback fh;
+	Impl(Logger logger)
+		: ctl(nullptr)
+		, logger(logger) { }
+	Impl(clingo_control_t *ctl)
+		: ctl(ctl) { }
+	~Impl() noexcept {
+		if (ctl) { clingo_control_free(ctl); }
+	}
+	operator clingo_control_t *() { return ctl; }
+	clingo_control_t *ctl;
+	Logger logger;
+	ModelCallback mh;
+	FinishCallback fh;
 };
 
 Control::Control(clingo_control_t *ctl)
-: impl_(gringo_make_unique<Impl>(ctl)) { }
+	: impl_(new Impl(ctl)) { }
 
 Control::Control(Control &&c)
-: impl_(std::move(c.impl_)) { }
-
-Control &Control::operator=(Control &&c) {
-    impl_ = std::move(c.impl_);
-    return *this;
+	: impl_(nullptr) {
+	std::swap(impl_, c.impl_);
 }
 
-Control::~Control() noexcept = default;
+Control &Control::operator=(Control &&c) {
+	delete impl_;
+	impl_ = nullptr;
+	std::swap(impl_, c.impl_);
+	return *this;
+}
+
+Control::~Control() noexcept {
+	delete impl_;
+}
 
 void Control::add(char const *name, StringSpan params, char const *part) {
     handleCError(clingo_control_add(*impl_, name, params.begin(), params.size(), part));

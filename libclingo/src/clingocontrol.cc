@@ -771,7 +771,7 @@ struct Clingo::Control::Impl {
 };
 
 Clingo::Control::Control(StringSpan args, Logger logger, unsigned message_limit)
-: impl_(Gringo::gringo_make_unique<Clingo::Control::Impl>(logger))
+: impl_(new Clingo::Control::Impl(logger))
 {
     Gringo::handleCError(clingo_control_new(args.begin(), args.size(), [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }

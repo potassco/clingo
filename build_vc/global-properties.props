@@ -5,7 +5,7 @@
   <PropertyGroup />
   <ItemDefinitionGroup>
     <ClCompile>
-      <PreprocessorDefinitions>WITH_THREADS=1;CLASP_USE_STD_THREAD=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>CLINGO_BUILD_LIBRARY;WITH_THREADS=1;CLASP_USE_STD_THREAD=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4521</DisableSpecificWarnings>
     </ClCompile>
   </ItemDefinitionGroup>

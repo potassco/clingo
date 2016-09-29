@@ -50,6 +50,9 @@ extern "C" {
 #include <stdbool.h>
 
 #if defined _WIN32 || defined __CYGWIN__
+#	define CLINGO_WIN
+#endif
+#ifdef CLINGO_WIN
 #   ifdef CLINGO_BUILD_LIBRARY
 #       define CLINGO_VISIBILITY_DEFAULT __declspec (dllexport)
 #   else
@@ -278,7 +281,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_signature_is_less_than(clingo_signature_t 
 //!
 //! @param[in] signature the target signature
 //! @return the hash code of the signature
-CLINGO_VISIBILITY_DEFAULT CLINGO_VISIBILITY_DEFAULT size_t clingo_signature_hash(clingo_signature_t signature);
+CLINGO_VISIBILITY_DEFAULT size_t clingo_signature_hash(clingo_signature_t signature);
 
 //! @}
 
