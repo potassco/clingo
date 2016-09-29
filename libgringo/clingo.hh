@@ -734,8 +734,8 @@ public:
         --*this;
         return t;
     }
-    TheoryAtomIterator& operator+=(difference_type n) { id_ += n; return *this; }
-    TheoryAtomIterator& operator-=(difference_type n) { id_ -= n; return *this; }
+    TheoryAtomIterator& operator+=(difference_type n) { id_ += static_cast<clingo_id_t>(n); return *this; }
+    TheoryAtomIterator& operator-=(difference_type n) { id_ -= static_cast<clingo_id_t>(n); return *this; }
     friend TheoryAtomIterator operator+(TheoryAtomIterator it, difference_type n) { return TheoryAtomIterator{it.atoms(), clingo_id_t(it.id() + n)}; }
     friend TheoryAtomIterator operator+(difference_type n, TheoryAtomIterator it) { return TheoryAtomIterator{it.atoms(), clingo_id_t(it.id() + n)}; }
     friend TheoryAtomIterator operator-(TheoryAtomIterator it, difference_type n) { return TheoryAtomIterator{it.atoms(), clingo_id_t(it.id() - n)}; }
@@ -932,7 +932,7 @@ public:
     SolveControl context() const;
     ModelType type() const;
     uint64_t number() const;
-    explicit operator bool() const { return model_; }
+    explicit operator bool() const { return model_ != nullptr; }
     clingo_model_t *to_c() const { return model_; }
 private:
     clingo_model_t *model_;
@@ -951,10 +951,10 @@ public:
     explicit SolveResult(clingo_solve_result_bitset_t res)
     : res_(res) { }
     bool is_satisfiable() const { return res_ & clingo_solve_result_satisfiable; }
-    bool is_unsatisfiable() const { return res_ & clingo_solve_result_unsatisfiable; }
+    bool is_unsatisfiable() const { return (res_ & clingo_solve_result_unsatisfiable) != 0; }
     bool is_unknown() const { return (res_ & 3) == 0; }
-    bool is_exhausted() const { return res_ & clingo_solve_result_exhausted; }
-    bool is_interrupted() const { return res_ & clingo_solve_result_interrupted; }
+    bool is_exhausted() const { return (res_ & clingo_solve_result_exhausted) != 0; }
+    bool is_interrupted() const { return (res_ & clingo_solve_result_interrupted) != 0; }
     clingo_solve_result_bitset_t &to_c() { return res_; }
     clingo_solve_result_bitset_t const &to_c() const { return res_; }
     friend bool operator==(SolveResult a, SolveResult b) { return a.res_ == b.res_; }
