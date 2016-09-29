@@ -64,7 +64,7 @@ env['PYTHON_CONFIG']  = 'python-config'
 env['PKG_CONFIG']     = 'pkg-config'
 env['CXX']            = 'c++'
 env['CC']             = 'cc'
-env['CXXFLAGS']       = ['-std=c++11', '-O0', '-g', '-Wall', '-W', '-pedantic']
+env['CXXFLAGS']       = ['-std=c++11', '-O0', '-g', '-Wall', '-W', '-pedantic', '-fvisibility=hidden']
 env['CFLAGS']         = ['-O0', '-g', '-Wall']
 env['LIBS']           = []
 env['LINKFLAGS']      = ['-std=c++11', '-O0']
@@ -79,12 +79,12 @@ env['WITH_THREADS']   = 'posix'
 env['TESTS']          = ['libreify', 'libgringo', 'libclingo', 'liblp', 'clingo']
 
 if GetOption("build_dir") == "static":
-    env['CXXFLAGS'] = ['-std=c++11', '-O3', '-Wall']
+    env['CXXFLAGS'] = ['-std=c++11', '-O3', '-Wall', '-fvisibility=hidden']
     env['CFLAGS'] = ['-O3', '-Wall']
     env['LINKFLAGS'] = ['-std=c++11', '-O3', '-static']
     env['CPPDEFINES']['NDEBUG'] = 1
 elif GetOption("build_dir") == "release":
-    env['CXXFLAGS']   = ['-std=c++11', '-O3', '-Wall']
+    env['CXXFLAGS']   = ['-std=c++11', '-O3', '-Wall', '-fvisibility=hidden']
     env['CFLAGS'] = ['-O3', '-Wall']
     env['LINKFLAGS']  = ['-std=c++11', '-O3']
     env['CPPDEFINES']['NDEBUG'] = 1
