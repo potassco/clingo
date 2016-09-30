@@ -1775,7 +1775,7 @@ places like - e.g., the main function.)";
     static PyObject *atoms(Model *self, PyObject *pyargs, PyObject *pykwds) {
         PY_TRY
             unsigned atomset = 0;
-            static char const *kwlist[] = {"atoms", "terms", "shown", "csp", "extra", "comp", nullptr};
+            static char const *kwlist[] = {"atoms", "terms", "shown", "csp", "extra", "complement", nullptr};
             PyObject *pyAtoms = Py_False, *pyTerms = Py_False, *pyShown = Py_False, *pyCSP = Py_False, *pyExtra = Py_False, *pyComp = Py_False;
             if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "|OOOOOO", const_cast<char**>(kwlist), &pyAtoms, &pyTerms, &pyShown, &pyCSP, &pyExtra, &pyComp)) { return nullptr; }
             if (pyToCpp<bool>(pyAtoms)) { atomset |= clingo_show_type_atoms; }
@@ -1821,25 +1821,25 @@ The return values correspond to clasp's cost output.)", nullptr},
 
 PyMethodDef Model::tp_methods[] = {
     {"symbols", (PyCFunction)atoms, METH_VARARGS | METH_KEYWORDS,
-R"(symbols(self, atoms, terms, shown, csp, comp)
+R"(symbols(self, atoms, terms, shown, csp, extra, complement)
         -> list of terms
 
 Return the list of atoms, terms, or CSP assignments in the model.
 
 Keyword Arguments:
-atoms -- select all atoms in the model (independent of #show statements)
-         (Default: False)
-terms -- select all terms displayed with #show statements in the model
-         (Default: False)
-shown -- select all atoms and terms as outputted by clingo
-         (Default: False)
-csp   -- select all csp assignments (independent of #show statements)
-         (Default: False)
-extra -- select terms added by clingo extensions
-         (Default: False)
-comp  -- return the complement of the answer set w.r.t. to the Herbrand
-         base accumulated so far (does not affect csp assignments)
-         (Default: False)
+atoms      -- select all atoms in the model (independent of #show statements)
+              (Default: False)
+terms      -- select all terms displayed with #show statements in the model
+              (Default: False)
+shown      -- select all atoms and terms as outputted by clingo
+              (Default: False)
+csp        -- select all csp assignments (independent of #show statements)
+              (Default: False)
+extra      -- select terms added by clingo extensions
+              (Default: False)
+complement -- return the complement of the answer set w.r.t. to the Herbrand
+              base accumulated so far (does not affect csp assignments)
+              (Default: False)
 
 Note that atoms are represented using functions (Symbol objects), and that CSP
 assignments are represented using functions with name "$" where the first

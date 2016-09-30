@@ -17,10 +17,15 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // }}}
-
 #include "Python.h"
 #include "gringo/python.hh"
 #include "clingo/clingocontrol.hh"
+
+#if defined(_WIN32) || defined(__CYGWIN__)
+#   define GRINGO_VISIBILITY_DEFAULT __declspec (dllexport)
+#else
+#   define GRINGO_VISIBILITY_DEFAULT __attribute__ ((visibility ("default")))
+#endif
 
 namespace {
 
@@ -31,11 +36,11 @@ DefaultGringoModule g_module;
 #if PY_MAJOR_VERSION >= 3
 #define INITRETURN return (PyObject *)
 #define INITFAIL return nullptr;
-PyMODINIT_FUNC PyInit_clingo() {
+extern "C" GRINGO_VISIBILITY_DEFAULT PyObject *PyInit_clingo() {
 #else
 #define INITRETURN
 #define INITFAIL return;
-PyMODINIT_FUNC initclingo() {
+extern "C" GRINGO_VISIBILITY_DEFAULT void initclingo() {
 #endif
     try                             { INITRETURN Gringo::Python::initlib(g_module); }
     catch (std::bad_alloc const &e) { PyErr_SetString(PyExc_MemoryError, e.what()); INITFAIL }
