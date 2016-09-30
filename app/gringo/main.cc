@@ -35,6 +35,7 @@
 #include <gringo/scripts.hh>
 #include <gringo/version.hh>
 #include <gringo/control.hh>
+#include <clingo.hh>
 #include <climits>
 #include <iostream>
 #include <stdexcept>
@@ -410,3 +411,8 @@ int main(int argc, char **argv) {
     return app.main(argc, argv);
 }
 
+Clingo::Control::Control(StringSpan, Logger, unsigned)
+: impl_(nullptr)
+{
+	throw std::logic_error("cannot happen");
+}
