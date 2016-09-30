@@ -206,12 +206,13 @@ void ModelEnumerator::BacktrackFinder::doCommitModel(Enumerator& ctx, Solver& s)
 				solution.push_back(~s.trueLit(i));
 			}
 		}
+		// Tag solution
+		solution.push_back(~s.sharedContext()->stepLiteral());
 		// Remember initial decisions that are projection vars.
 		for (dl = s.rootLevel(); dl < s.decisionLevel(); ++dl) {
 			if (!en.project(s.decision(dl+1).var())) { break; }
 		}
 		s.setBacktrackLevel(dl, Solver::undo_pop_proj_level);
-		if (solution.empty()) { solution.push_back(lit_false()); }
 	}
 	else {
 		s.setBacktrackLevel(dl);
