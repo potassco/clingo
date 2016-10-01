@@ -1,9 +1,13 @@
 # Use container-based distribution
+os:
+  - linux
+  - osx
 sudo: false
 language: c++
 matrix:
   include:
-    - compiler: gcc
+    - os: linux
+      compiler: gcc
       addons:
         apt:
           sources:
@@ -13,10 +17,17 @@ matrix:
             - re2c
             - liblua5.1-0-dev
             - zsh
+    - os: osx
+      osx_image: xcode8
+
+before_install:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update  ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install lua bison re2c scons; fi
+
 script:
   - mkdir build
-  - echo "CXX = 'g++-5'" > build/debug.py
-  - echo "CC = 'gcc-5'" >> build/debug.py
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then echo "CXX = 'clang++'" >  build/debug.py; else echo "CXX = 'g++-5'" >  build/debug.py; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then echo "CC  = 'clang'"   >> build/debug.py; else echo "CC  = 'gcc-5'" >> build/debug.py; fi
   - echo "CXXFLAGS = ['-std=c++11', '-O2', '-W', '-Wall']" >> build/debug.py
   - echo "LINKFLAGS = ['-std=c++11']" >> build/debug.py
   - scons -j3
