@@ -285,7 +285,7 @@ void sort_unique(T &vec) {
 class CountBuf : public std::streambuf {
 public:
     CountBuf() = default;
-    size_t count() const { return count_; }
+    size_t count() const { return static_cast<size_t>(count_); }
 protected:
     int_type overflow(int_type ch) override {
         count_++;
@@ -296,7 +296,7 @@ protected:
         return count;
     }
 private:
-    size_t count_ = 0;
+    std::streamsize count_ = 0;
 };
 
 class CountStream : public std::ostream {

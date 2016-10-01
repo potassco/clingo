@@ -222,7 +222,7 @@ public:
         data_(new T{std::forward<Args>(x)...});
     }
     void clear() { data_.reset(nullptr); }
-    explicit operator bool() const { return data_.get(); }
+    explicit operator bool() const { return data_.get() != nullptr; }
 private:
     std::unique_ptr<T> data_;
 };

@@ -37,7 +37,7 @@ public:
     struct Node {
         friend class Graph;
         template <class... U>
-        Node(bool phase, U &&...x);
+        Node(unsigned phase, U &&...x);
         Node(Node const &) = delete;
         void insertEdge(Node &n);
         typename NodeVec::const_iterator begin() const;
@@ -59,9 +59,10 @@ public:
     template <class... U>
     Node &insertNode(U &&...x);
 private:
+	unsigned nphase() { return phase_ == 0 ? 1 : 0; }
     typedef std::forward_list<Node> NodeList;
     NodeList nodes_;
-    bool phase_ = false;
+    unsigned phase_ = 0;
 };
 
 // }}}
@@ -70,9 +71,9 @@ private:
 
 template <class T>
 template <class... U>
-Graph<T>::Node::Node(bool phase, U &&...data)
+Graph<T>::Node::Node(unsigned phase, U &&...data)
     : data(std::forward<U>(data)...)
-    , visited_(!phase) { }
+    , visited_(phase) { }
 
 template <class T>
 void Graph<T>::Node::insertEdge(Node &n) {
@@ -101,7 +102,7 @@ Graph<T>::Graph(Graph &&) = default;
 template <class T>
 template <class... U>
 typename Graph<T>::Node &Graph<T>::insertNode(U &&... x) {
-    nodes_.emplace_front(phase_, std::forward<U>(x)...);
+    nodes_.emplace_front(nphase(), std::forward<U>(x)...);
     return nodes_.front();
 }
 
@@ -111,7 +112,7 @@ typename Graph<T>::SCCVec Graph<T>::tarjan() {
     NodeVec stack;
     NodeVec trail;
     for (auto &x : nodes_) {
-        if (x.visited_ == !phase_) {
+        if (x.visited_ == nphase()) {
             unsigned index = 1;
             auto push = [&stack, &trail, &index](Node &x) {
                 x.visited_  = ++index;
@@ -123,7 +124,7 @@ typename Graph<T>::SCCVec Graph<T>::tarjan() {
             while (!stack.empty()) {
                 auto &y = stack.back();
                 auto end = y->edges_.end();
-                for (; y->finished_ != end && (*y->finished_)->visited_ != !phase_; ++y->finished_) { }
+                for (; y->finished_ != end && (*y->finished_)->visited_ != nphase(); ++y->finished_) { }
                 if (y->finished_ != end) { push(**y->finished_++); }
                 else {
                     stack.pop_back();
@@ -147,7 +148,7 @@ typename Graph<T>::SCCVec Graph<T>::tarjan() {
             }
         }
     }
-    phase_ = !phase_;
+    phase_ = nphase();
     return std::move(sccs);
 }
 

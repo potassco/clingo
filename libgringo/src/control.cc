@@ -119,15 +119,15 @@ void handleCError(bool ret, std::exception_ptr *exc) {
 
 void handleCXXError() {
     try { throw; }
-    catch (Gringo::GringoError const &e)       { g_lastException = std::current_exception(); g_lastCode = clingo_error_runtime; return; }
+    catch (Gringo::GringoError const &)       { g_lastException = std::current_exception(); g_lastCode = clingo_error_runtime; return; }
     // Note: a ClingoError is throw after an exception is set or a user error is thrown so either
     //       - g_lastException is already set, or
     //       - there was a user error (currently not associated to an error message)
-    catch (Gringo::ClingoError const &e)       { return; }
-    catch (Gringo::MessageLimitError const &e) { g_lastException = std::current_exception(); g_lastCode = clingo_error_runtime; return; }
-    catch (std::bad_alloc const &e)            { g_lastException = std::current_exception(); g_lastCode = clingo_error_bad_alloc; return; }
-    catch (std::runtime_error const &e)        { g_lastException = std::current_exception(); g_lastCode = clingo_error_runtime; return; }
-    catch (std::logic_error const &e)          { g_lastException = std::current_exception(); g_lastCode = clingo_error_logic; return; }
+    catch (Gringo::ClingoError const &)       { return; }
+    catch (Gringo::MessageLimitError const &) { g_lastException = std::current_exception(); g_lastCode = clingo_error_runtime; return; }
+    catch (std::bad_alloc const &)            { g_lastException = std::current_exception(); g_lastCode = clingo_error_bad_alloc; return; }
+    catch (std::runtime_error const &)        { g_lastException = std::current_exception(); g_lastCode = clingo_error_runtime; return; }
+    catch (std::logic_error const &)          { g_lastException = std::current_exception(); g_lastCode = clingo_error_logic; return; }
     g_lastCode = clingo_error_unknown;
 }
 
@@ -853,13 +853,13 @@ bool Configuration::is_value() const {
 bool Configuration::is_array() const {
     clingo_configuration_type_bitset_t type;
     handleCError(clingo_configuration_type(conf_, key_, &type));
-    return type & clingo_configuration_type_array;
+    return (type & clingo_configuration_type_array) != 0;
 }
 
 bool Configuration::is_map() const {
     clingo_configuration_type_bitset_t type;
     handleCError(clingo_configuration_type(conf_, key_, &type));
-    return type & clingo_configuration_type_map;
+    return (type & clingo_configuration_type_map) != 0;
 }
 
 bool Configuration::is_assigned() const {
@@ -2495,7 +2495,7 @@ extern "C" void clingo_set_error(clingo_error_t code, char const *message) {
 extern "C" char const *clingo_error_message() {
     if (g_lastException) {
         try { std::rethrow_exception(g_lastException); }
-        catch (std::bad_alloc const &e) { return "bad_alloc"; }
+        catch (std::bad_alloc const &) { return "bad_alloc"; }
         catch (std::exception const &e) {
             g_lastMessage = e.what();
             return g_lastMessage.c_str();
@@ -3352,7 +3352,7 @@ struct ClingoContext : Context {
     , data(data) {}
 
     bool callable(String) const override {
-        return cb;
+        return cb != nullptr;
     }
 
     SymVec call(Location const &loc, String name, SymSpan args) override {
