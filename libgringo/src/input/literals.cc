@@ -153,7 +153,7 @@ inline bool RangeLiteral::operator==(Literal const &x) const {
     return t && is_value_equal_to(assign, t->assign) && is_value_equal_to(lower, t->lower) && is_value_equal_to(upper, t->upper);
 }
 inline bool FalseLiteral::operator==(Literal const &x) const {
-    return dynamic_cast<FalseLiteral const *>(&x);
+    return dynamic_cast<FalseLiteral const *>(&x) != nullptr;
 }
 inline bool ScriptLiteral::operator==(Literal const &x) const {
     auto t = dynamic_cast<ScriptLiteral const *>(&x);

@@ -59,7 +59,7 @@ TEST_CASE("term", "[base]") {
         UTerm sig{make_locatable<ValTerm>(x->loc(), Symbol::createId("#p"))};
         SimplifyState state;
         x->simplify(state, true, false, log).update(x);
-        auto ret(x->project(sig.get(), state.gen));
+        auto ret(x->project(sig.get() != nullptr, state.gen));
         Term::replace(x, std::move(std::get<0>(ret)));
         auto projected(std::move(std::get<1>(ret)));
         auto project(std::move(std::get<2>(ret)));

@@ -56,9 +56,9 @@ G graph(std::initializer_list<std::pair<std::string, std::string>> edges)
     std::map<std::string, G::Node*> map;
     for (auto &x : edges) {
         auto &a = map[x.first];
-        if (!a) { a = &g.insertNode(x.first); }
+        if (a == nullptr) { a = &g.insertNode(x.first); }
         auto &b = map[x.second];
-        if (!b) { b = &g.insertNode(x.second); }
+        if (b == nullptr) { b = &g.insertNode(x.second); }
         a->insertEdge(*b);
     }
     return g;
