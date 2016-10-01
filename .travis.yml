@@ -1,7 +1,4 @@
 # Use container-based distribution
-os:
-  - linux
-  - osx
 sudo: false
 language: c++
 matrix:
@@ -23,6 +20,7 @@ matrix:
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update  ; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install lua bison re2c scons; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew link bison --force; fi
 
 script:
   - mkdir build
