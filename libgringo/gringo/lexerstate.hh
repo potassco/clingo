@@ -97,6 +97,7 @@ struct LexerState<T>::State {
     char *ctxmarker_;
     char *eof_;
     int line_;
+    bool newline_;
 };
 
 // }}}
@@ -109,7 +110,8 @@ LexerState<T>::State::State(T &&data)
     , bufmin_(4096), bufsize_(0)
     , buffer_(0), start_(0), offset_(0)
     , cursor_(0), limit_(0), marker_(0)
-    , ctxmarker_(0), eof_(0), line_(1) { }
+    , ctxmarker_(0), eof_(0), line_(1)
+    , newline_(false) { }
 
 template <class T>
 LexerState<T>::State::State(State &&x)
@@ -117,7 +119,8 @@ LexerState<T>::State::State(State &&x)
     , bufmin_(x.bufmin_), bufsize_(x.bufsize_)
     , buffer_(0), start_(x.start_), offset_(x.offset_)
     , cursor_(x.cursor_), limit_(x.limit_), marker_(x.marker_)
-    , ctxmarker_(x.ctxmarker_), eof_(x.eof_), line_(x.line_) {
+    , ctxmarker_(x.ctxmarker_), eof_(x.eof_), line_(x.line_)
+    , newline_(x.newline_) {
     std::swap(x.in_, in_);
     std::swap(x.buffer_, buffer_);
 }
@@ -136,7 +139,7 @@ void LexerState<T>::State::fill(size_t n) {
         cursor_   -= shift;
     }
     size_t inc = n < bufmin_ ? bufmin_ : n;
-    if(bufsize_ < inc + (limit_ - buffer_)) {
+    if (bufsize_ < inc + (limit_ - buffer_)) {
         bufsize_   = inc + (limit_ - buffer_);
         char *buf  = (char*)realloc(buffer_, bufsize_ * sizeof(char));
         start_     = buf + (start_ - buffer_);
@@ -148,8 +151,18 @@ void LexerState<T>::State::fill(size_t n) {
         buffer_    = buf;
     }
     in_->read(limit_, inc);
-    limit_+= in_->gcount();
-    if(size_t(in_->gcount()) < inc) {
+    size_t read = size_t(in_->gcount());
+    limit_+= read;
+    if (read > 0) {
+        newline_ = *(limit_ - 1) == '\n';
+    }
+    // make sure the last line is newline terminated
+    if (read < inc && !newline_) {
+        newline_ = true;
+        ++read;
+        *limit_++ = '\n';
+    }
+    if (read < inc) {
         eof_ = limit_;
         *eof_++ = '\n';
     }
