@@ -32,7 +32,7 @@ namespace Gringo { namespace Output {
 class SmodelsFormatBackend : public Potassco::SmodelsConvert {
 public:
     SmodelsFormatBackend(std::ostream& os)
-    : Potassco::SmodelsConvert(out, true)
+    : Potassco::SmodelsConvert(out_, true)
     , out_(os, true, 0) { }
 private:
     Potassco::SmodelsOutput out_;
