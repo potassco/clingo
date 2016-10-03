@@ -188,7 +188,7 @@ UAbstractOutput OutputBase::fromFormat(std::ostream &stream, OutputFormat format
                 break;
             }
             case OutputFormat::SMODELS: {
-                backend = gringo_make_unique<SmodelsFormatBackend>(stream, true, 0);
+                backend = gringo_make_unique<SmodelsFormatBackend>(stream);
                 break;
             }
             case OutputFormat::TEXT: {

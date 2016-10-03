@@ -29,8 +29,16 @@
 
 namespace Gringo { namespace Output {
 
+class SmodelsFormatBackend : public Potassco::SmodelsConvert {
+public:
+    SmodelsFormatBackend(std::ostream& os)
+    : Potassco::SmodelsConvert(out, true)
+    , out_(os, true, 0) { }
+private:
+    Potassco::SmodelsOutput out_;
+};
+
 using IntermediateFormatBackend = Potassco::AspifOutput;
-using SmodelsFormatBackend = Potassco::SmodelsOutput;
 
 } } // namespace Output Gringo
 
