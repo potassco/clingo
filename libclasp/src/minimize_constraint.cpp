@@ -565,12 +565,11 @@ MinimizeBuilder& MinimizeBuilder::add(weight_t prio, const WeightLitVec& lits) {
 	return *this;
 }
 MinimizeBuilder& MinimizeBuilder::add(weight_t prio, WeightLiteral lit) {
-	if (lit.second == 0) { return *this; }
 	lits_.push_back(MLit(lit, prio));
 	return *this;
 }
 MinimizeBuilder& MinimizeBuilder::add(weight_t prio, weight_t w) {
-	if (w != 0) { lits_.push_back(MLit(WeightLiteral(lit_true(), w), prio)); }
+	lits_.push_back(MLit(WeightLiteral(lit_true(), w), prio));
 	return *this;
 }
 MinimizeBuilder& MinimizeBuilder::add(const SharedData& con) {

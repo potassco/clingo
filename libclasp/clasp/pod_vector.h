@@ -20,8 +20,10 @@
 
 #ifndef CLASP_POD_VECTOR_H_INCLUDED
 #define CLASP_POD_VECTOR_H_INCLUDED
+#include <clasp/util/platform.h>
 #include <clasp/util/pod_vector.h>
 #include <vector>
+#include <cassert>
 
 namespace Clasp {
 
@@ -44,8 +46,10 @@ namespace Clasp {
 		}
 	};
 #endif
-template <class T>
-inline uint32 toU32(T x) { assert(x <= static_cast<uint64>(UINT32_MAX)); return static_cast<uint32>(x); }
+inline uint32 toU32(std::size_t x) { 
+	assert(sizeof(std::size_t) <= sizeof(uint32) || x <= static_cast<uint64>(UINT32_MAX)); 
+	return static_cast<uint32>(x);
+}
 template <class T>
 inline uint32 sizeVec(const T& c) { return toU32(c.size()); }
 template <class T>

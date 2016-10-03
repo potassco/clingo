@@ -34,10 +34,12 @@
 
 #if defined( __linux__ )
 #include <fpu_control.h>
+#if defined(_FPU_EXTENDED) && defined(_FPU_SINGLE) && defined(_FPU_DOUBLE)
 #define FPU_SWITCH_DOUBLE(oldW) _FPU_GETCW(oldW);\
 	unsigned __t = ((oldW) & ~_FPU_EXTENDED & ~_FPU_SINGLE) | _FPU_DOUBLE;\
 	_FPU_SETCW(__t)
 #define FPU_RESTORE_DOUBLE(oldW) _FPU_SETCW(oldW)
+#endif
 #elif defined (_MSC_VER) && !defined(_WIN64)
 #include <float.h>
 #define FPU_SWITCH_DOUBLE(oldW) \
