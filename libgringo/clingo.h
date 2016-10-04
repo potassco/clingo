@@ -1357,6 +1357,40 @@ CLINGO_VISIBILITY_DEFAULT clingo_id_t clingo_propagate_control_thread_id(clingo_
 //! @param[in] control the target
 //! @return the assignment
 CLINGO_VISIBILITY_DEFAULT clingo_assignment_t *clingo_propagate_control_assignment(clingo_propagate_control_t *control);
+//! Adds a new volatile literal to the underlying solver thread.
+//!
+//! @attention The literal is only valid within the current solving step and solver thread.
+//! All volatile literals and clauses involving a volatile literal are deleted after the current search.
+//!
+//! @param[in] control the target
+//! @param[out] result the (positive) solver literal
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT clingo_error_t clingo_propagate_control_add_literal(clingo_propagate_control_t *control, clingo_literal_t *result);
+//! Add a watch for the solver literal in the given phase.
+//!
+//! @note Unlike @ref clingo_propagate_init_add_watch() this does not add a watch to all solver threads but just the current one.
+//!
+//! @param[in] control the target
+//! @param[in] literal the literal to watch
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! @see clingo_propagate_control_remove_watch()
+CLINGO_VISIBILITY_DEFAULT clingo_error_t clingo_propagate_control_add_watch(clingo_propagate_control_t *control, clingo_literal_t literal);
+//! Check whether a literal is watched in the current solver thread.
+//!
+//! @param[in] control the target
+//! @param[in] literal the literal to check
+//!
+//! @return whether the literal is watched
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_has_watch(clingo_propagate_control_t *control, clingo_literal_t literal);
+//! Removes the watch (if any) for the given solver literal.
+//!
+//! @note Similar to @ref clingo_propagate_init_add_watch() this just removes the watch in the current solver thread.
+//!
+//! @param[in] control the target
+//! @param[in] literal the literal to remove
+CLINGO_VISIBILITY_DEFAULT void clingo_propagate_control_remove_watch(clingo_propagate_control_t *control, clingo_literal_t literal);
 //! Add the given clause to the solver.
 //!
 //! This method sets its result to false if the current propagation must be stopped for the solver to backtrack.

@@ -2958,6 +2958,24 @@ extern "C" bool clingo_propagate_control_propagate(clingo_propagate_control_t *c
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" clingo_error_t clingo_propagate_control_add_literal(clingo_propagate_control_t *control, clingo_literal_t *result) {
+    GRINGO_CLINGO_TRY { *result = control->pushVariable(); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" clingo_error_t clingo_propagate_control_add_watch(clingo_propagate_control_t *control, clingo_literal_t literal) {
+    GRINGO_CLINGO_TRY { control->addWatch(literal); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_propagate_control_has_watch(clingo_propagate_control_t *control, clingo_literal_t literal) {
+    return control->hasWatch(literal);
+}
+
+extern "C" void clingo_propagate_control_remove_watch(clingo_propagate_control_t *control, clingo_literal_t literal) {
+    control->removeWatch(literal);
+}
+
 // {{{1 model
 
 struct clingo_solve_control : clingo_model { };
