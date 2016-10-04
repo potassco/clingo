@@ -77,6 +77,13 @@ private:
 	typedef Potassco::Lit_t Lit_t;
 	class Control;
 	enum State { state_ctrl = 1u, state_prop = 2u };
+	struct ClauseTodo {
+		bool empty() const { return mem.empty(); }
+		void clear()       { mem.clear(); }
+		LitVec    mem;
+		ClauseRep clause;
+		uint32    flags;
+	};
 	typedef PodVector<Lit_t>::type        TrailVec;
 	typedef PodVector<Constraint*>::type  ClauseDB;
 	typedef Potassco::AbstractPropagator* Callback;
@@ -89,12 +96,13 @@ private:
 	ClingoLock lock_;    // optional lock for protecting calls to theory propagator
 	TrailVec   trail_;   // assignment trail: watched literals that are true
 	VarVec     undo_;    // offsets into trail marking beginnings of decision levels
-	LitVec     clause_;  // active clause to be added (received from theory propagator)
 	ClauseDB   db_;      // clauses added with flag static
+	ClauseTodo todo_;    // active clause to be added (received from theory propagator)
 	size_t     init_;    // offset into watches separating old and newly added ones
 	size_t     prop_;    // offset into trail: literals [0, prop_) were propagated
 	size_t     epoch_;   // number of calls into callback
 	uint32     level_;   // highest decision level in trail
+	Literal    aux_;     // max active literal
 };
 
 //! Initialization adaptor for a Potassco::AbstractPropagator.

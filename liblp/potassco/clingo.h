@@ -77,10 +77,11 @@ public:
 	//! Returns whether the given literal is false wrt the current assignment. 
 	bool isFalse(Lit_t lit) const;
 };
-	
-//! Represents a solver.
+
+//! Represents one particular solver instance.
 class AbstractSolver {
 public:
+	typedef Potassco::Lit_t Lit;
 	virtual ~AbstractSolver();
 	//! Returns the id of the solver that is associated with this object.
 	virtual Id_t id() const = 0;
@@ -95,10 +96,44 @@ public:
 	 *
 	 * \param clause The literals that make up the clause.
 	 * \param prop   Properties to be associated with the new clause.
+	 *
+	 * \note If clause contains a volatile variable, i.e., a variable
+	 * that was created with Solver::pushVariable(), it is also considered volatile.
+	 * 
 	 */
 	virtual bool addClause(const Potassco::LitSpan& clause, Clause_t prop = Clause_t::Learnt) = 0;
+	
+	//! Adds a new volatile variable to this solver instance.
+	/*!
+	 * The new variable is volatile, i.e., only valid within the current solving step,
+	 * and only added to this one particular solver instance.
+	 *
+	 * \return The positive literal of the new variable.
+	 */
+	virtual Lit  pushVariable() = 0;
 	//! Propagates any newly implied literals.
 	virtual bool propagate() = 0;
+
+	/*!
+	 * \name Propagate control
+	 * \brief Functions that must only be called in the context of a propagator.
+	 *
+	 * @{ */
+
+	//! Returns whether the active propagator watches lit in this solver instance.
+	virtual bool hasWatch(Lit lit) const = 0;
+
+	//! Adds the active propagator to the list of propagators to be notified when the given literal is assigned in this solver instance.
+	/*!
+	 * \post hasWatch(lit) returns true.
+	 */
+	virtual void addWatch(Lit lit) = 0;
+	//! Removes the active propagator from the list of propagators watching p in the given solver.
+	/*!
+	 * \post hasWatch(lit) returns false.
+	 */
+	virtual void removeWatch(Lit lit) = 0;
+	//@}
 };
 
 //! Base class for implementing propagators.
