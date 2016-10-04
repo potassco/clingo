@@ -50,7 +50,7 @@ extern "C" {
 #include <stdbool.h>
 
 #if defined _WIN32 || defined __CYGWIN__
-#	define CLINGO_WIN
+#   define CLINGO_WIN
 #endif
 #ifdef CLINGO_WIN
 #   ifdef CLINGO_BUILD_LIBRARY
