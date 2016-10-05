@@ -13,3 +13,4 @@ ReleaseScript
 *.vcxproj.user
 x64
 libgringo/generated
+homewv.sh
