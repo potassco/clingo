@@ -2599,12 +2599,58 @@ struct PropagateControl : ObjectBase<PropagateControl> {
         PY_CATCH(nullptr);
     }
 
+    Object add_literal() {
+        return cppToPy(ctl->addVariable());
+    }
+
+    Object add_watch(Reference pyLit) {
+        ctl->addWatch(pyToCpp<clingo_literal_t>(pyLit));
+        return None();
+    }
+
+    Object remove_watch(Reference pyLit) {
+        ctl->addWatch(pyToCpp<clingo_literal_t>(pyLit));
+        return None();
+    }
+
+    Object has_watch(Reference pyLit) {
+        return cppToPy(ctl->hasWatch(pyToCpp<clingo_literal_t>(pyLit)));
+    }
+
     static PyObject *assignment(PropagateControl *self, void *) {
         return Assignment::construct(self->ctl->assignment());
     }
 };
 
 PyMethodDef PropagateControl::tp_methods[] = {
+    {"add_literal", to_function<&PropagateControl::add_literal>(), METH_NOARGS, R"(add_literal(self) -> int
+
+Adds a new positive volatile literal to the underlying solver thread.
+
+The literal is only valid within the current solving step and solver thread.
+All volatile literals and clauses involving a volatile literal are deleted
+after the current search.)"},
+    {"add_watch", to_function<&PropagateControl::add_watch>(), METH_O, R"(add_watch(self, literal) -> None
+Add a watch for the solver literal in the given phase.
+
+Unlike PropagateInit.add_watch() this does not add a watch to all solver
+threads but just the current one.
+
+Arguments:
+literal -- the target literal)"},
+    {"has_watch", to_function<&PropagateControl::has_watch>(), METH_O, R"(has_watch(self, literal) -> bool
+Check whether a literal is watched in the current solver thread.
+
+Arguments:
+literal -- the target literal)"},
+    {"remove_watch", to_function<&PropagateControl::remove_watch>(), METH_O, R"(remove_watch(self, literal) -> None
+Removes the watch (if any) for the given solver literal.
+
+Similar to PropagateInit.add_watch() this just removes the watch in the current
+solver thread.
+
+Arguments:
+literal -- the target literal)"},
     {"add_clause", (PyCFunction)addClause, METH_KEYWORDS | METH_VARARGS, R"(add_clause(self, clause, tag, lock) -> bool
 
 Add the given clause to the solver.
