@@ -830,6 +830,10 @@ public:
     : ctl_(ctl) { }
     id_t thread_id() const;
     Assignment assignment() const;
+    literal_t add_literal();
+    void add_watch(literal_t literal);
+    bool has_watch(literal_t literal) const;
+    void remove_watch(literal_t literal);
     bool add_clause(LiteralSpan clause, ClauseType type = ClauseType::Learnt);
     bool propagate();
     clingo_propagate_control_t *to_c() const { return ctl_; }

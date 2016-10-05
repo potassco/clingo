@@ -539,7 +539,7 @@ bool Assignment::is_false(literal_t lit) const {
     return ret;
 }
 
-// {{{1 propagate control
+// {{{1 propagate init
 
 literal_t PropagateInit::solver_literal(literal_t lit) const {
     literal_t ret;
@@ -575,6 +575,24 @@ id_t PropagateControl::thread_id() const {
 
 Assignment PropagateControl::assignment() const {
     return Assignment{clingo_propagate_control_assignment(ctl_)};
+}
+
+literal_t PropagateControl::add_literal() {
+    clingo_literal_t ret;
+    handleCError(clingo_propagate_control_add_literal(ctl_, &ret));
+    return ret;
+}
+
+void PropagateControl::add_watch(literal_t literal) {
+    handleCError(clingo_propagate_control_add_watch(ctl_, literal));
+}
+
+bool PropagateControl::has_watch(literal_t literal) const {
+    return clingo_propagate_control_has_watch(ctl_, literal);
+}
+
+void PropagateControl::remove_watch(literal_t literal) {
+    clingo_propagate_control_remove_watch(ctl_, literal);
 }
 
 bool PropagateControl::add_clause(LiteralSpan clause, ClauseType type) {
