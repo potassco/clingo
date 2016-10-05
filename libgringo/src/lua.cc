@@ -2291,6 +2291,34 @@ struct PropagateControl : Object<PropagateControl> {
         return 1;
     }
 
+    static int addLiteral(lua_State *L) {
+        auto self = Object::self(L);
+        lua_pushnumber(L, protect(L, [self](){ return self->ctl->addVariable(); }));
+        return 1;
+    }
+
+    static int addWatch(lua_State *L) {
+        auto self = Object::self(L);
+        auto lit = luaL_checkinteger(L, 1);
+        protect(L, [self, lit](){ self->ctl->addWatch(static_cast<clingo_literal_t>(lit)); });
+        return 0;
+    }
+
+    static int removeWatch(lua_State *L) {
+        auto self = Object::self(L);
+        auto lit = luaL_checkinteger(L, 1);
+        protect(L, [self, lit](){ self->ctl->removeWatch(static_cast<clingo_literal_t>(lit)); });
+        return 0;
+    }
+
+    static int hasWatch(lua_State *L) {
+        auto self = Object::self(L);
+        auto lit = luaL_checkinteger(L, 1);
+        auto ret = protect(L, [self, lit](){ return self->ctl->hasWatch(static_cast<clingo_literal_t>(lit)); });
+        lua_pushboolean(L, ret);
+        return 1;
+    }
+
     static int addClause(lua_State *L) {
         return addClauseOrNogood(L, false);
     }
@@ -2322,6 +2350,10 @@ struct PropagateControl : Object<PropagateControl> {
 
 constexpr char const *PropagateControl::typeName;
 luaL_Reg const PropagateControl::meta[] = {
+    {"add_literal", addLiteral},
+    {"add_watch", addWatch},
+    {"has_watch", hasWatch},
+    {"remove_watch", removeWatch},
     {"add_clause", addClause},
     {"add_nogood", addNogood},
     {"propagate", propagate},
