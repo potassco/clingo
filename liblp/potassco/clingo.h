@@ -98,7 +98,7 @@ public:
 	 * \param prop   Properties to be associated with the new clause.
 	 *
 	 * \note If clause contains a volatile variable, i.e., a variable
-	 * that was created with Solver::pushVariable(), it is also considered volatile.
+	 * that was created with Solver::addVariable(), it is also considered volatile.
 	 * 
 	 */
 	virtual bool addClause(const Potassco::LitSpan& clause, Clause_t prop = Clause_t::Learnt) = 0;
@@ -110,7 +110,7 @@ public:
 	 *
 	 * \return The positive literal of the new variable.
 	 */
-	virtual Lit  pushVariable() = 0;
+	virtual Lit  addVariable() = 0;
 	//! Propagates any newly implied literals.
 	virtual bool propagate() = 0;
 

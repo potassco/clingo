@@ -67,7 +67,7 @@ public:
 	virtual Potassco::Id_t id() const { return s_->id(); }
 	virtual bool addClause(const Potassco::LitSpan& clause, Potassco::Clause_t prop);
 	virtual bool propagate();
-	virtual Lit  pushVariable();
+	virtual Lit  addVariable();
 	virtual bool hasWatch(Lit lit) const;
 	virtual void addWatch(Lit lit);
 	virtual void removeWatch(Lit lit);
@@ -90,8 +90,8 @@ bool ClingoPropagator::Control::propagate() {
 	ClingoPropagator::size_t epoch = ctx_->epoch_;
 	return (state_ & state_prop) != 0u && s_->propagateUntil(unlocked.obj_) && epoch == ctx_->epoch_;
 }
-Potassco::Lit_t ClingoPropagator::Control::pushVariable() {
-	CLASP_ASSERT_CONTRACT_MSG(!s_->hasConflict(), "Invalid pushVariable() on conflicting assignment");
+Potassco::Lit_t ClingoPropagator::Control::addVariable() {
+	CLASP_ASSERT_CONTRACT_MSG(!s_->hasConflict(), "Invalid addVariable() on conflicting assignment");
 	ScopedUnlock unlocked(ctx_->lock_, ctx_);
 	return encodeLit(posLit(s_->pushAuxVar()));
 }

@@ -2959,7 +2959,7 @@ extern "C" bool clingo_propagate_control_propagate(clingo_propagate_control_t *c
 }
 
 extern "C" clingo_error_t clingo_propagate_control_add_literal(clingo_propagate_control_t *control, clingo_literal_t *result) {
-    GRINGO_CLINGO_TRY { *result = control->pushVariable(); }
+    GRINGO_CLINGO_TRY { *result = control->addVariable(); }
     GRINGO_CLINGO_CATCH;
 }
 
