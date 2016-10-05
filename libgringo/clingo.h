@@ -117,8 +117,8 @@ typedef int32_t clingo_weight_t;
 //! object has a free function, this function can and should still be called.
 enum clingo_error {
     clingo_error_success   = 0, //!< successful API calls
-    clingo_error_runtime   = 1, //!< wrong usage of the clingo API or invalid input
-    clingo_error_logic     = 2, //!< internal error that should not occur in practice
+    clingo_error_runtime   = 1, //!< errors only detectable at runtime like invalid input
+    clingo_error_logic     = 2, //!< wrong usage of the clingo API
     clingo_error_bad_alloc = 3, //!< memory could not be allocated
     clingo_error_unknown   = 4  //!< errors unrelated to clingo
 };
@@ -1366,6 +1366,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_assignment_t *clingo_propagate_control_assignme
 //! @param[out] result the (positive) solver literal
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
+//! - ::clingo_error_logic if the assignment is conflicting
 CLINGO_VISIBILITY_DEFAULT clingo_error_t clingo_propagate_control_add_literal(clingo_propagate_control_t *control, clingo_literal_t *result);
 //! Add a watch for the solver literal in the given phase.
 //!
@@ -1375,6 +1376,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_error_t clingo_propagate_control_add_literal(cl
 //! @param[in] literal the literal to watch
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
+//! - ::clingo_error_logic if the literal is invalid
 //! @see clingo_propagate_control_remove_watch()
 CLINGO_VISIBILITY_DEFAULT clingo_error_t clingo_propagate_control_add_watch(clingo_propagate_control_t *control, clingo_literal_t literal);
 //! Check whether a literal is watched in the current solver thread.
