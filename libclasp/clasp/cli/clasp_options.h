@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2013, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -36,7 +36,7 @@ class ParsedOptions;
  * \file
  * \brief Types and functions for processing command-line options.
  */
-namespace Clasp { 
+namespace Clasp {
 //! Namespace for types and functions used by the command-line interface.
 namespace Cli {
 
@@ -89,15 +89,15 @@ enum ConfigKey {
  *       hence can't simply be removed on transition to yes.
  *     .
  * - stats: Stats level can only be increased.
- *     - A stats level once activated stays activated even if 
+ *     - A stats level once activated stays activated even if
  *       level is subsequently decreased via option.
  *     .
  * - save-progress, sign-fix, opt-heuristic: No unset of previously set values.
  *     - Once set, signs are only unset if forgetOnStep includes sign.
- *     . 
+ *     .
  * - no-lookback: State Transition (yes<->no) not supported.
  *     - noLookback=yes is a destructive meta-option that disables lookback-options by changing their value
- *     - noLookback=no does not re-enable those options. 
+ *     - noLookback=no does not re-enable those options.
  *     .
  */
 class ClaspCliConfig : public ClaspConfig {
@@ -106,7 +106,7 @@ public:
 	static const char* getDefaults(ProblemType f);
 	//! Returns the configuration with the given key.
 	static ConfigIter  getConfig(ConfigKey key);
-	
+
 	ClaspCliConfig();
 	~ClaspCliConfig();
 	// Base interface
@@ -117,16 +117,16 @@ public:
 	/*!
 	 * \name Key-based low-level interface
 	 *
-	 * The functions in this group do not throw exceptions but 
+	 * The functions in this group do not throw exceptions but
 	 * signal logic errors via return values < 0.
 	 * @{ */
 
-	typedef uint32 KeyType;	
+	typedef uint32 KeyType;
 	static const KeyType KEY_INVALID; //!< Invalid key used to signal errors.
 	static const KeyType KEY_ROOT;    //!< Root key of a configuration, i.e. "."
 	static const KeyType KEY_TESTER;  //!< Root key for tester options, i.e. "tester."
 	static const KeyType KEY_SOLVER;  //!< Root key for (array of) solver options, i.e. "solver."
-	
+
 	//! Returns true if k is a leaf, i.e. has no subkeys.
 	static bool  isLeafKey(KeyType k);
 
@@ -134,7 +134,7 @@ public:
 	/*!
 	 * \param key A valid handle to a key.
 	 * \param name The name of the subkey to retrieve.
-	 * \return 
+	 * \return
 	 *   - key, if name is 0 or empty.
 	 *   - KEY_INVALID, if name is not a subkey of key.
 	 *   - A handle to the subkey.
@@ -167,7 +167,7 @@ public:
 
 	//! Returns the name of the i'th subkey of k or 0 if no such subkey exists.
 	const char* getSubkey(KeyType k, uint32 i) const;
-	
+
 	//! Creates and returns a string representation of the value of the given key.
 	/*!
 	 * \param k  A valid handle to a key.
@@ -175,7 +175,7 @@ public:
 	 * \return The length of value or < 0 if k either has no value (-1) or an error occurred while writing the value (< -1).
 	 */
 	int getValue(KeyType k, std::string& value) const;
-	 
+
 	//! Writes a null-terminated string representation of the value of the given key into the supplied buffer.
 	/*!
 	 * \param k A valid handle to a key.
@@ -185,7 +185,7 @@ public:
 	 *   never writes more than bufSize bytes into the buffer.
 	 */
 	int getValue(KeyType k, char* buffer, std::size_t bufSize) const;
-	
+
 	//! Sets the option identified by the given key.
 	/*!
 	 * \param key A valid handle to a key.
@@ -197,7 +197,7 @@ public:
 	 *   .
 	 */
 	int setValue(KeyType key, const char* value);
-	
+
 	//@}
 
 	/*!
@@ -213,13 +213,13 @@ public:
 	//! Sets the option identified by the given key.
 	bool        setValue(const char* key, const char* value);
 	//@}
-	
+
 	//! Validates this configuration.
 	bool        validate();
-	
+
 	/*!
-	 * \name App interface 
-	 * 
+	 * \name App interface
+	 *
 	 * Functions for connecting a configuration with the ProgramOptions library.
 	 * @{ */
 	//! Adds all available options to root.

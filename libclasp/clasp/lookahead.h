@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2009, 2012 Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -25,16 +25,16 @@
 #endif
 
 /*!
- * \file 
- * \brief Defines lookahead related types. 
+ * \file
+ * \brief Defines lookahead related types.
  *
  * Lookahead can be used as a post propagator (e.g. failed-literal detection) and
- * optionally as an heuristic. 
+ * optionally as an heuristic.
  */
 
 #include <clasp/solver.h>
 #include <clasp/constraint.h>
-namespace Clasp { 
+namespace Clasp {
 /*!
  * \addtogroup propagator
  */
@@ -113,8 +113,8 @@ struct ScoreLook {
 	void    clearDeps();
 	uint32  countNant(const Solver& s, const Literal* b, const Literal *e) const;
 	bool    greater(Var lhs, Var rhs)const;
-	bool    greaterMax(Var x, uint32 max) const { 
-		return score[x].nVal() > max || score[x].pVal() > max; 
+	bool    greaterMax(Var x, uint32 max) const {
+		return score[x].nVal() > max || score[x].pVal() > max;
 	}
 	bool    greaterMaxMin(Var lhs, uint32 max, uint32 min) const {
 		uint32 lhsMin, lhsMax;
@@ -132,7 +132,7 @@ struct ScoreLook {
 
 class UnitHeuristic;
 
-//! Lookahead extends propagation with failed-literal detection. 
+//! Lookahead extends propagation with failed-literal detection.
 /*!
  * The class provides different kinds of one-step lookahead.
  * Atom- and body-lookahead are uniform lookahead types, where
@@ -152,7 +152,7 @@ public:
 		VarType type;
 		uint32  lim;
 		bool    topLevelImps;
-		bool    restrictNant; 
+		bool    restrictNant;
 	};
 	static bool isType(uint32 t) { return t != 0 && t <= Var_t::Hybrid; }
 	/*!
@@ -160,7 +160,7 @@ public:
 	 */
 	explicit Lookahead(const Params& p);
 	~Lookahead();
-	
+
 	bool    init(Solver& s);
 	//! Clears the lookahead list.
 	void    clear();
@@ -201,7 +201,7 @@ private:
 	const LitNode* head() const { return &nodes_[head_id]; }
 	LookList   nodes_; // list of literals to test
 	UndoStack  saved_; // stack of undo lists
-	LitVec     imps_;  // additional top-level implications 
+	LitVec     imps_;  // additional top-level implications
 	NodeId     last_;  // last candidate in list; invariant: node(last_)->next == head_id;
 	NodeId     pos_;   // current lookahead start position
 	uint32     top_;   // size of top-level
@@ -215,12 +215,12 @@ private:
  * The heuristic uses a Lookahead post propagator to select a literal with the highest score,
  * where the score is determined by counting assignments made during
  * failed-literal detection. For hybrid_lookahead, the heuristic selects the literal that
- * derived the most literals. On the other hand, for uniform_lookahead the heuristic is similar to 
+ * derived the most literals. On the other hand, for uniform_lookahead the heuristic is similar to
  * the smodels lookahead heuristic and selects the literal that maximizes the minimum.
  * \see Patrik Simons: "Extending and Implementing the Stable Model Semantics" for a
  * detailed description of the lookahead heuristic.
- * 
- * \note The heuristic might itself apply some lookahead but only on variables that 
+ *
+ * \note The heuristic might itself apply some lookahead but only on variables that
  *       did not fail in a previous call to Lookahead::propagateFixpoint(). I.e. if
  *       priorities are correct for all post propagators in s, the lookahead operations can't fail.
  *

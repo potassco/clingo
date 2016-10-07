@@ -375,7 +375,7 @@ void WeightConstraint::destroy(Solver* s, bool detach) {
 	if (ownsLit_ == 0) { lits_->release(); }
 	void* mem = static_cast<Constraint*>(this);
 	this->~WeightConstraint();
-	::operator delete(mem);	
+	::operator delete(mem);
 }
 
 void WeightConstraint::setBpIndex(uint32 n){
@@ -431,7 +431,7 @@ Constraint::PropResult WeightConstraint::propagate(Solver& s, Literal, uint32& d
 	if ( uint32(c^1) == active_ || s.isTrue(body) ) {
 		// the other constraint is active or this constraint is already satisfied;
 		// nothing to do
-		return PropResult(true, true);		
+		return PropResult(true, true);
 	}
 	if (idx == 0 && s.decisionLevel() == s.rootLevel() && watched_ == 3u) {
 		watched_ = c;
@@ -536,7 +536,7 @@ bool WeightConstraint::simplify(Solver& s, bool) {
 	else if (s.value(lits_->var(0)) != value_free && (active_ == NOT_ACTIVE || isWeight())) {
 		if (active_ == NOT_ACTIVE) {
 			Literal W = ~lits_->lit(0);
-			active_   = FFB_BTB+s.isFalse(W);	
+			active_   = FFB_BTB+s.isFalse(W);
 		}
 		for (uint32 i = 0, end = size(); i != end; ++i) {
 			s.removeWatch(lit(i, (ActiveConstraint)active_), this);

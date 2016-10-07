@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -110,7 +110,7 @@ ProblemType detectProblemType(std::istream& in) {
 	}
 	char msg[] = "'c': unrecognized input format";
 	msg[1]     = (char)(unsigned char)x;
-	in && x != std::char_traits<char>::eof() 
+	in && x != std::char_traits<char>::eof()
 		? throw ParseError(1, msg)
 		: throw ParseError(0, "bad input stream");
 }
@@ -144,7 +144,7 @@ void ProgramParser::reset() {
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // AspParser::SmAdapter
-// 
+//
 // Callback interface for smodels parser
 /////////////////////////////////////////////////////////////////////////////////////////
 struct AspParser::SmAdapter : public Asp::LogicProgramAdapter, public Potassco::AtomTable {
@@ -172,7 +172,7 @@ struct AspParser::SmAdapter : public Asp::LogicProgramAdapter, public Potassco::
 	StrMapPtr atoms_;
 };
 /////////////////////////////////////////////////////////////////////////////////////////
-// AspParser 
+// AspParser
 /////////////////////////////////////////////////////////////////////////////////////////
 AspParser::AspParser(Asp::LogicProgram& prg)
 	: lp_(&prg)
@@ -451,7 +451,7 @@ bool OpbReader::doParse() {
 void OpbReader::parseOptObjective() {
 	if (match("min:")) {
 		parseSum();
-		program_->addObjective(active_.lits); 
+		program_->addObjective(active_.lits);
 	}
 	else if (match("soft:")) {
 		wsum_t softCost;

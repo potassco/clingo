@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -28,7 +28,7 @@
 #include <algorithm>  // std::swap
 #include <limits>
 /*!
- * \file 
+ * \file
  * \brief Types and functions related to literals and variables.
  */
 namespace Clasp {
@@ -55,15 +55,15 @@ struct Var_t {
 	static bool isBody(Type t) {
 		return (static_cast<uint32>(t) & static_cast<uint32>(Body)) != 0;
 	}
-	static bool isAtom(Type t) { 
-		return (static_cast<uint32>(t) & static_cast<uint32>(Atom)) != 0; 
+	static bool isAtom(Type t) {
+		return (static_cast<uint32>(t) & static_cast<uint32>(Atom)) != 0;
 	}
 };
 typedef Var_t::Type VarType;
 
 //! A literal is a variable or its negation.
 /*!
- * \par Implementation: 
+ * \par Implementation:
  * A literal's state is stored in a single 32-bit integer as follows:
  *  - 30-bits   : variable id
  *  - 1-bit     : sign, 1 if negative, 0 if positive
@@ -76,7 +76,7 @@ public:
 
 	//! The default constructor creates the positive literal of the special sentinel var.
 	Literal() : rep_(0) { }
-	
+
 	//! Creates a literal of the variable var with sign s.
 	/*!
 	 * \param var  The literal's variable.
@@ -86,10 +86,10 @@ public:
 	Literal(Var var, bool sign) : rep_( (var<<sign_bit) + (uint32(sign)<<flag_bit) ) {
 		assert( var < varMax );
 	}
-	
+
 	//! Returns the variable of the literal.
 	Var var() const { return rep_ >> sign_bit; }
-	
+
 	//! Returns the sign of the literal.
 	/*!
 	 * \return true if the literal is negative. Otherwise false.
@@ -105,7 +105,7 @@ public:
 	//! Returns the stored representation of this literal.
 	uint32& rep()       { return rep_; }
 	uint32  rep() const { return rep_; }
-	
+
 	//! Creates a literal from an id.
 	static Literal fromId(uint32 id) {
 		assert(id < litIdMax);
@@ -113,15 +113,15 @@ public:
 	}
 	//! Creates a literal from an unsigned integer.
 	static Literal fromRep(uint32 rep) { return Literal(rep); }
-	
+
 	void swap(Literal& other) { std::swap(rep_, other.rep_); }
-	
+
 	//! Sets the watched-flag of this literal.
 	Literal& flag() { rep_ |= flag_bit; return *this; }
-	
+
 	//! Clears the watched-flag of this literal.
 	Literal& unflag() { rep_ &= ~flag_bit; return *this; }
-	
+
 	//! Returns true if the watched-flag of this literal is set.
 	bool flagged() const { return (rep_ & flag_bit) != 0; }
 
@@ -176,7 +176,7 @@ inline int32   encodeLit(Literal x) { return !x.sign() ? static_cast<int32>(x.va
 inline Var     decodeVar(int32 x)   { return static_cast<Var>(x >= 0 ? x : -x) - 1; }
 inline Literal decodeLit(int32 x)   { return Literal(decodeVar(x), x < 0); }
 
-inline unsigned hashId(unsigned key) {  
+inline unsigned hashId(unsigned key) {
 	key = ~key + (key << 15);
 	key ^= (key >> 11);
 	key += (key << 3);

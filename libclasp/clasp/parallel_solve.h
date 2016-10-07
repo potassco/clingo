@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2010-2015, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -34,10 +34,10 @@
 #include <clasp/solver_types.h>
 
 /*!
- * \file 
+ * \file
  * \brief Defines classes controlling multi-threaded parallel solving.
  */
-namespace Clasp { 
+namespace Clasp {
 //! Namespace for types and functions needed for implementing multi-threaded parallel solving.
 namespace mt {
 
@@ -76,7 +76,7 @@ struct ParallelSolveOptions : BasicSolveOptions {
 		enum Filter   { filter_no = 0, filter_gp = 1, filter_sat = 2, filter_heuristic = 3 };
 		enum Topology { topo_all  = 0, topo_ring = 1, topo_cube  = 2, topo_cubex = 3       };
 		uint32 grace : 28; /**< Lower bound on number of shared nogoods to keep. */
-		uint32 filter: 2;  /**< Filter for integrating shared nogoods (one of Filter). */   
+		uint32 filter: 2;  /**< Filter for integrating shared nogoods (one of Filter). */
 		uint32 topo  : 2;  /**< Integration topology */
 	};
 	//! Global restart options.
@@ -140,10 +140,10 @@ private:
 	enum ErrorCode { error_none = 0, error_oom = 1, error_runtime = 2, error_other = 4 };
 	enum           { masterId = 0 };
 	// -------------------------------------------------------------------------------------------
-	// Thread setup 
+	// Thread setup
 	struct EntryPoint;
 	void   destroyThread(uint32 id);
-	void   allocThread(uint32 id, Solver& s, const SolveParams& p); 
+	void   allocThread(uint32 id, Solver& s, const SolveParams& p);
 	void   joinThreads();
 	// -------------------------------------------------------------------------------------------
 	// Algorithm steps
@@ -171,7 +171,7 @@ private:
 	ParallelHandler** thread_;       // Thread-locl control data
 	// READ ONLY
 	Distribution      distribution_; // distribution options
-	uint32            maxRestarts_;  // disable global restarts once reached 
+	uint32            maxRestarts_;  // disable global restarts once reached
 	uint32            intGrace_ : 30;// grace period for clauses to integrate
 	uint32            intTopo_  :  2;// integration topology
 	uint32            intFlags_;     // bitset controlling clause integration
@@ -180,7 +180,7 @@ private:
 //! An event type for debugging messages sent between threads.
 struct MessageEvent : SolveEvent<MessageEvent> {
 	enum Action { sent, received, completed };
-	MessageEvent(const Solver& s, const char* message, Action a, double t = 0.0) 
+	MessageEvent(const Solver& s, const char* message, Action a, double t = 0.0)
 		: SolveEvent<MessageEvent>(s, verbosity_high), msg(message), time(t) { op = (uint32)a; }
 	const char* msg;    // name of message
 	double      time;   // only for action completed
@@ -212,12 +212,12 @@ public:
 	void setWinner()     { win_ = 1; }
 	bool winner() const  { return win_ != 0; }
 	void setThread(Clasp::mt::thread& x) { assert(!joinable()); x.swap(thread_); assert(joinable()); }
-	
+
 	//! True if *this has an associated thread of execution, false otherwise.
 	bool joinable() const { return thread_.joinable(); }
 	//! Waits for the thread of execution associated with *this to finish.
 	int join() { if (joinable()) { thread_.join(); } return error(); }
-	
+
 	// overridden methods
 
 	//! Integrates new information.
@@ -229,15 +229,15 @@ public:
 	bool isModel(Solver& s);
 
 	// own interface
-	
-	// TODO: make functions virtual once necessary 
-	
+
+	// TODO: make functions virtual once necessary
+
 	//! Returns true if handler's guiding path is disjoint from all others.
 	bool disjointPath() const { return gp_.type == ParallelSolve::gp_split; }
 	//! Returns true if handler has a guiding path.
 	bool hasPath()      const { return gp_.type != ParallelSolve::gp_none; }
 	void setGpType(GpType t)  { gp_.type = t; }
-	
+
 	//! Entry point for solving the given guiding path.
 	/*!
 	 * \param solve   The object used for solving.
@@ -248,12 +248,12 @@ public:
 
 	/*!
 	 * \name Message handlers
-	 * \note 
+	 * \note
 	 *   Message handlers are intended as callbacks for ParallelSolve::handleMessages().
 	 *   They shall not change the assignment of the solver object.
 	 */
 	//@{
-	
+
 	//! Algorithm is about to terminate.
 	/*!
 	 * Removes this object from the solver's list of post propagators.
@@ -275,7 +275,7 @@ public:
 
 	Solver&            solver()      { return *solver_; }
 	const SolveParams& params() const{ return *params_; }
-	//@}  
+	//@}
 private:
 	void add(ClauseHead* h);
 	void clearDB(Solver* s);

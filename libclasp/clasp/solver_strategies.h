@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -38,7 +38,7 @@
 #endif
 
 /*!
- * \file 
+ * \file
  * \brief Contains strategies and options used to configure solvers and search.
  */
 namespace Clasp {
@@ -48,7 +48,7 @@ namespace Clasp {
  *  - geometric sequence  : X = n1 * n2^k   (k >= 0)
  *  - arithmetic sequence : X = n1 + (n2*k) (k >= 0)
  *  - fixed sequence      : X = n1 + (0*k)  (k >= 0)
- *  - luby's sequence     : X = n1 * luby(k)(k >= 0) 
+ *  - luby's sequence     : X = n1 * luby(k)(k >= 0)
  *  .
  * Furthermore, an inner-outer scheme can be applied to the selected sequence.
  * In that case, the sequence is repeated every \<limit\>+j restarts, where
@@ -64,8 +64,8 @@ namespace Clasp {
 struct ScheduleStrategy {
 public:
 	//! Supported strategies.
-	enum Type { Geometric = 0, Arithmetic = 1, Luby = 2, User = 3 }; 
-	
+	enum Type { Geometric = 0, Arithmetic = 1, Luby = 2, User = 3 };
+
 	ScheduleStrategy(Type t = Geometric, uint32 b = 100, double g = 1.5, uint32 o = 0);
 	//! Creates luby's sequence with unit-length unit and optional outer limit.
 	static ScheduleStrategy luby(uint32 unit, uint32 limit = 0)              { return ScheduleStrategy(Luby, unit, 0, limit);  }
@@ -137,7 +137,7 @@ struct SolverStrategies {
 
 	SolverStrategies();
 	void prepare();
-	//----- 32 bit ------------	
+	//----- 32 bit ------------
 	uint32    compress      : 16; /*!< If > 0, enable compression for learnt clauses of size > compress. */
 	uint32    saveProgress  : 16; /*!< Enable progress saving if > 0. */
 	//----- 32 bit ------------
@@ -211,7 +211,7 @@ struct SolverParams : SolverStrategies  {
 	uint32 lookType  : 2;  /*!< Type of lookahead operations. */
 	uint32 loopRep   : 2;  /*!< How to represent loops? */
 	uint32 acycFwd   : 1;  /*!< Disable backward propagation in acyclicity checker. */
-	uint32 forgetSet : 4;  /*!< What to forget on (incremental step). */ 
+	uint32 forgetSet : 4;  /*!< What to forget on (incremental step). */
 };
 
 typedef Range<uint32> Range32;
@@ -276,7 +276,7 @@ struct ReduceStrategy {
 		int fs = 0;
 		if      (sc == score_act) { fs = ((int)scoreAct(lhs)) - ((int)scoreAct(rhs)); }
 		else if (sc == score_lbd) { fs = ((int)scoreLbd(lhs)) - ((int)scoreLbd(rhs)); }
-		return fs != 0 ? fs : ((int)scoreBoth(lhs)) - ((int)scoreBoth(rhs)); 
+		return fs != 0 ? fs : ((int)scoreBoth(lhs)) - ((int)scoreBoth(rhs));
 	}
 	static uint32 asScore(Score sc, const Clasp::ConstraintScore& act) {
 		if (sc == score_act)  { return scoreAct(act); }
@@ -379,7 +379,7 @@ struct SatPreParams {
 	uint32 limIters : 11; /**< Max. number of iterations.                         (0=no limit)*/
 	uint32 limTime  : 12; /**< Max. runtime in sec, checked after each iteration. (0=no limit)*/
 	uint32 limFrozen:  7; /**< Run only if percent of frozen vars < maxFrozen.    (0=no limit)*/
-	uint32 limClause: 16; /**< Run only if \#clauses \< (limClause*1000)          (0=no limit)*/ 
+	uint32 limClause: 16; /**< Run only if \#clauses \< (limClause*1000)          (0=no limit)*/
 	uint32 limOcc   : 16; /**< Skip v, if \#occ(v) \>= limOcc && \#occ(~v) \>= limOcc.(0=no limit) */
 	bool clauseLimit(uint32 nc)           const { return limClause && nc > (limClause*1000u); }
 	bool occLimit(uint32 pos, uint32 neg) const { return limOcc && pos > (limOcc-1u) && neg > (limOcc-1u); }
@@ -387,16 +387,16 @@ struct SatPreParams {
 	void   disableBce()                         { type = std::min(type, uint32(sat_pre_ve));}
 	static SatPreprocessor* create(const SatPreParams&);
 };
-	
+
 //! Parameters for a SharedContext object.
 struct ContextParams {
 	//! How to handle short learnt clauses.
-	enum ShortMode  { 
+	enum ShortMode  {
 		short_implicit = 0, /*!< Share short learnt clauses via short implication graph. */
 		short_explicit = 1, /*!< Do not use short implication graph. */
 	};
 	//! How to handle physical sharing of (explicit) constraints.
-	enum ShareMode  { 
+	enum ShareMode  {
 		share_no      = 0, /*!< Do not physically share constraints (use copies instead). */
 		share_problem = 1, /*!< Share problem constraints but copy learnt constraints.    */
 		share_learnt  = 2, /*!< Copy problem constraints but share learnt constraints.    */
@@ -444,8 +444,8 @@ public:
 	virtual bool               addPost(Solver& s)   const = 0;
 	//! Returns the configuration with the given name or 0 if no such config exists.
 	/*!
-	 * The default implementation returns this 
-	 * if n is empty or one of "." or "/". 
+	 * The default implementation returns this
+	 * if n is empty or one of "." or "/".
 	 * Otherwise, 0 is returned.
 	 */
 	virtual Configuration*     config(const char* n);
@@ -456,7 +456,7 @@ class UserConfiguration : public Configuration {
 public:
 	//! Adds a lookahead post propagator to the given solver if requested.
 	/*!
-	 * The function adds a lookahead post propagator if indicated by 
+	 * The function adds a lookahead post propagator if indicated by
 	 * the solver's SolverParams.
 	 */
 	virtual bool            addPost(Solver& s)   const;
@@ -489,7 +489,7 @@ public:
 	DecisionHeuristic* heuristic(uint32 i)  const;
 	SolverOpts&        addSolver(uint32 i);
 	SearchOpts&        addSearch(uint32 i);
-	
+
 	virtual void       reset();
 	virtual void       resize(uint32 numSolver, uint32 numSearch);
 	//! Sets callback function for creating heuristics.

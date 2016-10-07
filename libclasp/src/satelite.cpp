@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2010, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -25,7 +25,7 @@ namespace Clasp {
 // SatElite preprocessing
 //
 /////////////////////////////////////////////////////////////////////////////////////////
-SatElite::SatElite() 
+SatElite::SatElite()
 	: occurs_(0)
 	, elimHeap_(LessOccCost(occurs_))
 	, qFront_(0)
@@ -46,7 +46,7 @@ Clasp::SatPreprocessor* SatElite::clone() {
 }
 
 void SatElite::doCleanUp() {
-	delete [] occurs_;  occurs_ = 0; 
+	delete [] occurs_;  occurs_ = 0;
 	ClauseList().swap(resCands_);
 	VarVec().swap(occT_[pos]);
 	VarVec().swap(occT_[neg]);
@@ -218,13 +218,13 @@ bool SatElite::backwardSubsume() {
 		occurs_[best.var()].dirty = 0;
 		assert(occurs_[best.var()].numOcc() == (uint32)cls.left_size());
 		if (!propagateFacts()) return false;
-	}   
+	}
 	queue_.clear();
 	qFront_ = 0;
 	return true;
 }
 
-// checks if 'c' subsumes 'other', and at the same time, if it can be used to 
+// checks if 'c' subsumes 'other', and at the same time, if it can be used to
 // simplify 'other' by subsumption resolution.
 // Return:
 //  - lit_false() - No subsumption or simplification
@@ -244,7 +244,7 @@ Literal SatElite::subsumes(const Clause& c, const Clause& other, Literal res) co
 					goto found;
 				}
 			}
-			return lit_false(); 
+			return lit_false();
 		found:;
 		}
 	}
@@ -273,7 +273,7 @@ uint32 SatElite::findUnmarkedLit(const Clause& c, uint32 x) const {
 // Return:
 //  - true  - 'cl' is subsumed
 //  - false - 'cl' is not subsumed but may itself subsume other clauses
-// Pre: All literals of l are marked, i.e. 
+// Pre: All literals of l are marked, i.e.
 // for each literal l in cl, occurs_[l.var()].marked(l.sign()) == true
 bool SatElite::subsumed(LitVec& cl) {
 	Literal l;
@@ -307,7 +307,7 @@ bool SatElite::subsumed(LitVec& cl) {
 				cls.shrink_right( wj );
 				goto removeLit;
 			}
-			else { *wj++ = *w; }  
+			else { *wj++ = *w; }
 		}
 		cls.shrink_right(wj);
 		if (j++ != i) { cl[j-1] = cl[i]; }
@@ -348,7 +348,7 @@ bool SatElite::strengthenClause(uint32 clauseId, Literal l) {
 	return true;
 }
 
-// Split occurrences of v into pos and neg and 
+// Split occurrences of v into pos and neg and
 // mark all clauses containing v
 SatElite::ClRange SatElite::splitOcc(Var v, bool mark) {
 	ClRange cls      = occurs_[v].clauseRange();
@@ -381,7 +381,7 @@ void SatElite::unmarkAll(const Literal* lits, uint32 size) const {
 }
 
 // Run variable and/or blocked clause elimination on var v.
-// If the number of non-trivial resolvents is <= maxCnt, 
+// If the number of non-trivial resolvents is <= maxCnt,
 // v is eliminated by clause distribution. If bce is enabled,
 // clauses blocked on a literal of v are removed.
 bool SatElite::bceVe(Var v, uint32 maxCnt) {
@@ -389,7 +389,7 @@ bool SatElite::bceVe(Var v, uint32 maxCnt) {
 	if (s->value(v) != value_free) return true;
 	assert(!ctx_->varInfo(v).frozen() && !ctx_->eliminated(v));
 	resCands_.clear();
-	// distribute clauses on v 
+	// distribute clauses on v
 	// check if number of clauses decreases if we'd eliminate v
 	uint32 bce     = opts_->bce();
 	ClRange cls    = splitOcc(v, bce > 1);
@@ -466,7 +466,7 @@ bool SatElite::bce() {
 	for (ClWList& bce= occurs_[0].refs; bce.right_size() != 0; ++ops) {
 		Var v          = *(bce.right_end()-1);
 		bce.pop_right();
-		occurs_[v].bce=0; 
+		occurs_[v].bce=0;
 		if ((ops & 1023) == 0)   {
 			if (timeout())         { bce.clear(); return true; }
 			if ((ops & 8191) == 0) { reportProgress(Progress::event_bce, ops, 1+bce.size()); }
@@ -500,7 +500,7 @@ bool SatElite::trivialResolvent(const Clause& c2, Var v) const {
 		Literal x = c2[i];
 		if (occurs_[x.var()].marked(!x.sign()) && x.var() != v) {
 			return true;
-		}		
+		}
 	}
 	return false;
 }
@@ -530,10 +530,10 @@ bool SatElite::addResolvent(uint32 id, const Clause& lhs, const Clause& rhs) {
 		}
 	}
 	if (!subsumed(resolvent_))  {
-		if (resolvent_.empty())   { 
+		if (resolvent_.empty())   {
 			return s->force(negLit(0));
 		}
-		if (resolvent_.size()==1) { 
+		if (resolvent_.size()==1) {
 			occurs_[resolvent_[0].var()].unmark();
 			return s->force(resolvent_[0]) && s->propagate() && propagateFacts();
 		}
@@ -542,8 +542,8 @@ bool SatElite::addResolvent(uint32 id, const Clause& lhs, const Clause& rhs) {
 		return true;
 	}
 unmark:
-	if (!resolvent_.empty()) { 
-		unmarkAll(&resolvent_[0], resolvent_.size()); 
+	if (!resolvent_.empty()) {
+		unmarkAll(&resolvent_[0], resolvent_.size());
 	}
 	return true;
 }
@@ -595,7 +595,7 @@ void SatElite::doExtendModel(ValueVec& m, LitVec& unconstr) {
 		if (m[last] == value_eliminated) {
 			// last seems unconstraint w.r.t the model
 			m[last] |= value_true;
-			unconstr.push_back(posLit(last));	
+			unconstr.push_back(posLit(last));
 		}
 	} while (r);
 	// check whether newly added unconstraint vars are really unconstraint w.r.t the model

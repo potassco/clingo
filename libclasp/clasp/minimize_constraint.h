@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2010-2015, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -88,7 +88,7 @@ public:
 	//! A type to represent a weight at a certain level.
 	/*!
 	 * Objects of this type are used to create sparse vectors of weights. E.g.
-	 * a weight vector (w1\@L1, w2\@L3, w3\@L5) is represented as \[\<L1,1,w1\>\<L3,1,w2\>\<L5,0,w3\>\], 
+	 * a weight vector (w1\@L1, w2\@L3, w3\@L5) is represented as \[\<L1,1,w1\>\<L3,1,w2\>\<L5,0,w3\>\],
 	 * where each \<level, next, weight\>-tuple is an object of type LevelWeight.
 	 */
 	struct LevelWeight {
@@ -138,7 +138,7 @@ public:
 	 * If not otherwise specified, the following functions shall not be called concurrently.
 	 */
 	//@{
-	
+
 	//! Sets the enumeration mode and (optionally) an initial bound.
 	/*!
 	 * \note If m is MinimizeMode::enumerate, the caller should always
@@ -147,17 +147,17 @@ public:
 	bool setMode(MinimizeMode m, const wsum_t* bound = 0, uint32 boundSize = 0);
 	bool setMode(MinimizeMode m, const SumVec& bound) { return setMode(m, bound.empty() ? 0 : &bound[0], (uint32)bound.size()); }
 	void resetBounds();
-	
+
 	//! Attaches a new minimize constraint to this data object.
 	/*!
 	 * \param s      Solver in which the new minimize constraint should apply.
 	 * \param strat  The optimization strategy to use (see MinimizeMode_t::Strategy).
 	 * \param param  Parameter to pass to the optimization strategy.
-	 * \param addRef If true, the ref count of the shared object is increased. 
+	 * \param addRef If true, the ref count of the shared object is increased.
 	 *               Otherwise, the new minimize constraint inherits the reference to the shared object.
 	 */
 	MinimizeConstraint* attach(Solver& s, MinimizeMode_t::Strategy strat, uint32 param = 0, bool addRef = true);
-	
+
 	//! Makes opt the new (tentative) optimum.
 	/*!
 	 * \pre opt is a pointer to an array of size numRules()
@@ -217,7 +217,7 @@ public:
 CLASP_WARNING_BEGIN_RELAXED
 	WeightLiteral lits[0]; // (shared) literals - terminated with lit_true()
 CLASP_WARNING_END_RELAXED
-private: 
+private:
 	~SharedMinimizeData();
 	void destroy() const;
 	SharedMinimizeData(const SharedMinimizeData&);
@@ -241,7 +241,7 @@ public:
 
 	//! Creates a new data object from previously added minimize literals.
 	/*!
-	 * The function creates a new minimize data object from 
+	 * The function creates a new minimize data object from
 	 * the previously added literals to minimize. The returned
 	 * object can be used to attach one or more MinimizeConstraints.
 	 * \param ctx A ctx object to be associated with the new minmize constraint.
@@ -250,7 +250,7 @@ public:
 	 * \post empty()
 	 */
 	SharedData* build(SharedContext& ctx);
-	
+
 	//! Discards any previously added minimize literals.
 	void clear();
 private:
@@ -285,23 +285,23 @@ private:
  * currently have an optimal assignment.
  *
  * MinimizeConstraint supports two modes of operation: if mode is set to
- * optimize, solutions are considered optimal only if they are strictly smaller 
+ * optimize, solutions are considered optimal only if they are strictly smaller
  * than previous solutions. Otherwise, if mode is set to enumerate a
  * solution is valid if it is not greater than the initially set optimum.
- * Example: 
+ * Example:
  *  m0: {a, b}
  *  m1: {c, d}
- *  All models: {a, c,...}, {a, d,...} {b, c,...}, {b, d,...} {a, b,...} 
+ *  All models: {a, c,...}, {a, d,...} {b, c,...}, {b, d,...} {a, b,...}
  *  Mode = optimize: {a, c, ...} (m0 = 1, m1 = 1}
- *  Mode = enumerate and initial opt=1,1: {a, c, ...}, {a, d,...}, {b, c,...}, {b, d,...} 
- * 
+ *  Mode = enumerate and initial opt=1,1: {a, c, ...}, {a, d,...}, {b, c,...}, {b, d,...}
+ *
  */
 class MinimizeConstraint : public Constraint {
 public:
 	typedef SharedMinimizeData SharedData;
 	typedef const SharedData*  SharedDataP;
 	//! Returns a pointer to the shared representation of this constraint.
-	SharedDataP shared()  const { return shared_; }	
+	SharedDataP shared()  const { return shared_; }
 	//! Attaches this object to the given solver.
 	virtual bool attach(Solver& s)    = 0;
 	//! Shall activate the minimize constraint by integrating bounds stored in the shared data object.
@@ -368,13 +368,13 @@ public:
 	 * Starting from the current optimum stored in the shared data object,
 	 * the function tries to integrate the next candidate bound into
 	 * this constraint.
-	 * 
+	 *
 	 * \return The function returns true if integration succeeded. Otherwise
 	 * false is returned and s.hasConflict() is true.
 	 *
 	 * \note If integrateBound() failed, the bound of this constraint
 	 *       is relaxed. The caller has to resolve the conflict first
-	 *       and then integrateBound() shall be called again. 
+	 *       and then integrateBound() shall be called again.
 	 *
 	 * \note The caller has to call s.propagate() to propagate any new information
 	 *       from the new bound.
@@ -387,7 +387,7 @@ public:
 	/*!
 	 * commitUpperBound() shall be called whenever the solver finds a model.
 	 * The current local sum is recorded as new optimum in the shared data object.
-	 * Once the local bound is committed, the function integrateBound() has to be 
+	 * Once the local bound is committed, the function integrateBound() has to be
 	 * called in order to continue optimization.
 	 */
 	void       commitUpperBound(const Solver& s);
@@ -397,12 +397,12 @@ public:
 	 * the local upper bound as new lower bound in this constraint. If upShared is true,
 	 * the lower bound is also copied to the shared data object.
 	 *
-	 * Once the local bound is committed, the function integrateBound() has to be 
+	 * Once the local bound is committed, the function integrateBound() has to be
 	 * called in order to continue optimization.
 	 * \return false if search-space is exceeded w.r.t this constraint.
 	 */
 	bool       commitLowerBound(Solver& s, bool upShared);
-	
+
 	//! Removes the local upper bound of this constraint and therefore disables it.
 	/*!
 	 * If full is true, also removes search-path related state.

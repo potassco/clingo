@@ -175,7 +175,7 @@ public:
 	 * \name Step control functions
 	 */
 	//@{
-	
+
 	//! Starts the definition of a logic program.
 	LogicProgram& start(SharedContext& ctx, const AspOptions& opts = AspOptions()) {
 		startProgram(ctx);
@@ -188,7 +188,7 @@ public:
 	void setOptions(const AspOptions& opts);
 	//! Sets the configuration to be used for checker solvers in disjunctive LP solving.
 	void setNonHcfConfiguration(Configuration* c){ nonHcfs_.config = c; }
-	
+
 	//! Unfreezes a currently frozen program and starts an incremental step.
 	/*!
 	 * If a program is to be defined incrementally, this function must be called
@@ -225,7 +225,7 @@ public:
 
 	//! Visits the the simplified program by notifying out on its elements.
 	void accept(Potassco::AbstractProgram& out);
-	
+
 	//! Disposes (parts of) the internal representation of the logic program.
 	/*!
 	 * \param forceFullDispose If set to true, the whole program is disposed. Otherwise,
@@ -254,7 +254,7 @@ public:
 
 	//! Adds a new atom to the program and returns the new atom's id.
 	Atom_t newAtom();
-	
+
 	//! Sets atomId as the last input atom of the current step.
 	/*!
 	* All (new or existing) atoms with a larger id than atomId
@@ -334,7 +334,7 @@ public:
 	 * \note All minimize statements of the same priority are merged into one.
 	 */
 	LogicProgram& addMinimize(weight_t prio, const Potassco::WeightLitSpan& lits);
-	
+
 	//! Adds an edge to the extended (user-defined) dependency graph.
 	LogicProgram& addAcycEdge(uint32 n1, uint32 n2, const Potassco::LitSpan& condition) { return addAcycEdge(n1, n2, newCondition(condition)); }
 	LogicProgram& addAcycEdge(uint32 n1, uint32 n2, Id_t cond);
@@ -344,13 +344,13 @@ public:
 	LogicProgram& addDomHeuristic(Atom_t atom, DomModType t, int bias, unsigned prio, Id_t cond);
 	//! Adds an unconditional domain heuristic directive to the program.
 	LogicProgram& addDomHeuristic(Atom_t atom, DomModType t, int bias, unsigned prio);
-	
+
 	//! Forces the given literals to be true during solving.
 	/*!
 	 * Assumptions are retracted on the next program update.
 	 */
 	LogicProgram& addAssumption(const Potassco::LitSpan& cube);
-	
+
 	//! Returns an object for adding theory data to this program.
 	TheoryData&   theoryData();
 	//@}

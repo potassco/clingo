@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2010, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -36,8 +36,8 @@ namespace Clasp {
  * \ingroup shared
  * The preprocessor implements subsumption, self-subsumption, variable elimination,
  * and (optionally) blocked clause elimination.
- * \see 
- *   - Niklas Eén, Armin Biere: "Effective Preprocessing in SAT through Variable and Clause Elimination" 
+ * \see
+ *   - Niklas Eén, Armin Biere: "Effective Preprocessing in SAT through Variable and Clause Elimination"
  *   - Matti Järvisalo, Armin Biere, Marijn Heule: "Blocked Clause Elimination"
  *   - Parts of the SatElite preprocessor are adapted from MiniSAT 2.0 beta
  *     available under the MIT licence from http://minisat.se/MiniSat.html
@@ -99,7 +99,7 @@ private:
 		void    remove(uint32 id, bool sign, bool updateClauseList) {
 			pos -= uint32(!sign);
 			neg -= uint32(sign);
-			if (updateClauseList) { 
+			if (updateClauseList) {
 				refs.erase_left(std::find(refs.left_begin(), refs.left_end(), Literal(id, sign)));
 			}
 			else { dirty = 1; }

@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2010-2012, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -37,7 +37,7 @@ struct RawStack {
 		RawNode* n = 0, *next = 0;
 		do {
 			if ((n = top) == 0) { return 0; }
-			// NOTE: 
+			// NOTE:
 			// it is the caller's job to guarantee that n is safe
 			// and n->next is ABA-safe at this point.
 			next = n->next;
@@ -53,12 +53,12 @@ struct RawStack {
 	}
 	SafeNodePtr top;
 };
-struct DefaultDeleter { 
-	template <class T> 
+struct DefaultDeleter {
+	template <class T>
 	void operator()(T& obj) const {
 		(void)obj;
 		obj.~T();
-	} 
+	}
 };
 }
 
@@ -105,7 +105,7 @@ public:
 			::operator delete(toNode(x));
 		}
 	}
-	//! adds a new thread to the object 
+	//! adds a new thread to the object
 	/*!
 	 * \note Shall be called at most m times
 	 * \return A handle identifying the new thread
@@ -114,7 +114,7 @@ public:
 		return &head_;
 	}
 	bool hasItems(ThreadId& cId) const { return cId != tail_; }
-	
+
 	//! tries to consume an item
 	/*!
 	 * \pre cId was initially obtained via a call to addThread()
@@ -132,7 +132,7 @@ public:
 		return false;
 	}
 	//! pops an item from the queue associated with the given thread
-	/*! 
+	/*!
 	 * \pre hasItems(cId) == true
 	 */
 	void pop(ThreadId& cId) {
@@ -157,19 +157,19 @@ protected:
 		do {
 			assumedTail = tail_;
 			assumedNext = assumedTail->next;
-			if (assumedTail != tail_) { 
+			if (assumedTail != tail_) {
 				// tail has changed - try again
-				continue; 
+				continue;
 			}
 			if (assumedNext != 0) {
 				// someone has added a new node but has not yet
 				// moved the tail - assist him and start over
-				tail_.compare_and_swap(assumedNext, assumedTail); 
+				tail_.compare_and_swap(assumedNext, assumedTail);
 				continue;
 			}
 		} while (assumedTail->next.compare_and_swap(newNode, 0) != 0);
 		// Now that we managed to link a new node to what we think is the current tail
-		// we try to update the tail. If the tail is still what we think it is, 
+		// we try to update the tail. If the tail is still what we think it is,
 		// it is moved - otherwise some other thread already did that for us.
 		tail_.compare_and_swap(newNode, assumedTail);
 	}

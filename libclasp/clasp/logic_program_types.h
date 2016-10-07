@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2015, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -88,7 +88,7 @@ public:
 	//! Returns the current id of this node.
 	uint32   id()        const { return id_;  }
 	//! Returns the literal that must be true in order to fulfill the truth-value of this node.
-	Literal   trueLit()  const { 
+	Literal   trueLit()  const {
 		return value() == value_free
 			? lit_true()
 			: literal() ^ (value() == value_false);
@@ -107,9 +107,9 @@ public:
 	void setIgnoreScc(bool b)    { noScc_ = (uint32)b; }
 	void markRemoved()           { if (!eq()) setEq(noNode); }
 	void setSeen(bool b)         { seen_  = uint32(b); }
-	void resetId(uint32 id, bool seen) { 
-		id_ = id; 
-		eq_ = 0; 
+	void resetId(uint32 id, bool seen) {
+		id_ = id;
+		eq_ = 0;
 		seen_ = (uint32)seen;
 	}
 	bool assignValueImpl(ValueRep v, bool noWeak) {
@@ -118,7 +118,7 @@ public:
 			setValue(v);
 			return true;
 		}
-		return v == value_weak_true && value() == value_true; 
+		return v == value_weak_true && value() == value_true;
 	}
 	//@}
 protected:
@@ -148,9 +148,9 @@ struct PrgEdge {
 	//! Type of edge.
 	enum Type { Normal = 0, Gamma = 1, Choice = 2, GammaChoice = 3 };
 	static PrgEdge noEdge() { PrgEdge x; x.rep = UINT32_MAX; return x; }
-	
+
 	template <class NT>
-	static PrgEdge newEdge(const NT& n, Type eType) { 
+	static PrgEdge newEdge(const NT& n, Type eType) {
 		// 28-bit node id, 2-bit node type, 2-bit edge type
 		PrgEdge x = { (n.id() << 4) | (static_cast<uint32>(n.nodeType()) << 2) | eType };
 		return x;
@@ -172,7 +172,7 @@ struct PrgEdge {
 	//! Returns true if the adjacant node is an atom.
 	bool     isAtom()   const { return nodeType() == PrgNode::Atom; }
 	//! Returns true if the adjacent node is a disjunction.
-	bool     isDisj()   const { return nodeType() == PrgNode::Disj; }	
+	bool     isDisj()   const { return nodeType() == PrgNode::Disj; }
 	bool     operator< (PrgEdge rhs) const { return rep < rhs.rep; }
 	bool     operator==(PrgEdge rhs) const { return rep == rhs.rep; }
 	uint32 rep;
@@ -187,7 +187,7 @@ using Potassco::Body_t;
 using Potassco::Head_t;
 using Potassco::WeightLitSpan;
 typedef Potassco::Rule_t Rule;
-//! A class for translating extended rules to normal rules. 
+//! A class for translating extended rules to normal rules.
 class RuleTransform {
 public:
 	//! Interface that must be implemented to get the result of a transformation.
@@ -237,7 +237,7 @@ public:
 	void  addToHead(PrgEdge t)            { set(t.node(), headFlag(t)); }
 	//! Mark p as a literal contained in the active rule.
 	void  addToBody(Literal p)            { set(p.var(), pos_flag+p.sign()); }
-	
+
 	void  set(Var v, uint8 f)             { grow(v); state_[v] |= f; }
 	void  clear(Var v, uint8 f)           { if (v < state_.size()) { state_[v] &= ~f; } }
 	void  clearRule(Var v)                { clear(v, rule_mask); }
@@ -260,7 +260,7 @@ public:
 private:
 	typedef PodVector<uint8>::type StateVec;
 	void  grow(Var v)                { if (v >= state_.size()) { state_.resize(v+1); } }
-	uint8 headFlag(PrgEdge t) const  { 
+	uint8 headFlag(PrgEdge t) const  {
 		return t.isAtom() ? (head_flag << uint8(t.isChoice())) : disj_flag;
 	}
 	StateVec state_;
@@ -268,14 +268,14 @@ private:
 
 //! A head node of a program-dependency graph.
 /*!
- * A head node is either an atom or a disjunction 
+ * A head node is either an atom or a disjunction
  * and stores its possible supports.
  */
 class PrgHead : public PrgNode {
 public:
 	enum Simplify { no_simplify = 0, force_simplify = 1 };
 	typedef EdgeIterator sup_iterator;
-	
+
 	//! Is the head part of the (simplified) program?
 	bool         inUpper()    const  { return relevant() && upper_ != 0;  }
 	//! Is this head an atom?
@@ -328,9 +328,9 @@ protected:
 //! An atom in a logic program.
 /*!
  * An atom stores the list of bodies depending on it.
- * Furthermore, once strongly-connected components are identified, 
+ * Furthermore, once strongly-connected components are identified,
  * atoms store their SCC-number. All trivial SCCs are represented
- * with the special SCC-number PrgNode::noScc. 
+ * with the special SCC-number PrgNode::noScc.
  */
 class PrgAtom : public PrgHead {
 public:
@@ -355,7 +355,7 @@ public:
 	void         removeDep(Id_t bodyId, bool pos);
 	void         clearDeps(Dependency d);
 	//@}
-	
+
 	/*!
 	 * \name implementation functions
 	 * Low-level implementation functions. Use with care and only if you
@@ -367,7 +367,7 @@ public:
 	bool addConstraints(const LogicProgram& prg, ClauseCreator& c);
 	void setScc(uint32 scc)    { data_ = scc; }
 	void markFrozen(ValueRep v){ freeze_ = v + freeze_free; }
-	void clearFrozen()         { freeze_ = freeze_no; markDirty(); }	
+	void clearFrozen()         { freeze_ = freeze_no; markDirty(); }
 	//@}
 private:
 	LitVec deps_; // bodies depending on this atom
@@ -378,7 +378,7 @@ class PrgBody : public PrgNode {
 public:
 	typedef EdgeIterator   head_iterator;
 	typedef const Literal* goal_iterator;
-	
+
 	//! Creates a new body node and (optionally) connects it to its predecessors (i.e. atoms).
 	/*!
 	 * \param prg     The program in which the new body is used.
@@ -401,7 +401,7 @@ public:
 	//! Returns the idx'th subgoal as a literal.
 	Literal  goal(uint32 idx)  const { assert(idx < size()); return *(goals_begin()+idx); }
 	//! Returns the weight of the idx'th subgoal.
-	weight_t weight(uint32 idx)const { assert(idx < size()); return !hasWeights() ? 1 : sumData()->weights[idx]; }  
+	weight_t weight(uint32 idx)const { assert(idx < size()); return !hasWeights() ? 1 : sumData()->weights[idx]; }
 	//! Returns true if the body node is supported.
 	/*!
 	 * A normal body is supported, iff all of its positive subgoals are supported.
@@ -412,7 +412,7 @@ public:
 	//! Returns true if this body defines any head.
 	bool     hasHeads()    const { return isSmallHead() ? head_ != 0 : !largeHead()->empty(); }
 	bool     inRule()      const { return hasHeads() || freeze_; }
-	
+
 	head_iterator heads_begin() const { return isSmallHead() ? smallHead()       : largeHead()->begin(); }
 	head_iterator heads_end()   const { return isSmallHead() ? smallHead()+head_ : largeHead()->end(); }
 	goal_iterator goals_begin() const { return const_cast<PrgBody*>(this)->goals_begin(); }
@@ -422,7 +422,7 @@ public:
 	 * \note
 	 *   The function also adds a corresponding back edge to the head.
 	 * \note
-	 *   Adding a head invalidates the set property for the heads of this body. 
+	 *   Adding a head invalidates the set property for the heads of this body.
 	 *   To restore it, call simplifyHeads()
 	 */
 	void     addHead(PrgHead* h, EdgeType t);
@@ -432,7 +432,7 @@ public:
 	 * in the head of this body B, Ta -> FB. In that case, all heads atoms are removed, because
 	 * a false body can't define any atom.
 	 * If strong is true, removes head atoms that are not associated with a variable.
-	 * \return 
+	 * \return
 	 *    setValue(value_false) if setting a head of this body to true would
 	 *    make the body false (i.e. the body is a selfblocker). Otherwise, true.
 	 */
@@ -449,7 +449,7 @@ public:
 	 * \pre prg.getBody(id()) == this
 	 *
 	 * \param[in] prg    The program containing this body.
-	 * \param[in] strong If true, treats atoms that have no variable associated as false. 
+	 * \param[in] strong If true, treats atoms that have no variable associated as false.
 	 * \param[out] eqId  The id of a body in prg that is equivalent to this body.
 	 *
 	 * \return
@@ -533,7 +533,7 @@ CLASP_WARNING_BEGIN_RELAXED
 	Agg&     aggData()     const { return *reinterpret_cast<Agg*>(data()); }
 	Literal* goals_begin()       { return type() == Body_t::Normal ? reinterpret_cast<Norm*>(data())->lits  : aggData().lits; }
 	Literal* goals_end()         { return goals_begin() + size(); }
-	
+
 	uint32    size_   : 25; // |B|
 	uint32    head_   :  2; // simple or extended head?
 	uint32    type_   :  2; // body type
@@ -591,7 +591,7 @@ public:
 	void  visit(PrgAtom* atom)       { visitDfs(atom, PrgNode::Atom); }
 	void  visit(PrgDisj* disj)       { visitDfs(disj, PrgNode::Disj); }
 private:
-	struct Call { 
+	struct Call {
 		uintp    node;
 		uint32   min;
 		uint32   next;

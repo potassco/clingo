@@ -422,7 +422,7 @@ void PrgHead::removeSupport(PrgEdge r) {
 	}
 	dirty_ = 1;
 }
-	
+
 void PrgHead::clearSupports() {
 	supports_.clear();
 	upper_  = 0;
@@ -555,7 +555,7 @@ Literal PrgAtom::eqGoal(bool sign) const {
 // the given id. If pos is true, atom appears positively
 // in body, otherwise negatively.
 void PrgAtom::addDep(Var bodyId, bool pos) {
-	deps_.push_back(Literal(bodyId, !pos));	
+	deps_.push_back(Literal(bodyId, !pos));
 }
 
 // Removes a dependency between this atom and the body with
@@ -849,7 +849,7 @@ bool PrgBody::toData(const LogicProgram& prg, Potassco::RuleBuilder& out) const 
 // structurally equivalent to some other body.
 // prg    The program containing this body
 // strong If true, treats atoms that have no variable associated as false.
-// eqId   The id of a body in prg that is equivalent to this body	
+// eqId   The id of a body in prg that is equivalent to this body
 bool PrgBody::simplifyBody(LogicProgram& prg, bool strong, uint32* eqId) {
 	if (eqId)        { *eqId  = id(); }
 	if (sBody_ == 0) { return true;   }
@@ -1017,7 +1017,7 @@ void PrgBody::prepareSimplifyHeads(LogicProgram& prg, AtomState& rs) {
 		if (!rs.inHead(*j)) {
 			rs.addToHead(*j);
 			++j; ++size;
-		}	
+		}
 		else {
 			prg.getHead(*j)->markDirty();
 			*j = *--end;
@@ -1069,7 +1069,7 @@ bool PrgBody::mergeHeads(LogicProgram& prg, PrgBody& heads, bool strong, bool si
 	assert((this == &heads || heads.sHead_ == 0) && "Heads to merge not simplified!");
 	if (simplify || &heads == this) {
 		// mark the body literals so that we can easily detect superfluous atoms
-		// and selfblocking situations.	
+		// and selfblocking situations.
 		for (const Literal* it = goals_begin(), *end = it + size(); it != end; ++it) {
 			rs.addToBody(*it);
 		}
@@ -1111,7 +1111,7 @@ bool PrgBody::mergeHeads(LogicProgram& prg, PrgBody& heads, bool strong, bool si
 bool PrgBody::superfluousHead(const LogicProgram& prg, const PrgHead* head, PrgEdge it, const AtomState& rs) const {
 	if (it.isAtom()) {
 		// the head is an atom
-		uint32 atomId = it.node();	
+		uint32 atomId = it.node();
 		weight_t    w = 1;
 		if (rs.inBody(posLit(atomId))) {
 			if (hasWeights()) {
@@ -1164,7 +1164,7 @@ bool PrgBody::blockedHead(PrgEdge it, const AtomState& rs) const {
 		weight_t w = 1;
 		if (hasWeights()) {
 			const Literal* lits = aggData().lits;
-			const Literal* x    = std::find(lits, lits + size(), negLit(it.node()));	
+			const Literal* x    = std::find(lits, lits + size(), negLit(it.node()));
 			assert(x != lits + size());
 			w = sumData()->weights[ x - lits ];
 		}

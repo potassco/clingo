@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2015, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -26,7 +26,7 @@
 
 #include <clasp/solver_strategies.h>
 /*!
- * \file 
+ * \file
  * \brief Defines top-level functions for solving problems.
  */
 namespace Clasp {
@@ -36,7 +36,7 @@ namespace Clasp {
 
 //! Type for holding global solve limits.
 struct SolveLimits {
-	explicit SolveLimits(uint64 conf = UINT64_MAX, uint64 r = UINT64_MAX) 
+	explicit SolveLimits(uint64 conf = UINT64_MAX, uint64 r = UINT64_MAX)
 		: conflicts(conf)
 		, restarts(r) {
 	}
@@ -62,16 +62,16 @@ public:
 	~BasicSolve();
 
 	bool     hasLimit() const { return limits_.enabled(); }
-	
+
 	//! Enables solving under the given assumptions.
 	/*!
 	 * The use of assumptions allows for incremental solving. Literals contained
    * in assumptions are assumed to be true during search but can be undone afterwards.
-	 * 
+	 *
 	 * \param assumptions A list of unit assumptions to be assumed true.
 	 * \return false if assumptions are conflicting.
 	 */
-	bool     assume(const LitVec& assumptions); 
+	bool     assume(const LitVec& assumptions);
 
 	//! Solves the path stored in the given solver using the given solving options.
 	/*!
@@ -80,9 +80,9 @@ public:
 	 *    - value_false if the search-space was completely examined.
 	 *    - value_free  if the given solve limit was hit.
 	 *
-	 * \note 
+	 * \note
 	 *   The function maintains the current solving state (number of restarts, learnt limits, ...)
-	 *   between calls. 
+	 *   between calls.
 	 */
 	ValueRep solve();
 	//! Returns whether the given problem is satisfiable under the given assumptions.
@@ -136,7 +136,7 @@ public:
 	 */
 	explicit SolveAlgorithm(const SolveLimits& limit = SolveLimits());
 	virtual ~SolveAlgorithm();
-	
+
 	const Enumerator*   enumerator() const { return enum_.get(); }
 	const SolveLimits&  limits()     const { return limits_; }
 	virtual bool        interrupted()const = 0;
@@ -156,7 +156,7 @@ public:
 	 *  - true:  if the search stopped before the search-space was exceeded.
 	 *  - false: if the search-space was completely examined.
 	 *
-	 * \note 
+	 * \note
 	 * The use of assumptions allows for incremental solving. Literals contained
 	 * in assumptions are assumed to be true during search but are undone before solve returns.
 	 *
@@ -187,16 +187,16 @@ public:
 	void stop();
 	//! Returns whether the last search completely exhausted the search-space.
 	bool more();
-	
+
 	//! Resets solving state and sticky messages like terminate.
 	/*!
 	 * \note The function must be called between successive calls to solve().
 	 */
 	virtual void resetSolve()        = 0;
-	
+
 	//! Prepares the algorithm for handling (asynchronous) calls to SolveAlgorithm::interrupt().
 	virtual void enableInterrupts()  = 0;
-	
+
 	//! Tries to terminate the current solve process.
 	/*!
 	 * \note If enableInterrupts() was not called, SolveAlgorithm::interrupt() may return false

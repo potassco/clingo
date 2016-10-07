@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2009-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -169,7 +169,7 @@ void Output::stopStep(const ClaspFacade::Summary& s){
 	else if (modelQ() == print_all && s.model() && s.model()->up && !s.model()->def) {
 		printModel(s.ctx().output, *s.model(), print_all);
 	}
-	if (callQ() == print_all) { 
+	if (callQ() == print_all) {
 		printSummary(s, false);
 		if (stats(s)) { printStatistics(s, false); }
 	}
@@ -215,7 +215,7 @@ Output::UPair Output::numCons(const OutputTable& out, const Model& m) const {
 
 // Prints shown symbols in model.
 // The functions prints
-// - true literals in definite answer, followed by 
+// - true literals in definite answer, followed by
 // - true literals in current estimate if m.consequences()
 void Output::printWitness(const OutputTable& out, const Model& m, uintp data) {
 	for (OutputTable::fact_iterator it = out.fact_begin(); it != out.fact_end(); ++it) {
@@ -331,7 +331,7 @@ void JsonOutput::visitHcc(uint32, const ProblemStats& p, const SolverStats& s) {
 
 void JsonOutput::visitSolverStats(const SolverStats& stats) {
 	printCoreStats(stats);
-	if (stats.extra) { 
+	if (stats.extra) {
 		printExtStats(*stats.extra, objStack_.size() == 2);
 		printJumpStats(stats.extra->jumps);
 	}
@@ -522,7 +522,7 @@ void JsonOutput::printKeyValue(const char* k, uint64 v) {
 }
 void JsonOutput::printKeyValue(const char* k, uint32 v) { return printKeyValue(k, uint64(v)); }
 void JsonOutput::printKeyValue(const char* k, double v) {
-	if (!isNan(v)) { printf("%s%-*s\"%s\": %.3f", open_, indent(), " ", k, v); } 
+	if (!isNan(v)) { printf("%s%-*s\"%s\": %.3f", open_, indent(), " ", k, v); }
 	else           { printf("%s%-*s\"%s\": %s", open_, indent(), " ", k, "null"); }
 	open_ = ",\n";
 }
@@ -583,7 +583,7 @@ void JsonOutput::printModel(const OutputTable& out, const Model& m, PrintLevel x
 	}
 	if (hasModel) { popObject(); }
 }
-void JsonOutput::printCosts(const SumVec& opt, const char* name) { 
+void JsonOutput::printCosts(const SumVec& opt, const char* name) {
 	pushObject(name, type_array);
 	printf("%-*s", indent(), " ");
 	const char* sep = "";
@@ -612,12 +612,12 @@ void JsonOutput::printSummary(const ClaspFacade::Summary& run, bool final) {
 		printKeyValue("Number", run.numEnum);
 		printKeyValue("More"  , run.complete() ? "no" : "yes");
 		if (run.sat()) {
-			if (run.consequences()){ 
+			if (run.consequences()){
 				printKeyValue(run.consequences(), run.complete() ? "yes":"unknown");
 				printCons(numCons(run.ctx().output, *run.model()));
 			}
-			if (run.optimize())    { 
-				printKeyValue("Optimum", run.optimum()?"yes":"unknown"); 
+			if (run.optimize())    {
+				printKeyValue("Optimum", run.optimum()?"yes":"unknown");
 				printKeyValue("Optimal", run.optimal());
 				printCosts(*run.costs());
 			}
@@ -645,7 +645,7 @@ void JsonOutput::printSummary(const ClaspFacade::Summary& run, bool final) {
 }
 void JsonOutput::printStatistics(const ClaspFacade::Summary& summary, bool) {
 	if (hasWitness()) { popObject(); }
-	pushObject("Stats", type_object); 
+	pushObject("Stats", type_object);
 	summary.accept(*this);
 	popObject();
 }
@@ -744,7 +744,7 @@ void TextOutput::comment(uint32 v, const char* fmt, ...) const {
 		va_end(args);
 		fflush(stdout);
 	}
-}	
+}
 
 void TextOutput::run(const char* solver, const char* version, const std::string* begInput, const std::string* endInput) {
 	if (!version) version = "";
@@ -755,7 +755,7 @@ void TextOutput::run(const char* solver, const char* version, const std::string*
 }
 void TextOutput::shutdown() {}
 void TextOutput::printSummary(const ClaspFacade::Summary& run, bool final) {
-	if (final && callQ() != print_no){ 
+	if (final && callQ() != print_no){
 		comment(1, "%s\n", finalSep);
 	}
 	const char* res = result[res_unknonw];
@@ -830,7 +830,7 @@ void TextOutput::onEvent(const Event& ev) {
 				}
 			}
 		}
-		else if (const LogEvent* log = event_cast<LogEvent>(ev)) { 
+		else if (const LogEvent* log = event_cast<LogEvent>(ev)) {
 			setState(ev.system, ev.verb, log->msg);
 		}
 	}
@@ -861,7 +861,7 @@ void TextOutput::printSolveProgress(const Event& ev) {
 #if WITH_THREADS
 	else if (const mt::MessageEvent*me = event_cast<mt::MessageEvent>(ev)){ Clasp::Cli::format(*me, line, 128); }
 #endif
-	else if (const LogEvent* log = event_cast<LogEvent>(ev))              { 
+	else if (const LogEvent* log = event_cast<LogEvent>(ev))              {
 		clasp_format(line, sizeof(line), "[Solving+%.3fs]", RealTime::getTime() - stTime_);
 		printLN(cat_comment, "%2u:L| %-30s %-38s |", log->solver->id(), line, log->msg);
 		return;
@@ -961,7 +961,7 @@ void TextOutput::printUnsat(const OutputTable& out, const LowerBound* lower, con
 void TextOutput::printBounds(const SumVec& lower, const SumVec& upper) const {
 	for (uint32 i = 0, uMax = upper.size(), lMax = lower.size(), end = std::max(uMax, lMax), seps = end; i != end; ++i) {
 		if (i >= uMax) {
-			printf("[%" PRId64";*]", lower[i]); 
+			printf("[%" PRId64";*]", lower[i]);
 		}
 		else if (i >= lMax || lower[i] == upper[i]) {
 			printf("%" PRId64, upper[i]);
@@ -1000,7 +1000,7 @@ bool TextOutput::visitTester(Operation op) {
 	return op != Enter || startSection("Tester");
 }
 void TextOutput::visitThread(uint32 i, const SolverStats& stats) {
-	startObject("Thread", i); 
+	startObject("Thread", i);
 	TextOutput::visitSolverStats(stats);
 }
 void TextOutput::visitHcc(uint32 i, const ProblemStats& p, const SolverStats& s) {
@@ -1049,7 +1049,7 @@ void TextOutput::visitLogicProgramStats(const Asp::LpStats& lp) {
 	}
 	if (lp.eqs() > 0) {
 		printKeyValue("Equivalences", "%-8u", lp.eqs());
-		printf(" (Atom=Atom: %u Body=Body: %u Other: %u)\n" 
+		printf(" (Atom=Atom: %u Body=Body: %u Other: %u)\n"
 			, lp.eqs(Var_t::Atom)
 			, lp.eqs(Var_t::Body)
 			, lp.eqs(Var_t::Hybrid));

@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -108,7 +108,7 @@ bool ClaspConfig::Impl::addPost(Solver& s, const SolverParams& opts) {
 	if (s.sharedContext()->extGraph.get()) {
 		bool addAcyc = false;
 		// protect access to acycSet
-		LOCKED() { addAcyc = !test_bit(acycSet, s.id()) && store_set_bit(acycSet, s.id()); }		
+		LOCKED() { addAcyc = !test_bit(acycSet, s.id()) && store_set_bit(acycSet, s.id()); }
 		if (addAcyc && !s.addPost(new AcyclicityCheck(s.sharedContext()->extGraph.get()))) {
 			return false;
 		}
@@ -122,7 +122,7 @@ bool ClaspConfig::Impl::addPost(Solver& s, const SolverParams& opts) {
 }
 
 ClaspConfig::ClaspConfig() : tester_(0), impl_(new Impl()) {}
-ClaspConfig::~ClaspConfig() { 
+ClaspConfig::~ClaspConfig() {
 	delete impl_;
 	delete tester_;
 }
@@ -157,7 +157,7 @@ void ClaspConfig::prepare(SharedContext& ctx) {
 		}
 	}
 	solve.setSolvers(numS);
-	if (std::abs(static_cast<int>(solve.numModels)) != 1 || !solve.models()) { 
+	if (std::abs(static_cast<int>(solve.numModels)) != 1 || !solve.models()) {
 		ctx.setPreserveModels(true);
 	}
 	ctx.setConcurrency(solve.numSolver(), SharedContext::resize_resize);
@@ -191,7 +191,7 @@ public:
 	bool hasResult()const   { return (state & state_result)  != 0; }
 	bool interrupt(int sig) {
 		if (!running()) { return false; }
-		if (!signal)    { signal = sig; } 
+		if (!signal)    { signal = sig; }
 		return cancel(sig);
 	}
 	void solve(ClaspFacade& f, const LitVec& a, SolveAlgorithm* algo, EventHandler* h) {
@@ -314,14 +314,14 @@ struct ClaspFacade::SolveData {
 		}
 	}
 	bool update(const Solver& s, const Model& m) { return !active->handler || active->handler->onModel(s, m); }
-	bool interrupt(int sig) { 
+	bool interrupt(int sig) {
 		if (solving()) { return active->interrupt(sig); }
 		if (!qSig && sig != SolveStrategy::SIGCANCEL) { qSig = sig; }
 		return false;
 	}
 	bool                      solving()   const  { return active && active->running();   }
 	const Model*              lastModel() const  { return en.get() ? &en->lastModel() : 0; }
-	const SharedMinimizeData* minimizer() const  { return en.get() ? en->minimizer() : 0; } 
+	const SharedMinimizeData* minimizer() const  { return en.get() ? en->minimizer() : 0; }
 	Enumerator*               enumerator()const  { return en.get(); }
 	int                       modelType() const  { return en.get() ? en->modelType() : 0; }
 	EnumPtr        en;
@@ -350,7 +350,7 @@ struct ClaspFacade::AsyncSolve : public SolveStrategy, public EventHandler {
 	enum { ASYNC_ERROR = 128 };
 	static EventHandler* asyncModelHandler() { return reinterpret_cast<EventHandler*>(0x1); }
 	AsyncSolve() { }
-	bool hasError() const { 
+	bool hasError() const {
 		return (result.flags & uint8(ASYNC_ERROR)) != 0u;
 	}
 	virtual void preSolve() {
@@ -404,7 +404,7 @@ struct ClaspFacade::AsyncSolve : public SolveStrategy, public EventHandler {
 				if (!hasResult()) { return false; }
 			}
 		}
-		if (state == state_done && join()) { 
+		if (state == state_done && join()) {
 			// Just in case other AsyncSolve objects are waiting on the computation.
 			// This should not happen but there is some existing code that uses
 			// an AsyncSolve object in a separate thread for cancellation.
@@ -444,7 +444,7 @@ ClaspFacade::Result ClaspFacade::AsyncResult::get() const {
 	if (!state_->hasError()) { return state_->result; }
 	throw std::runtime_error("Async operation failed!");
 }
-bool ClaspFacade::AsyncResult::end() const { 
+bool ClaspFacade::AsyncResult::end() const {
 	// first running() handles case where iterator is outdated (state was reset to start)
 	// second running() is used to distinguish models from final result (summary)
 	return !running() || !get().sat() || !running();
@@ -524,7 +524,7 @@ static const KV sumKeys_s[] = {
 };
 struct SummaryStats {
 	SummaryStats() : stats_(0), range_(0,0) {}
-	void bind(const ClaspFacade::Summary& x, Range32 r) { 
+	void bind(const ClaspFacade::Summary& x, Range32 r) {
 		stats_ = &x;
 		range_ = r;
 	}
@@ -657,7 +657,7 @@ void ClaspFacade::Statistics::accept(StatsVisitor& out, bool final) const {
 		}
 		out.visitGenerator(StatsVisitor::Leave);
 	}
-	if (tester_ && out.visitTester(StatsVisitor::Enter)) { 
+	if (tester_ && out.visitTester(StatsVisitor::Enter)) {
 		tester_->accept(out, final);
 		out.visitTester(StatsVisitor::Leave);
 	}
@@ -862,7 +862,7 @@ ClaspFacade::Result ClaspFacade::stopStep(int signal, bool complete) {
 			step_.numOptimal = 1;
 		}
 		updateStats();
-		ctx.report(StepReady(step_)); 
+		ctx.report(StepReady(step_));
 	}
 	return result();
 }

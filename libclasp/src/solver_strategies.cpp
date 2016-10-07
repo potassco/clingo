@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -110,9 +110,9 @@ uint64 ScheduleStrategy::next() {
 	return current();
 }
 void ScheduleStrategy::advanceTo(uint32 n) {
-	if (!len || n < len)       { 
-		idx = n; 
-		return; 
+	if (!len || n < len)       {
+		idx = n;
+		return;
 	}
 	if (type != Luby) {
 		double dLen = len;
@@ -130,7 +130,7 @@ void ScheduleStrategy::advanceTo(uint32 n) {
 /////////////////////////////////////////////////////////////////////////////////////////
 // RestartParams
 /////////////////////////////////////////////////////////////////////////////////////////
-RestartParams::RestartParams() 
+RestartParams::RestartParams()
 	: sched()
 	, blockScale(1.4f), blockWindow(0), blockFirst(0)
 	, counterRestart(0), counterBump(9973)
@@ -164,7 +164,7 @@ uint32 ReduceParams::getBase(const SharedContext& ctx) const {
 			uint32 M = std::max(ctx.stats().vars.num, ctx.stats().numConstraints());
 			return M > (m * 10) ? M : m;
 		}
-		case ReduceStrategy::est_con_complexity : return ctx.stats().complexity;	
+		case ReduceStrategy::est_con_complexity : return ctx.stats().complexity;
 		case ReduceStrategy::est_num_constraints: return ctx.stats().numConstraints();
 		case ReduceStrategy::est_num_vars       : return ctx.stats().vars.num;
 	}
@@ -174,7 +174,7 @@ void ReduceParams::disable() {
 	growSched = ScheduleStrategy::none();
 	strategy.fReduce = 0;
 	fGrow     = 0.0f; fInit = 0.0f; fMax = 0.0f;
-	initRange = Range<uint32>(UINT32_MAX, UINT32_MAX); 
+	initRange = Range<uint32>(UINT32_MAX, UINT32_MAX);
 	maxRange  = UINT32_MAX;
 	memMax    = 0;
 }
@@ -204,7 +204,7 @@ uint32 ReduceParams::prepare(bool withLookback) {
 /////////////////////////////////////////////////////////////////////////////////////////
 // SolveParams
 /////////////////////////////////////////////////////////////////////////////////////////
-SolveParams::SolveParams() 
+SolveParams::SolveParams()
 	: randRuns(0u), randConf(0u)
 	, randProb(0.0f) {
 }
@@ -282,7 +282,7 @@ SolveParams& BasicSatConfig::addSearch(uint32 i) {
 void BasicSatConfig::reset() {
 	static_cast<ContextParams&>(*this) = ContextParams();
 	BasicSatConfig::resize(1, 1);
-	solver_[0] = SolverParams(); 
+	solver_[0] = SolverParams();
 	search_[0] = SolveParams();
 }
 void BasicSatConfig::resize(uint32 solver, uint32 search) {

@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2010-2015, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -22,7 +22,7 @@
 #include <clasp/weight_constraint.h>
 #include <clasp/clause.h>
 #include <stdio.h>
-namespace Clasp { 
+namespace Clasp {
 /////////////////////////////////////////////////////////////////////////////////////////
 // SharedMinimizeData
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -114,7 +114,7 @@ void SharedMinimizeData::setLower(uint32 lev, wsum_t low) {
 }
 wsum_t SharedMinimizeData::incLower(uint32 at, wsum_t low){
 	for (wsum_t stored;;) {
-		if ((stored = lower(at)) >= low) { 
+		if ((stored = lower(at)) >= low) {
 			return stored;
 		}
 		if (lower_[at].compare_and_swap(low, stored) == stored) {
@@ -125,7 +125,7 @@ wsum_t SharedMinimizeData::incLower(uint32 at, wsum_t low){
 wsum_t SharedMinimizeData::lower(uint32 lev) const {
 	return lower_[lev];
 }
-wsum_t SharedMinimizeData::optimum(uint32 lev) const { 
+wsum_t SharedMinimizeData::optimum(uint32 lev) const {
 	wsum_t o = sum(lev);
 	return o + (o != maxBound() ? adjust(lev) : 0);
 }
@@ -270,7 +270,7 @@ void DefaultMinimize::pushUndo(Solver& s, uint32 idx) {
 /////////////////////////////////////////////////////////////////////////////////////////
 // MinimizeConstraint - arithmetic strategy implementation
 //
-// For now we use a simple "switch-on-type" approach. 
+// For now we use a simple "switch-on-type" approach.
 // In the future, if new strategies emerge, we may want to use a strategy hierarchy.
 /////////////////////////////////////////////////////////////////////////////////////////
 #define STRATEGY(x) shared_->x
@@ -290,7 +290,7 @@ Constraint::PropResult DefaultMinimize::propagate(Solver& s, Literal, uint32& da
 	return PropResult(propagateImpl(s, propagate_new_sum), true);
 }
 
-// Computes the set of literals implying p and returns 
+// Computes the set of literals implying p and returns
 // the highest decision level of that set.
 // PRE: p is implied on highest undo level
 uint32 DefaultMinimize::computeImplicationSet(const Solver& s, const WeightLiteral& p, uint32& undoPos) {
@@ -311,7 +311,7 @@ uint32 DefaultMinimize::computeImplicationSet(const Solver& s, const WeightLiter
 			return std::max(s.level(shared_->lits[u.index()].first.var()), minLevel);
 		}
 	}
-	undoPos = 0; 
+	undoPos = 0;
 	return minLevel;
 }
 
@@ -320,7 +320,7 @@ bool DefaultMinimize::propagateImpl(Solver& s, PropMode m) {
 	uint32 idx = static_cast<uint32>(it - shared_->lits);
 	uint32 DL  = s.decisionLevel();
 	// current implication level or "unknown" if
-	// we propagate a new optimum 
+	// we propagate a new optimum
 	uint32 impLevel = DL + (m == propagate_new_opt);
 	weight_t lastW  = -1;
 	uint32 undoPos  = undoTop_;
@@ -373,7 +373,7 @@ void DefaultMinimize::undoLevel(Solver&) {
 	}
 }
 
-// computes the reason for p - 
+// computes the reason for p -
 // all literals that were propagated before p
 void DefaultMinimize::reason(Solver& s, Literal p, LitVec& lits) {
 	assert(s.isTrue(tag_));
@@ -418,7 +418,7 @@ bool DefaultMinimize::commitLowerBound(Solver& s, bool upShared) {
 	if (act && step_.type && step_.lev < size_) {
 		uint32 x = step_.lev;
 		wsum_t L = opt()[x] + 1;
-		if (upShared) { 
+		if (upShared) {
 			wsum_t sv = shared_->incLower(x, L);
 			if (sv == L) { reportLower(s, x, sv); }
 			else         { L = sv; }
@@ -480,7 +480,7 @@ bool DefaultMinimize::integrateBound(Solver& s) {
 		else             { stepLow() = ++opt()[step_.lev]; }
 	}
 	relaxBound(false);
-	if (!s.hasConflict()) { 
+	if (!s.hasConflict()) {
 		s.undoUntil(0);
 		s.setStopConflict();
 	}
@@ -502,7 +502,7 @@ bool DefaultMinimize::updateBounds(bool applyStep) {
 				wsum_t L = shared_->lower(i);
 				if (myLow) {
 					if (i > step_.lev || L > myLow[i]) { myLow[i] = L; }
-					else                               { L = myLow[i]; } 
+					else                               { L = myLow[i]; }
 				}
 				if      (i > appLev) { bound[i] = SharedData::maxBound(); }
 				else if (U >= L)     { bound[i] = U; }
@@ -656,7 +656,7 @@ void MinimizeBuilder::prepareLevels(const Solver& s, SumVec& adjust, WeightVec& 
 }
 
 void MinimizeBuilder::mergeLevels(SumVec& adjust, SharedData::WeightVec& weights) {
-	// group first by variables and then by increasing levels 
+	// group first by variables and then by increasing levels
 	std::stable_sort(lits_.begin(), lits_.end(), CmpLit());
 	LitVec::iterator j = lits_.begin();
 	weights.clear(); weights.reserve(lits_.size());
@@ -737,7 +737,7 @@ MinimizeBuilder::SharedData* MinimizeBuilder::build(SharedContext& ctx) {
 /////////////////////////////////////////////////////////////////////////////////////////
 // UncoreMinimize
 /////////////////////////////////////////////////////////////////////////////////////////
-UncoreMinimize::UncoreMinimize(SharedMinimizeData* d, uint32 strat) 
+UncoreMinimize::UncoreMinimize(SharedMinimizeData* d, uint32 strat)
 	: MinimizeConstraint(d)
 	, enum_(0)
 	, sum_(new wsum_t[d->numRules()])
@@ -777,7 +777,7 @@ bool UncoreMinimize::attach(Solver& s) {
 	}
 	return true;
 }
-// Detaches the constraint and all cores from s and removes 
+// Detaches the constraint and all cores from s and removes
 // any introduced aux vars.
 void UncoreMinimize::detach(Solver* s, bool b) {
 	releaseLits();
@@ -899,7 +899,7 @@ bool UncoreMinimize::initLevel(Solver& s) {
 		pre_  = 0;
 	}
 	if (auxInit_ == UINT32_MAX) {
-		auxInit_ = s.numAuxVars(); 
+		auxInit_ = s.numAuxVars();
 	}
 	return !s.hasConflict();
 }
@@ -964,7 +964,7 @@ bool UncoreMinimize::pushPath(Solver& s) {
 			}
 		}
 		shrinkVecTo(assume_, j);
-		CLASP_FAIL_IF(!sat_ && s.decisionLevel() != s.rootLevel(), "pushPath must be called on root level (%u:%u)", s.rootLevel(), s.decisionLevel()); 
+		CLASP_FAIL_IF(!sat_ && s.decisionLevel() != s.rootLevel(), "pushPath must be called on root level (%u:%u)", s.rootLevel(), s.decisionLevel());
 	}
 	if (sat_ || (ok && !validLowerBound())) {
 		ok   = false;
@@ -1025,8 +1025,8 @@ wsum_t* UncoreMinimize::computeSum(Solver& s) const {
 }
 
 void UncoreMinimize::setLower(wsum_t x) {
-	if (!pre_ && x > lower_ && nextW_ == 0) { 
-		fprintf(stderr, "*** WARNING: Fixing lower bound (%u - %u)\n", (uint32)lower_, (uint32)x); 
+	if (!pre_ && x > lower_ && nextW_ == 0) {
+		fprintf(stderr, "*** WARNING: Fixing lower bound (%u - %u)\n", (uint32)lower_, (uint32)x);
 		lower_ = x;
 	}
 }
@@ -1098,7 +1098,7 @@ bool UncoreMinimize::handleUnsat(Solver& s, bool up, LitVec& out) {
 				}
 			}
 			sat_ = !validLowerBound();
-			if (up && shared_->incLower(level_, lower_) == lower_) { 
+			if (up && shared_->incLower(level_, lower_) == lower_) {
 				reportLower(s, level_, lower_);
 			}
 		}
@@ -1120,7 +1120,7 @@ bool UncoreMinimize::handleUnsat(Solver& s, bool up, LitVec& out) {
 			}
 			if (pre_) {
 				LitSet().swap(todo_);
-				pre_ = 0; 
+				pre_ = 0;
 			}
 			if (nextW_) {
 				actW_ = nextW_;
@@ -1138,7 +1138,7 @@ uint32 UncoreMinimize::analyze(Solver& s, weight_t& minW, LitVec& poppedOther) {
 	uint32 cs    = 0;
 	uint32 minDL = s.decisionLevel();
 	minW         = std::numeric_limits<weight_t>::max();
-	if (!todo_.empty() && todo_.back().id) { 
+	if (!todo_.empty() && todo_.back().id) {
 		cs   = 1;
 		minW = getData(todo_.back().id).weight;
 		minDL= s.level(todo_.back().lit.var());
@@ -1220,11 +1220,11 @@ bool UncoreMinimize::addOll(Solver& s, const LitPair* lits, uint32 size, weight_
 	return temp_.bound < 2 || fixLit(s, fix);
 }
 bool UncoreMinimize::addPmr(Solver& s, const LitPair* lits, uint32 size, weight_t w) {
-	if (size == 1) { 
-		return fixLit(s, lits[0].lit); 
+	if (size == 1) {
+		return fixLit(s, lits[0].lit);
 	}
 	uint32 i   = size - 1;
-	Literal bp = lits[i].lit; 
+	Literal bp = lits[i].lit;
 	while (--i != 0) {
 		Literal an = lits[i].lit;
 		Literal bn = posLit(s.pushAuxVar());
@@ -1252,7 +1252,7 @@ bool UncoreMinimize::addPmrCon(CompType c, Solver& s, Literal head, Literal body
 	}
 	Literal temp[3][3] = {
 		{ (~head)^ sign,   body1 ^ sign, body2 ^ sign },
-		{   head ^ sign, (~body1)^ sign, lit_false() }, 
+		{   head ^ sign, (~body1)^ sign, lit_false() },
 		{   head ^ sign, (~body2)^ sign, lit_false() }
 	};
 	for (uint32 i = first, sz = 3; i != last; ++i) {
@@ -1266,7 +1266,7 @@ bool UncoreMinimize::addPmrCon(CompType c, Solver& s, Literal head, Literal body
 bool UncoreMinimize::addOllCon(Solver& s, const WCTemp& wc, weight_t weight) {
 	typedef WeightConstraint::CPair ResPair;
 	weight_t B = wc.bound;
-	if (B <= 0) { 
+	if (B <= 0) {
 		// constraint is sat and hence conflicting w.r.t new assumption -
 		// relax core
 		lower_ += ((1-B)*weight);
@@ -1274,7 +1274,7 @@ bool UncoreMinimize::addOllCon(Solver& s, const WCTemp& wc, weight_t weight) {
 	}
 	if (static_cast<uint32>(B) > static_cast<uint32>(wc.lits.size())) {
 		// constraint is unsat and hence the new assumption is trivially satisfied
-		return true; 
+		return true;
 	}
 	// create new var for this core
 	Var newAux = s.pushAuxVar();
@@ -1308,7 +1308,7 @@ bool UncoreMinimize::fixLit(Solver& s, Literal p) {
 		s.popRootLevel(s.rootLevel() - eRoot_);
 		aTop_ = s.rootLevel();
 	}
-	if (eRoot_ && s.topValue(p.var()) != trueValue(p)) { fix_.push_back(p); } 
+	if (eRoot_ && s.topValue(p.var()) != trueValue(p)) { fix_.push_back(p); }
 	return !s.hasConflict() && s.force(p, this);
 }
 // Fixes any remaining assumptions of the active optimization level.
@@ -1354,7 +1354,7 @@ bool UncoreMinimize::closeCore(Solver& s, LitData& x, bool sat) {
 		if (!sat) { closed_.push_back(core.con); }
 		else      { fixLit(s, core.tag()); core.con->destroy(&s, true); }
 		// link slot to free list
-		core      = Core(0, 0, static_cast<weight_t>(freeOpen_)); 
+		core      = Core(0, 0, static_cast<weight_t>(freeOpen_));
 		freeOpen_ = coreId;
 	}
 	return !s.hasConflict();

@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2010-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -21,7 +21,7 @@
 #include <clasp/clause.h>
 #include <algorithm>
 #include <cmath>
-namespace Clasp { 
+namespace Clasp {
 /////////////////////////////////////////////////////////////////////////////////////////
 // DefaultUnfoundedCheck - Construction/Destruction
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -32,14 +32,14 @@ namespace Clasp {
 // The major problems with card/weight-rules are:
 //  1. subgoals can circularly depend on the body
 //  2. subgoal false -> body false, does not hold
-// 
+//
 // Regarding the first point, consider: {b}. a:- 1{a,b}.
 // Since b is external to 1{a,b}, the body is a valid source for a. Therefore, 1{a,b} can source a.
 // After a's source pointer is set to 1{a,b}, both subgoals of 1{a,b} have a source. Nevertheless,
-// we must not count a because it (circularly) depends on the body. I.e. as soon as b 
+// we must not count a because it (circularly) depends on the body. I.e. as soon as b
 // becomes false, a is unfounded, because the loop {a} no longer has external bodies.
 //
-// The second point means that we have to watch *all* subgoals because we 
+// The second point means that we have to watch *all* subgoals because we
 // may need to trigger source pointer removal whenever one of the subgoals becomes false.
 // Consider: {a,b,c}. t :- 2 {b,t,x}. x :- t,c. x :- a.
 // Now assume {t,c} is true and a becomes false. In this case, both x and t lose their
@@ -47,33 +47,33 @@ namespace Clasp {
 // Further assume that after some backtracking we have that both {t,c} and a
 // become false. Therefore x is false, too. Since we do not update source pointers on
 // conflicts, x and t still have no source. Thus no removal of source pointers is triggered.
-// If we would not watch x in 2 {b,t,x}, we could not add t to the todo queue and 
+// If we would not watch x in 2 {b,t,x}, we could not add t to the todo queue and
 // we would therefore miss the unfounded set {t}.
 //
 // The implementation for extended bodies works as follows:
 // - It distinguishes between internal literals, those that are in the same SCC as B
 //   and external literals, those that are not.
-// - Let W(l) be the weight of literal l in B and W(WS) be the sum of W(l) for each l in a set WS. 
+// - Let W(l) be the weight of literal l in B and W(WS) be the sum of W(l) for each l in a set WS.
 // - The goal is to maintain a set WS of literals l, s.th l in Body and hasSource(l) AND W(WS) >= bound.
 // - Initially WS contains all non-false external literals of B.
-// - Whenever one of the internal literals of B becomes sourced, it is added to WS 
+// - Whenever one of the internal literals of B becomes sourced, it is added to WS
 //   *only if* W(WS) < bound. In that case, it is guaranteed that the literal
 //   currently does not circularly depend on the body.
 // - As soon as W(WS) >= bound, we declare the body as valid source for its heads.
 // - Whenever one of the literals l in WS loses its source, it is removed from WS.
-//   If l is an external literal, new valid external literals are searched and added to WS 
+//   If l is an external literal, new valid external literals are searched and added to WS
 //   until the source condition holds again.
 // - If the condition cannot be restored, the body is marked as invalid source.
 
 DefaultUnfoundedCheck::DefaultUnfoundedCheck(DependencyGraph& g, ReasonStrategy st)
-	: solver_(0) 
+	: solver_(0)
 	, graph_(&g)
 	, mini_(0)
 	, reasons_(0)
 	, strategy_(st) {
 	mini_.release();
 }
-DefaultUnfoundedCheck::~DefaultUnfoundedCheck() { 
+DefaultUnfoundedCheck::~DefaultUnfoundedCheck() {
 	for (ExtVec::size_type i = 0; i != extended_.size(); ++i) {
 		::operator delete(extended_[i]);
 	}
@@ -179,7 +179,7 @@ void DefaultUnfoundedCheck::initExtBody(const BodyPtr& n) {
 
 	InitExtWatches addWatches = { this, &n, extra };
 	graph_->visitBodyLiterals(*n.node, addWatches);
-	
+
 	data.lower_or_ext = (uint32)extended_.size();
 	extended_.push_back(extra);
 	initSuccessors(n, extra->lower);
@@ -223,8 +223,8 @@ void DefaultUnfoundedCheck::reason(Solver&, Literal p, LitVec& r) {
 bool DefaultUnfoundedCheck::propagateFixpoint(Solver& s, PostPropagator* ctx) {
 	bool checkMin = ctx == 0 && mini_.get() && mini_->partialCheck(s.decisionLevel());
 	for (UfsType t; (t = findUfs(s, checkMin)) != ufs_none; ) {
-		if (!falsifyUfs(t)) { 
-			resetTodo(); 
+		if (!falsifyUfs(t)) {
+			resetTodo();
 			return false;
 		}
 	}
@@ -349,7 +349,7 @@ void DefaultUnfoundedCheck::forwardUnsource(const BodyPtr& n, bool add) {
 void DefaultUnfoundedCheck::setSource(NodeId head, const BodyPtr& body) {
 	assert(!solver_->isFalse(body.node->lit));
 	// For normal rules from not false B follows not false head, but
-	// for choice rules this is not the case. Therefore, the 
+	// for choice rules this is not the case. Therefore, the
 	// check for isFalse(head) is needed so that we do not inadvertantly
 	// source a head that is currently false.
 	if (!atoms_[head].hasSource() && !solver_->isFalse(graph_->getAtom(head).lit)) {
@@ -373,7 +373,7 @@ void DefaultUnfoundedCheck::removeSource(NodeId bodyId) {
 		}
 	}
 	propagateSource();
-} 
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 // DefaultUnfoundedCheck - Finding & propagating unfounded sets
@@ -383,7 +383,7 @@ void DefaultUnfoundedCheck::updateAssignment(Solver& s) {
 	for (VarVec::const_iterator it = invalidQ_.begin(), end = invalidQ_.end(); it != end; ++it) {
 		uint32 index = (*it) >> 2;
 		uint32 type  = (*it) & 3u;
-		if (type == watch_source_false) { 
+		if (type == watch_source_false) {
 			// a body became false - update atoms having the body as source
 			removeSource(index);
 		}
@@ -397,7 +397,7 @@ void DefaultUnfoundedCheck::updateAssignment(Solver& s) {
 				propagateSource();
 			}
 		}
-		else if (type == watch_head_true) { 
+		else if (type == watch_head_true) {
 			// TODO: approx. ufs for disjunctive lp
 		}
 		else if (type == watch_subgoal_false) { // a literal p relevant to an extended body became false
@@ -407,7 +407,7 @@ void DefaultUnfoundedCheck::updateAssignment(Solver& s) {
 			ExtData*        ext  = extended_[bodies_[w.bodyId].lower_or_ext];
 			ext->removeFromWs(w.data>>1, body.pred_weight(w.data>>1, test_bit(w.data, 0) != 0));
 			if (ext->lower > 0 && bodies_[w.bodyId].watches && !bodies_[w.bodyId].picked && !s.isFalse(body.lit)) {
-				// The body is not a valid source but at least one head atom 
+				// The body is not a valid source but at least one head atom
 				// still depends on it: mark body as invalid source
 				removeSource(w.bodyId);
 				pickedExt_.push_back(w.bodyId);
@@ -466,7 +466,7 @@ bool DefaultUnfoundedCheck::findSource(NodeId headId) {
 				}
 			}
 			if (!head.hasSource()) { // still no source - check again once we are done
-				invalidQ_.push_back(headId); 
+				invalidQ_.push_back(headId);
 			}
 		}
 		else {  // head has a source and is thus not unfounded
@@ -498,10 +498,10 @@ bool DefaultUnfoundedCheck::isValidSource(const BodyPtr& n) {
 	}
 	ExtData* ext = extended_[bodies_[n.id].lower_or_ext];
 	if (ext->lower > 0) {
-		// Since n is currently not a source, 
+		// Since n is currently not a source,
 		// we here know that no literal with a source can depend on this body.
 		// Hence, we can safely add all those literals to WS.
-		
+
 		// We check all internal literals here because there may be atoms
 		// that were sourced *after* we established the watch set.
 		const uint32 inc = n.node->pred_inc();
@@ -565,9 +565,9 @@ bool DefaultUnfoundedCheck::assertAtom(Literal a, UfsType t) {
 		// Conflict, first atom of unfounded set, or distinct reason for each atom requested -
 		// compute reason for a being unfounded.
 		// We must flush any not yet created loop formula here - the
-		// atoms in loopAtoms_ depend on the current reason which is about to be replaced. 
-		if (!loopAtoms_.empty()) { 
-			createLoopFormula(); 
+		// atoms in loopAtoms_ depend on the current reason which is about to be replaced.
+		if (!loopAtoms_.empty()) {
+			createLoopFormula();
 		}
 		activeClause_.assign(1, ~a);
 		computeReason(t);
@@ -634,7 +634,7 @@ void DefaultUnfoundedCheck::computeReason(UfsType t) {
 	}
 }
 // check whether n is external to the current unfounded set, i.e.
-// does not depend on the atoms from the unfounded set 
+// does not depend on the atoms from the unfounded set
 bool DefaultUnfoundedCheck::isExternal(const BodyPtr& n, weight_t& S) const {
 #define IN_UFS(id) ( (atoms_[(id)].ufs) && !solver_->isFalse(graph_->getAtom((id)).lit) )
 	if (!n.node->sum()) {
@@ -750,13 +750,13 @@ DefaultUnfoundedCheck::UfsType DefaultUnfoundedCheck::findNonHcfUfs(Solver& s) {
 	return ufs_none;
 }
 
-DefaultUnfoundedCheck::MinimalityCheck::MinimalityCheck(const FwdCheck& afwd) : fwd(afwd), high(UINT32_MAX), low(0), next(0), scc(0) {	
+DefaultUnfoundedCheck::MinimalityCheck::MinimalityCheck(const FwdCheck& afwd) : fwd(afwd), high(UINT32_MAX), low(0), next(0), scc(0) {
 	if (fwd.highPct > 100) { fwd.highPct  = 100; }
 	if (fwd.highStep == 0) { fwd.highStep = ~fwd.highStep; }
 	high = fwd.highStep;
 }
 
-bool DefaultUnfoundedCheck::MinimalityCheck::partialCheck(uint32 level) { 
+bool DefaultUnfoundedCheck::MinimalityCheck::partialCheck(uint32 level) {
 	if (level < low) {
 		next -= (low - level);
 		low   = level;

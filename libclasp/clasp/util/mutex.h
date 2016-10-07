@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2012, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -63,7 +63,7 @@ namespace Clasp { namespace mt {
 		bool wait_for(unique_lock<mutex>& lock, double timeInSecs);
 	};
 #if !defined(CLASP_USE_STD_THREAD)
-	// Due to a bug in the computation of the wait time in older tbb versions 
+	// Due to a bug in the computation of the wait time in older tbb versions
 	// wait_for might fail with eid_condvar_wait_failed.
 	// See: http://software.intel.com/en-us/forums/topic/280012
 	// Ignore the error and retry the wait - the computed wait time will be valid, eventually.
@@ -82,7 +82,7 @@ namespace Clasp { namespace mt {
 #endif
 }}
 
-#undef NS_MUTEX 
+#undef NS_MUTEX
 #undef NS_COMPAT
 
 #endif

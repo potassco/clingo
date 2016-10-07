@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -25,7 +25,7 @@
 #endif
 
 /*!
- * \file 
+ * \file
  * \brief Defines various decision heuristics to be used in clasp.
  */
 
@@ -33,7 +33,7 @@
 #include <clasp/pod_vector.h>
 #include <clasp/util/indexed_priority_queue.h>
 #include <list>
-namespace Clasp { 
+namespace Clasp {
 
 //! Computes a moms-like score for var v.
 uint32 momsScore(const Solver& s, Var v);
@@ -53,7 +53,7 @@ uint32 momsScore(const Solver& s, Var v);
 class ClaspBerkmin : public DecisionHeuristic {
 public:
 	/*!
-	 * \note Checks at most params.param candidates when searching for not yet 
+	 * \note Checks at most params.param candidates when searching for not yet
 	 * satisfied learnt constraints. If param is 0, all candidates are checked.
 	 */
 	explicit ClaspBerkmin(const HeuParams& params = HeuParams());
@@ -89,7 +89,7 @@ private:
 		uint32 decay(uint32 gd, bool h) {
 			if (uint32 x = (gd-dec)) {
 				// NOTE: shifts might overflow, i.e.
-				// activity is actually shifted by x%32. 
+				// activity is actually shifted by x%32.
 				// We deliberately ignore this "logical inaccuracy"
 				// and treat it as random noise ;)
 				act >>= x;
@@ -104,7 +104,7 @@ private:
 	};
 	typedef PodVector<HScore>::type   Scores;
 	typedef VarVec::iterator Pos;
-	
+
 	struct Order {
 		explicit Order() : decay(0), huang(false), resScore(3u) {}
 		struct Compare {
@@ -113,11 +113,11 @@ private:
 				return self->decayedScore(v1) > self->decayedScore(v2)
 					|| (self->score[v1].act == self->score[v2].act && v1 < v2);
 			}
-			Order* self; 
+			Order* self;
 		};
 		uint32  decayedScore(Var v) { return score[v].decay(decay, huang); }
 		int32   occ(Var v)   const  { return score[v].occ; }
-		void    inc(Literal p, bool inNant) { 
+		void    inc(Literal p, bool inNant) {
 			if (!this->nant || inNant) {
 				score[p.var()].incAct(decay, huang, p.sign());
 			}
@@ -135,7 +135,7 @@ private:
 	private:
 		Order(const Order&);
 		Order& operator=(const Order&);
-	}       order_; 
+	}       order_;
 	VarVec  cache_;         // Caches the most active variables
 	LitVec  freeLits_;      // Stores free variables of the last learnt conflict clause that is not sat
 	LitVec  freeOtherLits_; // Stores free variables of the last other learnt nogood that is not sat
@@ -163,8 +163,8 @@ private:
 class ClaspVmtf : public DecisionHeuristic {
 public:
 	/*!
-	 * \note Moves at most params.param literals from constraints used during 
-	 *  conflict resolution to the front. If params.param is 0, the default is  
+	 * \note Moves at most params.param literals from constraints used during
+	 *  conflict resolution to the front. If params.param is 0, the default is
 	 *  to move up to 8 literals.
 	 */
 	explicit ClaspVmtf(const HeuParams& params = HeuParams());
@@ -198,11 +198,11 @@ private:
 		}
 	};
 	typedef PodVector<VarInfo>::type Score;
-	
+
 	struct LessLevel {
 		LessLevel(const Solver& s, const Score& sc) : s_(s), sc_(sc) {}
 		bool operator()(Var v1, Var v2) const {
-			return s_.level(v1) < s_.level(v2) 
+			return s_.level(v1) < s_.level(v2)
 				|| (s_.level(v1) == s_.level(v2) && sc_[v1].activity_ > sc_[v2].activity_);
 		}
 		bool operator()(Literal l1, Literal l2) const {
@@ -216,7 +216,7 @@ private:
 	Score   score_; // For each var v score_[v] stores heuristic score of v
 	VarList vars_;  // List of possible choices, initially ordered by MOMs-like score
 	VarVec  mtf_;   // Vars to be moved to the front of vars_
-	VarPos  front_; // Current front-position in var list - reset on backtracking 
+	VarPos  front_; // Current front-position in var list - reset on backtracking
 	uint32  decay_; // "Global" decay counter. Increased every 512 decisions
 	uint32  nMove_; // Limit on number of vars to move
 	TypeSet types_; // Type of nogoods to score during resolution
@@ -242,17 +242,17 @@ struct VsidsScore {
 //! A variable state independent decision heuristic favoring variables that were active in recent conflicts.
 /*!
  * \ingroup heuristic
- * \see M. W. Moskewicz, C. F. Madigan, Y. Zhao, L. Zhang, and S. Malik: 
+ * \see M. W. Moskewicz, C. F. Madigan, Y. Zhao, L. Zhang, and S. Malik:
  * "Chaff: Engineering an Efficient SAT Solver"
  *
- * \note By default, the implementation uses the exponential VSIDS scheme from MiniSAT and 
+ * \note By default, the implementation uses the exponential VSIDS scheme from MiniSAT and
  * applies a MOMs-like score scheme to get an initial var order.
  */
 template <class ScoreType>
 class ClaspVsids_t : public DecisionHeuristic {
 public:
 	/*!
-	 * \note Uses params.param to init the decay value d and inc factor 1.0/d. 
+	 * \note Uses params.param to init the decay value d and inc factor 1.0/d.
 	 * If params.param is 0, d is set 0.95. Otherwise, d is set to 0.x, where x is params.param.
 	 */
 	explicit ClaspVsids_t(const HeuParams& params = HeuParams());
@@ -298,7 +298,7 @@ protected:
 	Decay    decay_; // (dynamic) decaying strategy
 	double   inc_;   // var bump for evsids or conflict index for acids (increased on conflict)
 	TypeSet  types_; // set of constraints to score
-	uint32   scType_;// score type (one of HeuParams::Score) 
+	uint32   scType_;// score type (one of HeuParams::Score)
 	bool     acids_; // whether to use acids instead if evsids scoring
 	bool     nant_;  // whether bumps are restricted to vars v with varInfo(v).nant()
 };
@@ -316,7 +316,7 @@ struct DomScore : VsidsScore {
 	bool   isDom()                const { return domP != domMax; }
 	void   setDom(uint32 key)           { domP = key; }
 	template <class C>
-	static double applyFactor(C& sc, Var v, double f) { 
+	static double applyFactor(C& sc, Var v, double f) {
 		int16 df = sc[v].factor;
 		return df == 1 ? f : static_cast<double>(df) * f;
 	}
@@ -362,7 +362,7 @@ private:
 		uint32 mod: 2; // modification to apply
 		uint32 undo:31;// next action in undo list
 		uint32 next: 1;// next action belongs to same condition?
-		int16  bias;   // value to apply 
+		int16  bias;   // value to apply
 		uint16 prio;   // prio of modification
 	};
 	struct DomPrio {
@@ -381,7 +381,7 @@ private:
 	typedef PodVector<Frame>::type     FrameVec;
 	typedef DomainTable::ValueType     DomMod;
 	typedef PodVector<std::pair<Var, double> >::type VarScoreVec;
-	
+
 	uint32  addDomAction(const DomMod& e, Solver& s,  VarScoreVec& outInit, Literal& lastW);
 	void    addDefAction(Solver& s, Literal x, int16 lev, uint32 domKey);
 	void    pushUndo(uint32& head, uint32 actionId);

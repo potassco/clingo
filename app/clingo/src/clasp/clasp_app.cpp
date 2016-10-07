@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2012, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -51,7 +51,7 @@
 #endif
 
 #if !defined(FPU_SWITCH_DOUBLE)
-#define FPU_SWITCH_DOUBLE(x) 
+#define FPU_SWITCH_DOUBLE(x)
 #define FPU_RESTORE_DOUBLE(x)
 #endif
 
@@ -76,7 +76,7 @@ void ClaspAppOptions::initOptions(ProgramOptions::OptionContext& root) {
 	using namespace ProgramOptions;
 	OptionGroup basic("Basic Options");
 	basic.addOptions()
-		("quiet,q"    , notify(this, &ClaspAppOptions::mappedOpts)->implicit("2,2,2")->arg("<levels>"), 
+		("quiet,q"    , notify(this, &ClaspAppOptions::mappedOpts)->implicit("2,2,2")->arg("<levels>"),
 		 "Configure printing of models, costs, and calls\n"
 		 "      %A: <mod>[,<cost>][,<call>]\n"
 		 "        <mod> : print {0=all|1=last|2=no} models\n"
@@ -135,7 +135,7 @@ bool ClaspAppOptions::validateOptions(const ProgramOptions::ParsedOptions&) {
 ClaspAppBase::ClaspAppBase() { }
 ClaspAppBase::~ClaspAppBase(){ }
 const int* ClaspAppBase::getSignals() const {
-	static const int signals[] = { 
+	static const int signals[] = {
 		SIGINT, SIGTERM
 #if !defined (_WIN32)
 		, SIGUSR1, SIGUSR2, SIGQUIT, SIGHUP, SIGXCPU, SIGXFSZ
@@ -442,7 +442,7 @@ Output* ClaspAppBase::createOutput(ProblemType f) {
 	}
 	return out.release();
 }
-void ClaspAppBase::storeCommandArgs(const ProgramOptions::ParsedValues&) { 
+void ClaspAppBase::storeCommandArgs(const ProgramOptions::ParsedValues&) {
 	/* We don't need the values */
 }
 void ClaspAppBase::handleStartOptions(ClaspFacade& clasp) {
@@ -474,10 +474,10 @@ void ClaspAppBase::handleStartOptions(ClaspFacade& clasp) {
 	}
 }
 bool ClaspAppBase::handlePostGroundOptions(ProgramBuilder& prg) {
-	if (!claspAppOpts_.onlyPre) { 
+	if (!claspAppOpts_.onlyPre) {
 		if (lemmaIn_.get()) { lemmaIn_->parse(); }
 		if (logger_.get())  { logger_->startStep(prg, clasp_->incremental()); }
-		return true; 
+		return true;
 	}
 	prg.endProgram();
 	if (prg.type() == Problem_t::Asp) {
@@ -652,7 +652,7 @@ void WriteCnf::write(Var maxVar, const ShortImplicationsGraph& g) {
 	for (Var v = 1; v <= maxVar; ++v) {
 		g.forEach(posLit(v), *this);
 		g.forEach(negLit(v), *this);
-	}	
+	}
 }
 void WriteCnf::write(Literal u) {
 	fprintf(str_, "%d 0\n", toInt(u));

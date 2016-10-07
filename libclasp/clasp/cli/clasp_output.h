@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2009-2013, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -40,7 +40,7 @@ void format(const Clasp::mt::MessageEvent& ev, char* out, uint32 outSize);
 class Output : public EventHandler {
 public:
 	//! Supported levels for printing models, optimize values, and individual calls.
-	enum PrintLevel { 
+	enum PrintLevel {
 		print_all  = 0, //!< Print all models, optimize values, or calls.
 		print_best = 1, //!< Only print last model, optimize value, or call.
 		print_no   = 2, //!< Do not print any models, optimize values, or calls.
@@ -57,7 +57,7 @@ public:
 	int    optQ()                    const { return static_cast<int>(quiet_[1]); }
 	//! Print level for individual (solve) calls.
 	int    callQ()                   const { return static_cast<int>(quiet_[2]); }
-	
+
 	using  EventHandler::setVerbosity;
 	void   setVerbosity(uint32 verb);
 	void   setModelQuiet(PrintLevel model);
@@ -126,7 +126,7 @@ private:
 	virtual bool visitThreads(Operation op);
 	virtual bool visitTester(Operation op);
 	virtual bool visitHccs(Operation op);
-	
+
 	virtual void visitThread(uint32, const SolverStats& stats);
 	virtual void visitHcc(uint32, const ProblemStats& p, const SolverStats& s);
 	virtual void visitLogicProgramStats(const Asp::LpStats& stats);
@@ -174,7 +174,7 @@ public:
 	enum Format      { format_asp, format_aspcomp, format_sat09, format_pb09 };
 	enum ResultStr   { res_unknonw = 0, res_sat = 1, res_unsat = 2, res_opt = 3, num_str };
 	enum CategoryKey { cat_comment, cat_value, cat_objective, cat_result, cat_value_term, cat_atom_name, cat_atom_var, num_cat };
-	
+
 	const char* result[num_str]; //!< Default result strings.
 	const char* format[num_cat]; //!< Format strings.
 
@@ -186,7 +186,7 @@ public:
 	virtual void shutdown();
 	//! Prints the given model.
 	/*!
-	 * Prints format[cat_value] followed by the elements of the model. Individual 
+	 * Prints format[cat_value] followed by the elements of the model. Individual
 	 * elements e are printed as format[cat_atom] and separated by the internal field separator.
 	 */
 	virtual void printModel(const OutputTable& out, const Model& m, PrintLevel x);
@@ -214,7 +214,7 @@ public:
 protected:
 	virtual bool visitThreads(Operation op);
 	virtual bool visitTester(Operation op);
-	
+
 	virtual void visitThread(uint32, const SolverStats& stats);
 	virtual void visitHcc(uint32, const ProblemStats& p, const SolverStats& s);
 	virtual void visitLogicProgramStats(const Asp::LpStats& stats);

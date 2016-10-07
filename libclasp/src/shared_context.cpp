@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2010-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -107,7 +107,7 @@ bool ShortImplicationsGraph::Block::tryLock(uint32& size) {
 	for (Block* b = (x).learnt; b ; b = b->next) \
 		for (const Literal* Y = b->begin(), *endof = b->end(); Y != endof; Y += 2 - Y->flagged())
 
-	
+
 ShortImplicationsGraph::ImplicationList::~ImplicationList() {
 	clear(true);
 }
@@ -156,7 +156,7 @@ void ShortImplicationsGraph::ImplicationList::addLearnt(Literal p, Literal q) {
 				}
 				return;
 			}
-			else { 
+			else {
 				Clasp::mt::this_thread::yield();
 			}
 		}
@@ -202,7 +202,7 @@ ShortImplicationsGraph::~ShortImplicationsGraph() {
 }
 void ShortImplicationsGraph::resize(uint32 nodes) {
 	if (nodes <= graph_.size()) {
-		while (graph_.size() != nodes) { 
+		while (graph_.size() != nodes) {
 			graph_.back().clear(true);
 			graph_.pop_back();
 		}
@@ -254,12 +254,12 @@ bool ShortImplicationsGraph::add(ImpType t, bool learnt, const Literal* lits) {
 }
 
 void ShortImplicationsGraph::remove_bin(ImplicationList& w, Literal p) {
-	w.erase_left_unordered(std::find(w.left_begin(), w.left_end(), p)); 
-	w.try_shrink(); 
+	w.erase_left_unordered(std::find(w.left_begin(), w.left_end(), p));
+	w.try_shrink();
 }
 void ShortImplicationsGraph::remove_tern(ImplicationList& w, Literal p) {
-	w.erase_right_unordered(std::find_if(w.right_begin(), w.right_end(), PairContains<Literal>(p))); 
-	w.try_shrink();	
+	w.erase_right_unordered(std::find_if(w.right_begin(), w.right_end(), PairContains<Literal>(p)));
+	w.try_shrink();
 }
 
 // Removes all binary clauses containing p - those are now SAT.
@@ -331,7 +331,7 @@ struct ShortImplicationsGraph::ReverseArc {
 	ReverseArc(const Solver& a_s, uint32 m, Antecedent& o) : s(&a_s), out(&o), maxL(m) {}
 	bool unary(Literal, Literal x) const {
 		if (!isRevLit(*s, x, maxL)) { return true; }
-		*out = Antecedent(~x); 
+		*out = Antecedent(~x);
 		return false;
 	}
 	bool binary(Literal, Literal x, Literal y) const {
@@ -390,7 +390,7 @@ bool SatPreprocessor::addClause(const Literal* lits, uint32 size) {
 		return false;
 	}
 	return true;
-}	
+}
 
 void SatPreprocessor::freezeSeen() {
 	if (!ctx_->validVar(seen_.lo)) { seen_.lo = 1; }
@@ -412,8 +412,8 @@ bool SatPreprocessor::preprocess(SharedContext& ctx, Options& opts) {
 		OnExit(SatPreprocessor* s, SharedContext* c) : ctx(c), self(s), rest(0) {
 			if (ctx && ctx->satPrepro.get() == s) { rest = ctx->satPrepro.release(); }
 		}
-		~OnExit() { 
-			if (self) self->cleanUp(); 
+		~OnExit() {
+			if (self) self->cleanUp();
 			if (rest) ctx->satPrepro.reset(rest);
 		}
 	} onExit(this, &ctx);
@@ -445,18 +445,18 @@ bool SatPreprocessor::preprocess(SharedContext& ctx, Options& opts) {
 	}
 	// 1. remove SAT-clauses, strengthen clauses w.r.t false literals, attach
 	if (opts.type != 0 && !opts.clauseLimit(numClauses()) && !limFrozen && initPreprocess(opts)) {
-		ClauseList::size_type j = 0; 
+		ClauseList::size_type j = 0;
 		for (ClauseList::size_type i = 0; i != clauses_.size(); ++i) {
 			Clause* c   = clauses_[i]; assert(c);
 			clauses_[i] = 0;
 			c->simplify(*s);
 			Literal x   = (*c)[0];
 			if (s->value(x.var()) == value_free) {
-				clauses_[j++] = c; 
+				clauses_[j++] = c;
 			}
 			else {
 				c->destroy();
-				if (!ctx.addUnary(x)) { return false; }	
+				if (!ctx.addUnary(x)) { return false; }
 			}
 		}
 		clauses_.erase(clauses_.begin()+j, clauses_.end());
@@ -534,7 +534,7 @@ void SatPreprocessor::Clause::destroy() {
 /////////////////////////////////////////////////////////////////////////////////////////
 struct StrRef {
 	typedef Atomic_t<uint32>::type RefCount;
-	static uint64      lit(const char* str) { 
+	static uint64      lit(const char* str) {
 		if (!str) str = "";
 		return set_bit(static_cast<uint64>(reinterpret_cast<uintp>(str)), 63);
 	}
@@ -627,9 +627,9 @@ OutputTable::Theory::~Theory() {}
 /////////////////////////////////////////////////////////////////////////////////////////
 // DomainTable
 /////////////////////////////////////////////////////////////////////////////////////////
-DomainTable::ValueType::ValueType(Var v, DomModType t, int16 bias, uint16 prio, Literal cond) 
+DomainTable::ValueType::ValueType(Var v, DomModType t, int16 bias, uint16 prio, Literal cond)
 	: cond_(cond.id())
-	, comp_(t == DomModType::True || t == DomModType::False) 
+	, comp_(t == DomModType::True || t == DomModType::False)
 	, var_(v)
 	, type_(uint32(t) <= 3u ? t : uint32(t == DomModType::False))
 	, bias_(bias)
@@ -682,7 +682,7 @@ uint32 DomainTable::simplify() {
 				s = mod_sign + 1;
 			}
 			for (int t = s; t != n_simp; ++t) {
-				if (bias[t] != NO_BIAS) { 
+				if (bias[t] != NO_BIAS) {
 					*j++ = ValueType(v, static_cast<DomModType>(t), bias[t], prio[t], c);
 				}
 			}
@@ -729,7 +729,7 @@ struct SharedContext::Minimize {
 // SharedContext
 /////////////////////////////////////////////////////////////////////////////////////////
 static BasicSatConfig config_def_s;
-SharedContext::SharedContext() 
+SharedContext::SharedContext()
 	: mini_(0), progress_(0), lastTopLevel_(0) {
 	// sentinel always present
 	setFrozen(addVar(Var_t::Atom, 0), true);
@@ -750,7 +750,7 @@ SharedContext::~SharedContext() {
 
 void SharedContext::reset() {
 	this->~SharedContext();
-	new (this) SharedContext();	
+	new (this) SharedContext();
 }
 
 void SharedContext::setConcurrency(uint32 n, ResizeMode mode) {
@@ -760,7 +760,7 @@ void SharedContext::setConcurrency(uint32 n, ResizeMode mode) {
 		pushSolver();
 	}
 	while (solvers_.size() > share_.count && (mode & resize_pop) != 0u) {
-		delete solvers_.back(); 
+		delete solvers_.back();
 		solvers_.pop_back();
 	}
 	if ((share_.shareM & ContextParams::share_auto) != 0) {
@@ -884,7 +884,7 @@ void SharedContext::popVars(uint32 nVars) {
 void SharedContext::setSolveMode(SolveMode m) { share_.solveM = m; }
 void SharedContext::requestStepVar() { if (step_ == lit_true()) { step_ = lit_false(); } }
 void SharedContext::setFrozen(Var v, bool b) {
-	assert(validVar(v)); 
+	assert(validVar(v));
 	if (v && b != varInfo_[v].has(VarInfo::Frozen)) {
 		varInfo_[v].toggle(VarInfo::Frozen);
 		b ? ++stats_.vars.frozen : --stats_.vars.frozen;
@@ -892,12 +892,12 @@ void SharedContext::setFrozen(Var v, bool b) {
 }
 
 bool SharedContext::eliminated(Var v) const {
-	assert(validVar(v)); 
+	assert(validVar(v));
 	return !master()->assign_.valid(v);
 }
 
 void SharedContext::eliminate(Var v) {
-	assert(validVar(v) && !frozen() && master()->decisionLevel() == 0); 
+	assert(validVar(v) && !frozen() && master()->decisionLevel() == 0);
 	if (!eliminated(v)) {
 		++stats_.vars.eliminated;
 		// eliminate var from assignment - no longer a decision variable!
@@ -977,7 +977,7 @@ bool SharedContext::endInit(bool attachAll) {
 	stats_.constraints.ternary= btig_.numTernary();
 	stats_.acycEdges          = extGraph.get() ? extGraph->edges() : 0;
 	stats_.complexity         = std::max(stats_.complexity, problemComplexity());
-	if (ok && step_ == lit_false()) { 
+	if (ok && step_ == lit_false()) {
 		step_ = addStepLit();
 	}
 	btig_.markShared(concurrency() > 1);

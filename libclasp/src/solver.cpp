@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -62,13 +62,13 @@ Literal SelectFirst::doSelect(Solver& s) {
 struct Solver::Dirty {
 	static const std::size_t min_size = static_cast<std::size_t>(4);
 	Dirty() : last(0) {}
-	bool add(Literal p, WatchList& wl, Constraint* c) { 
+	bool add(Literal p, WatchList& wl, Constraint* c) {
 		if (wl.right_size() <= min_size) { return false; }
 		uintp o = wl.left_size() > 0 ? reinterpret_cast<uintp>(wl.left_begin()->head) : 0;
 		if (add(wl.right_begin()->con, o, c)) { dirty.push_left(p); }
 		return true;
 	}
-	bool add(Literal p, WatchList& wl, ClauseHead* c) { 
+	bool add(Literal p, WatchList& wl, ClauseHead* c) {
 		if (wl.left_size() <= min_size) { return false; }
 		uintp o = wl.right_size() > 0 ? reinterpret_cast<uintp>(wl.right_begin()->con) : 0;
 		if (add(wl.left_begin()->head, o, c)) { dirty.push_left(p); }
@@ -120,7 +120,7 @@ struct Solver::Dirty {
 	for (PostPropagator** __r__ = (head), *x; (x = *__r__) != 0; __r__ = (x == *__r__) ? &x->next : __r__)
 
 static PostPropagator* sent_list;
-Solver::Solver(SharedContext* ctx, uint32 id) 
+Solver::Solver(SharedContext* ctx, uint32 id)
 	: shared_(ctx)
 	, ccMin_(0)
 	, postHead_(&sent_list)
@@ -190,7 +190,7 @@ void Solver::resetHeuristic() {
 void Solver::resetConfig() {
 	if (strategy_.hasConfig) {
 		if (PostPropagator* pp = getPost(PostPropagator::priority_reserved_look)) { pp->destroy(this, true); }
-		delete ccMin_; 
+		delete ccMin_;
 		ccMin_ = 0;
 	}
 	strategy_.hasConfig = 0;
@@ -207,8 +207,8 @@ void Solver::startInit(uint32 numConsGuess, const SolverParams& params) {
 	constraints_.reserve(numConsGuess/2);
 	levels_.reserve(25);
 	if (undoHead_ == 0)  {
-		for (uint32 i = 0; i != 25; ++i) { 
-			undoFree(new ConstraintDB(10)); 
+		for (uint32 i = 0; i != 25; ++i) {
+			undoFree(new ConstraintDB(10));
 		}
 	}
 	if (!popRootLevel(rootLevel())) { return; }
@@ -332,7 +332,7 @@ bool Solver::add(const ClauseRep& c, bool isNew) {
 	}
 	return !hasConflict();
 }
-bool Solver::addPost(PostPropagator* p, bool init) { 
+bool Solver::addPost(PostPropagator* p, bool init) {
 	post_.add(p);
 	return !init || p->init(*this);
 }
@@ -369,7 +369,7 @@ Var Solver::pushAuxVar() {
 	assert(!lazyRem_);
 	Var aux = assign_.addVar();
 	setPref(aux, ValueSet::def_value, value_false);
-	watches_.insert(watches_.end(), 2, WatchList()); 
+	watches_.insert(watches_.end(), 2, WatchList());
 	if (heuristic_.get()) { heuristic_->updateVar(*this, aux, 1); }
 	return aux;
 }
@@ -542,8 +542,8 @@ bool Solver::splittable() const {
 	if (decisionLevel() == rootLevel() || frozenLevel(rootLevel()+1)) { return false; }
 	if (numAuxVars()) { // check if gp would contain solver local aux var
 		uint32 minAux = rootLevel() + 2;
-		for (uint32 i = 1; i != minAux; ++i) { 
-			if (auxVar(decision(i).var()) && decision(i) != tag_) { return false; } 
+		for (uint32 i = 1; i != minAux; ++i) {
+			if (auxVar(decision(i).var()) && decision(i) != tag_) { return false; }
 		}
 		for (ImpliedList::iterator it = impliedLits_.begin(); it != impliedLits_.end(); ++it) {
 			if (it->ante.ante().isNull() && it->level < minAux && auxVar(it->lit.var()) && it->lit != tag_) { return false; }
@@ -571,7 +571,7 @@ uint32 Solver::numWatches(Literal p) const {
 	}
 	return n;
 }
-	
+
 bool Solver::hasWatch(Literal p, Constraint* c) const {
 	if (!validWatch(p)) return false;
 	const WatchList& pList = watches_[p.id()];
@@ -632,7 +632,7 @@ void Solver::destroyDB(ConstraintDB& db) {
 			(*it)->destroy(this, true);
 		}
 		db.clear();
-		if (lazyRem_ == &dirty) { 
+		if (lazyRem_ == &dirty) {
 			lazyRem_ = 0;
 			dirty.cleanup(watches_, levels_);
 		}
@@ -661,7 +661,7 @@ Var  Solver::pushTagVar(bool pushToRoot) {
 	if (pushToRoot)       { pushRoot(tag_); }
 	return tag_.var();
 }
-void Solver::removeConditional() { 
+void Solver::removeConditional() {
 	Literal p = ~tagLiteral();
 	if (!isSentinel(p)) {
 		ConstraintDB::size_type i, j, end = learnts_.size();
@@ -678,7 +678,7 @@ void Solver::removeConditional() {
 	}
 }
 
-void Solver::strengthenConditional() { 
+void Solver::strengthenConditional() {
 	Literal p = ~tagLiteral();
 	if (!isSentinel(p)) {
 		ConstraintDB::size_type i, j, end = learnts_.size();
@@ -793,9 +793,9 @@ bool Solver::propagate() {
 	return false;
 }
 
-bool Solver::propagateUntil(PostPropagator* p) { 
-	assert((!p || *postHead_) && "OP not allowed during init!"); 
-	return unitPropagate() && (p == *postHead_ || postPropagate(p)); 
+bool Solver::propagateUntil(PostPropagator* p) {
+	assert((!p || *postHead_) && "OP not allowed during init!");
+	return unitPropagate() && (p == *postHead_ || postPropagate(p));
 }
 
 Constraint::PropResult ClauseHead::propagate(Solver& s, Literal p, uint32&) {
@@ -815,7 +815,7 @@ Constraint::PropResult ClauseHead::propagate(Solver& s, Literal p, uint32&) {
 		assert(!s.isFalse(head_[wLit]));
 		s.addWatch(~head[wLit], ClauseWatch(this));
 		return Constraint::PropResult(true, false);
-	}	
+	}
 	return PropResult(s.force(head_[1^wLit], this), true);
 }
 
@@ -835,7 +835,7 @@ bool Solver::unitPropagate() {
 		}
 		// second: clause BCP
 		if (wl.left_size() != 0) {
-			WatchList::left_iterator it, end, j = wl.left_begin(); 
+			WatchList::left_iterator it, end, j = wl.left_begin();
 			Constraint::PropResult res;
 			for (it = wl.left_begin(), end = wl.left_end();  it != end;  ) {
 				ClauseWatch& w = *it++;
@@ -852,7 +852,7 @@ bool Solver::unitPropagate() {
 		}
 		// third: general constraint BCP
 		if (wl.right_size() != 0) {
-			WatchList::right_iterator it, end, j = wl.right_begin(); 
+			WatchList::right_iterator it, end, j = wl.right_begin();
 			Constraint::PropResult res;
 			for (it = wl.right_begin(), end = wl.right_end(); it != end; ) {
 				GenericWatch& w = *it++;
@@ -986,7 +986,7 @@ uint32 Solver::estimateBCP(const Literal& p, int rd) const {
 	const ShortImplicationsGraph& btig = shared_->shortImplications();
 	const uint32 maxIdx = btig.size();
 	do {
-		Literal x = assign_.trail[i++];  
+		Literal x = assign_.trail[i++];
 		if (x.id() < maxIdx && !btig.propagateBin(self.assign_, x, 0)) {
 			break;
 		}
@@ -1095,7 +1095,7 @@ bool Solver::resolveToFlagged(const LitVec& in, const uint8 vf, LitVec& out, uin
 		if (ccMin_) { ccMinRecurseInit(*ccMin_); }
 		for (LitVec::size_type i = 0; i != outSize;) {
 			if (!ccRemovable(~out[i], antes-1, ccMin_)) { ++i; }
-			else { 
+			else {
 				std::swap(out[i], out.back());
 				--outSize;
 			}
@@ -1199,8 +1199,8 @@ uint32 Solver::analyzeConflict() {
 		p   = assign_.last();
 		rhs = reason(p);
 		clearSeen(p.var());
-		if (--onLevel == 0) { 
-			break; 
+		if (--onLevel == 0) {
+			break;
 		}
 		--resSize; // p will be resolved out next
 		last = rhs;
@@ -1210,7 +1210,7 @@ uint32 Solver::analyzeConflict() {
 	assert(decisionLevel() == level(cc_[0].var()));
 	ClauseHead* lastRes = 0;
 	if (strategy_.otfs > 1 || !lhs.isNull()) {
-		if (!lhs.isNull()) { 
+		if (!lhs.isNull()) {
 			lastRes = clause(lhs);
 		}
 		else if (cc_.size() <= (conflict_.size()+1)) {
@@ -1312,7 +1312,7 @@ uint32 Solver::simplifyConflictClause(LitVec& cc, ConstraintInfo& info, ClauseHe
 			//       check for literals assigned on DL 0
 			open -= level(it->var()) > 0 && seen(it->var());
 		}
-		rhs = open ? 0 : otfsRemove(rhs, &cc); 
+		rhs = open ? 0 : otfsRemove(rhs, &cc);
 		if (rhs) { // rhs is subsumed by cc but could not be removed.
 			// TODO: we could reuse rhs instead of learning cc
 			//       but this would complicate the calling code.
@@ -1332,14 +1332,14 @@ uint32 Solver::simplifyConflictClause(LitVec& cc, ConstraintInfo& info, ClauseHe
 	// 4. finalize
 	uint32 repMode = cc.size() < std::max(strategy_.compress, decisionLevel()+1) ? 0 : strategy_.ccRepMode;
 	jl = finalizeConflictClause(cc, info, repMode);
-	// 5. bump vars implied by learnt constraints with small lbd 
+	// 5. bump vars implied by learnt constraints with small lbd
 	if (!bumpAct_.empty()) {
 		WeightLitVec::iterator j = bumpAct_.begin();
 		weight_t newLbd = info.lbd();
 		for (WeightLitVec::iterator it = bumpAct_.begin(), end = bumpAct_.end(); it != end; ++it) {
 			if (it->second < newLbd) {
-				it->second = 1 + (it->second <= 2); 
-				*j++ = *it;	
+				it->second = 1 + (it->second <= 2);
+				*j++ = *it;
 			}
 		}
 		bumpAct_.erase(j, bumpAct_.end());
@@ -1355,7 +1355,7 @@ uint32 Solver::simplifyConflictClause(LitVec& cc, ConstraintInfo& info, ClauseHe
 }
 
 // conflict clause minimization
-// PRE: 
+// PRE:
 //  - cc is an asserting clause and cc[0] is the asserting literal
 //  - all literals in cc are marked as seen
 //  -  if ccMin != 0, all decision levels of literals in cc are marked
@@ -1372,7 +1372,7 @@ uint32 Solver::ccMinimize(LitVec& cc, LitVec& removed, uint32 antes, CCMinRecurs
 	uint32 assertPos    = 1;
 	uint32 onAssert     = 0;
 	uint32 varLevel     = 0;
-	for (LitVec::size_type i = 1; i != cc.size(); ++i) { 
+	for (LitVec::size_type i = 1; i != cc.size(); ++i) {
 		if (antes == 0 || !ccRemovable(~cc[i], antes-1, ccMin)) {
 			if ( (varLevel = level(cc[i].var())) > assertLevel ) {
 				assertLevel = varLevel;
@@ -1382,7 +1382,7 @@ uint32 Solver::ccMinimize(LitVec& cc, LitVec& removed, uint32 antes, CCMinRecurs
 			onAssert += (varLevel == assertLevel);
 			cc[j++] = cc[i];
 		}
-		else { 
+		else {
 			removed.push_back(cc[i]);
 		}
 	}
@@ -1439,7 +1439,7 @@ bool Solver::ccRemovable(Literal p, uint32 antes, CCMinRecursive* ccMin) {
 
 // checks whether there is a valid "inverse arc" for the given literal p that can be used
 // to resolve p out of the current conflict clause
-// PRE: 
+// PRE:
 //  - all literals in the current conflict clause are marked
 //  - p is a literal of the current conflict clause and level(p) == maxLevel
 // RETURN
@@ -1550,7 +1550,7 @@ uint32 Solver::finalizeConflictClause(LitVec& cc, ConstraintInfo& info, uint32 c
 	return assertLevel;
 }
 
-// (inefficient) default implementation 
+// (inefficient) default implementation
 bool Constraint::minimize(Solver& s, Literal p, CCMinRecursive* rec) {
 	LitVec temp;
 	reason(s, p, temp);
@@ -1563,13 +1563,13 @@ bool Constraint::minimize(Solver& s, Literal p, CCMinRecursive* rec) {
 }
 
 // Selects next branching literal
-bool Solver::decideNextBranch(double f) { 
+bool Solver::decideNextBranch(double f) {
 	if (f <= 0.0 || rng.drand() >= f || numFreeVars() == 0) {
 		return heuristic_->select(*this);
 	}
 	// select randomly
 	Literal choice;
-	uint32 maxVar = numVars() + 1; 
+	uint32 maxVar = numVars() + 1;
 	for (uint32 v = rng.irand(maxVar);;) {
 		if (value(v) == value_free) {
 			choice    = heuristic_->selectLiteral(*this, v, 0);
@@ -1655,8 +1655,8 @@ Solver::DBInfo Solver::reduceSort(uint32 maxR, const CmpScore& sc) {
 		res.locked += (isLocked = c->locked(*this));
 		if (!isLocked && !isGlue && !sc.isFrozen(vp.second)) {
 			if (maxR) { // populate heap with first maxR constraints
-				heap.push_back(vp); 
-				if (--maxR == 0) { std::make_heap(heap.begin(), heap.end(), sc); } 
+				heap.push_back(vp);
+				if (--maxR == 0) { std::make_heap(heap.begin(), heap.end(), sc); }
 			}
 			else if (sc(vp, heap[0])) { // replace max element in heap
 				std::pop_heap(heap.begin(), heap.end(), sc);
@@ -1682,8 +1682,8 @@ Solver::DBInfo Solver::reduceSort(uint32 maxR, const CmpScore& sc) {
 	return res;
 }
 
-// Sorts the learnt db by score and removes the first 
-// maxR constraints (those with the lowest score). 
+// Sorts the learnt db by score and removes the first
+// maxR constraints (those with the lowest score).
 Solver::DBInfo Solver::reduceSortInPlace(uint32 maxR, const CmpScore& sc, bool partial) {
 	DBInfo res = {0,0,0};
 	ConstraintDB::iterator nEnd = learnts_.begin();
@@ -1699,7 +1699,7 @@ Solver::DBInfo Solver::reduceSortInPlace(uint32 maxR, const CmpScore& sc, bool p
 			res.pinned += (isGlue = sc.isGlue(a));
 			res.locked += (isLocked = c->locked(*this));
 			if (!maxR || isLocked || isGlue || sc.isFrozen(a)) {
-				c->decreaseActivity(); 
+				c->decreaseActivity();
 				*nEnd++ = c;
 			}
 			else {
@@ -1741,7 +1741,7 @@ Solver::DBInfo Solver::reduceSortInPlace(uint32 maxR, const CmpScore& sc, bool p
 		}
 	}
 	res.size = static_cast<uint32>(std::distance(learnts_.begin(), nEnd));
-	return res;	
+	return res;
 }
 uint32 Solver::incEpoch(uint32 size, uint32 n) {
 	if (size > epoch_.size())         { epoch_.resize(size, 0u); }
@@ -1833,12 +1833,12 @@ bool Solver::isModel() {
 // Free functions
 /////////////////////////////////////////////////////////////////////////////////////////
 void destroyDB(Solver::ConstraintDB& db, Solver* s, bool detach) {
-	if (s && detach) { 
-		s->destroyDB(db); 
+	if (s && detach) {
+		s->destroyDB(db);
 		return;
 	}
 	while (!db.empty()) {
-		db.back()->destroy(s, detach); 
+		db.back()->destroy(s, detach);
 		db.pop_back();
 	}
 }

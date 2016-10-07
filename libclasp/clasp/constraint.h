@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -29,7 +29,7 @@
 #include <cassert>
 
 /*!
- * \file 
+ * \file
  * \brief Defines the base classes for boolean constraints.
  */
 namespace Clasp {
@@ -46,7 +46,7 @@ struct CCMinRecursive;
 
 //! Constraint types distinguished by a Solver.
 struct Constraint_t {
-	enum Type { 
+	enum Type {
 		Static     = 0, //!< An unremovable constraint (e.g. a problem constraint).
 		Conflict   = 1, //!< A removable constraint derived from conflict analysis.
 		Loop       = 2, //!< A removable constraint derived from unfounded set checking.
@@ -59,7 +59,7 @@ struct Constraint_t {
 		void addSet(Type t)      { m |= (uint32(1)<<t); }
 		uint32 m;
 	};
-};  
+};
 typedef Constraint_t::Type ConstraintType;
 typedef Constraint_t::Set  TypeSet;
 
@@ -72,7 +72,7 @@ class  ConstraintInfo;
  * representations for constraints over boolean variables.
  * Each constraint class must define a method for inference (derive information from an assignment),
  * it must be able to detect conflicts (i.e. detect when the current assignment makes the constraint unsatisfiable)
- * and to return a reason for inferred literals as well as conflicts (as a set of literals). 
+ * and to return a reason for inferred literals as well as conflicts (as a set of literals).
  */
 class Constraint {
 public:
@@ -88,9 +88,9 @@ public:
 	 * \name Mandatory functions
 	 * Functions that must be implemented by all constraints.
 	 * @{ */
-	
+
 	/*!
-	 * Propagate is called for each constraint that watches p. It shall enqueue 
+	 * Propagate is called for each constraint that watches p. It shall enqueue
 	 * all consequences of p becoming true.
 	 * \pre p is true in s
 	 * \param s The solver in which p became true.
@@ -121,7 +121,7 @@ public:
 	 * @{ */
 	//! Called when the given solver removes a decision level watched by this constraint.
 	virtual void undoLevel(Solver& s);
-	
+
 	/*!
 	 * \brief Simplify this constraint.
 	 *
@@ -136,7 +136,7 @@ public:
 	 * \note The default implementation simply returns false.
 	 */
 	virtual bool simplify(Solver& s, bool reinit = false);
-	
+
 	/*!
 	 * \brief Delete this constraint.
 	 * \note The default implementation simply calls delete this.
@@ -161,16 +161,16 @@ public:
 	 * \code
 	 *   LitVec temp;
 	 *   reason(s, p, temp);
-	 *   for each x in temp 
+	 *   for each x in temp
 	 *     if (!s.ccMinimize(p, rec)) return false;
 	 *   return true;
 	 * \endcode
-	 */ 
+	 */
 	virtual bool minimize(Solver& s, Literal p, CCMinRecursive* rec);
 
 	//! Returns an estimate of the constraint's complexity relative to a clause (complexity = 1).
 	virtual uint32 estimateComplexity(const Solver& s) const;
-	
+
 	//! Shall return this if constraint is a clause, otherwise 0.
 	/*!
 	 * The default implementation returns 0.
@@ -181,20 +181,20 @@ public:
 	/*!
 	 * \name Functions for learnt constraints
 	 *
-	 * Learnt constraints can be created and deleted dynamically during the search-process and 
+	 * Learnt constraints can be created and deleted dynamically during the search-process and
 	 * are subject to nogood-deletion.
 	 * A learnt constraint shall at least define the methods type() and locked().
 	 * @{ */
-	
+
 	typedef ConstraintType  Type;
 	typedef ConstraintScore ScoreType;
 	typedef ConstraintInfo  InfoType;
-	
+
 	//! Returns the type of this (learnt) constraint.
 	virtual Type type() const;
 
 	/*!
-	 * Shall return true if this constraint can't be deleted because it 
+	 * Shall return true if this constraint can't be deleted because it
 	 * currently implies one or more literals and false otherwise.
 	 * The default implementation returns true.
 	 */
@@ -240,13 +240,13 @@ private:
 /*!
  * Post propagators are called after unit propagation on each decision level and
  * once after a total assignment is found.
- * 
+ *
  * They extend a solver's unit-propagation with more elaborate propagation mechanisms.
  * The typical asp example is an unfounded set check.
  *
  * \note Currently, the solver distinguishes \b two classes of post propagators:
  *       - class_simple: deterministic post propagators that only extend
- *         the current decision level. That is, these post propagators shall neither 
+ *         the current decision level. That is, these post propagators shall neither
  *         backtrack below the current decision level nor permanently add new decision levels.
  *         Deterministic post propagators are called in priority order. For this,
  *         the function PostPropagator::priority() is used and shall return a priority in the range: <tt>[priority_class_simple, priority_class_general)</tt>
@@ -258,7 +258,7 @@ private:
  *  - priority_reserved_msg for message and termination handler (if any),
  *  - priority_reserved_ufs for the default unfounded set checker (if any),
  *  - and priority_reserved_look for the default lookahead operator (if any).
- *  .      
+ *  .
  */
 class PostPropagator : public Constraint {
 public:
@@ -290,27 +290,27 @@ public:
 	 *       but it must not yet propagate them.
 	 */
 	virtual bool   init(Solver& s);
-	
+
 	//! Shall enqueue and propagate new assignments implied by this propagator.
 	/*!
-	 * This function shall enqueue and propagate all assignments currently implied by 
-	 * this propagator until a fixpoint is reached w.r.t this post propagator or 
+	 * This function shall enqueue and propagate all assignments currently implied by
+	 * this propagator until a fixpoint is reached w.r.t this post propagator or
 	 * a conflict is detected.
-	 * 
+	 *
 	 * \pre   The assignment is fully propagated w.r.t any previous post propagator.
 	 * \param s    The solver in which this post propagator is used.
 	 * \param ctx  The post propagator from which this post propagator is called or
 	 *             0 if no other post propagator is currently active.
 	 * \post  s.queueSize() == 0 || s.hasConflict()
 	 * \return false if propagation led to conflict, true otherwise
-	 * 
-	 * \note 
+	 *
+	 * \note
 	 *   The function shall not call Solver::propagate()
-	 *   or any other function that would result in a recursive chain 
+	 *   or any other function that would result in a recursive chain
 	 *   of propagate() calls. On the other hand, it shall call
-	 *   Solver::propagateUntil(this) after enqueuing any new assignments 
+	 *   Solver::propagateUntil(this) after enqueuing any new assignments
 	 *   to initiate propagation up to this propagator.
-	 * 
+	 *
 	 * Typically, propagateFixpoint() should implemet a loop like this:
 	 * \code
 	 * for (;;) {
@@ -326,7 +326,7 @@ public:
 	/*!
 	 * The function reset() is called whenever propagation on the
 	 * current decision level is stopped before a fixpoint is reached.
-	 * In particular, a solver calls reset() when a conflict is detected 
+	 * In particular, a solver calls reset() when a conflict is detected
 	 * during propagation.
 	 *
 	 * \note The default implementation is a noop.
@@ -396,8 +396,8 @@ private:
 /*!
  * Stores a reference to the constraint that implied a certain literal or
  * null if the literal has no antecedent (i.e. is a decision literal or a top-level fact).
- * 
- * \note 
+ *
+ * \note
  * The constraint that implied a literal can have three different representations:
  * - it can be a single literal (binary clause constraint)
  * - it can be two literals (ternary clause constraint)
@@ -409,19 +409,19 @@ private:
  * The class stores all three representations in one tagged 64-bit integer, i.e.
  * from the 64-bits the 2 LSBs encode the type stored:
  *  - 00: Pointer to constraint
- *  - 01: ternary constraint (i.e. two literals stored in the remaining 62 bits). 
+ *  - 01: ternary constraint (i.e. two literals stored in the remaining 62 bits).
  *  - 10: binary constraint (i.e. one literal stored in the highest 31 bits)
  *  .
  */
 class Antecedent {
 public:
 	enum Type { Generic = 0, Ternary = 1, Binary = 2};
-	//! Creates a null Antecedent. 
+	//! Creates a null Antecedent.
 	/*!
 	 * \post: isNull() == true && type == Generic
 	 */
 	Antecedent() : data_(0) {}
-	
+
 	//! Creates an Antecedent from the literal p.
 	/*!
 	 * \post: type() == Binary && firstLiteral() == p
@@ -431,7 +431,7 @@ public:
 		data_ = (((uint64)p.id()) << 33) + Binary;
 		assert(type() == Binary && firstLiteral() == p);
 	}
-	
+
 	//! Creates an Antecedent from the literals p and q.
 	/*!
 	 * \post type() == Ternary && firstLiteral() == p && secondLiteral() == q
@@ -458,7 +458,7 @@ public:
 	Type type()   const { return Type( data_ & 3 ); }
 	//! Returns true if the antecedent is a learnt nogood.
 	bool learnt() const { return data_ && (data_ & 3u) == 0 && constraint()->type() != Constraint_t::Static; }
-	
+
 	//! Extracts the constraint-pointer stored in this object.
 	/*!
 	 * \pre type() == Generic
@@ -467,7 +467,7 @@ public:
 		assert(type() == Generic);
 		return (Constraint*)(uintp)data_;
 	}
-	
+
 	//! Extracts the first literal stored in this object.
 	/*!
 	 * \pre type() != Generic
@@ -476,7 +476,7 @@ public:
 		assert(type() != Generic);
 		return Literal::fromId(static_cast<uint32>(data_ >> 33));
 	}
-	
+
 	//! Extracts the second literal stored in this object.
 	/*!
 	 * \pre type() == Ternary
