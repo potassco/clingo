@@ -2636,7 +2636,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_program_builder_end(clingo_program_builder
 //! Otherwise ::clingo_error_unknown should be set and false returned.
 //!
 //! @see clingo_control_register_observer()
-struct clingo_ground_program_observer {
+typedef struct clingo_ground_program_observer {
     //! Observe rules passed to the solver.
     //!
     //! @param[in] choice determines if the head is a choice or a disjunction
@@ -2707,7 +2707,7 @@ struct clingo_ground_program_observer {
     //! @param[in] data user data for the callback
     //! @return whether the call was successful
     void (*clingo_backend_acyc_edge)(int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *data);
-};
+} clingo_ground_program_observer_t;
 
 // @}
 
@@ -3117,7 +3117,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_theory_atoms(clingo_control_t *con
 //! @param[in] control the target
 //! @param[in] observer the observer to register
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer *observer, void *data);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer_t *observer, void *data);
 //! @}
 
 //! @name Program Modification Functions

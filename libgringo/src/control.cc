@@ -3591,7 +3591,7 @@ extern "C" bool clingo_control_statistics(clingo_control_t *ctl, clingo_statisti
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer *observer, void *data) {
+extern "C" bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer_t *observer, void *data) {
     (void)control;
     (void)observer;
     (void)data;
