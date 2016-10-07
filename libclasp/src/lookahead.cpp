@@ -1,25 +1,25 @@
-// 
+//
 // Copyright (c) 2009, 2012 Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
 #include <clasp/lookahead.h>
 #include <algorithm>
-namespace Clasp { 
+namespace Clasp {
 /////////////////////////////////////////////////////////////////////////////////////////
 // Lookahead scoring
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -58,7 +58,7 @@ void ScoreLook::clearDeps() {
 bool ScoreLook::greater(Var lhs, Var rhs) const {
 	uint32 rhsMax, rhsMin;
 	score[rhs].score(rhsMax, rhsMin);
-	return mode == score_max 
+	return mode == score_max
 		? greaterMax(lhs, rhsMax)
 		: greaterMaxMin(lhs, rhsMax, rhsMin);
 }
@@ -181,7 +181,7 @@ bool Lookahead::propagateLevel(Solver& s) {
 			s.addUndoWatch(s.decisionLevel(), this);
 		}
 	}
-	score.clearDeps(); 
+	score.clearDeps();
 	score.addDeps = true;
 	Literal p     = node(pos_)->lit;
 	bool   ok     = s.value(p.var()) != value_free || test(s, p);
@@ -225,13 +225,13 @@ bool Lookahead::propagateFixpoint(Solver& s, PostPropagator* ctx) {
 		}
 	}
 	if (dl == 0 && ok) {
-		// remember top-level size - no need to redo lookahead 
+		// remember top-level size - no need to redo lookahead
 		// on level 0 unless we learn a new implication
 		assert(s.queueSize() == 0);
 		top_ = s.numAssignedVars();
 		LitVec().swap(imps_);
 	}
-	if (!ctx && limit_ && --limit_ == 0) { 
+	if (!ctx && limit_ && --limit_ == 0) {
 		this->destroy(&s, true);
 	}
 	return ok;
@@ -240,7 +240,7 @@ bool Lookahead::propagateFixpoint(Solver& s, PostPropagator* ctx) {
 // splice list [undo_.next, ul] back into candidate list
 void Lookahead::splice(NodeId ul) {
 	assert(ul != UINT32_MAX);
-	if (ul != undo_id) { 
+	if (ul != undo_id) {
 		assert(undo()->next != UINT32_MAX);
 		// unlink from undo list
 		LitNode* ulNode= node(ul);
@@ -265,7 +265,7 @@ void Lookahead::undoLevel(Solver& s) {
 				imps_.assign(b+1, b + std::min(dist, uint32(2048)));
 			}
 			else if (score.score[b->var()].testedBoth()) {
-				// all true lits in imps_ follow from both *b and ~*b 
+				// all true lits in imps_ follow from both *b and ~*b
 				// and are therefore implied
 				LitVec::iterator j = imps_.begin();
 				for (LitVec::iterator it = imps_.begin(), end = imps_.end(); it != end; ++it) {
@@ -322,10 +322,10 @@ Literal Lookahead::heuristic(Solver& s) {
 					choice = Literal(v, vs.prefSign());
 				}
 			}
-		} while (++i != sc.deps.size() && ok); 
+		} while (++i != sc.deps.size() && ok);
 		if (!ok) {
 			// One of the candidates failed. Since none of them failed
-			// during previous propagation, this indicates that 
+			// during previous propagation, this indicates that
 			// either some post propagator has wrong priority or
 			// parallel solving is active and a stop conflict was set.
 			// Since we can't resolve the problem here, we simply return the
@@ -378,7 +378,7 @@ public:
 	void undoUntil(const Solver& s, size_t st){ other_->undoUntil(s, st); }
 	void updateReason(const Solver& s, const LitVec& x, Literal r)            { other_->updateReason(s, x, r); }
 	bool bump(const Solver& s, const WeightLitVec& w, double d)               { return other_->bump(s, w, d); }
-	void newConstraint(const Solver& s, const Literal* p, size_t sz, con_t t) { other_->newConstraint(s, p, sz, t); } 
+	void newConstraint(const Solver& s, const Literal* p, size_t sz, con_t t) { other_->newConstraint(s, p, sz, t); }
 	void updateVar(const Solver& s, Var v, uint32 n)                          { other_->updateVar(s, v, n); }
 	Literal selectRange(Solver& s, const Literal* f, const Literal* l)        { return other_->selectRange(s, f, l); }
 private:

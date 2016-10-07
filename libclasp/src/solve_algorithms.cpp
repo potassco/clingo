@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -23,7 +23,7 @@
 #include <clasp/minimize_constraint.h>
 #include <clasp/util/timer.h>
 #include <clasp/util/atomic.h>
-namespace Clasp { 
+namespace Clasp {
 /////////////////////////////////////////////////////////////////////////////////////////
 // Basic solve
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -45,7 +45,7 @@ struct BasicSolve::State {
 };
 
 BasicSolve::BasicSolve(Solver& s, const SolveLimits& lim) : solver_(&s), params_(&s.searchConfig()), limits_(lim), state_(0) {}
-BasicSolve::BasicSolve(Solver& s, const SolveParams& p, const SolveLimits& lim) 
+BasicSolve::BasicSolve(Solver& s, const SolveParams& p, const SolveLimits& lim)
 	: solver_(&s)
 	, params_(&p)
 	, limits_(lim)
@@ -53,21 +53,21 @@ BasicSolve::BasicSolve(Solver& s, const SolveParams& p, const SolveLimits& lim)
 }
 
 BasicSolve::~BasicSolve(){ delete state_; }
-void BasicSolve::reset(bool reinit) { 
+void BasicSolve::reset(bool reinit) {
 	if (!state_ || reinit) {
 		delete state_;
 		state_ = 0;
 	}
 	else {
 		state_->~State();
-		new (state_) State(*solver_, *params_); 
+		new (state_) State(*solver_, *params_);
 	}
 }
-void BasicSolve::reset(Solver& s, const SolveParams& p, const SolveLimits& lim) { 
-	solver_ = &s; 
-	params_ = &p; 
+void BasicSolve::reset(Solver& s, const SolveParams& p, const SolveLimits& lim) {
+	solver_ = &s;
+	params_ = &p;
 	limits_ = lim;
-	reset(true); 
+	reset(true);
 }
 
 ValueRep BasicSolve::solve() {
@@ -99,7 +99,7 @@ BasicSolve::State::State(Solver& s, const SolveParams& p) {
 	dbRedInit    = p.reduce.cflInit(*s.sharedContext());
 	dbPinned     = 0;
 	rsShuffle    = p.restart.shuffle;
-	if (dbLim.lo < s.numLearntConstraints()) { 
+	if (dbLim.lo < s.numLearntConstraints()) {
 		dbMax      = std::min(dbHigh, double(s.numLearntConstraints() + p.reduce.initRange.lo));
 	}
 	if (dbRedInit && dbRed.type != ScheduleStrategy::Luby) {
@@ -174,7 +174,7 @@ ValueRep BasicSolve::State::solve(Solver& s, const SolveParams& p, SolveLimits* 
 		cLimit.update(n = std::min(sLimit.used, sLimit.conflicts)); // number of conflicts in this iteration
 		if (result != value_free) {
 			progress.op = static_cast<uint32>(EventType::event_exit);
-			if (result == value_true && p.restart.update() != RestartParams::seq_continue) { 
+			if (result == value_true && p.restart.update() != RestartParams::seq_continue) {
 				if      (p.restart.update() == RestartParams::seq_repeat) { nRestart = 0; }
 				else if (p.restart.update() == RestartParams::seq_disable){ nRestart = UINT32_MAX; }
 			}
@@ -211,7 +211,7 @@ ValueRep BasicSolve::State::solve(Solver& s, const SolveParams& p, SolveLimits* 
 			db              = s.reduceLearnts(p.reduce.fReduce(), p.reduce.strategy);
 			cLimit.reduce   = dbRedInit + (cLimit.reduce == 0 ? dbRed.next() : dbRed.current());
 			progress.op     = std::max(progress.op, (uint32)EventType::event_deletion);
-			if (s.reduceReached(sLimit) || db.pinned >= dbMax) { 
+			if (s.reduceReached(sLimit) || db.pinned >= dbMax) {
 				ReduceStrategy t; t.algo = 2; t.score = 2; t.glue = 0;
 				db.pinned /= 2;
 				db.size    = s.reduceLearnts(0.5f, t).size;
@@ -239,8 +239,8 @@ ValueRep BasicSolve::State::solve(Solver& s, const SolveParams& p, SolveLimits* 
 SolveAlgorithm::SolveAlgorithm(const SolveLimits& lim) : limits_(lim), ctx_(0), enum_(0), onModel_(0), enumLimit_(UINT64_MAX), time_(0.0), last_(0)  {
 }
 SolveAlgorithm::~SolveAlgorithm() {}
-void SolveAlgorithm::setEnumerator(Enumerator& e) { 
-	enum_.reset(&e); 
+void SolveAlgorithm::setEnumerator(Enumerator& e) {
+	enum_.reset(&e);
 	enum_.release();
 }
 const Model& SolveAlgorithm::model() const {
@@ -277,18 +277,18 @@ bool SolveAlgorithm::solve(SharedContext& ctx, const LitVec& assume, ModelHandle
 	struct Scoped {
 		Scoped(SolveAlgorithm* s) : self(s) {}
 		~Scoped() { self->detach(); }
-		bool solve(const LitVec& assume) { 
+		bool solve(const LitVec& assume) {
 			if (self->maxModels() != UINT64_MAX) {
-				if (self->enumerator().optimize() && !self->enumerator().tentative()) { 
+				if (self->enumerator().optimize() && !self->enumerator().tentative()) {
 					self->ctx().warn("#models not 0: optimality of last model not guaranteed.");
 				}
-				if (self->enumerator().lastModel().consequences()) { 
-					self->ctx().warn("#models not 0: last model may not cover consequences."); 
+				if (self->enumerator().lastModel().consequences()) {
+					self->ctx().warn("#models not 0: last model may not cover consequences.");
 				}
 			}
 			self->path_.reset(&assume);
 			self->path_.release();
-			return self->doSolve(self->ctx(), assume); 
+			return self->doSolve(self->ctx(), assume);
 		}
 		SolveAlgorithm* self;
 	};
@@ -411,7 +411,7 @@ void SequentialSolve::doStop() {
 }
 bool SequentialSolve::doSolve(SharedContext& ctx, const LitVec& gp) {
 	BasicSolve solve(*ctx.master(), ctx.configuration()->search(0), limits());
-	// Add assumptions - if this fails, the problem is unsat 
+	// Add assumptions - if this fails, the problem is unsat
 	// under the current assumptions but not necessarily unsat.
 	Solver& s = solve.solver();
 	bool more = !interrupted() && ctx.attach(s) && enumerator().start(s, gp);

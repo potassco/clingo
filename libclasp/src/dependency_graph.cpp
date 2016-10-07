@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2010-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -22,8 +22,8 @@
 #include <clasp/clause.h>
 #include <clasp/solve_algorithms.h>
 #include <clasp/util/timer.h>
-namespace Clasp { 
-SolveTestEvent::SolveTestEvent(const Solver& s, uint32 a_hcc, bool part) 
+namespace Clasp {
+SolveTestEvent::SolveTestEvent(const Solver& s, uint32 a_hcc, bool part)
 	: SolveEvent<SolveTestEvent>(s, Event::verbosity_max)
 	, result(-1), hcc(a_hcc), partial(part) {
 	confDelta   = s.stats.conflicts;
@@ -63,11 +63,11 @@ PrgDepGraph::~PrgDepGraph() {
 		components_.pop_back();
 	}
 }
-bool PrgDepGraph::relevantPrgAtom(const Solver& s, PrgAtom* a) const { 
+bool PrgDepGraph::relevantPrgAtom(const Solver& s, PrgAtom* a) const {
 	return !a->ignoreScc() && a->inUpper() && a->scc() != PrgNode::noScc && !s.isFalse(a->literal());
 }
-bool PrgDepGraph::relevantPrgBody(const Solver& s, PrgBody* b) const { 
-	return !s.isFalse(b->literal()); 
+bool PrgDepGraph::relevantPrgBody(const Solver& s, PrgBody* b) const {
+	return !s.isFalse(b->literal());
 }
 
 // Creates a positive-body-atom-dependency graph (PBADG)
@@ -97,7 +97,7 @@ void PrgDepGraph::addSccs(LogicProgram& prg, const AtomList& sccAtoms, const Non
 	PrgBody* prgBody; PrgDisj* prgDis;
 	for (AtomList::size_type i = 0, end = sccAtoms.size(); i != end; ++i) {
 		PrgAtom*   a  = sccAtoms[i];
-		if (relevantPrgAtom(*ctx.master(), a)) { 
+		if (relevantPrgAtom(*ctx.master(), a)) {
 			uint32 prop = 0;
 			for (PrgAtom::sup_iterator it = a->supps_begin(), endIt = a->supps_end(); it != endIt; ++it) {
 				assert(it->isBody() || it->isDisj());
@@ -199,7 +199,7 @@ uint32 PrgDepGraph::createBody(PrgBody* b, uint32 bScc) {
 
 // Creates and initializes a body node for the given body b.
 uint32 PrgDepGraph::addBody(const LogicProgram& prg, PrgBody* b) {
-	if (b->seen()) {     // first time we see this body - 
+	if (b->seen()) {     // first time we see this body -
 		VarVec preds, atHeads;
 		uint32 bScc  = b->scc(prg);
 		NodeId bId   = createBody(b, bScc);
@@ -326,7 +326,7 @@ void PrgDepGraph::addNonHcf(uint32 id, SharedContext& ctx, Configuration* config
 	VarVec sccAtoms, sccBodies;
 	// get all atoms from scc
 	for (uint32 i = 0; i != numAtoms(); ++i) {
-		if (getAtom(i).scc == scc) { 
+		if (getAtom(i).scc == scc) {
 			sccAtoms.push_back(i);
 			atoms_[i].set(AtomNode::property_in_non_hcf);
 		}
@@ -353,9 +353,9 @@ void PrgDepGraph::simplify(const Solver& s) {
 	ComponentVec::iterator j = components_.begin();
 	for (ComponentVec::iterator it = components_.begin(), end = components_.end(); it != end; ++it) {
 		bool ok = (*it)->simplify(s);
-		if (!shared) { 
+		if (!shared) {
 			if (ok) { *j++ = *it; }
-			else    { 
+			else    {
 				if (stats_) { stats_->removeHcc(**it); }
 				delete *it;
 			}
@@ -418,7 +418,7 @@ void PrgDepGraph::NonHcfComponent::ComponentMap::addVars(Solver& generator, cons
 	assert(generator.decisionLevel() == 0);
 	mapping.reserve(atoms.size() + bodies.size());
 	const PrgDepGraph::NonHcfMapType mt = dep.nonHcfMapType();
-	for (VarVec::const_iterator it = atoms.begin(), end = atoms.end(); it != end; ++it) { 
+	for (VarVec::const_iterator it = atoms.begin(), end = atoms.end(); it != end; ++it) {
 		const AtomNode& at = dep.getAtom(*it);
 		Literal gen        = at.lit;
 		if (generator.isFalse(gen)) { continue; }
@@ -438,7 +438,7 @@ void PrgDepGraph::NonHcfComponent::ComponentMap::addVars(Solver& generator, cons
 	}
 	numAtoms = (uint32)mapping.size();
 	std::stable_sort(mapping.begin(), mapping.end());
-	// add necessary vars for bodies 
+	// add necessary vars for bodies
 	for (VarVec::const_iterator it = bodies.begin(), end = bodies.end(); it != end; ++it) {
 		Literal gen = dep.getBody(*it).lit;
 		if (generator.isFalse(gen))  { continue; }
@@ -473,8 +473,8 @@ void PrgDepGraph::NonHcfComponent::ComponentMap::addVars(Solver& generator, cons
 }
 
 // Adds constraints stemming from the given atoms to the component program.
-// 1. [up(a0) v ... v up(an-1)], where 
-//   - ai is an atom in P from the given atom set, and 
+// 1. [up(a0) v ... v up(an-1)], where
+//   - ai is an atom in P from the given atom set, and
 //   - up(ai) is the corresponding output-atom in the component program C.
 // 2. For each atom ai in atom set occurring in a proper disjunction, [hp(ai) <=> tp(ai), ~up(ai)], where
 //   tp(ai), hp(ai), up(ai) are the input, aux, and output atoms in C.
@@ -499,7 +499,7 @@ void PrgDepGraph::NonHcfComponent::ComponentMap::addAtomConstraints(SharedContex
 //  [~up(ai) v fb(B) V hp(aj), j != i V up(p), p in B+ ^ C], where
 // hp(ai), up(ai) are the aux and output atoms of ai in C.
 void PrgDepGraph::NonHcfComponent::ComponentMap::addBodyConstraints(const Solver& generator, const SccGraph& dep, uint32 scc, SharedContext& comp) {
-	ClauseCreator cc(comp.master()); 
+	ClauseCreator cc(comp.master());
 	cc.addDefaultFlags(ClauseCreator::clause_force_simplify);
 	ClauseCreator dc(comp.master());
 	MapIt j = mapping.begin() + numAtoms;
@@ -509,7 +509,7 @@ void PrgDepGraph::NonHcfComponent::ComponentMap::addBodyConstraints(const Solver
 		if (B.extended())             { throw std::runtime_error("Extended bodies not supported - use '--trans-ext=weight'"); }
 		for (const NodeId* hIt = B.heads_begin(), *hEnd = B.heads_end(); hIt != hEnd; ++hIt) {
 			uint32 hScc = *hIt ? dep.getAtom(*hIt).scc : dep.getAtom(hIt[1]).scc;
-			if (hScc != scc) { 
+			if (hScc != scc) {
 				// the head is not relevant to this non-hcf - skip it
 				if (!*hIt) { do { ++hIt; } while (*hIt); }
 				continue;
@@ -582,7 +582,7 @@ bool PrgDepGraph::NonHcfComponent::ComponentMap::simplify(const Solver& generato
 	if (!tester.popRootLevel(UINT32_MAX)) { return false; }
 	if (tester.sharedContext()->isShared() && (tester.sharedContext()->allowImplicit(Constraint_t::Conflict) || tester.sharedContext()->distributor.get())) {
 		// Simplification not safe: top-level assignments of threads are
-		// not necessarily synchronised at this point and clauses simplified 
+		// not necessarily synchronised at this point and clauses simplified
 		// with top-level assignment of this thread might not (yet) be valid
 		// wrt possible assumptions in other threads.
 		return true;
@@ -614,7 +614,7 @@ bool PrgDepGraph::NonHcfComponent::ComponentMap::simplify(const Solver& generato
 /////////////////////////////////////////////////////////////////////////////////////////
 // class PrgDepGraph::NonHcfComponent
 /////////////////////////////////////////////////////////////////////////////////////////
-PrgDepGraph::NonHcfComponent::NonHcfComponent(uint32 id, const PrgDepGraph& dep, SharedContext& genCtx, Configuration* c, uint32 scc, const VarVec& atoms, const VarVec& bodies) 
+PrgDepGraph::NonHcfComponent::NonHcfComponent(uint32 id, const PrgDepGraph& dep, SharedContext& genCtx, Configuration* c, uint32 scc, const VarVec& atoms, const VarVec& bodies)
 	: dep_(&dep)
 	, prg_(new SharedContext())
 	, comp_(new ComponentMap())
@@ -630,7 +630,7 @@ PrgDepGraph::NonHcfComponent::NonHcfComponent(uint32 id, const PrgDepGraph& dep,
 	prg_->endInit(true);
 }
 
-PrgDepGraph::NonHcfComponent::~NonHcfComponent() { 
+PrgDepGraph::NonHcfComponent::~NonHcfComponent() {
 	delete prg_;
 	delete comp_;
 }
@@ -648,7 +648,7 @@ void PrgDepGraph::NonHcfComponent::assumptionsFromAssignment(const Solver& s, Li
 
 bool PrgDepGraph::NonHcfComponent::test(const Solver& generator, const LitVec& assume, VarVec& unfoundedOut) const {
 	assert(generator.id() < prg_->concurrency() && "Invalid id!");
-	// Forwards to message handler of generator so that messages are 
+	// Forwards to message handler of generator so that messages are
 	// handled during long running tests.
 	struct Tester : MessageHandler {
 		Tester(Solver& s, MessageHandler* gen) : solver(&s), generator(gen) { if (gen) { s.addPost(this); } }
@@ -668,7 +668,7 @@ bool PrgDepGraph::NonHcfComponent::test(const Solver& generator, const LitVec& a
 	ev.time = ThreadTime::getTime();
 	if ((ev.result = tester.test(assume)) == 0) {
 		tester.solver->stats.addModel(tester.solver->decisionLevel());
-		comp_->mapTesterModel(*tester.solver, unfoundedOut); 
+		comp_->mapTesterModel(*tester.solver, unfoundedOut);
 	}
 	ev.time = ThreadTime::getTime() - ev.time;
 	tester.solver->stats.addCpuTime(ev.time);
@@ -767,8 +767,8 @@ void PrgDepGraph::NonHcfStats::removeHcc(const NonHcfComponent& c) {
 void PrgDepGraph::NonHcfStats::addTo(StatsMap& problem, StatsMap& solving, StatsMap* accu) const {
 	data_->solvers.addTo("hccs", solving, accu);
 	problem.add("hccs", StatisticObject::map(&data_->hccs));
-	if (data_->components) { 
-		problem.add("hcc", data_->components->problem.toStats()); 
+	if (data_->components) {
+		problem.add("hcc", data_->components->problem.toStats());
 		solving.add("hcc", data_->components->solvers.toStats());
 		if (accu) { accu->add("hcc", data_->components->accu.toStats()); }
 	}
@@ -840,7 +840,7 @@ uint64 ExtDepGraph::attach(Solver& s, Constraint& p, uint64 genId) {
 		const Arc& a = fwdArcs_[i];
 		if (a.head() != a.tail()) {
 			if (s.topValue(a.lit.var()) == value_free) {
-				if (!update || (w = s.getWatch(a.lit, &p)) == 0) { 
+				if (!update || (w = s.getWatch(a.lit, &p)) == 0) {
 					s.addWatch(a.lit, &p, i);
 				}
 				else {
@@ -882,17 +882,17 @@ struct AcyclicityCheck::ReasonStore {
 		if (db[v] == 0)     { db[v] = new LitVec(first, end); }
 		else                { db[v]->assign(first, end); }
 	}
-	~ReasonStore() { 
+	~ReasonStore() {
 		std::for_each(db.begin(), db.end(), DeleteObject());
 	}
 };
 AcyclicityCheck::AcyclicityCheck(DependencyGraph* graph) : graph_(graph), solver_(0), nogoods_(0), strat_(bit_mask<uint32>(config_bit)), tagCnt_(0), genId_(0)  {
 }
-AcyclicityCheck::~AcyclicityCheck() { 
-	delete nogoods_; 
+AcyclicityCheck::~AcyclicityCheck() {
+	delete nogoods_;
 }
 
-void AcyclicityCheck::setStrategy(Strategy p) { 
+void AcyclicityCheck::setStrategy(Strategy p) {
 	strat_ = p;
 }
 void AcyclicityCheck::setStrategy(const SolverParams& p) {
@@ -916,8 +916,8 @@ bool AcyclicityCheck::init(Solver& s) {
 	return true;
 }
 
-uint32 AcyclicityCheck::startSearch() { 
-	if (++tagCnt_ != 0) { return tagCnt_; } 
+uint32 AcyclicityCheck::startSearch() {
+	if (++tagCnt_ != 0) { return tagCnt_; }
 	const uint32 last = tagCnt_ - 1;
 	for (Var v = 0; v != tags_.size(); ++v) {
 		tags_[v] = tags_[v] == last;
@@ -943,11 +943,11 @@ void AcyclicityCheck::reset() {
 	reason_.clear();
 }
 
-bool AcyclicityCheck::valid(Solver& s) { 
+bool AcyclicityCheck::valid(Solver& s) {
 	if (todo_.empty()) { return true; }
 	return AcyclicityCheck::propagateFixpoint(s, 0);
 }
-bool AcyclicityCheck::isModel(Solver& s) { 
+bool AcyclicityCheck::isModel(Solver& s) {
 	return AcyclicityCheck::valid(s);
 }
 

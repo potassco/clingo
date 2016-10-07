@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2010-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -44,20 +44,20 @@ public:
 	// Returns the current semaphore counter.
 	int  counter()   { lock_guard<mutex> lock(semMutex_); return counter_; }
 	// Returns the number of parties required to trip this barrier.
-	int  parties()   { lock_guard<mutex> lock(semMutex_); return active_;  } 
+	int  parties()   { lock_guard<mutex> lock(semMutex_); return active_;  }
 	// Returns true if all parties are waiting at the barrier
 	bool active()    { lock_guard<mutex> lock(semMutex_); return unsafe_active(); }
-	
+
 	// barrier interface
-	
-	// Increases the barrier count, i.e. the number of 
+
+	// Increases the barrier count, i.e. the number of
 	// parties required to trip this barrier.
 	void addParty() {
 		lock_guard<mutex> lock(semMutex_);
 		++active_;
 	}
 	// Decreases the barrier count and resets the barrier
-	// if reset is true. 
+	// if reset is true.
 	// PRE: the thread does not itself wait on the barrier
 	void removeParty(bool reset) {
 		unique_lock<mutex> lock(semMutex_);
@@ -82,7 +82,7 @@ public:
 		unsafe_reset(semCount);
 	}
 	// semaphore interface
-	
+
 	// Decrement the semaphore's counter.
 	// If the counter is zero or less prior to the call
 	// the calling thread is suspended.
@@ -98,8 +98,8 @@ public:
 		if (--counter_ >= 0) { return true; }
 		return !unsafe_wait(m);
 	}
-	// Increments the semaphore's counter and resumes 
-	// one thread which has called down() if the counter 
+	// Increments the semaphore's counter and resumes
+	// one thread which has called down() if the counter
 	// was less than zero prior to the call.
 	void up() {
 		unique_lock<mutex> lock(semMutex_);
@@ -132,7 +132,7 @@ private:
 			semCond_.wait(lock);
 		}
 		return unsafe_active();
-	}	
+	}
 	cv    semCond_;  // waiting threads
 	mutex semMutex_; // mutex for updating counter
 	int   counter_;  // semaphore's counter
@@ -144,7 +144,7 @@ private:
 struct ParallelSolve::SharedData {
 	typedef PodQueue<const LitVec*> Queue;
 	enum MsgFlag {
-		terminate_flag        = 1u, sync_flag  = 2u,  split_flag    = 4u, 
+		terminate_flag        = 1u, sync_flag  = 2u,  split_flag    = 4u,
 		restart_flag          = 8u, complete_flag = 16u,
 		interrupt_flag        = 32u, // set on terminate from outside
 		allow_split_flag      = 64u, // set if splitting mode is active
@@ -172,10 +172,10 @@ struct ParallelSolve::SharedData {
 			notify(model);
 			waitWhile(model);
 		}
-		void notify(State st) { 
+		void notify(State st) {
 			unique_lock<mutex> lock(genM);
 			state = st;
-			cond.notify_one(); 
+			cond.notify_one();
 		}
 		State state;
 	};
@@ -196,7 +196,7 @@ struct ParallelSolve::SharedData {
 		generator   = 0;
 	}
 	void clearQueue() {
-		while (!workQ.empty()) { delete workQ.pop_ret(); } 
+		while (!workQ.empty()) { delete workQ.pop_ret(); }
 		workQ.clear();
 	}
 	const LitVec* requestWork(const Solver& s) {
@@ -259,7 +259,7 @@ struct ParallelSolve::SharedData {
 	atomic<uint64>   initVec;     // vector of initial gp - represented as bitset
 	GeneratorPtr     generator;   // optional data for model generation
 	Timer<RealTime>  syncT;       // thread sync time
-	mutex            modelM;      // model-mutex 
+	mutex            modelM;      // model-mutex
 	BarrierSemaphore workSem;     // work-semaphore
 	Queue            workQ;       // work-queue (must be protected by workSem)
 	uint32           nextId;      // next solver id to use
@@ -290,7 +290,7 @@ bool ParallelSolve::SharedData::postMessage(Message m, bool notifyWaiting) {
 
 void ParallelSolve::SharedData::updateSplitFlag() {
 	for (bool splitF;;) {
-		splitF = (workReq > 0);	
+		splitF = (workReq > 0);
 		if (split() == splitF) return;
 		if (splitF) control.fetch_and_or(uint32(split_flag));
 		else        control.fetch_and_and(~uint32(split_flag));
@@ -539,7 +539,7 @@ void ParallelSolve::exception(uint32 id, PathPtr& path, ErrorCode e, const char*
 	try {
 		reportProgress(thread_[id]->solver(), what);
 		thread_[id]->setError(e);
-		if (id == masterId || shared_->workSem.active()) { 
+		if (id == masterId || shared_->workSem.active()) {
 			ParallelSolve::doInterrupt();
 			return;
 		}
@@ -561,7 +561,7 @@ bool ParallelSolve::doInterrupt() {
 }
 
 // tries to get new work for the given solver
-bool ParallelSolve::requestWork(Solver& s, PathPtr& out) { 
+bool ParallelSolve::requestWork(Solver& s, PathPtr& out) {
 	const LitVec* a = 0;
 	for (int popped = 0; !shared_->terminate();) {
 		// only clear path and stop conflict - we don't propagate() here
@@ -589,7 +589,7 @@ bool ParallelSolve::requestWork(Solver& s, PathPtr& out) {
 			popped = 0;
 		}
 		else if (!shared_->allowSplit() || !shared_->synchronize()) {
-			// no work left - quitting time? 
+			// no work left - quitting time?
 			terminate(s, true);
 		}
 	}
@@ -673,7 +673,7 @@ void ParallelSolve::initQueue() {
 }
 
 // adds work to the work-queue
-void ParallelSolve::pushWork(LitVec* v) { 
+void ParallelSolve::pushWork(LitVec* v) {
 	assert(v);
 	shared_->pushWork(v);
 }
@@ -682,7 +682,7 @@ void ParallelSolve::pushWork(LitVec* v) {
 bool ParallelSolve::commitUnsat(Solver& s) {
 	const int supUnsat = enumerator().unsatType();
 	if (supUnsat == Enumerator::unsat_stop || shared_->terminate() || shared_->synchronize()) {
-		return false; 
+		return false;
 	}
 	unique_lock<mutex> lock(shared_->modelM, defer_lock_t());
 	if (supUnsat == Enumerator::unsat_sync) {
@@ -693,7 +693,7 @@ bool ParallelSolve::commitUnsat(Solver& s) {
 		lock.unlock();
 	}
 	if (!thread_[s.id()]->disjointPath()) {
-		if (result) { 
+		if (result) {
 			++shared_->modCount;
 			if (s.lower.bound > 0) {
 				lock.lock();
@@ -710,7 +710,7 @@ bool ParallelSolve::commitUnsat(Solver& s) {
 }
 
 // called whenever some solver has found a model
-bool ParallelSolve::commitModel(Solver& s) { 
+bool ParallelSolve::commitModel(Solver& s) {
 	// grab lock - models must be processed sequentially
 	// in order to simplify printing and to avoid duplicates
 	// in all non-trivial enumeration modes
@@ -724,7 +724,7 @@ bool ParallelSolve::commitModel(Solver& s) {
 			// the solver's gp will act as the root for splitting and is
 			// from now on disjoint from all other gps
 			shared_->setControl(SharedData::forbid_restart_flag | SharedData::allow_split_flag);
-			thread_[s.id()]->setGpType(gp_split); 
+			thread_[s.id()]->setGpType(gp_split);
 			enumerator().setDisjoint(s, true);
 		}
 		++shared_->modCount;
@@ -734,7 +734,7 @@ bool ParallelSolve::commitModel(Solver& s) {
 		else if ((stop = !reportModel(s)) == true) {
 			// must be called while holding the lock - otherwise
 			// we have a race condition with solvers that
-			// are currently blocking on the mutex and we could enumerate 
+			// are currently blocking on the mutex and we could enumerate
 			// more models than requested by the user
 			terminate(s, !moreModels(s));
 		}
@@ -758,7 +758,7 @@ bool ParallelSolve::handleMessages(Solver& s) {
 	// check if there are new messages for s
 	if (!shared_->hasMessage()) {
 		// nothing to do
-		return true; 
+		return true;
 	}
 	ParallelHandler* h = thread_[s.id()];
 	if (shared_->terminate()) {
@@ -778,7 +778,7 @@ bool ParallelSolve::handleMessages(Solver& s) {
 	if (h->disjointPath() && s.splittable() && shared_->workReq > 0) {
 		// First declare split request as handled
 		// and only then do the actual split.
-		// This way, we minimize the chance for 
+		// This way, we minimize the chance for
 		// "over"-splitting, i.e. one split request handled
 		// by more than one thread.
 		shared_->aboutToSplit();
@@ -806,7 +806,7 @@ SolveAlgorithm* ParallelSolveOptions::createSolveObject() const {
 ////////////////////////////////////////////////////////////////////////////////////
 // ParallelHandler
 /////////////////////////////////////////////////////////////////////////////////////////
-ParallelHandler::ParallelHandler(ParallelSolve& ctrl, Solver& s, const SolveParams& p) 
+ParallelHandler::ParallelHandler(ParallelSolve& ctrl, Solver& s, const SolveParams& p)
 	: MessageHandler()
 	, ctrl_(&ctrl)
 	, solver_(&s)
@@ -880,7 +880,7 @@ ValueRep ParallelHandler::solveGP(BasicSolve& solve, GpType t, uint64 restart) {
 	return res;
 }
 
-// detach from solver, i.e. ignore any further messages 
+// detach from solver, i.e. ignore any further messages
 void ParallelHandler::handleTerminateMessage() {
 	if (this->next != this) {
 		// mark removed propagator by creating "self-loop"
@@ -902,7 +902,7 @@ void ParallelHandler::handleSplitMessage() {
 bool ParallelHandler::handleRestartMessage() {
 	// TODO
 	// we may want to implement some heuristic, like
-	// computing a local var order. 
+	// computing a local var order.
 	return true;
 }
 
@@ -910,12 +910,12 @@ bool ParallelHandler::simplify(Solver& s, bool sh) {
 	ClauseDB::size_type i, j, end = integrated_.size();
 	for (i = j = 0; i != end; ++i) {
 		Constraint* c = integrated_[i];
-		if (c->simplify(s, sh)) { 
-			c->destroy(&s, false); 
+		if (c->simplify(s, sh)) {
+			c->destroy(&s, false);
 			intEnd_ -= (i < intEnd_);
 		}
-		else                    { 
-			integrated_[j++] = c;  
+		else                    {
+			integrated_[j++] = c;
 		}
 	}
 	shrinkVecTo(integrated_, j);
@@ -938,7 +938,7 @@ bool ParallelHandler::propagateFixpoint(Solver& s, PostPropagator* ctx) {
 			if (cDL != s.decisionLevel())    { // cancel active propagation on cDL
 				cancelPropagation();
 				cDL = s.decisionLevel();
-			}	
+			}
 			if      (!s.queueSize())         { if (++up == 3) return true; }
 			else if (!s.propagateUntil(this)){ return false; }
 		}
@@ -946,8 +946,8 @@ bool ParallelHandler::propagateFixpoint(Solver& s, PostPropagator* ctx) {
 	return ctrl_->handleMessages(s);
 }
 
-// checks whether s still has a model once all 
-// information from previously found models were integrated 
+// checks whether s still has a model once all
+// information from previously found models were integrated
 bool ParallelHandler::isModel(Solver& s) {
 	assert(s.numFreeVars() == 0);
 	// either no unprocessed updates or still a model after
@@ -968,7 +968,7 @@ bool ParallelHandler::integrate(Solver& s) {
 	}
 	do {
 		ret    = ClauseCreator::integrate(s, received_[i++], intFlags, Constraint_t::Other);
-		added += ret.status != ClauseCreator::status_subsumed; 
+		added += ret.status != ClauseCreator::status_subsumed;
 		if (ret.local) { add(ret.local); }
 		if (ret.unit()){ s.stats.addIntegratedAsserting(dl, s.decisionLevel()); dl = s.decisionLevel(); }
 		if (!ret.ok()) { while (i != rec) { received_[recEnd_++] = received_[i++]; } }
@@ -1050,7 +1050,7 @@ void GlobalDistribution::release() {
 	if (queue_) {
 		for (uint32 i = 0; i != queue_->maxThreads(); ++i) {
 			Queue::ThreadId& id = getThreadId(i);
-			for (ClausePair n; queue_->tryConsume(id, n); ) { 
+			for (ClausePair n; queue_->tryConsume(id, n); ) {
 				if (n.sender != i) { n.lits->release(); }
 			}
 			threadId_[i].~ThreadInfo();

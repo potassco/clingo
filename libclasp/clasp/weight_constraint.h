@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2011, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -32,10 +32,10 @@ namespace Clasp {
 struct WeightLitsRep {
 	//! Transforms the given literals to the normal form expected by WeightConstraint.
 	/*!
-	 * The function simplifies lits and bound by removing assigned and 
-	 * merging duplicate/complementary literals. Furthermore, negative weights and 
+	 * The function simplifies lits and bound by removing assigned and
+	 * merging duplicate/complementary literals. Furthermore, negative weights and
 	 * their literals are inverted, bound is updated accordingly, and literals
-	 * are sorted by decreasing weight. 
+	 * are sorted by decreasing weight.
 	 */
 	static WeightLitsRep create(Solver& s, WeightLitVec& lits, weight_t bound);
 	//! Propagates the constraint W == *this.
@@ -117,7 +117,7 @@ public:
 	 * is represented by up to two weight constraints.
 	 */
 	static CPair create(Solver& s, Literal W, WeightLitVec& lits, weight_t bound, uint32 creationFlags = 0);
-	
+
 	//! Low level creation function.
 	/*!
 	 * \note flag create_eq_bound is ignored by this function, that is, this function always creates
@@ -134,7 +134,7 @@ public:
 	void undoLevel(Solver& s);
 	uint32 estimateComplexity(const Solver& s) const;
 	/*!
-	 * Logically, we distinguish two constraints: 
+	 * Logically, we distinguish two constraints:
 	 * - FFB_BTB for handling forward false body and backward true body and
 	 * - FTB_BFB for handling forward true body and backward false body.
 	 * .
@@ -184,9 +184,9 @@ CLASP_WARNING_END_RELAXED
 	WeightConstraint(Solver& s, SharedContext* ctx, Literal W, const WeightLitsRep& , WL* out, uint32 act = 3u);
 	WeightConstraint(Solver& s, const WeightConstraint& other);
 	~WeightConstraint();
-	
+
 	static const uint32 NOT_ACTIVE = 3u;
-	
+
 	// Represents a literal on the undo stack.
 	// idx()        returns the index of the literal.
 	// constraint() returns the constraint that added the literal to the undo stack.
@@ -196,7 +196,7 @@ CLASP_WARNING_END_RELAXED
 		explicit UndoInfo(uint32 d = 0) : data(d) {}
 		uint32           idx()        const { return data >> 2; }
 		ActiveConstraint constraint() const { return static_cast<ActiveConstraint>((data&2) != 0); }
-		uint32 data; 
+		uint32 data;
 	};
 	// Is literal idx contained as reason lit in the undo stack?
 	bool litSeen(uint32 idx) const { return (undo_[idx].data & 1) != 0; }

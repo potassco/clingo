@@ -25,7 +25,7 @@
 #endif
 
 #if !defined(CLASP_VERSION)
-#define CLASP_VERSION "3.2.x-R53278"
+#define CLASP_VERSION "3.2.x-R53293"
 #endif
 #if !defined(CLASP_LEGAL)
 #define CLASP_LEGAL \
@@ -67,7 +67,7 @@ namespace Clasp {
 namespace Clasp {
 /////////////////////////////////////////////////////////////////////////////////////////
 // Configuration
-/////////////////////////////////////////////////////////////////////////////////////////	
+/////////////////////////////////////////////////////////////////////////////////////////
 /*!
  * \defgroup facade Facade
  * \brief Simplified interface for (multishot) solving.
@@ -86,7 +86,7 @@ public:
 	};
 	typedef BasicSatConfig UserConfig;
 	typedef Solver**       SolverIt;
-	typedef Asp::LogicProgram::AspOptions AspOptions;	
+	typedef Asp::LogicProgram::AspOptions AspOptions;
 	ClaspConfig();
 	~ClaspConfig();
 	// Base interface
@@ -103,11 +103,11 @@ public:
 	UserConfig*    testerConfig() const { return tester_; }
 	UserConfig*    addTesterConfig();
 	//! Registers c as additional callback for when addPost() is called.
-	/*! 
+	/*!
 	 * \param c         Additional configuration to apply.
 	 * \param ownership If Ownership_t::Acquire, ownership of c is transferred to the configuration object.
 	 * \param once      Whether c should be called once in the first step or also in each subsequent step.
-	 */ 
+	 */
 	void           addConfigurator(Configurator* c, Ownership_t::Type ownership = Ownership_t::Retain, bool once = true);
 	SolveOptions   solve; /*!< Options for solve algorithm and enumerator. */
 	AspOptions     asp;   /*!< Options for asp preprocessing.      */
@@ -184,7 +184,7 @@ public:
 		void accept(StatsVisitor& out) const;
 		FacadePtr facade;    //!< Facade object of this run.
 		double    totalTime; //!< Total wall clock time.
-		double    cpuTime;   //!< Total cpu time.              
+		double    cpuTime;   //!< Total cpu time.
 		double    solveTime; //!< Wall clock time for solving.
 		double    unsatTime; //!< Wall clock time to prove unsat.
 		double    satTime;   //!< Wall clock time to first model.
@@ -229,7 +229,7 @@ public:
 	//! Returns the active enumerator or 0 if there is none.
 	Enumerator*        enumerator()          const;
 	//@}
-	
+
 	//! Event type used to signal that a new step has started.
 	struct StepStart : Event_t<StepStart> {
 		explicit StepStart(const ClaspFacade& f) : Event_t<StepStart>(subsystem_facade, verbosity_quiet), facade(&f) {}
@@ -276,13 +276,13 @@ public:
 	 */
 	bool               read();
 	//@}
-	
-	
+
+
 	/*!
 	* \name Solve functions
 	* Functions for solving a problem.
 	* @{ */
-	
+
 	enum EnumMode { enum_volatile, enum_static };
 	//! Finishes the definition of a problem and prepares it for solving.
 	/*!
@@ -296,7 +296,7 @@ public:
 	 * \note If solved() is true, prepare() first starts a new solving step.
 	 */
 	void               prepare(EnumMode m = enum_volatile);
-	
+
 	//! Solves the current problem.
 	/*!
 	 * If prepared() is false, the function first calls prepare() to prepare the problem for solving.
@@ -326,7 +326,7 @@ public:
 		ModelGenerator& operator=(const ModelGenerator&);
 		SolveStrategy* impl_;
 	};
-	
+
 	//! Starts solving of the current problem signaling models via the returned generator object.
 	/*!
 	* Instead of signaling results via a callback, the returned generator object
@@ -419,26 +419,26 @@ public:
 	//! Tries to interrupt the active solve operation.
 	/*!
 	 * The function sends the given signal to the active solve operation.
-	 * If no solve operation is active (i.e. solving() is false), the signal 
+	 * If no solve operation is active (i.e. solving() is false), the signal
 	 * is queued and applied to the next solve operation.
 	 *
 	 * \param sig The signal to raise or 0, to re-raises a previously queued signal.
 	 * \return false if no operation was interrupted, because
-	 *         there is no active solve operation, 
+	 *         there is no active solve operation,
 	 *         or the operation does not support interrupts,
 	 *         or sig was 0 and there was no queued signal.
 	 *
 	 * \see enableSolveInterrupts()
 	 */
 	bool               interrupt(int sig);
-	
+
 	//! Forces termination of the current solving step.
 	/*!
 	 * \post solved()
 	 * \return summary(true)
 	 */
 	const Summary&     shutdown();
-	
+
 	//! Starts update of the active problem.
 	/*!
 	 * \pre solving() is false and program updates are enabled (incremental() is true).
@@ -476,7 +476,7 @@ private:
 	SolvePtr     solve_; // NOTE: last so that it is destroyed first;
 };
 
-/** 
+/**
  * \example example2.cpp
  * This is an example of how to use the ClaspFacade class for basic solving.
  *

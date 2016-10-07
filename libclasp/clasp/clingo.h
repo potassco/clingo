@@ -35,8 +35,8 @@ namespace Clasp {
 
 //! Lock interface called by libclasp during (multi-threaded) theory propagation.
 /*!
- * The interface may be implemented by the application to lock 
- * certain global data structures. For example, in clingo, 
+ * The interface may be implemented by the application to lock
+ * certain global data structures. For example, in clingo,
  * this interface wraps python's global interpreter lock.
  */
 class ClingoPropagatorLock {
@@ -56,7 +56,7 @@ class ClingoPropagator : public Clasp::PostPropagator {
 public:
 	typedef Potassco::AbstractPropagator::ChangeList ChangeList;
 	typedef Clasp::PostPropagator::PropResult PPair;
-	
+
 	/*!
 	 * If lock is not null, calls to cb are wrapped in a lock->lock()/lock->unlock() pair
 	 */
@@ -108,7 +108,7 @@ private:
 //! Initialization adaptor for a Potassco::AbstractPropagator.
 /*!
  * The class provides a function for registering watches for the propagator.
- * Furthermore, it can be added to a clasp configuration so that 
+ * Furthermore, it can be added to a clasp configuration so that
  * a (suitably adapted) propagator is added to solvers that are attached to the configuration.
  */
 class ClingoPropagatorInit : public ClaspConfig::Configurator {

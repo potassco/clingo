@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2010-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -29,7 +29,7 @@
 #include <clasp/util/atomic.h>
 #include <clasp/solver_strategies.h>
 /*!
- * \file 
+ * \file
  * \brief Contains common types shared between different solvers.
  */
 namespace Clasp {
@@ -74,7 +74,7 @@ private:
  * \ingroup shared
  */
 class EventHandler : public ModelHandler {
-public:	
+public:
 	//! Creates a handler for events with given verbosity or lower.
 	explicit EventHandler(Event::Verbosity verbosity = Event::verbosity_quiet);
 	virtual ~EventHandler();
@@ -130,7 +130,7 @@ public:
 		uint64          abstraction()         const { return data_.abstr; }
 		Clause*         next()                const { return data_.next;  }
 		bool            marked()              const { return marked_ != 0;}
-		Literal&        operator[](uint32 x)        { return lits_[x];    }    
+		Literal&        operator[](uint32 x)        { return lits_[x];    }
 		void            setInQ(bool b)              { inQ_    = (uint32)b;}
 		void            setMarked(bool b)           { marked_ = (uint32)b;}
 		uint64&         abstraction()               { return data_.abstr; }
@@ -149,7 +149,7 @@ public:
 		uint32  marked_ : 1;  // a marker flag
 		Literal lits_[1];     // literals of the clause: [lits_[0], lits_[size_])
 	};
-	
+
 	SatPreprocessor();
 	virtual ~SatPreprocessor();
 
@@ -295,7 +295,7 @@ struct VarInfo {
 	 * \return false (i.e no sign) if var originated from body, otherwise true.
 	 */
 	bool    preferredSign() const { return !has(VarInfo::Body); }
-	
+
 	bool    has(Flag f)     const { return (rep & flag(f)) != 0; }
 	bool    has(uint32 f)   const { return (rep & f) != 0;       }
 	bool    hasAll(uint32 f)const { return (rep & f) == f; }
@@ -314,7 +314,7 @@ public:
 	ShortImplicationsGraph();
 	~ShortImplicationsGraph();
 	enum ImpType { binary_imp = 2, ternary_imp = 3 };
-	
+
 	//! Makes room for nodes number of nodes.
 	void resize(uint32 nodes);
 	//! Mark the instance as shared/unshared.
@@ -328,13 +328,13 @@ public:
 	 * \return true iff a new implication was added.
 	 */
 	bool add(ImpType t, bool learnt, const Literal* lits);
-	
+
 	//! Removes p and its implications.
 	/*!
 	 * \pre s.isTrue(p)
 	 */
 	void removeTrue(const Solver& s, Literal p);
-	
+
 	//! Propagates consequences of p following from binary and ternary clauses.
 	/*!
 	 * \pre s.isTrue(p)
@@ -344,7 +344,7 @@ public:
 	bool   propagateBin(Assignment& out, Literal p, uint32 dl) const;
 	//! Checks whether there is a reverse arc implying p and if so returns it in out.
 	bool   reverseArc(const Solver& s, Literal p, uint32 maxLev, Antecedent& out) const;
-	
+
 	uint32 numBinary() const { return bin_[0]; }
 	uint32 numTernary()const { return tern_[0]; }
 	uint32 numLearnt() const { return bin_[1] + tern_[1]; }
@@ -424,7 +424,7 @@ private:
 		bool empty() const { return ImpListBase::empty() && learnt == static_cast<Block*>(0); }
 		void move(ImplicationList& other);
 		void clear(bool b);
-		SharedBlockPtr learnt; 
+		SharedBlockPtr learnt;
 	};
 #else
 	typedef bk_lib::left_right_sequence<Literal, std::pair<Literal,Literal>, 64> ImplicationList;
@@ -443,7 +443,7 @@ private:
 class Distributor {
 public:
 	struct Policy {
-		enum Types { 
+		enum Types {
 			no       = 0,
 			conflict = Constraint_t::Conflict,
 			loop     = Constraint_t::Loop,
@@ -488,7 +488,7 @@ public:
 	typedef num_iterator<uint32>      range_iterator;
 	typedef LitVec::const_iterator    lit_iterator;
 	enum ProjectMode { project_output = 0u, project_explicit = 1u };
-	
+
 	OutputTable();
 	~OutputTable();
 	//! Ignore predicates starting with c.
@@ -514,7 +514,7 @@ public:
 	lit_iterator   proj_begin() const { return proj_.begin(); }
 	lit_iterator   proj_end()   const { return proj_.end(); }
 	void           addProject(Literal x);
-	
+
 	//! Returns the number of output elements, counting each element in a var range.
 	uint32 size()     const;
 	uint32 numFacts() const { return static_cast<uint32>(facts_.size()); }
@@ -562,7 +562,7 @@ public:
 	};
 	typedef PodVector<ValueType>::type DomVec;
 	typedef DomVec::const_iterator     iterator;
-	
+
 	void   add(Var v, DomModType t, int16 bias, uint16 prio, Literal cond);
 	uint32 simplify();
 	void   reset();
@@ -581,10 +581,10 @@ private:
 
 //! Aggregates information to be shared between solver objects.
 /*!
- * Among other things, SharedContext objects store 
- * static information on variables, an output table, as well as the 
+ * Among other things, SharedContext objects store
+ * static information on variables, an output table, as well as the
  * binary and ternary implication graph of the input problem.
- * 
+ *
  * Furthermore, a SharedContext object always stores a distinguished
  * master solver that is used to store and simplify problem constraints.
  * Additional solvers can be added via SharedContext::pushSolver().
@@ -652,7 +652,7 @@ public:
 	SatPrePtr  satPrepro;  /*!< Preprocessor for simplifying the problem.              */
 	SccGraph   sccGraph;   /*!< Program dependency graph - only used for ASP-problems. */
 	ExtGraph   extGraph;   /*!< External dependency graph - given by user.             */
-	
+
 	//! Returns the current configuration used in this object.
 	ConfigPtr  configuration()      const { return config_.get(); }
 	//! Returns the active event handler or 0 if none was set.
@@ -683,16 +683,16 @@ public:
 	//! Returns whether the problem is currently frozen and therefore ready for being solved.
 	bool       frozen()             const { return share_.frozen;}
 	//! Returns whether more than one solver is actively working on the problem.
-	bool       isShared()           const { return frozen() && concurrency() > 1; } 
+	bool       isShared()           const { return frozen() && concurrency() > 1; }
 	//! Returns whether the problem is more than a simple CNF.
 	bool       isExtended()         const { return stats_.vars.frozen != 0; }
 	//! Returns whether this object has a solver associcated with the given id.
 	bool       hasSolver(uint32 id) const { return id < solvers_.size(); }
 	//! Returns the master solver associated with this object.
-	Solver*    master()             const { return solver(0);    }	
+	Solver*    master()             const { return solver(0);    }
 	//! Returns the solver with the given id.
 	Solver*    solver(uint32 id)    const { return solvers_[id]; }
-	
+
 	//! Returns the number of problem variables.
 	/*!
 	 * \note The special sentinel-var 0 is not counted, i.e. numVars() returns
@@ -708,7 +708,7 @@ public:
 	//! Returns true if var represents a valid variable in this problem.
 	/*!
 	 * \note The range of valid variables is [1..numVars()]. The variable 0
-	 * is a special sentinel variable. 
+	 * is a special sentinel variable.
 	 */
 	bool       validVar(Var var)    const { return var < static_cast<uint32>(varInfo_.size()); }
 	//! Returns information about the given variable.
@@ -743,7 +743,7 @@ public:
 	 * .
 	 * \note After endInit() was called, other solvers can be attached to this object.
 	 * \note In incremental setting, the process must be repeated for each incremental step.
-	 * 
+	 *
 	 * \note Problem specification is *not* thread-safe, i.e. during initialization no other thread shall
 	 * access the context.
 	 *
@@ -757,7 +757,7 @@ public:
 	 * \see Solver::popAuxVar()
 	 */
 	bool    unfreeze();
-	
+
 	//! Adds a new variable and returns its numerical id.
 	/*!
 	 * \param type  Type of variable.
@@ -797,7 +797,7 @@ public:
 	 * \return The master solver associated with this object.
 	 */
 	Solver& startAddConstraints(uint32 constraintGuess = 100);
-	
+
 	//! A convenience method for adding facts to the master.
 	bool    addUnary(Literal x);
 	//! A convenience method for adding binary clauses.
@@ -826,7 +826,7 @@ public:
 	//! Finishes initialization of the master solver.
 	/*!
 	 * The function must be called once before search is started. After endInit()
-	 * was called, previously added solvers can be attached to the 
+	 * was called, previously added solvers can be attached to the
 	 * shared context and learnt constraints may be added to solver.
 	 * \param attachAll If true, also calls attach() for all solvers that were added to this object.
 	 * \return If the constraints are initially conflicting, false. Otherwise, true.
@@ -837,12 +837,12 @@ public:
 	 */
 	bool    endInit(bool attachAll = false);
 	//@}
-	
+
 	/*!
 	 * \name (Parallel) solving
 	 * Functions to be called during (parallel) solving.
-	 * 
-	 * \note If not otherwise noted, the functions in this group can be safely called 
+	 *
+	 * \note If not otherwise noted, the functions in this group can be safely called
 	 * from multiple threads.
 	 * @{ */
 	//! Returns the active step literal (see requestStepVar()).
@@ -856,33 +856,33 @@ public:
 	 */
 	bool     attach(uint32 id) { return attach(*solver(id)); }
 	bool     attach(Solver& s);
-	
+
 	//! Detaches the solver with the given id from this object.
 	/*!
 	 * The function removes any tentative constraints from s.
 	 * Shall be called once after search has stopped.
-	 * \note The function is concurrency-safe w.r.t to different solver objects, 
+	 * \note The function is concurrency-safe w.r.t to different solver objects,
 	 *       i.e. in a parallel search different solvers may call detach()
 	 *       concurrently.
 	 */
 	void     detach(uint32 id, bool reset = false) { return detach(*solver(id), reset); }
 	void     detach(Solver& s, bool reset = false);
-	
+
 	DistrPtr distributor;/*!< Distributor object to use for distribution of learnt constraints.*/
-	
+
 	uint32   winner()             const   { return share_.winner; }
 	void     setWinner(uint32 sId)        { share_.winner = std::min(sId, concurrency()); }
-	
+
 	//! Simplifies the problem constraints w.r.t the master's assignment.
 	void     simplify(bool shuffle);
 	//! Removes the constraint with the given idx from the master's db.
 	void     removeConstraint(uint32 idx, bool detach);
 	//! Removes all minimize constraints from this object.
 	void     removeMinimize();
-	
+
 	//! Adds the given short implication to the short implication graph if possible.
 	/*!
-	 * \return 
+	 * \return
 	 *   - > 0 if implication was added.
 	 *   - < 0 if implication can't be added because allowImplicit() is false for ct.
 	 *   - = 0 if implication is subsumed by some constraint in the short implication graph.

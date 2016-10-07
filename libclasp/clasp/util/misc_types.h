@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -27,7 +27,7 @@
 #include <iterator>
 #include <algorithm>
 /*!
- * \file 
+ * \file
  * \brief Some utility types and functions.
  */
 namespace Clasp {
@@ -91,19 +91,19 @@ inline double percent(uint64 x, uint64 y) {	return ratio(x, y) * 100.0; }
 class RNG {
 public:
 	explicit RNG(uint32 seed = 1) : seed_(seed) {}
-	
+
 	//! Sets the starting point for random-number generation.
 	/*!
-	 * The function sets the starting point for generating a series of pseudorandom integers. 
-	 * To reinitialize the generator, use 1 as the seed argument. Any other value for seed 
+	 * The function sets the starting point for generating a series of pseudorandom integers.
+	 * To reinitialize the generator, use 1 as the seed argument. Any other value for seed
 	 * sets the generator to a random starting point. Calling rand() before any call to srand()
 	 * generates the same sequence as calling srand() with seed passed as 1.
-	 */	
+	 */
 	void srand(uint32 seed) { seed_ = seed; }
-	
+
 	//! Generates a pseudorandom number
 	/*!
-	 * The rand function returns a pseudorandom integer in the range 0 to 32767 
+	 * The rand function returns a pseudorandom integer in the range 0 to 32767
 	 * Use the srand function to seed the pseudorandom-number generator before calling rand.
 	 */
 	uint32 rand() {
@@ -172,7 +172,7 @@ struct PairContains {
 //! Removes from the container c the first occurrence of a value v for which p(v) returns true.
 /*!
  * \pre C is a container that provides back() and pop_back()
- * \note Removal is implemented by replacing the element to be removed with 
+ * \note Removal is implemented by replacing the element to be removed with
  * the back()-element followed by a call to pop_back().
  */
 template <class C, class P>
@@ -219,12 +219,12 @@ struct select2nd : std::unary_function<P, typename P::second_type> {
 //! An unary operator function that returns Op1(Op2(x)).
 template <class OP1, class OP2>
 struct compose_1 : public std::unary_function<
-                            typename OP2::argument_type, 
+                            typename OP2::argument_type,
                             typename OP1::result_type> {
 	compose_1(const OP1& op1, const OP2& op2)
 		: op1_(op1)
 		, op2_(op2) {}
-	
+
 	typename OP1::result_type operator()(const typename OP2::argument_type& x) const {
 		return op1_(op2_(x));
 	}
@@ -234,7 +234,7 @@ protected:
 };
 
 /*!
- * A template helper function used to construct objects of type compose_1, 
+ * A template helper function used to construct objects of type compose_1,
  * where the component types are based on the data types passed as parameters.
  */
 template <class OP1, class OP2>
@@ -245,13 +245,13 @@ inline compose_1<OP1, OP2> compose1(const OP1& op1, const OP2& op2) {
 //! An unary operator function that returns OP1(OP2(x), OP3(x)).
 template <class OP1, class OP2, class OP3>
 struct compose_2_1 : public std::unary_function<
-                            typename OP2::argument_type, 
+                            typename OP2::argument_type,
                             typename OP1::result_type> {
 	compose_2_1(const OP1& op1, const OP2& op2, const OP3& op3)
 		: op1_(op1)
 		, op2_(op2)
 		, op3_(op3) {}
-	
+
 	typename OP1::result_type operator()(const typename OP2::argument_type& x) const {
 		return op1_(op2_(x), op3_(x));
 	}
@@ -262,7 +262,7 @@ protected:
 };
 
 /*!
- * A template helper function used to construct objects of type compose_2_1, 
+ * A template helper function used to construct objects of type compose_2_1,
  * where the component types are based on the data types passed as parameters.
  */
 template <class OP1, class OP2, class OP3>
@@ -274,14 +274,14 @@ inline compose_2_1<OP1, OP2,OP3> compose2(const OP1& op1, const OP2& op2, const 
 //! A binary operator function that returns OP1(OP2(x), OP3(y)).
 template <class OP1, class OP2, class OP3>
 struct compose_2_2 : public std::binary_function<
-                            typename OP2::argument_type, 
+                            typename OP2::argument_type,
                             typename OP3::argument_type,
                             typename OP1::result_type> {
 	compose_2_2(const OP1& op1 = OP1(), const OP2& op2 = OP2(), const OP3& op3 = OP3())
 		: op1_(op1)
 		, op2_(op2)
 		, op3_(op3) {}
-	
+
 	typename OP1::result_type operator()(const typename OP2::argument_type& x, const typename OP3::argument_type& y) const {
 		return op1_(op2_(x), op3_(y));
 	}
@@ -292,7 +292,7 @@ protected:
 };
 
 /*!
- * A template helper function used to construct objects of type compose_2_2, 
+ * A template helper function used to construct objects of type compose_2_2,
  * where the component types are based on the data types passed as parameters.
  */
 template <class OP1, class OP2, class OP3>
@@ -304,7 +304,7 @@ inline compose_2_2<OP1, OP2,OP3> compose22(const OP1& op1, const OP2& op2, const
 template <class ForwardIterator, class Compare>
 bool isSorted(ForwardIterator first, ForwardIterator last, Compare comp) {
 	if (first != last) {
-		for (ForwardIterator n = first; ++n != last; ++first) { 
+		for (ForwardIterator n = first; ++n != last; ++first) {
 			if (comp(*n, *first)) return false;
 		}
 	}
@@ -320,7 +320,7 @@ template <class T, class D = DeleteObject>
 class SingleOwnerPtr {
 public:
 	SingleOwnerPtr() : ptr_(0) {}
-	explicit SingleOwnerPtr(T* ptr, Ownership_t::Type t = Ownership_t::Acquire) 
+	explicit SingleOwnerPtr(T* ptr, Ownership_t::Type t = Ownership_t::Acquire)
 		: ptr_(uintp(ptr) | uintp(t == Ownership_t::Acquire)) {
 	}
 	~SingleOwnerPtr()       { *this = 0; }
@@ -363,7 +363,7 @@ inline FlaggedPtr<T> make_flagged(T* ptr, bool setFlag) { return FlaggedPtr<T>(p
 template <class T>
 struct Range {
 	Range(T x, T y) : lo(x), hi(y) { if (x > y)  { hi = x;  lo = y; } }
-	T clamp(T val) const { 
+	T clamp(T val) const {
 		if (val < lo) return lo;
 		if (val > hi) return hi;
 		return val;

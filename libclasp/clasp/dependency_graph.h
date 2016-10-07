@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2010-2015, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -41,7 +41,7 @@ struct SolveTestEvent : SolveEvent<SolveTestEvent> {
 	uint64 confDelta;  //!< conflicts before test
 	uint64 choiceDelta;//!< choices before test
 	double time;       //!< time for test
-	
+
 	uint64 conflicts() const;
 	uint64 choices()   const;
 };
@@ -119,7 +119,7 @@ public:
 			: lit(l), scc(sc), data(0), adj_(0), sep_(0) {}
 		Literal lit;       // literal of this node
 		uint32  scc   : 28;// scc of this node
-		uint32  data  :  4;// additional atom/body data 
+		uint32  data  :  4;// additional atom/body data
 		NodeId* adj_;      // list of adjacent nodes
 		NodeId* sep_;      // separates successor/predecessor nodes
 	};
@@ -349,7 +349,7 @@ public:
 		bool operator()(const Arc& lhs, uint32 n) const { return lhs.node[x] < n; }
 		bool operator()(uint32 n, const Arc& rhs) const { return n < rhs.node[x]; }
 		bool operator()(const Arc& lhs, const Arc& rhs) const {
-			return lhs.node[x] < rhs.node[x] 
+			return lhs.node[x] < rhs.node[x]
 			|| (lhs.node[x] == rhs.node[x]  && lhs.node[1-x] < rhs.node[1-x]);
 		}
 	};
@@ -363,12 +363,12 @@ public:
 	void   detach(Solver* s, Constraint& p);
 
 	const Arc& arc(uint32 id)       const { return fwdArcs_[id]; }
-	const Arc* fwdBegin(uint32 n)   const { 
+	const Arc* fwdBegin(uint32 n)   const {
 		uint32 X = nodes_[n].fwdOff;
 		return validOff(X) ? &fwdArcs_[X] : 0;
 	}
 	const Arc* fwdNext(const Arc* a)const { assert(a); return a[0].node[0] == a[1].node[0] ? ++a : 0; }
-	const Inv* invBegin(uint32 n)   const { 
+	const Inv* invBegin(uint32 n)   const {
 		uint32 X = nodes_[n].invOff;
 		return validOff(X) ? &invArcs_[X] : 0;
 	}
@@ -386,11 +386,11 @@ private:
 	typedef PodVector<Arc>::type  ArcVec;
 	typedef PodVector<Inv>::type  InvVec;
 	typedef PodVector<Node>::type NodeVec;
-	bool validOff(uint32 n) const { 
+	bool validOff(uint32 n) const {
 		return n != UINT32_MAX;
 	}
 	ArcVec  fwdArcs_; // arcs ordered by node id
-	InvVec  invArcs_; // inverse arcs ordered by node id 
+	InvVec  invArcs_; // inverse arcs ordered by node id
 	NodeVec nodes_;   // data for the nodes of this graph
 	uint32  maxNode_; // nodes have ids in the range [0, maxNode_)
 	uint32  comEdge_; // number of edges committed
@@ -446,7 +446,7 @@ private:
 	uint32 startSearch();
 	void   addClauseLit(Solver& s, Literal p);
 	void   setReason(Literal p, LitVec::const_iterator first, LitVec::const_iterator end);
-	// -------------------------------------------------------------------------------------------  
+	// -------------------------------------------------------------------------------------------
 	// constraint interface
 	PropResult propagate(Solver&, Literal, uint32& eId) {
 		todo_.push(graph_->arc(eId));

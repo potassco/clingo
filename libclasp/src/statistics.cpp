@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -128,7 +128,7 @@ struct ClaspStatistics::Impl {
 		it->second = gc_;
 		++count;
 		switch (obj.type()) {
-			case Potassco::Statistics_t::Map: 
+			case Potassco::Statistics_t::Map:
 				for (uint32 i = 0, end = obj.size(); i != end; ++i) { count += visit(obj.at(obj.key(i))); }
 				break;
 			case Potassco::Statistics_t::Array:
@@ -215,7 +215,7 @@ StatisticObject ClaspStatistics::findObject(Key_t root, const char* path, Key_t*
 		else if (t == Potassco::Statistics_t::Array && Potassco::match(top, pos) && pos >= 0) {
 			o = o[uint32(pos)];
 		}
-		else { 
+		else {
 			throw std::out_of_range(ClaspStringBuffer().appendFormat("invalid path: '%s' at key '%s'", parent, top).c_str());
 		}
 		t = o.type();

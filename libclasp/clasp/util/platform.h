@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2012, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -72,7 +72,7 @@ typedef int64_t   int64;
 typedef uintptr_t uintp;
 #define APPLY_PRAGMA(x) _Pragma (#x)
 #define CLASP_PRAGMA_TODO(x) APPLY_PRAGMA(message ("TODO: " #x))
-#else 
+#else
 #error unknown compiler or platform. Please add typedefs manually.
 #endif
 #ifndef UINT32_MAX
@@ -135,7 +135,7 @@ bool aligned(void* mem) {
 #endif
 
 #if !defined(CLASP_HAS_STATIC_ASSERT)
-#	if defined(__cplusplus) && __cplusplus >= 201103L 
+#	if defined(__cplusplus) && __cplusplus >= 201103L
 #		define CLASP_HAS_STATIC_ASSERT 1
 #	elif defined(static_assert)
 #		define CLASP_HAS_STATIC_ASSERT 1
@@ -150,7 +150,7 @@ bool aligned(void* mem) {
 template <bool> struct static_assertion;
 template <>     struct static_assertion<true> {};
 #ifndef __GNUC__
-#define static_assert(x, message) typedef bool clasp_static_assertion[sizeof(static_assertion< (x) >)] 
+#define static_assert(x, message) typedef bool clasp_static_assertion[sizeof(static_assertion< (x) >)]
 #else
 #define static_assert(x, message) typedef bool clasp_static_assertion[sizeof(static_assertion< (x) >)]  __attribute__((__unused__))
 #endif
@@ -178,7 +178,7 @@ private:
 };
 
 #define CLASP_FAIL_IF(exp, ...) \
-	(void)( (!(exp)) || (throw std::logic_error(ClaspStringBuffer().appendFormat(__VA_ARGS__).c_str()), 0))	
+	(void)( (!(exp)) || (throw std::logic_error(ClaspStringBuffer().appendFormat(__VA_ARGS__).c_str()), 0))
 
 #ifndef CLASP_NO_ASSERT_CONTRACT
 

@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2015-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -62,7 +62,7 @@ public:
 		CLASP_ASSERT_CONTRACT_MSG(dl <= s_->decisionLevel(), "Invalid decision level");
 		return encodeLit(dl ? s_->decision(dl) : lit_true());
 	}
-	
+
 	// Potassco::AbstractSolver
 	virtual Potassco::Id_t id() const { return s_->id(); }
 	virtual bool addClause(const Potassco::LitSpan& clause, Potassco::Clause_t prop);
@@ -120,7 +120,7 @@ void ClingoPropagator::Control::removeWatch(Lit_t lit) {
 static const uint32 ccFlags_s[2] = {
 	/* 0: learnt */ Clasp::ClauseCreator::clause_not_sat | Clasp::ClauseCreator::clause_int_lbd,
 	/* 1: static */ ClauseCreator::clause_no_add | ClauseCreator::clause_explicit
-};		
+};
 ClingoPropagator::ClingoPropagator(const LitVec& watches, Potassco::AbstractPropagator& cb, ClingoPropagatorLock* ctrl)
 	: watches_(watches)
 	, call_(&cb)

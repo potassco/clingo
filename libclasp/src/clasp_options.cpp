@@ -252,7 +252,7 @@ enum OptionKey {
 	meta_config = 0,
 #define CLASP_CONTEXT_OPTIONS  GRP(option_category_nodes_end,   option_category_context_begin),
 #define CLASP_GLOBAL_OPTIONS   GRP(option_category_context_end, option_category_global_begin),
-#define CLASP_SOLVER_OPTIONS   GRP(option_category_global_end,  option_category_solver_begin), 
+#define CLASP_SOLVER_OPTIONS   GRP(option_category_global_end,  option_category_solver_begin),
 #define CLASP_SEARCH_OPTIONS   GRP(option_category_solver_end,  option_category_search_begin),
 #define CLASP_ASP_OPTIONS      GRP(option_category_search_end,  option_category_asp_begin),
 #define CLASP_SOLVE_OPTIONS    GRP(option_category_asp_end,     option_category_solve_begin),
@@ -261,7 +261,7 @@ enum OptionKey {
 #define GRP(X, Y) X, Y = X, detail__before_##Y = X - 1
 #include <clasp/cli/clasp_cli_options.inl>
 #undef GRP
-	option_category_solve_end, 
+	option_category_solve_end,
 	detail__num_options = option_category_solve_end,
 	meta_tester = detail__num_options
 };
@@ -319,25 +319,25 @@ const ClaspCliConfig::KeyType ClaspCliConfig::KEY_ROOT    = makeKeyHandle(key_ro
 const ClaspCliConfig::KeyType ClaspCliConfig::KEY_SOLVER  = makeKeyHandle(key_solver, 0, 0);
 const ClaspCliConfig::KeyType ClaspCliConfig::KEY_TESTER  = makeKeyHandle(key_tester, ClaspCliConfig::mode_tester, 0);
 
-struct Name2Id { 
+struct Name2Id {
 	const char* name; int key;
 	bool operator<(const Name2Id& rhs) const { return std::strcmp(name, rhs.name) < 0; }
 };
 static Name2Id options_g[detail__num_options+1] = {
 	{"configuration", meta_config},
-#define OPTION(k, e, ...) { #k, opt_##k }, 
+#define OPTION(k, e, ...) { #k, opt_##k },
 #define CLASP_CONTEXT_OPTIONS
 #define CLASP_GLOBAL_OPTIONS
 #define CLASP_SOLVER_OPTIONS
 #define CLASP_SEARCH_OPTIONS
-#define CLASP_ASP_OPTIONS     
-#define CLASP_SOLVE_OPTIONS   
+#define CLASP_ASP_OPTIONS
+#define CLASP_SOLVE_OPTIONS
 #include <clasp/cli/clasp_cli_options.inl>
 	{"tester"       , meta_tester}
 };
 struct ClaspCliConfig::OptIndex {
-	OptIndex(Name2Id* first, Name2Id* last) { 
-		std::sort(begin = first, end = last); 
+	OptIndex(Name2Id* first, Name2Id* last) {
+		std::sort(begin = first, end = last);
 	}
 	Name2Id* find(const char* name) const {
 		Name2Id temp = { name, 0 };
@@ -389,7 +389,7 @@ private:
 // Adapter for parsing a command string.
 struct ClaspCliConfig::ParseContext : public ProgramOptions::ParseContext {
 	typedef ProgramOptions::SharedOptPtr OptPtr;
-	ParseContext(ClaspCliConfig& x, const char* c, const ParsedOpts* ex, bool allowMeta, ParsedOpts* o) 
+	ParseContext(ClaspCliConfig& x, const char* c, const ParsedOpts* ex, bool allowMeta, ParsedOpts* o)
 		: self(&x), config(c), exclude(ex), out(o), meta(allowMeta) { seen[0] = seen[1] = 0;  }
 	OptPtr getOption(const char* name, FindType ft);
 	OptPtr getOption(int, const char* key) { throw ProgramOptions::UnknownOption(config, key); }
@@ -418,7 +418,7 @@ void ClaspCliConfig::ParseContext::addValue(const OptPtr& key, const std::string
 }
 ProgramOptions::SharedOptPtr ClaspCliConfig::ParseContext::getOption(const char* cmdName, FindType ft) {
 	Options::option_iterator end = self->opts_->end(), it = end;
-	if (ft == OptionContext::find_alias) { 
+	if (ft == OptionContext::find_alias) {
 		char a = cmdName[*cmdName == '-'];
 		for (it = self->opts_->begin(); it != end && it->get()->alias() != a; ++it) { ; }
 	}
@@ -440,10 +440,10 @@ ProgramOptions::SharedOptPtr ClaspCliConfig::ParseContext::getOption(const char*
 		}
 		assert(it == end || static_cast<const ProgOption*>(it->get()->value())->option() == pos->key);
 	}
-	if (it != end && (meta || isOption(static_cast<const ProgOption*>(it->get()->value())->option()))) { 
+	if (it != end && (meta || isOption(static_cast<const ProgOption*>(it->get()->value())->option()))) {
 		return *it;
 	}
-	throw ProgramOptions::UnknownOption(config, cmdName); 
+	throw ProgramOptions::UnknownOption(config, cmdName);
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // Default Configs
@@ -623,7 +623,7 @@ void ClaspCliConfig::addOptions(OptionContext& root) {
 		else if (oId < opt_restarts)                { search.addOption(*it); }
 		else if (oId < option_category_search_end)  { lookback.addOption(*it); }
 		else if (oId < option_category_asp_end)     { asp.addOption(*it); }
-		else                                        { solving.addOption(*it); } 
+		else                                        { solving.addOption(*it); }
 	}
 	root.add(configOpts).add(solving).add(asp).add(search).add(lookback);
 	root.addAlias("number", root.find("models")); // remove on next version
@@ -634,7 +634,7 @@ bool ClaspCliConfig::assignDefaults(const ProgramOptions::ParsedOptions& exclude
 		CLASP_FAIL_IF(exclude.count(o.name()) == 0 && !o.assignDefault(), "Option '%s': invalid default value '%s'\n", o.name().c_str(), o.value()->defaultsTo());
 	}
 	return true;
-}	
+}
 void ClaspCliConfig::releaseOptions() {
 	opts_ = 0;
 }
@@ -671,8 +671,8 @@ ClaspCliConfig::KeyType ClaspCliConfig::getKey(KeyType k, const char* path) cons
 	}
 	const Name2Id* opt = index_g.find(path);
 	// remaining name must be a valid option in our subkey range
-	if (!opt || opt->key < x.skBegin || opt->key >= x.skEnd) { 
-		return KEY_INVALID; 
+	if (!opt || opt->key < x.skBegin || opt->key >= x.skEnd) {
+		return KEY_INVALID;
 	}
 	return makeKeyHandle(static_cast<int16>(opt->key), mode, decodeSolver(k));
 }
@@ -698,7 +698,7 @@ int ClaspCliConfig::getKeyInfo(KeyType k, int* nSubkeys, int* arrLen, const char
 	if (nValues && ++ret)  { *nValues = -1; }
 	if (help && ++ret)     { *help = x.desc; }
 	if (arrLen && ++ret)   {
-		*arrLen = -1; 
+		*arrLen = -1;
 		if (id == key_solver && (decodeMode(k) & mode_solver) == 0) {
 			const UserConfig* c = (decodeMode(k) & mode_tester) == 0 ? this : testerConfig();
 			*arrLen = c ? (int)c->numSolver() : 0;
@@ -863,7 +863,7 @@ int ClaspCliConfig::getActive(int o, std::string* val, const char** desc, const 
 	else if (!active())       { return -1; }
 	else if (o == meta_config){
 		const NodeKey& n = nodes_g[-o];
-		if (val)  { 
+		if (val)  {
 			uint8 k = (ConfigKey)active()->cliConfig;
 			if (k < config_max_value) { xconvert(*val, static_cast<ConfigKey>(k)); }
 			else                      { val->append(config_[!isGenerator()]); }
@@ -880,7 +880,7 @@ int ClaspCliConfig::setAppOpt(int o, const char* _val_) {
 		if   (bk_lib::stringTo(_val_, defC)){ active()->cliConfig = (uint8)defC.first; }
 		else {
 			CLASP_FAIL_IF(!std::ifstream(_val_).is_open(), "Could not open config file '%s'", _val_);
-			config_[!isGenerator()] = _val_; active()->cliConfig = config_max_value + !isGenerator(); 
+			config_[!isGenerator()] = _val_; active()->cliConfig = config_max_value + !isGenerator();
 		}
 		return Range<uint32>(0, INT_MAX).clamp(defC.second);
 	}

@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -34,10 +34,10 @@ private:
 	const Solver& solver_;
 };
 
-struct Sink { 
+struct Sink {
 	explicit Sink(SharedLiterals* c) : clause(c) {}
 	~Sink() { if (clause) clause->release(); }
-	SharedLiterals* clause;   
+	SharedLiterals* clause;
 };
 
 void* alloc(uint32 size) {
@@ -58,7 +58,7 @@ SharedLiterals* SharedLiterals::newShareable(const Literal* lits, uint32 size, C
 	return new (m) SharedLiterals(lits, size, t, numRefs);
 }
 
-SharedLiterals::SharedLiterals(const Literal* a_lits, uint32 size, ConstraintType t, uint32 refs) 
+SharedLiterals::SharedLiterals(const Literal* a_lits, uint32 size, ConstraintType t, uint32 refs)
 	: size_type_( (size << 2) + t ) {
 	refCount_ = std::max(uint32(1),refs);
 	std::memcpy(lits_, a_lits, size*sizeof(Literal));
@@ -99,9 +99,9 @@ SharedLiterals* SharedLiterals::share() {
 /////////////////////////////////////////////////////////////////////////////////////////
 // ClauseCreator
 /////////////////////////////////////////////////////////////////////////////////////////
-ClauseCreator::ClauseCreator(Solver* s) 
+ClauseCreator::ClauseCreator(Solver* s)
 	: solver_(s)
-	, flags_(0){ 
+	, flags_(0){
 }
 
 ClauseCreator& ClauseCreator::start(ConstraintType t) {
@@ -146,11 +146,11 @@ ClauseRep ClauseCreator::prepare(Solver& s, const Literal* in, uint32 inSize, co
 			break;
 		}
 	}
-	if (simplify) { 
-		for (uint32 x = 0, end = ret.size; x != end; ++x) { s.clearSeen(out[x].var()); } 
+	if (simplify) {
+		for (uint32 x = 0, end = ret.size; x != end; ++x) { s.clearSeen(out[x].var()); }
 	}
 	if (abst_w1 == UINT32_MAX || (abst_w2 && out[0].var() == out[1].var())) {
-		out[0]   = abst_w1 == UINT32_MAX || out[0] == ~out[1] ? lit_true() : out[0]; 
+		out[0]   = abst_w1 == UINT32_MAX || out[0] == ~out[1] ? lit_true() : out[0];
 		ret.size = 1;
 	}
 	ret.info.setAux(s.auxVar(vMax));
@@ -182,7 +182,7 @@ ClauseCreator::Status ClauseCreator::status(const Solver& s, const Literal* clau
 ClauseCreator::Status ClauseCreator::status(const Solver& s, const ClauseRep& c) {
 	uint32 dl = s.decisionLevel();
 	uint32 fw = c.size     ? watchOrder(s, c.lits[0]) : 0;
-	if (fw == UINT32_MAX) { return status_subsumed; }	
+	if (fw == UINT32_MAX) { return status_subsumed; }
 	uint32 sw = c.size > 1 ? watchOrder(s, c.lits[1]) : 0;
 	uint32 st = status_open;
 	if      (fw > varMax)   { st|= status_sat; fw = ~fw; }
@@ -206,7 +206,7 @@ ClauseCreator::Result ClauseCreator::end(uint32 flags) {
 
 ClauseHead* ClauseCreator::newProblemClause(Solver& s, const ClauseRep& clause, uint32 flags) {
 	ClauseHead* ret;
-	Solver::WatchInitMode wMode = s.watchInitMode();	
+	Solver::WatchInitMode wMode = s.watchInitMode();
 	if      (flags&clause_watch_first){ wMode = SolverStrategies::watch_first;}
 	else if (flags&clause_watch_rand) { wMode = SolverStrategies::watch_rand; }
 	else if (flags&clause_watch_least){ wMode = SolverStrategies::watch_least;}
@@ -214,7 +214,7 @@ ClauseHead* ClauseCreator::newProblemClause(Solver& s, const ClauseRep& clause, 
 		uint32 fw = 0, sw = 1;
 		if (wMode == SolverStrategies::watch_rand) {
 			fw = s.rng.irand(clause.size);
-			do { sw = s.rng.irand(clause.size); } while (sw == fw); 
+			do { sw = s.rng.irand(clause.size); } while (sw == fw);
 		}
 		else if (wMode == SolverStrategies::watch_least) {
 			uint32 cw1 = s.numWatches(~clause.lits[0]);
@@ -279,7 +279,7 @@ ClauseHead* ClauseCreator::newUnshared(Solver& s, SharedLiterals* clause, const 
 ClauseCreator::Result ClauseCreator::create_prepared(Solver& s, const ClauseRep& clause, uint32 flags) {
 	assert(s.decisionLevel() == 0 || (clause.info.learnt() && clause.prep));
 	Status x = status(s, clause);
-	if (ignoreClause(s, clause, x, flags)){ 
+	if (ignoreClause(s, clause, x, flags)){
 		return Result(0, x);
 	}
 	if (clause.size > 1) {
@@ -311,7 +311,7 @@ ClauseCreator::Result ClauseCreator::create(Solver& s, LitVec& lits, uint32 flag
 }
 
 ClauseCreator::Result ClauseCreator::create(Solver& s, const ClauseRep& rep, uint32 flags) {
-	return create_prepared(s, (rep.prep == 0 && (flags & clause_no_prepare) == 0 
+	return create_prepared(s, (rep.prep == 0 && (flags & clause_no_prepare) == 0
 		? prepare(s, rep.lits, rep.size, rep.info, flags, rep.lits)
 		: ClauseRep::prepared(rep.lits, rep.size, rep.info)), flags);
 }
@@ -355,7 +355,7 @@ ClauseCreator::Result ClauseCreator::integrate(Solver& s, SharedLiterals* clause
 	}
 	return result;
 }
-ClauseCreator::Result ClauseCreator::integrate(Solver& s, SharedLiterals* clause, uint32 modeFlags) { 
+ClauseCreator::Result ClauseCreator::integrate(Solver& s, SharedLiterals* clause, uint32 modeFlags) {
 	return integrate(s, clause, modeFlags, clause->type());
 }
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -366,7 +366,7 @@ void* Clause::alloc(Solver& s, uint32 lits, bool learnt) {
 		if (learnt) { s.addLearntBytes(32); }
 		return s.allocSmall();
 	}
-	uint32 extra = std::max((uint32)ClauseHead::HEAD_LITS, lits) - ClauseHead::HEAD_LITS; 
+	uint32 extra = std::max((uint32)ClauseHead::HEAD_LITS, lits) - ClauseHead::HEAD_LITS;
 	uint32 bytes = sizeof(Clause) + (extra)*sizeof(Literal);
 	if (learnt) { s.addLearntBytes(bytes); }
 	return Detail::alloc(bytes);
@@ -391,7 +391,7 @@ void ClauseHead::Local::init(uint32 sz) {
 	if (sz > ClauseHead::MAX_SHORT_LEN) { mem[0] = (sz << 3) + 1; }
 	assert(isSmall() == (sz <= ClauseHead::MAX_SHORT_LEN));
 }
-Clause::Clause(Solver& s, const ClauseRep& rep, uint32 tail, bool extend) 
+Clause::Clause(Solver& s, const ClauseRep& rep, uint32 tail, bool extend)
 	: ClauseHead(rep.info) {
 	assert(tail >= rep.size || s.isFalse(rep.lits[tail]));
 	local_.init(rep.size);
@@ -441,7 +441,7 @@ bool Clause::contracted()   const { return local_.contracted(); }
 bool Clause::isSmall()      const { return local_.isSmall(); }
 bool Clause::strengthened() const { return local_.strengthened(); }
 void Clause::destroy(Solver* s, bool detachFirst) {
-	if (s) { 
+	if (s) {
 		if (detachFirst) { Clause::detach(*s); }
 		if (learnt())    { s->freeLearntBytes(computeAllocSize()); }
 	}
@@ -469,7 +469,7 @@ uint32 Clause::computeAllocSize() const {
 	uint32 nw = contracted() + strengthened();
 	if (nw != 0u) {
 		const Literal* eoc = head_ + sz;
-		do { nw -= eoc++->flagged(); } while (nw); 
+		do { nw -= eoc++->flagged(); } while (nw);
 		sz = static_cast<uint32>(eoc - head_);
 	}
 	return rt + (sz*sizeof(Literal));
@@ -517,7 +517,7 @@ void Clause::reason(Solver& s, Literal p, LitVec& out) {
 			do { out.push_back(~*r); } while (!r++->flagged());
 		}
 	}
-	if (learnt()) { 
+	if (learnt()) {
 		s.updateOnReason(info_.score(), p, out);
 	}
 }
@@ -583,7 +583,7 @@ bool Clause::simplify(Solver& s, bool reinit) {
 		if (reinit && size > 3) {
 			detach(s);
 			std::random_shuffle(head_, j, s.rng);
-			attach(s);	
+			attach(s);
 		}
 	}
 	else if (s.isFalse(head_[2])) {
@@ -656,14 +656,14 @@ ClauseHead::BoolPair Clause::strengthen(Solver& s, Literal p, bool toShort) {
 			s.removeWatch(~p, this);
 			Literal* best = it, *n;
 			for (n = t.first; n != eot && s.isFalse(*best); ++n) {
-				if (!s.isFalse(*n) || s.level(n->var()) > s.level(best->var())) { 
-					best = n; 
+				if (!s.isFalse(*n) || s.level(n->var()) > s.level(best->var())) {
+					best = n;
 				}
 			}
 			std::swap(*it, *best);
 			s.addWatch(~*it, ClauseWatch(this));
 			it = head_+2;
-		}	
+		}
 		// replace cache literal with literal from tail
 		if ((*it  = *t.first) != lit_false()) {
 			eot     = removeFromTail(s, t.first, eot);
@@ -691,7 +691,7 @@ Literal* Clause::removeFromTail(Solver& s, Literal* it, Literal* end) {
 	if (!contracted()) {
 		*it  = *--end;
 		*end = lit_false();
-		if (!isSmall()) { 
+		if (!isSmall()) {
 			local_.setSize(local_.size()-1);
 			local_.clearIdx();
 		}
@@ -729,7 +729,7 @@ ClauseHead* SharedLitsClause::newClause(Solver& s, SharedLiterals* shared_lits, 
 	return new (s.allocSmall()) SharedLitsClause(s, shared_lits, lits, e, addRef);
 }
 
-SharedLitsClause::SharedLitsClause(Solver& s, SharedLiterals* shared_lits, const Literal* w, const InfoType& e, bool addRef) 
+SharedLitsClause::SharedLitsClause(Solver& s, SharedLiterals* shared_lits, const Literal* w, const InfoType& e, bool addRef)
 	: ClauseHead(e) {
 	static_assert(sizeof(SharedLitsClause) <= 32, "Unsupported Padding");
 	shared_ = addRef ? shared_lits->share() : shared_lits;
@@ -745,7 +745,7 @@ Constraint* SharedLitsClause::cloneAttach(Solver& other) {
 bool SharedLitsClause::updateWatch(Solver& s, uint32 pos) {
 	Literal  other = head_[1^pos];
 	for (const Literal* r = shared_->begin(), *end = shared_->end(); r != end; ++r) {
-		// at this point we know that head_[2] is false so we only need to check 
+		// at this point we know that head_[2] is false so we only need to check
 		// that we do not watch the other watched literal twice!
 		if (!s.isFalse(*r) && *r != other) {
 			head_[pos] = *r; // replace watch
@@ -770,7 +770,7 @@ void SharedLitsClause::reason(Solver& s, Literal p, LitVec& out) {
 		assert(s.isFalse(*r) || *r == p);
 		if (*r != p) { out.push_back(~*r); }
 	}
-	if (learnt()) { 
+	if (learnt()) {
 		s.updateOnReason(info_.score(), p, out);
 	}
 }
@@ -903,7 +903,7 @@ LoopFormula::LoopFormula(Solver& s, const ClauseRep& c1, const Literal* atoms, u
 void LoopFormula::destroy(Solver* s, bool detach) {
 	if (s) {
 		if (detach) { this->detach(*s); }
-		if (str_)   { while (lits_[size_++].rep() != 3u) { ; } }	
+		if (str_)   { while (lits_[size_++].rep() != 3u) { ; } }
 		s->freeLearntBytes(sizeof(LoopFormula) + (size_ * sizeof(Literal)));
 	}
 	void* mem = static_cast<Constraint*>(this);
@@ -932,7 +932,7 @@ bool LoopFormula::otherIsSat(const Solver& s) {
 }
 Constraint::PropResult LoopFormula::propagate(Solver& s, Literal p, uint32& data) {
 	if (otherIsSat(s)) { // already satisfied?
-		return PropResult(true, true); 
+		return PropResult(true, true);
 	}
 	uint32 idx = data >> 1;
 	Literal* w = lits_ + idx;
@@ -945,7 +945,7 @@ Constraint::PropResult LoopFormula::propagate(Solver& s, Literal p, uint32& data
 	}
 	for (int bounds = 0, dir = ((data & 1) << 1) - 1;;) {
 		// search non-false literal - sentinels guarantee termination
-		for (w += dir; s.isFalse(*w); w += dir) {;} 
+		for (w += dir; s.isFalse(*w); w += dir) {;}
 		if (!isSentinel(*w)) {
 			uint32 nIdx = static_cast<uint32>(w - lits_);
 			// other watched literal?

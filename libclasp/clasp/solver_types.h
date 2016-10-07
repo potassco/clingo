@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -30,7 +30,7 @@
 #include <clasp/util/type_manip.h>
 #include <numeric>
 /*!
- * \file 
+ * \file
  * \brief Types and functions used by a Solver
  */
 namespace Clasp {
@@ -113,7 +113,7 @@ struct DynamicLimit {
 		float  rk;      //!< BD/CFL dynamic limit factor (typically < 1.0).
 		Type   type;    //!< Dynamic limit based on lbd or confllict level.
 	} adjust; //!< Data for dynamically adjusting margin ratio (rk).
-private: 
+private:
 	DynamicLimit(uint32 size);
 	DynamicLimit(const DynamicLimit&);
 	DynamicLimit& operator=(const DynamicLimit&);
@@ -197,7 +197,7 @@ struct JumpStats {
 	STAT(uint64 boundSum; DOXY(levels kept because of root level)    , "levels_bounded" , VALUE(boundSum) , LHS.boundSum += RHS.boundSum) \
 	STAT(uint32 maxJump;  DOXY(longest backjump)                     , "max"            , VALUE(maxJump)  , MAX_MEM(LHS.maxJump, RHS.maxJump))   \
 	STAT(uint32 maxJumpEx;DOXY(longest unbounded backjump)           , "max_executed"   , VALUE(maxJumpEx), MAX_MEM(LHS.maxJumpEx,RHS.maxJumpEx)) \
-	STAT(uint32 maxBound; DOXY(max levels kept because of root level), "max_bounded"    , VALUE(maxBound) , MAX_MEM(LHS.maxBound, RHS.maxBound)) 
+	STAT(uint32 maxBound; DOXY(max levels kept because of root level), "max_bounded"    , VALUE(maxBound) , MAX_MEM(LHS.maxBound, RHS.maxBound))
 
 	JumpStats() { reset(); }
 	void reset();
@@ -254,7 +254,7 @@ struct ExtendedStats {
 	STAT(NO_ARG       , "lits_loop"      , VALUE(lits[1])    , LHS.lits[1]    += RHS.lits[1])    \
 	STAT(NO_ARG       , "lits_other"     , VALUE(lits[2])    , LHS.lits[2]    += RHS.lits[2])    \
 	STAT(JumpStats jumps;DOXY(backjump statistics)           , "jumps"                 , MAP(jumps)     , LHS.jumps.accu(RHS.jumps))
-	
+
 	ExtendedStats() { reset(); }
 	void reset();
 	void addLearnt(uint32 size, type_t t) {
@@ -387,7 +387,7 @@ public:
 	void       resetActivity()    { info_.score().reset(); }
 	//! Downcast from LearntConstraint.
 	ClauseHead* clause() { return this; }
-	
+
 	// clause interface
 	typedef std::pair<bool, bool> BoolPair;
 	//! Adds watches for first two literals in head to solver.
@@ -415,7 +415,7 @@ public:
 	 *   The first component of the returned pair specifies whether or not
 	 *   p was removed from the clause.
 	 *   The second component of the returned pair specifies whether
-	 *   the clause should be kept (false) or removed (true). 
+	 *   the clause should be kept (false) or removed (true).
 	 */
 	virtual BoolPair strengthen(Solver& s, Literal p, bool allowToShort = true) = 0;
 protected:
@@ -437,7 +437,7 @@ protected:
 	void setLbd(uint32 x) { info_.setLbd(x); }
 	//! Shall replace the watched literal at position pos with a non-false literal.
 	/*!
-	 * \pre pos in [0,1] 
+	 * \pre pos in [0,1]
 	 * \pre s.isFalse(head_[pos]) && s.isFalse(head_[2])
 	 * \pre head_[pos^1] is the other watched literal
 	 */
@@ -505,7 +505,7 @@ struct GenericWatch {
 	explicit GenericWatch(Constraint* a_con, uint32 a_data = 0) : con(a_con), data(a_data) {}
 	//! Calls propagate on the stored constraint and passes the stored data to that constraint.
 	Constraint::PropResult propagate(Solver& s, Literal p) { return con->propagate(s, p, data); }
-	
+
 	Constraint* con;    /**< The constraint watching a certain literal. */
 	uint32      data;   /**< Additional data associated with this watch - passed to constraint on update. */
 
@@ -513,7 +513,7 @@ struct GenericWatch {
 		explicit EqConstraint(Constraint* c) : con(c) {}
 		bool operator()(const GenericWatch& w) const { return con == w.con; }
 		Constraint* con;
-	};	
+	};
 };
 
 //! Watch list type.
@@ -569,7 +569,7 @@ struct ReasonStore64 : PodVector<Antecedent>::type {
 /*!
  * Beside its currently assigned value, a variable
  * can also have a user, saved, preferred, and default value.
- * These values are used in sign selection to determine the signed literal 
+ * These values are used in sign selection to determine the signed literal
  * of a variable to be assign first.
  * During sign selection, the values form a hierarchy:
  * user > saved > preferred > current sign score of heuristic > default value
@@ -589,7 +589,7 @@ struct ValueSet {
 
 //! Stores assignment related information.
 /*!
- * For each variable v, the class stores 
+ * For each variable v, the class stores
  *  - v's current value (value_free if unassigned)
  *  - the decision level on which v was assign (only valid if value(v) != value_free)
  *  - the reason why v is in the assignment (only valid if value(v) != value_free)
@@ -635,7 +635,7 @@ public:
 	const Antecedent& reason(Var v)const { return reason_[v]; }
 	//! Returns the reason data associated with v.
 	uint32            data(Var v)  const { return reason_.data(v); }
-	
+
 	void reserve(uint32 n) {
 		assign_.reserve(n);
 		reason_.reserve(n);
@@ -752,7 +752,7 @@ private:
 //! Stores information about a literal that is implied on an earlier level than the current decision level.
 struct ImpliedLiteral {
 	typedef Assignment::ReasonWithData AnteInfo;
-	ImpliedLiteral(Literal a_lit, uint32 a_level, const Antecedent& a_ante, uint32 a_data = UINT32_MAX) 
+	ImpliedLiteral(Literal a_lit, uint32 a_level, const Antecedent& a_ante, uint32 a_data = UINT32_MAX)
 		: lit(a_lit)
 		, level(a_level)
 		, ante(a_ante, a_data) {

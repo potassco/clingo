@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -38,11 +38,11 @@ namespace Clasp {
 
 //! clasp's Solver class.
 /*!
- * A Solver-object maintains the state and provides the functions 
- * necessary to implement our CDNL-algorithm. 
+ * A Solver-object maintains the state and provides the functions
+ * necessary to implement our CDNL-algorithm.
  *
  * The interface supports incremental solving (search under assumptions) as well as
- * solution enumeration. To make this possible the solver maintains two special  
+ * solution enumeration. To make this possible the solver maintains two special
  * decision levels: the root-level and the backtrack-level.
  *
  * The root-level is the lowest decision level to which a search
@@ -55,7 +55,7 @@ namespace Clasp {
  *
  * For model enumeration the solver maintains a backtrack-level that restricts
  * backjumping in order to prevent repeating already enumerated solutions.
- * The solver will never backjump above that level and conflicts on the backtrack-level 
+ * The solver will never backjump above that level and conflicts on the backtrack-level
  * are resolved by backtracking, i.e. flipping the corresponding decision literal.
  *
  * \see "Conflict-Driven Answer Set Enumeration" for a detailed description of this approach.
@@ -107,7 +107,7 @@ public:
 	 * @{ */
 	//! Adds the problem constraint c to the solver.
 	/*!
-	 * Problem constraints shall only be added to the master solver of 
+	 * Problem constraints shall only be added to the master solver of
 	 * a SharedContext object and only during the setup phase.
 	 * \pre this == sharedContext()->master() && !sharedContext()->frozen().
 	 */
@@ -122,7 +122,7 @@ public:
 	bool                    add(const ClauseRep& c, bool isNew = true);
 	//! Returns whether c can be stored in the shared short implication graph.
 	bool                    allowImplicit(const ClauseRep& c) const {
-		return c.isImp() 
+		return c.isImp()
 		  ? shared_->allowImplicit(c.info.type()) && !c.info.aux() && (c.prep == 1 || (!auxVar(c.lits[0].var()) && !auxVar(c.lits[1].var()) && (c.size == 2 || !auxVar(c.lits[2].var()))))
 		  : c.size <= 1;
 	}
@@ -140,7 +140,7 @@ public:
 	 * \note The function shall not be called during propagation of any other post propagator.
 	 */
 	void                    removePost(PostPropagator* p);
-	
+
 	//! Adds path to the current root-path and adjusts the root-level accordingly.
 	bool pushRoot(const LitVec& path);
 	bool pushRoot(Literal p);
@@ -174,7 +174,7 @@ public:
 	 * \return
 	 *  - value_true: if a model was found.
 	 *  - value_false: if the problem is unsatisfiable (under assumptions, if any).
-	 *  - value_free: if search was stopped because limit was reached. 
+	 *  - value_free: if search was stopped because limit was reached.
 	 *  .
 	 *
 	 * \note search treats the root level as top-level, i.e. it will never backtrack below that level.
@@ -186,13 +186,13 @@ public:
 	/*!
 	 * The root-level is similar to the top-level in that it cannot be
 	 * undone during search, i.e. the solver will not resolve conflicts that are on or
-	 * above the root-level. 
+	 * above the root-level.
 	 */
-	void pushRootLevel(uint32 i = 1) { 
+	void pushRootLevel(uint32 i = 1) {
 		levels_.root = std::min(decisionLevel(), levels_.root+i);
 		levels_.flip = std::max(levels_.flip, levels_.root);
 	}
-	
+
 	//! Moves the root-level i levels up (i.e. towards the top-level).
 	/*!
 	 * The function removes all levels between the new root level and the current decision level,
@@ -224,7 +224,7 @@ public:
 	//! Adds c as a learnt constraint to the solver.
 	void addLearnt(Constraint* c, uint32 size, ConstraintType type) {
 		learnts_.push_back(c);
-		stats.addLearnt(size, type); 
+		stats.addLearnt(size, type);
 	}
 	void addLearnt(Constraint* c, uint32 size) { addLearnt(c, size, c->type()); }
 	//! Tries to receive at most maxOut clauses.
@@ -236,7 +236,7 @@ public:
 	uint32          receive(SharedLiterals** out, uint32 maxOut) const;
 	//! Distributes the clause in lits via the distributor.
 	/*!
-	 * The function first calls the distribution strategy 
+	 * The function first calls the distribution strategy
 	 * to decides whether the clause is a valid candidate for distribution.
 	 * If so and a distributor was set, it distributes the clause and returns a handle to the
 	 * now shared literals of the clause. Otherwise, it returns 0.
@@ -244,13 +244,13 @@ public:
 	 * \param lits  The literals of the clause.
 	 * \param size  The number of literals in the clause.
 	 * \param extra Additional information about the clause.
-	 * \note 
-	 *   If the return value is not null, it is the caller's 
+	 * \note
+	 *   If the return value is not null, it is the caller's
 	 *   responsibility to release the returned handle (i.e. by calling release()).
 	 * \note If the clause contains aux vars, it is not distributed.
 	 */
 	SharedLiterals* distribute(const Literal* lits, uint32 size, const ConstraintInfo& extra);
-	
+
 
 	//! Returns to the maximum of rootLevel() and backtrackLevel() and increases the number of restarts.
 	void restart() {
@@ -291,7 +291,7 @@ public:
 	 *   - the decisions from levels [1, rootLevel()]
 	 *   - any literals that are implied on a level <= rootLevel() because of newly learnt
 	 *     information. This particularly includes literals that were flipped during model enumeration.
-	 * 
+	 *
 	 * \param[out] out Where to store the guiding path.
 	 */
 	void copyGuidingPath(LitVec& out);
@@ -312,7 +312,7 @@ public:
 	 * \see Solver::pushTagVar()
 	 */
 	void removeConditional();
-	
+
 	//! Resolves all tagged clauses with the tag literal and thereby strengthens the learnt db.
 	/*!
 	 * \see Solver::pushTagVar()
@@ -326,7 +326,7 @@ public:
 	 * if p is a positive literal.
 	 * \param p The literal that should become true.
 	 * \param a The reason for the literal to become true or 0 if no reason exists.
-	 * 
+	 *
 	 * \return
 	 *  - false if p is already false
 	 *  - otherwise true.
@@ -349,7 +349,7 @@ public:
 	 * \overload bool Solver::force(const Literal&, const Antecedent&)
 	 */
 	bool force(const Literal& p, const Antecedent& a, uint32 data) {
-		return data != UINT32_MAX 
+		return data != UINT32_MAX
 			? assign_.assign(p, decisionLevel(), a.constraint(), data) || (setConflict(p, a, data), false)
 			: force(p, a);
 	}
@@ -357,9 +357,9 @@ public:
 	//! Assigns p at dl because of r.
 	/*!
 	 * \pre dl <= decisionLevel()
-	 * \note 
+	 * \note
 	 *   If dl < ul = max(rootLevel(), backtrackLevel()), p is actually assigned
-	 *   at ul but the solver stores enough information to reassign 
+	 *   at ul but the solver stores enough information to reassign
 	 *   p on backtracking.
 	 */
 	bool force(Literal p, uint32 dl, const Antecedent& r, uint32 d = UINT32_MAX) {
@@ -381,7 +381,7 @@ public:
 	/*!
 	 * \pre queueSize() == 0
 	 * \note The next decision literal will be selected randomly with probability f.
-	 * \return 
+	 * \return
 	 *  - true if the assignment is not total and a literal was assumed (or forced).
 	 *  - false otherwise
 	 *  .
@@ -394,9 +394,9 @@ public:
 	 * \pre  !hasConflict()
 	 * \post hasConflict()
 	 *
-	 * \note 
+	 * \note
 	 *   To prevent the solver from resolving the stop conflict, the
-	 *   function sets the root level to the current decision level. 
+	 *   function sets the root level to the current decision level.
 	 *   Call clearStopConflict() to remove the conflict and to restore
 	 *   the previous root-level.
 	 */
@@ -425,12 +425,12 @@ public:
 	//! Executes a one-step lookahead on p.
 	/*!
 	 * Assumes p and propagates this assumption. If propagations leads to
-	 * a conflict, false is returned. Otherwise the assumption is undone and 
+	 * a conflict, false is returned. Otherwise the assumption is undone and
 	 * the function returns true.
 	 * \param p The literal to test.
 	 * \param c The constraint that wants to test p (can be 0).
 	 * \pre p is free
-	 * \note If c is not null and testing p does not lead to a conflict, 
+	 * \note If c is not null and testing p does not lead to a conflict,
 	 *       c->undoLevel() is called *before* p is undone. Hence, the
 	 *       range [s.levelStart(s.decisionLevel()), s.assignment().size())
 	 *       contains p followed by all literals that were forced because of p.
@@ -441,7 +441,7 @@ public:
 	//! Estimates the number of assignments following from setting p to true.
 	/*!
 	 * \note For the estimate only binary clauses are considered.
-	 */ 
+	 */
 	uint32 estimateBCP(const Literal& p, int maxRecursionDepth = 5) const;
 
 	//! Computes the number of in-edges for each assigned literal.
@@ -452,14 +452,14 @@ public:
 	 * \return The maximum number of in-edges.
 	 */
 	uint32 inDegree(WeightLitVec& out);
-	
+
 	struct DBInfo { uint32 size; uint32 locked; uint32 pinned; };
 	//! Removes upto remMax percent of the learnt nogoods.
 	/*!
 	 * \param remMax  Fraction of nogoods to remove ([0.0,1.0]).
 	 * \param rs      Strategy to apply during nogood deletion.
 	 * \return        The number of locked and active/glue clauses currently exempt from deletion.
-	 * \note 
+	 * \note
 	 *   Nogoods that are the reason for a literal to be in the assignment
 	 *   are said to be locked and won't be removed.
 	 */
@@ -491,7 +491,7 @@ public:
 	/*!
 	 * \post decision level == max(min(decisionLevel(), dl), max(rootLevel(), backtrackLevel()))
 	 * \return The decision level after undoing assignments.
-	 * \note 
+	 * \note
 	 *   undoUntil() stops at the current backtrack level unless undoMode includes the mode
 	 *   that was used when setting the backtrack level.
 	 * \note
@@ -503,7 +503,7 @@ public:
 	uint32 undoUntil(uint32 dl) { return undoUntilImpl(dl, false); }
 	//! Returns whether undoUntil(decisionLevel()-1) is valid and would remove decisionLevel().
 	bool   isUndoLevel() const;
-	
+
 	//! Adds a new auxiliary variable to this solver.
 	/*!
 	 * Auxiliary variables are local to one solver and are not considered
@@ -513,12 +513,12 @@ public:
 	Var  pushAuxVar();
 	//! Pops the num most recently added auxiliary variables and destroys all constraints in auxCons.
 	void popAuxVar(uint32 num = UINT32_MAX, ConstraintDB* auxCons = 0);
-	//@}  
-	
+	//@}
+
 	/*!
 	 * \name State inspection
 	 * Functions for inspecting the state of the solver & search.
-	 * \note validVar(v) is a precondition for all functions that take a variable as 
+	 * \note validVar(v) is a precondition for all functions that take a variable as
 	 * parameter.
 	 * @{ */
 	//! Returns the number of problem variables.
@@ -706,7 +706,7 @@ public:
 	void resetLearntActivities();
 	//! Returns the reason for p being true as a set of literals.
 	void reason(Literal p, LitVec& out) { assert(isTrue(p)); out.clear(); return assign_.reason(p.var()).reason(*this, p, out); }
-	
+
 	//! Helper function for updating antecedent scores during conflict resolution.
 	/*!
 	 * \param sc   The current score of the active antecedent.
@@ -737,7 +737,7 @@ public:
 		if (strategy_.bumpVarAct && isTrue(p)) { bumpAct_.push_back(WeightLiteral(p, sc.lbd())); }
 		return true;
 	}
-	
+
 	//! Helper function for increasing antecedent activities during conflict clause minimization.
 	bool updateOnMinimize(ConstraintScore& sc) {
 		return !strategy_.ccMinKeepAct && (sc.bumpActivity(), true);
@@ -752,13 +752,13 @@ public:
 	void* allocSmall()       { return smallAlloc_.allocate(); }
 	//! Frees a small block previously allocated from the solver's small block pool.
 	void  freeSmall(void* m) { smallAlloc_.free(m);    }
-	
+
 	void  addLearntBytes(uint32 bytes)  { memUse_ += bytes; }
 	void  freeLearntBytes(uint64 bytes) { memUse_ -= (bytes < memUse_) ? bytes : memUse_; }
 
 	bool  restartReached(const SearchLimits& limit) const;
 	bool  reduceReached(const SearchLimits& limit)  const;
-	
+
 	//! simplifies cc and returns finalizeConflictClause(cc, info);
 	uint32 simplifyConflictClause(LitVec& cc, ConstraintInfo& info, ClauseHead* rhs);
 	uint32 finalizeConflictClause(LitVec& cc, ConstraintInfo& info, uint32 ccRepMode = 0);
@@ -872,7 +872,7 @@ private:
 	ImpliedList       impliedLits_; // lits that were asserted on current dl but are logically implied earlier
 	ConstraintInfo    ccInfo_;      // temporary: information about conflict clause cc_
 	Literal           tag_;         // aux literal for tagging learnt constraints
-	uint32            dbIdx_;       // position of first new problem constraint in master db 
+	uint32            dbIdx_;       // position of first new problem constraint in master db
 	uint32            lastSimp_ :30;// number of top-level assignments on last call to simplify
 	uint32            shufSimp_ : 1;// shuffle db on next simplify?
 	uint32            initPost_ : 1;// initialize new post propagators?
@@ -896,7 +896,7 @@ void destroyDB(Solver::ConstraintDB& db, Solver* s, bool detach);
 //! Returns the default decision literal of the given variable.
 inline Literal Solver::defaultLit(Var v) const {
 	switch(strategy_.signDef) {
-		default: // 
+		default: //
 		case SolverStrategies::sign_atom: return Literal(v, !varInfo(v).has(VarInfo::Body));
 		case SolverStrategies::sign_pos : return posLit(v);
 		case SolverStrategies::sign_neg : return negLit(v);
@@ -907,7 +907,7 @@ inline Literal Solver::defaultLit(Var v) const {
 struct NewConflictEvent : SolveEvent<NewConflictEvent> {
 	NewConflictEvent(const Solver& s, const LitVec& c, const ConstraintInfo& i) : SolveEvent<NewConflictEvent>(s, verbosity_quiet), learnt(&c), info(i) {}
 	const LitVec*  learnt; //!< Learnt conflict clause.
-	ConstraintInfo info;   //!< Additional information associated with the conflict clause. 
+	ConstraintInfo info;   //!< Additional information associated with the conflict clause.
 };
 //@}
 
@@ -918,15 +918,15 @@ struct NewConflictEvent : SolveEvent<NewConflictEvent> {
  */
 //@{
 //! Base class for decision heuristics to be used in a Solver.
-/*! 
- * During search the decision heuristic is used whenever the DPLL-procedure must pick 
+/*!
+ * During search the decision heuristic is used whenever the DPLL-procedure must pick
  * a new variable to branch on. Each concrete decision heuristic can implement a
  * different algorithm for selecting the next decision variable.
  */
 class DecisionHeuristic {
 public:
 	DecisionHeuristic() {}
-	virtual ~DecisionHeuristic(); 
+	virtual ~DecisionHeuristic();
 	/*!
 	 * Called once after all problem variables are known to the solver.
 	 * The default-implementation is a noop.
@@ -936,7 +936,7 @@ public:
 
 	/*!
 	 * Called once after all problem constraints are known to the solver
-	 * and the problem was simplified. 
+	 * and the problem was simplified.
 	 * The default-implementation is a noop.
 	 * \param s The solver in which this heuristic is used.
 	 */
@@ -947,10 +947,10 @@ public:
 
 	//! Called if configuration has changed.
 	virtual void setConfig(const HeuParams& p) { (void)p; }
-	
+
 	/*!
-	 * Called if the state of one or more variables changed. 
-	 * A state change is one of: 
+	 * Called if the state of one or more variables changed.
+	 * A state change is one of:
 	 *   - A previously eliminated variable is resurrected.
 	 *   - A new aux variable was added.
 	 *   - An aux variable was removed.
@@ -961,7 +961,7 @@ public:
 	 * \note Use s.validVar(v) and s.auxVar(v) to determine the reason for the update.
 	 */
 	virtual void updateVar(const Solver& s, Var v, uint32 n) = 0;
-	
+
 	/*!
 	 * Called on decision level 0. Variables that are assigned on this level
 	 * may be removed from any decision heuristic.
@@ -972,7 +972,7 @@ public:
 	 * \param st The position in the trail of the first new learnt fact.
 	 */
 	virtual void simplify(const Solver& s, LitVec::size_type st) { (void)s; (void)st; }
-	
+
 	/*!
 	 * Called whenever the solver backracks.
 	 * Literals in the range [s.trail()[st], s.trail().size()) are subject to backtracking.
@@ -981,7 +981,7 @@ public:
 	 * \param st Position in the trail of the first literal that will be backtracked.
 	 */
 	virtual void undoUntil(const Solver& s, LitVec::size_type st) { (void)s; (void)st; }
-	
+
 	/*!
 	 * Called whenever a new constraint is added to the solver s.
 	 * The default-implementation is a noop.
@@ -992,7 +992,7 @@ public:
 	 * \note first points to an array of size size.
 	 */
 	virtual void newConstraint(const Solver& s, const Literal* first, LitVec::size_type size, ConstraintType t) { (void)s; (void)first; (void)size; (void)t; }
-	
+
 	/*!
 	 * Called for each new reason-set that is traversed during conflict analysis.
 	 * The default-implementation is a noop.
@@ -1011,12 +1011,12 @@ public:
 	 * \return true if heuristic supports activities, false otherwise.
 	 */
 	virtual bool bump(const Solver& s, const WeightLitVec& lits, double adj) { (void)s; (void)lits; (void)adj; return false; }
-	
-	/*! 
-	 * Called whenever the solver must pick a new variable to branch on. 
+
+	/*!
+	 * Called whenever the solver must pick a new variable to branch on.
 	 * \param s The solver that needs a new decision variable.
 	 * \return
-	 *  - true  : if the decision heuristic assumed a literal 
+	 *  - true  : if the decision heuristic assumed a literal
 	 *  - false : if no decision could be made because assignment is total or there is a conflict
 	 *  .
 	 * \post
@@ -1027,13 +1027,13 @@ public:
 	//! Implements the actual selection process.
 	/*!
 	 * \pre s.numFreeVars() > 0, i.e. there is at least one variable to branch on.
-	 * \return 
+	 * \return
 	 *  - a literal that is currently free or
 	 *  - a sentinel literal. In that case, the heuristic shall have asserted a literal!
-	 */ 
+	 */
 	virtual Literal doSelect(Solver& s) = 0;
 
-	/*! 
+	/*!
 	 * Shall select one of the literals in the range [first, last).
 	 * \param s     The solver that needs a new decision variable.
 	 * \param first Pointer to first literal in range.
@@ -1048,7 +1048,7 @@ public:
 	static Literal selectLiteral(Solver& s, Var v, int signScore) {
 		ValueSet prefs = s.pref(v);
 		if (signScore != 0 && !prefs.has(ValueSet::user_value | ValueSet::saved_value | ValueSet::pref_value)) {
-			return Literal(v, signScore < 0); 
+			return Literal(v, signScore < 0);
 		}
 		else if (!prefs.empty()) {
 			return Literal(v, prefs.sign());

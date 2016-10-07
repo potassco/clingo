@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2015, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -28,7 +28,7 @@
 #include <clasp/minimize_constraint.h>
 #include <clasp/util/misc_types.h>
 
-namespace Clasp { 
+namespace Clasp {
 class Solver;
 class SharedContext;
 class Enumerator;
@@ -60,7 +60,7 @@ struct Model {
 	uint32            opt : 1;// whether the model is optimal w.r.t costs (0: unknown)
 	uint32            def : 1;// whether the model is definite w.r.t consequences (0: unknown)
 	uint32            sym : 1;// whether symmetric models are possible
-	uint32            up  : 1;// whether the model was updated on last unsat 
+	uint32            up  : 1;// whether the model was updated on last unsat
 };
 
 /**
@@ -70,7 +70,7 @@ struct Model {
 //@{
 
 //! Options for configuring enumeration.
-struct EnumOptions {  
+struct EnumOptions {
 	typedef MinimizeMode OptMode;
 	enum EnumType { enum_auto = 0, enum_bt  = 1, enum_record  = 2, enum_dom_record = 3, enum_consequences = 4, enum_brave = 5, enum_cautious = 6, enum_query = 7, enum_user = 8 };
 	EnumOptions() : numModels(-1), enumMode(enum_auto), optMode(MinimizeMode_t::optimize), project(0), maxSat(false) {}
@@ -99,9 +99,9 @@ const char* modelType(const Model& m);
  * to protect the enumerator with appropriate locking.
  *
  * Concrete enumerators must implement a function for preparing a problem for enumeration
- * and an EnumerationConstraint to be added to each solver attached to the problem. 
- * It is then the job of the actual solve algorithm to commit models to the enumerator 
- * and to integrate new information into attached solvers via appropriate calls to 
+ * and an EnumerationConstraint to be added to each solver attached to the problem.
+ * It is then the job of the actual solve algorithm to commit models to the enumerator
+ * and to integrate new information into attached solvers via appropriate calls to
  * Enumerator::update().
  */
 class Enumerator {
@@ -119,7 +119,7 @@ public:
 	//! Prepares the problem for enumeration.
 	/*!
 	 * The function shall be called once before search is started and before SharedContext::endInit()
-	 * was called. It freezes enumeration-related variables and adds a suitable enumeration constraint 
+	 * was called. It freezes enumeration-related variables and adds a suitable enumeration constraint
 	 * to the master solver.
 	 *
 	 * \pre The problem is not yet frozen, i.e. SharedContext::endInit() was not yet called.
@@ -130,16 +130,16 @@ public:
 	 * \note In the incremental setting, init() must be called once for each incremental step.
 	 */
 	int    init(SharedContext& problem, OptMode opt = MinimizeMode_t::optimize, int limit = 0);
-	
+
 	//! Prepares the given solver for enumeration under the given path.
 	/*!
 	 * The function shall be called once before solving is started. It pushes the
-	 * given path to the solver by calling Solver::pushRoot() and prepares s for 
+	 * given path to the solver by calling Solver::pushRoot() and prepares s for
 	 * enumeration/optimization.
-	 * \return true if path was added. 
+	 * \return true if path was added.
 	 */
 	bool   start(Solver& s, const LitVec& path = LitVec(), bool disjointPath = false)  const;
-	
+
 	//! Updates the given solver with enumeration-related information.
 	/*!
 	 * The function is used to integrate enumeration-related information,
@@ -151,7 +151,7 @@ public:
 	 *       concurrently by different solvers.
 	 */
 	bool   update(Solver& s)  const;
-	
+
 	/*!
 	 * \name Commit functions
 	 * Functions for committing enumeration-related information to the enumerator.
@@ -162,11 +162,11 @@ public:
 
 	//! Commits the model stored in the given solver.
 	/*!
-	 * If the model is valid and unique, the function returns true and the 
-	 * model can be accessed via a call to Enumerator::lastModel(). 
-	 * Otherwise, the function returns false. 
+	 * If the model is valid and unique, the function returns true and the
+	 * model can be accessed via a call to Enumerator::lastModel().
+	 * Otherwise, the function returns false.
 	 * In either case, Enumerator::update(s) shall be called
-	 * in order to continue search for further models. 
+	 * in order to continue search for further models.
 	 *
 	 * \pre The solver's assignment is total.
 	 */
@@ -196,7 +196,7 @@ public:
 	 * Calls commitModel() or commitUnsat() depending on the state of s.
 	 * The function returns value_true, to signal that s stores a valid and
 	 * unique model, value_false to signal that search shall be stopped, and
-	 * value_free otherwise. 
+	 * value_free otherwise.
 	 * \see commitModel()
 	 * \see commitUnsat()
 	 */

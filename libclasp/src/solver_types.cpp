@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -160,25 +160,25 @@ StatisticObject ExtendedStats::at(const char* key) const {
 #undef MAP
 	throw std::out_of_range("ExtendedStats::at");
 }
-void ExtendedStats::reset() { 
-	std::memset(this, 0, sizeof(ExtendedStats) - sizeof(JumpStats)); 
-	jumps.reset(); 
+void ExtendedStats::reset() {
+	std::memset(this, 0, sizeof(ExtendedStats) - sizeof(JumpStats));
+	jumps.reset();
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 // SolverStats
 /////////////////////////////////////////////////////////////////////////////////////////
 SolverStats::SolverStats() : limit(0), extra(0), multi(0) {}
-SolverStats::SolverStats(const SolverStats& o) : CoreStats(o), limit(0), extra(0), multi(0) { 
+SolverStats::SolverStats(const SolverStats& o) : CoreStats(o), limit(0), extra(0), multi(0) {
 	if (o.extra && enableExtended()) { extra->accu(*o.extra); }
 }
-SolverStats::~SolverStats() { 
+SolverStats::~SolverStats() {
 	delete extra;
 	if (limit) limit->destroy();
 }
 bool SolverStats::enableExtended() {
 	return extra != 0 || (extra = new (std::nothrow) ExtendedStats()) != 0;
 }
-void SolverStats::enableLimit(uint32 size) { 
+void SolverStats::enableLimit(uint32 size) {
 	if (limit && limit->window() != size) { limit->destroy(); limit = 0; }
 	if (!limit)                           { limit = DynamicLimit::create(size); }
 }
@@ -280,7 +280,7 @@ bool ClauseHead::toImplication(Solver& s) {
 // SmallClauseAlloc
 /////////////////////////////////////////////////////////////////////////////////////////
 SmallClauseAlloc::SmallClauseAlloc() : blocks_(0), freeList_(0) { }
-SmallClauseAlloc::~SmallClauseAlloc() { 
+SmallClauseAlloc::~SmallClauseAlloc() {
 	Block* r = blocks_;
 	while (r) {
 		Block* t = r;

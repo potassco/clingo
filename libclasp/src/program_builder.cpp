@@ -359,7 +359,7 @@ void BasicProgramAdapter::rule(Potassco::Head_t ht, const Potassco::AtomSpan& he
 	CLASP_FAIL_IF(ht != Head_t::Disjunctive || !empty(head) || prg_->type() == Problem_t::Sat, "unsupported rule type");
 	constraint_.clear();
 	Potassco::Weight_t sum = 0;
-	for (WeightLitSpan::iterator it = begin(body), end = Potassco::end(body); it != end; ++it) { 
+	for (WeightLitSpan::iterator it = begin(body), end = Potassco::end(body); it != end; ++it) {
 		constraint_.push_back(WeightLiteral(~toLit(it->lit), it->weight));
 		sum += it->weight;
 	}

@@ -1,24 +1,24 @@
-// 
+//
 // Copyright (c) 2013-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
 /*!
- * \file 
+ * \file
  * \brief Supermacros for describing clasp's options.
  * \code
  * OPTION(key, "ext", ARG(...), "help", set, get)
@@ -30,13 +30,13 @@
  *  - a description (string)
  *  - a set action to be executed when a value (string) for the option is found in a source
  *  - a get action to be executed when the current value for an option is requested
- *  . 
- * 
- * \note In the implementation of ClaspCliConfig, each key is mapped to an enumeration constant and 
- * the stringified version of key (i.e. \#key) is used to identify options. 
+ *  .
+ *
+ * \note In the implementation of ClaspCliConfig, each key is mapped to an enumeration constant and
+ * the stringified version of key (i.e. \#key) is used to identify options.
  * Furthermore, the key is also used for generating command-line option names.
- * As a convention, compound keys using 'snake_case' to separate words 
- * are mapped to dash-separated command-line option names. 
+ * As a convention, compound keys using 'snake_case' to separate words
+ * are mapped to dash-separated command-line option names.
  * E.g. an \<option_like_this\> is mapped to the command-line option "option-like-this".
  *
  * \note ClaspCliConfig assumes a certain option order. In particular, context options shall

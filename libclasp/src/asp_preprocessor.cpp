@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2015, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -41,7 +41,7 @@ bool Preprocessor::preprocessSimple() {
 			if  (b->size() != 1) { b->assignVar(*prg_); }
 			else                 { unitBodies.push_back(supported[i]); }
 		}
-		// add all heads of b to the "upper"-closure and 
+		// add all heads of b to the "upper"-closure and
 		// remove any false/removed atoms from head
 		if (!addHeadsToUpper(b) || !b->simplifyHeads(*prg_, true)) {
 			return false;
@@ -77,7 +77,7 @@ bool Preprocessor::addHeadToUpper(PrgHead* head, PrgEdge support) {
 /////////////////////////////////////////////////////////////////////////////////////////
 // equivalence preprocessing
 //
-// Computes max consequences and minimizes the number of necessary variables 
+// Computes max consequences and minimizes the number of necessary variables
 // by computing equivalence-classes.
 /////////////////////////////////////////////////////////////////////////////////////////
 bool Preprocessor::preprocessEq(uint32 maxIters) {
@@ -150,7 +150,7 @@ ValueRep Preprocessor::simplifyClassifiedProgram(const HeadRange& atoms, bool mo
 			// !bodyInfo_[i].bSeen: body is unsupported
 			// !b->relevant()     : body is eq to other body or was derived to false
 			// In either case, body is no longer relevant and can be ignored.
-			b->clearLiteral(true); 
+			b->clearLiteral(true);
 			b->markRemoved();
 		}
 		else if ( (simp = simplifyBody(b, more, supported)) != value_true ) {
@@ -209,7 +209,7 @@ PrgBody* Preprocessor::addBodyVar(Var bodyId) {
 		if      (!known)                          { body->markDirty(); }
 		else if (aEq && aEq->var() == body->var()){
 			// Body is equivalent to an atom or its negation
-			// Check if the atom is itself equivalent to a body. 
+			// Check if the atom is itself equivalent to a body.
 			// If so, the body is equivalent to the atom's body.
 			PrgBody* r = 0; // possible eq-body
 			uint32 rId = varMax;
@@ -219,7 +219,7 @@ PrgBody* Preprocessor::addBodyVar(Var bodyId) {
 			}
 			if (aEq && aEq->supports() && aEq->supps_begin()->isBody()) {
 				rId = aEq->supps_begin()->node();
-				r   = prg_->getBody(rId);	
+				r   = prg_->getBody(rId);
 				if (r && r->var() == aEq->var()) {
 					mergeEqBodies(body, rId, false);
 				}
@@ -248,7 +248,7 @@ bool Preprocessor::addHeadsToUpper(PrgBody* body) {
 		support= PrgEdge::newEdge(*body, it->type());
 		if (head->relevant() && head->value() != value_false) {
 			if (body->value() == value_true && head->isAtom()) {
-				// Since b is true, it is always a valid support for head, head can never become unfounded. 
+				// Since b is true, it is always a valid support for head, head can never become unfounded.
 				// So ignore it during SCC check and unfounded set computation.
 				head->setIgnoreScc(true);
 				if (support.isNormal() && head->isAtom()) {
@@ -398,7 +398,7 @@ bool Preprocessor::superfluous(PrgBody* body) const {
 	if (!body->inRule()) {
 		if (body->value() == value_free) { return true; }
 		if (body->bound() <= 0)          { return true; }
-		if (body->size() == 1)           { 
+		if (body->size() == 1)           {
 			// unit constraint
 			ValueRep exp = body->value() ^ (int)body->goal(0).sign();
 			ValueRep got = prg_->getAtom(body->goal(0).var())->value();
@@ -429,14 +429,14 @@ ValueRep Preprocessor::simplifyBody(PrgBody* b, bool reclass, VarVec& supported)
 		if (hadHeads && b->value() == value_false) {
 			assert(b->hasHeads() == false);
 			// New false body. If it was derived to false, we can ignore the body.
-			// Otherwise, we have a new integrity constraint. 
+			// Otherwise, we have a new integrity constraint.
 			if (!b->relevant()) {
 				b->clearLiteral(true);
 			}
 		}
 		else if (b->var() != 0 && superfluous(b)) {
 			// Body is no longer needed. All heads are either superfluous or equivalent
-			// to other atoms. 
+			// to other atoms.
 			// Reclassify only if var is not used
 			if (getRootAtom(b->literal()) == varMax) { ret = value_weak_true; }
 			b->clearLiteral(true);

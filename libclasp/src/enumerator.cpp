@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2015, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -21,7 +21,7 @@
 #include <clasp/solver.h>
 #include <clasp/util/multi_queue.h>
 #include <clasp/clause.h>
-namespace Clasp { 
+namespace Clasp {
 /////////////////////////////////////////////////////////////////////////////////////////
 // Enumerator - Shared Queue / Thread Queue
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -52,7 +52,7 @@ void EnumerationConstraint::init(Solver& s, SharedMinimizeData* m, QueuePtr p) {
 	mini_ = 0;
 	queue_= p;
 	if (m) {
-		const SolverParams* c = s.sharedContext()->configuration() ? &s.sharedContext()->configuration()->solver(s.id()) : 0; 
+		const SolverParams* c = s.sharedContext()->configuration() ? &s.sharedContext()->configuration()->solver(s.id()) : 0;
 		MinimizeMode_t::Strategy st = c ? static_cast<MinimizeMode_t::Strategy>(c->optStrat) : MinimizeMode_t::opt_bb;
 		mini_ = m->attach(s, st, c ? c->optParam : 0u);
 		if (c && (c->optHeu & MinimizeMode_t::heu_sign) != 0) {
@@ -118,22 +118,22 @@ bool EnumerationConstraint::integrateNogoods(Solver& s) {
 	if (!queue_.get() || s.hasConflict()) { return !s.hasConflict(); }
 	const uint32 f = ClauseCreator::clause_no_add | ClauseCreator::clause_no_release | ClauseCreator::clause_explicit;
 	for (SharedLiterals* clause; queue_->pop(clause); ) {
-		ClauseCreator::Result res = ClauseCreator::integrate(s, clause, f);	
+		ClauseCreator::Result res = ClauseCreator::integrate(s, clause, f);
 		if (res.local) { add(res.local);}
 		if (!res.ok()) { return false;  }
 	}
 	return true;
 }
-void EnumerationConstraint::destroy(Solver* s, bool x) { 
+void EnumerationConstraint::destroy(Solver* s, bool x) {
 	if (mini_) { mini_->destroy(s, x); mini_ = 0; }
 	queue_ = 0;
 	Clasp::destroyDB(nogoods_, s, x);
-	Constraint::destroy(s, x); 
+	Constraint::destroy(s, x);
 }
-bool EnumerationConstraint::simplify(Solver& s, bool reinit) { 
-	if (mini_) { mini_->simplify(s, reinit); } 
+bool EnumerationConstraint::simplify(Solver& s, bool reinit) {
+	if (mini_) { mini_->simplify(s, reinit); }
 	simplifyDB(s, nogoods_, reinit);
-	return false; 
+	return false;
 }
 
 bool EnumerationConstraint::commitModel(Enumerator& ctx, Solver& s) {
@@ -187,7 +187,7 @@ void Enumerator::reset() {
 	model_.sId  = 0;
 	doReset();
 }
-int  Enumerator::init(SharedContext& ctx, OptMode oMode, int limit)  { 
+int  Enumerator::init(SharedContext& ctx, OptMode oMode, int limit)  {
 	ctx.master()->setEnumerationConstraint(0);
 	reset();
 	if (oMode != MinimizeMode_t::ignore){ mini_ = ctx.minimize(); }
@@ -233,7 +233,7 @@ bool Enumerator::commitModel(Solver& s) {
 }
 bool Enumerator::commitSymmetric(Solver& s){ return model_.sym && !optimize() && commitModel(s); }
 bool Enumerator::commitUnsat(Solver& s)    { return constraint(s)->commitUnsat(*this, s); }
-bool Enumerator::commitClause(const LitVec& clause)  const { 
+bool Enumerator::commitClause(const LitVec& clause)  const {
 	return queue_ && queue_->pushRelaxed(SharedLiterals::newShareable(clause, Constraint_t::Other));
 }
 bool Enumerator::commitComplete() {

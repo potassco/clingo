@@ -42,7 +42,7 @@ public:
 		return newShareable(!lits.empty() ? &lits[0]:0, static_cast<uint32>(lits.size()), t, numRefs);
 	}
 	static SharedLiterals* newShareable(const Literal* lits, uint32 size, ConstraintType t, uint32 numRefs = 1);
-	
+
 	//! Returns a pointer to the beginning of the literal array.
 	const Literal* begin() const { return lits_; }
 	//! Returns a pointer to the end of the literal array.
@@ -191,11 +191,11 @@ public:
 		clause_watch_first   =1024,//!< Watch first free literals.
 		clause_watch_rand    =2048,//!< Watch rand literals.
 		clause_watch_least   =4096,//!< Watch least watched literals.
-	};	
+	};
 	//! Returns the status of the given clause w.r.t s.
 	static Status    status(const Solver& s, const Literal* clause_begin, const Literal* clause_end);
 	static Status    status(const Solver& s, const ClauseRep& c);
-	
+
 	//! Returns an abstraction of p's decision level that can be used to order literals.
 	/*!
 	 * The function returns a value, s.th
@@ -204,7 +204,7 @@ public:
 	 * level(p) > level(q).
 	 */
 	static uint32    watchOrder(const Solver& s, Literal p);
-	
+
 	//! Prepares the clause given in lits.
 	/*!
 	 * A prepared clause [l1...ln] with n >= 2 is a clause that,
@@ -247,12 +247,12 @@ public:
 	 * \see prepare()
 	 */
 	static Result create(Solver& s, LitVec& lits, uint32 flags, const ClauseInfo& info = ClauseInfo());
-	
+
 	/*!
 	 * \overload
 	 */
 	static Result create(Solver& s, const ClauseRep& rep, uint32 flags);
-	
+
 	//! Integrates the given clause into the current search of s.
 	/*!
 	 * \pre the assignment in s is not conflicting
@@ -285,7 +285,7 @@ public:
 	 *   \endcode
 	 */
 	static Result integrate(Solver& s, SharedLiterals* clause, uint32 flags, ConstraintType t);
-	
+
 	/*!
 	 * \overload
 	 */
@@ -312,10 +312,10 @@ class Clause : public ClauseHead {
 public:
 	typedef Constraint::PropResult PropResult;
 	enum { MAX_SHORT_LEN = 5 };
-	
+
 	//! Allocates memory for storing a (learnt) clause with nLits literals.
 	static void* alloc(Solver& s, uint32 mLits, bool learnt);
-	
+
 	//! Creates a new clause from the clause given in rep.
 	/*!
 	 * \param s   Solver in which the new clause is to be used.
@@ -346,7 +346,7 @@ public:
 	 * \param extend  Extend head part of clause as tail literals become free?
 	 */
 	static ClauseHead*  newContractedClause(Solver& s, const ClauseRep& rep, uint32 tailPos, bool extend);
-	
+
 	//! Creates a new local surrogate for shared_lits to be used in the given solver.
 	/*!
 	 * \param s      The solver in which this clause will be used.
@@ -358,7 +358,7 @@ public:
 	static ClauseHead* newShared(Solver& s, SharedLiterals* lits, const InfoType& e, const Literal head[3], bool addRef = true);
 
 	// Constraint-Interface
-	
+
 	Constraint* cloneAttach(Solver& other);
 
 	/*!
@@ -381,12 +381,12 @@ public:
 
 	//! Destroys the clause and frees its memory.
 	void destroy(Solver* s = 0, bool detach = false);
-	
+
 	// LearntConstraint interface
 
 	//! Returns type() if the clause is currently not satisfied and t.inSet(type()).
 	uint32 isOpen(const Solver& s, const TypeSet& t, LitVec& freeLits);
-	
+
 	// clause interface
 	BoolPair strengthen(Solver& s, Literal p, bool allowToShort);
 	void     detach(Solver&);
@@ -450,10 +450,10 @@ public:
 	* \see ClauseCreator::prepare()
 	*/
 	static LoopFormula* newLoopFormula(Solver& s, const ClauseRep& c1, const Literal* atoms, uint32 nAtoms, bool updateHeuristic = true);
-	
+
 	//! Returns the number of literals in the loop-formula.
 	uint32 size() const;
-	
+
 	// Constraint interface
 	Constraint* cloneAttach(Solver&) { return 0; }
 	PropResult  propagate(Solver& s, Literal p, uint32& data);
@@ -461,22 +461,22 @@ public:
 	bool minimize(Solver& s, Literal p, CCMinRecursive* ccMin);
 	bool simplify(Solver& s, bool = false);
 	void destroy(Solver* = 0, bool = false);
-	
+
 	// LearntConstraint interface
 	bool locked(const Solver& s) const;
-	
+
 	uint32 isOpen(const Solver& s, const TypeSet& t, LitVec& freeLits);
-	
+
 	//! Returns the loop-formula's activity.
 	/*!
 	 * The activity of a loop-formula is increased, whenever reason() is called.
 	 */
 	ScoreType activity() const { return act_; }
-	
+
 	//! Halves the loop-formula's activity.
 	void decreaseActivity() { act_.reduce(); }
 	void resetActivity()    { act_.reset(); }
-	
+
 	//! Returns Constraint_t::Loop.
 	ConstraintType type() const { return Constraint_t::Loop; }
 private:
@@ -520,7 +520,7 @@ public:
 	 * \param addRef Increment ref count of shared_lits.
 	 */
 	static ClauseHead* newClause(Solver& s, SharedLiterals* shared_lits, const InfoType& e, const Literal* lits, bool addRef = true);
-	
+
 	Constraint* cloneAttach(Solver& other);
 	void        reason(Solver& s, Literal p, LitVec& out);
 	bool        minimize(Solver& s, Literal p, CCMinRecursive* rec);

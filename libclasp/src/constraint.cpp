@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -31,7 +31,7 @@ bool Constraint::simplify(Solver&, bool)  { return false; }
 void Constraint::undoLevel(Solver&)       {}
 uint32 Constraint::estimateComplexity(const Solver&) const { return 1;  }
 bool Constraint::valid(Solver&)           { return true; }
-ClauseHead* Constraint::clause()          { return 0; } 
+ClauseHead* Constraint::clause()          { return 0; }
 void Constraint::decreaseActivity()       {}
 void Constraint::resetActivity()          {}
 ConstraintScore Constraint::activity() const { return makeScore(); }
@@ -46,8 +46,8 @@ bool PostPropagator::init(Solver&)                   { return true; }
 void PostPropagator::reset()                         {}
 bool PostPropagator::isModel(Solver& s)              { return valid(s); }
 void PostPropagator::reason(Solver&, Literal, LitVec&) {}
-Constraint::PropResult PostPropagator::propagate(Solver&, Literal, uint32&) { 
-	return PropResult(true, false); 
+Constraint::PropResult PostPropagator::propagate(Solver&, Literal, uint32&) {
+	return PropResult(true, false);
 }
 void PostPropagator::cancelPropagation() {
 	for (PostPropagator* n = this->next; n; n = n->next) { n->reset(); }

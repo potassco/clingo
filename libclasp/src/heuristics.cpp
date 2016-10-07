@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2006-2016, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -60,10 +60,10 @@ static void addOther(TypeSet& t, uint32 other) {
 #define BERK_MAX_MOMS_DECS 50
 #define BERK_MAX_DECAY 65534
 
-ClaspBerkmin::ClaspBerkmin(const HeuParams& params) 
+ClaspBerkmin::ClaspBerkmin(const HeuParams& params)
 	: topConflict_(UINT32_MAX)
 	, topOther_(UINT32_MAX)
-	, front_(1) 
+	, front_(1)
 	, cacheSize_(5)
 	, numVsids_(0) {
 	ClaspBerkmin::setConfig(params);
@@ -101,7 +101,7 @@ Var ClaspBerkmin::getMostActiveFreeVar(const Solver& s) {
 		std::push_heap(cache_.begin(), cache_.end(), comp);
 		if (cache_.size() == cs) break;
 		while ( s.value(++v) != value_free ) {;} // skip over assigned vars
-	} 
+	}
 	for (v = (cs == cacheSize_ ? v+1 : s.numVars()+1); v <= s.numVars(); ++v) {
 		// replace vars with low activity
 		if (s.value(v) == value_free && comp(v, cache_[0])) {
@@ -126,10 +126,10 @@ Var ClaspBerkmin::getTopMoms(const Solver& s) {
 			ms  = ls;
 		}
 	}
-	if (++numVsids_ >= BERK_MAX_MOMS_DECS || ms < 2) { 
+	if (++numVsids_ >= BERK_MAX_MOMS_DECS || ms < 2) {
 		// Scores are not relevant or too many moms-based decisions
 		// - disable MOMS
-		hasActivities(true);           
+		hasActivities(true);
 	}
 	return var;
 }
@@ -144,11 +144,11 @@ void ClaspBerkmin::startInit(const Solver& s) {
 	cache_.clear();
 	cacheSize_ = 5;
 	cacheFront_ = cache_.end();
-	
+
 	freeLits_.clear();
 	freeOtherLits_.clear();
 	topConflict_ = topOther_ = (uint32)-1;
-	
+
 	front_    = 1;
 	numVsids_ = 0;
 }
@@ -372,7 +372,7 @@ void ClaspVmtf::endInit(Solver& s) {
 	if (moms) {
 		vars_.sort(LessLevel(s, score_));
 		for (VarList::iterator it = vars_.begin(), end = vars_.end(); it != end; ++it) {
-			if (score_[*it].decay_ != decay_) { 
+			if (score_[*it].decay_ != decay_) {
 				score_[*it].activity_ = 0;
 				score_[*it].decay_    = decay_;
 			}
@@ -416,7 +416,7 @@ void ClaspVmtf::newConstraint(const Solver& s, const Literal* first, LitVec::siz
 		const bool upAct = types_.inSet(t);
 		const VarVec::size_type mtf = t == Constraint_t::Conflict ? nMove_ : (nMove_*uint32(upAct))/2;
 		for (LitVec::size_type i = 0; i < size; ++i, ++first) {
-			Var v = first->var(); 
+			Var v = first->var();
 			score_[v].occ_ += 1 - (((int)first->sign())<<1);
 			if (upAct) { ++score_[v].activity(decay_); }
 			if (mtf && (!nant_ || s.varInfo(v).nant())){
@@ -440,7 +440,7 @@ void ClaspVmtf::newConstraint(const Solver& s, const Literal* first, LitVec::siz
 		}
 		mtf_.clear();
 		front_ = vars_.begin();
-	} 
+	}
 }
 
 void ClaspVmtf::undoUntil(const Solver&, LitVec::size_type) {
@@ -506,7 +506,7 @@ static double initDecay(uint32 p) {
 }
 
 template <class ScoreType>
-ClaspVsids_t<ScoreType>::ClaspVsids_t(const HeuParams& params) 
+ClaspVsids_t<ScoreType>::ClaspVsids_t(const HeuParams& params)
 	: vars_(CmpScore(score_))
 	, inc_(1.0)
 	, acids_(false) {
@@ -607,7 +607,7 @@ void ClaspVsids_t<ScoreType>::normalize() {
 	for (LitVec::size_type i = 0; i != score_.size(); ++i) {
 		double d = score_[i].get();
 		if (d > 0) {
-			// keep relative ordering but 
+			// keep relative ordering but
 			// actively avoid denormals
 			d += minD;
 			d *= 1e-100;
@@ -789,7 +789,7 @@ void DomainHeuristic::initScores(Solver& s, bool moms) {
 			}
 		}
 		if ((prefSet & Dom::pref_min) != 0 && m) {
-			weight_t w = -1; 
+			weight_t w = -1;
 			int16    x = Dom::pref_show;
 			for (const WeightLiteral* it = m->shared()->lits; !isSentinel(it->first); ++it) {
 				if (x > 4 && it->second != w) {
@@ -859,7 +859,7 @@ uint32 DomainHeuristic::addDomAction(const DomMod& e, Solver& s, VarScoreVec& in
 		return 0;
 	}
 	if (e.cond() != lastW) {
-		s.addWatch(lastW = e.cond(), this, (uint32)actions_.size()); 
+		s.addWatch(lastW = e.cond(), this, (uint32)actions_.size());
 	}
 	else {
 		actions_.back().next = 1;
@@ -923,7 +923,7 @@ void DomainHeuristic::applyAction(Solver& s, DomAction& a, uint16& gPrio) {
 		case DomModType::Factor: std::swap(score_[a.var].factor, a.bias); break;
 		case DomModType::Level:
 			std::swap(score_[a.var].level, a.bias);
-			if (vars_.is_in_queue(a.var)) { vars_.update(a.var); } 
+			if (vars_.is_in_queue(a.var)) { vars_.update(a.var); }
 			break;
 		case DomModType::Sign:
 			int16 old = s.pref(a.var).get(ValueSet::user_value);

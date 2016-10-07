@@ -80,7 +80,7 @@ public:
 	bool   empty() const;
 	//! Returns the number of children of this object or 0 if this is not a composite object.
 	uint32 size()  const;
-	
+
 	/*!
 	 * \name Map
 	 * \pre type() == Map
@@ -97,7 +97,7 @@ public:
 	 */
 	StatisticObject at(const char* k) const;
 	//@}
-	
+
 	//! Returns the object at the given index.
 	/*!
 	 * \pre Type() == Array
@@ -152,7 +152,7 @@ private:
 	template <class T>
 	static uint32 registerArray();
 	StatisticObject(const void* obj, uint32 type);
-	
+
 	typedef PodVector<const I*>::type RegVec;
 	const void* self() const;
 	const I*    tid()  const;
@@ -212,7 +212,7 @@ template <class T, Potassco::Statistics_t::E ElemType = Potassco::Statistics_t::
 class StatsVec : private PodVector<T*>::type {
 public:
 	StatsVec() : own_(true) {}
-	~StatsVec() { 
+	~StatsVec() {
 		if (own_) { for (iterator it = this->begin(), end = this->end(); it != end; ++it) { delete *it; } }
 	}
 	typedef typename PodVector<T*>::type base_type;
@@ -288,7 +288,7 @@ public:
 	virtual bool visitThreads(Operation op);   // default: return true
 	virtual bool visitTester(Operation op);    // default: return true
 	virtual bool visitHccs(Operation op);      // default: return true
-	
+
 	// leafs
 	virtual void visitThread(uint32, const SolverStats& stats);
 	virtual void visitHcc(uint32, const ProblemStats& p, const SolverStats& s);

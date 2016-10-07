@@ -107,7 +107,7 @@ class SatBuilder : public ProgramBuilder {
 public:
 	explicit SatBuilder(bool maxSat = false);
 	// program definition
-	
+
 	//! Creates necessary variables and prepares the problem.
 	/*!
 	 * \param numVars          Number of variables to create.

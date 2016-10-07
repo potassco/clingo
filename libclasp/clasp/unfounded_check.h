@@ -1,18 +1,18 @@
-// 
+//
 // Copyright (c) 2010, Benjamin Kaufmann
-// 
-// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/ 
-// 
+//
+// This file is part of Clasp. See http://www.cs.uni-potsdam.de/clasp/
+//
 // Clasp is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // Clasp is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Clasp; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -25,7 +25,7 @@
 #pragma once
 #endif
 #include <clasp/solver.h>
-#include <clasp/literal.h> 
+#include <clasp/literal.h>
 #include <clasp/dependency_graph.h>
 #include <clasp/constraint.h>
 namespace Clasp {
@@ -62,13 +62,13 @@ public:
 		shared_reason,    /*!< one shared loop formula for each unfounded set */
 		no_reason,        /*!< do no compute reasons for unfounded sets (only valid if learning is disabled!) */
 	};
-	
+
 	explicit DefaultUnfoundedCheck(DependencyGraph& graph, ReasonStrategy st = common_reason);
 	~DefaultUnfoundedCheck();
 
 	ReasonStrategy reasonStrategy() const { return strategy_; }
 	void           setReasonStrategy(ReasonStrategy rs);
-	
+
 	ConstGraphPtr graph() const { return graph_; }
 	uint32        nodes() const { return static_cast<uint32>(atoms_.size() + bodies_.size()); }
 
@@ -176,7 +176,7 @@ CLASP_WARNING_END_RELAXED
 		uint32   next;
 		uint32   scc;
 	};
-	// -------------------------------------------------------------------------------------------  
+	// -------------------------------------------------------------------------------------------
 	// constraint interface
 	PropResult propagate(Solver&, Literal, uint32& data) {
 		uint32 index = data >> 2;
@@ -196,9 +196,9 @@ CLASP_WARNING_END_RELAXED
 	void    addWatch(Literal, uint32 data, WatchType type);
 	void    addExtWatch(Literal p, const BodyPtr& n, uint32 data);
 	struct  InitExtWatches {
-		void operator()(Literal p, uint32 idx, bool ext) const { 
+		void operator()(Literal p, uint32 idx, bool ext) const {
 			extra->slack += B->node->pred_weight(idx, ext);
-			self->addExtWatch(~p, *B, (idx<<1)+uint32(ext)); 
+			self->addExtWatch(~p, *B, (idx<<1)+uint32(ext));
 			if (ext && !self->solver_->isFalse(p)) {
 				extra->addToWs(idx, B->node->pred_weight(idx, true));
 			}
@@ -212,7 +212,7 @@ CLASP_WARNING_END_RELAXED
 		Constraint* self;
 		Solver*     s;
 	};
-	// -------------------------------------------------------------------------------------------  
+	// -------------------------------------------------------------------------------------------
 	// propagating source pointers
 	void propagateSource();
 	struct AddSource { // an atom in a body has a new source, check if body is now a valid source
@@ -226,12 +226,12 @@ CLASP_WARNING_END_RELAXED
 		void operator()(NodeId bId, uint32 idx) const;
 		DefaultUnfoundedCheck* self;
 	};
-	struct RemoveSource {// an atom in a body has lost its source, check if body is no longer a valid source 
+	struct RemoveSource {// an atom in a body has lost its source, check if body is no longer a valid source
 		explicit RemoveSource(DefaultUnfoundedCheck* u, bool add = false) : self(u), addTodo(add) {}
 		// normal body
-		void operator()(NodeId bId) const { 
-			if (++self->bodies_[bId].lower_or_ext == 1 && self->bodies_[bId].watches != 0) { 
-				self->forwardUnsource(self->getBody(bId), addTodo); 
+		void operator()(NodeId bId) const {
+			if (++self->bodies_[bId].lower_or_ext == 1 && self->bodies_[bId].watches != 0) {
+				self->forwardUnsource(self->getBody(bId), addTodo);
 			}
 		}
 		// extended body
@@ -244,7 +244,7 @@ CLASP_WARNING_END_RELAXED
 	void forwardSource(const BodyPtr& n);
 	void forwardUnsource(const BodyPtr& n, bool add);
 	void updateSource(AtomData& atom, const BodyPtr& n);
-	// -------------------------------------------------------------------------------------------  
+	// -------------------------------------------------------------------------------------------
 	// finding & propagating unfounded sets
 	void updateAssignment(Solver& s);
 	bool findSource(NodeId atom);
@@ -259,7 +259,7 @@ CLASP_WARNING_END_RELAXED
 	void addReasonLit(Literal);
 	void createLoopFormula();
 	struct  AddReasonLit {
-		void operator()(Literal p, NodeId id, bool ext) const { 
+		void operator()(Literal p, NodeId id, bool ext) const {
 			if (self->solver_->isFalse(p) && slack >= 0) {
 				slack -= node->pred_weight(id, ext);
 				self->addReasonLit(p);
@@ -271,23 +271,23 @@ CLASP_WARNING_END_RELAXED
 	};
 	UfsType findUfs(Solver& s, bool checkNonHcf);
 	UfsType findNonHcfUfs(Solver& s);
-	// -------------------------------------------------------------------------------------------  
+	// -------------------------------------------------------------------------------------------
 	bool pushTodo(NodeId at) { return (atoms_[at].todo == 0 && (todo_.push(at), atoms_[at].todo = 1) != 0); }
 	bool pushUfs(NodeId at)  { return (atoms_[at].ufs  == 0 && (ufs_.push(at),  atoms_[at].ufs  = 1) != 0); }
 	void resetTodo()         { while (!todo_.empty()){ atoms_[todo_.pop_ret()].todo = 0; } todo_.clear();   }
-	void resetUfs()          { while (!ufs_.empty()) { atoms_[ufs_.pop_ret()].ufs   = 0; } ufs_.clear();    } 
-	// -------------------------------------------------------------------------------------------  
+	void resetUfs()          { while (!ufs_.empty()) { atoms_[ufs_.pop_ret()].ufs   = 0; } ufs_.clear();    }
+	// -------------------------------------------------------------------------------------------
 	typedef PodVector<AtomData>::type       AtomVec;
 	typedef PodVector<BodyData>::type       BodyVec;
 	typedef PodVector<ExtData*>::type       ExtVec;
 	typedef PodVector<ExtWatch>::type       WatchVec;
 	typedef PodQueue<NodeId>                IdQueue;
 	typedef SingleOwnerPtr<MinimalityCheck> MiniPtr;
-	// -------------------------------------------------------------------------------------------  
+	// -------------------------------------------------------------------------------------------
 	Solver*          solver_;      // my solver
 	GraphPtr         graph_;       // PBADG
 	MiniPtr          mini_;        // minimality checker (only for DLPs)
-	AtomVec          atoms_;       // data for each atom       
+	AtomVec          atoms_;       // data for each atom
 	BodyVec          bodies_;      // data for each body
 	IdQueue          todo_;        // ids of atoms that recently lost their source
 	IdQueue          ufs_;         // ids of atoms that are unfounded wrt the current assignment (limited to one scc)
