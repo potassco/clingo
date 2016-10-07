@@ -3591,6 +3591,14 @@ extern "C" bool clingo_control_statistics(clingo_control_t *ctl, clingo_statisti
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer *observer, void *data) {
+    (void)control;
+    (void)observer;
+    (void)data;
+    GRINGO_CLINGO_TRY { throw std::runtime_error("clingo_control_register_observer: imlement me!!!"); }
+    GRINGO_CLINGO_CATCH;
+}
+
 // }}}1
 
 #if defined(__GNUC__) && !defined(__clang__)

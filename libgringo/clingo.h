@@ -1542,6 +1542,7 @@ typedef struct clingo_propagator {
 //! @{
 
 //! Enumeration of different heuristic modifiers.
+//! @ingroup ProgramInspection
 enum clingo_heuristic_type {
     clingo_heuristic_type_level  = 0, //!< set the level of an atom
     clingo_heuristic_type_sign   = 1, //!< configure which sign to chose for an atom
@@ -1551,9 +1552,11 @@ enum clingo_heuristic_type {
     clingo_heuristic_type_false  = 5  //!< set the level of an atom and choose a negative sign
 };
 //! Corresponding type to ::clingo_heuristic_type.
+//! @ingroup ProgramInspection
 typedef int clingo_heuristic_type_t;
 
 //! Enumeration of different external statements.
+//! @ingroup ProgramInspection
 enum clingo_external_type {
     clingo_external_type_free    = 0, //!< allow an external to be assigned freely
     clingo_external_type_true    = 1, //!< assign an external to true
@@ -1561,9 +1564,11 @@ enum clingo_external_type {
     clingo_external_type_release = 3, //!< no longer treat an atom as external
 };
 //! Corresponding type to ::clingo_external_type.
+//! @ingroup ProgramInspection
 typedef int clingo_external_type_t;
 
 //! A Literal with an associated weight.
+//! @ingroup ProgramInspection
 typedef struct clingo_weighted_literal {
     clingo_literal_t literal;
     clingo_weight_t weight;
@@ -2614,6 +2619,98 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_program_builder_end(clingo_program_builder
 
 //! @}
 
+// {{{1 ground program observer
+
+//! @defgroup ProgramInspection Program Inspection
+//! Functions and data structures to inspect programs.
+//! @ingroup Control
+
+//! @addtogroup ProgramInspection
+//! @{
+
+//! An instance of this struct has to be registered with a solver to observe ground directives as they are passed to the solver.
+//!
+//! Not all callbacks have to be implemented and can be set to NULL if not needed.
+//! If one of the callbacks in the struct fails, grounding is stopped.
+//! If a non-recoverable clingo API call fails, a callback must return false.
+//! Otherwise ::clingo_error_unknown should be set and false returned.
+//!
+//! @see clingo_control_register_observer()
+struct clingo_ground_program_observer {
+    //! Observe rules passed to the solver.
+    //!
+    //! @param[in] choice determines if the head is a choice or a disjunction
+    //! @param[in] head the head atoms
+    //! @param[in] head_size the number of atoms in the head
+    //! @param[in] body the body literals
+    //! @param[in] body_size the number of literals in the body
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    void (*clingo_backend_rule)(bool choice, clingo_atom_t const *head, size_t head_size, clingo_literal_t const *body, size_t body_size, void *data);
+    //! Observe weight rules passed to the solver.
+    //!
+    //! @param[in] choice determines if the head is a choice or a disjunction
+    //! @param[in] head the head atoms
+    //! @param[in] head_size the number of atoms in the head
+    //! @param[in] lower_bound the lower bound of the weight rule
+    //! @param[in] body the weighted body literals
+    //! @param[in] body_size the number of weighted literals in the body
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    void (*clingo_backend_weight_rule)(bool choice, clingo_atom_t const *head, size_t head_size, clingo_weight_t lower_bound, clingo_weighted_literal_t const *body, size_t body_size, void *data);
+    //! Observe minimize constraints (or weak constraints) passed to the soler.
+    //!
+    //! @param[in] priority the priority of the constraint
+    //! @param[in] literals the weighted literals whose sum to minimize
+    //! @param[in] size the number of weighted literals
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    void (*clingo_backend_minimize)(clingo_weight_t priority, clingo_weighted_literal_t const* literals, size_t size, void *data);
+    //! Observe projection directives passed to the solver.
+    //!
+    //! @param[in] atoms the atoms to project on
+    //! @param[in] size the number of atoms
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    void (*clingo_backend_project)(clingo_atom_t const *atoms, size_t size, void *data);
+    //! Observe external statements passed to the solver.
+    //!
+    //! @param[in] atom the external atom
+    //! @param[in] type the type of the external statement
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    void (*clingo_backend_external)(clingo_atom_t atom, clingo_external_type_t type, void *data);
+    //! Observe assumption directives passed to the solver.
+    //!
+    //! @param[in] literals the literals to assume (positive literals are true and negative literals false for the next solve call)
+    //! @param[in] size the number of atoms
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    void (*clingo_backend_assume)(clingo_literal_t const *literals, size_t size, void *data);
+    //! Observer heuristic directives passed to the solver.
+    //!
+    //! @param[in] atom the target atom
+    //! @param[in] type the type of the heuristic modification
+    //! @param[in] bias the heuristic bias
+    //! @param[in] priority the heuristic priority
+    //! @param[in] condition the condition under which to apply the heuristic modification
+    //! @param[in] size the number of atoms in the condition
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    void (*clingo_backend_heuristic)(clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority, clingo_literal_t const *condition, size_t size, void *data);
+    //! Observer edge directives passed to the solver.
+    //!
+    //! @param[in] node_u the start vertex of the edge
+    //! @param[in] node_v the end vertex of the edge
+    //! @param[in] condition the condition under which the edge is part of the graph
+    //! @param[in] size the number of atoms in the condition
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    void (*clingo_backend_acyc_edge)(int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *data);
+};
+
+// @}
+
 // {{{1 control
 
 //! @example control.c
@@ -3015,6 +3112,12 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_symbolic_atoms(clingo_control_t *c
 //! @param[out] atoms the theory atoms object
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_theory_atoms(clingo_control_t *control, clingo_theory_atoms_t **atoms);
+//! Register a program observer with the control object.
+//!
+//! @param[in] control the target
+//! @param[in] observer the observer to register
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer *observer, void *data);
 //! @}
 
 //! @name Program Modification Functions
