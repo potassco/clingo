@@ -166,6 +166,13 @@ inline Id_t nodeId(Id_t uid) { return Potassco::atom(Potassco::lit(uid)) - (isAt
 inline bool signId(Id_t uid) { return Potassco::lit(uid) < 0; }
 
 namespace {
+typedef std::pair<Atom_t, Potassco::Value_t> AtomVal;
+inline uint32 encodeExternal(Atom_t a, Potassco::Value_t value) {
+	return (a << 2) | static_cast<uint32>(value);
+}
+inline AtomVal decodeExternal(uint32 x) {
+	return AtomVal(x >> 2, static_cast<Potassco::Value_t>(x & 3u));
+}
 struct LessBodySize {
 	LessBodySize(const BodyList& bl) : bodies_(&bl) {}
 	bool operator()(Id_t b1, Id_t b2 ) const {
@@ -259,8 +266,7 @@ bool LogicProgram::doUpdateProgram() {
 	setFrozen(false);
 	auxData_ = new Aux();
 	if (theory_) { theory_->update(); }
-	incData_->update.clear();
-	incData_->frozen.swap(incData_->update);
+	incData_->unfreeze.clear();
 	input_.hi = std::min(input_.hi, endAtom());
 	// reset prop queue and add supported atoms from previous steps
 	// {ai | ai in P}.
@@ -362,10 +368,9 @@ void LogicProgram::accept(Potassco::AbstractProgram& out) {
 		return;
 	}
 	// visit external directives
-	if (incData_) {
-		for (VarVec::const_iterator it = incData_->frozen.begin(), end = incData_->frozen.end(); it != end; ++it) {
-			out.external(*it, static_cast<Potassco::Value_t>(getAtom(*it)->freezeValue()));
-		}
+	for (VarVec::const_iterator it = auxData_->external.begin(), end = auxData_->external.end(); it != end; ++it) {
+		AtomVal x = decodeExternal(*it);
+		out.external(x.first, x.second);
 	}
 	// visit eq- and assigned atoms
 	for (Atom_t i = startAtom(); i < atoms_.size(); ++i) {
@@ -585,32 +590,34 @@ TheoryData& LogicProgram::theoryData() {
 	return *theory_;
 }
 
-PrgAtom* LogicProgram::setExternal(Atom_t atomId, ValueRep v) {
+void LogicProgram::pushFrozen(PrgAtom* atom, ValueRep value) {
+	if (!atom->frozen()) { frozen_.push_back(atom->id()); }
+	atom->markFrozen(value);
+}
+
+LogicProgram& LogicProgram::addExternal(Atom_t atomId, Potassco::Value_t value) {
+	check_not_frozen();
 	PrgAtom* a = resize(atomId);
-	if (a->frozen() || (isNew(a->id()) && !a->supports())) {
-		if (!incData_)    { incData_ = new Incremental(); }
-		if (!a->frozen()) { incData_->update.push_back(a->id()); }
-		a->markFrozen(v);
-		return a;
+	if (a->supports() == 0 && (isNew(a->id()) || a->frozen())) {
+		ValueRep fv = static_cast<ValueRep>(value);
+		if (value == Potassco::Value_t::Release) {
+			// add dummy edge - will be removed once we update the set of frozen atoms
+			a->addSupport(PrgEdge::noEdge());
+			fv = value_free;
+		}
+		pushFrozen(a, fv);
+		auxData_->external.push_back(encodeExternal(a->id(), value));
 	}
-	return 0; // atom is defined or from a previous step - ignore!
+	return *this;
 }
 
 LogicProgram& LogicProgram::freeze(Atom_t atomId, ValueRep value) {
-	check_not_frozen();
 	CLASP_ASSERT_CONTRACT(value < value_weak_true);
-	setExternal(atomId, value);
-	return *this;
+	return addExternal(atomId, static_cast<Potassco::Value_t>(value));
 }
 
 LogicProgram& LogicProgram::unfreeze(Atom_t atomId) {
-	check_not_frozen();
-	PrgAtom* a = setExternal(atomId, value_free);
-	if (a && a->supports() == 0) {
-		// add dummy edge - will be removed once we update the set of frozen atoms
-		a->addSupport(PrgEdge::noEdge());
-	}
-	return *this;
+	return addExternal(atomId, Potassco::Value_t::Release);
 }
 void LogicProgram::setMaxInputAtom(uint32 n) {
 	check_not_frozen();
@@ -782,11 +789,9 @@ Literal LogicProgram::getDomLiteral(Atom_t atomId) const {
 }
 
 void LogicProgram::doGetAssumptions(LitVec& out) const {
-	if (incData_) {
-		for (VarVec::const_iterator it = incData_->frozen.begin(), end = incData_->frozen.end(); it != end; ++it) {
-			Literal lit = getRootAtom(*it)->assumption();
-			if (lit != lit_true()) { out.push_back( lit ); }
-		}
+	for (VarVec::const_iterator it = frozen_.begin(), end = frozen_.end(); it != end; ++it) {
+		Literal lit = getRootAtom(*it)->assumption();
+		if (lit != lit_true()) { out.push_back( lit ); }
 	}
 	for (Potassco::LitVec::const_iterator it = auxData_->assume.begin(), end = auxData_->assume.end(); it != end; ++it) {
 		out.push_back(getLiteral(Potassco::id(*it)));
@@ -996,37 +1001,53 @@ void LogicProgram::transformIntegrity(uint32 nAtoms, uint32 maxAux) {
 	}
 }
 
+void LogicProgram::prepareExternals() {
+	if (auxData_->external.empty()) { return; }
+	VarVec& external = auxData_->external;
+	VarVec::iterator j = external.begin();
+	for (VarVec::const_iterator it = j, end = external.end(); it != end; ++it) {
+		Atom_t id = getRootId(decodeExternal(*it).first);
+		const PrgAtom* atom = getAtom(id);
+		if (!atomState_.inHead(id) && (atom->supports() == 0 || *atom->supps_begin() == PrgEdge::noEdge())) {
+			Potassco::Value_t value = atom->supports() == 0 ? static_cast<Potassco::Value_t>(atom->freezeValue()) : Potassco::Value_t::Release;
+			atomState_.addToHead(id);
+			*j++ = encodeExternal(id, value);
+		}
+	}
+	for (VarVec::const_iterator it = external.begin(), end = external.end(); it != end; ++it) {
+		atomState_.clearRule(decodeExternal(*it).first);
+	}
+}
 void LogicProgram::updateFrozenAtoms() {
-	if (!incData_) { return; }
-	assert(incData_->frozen.empty());
+	if (frozen_.empty()) { return; }
 	PrgBody* support   = 0;
-	VarVec::iterator j = incData_->update.begin();
-	for (VarVec::iterator it = j, end = incData_->update.end(); it != end; ++it) {
+	VarVec::iterator j = frozen_.begin();
+	for (VarVec::const_iterator it = j, end = frozen_.end(); it != end; ++it) {
 		Id_t id = getRootId(*it);
  		PrgAtom* a = getAtom(id);
 		assert(a->frozen());
 		a->resetId(id, false);
-		if (a->supports() != 0) {
+		if (a->supports() == 0) {
+			assert(a->relevant());
+			CLASP_ASSERT_CONTRACT_MSG(id < startAuxAtom(), "frozen atom shall be an input atom");
+			if (!support) { support = getTrueBody(); }
+			a->setIgnoreScc(true);
+			support->addHead(a, PrgEdge::GammaChoice);
+			*j++ = id; // still frozen
+		}
+		else {
 			a->clearFrozen();
 			if (*a->supps_begin() == PrgEdge::noEdge()) {
 				// remove dummy edge added in unfreeze()
 				a->removeSupport(PrgEdge::noEdge());
 			}
-			if (!isNew(id)) {
-				// keep in list so that we can later perform completion
-				*j++ = id;
+			if (!isNew(id) && incData_) {
+				// add to unfreeze so that we can later perform completion
+				incData_->unfreeze.push_back(id);
 			}
 		}
-		else {
-			assert(a->relevant() && a->supports() == 0);
-			CLASP_ASSERT_CONTRACT_MSG(id < startAuxAtom(), "frozen atom shall be an input atom");
-			if (!support) { support = getTrueBody(); }
- 			a->setIgnoreScc(true);
-			support->addHead(a, PrgEdge::GammaChoice);
-			incData_->frozen.push_back(id); // still frozen
-		}
 	}
-	incData_->update.erase(j, incData_->update.end());
+	frozen_.erase(j, frozen_.end());
 }
 
 void LogicProgram::prepareProgram(bool checkSccs) {
@@ -1041,6 +1062,7 @@ void LogicProgram::prepareProgram(bool checkSccs) {
 	}
 	statsId_ = 1;
 	transformExtended();
+	prepareExternals();
 	freezeTheory();
 	updateFrozenAtoms();
 	PrgAtom* suppAtom = 0;
@@ -1105,9 +1127,9 @@ void LogicProgram::freezeTheory() {
 		for (TheoryData::atom_iterator it = theory_->currBegin(), end = theory_->end(); it != end; ++it) {
 			const Potassco::TheoryAtom& a = **it;
 			if (isFact(a.atom()) || !isNew(a.atom())) { continue; }
-			const PrgAtom* atom = resize(a.atom());
+			PrgAtom* atom = resize(a.atom());
 			if (!atom->frozen() && atom->supports() == 0 && atom->relevant()) {
-				setExternal(a.atom(), value_free);
+				pushFrozen(atom, value_free);
 			}
 		}
 	}
@@ -2015,8 +2037,7 @@ void LogicProgramAdapter::output(const Potassco::StringSpan& str, const Potassco
 	lp_->addOutput(ConstString(str), cond);
 }
 void LogicProgramAdapter::external(Potassco::Atom_t a, Potassco::Value_t v) {
-	if (v != Potassco::Value_t::Release) { lp_->freeze(a, static_cast<ValueRep>(v)); }
-	else { lp_->unfreeze(a); }
+	lp_->addExternal(a, v);
 }
 void LogicProgramAdapter::assume(const Potassco::LitSpan& lits) {
 	lp_->addAssumption(lits);

@@ -351,6 +351,13 @@ public:
 	 */
 	LogicProgram& addAssumption(const Potassco::LitSpan& cube);
 
+	//! Adds or updates the given external atom.
+	/*!
+	* \see LogicProgram::freeze(Atom_t atomId, ValueRep value);
+	* \see LogicProgram::unfreeze(Atom_t atomId);
+	*/
+	LogicProgram& addExternal(Atom_t atomId, Potassco::Value_t value);
+
 	//! Returns an object for adding theory data to this program.
 	TheoryData&   theoryData();
 	//@}
@@ -441,8 +448,8 @@ public:
 	HeadIter   disj_end()          const { return disj_begin() + numDisjunctions(); }
 	HeadIter   atom_begin()        const { return reinterpret_cast<HeadIter>(&atoms_[0]); }
 	HeadIter   atom_end()          const { return atom_begin() + (numAtoms()+1); }
-	VarIter    unfreeze_begin()    const { return incData_?incData_->update.begin() : propQ_.end(); }
-	VarIter    unfreeze_end()      const { return incData_?incData_->update.end()   : propQ_.end(); }
+	VarIter    unfreeze_begin()    const { return incData_?incData_->unfreeze.begin() : propQ_.end(); }
+	VarIter    unfreeze_end()      const { return incData_?incData_->unfreeze.end()   : propQ_.end(); }
 	bool       validAtom(Id_t aId) const { return aId < (uint32)atoms_.size(); }
 	bool       validBody(Id_t bId) const { return bId < numBodies(); }
 	bool       validDisj(Id_t dId) const { return dId < numDisjunctions(); }
@@ -508,7 +515,7 @@ private:
 	// Program definition
 	bool     isNew(Atom_t atomId) const { return atomId >= startAtom(); }
 	PrgAtom* resize(Atom_t atomId);
-	PrgAtom* setExternal(Atom_t atomId, ValueRep v);
+	void     pushFrozen(PrgAtom* atom, ValueRep v);
 	void     addRule(const Rule& r, const SRule& meta);
 	void     addFact(const Potassco::AtomSpan& head);
 	void     addIntegrity(const Rule& b, const SRule& meta);
@@ -531,6 +538,7 @@ private:
 	uint32   removeBody(PrgBody* b, uint32 oldHash);
 	Literal  getEqAtomLit(Literal lit, const BodyList& supports, Preprocessor& p, const SccMap& x);
 	bool     positiveLoopSafe(PrgBody* b, PrgBody* root) const;
+	void     prepareExternals();
 	void     updateFrozenAtoms();
 	void     normalize();
 	template <class C>
@@ -575,6 +583,7 @@ private:
 	ShowVec     show_;        // shown atoms/conditions
 	VarVec      initialSupp_; // bodies that are (initially) supported
 	VarVec      propQ_;       // assigned atoms
+	VarVec      frozen_;      // list of frozen atoms
 	NonHcfSet   nonHcfs_;     // set of non-hcf sccs
 	TheoryData* theory_;      // optional map of theory data
 	AtomRange   input_;       // input atoms of current step
@@ -585,12 +594,12 @@ private:
 		AcycRules acyc;         // list of user-defined edges for acyclicity check
 		LpLitVec  assume;       // set of assumptions
 		VarVec    project;      // atoms in projection directives
+		VarVec    external;     // atoms in external directives
 	}*          auxData_;     // additional state for handling extended constructs
 	struct Incremental  {
 		Incremental();
 		uint32    startScc;     // first valid scc number in this iteration
-		VarVec    frozen;       // list of frozen atoms
-		VarVec    update;       // list of atoms to be updated (freeze/unfreeze) in this step
+		VarVec    unfreeze;     // list of atoms to unfreeze in this step
 		VarVec    doms;         // list of atom variables with domain modification
 	}*          incData_;     // additional state for handling incrementally defined programs
 	AspOptions  opts_;        // preprocessing
