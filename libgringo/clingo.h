@@ -1367,7 +1367,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_assignment_t *clingo_propagate_control_assignme
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_logic if the assignment is conflicting
-CLINGO_VISIBILITY_DEFAULT clingo_error_t clingo_propagate_control_add_literal(clingo_propagate_control_t *control, clingo_literal_t *result);
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_add_literal(clingo_propagate_control_t *control, clingo_literal_t *result);
 //! Add a watch for the solver literal in the given phase.
 //!
 //! @note Unlike @ref clingo_propagate_init_add_watch() this does not add a watch to all solver threads but just the current one.
@@ -1378,7 +1378,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_error_t clingo_propagate_control_add_literal(cl
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_logic if the literal is invalid
 //! @see clingo_propagate_control_remove_watch()
-CLINGO_VISIBILITY_DEFAULT clingo_error_t clingo_propagate_control_add_watch(clingo_propagate_control_t *control, clingo_literal_t literal);
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_add_watch(clingo_propagate_control_t *control, clingo_literal_t literal);
 //! Check whether a literal is watched in the current solver thread.
 //!
 //! @param[in] control the target
@@ -2691,15 +2691,12 @@ typedef bool clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t sy
 
 //! Callback function to implement external functions.
 //!
-//! If an external function of form <tt>\@name(parameters)</tt> occurs in a
-//! logic program, then this function is called with its location, name,
-//! parameters, and a callback to inject symbols as arguments. The callback can
-//! be called multiple times; all symbols passed are injected.
+//! If an external function of form <tt>\@name(parameters)</tt> occurs in a logic program,
+//! then this function is called with its location, name, parameters, and a callback to inject symbols as arguments.
+//! The callback can be called multiple times; all symbols passed are injected.
 //!
-//! If a (non-recoverable) clingo API function fails in this callback, for
-//! example, the symbol callback, its error code shall be returned.  In case of
-//! errors not related to clingo, this function can return
-//! ::clingo_error_unknown to stop grounding with an error.
+//! If a (non-recoverable) clingo API function fails in this callback, for example, the symbol callback, the callback must return false.
+//! In case of errors not related to clingo, this function can set error ::clingo_error_unknown and return false to stop grounding with an error.
 //!
 //! @param[in] location location from which the external function was called
 //! @param[in] name name of the called external function
@@ -2731,16 +2728,14 @@ typedef bool clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t sy
 //!   return false;
 //! }
 //! ~~~~~~~~~~~~~~~
-
 typedef bool clingo_ground_callback_t (clingo_location_t location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data);
+
 //! Callback function to intercept models.
 //!
 //! The model callback is invoked once for each model found by clingo (@link SolveAsync asynchronously@endlink).
 //!
-//! If a (non-recoverable) clingo API function fails in this callback, its
-//! error code shall be returned.  In case of errors not related to clingo,
-//! ::clingo_error_unknown, this function can return ::clingo_error_unknown to
-//! stop solving with an error.
+//! If a (non-recoverable) clingo API function fails in this callback, the function must return false.
+//! In case of errors not related to clingo, the function can set error code ::clingo_error_unknown can be set and return false to stop solving with an error.
 //!
 //! @param[in] model the current model
 //! @param[in] data user data of the callback
@@ -2753,10 +2748,8 @@ typedef bool clingo_model_callback_t (clingo_model_t *model, void *data, bool *g
 
 //! Callback function called at the end of an asynchronous solve operation.
 //!
-//! If a (non-recoverable) clingo API function fails in this callback, its
-//! error code shall be returned.  In case of errors not related to clingo,
-//! this function can return ::clingo_error_unknown to stop solving with an
-//! error.
+//! If a (non-recoverable) clingo API function fails in this callback, it must return false.
+//! In case of errors not related to clingo, set error code ::clingo_error_unknown and return false to stop solving with an error.
 //!
 //! @param[in] result result of the solve call
 //! @param[in] data user data of the callback
