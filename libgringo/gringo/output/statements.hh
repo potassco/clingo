@@ -31,7 +31,7 @@ namespace Gringo { namespace Output {
 class Rule : public Statement {
 public:
     Rule(bool choice = false);
-    void output(DomainData &data, Backend &out) const override;
+    void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
@@ -68,7 +68,7 @@ public:
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
-    void output(DomainData &data, Backend &out) const override;
+    void output(DomainData &data, UBackend &out) const override;
     virtual ~External();
 
 private:
@@ -83,7 +83,7 @@ class ShowStatement : public Statement {
 public:
     ShowStatement(Symbol term, bool csp, LitVec const &body);
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
-    void output(DomainData &data, Backend &out) const override;
+    void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
     virtual ~ShowStatement() noexcept = default;
@@ -100,7 +100,7 @@ class ProjectStatement : public Statement {
 public:
     ProjectStatement(LiteralId atom);
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
-    void output(DomainData &data, Backend &out) const override;
+    void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
     virtual ~ProjectStatement() noexcept = default;
@@ -115,7 +115,7 @@ class HeuristicStatement : public Statement {
 public:
     HeuristicStatement(LiteralId atom, int value, int priority, Potassco::Heuristic_t mod, LitVec const &body);
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
-    void output(DomainData &data, Backend &out) const override;
+    void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
     virtual ~HeuristicStatement() noexcept = default;
@@ -134,7 +134,7 @@ class EdgeStatement : public Statement {
 public:
     EdgeStatement(Symbol u, Symbol v, LitVec const &body);
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
-    void output(DomainData &data, Backend &out) const override;
+    void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
     virtual ~EdgeStatement() noexcept = default;
@@ -155,7 +155,7 @@ public:
     : tuple_(tuple)
     , lits_(lits) { }
     void translate(DomainData &data, Translator &x) override;
-    void output(DomainData &data, Backend &out) const override;
+    void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
     virtual ~WeakConstraint() noexcept = default;
@@ -171,7 +171,7 @@ class TheoryDirective : public Statement {
 public:
     TheoryDirective(LiteralId theoryLit);
     void translate(DomainData &data, Translator &x) override;
-    void output(DomainData &data, Backend &out) const override;
+    void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
     virtual ~TheoryDirective() noexcept = default;
@@ -405,7 +405,7 @@ public:
     Minimize(int priority);
     Minimize &add(LiteralId lit, Potassco::Weight_t weight);
     void translate(DomainData &data, Translator &x) override;
-    void output(DomainData &data, Backend &out) const override;
+    void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
     virtual ~Minimize();
@@ -422,7 +422,7 @@ class Symtab : public Statement {
 public:
     Symtab(Symbol symbol, LitVec &&body);
     Symtab(Symbol symbol, int value, LitVec &&body);
-    void output(DomainData &data, Backend &out) const override;
+    void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
@@ -440,7 +440,7 @@ private:
 class WeightRule : public Statement {
 public:
     WeightRule(LiteralId head, Potassco::Weight_t lower, LitUintVec &&body);
-    void output(DomainData &data, Backend &out) const override;
+    void output(DomainData &data, UBackend &out) const override;
     void print(PrintPlain out, char const *prefix) const override;
     void translate(DomainData &data, Translator &trans) override;
     void replaceDelayed(DomainData &data, LitVec &delayed) override;
@@ -464,7 +464,7 @@ public:
     BackendStatement(T const &lambda)
     : lambda_(lambda)
     { }
-    void output(DomainData &data, Backend &out) const override { lambda_(data, out); }
+    void output(DomainData &data, UBackend &out) const override { lambda_(data, out); }
     void print(PrintPlain, char const *) const override { }
     void translate(DomainData &data, Translator &trans) override {
         trans.output(data, *this);

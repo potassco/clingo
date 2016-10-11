@@ -48,7 +48,7 @@ void translate(DomainData &data, Translator &x, LitVec &lits);
 class Statement {
 public:
     virtual ~Statement() noexcept = default;
-    virtual void output(DomainData &data, Backend &out) const = 0;
+    virtual void output(DomainData &data, UBackend &out) const = 0;
     virtual void print(PrintPlain out, char const *prefix = "") const = 0;
     virtual void translate(DomainData &data, Translator &trans) = 0;
     virtual void replaceDelayed(DomainData &data, LitVec &delayed) = 0;

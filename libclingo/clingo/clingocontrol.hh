@@ -278,6 +278,7 @@ public:
     void beginAdd() override { parse(); }
     void add(clingo_ast_statement_t const &stm) override { Gringo::Input::parseStatement(*pb_, logger_, stm); }
     void endAdd() override { defs_.init(logger_); parsed = true; }
+    void registerObserver(Gringo::UBackend obs) override { out_->registerObserver(std::move(obs)); }
 
     // }}}2
 
@@ -307,8 +308,9 @@ public:
     bool verbose_               = false;
     bool parsed                 = false;
     bool grounded               = false;
-    bool incremental            = false;
+    bool incremental_           = true;
     bool configUpdate_          = false;
+    bool initialized_           = false;
 };
 
 // {{{1 declaration of ClingoModel

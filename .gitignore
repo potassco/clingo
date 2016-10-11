@@ -14,3 +14,4 @@ ReleaseScript
 x64
 libgringo/generated
 homewv.sh
+.nfs*

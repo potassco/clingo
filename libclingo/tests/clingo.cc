@@ -35,6 +35,46 @@ TEST_CASE("parse_term", "[clingo]") {
     REQUIRE(messages.size() == 0);
 }
 
+class Observer : public GroundProgramObserver {
+public:
+    Observer(std::vector<std::string> &trail)
+    : trail_(trail) { }
+
+    void init_program(bool incremental) override {
+        trail_.emplace_back(incremental ? "IP: incremental" : "IP");
+    }
+    void begin_step() override {
+        trail_.emplace_back("BS");
+    }
+    void end_step() override {
+        trail_.emplace_back("ES");
+    }
+
+    void rule(bool choice, AtomSpan head, LiteralSpan body) override {
+        std::ostringstream out;
+        out << "R: ";
+        if (choice) { out << "{"; }
+        bool comma = false;
+        for (auto &h : head) {
+            if (comma) { out << (choice ? "," : "|"); }
+            else       { comma = true; }
+            out << h;
+        }
+        if (choice) { out << "}"; }
+        out << ":-";
+        comma = false;
+        for (auto &b : body) {
+            if (comma) { out << ","; }
+            else       { comma = true; }
+            if (b > 0) { out << b; }
+            else       { out << "~" << -b; }
+        }
+        trail_.emplace_back(out.str());
+    }
+private:
+    std::vector<std::string> &trail_;
+};
+
 TEST_CASE("solving", "[clingo]") {
     SECTION("with control") {
         MessageVec messages;
@@ -477,6 +517,16 @@ TEST_CASE("solving", "[clingo]") {
         SECTION("ground callback fail") {
             ctl.add("base", {}, "a(@f()).");
             REQUIRE_THROWS_AS(ctl.ground({{"base", {}}}, [](Location, char const *, SymbolSpan, SymbolSpanCallback) { throw std::runtime_error("fail"); }), std::runtime_error);
+        }
+        SECTION("ground program observer") {
+            std::vector<std::string> trail;
+            Observer obs(trail);
+            ctl.register_observer(obs);
+            ctl.add("base", {}, "a :- not a.");
+            ctl.ground({{"base", {}}});
+            REQUIRE(ctl.solve(MCB(models)).is_unsatisfiable());
+            REQUIRE(models == ModelVec({}));
+            REQUIRE(trail == std::vector<std::string>({"IP: incremental", "BS", "R: 1:-~1", "ES"}));
         }
     }
 }

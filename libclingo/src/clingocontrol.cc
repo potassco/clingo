@@ -178,6 +178,10 @@ bool ClingoControl::update() {
         if (!clasp_->ok()) { return false; }
     }
     if (!grounded) {
+        if (!initialized_) {
+            out_->init(incremental_);
+            initialized_ = true;
+        }
         out_->beginStep();
         grounded = true;
     }
@@ -210,12 +214,12 @@ void ClingoControl::ground(Gringo::Control::GroundVec const &parts, Gringo::Cont
 
 void ClingoControl::main() {
     if (scripts_.callable("main")) {
-        out_->init(true);
+        incremental_ = true;
         clasp_->enableProgramUpdates();
         scripts_.main(*this);
     }
     else {
-        out_->init(false);
+        incremental_ = false;
         claspConfig_.releaseOptions();
         Gringo::Control::GroundVec parts;
         parts.emplace_back("base", Gringo::SymVec{});
@@ -660,7 +664,6 @@ ClingoLib::ClingoLib(Gringo::Scripts &scripts, int argc, char const * const *arg
     clasp_.ctx.setEventHandler(this);
     Clasp::Asp::LogicProgram* lp = &clasp_.startAsp(claspConfig_, true);
     parse({}, grOpts_, lp, false);
-    out_->init(true);
 }
 
 
