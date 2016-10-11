@@ -155,7 +155,7 @@ void Rule::translate(DomainData &data, Translator &x) {
         x.output(data, *this);
     }
 }
-void Rule::output(DomainData &data, Backend &out) const {
+void Rule::output(DomainData &data, UBackend &out) const {
     BackendAtomVec &hd = data.tempAtoms();
     for (auto &x : head_) {
         Potassco::Lit_t lit = call(data, x, &Literal::uid);
@@ -164,7 +164,7 @@ void Rule::output(DomainData &data, Backend &out) const {
     }
     BackendLitVec &bd = data.tempLits();
     for (auto &x : body_) { bd.emplace_back(call(data, x, &Literal::uid)); }
-    outputRule(out, choice_, hd, bd);
+    outputRule(*out, choice_, hd, bd);
 }
 
 void Rule::replaceDelayed(DomainData &data, LitVec &delayed) {
@@ -195,9 +195,9 @@ void External::translate(DomainData &data, Translator &x) {
     x.output(data, *this);
 }
 
-void External::output(DomainData &data, Backend &out) const {
+void External::output(DomainData &data, UBackend &out) const {
     Atom_t head = call(data, head_, &Literal::uid);
-    out.external(head, type_);
+    out->external(head, type_);
 }
 
 void External::replaceDelayed(DomainData &data, LitVec &) {
@@ -231,7 +231,7 @@ void ShowStatement::translate(DomainData &data, Translator &x) {
     x.showTerm(data, term_, csp_, std::move(body_));
 }
 
-void ShowStatement::output(DomainData &, Backend &) const {
+void ShowStatement::output(DomainData &, UBackend &) const {
     // Show statements are taken care of in the translator.
 }
 
@@ -253,10 +253,10 @@ void ProjectStatement::translate(DomainData &data, Translator &x) {
     x.output(data, *this);
 }
 
-void ProjectStatement::output(DomainData &data, Backend &out) const {
+void ProjectStatement::output(DomainData &data, UBackend &out) const {
     BackendAtomVec atoms;
     atoms.emplace_back(call(data, atom_, &Literal::uid));
-    out.project(Potassco::toSpan(atoms));
+    out->project(Potassco::toSpan(atoms));
 }
 
 void ProjectStatement::replaceDelayed(DomainData &, LitVec &) {
@@ -287,13 +287,13 @@ void HeuristicStatement::translate(DomainData &data, Translator &x) {
     x.output(data, *this);
 }
 
-void HeuristicStatement::output(DomainData &data, Backend &out) const {
+void HeuristicStatement::output(DomainData &data, UBackend &out) const {
     auto uid = call(data, atom_, &Literal::uid);
     BackendLitVec bd;
     for (auto &lit : body_) {
         bd.emplace_back(call(data, lit, &Literal::uid));
     }
-    out.heuristic(uid, mod_, value_, priority_, Potassco::toSpan(bd));
+    out->heuristic(uid, mod_, value_, priority_, Potassco::toSpan(bd));
 }
 
 void HeuristicStatement::replaceDelayed(DomainData &data, LitVec &delayed) {
@@ -325,10 +325,10 @@ void EdgeStatement::translate(DomainData &data, Translator &x) {
     x.output(data, *this);
 }
 
-void EdgeStatement::output(DomainData &data, Backend &out) const {
+void EdgeStatement::output(DomainData &data, UBackend &out) const {
     BackendLitVec bd;
     for (auto &x : body_) { bd.emplace_back(call(data, x, &Literal::uid)); }
-    out.acycEdge(uidU_, uidV_, Potassco::toSpan(bd));
+    out->acycEdge(uidU_, uidV_, Potassco::toSpan(bd));
 }
 
 void EdgeStatement::replaceDelayed(DomainData &data, LitVec &delayed) {
@@ -354,7 +354,7 @@ void TheoryDirective::translate(DomainData &data, Translator &x) {
     call(data, theoryLit_, &Literal::translate, x);
 }
 
-void TheoryDirective::output(DomainData &, Backend &) const {
+void TheoryDirective::output(DomainData &, UBackend &) const {
     // Note: taken care of in translate
 }
 
@@ -380,7 +380,7 @@ void WeakConstraint::print(PrintPlain out, char const *prefix) const {
     out << "]\n";
 }
 
-void WeakConstraint::output(DomainData &, Backend &) const {
+void WeakConstraint::output(DomainData &, UBackend &) const {
     throw std::logic_error("WeakConstraint::output: must not be called");
 }
 
@@ -858,13 +858,13 @@ void Symtab::translate(DomainData &data, Translator &x) {
     x.output(data, *this);
 }
 
-void Symtab::output(DomainData &data, Backend &out) const {
+void Symtab::output(DomainData &data, UBackend &out) const {
     BackendLitVec &bd = data.tempLits();
     for (auto &x : body_) { bd.emplace_back(call(data, x, &Literal::uid)); }
     std::ostringstream oss;
     oss << symbol_;
     if (csp_) { oss << "=" << value_; }
-    out.output(Potassco::toSpan(oss.str()), Potassco::toSpan(bd));
+    out->output(Potassco::toSpan(oss.str()), Potassco::toSpan(bd));
 }
 
 void Symtab::replaceDelayed(DomainData &data, LitVec &delayed) {
@@ -899,12 +899,12 @@ void Minimize::print(PrintPlain out, char const *prefix) const {
     out << "}.\n";
 }
 
-void Minimize::output(DomainData &data, Backend &x) const {
+void Minimize::output(DomainData &data, UBackend &x) const {
     BackendLitWeightVec &body = data.tempWLits();
     for (auto &y : lits_) {
         body.push_back({call(data, y.first, &Literal::uid), y.second});
     }
-    x.minimize(priority_, Potassco::toSpan(body));
+    x->minimize(priority_, Potassco::toSpan(body));
 }
 
 void Minimize::replaceDelayed(DomainData &data, LitVec &delayed) {
@@ -948,11 +948,11 @@ void WeightRule::translate(DomainData &data, Translator &x) {
     x.output(data, *this);
 }
 
-void WeightRule::output(DomainData &data, Backend &out) const {
+void WeightRule::output(DomainData &data, UBackend &out) const {
     BackendLitWeightVec lits;
     for (auto &x : body_) { lits.push_back({call(data, x.first, &Literal::uid), static_cast<Potassco::Weight_t>(x.second)}); }
     BackendAtomVec heads({static_cast<Potassco::Atom_t>(call(data, head_, &Literal::uid))});
-    outputRule(out, false, heads, lower_, lits);
+    outputRule(*out, false, heads, lower_, lits);
 }
 
 void WeightRule::replaceDelayed(DomainData &data, LitVec &delayed) {

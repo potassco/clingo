@@ -38,7 +38,7 @@ public:
     DelayedStatement(LiteralId lit)
     : lit_(lit)
     { }
-    void output(DomainData &, Backend &) const override { }
+    void output(DomainData &, UBackend &) const override { }
     void print(PrintPlain out, char const *prefix) const override {
         auto lit = call(out.domain, lit_, &Literal::delayedLit).first;
         out << prefix;
@@ -65,7 +65,7 @@ public:
     TranslateStatement(T const &lambda)
     : lambda_(lambda)
     { }
-    void output(DomainData &, Backend &) const override { }
+    void output(DomainData &, UBackend &) const override { }
     void print(PrintPlain, char const *) const override { }
     void translate(DomainData &data, Translator &trans) override {
         trans.output(data, *this);
@@ -88,9 +88,9 @@ class EndStepStatement : public Statement {
 public:
     EndStepStatement(OutputPredicates const &outPreds, bool solve, Logger &log)
     : outPreds_(outPreds), log_(log), solve_(solve) { }
-    void output(DomainData &, Backend &out) const override {
+    void output(DomainData &, UBackend &out) const override {
         if (solve_) {
-            out.endStep();
+            out->endStep();
         }
     }
     void print(PrintPlain out, char const *prefix) const override {
@@ -144,7 +144,7 @@ BackendOutput::BackendOutput(UBackend &&out)
 : out_(std::move(out)) { }
 
 void BackendOutput::output(DomainData &data, Statement &stm) {
-    stm.output(data, *out_);
+    stm.output(data, out_);
 }
 
 // {{{1 definition of OutputBase
@@ -213,7 +213,7 @@ UAbstractOutput OutputBase::fromBackend(UBackend &&backend, OutputOptions opts) 
 }
 
 void OutputBase::init(bool incremental) {
-    backendLambda(data, *out_, [incremental](DomainData &, Backend &out) { out.initProgram(incremental); });
+    backendLambda(data, *out_, [incremental](DomainData &, UBackend &out) { out->initProgram(incremental); });
 }
 
 void OutputBase::output(Statement &x) {
@@ -224,7 +224,7 @@ void OutputBase::output(Statement &x) {
 void OutputBase::flush() {
     for (auto &lit : delayed_) { DelayedStatement(lit).passTo(data, *out_); }
     delayed_.clear();
-    backendLambda(data, *out_, [](DomainData &data, Backend &out) {
+    backendLambda(data, *out_, [](DomainData &data, UBackend &out) {
         auto getCond = [&data](Id_t elem) {
             TheoryData &td = data.theory();
             BackendLitVec bc;
@@ -233,12 +233,12 @@ void OutputBase::flush() {
             }
             return bc;
         };
-        Gringo::output(data.theory().data(), out, getCond);
+        Gringo::output(data.theory().data(), *out, getCond);
     });
 }
 
 void OutputBase::beginStep() {
-    backendLambda(data, *out_, [](DomainData &, Backend &out) { out.beginStep(); });
+    backendLambda(data, *out_, [](DomainData &, UBackend &out) { out->beginStep(); });
 }
 
 void OutputBase::endStep(bool solve, Logger &log) {
@@ -333,8 +333,112 @@ std::pair<Id_t, Id_t> OutputBase::simplify(AssignmentLookup assignment) {
 
 Backend *OutputBase::backend() {
     Backend *backend = nullptr;
-    backendLambda(data, *out_, [&backend](DomainData &, Backend &out) { backend = &out; });
+    backendLambda(data, *out_, [&backend](DomainData &, UBackend &out) { backend = out.get(); });
     return backend;
+}
+
+namespace {
+
+class BackendTee : public Potassco::AbstractProgram {
+public:
+    using Head_t = Potassco::Head_t;
+    using Value_t = Potassco::Value_t;
+    using Heuristic_t = Potassco::Heuristic_t;
+    using IdSpan = Potassco::IdSpan;
+    using AtomSpan = Potassco::AtomSpan;
+    using LitSpan = Potassco::LitSpan;
+    using WeightLitSpan = Potassco::WeightLitSpan;
+
+    BackendTee(UBackend a, UBackend b) : a_(std::move(a)), b_(std::move(b)) { }
+    ~BackendTee() override = default;
+
+    void initProgram(bool incremental) override {
+        a_->initProgram(incremental);
+        b_->initProgram(incremental);
+    }
+    void beginStep() override {
+        a_->beginStep();
+        b_->beginStep();
+    }
+    void endStep() override {
+        a_->endStep();
+        b_->endStep();
+    }
+
+    void rule(Head_t ht, const AtomSpan& head, const LitSpan& body) override {
+        a_->rule(ht, head, body);
+        b_->rule(ht, head, body);
+    }
+    void rule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body) override {
+        a_->rule(ht, head, bound, body);
+        b_->rule(ht, head, bound, body);
+    }
+    void minimize(Weight_t prio, const WeightLitSpan& lits) override {
+        a_->minimize(prio, lits);
+        b_->minimize(prio, lits);
+    }
+
+    void project(const AtomSpan& atoms) override {
+        a_->project(atoms);
+        b_->project(atoms);
+    }
+    void output(const StringSpan& str, const LitSpan& condition) override {
+        a_->output(str, condition);
+        b_->output(str, condition);
+    }
+    void external(Atom_t a, Value_t v) override {
+        a_->external(a, v);
+        b_->external(a, v);
+    }
+    void assume(const LitSpan& lits) override {
+        a_->assume(lits);
+        b_->assume(lits);
+    }
+    void heuristic(Atom_t a, Heuristic_t t, int bias, unsigned prio, const LitSpan& condition) override {
+        a_->heuristic(a, t, bias, prio, condition);
+        b_->heuristic(a, t, bias, prio, condition);
+    }
+    void acycEdge(int s, int t, const LitSpan& condition) override {
+        a_->acycEdge(s, t, condition);
+        b_->acycEdge(s, t, condition);
+    }
+
+    void theoryTerm(Id_t termId, int number) override {
+        a_->theoryTerm(termId, number);
+        b_->theoryTerm(termId, number);
+    }
+    void theoryTerm(Id_t termId, const StringSpan& name) override {
+        a_->theoryTerm(termId, name);
+        b_->theoryTerm(termId, name);
+    }
+    void theoryTerm(Id_t termId, int cId, const IdSpan& args) override {
+        a_->theoryTerm(termId, cId, args);
+        b_->theoryTerm(termId, cId, args);
+    }
+    void theoryElement(Id_t elementId, const IdSpan& terms, const LitSpan& cond) override {
+        a_->theoryElement(elementId, terms, cond);
+        b_->theoryElement(elementId, terms, cond);
+    }
+    void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements) override {
+        a_->theoryAtom(atomOrZero, termId, elements);
+        b_->theoryAtom(atomOrZero, termId, elements);
+    }
+    void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements, Id_t op, Id_t rhs) override {
+        a_->theoryAtom(atomOrZero, termId, elements, op, rhs);
+        b_->theoryAtom(atomOrZero, termId, elements, op, rhs);
+    }
+
+private:
+    UBackend a_;
+    UBackend b_;
+};
+
+} // namespace
+
+void OutputBase::registerObserver(UBackend prg) {
+    backendLambda(data, *out_, [&prg](DomainData &, UBackend &out) {
+        if (prg) { out = gringo_make_unique<BackendTee>(std::move(prg), std::move(out)); }
+    });
 }
 
 // }}}1

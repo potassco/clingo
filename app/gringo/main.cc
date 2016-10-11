@@ -141,6 +141,10 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
             parsed = false;
         }
         if (!grounded) {
+            if (!initialized_) {
+                initialized_ = true;
+                out.init(incremental_);
+            }
             out.beginStep();
             grounded = true;
         }
@@ -198,6 +202,9 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     void endAdd() override {
         defs.init(logger_);
     }
+    void registerObserver(std::unique_ptr<Potassco::AbstractProgram> prg) override {
+        out.registerObserver(std::move(prg));
+    }
     Gringo::SolveFuture *solveAsync(ModelHandler, FinishHandler, Assumptions &&) override { throw std::runtime_error("asynchronous solving not supported"); }
     Potassco::AbstractStatistics *statistics() override { throw std::runtime_error("statistics not supported (yet)"); }
     void assignExternal(Gringo::Symbol ext, Potassco::Value_t val) override {
@@ -232,6 +239,8 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     std::unique_ptr<Gringo::Input::NongroundProgramBuilder> builder;
     bool                                   parsed = false;
     bool                                   grounded = false;
+    bool initialized_ = false;
+    bool incremental_ = true;
 };
 #undef LOG
 
@@ -370,13 +379,13 @@ struct GringoApp : public ProgramOptions::Application {
         using namespace Gringo;
         IncrementalControl inc(out, input_, grOpts_);
         if (inc.scripts.callable("main")) {
-            out.init(true);
+            inc.incremental_ = true;
             inc.scripts.main(inc);
         }
         else {
-            out.init(false);
             Gringo::Control::GroundVec parts;
             parts.emplace_back("base", SymVec{});
+            inc.incremental_ = false;
             inc.ground(parts, nullptr);
             inc.solve(nullptr, {});
         }

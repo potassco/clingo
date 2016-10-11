@@ -852,6 +852,107 @@ public:
     virtual ~Propagator() noexcept = default;
 };
 
+// {{{1 ground program observer
+
+using IdSpan = Span<id_t>;
+using AtomSpan = Span<atom_t>;
+
+class CLINGO_VISIBILITY_DEFAULT WeightedLiteral {
+public:
+    WeightedLiteral(clingo_literal_t lit, clingo_weight_t weight)
+    : wlit_{lit, weight} { }
+    explicit WeightedLiteral(clingo_weighted_literal_t wlit)
+    : wlit_(wlit) { }
+    literal_t literal() const { return wlit_.literal; }
+    weight_t weight() const { return wlit_.weight; }
+    clingo_weighted_literal_t const &to_c() const { return wlit_; }
+    clingo_weighted_literal_t &to_c() { return wlit_; }
+private:
+    clingo_weighted_literal_t wlit_;
+};
+using WeightedLiteralSpan = Span<WeightedLiteral>;
+
+enum class HeuristicType : clingo_heuristic_type_t {
+    Level  = clingo_heuristic_type_level,
+    Sign   = clingo_heuristic_type_sign,
+    Factor = clingo_heuristic_type_factor,
+    Init   = clingo_heuristic_type_init,
+    True   = clingo_heuristic_type_true,
+    False  = clingo_heuristic_type_false
+};
+
+inline std::ostream &operator<<(std::ostream &out, HeuristicType t) {
+    switch (t) {
+        case HeuristicType::Level:  { out << "Level"; break; }
+        case HeuristicType::Sign:   { out << "Sign"; break; }
+        case HeuristicType::Factor: { out << "Factor"; break; }
+        case HeuristicType::Init:   { out << "Init"; break; }
+        case HeuristicType::True:   { out << "True"; break; }
+        case HeuristicType::False:  { out << "False"; break; }
+    }
+    return out;
+}
+
+enum class ExternalType {
+    Free    = clingo_external_type_free,
+    True    = clingo_external_type_true,
+    False   = clingo_external_type_false,
+    Release = clingo_external_type_release
+};
+
+inline std::ostream &operator<<(std::ostream &out, ExternalType t) {
+    switch (t) {
+        case ExternalType::Free:    { out << "Free"; break; }
+        case ExternalType::True:    { out << "True"; break; }
+        case ExternalType::False:   { out << "False"; break; }
+        case ExternalType::Release: { out << "Release"; break; }
+    }
+    return out;
+}
+
+class CLINGO_VISIBILITY_DEFAULT GroundProgramObserver {
+public:
+    virtual void init_program(bool incremental);
+    virtual void begin_step();
+    virtual void end_step();
+
+    virtual void rule(bool choice, AtomSpan head, LiteralSpan body);
+    virtual void weight_rule(bool choice, AtomSpan head, weight_t lower_bound, WeightedLiteralSpan body);
+    virtual void minimize(weight_t priority, WeightedLiteralSpan literals);
+    virtual void project(AtomSpan atoms);
+    virtual void external(atom_t atom, ExternalType type);
+    virtual void assume(LiteralSpan literals);
+    virtual void heuristic(atom_t atom, HeuristicType type, int bias, unsigned priority, LiteralSpan condition);
+    virtual void acyc_edge(int node_u, int node_v, LiteralSpan condition);
+
+    virtual void theory_term_number(id_t term_id, int number);
+    virtual void theory_term_string(id_t term_id, char const *name);
+    virtual void theory_term_compound(id_t term_id, int name_id_or_type, IdSpan arguments);
+    virtual void theory_element(id_t element_id, IdSpan terms, LiteralSpan condition);
+    virtual void theory_atom(id_t atom_id_or_zero, id_t term_id, IdSpan elements);
+    virtual void theory_atom_with_guard(id_t atom_id_or_zero, id_t term_id, IdSpan elements, id_t operator_id, id_t right_hand_side_id);
+};
+
+inline void GroundProgramObserver::init_program(bool) { }
+inline void GroundProgramObserver::begin_step() { }
+inline void GroundProgramObserver::end_step() { }
+
+inline void GroundProgramObserver::rule(bool, AtomSpan, LiteralSpan) { }
+inline void GroundProgramObserver::weight_rule(bool, AtomSpan, weight_t, WeightedLiteralSpan) { }
+inline void GroundProgramObserver::minimize(weight_t, WeightedLiteralSpan) { }
+inline void GroundProgramObserver::project(AtomSpan) { }
+inline void GroundProgramObserver::external(atom_t, ExternalType) { }
+inline void GroundProgramObserver::assume(LiteralSpan) { }
+inline void GroundProgramObserver::heuristic(atom_t, HeuristicType, int, unsigned, LiteralSpan) { }
+inline void GroundProgramObserver::acyc_edge(int, int, LiteralSpan) { }
+
+inline void GroundProgramObserver::theory_term_number(id_t, int) { }
+inline void GroundProgramObserver::theory_term_string(id_t, char const *) { }
+inline void GroundProgramObserver::theory_term_compound(id_t, int, IdSpan) { }
+inline void GroundProgramObserver::theory_element(id_t, IdSpan, LiteralSpan) { }
+inline void GroundProgramObserver::theory_atom(id_t, id_t, IdSpan) { }
+inline void GroundProgramObserver::theory_atom_with_guard(id_t, id_t, IdSpan, id_t, id_t) { }
+
 // {{{1 symbolic literal
 
 class CLINGO_VISIBILITY_DEFAULT SymbolicLiteral {
@@ -1665,62 +1766,7 @@ CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Statement 
 
 } // namespace AST
 
-// {{{1 control
-
-enum class HeuristicType : clingo_heuristic_type_t {
-    Level  = clingo_heuristic_type_level,
-    Sign   = clingo_heuristic_type_sign,
-    Factor = clingo_heuristic_type_factor,
-    Init   = clingo_heuristic_type_init,
-    True   = clingo_heuristic_type_true,
-    False  = clingo_heuristic_type_false
-};
-
-inline std::ostream &operator<<(std::ostream &out, HeuristicType t) {
-    switch (t) {
-        case HeuristicType::Level:  { out << "Level"; break; }
-        case HeuristicType::Sign:   { out << "Sign"; break; }
-        case HeuristicType::Factor: { out << "Factor"; break; }
-        case HeuristicType::Init:   { out << "Init"; break; }
-        case HeuristicType::True:   { out << "True"; break; }
-        case HeuristicType::False:  { out << "False"; break; }
-    }
-    return out;
-}
-
-enum class ExternalType {
-    Free    = clingo_external_type_free,
-    True    = clingo_external_type_true,
-    False   = clingo_external_type_false,
-    Release = clingo_external_type_release
-};
-
-inline std::ostream &operator<<(std::ostream &out, ExternalType t) {
-    switch (t) {
-        case ExternalType::Free:    { out << "Free"; break; }
-        case ExternalType::True:    { out << "True"; break; }
-        case ExternalType::False:   { out << "False"; break; }
-        case ExternalType::Release: { out << "Release"; break; }
-    }
-    return out;
-}
-
-class CLINGO_VISIBILITY_DEFAULT WeightedLiteral {
-public:
-    WeightedLiteral(clingo_literal_t lit, clingo_weight_t weight)
-    : wlit_{lit, weight} { }
-    explicit WeightedLiteral(clingo_weighted_literal_t wlit)
-    : wlit_(wlit) { }
-    literal_t literal() const { return wlit_.literal; }
-    weight_t weight() const { return wlit_.weight; }
-    clingo_weighted_literal_t const &to_c() const { return wlit_; }
-    clingo_weighted_literal_t &to_c() { return wlit_; }
-private:
-    clingo_weighted_literal_t wlit_;
-};
-
-using AtomSpan = Span<atom_t>;
-using WeightedLiteralSpan = Span<WeightedLiteral>;
+// {{{1 backend
 
 class CLINGO_VISIBILITY_DEFAULT Backend {
 public:
@@ -1993,6 +2039,7 @@ public:
     SymbolicAtoms symbolic_atoms() const;
     TheoryAtoms theory_atoms() const;
     void register_propagator(Propagator &propagator, bool sequential = false);
+    void register_observer(GroundProgramObserver &observer);
     void cleanup();
     bool has_const(char const *name) const;
     Symbol get_const(char const *name) const;

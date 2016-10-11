@@ -83,6 +83,7 @@ public:
     SymVec &tempVals() { tempVals_.clear(); return tempVals_; }
     LitVec &tempLits() { tempLits_.clear(); return tempLits_; }
     Backend *backend();
+    void registerObserver(std::unique_ptr<Potassco::AbstractProgram> prg);
     void reset();
 private:
     UAbstractOutput fromFormat(std::ostream &out, OutputFormat format, OutputOptions opts);
