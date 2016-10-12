@@ -19,7 +19,7 @@ For a summary of all options, run:
 ./main.py --help
 
 The script main.py requires the clingo Python library shipped with clingo (see
-http://potassco.sourceforge.net).
+https://potassco.org).
 
 Examples invocations:
 

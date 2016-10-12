@@ -1992,7 +1992,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_value_get(clingo_statistics_t *
 //! @warning There might still be changes to this part of the API and there is not much documentation yet.
 //! In its current form the interface is rather large
 //! but has the advantage that the structure of a logic program is (hopefully) self-explanatory.
-//! The API could also be much reduced by, for example, just providing one node type as done in [clingo's python API](http://potassco.sourceforge.net/doc/pyclingo/clingo.ast.html).
+//! The API could also be much reduced by, for example, just providing one node type as done in [clingo's python API](https://potassco.org/clingo/python-api/current/clingo.html).
 //! [Feedback would be very welcome!](https://github.com/potassco/clingo/issues)
 //!
 //! For an example, see @ref ast.c.

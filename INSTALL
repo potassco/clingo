@@ -103,7 +103,7 @@ python script. The module itself is documented using python's docstrings.
     build/release/python/clingo.{so,dll,dylib}
 
 The documentation for the clingo module is available online:
-    http://potassco.sourceforge.net/clingo.html
+    https://potassco.org/clingo/
 
 Building the Lua Module
 -----------------------
@@ -184,7 +184,7 @@ Relevant parts of the configuration:
     WITH_THREADS = 'posix'
 
 Note that the clang and python versions provided by the latest Xcode release
-can be used to compile gringo/clingo.  The binaries provided on the sourceforge
+can be used to compile gringo/clingo.  The binaries provided on the github
 page are built using these.
 
 
@@ -198,8 +198,8 @@ http://gcc.gnu.org/
 http://libcxx.llvm.org/
 http://llvm.org/
 http://mingw-w64.sourceforge.net/
-http://potassco.sourceforge.net/
-http://potassco.sourceforge.net/clingo.html
+https://potassco.org/
+https://potassco.org/clingo/
 https://github.com/potassco/
 https://github.com/potassco/clingo
 http://re2c.org/
