@@ -520,8 +520,8 @@ void ClaspApp::run(ClaspFacade& clasp) {
 
 void ClaspApp::printHelp(const ProgramOptions::OptionContext& root) {
 	ClaspAppBase::printHelp(root);
-	printf("\nclasp is part of Potassco: %s\n", "http://potassco.sourceforge.net/#clasp");
-	printf("Get help/report bugs via : http://sourceforge.net/projects/potassco/support\n");
+	printf("\nclasp is part of Potassco: %s\n", "https://potassco.org/clasp/");
+	printf("Get help/report bugs via : %s\n", "https://potassco.org/support/");
 	fflush(stdout);
 }
 /////////////////////////////////////////////////////////////////////////////////////////
