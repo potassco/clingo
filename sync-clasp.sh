@@ -1,38 +1,29 @@
 #!/bin/bash
+pushd .
+tmpdir=tmp_clasp
+git clone https://github.com/potassco/clasp.git  --branch 3.2.x --single-branch $tmpdir
+cd $tmpdir
+commit=$(git log -1 --format=%h)
 
-baseurl="https://svn.cs.uni-potsdam.de/svn/reposWV/Privat/BenjaminKaufmann/trunk/clasp3.v2"
+# program options
+cp -r libprogram_opts/src          ../libprogram_opts
+cp -r libprogram_opts/program_opts ../libprogram_opts
 
-# sync libprogram_opts
-(
-    cd libprogram_opts
-    svn export --force "$baseurl/libprogram_opts/src" src
-    svn export --force "$baseurl/libprogram_opts/program_opts" program_opts
-)
+# libclasp
+cp -r libclasp/src   ../libclasp/
+cp -r libclasp/clasp ../libclasp/
 
-# sync clasp app and lpconvert app
-(
-    cd app
-    svn export --non-recursive --force "$baseurl/app/" clingo/src/clasp
-    rm -f clingo/src/clasp/main.cpp
-    rm -f clingo/src/clasp/CMakeLists.txt
-    svn export --non-recursive --force "$baseurl/app/lpconvert" lpconvert
-)
+# libclasp
+cp -r liblp/potassco ../liblp
+cp -r liblp/src      ../liblp
+cp -r liblp/tests    ../liblp
 
-# sync libclasp
-(
-    cd libclasp
-    svn export --force "$baseurl/libclasp/src" src
-    svn export --force "$baseurl/libclasp/clasp" clasp
-)
-# sync liblp
-(
-    cd liblp
-    svn export --force "$baseurl/liblp/src" src
-    svn export --force "$baseurl/liblp/potassco" potassco
-    svn export --force "$baseurl/liblp/tests" tests
-)
+# applications
+cp    app/clasp_app.* ../app/clingo/src/clasp
+cp -r app/lpconvert   ../app/
 
-version=$(svn info "$baseurl" | grep "Last Changed Rev:" | colrm 1 18)
-#sed -i "s/\\\$Revision\\\$/$version/" libclasp/clasp/clasp_facade.h
-sed -i "s/#define CLASP_VERSION \"\(.*\)\"/#define CLASP_VERSION \"\1-R$version\"/g" libclasp/clasp/clasp_facade.h
+popd
+
+sed -i "s/#define CLASP_VERSION \"\(.*\)\"/#define CLASP_VERSION \"\1-R$commit\"/g" libclasp/clasp/clasp_facade.h
+rm -rf $tmpdir
 
