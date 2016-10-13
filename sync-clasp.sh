@@ -1,7 +1,7 @@
 #!/bin/bash
 pushd .
 tmpdir=tmp_clasp
-git clone https://github.com/potassco/clasp.git  --branch 3.2.x --single-branch $tmpdir
+git clone https://github.com/potassco/clasp.git  --branch master --single-branch $tmpdir
 cd $tmpdir
 commit=$(git log -1 --format=%h)
 

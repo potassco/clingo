@@ -25,7 +25,7 @@
 #endif
 
 #if !defined(CLASP_VERSION)
-#define CLASP_VERSION "3.2.x-R3fe1afe"
+#define CLASP_VERSION "3.2.x-Rfeb5e87"
 #endif
 #if !defined(CLASP_LEGAL)
 #define CLASP_LEGAL \
