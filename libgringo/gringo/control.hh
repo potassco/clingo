@@ -230,6 +230,7 @@ struct clingo_control {
     virtual Gringo::SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&assumptions) = 0;
     virtual Gringo::SolveIter *solveIter(Assumptions &&assumptions) = 0;
     virtual void interrupt() = 0;
+    virtual void *claspFacade() = 0;
     virtual void add(std::string const &name, Gringo::FWStringVec const &params, std::string const &part) = 0;
     virtual void load(std::string const &filename) = 0;
     virtual Gringo::Symbol getConst(std::string const &name) = 0;

@@ -193,6 +193,9 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     void interrupt() override {
         throw std::runtime_error("interrupting not supported in gringo");
     }
+    void *claspFacade() override {
+        return nullptr;
+    }
     void beginAdd() override {
         parse();
     }
