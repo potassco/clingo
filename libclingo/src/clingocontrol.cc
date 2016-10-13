@@ -654,7 +654,7 @@ void ClingoSolveFuture::cancel() { future.cancel(); }
 ClingoLib::ClingoLib(Gringo::Scripts &scripts, int argc, char const * const *argv, Gringo::Logger::Printer printer, unsigned messageLimit)
         : ClingoControl(scripts, true, &clasp_, claspConfig_, nullptr, nullptr, printer, messageLimit) {
     using namespace ProgramOptions;
-    OptionContext allOpts("<pyclingo>");
+    OptionContext allOpts("<libclingo>");
     initOptions(allOpts);
     ParsedValues values = parseCommandArray(argv, argc, allOpts, false, parsePositional);
     ParsedOptions parsed;
