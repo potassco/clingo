@@ -32,15 +32,16 @@ fi
 mkdir -p "release-${VERSION}"
 cd "release-${VERSION}"
 
-[[ -e ${SRC} ]] || git clone --branch v5.0.0 --single-branch git@github.com:potassco/clingo ${SRC}
+[[ -e ${SRC} ]] || git clone --branch "v${VERSION}" --single-branch git@github.com:potassco/clingo ${SRC}
 rm -rf ${SRC}/{.clang_complete,.ycm_extra_conf.py,scratch,gource.sh,python.supp,TODO,sync-clasp.sh,release.sh}
 
-cat "${SRC}/README" > README 
+cat "${SRC}/README.md" > README 
 echo >> README
 sed -e '1,1s/^/Changes in /' -e '1,1s/$/:\n/' -e '2,${/^[^ ]/,$d}' "${SRC}/CHANGES" >> README
 
 function copy_files() {
-    rsync "${SRC}/"{CHANGES,COPYING,README} "$2"
+    rsync "${SRC}/"{CHANGES,COPYING} "$2"
+    rsync "${SRC}/README.md" "$2/README"
     rsync -r "${SRC}/examples/" "$2/examples"
     if [[ ${1} = "zip" ]]; then
         zip -r "${2}.zip" "${2}"
