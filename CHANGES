@@ -1,3 +1,9 @@
+clingo 5.1.0
+  * update to clasp 3.2.1
+  * add interface to add variables during propagation
+  * add interface to inspect ground rules (C/C++ only)
+  * add experimental interface to access clasp facade (C/C++ only)
+  * fixed smodels output (--output=smodels)
 clingo 5.0.0
   * cleanup of python and lua API (breaks backwards compatibility)
   * added new aspif output format replacing the old smodels format
