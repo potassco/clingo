@@ -1,0 +1,296 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseScript|Win32">
+      <Configuration>ReleaseScript</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseScript|x64">
+      <Configuration>ReleaseScript</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\libclasp\src\asp_preprocessor.cpp" />
+    <ClCompile Include="..\..\libclasp\src\cb_enumerator.cpp" />
+    <ClCompile Include="..\..\libclasp\src\clasp_facade.cpp" />
+    <ClCompile Include="..\..\libclasp\src\clasp_options.cpp" />
+    <ClCompile Include="..\..\libclasp\src\clasp_output.cpp" />
+    <ClCompile Include="..\..\libclasp\src\clause.cpp" />
+    <ClCompile Include="..\..\libclasp\src\clingo.cpp" />
+    <ClCompile Include="..\..\libclasp\src\constraint.cpp" />
+    <ClCompile Include="..\..\libclasp\src\dependency_graph.cpp" />
+    <ClCompile Include="..\..\libclasp\src\enumerator.cpp" />
+    <ClCompile Include="..\..\libclasp\src\heuristics.cpp" />
+    <ClCompile Include="..\..\libclasp\src\logic_program.cpp" />
+    <ClCompile Include="..\..\libclasp\src\logic_program_types.cpp" />
+    <ClCompile Include="..\..\libclasp\src\lookahead.cpp" />
+    <ClCompile Include="..\..\libclasp\src\minimize_constraint.cpp" />
+    <ClCompile Include="..\..\libclasp\src\model_enumerators.cpp" />
+    <ClCompile Include="..\..\libclasp\src\parallel_solve.cpp" />
+    <ClCompile Include="..\..\libclasp\src\parser.cpp" />
+    <ClCompile Include="..\..\libclasp\src\program_builder.cpp" />
+    <ClCompile Include="..\..\libclasp\src\satelite.cpp" />
+    <ClCompile Include="..\..\libclasp\src\shared_context.cpp" />
+    <ClCompile Include="..\..\libclasp\src\solver.cpp" />
+    <ClCompile Include="..\..\libclasp\src\solver_strategies.cpp" />
+    <ClCompile Include="..\..\libclasp\src\solver_types.cpp" />
+    <ClCompile Include="..\..\libclasp\src\solve_algorithms.cpp" />
+    <ClCompile Include="..\..\libclasp\src\statistics.cpp" />
+    <ClCompile Include="..\..\libclasp\src\timer.cpp" />
+    <ClCompile Include="..\..\libclasp\src\unfounded_check.cpp" />
+    <ClCompile Include="..\..\libclasp\src\weight_constraint.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\libclasp\clasp\asp_preprocessor.h" />
+    <ClInclude Include="..\..\libclasp\clasp\cb_enumerator.h" />
+    <ClInclude Include="..\..\libclasp\clasp\claspfwd.h" />
+    <ClInclude Include="..\..\libclasp\clasp\clasp_facade.h" />
+    <ClInclude Include="..\..\libclasp\clasp\clause.h" />
+    <ClInclude Include="..\..\libclasp\clasp\clingo.h" />
+    <ClInclude Include="..\..\libclasp\clasp\cli\clasp_options.h" />
+    <ClInclude Include="..\..\libclasp\clasp\cli\clasp_output.h" />
+    <ClInclude Include="..\..\libclasp\clasp\cli\clifwd.h" />
+    <ClInclude Include="..\..\libclasp\clasp\constraint.h" />
+    <ClInclude Include="..\..\libclasp\clasp\dependency_graph.h" />
+    <ClInclude Include="..\..\libclasp\clasp\enumerator.h" />
+    <ClInclude Include="..\..\libclasp\clasp\heuristics.h" />
+    <ClInclude Include="..\..\libclasp\clasp\literal.h" />
+    <ClInclude Include="..\..\libclasp\clasp\logic_program.h" />
+    <ClInclude Include="..\..\libclasp\clasp\logic_program_types.h" />
+    <ClInclude Include="..\..\libclasp\clasp\lookahead.h" />
+    <ClInclude Include="..\..\libclasp\clasp\minimize_constraint.h" />
+    <ClInclude Include="..\..\libclasp\clasp\model_enumerators.h" />
+    <ClInclude Include="..\..\libclasp\clasp\parallel_solve.h" />
+    <ClInclude Include="..\..\libclasp\clasp\parser.h" />
+    <ClInclude Include="..\..\libclasp\clasp\pod_vector.h" />
+    <ClInclude Include="..\..\libclasp\clasp\program_builder.h" />
+    <ClInclude Include="..\..\libclasp\clasp\satelite.h" />
+    <ClInclude Include="..\..\libclasp\clasp\shared_context.h" />
+    <ClInclude Include="..\..\libclasp\clasp\solver.h" />
+    <ClInclude Include="..\..\libclasp\clasp\solver_strategies.h" />
+    <ClInclude Include="..\..\libclasp\clasp\solver_types.h" />
+    <ClInclude Include="..\..\libclasp\clasp\solve_algorithms.h" />
+    <ClInclude Include="..\..\libclasp\clasp\statistics.h" />
+    <ClInclude Include="..\..\libclasp\clasp\unfounded_check.h" />
+    <ClInclude Include="..\..\libclasp\clasp\util\atomic.h" />
+    <ClInclude Include="..\..\libclasp\clasp\util\hash_map.h" />
+    <ClInclude Include="..\..\libclasp\clasp\util\indexed_priority_queue.h" />
+    <ClInclude Include="..\..\libclasp\clasp\util\left_right_sequence.h" />
+    <ClInclude Include="..\..\libclasp\clasp\util\misc_types.h" />
+    <ClInclude Include="..\..\libclasp\clasp\util\multi_queue.h" />
+    <ClInclude Include="..\..\libclasp\clasp\util\mutex.h" />
+    <ClInclude Include="..\..\libclasp\clasp\util\platform.h" />
+    <ClInclude Include="..\..\libclasp\clasp\util\pod_vector.h" />
+    <ClInclude Include="..\..\libclasp\clasp\util\thread.h" />
+    <ClInclude Include="..\..\libclasp\clasp\util\timer.h" />
+    <ClInclude Include="..\..\libclasp\clasp\util\type_manip.h" />
+    <ClInclude Include="..\..\libclasp\clasp\weight_constraint.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\libclasp\clasp\cli\clasp_cli_configs.inl" />
+    <None Include="..\..\libclasp\clasp\cli\clasp_cli_options.inl" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{CA514A45-CF11-42D6-95C8-B922EFCDC8DF}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>libclasp</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseScript|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseScript|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\global-properties.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\global-properties.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseScript|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\global-properties.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\global-properties.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\global-properties.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseScript|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\global-properties.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IncludePath>..\..\libclasp;..\..\libprogram_opts;..\..\liblp;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <IncludePath>..\..\libclasp;..\..\libprogram_opts;..\..\liblp;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseScript|Win32'">
+    <IncludePath>..\..\libclasp;..\..\libprogram_opts;..\..\liblp;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>..\..\libclasp;..\..\libprogram_opts;..\..\liblp;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>..\..\libclasp;..\..\libprogram_opts;..\..\liblp;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseScript|x64'">
+    <IncludePath>..\..\libclasp;..\..\libprogram_opts;..\..\liblp;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseScript|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseScript|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
