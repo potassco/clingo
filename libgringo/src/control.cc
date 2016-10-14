@@ -1819,6 +1819,12 @@ void Control::interrupt() noexcept {
     clingo_control_interrupt(*impl_);
 }
 
+void *Control::claspFacade() {
+    void *ret;
+    handleCError(clingo_control_clasp_facade(impl_->ctl, &ret));
+    return ret;
+}
+
 void Control::load(char const *file) {
     handleCError(clingo_control_load(*impl_, file));
 }
@@ -3687,6 +3693,11 @@ extern "C" bool clingo_control_configuration(clingo_control_t *ctl, clingo_confi
 
 extern "C" bool clingo_control_statistics(clingo_control_t *ctl, clingo_statistics_t **stats) {
     GRINGO_CLINGO_TRY { *stats = static_cast<clingo_statistics_t*>(ctl->statistics()); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_control_clasp_facade(clingo_control_t *ctl, void **clasp) {
+    GRINGO_CLINGO_TRY { *clasp = ctl->claspFacade(); }
     GRINGO_CLINGO_CATCH;
 }
 

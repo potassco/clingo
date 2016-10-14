@@ -272,6 +272,7 @@ public:
     Gringo::TheoryData const &theory() const override { return out_->data.theoryInterface(); }
     void registerPropagator(Gringo::UProp p, bool sequential) override;
     void interrupt() override;
+    void *claspFacade() override;
     Gringo::Backend *backend() override;
     Potassco::Atom_t addProgramAtom() override;
     Gringo::Logger &logger() override { return logger_; }

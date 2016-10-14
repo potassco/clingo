@@ -387,6 +387,10 @@ Gringo::SolveResult ClingoControl::solve(ModelHandler h, Assumptions &&ass) {
     return ret;
 }
 
+void *ClingoControl::claspFacade() {
+    return clasp_;
+}
+
 void ClingoControl::registerPropagator(std::unique_ptr<Gringo::Propagator> p, bool sequential) {
     propagators_.emplace_back(Gringo::gringo_make_unique<Clasp::ClingoPropagatorInit>(*p, propLock_.add(sequential)));
     claspConfig_.addConfigurator(propagators_.back().get(), Clasp::Ownership_t::Retain);
