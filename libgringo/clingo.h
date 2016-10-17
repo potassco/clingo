@@ -3132,6 +3132,18 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_statistics(clingo_control_t *contr
 //!
 //! @param[in] control the target
 CLINGO_VISIBILITY_DEFAULT void clingo_control_interrupt(clingo_control_t *control);
+//! Get low-level access to clasp.
+//!
+//! @attention
+//! This function is intended for experimental use only and not part of the stable API.
+//!
+//! This function may return a <code>nullptr</code>.
+//! Otherwise, the returned pointer can be casted to a ClaspFacade pointer.
+//!
+//! @param[in] control the target
+//! @param[out] clasp pointer to the ClaspFacade object (may be <code>nullptr</code>)
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_clasp_facade(clingo_control_t *control, void **clasp);
 
 //! @}
 

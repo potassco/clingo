@@ -2044,6 +2044,7 @@ public:
     bool has_const(char const *name) const;
     Symbol get_const(char const *name) const;
     void interrupt() noexcept;
+    void *claspFacade();
     void load(char const *file);
     SolveAsync solve_async(ModelCallback mh = nullptr, FinishCallback fh = nullptr, SymbolicLiteralSpan assumptions = {});
     void use_enumeration_assumption(bool value);
