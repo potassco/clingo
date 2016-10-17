@@ -11,6 +11,15 @@ SRC=$PWD
 
 export PATH=$PATH:/c/Program\ Files\ \(x86\)/GnuWin32/bin
 
+cat << EOF > compile.bat
+call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\Common7\Tools\VsMSBuildCmd.bat"
+msbuild /t:clingo;gringo,cclingo,reify,lpconvert /p:Configuration=Release /p:Platform=x64 Clingo.sln
+msbuild /t:clingo;gringo,cclingo,reify,lpconvert /p:Configuration=Release /p:Platform=x86 Clingo.sln
+msbuild /t:clingo;gringo,pyclingo /p:Configuration=ReleaseScript /p:Platform=x86 Clingo.sln
+msbuild /t:clingo;gringo,pyclingo /p:Configuration=ReleaseScript /p:Platform=x64 Clingo.sln
+EOF
+winpty compile.bat
+
 set -ex
 
 rm -rf "release-${VERSION}"
@@ -18,6 +27,8 @@ mkdir -p "release-${VERSION}"
 cd "release-${VERSION}"
 
 function copy_files() {
+    cp "${SRC}/libgringo/clingo.h" "$2/c-api/"
+    cp "${SRC}/libgringo/clingo.hh" "$2/c-api/"
     cp "${SRC}/third-party/INSTALL" "$2"
     cp "${SRC}/"{CHANGES,COPYING} "$2"
     cp "${SRC}/README.md" "$2/README"
