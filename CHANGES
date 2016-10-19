@@ -1,6 +1,7 @@
 clingo 5.1.1
   * fix thread id to start with one in propagator.undo in lua
   * fix version macro in clingo.h
+  * fix added missing methods to get thread id to model in lua/python
 clingo 5.1.0
   * update to clasp 3.2.1
   * add interface to add variables during propagation

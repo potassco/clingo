@@ -1786,10 +1786,11 @@ places like - e.g., the main function.)";
             return cppToPy(self->model->atoms(atomset)).release();
         PY_CATCH(nullptr);
     }
-    static PyObject *cost(Model *self, void *) {
-        PY_TRY
-            return cppToPy(self->model->optimization()).release();
-        PY_CATCH(nullptr);
+    Object cost() {
+        return cppToPy(model->optimization());
+    }
+    Object thread_id() {
+        return cppToPy(model->threadId());
     }
     Object tp_repr() {
         auto printAtom = [](std::ostream &out, Gringo::Symbol val) {
@@ -1802,16 +1803,17 @@ places like - e.g., the main function.)";
         };
         std::ostringstream oss;
         print_comma(oss, model->atoms(clingo_show_type_shown), " ", printAtom);
-        return cppToPy(oss.str()).release();
+        return cppToPy(oss.str());
     }
-    static PyObject *getContext(Model *self, void *) {
-        return SolveControl::new_(*self->model);
+    Object getContext() {
+        return SolveControl::new_(*model);
     }
 };
 
 PyGetSetDef Model::tp_getset[] = {
-    {(char *)"context", (getter)getContext, nullptr, (char*)"SolveControl object that allows for controlling the running search.", nullptr},
-    {(char *)"cost", (getter)cost, nullptr,
+    {(char *)"thread_id", to_getter<&Model::thread_id>(), nullptr, (char*)"The id of the thread which found the model.", nullptr},
+    {(char *)"context", to_getter<&Model::getContext>(), nullptr, (char*)"SolveControl object that allows for controlling the running search.", nullptr},
+    {(char *)"cost", to_getter<&Model::cost>(), nullptr,
 (char *)R"(Return the list of integer cost values of the model.
 
 The return values correspond to clasp's cost output.)", nullptr},

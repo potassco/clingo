@@ -1193,6 +1193,13 @@ struct Model {
         }
         return 1;
     }
+    static int thread_id(lua_State *L) {
+        Gringo::Model const *& model = *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
+        Id_t id;
+        protect(L, [&model, &id]() { id = model->threadId() + 1; });
+        lua_pushinteger(L, id);
+        return 1;
+    }
     static int toString(lua_State *L) {
         Gringo::Model const *& model =  *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
         std::string *rep = AnyWrap::new_<std::string>(L);
@@ -1226,6 +1233,9 @@ struct Model {
         }
         else if (strcmp(name, "context") == 0) {
             return context(L);
+        }
+        else if (strcmp(name, "thread_id") == 0) {
+            return thread_id(L);
         }
         else {
             lua_getmetatable(L, 1);
@@ -2107,8 +2117,8 @@ struct PropagateInit : Object<PropagateInit> {
     static int index(lua_State *L) {
         char const *name = luaL_checkstring(L, 2);
         if (strcmp(name, "theory_atoms")   == 0) { return TheoryIter::iter(L, &self(L)->init->theory()); }
-        else if (strcmp(name, "symbolic_atoms")   == 0) { return SymbolicAtoms::new_(L, self(L)->init->getDomain()); }
-        else if (strcmp(name, "threads")   == 0) { return numThreads(L); }
+        else if (strcmp(name, "symbolic_atoms") == 0) { return SymbolicAtoms::new_(L, self(L)->init->getDomain()); }
+        else if (strcmp(name, "number_of_threads") == 0) { return numThreads(L); }
         else {
             lua_getmetatable(L, 1);
             lua_getfield(L, -1, name);

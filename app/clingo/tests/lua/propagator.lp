@@ -182,7 +182,7 @@ function Propagator:init(init)
         end
     end
     self:__init_occ_list()
-    for i = 1, init.threads do
+    for i = 1, init.number_of_threads do
         init:set_state(i, State.new(self.__pat_len, #self.__seq_atoms))
     end
 end
