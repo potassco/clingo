@@ -1,7 +1,7 @@
 #!/bin/bash
 set -xe
 
-VERSION="$(grep '#define GRINGO_VERSION "[^.]\+.[^.]\+.[^.]\+"' libgringo/gringo/version.hh | colrm 1 23 | tr -d '"')"
+VERSION="$(grep '#define CLINGO_VERSION "[^.]\+.[^.]\+.[^.]\+"' libgringo/clingo.h | colrm 1 23 | tr -d '"')"
 MINOR=${VERSION%.*}
 MAJOR=${MINOR%.*}
 

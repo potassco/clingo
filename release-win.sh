@@ -3,7 +3,7 @@
 # NOTE: simple script to ease releasing binaries
 #       meant for internal purposes
 
-VERSION="$(grep '#define GRINGO_VERSION "[^.]\+.[^.]\+.[^.]\+"' libgringo/gringo/version.hh | grep -o '[0-9]\+.[0-9]\+.[0-9]\+')"
+VERSION="$(grep '#define CLINGO_VERSION "[^.]\+.[^.]\+.[^.]\+"' libgringo/clingo.h | grep -o '[0-9]\+.[0-9]\+.[0-9]\+')"
 GRINGO="clingo-${VERSION}"
 GRINGO_WIN64="${GRINGO}-win64"
 GRINGO_WIN32="${GRINGO}-win32"

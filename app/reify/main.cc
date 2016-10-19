@@ -22,7 +22,7 @@
 #include <program_opts/application.h>
 #include <program_opts/typed_value.h>
 #include "reify/program.hh"
-#include "gringo/version.hh"
+#include "clingo.h"
 
 struct ReifyOptions {
     bool calculateSCCs = false;
@@ -33,7 +33,7 @@ class ReifyApp : public ProgramOptions::Application {
 public:
     virtual const char* getName() const    { return "reify"; }
 
-    virtual const char* getVersion() const { return GRINGO_VERSION; }
+    virtual const char* getVersion() const { return CLINGO_VERSION; }
 
 protected:
     virtual void initOptions(ProgramOptions::OptionContext& root) {

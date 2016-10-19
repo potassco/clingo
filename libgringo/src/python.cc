@@ -23,7 +23,6 @@
 #include <Python.h>
 
 #include "gringo/python.hh"
-#include "gringo/version.hh"
 #include "gringo/symbol.hh"
 #include "gringo/locatable.hh"
 #include "gringo/logger.hh"
@@ -5713,7 +5712,7 @@ static PyMethodDef clingoASTModuleMethods[] = {
     {"ProjectSignature", to_function<createProjectSignature>(), METH_VARARGS | METH_KEYWORDS, nullptr},
     {nullptr, nullptr, 0, nullptr}
 };
-static char const *clingoASTModuleDoc = "The clingo.ast-" GRINGO_VERSION " module."
+static char const *clingoASTModuleDoc = "The clingo.ast-" CLINGO_VERSION " module."
 R"(
 
 
@@ -6056,7 +6055,7 @@ Construct a string symbol given a string.)"},
     {nullptr, nullptr, 0, nullptr}
 };
 static char const *clingoModuleDoc =
-"The clingo-" GRINGO_VERSION R"( module.
+"The clingo-" CLINGO_VERSION R"( module.
 
 This module provides functions and classes to work with ground terms and to
 control the instantiation process.  In clingo builts, additional functions to
@@ -6076,7 +6075,7 @@ symbol or a sequence of symbols.  If a sequence is returned, the corresponding
 
 Static Objects:
 
-__version__ -- version of the clingo module ()" GRINGO_VERSION  R"()
+__version__ -- version of the clingo module ()" CLINGO_VERSION  R"()
 Infimum     -- represents an #inf symbol
 Supremum    -- represents a #sup symbol
 
@@ -6195,7 +6194,7 @@ PyObject *initclingo_() {
             !TheoryTerm::initType(m)     || !PropagateInit::initType(m)    || !Assignment::initType(m)       ||
             !SymbolType::initType(m)     || !Symbol::initType(m)           || !Backend::initType(m)          ||
             !ProgramBuilder::initType(m) ||
-            PyModule_AddStringConstant(m.toPy(), "__version__", GRINGO_VERSION) < 0 ||
+            PyModule_AddStringConstant(m.toPy(), "__version__", CLINGO_VERSION) < 0 ||
             false) { return nullptr; }
         Reference a{initclingoast_()};
         Py_XINCREF(a.toPy());

@@ -21,7 +21,6 @@
 #ifdef WITH_LUA
 
 #include "gringo/lua.hh"
-#include "gringo/version.hh"
 #include "gringo/logger.hh"
 #include "gringo/control.hh"
 #include "potassco/clingo.h"
@@ -2597,7 +2596,7 @@ int luaopen_clingo(lua_State* L) {
     luaL_newlib(L, clingoLib);
 #endif
 
-    lua_pushstring(L, GRINGO_VERSION);
+    lua_pushstring(L, CLINGO_VERSION);
     lua_setfield(L, -2, "__version__");
 
     SymbolType::addToRegistry(L);
