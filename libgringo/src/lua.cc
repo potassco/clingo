@@ -2106,7 +2106,6 @@ struct PropagateInit : Object<PropagateInit> {
 
     static int index(lua_State *L) {
         char const *name = luaL_checkstring(L, 2);
-        std::cerr << "indexing...: " << name << std::endl;
         if (strcmp(name, "theory_atoms")   == 0) { return TheoryIter::iter(L, &self(L)->init->theory()); }
         else if (strcmp(name, "symbolic_atoms")   == 0) { return SymbolicAtoms::new_(L, self(L)->init->getDomain()); }
         else if (strcmp(name, "threads")   == 0) { return numThreads(L); }
