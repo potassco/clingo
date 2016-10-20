@@ -2257,8 +2257,8 @@ def main(prg):
     print "p(2) is in domain:", prg.symbolic_atoms[clingo.Function("p", [3])] is not None
     print "p(4) is in domain:", prg.symbolic_atoms[clingo.Function("p", [6])] is not None
     print "domain of p/1:"
-    for x in prg.symbolic_atoms.by_signature(("p", 1)):
-        print x.atom, x.is_fact, x.is_external
+    for x in prg.symbolic_atoms.by_signature("p", 1):
+        print x.symbol, x.is_fact, x.is_external
     print "signatures:", prg.symbolic_atoms.signatures
 
 #end.
