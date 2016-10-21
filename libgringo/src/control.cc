@@ -1731,6 +1731,18 @@ bool g_project(clingo_atom_t const *atoms, size_t size, GroundProgramObserver *s
     GRINGO_CLINGO_TRY { self->project(AtomSpan(atoms, size)); }
     GRINGO_CLINGO_CATCH;
 }
+bool g_output_atom(clingo_symbol_t symbol, clingo_atom_t atom, GroundProgramObserver *self) {
+    GRINGO_CLINGO_TRY { self->output_atom(Symbol{symbol}, atom); }
+    GRINGO_CLINGO_CATCH;
+}
+bool g_output_term(clingo_symbol_t symbol, clingo_literal_t const *condition, size_t size, GroundProgramObserver *self) {
+    GRINGO_CLINGO_TRY { self->output_term(Symbol{symbol}, LiteralSpan{condition, size}); }
+    GRINGO_CLINGO_CATCH;
+}
+bool g_output_csp(clingo_symbol_t symbol, int value, clingo_literal_t const *condition, size_t size, GroundProgramObserver *self) {
+    GRINGO_CLINGO_TRY { self->output_csp(Symbol{symbol}, value, LiteralSpan{condition, size}); }
+    GRINGO_CLINGO_CATCH;
+}
 bool g_external(clingo_atom_t atom, clingo_external_type_t type, GroundProgramObserver *self) {
     GRINGO_CLINGO_TRY { self->external(atom, static_cast<ExternalType>(type)); }
     GRINGO_CLINGO_CATCH;
@@ -1781,6 +1793,9 @@ static clingo_ground_program_observer_t g_observer = {
     reinterpret_cast<decltype(clingo_ground_program_observer_t::weight_rule)>(g_weight_rule),
     reinterpret_cast<decltype(clingo_ground_program_observer_t::minimize)>(g_minimize),
     reinterpret_cast<decltype(clingo_ground_program_observer_t::project)>(g_project),
+    reinterpret_cast<decltype(clingo_ground_program_observer_t::output_atom)>(g_output_atom),
+    reinterpret_cast<decltype(clingo_ground_program_observer_t::output_term)>(g_output_term),
+    reinterpret_cast<decltype(clingo_ground_program_observer_t::output_csp)>(g_output_csp),
     reinterpret_cast<decltype(clingo_ground_program_observer_t::external)>(g_external),
     reinterpret_cast<decltype(clingo_ground_program_observer_t::assume)>(g_assume),
     reinterpret_cast<decltype(clingo_ground_program_observer_t::heuristic)>(g_heuristic),
@@ -3727,18 +3742,17 @@ public:
     void minimize(Weight_t prio, const Potassco::WeightLitSpan& lits) override {
         call(obs_.minimize, prio, reinterpret_cast<clingo_weighted_literal_t const *>(lits.first), lits.size);
     }
-
     void project(const Potassco::AtomSpan& atoms) override {
         call(obs_.project, atoms.first, atoms.size);
     }
     void output(Symbol sym, Potassco::Atom_t atom) override {
-#pragma message "use me!!!"
+        call(obs_.output_atom, sym.rep(), atom);
     }
     void output(Symbol sym, Potassco::LitSpan const& condition) override {
-#pragma message "use me!!!"
+        call(obs_.output_term, sym.rep(), condition.first, condition.size);
     }
     void output(Symbol sym, int value, Potassco::LitSpan const& condition) override {
-#pragma message "use me!!!"
+        call(obs_.output_csp, sym.rep(), value, condition.first, condition.size);
     }
     void external(Atom_t a, Potassco::Value_t v) override {
         call(obs_.external, a, v);

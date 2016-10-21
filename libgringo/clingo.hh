@@ -920,6 +920,9 @@ public:
     virtual void weight_rule(bool choice, AtomSpan head, weight_t lower_bound, WeightedLiteralSpan body);
     virtual void minimize(weight_t priority, WeightedLiteralSpan literals);
     virtual void project(AtomSpan atoms);
+    virtual void output_atom(Symbol symbol, atom_t atom);
+    virtual void output_term(Symbol symbol, LiteralSpan condition);
+    virtual void output_csp(Symbol symbol, int value, LiteralSpan condition);
     virtual void external(atom_t atom, ExternalType type);
     virtual void assume(LiteralSpan literals);
     virtual void heuristic(atom_t atom, HeuristicType type, int bias, unsigned priority, LiteralSpan condition);
@@ -941,6 +944,9 @@ inline void GroundProgramObserver::rule(bool, AtomSpan, LiteralSpan) { }
 inline void GroundProgramObserver::weight_rule(bool, AtomSpan, weight_t, WeightedLiteralSpan) { }
 inline void GroundProgramObserver::minimize(weight_t, WeightedLiteralSpan) { }
 inline void GroundProgramObserver::project(AtomSpan) { }
+inline void GroundProgramObserver::output_atom(Symbol, atom_t) { }
+inline void GroundProgramObserver::output_term(Symbol, LiteralSpan) { }
+inline void GroundProgramObserver::output_csp(Symbol, int, LiteralSpan) { }
 inline void GroundProgramObserver::external(atom_t, ExternalType) { }
 inline void GroundProgramObserver::assume(LiteralSpan) { }
 inline void GroundProgramObserver::heuristic(atom_t, HeuristicType, int, unsigned, LiteralSpan) { }
