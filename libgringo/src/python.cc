@@ -3257,7 +3257,7 @@ R"(Enumeration of theory atom types.
 TheoryAtomType.Any       -- atom can occur anywhere
 TheoryAtomType.Body      -- atom can only occur in rule bodies
 TheoryAtomType.Head      -- atom can only occur in rule heads
-TheoryAtomType.Directive -- atom can only occrur in facts
+TheoryAtomType.Directive -- atom can only occur in facts
 )";
 
     static constexpr clingo_ast_theory_atom_definition_type_t const values[] = {
