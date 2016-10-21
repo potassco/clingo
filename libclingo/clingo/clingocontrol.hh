@@ -52,7 +52,9 @@ public:
     void rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, Potassco::Weight_t bound, const Potassco::WeightLitSpan& body) override;
     void minimize(Potassco::Weight_t prio, const Potassco::WeightLitSpan& lits) override;
     void project(const Potassco::AtomSpan& atoms) override;
-    void output(const Potassco::StringSpan& str, const Potassco::LitSpan& condition) override;
+    void output(Gringo::Symbol sym, Potassco::Atom_t atom) override;
+    void output(Gringo::Symbol sym, Potassco::LitSpan const& condition) override;
+    void output(Gringo::Symbol sym, int value, Potassco::LitSpan const& condition) override;
     void external(Potassco::Atom_t a, Potassco::Value_t v) override;
     void assume(const Potassco::LitSpan& lits) override;
     void heuristic(Potassco::Atom_t a, Potassco::Heuristic_t t, int bias, unsigned prio, const Potassco::LitSpan& condition) override;

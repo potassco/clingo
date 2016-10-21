@@ -204,7 +204,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     void endAdd() override {
         defs.init(logger_);
     }
-    void registerObserver(std::unique_ptr<Potassco::AbstractProgram> prg) override {
+    void registerObserver(Gringo::UBackend prg) override {
         out.registerObserver(std::move(prg));
     }
     Gringo::SolveFuture *solveAsync(ModelHandler, FinishHandler, Assumptions &&) override { throw std::runtime_error("asynchronous solving not supported"); }

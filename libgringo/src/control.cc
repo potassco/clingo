@@ -3703,7 +3703,7 @@ extern "C" bool clingo_control_clasp_facade(clingo_control_t *ctl, void **clasp)
 
 namespace {
 
-class Observer : public Potassco::AbstractProgram {
+class Observer : public Backend {
 public:
     Observer(clingo_ground_program_observer_t obs, void *data) : obs_(obs), data_(data) { }
     ~Observer() override = default;
@@ -3731,9 +3731,14 @@ public:
     void project(const Potassco::AtomSpan& atoms) override {
         call(obs_.project, atoms.first, atoms.size);
     }
-    void output(const StringSpan&str, const Potassco::LitSpan& condition) override {
-        (void)str;
-        (void)condition;
+    void output(Symbol sym, Potassco::Atom_t atom) override {
+#pragma message "use me!!!"
+    }
+    void output(Symbol sym, Potassco::LitSpan const& condition) override {
+#pragma message "use me!!!"
+    }
+    void output(Symbol sym, int value, Potassco::LitSpan const& condition) override {
+#pragma message "use me!!!"
     }
     void external(Atom_t a, Potassco::Value_t v) override {
         call(obs_.external, a, v);

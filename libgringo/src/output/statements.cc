@@ -719,6 +719,33 @@ void Translator::output(DomainData &data, Statement &stm) {
     out_->output(data, stm);
 }
 
+namespace {
+
+class Atomtab : public Statement {
+public:
+    Atomtab(PredicateDomain::Iterator atom) : atom_(atom) { };
+    void output(DomainData &, UBackend &out) const override {
+        out->output(*atom_, atom_->fact() ? 0 : atom_->uid());
+    }
+    void print(PrintPlain out, char const *prefix) const override {
+        out << prefix << "#show " << (Symbol)*atom_;
+        if (!atom_->fact()) {
+            out << ":" << (Symbol)*atom_;
+        }
+        out << ".\n";
+    }
+    void translate(DomainData &data, Translator &x) override {
+        if (!atom_->hasUid()) { atom_->setUid(data.newAtom()); }
+        x.output(data, *this);
+    }
+    void replaceDelayed(DomainData &, LitVec &) override { }
+    virtual ~Atomtab() = default;
+private:
+    PredicateDomain::Iterator atom_;
+};
+
+} // namespace
+
 void Translator::showAtom(DomainData &data, PredDomMap::Iterator it) {
     for (auto jt = (*it)->begin() + (*it)->showOffset(), je = (*it)->end(); jt != je; ++jt) {
         if (jt->defined()) {
@@ -728,7 +755,7 @@ void Translator::showAtom(DomainData &data, PredDomMap::Iterator it) {
                 Potassco::Id_t offset = jt - (*it)->begin();
                 cond.emplace_back(NAF::POS, AtomType::Predicate, offset, domain);
             }
-            showValue(data, *jt, cond);
+            Atomtab(jt).translate(data, *this);
         }
     }
     (*it)->showNext();
@@ -863,8 +890,12 @@ void Symtab::output(DomainData &data, UBackend &out) const {
     for (auto &x : body_) { bd.emplace_back(call(data, x, &Literal::uid)); }
     std::ostringstream oss;
     oss << symbol_;
-    if (csp_) { oss << "=" << value_; }
-    out->output(Potassco::toSpan(oss.str()), Potassco::toSpan(bd));
+    if (csp_) {
+        out->output(symbol_, value_, Potassco::toSpan(bd));
+    }
+    else {
+        out->output(symbol_, Potassco::toSpan(bd));
+    }
 }
 
 void Symtab::replaceDelayed(DomainData &data, LitVec &delayed) {
