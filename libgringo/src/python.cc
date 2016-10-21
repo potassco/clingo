@@ -3393,12 +3393,12 @@ provided in this module.
             case ASTType::Pool:                      { return ret({ "arguments" }); }
             case ASTType::CSPProduct:                { return ret({ "coefficient", "variable" }); }
             case ASTType::CSPSum:                    { return ret({ "terms" }); }
-            case ASTType::CSPGuard:                  { return ret({ "term", "guards" }); }
+            case ASTType::CSPGuard:                  { return ret({ "term" }); }
             case ASTType::BooleanConstant:           { return ret({ }); }
             case ASTType::SymbolicAtom:              { return ret({ "term" }); }
             case ASTType::Comparison:                { return ret({ "left", "right" }); }
-            case ASTType::CSPLiteral:                { return ret({ "term" }); }
-            case ASTType::AggregateGuard:            { return ret({ "guards" }); }
+            case ASTType::CSPLiteral:                { return ret({ "term", "guards" }); }
+            case ASTType::AggregateGuard:            { return ret({ "term" }); }
             case ASTType::ConditionalLiteral:        { return ret({ "literal", "condition" }); }
             case ASTType::Aggregate:                 { return ret({ "left_guard", "elements", "right_guard" }); }
             case ASTType::BodyAggregateElement:      { return ret({ "tuple", "condition" }); }

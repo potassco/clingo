@@ -111,8 +111,8 @@ void handleCError(bool ret, std::exception_ptr *exc) {
             case clingo_error_runtime:   { throw std::runtime_error(msg); }
             case clingo_error_logic:     { throw std::logic_error(msg); }
             case clingo_error_bad_alloc: { throw std::bad_alloc(); }
-            case clingo_error_unknown:   { throw std::logic_error(msg); }
-            case clingo_error_success:   { break; }
+            case clingo_error_unknown:   { throw std::runtime_error(msg); }
+            case clingo_error_success:   { throw std::runtime_error(msg); }
         }
     }
 }
