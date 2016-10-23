@@ -2728,6 +2728,79 @@ private:
     Object tp_;
 };
 
+// {{{1 wrap observer
+
+class GroundProgramObserver : public Gringo::Backend {
+public:
+    GroundProgramObserver(Reference obs) : obs_(obs) {
+    }
+
+    void initProgram(bool incremental) override {
+        call("init_program", cppToPy(incremental));
+    }
+    void beginStep() override {
+        call("begin_step");
+    }
+
+    void rule(Head_t ht, const AtomSpan& head, const LitSpan& body) override {
+    }
+    void rule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body) override {
+    }
+    void minimize(Weight_t prio, const WeightLitSpan& lits) override {
+    }
+
+    void project(const AtomSpan& atoms) override {
+    }
+    void output(Gringo::Symbol sym, Potassco::Atom_t atom) override {
+    }
+    void output(Gringo::Symbol sym, Potassco::LitSpan const& condition) override {
+    }
+    void output(Gringo::Symbol sym, int value, Potassco::LitSpan const& condition) override {
+    }
+    void external(Atom_t a, Value_t v) override {
+    }
+    void assume(const LitSpan& lits) override {
+    }
+    void heuristic(Atom_t a, Heuristic_t t, int bias, unsigned prio, const LitSpan& condition) override {
+    }
+    void acycEdge(int s, int t, const LitSpan& condition) override {
+    }
+
+    void theoryTerm(Id_t termId, int number) override {
+    }
+    void theoryTerm(Id_t termId, const StringSpan& name) override {
+    }
+    void theoryTerm(Id_t termId, int cId, const IdSpan& args) override {
+    }
+    void theoryElement(Id_t elementId, const IdSpan& terms, const LitSpan& cond) override {
+    }
+    void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements) override {
+    }
+    void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements, Id_t op, Id_t rhs) override {
+    }
+
+    void endStep() override {
+        // This function is called in solve.
+        // Hence it has to get the GIL back.
+        PyBlock b;
+        call("end_step");
+    }
+private:
+    template <class... T>
+    void call(char const *fun, T&&... args) {
+        try {
+            if (obs_.hasAttr(fun)) { obs_.call(fun, std::forward<T>(args)...); }
+        }
+        catch (PyException const &) {
+            handleError((std::string("GroundProgramObserver::") + fun).c_str(), (std::string("error in") + fun).c_str());
+            throw std::logic_error("cannot happen");
+        }
+    }
+
+private:
+    Object obs_;
+};
+
 // {{{1 wrap wrap Backend
 
 struct Backend : ObjectBase<Backend> {
@@ -5268,6 +5341,10 @@ active; you must not call any member function during search.)";
             Py_RETURN_NONE;
         PY_CATCH(nullptr);
     }
+    Object registerObserver(Reference obs) {
+        ctl->registerObserver(gringo_make_unique<GroundProgramObserver>(obs));
+        return None();
+    }
     static PyObject *interrupt(ControlWrap *self) {
         PY_TRY
             self->ctl->interrupt();
@@ -5535,6 +5612,11 @@ a.
 Expected Answer Sets:
 a b
 a)"},
+    {"register_observer", to_function<&ControlWrap::registerObserver>(), METH_O,
+R"(register_observer(self, observer) -> None
+
+TODO: incomplete....
+)"},
     {"register_propagator", (PyCFunction)registerPropagator, METH_O,
 R"(register_propagator(self, propagator) -> None
 
