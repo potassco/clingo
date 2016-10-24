@@ -143,7 +143,7 @@ void ClingoApp::printHelp(const ProgramOptions::OptionContext& root) {
 void ClingoApp::printVersion() {
     ProgramOptions::Application::printVersion();
     printf("\n");
-    printf("libgringo version " GRINGO_VERSION "\n");
+    printf("libgringo version " CLINGO_VERSION "\n");
     printf("Configuration: "
 #ifdef WITH_PYTHON
         "with Python " PY_VERSION

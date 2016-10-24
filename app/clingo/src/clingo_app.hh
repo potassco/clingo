@@ -23,7 +23,6 @@
 #define _GRINGO_CLINGOAPP_HH
 
 #include "clasp/clasp_app.h"
-#include "gringo/version.hh"
 #include "clingo/clingocontrol.hh"
 
 // Standalone clingo application.
@@ -36,7 +35,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
 public:
     ClingoApp();
     const char* getName()    const override { return "clingo"; }
-    const char* getVersion() const override { return GRINGO_VERSION; }
+    const char* getVersion() const override { return CLINGO_VERSION; }
     const char* getUsage()   const override { return "[number] [options] [files]"; }
 
     void shutdown() override;

@@ -94,11 +94,11 @@ extern "C" {
 //! Major version number.
 #define CLINGO_VERSION_MAJOR 5
 //! Minor version number.
-#define CLINGO_VERSION_MINOR 0
+#define CLINGO_VERSION_MINOR 1
 //! Revision number.
-#define CLINGO_VERSION_REVISION 0
+#define CLINGO_VERSION_REVISION 1
 //! String representation of version.
-#define CLINGO_VERSION #CLINGO_VERSION_MAJOR "." #CLINGO_VERSION_MINOR "." #CLINGO_VERSION_REVISION
+#define CLINGO_VERSION "5.1.1"
 
 //! Signed integer type used for aspif and solver literals.
 typedef int32_t clingo_literal_t;
@@ -2701,6 +2701,32 @@ typedef struct clingo_ground_program_observer {
     //! @param[in] data user data for the callback
     //! @return whether the call was successful
     bool (*project)(clingo_atom_t const *atoms, size_t size, void *data);
+    //! Observe shown atoms passed to the solver.
+    //! \note Facts do not have an associated aspif atom.
+    //! The value of the atom is set to zero.
+    //!
+    //! @param[in] symbol the symbolic representation of the atom
+    //! @param[in] atom the aspif atom (0 for facts)
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*output_atom)(clingo_symbol_t symbol, clingo_atom_t atom, void *data);
+    //! Observe shown terms passed to the solver.
+    //!
+    //! @param[in] symbol the symbolic representation of the term
+    //! @param[in] condition the literals of the condition
+    //! @param[in] size the size of the condition
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*output_term)(clingo_symbol_t symbol, clingo_literal_t const *condition, size_t size, void *data);
+    //! Observe shown csp variables passed to the solver.
+    //!
+    //! @param[in] symbol the symbolic representation of the variable
+    //! @param[in] value the value of the variable
+    //! @param[in] condition the literals of the condition
+    //! @param[in] size the size of the condition
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*output_csp)(clingo_symbol_t symbol, int value, clingo_literal_t const *condition, size_t size, void *data);
     //! Observe external statements passed to the solver.
     //!
     //! @param[in] atom the external atom

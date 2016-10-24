@@ -33,7 +33,6 @@
 #include <gringo/output/statements.hh>
 #include <gringo/logger.hh>
 #include <gringo/scripts.hh>
-#include <gringo/version.hh>
 #include <gringo/control.hh>
 #include <clingo.hh>
 #include <climits>
@@ -205,7 +204,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     void endAdd() override {
         defs.init(logger_);
     }
-    void registerObserver(std::unique_ptr<Potassco::AbstractProgram> prg) override {
+    void registerObserver(Gringo::UBackend prg) override {
         out.registerObserver(std::move(prg));
     }
     Gringo::SolveFuture *solveAsync(ModelHandler, FinishHandler, Assumptions &&) override { throw std::runtime_error("asynchronous solving not supported"); }
@@ -287,7 +286,7 @@ static bool parseText(const std::string&, GringoOptions& out) {
 struct GringoApp : public ProgramOptions::Application {
     using StringSeq = std::vector<std::string>;
     virtual const char* getName() const    { return "gringo"; }
-    virtual const char* getVersion() const { return GRINGO_VERSION; }
+    virtual const char* getVersion() const { return CLINGO_VERSION; }
     virtual void initOptions(ProgramOptions::OptionContext& root) {
         using namespace ProgramOptions;
         grOpts_.defines.clear();

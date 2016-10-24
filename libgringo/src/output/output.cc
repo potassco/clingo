@@ -167,6 +167,60 @@ OutputBase::OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, 
 , out_(std::move(out))
 { }
 
+namespace {
+
+template <class T>
+class BackendAdapter : public Backend {
+public:
+    template <class... U>
+    BackendAdapter(U&&... args) : prg_(std::forward<U>(args)...) {  }
+    void initProgram(bool incremental)  override { prg_.initProgram(incremental); }
+    void beginStep()  override { prg_.beginStep(); }
+
+    void rule(Head_t ht, const AtomSpan& head, const LitSpan& body)  override { prg_.rule(ht, head, body); }
+    void rule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body)  override { prg_.rule(ht, head, bound, body); }
+    void minimize(Weight_t prio, const WeightLitSpan& lits)  override { prg_.minimize(prio, lits); }
+
+    void project(const AtomSpan& atoms) override { prg_.project(atoms); }
+    void output(Symbol sym, Potassco::Atom_t atom) override {
+        std::ostringstream out;
+        out << sym;
+        if (atom != 0) {
+            Potassco::Lit_t lit = atom;
+            prg_.output(Potassco::toSpan(out.str().c_str()), Potassco::LitSpan{&lit, 1});
+        }
+        else {
+            prg_.output(Potassco::toSpan(out.str().c_str()), Potassco::LitSpan{nullptr, 0});
+        }
+    }
+    void output(Symbol sym, Potassco::LitSpan const& condition) override {
+        std::ostringstream out;
+        out << sym;
+        prg_.output(Potassco::toSpan(out.str().c_str()), condition);
+    }
+    void output(Symbol sym, int value, Potassco::LitSpan const& condition) override {
+        std::ostringstream out;
+        out << sym << "=" << value;
+        prg_.output(Potassco::toSpan(out.str().c_str()), condition);
+    }
+    void external(Atom_t a, Value_t v)  override { prg_.external(a, v); }
+    void assume(const LitSpan& lits)  override { prg_.assume(lits); }
+    void heuristic(Atom_t a, Heuristic_t t, int bias, unsigned prio, const LitSpan& condition)  override { prg_.heuristic(a, t, bias, prio, condition); }
+    void acycEdge(int s, int t, const LitSpan& condition)  override { prg_.acycEdge(s, t, condition); }
+
+    void theoryTerm(Id_t termId, int number)  override { prg_.theoryTerm(termId, number); }
+    void theoryTerm(Id_t termId, const StringSpan& name)  override { prg_.theoryTerm(termId, name); }
+    void theoryTerm(Id_t termId, int cId, const IdSpan& args)  override { prg_.theoryTerm(termId, cId, args); }
+    void theoryElement(Id_t elementId, const IdSpan& terms, const LitSpan& cond)  override { prg_.theoryElement(elementId, terms, cond); }
+    void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements)  override { prg_.theoryAtom(atomOrZero, termId, elements); }
+    void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements, Id_t op, Id_t rhs)  override {prg_.theoryAtom(atomOrZero, termId, elements, op, rhs); }
+    void endStep() override { prg_.endStep(); }
+private:
+    T prg_;
+};
+
+} // namespace
+
 UAbstractOutput OutputBase::fromFormat(std::ostream &stream, OutputFormat format, OutputOptions opts) {
     if (format == OutputFormat::TEXT) {
         UAbstractOutput out;
@@ -180,15 +234,15 @@ UAbstractOutput OutputBase::fromFormat(std::ostream &stream, OutputFormat format
         UBackend backend;
         switch (format) {
             case OutputFormat::REIFY: {
-                backend = gringo_make_unique<Reify::Reifier>(stream, opts.reifySCCs, opts.reifySteps);
+                backend = gringo_make_unique<BackendAdapter<Reify::Reifier>>(stream, opts.reifySCCs, opts.reifySteps);
                 break;
             }
             case OutputFormat::INTERMEDIATE: {
-                backend = gringo_make_unique<IntermediateFormatBackend>(stream);
+                backend = gringo_make_unique<BackendAdapter<IntermediateFormatBackend>>(stream);
                 break;
             }
             case OutputFormat::SMODELS: {
-                backend = gringo_make_unique<SmodelsFormatBackend>(stream);
+                backend = gringo_make_unique<BackendAdapter<SmodelsFormatBackend>>(stream);
                 break;
             }
             case OutputFormat::TEXT: {
@@ -339,7 +393,7 @@ Backend *OutputBase::backend() {
 
 namespace {
 
-class BackendTee : public Potassco::AbstractProgram {
+class BackendTee : public Backend {
 public:
     using Head_t = Potassco::Head_t;
     using Value_t = Potassco::Value_t;
@@ -382,9 +436,17 @@ public:
         a_->project(atoms);
         b_->project(atoms);
     }
-    void output(const StringSpan& str, const LitSpan& condition) override {
-        a_->output(str, condition);
-        b_->output(str, condition);
+    void output(Symbol sym, Potassco::Atom_t atom) override {
+        a_->output(sym, atom);
+        b_->output(sym, atom);
+    }
+    void output(Symbol sym, Potassco::LitSpan const& condition) override {
+        a_->output(sym, condition);
+        b_->output(sym, condition);
+    }
+    void output(Symbol sym, int value, Potassco::LitSpan const& condition) override {
+        a_->output(sym, value, condition);
+        b_->output(sym, value, condition);
     }
     void external(Atom_t a, Value_t v) override {
         a_->external(a, v);

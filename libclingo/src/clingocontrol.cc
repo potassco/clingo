@@ -51,8 +51,28 @@ void ClaspAPIBackend::project(const Potassco::AtomSpan& atoms) {
     if (auto p = prg()) { p->addProject(atoms); }
 }
 
-void ClaspAPIBackend::output(const Potassco::StringSpan& str, const Potassco::LitSpan& condition) {
-    if (auto p = prg()) { p->addOutput(str, condition); }
+void ClaspAPIBackend::output(Gringo::Symbol sym, Potassco::Atom_t atom) {
+    std::ostringstream out;
+    out << sym;
+    if (atom != 0) {
+        Potassco::Lit_t lit = atom;
+        if (auto p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), Potassco::LitSpan{&lit, 1}); }
+    }
+    else {
+        if (auto p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), Potassco::LitSpan{nullptr, 0}); }
+    }
+}
+
+void ClaspAPIBackend::output(Gringo::Symbol sym, Potassco::LitSpan const& condition) {
+    std::ostringstream out;
+    out << sym;
+    if (auto p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), condition); }
+}
+
+void ClaspAPIBackend::output(Gringo::Symbol sym, int value, Potassco::LitSpan const& condition) {
+    std::ostringstream out;
+    out << sym << "=" << value;
+    if (auto p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), condition); }
 }
 
 void ClaspAPIBackend::acycEdge(int s, int t, const Potassco::LitSpan& condition) {

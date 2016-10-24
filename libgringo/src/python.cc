@@ -23,7 +23,6 @@
 #include <Python.h>
 
 #include "gringo/python.hh"
-#include "gringo/version.hh"
 #include "gringo/symbol.hh"
 #include "gringo/locatable.hh"
 #include "gringo/logger.hh"
@@ -1787,10 +1786,11 @@ places like - e.g., the main function.)";
             return cppToPy(self->model->atoms(atomset)).release();
         PY_CATCH(nullptr);
     }
-    static PyObject *cost(Model *self, void *) {
-        PY_TRY
-            return cppToPy(self->model->optimization()).release();
-        PY_CATCH(nullptr);
+    Object cost() {
+        return cppToPy(model->optimization());
+    }
+    Object thread_id() {
+        return cppToPy(model->threadId());
     }
     Object tp_repr() {
         auto printAtom = [](std::ostream &out, Gringo::Symbol val) {
@@ -1803,16 +1803,17 @@ places like - e.g., the main function.)";
         };
         std::ostringstream oss;
         print_comma(oss, model->atoms(clingo_show_type_shown), " ", printAtom);
-        return cppToPy(oss.str()).release();
+        return cppToPy(oss.str());
     }
-    static PyObject *getContext(Model *self, void *) {
-        return SolveControl::new_(*self->model);
+    Object getContext() {
+        return SolveControl::new_(*model);
     }
 };
 
 PyGetSetDef Model::tp_getset[] = {
-    {(char *)"context", (getter)getContext, nullptr, (char*)"SolveControl object that allows for controlling the running search.", nullptr},
-    {(char *)"cost", (getter)cost, nullptr,
+    {(char *)"thread_id", to_getter<&Model::thread_id>(), nullptr, (char*)"The id of the thread which found the model.", nullptr},
+    {(char *)"context", to_getter<&Model::getContext>(), nullptr, (char*)"SolveControl object that allows for controlling the running search.", nullptr},
+    {(char *)"cost", to_getter<&Model::cost>(), nullptr,
 (char *)R"(Return the list of integer cost values of the model.
 
 The return values correspond to clasp's cost output.)", nullptr},
@@ -2256,8 +2257,8 @@ def main(prg):
     print "p(2) is in domain:", prg.symbolic_atoms[clingo.Function("p", [3])] is not None
     print "p(4) is in domain:", prg.symbolic_atoms[clingo.Function("p", [6])] is not None
     print "domain of p/1:"
-    for x in prg.symbolic_atoms.by_signature(("p", 1)):
-        print x.atom, x.is_fact, x.is_external
+    for x in prg.symbolic_atoms.by_signature("p", 1):
+        print x.symbol, x.is_fact, x.is_external
     print "signatures:", prg.symbolic_atoms.signatures
 
 #end.
@@ -3256,7 +3257,7 @@ R"(Enumeration of theory atom types.
 TheoryAtomType.Any       -- atom can occur anywhere
 TheoryAtomType.Body      -- atom can only occur in rule bodies
 TheoryAtomType.Head      -- atom can only occur in rule heads
-TheoryAtomType.Directive -- atom can only occrur in facts
+TheoryAtomType.Directive -- atom can only occur in facts
 )";
 
     static constexpr clingo_ast_theory_atom_definition_type_t const values[] = {
@@ -3392,12 +3393,12 @@ provided in this module.
             case ASTType::Pool:                      { return ret({ "arguments" }); }
             case ASTType::CSPProduct:                { return ret({ "coefficient", "variable" }); }
             case ASTType::CSPSum:                    { return ret({ "terms" }); }
-            case ASTType::CSPGuard:                  { return ret({ "term", "guards" }); }
+            case ASTType::CSPGuard:                  { return ret({ "term" }); }
             case ASTType::BooleanConstant:           { return ret({ }); }
             case ASTType::SymbolicAtom:              { return ret({ "term" }); }
             case ASTType::Comparison:                { return ret({ "left", "right" }); }
-            case ASTType::CSPLiteral:                { return ret({ "term" }); }
-            case ASTType::AggregateGuard:            { return ret({ "guards" }); }
+            case ASTType::CSPLiteral:                { return ret({ "term", "guards" }); }
+            case ASTType::AggregateGuard:            { return ret({ "term" }); }
             case ASTType::ConditionalLiteral:        { return ret({ "literal", "condition" }); }
             case ASTType::Aggregate:                 { return ret({ "left_guard", "elements", "right_guard" }); }
             case ASTType::BodyAggregateElement:      { return ret({ "tuple", "condition" }); }
@@ -5713,7 +5714,7 @@ static PyMethodDef clingoASTModuleMethods[] = {
     {"ProjectSignature", to_function<createProjectSignature>(), METH_VARARGS | METH_KEYWORDS, nullptr},
     {nullptr, nullptr, 0, nullptr}
 };
-static char const *clingoASTModuleDoc = "The clingo.ast-" GRINGO_VERSION " module."
+static char const *clingoASTModuleDoc = "The clingo.ast-" CLINGO_VERSION " module."
 R"(
 
 
@@ -6056,7 +6057,7 @@ Construct a string symbol given a string.)"},
     {nullptr, nullptr, 0, nullptr}
 };
 static char const *clingoModuleDoc =
-"The clingo-" GRINGO_VERSION R"( module.
+"The clingo-" CLINGO_VERSION R"( module.
 
 This module provides functions and classes to work with ground terms and to
 control the instantiation process.  In clingo builts, additional functions to
@@ -6076,7 +6077,7 @@ symbol or a sequence of symbols.  If a sequence is returned, the corresponding
 
 Static Objects:
 
-__version__ -- version of the clingo module ()" GRINGO_VERSION  R"()
+__version__ -- version of the clingo module ()" CLINGO_VERSION  R"()
 Infimum     -- represents an #inf symbol
 Supremum    -- represents a #sup symbol
 
@@ -6195,7 +6196,7 @@ PyObject *initclingo_() {
             !TheoryTerm::initType(m)     || !PropagateInit::initType(m)    || !Assignment::initType(m)       ||
             !SymbolType::initType(m)     || !Symbol::initType(m)           || !Backend::initType(m)          ||
             !ProgramBuilder::initType(m) ||
-            PyModule_AddStringConstant(m.toPy(), "__version__", GRINGO_VERSION) < 0 ||
+            PyModule_AddStringConstant(m.toPy(), "__version__", CLINGO_VERSION) < 0 ||
             false) { return nullptr; }
         Reference a{initclingoast_()};
         Py_XINCREF(a.toPy());

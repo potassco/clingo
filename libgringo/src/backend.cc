@@ -28,16 +28,27 @@ namespace {
 
 class TheoryVisitor : public Potassco::TheoryData::Visitor {
 public:
-    TheoryVisitor(Potassco::AbstractProgram &out, GetTheoryAtomCondition &cond)
+    TheoryVisitor(Backend &out, GetTheoryAtomCondition &cond)
     : out_(out)
     , cond_(cond) { }
 
 private:
+    void print(Potassco::Id_t termId, const Potassco::TheoryTerm& term) {
+        switch (term.type()) {
+            case Potassco::Theory_t::Number  : out_.theoryTerm(termId, term.number()); break;
+            case Potassco::Theory_t::Symbol  : out_.theoryTerm(termId, Potassco::toSpan(term.symbol())); break;
+            case Potassco::Theory_t::Compound: out_.theoryTerm(termId, term.compound(), term.terms()); break;
+        }
+    }
+    void print(const Potassco::TheoryAtom& a) {
+        if (a.guard()) { out_.theoryAtom(a.atom(), a.term(), a.elements(), *a.guard(), *a.rhs()); }
+        else           { out_.theoryAtom(a.atom(), a.term(), a.elements()); }
+    }
     void visit(Potassco::TheoryData const &data, Potassco::Id_t termId, Potassco::TheoryTerm const &t) override {
         if (addSeen(tSeen_, termId)) { // only visit once
             // visit any subterms then print
             data.accept(t, *this);
-            Potassco::print(out_, termId, t);
+            print(termId, t);
         }
     }
     void visit(Potassco::TheoryData const &data, Potassco::Id_t elemId, Potassco::TheoryElement const &e) override {
@@ -50,7 +61,7 @@ private:
     void visit(Potassco::TheoryData const &data, Potassco::TheoryAtom const &a) override {
         // visit elements then print atom
         data.accept(a, *this);
-        Potassco::print(out_, a);
+        print(a);
     }
     bool addSeen(std::vector<bool>& vec, Potassco::Id_t id) const {
         if (vec.size() <= id) { vec.resize(id + 1, false); }
@@ -58,7 +69,7 @@ private:
         if (!seen) { vec[id] = true; }
         return !seen;
     }
-    Potassco::AbstractProgram &out_;
+    Backend &out_;
     GetTheoryAtomCondition &cond_;
     std::vector<bool> tSeen_;
     std::vector<bool> eSeen_;
@@ -66,7 +77,7 @@ private:
 
 } // namespace
 
-void output(Potassco::TheoryData const &data, Potassco::AbstractProgram &out, GetTheoryAtomCondition cond) {
+void output(Potassco::TheoryData const &data, Backend &out, GetTheoryAtomCondition cond) {
     TheoryVisitor visitor(out, cond);
     data.accept(visitor);
 }
