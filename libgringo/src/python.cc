@@ -6083,7 +6083,7 @@ Supremum    -- represents a #sup symbol
 Functions:
 
 Function()      -- create a function symbol
-Number()        -- creat a number symbol
+Number()        -- create a number symbol
 parse_program() -- parse a logic program
 parse_term()    -- parse ground terms
 String()        -- create a string symbol
