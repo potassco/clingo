@@ -279,7 +279,10 @@ public:
     void beginAdd() override { parse(); }
     void add(clingo_ast_statement_t const &stm) override { Gringo::Input::parseStatement(*pb_, logger_, stm); }
     void endAdd() override { defs_.init(logger_); parsed = true; }
-    void registerObserver(Gringo::UBackend obs, bool replace) override { out_->registerObserver(std::move(obs), replace); }
+    void registerObserver(Gringo::UBackend obs, bool replace) override {
+        if (replace) { clingoMode_ = false; }
+        out_->registerObserver(std::move(obs), replace);
+    }
 
     // }}}2
 
