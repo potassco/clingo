@@ -497,9 +497,12 @@ private:
 
 } // namespace
 
-void OutputBase::registerObserver(UBackend prg) {
-    backendLambda(data, *out_, [&prg](DomainData &, UBackend &out) {
-        if (prg) { out = gringo_make_unique<BackendTee>(std::move(prg), std::move(out)); }
+void OutputBase::registerObserver(UBackend prg, bool replace) {
+    backendLambda(data, *out_, [&prg, replace](DomainData &, UBackend &out) {
+        if (prg) {
+            if (replace) { out = std::move(prg); }
+            else         { out = gringo_make_unique<BackendTee>(std::move(prg), std::move(out)); }
+        }
     });
 }
 

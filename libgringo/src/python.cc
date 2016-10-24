@@ -546,6 +546,8 @@ template <class T>
 Object cppToPy(std::initializer_list<T> l);
 template <class T>
 Object cppToPy(T const *arr, size_t size);
+template <class T, class U>
+Object cppToPy(std::pair<T, U> const &pair);
 
 Object cppToPy(char const *n) { return PyString_FromString(n); }
 Object cppToPy(std::string const &s) { return cppToPy(s.c_str()); }
@@ -558,6 +560,10 @@ Object cppToPy(T n, typename std::enable_if<std::is_integral<T>::value>::type* =
 template <class T>
 Object cppToPy(T n, typename std::enable_if<std::is_floating_point<T>::value>::type* = nullptr) {
     return PyFloat_FromDouble(n);
+}
+
+Object cppToPy(Potassco::WeightLit_t lit) {
+    return Tuple(cppToPy(lit.lit), cppToPy(lit.weight));
 }
 
 struct PyUnblock {
@@ -1216,7 +1222,7 @@ PyGetSetDef TheoryElement::tp_getset[] = {
 The tuple of the element.)", nullptr},
     {(char *)"condition", (getter)condition, nullptr, (char *)R"(condition -> [TheoryTerm]
 
-The conditon of the element.)", nullptr},
+The condition of the element.)", nullptr},
     {(char *)"condition_id", (getter)condition_id, nullptr, (char *)R"(condition_id -> int
 
 Each condition has an id. This id can be passed to PropagateInit.solver_literal
@@ -1443,7 +1449,7 @@ preconstructed symbols Infimum and Supremum.)";
         PY_CATCH(nullptr);
     }
     static PyObject *new_tuple(PyObject *, PyObject *arg) {
-        return new_function_("", arg, Py_False);
+        return new_function_("", arg, Py_True);
     }
     static PyObject *new_number(PyObject *, PyObject *arg) {
         PY_TRY
@@ -2730,58 +2736,136 @@ private:
 
 // {{{1 wrap observer
 
+struct TruthValue : EnumType<TruthValue> {
+    using Type = Potassco::Value_t::E;
+    static constexpr char const *tp_type = "TruthValue";
+    static constexpr char const *tp_name = "clingo.TruthValue";
+    static constexpr char const *tp_doc =
+R"(Enumeration of the different truth values.
+
+TruthValue objects cannot be constructed from python. Instead the following
+preconstructed objects are available:
+
+TruthValue.True    -- truth value true
+TruthValue.False   -- truth value false
+TruthValue.Free    -- no truth value
+TruthValue.Release -- indicates that an atom is to be released)";
+
+    static constexpr Type const values[] =          {  Type::True, Type::False, Type::Free, Type::Release };
+    static constexpr const char * const strings[] = { "True"     , "False"    , "Free"    , "Release" };
+};
+
+constexpr TruthValue::Type const TruthValue::values[];
+constexpr const char * const TruthValue::strings[];
+
+struct HeuristicType : EnumType<HeuristicType> {
+    using Type = Potassco::Heuristic_t::E;
+    static constexpr char const *tp_type = "HeuristicType";
+    static constexpr char const *tp_name = "clingo.HeuristicType";
+    static constexpr char const *tp_doc =
+R"(Enumeration of the different heuristic types.
+
+HeuristicType objects cannot be constructed from python. Instead the following
+preconstructed objects are available:
+
+HeuristicType.True    -- truth value true
+HeuristicType.False   -- truth value false
+HeuristicType.Free    -- no truth value
+HeuristicType.Release -- indicates that an atom is to be released)";
+
+    static constexpr Type const values[] =          {  Type::Level, Type::Sign, Type::Factor, Type::Init, Type::True, Type::False };
+    static constexpr const char * const strings[] = { "Level"     , "Sign"    , "Factor"    , "Init"    , "True"    , "False" };
+};
+
+constexpr HeuristicType::Type const HeuristicType::values[];
+constexpr const char * const HeuristicType::strings[];
+
 class GroundProgramObserver : public Gringo::Backend {
 public:
-    GroundProgramObserver(Reference obs) : obs_(obs) {
-    }
+    GroundProgramObserver(Reference obs) : obs_(obs) { }
 
     void initProgram(bool incremental) override {
+        PyBlock b;
         call("init_program", cppToPy(incremental));
     }
     void beginStep() override {
+        PyBlock b;
         call("begin_step");
     }
 
     void rule(Head_t ht, const AtomSpan& head, const LitSpan& body) override {
+        PyBlock b;
+        call("rule", cppToPy(ht == Head_t::Choice), cppToPy(head), cppToPy(body));
     }
     void rule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body) override {
+        PyBlock b;
+        call("weight_rule", cppToPy(ht == Head_t::Choice), cppToPy(head), cppToPy(bound), cppToPy(body));
     }
     void minimize(Weight_t prio, const WeightLitSpan& lits) override {
+        PyBlock b;
+        call("minimize", cppToPy(prio), cppToPy(lits));
     }
 
     void project(const AtomSpan& atoms) override {
+        PyBlock b;
+        call("project", cppToPy(atoms));
     }
     void output(Gringo::Symbol sym, Potassco::Atom_t atom) override {
+        PyBlock b;
+        call("output_atom", cppToPy(sym), cppToPy(atom));
     }
     void output(Gringo::Symbol sym, Potassco::LitSpan const& condition) override {
+        PyBlock b;
+        call("output_term", cppToPy(sym), cppToPy(condition));
     }
     void output(Gringo::Symbol sym, int value, Potassco::LitSpan const& condition) override {
+        PyBlock b;
+        call("output_csp", cppToPy(sym), cppToPy(value), cppToPy(condition));
     }
     void external(Atom_t a, Value_t v) override {
+        PyBlock b;
+        call("external", cppToPy(a), TruthValue::getAttr(v));
     }
     void assume(const LitSpan& lits) override {
+        PyBlock b;
+        call("assume", cppToPy(lits));
     }
     void heuristic(Atom_t a, Heuristic_t t, int bias, unsigned prio, const LitSpan& condition) override {
+        PyBlock b;
+        call("heuristic", cppToPy(a), cppToPy(t), cppToPy(bias), cppToPy(prio), cppToPy(condition));
     }
     void acycEdge(int s, int t, const LitSpan& condition) override {
+        PyBlock b;
+        call("acyc_edge", cppToPy(s), cppToPy(t), cppToPy(condition));
     }
 
     void theoryTerm(Id_t termId, int number) override {
+        PyBlock b;
+        call("theory_term_number", cppToPy(termId), cppToPy(number));
     }
     void theoryTerm(Id_t termId, const StringSpan& name) override {
+        PyBlock b;
+        std::string s{name.first, name.size};
+        call("theory_term_string", cppToPy(termId), cppToPy(s));
     }
     void theoryTerm(Id_t termId, int cId, const IdSpan& args) override {
+        PyBlock b;
+        call("theory_term_compound", cppToPy(termId), cppToPy(cId), cppToPy(args));
     }
     void theoryElement(Id_t elementId, const IdSpan& terms, const LitSpan& cond) override {
+        PyBlock b;
+        call("theory_element", cppToPy(elementId), cppToPy(terms), cppToPy(cond));
     }
     void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements) override {
+        PyBlock b;
+        call("theory_atom", cppToPy(atomOrZero), cppToPy(termId), cppToPy(elements));
     }
     void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements, Id_t op, Id_t rhs) override {
+        PyBlock b;
+        call("theory_atom_with_guard", cppToPy(atomOrZero), cppToPy(termId), cppToPy(elements), cppToPy(op), cppToPy(rhs));
     }
 
     void endStep() override {
-        // This function is called in solve.
-        // Hence it has to get the GIL back.
         PyBlock b;
         call("end_step");
     }
@@ -5341,8 +5425,11 @@ active; you must not call any member function during search.)";
             Py_RETURN_NONE;
         PY_CATCH(nullptr);
     }
-    Object registerObserver(Reference obs) {
-        ctl->registerObserver(gringo_make_unique<GroundProgramObserver>(obs));
+    Object registerObserver(Reference args, Reference kwds) {
+        static char const *kwlist[] = {"observer", "replace", nullptr};
+        Reference obs, rep = Py_False;
+        ParseTupleAndKeywords(args, kwds, "O|O", kwlist, obs, rep);
+        ctl->registerObserver(gringo_make_unique<GroundProgramObserver>(obs), rep.isTrue());
         return None();
     }
     static PyObject *interrupt(ControlWrap *self) {
@@ -5612,11 +5699,181 @@ a.
 Expected Answer Sets:
 a b
 a)"},
-    {"register_observer", to_function<&ControlWrap::registerObserver>(), METH_O,
-R"(register_observer(self, observer) -> None
+    {"register_observer", to_function<&ControlWrap::registerObserver>(), METH_VARARGS | METH_KEYWORDS,
+R"(register_observer(self, observer, replace) -> None
 
-TODO: incomplete....
-)"},
+Registers the given observer to inspect the produced grounding.
+
+Arguments:
+observer -- the observer to register
+
+Keyword Arguments:
+replace  -- if set to true, the output is just passed to the observer and no
+            longer to the underlying solver (Default: False)
+
+An observer should be a class of the form below. Not all functions have to be
+implemented and can be ommited if not needed.
+
+class GroundProgramObserver:
+    init_program(self, incremental) -> None
+        Called once in the beginning.
+
+        If the incremental flag is true, there can be multiple calls to
+        Control.solve(), Control.solve_async(), or Control.solve_iter().
+
+        Arguments:
+        incremental -- whether the program is incremental
+
+    begin_step(self) -> None
+        Marks the beginning of a block of directives passed to the solver.
+
+    rule(self, choice, head, body) -> None
+        Observe rules passed to the solver.
+
+        Arguments:
+        choice -- determines if the head is a choice or a disjunction
+        head   -- list of program atoms
+        body   -- list of program literals
+
+    weight_rule(self, choice, head, lower_bound, body) -> None
+        Observe weight rules passed to the solver.
+
+        Arguments:
+        choice      -- determines if the head is a choice or a disjunction
+        head        -- list of program atoms
+        lower_bound -- the lower bound of the weight rule
+        body        -- list of weighted literals (pairs of literal and weight)
+
+    minimize(self, priority, literals) -> None
+        Observe minimize constraints (or weak constraints) passed to the
+        solver.
+
+        Arguments:
+        priority -- the priority of the constraint
+        literals -- list of weighted literals whose sum to minimize
+                    (pairs of literal and weight)
+
+    project(self, atoms) -> None
+        Observe projection directives passed to the solver.
+
+        Arguments:
+        atoms -- the program atoms to project on
+
+    output_atom(self, symbol, atom) -> None
+        Observe shown atoms passed to the solver.  Facts do not have an
+        associated program atom.  The value of the atom is set to zero.
+
+        Arguments:
+        symbol -- the symbolic representation of the atom
+        atom   -- the program atom (0 for facts)
+
+    output_term(self, symbol, condition) -> None
+        Observe shown terms passed to the solver.
+
+        Arguments:
+        symbol    -- the symbolic representation of the term
+        condition -- list of program literals
+
+    output_csp(self, symbol, value, condition) -> None
+        Observe shown csp variables passed to the solver.
+
+        Arguments:
+        symbol    -- the symbolic representation of the variable
+        value     -- the integer value of the variable
+        condition -- list of program literals
+
+    external(self, atom, value) -> None
+        Observe external statements passed to the solver.
+
+        Arguments:
+        atom  -- the external atom in form of a Symbol
+        value -- the TruthValue of the external statement
+
+    assume(self, literals) -> None
+        Observe assumption directives passed to the solver.
+
+        Arguments:
+        literals -- the program literals to assume (positive literals are true
+                    and negative literals false for the next solve call)
+
+    heuristic(self, atom, type, bias, priority, condition) -> None
+        Observe heuristic directives passed to the solver.
+
+        Arguments:
+        atom      -- the target atom
+        type      -- the HeuristicType
+        bias      -- the heuristic bias
+        priority  -- the heuristic priority
+        condition -- list of program literals
+
+    acyc_edge(self, node_u, node_v, condition) -> None
+        Observe edge directives passed to the solver.
+
+        Arguments:
+        node_u    -- the start vertex of the edge (in form of an integer)
+        node_v    -- the end vertex of the edge (in form of an integer)
+        condition -- list of program literals
+
+    theory_term_number(self, term_id, number) -> None
+        Observe numeric theory terms.
+
+        Arguments:
+        term_id -- the id of the term
+        number  -- the (integer) value of the term
+
+    theory_term_string(self, term_id, name) -> None
+        Observe string theory terms.
+
+        Arguments:
+        term_id -- the id of the term
+        name    -- the string value of the term
+
+    theory_term_compound(self, term_id, name_id_or_type, arguments) -> None
+        Observe compound theory terms.
+
+        The name_id_or_type gives the type of the compound term:
+        - if it is -1, then it is a tuple
+        - if it is -2, then it is a set
+        - if it is -3, then it is a list
+        - otherwise, it is a function and name_id_or_type refers to the id of
+          the name (in form of a string term)
+
+        Arguments:
+        term_id         -- the id of the term
+        name_id_or_type -- the name or type of the term
+        arguments       -- the arguments of the term
+
+    theory_element(self, element_id, terms, condition) -> None
+        Observe theory elements.
+
+        Arguments:
+        element_id -- the id of the element
+        terms      -- term tuple of the element
+        condition  -- list of program literals
+
+    theory_atom(self, atom_id_or_zero, term_id, elements) -> None
+        Observe theory atoms without guard.
+
+        Arguments:
+        atom_id_or_zero -- the id of the atom or zero for directives
+        term_id         -- the term associated with the atom
+        elements        -- the list of elements of the atom
+
+    theory_atom_with_guard(self, atom_id_or_zero, term_id, elements,
+                           operator_id, right_hand_side_id) -> None
+        Observe theory atoms with guard.
+
+        Arguments:
+        atom_id_or_zero    -- the id of the atom or zero for directives
+        term_id            -- the term associated with the atom
+        elements           -- the elements of the atom
+        operator_id        -- the id of the operator (a string term)
+        right_hand_side_id -- the id of the term on the right hand side of the atom
+
+    end_step(self) -> None
+        Marks the end of a block of directives passed to the solver.
+
+        This function is called right before solving starts.)"},
     {"register_propagator", (PyCFunction)registerPropagator, METH_O,
 R"(register_propagator(self, propagator) -> None
 
@@ -6277,7 +6534,7 @@ PyObject *initclingo_() {
             !SymbolicAtom::initType(m)   || !SymbolicAtomIter::initType(m) || !SymbolicAtoms::initType(m)    ||
             !TheoryTerm::initType(m)     || !PropagateInit::initType(m)    || !Assignment::initType(m)       ||
             !SymbolType::initType(m)     || !Symbol::initType(m)           || !Backend::initType(m)          ||
-            !ProgramBuilder::initType(m) ||
+            !ProgramBuilder::initType(m) || !HeuristicType::initType(m)    || !TruthValue::initType(m)       ||
             PyModule_AddStringConstant(m.toPy(), "__version__", CLINGO_VERSION) < 0 ||
             false) { return nullptr; }
         Reference a{initclingoast_()};
@@ -6340,6 +6597,11 @@ Object cppToPy(T const *arr, size_t size) {
         list.append(cppToPy(*it));
     }
     return list;
+}
+
+template <class T, class U>
+Object cppToPy(std::pair<T, U> const &pair) {
+    return Tuple(cppToPy(pair.first), cppToPy(pair.second));
 }
 
 // }}}1

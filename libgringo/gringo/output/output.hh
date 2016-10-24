@@ -83,7 +83,7 @@ public:
     SymVec &tempVals() { tempVals_.clear(); return tempVals_; }
     LitVec &tempLits() { tempLits_.clear(); return tempLits_; }
     Backend *backend();
-    void registerObserver(UBackend prg);
+    void registerObserver(UBackend prg, bool replace);
     void reset();
 private:
     UAbstractOutput fromFormat(std::ostream &out, OutputFormat format, OutputOptions opts);

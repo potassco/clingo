@@ -209,7 +209,7 @@ public:
 
     ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Gringo::Logger::Printer printer, unsigned messageLimit);
     ~ClingoControl() noexcept override;
-    void prepare(Gringo::Control::ModelHandler mh, Gringo::Control::FinishHandler fh);
+    void prepare(Assumptions &&ass, Gringo::Control::ModelHandler mh, Gringo::Control::FinishHandler fh);
     void commitExternals();
     void parse();
     void parse(const StringSeq& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* out, bool addStdIn = true);
@@ -217,8 +217,6 @@ public:
     bool onModel(Clasp::Model const &m);
     void onFinish(Clasp::ClaspFacade::Result ret);
     bool update();
-
-    Clasp::LitVec toClaspAssumptions(Gringo::Control::Assumptions &&ass) const;
 
     virtual void postGround(Clasp::ProgramBuilder& prg) { if (pgf_) { pgf_(prg); } }
     virtual void prePrepare(Clasp::ClaspFacade& ) { }
@@ -281,7 +279,7 @@ public:
     void beginAdd() override { parse(); }
     void add(clingo_ast_statement_t const &stm) override { Gringo::Input::parseStatement(*pb_, logger_, stm); }
     void endAdd() override { defs_.init(logger_); parsed = true; }
-    void registerObserver(Gringo::UBackend obs) override { out_->registerObserver(std::move(obs)); }
+    void registerObserver(Gringo::UBackend obs, bool replace) override { out_->registerObserver(std::move(obs), replace); }
 
     // }}}2
 
@@ -371,7 +369,7 @@ private:
 
 class ClingoSolveIter : public Gringo::SolveIter {
 public:
-    ClingoSolveIter(ClingoControl &ctl, Clasp::LitVec const &ass);
+    ClingoSolveIter(ClingoControl &ctl);
 
     Gringo::Model const *next() override;
     void close() override;
