@@ -6435,6 +6435,7 @@ Assignment       -- partial assignment of truth values to solver literals
 Backend          -- extend the logic program
 Configuration    -- modify/inspect the solver configuration
 Control          -- controls the grounding/solving process
+HeuristicType    -- enumeration of heuristic modificators
 Model            -- provides access to a model during solve call
 ProgramBuilder   -- extend a non-ground logic program
 PropagateControl -- controls running search in a custom propagator
@@ -6444,15 +6445,16 @@ SolveFuture      -- handle for asynchronous solve calls
 SolveIter        -- handle to iterate over models
 SolveResult      -- result of a solve call
 Symbol           -- captures precomputed terms
+SymbolType       -- enumeration of symbol types
 SymbolicAtom     -- captures information about a symbolic atom
 SymbolicAtomIter -- iterate over symbolic atoms
 SymbolicAtoms    -- inspection of symbolic atoms
-SymbolType       -- the type of a symbol
 TheoryAtom       -- captures theory atoms
 TheoryAtomIter   -- iterate over theory atoms
 TheoryElement    -- captures theory elements
 TheoryTerm       -- captures theory terms
 TheoryTermType   -- the type of a theory term
+TruthValue       -- enumeration of truth values
 
 Example:
 

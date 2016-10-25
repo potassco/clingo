@@ -305,6 +305,13 @@ bool handleError(lua_State *L, Location const &loc, int code, char const *desc, 
 
 static int luaTraceback (lua_State *L);
 
+struct LuaClear {
+    LuaClear(lua_State *L) : L(L), n(lua_gettop(L)) { }
+    ~LuaClear() { lua_settop(L, n); }
+    lua_State *L;
+    int n;
+};
+
 // {{{1 lua C functions
 
 using LuaCallArgs = std::tuple<char const *, SymSpan, SymVec>;
@@ -1728,13 +1735,6 @@ luaL_Reg const Backend::meta[] = {
 
 // {{{1 wrap ControlWrap
 
-struct LuaClear {
-    LuaClear(lua_State *L) : L(L), n(lua_gettop(L)) { }
-    ~LuaClear() { lua_settop(L, n); }
-    lua_State *L;
-    int n;
-};
-
 struct LuaContext : Gringo::Context {
     LuaContext(lua_State *L, Logger &log, int idx)
     : L(L)
@@ -2057,6 +2057,7 @@ struct ControlWrap {
         return 0;
     }
     static int registerPropagator(lua_State *L);
+    static int registerObserver(lua_State *L);
     static luaL_Reg meta[];
     static constexpr char const *typeName = "clingo.Control";
 };
@@ -2076,6 +2077,7 @@ luaL_Reg ControlWrap::meta[] = {
     {"release_external", release_external},
     {"interrupt", interrupt},
     {"register_propagator", registerPropagator},
+    {"register_observer", registerObserver},
     {"__gc", gc},
     {nullptr, nullptr}
 };
@@ -2554,6 +2556,333 @@ int ControlWrap::registerPropagator(lua_State *L) {
     return 0;
 }
 
+// {{{1 wrap GroundProgramObserver
+
+struct TruthValue {
+    using Type = Potassco::Value_t::E;
+
+    static int addToRegistry(lua_State *L) {
+        lua_createtable(L, 0, 6);
+        for (auto t : { Type::True, Type::False, Type::Free, Type::Release }) {
+            *(Type*)lua_newuserdata(L, sizeof(Type)) = t;
+            luaL_getmetatable(L, typeName);
+            lua_setmetatable(L, -2);
+            lua_setfield(L, -2, field_(t));
+        }
+        lua_setfield(L, -2, "TruthValue");
+        return 0;
+    }
+    static char const *field_(Type t) {
+        switch (t) {
+            case Type::True:    { return "True"; }
+            case Type::False:   { return "False"; }
+            case Type::Free:    { return "Free"; }
+            case Type::Release: { return "Release"; }
+            default:            { return ""; }
+        }
+    }
+    static int new_(lua_State *L, Type t) {
+        lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
+        lua_getfield(L, -1, "TruthValue");
+        lua_replace(L, -2);
+        lua_getfield(L, -1, field_(t));
+        lua_replace(L, -2);
+        return 1;
+    }
+    static int eq(lua_State *L) {
+        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
+        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
+        lua_pushboolean(L, *a == *b);
+        return 1;
+    }
+    static int lt(lua_State *L) {
+        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
+        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
+        lua_pushboolean(L, *a < *b);
+        return 1;
+    }
+    static int le(lua_State *L) {
+        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
+        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
+        lua_pushboolean(L, *a <= *b);
+        return 1;
+    }
+    static int toString(lua_State *L) {
+        lua_pushstring(L, field_(*(Type*)luaL_checkudata(L, 1, typeName)));
+        return 1;
+    }
+    static luaL_Reg const meta[];
+    static constexpr char const *typeName = "clingo.TruthValue";
+};
+
+constexpr char const *TruthValue::typeName;
+
+luaL_Reg const TruthValue::meta[] = {
+    {"__eq", eq},
+    {"__lt", lt},
+    {"__le", le},
+    {"__tostring", toString},
+    { nullptr, nullptr }
+};
+
+struct HeuristicType {
+    using Type = Potassco::Heuristic_t::E;
+
+    static int addToRegistry(lua_State *L) {
+        lua_createtable(L, 0, 6);
+        for (auto t : { Type::Level, Type::Sign, Type::Factor, Type::Init, Type::True, Type::False }) {
+            *(Type*)lua_newuserdata(L, sizeof(Type)) = t;
+            luaL_getmetatable(L, typeName);
+            lua_setmetatable(L, -2);
+            lua_setfield(L, -2, field_(t));
+        }
+        lua_setfield(L, -2, "HeuristicType");
+        return 0;
+    }
+    static char const *field_(Type t) {
+        switch (t) {
+            case Type::Level:  { return "Level"; }
+            case Type::Sign:   { return "Sign"; }
+            case Type::Factor: { return "Factor"; }
+            case Type::Init:   { return "Init"; }
+            case Type::True:   { return "True"; }
+            case Type::False:  { return "False"; }
+            default:           { return ""; }
+        }
+    }
+    static int new_(lua_State *L, Type t) {
+        lua_getfield(L, LUA_REGISTRYINDEX, "clingo"); // +1
+        lua_getfield(L, -1, "HeuristicType");         // +1
+        lua_replace(L, -2);                           // -1
+        lua_getfield(L, -1, field_(t));               // +1
+        lua_replace(L, -2);                           // -1
+        return 1;
+    }
+    static int eq(lua_State *L) {
+        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
+        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
+        lua_pushboolean(L, *a == *b);
+        return 1;
+    }
+    static int lt(lua_State *L) {
+        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
+        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
+        lua_pushboolean(L, *a < *b);
+        return 1;
+    }
+    static int le(lua_State *L) {
+        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
+        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
+        lua_pushboolean(L, *a <= *b);
+        return 1;
+    }
+    static int toString(lua_State *L) {
+        lua_pushstring(L, field_(*(Type*)luaL_checkudata(L, 1, typeName)));
+        return 1;
+    }
+    static luaL_Reg const meta[];
+    static constexpr char const *typeName = "clingo.HeuristicType";
+};
+
+luaL_Reg const HeuristicType::meta[] = {
+    {"__eq", eq},
+    {"__lt", lt},
+    {"__le", le},
+    {"__tostring", toString},
+    { nullptr, nullptr }
+};
+constexpr char const *HeuristicType::typeName;
+
+class GroundProgramObserver : public Gringo::Backend {
+public:
+    GroundProgramObserver(lua_State *L, lua_State *T) : L(L), T(T) { }
+
+    void initProgram(bool incremental) override {
+        call("init_program", incremental);
+    }
+    void beginStep() override {
+        call("begin_step");
+    }
+
+    void rule(Head_t ht, const AtomSpan& head, const LitSpan& body) override {
+        call("rule", ht == Head_t::Choice, head, body);
+    }
+    void rule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body) override {
+        call("weight_rule", ht == Head_t::Choice, head, bound, body);
+    }
+    void minimize(Weight_t prio, const WeightLitSpan& lits) override {
+        call("minimize", prio, lits);
+    }
+
+    void project(const AtomSpan& atoms) override {
+        call("project", atoms);
+    }
+    void output(Gringo::Symbol sym, Potassco::Atom_t atom) override {
+        call("output_atom", sym, atom);
+    }
+    void output(Gringo::Symbol sym, Potassco::LitSpan const& condition) override {
+        call("output_term", sym, condition);
+    }
+    void output(Gringo::Symbol sym, int value, Potassco::LitSpan const& condition) override {
+        call("output_csp", sym, value, condition);
+    }
+    void external(Atom_t a, Value_t v) override {
+        call("external", a, v);
+    }
+    void assume(const LitSpan& lits) override {
+        call("assume", lits);
+    }
+    void heuristic(Atom_t a, Heuristic_t t, int bias, unsigned prio, const LitSpan& condition) override {
+        call("heuristic", a, t, bias, prio, condition);
+    }
+    void acycEdge(int s, int t, const LitSpan& condition) override {
+        call("acyc_edge", s, t, condition);
+    }
+
+    void theoryTerm(Id_t termId, int number) override {
+        call("theory_term_number", termId, number);
+    }
+    void theoryTerm(Id_t termId, const StringSpan& name) override {
+        std::string s{name.first, name.size};
+        call("theory_term_string", termId, s);
+    }
+    void theoryTerm(Id_t termId, int cId, const IdSpan& args) override {
+        call("theory_term_compound", termId, cId, args);
+    }
+    void theoryElement(Id_t elementId, const IdSpan& terms, const LitSpan& cond) override {
+        call("theory_element", elementId, terms, cond);
+    }
+    void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements) override {
+        call("theory_atom", atomOrZero, termId, elements);
+    }
+    void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements, Id_t op, Id_t rhs) override {
+        call("theory_atom_with_guard", atomOrZero, termId, elements, op, rhs);
+    }
+
+    void endStep() override {
+        call("end_step");
+    }
+private:
+    static void push(lua_State *L, bool b) {
+        lua_pushboolean(L, b);
+    }
+    static void push(lua_State *L, Symbol b) {
+        Term::new_(L, b);
+    }
+    static void push(lua_State *L, Value_t x) {
+        TruthValue::new_(L, x.val_);
+    }
+    static void push(lua_State *L, Heuristic_t x) {
+        HeuristicType::new_(L, x.val_);
+    }
+    static void push(lua_State *L, Potassco::WeightLit_t lit) {
+        lua_newtable(L);
+        push(L, lit.lit);
+        lua_rawseti(L, -2, 1);
+        push(L, lit.weight);
+        lua_rawseti(L, -2, 2);
+    }
+    template <class T>
+    static void push(lua_State *L, T n, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr) {
+        lua_pushnumber(L, n);
+    }
+    template <class T>
+    static void push(lua_State *L, Potassco::Span<T> span) {
+        lua_newtable(L);
+        int i = 0;
+        for (auto x : span) {
+            push(L, x);
+            lua_rawseti(L, -2, ++i);
+        }
+    }
+    static void push(lua_State *L, std::string const &s) {
+        lua_pushstring(L, s.c_str());
+    }
+
+    void push_args() { }
+    template <class T, class... U>
+    void push_args(T& arg, U&... args) {
+        lua_pushlightuserdata(L, &arg);
+        push_args(args...);
+    }
+
+    template <int>
+    static void l_push_args(lua_State *, int) { }
+    template <int, class T, class... U>
+    static void l_push_args(lua_State *L, int i) {
+        T *val = static_cast<T*>(lua_touserdata(L, lua_upvalueindex(i)));
+        push(L, *val);
+        l_push_args<0, U...>(L, i+1);
+    }
+
+    template <int>
+    static int count() { return 0; }
+    template <int, class U, class... T>
+    static int count() { return count<0, T...>() + 1; }
+
+    template <class... T>
+    static int l_call(lua_State *L) {
+        lua_pushvalue(L, 1);
+        lua_pushvalue(L, 2);
+        l_push_args<0, T...>(L, 1);
+        lua_call(L, count<0, T...>()+1, 0);
+        return 0;
+    }
+    template <class... T>
+    void call(char const *fun, T... args) {
+        if (!lua_checkstack(L, 3)) { throw std::runtime_error("lua stack size exceeded"); }
+        LuaClear t(L);
+        // get observer on top of stack L
+        lua_pushvalue(this->T, 1);
+        lua_xmove(this->T, L, 1);                 // +1
+        int observer = lua_gettop(L);
+        lua_pushcfunction(L, luaTraceback);       // +1
+        int handler = lua_gettop(L);
+        lua_getfield(L, -2, fun);                 // +1
+        if (!lua_isnil(L, -1)) {
+            int function = lua_gettop(L);
+            int n = count<0, T...>();
+            if (!lua_checkstack(L, std::max(3,n))) { throw std::runtime_error("lua stack size exceeded"); }
+            push_args(args...);                   // +n
+            lua_pushcclosure(L, l_call<T...>, n); // +1-n
+            lua_pushvalue(L, function);           // +1
+            lua_pushvalue(L, observer);           // +1
+            auto ret = lua_pcall(L, 2, 0, handler);
+            if (ret != 0) {
+                std::string f = "<GroundProgramObserver::" + std::string(fun) + ">";
+                Location loc(f.c_str(), 1, 1, f.c_str(), 1, 1);
+                handleError(L, loc, ret, ("calling " + std::string(fun) + " failed").c_str(), nullptr);
+            }
+        }
+    }
+
+private:
+    lua_State *L;
+    // state where the observer is stored
+    lua_State *T;
+};
+
+int ControlWrap::registerObserver(lua_State *L) {
+    bool replace = lua_toboolean(L, 3);
+    auto &self = get_self(L);
+    lua_pushstring(L, "observers");     // +1
+    lua_rawget(L, 1);                   // +0
+    if (lua_isnil(L, -1)) {
+        lua_pop(L, 1);                  // -1
+        lua_newtable(L);                // +1
+        lua_pushstring(L, "observers"); // +1
+        lua_pushvalue(L, -2);           // +1
+        lua_rawset(L, 1);               // -2
+    }
+    auto *T = lua_newthread(L);         // +1
+    luaL_ref(L, -2);                    // -1
+    lua_pop(L, 1);                      // -1
+    lua_pushvalue(L, 2);                // +1
+    lua_xmove(L, T, 1);                 // -1
+    protect(L, [L, T, &self, replace]() { self.ctl.registerObserver(gringo_make_unique<GroundProgramObserver>(L, T), replace); });
+    return 0;
+}
+
 // {{{1 wrap module functions
 
 int parseTerm(lua_State *L) {
@@ -2591,6 +2920,8 @@ int luaopen_clingo(lua_State* L) {
     lua_regMeta(L, SymbolicAtom::typeName,   SymbolicAtom::meta, SymbolicAtom::index);
     lua_regMeta(L, AnyWrap::typeName,        AnyWrap::meta);
     lua_regMeta(L, TheoryTermType::typeName, TheoryTermType::meta);
+    lua_regMeta(L, TruthValue::typeName,     TruthValue::meta);
+    lua_regMeta(L, HeuristicType::typeName,  HeuristicType::meta);
     lua_regMeta(L, TheoryTerm::typeName,     TheoryTerm::meta, TheoryTerm::index);
     TheoryElement::reg(L);
     TheoryAtom::reg(L);
@@ -2611,6 +2942,8 @@ int luaopen_clingo(lua_State* L) {
     SymbolType::addToRegistry(L);
     Term::addToRegistry(L);
     TheoryTermType::addToRegistry(L);
+    TruthValue::addToRegistry(L);
+    HeuristicType::addToRegistry(L);
 
     lua_pushvalue(L, -1);
     lua_setfield(L, LUA_REGISTRYINDEX, "clingo");
