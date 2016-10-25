@@ -2825,28 +2825,28 @@ private:
         lua_pushvalue(L, 1);
         lua_pushvalue(L, 2);
         l_push_args<0, T...>(L, 1);
-        lua_call(L, count<0, T...>()+1, 0);
+        lua_call(L, (count<0, T...>()+1), 0);
         return 0;
     }
-    template <class... T>
-    void call(char const *fun, T... args) {
+    template <class... Args>
+    void call(char const *fun, Args... args) {
         if (!lua_checkstack(L, 3)) { throw std::runtime_error("lua stack size exceeded"); }
         LuaClear t(L);
         // get observer on top of stack L
-        lua_pushvalue(this->T, 1);
-        lua_xmove(this->T, L, 1);                 // +1
+        lua_pushvalue(T, 1);
+        lua_xmove(T, L, 1);                          // +1
         int observer = lua_gettop(L);
-        lua_pushcfunction(L, luaTraceback);       // +1
+        lua_pushcfunction(L, luaTraceback);          // +1
         int handler = lua_gettop(L);
-        lua_getfield(L, -2, fun);                 // +1
+        lua_getfield(L, -2, fun);                    // +1
         if (!lua_isnil(L, -1)) {
             int function = lua_gettop(L);
-            int n = count<0, T...>();
+            int n = count<0, Args...>();
             if (!lua_checkstack(L, std::max(3,n))) { throw std::runtime_error("lua stack size exceeded"); }
-            push_args(args...);                   // +n
-            lua_pushcclosure(L, l_call<T...>, n); // +1-n
-            lua_pushvalue(L, function);           // +1
-            lua_pushvalue(L, observer);           // +1
+            push_args(args...);                      // +n
+            lua_pushcclosure(L, l_call<Args...>, n); // +1-n
+            lua_pushvalue(L, function);              // +1
+            lua_pushvalue(L, observer);              // +1
             auto ret = lua_pcall(L, 2, 0, handler);
             if (ret != 0) {
                 std::string f = "<GroundProgramObserver::" + std::string(fun) + ">";
