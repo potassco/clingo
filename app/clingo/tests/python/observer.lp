@@ -40,7 +40,7 @@ class Observer:
     def _weight_rule(self, choice, head, lower_bound, body):
         head = sorted(set([ self.__map(atm) for atm in head ]))
         body = sorted(set([ Tuple([self.__map(lit), weight]) for lit, weight in body ]))
-        self.__reified.append(Function("weight_rule", [choice, choice, Tuple(head), lower_bound, Tuple(body)]))
+        self.__reified.append(Function("weight_rule", [choice, Tuple(head), lower_bound, Tuple(body)]))
 
     def _minimize(self, priority, literals):
         literals = sorted(set([ Tuple([self.__map(lit), weight]) for lit, weight in literals ]))

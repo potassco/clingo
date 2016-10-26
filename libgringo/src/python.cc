@@ -2832,7 +2832,7 @@ public:
     }
     void heuristic(Atom_t a, Heuristic_t t, int bias, unsigned prio, const LitSpan& condition) override {
         PyBlock b;
-        call("heuristic", cppToPy(a), cppToPy(t), cppToPy(bias), cppToPy(prio), cppToPy(condition));
+        call("heuristic", cppToPy(a), HeuristicType::getAttr(t), cppToPy(bias), cppToPy(prio), cppToPy(condition));
     }
     void acycEdge(int s, int t, const LitSpan& condition) override {
         PyBlock b;
