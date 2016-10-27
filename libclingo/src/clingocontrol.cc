@@ -396,8 +396,7 @@ void ClingoControl::prepare(Assumptions &&ass, Gringo::Control::ModelHandler mh,
         clasp_->prepare(enableEnumAssupmption_ ? Clasp::ClaspFacade::enum_volatile : Clasp::ClaspFacade::enum_static);
         preSolve(*clasp_);
     }
-    if (data_) { data_->reset(); }
-    out_->reset();
+    out_->reset(data_ || (clasp_ && clasp_->program()));
 }
 
 Gringo::SolveResult ClingoControl::solve(ModelHandler h, Assumptions &&ass) {

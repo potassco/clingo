@@ -315,8 +315,8 @@ void OutputBase::endStep(bool solve, Logger &log) {
     }
 }
 
-void OutputBase::reset() {
-    data.reset();
+void OutputBase::reset(bool resetData) {
+    data.reset(resetData);
     translateLambda(data, *out_, [](DomainData &, Translator &x) { x.reset(); });
 }
 

@@ -61,7 +61,7 @@ public:
     Potassco::TheoryData const &data() const;
     void setCondition(Potassco::Id_t elementId, Potassco::Id_t newCond);
     bool hasConditions() const;
-    void reset();
+    void reset(bool resetData);
     Potassco::TheoryAtom const &getAtom(Id_t offset) const { return **(data_.begin() + offset); }
 
 private:

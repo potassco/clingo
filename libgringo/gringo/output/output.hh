@@ -84,7 +84,7 @@ public:
     LitVec &tempLits() { tempLits_.clear(); return tempLits_; }
     Backend *backend();
     void registerObserver(UBackend prg, bool replace);
-    void reset();
+    void reset(bool resetData);
 private:
     UAbstractOutput fromFormat(std::ostream &out, OutputFormat format, OutputOptions opts);
     UAbstractOutput fromBackend(UBackend &&out, OutputOptions opts);

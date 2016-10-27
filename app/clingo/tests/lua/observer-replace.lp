@@ -249,6 +249,9 @@ function main(prg)
     prg:ground({{"base", {}}})
     prg:solve(nil, {{Function("b"), false}})
     ctx = obs:finalize()
+    prg:add("q", {}, "q(@get()).")
+    prg:ground({{"q", {}}}, ctx)
+    prg:solve()
     print "Solving..."
     print "Answer: 1"
     print (table.concat(table.map(ctx:get(), tostring), " "))

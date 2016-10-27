@@ -739,11 +739,12 @@ void TheoryData::setCondition(Potassco::Id_t elementId, Potassco::Id_t newCond) 
     data_.setCondition(elementId, newCond);
 }
 
-void TheoryData::reset() {
+void TheoryData::reset(bool resetData) {
     TIdSet().swap(terms_);
     TIdSet().swap(elems_);
     AtomSet().swap(atoms_);
     ConditionVec().swap(conditions_);
+    if (resetData) { data_.reset(); }
 }
 
 bool TheoryData::hasConditions() const {

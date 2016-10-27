@@ -182,8 +182,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
         if (!ass.empty()) { std::cerr << "warning: the lparse format does not support assumptions" << std::endl; }
         grounded = false;
         out.endStep(true, logger_);
-        out.reset();
-        const_cast<Potassco::TheoryData&>(out.data.theory().data()).reset();
+        out.reset(true);
         return {Gringo::SolveResult::Unknown, false, false};
     }
     Gringo::SolveIter *solveIter(Assumptions &&) override {
