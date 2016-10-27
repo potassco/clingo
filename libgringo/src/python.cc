@@ -1744,6 +1744,27 @@ lits -- list of pairs of Booleans and atoms representing the nogood)"},
 
 // {{{1 wrap Model
 
+struct ModelType : EnumType<ModelType> {
+    using Type = Gringo::ModelType;
+    static constexpr char const *tp_type = "ModelType";
+    static constexpr char const *tp_name = "clingo.ModelType";
+    static constexpr char const *tp_doc =
+R"(Enumeration of the different types of models.
+
+ModelType objects cannot be constructed from python. Instead the following
+preconstructed objects are available:
+
+SymbolType.StableModel          -- a stable model
+SymbolType.BraveConsequences    -- set of brave consequences
+SymbolType.CautiousConsequences -- set of cautious consequences)";
+
+    static constexpr Type const values[] =          {  Type::StableModel , Type::BraveConsequences , Type::CautiousConsequences };
+    static constexpr const char * const strings[] = { "StableModel"      , "BraveConsequences"     , "CautiousConsequences" };
+};
+
+constexpr ModelType::Type const ModelType::values[];
+constexpr const char * const ModelType::strings[];
+
 struct Model : ObjectBase<Model> {
     Gringo::Model const *model;
     static PyMethodDef tp_methods[];
@@ -1798,6 +1819,15 @@ places like - e.g., the main function.)";
     Object thread_id() {
         return cppToPy(model->threadId());
     }
+    Object optimality_proven() {
+        return cppToPy(model->optimality_proven());
+    }
+    Object number() {
+        return cppToPy(model->number());
+    }
+    Object model_type() {
+        return ModelType::getAttr(model->type());
+    }
     Object tp_repr() {
         auto printAtom = [](std::ostream &out, Gringo::Symbol val) {
             auto sig = val.sig();
@@ -1823,6 +1853,9 @@ PyGetSetDef Model::tp_getset[] = {
 (char *)R"(Return the list of integer cost values of the model.
 
 The return values correspond to clasp's cost output.)", nullptr},
+    {(char *)"optimality_proven", to_getter<&Model::optimality_proven>(), nullptr, (char*)"Whether the optimality of the model has been proven.", nullptr},
+    {(char *)"number", to_getter<&Model::number>(), nullptr, (char*)"The running number of the model.", nullptr},
+    {(char *)"type", to_getter<&Model::model_type>(), nullptr, (char*)"The type of the model.", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -6437,6 +6470,7 @@ Configuration    -- modify/inspect the solver configuration
 Control          -- controls the grounding/solving process
 HeuristicType    -- enumeration of heuristic modificators
 Model            -- provides access to a model during solve call
+ModelType        -- captures the type of a model
 ProgramBuilder   -- extend a non-ground logic program
 PropagateControl -- controls running search in a custom propagator
 PropagateInit    -- object to initialize custom propagators
@@ -6445,10 +6479,10 @@ SolveFuture      -- handle for asynchronous solve calls
 SolveIter        -- handle to iterate over models
 SolveResult      -- result of a solve call
 Symbol           -- captures precomputed terms
-SymbolType       -- enumeration of symbol types
 SymbolicAtom     -- captures information about a symbolic atom
 SymbolicAtomIter -- iterate over symbolic atoms
 SymbolicAtoms    -- inspection of symbolic atoms
+SymbolType       -- enumeration of symbol types
 TheoryAtom       -- captures theory atoms
 TheoryAtomIter   -- iterate over theory atoms
 TheoryElement    -- captures theory elements
@@ -6537,6 +6571,7 @@ PyObject *initclingo_() {
             !TheoryTerm::initType(m)     || !PropagateInit::initType(m)    || !Assignment::initType(m)       ||
             !SymbolType::initType(m)     || !Symbol::initType(m)           || !Backend::initType(m)          ||
             !ProgramBuilder::initType(m) || !HeuristicType::initType(m)    || !TruthValue::initType(m)       ||
+            !ModelType::initType(m)      ||
             PyModule_AddStringConstant(m.toPy(), "__version__", CLINGO_VERSION) < 0 ||
             false) { return nullptr; }
         Reference a{initclingoast_()};

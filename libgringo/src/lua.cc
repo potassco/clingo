@@ -1150,6 +1150,72 @@ luaL_Reg const SolveControl::meta[] = {
 
 // {{{1 wrap Model
 
+struct ModelType {
+    using Type = Gringo::ModelType;
+
+    static int addToRegistry(lua_State *L) {
+        lua_createtable(L, 0, 6);
+        for (auto t : { Type::StableModel, Type::BraveConsequences, Type::CautiousConsequences }) {
+            *(Type*)lua_newuserdata(L, sizeof(Type)) = t;
+            luaL_getmetatable(L, typeName);
+            lua_setmetatable(L, -2);
+            lua_setfield(L, -2, field_(t));
+        }
+        lua_setfield(L, -2, "ModelType");
+        return 0;
+    }
+    static char const *field_(Type t) {
+        switch (t) {
+            case Type::StableModel:          { return "StableModel"; }
+            case Type::BraveConsequences:    { return "BraveConsequences"; }
+            case Type::CautiousConsequences: { return "CautiousConsequences"; }
+            default:                         { return ""; }
+        }
+    }
+    static int new_(lua_State *L, Type t) {
+        lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
+        lua_getfield(L, -1, "ModelType");
+        lua_replace(L, -2);
+        lua_getfield(L, -1, field_(t));
+        lua_replace(L, -2);
+        return 1;
+    }
+    static int eq(lua_State *L) {
+        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
+        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
+        lua_pushboolean(L, *a == *b);
+        return 1;
+    }
+    static int lt(lua_State *L) {
+        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
+        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
+        lua_pushboolean(L, *a < *b);
+        return 1;
+    }
+    static int le(lua_State *L) {
+        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
+        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
+        lua_pushboolean(L, *a <= *b);
+        return 1;
+    }
+    static int toString(lua_State *L) {
+        lua_pushstring(L, field_(*(Type*)luaL_checkudata(L, 1, typeName)));
+        return 1;
+    }
+    static luaL_Reg const meta[];
+    static constexpr char const *typeName = "clingo.ModelType";
+};
+
+constexpr char const *ModelType::typeName;
+
+luaL_Reg const ModelType::meta[] = {
+    {"__eq", eq},
+    {"__lt", lt},
+    {"__le", le},
+    {"__tostring", toString},
+    { nullptr, nullptr }
+};
+
 struct Model {
     static int contains(lua_State *L) {
         Gringo::Model const *& model =  *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
@@ -1243,6 +1309,20 @@ struct Model {
         }
         else if (strcmp(name, "thread_id") == 0) {
             return thread_id(L);
+        }
+        else if (strcmp(name, "number") == 0) {
+            Gringo::Model const *& model = *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
+            lua_pushnumber(L, protect(L, [model]() { return model->number(); }));
+            return 1;
+        }
+        else if (strcmp(name, "optimality_proven") == 0) {
+            Gringo::Model const *& model = *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
+            lua_pushboolean(L, protect(L, [model]() { return model->optimality_proven(); }));
+            return 1;
+        }
+        else if (strcmp(name, "type") == 0) {
+            Gringo::Model const *& model = *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
+            return ModelType::new_(L, protect(L, [model]() { return model->type(); }));
         }
         else {
             lua_getmetatable(L, 1);
@@ -2921,6 +3001,7 @@ int luaopen_clingo(lua_State* L) {
     lua_regMeta(L, AnyWrap::typeName,        AnyWrap::meta);
     lua_regMeta(L, TheoryTermType::typeName, TheoryTermType::meta);
     lua_regMeta(L, TruthValue::typeName,     TruthValue::meta);
+    lua_regMeta(L, ModelType::typeName,      ModelType::meta);
     lua_regMeta(L, HeuristicType::typeName,  HeuristicType::meta);
     lua_regMeta(L, TheoryTerm::typeName,     TheoryTerm::meta, TheoryTerm::index);
     TheoryElement::reg(L);
@@ -2943,6 +3024,7 @@ int luaopen_clingo(lua_State* L) {
     Term::addToRegistry(L);
     TheoryTermType::addToRegistry(L);
     TruthValue::addToRegistry(L);
+    ModelType::addToRegistry(L);
     HeuristicType::addToRegistry(L);
 
     lua_pushvalue(L, -1);
