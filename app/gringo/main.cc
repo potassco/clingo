@@ -182,8 +182,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
         if (!ass.empty()) { std::cerr << "warning: the lparse format does not support assumptions" << std::endl; }
         grounded = false;
         out.endStep(true, logger_);
-        out.reset();
-        const_cast<Potassco::TheoryData&>(out.data.theory().data()).reset();
+        out.reset(true);
         return {Gringo::SolveResult::Unknown, false, false};
     }
     Gringo::SolveIter *solveIter(Assumptions &&) override {
@@ -204,8 +203,8 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     void endAdd() override {
         defs.init(logger_);
     }
-    void registerObserver(Gringo::UBackend prg) override {
-        out.registerObserver(std::move(prg));
+    void registerObserver(Gringo::UBackend prg, bool replace) override {
+        out.registerObserver(std::move(prg), replace);
     }
     Gringo::SolveFuture *solveAsync(ModelHandler, FinishHandler, Assumptions &&) override { throw std::runtime_error("asynchronous solving not supported"); }
     Potassco::AbstractStatistics *statistics() override { throw std::runtime_error("statistics not supported (yet)"); }

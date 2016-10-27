@@ -94,11 +94,11 @@ extern "C" {
 //! Major version number.
 #define CLINGO_VERSION_MAJOR 5
 //! Minor version number.
-#define CLINGO_VERSION_MINOR 1
+#define CLINGO_VERSION_MINOR 2
 //! Revision number.
-#define CLINGO_VERSION_REVISION 1
+#define CLINGO_VERSION_REVISION 0
 //! String representation of version.
-#define CLINGO_VERSION "5.1.1"
+#define CLINGO_VERSION "5.2.0"
 
 //! Signed integer type used for aspif and solver literals.
 typedef int32_t clingo_literal_t;
@@ -2686,7 +2686,7 @@ typedef struct clingo_ground_program_observer {
     //! @param[in] data user data for the callback
     //! @return whether the call was successful
     bool (*weight_rule)(bool choice, clingo_atom_t const *head, size_t head_size, clingo_weight_t lower_bound, clingo_weighted_literal_t const *body, size_t body_size, void *data);
-    //! Observe minimize constraints (or weak constraints) passed to the soler.
+    //! Observe minimize constraints (or weak constraints) passed to the solver.
     //!
     //! @param[in] priority the priority of the constraint
     //! @param[in] literals the weighted literals whose sum to minimize
@@ -3243,8 +3243,10 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_theory_atoms(clingo_control_t *con
 //!
 //! @param[in] control the target
 //! @param[in] observer the observer to register
+//! @param[in] replace just pass the grounding to the observer but not the solver
+//! @param[in] data user data passed to the observer functions
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer_t observer, void *data);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer_t observer, bool replace, void *data);
 //! @}
 
 //! @name Program Modification Functions

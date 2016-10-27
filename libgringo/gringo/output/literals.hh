@@ -1213,8 +1213,8 @@ public:
     IteratorRange<Formula::iterator> formula(std::pair<Id_t, Id_t> pos) { return formula(pos.first, pos.second); }
     // This should be called before grounding a new step
     // to get rid of unnecessary temporary data.
-    void reset() {
-        theory_.reset();
+    void reset(bool resetData) {
+        theory_.reset(resetData);
         clauses_.clear();
         formulas_.clear();
         domains_.clear();

@@ -2045,7 +2045,7 @@ public:
     SymbolicAtoms symbolic_atoms() const;
     TheoryAtoms theory_atoms() const;
     void register_propagator(Propagator &propagator, bool sequential = false);
-    void register_observer(GroundProgramObserver &observer);
+    void register_observer(GroundProgramObserver &observer, bool replace = false);
     void cleanup();
     bool has_const(char const *name) const;
     Symbol get_const(char const *name) const;

@@ -329,17 +329,15 @@ Gringo::ConfigProxy &ClingoControl::getConf() {
     return *this;
 }
 Gringo::SolveIter *ClingoControl::solveIter(Assumptions &&ass) {
-    prepare(nullptr, nullptr);
-    auto a = toClaspAssumptions(std::move(ass));
-    solveIter_ = Gringo::gringo_make_unique<ClingoSolveIter>(*this, a);
+    prepare(std::move(ass), nullptr, nullptr);
+    solveIter_ = Gringo::gringo_make_unique<ClingoSolveIter>(*this);
     return solveIter_.get();
 }
 Gringo::SolveFuture *ClingoControl::solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass) {
     if (!clingoMode_) { throw std::runtime_error("solveAsync is not supported in gringo gringo mode"); }
 #if WITH_THREADS
-    prepare(mh, fh);
-    auto a = toClaspAssumptions(std::move(ass));
-    solveFuture_ = Gringo::gringo_make_unique<ClingoSolveFuture>(clasp_->solveAsync(nullptr, a));
+    prepare(std::move(ass), mh, fh);
+    solveFuture_ = Gringo::gringo_make_unique<ClingoSolveFuture>(clasp_->solveAsync(nullptr, {}));
     return solveFuture_.get();
 #else
     (void)mh;
@@ -354,8 +352,28 @@ void ClingoControl::interrupt() {
 bool ClingoControl::blocked() {
     return clasp_->solving();
 }
-void ClingoControl::prepare(Gringo::Control::ModelHandler mh, Gringo::Control::FinishHandler fh) {
-    if (update()) { out_->endStep(true, logger_); }
+void ClingoControl::prepare(Assumptions &&ass, Gringo::Control::ModelHandler mh, Gringo::Control::FinishHandler fh) {
+    // finalize the program
+    if (update()) {
+        // pass assumptions to the backend
+        if (auto backend = out_->backend()) {
+            std::vector<Potassco::Lit_t> lits;
+            for (auto &x : ass) {
+                auto atm = out_->find(x.first);
+                if (atm.second && atm.first->hasUid()) {
+                    Potassco::Lit_t l = atm.first->uid();
+                    lits.emplace_back(x.second ? l : -l);
+                }
+                else if (x.second) {
+                    lits.emplace_back(1);
+                    lits.emplace_back(-1);
+                    break;
+                }
+            }
+            backend->assume(Potassco::toSpan(lits));
+        }
+        out_->endStep(true, logger_);
+    }
     grounded = false;
     if (clingoMode_) {
 #if WITH_THREADS
@@ -378,31 +396,12 @@ void ClingoControl::prepare(Gringo::Control::ModelHandler mh, Gringo::Control::F
         clasp_->prepare(enableEnumAssupmption_ ? Clasp::ClaspFacade::enum_volatile : Clasp::ClaspFacade::enum_static);
         preSolve(*clasp_);
     }
-    if (data_) { data_->reset(); }
-    out_->reset();
-}
-
-Clasp::LitVec ClingoControl::toClaspAssumptions(Gringo::Control::Assumptions &&ass) const {
-    Clasp::LitVec outAss;
-    if (!clingoMode_ || !clasp_->program()) { return outAss; }
-    const Clasp::Asp::LogicProgram* prg = static_cast<const Clasp::Asp::LogicProgram*>(clasp_->program());
-    for (auto &x : ass) {
-        auto atm = out_->find(x.first);
-        if (atm.second && atm.first->hasUid()) {
-            Clasp::Literal lit = prg->getLiteral(atm.first->uid());
-            outAss.push_back(x.second ? lit : ~lit);
-        }
-        else if (x.second) {
-            outAss.push_back(Clasp::lit_false());
-            break;
-        }
-    }
-    return outAss;
+    out_->reset(data_ || (clasp_ && clasp_->program()));
 }
 
 Gringo::SolveResult ClingoControl::solve(ModelHandler h, Assumptions &&ass) {
-    prepare(h, nullptr);
-    auto ret = clingoMode_ ? convert(clasp_->solve(nullptr, toClaspAssumptions(std::move(ass)))) : Gringo::SolveResult(Gringo::SolveResult::Unknown, false, false);
+    prepare(std::move(ass), h, nullptr);
+    auto ret = clingoMode_ ? convert(clasp_->solve(nullptr, {})) : Gringo::SolveResult(Gringo::SolveResult::Unknown, false, false);
     postSolve(*clasp_);
     return ret;
 }
@@ -617,8 +616,8 @@ ClingoControl::~ClingoControl() noexcept = default;
 
 // {{{1 definition of ClingoSolveIter
 
-ClingoSolveIter::ClingoSolveIter(ClingoControl &ctl, Clasp::LitVec const &ass)
-: future_(ctl.clasp_->startSolve(ass))
+ClingoSolveIter::ClingoSolveIter(ClingoControl &ctl)
+: future_(ctl.clasp_->startSolve({}))
 , model_(ctl) { }
 
 Gringo::Model const *ClingoSolveIter::next() {

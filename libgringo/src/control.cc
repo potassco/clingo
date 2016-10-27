@@ -1810,8 +1810,8 @@ static clingo_ground_program_observer_t g_observer = {
 
 } // namespace
 
-void Control::register_observer(GroundProgramObserver &observer) {
-    handleCError(clingo_control_register_observer(*impl_, g_observer, &observer));
+void Control::register_observer(GroundProgramObserver &observer, bool replace) {
+    handleCError(clingo_control_register_observer(*impl_, g_observer, replace, &observer));
 }
 
 void Control::cleanup() {
@@ -3798,8 +3798,8 @@ private:
 
 } // namespace
 
-extern "C" bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer_t observer, void *data) {
-    GRINGO_CLINGO_TRY { control->registerObserver(gringo_make_unique<Observer>(observer, data)); }
+extern "C" bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer_t observer, bool replace, void *data) {
+    GRINGO_CLINGO_TRY { control->registerObserver(gringo_make_unique<Observer>(observer, data), replace); }
     GRINGO_CLINGO_CATCH;
 }
 
