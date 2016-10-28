@@ -34,11 +34,13 @@
 #include <clasp/clasp_facade.h>
 #include <clasp/clingo.h>
 #include <clasp/cli/clasp_options.h>
-#include <program_opts/application.h>
-#include <program_opts/string_convert.h>
+#include <potassco/application.h>
+#include <potassco/string_convert.h>
 #include <mutex>
 
 // {{{1 declaration of ClaspAPIBackend
+
+using StringVec = std::vector<std::string>;
 
 class ClingoControl;
 class ClaspAPIBackend : public Gringo::Backend {
@@ -76,7 +78,7 @@ private:
 
 struct ClingoOptions {
     using Foobar = std::vector<Gringo::Sig>;
-    ProgramOptions::StringSeq     defines;
+    StringVec                     defines;
     Gringo::Output::OutputOptions outputOptions;
     Gringo::Output::OutputFormat  outputFormat          = Gringo::Output::OutputFormat::INTERMEDIATE;
     bool                          verbose               = false;
@@ -135,7 +137,7 @@ static inline bool parseFoobar(const std::string& str, ClingoOptions::Foobar& fo
         auto y = split(x, "/");
         if (y.size() != 2) { return false; }
         unsigned a;
-        if (!bk_lib::string_cast<unsigned>(y[1], a)) { return false; }
+        if (!Potassco::string_cast<unsigned>(y[1], a)) { return false; }
         bool sign = !y[0].empty() && y[0][0] == '-';
         if (sign) { y[0] = y[0].substr(1); }
         foobar.emplace_back(y[0].c_str(), a, sign);
@@ -202,7 +204,6 @@ class ClingoControl : public clingo_control, private Gringo::ConfigProxy, privat
 public:
     using StringVec        = std::vector<std::string>;
     using ExternalVec      = std::vector<std::pair<Gringo::Symbol, Potassco::Value_t>>;
-    using StringSeq        = ProgramOptions::StringSeq;
     using PostGroundFunc   = std::function<bool (Clasp::ProgramBuilder &)>;
     using PreSolveFunc     = std::function<bool (Clasp::ClaspFacade &)>;
     enum class ConfigUpdate { KEEP, REPLACE };
@@ -212,7 +213,7 @@ public:
     void prepare(Assumptions &&ass, Gringo::Control::ModelHandler mh, Gringo::Control::FinishHandler fh);
     void commitExternals();
     void parse();
-    void parse(const StringSeq& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* out, bool addStdIn = true);
+    void parse(const StringVec& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* out, bool addStdIn = true);
     void main();
     bool onModel(Clasp::Model const &m);
     void onFinish(Clasp::ClaspFacade::Result ret);
@@ -386,12 +387,11 @@ private:
 // {{{1 declaration of ClingoLib
 
 class ClingoLib : public Clasp::EventHandler, public ClingoControl {
-    using StringVec    = std::vector<std::string>;
 public:
     ClingoLib(Gringo::Scripts &scripts, int argc, char const * const *argv, Gringo::Logger::Printer printer, unsigned messageLimit);
     ~ClingoLib() override;
 protected:
-    void initOptions(ProgramOptions::OptionContext& root);
+    void initOptions(Potassco::ProgramOptions::OptionContext& root);
     static bool parsePositional(const std::string& s, std::string& out);
     // -------------------------------------------------------------------------------------------
     // Event handler

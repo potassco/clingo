@@ -22,10 +22,10 @@
 #include "clingo/clingocontrol.hh"
 #include <gringo/input/programbuilder.hh>
 #include "clasp/solver.h"
-#include <program_opts/typed_value.h>
-#include <program_opts/application.h>
+#include <potassco/program_opts/typed_value.h>
 #include <potassco/basic_types.h>
 #include "clingo.hh"
+#include <signal.h>
 
 // {{{1 definition of ClaspAPIBackend
 
@@ -153,7 +153,7 @@ int ClingoPropagateInit::threads() {
     return static_cast<ClingoControl&>(c_).clasp_->ctx.concurrency();
 }
 
-void ClingoControl::parse(const StringSeq& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* claspOut, bool addStdIn) {
+void ClingoControl::parse(const StringVec& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* claspOut, bool addStdIn) {
     using namespace Gringo;
     logger_.enable(clingo_warning_operation_undefined, !opts.wNoOperationUndefined);
     logger_.enable(clingo_warning_atom_undefined, !opts.wNoAtomUndef);
@@ -676,7 +676,7 @@ void ClingoSolveFuture::cancel() { future.cancel(); }
 
 ClingoLib::ClingoLib(Gringo::Scripts &scripts, int argc, char const * const *argv, Gringo::Logger::Printer printer, unsigned messageLimit)
         : ClingoControl(scripts, true, &clasp_, claspConfig_, nullptr, nullptr, printer, messageLimit) {
-    using namespace ProgramOptions;
+    using namespace Potassco::ProgramOptions;
     OptionContext allOpts("<libclingo>");
     initOptions(allOpts);
     ParsedValues values = parseCommandArray(argv, argc, allOpts, false, parsePositional);
@@ -695,8 +695,8 @@ static bool parseConst(const std::string& str, std::vector<std::string>& out) {
     return true;
 }
 
-void ClingoLib::initOptions(ProgramOptions::OptionContext& root) {
-    using namespace ProgramOptions;
+void ClingoLib::initOptions(Potassco::ProgramOptions::OptionContext& root) {
+    using namespace Potassco::ProgramOptions;
     grOpts_.defines.clear();
     grOpts_.verbose = false;
     OptionGroup gringo("Gringo Options");
@@ -741,7 +741,7 @@ void ClingoLib::onEvent(Clasp::Event const& ev) {
 }
 bool ClingoLib::parsePositional(const std::string& t, std::string& out) {
     int num;
-    if (bk_lib::string_cast(t, num)) {
+    if (Potassco::string_cast(t, num)) {
         out = "number";
         return true;
     }

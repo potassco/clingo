@@ -23,3 +23,4 @@ find_package(RE2C REQUIRED)
 
 add_subdirectory(libreify)
 add_subdirectory(libgringo)
+add_subdirectory(libclingo)
