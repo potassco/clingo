@@ -22,12 +22,13 @@
 #ifndef _GRINGO_CLINGOAPP_HH
 #define _GRINGO_CLINGOAPP_HH
 
-#include "clasp/clasp_app.h"
+#include "clasp_app.h"
 #include "clingo/clingocontrol.hh"
+
+using StringVec   = std::vector<std::string>;
 
 // Standalone clingo application.
 class ClingoApp : public Clasp::Cli::ClaspAppBase {
-    using StringVec   = std::vector<std::string>;
     using Output      = Clasp::Cli::Output;
     using ProblemType = Clasp::ProblemType;
     using BaseType    = Clasp::Cli::ClaspAppBase;
@@ -41,13 +42,13 @@ public:
     void shutdown() override;
 protected:
     enum Mode { mode_clingo = 0, mode_clasp = 1, mode_gringo = 2 };
-    void        initOptions(ProgramOptions::OptionContext& root) override;
-    void        validateOptions(const ProgramOptions::OptionContext& root, const ProgramOptions::ParsedOptions& parsed, const ProgramOptions::ParsedValues& vals) override;
+    void        initOptions(Potassco::ProgramOptions::OptionContext& root) override;
+    void        validateOptions(const Potassco::ProgramOptions::OptionContext& root, const Potassco::ProgramOptions::ParsedOptions& parsed, const Potassco::ProgramOptions::ParsedValues& vals) override;
 
     ProblemType getProblemType() override;
     void        run(Clasp::ClaspFacade& clasp) override;
     Output*     createOutput(ProblemType f) override;
-    void        printHelp(const ProgramOptions::OptionContext& root) override;
+    void        printHelp(const Potassco::ProgramOptions::OptionContext& root) override;
     void        printVersion() override;
 
     // -------------------------------------------------------------------------------------------

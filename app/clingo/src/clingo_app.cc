@@ -46,8 +46,8 @@ static bool parseText(const std::string&, ClingoOptions& out) {
     return true;
 }
 
-void ClingoApp::initOptions(ProgramOptions::OptionContext& root) {
-    using namespace ProgramOptions;
+void ClingoApp::initOptions(Potassco::ProgramOptions::OptionContext& root) {
+    using namespace Potassco::ProgramOptions;
     BaseType::initOptions(root);
     grOpts_.defines.clear();
     grOpts_.verbose = false;
@@ -102,7 +102,7 @@ void ClingoApp::initOptions(ProgramOptions::OptionContext& root) {
     root.add(basic);
 }
 
-void ClingoApp::validateOptions(const ProgramOptions::OptionContext& root, const ProgramOptions::ParsedOptions& parsed, const ProgramOptions::ParsedValues& vals) {
+void ClingoApp::validateOptions(const Potassco::ProgramOptions::OptionContext& root, const Potassco::ProgramOptions::ParsedOptions& parsed, const Potassco::ProgramOptions::ParsedValues& vals) {
     BaseType::validateOptions(root, parsed, vals);
     if (parsed.count("text") > 0) {
         if (parsed.count("output") > 0) {
@@ -133,7 +133,7 @@ Output* ClingoApp::createOutput(ProblemType f) {
     return BaseType::createOutput(f);
 }
 
-void ClingoApp::printHelp(const ProgramOptions::OptionContext& root) {
+void ClingoApp::printHelp(const Potassco::ProgramOptions::OptionContext& root) {
     BaseType::printHelp(root);
     printf("\nclingo is part of Potassco: %s\n", "https://potassco.org/clingo");
     printf("Get help/report bugs via : https://potassco.org/support\n");
@@ -141,7 +141,7 @@ void ClingoApp::printHelp(const ProgramOptions::OptionContext& root) {
 }
 
 void ClingoApp::printVersion() {
-    ProgramOptions::Application::printVersion();
+    Potassco::Application::printVersion();
     printf("\n");
     printf("libgringo version " CLINGO_VERSION "\n");
     printf("Configuration: "
