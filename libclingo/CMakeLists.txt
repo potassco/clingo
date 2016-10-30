@@ -29,3 +29,14 @@ add_library(clingo_build ${header} ${source})
 target_include_directories(clingo_build PUBLIC
     "$<BUILD_INTERFACE:${header_path}>")
 target_link_libraries(clingo_build PUBLIC gringo_build clasp)
+
+if(BUILD_CLINGO_LIB_SHARED)
+    set(clingo_lib_type SHARED)
+else()
+    set(clingo_lib_type STATIC)
+endif()
+
+add_library(clingo_lib ${clingo_lib_type} "${CLINGO_SOURCE_DIR}/libgringo/clingo.h")
+target_link_libraries(clingo_lib PUBLIC clingo_build)
+set_target_properties(clingo_lib PROPERTIES OUTPUT_NAME clingo)
+

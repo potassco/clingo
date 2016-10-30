@@ -10,6 +10,8 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(BUILD_CLINGO_LIB_SHARED "build clingo library shared" ON)
+
 # NOTE: assumes that submodule has been initialized
 add_subdirectory(clasp)
 
