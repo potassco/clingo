@@ -36,7 +36,11 @@ else()
     set(clingo_lib_type STATIC)
 endif()
 
-add_library(clingo_lib ${clingo_lib_type} "${CLINGO_SOURCE_DIR}/libgringo/clingo.h")
-target_link_libraries(clingo_lib PUBLIC clingo_build)
+add_library(clingo_lib ${header} ${source})
+target_include_directories(clingo_lib PRIVATE
+    "$<BUILD_INTERFACE:${header_path}>")
+target_include_directories(clingo_lib PUBLIC
+    "$<BUILD_INTERFACE:${CLINGO_SOURCE_DIR}/libgringo>")
+target_link_libraries(clingo_lib PRIVATE gringo_build clasp)
 set_target_properties(clingo_lib PROPERTIES OUTPUT_NAME clingo)
 

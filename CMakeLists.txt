@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.1)
-project(CLINGO VERSION 5.1.1 LANGUAGES CXX)
+project(CLINGO VERSION 5.1.1 LANGUAGES C CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -27,3 +27,4 @@ add_subdirectory(libreify)
 add_subdirectory(libgringo)
 add_subdirectory(libclingo)
 add_subdirectory(app/clingo)
+add_subdirectory(examples/c)
