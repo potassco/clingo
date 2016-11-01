@@ -14,12 +14,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(BUILD_CLINGO_LIB_SHARED "build clingo library shared" ON)
+option(CLINGO_ENABLE_PYTHON "enable python support" ON)
+option(CLINGO_ENABLE_LUA "enable lua support" ON)
 
 # NOTE: assumes that submodule has been initialized
 add_subdirectory(clasp)
 
-find_package(PythonLibs)
-find_package(Lua)
+if (CLINGO_ENABLE_PYTHON)
+    find_package(PythonLibs REQUIRED)
+endif()
+if (CLINGO_ENABLE_LUA)
+    find_package(Lua REQUIRED)
+endif()
 find_package(BISON REQUIRED)
 if (BISON_VERSION VERSION_LESS "2.5")
     message(FATAL_ERROR "at least bison version 2.5 is required")
