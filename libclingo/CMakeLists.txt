@@ -37,18 +37,19 @@ else()
     set(clingo_lib_type STATIC)
 endif()
 
-add_library(clingo_lib ${clingo_lib_type} ${clingo_lib_type} ${header} ${source})
-target_include_directories(clingo_lib PRIVATE
+add_library(libclingo ${clingo_lib_type} ${clingo_lib_type} ${header} ${source})
+target_include_directories(libclingo PRIVATE
     "${CLASP_SOURCE_DIR}/app"
     "$<BUILD_INTERFACE:${header_path}>")
-target_include_directories(clingo_lib PUBLIC
+target_include_directories(libclingo PUBLIC
     "$<BUILD_INTERFACE:${CLINGO_SOURCE_DIR}/libgringo>")
-target_link_libraries(clingo_lib PRIVATE gringo_build clasp)
-set_target_properties(clingo_lib PROPERTIES OUTPUT_NAME clingo)
+target_link_libraries(libclingo PRIVATE libgringo clasp)
+target_compile_definitions(libclingo PRIVATE CLINGO_BUILD_LIBRARY)
+set_target_properties(libclingo PROPERTIES OUTPUT_NAME clingo)
 
 if (BUILD_CLINGO_LIB_SHARED)
     set(clingo_lib_type SHARED)
-    foreach(target clingo_lib gringo_build potassco clasp reify_build)
+    foreach(target libclingo libgringo potassco clasp libreify)
         if (POLICY CMP0063)
             set_target_properties(${target} PROPERTIES CXX_VISIBILITY_PRESET hidden)
         endif()

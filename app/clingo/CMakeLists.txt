@@ -26,4 +26,4 @@ set(ide_header_group "Header Files")
 source_group("${ide_header_group}" FILES ${header})
 
 add_executable(clingo ${header} ${source})
-target_link_libraries(clingo clingo_lib)
+target_link_libraries(clingo libclingo)

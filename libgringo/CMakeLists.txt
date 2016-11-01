@@ -126,8 +126,11 @@ list(APPEND source
 
 set(ide_header_group "Header Files")
 source_group("${ide_header_group}" FILES ${header})
-add_library(gringo_build ${header} ${source})
-target_include_directories(gringo_build PUBLIC
+add_library(libgringo ${header} ${source})
+target_include_directories(libgringo PUBLIC
     "$<BUILD_INTERFACE:${header_path}>"
     "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated/libgringo>")
-target_link_libraries(gringo_build PUBLIC potassco reify_build)
+target_link_libraries(libgringo PUBLIC potassco libreify)
+target_compile_definitions(libgringo PRIVATE CLINGO_BUILD_LIBRARY)
+set_target_properties(libgringo PROPERTIES OUTPUT_NAME libgringo)
+

@@ -26,8 +26,9 @@ set(source
 
 set(ide_header_group "Header Files")
 source_group("${ide_header_group}" FILES ${header})
-add_library(reify_build ${header} ${source})
-target_include_directories(reify_build PUBLIC
+add_library(libreify ${header} ${source})
+target_include_directories(libreify PUBLIC
     "$<BUILD_INTERFACE:${header_path}>"
     "$<BUILD_INTERFACE:${CLINGO_SOURCE_DIR}/libgringo>")
-target_link_libraries(reify_build PUBLIC potassco)
+target_link_libraries(libreify PUBLIC potassco)
+set_target_properties(libreify PROPERTIES OUTPUT_NAME reify)
