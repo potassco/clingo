@@ -30,13 +30,13 @@ target_include_directories(clingo_build PUBLIC
     "$<BUILD_INTERFACE:${header_path}>")
 target_link_libraries(clingo_build PUBLIC gringo_build clasp)
 
-if(BUILD_CLINGO_LIB_SHARED)
+if (BUILD_CLINGO_LIB_SHARED)
     set(clingo_lib_type SHARED)
 else()
     set(clingo_lib_type STATIC)
 endif()
 
-add_library(clingo_lib ${header} ${source})
+add_library(clingo_lib ${clingo_lib_type} ${header} ${source})
 target_include_directories(clingo_lib PRIVATE
     "$<BUILD_INTERFACE:${header_path}>")
 target_include_directories(clingo_lib PUBLIC
@@ -44,3 +44,12 @@ target_include_directories(clingo_lib PUBLIC
 target_link_libraries(clingo_lib PRIVATE gringo_build clasp)
 set_target_properties(clingo_lib PROPERTIES OUTPUT_NAME clingo)
 
+if (BUILD_CLINGO_LIB_SHARED)
+    set(clingo_lib_type SHARED)
+    foreach(target clingo_lib clingo_build gringo_build potassco clasp reify_build)
+        if (POLICY CMP0063)
+            set_target_properties(${target} PROPERTIES CXX_VISIBILITY_PRESET hidden)
+        endif()
+        set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE on)
+    endforeach()
+endif()

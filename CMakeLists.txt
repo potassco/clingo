@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.1)
 project(CLINGO VERSION 5.1.1 LANGUAGES C CXX)
+if (POLICY CMP0063)
+    cmake_policy(SET CMP0063 NEW)
+endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
