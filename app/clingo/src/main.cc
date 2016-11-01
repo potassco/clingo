@@ -18,10 +18,11 @@
 
 // }}}
 
-#include "clingo_app.hh"
+#include <clingo.h>
+
+extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main_(int argc, char *argv[]);
 
 int main(int argc, char** argv) {
-    ClingoApp app;
-    return app.main(argc, argv);
+    return clingo_main_(argc, argv);
 }
 

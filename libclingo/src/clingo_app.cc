@@ -25,7 +25,7 @@
 #ifdef WITH_LUA
 #  include <lua.h>
 #endif
-#include "clingo_app.hh"
+#include <clingo/clingo_app.hh>
 #include <clasp/parser.h>
 #include <climits>
 
@@ -210,4 +210,9 @@ void ClingoApp::run(Clasp::ClaspFacade& clasp) {
 }
 
 // }}}
+
+extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main_(int argc, char *argv[]) {
+    ClingoApp app;
+    return app.main(argc, argv);
+}
 

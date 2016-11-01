@@ -65,4 +65,6 @@ private:
     std::unique_ptr<ClingoControl> grd;
 };
 
+extern "C" CLINGO_VISIBILITY_DEFAULT inline int _clingo_main(int argc, char *argv[]);
+
 #endif // _GRINGO_CLINGOAPP_HH

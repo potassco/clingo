@@ -18,17 +18,18 @@ set(source_path ${CLINGO_SOURCE_DIR}/libclingo)
 #    cog.out(source[:-1] + ")\n")
 # ]]]
 set(header
-    "${header_path}/clingo/clingocontrol.hh")
+    "${header_path}/clingo/clingocontrol.hh"
+    "${header_path}/clingo/clingo_app.hh")
 set(source
+    "${source_path}/src/clingo_app.cc"
     "${source_path}/src/clingocontrol.cc")
 # [[[end]]]
 
+list(APPEND header "${CLASP_SOURCE_DIR}/app/clasp_app.h")
+list(APPEND source "${CLASP_SOURCE_DIR}/app/clasp_app.cpp")
+
 set(ide_header_group "Header Files")
 source_group("${ide_header_group}" FILES ${header})
-add_library(clingo_build ${header} ${source})
-target_include_directories(clingo_build PUBLIC
-    "$<BUILD_INTERFACE:${header_path}>")
-target_link_libraries(clingo_build PUBLIC gringo_build clasp)
 
 if (BUILD_CLINGO_LIB_SHARED)
     set(clingo_lib_type SHARED)
@@ -36,8 +37,9 @@ else()
     set(clingo_lib_type STATIC)
 endif()
 
-add_library(clingo_lib ${clingo_lib_type} ${header} ${source})
+add_library(clingo_lib ${clingo_lib_type} ${clingo_lib_type} ${header} ${source})
 target_include_directories(clingo_lib PRIVATE
+    "${CLASP_SOURCE_DIR}/app"
     "$<BUILD_INTERFACE:${header_path}>")
 target_include_directories(clingo_lib PUBLIC
     "$<BUILD_INTERFACE:${CLINGO_SOURCE_DIR}/libgringo>")
@@ -46,7 +48,7 @@ set_target_properties(clingo_lib PROPERTIES OUTPUT_NAME clingo)
 
 if (BUILD_CLINGO_LIB_SHARED)
     set(clingo_lib_type SHARED)
-    foreach(target clingo_lib clingo_build gringo_build potassco clasp reify_build)
+    foreach(target clingo_lib gringo_build potassco clasp reify_build)
         if (POLICY CMP0063)
             set_target_properties(${target} PROPERTIES CXX_VISIBILITY_PRESET hidden)
         endif()

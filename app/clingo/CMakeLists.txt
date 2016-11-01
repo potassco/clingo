@@ -17,19 +17,13 @@ set(source_path ${CLINGO_SOURCE_DIR}/app/clingo)
 #    cog.out(header[:-1] + ")\n")
 #    cog.out(source[:-1] + ")\n")
 # ]]]
-set(header
-    "${header_path}/src/clingo_app.hh")
+set(header)
 set(source
-    "${source_path}/src/clingo_app.cc"
     "${source_path}/src/main.cc")
 # [[[end]]]
-
-list(APPEND header "${CLASP_SOURCE_DIR}/app/clasp_app.h")
-list(APPEND source "${CLASP_SOURCE_DIR}/app/clasp_app.cpp")
 
 set(ide_header_group "Header Files")
 source_group("${ide_header_group}" FILES ${header})
 
 add_executable(clingo ${header} ${source})
-target_include_directories(clingo PRIVATE "${CLASP_SOURCE_DIR}/app")
-target_link_libraries(clingo clingo_build)
+target_link_libraries(clingo clingo_lib)
