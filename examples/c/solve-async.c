@@ -1,3 +1,5 @@
+#ifndef WIN32
+
 #include <clingo.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -124,3 +126,13 @@ out:
   return ret;
 }
 
+#else
+
+#include <stdio.h>
+
+int main(int argc, char const **argv) {
+    printf("example requires c11, which is not available on windows");
+    return 0;
+}
+
+#endif
