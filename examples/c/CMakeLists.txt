@@ -10,13 +10,13 @@
 #                cog.out("""
 #                        add_executable({name} "${{CMAKE_CURRENT_SOURCE_DIR}}/{filname}")
 #                        target_link_libraries({name} PRIVATE libclingo)
-#                        set_target_properties({name} PROPERTIES FOLDER "exe\\\\clingo-c-examples")
+#                        set_target_properties({name} PROPERTIES FOLDER "exe/clingo-c-examples")
 #                        """.format(name=name, filname=filename))
 # ]]]
 
 add_executable(solve-iteratively "${CMAKE_CURRENT_SOURCE_DIR}/solve-iteratively.c")
 target_link_libraries(solve-iteratively PRIVATE libclingo)
-set_target_properties(solve-iteratively PROPERTIES FOLDER "exe\\clingo-c-examples")
+set_target_properties(solve-iteratively PROPERTIES FOLDER "execlingo-c-examples")
 
 add_executable(model "${CMAKE_CURRENT_SOURCE_DIR}/model.c")
 target_link_libraries(model PRIVATE libclingo)
