@@ -4,7 +4,7 @@ set(ide_header_group "Header Files")
 set(header-group-reify
     "${header_path}/reify/program.hh"
     "${header_path}/reify/util.hh")
-source_group("${ide_header_group}\\reify" FILES "${header-group-reify}")
+source_group("${ide_header_group}\\reify" FILES ${header-group-reify})
 set(header
     "${header-group-reify}")
 # ]]]
@@ -13,7 +13,7 @@ set(source_path ${CLINGO_SOURCE_DIR}/libreify)
 set(ide_source_group "Source Files")
 set(source-group
     "${source_path}/src/program.cc")
-source_group("${ide_source_group}" FILES "${source-group}")
+source_group("${ide_source_group}" FILES ${source-group})
 set(source
     "${source-group}")
 # ]]]

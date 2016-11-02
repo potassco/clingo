@@ -35,7 +35,7 @@ def find(path, target):
         for value in header[root]:
             output += value
         output = output[:-1] + ")\n"
-        output+= """source_group("{}" FILES "${{{}}}")\n""".format(r"\\".join(["${{ide_{}_group}}".format(target)] + components), groups[-1])
+        output+= """source_group("{}" FILES ${{{}}})\n""".format(r"\\".join(["${{ide_{}_group}}".format(target)] + components), groups[-1])
 
     output+= 'set({}\n'.format(target)
     for group in groups:
@@ -49,14 +49,16 @@ def rep(m):
     content = find(path, target)
     return "# [[[{}: {}\n{}# ]]]".format(target, path, content)
 
-in_file = os.path.abspath(sys.argv[1])
-os.chdir(os.path.dirname(os.path.abspath(in_file)))
+files = [os.path.abspath(f) for f in sys.argv[1:]]
 
-content = open(in_file, "r").read();
-replace = re.sub(r"#[ ]*\[\[\[(?P<target>[^:]*): (?P<path>[^\n\]]*)(.|\n)*?\]\]\]", rep, content, 0, re.MULTILINE)
+for f in files:
+    os.chdir(os.path.dirname(f))
 
-if content != replace:
-    sys.stderr.write("File changed!\n")
-    sys.stderr.flush()
-    open(in_file, "w").write(replace)
+    content = open(f, "r").read();
+    replace = re.sub(r"#[ ]*\[\[\[(?P<target>[^:]*): (?P<path>[^\n\]]*)(.|\n)*?\]\]\]", rep, content, 0, re.MULTILINE)
+
+    if content != replace:
+        sys.stderr.write("File changed!\n")
+        sys.stderr.flush()
+        open(f, "w").write(replace)
 

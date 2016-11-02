@@ -4,7 +4,7 @@ set(ide_header_group "Header Files")
 set(header-group-clingo
     "${header_path}/clingo/clingocontrol.hh"
     "${header_path}/clingo/clingo_app.hh")
-source_group("${ide_header_group}\\clingo" FILES "${header-group-clingo}")
+source_group("${ide_header_group}\\clingo" FILES ${header-group-clingo})
 set(header
     "${header-group-clingo}")
 # ]]]
@@ -13,9 +13,9 @@ set(source_path ${CLINGO_SOURCE_DIR}/libclingo)
 # [[[source: src
 set(ide_source_group "Source Files")
 set(source-group
-    "${header_path}/src/clingo_app.cc"
-    "${header_path}/src/clingocontrol.cc")
-source_group("${ide_source_group}" FILES "${source-group}")
+    "${source_path}/src/clingo_app.cc"
+    "${source_path}/src/clingocontrol.cc")
+source_group("${ide_source_group}" FILES ${source-group})
 set(source
     "${source-group}")
 # ]]]

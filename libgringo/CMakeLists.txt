@@ -4,7 +4,7 @@ set(ide_header_group "Header Files")
 set(header-group
     "${header_path}/clingo.hh"
     "${header_path}/clingo.h")
-source_group("${ide_header_group}" FILES "${header-group}")
+source_group("${ide_header_group}" FILES ${header-group})
 set(header-group-gringo
     "${header_path}/gringo/utility.hh"
     "${header_path}/gringo/scripts.hh"
@@ -33,7 +33,7 @@ set(header-group-gringo
     "${header_path}/gringo/backend.hh"
     "${header_path}/gringo/comparable.hh"
     "${header_path}/gringo/terms.hh")
-source_group("${ide_header_group}\\gringo" FILES "${header-group-gringo}")
+source_group("${ide_header_group}\\gringo" FILES ${header-group-gringo})
 set(header-group-gringo-ground
     "${header_path}/gringo/ground/instantiation.hh"
     "${header_path}/gringo/ground/program.hh"
@@ -44,7 +44,7 @@ set(header-group-gringo-ground
     "${header_path}/gringo/ground/types.hh"
     "${header_path}/gringo/ground/statement.hh"
     "${header_path}/gringo/ground/literals.hh")
-source_group("${ide_header_group}\\gringo\\ground" FILES "${header-group-gringo-ground}")
+source_group("${ide_header_group}\\gringo\\ground" FILES ${header-group-gringo-ground})
 set(header-group-gringo-input
     "${header_path}/gringo/input/program.hh"
     "${header_path}/gringo/input/programbuilder.hh"
@@ -57,7 +57,7 @@ set(header-group-gringo-input
     "${header_path}/gringo/input/statement.hh"
     "${header_path}/gringo/input/nongroundparser.hh"
     "${header_path}/gringo/input/literals.hh")
-source_group("${ide_header_group}\\gringo\\input" FILES "${header-group-gringo-input}")
+source_group("${ide_header_group}\\gringo\\input" FILES ${header-group-gringo-input})
 set(header-group-gringo-output
     "${header_path}/gringo/output/backends.hh"
     "${header_path}/gringo/output/literal.hh"
@@ -68,7 +68,7 @@ set(header-group-gringo-output
     "${header_path}/gringo/output/types.hh"
     "${header_path}/gringo/output/statement.hh"
     "${header_path}/gringo/output/literals.hh")
-source_group("${ide_header_group}\\gringo\\output" FILES "${header-group-gringo-output}")
+source_group("${ide_header_group}\\gringo\\output" FILES ${header-group-gringo-output})
 set(header
     "${header-group}"
     "${header-group-gringo}"
@@ -81,43 +81,43 @@ set(source_path ${CLINGO_SOURCE_DIR}/libgringo)
 # [[[source: ./src
 set(ide_source_group "Source Files")
 set(source-group
-    "${header_path}/src/python.cc"
-    "${header_path}/src/primes.cc"
-    "${header_path}/src/lua.cc"
-    "${header_path}/src/symbol.cc"
-    "${header_path}/src/terms.cc"
-    "${header_path}/src/backend.cc"
-    "${header_path}/src/control.cc"
-    "${header_path}/src/term.cc"
-    "${header_path}/src/scripts.cc")
-source_group("${ide_source_group}" FILES "${source-group}")
+    "${source_path}/src/python.cc"
+    "${source_path}/src/primes.cc"
+    "${source_path}/src/lua.cc"
+    "${source_path}/src/symbol.cc"
+    "${source_path}/src/terms.cc"
+    "${source_path}/src/backend.cc"
+    "${source_path}/src/control.cc"
+    "${source_path}/src/term.cc"
+    "${source_path}/src/scripts.cc")
+source_group("${ide_source_group}" FILES ${source-group})
 set(source-group-ground
-    "${header_path}/src/ground/instantiation.cc"
-    "${header_path}/src/ground/program.cc"
-    "${header_path}/src/ground/statements.cc"
-    "${header_path}/src/ground/literals.cc")
-source_group("${ide_source_group}\\ground" FILES "${source-group-ground}")
+    "${source_path}/src/ground/instantiation.cc"
+    "${source_path}/src/ground/program.cc"
+    "${source_path}/src/ground/statements.cc"
+    "${source_path}/src/ground/literals.cc")
+source_group("${ide_source_group}\\ground" FILES ${source-group-ground})
 set(source-group-input
-    "${header_path}/src/input/groundtermparser.cc"
-    "${header_path}/src/input/program.cc"
-    "${header_path}/src/input/aggregate.cc"
-    "${header_path}/src/input/aggregates.cc"
-    "${header_path}/src/input/theory.cc"
-    "${header_path}/src/input/programbuilder.cc"
-    "${header_path}/src/input/literal.cc"
-    "${header_path}/src/input/literals.cc"
-    "${header_path}/src/input/statement.cc"
-    "${header_path}/src/input/nongroundparser.cc")
-source_group("${ide_source_group}\\input" FILES "${source-group-input}")
+    "${source_path}/src/input/groundtermparser.cc"
+    "${source_path}/src/input/program.cc"
+    "${source_path}/src/input/aggregate.cc"
+    "${source_path}/src/input/aggregates.cc"
+    "${source_path}/src/input/theory.cc"
+    "${source_path}/src/input/programbuilder.cc"
+    "${source_path}/src/input/literal.cc"
+    "${source_path}/src/input/literals.cc"
+    "${source_path}/src/input/statement.cc"
+    "${source_path}/src/input/nongroundparser.cc")
+source_group("${ide_source_group}\\input" FILES ${source-group-input})
 set(source-group-output
-    "${header_path}/src/output/aggregates.cc"
-    "${header_path}/src/output/theory.cc"
-    "${header_path}/src/output/statements.cc"
-    "${header_path}/src/output/output.cc"
-    "${header_path}/src/output/literal.cc"
-    "${header_path}/src/output/literals.cc"
-    "${header_path}/src/output/statement.cc")
-source_group("${ide_source_group}\\output" FILES "${source-group-output}")
+    "${source_path}/src/output/aggregates.cc"
+    "${source_path}/src/output/theory.cc"
+    "${source_path}/src/output/statements.cc"
+    "${source_path}/src/output/output.cc"
+    "${source_path}/src/output/literal.cc"
+    "${source_path}/src/output/literals.cc"
+    "${source_path}/src/output/statement.cc")
+source_group("${ide_source_group}\\output" FILES ${source-group-output})
 set(source
     "${source-group}"
     "${source-group-ground}"
@@ -128,9 +128,16 @@ set(source
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated/libgringo/input/groundtermgrammar")
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated/libgringo/input/nongroundgrammar")
 bison_target("groundtermgrammar" "${source_path}/src/input/groundtermgrammar.yy" "${CMAKE_BINARY_DIR}/generated/libgringo/input/groundtermgrammar/grammar.cc")
+source_group("${ide_source_group}\\input" FILES "${source_path}/src/input/groundtermgrammar.yy")
 bison_target("nongroundgrammar" "${source_path}/src/input/nongroundgrammar.yy" "${CMAKE_BINARY_DIR}/generated/libgringo/input/nongroundgrammar/grammar.cc")
+source_group("${ide_source_group}\\input" FILES "${source_path}/src/input/nongroundgrammar.yy")
 re2c_target(NAME "groundtermlexer" INPUT "${source_path}/src/input/groundtermlexer.xh" OUTPUT "${CMAKE_BINARY_DIR}/generated/libgringo/input/groundtermlexer.hh")
+source_group("${ide_source_group}\\input" FILES "${source_path}/src/input/groundtermlexer.xh")
+set_target_properties(groundtermlexer PROPERTIES FOLDER gen) # TODO: try to get rid of these as with the bison_target
 re2c_target(NAME "nongroundlexer" INPUT "${source_path}/src/input/nongroundlexer.xch" OUTPUT "${CMAKE_BINARY_DIR}/generated/libgringo/input/nongroundlexer.hh" OPTIONS "-c")
+source_group("${ide_source_group}\\input" FILES "${source_path}/src/input/nongroundlexer.xch")
+set_target_properties(nongroundlexer PROPERTIES FOLDER gen) # TODO: try to get rid of these as with the bison_target
+
 list(APPEND header
     "${BISON_nongroundgrammar_OUTPUT_HEADER}"
     "${BISON_groundtermgrammar_OUTPUT_HEADER}"
