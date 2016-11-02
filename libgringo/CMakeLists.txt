@@ -125,6 +125,7 @@ set(source
     "${source-group-output}")
 # ]]]
 
+# TODO: complex enough to justify adding a function...
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated/libgringo/input/groundtermgrammar")
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated/libgringo/input/nongroundgrammar")
 bison_target("groundtermgrammar" "${source_path}/src/input/groundtermgrammar.yy" "${CMAKE_BINARY_DIR}/generated/libgringo/input/groundtermgrammar/grammar.cc")
@@ -138,12 +139,27 @@ re2c_target(NAME "nongroundlexer" INPUT "${source_path}/src/input/nongroundlexer
 source_group("${ide_source_group}\\input" FILES "${source_path}/src/input/nongroundlexer.xch")
 set_target_properties(nongroundlexer PROPERTIES FOLDER gen) # TODO: try to get rid of these as with the bison_target
 
+source_group("${ide_source_group}\\input\\nongroundgrammar" FILES 
+    "${BISON_nongroundgrammar_OUTPUT_HEADER}"
+    "${BISON_nongroundgrammar_OUTPUT_SOURCE}")
+source_group("${ide_source_group}\\input\\groundtermgrammar" FILES 
+    "${BISON_groundtermgrammar_OUTPUT_HEADER}"
+    "${BISON_groundtermgrammar_OUTPUT_SOURCE}")
+source_group("${ide_source_group}\\input\\groundtermlexer" FILES 
+    "${CMAKE_BINARY_DIR}/generated/libgringo/input/groundtermlexer.hh")
+source_group("${ide_source_group}\\input\\nongroundlexer" FILES 
+    "${CMAKE_BINARY_DIR}/generated/libgringo/input/nongroundlexer.hh")
+
 list(APPEND header
     "${BISON_nongroundgrammar_OUTPUT_HEADER}"
     "${BISON_groundtermgrammar_OUTPUT_HEADER}"
     "${CMAKE_BINARY_DIR}/generated/libgringo/input/groundtermlexer.hh"
     "${CMAKE_BINARY_DIR}/generated/libgringo/input/nongroundlexer.hh")
 list(APPEND source
+    "${source_path}/src/input/groundtermgrammar.yy"
+    "${source_path}/src/input/nongroundgrammar.yy"
+    "${source_path}/src/input/groundtermlexer.xh"
+    "${source_path}/src/input/nongroundlexer.xch"
     "${BISON_nongroundgrammar_OUTPUT_SOURCE}"
     "${BISON_groundtermgrammar_OUTPUT_SOURCE}")
 
