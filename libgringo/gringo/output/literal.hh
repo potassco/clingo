@@ -65,7 +65,7 @@ public:
     LiteralId()
     : repr_(std::numeric_limits<uint64_t>::max()) { }
     LiteralId(NAF sign, AtomType type, Potassco::Id_t offset, Potassco::Id_t domain)
-    : data_{static_cast<uint32_t>(sign), static_cast<uint32_t>(type), domain, offset} { }
+    : data_{static_cast<uint32_t>(sign), static_cast<uint32_t>(type), domain, static_cast<uint64_t>(offset)} { }
     Potassco::Id_t offset() const { return data_.offset; }
     Potassco::Id_t domain() const { return data_.domain; }
     AtomType type() const { return static_cast<AtomType>(data_.type); }
