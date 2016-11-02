@@ -145,9 +145,9 @@ source_group("${ide_source_group}\\input\\nongroundgrammar" FILES
 source_group("${ide_source_group}\\input\\groundtermgrammar" FILES 
     "${BISON_groundtermgrammar_OUTPUT_HEADER}"
     "${BISON_groundtermgrammar_OUTPUT_SOURCE}")
-source_group("${ide_source_group}\\input\\groundtermlexer" FILES 
+source_group("${ide_source_group}\\input" FILES 
     "${CMAKE_BINARY_DIR}/generated/libgringo/input/groundtermlexer.hh")
-source_group("${ide_source_group}\\input\\nongroundlexer" FILES 
+source_group("${ide_source_group}\\input" FILES 
     "${CMAKE_BINARY_DIR}/generated/libgringo/input/nongroundlexer.hh")
 
 list(APPEND header
