@@ -37,7 +37,9 @@ target_include_directories(libclingo PUBLIC
     "$<BUILD_INTERFACE:${CLINGO_SOURCE_DIR}/libgringo>")
 target_link_libraries(libclingo PRIVATE libgringo libclasp)
 target_compile_definitions(libclingo PRIVATE CLINGO_BUILD_LIBRARY)
-set_target_properties(libclingo PROPERTIES OUTPUT_NAME clingo)
+set_target_properties(libclingo PROPERTIES
+    OUTPUT_NAME clingo
+    FOLDER lib)
 
 if (CLINGO_ENABLE_LUA) 
     target_compile_definitions(libclingo PRIVATE WITH_LUA)

@@ -146,7 +146,9 @@ target_include_directories(libgringo PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated/libgringo>")
 target_link_libraries(libgringo PUBLIC libpotassco libreify)
 target_compile_definitions(libgringo PRIVATE CLINGO_BUILD_LIBRARY)
-set_target_properties(libgringo PROPERTIES OUTPUT_NAME gringo)
+set_target_properties(libgringo PROPERTIES 
+    OUTPUT_NAME gringo
+    FOLDER lib)
 
 if (CLINGO_ENABLE_LUA) 
     target_compile_definitions(libgringo PRIVATE WITH_LUA)

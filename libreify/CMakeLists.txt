@@ -23,4 +23,6 @@ target_include_directories(libreify PUBLIC
     "$<BUILD_INTERFACE:${header_path}>"
     "$<BUILD_INTERFACE:${CLINGO_SOURCE_DIR}/libgringo>")
 target_link_libraries(libreify PUBLIC libpotassco)
-set_target_properties(libreify PROPERTIES OUTPUT_NAME reify)
+set_target_properties(libreify PROPERTIES
+    OUTPUT_NAME reify
+    FOLDER lib)
