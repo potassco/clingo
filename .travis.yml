@@ -14,20 +14,20 @@ matrix:
             - re2c
             - liblua5.1-0-dev
             - zsh
+            - cmake
+      env:
+        - CC=gcc-5
+        - CXX=g++-5
     - os: osx
       osx_image: xcode8
+      env:
+        - CC=clang
+        - CXX=clang++
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update  ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install lua bison re2c scons; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install lua bison re2c scons cmake; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew link bison --force; fi
 
 script:
-  - mkdir build
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then echo "CXX = 'clang++'" >  build/debug.py; else echo "CXX = 'g++-5'" >  build/debug.py; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then echo "CC  = 'clang'"   >> build/debug.py; else echo "CC  = 'gcc-5'" >> build/debug.py; fi
-  - echo "CXXFLAGS = ['-std=c++11', '-O2', '-W', '-Wall']" >> build/debug.py
-  - echo "LINKFLAGS = ['-std=c++11']" >> build/debug.py
-  - scons -j3
-  - scons -j3 example cexample
-  - scons -j3 test
+  - mkdir build && cd build && cmake -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} && make && make test
