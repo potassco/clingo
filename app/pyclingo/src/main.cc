@@ -18,8 +18,19 @@
 
 // }}}
 #include "Python.h"
-#define CLINGO_BUILD_LIBRARY
-#include "clingo.h"
+
+#if defined _WIN32 || defined __CYGWIN__
+#   define CLINGO_WIN
+#endif
+#ifdef CLINGO_WIN
+#    define CLINGO_VISIBILITY_DEFAULT __declspec (dllexport)
+#else
+#    if __GNUC__ >= 4
+#        define CLINGO_VISIBILITY_DEFAULT  __attribute__ ((visibility ("default")))
+#    else
+#        define CLINGO_VISIBILITY_DEFAULT
+#    endif
+#endif
 
 extern "C" CLINGO_VISIBILITY_DEFAULT void *clingo_python_();
 

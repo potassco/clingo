@@ -46,6 +46,9 @@ target_compile_definitions(libclingo PRIVATE CLINGO_BUILD_LIBRARY)
 set_target_properties(libclingo PROPERTIES
     OUTPUT_NAME clingo
     FOLDER lib)
+if (NOT BUILD_CLINGO_LIB_SHARED)
+    target_compile_definitions(libclingo PUBLIC CLINGO_NO_VISIBILITY)
+endif()
 
 if (CLINGO_ENABLE_LUA)
     target_compile_definitions(libclingo PRIVATE WITH_LUA)

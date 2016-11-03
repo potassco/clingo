@@ -52,20 +52,25 @@ extern "C" {
 #if defined _WIN32 || defined __CYGWIN__
 #   define CLINGO_WIN
 #endif
-#ifdef CLINGO_WIN
-#   ifdef CLINGO_BUILD_LIBRARY
-#       define CLINGO_VISIBILITY_DEFAULT __declspec (dllexport)
-#   else
-#       define CLINGO_VISIBILITY_DEFAULT __declspec (dllimport)
-#   endif
+#ifdef CLINGO_NO_VISIBILITY
+#   define CLINGO_VISIBILITY_DEFAULT
 #   define CLINGO_VISIBILITY_PRIVATE
 #else
-#   if __GNUC__ >= 4
-#       define CLINGO_VISIBILITY_DEFAULT  __attribute__ ((visibility ("default")))
-#       define CLINGO_VISIBILITY_PRIVATE __attribute__ ((visibility ("hidden")))
-#   else
-#       define CLINGO_VISIBILITY_DEFAULT
+#   ifdef CLINGO_WIN
+#       ifdef CLINGO_BUILD_LIBRARY
+#           define CLINGO_VISIBILITY_DEFAULT __declspec (dllexport)
+#       else
+#           define CLINGO_VISIBILITY_DEFAULT __declspec (dllimport)
+#       endif
 #       define CLINGO_VISIBILITY_PRIVATE
+#   else
+#       if __GNUC__ >= 4
+#           define CLINGO_VISIBILITY_DEFAULT  __attribute__ ((visibility ("default")))
+#           define CLINGO_VISIBILITY_PRIVATE __attribute__ ((visibility ("hidden")))
+#       else
+#           define CLINGO_VISIBILITY_DEFAULT
+#           define CLINGO_VISIBILITY_PRIVATE
+#       endif
 #   endif
 #endif
 

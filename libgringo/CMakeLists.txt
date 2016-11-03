@@ -170,6 +170,9 @@ target_link_libraries(libgringo PUBLIC libpotassco libreify)
 target_compile_definitions(libgringo PRIVATE
     CLINGO_BUILD_LIBRARY
     CLINGO_GRINGO_ONLY)
+if (NOT BUILD_CLINGO_LIB_SHARED)
+    target_compile_definitions(libgringo PUBLIC CLINGO_NO_VISIBILITY)
+endif()
 set_target_properties(libgringo PROPERTIES 
     OUTPUT_NAME gringo
     FOLDER lib)
