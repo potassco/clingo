@@ -14,6 +14,7 @@ matrix:
             - re2c
             - liblua5.1-0-dev
             - zsh
+            - cppunit
       env:
         - CC=gcc-5
         - CXX=g++-5
@@ -25,7 +26,7 @@ matrix:
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update  ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install lua bison re2c scons cmake; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install lua bison re2c scons cmake cppunit; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew link bison --force; fi
 
 script:
