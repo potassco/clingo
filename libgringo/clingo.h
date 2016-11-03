@@ -2969,6 +2969,8 @@ typedef bool clingo_model_callback_t (clingo_model_t *model, void *data, bool *g
 //! @see clingo_control_solve_async()
 typedef bool clingo_finish_callback_t (clingo_solve_result_bitset_t result, void *data);
 
+#ifndef CLINGO_GRINGO_ONLY
+
 //! Create a new control object.
 //!
 //! A control object has to be freed using clingo_control_free().
@@ -2990,6 +2992,8 @@ typedef bool clingo_finish_callback_t (clingo_solve_result_bitset_t result, void
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if argument parsing fails
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_new(char const *const * arguments, size_t arguments_size, clingo_logger_t *logger, void *logger_data, unsigned message_limit, clingo_control_t **control);
+
+#endif
 
 //! Free a control object created with clingo_control_new().
 //! @param[in] control the target

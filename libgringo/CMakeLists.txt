@@ -2,7 +2,6 @@ set(header_path ${CLINGO_SOURCE_DIR}/libgringo)
 # [[[header: .
 set(ide_header_group "Header Files")
 set(header-group
-    "${header_path}/clingo.hh"
     "${header_path}/clingo.h")
 source_group("${ide_header_group}" FILES ${header-group})
 set(header-group-gringo
@@ -168,7 +167,9 @@ target_include_directories(libgringo PUBLIC
     "$<BUILD_INTERFACE:${header_path}>"
     "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated/libgringo>")
 target_link_libraries(libgringo PUBLIC libpotassco libreify)
-target_compile_definitions(libgringo PRIVATE CLINGO_BUILD_LIBRARY)
+target_compile_definitions(libgringo PRIVATE
+    CLINGO_BUILD_LIBRARY
+    CLINGO_GRINGO_ONLY)
 set_target_properties(libgringo PROPERTIES 
     OUTPUT_NAME gringo
     FOLDER lib)
