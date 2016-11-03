@@ -9,3 +9,8 @@ build/cmake:
 .DEFAULT: build/cmake
 	cd build/cmake && cd $$(pwd -P) && cmake .
 	$(MAKE) -C build/cmake $@
+
+test: build/cmake
+	cd build/cmake && cd $$(pwd -P) && cmake .
+	$(MAKE) -C build/cmake
+	$(MAKE) -C build/cmake $@ CTEST_OUTPUT_ON_FAILURE=TRUE

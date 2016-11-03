@@ -70,11 +70,11 @@ set(header-group-gringo-output
     "${header_path}/gringo/output/literals.hh")
 source_group("${ide_header_group}\\gringo\\output" FILES ${header-group-gringo-output})
 set(header
-    "${header-group}"
-    "${header-group-gringo}"
-    "${header-group-gringo-ground}"
-    "${header-group-gringo-input}"
-    "${header-group-gringo-output}")
+    ${header-group}
+    ${header-group-gringo}
+    ${header-group-gringo-ground}
+    ${header-group-gringo-input}
+    ${header-group-gringo-output})
 # ]]]
 
 set(source_path ${CLINGO_SOURCE_DIR}/libgringo)
@@ -119,10 +119,10 @@ set(source-group-output
     "${source_path}/src/output/statement.cc")
 source_group("${ide_source_group}\\output" FILES ${source-group-output})
 set(source
-    "${source-group}"
-    "${source-group-ground}"
-    "${source-group-input}"
-    "${source-group-output}")
+    ${source-group}
+    ${source-group-ground}
+    ${source-group-input}
+    ${source-group-output})
 # ]]]
 
 # TODO: complex enough to justify adding a function...
@@ -183,4 +183,6 @@ if (CLINGO_ENABLE_PYTHON)
     target_link_libraries(libgringo PRIVATE ${PYTHON_LIBRARIES})
     target_include_directories(libgringo PRIVATE ${PYTHON_INCLUDE_DIRS})
 endif()
+
+add_subdirectory(tests)
 

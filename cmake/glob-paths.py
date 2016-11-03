@@ -39,7 +39,7 @@ def find(path, target):
 
     output+= 'set({}\n'.format(target)
     for group in groups:
-        output+= """    "${{{}}}"\n""".format(group)
+        output+= """    ${{{}}}\n""".format(group)
     output = output[:-1] + ")\n"
     return output
 

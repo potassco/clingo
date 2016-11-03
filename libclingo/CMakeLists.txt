@@ -6,7 +6,7 @@ set(header-group-clingo
     "${header_path}/clingo/clingo_app.hh")
 source_group("${ide_header_group}\\clingo" FILES ${header-group-clingo})
 set(header
-    "${header-group-clingo}")
+    ${header-group-clingo})
 # ]]]
 
 set(source_path ${CLINGO_SOURCE_DIR}/libclingo)
@@ -17,7 +17,7 @@ set(source-group
     "${source_path}/src/clingocontrol.cc")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source
-    "${source-group}")
+    ${source-group})
 # ]]]
 
 list(APPEND header "${CLASP_SOURCE_DIR}/app/clasp_app.h")
@@ -59,3 +59,5 @@ if (BUILD_CLINGO_LIB_SHARED)
         set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE on)
     endforeach()
 endif()
+
+add_subdirectory(tests)

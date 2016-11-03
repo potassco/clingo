@@ -17,6 +17,8 @@ option(BUILD_CLINGO_LIB_SHARED "build clingo library shared" ON)
 option(CLINGO_ENABLE_PYTHON "enable python support" ON)
 option(CLINGO_ENABLE_LUA "enable lua support" ON)
 
+enable_testing()
+
 # NOTE: assumes that submodule has been initialized
 add_subdirectory(clasp)
 
@@ -37,3 +39,4 @@ add_subdirectory(libgringo)
 add_subdirectory(libclingo)
 add_subdirectory(app/clingo)
 add_subdirectory(examples/c)
+add_subdirectory(examples/cc)
