@@ -16,16 +16,13 @@ matrix:
             - zsh
             - libcppunit-dev
       env:
-        - CC=gcc-5
-        - CXX=g++-5
+        - MY_CC=gcc-5
+        - MY_CXX=g++-5
     - os: osx
       osx_image: xcode8
       env:
-        - CC=clang
-        - CXX=clang++
-
-install:
-  - echo $CXX ${CXX}
+        - MY_CC=clang
+        - MY_CXX=clang++
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update  ; fi
@@ -38,6 +35,5 @@ script:
       mkdir cmake-bin && wget --quiet --no-check-certificate -O - ${CMAKE_URL} | tar --strip-components=1 -xz -C cmake-bin;
       export PATH=${PWD}/cmake-bin/bin:${PATH};
     fi
-  - echo $CXX ${CXX}
-  - mkdir build && cd build && cmake -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} .. && make && make test
+  - mkdir build && cd build && cmake -DCMAKE_C_COMPILER=${MY_CC} -DCMAKE_CXX_COMPILER=${MY_CXX} .. && make && make test
 
