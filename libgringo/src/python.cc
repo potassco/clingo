@@ -910,7 +910,10 @@ protected:
     template <Object (T::*f)(Reference)>
     static PyCFunction to_function() { return to_function_<Object, f>; }
     template <Object (T::*f)(Reference, Reference)>
-    static PyCFunction to_function() { return reinterpret_cast<PyCFunction>(to_function_<Object, f>); }
+    static PyCFunction to_function() {
+        auto x = to_function_<Object, f>;
+        return reinterpret_cast<PyCFunction>(x);
+    }
 
 private:
     template <Object (T::*f)()>
