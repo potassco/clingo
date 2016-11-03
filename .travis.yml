@@ -30,4 +30,4 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew link bison --force; fi
 
 script:
-  - mkdir build && cd build && cmake -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} && make && make test
+  - mkdir build && cd build && cmake .. -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} && make && make test
