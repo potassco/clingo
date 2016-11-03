@@ -38,12 +38,14 @@
 #include <climits>
 #include <iostream>
 #include <stdexcept>
-#include <program_opts/application.h>
-#include <program_opts/typed_value.h>
+#include <potassco/application.h>
+#include <potassco/program_opts/typed_value.h>
+
+using StringVec = std::vector<std::string>;
 
 struct GringoOptions {
     using Foobar = std::vector<Gringo::Sig>;
-    ProgramOptions::StringSeq     defines;
+    StringVec                     defines;
     Gringo::Output::OutputOptions outputOptions;
     Gringo::Output::OutputFormat  outputFormat          = Gringo::Output::OutputFormat::INTERMEDIATE;
     bool                          verbose               = false;
@@ -75,7 +77,7 @@ static inline bool parseFoobar(const std::string& str, GringoOptions::Foobar& fo
         auto y = split(x, "/");
         if (y.size() != 2) { return false; }
         unsigned a;
-        if (!bk_lib::string_cast<unsigned>(y[1], a)) { return false; }
+        if (!Potassco::string_cast<unsigned>(y[1], a)) { return false; }
         bool sign = !y[0].empty() && y[0][0] == '-';
         if (sign) { y[0] = y[0].substr(1); }
         foobar.emplace_back(y[0].c_str(), a, sign);
@@ -282,12 +284,12 @@ static bool parseText(const std::string&, GringoOptions& out) {
     return true;
 }
 
-struct GringoApp : public ProgramOptions::Application {
+struct GringoApp : public Potassco::Application {
     using StringSeq = std::vector<std::string>;
     virtual const char* getName() const    { return "gringo"; }
     virtual const char* getVersion() const { return CLINGO_VERSION; }
-    virtual void initOptions(ProgramOptions::OptionContext& root) {
-        using namespace ProgramOptions;
+    virtual void initOptions(Potassco::ProgramOptions::OptionContext& root) {
+        using namespace Potassco::ProgramOptions;
         grOpts_.defines.clear();
         grOpts_.verbose = false;
         OptionGroup gringo("Gringo Options");
@@ -335,18 +337,18 @@ struct GringoApp : public ProgramOptions::Application {
             ;
         root.add(basic);
     }
-    virtual void validateOptions(const ProgramOptions::OptionContext&, const ProgramOptions::ParsedOptions&, const ProgramOptions::ParsedValues&) { }
+    virtual void validateOptions(const Potassco::ProgramOptions::OptionContext&, const Potassco::ProgramOptions::ParsedOptions&, const Potassco::ProgramOptions::ParsedValues&) { }
     virtual void setup() { }
     static bool parsePositional(std::string const &, std::string& out) {
         out = "file";
         return true;
     }
-    virtual ProgramOptions::PosOption getPositional() const { return parsePositional; }
+    virtual Potassco::ProgramOptions::PosOption getPositional() const { return parsePositional; }
 
-    virtual void printHelp(const ProgramOptions::OptionContext& root) {
+    virtual void printHelp(const Potassco::ProgramOptions::OptionContext& root) {
         printf("%s version %s\n", getName(), getVersion());
         printUsage();
-        ProgramOptions::FileOut out(stdout);
+        Potassco::ProgramOptions::FileOut out(stdout);
         root.description(out);
         printf("\n");
         printUsage();

@@ -41,11 +41,11 @@ set_target_properties(libclingo PROPERTIES
     OUTPUT_NAME clingo
     FOLDER lib)
 
-if (CLINGO_ENABLE_LUA) 
+if (CLINGO_ENABLE_LUA)
     target_compile_definitions(libclingo PRIVATE WITH_LUA)
     target_include_directories(libclingo PRIVATE ${LUA_INCLUDE_DIR})
 endif()
-if (CLINGO_ENABLE_PYTHON) 
+if (CLINGO_ENABLE_PYTHON)
     target_compile_definitions(libclingo PRIVATE WITH_PYTHON)
     target_include_directories(libclingo PRIVATE ${PYTHON_INCLUDE_DIRS})
 endif()
