@@ -19,6 +19,7 @@
 // }}}
 
 #include <lua.hpp>
+#define CLINGO_BUILD_LIBRARY
 #include "clingo.h"
 
 extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_lua_(lua_State *L);
