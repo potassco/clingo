@@ -18,33 +18,17 @@
 
 // }}}
 #include "Python.h"
-#include "gringo/python.hh"
-#include "clingo/clingocontrol.hh"
+#include "clingo.h"
 
-#if defined(_WIN32) || defined(__CYGWIN__)
-#   define GRINGO_VISIBILITY_DEFAULT __declspec (dllexport)
-#else
-#   define GRINGO_VISIBILITY_DEFAULT __attribute__ ((visibility ("default")))
-#endif
-
-namespace {
-
-DefaultGringoModule g_module;
-
-} // namespace
+extern "C" CLINGO_VISIBILITY_DEFAULT void *clingo_python_();
 
 #if PY_MAJOR_VERSION >= 3
-#define INITRETURN return (PyObject *)
-#define INITFAIL return nullptr;
-extern "C" GRINGO_VISIBILITY_DEFAULT PyObject *PyInit_clingo() {
-#else
-#define INITRETURN
-#define INITFAIL return;
-extern "C" GRINGO_VISIBILITY_DEFAULT void initclingo() {
-#endif
-    try                             { INITRETURN Gringo::Python::initlib(g_module); }
-    catch (std::bad_alloc const &e) { PyErr_SetString(PyExc_MemoryError, e.what()); INITFAIL }
-    catch (std::exception const &e) { PyErr_SetString(PyExc_RuntimeError, e.what()); INITFAIL }
-    catch (...)                     { PyErr_SetString(PyExc_RuntimeError, "unknown error"); INITFAIL }
+extern "C" CLINGO_VISIBILITY_DEFAULT PyObject *PyInit_clingo() {
+    return (PyObject*)clingo_python_();
 }
+#else
+extern "C" CLINGO_VISIBILITY_DEFAULT void initclingo() {
+    clingo_python_();
+}
+#endif
 

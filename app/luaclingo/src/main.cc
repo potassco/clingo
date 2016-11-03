@@ -19,25 +19,11 @@
 // }}}
 
 #include <lua.hpp>
-#include "gringo/lua.hh"
-#include "clingo/clingocontrol.hh"
+#include "clingo.h"
 
-#if defined(_WIN32) || defined(__CYGWIN__)
-#   define GRINGO_VISIBILITY_DEFAULT __declspec (dllexport)
-#else
-#   define GRINGO_VISIBILITY_DEFAULT __attribute__ ((visibility ("default")))
-#endif
+extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_lua_(lua_State *L);
 
-namespace {
-
-DefaultGringoModule g_module;
-
-} // namespace
-
-extern "C" GRINGO_VISIBILITY_DEFAULT int luaopen_clingo(lua_State *L) {
-    try                             { Gringo::Lua::initlib(L, g_module); }
-    catch (std::exception const &e) { luaL_error(L, e.what()); }
-    catch (...)                     { luaL_error(L, "unknown error"); }
-    return 1;
+extern "C" CLINGO_VISIBILITY_DEFAULT int luaopen_clingo(lua_State *L) {
+    return clingo_lua_(L);
 }
 
