@@ -335,7 +335,7 @@ Gringo::SolveIter *ClingoControl::solveIter(Assumptions &&ass) {
 }
 Gringo::SolveFuture *ClingoControl::solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass) {
     if (!clingoMode_) { throw std::runtime_error("solveAsync is not supported in gringo gringo mode"); }
-#if WITH_THREADS
+#if CLASP_HAS_THREADS
     prepare(std::move(ass), mh, fh);
     solveFuture_ = Gringo::gringo_make_unique<ClingoSolveFuture>(clasp_->solveAsync(nullptr, {}));
     return solveFuture_.get();
@@ -376,7 +376,7 @@ void ClingoControl::prepare(Assumptions &&ass, Gringo::Control::ModelHandler mh,
     }
     grounded = false;
     if (clingoMode_) {
-#if WITH_THREADS
+#if CLASP_HAS_THREADS
         solveFuture_   = nullptr;
 #endif
         solveIter_     = nullptr;
@@ -651,7 +651,7 @@ Gringo::SolveResult convert(Clasp::ClaspFacade::Result res) {
     return {sat, res.exhausted(), res.interrupted()};
 }
 
-#if WITH_THREADS
+#if CLASP_HAS_THREADS
 ClingoSolveFuture::ClingoSolveFuture(Clasp::ClaspFacade::AsyncResult const &res)
     : future(res) { }
 Gringo::SolveResult ClingoSolveFuture::get() {
@@ -732,7 +732,7 @@ bool ClingoLib::onModel(Clasp::Solver const&, Clasp::Model const& m) {
     return ClingoControl::onModel(m);
 }
 void ClingoLib::onEvent(Clasp::Event const& ev) {
-#if WITH_THREADS
+#if CLASP_HAS_THREADS
     Clasp::ClaspFacade::StepReady const *r = Clasp::event_cast<Clasp::ClaspFacade::StepReady>(ev);
     if (r && finishHandler_) { onFinish(r->summary->result); }
 #endif
@@ -749,7 +749,7 @@ bool ClingoLib::parsePositional(const std::string& t, std::string& out) {
 }
 ClingoLib::~ClingoLib() {
     // TODO: can be removed after bennies next update...
-#if WITH_THREADS
+#if CLASP_HAS_THREADS
     solveFuture_ = nullptr;
 #endif
     solveIter_   = nullptr;

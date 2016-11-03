@@ -171,7 +171,7 @@ bool ClingoApp::onModel(Clasp::Solver const& s, Clasp::Model const& m) {
 void ClingoApp::shutdown() {
     // TODO: can be removed in future...
     //       or could be bound differently given the new interface...
-#if WITH_THREADS
+#if CLASP_HAS_THREADS
     if (grd) {
         grd->solveIter_   = nullptr;
         grd->solveFuture_ = nullptr;
@@ -180,7 +180,7 @@ void ClingoApp::shutdown() {
     Clasp::Cli::ClaspAppBase::shutdown();
 }
 void ClingoApp::onEvent(Event const& ev) {
-#if WITH_THREADS
+#if CLASP_HAS_THREADS
     Clasp::ClaspFacade::StepReady const *r = Clasp::event_cast<Clasp::ClaspFacade::StepReady>(ev);
     if (r && grd) { grd->onFinish(r->summary->result); }
 #endif

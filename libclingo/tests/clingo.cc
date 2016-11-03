@@ -228,7 +228,7 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(optimum == (CostVector{7,5}));
             REQUIRE(messages.empty());
         }
-#if defined(WITH_THREADS) && WITH_THREADS == 1
+#if defined(CLASP_HAS_THREADS) && CLASP_HAS_THREADS == 1
         SECTION("async") {
             ctl.add("base", {}, "{a}.");
             ctl.ground({{"base", {}}});
@@ -475,7 +475,7 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(ctl.get_const("a") == Number(10));
             REQUIRE(ctl.get_const("b") == Id("b"));
         }
-#if defined(WITH_THREADS) && WITH_THREADS == 1
+#if defined(CLASP_HAS_THREADS) && CLASP_HAS_THREADS == 1
         SECTION("async and cancel") {
             static int n = 0;
             if (++n < 3) { // workaround for some bug with catch

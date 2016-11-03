@@ -148,7 +148,7 @@ static inline bool parseFoobar(const std::string& str, ClingoOptions::Foobar& fo
 // {{{1 declaration of ClingoSolveFuture
 
 Gringo::SolveResult convert(Clasp::ClaspFacade::Result res);
-#if WITH_THREADS
+#if CLASP_HAS_THREADS
 struct ClingoSolveFuture : Gringo::SolveFuture {
     ClingoSolveFuture(Clasp::ClaspFacade::AsyncResult const &res);
     // async
@@ -304,7 +304,7 @@ public:
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>> propagators_;
     ClingoPropagatorLock                                      propLock_;
     Gringo::Logger                                            logger_;
-#if WITH_THREADS
+#if CLASP_HAS_THREADS
     std::unique_ptr<ClingoSolveFuture> solveFuture_;
 #endif
     std::unique_ptr<ClingoSolveIter>   solveIter_;

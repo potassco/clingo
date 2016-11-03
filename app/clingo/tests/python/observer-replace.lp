@@ -1,5 +1,6 @@
 #script (python)
 
+import sys
 from clingo import Function, Tuple
 
 class Observer:
@@ -120,9 +121,10 @@ def main(prg):
     prg.ground([("base", [])])
     prg.solve(assumptions=[(Function("b"), False)])
     ctx = obs.finalize()
-    print "Solving..."
-    print "Answer: 1"
-    print " ".join([str(x) for x in ctx.get()])
+    print ("Solving...")
+    print ("Answer: 1")
+    print (" ".join([str(x) for x in ctx.get()]))
+    sys.stdout.flush()
 
 #end.
 
