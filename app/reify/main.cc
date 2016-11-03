@@ -19,8 +19,8 @@
 // }}}
 
 #include <fstream>
-#include <program_opts/application.h>
-#include <program_opts/typed_value.h>
+#include <potassco/application.h>
+#include <potassco/program_opts/typed_value.h>
 #include "reify/program.hh"
 #include "clingo.h"
 
@@ -29,15 +29,15 @@ struct ReifyOptions {
     bool reifyStep     = false;
 };
 
-class ReifyApp : public ProgramOptions::Application {
+class ReifyApp : public Potassco::Application {
 public:
     virtual const char* getName() const    { return "reify"; }
 
     virtual const char* getVersion() const { return CLINGO_VERSION; }
 
 protected:
-    virtual void initOptions(ProgramOptions::OptionContext& root) {
-        using namespace ProgramOptions;
+    virtual void initOptions(Potassco::ProgramOptions::OptionContext& root) {
+        using namespace Potassco::ProgramOptions;
         OptionGroup reify("Reify Options");
         reify.addOptions()
             ("sccs,c", flag(opts_.calculateSCCs), "calculate strongly connected components\n")
@@ -50,7 +50,7 @@ protected:
         root.add(basic);
     }
 
-    virtual void validateOptions(const ProgramOptions::OptionContext&, const ProgramOptions::ParsedOptions&, const ProgramOptions::ParsedValues&) { }
+    virtual void validateOptions(const Potassco::ProgramOptions::OptionContext&, const Potassco::ProgramOptions::ParsedOptions&, const Potassco::ProgramOptions::ParsedValues&) { }
 
     virtual void setup() { }
 
@@ -59,12 +59,12 @@ protected:
         return true;
     }
 
-    virtual ProgramOptions::PosOption getPositional() const { return parsePositional; }
+    virtual Potassco::ProgramOptions::PosOption getPositional() const { return parsePositional; }
 
-    virtual void printHelp(const ProgramOptions::OptionContext& root) {
+    virtual void printHelp(const Potassco::ProgramOptions::OptionContext& root) {
         printf("%s version %s\n", getName(), getVersion());
         printUsage();
-        ProgramOptions::FileOut out(stdout);
+        Potassco::ProgramOptions::FileOut out(stdout);
         root.description(out);
         printf("\n");
         printUsage();
