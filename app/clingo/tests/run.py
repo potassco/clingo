@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import re
 import os
 import os.path
 import sys
@@ -128,12 +129,23 @@ if parse_ret.action == "run":
     total  = 0
     failed = 0
 
+    out, err = sp.Popen([clingo, "--version"], stderr=sp.PIPE, stdout=sp.PIPE, universal_newlines=True).communicate()
+    with_python  = out.find("with Python") > 0
+    with_lua     = out.find("with Lua") > 0
+    with_threads = out.find("WITH_THREADS=1") > 0
     for root, dirs, files in os.walk(wd):
         for f in sorted(files):
             if f.endswith(".lp"):
-                total+= 1
                 b = os.path.join(root, f[:-3])
+                inst = open(b + ".lp").read()
+                if (not with_python and re.search(r"#script[ ]*\(python\)", inst)) or \
+                   (not with_lua and re.search(r"#script[ ]*\(lua\)", inst)) or \
+                   (not with_threads and re.search("solve_async", inst)):
+                    continue
+
+                total+= 1
                 sys.stdout.flush()
+
                 args = [clingo, "0", b + ".lp", "-Wnone"]
                 if os.path.exists(b + ".cmd"):
                     for x in open(b + ".cmd"):
