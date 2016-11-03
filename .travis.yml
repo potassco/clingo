@@ -24,6 +24,9 @@ matrix:
         - CC=clang
         - CXX=clang++
 
+install:
+  - echo $CXX ${CXX}
+
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update  ; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install lua bison re2c scons cmake cppunit; fi
@@ -35,4 +38,6 @@ script:
       mkdir cmake-bin && wget --quiet --no-check-certificate -O - ${CMAKE_URL} | tar --strip-components=1 -xz -C cmake-bin;
       export PATH=${PWD}/cmake-bin/bin:${PATH};
     fi
+  - echo $CXX ${CXX}
   - mkdir build && cd build && cmake -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} .. && make && make test
+
