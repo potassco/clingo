@@ -14,7 +14,7 @@ matrix:
             - re2c
             - liblua5.1-0-dev
             - zsh
-            - cppunit
+            - libcppunit-dev
       env:
         - CC=gcc-5
         - CXX=g++-5
