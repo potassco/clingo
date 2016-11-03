@@ -35,4 +35,4 @@ script:
       mkdir cmake-bin && wget --quiet --no-check-certificate -O - ${CMAKE_URL} | tar --strip-components=1 -xz -C cmake-bin;
       export PATH=${PWD}/cmake-bin/bin:${PATH};
     fi
-  - mkdir build && cd build && cmake .. -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} && make && make test
+  - mkdir build && cd build && cmake -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} .. && make && make test
