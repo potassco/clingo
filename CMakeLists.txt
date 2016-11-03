@@ -48,3 +48,13 @@ endif()
 if (CLINGO_ENABLE_LUA)
     add_subdirectory(app/luaclingo)
 endif()
+
+if (BUILD_CLINGO_LIB_SHARED OR CLINGO_ENABLE_PYTHON OR CLINGO_ENABLE_LUA)
+    foreach(target libclingo libgringo libpotassco libclasp libreify)
+        if (POLICY CMP0063)
+            set_target_properties(${target} PROPERTIES CXX_VISIBILITY_PRESET hidden)
+        endif()
+        set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    endforeach()
+endif()
+
