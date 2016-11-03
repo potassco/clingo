@@ -9,7 +9,7 @@ set(source
 # ]]]
 
 add_library(luaclingo SHARED ${source})
-target_link_libraries(luaclingo libclingo libpotassco)
+target_link_libraries(luaclingo PRIVATE libclingo libpotassco)
 set_target_properties(luaclingo PROPERTIES
     FOLDER lib
     OUTPUT_NAME clingo
