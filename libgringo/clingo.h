@@ -1206,7 +1206,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_theory_atoms_atom_to_string(clingo_theory_
 //! @addtogroup Propagator
 //! @{
 
-//! Object to initialize a used-defined propagator before each solving step.
+//! Object to initialize a user-defined propagator before each solving step.
 //!
 //! Each @link SymbolicAtoms symbolic@endlink or @link TheoryAtoms theory atom@endlink is uniquely associated with an aspif atom in form of a positive integer (@ref ::clingo_literal_t).
 //! Aspif literals additionally are signed to represent default negation.
