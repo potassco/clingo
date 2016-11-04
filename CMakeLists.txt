@@ -38,6 +38,11 @@ if (NOT CMAKE_IMPORT_LIBRARY_PREFIX)
     set(CMAKE_IMPORT_LIBRARY_PREFIX import_)
 endif()
 
+if (NOT CMAKE_BUILD_TYPE)
+    message(STATUS "No build type selected - using 'Release'")
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
+
 set(clingo_external_libs)
 if (CLINGO_ENABLE_PYTHON)
     if (CLINGO_REQUIRE_PYTHON)
