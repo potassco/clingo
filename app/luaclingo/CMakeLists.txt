@@ -15,3 +15,6 @@ set_target_properties(luaclingo PROPERTIES
     OUTPUT_NAME clingo
     PREFIX "")
 target_include_directories(luaclingo PRIVATE ${LUA_INCLUDE_DIR})
+if (CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+    set_target_properties(luaclingo PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lua)
+endif()
