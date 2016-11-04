@@ -17,6 +17,11 @@ option(BUILD_CLINGO_LIB_SHARED "build clingo library shared" ON)
 option(CLINGO_ENABLE_PYTHON "enable python support" ON)
 option(CLINGO_ENABLE_LUA "enable lua support" ON)
 
+if (POLICY CMP0063 AND (BUILD_CLINGO_LIB_SHARED OR CLINGO_ENABLE_PYTHON OR CLINGO_ENABLE_LUA))
+    set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+    set(CMAKE_C_VISIBILITY_PRESET hidden)
+endif()
+
 enable_testing()
 
 # NOTE: assumes that submodule has been initialized
@@ -51,9 +56,6 @@ endif()
 
 if (BUILD_CLINGO_LIB_SHARED OR CLINGO_ENABLE_PYTHON OR CLINGO_ENABLE_LUA)
     foreach(target libclingo libgringo libpotassco libclasp libreify)
-        if (POLICY CMP0063)
-            set_target_properties(${target} PROPERTIES CXX_VISIBILITY_PRESET hidden)
-        endif()
         set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
     endforeach()
 endif()
