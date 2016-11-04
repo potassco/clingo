@@ -2095,7 +2095,7 @@ Example:
 import clingo
 
 def main(prg):
-    prg.conf.solve.models = 0
+    prg.configuration.solve.models = 0
     prg.ground([("base", [])])
     prg.solve()
 
