@@ -133,10 +133,8 @@ bison_target("nongroundgrammar" "${source_path}/src/input/nongroundgrammar.yy" "
 source_group("${ide_source_group}\\input" FILES "${source_path}/src/input/nongroundgrammar.yy")
 re2c_target(NAME "groundtermlexer" INPUT "${source_path}/src/input/groundtermlexer.xh" OUTPUT "${CMAKE_BINARY_DIR}/generated/libgringo/input/groundtermlexer.hh")
 source_group("${ide_source_group}\\input" FILES "${source_path}/src/input/groundtermlexer.xh")
-set_target_properties(groundtermlexer PROPERTIES FOLDER gen) # TODO: try to get rid of these as with the bison_target
 re2c_target(NAME "nongroundlexer" INPUT "${source_path}/src/input/nongroundlexer.xch" OUTPUT "${CMAKE_BINARY_DIR}/generated/libgringo/input/nongroundlexer.hh" OPTIONS "-c")
 source_group("${ide_source_group}\\input" FILES "${source_path}/src/input/nongroundlexer.xch")
-set_target_properties(nongroundlexer PROPERTIES FOLDER gen) # TODO: try to get rid of these as with the bison_target
 
 source_group("${ide_source_group}\\input\\nongroundgrammar" FILES
     "${BISON_nongroundgrammar_OUTPUT_HEADER}"

@@ -15,8 +15,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(BUILD_CLINGO_LIB_SHARED "build clingo library shared" ON)
-option(CLINGO_ENABLE_PYTHON "enable python support" ON)
-option(CLINGO_ENABLE_LUA "enable lua support" ON)
+option(CLINGO_ENABLE_PYTHON    "enable python support"       ON)
+option(CLINGO_ENABLE_LUA       "enable lua support"          ON)
 
 CMAKE_DEPENDENT_OPTION(CLINGO_REQUIRE_PYTHON "fail if python support not found" OFF "CLINGO_ENABLE_PYTHON" OFF)
 CMAKE_DEPENDENT_OPTION(CLINGO_REQUIRE_LUA    "fail if lua support not found"    OFF "CLINGO_ENABLE_LUA"    OFF)

@@ -51,37 +51,19 @@
 # implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #=============================================================================
 
-cmake_minimum_required(VERSION 2.8.3)
+include(CMakeParseArguments)
+include(FindPackageHandleStandardArgs)
 
-########## Private ##########
-if(NOT DEFINED RE2C_PUBLIC_VAR_NS)
-    set(RE2C_PUBLIC_VAR_NS "RE2C")
-endif(NOT DEFINED RE2C_PUBLIC_VAR_NS)
-if(NOT DEFINED RE2C_PRIVATE_VAR_NS)
-    set(RE2C_PRIVATE_VAR_NS "_${RE2C_PUBLIC_VAR_NS}")
-endif(NOT DEFINED RE2C_PRIVATE_VAR_NS)
+find_program(RE2C_EXECUTABLE NAMES re2c DOC "path to the re2c executable")
+mark_as_advanced(BISON_EXECUTABLE)
 
-function(re2c_debug _VARNAME)
-    if(${RE2C_PUBLIC_VAR_NS}_DEBUG)
-        if(DEFINED ${RE2C_PUBLIC_VAR_NS}_${_VARNAME})
-            message("${RE2C_PUBLIC_VAR_NS}_${_VARNAME} = ${${RE2C_PUBLIC_VAR_NS}_${_VARNAME}}")
-        else(DEFINED ${RE2C_PUBLIC_VAR_NS}_${_VARNAME})
-            message("${RE2C_PUBLIC_VAR_NS}_${_VARNAME} = <UNDEFINED>")
-        endif(DEFINED ${RE2C_PUBLIC_VAR_NS}_${_VARNAME})
-    endif(${RE2C_PUBLIC_VAR_NS}_DEBUG)
-endfunction(re2c_debug)
+if(RE2C_EXECUTABLE)
+    execute_process(COMMAND "${RE2C_EXECUTABLE}" --vernum OUTPUT_VARIABLE RE2C_RAW_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
+    math(EXPR RE2C_MAJOR_VERSION "${RE2C_RAW_VERSION} / 100000")
+    math(EXPR RE2C_MINOR_VERSION "(${RE2C_RAW_VERSION} - ${RE2C_MAJOR_VERSION} * 100000) / 100")
+    math(EXPR RE2C_PATCH_VERSION "${RE2C_RAW_VERSION} - ${RE2C_MAJOR_VERSION} * 100000 - ${RE2C_MINOR_VERSION} * 100")
+    set(RE2C_VERSION "${RE2C_MAJOR_VERSION}.${RE2C_MINOR_VERSION}.${RE2C_PATCH_VERSION}")
 
-########## Public ##########
-
-find_program(${RE2C_PUBLIC_VAR_NS}_EXECUTABLE re2c)
-if(${RE2C_PUBLIC_VAR_NS}_EXECUTABLE)
-    execute_process(COMMAND ${${RE2C_PUBLIC_VAR_NS}_EXECUTABLE} --vernum OUTPUT_VARIABLE ${RE2C_PRIVATE_VAR_NS}_RAW_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
-    math(EXPR RE2C_MAJOR_VERSION "${${RE2C_PRIVATE_VAR_NS}_RAW_VERSION} / 100000")
-    math(EXPR RE2C_MINOR_VERSION "(${${RE2C_PRIVATE_VAR_NS}_RAW_VERSION} - ${${RE2C_PUBLIC_VAR_NS}_MAJOR_VERSION} * 100000) / 100")
-    math(EXPR RE2C_PATCH_VERSION "${${RE2C_PRIVATE_VAR_NS}_RAW_VERSION} - ${${RE2C_PUBLIC_VAR_NS}_MAJOR_VERSION} * 100000 - ${${RE2C_PUBLIC_VAR_NS}_MINOR_VERSION} * 100")
-    set(RE2C_VERSION "${${RE2C_PUBLIC_VAR_NS}_MAJOR_VERSION}.${${RE2C_PUBLIC_VAR_NS}_MINOR_VERSION}.${${RE2C_PUBLIC_VAR_NS}_PATCH_VERSION}")
-
-    include(CMakeParseArguments)
     macro(RE2C_TARGET)
         cmake_parse_arguments(PARSED_ARGS "" "NAME;INPUT;OUTPUT;OPTIONS" "DEPENDS" ${ARGN})
 
@@ -94,44 +76,14 @@ if(${RE2C_PUBLIC_VAR_NS}_EXECUTABLE)
         if(NOT PARSED_ARGS_NAME)
             message(FATAL_ERROR "RE2C_TARGET expect a target name")
         endif(NOT PARSED_ARGS_NAME)
-        # TODO:
-        # - get_filename_component(PARSED_ARGS_INPUT ${PARSED_ARGS_INPUT} ABSOLUTE)
-        # - get_filename_component(PARSED_ARGS_OUTPUT ${PARSED_ARGS_OUTPUT} ABSOLUTE)
-        # ?
+
         add_custom_command(
             OUTPUT ${PARSED_ARGS_OUTPUT}
-            COMMAND ${${RE2C_PUBLIC_VAR_NS}_EXECUTABLE} ${PARSED_ARGS_OPTIONS} -o ${PARSED_ARGS_OUTPUT} ${PARSED_ARGS_INPUT}
+            COMMAND ${RE2C_EXECUTABLE} ${PARSED_ARGS_OPTIONS} -o ${PARSED_ARGS_OUTPUT} ${PARSED_ARGS_INPUT}
             DEPENDS ${PARSED_ARGS_INPUT} ${PARSED_ARGS_DEPENDS}
-            COMMENT "[RE2C][${PARSED_ARGS_NAME}] Building lexer with re2c ${${RE2C_PUBLIC_VAR_NS}_VERSION}"
-        )
-        add_custom_target(
-            ${PARSED_ARGS_NAME}
-            SOURCES ${PARSED_ARGS_INPUT}
-            DEPENDS ${PARSED_ARGS_OUTPUT}
+            COMMENT "[RE2C][${PARSED_ARGS_NAME}] Building lexer with re2c ${RE2C_VERSION}"
         )
     endmacro(RE2C_TARGET)
+endif()
 
-    include(FindPackageHandleStandardArgs)
-    if(${RE2C_PUBLIC_VAR_NS}_FIND_REQUIRED AND NOT ${RE2C_PUBLIC_VAR_NS}_FIND_QUIETLY)
-        find_package_handle_standard_args(
-            ${RE2C_PUBLIC_VAR_NS}
-            REQUIRED_VARS ${RE2C_PUBLIC_VAR_NS}_EXECUTABLE
-            VERSION_VAR ${RE2C_PUBLIC_VAR_NS}_VERSION
-        )
-    else(${RE2C_PUBLIC_VAR_NS}_FIND_REQUIRED AND NOT ${RE2C_PUBLIC_VAR_NS}_FIND_QUIETLY)
-        find_package_handle_standard_args(${RE2C_PUBLIC_VAR_NS} "re2c not found" ${RE2C_PUBLIC_VAR_NS}_EXECUTABLE)
-    endif(${RE2C_PUBLIC_VAR_NS}_FIND_REQUIRED AND NOT ${RE2C_PUBLIC_VAR_NS}_FIND_QUIETLY)
-endif(${RE2C_PUBLIC_VAR_NS}_EXECUTABLE)
-
-# IN (args)
-re2c_debug("FIND_REQUIRED")
-re2c_debug("FIND_QUIETLY")
-re2c_debug("FIND_VERSION")
-# OUT
-# Linking
-re2c_debug("EXECUTABLE")
-# Version
-re2c_debug("MAJOR_VERSION")
-re2c_debug("MINOR_VERSION")
-re2c_debug("PATCH_VERSION")
-re2c_debug("VERSION")
+find_package_handle_standard_args(RE2C REQUIRED_VARS RE2C_EXECUTABLE VERSION_VAR RE2C_VERSION)
