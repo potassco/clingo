@@ -26,7 +26,7 @@ matrix:
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update  ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install lua bison re2c scons cmake cppunit; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install lua bison re2c cppunit; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew link bison --force; fi
 
 script:
