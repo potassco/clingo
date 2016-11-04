@@ -9,14 +9,5 @@ set(source
 # ]]]
 
 add_executable(gringo ${header} ${source})
-target_link_libraries(gringo PRIVATE libgringo libpotassco)
+target_link_libraries(gringo PRIVATE libgringo libpotassco ${clingo_external_libs})
 set_target_properties(gringo PROPERTIES FOLDER exe)
-
-if (CLINGO_ENABLE_LUA)
-    target_compile_definitions(gringo PRIVATE WITH_LUA)
-    target_include_directories(gringo PRIVATE ${LUA_INCLUDE_DIR})
-endif()
-if (CLINGO_ENABLE_PYTHON)
-    target_compile_definitions(gringo PRIVATE WITH_PYTHON)
-    target_include_directories(gringo PRIVATE ${PYTHON_INCLUDE_DIRS})
-endif()

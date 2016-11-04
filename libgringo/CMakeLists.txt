@@ -138,15 +138,15 @@ re2c_target(NAME "nongroundlexer" INPUT "${source_path}/src/input/nongroundlexer
 source_group("${ide_source_group}\\input" FILES "${source_path}/src/input/nongroundlexer.xch")
 set_target_properties(nongroundlexer PROPERTIES FOLDER gen) # TODO: try to get rid of these as with the bison_target
 
-source_group("${ide_source_group}\\input\\nongroundgrammar" FILES 
+source_group("${ide_source_group}\\input\\nongroundgrammar" FILES
     "${BISON_nongroundgrammar_OUTPUT_HEADER}"
     "${BISON_nongroundgrammar_OUTPUT_SOURCE}")
-source_group("${ide_source_group}\\input\\groundtermgrammar" FILES 
+source_group("${ide_source_group}\\input\\groundtermgrammar" FILES
     "${BISON_groundtermgrammar_OUTPUT_HEADER}"
     "${BISON_groundtermgrammar_OUTPUT_SOURCE}")
-source_group("${ide_source_group}\\input" FILES 
+source_group("${ide_source_group}\\input" FILES
     "${CMAKE_BINARY_DIR}/generated/libgringo/input/groundtermlexer.hh")
-source_group("${ide_source_group}\\input" FILES 
+source_group("${ide_source_group}\\input" FILES
     "${CMAKE_BINARY_DIR}/generated/libgringo/input/nongroundlexer.hh")
 
 list(APPEND header
@@ -167,26 +167,16 @@ target_include_directories(libgringo PUBLIC
     "$<BUILD_INTERFACE:${header_path}>"
     "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated/libgringo>")
 target_link_libraries(libgringo PUBLIC libpotassco libreify)
+target_link_libraries(libgringo PRIVATE ${clingo_external_libs})
 target_compile_definitions(libgringo PRIVATE
     CLINGO_BUILD_LIBRARY
     CLINGO_GRINGO_ONLY)
 if (NOT BUILD_CLINGO_LIB_SHARED)
     target_compile_definitions(libgringo PUBLIC CLINGO_NO_VISIBILITY)
 endif()
-set_target_properties(libgringo PROPERTIES 
+set_target_properties(libgringo PROPERTIES
     OUTPUT_NAME gringo
     FOLDER lib)
-
-if (CLINGO_ENABLE_LUA) 
-    target_compile_definitions(libgringo PRIVATE WITH_LUA)
-    target_link_libraries(libgringo PRIVATE ${LUA_LIBRARIES})
-    target_include_directories(libgringo PRIVATE ${LUA_INCLUDE_DIR})
-endif()
-if (CLINGO_ENABLE_PYTHON) 
-    target_compile_definitions(libgringo PRIVATE WITH_PYTHON)
-    target_link_libraries(libgringo PRIVATE ${PYTHON_LIBRARIES})
-    target_include_directories(libgringo PRIVATE ${PYTHON_INCLUDE_DIRS})
-endif()
 
 add_subdirectory(tests)
 

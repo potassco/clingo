@@ -41,22 +41,13 @@ target_include_directories(libclingo PRIVATE
 target_include_directories(libclingo PUBLIC
     "$<BUILD_INTERFACE:${CLINGO_SOURCE_DIR}/libgringo>"
     "$<BUILD_INTERFACE:${CLINGO_SOURCE_DIR}/libclingo>")
-target_link_libraries(libclingo PRIVATE libgringo libclasp)
+target_link_libraries(libclingo PRIVATE libgringo libclasp ${clingo_external_libs})
 target_compile_definitions(libclingo PRIVATE CLINGO_BUILD_LIBRARY)
 set_target_properties(libclingo PROPERTIES
     OUTPUT_NAME clingo
     FOLDER lib)
 if (NOT BUILD_CLINGO_LIB_SHARED)
     target_compile_definitions(libclingo PUBLIC CLINGO_NO_VISIBILITY)
-endif()
-
-if (CLINGO_ENABLE_LUA)
-    target_compile_definitions(libclingo PRIVATE WITH_LUA)
-    target_include_directories(libclingo PRIVATE ${LUA_INCLUDE_DIR})
-endif()
-if (CLINGO_ENABLE_PYTHON)
-    target_compile_definitions(libclingo PRIVATE WITH_PYTHON)
-    target_include_directories(libclingo PRIVATE ${PYTHON_INCLUDE_DIRS})
 endif()
 
 add_subdirectory(tests)
