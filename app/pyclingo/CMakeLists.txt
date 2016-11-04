@@ -22,9 +22,12 @@ set_target_properties(pyclingo PROPERTIES
     SUFFIX ${suffix}
     PREFIX "")
 target_include_directories(pyclingo PRIVATE ${PYTHON_INCLUDE_DIRS})
+if (CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+    set_target_properties(pyclingo PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/python)
+endif()
 if (CMAKE_LIBRARY_OUTPUT_DIRECTORY)
     set_target_properties(pyclingo PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python)
 endif()
 if (CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
-    set_target_properties(pyclingo PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python)
+    set_target_properties(pyclingo PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/python)
 endif()

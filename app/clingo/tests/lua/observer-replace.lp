@@ -255,6 +255,7 @@ function main(prg)
     print "Solving..."
     print "Answer: 1"
     print (table.concat(table.map(ctx:get(), tostring), " "))
+    io.flush()
 end
 
 #end.

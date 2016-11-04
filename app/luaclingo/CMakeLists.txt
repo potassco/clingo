@@ -15,9 +15,12 @@ set_target_properties(luaclingo PROPERTIES
     OUTPUT_NAME clingo
     PREFIX "")
 target_include_directories(luaclingo PRIVATE ${LUA_INCLUDE_DIR})
+if (CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+    set_target_properties(luaclingo PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/lua)
+endif()
 if (CMAKE_LIBRARY_OUTPUT_DIRECTORY)
     set_target_properties(luaclingo PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lua)
 endif()
 if (CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
-    set_target_properties(luaclingo PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lua)
+    set_target_properties(luaclingo PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/lua)
 endif()

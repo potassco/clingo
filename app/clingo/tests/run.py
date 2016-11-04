@@ -36,16 +36,12 @@ clingo = parse_ret.clingo
 
 def find_clingo():
     clingos = [
-        "build/debug/clingo",
-        "build/release/clingo",
-        "x64/ReleaseScript/clingo.exe",
-        "ReleaseScript/clingo.exe",
-        "x64/Release/clingo.exe",
-        "Release/clingo.exe",
-        "x64/DebugScript/clingo.exe",
-        "DebugScript/clingo.exe",
-        "x64/Debug/clingo.exe",
-        "Debug/clingo.exe",
+        "build/debug/bin/clingo",
+        "build/release/bin/clingo",
+        "build/bin/clingo",
+        "build/cmake/bin/clingo",
+        "build/bin/Debug/clingo.exe",
+        "build/bin/Release/clingo.exe",
         ]
     for x in clingos:
         x = os.path.normpath("{}/../../../{}".format(wd, x))
