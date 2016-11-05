@@ -4,6 +4,7 @@
 
 using namespace Clingo;
 
+// inject terms via a callback
 void ground_callback(Location, char const *name, SymbolSpan args, SymbolSpanCallback ret) {
     if (strcmp(name, "c") == 0 && args.size() == 0) {
         ret({Number(42), Number(43)});
@@ -16,10 +17,22 @@ int main(int argc, char const **argv) {
             std::cerr << message << std::endl;
         };
         Control ctl{{argv+1, size_t(argc-1)}, logger, 20};
+
+        // define a constant in string form
         std::ostringstream out;
         out << "#const d=" << Number(23) << ".";
         ctl.add("base", {}, out.str().c_str());
-        ctl.add("base", {}, "p(@c()). p(d).");
+
+        // define a constant via the AST
+        {
+            Location loc{"<generated>", "<generated>", 1, 1, 1, 1};
+            auto b = ctl.builder();
+            b.begin();
+            b.add({loc, AST::Definition{"e", {loc, Number(24)}, false}});
+            b.end();
+        }
+
+        ctl.add("base", {}, "p(@c()). p(d). p(e).");
         ctl.ground({{"base", {}}}, ground_callback);
         for (auto m : ctl.solve_iteratively()) {
             std::cout << "Model:";
