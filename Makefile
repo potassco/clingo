@@ -22,12 +22,6 @@ test: build/$(BUILD_TYPE)
 	$(MAKE) -C build/$(BUILD_TYPE) $@ CTEST_OUTPUT_ON_FAILURE=TRUE
 
 web:
-	@echo -e '\033[0;31m* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *'
-	@echo -e           '*                                                                             *'
-	@echo -e           '*   Warning: for this target to work, resource files have to be disabled in   *'
-	@echo -e           "*            emscripten's toolchain file!                                     *"
-	@echo -e           '*                                                                             *'
-	@echo -e           '* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *\033[0m'
 	mkdir -p build/web
 	current="$$(pwd -P)" && cd build/web && cd "$$(pwd -P)" && emsdk construct_env && source emsdk_set_env.sh && emcmake cmake \
 		-DCLINGO_ENABLE_WEB=On \
