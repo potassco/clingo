@@ -1,0 +1,17 @@
+set(source_path ${CLINGO_SOURCE_DIR}/app/web)
+# [[[source: .
+set(ide_source_group "Source Files")
+set(source-group
+    "${source_path}/main.cc")
+source_group("${ide_source_group}" FILES ${source-group})
+set(source
+    ${source-group})
+# ]]]
+
+add_executable(web ${header} ${source})
+target_link_libraries(web libclingo libclasp)
+set_target_properties(web PROPERTIES FOLDER exe)
+target_include_directories(web PRIVATE "$<BUILD_INTERFACE:${CLASP_SOURCE_DIR}/app>")
+
+set_target_properties(web PROPERTIES LINK_FLAGS "-s EXPORTED_FUNCTIONS='[\"_run\"]'")
+set_target_properties(web PROPERTIES OUTPUT_NAME "clingo")

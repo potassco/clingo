@@ -18,7 +18,7 @@
 
 // }}}
 
-#include "clingo_app.hh"
+#include "clingo/clingo_app.hh"
 #include <iterator>
 
 class ExitException : public std::exception {
