@@ -1,4 +1,3 @@
-enable_testing()
 set(source_path "${CLINGO_SOURCE_DIR}/libgringo/tests")
 # [[[source: .
 set(ide_source_group "Source Files")

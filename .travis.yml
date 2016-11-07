@@ -39,6 +39,8 @@ script:
     cd build &&
     cmake
       -DCMAKE_VERBOSE_MAKEFILE=True
+      -DCLINGO_ENABLE_TESTS=True
+      -DCLINGO_ENABLE_EXAMPLES=True
       -DCMAKE_C_COMPILER=${MY_CC}
       -DCMAKE_CXX_COMPILER=${MY_CXX}
       .. &&

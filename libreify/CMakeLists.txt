@@ -27,4 +27,6 @@ set_target_properties(libreify PROPERTIES
     OUTPUT_NAME reify
     FOLDER lib)
 
-add_subdirectory(tests)
+if (CLINGO_ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()

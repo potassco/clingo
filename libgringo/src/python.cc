@@ -46,6 +46,7 @@
 #define OBBASE(x) (&(x)->ob_base)
 #else
 #define OBBASE(x) x
+#define Py_hash_t long
 #endif
 
 #ifndef PyVarObject_HEAD_INIT
@@ -717,9 +718,21 @@ struct Get_tp_str<B, CHECK_EXPRESSION(&B::tp_str)> {
     };
 };
 
+template <int P, int S>
+struct PyHash {
+    Py_hash_t operator()(size_t x) const { return static_cast<Py_hash_t>(x); }
+};
+
+template <>
+struct PyHash<4, 8> {
+    Py_hash_t operator()(size_t x) const {
+        return static_cast<Py_hash_t>((x >> 32) ^ x);
+    }
+};
+
 WRAP_FUNCTION(tp_hash) {
-    static long value(PyObject *self) {
-        PY_TRY { return reinterpret_cast<B*>(self)->tp_hash(); }
+    static Py_hash_t value(PyObject *self) {
+        PY_TRY { return PyHash<sizeof(Py_hash_t), sizeof(size_t)>()(reinterpret_cast<B*>(self)->tp_hash()); }
         PY_CATCH(-1);
     };
 };
@@ -1037,8 +1050,8 @@ struct EnumType : ObjectBase<T> {
         return 0;
     }
 
-    long tp_hash() {
-        return static_cast<long>(offset);
+    size_t tp_hash() {
+        return static_cast<size_t>(offset);
     }
 
     Object tp_richcompare(EnumType b, int op) {
@@ -1138,7 +1151,7 @@ elements.)";
     Object termType() {
         return TheoryTermType::getAttr(data->termType(value));
     }
-    long tp_hash() {
+    size_t tp_hash() {
         return value;
     }
     Object tp_richcompare(TheoryTerm &b, int op) {
@@ -1211,7 +1224,7 @@ terms and a set of literals.)";
     Object tp_repr() {
         return PyString_FromString(data->elemStr(value).c_str());
     }
-    long tp_hash() {
+    size_t tp_hash() {
         return value;
     }
     Object tp_richcompare(TheoryElement &b, int op) {
@@ -1287,7 +1300,7 @@ R"(TheoryAtom objects represent theory atoms.)";
     Object tp_repr() {
         return PyString_FromString(data->atomStr(value).c_str());
     }
-    long tp_hash() {
+    size_t tp_hash() {
         return value;
     }
     Object tp_richcompare(TheoryAtom &b, int op) {
@@ -1550,8 +1563,8 @@ preconstructed symbols Infimum and Supremum.)";
         return PyString_FromString(oss.str().c_str());
     }
 
-    long tp_hash() {
-        return static_cast<long>(val.hash());
+    size_t tp_hash() {
+        return val.hash();
     }
 
     Object tp_richcompare(Symbol &b, int op) {
@@ -2295,7 +2308,7 @@ def main(prg):
     prg.ground([("base", [])])
     print "universe:", len(prg.symbolic_atoms)
     for x in prg.symbolic_atoms:
-        print x.atom, x.is_fact, x.is_external
+        print x.symbol, x.is_fact, x.is_external
     print "p(2) is in domain:", prg.symbolic_atoms[clingo.Function("p", [3])] is not None
     print "p(4) is in domain:", prg.symbolic_atoms[clingo.Function("p", [6])] is not None
     print "domain of p/1:"

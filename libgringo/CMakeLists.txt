@@ -169,12 +169,14 @@ target_link_libraries(libgringo PRIVATE ${clingo_external_libs})
 target_compile_definitions(libgringo PRIVATE
     CLINGO_BUILD_LIBRARY
     CLINGO_GRINGO_ONLY)
-if (NOT BUILD_CLINGO_LIB_SHARED)
+if (NOT CLINGO_ENABLE_SHARED)
     target_compile_definitions(libgringo PUBLIC CLINGO_NO_VISIBILITY)
 endif()
 set_target_properties(libgringo PROPERTIES
     OUTPUT_NAME gringo
     FOLDER lib)
 
-add_subdirectory(tests)
+if (CLINGO_ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()
 

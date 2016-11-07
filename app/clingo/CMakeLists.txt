@@ -12,4 +12,6 @@ add_executable(clingo ${header} ${source})
 target_link_libraries(clingo libclingo)
 set_target_properties(clingo PROPERTIES FOLDER exe)
 
-add_subdirectory(tests)
+if (CLINGO_ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()

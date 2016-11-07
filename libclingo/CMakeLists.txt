@@ -28,7 +28,7 @@ set(source
 list(APPEND header "${CLASP_SOURCE_DIR}/app/clasp_app.h")
 list(APPEND source "${CLASP_SOURCE_DIR}/app/clasp_app.cpp")
 
-if (BUILD_CLINGO_LIB_SHARED)
+if (CLINGO_ENABLE_SHARED)
     set(clingo_lib_type SHARED)
 else()
     set(clingo_lib_type STATIC)
@@ -46,8 +46,10 @@ target_compile_definitions(libclingo PRIVATE CLINGO_BUILD_LIBRARY)
 set_target_properties(libclingo PROPERTIES
     OUTPUT_NAME clingo
     FOLDER lib)
-if (NOT BUILD_CLINGO_LIB_SHARED)
+if (NOT CLINGO_ENABLE_SHARED)
     target_compile_definitions(libclingo PUBLIC CLINGO_NO_VISIBILITY)
 endif()
 
-add_subdirectory(tests)
+if (CLINGO_ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()
