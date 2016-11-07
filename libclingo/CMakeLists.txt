@@ -18,8 +18,7 @@ set(source_path ${CLINGO_SOURCE_DIR}/libclingo)
 set(ide_source_group "Source Files")
 set(source-group
     "${source_path}/src/clingo_app.cc"
-    "${source_path}/src/clingocontrol.cc"
-    "${source_path}/src/control.cc")
+    "${source_path}/src/clingocontrol.cc")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source
     ${source-group})

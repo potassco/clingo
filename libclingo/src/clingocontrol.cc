@@ -780,29 +780,4 @@ extern "C" bool clingo_control_new(char const *const * args, size_t n, clingo_lo
     GRINGO_CLINGO_CATCH;
 }
 
-struct Clingo::Control::Impl {
-    Impl(Logger logger)
-    : ctl(nullptr)
-    , logger(logger) { }
-    Impl(clingo_control_t *ctl)
-    : ctl(ctl) { }
-    ~Impl() noexcept {
-        if (ctl) { clingo_control_free(ctl); }
-    }
-    operator clingo_control_t *() { return ctl; }
-    clingo_control_t *ctl;
-    Logger logger;
-    ModelCallback mh;
-    FinishCallback fh;
-};
-
-Clingo::Control::Control(StringSpan args, Logger logger, unsigned message_limit)
-: impl_(new Clingo::Control::Impl(logger))
-{
-    Gringo::handleCError(clingo_control_new(args.begin(), args.size(), [](clingo_warning_t code, char const *msg, void *data) {
-        try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
-        catch (...) { }
-    }, &impl_->logger, message_limit, &impl_->ctl));
-}
-
 // }}}1

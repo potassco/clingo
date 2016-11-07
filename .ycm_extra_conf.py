@@ -58,7 +58,7 @@ flags = [
 '-Iclasp',
 '-Iclasp/app',
 '-Iclasp/libpotassco',
-'-Ibuild/cmake/clasp',
+'-Ibuild/debug/clasp',
 '-I{home}/local/opt/libcxx/include'.format(home=os.path.expanduser("~")),
 '-I{home}/local/opt/libcxx/include/c++/v1'.format(home=os.path.expanduser("~")),
 '-I/home/wv/bin/linux/64/gcc-4.9/include/c++/v1',
