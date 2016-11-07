@@ -12,6 +12,8 @@ add_executable(clingo ${header} ${source})
 target_link_libraries(clingo libclingo)
 set_target_properties(clingo PROPERTIES FOLDER exe)
 
+install(TARGETS clingo RUNTIME DESTINATION bin)
+
 if (CLINGO_ENABLE_TESTS)
     add_subdirectory(tests)
 endif()

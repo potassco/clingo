@@ -47,6 +47,15 @@ set_target_properties(libclingo PROPERTIES
     FOLDER lib)
 if (NOT CLINGO_ENABLE_SHARED)
     target_compile_definitions(libclingo PUBLIC CLINGO_NO_VISIBILITY)
+else()
+    set_target_properties(libclingo PROPERTIES SOVERSION 1 VERSION 1.0)
+    install(TARGETS libclingo
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib)
+    install(FILES 
+        "${CLINGO_SOURCE_DIR}/libclingo/clingo.hh"
+        "${CLINGO_SOURCE_DIR}/libgringo/clingo.h"
+        DESTINATION include)
 endif()
 
 if (CLINGO_ENABLE_TESTS)

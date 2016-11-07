@@ -11,3 +11,5 @@ set(source
 add_executable(reify ${header} ${source})
 target_link_libraries(reify PRIVATE libreify libpotassco)
 set_target_properties(reify PROPERTIES FOLDER exe)
+
+install(TARGETS reify RUNTIME DESTINATION bin)
