@@ -55,7 +55,7 @@ include(CMakeParseArguments)
 include(FindPackageHandleStandardArgs)
 
 find_program(RE2C_EXECUTABLE NAMES re2c DOC "path to the re2c executable")
-mark_as_advanced(BISON_EXECUTABLE)
+mark_as_advanced(RE2C_EXECUTABLE)
 
 if(RE2C_EXECUTABLE)
     execute_process(COMMAND "${RE2C_EXECUTABLE}" --vernum OUTPUT_VARIABLE RE2C_RAW_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
