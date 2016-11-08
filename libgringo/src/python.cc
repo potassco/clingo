@@ -335,15 +335,26 @@ void ParseTupleAndKeywords(Reference pyargs, Reference pykwds, char const *fmt, 
 }
 
 template <Object (&f)(Reference, Reference)>
-struct ToFunction {
+struct ToFunctionBinary {
     static PyObject *value(PyObject *, PyObject *params, PyObject *keywords) {
         PY_TRY { return f(params, keywords).release(); }
         PY_CATCH(nullptr);
     };
 };
 
+template <Object (&f)(Reference)>
+struct ToFunctionUnary {
+    static PyObject *value(PyObject *, PyObject *params) {
+        PY_TRY { return f(params).release(); }
+        PY_CATCH(nullptr);
+    };
+};
+
 template <Object (&f)(Reference, Reference)>
-constexpr PyCFunction to_function() { return reinterpret_cast<PyCFunction>(ToFunction<f>::value); }
+constexpr PyCFunction to_function() { return reinterpret_cast<PyCFunction>(ToFunctionBinary<f>::value); }
+
+template <Object (&f)(Reference)>
+constexpr PyCFunction to_function() { return reinterpret_cast<PyCFunction>(ToFunctionUnary<f>::value); }
 
 struct Tuple : Object {
     template <class... Args>
@@ -441,6 +452,11 @@ IterIterator end(Iter it) { return {it, nullptr}; }
 //       that indicates that a python exception is on the stack
 //       this exception should simply be handled in PY_CATCH
 
+struct symbol_wrapper {
+    clingo_symbol_t symbol;
+};
+using symbol_vector = std::vector<symbol_wrapper>;
+
 template <class T>
 void pyToCpp(Reference pyVec, std::vector<T> &vec);
 
@@ -465,7 +481,7 @@ void pyToCpp(Reference pyNum, T &x, typename std::enable_if<std::is_floating_poi
     if (PyErr_Occurred()) { throw PyException(); }
 }
 
-void pyToCpp(Reference obj, Symbol &val);
+void pyToCpp(Reference obj, symbol_wrapper &val);
 
 template <class T, class U>
 void pyToCpp(Reference pyPair, std::pair<T, U> &x) {
@@ -535,7 +551,9 @@ PrintWrapper printBody(Reference list, char const *pre = " : ") {
     return printList(list, list.empty() ? "" : pre, "; ", ".", true);
 }
 
-Object cppToPy(Gringo::Symbol val);
+template <class T>
+Object cppRngToPy(T begin, T end);
+Object cppToPy(symbol_wrapper val);
 
 template <class T>
 Object cppToPy(std::vector<T> const &vals);
@@ -1372,7 +1390,7 @@ R"(get(self) -> TheoryAtom)"},
 // {{{1 wrap Symbol
 
 struct SymbolType : EnumType<SymbolType> {
-    enum Type { Number, String, Function, Inf, Sup };
+    using Type = enum clingo_symbol_type;
     static constexpr char const *tp_type = "SymbolType";
     static constexpr char const *tp_name = "clingo.SymbolType";
     static constexpr char const *tp_doc =
@@ -1387,7 +1405,13 @@ SymbolType.Function -- a numeric symbol - e.g., c, (1, "a"), or f(1,"a")
 SymbolType.Infimum  -- the #inf symbol
 SymbolType.Supremum -- the #sup symbol)";
 
-    static constexpr Type const values[] =          {  Number,   String,   Function,   Inf,       Sup };
+    static constexpr Type const values[] = {
+        clingo_symbol_type_number,
+        clingo_symbol_type_string,
+        clingo_symbol_type_function,
+        clingo_symbol_type_infimum,
+        clingo_symbol_type_supremum
+    };
     static constexpr const char * const strings[] = { "Number", "String", "Function", "Infimum", "Supremum" };
 };
 
@@ -1395,7 +1419,7 @@ constexpr SymbolType::Type const SymbolType::values[];
 constexpr const char * const SymbolType::strings[];
 
 struct Symbol : ObjectBase<Symbol> {
-    Gringo::Symbol val;
+    clingo_symbol_t val;
     static PyObject *inf;
     static PyObject *sup;
     static PyGetSetDef tp_getset[];
@@ -1417,175 +1441,165 @@ preconstructed symbols Infimum and Supremum.)";
         if (!ObjectBase<Symbol>::initType(module)) { return false; }
         inf = type.tp_alloc(&type, 0);
         if (!inf) { return false; }
-        reinterpret_cast<Symbol*>(inf)->val = Gringo::Symbol::createInf();
+        clingo_symbol_create_infimum(&reinterpret_cast<Symbol*>(inf)->val);
         if (PyModule_AddObject(module.toPy(), "Infimum", inf) < 0) { return false; }
         sup = type.tp_alloc(&type, 0);
-        reinterpret_cast<Symbol*>(sup)->val = Gringo::Symbol::createSup();
+        clingo_symbol_create_supremum(&reinterpret_cast<Symbol*>(inf)->val);
         if (!sup) { return false; }
         if (PyModule_AddObject(module.toPy(), "Supremum", sup) < 0) { return false; }
         return true;
     }
 
-    static PyObject *new_(Gringo::Symbol value) {
-        if (value.type() == Gringo::SymbolType::Inf) {
+    static Object construct(clingo_symbol_t value) {
+        auto type = clingo_symbol_type(value);
+        if (type == clingo_symbol_type_infimum) {
             Py_INCREF(inf);
             return inf;
         }
-        else if (value.type() == Gringo::SymbolType::Sup) {
+        else if (type == clingo_symbol_type_supremum) {
             Py_INCREF(sup);
             return sup;
         }
         else {
-            Symbol *self = reinterpret_cast<Symbol*>(type.tp_alloc(&type, 0));
-            if (!self) { return nullptr; }
-            new (&self->val) Gringo::Symbol(value);
-            return reinterpret_cast<PyObject*>(self);
+            Symbol *self = new_();
+            self->val = value;
+            return self->toPy();
         }
     }
 
-    static PyObject *new_function_(char const *name, PyObject *params, PyObject *pyPos) {
-        PY_TRY
-            auto sign = !pyToCpp<bool>(pyPos);
-            if (strcmp(name, "") == 0 && sign) {
-                PyErr_SetString(PyExc_RuntimeError, "tuples must not have signs");
-                return nullptr;
-            }
-            if (params) {
-                SymVec vals;
-                pyToCpp(params, vals);
-                return new_(Gringo::Symbol::createFun(name, Potassco::toSpan(vals), sign));
-            }
-            else {
-                return new_(Gringo::Symbol::createId(name, sign));
-            }
-        PY_CATCH(nullptr);
+    static Object construct(char const *name, Reference params, Reference pyPos) {
+        auto sign = !pyToCpp<bool>(pyPos);
+        if (strcmp(name, "") == 0 && sign) {
+            PyErr_SetString(PyExc_RuntimeError, "tuples must not have signs");
+            throw PyException();
+        }
+        clingo_symbol_t ret;
+        if (!params.none()) {
+            std::vector<symbol_wrapper> syms;
+            pyToCpp(params, syms);
+            handleCError(clingo_symbol_create_function(name, reinterpret_cast<clingo_symbol_t*>(syms.data()), syms.size(), !sign, &ret));
+        }
+        else {
+            handleCError(clingo_symbol_create_id(name, !sign, &ret));
+        }
+        return construct(ret);
     }
-    static PyObject *new_function(PyObject *, PyObject *args, PyObject *kwds) {
-        PY_TRY
-            static char const *kwlist[] = {"name", "arguments", "positive", nullptr};
-            char const *name;
-            PyObject *pyPos = Py_True;
-            PyObject *params = nullptr;
-            if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|OO", const_cast<char**>(kwlist), &name, &params, &pyPos)) { return nullptr; }
-            return new_function_(name, params, pyPos);
-        PY_CATCH(nullptr);
+    static Object new_function(Reference args, Reference kwds) {
+        static char const *kwlist[] = {"name", "arguments", "positive", nullptr};
+        char const *name;
+        Reference pyPos = Py_True;
+        Reference params = Py_None;
+        ParseTupleAndKeywords(args, kwds, "s|OO", kwlist, name, params, pyPos);
+        return construct(name, params, pyPos);
     }
-    static PyObject *new_tuple(PyObject *, PyObject *arg) {
-        return new_function_("", arg, Py_True);
+    static Object new_tuple(Reference arg) {
+        return construct("", arg, Py_True);
     }
-    static PyObject *new_number(PyObject *, PyObject *arg) {
-        PY_TRY
-            auto num = pyToCpp<int>(arg);
-            return new_(Gringo::Symbol::createNum(num));
-        PY_CATCH(nullptr);
+    static Object new_number(Reference arg) {
+        auto num = pyToCpp<int>(arg);
+        clingo_symbol_t ret;
+        clingo_symbol_create_number(num, &ret);
+        return construct(ret);
     }
-    static PyObject *new_string(PyObject *, PyObject *arg) {
-        PY_TRY
-            char const *str = pyToCpp<char const *>(arg);
-            return new_(Gringo::Symbol::createStr(str));
-        PY_CATCH(nullptr);
+    static Object new_string(Reference arg) {
+        char const *str = pyToCpp<char const *>(arg);
+        clingo_symbol_t ret;
+        handleCError(clingo_symbol_create_string(str, &ret));
+        return construct(ret);
     }
-    static PyObject *name(Symbol *self, void *) {
-        PY_TRY
-            if (self->val.type() == Gringo::SymbolType::Fun) {
-                return PyString_FromString(self->val.name().c_str());
-            }
-            else {
-                Py_RETURN_NONE;
-            }
-        PY_CATCH(nullptr);
+    Object name() {
+        if (clingo_symbol_type(val) == clingo_symbol_type_function) {
+            char const *ret;
+            handleCError(clingo_symbol_name(val, &ret));
+            return cppToPy(ret);
+        }
+        else { return None(); }
     }
 
-    static PyObject *string(Symbol *self, void *) {
-        PY_TRY
-            if (self->val.type() == Gringo::SymbolType::Str) {
-                return PyString_FromString(self->val.string().c_str());
-            }
-            else {
-                Py_RETURN_NONE;
-            }
-        PY_CATCH(nullptr);
+    Object string() {
+        if (clingo_symbol_type(val) == clingo_symbol_type_string) {
+            char const *ret;
+            handleCError(clingo_symbol_string(val, &ret));
+            return cppToPy(ret);
+        }
+        else { return None(); }
     }
 
-    static PyObject *negative(Symbol *self, void *) {
-        PY_TRY
-            if (self->val.type() == Gringo::SymbolType::Fun) {
-                return cppToPy(self->val.sign()).release();
-            }
-            else {
-                Py_RETURN_NONE;
-            }
-        PY_CATCH(nullptr);
+    Object negative() {
+        if (clingo_symbol_type(val) == clingo_symbol_type_function) {
+            bool ret;
+            handleCError(clingo_symbol_is_negative(val, &ret));
+            return cppToPy(ret);
+        }
+        else { return None(); }
     }
 
-    static PyObject *positive(Symbol *self, void *) {
-        PY_TRY
-            if (self->val.type() == Gringo::SymbolType::Fun) {
-                return cppToPy(!self->val.sign()).release();
-            }
-            else {
-                Py_RETURN_NONE;
-            }
-        PY_CATCH(nullptr);
+    Object positive() {
+        if (clingo_symbol_type(val) == clingo_symbol_type_function) {
+            bool ret;
+            handleCError(clingo_symbol_is_negative(val, &ret));
+            return cppToPy(!ret);
+        }
+        else { return None(); }
     }
 
-    static PyObject *num(Symbol *self, void *) {
-        PY_TRY
-            if (self->val.type() == Gringo::SymbolType::Num) {
-                return PyInt_FromLong(self->val.num());
-            }
-            else {
-                Py_RETURN_NONE;
-            }
-        PY_CATCH(nullptr);
+    Object num() {
+        if (clingo_symbol_type(val) == clingo_symbol_type_number) {
+            int ret;
+            handleCError(clingo_symbol_number(val, &ret));
+            return cppToPy(ret);
+        }
+        else { return None(); }
     }
 
-    static PyObject *args(Symbol *self, void *) {
-        PY_TRY
-            if (self->val.type() == Gringo::SymbolType::Fun) {
-                return cppToPy(self->val.args()).release();
-            }
-            else {
-                Py_RETURN_NONE;
-            }
-        PY_CATCH(nullptr);
+    Object args() {
+        if (clingo_symbol_type(val) == clingo_symbol_type_function) {
+            clingo_symbol_t const *ret;
+            size_t size;
+            handleCError(clingo_symbol_arguments(val, &ret, &size));
+            return cppRngToPy(reinterpret_cast<symbol_wrapper const*>(ret), reinterpret_cast<symbol_wrapper const*>(ret) + size);
+        }
+        else { return None(); }
     }
 
-    static PyObject *type_(Symbol *self, void *) {
-        PY_TRY
-            switch (self->val.type()) {
-                case Gringo::SymbolType::Str:     { return SymbolType::getAttr(SymbolType::String).release(); }
-                case Gringo::SymbolType::Num:     { return SymbolType::getAttr(SymbolType::Number).release(); }
-                case Gringo::SymbolType::Inf:     { return SymbolType::getAttr(SymbolType::Inf).release(); }
-                case Gringo::SymbolType::Sup:     { return SymbolType::getAttr(SymbolType::Sup).release(); }
-                case Gringo::SymbolType::Fun:     { return SymbolType::getAttr(SymbolType::Function).release(); }
-                case Gringo::SymbolType::Special: { throw std::logic_error("must not happen"); }
-            }
-        PY_CATCH(nullptr);
+    Object type_() {
+        return SymbolType::getAttr(clingo_symbol_type(val));
     }
+
     Object tp_repr() {
-        std::ostringstream oss;
-        oss << val;
-        return PyString_FromString(oss.str().c_str());
+        std::vector<char> ret;
+        size_t size;
+        handleCError(clingo_symbol_to_string_size(val, &size));
+        ret.resize(size);
+        handleCError(clingo_symbol_to_string(val, ret.data(), size));
+        return cppToPy(ret.data());
     }
 
     size_t tp_hash() {
-        return val.hash();
+        return clingo_symbol_hash(val);
     }
 
     Object tp_richcompare(Symbol &b, int op) {
-        return doCmp(val, b.val, op);
+        switch (op) {
+            case Py_LT: { return cppToPy( clingo_symbol_is_less_than(val, b.val)); }
+            case Py_LE: { return cppToPy(!clingo_symbol_is_less_than(b.val, val)); }
+            case Py_EQ: { return cppToPy( clingo_symbol_is_equal_to (val, b.val)); }
+            case Py_NE: { return cppToPy(!clingo_symbol_is_equal_to (val, b.val)); }
+            case Py_GT: { return cppToPy( clingo_symbol_is_less_than(b.val, val)); }
+            case Py_GE: { return cppToPy(!clingo_symbol_is_less_than(val, b.val)); }
+        }
+        return None();
     }
 };
 
 PyGetSetDef Symbol::tp_getset[] = {
-    {(char *)"name", (getter)name, nullptr, (char *)"The name of a function.", nullptr},
-    {(char *)"string", (getter)string, nullptr, (char *)"The value of a string.", nullptr},
-    {(char *)"number", (getter)num, nullptr, (char *)"The value of a number.", nullptr},
-    {(char *)"arguments", (getter)args, nullptr, (char *)"The arguments of a function.", nullptr},
-    {(char *)"negative", (getter)negative, nullptr, (char *)"The sign of a function.", nullptr},
-    {(char *)"positive", (getter)positive, nullptr, (char *)"The sign of a function.", nullptr},
-    {(char *)"type", (getter)type_, nullptr, (char *)"The type of the symbol.", nullptr},
+    {(char *)"name", to_getter<&Symbol::name>(), nullptr, (char *)"The name of a function.", nullptr},
+    {(char *)"string", to_getter<&Symbol::string>(), nullptr, (char *)"The value of a string.", nullptr},
+    {(char *)"number", to_getter<&Symbol::num>(), nullptr, (char *)"The value of a number.", nullptr},
+    {(char *)"arguments", to_getter<&Symbol::args>(), nullptr, (char *)"The arguments of a function.", nullptr},
+    {(char *)"negative", to_getter<&Symbol::negative>(), nullptr, (char *)"The sign of a function.", nullptr},
+    {(char *)"positive", to_getter<&Symbol::positive>(), nullptr, (char *)"The sign of a function.", nullptr},
+    {(char *)"type", to_getter<&Symbol::type_>(), nullptr, (char *)"The type of the symbol.", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -1723,11 +1737,13 @@ they are available as properties of Model objects.)";
 
     static PyObject *getClause(SolveControl *self, PyObject *pyLits, bool invert) {
         PY_TRY
-            auto lits = pyToCpp<Gringo::Model::LitVec>(pyLits);
+            using LitVec = std::vector<std::pair<symbol_wrapper, bool>>;
+            auto lits = pyToCpp<LitVec>(pyLits);
             if (invert) {
                 for (auto &lit : lits) { lit.second = !lit.second; }
             }
-            self->model->addClause(lits);
+            // FIXME: evil reinterpret cast
+            self->model->addClause(reinterpret_cast<Gringo::Model::LitVec&>(lits));
             Py_RETURN_NONE;
         PY_CATCH(nullptr);
     }
@@ -1815,9 +1831,9 @@ places like - e.g., the main function.)";
     }
     static PyObject *contains(Model *self, PyObject *arg) {
         PY_TRY
-            Gringo::Symbol val;
+            symbol_wrapper val;
             pyToCpp(arg, val);
-            return cppToPy(self->model->contains(val)).release();
+            return cppToPy(self->model->contains(Gringo::Symbol{val.symbol})).release();
         PY_CATCH(nullptr);
     }
     static PyObject *atoms(Model *self, PyObject *pyargs, PyObject *pykwds) {
@@ -1832,7 +1848,10 @@ places like - e.g., the main function.)";
             if (pyToCpp<bool>(pyCSP))   { atomset |= clingo_show_type_csp; }
             if (pyToCpp<bool>(pyExtra)) { atomset |= clingo_show_type_extra; }
             if (pyToCpp<bool>(pyComp))  { atomset |= clingo_show_type_complement; }
-            return cppToPy(self->model->atoms(atomset)).release();
+            // FIXME: evil reinterpret cast
+            auto vec = self->model->atoms(atomset);
+            auto fst = reinterpret_cast<symbol_wrapper const *>(vec.first);
+            return cppRngToPy(fst, fst + vec.size).release();
         PY_CATCH(nullptr);
     }
     Object cost() {
@@ -2226,7 +2245,7 @@ struct SymbolicAtom : public ObjectBase<SymbolicAtom> {
     }
     static PyObject *symbol(SymbolicAtom *self, void *) {
         PY_TRY
-            return Symbol::new_(self->atoms->atom(self->range));
+            return Symbol::construct(clingo_symbol_t{self->atoms->atom(self->range).rep()}).release();
         PY_CATCH(nullptr);
     }
     static PyObject *literal(SymbolicAtom *self, void *) {
@@ -2356,9 +2375,9 @@ signatures: [('p', 1), ('q', 1)])";
     Object tp_iter() { return SymbolicAtomIter::new_(*atoms, atoms->begin()); }
 
     Object mp_subscript(Reference key) {
-        Gringo::Symbol atom;
+        symbol_wrapper atom;
         pyToCpp(key, atom);
-        Gringo::SymbolicAtomIter range = atoms->lookup(atom);
+        Gringo::SymbolicAtomIter range = atoms->lookup(Gringo::Symbol{atom.symbol});
         if (atoms->valid(range)) { return SymbolicAtom::new_(*atoms, range); }
         else                     { Py_RETURN_NONE; }
     }
@@ -2867,15 +2886,15 @@ public:
     }
     void output(Gringo::Symbol sym, Potassco::Atom_t atom) override {
         PyBlock b;
-        call("output_atom", cppToPy(sym), cppToPy(atom));
+        call("output_atom", cppToPy(symbol_wrapper{sym.rep()}), cppToPy(atom));
     }
     void output(Gringo::Symbol sym, Potassco::LitSpan const& condition) override {
         PyBlock b;
-        call("output_term", cppToPy(sym), cppToPy(condition));
+        call("output_term", cppToPy(symbol_wrapper{sym.rep()}), cppToPy(condition));
     }
     void output(Gringo::Symbol sym, int value, Potassco::LitSpan const& condition) override {
         PyBlock b;
-        call("output_csp", cppToPy(sym), cppToPy(value), cppToPy(condition));
+        call("output_csp", cppToPy(symbol_wrapper{sym.rep()}), cppToPy(value), cppToPy(condition));
     }
     void external(Atom_t a, Value_t v) override {
         PyBlock b;
@@ -4094,7 +4113,7 @@ Object cppToPy(clingo_ast_id_t const &id) {
 Object cppToPy(clingo_ast_term_t const &term) {
     switch (static_cast<enum clingo_ast_term_type>(term.type)) {
         case clingo_ast_term_type_symbol: {
-            return call(createSymbol, cppToPy(term.location), cppToPy(Gringo::Symbol{term.symbol}));
+            return call(createSymbol, cppToPy(term.location), cppToPy(symbol_wrapper{term.symbol}));
         }
         case clingo_ast_term_type_variable: {
             return call(createVariable, cppToPy(term.location), cppToPy(term.variable));
@@ -4148,7 +4167,7 @@ Object cppToPy(clingo_ast_theory_unparsed_term_element_t const &term) {
 Object cppToPy(clingo_ast_theory_term_t const &term) {
     switch (static_cast<enum clingo_ast_theory_term_type>(term.type)) {
         case clingo_ast_theory_term_type_symbol: {
-            return call(createSymbol, cppToPy(term.location), cppToPy(Gringo::Symbol{term.symbol}));
+            return call(createSymbol, cppToPy(term.location), cppToPy(symbol_wrapper{term.symbol}));
         }
         case clingo_ast_theory_term_type_variable: {
             return call(createVariable, cppToPy(term.location), cppToPy(term.variable));
@@ -4446,7 +4465,7 @@ struct ASTToC {
             }
             case ASTType::Symbol: {
                 ret.type   = clingo_ast_term_type_symbol;
-                ret.symbol = pyToCpp<Gringo::Symbol>(x.getAttr("symbol")).rep();
+                ret.symbol = pyToCpp<symbol_wrapper>(x.getAttr("symbol")).symbol;
                 return ret;
             }
             case ASTType::UnaryOperation: {
@@ -4544,7 +4563,7 @@ struct ASTToC {
             }
             case ASTType::Symbol: {
                 ret.type   = clingo_ast_theory_term_type_symbol;
-                ret.symbol = pyToCpp<Gringo::Symbol>(x.getAttr("symbol")).rep();
+                ret.symbol = pyToCpp<symbol_wrapper>(x.getAttr("symbol")).symbol;
                 return ret;
             }
             case ASTType::TheorySequence: {
@@ -5139,17 +5158,17 @@ Follows python __exit__ conventions. Does not suppress exceptions.
 
 // {{{1 wrap Control
 
-void pycall(PyObject *fun, SymSpan args, SymVec &vals) {
+void pycall(PyObject *fun, SymSpan args, symbol_vector &vals) {
     Object params = PyTuple_New(args.size);
     int i = 0;
     for (auto &val : args) {
-        Object pyVal = Symbol::new_(val);
+        Object pyVal = Symbol::construct(clingo_symbol_t{val.rep()});
         if (PyTuple_SetItem(params.toPy(), i, pyVal.release()) < 0) { throw PyException(); }
         ++i;
     }
     Object ret = PyObject_Call(fun, params.toPy(), Py_None);
     if (PyList_Check(ret.toPy())) { pyToCpp(ret, vals); }
-    else { vals.emplace_back(pyToCpp<Gringo::Symbol>(ret)); }
+    else { vals.emplace_back(pyToCpp<symbol_wrapper>(ret)); }
 }
 
 class PyContext : public Context {
@@ -5165,7 +5184,8 @@ public:
         try {
             Object fun = PyObject_GetAttrString(ctx, name.c_str());
             SymVec ret;
-            pycall(fun.toPy(), args, ret);
+            // FIXME: evil reinterpret cast
+            pycall(fun.toPy(), args, reinterpret_cast<symbol_vector&>(ret));
             return ret;
         }
         catch (PyException const &) {
@@ -5290,8 +5310,8 @@ active; you must not call any member function during search.)";
                 Object pyNext = PyIter_Next(jt.toPy());
                 if (pyNext.valid()) { return PyErr_Format(PyExc_RuntimeError, "tuple of name and arguments expected"); }
                 auto name = pyToCpp<char const *>(pyName);
-                auto args = pyToCpp<SymVec>(pyArgs);
-                parts.emplace_back(name, args);
+                auto args = pyToCpp<symbol_vector>(pyArgs);
+                parts.emplace_back(name, reinterpret_cast<SymVec&>(args));
             }
             // anchor
             self->ctl->ground(parts, context ? &context : nullptr);
@@ -5306,7 +5326,7 @@ active; you must not call any member function during search.)";
             Gringo::Symbol val;
             val = self->ctl->getConst(name);
             if (val.type() == Gringo::SymbolType::Special) { Py_RETURN_NONE; }
-            else { return Symbol::new_(val); }
+            else { return Symbol::construct(clingo_symbol_t{val.rep()}).release(); }
         PY_CATCH(nullptr);
     }
     static bool on_model(Gringo::Model const &m, PyObject *mh) {
@@ -5343,7 +5363,7 @@ active; you must not call any member function during search.)";
                         if (!PyErr_Occurred()) { PyErr_Format(PyExc_RuntimeError, "tuple expected"); }
                         return false;
                     }
-                    ass.emplace_back(pyToCpp<Gringo::Symbol>(pyAtom), pyToCpp<bool>(pyBool));
+                    ass.emplace_back(Gringo::Symbol{pyToCpp<symbol_wrapper>(pyAtom).symbol}, pyToCpp<bool>(pyBool));
                 }
                 if (PyErr_Occurred()) { return false; }
             }
@@ -5419,7 +5439,7 @@ active; you must not call any member function during search.)";
                 PyErr_Format(PyExc_RuntimeError, "unexpected %s() object as second argumet", pyVal->ob_type->tp_name);
                 return nullptr;
             }
-            auto ext = pyToCpp<Gringo::Symbol>(pyExt);
+            auto ext = Gringo::Symbol{pyToCpp<symbol_wrapper>(pyExt).symbol};
             self->ctl->assignExternal(ext, val);
             Py_RETURN_NONE;
         PY_CATCH(nullptr);
@@ -5429,7 +5449,7 @@ active; you must not call any member function during search.)";
             checkBlocked(self, "release_external");
             PyObject *pyExt;
             if (!PyArg_ParseTuple(args, "O", &pyExt)) { return nullptr; }
-            auto ext = pyToCpp<Gringo::Symbol>(pyExt);
+            auto ext = Gringo::Symbol{pyToCpp<symbol_wrapper>(pyExt).symbol};
             self->ctl->assignExternal(ext, Potassco::Value_t::Release);
             Py_RETURN_NONE;
         PY_CATCH(nullptr);
@@ -6047,7 +6067,7 @@ static PyObject *parseTerm(PyObject *, PyObject *objString) {
         char const *current = PyString_AsString(objString);
     Gringo::Symbol value = ControlWrap::module->parseValue(current, nullptr, 20);
         if (value.type() == Gringo::SymbolType::Special) { Py_RETURN_NONE; }
-        else { return Symbol::new_(value); }
+        else { return Symbol::construct(clingo_symbol_t{value.rep()}).release(); }
     PY_CATCH(nullptr);
 }
 
@@ -6421,7 +6441,7 @@ Arguments:
 program  -- string representation of program
 callback -- callback taking an ast as argument
 )"},
-    {"Function", (PyCFunction)Symbol::new_function, METH_VARARGS | METH_KEYWORDS, R"(Function(name, arguments, positive) -> Symbol
+    {"Function", to_function<Symbol::new_function>(), METH_VARARGS | METH_KEYWORDS, R"(Function(name, arguments, positive) -> Symbol
 
 Construct a function symbol.
 
@@ -6436,14 +6456,14 @@ positive  -- the sign of the function (tuples must not have signs)
 This includes constants and tuples. Constants have an empty argument list and
 tuples have an empty name. Functions can represent classically negated atoms.
 Argument positive has to be set to False to represent such atoms.)"},
-    {"Tuple", (PyCFunction)Symbol::new_tuple, METH_O, R"(Tuple(arguments) -> Symbol
+    {"Tuple", to_function<Symbol::new_tuple>(), METH_O, R"(Tuple(arguments) -> Symbol
 
 Shortcut for Function("", arguments).
 )"},
-    {"Number", (PyCFunction)Symbol::new_number, METH_O, R"(Number(number) -> Symbol
+    {"Number", to_function<Symbol::new_number>(), METH_O, R"(Number(number) -> Symbol
 
 Construct a numeric symbol given a number.)"},
-    {"String", (PyCFunction)Symbol::new_string, METH_O, R"(String(string) -> Symbol
+    {"String", to_function<Symbol::new_string>(), METH_O, R"(String(string) -> Symbol
 
 Construct a string symbol given a string.)"},
     {nullptr, nullptr, 0, nullptr}
@@ -6605,19 +6625,22 @@ PyObject *initclingo_() {
 
 // {{{1 auxiliary functions and objects
 
-void pyToCpp(Reference obj, Gringo::Symbol &val) {
-    if (obj.isInstance(Symbol::type))      { val = reinterpret_cast<Symbol*>(obj.toPy())->val; }
-    else if (PyTuple_Check(obj.toPy()))  { val = Gringo::Symbol::createTuple(Potassco::toSpan(pyToCpp<SymVec>(obj))); }
-    else if (PyInt_Check(obj.toPy()))    { val = Gringo::Symbol::createNum(pyToCpp<int>(obj)); }
-    else if (PyString_Check(obj.toPy())) { val = Gringo::Symbol::createStr(pyToCpp<char const *>(obj)); }
+void pyToCpp(Reference obj, symbol_wrapper &val) {
+    if (obj.isInstance(Symbol::type))    { val.symbol = reinterpret_cast<Symbol*>(obj.toPy())->val; }
+    else if (PyTuple_Check(obj.toPy()))  {
+        auto vec = pyToCpp<symbol_vector>(obj);
+        handleCError(clingo_symbol_create_function("", reinterpret_cast<clingo_symbol_t*>(vec.data()), vec.size(), true, &val.symbol));
+    }
+    else if (PyInt_Check(obj.toPy()))    { clingo_symbol_create_number(pyToCpp<int>(obj), &val.symbol); }
+    else if (PyString_Check(obj.toPy())) { handleCError(clingo_symbol_create_string(pyToCpp<char const *>(obj), &val.symbol)); }
     else {
         PyErr_Format(PyExc_RuntimeError, "cannot convert to value: unexpected %s() object", obj.toPy()->ob_type->tp_name);
         throw PyException();
     }
 }
 
-Object cppToPy(Gringo::Symbol val) {
-    return Symbol::new_(val);
+Object cppToPy(symbol_wrapper val) {
+    return Symbol::construct(val.symbol);
 }
 
 template <class T>
@@ -6714,7 +6737,8 @@ struct PythonImpl {
     }
     void call(String name, SymSpan args, SymVec &vals) {
         Object fun = PyMapping_GetItemString(main, const_cast<char*>(name.c_str()));
-        pycall(fun.toPy(), args, vals);
+        // FIXME: evil reinterpret cast
+        pycall(fun.toPy(), args, reinterpret_cast<symbol_vector&>(vals));
     }
     void call(Gringo::Control &ctl) {
         Object fun = PyMapping_GetItemString(main, const_cast<char*>("main"));
