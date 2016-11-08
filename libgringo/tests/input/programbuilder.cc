@@ -84,7 +84,6 @@ using namespace Gringo::IO;
 Builder::Builder()
     : out(td, {}, oss)
     , l("dummy", 1, 1, "dummy", 1, 1)
-    , scripts(module)
     , p(scripts, prg, out, defs) { }
 
 void Builder::setUp() {

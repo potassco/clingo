@@ -24,6 +24,8 @@
 #include <gringo/locatable.hh>
 #include <gringo/symbol.hh>
 #include <gringo/indexed.hh>
+#include <gringo/python.hh>
+#include <gringo/lua.hh>
 
 #include <gringo/base.hh>
 #include <gringo/control.hh>
@@ -34,7 +36,6 @@
 
 namespace Gringo {
 
-struct Scripts;
 struct CSPMulTerm;
 struct CSPAddTerm;
 class TheoryOpDef;
@@ -254,15 +255,15 @@ class NongroundProgramBuilder : public INongroundProgramBuilder {
 public:
     NongroundProgramBuilder(Scripts &scripts, Program &prg, Output::OutputBase &out, Defines &defs, bool rewriteMinimize = false);
     // {{{2 terms
-    TermUid term(Location const &loc, Symbol val) override;                               // constant
-    TermUid term(Location const &loc, String name) override;                           // variable
-    TermUid term(Location const &loc, UnOp op, TermUid a) override;                      // unary operation
-    TermUid term(Location const &loc, UnOp op, TermVecUid a) override;                   // unary operation
-    TermUid term(Location const &loc, BinOp op, TermUid a, TermUid b) override;          // binary operation
-    TermUid term(Location const &loc, TermUid a, TermUid b) override;                    // assignment
-    TermUid term(Location const &loc, String name, TermVecVecUid b, bool lua) override;// function or lua function
-    TermUid term(Location const &loc, TermVecUid args, bool forceTuple) override;        // a tuple term (or simply a term)
-    TermUid pool(Location const &loc, TermVecUid args) override;                         // a pool term
+    TermUid term(Location const &loc, Symbol val) override;                             // constant
+    TermUid term(Location const &loc, String name) override;                            // variable
+    TermUid term(Location const &loc, UnOp op, TermUid a) override;                     // unary operation
+    TermUid term(Location const &loc, UnOp op, TermVecUid a) override;                  // unary operation
+    TermUid term(Location const &loc, BinOp op, TermUid a, TermUid b) override;         // binary operation
+    TermUid term(Location const &loc, TermUid a, TermUid b) override;                   // assignment
+    TermUid term(Location const &loc, String name, TermVecVecUid b, bool lua) override; // function or lua function
+    TermUid term(Location const &loc, TermVecUid args, bool forceTuple) override;       // a tuple term (or simply a term)
+    TermUid pool(Location const &loc, TermVecUid args) override;                        // a pool term
 
     // {{{2 term vectors
     TermVecUid termvec() override;
@@ -375,6 +376,7 @@ public:
     void theorydef(Location const &loc, String name, TheoryDefVecUid defs, Logger &log) override;
 
     // }}}2
+
     virtual ~NongroundProgramBuilder();
 
 private:

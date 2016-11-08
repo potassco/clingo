@@ -34,6 +34,8 @@
 #include <gringo/logger.hh>
 #include <gringo/scripts.hh>
 #include <gringo/control.hh>
+#include <gringo/lua.hh>
+#include <gringo/python.hh>
 #include <climits>
 #include <iostream>
 #include <stdexcept>
@@ -89,11 +91,12 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     using StringVec = std::vector<std::string>;
     IncrementalControl(Gringo::Output::OutputBase &out, StringVec const &files, GringoOptions const &opts)
     : out(out)
-    , scripts(*this)
     , pb(scripts, prg, out, defs, opts.rewriteMinimize)
     , parser(pb)
     , opts(opts) {
         using namespace Gringo;
+        scripts.registerScript(clingo_ast_script_type_python, pythonScript(*this));
+        scripts.registerScript(clingo_ast_script_type_lua, luaScript(*this));
         out.keepFacts = opts.keepFacts;
         logger_.enable(clingo_warning_operation_undefined, !opts.wNoOperationUndefined);
         logger_.enable(clingo_warning_atom_undefined, !opts.wNoAtomUndef);
@@ -127,8 +130,8 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     }
     void ground(Gringo::Control::GroundVec const &parts, Gringo::Context *context) override {
         // NOTE: it would be cool to have assumptions in the lparse output
-        auto exit = Gringo::onExit([this]{ scripts.context = nullptr; });
-        scripts.context = context;
+        auto exit = Gringo::onExit([this]{ scripts.resetContext(); });
+        if (context) { scripts.setContext(*context); }
         parse();
         if (parsed) {
             LOG << "************** parsed program **************" << std::endl << prg;

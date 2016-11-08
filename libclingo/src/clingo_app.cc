@@ -27,6 +27,8 @@
 #endif
 #include <clingo/clingo_app.hh>
 #include <clasp/parser.h>
+#include <gringo/python.hh>
+#include <gringo/lua.hh>
 #include <climits>
 
 using namespace Clasp;
@@ -219,7 +221,7 @@ extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main_(int argc, char *argv[]) {
 #ifdef WITH_PYTHON
 extern "C" CLINGO_VISIBILITY_DEFAULT void *clingo_python_() {
     static DefaultGringoModule g_module;
-    try                             { return Gringo::Python::initlib(g_module); }
+    try                             { return Gringo::pythonInitlib(g_module); }
     catch (std::bad_alloc const &e) { PyErr_SetString(PyExc_MemoryError, e.what()); return nullptr; }
     catch (std::exception const &e) { PyErr_SetString(PyExc_RuntimeError, e.what()); return nullptr; }
     catch (...)                     { PyErr_SetString(PyExc_RuntimeError, "unknown error"); return nullptr; }
@@ -229,7 +231,7 @@ extern "C" CLINGO_VISIBILITY_DEFAULT void *clingo_python_() {
 #ifdef WITH_LUA
 extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_lua_(lua_State *L) {
     static DefaultGringoModule g_module;
-    try                             { Gringo::Lua::initlib(L, g_module); }
+    try                             { Gringo::luaInitlib(L, g_module); }
     catch (std::exception const &e) { luaL_error(L, e.what()); }
     catch (...)                     { luaL_error(L, "unknown error"); }
     return 1;

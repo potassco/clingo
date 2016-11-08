@@ -26,7 +26,8 @@
 
 namespace Gringo {
 
-struct Scripts;
+class Script;
+class Scripts;
 using Atom_t = Potassco::Atom_t;
 using Weight_t = Potassco::Weight_t;
 using Lit_t = Potassco::Lit_t;

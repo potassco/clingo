@@ -21,24 +21,12 @@
 #ifndef _GRINGO_PYTHON_HH
 #define _GRINGO_PYTHON_HH
 
-#include <ostream>
-#include <gringo/locatable.hh>
-#include <gringo/control.hh>
+#include <gringo/scripts.hh>
 
 namespace Gringo {
 
-struct PythonImpl;
-struct Python {
-    Python(GringoModule &module);
-    bool exec(Location const &loc, String code);
-    SymVec call(Location const &loc, String name, SymSpan args, Logger &log);
-    bool callable(String name);
-    void main(Control &ctl);
-    static void *initlib(GringoModule &gringo);
-    ~Python();
-
-    static std::unique_ptr<PythonImpl> impl;
-};
+void *pythonInitlib(GringoModule &gringo);
+UScript pythonScript(GringoModule &module);
 
 } // namespace Gringo
 

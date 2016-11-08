@@ -21,26 +21,14 @@
 #ifndef _GRINGO_LUA_HH
 #define _GRINGO_LUA_HH
 
-#include <ostream>
-#include <gringo/locatable.hh>
-#include <gringo/control.hh>
+#include <gringo/scripts.hh>
 
 struct lua_State;
 
 namespace Gringo {
 
-struct LuaImpl;
-struct Lua {
-    Lua(GringoModule &module);
-    bool exec(Location const &loc, String name);
-    SymVec call(Location const &loc, String name, SymSpan args, Logger &log);
-    bool callable(String name);
-    void main(Control &ctl);
-    static void initlib(lua_State *L, GringoModule &module);
-    ~Lua();
-
-    std::unique_ptr<LuaImpl> impl;
-};
+UScript luaScript(GringoModule &module);
+void luaInitlib(lua_State *L, GringoModule &module);
 
 } // namespace Gringo
 

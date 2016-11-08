@@ -3069,69 +3069,81 @@ struct LuaImpl {
 
 // {{{1 definition of Lua
 
-Lua::Lua(GringoModule &module) {
-    ControlWrap::module = &module;
-}
-
-bool Lua::exec(Location const &loc, String code) {
-    if (!impl) { impl = gringo_make_unique<LuaImpl>(); }
-    LuaClear lc(impl->L);
-    std::stringstream oss;
-    oss << loc;
-    lua_pushcfunction(impl->L, luaTraceback);
-    int ret = luaL_loadbuffer(impl->L, code.c_str(), code.length(), oss.str().c_str());
-    handleError(impl->L, loc, ret, "parsing lua script failed", nullptr);
-    ret = lua_pcall(impl->L, 0, 0, -2);
-    handleError(impl->L, loc, ret, "running lua script failed", nullptr);
-    return true;
-}
-
-SymVec Lua::call(Location const &loc, String name, SymSpan args, Logger &log) {
-    assert(impl);
-    LuaClear lc(impl->L);
-    LuaCallArgs arg(name.c_str(), args, {});
-    lua_pushcfunction(impl->L, luaTraceback);
-    lua_pushcfunction(impl->L, luaCall);
-    lua_pushlightuserdata(impl->L, (void*)&arg);
-    lua_pushnil(impl->L);
-    int ret = lua_pcall(impl->L, 2, 0, -4);
-    if (!handleError(impl->L, loc, ret, "operation undefined", &log)) { return {}; }
-    return std::move(std::get<2>(arg));
-}
-
-bool Lua::callable(String name) {
-    if (!impl) { return false; }
-    LuaClear lc(impl->L);
-    lua_getglobal(impl->L, name.c_str());
-    bool ret = lua_type(impl->L, -1) == LUA_TFUNCTION;
-    return ret;
-}
-
-void Lua::main(Control &ctl) {
-    assert(impl);
-    LuaClear lc(impl->L);
-    lua_pushcfunction(impl->L, luaTraceback);
-    lua_pushcfunction(impl->L, luaMain);
-    lua_pushlightuserdata(impl->L, (void*)&ctl);
-    switch (lua_pcall(impl->L, 1, 0, -3)) {
-        case LUA_ERRRUN:
-        case LUA_ERRERR: {
-            Location loc("<lua_main>", 1, 1, "<lua_main>", 1, 1);
-            std::ostringstream oss;
-            oss << loc << ": " << "error: executing main function failed:\n"
-                << "  RuntimeError: " << lua_tostring(impl->L, -1) << "\n"
-                ;
-            lua_pop(impl->L, 1);
-            throw GringoError(oss.str().c_str());
-        }
-        case LUA_ERRMEM: { throw std::runtime_error("lua interpreter ran out of memory"); }
+class LuaScript : public Script {
+public:
+    LuaScript(GringoModule &module) {
+        ControlWrap::module = &module;
     }
-}
-void Lua::initlib(lua_State *L, GringoModule &module) {
+
+private:
+    bool exec(Location const &loc, String code) override {
+        if (!impl) { impl = gringo_make_unique<LuaImpl>(); }
+        LuaClear lc(impl->L);
+        std::stringstream oss;
+        oss << loc;
+        lua_pushcfunction(impl->L, luaTraceback);
+        int ret = luaL_loadbuffer(impl->L, code.c_str(), code.length(), oss.str().c_str());
+        handleError(impl->L, loc, ret, "parsing lua script failed", nullptr);
+        ret = lua_pcall(impl->L, 0, 0, -2);
+        handleError(impl->L, loc, ret, "running lua script failed", nullptr);
+        return true;
+    }
+
+    SymVec call(Location const &loc, String name, SymSpan args, Logger &log) override {
+        assert(impl);
+        LuaClear lc(impl->L);
+        LuaCallArgs arg(name.c_str(), args, {});
+        lua_pushcfunction(impl->L, luaTraceback);
+        lua_pushcfunction(impl->L, luaCall);
+        lua_pushlightuserdata(impl->L, (void*)&arg);
+        lua_pushnil(impl->L);
+        int ret = lua_pcall(impl->L, 2, 0, -4);
+        if (!handleError(impl->L, loc, ret, "operation undefined", &log)) { return {}; }
+        return std::move(std::get<2>(arg));
+    }
+
+    bool callable(String name) override {
+        if (!impl) { return false; }
+        LuaClear lc(impl->L);
+        lua_getglobal(impl->L, name.c_str());
+        bool ret = lua_type(impl->L, -1) == LUA_TFUNCTION;
+        return ret;
+    }
+
+    void main(Control &ctl) override {
+        assert(impl);
+        LuaClear lc(impl->L);
+        lua_pushcfunction(impl->L, luaTraceback);
+        lua_pushcfunction(impl->L, luaMain);
+        lua_pushlightuserdata(impl->L, (void*)&ctl);
+        switch (lua_pcall(impl->L, 1, 0, -3)) {
+            case LUA_ERRRUN:
+            case LUA_ERRERR: {
+                Location loc("<lua_main>", 1, 1, "<lua_main>", 1, 1);
+                std::ostringstream oss;
+                oss << loc << ": " << "error: executing main function failed:\n"
+                    << "  RuntimeError: " << lua_tostring(impl->L, -1) << "\n"
+                    ;
+                lua_pop(impl->L, 1);
+                throw GringoError(oss.str().c_str());
+            }
+            case LUA_ERRMEM: { throw std::runtime_error("lua interpreter ran out of memory"); }
+        }
+    }
+    LuaScript() = default;
+
+private:
+    std::unique_ptr<LuaImpl> impl;
+};
+
+void luaInitlib(lua_State *L, GringoModule &module) {
     ControlWrap::module = &module;
     luarequire_clingo(L);
 }
-Lua::~Lua() = default;
+
+UScript luaScript(GringoModule &module) {
+    return gringo_make_unique<LuaScript>(module);
+}
 
 // }}}1
 
@@ -3144,29 +3156,13 @@ Lua::~Lua() = default;
 
 namespace Gringo {
 
-// {{{1 definition of LuaImpl
+// {{{1 definition of LuaScript
 
-struct LuaImpl { };
+void luaInitlib(lua_State *, GringoModule &) { }
 
-// {{{1 definition of Lua
-
-Lua::Lua(Gringo::GringoModule &) { }
-bool Lua::exec(Location const &loc, String) {
-    std::ostringstream oss;
-    oss << loc << ": error: clingo has been build without lua support\n";
-    throw GringoError(oss.str().c_str());
+UScript luaScript(GringoModule &) {
+    return nullptr;
 }
-bool Lua::callable(String) {
-    return false;
-}
-SymVec Lua::call(Location const &, String, SymSpan, Logger &) {
-    return {};
-}
-void Lua::main(Control &) { }
-void Lua::initlib(lua_State *, Gringo::GringoModule &) {
-    throw std::runtime_error("clingo lib has been build without lua support");
-}
-Lua::~Lua() = default;
 
 // }}}1
 

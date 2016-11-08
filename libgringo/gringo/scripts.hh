@@ -21,16 +21,17 @@
 #ifndef _GRINGO_SCRIPTS_HH
 #define _GRINGO_SCRIPTS_HH
 
-#include <gringo/python.hh>
-#include <gringo/lua.hh>
+#include <gringo/control.hh>
 
 namespace Gringo {
 
 template <class T>
-struct ScopeExit {
-    ScopeExit(T &&exit) : exit(std::forward<T>(exit)) { }
-    ~ScopeExit() { exit(); }
-    T exit;
+class ScopeExit {
+public:
+    ScopeExit(T &&exit) : exit_(std::forward<T>(exit)) { }
+    ~ScopeExit() { exit_(); }
+private:
+    T exit_;
 };
 
 template <typename T>
@@ -38,18 +39,32 @@ ScopeExit<T> onExit(T &&exit) {
     return ScopeExit<T>(std::forward<T>(exit));
 }
 
-struct Scripts {
-    Scripts(GringoModule &module);
-    bool pyExec(Location const &loc, String code);
-    bool luaExec(Location const &loc, String code);
+class Script {
+public:
+    virtual bool exec(Location const &loc, String code) = 0;
+    virtual SymVec call(Location const &loc, String name, SymSpan args, Logger &log) = 0;
+    virtual bool callable(String name) = 0;
+    virtual void main(Control &ctl) = 0;
+    virtual ~Script() = default;
+};
+using UScript = std::shared_ptr<Script>;
+using UScriptVec = std::vector<std::pair<clingo_ast_script_type, UScript>>;
+
+class Scripts {
+public:
+    Scripts() = default;
     bool callable(String name);
     SymVec call(Location const &loc, String name, SymSpan args, Logger &log);
     void main(Control &ctl);
+    void registerScript(clingo_ast_script_type type, UScript script);
+    void setContext(Context &ctx) { context_ = &ctx; }
+    void resetContext() { context_ = nullptr; }
+    void exec(clingo_ast_script_type type, Location loc, String code);
     ~Scripts();
 
-    Context *context = nullptr;
-    Python py;
-    Lua lua;
+private:
+    Context *context_ = nullptr;
+    UScriptVec scripts_;
 };
 
 } // namespace Gringo

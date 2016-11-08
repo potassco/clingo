@@ -38,7 +38,7 @@ std::string iground(std::string in, int last = 3) {
     Output::OutputBase out(td, {}, ss, OutputFormat::INTERMEDIATE);
     Input::Program prg;
     Defines defs;
-    Scripts scripts(module);
+    Scripts scripts;
     Input::NongroundProgramBuilder pb(scripts, prg, out, defs);
     Input::NonGroundParser parser(pb);
     parser.pushStream("-", gringo_make_unique<std::stringstream>(in), module.logger);

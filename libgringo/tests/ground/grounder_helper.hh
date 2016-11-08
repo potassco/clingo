@@ -40,7 +40,7 @@ inline void ground(std::string const &str, Output::OutputFormat fmt, std::ostrea
     Output::OutputBase out(td, {}, ss, fmt);
     Input::Program prg;
     Defines defs;
-    Scripts scripts(module);
+    Scripts scripts;
     Input::NongroundProgramBuilder pb{ scripts, prg, out, defs };
     Input::NonGroundParser ngp{ pb };
     ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module.logger);

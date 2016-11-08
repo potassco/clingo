@@ -6725,52 +6725,61 @@ struct PythonImpl {
 
 // {{{1 definition of Python
 
-std::unique_ptr<PythonImpl> Python::impl = nullptr;
+class PythonScript : public Script {
+public:
+    PythonScript(GringoModule &module) {
+        ControlWrap::module = &module;
+    }
+    ~PythonScript() = default;
+private:
+    bool exec(Location const &loc, String code) override {
+        if (!impl) { impl = gringo_make_unique<PythonImpl>(); }
+        PY_TRY
+            impl->exec(loc, code);
+            return true;
+        PY_HANDLE(loc, "parsing failed");
+    }
+    bool callable(String name) override {
+        if (Py_IsInitialized() && !impl) { impl = gringo_make_unique<PythonImpl>(); }
+        try {
+            return impl && impl->callable(name);
+        }
+        catch (PyException const &) {
+            PyErr_Clear();
+            return false;
+        }
+    }
+    SymVec call(Location const &loc, String name, SymSpan args, Logger &log) override {
+        assert(impl);
+        try {
+            SymVec vals;
+            impl->call(name, args, vals);
+            return vals;
+        }
+        catch (PyException const &) {
+            GRINGO_REPORT(log, clingo_warning_operation_undefined)
+                << loc << ": info: operation undefined:\n"
+                << errorToString()
+                ;
+            return {};
+        }
+    }
+    void main(Gringo::Control &ctl) override {
+        assert(impl);
+        PY_TRY
+            impl->call(ctl);
+        PY_HANDLE("<internal>", "error while calling main function")
+    }
+private:
+    static std::unique_ptr<PythonImpl> impl;
+};
 
-Python::Python(GringoModule &module) {
-    ControlWrap::module = &module;
-}
-bool Python::exec(Location const &loc, String code) {
-    if (!impl) { impl = gringo_make_unique<PythonImpl>(); }
-    PY_TRY
-        impl->exec(loc, code);
-        return true;
-    PY_HANDLE(loc, "parsing failed");
-}
-bool Python::callable(String name) {
-    if (Py_IsInitialized() && !impl) { impl = gringo_make_unique<PythonImpl>(); }
-    try {
-        return impl && impl->callable(name);
-    }
-    catch (PyException const &) {
-        PyErr_Clear();
-        return false;
-    }
-}
-SymVec Python::call(Location const &loc, String name, SymSpan args, Logger &log) {
-    assert(impl);
-    try {
-        SymVec vals;
-        impl->call(name, args, vals);
-        return vals;
-    }
-    catch (PyException const &) {
-        GRINGO_REPORT(log, clingo_warning_operation_undefined)
-            << loc << ": info: operation undefined:\n"
-            << errorToString()
-            ;
-        return {};
-    }
-}
-void Python::main(Gringo::Control &ctl) {
-    assert(impl);
-    PY_TRY
-        impl->call(ctl);
-    PY_HANDLE("<internal>", "error while calling main function")
-}
-Python::~Python() = default;
+std::unique_ptr<PythonImpl> PythonScript::impl = nullptr;
 
-void *Python::initlib(Gringo::GringoModule &module) {
+UScript pythonScript(GringoModule &module) {
+    return gringo_make_unique<PythonScript>(module);
+}
+void *pythonInitlib(Gringo::GringoModule &module) {
     PY_TRY
         ControlWrap::module = &module;
         PyObject *ret = initclingo_();
@@ -6791,28 +6800,13 @@ void *Python::initlib(Gringo::GringoModule &module) {
 
 namespace Gringo {
 
-// {{{1 definition of Python
+// {{{1 definition of PythonScript
 
-struct PythonImpl { };
-
-std::unique_ptr<PythonImpl> Python::impl = nullptr;
-
-Python::Python(GringoModule &) { }
-bool Python::exec(Location const &loc, String ) {
-    std::stringstream ss;
-    ss << loc << ": error: clingo has been build without python support\n";
-    throw GringoError(ss.str().c_str());
+UScript pythonScript(GringoModule &) {
+    return nullptr
 }
-bool Python::callable(String) {
-    return false;
-}
-SymVec Python::call(Location const &, String , SymSpan, Logger &) {
-    return {};
-}
-void Python::main(Control &) { }
-Python::~Python() = default;
-void *Python::initlib(Gringo::GringoModule &) {
-    throw std::runtime_error("clingo lib has been build without python support");
+void *pythonInitlib(Gringo::GringoModule &) {
+    return nullptr;
 }
 
 // }}}1

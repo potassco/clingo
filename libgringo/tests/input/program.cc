@@ -39,7 +39,6 @@ namespace {
 struct Grounder {
     Grounder()
     : out(td, {}, oss)
-    , scripts(module)
     , pb( scripts, p, out, d )
     , ngp( pb )
     { }

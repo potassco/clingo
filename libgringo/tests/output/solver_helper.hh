@@ -77,7 +77,6 @@ public:
 struct ClingoState {
     ClingoState()
     : out(td, {}, ss, OutputFormat::INTERMEDIATE)
-    , scripts(module)
     , pb(scripts, prg, out, defs)
     , parser(pb) {
     }

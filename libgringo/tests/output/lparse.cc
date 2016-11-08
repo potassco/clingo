@@ -1244,47 +1244,5 @@ TEST_CASE("output-lparse", "[output]") {
 
 }
 
-#ifdef WITH_PYTHON
-
-TEST_CASE("output-lparse-python", "[output][python]") {
-    REQUIRE(
-        "([[p(39),q(\"a\"),q(1),q(2),q(a),r(2),r(3),s((1,2)),s((1,3)),s((2,1))]],[])" == IO::to_string(solve(
-            "#script (python)\n"
-            "import clingo\n"
-            "def conv(a): return a.number if hasattr(a, 'number') else a\n"
-            "def pygcd(a, b): return b if conv(a) == 0 else pygcd(conv(b) % conv(a), a)\n"
-            "def pytest():    return [1, 2, clingo.Function(\"a\"), \"a\"]\n"
-            "def pymatch():   return [(1,2),(1,3),(2,1)]\n"
-            "#end.\n"
-            "\n"
-            "p(@pygcd(2*3*7*13,3*11*13)).\n"
-            "q(@pytest()).\n"
-            "r(X) :- (1,X)=@pymatch().\n"
-            "s(X) :- X=@pymatch().\n"
-            )));
-}
-
-#endif // WITH_PYTHON
-
-#ifdef WITH_LUA
-
-TEST_CASE("output-lparse-lua", "[output][lua]") {
-    REQUIRE(
-        "([[p(39),q(\"a\"),q(1),q(2),q(a),r(2),r(3),s((1,2)),s((1,3)),s((2,1))]],[])" == IO::to_string(solve(
-            "#script (lua)\n"
-            "function conv(a) if type(a) == 'number' then return a else return a.number end end\n"
-            "function luagcd(a, b) if conv(a) == 0 then return b else return luagcd(conv(b) % conv(a), a) end end\n"
-            "function luatest()    return {1, 2, clingo.Function(\"a\"), \"a\"} end\n"
-            "function luamatch()   return {clingo.Tuple{1,2},clingo.Tuple{1,3},clingo.Tuple{2,1}} end\n"
-            "#end.\n"
-            "\n"
-            "p(@luagcd(2*3*7*13,3*11*13)).\n"
-            "q(@luatest()).\n"
-            "r(X) :- (1,X)=@luamatch().\n"
-            "s(X) :- X=@luamatch().\n"
-            )));
-}
-#endif // WITH_LUA
-
 } } } // namespace Test Output Gringo
 

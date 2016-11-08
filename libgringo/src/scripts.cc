@@ -23,33 +23,63 @@
 
 namespace Gringo {
 
-Scripts::Scripts(GringoModule &module)
-    : py(module)
-    , lua(module) { }
-
-bool Scripts::luaExec(Location const &loc, String code) {
-    return lua.exec(loc, code);
-}
-bool Scripts::pyExec(Location const &loc, String code) {
-    return py.exec(loc, code);
-}
 bool Scripts::callable(String name) {
-    return (context && context->callable(name)) || py.callable(name) || lua.callable(name);
+    if (context_ && context_->callable(name)) { return true; }
+    for (auto &&script : scripts_) {
+        if (script.second->callable(name)) {
+            return true;
+        }
+    }
+    return false;
 }
+
 void Scripts::main(Control &ctl) {
-    if (py.callable("main")) { return py.main(ctl); }
-    if (lua.callable("main")) { return lua.main(ctl); }
+    for (auto &&script : scripts_) {
+        if (script.second->callable("main")) {
+            script.second->main(ctl);
+            return;
+        }
+    }
 }
+
 SymVec Scripts::call(Location const &loc, String name, SymSpan args, Logger &log) {
-    if (context && context->callable(name)) { return context->call(loc, name, args); }
-    if (py.callable(name)) { return py.call(loc, name, args, log); }
-    if (lua.callable(name)) { return lua.call(loc, name, args, log); }
+    if (context_ && context_->callable(name)) { return context_->call(loc, name, args); }
+    for (auto &&script : scripts_) {
+        if (script.second->callable(name)) {
+            return script.second->call(loc, name, args, log);
+        }
+    }
     GRINGO_REPORT(log, clingo_warning_operation_undefined)
         << loc << ": info: operation undefined:\n"
         << "  function '" << name << "' not found\n"
         ;
     return {};
 }
+
+void Scripts::registerScript(clingo_ast_script_type type, UScript script) {
+    if (script) { scripts_.emplace_back(type, std::move(script)); }
+}
+
+void Scripts::exec(clingo_ast_script_type type, Location loc, String code) {
+    bool notfound = true;
+    for (auto &&script : scripts_) {
+        if (script.first == type) {
+            script.second->exec(loc, code);
+            notfound = false;
+        }
+    }
+    if (notfound) {
+        std::ostringstream oss;
+        oss << loc << ": error: ";
+        switch (type) {
+            case clingo_ast_script_type_python: { oss << "python"; break; }
+            case clingo_ast_script_type_lua: { oss << "lua"; break; }
+        }
+        oss << " support not available\n";
+        throw GringoError(oss.str().c_str());
+    }
+}
+
 Scripts::~Scripts() = default;
 
 } // namespace Gringo

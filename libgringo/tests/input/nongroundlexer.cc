@@ -37,7 +37,7 @@ TEST_CASE("input-nongroundlexer", "[input]") {
     Output::OutputBase out(td, {}, oss);
     Program prg;
     Defines defs;
-    Scripts scripts(module);
+    Scripts scripts;
     NongroundProgramBuilder pb(scripts, prg, out, defs);
     NonGroundParser ngp(pb);
     std::string in =

@@ -35,7 +35,8 @@ NongroundProgramBuilder::NongroundProgramBuilder(Scripts &scripts, Program &prg,
 , prg_(prg)
 , out(out)
 , defs_(defs)
-, rewriteMinimize_(rewriteMinimize) { }
+, rewriteMinimize_(rewriteMinimize)
+{ }
 
 // {{{2 terms
 
@@ -336,11 +337,11 @@ void NongroundProgramBuilder::show(Location const &loc, TermUid t, BdLitVecUid b
 }
 
 void NongroundProgramBuilder::lua(Location const &loc, String code) {
-    scripts_.luaExec(loc, code);
+    scripts_.exec(clingo_ast_script_type_lua, loc, code);
 }
 
 void NongroundProgramBuilder::python(Location const &loc, String code) {
-    scripts_.pyExec(loc, code);
+    scripts_.exec(clingo_ast_script_type_python, loc, code);
 }
 
 void NongroundProgramBuilder::block(Location const &loc, String name, IdVecUid args) {

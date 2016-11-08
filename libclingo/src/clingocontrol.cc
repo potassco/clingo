@@ -226,8 +226,8 @@ void ClingoControl::ground(Gringo::Control::GroundVec const &parts, Gringo::Cont
         auto gPrg = prg_.toGround(out_->data, logger_);
         LOG << "*********** intermediate program ***********" << std::endl << gPrg << std::endl;
         LOG << "************* grounded program *************" << std::endl;
-        auto exit = Gringo::onExit([this]{ scripts_.context = nullptr; });
-        scripts_.context = context;
+        auto exit = Gringo::onExit([this]{ scripts_.resetContext(); });
+        if (context) { scripts_.setContext(*context); }
         gPrg.ground(params, scripts_, *out_, false, logger_);
     }
 }
@@ -758,8 +758,10 @@ ClingoLib::~ClingoLib() {
 
 // {{{1 definition of DefaultGringoModule
 
-DefaultGringoModule::DefaultGringoModule()
-: scripts(*this) { }
+DefaultGringoModule::DefaultGringoModule() {
+    scripts.registerScript(clingo_ast_script_type_python, pythonScript(*this));
+    scripts.registerScript(clingo_ast_script_type_lua, luaScript(*this));
+}
 
 Gringo::Control *DefaultGringoModule::newControl(int argc, char const * const*argv, Gringo::Logger::Printer printer, unsigned messageLimit) {
     return new ClingoLib(scripts, argc, argv, printer, messageLimit);

@@ -45,7 +45,7 @@ std::string ground(std::string const &str, std::initializer_list<std::string> fi
     Input::Program prg;
     Defines defs;
     Gringo::Test::TestGringoModule module;
-    Scripts scripts(module);
+    Scripts scripts;
     Input::NongroundProgramBuilder pb{ scripts, prg, out, defs };
     Input::NonGroundParser ngp{ pb };
     ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module);

@@ -46,7 +46,7 @@ std::string evalRange(UTerm assign, UTerm l, UTerm r) {
     Gringo::Test::TestGringoModule module;
     Potassco::TheoryData theory;
     DomainData data(theory);
-    Scripts scripts(module);
+    Scripts scripts;
     RangeLiteral lit(get_clone(assign), get_clone(l), get_clone(r));
     Term::VarSet bound;
     UIdx idx(lit.index(scripts, BinderType::ALL, bound));
@@ -61,7 +61,7 @@ std::string evalRelation(Relation rel, UTerm l, UTerm r) {
     Gringo::Test::TestGringoModule module;
     Potassco::TheoryData theory;
     DomainData data(theory);
-    Scripts scripts(module);
+    Scripts scripts;
     Term::VarSet bound;
     RelationLiteral lit(rel, get_clone(l), get_clone(r));
     UIdx idx(lit.index(scripts, BinderType::ALL, bound));
@@ -81,7 +81,7 @@ S evalPred(L<L<V>> vals, L<P<S,V>> bound, BinderType type, NAF naf, UTerm &&repr
     Gringo::Test::TestGringoModule module;
     Potassco::TheoryData theory;
     DomainData data(theory);
-    Scripts scripts(module);
+    Scripts scripts;
     Term::VarSet boundSet;
     for (auto &x : bound) {
         U<VarTerm> v(var(x.first.c_str()));

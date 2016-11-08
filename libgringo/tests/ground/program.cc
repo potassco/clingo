@@ -43,7 +43,7 @@ Program parse(std::string const &str) {
     Output::OutputBase out(td, {}, oss);
     Input::Program prg;
     Defines defs;
-    Scripts scripts(module);
+    Scripts scripts;
     Input::NongroundProgramBuilder pb{ scripts, prg, out, defs };
     Input::NonGroundParser ngp{ pb };
     ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module.logger);
