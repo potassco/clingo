@@ -72,8 +72,6 @@ return (ret)
 
 namespace Gringo {
 
-using Id_t = uint32_t;
-
 namespace {
 
 // {{{1 workaround for gcc warnings
@@ -906,7 +904,7 @@ struct ObjectBase : ObjectProtocoll<T> {
     static T *new_(PyTypeObject *type, PyObject *, PyObject *) {
         T *self;
         self = reinterpret_cast<T*>(type->tp_alloc(type, 0));
-        if (!self) { return nullptr; }
+        if (!self) { throw PyException(); }
         return self;
     }
     PyObject *toPy() const { return reinterpret_cast<PyObject*>(const_cast<ObjectBase*>(this)); }
@@ -1088,13 +1086,13 @@ TheoryTermType.List     -- a list theory term
 TheoryTermType.Tuple    -- a tuple theory term
 TheoryTermType.Set      -- a set theory term)";
 
-    static constexpr Gringo::TheoryData::TermType const values[] = {
-        Gringo::TheoryData::TermType::Function,
-        Gringo::TheoryData::TermType::Number,
-        Gringo::TheoryData::TermType::Symbol,
-        Gringo::TheoryData::TermType::List,
-        Gringo::TheoryData::TermType::Tuple,
-        Gringo::TheoryData::TermType::Set
+    static constexpr clingo_theory_term_type const values[] = {
+        clingo_theory_term_type_function,
+        clingo_theory_term_type_number,
+        clingo_theory_term_type_symbol,
+        clingo_theory_term_type_list,
+        clingo_theory_term_type_tuple,
+        clingo_theory_term_type_set
     };
     static constexpr const char * const strings[] = {
         "Function",
@@ -1106,12 +1104,12 @@ TheoryTermType.Set      -- a set theory term)";
     };
 };
 
-constexpr Gringo::TheoryData::TermType const TheoryTermType::values[];
+constexpr clingo_theory_term_type const TheoryTermType::values[];
 constexpr const char * const TheoryTermType::strings[];
 
 struct TheoryTerm : ObjectBase<TheoryTerm> {
-    Gringo::TheoryData const *data;
-    Id_t value;
+    clingo_theory_atoms_t *atoms;
+    clingo_id_t value;
     static PyGetSetDef tp_getset[];
     static constexpr char const *tp_type = "TheoryTerm";
     static constexpr char const *tp_name = "clingo.TheoryTerm";
@@ -1121,35 +1119,44 @@ R"(TheoryTerm objects represent theory terms.
 This are read-only objects, which can be obtained from theory atoms and
 elements.)";
 
-    static PyObject *new_(Gringo::TheoryData const *data, Id_t value) {
-        TheoryTerm *self = reinterpret_cast<TheoryTerm*>(type.tp_alloc(&type, 0));
-        if (!self) { return nullptr; }
+    static Object construct(clingo_theory_atoms_t *atoms, clingo_id_t value) {
+        TheoryTerm *self = new_();
         self->value = value;
-        self->data = data;
-        return reinterpret_cast<PyObject*>(self);
+        self->atoms = atoms;
+        return self->toPy();
     }
     Object name() {
-        return PyString_FromString(data->termName(value));
+        char const *ret;
+        handleCError(clingo_theory_atoms_term_name(atoms, value, &ret));
+        return cppToPy(ret);
     }
     Object number() {
-        return PyInt_FromLong(data->termNum(value));
+        int ret;
+        handleCError(clingo_theory_atoms_term_number(atoms, value, &ret));
+        return cppToPy(ret);
     }
     Object args() {
-        Potassco::IdSpan span = data->termArgs(value);
-        Object list = PyList_New(span.size);
-        if (!list.valid()) { return nullptr; }
-        for (size_t i = 0; i < span.size; ++i) {
-            Object arg = new_(data, *(span.first + i));
-            if (!arg.valid()) { return nullptr; }
-            if (PyList_SetItem(list.toPy(), i, arg.release()) < 0) { return nullptr; }
+        clingo_id_t const *args;
+        size_t size;
+        handleCError(clingo_theory_atoms_term_arguments(atoms, value, &args, &size));
+        List list;
+        for (size_t i = 0; i < size; ++i, ++args) {
+            list.append(construct(atoms, *args));
         }
         return list;
     }
     Object tp_repr() {
-        return PyString_FromString(data->termStr(value).c_str());
+        std::vector<char> ret;
+        size_t size;
+        handleCError(clingo_theory_atoms_term_to_string_size(atoms, value, &size));
+        ret.resize(size);
+        handleCError(clingo_theory_atoms_term_to_string(atoms, value, ret.data(), size));
+        return cppToPy(ret.data());
     }
     Object termType() {
-        return TheoryTermType::getAttr(data->termType(value));
+        clingo_theory_term_type_t ret;
+        handleCError(clingo_theory_atoms_term_type(atoms, value, &ret));
+        return TheoryTermType::getAttr(ret);
     }
     size_t tp_hash() {
         return value;
@@ -1178,51 +1185,52 @@ The numeric representation of the TheoryTerm (for numbers).)", nullptr},
 // {{{1 wrap TheoryElement
 
 struct TheoryElement : ObjectBase<TheoryElement> {
-    Gringo::TheoryData const *data;
-    Id_t value;
+    clingo_theory_atoms_t *atoms;
+    clingo_id_t value;
     static constexpr char const *tp_type = "TheoryElement";
     static constexpr char const *tp_name = "clingo.TheoryElement";
     static constexpr char const *tp_doc =
 R"(TheoryElement objects represent theory elements which consist of a tuple of
 terms and a set of literals.)";
     static PyGetSetDef tp_getset[];
-    static PyObject *new_(Gringo::TheoryData const *data, Id_t value) {
-        TheoryElement *self;
-        self = reinterpret_cast<TheoryElement*>(type.tp_alloc(&type, 0));
-        if (!self) { return nullptr; }
+    static Object construct(clingo_theory_atoms *atoms, clingo_id_t value) {
+        TheoryElement *self = new_();
         self->value = value;
-        self->data = data;
-        return reinterpret_cast<PyObject*>(self);
+        self->atoms = atoms;
+        return self->toPy();
     }
-    static PyObject *terms(TheoryElement *self, void *) {
-        PY_TRY
-            Potassco::IdSpan span = self->data->elemTuple(self->value);
-            Object list = PyList_New(span.size);
-            for (size_t i = 0; i < span.size; ++i) {
-                Object arg = TheoryTerm::new_(self->data, *(span.first + i));
-                if (PyList_SetItem(list.toPy(), i, arg.release()) < 0) { return nullptr; }
-            }
-            return list.release();
-        PY_CATCH(nullptr);
+    Object terms() {
+        clingo_id_t const *ret;
+        size_t size;
+        handleCError(clingo_theory_atoms_element_tuple(atoms, value, &ret, &size));
+        List list;
+        for (size_t i = 0; i < size; ++i, ++ret) {
+            list.append(TheoryTerm::construct(atoms, *ret));
+        }
+        return list;
     }
-    static PyObject *condition(TheoryElement *self, void *) {
-        PY_TRY
-            Potassco::LitSpan span = self->data->elemCond(self->value);
-            Object list = PyList_New(span.size);
-            for (size_t i = 0; i < span.size; ++i) {
-                Object arg = PyInt_FromLong(*(span.first + i));
-                if (PyList_SetItem(list.toPy(), i, arg.release()) < 0) { return nullptr; }
-            }
-            return list.release();
-        PY_CATCH(nullptr);
+    Object condition() {
+        clingo_literal_t const *ret;
+        size_t size;
+        handleCError(clingo_theory_atoms_element_condition(atoms, value, &ret, &size));
+        List list;
+        for (size_t i = 0; i < size; ++i, ++ret) {
+            list.append(cppToPy(*ret));
+        }
+        return list;
     }
-    static PyObject *condition_id(TheoryElement *self, void *) {
-        PY_TRY
-            return PyInt_FromLong(self->data->elemCondLit(self->value));
-        PY_CATCH(nullptr);
+    Object condition_id() {
+        clingo_literal_t ret;
+        handleCError(clingo_theory_atoms_element_condition_id(atoms, value, &ret));
+        return cppToPy(ret);
     }
     Object tp_repr() {
-        return PyString_FromString(data->elemStr(value).c_str());
+        std::vector<char> ret;
+        size_t size;
+        handleCError(clingo_theory_atoms_element_to_string_size(atoms, value, &size));
+        ret.resize(size);
+        handleCError(clingo_theory_atoms_element_to_string(atoms, value, ret.data(), size));
+        return cppToPy(ret.data());
     }
     size_t tp_hash() {
         return value;
@@ -1233,13 +1241,13 @@ terms and a set of literals.)";
 };
 
 PyGetSetDef TheoryElement::tp_getset[] = {
-    {(char *)"terms", (getter)terms, nullptr, (char *)R"(terms -> [TheoryTerm]
+    {(char *)"terms", to_getter<&TheoryElement::terms>(), nullptr, (char *)R"(terms -> [TheoryTerm]
 
 The tuple of the element.)", nullptr},
-    {(char *)"condition", (getter)condition, nullptr, (char *)R"(condition -> [TheoryTerm]
+    {(char *)"condition", to_getter<&TheoryElement::condition>(), nullptr, (char *)R"(condition -> [TheoryTerm]
 
 The condition of the element.)", nullptr},
-    {(char *)"condition_id", (getter)condition_id, nullptr, (char *)R"(condition_id -> int
+    {(char *)"condition_id", to_getter<&TheoryElement::condition_id>(), nullptr, (char *)R"(condition_id -> int
 
 Each condition has an id. This id can be passed to PropagateInit.solver_literal
 to obtain a solver literal equivalent to the condition.)", nullptr},
@@ -1249,56 +1257,54 @@ to obtain a solver literal equivalent to the condition.)", nullptr},
 // {{{1 wrap TheoryAtom
 
 struct TheoryAtom : ObjectBase<TheoryAtom> {
-    Gringo::TheoryData const *data;
-    Id_t value;
+    clingo_theory_atoms_t *atoms;
+    clingo_id_t value;
     static PyGetSetDef tp_getset[];
     static constexpr char const *tp_type = "TheoryAtom";
     static constexpr char const *tp_name = "clingo.TheoryAtom";
-    static constexpr char const *tp_doc =
-R"(TheoryAtom objects represent theory atoms.)";
-    static PyObject *new_(Gringo::TheoryData const *data, Id_t value) {
-        TheoryAtom *self;
-        self = reinterpret_cast<TheoryAtom*>(type.tp_alloc(&type, 0));
-        if (!self) { return nullptr; }
+    static constexpr char const *tp_doc = R"(TheoryAtom objects represent theory atoms.)";
+    static Object construct(clingo_theory_atoms_t *atoms, clingo_id_t value) {
+        TheoryAtom *self = new_();
         self->value = value;
-        self->data = data;
-        return reinterpret_cast<PyObject*>(self);
+        self->atoms = atoms;
+        return self->toPy();
     }
-    static PyObject *elements(TheoryAtom *self, void *) {
-        PY_TRY
-            Potassco::IdSpan span = self->data->atomElems(self->value);
-            Object list = PyList_New(span.size);
-            for (size_t i = 0; i < span.size; ++i) {
-                Object arg = TheoryElement::new_(self->data, *(span.first + i));
-                if (PyList_SetItem(list.toPy(), i, arg.release()) < 0) { return nullptr; }
-            }
-            return list.release();
-        PY_CATCH(nullptr);
+    Object elements() {
+        clingo_id_t const *ret;
+        size_t size;
+        handleCError(clingo_theory_atoms_atom_elements(atoms, value, &ret, &size));
+        List list;
+        for (size_t i = 0; i < size; ++i, ++ret) {
+            list.append(TheoryElement::construct(atoms, *ret));
+        }
+        return list;
     }
-    static PyObject *term(TheoryTerm *self, void *) {
-        PY_TRY
-            return TheoryTerm::new_(self->data, self->data->atomTerm(self->value));
-        PY_CATCH(nullptr);
+    Object term() {
+        clingo_id_t ret;
+        handleCError(clingo_theory_atoms_atom_term(atoms, value, &ret));
+        return TheoryTerm::construct(atoms, ret);
     }
-    static PyObject *literal(TheoryTerm *self, void *) {
-        PY_TRY
-            return PyInt_FromLong(self->data->atomLit(self->value));
-        PY_CATCH(nullptr);
+    Object literal() {
+        clingo_literal_t ret;
+        handleCError(clingo_theory_atoms_atom_literal(atoms, value, &ret));
+        return cppToPy(ret);
     }
-    static PyObject *guard(TheoryTerm *self, void *) {
-        PY_TRY
-            if (!self->data->atomHasGuard(self->value)) { Py_RETURN_NONE; }
-            std::pair<char const *, Id_t> guard = self->data->atomGuard(self->value);
-            Object tuple = PyTuple_New(2);
-            Object op = PyString_FromString(guard.first);
-            if (PyTuple_SetItem(tuple.toPy(), 0, op.release()) < 0) { return nullptr; }
-            Object term = TheoryTerm::new_(self->data, guard.second);
-            if (PyTuple_SetItem(tuple.toPy(), 1, term.release()) < 0) { return nullptr; }
-            return tuple.release();
-        PY_CATCH(nullptr);
+    Object guard() {
+        bool hasGuard;
+        handleCError(clingo_theory_atoms_atom_has_guard(atoms, value, &hasGuard));
+        if (!hasGuard) { return None(); }
+        char const *conn;
+        clingo_id_t term;
+        handleCError(clingo_theory_atoms_atom_guard(atoms, value, &conn, &term));
+        return Tuple(cppToPy(conn), TheoryTerm::construct(atoms, term));
     }
     Object tp_repr() {
-        return PyString_FromString(data->atomStr(value).c_str());
+        std::vector<char> ret;
+        size_t size;
+        handleCError(clingo_theory_atoms_atom_to_string_size(atoms, value, &size));
+        ret.resize(size);
+        handleCError(clingo_theory_atoms_atom_to_string(atoms, value, ret.data(), size));
+        return cppToPy(ret.data());
     }
     size_t tp_hash() {
         return value;
@@ -1309,16 +1315,16 @@ R"(TheoryAtom objects represent theory atoms.)";
 };
 
 PyGetSetDef TheoryAtom::tp_getset[] = {
-    {(char *)"elements", (getter)elements, nullptr, (char *)R"(elements -> [TheoryElement]
+    {(char *)"elements", to_getter<&TheoryAtom::elements>(), nullptr, (char *)R"(elements -> [TheoryElement]
 
 The theory elements of the theory atom.)", nullptr},
-    {(char *)"term", (getter)term, nullptr, (char *)R"(term -> TheoryTerm
+    {(char *)"term", to_getter<&TheoryAtom::term>(), nullptr, (char *)R"(term -> TheoryTerm
 
 The term of the theory atom.)", nullptr},
-    {(char *)"guard", (getter)guard, nullptr, (char *)R"(guard -> (str, TheoryTerm)
+    {(char *)"guard", to_getter<&TheoryAtom::guard>(), nullptr, (char *)R"(guard -> (str, TheoryTerm)
 
 The guard of the theory atom or None if the atom has no guard.)", nullptr},
-    {(char *)"literal", (getter)literal, nullptr, (char *)R"(literal -> int
+    {(char *)"literal", to_getter<&TheoryAtom::literal>(), nullptr, (char *)R"(literal -> int
 
 The program literal associated with the theory atom.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
@@ -1327,26 +1333,26 @@ The program literal associated with the theory atom.)", nullptr},
 // {{{1 wrap TheoryAtomIter
 
 struct TheoryAtomIter : ObjectBase<TheoryAtomIter> {
-    Gringo::TheoryData const *data;
-    Id_t offset;
+    clingo_theory_atoms_t *atoms;
+    clingo_id_t offset;
     static PyMethodDef tp_methods[];
 
     static constexpr char const *tp_type = "TheoryAtomIter";
     static constexpr char const *tp_name = "clingo.TheoryAtomIter";
     static constexpr char const *tp_doc =
 R"(Object to iterate over all theory atoms.)";
-    static PyObject *new_(Gringo::TheoryData const *data, Id_t offset) {
-        TheoryAtomIter *self;
-        self = reinterpret_cast<TheoryAtomIter*>(type.tp_alloc(&type, 0));
-        if (!self) { return nullptr; }
-        self->data = data;
+    static Object construct(clingo_theory_atoms_t *atoms, clingo_id_t offset) {
+        TheoryAtomIter *self = new_();
+        self->atoms = atoms;
         self->offset = offset;
-        return reinterpret_cast<PyObject*>(self);
+        return self->toPy();
     }
     Reference tp_iter() { return *this; }
-    Object get() { return TheoryAtom::new_(data, offset); }
+    Object get() { return TheoryAtom::construct(atoms, offset); }
     Object tp_iternext() {
-        if (offset < data->numAtoms()) {
+        size_t size;
+        handleCError(clingo_theory_atoms_size(atoms, &size));
+        if (offset < size) {
             Object next = get();
             ++offset;
             return next;
@@ -2429,14 +2435,14 @@ condition ids to solver literals.)";
     static PyGetSetDef tp_getset[];
 
     using ObjectBase<PropagateInit>::new_;
-    static PyObject *construct(Gringo::PropagateInit &init) {
+    static Object construct(Gringo::PropagateInit &init) {
         PropagateInit *self = new_();
         self->init = &init;
-        return reinterpret_cast<PyObject*>(self);
+        return self->toPy();
     }
 
-    static PyObject *theoryIter(PropagateInit *self, void *) {
-        return TheoryAtomIter::new_(&self->init->theory(), 0);
+    Object theoryIter() {
+        return TheoryAtomIter::construct(const_cast<Gringo::TheoryData*>(&init->theory()), 0);
     }
 
     static PyObject *symbolicAtoms(PropagateInit *self, void *) {
@@ -2478,7 +2484,7 @@ Map the given program literal or condition id to its solver literal.)"},
 
 PyGetSetDef PropagateInit::tp_getset[] = {
     {(char *)"symbolic_atoms", (getter)symbolicAtoms, nullptr, (char *)R"(The symbolic atoms captured by a SymbolicAtoms object.)", nullptr},
-    {(char *)"theory_atoms", (getter)theoryIter, nullptr, (char *)R"(A TheoryAtomIter object to iterate over all theory atoms.)", nullptr},
+    {(char *)"theory_atoms", to_getter<&PropagateInit::theoryIter>(), nullptr, (char *)R"(A TheoryAtomIter object to iterate over all theory atoms.)", nullptr},
     {(char *)"number_of_threads", (getter)numThreads, nullptr, (char *) R"(The number of solver threads used in the corresponding solve call.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
@@ -2888,28 +2894,28 @@ public:
         call("acyc_edge", cppToPy(s), cppToPy(t), cppToPy(condition));
     }
 
-    void theoryTerm(Id_t termId, int number) override {
+    void theoryTerm(clingo_id_t termId, int number) override {
         PyBlock b;
         call("theory_term_number", cppToPy(termId), cppToPy(number));
     }
-    void theoryTerm(Id_t termId, const StringSpan& name) override {
+    void theoryTerm(clingo_id_t termId, const StringSpan& name) override {
         PyBlock b;
         std::string s{name.first, name.size};
         call("theory_term_string", cppToPy(termId), cppToPy(s));
     }
-    void theoryTerm(Id_t termId, int cId, const IdSpan& args) override {
+    void theoryTerm(clingo_id_t termId, int cId, const IdSpan& args) override {
         PyBlock b;
         call("theory_term_compound", cppToPy(termId), cppToPy(cId), cppToPy(args));
     }
-    void theoryElement(Id_t elementId, const IdSpan& terms, const LitSpan& cond) override {
+    void theoryElement(clingo_id_t elementId, const IdSpan& terms, const LitSpan& cond) override {
         PyBlock b;
         call("theory_element", cppToPy(elementId), cppToPy(terms), cppToPy(cond));
     }
-    void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements) override {
+    void theoryAtom(clingo_id_t atomOrZero, clingo_id_t termId, const IdSpan& elements) override {
         PyBlock b;
         call("theory_atom", cppToPy(atomOrZero), cppToPy(termId), cppToPy(elements));
     }
-    void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements, Id_t op, Id_t rhs) override {
+    void theoryAtom(clingo_id_t atomOrZero, clingo_id_t termId, const IdSpan& elements, clingo_id_t op, clingo_id_t rhs) override {
         PyBlock b;
         call("theory_atom_with_guard", cppToPy(atomOrZero), cppToPy(termId), cppToPy(elements), cppToPy(op), cppToPy(rhs));
     }
@@ -5462,11 +5468,9 @@ active; you must not call any member function during search.)";
     static PyObject *symbolicAtoms(ControlWrap *self, void *) {
         return SymbolicAtoms::new_(self->ctl->getDomain());
     }
-    static PyObject *theoryIter(ControlWrap *self, void *) {
-        PY_TRY
-            checkBlocked(self, "theory_atoms");
-            return TheoryAtomIter::new_(&self->ctl->theory(), 0);
-        PY_CATCH(nullptr);
+    Object theoryIter() {
+        checkBlocked(this, "theory_atoms");
+        return TheoryAtomIter::construct(const_cast<Gringo::TheoryData*>(&ctl->theory()), 0);
     }
     static PyObject *registerPropagator(ControlWrap *self, PyObject *tp) {
         PY_TRY
@@ -6031,7 +6035,7 @@ Note that this (read-only) property is only available in clingo.
 Example:
 import json
 json.dumps(prg.statistics, sort_keys=True, indent=4, separators=(',', ': ')))", nullptr},
-    {(char *)"theory_atoms", (getter)theoryIter, nullptr, (char *)R"(A TheoryAtomIter object, which can be used to iterate over the theory atoms.)", nullptr},
+    {(char *)"theory_atoms", to_getter<&ControlWrap::theoryIter>(), nullptr, (char *)R"(A TheoryAtomIter object, which can be used to iterate over the theory atoms.)", nullptr},
     {(char *)"backend", (getter)backend, nullptr, (char *)R"(A Backend object providing a low level interface to extend a logic program.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
