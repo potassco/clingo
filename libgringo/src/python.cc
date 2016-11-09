@@ -2080,7 +2080,7 @@ See Control.interrupt() for a thread-safe alternative.)"},
 // {{{1 wrap SolveIter
 
 struct SolveIter : ObjectBase<SolveIter> {
-    Gringo::SolveIter *solve_iter;
+    clingo_solve_iteratively_t *solve_iter;
     static PyMethodDef tp_methods[];
 
     static constexpr char const *tp_type = "SolveIter";
@@ -2091,20 +2091,26 @@ R"(Object to conveniently iterate over all models.
 During solving the GIL is released. The functions in this object are not
 thread-safe though.)";
 
-    static PyObject *new_(Gringo::SolveIter &iter) {
-        SolveIter *self;
-        self = reinterpret_cast<SolveIter*>(type.tp_alloc(&type, 0));
-        if (!self) { return nullptr; }
-        self->solve_iter = &iter;
-        return reinterpret_cast<PyObject*>(self);
+    static PyObject *construct(clingo_solve_iteratively_t *iter) {
+        SolveIter *self = new_();
+        self->solve_iter = iter;
+        return self->toPy();
     }
     Reference tp_iter() { return *this; }
     Object get() {
-        return SolveResult::construct(doUnblocked([this]() { return solve_iter->get(); }));
+        return SolveResult::construct(doUnblocked([this]() {
+            clingo_solve_result_bitset_t ret;
+            handleCError(clingo_solve_iteratively_get(solve_iter, &ret));
+            return ret;
+        }));
     }
     Object tp_iternext() {
-        if (Gringo::Model const *m = doUnblocked([this]() { return solve_iter->next(); })) {
-            return Model::construct(const_cast<clingo_model_t*>(m));
+        if (clingo_model_t *m = doUnblocked([this]() {
+            clingo_model_t *ret;
+            handleCError(clingo_solve_iteratively_next(solve_iter, &ret));
+            return ret;
+        })) {
+            return Model::construct(m);
         } else {
             PyErr_SetNone(PyExc_StopIteration);
             return nullptr;
@@ -2112,7 +2118,7 @@ thread-safe though.)";
     }
     Object enter() { return Reference{*this}; }
     Object exit() {
-        doUnblocked([this]() { return solve_iter->close(); });
+        doUnblocked([this]() { handleCError(clingo_solve_iteratively_close(solve_iter)); });
         Py_RETURN_FALSE;
     }
 };
@@ -5444,7 +5450,7 @@ active; you must not call any member function during search.)";
             if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O", const_cast<char **>(kwlist), &pyAss)) { return nullptr; }
             Gringo::Control::Assumptions ass;
             if (!getAssumptions(pyAss, ass)) { return nullptr; }
-            return SolveIter::new_(*self->ctl->solveIter(std::move(ass)));
+            return SolveIter::construct(reinterpret_cast<clingo_solve_iteratively_t*>(self->ctl->solveIter(std::move(ass))));
         PY_CATCH(nullptr);
     }
     static PyObject *solve(ControlWrap *self, PyObject *args, PyObject *kwds) {
