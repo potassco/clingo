@@ -27,21 +27,21 @@ def main(prg):
         print ("  " + x.heuristic)
 
     prg.configuration.solve.models = 0
-    print "==================== All Models ==================="
+    print ("==================== All Models ===================")
     prg.solve()
 
     prg.configuration.solve.models = 1
-    print "===================== One Model ==================="
+    print ("===================== One Model ===================")
     prg.solve()
 
     prg.configuration.solve.models = 0
     prg.configuration.solve.enum_mode = "cautious"
-    print "=============== Cautious Consequences ============="
+    print ("=============== Cautious Consequences =============")
     prg.solve()
 
     prg.configuration.solve.models = 0
     prg.configuration.solve.enum_mode = "brave"
-    print "================ Brave Consequences ==============="
+    print ("================ Brave Consequences ===============")
     prg.solve()
 
 #end.
