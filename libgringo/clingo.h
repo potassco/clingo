@@ -1882,7 +1882,7 @@ enum clingo_statistics_type {
     clingo_statistics_type_array = 2, //!< the entry is an array
     clingo_statistics_type_map   = 3  //!< the entry is a map
 };
-//! Corresponding type to ::clingo_solve_result.
+//! Corresponding type to ::clingo_statistics_type.
 typedef int clingo_statistics_type_t;
 
 //! Handle for to the solver statistics.
