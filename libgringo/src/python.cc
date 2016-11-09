@@ -2694,7 +2694,7 @@ PyGetSetDef Assignment::tp_getset[] = {
 // {{{1 wrap PropagateControl
 
 struct PropagateControl : ObjectBase<PropagateControl> {
-    Potassco::AbstractSolver* ctl;
+    clingo_propagate_control_t* ctl;
     static constexpr char const *tp_type = "PropagateControl";
     static constexpr char const *tp_name = "clingo.PropagateControl";
     static constexpr char const *tp_doc = "This object can be used to add clauses and propagate literals.";
@@ -2702,68 +2702,74 @@ struct PropagateControl : ObjectBase<PropagateControl> {
     static PyGetSetDef tp_getset[];
 
     using ObjectBase<PropagateControl>::new_;
-    static Object construct(Potassco::AbstractSolver &ctl) {
+    static Object construct(clingo_propagate_control_t *ctl) {
         auto self = new_();
-        self->ctl = &ctl;
+        self->ctl = ctl;
         return self;
     }
 
-    static PyObject *id(PropagateControl *self, void *) {
-        return PyInt_FromLong(self->ctl->id());
+    Object id() {
+        return cppToPy(clingo_propagate_control_thread_id(ctl));
     }
 
-    static PyObject *addClauseOrNogood(PropagateControl *self, PyObject *pyargs, PyObject *pykwds, bool invert) {
-        PY_TRY
-            static char const *kwlist[] = {"clause", "tag", "lock", nullptr};
-            PyObject *clause;
-            PyObject *pyTag = Py_False;
-            PyObject *pyLock = Py_False;
-            if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "O|OO", const_cast<char**>(kwlist), &clause, &pyTag, &pyLock)) { return nullptr; }
-            auto lits = pyToCpp<std::vector<Lit_t>>(clause);
-            if (invert) {
-                for (auto &lit : lits) { lit = -lit; }
-            }
-            unsigned type = 0;
-            if (pyToCpp<bool>(pyTag))  { type |= Potassco::Clause_t::Volatile; }
-            if (pyToCpp<bool>(pyLock)) { type |= Potassco::Clause_t::Static; }
-            return cppToPy(doUnblocked([self, &lits, type](){ return self->ctl->addClause(Potassco::toSpan(lits), static_cast<Potassco::Clause_t>(type)); })).release();
-        PY_CATCH(nullptr);
+    Object addClauseOrNogood(Reference pyargs, Reference pykwds, bool invert) {
+        static char const *kwlist[] = {"clause", "tag", "lock", nullptr};
+        Reference clause;
+        Reference pyTag = Py_False;
+        Reference pyLock = Py_False;
+        ParseTupleAndKeywords(pyargs, pykwds, "O|OO", kwlist, clause, pyTag, pyLock);
+        auto lits = pyToCpp<std::vector<clingo_literal_t>>(clause);
+        if (invert) {
+            for (auto &lit : lits) { lit = -lit; }
+        }
+        clingo_clause_type_t type = 0;
+        if (pyToCpp<bool>(pyTag))  { type |= clingo_clause_type_volatile; }
+        if (pyToCpp<bool>(pyLock)) { type |= clingo_clause_type_static; }
+        return cppToPy(doUnblocked([this, &lits, type](){
+            bool ret;
+            handleCError(clingo_propagate_control_add_clause(ctl, lits.data(), lits.size(), type, &ret));
+            return ret;
+        }));
     }
 
-    static PyObject *addNogood(PropagateControl *self, PyObject *pyargs, PyObject *pykwds) {
-        return addClauseOrNogood(self, pyargs, pykwds, true);
+    Object addNogood(Reference pyargs, Reference pykwds) {
+        return addClauseOrNogood(pyargs, pykwds, true);
     }
 
-    static PyObject *addClause(PropagateControl *self, PyObject *pyargs, PyObject *pykwds) {
-        return addClauseOrNogood(self, pyargs, pykwds, false);
+    Object addClause(Reference pyargs, Reference pykwds) {
+        return addClauseOrNogood(pyargs, pykwds, false);
     }
 
-    static PyObject *propagate(PropagateControl *self) {
-        PY_TRY
-            return cppToPy(doUnblocked([self](){ return self->ctl->propagate(); })).release();
-        PY_CATCH(nullptr);
+    Object propagate() {
+        return cppToPy(doUnblocked([this](){
+            bool ret;
+            handleCError(clingo_propagate_control_propagate(ctl, &ret));
+            return ret;
+        }));
     }
 
     Object add_literal() {
-        return cppToPy(ctl->addVariable());
+        clingo_literal_t ret;
+        handleCError(clingo_propagate_control_add_literal(ctl, &ret));
+        return cppToPy(ret);
     }
 
     Object add_watch(Reference pyLit) {
-        ctl->addWatch(pyToCpp<clingo_literal_t>(pyLit));
+        handleCError(clingo_propagate_control_add_watch(ctl, pyToCpp<clingo_literal_t>(pyLit)));
         return None();
     }
 
     Object remove_watch(Reference pyLit) {
-        ctl->addWatch(pyToCpp<clingo_literal_t>(pyLit));
+        clingo_propagate_control_remove_watch(ctl, pyToCpp<clingo_literal_t>(pyLit));
         return None();
     }
 
     Object has_watch(Reference pyLit) {
-        return cppToPy(ctl->hasWatch(pyToCpp<clingo_literal_t>(pyLit)));
+        return cppToPy(clingo_propagate_control_has_watch(ctl, pyToCpp<clingo_literal_t>(pyLit)));
     }
 
-    static PyObject *assignment(PropagateControl *self, void *) {
-        return Assignment::construct(const_cast<clingo_assignment_t*>(reinterpret_cast<clingo_assignment_t const *>(&self->ctl->assignment()))).release();
+    Object assignment() {
+        return Assignment::construct(clingo_propagate_control_assignment(ctl));
     }
 };
 
@@ -2796,7 +2802,7 @@ solver thread.
 
 Arguments:
 literal -- the target literal)"},
-    {"add_clause", (PyCFunction)addClause, METH_KEYWORDS | METH_VARARGS, R"(add_clause(self, clause, tag, lock) -> bool
+    {"add_clause", to_function<&PropagateControl::addClause>(), METH_KEYWORDS | METH_VARARGS, R"(add_clause(self, clause, tag, lock) -> bool
 
 Add the given clause to the solver.
 
@@ -2810,17 +2816,17 @@ tag  -- clause applies only in the current solving step
         (Default: False)
 lock -- exclude clause from the solver's regular clause deletion policy
         (Default: False))"},
-    {"add_nogood", (PyCFunction)addNogood, METH_KEYWORDS | METH_VARARGS, R"(add_nogood(self, clause, tag, lock) -> bool
+    {"add_nogood", to_function<&PropagateControl::addNogood>(), METH_KEYWORDS | METH_VARARGS, R"(add_nogood(self, clause, tag, lock) -> bool
 Equivalent to self.add_clause([-lit for lit in clause], tag, lock).)"},
-    {"propagate", (PyCFunction)propagate, METH_NOARGS, R"(propagate(self) -> bool
+    {"propagate", to_function<&PropagateControl::propagate>(), METH_NOARGS, R"(propagate(self) -> bool
 
 Propagate implied literals.)"},
     {nullptr, nullptr, 0, nullptr}
 };
 
 PyGetSetDef PropagateControl::tp_getset[] = {
-    {(char *)"thread_id", (getter)id, nullptr, (char *)R"(The numeric id of the current solver thread.)", nullptr},
-    {(char *)"assignment", (getter)assignment, nullptr, (char *)R"(The partial assignment of the current solver thread.)", nullptr},
+    {(char *)"thread_id", to_getter<&PropagateControl::id>(), nullptr, (char *)R"(The numeric id of the current solver thread.)", nullptr},
+    {(char *)"assignment", to_getter<&PropagateControl::assignment>(), nullptr, (char *)R"(The partial assignment of the current solver thread.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -2841,7 +2847,7 @@ public:
         PyBlock block;
         PY_TRY
             if (!PyObject_HasAttrString(tp_.toPy(), "propagate")) { return; }
-            Object c = PropagateControl::construct(solver);
+            Object c = PropagateControl::construct(reinterpret_cast<clingo_propagate_control_t*>(&solver));
             Object l = cppToPy(changes);
             Object n = PyString_FromString("propagate");
             Object ret = PyObject_CallMethodObjArgs(tp_.toPy(), n.toPy(), c.toPy(), l.toPy(), nullptr);
@@ -2862,7 +2868,7 @@ public:
         PyBlock block;
         PY_TRY
             if (!PyObject_HasAttrString(tp_.toPy(), "check")) { return; }
-            Object c = PropagateControl::construct(solver);
+            Object c = PropagateControl::construct(reinterpret_cast<clingo_propagate_control_t*>(&solver));
             Object n = PyString_FromString("check");
             Object ret = PyObject_CallMethodObjArgs(tp_.toPy(), n.toPy(), c.toPy(), nullptr);
         PY_HANDLE("Propagator::check", "error during check")
