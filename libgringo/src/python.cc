@@ -496,6 +496,11 @@ void pyToCpp(Reference pyPair, std::pair<T, U> &x) {
     if (pyVal.valid()) { throw std::runtime_error("pair expected"); }
 }
 
+void pyToCpp(Reference obj, clingo_symbolic_literal_t &val) {
+    std::pair<symbol_wrapper &, bool &> y{ reinterpret_cast<symbol_wrapper&>(val.symbol), val.positive };
+    pyToCpp(obj, y);
+}
+
 void pyToCpp(Reference pyPair, Potassco::WeightLit_t &x) {
     std::pair<Lit_t &, Weight_t &> y{ x.lit, x.weight };
     pyToCpp(pyPair, y);
@@ -1715,7 +1720,7 @@ Object getStatistics(clingo_statistics_t *stats, uint64_t key) {
 // {{{1 wrap SolveControl
 
 struct SolveControl : ObjectBase<SolveControl> {
-    Gringo::Model const *model;
+    clingo_solve_control_t *ctl;
     static PyMethodDef tp_methods[];
     static constexpr char const *tp_type = "SolveControl";
     static constexpr char const *tp_name = "clingo.SolveControl";
@@ -1725,39 +1730,34 @@ R"(Object that allows for controlling a running search.
 Note that SolveControl objects cannot be constructed from python.  Instead
 they are available as properties of Model objects.)";
 
-    static PyObject *new_(Gringo::Model const &model) {
-        SolveControl *self;
-        self = reinterpret_cast<SolveControl*>(type.tp_alloc(&type, 0));
-        if (!self) { return nullptr; }
-        self->model = &model;
-        return reinterpret_cast<PyObject*>(self);
+    static Object construct(clingo_solve_control_t *ctl) {
+        SolveControl *self = new_();
+        self->ctl = ctl;
+        return self->toPy();
     }
 
-    static PyObject *getClause(SolveControl *self, PyObject *pyLits, bool invert) {
-        PY_TRY
-            using LitVec = std::vector<std::pair<symbol_wrapper, bool>>;
-            auto lits = pyToCpp<LitVec>(pyLits);
-            if (invert) {
-                for (auto &lit : lits) { lit.second = !lit.second; }
-            }
-            // FIXME: evil reinterpret cast
-            self->model->addClause(reinterpret_cast<Gringo::Model::LitVec&>(lits));
-            Py_RETURN_NONE;
-        PY_CATCH(nullptr);
+    Object getClause(Reference pyLits, bool invert) {
+        using LitVec = std::vector<clingo_symbolic_literal_t>;
+        auto lits = pyToCpp<LitVec>(pyLits);
+        if (invert) {
+            for (auto &lit : lits) { lit.positive = !lit.positive; }
+        }
+        handleCError(clingo_solve_control_add_clause(ctl, lits.data(), lits.size()));
+        Py_RETURN_NONE;
     }
 
-    static PyObject *add_clause(SolveControl *self, PyObject *pyLits) {
-        return getClause(self, pyLits, false);
+    Object add_clause(Reference pyLits) {
+        return getClause(pyLits, false);
     }
 
-    static PyObject *add_nogood(SolveControl *self, PyObject *pyLits) {
-        return getClause(self, pyLits, true);
+    Object add_nogood(Reference pyLits) {
+        return getClause(pyLits, true);
     }
 };
 
 PyMethodDef SolveControl::tp_methods[] = {
     // add_clause
-    {"add_clause", (PyCFunction)add_clause, METH_O,
+    {"add_clause", to_function<&SolveControl::add_clause>(), METH_O,
 R"(add_clause(self, lits) -> None
 
 Add a clause that applies to the current solving step during the search.
@@ -1768,7 +1768,7 @@ lits -- list of literals represented as pairs of atoms and Booleans
 Note that this function can only be called in the model callback (or while
 iterating when using a SolveIter).)"},
     // add_nogood
-    {"add_nogood", (PyCFunction)add_nogood, METH_O,
+    {"add_nogood", to_function<&SolveControl::add_nogood>(), METH_O,
 R"(add_nogood(self, lits) -> None
 
 Equivalent to add_clause with the literals inverted.
@@ -1881,7 +1881,7 @@ places like - e.g., the main function.)";
         return cppToPy(oss.str());
     }
     Object getContext() {
-        return SolveControl::new_(*model);
+        return SolveControl::construct(reinterpret_cast<clingo_solve_control_t*>(const_cast<Gringo::Model*>(model)));
     }
 };
 
