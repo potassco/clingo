@@ -2300,48 +2300,47 @@ The list is None if the current object is not an option group.)", nullptr},
 // {{{1 wrap SymbolicAtom
 
 struct SymbolicAtom : public ObjectBase<SymbolicAtom> {
-    Gringo::SymbolicAtoms *atoms;
-    Gringo::SymbolicAtomIter range;
+    clingo_symbolic_atoms_t *atoms;
+    clingo_symbolic_atom_iterator_t range;
 
     static constexpr char const *tp_type = "SymbolicAtom";
     static constexpr char const *tp_name = "clingo.SymbolicAtom";
     static constexpr char const *tp_doc = "Captures a symbolic atom and provides properties to inspect its state.";
     static PyGetSetDef tp_getset[];
 
-    static PyObject *new_(Gringo::SymbolicAtoms &atoms, Gringo::SymbolicAtomIter range) {
-        Object ret(type.tp_alloc(&type, 0));
-        SymbolicAtom *self = reinterpret_cast<SymbolicAtom*>(ret.toPy());
-        self->atoms = &atoms;
+    static Object construct(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t range) {
+        auto self = new_();
+        self->atoms = atoms;
         self->range = range;
-        return ret.release();
+        return self;
     }
-    static PyObject *symbol(SymbolicAtom *self, void *) {
-        PY_TRY
-            return Symbol::construct(clingo_symbol_t{self->atoms->atom(self->range).rep()}).release();
-        PY_CATCH(nullptr);
+    Object symbol() {
+        clingo_symbol_t ret;
+        handleCError(clingo_symbolic_atoms_symbol(atoms, range, &ret));
+        return Symbol::construct(ret);
     }
-    static PyObject *literal(SymbolicAtom *self, void *) {
-        PY_TRY
-            return PyInt_FromLong(self->atoms->literal(self->range));
-        PY_CATCH(nullptr);
+    Object literal() {
+        clingo_literal_t ret;
+        handleCError(clingo_symbolic_atoms_literal(atoms, range, &ret));
+        return cppToPy(ret);
     }
-    static PyObject *is_fact(SymbolicAtom *self, void *) {
-        PY_TRY
-            return cppToPy(self->atoms->fact(self->range)).release();
-        PY_CATCH(nullptr);
+    Object is_fact() {
+        bool ret;
+        handleCError(clingo_symbolic_atoms_is_fact(atoms, range, &ret));
+        return cppToPy(ret);
     }
-    static PyObject *is_external(SymbolicAtom *self, void *) {
-        PY_TRY
-            return cppToPy(self->atoms->external(self->range)).release();
-        PY_CATCH(nullptr);
+    Object is_external() {
+        bool ret;
+        handleCError(clingo_symbolic_atoms_is_external(atoms, range, &ret));
+        return cppToPy(ret);
     }
 };
 
 PyGetSetDef SymbolicAtom::tp_getset[] = {
-    {(char *)"symbol", (getter)symbol, nullptr, (char *)R"(The representation of the atom in form of a symbol (Symbol object).)", nullptr},
-    {(char *)"literal", (getter)literal, nullptr, (char *)R"(The program literal associated with the atom.)", nullptr},
-    {(char *)"is_fact", (getter)is_fact, nullptr, (char *)R"(Wheather the atom is a is_fact.)", nullptr},
-    {(char *)"is_external", (getter)is_external, nullptr, (char *)R"(Wheather the atom is an external atom.)", nullptr},
+    {(char *)"symbol", to_getter<&SymbolicAtom::symbol>(), nullptr, (char *)R"(The representation of the atom in form of a symbol (Symbol object).)", nullptr},
+    {(char *)"literal", to_getter<&SymbolicAtom::literal>(), nullptr, (char *)R"(The program literal associated with the atom.)", nullptr},
+    {(char *)"is_fact", to_getter<&SymbolicAtom::is_fact>(), nullptr, (char *)R"(Wheather the atom is a is_fact.)", nullptr},
+    {(char *)"is_external", to_getter<&SymbolicAtom::is_external>(), nullptr, (char *)R"(Wheather the atom is an external atom.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr},
 };
 
@@ -2367,7 +2366,7 @@ struct SymbolicAtomIter : ObjectBase<SymbolicAtomIter> {
         Gringo::SymbolicAtomIter current = range;
         if (atoms->valid(current)) {
             range = atoms->next(current);
-            return SymbolicAtom::new_(*atoms, current);
+            return SymbolicAtom::construct(atoms, current);
         }
         else {
             PyErr_SetNone(PyExc_StopIteration);
@@ -2450,7 +2449,7 @@ signatures: [('p', 1), ('q', 1)])";
         symbol_wrapper atom;
         pyToCpp(key, atom);
         Gringo::SymbolicAtomIter range = atoms->lookup(Gringo::Symbol{atom.symbol});
-        if (atoms->valid(range)) { return SymbolicAtom::new_(*atoms, range); }
+        if (atoms->valid(range)) { return SymbolicAtom::construct(atoms, range); }
         else                     { Py_RETURN_NONE; }
     }
 
