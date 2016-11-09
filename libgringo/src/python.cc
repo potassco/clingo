@@ -1781,7 +1781,7 @@ lits -- list of pairs of Booleans and atoms representing the nogood)"},
 // {{{1 wrap Model
 
 struct ModelType : EnumType<ModelType> {
-    using Type = Gringo::ModelType;
+    using Type = enum clingo_model_type;
     static constexpr char const *tp_type = "ModelType";
     static constexpr char const *tp_name = "clingo.ModelType";
     static constexpr char const *tp_doc =
@@ -1794,15 +1794,19 @@ SymbolType.StableModel          -- a stable model
 SymbolType.BraveConsequences    -- set of brave consequences
 SymbolType.CautiousConsequences -- set of cautious consequences)";
 
-    static constexpr Type const values[] =          {  Type::StableModel , Type::BraveConsequences , Type::CautiousConsequences };
-    static constexpr const char * const strings[] = { "StableModel"      , "BraveConsequences"     , "CautiousConsequences" };
+    static constexpr Type const values[] = {
+        clingo_model_type_stable_model,
+        clingo_model_type_brave_consequences,
+        clingo_model_type_cautious_consequences
+    };
+    static constexpr const char * const strings[] = { "StableModel", "BraveConsequences", "CautiousConsequences" };
 };
 
 constexpr ModelType::Type const ModelType::values[];
 constexpr const char * const ModelType::strings[];
 
 struct Model : ObjectBase<Model> {
-    Gringo::Model const *model;
+    clingo_model_t *model;
     static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
 
@@ -1820,68 +1824,102 @@ Control.solve_async()).  Furthermore, the lifetime of a model object is limited
 to the scope of the callback. They must not be stored for later use in other
 places like - e.g., the main function.)";
 
-    static PyObject *new_(Gringo::Model const &model) {
-        Model *self;
-        self = reinterpret_cast<Model*>(type.tp_alloc(&type, 0));
-        if (!self) { return nullptr; }
-        self->model = &model;
-        return reinterpret_cast<PyObject*>(self);
+    static Object construct(clingo_model_t *model) {
+        Model *self = new_();
+        self->model = model;
+        return self->toPy();
     }
-    static PyObject *contains(Model *self, PyObject *arg) {
-        PY_TRY
-            symbol_wrapper val;
-            pyToCpp(arg, val);
-            return cppToPy(self->model->contains(Gringo::Symbol{val.symbol})).release();
-        PY_CATCH(nullptr);
+    Object contains(Reference arg) {
+        symbol_wrapper val;
+        pyToCpp(arg, val);
+        bool ret;
+        handleCError(clingo_model_contains(model, val.symbol, &ret));
+        return cppToPy(ret);
     }
-    static PyObject *atoms(Model *self, PyObject *pyargs, PyObject *pykwds) {
-        PY_TRY
-            unsigned atomset = 0;
-            static char const *kwlist[] = {"atoms", "terms", "shown", "csp", "extra", "complement", nullptr};
-            PyObject *pyAtoms = Py_False, *pyTerms = Py_False, *pyShown = Py_False, *pyCSP = Py_False, *pyExtra = Py_False, *pyComp = Py_False;
-            if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "|OOOOOO", const_cast<char**>(kwlist), &pyAtoms, &pyTerms, &pyShown, &pyCSP, &pyExtra, &pyComp)) { return nullptr; }
-            if (pyToCpp<bool>(pyAtoms)) { atomset |= clingo_show_type_atoms; }
-            if (pyToCpp<bool>(pyTerms)) { atomset |= clingo_show_type_terms; }
-            if (pyToCpp<bool>(pyShown)) { atomset |= clingo_show_type_shown; }
-            if (pyToCpp<bool>(pyCSP))   { atomset |= clingo_show_type_csp; }
-            if (pyToCpp<bool>(pyExtra)) { atomset |= clingo_show_type_extra; }
-            if (pyToCpp<bool>(pyComp))  { atomset |= clingo_show_type_complement; }
-            // FIXME: evil reinterpret cast
-            auto vec = self->model->atoms(atomset);
-            auto fst = reinterpret_cast<symbol_wrapper const *>(vec.first);
-            return cppRngToPy(fst, fst + vec.size).release();
-        PY_CATCH(nullptr);
+    Object atoms(Reference pyargs, Reference pykwds) {
+        clingo_show_type_bitset_t atomset = 0;
+        static char const *kwlist[] = {"atoms", "terms", "shown", "csp", "extra", "complement", nullptr};
+        Reference pyAtoms = Py_False, pyTerms = Py_False, pyShown = Py_False, pyCSP = Py_False, pyExtra = Py_False, pyComp = Py_False;
+        ParseTupleAndKeywords(pyargs, pykwds, "|OOOOOO", const_cast<char**>(kwlist), pyAtoms, pyTerms, pyShown, pyCSP, pyExtra, pyComp);
+        if (pyToCpp<bool>(pyAtoms)) { atomset |= clingo_show_type_atoms; }
+        if (pyToCpp<bool>(pyTerms)) { atomset |= clingo_show_type_terms; }
+        if (pyToCpp<bool>(pyShown)) { atomset |= clingo_show_type_shown; }
+        if (pyToCpp<bool>(pyCSP))   { atomset |= clingo_show_type_csp; }
+        if (pyToCpp<bool>(pyExtra)) { atomset |= clingo_show_type_extra; }
+        if (pyToCpp<bool>(pyComp))  { atomset |= clingo_show_type_complement; }
+        size_t size;
+        handleCError(clingo_model_symbols_size(model, atomset, &size));
+        std::vector<symbol_wrapper> ret(size);
+        auto fst = reinterpret_cast<clingo_symbol_t*>(ret.data());
+        handleCError(clingo_model_symbols(model, atomset, fst, size));
+        return cppToPy(ret);
     }
     Object cost() {
-        return cppToPy(model->optimization());
+        size_t size;
+        handleCError(clingo_model_cost_size(model, &size));
+        std::vector<int64_t> ret(size);
+        handleCError(clingo_model_cost(model, ret.data(), size));
+        return cppToPy(ret);
     }
     Object thread_id() {
-        return cppToPy(model->threadId());
+        clingo_id_t id;
+        clingo_solve_control_t *ctl;
+        handleCError(clingo_model_context(model, &ctl));
+        handleCError(clingo_solve_control_thread_id(ctl, &id));
+        return cppToPy(id);
     }
     Object optimality_proven() {
-        return cppToPy(model->optimality_proven());
+        bool ret;
+        handleCError(clingo_model_optimality_proven(model, &ret));
+        return cppToPy(ret);
     }
     Object number() {
-        return cppToPy(model->number());
+        uint64_t ret;
+        handleCError(clingo_model_number(model, &ret));
+        return cppToPy(ret);
     }
     Object model_type() {
-        return ModelType::getAttr(model->type());
+        clingo_model_type_t ret;
+        handleCError(clingo_model_type(model, &ret));
+        return ModelType::getAttr(ret);
     }
     Object tp_repr() {
-        auto printAtom = [](std::ostream &out, Gringo::Symbol val) {
-            auto sig = val.sig();
-            if (val.type() == Gringo::SymbolType::Fun && sig.name() == "$" && sig.arity() == 2) {
-                auto args = val.args().first;
-                out << args[0] << "=" << args[1];
+        std::vector<char> buf;
+        auto printSymbol = [&buf](std::ostream &out, clingo_symbol_t val) {
+            size_t size;
+            handleCError(clingo_symbol_to_string_size(val, &size));
+            buf.resize(size);
+            handleCError(clingo_symbol_to_string(val, buf.data(), size));
+            out << buf.data();
+        };
+        auto printAtom = [printSymbol](std::ostream &out, clingo_symbol_t val) {
+            if (clingo_symbol_type_function == clingo_symbol_type(val)) {
+                char const *name;
+                clingo_symbol_t const *args;
+                size_t size;
+                handleCError(clingo_symbol_name(val, &name));
+                handleCError(clingo_symbol_arguments(val, &args, &size));
+                if (size == 2) {
+                    printSymbol(out, args[0]);
+                    out << "=";
+                    printSymbol(out, args[1]);
+                }
+                else { printSymbol(out, val); }
             }
-            else { out << val; }
+            else { printSymbol(out, val); }
         };
         std::ostringstream oss;
-        print_comma(oss, model->atoms(clingo_show_type_shown), " ", printAtom);
+        size_t size;
+        handleCError(clingo_model_symbols_size(model, clingo_show_type_shown, &size));
+        std::vector<clingo_symbol_t> ret(size);
+        handleCError(clingo_model_symbols(model, clingo_show_type_shown, ret.data(), size));
+        print_comma(oss, ret, " ", printAtom);
         return cppToPy(oss.str());
     }
     Object getContext() {
-        return SolveControl::construct(reinterpret_cast<clingo_solve_control_t*>(const_cast<Gringo::Model*>(model)));
+        clingo_solve_control_t *ctl;
+        handleCError(clingo_model_context(model, &ctl));
+        return SolveControl::construct(ctl);
     }
 };
 
@@ -1899,7 +1937,7 @@ The return values correspond to clasp's cost output.)", nullptr},
 };
 
 PyMethodDef Model::tp_methods[] = {
-    {"symbols", (PyCFunction)atoms, METH_VARARGS | METH_KEYWORDS,
+    {"symbols", to_function<&Model::atoms>(), METH_VARARGS | METH_KEYWORDS,
 R"(symbols(self, atoms, terms, shown, csp, extra, complement)
         -> list of terms
 
@@ -1923,7 +1961,7 @@ complement -- return the complement of the answer set w.r.t. to the Herbrand
 Note that atoms are represented using functions (Symbol objects), and that CSP
 assignments are represented using functions with name "$" where the first
 argument is the name of the CSP variable and the second its value.)"},
-    {"contains", (PyCFunction)contains, METH_O,
+    {"contains", to_function<&Model::contains>(), METH_O,
 R"(contains(self, a) -> bool
 
 Check if an atom a is contained in the model.
@@ -2056,7 +2094,7 @@ thread-safe though.)";
     }
     Object tp_iternext() {
         if (Gringo::Model const *m = doUnblocked([this]() { return solve_iter->next(); })) {
-            return Model::new_(*m);
+            return Model::construct(const_cast<clingo_model_t*>(m));
         } else {
             PyErr_SetNone(PyExc_StopIteration);
             return nullptr;
@@ -5329,7 +5367,7 @@ active; you must not call any member function during search.)";
     }
     static bool on_model(Gringo::Model const &m, PyObject *mh) {
         PY_TRY
-            Object model(Model::new_(m));
+            auto model = Model::construct(const_cast<clingo_model_t*>(&m));
             Object ret = PyObject_CallFunction(mh, const_cast<char*>("O"), model.toPy());
             if (ret.none()) { return true; }
             else            { return pyToCpp<bool>(ret); }
