@@ -2379,7 +2379,7 @@ struct SymbolicAtomIter : ObjectBase<SymbolicAtomIter> {
 // {{{1 wrap SymbolicAtoms
 
 struct SymbolicAtoms : ObjectBase<SymbolicAtoms> {
-    Gringo::SymbolicAtoms *atoms;
+    clingo_symbolic_atoms_t *atoms;
     static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
 
@@ -2432,58 +2432,67 @@ p(3) False False
 p(2) False True
 signatures: [('p', 1), ('q', 1)])";
 
-    static PyObject *new_(Gringo::SymbolicAtoms &atoms) {
-        Object ret(type.tp_alloc(&type, 0));
-        if (!ret.valid()) { return nullptr; }
-        SymbolicAtoms *self = reinterpret_cast<SymbolicAtoms*>(ret.toPy());
-        self->atoms = &atoms;
-        return ret.release();
+    static Object construct(clingo_symbolic_atoms_t *atoms) {
+        auto self = new_();
+        self->atoms = atoms;
+        return self;
     }
 
     Py_ssize_t mp_length() {
-        return atoms->length();
+        size_t size;
+        handleCError(clingo_symbolic_atoms_size(atoms, &size));
+        return size;
     }
 
-    Object tp_iter() { return SymbolicAtomIter::construct(atoms, atoms->begin()); }
+    Object tp_iter() {
+        clingo_symbolic_atom_iterator_t ret;
+        handleCError(clingo_symbolic_atoms_begin(atoms, nullptr, &ret));
+        return SymbolicAtomIter::construct(atoms, ret);
+    }
 
     Object mp_subscript(Reference key) {
         symbol_wrapper atom;
         pyToCpp(key, atom);
-        Gringo::SymbolicAtomIter range = atoms->lookup(Gringo::Symbol{atom.symbol});
-        if (atoms->valid(range)) { return SymbolicAtom::construct(atoms, range); }
-        else                     { Py_RETURN_NONE; }
+        clingo_symbolic_atom_iterator_t range;
+        handleCError(clingo_symbolic_atoms_find(atoms, atom.symbol, &range));
+        bool valid;
+        handleCError(clingo_symbolic_atoms_is_valid(atoms, range, &valid));
+        if (valid) { return SymbolicAtom::construct(atoms, range); }
+        else       { Py_RETURN_NONE; }
     }
 
-    static PyObject* by_signature(SymbolicAtoms *self, PyObject *pyargs, PyObject *pykwds) {
-        PY_TRY
-            char const *name;
-            int arity;
-            PyObject *pos = Py_True;
-            char const *kwlist[] = {"name", "arity", "positive"};
-            if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "si|O", const_cast<char**>(kwlist), &name, &arity, &pos)) { return nullptr; }
-            Gringo::SymbolicAtomIter range = self->atoms->begin(Sig(name, arity, !pyToCpp<bool>(pos)));
-            return SymbolicAtomIter::construct(self->atoms, range).release();
-        PY_CATCH(nullptr);
+    Object by_signature(Reference pyargs, Reference pykwds) {
+        char const *name;
+        int arity;
+        PyObject *pos = Py_True;
+        char const *kwlist[] = {"name", "arity", "positive"};
+        ParseTupleAndKeywords(pyargs, pykwds, "si|O", kwlist, name, arity, pos);
+        clingo_symbolic_atom_iterator_t ret;
+        clingo_signature_t sig;
+        handleCError(clingo_signature_create(name, arity, pyToCpp<bool>(pos), &sig));
+        handleCError(clingo_symbolic_atoms_begin(atoms, &sig, &ret));
+        return SymbolicAtomIter::construct(atoms, ret);
     }
 
-    static PyObject* signatures(SymbolicAtoms *self, void *) {
-        PY_TRY
-            auto ret = self->atoms->signatures();
-            Object pyRet = PyList_New(ret.size());
-            int i = 0;
-            for (auto &sig : ret) {
-                Object pos = cppToPy(!sig.sign());
-                Object pySig = Py_BuildValue("(siO)", sig.name().c_str(), (int)sig.arity(), pos.toPy());
-                if (PyList_SetItem(pyRet.toPy(), i, pySig.release()) < 0) { return nullptr; }
-                ++i;
-            }
-            return pyRet.release();
-        PY_CATCH(nullptr);
+    Object signatures() {
+        size_t size;
+        handleCError(clingo_symbolic_atoms_signatures_size(atoms, &size));
+        std::vector<clingo_signature_t> ret(size);
+        handleCError(clingo_symbolic_atoms_signatures(atoms, ret.data(), size));
+        List pyRet;
+        for (auto &sig : ret) {
+            pyRet.append(Tuple{
+                cppToPy(clingo_signature_name(sig)),
+                cppToPy(clingo_signature_arity(sig)),
+                cppToPy(clingo_signature_is_positive(sig))
+            });
+        }
+        return pyRet;
     }
 };
 
 PyMethodDef SymbolicAtoms::tp_methods[] = {
-    {"by_signature", (PyCFunction)by_signature, METH_KEYWORDS | METH_VARARGS,
+    {"by_signature", to_function<&SymbolicAtoms::by_signature>(), METH_KEYWORDS | METH_VARARGS,
 R"(by_signature(self, name, arity, positive) -> SymbolicAtomIter
 
 Return an iterator over the symbolic atoms with the given signature.
@@ -2497,7 +2506,7 @@ positive -- the sign of the signature
 };
 
 PyGetSetDef SymbolicAtoms::tp_getset[] = {
-    {(char *)"signatures", (getter)signatures, nullptr, (char *)
+    {(char *)"signatures", to_getter<&SymbolicAtoms::signatures>(), nullptr, (char *)
 R"(The list of predicate signatures (triples of names, arities, and Booleans)
 occurring in the program. A true Boolean stands for a positive signature.)"
     , nullptr},
@@ -2537,7 +2546,7 @@ condition ids to solver literals.)";
     }
 
     static PyObject *symbolicAtoms(PropagateInit *self, void *) {
-        return SymbolicAtoms::new_(self->init->getDomain());
+        return SymbolicAtoms::construct(&self->init->getDomain()).release();
     }
 
     static PyObject *numThreads(PropagateInit *self, void *) {
@@ -5561,7 +5570,7 @@ active; you must not call any member function during search.)";
         PY_CATCH(nullptr);
     }
     static PyObject *symbolicAtoms(ControlWrap *self, void *) {
-        return SymbolicAtoms::new_(self->ctl->getDomain());
+        return SymbolicAtoms::construct(&self->ctl->getDomain()).release();
     }
     Object theoryIter() {
         checkBlocked(this, "theory_atoms");
