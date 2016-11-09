@@ -2516,7 +2516,7 @@ occurring in the program. A true Boolean stands for a positive signature.)"
 // {{{1 wrap PropagateInit
 
 struct PropagateInit : ObjectBase<PropagateInit> {
-    Gringo::PropagateInit *init;
+    clingo_propagate_init_t *init;
     static constexpr char const *tp_type = "PropagateInit";
     static constexpr char const *tp_name = "clingo.PropagateInit";
     static constexpr char const *tp_doc = R"(
@@ -2535,57 +2535,54 @@ condition ids to solver literals.)";
     static PyGetSetDef tp_getset[];
 
     using ObjectBase<PropagateInit>::new_;
-    static Object construct(Gringo::PropagateInit &init) {
+    static Object construct(clingo_propagate_init_t *init) {
         auto self = new_();
-        self->init = &init;
+        self->init = init;
         return self;
     }
 
     Object theoryIter() {
-        return TheoryAtomIter::construct(const_cast<Gringo::TheoryData*>(&init->theory()), 0);
+        clingo_theory_atoms_t *atoms;
+        handleCError(clingo_propagate_init_theory_atoms(init, &atoms));
+        return TheoryAtomIter::construct(atoms, 0);
     }
 
-    static PyObject *symbolicAtoms(PropagateInit *self, void *) {
-        return SymbolicAtoms::construct(&self->init->getDomain()).release();
+    Object symbolicAtoms() {
+        clingo_symbolic_atoms_t *atoms;
+        handleCError(clingo_propagate_init_symbolic_atoms(init, &atoms));
+        return SymbolicAtoms::construct(atoms);
     }
 
-    static PyObject *numThreads(PropagateInit *self, void *) {
-        PY_TRY
-            return PyInt_FromLong(self->init->threads());
-        PY_CATCH(nullptr);
+    Object numThreads() {
+        return cppToPy(clingo_propagate_init_number_of_threads(init));
     }
 
-    static PyObject *mapLit(PropagateInit *self, PyObject *lit) {
-        PY_TRY
-            auto l = pyToCpp<Lit_t>(lit);
-            Lit_t r = self->init->mapLit(l);
-            return PyInt_FromLong(r);
-        PY_CATCH(nullptr);
+    Object mapLit(Reference lit) {
+        clingo_literal_t ret;
+        handleCError(clingo_propagate_init_solver_literal(init, pyToCpp<clingo_literal_t>(lit), &ret));
+        return cppToPy(ret);
     }
 
-    static PyObject *addWatch(PropagateInit *self, PyObject *lit) {
-        PY_TRY
-            auto l = pyToCpp<Lit_t>(lit);
-            self->init->addWatch(l);
-            Py_RETURN_NONE;
-        PY_CATCH(nullptr);
+    Object addWatch(Reference lit) {
+        handleCError(clingo_propagate_init_add_watch(init, pyToCpp<clingo_literal_t>(lit)));
+        Py_RETURN_NONE;
     }
 };
 
 PyMethodDef PropagateInit::tp_methods[] = {
-    {"add_watch", (PyCFunction)addWatch, METH_O, R"(add_watch(self, lit) -> None
+    {"add_watch", to_function<&PropagateInit::addWatch>(), METH_O, R"(add_watch(self, lit) -> None
 
 Add a watch for the solver literal in the given phase.)"},
-    {"solver_literal", (PyCFunction)mapLit, METH_O, R"(solver_literal(self, lit) -> int
+    {"solver_literal", to_function<&PropagateInit::mapLit>(), METH_O, R"(solver_literal(self, lit) -> int
 
 Map the given program literal or condition id to its solver literal.)"},
     {nullptr, nullptr, 0, nullptr}
 };
 
 PyGetSetDef PropagateInit::tp_getset[] = {
-    {(char *)"symbolic_atoms", (getter)symbolicAtoms, nullptr, (char *)R"(The symbolic atoms captured by a SymbolicAtoms object.)", nullptr},
+    {(char *)"symbolic_atoms", to_getter<&PropagateInit::symbolicAtoms>(), nullptr, (char *)R"(The symbolic atoms captured by a SymbolicAtoms object.)", nullptr},
     {(char *)"theory_atoms", to_getter<&PropagateInit::theoryIter>(), nullptr, (char *)R"(A TheoryAtomIter object to iterate over all theory atoms.)", nullptr},
-    {(char *)"number_of_threads", (getter)numThreads, nullptr, (char *) R"(The number of solver threads used in the corresponding solve call.)", nullptr},
+    {(char *)"number_of_threads", to_getter<&PropagateInit::numThreads>(), nullptr, (char *) R"(The number of solver threads used in the corresponding solve call.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -2849,7 +2846,7 @@ public:
     void init(Gringo::PropagateInit &init) override {
         PyBlock block;
         PY_TRY
-            Object i = PropagateInit::construct(init);
+            Object i = PropagateInit::construct(&init);
             Object n = PyString_FromString("init");
             Object ret = PyObject_CallMethodObjArgs(tp_.toPy(), n.toPy(), i.toPy(), nullptr);
         PY_HANDLE("Propagator::init", "error during initialization")
