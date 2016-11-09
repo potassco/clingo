@@ -106,7 +106,7 @@ struct SolveIter {
 // {{{1 declaration of ConfigProxy
 
 struct ConfigProxy {
-    virtual bool hasSubKey(unsigned key, char const *name, unsigned* subKey = nullptr) = 0;
+    virtual bool hasSubKey(unsigned key, char const *name) = 0;
     virtual unsigned getSubKey(unsigned key, char const *name) = 0;
     virtual unsigned getArrKey(unsigned key, unsigned idx) = 0;
     virtual void getKeyInfo(unsigned key, int* nSubkeys = 0, int* arrLen = 0, const char** help = 0, int* nValues = 0) const = 0;

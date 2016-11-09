@@ -243,7 +243,7 @@ public:
 
     // {{{2 ConfigProxy interface
 
-    bool hasSubKey(unsigned key, char const *name, unsigned* subKey = nullptr) override;
+    bool hasSubKey(unsigned key, char const *name) override;
     unsigned getSubKey(unsigned key, char const *name) override;
     unsigned getArrKey(unsigned key, unsigned idx) override;
     void getKeyInfo(unsigned key, int* nSubkeys = 0, int* arrLen = 0, const char** help = 0, int* nValues = 0) const override;

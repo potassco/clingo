@@ -1493,9 +1493,9 @@ struct Configuration {
         if (strcmp("keys", name) == 0) { return keys(L); }
         bool desc = strncmp("__desc_", name, 7) == 0;
         if (desc) { name += 7; }
-        unsigned key;
-        bool hasSubKey = PROTECT(self.proxy->hasSubKey(self.key, name, &key));
+        bool hasSubKey = PROTECT(self.proxy->hasSubKey(self.key, name));
         if (hasSubKey) {
+            auto key = PROTECT(self.proxy->getSubKey(self.key, name));
             new_(L, key, *self.proxy);
             auto &sub = *(Configuration *)lua_touserdata(L, -1);
             if (desc) {
@@ -1521,9 +1521,9 @@ struct Configuration {
     static int newindex(lua_State *L) {
         auto &self = *(Configuration *)luaL_checkudata(L, 1, typeName);
         char const *name = luaL_checkstring(L, 2);
-        unsigned key;
-        bool hasSubKey = protect(L, [self, name, &key] { return self.proxy->hasSubKey(self.key, name, &key); });
+        bool hasSubKey = protect(L, [self, name] { return self.proxy->hasSubKey(self.key, name); });
         if (hasSubKey) {
+            auto key = PROTECT(self.proxy->getSubKey(self.key, name));
             const char *value = lua_tostring(L, 3);
             protect(L, [self, key, value]() { self.proxy->setKeyValue(key, value); });
             lua_pushstring(L, value);

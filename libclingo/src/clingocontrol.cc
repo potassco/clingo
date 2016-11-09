@@ -279,9 +279,9 @@ void ClingoControl::load(std::string const &filename) {
     parser_->pushFile(std::string(filename), logger_);
     parse();
 }
-bool ClingoControl::hasSubKey(unsigned key, char const *name, unsigned* subKey) {
-    *subKey = claspConfig_.getKey(key, name);
-    return *subKey != Clasp::Cli::ClaspCliConfig::KEY_INVALID;
+bool ClingoControl::hasSubKey(unsigned key, char const *name) {
+    unsigned subkey = claspConfig_.getKey(key, name);
+    return subkey != Clasp::Cli::ClaspCliConfig::KEY_INVALID;
 }
 unsigned ClingoControl::getSubKey(unsigned key, char const *name) {
     unsigned ret = claspConfig_.getKey(key, name);

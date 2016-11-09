@@ -1771,6 +1771,16 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_configuration_array_at(clingo_configuratio
 //! @param[out] size the resulting number
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_configuration_map_size(clingo_configuration_t *configuration, clingo_id_t key, size_t* size);
+//! Query whether the map has a key.
+//!
+//! @pre The @link clingo_configuration_type() type@endlink of the entry must be @ref ::clingo_configuration_type_map.
+//! @note Multiple levels can be looked up by concatenating keys with a period.
+//! @param[in] configuration the target configuration
+//! @param[in] key the key
+//! @param[in] name the name to lookup the subkey
+//! @param[out] result whether the key is in the map
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_configuration_map_has_subkey(clingo_configuration_t *configuration, clingo_id_t key, char const *name, bool *result);
 //! Get the name associated with the offset-th subkey.
 //!
 //! @pre The @link clingo_configuration_type() type@endlink of the entry must be @ref ::clingo_configuration_type_map.

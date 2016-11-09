@@ -97,8 +97,10 @@ void incRef(T *object) {
 struct PyException : std::exception { };
 
 struct Iter;
-struct Object;
 struct Reference;
+template <class T>
+struct SharedObject;
+using Object = SharedObject<PyObject>;
 
 template <class T>
 struct ObjectProtocoll {
@@ -159,27 +161,33 @@ struct Reference : ObjectProtocoll<Reference> {
     PyObject *obj;
 };
 
-struct Object : ObjectProtocoll<Object>{
-    Object() : obj(nullptr) { }
-    Object(std::nullptr_t) : Object() { }
-    template <class T>
-    Object(T const &x) : obj{x.toPy()} { Py_XINCREF(obj); }
-    Object(PyObject *obj) : obj(obj) {
+
+template <class T>
+struct SharedObject : ObjectProtocoll<SharedObject<T>>{
+    SharedObject() : obj(nullptr) { }
+    SharedObject(std::nullptr_t) : Object() { }
+    template <class U>
+    SharedObject(U const &x) : obj{x.toPy()} { Py_XINCREF(obj); }
+    SharedObject(T *obj) : obj(obj) {
         if (!obj && PyErr_Occurred()) { throw PyException(); }
     }
-    Object(Object const &other) : obj(other.toPy()) {
+    SharedObject(SharedObject const &other) : obj(other.toPy()) {
         Py_XINCREF(obj);
     }
-    Object(Object &&other) : obj(nullptr) {
+    SharedObject(SharedObject &&other) : obj(nullptr) {
         std::swap(other.obj, obj);
     }
-    PyObject *toPy() const                 { return obj; }
-    PyObject *release()                    { PyObject *ret = obj; obj = nullptr; return ret; }
-    Object &operator=(Object const &other) { Py_XDECREF(obj); obj = other.obj; Py_XINCREF(obj); return *this; }
-    Object &operator=(Object &&other)      { std::swap(obj, other.obj); return *this; }
-    ~Object()                              { Py_XDECREF(obj); }
-    PyObject *obj;
+    T *operator->() { return obj; }
+    T *operator->() const { return obj; }
+    PyObject *toPy() const                             { return reinterpret_cast<PyObject*>(obj); }
+    PyObject *release()                                { PyObject *ret = toPy(); obj = nullptr; return ret; }
+    SharedObject &operator=(SharedObject const &other) { Py_XDECREF(obj); obj = other.obj; Py_XINCREF(obj); return *this; }
+    SharedObject &operator=(SharedObject &&other)      { std::swap(obj, other.obj); return *this; }
+    ~SharedObject()                                    { Py_XDECREF(obj); }
+    T *obj;
 };
+
+using Object = SharedObject<PyObject>;
 
 struct Iter : Object {
     Iter(Object iter)
@@ -925,11 +933,11 @@ struct ObjectBase : ObjectProtocoll<T> {
         return true;
     }
 
-    static T *new_() {
+    static SharedObject<T> new_() {
         return new_(&type, nullptr, nullptr);
     }
 
-    static T *new_(PyTypeObject *type, PyObject *, PyObject *) {
+    static SharedObject<T> new_(PyTypeObject *type, PyObject *, PyObject *) {
         T *self;
         self = reinterpret_cast<T*>(type->tp_alloc(type, 0));
         if (!self) { throw PyException(); }
@@ -1148,10 +1156,10 @@ This are read-only objects, which can be obtained from theory atoms and
 elements.)";
 
     static Object construct(clingo_theory_atoms_t *atoms, clingo_id_t value) {
-        TheoryTerm *self = new_();
+        auto self = new_();
         self->value = value;
         self->atoms = atoms;
-        return self->toPy();
+        return self;
     }
     Object name() {
         char const *ret;
@@ -1222,10 +1230,10 @@ R"(TheoryElement objects represent theory elements which consist of a tuple of
 terms and a set of literals.)";
     static PyGetSetDef tp_getset[];
     static Object construct(clingo_theory_atoms *atoms, clingo_id_t value) {
-        TheoryElement *self = new_();
+        auto self = new_();
         self->value = value;
         self->atoms = atoms;
-        return self->toPy();
+        return self;
     }
     Object terms() {
         clingo_id_t const *ret;
@@ -1292,10 +1300,10 @@ struct TheoryAtom : ObjectBase<TheoryAtom> {
     static constexpr char const *tp_name = "clingo.TheoryAtom";
     static constexpr char const *tp_doc = R"(TheoryAtom objects represent theory atoms.)";
     static Object construct(clingo_theory_atoms_t *atoms, clingo_id_t value) {
-        TheoryAtom *self = new_();
+        auto self = new_();
         self->value = value;
         self->atoms = atoms;
-        return self->toPy();
+        return self;
     }
     Object elements() {
         clingo_id_t const *ret;
@@ -1370,10 +1378,10 @@ struct TheoryAtomIter : ObjectBase<TheoryAtomIter> {
     static constexpr char const *tp_doc =
 R"(Object to iterate over all theory atoms.)";
     static Object construct(clingo_theory_atoms_t *atoms, clingo_id_t offset) {
-        TheoryAtomIter *self = new_();
+        auto self = new_();
         self->atoms = atoms;
         self->offset = offset;
-        return self->toPy();
+        return self;
     }
     Reference tp_iter() { return *this; }
     Object get() { return TheoryAtom::construct(atoms, offset); }
@@ -1471,9 +1479,9 @@ preconstructed symbols Infimum and Supremum.)";
             return sup;
         }
         else {
-            Symbol *self = new_();
+            auto self = new_();
             self->val = value;
-            return self->toPy();
+            return self;
         }
     }
 
@@ -1629,9 +1637,9 @@ R"(Captures the result of a solve call.
 SolveResult objects cannot be constructed from python. Instead they
 are returned by the solve methods of the Control object.)";
     static Object construct(clingo_solve_result_bitset_t result) {
-        SolveResult *self = new_();
+        auto self = new_();
         self->result = result;
-        return self->toPy();
+        return self;
     }
     Object satisfiable() {
         if (result & clingo_solve_result_satisfiable) { Py_RETURN_TRUE; }
@@ -1736,9 +1744,9 @@ Note that SolveControl objects cannot be constructed from python.  Instead
 they are available as properties of Model objects.)";
 
     static Object construct(clingo_solve_control_t *ctl) {
-        SolveControl *self = new_();
+        auto self = new_();
         self->ctl = ctl;
-        return self->toPy();
+        return self;
     }
 
     Object getClause(Reference pyLits, bool invert) {
@@ -1830,9 +1838,9 @@ to the scope of the callback. They must not be stored for later use in other
 places like - e.g., the main function.)";
 
     static Object construct(clingo_model_t *model) {
-        Model *self = new_();
+        auto self = new_();
         self->model = model;
-        return self->toPy();
+        return self;
     }
     Object contains(Reference arg) {
         symbol_wrapper val;
@@ -1998,13 +2006,13 @@ Functions in this object release the GIL. They are not thread-safe though.
 See Control.solve_async for an example.)";
 
     static Object construct(clingo_solve_async_t *future, PyObject *mh, PyObject *fh) {
-        SolveFuture *self = new_();
+        auto self = new_();
         self->future = future;
         self->mh = mh;
         self->fh = fh;
         Py_XINCREF(self->mh);
         Py_XINCREF(self->fh);
-        return self->toPy();
+        return self;
     }
 
     void tp_dealloc() {
@@ -2091,10 +2099,10 @@ R"(Object to conveniently iterate over all models.
 During solving the GIL is released. The functions in this object are not
 thread-safe though.)";
 
-    static PyObject *construct(clingo_solve_iteratively_t *iter) {
-        SolveIter *self = new_();
+    static Object construct(clingo_solve_iteratively_t *iter) {
+        auto self = new_();
         self->solve_iter = iter;
-        return self->toPy();
+        return self;
     }
     Reference tp_iter() { return *this; }
     Object get() {
@@ -2148,12 +2156,8 @@ Stops the current search. It is necessary to call this method after each search.
 // {{{1 wrap Configuration
 
 struct Configuration : ObjectBase<Configuration> {
-    unsigned key;
-    int nSubkeys;
-    int arrLen;
-    int nValues;
-    char const* help;
-    Gringo::ConfigProxy *proxy;
+    clingo_configuration_t *conf;
+    clingo_id_t key;
     static PyGetSetDef tp_getset[];
 
     static constexpr char const *tp_type = "Configuration";
@@ -2197,80 +2201,96 @@ Expected Answer Sets:
 
 { {}, {a}, {c}, {a,c} })";
 
-    static PyObject *new_(unsigned key, Gringo::ConfigProxy &proxy) {
-        PY_TRY
-            Object ret(type.tp_alloc(&type, 0));
-            if (!ret.valid()) { return nullptr; }
-            Configuration *self = reinterpret_cast<Configuration*>(ret.toPy());
-            self->proxy = &proxy;
-            self->key   = key;
-            self->proxy->getKeyInfo(self->key, &self->nSubkeys, &self->arrLen, &self->help, &self->nValues);
-            return ret.release();
-        PY_CATCH(nullptr);
+    static Object construct(unsigned key, clingo_configuration_t *conf) {
+        auto self = new_();
+        self->conf = conf;
+        self->key  = key;
+        return self;
     }
 
-    static PyObject *keys(Configuration *self, void *) {
-        PY_TRY
-            if (self->nSubkeys < 0) { Py_RETURN_NONE; }
-            else {
-                Object list = PyList_New(self->nSubkeys);
-                for (int i = 0; i < self->nSubkeys; ++i) {
-                    char const *key = self->proxy->getSubKeyName(self->key, i);
-                    Object pyString = PyString_FromString(key);
-                    if (PyList_SetItem(list.toPy(), i, pyString.release()) < 0) { return nullptr; }
-                }
-                return list.release();
+    Object keys() {
+        clingo_configuration_type_bitset_t type;
+        handleCError(clingo_configuration_type(conf, key, &type));
+        List list;
+        if (type & clingo_configuration_type_map) {
+            size_t size;
+            handleCError(clingo_configuration_map_size(conf, key, &size));
+            for (size_t i = 0; i < size; ++i) {
+                char const *name;
+                handleCError(clingo_configuration_map_subkey_name(conf, key, i, &name));
+                list.append(cppToPy(name));
             }
-        PY_CATCH(nullptr);
+        }
+        return list;
     }
 
     Object tp_getattro(Reference name) {
         auto current = pyToCpp<char const *>(name);
         bool desc = strncmp("__desc_", current, 7) == 0;
         if (desc) { current += 7; }
-        unsigned subkey;
-        if (proxy->hasSubKey(key, current, &subkey)) {
-            Object subKey(new_(subkey, *proxy));
-            Configuration *sub = reinterpret_cast<Configuration*>(subKey.toPy());
-            if (desc) { return PyString_FromString(sub->help); }
-            else if (sub->nValues < 0) { return subKey; }
-            else {
-                std::string value;
-                if (!sub->proxy->getKeyValue(sub->key, value)) { Py_RETURN_NONE; }
-                return PyString_FromString(value.c_str());
+        clingo_configuration_type_bitset_t type;
+        handleCError(clingo_configuration_type(conf, key, &type));
+        if (type & clingo_configuration_type_map) {
+            bool haskey;
+            handleCError(clingo_configuration_map_has_subkey(conf, key, current, &haskey));
+            if (haskey) {
+                clingo_id_t subkey;
+                handleCError(clingo_configuration_map_at(conf, key, current, &subkey));
+                if (desc) {
+                    char const *ret;
+                    handleCError(clingo_configuration_description(conf, subkey, &ret));
+                    return cppToPy(ret);
+                }
+                else {
+                    handleCError(clingo_configuration_type(conf, subkey, &type));
+                    if (type & clingo_configuration_type_value) {
+                        bool assigned;
+                        handleCError(clingo_configuration_value_is_assigned(conf, subkey, &assigned));
+                        if (!assigned) { Py_RETURN_TRUE; }
+                        size_t size;
+                        handleCError(clingo_configuration_value_get_size(conf, subkey, &size));
+                        std::vector<char> ret(size);
+                        handleCError(clingo_configuration_value_get(conf, subkey, ret.data(), size));
+                        return cppToPy(ret.data());
+                    }
+                    else { return construct(subkey, conf); }
+                }
             }
         }
-        return PyObject_GenericGetAttr(reinterpret_cast<PyObject*>(this), name.toPy());
+        return PyObject_GenericGetAttr(toPy(), name.toPy());
     }
 
     void tp_setattro(Reference name, Reference pyValue) {
         char const *current = pyToCpp<char const *>(name);
-        unsigned subkey;
-        if (proxy->hasSubKey(key, current, &subkey)) {
-            char const *value = pyToCpp<char const *>(pyValue.str());
-            proxy->setKeyValue(subkey, value);
-        }
-        else {
-            if (PyObject_GenericSetAttr(reinterpret_cast<PyObject*>(this), name.toPy(), pyValue.toPy()) < 0) { throw PyException(); }
-        }
+        clingo_id_t subkey;
+        handleCError(clingo_configuration_map_at(conf, key, current, &subkey));
+        handleCError(clingo_configuration_value_set(conf, subkey, pyToCpp<char const *>(pyValue.str())));
     }
 
     Py_ssize_t sq_length() {
-        return arrLen;
+        clingo_configuration_type_bitset_t type;
+        handleCError(clingo_configuration_type(conf, key, &type));
+        size_t size = 0;
+        if (type & clingo_configuration_type_array) {
+            handleCError(clingo_configuration_array_size(conf, key, &size));
+        }
+        return size;
     }
 
     Object sq_item(Py_ssize_t index) {
-        if (index < 0 || index >= arrLen) {
+        if (index < 0 || index >= sq_length()) {
             PyErr_Format(PyExc_IndexError, "invalid index");
             return nullptr;
         }
-        return new_(proxy->getArrKey(key, index), *proxy);
+        clingo_id_t subkey;
+        handleCError(clingo_configuration_array_at(conf, key, index, &subkey));
+        return construct(subkey, conf);
     }
 };
 
 PyGetSetDef Configuration::tp_getset[] = {
     // keys
-    {(char *)"keys", (getter)keys, nullptr,
+    {(char *)"keys", to_getter<&Configuration::keys>(), nullptr,
 (char *)R"(The list of names of sub-option groups or options.
 
 The list is None if the current object is not an option group.)", nullptr},
@@ -2507,9 +2527,9 @@ condition ids to solver literals.)";
 
     using ObjectBase<PropagateInit>::new_;
     static Object construct(Gringo::PropagateInit &init) {
-        PropagateInit *self = new_();
+        auto self = new_();
         self->init = &init;
-        return self->toPy();
+        return self;
     }
 
     Object theoryIter() {
@@ -2574,10 +2594,10 @@ respectively.)";
     static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
 
-    static PyObject *construct(Potassco::AbstractAssignment const &assign) {
-        Assignment *self = new_();
+    static Object construct(Potassco::AbstractAssignment const &assign) {
+        auto self = new_();
         self->assign = &assign;
-        return reinterpret_cast<PyObject*>(self);
+        return self;
     }
 
     static PyObject *hasConflict(Assignment *self) {
@@ -2690,10 +2710,10 @@ struct PropagateControl : ObjectBase<PropagateControl> {
     static PyGetSetDef tp_getset[];
 
     using ObjectBase<PropagateControl>::new_;
-    static PyObject *construct(Potassco::AbstractSolver &ctl) {
-        PropagateControl *self = new_();
+    static Object construct(Potassco::AbstractSolver &ctl) {
+        auto self = new_();
         self->ctl = &ctl;
-        return reinterpret_cast<PyObject*>(self);
+        return self;
     }
 
     static PyObject *id(PropagateControl *self, void *) {
@@ -2751,7 +2771,7 @@ struct PropagateControl : ObjectBase<PropagateControl> {
     }
 
     static PyObject *assignment(PropagateControl *self, void *) {
-        return Assignment::construct(self->ctl->assignment());
+        return Assignment::construct(self->ctl->assignment()).release();
     }
 };
 
@@ -5450,7 +5470,7 @@ active; you must not call any member function during search.)";
             if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O", const_cast<char **>(kwlist), &pyAss)) { return nullptr; }
             Gringo::Control::Assumptions ass;
             if (!getAssumptions(pyAss, ass)) { return nullptr; }
-            return SolveIter::construct(reinterpret_cast<clingo_solve_iteratively_t*>(self->ctl->solveIter(std::move(ass))));
+            return SolveIter::construct(reinterpret_cast<clingo_solve_iteratively_t*>(self->ctl->solveIter(std::move(ass)))).release();
         PY_CATCH(nullptr);
     }
     static PyObject *solve(ControlWrap *self, PyObject *args, PyObject *kwds) {
@@ -5533,8 +5553,11 @@ active; you must not call any member function during search.)";
     }
     static PyObject *conf(ControlWrap *self, void *) {
         PY_TRY
-            Gringo::ConfigProxy &proxy = self->ctl->getConf();
-            return Configuration::new_(proxy.getRootKey(), proxy);
+            clingo_configuration_t *conf;
+            handleCError(clingo_control_configuration(self->ctl, &conf));
+            clingo_id_t root;
+            handleCError(clingo_configuration_root(conf, &root));
+            return Configuration::construct(root, conf).release();
         PY_CATCH(nullptr);
     }
     static PyObject *symbolicAtoms(ControlWrap *self, void *) {

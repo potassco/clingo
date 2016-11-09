@@ -760,6 +760,11 @@ extern "C" bool clingo_configuration_map_at(clingo_configuration_t *conf, clingo
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_configuration_map_has_subkey(clingo_configuration_t *conf, clingo_id_t key, char const *name, bool *result) {
+    GRINGO_CLINGO_TRY { *result = conf->hasSubKey(key, name); }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" bool clingo_configuration_map_subkey_name(clingo_configuration_t *conf, clingo_id_t key, size_t index, char const **name) {
     GRINGO_CLINGO_TRY { *name = conf->getSubKeyName(key, index); }
     GRINGO_CLINGO_CATCH;
