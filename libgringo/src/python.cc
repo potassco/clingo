@@ -2347,25 +2347,26 @@ PyGetSetDef SymbolicAtom::tp_getset[] = {
 // {{{1 wrap SymbolicAtomIter
 
 struct SymbolicAtomIter : ObjectBase<SymbolicAtomIter> {
-    SymbolicAtoms *atoms;
-    Gringo::SymbolicAtomIter range;
+    clingo_symbolic_atoms_t *atoms;
+    clingo_symbolic_atom_iterator_t range;
 
     static constexpr char const *tp_type = "SymbolicAtomIter";
     static constexpr char const *tp_name = "clingo.SymbolicAtomIter";
     static constexpr char const *tp_doc = "Class to iterate over symbolic atoms.";
 
-    static PyObject *new_(Gringo::SymbolicAtoms &atoms, Gringo::SymbolicAtomIter range) {
-        Object ret(type.tp_alloc(&type, 0));
-        SymbolicAtomIter *self = reinterpret_cast<SymbolicAtomIter*>(ret.toPy());
-        self->atoms = &atoms;
+    static Object construct(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t range) {
+        auto self = new_();
+        self->atoms = atoms;
         self->range = range;
-        return ret.release();
+        return self;
     }
     Reference tp_iter() { return *this; }
     Object tp_iternext() {
-        Gringo::SymbolicAtomIter current = range;
-        if (atoms->valid(current)) {
-            range = atoms->next(current);
+        auto current = range;
+        bool valid;
+        handleCError(clingo_symbolic_atoms_is_valid(atoms, current, &valid));
+        if (valid) {
+            handleCError(clingo_symbolic_atoms_next(atoms, current, &range));
             return SymbolicAtom::construct(atoms, current);
         }
         else {
@@ -2443,7 +2444,7 @@ signatures: [('p', 1), ('q', 1)])";
         return atoms->length();
     }
 
-    Object tp_iter() { return SymbolicAtomIter::new_(*atoms, atoms->begin()); }
+    Object tp_iter() { return SymbolicAtomIter::construct(atoms, atoms->begin()); }
 
     Object mp_subscript(Reference key) {
         symbol_wrapper atom;
@@ -2461,7 +2462,7 @@ signatures: [('p', 1), ('q', 1)])";
             char const *kwlist[] = {"name", "arity", "positive"};
             if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "si|O", const_cast<char**>(kwlist), &name, &arity, &pos)) { return nullptr; }
             Gringo::SymbolicAtomIter range = self->atoms->begin(Sig(name, arity, !pyToCpp<bool>(pos)));
-            return SymbolicAtomIter::new_(*self->atoms, range);
+            return SymbolicAtomIter::construct(self->atoms, range).release();
         PY_CATCH(nullptr);
     }
 
