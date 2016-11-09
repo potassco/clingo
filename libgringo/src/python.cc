@@ -1687,24 +1687,36 @@ This is equivalent to satisfiable is None.)", nullptr},
 
 // {{{1 wrap Statistics
 
-Object getStatistics(Potassco::AbstractStatistics const *stats, Potassco::AbstractStatistics::Key_t key) {
-    switch (stats->type(key)) {
-        case Potassco::Statistics_t::Value: {
-            return cppToPy(stats->value(key));
+Object getStatistics(clingo_statistics_t *stats, uint64_t key) {
+    clingo_statistics_type_t type;
+    handleCError(clingo_statistics_type(stats, key, &type));
+    switch (type) {
+        case clingo_statistics_type_value: {
+            double val;
+            handleCError(clingo_statistics_value_get(stats, key, &val));
+            return cppToPy(val);
         }
-        case Potassco::Statistics_t::Array: {
-            size_t e = stats->size(key);
-            List list{e};
+        case clingo_statistics_type_array: {
+            size_t e;
+            handleCError(clingo_statistics_array_size(stats, key, &e));
+            List list;
             for (size_t i = 0; i != e; ++i) {
-                list.setItem(i, getStatistics(stats, stats->at(key, i)));
+                uint64_t subkey;
+                handleCError(clingo_statistics_array_at(stats, key, i, &subkey));
+                list.append(getStatistics(stats, subkey));
             }
             return list;
         }
         case Potassco::Statistics_t::Map: {
+            size_t e;
+            handleCError(clingo_statistics_map_size(stats, key, &e));
             Dict dict;
-            for (size_t i = 0, e = stats->size(key); i != e; ++i) {
-                auto name = stats->key(key, i);
-                dict.setItem(name, getStatistics(stats, stats->get(key, name)));
+            for (size_t i = 0; i != e; ++i) {
+                char const *name;
+                uint64_t subkey;
+                handleCError(clingo_statistics_map_subkey_name(stats, key, i, &name));
+                handleCError(clingo_statistics_map_at(stats, key, name, &subkey));
+                dict.setItem(name, getStatistics(stats, subkey));
             }
             return dict;
         }
@@ -5459,7 +5471,7 @@ active; you must not call any member function during search.)";
             checkBlocked(self, "statistics");
             if (!self->stats) {
                 auto *stats = self->ctl->statistics();
-                self->stats = getStatistics(stats, stats->root()).release();
+                self->stats = getStatistics(reinterpret_cast<clingo_statistics_t*>(stats), stats->root()).release();
             }
             Py_XINCREF(self->stats);
             return self->stats;
