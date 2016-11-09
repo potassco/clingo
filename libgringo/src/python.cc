@@ -1609,7 +1609,7 @@ PyObject *Symbol::sup = nullptr;
 // {{{1 wrap SolveResult
 
 struct SolveResult : ObjectBase<SolveResult> {
-    Gringo::SolveResult result;
+    clingo_solve_result_bitset_t result;
     static PyGetSetDef tp_getset[];
     static constexpr char const *tp_type = "SolveResult";
     static constexpr char const *tp_name = "clingo.SolveResult";
@@ -1618,69 +1618,55 @@ R"(Captures the result of a solve call.
 
 SolveResult objects cannot be constructed from python. Instead they
 are returned by the solve methods of the Control object.)";
-    static PyObject *new_(Gringo::SolveResult result) {
-        SolveResult *self;
-        self = reinterpret_cast<SolveResult*>(type.tp_alloc(&type, 0));
-        if (!self) { return nullptr; }
+    static Object construct(clingo_solve_result_bitset_t result) {
+        SolveResult *self = new_();
         self->result = result;
-        return reinterpret_cast<PyObject*>(self);
+        return self->toPy();
     }
-    static PyObject *satisfiable(SolveResult *self, void *) {
-        switch (self->result.satisfiable()) {
-            case Gringo::SolveResult::Satisfiable:   { Py_RETURN_TRUE; }
-            case Gringo::SolveResult::Unsatisfiable: { Py_RETURN_FALSE; }
-            case Gringo::SolveResult::Unknown:       { Py_RETURN_NONE; }
-        }
+    Object satisfiable() {
+        if (result & clingo_solve_result_satisfiable) { Py_RETURN_TRUE; }
+        if (result & clingo_solve_result_unsatisfiable) { Py_RETURN_FALSE; }
         Py_RETURN_NONE;
     }
-    static PyObject *unsatisfiable(SolveResult *self, void *) {
-        switch (self->result.satisfiable()) {
-            case Gringo::SolveResult::Satisfiable:   { Py_RETURN_FALSE; }
-            case Gringo::SolveResult::Unsatisfiable: { Py_RETURN_TRUE; }
-            case Gringo::SolveResult::Unknown:       { Py_RETURN_NONE; }
-        }
+    Object unsatisfiable() {
+        if (result & clingo_solve_result_satisfiable) { Py_RETURN_FALSE; }
+        if (result & clingo_solve_result_unsatisfiable) { Py_RETURN_TRUE; }
         Py_RETURN_NONE;
     }
-    static PyObject *unknown(SolveResult *self, void *) {
-        switch (self->result.satisfiable()) {
-            case Gringo::SolveResult::Satisfiable:   { Py_RETURN_FALSE; }
-            case Gringo::SolveResult::Unsatisfiable: { Py_RETURN_FALSE; }
-            case Gringo::SolveResult::Unknown:       { Py_RETURN_TRUE; }
-        }
-        Py_RETURN_NONE;
+    Object unknown() {
+        if (result & clingo_solve_result_satisfiable) { Py_RETURN_FALSE; }
+        if (result & clingo_solve_result_unsatisfiable) { Py_RETURN_FALSE; }
+        Py_RETURN_TRUE;
     }
-    static PyObject *exhausted(SolveResult *self, void *) {
-        return cppToPy(self->result.exhausted()).release();
+    Object exhausted() {
+        return cppToPy(static_cast<bool>(result & clingo_solve_result_exhausted)).release();
     }
-    static PyObject *interrupted(SolveResult *self, void *) {
-        return cppToPy(self->result.interrupted()).release();
+    Object interrupted() {
+        return cppToPy(static_cast<bool>(result & clingo_solve_result_interrupted)).release();
     }
     Object tp_repr() {
-        switch (result.satisfiable()) {
-            case Gringo::SolveResult::Satisfiable:   { return PyString_FromString("SAT"); }
-            case Gringo::SolveResult::Unsatisfiable: { return PyString_FromString("UNSAT"); }
-            case Gringo::SolveResult::Unknown:       { return PyString_FromString("UNKNOWN"); }
-        }
+        if (result & clingo_solve_result_satisfiable) { return cppToPy("SAT"); }
+        if (result & clingo_solve_result_unsatisfiable) { return cppToPy("UNSAT"); }
         return PyString_FromString("UNKNOWN");
     }
 };
 
 PyGetSetDef SolveResult::tp_getset[] = {
-    {(char *)"satisfiable", (getter)satisfiable, nullptr,
+    {(char *)"satisfiable", to_getter<&SolveResult::satisfiable>(), nullptr,
 (char *)R"(True if the problem is satisfiable, False if the problem is
 unsatisfiable, or None if the satisfiablity is not known.)", nullptr},
-    {(char *)"unsatisfiable", (getter)unsatisfiable, nullptr,
+    {(char *)"unsatisfiable", to_getter<&SolveResult::unsatisfiable>(), nullptr,
 (char *)R"(True if the problem is unsatisfiable, False if the problem is
 satisfiable, or None if the satisfiablity is not known.
 
 This is equivalent to None if satisfiable is None else not satisfiable.)", nullptr},
-    {(char *)"unknown", (getter)unknown, nullptr,
+    {(char *)"unknown", to_getter<&SolveResult::unknown>(), nullptr,
 (char *)R"(True if the satisfiablity is not known.
 
 This is equivalent to satisfiable is None.)", nullptr},
-    {(char *)"exhausted", (getter)exhausted, nullptr,
+    {(char *)"exhausted", to_getter<&SolveResult::exhausted>(), nullptr,
 (char *)R"(True if the search space was exhausted.)", nullptr},
-    {(char *)"interrupted", (getter)interrupted, nullptr,
+    {(char *)"interrupted", to_getter<&SolveResult::interrupted>(), nullptr,
 (char *)R"(True if the search was interrupted.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
@@ -1987,7 +1973,7 @@ See Control.solve_async for an example.)";
 
     static PyObject *get(SolveFuture *self, PyObject *) {
         PY_TRY
-            return SolveResult::new_(doUnblocked([self]() { return self->future->get(); }));
+            return SolveResult::construct(doUnblocked([self]() { return self->future->get(); })).release();
         PY_CATCH(nullptr);
     }
 
@@ -2066,7 +2052,7 @@ thread-safe though.)";
     }
     Reference tp_iter() { return *this; }
     Object get() {
-        return SolveResult::new_(doUnblocked([this]() { return solve_iter->get(); }));
+        return SolveResult::construct(doUnblocked([this]() { return solve_iter->get(); }));
     }
     Object tp_iternext() {
         if (Gringo::Model const *m = doUnblocked([this]() { return solve_iter->next(); })) {
@@ -5352,7 +5338,7 @@ active; you must not call any member function during search.)";
     }
     static void on_finish(Gringo::SolveResult ret, PyObject *fh) {
         PY_TRY
-            Object pyRet = SolveResult::new_(ret);
+            Object pyRet = SolveResult::construct(ret);
             Object fhRet = PyObject_CallFunction(fh, const_cast<char*>("O"), pyRet.toPy());
         PY_HANDLE("<on_finish>", "error in finish callback");
     }
@@ -5428,7 +5414,7 @@ active; you must not call any member function during search.)";
                 return self->ctl->solve(
                     mh == Py_None ? Control::ModelHandler(nullptr) : [mh](Gringo::Model const &m) { PyBlock block; return on_model(m, mh); },
                     std::move(ass)); });
-            return SolveResult::new_(ret);
+            return SolveResult::construct(ret).release();
         PY_CATCH(nullptr);
     }
     static PyObject *cleanup(ControlWrap *self) {
