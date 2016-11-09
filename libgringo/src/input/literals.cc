@@ -418,7 +418,9 @@ PredicateLiteral::PredicateLiteral(NAF naf, UTerm &&repr, bool auxiliary)
 : naf(naf)
 , auxiliary_(auxiliary)
 , repr(std::move(repr)) {
-    assert(this->repr->isAtom());
+    if (!this->repr->isAtom()) {
+        throw std::runtime_error("atom expected");
+    }
 }
 
 void PredicateLiteral::getNeg(std::function<void (Sig)> f) const {
