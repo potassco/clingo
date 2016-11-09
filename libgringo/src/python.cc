@@ -2589,7 +2589,7 @@ PyGetSetDef PropagateInit::tp_getset[] = {
 // {{{1 wrap Assignment
 
 struct Assignment : ObjectBase<Assignment> {
-    Potassco::AbstractAssignment const *assign;
+    clingo_assignment_t *assign;
     static constexpr char const *tp_type = "Assignment";
     static constexpr char const *tp_name = "clingo.Assignment";
     static constexpr char const *tp_doc = R"(Object to inspect the (parital) assignment of an associated solver.
@@ -2600,108 +2600,94 @@ respectively.)";
     static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
 
-    static Object construct(Potassco::AbstractAssignment const &assign) {
+    static Object construct(clingo_assignment_t *assign) {
         auto self = new_();
-        self->assign = &assign;
+        self->assign = assign;
         return self;
     }
 
-    static PyObject *hasConflict(Assignment *self) {
-        PY_TRY
-            return cppToPy(self->assign->hasConflict()).release();
-        PY_CATCH(nullptr);
+    Object hasConflict() {
+        return cppToPy(clingo_assignment_has_conflict(assign));
     }
 
-    static PyObject *decisionLevel(Assignment *self, void *) {
-        PY_TRY
-            return PyInt_FromLong(self->assign->level());
-        PY_CATCH(nullptr);
+    Object decisionLevel() {
+        return cppToPy(clingo_assignment_decision_level(assign));
     }
 
-    static PyObject *hasLit(Assignment *self, PyObject *lit) {
-        PY_TRY
-            auto l = pyToCpp<Lit_t>(lit);
-            return cppToPy(self->assign->hasLit(l)).release();
-        PY_CATCH(nullptr);
+    Object hasLit(Reference lit) {
+        return cppToPy(clingo_assignment_has_literal(assign, pyToCpp<Lit_t>(lit)));
     }
 
-    static PyObject *level(Assignment *self, PyObject *lit) {
-        PY_TRY
-            auto l = pyToCpp<Lit_t>(lit);
-            return PyInt_FromLong(self->assign->level(l));
-        PY_CATCH(nullptr);
+    Object level(Reference lit) {
+        uint32_t ret;
+        handleCError(clingo_assignment_level(assign, pyToCpp<Lit_t>(lit), &ret));
+        return cppToPy(ret);
     }
 
-    static PyObject *decision(Assignment *self, PyObject *level) {
-        PY_TRY
-            auto l = pyToCpp<uint32_t>(level);
-            return PyInt_FromLong(self->assign->decision(l));
-        PY_CATCH(nullptr);
+    Object decision(Reference level) {
+        clingo_literal_t ret;
+        handleCError(clingo_assignment_decision(assign, pyToCpp<uint32_t>(level), &ret));
+        return cppToPy(ret);
     }
 
-    static PyObject *isFixed(Assignment *self, PyObject *lit) {
-        PY_TRY
-            auto l = pyToCpp<Lit_t>(lit);
-            return cppToPy(self->assign->isFixed(l)).release();
-        PY_CATCH(nullptr);
+    Object isFixed(Reference lit) {
+        bool ret;
+        handleCError(clingo_assignment_is_fixed(assign, pyToCpp<clingo_literal_t>(lit), &ret));
+        return cppToPy(ret);
     }
 
-    static PyObject *truthValue(Assignment *self, PyObject *lit) {
-        PY_TRY
-            auto l = pyToCpp<Lit_t>(lit);
-            Potassco::Value_t val = self->assign->value(l);
-            if (val == Potassco::Value_t::False){ return cppToPy(false).release(); }
-            if (val == Potassco::Value_t::True) { return cppToPy(true).release(); }
-            Py_RETURN_NONE;
-        PY_CATCH(nullptr);
+    Object truthValue(Reference lit) {
+        clingo_truth_value_t ret;
+        handleCError(clingo_assignment_truth_value(assign, pyToCpp<Lit_t>(lit), &ret));
+        if (ret == clingo_truth_value_true)  { Py_RETURN_TRUE; }
+        if (ret == clingo_truth_value_false) { Py_RETURN_FALSE; }
+        Py_RETURN_NONE;
     }
 
-    static PyObject *isTrue(Assignment *self, PyObject *lit) {
-        PY_TRY
-            auto l = pyToCpp<Lit_t>(lit);
-            return cppToPy(self->assign->isTrue(l)).release();
-        PY_CATCH(nullptr);
+    Object isTrue(Reference lit) {
+        bool ret;
+        handleCError(clingo_assignment_is_true(assign, pyToCpp<Lit_t>(lit), &ret));
+        return cppToPy(ret);
     }
 
-    static PyObject *isFalse(Assignment *self, PyObject *lit) {
-        PY_TRY
-            auto l = pyToCpp<Lit_t>(lit);
-            return cppToPy(self->assign->isFalse(l)).release();
-        PY_CATCH(nullptr);
+    Object isFalse(Reference lit) {
+        bool ret;
+        handleCError(clingo_assignment_is_false(assign, pyToCpp<Lit_t>(lit), &ret));
+        return cppToPy(ret);
     }
 };
 
 PyMethodDef Assignment::tp_methods[] = {
-    {"has_literal", (PyCFunction)hasLit, METH_O, R"(has_literal(self, lit) -> bool
+    {"has_literal", to_function<&Assignment::hasLit>(), METH_O, R"(has_literal(self, lit) -> bool
 
 Determine if the literal is valid in this solver.)"},
-    {"value", (PyCFunction)truthValue, METH_O, R"(value(self, lit) -> bool or None
+    {"value", to_function<&Assignment::truthValue>(), METH_O, R"(value(self, lit) -> bool or None
 
 The truth value of the given literal or None if it has none.)"},
-    {"level", (PyCFunction)level, METH_O, R"(level(self, lit) -> int
+    {"level", to_function<&Assignment::level>(), METH_O, R"(level(self, lit) -> int
 
 The decision level of the given literal.
 
 Note that the returned value is only meaningful if the literal is assigned -
 i.e., value(lit) is not None.)"},
-    {"is_fixed", (PyCFunction)isFixed, METH_O, R"(is_fixed(self, lit) -> bool
+    {"is_fixed", to_function<&Assignment::isFixed>(), METH_O, R"(is_fixed(self, lit) -> bool
 
 Determine if the literal is assigned on the top level.)"},
-    {"is_true", (PyCFunction)isTrue, METH_O, R"(is_true(self, lit) -> bool
+    {"is_true", to_function<&Assignment::isTrue>(), METH_O, R"(is_true(self, lit) -> bool
 
 Determine if the literal is true.)"},
-    {"is_false", (PyCFunction)isFalse, METH_O, R"(is_false(self, lit) -> bool
+    {"is_false", to_function<&Assignment::isFalse>(), METH_O, R"(is_false(self, lit) -> bool
 
 Determine if the literal is false.)"},
-    {"decision", (PyCFunction)decision, METH_O, R"(decision(self, level) -> int
+    {"decision", to_function<&Assignment::decision>(), METH_O, R"(decision(self, level) -> int
 
     Return the decision literal of the given level.)"},
     {nullptr, nullptr, 0, nullptr}
 };
 
 PyGetSetDef Assignment::tp_getset[] = {
-    {(char *)"has_conflict", (getter)hasConflict, nullptr, (char *)R"(True if the current assignment is conflicting.)", nullptr},
-    {(char *)"decision_level", (getter)decisionLevel, nullptr, (char *)R"(The current decision level.)", nullptr},
+    {(char *)"has_conflict", to_getter<&Assignment::hasConflict>(), nullptr, (char *)R"(True if the current assignment is conflicting.)", nullptr},
+    {(char *)"decision_level", to_getter<&Assignment::decisionLevel>(), nullptr, (char *)R"(The current decision level.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -2777,7 +2763,7 @@ struct PropagateControl : ObjectBase<PropagateControl> {
     }
 
     static PyObject *assignment(PropagateControl *self, void *) {
-        return Assignment::construct(self->ctl->assignment()).release();
+        return Assignment::construct(const_cast<clingo_assignment_t*>(reinterpret_cast<clingo_assignment_t const *>(&self->ctl->assignment()))).release();
     }
 };
 
@@ -2866,7 +2852,7 @@ public:
         PY_TRY
             if (!PyObject_HasAttrString(tp_.toPy(), "undo")) { return; }
             Object i = PyInt_FromLong(solver.id());
-            Object a = Assignment::construct(solver.assignment());
+            Object a = Assignment::construct(const_cast<clingo_assignment_t*>(reinterpret_cast<clingo_assignment_t const *>(&solver.assignment())));
             Object l = cppToPy(undo);
             Object n = PyString_FromString("undo");
             Object ret = PyObject_CallMethodObjArgs(tp_.toPy(), n.toPy(), i.toPy(), a.toPy(), l.toPy(), nullptr);
