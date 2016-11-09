@@ -6904,7 +6904,7 @@ namespace Gringo {
 // {{{1 definition of PythonScript
 
 UScript pythonScript(GringoModule &) {
-    return nullptr
+    return nullptr;
 }
 void *pythonInitlib(Gringo::GringoModule &) {
     return nullptr;
