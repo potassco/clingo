@@ -334,6 +334,11 @@ void ParseTupleAndKeywords(Reference pyargs, Reference pykwds, char const *fmt, 
     PyArg_ParseTupleAndKeywords(pyargs.toPy(), pykwds.toPy(), fmt, const_cast<char**>(kwds), ParsePtr<T>(x).get()...);
 }
 
+template <class... T>
+void ParseTuple(Reference pyargs, char const *fmt, T &...x) {
+    PyArg_ParseTuple(pyargs.toPy(), fmt, ParsePtr<T>(x).get()...);
+}
+
 template <Object (&f)(Reference, Reference)>
 struct ToFunctionBinary {
     static PyObject *value(PyObject *, PyObject *params, PyObject *keywords) {
@@ -1974,7 +1979,7 @@ The atom must be represented using a function symbol.)"},
 // {{{1 wrap SolveFuture
 
 struct SolveFuture : ObjectBase<SolveFuture> {
-    Gringo::SolveFuture *future;
+    clingo_solve_async_t *future;
     PyObject *mh;
     PyObject *fh;
 
@@ -1992,16 +1997,14 @@ Functions in this object release the GIL. They are not thread-safe though.
 
 See Control.solve_async for an example.)";
 
-    static PyObject *new_(Gringo::SolveFuture &future, PyObject *mh, PyObject *fh) {
-        SolveFuture *self;
-        self = reinterpret_cast<SolveFuture*>(type.tp_alloc(&type, 0));
-        if (!self) { return nullptr; }
-        self->future = &future;
+    static Object construct(clingo_solve_async_t *future, PyObject *mh, PyObject *fh) {
+        SolveFuture *self = new_();
+        self->future = future;
         self->mh = mh;
         self->fh = fh;
         Py_XINCREF(self->mh);
         Py_XINCREF(self->fh);
-        return reinterpret_cast<PyObject*>(self);
+        return self->toPy();
     }
 
     void tp_dealloc() {
@@ -2009,44 +2012,51 @@ See Control.solve_async for an example.)";
         Py_XDECREF(fh);
     }
 
-    static PyObject *get(SolveFuture *self, PyObject *) {
-        PY_TRY
-            return SolveResult::construct(doUnblocked([self]() { return self->future->get(); })).release();
-        PY_CATCH(nullptr);
+    Object get() {
+        return SolveResult::construct(doUnblocked([this]() {
+            clingo_solve_result_bitset_t result;
+            handleCError(clingo_solve_async_get(future, &result));
+            return result;
+        }));
     }
 
-    static PyObject *wait(SolveFuture *self, PyObject *args) {
-        PY_TRY
-            PyObject *timeout = nullptr;
-            if (!PyArg_ParseTuple(args, "|O", &timeout)) { return nullptr; }
-            if (!timeout) {
-                doUnblocked([self](){ self->future->wait(); });
-                Py_RETURN_NONE;
-            }
-            else {
-                auto time = pyToCpp<double>(timeout);
-                return cppToPy(doUnblocked([self, time](){ return self->future->wait(time); })).release();
-            }
-        PY_CATCH(nullptr);
+    Object wait(Reference args) {
+        Reference timeout = Py_None;
+        ParseTuple(args, "|O", timeout);
+        if (timeout.none()) {
+            doUnblocked([this](){
+                clingo_solve_result_bitset_t ret;
+                handleCError(clingo_solve_async_get(future, &ret));
+            });
+            Py_RETURN_TRUE;
+        }
+        else {
+            auto time = pyToCpp<double>(timeout);
+            return cppToPy(doUnblocked([this, time](){
+                bool ret;
+                handleCError(clingo_solve_async_wait(future, time, &ret));
+                return ret;
+            }));
+        }
     }
 
-    static PyObject *cancel(SolveFuture *self, PyObject *) {
-        PY_TRY
-            doUnblocked([self](){ self->future->cancel(); });
-            Py_RETURN_NONE;
-        PY_CATCH(nullptr);
+    Object cancel() {
+        doUnblocked([this](){
+            handleCError(clingo_solve_async_cancel(future));
+        });
+        Py_RETURN_NONE;
     }
 };
 
 PyMethodDef SolveFuture::tp_methods[] = {
-    {"get", (PyCFunction)get, METH_NOARGS,
+    {"get", to_function<&SolveFuture::get>(), METH_NOARGS,
 R"(get(self) -> SolveResult
 
 Get the result of an solve_async call.
 
 If the search is not completed yet, the function blocks until the result is
 ready.)"},
-    {"wait", (PyCFunction)wait,  METH_VARARGS,
+    {"wait", to_function<&SolveFuture::wait>(),  METH_VARARGS,
 R"(wait(self, timeout) -> None or bool
 
 Wait for solve_async call to finish with an optional timeout.
@@ -2058,7 +2068,7 @@ blocks until the search is finished and returns nothing.
 Arguments:
 timeout -- optional timeout in seconds
            (permits floating point values))"},
-    {"cancel", (PyCFunction)cancel, METH_NOARGS,
+    {"cancel", to_function<&SolveFuture::cancel>(), METH_NOARGS,
 R"(cancel(self) -> None
 
 Cancel the running search.
@@ -5421,7 +5431,7 @@ active; you must not call any member function during search.)";
                 fh == Py_None ? Control::FinishHandler(nullptr) : [fh](Gringo::SolveResult ret) -> void { PyBlock b; (void)b; on_finish(ret, fh); },
                 std::move(ass)
             );
-            return SolveFuture::new_(*future, mh, fh);
+            return SolveFuture::construct(reinterpret_cast<clingo_solve_async_t*>(future), mh, fh).release();
         PY_CATCH(nullptr);
     }
     static PyObject *solve_iter(ControlWrap *self, PyObject *args, PyObject *kwds) {
