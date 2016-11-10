@@ -1449,11 +1449,11 @@ typedef struct clingo_propagator {
     //! @note This is the last point to access symbolic and theory atoms.
     //! Once the search has started, they are no longer accessible.
     //!
-    //! @param[in] control control object for the target solver
+    //! @param[in] init initizialization object
     //! @param[in] data user data for the callback
     //! @return whether the call was successful
     //! @see ::clingo_propagator_init_callback_t
-    bool (*init) (clingo_propagate_init_t *control, void *data);
+    bool (*init) (clingo_propagate_init_t *init, void *data);
     //! Can be used to propagate solver literals given a @link clingo_assignment_t partial assignment@endlink.
     //!
     //! Called during propagation with a non-empty array of @link clingo_propagate_init_add_watch() watched solver literals@endlink

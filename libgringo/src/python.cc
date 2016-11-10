@@ -2832,51 +2832,102 @@ PyGetSetDef PropagateControl::tp_getset[] = {
 
 // {{{1 wrap Propagator
 
-class Propagator : public Gringo::Propagator {
-public:
-    Propagator(Reference tp) : tp_(tp) {}
-    void init(Gringo::PropagateInit &init) override {
-        PyBlock block;
-        PY_TRY
-            Object i = PropagateInit::construct(&init);
-            Object n = PyString_FromString("init");
-            Object ret = PyObject_CallMethodObjArgs(tp_.toPy(), n.toPy(), i.toPy(), nullptr);
-        PY_HANDLE("Propagator::init", "error during initialization")
+void handle_cxx_error(char const *loc, char const *msg) {
+    try {
+        std::ostringstream ss;
+        clingo_error_t code = clingo_error_unknown;
+        ss << loc << ": error: " << msg << ":\n";
+        try { throw; }
+        catch (PyException const &) {
+            code = clingo_error_runtime;
+            ss << loc << errorToString();
+        }
+        catch (std::runtime_error const &e) {
+            code = clingo_error_runtime;
+            ss << e.what();
+        }
+        catch (std::logic_error const &e) {
+            code = clingo_error_logic;
+            ss << e.what();
+        }
+        catch (std::bad_alloc const &e) {
+            code = clingo_error_bad_alloc;
+            ss << e.what();
+        }
+        catch (std::exception const &e) {
+            ss << e.what();
+        }
+        catch (...) {
+            ss << "no message";
+        }
+        clingo_set_error(code, ss.str().c_str());
     }
-    void propagate(Potassco::AbstractSolver &solver, Potassco::LitSpan const &changes) override {
-        PyBlock block;
-        PY_TRY
-            if (!PyObject_HasAttrString(tp_.toPy(), "propagate")) { return; }
-            Object c = PropagateControl::construct(reinterpret_cast<clingo_propagate_control_t*>(&solver));
-            Object l = cppToPy(changes);
-            Object n = PyString_FromString("propagate");
-            Object ret = PyObject_CallMethodObjArgs(tp_.toPy(), n.toPy(), c.toPy(), l.toPy(), nullptr);
-        PY_HANDLE("Propagator::propagate", "error during propagation")
+    catch (...) {
+        clingo_set_error(clingo_error_bad_alloc, "bad alloc during exception handling");
     }
-    void undo(Potassco::AbstractSolver const &solver, Potassco::LitSpan const &undo) override {
-        PyBlock block;
-        PY_TRY
-            if (!PyObject_HasAttrString(tp_.toPy(), "undo")) { return; }
-            Object i = PyInt_FromLong(solver.id());
-            Object a = Assignment::construct(const_cast<clingo_assignment_t*>(reinterpret_cast<clingo_assignment_t const *>(&solver.assignment())));
-            Object l = cppToPy(undo);
-            Object n = PyString_FromString("undo");
-            Object ret = PyObject_CallMethodObjArgs(tp_.toPy(), n.toPy(), i.toPy(), a.toPy(), l.toPy(), nullptr);
-        PY_HANDLE("Propagator::undo", "error during undo")
+}
+
+static bool propagator_init(clingo_propagate_init_t *init, PyObject *prop) {
+    PyBlock block;
+    try {
+        Object i = PropagateInit::construct(init);
+        Object n = PyString_FromString("init");
+        Object ret = PyObject_CallMethodObjArgs(prop, n.toPy(), i.toPy(), nullptr);
+        return true;
     }
-    void check(Potassco::AbstractSolver &solver) override {
-        PyBlock block;
-        PY_TRY
-            if (!PyObject_HasAttrString(tp_.toPy(), "check")) { return; }
-            Object c = PropagateControl::construct(reinterpret_cast<clingo_propagate_control_t*>(&solver));
-            Object n = PyString_FromString("check");
-            Object ret = PyObject_CallMethodObjArgs(tp_.toPy(), n.toPy(), c.toPy(), nullptr);
-        PY_HANDLE("Propagator::check", "error during check")
+    catch (...) {
+        handle_cxx_error("Propagator::init", "error during initialization");
+        return false;
     }
-    ~Propagator() noexcept = default;
-private:
-    Object tp_;
-};
+}
+
+static bool propagator_propagate(clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, PyObject *prop) {
+    PyBlock block;
+    try {
+        if (!PyObject_HasAttrString(prop, "propagate")) { return true; }
+        Object c = PropagateControl::construct(control);
+        Object l = cppRngToPy(changes, changes + size);
+        Object n = PyString_FromString("propagate");
+        Object ret = PyObject_CallMethodObjArgs(prop, n.toPy(), c.toPy(), l.toPy(), nullptr);
+        return true;
+    }
+    catch (...) {
+        handle_cxx_error("Propagator::propagate", "error during propagation");
+        return false;
+    }
+}
+
+bool propagator_undo(clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, PyObject *prop) {
+    PyBlock block;
+    try {
+        if (!PyObject_HasAttrString(prop, "undo")) { return true; }
+        Object i = cppToPy(clingo_propagate_control_thread_id(control));
+        Object a = Assignment::construct(clingo_propagate_control_assignment(control));
+        Object l = cppRngToPy(changes, changes + size);
+        Object n = PyString_FromString("undo");
+        Object ret = PyObject_CallMethodObjArgs(prop, n.toPy(), i.toPy(), a.toPy(), l.toPy(), nullptr);
+        return true;
+    }
+    catch (...) {
+        handle_cxx_error("Propagator::undo", "error during undo");
+        return false;
+    }
+}
+
+bool propagator_check(clingo_propagate_control_t *control, PyObject *prop) {
+    PyBlock block;
+    try {
+        if (!PyObject_HasAttrString(prop, "check")) { return true; }
+        Object c = PropagateControl::construct(control);
+        Object n = PyString_FromString("check");
+        Object ret = PyObject_CallMethodObjArgs(prop, n.toPy(), c.toPy(), nullptr);
+        return true;
+    }
+    catch (...) {
+        handle_cxx_error("Propagator::check", "error during check");
+        return false;
+    }
+}
 
 // {{{1 wrap observer
 
@@ -5274,10 +5325,11 @@ public:
 };
 
 struct ControlWrap : ObjectBase<ControlWrap> {
-    using Propagators = std::vector<std::unique_ptr<Propagator>>;
+    using Propagators = std::vector<Object>;
     Gringo::Control *ctl;
     Gringo::Control *freeCtl;
     PyObject        *stats;
+    Propagators     prop;
 
     static PyGetSetDef tp_getset[];
     static PyMethodDef tp_methods[];
@@ -5306,6 +5358,7 @@ active; you must not call any member function during search.)";
         PyObject *self = tp_new(&type, nullptr, nullptr);
         if (!self) { return nullptr; }
         reinterpret_cast<ControlWrap*>(self)->ctl = &ctl;
+        new (&reinterpret_cast<ControlWrap*>(self)->prop) Propagators();
         return self;
     }
     static Gringo::GringoModule *module;
@@ -5316,11 +5369,13 @@ active; you must not call any member function during search.)";
         self->ctl     = nullptr;
         self->freeCtl = nullptr;
         self->stats   = nullptr;
+        new (&self->prop) Propagators();
         return reinterpret_cast<PyObject*>(self);
     }
     void tp_dealloc() {
         if (freeCtl) { delete freeCtl; }
         ctl = freeCtl = nullptr;
+        prop.~Propagators();
         Py_XDECREF(stats);
     }
     static int tp_init(ControlWrap *self, PyObject *pyargs, PyObject *pykwds) {
@@ -5567,7 +5622,14 @@ active; you must not call any member function during search.)";
     }
     static PyObject *registerPropagator(ControlWrap *self, PyObject *tp) {
         PY_TRY
-            self->ctl->registerPropagator(gringo_make_unique<Propagator>(tp), false);
+            static clingo_propagator_t prop = {
+                reinterpret_cast<decltype(clingo_propagator_t::init)>(propagator_init),
+                reinterpret_cast<decltype(clingo_propagator_t::propagate)>(propagator_propagate),
+                reinterpret_cast<decltype(clingo_propagator_t::undo)>(propagator_undo),
+                reinterpret_cast<decltype(clingo_propagator_t::check)>(propagator_check)
+            };
+            self->prop.emplace_back(Reference{tp}); // TODO: drop the reference
+            handleCError(clingo_control_register_propagator(self->ctl, prop, tp, false));
             Py_RETURN_NONE;
         PY_CATCH(nullptr);
     }
