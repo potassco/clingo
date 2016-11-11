@@ -307,7 +307,7 @@ TEST_CASE("solving", "[clingo]") {
         SECTION("assumptions") {
             ctl.add("base", {}, "{a;b;c}.");
             ctl.ground({{"base", {}}});
-            REQUIRE(ctl.solve(MCB(models), {{Id("a"), false}, {Id("b"), true}}).is_satisfiable());
+            REQUIRE(ctl.solve(MCB(models), {{Id("a"), true}, {Id("b"), false}}).is_satisfiable());
             REQUIRE(models == (ModelVec{{Id("a")}, {Id("a"), Id("c")}}));
             REQUIRE(messages.empty());
         }
@@ -364,7 +364,7 @@ TEST_CASE("solving", "[clingo]") {
                 }
             }
             REQUIRE(count == 2);
-            REQUIRE(ctl.solve(MCB(models), {{Id("p"), false}, {Id("q"), false}}).is_satisfiable());
+            REQUIRE(ctl.solve(MCB(models), {{Id("p"), true}, {Id("q"), true}}).is_satisfiable());
             REQUIRE(models == ModelVec({{Id("p"), Id("q")}}));
             REQUIRE(atoms.size() == 0);
             ctl.add("next", {}, "&b {} = 42.");

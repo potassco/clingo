@@ -1068,7 +1068,7 @@ namespace {
 Control::Assumptions toAss(clingo_symbolic_literal_t const * assumptions, size_t n) {
     Control::Assumptions ass;
     for (auto it = assumptions, ie = it + n; it != ie; ++it) {
-        ass.emplace_back(static_cast<Symbol const>(it->symbol), !it->positive);
+        ass.emplace_back(static_cast<Symbol const>(it->symbol), it->positive);
     }
     return ass;
 }

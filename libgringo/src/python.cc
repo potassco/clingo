@@ -29,6 +29,7 @@
 #include "gringo/control.hh"
 #include <iostream>
 #include <sstream>
+#include <forward_list>
 
 #if PY_MAJOR_VERSION >= 3
 #define PyString_FromString PyUnicode_FromString
@@ -477,9 +478,11 @@ void pyToCpp(Reference pyBool, bool &x) {
     x = pyBool.isTrue();
 }
 
-void pyToCpp(Reference pyStr, char const *&x) {
-    x = PyString_AsString(pyStr.toPy());
-    if (!x) { throw PyException(); }
+void pyToCpp(Reference pyObj, std::string &x) {
+    Object pyStr = pyObj.str();
+    auto ret = PyString_AsString(pyStr.toPy());
+    if (!ret) { throw PyException(); }
+    x.assign(ret);
 }
 
 template <class T>
@@ -536,7 +539,7 @@ T pyToCpp(Reference py) {
 }
 
 std::ostream &operator<<(std::ostream &out, Reference o) {
-    return out << pyToCpp<char const *>(o.str());
+    return out << pyToCpp<std::string>(o.str());
 }
 
 struct PrintWrapper {
@@ -1532,9 +1535,9 @@ preconstructed symbols Infimum and Supremum.)";
         return construct(ret);
     }
     static Object new_string(Reference arg) {
-        char const *str = pyToCpp<char const *>(arg);
+        auto str = pyToCpp<std::string>(arg);
         clingo_symbol_t ret;
-        handleCError(clingo_symbol_create_string(str, &ret));
+        handleCError(clingo_symbol_create_string(str.c_str(), &ret));
         return construct(ret);
     }
     Object name() {
@@ -2237,7 +2240,8 @@ Expected Answer Sets:
     }
 
     Object tp_getattro(Reference name) {
-        auto current = pyToCpp<char const *>(name);
+        auto current_ = pyToCpp<std::string>(name);
+        char const *current = current_.c_str();
         bool desc = strncmp("__desc_", current, 7) == 0;
         if (desc) { current += 7; }
         clingo_configuration_type_bitset_t type;
@@ -2273,10 +2277,10 @@ Expected Answer Sets:
     }
 
     void tp_setattro(Reference name, Reference pyValue) {
-        char const *current = pyToCpp<char const *>(name);
+        auto current = pyToCpp<std::string>(name);
         clingo_id_t subkey;
-        handleCError(clingo_configuration_map_at(conf, key, current, &subkey));
-        handleCError(clingo_configuration_value_set(conf, subkey, pyToCpp<char const *>(pyValue.str())));
+        handleCError(clingo_configuration_map_at(conf, key, current.c_str(), &subkey));
+        handleCError(clingo_configuration_value_set(conf, subkey, pyToCpp<std::string>(pyValue).c_str()));
     }
 
     Py_ssize_t sq_length() {
@@ -2844,35 +2848,60 @@ PyGetSetDef PropagateControl::tp_getset[] = {
 
 // {{{1 wrap Propagator
 
+void handle_cxx_error_(std::ostringstream &ss) {
+    clingo_error_t code = clingo_error_unknown;
+    try { throw; }
+    catch (PyException const &) {
+        code = clingo_error_runtime;
+        ss << errorToString();
+    }
+    catch (std::runtime_error const &e) {
+        code = clingo_error_runtime;
+        ss << e.what();
+    }
+    catch (std::logic_error const &e) {
+        code = clingo_error_logic;
+        ss << e.what();
+    }
+    catch (std::bad_alloc const &e) {
+        code = clingo_error_bad_alloc;
+        ss << e.what();
+    }
+    catch (std::exception const &e) {
+        ss << e.what();
+    }
+    catch (...) {
+        ss << "no message";
+    }
+    clingo_set_error(code, ss.str().c_str());
+
+}
+
+void handle_cxx_error(clingo_location loc, char const *msg) {
+    try {
+        std::ostringstream ss;
+        ss << loc.begin_file << ":" << loc.begin_line << ":" << loc.begin_column;
+        if (strcmp(loc.begin_file, loc.end_file) != 0) {
+            ss << "-" << loc.end_file << ":" << loc.end_line << ":" << loc.end_column;
+        }
+        else if (loc.begin_line != loc.end_line) {
+            ss << "-" << loc.end_line << ":" << loc.end_column;
+        }
+        else if (loc.begin_column != loc.end_column) {
+            ss << "-" << loc.end_column;
+        }
+        ss << ": error: " << msg << ":\n";
+        handle_cxx_error_(ss);
+    }
+    catch (...) {
+        clingo_set_error(clingo_error_bad_alloc, "bad alloc during exception handling");
+    }
+}
 void handle_cxx_error(char const *loc, char const *msg) {
     try {
         std::ostringstream ss;
-        clingo_error_t code = clingo_error_unknown;
         ss << loc << ": error: " << msg << ":\n";
-        try { throw; }
-        catch (PyException const &) {
-            code = clingo_error_runtime;
-            ss << loc << errorToString();
-        }
-        catch (std::runtime_error const &e) {
-            code = clingo_error_runtime;
-            ss << e.what();
-        }
-        catch (std::logic_error const &e) {
-            code = clingo_error_logic;
-            ss << e.what();
-        }
-        catch (std::bad_alloc const &e) {
-            code = clingo_error_bad_alloc;
-            ss << e.what();
-        }
-        catch (std::exception const &e) {
-            ss << e.what();
-        }
-        catch (...) {
-            ss << "no message";
-        }
-        clingo_set_error(code, ss.str().c_str());
+        handle_cxx_error_(ss);
     }
     catch (...) {
         clingo_set_error(clingo_error_bad_alloc, "bad alloc during exception handling");
@@ -4162,7 +4191,7 @@ provided in this module.
                 break;
             }
             case ASTType::Script: {
-                std::string s = pyToCpp<char const *>(fields_.getItem("code"));
+                auto s = pyToCpp<std::string>(fields_.getItem("code"));
                 if (!s.empty() && s.back() == '\n') {
                     s.back() = '.';
                 }
@@ -4654,7 +4683,7 @@ Object parseProgram(Reference args, Reference kwds) {
     ParseTupleAndKeywords(args, kwds, "OO", kwlist, str, cb);
     using Data = std::pair<Object, std::exception_ptr>;
     Data data{cb, std::exception_ptr()};
-    handleCError(clingo_parse_program(pyToCpp<char const *>(str), [](clingo_ast_statement_t const *stm, void *d) -> bool {
+    handleCError(clingo_parse_program(pyToCpp<std::string>(str).c_str(), [](clingo_ast_statement_t const *stm, void *d) -> bool {
         auto &data = *static_cast<Data*>(d);
         try {
             data.first(cppToPy(*stm));
@@ -4688,7 +4717,7 @@ struct ASTToC {
 
     char const *convString(Reference x) {
         char const *ret;
-        handleCError(clingo_add_string(pyToCpp<char const *>(x), &ret));
+        handleCError(clingo_add_string(pyToCpp<std::string>(x).c_str(), &ret));
         return ret;
     }
 
@@ -5400,50 +5429,23 @@ Follows python __exit__ conventions. Does not suppress exceptions.
 
 // {{{1 wrap Control
 
-void pycall(PyObject *fun, SymSpan args, symbol_vector &vals) {
-    Object params = PyTuple_New(args.size);
+void pycall(Reference fun, clingo_symbol_t const *arguments, size_t arguments_size, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data) {
+    Object tuple = PyTuple_New(arguments_size);
     int i = 0;
-    for (auto &val : args) {
-        Object pyVal = Symbol::construct(clingo_symbol_t{val.rep()});
-        if (PyTuple_SetItem(params.toPy(), i, pyVal.release()) < 0) { throw PyException(); }
-        ++i;
+    for (auto it = arguments, ie = it + arguments_size; it != ie; ++it, ++i) {
+        PyTuple_SET_ITEM(tuple.toPy(), i, Symbol::construct(*it).release());
     }
-    Object ret = PyObject_Call(fun, params.toPy(), Py_None);
-    if (PyList_Check(ret.toPy())) { pyToCpp(ret, vals); }
-    else { vals.emplace_back(pyToCpp<symbol_wrapper>(ret)); }
+    Object ret = PyObject_Call(fun.toPy(), tuple.toPy(), Py_None);
+    auto add = [&](Reference sym) {
+        symbol_wrapper val;
+        pyToCpp(sym, val);
+        handleCError(symbol_callback(&val.symbol, 1, symbol_callback_data));
+    };
+    if (PyList_Check(ret.toPy())) {
+        for (auto &&x : ret.iter()) { add(x); }
+    }
+    else { add(ret); }
 }
-
-class PyContext : public Context {
-public:
-    PyContext(Logger &log)
-    : log(log)
-    , ctx(nullptr) { }
-    bool callable(String name) const override {
-        return ctx && PyObject_HasAttrString(ctx, name.c_str());
-    }
-    SymVec call(Location const &loc, String name, SymSpan args) override {
-        assert(ctx);
-        try {
-            Object fun = PyObject_GetAttrString(ctx, name.c_str());
-            SymVec ret;
-            // FIXME: evil reinterpret cast
-            pycall(fun.toPy(), args, reinterpret_cast<symbol_vector&>(ret));
-            return ret;
-        }
-        catch (PyException const &) {
-            GRINGO_REPORT(log, clingo_warning_operation_undefined)
-                << loc << ": info: operation undefined:\n"
-                << errorToString()
-                ;
-            return {};
-        }
-    }
-    operator bool() const { return ctx; }
-    virtual ~PyContext() noexcept = default;
-
-    Logger &log;
-    PyObject *ctx;
-};
 
 struct ControlWrap : ObjectBase<ControlWrap> {
     using Propagators = std::vector<Object>;
@@ -5453,6 +5455,7 @@ struct ControlWrap : ObjectBase<ControlWrap> {
     PyObject        *stats;
     Propagators     prop;
     Observers       observers;
+    bool            blocked;
 
     static PyGetSetDef tp_getset[];
     static PyMethodDef tp_methods[];
@@ -5470,18 +5473,25 @@ arguments -- optional arguments to the grounder and solver (default: []).
 Note that only gringo options (without --text) and clasp's search options are
 supported. Furthermore, a Control object is blocked while a search call is
 active; you must not call any member function during search.)";
-
-    static void checkBlocked(ControlWrap *self, char const *function) {
-        if (self->ctl->blocked()) {
-            PyErr_Format(PyExc_RuntimeError, "Control.%s must not be called during solve call", function);
-            throw PyException();
+    struct Block {
+        Block(bool &blocked, char const *function) : blocked_(blocked) {
+            if (blocked) {
+                PyErr_Format(PyExc_RuntimeError, "Control.%s must not be called during solve call", function);
+                throw PyException();
+            }
         }
-    }
+        ~Block() {
+            blocked_ = false;
+        }
+        bool &blocked_;
+    };
+    #define CHECK_BLOCKED(function) auto block_ = Block(blocked, function);
     static Object construct(Gringo::Control &ctl) {
         auto self = new_();
         self->ctl = &ctl;
         self->freeCtl = nullptr;
         self->stats   = nullptr;
+        self->blocked = false;
         new (&self->prop) Propagators();
         new (&self->observers) Observers();
         return self;
@@ -5492,6 +5502,7 @@ active; you must not call any member function during search.)";
         self->ctl     = nullptr;
         self->freeCtl = nullptr;
         self->stats   = nullptr;
+        self->blocked = false;
         new (&self->prop) Propagators();
         new (&self->observers) Observers();
         return self;
@@ -5507,255 +5518,232 @@ active; you must not call any member function during search.)";
         static char const *kwlist[] = {"aguments", nullptr};
         Reference params = Py_None;
         ParseTupleAndKeywords(pyargs, pykwds, "|O", kwlist, params);
+        std::forward_list<std::string> strs;
         std::vector<char const *> args;
         if (!params.none()) {
             for (Object pyVal : Reference{params}.iter()) {
-                args.emplace_back(pyToCpp<char const *>(pyVal));
+                strs.emplace_front(pyToCpp<std::string>(pyVal));
+                args.emplace_back(strs.front().c_str());
             }
         }
         ctl = freeCtl = module->newControl(args.size(), args.data(), nullptr, 20);
     }
-    static PyObject *add(ControlWrap *self, PyObject *args) {
-        PY_TRY
-            checkBlocked(self, "add");
-            char  *name;
-            PyObject *pyParams;
-            char  *part;
-            if (!PyArg_ParseTuple(args, "sOs", &name, &pyParams, &part)) { return nullptr; }
-            FWStringVec params;
-            for (auto pyVal : Reference{pyParams}.iter()) {
-                params.emplace_back(pyToCpp<char const *>(pyVal));
-            }
-            self->ctl->add(name, params, part);
-            Py_RETURN_NONE;
-        PY_CATCH(nullptr);
+    Object add(Reference args) {
+        CHECK_BLOCKED("add");
+        char  *name;
+        Reference pyParams;
+        char  *part;
+        ParseTuple(args, "sOs", name, pyParams, part);
+        std::forward_list<std::string> strs;
+        std::vector<char const *> params;
+        for (auto pyVal : Reference{pyParams}.iter()) {
+            strs.emplace_front(pyToCpp<std::string>(pyVal));
+            params.emplace_back(strs.front().c_str());
+        }
+        handleCError(clingo_control_add(ctl, name, params.data(), params.size(), part));
+        Py_RETURN_NONE;
     }
-    static PyObject *load(ControlWrap *self, PyObject *args) {
-        PY_TRY
-            checkBlocked(self, "load");
-            char *filename;
-            if (!PyArg_ParseTuple(args, "s", &filename)) { return nullptr; }
-            if (!filename) { return nullptr; }
-            self->ctl->load(filename);
-            Py_RETURN_NONE;
-        PY_CATCH(nullptr);
+    Object load(Reference args) {
+        CHECK_BLOCKED("load");
+        char *filename;
+        ParseTuple(args, "s", filename);
+        ctl->load(filename);
+        Py_RETURN_NONE;
     }
-    static PyObject *ground(ControlWrap *self, PyObject *args, PyObject *kwds) {
-        PY_TRY
-            checkBlocked(self, "ground");
-            Gringo::Control::GroundVec parts;
-            static char const *kwlist[] = {"parts", "context", nullptr};
-            PyObject *pyParts;
-            PyContext context(self->ctl->logger());
-            if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O", const_cast<char**>(kwlist), &pyParts, &context.ctx)) { return nullptr; }
-            for (auto pyVal : Reference{pyParts}.iter()) {
-                Object jt = PyObject_GetIter(pyVal.toPy());
-                Object pyName = PyIter_Next(jt.toPy());
-                if (!pyName.valid()) { return PyErr_Format(PyExc_RuntimeError, "tuple of name and arguments expected"); }
-                Object pyArgs = PyIter_Next(jt.toPy());
-                if (!pyArgs.valid()) { return PyErr_Format(PyExc_RuntimeError, "tuple of name and arguments expected"); }
-                Object pyNext = PyIter_Next(jt.toPy());
-                if (pyNext.valid()) { return PyErr_Format(PyExc_RuntimeError, "tuple of name and arguments expected"); }
-                auto name = pyToCpp<char const *>(pyName);
-                auto args = pyToCpp<symbol_vector>(pyArgs);
-                parts.emplace_back(name, reinterpret_cast<SymVec&>(args));
-            }
-            // anchor
-            self->ctl->ground(parts, context ? &context : nullptr);
-            Py_RETURN_NONE;
-        PY_CATCH(nullptr);
-    }
-    static PyObject *getConst(ControlWrap *self, PyObject *args) {
-        PY_TRY
-            checkBlocked(self, "get_const");
-            char *name;
-            if (!PyArg_ParseTuple(args, "s", &name)) { return nullptr; }
-            Gringo::Symbol val;
-            val = self->ctl->getConst(name);
-            if (val.type() == Gringo::SymbolType::Special) { Py_RETURN_NONE; }
-            else { return Symbol::construct(clingo_symbol_t{val.rep()}).release(); }
-        PY_CATCH(nullptr);
-    }
-    static bool on_model(Gringo::Model const &m, PyObject *mh) {
-        PY_TRY
-            auto model = Model::construct(const_cast<clingo_model_t*>(&m));
-            Object ret = PyObject_CallFunction(mh, const_cast<char*>("O"), model.toPy());
-            if (ret.none()) { return true; }
-            else            { return pyToCpp<bool>(ret); }
-        PY_HANDLE("<on_model>", "error in model callback");
-
-    }
-    static void on_finish(Gringo::SolveResult ret, PyObject *fh) {
-        PY_TRY
-            Object pyRet = SolveResult::construct(ret);
-            Object fhRet = PyObject_CallFunction(fh, const_cast<char*>("O"), pyRet.toPy());
-        PY_HANDLE("<on_finish>", "error in finish callback");
-    }
-    static bool getAssumptions(PyObject *pyAss, Gringo::Control::Assumptions &ass) {
-        PY_TRY
-            if (pyAss && pyAss != Py_None) {
-                Object it = PyObject_GetIter(pyAss);
-                if (!it.valid()) { return false; }
-                Object pyPair;
-                while ((pyPair = PyIter_Next(it.toPy())).valid()) {
-                    Object pyPairIt = PyObject_GetIter(pyPair.toPy());
-                    if (!pyPairIt.valid()) { return false; }
-                    Object pyAtom = PyIter_Next(pyPairIt.toPy());
-                    if (!pyAtom.valid()) {
-                        if (!PyErr_Occurred()) { PyErr_Format(PyExc_RuntimeError, "tuple expected"); }
-                        return false;
-                    }
-                    Object pyBool = PyIter_Next(pyPairIt.toPy());
-                    if (!pyBool.valid()) {
-                        if (!PyErr_Occurred()) { PyErr_Format(PyExc_RuntimeError, "tuple expected"); }
-                        return false;
-                    }
-                    ass.emplace_back(Gringo::Symbol{pyToCpp<symbol_wrapper>(pyAtom).symbol}, pyToCpp<bool>(pyBool));
-                }
-                if (PyErr_Occurred()) { return false; }
-            }
+    static bool on_context(clingo_location_t location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data) {
+        try {
+            Object fun = PyObject_GetAttrString(static_cast<PyObject*>(data), name);
+            pycall(fun.toPy(), arguments, arguments_size, symbol_callback, symbol_callback_data);
             return true;
-        PY_CATCH(false);
+        }
+        catch (...) {
+            handle_cxx_error(location, "error in context");
+            return false;
+        }
     }
-    static PyObject *solve_async(ControlWrap *self, PyObject *args, PyObject *kwds) {
-        PY_TRY
-            checkBlocked(self, "solve_async");
-            Py_XDECREF(self->stats);
-            self->stats = nullptr;
-            static char const *kwlist[] = {"on_model", "on_finish", "assumptions", nullptr};
-            PyObject *pyAss = nullptr, *mh = Py_None, *fh = Py_None;
-            if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOO", const_cast<char **>(kwlist), &mh, &fh, &pyAss)) { return nullptr; }
-            Gringo::Control::Assumptions ass;
-            if (!getAssumptions(pyAss, ass)) { return nullptr; }
-            Gringo::SolveFuture *future = self->ctl->solveAsync(
-                mh == Py_None ? Control::ModelHandler(nullptr) : [mh](Gringo::Model const &m) -> bool { PyBlock b; (void)b; return on_model(m, mh); },
-                fh == Py_None ? Control::FinishHandler(nullptr) : [fh](Gringo::SolveResult ret) -> void { PyBlock b; (void)b; on_finish(ret, fh); },
-                std::move(ass)
-            );
-            return SolveFuture::construct(reinterpret_cast<clingo_solve_async_t*>(future), mh, fh).release();
-        PY_CATCH(nullptr);
+    Object ground(Reference args, Reference kwds) {
+        CHECK_BLOCKED("ground");
+        static char const *kwlist[] = {"parts", "context", nullptr};
+        Reference pyParts = Py_None;
+        Reference pyContext = Py_None;
+        ParseTupleAndKeywords(args, kwds, "O|O", kwlist, pyParts, pyContext);
+        std::vector<std::pair<std::string, symbol_vector>> cpp_parts;
+        std::vector<clingo_part_t> parts;
+        pyToCpp(pyParts, cpp_parts);
+        for (auto &&cpp_part : cpp_parts) {
+            parts.emplace_back(clingo_part_t{cpp_part.first.c_str(), reinterpret_cast<clingo_symbol_t*>(cpp_part.second.data()), cpp_part.second.size()});
+        }
+        handleCError(clingo_control_ground(ctl, parts.data(), parts.size(), pyContext.none() ? nullptr : on_context, pyContext.none() ? nullptr : pyContext.toPy()));
+        Py_RETURN_NONE;
     }
-    static PyObject *solve_iter(ControlWrap *self, PyObject *args, PyObject *kwds) {
-        PY_TRY
-            checkBlocked(self, "solve_iter");
-            Py_XDECREF(self->stats);
-            self->stats = nullptr;
-            PyObject *pyAss = nullptr;
-            static char const *kwlist[] = {"assumptions", nullptr};
-            if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O", const_cast<char **>(kwlist), &pyAss)) { return nullptr; }
-            Gringo::Control::Assumptions ass;
-            if (!getAssumptions(pyAss, ass)) { return nullptr; }
-            return SolveIter::construct(reinterpret_cast<clingo_solve_iteratively_t*>(self->ctl->solveIter(std::move(ass)))).release();
-        PY_CATCH(nullptr);
+    Object getConst(Reference args) {
+        CHECK_BLOCKED("get_const");
+        char *name;
+        ParseTuple(args, "s", name);
+        bool has;
+        handleCError(clingo_control_has_const(ctl, name, &has));
+        if (!has) { Py_RETURN_NONE; }
+        clingo_symbol_t val;
+        handleCError(clingo_control_get_const(ctl, name, &val));
+        return Symbol::construct(val);
     }
-    static PyObject *solve(ControlWrap *self, PyObject *args, PyObject *kwds) {
-        PY_TRY
-            checkBlocked(self, "solve");
-            Py_XDECREF(self->stats);
-            self->stats = nullptr;
-            static char const *kwlist[] = {"on_model", "assumptions", nullptr};
-            PyObject *mh = Py_None;
-            PyObject *pyAss = nullptr;
-            if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OO", const_cast<char **>(kwlist), &mh, &pyAss)) { return nullptr; }
-            Gringo::Control::Assumptions ass;
-            if (!getAssumptions(pyAss, ass)) { return nullptr; }
-            Gringo::SolveResult ret = doUnblocked([self, mh, &ass]() {
-                return self->ctl->solve(
-                    mh == Py_None ? Control::ModelHandler(nullptr) : [mh](Gringo::Model const &m) { PyBlock block; return on_model(m, mh); },
-                    std::move(ass)); });
-            return SolveResult::construct(ret).release();
-        PY_CATCH(nullptr);
+    static bool on_model(clingo_model_t *model, void *data, bool *goon) {
+        try {
+            auto pyModel = Model::construct(model);
+            Object ret = PyObject_CallFunction(static_cast<PyObject*>(data), const_cast<char*>("O"), pyModel.toPy());
+            *goon = ret.none() || pyToCpp<bool>(ret);
+            return true;
+        }
+        catch (...) {
+            handle_cxx_error("<on_model>", "error in model callback");
+            return false;
+        }
     }
-    static PyObject *cleanup(ControlWrap *self) {
-        PY_TRY
-            checkBlocked(self, "cleanup");
-            self->ctl->cleanupDomains();
-            Py_RETURN_NONE;
-        PY_CATCH(nullptr);
+    static bool on_model_blocked(clingo_model_t *model, void *data, bool *goon) {
+        PyBlock block;
+        return on_model(model, data, goon);
     }
-    static PyObject *assign_external(ControlWrap *self, PyObject *args) {
-        PY_TRY
-            checkBlocked(self, "assign_external");
-            PyObject *pyExt, *pyVal;
-            if (!PyArg_ParseTuple(args, "OO", &pyExt, &pyVal)) { return nullptr; }
-            Potassco::Value_t val;
-            if (pyVal == Py_True)       { val = Potassco::Value_t::True; }
-            else if (pyVal == Py_False) { val = Potassco::Value_t::False; }
-            else if (pyVal == Py_None)  { val = Potassco::Value_t::Free; }
-            else {
-                PyErr_Format(PyExc_RuntimeError, "unexpected %s() object as second argumet", pyVal->ob_type->tp_name);
-                return nullptr;
-            }
-            auto ext = Gringo::Symbol{pyToCpp<symbol_wrapper>(pyExt).symbol};
-            self->ctl->assignExternal(ext, val);
-            Py_RETURN_NONE;
-        PY_CATCH(nullptr);
+    static bool on_finish(clingo_solve_result_bitset_t result, void *data) {
+        try {
+            Object pyRet = SolveResult::construct(result);
+            Object fhRet = PyObject_CallFunction(static_cast<PyObject*>(data), const_cast<char*>("O"), pyRet.toPy());
+            return true;
+        }
+        catch (...) {
+            handle_cxx_error("<on_finish>", "error in finish callback");
+            return false;
+        }
     }
-    static PyObject *release_external(ControlWrap *self, PyObject *args) {
-        PY_TRY
-            checkBlocked(self, "release_external");
-            PyObject *pyExt;
-            if (!PyArg_ParseTuple(args, "O", &pyExt)) { return nullptr; }
-            auto ext = Gringo::Symbol{pyToCpp<symbol_wrapper>(pyExt).symbol};
-            self->ctl->assignExternal(ext, Potassco::Value_t::Release);
-            Py_RETURN_NONE;
-        PY_CATCH(nullptr);
+    static bool on_finish_blocked(clingo_solve_result_bitset_t result, void *data) {
+        PyBlock block;
+        return on_finish(result, data);
     }
-    static PyObject *getStats(ControlWrap *self, void *) {
-        PY_TRY
-            checkBlocked(self, "statistics");
-            if (!self->stats) {
-                auto *stats = self->ctl->statistics();
-                self->stats = getStatistics(reinterpret_cast<clingo_statistics_t*>(stats), stats->root()).release();
-            }
-            Py_XINCREF(self->stats);
-            return self->stats;
-        PY_CATCH(nullptr);
+    Object solve_async(Reference args, Reference kwds) {
+        CHECK_BLOCKED("solve_async");
+        Py_XDECREF(stats);
+        stats = nullptr;
+        static char const *kwlist[] = {"on_model", "on_finish", "assumptions", nullptr};
+        Reference pyAss = Py_None, mh = Py_None, fh = Py_None;
+        ParseTupleAndKeywords(args, kwds, "|OOO", kwlist, mh, fh, pyAss);
+        std::vector<clingo_symbolic_literal_t> ass;
+        if (!pyAss.none()) { pyToCpp(pyAss, ass); }
+        clingo_solve_async_t *handle;
+        handleCError(clingo_control_solve_async(ctl, mh.none() ? nullptr : on_model_blocked, mh.toPy(), fh.none() ? nullptr : on_finish_blocked, fh.toPy(), ass.data(), ass.size(), &handle));
+        return SolveFuture::construct(handle, mh.toPy(), fh.toPy());
     }
-    static int set_use_enumeration_assumption(ControlWrap *self, PyObject *pyEnable, void *) {
-        PY_TRY
-            checkBlocked(self, "use_enumeration_assumption");
-            int enable = PyObject_IsTrue(pyEnable);
-            if (enable < 0) { return -1; }
-            self->ctl->useEnumAssumption(enable);
-            return 0;
-        PY_CATCH(-1);
+    Object solve_iter(Reference args, Reference kwds) {
+        CHECK_BLOCKED("solve_iter");
+        Py_XDECREF(stats);
+        stats = nullptr;
+        Reference pyAss = Py_None;
+        char const *kwlist[] = {"assumptions", nullptr};
+        ParseTupleAndKeywords(args, kwds, "|O", kwlist, pyAss);
+        std::vector<clingo_symbolic_literal_t> ass;
+        if (!pyAss.none()) { pyToCpp(pyAss, ass); }
+        clingo_solve_iteratively_t *handle;
+        handleCError(clingo_control_solve_iteratively(ctl, ass.data(), ass.size(), &handle));
+        return SolveIter::construct(handle);
     }
-    static PyObject *get_use_enumeration_assumption(ControlWrap *self, void *) {
-        PY_TRY
-            return PyBool_FromLong(self->ctl->useEnumAssumption());
-        PY_CATCH(nullptr);
+    Object solve(Reference args, Reference kwds) {
+        CHECK_BLOCKED("solve");
+        Py_XDECREF(stats);
+        stats = nullptr;
+        static char const *kwlist[] = {"on_model", "assumptions", nullptr};
+        Reference mh = Py_None;
+        Reference pyAss = Py_None;
+        ParseTupleAndKeywords(args, kwds, "|OO", kwlist, mh, pyAss);
+        std::vector<clingo_symbolic_literal_t> ass;
+        if (!pyAss.none()) { pyToCpp(pyAss, ass); }
+        for (auto &x : ass) {
+            std::cerr << "assumption: " << x.symbol << " = " << x.positive << std::endl;
+        }
+        auto ret = doUnblocked([this, mh, &ass]() {
+            clingo_solve_result_bitset_t result;
+            handleCError(clingo_control_solve(ctl, mh.none() ? nullptr : on_model_blocked, mh.toPy(), ass.data(), ass.size(), &result));
+            return result;
+        });
+        return SolveResult::construct(ret).release();
     }
-    static PyObject *conf(ControlWrap *self, void *) {
-        PY_TRY
-            clingo_configuration_t *conf;
-            handleCError(clingo_control_configuration(self->ctl, &conf));
-            clingo_id_t root;
-            handleCError(clingo_configuration_root(conf, &root));
-            return Configuration::construct(root, conf).release();
-        PY_CATCH(nullptr);
+    Object cleanup() {
+        CHECK_BLOCKED("cleanup");
+        handleCError(clingo_control_cleanup(ctl));
+        Py_RETURN_NONE;
     }
-    static PyObject *symbolicAtoms(ControlWrap *self, void *) {
-        return SymbolicAtoms::construct(&self->ctl->getDomain()).release();
+    Object assign_external(Reference args) {
+        CHECK_BLOCKED("assign_external");
+        Reference pyExt, pyVal;
+        ParseTuple(args, "OO", pyExt, pyVal);
+        clingo_external_type_t val;
+        if (pyVal == Py_True)       { val = clingo_external_type_true; }
+        else if (pyVal == Py_False) { val = clingo_external_type_false; }
+        else if (pyVal == Py_None)  { val = clingo_external_type_free; }
+        else {
+            PyErr_Format(PyExc_RuntimeError, "unexpected %s() object as second argumet", pyVal.toPy()->ob_type->tp_name);
+            return nullptr;
+        }
+        auto ext = pyToCpp<symbol_wrapper>(pyExt).symbol;
+        handleCError(clingo_control_assign_external(ctl, ext, val));
+        Py_RETURN_NONE;
+    }
+    Object release_external(Reference args) {
+        CHECK_BLOCKED("release_external");
+        Reference pyExt;
+        ParseTuple(args, "O", pyExt);
+        auto ext = pyToCpp<symbol_wrapper>(pyExt).symbol;
+        handleCError(clingo_control_assign_external(ctl, ext, clingo_external_type_release));
+        Py_RETURN_NONE;
+    }
+    Object getStats() {
+        CHECK_BLOCKED("statistics");
+        if (!stats) {
+            clingo_statistics_t *s;
+            handleCError(clingo_control_statistics(ctl, &s));
+            uint64_t root;
+            handleCError(clingo_statistics_root(s, &root));
+            stats = getStatistics(s, root).release();
+        }
+        Py_XINCREF(stats);
+        return stats;
+    }
+    void set_use_enumeration_assumption(Reference pyEnable) {
+        CHECK_BLOCKED("use_enumeration_assumption");
+        int enable = pyEnable.isTrue();
+        handleCError(clingo_control_use_enumeration_assumption(ctl, enable));
+    }
+    Object conf() {
+        CHECK_BLOCKED("configuration");
+        clingo_configuration_t *conf;
+        handleCError(clingo_control_configuration(ctl, &conf));
+        clingo_id_t root;
+        handleCError(clingo_configuration_root(conf, &root));
+        return Configuration::construct(root, conf).release();
+    }
+    Object symbolicAtoms() {
+        CHECK_BLOCKED("symbolic_atoms");
+        clingo_symbolic_atoms_t *atoms;
+        handleCError(clingo_control_symbolic_atoms(ctl, &atoms));
+        return SymbolicAtoms::construct(atoms);
     }
     Object theoryIter() {
-        checkBlocked(this, "theory_atoms");
-        return TheoryAtomIter::construct(const_cast<Gringo::TheoryData*>(&ctl->theory()), 0);
+        CHECK_BLOCKED("theory_atoms");
+        clingo_theory_atoms_t *atoms;
+        handleCError(clingo_control_theory_atoms(ctl, &atoms));
+        return TheoryAtomIter::construct(atoms, 0);
     }
-    static PyObject *registerPropagator(ControlWrap *self, PyObject *tp) {
-        PY_TRY
-            static clingo_propagator_t prop = {
-                reinterpret_cast<decltype(clingo_propagator_t::init)>(propagator_init),
-                reinterpret_cast<decltype(clingo_propagator_t::propagate)>(propagator_propagate),
-                reinterpret_cast<decltype(clingo_propagator_t::undo)>(propagator_undo),
-                reinterpret_cast<decltype(clingo_propagator_t::check)>(propagator_check)
-            };
-            self->prop.emplace_back(Reference{tp}); // TODO: drop the reference
-            handleCError(clingo_control_register_propagator(self->ctl, prop, tp, false));
-            Py_RETURN_NONE;
-        PY_CATCH(nullptr);
+    Object registerPropagator(Reference tp) {
+        CHECK_BLOCKED("register_propagator");
+        static clingo_propagator_t propagator = {
+            reinterpret_cast<decltype(clingo_propagator_t::init)>(propagator_init),
+            reinterpret_cast<decltype(clingo_propagator_t::propagate)>(propagator_propagate),
+            reinterpret_cast<decltype(clingo_propagator_t::undo)>(propagator_undo),
+            reinterpret_cast<decltype(clingo_propagator_t::check)>(propagator_check)
+        };
+        prop.emplace_back(tp);
+        handleCError(clingo_control_register_propagator(ctl, propagator, tp.toPy(), false));
+        Py_RETURN_NONE;
     }
     Object registerObserver(Reference args, Reference kwds) {
+        CHECK_BLOCKED("register_observer");
         static char const *kwlist[] = {"observer", "replace", nullptr};
         Reference obs, rep = Py_False;
         ParseTupleAndKeywords(args, kwds, "O|O", kwlist, obs, rep);
@@ -5786,11 +5774,9 @@ active; you must not call any member function during search.)";
         handleCError(clingo_control_register_observer(ctl, observer, rep.isTrue(), obs.toPy()));
         return None();
     }
-    static PyObject *interrupt(ControlWrap *self) {
-        PY_TRY
-            self->ctl->interrupt();
-            Py_RETURN_NONE;
-        PY_CATCH(nullptr);
+    Object interrupt() {
+        clingo_control_interrupt(ctl);
+        Py_RETURN_NONE;
     }
     Object backend() {
         clingo_backend_t *backend;
@@ -5829,7 +5815,7 @@ def main(prg):
 #end.
 )"},
     // ground
-    {"ground", (PyCFunction)ground, METH_KEYWORDS | METH_VARARGS,
+    {"ground", to_function<&ControlWrap::ground>(), METH_KEYWORDS | METH_VARARGS,
 R"(ground(self, parts, context) -> None
 
 Ground the given list of program parts specified by tuples of names and arguments.
@@ -5862,12 +5848,12 @@ q(t).
 Expected Answer Set:
 q(1) q(2))"},
     // get_const
-    {"get_const", (PyCFunction)getConst, METH_VARARGS,
+    {"get_const", to_function<&ControlWrap::getConst>(), METH_VARARGS,
 R"(get_const(self, name) -> Symbol
 
 Return the symbol for a constant definition of form: #const name = symbol.)"},
     // add
-    {"add", (PyCFunction)add, METH_VARARGS,
+    {"add", to_function<&ControlWrap::add>(), METH_VARARGS,
 R"(add(self, name, params, program) -> None
 
 Extend the logic program with the given non-ground logic program in string form.
@@ -5892,7 +5878,7 @@ def main(prg):
 Expected Answer Set:
 q(2))"},
     // load
-    {"load", (PyCFunction)load, METH_VARARGS,
+    {"load", to_function<&ControlWrap::load>(), METH_VARARGS,
 R"(load(self, path) -> None
 
 Extend the logic program with a (non-ground) logic program in a file.
@@ -5900,7 +5886,7 @@ Extend the logic program with a (non-ground) logic program in a file.
 Arguments:
 path -- path to program)"},
     // solve_async
-    {"solve_async", (PyCFunction)solve_async, METH_KEYWORDS | METH_VARARGS,
+    {"solve_async", to_function<&ControlWrap::solve_async>(), METH_KEYWORDS | METH_VARARGS,
 R"(solve_async(self, on_model, on_finish, assumptions) -> SolveFuture
 
 Start a search process in the background and return a SolveFuture object.
@@ -5945,7 +5931,7 @@ Expected Output:
 q
 SAT False)"},
     // solve_iter
-    {"solve_iter", (PyCFunction)solve_iter, METH_KEYWORDS | METH_VARARGS,
+    {"solve_iter", to_function<&ControlWrap::solve_iter>(), METH_KEYWORDS | METH_VARARGS,
 R"(solve_iter(self, assumptions) -> SolveIter
 
 Return a SolveIter object, which can be used to iterate over models.
@@ -5968,7 +5954,7 @@ def main(prg):
 
 #end.)"},
     // solve
-    {"solve", (PyCFunction)solve, METH_KEYWORDS | METH_VARARGS,
+    {"solve", to_function<&ControlWrap::solve>(), METH_KEYWORDS | METH_VARARGS,
 R"(solve(self, on_model, assumptions) -> SolveResult
 
 Start a search process and return a SolveResult.
@@ -5990,7 +5976,7 @@ This function releases the GIL but it is not thread-safe.
 Take a look at Control.solve_async for an example on how to use the model
 callback.)"},
     // cleanup
-    {"cleanup", (PyCFunction)cleanup, METH_NOARGS,
+    {"cleanup", to_function<&ControlWrap::cleanup>(), METH_NOARGS,
 R"(cleanup(self) -> None
 
 Cleanup the domain used for grounding by incorporating information from the
@@ -6004,7 +5990,7 @@ from the domain or mark them as facts.
 Note that any atoms falsified are completely removed from the logic program.
 Hence, a definition for such an atom in a successive step introduces a fresh atom.)"},
     // assign_external
-    {"assign_external", (PyCFunction)assign_external, METH_VARARGS,
+    {"assign_external", to_function<&ControlWrap::assign_external>(), METH_VARARGS,
 R"(assign_external(self, external, truth) -> None
 
 Assign a truth value to an external atom (represented as a function symbol).
@@ -6026,7 +6012,7 @@ To determine whether an atom a is external, inspect the symbolic_atoms using
 SolveControl.symbolic_atoms[a].is_external. See release_external() for an
 example.)"},
     // release_external
-    {"release_external", (PyCFunction)release_external, METH_VARARGS,
+    {"release_external", to_function<&ControlWrap::release_external>(), METH_VARARGS,
 R"(release_external(self, symbol) -> None
 
 Release an external atom represented by the given symbol.
@@ -6230,7 +6216,7 @@ class GroundProgramObserver:
         Marks the end of a block of directives passed to the solver.
 
         This function is called right before solving starts.)"},
-    {"register_propagator", (PyCFunction)registerPropagator, METH_O,
+    {"register_propagator", to_function<&ControlWrap::registerPropagator>(), METH_O,
 R"(register_propagator(self, propagator) -> None
 
 Registers the given propagator with all solvers.
@@ -6299,7 +6285,7 @@ class Propagator(object)
         control -- PropagateControl object
 
         This function is called even if no watches have been added.)"},
-    {"interrupt", (PyCFunction)interrupt, METH_NOARGS,
+    {"interrupt", to_function<&ControlWrap::interrupt>(), METH_NOARGS,
 R"(interrupt(self) -> None
 
 Interrupt the active solve call.
@@ -6312,9 +6298,9 @@ query if the search was interrupted.)"},
 };
 
 PyGetSetDef ControlWrap::tp_getset[] = {
-    {(char*)"configuration", (getter)conf, nullptr, (char*)"Configuration object to change the configuration.", nullptr},
-    {(char*)"symbolic_atoms", (getter)symbolicAtoms, nullptr, (char*)"SymbolicAtoms object to inspect the symbolic atoms.", nullptr},
-    {(char*)"use_enumeration_assumption", (getter)get_use_enumeration_assumption, (setter)set_use_enumeration_assumption,
+    {(char*)"configuration", to_getter<&ControlWrap::conf>(), nullptr, (char*)"Configuration object to change the configuration.", nullptr},
+    {(char*)"symbolic_atoms", to_getter<&ControlWrap::symbolicAtoms>(), nullptr, (char*)"SymbolicAtoms object to inspect the symbolic atoms.", nullptr},
+    {(char*)"use_enumeration_assumption", nullptr, to_setter<&ControlWrap::set_use_enumeration_assumption>(),
 (char*)R"(Boolean determining how learnt information from enumeration modes is treated.
 
 If the enumeration assumption is enabled, then all information learnt from
@@ -6324,7 +6310,7 @@ or without projection, or finding optimal models; as well as clauses/nogoods
 added with Model.add_clause()/Model.add_nogood().
 
 Note that initially the enumeration assumption is enabled.)", nullptr},
-    {(char*)"statistics", (getter)getStats, nullptr,
+    {(char*)"statistics", to_getter<&ControlWrap::getStats>(), nullptr,
 (char*)R"(A dictionary containing solve statistics of the last solve call.
 
 Contains the statistics of the last solve(), solve_async(), or solve_iter()
@@ -6345,13 +6331,11 @@ json.dumps(prg.statistics, sort_keys=True, indent=4, separators=(',', ': ')))", 
 
 // {{{1 wrap module functions
 
-static PyObject *parseTerm(PyObject *, PyObject *objString) {
-    PY_TRY
-        char const *current = PyString_AsString(objString);
-    Gringo::Symbol value = ControlWrap::module->parseValue(current, nullptr, 20);
-        if (value.type() == Gringo::SymbolType::Special) { Py_RETURN_NONE; }
-        else { return Symbol::construct(clingo_symbol_t{value.rep()}).release(); }
-    PY_CATCH(nullptr);
+Object parseTerm(Reference obj) {
+    auto str = pyToCpp<std::string>(obj);
+    clingo_symbol_t sym;
+    handleCError(clingo_parse_term(str.c_str(), nullptr, nullptr, 0, &sym));
+    return Symbol::construct(sym);
 }
 
 // {{{1 gringo module
@@ -6704,7 +6688,7 @@ statement = Rule
 )";
 
 static PyMethodDef clingoModuleMethods[] = {
-    {"parse_term", (PyCFunction)parseTerm, METH_O,
+    {"parse_term", to_function<parseTerm>(), METH_O,
 R"(parse_term(string) -> Symbol
 
 Parse the given string using gringo's term parser for ground terms. The
@@ -6915,7 +6899,7 @@ void pyToCpp(Reference obj, symbol_wrapper &val) {
         handleCError(clingo_symbol_create_function("", reinterpret_cast<clingo_symbol_t*>(vec.data()), vec.size(), true, &val.symbol));
     }
     else if (PyInt_Check(obj.toPy()))    { clingo_symbol_create_number(pyToCpp<int>(obj), &val.symbol); }
-    else if (PyString_Check(obj.toPy())) { handleCError(clingo_symbol_create_string(pyToCpp<char const *>(obj), &val.symbol)); }
+    else if (PyString_Check(obj.toPy())) { handleCError(clingo_symbol_create_string(pyToCpp<std::string>(obj).c_str(), &val.symbol)); }
     else {
         PyErr_Format(PyExc_RuntimeError, "cannot convert to value: unexpected %s() object", obj.toPy()->ob_type->tp_name);
         throw PyException();
@@ -7020,8 +7004,12 @@ struct PythonImpl {
     }
     void call(String name, SymSpan args, SymVec &vals) {
         Object fun = PyMapping_GetItemString(main, const_cast<char*>(name.c_str()));
-        // FIXME: evil reinterpret cast
-        pycall(fun.toPy(), args, reinterpret_cast<symbol_vector&>(vals));
+        pycall(fun, reinterpret_cast<clingo_symbol_t const *>(args.first), args.size, [](clingo_symbol_t const *symbols, size_t symbols_size, void *data) {
+            for (auto it = symbols, ie = it + symbols_size; it != ie; ++it) {
+                static_cast<SymVec*>(data)->emplace_back(Gringo::Symbol{*it});
+            }
+            return true;
+        }, &vals);
     }
     void call(Gringo::Control &ctl) {
         Object fun = PyMapping_GetItemString(main, const_cast<char*>("main"));
