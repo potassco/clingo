@@ -5346,13 +5346,11 @@ struct ProgramBuilder : ObjectBase<ProgramBuilder> {
     static constexpr char const *tp_doc =
 R"(Object to build non-ground programs.)";
 
-    static PyObject *new_(clingo_program_builder_t *builder) {
-        ProgramBuilder *self;
-        self = reinterpret_cast<ProgramBuilder*>(type.tp_alloc(&type, 0));
-        if (!self) { return nullptr; }
+    static Object construct(clingo_program_builder_t *builder) {
+        auto self = new_();
         self->builder = builder;
         self->locked  = true;
-        return reinterpret_cast<PyObject*>(self);
+        return self;
     }
     Object add(Reference pyStm) {
         if (locked) { throw std::runtime_error("__enter__ has not been called"); }
@@ -5799,10 +5797,10 @@ active; you must not call any member function during search.)";
         handleCError(clingo_control_backend(ctl, &backend));
         return Backend::construct(backend);
     }
-    static PyObject *builder(ControlWrap *self) {
-        PY_TRY
-            return ProgramBuilder::new_(reinterpret_cast<clingo_program_builder_t*>(self->ctl));
-        PY_CATCH(nullptr);
+    Object builder() {
+        clingo_program_builder_t *builder;
+        handleCError(clingo_control_program_builder(ctl, &builder));
+        return ProgramBuilder::construct(builder);
     }
 };
 
@@ -5810,7 +5808,7 @@ Gringo::GringoModule *ControlWrap::module  = nullptr;
 
 PyMethodDef ControlWrap::tp_methods[] = {
     // builder
-    {"builder", (PyCFunction)builder, METH_NOARGS,
+    {"builder", to_function<&ControlWrap::builder>(), METH_NOARGS,
 R"(builder(self) -> ProgramBuilder
 
 Return a builder to construct non-ground logic programs.
