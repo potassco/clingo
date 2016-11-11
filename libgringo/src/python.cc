@@ -741,6 +741,20 @@ WRAP_FUNCTION(tp_repr) {
     };
 };
 
+WRAP_FUNCTION(tp_new) {
+    static PyObject *value(PyTypeObject *type, PyObject *, PyObject *) {
+        PY_TRY { return B::tp_new(type).release(); }
+        PY_CATCH(nullptr);
+    };
+};
+
+WRAP_FUNCTION(tp_init) {
+    static int value(PyObject *self, PyObject *args, PyObject *kwargs) {
+        PY_TRY { reinterpret_cast<B*>(self)->tp_init(args, kwargs); return 0; }
+        PY_CATCH(-1);
+    };
+};
+
 template <class B, class Enable = void>
 struct Get_tp_str : Get_tp_repr<B, void> { };
 
@@ -921,8 +935,6 @@ struct ObjectBase : ObjectProtocoll<T> {
     PyObject_HEAD
     static PyTypeObject type;
 
-    static constexpr initproc tp_init = nullptr;
-    static constexpr newfunc tp_new = nullptr;
     static constexpr PyGetSetDef *tp_getset = nullptr;
     static PyMethodDef tp_methods[];
 
@@ -934,10 +946,10 @@ struct ObjectBase : ObjectProtocoll<T> {
     }
 
     static SharedObject<T> new_() {
-        return new_(&type, nullptr, nullptr);
+        return new_(&type);
     }
 
-    static SharedObject<T> new_(PyTypeObject *type, PyObject *, PyObject *) {
+    static SharedObject<T> new_(PyTypeObject *type) {
         T *self;
         self = reinterpret_cast<T*>(type->tp_alloc(type, 0));
         if (!self) { throw PyException(); }
@@ -1030,9 +1042,9 @@ PyTypeObject ObjectBase<T>::type = {
     nullptr,                                    // tp_descr_get
     nullptr,                                    // tp_descr_set
     0,                                          // tp_dictoffset
-    reinterpret_cast<initproc>(T::tp_init),     // tp_init
+    PythonDetail::Get_tp_init<T>::value,        // tp_init
     nullptr,                                    // tp_alloc
-    reinterpret_cast<newfunc>(T::tp_new),       // tp_new
+    PythonDetail::Get_tp_new<T>::value,         // tp_new
     nullptr,                                    // tp_free
     nullptr,                                    // tp_is_gc
     nullptr,                                    // tp_bases
@@ -3320,42 +3332,42 @@ Object create ## N(Reference pyargs, Reference pykwds) { \
     static char const *kwlist[] = {#a1, nullptr}; \
     PyObject* vals[] = { nullptr }; \
     if (!PyArg_ParseTupleAndKeywords(pyargs.toPy(), pykwds.toPy(), "O", const_cast<char**>(kwlist), &vals[0])) { return nullptr; } \
-    return AST::new_(ASTType::N, kwlist, vals); \
+    return AST::construct(ASTType::N, kwlist, vals); \
 }
 #define CREATE2(N,a1,a2) \
 Object create ## N(Reference pyargs, Reference pykwds) { \
     static char const *kwlist[] = {#a1,#a2, nullptr}; \
     PyObject* vals[] = { nullptr, nullptr }; \
     if (!PyArg_ParseTupleAndKeywords(pyargs.toPy(), pykwds.toPy(), "OO", const_cast<char**>(kwlist), &vals[0], &vals[1])) { return nullptr; } \
-    return AST::new_(ASTType::N, kwlist, vals); \
+    return AST::construct(ASTType::N, kwlist, vals); \
 }
 #define CREATE3(N,a1,a2,a3) \
 Object create ## N(Reference pyargs, Reference pykwds) { \
     static char const *kwlist[] = {#a1, #a2, #a3, nullptr}; \
     PyObject* vals[] = { nullptr, nullptr, nullptr }; \
     if (!PyArg_ParseTupleAndKeywords(pyargs.toPy(), pykwds.toPy(), "OOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2])) { return nullptr; } \
-    return AST::new_(ASTType::N, kwlist, vals); \
+    return AST::construct(ASTType::N, kwlist, vals); \
 }
 #define CREATE4(N,a1,a2,a3,a4) \
 Object create ## N(Reference pyargs, Reference pykwds) { \
     static char const *kwlist[] = {#a1, #a2, #a3, #a4, nullptr}; \
     PyObject* vals[] = { nullptr, nullptr, nullptr, nullptr }; \
     if (!PyArg_ParseTupleAndKeywords(pyargs.toPy(), pykwds.toPy(), "OOOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2], &vals[3])) { return nullptr; } \
-    return AST::new_(ASTType::N, kwlist, vals); \
+    return AST::construct(ASTType::N, kwlist, vals); \
 }
 #define CREATE5(N,a1,a2,a3,a4,a5) \
 Object create ## N(Reference pyargs, Reference pykwds) { \
     static char const *kwlist[] = {#a1, #a2, #a3, #a4, #a5, nullptr}; \
     PyObject* vals[] = { nullptr, nullptr, nullptr, nullptr, nullptr }; \
     if (!PyArg_ParseTupleAndKeywords(pyargs.toPy(), pykwds.toPy(), "OOOOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2], &vals[3], &vals[4])) { return nullptr; } \
-    return AST::new_(ASTType::N, kwlist, vals); \
+    return AST::construct(ASTType::N, kwlist, vals); \
 }
 #define CREATE6(N,a1,a2,a3,a4,a5,a6) \
 Object create ## N(Reference pyargs, Reference pykwds) { \
     static char const *kwlist[] = {#a1, #a2, #a3, #a4, #a5, #a6, nullptr}; \
     PyObject* vals[] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr }; \
     if (!PyArg_ParseTupleAndKeywords(pyargs.toPy(), pykwds.toPy(), "OOOOOO", const_cast<char**>(kwlist), &vals[0], &vals[1], &vals[2], &vals[3], &vals[4], &vals[5])) { return nullptr; } \
-    return AST::new_(ASTType::N, kwlist, vals); \
+    return AST::construct(ASTType::N, kwlist, vals); \
 }
 
 // {{{3 enums
@@ -3814,42 +3826,36 @@ AST nodes can be structually compared ignoring the location.
 Note that it is also possible to create AST nodes using one of the functions
 provided in this module.
 )";
-    static PyObject *tp_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
-        PY_TRY
-            AST *self = reinterpret_cast<AST*>(type->tp_alloc(type, 0));
-            if (!self) { return nullptr; }
-            new (&self->fields_) Dict();
-            new (&self->children) List(nullptr);
-            Reference pyType;
-            if (PyArg_ParseTuple(args, "O", &pyType.obj) < 0) { return nullptr; }
-            self->type_ = enumValue<ASTType>(pyType);
-            if (kwargs) {
-                for (auto item : Dict{Reference{kwargs}}.items().iter()) {
-                    self->fields_.setItem(item.getItem(0), item.getItem(1));
-                }
-            }
-            return reinterpret_cast<PyObject*>(self);
-        PY_CATCH(nullptr);
+    static Object tp_new(PyTypeObject *type) {
+        auto self = new_(type);
+        new (&self->fields_) Dict();
+        new (&self->children) List(nullptr);
+        return self;
     }
-    static PyObject *new_(ASTType::T t) {
-        PY_TRY
-            AST *self = reinterpret_cast<AST*>(type.tp_alloc(&type, 0));
-            if (!self) { return nullptr; }
-            new (&self->fields_) Dict();
-            new (&self->children) List(nullptr);
-            self->type_ = t;
-            return reinterpret_cast<PyObject*>(self);
-        PY_CATCH(nullptr);
-    }
-    static PyObject *new_(ASTType::T type, char const **kwlist, PyObject **vals) {
-        PY_TRY
-            Object ret = new_(type);
-            auto jt = vals;
-            for (auto it = kwlist; *it; ++it) {
-                ret.setAttr(*it, *jt++);
+    void tp_init(Reference args, Reference kwargs) {
+        Reference pyType;
+        ParseTuple(args, "O", pyType);
+        type_ = enumValue<ASTType>(pyType);
+        if (kwargs.valid()) {
+            for (auto item : Dict{Reference{kwargs}}.items().iter()) {
+                fields_.setItem(item.getItem(0), item.getItem(1));
             }
-            return ret.release();
-        PY_CATCH(nullptr);
+        }
+    }
+    static Object construct(ASTType::T t) {
+        auto self = new_();
+        new (&self->fields_) Dict();
+        new (&self->children) List(nullptr);
+        self->type_ = t;
+        return self;
+    }
+    static Object construct(ASTType::T type, char const **kwlist, PyObject **vals) {
+        Object ret = construct(type);
+        auto jt = vals;
+        for (auto it = kwlist; *it; ++it) {
+            ret.setAttr(*it, *jt++);
+        }
+        return ret;
     }
     Object childKeys_() {
         auto ret = [](std::initializer_list<char const *> l) { return cppToPy(l); };
@@ -3940,258 +3946,256 @@ provided in this module.
     }
 
     Object tp_repr() {
-        PY_TRY
-            std::ostringstream out;
-            switch (type_) {
-                // {{{3 term
-                case ASTType::Id: { return fields_.getItem("id").str(); }
-                case ASTType::Variable: { return fields_.getItem("name").str(); }
-                case ASTType::Symbol:   { return fields_.getItem("symbol").str(); }
-                case ASTType::UnaryOperation: {
-                    Object unop = fields_.getItem("unary_operator");
-                    out << unop.call("left_hand_side") << fields_.getItem("argument") << unop.call("right_hand_side");
-                    break;
-                }
-                case ASTType::BinaryOperation: {
-                    out << "(" << fields_.getItem("left") << fields_.getItem("binary_operator") << fields_.getItem("right") << ")";
-                    break;
-                }
-                case ASTType::Interval: {
-                    out << "(" << fields_.getItem("left") << ".." << fields_.getItem("right") << ")";
-                    break;
-                }
-                case ASTType::Function: {
-                    Object name = fields_.getItem("name"), args = fields_.getItem("arguments");
-                    bool tc = name.size() == 0 && args.size() == 1;
-                    bool ey = name.size() == 0 && args.empty();
-                    out << (fields_.getItem("external").isTrue() ? "@" : "") << name << printList(args, "(", ",", tc ? ",)" : ")", ey);
-                    break;
-                }
-                case ASTType::Pool: {
-                    Object args = fields_.getItem("arguments");
-                    if (args.empty()) { out << "(1/0)"; }
-                    else              { out << printList(args, "(", ";", ")", true); }
-                    break;
-                }
-                case ASTType::CSPProduct: {
-                    auto var = fields_.getItem("variable");
-                    auto coe = fields_.getItem("coefficient");
-                    if (!var.none()) { out << coe << "$*" << "$" << var; }
-                    else             { out << coe; }
-                    break;
-                }
-                case ASTType::CSPSum: {
-                    auto terms = fields_.getItem("terms");
-                    if (terms.empty()) { out << "0"; }
-                    else               { out << printList(terms, "", "$+", "", false); }
-                    break;
-                }
-                // {{{3 literal
-                case ASTType::Literal: {
-                    out << fields_.getItem("sign") << fields_.getItem("atom");
-                    break;
-                }
-                case ASTType::BooleanConstant: {
-                    out << (fields_.getItem("value").isTrue() ? "#true" : "#false");
-                    break;
-                }
-                case ASTType::SymbolicAtom: {
-                    out << fields_.getItem("term");
-                    break;
-                }
-                case ASTType::Comparison: {
-                    out << fields_.getItem("left") << fields_.getItem("comparison") << fields_.getItem("right");
-                    break;
-                }
-                case ASTType::CSPGuard: {
-                    out << "$" << fields_.getItem("comparison") << fields_.getItem("term");
-                    break;
-                }
-                case ASTType::CSPLiteral: {
-                    out << fields_.getItem("term") << printList(fields_.getItem("guards"), "", "", "", false);
-                    break;
-                }
-                // {{{3 aggregate
-                case ASTType::AggregateGuard: {
-                    out << "AggregateGuard(" << fields_.getItem("comparison") << ", " << fields_.getItem("term") << ")";
-                    break;
-                }
-                case ASTType::ConditionalLiteral: {
-                    out << fields_.getItem("literal") << printList(fields_.getItem("condition"), " : ", ", ", "", true);
-                    break;
-                }
-                case ASTType::Aggregate: {
-                    auto left = fields_.getItem("left_guard"), right = fields_.getItem("right_guard");
-                    if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
-                    out << "{ " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
-                    if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
-                    break;
-                }
-                case ASTType::BodyAggregateElement: {
-                    out << printList(fields_.getItem("tuple"), "", ",", "", false) << " : " << printList(fields_.getItem("condition"), "", ", ", "", false);
-                    break;
-                }
-                case ASTType::BodyAggregate: {
-                    auto left = fields_.getItem("left_guard"), right = fields_.getItem("right_guard");
-                    if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
-                    out << fields_.getItem("function") << " { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
-                    if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
-                    break;
-                }
-                case ASTType::HeadAggregateElement: {
-                    out << printList(fields_.getItem("tuple"), "", ",", "", false) << " : " << fields_.getItem("condition");
-                    break;
-                }
-                case ASTType::HeadAggregate: {
-                    auto left = fields_.getItem("left_guard"), right = fields_.getItem("right_guard");
-                    if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
-                    out << fields_.getItem("function") << " { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
-                    if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
-                    break;
-                }
-                case ASTType::Disjunction: {
-                    out << printList(fields_.getItem("elements"), "", "; ", "", false);
-                    break;
-                }
-                case ASTType::DisjointElement: {
-                    out << printList(fields_.getItem("tuple"), "", ",", "", false) << " : " << fields_.getItem("term") << " : " << printList(fields_.getItem("condition"), "", ",", "", false);
-                    break;
-                }
-                case ASTType::Disjoint: {
-                    out << "#disjoint { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
-                    break;
-                }
-                // {{{3 theory atom
-                case ASTType::TheorySequence: {
-                    auto type = fields_.getItem("sequence_type"), terms = fields_.getItem("terms");
-                    bool tc = terms.size() == 1 && type == TheorySequenceType::getAttr(TheorySequenceType::Tuple);
-                    out << type.call("left_hand_side") << printList(terms, "", ",", "", true) << (tc ? "," : "") << type.call("right_hand_side");
-                    break;
-                }
-                case ASTType::TheoryFunction: {
-                    auto args = fields_.getItem("arguments");
-                    out << fields_.getItem("name") << printList(args, "(", ",", ")", !args.empty());
-                    break;
-                }
-                case ASTType::TheoryUnparsedTermElement: {
-                    out << printList(fields_.getItem("operators"), "", " ", " ", false) << fields_.getItem("term");
-                    break;
-                }
-                case ASTType::TheoryUnparsedTerm: {
-                    auto elems = fields_.getItem("elements");
-                    bool pp = elems.size() != 1 || !elems.getItem(0).getAttr("operators").empty();
-                    out << (pp ? "(" : "") << printList(elems, "", " ", "", false) << (pp ? ")" : "");
-                    break;
-                }
-                case ASTType::TheoryGuard: {
-                    out << fields_.getItem("operator_name") << " " << fields_.getItem("term");
-                    break;
-                }
-                case ASTType::TheoryAtomElement: {
-                    out << printList(fields_.getItem("tuple"), "", ",", "", false) << " : " << printList(fields_.getItem("condition"), "", ",", "", false);
-                    break;
-                }
-                case ASTType::TheoryAtom: {
-                    auto guard = fields_.getItem("guard");
-                    out << "&" << fields_.getItem("term") << " { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
-                    if (!guard.none()) { out << " " << guard; }
-                    break;
-                }
-                // {{{3 theory definition
-                case ASTType::TheoryOperatorDefinition: {
-                    out << fields_.getItem("name") << " : " << fields_.getItem("priority") << ", " << fields_.getItem("operator_type");
-                    break;
-                }
-                case ASTType::TheoryTermDefinition: {
-                    out << fields_.getItem("name") << " {\n" << printList(fields_.getItem("operators"), "  ", ";\n", "\n", true) << "}";
-                    break;
-                }
-                case ASTType::TheoryGuardDefinition: {
-                    out << "{ " << printList(fields_.getItem("operators"), "", ", ", "", false) << " }, " << fields_.getItem("term");
-                    break;
-                }
-                case ASTType::TheoryAtomDefinition: {
-                    auto guard = fields_.getItem("guard");
-                    out << "&" << fields_.getItem("name") << "/" << fields_.getItem("arity") << " : " << fields_.getItem("elements");
-                    if (!guard.none()) { out << ", " << guard; }
-                    out << ", " << fields_.getItem("atom_type");
-                    break;
-                }
-                case ASTType::TheoryDefinition: {
-                    out << "#theory " << fields_.getItem("name") << " {\n";
-                    bool comma = false;
-                    for (auto y : fields_.getItem("terms").iter()) {
-                        if (comma) { out << ";\n"; }
-                        else       { comma = true; }
-                        out << "  " << y.getAttr("name") << " {\n" << printList(y.getAttr("operators"), "    ", ";\n", "\n", true) << "  }";
-                    }
-                    for (auto y : fields_.getItem("atoms").iter()) {
-                        if (comma) { out << ";\n"; }
-                        else       { comma = true; }
-                        out << "  " << y;
-                    }
-                    if (comma) { out << "\n"; }
-                    out << "}.";
-                    break;
-                }
-                // {{{3 statement
-                case ASTType::Rule: {
-                    out << fields_.getItem("head") << printBody(fields_.getItem("body"), " :- ");
-                    break;
-                }
-                case ASTType::Definition: {
-                    out << "#const " << fields_.getItem("name") << " = " << fields_.getItem("value") << ".";
-                    if (fields_.getItem("is_default").isTrue()) { out << " [default]"; }
-                    break;
-                }
-                case ASTType::ShowSignature: {
-                    out << "#show " << (fields_.getItem("csp").isTrue() ? "$" : "") << (fields_.getItem("positive").isTrue() ? "" : "-") << fields_.getItem("name") << "/" << fields_.getItem("arity") << ".";
-                    break;
-                }
-                case ASTType::ShowTerm: {
-                    out << "#show " << (fields_.getItem("csp").isTrue() ? "$" : "") << fields_.getItem("term") << printBody(fields_.getItem("body"));
-                    break;
-                }
-                case ASTType::Minimize: {
-                    out << printBody(fields_.getItem("body"), ":~ ") << " [" << fields_.getItem("weight") << "@" << fields_.getItem("priority") << printList(fields_.getItem("tuple"), ",", ",", "", false) << "]";
-                    break;
-                }
-                case ASTType::Script: {
-                    std::string s = pyToCpp<char const *>(fields_.getItem("code"));
-                    if (!s.empty() && s.back() == '\n') {
-                        s.back() = '.';
-                    }
-                    out << s;
-                    break;
-                }
-                case ASTType::Program: {
-                    out << "#program " << fields_.getItem("name") << printList(fields_.getItem("parameters"), "(", ",", ")", false) << ".";
-                    break;
-                }
-                case ASTType::External: {
-                    out << "#external " << fields_.getItem("atom") << printBody(fields_.getItem("body"));
-                    break;
-                }
-                case ASTType::Edge: {
-                    out << "#edge (" << fields_.getItem("u") << "," << fields_.getItem("v") << ")" << printBody(fields_.getItem("body"));
-                    break;
-                }
-                case ASTType::Heuristic: {
-                    out << "#heuristic " << fields_.getItem("atom") << printBody(fields_.getItem("body")) << " [" << fields_.getItem("bias")<< "@" << fields_.getItem("priority") << "," << fields_.getItem("modifier") << "]";
-                    break;
-                }
-                case ASTType::ProjectAtom: {
-                    out << "#project " << fields_.getItem("atom") << printBody(fields_.getItem("body"));
-                    break;
-                }
-                case ASTType::ProjectSignature: {
-                    out << "#project " << (fields_.getItem("positive").isTrue() ? "" : "-") << fields_.getItem("name") << "/" << fields_.getItem("arity") << ".";
-                    break;
-                }
-                // }}}3
+        std::ostringstream out;
+        switch (type_) {
+            // {{{3 term
+            case ASTType::Id: { return fields_.getItem("id").str(); }
+            case ASTType::Variable: { return fields_.getItem("name").str(); }
+            case ASTType::Symbol:   { return fields_.getItem("symbol").str(); }
+            case ASTType::UnaryOperation: {
+                Object unop = fields_.getItem("unary_operator");
+                out << unop.call("left_hand_side") << fields_.getItem("argument") << unop.call("right_hand_side");
+                break;
             }
-            return cppToPy(out.str());
-        PY_CATCH(nullptr);
+            case ASTType::BinaryOperation: {
+                out << "(" << fields_.getItem("left") << fields_.getItem("binary_operator") << fields_.getItem("right") << ")";
+                break;
+            }
+            case ASTType::Interval: {
+                out << "(" << fields_.getItem("left") << ".." << fields_.getItem("right") << ")";
+                break;
+            }
+            case ASTType::Function: {
+                Object name = fields_.getItem("name"), args = fields_.getItem("arguments");
+                bool tc = name.size() == 0 && args.size() == 1;
+                bool ey = name.size() == 0 && args.empty();
+                out << (fields_.getItem("external").isTrue() ? "@" : "") << name << printList(args, "(", ",", tc ? ",)" : ")", ey);
+                break;
+            }
+            case ASTType::Pool: {
+                Object args = fields_.getItem("arguments");
+                if (args.empty()) { out << "(1/0)"; }
+                else              { out << printList(args, "(", ";", ")", true); }
+                break;
+            }
+            case ASTType::CSPProduct: {
+                auto var = fields_.getItem("variable");
+                auto coe = fields_.getItem("coefficient");
+                if (!var.none()) { out << coe << "$*" << "$" << var; }
+                else             { out << coe; }
+                break;
+            }
+            case ASTType::CSPSum: {
+                auto terms = fields_.getItem("terms");
+                if (terms.empty()) { out << "0"; }
+                else               { out << printList(terms, "", "$+", "", false); }
+                break;
+            }
+            // {{{3 literal
+            case ASTType::Literal: {
+                out << fields_.getItem("sign") << fields_.getItem("atom");
+                break;
+            }
+            case ASTType::BooleanConstant: {
+                out << (fields_.getItem("value").isTrue() ? "#true" : "#false");
+                break;
+            }
+            case ASTType::SymbolicAtom: {
+                out << fields_.getItem("term");
+                break;
+            }
+            case ASTType::Comparison: {
+                out << fields_.getItem("left") << fields_.getItem("comparison") << fields_.getItem("right");
+                break;
+            }
+            case ASTType::CSPGuard: {
+                out << "$" << fields_.getItem("comparison") << fields_.getItem("term");
+                break;
+            }
+            case ASTType::CSPLiteral: {
+                out << fields_.getItem("term") << printList(fields_.getItem("guards"), "", "", "", false);
+                break;
+            }
+            // {{{3 aggregate
+            case ASTType::AggregateGuard: {
+                out << "AggregateGuard(" << fields_.getItem("comparison") << ", " << fields_.getItem("term") << ")";
+                break;
+            }
+            case ASTType::ConditionalLiteral: {
+                out << fields_.getItem("literal") << printList(fields_.getItem("condition"), " : ", ", ", "", true);
+                break;
+            }
+            case ASTType::Aggregate: {
+                auto left = fields_.getItem("left_guard"), right = fields_.getItem("right_guard");
+                if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
+                out << "{ " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
+                if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
+                break;
+            }
+            case ASTType::BodyAggregateElement: {
+                out << printList(fields_.getItem("tuple"), "", ",", "", false) << " : " << printList(fields_.getItem("condition"), "", ", ", "", false);
+                break;
+            }
+            case ASTType::BodyAggregate: {
+                auto left = fields_.getItem("left_guard"), right = fields_.getItem("right_guard");
+                if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
+                out << fields_.getItem("function") << " { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
+                if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
+                break;
+            }
+            case ASTType::HeadAggregateElement: {
+                out << printList(fields_.getItem("tuple"), "", ",", "", false) << " : " << fields_.getItem("condition");
+                break;
+            }
+            case ASTType::HeadAggregate: {
+                auto left = fields_.getItem("left_guard"), right = fields_.getItem("right_guard");
+                if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
+                out << fields_.getItem("function") << " { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
+                if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
+                break;
+            }
+            case ASTType::Disjunction: {
+                out << printList(fields_.getItem("elements"), "", "; ", "", false);
+                break;
+            }
+            case ASTType::DisjointElement: {
+                out << printList(fields_.getItem("tuple"), "", ",", "", false) << " : " << fields_.getItem("term") << " : " << printList(fields_.getItem("condition"), "", ",", "", false);
+                break;
+            }
+            case ASTType::Disjoint: {
+                out << "#disjoint { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
+                break;
+            }
+            // {{{3 theory atom
+            case ASTType::TheorySequence: {
+                auto type = fields_.getItem("sequence_type"), terms = fields_.getItem("terms");
+                bool tc = terms.size() == 1 && type == TheorySequenceType::getAttr(TheorySequenceType::Tuple);
+                out << type.call("left_hand_side") << printList(terms, "", ",", "", true) << (tc ? "," : "") << type.call("right_hand_side");
+                break;
+            }
+            case ASTType::TheoryFunction: {
+                auto args = fields_.getItem("arguments");
+                out << fields_.getItem("name") << printList(args, "(", ",", ")", !args.empty());
+                break;
+            }
+            case ASTType::TheoryUnparsedTermElement: {
+                out << printList(fields_.getItem("operators"), "", " ", " ", false) << fields_.getItem("term");
+                break;
+            }
+            case ASTType::TheoryUnparsedTerm: {
+                auto elems = fields_.getItem("elements");
+                bool pp = elems.size() != 1 || !elems.getItem(0).getAttr("operators").empty();
+                out << (pp ? "(" : "") << printList(elems, "", " ", "", false) << (pp ? ")" : "");
+                break;
+            }
+            case ASTType::TheoryGuard: {
+                out << fields_.getItem("operator_name") << " " << fields_.getItem("term");
+                break;
+            }
+            case ASTType::TheoryAtomElement: {
+                out << printList(fields_.getItem("tuple"), "", ",", "", false) << " : " << printList(fields_.getItem("condition"), "", ",", "", false);
+                break;
+            }
+            case ASTType::TheoryAtom: {
+                auto guard = fields_.getItem("guard");
+                out << "&" << fields_.getItem("term") << " { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
+                if (!guard.none()) { out << " " << guard; }
+                break;
+            }
+            // {{{3 theory definition
+            case ASTType::TheoryOperatorDefinition: {
+                out << fields_.getItem("name") << " : " << fields_.getItem("priority") << ", " << fields_.getItem("operator_type");
+                break;
+            }
+            case ASTType::TheoryTermDefinition: {
+                out << fields_.getItem("name") << " {\n" << printList(fields_.getItem("operators"), "  ", ";\n", "\n", true) << "}";
+                break;
+            }
+            case ASTType::TheoryGuardDefinition: {
+                out << "{ " << printList(fields_.getItem("operators"), "", ", ", "", false) << " }, " << fields_.getItem("term");
+                break;
+            }
+            case ASTType::TheoryAtomDefinition: {
+                auto guard = fields_.getItem("guard");
+                out << "&" << fields_.getItem("name") << "/" << fields_.getItem("arity") << " : " << fields_.getItem("elements");
+                if (!guard.none()) { out << ", " << guard; }
+                out << ", " << fields_.getItem("atom_type");
+                break;
+            }
+            case ASTType::TheoryDefinition: {
+                out << "#theory " << fields_.getItem("name") << " {\n";
+                bool comma = false;
+                for (auto y : fields_.getItem("terms").iter()) {
+                    if (comma) { out << ";\n"; }
+                    else       { comma = true; }
+                    out << "  " << y.getAttr("name") << " {\n" << printList(y.getAttr("operators"), "    ", ";\n", "\n", true) << "  }";
+                }
+                for (auto y : fields_.getItem("atoms").iter()) {
+                    if (comma) { out << ";\n"; }
+                    else       { comma = true; }
+                    out << "  " << y;
+                }
+                if (comma) { out << "\n"; }
+                out << "}.";
+                break;
+            }
+            // {{{3 statement
+            case ASTType::Rule: {
+                out << fields_.getItem("head") << printBody(fields_.getItem("body"), " :- ");
+                break;
+            }
+            case ASTType::Definition: {
+                out << "#const " << fields_.getItem("name") << " = " << fields_.getItem("value") << ".";
+                if (fields_.getItem("is_default").isTrue()) { out << " [default]"; }
+                break;
+            }
+            case ASTType::ShowSignature: {
+                out << "#show " << (fields_.getItem("csp").isTrue() ? "$" : "") << (fields_.getItem("positive").isTrue() ? "" : "-") << fields_.getItem("name") << "/" << fields_.getItem("arity") << ".";
+                break;
+            }
+            case ASTType::ShowTerm: {
+                out << "#show " << (fields_.getItem("csp").isTrue() ? "$" : "") << fields_.getItem("term") << printBody(fields_.getItem("body"));
+                break;
+            }
+            case ASTType::Minimize: {
+                out << printBody(fields_.getItem("body"), ":~ ") << " [" << fields_.getItem("weight") << "@" << fields_.getItem("priority") << printList(fields_.getItem("tuple"), ",", ",", "", false) << "]";
+                break;
+            }
+            case ASTType::Script: {
+                std::string s = pyToCpp<char const *>(fields_.getItem("code"));
+                if (!s.empty() && s.back() == '\n') {
+                    s.back() = '.';
+                }
+                out << s;
+                break;
+            }
+            case ASTType::Program: {
+                out << "#program " << fields_.getItem("name") << printList(fields_.getItem("parameters"), "(", ",", ")", false) << ".";
+                break;
+            }
+            case ASTType::External: {
+                out << "#external " << fields_.getItem("atom") << printBody(fields_.getItem("body"));
+                break;
+            }
+            case ASTType::Edge: {
+                out << "#edge (" << fields_.getItem("u") << "," << fields_.getItem("v") << ")" << printBody(fields_.getItem("body"));
+                break;
+            }
+            case ASTType::Heuristic: {
+                out << "#heuristic " << fields_.getItem("atom") << printBody(fields_.getItem("body")) << " [" << fields_.getItem("bias")<< "@" << fields_.getItem("priority") << "," << fields_.getItem("modifier") << "]";
+                break;
+            }
+            case ASTType::ProjectAtom: {
+                out << "#project " << fields_.getItem("atom") << printBody(fields_.getItem("body"));
+                break;
+            }
+            case ASTType::ProjectSignature: {
+                out << "#project " << (fields_.getItem("positive").isTrue() ? "" : "-") << fields_.getItem("name") << "/" << fields_.getItem("arity") << ".";
+                break;
+            }
+            // }}}3
+        }
+        return cppToPy(out.str());
     }
 
     List toList() {
@@ -5473,25 +5477,24 @@ active; you must not call any member function during search.)";
             throw PyException();
         }
     }
-    static PyObject *new_(Gringo::Control &ctl) {
-        PyObject *self = tp_new(&type, nullptr, nullptr);
-        if (!self) { return nullptr; }
-        reinterpret_cast<ControlWrap*>(self)->ctl = &ctl;
-        new (&reinterpret_cast<ControlWrap*>(self)->prop) Propagators();
-        new (&reinterpret_cast<ControlWrap*>(self)->observers) Observers();
+    static Object construct(Gringo::Control &ctl) {
+        auto self = new_();
+        self->ctl = &ctl;
+        self->freeCtl = nullptr;
+        self->stats   = nullptr;
+        new (&self->prop) Propagators();
+        new (&self->observers) Observers();
         return self;
     }
     static Gringo::GringoModule *module;
-    static PyObject *tp_new(PyTypeObject *type, PyObject *, PyObject *) {
-        ControlWrap *self;
-        self = reinterpret_cast<ControlWrap*>(type->tp_alloc(type, 0));
-        if (!self) { return nullptr; }
+    static Object tp_new(PyTypeObject *type) {
+        auto self = new_(type);
         self->ctl     = nullptr;
         self->freeCtl = nullptr;
         self->stats   = nullptr;
         new (&self->prop) Propagators();
         new (&self->observers) Observers();
-        return reinterpret_cast<PyObject*>(self);
+        return self;
     }
     void tp_dealloc() {
         if (freeCtl) { delete freeCtl; }
@@ -5500,20 +5503,17 @@ active; you must not call any member function during search.)";
         observers.~Observers();
         Py_XDECREF(stats);
     }
-    static int tp_init(ControlWrap *self, PyObject *pyargs, PyObject *pykwds) {
-        PY_TRY
-            static char const *kwlist[] = {"aguments", nullptr};
-            PyObject *params = nullptr;
-            if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "|O", const_cast<char**>(kwlist), &params)) { return -1; }
-            std::vector<char const *> args;
-            if (params) {
-                for (Object pyVal : Reference{params}.iter()) {
-                    args.emplace_back(pyToCpp<char const *>(pyVal));
-                }
+    void tp_init(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"aguments", nullptr};
+        Reference params = Py_None;
+        ParseTupleAndKeywords(pyargs, pykwds, "|O", kwlist, params);
+        std::vector<char const *> args;
+        if (!params.none()) {
+            for (Object pyVal : Reference{params}.iter()) {
+                args.emplace_back(pyToCpp<char const *>(pyVal));
             }
-            self->ctl = self->freeCtl = module->newControl(args.size(), args.data(), nullptr, 20);
-            return 0;
-        PY_CATCH(-1);
+        }
+        ctl = freeCtl = module->newControl(args.size(), args.data(), nullptr, 20);
     }
     static PyObject *add(ControlWrap *self, PyObject *args) {
         PY_TRY
@@ -7026,7 +7026,7 @@ struct PythonImpl {
     void call(Gringo::Control &ctl) {
         Object fun = PyMapping_GetItemString(main, const_cast<char*>("main"));
         Object params = PyTuple_New(1);
-        Object param(ControlWrap::new_(ctl));
+        Object param(ControlWrap::construct(ctl));
         if (PyTuple_SetItem(params.toPy(), 0, param.release()) < 0) { throw PyException(); }
         Object ret = PyObject_Call(fun.toPy(), params.toPy(), Py_None);
     }
