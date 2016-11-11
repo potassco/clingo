@@ -5654,9 +5654,6 @@ active; you must not call any member function during search.)";
         ParseTupleAndKeywords(args, kwds, "|OO", kwlist, mh, pyAss);
         std::vector<clingo_symbolic_literal_t> ass;
         if (!pyAss.none()) { pyToCpp(pyAss, ass); }
-        for (auto &x : ass) {
-            std::cerr << "assumption: " << x.symbol << " = " << x.positive << std::endl;
-        }
         auto ret = doUnblocked([this, mh, &ass]() {
             clingo_solve_result_bitset_t result;
             handleCError(clingo_control_solve(ctl, mh.none() ? nullptr : on_model_blocked, mh.toPy(), ass.data(), ass.size(), &result));
