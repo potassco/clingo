@@ -6331,10 +6331,11 @@ json.dumps(prg.statistics, sort_keys=True, indent=4, separators=(',', ': ')))", 
 
 // {{{1 wrap module functions
 
+// TODO: consider exposing the logger to python...
 Object parseTerm(Reference obj) {
     auto str = pyToCpp<std::string>(obj);
     clingo_symbol_t sym;
-    handleCError(clingo_parse_term(str.c_str(), nullptr, nullptr, 0, &sym));
+    handleCError(clingo_parse_term(str.c_str(), nullptr, nullptr, 20, &sym));
     return Symbol::construct(sym);
 }
 
