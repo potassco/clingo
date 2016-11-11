@@ -514,8 +514,8 @@ void pyToCpp(Reference obj, clingo_symbolic_literal_t &val) {
     pyToCpp(obj, y);
 }
 
-void pyToCpp(Reference pyPair, Potassco::WeightLit_t &x) {
-    std::pair<Lit_t &, Weight_t &> y{ x.lit, x.weight };
+void pyToCpp(Reference pyPair, clingo_weighted_literal_t &x) {
+    std::pair<Lit_t &, Weight_t &> y{ x.literal, x.weight };
     pyToCpp(pyPair, y);
 }
 
@@ -597,7 +597,7 @@ Object cppToPy(T n, typename std::enable_if<std::is_floating_point<T>::value>::t
     return PyFloat_FromDouble(n);
 }
 
-Object cppToPy(clingo_weighted_literal lit) {
+Object cppToPy(clingo_weighted_literal_t lit) {
     return Tuple(cppToPy(lit.literal), cppToPy(lit.weight));
 }
 
@@ -1711,7 +1711,7 @@ Object getStatistics(clingo_statistics_t *stats, uint64_t key) {
             }
             return list;
         }
-        case Potassco::Statistics_t::Map: {
+        case clingo_statistics_type_map: {
             size_t e;
             handleCError(clingo_statistics_map_size(stats, key, &e));
             Dict dict;
@@ -3212,8 +3212,7 @@ bool observer_theory_atom_with_guard(clingo_id_t atom_id_or_zero, clingo_id_t te
 // {{{1 wrap wrap Backend
 
 struct Backend : ObjectBase<Backend> {
-    Gringo::Control *ctl;
-    Gringo::Backend *backend;
+    clingo_backend_t *backend;
 
     static PyMethodDef tp_methods[];
 
@@ -3225,70 +3224,61 @@ struct Backend : ObjectBase<Backend> {
 This class provides an interface that allows for adding statements in ASPIF
 format.)";
 
-    static PyObject *new_(Gringo::Control &ctl) {
-        PY_TRY
-            auto *backend = ctl.backend();
-            if (!backend) {
-                PyErr_Format(PyExc_RuntimeError, "backend not available");
-                return nullptr;
-            }
-            Object ret(type.tp_alloc(&type, 0));
-            Backend *self = reinterpret_cast<Backend*>(ret.toPy());
-            self->ctl = &ctl;
-            self->backend = backend;
-            return ret.release();
-        PY_CATCH(nullptr);
+    static Object construct(clingo_backend_t *backend) {
+        if (!backend) {
+            PyErr_Format(PyExc_RuntimeError, "backend not available");
+            throw PyException();
+        }
+        auto self = new_();
+        self->backend = backend;
+        return self;
     }
 
-    static PyObject *addAtom(Backend *self) {
-        PY_TRY
-            return PyInt_FromLong(self->ctl->addProgramAtom());
-        PY_CATCH(nullptr);
+    Object addAtom() {
+        clingo_atom_t atom;
+        handleCError(clingo_backend_add_atom(backend, &atom));
+        return cppToPy(atom);
     }
 
-    static PyObject *addRule(Backend *self, PyObject *pyargs, PyObject *pykwds) {
-        PY_TRY
-            static char const *kwlist[] = {"head", "body", "choice", nullptr};
-            PyObject *pyHead = nullptr;
-            PyObject *pyBody = nullptr;
-            PyObject *pyChoice = Py_False;
-            if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "O|OO", const_cast<char**>(kwlist), &pyHead, &pyBody, &pyChoice)) { return nullptr; }
-            Gringo::BackendAtomVec head;
-            pyToCpp(pyHead, head);
-            Gringo::BackendLitVec body;
-            if (pyBody) { pyToCpp(pyBody, body); }
-            bool choice = pyToCpp<bool>(pyChoice);
-            Gringo::outputRule(*self->backend, choice, head, body);
-            Py_RETURN_NONE;
-        PY_CATCH(nullptr);
+    Object addRule(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"head", "body", "choice", nullptr};
+        Reference pyHead = Py_None;
+        Reference pyBody = Py_None;
+        Reference pyChoice = Py_False;
+        ParseTupleAndKeywords(pyargs, pykwds, "O|OO", kwlist, pyHead, pyBody, pyChoice);
+        std::vector<clingo_atom_t> head;
+        pyToCpp(pyHead, head);
+        std::vector<clingo_literal_t> body;
+        if (!pyBody.none()) { pyToCpp(pyBody, body); }
+        bool choice = pyChoice.isTrue();
+        handleCError(clingo_backend_rule(backend, choice, head.data(), head.size(), body.data(), body.size()));
+        Py_RETURN_NONE;
     }
 
-    static PyObject *addWeightRule(Backend *self, PyObject *pyargs, PyObject *pykwds) {
-        PY_TRY
-            static char const *kwlist[] = {"head", "lower", "body", "choice", nullptr};
-            PyObject *pyHead = nullptr;
-            PyObject *pyLower = nullptr;
-            PyObject *pyBody = nullptr;
-            PyObject *pyChoice = Py_False;
-            if (!PyArg_ParseTupleAndKeywords(pyargs, pykwds, "OOO|O", const_cast<char**>(kwlist), &pyHead, &pyLower, &pyBody, &pyChoice)) { return nullptr; }
-            auto head = pyToCpp<Gringo::BackendAtomVec>(pyHead);
-            auto lower = pyToCpp<Potassco::Weight_t>(pyLower);
-            auto body = pyToCpp<Gringo::BackendLitWeightVec>(pyBody);
-            auto choice = pyToCpp<bool>(pyChoice);
-            Gringo::outputRule(*self->backend, choice, head, lower, body);
-            Py_RETURN_NONE;
-        PY_CATCH(nullptr);
+    Object addWeightRule(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"head", "lower", "body", "choice", nullptr};
+        Reference pyHead = Py_None;
+        Reference pyLower = Py_None;
+        Reference pyBody = Py_None;
+        Reference pyChoice = Py_False;
+        ParseTupleAndKeywords(pyargs, pykwds, "OOO|O", kwlist, pyHead, pyLower, pyBody, pyChoice);
+        auto head = pyToCpp<std::vector<clingo_atom_t>>(pyHead);
+        auto lower = pyToCpp<clingo_weight_t>(pyLower);
+        auto body = pyToCpp<std::vector<clingo_weighted_literal_t>>(pyBody);
+        auto choice = pyToCpp<bool>(pyChoice);
+        handleCError(clingo_backend_weight_rule(backend, choice, head.data(), head.size(), lower, body.data(), body.size()));
+        Py_RETURN_NONE;
     }
 };
 
 PyMethodDef Backend::tp_methods[] = {
     // add_atom
-    {"add_atom", (PyCFunction)addAtom, METH_NOARGS,
+    {"add_atom", to_function<&Backend::addAtom>(), METH_NOARGS,
 R"(add_atom(self) -> Int
 
 Return a fresh program atom.)"},
     // add_rule
-    {"add_rule", (PyCFunction)addRule, METH_VARARGS | METH_KEYWORDS,
+    {"add_rule", to_function<&Backend::addRule>(), METH_VARARGS | METH_KEYWORDS,
 R"(add_rule(self, head, body, choice) -> None
 
 Add a disjuntive or choice rule to the program.
@@ -3303,7 +3293,7 @@ choice -- whether to add a disjunctive or choice rule (Default: False)
 Integrity constraints and normal rules can be added by using an empty or
 singleton head list, respectively.)"},
     // add_weight_rule
-    {"add_weight_rule", (PyCFunction)addWeightRule, METH_VARARGS | METH_KEYWORDS,
+    {"add_weight_rule", to_function<&Backend::addWeightRule>(), METH_VARARGS | METH_KEYWORDS,
 R"(add_weight_rule(self, head, lower, body, choice) -> None
 Add a disjuntive or choice rule with one weight constraint with a lower bound
 in the body to the program.
@@ -5804,8 +5794,10 @@ active; you must not call any member function during search.)";
             Py_RETURN_NONE;
         PY_CATCH(nullptr);
     }
-    static PyObject *backend(ControlWrap *self, void *) {
-        return Backend::new_(*self->ctl);
+    Object backend() {
+        clingo_backend_t *backend;
+        handleCError(clingo_control_backend(ctl, &backend));
+        return Backend::construct(backend);
     }
     static PyObject *builder(ControlWrap *self) {
         PY_TRY
@@ -6349,7 +6341,7 @@ Example:
 import json
 json.dumps(prg.statistics, sort_keys=True, indent=4, separators=(',', ': ')))", nullptr},
     {(char *)"theory_atoms", to_getter<&ControlWrap::theoryIter>(), nullptr, (char *)R"(A TheoryAtomIter object, which can be used to iterate over the theory atoms.)", nullptr},
-    {(char *)"backend", (getter)backend, nullptr, (char *)R"(A Backend object providing a low level interface to extend a logic program.)", nullptr},
+    {(char *)"backend", to_getter<&ControlWrap::backend>(), nullptr, (char *)R"(A Backend object providing a low level interface to extend a logic program.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
