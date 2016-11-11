@@ -579,16 +579,12 @@ Object cppToPy(symbol_wrapper val);
 template <class T>
 Object cppToPy(std::vector<T> const &vals);
 template <class T>
-Object cppToPy(Potassco::Span<T> const &span);
-template <class T>
 Object cppToPy(std::initializer_list<T> l);
 template <class T>
 Object cppToPy(T const *arr, size_t size);
 template <class T, class U>
 Object cppToPy(std::pair<T, U> const &pair);
-
 Object cppToPy(char const *n) { return PyString_FromString(n); }
-Object cppToPy(std::string const &s) { return cppToPy(s.c_str()); }
 Object cppToPy(bool n) { return PyBool_FromLong(n); }
 template <class T>
 Object cppToPy(T n, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr) {
@@ -1942,7 +1938,7 @@ places like - e.g., the main function.)";
         std::vector<clingo_symbol_t> ret(size);
         handleCError(clingo_model_symbols(model, clingo_show_type_shown, ret.data(), size));
         print_comma(oss, ret, " ", printAtom);
-        return cppToPy(oss.str());
+        return cppToPy(oss.str().c_str());
     }
     Object getContext() {
         clingo_solve_control_t *ctl;
@@ -4224,7 +4220,7 @@ provided in this module.
             }
             // }}}3
         }
-        return cppToPy(out.str());
+        return cppToPy(out.str().c_str());
     }
 
     List toList() {
@@ -6923,11 +6919,6 @@ Object cppRngToPy(T begin, T end) {
 template <class T>
 Object cppToPy(std::vector<T> const &vals) {
     return cppRngToPy(vals.begin(), vals.end());
-}
-
-template <class T>
-Object cppToPy(Potassco::Span<T> const &span) {
-    return cppRngToPy(span.first, span.first + span.size);
 }
 
 template <class T>
