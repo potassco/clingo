@@ -207,6 +207,19 @@ struct Propagator : Potassco::AbstractPropagator {
 };
 using UProp = std::unique_ptr<Propagator>;
 
+// {{{1 declaration of Script
+
+class Script {
+public:
+    virtual void exec(Location const &loc, String code) = 0;
+    virtual SymVec call(Location const &loc, String name, SymSpan args) = 0;
+    virtual bool callable(String name) = 0;
+    virtual void main(Control &ctl) = 0;
+    virtual ~Script() = default;
+};
+using UScript = std::shared_ptr<Script>;
+using UScriptVec = std::vector<std::pair<clingo_ast_script_type, UScript>>;
+
 // {{{1 declaration of Control
 
 using FWStringVec = std::vector<String>;
@@ -243,6 +256,7 @@ struct clingo_control {
     virtual Gringo::TheoryData const &theory() const = 0;
     virtual void registerPropagator(std::unique_ptr<Gringo::Propagator> p, bool sequential) = 0;
     virtual void registerObserver(Gringo::UBackend program, bool replace) = 0;
+    virtual void registerScript(clingo_ast_script_type type, Gringo::UScript script) = 0;
     virtual Potassco::Atom_t addProgramAtom() = 0;
     virtual Gringo::Backend *backend() = 0;
     virtual Gringo::Logger &logger() = 0;

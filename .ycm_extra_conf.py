@@ -53,6 +53,7 @@ flags = [
 '-Ilibgringo/src',
 '-Ilibclingo',
 '-Ilibreify',
+'-Ilibpygringo',
 '-Ilibreify/src',
 '-Ilibpotassco',
 '-Iclasp',

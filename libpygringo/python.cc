@@ -22,13 +22,11 @@
 
 #include <Python.h>
 
-#include "gringo/python.hh"
-#include "gringo/symbol.hh"
-#include "gringo/locatable.hh"
-#include "gringo/logger.hh"
-#include "gringo/control.hh"
+#include "python.hh"
 #include <iostream>
 #include <sstream>
+#include <vector>
+#include <memory>
 #include <forward_list>
 
 #if PY_MAJOR_VERSION >= 3
@@ -62,15 +60,6 @@
 #define GRINGO_STRUCT_EXTRA
 #endif
 
-#define PY_TRY try {
-#define PY_CATCH(ret) \
-} \
-catch (std::bad_alloc const &e) { PyErr_SetString(PyExc_MemoryError, e.what()); } \
-catch (PyException const &)     { } \
-catch (std::exception const &e) { PyErr_SetString(PyExc_RuntimeError, e.what()); } \
-catch (...)                     { PyErr_SetString(PyExc_RuntimeError, "unknown error"); } \
-return (ret)
-
 namespace Gringo {
 
 namespace {
@@ -96,6 +85,18 @@ void incRef(T *object) {
 // {{{1 auxiliary functions and objects
 
 struct PyException : std::exception { };
+
+// directly translate a c++ into a python exception
+void handle_cxx_error () {
+    try { throw; }
+    catch (std::bad_alloc const &e) { PyErr_SetString(PyExc_MemoryError, e.what()); }
+    catch (PyException const &)     { }
+    catch (std::exception const &e) { PyErr_SetString(PyExc_RuntimeError, e.what()); }
+    catch (...)                     { PyErr_SetString(PyExc_RuntimeError, "unknown error"); }
+}
+
+#define PY_TRY try
+#define PY_CATCH(ret) catch (...) { handle_cxx_error(); } return ret
 
 struct Iter;
 struct Reference;
@@ -518,7 +519,7 @@ void pyToCpp(Reference obj, clingo_symbolic_literal_t &val) {
 }
 
 void pyToCpp(Reference pyPair, clingo_weighted_literal_t &x) {
-    std::pair<Lit_t &, Weight_t &> y{ x.literal, x.weight };
+    std::pair<clingo_literal_t &, clingo_weight_t &> y{ x.literal, x.weight };
     pyToCpp(pyPair, y);
 }
 
@@ -627,10 +628,6 @@ Object pyExec(char const *str, char const *filename, PyObject *globals, PyObject
 #endif
 }
 
-#define PY_HANDLE(func, msg) \
-} \
-catch (PyException const &) { handleError(func, msg); throw std::logic_error("cannot happen"); }
-
 template <class T>
 Object doCmp(T const &a, T const &b, int op) {
     switch (op) {
@@ -642,6 +639,20 @@ Object doCmp(T const &a, T const &b, int op) {
         case Py_GE: { return cppToPy(a >= b); }
     }
     Py_RETURN_FALSE;
+}
+
+std::ostream &operator<<(std::ostream &out, clingo_location_t loc) {
+    out << loc.begin_file << ":" << loc.begin_line << ":" << loc.begin_column;
+    if (strcmp(loc.begin_file, loc.end_file) != 0) {
+        out << "-" << loc.end_file << ":" << loc.end_line << ":" << loc.end_column;
+    }
+    else if (loc.begin_line != loc.end_line) {
+        out << "-" << loc.end_line << ":" << loc.end_column;
+    }
+    else if (loc.begin_column != loc.end_column) {
+        out << "-" << loc.end_column;
+    }
+    return out;
 }
 
 std::string errorToString() {
@@ -665,16 +676,86 @@ std::string errorToString() {
         return "error during error handling";
     }
 }
-void handleError(Location const &loc, char const *msg) {
-    std::ostringstream ss;
-    ss << loc << ": error: " << msg << ":\n" << errorToString();
-    throw GringoError(ss.str().c_str());
+
+// translates a clingo api error into a c++ exception
+void handle_c_error(bool ret, std::exception_ptr *exc = nullptr) {
+    if (!ret) {
+        if (exc && *exc) { std::rethrow_exception(*exc); }
+        char const *msg = clingo_error_message();
+        if (!msg) { msg = "no message"; }
+        switch (static_cast<clingo_error>(clingo_error_code())) {
+            case clingo_error_runtime:   { throw std::runtime_error(msg); }
+            case clingo_error_logic:     { throw std::logic_error(msg); }
+            case clingo_error_bad_alloc: { throw std::bad_alloc(); }
+            case clingo_error_unknown:   { throw std::runtime_error(msg); }
+            case clingo_error_success:   { throw std::runtime_error(msg); }
+        }
+    }
 }
 
-void handleError(char const *loc, char const *msg) {
-    Location l(loc, 1, 1, loc, 1, 1);
-    handleError(l, msg);
+// translates a python api error into a c++ exception
+void handle_py_error(clingo_location_t const &loc, char const *msg) {
+    std::ostringstream ss;
+    ss << loc << ": error: " << msg << ":\n" << errorToString();
+    throw std::runtime_error(ss.str().c_str());
 }
+
+void handle_py_error(char const *loc, char const *msg) {
+    std::ostringstream ss;
+    ss << loc << ": error: " << msg << ":\n" << errorToString();
+    throw std::runtime_error(ss.str().c_str());
+}
+
+// rethrows the current exception and translates it into a python exception
+void handle_cxx_error_(std::ostringstream &ss) {
+    clingo_error_t code = clingo_error_unknown;
+    try { throw; }
+    catch (PyException const &) {
+        code = clingo_error_runtime;
+        ss << errorToString();
+    }
+    catch (std::runtime_error const &e) {
+        code = clingo_error_runtime;
+        ss << e.what();
+    }
+    catch (std::logic_error const &e) {
+        code = clingo_error_logic;
+        ss << e.what();
+    }
+    catch (std::bad_alloc const &e) {
+        code = clingo_error_bad_alloc;
+        ss << e.what();
+    }
+    catch (std::exception const &e) {
+        ss << e.what();
+    }
+    catch (...) {
+        ss << "no message";
+    }
+    clingo_set_error(code, ss.str().c_str());
+}
+
+void handle_cxx_error(clingo_location loc, char const *msg) {
+    try {
+        std::ostringstream ss;
+        ss << loc << ": error: " << msg << ":\n";
+        handle_cxx_error_(ss);
+    }
+    catch (...) {
+        clingo_set_error(clingo_error_bad_alloc, "bad alloc during exception handling");
+    }
+}
+void handle_cxx_error(char const *loc, char const *msg) {
+    try {
+        std::ostringstream ss;
+        ss << loc << ": error: " << msg << ":\n";
+        handle_cxx_error_(ss);
+    }
+    catch (...) {
+        clingo_set_error(clingo_error_bad_alloc, "bad alloc during exception handling");
+    }
+}
+
 
 namespace PythonDetail {
 
@@ -1174,18 +1255,18 @@ elements.)";
     }
     Object name() {
         char const *ret;
-        handleCError(clingo_theory_atoms_term_name(atoms, value, &ret));
+        handle_c_error(clingo_theory_atoms_term_name(atoms, value, &ret));
         return cppToPy(ret);
     }
     Object number() {
         int ret;
-        handleCError(clingo_theory_atoms_term_number(atoms, value, &ret));
+        handle_c_error(clingo_theory_atoms_term_number(atoms, value, &ret));
         return cppToPy(ret);
     }
     Object args() {
         clingo_id_t const *args;
         size_t size;
-        handleCError(clingo_theory_atoms_term_arguments(atoms, value, &args, &size));
+        handle_c_error(clingo_theory_atoms_term_arguments(atoms, value, &args, &size));
         List list;
         for (size_t i = 0; i < size; ++i, ++args) {
             list.append(construct(atoms, *args));
@@ -1195,14 +1276,14 @@ elements.)";
     Object tp_repr() {
         std::vector<char> ret;
         size_t size;
-        handleCError(clingo_theory_atoms_term_to_string_size(atoms, value, &size));
+        handle_c_error(clingo_theory_atoms_term_to_string_size(atoms, value, &size));
         ret.resize(size);
-        handleCError(clingo_theory_atoms_term_to_string(atoms, value, ret.data(), size));
+        handle_c_error(clingo_theory_atoms_term_to_string(atoms, value, ret.data(), size));
         return cppToPy(ret.data());
     }
     Object termType() {
         clingo_theory_term_type_t ret;
-        handleCError(clingo_theory_atoms_term_type(atoms, value, &ret));
+        handle_c_error(clingo_theory_atoms_term_type(atoms, value, &ret));
         return TheoryTermType::getAttr(ret);
     }
     size_t tp_hash() {
@@ -1249,7 +1330,7 @@ terms and a set of literals.)";
     Object terms() {
         clingo_id_t const *ret;
         size_t size;
-        handleCError(clingo_theory_atoms_element_tuple(atoms, value, &ret, &size));
+        handle_c_error(clingo_theory_atoms_element_tuple(atoms, value, &ret, &size));
         List list;
         for (size_t i = 0; i < size; ++i, ++ret) {
             list.append(TheoryTerm::construct(atoms, *ret));
@@ -1259,7 +1340,7 @@ terms and a set of literals.)";
     Object condition() {
         clingo_literal_t const *ret;
         size_t size;
-        handleCError(clingo_theory_atoms_element_condition(atoms, value, &ret, &size));
+        handle_c_error(clingo_theory_atoms_element_condition(atoms, value, &ret, &size));
         List list;
         for (size_t i = 0; i < size; ++i, ++ret) {
             list.append(cppToPy(*ret));
@@ -1268,15 +1349,15 @@ terms and a set of literals.)";
     }
     Object condition_id() {
         clingo_literal_t ret;
-        handleCError(clingo_theory_atoms_element_condition_id(atoms, value, &ret));
+        handle_c_error(clingo_theory_atoms_element_condition_id(atoms, value, &ret));
         return cppToPy(ret);
     }
     Object tp_repr() {
         std::vector<char> ret;
         size_t size;
-        handleCError(clingo_theory_atoms_element_to_string_size(atoms, value, &size));
+        handle_c_error(clingo_theory_atoms_element_to_string_size(atoms, value, &size));
         ret.resize(size);
-        handleCError(clingo_theory_atoms_element_to_string(atoms, value, ret.data(), size));
+        handle_c_error(clingo_theory_atoms_element_to_string(atoms, value, ret.data(), size));
         return cppToPy(ret.data());
     }
     size_t tp_hash() {
@@ -1319,7 +1400,7 @@ struct TheoryAtom : ObjectBase<TheoryAtom> {
     Object elements() {
         clingo_id_t const *ret;
         size_t size;
-        handleCError(clingo_theory_atoms_atom_elements(atoms, value, &ret, &size));
+        handle_c_error(clingo_theory_atoms_atom_elements(atoms, value, &ret, &size));
         List list;
         for (size_t i = 0; i < size; ++i, ++ret) {
             list.append(TheoryElement::construct(atoms, *ret));
@@ -1328,29 +1409,29 @@ struct TheoryAtom : ObjectBase<TheoryAtom> {
     }
     Object term() {
         clingo_id_t ret;
-        handleCError(clingo_theory_atoms_atom_term(atoms, value, &ret));
+        handle_c_error(clingo_theory_atoms_atom_term(atoms, value, &ret));
         return TheoryTerm::construct(atoms, ret);
     }
     Object literal() {
         clingo_literal_t ret;
-        handleCError(clingo_theory_atoms_atom_literal(atoms, value, &ret));
+        handle_c_error(clingo_theory_atoms_atom_literal(atoms, value, &ret));
         return cppToPy(ret);
     }
     Object guard() {
         bool hasGuard;
-        handleCError(clingo_theory_atoms_atom_has_guard(atoms, value, &hasGuard));
+        handle_c_error(clingo_theory_atoms_atom_has_guard(atoms, value, &hasGuard));
         if (!hasGuard) { return None(); }
         char const *conn;
         clingo_id_t term;
-        handleCError(clingo_theory_atoms_atom_guard(atoms, value, &conn, &term));
+        handle_c_error(clingo_theory_atoms_atom_guard(atoms, value, &conn, &term));
         return Tuple(cppToPy(conn), TheoryTerm::construct(atoms, term));
     }
     Object tp_repr() {
         std::vector<char> ret;
         size_t size;
-        handleCError(clingo_theory_atoms_atom_to_string_size(atoms, value, &size));
+        handle_c_error(clingo_theory_atoms_atom_to_string_size(atoms, value, &size));
         ret.resize(size);
-        handleCError(clingo_theory_atoms_atom_to_string(atoms, value, ret.data(), size));
+        handle_c_error(clingo_theory_atoms_atom_to_string(atoms, value, ret.data(), size));
         return cppToPy(ret.data());
     }
     size_t tp_hash() {
@@ -1398,7 +1479,7 @@ R"(Object to iterate over all theory atoms.)";
     Object get() { return TheoryAtom::construct(atoms, offset); }
     Object tp_iternext() {
         size_t size;
-        handleCError(clingo_theory_atoms_size(atoms, &size));
+        handle_c_error(clingo_theory_atoms_size(atoms, &size));
         if (offset < size) {
             Object next = get();
             ++offset;
@@ -1506,10 +1587,10 @@ preconstructed symbols Infimum and Supremum.)";
         if (!params.none()) {
             std::vector<symbol_wrapper> syms;
             pyToCpp(params, syms);
-            handleCError(clingo_symbol_create_function(name, reinterpret_cast<clingo_symbol_t*>(syms.data()), syms.size(), !sign, &ret));
+            handle_c_error(clingo_symbol_create_function(name, reinterpret_cast<clingo_symbol_t*>(syms.data()), syms.size(), !sign, &ret));
         }
         else {
-            handleCError(clingo_symbol_create_id(name, !sign, &ret));
+            handle_c_error(clingo_symbol_create_id(name, !sign, &ret));
         }
         return construct(ret);
     }
@@ -1533,13 +1614,13 @@ preconstructed symbols Infimum and Supremum.)";
     static Object new_string(Reference arg) {
         auto str = pyToCpp<std::string>(arg);
         clingo_symbol_t ret;
-        handleCError(clingo_symbol_create_string(str.c_str(), &ret));
+        handle_c_error(clingo_symbol_create_string(str.c_str(), &ret));
         return construct(ret);
     }
     Object name() {
         if (clingo_symbol_type(val) == clingo_symbol_type_function) {
             char const *ret;
-            handleCError(clingo_symbol_name(val, &ret));
+            handle_c_error(clingo_symbol_name(val, &ret));
             return cppToPy(ret);
         }
         else { return None(); }
@@ -1548,7 +1629,7 @@ preconstructed symbols Infimum and Supremum.)";
     Object string() {
         if (clingo_symbol_type(val) == clingo_symbol_type_string) {
             char const *ret;
-            handleCError(clingo_symbol_string(val, &ret));
+            handle_c_error(clingo_symbol_string(val, &ret));
             return cppToPy(ret);
         }
         else { return None(); }
@@ -1557,7 +1638,7 @@ preconstructed symbols Infimum and Supremum.)";
     Object negative() {
         if (clingo_symbol_type(val) == clingo_symbol_type_function) {
             bool ret;
-            handleCError(clingo_symbol_is_negative(val, &ret));
+            handle_c_error(clingo_symbol_is_negative(val, &ret));
             return cppToPy(ret);
         }
         else { return None(); }
@@ -1566,7 +1647,7 @@ preconstructed symbols Infimum and Supremum.)";
     Object positive() {
         if (clingo_symbol_type(val) == clingo_symbol_type_function) {
             bool ret;
-            handleCError(clingo_symbol_is_negative(val, &ret));
+            handle_c_error(clingo_symbol_is_negative(val, &ret));
             return cppToPy(!ret);
         }
         else { return None(); }
@@ -1575,7 +1656,7 @@ preconstructed symbols Infimum and Supremum.)";
     Object num() {
         if (clingo_symbol_type(val) == clingo_symbol_type_number) {
             int ret;
-            handleCError(clingo_symbol_number(val, &ret));
+            handle_c_error(clingo_symbol_number(val, &ret));
             return cppToPy(ret);
         }
         else { return None(); }
@@ -1585,7 +1666,7 @@ preconstructed symbols Infimum and Supremum.)";
         if (clingo_symbol_type(val) == clingo_symbol_type_function) {
             clingo_symbol_t const *ret;
             size_t size;
-            handleCError(clingo_symbol_arguments(val, &ret, &size));
+            handle_c_error(clingo_symbol_arguments(val, &ret, &size));
             return cppRngToPy(reinterpret_cast<symbol_wrapper const*>(ret), reinterpret_cast<symbol_wrapper const*>(ret) + size);
         }
         else { return None(); }
@@ -1598,9 +1679,9 @@ preconstructed symbols Infimum and Supremum.)";
     Object tp_repr() {
         std::vector<char> ret;
         size_t size;
-        handleCError(clingo_symbol_to_string_size(val, &size));
+        handle_c_error(clingo_symbol_to_string_size(val, &size));
         ret.resize(size);
-        handleCError(clingo_symbol_to_string(val, ret.data(), size));
+        handle_c_error(clingo_symbol_to_string(val, ret.data(), size));
         return cppToPy(ret.data());
     }
 
@@ -1704,33 +1785,33 @@ This is equivalent to satisfiable is None.)", nullptr},
 
 Object getStatistics(clingo_statistics_t *stats, uint64_t key) {
     clingo_statistics_type_t type;
-    handleCError(clingo_statistics_type(stats, key, &type));
+    handle_c_error(clingo_statistics_type(stats, key, &type));
     switch (type) {
         case clingo_statistics_type_value: {
             double val;
-            handleCError(clingo_statistics_value_get(stats, key, &val));
+            handle_c_error(clingo_statistics_value_get(stats, key, &val));
             return cppToPy(val);
         }
         case clingo_statistics_type_array: {
             size_t e;
-            handleCError(clingo_statistics_array_size(stats, key, &e));
+            handle_c_error(clingo_statistics_array_size(stats, key, &e));
             List list;
             for (size_t i = 0; i != e; ++i) {
                 uint64_t subkey;
-                handleCError(clingo_statistics_array_at(stats, key, i, &subkey));
+                handle_c_error(clingo_statistics_array_at(stats, key, i, &subkey));
                 list.append(getStatistics(stats, subkey));
             }
             return list;
         }
         case clingo_statistics_type_map: {
             size_t e;
-            handleCError(clingo_statistics_map_size(stats, key, &e));
+            handle_c_error(clingo_statistics_map_size(stats, key, &e));
             Dict dict;
             for (size_t i = 0; i != e; ++i) {
                 char const *name;
                 uint64_t subkey;
-                handleCError(clingo_statistics_map_subkey_name(stats, key, i, &name));
-                handleCError(clingo_statistics_map_at(stats, key, name, &subkey));
+                handle_c_error(clingo_statistics_map_subkey_name(stats, key, i, &name));
+                handle_c_error(clingo_statistics_map_at(stats, key, name, &subkey));
                 dict.setItem(name, getStatistics(stats, subkey));
             }
             return dict;
@@ -1766,7 +1847,7 @@ they are available as properties of Model objects.)";
         if (invert) {
             for (auto &lit : lits) { lit.positive = !lit.positive; }
         }
-        handleCError(clingo_solve_control_add_clause(ctl, lits.data(), lits.size()));
+        handle_c_error(clingo_solve_control_add_clause(ctl, lits.data(), lits.size()));
         Py_RETURN_NONE;
     }
 
@@ -1857,7 +1938,7 @@ places like - e.g., the main function.)";
         symbol_wrapper val;
         pyToCpp(arg, val);
         bool ret;
-        handleCError(clingo_model_contains(model, val.symbol, &ret));
+        handle_c_error(clingo_model_contains(model, val.symbol, &ret));
         return cppToPy(ret);
     }
     Object atoms(Reference pyargs, Reference pykwds) {
@@ -1872,48 +1953,48 @@ places like - e.g., the main function.)";
         if (pyToCpp<bool>(pyExtra)) { atomset |= clingo_show_type_extra; }
         if (pyToCpp<bool>(pyComp))  { atomset |= clingo_show_type_complement; }
         size_t size;
-        handleCError(clingo_model_symbols_size(model, atomset, &size));
+        handle_c_error(clingo_model_symbols_size(model, atomset, &size));
         std::vector<symbol_wrapper> ret(size);
         auto fst = reinterpret_cast<clingo_symbol_t*>(ret.data());
-        handleCError(clingo_model_symbols(model, atomset, fst, size));
+        handle_c_error(clingo_model_symbols(model, atomset, fst, size));
         return cppToPy(ret);
     }
     Object cost() {
         size_t size;
-        handleCError(clingo_model_cost_size(model, &size));
+        handle_c_error(clingo_model_cost_size(model, &size));
         std::vector<int64_t> ret(size);
-        handleCError(clingo_model_cost(model, ret.data(), size));
+        handle_c_error(clingo_model_cost(model, ret.data(), size));
         return cppToPy(ret);
     }
     Object thread_id() {
         clingo_id_t id;
         clingo_solve_control_t *ctl;
-        handleCError(clingo_model_context(model, &ctl));
-        handleCError(clingo_solve_control_thread_id(ctl, &id));
+        handle_c_error(clingo_model_context(model, &ctl));
+        handle_c_error(clingo_solve_control_thread_id(ctl, &id));
         return cppToPy(id);
     }
     Object optimality_proven() {
         bool ret;
-        handleCError(clingo_model_optimality_proven(model, &ret));
+        handle_c_error(clingo_model_optimality_proven(model, &ret));
         return cppToPy(ret);
     }
     Object number() {
         uint64_t ret;
-        handleCError(clingo_model_number(model, &ret));
+        handle_c_error(clingo_model_number(model, &ret));
         return cppToPy(ret);
     }
     Object model_type() {
         clingo_model_type_t ret;
-        handleCError(clingo_model_type(model, &ret));
+        handle_c_error(clingo_model_type(model, &ret));
         return ModelType::getAttr(ret);
     }
     Object tp_repr() {
         std::vector<char> buf;
         auto printSymbol = [&buf](std::ostream &out, clingo_symbol_t val) {
             size_t size;
-            handleCError(clingo_symbol_to_string_size(val, &size));
+            handle_c_error(clingo_symbol_to_string_size(val, &size));
             buf.resize(size);
-            handleCError(clingo_symbol_to_string(val, buf.data(), size));
+            handle_c_error(clingo_symbol_to_string(val, buf.data(), size));
             out << buf.data();
         };
         auto printAtom = [printSymbol](std::ostream &out, clingo_symbol_t val) {
@@ -1921,8 +2002,8 @@ places like - e.g., the main function.)";
                 char const *name;
                 clingo_symbol_t const *args;
                 size_t size;
-                handleCError(clingo_symbol_name(val, &name));
-                handleCError(clingo_symbol_arguments(val, &args, &size));
+                handle_c_error(clingo_symbol_name(val, &name));
+                handle_c_error(clingo_symbol_arguments(val, &args, &size));
                 if (size == 2) {
                     printSymbol(out, args[0]);
                     out << "=";
@@ -1934,15 +2015,20 @@ places like - e.g., the main function.)";
         };
         std::ostringstream oss;
         size_t size;
-        handleCError(clingo_model_symbols_size(model, clingo_show_type_shown, &size));
+        handle_c_error(clingo_model_symbols_size(model, clingo_show_type_shown, &size));
         std::vector<clingo_symbol_t> ret(size);
-        handleCError(clingo_model_symbols(model, clingo_show_type_shown, ret.data(), size));
-        print_comma(oss, ret, " ", printAtom);
+        handle_c_error(clingo_model_symbols(model, clingo_show_type_shown, ret.data(), size));
+        bool comma = false;
+        for (auto &&x : ret) {
+            if (comma) { oss << " "; }
+            else       { comma = true; }
+            printAtom(oss, x);
+        }
         return cppToPy(oss.str().c_str());
     }
     Object getContext() {
         clingo_solve_control_t *ctl;
-        handleCError(clingo_model_context(model, &ctl));
+        handle_c_error(clingo_model_context(model, &ctl));
         return SolveControl::construct(ctl);
     }
 };
@@ -2034,7 +2120,7 @@ See Control.solve_async for an example.)";
     Object get() {
         return SolveResult::construct(doUnblocked([this]() {
             clingo_solve_result_bitset_t result;
-            handleCError(clingo_solve_async_get(future, &result));
+            handle_c_error(clingo_solve_async_get(future, &result));
             return result;
         }));
     }
@@ -2045,7 +2131,7 @@ See Control.solve_async for an example.)";
         if (timeout.none()) {
             doUnblocked([this](){
                 clingo_solve_result_bitset_t ret;
-                handleCError(clingo_solve_async_get(future, &ret));
+                handle_c_error(clingo_solve_async_get(future, &ret));
             });
             Py_RETURN_TRUE;
         }
@@ -2053,7 +2139,7 @@ See Control.solve_async for an example.)";
             auto time = pyToCpp<double>(timeout);
             return cppToPy(doUnblocked([this, time](){
                 bool ret;
-                handleCError(clingo_solve_async_wait(future, time, &ret));
+                handle_c_error(clingo_solve_async_wait(future, time, &ret));
                 return ret;
             }));
         }
@@ -2061,7 +2147,7 @@ See Control.solve_async for an example.)";
 
     Object cancel() {
         doUnblocked([this](){
-            handleCError(clingo_solve_async_cancel(future));
+            handle_c_error(clingo_solve_async_cancel(future));
         });
         Py_RETURN_NONE;
     }
@@ -2119,14 +2205,14 @@ thread-safe though.)";
     Object get() {
         return SolveResult::construct(doUnblocked([this]() {
             clingo_solve_result_bitset_t ret;
-            handleCError(clingo_solve_iteratively_get(solve_iter, &ret));
+            handle_c_error(clingo_solve_iteratively_get(solve_iter, &ret));
             return ret;
         }));
     }
     Object tp_iternext() {
         if (clingo_model_t *m = doUnblocked([this]() {
             clingo_model_t *ret;
-            handleCError(clingo_solve_iteratively_next(solve_iter, &ret));
+            handle_c_error(clingo_solve_iteratively_next(solve_iter, &ret));
             return ret;
         })) {
             return Model::construct(m);
@@ -2137,7 +2223,7 @@ thread-safe though.)";
     }
     Object enter() { return Reference{*this}; }
     Object exit() {
-        doUnblocked([this]() { handleCError(clingo_solve_iteratively_close(solve_iter)); });
+        doUnblocked([this]() { handle_c_error(clingo_solve_iteratively_close(solve_iter)); });
         Py_RETURN_FALSE;
     }
 };
@@ -2221,14 +2307,14 @@ Expected Answer Sets:
 
     Object keys() {
         clingo_configuration_type_bitset_t type;
-        handleCError(clingo_configuration_type(conf, key, &type));
+        handle_c_error(clingo_configuration_type(conf, key, &type));
         List list;
         if (type & clingo_configuration_type_map) {
             size_t size;
-            handleCError(clingo_configuration_map_size(conf, key, &size));
+            handle_c_error(clingo_configuration_map_size(conf, key, &size));
             for (size_t i = 0; i < size; ++i) {
                 char const *name;
-                handleCError(clingo_configuration_map_subkey_name(conf, key, i, &name));
+                handle_c_error(clingo_configuration_map_subkey_name(conf, key, i, &name));
                 list.append(cppToPy(name));
             }
         }
@@ -2241,28 +2327,28 @@ Expected Answer Sets:
         bool desc = strncmp("__desc_", current, 7) == 0;
         if (desc) { current += 7; }
         clingo_configuration_type_bitset_t type;
-        handleCError(clingo_configuration_type(conf, key, &type));
+        handle_c_error(clingo_configuration_type(conf, key, &type));
         if (type & clingo_configuration_type_map) {
             bool haskey;
-            handleCError(clingo_configuration_map_has_subkey(conf, key, current, &haskey));
+            handle_c_error(clingo_configuration_map_has_subkey(conf, key, current, &haskey));
             if (haskey) {
                 clingo_id_t subkey;
-                handleCError(clingo_configuration_map_at(conf, key, current, &subkey));
+                handle_c_error(clingo_configuration_map_at(conf, key, current, &subkey));
                 if (desc) {
                     char const *ret;
-                    handleCError(clingo_configuration_description(conf, subkey, &ret));
+                    handle_c_error(clingo_configuration_description(conf, subkey, &ret));
                     return cppToPy(ret);
                 }
                 else {
-                    handleCError(clingo_configuration_type(conf, subkey, &type));
+                    handle_c_error(clingo_configuration_type(conf, subkey, &type));
                     if (type & clingo_configuration_type_value) {
                         bool assigned;
-                        handleCError(clingo_configuration_value_is_assigned(conf, subkey, &assigned));
+                        handle_c_error(clingo_configuration_value_is_assigned(conf, subkey, &assigned));
                         if (!assigned) { Py_RETURN_TRUE; }
                         size_t size;
-                        handleCError(clingo_configuration_value_get_size(conf, subkey, &size));
+                        handle_c_error(clingo_configuration_value_get_size(conf, subkey, &size));
                         std::vector<char> ret(size);
-                        handleCError(clingo_configuration_value_get(conf, subkey, ret.data(), size));
+                        handle_c_error(clingo_configuration_value_get(conf, subkey, ret.data(), size));
                         return cppToPy(ret.data());
                     }
                     else { return construct(subkey, conf); }
@@ -2275,16 +2361,16 @@ Expected Answer Sets:
     void tp_setattro(Reference name, Reference pyValue) {
         auto current = pyToCpp<std::string>(name);
         clingo_id_t subkey;
-        handleCError(clingo_configuration_map_at(conf, key, current.c_str(), &subkey));
-        handleCError(clingo_configuration_value_set(conf, subkey, pyToCpp<std::string>(pyValue).c_str()));
+        handle_c_error(clingo_configuration_map_at(conf, key, current.c_str(), &subkey));
+        handle_c_error(clingo_configuration_value_set(conf, subkey, pyToCpp<std::string>(pyValue).c_str()));
     }
 
     Py_ssize_t sq_length() {
         clingo_configuration_type_bitset_t type;
-        handleCError(clingo_configuration_type(conf, key, &type));
+        handle_c_error(clingo_configuration_type(conf, key, &type));
         size_t size = 0;
         if (type & clingo_configuration_type_array) {
-            handleCError(clingo_configuration_array_size(conf, key, &size));
+            handle_c_error(clingo_configuration_array_size(conf, key, &size));
         }
         return size;
     }
@@ -2295,7 +2381,7 @@ Expected Answer Sets:
             return nullptr;
         }
         clingo_id_t subkey;
-        handleCError(clingo_configuration_array_at(conf, key, index, &subkey));
+        handle_c_error(clingo_configuration_array_at(conf, key, index, &subkey));
         return construct(subkey, conf);
     }
 };
@@ -2328,22 +2414,22 @@ struct SymbolicAtom : public ObjectBase<SymbolicAtom> {
     }
     Object symbol() {
         clingo_symbol_t ret;
-        handleCError(clingo_symbolic_atoms_symbol(atoms, range, &ret));
+        handle_c_error(clingo_symbolic_atoms_symbol(atoms, range, &ret));
         return Symbol::construct(ret);
     }
     Object literal() {
         clingo_literal_t ret;
-        handleCError(clingo_symbolic_atoms_literal(atoms, range, &ret));
+        handle_c_error(clingo_symbolic_atoms_literal(atoms, range, &ret));
         return cppToPy(ret);
     }
     Object is_fact() {
         bool ret;
-        handleCError(clingo_symbolic_atoms_is_fact(atoms, range, &ret));
+        handle_c_error(clingo_symbolic_atoms_is_fact(atoms, range, &ret));
         return cppToPy(ret);
     }
     Object is_external() {
         bool ret;
-        handleCError(clingo_symbolic_atoms_is_external(atoms, range, &ret));
+        handle_c_error(clingo_symbolic_atoms_is_external(atoms, range, &ret));
         return cppToPy(ret);
     }
 };
@@ -2376,9 +2462,9 @@ struct SymbolicAtomIter : ObjectBase<SymbolicAtomIter> {
     Object tp_iternext() {
         auto current = range;
         bool valid;
-        handleCError(clingo_symbolic_atoms_is_valid(atoms, current, &valid));
+        handle_c_error(clingo_symbolic_atoms_is_valid(atoms, current, &valid));
         if (valid) {
-            handleCError(clingo_symbolic_atoms_next(atoms, current, &range));
+            handle_c_error(clingo_symbolic_atoms_next(atoms, current, &range));
             return SymbolicAtom::construct(atoms, current);
         }
         else {
@@ -2452,13 +2538,13 @@ signatures: [('p', 1), ('q', 1)])";
 
     Py_ssize_t mp_length() {
         size_t size;
-        handleCError(clingo_symbolic_atoms_size(atoms, &size));
+        handle_c_error(clingo_symbolic_atoms_size(atoms, &size));
         return size;
     }
 
     Object tp_iter() {
         clingo_symbolic_atom_iterator_t ret;
-        handleCError(clingo_symbolic_atoms_begin(atoms, nullptr, &ret));
+        handle_c_error(clingo_symbolic_atoms_begin(atoms, nullptr, &ret));
         return SymbolicAtomIter::construct(atoms, ret);
     }
 
@@ -2466,9 +2552,9 @@ signatures: [('p', 1), ('q', 1)])";
         symbol_wrapper atom;
         pyToCpp(key, atom);
         clingo_symbolic_atom_iterator_t range;
-        handleCError(clingo_symbolic_atoms_find(atoms, atom.symbol, &range));
+        handle_c_error(clingo_symbolic_atoms_find(atoms, atom.symbol, &range));
         bool valid;
-        handleCError(clingo_symbolic_atoms_is_valid(atoms, range, &valid));
+        handle_c_error(clingo_symbolic_atoms_is_valid(atoms, range, &valid));
         if (valid) { return SymbolicAtom::construct(atoms, range); }
         else       { Py_RETURN_NONE; }
     }
@@ -2481,16 +2567,16 @@ signatures: [('p', 1), ('q', 1)])";
         ParseTupleAndKeywords(pyargs, pykwds, "si|O", kwlist, name, arity, pos);
         clingo_symbolic_atom_iterator_t ret;
         clingo_signature_t sig;
-        handleCError(clingo_signature_create(name, arity, pyToCpp<bool>(pos), &sig));
-        handleCError(clingo_symbolic_atoms_begin(atoms, &sig, &ret));
+        handle_c_error(clingo_signature_create(name, arity, pyToCpp<bool>(pos), &sig));
+        handle_c_error(clingo_symbolic_atoms_begin(atoms, &sig, &ret));
         return SymbolicAtomIter::construct(atoms, ret);
     }
 
     Object signatures() {
         size_t size;
-        handleCError(clingo_symbolic_atoms_signatures_size(atoms, &size));
+        handle_c_error(clingo_symbolic_atoms_signatures_size(atoms, &size));
         std::vector<clingo_signature_t> ret(size);
-        handleCError(clingo_symbolic_atoms_signatures(atoms, ret.data(), size));
+        handle_c_error(clingo_symbolic_atoms_signatures(atoms, ret.data(), size));
         List pyRet;
         for (auto &sig : ret) {
             pyRet.append(Tuple{
@@ -2555,13 +2641,13 @@ condition ids to solver literals.)";
 
     Object theoryIter() {
         clingo_theory_atoms_t *atoms;
-        handleCError(clingo_propagate_init_theory_atoms(init, &atoms));
+        handle_c_error(clingo_propagate_init_theory_atoms(init, &atoms));
         return TheoryAtomIter::construct(atoms, 0);
     }
 
     Object symbolicAtoms() {
         clingo_symbolic_atoms_t *atoms;
-        handleCError(clingo_propagate_init_symbolic_atoms(init, &atoms));
+        handle_c_error(clingo_propagate_init_symbolic_atoms(init, &atoms));
         return SymbolicAtoms::construct(atoms);
     }
 
@@ -2571,12 +2657,12 @@ condition ids to solver literals.)";
 
     Object mapLit(Reference lit) {
         clingo_literal_t ret;
-        handleCError(clingo_propagate_init_solver_literal(init, pyToCpp<clingo_literal_t>(lit), &ret));
+        handle_c_error(clingo_propagate_init_solver_literal(init, pyToCpp<clingo_literal_t>(lit), &ret));
         return cppToPy(ret);
     }
 
     Object addWatch(Reference lit) {
-        handleCError(clingo_propagate_init_add_watch(init, pyToCpp<clingo_literal_t>(lit)));
+        handle_c_error(clingo_propagate_init_add_watch(init, pyToCpp<clingo_literal_t>(lit)));
         Py_RETURN_NONE;
     }
 };
@@ -2627,30 +2713,30 @@ respectively.)";
     }
 
     Object hasLit(Reference lit) {
-        return cppToPy(clingo_assignment_has_literal(assign, pyToCpp<Lit_t>(lit)));
+        return cppToPy(clingo_assignment_has_literal(assign, pyToCpp<clingo_literal_t>(lit)));
     }
 
     Object level(Reference lit) {
         uint32_t ret;
-        handleCError(clingo_assignment_level(assign, pyToCpp<Lit_t>(lit), &ret));
+        handle_c_error(clingo_assignment_level(assign, pyToCpp<clingo_literal_t>(lit), &ret));
         return cppToPy(ret);
     }
 
     Object decision(Reference level) {
         clingo_literal_t ret;
-        handleCError(clingo_assignment_decision(assign, pyToCpp<uint32_t>(level), &ret));
+        handle_c_error(clingo_assignment_decision(assign, pyToCpp<uint32_t>(level), &ret));
         return cppToPy(ret);
     }
 
     Object isFixed(Reference lit) {
         bool ret;
-        handleCError(clingo_assignment_is_fixed(assign, pyToCpp<clingo_literal_t>(lit), &ret));
+        handle_c_error(clingo_assignment_is_fixed(assign, pyToCpp<clingo_literal_t>(lit), &ret));
         return cppToPy(ret);
     }
 
     Object truthValue(Reference lit) {
         clingo_truth_value_t ret;
-        handleCError(clingo_assignment_truth_value(assign, pyToCpp<Lit_t>(lit), &ret));
+        handle_c_error(clingo_assignment_truth_value(assign, pyToCpp<clingo_literal_t>(lit), &ret));
         if (ret == clingo_truth_value_true)  { Py_RETURN_TRUE; }
         if (ret == clingo_truth_value_false) { Py_RETURN_FALSE; }
         Py_RETURN_NONE;
@@ -2658,13 +2744,13 @@ respectively.)";
 
     Object isTrue(Reference lit) {
         bool ret;
-        handleCError(clingo_assignment_is_true(assign, pyToCpp<Lit_t>(lit), &ret));
+        handle_c_error(clingo_assignment_is_true(assign, pyToCpp<clingo_literal_t>(lit), &ret));
         return cppToPy(ret);
     }
 
     Object isFalse(Reference lit) {
         bool ret;
-        handleCError(clingo_assignment_is_false(assign, pyToCpp<Lit_t>(lit), &ret));
+        handle_c_error(clingo_assignment_is_false(assign, pyToCpp<clingo_literal_t>(lit), &ret));
         return cppToPy(ret);
     }
 };
@@ -2739,7 +2825,7 @@ struct PropagateControl : ObjectBase<PropagateControl> {
         if (pyToCpp<bool>(pyLock)) { type |= clingo_clause_type_static; }
         return cppToPy(doUnblocked([this, &lits, type](){
             bool ret;
-            handleCError(clingo_propagate_control_add_clause(ctl, lits.data(), lits.size(), type, &ret));
+            handle_c_error(clingo_propagate_control_add_clause(ctl, lits.data(), lits.size(), type, &ret));
             return ret;
         }));
     }
@@ -2755,19 +2841,19 @@ struct PropagateControl : ObjectBase<PropagateControl> {
     Object propagate() {
         return cppToPy(doUnblocked([this](){
             bool ret;
-            handleCError(clingo_propagate_control_propagate(ctl, &ret));
+            handle_c_error(clingo_propagate_control_propagate(ctl, &ret));
             return ret;
         }));
     }
 
     Object add_literal() {
         clingo_literal_t ret;
-        handleCError(clingo_propagate_control_add_literal(ctl, &ret));
+        handle_c_error(clingo_propagate_control_add_literal(ctl, &ret));
         return cppToPy(ret);
     }
 
     Object add_watch(Reference pyLit) {
-        handleCError(clingo_propagate_control_add_watch(ctl, pyToCpp<clingo_literal_t>(pyLit)));
+        handle_c_error(clingo_propagate_control_add_watch(ctl, pyToCpp<clingo_literal_t>(pyLit)));
         return None();
     }
 
@@ -2843,66 +2929,6 @@ PyGetSetDef PropagateControl::tp_getset[] = {
 };
 
 // {{{1 wrap Propagator
-
-void handle_cxx_error_(std::ostringstream &ss) {
-    clingo_error_t code = clingo_error_unknown;
-    try { throw; }
-    catch (PyException const &) {
-        code = clingo_error_runtime;
-        ss << errorToString();
-    }
-    catch (std::runtime_error const &e) {
-        code = clingo_error_runtime;
-        ss << e.what();
-    }
-    catch (std::logic_error const &e) {
-        code = clingo_error_logic;
-        ss << e.what();
-    }
-    catch (std::bad_alloc const &e) {
-        code = clingo_error_bad_alloc;
-        ss << e.what();
-    }
-    catch (std::exception const &e) {
-        ss << e.what();
-    }
-    catch (...) {
-        ss << "no message";
-    }
-    clingo_set_error(code, ss.str().c_str());
-
-}
-
-void handle_cxx_error(clingo_location loc, char const *msg) {
-    try {
-        std::ostringstream ss;
-        ss << loc.begin_file << ":" << loc.begin_line << ":" << loc.begin_column;
-        if (strcmp(loc.begin_file, loc.end_file) != 0) {
-            ss << "-" << loc.end_file << ":" << loc.end_line << ":" << loc.end_column;
-        }
-        else if (loc.begin_line != loc.end_line) {
-            ss << "-" << loc.end_line << ":" << loc.end_column;
-        }
-        else if (loc.begin_column != loc.end_column) {
-            ss << "-" << loc.end_column;
-        }
-        ss << ": error: " << msg << ":\n";
-        handle_cxx_error_(ss);
-    }
-    catch (...) {
-        clingo_set_error(clingo_error_bad_alloc, "bad alloc during exception handling");
-    }
-}
-void handle_cxx_error(char const *loc, char const *msg) {
-    try {
-        std::ostringstream ss;
-        ss << loc << ": error: " << msg << ":\n";
-        handle_cxx_error_(ss);
-    }
-    catch (...) {
-        clingo_set_error(clingo_error_bad_alloc, "bad alloc during exception handling");
-    }
-}
 
 static bool propagator_init(clingo_propagate_init_t *init, PyObject *prop) {
     PyBlock block;
@@ -3273,7 +3299,7 @@ format.)";
 
     Object addAtom() {
         clingo_atom_t atom;
-        handleCError(clingo_backend_add_atom(backend, &atom));
+        handle_c_error(clingo_backend_add_atom(backend, &atom));
         return cppToPy(atom);
     }
 
@@ -3288,7 +3314,7 @@ format.)";
         std::vector<clingo_literal_t> body;
         if (!pyBody.none()) { pyToCpp(pyBody, body); }
         bool choice = pyChoice.isTrue();
-        handleCError(clingo_backend_rule(backend, choice, head.data(), head.size(), body.data(), body.size()));
+        handle_c_error(clingo_backend_rule(backend, choice, head.data(), head.size(), body.data(), body.size()));
         Py_RETURN_NONE;
     }
 
@@ -3303,7 +3329,7 @@ format.)";
         auto lower = pyToCpp<clingo_weight_t>(pyLower);
         auto body = pyToCpp<std::vector<clingo_weighted_literal_t>>(pyBody);
         auto choice = pyToCpp<bool>(pyChoice);
-        handleCError(clingo_backend_weight_rule(backend, choice, head.data(), head.size(), lower, body.data(), body.size()));
+        handle_c_error(clingo_backend_weight_rule(backend, choice, head.data(), head.size(), lower, body.data(), body.size()));
         Py_RETURN_NONE;
     }
 };
@@ -4631,8 +4657,8 @@ Object cppToPy(clingo_ast_statement_t const &stm) {
             return call(createDefinition, cppToPy(stm.location), cppToPy(stm.definition->name), cppToPy(stm.definition->value), cppToPy(stm.definition->is_default));
         }
         case clingo_ast_statement_type_show_signature: {
-            auto sig = Sig(stm.show_signature->signature);
-            return call(createShowSignature, cppToPy(stm.location), cppToPy(sig.name().c_str()), cppToPy(sig.arity()), cppToPy(!sig.sign()), cppToPy(stm.show_signature->csp));
+            auto sig = stm.show_signature->signature;
+            return call(createShowSignature, cppToPy(stm.location), cppToPy(clingo_signature_name(sig)), cppToPy(clingo_signature_arity(sig)), cppToPy(clingo_signature_is_positive(sig)), cppToPy(stm.show_signature->csp));
         }
         case clingo_ast_statement_type_show_term: {
             return call(createShowTerm, cppToPy(stm.location), cppToPy(stm.show_term->term), cppToPy(stm.show_term->body, stm.show_term->size), cppToPy(stm.show_term->csp));
@@ -4661,8 +4687,8 @@ Object cppToPy(clingo_ast_statement_t const &stm) {
             return call(createProjectAtom, cppToPy(stm.location), call(createSymbolicAtom, cppToPy(stm.project_atom->atom)), cppToPy(stm.project_atom->body, stm.project_atom->size));
         }
         case clingo_ast_statement_type_project_atom_signature: {
-            auto sig = Sig(stm.project_signature);
-            return call(createProjectSignature, cppToPy(stm.location), cppToPy(sig.name().c_str()), cppToPy(sig.arity()), cppToPy(!sig.sign()));
+            auto sig = stm.project_signature;
+            return call(createProjectSignature, cppToPy(stm.location), cppToPy(clingo_signature_name(sig)), cppToPy(clingo_signature_arity(sig)), cppToPy(clingo_signature_is_positive(sig)));
         }
         case clingo_ast_statement_type_theory_definition: {
             auto &def = *stm.theory_definition;
@@ -4679,7 +4705,7 @@ Object parseProgram(Reference args, Reference kwds) {
     ParseTupleAndKeywords(args, kwds, "OO", kwlist, str, cb);
     using Data = std::pair<Object, std::exception_ptr>;
     Data data{cb, std::exception_ptr()};
-    handleCError(clingo_parse_program(pyToCpp<std::string>(str).c_str(), [](clingo_ast_statement_t const *stm, void *d) -> bool {
+    handle_c_error(clingo_parse_program(pyToCpp<std::string>(str).c_str(), [](clingo_ast_statement_t const *stm, void *d) -> bool {
         auto &data = *static_cast<Data*>(d);
         try {
             data.first(cppToPy(*stm));
@@ -4713,7 +4739,7 @@ struct ASTToC {
 
     char const *convString(Reference x) {
         char const *ret;
-        handleCError(clingo_add_string(pyToCpp<std::string>(x).c_str(), &ret));
+        handle_c_error(clingo_add_string(pyToCpp<std::string>(x).c_str(), &ret));
         return ret;
     }
 
@@ -5207,8 +5233,8 @@ struct ASTToC {
             }
             case ASTType::ShowSignature: {
                 auto *show_signature = create_<clingo_ast_show_signature_t>();
-                show_signature->csp       = pyToCpp<bool>(x.getAttr("csp"));
-                show_signature->signature = Sig(convString(x.getAttr("name")), pyToCpp<unsigned>(x.getAttr("arity")), !pyToCpp<bool>(x.getAttr("positive"))).rep();
+                show_signature->csp = pyToCpp<bool>(x.getAttr("csp"));
+                handle_c_error(clingo_signature_create(convString(x.getAttr("name")), pyToCpp<unsigned>(x.getAttr("arity")), pyToCpp<bool>(x.getAttr("positive")), &show_signature->signature));
                 ret.type           = clingo_ast_statement_type_show_signature;
                 ret.show_signature = show_signature;
                 return ret;
@@ -5300,8 +5326,8 @@ struct ASTToC {
                 return ret;
             }
             case ASTType::ProjectSignature: {
-                ret.type              = clingo_ast_statement_type_project_atom_signature;
-                ret.project_signature = Sig(convString(x.getAttr("name")), pyToCpp<unsigned>(x.getAttr("arity")), !pyToCpp<bool>(x.getAttr("positive"))).rep();
+                ret.type = clingo_ast_statement_type_project_atom_signature;
+                handle_c_error(clingo_signature_create(convString(x.getAttr("name")), pyToCpp<unsigned>(x.getAttr("arity")), pyToCpp<bool>(x.getAttr("positive")), &ret.project_signature));
                 return ret;
             }
             case ASTType::TheoryDefinition: {
@@ -5385,19 +5411,19 @@ R"(Object to build non-ground programs.)";
         if (locked) { throw std::runtime_error("__enter__ has not been called"); }
         ASTToC toc;
         auto stm = toc.convStatement(pyStm);
-        handleCError(clingo_program_builder_add(builder, &stm));
+        handle_c_error(clingo_program_builder_add(builder, &stm));
         return None();
     }
     Reference enter() {
         if (!locked) { throw std::runtime_error("__enter__ already called"); }
         locked = false;
-        handleCError(clingo_program_builder_begin(builder));
+        handle_c_error(clingo_program_builder_begin(builder));
         return *this;
     }
     Object exit() {
         if (locked) { throw std::runtime_error("__enter__ has not been called"); }
         locked = true;
-        handleCError(clingo_program_builder_end(builder));
+        handle_c_error(clingo_program_builder_end(builder));
         return cppToPy(false);
     }
 };
@@ -5435,7 +5461,7 @@ void pycall(Reference fun, clingo_symbol_t const *arguments, size_t arguments_si
     auto add = [&](Reference sym) {
         symbol_wrapper val;
         pyToCpp(sym, val);
-        handleCError(symbol_callback(&val.symbol, 1, symbol_callback_data));
+        handle_c_error(symbol_callback(&val.symbol, 1, symbol_callback_data));
     };
     if (PyList_Check(ret.toPy())) {
         for (auto &&x : ret.iter()) { add(x); }
@@ -5446,15 +5472,16 @@ void pycall(Reference fun, clingo_symbol_t const *arguments, size_t arguments_si
 struct ControlWrap : ObjectBase<ControlWrap> {
     using Propagators = std::vector<Object>;
     using Observers = std::vector<Object>;
-    Gringo::Control *ctl;
-    Gringo::Control *freeCtl;
-    PyObject        *stats;
-    Propagators     prop;
-    Observers       observers;
-    bool            blocked;
+    clingo_control_t *ctl;
+    clingo_control_t *freeCtl;
+    PyObject         *stats;
+    Propagators       prop;
+    Observers         observers;
+    bool              blocked;
 
     static PyGetSetDef tp_getset[];
     static PyMethodDef tp_methods[];
+    static clingo_control_new_t new_control;
 
     static constexpr char const *tp_type = "Control";
     static constexpr char const *tp_name = "clingo.Control";
@@ -5482,9 +5509,9 @@ active; you must not call any member function during search.)";
         bool &blocked_;
     };
     #define CHECK_BLOCKED(function) auto block_ = Block(blocked, function);
-    static Object construct(Gringo::Control &ctl) {
+    static Object construct(clingo_control_t *ctl) {
         auto self = new_();
-        self->ctl = &ctl;
+        self->ctl = ctl;
         self->freeCtl = nullptr;
         self->stats   = nullptr;
         self->blocked = false;
@@ -5492,7 +5519,6 @@ active; you must not call any member function during search.)";
         new (&self->observers) Observers();
         return self;
     }
-    static Gringo::GringoModule *module;
     static Object tp_new(PyTypeObject *type) {
         auto self = new_(type);
         self->ctl     = nullptr;
@@ -5504,7 +5530,7 @@ active; you must not call any member function during search.)";
         return self;
     }
     void tp_dealloc() {
-        if (freeCtl) { delete freeCtl; }
+        if (freeCtl) { clingo_control_free(freeCtl); }
         ctl = freeCtl = nullptr;
         prop.~Propagators();
         observers.~Observers();
@@ -5522,7 +5548,8 @@ active; you must not call any member function during search.)";
                 args.emplace_back(strs.front().c_str());
             }
         }
-        ctl = freeCtl = module->newControl(args.size(), args.data(), nullptr, 20);
+        handle_c_error(new_control(args.data(), args.size(), nullptr, nullptr, 20, &freeCtl));
+        ctl = freeCtl;
     }
     Object add(Reference args) {
         CHECK_BLOCKED("add");
@@ -5536,14 +5563,14 @@ active; you must not call any member function during search.)";
             strs.emplace_front(pyToCpp<std::string>(pyVal));
             params.emplace_back(strs.front().c_str());
         }
-        handleCError(clingo_control_add(ctl, name, params.data(), params.size(), part));
+        handle_c_error(clingo_control_add(ctl, name, params.data(), params.size(), part));
         Py_RETURN_NONE;
     }
     Object load(Reference args) {
         CHECK_BLOCKED("load");
         char *filename;
         ParseTuple(args, "s", filename);
-        ctl->load(filename);
+        handle_c_error(clingo_control_load(ctl, filename));
         Py_RETURN_NONE;
     }
     static bool on_context(clingo_location_t location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data) {
@@ -5569,7 +5596,7 @@ active; you must not call any member function during search.)";
         for (auto &&cpp_part : cpp_parts) {
             parts.emplace_back(clingo_part_t{cpp_part.first.c_str(), reinterpret_cast<clingo_symbol_t*>(cpp_part.second.data()), cpp_part.second.size()});
         }
-        handleCError(clingo_control_ground(ctl, parts.data(), parts.size(), pyContext.none() ? nullptr : on_context, pyContext.none() ? nullptr : pyContext.toPy()));
+        handle_c_error(clingo_control_ground(ctl, parts.data(), parts.size(), pyContext.none() ? nullptr : on_context, pyContext.none() ? nullptr : pyContext.toPy()));
         Py_RETURN_NONE;
     }
     Object getConst(Reference args) {
@@ -5577,10 +5604,10 @@ active; you must not call any member function during search.)";
         char *name;
         ParseTuple(args, "s", name);
         bool has;
-        handleCError(clingo_control_has_const(ctl, name, &has));
+        handle_c_error(clingo_control_has_const(ctl, name, &has));
         if (!has) { Py_RETURN_NONE; }
         clingo_symbol_t val;
-        handleCError(clingo_control_get_const(ctl, name, &val));
+        handle_c_error(clingo_control_get_const(ctl, name, &val));
         return Symbol::construct(val);
     }
     static bool on_model(clingo_model_t *model, void *data, bool *goon) {
@@ -5624,7 +5651,7 @@ active; you must not call any member function during search.)";
         std::vector<clingo_symbolic_literal_t> ass;
         if (!pyAss.none()) { pyToCpp(pyAss, ass); }
         clingo_solve_async_t *handle;
-        handleCError(clingo_control_solve_async(ctl, mh.none() ? nullptr : on_model_blocked, mh.toPy(), fh.none() ? nullptr : on_finish_blocked, fh.toPy(), ass.data(), ass.size(), &handle));
+        handle_c_error(clingo_control_solve_async(ctl, mh.none() ? nullptr : on_model_blocked, mh.toPy(), fh.none() ? nullptr : on_finish_blocked, fh.toPy(), ass.data(), ass.size(), &handle));
         return SolveFuture::construct(handle, mh.toPy(), fh.toPy());
     }
     Object solve_iter(Reference args, Reference kwds) {
@@ -5637,7 +5664,7 @@ active; you must not call any member function during search.)";
         std::vector<clingo_symbolic_literal_t> ass;
         if (!pyAss.none()) { pyToCpp(pyAss, ass); }
         clingo_solve_iteratively_t *handle;
-        handleCError(clingo_control_solve_iteratively(ctl, ass.data(), ass.size(), &handle));
+        handle_c_error(clingo_control_solve_iteratively(ctl, ass.data(), ass.size(), &handle));
         return SolveIter::construct(handle);
     }
     Object solve(Reference args, Reference kwds) {
@@ -5652,14 +5679,14 @@ active; you must not call any member function during search.)";
         if (!pyAss.none()) { pyToCpp(pyAss, ass); }
         auto ret = doUnblocked([this, mh, &ass]() {
             clingo_solve_result_bitset_t result;
-            handleCError(clingo_control_solve(ctl, mh.none() ? nullptr : on_model_blocked, mh.toPy(), ass.data(), ass.size(), &result));
+            handle_c_error(clingo_control_solve(ctl, mh.none() ? nullptr : on_model_blocked, mh.toPy(), ass.data(), ass.size(), &result));
             return result;
         });
         return SolveResult::construct(ret).release();
     }
     Object cleanup() {
         CHECK_BLOCKED("cleanup");
-        handleCError(clingo_control_cleanup(ctl));
+        handle_c_error(clingo_control_cleanup(ctl));
         Py_RETURN_NONE;
     }
     Object assign_external(Reference args) {
@@ -5675,7 +5702,7 @@ active; you must not call any member function during search.)";
             return nullptr;
         }
         auto ext = pyToCpp<symbol_wrapper>(pyExt).symbol;
-        handleCError(clingo_control_assign_external(ctl, ext, val));
+        handle_c_error(clingo_control_assign_external(ctl, ext, val));
         Py_RETURN_NONE;
     }
     Object release_external(Reference args) {
@@ -5683,16 +5710,16 @@ active; you must not call any member function during search.)";
         Reference pyExt;
         ParseTuple(args, "O", pyExt);
         auto ext = pyToCpp<symbol_wrapper>(pyExt).symbol;
-        handleCError(clingo_control_assign_external(ctl, ext, clingo_external_type_release));
+        handle_c_error(clingo_control_assign_external(ctl, ext, clingo_external_type_release));
         Py_RETURN_NONE;
     }
     Object getStats() {
         CHECK_BLOCKED("statistics");
         if (!stats) {
             clingo_statistics_t *s;
-            handleCError(clingo_control_statistics(ctl, &s));
+            handle_c_error(clingo_control_statistics(ctl, &s));
             uint64_t root;
-            handleCError(clingo_statistics_root(s, &root));
+            handle_c_error(clingo_statistics_root(s, &root));
             stats = getStatistics(s, root).release();
         }
         Py_XINCREF(stats);
@@ -5701,26 +5728,26 @@ active; you must not call any member function during search.)";
     void set_use_enumeration_assumption(Reference pyEnable) {
         CHECK_BLOCKED("use_enumeration_assumption");
         int enable = pyEnable.isTrue();
-        handleCError(clingo_control_use_enumeration_assumption(ctl, enable));
+        handle_c_error(clingo_control_use_enumeration_assumption(ctl, enable));
     }
     Object conf() {
         CHECK_BLOCKED("configuration");
         clingo_configuration_t *conf;
-        handleCError(clingo_control_configuration(ctl, &conf));
+        handle_c_error(clingo_control_configuration(ctl, &conf));
         clingo_id_t root;
-        handleCError(clingo_configuration_root(conf, &root));
+        handle_c_error(clingo_configuration_root(conf, &root));
         return Configuration::construct(root, conf).release();
     }
     Object symbolicAtoms() {
         CHECK_BLOCKED("symbolic_atoms");
         clingo_symbolic_atoms_t *atoms;
-        handleCError(clingo_control_symbolic_atoms(ctl, &atoms));
+        handle_c_error(clingo_control_symbolic_atoms(ctl, &atoms));
         return SymbolicAtoms::construct(atoms);
     }
     Object theoryIter() {
         CHECK_BLOCKED("theory_atoms");
         clingo_theory_atoms_t *atoms;
-        handleCError(clingo_control_theory_atoms(ctl, &atoms));
+        handle_c_error(clingo_control_theory_atoms(ctl, &atoms));
         return TheoryAtomIter::construct(atoms, 0);
     }
     Object registerPropagator(Reference tp) {
@@ -5732,7 +5759,7 @@ active; you must not call any member function during search.)";
             reinterpret_cast<decltype(clingo_propagator_t::check)>(propagator_check)
         };
         prop.emplace_back(tp);
-        handleCError(clingo_control_register_propagator(ctl, propagator, tp.toPy(), false));
+        handle_c_error(clingo_control_register_propagator(ctl, propagator, tp.toPy(), false));
         Py_RETURN_NONE;
     }
     Object registerObserver(Reference args, Reference kwds) {
@@ -5764,7 +5791,7 @@ active; you must not call any member function during search.)";
         };
 
         observers.emplace_back(obs);
-        handleCError(clingo_control_register_observer(ctl, observer, rep.isTrue(), obs.toPy()));
+        handle_c_error(clingo_control_register_observer(ctl, observer, rep.isTrue(), obs.toPy()));
         return None();
     }
     Object interrupt() {
@@ -5773,17 +5800,17 @@ active; you must not call any member function during search.)";
     }
     Object backend() {
         clingo_backend_t *backend;
-        handleCError(clingo_control_backend(ctl, &backend));
+        handle_c_error(clingo_control_backend(ctl, &backend));
         return Backend::construct(backend);
     }
     Object builder() {
         clingo_program_builder_t *builder;
-        handleCError(clingo_control_program_builder(ctl, &builder));
+        handle_c_error(clingo_control_program_builder(ctl, &builder));
         return ProgramBuilder::construct(builder);
     }
 };
 
-Gringo::GringoModule *ControlWrap::module  = nullptr;
+clingo_control_new_t ControlWrap::new_control = nullptr;
 
 PyMethodDef ControlWrap::tp_methods[] = {
     // builder
@@ -6328,7 +6355,7 @@ json.dumps(prg.statistics, sort_keys=True, indent=4, separators=(',', ': ')))", 
 Object parseTerm(Reference obj) {
     auto str = pyToCpp<std::string>(obj);
     clingo_symbol_t sym;
-    handleCError(clingo_parse_term(str.c_str(), nullptr, nullptr, 20, &sym));
+    handle_c_error(clingo_parse_term(str.c_str(), nullptr, nullptr, 20, &sym));
     return Symbol::construct(sym);
 }
 
@@ -6838,7 +6865,7 @@ static struct PyModuleDef clingoASTModule = {
 #endif
 
 PyObject *initclingoast_() {
-    PY_TRY
+    PY_TRY {
 #if PY_MAJOR_VERSION >= 3
         Object m = PyModule_Create(&clingoASTModule);
         Reference{PySys_GetObject("modules")}.setItem(clingoASTModule.m_name, m);
@@ -6852,11 +6879,12 @@ PyObject *initclingoast_() {
             !TheoryAtomType::initType(m)     || !ScriptType::initType(m)         ||
             false) { return nullptr; }
         return m.release();
+    }
     PY_CATCH(nullptr);
 }
 
 PyObject *initclingo_() {
-    PY_TRY
+    PY_TRY {
         if (!PyEval_ThreadsInitialized()) { PyEval_InitThreads(); }
 #if PY_MAJOR_VERSION >= 3
         Object m = PyModule_Create(&clingoModule);
@@ -6879,6 +6907,7 @@ PyObject *initclingo_() {
         Py_XINCREF(a.toPy());
         if (PyModule_AddObject(m.toPy(), "ast", a.toPy()) < 0) { return nullptr; }
         return m.release();
+    }
     PY_CATCH(nullptr);
 }
 
@@ -6890,10 +6919,10 @@ void pyToCpp(Reference obj, symbol_wrapper &val) {
     if (obj.isInstance(Symbol::type))    { val.symbol = reinterpret_cast<Symbol*>(obj.toPy())->val; }
     else if (PyTuple_Check(obj.toPy()))  {
         auto vec = pyToCpp<symbol_vector>(obj);
-        handleCError(clingo_symbol_create_function("", reinterpret_cast<clingo_symbol_t*>(vec.data()), vec.size(), true, &val.symbol));
+        handle_c_error(clingo_symbol_create_function("", reinterpret_cast<clingo_symbol_t*>(vec.data()), vec.size(), true, &val.symbol));
     }
     else if (PyInt_Check(obj.toPy()))    { clingo_symbol_create_number(pyToCpp<int>(obj), &val.symbol); }
-    else if (PyString_Check(obj.toPy())) { handleCError(clingo_symbol_create_string(pyToCpp<std::string>(obj).c_str(), &val.symbol)); }
+    else if (PyString_Check(obj.toPy())) { handle_c_error(clingo_symbol_create_string(pyToCpp<std::string>(obj).c_str(), &val.symbol)); }
     else {
         PyErr_Format(PyExc_RuntimeError, "cannot convert to value: unexpected %s() object", obj.toPy()->ob_type->tp_name);
         throw PyException();
@@ -6940,14 +6969,11 @@ Object cppToPy(std::pair<T, U> const &pair) {
     return Tuple(cppToPy(pair.first), cppToPy(pair.second));
 }
 
-// }}}1
-
-} // namespace
-
 // {{{1 definition of PythonImpl
 
-struct PythonInit {
-    PythonInit() : selfInit(!Py_IsInitialized()) {
+class PythonImpl {
+public:
+    PythonImpl() : selfInit(!Py_IsInitialized()) {
         if (selfInit) {
 #if PY_MAJOR_VERSION >= 3
             PyImport_AppendInittab("clingo", &initclingo_);
@@ -6955,124 +6981,134 @@ struct PythonInit {
             PyImport_AppendInittab("clingo", []() { initclingo_(); });
 #endif
             Py_Initialize();
+#if PY_MAJOR_VERSION >= 3
+            static wchar_t const *argv[] = {L"clingo", 0};
+            PySys_SetArgvEx(1, const_cast<wchar_t**>(argv), 0);
+#else
+            static char const *argv[] = {"clingo", 0};
+            PySys_SetArgvEx(1, const_cast<char**>(argv), 0);
+#endif
         }
+        Object clingoModule = PyImport_ImportModule("clingo");
+        Object mainModule = PyImport_ImportModule("__main__");
+        main = PyModule_GetDict(mainModule.toPy());
+        if (!main) { throw PyException(); }
     }
-    ~PythonInit() {
+    ~PythonImpl() {
         if (selfInit) { Py_Finalize(); }
     }
-    bool selfInit;
-};
-
-struct PythonImpl {
-    PythonImpl() {
-        PY_TRY
-            if (init.selfInit) {
-#if PY_MAJOR_VERSION >= 3
-                static wchar_t const *argv[] = {L"clingo", 0};
-                PySys_SetArgvEx(1, const_cast<wchar_t**>(argv), 0);
-#else
-                static char const *argv[] = {"clingo", 0};
-                PySys_SetArgvEx(1, const_cast<char**>(argv), 0);
-#endif
-            }
-            Object clingoModule = PyImport_ImportModule("clingo");
-            Object mainModule = PyImport_ImportModule("__main__");
-            main = PyModule_GetDict(mainModule.toPy());
-            if (!main) { throw PyException(); }
-        PY_HANDLE("<internal>", "could not initialize python interpreter");
-    }
-    void exec(Location const &loc, String code) {
+    void exec(clingo_location_t loc, const char *code) {
         std::ostringstream oss;
         oss << "<" << loc << ">";
-        pyExec(code.c_str(), oss.str().c_str(), main);
+        pyExec(code, oss.str().c_str(), main);
     }
-    bool callable(String name) {
-        if (!PyMapping_HasKeyString(main, const_cast<char *>(name.c_str()))) { return false; }
-        Object fun = PyMapping_GetItemString(main, const_cast<char *>(name.c_str()));
+    bool callable(char const *name) {
+        if (!PyMapping_HasKeyString(main, const_cast<char *>(name))) { return false; }
+        Object fun = PyMapping_GetItemString(main, const_cast<char *>(name));
         return PyCallable_Check(fun.toPy());
     }
-    void call(String name, SymSpan args, SymVec &vals) {
-        Object fun = PyMapping_GetItemString(main, const_cast<char*>(name.c_str()));
-        pycall(fun, reinterpret_cast<clingo_symbol_t const *>(args.first), args.size, [](clingo_symbol_t const *symbols, size_t symbols_size, void *data) {
-            for (auto it = symbols, ie = it + symbols_size; it != ie; ++it) {
-                static_cast<SymVec*>(data)->emplace_back(Gringo::Symbol{*it});
-            }
-            return true;
-        }, &vals);
+    void call(char const *name, clingo_symbol_t const *arguments, size_t size, clingo_symbol_callback_t *symbol_callback, void *data) {
+        Object fun = PyMapping_GetItemString(main, const_cast<char*>(name));
+        pycall(fun, arguments, size, symbol_callback, data);
     }
-    void call(Gringo::Control &ctl) {
+    void call(clingo_control_t *ctl) {
         Object fun = PyMapping_GetItemString(main, const_cast<char*>("main"));
         Object params = PyTuple_New(1);
         Object param(ControlWrap::construct(ctl));
         if (PyTuple_SetItem(params.toPy(), 0, param.release()) < 0) { throw PyException(); }
         Object ret = PyObject_Call(fun.toPy(), params.toPy(), Py_None);
     }
-    PythonInit init;
-    PyObject  *main;
+private:
+    bool      selfInit;
+    PyObject *main;
 };
 
-// {{{1 definition of Python
-
-class PythonScript : public Script {
-public:
-    PythonScript(GringoModule &module) {
-        ControlWrap::module = &module;
-    }
-    ~PythonScript() = default;
-private:
-    bool exec(Location const &loc, String code) override {
-        if (!impl) { impl = gringo_make_unique<PythonImpl>(); }
-        PY_TRY
+struct PythonScript {
+    static bool execute(clingo_location_t loc, char const *code, void *) {
+        try {
+            if (!impl) { impl.reset(new PythonImpl()); }
             impl->exec(loc, code);
             return true;
-        PY_HANDLE(loc, "parsing failed");
-    }
-    bool callable(String name) override {
-        if (Py_IsInitialized() && !impl) { impl = gringo_make_unique<PythonImpl>(); }
-        try {
-            return impl && impl->callable(name);
         }
-        catch (PyException const &) {
-            PyErr_Clear();
+        catch (...) {
+            handle_cxx_error(loc, "error executing python code");
             return false;
         }
     }
-    SymVec call(Location const &loc, String name, SymSpan args, Logger &log) override {
-        assert(impl);
+    static bool call(clingo_location_t loc, char const *name, clingo_symbol_t const *arguments, size_t size, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data, void *) {
         try {
-            SymVec vals;
-            impl->call(name, args, vals);
-            return vals;
+            if (!impl) { impl.reset(new PythonImpl()); }
+            impl->call(name, arguments, size, symbol_callback, symbol_callback_data);
+            return true;
         }
-        catch (PyException const &) {
-            GRINGO_REPORT(log, clingo_warning_operation_undefined)
-                << loc << ": info: operation undefined:\n"
-                << errorToString()
-                ;
-            return {};
+        catch (...) {
+            handle_cxx_error(loc, "error calling python function");
+            return false;
         }
     }
-    void main(Gringo::Control &ctl) override {
-        assert(impl);
-        PY_TRY
+    static bool callable(char const * name, bool *ret, void *) {
+        try {
+            if (!impl) { impl.reset(new PythonImpl()); }
+            *ret = impl->callable(name);
+            return true;
+        }
+        catch (...) {
+            handle_cxx_error("<python>", "error cecking if function is callable");
+            return false;
+        }
+    }
+    static bool main(clingo_control_t *ctl, void *) {
+        try {
+            if (!impl) { impl.reset(new PythonImpl()); }
             impl->call(ctl);
-        PY_HANDLE("<internal>", "error while calling main function")
+            return true;
+        }
+        catch (...) {
+            handle_cxx_error("<python>", "error calling main function");
+            return false;
+        }
     }
-private:
+    static void free(void *) { }
+
     static std::unique_ptr<PythonImpl> impl;
 };
 
 std::unique_ptr<PythonImpl> PythonScript::impl = nullptr;
 
-UScript pythonScript(GringoModule &module) {
-    return gringo_make_unique<PythonScript>(module);
-}
-void *pythonInitlib(Gringo::GringoModule &module) {
-    PY_TRY
-        ControlWrap::module = &module;
-        PyObject *ret = initclingo_();
-        return ret;
+// }}}1
+
+} // namespace
+
+// {{{1 definition of Python
+
+} // namespace Gringo
+
+extern "C" void *clingo_init_python_(clingo_control_new_t new_control) {
+    using namespace Gringo;
+    PY_TRY {
+        ControlWrap::new_control = new_control;
+        return initclingo_();
+    }
     PY_CATCH(nullptr);
+}
+
+namespace Gringo {
+
+void registerPython(clingo_control_t *control, clingo_control_new_t new_control) {
+    try {
+        ControlWrap::new_control = new_control;
+        clingo_script_t_ script = {
+            PythonScript::execute,
+            PythonScript::call,
+            PythonScript::callable,
+            PythonScript::main,
+            PythonScript::free
+        };
+        handle_c_error(clingo_control_register_script_(control, clingo_ast_script_type_python, &script, nullptr));
+    }
+    catch (PyException const &) {
+        handle_py_error("<python>", "error registering python script");
+    }
 }
 
 // }}}1
@@ -7082,20 +7118,14 @@ void *pythonInitlib(Gringo::GringoModule &module) {
 #else // WITH_PYTHON
 
 #include "gringo/python.hh"
-#include "gringo/symbol.hh"
-#include "gringo/locatable.hh"
-#include "gringo/logger.hh"
 
 namespace Gringo {
 
 // {{{1 definition of PythonScript
 
-UScript pythonScript(GringoModule &) {
-    return nullptr;
-}
-void *pythonInitlib(Gringo::GringoModule &) {
-    return nullptr;
-}
+extern "C" void *clingo_init_python_(clingo_control_new_t) { return nullptr; }
+
+void registerPython(clingo_control_t *, clingo_control_new_t) { }
 
 // }}}1
 

@@ -284,6 +284,9 @@ public:
         if (replace) { clingoMode_ = false; }
         out_->registerObserver(std::move(obs), replace);
     }
+    void registerScript(clingo_ast_script_type type, Gringo::UScript script) override {
+        scripts_.registerScript(type, std::move(script));
+    }
 
     // }}}2
 
@@ -407,12 +410,13 @@ private:
 
 // {{{1 declaration of DefaultGringoModule
 
+Gringo::Scripts &g_scripts();
+
 struct DefaultGringoModule : Gringo::GringoModule {
     DefaultGringoModule();
     Gringo::Control *newControl(int argc, char const * const *argv, Gringo::Logger::Printer printer, unsigned messageLimit) override;
     Gringo::Symbol parseValue(std::string const &str, Gringo::Logger::Printer printer, unsigned messageLimit) override;
     Gringo::Input::GroundTermParser parser;
-    Gringo::Scripts scripts;
 };
 
 // }}}1

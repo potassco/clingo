@@ -758,13 +758,18 @@ ClingoLib::~ClingoLib() {
 
 // {{{1 definition of DefaultGringoModule
 
+Gringo::Scripts &g_scripts() {
+    static Gringo::Scripts scripts;
+    return scripts;
+}
+
 DefaultGringoModule::DefaultGringoModule() {
-    scripts.registerScript(clingo_ast_script_type_python, pythonScript(*this));
-    scripts.registerScript(clingo_ast_script_type_lua, luaScript(*this));
+    // TODO: remove once refactored
+    g_scripts().registerScript(clingo_ast_script_type_lua, luaScript(*this));
 }
 
 Gringo::Control *DefaultGringoModule::newControl(int argc, char const * const*argv, Gringo::Logger::Printer printer, unsigned messageLimit) {
-    return new ClingoLib(scripts, argc, argv, printer, messageLimit);
+    return new ClingoLib(g_scripts(), argc, argv, printer, messageLimit);
 }
 
 Gringo::Symbol DefaultGringoModule::parseValue(std::string const &str, Gringo::Logger::Printer printer, unsigned messageLimit) {

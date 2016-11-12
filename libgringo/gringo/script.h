@@ -18,16 +18,21 @@
 
 // }}}
 
-#ifndef _GRINGO_PYTHON_HH
-#define _GRINGO_PYTHON_HH
+#ifndef CLINGO_SCRIPT_H
+#define CLINGO_SCRIPT_H
 
-#include <gringo/scripts.hh>
+#include <clingo.h>
 
-namespace Gringo {
+typedef struct clingo_script_ {
+    bool (*execute) (clingo_location_t loc, char const *code, void *data);
+    bool (*call) (clingo_location_t loc, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data, void *data);
+    bool (*callable) (char const * name, bool *ret, void *data);
+    bool (*main) (clingo_control_t *ctl, void *data);
+    void (*free) (void *data);
+} clingo_script_t_;
 
-void *pythonInitlib(GringoModule &gringo);
-UScript pythonScript(GringoModule &module);
+extern "C" CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_script_(clingo_control_t *ctl, clingo_ast_script_type_t type, clingo_script_t_ *script, void *data);
 
-} // namespace Gringo
+#endif // CLINGO_SCRIPT_H
 
-#endif // _GRINGO_PYTHON_HH
+

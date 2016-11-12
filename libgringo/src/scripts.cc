@@ -46,7 +46,7 @@ SymVec Scripts::call(Location const &loc, String name, SymSpan args, Logger &log
     if (context_ && context_->callable(name)) { return context_->call(loc, name, args); }
     for (auto &&script : scripts_) {
         if (script.second->callable(name)) {
-            return script.second->call(loc, name, args, log);
+            return script.second->call(loc, name, args);
         }
     }
     GRINGO_REPORT(log, clingo_warning_operation_undefined)

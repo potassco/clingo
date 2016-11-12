@@ -9,7 +9,7 @@ set(source
 # ]]]
 
 add_executable(clingo ${header} ${source})
-target_link_libraries(clingo libclingo)
+target_link_libraries(clingo PRIVATE libclingo libpygringo ${clingo_pygringo_libs} ${clingo_external_libs})
 set_target_properties(clingo PROPERTIES FOLDER exe)
 
 install(TARGETS clingo RUNTIME DESTINATION bin)

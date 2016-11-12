@@ -3076,7 +3076,7 @@ public:
     }
 
 private:
-    bool exec(Location const &loc, String code) override {
+    void exec(Location const &loc, String code) override {
         if (!impl) { impl = gringo_make_unique<LuaImpl>(); }
         LuaClear lc(impl->L);
         std::stringstream oss;
@@ -3086,10 +3086,9 @@ private:
         handleError(impl->L, loc, ret, "parsing lua script failed", nullptr);
         ret = lua_pcall(impl->L, 0, 0, -2);
         handleError(impl->L, loc, ret, "running lua script failed", nullptr);
-        return true;
     }
 
-    SymVec call(Location const &loc, String name, SymSpan args, Logger &log) override {
+    SymVec call(Location const &loc, String name, SymSpan args) override {
         assert(impl);
         LuaClear lc(impl->L);
         LuaCallArgs arg(name.c_str(), args, {});
@@ -3098,7 +3097,7 @@ private:
         lua_pushlightuserdata(impl->L, (void*)&arg);
         lua_pushnil(impl->L);
         int ret = lua_pcall(impl->L, 2, 0, -4);
-        if (!handleError(impl->L, loc, ret, "operation undefined", &log)) { return {}; }
+        if (!handleError(impl->L, loc, ret, "operation undefined", nullptr)) { return {}; }
         return std::move(std::get<2>(arg));
     }
 

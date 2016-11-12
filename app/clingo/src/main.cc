@@ -18,11 +18,41 @@
 
 // }}}
 
-#include <clingo.h>
+#ifdef WITH_PYTHON
+#  include <Python.h>
+#endif
+#ifdef WITH_LUA
+#  include <lua.hpp>
+#endif
+#include <python.hh>
 
-extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main_(int argc, char *argv[]);
+typedef struct clingo_application {
+    char const *python_version;
+    char const *lua_version;
+    void (*setup) (clingo_control_t *control);
+} clingo_application_t;
+
+extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main_(int argc, char *argv[], clingo_application_t *application);
 
 int main(int argc, char** argv) {
-    return clingo_main_(argc, argv);
+    clingo_application_t app = {
+#ifdef WITH_PYTHON
+        "with Python " PY_VERSION
+#else
+        "without Python"
+#endif
+        ,
+#ifdef WITH_LUA
+        "with " LUA_RELEASE
+#else
+        "without Lua"
+#endif
+        ,
+        [](clingo_control_t *ctl) {
+            Gringo::registerPython(ctl, clingo_control_new);
+            // TOOD: register lua too!
+        }
+    };
+    return clingo_main_(argc, argv, &app);
 }
 

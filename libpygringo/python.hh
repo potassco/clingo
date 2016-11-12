@@ -1,7 +1,7 @@
 // {{{ GPL License
 
 // This file is part of gringo - a grounder for logic programs.
-// Copyright (C) 2013  Benjamin Kaufmann
+// Copyright (C) 2013  Roland Kaminski
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -17,30 +17,19 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // }}}
-#include "Python.h"
 
-#if defined _WIN32 || defined __CYGWIN__
-#   define CLINGO_WIN
-#endif
-#ifdef CLINGO_WIN
-#    define CLINGO_VISIBILITY_DEFAULT __declspec (dllexport)
-#else
-#    if __GNUC__ >= 4
-#        define CLINGO_VISIBILITY_DEFAULT  __attribute__ ((visibility ("default")))
-#    else
-#        define CLINGO_VISIBILITY_DEFAULT
-#    endif
-#endif
+#ifndef GRINGO_PYTHON_HH
+#define GRINGO_PYTHON_HH
 
-#include <python.hh>
+#include <gringo/script.h>
 
-#if PY_MAJOR_VERSION >= 3
-extern "C" CLINGO_VISIBILITY_DEFAULT PyObject *PyInit_clingo() {
-    return (PyObject*)clingo_init_python_(clingo_control_new);
-}
-#else
-extern "C" CLINGO_VISIBILITY_DEFAULT void initclingo() {
-    clingo_init_python_(clingo_control_new);
-}
-#endif
+using clingo_control_new_t = bool (*) (char const *const *, size_t, clingo_logger_t , void *, unsigned, clingo_control_t **);
+extern "C" CLINGO_VISIBILITY_DEFAULT void *clingo_init_python_(clingo_control_new_t new_control);
 
+namespace Gringo {
+
+void registerPython(clingo_control_t *ctl, clingo_control_new_t new_control);
+
+} // namespace Gringo
+
+#endif // GRINGO_PYTHON_HH

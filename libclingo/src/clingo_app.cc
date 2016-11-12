@@ -19,15 +19,11 @@
 
 // }}}
 
-#ifdef WITH_PYTHON
-#  include <Python.h>
-#endif
 #ifdef WITH_LUA
 #  include <lua.hpp>
 #endif
 #include <clingo/clingo_app.hh>
 #include <clasp/parser.h>
-#include <gringo/python.hh>
 #include <gringo/lua.hh>
 #include <climits>
 
@@ -36,7 +32,7 @@ using namespace Clasp::Cli;
 
 // {{{ declaration of ClingoApp
 
-ClingoApp::ClingoApp() { }
+ClingoApp::ClingoApp(clingo_application_t &app) : app_(app) { }
 
 static bool parseConst(const std::string& str, std::vector<std::string>& out) {
     out.push_back(str);
@@ -146,19 +142,7 @@ void ClingoApp::printVersion() {
     Potassco::Application::printVersion();
     printf("\n");
     printf("libgringo version " CLINGO_VERSION "\n");
-    printf("Configuration: "
-#ifdef WITH_PYTHON
-        "with Python " PY_VERSION
-#else
-        "without Python"
-#endif
-        ", "
-#ifdef WITH_LUA
-        "with " LUA_RELEASE
-#else
-        "without Lua"
-#endif
-        "\n");
+    printf("Configuration: %s, %s\n", app_.python_version, app_.lua_version);
     printf("Copyright (C) Roland Kaminski\n");
     printf("License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n");
     printf("Gringo is free software: you are free to change and redistribute it.\n");
@@ -196,7 +180,8 @@ void ClingoApp::run(Clasp::ClaspFacade& clasp) {
             ProgramBuilder* prg = &clasp.start(claspConfig_, pt);
             grOpts_.verbose = verbose() == UINT_MAX;
             Asp::LogicProgram* lp = mode_ != mode_gringo ? static_cast<Asp::LogicProgram*>(prg) : 0;
-            grd = Gringo::gringo_make_unique<ClingoControl>(module.scripts, mode_ == mode_clingo, clasp_.get(), claspConfig_, std::bind(&ClingoApp::handlePostGroundOptions, this, _1), std::bind(&ClingoApp::handlePreSolveOptions, this, _1), nullptr, 20);
+            grd = Gringo::gringo_make_unique<ClingoControl>(g_scripts(), mode_ == mode_clingo, clasp_.get(), claspConfig_, std::bind(&ClingoApp::handlePostGroundOptions, this, _1), std::bind(&ClingoApp::handlePreSolveOptions, this, _1), nullptr, 20);
+            app_.setup(grd.get());
             grd->parse(claspAppOpts_.input, grOpts_, lp);
             grd->main();
         }
@@ -213,20 +198,10 @@ void ClingoApp::run(Clasp::ClaspFacade& clasp) {
 
 // }}}
 
-extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main_(int argc, char *argv[]) {
-    ClingoApp app;
+extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main_(int argc, char *argv[], clingo_application_t *application) {
+    ClingoApp app(*application);
     return app.main(argc, argv);
 }
-
-#ifdef WITH_PYTHON
-extern "C" CLINGO_VISIBILITY_DEFAULT void *clingo_python_() {
-    static DefaultGringoModule g_module;
-    try                             { return Gringo::pythonInitlib(g_module); }
-    catch (std::bad_alloc const &e) { PyErr_SetString(PyExc_MemoryError, e.what()); return nullptr; }
-    catch (std::exception const &e) { PyErr_SetString(PyExc_RuntimeError, e.what()); return nullptr; }
-    catch (...)                     { PyErr_SetString(PyExc_RuntimeError, "unknown error"); return nullptr; }
-}
-#endif
 
 #ifdef WITH_LUA
 extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_lua_(lua_State *L) {

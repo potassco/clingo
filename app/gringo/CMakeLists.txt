@@ -9,7 +9,7 @@ set(source
 # ]]]
 
 add_executable(gringo ${header} ${source})
-target_link_libraries(gringo PRIVATE libgringo libpotassco ${clingo_external_libs})
+target_link_libraries(gringo PRIVATE libpygringo libgringo libpotassco ${clingo_pygringo_libs} ${clingo_external_libs})
 set_target_properties(gringo PROPERTIES FOLDER exe)
 
 install(TARGETS gringo RUNTIME DESTINATION bin)

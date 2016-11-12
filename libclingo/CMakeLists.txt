@@ -52,7 +52,7 @@ else()
     install(TARGETS libclingo
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
-    install(FILES 
+    install(FILES
         "${CLINGO_SOURCE_DIR}/libclingo/clingo.hh"
         "${CLINGO_SOURCE_DIR}/libgringo/clingo.h"
         DESTINATION include)

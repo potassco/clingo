@@ -35,7 +35,7 @@
 #include <gringo/scripts.hh>
 #include <gringo/control.hh>
 #include <gringo/lua.hh>
-#include <gringo/python.hh>
+#include <python.hh>
 #include <climits>
 #include <iostream>
 #include <stdexcept>
@@ -95,7 +95,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     , parser(pb)
     , opts(opts) {
         using namespace Gringo;
-        scripts.registerScript(clingo_ast_script_type_python, pythonScript(*this));
+        // TODO: should go where python script is once refactored
         scripts.registerScript(clingo_ast_script_type_lua, luaScript(*this));
         out.keepFacts = opts.keepFacts;
         logger_.enable(clingo_warning_operation_undefined, !opts.wNoOperationUndefined);
@@ -120,6 +120,9 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     }
     Gringo::Logger &logger() override {
         return logger_;
+    }
+    void registerScript(clingo_ast_script_type type, Gringo::UScript script) override {
+        scripts.registerScript(type, script);
     }
     void parse() {
         if (!parser.empty()) {
@@ -383,6 +386,7 @@ struct GringoApp : public Potassco::Application {
     void ground(Gringo::Output::OutputBase &out) {
         using namespace Gringo;
         IncrementalControl inc(out, input_, grOpts_);
+        registerPython(&inc, nullptr);
         if (inc.scripts.callable("main")) {
             inc.incremental_ = true;
             inc.scripts.main(inc);
