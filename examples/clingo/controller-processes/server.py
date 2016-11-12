@@ -22,25 +22,29 @@ atexit.register(readline.write_history_file, histfile)
 def handleMessages(conn):
     def interrupt(conn):
         signal.signal(signal.SIGINT, signal.SIG_IGN)
-        conn.sendall("interrupt\n")
+        conn.sendall(b"interrupt\n")
     signal.signal(signal.SIGINT, lambda a, b: interrupt(conn))
     data = bytearray()
     while True:
         while True:
             try: data.extend(conn.recv(4096))
-            except socket.error as (code, msg):
+            except OSError as e:
+                if e.errno != errno.EINTR: raise
+            except socket.error as e:
+                code, msg = e
                 if code != errno.EINTR: raise
             else: break
-        pos = data.find("\n")
+        pos = data.find(b"\n")
         while pos >= 0:
-            (msg, data) = data.split("\n", 1)
+            (msg, data) = data.split(b"\n", 1)
+            msg = msg.decode()
             if msg.startswith("finish:"):
                 msg = msg.split(":")
                 print(msg[1] + (" (interrupted)" if len(msg) > 2 else ""))
                 return
             elif msg.startswith("Answer:"):
                 print(msg)
-                pos = data.find("\n")
+                pos = data.find(b"\n")
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -49,49 +53,54 @@ try:
         try:
             p = random.randrange(1000, 60000)
             s.bind(("", p))
-        except socket.error as (code, msg):
+        except OSError as e:
+            if e.errno != errno.EINTR: raise
+        except socket.error as e:
+            code, msg = e
             if code != errno.EADDRINUSE: raise
             continue
         else:
             with open(".controller.PORT", "w") as f: f.write(str(p))
-            print "waiting for connections..."
+            print("waiting for connections...")
             break
         raise "no port found"
     s.listen(1)
     conn, addr = s.accept()
-    print
-    print "this prompt accepts the following commands:"
-    print "  solve              - start solving"
-    print "  exit/EOF           - terminate the solver"
-    print "  Ctrl-C             - interrupt current search"
-    print "  less_pigeon_please - select an easy problem"
-    print "  more_pigeon_please - select a difficult problem"
-    print
+    print("")
+    print("this prompt accepts the following commands:")
+    print("  solve              - start solving")
+    print("  exit/EOF           - terminate the solver")
+    print("  Ctrl-C             - interrupt current search")
+    print("  less_pigeon_please - select an easy problem")
+    print("  more_pigeon_please - select a difficult problem")
+    print("")
 
     pyInt = signal.getsignal(signal.SIGINT)
     while True:
         signal.signal(signal.SIGINT, pyInt)
         try:
-            line = raw_input('> ')
+            try: input = raw_input
+            except NameError: pass
+            line = input('> ')
             signal.signal(signal.SIGINT, signal.SIG_IGN)
         except EOFError:
             signal.signal(signal.SIGINT, signal.SIG_IGN)
             line = "exit"
-            print line
+            print(line)
         except KeyboardInterrupt:
             signal.signal(signal.SIGINT, signal.SIG_IGN)
             print
             continue
         if line == "solve":
-            conn.sendall("solve\n")
+            conn.sendall(b"solve\n")
             handleMessages(conn)
         elif line == "exit":
-            conn.sendall("exit\n")
+            conn.sendall(b"exit\n")
             break
         elif line in ["less_pigeon_please", "more_pigeon_please"]:
-            conn.sendall(line + "\n")
+            conn.sendall(line.encode() + b"\n")
         else:
-            print "unknown command: " + line
+            print("unknown command: " + line)
 except KeyboardInterrupt:
     raise
 finally:

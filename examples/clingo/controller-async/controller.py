@@ -37,43 +37,45 @@ class Controller:
         self.condition.release()
 
     def run(self):
-        print
-        print "this prompt accepts the following commands:"
-        print "  solve              - start solving"
-        print "  exit/EOF           - terminate the solver"
-        print "  Ctrl-C             - interrupt current search"
-        print "  less_pigeon_please - select an easy problem"
-        print "  more_pigeon_please - select a difficult problem"
-        print
+        print("")
+        print("this prompt accepts the following commands:")
+        print("  solve              - start solving")
+        print("  exit/EOF           - terminate the solver")
+        print("  Ctrl-C             - interrupt current search")
+        print("  less_pigeon_please - select an easy problem")
+        print("  more_pigeon_please - select a difficult problem")
+        print("")
 
         pyInt = signal.getsignal(signal.SIGINT)
         while True:
             signal.signal(signal.SIGINT, pyInt)
             try:
-                line = raw_input('> ')
+                try: input = raw_input
+                except NameError: pass
+                line = input('> ')
                 signal.signal(signal.SIGINT, signal.SIG_IGN)
             except EOFError:
                 signal.signal(signal.SIGINT, signal.SIG_IGN)
                 line = "exit"
-                print line
+                print(line)
             except KeyboardInterrupt:
                 signal.signal(signal.SIGINT, signal.SIG_IGN)
                 print
                 continue
             if line == "solve":
-                print "Solving..."
+                print("Solving...")
                 self.solving = True
                 self.solver.start(self.on_finish)
                 signal.signal(signal.SIGINT, self.interrupt)
                 self.condition.acquire()
                 while self.solving:
                     # NOTE: we need a timeout to catch signals
-                    self.condition.wait(float("inf"))
+                    self.condition.wait(1000)
                 self.condition.release()
                 self.solver.finish()
                 for model in self.solver.models:
-                    print "model: " + model
-                print self.message
+                    print("model: " + model)
+                print(self.message)
             elif line == "exit":
                 break
             elif line == "less_pigeon_please":
@@ -81,7 +83,7 @@ class Controller:
             elif line == "more_pigeon_please":
                 self.solver.set_more_pigeon(True)
             else:
-                print "unknown command: " + line
+                print("unknown command: " + line)
 
 class Solver:
     def __init__(self):

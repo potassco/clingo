@@ -8,14 +8,17 @@ class Receiver:
         self.conn = conn
         self.data = bytearray()
     def readline(self):
-        pos = self.data.find("\n")
+        pos = self.data.find(b"\n")
         while pos < 0:
             while True:
                 try: self.data.extend(self.conn.recv(4096))
-                except socket.error as (code, msg):
+                except OSError as e:
+                    if e.errno != errno.EINTR: raise
+                except socket.error as e:
+                    code, msg = e
                     if code != errno.EINTR: raise
                 else: break
-            pos = self. data.find("\n")
+            pos = self. data.find(b"\n")
         msg = self.data[:pos]
         self.data = self.data[pos+1:]
         return msg
@@ -38,9 +41,9 @@ def main(prg):
         while True:
             if state == States.SOLVE:
                 f = prg.solve_async(
-                    on_model  = lambda model: conn.sendall("Answer: " + str(model) + "\n"),
-                    on_finish = lambda ret:   conn.sendall("finish:" + str(ret) + (":INTERRUPTED" if ret.interrupted else "") + "\n"))
-            msg = recv.readline()
+                    on_model  = lambda model: conn.sendall(b"Answer: " + str(model).encode() + b"\n"),
+                    on_finish = lambda ret:   conn.sendall(b"finish:" + str(ret).encode() + (b":INTERRUPTED" if ret.interrupted else b"") + b"\n"))
+            msg = recv.readline().decode()
             if state == States.SOLVE:
                 f.cancel()
                 ret = f.get()

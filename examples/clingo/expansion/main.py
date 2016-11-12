@@ -15,7 +15,7 @@ class App:
 
     def show(self, model):
         if not self.args.quiet:
-            print "Model:", model
+            print("Model: {}".format(model))
 
     def ground(self, kind):
         count = self.objects + self.horizon + 1
@@ -40,14 +40,14 @@ class App:
             parts.append(("horizon", [self.horizon, count]))
 
         if self.args.verbose:
-             print
-             print "Objects:", self.objects
-             print "Horizon:", self.horizon
+             print("")
+             print("Objects: {}".format(self.objects))
+             print("Horizon: {}".format(self.horizon))
 
         self.control.ground(parts)
 
         if self.args.verbose:
-             print "Solving:", count
+             print("Solving:", count)
 
     def run(self):
         for source in self.args.file:
@@ -69,7 +69,7 @@ class App:
                     for x in ["lp", "ctx", "solvers"]:
                         for y in self.control.statistics[x]:
                             stats[y] = self.control.statistics[x][y]
-                    print json.dumps(stats, *args)
+                    print(json.dumps(stats, *args))
                 if ret.satisfiable:
                     break
                 self.ground(False)

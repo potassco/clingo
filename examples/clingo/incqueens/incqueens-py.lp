@@ -12,7 +12,7 @@ def main(prg):
             if n >= lower:
                 prg.ground(parts)
                 parts = []
-                print 'SIZE {0}'.format(n)
+                print('SIZE {0}'.format(n))
                 prg.solve()
 
 #end.

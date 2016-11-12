@@ -14,7 +14,7 @@ def main(prg):
     prg.ground([("base", [])])
     while prg.solve(on_model).satisfiable:
         prg.ground([("brave", [])])
-    print "brave consequences: {0}".format(", ".join(str(x) for x in sorted(brave)))
+    print ("brave consequences: {0}".format(", ".join(str(x) for x in sorted(brave))))
 
 #end.
 
