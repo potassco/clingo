@@ -19,27 +19,24 @@
 // }}}
 #include "Python.h"
 
-#if defined _WIN32 || defined __CYGWIN__
-#   define CLINGO_WIN
-#endif
-#ifdef CLINGO_WIN
-#    define CLINGO_VISIBILITY_DEFAULT __declspec (dllexport)
+#include <python.hh>
+
+#if defined  _WIN32 || defined __CYGWIN__
+#    define VISIBILITY_DEFAULT __declspec (dllexport)
 #else
 #    if __GNUC__ >= 4
-#        define CLINGO_VISIBILITY_DEFAULT  __attribute__ ((visibility ("default")))
+#        define VISIBILITY_DEFAULT  __attribute__ ((visibility ("default")))
 #    else
-#        define CLINGO_VISIBILITY_DEFAULT
+#        define VISIBILITY_DEFAULT
 #    endif
 #endif
 
-#include <python.hh>
-
 #if PY_MAJOR_VERSION >= 3
-extern "C" CLINGO_VISIBILITY_DEFAULT PyObject *PyInit_clingo() {
+extern "C" VISIBILITY_DEFAULT PyObject *PyInit_clingo() {
     return (PyObject*)clingo_init_python_(clingo_control_new);
 }
 #else
-extern "C" CLINGO_VISIBILITY_DEFAULT void initclingo() {
+extern "C" VISIBILITY_DEFAULT void initclingo() {
     clingo_init_python_(clingo_control_new);
 }
 #endif

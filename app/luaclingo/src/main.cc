@@ -19,22 +19,20 @@
 // }}}
 
 #include <lua.hpp>
-#if defined _WIN32 || defined __CYGWIN__
-#   define CLINGO_WIN
-#endif
-#ifdef CLINGO_WIN
-#    define CLINGO_VISIBILITY_DEFAULT __declspec (dllexport)
+
+#if defined  _WIN32 || defined __CYGWIN__
+#    define VISIBILITY_DEFAULT __declspec (dllexport)
 #else
 #    if __GNUC__ >= 4
-#        define CLINGO_VISIBILITY_DEFAULT  __attribute__ ((visibility ("default")))
+#        define VISIBILITY_DEFAULT  __attribute__ ((visibility ("default")))
 #    else
-#        define CLINGO_VISIBILITY_DEFAULT
+#        define VISIBILITY_DEFAULT
 #    endif
 #endif
 
-extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_lua_(lua_State *L);
+extern "C" VISIBILITY_DEFAULT int clingo_lua_(lua_State *L);
 
-extern "C" CLINGO_VISIBILITY_DEFAULT int luaopen_clingo(lua_State *L) {
+extern "C" VISIBILITY_DEFAULT int luaopen_clingo(lua_State *L) {
     return clingo_lua_(L);
 }
 
