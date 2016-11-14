@@ -837,59 +837,32 @@ struct TheoryIter {
 
 // {{{1 wrap Term
 
-struct SymbolType {
-    enum Type { Number, String, Function, Inf, Sup };
+struct SymbolType : Object<SymbolType> {
+    clingo_symbol_type_t type;
+    SymbolType(clingo_symbol_type_t type) : type(type) { }
+    clingo_theory_term_type_t cmpKey() { return type; }
     static int addToRegistry(lua_State *L) {
         lua_createtable(L, 0, 5);
-        *(Type*)lua_newuserdata(L, sizeof(Type)) = Number;
-        luaL_getmetatable(L, typeName);
-        lua_setmetatable(L, -2);
-        lua_setfield(L, -2, "Number");
-        *(Type*)lua_newuserdata(L, sizeof(Type)) = String;
-        luaL_getmetatable(L, typeName);
-        lua_setmetatable(L, -2);
-        lua_setfield(L, -2, "String");
-        *(Type*)lua_newuserdata(L, sizeof(Type)) = Function;
-        luaL_getmetatable(L, typeName);
-        lua_setmetatable(L, -2);
-        lua_setfield(L, -2, "Function");
-        *(Type*)lua_newuserdata(L, sizeof(Type)) = Inf;
-        luaL_getmetatable(L, typeName);
-        lua_setmetatable(L, -2);
-        lua_setfield(L, -2, "Infimum");
-        *(Type*)lua_newuserdata(L, sizeof(Type)) = Sup;
-        luaL_getmetatable(L, typeName);
-        lua_setmetatable(L, -2);
-        lua_setfield(L, -2, "Supremum");
+        for (auto t : {clingo_symbol_type_number, clingo_symbol_type_string, clingo_symbol_type_function, clingo_symbol_type_infimum, clingo_symbol_type_supremum}) {
+            new_(L, t);
+            lua_setfield(L, -2, field_(t));
+        }
         lua_setfield(L, -2, "SymbolType");
         return 0;
     }
-    static int eq(lua_State *L) {
-        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
-        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, *a == *b);
-        return 1;
-    }
-    static int lt(lua_State *L) {
-        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
-        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, *a < *b);
-        return 1;
-    }
-    static int le(lua_State *L) {
-        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
-        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, *a <= *b);
-        return 1;
-    }
-    static int toString(lua_State *L) {
-        switch (*(Type*)luaL_checkudata(L, 1, typeName)) {
-            case Number:   { lua_pushstring(L, "Number"); break; }
-            case String:   { lua_pushstring(L, "String"); break; }
-            case Function: { lua_pushstring(L, "Function"); break; }
-            case Inf:      { lua_pushstring(L, "Infimum"); break; }
-            case Sup:      { lua_pushstring(L, "Supremum"); break; }
+    static char const *field_(clingo_symbol_type_t type) {
+        switch (static_cast<enum clingo_symbol_type>(type)) {
+            case clingo_symbol_type_number:   { return "Number"; }
+            case clingo_symbol_type_string:   { return "String"; }
+            case clingo_symbol_type_function: { return "Function"; }
+            case clingo_symbol_type_infimum:  { return "Infimum"; }
+            case clingo_symbol_type_supremum: { break; }
         }
+        return "Supremum";
+    }
+
+    static int toString(lua_State *L) {
+        lua_pushstring(L, field_(get_self(L).type));
         return 1;
     }
     static luaL_Reg const meta[];
