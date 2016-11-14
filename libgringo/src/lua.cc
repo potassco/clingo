@@ -63,6 +63,52 @@ auto protect(lua_State *L, T f) -> decltype(f()) {
 }
 #define PROTECT(E) (protect(L, [&]{ return (E); }))
 
+// translates a clingo api error into a lua error
+void handle_c_error(lua_State *L, bool ret) {
+    if (!ret) {
+        //if (exc && *exc) { std::rethrow_exception(*exc); }
+        char const *msg = clingo_error_message();
+        if (!msg) { msg = "no message"; }
+        luaL_error(L, msg);
+    }
+}
+
+template <typename... T>
+struct Types { };
+
+template<int, typename... T>
+struct LastTypes;
+template<typename A, typename... T>
+struct LastTypes<0, A, T...> { using Type = Types<A, T...>; };
+template<int n, typename T, typename... A>
+struct LastTypes<n, T, A...> : LastTypes<n-1, A...> { };
+
+template<int n, typename T>
+struct LastArgs;
+template<int n, typename... Args>
+struct LastArgs<n, bool (*)(Args...)> : LastTypes<n, Args...> { };
+
+template <typename T, typename F, typename... Args>
+T call_c_(Types<T*>*, lua_State *L, F f, Args ...args) {
+    T ret;
+    handle_c_error(L, f(args..., &ret));
+    return ret;
+}
+
+template <typename T, typename U, typename F, typename... Args>
+std::pair<T, U> call_c_(Types<T*, U*>*, lua_State *L, F f, Args ...args) {
+    T ret1;
+    U ret2;
+    handle_c_error(L, f(args..., &ret1, &ret2));
+    return {ret1, ret2};
+}
+
+
+template <typename F, typename... Args, typename T=typename LastArgs<sizeof...(Args), F>::Type>
+static auto call_c(lua_State *L, F f, Args... args) -> decltype(call_c_(static_cast<T*>(nullptr), L, f, args...)) {
+    return call_c_(static_cast<T*>(nullptr), L, f, args...);
+}
+
 struct Any {
     struct PlaceHolder {
         virtual ~PlaceHolder() { };
@@ -510,8 +556,8 @@ struct TheoryTermType : Object<TheoryTermType> {
         lua_setfield(L, -2, "TheoryTermType");
         return 0;
     }
-    static char const *field_(clingo_theory_term_type t) {
-        switch (t) {
+    static char const *field_(clingo_theory_term_type_t t) {
+        switch (static_cast<clingo_theory_term_type>(t)) {
             case clingo_theory_term_type_function: { return "Function"; }
             case clingo_theory_term_type_number:   { return "Number"; }
             case clingo_theory_term_type_symbol:   { return "Symbol"; }
@@ -521,7 +567,7 @@ struct TheoryTermType : Object<TheoryTermType> {
         }
         return "";
     }
-    static int new_(lua_State *L, clingo_theory_term_type t) {
+    static int new_(lua_State *L, clingo_theory_term_type_t t) {
         lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
         lua_getfield(L, -1, "TheoryTermType");
         lua_replace(L, -2);
@@ -547,16 +593,6 @@ luaL_Reg const TheoryTermType::meta[] = {
     { nullptr, nullptr }
 };
 
-// translates a clingo api error into a lua error
-void handle_c_error(lua_State *L, bool ret) {
-    if (!ret) {
-        //if (exc && *exc) { std::rethrow_exception(*exc); }
-        char const *msg = clingo_error_message();
-        if (!msg) { msg = "no message"; }
-        luaL_error(L, msg);
-    }
-}
-
 struct TheoryTerm : Object<TheoryTerm> {
     clingo_theory_atoms_t *atoms;
     clingo_id_t id;
@@ -564,26 +600,20 @@ struct TheoryTerm : Object<TheoryTerm> {
     clingo_id_t cmpKey() { return id; }
     static int name(lua_State *L) {
         auto &self = get_self(L);
-        char const *ret;
-        handle_c_error(L, clingo_theory_atoms_term_name(self.atoms, self.id, &ret));
-        lua_pushstring(L, ret);
+        lua_pushstring(L, call_c(L, clingo_theory_atoms_term_name, self.atoms, self.id));
         return 1;
     }
     static int number(lua_State *L) {
         auto &self = get_self(L);
-        int ret;
-        handle_c_error(L, clingo_theory_atoms_term_number(self.atoms, self.id, &ret));
-        lua_pushnumber(L, ret);
+        lua_pushnumber(L, call_c(L, clingo_theory_atoms_term_number, self.atoms, self.id));
         return 1;
     }
     static int args(lua_State *L) {
         auto &self = get_self(L);
-        size_t size;
-        clingo_id_t const *args;
-        handle_c_error(L, clingo_theory_atoms_term_arguments(self.atoms, self.id, &args, &size));
-        lua_createtable(L, size, 0);
+        auto ret = call_c(L, clingo_theory_atoms_term_arguments, self.atoms, self.id);
+        lua_createtable(L, ret.second, 0);
         int i = 1;
-        for (auto it = args, ie = args + size; it != ie; ++it) {
+        for (auto it = ret.first, ie = it + ret.second; it != ie; ++it) {
             new_(L, self.atoms, *it);
             lua_rawseti(L, -2, i++);
         }
@@ -591,8 +621,7 @@ struct TheoryTerm : Object<TheoryTerm> {
     }
     static int toString(lua_State *L) {
         auto &self = get_self(L);
-        size_t size;
-        handle_c_error(L, clingo_theory_atoms_term_to_string_size(self.atoms, self.id, &size));
+        size_t size = call_c(L, clingo_theory_atoms_term_to_string_size, self.atoms, self.id);
         char *buf = static_cast<char *>(lua_newuserdata(L, size * sizeof(*buf))); // +1
         handle_c_error(L, clingo_theory_atoms_term_to_string(self.atoms, self.id, buf, size));
         lua_pushstring(L, buf);                                                   // +1
@@ -601,9 +630,7 @@ struct TheoryTerm : Object<TheoryTerm> {
     }
     static int type(lua_State *L) {
         auto &self = get_self(L);
-        clingo_theory_term_type_t type;
-        handle_c_error(L, clingo_theory_atoms_term_type(self.atoms, self.id, &type));
-        return TheoryTermType::new_(L, static_cast<clingo_theory_term_type>(type));
+        return TheoryTermType::new_(L, call_c(L, clingo_theory_atoms_term_type, self.atoms, self.id));
     }
     static int index(lua_State *L) {
         char const *field = luaL_checkstring(L, 2);
@@ -633,17 +660,18 @@ luaL_Reg const TheoryTerm::meta[] = {
 // {{{1 wrap TheoryElement
 
 struct TheoryElement : Object<TheoryElement> {
-    TheoryElement(Gringo::TheoryData const *data, Id_t idx) : data(data) , idx(idx) { }
-    Gringo::TheoryData const *data;
-    Id_t idx;
+    TheoryElement(clingo_theory_atoms_t *atoms, Id_t id) : atoms(atoms) , id(id) { }
+    clingo_theory_atoms_t *atoms;
+    clingo_id_t cmpKey() { return id; }
+    Id_t id;
 
     static int terms(lua_State *L) {
         auto &self = get_self(L);
-        auto args = protect(L, [self]() { return self.data->elemTuple(self.idx); });
-        lua_createtable(L, args.size, 0);
+        auto ret = call_c(L, clingo_theory_atoms_element_tuple, self.atoms, self.id);
+        lua_createtable(L, ret.second, 0);
         int i = 1;
-        for (auto &x : args) {
-            TheoryTerm::new_(L, const_cast<Gringo::TheoryData*>(self.data), x);
+        for (auto it = ret.first, ie = it + ret.second; it != ie; ++it) {
+            TheoryTerm::new_(L, self.atoms, *it);
             lua_rawseti(L, -2, i++);
         }
         return 1;
@@ -651,11 +679,11 @@ struct TheoryElement : Object<TheoryElement> {
 
     static int condition(lua_State *L) {
         auto &self = get_self(L);
-        auto args = protect(L, [self]() { return self.data->elemCond(self.idx); });
-        lua_createtable(L, args.size, 0);
+        auto ret = call_c(L, clingo_theory_atoms_element_condition, self.atoms, self.id);
+        lua_createtable(L, ret.second, 0);
         int i = 1;
-        for (auto &x : args) {
-            lua_pushnumber(L, x);
+        for (auto it = ret.first, ie = it + ret.second; it != ie; ++it) {
+            lua_pushnumber(L, *it);
             lua_rawseti(L, -2, i++);
         }
         return 1;
@@ -663,14 +691,17 @@ struct TheoryElement : Object<TheoryElement> {
 
     static int conditionId(lua_State *L) {
         auto &self = get_self(L);
-        lua_pushnumber(L, protect(L, [self]() { return self.data->elemCondLit(self.idx); }));
+        lua_pushnumber(L, call_c(L, clingo_theory_atoms_element_condition_id, self.atoms, self.id));
         return 1;
     }
 
     static int toString(lua_State *L) {
         auto &self = get_self(L);
-        std::string *rep = AnyWrap::new_<std::string>(L);
-        lua_pushstring(L, protect(L, [self, rep]() { return (*rep = self.data->elemStr(self.idx)).c_str(); }));
+        auto size = call_c(L, clingo_theory_atoms_element_to_string_size, self.atoms, self.id);
+        char *buf = static_cast<char *>(lua_newuserdata(L, size * sizeof(*buf))); // +1
+        handle_c_error(L, clingo_theory_atoms_element_to_string(self.atoms, self.id, buf, size));
+        lua_pushstring(L, buf);                                                   // +1
+        lua_replace(L, -2);                                                       // -1
         return 1;
     }
 
@@ -689,9 +720,6 @@ struct TheoryElement : Object<TheoryElement> {
     static constexpr char const *typeName = "clingo.TheoryElement";
     static luaL_Reg const meta[];
 };
-bool operator< (TheoryElement const &a, TheoryElement const &b) { return a.idx <  b.idx; }
-bool operator<=(TheoryElement const &a, TheoryElement const &b) { return a.idx <= b.idx; }
-bool operator==(TheoryElement const &a, TheoryElement const &b) { return a.idx == b.idx; }
 
 constexpr char const *TheoryElement::typeName;
 luaL_Reg const TheoryElement::meta[] = {
@@ -715,7 +743,7 @@ struct TheoryAtom : Object<TheoryAtom> {
         lua_createtable(L, args.size, 0);
         int i = 1;
         for (auto &x : args) {
-            TheoryElement::new_(L, self.data, x);
+            TheoryElement::new_(L, const_cast<Gringo::TheoryData*>(self.data), x);
             lua_rawseti(L, -2, i++);
         }
         return 1;
