@@ -167,14 +167,14 @@ target_link_libraries(libgringo PUBLIC libpotassco libreify ${clingo_external_li
 target_compile_definitions(libgringo PRIVATE
     CLINGO_BUILD_LIBRARY
     CLINGO_GRINGO_ONLY)
-if (NOT CLINGO_ENABLE_SHARED)
+if (NOT CLINGO_BUILD_SHARED)
     target_compile_definitions(libgringo PUBLIC CLINGO_NO_VISIBILITY)
 endif()
 set_target_properties(libgringo PROPERTIES
     OUTPUT_NAME gringo
     FOLDER lib)
 
-if (CLINGO_ENABLE_TESTS)
+if (CLINGO_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 

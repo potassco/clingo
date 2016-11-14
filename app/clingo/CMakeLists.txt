@@ -14,6 +14,6 @@ set_target_properties(clingo PROPERTIES FOLDER exe)
 
 install(TARGETS clingo RUNTIME DESTINATION bin)
 
-if (CLINGO_ENABLE_TESTS)
+if (CLINGO_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
