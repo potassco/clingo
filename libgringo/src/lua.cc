@@ -660,10 +660,10 @@ luaL_Reg const TheoryTerm::meta[] = {
 // {{{1 wrap TheoryElement
 
 struct TheoryElement : Object<TheoryElement> {
-    TheoryElement(clingo_theory_atoms_t *atoms, Id_t id) : atoms(atoms) , id(id) { }
+    TheoryElement(clingo_theory_atoms_t *atoms, clingo_id_t id) : atoms(atoms) , id(id) { }
     clingo_theory_atoms_t *atoms;
     clingo_id_t cmpKey() { return id; }
-    Id_t id;
+    clingo_id_t id;
 
     static int terms(lua_State *L) {
         auto &self = get_self(L);
@@ -733,17 +733,18 @@ luaL_Reg const TheoryElement::meta[] = {
 // {{{1 wrap TheoryAtom
 
 struct TheoryAtom : Object<TheoryAtom> {
-    TheoryAtom(Gringo::TheoryData const *data, Id_t idx) : data(data) , idx(idx) { }
-    Gringo::TheoryData const *data;
-    Id_t idx;
+    clingo_theory_atoms_t *atoms;
+    clingo_id_t id;
+    TheoryAtom(clingo_theory_atoms_t *atoms, clingo_id_t id) : atoms(atoms) , id(id) { }
+    clingo_id_t cmpKey() { return id; }
 
     static int elements(lua_State *L) {
         auto &self = get_self(L);
-        auto args = protect(L, [self]() { return self.data->atomElems(self.idx); });
-        lua_createtable(L, args.size, 0);
+        auto ret = call_c(L, clingo_theory_atoms_atom_elements, self.atoms, self.id);
+        lua_createtable(L, ret.second, 0);
         int i = 1;
-        for (auto &x : args) {
-            TheoryElement::new_(L, const_cast<Gringo::TheoryData*>(self.data), x);
+        for (auto it = ret.first, ie = it + ret.second; it != ie; ++it) {
+            TheoryElement::new_(L, self.atoms, *it);
             lua_rawseti(L, -2, i++);
         }
         return 1;
@@ -751,34 +752,37 @@ struct TheoryAtom : Object<TheoryAtom> {
 
     static int term(lua_State *L) {
         auto &self = get_self(L);
-        return TheoryTerm::new_(L, const_cast<Gringo::TheoryData*>(self.data), protect(L, [self]() { return self.data->atomTerm(self.idx); }));
+        return TheoryTerm::new_(L, self.atoms, call_c(L, clingo_theory_atoms_atom_term, self.atoms, self.id));
     }
 
     static int literal(lua_State *L) {
         auto &self = get_self(L);
-        lua_pushnumber(L, protect(L, [self]() { return self.data->atomLit(self.idx); }));
+        lua_pushnumber(L, call_c(L, clingo_theory_atoms_atom_literal, self.atoms, self.id));
         return 1;
     }
 
     static int guard(lua_State *L) {
         auto &self = get_self(L);
-        if (!protect(L, [self](){ return self.data->atomHasGuard(self.idx); })) {
+        if (!call_c(L, clingo_theory_atoms_atom_has_guard, self.atoms, self.id)) {
             lua_pushnil(L);
             return 1;
         }
         lua_createtable(L, 2, 0);
-        auto guard = protect(L, [self](){ return self.data->atomGuard(self.idx); });
-        lua_pushstring(L, guard.first);
+        auto ret = call_c(L, clingo_theory_atoms_atom_guard, self.atoms, self.id);
+        lua_pushstring(L, ret.first);
         lua_rawseti(L, -2, 1);
-        TheoryTerm::new_(L, const_cast<Gringo::TheoryData*>(self.data), guard.second);
+        TheoryTerm::new_(L, self.atoms, ret.second);
         lua_rawseti(L, -2, 2);
         return 1;
     }
 
     static int toString(lua_State *L) {
         auto &self = get_self(L);
-        std::string *rep = AnyWrap::new_<std::string>(L);
-        lua_pushstring(L, protect(L, [self, rep]() { return (*rep = self.data->atomStr(self.idx)).c_str(); }));
+        auto size = call_c(L, clingo_theory_atoms_atom_to_string_size, self.atoms, self.id);
+        char *buf = static_cast<char *>(lua_newuserdata(L, size * sizeof(*buf))); // +1
+        handle_c_error(L, clingo_theory_atoms_atom_to_string(self.atoms, self.id, buf, size));
+        lua_pushstring(L, buf);                                                   // +1
+        lua_replace(L, -2);                                                       // -1
         return 1;
     }
 
@@ -799,10 +803,6 @@ struct TheoryAtom : Object<TheoryAtom> {
     static luaL_Reg const meta[];
 };
 
-bool operator< (TheoryAtom const &a, TheoryAtom const &b) { return a.idx <  b.idx; }
-bool operator<=(TheoryAtom const &a, TheoryAtom const &b) { return a.idx <= b.idx; }
-bool operator==(TheoryAtom const &a, TheoryAtom const &b) { return a.idx == b.idx; }
-
 constexpr char const *TheoryAtom::typeName;
 luaL_Reg const TheoryAtom::meta[] = {
     {"__tostring", toString},
@@ -811,23 +811,24 @@ luaL_Reg const TheoryAtom::meta[] = {
     {"__le", le},
     {nullptr, nullptr}
 };
+
 // {{{1 wrap TheoryIter
 
 struct TheoryIter {
-    static int iter(lua_State *L, Gringo::TheoryData const *data) {
-        lua_pushlightuserdata(L, (void*)data);
+    static int iter(lua_State *L, clingo_theory_atoms_t *atoms) {
+        lua_pushlightuserdata(L, static_cast<void*>(atoms));
         lua_pushnumber(L, 0);
         lua_pushcclosure(L, iter_, 2);
         return 1;
     }
 
     static int iter_(lua_State *L) {
-        auto data = (Gringo::TheoryData const *)lua_topointer(L, lua_upvalueindex(1));
-        Id_t idx = lua_tointeger(L, lua_upvalueindex(2));
-        if (idx < data->numAtoms()) {
+        auto atoms = (clingo_theory_atoms_t *)lua_topointer(L, lua_upvalueindex(1));
+        clingo_id_t idx = lua_tointeger(L, lua_upvalueindex(2));
+        if (idx < call_c(L, clingo_theory_atoms_size, atoms)) {
             lua_pushnumber(L, idx + 1);
             lua_replace(L, lua_upvalueindex(2));
-            TheoryAtom::new_(L, data, idx);
+            TheoryAtom::new_(L, atoms, idx);
         }
         else { lua_pushnil(L); }
         return 1;
@@ -1269,7 +1270,7 @@ struct Model {
     }
     static int thread_id(lua_State *L) {
         Gringo::Model const *& model = *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
-        Id_t id;
+        clingo_id_t id;
         protect(L, [&model, &id]() { id = model->threadId() + 1; });
         lua_pushinteger(L, id);
         return 1;
@@ -2090,7 +2091,7 @@ struct ControlWrap {
         }
         else if (strcmp(name, "theory_atoms") == 0) {
             checkBlocked(L, ctl, "theory_atoms");
-            return TheoryIter::iter(L, &ctl.theory());
+            return TheoryIter::iter(L, const_cast<Gringo::TheoryData*>(&ctl.theory()));
         }
         else if (strcmp(name, "backend") == 0) {
             checkBlocked(L, ctl, "backend");
@@ -2200,7 +2201,7 @@ struct PropagateInit : Object<PropagateInit> {
     static int index(lua_State *L) {
         auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
-        if (strcmp(name, "theory_atoms")   == 0) { return TheoryIter::iter(L, &self.init->theory()); }
+        if (strcmp(name, "theory_atoms")   == 0) { return TheoryIter::iter(L, const_cast<Gringo::TheoryData*>(&self.init->theory())); }
         else if (strcmp(name, "symbolic_atoms") == 0) { return SymbolicAtoms::new_(L, self.init->getDomain()); }
         else if (strcmp(name, "number_of_threads") == 0) { return numThreads(L); }
         else {
@@ -2501,7 +2502,7 @@ public:
         }
         return 1;
     }
-    static int getState(lua_State *L, lua_State *T, Potassco::Id_t id) {
+    static int getState(lua_State *L, lua_State *T, clingo_id_t id) {
         lua_rawgeti(T, StateIndex, id+1);
         lua_xmove(T, L, 1);
         return 1;
@@ -2821,23 +2822,23 @@ public:
         call("acyc_edge", s, t, condition);
     }
 
-    void theoryTerm(Id_t termId, int number) override {
+    void theoryTerm(clingo_id_t termId, int number) override {
         call("theory_term_number", termId, number);
     }
-    void theoryTerm(Id_t termId, const StringSpan& name) override {
+    void theoryTerm(clingo_id_t termId, const StringSpan& name) override {
         std::string s{name.first, name.size};
         call("theory_term_string", termId, s);
     }
-    void theoryTerm(Id_t termId, int cId, const IdSpan& args) override {
+    void theoryTerm(clingo_id_t termId, int cId, const IdSpan& args) override {
         call("theory_term_compound", termId, cId, args);
     }
-    void theoryElement(Id_t elementId, const IdSpan& terms, const LitSpan& cond) override {
+    void theoryElement(clingo_id_t elementId, const IdSpan& terms, const LitSpan& cond) override {
         call("theory_element", elementId, terms, cond);
     }
-    void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements) override {
+    void theoryAtom(clingo_id_t atomOrZero, clingo_id_t termId, const IdSpan& elements) override {
         call("theory_atom", atomOrZero, termId, elements);
     }
-    void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements, Id_t op, Id_t rhs) override {
+    void theoryAtom(clingo_id_t atomOrZero, clingo_id_t termId, const IdSpan& elements, clingo_id_t op, clingo_id_t rhs) override {
         call("theory_atom_with_guard", atomOrZero, termId, elements, op, rhs);
     }
 
