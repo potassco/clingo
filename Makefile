@@ -14,8 +14,8 @@ build/$(BUILD_TYPE):
 		-DCMAKE_VERBOSE_MAKEFILE=On \
 		-DCMAKE_C_COMPILER="${CC}" \
 		-DCMAKE_CXX_COMPILER="${CXX}" \
-		-DCLINGO_ENABLE_TESTS=On \
-		-DCLINGO_ENABLE_EXAMPLES=On \
+		-DCLINGO_BUILD_TESTS=On \
+		-DCLINGO_BUILD_EXAMPLES=On \
 		"$${current}"
 
 .DEFAULT: build/$(BUILD_TYPE)
@@ -30,11 +30,11 @@ test: build/$(BUILD_TYPE)
 web:
 	mkdir -p build/web
 	current="$$(pwd -P)" && cd build/web && cd "$$(pwd -P)" && emsdk construct_env && source emsdk_set_env.sh && emcmake cmake \
-		-DCLINGO_ENABLE_WEB=On \
-		-DCLINGO_ENABLE_PYTHON=Off \
-		-DCLINGO_ENABLE_LUA=On \
+		-DCLINGO_BUILD_WEB=On \
+		-DCLINGO_BUILD_PYTHON=Off \
+		-DCLINGO_BUILD_LUA=On \
 		-DCLASP_BUILD_TEST=Off \
-		-DCLINGO_ENABLE_SHARED=Off \
+		-DCLINGO_BUILD_SHARED=Off \
 		-DCLASP_BUILD_WITH_THREADS=Off \
 		-DCMAKE_VERBOSE_MAKEFILE=On \
 		-DCMAKE_BUILD_TYPE=release \
