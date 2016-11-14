@@ -134,7 +134,7 @@ luaL_Reg const AnyWrap::meta[] = {
 
 Symbol luaToVal(lua_State *L, int idx) {
     int type = lua_type(L, idx);
-    switch(type) {
+    switch (type) {
         case LUA_TSTRING: {
             char const *name = lua_tostring(L, idx);
             return protect(L, [name]() { return Symbol::createStr(name); });
@@ -379,47 +379,41 @@ void lua_regMeta(lua_State *L, char const *name, luaL_Reg const * funs, lua_CFun
 // {{{1 wrap SolveResult
 
 struct SolveResult {
-    static int new_(lua_State *L, Gringo::SolveResult res) {
-        *(Gringo::SolveResult*)lua_newuserdata(L, sizeof(Gringo::SolveResult)) = res;
+    static int new_(lua_State *L, clingo_solve_result_bitset_t res) {
+        *(clingo_solve_result_bitset_t*)lua_newuserdata(L, sizeof(clingo_solve_result_bitset_t)) = res;
         luaL_getmetatable(L, typeName);
         lua_setmetatable(L, -2);
         return 1;
     }
     static int satisfiable(lua_State *L) {
-        Gringo::SolveResult &res = *(Gringo::SolveResult*)luaL_checkudata(L, 1, typeName);
-        switch (res.satisfiable()) {
-            case Gringo::SolveResult::Satisfiable:   { lua_pushboolean(L, true); return 1; }
-            case Gringo::SolveResult::Unsatisfiable: { lua_pushboolean(L, false); return 1; }
-            case Gringo::SolveResult::Unknown:       { lua_pushnil(L); return 1; }
-        }
-        return luaL_error(L, "must not happen");
+        auto &&res = *(clingo_solve_result_bitset_t*)luaL_checkudata(L, 1, typeName);
+        if      (res & clingo_solve_result_satisfiable)   { lua_pushboolean(L, true); }
+        else if (res & clingo_solve_result_unsatisfiable) { lua_pushboolean(L, false); }
+        else                                              { lua_pushnil(L); }
+        return 1;
     }
     static int unsatisfiable(lua_State *L) {
-        Gringo::SolveResult &res = *(Gringo::SolveResult*)luaL_checkudata(L, 1, typeName);
-        switch (res.satisfiable()) {
-            case Gringo::SolveResult::Satisfiable:   { lua_pushboolean(L, false); return 1; }
-            case Gringo::SolveResult::Unsatisfiable: { lua_pushboolean(L, true); return 1; }
-            case Gringo::SolveResult::Unknown:       { lua_pushnil(L); return 1; }
-        }
-        return luaL_error(L, "must not happen");
+        auto &&res = *(clingo_solve_result_bitset_t*)luaL_checkudata(L, 1, typeName);
+        if      (res & clingo_solve_result_unsatisfiable) { lua_pushboolean(L, true); }
+        else if (res & clingo_solve_result_satisfiable)   { lua_pushboolean(L, false); }
+        else                                              { lua_pushnil(L); }
+        return 1;
     }
     static int unknown(lua_State *L) {
-        Gringo::SolveResult &res = *(Gringo::SolveResult*)luaL_checkudata(L, 1, typeName);
-        switch (res.satisfiable()) {
-            case Gringo::SolveResult::Satisfiable:   { lua_pushboolean(L, false); return 1; }
-            case Gringo::SolveResult::Unsatisfiable: { lua_pushboolean(L, false); return 1; }
-            case Gringo::SolveResult::Unknown:       { lua_pushboolean(L, true); return 1; }
-        }
-        return luaL_error(L, "must not happen");
+        auto &&res = *(clingo_solve_result_bitset_t*)luaL_checkudata(L, 1, typeName);
+        if ((res & clingo_solve_result_unsatisfiable) ||
+            (res & clingo_solve_result_satisfiable)) { lua_pushboolean(L, false); }
+        else                                         { lua_pushboolean(L, true); }
+        return 1;
     }
     static int exhausted(lua_State *L) {
-        Gringo::SolveResult &res = *(Gringo::SolveResult*)luaL_checkudata(L, 1, typeName);
-        lua_pushboolean(L, res.exhausted());
+        auto &&res = *(clingo_solve_result_bitset_t*)luaL_checkudata(L, 1, typeName);
+        lua_pushboolean(L, res & clingo_solve_result_exhausted);
         return 1;
     }
     static int interrupted(lua_State *L) {
-        Gringo::SolveResult &res = *(Gringo::SolveResult*)luaL_checkudata(L, 1, typeName);
-        lua_pushboolean(L, res.interrupted());
+        auto &&res = *(clingo_solve_result_bitset_t*)luaL_checkudata(L, 1, typeName);
+        lua_pushboolean(L, res & clingo_solve_result_interrupted);
         return 1;
     }
     static int index(lua_State *L) {
@@ -436,13 +430,11 @@ struct SolveResult {
         }
     }
     static int toString(lua_State *L) {
-        Gringo::SolveResult &res = *(Gringo::SolveResult*)luaL_checkudata(L, 1, typeName);
-        switch (res.satisfiable()) {
-            case Gringo::SolveResult::Satisfiable:   { lua_pushstring(L, "SAT"); return 1; }
-            case Gringo::SolveResult::Unsatisfiable: { lua_pushstring(L, "UNSAT"); return 1; }
-            case Gringo::SolveResult::Unknown:       { lua_pushstring(L, "UNKNOWN"); return 1; }
-        }
-        return luaL_error(L, "must not happen");
+        clingo_solve_result_bitset_t &res = *(clingo_solve_result_bitset_t*)luaL_checkudata(L, 1, typeName);
+        if      (res & clingo_solve_result_satisfiable)   { lua_pushstring(L, "SAT"); }
+        else if (res & clingo_solve_result_unsatisfiable) { lua_pushstring(L, "UNSAT"); }
+        else                                              { lua_pushstring(L, "UNKNOWN"); }
+        return 1;
     }
     static luaL_Reg const meta[];
     static constexpr char const *typeName = "clingo.SolveResult";
