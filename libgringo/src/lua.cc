@@ -382,7 +382,7 @@ template <typename T>
 struct Object {
     template <typename... Args>
     static int new_(lua_State *L, Args&&... args) {
-        new (lua_newuserdata(L, sizeof(T))) T{std::forward<Args>(args)...};
+        new (lua_newuserdata(L, sizeof(T))) T(std::forward<Args>(args)...);
         luaL_getmetatable(L, T::typeName);
         lua_setmetatable(L, -2);
         return 1;
@@ -495,31 +495,31 @@ luaL_Reg const SolveResult::meta[] = {
 
 // {{{1 wrap TheoryTerm
 
-struct TheoryTermType {
-    using Type = Gringo::TheoryData::TermType;
+struct TheoryTermType : Object<TheoryTermType> {
+    clingo_theory_term_type type;
+    TheoryTermType(clingo_theory_term_type type) : type(type) { }
+    operator clingo_theory_term_type() { return type; }
     static int addToRegistry(lua_State *L) {
         lua_createtable(L, 0, 6);
-        for (auto t : { Type::Function, Type::Number, Type::Symbol, Type::Tuple, Type::List, Type::Set }) {
-            *(Type*)lua_newuserdata(L, sizeof(Type)) = t;
-            luaL_getmetatable(L, typeName);
-            lua_setmetatable(L, -2);
+        for (auto t : { clingo_theory_term_type_function, clingo_theory_term_type_number, clingo_theory_term_type_symbol, clingo_theory_term_type_tuple, clingo_theory_term_type_list, clingo_theory_term_type_set}) {
+            Object::new_(L, t);
             lua_setfield(L, -2, field_(t));
         }
         lua_setfield(L, -2, "TheoryTermType");
         return 0;
     }
-    static char const *field_(Type t) {
+    static char const *field_(clingo_theory_term_type t) {
         switch (t) {
-            case Type::Function: { return "Function"; }
-            case Type::Number:   { return "Number"; }
-            case Type::Symbol:   { return "Symbol"; }
-            case Type::Tuple:    { return "Tuple"; }
-            case Type::List:     { return "List"; }
-            case Type::Set:      { return "Set"; }
+            case clingo_theory_term_type_function: { return "Function"; }
+            case clingo_theory_term_type_number:   { return "Number"; }
+            case clingo_theory_term_type_symbol:   { return "Symbol"; }
+            case clingo_theory_term_type_tuple:    { return "Tuple"; }
+            case clingo_theory_term_type_list:     { return "List"; }
+            case clingo_theory_term_type_set:      { return "Set"; }
         }
         return "";
     }
-    static int new_(lua_State *L, Type t) {
+    static int new_(lua_State *L, clingo_theory_term_type t) {
         lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
         lua_getfield(L, -1, "TheoryTermType");
         lua_replace(L, -2);
@@ -527,26 +527,8 @@ struct TheoryTermType {
         lua_replace(L, -2);
         return 1;
     }
-    static int eq(lua_State *L) {
-        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
-        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, *a == *b);
-        return 1;
-    }
-    static int lt(lua_State *L) {
-        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
-        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, *a < *b);
-        return 1;
-    }
-    static int le(lua_State *L) {
-        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
-        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, *a <= *b);
-        return 1;
-    }
     static int toString(lua_State *L) {
-        lua_pushstring(L, field_(*(Type*)luaL_checkudata(L, 1, typeName)));
+        lua_pushstring(L, field_(get_self(L)));
         return 1;
     }
     static luaL_Reg const meta[];
@@ -600,7 +582,7 @@ struct TheoryTerm {
     }
     static int type(lua_State *L) {
         auto self = (Data*)luaL_checkudata(L, 1, typeName);
-        return TheoryTermType::new_(L, protect(L, [self]() { return self->first->termType(self->second); }));
+        return TheoryTermType::new_(L, protect(L, [self]() { return (clingo_theory_term_type)self->first->termType(self->second); }));
     }
     static int eq(lua_State *L) {
         auto a = static_cast<Data*>(luaL_checkudata(L, 1, typeName));
