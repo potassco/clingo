@@ -19,12 +19,14 @@
 // }}}
 
 #ifdef WITH_PYTHON
-#  include <Python.h>
+#   include <Python.h>
+#   include <python.hh>
 #endif
 #ifdef WITH_LUA
-#  include <lua.hpp>
+#   include <lua.hpp>
 #endif
-#include <python.hh>
+
+#include <clingo.h>
 
 typedef struct clingo_application {
     char const *python_version;
@@ -49,8 +51,14 @@ int main(int argc, char** argv) {
 #endif
         ,
         [](clingo_control_t *ctl) {
+            // TODO: the register functions do not need a control object
+            //       the scripts object is already global in libclingo
+#ifdef WITH_PYTHON
             Gringo::registerPython(ctl, clingo_control_new);
+#endif
+#ifdef WITH_LUA
             // TOOD: register lua too!
+#endif
         }
     };
     return clingo_main_(argc, argv, &app);
