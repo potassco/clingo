@@ -376,84 +376,13 @@ void lua_regMeta(lua_State *L, char const *name, luaL_Reg const * funs, lua_CFun
     }
 }
 
-// {{{1 wrap SolveResult
-
-struct SolveResult {
-    static int new_(lua_State *L, clingo_solve_result_bitset_t res) {
-        *(clingo_solve_result_bitset_t*)lua_newuserdata(L, sizeof(clingo_solve_result_bitset_t)) = res;
-        luaL_getmetatable(L, typeName);
-        lua_setmetatable(L, -2);
-        return 1;
-    }
-    static int satisfiable(lua_State *L) {
-        auto &&res = *(clingo_solve_result_bitset_t*)luaL_checkudata(L, 1, typeName);
-        if      (res & clingo_solve_result_satisfiable)   { lua_pushboolean(L, true); }
-        else if (res & clingo_solve_result_unsatisfiable) { lua_pushboolean(L, false); }
-        else                                              { lua_pushnil(L); }
-        return 1;
-    }
-    static int unsatisfiable(lua_State *L) {
-        auto &&res = *(clingo_solve_result_bitset_t*)luaL_checkudata(L, 1, typeName);
-        if      (res & clingo_solve_result_unsatisfiable) { lua_pushboolean(L, true); }
-        else if (res & clingo_solve_result_satisfiable)   { lua_pushboolean(L, false); }
-        else                                              { lua_pushnil(L); }
-        return 1;
-    }
-    static int unknown(lua_State *L) {
-        auto &&res = *(clingo_solve_result_bitset_t*)luaL_checkudata(L, 1, typeName);
-        if ((res & clingo_solve_result_unsatisfiable) ||
-            (res & clingo_solve_result_satisfiable)) { lua_pushboolean(L, false); }
-        else                                         { lua_pushboolean(L, true); }
-        return 1;
-    }
-    static int exhausted(lua_State *L) {
-        auto &&res = *(clingo_solve_result_bitset_t*)luaL_checkudata(L, 1, typeName);
-        lua_pushboolean(L, res & clingo_solve_result_exhausted);
-        return 1;
-    }
-    static int interrupted(lua_State *L) {
-        auto &&res = *(clingo_solve_result_bitset_t*)luaL_checkudata(L, 1, typeName);
-        lua_pushboolean(L, res & clingo_solve_result_interrupted);
-        return 1;
-    }
-    static int index(lua_State *L) {
-        char const *name = luaL_checkstring(L, 2);
-        if      (strcmp(name, "satisfiable")   == 0) { return satisfiable(L); }
-        else if (strcmp(name, "unsatisfiable") == 0) { return unsatisfiable(L); }
-        else if (strcmp(name, "unknown")       == 0) { return unknown(L); }
-        else if (strcmp(name, "exhausted")     == 0) { return exhausted(L); }
-        else if (strcmp(name, "interrupted")   == 0) { return interrupted(L); }
-        else {
-            lua_getmetatable(L, 1);
-            lua_getfield(L, -1, name);
-            return !lua_isnil(L, -1) ? 1 : luaL_error(L, "unknown field: %s", name);
-        }
-    }
-    static int toString(lua_State *L) {
-        clingo_solve_result_bitset_t &res = *(clingo_solve_result_bitset_t*)luaL_checkudata(L, 1, typeName);
-        if      (res & clingo_solve_result_satisfiable)   { lua_pushstring(L, "SAT"); }
-        else if (res & clingo_solve_result_unsatisfiable) { lua_pushstring(L, "UNSAT"); }
-        else                                              { lua_pushstring(L, "UNKNOWN"); }
-        return 1;
-    }
-    static luaL_Reg const meta[];
-    static constexpr char const *typeName = "clingo.SolveResult";
-};
-
-constexpr char const *SolveResult::typeName;
-
-luaL_Reg const SolveResult::meta[] = {
-    {"__tostring", toString},
-    {nullptr, nullptr}
-};
-
 // {{{1 Object
 
 template <typename T>
 struct Object {
     template <typename... Args>
     static int new_(lua_State *L, Args&&... args) {
-        new (lua_newuserdata(L, sizeof(T))) T(std::forward<Args>(args)...);
+        new (lua_newuserdata(L, sizeof(T))) T{std::forward<Args>(args)...};
         luaL_getmetatable(L, T::typeName);
         lua_setmetatable(L, -2);
         return 1;
@@ -463,8 +392,8 @@ struct Object {
         lua_regMeta(L, T::typeName, T::meta, T::index, T::newIndex);
     }
 
-    static T *self(lua_State* L) {
-        return (T*)luaL_checkudata(L, 1, T::typeName);
+    static T &get_self(lua_State* L) {
+        return *(T*)luaL_checkudata(L, 1, T::typeName);
     }
 
     static int eq(lua_State *L) {
@@ -496,6 +425,73 @@ template <typename T>
 constexpr lua_CFunction const Object<T>::index;
 template <typename T>
 constexpr lua_CFunction const Object<T>::newIndex;
+
+// {{{1 wrap SolveResult
+
+struct SolveResult : Object<SolveResult> {
+    clingo_solve_result_bitset_t res;
+    SolveResult(clingo_solve_result_bitset_t res) : res(res) { }
+    static int satisfiable(lua_State *L) {
+        auto &&res = get_self(L).res;
+        if      (res & clingo_solve_result_satisfiable)   { lua_pushboolean(L, true); }
+        else if (res & clingo_solve_result_unsatisfiable) { lua_pushboolean(L, false); }
+        else                                              { lua_pushnil(L); }
+        return 1;
+    }
+    static int unsatisfiable(lua_State *L) {
+        auto &&res = get_self(L).res;
+        if      (res & clingo_solve_result_unsatisfiable) { lua_pushboolean(L, true); }
+        else if (res & clingo_solve_result_satisfiable)   { lua_pushboolean(L, false); }
+        else                                              { lua_pushnil(L); }
+        return 1;
+    }
+    static int unknown(lua_State *L) {
+        auto &&res = get_self(L).res;
+        if ((res & clingo_solve_result_unsatisfiable) ||
+            (res & clingo_solve_result_satisfiable)) { lua_pushboolean(L, false); }
+        else                                         { lua_pushboolean(L, true); }
+        return 1;
+    }
+    static int exhausted(lua_State *L) {
+        auto &&res = get_self(L).res;
+        lua_pushboolean(L, res & clingo_solve_result_exhausted);
+        return 1;
+    }
+    static int interrupted(lua_State *L) {
+        auto &&res = get_self(L).res;
+        lua_pushboolean(L, res & clingo_solve_result_interrupted);
+        return 1;
+    }
+    static int index(lua_State *L) {
+        char const *name = luaL_checkstring(L, 2);
+        if      (strcmp(name, "satisfiable")   == 0) { return satisfiable(L); }
+        else if (strcmp(name, "unsatisfiable") == 0) { return unsatisfiable(L); }
+        else if (strcmp(name, "unknown")       == 0) { return unknown(L); }
+        else if (strcmp(name, "exhausted")     == 0) { return exhausted(L); }
+        else if (strcmp(name, "interrupted")   == 0) { return interrupted(L); }
+        else {
+            lua_getmetatable(L, 1);
+            lua_getfield(L, -1, name);
+            return !lua_isnil(L, -1) ? 1 : luaL_error(L, "unknown field: %s", name);
+        }
+    }
+    static int toString(lua_State *L) {
+        auto &&res = get_self(L).res;
+        if      (res & clingo_solve_result_satisfiable)   { lua_pushstring(L, "SAT"); }
+        else if (res & clingo_solve_result_unsatisfiable) { lua_pushstring(L, "UNSAT"); }
+        else                                              { lua_pushstring(L, "UNKNOWN"); }
+        return 1;
+    }
+    static luaL_Reg const meta[];
+    static constexpr char const *typeName = "clingo.SolveResult";
+};
+
+constexpr char const *SolveResult::typeName;
+
+luaL_Reg const SolveResult::meta[] = {
+    {"__tostring", toString},
+    {nullptr, nullptr}
+};
 
 // {{{1 wrap TheoryTerm
 
@@ -657,20 +653,20 @@ struct TheoryElement : Object<TheoryElement> {
     Id_t idx;
 
     static int terms(lua_State *L) {
-        auto self = Object::self(L);
-        auto args = protect(L, [self]() { return self->data->elemTuple(self->idx); });
+        auto &self = get_self(L);
+        auto args = protect(L, [self]() { return self.data->elemTuple(self.idx); });
         lua_createtable(L, args.size, 0);
         int i = 1;
         for (auto &x : args) {
-            TheoryTerm::new_(L, self->data, x);
+            TheoryTerm::new_(L, self.data, x);
             lua_rawseti(L, -2, i++);
         }
         return 1;
     }
 
     static int condition(lua_State *L) {
-        auto self = Object::self(L);
-        auto args = protect(L, [self]() { return self->data->elemCond(self->idx); });
+        auto &self = get_self(L);
+        auto args = protect(L, [self]() { return self.data->elemCond(self.idx); });
         lua_createtable(L, args.size, 0);
         int i = 1;
         for (auto &x : args) {
@@ -681,15 +677,15 @@ struct TheoryElement : Object<TheoryElement> {
     }
 
     static int conditionId(lua_State *L) {
-        auto self = Object::self(L);
-        lua_pushnumber(L, protect(L, [self]() { return self->data->elemCondLit(self->idx); }));
+        auto &self = get_self(L);
+        lua_pushnumber(L, protect(L, [self]() { return self.data->elemCondLit(self.idx); }));
         return 1;
     }
 
     static int toString(lua_State *L) {
-        auto self = Object::self(L);
+        auto &self = get_self(L);
         std::string *rep = AnyWrap::new_<std::string>(L);
-        lua_pushstring(L, protect(L, [self, rep]() { return (*rep = self->data->elemStr(self->idx)).c_str(); }));
+        lua_pushstring(L, protect(L, [self, rep]() { return (*rep = self.data->elemStr(self.idx)).c_str(); }));
         return 1;
     }
 
@@ -729,47 +725,47 @@ struct TheoryAtom : Object<TheoryAtom> {
     Id_t idx;
 
     static int elements(lua_State *L) {
-        auto self = Object::self(L);
-        auto args = protect(L, [self]() { return self->data->atomElems(self->idx); });
+        auto &self = get_self(L);
+        auto args = protect(L, [self]() { return self.data->atomElems(self.idx); });
         lua_createtable(L, args.size, 0);
         int i = 1;
         for (auto &x : args) {
-            TheoryElement::new_(L, self->data, x);
+            TheoryElement::new_(L, self.data, x);
             lua_rawseti(L, -2, i++);
         }
         return 1;
     }
 
     static int term(lua_State *L) {
-        auto self = Object::self(L);
-        return TheoryTerm::new_(L, self->data, protect(L, [self]() { return self->data->atomTerm(self->idx); }));
+        auto &self = get_self(L);
+        return TheoryTerm::new_(L, self.data, protect(L, [self]() { return self.data->atomTerm(self.idx); }));
     }
 
     static int literal(lua_State *L) {
-        auto self = Object::self(L);
-        lua_pushnumber(L, protect(L, [self]() { return self->data->atomLit(self->idx); }));
+        auto &self = get_self(L);
+        lua_pushnumber(L, protect(L, [self]() { return self.data->atomLit(self.idx); }));
         return 1;
     }
 
     static int guard(lua_State *L) {
-        auto self = Object::self(L);
-        if (!protect(L, [self](){ return self->data->atomHasGuard(self->idx); })) {
+        auto &self = get_self(L);
+        if (!protect(L, [self](){ return self.data->atomHasGuard(self.idx); })) {
             lua_pushnil(L);
             return 1;
         }
         lua_createtable(L, 2, 0);
-        auto guard = protect(L, [self](){ return self->data->atomGuard(self->idx); });
+        auto guard = protect(L, [self](){ return self.data->atomGuard(self.idx); });
         lua_pushstring(L, guard.first);
         lua_rawseti(L, -2, 1);
-        TheoryTerm::new_(L, self->data, guard.second);
+        TheoryTerm::new_(L, self.data, guard.second);
         lua_rawseti(L, -2, 2);
         return 1;
     }
 
     static int toString(lua_State *L) {
-        auto self = Object::self(L);
+        auto &self = get_self(L);
         std::string *rep = AnyWrap::new_<std::string>(L);
-        lua_pushstring(L, protect(L, [self, rep]() { return (*rep = self->data->atomStr(self->idx)).c_str(); }));
+        lua_pushstring(L, protect(L, [self, rep]() { return (*rep = self.data->atomStr(self.idx)).c_str(); }));
         return 1;
     }
 
@@ -1371,7 +1367,7 @@ int newStatistics(lua_State *L, Potassco::AbstractStatistics const *stats, Potas
 struct SolveFuture {
     static int get(lua_State *L) {
         Gringo::SolveFuture *& future = *(Gringo::SolveFuture **)luaL_checkudata(L, 1, typeName);
-        SolveResult::new_(L, protect(L, [future]() { return future->get(); }));
+        SolveResult::new_(L, protect(L, [future]() { return (clingo_solve_result_bitset_t)future->get(); }));
         return 1;
     }
     static int wait(lua_State *L) {
@@ -1745,14 +1741,14 @@ struct Backend : Object<Backend> {
     static luaL_Reg const meta[];
 
     static int addAtom(lua_State *L) {
-        auto self = Object<Backend>::self(L);
-        auto atom = protect(L, [self](){ return self->ctl.addProgramAtom(); });
+        auto &self = get_self(L);
+        auto atom = protect(L, [self](){ return self.ctl.addProgramAtom(); });
         lua_pushinteger(L, atom);
         return 1;
     }
 
     static int addRule(lua_State *L) {
-        auto *self = Object<Backend>::self(L);
+        auto &self = get_self(L);
         auto *head = AnyWrap::new_<Gringo::BackendAtomVec>(L);
         auto *body = AnyWrap::new_<Gringo::BackendLitVec>(L);
         bool choice = false;
@@ -1767,13 +1763,13 @@ struct Backend : Object<Backend> {
         luaToCpp(L, -1, choice);
         lua_pop(L, 1);
         protect(L, [self, choice, head, body](){
-            Gringo::outputRule(self->backend, choice, *head, *body);
+            Gringo::outputRule(self.backend, choice, *head, *body);
         });
         return 0;
     }
 
     static int addWeightRule(lua_State *L) {
-        auto *self = Object<Backend>::self(L);
+        auto &self = get_self(L);
         auto *head = AnyWrap::new_<Gringo::BackendAtomVec>(L);
         Weight_t lower;
         auto *body = AnyWrap::new_<Gringo::BackendLitWeightVec>(L);
@@ -1792,7 +1788,7 @@ struct Backend : Object<Backend> {
         luaToCpp(L, -1, choice);
         lua_pop(L, 1);
         protect(L, [self, choice, head, lower, body](){
-            Gringo::outputRule(self->backend, choice, *head, lower, *body);
+            Gringo::outputRule(self.backend, choice, *head, lower, *body);
         });
         return 0;
     }
@@ -1968,7 +1964,7 @@ struct ControlWrap {
         }
         Control::Assumptions *ass = getAssumptions(L, assIdx);
         SolveResult::new_(L, protect(L, [L, &ctl, model, ass, mhIndex, mIndex]() {
-            return (int)ctl.solve(!model ? Control::ModelHandler(nullptr) : [L, model, mhIndex, mIndex](Gringo::Model const &m) -> bool {
+            return (clingo_solve_result_bitset_t)ctl.solve(!model ? Control::ModelHandler(nullptr) : [L, model, mhIndex, mIndex](Gringo::Model const &m) -> bool {
                 LuaClear lc(L);
                 lua_pushcfunction(L, luaTraceback);
                 lua_pushvalue(L, mhIndex);
@@ -2170,28 +2166,29 @@ struct PropagateInit : Object<PropagateInit> {
     PropagateInit(lua_State *T, Gringo::PropagateInit *init) : T(T), init(init) { }
 
     static int mapLit(lua_State *L) {
-        auto self = Object::self(L);
+        auto &self = get_self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushnumber(L, protect(L, [self, lit]() { return self->init->mapLit(lit); }));
+        lua_pushnumber(L, protect(L, [self, lit]() { return self.init->mapLit(lit); }));
         return 1;
     }
 
     static int numThreads(lua_State *L) {
-        auto self = Object::self(L);
-        lua_pushnumber(L, protect(L, [self]() { return self->init->threads(); }));
+        auto &self = get_self(L);
+        lua_pushnumber(L, protect(L, [self]() { return self.init->threads(); }));
         return 1;
     }
     static int addWatch(lua_State *L) {
-        auto self = Object::self(L);
+        auto &self = get_self(L);
         int lit = luaL_checkinteger(L, 2);
-        protect(L, [self, lit]() { self->init->addWatch(lit); });
+        protect(L, [self, lit]() { self.init->addWatch(lit); });
         return 0;
     }
 
     static int index(lua_State *L) {
+        auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
-        if (strcmp(name, "theory_atoms")   == 0) { return TheoryIter::iter(L, &self(L)->init->theory()); }
-        else if (strcmp(name, "symbolic_atoms") == 0) { return SymbolicAtoms::new_(L, self(L)->init->getDomain()); }
+        if (strcmp(name, "theory_atoms")   == 0) { return TheoryIter::iter(L, &self.init->theory()); }
+        else if (strcmp(name, "symbolic_atoms") == 0) { return SymbolicAtoms::new_(L, self.init->getDomain()); }
         else if (strcmp(name, "number_of_threads") == 0) { return numThreads(L); }
         else {
             lua_getmetatable(L, 1);
@@ -2201,14 +2198,14 @@ struct PropagateInit : Object<PropagateInit> {
     }
 
     static int setState(lua_State *L) {
-        auto self = Object::self(L);
+        auto &self = get_self(L);
         int id = luaL_checknumber(L, 2);
         luaL_checkany(L, 3);
-        if (id < 1 || id > (int)self->init->threads()) {
+        if (id < 1 || id > (int)self.init->threads()) {
             luaL_error(L, "invalid solver thread id %d", id);
         }
-        lua_xmove(L, self->T, 1);
-        lua_rawseti(self->T, 2, id);
+        lua_xmove(L, self.T, 1);
+        lua_rawseti(self.T, 2, id);
         return 0;
     }
 
@@ -2231,56 +2228,56 @@ struct Assignment : Object<Assignment> {
     Potassco::AbstractAssignment const &ass;
 
     static int hasConflict(lua_State *L) {
-        auto self = Object::self(L);
-        lua_pushboolean(L, protect(L, [self]() { return self->ass.hasConflict(); }));
+        auto &self = get_self(L);
+        lua_pushboolean(L, protect(L, [self]() { return self.ass.hasConflict(); }));
         return 1;
     }
 
     static int decisionLevel(lua_State *L) {
-        auto self = Object::self(L);
-        lua_pushinteger(L, protect(L, [self]() { return self->ass.level(); }));
+        auto &self = get_self(L);
+        lua_pushinteger(L, protect(L, [self]() { return self.ass.level(); }));
         return 1;
     }
 
     static int hasLit(lua_State *L) {
-        auto self = Object::self(L);
+        auto &self = get_self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushboolean(L, protect(L, [self,lit]() { return self->ass.hasLit(lit); }));
+        lua_pushboolean(L, protect(L, [self,lit]() { return self.ass.hasLit(lit); }));
         return 1;
     }
 
     static int level(lua_State *L) {
-        auto self = Object::self(L);
+        auto &self = get_self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushinteger(L, protect(L, [self,lit]() { return self->ass.level(lit); }));
+        lua_pushinteger(L, protect(L, [self,lit]() { return self.ass.level(lit); }));
         return 1;
     }
 
     static int decision(lua_State *L) {
-        auto self = Object::self(L);
+        auto &self = get_self(L);
         int level = luaL_checkinteger(L, 2);
-        lua_pushinteger(L, protect(L, [self,level]() { return self->ass.decision(level); }));
+        lua_pushinteger(L, protect(L, [self,level]() { return self.ass.decision(level); }));
         return 1;
     }
 
     static int isFixed(lua_State *L) {
-        auto self = Object::self(L);
+        auto &self = get_self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushboolean(L, protect(L, [self,lit]() { return self->ass.isFixed(lit); }));
+        lua_pushboolean(L, protect(L, [self,lit]() { return self.ass.isFixed(lit); }));
         return 1;
     }
 
     static int isTrue(lua_State *L) {
-        auto self = Object::self(L);
+        auto &self = get_self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushboolean(L, protect(L, [self,lit]() { return self->ass.isTrue(lit); }));
+        lua_pushboolean(L, protect(L, [self,lit]() { return self.ass.isTrue(lit); }));
         return 1;
     }
 
     static int value(lua_State *L) {
-        auto self = Object::self(L);
+        auto &self = get_self(L);
         int lit = luaL_checkinteger(L, 2);
-        auto val = protect(L, [self, lit]() { return self->ass.value(lit); });
+        auto val = protect(L, [self, lit]() { return self.ass.value(lit); });
         if (val == Potassco::Value_t::Free) { lua_pushnil(L); }
         else { lua_pushboolean(L, val == Potassco::Value_t::True); }
         lua_pushboolean(L, val);
@@ -2288,9 +2285,9 @@ struct Assignment : Object<Assignment> {
     }
 
     static int isFalse(lua_State *L) {
-        auto self = Object::self(L);
+        auto &self = get_self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushboolean(L, protect(L, [self,lit]() { return self->ass.isFalse(lit); }));
+        lua_pushboolean(L, protect(L, [self,lit]() { return self.ass.isFalse(lit); }));
         return 1;
     }
 
@@ -2328,19 +2325,19 @@ struct PropagateControl : Object<PropagateControl> {
     Potassco::AbstractSolver* ctl;
 
     static int id(lua_State *L) {
-        auto self = Object::self(L);
-        lua_pushinteger(L, protect(L, [self]() { return self->ctl->id() + 1; }));
+        auto &self = get_self(L);
+        lua_pushinteger(L, protect(L, [self]() { return self.ctl->id() + 1; }));
         return 1;
     }
 
     static int assignment(lua_State *L) {
-        auto self = Object::self(L);
-        Assignment::new_(L, protect(L, [self]() { return &self->ctl->assignment(); }));
+        auto &self = get_self(L);
+        Assignment::new_(L, protect(L, [self]() { return &self.ctl->assignment(); }));
         return 1;
     }
 
     static int addClauseOrNogood(lua_State *L, bool invert) {
-        auto self = Object::self(L);
+        auto &self = get_self(L);
         lua_pushinteger(L, 1);                                       // +1
         lua_gettable(L, 2);                                          // +0
         luaL_checktype(L, -1, LUA_TTABLE);                           // +0
@@ -2367,7 +2364,7 @@ struct PropagateControl : Object<PropagateControl> {
             if (invert) {
                 for (auto &lit : *lits) { lit = -lit; }
             }
-            return self->ctl->addClause(Potassco::toSpan(*lits), static_cast<Potassco::Clause_t>(type));
+            return self.ctl->addClause(Potassco::toSpan(*lits), static_cast<Potassco::Clause_t>(type));
         }));
         lua_replace(L, lits_index);
         lua_settop(L, lits_index);
@@ -2375,29 +2372,29 @@ struct PropagateControl : Object<PropagateControl> {
     }
 
     static int addLiteral(lua_State *L) {
-        auto self = Object::self(L);
-        lua_pushnumber(L, protect(L, [self](){ return self->ctl->addVariable(); }));
+        auto &self = get_self(L);
+        lua_pushnumber(L, protect(L, [self](){ return self.ctl->addVariable(); }));
         return 1;
     }
 
     static int addWatch(lua_State *L) {
-        auto self = Object::self(L);
+        auto &self = get_self(L);
         auto lit = luaL_checkinteger(L, 1);
-        protect(L, [self, lit](){ self->ctl->addWatch(static_cast<clingo_literal_t>(lit)); });
+        protect(L, [self, lit](){ self.ctl->addWatch(static_cast<clingo_literal_t>(lit)); });
         return 0;
     }
 
     static int removeWatch(lua_State *L) {
-        auto self = Object::self(L);
+        auto &self = get_self(L);
         auto lit = luaL_checkinteger(L, 1);
-        protect(L, [self, lit](){ self->ctl->removeWatch(static_cast<clingo_literal_t>(lit)); });
+        protect(L, [self, lit](){ self.ctl->removeWatch(static_cast<clingo_literal_t>(lit)); });
         return 0;
     }
 
     static int hasWatch(lua_State *L) {
-        auto self = Object::self(L);
+        auto &self = get_self(L);
         auto lit = luaL_checkinteger(L, 1);
-        auto ret = protect(L, [self, lit](){ return self->ctl->hasWatch(static_cast<clingo_literal_t>(lit)); });
+        auto ret = protect(L, [self, lit](){ return self.ctl->hasWatch(static_cast<clingo_literal_t>(lit)); });
         lua_pushboolean(L, ret);
         return 1;
     }
@@ -2411,8 +2408,8 @@ struct PropagateControl : Object<PropagateControl> {
     }
 
     static int propagate(lua_State *L) {
-        auto self = Object::self(L);
-        lua_pushboolean(L, protect(L, [self]() { return self->ctl->propagate(); }));
+        auto &self = get_self(L);
+        lua_pushboolean(L, protect(L, [self]() { return self.ctl->propagate(); }));
         return 1;
     }
 
@@ -2987,7 +2984,7 @@ int luaopen_clingo(lua_State* L) {
     lua_regMeta(L, SolveIter::typeName,      SolveIter::meta);
     lua_regMeta(L, ControlWrap::typeName,    ControlWrap::meta, ControlWrap::index, ControlWrap::newindex);
     lua_regMeta(L, Configuration::typeName,  Configuration::meta, Configuration::index, Configuration::newindex);
-    lua_regMeta(L, SolveResult::typeName,    SolveResult::meta, SolveResult::index);
+    SolveResult::reg(L);
     lua_regMeta(L, SymbolicAtoms::typeName,  SymbolicAtoms::meta, SymbolicAtoms::index);
     lua_regMeta(L, SymbolicAtom::typeName,   SymbolicAtom::meta, SymbolicAtom::index);
     lua_regMeta(L, AnyWrap::typeName,        AnyWrap::meta);
