@@ -178,30 +178,7 @@ luaL_Reg const AnyWrap::meta[] = {
     {nullptr, nullptr}
 };
 
-Symbol luaToVal(lua_State *L, int idx) {
-    int type = lua_type(L, idx);
-    switch (type) {
-        case LUA_TSTRING: {
-            char const *name = lua_tostring(L, idx);
-            return protect(L, [name]() { return Symbol::createStr(name); });
-        }
-        case LUA_TNUMBER: {
-            int num = lua_tointeger(L, idx);
-            return Symbol::createNum(num);
-        }
-        case LUA_TUSERDATA: {
-            bool check = false;
-            if (lua_getmetatable(L, idx)) {                        // +1
-                lua_getfield(L, LUA_REGISTRYINDEX, "clingo.Symbol"); // +1
-                check = lua_rawequal(L, -1, -2);
-                lua_pop(L, 2);                                     // -2
-            }
-            if (check) { return *(Symbol*)lua_touserdata(L, idx); }
-        }
-        default: { luaL_error(L, "cannot convert to value"); }
-    }
-    return {};
-}
+clingo_symbol_t luaToVal(lua_State *L, int idx);
 
 #if LUA_VERSION_NUM < 502
 
@@ -308,14 +285,15 @@ void luaToCpp(lua_State *L, int index, Potassco::WeightLit_t &x) {
     luaToCpp(L, index, y);
 }
 
-SymVec *luaToVals(lua_State *L, int idx) {
+// replaces the table at index idx with a pointer holding a vector
+std::vector<clingo_symbol_t> *luaToVals(lua_State *L, int idx) {
     idx = lua_absindex(L, idx);
     luaL_checktype(L, idx, LUA_TTABLE);
-    SymVec *vals = AnyWrap::new_<SymVec>(L);
+    std::vector<clingo_symbol_t> *vals = AnyWrap::new_<std::vector<clingo_symbol_t>>(L);
     lua_pushnil(L);
     while (lua_next(L, idx) != 0) {
-        Symbol val = luaToVal(L, -1);
-        protect(L, [val,&vals](){ vals->push_back(val); });
+        clingo_symbol_t sym = luaToVal(L, -1);
+        protect(L, [sym, &vals](){ vals->push_back(sym); });
         lua_pop(L, 1);
     }
     lua_replace(L, idx);
@@ -360,7 +338,13 @@ struct LuaClear {
 
 // {{{1 lua C functions
 
-using LuaCallArgs = std::tuple<char const *, SymSpan, SymVec>;
+struct LuaCallArgs {
+    char const *name;
+    clingo_symbol_t const *arguments;
+    size_t size;
+    clingo_symbol_callback_t *symbol_callback;
+    void *data;
+};
 
 static int luaTraceback (lua_State *L) {
     if (!lua_isstring(L, 1)) { return 1; }
@@ -879,49 +863,50 @@ luaL_Reg const SymbolType::meta[] = {
     { nullptr, nullptr }
 };
 
-struct Term {
-    static int new_(lua_State *L, Symbol v) {
-        if (v.type() == Gringo::SymbolType::Sup) {
+struct Term : Object<Term> {
+    clingo_symbol_t symbol;
+    Term(clingo_symbol_t symbol) : symbol(symbol) { }
+    static int new_(lua_State *L, clingo_symbol_t sym) {
+        auto type = clingo_symbol_type(sym);
+        if (type == clingo_symbol_type_supremum) {
             lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
             lua_getfield(L, -1, "Supremum");
             lua_replace(L, -2);
         }
-        else if (v.type() == Gringo::SymbolType::Inf) {
+        else if (type == clingo_symbol_type_infimum) {
             lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
             lua_getfield(L, -1, "Infimum");
             lua_replace(L, -2);
         }
-        else {
-            *(Symbol*)lua_newuserdata(L, sizeof(Symbol)) = v;
-            luaL_getmetatable(L, typeName);
-            lua_setmetatable(L, -2);
-        }
+        else { Object::new_(L, sym); }
         return 1;
     }
     static int addToRegistry(lua_State *L) {
-        *(Symbol*)lua_newuserdata(L, sizeof(Symbol)) = Symbol::createSup();
-        luaL_getmetatable(L, typeName);
-        lua_setmetatable(L, -2);
+        clingo_symbol_t sym;
+        clingo_symbol_create_supremum(&sym);
+        Object::new_(L, sym);
         lua_setfield(L, -2, "Supremum");
-        *(Symbol*)lua_newuserdata(L, sizeof(Symbol)) = Symbol::createInf();
-        luaL_getmetatable(L, typeName);
-        lua_setmetatable(L, -2);
+        clingo_symbol_create_supremum(&sym);
+        Object::new_(L, sym);
         lua_setfield(L, -2, "Infimum");
         return 0;
     }
     static int newFun(lua_State *L) {
         char const *name = luaL_checklstring(L, 1, nullptr);
-        bool sign = false;
+        bool positive = true;
         if (!lua_isnone(L, 3) && !lua_isnil(L, 3)) {
-            sign = !lua_toboolean(L, 3);
+            positive = lua_toboolean(L, 3);
         }
-        if (name[0] == '\0' && sign) { luaL_argerror(L, 2, "tuples must not have signs"); }
+        if (name[0] == '\0' && !positive) { luaL_argerror(L, 2, "tuples must not have signs"); }
         if (lua_isnoneornil(L, 2)) {
-            return new_(L, protect(L, [name, sign](){ return Symbol::createId(name, sign); }));
+            return new_(L, call_c(L, clingo_symbol_create_id, name, positive));
         }
         else {
-            SymVec *vals = luaToVals(L, 2);
-            return new_(L, protect(L, [name, sign, vals](){ return vals->empty() && name[0] != '\0' ? Symbol::createId(name, sign) : Symbol::createFun(name, Potassco::toSpan(*vals), sign); }));
+            lua_pushvalue(L, 2);
+            std::vector<clingo_symbol_t> *args = luaToVals(L, -1);
+            new_(L, call_c(L, clingo_symbol_create_function, name, args->data(), args->size(), positive));
+            lua_replace(L, -2);
+            return 1;
         }
     }
     static int newTuple(lua_State *L) {
@@ -930,16 +915,26 @@ struct Term {
         return newFun(L);
     }
     static int newNumber(lua_State *L) {
-        return Term::new_(L, Symbol::createNum(luaL_checkinteger(L, 1)));
+        clingo_symbol_t sym;
+        clingo_symbol_create_number(luaL_checkinteger(L, 1), &sym);
+        return Term::new_(L, sym);
     }
     static int newString(lua_State *L) {
-        return Term::new_(L, Symbol::createStr(luaL_checkstring(L, 1)));
+        return Term::new_(L, call_c(L, clingo_symbol_create_string, luaL_checkstring(L, 1)));
     }
-    VALUE_CMP(Symbol)
+    bool operator==(Term const &other) {
+        return clingo_symbol_is_equal_to(symbol, other.symbol);
+    }
+    bool operator <(Term const &other) {
+        return clingo_symbol_is_less_than(symbol, other.symbol);
+    }
+    bool operator<=(Term const &other) {
+        return !clingo_symbol_is_less_than(other.symbol, symbol);
+    }
     static int name(lua_State *L) {
-        Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
-        if (val.type() == Gringo::SymbolType::Fun) {
-            lua_pushstring(L, protect(L, [val]() { return val.name().c_str(); }));
+        auto self = get_self(L);
+        if (clingo_symbol_type(self.symbol) == clingo_symbol_type_function) {
+            lua_pushstring(L, call_c(L, clingo_symbol_name, self.symbol));
         }
         else {
             lua_pushnil(L);
@@ -947,9 +942,9 @@ struct Term {
         return 1;
     }
     static int string(lua_State *L) {
-        Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
-        if (val.type() == Gringo::SymbolType::Str) {
-            lua_pushstring(L, protect(L, [val]() { return val.string().c_str(); }));
+        auto self = get_self(L);
+        if (clingo_symbol_type(self.symbol) == clingo_symbol_type_string) {
+            lua_pushstring(L, call_c(L, clingo_symbol_string, self.symbol));
         }
         else {
             lua_pushnil(L);
@@ -957,9 +952,9 @@ struct Term {
         return 1;
     }
     static int number(lua_State *L) {
-        Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
-        if (val.type() == Gringo::SymbolType::Num) {
-            lua_pushnumber(L, protect(L, [val]() { return val.num(); }));
+        auto self = get_self(L);
+        if (clingo_symbol_type(self.symbol) == clingo_symbol_type_number) {
+            lua_pushnumber(L, call_c(L, clingo_symbol_number, self.symbol));
         }
         else {
             lua_pushnil(L);
@@ -967,9 +962,9 @@ struct Term {
         return 1;
     }
     static int negative(lua_State *L) {
-        Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
-        if (val.type() == Gringo::SymbolType::Fun) {
-            lua_pushboolean(L, protect(L, [val]() { return val.sign(); }));
+        auto self = get_self(L);
+        if (clingo_symbol_type(self.symbol) == clingo_symbol_type_function) {
+            lua_pushboolean(L, call_c(L, clingo_symbol_is_negative, self.symbol));
         }
         else {
             lua_pushnil(L);
@@ -977,9 +972,9 @@ struct Term {
         return 1;
     }
     static int positive(lua_State *L) {
-        Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
-        if (val.type() == Gringo::SymbolType::Fun) {
-            lua_pushboolean(L, protect(L, [val]() { return !val.sign(); }));
+        auto self = get_self(L);
+        if (clingo_symbol_type(self.symbol) == clingo_symbol_type_function) {
+            lua_pushboolean(L, call_c(L, clingo_symbol_is_positive, self.symbol));
         }
         else {
             lua_pushnil(L);
@@ -987,12 +982,13 @@ struct Term {
         return 1;
     }
     static int args(lua_State *L) {
-        Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
-        if (val.type() == Gringo::SymbolType::Fun) {
-            lua_createtable(L, val.args().size, 0);
+        auto self = get_self(L);
+        if (clingo_symbol_type(self.symbol) == clingo_symbol_type_function) {
+            auto ret = call_c(L, clingo_symbol_arguments, self.symbol);
+            lua_createtable(L, ret.second, 0);
             int i = 1;
-            for (auto &x : val.args()) {
-                Term::new_(L, x);
+            for (auto it = ret.first, ie = it + ret.second; it != ie; ++it) {
+                Term::new_(L, *it);
                 lua_rawseti(L, -2, i++);
             }
         }
@@ -1002,30 +998,19 @@ struct Term {
         return 1;
     }
     static int toString(lua_State *L) {
-        std::string *rep = AnyWrap::new_<std::string>(L);
-        Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
-        lua_pushstring(L, protect(L, [val, rep]() {
-            std::ostringstream oss;
-            oss << val;
-            *rep = oss.str();
-            return rep->c_str();
-        }));
+        auto &self = get_self(L);
+        auto size = call_c(L, clingo_symbol_to_string_size, self.symbol);
+        char *buf = static_cast<char *>(lua_newuserdata(L, size * sizeof(*buf))); // +1
+        handle_c_error(L, clingo_symbol_to_string(self.symbol, buf, size));
+        lua_pushstring(L, buf);                                                   // +1
+        lua_replace(L, -2);                                                       // -1
         return 1;
     }
     static int type(lua_State *L) {
-        Symbol val = *(Symbol*)luaL_checkudata(L, 1, typeName);
+        auto &self = get_self(L);
         lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
         lua_getfield(L, -1, "SymbolType");
-        char const *field = "";
-        switch (val.type()) {
-            case Gringo::SymbolType::Str:     { field = "String"; break; }
-            case Gringo::SymbolType::Num:     { field = "Number"; break; }
-            case Gringo::SymbolType::Inf:     { field = "Infimum"; break; }
-            case Gringo::SymbolType::Sup:     { field = "Supremum"; break; }
-            case Gringo::SymbolType::Fun:     { field = "Function"; break; }
-            case Gringo::SymbolType::Special: { luaL_error(L, "must not happen"); }
-        }
-        lua_getfield(L, -1, field);
+        lua_getfield(L, -1, SymbolType::field_(clingo_symbol_type(self.symbol)));
         return 1;
     }
     static int index(lua_State *L) {
@@ -1050,33 +1035,60 @@ struct Term {
 constexpr char const *Term::typeName;
 luaL_Reg const Term::meta[] = {
     {"__tostring", toString},
-    {"__eq", eqSymbol},
-    {"__lt", ltSymbol},
-    {"__le", leSymbol},
+    {"__eq", eq},
+    {"__lt", lt},
+    {"__le", le},
     {nullptr, nullptr}
 };
 
+clingo_symbol_t luaToVal(lua_State *L, int idx) {
+    int type = lua_type(L, idx);
+    switch (type) {
+        case LUA_TSTRING: {
+            return call_c(L, clingo_symbol_create_string, lua_tostring(L, idx));
+        }
+        case LUA_TNUMBER: {
+            clingo_symbol_t ret;
+            clingo_symbol_create_number(lua_tointeger(L, idx), &ret);
+            return ret;
+        }
+        case LUA_TUSERDATA: {
+            bool check = false;
+            if (lua_getmetatable(L, idx)) {                          // +1
+                lua_getfield(L, LUA_REGISTRYINDEX, "clingo.Symbol"); // +1
+                check = lua_rawequal(L, -1, -2);
+                lua_pop(L, 2);                                       // -2
+            }
+            if (check) { return static_cast<Term*>(lua_touserdata(L, idx))->symbol; }
+        }
+        default: { luaL_error(L, "cannot convert to value"); }
+    }
+    return {};
+}
+
 int luaCall(lua_State *L) {
-    auto &args = *(LuaCallArgs*)lua_touserdata(L, 1);
+    auto &args = *static_cast<LuaCallArgs*>(lua_touserdata(L, 1));
     bool hasContext = !lua_isnil(L, 2);
     if (hasContext) {
-        lua_getfield(L, 2, std::get<0>(args));
+        lua_getfield(L, 2, args.name);
         lua_pushvalue(L, 2);
     }
-    else { lua_getglobal(L, std::get<0>(args)); }
-    for (auto &x : std::get<1>(args)) { Term::new_(L, x); }
-    lua_call(L, std::get<1>(args).size + hasContext, 1);
+    else { lua_getglobal(L, args.name); }
+    for (auto it = args.arguments, ie = it + args.size; it != ie; ++it) {
+        Term::new_(L, *it);
+    }
+    lua_call(L, args.size + hasContext, 1);
     if (lua_type(L, -1) == LUA_TTABLE) {
         lua_pushnil(L);
         while (lua_next(L, -2)) {
-            Symbol val = luaToVal(L, -1);
-            protect(L, [val, &args]() { std::get<2>(args).emplace_back(val); });
+            clingo_symbol_t val = luaToVal(L, -1);
+            handle_c_error(L, args.symbol_callback(&val, 1, args.data));
             lua_pop(L, 1);
         }
     }
     else {
-        Symbol val = luaToVal(L, -1);
-        protect(L, [val, &args]() { std::get<2>(args).emplace_back(val); });
+        clingo_symbol_t val = luaToVal(L, -1);
+        handle_c_error(L, args.symbol_callback(&val, 1, args.data));
     }
     return 0;
 }
@@ -1093,7 +1105,7 @@ struct SolveControl {
             luaL_checktype(L, -1, LUA_TTABLE);
             lua_pushnil(L);
             if (!lua_next(L, -2)) { luaL_error(L, "atom/boolean pair expected"); }
-            Symbol atom = luaToVal(L, -1);
+            Symbol atom = Symbol{luaToVal(L, -1)};
             lua_pop(L, 1);
             if (!lua_next(L, -2)) { luaL_error(L, "atom/boolean pair expected"); }
             bool truth = lua_toboolean(L, -1);
@@ -1194,7 +1206,7 @@ luaL_Reg const ModelType::meta[] = {
 struct Model {
     static int contains(lua_State *L) {
         Gringo::Model const *& model =  *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
-        Symbol val = luaToVal(L, 2);
+        Symbol val = Symbol{luaToVal(L, 2)};
         lua_pushboolean(L, protect(L, [val, model]() { return model->contains(val); }));
         return 1;
     }
@@ -1224,7 +1236,7 @@ struct Model {
         lua_createtable(L, atoms.size, 0);
         int i = 1;
         for (auto x : atoms) {
-            Term::new_(L, x);
+            Term::new_(L, x.rep());
             lua_rawseti(L, -2, i++);
         }
         return 1;
@@ -1254,7 +1266,7 @@ struct Model {
         lua_pushstring(L, protect(L, [model, rep]() {
             auto printAtom = [](std::ostream &out, Symbol val) {
                 auto sig = val.sig();
-                if (val.type() == Gringo::SymbolType::Fun && sig.name() == "$" && sig.arity() == 2 && !sig.sign()) {
+                if (static_cast<enum clingo_symbol_type>(val.type()) == clingo_symbol_type_function && sig.name() == "$" && sig.arity() == 2 && !sig.sign()) {
                     auto args = val.args().first;
                     out << args[0] << "=" << args[1];
                 }
@@ -1566,7 +1578,7 @@ struct SymbolicAtom {
     static int symbol(lua_State *L) {
         auto self = (SymbolicAtom *)luaL_checkudata(L, 1, typeName);
         Symbol atom = protect(L, [self](){ return self->atoms.atom(self->range); });
-        Term::new_(L, atom);
+        Term::new_(L, atom.rep());
         return 1;
     }
     static int literal(lua_State *L) {
@@ -1658,7 +1670,7 @@ struct SymbolicAtoms {
 
     static int lookup(lua_State *L) {
         auto &self = get_self(L);
-        Gringo::Symbol atom = luaToVal(L, 2);
+        Gringo::Symbol atom = Symbol{luaToVal(L, 2)};
         auto range = protect(L, [self, atom]() { return self.atoms.lookup(atom); });
         if (self.atoms.valid(range)) { SymbolicAtom::new_(L, self.atoms, range); }
         else                         { lua_pushnil(L); }               // +1
@@ -1806,14 +1818,21 @@ struct LuaContext : Gringo::Context {
     SymVec call(Location const &loc, String name, SymSpan args) override {
         assert(L);
         LuaClear lc(L);
-        LuaCallArgs arg(name.c_str(), args, {});
+        std::vector<Symbol> syms;
+        LuaCallArgs arg{name.c_str(), reinterpret_cast<clingo_symbol_t const *>(args.first), args.size, [](clingo_symbol_t const *symbols, size_t size, void *data){
+            // NOTE: no error handling at the moment but this part will be refactored anyway
+            for (auto it = symbols, ie = it + size; it != ie; ++it) {
+                static_cast<std::vector<Symbol>*>(data)->emplace_back(Symbol{*it});
+            }
+            return true;
+        }, &syms};
         lua_pushcfunction(L, luaTraceback);
         lua_pushcfunction(L, luaCall);
         lua_pushlightuserdata(L, (void*)&arg);
         lua_pushvalue(L, idx);
         int ret = lua_pcall(L, 2, 0, -4);
         if (!handleError(L, loc, ret, "operation undefined", &log)) { return {}; }
-        return std::move(std::get<2>(arg));
+        return syms;
     }
 
     virtual ~LuaContext() noexcept = default;
@@ -1867,8 +1886,8 @@ struct ControlWrap {
             char const *name = luaL_checkstring(L, -1);
             lua_pop(L, 1);
             if (!lua_next(L, -2)) { luaL_error(L, "tuple of name and arguments expected"); }
-            SymVec *args = luaToVals(L, -1);
-            protect(L, [name, args, vec](){ vec->emplace_back(name, *args); });
+            std::vector<clingo_symbol_t> *args = luaToVals(L, -1);
+            protect(L, [name, args, vec](){ vec->emplace_back(name, reinterpret_cast<std::vector<Symbol>&>(*args)); });
             lua_pop(L, 1);
             if (lua_next(L, -2)) { luaL_error(L, "tuple of name and arguments expected"); }
             lua_pop(L, 1);
@@ -1905,7 +1924,7 @@ struct ControlWrap {
         char const *name = luaL_checkstring(L, 2);
         Symbol ret = protect(L, [&ctl, name]() { return ctl.getConst(name); });
         if (ret.type() == Gringo::SymbolType::Special) { lua_pushnil(L); }
-        else                                           { Term::new_(L, ret); }
+        else                                           { Term::new_(L, ret.rep()); }
         return 1;
     }
 
@@ -1919,7 +1938,7 @@ struct ControlWrap {
                 luaL_checktype(L, -1, LUA_TTABLE);
                 lua_pushnil(L);
                 if (!lua_next(L, -2)) { luaL_error(L, "atom/boolean pair expected"); }
-                Symbol atom = luaToVal(L, -1);
+                Symbol atom{luaToVal(L, -1)};
                 lua_pop(L, 1);
                 if (!lua_next(L, -2)) { luaL_error(L, "atom/boolean pair expected"); }
                 bool truth = lua_toboolean(L, -1);
@@ -1991,7 +2010,7 @@ struct ControlWrap {
     static int assign_external(lua_State *L) {
         auto &ctl = get_self(L).ctl;
         checkBlocked(L, ctl, "assign_external");
-        Symbol atom = luaToVal(L, 2);
+        Symbol atom{luaToVal(L, 2)};
         luaL_checkany(L, 3);
         Potassco::Value_t truth;
         if (lua_isnil (L, 3)) { truth = Potassco::Value_t::Free; }
@@ -2005,7 +2024,7 @@ struct ControlWrap {
     static int release_external(lua_State *L) {
         auto &ctl = get_self(L).ctl;
         checkBlocked(L, ctl, "release_external");
-        Symbol atom = luaToVal(L, 2);
+        Symbol atom{luaToVal(L, 2)};
         protect(L, [&ctl, atom]() { ctl.assignExternal(atom, Potassco::Value_t::Release); });
         return 0;
     }
@@ -2823,7 +2842,7 @@ private:
         lua_pushboolean(L, b);
     }
     static void push(lua_State *L, Symbol b) {
-        Term::new_(L, b);
+        Term::new_(L, b.rep());
     }
     static void push(lua_State *L, Value_t x) {
         TruthValue::new_(L, x.val_);
@@ -2945,7 +2964,7 @@ int parseTerm(lua_State *L) {
     char const *str = luaL_checkstring(L, 1);
     Symbol val = protect(L, [str]() { return ControlWrap::module->parseValue(str, nullptr, 20); });
     if (val.type() == Gringo::SymbolType::Special) { lua_pushnil(L); }
-    else { Term::new_(L, val); }
+    else { Term::new_(L, val.rep()); }
     return 1;
 }
 
@@ -3067,14 +3086,21 @@ private:
     SymVec call(Location const &loc, String name, SymSpan args) override {
         assert(impl);
         LuaClear lc(impl->L);
-        LuaCallArgs arg(name.c_str(), args, {});
+        std::vector<Symbol> syms;
+        LuaCallArgs arg{name.c_str(), reinterpret_cast<clingo_symbol_t const *>(args.first), args.size, [](clingo_symbol_t const *symbols, size_t size, void *data){
+            // NOTE: no error handling at the moment but this part will be refactored anyway
+            for (auto it = symbols, ie = it + size; it != ie; ++it) {
+                static_cast<std::vector<Symbol>*>(data)->emplace_back(Symbol{*it});
+            }
+            return true;
+        }, &syms};
         lua_pushcfunction(impl->L, luaTraceback);
         lua_pushcfunction(impl->L, luaCall);
         lua_pushlightuserdata(impl->L, (void*)&arg);
         lua_pushnil(impl->L);
         int ret = lua_pcall(impl->L, 2, 0, -4);
         if (!handleError(impl->L, loc, ret, "operation undefined", nullptr)) { return {}; }
-        return std::move(std::get<2>(arg));
+        return syms;
     }
 
     bool callable(String name) override {
