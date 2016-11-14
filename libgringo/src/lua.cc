@@ -396,22 +396,24 @@ struct Object {
         return *(T*)luaL_checkudata(L, 1, T::typeName);
     }
 
+    T &cmpKey() { return *static_cast<T*>(this); }
+
     static int eq(lua_State *L) {
         T *a = static_cast<T*>(luaL_checkudata(L, 1, T::typeName));
         T *b = static_cast<T*>(luaL_checkudata(L, 2, T::typeName));
-        lua_pushboolean(L, *a == *b);
+        lua_pushboolean(L, a->cmpKey() == b->cmpKey());
         return 1;
     }
     static int lt(lua_State *L) {
         T *a = static_cast<T*>(luaL_checkudata(L, 1, T::typeName));
         T *b = static_cast<T*>(luaL_checkudata(L, 2, T::typeName));
-        lua_pushboolean(L, *a < *b);
+        lua_pushboolean(L, a->cmpKey() < b->cmpKey());
         return 1;
     }
     static int le(lua_State *L) {
         T *a = static_cast<T*>(luaL_checkudata(L, 1, T::typeName));
         T *b = static_cast<T*>(luaL_checkudata(L, 2, T::typeName));
-        lua_pushboolean(L, *a <= *b);
+        lua_pushboolean(L, a->cmpKey() <= b->cmpKey());
         return 1;
     }
     static constexpr luaL_Reg const meta[] = {{nullptr, nullptr}};
@@ -498,7 +500,7 @@ luaL_Reg const SolveResult::meta[] = {
 struct TheoryTermType : Object<TheoryTermType> {
     clingo_theory_term_type type;
     TheoryTermType(clingo_theory_term_type type) : type(type) { }
-    operator clingo_theory_term_type() { return type; }
+    clingo_theory_term_type cmpKey() { return type; }
     static int addToRegistry(lua_State *L) {
         lua_createtable(L, 0, 6);
         for (auto t : { clingo_theory_term_type_function, clingo_theory_term_type_number, clingo_theory_term_type_symbol, clingo_theory_term_type_tuple, clingo_theory_term_type_list, clingo_theory_term_type_set}) {
@@ -528,7 +530,7 @@ struct TheoryTermType : Object<TheoryTermType> {
         return 1;
     }
     static int toString(lua_State *L) {
-        lua_pushstring(L, field_(get_self(L)));
+        lua_pushstring(L, field_(get_self(L).type));
         return 1;
     }
     static luaL_Reg const meta[];
@@ -545,62 +547,63 @@ luaL_Reg const TheoryTermType::meta[] = {
     { nullptr, nullptr }
 };
 
-struct TheoryTerm {
-    using Data = std::pair<Gringo::TheoryData const *, Id_t>;
-    static int new_(lua_State *L, Gringo::TheoryData const *data, Id_t value) {
-        new (lua_newuserdata(L, sizeof(Data))) Data{data, value};
-        luaL_getmetatable(L, typeName);
-        lua_setmetatable(L, -2);
-        return 1;
+// translates a clingo api error into a lua error
+void handle_c_error(lua_State *L, bool ret) {
+    if (!ret) {
+        //if (exc && *exc) { std::rethrow_exception(*exc); }
+        char const *msg = clingo_error_message();
+        if (!msg) { msg = "no message"; }
+        luaL_error(L, msg);
     }
+}
+
+struct TheoryTerm : Object<TheoryTerm> {
+    clingo_theory_atoms_t *atoms;
+    clingo_id_t id;
+    TheoryTerm(clingo_theory_atoms_t *atoms, clingo_id_t id) : atoms(atoms), id(id) { }
+    clingo_id_t cmpKey() { return id; }
     static int name(lua_State *L) {
-        auto self = (Data*)luaL_checkudata(L, 1, typeName);
-        lua_pushstring(L, protect(L, [self](){ return self->first->termName(self->second); }));
+        auto &self = get_self(L);
+        char const *ret;
+        handle_c_error(L, clingo_theory_atoms_term_name(self.atoms, self.id, &ret));
+        lua_pushstring(L, ret);
         return 1;
     }
     static int number(lua_State *L) {
-        auto self = (Data*)luaL_checkudata(L, 1, typeName);
-        lua_pushnumber(L, protect(L, [self](){ return self->first->termNum(self->second); }));
+        auto &self = get_self(L);
+        int ret;
+        handle_c_error(L, clingo_theory_atoms_term_number(self.atoms, self.id, &ret));
+        lua_pushnumber(L, ret);
         return 1;
     }
     static int args(lua_State *L) {
-        auto self = (Data*)luaL_checkudata(L, 1, typeName);
-        auto args = self->first->termArgs(self->second);
-        lua_createtable(L, args.size, 0);
+        auto &self = get_self(L);
+        size_t size;
+        clingo_id_t const *args;
+        handle_c_error(L, clingo_theory_atoms_term_arguments(self.atoms, self.id, &args, &size));
+        lua_createtable(L, size, 0);
         int i = 1;
-        for (auto &x : args) {
-            new_(L, self->first, x);
+        for (auto it = args, ie = args + size; it != ie; ++it) {
+            new_(L, self.atoms, *it);
             lua_rawseti(L, -2, i++);
         }
         return 1;
     }
     static int toString(lua_State *L) {
-        auto self = (Data*)luaL_checkudata(L, 1, typeName);
-        auto *str = AnyWrap::new_<std::string>(L);
-        lua_pushstring(L, protect(L, [self, str]() { return (*str = self->first->termStr(self->second)).c_str(); }));
+        auto &self = get_self(L);
+        size_t size;
+        handle_c_error(L, clingo_theory_atoms_term_to_string_size(self.atoms, self.id, &size));
+        char *buf = static_cast<char *>(lua_newuserdata(L, size * sizeof(*buf))); // +1
+        handle_c_error(L, clingo_theory_atoms_term_to_string(self.atoms, self.id, buf, size));
+        lua_pushstring(L, buf);                                                   // +1
+        lua_replace(L, -2);                                                       // -1
         return 1;
     }
     static int type(lua_State *L) {
-        auto self = (Data*)luaL_checkudata(L, 1, typeName);
-        return TheoryTermType::new_(L, protect(L, [self]() { return (clingo_theory_term_type)self->first->termType(self->second); }));
-    }
-    static int eq(lua_State *L) {
-        auto a = static_cast<Data*>(luaL_checkudata(L, 1, typeName));
-        auto b = static_cast<Data*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, a->second == b->second);
-        return 1;
-    }
-    static int lt(lua_State *L) {
-        auto a = static_cast<Data*>(luaL_checkudata(L, 1, typeName));
-        auto b = static_cast<Data*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, a->second < b->second);
-        return 1;
-    }
-    static int le(lua_State *L) {
-        auto a = static_cast<Data*>(luaL_checkudata(L, 1, typeName));
-        auto b = static_cast<Data*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, a->second <= b->second);
-        return 1;
+        auto &self = get_self(L);
+        clingo_theory_term_type_t type;
+        handle_c_error(L, clingo_theory_atoms_term_type(self.atoms, self.id, &type));
+        return TheoryTermType::new_(L, static_cast<clingo_theory_term_type>(type));
     }
     static int index(lua_State *L) {
         char const *field = luaL_checkstring(L, 2);
@@ -640,7 +643,7 @@ struct TheoryElement : Object<TheoryElement> {
         lua_createtable(L, args.size, 0);
         int i = 1;
         for (auto &x : args) {
-            TheoryTerm::new_(L, self.data, x);
+            TheoryTerm::new_(L, const_cast<Gringo::TheoryData*>(self.data), x);
             lua_rawseti(L, -2, i++);
         }
         return 1;
@@ -720,7 +723,7 @@ struct TheoryAtom : Object<TheoryAtom> {
 
     static int term(lua_State *L) {
         auto &self = get_self(L);
-        return TheoryTerm::new_(L, self.data, protect(L, [self]() { return self.data->atomTerm(self.idx); }));
+        return TheoryTerm::new_(L, const_cast<Gringo::TheoryData*>(self.data), protect(L, [self]() { return self.data->atomTerm(self.idx); }));
     }
 
     static int literal(lua_State *L) {
@@ -739,7 +742,7 @@ struct TheoryAtom : Object<TheoryAtom> {
         auto guard = protect(L, [self](){ return self.data->atomGuard(self.idx); });
         lua_pushstring(L, guard.first);
         lua_rawseti(L, -2, 1);
-        TheoryTerm::new_(L, self.data, guard.second);
+        TheoryTerm::new_(L, const_cast<Gringo::TheoryData*>(self.data), guard.second);
         lua_rawseti(L, -2, 2);
         return 1;
     }
@@ -2974,7 +2977,7 @@ int luaopen_clingo(lua_State* L) {
     lua_regMeta(L, TruthValue::typeName,     TruthValue::meta);
     lua_regMeta(L, ModelType::typeName,      ModelType::meta);
     lua_regMeta(L, HeuristicType::typeName,  HeuristicType::meta);
-    lua_regMeta(L, TheoryTerm::typeName,     TheoryTerm::meta, TheoryTerm::index);
+    TheoryTerm::reg(L);
     TheoryElement::reg(L);
     TheoryAtom::reg(L);
     PropagateInit::reg(L);
