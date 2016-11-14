@@ -7117,7 +7117,7 @@ void registerPython(clingo_control_t *control, clingo_control_new_t new_control)
 
 #else // WITH_PYTHON
 
-#include "gringo/python.hh"
+#include "python.hh"
 
 namespace Gringo {
 
