@@ -1936,18 +1936,18 @@ luaL_Reg const Assignment::meta[] = {
 // {{{1 wrap PropagateControl
 
 struct PropagateControl : Object<PropagateControl> {
-    PropagateControl(Potassco::AbstractSolver* ctl) : ctl(ctl) { }
-    Potassco::AbstractSolver* ctl;
+    clingo_propagate_control_t* ctl;
+    PropagateControl(clingo_propagate_control_t* ctl) : ctl(ctl) { }
 
     static int id(lua_State *L) {
         auto &self = get_self(L);
-        lua_pushinteger(L, protect(L, [self]() { return self.ctl->id() + 1; }));
+        lua_pushinteger(L, clingo_propagate_control_thread_id(self.ctl));
         return 1;
     }
 
     static int assignment(lua_State *L) {
         auto &self = get_self(L);
-        Assignment::new_(L, clingo_propagate_control_assignment(reinterpret_cast<clingo_propagate_control_t*>(self.ctl)));
+        Assignment::new_(L, clingo_propagate_control_assignment(self.ctl));
         return 1;
     }
 
@@ -1957,30 +1957,28 @@ struct PropagateControl : Object<PropagateControl> {
         lua_gettable(L, 2);                                          // +0
         luaL_checktype(L, -1, LUA_TTABLE);                           // +0
         int lits_index = lua_gettop(L);
-        auto lits = AnyWrap::new_<std::vector<Potassco::Lit_t>>(L);  // +1
+        auto lits = AnyWrap::new_<std::vector<clingo_literal_t>>(L); // +1
         lua_pushnil(L);                                              // +1
         while (lua_next(L, -3)) {                                    // -1
             int lit = luaL_checkinteger(L, -1);                      // +0
-            protect(L, [lits, lit](){ lits->emplace_back(lit); });
+            PROTECT(lits->emplace_back(lit));
             lua_pop(L, 1);
         }
-        unsigned type = 0;
+        clingo_clause_type_t type = 0;
         lua_getfield(L, 2, "tag");                                   // +1
         if (lua_toboolean(L, -1)) {
-            type |= Potassco::Clause_t::Volatile;
+            type |= clingo_clause_type_volatile;
         }
         lua_pop(L, 1);                                               // -1
         lua_getfield(L, 2, "lock");                                  // +1
         if (lua_toboolean(L, -1)) {
-            type |= Potassco::Clause_t::Static;
+            type |= clingo_clause_type_static;
         }
         lua_pop(L, 1);                                               // -1
-        lua_pushboolean(L, protect(L, [self, lits, type, invert]() { // +1
-            if (invert) {
-                for (auto &lit : *lits) { lit = -lit; }
-            }
-            return self.ctl->addClause(Potassco::toSpan(*lits), static_cast<Potassco::Clause_t>(type));
-        }));
+        if (invert) {
+            for (auto &lit : *lits) { lit = -lit; }
+        }
+        lua_pushboolean(L, call_c(L, clingo_propagate_control_add_clause, self.ctl, lits->data(), lits->size(), type)); // +1
         lua_replace(L, lits_index);
         lua_settop(L, lits_index);
         return 1;
@@ -1988,29 +1986,28 @@ struct PropagateControl : Object<PropagateControl> {
 
     static int addLiteral(lua_State *L) {
         auto &self = get_self(L);
-        lua_pushnumber(L, protect(L, [self](){ return self.ctl->addVariable(); }));
+        lua_pushnumber(L, call_c(L, clingo_propagate_control_add_literal, self.ctl));
         return 1;
     }
 
     static int addWatch(lua_State *L) {
         auto &self = get_self(L);
         auto lit = luaL_checkinteger(L, 1);
-        protect(L, [self, lit](){ self.ctl->addWatch(static_cast<clingo_literal_t>(lit)); });
+        handle_c_error(L, clingo_propagate_control_add_watch(self.ctl, lit));
         return 0;
     }
 
     static int removeWatch(lua_State *L) {
         auto &self = get_self(L);
         auto lit = luaL_checkinteger(L, 1);
-        protect(L, [self, lit](){ self.ctl->removeWatch(static_cast<clingo_literal_t>(lit)); });
+        clingo_propagate_control_remove_watch(self.ctl, lit);
         return 0;
     }
 
     static int hasWatch(lua_State *L) {
         auto &self = get_self(L);
         auto lit = luaL_checkinteger(L, 1);
-        auto ret = protect(L, [self, lit](){ return self.ctl->hasWatch(static_cast<clingo_literal_t>(lit)); });
-        lua_pushboolean(L, ret);
+        lua_pushboolean(L, clingo_propagate_control_has_watch(self.ctl, lit));
         return 1;
     }
 
@@ -2024,7 +2021,7 @@ struct PropagateControl : Object<PropagateControl> {
 
     static int propagate(lua_State *L) {
         auto &self = get_self(L);
-        lua_pushboolean(L, protect(L, [self]() { return self.ctl->propagate(); }));
+        lua_pushboolean(L, call_c(L, clingo_propagate_control_propagate, self.ctl)); // +1
         return 1;
     }
 
@@ -2035,7 +2032,7 @@ struct PropagateControl : Object<PropagateControl> {
         else {
             lua_getmetatable(L, 1);
             lua_getfield(L, -1, name);
-            return !lua_isnil(L, -1) ? 1 : luaL_error(L, "unknown field: %s", name);
+            return 1;
         }
     }
 
@@ -2117,7 +2114,7 @@ public:
         lua_getfield(L, -1, "propagate");                // +1
         if (!lua_isnil(L, -1)) {
             lua_insert(L, -2);
-            PropagateControl::new_(L, solver);           // +1
+            PropagateControl::new_(L, reinterpret_cast<clingo_propagate_control_t*>(solver));           // +1
             getChanges(L, changes);                      // +1
             getState(L, self->T, solver->id());          // +1
             lua_call(L, 4, 0);                           // -5
@@ -2185,7 +2182,7 @@ public:
         lua_getfield(L, -1, "check");                    // +1
         if (!lua_isnil(L, -1)) {
             lua_insert(L, -2);                           // -1
-            PropagateControl::new_(L, solver);           // +1
+            PropagateControl::new_(L, reinterpret_cast<clingo_propagate_control_t*>(solver));           // +1
             getState(L, self->T, solver->id());          // +1
             lua_call(L, 3, 0);                           // -4
         }
