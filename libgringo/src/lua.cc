@@ -1143,27 +1143,28 @@ luaL_Reg const SolveControl::meta[] = {
 
 // {{{1 wrap Model
 
-struct ModelType {
-    using Type = Gringo::ModelType;
+struct ModelType : Object<ModelType> {
+    using Type = clingo_model_type_t;
+    Type type;
+    ModelType(Type type) : type(type) { }
+    Type cmpKey() { return type; }
 
     static int addToRegistry(lua_State *L) {
         lua_createtable(L, 0, 6);
-        for (auto t : { Type::StableModel, Type::BraveConsequences, Type::CautiousConsequences }) {
-            *(Type*)lua_newuserdata(L, sizeof(Type)) = t;
-            luaL_getmetatable(L, typeName);
-            lua_setmetatable(L, -2);
+        for (auto t : { clingo_model_type_stable_model, clingo_model_type_brave_consequences, clingo_model_type_cautious_consequences }) {
+            new_(L, t);
             lua_setfield(L, -2, field_(t));
         }
         lua_setfield(L, -2, "ModelType");
         return 0;
     }
     static char const *field_(Type t) {
-        switch (t) {
-            case Type::StableModel:          { return "StableModel"; }
-            case Type::BraveConsequences:    { return "BraveConsequences"; }
-            case Type::CautiousConsequences: { return "CautiousConsequences"; }
-            default:                         { return ""; }
+        switch (static_cast<enum clingo_model_type>(t)) {
+            case clingo_model_type_stable_model:          { return "StableModel"; }
+            case clingo_model_type_brave_consequences:    { return "BraveConsequences"; }
+            case clingo_model_type_cautious_consequences: { break; }
         }
+        return "CautiousConsequences";
     }
     static int new_(lua_State *L, Type t) {
         lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
@@ -1173,26 +1174,8 @@ struct ModelType {
         lua_replace(L, -2);
         return 1;
     }
-    static int eq(lua_State *L) {
-        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
-        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, *a == *b);
-        return 1;
-    }
-    static int lt(lua_State *L) {
-        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
-        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, *a < *b);
-        return 1;
-    }
-    static int le(lua_State *L) {
-        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
-        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, *a <= *b);
-        return 1;
-    }
     static int toString(lua_State *L) {
-        lua_pushstring(L, field_(*(Type*)luaL_checkudata(L, 1, typeName)));
+        lua_pushstring(L, field_(get_self(L).type));
         return 1;
     }
     static luaL_Reg const meta[];
@@ -1315,7 +1298,7 @@ struct Model {
         }
         else if (strcmp(name, "type") == 0) {
             Gringo::Model const *& model = *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
-            return ModelType::new_(L, protect(L, [model]() { return model->type(); }));
+            return ModelType::new_(L, protect(L, [model]() { return static_cast<clingo_model_type_t>(model->type()); }));
         }
         else {
             lua_getmetatable(L, 1);
