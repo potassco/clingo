@@ -950,7 +950,7 @@ struct Term : Object<Term> {
         return !clingo_symbol_is_less_than(other.symbol, symbol);
     }
     static int name(lua_State *L) {
-        auto self = get_self(L);
+        auto &self = get_self(L);
         if (clingo_symbol_type(self.symbol) == clingo_symbol_type_function) {
             lua_pushstring(L, call_c(L, clingo_symbol_name, self.symbol));
         }
@@ -960,7 +960,7 @@ struct Term : Object<Term> {
         return 1;
     }
     static int string(lua_State *L) {
-        auto self = get_self(L);
+        auto &self = get_self(L);
         if (clingo_symbol_type(self.symbol) == clingo_symbol_type_string) {
             lua_pushstring(L, call_c(L, clingo_symbol_string, self.symbol));
         }
@@ -970,7 +970,7 @@ struct Term : Object<Term> {
         return 1;
     }
     static int number(lua_State *L) {
-        auto self = get_self(L);
+        auto &self = get_self(L);
         if (clingo_symbol_type(self.symbol) == clingo_symbol_type_number) {
             lua_pushnumber(L, call_c(L, clingo_symbol_number, self.symbol));
         }
@@ -980,7 +980,7 @@ struct Term : Object<Term> {
         return 1;
     }
     static int negative(lua_State *L) {
-        auto self = get_self(L);
+        auto &self = get_self(L);
         if (clingo_symbol_type(self.symbol) == clingo_symbol_type_function) {
             lua_pushboolean(L, call_c(L, clingo_symbol_is_negative, self.symbol));
         }
@@ -990,7 +990,7 @@ struct Term : Object<Term> {
         return 1;
     }
     static int positive(lua_State *L) {
-        auto self = get_self(L);
+        auto &self = get_self(L);
         if (clingo_symbol_type(self.symbol) == clingo_symbol_type_function) {
             lua_pushboolean(L, call_c(L, clingo_symbol_is_positive, self.symbol));
         }
@@ -1000,7 +1000,7 @@ struct Term : Object<Term> {
         return 1;
     }
     static int args(lua_State *L) {
-        auto self = get_self(L);
+        auto &self = get_self(L);
         if (clingo_symbol_type(self.symbol) == clingo_symbol_type_function) {
             auto ret = call_c(L, clingo_symbol_arguments, self.symbol);
             lua_createtable(L, ret.second, 0);
@@ -1117,7 +1117,7 @@ struct SolveControl : Object<SolveControl> {
     clingo_solve_control_t *ctl;
     SolveControl(clingo_solve_control_t *ctl) : ctl(ctl) { }
     static int getClause(lua_State *L, bool invert) {
-        auto self = get_self(L);
+        auto &self = get_self(L);
         std::vector<clingo_symbolic_literal_t> *lits = AnyWrap::new_<std::vector<clingo_symbolic_literal_t>>(L); // +1
         luaToCpp(L, 2, *lits);
         if (invert) {
@@ -1200,13 +1200,13 @@ struct Model : Object<Model> {
     clingo_model_t *model;
     Model(clingo_model_t *model) : model(model) { }
     static int contains(lua_State *L) {
-        auto self = get_self(L);
+        auto &self = get_self(L);
         clingo_symbol_t sym = luaToVal(L, 2);
         lua_pushboolean(L, call_c(L, clingo_model_contains, self.model, sym));
         return 1;
     }
     static int atoms(lua_State *L) {
-        auto self = get_self(L);
+        auto &self = get_self(L);
         clingo_show_type_bitset_t atomset = 0;
         luaL_checktype(L, 2, LUA_TTABLE);
         lua_getfield(L, 2, "atoms");
@@ -1240,7 +1240,7 @@ struct Model : Object<Model> {
         return 1;
     }
     static int cost(lua_State *L) {
-        auto self = get_self(L);
+        auto &self = get_self(L);
         auto size = call_c(L, clingo_model_cost_size, self.model);
         int64_t *costs = static_cast<int64_t *>(lua_newuserdata(L, size * sizeof(*costs))); // +1
         handle_c_error(L, clingo_model_cost(self.model, costs, size));
@@ -1254,13 +1254,13 @@ struct Model : Object<Model> {
         return 1;
     }
     static int thread_id(lua_State *L) {
-        auto self = get_self(L);
+        auto &self = get_self(L);
         auto *ctl = call_c(L, clingo_model_context, self.model);
         lua_pushinteger(L, call_c(L, clingo_solve_control_thread_id, ctl)); // +1
         return 1;
     }
     static int toString(lua_State *L) {
-        auto self = get_self(L);
+        auto &self = get_self(L);
         std::vector<char> *buf = AnyWrap::new_<std::vector<char>>(L); // +1
         auto printSymbol = [buf, L](std::ostream &out, clingo_symbol_t val) {
             auto size = call_c(L, clingo_symbol_to_string_size, val);
@@ -1298,11 +1298,11 @@ struct Model : Object<Model> {
         return 1;
     }
     static int context(lua_State *L) {
-        auto self = get_self(L);
+        auto &self = get_self(L);
         return SolveControl::new_(L, call_c(L, clingo_model_context, self.model));
     }
     static int index(lua_State *L) {
-        auto self = get_self(L);
+        auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
         if (strcmp(name, "cost") == 0) {
             return cost(L);
@@ -1380,12 +1380,12 @@ struct SolveFuture : Object<SolveFuture> {
     clingo_solve_async_t *handle;
     SolveFuture(clingo_solve_async_t *handle) : handle(handle) { }
     static int get(lua_State *L) {
-        auto self = get_self(L);
+        auto &self = get_self(L);
         SolveResult::new_(L, call_c(L, clingo_solve_async_get, self.handle));
         return 1;
     }
     static int wait(lua_State *L) {
-        auto self = get_self(L);
+        auto &self = get_self(L);
         if (lua_isnone(L, 2) == 0) {
             double timeout = luaL_checknumber(L, 2);
             lua_pushboolean(L, call_c(L, clingo_solve_async_wait, self.handle, timeout));
@@ -1415,21 +1415,19 @@ luaL_Reg const SolveFuture::meta[] = {
 
 // {{{1 wrap SolveIter
 
-struct SolveIter {
+struct SolveIter : Object<SolveIter> {
+    clingo_solve_iteratively_t *handle;
+    SolveIter(clingo_solve_iteratively_t *handle) : handle(handle) { }
     static int close(lua_State *L) {
-        Gringo::SolveIter *& iter = *(Gringo::SolveIter **)luaL_checkudata(L, 1, typeName);
-        protect(L, [iter]() { iter->close(); });
+        auto &self = get_self(L);
+        handle_c_error(L, clingo_solve_iteratively_close(self.handle));
         return 0;
     }
     static int next(lua_State *L) {
-        Gringo::SolveIter *& iter = *(Gringo::SolveIter **)luaL_checkudata(L, lua_upvalueindex(1), typeName);
-        Gringo::Model const *m = protect(L, [iter]() { return iter->next(); });
-        if (m) {
-            *(Gringo::Model const **)lua_newuserdata(L, sizeof(Gringo::Model*)) = m;
-            luaL_getmetatable(L, Model::typeName);
-            lua_setmetatable(L, -2);
-        }
-        else   { lua_pushnil(L); }
+        auto handle = static_cast<SolveIter*>(luaL_checkudata(L, lua_upvalueindex(1), SolveIter::typeName))->handle;
+        clingo_model_t *model = call_c(L, clingo_solve_iteratively_next, handle);
+        if (model) { Model::new_(L, model); }
+        else       { lua_pushnil(L); }
         return 1;
     }
     static int iter(lua_State *L) {
@@ -1439,8 +1437,8 @@ struct SolveIter {
         return 1;
     }
     static int get(lua_State *L) {
-        Gringo::SolveIter *& iter = *(Gringo::SolveIter **)luaL_checkudata(L, 1, typeName);
-        SolveResult::new_(L, PROTECT(iter->get()));
+        auto &self = get_self(L);
+        SolveResult::new_(L, call_c(L, clingo_solve_iteratively_get, self.handle));
         return 1;
     }
     static luaL_Reg const meta[];
@@ -2016,10 +2014,7 @@ struct ControlWrap {
         lua_rawset(L, 1);
         int assIdx  = !lua_isnone(L, 2) && !lua_isnil(L, 2) ? 2 : 0;
         Control::Assumptions *ass = getAssumptions(L, assIdx);
-        auto &iter = *(Gringo::SolveIter **)lua_newuserdata(L, sizeof(Gringo::SolveIter*));
-        iter = protect(L, [&ctl, ass]() { return ctl.solveIter(std::move(*ass)); });
-        luaL_getmetatable(L, SolveIter::typeName);
-        lua_setmetatable(L, -2);
+        SolveIter::new_(L, call_c(L, clingo_control_solve_iteratively, &ctl, reinterpret_cast<clingo_symbolic_literal_t const *>(ass->data()), ass->size()));
         return 1;
     }
     static int assign_external(lua_State *L) {
