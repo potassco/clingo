@@ -1455,91 +1455,82 @@ luaL_Reg const SolveIter::meta[] = {
 
 // {{{1 wrap Configuration
 
-struct Configuration {
-    unsigned key;
-    int nSubkeys;
-    int arrLen;
-    int nValues;
-    char const* help;
-    Gringo::ConfigProxy *proxy;
-
-    static int new_(lua_State *L, unsigned key, Gringo::ConfigProxy &proxy) {
-        Configuration &self = *(Configuration*)lua_newuserdata(L, sizeof(Configuration));
-        self.proxy = &proxy;
-        self.key   = key;
-        protect(L, [&self] { self.proxy->getKeyInfo(self.key, &self.nSubkeys, &self.arrLen, &self.help, &self.nValues); });
-        luaL_getmetatable(L, typeName);
-        lua_setmetatable(L, -2);
-        return 1;
-    }
+struct Configuration : Object<Configuration> {
+    clingo_configuration_t *conf;
+    clingo_id_t key;
+    Configuration(clingo_configuration_t *conf, clingo_id_t key) : conf(conf), key(key) { }
 
     static int keys(lua_State *L) {
-        auto &self = *(Configuration *)luaL_checkudata(L, 1, typeName);
-        if (self.nSubkeys < 0) { return 0; }
-        else {
-            lua_createtable(L, self.nSubkeys, 0);
-            for (int i = 0; i < self.nSubkeys; ++i) {
-                char const *key = protect(L, [&self, i] { return self.proxy->getSubKeyName(self.key, i); });
-                lua_pushstring(L, key);
+        auto &self = get_self(L);
+        auto type = call_c(L, clingo_configuration_type, self.conf, self.key);
+        if (type & clingo_configuration_type_map) {
+            size_t size = call_c(L, clingo_configuration_map_size, self.conf, self.key);
+            lua_createtable(L, size, 0);
+            for (size_t i = 0; i < size; ++i) {
+                lua_pushstring(L, call_c(L, clingo_configuration_map_subkey_name, self.conf, self.key, i));
                 lua_rawseti(L, -2, i+1);
             }
-            return 1;
         }
+        return 1;
     }
-
     static int index(lua_State *L) {
-        auto &self = *(Configuration *)luaL_checkudata(L, 1, typeName);
+        auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
-        if (strcmp("keys", name) == 0) { return keys(L); }
+        lua_getmetatable(L, 1);
+        lua_getfield(L, -1, name); // +1
+        if (!lua_isnil(L, -1)) { return 1; }
+        lua_pop(L, 1); // -1
+
+        if (strcmp(name, "keys") == 0) {
+            return keys(L);
+        }
+
         bool desc = strncmp("__desc_", name, 7) == 0;
         if (desc) { name += 7; }
-        bool hasSubKey = PROTECT(self.proxy->hasSubKey(self.key, name));
-        if (hasSubKey) {
-            auto key = PROTECT(self.proxy->getSubKey(self.key, name));
-            new_(L, key, *self.proxy);
-            auto &sub = *(Configuration *)lua_touserdata(L, -1);
+
+        if ((call_c(L, clingo_configuration_type, self.conf, self.key) & clingo_configuration_type_map) &&
+             call_c(L, clingo_configuration_map_has_subkey, self.conf, self.key, name)) {
+            auto subkey = call_c(L, clingo_configuration_map_at, self.conf, self.key, name);
             if (desc) {
-                lua_pushstring(L, sub.help);
+                lua_pushstring(L, call_c(L, clingo_configuration_description, self.conf, subkey)); // +1
                 return 1;
             }
-            else if (sub.nValues < 0) { return 1; }
             else {
-                std::string *value = AnyWrap::new_<std::string>(L);
-                bool ret = PROTECT(sub.proxy->getKeyValue(sub.key, *value));
-                if (ret) {
-                    lua_pushstring(L, value->c_str());
+                if (call_c(L, clingo_configuration_type, self.conf, subkey) & clingo_configuration_type_value) {
+                    if (!call_c(L, clingo_configuration_value_is_assigned, self.conf, subkey)) { lua_pushnil(L); return 1; }
+                    size_t size = call_c(L, clingo_configuration_value_get_size, self.conf, subkey);
+                    char *ret = static_cast<char*>(lua_newuserdata(L, sizeof(*ret) * size)); // +1
+                    handle_c_error(L, clingo_configuration_value_get(self.conf, subkey, ret, size));
+                    lua_pushstring(L, ret); // +1
+                    lua_replace(L, -2); // -1
                     return 1;
                 }
-                return 0;
+                else { return Configuration::new_(L, self.conf, subkey); } // +1
             }
         }
-        lua_getmetatable(L, 1);
-        lua_getfield(L, -1, name);
+
+        lua_pushnil(L); // +1
         return 1;
     }
 
     static int newindex(lua_State *L) {
-        auto &self = *(Configuration *)luaL_checkudata(L, 1, typeName);
-        char const *name = luaL_checkstring(L, 2);
-        bool hasSubKey = protect(L, [self, name] { return self.proxy->hasSubKey(self.key, name); });
-        if (hasSubKey) {
-            auto key = PROTECT(self.proxy->getSubKey(self.key, name));
-            const char *value = lua_tostring(L, 3);
-            protect(L, [self, key, value]() { self.proxy->setKeyValue(key, value); });
-            lua_pushstring(L, value);
-            return 1;
-        }
-        return luaL_error(L, "unknown field: %s", name);
+        auto &self = get_self(L);
+        auto *name = luaL_checkstring(L, 2);
+        auto subkey = call_c(L, clingo_configuration_map_at, self.conf, self.key, name);
+        auto value = lua_tostring(L, 3);
+        handle_c_error(L, clingo_configuration_value_set(self.conf, subkey, value));
+        return 0;
     }
 
     static int next(lua_State *L) {
         auto &self = *(Configuration *)luaL_checkudata(L, lua_upvalueindex(1), typeName);
-        int index = luaL_checkinteger(L, lua_upvalueindex(2));
+        size_t index = luaL_checkinteger(L, lua_upvalueindex(2));
         lua_pushnumber(L, index + 1);
         lua_replace(L, lua_upvalueindex(2));
-        if (index < self.arrLen) {
-            unsigned key = protect(L, [&self, index]() { return self.proxy->getArrKey(self.key, index); });
-            return new_(L, key, *self.proxy);
+        size_t size = call_c(L, clingo_configuration_array_size, self.conf, self.key);
+        if (index < size) {
+            auto key = call_c(L, clingo_configuration_array_at, self.conf, self.key, index);
+            return new_(L, self.conf, key);
         }
         else {
             lua_pushnil(L);
@@ -1556,10 +1547,15 @@ struct Configuration {
     }
 
     static int len(lua_State *L) {
-        auto &self = *(Configuration *)luaL_checkudata(L, 1, typeName);
-        lua_pushnumber(L, self.arrLen);
+        auto &self = get_self(L);
+        size_t n = 0;
+        if (call_c(L, clingo_configuration_type, self.conf, self.key) & clingo_configuration_type_array) {
+            n = call_c(L, clingo_configuration_array_size, self.conf, self.key);
+        }
+        lua_pushnumber(L, n);
         return 1;
     }
+
     static luaL_Reg const meta[];
     static constexpr char const *typeName = "clingo.Configuration";
 };
@@ -2078,13 +2074,9 @@ struct ControlWrap {
         }
         else if (strcmp(name, "configuration") == 0) {
             checkBlocked(L, ctl, "configuration");
-            Gringo::ConfigProxy *proxy;
-            unsigned key;
-            protect(L, [&ctl, &proxy, &key]() -> void {
-                proxy = &ctl.getConf();
-                key   = proxy->getRootKey();
-            });
-            return Configuration::new_(L, key, *proxy);
+            auto conf = call_c(L, clingo_control_configuration, &ctl);
+            auto key = call_c(L, clingo_configuration_root, conf);
+            return Configuration::new_(L, conf, key);
         }
         else if (strcmp(name, "symbolic_atoms") == 0) {
             checkBlocked(L, ctl, "symbolic_atoms");
