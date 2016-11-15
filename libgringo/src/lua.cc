@@ -1786,38 +1786,38 @@ luaL_Reg const Backend::meta[] = {
 
 struct PropagateInit : Object<PropagateInit> {
     lua_State *T;
-    Gringo::PropagateInit *init;
-    PropagateInit(lua_State *T, Gringo::PropagateInit *init) : T(T), init(init) { }
+    clingo_propagate_init_t *init;
+    PropagateInit(lua_State *T, clingo_propagate_init_t *init) : T(T), init(init) { }
 
     static int mapLit(lua_State *L) {
         auto &self = get_self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushnumber(L, protect(L, [self, lit]() { return self.init->mapLit(lit); }));
+        lua_pushnumber(L, call_c(L, clingo_propagate_init_solver_literal, self.init, lit));
         return 1;
     }
 
     static int numThreads(lua_State *L) {
         auto &self = get_self(L);
-        lua_pushnumber(L, protect(L, [self]() { return self.init->threads(); }));
+        lua_pushnumber(L, clingo_propagate_init_number_of_threads(self.init));
         return 1;
     }
     static int addWatch(lua_State *L) {
         auto &self = get_self(L);
         int lit = luaL_checkinteger(L, 2);
-        protect(L, [self, lit]() { self.init->addWatch(lit); });
+        handle_c_error(L, clingo_propagate_init_add_watch(self.init, lit));
         return 0;
     }
 
     static int index(lua_State *L) {
         auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
-        if (strcmp(name, "theory_atoms")   == 0) { return TheoryIter::iter(L, const_cast<Gringo::TheoryData*>(&self.init->theory())); }
-        else if (strcmp(name, "symbolic_atoms") == 0) { return SymbolicAtoms::new_(L, &self.init->getDomain()); }
+        if (strcmp(name, "theory_atoms")   == 0) { return TheoryIter::iter(L, call_c(L, clingo_propagate_init_theory_atoms, self.init)); }
+        else if (strcmp(name, "symbolic_atoms") == 0) { return SymbolicAtoms::new_(L, call_c(L, clingo_propagate_init_symbolic_atoms, self.init)); }
         else if (strcmp(name, "number_of_threads") == 0) { return numThreads(L); }
         else {
             lua_getmetatable(L, 1);
             lua_getfield(L, -1, name);
-            return !lua_isnil(L, -1) ? 1 : luaL_error(L, "unknown field: %s", name);
+            return 1;
         }
     }
 
