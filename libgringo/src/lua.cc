@@ -226,7 +226,7 @@ static int luaPushKwArg(lua_State *L, int index, int pos, char const *name, bool
 template <class T, class U>
 void luaToCpp(lua_State *L, int index, std::pair<T, U> &x);
 
-void luaToCpp(lua_State *L, int index, Potassco::WeightLit_t &x);
+void luaToCpp(lua_State *L, int index, clingo_weighted_literal_t &x);
 
 template <class T>
 void luaToCpp(lua_State *L, int index, std::vector<T> &x);
@@ -298,8 +298,8 @@ void luaToCpp(lua_State *L, int index, clingo_symbolic_literal_t &x) {
     luaToCpp(L, index, p);
 }
 
-void luaToCpp(lua_State *L, int index, Potassco::WeightLit_t &x) {
-    std::pair<Potassco::Lit_t&, Potassco::Weight_t&> y{x.lit, x.weight};
+void luaToCpp(lua_State *L, int index, clingo_weighted_literal_t &x) {
+    std::pair<clingo_literal_t&, clingo_weight_t&> y{x.literal, x.weight};
     luaToCpp(L, index, y);
 }
 
@@ -1717,64 +1717,59 @@ luaL_Reg const SymbolicAtoms::meta[] = {
 
 // {{{1 wrap wrap Backend
 struct Backend : Object<Backend> {
-    Gringo::Control &ctl;
-    Gringo::Backend &backend;
+    clingo_backend_t *backend;
 
-    Backend(Gringo::Control &ctl, Gringo::Backend &backend) : ctl(ctl), backend(backend) { }
+    Backend(clingo_backend_t *backend) : backend(backend) { }
 
     static constexpr const char *typeName = "clingo.Backend";
     static luaL_Reg const meta[];
 
     static int addAtom(lua_State *L) {
-        auto &self = get_self(L);
-        auto atom = protect(L, [self](){ return self.ctl.addProgramAtom(); });
-        lua_pushinteger(L, atom);
+        lua_pushinteger(L, call_c(L, clingo_backend_add_atom, get_self(L).backend));
         return 1;
     }
 
     static int addRule(lua_State *L) {
         auto &self = get_self(L);
-        auto *head = AnyWrap::new_<Gringo::BackendAtomVec>(L);
-        auto *body = AnyWrap::new_<Gringo::BackendLitVec>(L);
+        auto *head = AnyWrap::new_<std::vector<clingo_atom_t>>(L);    // +1
+        auto *body = AnyWrap::new_<std::vector<clingo_literal_t>>(L); // +1
         bool choice = false;
         luaL_checktype(L, 2, LUA_TTABLE);
-        luaPushKwArg(L, 2, 1, "head", false);
+        luaPushKwArg(L, 2, 1, "head", false);                         // +1
         luaToCpp(L, -1, *head);
-        lua_pop(L, 1);
-        luaPushKwArg(L, 2, 2, "body", true);
+        lua_pop(L, 1);                                                // -1
+        luaPushKwArg(L, 2, 2, "body", true);                          // +1
         if (!lua_isnil(L, -1)) { luaToCpp(L, -1, *body); }
+        lua_pop(L, 1);                                                // -1
+        luaPushKwArg(L, 2, 3, "choice", true);                        // +1
+        luaToCpp(L, -1, choice);                                      // -1
         lua_pop(L, 1);
-        luaPushKwArg(L, 2, 3, "choice", true);
-        luaToCpp(L, -1, choice);
-        lua_pop(L, 1);
-        protect(L, [self, choice, head, body](){
-            Gringo::outputRule(self.backend, choice, *head, *body);
-        });
+        handle_c_error(L, clingo_backend_rule(self.backend, choice, head->data(), head->size(), body->data(), body->size()));
+        lua_pop(L, 2);                                                // -2
         return 0;
     }
 
     static int addWeightRule(lua_State *L) {
         auto &self = get_self(L);
-        auto *head = AnyWrap::new_<Gringo::BackendAtomVec>(L);
+        auto *head = AnyWrap::new_<std::vector<clingo_atom_t>>(L);             // +1
         Weight_t lower;
-        auto *body = AnyWrap::new_<Gringo::BackendLitWeightVec>(L);
+        auto *body = AnyWrap::new_<std::vector<clingo_weighted_literal_t>>(L); // +1
         bool choice = false;
         luaL_checktype(L, 2, LUA_TTABLE);
-        luaPushKwArg(L, 2, 1, "head", false);
+        luaPushKwArg(L, 2, 1, "head", false);                                  // +1
         luaToCpp(L, -1, *head);
-        lua_pop(L, 1);
-        luaPushKwArg(L, 2, 2, "lower", false);
+        lua_pop(L, 1);                                                         // -1
+        luaPushKwArg(L, 2, 2, "lower", false);                                 // +1
         luaToCpp(L, -1, lower);
-        lua_pop(L, 1);
-        luaPushKwArg(L, 2, 3, "body", false);
+        lua_pop(L, 1);                                                         // -1
+        luaPushKwArg(L, 2, 3, "body", false);                                  // +1
         luaToCpp(L, -1, *body);
-        lua_pop(L, 1);
-        luaPushKwArg(L, 2, 4, "choice", true);
+        lua_pop(L, 1);                                                         // -1
+        luaPushKwArg(L, 2, 4, "choice", true);                                 // +1
         luaToCpp(L, -1, choice);
-        lua_pop(L, 1);
-        protect(L, [self, choice, head, lower, body](){
-            Gringo::outputRule(self.backend, choice, *head, lower, *body);
-        });
+        lua_pop(L, 1);                                                         // -1
+        handle_c_error(L, clingo_backend_weight_rule(self.backend, choice, head->data(), head->size(), lower, body->data(), body->size()));
+        lua_pop(L, 2);                                                         // -2
         return 0;
     }
 };
@@ -2066,9 +2061,9 @@ struct ControlWrap {
         }
         else if (strcmp(name, "backend") == 0) {
             checkBlocked(L, ctl, "backend");
-            auto *backend = protect(L, [&ctl](){ return ctl.backend(); });
+            auto backend = call_c(L, clingo_control_backend, &ctl);
             if (!backend) { return luaL_error(L, "backend not available"); }
-            return Backend::new_(L, ctl, *backend);
+            return Backend::new_(L, backend);
         }
         else {
             lua_getmetatable(L, 1);
