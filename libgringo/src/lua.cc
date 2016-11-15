@@ -153,7 +153,7 @@ Any make_any(Args&&... args) {
 struct AnyWrap {
     template <typename T, typename... Args>
     static T *new_(lua_State *L, Args&&... args) {
-        void *data = lua_newuserdata(L, sizeof(Gringo::Any));
+        auto *data = lua_newuserdata(L, sizeof(Gringo::Any));
         auto *any = new (data) Any();
         luaL_getmetatable(L, typeName);
         lua_setmetatable(L, -2);
@@ -1376,27 +1376,29 @@ int newStatistics(lua_State *L, clingo_statistics_t *stats, uint64_t key) {
 
 // {{{1 wrap SolveFuture
 
-struct SolveFuture {
+struct SolveFuture : Object<SolveFuture> {
+    clingo_solve_async_t *handle;
+    SolveFuture(clingo_solve_async_t *handle) : handle(handle) { }
     static int get(lua_State *L) {
-        Gringo::SolveFuture *& future = *(Gringo::SolveFuture **)luaL_checkudata(L, 1, typeName);
-        SolveResult::new_(L, protect(L, [future]() { return (clingo_solve_result_bitset_t)future->get(); }));
+        auto self = get_self(L);
+        SolveResult::new_(L, call_c(L, clingo_solve_async_get, self.handle));
         return 1;
     }
     static int wait(lua_State *L) {
-        Gringo::SolveFuture *& future = *(Gringo::SolveFuture **)luaL_checkudata(L, 1, typeName);
+        auto self = get_self(L);
         if (lua_isnone(L, 2) == 0) {
             double timeout = luaL_checknumber(L, 2);
-            lua_pushboolean(L, protect(L, [future, timeout]() { return future->wait(timeout); }));
+            lua_pushboolean(L, call_c(L, clingo_solve_async_wait, self.handle, timeout));
             return 1;
         }
         else {
-            protect(L, [future]() { future->wait(); });
+            call_c(L, clingo_solve_async_get, self.handle);
             return 0;
         }
     }
     static int cancel(lua_State *L) {
-        Gringo::SolveFuture *& future = *(Gringo::SolveFuture **)luaL_checkudata(L, 1, typeName);
-        protect(L, [future]() { future->cancel(); });
+        auto self = get_self(L);
+        handle_c_error(L, clingo_solve_async_cancel(self.handle));
         return 0;
     }
     static luaL_Reg const meta[];
