@@ -1848,70 +1848,61 @@ luaL_Reg const PropagateInit::meta[] = {
 // {{{1 wrap Assignment
 
 struct Assignment : Object<Assignment> {
-    Assignment(Potassco::AbstractAssignment const *ass) : ass(*ass) { }
-    Potassco::AbstractAssignment const &ass;
+    clingo_assignment_t *ass;
+    Assignment(clingo_assignment_t *ass) : ass(ass) { }
 
     static int hasConflict(lua_State *L) {
-        auto &self = get_self(L);
-        lua_pushboolean(L, protect(L, [self]() { return self.ass.hasConflict(); }));
+        lua_pushboolean(L, clingo_assignment_has_conflict(get_self(L).ass));
         return 1;
     }
 
     static int decisionLevel(lua_State *L) {
-        auto &self = get_self(L);
-        lua_pushinteger(L, protect(L, [self]() { return self.ass.level(); }));
+        lua_pushinteger(L, clingo_assignment_decision_level(get_self(L).ass));
         return 1;
     }
 
     static int hasLit(lua_State *L) {
-        auto &self = get_self(L);
-        int lit = luaL_checkinteger(L, 2);
-        lua_pushboolean(L, protect(L, [self,lit]() { return self.ass.hasLit(lit); }));
+        auto lit = luaL_checkinteger(L, 2);
+        lua_pushboolean(L, clingo_assignment_has_literal(get_self(L).ass, lit));
         return 1;
     }
 
     static int level(lua_State *L) {
-        auto &self = get_self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushinteger(L, protect(L, [self,lit]() { return self.ass.level(lit); }));
+        lua_pushinteger(L, call_c(L, clingo_assignment_level, get_self(L).ass, lit));
         return 1;
     }
 
     static int decision(lua_State *L) {
-        auto &self = get_self(L);
         int level = luaL_checkinteger(L, 2);
-        lua_pushinteger(L, protect(L, [self,level]() { return self.ass.decision(level); }));
+        lua_pushinteger(L, call_c(L, clingo_assignment_decision, get_self(L).ass, level));
         return 1;
     }
 
     static int isFixed(lua_State *L) {
-        auto &self = get_self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushboolean(L, protect(L, [self,lit]() { return self.ass.isFixed(lit); }));
+        lua_pushboolean(L, call_c(L, clingo_assignment_is_fixed, get_self(L).ass, lit));
         return 1;
     }
 
     static int isTrue(lua_State *L) {
-        auto &self = get_self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushboolean(L, protect(L, [self,lit]() { return self.ass.isTrue(lit); }));
+        lua_pushboolean(L, call_c(L, clingo_assignment_is_true, get_self(L).ass, lit));
         return 1;
     }
 
     static int value(lua_State *L) {
         auto &self = get_self(L);
         int lit = luaL_checkinteger(L, 2);
-        auto val = protect(L, [self, lit]() { return self.ass.value(lit); });
-        if (val == Potassco::Value_t::Free) { lua_pushnil(L); }
-        else { lua_pushboolean(L, val == Potassco::Value_t::True); }
-        lua_pushboolean(L, val);
+        auto val = call_c(L, clingo_assignment_truth_value, self.ass, lit);
+        if (val == clingo_truth_value_free) { lua_pushnil(L); }
+        else { lua_pushboolean(L, val == clingo_truth_value_true); }
         return 1;
     }
 
     static int isFalse(lua_State *L) {
-        auto &self = get_self(L);
         int lit = luaL_checkinteger(L, 2);
-        lua_pushboolean(L, protect(L, [self,lit]() { return self.ass.isFalse(lit); }));
+        lua_pushboolean(L, call_c(L, clingo_assignment_is_false, get_self(L).ass, lit));
         return 1;
     }
 
@@ -1922,7 +1913,7 @@ struct Assignment : Object<Assignment> {
         else {
             lua_getmetatable(L, 1);
             lua_getfield(L, -1, name);
-            return !lua_isnil(L, -1) ? 1 : luaL_error(L, "unknown field: %s", name);
+            return 1;
         }
     }
 
@@ -1956,7 +1947,7 @@ struct PropagateControl : Object<PropagateControl> {
 
     static int assignment(lua_State *L) {
         auto &self = get_self(L);
-        Assignment::new_(L, protect(L, [self]() { return &self.ctl->assignment(); }));
+        Assignment::new_(L, clingo_propagate_control_assignment(reinterpret_cast<clingo_propagate_control_t*>(self.ctl)));
         return 1;
     }
 
@@ -2039,8 +2030,8 @@ struct PropagateControl : Object<PropagateControl> {
 
     static int index(lua_State *L) {
         char const *name = luaL_checkstring(L, 2);
-        if (strcmp(name, "thread_id")   == 0) { return id(L); }
-        if (strcmp(name, "assignment")   == 0) { return assignment(L); }
+        if (strcmp(name, "thread_id") == 0) { return id(L); }
+        if (strcmp(name, "assignment") == 0) { return assignment(L); }
         else {
             lua_getmetatable(L, 1);
             lua_getfield(L, -1, name);
@@ -2161,7 +2152,7 @@ public:
         if (!lua_isnil(L, -1)) {
             lua_insert(L, -2);
             lua_pushnumber(L, solver->id() + 1);         // +1
-            Assignment::new_(L, &solver->assignment());  // +1
+            Assignment::new_(L, reinterpret_cast<clingo_assignment_t*>(const_cast<Potassco::AbstractAssignment*>(&solver->assignment())));  // +1
             getChanges(L, changes);                      // +1
             getState(L, self->T, solver->id());          // +1
             lua_call(L, 5, 0);                           // -6
