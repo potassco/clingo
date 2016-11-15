@@ -1110,16 +1110,17 @@ int luaCall(lua_State *L) {
 
 // {{{1 wrap SolveControl
 
-struct SolveControl {
+struct SolveControl : Object<SolveControl> {
+    clingo_solve_control_t *ctl;
+    SolveControl(clingo_solve_control_t *ctl) : ctl(ctl) { }
     static int getClause(lua_State *L, bool invert) {
-        clingo_model_t *& model =  *static_cast<clingo_model_t **>(luaL_checkudata(L, 1, typeName));
-        clingo_solve_control_t *ctl = call_c(L, clingo_model_context, model);
+        auto self = get_self(L);
         std::vector<clingo_symbolic_literal_t> *lits = AnyWrap::new_<std::vector<clingo_symbolic_literal_t>>(L); // +1
         luaToCpp(L, 2, *lits);
         if (invert) {
             for (auto &lit : *lits) { lit.positive = !lit.positive; }
         }
-        handle_c_error(L, clingo_solve_control_add_clause(ctl, lits->data(), lits->size()));
+        handle_c_error(L, clingo_solve_control_add_clause(self.ctl, lits->data(), lits->size()));
         lua_pop(L, 1); // -1
         return 0;
     }
@@ -1152,7 +1153,7 @@ struct ModelType : Object<ModelType> {
     static int addToRegistry(lua_State *L) {
         lua_createtable(L, 0, 6);
         for (auto t : { clingo_model_type_stable_model, clingo_model_type_brave_consequences, clingo_model_type_cautious_consequences }) {
-            new_(L, t);
+            Object::new_(L, t);
             lua_setfield(L, -2, field_(t));
         }
         lua_setfield(L, -2, "ModelType");
@@ -1192,16 +1193,18 @@ luaL_Reg const ModelType::meta[] = {
     { nullptr, nullptr }
 };
 
-struct Model {
+struct Model : Object<Model> {
+    clingo_model_t *model;
+    Model(clingo_model_t *model) : model(model) { }
     static int contains(lua_State *L) {
-        Gringo::Model const *& model =  *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
-        Symbol val = Symbol{luaToVal(L, 2)};
-        lua_pushboolean(L, protect(L, [val, model]() { return model->contains(val); }));
+        auto self = get_self(L);
+        clingo_symbol_t sym = luaToVal(L, 2);
+        lua_pushboolean(L, call_c(L, clingo_model_contains, self.model, sym));
         return 1;
     }
     static int atoms(lua_State *L) {
-        Gringo::Model const *& model = *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
-        unsigned atomset = 0;
+        auto self = get_self(L);
+        clingo_show_type_bitset_t atomset = 0;
         luaL_checktype(L, 2, LUA_TTABLE);
         lua_getfield(L, 2, "atoms");
         if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_atoms; }
@@ -1221,61 +1224,82 @@ struct Model {
         lua_getfield(L, 2, "complement");
         if (lua_toboolean(L, -1)) { atomset |= clingo_show_type_complement; }
         lua_pop(L, 1);
-        SymSpan atoms = protect(L, [&model, atomset]() { return model->atoms(atomset); });
-        lua_createtable(L, atoms.size, 0);
+        auto size = call_c(L, clingo_model_symbols_size, self.model, atomset);
+        clingo_symbol_t *symbols = static_cast<clingo_symbol_t *>(lua_newuserdata(L, size * sizeof(*symbols))); // +1
+        handle_c_error(L, clingo_model_symbols(self.model, atomset, symbols, size));
+        lua_createtable(L, size, 0); // +1
         int i = 1;
-        for (auto x : atoms) {
-            Term::new_(L, x.rep());
-            lua_rawseti(L, -2, i++);
+        for (auto it = symbols, ie = it + size; it != ie; ++it) {
+            Term::new_(L, *it);      // +1
+            lua_rawseti(L, -2, i++); // -1
         }
+        lua_replace(L, -2); // -1
         return 1;
     }
     static int cost(lua_State *L) {
-        Gringo::Model const *& model = *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
-        Int64Vec *values = AnyWrap::new_<Int64Vec>(L);
-        protect(L, [&model, values]() { *values = model->optimization(); });
-        lua_createtable(L, values->size(), 0);
+        auto self = get_self(L);
+        auto size = call_c(L, clingo_model_cost_size, self.model);
+        int64_t *costs = static_cast<int64_t *>(lua_newuserdata(L, size * sizeof(*costs))); // +1
+        handle_c_error(L, clingo_model_cost(self.model, costs, size));
+        lua_createtable(L, size, 0); // +1
         int i = 1;
-        for (auto x : *values) {
-            lua_pushinteger(L, x);
-            lua_rawseti(L, -2, i++);
+        for (auto it = costs, ie = it + size; it != ie; ++it) {
+            lua_pushinteger(L, *it); // +1
+            lua_rawseti(L, -2, i++); // -1
         }
+        lua_replace(L, -2); // -1
         return 1;
     }
     static int thread_id(lua_State *L) {
-        Gringo::Model const *& model = *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
-        clingo_id_t id;
-        protect(L, [&model, &id]() { id = model->threadId() + 1; });
-        lua_pushinteger(L, id);
+        auto self = get_self(L);
+        auto *ctl = call_c(L, clingo_model_context, self.model);
+        lua_pushinteger(L, call_c(L, clingo_solve_control_thread_id, ctl)); // +1
         return 1;
     }
     static int toString(lua_State *L) {
-        Gringo::Model const *& model =  *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
-        std::string *rep = AnyWrap::new_<std::string>(L);
-        lua_pushstring(L, protect(L, [model, rep]() {
-            auto printAtom = [](std::ostream &out, Symbol val) {
-                auto sig = val.sig();
-                if (static_cast<enum clingo_symbol_type>(val.type()) == clingo_symbol_type_function && sig.name() == "$" && sig.arity() == 2 && !sig.sign()) {
-                    auto args = val.args().first;
-                    out << args[0] << "=" << args[1];
+        auto self = get_self(L);
+        std::vector<char> *buf = AnyWrap::new_<std::vector<char>>(L); // +1
+        auto printSymbol = [buf, L](std::ostream &out, clingo_symbol_t val) {
+            auto size = call_c(L, clingo_symbol_to_string_size, val);
+            PROTECT(buf->resize(size));
+            handle_c_error(L, clingo_symbol_to_string(val, buf->data(), size));
+            PROTECT((out << buf->data(), 0));
+        };
+        auto printAtom = [L, printSymbol](std::ostream &out, clingo_symbol_t val) {
+            if (clingo_symbol_type_function == clingo_symbol_type(val)) {
+                auto name = call_c(L, clingo_symbol_name, val);
+                auto args = call_c(L, clingo_symbol_arguments, val);
+                if (args.second == 2 && strcmp(name, "$") == 0) {
+                    printSymbol(out, args.first[0]);
+                    out << "=";
+                    printSymbol(out, args.first[1]);
                 }
-                else { out << val; }
-            };
-            std::ostringstream oss;
-            print_comma(oss, model->atoms(clingo_show_type_shown), " ", printAtom);
-            *rep = oss.str();
-            return rep->c_str();
-        }));
+                else { printSymbol(out, val); }
+            }
+            else { printSymbol(out, val); }
+        };
+        std::ostringstream *oss = AnyWrap::new_<std::ostringstream>(L); // +1
+        auto size = call_c(L, clingo_model_symbols_size, self.model, clingo_show_type_shown);
+        clingo_symbol_t *symbols = static_cast<clingo_symbol_t *>(lua_newuserdata(L, size * sizeof(*symbols))); // +1
+        handle_c_error(L, clingo_model_symbols(self.model, clingo_show_type_shown, symbols, size));
+        bool comma = false;
+        for (auto it = symbols, ie = it + size; it != ie; ++it) {
+            if (comma) { *oss << " "; }
+            else       { comma = true; }
+            printAtom(*oss, *it);
+        }
+        std::string *str = AnyWrap::new_<std::string>(L); // +1
+        lua_pushstring(L, PROTECT((*str = oss->str(), str->c_str()))); // +1
+        lua_replace(L, -5); // -1
+        lua_pop(L, 3); // -3
         return 1;
     }
     static int context(lua_State *L) {
-        auto &model = *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
-        *(Gringo::Model const **)lua_newuserdata(L, sizeof(Gringo::Model*)) = model;
-        luaL_getmetatable(L, SolveControl::typeName);
-        lua_setmetatable(L, -2);
-        return 1;
+        auto self = get_self(L);
+        return SolveControl::new_(L, call_c(L, clingo_model_context, self.model));
     }
     static int index(lua_State *L) {
+        auto self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
         if (strcmp(name, "cost") == 0) {
             return cost(L);
@@ -1287,18 +1311,15 @@ struct Model {
             return thread_id(L);
         }
         else if (strcmp(name, "number") == 0) {
-            Gringo::Model const *& model = *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
-            lua_pushnumber(L, protect(L, [model]() { return model->number(); }));
+            lua_pushnumber(L, call_c(L, clingo_model_number, self.model));
             return 1;
         }
         else if (strcmp(name, "optimality_proven") == 0) {
-            Gringo::Model const *& model = *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
-            lua_pushboolean(L, protect(L, [model]() { return model->optimality_proven(); }));
+            lua_pushboolean(L, call_c(L, clingo_model_optimality_proven, self.model));
             return 1;
         }
         else if (strcmp(name, "type") == 0) {
-            Gringo::Model const *& model = *(Gringo::Model const **)luaL_checkudata(L, 1, typeName);
-            return ModelType::new_(L, protect(L, [model]() { return static_cast<clingo_model_type_t>(model->type()); }));
+            return ModelType::new_(L, call_c(L, clingo_model_type, self.model));
         }
         else {
             lua_getmetatable(L, 1);
@@ -2971,10 +2992,10 @@ int luaopen_clingo(lua_State* L) {
         {nullptr, nullptr}
     };
 
-    lua_regMeta(L, Term::typeName,           Term::meta, Term::index);
-    lua_regMeta(L, SymbolType::typeName,     SymbolType::meta);
-    lua_regMeta(L, Model::typeName,          Model::meta, Model::index);
-    lua_regMeta(L, SolveControl::typeName,   SolveControl::meta);
+    Term::reg(L);
+    SymbolType::reg(L);
+    Model::reg(L);
+    SolveControl::reg(L);
     lua_regMeta(L, SolveFuture::typeName,    SolveFuture::meta);
     lua_regMeta(L, SolveIter::typeName,      SolveIter::meta);
     lua_regMeta(L, ControlWrap::typeName,    ControlWrap::meta, ControlWrap::index, ControlWrap::newindex);
@@ -2983,9 +3004,9 @@ int luaopen_clingo(lua_State* L) {
     lua_regMeta(L, SymbolicAtoms::typeName,  SymbolicAtoms::meta, SymbolicAtoms::index);
     lua_regMeta(L, SymbolicAtom::typeName,   SymbolicAtom::meta, SymbolicAtom::index);
     lua_regMeta(L, AnyWrap::typeName,        AnyWrap::meta);
-    lua_regMeta(L, TheoryTermType::typeName, TheoryTermType::meta);
+    TheoryTermType::reg(L);
     lua_regMeta(L, TruthValue::typeName,     TruthValue::meta);
-    lua_regMeta(L, ModelType::typeName,      ModelType::meta);
+    ModelType::reg(L);
     lua_regMeta(L, HeuristicType::typeName,  HeuristicType::meta);
     TheoryTerm::reg(L);
     TheoryElement::reg(L);

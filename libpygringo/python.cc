@@ -2004,7 +2004,7 @@ places like - e.g., the main function.)";
                 size_t size;
                 handle_c_error(clingo_symbol_name(val, &name));
                 handle_c_error(clingo_symbol_arguments(val, &args, &size));
-                if (size == 2) {
+                if (size == 2 && strcmp(name, "$") == 0) {
                     printSymbol(out, args[0]);
                     out << "=";
                     printSymbol(out, args[1]);
