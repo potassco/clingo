@@ -240,6 +240,16 @@ void luaToCpp(lua_State *L, int index, T &x, typename std::enable_if<std::is_int
     x = lua_tonumber(L, index);
 }
 
+struct symbol_wrapper {
+    clingo_symbol_t symbol;
+};
+
+void luaToCpp(lua_State *L, int index, symbol_wrapper &x) {
+    x.symbol = luaToVal(L, index);
+}
+
+void luaToCpp(lua_State *L, int index, clingo_symbolic_literal_t &x);
+
 template <class T>
 void luaToCpp(lua_State *L, int index, std::vector<T> &x) {
     index = lua_absindex(L, index);
@@ -278,6 +288,11 @@ void luaToCpp(lua_State *L, int index, std::pair<T, U> &x) {
     if (lua_next(L, index) != 0) {
         luaL_error(L, "tuple expected");
     }
+}
+
+void luaToCpp(lua_State *L, int index, clingo_symbolic_literal_t &x) {
+    std::pair<symbol_wrapper&, bool&> p{reinterpret_cast<symbol_wrapper&>(x.symbol), x.positive};
+    luaToCpp(L, index, p);
 }
 
 void luaToCpp(lua_State *L, int index, Potassco::WeightLit_t &x) {
@@ -1097,24 +1112,15 @@ int luaCall(lua_State *L) {
 
 struct SolveControl {
     static int getClause(lua_State *L, bool invert) {
-        Model const *& model =  *(Model const **)luaL_checkudata(L, 1, typeName);
-        Gringo::Model::LitVec *lits = AnyWrap::new_<Gringo::Model::LitVec>(L);
-        luaL_checktype(L, 2, LUA_TTABLE);
-        lua_pushnil(L);
-        while (lua_next(L, 2)) {
-            luaL_checktype(L, -1, LUA_TTABLE);
-            lua_pushnil(L);
-            if (!lua_next(L, -2)) { luaL_error(L, "atom/boolean pair expected"); }
-            Symbol atom = Symbol{luaToVal(L, -1)};
-            lua_pop(L, 1);
-            if (!lua_next(L, -2)) { luaL_error(L, "atom/boolean pair expected"); }
-            bool truth = lua_toboolean(L, -1);
-            lua_pop(L, 1);
-            if (lua_next(L, -2)) { luaL_error(L, "atom/boolean pair expected"); }
-            protect(L, [invert, atom, truth, lits](){ lits->emplace_back(atom, truth ^ invert); });
-            lua_pop(L, 1);
+        clingo_model_t *& model =  *static_cast<clingo_model_t **>(luaL_checkudata(L, 1, typeName));
+        clingo_solve_control_t *ctl = call_c(L, clingo_model_context, model);
+        std::vector<clingo_symbolic_literal_t> *lits = AnyWrap::new_<std::vector<clingo_symbolic_literal_t>>(L); // +1
+        luaToCpp(L, 2, *lits);
+        if (invert) {
+            for (auto &lit : *lits) { lit.positive = !lit.positive; }
         }
-        protect(L, [model, lits](){ model->addClause(*lits); });
+        handle_c_error(L, clingo_solve_control_add_clause(ctl, lits->data(), lits->size()));
+        lua_pop(L, 1); // -1
         return 0;
     }
     static int add_clause(lua_State *L) {
