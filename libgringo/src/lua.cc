@@ -115,16 +115,14 @@ struct Any {
     };
     template <class T>
     struct Holder : public PlaceHolder {
-        Holder(T const &value) : value(value) { }
-        Holder(T&& value) : value(std::forward<T>(value)) { }
+        template <typename... Args>
+        Holder(Args&&... args) : value(std::forward<Args>(args)...) { }
         T value;
     };
     Any() : content(nullptr) { }
     Any(Any &&other) : content(nullptr) { std::swap(content, other.content); }
-    template<typename T>
-    Any(T const &value) : content(new Holder<T>(value)) { }
-    template<typename T>
-    Any(T &&value) : content(new Holder<typename std::remove_reference<T>::type>(std::forward<T>(value))) { }
+    template<typename T, typename... Args>
+    Any(T*, Args&&... args) : content(new Holder<T>(std::forward<T>(args)...)) { }
     ~Any() { delete content; }
 
     Any &operator=(Any &&other) {
@@ -147,15 +145,20 @@ struct Any {
     PlaceHolder *content = nullptr;
 };
 
+template <typename T, typename... Args>
+Any make_any(Args&&... args) {
+    return Any(static_cast<T*>(nullptr), std::forward<Args>(args)...);
+}
+
 struct AnyWrap {
-    template <class T, class... Args>
-    static T *new_(lua_State *L, Args... args) {
+    template <typename T, typename... Args>
+    static T *new_(lua_State *L, Args&&... args) {
         void *data = lua_newuserdata(L, sizeof(Gringo::Any));
-        Gringo::Any *ret = new (data) Any();
+        auto *any = new (data) Any();
         luaL_getmetatable(L, typeName);
         lua_setmetatable(L, -2);
-        protect(L, [&] { *ret = Any(T(std::forward<Args>(args)...)) ; });
-        return ret->get<T>();
+        PROTECT((*any = make_any<T>(std::forward<Args>(args)...), 0));
+        return any->get<T>();
     }
     template <class T>
     static T *get(lua_State *L, int index) {
