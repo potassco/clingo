@@ -2344,7 +2344,7 @@ Expected Answer Sets:
                     if (type & clingo_configuration_type_value) {
                         bool assigned;
                         handle_c_error(clingo_configuration_value_is_assigned(conf, subkey, &assigned));
-                        if (!assigned) { Py_RETURN_TRUE; }
+                        if (!assigned) { Py_RETURN_NONE; }
                         size_t size;
                         handle_c_error(clingo_configuration_value_get_size(conf, subkey, &size));
                         std::vector<char> ret(size);
