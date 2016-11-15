@@ -1618,17 +1618,11 @@ luaL_Reg const SymbolicAtom::meta[] = {
 
 // {{{1 wrap SymbolicAtoms
 
-struct SymbolicAtoms {
-    Gringo::SymbolicAtoms &atoms;
+struct SymbolicAtoms : Object<SymbolicAtoms> {
+    clingo_symbolic_atoms_t *atoms;
     static luaL_Reg const meta[];
-
-    SymbolicAtoms(Gringo::SymbolicAtoms &atoms) : atoms(atoms) { }
-
     static constexpr const char *typeName = "clingo.SymbolicAtoms";
-
-    static SymbolicAtoms &get_self(lua_State *L) {
-        return *(SymbolicAtoms*)luaL_checkudata(L, 1, typeName);
-    }
+    SymbolicAtoms(clingo_symbolic_atoms_t *atoms) : atoms(atoms) { }
 
     static int symbolicAtomIter(lua_State *L) {
         auto current = static_cast<SymbolicAtom *>(luaL_checkudata(L, lua_upvalueindex(1), SymbolicAtom::typeName));
@@ -1642,25 +1636,16 @@ struct SymbolicAtoms {
         return 1;
     }
 
-    static int new_(lua_State *L, Gringo::SymbolicAtoms &atoms) {
-        auto self = (SymbolicAtoms*)lua_newuserdata(L, sizeof(SymbolicAtoms));
-        new (self) SymbolicAtoms(atoms);
-        luaL_getmetatable(L, typeName);
-        lua_setmetatable(L, -2);
-        return 1;
-    }
-
     static int len(lua_State *L) {
         auto &self = get_self(L);
-        int ret = protect(L, [&self]() { return self.atoms.length(); });
-        lua_pushinteger(L, ret);
+        lua_pushinteger(L, call_c(L, clingo_symbolic_atoms_size, self.atoms));
         return 1;
     }
 
     static int iter(lua_State *L) {
         auto &self = get_self(L);
-        auto range = call_c(L, clingo_symbolic_atoms_begin, &self.atoms, nullptr);
-        SymbolicAtom::new_(L, &self.atoms, range); // +1
+        auto range = call_c(L, clingo_symbolic_atoms_begin, self.atoms, nullptr);
+        SymbolicAtom::new_(L, self.atoms, range); // +1
         lua_pushcclosure(L, symbolicAtomIter, 1); // +0
         return 1;
     }
@@ -1668,9 +1653,9 @@ struct SymbolicAtoms {
     static int lookup(lua_State *L) {
         auto &self = get_self(L);
         auto atom = luaToVal(L, 2);
-        auto range = call_c(L, clingo_symbolic_atoms_find, &self.atoms, atom);
-        if (call_c(L, clingo_symbolic_atoms_is_valid, &self.atoms, range)) {
-            SymbolicAtom::new_(L, &self.atoms, range); // +1
+        auto range = call_c(L, clingo_symbolic_atoms_find, self.atoms, atom);
+        if (call_c(L, clingo_symbolic_atoms_is_valid, self.atoms, range)) {
+            SymbolicAtom::new_(L, self.atoms, range); // +1
         }
         else { lua_pushnil(L); } // +1
         return 1;
@@ -1682,30 +1667,31 @@ struct SymbolicAtoms {
         int arity = luaL_checkinteger(L, 3);
         bool positive = lua_isnone(L, 4) || lua_toboolean(L, 4);
         clingo_signature_t sig = call_c(L, clingo_signature_create, name, arity, positive);
-        auto range = call_c(L, clingo_symbolic_atoms_begin, &self.atoms, &sig);
-        SymbolicAtom::new_(L, &self.atoms, range); // +1
+        auto range = call_c(L, clingo_symbolic_atoms_begin, self.atoms, &sig);
+        SymbolicAtom::new_(L, self.atoms, range); // +1
         lua_pushcclosure(L, symbolicAtomIter, 1); // +0
         return 1;
     }
 
     static int signatures(lua_State *L) {
         auto &self = get_self(L);
-        auto ret = AnyWrap::new_<std::vector<Sig>>(L); // +1
-        *ret = protect(L, [&self]() { return self.atoms.signatures(); });
-        lua_createtable(L, ret->size(), 0);                    // +1
+        auto size = call_c(L, clingo_symbolic_atoms_signatures_size, self.atoms);
+        clingo_signature_t *ret = static_cast<clingo_signature_t*>(lua_newuserdata(L, sizeof(*ret) * size)); // +1
+        handle_c_error(L, clingo_symbolic_atoms_signatures(self.atoms, ret, size));
+        lua_createtable(L, size, 0);                               // +1
         int i = 1;
-        for (auto &sig : *ret) {
-            lua_createtable(L, 3, 0);                          // +1
-            lua_pushstring(L, sig.name().c_str());             // +1
-            lua_rawseti(L, -2, 1);                             // -1
-            lua_pushinteger(L, sig.arity());                   // +1
-            lua_rawseti(L, -2, 2);                             // -1
-            lua_pushboolean(L, !sig.sign());                   // +1
-            lua_rawseti(L, -2, 3);                             // -1
-            lua_rawseti(L, -2, i);                             // -1
+        for (auto it = ret, ie = it + size; it != ie; ++it) {
+            lua_createtable(L, 3, 0);                              // +1
+            lua_pushstring(L, clingo_signature_name(*it));         // +1
+            lua_rawseti(L, -2, 1);                                 // -1
+            lua_pushinteger(L, clingo_signature_arity(*it));       // +1
+            lua_rawseti(L, -2, 2);                                 // -1
+            lua_pushboolean(L, clingo_signature_is_positive(*it)); // +1
+            lua_rawseti(L, -2, 3);                                 // -1
+            lua_rawseti(L, -2, i);                                 // -1
             ++i;
         }
-        lua_replace(L, -2);                                    // -1
+        lua_replace(L, -2);                                        // -1
         return 1;
     }
     static int index(lua_State *L) {
@@ -1714,7 +1700,7 @@ struct SymbolicAtoms {
         else {
             lua_getmetatable(L, 1);
             lua_getfield(L, -1, name);
-            return !lua_isnil(L, -1) ? 1 : luaL_error(L, "unknown field: %s", name);
+            return 1;
         }
     }
 };
@@ -2072,7 +2058,7 @@ struct ControlWrap {
         else if (strcmp(name, "symbolic_atoms") == 0) {
             checkBlocked(L, ctl, "symbolic_atoms");
             auto &proxy = protect(L, [&ctl]() -> Gringo::SymbolicAtoms& { return ctl.getDomain(); });
-            return SymbolicAtoms::new_(L, proxy);
+            return SymbolicAtoms::new_(L, &proxy);
         }
         else if (strcmp(name, "theory_atoms") == 0) {
             checkBlocked(L, ctl, "theory_atoms");
@@ -2187,7 +2173,7 @@ struct PropagateInit : Object<PropagateInit> {
         auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
         if (strcmp(name, "theory_atoms")   == 0) { return TheoryIter::iter(L, const_cast<Gringo::TheoryData*>(&self.init->theory())); }
-        else if (strcmp(name, "symbolic_atoms") == 0) { return SymbolicAtoms::new_(L, self.init->getDomain()); }
+        else if (strcmp(name, "symbolic_atoms") == 0) { return SymbolicAtoms::new_(L, &self.init->getDomain()); }
         else if (strcmp(name, "number_of_threads") == 0) { return numThreads(L); }
         else {
             lua_getmetatable(L, 1);
