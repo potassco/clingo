@@ -1341,27 +1341,27 @@ luaL_Reg const Model::meta[] = {
 
 // {{{1 wrap Statistics
 
-int newStatistics(lua_State *L, Potassco::AbstractStatistics const *stats, Potassco::AbstractStatistics::Key_t key) {
-    switch (protect(L, [stats, key]{ return stats->type(key); })) {
-        case Potassco::Statistics_t::Value: {
-            lua_pushnumber(L, PROTECT(stats->value(key)));
+int newStatistics(lua_State *L, clingo_statistics_t *stats, uint64_t key) {
+    switch (call_c(L, clingo_statistics_type, stats, key)) {
+        case clingo_statistics_type_value: {
+            lua_pushnumber(L, call_c(L, clingo_statistics_value_get, stats, key)); // +1
             return 1;
         }
-        case Potassco::Statistics_t::Array: {
-            lua_newtable(L);                                         // stack + 1
-            for (size_t i = 0, e = PROTECT(stats->size(key)); i != e; ++i) {
-                newStatistics(L, stats, PROTECT(stats->at(key, i))); // stack + 2
-                lua_rawseti(L, -2, i+1);                             // stack + 1
+        case clingo_statistics_type_array: {
+            lua_newtable(L); // +1
+            for (size_t i = 0, e = call_c(L, clingo_statistics_array_size, stats, key); i != e; ++i) {
+                newStatistics(L, stats, call_c(L, clingo_statistics_array_at, stats, key, i)); // +1
+                lua_rawseti(L, -2, i+1); // -1
             }
             return 1;
         }
-        case Potassco::Statistics_t::Map: {
-            lua_newtable(L);                                             // stack + 1
-            for (size_t i = 0, e = PROTECT(stats->size(key)); i != e; ++i) {
-                auto name = PROTECT(stats->key(key, i));
-                lua_pushstring(L, name);                                 // stack + 2
-                newStatistics(L, stats, PROTECT(stats->get(key, name))); // stack + 3
-                lua_rawset(L, -3);                                       // stack + 1
+        case clingo_statistics_type_map: {
+            lua_newtable(L); // +1
+            for (size_t i = 0, e = call_c(L, clingo_statistics_map_size, stats, key); i != e; ++i) {
+                auto name = call_c(L, clingo_statistics_map_subkey_name, stats, key, i);
+                lua_pushstring(L, name); // +1
+                newStatistics(L, stats, call_c(L, clingo_statistics_map_at, stats, key, name)); // +1
+                lua_rawset(L, -3); // -2
             }
             return 1;
         }
@@ -2069,7 +2069,7 @@ struct ControlWrap {
             if (lua_isnil(L, -1)) {
                 auto stats = protect(L, [&ctl](){ return ctl.statistics(); });
                 lua_pop(L, 1);                          // stack -1
-                newStatistics(L, stats, stats->root()); // stack +0
+                newStatistics(L, reinterpret_cast<clingo_statistics_t*>(stats), stats->root()); // stack +0
                 lua_pushstring(L, "statistics");        // stack +1
                 lua_pushvalue(L, -2);                   // stack +1
                 lua_rawset(L, 1);                       // stack -2
