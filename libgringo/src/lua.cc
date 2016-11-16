@@ -2217,28 +2217,28 @@ private:
 
 // {{{1 wrap GroundProgramObserver
 
-struct TruthValue {
-    using Type = Potassco::Value_t::E;
-
+struct TruthValue : Object<TruthValue> {
+    using Type = clingo_external_type_t;
+    Type type;
+    TruthValue(Type type) : type(type) { }
+    Type cmpKey() { return type; }
     static int addToRegistry(lua_State *L) {
-        lua_createtable(L, 0, 6);
-        for (auto t : { Type::True, Type::False, Type::Free, Type::Release }) {
-            *(Type*)lua_newuserdata(L, sizeof(Type)) = t;
-            luaL_getmetatable(L, typeName);
-            lua_setmetatable(L, -2);
+        lua_createtable(L, 0, 4);
+        for (auto t : { clingo_external_type_true, clingo_external_type_false, clingo_external_type_free, clingo_external_type_release }) {
+            Object::new_(L, t);
             lua_setfield(L, -2, field_(t));
         }
         lua_setfield(L, -2, "TruthValue");
         return 0;
     }
     static char const *field_(Type t) {
-        switch (t) {
-            case Type::True:    { return "True"; }
-            case Type::False:   { return "False"; }
-            case Type::Free:    { return "Free"; }
-            case Type::Release: { return "Release"; }
-            default:            { return ""; }
+        switch (static_cast<clingo_external_type>(t)) {
+            case clingo_external_type_true:    { return "True"; }
+            case clingo_external_type_false:   { return "False"; }
+            case clingo_external_type_free:    { return "Free"; }
+            case clingo_external_type_release: { break; }
         }
+        return "Release";
     }
     static int new_(lua_State *L, Type t) {
         lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
@@ -2248,26 +2248,8 @@ struct TruthValue {
         lua_replace(L, -2);
         return 1;
     }
-    static int eq(lua_State *L) {
-        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
-        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, *a == *b);
-        return 1;
-    }
-    static int lt(lua_State *L) {
-        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
-        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, *a < *b);
-        return 1;
-    }
-    static int le(lua_State *L) {
-        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
-        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, *a <= *b);
-        return 1;
-    }
     static int toString(lua_State *L) {
-        lua_pushstring(L, field_(*(Type*)luaL_checkudata(L, 1, typeName)));
+        lua_pushstring(L, field_(get_self(L).type));
         return 1;
     }
     static luaL_Reg const meta[];
