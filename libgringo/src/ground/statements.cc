@@ -888,9 +888,10 @@ void BodyAggregateAccumulate::printHead(std::ostream &out) const {
 
 // {{{1 definition of BodyAggregateLiteral
 
-BodyAggregateLiteral::BodyAggregateLiteral(BodyAggregateComplete &complete, NAF naf)
+BodyAggregateLiteral::BodyAggregateLiteral(BodyAggregateComplete &complete, NAF naf, bool auxiliary)
 : complete_(complete)
-, naf_(naf) { }
+, naf_(naf)
+, auxiliary_(auxiliary) { }
 
 BodyAggregateLiteral::~BodyAggregateLiteral() noexcept = default;
 
@@ -1138,8 +1139,9 @@ void AssignmentAggregateAccumulate::printHead(std::ostream &out) const {
 
 // {{{1 Definition of AssignmentAggregateLiteral
 
-AssignmentAggregateLiteral::AssignmentAggregateLiteral(AssignmentAggregateComplete &complete)
-: complete_(complete) { }
+AssignmentAggregateLiteral::AssignmentAggregateLiteral(AssignmentAggregateComplete &complete, bool auxiliary)
+: complete_(complete)
+, auxiliary_(auxiliary) { }
 
 AssignmentAggregateLiteral::~AssignmentAggregateLiteral() noexcept = default;
 
@@ -1206,8 +1208,9 @@ std::pair<Output::LiteralId,bool> AssignmentAggregateLiteral::toOutput(Logger &)
 
 // {{{1 definition of ConjunctionLiteral
 
-ConjunctionLiteral::ConjunctionLiteral(ConjunctionComplete &complete)
-: complete_(complete) { }
+ConjunctionLiteral::ConjunctionLiteral(ConjunctionComplete &complete, bool auxiliary)
+: complete_(complete)
+, auxiliary_(auxiliary) { }
 
 ConjunctionLiteral::~ConjunctionLiteral() noexcept = default;
 
@@ -1663,9 +1666,10 @@ void DisjointAccumulate::printHead(std::ostream &out) const {
 
 // {{{1 definition of DisjointLiteral
 
-DisjointLiteral::DisjointLiteral(DisjointComplete &complete, NAF naf)
+DisjointLiteral::DisjointLiteral(DisjointComplete &complete, NAF naf, bool auxiliary)
 : complete_(complete)
-, naf_(naf) {
+, naf_(naf)
+, auxiliary_(auxiliary) {
 }
 
 DisjointLiteral::~DisjointLiteral() noexcept = default;

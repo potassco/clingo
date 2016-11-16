@@ -324,8 +324,8 @@ CreateBody TupleBodyAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
                 return std::move(ret);
             });
         }
-        return CreateBody([&completeRef, this](Ground::ULitVec &lits, bool primary, bool) {
-            if (primary) { lits.emplace_back(gringo_make_unique<Ground::BodyAggregateLiteral>(completeRef, naf)); }
+        return CreateBody([&completeRef, this](Ground::ULitVec &lits, bool primary, bool auxiliary) {
+            if (primary) { lits.emplace_back(gringo_make_unique<Ground::BodyAggregateLiteral>(completeRef, naf, auxiliary)); }
         }, std::move(split));
     }
     else {
@@ -362,8 +362,8 @@ CreateBody TupleBodyAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
                 return std::move(ret);
             });
         }
-        return CreateBody([&completeRef, this](Ground::ULitVec &lits, bool primary, bool) {
-            if (primary) { lits.emplace_back(gringo_make_unique<Ground::AssignmentAggregateLiteral>(completeRef)); }
+        return CreateBody([&completeRef, this](Ground::ULitVec &lits, bool primary, bool auxiliary) {
+            if (primary) { lits.emplace_back(gringo_make_unique<Ground::AssignmentAggregateLiteral>(completeRef, auxiliary)); }
         }, std::move(split));
     }
 }
@@ -752,8 +752,8 @@ CreateBody Conjunction::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
         return std::move(ret);
     });
 
-    return CreateBody([&completeRef](Ground::ULitVec &lits, bool primary, bool) {
-        if (primary) { lits.emplace_back(gringo_make_unique<Ground::ConjunctionLiteral>(completeRef)); }
+    return CreateBody([&completeRef](Ground::ULitVec &lits, bool primary, bool auxiliary) {
+        if (primary) { lits.emplace_back(gringo_make_unique<Ground::ConjunctionLiteral>(completeRef, auxiliary)); }
     }, std::move(split));
 }
 
@@ -1751,8 +1751,8 @@ CreateBody DisjointAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) co
             return std::move(ret);
         });
     }
-    return CreateBody([&completeRef, this](Ground::ULitVec &lits, bool primary, bool) {
-        if (primary) { lits.emplace_back(gringo_make_unique<Ground::DisjointLiteral>(completeRef, naf)); }
+    return CreateBody([&completeRef, this](Ground::ULitVec &lits, bool primary, bool auxiliary) {
+        if (primary) { lits.emplace_back(gringo_make_unique<Ground::DisjointLiteral>(completeRef, naf, auxiliary)); }
     }, std::move(split));
 }
 
