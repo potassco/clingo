@@ -2439,17 +2439,12 @@ private:
         l_push_args<0, U...>(L, i+1);
     }
 
-    template <int>
-    static int count() { return 0; }
-    template <int, class U, class... T>
-    static int count() { return count<0, T...>() + 1; }
-
     template <class... T>
     static int l_call(lua_State *L) {
         lua_pushvalue(L, 1);
         lua_pushvalue(L, 2);
         l_push_args<0, T...>(L, 1);
-        lua_call(L, (count<0, T...>()+1), 0);
+        lua_call(L, (sizeof...(T)+1), 0);
         return 0;
     }
     template <class... Args>
@@ -2465,7 +2460,7 @@ private:
         lua_getfield(L, -2, fun);                    // +1
         if (!lua_isnil(L, -1)) {
             int function = lua_gettop(L);
-            int n = count<0, Args...>();
+            int n = sizeof...(Args);
             if (!lua_checkstack(L, std::max(3,n))) { throw std::runtime_error("lua stack size exceeded"); }
             push_args(args...);                      // +n
             lua_pushcclosure(L, l_call<Args...>, n); // +1-n
