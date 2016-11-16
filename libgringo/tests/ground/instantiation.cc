@@ -1108,6 +1108,14 @@ TEST_CASE("ground-instantiation", "[ground]") {
                 "-q(X):-not not -q(X), p(X).\n"
                 " q(X):-not not  q(X), p(X).\n"));
     }
+    SECTION("two aggregates") {
+        REQUIRE(
+            "p:-#count{0,a:a}=0.\n"
+            "p:-#count{0,a:a}=1,1<=#count{0,b:b}.\n"
+            "{a;b}.\n" == ground(
+                "{a;b}.\n"
+                "p :- X = { a }, X { b }.\n"));
+    }
 
     SECTION("tuple") {
         REQUIRE("p(((),())).\n" == ground("p(((),())).\n"));

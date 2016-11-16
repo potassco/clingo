@@ -376,7 +376,7 @@ private:
 
 class BodyAggregateLiteral : public Literal, private BodyOcc {
 public:
-    BodyAggregateLiteral(BodyAggregateComplete &complete, NAF naf);
+    BodyAggregateLiteral(BodyAggregateComplete &complete, NAF naf, bool auxiliary);
     virtual ~BodyAggregateLiteral() noexcept;
 
     // {{{2 Printable interface
@@ -388,7 +388,7 @@ public:
     void collect(VarTermBoundVec &vars) const override;
     Score score(Term::VarSet const &bound, Logger &log) override;
     std::pair<Output::LiteralId, bool> toOutput(Logger &log) override;
-    bool auxiliary() const override { return false; } // by construction
+    bool auxiliary() const override { return auxiliary_; }
     // }}}2
 
 private:
@@ -407,6 +407,7 @@ private:
     DefinedBy defs_;
     Potassco::Id_t offset_ = 0;
     NAF naf_;
+    bool auxiliary_;
     OccurrenceType type_ = OccurrenceType::POSITIVELY_STRATIFIED;
 };
 
@@ -499,7 +500,7 @@ private:
 
 class AssignmentAggregateLiteral : public Literal, private BodyOcc {
 public:
-    AssignmentAggregateLiteral(AssignmentAggregateComplete &complete);
+    AssignmentAggregateLiteral(AssignmentAggregateComplete &complete, bool auxiliary);
     virtual ~AssignmentAggregateLiteral() noexcept;
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
@@ -510,7 +511,7 @@ public:
     void collect(VarTermBoundVec &vars) const override;
     Score score(Term::VarSet const &bound, Logger &log) override;
     std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
-    bool auxiliary() const override { return false; } // by construction
+    bool auxiliary() const override { return auxiliary_; }
     // }}}2
 
 private:
@@ -529,6 +530,7 @@ private:
     DefinedBy defs_;
     Id_t offset_ = InvalidId;
     OccurrenceType type_ = OccurrenceType::POSITIVELY_STRATIFIED;
+    bool auxiliary_;
 };
 
 // }}}1
@@ -667,7 +669,7 @@ private:
 
 class ConjunctionLiteral : public Literal, private BodyOcc {
 public:
-    ConjunctionLiteral(ConjunctionComplete &complete);
+    ConjunctionLiteral(ConjunctionComplete &complete, bool auxiliary);
     virtual ~ConjunctionLiteral() noexcept;
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
@@ -678,7 +680,7 @@ public:
     void collect(VarTermBoundVec &vars) const override;
     Score score(Term::VarSet const &bound, Logger &log) override;
     std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
-    bool auxiliary() const override { return false; } // by construction
+    bool auxiliary() const override { return auxiliary_; }
     // }}}2
 
 private:
@@ -697,6 +699,7 @@ private:
     DefinedBy defs_;
     Id_t offset_;
     OccurrenceType type_ = OccurrenceType::POSITIVELY_STRATIFIED;
+    bool auxiliary_;
 };
 
 // }}}1
@@ -786,7 +789,7 @@ private:
 
 class DisjointLiteral : public Literal, private BodyOcc {
 public:
-    DisjointLiteral(DisjointComplete &complete, NAF naf);
+    DisjointLiteral(DisjointComplete &complete, NAF naf, bool auxiliary);
     virtual ~DisjointLiteral() noexcept;
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
@@ -797,7 +800,7 @@ public:
     void collect(VarTermBoundVec &vars) const override;
     Score score(Term::VarSet const &bound, Logger &log) override;
     std::pair<Output::LiteralId,bool> toOutput(Logger &log) override;
-    bool auxiliary() const override { return false; } // by construction
+    bool auxiliary() const override { return auxiliary_; }
     // }}}2
 private:
     // {{{2 BodyOcc interface
@@ -816,6 +819,7 @@ private:
     Id_t offset_ = InvalidId;
     OccurrenceType type_ = OccurrenceType::POSITIVELY_STRATIFIED;
     NAF naf_;
+    bool auxiliary_;
 };
 
 // }}}1
