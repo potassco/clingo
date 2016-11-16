@@ -2266,15 +2266,15 @@ luaL_Reg const TruthValue::meta[] = {
     { nullptr, nullptr }
 };
 
-struct HeuristicType {
-    using Type = Potassco::Heuristic_t::E;
+struct HeuristicType : Object<HeuristicType> {
+    using Type = clingo_heuristic_type_t;
+    Type type;
+    HeuristicType(Type type) : type(type) { }
 
     static int addToRegistry(lua_State *L) {
         lua_createtable(L, 0, 6);
-        for (auto t : { Type::Level, Type::Sign, Type::Factor, Type::Init, Type::True, Type::False }) {
-            *(Type*)lua_newuserdata(L, sizeof(Type)) = t;
-            luaL_getmetatable(L, typeName);
-            lua_setmetatable(L, -2);
+        for (auto t : { clingo_heuristic_type_level, clingo_heuristic_type_sign, clingo_heuristic_type_factor, clingo_heuristic_type_init, clingo_heuristic_type_true, clingo_heuristic_type_false }) {
+            Object::new_(L, t);
             lua_setfield(L, -2, field_(t));
         }
         lua_setfield(L, -2, "HeuristicType");
@@ -2282,14 +2282,14 @@ struct HeuristicType {
     }
     static char const *field_(Type t) {
         switch (t) {
-            case Type::Level:  { return "Level"; }
-            case Type::Sign:   { return "Sign"; }
-            case Type::Factor: { return "Factor"; }
-            case Type::Init:   { return "Init"; }
-            case Type::True:   { return "True"; }
-            case Type::False:  { return "False"; }
-            default:           { return ""; }
+            case clingo_heuristic_type_level:  { return "Level"; }
+            case clingo_heuristic_type_sign:   { return "Sign"; }
+            case clingo_heuristic_type_factor: { return "Factor"; }
+            case clingo_heuristic_type_init:   { return "Init"; }
+            case clingo_heuristic_type_true:   { return "True"; }
+            case clingo_heuristic_type_false:  { break; }
         }
+        return "False";
     }
     static int new_(lua_State *L, Type t) {
         lua_getfield(L, LUA_REGISTRYINDEX, "clingo"); // +1
