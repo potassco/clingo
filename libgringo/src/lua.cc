@@ -2270,6 +2270,7 @@ struct HeuristicType : Object<HeuristicType> {
     using Type = clingo_heuristic_type_t;
     Type type;
     HeuristicType(Type type) : type(type) { }
+    Type cmpKey() { return type; }
 
     static int addToRegistry(lua_State *L) {
         lua_createtable(L, 0, 6);
@@ -2299,26 +2300,8 @@ struct HeuristicType : Object<HeuristicType> {
         lua_replace(L, -2);                           // -1
         return 1;
     }
-    static int eq(lua_State *L) {
-        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
-        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, *a == *b);
-        return 1;
-    }
-    static int lt(lua_State *L) {
-        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
-        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, *a < *b);
-        return 1;
-    }
-    static int le(lua_State *L) {
-        Type *a = static_cast<Type*>(luaL_checkudata(L, 1, typeName));
-        Type *b = static_cast<Type*>(luaL_checkudata(L, 2, typeName));
-        lua_pushboolean(L, *a <= *b);
-        return 1;
-    }
     static int toString(lua_State *L) {
-        lua_pushstring(L, field_(*(Type*)luaL_checkudata(L, 1, typeName)));
+        lua_pushstring(L, field_(get_self(L).type));
         return 1;
     }
     static luaL_Reg const meta[];
