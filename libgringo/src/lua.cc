@@ -2259,10 +2259,10 @@ private:
 
 // {{{1 wrap GroundProgramObserver
 
-struct TruthValue : Object<TruthValue> {
+struct ExternalType : Object<ExternalType> {
     using Type = clingo_external_type_t;
     Type type;
-    TruthValue(Type type) : type(type) { }
+    ExternalType(Type type) : type(type) { }
     Type cmpKey() { return type; }
     static int addToRegistry(lua_State *L) {
         lua_createtable(L, 0, 4);
@@ -2270,7 +2270,7 @@ struct TruthValue : Object<TruthValue> {
             Object::new_(L, t);
             lua_setfield(L, -2, field_(t));
         }
-        lua_setfield(L, -2, "TruthValue");
+        lua_setfield(L, -2, "ExternalType");
         return 0;
     }
     static char const *field_(Type t) {
@@ -2284,7 +2284,7 @@ struct TruthValue : Object<TruthValue> {
     }
     static int new_(lua_State *L, Type t) {
         lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
-        lua_getfield(L, -1, "TruthValue");
+        lua_getfield(L, -1, "ExternalType");
         lua_replace(L, -2);
         lua_getfield(L, -1, field_(t));
         lua_replace(L, -2);
@@ -2295,12 +2295,12 @@ struct TruthValue : Object<TruthValue> {
         return 1;
     }
     static luaL_Reg const meta[];
-    static constexpr char const *typeName = "clingo.TruthValue";
+    static constexpr char const *typeName = "clingo.ExternalType";
 };
 
-constexpr char const *TruthValue::typeName;
+constexpr char const *ExternalType::typeName;
 
-luaL_Reg const TruthValue::meta[] = {
+luaL_Reg const ExternalType::meta[] = {
     {"__eq", eq},
     {"__lt", lt},
     {"__le", le},
@@ -2444,7 +2444,7 @@ private:
         Term::new_(L, b.symbol);
     }
     static void push(lua_State *L, clingo_external_type x) {
-        TruthValue::new_(L, x);
+        ExternalType::new_(L, x);
     }
     static void push(lua_State *L, clingo_heuristic_type x) {
         HeuristicType::new_(L, x);
@@ -3006,7 +3006,7 @@ int luaopen_clingo(lua_State* L) {
     SymbolicAtom::reg(L);
     lua_regMeta(L, AnyWrap::typeName, AnyWrap::meta);
     TheoryTermType::reg(L);
-    TruthValue::reg(L);
+    ExternalType::reg(L);
     ModelType::reg(L);
     HeuristicType::reg(L);
     TheoryTerm::reg(L);
@@ -3029,7 +3029,7 @@ int luaopen_clingo(lua_State* L) {
     SymbolType::addToRegistry(L);
     Term::addToRegistry(L);
     TheoryTermType::addToRegistry(L);
-    TruthValue::addToRegistry(L);
+    ExternalType::addToRegistry(L);
     ModelType::addToRegistry(L);
     HeuristicType::addToRegistry(L);
 
