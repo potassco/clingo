@@ -74,6 +74,39 @@ void handle_c_error(lua_State *L, bool ret) {
     }
 }
 
+// translates a lua error into a a clingo api error
+bool handle_lua_error(lua_State *L, char const *loc, char const *desc, int code) {
+    try {
+        switch (code) {
+            case LUA_ERRRUN:
+            case LUA_ERRERR:
+            case LUA_ERRSYNTAX: {
+                std::string s(lua_tostring(L, -1));
+                lua_pop(L, 1);
+                std::ostringstream msg;
+                msg << loc << ": " << "error: " << desc << ":\n"
+                    << (code == LUA_ERRSYNTAX ? "  SyntaxError: " : "  RuntimeError: ")
+                    << s << "\n"
+                    ;
+                clingo_set_error(clingo_error_runtime, msg.str().c_str());
+                return false;
+            }
+            case LUA_ERRMEM: {
+                std::stringstream msg;
+                msg << loc << ": error: lua interpreter ran out of memory" << "\n";
+                clingo_set_error(clingo_error_bad_alloc, msg.str().c_str());
+                return false;
+            }
+        }
+    }
+    catch(...) {
+        clingo_set_error(clingo_error_logic, "error during error handling");
+        return false;
+    }
+    return true;
+}
+
+
 template <typename... T>
 struct Types { };
 
@@ -2324,68 +2357,70 @@ class GroundProgramObserver {
 public:
     GroundProgramObserver(lua_State *L, lua_State *T) : L(L), T(T) { }
 
+#   define S(fun) fun, "GroundProgramObserver::" fun, "calling " fun " failed"
     static bool init_program(bool incremental, void *data) {
-        return call(data, "init_program", incremental);
+        return call(data, S("init_program"), incremental);
     }
     static bool begin_step(void *data) {
-        return call(data, "begin_step");
+        return call(data, S("begin_step"));
     }
     static bool end_step(void *data) {
-        return call(data, "end_step");
+        return call(data, S("end_step"));
     }
 
     static bool rule(bool choice, clingo_atom_t const *head, size_t head_size, clingo_literal_t const *body, size_t body_size, void *data) {
-        return call(data, "rule", choice, range(head, head_size), range(body, body_size));
+        return call(data, S("rule"), choice, range(head, head_size), range(body, body_size));
     }
     static bool weight_rule(bool choice, clingo_atom_t const *head, size_t head_size, clingo_weight_t lower_bound, clingo_weighted_literal_t const *body, size_t body_size, void *data) {
-        return call(data, "weight_rule", choice, range(head, head_size), lower_bound, range(body, body_size));
+        return call(data, S("weight_rule"), choice, range(head, head_size), lower_bound, range(body, body_size));
     }
     static bool minimize(clingo_weight_t priority, clingo_weighted_literal_t const* literals, size_t size, void *data) {
-        return call(data, "minimize", priority, range(literals, size));
+        return call(data, S("minimize"), priority, range(literals, size));
     }
     static bool project(clingo_atom_t const *atoms, size_t size, void *data) {
-        return call(data, "project", range(atoms, size));
+        return call(data, S("project"), range(atoms, size));
     }
     static bool output_atom(clingo_symbol_t symbol, clingo_atom_t atom, void *data) {
-        return call(data, "output_atom", symbol_wrapper{symbol}, atom);
+        return call(data, S("output_atom"), symbol_wrapper{symbol}, atom);
     }
     static bool output_term(clingo_symbol_t symbol, clingo_literal_t const *condition, size_t size, void *data) {
-        return call(data, "output_term", symbol_wrapper{symbol}, range(condition, size));
+        return call(data, S("output_term"), symbol_wrapper{symbol}, range(condition, size));
     }
     static bool output_csp(clingo_symbol_t symbol, int value, clingo_literal_t const *condition, size_t size, void *data) {
-        return call(data, "output_csp", symbol_wrapper{symbol}, value, range(condition, size));
+        return call(data, S("output_csp"), symbol_wrapper{symbol}, value, range(condition, size));
     }
     static bool external(clingo_atom_t atom, clingo_external_type_t type, void *data) {
-        return call(data, "external", atom, static_cast<clingo_external_type>(type));
+        return call(data, S("external"), atom, static_cast<clingo_external_type>(type));
     }
     static bool assume(clingo_literal_t const *literals, size_t size, void *data) {
-        return call(data, "assume", range(literals, size));
+        return call(data, S("assume"), range(literals, size));
     }
     static bool heuristic(clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority, clingo_literal_t const *condition, size_t size, void *data) {
-        return call(data, "heuristic", atom, static_cast<clingo_heuristic_type>(type), bias, priority, range(condition, size));
+        return call(data, S("heuristic"), atom, static_cast<clingo_heuristic_type>(type), bias, priority, range(condition, size));
     }
     static bool acyc_edge(int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *data) {
-        return call(data, "acyc_edge", node_u, node_v, range(condition, size));
+        return call(data, S("acyc_edge"), node_u, node_v, range(condition, size));
     }
 
     static bool theory_term_number(clingo_id_t term_id, int number, void *data) {
-        return call(data, "theory_term_number", term_id, number);
+        return call(data, S("theory_term_number"), term_id, number);
     }
     static bool theory_term_string(clingo_id_t term_id, char const *name, void *data) {
-        return call(data, "theory_term_string", term_id, name);
+        return call(data, S("theory_term_string"), term_id, name);
     }
     static bool theory_term_compound(clingo_id_t term_id, int name_id_or_type, clingo_id_t const *arguments, size_t size, void *data) {
-        return call(data, "theory_term_compound", term_id, name_id_or_type, range(arguments, size));
+        return call(data, S("theory_term_compound"), term_id, name_id_or_type, range(arguments, size));
     }
     static bool theory_element(clingo_id_t element_id, clingo_id_t const *terms, size_t terms_size, clingo_literal_t const *condition, size_t condition_size, void *data) {
-        return call(data, "theory_element", element_id, range(terms, terms_size), range(condition, condition_size));
+        return call(data, S("theory_element"), element_id, range(terms, terms_size), range(condition, condition_size));
     }
     static bool theory_atom(clingo_id_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, void *data) {
-        return call(data, "theory_atom", atom_id_or_zero, term_id, range(elements, size));
+        return call(data, S("theory_atom"), atom_id_or_zero, term_id, range(elements, size));
     }
     static bool theory_atom_with_guard(clingo_id_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, clingo_id_t operator_id, clingo_id_t right_hand_side_id, void *data) {
-        return call(data, "theory_atom_with_guard", atom_id_or_zero, term_id, range(elements, size), operator_id, right_hand_side_id);
+        return call(data, S("theory_atom_with_guard"), atom_id_or_zero, term_id, range(elements, size), operator_id, right_hand_side_id);
     }
+#   undef S
 private:
     template <typename T>
     struct Range {
@@ -2456,8 +2491,9 @@ private:
         lua_call(L, (sizeof...(T)+1), 0);
         return 0;
     }
+
     template <class... Args>
-    static bool call(void *data, char const *fun, Args... args) {
+    static bool call(void *data, char const *fun, char const *loc, char const *msg, Args... args) {
         auto self = static_cast<GroundProgramObserver*>(data);
         if (!lua_checkstack(self->L, 3)) {
             clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
@@ -2483,13 +2519,7 @@ private:
             lua_pushvalue(self->L, function);              // +1
             lua_pushvalue(self->L, observer);              // +1
             auto ret = lua_pcall(self->L, 2, 0, handler);
-            if (ret != 0) {
-                // TODO: this should be c code returning a clingo api error
-                std::string f = "<GroundProgramObserver::" + std::string(fun) + ">";
-                Location loc(f.c_str(), 1, 1, f.c_str(), 1, 1);
-                handleError(self->L, loc, ret, ("calling " + std::string(fun) + " failed").c_str(), nullptr);
-                return false;
-            }
+            return handle_lua_error(self->L, loc, msg, ret);
         }
         return true;
     }
