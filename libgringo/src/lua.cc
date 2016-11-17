@@ -27,6 +27,7 @@
 
 #include <lua.hpp>
 #include <cstring>
+#include <forward_list>
 
 namespace Gringo {
 
@@ -1992,21 +1993,21 @@ struct PropagateControl : Object<PropagateControl> {
 
     static int addWatch(lua_State *L) {
         auto &self = get_self(L);
-        auto lit = luaL_checkinteger(L, 1);
+        auto lit = luaL_checkinteger(L, 2);
         handle_c_error(L, clingo_propagate_control_add_watch(self.ctl, lit));
         return 0;
     }
 
     static int removeWatch(lua_State *L) {
         auto &self = get_self(L);
-        auto lit = luaL_checkinteger(L, 1);
+        auto lit = luaL_checkinteger(L, 2);
         clingo_propagate_control_remove_watch(self.ctl, lit);
         return 0;
     }
 
     static int hasWatch(lua_State *L) {
         auto &self = get_self(L);
-        auto lit = luaL_checkinteger(L, 1);
+        auto lit = luaL_checkinteger(L, 2);
         lua_pushboolean(L, clingo_propagate_control_has_watch(self.ctl, lit));
         return 1;
     }
@@ -2317,91 +2318,99 @@ luaL_Reg const HeuristicType::meta[] = {
 };
 constexpr char const *HeuristicType::typeName;
 
-class GroundProgramObserver : public Gringo::Backend {
+
+
+class GroundProgramObserver {
 public:
     GroundProgramObserver(lua_State *L, lua_State *T) : L(L), T(T) { }
 
-    void initProgram(bool incremental) override {
-        call("init_program", incremental);
+    static bool init_program(bool incremental, void *data) {
+        return call(data, "init_program", incremental);
     }
-    void beginStep() override {
-        call("begin_step");
+    static bool begin_step(void *data) {
+        return call(data, "begin_step");
     }
-
-    void rule(Head_t ht, const AtomSpan& head, const LitSpan& body) override {
-        call("rule", ht == Head_t::Choice, head, body);
-    }
-    void rule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body) override {
-        call("weight_rule", ht == Head_t::Choice, head, bound, body);
-    }
-    void minimize(Weight_t prio, const WeightLitSpan& lits) override {
-        call("minimize", prio, lits);
+    static bool end_step(void *data) {
+        return call(data, "end_step");
     }
 
-    void project(const AtomSpan& atoms) override {
-        call("project", atoms);
+    static bool rule(bool choice, clingo_atom_t const *head, size_t head_size, clingo_literal_t const *body, size_t body_size, void *data) {
+        return call(data, "rule", choice, range(head, head_size), range(body, body_size));
     }
-    void output(Gringo::Symbol sym, Potassco::Atom_t atom) override {
-        call("output_atom", sym, atom);
+    static bool weight_rule(bool choice, clingo_atom_t const *head, size_t head_size, clingo_weight_t lower_bound, clingo_weighted_literal_t const *body, size_t body_size, void *data) {
+        return call(data, "weight_rule", choice, range(head, head_size), lower_bound, range(body, body_size));
     }
-    void output(Gringo::Symbol sym, Potassco::LitSpan const& condition) override {
-        call("output_term", sym, condition);
+    static bool minimize(clingo_weight_t priority, clingo_weighted_literal_t const* literals, size_t size, void *data) {
+        return call(data, "minimize", priority, range(literals, size));
     }
-    void output(Gringo::Symbol sym, int value, Potassco::LitSpan const& condition) override {
-        call("output_csp", sym, value, condition);
+    static bool project(clingo_atom_t const *atoms, size_t size, void *data) {
+        return call(data, "project", range(atoms, size));
     }
-    void external(Atom_t a, Value_t v) override {
-        call("external", a, v);
+    static bool output_atom(clingo_symbol_t symbol, clingo_atom_t atom, void *data) {
+        return call(data, "output_atom", symbol_wrapper{symbol}, atom);
     }
-    void assume(const LitSpan& lits) override {
-        call("assume", lits);
+    static bool output_term(clingo_symbol_t symbol, clingo_literal_t const *condition, size_t size, void *data) {
+        return call(data, "output_term", symbol_wrapper{symbol}, range(condition, size));
     }
-    void heuristic(Atom_t a, Heuristic_t t, int bias, unsigned prio, const LitSpan& condition) override {
-        call("heuristic", a, t, bias, prio, condition);
+    static bool output_csp(clingo_symbol_t symbol, int value, clingo_literal_t const *condition, size_t size, void *data) {
+        return call(data, "output_csp", symbol_wrapper{symbol}, value, range(condition, size));
     }
-    void acycEdge(int s, int t, const LitSpan& condition) override {
-        call("acyc_edge", s, t, condition);
+    static bool external(clingo_atom_t atom, clingo_external_type_t type, void *data) {
+        return call(data, "external", atom, static_cast<clingo_external_type>(type));
     }
-
-    void theoryTerm(clingo_id_t termId, int number) override {
-        call("theory_term_number", termId, number);
+    static bool assume(clingo_literal_t const *literals, size_t size, void *data) {
+        return call(data, "assume", range(literals, size));
     }
-    void theoryTerm(clingo_id_t termId, const StringSpan& name) override {
-        std::string s{name.first, name.size};
-        call("theory_term_string", termId, s);
+    static bool heuristic(clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority, clingo_literal_t const *condition, size_t size, void *data) {
+        return call(data, "heuristic", atom, static_cast<clingo_heuristic_type>(type), bias, priority, range(condition, size));
     }
-    void theoryTerm(clingo_id_t termId, int cId, const IdSpan& args) override {
-        call("theory_term_compound", termId, cId, args);
-    }
-    void theoryElement(clingo_id_t elementId, const IdSpan& terms, const LitSpan& cond) override {
-        call("theory_element", elementId, terms, cond);
-    }
-    void theoryAtom(clingo_id_t atomOrZero, clingo_id_t termId, const IdSpan& elements) override {
-        call("theory_atom", atomOrZero, termId, elements);
-    }
-    void theoryAtom(clingo_id_t atomOrZero, clingo_id_t termId, const IdSpan& elements, clingo_id_t op, clingo_id_t rhs) override {
-        call("theory_atom_with_guard", atomOrZero, termId, elements, op, rhs);
+    static bool acyc_edge(int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *data) {
+        return call(data, "acyc_edge", node_u, node_v, range(condition, size));
     }
 
-    void endStep() override {
-        call("end_step");
+    static bool theory_term_number(clingo_id_t term_id, int number, void *data) {
+        return call(data, "theory_term_number", term_id, number);
+    }
+    static bool theory_term_string(clingo_id_t term_id, char const *name, void *data) {
+        return call(data, "theory_term_string", term_id, name);
+    }
+    static bool theory_term_compound(clingo_id_t term_id, int name_id_or_type, clingo_id_t const *arguments, size_t size, void *data) {
+        return call(data, "theory_term_compound", term_id, name_id_or_type, range(arguments, size));
+    }
+    static bool theory_element(clingo_id_t element_id, clingo_id_t const *terms, size_t terms_size, clingo_literal_t const *condition, size_t condition_size, void *data) {
+        return call(data, "theory_element", element_id, range(terms, terms_size), range(condition, condition_size));
+    }
+    static bool theory_atom(clingo_id_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, void *data) {
+        return call(data, "theory_atom", atom_id_or_zero, term_id, range(elements, size));
+    }
+    static bool theory_atom_with_guard(clingo_id_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, clingo_id_t operator_id, clingo_id_t right_hand_side_id, void *data) {
+        return call(data, "theory_atom_with_guard", atom_id_or_zero, term_id, range(elements, size), operator_id, right_hand_side_id);
     }
 private:
+    template <typename T>
+    struct Range {
+        T const * first;
+        size_t size;
+    };
+    template <typename T>
+    static Range<T> range(T*first, size_t size) {
+        return {first, size};
+    }
     static void push(lua_State *L, bool b) {
         lua_pushboolean(L, b);
     }
-    static void push(lua_State *L, Symbol b) {
-        Term::new_(L, b.rep());
+    static void push(lua_State *L, symbol_wrapper b) {
+        Term::new_(L, b.symbol);
     }
-    static void push(lua_State *L, Value_t x) {
-        TruthValue::new_(L, x.val_);
+    static void push(lua_State *L, clingo_external_type x) {
+        TruthValue::new_(L, x);
     }
-    static void push(lua_State *L, Heuristic_t x) {
-        HeuristicType::new_(L, x.val_);
+    static void push(lua_State *L, clingo_heuristic_type x) {
+        HeuristicType::new_(L, x);
     }
-    static void push(lua_State *L, Potassco::WeightLit_t lit) {
+    static void push(lua_State *L, clingo_weighted_literal_t lit) {
         lua_newtable(L);
-        push(L, lit.lit);
+        push(L, lit.literal);
         lua_rawseti(L, -2, 1);
         push(L, lit.weight);
         lua_rawseti(L, -2, 2);
@@ -2411,23 +2420,23 @@ private:
         lua_pushnumber(L, n);
     }
     template <class T>
-    static void push(lua_State *L, Potassco::Span<T> span) {
+    static void push(lua_State *L, Range<T> span) {
         lua_newtable(L);
         int i = 0;
-        for (auto x : span) {
-            push(L, x);
+        for (auto it = span.first, ie = it + span.size; it != ie; ++it) {
+            push(L, *it);
             lua_rawseti(L, -2, ++i);
         }
     }
-    static void push(lua_State *L, std::string const &s) {
-        lua_pushstring(L, s.c_str());
+    static void push(lua_State *L, char const *s) {
+        lua_pushstring(L, s);
     }
 
-    void push_args() { }
+    static void push_args(GroundProgramObserver *) { }
     template <class T, class... U>
-    void push_args(T& arg, U&... args) {
-        lua_pushlightuserdata(L, &arg);
-        push_args(args...);
+    static void push_args(GroundProgramObserver *self, T& arg, U&... args) {
+        lua_pushlightuserdata(self->L, &arg);
+        push_args(self, args...);
     }
 
     template <int>
@@ -2448,31 +2457,41 @@ private:
         return 0;
     }
     template <class... Args>
-    void call(char const *fun, Args... args) {
-        if (!lua_checkstack(L, 3)) { throw std::runtime_error("lua stack size exceeded"); }
-        LuaClear t(L);
+    static bool call(void *data, char const *fun, Args... args) {
+        auto self = static_cast<GroundProgramObserver*>(data);
+        if (!lua_checkstack(self->L, 3)) {
+            clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
+            return false;
+        }
+        LuaClear t(self->L);
         // get observer on top of stack L
-        lua_pushvalue(T, 1);
-        lua_xmove(T, L, 1);                          // +1
-        int observer = lua_gettop(L);
-        lua_pushcfunction(L, luaTraceback);          // +1
-        int handler = lua_gettop(L);
-        lua_getfield(L, -2, fun);                    // +1
-        if (!lua_isnil(L, -1)) {
-            int function = lua_gettop(L);
+        lua_pushvalue(self->T, 1);
+        lua_xmove(self->T, self->L, 1);                    // +1
+        int observer = lua_gettop(self->L);
+        lua_pushcfunction(self->L, luaTraceback);          // +1
+        int handler = lua_gettop(self->L);
+        lua_getfield(self->L, -2, fun);                    // +1
+        if (!lua_isnil(self->L, -1)) {
+            int function = lua_gettop(self->L);
             int n = sizeof...(Args);
-            if (!lua_checkstack(L, std::max(3,n))) { throw std::runtime_error("lua stack size exceeded"); }
-            push_args(args...);                      // +n
-            lua_pushcclosure(L, l_call<Args...>, n); // +1-n
-            lua_pushvalue(L, function);              // +1
-            lua_pushvalue(L, observer);              // +1
-            auto ret = lua_pcall(L, 2, 0, handler);
+            if (!lua_checkstack(self->L, std::max(3,n))) {
+                clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
+                return false;
+            }
+            push_args(self, args...);                      // +n
+            lua_pushcclosure(self->L, l_call<Args...>, n); // +1-n
+            lua_pushvalue(self->L, function);              // +1
+            lua_pushvalue(self->L, observer);              // +1
+            auto ret = lua_pcall(self->L, 2, 0, handler);
             if (ret != 0) {
+                // TODO: this should be c code returning a clingo api error
                 std::string f = "<GroundProgramObserver::" + std::string(fun) + ">";
                 Location loc(f.c_str(), 1, 1, f.c_str(), 1, 1);
-                handleError(L, loc, ret, ("calling " + std::string(fun) + " failed").c_str(), nullptr);
+                handleError(self->L, loc, ret, ("calling " + std::string(fun) + " failed").c_str(), nullptr);
+                return false;
             }
         }
+        return true;
     }
 
 private:
@@ -2527,6 +2546,7 @@ struct ControlWrap {
     static GringoModule *module;
     Control &ctl;
     bool free;
+    std::forward_list<GroundProgramObserver> observers;
     ControlWrap(Control &ctl, bool free) : ctl(ctl), free(free) { }
     static ControlWrap &get_self(lua_State *L) {
         void *p = nullptr;
@@ -2802,24 +2822,25 @@ struct ControlWrap {
     static int gc(lua_State *L) {
         auto &self = get_self(L);
         if (self.free) { delete &self.ctl; }
+        self.~ControlWrap();
         return 0;
     }
     static int registerPropagator(lua_State *L) {
         auto &self = get_self(L);
-        lua_pushstring(L, "propagators");                 // +1
-        lua_rawget(L, 1);                                 // +0
+        lua_pushstring(L, "propagators");     // +1
+        lua_rawget(L, 1);                     // +0
         if (lua_isnil(L, -1)) {
-            lua_pop(L, 1);                                // -1
-            lua_newtable(L);                              // +1
-            lua_pushstring(L, "propagators");             // +1
-            lua_pushvalue(L, -2);                         // +1
-            lua_rawset(L, 1);                             // -2
+            lua_pop(L, 1);                    // -1
+            lua_newtable(L);                  // +1
+            lua_pushstring(L, "propagators"); // +1
+            lua_pushvalue(L, -2);             // +1
+            lua_rawset(L, 1);                 // -2
         }
-        auto *T = lua_newthread(L);                       // +1
-        luaL_ref(L, -2);                                  // -1
-        lua_pop(L, 1);                                    // -1
-        lua_pushvalue(L, 2);                              // +1
-        lua_xmove(L, T, 1);                               // -1
+        auto *T = lua_newthread(L);           // +1
+        luaL_ref(L, -2);                      // -1
+        lua_pop(L, 1);                        // -1
+        lua_pushvalue(L, 2);                  // +1
+        lua_xmove(L, T, 1);                   // -1
         lua_newtable(T);
         lua_newtable(T);
         protect(L, [L, T, &self]() { self.ctl.registerPropagator(gringo_make_unique<Propagator>(L, T), true); });
@@ -2843,7 +2864,31 @@ struct ControlWrap {
         lua_pop(L, 1);                      // -1
         lua_pushvalue(L, 2);                // +1
         lua_xmove(L, T, 1);                 // -1
-        protect(L, [L, T, &self, replace]() { self.ctl.registerObserver(gringo_make_unique<GroundProgramObserver>(L, T), replace); });
+
+        static clingo_ground_program_observer_t observer = {
+            GroundProgramObserver::init_program,
+            GroundProgramObserver::begin_step,
+            GroundProgramObserver::end_step,
+            GroundProgramObserver::rule,
+            GroundProgramObserver::weight_rule,
+            GroundProgramObserver::minimize,
+            GroundProgramObserver::project,
+            GroundProgramObserver::output_atom,
+            GroundProgramObserver::output_term,
+            GroundProgramObserver::output_csp,
+            GroundProgramObserver::external,
+            GroundProgramObserver::assume,
+            GroundProgramObserver::heuristic,
+            GroundProgramObserver::acyc_edge,
+            GroundProgramObserver::theory_term_number,
+            GroundProgramObserver::theory_term_string,
+            GroundProgramObserver::theory_term_compound,
+            GroundProgramObserver::theory_element,
+            GroundProgramObserver::theory_atom,
+            GroundProgramObserver::theory_atom_with_guard
+        };
+        PROTECT(self.observers.emplace_front(L, T));
+        handle_c_error(L, clingo_control_register_observer(&self.ctl, observer, replace, &self.observers.front()));
         return 0;
     }
 

@@ -114,6 +114,7 @@ struct ConfigProxy {
     virtual bool getKeyValue(unsigned key, std::string &value) = 0;
     virtual void setKeyValue(unsigned key, const char *val) = 0;
     virtual unsigned getRootKey() = 0;
+    virtual ~ConfigProxy() { }
 };
 
 // {{{1 declaration of SymbolicAtoms
