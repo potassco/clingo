@@ -2089,13 +2089,14 @@ luaL_Reg const PropagateControl::meta[] = {
 // }}}
 // {{{1 wrap Propagator
 
-class Propagator : public Gringo::Propagator {
+class Propagator {
 public:
     enum Indices : int { PropagatorIndex=1, StateIndex=2, ThreadIndex=3 };
     Propagator(lua_State *L, lua_State *T) : L(L), T(T) { }
     static int init_(lua_State *L) {
-        auto *self = (Propagator*)lua_touserdata(L, 1);
-        auto *init = (Gringo::PropagateInit*)lua_touserdata(L, 2);
+        auto *self = static_cast<Propagator*>(lua_touserdata(L, 1));
+        auto *init = static_cast<clingo_propagate_init_t*>(lua_touserdata(L, 2));
+        PROTECT(self->threads.reserve(clingo_propagate_init_number_of_threads(init)));
         while (self->threads.size() < static_cast<size_t>(init->threads())) {
             self->threads.emplace_back(lua_newthread(L));
             lua_xmove(L, self->T, 1);
@@ -2112,24 +2113,23 @@ public:
         else { lua_pop(L, 2); }                          // -2
         return 0;
     }
-    void init(Gringo::PropagateInit &init) override {
-        threads.reserve(init.threads());
-        if (!lua_checkstack(L, 4)) { throw std::runtime_error("lua stack size exceeded"); }
-        lua_pushcfunction(L, luaTraceback);
-        lua_pushcfunction(L, init_);
-        lua_pushlightuserdata(L, this);
-        lua_pushlightuserdata(L, &init);
-        auto ret = lua_pcall(L, 2, 0, -4);
-        if (ret != 0) {
-            Location loc("<Propagator::init>", 1, 1, "<Propagator::init>", 1, 1);
-            handleError(L, loc, ret, "initializing the propagator failed", nullptr);
+    static bool init(clingo_propagate_init_t *init, void *data) {
+        auto *self = static_cast<Propagator*>(data);
+        if (!lua_checkstack(self->L, 4)) {
+            clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
+            return false;
         }
+        lua_pushcfunction(self->L, luaTraceback);
+        lua_pushcfunction(self->L, init_);
+        lua_pushlightuserdata(self->L, self);
+        lua_pushlightuserdata(self->L, init);
+        auto ret = lua_pcall(self->L, 2, 0, -4);
+        return handle_lua_error(self->L, "Propagator::init", "initializing the propagator failed", ret);
     }
-    static int getChanges(lua_State *L, Potassco::LitSpan const *changes) {
+    static int getChanges(lua_State *L, clingo_literal_t const *changes, size_t size) {
         lua_newtable(L);
-        int m = changes->size;
-        for (int i = 0; i < m; ++i) {
-            lua_pushinteger(L, *(changes->first + i));
+        for (size_t i = 0; i < size; ++i) {
+            lua_pushinteger(L, *(changes + i));
             lua_rawseti(L, -2, i+1);
         }
         return 1;
@@ -2141,16 +2141,17 @@ public:
     }
     static int propagate_(lua_State *L) {
         auto *self = static_cast<Propagator*>(lua_touserdata(L, 1));
-        auto *solver = static_cast<Potassco::AbstractSolver*>(lua_touserdata(L, 2));
-        auto *changes = static_cast<Potassco::LitSpan const*>(lua_touserdata(L, 3));
+        auto *control = static_cast<clingo_propagate_control_t *>(lua_touserdata(L, 2));
+        auto *changes = static_cast<clingo_literal_t const *>(lua_touserdata(L, 3));
+        auto size = lua_tointeger(L, 4);
         lua_pushvalue(self->T, PropagatorIndex);         // +1
         lua_xmove(self->T, L, 1);                        // +0
         lua_getfield(L, -1, "propagate");                // +1
         if (!lua_isnil(L, -1)) {
             lua_insert(L, -2);
-            PropagateControl::new_(L, reinterpret_cast<clingo_propagate_control_t*>(solver));           // +1
-            getChanges(L, changes);                      // +1
-            getState(L, self->T, solver->id());          // +1
+            PropagateControl::new_(L, control);          // +1
+            getChanges(L, changes, size);                // +1
+            getState(L, self->T, clingo_propagate_control_thread_id(control)); // +1
             lua_call(L, 4, 0);                           // -5
         }
         else {
@@ -2158,34 +2159,38 @@ public:
         }
         return 0;
     }
-    void propagate(Potassco::AbstractSolver &solver, Potassco::LitSpan const &changes) override {
-        lua_State *L = threads[solver.id()];
-        if (!lua_checkstack(L, 5)) { throw std::runtime_error("lua stack size exceeded"); }
-        LuaClear ll(T), lt(L);
+    static bool propagate(clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, void *data) {
+        auto *self = static_cast<Propagator*>(data);
+        lua_State *L = self->threads[clingo_propagate_control_thread_id(control)];
+        if (!lua_checkstack(L, 6)) {
+            clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
+            return false;
+        }
+        LuaClear ll(self->T), lt(L);
         lua_pushcfunction(L, luaTraceback);
         lua_pushcfunction(L, propagate_);
-        lua_pushlightuserdata(L, this);
-        lua_pushlightuserdata(L, &solver);
-        lua_pushlightuserdata(L, &const_cast<Potassco::LitSpan&>(changes));
-        auto ret = lua_pcall(L, 3, 0, -5);
-        if (ret != 0) {
-            Location loc("<Propagator::propagate>", 1, 1, "<Propagator::propagate>", 1, 1);
-            handleError(L, loc, ret, "propagate failed", nullptr);
-        }
+        lua_pushlightuserdata(L, self);
+        lua_pushlightuserdata(L, control);
+        lua_pushlightuserdata(L, const_cast<clingo_literal_t *>(changes));
+        lua_pushinteger(L, size);
+        auto ret = lua_pcall(L, 4, 0, -6);
+        return handle_lua_error(L, "Propagator::propagate", "propagate failed", ret);
     }
     static int undo_(lua_State *L) {
         auto *self = static_cast<Propagator*>(lua_touserdata(L, 1));
-        auto *solver = static_cast<Potassco::AbstractSolver const*>(lua_touserdata(L, 2));
-        auto *changes = static_cast<Potassco::LitSpan const*>(lua_touserdata(L, 3));
+        auto *control = static_cast<clingo_propagate_control_t*>(lua_touserdata(L, 2));
+        auto *changes = static_cast<clingo_literal_t const *>(lua_touserdata(L, 3));
+        auto size = lua_tointeger(L, 4);
         lua_pushvalue(self->T, PropagatorIndex);         // +1
         lua_xmove(self->T, L, 1);                        // +0
         lua_getfield(L, -1, "undo");                     // +1
         if (!lua_isnil(L, -1)) {
+            auto id = clingo_propagate_control_thread_id(control);
             lua_insert(L, -2);
-            lua_pushnumber(L, solver->id() + 1);         // +1
-            Assignment::new_(L, reinterpret_cast<clingo_assignment_t*>(const_cast<Potassco::AbstractAssignment*>(&solver->assignment())));  // +1
-            getChanges(L, changes);                      // +1
-            getState(L, self->T, solver->id());          // +1
+            lua_pushnumber(L, id + 1);                   // +1
+            Assignment::new_(L, clingo_propagate_control_assignment(control));  // +1
+            getChanges(L, changes, size);                // +1
+            getState(L, self->T, id);                    // +1
             lua_call(L, 5, 0);                           // -6
         }
         else {
@@ -2193,20 +2198,22 @@ public:
         }
         return 0;
     }
-    void undo(Potassco::AbstractSolver const &solver, Potassco::LitSpan const &changes) override {
-        lua_State *L = threads[solver.id()];
-        if (!lua_checkstack(L, 5)) { throw std::runtime_error("lua stack size exceeded"); }
-        LuaClear ll(T), lt(L);
+    static bool undo(clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, void *data) {
+        auto *self = static_cast<Propagator*>(data);
+        lua_State *L = self->threads[clingo_propagate_control_thread_id(control)];
+        if (!lua_checkstack(L, 6)) {
+            clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
+            return false;
+        }
+        LuaClear ll(self->T), lt(L);
         lua_pushcfunction(L, luaTraceback);
         lua_pushcfunction(L, undo_);
-        lua_pushlightuserdata(L, this);
-        lua_pushlightuserdata(L, &const_cast<Potassco::AbstractSolver&>(solver));
-        lua_pushlightuserdata(L, &const_cast<Potassco::LitSpan&>(changes));
-        auto ret = lua_pcall(L, 3, 0, -5);
-        if (ret != 0) {
-            Location loc("<Propagator::undo>", 1, 1, "<Propagator::undo>", 1, 1);
-            handleError(L, loc, ret, "undo failed", nullptr);
-        }
+        lua_pushlightuserdata(L, self);
+        lua_pushlightuserdata(L, control);
+        lua_pushlightuserdata(L, const_cast<clingo_literal_t*>(changes));
+        lua_pushinteger(L, size);
+        auto ret = lua_pcall(L, 4, 0, -6);
+        return handle_lua_error(L, "Propagator::undo", "undo failed", ret);
     }
     static int check_(lua_State *L) {
         auto *self = static_cast<Propagator*>(lua_touserdata(L, 1));
@@ -2225,19 +2232,20 @@ public:
         }
         return 0;
     }
-    void check(Potassco::AbstractSolver &solver) override {
-        lua_State *L = threads[solver.id()];
-        if (!lua_checkstack(L, 4)) { throw std::runtime_error("lua stack size exceeded"); }
-        LuaClear ll(T), lt(L);
+    static bool check(clingo_propagate_control_t *control, void *data) {
+        auto *self = static_cast<Propagator*>(data);
+        lua_State *L = self->threads[clingo_propagate_control_thread_id(control)];
+        if (!lua_checkstack(L, 4)) {
+            clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
+            return false;
+        }
+        LuaClear ll(self->T), lt(L);
         lua_pushcfunction(L, luaTraceback);
         lua_pushcfunction(L, check_);
-        lua_pushlightuserdata(L, this);
-        lua_pushlightuserdata(L, &solver);
+        lua_pushlightuserdata(L, self);
+        lua_pushlightuserdata(L, control);
         auto ret = lua_pcall(L, 2, 0, -4);
-        if (ret != 0) {
-            Location loc("<Propagator::check>", 1, 1, "<Propagator::check>", 1, 1);
-            handleError(L, loc, ret, "check failed", nullptr);
-        }
+        return handle_lua_error(L, "Propagator::check", "check failed", ret);
     }
     virtual ~Propagator() noexcept = default;
 private:
@@ -2350,8 +2358,6 @@ luaL_Reg const HeuristicType::meta[] = {
     { nullptr, nullptr }
 };
 constexpr char const *HeuristicType::typeName;
-
-
 
 class GroundProgramObserver {
 public:
@@ -2577,6 +2583,7 @@ struct ControlWrap {
     Control &ctl;
     bool free;
     std::forward_list<GroundProgramObserver> observers;
+    std::forward_list<Propagator> propagators;
     ControlWrap(Control &ctl, bool free) : ctl(ctl), free(free) { }
     static ControlWrap &get_self(lua_State *L) {
         void *p = nullptr;
@@ -2873,7 +2880,15 @@ struct ControlWrap {
         lua_xmove(L, T, 1);                   // -1
         lua_newtable(T);
         lua_newtable(T);
-        protect(L, [L, T, &self]() { self.ctl.registerPropagator(gringo_make_unique<Propagator>(L, T), true); });
+
+        static clingo_propagator_t propagator = {
+            Propagator::init,
+            Propagator::propagate,
+            Propagator::undo,
+            Propagator::check
+        };
+        PROTECT(self.propagators.emplace_front(L, T));
+        handle_c_error(L, clingo_control_register_propagator(&self.ctl, propagator, &self.propagators.front(), true));
         return 0;
     }
 
