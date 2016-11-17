@@ -135,7 +135,7 @@ if parse_ret.action == "run":
                 b = os.path.join(root, f[:-3])
                 inst = open(b + ".lp").read()
                 if (not with_python and re.search(r"#script[ ]*\(python\)", inst)) or \
-                   (not with_lua and re.search(r"#script[ ]*\(lua\)", inst)) or \
+                   (not with_lua and (re.search(r"#script[ ]*\(lua\)", inst) or re.search(r"#include[ ]*<incmode>[ ]*.", inst))) or \
                    (not with_threads and re.search("solve_async", inst)):
                     continue
 
