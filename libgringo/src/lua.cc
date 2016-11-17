@@ -471,7 +471,7 @@ struct Object {
     }
 
     static void reg(lua_State *L) {
-        lua_regMeta(L, T::typeName, T::meta, T::index, T::newIndex);
+        lua_regMeta(L, T::typeName, T::meta, T::index, T::newindex);
     }
 
     static T &get_self(lua_State* L) {
@@ -500,7 +500,7 @@ struct Object {
     }
     static constexpr luaL_Reg const meta[] = {{nullptr, nullptr}};
     static constexpr lua_CFunction const index = nullptr;
-    static constexpr lua_CFunction const newIndex = nullptr;
+    static constexpr lua_CFunction const newindex = nullptr;
 };
 
 template <typename T>
@@ -508,7 +508,7 @@ constexpr luaL_Reg const Object<T>::meta[];
 template <typename T>
 constexpr lua_CFunction const Object<T>::index;
 template <typename T>
-constexpr lua_CFunction const Object<T>::newIndex;
+constexpr lua_CFunction const Object<T>::newindex;
 
 // {{{1 wrap SolveResult
 
@@ -2997,18 +2997,18 @@ int luaopen_clingo(lua_State* L) {
     SymbolType::reg(L);
     Model::reg(L);
     SolveControl::reg(L);
-    lua_regMeta(L, SolveFuture::typeName,    SolveFuture::meta);
-    lua_regMeta(L, SolveIter::typeName,      SolveIter::meta);
+    SolveFuture::reg(L);
+    SolveIter::reg(L);
     lua_regMeta(L, ControlWrap::typeName,    ControlWrap::meta, ControlWrap::index, ControlWrap::newindex);
-    lua_regMeta(L, Configuration::typeName,  Configuration::meta, Configuration::index, Configuration::newindex);
+    Configuration::reg(L);
     SolveResult::reg(L);
-    lua_regMeta(L, SymbolicAtoms::typeName,  SymbolicAtoms::meta, SymbolicAtoms::index);
-    lua_regMeta(L, SymbolicAtom::typeName,   SymbolicAtom::meta, SymbolicAtom::index);
-    lua_regMeta(L, AnyWrap::typeName,        AnyWrap::meta);
+    SymbolicAtoms::reg(L);
+    SymbolicAtom::reg(L);
+    lua_regMeta(L, AnyWrap::typeName, AnyWrap::meta);
     TheoryTermType::reg(L);
-    lua_regMeta(L, TruthValue::typeName,     TruthValue::meta);
+    TruthValue::reg(L);
     ModelType::reg(L);
-    lua_regMeta(L, HeuristicType::typeName,  HeuristicType::meta);
+    HeuristicType::reg(L);
     TheoryTerm::reg(L);
     TheoryElement::reg(L);
     TheoryAtom::reg(L);
