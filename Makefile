@@ -31,8 +31,8 @@ web:
 	mkdir -p build/web
 	current="$$(pwd -P)" && cd build/web && cd "$$(pwd -P)" && emsdk construct_env && source emsdk_set_env.sh && emcmake cmake \
 		-DCLINGO_BUILD_WEB=On \
-		-DCLINGO_BUILD_PYTHON=Off \
-		-DCLINGO_BUILD_LUA=On \
+		-DCLINGO_BUILD_WITH_PYTHON=Off \
+		-DCLINGO_BUILD_WITH_LUA=On \
 		-DCLASP_BUILD_TEST=Off \
 		-DCLINGO_BUILD_SHARED=Off \
 		-DCLASP_BUILD_WITH_THREADS=Off \
