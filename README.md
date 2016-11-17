@@ -29,3 +29,6 @@ For more information please visit the project website:
 
 [![Build Status master](https://badges.herokuapp.com/travis/potassco/clingo?branch=master&label=master)](https://travis-ci.org/potassco/clingo?branch=master)
 [![Build Status wip](https://badges.herokuapp.com/travis/potassco/clingo?branch=wip&label=wip)](https://travis-ci.org/potassco/clingo?branch=wip)
+[![Build status cmake](https://ci.appveyor.com/api/projects/status/tpgy73yo761yylb9/branch/cmake?svg=true)](https://ci.appveyor.com/project/rkaminsk/clingo/branch/cmake)
+
+
