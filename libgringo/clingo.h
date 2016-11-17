@@ -779,11 +779,11 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_async_get(clingo_solve_async_t *hand
 //! Wait for the specified amount of time to check if the search has finished.
 //!
 //! If the time is set to zero, this function can be used to poll if the search
-//! is still running.
+//! has already finished.
 //!
 //! @param[in] handle the target
 //! @param[in] timeout the maximum time to wait
-//! @param[out] result whether the search is still running
+//! @param[out] result whether the search has finished
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
