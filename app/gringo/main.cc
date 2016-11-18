@@ -25,6 +25,7 @@
 #   include <lua.hh>
 #endif
 
+#include <clingo.h>
 #include <iostream>
 
 extern "C" CLINGO_VISIBILITY_DEFAULT int gringo_main_(int argc, char *argv[]);
