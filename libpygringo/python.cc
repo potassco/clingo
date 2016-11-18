@@ -349,7 +349,7 @@ void ParseTuple(Reference pyargs, char const *fmt, T &...x) {
     PyArg_ParseTuple(pyargs.toPy(), fmt, ParsePtr<T>(x).get()...);
 }
 
-template <Object (&f)(Reference, Reference)>
+template <Object (*f)(Reference, Reference)>
 struct ToFunctionBinary {
     static PyObject *value(PyObject *, PyObject *params, PyObject *keywords) {
         PY_TRY { return f(params, keywords).release(); }
@@ -357,7 +357,7 @@ struct ToFunctionBinary {
     };
 };
 
-template <Object (&f)(Reference)>
+template <Object (*f)(Reference)>
 struct ToFunctionUnary {
     static PyObject *value(PyObject *, PyObject *params) {
         PY_TRY { return f(params).release(); }
@@ -365,10 +365,10 @@ struct ToFunctionUnary {
     };
 };
 
-template <Object (&f)(Reference, Reference)>
+template <Object (*f)(Reference, Reference)>
 constexpr PyCFunction to_function() { return reinterpret_cast<PyCFunction>(ToFunctionBinary<f>::value); }
 
-template <Object (&f)(Reference)>
+template <Object (*f)(Reference)>
 constexpr PyCFunction to_function() { return reinterpret_cast<PyCFunction>(ToFunctionUnary<f>::value); }
 
 struct Tuple : Object {
@@ -1500,7 +1500,6 @@ R"(get(self) -> TheoryAtom)"},
 // {{{1 wrap Symbol
 
 struct SymbolType : EnumType<SymbolType> {
-    using Type = enum clingo_symbol_type;
     static constexpr char const *tp_type = "SymbolType";
     static constexpr char const *tp_name = "clingo.SymbolType";
     static constexpr char const *tp_doc =
@@ -1515,7 +1514,7 @@ SymbolType.Function -- a numeric symbol - e.g., c, (1, "a"), or f(1,"a")
 SymbolType.Infimum  -- the #inf symbol
 SymbolType.Supremum -- the #sup symbol)";
 
-    static constexpr Type const values[] = {
+    static constexpr enum clingo_symbol_type const values[] = {
         clingo_symbol_type_number,
         clingo_symbol_type_string,
         clingo_symbol_type_function,
@@ -1525,7 +1524,7 @@ SymbolType.Supremum -- the #sup symbol)";
     static constexpr const char * const strings[] = { "Number", "String", "Function", "Infimum", "Supremum" };
 };
 
-constexpr SymbolType::Type const SymbolType::values[];
+constexpr enum clingo_symbol_type const SymbolType::values[];
 constexpr const char * const SymbolType::strings[];
 
 struct Symbol : ObjectBase<Symbol> {
@@ -1886,7 +1885,6 @@ lits -- list of pairs of Booleans and atoms representing the nogood)"},
 // {{{1 wrap Model
 
 struct ModelType : EnumType<ModelType> {
-    using Type = enum clingo_model_type;
     static constexpr char const *tp_type = "ModelType";
     static constexpr char const *tp_name = "clingo.ModelType";
     static constexpr char const *tp_doc =
@@ -1899,7 +1897,7 @@ SymbolType.StableModel          -- a stable model
 SymbolType.BraveConsequences    -- set of brave consequences
 SymbolType.CautiousConsequences -- set of cautious consequences)";
 
-    static constexpr Type const values[] = {
+    static constexpr enum clingo_model_type const values[] = {
         clingo_model_type_stable_model,
         clingo_model_type_brave_consequences,
         clingo_model_type_cautious_consequences
@@ -1907,7 +1905,7 @@ SymbolType.CautiousConsequences -- set of cautious consequences)";
     static constexpr const char * const strings[] = { "StableModel", "BraveConsequences", "CautiousConsequences" };
 };
 
-constexpr ModelType::Type const ModelType::values[];
+constexpr enum clingo_model_type const ModelType::values[];
 constexpr const char * const ModelType::strings[];
 
 struct Model : ObjectBase<Model> {
