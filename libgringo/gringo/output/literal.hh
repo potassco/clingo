@@ -82,10 +82,10 @@ public:
 
 private:
     struct Data {
-        uint64_t sign   : 2;
-        uint64_t type   : 6;
-        uint64_t domain : 24;
-        uint64_t offset : 32;
+        uint32_t sign   : 2;
+        uint32_t type   : 6;
+        uint32_t domain : 24;
+        uint32_t offset;
     };
     union {
         Data data_;
