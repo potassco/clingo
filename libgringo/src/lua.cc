@@ -387,6 +387,11 @@ void luaToCpp(lua_State *L, int index, bool &x) {
     x = lua_toboolean(L, index);
 }
 
+void luaToCpp(lua_State *L, int index, std::string &x) {
+    char const *str = lua_tostring(L, index);
+    PROTECT(x = str);
+}
+
 template <class T>
 void luaToCpp(lua_State *L, int index, T &x, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr) {
     if (lua_type(L, index) != LUA_TNUMBER) {
@@ -477,15 +482,19 @@ struct LuaClear {
     int n;
 };
 
-struct LuaCallArgs {
-    char const *name;
-    clingo_symbol_t const *arguments;
-    size_t size;
-    clingo_symbol_callback_t *symbol_callback;
-    void *data;
-};
-
-int luaCall(lua_State *L);
+std::ostream &operator<<(std::ostream &out, clingo_location_t loc) {
+    out << loc.begin_file << ":" << loc.begin_line << ":" << loc.begin_column;
+    if (strcmp(loc.begin_file, loc.end_file) != 0) {
+        out << "-" << loc.end_file << ":" << loc.end_line << ":" << loc.end_column;
+    }
+    else if (loc.begin_line != loc.end_line) {
+        out << "-" << loc.end_line << ":" << loc.end_column;
+    }
+    else if (loc.begin_column != loc.end_column) {
+        out << "-" << loc.end_column;
+    }
+    return out;
+}
 
 // {{{1 wrap SolveResult
 
@@ -1095,6 +1104,82 @@ clingo_symbol_t luaToVal(lua_State *L, int idx) {
     return {};
 }
 
+struct LuaCallArgs_ {
+    char const *name;
+    clingo_symbol_t const *arguments;
+    size_t size;
+    clingo_symbol_callback_t *symbol_callback;
+    void *data;
+};
+
+int luacall_(lua_State *L) {
+    auto &args = *static_cast<LuaCallArgs_*>(lua_touserdata(L, 1));
+    int context = 0;
+    if (!lua_isnil(L, 2)) {
+        context = 1;
+        lua_getfield(L, 2, args.name);
+        lua_pushvalue(L, 2);
+    }
+    else { lua_getglobal(L, args.name); }
+    for (auto it = args.arguments, ie = it + args.size; it != ie; ++it) {
+        Term::new_(L, *it);
+    }
+    lua_call(L, args.size + context, 1);
+    if (lua_type(L, -1) == LUA_TTABLE) {
+        lua_pushnil(L);
+        while (lua_next(L, -2)) {
+            clingo_symbol_t val = luaToVal(L, -1);
+            handle_c_error(L, args.symbol_callback(&val, 1, args.data));
+            lua_pop(L, 1);
+        }
+    }
+    else {
+        clingo_symbol_t val = luaToVal(L, -1);
+        handle_c_error(L, args.symbol_callback(&val, 1, args.data));
+    }
+    return 0;
+}
+
+// TODO: also needs a version with a string location
+bool luacall(lua_State *L, clingo_location_t location, int context, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data) {
+    if (!lua_checkstack(L, 4)) {
+        clingo_set_error(clingo_error_bad_alloc, "lua stack size exceeded");
+        return false;
+    }
+    LuaCallArgs_ args{ name, arguments, arguments_size, symbol_callback, symbol_callback_data };
+    lua_pushcfunction(L, luaTraceback);
+    lua_pushcfunction(L, luacall_);
+    lua_pushlightuserdata(L, &args);
+    lua_pushvalue(L, context);
+    auto ret = lua_pcall(L, 2, 0, -4);
+    if (ret != 0) {
+        std::string loc, desc;
+        try {
+            std::ostringstream oss;
+            oss << location;
+            loc = oss.str();
+            desc = "error calling ";
+            desc += name;
+        }
+        catch (...) {
+            lua_pop(L, 1);
+            clingo_set_error(clingo_error_runtime, "error during error handling");
+            return false;
+        }
+        return handle_lua_error(L, loc.c_str(), desc.c_str(), ret);
+    }
+    return true;
+}
+
+struct LuaCallArgs {
+    char const *name;
+    clingo_symbol_t const *arguments;
+    size_t size;
+    clingo_symbol_callback_t *symbol_callback;
+    void *data;
+};
+
+// TODO: remove
 int luaCall(lua_State *L) {
     auto &args = *static_cast<LuaCallArgs*>(lua_touserdata(L, 1));
     bool hasContext = !lua_isnil(L, 2);
@@ -2556,7 +2641,7 @@ struct LuaContext : Gringo::Context {
 };
 
 struct ControlWrap : Object<ControlWrap> {
-    static GringoModule *module;
+    static clingo_control_new_t new_control;
     clingo_control_t *ctl;
     bool free;
     std::forward_list<GroundProgramObserver> observers;
@@ -2583,27 +2668,32 @@ struct ControlWrap : Object<ControlWrap> {
         }
         return *static_cast<ControlWrap*>(p);
     }
+    struct Context {
+        lua_State *L;
+        int context;
+    };
+    static bool on_context(clingo_location_t location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data) {
+        auto &ctx = *static_cast<Context*>(data);
+        return luacall(ctx.L, location, ctx.context, name, arguments, arguments_size, symbol_callback, symbol_callback_data);
+    }
     static int ground(lua_State *L) {
         auto &ctl = get_self(L).ctl;
         luaL_checktype(L, 2, LUA_TTABLE);
-        LuaContext ctx{ L, ctl->logger(), !lua_isnone(L, 3) && !lua_isnil(L, 3) ? 3 : 0 };
-        if (ctx.idx) { luaL_checktype(L, ctx.idx, LUA_TTABLE); }
-        Control::GroundVec *vec = AnyWrap::new_<Control::GroundVec>(L);
-        lua_pushnil(L);
-        while (lua_next(L, 2) != 0) {
-            luaL_checktype(L, -1, LUA_TTABLE);
-            lua_pushnil(L);
-            if (!lua_next(L, -2)) { luaL_error(L, "tuple of name and arguments expected"); }
-            char const *name = luaL_checkstring(L, -1);
-            lua_pop(L, 1);
-            if (!lua_next(L, -2)) { luaL_error(L, "tuple of name and arguments expected"); }
-            std::vector<clingo_symbol_t> *args = luaToVals(L, -1);
-            protect(L, [name, args, vec](){ vec->emplace_back(name, reinterpret_cast<std::vector<Symbol>&>(*args)); });
-            lua_pop(L, 1);
-            if (lua_next(L, -2)) { luaL_error(L, "tuple of name and arguments expected"); }
-            lua_pop(L, 1);
+        int context = !lua_isnone(L, 3) && !lua_isnil(L, 3) ? 3 : 0;
+        using symbol_vector = std::vector<symbol_wrapper>;
+        auto cpp_parts = AnyWrap::new_<std::vector<std::pair<std::string, symbol_vector>>>(L);
+        luaToCpp(L, 2, *cpp_parts);
+        clingo_part_t *parts = static_cast<decltype(parts)>(lua_newuserdata(L, sizeof(*parts) * cpp_parts->size()));
+        auto it = parts;
+        for (auto &part : *cpp_parts) {
+            *it++ = clingo_part_t {
+                part.first.c_str(),
+                reinterpret_cast<clingo_symbol_t*>(part.second.data()),
+                part.second.size()
+            };
         }
-        protect(L, [&ctl, vec, &ctx]() { ctl->ground(*vec, ctx.idx ? &ctx : nullptr); });
+        Context ctx{L, context};
+        handle_c_error(L, clingo_control_ground(ctl, parts, cpp_parts->size(), context ? on_context : nullptr, context ? &ctx : nullptr));
         return 0;
     }
     static int add(lua_State *L) {
@@ -2789,20 +2879,12 @@ struct ControlWrap : Object<ControlWrap> {
     static int new_(lua_State *L) {
         bool hasArg = !lua_isnone(L, 1);
         std::vector<std::string> *args = AnyWrap::new_<std::vector<std::string>>(L);
-        if (hasArg) {
-            luaL_checktype(L, 1, LUA_TTABLE);
-            lua_pushnil(L);
-            while (lua_next(L, 1) != 0) {
-                char const *arg = luaL_checkstring(L, -1);
-                protect(L, [arg, &args](){ args->push_back(arg); });
-                lua_pop(L, 1);
-            }
-        }
+        if (hasArg) { luaToCpp(L, 1, *args); }
         std::vector<char const *> *cargs = AnyWrap::new_<std::vector<char const*>>(L);
         for (auto &arg : *args) {
             protect(L, [&arg, &cargs](){ cargs->push_back(arg.c_str()); });
         }
-        return new_(L, [cargs](void *mem){ new (mem) ControlWrap(module->newControl(cargs->size(), cargs->data(), nullptr, 20), true); });
+        return new_(L, [L, cargs](void *mem){ new (mem) ControlWrap(call_c(L, new_control, cargs->data(), cargs->size(), nullptr, nullptr, 20), true); });
     }
     template <class F>
     static int new_(lua_State *L, F f) {
@@ -2900,7 +2982,7 @@ struct ControlWrap : Object<ControlWrap> {
 };
 
 constexpr char const *ControlWrap::typeName;
-GringoModule *ControlWrap::module = nullptr;
+clingo_control_new_t ControlWrap::new_control = nullptr;
 luaL_Reg ControlWrap::meta[] = {
     {"ground",  ground},
     {"add", add},
@@ -3031,8 +3113,8 @@ struct LuaImpl {
 
 class LuaScript : public Script {
 public:
-    LuaScript(GringoModule &module) {
-        ControlWrap::module = &module;
+    LuaScript(clingo_control_new_t new_control) {
+        ControlWrap::new_control = new_control;
     }
 
 private:
@@ -3102,13 +3184,13 @@ private:
     std::unique_ptr<LuaImpl> impl;
 };
 
-void luaInitlib(lua_State *L, GringoModule &module) {
-    ControlWrap::module = &module;
+void luaInitlib(lua_State *L, clingo_control_new_t new_control) {
+    ControlWrap::new_control = new_control;
     luarequire_clingo(L);
 }
 
-UScript luaScript(GringoModule &module) {
-    return gringo_make_unique<LuaScript>(module);
+UScript luaScript(clingo_control_new_t new_control) {
+    return gringo_make_unique<LuaScript>(new_control);
 }
 
 // }}}1
@@ -3124,9 +3206,9 @@ namespace Gringo {
 
 // {{{1 definition of LuaScript
 
-void luaInitlib(lua_State *, GringoModule &) { }
+void luaInitlib(lua_State *, clingo_control_new_t) { }
 
-UScript luaScript(GringoModule &) {
+UScript luaScript(clingo_control_new_t) {
     return nullptr;
 }
 

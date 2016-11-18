@@ -205,8 +205,7 @@ extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main_(int argc, char *argv[], cl
 
 #ifdef WITH_LUA
 extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_lua_(lua_State *L) {
-    static DefaultGringoModule g_module;
-    try                             { Gringo::luaInitlib(L, g_module); }
+    try                             { Gringo::luaInitlib(L, clingo_control_new); }
     catch (std::exception const &e) { luaL_error(L, e.what()); }
     catch (...)                     { luaL_error(L, "unknown error"); }
     return 1;

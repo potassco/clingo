@@ -96,7 +96,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     , opts(opts) {
         using namespace Gringo;
         // TODO: should go where python script is once refactored
-        scripts.registerScript(clingo_ast_script_type_lua, luaScript(*this));
+        scripts.registerScript(clingo_ast_script_type_lua, luaScript(nullptr));
         out.keepFacts = opts.keepFacts;
         logger_.enable(clingo_warning_operation_undefined, !opts.wNoOperationUndefined);
         logger_.enable(clingo_warning_atom_undefined, !opts.wNoAtomUndef);

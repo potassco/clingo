@@ -765,7 +765,7 @@ Gringo::Scripts &g_scripts() {
 
 DefaultGringoModule::DefaultGringoModule() {
     // TODO: remove once refactored
-    g_scripts().registerScript(clingo_ast_script_type_lua, luaScript(*this));
+    g_scripts().registerScript(clingo_ast_script_type_lua, Gringo::luaScript(clingo_control_new));
 }
 
 Gringo::Control *DefaultGringoModule::newControl(int argc, char const * const*argv, Gringo::Logger::Printer printer, unsigned messageLimit) {

@@ -27,8 +27,9 @@ struct lua_State;
 
 namespace Gringo {
 
-UScript luaScript(GringoModule &module);
-void luaInitlib(lua_State *L, GringoModule &module);
+using clingo_control_new_t = bool (*) (char const *const *, size_t, clingo_logger_t , void *, unsigned, clingo_control_t **);
+UScript luaScript(clingo_control_new_t new_controlmodule);
+void luaInitlib(lua_State *L, clingo_control_new_t new_control);
 
 } // namespace Gringo
 
