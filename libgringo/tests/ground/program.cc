@@ -45,7 +45,8 @@ Program parse(std::string const &str) {
     Defines defs;
     Scripts scripts;
     Input::NongroundProgramBuilder pb{ scripts, prg, out, defs };
-    Input::NonGroundParser ngp{ pb };
+    bool incmode;
+    Input::NonGroundParser ngp{ pb, incmode };
     ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module.logger);
     ngp.parse(module.logger);
     prg.rewrite(defs, module.logger);

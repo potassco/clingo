@@ -40,7 +40,7 @@ class NonGroundParser : private LexerState<std::pair<String, std::pair<String, I
 private:
     enum Condition { yyccomment, yycblockcomment, yycpython, yyclua, yycnormal, yyctheory, yycdefinition };
 public:
-    NonGroundParser(INongroundProgramBuilder &pb);
+    NonGroundParser(INongroundProgramBuilder &pb, bool &incmode);
     void parseError(Location const &loc, std::string const &token);
     void pushFile(std::string &&filename, Logger &log);
     void pushStream(std::string &&name, std::unique_ptr<std::istream>, Logger &log);
@@ -78,7 +78,7 @@ private:
 
 private:
     std::set<std::string> filenames_;
-    bool incmodeIncluded_ = false;
+    bool &incmode_;
     bool cspIncluded_ = false;
     TheoryLexing theoryLexing_ = TheoryLexing::Disabled;
     String not_;

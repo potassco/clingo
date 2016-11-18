@@ -907,7 +907,8 @@ extern "C" bool clingo_parse_term(char const *str, clingo_logger_t *logger, void
 extern "C" bool clingo_parse_program(char const *program, clingo_ast_callback_t *cb, void *cb_data, clingo_logger_t *logger, void *logger_data, unsigned message_limit) {
     GRINGO_CLINGO_TRY {
         Input::ASTBuilder builder([cb, cb_data](clingo_ast_statement_t const &stm) { handleCError(cb(&stm, cb_data)); });
-        Input::NonGroundParser parser(builder);
+        bool incmode = false;
+        Input::NonGroundParser parser(builder, incmode);
         Logger::Printer printer;
         if (logger) { printer = [logger, logger_data](clingo_warning_t cond, char const *msg) { logger(cond, msg, logger_data); }; }
         Logger log(printer, message_limit);

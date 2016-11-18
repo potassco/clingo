@@ -78,7 +78,7 @@ struct ClingoState {
     ClingoState()
     : out(td, {}, ss, OutputFormat::INTERMEDIATE)
     , pb(scripts, prg, out, defs)
-    , parser(pb) {
+    , parser(pb, incmode) {
     }
     Gringo::Test::TestGringoModule module;
     std::stringstream ss;
@@ -89,6 +89,7 @@ struct ClingoState {
     Scripts scripts;
     Input::NongroundProgramBuilder pb;
     Input::NonGroundParser parser;
+    bool incmode;
 };
 
 inline bool ground(ClingoState &state) {

@@ -34,6 +34,7 @@
 #include <stdexcept>
 #include <potassco/application.h>
 #include <potassco/program_opts/typed_value.h>
+#include <clingo/incmode.hh>
 
 using StringVec = std::vector<std::string>;
 
@@ -85,7 +86,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     IncrementalControl(Gringo::Output::OutputBase &out, StringVec const &files, GringoOptions const &opts)
     : out(out)
     , pb(scripts, prg, out, defs, opts.rewriteMinimize)
-    , parser(pb)
+    , parser(pb, incmode)
     , opts(opts) {
         using namespace Gringo;
         // TODO: should go where python script is once refactored
@@ -237,6 +238,7 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     GringoOptions const                   &opts;
     Gringo::Logger                         logger_;
     std::unique_ptr<Gringo::Input::NongroundProgramBuilder> builder;
+    bool                                   incmode = false;
     bool                                   parsed = false;
     bool                                   grounded = false;
     bool initialized_ = false;
@@ -373,6 +375,10 @@ struct GringoApp : public Potassco::Application {
         if (inc.scripts.callable("main")) {
             inc.incremental_ = true;
             inc.scripts.main(inc);
+        }
+        else if (inc.incmode) {
+            inc.incremental_ = true;
+            incmode(inc);
         }
         else {
             Gringo::Control::GroundVec parts;

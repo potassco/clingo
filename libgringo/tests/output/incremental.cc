@@ -40,7 +40,8 @@ std::string iground(std::string in, int last = 3) {
     Defines defs;
     Scripts scripts;
     Input::NongroundProgramBuilder pb(scripts, prg, out, defs);
-    Input::NonGroundParser parser(pb);
+    bool incmode;
+    Input::NonGroundParser parser(pb, incmode);
     parser.pushStream("-", gringo_make_unique<std::stringstream>(in), module.logger);
     Models models;
     parser.parse(module.logger);

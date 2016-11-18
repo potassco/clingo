@@ -147,11 +147,12 @@ std::pair<std::string, std::string> check_file(std::string const &filename, std:
 
 // {{{ defintion of NonGroundParser
 
-NonGroundParser::NonGroundParser(INongroundProgramBuilder &pb)
-    : not_("not")
-    , pb_(pb)
-    , _startSymbol(0)
-    , _filename("") { }
+NonGroundParser::NonGroundParser(INongroundProgramBuilder &pb, bool &incmode)
+: incmode_(incmode)
+, not_("not")
+, pb_(pb)
+, _startSymbol(0)
+, _filename("") { }
 
 void NonGroundParser::parseError(Location const &loc, std::string const &msg) {
     GRINGO_REPORT(*log_, clingo_error_runtime) << loc << ": error: " << msg << "\n";
@@ -231,53 +232,11 @@ int NonGroundParser::lex(void *pValue, Location &loc) {
 void NonGroundParser::include(String file, Location const &loc, bool inbuilt, Logger &log) {
     if (inbuilt) {
         if (file == "incmode") {
-            if (incmodeIncluded_) {
+            if (incmode_) {
                 report_included(loc, "<incmode>", log);
             }
             else {
-                push("<incmode>", gringo_make_unique<std::istringstream>(R"(
-#script (lua)
-
-function get(val, default)
-    if val ~= nil then
-        return val
-    else
-        return default
-    end
-end
-
-function main(prg)
-    local imin   = get(prg:get_const("imin"), clingo.Number(0))
-    local imax   = prg:get_const("imax")
-    local istop  = get(prg:get_const("istop"), clingo.String("SAT"))
-
-    local step, ret = 0, None
-    while (imax == nil or step < imax.number) and
-          (step == 0   or step < imin.number or (
-              (istop.string == "SAT"     and not ret.satisfiable) or
-              (istop.string == "UNSAT"   and not ret.unsatisfiable) or
-              (istop.string == "UNKNOWN" and not ret.unknown))) do
-        local parts = {}
-        table.insert(parts, {"check", {step}})
-        if step > 0 then
-            prg:release_external(clingo.Function("query", {step-1}))
-            prg:cleanup()
-            table.insert(parts, {"step", {step}})
-        else
-            table.insert(parts, {"base", {}})
-        end
-        prg:ground(parts)
-        prg:assign_external(clingo.Function("query", {step}), true)
-        ret, step = prg:solve(), step+1
-    end
-end
-
-#end.
-
-#program check(t).
-#external query(t).
-)"));
-                incmodeIncluded_ = true;
+                incmode_ = true;
             }
         }
         else if (file == "csp") {

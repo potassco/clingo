@@ -27,6 +27,7 @@
 #include "clingo.hh"
 #include <signal.h>
 #include <gringo/script.h>
+#include <clingo/incmode.hh>
 
 // {{{1 definition of ClaspAPIBackend
 
@@ -176,7 +177,7 @@ void ClingoControl::parse(const StringVec& files, const ClingoOptions& opts, Cla
     }
     out_->keepFacts = opts.keepFacts;
     pb_ = gringo_make_unique<Input::NongroundProgramBuilder>(scripts_, prg_, *out_, defs_, opts.rewriteMinimize);
-    parser_ = gringo_make_unique<Input::NonGroundParser>(*pb_);
+    parser_ = gringo_make_unique<Input::NonGroundParser>(*pb_, incmode_);
     for (auto &x : opts.defines) {
         LOG << "define: " << x << std::endl;
         parser_->parseDefine(x, logger_);
@@ -238,6 +239,11 @@ void ClingoControl::main() {
         incremental_ = true;
         clasp_->enableProgramUpdates();
         scripts_.main(*this);
+    }
+    else if (incmode_) {
+        incremental_ = true;
+        clasp_->enableProgramUpdates();
+        incmode(*this);
     }
     else {
         incremental_ = false;

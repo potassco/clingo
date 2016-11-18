@@ -319,6 +319,7 @@ public:
     bool incremental_           = true;
     bool configUpdate_          = false;
     bool initialized_           = false;
+    bool incmode_               = false;
 };
 
 // {{{1 declaration of ClingoModel

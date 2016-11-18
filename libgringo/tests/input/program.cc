@@ -40,7 +40,7 @@ struct Grounder {
     Grounder()
     : out(td, {}, oss)
     , pb( scripts, p, out, d )
-    , ngp( pb )
+    , ngp( pb, incmode )
     { }
     Gringo::Test::TestGringoModule module;
     Potassco::TheoryData td;
@@ -51,6 +51,7 @@ struct Grounder {
     Defines d;
     NongroundProgramBuilder pb;
     NonGroundParser ngp;
+    bool incmode;
 
 };
 

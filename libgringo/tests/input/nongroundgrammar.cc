@@ -932,7 +932,8 @@ TestNongroundProgramBuilder::~TestNongroundProgramBuilder() { }
 std::string parse(std::string const &str) {
     Gringo::Test::TestGringoModule log;
     TestNongroundProgramBuilder pb;
-    NonGroundParser ngp(pb);
+    bool incmode;
+    NonGroundParser ngp(pb, incmode);
     ngp.pushStream("-", std::unique_ptr<std::istream>(new std::stringstream(str)), log);
     ngp.parse(log);
     return pb.toString();

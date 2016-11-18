@@ -39,7 +39,8 @@ TEST_CASE("input-nongroundlexer", "[input]") {
     Defines defs;
     Scripts scripts;
     NongroundProgramBuilder pb(scripts, prg, out, defs);
-    NonGroundParser ngp(pb);
+    bool incmode;
+    NonGroundParser ngp(pb, incmode);
     std::string in =
         "#script (python) #end "
         "%*xyz\nxyz\n*%"
