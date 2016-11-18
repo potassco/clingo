@@ -33,27 +33,7 @@ namespace Gringo {
 
 namespace {
 
-// {{{1 auxiliary functions
-
-#define VALUE_CMP(TYPE) \
-static int eq##TYPE(lua_State *L) { \
-    Symbol *a = static_cast<Symbol*>(luaL_checkudata(L, 1, "clingo."#TYPE)); \
-    Symbol *b = static_cast<Symbol*>(luaL_checkudata(L, 2, "clingo."#TYPE)); \
-    lua_pushboolean(L, *a == *b); \
-    return 1; \
-} \
-static int lt##TYPE(lua_State *L) { \
-    Symbol *a = static_cast<Symbol*>(luaL_checkudata(L, 1, "clingo."#TYPE)); \
-    Symbol *b = static_cast<Symbol*>(luaL_checkudata(L, 2, "clingo."#TYPE)); \
-    lua_pushboolean(L, *a < *b); \
-    return 1; \
-} \
-static int le##TYPE(lua_State *L) { \
-    Symbol *a = static_cast<Symbol*>(luaL_checkudata(L, 1, "clingo."#TYPE)); \
-    Symbol *b = static_cast<Symbol*>(luaL_checkudata(L, 2, "clingo."#TYPE)); \
-    lua_pushboolean(L, *a <= *b); \
-    return 1; \
-}
+// {{{1 error handling
 
 template <typename T>
 auto protect(lua_State *L, T f) -> decltype(f()) {
@@ -81,25 +61,27 @@ bool handle_lua_error(lua_State *L, char const *loc, char const *desc, int code)
             case LUA_ERRRUN:
             case LUA_ERRERR:
             case LUA_ERRSYNTAX: {
-                std::string s(lua_tostring(L, -1));
-                lua_pop(L, 1);
+                char const *s = lua_tostring(L, -1);
                 std::ostringstream msg;
                 msg << loc << ": " << "error: " << desc << ":\n"
                     << (code == LUA_ERRSYNTAX ? "  SyntaxError: " : "  RuntimeError: ")
                     << s << "\n"
                     ;
                 clingo_set_error(clingo_error_runtime, msg.str().c_str());
+                lua_pop(L, 1);
                 return false;
             }
             case LUA_ERRMEM: {
                 std::stringstream msg;
                 msg << loc << ": error: lua interpreter ran out of memory" << "\n";
                 clingo_set_error(clingo_error_bad_alloc, msg.str().c_str());
+                lua_pop(L, 1);
                 return false;
             }
         }
     }
     catch(...) {
+        lua_pop(L, 1);
         clingo_set_error(clingo_error_logic, "error during error handling");
         return false;
     }
@@ -143,6 +125,145 @@ static auto call_c(lua_State *L, F f, Args... args) -> decltype(call_c_(static_c
     return call_c_(static_cast<T*>(nullptr), L, f, args...);
 }
 
+bool handleError(lua_State *L, Location const &loc, int code, char const *desc, Logger *log) {
+    switch (code) {
+        case LUA_ERRRUN:
+        case LUA_ERRERR:
+        case LUA_ERRSYNTAX: {
+            std::string s(lua_tostring(L, -1));
+            lua_pop(L, 1);
+            std::ostringstream msg;
+            msg << loc << ": " << (log ? "info" : "error") << ": " << desc << ":\n"
+                << (code == LUA_ERRSYNTAX ? "  SyntaxError: " : "  RuntimeError: ")
+                << s << "\n"
+                ;
+            if (!log) { throw GringoError(msg.str().c_str()); }
+            else {
+                GRINGO_REPORT(*log, clingo_warning_operation_undefined) << msg.str();
+                return false;
+            }
+        }
+        case LUA_ERRMEM: {
+            std::stringstream msg;
+            msg << loc << ": error: lua interpreter ran out of memory" << "\n";
+            throw GringoError(msg.str().c_str());
+        }
+    }
+    return true;
+}
+
+static int luaTraceback (lua_State *L) {
+    if (!lua_isstring(L, 1)) { return 1; }
+    lua_getglobal(L, "debug");
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
+        return 1;
+    }
+    lua_getfield(L, -1, "traceback");
+    if (!lua_isfunction(L, -1)) {
+        lua_pop(L, 2);
+        return 1;
+    }
+    lua_pushvalue(L, 1);
+    lua_pushinteger(L, 2);
+    lua_call(L, 2, 1);
+    lua_getglobal(L, "string");
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
+        return 1;
+    }
+    lua_getfield(L, -1, "gsub");
+    if (!lua_isfunction(L, -1)) {
+        lua_pop(L, 1);
+        return 1;
+    }
+    lua_pushvalue(L, -3);
+    lua_pushliteral(L, "\t");
+    lua_pushliteral(L, "  ");
+    lua_call(L, 3, 1);
+    return 1;
+}
+
+// {{{1 Object
+
+void lua_regMeta(lua_State *L, char const *name, luaL_Reg const * funs, lua_CFunction indexfun = nullptr, lua_CFunction newindexfun = nullptr) {
+#if LUA_VERSION_NUM < 502
+    luaL_newmetatable(L, name);
+    luaL_register(L, 0, funs);
+#else
+    luaL_newmetatable(L, name);
+    luaL_setfuncs(L, funs, 0);
+#endif
+    lua_pushliteral(L, "__metatable");
+    lua_pushvalue(L, -2);
+    lua_rawset(L, -3);
+    lua_pushliteral(L, "__index");
+    if (indexfun) {
+        lua_pushcfunction(L, indexfun);
+    }
+    else {
+        lua_pushvalue(L, -2);
+    }
+    lua_rawset(L, -3);
+    if (newindexfun) {
+        lua_pushliteral(L, "__newindex");
+        lua_pushcfunction(L, newindexfun);
+        lua_rawset(L, -3);
+    }
+}
+
+template <typename T>
+struct Object {
+    template <typename... Args>
+    static int new_(lua_State *L, Args&&... args) {
+        new (lua_newuserdata(L, sizeof(T))) T(std::forward<Args>(args)...);
+        luaL_getmetatable(L, T::typeName);
+        lua_setmetatable(L, -2);
+        return 1;
+    }
+
+    static void reg(lua_State *L) {
+        lua_regMeta(L, T::typeName, T::meta, T::index, T::newindex);
+    }
+
+    static T &get_self(lua_State* L) {
+        return *(T*)luaL_checkudata(L, 1, T::typeName);
+    }
+
+    T &cmpKey() { return *static_cast<T*>(this); }
+
+    static int eq(lua_State *L) {
+        T *a = static_cast<T*>(luaL_checkudata(L, 1, T::typeName));
+        T *b = static_cast<T*>(luaL_checkudata(L, 2, T::typeName));
+        lua_pushboolean(L, a->cmpKey() == b->cmpKey());
+        return 1;
+    }
+    static int lt(lua_State *L) {
+        T *a = static_cast<T*>(luaL_checkudata(L, 1, T::typeName));
+        T *b = static_cast<T*>(luaL_checkudata(L, 2, T::typeName));
+        lua_pushboolean(L, a->cmpKey() < b->cmpKey());
+        return 1;
+    }
+    static int le(lua_State *L) {
+        T *a = static_cast<T*>(luaL_checkudata(L, 1, T::typeName));
+        T *b = static_cast<T*>(luaL_checkudata(L, 2, T::typeName));
+        lua_pushboolean(L, a->cmpKey() <= b->cmpKey());
+        return 1;
+    }
+    static constexpr luaL_Reg const meta[] = {{nullptr, nullptr}};
+    static constexpr lua_CFunction const index = nullptr;
+    static constexpr lua_CFunction const newindex = nullptr;
+};
+
+template <typename T>
+constexpr luaL_Reg const Object<T>::meta[];
+template <typename T>
+constexpr lua_CFunction const Object<T>::index;
+template <typename T>
+constexpr lua_CFunction const Object<T>::newindex;
+
+// {{{1 wrap Any
+
 struct Any {
     struct PlaceHolder {
         virtual ~PlaceHolder() { };
@@ -184,24 +305,19 @@ Any make_any(Args&&... args) {
     return Any(static_cast<T*>(nullptr), std::forward<Args>(args)...);
 }
 
-struct AnyWrap {
+struct AnyWrap : Object<AnyWrap> {
+    Any any;
+    AnyWrap() { }
     template <typename T, typename... Args>
     static T *new_(lua_State *L, Args&&... args) {
-        auto *data = lua_newuserdata(L, sizeof(Gringo::Any));
-        auto *any = new (data) Any();
-        luaL_getmetatable(L, typeName);
-        lua_setmetatable(L, -2);
-        PROTECT((*any = make_any<T>(std::forward<Args>(args)...), 0));
-        return any->get<T>();
-    }
-    template <class T>
-    static T *get(lua_State *L, int index) {
-        auto *self = (Gringo::Any*)luaL_checkudata(L, index, typeName);
-        return protect(L, [self]() { return self->get<T>(); });
+        Object::new_(L);
+        auto self = static_cast<AnyWrap*>(lua_touserdata(L, -1));
+        PROTECT((self->any = make_any<T>(std::forward<Args>(args)...), 0));
+        return self->any.get<T>();
     }
     static int gc(lua_State *L) {
-        Any* del = (Any*)lua_touserdata(L, 1);
-        del->~Any();
+        auto &self = get_self(L);
+        self.~AnyWrap();
         return 0;
     }
     static luaL_Reg const meta[];
@@ -214,6 +330,8 @@ luaL_Reg const AnyWrap::meta[] = {
     {"__gc", gc},
     {nullptr, nullptr}
 };
+
+// {{{1 auxliary functions
 
 clingo_symbol_t luaToVal(lua_State *L, int idx);
 
@@ -352,43 +470,12 @@ std::vector<clingo_symbol_t> *luaToVals(lua_State *L, int idx) {
     return vals;
 }
 
-bool handleError(lua_State *L, Location const &loc, int code, char const *desc, Logger *log) {
-    switch (code) {
-        case LUA_ERRRUN:
-        case LUA_ERRERR:
-        case LUA_ERRSYNTAX: {
-            std::string s(lua_tostring(L, -1));
-            lua_pop(L, 1);
-            std::ostringstream msg;
-            msg << loc << ": " << (log ? "info" : "error") << ": " << desc << ":\n"
-                << (code == LUA_ERRSYNTAX ? "  SyntaxError: " : "  RuntimeError: ")
-                << s << "\n"
-                ;
-            if (!log) { throw GringoError(msg.str().c_str()); }
-            else {
-                GRINGO_REPORT(*log, clingo_warning_operation_undefined) << msg.str();
-                return false;
-            }
-        }
-        case LUA_ERRMEM: {
-            std::stringstream msg;
-            msg << loc << ": error: lua interpreter ran out of memory" << "\n";
-            throw GringoError(msg.str().c_str());
-        }
-    }
-    return true;
-}
-
-static int luaTraceback (lua_State *L);
-
 struct LuaClear {
     LuaClear(lua_State *L) : L(L), n(lua_gettop(L)) { }
     ~LuaClear() { lua_settop(L, n); }
     lua_State *L;
     int n;
 };
-
-// {{{1 lua C functions
 
 struct LuaCallArgs {
     char const *name;
@@ -398,117 +485,7 @@ struct LuaCallArgs {
     void *data;
 };
 
-static int luaTraceback (lua_State *L) {
-    if (!lua_isstring(L, 1)) { return 1; }
-    lua_getglobal(L, "debug");
-    if (!lua_istable(L, -1)) {
-        lua_pop(L, 1);
-        return 1;
-    }
-    lua_getfield(L, -1, "traceback");
-    if (!lua_isfunction(L, -1)) {
-        lua_pop(L, 2);
-        return 1;
-    }
-    lua_pushvalue(L, 1);
-    lua_pushinteger(L, 2);
-    lua_call(L, 2, 1);
-    lua_getglobal(L, "string");
-    if (!lua_istable(L, -1)) {
-        lua_pop(L, 1);
-        return 1;
-    }
-    lua_getfield(L, -1, "gsub");
-    if (!lua_isfunction(L, -1)) {
-        lua_pop(L, 1);
-        return 1;
-    }
-    lua_pushvalue(L, -3);
-    lua_pushliteral(L, "\t");
-    lua_pushliteral(L, "  ");
-    lua_call(L, 3, 1);
-    return 1;
-}
-
 int luaCall(lua_State *L);
-
-void lua_regMeta(lua_State *L, char const *name, luaL_Reg const * funs, lua_CFunction indexfun = nullptr, lua_CFunction newindexfun = nullptr) {
-#if LUA_VERSION_NUM < 502
-    luaL_newmetatable(L, name);
-    luaL_register(L, 0, funs);
-#else
-    luaL_newmetatable(L, name);
-    luaL_setfuncs(L, funs, 0);
-#endif
-    lua_pushliteral(L, "__metatable");
-    lua_pushvalue(L, -2);
-    lua_rawset(L, -3);
-    lua_pushliteral(L, "__index");
-    if (indexfun) {
-        lua_pushcfunction(L, indexfun);
-    }
-    else {
-        lua_pushvalue(L, -2);
-    }
-    lua_rawset(L, -3);
-    if (newindexfun) {
-        lua_pushliteral(L, "__newindex");
-        lua_pushcfunction(L, newindexfun);
-        lua_rawset(L, -3);
-    }
-}
-
-// {{{1 Object
-
-template <typename T>
-struct Object {
-    template <typename... Args>
-    static int new_(lua_State *L, Args&&... args) {
-        new (lua_newuserdata(L, sizeof(T))) T(std::forward<Args>(args)...);
-        luaL_getmetatable(L, T::typeName);
-        lua_setmetatable(L, -2);
-        return 1;
-    }
-
-    static void reg(lua_State *L) {
-        lua_regMeta(L, T::typeName, T::meta, T::index, T::newindex);
-    }
-
-    static T &get_self(lua_State* L) {
-        return *(T*)luaL_checkudata(L, 1, T::typeName);
-    }
-
-    T &cmpKey() { return *static_cast<T*>(this); }
-
-    static int eq(lua_State *L) {
-        T *a = static_cast<T*>(luaL_checkudata(L, 1, T::typeName));
-        T *b = static_cast<T*>(luaL_checkudata(L, 2, T::typeName));
-        lua_pushboolean(L, a->cmpKey() == b->cmpKey());
-        return 1;
-    }
-    static int lt(lua_State *L) {
-        T *a = static_cast<T*>(luaL_checkudata(L, 1, T::typeName));
-        T *b = static_cast<T*>(luaL_checkudata(L, 2, T::typeName));
-        lua_pushboolean(L, a->cmpKey() < b->cmpKey());
-        return 1;
-    }
-    static int le(lua_State *L) {
-        T *a = static_cast<T*>(luaL_checkudata(L, 1, T::typeName));
-        T *b = static_cast<T*>(luaL_checkudata(L, 2, T::typeName));
-        lua_pushboolean(L, a->cmpKey() <= b->cmpKey());
-        return 1;
-    }
-    static constexpr luaL_Reg const meta[] = {{nullptr, nullptr}};
-    static constexpr lua_CFunction const index = nullptr;
-    static constexpr lua_CFunction const newindex = nullptr;
-};
-
-template <typename T>
-constexpr luaL_Reg const Object<T>::meta[];
-template <typename T>
-constexpr lua_CFunction const Object<T>::index;
-template <typename T>
-constexpr lua_CFunction const Object<T>::newindex;
 
 // {{{1 wrap SolveResult
 
@@ -2578,13 +2555,13 @@ struct LuaContext : Gringo::Context {
     int idx;
 };
 
-struct ControlWrap {
+struct ControlWrap : Object<ControlWrap> {
     static GringoModule *module;
-    Control &ctl;
+    clingo_control_t *ctl;
     bool free;
     std::forward_list<GroundProgramObserver> observers;
     std::forward_list<Propagator> propagators;
-    ControlWrap(Control &ctl, bool free) : ctl(ctl), free(free) { }
+    ControlWrap(clingo_control_t *ctl, bool free) : ctl(ctl), free(free) { }
     static ControlWrap &get_self(lua_State *L) {
         void *p = nullptr;
         if (lua_istable(L, 1)) {
@@ -2604,16 +2581,12 @@ struct ControlWrap {
             const char *msg = lua_pushfstring(L, "%s expected, got %s", typeName, luaL_typename(L, 1));
             luaL_argerror(L, 1, msg);
         }
-        return *(ControlWrap*)p;
-    }
-    static void checkBlocked(lua_State *L, Control &ctl, char const *function) {
-        if (protect(L, [&ctl]() { return ctl.blocked(); })) { luaL_error(L, "Control.%s must not be called during solve call", function); }
+        return *static_cast<ControlWrap*>(p);
     }
     static int ground(lua_State *L) {
         auto &ctl = get_self(L).ctl;
-        checkBlocked(L, ctl, "ground");
         luaL_checktype(L, 2, LUA_TTABLE);
-        LuaContext ctx{ L, ctl.logger(), !lua_isnone(L, 3) && !lua_isnil(L, 3) ? 3 : 0 };
+        LuaContext ctx{ L, ctl->logger(), !lua_isnone(L, 3) && !lua_isnil(L, 3) ? 3 : 0 };
         if (ctx.idx) { luaL_checktype(L, ctx.idx, LUA_TTABLE); }
         Control::GroundVec *vec = AnyWrap::new_<Control::GroundVec>(L);
         lua_pushnil(L);
@@ -2630,205 +2603,190 @@ struct ControlWrap {
             if (lua_next(L, -2)) { luaL_error(L, "tuple of name and arguments expected"); }
             lua_pop(L, 1);
         }
-        protect(L, [&ctl, vec, &ctx]() { ctl.ground(*vec, ctx.idx ? &ctx : nullptr); });
+        protect(L, [&ctl, vec, &ctx]() { ctl->ground(*vec, ctx.idx ? &ctx : nullptr); });
         return 0;
     }
     static int add(lua_State *L) {
-        auto &ctl = get_self(L).ctl;
-        checkBlocked(L, ctl, "add");
+        auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
         luaL_checktype(L, 3, LUA_TTABLE);
         char const *prg = luaL_checkstring(L, 4);
-        FWStringVec *vals = AnyWrap::new_<FWStringVec>(L);
-        lua_pushnil(L);
-        while (lua_next(L, 3) != 0) {
+        auto vals = AnyWrap::new_<std::vector<std::string>>(L); // +1
+        lua_pushnil(L); // +1
+        while (lua_next(L, 3) != 0) { // +1/-1
             char const *val = luaL_checkstring(L, -1);
             protect(L, [val,&vals](){ vals->push_back(val); });
-            lua_pop(L, 1);
+            lua_pop(L, 1); // -1
         }
-        protect(L, [&ctl, name, vals, prg]() { ctl.add(name, *vals, prg); });
+        size_t size = vals->size();
+        char const ** params = static_cast<decltype(params)>(lua_newuserdata(L, size * sizeof(*params))); // +1
+        auto it = params;
+        for (auto &x : *vals) { *it++ = x.c_str(); }
+        handle_c_error(L, clingo_control_add(self.ctl, name, params, size, prg));
+        lua_pop(L, 2); // -2
         return 0;
     }
     static int load(lua_State *L) {
-        auto &ctl = get_self(L).ctl;
-        checkBlocked(L, ctl, "load");
+        auto &self = get_self(L);
         char const *filename = luaL_checkstring(L, 2);
-        protect(L, [&ctl, filename]() { ctl.load(filename); });
+        handle_c_error(L, clingo_control_load(self.ctl, filename));
         return 0;
     }
     static int get_const(lua_State *L) {
-        auto &ctl = get_self(L).ctl;
-        checkBlocked(L, ctl, "get_const");
+        auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
-        Symbol ret = protect(L, [&ctl, name]() { return ctl.getConst(name); });
-        if (ret.type() == Gringo::SymbolType::Special) { lua_pushnil(L); }
-        else                                           { Term::new_(L, ret.rep()); }
+        if (call_c(L, clingo_control_has_const, self.ctl, name)) {
+            clingo_symbol_t sym = call_c(L, clingo_control_get_const, self.ctl, name);
+            Term::new_(L, sym);
+        }
+        else { lua_pushnil(L); }
         return 1;
     }
 
-    static Control::Assumptions *getAssumptions(lua_State *L, int assIdx) {
-        Control::Assumptions *ass = AnyWrap::new_<Control::Assumptions>(L);
-        if (assIdx) {
-            assIdx = lua_absindex(L, assIdx);
-            luaL_checktype(L, assIdx, LUA_TTABLE);
-            lua_pushnil(L);
-            while (lua_next(L, assIdx)) {
-                luaL_checktype(L, -1, LUA_TTABLE);
-                lua_pushnil(L);
-                if (!lua_next(L, -2)) { luaL_error(L, "atom/boolean pair expected"); }
-                Symbol atom{luaToVal(L, -1)};
-                lua_pop(L, 1);
-                if (!lua_next(L, -2)) { luaL_error(L, "atom/boolean pair expected"); }
-                bool truth = lua_toboolean(L, -1);
-                lua_pop(L, 1);
-                if (lua_next(L, -2)) { luaL_error(L, "atom/boolean pair expected"); }
-                protect(L, [atom, truth, ass](){ ass->emplace_back(atom, truth); });
-                lua_pop(L, 1);
-            }
-            lua_replace(L, assIdx);
+    struct OnModel {
+        lua_State *L;
+        Model *model;
+        int mhIndex;
+        int mIndex;
+    };
+
+    static bool on_model(clingo_model_t *model, void *data, bool *goon) {
+        auto om = static_cast<OnModel*>(data);
+        if (!lua_checkstack(om->L, 4)) {
+            clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
+            return false;
         }
-        return ass;
+        lua_pushcfunction(om->L, luaTraceback); // +1
+        lua_pushvalue(om->L, om->mhIndex);      // +1
+        lua_pushvalue(om->L, om->mIndex);       // +1
+        om->model->model = model;
+        int code = lua_pcall(om->L, 1, 1, -3);  // -2
+        if (code != 0) {
+            *goon = lua_isnil(om->L, -1) || lua_toboolean(om->L, -1);
+            lua_pop(om->L, 1); // -1
+        }
+        return handle_lua_error(om->L, "on_model", "error in model callback", code);
     }
 
     static int solve(lua_State *L) {
         auto &ctl = get_self(L).ctl;
-        checkBlocked(L, ctl, "solve");
-        lua_pushstring(L, "statistics");
-        lua_pushnil(L);
-        lua_rawset(L, 1);
-        int mhIndex = !lua_isnone(L, 2) && !lua_isnil(L, 2) ? 2 : 0;
+        lua_pushstring(L, "statistics"); // +1
+        lua_pushnil(L);                  // +1
+        lua_rawset(L, 1);                // -2
+        OnModel om{
+            L,
+            nullptr,
+            !lua_isnone(L, 2) && !lua_isnil(L, 2) ? 2 : 0,
+            0
+        };
         int assIdx  = !lua_isnone(L, 3) && !lua_isnil(L, 3) ? 3 : 0;
-        Gringo::Model const **model = nullptr;
-        int mIndex  = 0;
-        if (mhIndex) {
-            model = (Gringo::Model const **)lua_newuserdata(L, sizeof(Gringo::Model*));
-            luaL_getmetatable(L, Model::typeName);
-            lua_setmetatable(L, -2);
-            mIndex = lua_gettop(L);
+        if (om.mhIndex) {
+            Model::new_(L, nullptr); // +1
+            om.model = static_cast<Model*>(lua_touserdata(L, -1));
+            om.mIndex = lua_gettop(L);
         }
-        Control::Assumptions *ass = getAssumptions(L, assIdx);
-        SolveResult::new_(L, protect(L, [L, &ctl, model, ass, mhIndex, mIndex]() {
-            return (clingo_solve_result_bitset_t)ctl.solve(!model ? Control::ModelHandler(nullptr) : [L, model, mhIndex, mIndex](Gringo::Model const &m) -> bool {
-                LuaClear lc(L);
-                lua_pushcfunction(L, luaTraceback);
-                lua_pushvalue(L, mhIndex);
-                lua_pushvalue(L, mIndex);
-                *model = &m;
-                int code = lua_pcall(L, 1, 1, -3);
-                Location loc("<on_model>", 1, 1, "<on_model>", 1, 1);
-                handleError(L, loc, code, "error in model callback", nullptr);
-                return lua_type(L, -1) == LUA_TNIL || lua_toboolean(L, -1);
-            }, std::move(*ass));
-        }));
-        return 1;
+        auto *ass = AnyWrap::new_<std::vector<clingo_symbolic_literal_t>>(L); // +1
+        if (assIdx) { luaToCpp(L, assIdx, *ass); }
+        auto ret = call_c(L, clingo_control_solve, ctl, om.mhIndex ? on_model : nullptr, om.mhIndex ? &om : nullptr, ass->data(), ass->size());
+        lua_pop(L, 2); // -2
+        return SolveResult::new_(L, ret);
     }
     static int cleanup(lua_State *L) {
-        auto &ctl = get_self(L).ctl;
-        checkBlocked(L, ctl, "cleanup");
-        protect(L, [&ctl]() { ctl.cleanupDomains(); });
+        auto &self = get_self(L);
+        handle_c_error(L, clingo_control_cleanup(self.ctl));
         return 0;
     }
     static int solve_async(lua_State *L) {
         return luaL_error(L, "asynchronous solving not supported");
     }
     static int solve_iter(lua_State *L) {
-        auto &ctl = get_self(L).ctl;
-        checkBlocked(L, ctl, "solve_iter");
-        lua_pushstring(L, "statistics");
-        lua_pushnil(L);
-        lua_rawset(L, 1);
+        auto &self = get_self(L);
+        lua_pushstring(L, "statistics"); // +1
+        lua_pushnil(L);                  // +1
+        lua_rawset(L, 1);                // -2
         int assIdx  = !lua_isnone(L, 2) && !lua_isnil(L, 2) ? 2 : 0;
-        Control::Assumptions *ass = getAssumptions(L, assIdx);
-        SolveIter::new_(L, call_c(L, clingo_control_solve_iteratively, &ctl, reinterpret_cast<clingo_symbolic_literal_t const *>(ass->data()), ass->size()));
+        auto *ass = AnyWrap::new_<std::vector<clingo_symbolic_literal_t>>(L); // +1
+        if (assIdx) { luaToCpp(L, assIdx, *ass); }
+        SolveIter::new_(L, call_c(L, clingo_control_solve_iteratively, self.ctl, ass->data(), ass->size()));
+        lua_replace(L, -2); // -1
         return 1;
     }
     static int assign_external(lua_State *L) {
-        auto &ctl = get_self(L).ctl;
-        checkBlocked(L, ctl, "assign_external");
-        Symbol atom{luaToVal(L, 2)};
+        auto &self = get_self(L);
+        clingo_symbol_t sym = luaToVal(L, 2);
         luaL_checkany(L, 3);
-        Potassco::Value_t truth;
-        if (lua_isnil (L, 3)) { truth = Potassco::Value_t::Free; }
+        clingo_truth_value_t truth;
+        if (lua_isnil (L, 3)) { truth = clingo_truth_value_free; }
         else {
             luaL_checktype(L, 3, LUA_TBOOLEAN);
-            truth = lua_toboolean(L, 3) ? Potassco::Value_t::True : Potassco::Value_t::False;
+            truth = lua_toboolean(L, 3) ? clingo_truth_value_true : clingo_truth_value_false;
         }
-        protect(L, [&ctl, atom, truth]() { ctl.assignExternal(atom, truth); });
+        handle_c_error(L, clingo_control_assign_external(self.ctl, sym, truth));
         return 0;
     }
     static int release_external(lua_State *L) {
-        auto &ctl = get_self(L).ctl;
-        checkBlocked(L, ctl, "release_external");
-        Symbol atom{luaToVal(L, 2)};
-        protect(L, [&ctl, atom]() { ctl.assignExternal(atom, Potassco::Value_t::Release); });
+        auto &self = get_self(L);
+        clingo_symbol_t sym = luaToVal(L, 2);
+        handle_c_error(L, clingo_control_release_external(self.ctl, sym));
         return 0;
     }
     static int interrupt(lua_State *L) {
-        get_self(L).ctl.interrupt();
+        clingo_control_interrupt(get_self(L).ctl);
         return 0;
     }
     static int newindex(lua_State *L) {
-        auto &ctl = get_self(L).ctl;
+        auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
         if (strcmp(name, "use_enumeration_assumption") == 0) {
             bool enabled = lua_toboolean(L, 3);
-            checkBlocked(L, ctl, "use_enumeration_assumption");
-            protect(L, [&ctl, enabled]() { ctl.useEnumAssumption(enabled); });
+            handle_c_error(L, clingo_control_use_enumeration_assumption(self.ctl, enabled));
             return 0;
         }
         return luaL_error(L, "unknown field: %s", name);
     }
 
     static int index(lua_State *L) {
-        auto &ctl = get_self(L).ctl;
+        auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
-        if (strcmp(name, "use_enumeration_assumption") == 0) {
-            bool enabled = protect(L, [&ctl]() { return ctl.useEnumAssumption(); });
-            lua_pushboolean(L, enabled);                // stack +1
-            return 1;
-        }
-        else if (strcmp(name, "statistics") == 0) {
-            checkBlocked(L, ctl, "statistics");
-            lua_pushstring(L, "statistics");            // stack +1
-            lua_rawget(L, 1);                           // stack +0
+        if (strcmp(name, "statistics") == 0) {
+            lua_pushstring(L, "statistics");            // +1
+            lua_rawget(L, 1);                           // +0
             if (lua_isnil(L, -1)) {
-                auto stats = protect(L, [&ctl](){ return ctl.statistics(); });
-                lua_pop(L, 1);                          // stack -1
-                newStatistics(L, reinterpret_cast<clingo_statistics_t*>(stats), stats->root()); // stack +0
-                lua_pushstring(L, "statistics");        // stack +1
-                lua_pushvalue(L, -2);                   // stack +1
-                lua_rawset(L, 1);                       // stack -2
+                auto stats = call_c(L, clingo_control_statistics, self.ctl);
+                auto root = call_c(L, clingo_statistics_root, stats);
+                lua_pop(L, 1);                          // -1
+                newStatistics(L, stats, root);          // +1
+                lua_pushstring(L, "statistics");        // +1
+                lua_pushvalue(L, -2);                   // +1
+                lua_rawset(L, 1);                       // -2
             }
             return 1;
         }
         else if (strcmp(name, "configuration") == 0) {
-            checkBlocked(L, ctl, "configuration");
-            auto conf = call_c(L, clingo_control_configuration, &ctl);
+            auto conf = call_c(L, clingo_control_configuration, self.ctl);
             auto key = call_c(L, clingo_configuration_root, conf);
             return Configuration::new_(L, conf, key);
         }
         else if (strcmp(name, "symbolic_atoms") == 0) {
-            checkBlocked(L, ctl, "symbolic_atoms");
-            auto &proxy = protect(L, [&ctl]() -> Gringo::SymbolicAtoms& { return ctl.getDomain(); });
-            return SymbolicAtoms::new_(L, &proxy);
+            auto atoms = call_c(L, clingo_control_symbolic_atoms, self.ctl);
+            return SymbolicAtoms::new_(L, atoms);
         }
         else if (strcmp(name, "theory_atoms") == 0) {
-            checkBlocked(L, ctl, "theory_atoms");
-            return TheoryIter::iter(L, const_cast<Gringo::TheoryData*>(&ctl.theory()));
+            auto atoms = call_c(L, clingo_control_theory_atoms, self.ctl);
+            return TheoryIter::iter(L, atoms);
         }
         else if (strcmp(name, "backend") == 0) {
-            checkBlocked(L, ctl, "backend");
-            auto backend = call_c(L, clingo_control_backend, &ctl);
+            auto backend = call_c(L, clingo_control_backend, self.ctl);
             if (!backend) { return luaL_error(L, "backend not available"); }
             return Backend::new_(L, backend);
         }
         else {
             lua_getmetatable(L, 1);
             lua_getfield(L, -1, name);
-            return !lua_isnil(L, -1) ? 1 : luaL_error(L, "unknown field: %s", name);
+            return 1;
         }
     }
-    static int newControl(lua_State *L) {
+    static int new_(lua_State *L) {
         bool hasArg = !lua_isnone(L, 1);
         std::vector<std::string> *args = AnyWrap::new_<std::vector<std::string>>(L);
         if (hasArg) {
@@ -2844,10 +2802,10 @@ struct ControlWrap {
         for (auto &arg : *args) {
             protect(L, [&arg, &cargs](){ cargs->push_back(arg.c_str()); });
         }
-        return newControl(L, [cargs](void *mem){ new (mem) ControlWrap(*module->newControl(cargs->size(), cargs->data(), nullptr, 20), true); });
+        return new_(L, [cargs](void *mem){ new (mem) ControlWrap(module->newControl(cargs->size(), cargs->data(), nullptr, 20), true); });
     }
     template <class F>
-    static int newControl(lua_State *L, F f) {
+    static int new_(lua_State *L, F f) {
         lua_newtable(L);                                                           // +1
         auto self = (Gringo::ControlWrap*)lua_newuserdata(L, sizeof(ControlWrap)); // +1
         lua_rawseti(L, -2, 1);                                                     // -1
@@ -2858,7 +2816,7 @@ struct ControlWrap {
     }
     static int gc(lua_State *L) {
         auto &self = get_self(L);
-        if (self.free) { delete &self.ctl; }
+        if (self.free) { clingo_control_free(self.ctl); }
         self.~ControlWrap();
         return 0;
     }
@@ -2888,7 +2846,7 @@ struct ControlWrap {
             Propagator::check
         };
         PROTECT(self.propagators.emplace_front(L, T));
-        handle_c_error(L, clingo_control_register_propagator(&self.ctl, propagator, &self.propagators.front(), true));
+        handle_c_error(L, clingo_control_register_propagator(self.ctl, propagator, &self.propagators.front(), true));
         return 0;
     }
 
@@ -2933,7 +2891,7 @@ struct ControlWrap {
             GroundProgramObserver::theory_atom_with_guard
         };
         PROTECT(self.observers.emplace_front(L, T));
-        handle_c_error(L, clingo_control_register_observer(&self.ctl, observer, replace, &self.observers.front()));
+        handle_c_error(L, clingo_control_register_observer(self.ctl, observer, replace, &self.observers.front()));
         return 0;
     }
 
@@ -2964,7 +2922,7 @@ luaL_Reg ControlWrap::meta[] = {
 int luaMain(lua_State *L) {
     auto ctl = (Control*)lua_touserdata(L, 1);
     lua_getglobal(L, "main");
-    ControlWrap::newControl(L, [ctl](void *mem) { new (mem) ControlWrap(*ctl, false); });
+    ControlWrap::new_(L, [ctl](void *mem) { new (mem) ControlWrap(ctl, false); });
     lua_call(L, 1, 0);
     return 0;
 }
@@ -2973,12 +2931,8 @@ int luaMain(lua_State *L) {
 
 int parseTerm(lua_State *L) {
     char const *str = luaL_checkstring(L, 1);
-    Symbol val = protect(L, [str]() { return ControlWrap::module->parseValue(str, nullptr, 20); });
-    if (val.type() == Gringo::SymbolType::Special) { lua_pushnil(L); }
-    else { Term::new_(L, val.rep()); }
-    return 1;
+    return Term::new_(L, call_c(L, clingo_parse_term, str, nullptr, nullptr, 20));
 }
-
 
 // {{{1 clingo library
 
@@ -2988,7 +2942,7 @@ int luaopen_clingo(lua_State* L) {
         {"Tuple", Term::newTuple},
         {"Number", Term::newNumber},
         {"String", Term::newString},
-        {"Control", ControlWrap::newControl},
+        {"Control", ControlWrap::new_},
         {"parse_term", parseTerm},
         {nullptr, nullptr}
     };
@@ -2999,12 +2953,12 @@ int luaopen_clingo(lua_State* L) {
     SolveControl::reg(L);
     SolveFuture::reg(L);
     SolveIter::reg(L);
-    lua_regMeta(L, ControlWrap::typeName,    ControlWrap::meta, ControlWrap::index, ControlWrap::newindex);
+    ControlWrap::reg(L);
     Configuration::reg(L);
     SolveResult::reg(L);
     SymbolicAtoms::reg(L);
     SymbolicAtom::reg(L);
-    lua_regMeta(L, AnyWrap::typeName, AnyWrap::meta);
+    AnyWrap::reg(L);
     TheoryTermType::reg(L);
     ExternalType::reg(L);
     ModelType::reg(L);
