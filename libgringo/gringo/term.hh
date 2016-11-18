@@ -32,7 +32,11 @@
 #include <gringo/logger.hh>
 #include <memory>
 #include <unordered_set>
-
+#ifdef _MSC_VER
+#pragma warning( push )
+#pragma warning( disable : 4503 ) // decorated name length exceeded
+#pragma warning( disable : 4521 ) // multiple copy constructors specified
+#endif
 namespace Gringo {
 
 // {{{ declaration of UnOp and BinOp
@@ -822,5 +826,9 @@ void Term::unpoolJoin(Vec &vec, TermUnpool const &f) {
 GRINGO_HASH(Gringo::Term)
 GRINGO_HASH(Gringo::VarTerm)
 GRINGO_HASH(Gringo::GTerm)
+
+#ifdef _MSC_VER
+#pragma warning( pop )
+#endif
 
 #endif // _GRINGO_TERM_HH
