@@ -18,7 +18,7 @@
 
 // }}}
 
-#include <lua.hpp>
+#include <lua.hh>
 
 #if defined  _WIN32 || defined __CYGWIN__
 #    define VISIBILITY_DEFAULT __declspec (dllexport)
@@ -30,9 +30,7 @@
 #    endif
 #endif
 
-extern "C" VISIBILITY_DEFAULT int clingo_lua_(lua_State *L);
-
 extern "C" VISIBILITY_DEFAULT int luaopen_clingo(lua_State *L) {
-    return clingo_lua_(L);
+    return clingo_init_lua_(L);
 }
 

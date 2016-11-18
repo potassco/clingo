@@ -50,7 +50,7 @@
 
 struct lua_State;
 
-extern "C" LUACLINGO_VISIBILITY_DEFAULT void clingo_init_lua_(lua_State *L);
+extern "C" LUACLINGO_VISIBILITY_DEFAULT int clingo_init_lua_(lua_State *L);
 extern "C" LUACLINGO_VISIBILITY_DEFAULT bool clingo_register_lua_();
 
 #endif // _GRINGO_LUA_HH

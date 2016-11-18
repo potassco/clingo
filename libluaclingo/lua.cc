@@ -3111,8 +3111,8 @@ struct LuaScriptC {
 
 } // namespace Gringo
 
-void clingo_init_lua_(lua_State *L) {
-    Gringo::luarequire_clingo(L);
+int clingo_init_lua_(lua_State *L) {
+    return Gringo::luarequire_clingo(L);
 }
 
 extern "C" bool clingo_register_lua_() {
