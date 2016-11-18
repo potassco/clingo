@@ -29,9 +29,11 @@ typedef struct clingo_script_ {
     bool (*callable) (char const * name, bool *ret, void *data);
     bool (*main) (clingo_control_t *ctl, void *data);
     void (*free) (void *data);
+    char const *version;
 } clingo_script_t_;
 
-extern "C" CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_script_(clingo_control_t *ctl, clingo_ast_script_type_t type, clingo_script_t_ *script, void *data);
+extern "C" CLINGO_VISIBILITY_DEFAULT bool clingo_register_script_(clingo_ast_script_type_t type, clingo_script_t_ *script, void *data);
+extern "C" CLINGO_VISIBILITY_DEFAULT char const *clingo_script_version_(clingo_ast_script_type_t type);
 
 #endif // CLINGO_SCRIPT_H
 

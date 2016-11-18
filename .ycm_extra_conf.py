@@ -53,7 +53,8 @@ flags = [
 '-Ilibgringo/src',
 '-Ilibclingo',
 '-Ilibreify',
-'-Ilibpygringo',
+'-Ilibpyclingo',
+'-Ilibluaclingo',
 '-Ilibreify/src',
 '-Ilibpotassco',
 '-Iclasp',
@@ -67,9 +68,8 @@ flags = [
 '-Ilibgringo/tests',
 '-I/usr/include/python2.7',
 '-I/usr/include/lua5.1',
-'-DWITH_PYTHON',
-'-DWITH_LUA',
-'-DWITH_THREADS=1',
+'-DCLINGO_WITH_PYTHON',
+'-DCLINGO_WITH_LUA',
 '-DCLASP_USE_STD_THREAD=1'
 ]
 

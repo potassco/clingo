@@ -1315,63 +1315,6 @@ extern "C" bool clingo_control_register_observer(clingo_control_t *control, clin
     GRINGO_CLINGO_CATCH;
 }
 
-namespace {
-
-class CScript : public Script {
-public:
-    CScript(clingo_script_t_ script, void *data) : script_(script), data_(data) { }
-    ~CScript() noexcept override {
-        if (script_.free) { script_.free(data_); }
-    }
-private:
-    clingo_location_t conv(Location const &loc) {
-        return {loc.beginFilename.c_str(), loc.endFilename.c_str(), loc.beginLine, loc.endLine, loc.beginColumn, loc.endColumn};
-    }
-    void exec(Location const &loc, String code) override {
-        if (script_.execute) {
-            handleCError(script_.execute(conv(loc), code.c_str(), data_));
-        }
-    }
-    SymVec call(Location const &loc, String name, SymSpan args) override {
-        using Data = std::pair<SymVec, std::exception_ptr>;
-        Data data;
-        handleCError(script_.call(
-            conv(loc), name.c_str(), reinterpret_cast<clingo_symbol_t const *>(args.first), args.size,
-            [](clingo_symbol_t const *symbols, size_t symbols_size, void *data) {
-                try {
-                    for (auto it = symbols, ie = it + symbols_size; it != ie; ++it) {
-                        static_cast<SymVec*>(data)->emplace_back(Gringo::Symbol{*it});
-                    }
-                    return true;
-                }
-                catch (...) {
-                    handleCXXError();
-                    return false;
-                }
-            },
-            &data, data_), &data.second);
-        return data.first;
-    }
-    bool callable(String name) override {
-        bool ret;
-        handleCError(script_.callable(name.c_str(), &ret, data_));
-        return ret;
-    }
-    void main(Control &ctl) override {
-        handleCError(script_.main(&ctl, data_));
-    }
-private:
-    clingo_script_t_ script_;
-    void *data_;
-};
-
-} // namespace
-
-extern "C" CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_script_(clingo_control_t *control, clingo_ast_script_type_t type, clingo_script_t_ *script, void *data) {
-    GRINGO_CLINGO_TRY { control->registerScript(static_cast<clingo_ast_script_type>(type), gringo_make_unique<CScript>(*script, data)); }
-    GRINGO_CLINGO_CATCH;
-}
-
 // }}}1
 
 #if defined(__GNUC__) && !defined(__clang__)

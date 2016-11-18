@@ -18,8 +18,6 @@
 
 // }}}
 
-#ifdef WITH_PYTHON
-
 #include <Python.h>
 
 #include "python.hh"
@@ -5479,7 +5477,6 @@ struct ControlWrap : ObjectBase<ControlWrap> {
 
     static PyGetSetDef tp_getset[];
     static PyMethodDef tp_methods[];
-    static clingo_control_new_t new_control;
 
     static constexpr char const *tp_type = "Control";
     static constexpr char const *tp_name = "clingo.Control";
@@ -5546,7 +5543,7 @@ active; you must not call any member function during search.)";
                 args.emplace_back(strs.front().c_str());
             }
         }
-        handle_c_error(new_control(args.data(), args.size(), nullptr, nullptr, 20, &freeCtl));
+        handle_c_error(clingo_control_new(args.data(), args.size(), nullptr, nullptr, 20, &freeCtl));
         ctl = freeCtl;
     }
     Object add(Reference args) {
@@ -5807,8 +5804,6 @@ active; you must not call any member function during search.)";
         return ProgramBuilder::construct(builder);
     }
 };
-
-clingo_control_new_t ControlWrap::new_control = nullptr;
 
 PyMethodDef ControlWrap::tp_methods[] = {
     // builder
@@ -7046,8 +7041,7 @@ struct PythonScript {
     }
     static bool callable(char const * name, bool *ret, void *) {
         try {
-            if (!impl) { impl.reset(new PythonImpl()); }
-            *ret = impl->callable(name);
+            *ret = impl && impl->callable(name);
             return true;
         }
         catch (...) {
@@ -7081,52 +7075,30 @@ std::unique_ptr<PythonImpl> PythonScript::impl = nullptr;
 
 } // namespace Gringo
 
-extern "C" void *clingo_init_python_(clingo_control_new_t new_control) {
+extern "C" void *clingo_init_python_() {
     using namespace Gringo;
     PY_TRY {
-        ControlWrap::new_control = new_control;
         return initclingo_();
     }
     PY_CATCH(nullptr);
 }
 
-namespace Gringo {
-
-void registerPython(clingo_control_t *control, clingo_control_new_t new_control) {
+extern "C" bool clingo_register_python_() {
     try {
-        ControlWrap::new_control = new_control;
         clingo_script_t_ script = {
-            PythonScript::execute,
-            PythonScript::call,
-            PythonScript::callable,
-            PythonScript::main,
-            PythonScript::free
+            Gringo::PythonScript::execute,
+            Gringo::PythonScript::call,
+            Gringo::PythonScript::callable,
+            Gringo::PythonScript::main,
+            Gringo::PythonScript::free,
+            PY_VERSION
         };
-        handle_c_error(clingo_control_register_script_(control, clingo_ast_script_type_python, &script, nullptr));
+        return clingo_register_script_(clingo_ast_script_type_python, &script, nullptr);
     }
-    catch (PyException const &) {
-        handle_py_error("<python>", "error registering python script");
+    catch (...) {
+        Gringo::handle_cxx_error("python", "error registering python script");
+        return false;
     }
 }
 
 // }}}1
-
-} // namespace Gringo
-
-#else // WITH_PYTHON
-
-#include "python.hh"
-
-namespace Gringo {
-
-// {{{1 definition of PythonScript
-
-extern "C" void *clingo_init_python_(clingo_control_new_t) { return nullptr; }
-
-void registerPython(clingo_control_t *, clingo_control_new_t) { }
-
-// }}}1
-
-} // namespace Gringo
-
-#endif // WITH_PYTHON

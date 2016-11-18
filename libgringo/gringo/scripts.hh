@@ -49,6 +49,8 @@ public:
     void setContext(Context &ctx) { context_ = &ctx; }
     void resetContext() { context_ = nullptr; }
     void exec(clingo_ast_script_type type, Location loc, String code);
+    char const *version(clingo_ast_script_type type);
+
     ~Scripts();
 
 private:

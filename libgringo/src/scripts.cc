@@ -80,6 +80,15 @@ void Scripts::exec(clingo_ast_script_type type, Location loc, String code) {
     }
 }
 
+char const *Scripts::version(clingo_ast_script_type type) {
+    for (auto &&script : scripts_) {
+        if (script.first == type) {
+            return script.second->version();
+        }
+    }
+    return nullptr;
+}
+
 Scripts::~Scripts() = default;
 
 } // namespace Gringo

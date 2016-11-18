@@ -18,49 +18,31 @@
 
 // }}}
 
-#ifdef WITH_PYTHON
-#   include <Python.h>
+#ifdef CLINGO_WITH_PYTHON
 #   include <python.hh>
 #endif
-#ifdef WITH_LUA
-#   include <lua.hpp>
+#ifdef CLINGO_WITH_LUA
+#   include <lua.hh>
 #endif
 
 #include <clingo.h>
+#include <iostream>
 
-typedef struct clingo_application {
-    char const *python_version;
-    char const *lua_version;
-    void (*setup) (clingo_control_t *control);
-} clingo_application_t;
-
-extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main_(int argc, char *argv[], clingo_application_t *application);
+extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main_(int argc, char *argv[]);
 
 int main(int argc, char** argv) {
-    clingo_application_t app = {
-#ifdef WITH_PYTHON
-        "with Python " PY_VERSION
-#else
-        "without Python"
-#endif
-        ,
-#ifdef WITH_LUA
-        "with " LUA_RELEASE
-#else
-        "without Lua"
-#endif
-        ,
-        [](clingo_control_t *ctl) {
-            // TODO: the register functions do not need a control object
-            //       the scripts object is already global in libclingo
-#ifdef WITH_PYTHON
-            Gringo::registerPython(ctl, clingo_control_new);
-#endif
-#ifdef WITH_LUA
-            // TOOD: register lua too!
-#endif
-        }
-    };
-    return clingo_main_(argc, argv, &app);
+#   ifdef CLINGO_WITH_PYTHON
+    if (!clingo_register_python_()) {
+        std::cerr << clingo_error_message() << std::endl;
+        return 1;
+    }
+#   endif
+#   ifdef CLINGO_WITH_LUA
+    if (!clingo_register_lua_()) {
+        std::cerr << clingo_error_message() << std::endl;
+        return 1;
+    }
+#   endif
+    return clingo_main_(argc, argv);
 }
 

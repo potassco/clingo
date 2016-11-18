@@ -24,7 +24,6 @@
 #include <gringo/locatable.hh>
 #include <gringo/symbol.hh>
 #include <gringo/indexed.hh>
-#include <gringo/lua.hh>
 
 #include <gringo/base.hh>
 #include <gringo/control.hh>

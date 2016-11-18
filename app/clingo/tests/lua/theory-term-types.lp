@@ -11,6 +11,7 @@ function types()
         tostring(clingo.TheoryTermType.Number),
     }
 end
+
 #end.
 
 p(@types()).

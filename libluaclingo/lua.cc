@@ -18,16 +18,16 @@
 
 // }}}
 
-#ifdef WITH_LUA
-
-#include "gringo/lua.hh"
-#include "gringo/logger.hh"
-#include "gringo/control.hh"
-#include "potassco/clingo.h"
+#include "lua.hh"
+#include <gringo/script.h>
 
 #include <lua.hpp>
 #include <cstring>
 #include <forward_list>
+#include <stdexcept>
+#include <sstream>
+#include <vector>
+#include <iostream>
 
 namespace Gringo {
 
@@ -123,33 +123,6 @@ std::pair<T, U> call_c_(Types<T*, U*>*, lua_State *L, F f, Args ...args) {
 template <typename F, typename... Args, typename T=typename LastArgs<sizeof...(Args), F>::Type>
 static auto call_c(lua_State *L, F f, Args... args) -> decltype(call_c_(static_cast<T*>(nullptr), L, f, args...)) {
     return call_c_(static_cast<T*>(nullptr), L, f, args...);
-}
-
-bool handleError(lua_State *L, Location const &loc, int code, char const *desc, Logger *log) {
-    switch (code) {
-        case LUA_ERRRUN:
-        case LUA_ERRERR:
-        case LUA_ERRSYNTAX: {
-            std::string s(lua_tostring(L, -1));
-            lua_pop(L, 1);
-            std::ostringstream msg;
-            msg << loc << ": " << (log ? "info" : "error") << ": " << desc << ":\n"
-                << (code == LUA_ERRSYNTAX ? "  SyntaxError: " : "  RuntimeError: ")
-                << s << "\n"
-                ;
-            if (!log) { throw GringoError(msg.str().c_str()); }
-            else {
-                GRINGO_REPORT(*log, clingo_warning_operation_undefined) << msg.str();
-                return false;
-            }
-        }
-        case LUA_ERRMEM: {
-            std::stringstream msg;
-            msg << loc << ": error: lua interpreter ran out of memory" << "\n";
-            throw GringoError(msg.str().c_str());
-        }
-    }
-    return true;
 }
 
 static int luaTraceback (lua_State *L) {
@@ -1150,7 +1123,8 @@ bool luacall(lua_State *L, clingo_location_t location, int context, char const *
     lua_pushcfunction(L, luaTraceback);
     lua_pushcfunction(L, luacall_);
     lua_pushlightuserdata(L, &args);
-    lua_pushvalue(L, context);
+    if (context) { lua_pushvalue(L, context); }
+    else         { lua_pushnil(L); }
     auto ret = lua_pcall(L, 2, 0, -4);
     if (ret != 0) {
         std::string loc, desc;
@@ -1849,7 +1823,7 @@ struct Backend : Object<Backend> {
     static int addWeightRule(lua_State *L) {
         auto &self = get_self(L);
         auto *head = AnyWrap::new_<std::vector<clingo_atom_t>>(L);             // +1
-        Weight_t lower;
+        clingo_weight_t lower;
         auto *body = AnyWrap::new_<std::vector<clingo_weighted_literal_t>>(L); // +1
         bool choice = false;
         luaL_checktype(L, 2, LUA_TTABLE);
@@ -1921,7 +1895,7 @@ struct PropagateInit : Object<PropagateInit> {
         auto &self = get_self(L);
         int id = luaL_checknumber(L, 2);
         luaL_checkany(L, 3);
-        if (id < 1 || id > (int)self.init->threads()) {
+        if (id < 1 || id > (int)clingo_propagate_init_number_of_threads(self.init)) {
             luaL_error(L, "invalid solver thread id %d", id);
         }
         lua_xmove(L, self.T, 1);
@@ -2159,7 +2133,7 @@ public:
         auto *self = static_cast<Propagator*>(lua_touserdata(L, 1));
         auto *init = static_cast<clingo_propagate_init_t*>(lua_touserdata(L, 2));
         PROTECT(self->threads.reserve(clingo_propagate_init_number_of_threads(init)));
-        while (self->threads.size() < static_cast<size_t>(init->threads())) {
+        while (self->threads.size() < static_cast<size_t>(clingo_propagate_init_number_of_threads(init))) {
             self->threads.emplace_back(lua_newthread(L));
             lua_xmove(L, self->T, 1);
             lua_rawseti(self->T, ThreadIndex, self->threads.size());
@@ -2279,14 +2253,14 @@ public:
     }
     static int check_(lua_State *L) {
         auto *self = static_cast<Propagator*>(lua_touserdata(L, 1));
-        auto *solver = static_cast<Potassco::AbstractSolver *>(lua_touserdata(L, 2));
+        auto *solver = static_cast<clingo_propagate_control_t*>(lua_touserdata(L, 2));
         lua_pushvalue(self->T, PropagatorIndex);         // +1
         lua_xmove(self->T, L, 1);                        // +0
         lua_getfield(L, -1, "check");                    // +1
         if (!lua_isnil(L, -1)) {
             lua_insert(L, -2);                           // -1
-            PropagateControl::new_(L, reinterpret_cast<clingo_propagate_control_t*>(solver));           // +1
-            getState(L, self->T, solver->id());          // +1
+            PropagateControl::new_(L, solver);           // +1
+            getState(L, self->T, clingo_propagate_control_thread_id(solver)); // +1
             lua_call(L, 3, 0);                           // -4
         }
         else {
@@ -2600,48 +2574,7 @@ private:
 
 // {{{1 wrap ControlWrap
 
-struct LuaContext : Gringo::Context {
-    LuaContext(lua_State *L, Logger &log, int idx)
-    : L(L)
-    , log(log)
-    , idx(idx) { }
-
-    bool callable(String name) const override {
-        if (!L || !idx) { return false; }
-        LuaClear lc(L);
-        lua_getfield(L, idx, name.c_str());
-        return lua_type(L, -1) == LUA_TFUNCTION;
-    }
-
-    SymVec call(Location const &loc, String name, SymSpan args) override {
-        assert(L);
-        LuaClear lc(L);
-        std::vector<Symbol> syms;
-        LuaCallArgs arg{name.c_str(), reinterpret_cast<clingo_symbol_t const *>(args.first), args.size, [](clingo_symbol_t const *symbols, size_t size, void *data){
-            // NOTE: no error handling at the moment but this part will be refactored anyway
-            for (auto it = symbols, ie = it + size; it != ie; ++it) {
-                static_cast<std::vector<Symbol>*>(data)->emplace_back(Symbol{*it});
-            }
-            return true;
-        }, &syms};
-        lua_pushcfunction(L, luaTraceback);
-        lua_pushcfunction(L, luaCall);
-        lua_pushlightuserdata(L, (void*)&arg);
-        lua_pushvalue(L, idx);
-        int ret = lua_pcall(L, 2, 0, -4);
-        if (!handleError(L, loc, ret, "operation undefined", &log)) { return {}; }
-        return syms;
-    }
-
-    virtual ~LuaContext() noexcept = default;
-
-    lua_State *L;
-    Logger &log;
-    int idx;
-};
-
 struct ControlWrap : Object<ControlWrap> {
-    static clingo_control_new_t new_control;
     clingo_control_t *ctl;
     bool free;
     std::forward_list<GroundProgramObserver> observers;
@@ -2884,7 +2817,7 @@ struct ControlWrap : Object<ControlWrap> {
         for (auto &arg : *args) {
             protect(L, [&arg, &cargs](){ cargs->push_back(arg.c_str()); });
         }
-        return new_(L, [L, cargs](void *mem){ new (mem) ControlWrap(call_c(L, new_control, cargs->data(), cargs->size(), nullptr, nullptr, 20), true); });
+        return new_(L, [L, cargs](void *mem){ new (mem) ControlWrap(call_c(L, clingo_control_new, cargs->data(), cargs->size(), nullptr, nullptr, 20), true); });
     }
     template <class F>
     static int new_(lua_State *L, F f) {
@@ -2982,7 +2915,6 @@ struct ControlWrap : Object<ControlWrap> {
 };
 
 constexpr char const *ControlWrap::typeName;
-clingo_control_new_t ControlWrap::new_control = nullptr;
 luaL_Reg ControlWrap::meta[] = {
     {"ground",  ground},
     {"add", add},
@@ -3002,7 +2934,7 @@ luaL_Reg ControlWrap::meta[] = {
 };
 
 int luaMain(lua_State *L) {
-    auto ctl = (Control*)lua_touserdata(L, 1);
+    auto ctl = (clingo_control_t*)lua_touserdata(L, 1);
     lua_getglobal(L, "main");
     ControlWrap::new_(L, [ctl](void *mem) { new (mem) ControlWrap(ctl, false); });
     lua_call(L, 1, 0);
@@ -3090,131 +3022,116 @@ int luarequire_clingo(lua_State *L) {
 
 } // namespace
 
-// {{{1 definition of LuaImpl
-
-struct LuaImpl {
-    LuaImpl() : L(luaL_newstate()) {
-        if (!L) { throw std::runtime_error("could not open lua state"); }
-        int n = lua_gettop(L);
-        lua_pushcfunction(L, luaTraceback);
-        lua_pushcfunction(L, luarequire_clingo);
-        int ret = lua_pcall(L, 0, 0, -2);
-        Location loc("<LuaImpl>", 1, 1, "<LuaImpl>", 1, 1);
-        handleError(L, loc, ret, "running lua script failed", nullptr);
-        lua_settop(L, n);
-    }
-    ~LuaImpl() {
-        if (L) { lua_close(L); }
-    }
-    lua_State *L;
-};
-
 // {{{1 definition of Lua
 
-class LuaScript : public Script {
-public:
-    LuaScript(clingo_control_new_t new_control) {
-        ControlWrap::new_control = new_control;
+struct LuaScriptC {
+    lua_State *L;
+    LuaScriptC() : L(nullptr) { }
+    ~LuaScriptC() {
+        if (L) { lua_close(L); }
     }
-
-private:
-    void exec(Location const &loc, String code) override {
-        if (!impl) { impl = gringo_make_unique<LuaImpl>(); }
-        LuaClear lc(impl->L);
-        std::stringstream oss;
-        oss << loc;
-        lua_pushcfunction(impl->L, luaTraceback);
-        int ret = luaL_loadbuffer(impl->L, code.c_str(), code.length(), oss.str().c_str());
-        handleError(impl->L, loc, ret, "parsing lua script failed", nullptr);
-        ret = lua_pcall(impl->L, 0, 0, -2);
-        handleError(impl->L, loc, ret, "running lua script failed", nullptr);
-    }
-
-    SymVec call(Location const &loc, String name, SymSpan args) override {
-        assert(impl);
-        LuaClear lc(impl->L);
-        std::vector<Symbol> syms;
-        LuaCallArgs arg{name.c_str(), reinterpret_cast<clingo_symbol_t const *>(args.first), args.size, [](clingo_symbol_t const *symbols, size_t size, void *data){
-            // NOTE: no error handling at the moment but this part will be refactored anyway
-            for (auto it = symbols, ie = it + size; it != ie; ++it) {
-                static_cast<std::vector<Symbol>*>(data)->emplace_back(Symbol{*it});
-            }
-            return true;
-        }, &syms};
-        lua_pushcfunction(impl->L, luaTraceback);
-        lua_pushcfunction(impl->L, luaCall);
-        lua_pushlightuserdata(impl->L, (void*)&arg);
-        lua_pushnil(impl->L);
-        int ret = lua_pcall(impl->L, 2, 0, -4);
-        if (!handleError(impl->L, loc, ret, "operation undefined", nullptr)) { return {}; }
-        return syms;
-    }
-
-    bool callable(String name) override {
-        if (!impl) { return false; }
-        LuaClear lc(impl->L);
-        lua_getglobal(impl->L, name.c_str());
-        bool ret = lua_type(impl->L, -1) == LUA_TFUNCTION;
+    bool init() {
+        if (L) { return true; }
+        L = luaL_newstate();
+        if (!L) {
+            clingo_set_error(clingo_error_runtime, "could not initialize lua interpreter");
+            return false;
+        }
+        if (!lua_checkstack(L, 2)) {
+            clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
+            return false;
+        }
+        LuaClear lc(L);
+        lua_pushcfunction(L, luaTraceback);
+        lua_pushcfunction(L, luarequire_clingo);
+        int code = lua_pcall(L, 0, 0, -2);
+        bool ret = handle_lua_error(L, "main", "could not load clingo module", code);
         return ret;
     }
-
-    void main(Control &ctl) override {
-        assert(impl);
-        LuaClear lc(impl->L);
-        lua_pushcfunction(impl->L, luaTraceback);
-        lua_pushcfunction(impl->L, luaMain);
-        lua_pushlightuserdata(impl->L, (void*)&ctl);
-        switch (lua_pcall(impl->L, 1, 0, -3)) {
-            case LUA_ERRRUN:
-            case LUA_ERRERR: {
-                Location loc("<lua_main>", 1, 1, "<lua_main>", 1, 1);
-                std::ostringstream oss;
-                oss << loc << ": " << "error: executing main function failed:\n"
-                    << "  RuntimeError: " << lua_tostring(impl->L, -1) << "\n"
-                    ;
-                lua_pop(impl->L, 1);
-                throw GringoError(oss.str().c_str());
-            }
-            case LUA_ERRMEM: { throw std::runtime_error("lua interpreter ran out of memory"); }
+    static bool execute(clingo_location_t loc, char const *code, void *data) {
+        auto &self = *static_cast<LuaScriptC*>(data);
+        if (!self.init()) { return false; }
+        std::string name;
+        try {
+            std::stringstream oss;
+            oss << loc;
+            name = oss.str();
         }
+        catch (...) {
+            clingo_set_error(clingo_error_bad_alloc, "bad alloc");
+            return false;
+        }
+        if (!lua_checkstack(self.L, 2)) {
+            clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
+            return false;
+        }
+        LuaClear lc(self.L);
+        lua_pushcfunction(self.L, luaTraceback);
+        int ret = luaL_loadbuffer(self.L, code, std::strlen(code), name.c_str());
+        if (!handle_lua_error(self.L, name.c_str(), "parsing lua script failed", ret)) { return false; }
+        ret = lua_pcall(self.L, 0, 0, -2);
+        return handle_lua_error(self.L, name.c_str(), "running lua script failed", ret);
     }
-    LuaScript() = default;
-
-private:
-    std::unique_ptr<LuaImpl> impl;
+    static bool call(clingo_location_t loc, char const *name, clingo_symbol_t const *arguments, size_t size, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data, void *data) {
+        auto &self = *static_cast<LuaScriptC*>(data);
+        return luacall(self.L, loc, 0, name, arguments, size, symbol_callback, symbol_callback_data);
+    }
+    static bool callable(char const * name, bool *ret, void *data) {
+        auto &self = *static_cast<LuaScriptC*>(data);
+        if (!self.L) {
+            *ret = false;
+            return true;
+        }
+        if (!lua_checkstack(self.L, 2)) {
+            clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
+            return false;
+        }
+        LuaClear lc(self.L);
+        lua_getglobal(self.L, name);
+        *ret = lua_type(self.L, -1) == LUA_TFUNCTION;
+        return true;
+    }
+    static bool main(clingo_control_t *ctl, void *data) {
+        auto &self = *static_cast<LuaScriptC*>(data);
+        LuaClear lc(self.L);
+        if (!lua_checkstack(self.L, 3)) {
+            clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
+            return false;
+        }
+        lua_pushcfunction(self.L, luaTraceback);
+        lua_pushcfunction(self.L, luaMain);
+        lua_pushlightuserdata(self.L, ctl);
+        auto ret = lua_pcall(self.L, 1, 0, -3);
+        return handle_lua_error(self.L, "main", "error calling main", ret);
+    }
+    static void free(void *data) {
+        delete static_cast<LuaScriptC*>(data);
+    }
 };
 
-void luaInitlib(lua_State *L, clingo_control_new_t new_control) {
-    ControlWrap::new_control = new_control;
-    luarequire_clingo(L);
+} // namespace Gringo
+
+void clingo_init_lua_(lua_State *L) {
+    Gringo::luarequire_clingo(L);
 }
 
-UScript luaScript(clingo_control_new_t new_control) {
-    return gringo_make_unique<LuaScript>(new_control);
+extern "C" bool clingo_register_lua_() {
+    try {
+        clingo_script_t_ script = {
+            Gringo::LuaScriptC::execute,
+            Gringo::LuaScriptC::call,
+            Gringo::LuaScriptC::callable,
+            Gringo::LuaScriptC::main,
+            Gringo::LuaScriptC::free,
+            LUA_RELEASE
+        };
+        return clingo_register_script_(clingo_ast_script_type_lua, &script, new Gringo::LuaScriptC());
+    }
+    catch (...) {
+        clingo_set_error(clingo_error_runtime, "could not initialize lua interpreter");
+        return false;
+    }
 }
 
 // }}}1
-
-} // namespace Gringo
-
-#else // WITH_LUA
-
-#include "gringo/lua.hh"
-#include "gringo/logger.hh"
-
-namespace Gringo {
-
-// {{{1 definition of LuaScript
-
-void luaInitlib(lua_State *, clingo_control_new_t) { }
-
-UScript luaScript(clingo_control_new_t) {
-    return nullptr;
-}
-
-// }}}1
-
-} // namespace Gringo
-
-#endif // WITH_LUA
 

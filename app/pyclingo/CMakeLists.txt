@@ -15,7 +15,7 @@ else()
 endif()
 
 add_library(pyclingo SHARED ${source})
-target_link_libraries(pyclingo PRIVATE libclingo libpygringo)
+target_link_libraries(pyclingo PRIVATE libpyclingo)
 set_target_properties(pyclingo PROPERTIES
     FOLDER lib
     OUTPUT_NAME clingo

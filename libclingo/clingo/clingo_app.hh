@@ -27,12 +27,6 @@
 
 using StringVec   = std::vector<std::string>;
 
-typedef struct clingo_application {
-    char const *python_version;
-    char const *lua_version;
-    void (*setup) (clingo_control_t *control);
-} clingo_application_t;
-
 // Standalone clingo application.
 class ClingoApp : public Clasp::Cli::ClaspAppBase {
     using Output      = Clasp::Cli::Output;
@@ -40,7 +34,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     using BaseType    = Clasp::Cli::ClaspAppBase;
     enum class ConfigUpdate { KEEP, REPLACE };
 public:
-    ClingoApp(clingo_application &app);
+    ClingoApp();
     const char* getName()    const override { return "clingo"; }
     const char* getVersion() const override { return CLINGO_VERSION; }
     const char* getUsage()   const override { return "[number] [options] [files]"; }
@@ -69,7 +63,6 @@ private:
     Mode mode_;
     DefaultGringoModule module;
     std::unique_ptr<ClingoControl> grd;
-    clingo_application &app_;
 };
 
 #endif // _GRINGO_CLINGOAPP_HH

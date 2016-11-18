@@ -29,7 +29,6 @@ set(header-group-gringo
     "${header_path}/gringo/intervals.hh"
     "${header_path}/gringo/locatable.hh"
     "${header_path}/gringo/lexerstate.hh"
-    "${header_path}/gringo/lua.hh"
     "${header_path}/gringo/base.hh"
     "${header_path}/gringo/term.hh")
 source_group("${ide_header_group}\\gringo" FILES ${header-group-gringo})
@@ -86,7 +85,6 @@ set(source-group
     "${source_path}/src/symbol.cc"
     "${source_path}/src/control.cc"
     "${source_path}/src/scripts.cc"
-    "${source_path}/src/lua.cc"
     "${source_path}/src/terms.cc")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source-group-ground

@@ -216,6 +216,7 @@ public:
     virtual SymVec call(Location const &loc, String name, SymSpan args) = 0;
     virtual bool callable(String name) = 0;
     virtual void main(Control &ctl) = 0;
+    virtual char const *version() = 0;
     virtual ~Script() = default;
 };
 using UScript = std::shared_ptr<Script>;
