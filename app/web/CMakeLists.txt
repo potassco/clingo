@@ -9,7 +9,7 @@ set(source
 # ]]]
 
 add_executable(web ${header} ${source})
-target_link_libraries(web libclingo libclasp)
+target_link_libraries(web libclingo libclasp libluaclingo libpyclingo)
 set_target_properties(web PROPERTIES FOLDER exe)
 target_include_directories(web PRIVATE "$<BUILD_INTERFACE:${CLASP_SOURCE_DIR}/app>")
 

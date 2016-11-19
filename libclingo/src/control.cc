@@ -29,7 +29,7 @@
 #include <gringo/input/programbuilder.hh>
 #include <gringo/input/nongroundparser.hh>
 
-#ifdef GRINGO_NO_THREAD_LOCAL
+#if defined CLINGO_NO_THREAD_LOCAL && ! defined EMSCRIPTEN
 #   include <thread>
 #   include <mutex>
 #endif
@@ -75,7 +75,11 @@ void print(char *ret, size_t n, F f) {
     as.flush();
 }
 
-#ifndef GRINGO_NO_THREAD_LOCAL
+#ifdef EMSCRIPTEN
+    std::exception_ptr g_lastException;
+    std::string g_lastMessage;
+    clingo_error_t g_lastCode;
+#elif ! defined CLINGO_NO_THREAD_LOCAL
     thread_local std::exception_ptr g_lastException;
     thread_local std::string g_lastMessage;
     thread_local clingo_error_t g_lastCode;

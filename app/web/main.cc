@@ -18,12 +18,8 @@
 
 // }}}
 
-#ifdef WITH_PYTHON
-#   include <Python.h>
-#   include <python.hh>
-#endif
-#ifdef WITH_LUA
-#   include <lua.hpp>
+#ifdef CLINGO_WITH_LUA
+#   include <lua.hh>
 #endif
 #include "clingo/clingo_app.hh"
 #include <iterator>
@@ -43,29 +39,7 @@ private:
     int status_;
 };
 
-clingo_application_t g_app = {
-#ifdef WITH_PYTHON
-    "with Python " PY_VERSION
-#else
-    "without Python"
-#endif
-    ,
-#ifdef WITH_LUA
-    "with " LUA_RELEASE
-#else
-    "without Lua"
-#endif
-    ,
-    [](clingo_control_t *ctl) {
-#ifdef WITH_PYTHON
-        Gringo::registerPython(ctl, clingo_control_new);
-#endif
-        // TOOD: register lua too!
-    }
-};
-
-struct WebApp : ClingoApp {
-    WebApp() : ClingoApp(g_app) { }
+struct WebApp : Gringo::ClingoApp {
     void exit(int status) const {
         throw ExitException(status);
     }
@@ -73,6 +47,13 @@ struct WebApp : ClingoApp {
 
 extern "C" int run(char const *program, char const *options) {
     try {
+#ifdef CLINGO_WITH_LUA
+        static bool registered_lua = false;
+        if (!registered_lua) {
+            clingo_register_lua_();
+            registered_lua = true;
+        }
+#endif
         std::streambuf* orig = std::cin.rdbuf();
         auto exit(Gringo::onExit([orig]{ std::cin.rdbuf(orig); }));
         std::istringstream input(program);
