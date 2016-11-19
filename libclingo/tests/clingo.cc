@@ -21,7 +21,9 @@
 #include "tests.hh"
 #include <iostream>
 #include <fstream>
-
+#ifdef _MSC_VER
+#pragma warning (disable : 4996) // 'tmpnam': may be unsafe.
+#endif
 namespace Clingo { namespace Test {
 
 TEST_CASE("parse_term", "[clingo]") {
