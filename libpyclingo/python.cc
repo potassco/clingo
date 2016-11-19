@@ -26,7 +26,9 @@
 #include <vector>
 #include <memory>
 #include <forward_list>
-
+#ifdef _MSC_VER
+#pragma warning (disable : 4800) // forcing value to bool 'true' or 'false'
+#endif
 #if PY_MAJOR_VERSION >= 3
 #define PyString_FromString PyUnicode_FromString
 #if PY_MINOR_VERSION >= 3

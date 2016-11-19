@@ -53,6 +53,9 @@ target_link_libraries(test_gringo PRIVATE libgringo libclasp)
 target_include_directories(test_gringo PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
+if(MSVC)
+    target_compile_definitions(test_gringo PRIVATE _SCL_SECURE_NO_WARNINGS)
+endif()
 set_target_properties(test_gringo PROPERTIES FOLDER test)
 target_compile_definitions(libgringo PRIVATE CLINGO_GRINGO_ONLY)
 

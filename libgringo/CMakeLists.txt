@@ -164,6 +164,14 @@ target_compile_definitions(libgringo PRIVATE
 if (NOT CLINGO_BUILD_SHARED)
     target_compile_definitions(libgringo PUBLIC CLINGO_NO_VISIBILITY)
 endif()
+if(MSVC)
+    target_compile_definitions(libgringo PRIVATE _SCL_SECURE_NO_WARNINGS)
+    target_compile_definitions(libgringo PRIVATE _CRT_SECURE_NO_WARNINGS)
+    set_source_files_properties("${CMAKE_BINARY_DIR}/generated/libgringo/input/groundtermgrammar/grammar.cc"
+        PROPERTIES COMPILE_FLAGS "/wd4065")
+    set_source_files_properties("${CMAKE_BINARY_DIR}/generated/libgringo/input/nongroundgrammar/grammar.cc"
+        PROPERTIES COMPILE_FLAGS "/wd4065")
+endif()
 set_target_properties(libgringo PROPERTIES
     OUTPUT_NAME gringo
     FOLDER lib)

@@ -21,6 +21,9 @@
 #include <gringo/symbol.hh>
 #include <gringo/hash_set.hh>
 #include <mutex>
+#ifdef _MSC_VER
+#pragma warning (disable : 4200) // nonstandard extension used: zero-sized array in struct/union
+#endif
 
 namespace Gringo {
 
@@ -256,7 +259,7 @@ uint32_t Sig::arity() const {
     return u < upperMax ? u : cast<USig::Type>(rep())->second;
 }
 
-bool Sig::sign() const { return lower(rep()); }
+bool Sig::sign() const { return lower(rep()) != 0; }
 
 size_t Sig::hash() const { return get_value_hash(rep()); }
 

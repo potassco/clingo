@@ -25,6 +25,10 @@
 #include "gringo/input/theory.hh"
 #include "gringo/output/output.hh"
 
+#ifdef _MSC_VER
+#pragma warning (disable : 4503) // decorated name length exceeded
+#endif
+
 namespace Gringo { namespace Input {
 
 // {{{1 definition of NongroundProgramBuilder
