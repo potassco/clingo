@@ -24,7 +24,9 @@
 #include "gringo/ground/statements.hh"
 #include "gringo/ground/literals.hh"
 #include "gringo/logger.hh"
-
+#ifdef _MSC_VER
+#pragma warning (disable : 4503) // decorated name length exceeded
+#endif
 namespace Gringo { namespace Input {
 
 namespace {

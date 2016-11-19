@@ -290,7 +290,7 @@ void AggregateAtomRange::accumulate(SymVec const &tuple, bool fact, bool remove)
 class BodyAggregateElements_::TupleOffset {
 public:
     TupleOffset(Id_t offset, Id_t size, bool fact)
-    : repr_(fact | (static_cast<uint64_t>(size) << 1) | (static_cast<uint64_t>(offset) << 32)) { }
+    : repr_(static_cast<uint64_t>(fact) | (static_cast<uint64_t>(size) << 1) | (static_cast<uint64_t>(offset) << 32)) { }
     TupleOffset(uint64_t repr)
     : repr_(repr) { }
     bool fact() const { return repr_ & 1; }
@@ -1789,7 +1789,7 @@ Potassco::Id_t DomainData::atomTerm(Id_t value) const {
 }
 
 bool DomainData::atomHasGuard(Id_t value) const {
-    return theory_.getAtom(value).guard();
+    return theory_.getAtom(value).guard() != nullptr;
 }
 
 Potassco::Lit_t DomainData::atomLit(Id_t value) const {
