@@ -162,7 +162,7 @@ using UProp = std::unique_ptr<Propagator>;
 
 // {{{1 declaration of Control
 
-using FWStringVec = std::vector<String>;
+using StringVec = std::vector<String>;
 using Control = clingo_control;
 
 } // namespace Gringo
@@ -184,7 +184,7 @@ struct clingo_control {
     virtual Gringo::SolveIter *solveIter(Assumptions &&assumptions) = 0;
     virtual void interrupt() = 0;
     virtual void *claspFacade() = 0;
-    virtual void add(std::string const &name, Gringo::FWStringVec const &params, std::string const &part) = 0;
+    virtual void add(std::string const &name, Gringo::StringVec const &params, std::string const &part) = 0;
     virtual void load(std::string const &filename) = 0;
     virtual Gringo::Symbol getConst(std::string const &name) = 0;
     virtual bool blocked() = 0;

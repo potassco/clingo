@@ -24,6 +24,10 @@
 
 #include <clingo/control.hh>
 
+namespace Gringo {
+
 void incmode(Gringo::Control &ctl_);
+
+} // namespace Gringo
 
 #endif // CLINGO_INCMODE_HH

@@ -19,13 +19,13 @@
 
 // }}}
 
-#ifndef _GRINGO_CLINGOAPP_HH
-#define _GRINGO_CLINGOAPP_HH
+#ifndef CLINGO_CLINGOAPP_HH
+#define CLINGO_CLINGOAPP_HH
 
 #include "clasp_app.h"
 #include "clingo/clingocontrol.hh"
 
-using StringVec   = std::vector<std::string>;
+namespace Gringo {
 
 // Standalone clingo application.
 class ClingoApp : public Clasp::Cli::ClaspAppBase {
@@ -64,4 +64,6 @@ private:
     std::unique_ptr<ClingoControl> grd;
 };
 
-#endif // _GRINGO_CLINGOAPP_HH
+} // namespace Gringo
+
+#endif // CLINGO_CLINGOAPP_HH

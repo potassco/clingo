@@ -21,9 +21,7 @@
 
 #include <clingo/incmode.hh>
 
-using namespace Gringo;
-
-namespace {
+namespace Gringo { namespace {
 
 struct Incmode {
     Incmode(Control &ctl_) : ctl_(ctl_), istop(""), res(Gringo::SolveResult::Unknown, false, false) { }
@@ -101,4 +99,7 @@ void incmode(Gringo::Control &ctl_) {
     Incmode m(ctl_);
     m.run();
 }
+
+} // namespace Gringo
+
 

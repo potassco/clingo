@@ -37,13 +37,15 @@
 #include <iostream>
 #include <stdexcept>
 
-using StringVec = std::vector<std::string>;
+namespace Gringo {
+
+using StrVec = std::vector<std::string>;
 
 struct GringoOptions {
-    using Foobar = std::vector<Gringo::Sig>;
-    StringVec                     defines;
-    Gringo::Output::OutputOptions outputOptions;
-    Gringo::Output::OutputFormat  outputFormat          = Gringo::Output::OutputFormat::INTERMEDIATE;
+    using Foobar = std::vector<Sig>;
+    StrVec                     defines;
+    Output::OutputOptions outputOptions;
+    Output::OutputFormat  outputFormat          = Output::OutputFormat::INTERMEDIATE;
     bool                          verbose               = false;
     bool                          wNoOperationUndefined = false;
     bool                          wNoAtomUndef          = false;
@@ -82,9 +84,8 @@ static inline bool parseFoobar(const std::string& str, GringoOptions::Foobar& fo
 }
 
 #define LOG if (opts.verbose) std::cerr
-struct IncrementalControl : Gringo::Control {
-    using StringVec = std::vector<std::string>;
-    IncrementalControl(Gringo::Output::OutputBase &out, StringVec const &files, GringoOptions const &opts)
+struct IncrementalControl : Control {
+    IncrementalControl(Output::OutputBase &out, StrVec const &files, GringoOptions const &opts)
     : out(out)
     , pb(scripts, prg, out, defs, opts.rewriteMinimize)
     , parser(pb, incmode)
@@ -112,7 +113,7 @@ struct IncrementalControl : Gringo::Control {
         }
         parse();
     }
-    Gringo::Logger &logger() override {
+    Logger &logger() override {
         return logger_;
     }
     void parse() {
@@ -122,9 +123,9 @@ struct IncrementalControl : Gringo::Control {
             parsed = true;
         }
     }
-    void ground(Gringo::Control::GroundVec const &parts, Gringo::Context *context) override {
+    void ground(Control::GroundVec const &parts, Context *context) override {
         // NOTE: it would be cool to have assumptions in the lparse output
-        auto exit = Gringo::onExit([this]{ scripts.resetContext(); });
+        auto exit = onExit([this]{ scripts.resetContext(); });
         if (context) { scripts.setContext(*context); }
         parse();
         if (parsed) {
@@ -146,44 +147,44 @@ struct IncrementalControl : Gringo::Control {
             grounded = true;
         }
         if (!parts.empty()) {
-            Gringo::Ground::Parameters params;
-            for (auto &x : parts) { params.add(x.first, Gringo::SymVec(x.second)); }
-            Gringo::Ground::Program gPrg(prg.toGround(out.data, logger_));
+            Ground::Parameters params;
+            for (auto &x : parts) { params.add(x.first, SymVec(x.second)); }
+            Ground::Program gPrg(prg.toGround(out.data, logger_));
             LOG << "************* intermediate program *************" << std::endl << gPrg << std::endl;
             LOG << "*************** grounded program ***************" << std::endl;
             gPrg.ground(params, scripts, out, false, logger_);
         }
     }
-    void add(std::string const &name, Gringo::FWStringVec const &params, std::string const &part) override {
-        Gringo::Location loc("<block>", 1, 1, "<block>", 1, 1);
-        Gringo::Input::IdVec idVec;
+    void add(std::string const &name, StringVec const &params, std::string const &part) override {
+        Location loc("<block>", 1, 1, "<block>", 1, 1);
+        Input::IdVec idVec;
         for (auto &x : params) { idVec.emplace_back(loc, x); }
         parser.pushBlock(name, std::move(idVec), part, logger_);
         parse();
     }
-    Gringo::Symbol getConst(std::string const &name) override {
+    Symbol getConst(std::string const &name) override {
         parse();
         auto ret = defs.defs().find(name.c_str());
         if (ret != defs.defs().end()) {
             bool undefined = false;
-            Gringo::Symbol val = std::get<2>(ret->second)->eval(undefined, logger_);
+            Symbol val = std::get<2>(ret->second)->eval(undefined, logger_);
             if (!undefined) { return val; }
         }
-        return Gringo::Symbol();
+        return Symbol();
     }
     void load(std::string const &filename) override {
         parser.pushFile(std::string(filename), logger_);
         parse();
     }
     bool blocked() override { return false; }
-    Gringo::SolveResult solve(ModelHandler, Assumptions &&ass) override {
+    SolveResult solve(ModelHandler, Assumptions &&ass) override {
         if (!ass.empty()) { std::cerr << "warning: the lparse format does not support assumptions" << std::endl; }
         grounded = false;
         out.endStep(true, logger_);
         out.reset(true);
-        return {Gringo::SolveResult::Unknown, false, false};
+        return {SolveResult::Unknown, false, false};
     }
-    Gringo::SolveIter *solveIter(Assumptions &&) override {
+    SolveIter *solveIter(Assumptions &&) override {
         throw std::runtime_error("solving not supported in gringo");
     }
     void interrupt() override {
@@ -196,44 +197,44 @@ struct IncrementalControl : Gringo::Control {
         parse();
     }
     void add(clingo_ast_statement_t const &stm) override {
-        Gringo::Input::parseStatement(pb, logger_, stm);
+        Input::parseStatement(pb, logger_, stm);
     }
     void endAdd() override {
         defs.init(logger_);
     }
-    void registerObserver(Gringo::UBackend prg, bool replace) override {
+    void registerObserver(UBackend prg, bool replace) override {
         out.registerObserver(std::move(prg), replace);
     }
-    Gringo::SolveFuture *solveAsync(ModelHandler, FinishHandler, Assumptions &&) override { throw std::runtime_error("asynchronous solving not supported"); }
+    SolveFuture *solveAsync(ModelHandler, FinishHandler, Assumptions &&) override { throw std::runtime_error("asynchronous solving not supported"); }
     Potassco::AbstractStatistics *statistics() override { throw std::runtime_error("statistics not supported (yet)"); }
-    void assignExternal(Gringo::Symbol ext, Potassco::Value_t val) override {
+    void assignExternal(Symbol ext, Potassco::Value_t val) override {
         auto atm = out.find(ext);
         if (atm.second && atm.first->hasUid()) {
-            Gringo::Id_t offset = atm.first - atm.second->begin();
-            Gringo::Output::External external(Gringo::Output::LiteralId{Gringo::NAF::POS, Gringo::Output::AtomType::Predicate, offset, atm.second->domainOffset()}, val);
+            Id_t offset = atm.first - atm.second->begin();
+            Output::External external(Output::LiteralId{NAF::POS, Output::AtomType::Predicate, offset, atm.second->domainOffset()}, val);
             out.output(external);
         }
     }
-    Gringo::SymbolicAtoms &getDomain() override { throw std::runtime_error("domain introspection not supported"); }
-    Gringo::ConfigProxy &getConf() override { throw std::runtime_error("configuration not supported"); }
-    void registerPropagator(Gringo::UProp, bool) override { throw std::runtime_error("theory propagators not supported"); }
+    SymbolicAtoms &getDomain() override { throw std::runtime_error("domain introspection not supported"); }
+    ConfigProxy &getConf() override { throw std::runtime_error("configuration not supported"); }
+    void registerPropagator(UProp, bool) override { throw std::runtime_error("theory propagators not supported"); }
     void useEnumAssumption(bool) override { }
     bool useEnumAssumption() override { return false; }
     virtual ~IncrementalControl() { }
-    Gringo::Output::DomainData const &theory() const override { return out.data; }
+    Output::DomainData const &theory() const override { return out.data; }
     void cleanupDomains() override { }
-    Gringo::Backend *backend() override { return out.backend(); }
+    Backend *backend() override { return out.backend(); }
     Potassco::Atom_t addProgramAtom() override { return out.data.newAtom(); }
-    Gringo::Input::GroundTermParser        termParser;
-    Gringo::Output::OutputBase            &out;
-    Gringo::Scripts                        scripts;
-    Gringo::Defines                        defs;
-    Gringo::Input::Program                 prg;
-    Gringo::Input::NongroundProgramBuilder pb;
-    Gringo::Input::NonGroundParser         parser;
+    Input::GroundTermParser        termParser;
+    Output::OutputBase            &out;
+    Scripts                        scripts;
+    Defines                        defs;
+    Input::Program                 prg;
+    Input::NongroundProgramBuilder pb;
+    Input::NonGroundParser         parser;
     GringoOptions const                   &opts;
-    Gringo::Logger                         logger_;
-    std::unique_ptr<Gringo::Input::NongroundProgramBuilder> builder;
+    Logger                         logger_;
+    std::unique_ptr<Input::NongroundProgramBuilder> builder;
     bool                                   incmode = false;
     bool                                   parsed = false;
     bool                                   grounded = false;
@@ -275,7 +276,7 @@ inline bool parseWarning(const std::string& str, GringoOptions& out) {
 }
 
 static bool parseText(const std::string&, GringoOptions& out) {
-    out.outputFormat = Gringo::Output::OutputFormat::TEXT;
+    out.outputFormat = Output::OutputFormat::TEXT;
     return true;
 }
 
@@ -291,21 +292,21 @@ struct GringoApp : public Potassco::Application {
         gringo.addOptions()
             ("text,t", storeTo(grOpts_, parseText)->flag(), "Print plain text format")
             ("const,c", storeTo(grOpts_.defines, parseConst)->composing()->arg("<id>=<term>"), "Replace term occurrences of <id> with <term>")
-            ("output,o", storeTo(grOpts_.outputFormat = Gringo::Output::OutputFormat::INTERMEDIATE, values<Gringo::Output::OutputFormat>()
-              ("intermediate", Gringo::Output::OutputFormat::INTERMEDIATE)
-              ("text", Gringo::Output::OutputFormat::TEXT)
-              ("reify", Gringo::Output::OutputFormat::REIFY)
-              ("smodels", Gringo::Output::OutputFormat::SMODELS)), "Choose output format:\n"
+            ("output,o", storeTo(grOpts_.outputFormat = Output::OutputFormat::INTERMEDIATE, values<Output::OutputFormat>()
+              ("intermediate", Output::OutputFormat::INTERMEDIATE)
+              ("text", Output::OutputFormat::TEXT)
+              ("reify", Output::OutputFormat::REIFY)
+              ("smodels", Output::OutputFormat::SMODELS)), "Choose output format:\n"
              "      intermediate: print intermediate format\n"
              "      text        : print plain text format\n"
              "      reify       : print program as reified facts\n"
              "      smodels     : print smodels format\n"
              "                    (only supports basic features)")
-            ("output-debug", storeTo(grOpts_.outputOptions.debug = Gringo::Output::OutputDebug::NONE, values<Gringo::Output::OutputDebug>()
-              ("none", Gringo::Output::OutputDebug::NONE)
-              ("text", Gringo::Output::OutputDebug::TEXT)
-              ("translate", Gringo::Output::OutputDebug::TRANSLATE)
-              ("all", Gringo::Output::OutputDebug::ALL)), "Print debug information during output:\n"
+            ("output-debug", storeTo(grOpts_.outputOptions.debug = Output::OutputDebug::NONE, values<Output::OutputDebug>()
+              ("none", Output::OutputDebug::NONE)
+              ("text", Output::OutputDebug::TEXT)
+              ("translate", Output::OutputDebug::TRANSLATE)
+              ("all", Output::OutputDebug::ALL)), "Print debug information during output:\n"
              "      none     : no additional info\n"
              "      text     : print rules as plain text (prefix %%)\n"
              "      translate: print translated rules as plain text (prefix %%%%)\n"
@@ -365,7 +366,7 @@ struct GringoApp : public Potassco::Application {
         fflush(stdout);
     }
 
-    void ground(Gringo::Output::OutputBase &out) {
+    void ground(Output::OutputBase &out) {
         using namespace Gringo;
         IncrementalControl inc(out, input_, grOpts_);
         if (inc.scripts.callable("main")) {
@@ -377,7 +378,7 @@ struct GringoApp : public Potassco::Application {
             incmode(inc);
         }
         else {
-            Gringo::Control::GroundVec parts;
+            Control::GroundVec parts;
             parts.emplace_back("base", SymVec{});
             inc.incremental_ = false;
             inc.ground(parts, nullptr);
@@ -398,7 +399,7 @@ struct GringoApp : public Potassco::Application {
             Output::OutputBase out(data, std::move(outPreds), std::cout, grOpts_.outputFormat, grOpts_.outputOptions);
             ground(out);
         }
-        catch (Gringo::GringoError const &e) {
+        catch (GringoError const &e) {
             std::cerr << e.what() << std::endl;
             throw std::runtime_error("fatal error");
         }
@@ -409,8 +410,10 @@ private:
     GringoOptions grOpts_;
 };
 
+} // namespace Gringo
+
 extern "C" CLINGO_VISIBILITY_DEFAULT int gringo_main_(int argc, char *argv[]) {
-    GringoApp app;
+    Gringo::GringoApp app;
     return app.main(argc, argv);
 }
 

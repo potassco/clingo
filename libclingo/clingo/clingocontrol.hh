@@ -19,8 +19,8 @@
 
 // }}}
 
-#ifndef _GRINGO_CLINGOCONTROL_HH
-#define _GRINGO_CLINGOCONTROL_HH
+#ifndef CLINGO_CLINGOCONTROL_HH
+#define CLINGO_CLINGOCONTROL_HH
 
 #include <clingo/control.hh>
 #include <clingo/scripts.hh>
@@ -39,12 +39,12 @@
 #include <potassco/string_convert.h>
 #include <mutex>
 
+namespace Gringo {
+
 // {{{1 declaration of ClaspAPIBackend
 
-using StringVec = std::vector<std::string>;
-
 class ClingoControl;
-class ClaspAPIBackend : public Gringo::Backend {
+class ClaspAPIBackend : public Backend {
 public:
     ClaspAPIBackend(ClingoControl& ctl) : ctl_(ctl) { }
     ClaspAPIBackend(const ClaspAPIBackend&) = delete;
@@ -55,9 +55,9 @@ public:
     void rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, Potassco::Weight_t bound, const Potassco::WeightLitSpan& body) override;
     void minimize(Potassco::Weight_t prio, const Potassco::WeightLitSpan& lits) override;
     void project(const Potassco::AtomSpan& atoms) override;
-    void output(Gringo::Symbol sym, Potassco::Atom_t atom) override;
-    void output(Gringo::Symbol sym, Potassco::LitSpan const& condition) override;
-    void output(Gringo::Symbol sym, int value, Potassco::LitSpan const& condition) override;
+    void output(Symbol sym, Potassco::Atom_t atom) override;
+    void output(Symbol sym, Potassco::LitSpan const& condition) override;
+    void output(Symbol sym, int value, Potassco::LitSpan const& condition) override;
     void external(Potassco::Atom_t a, Potassco::Value_t v) override;
     void assume(const Potassco::LitSpan& lits) override;
     void heuristic(Potassco::Atom_t a, Potassco::Heuristic_t t, int bias, unsigned prio, const Potassco::LitSpan& condition) override;
@@ -78,10 +78,10 @@ private:
 // {{{1 declaration of ClingoOptions
 
 struct ClingoOptions {
-    using Foobar = std::vector<Gringo::Sig>;
-    StringVec                     defines;
-    Gringo::Output::OutputOptions outputOptions;
-    Gringo::Output::OutputFormat  outputFormat          = Gringo::Output::OutputFormat::INTERMEDIATE;
+    using Foobar = std::vector<Sig>;
+    std::vector<std::string>      defines;
+    Output::OutputOptions outputOptions;
+    Output::OutputFormat  outputFormat          = Output::OutputFormat::INTERMEDIATE;
     bool                          verbose               = false;
     bool                          wNoOperationUndefined = false;
     bool                          wNoAtomUndef          = false;
@@ -148,12 +148,12 @@ static inline bool parseFoobar(const std::string& str, ClingoOptions::Foobar& fo
 
 // {{{1 declaration of ClingoSolveFuture
 
-Gringo::SolveResult convert(Clasp::ClaspFacade::Result res);
+SolveResult convert(Clasp::ClaspFacade::Result res);
 #if CLASP_HAS_THREADS
-struct ClingoSolveFuture : Gringo::SolveFuture {
+struct ClingoSolveFuture : SolveFuture {
     ClingoSolveFuture(Clasp::ClaspFacade::AsyncResult const &res);
     // async
-    Gringo::SolveResult get() override;
+    SolveResult get() override;
     void wait() override;
     bool wait(double timeout) override;
     void cancel() override;
@@ -161,23 +161,23 @@ struct ClingoSolveFuture : Gringo::SolveFuture {
     void reset(Clasp::ClaspFacade::AsyncResult res);
 
     Clasp::ClaspFacade::AsyncResult future;
-    Gringo::SolveResult             ret = {Gringo::SolveResult::Unknown, false, false};
+    SolveResult             ret = {SolveResult::Unknown, false, false};
     bool                            done = false;
 };
 #endif
 
 // {{{1 declaration of ClingoControl
-class ClingoPropagateInit : public Gringo::PropagateInit {
+class ClingoPropagateInit : public PropagateInit {
 public:
     using Lit_t = Potassco::Lit_t;
-    ClingoPropagateInit(Gringo::Control &c, Clasp::ClingoPropagatorInit &p) : c_(c), p_(p) { }
-    Gringo::Output::DomainData const &theory() const override { return c_.theory(); }
-    Gringo::SymbolicAtoms &getDomain() override { return c_.getDomain(); }
+    ClingoPropagateInit(Control &c, Clasp::ClingoPropagatorInit &p) : c_(c), p_(p) { }
+    Output::DomainData const &theory() const override { return c_.theory(); }
+    SymbolicAtoms &getDomain() override { return c_.getDomain(); }
     Lit_t mapLit(Lit_t lit) override;
     int threads() override;
     void addWatch(Lit_t lit) override { p_.addWatch(Clasp::decodeLit(lit)); }
 private:
-    Gringo::Control &c_;
+    Control &c_;
     Clasp::ClingoPropagatorInit &p_;
 };
 
@@ -192,7 +192,7 @@ public:
     }
     void init(unsigned nThreads) {
         if      (nThreads < 2 || !seq_) { mut_ = nullptr; }
-        else if (!mut_.get())           { mut_ = Gringo::gringo_make_unique<std::mutex>(); }
+        else if (!mut_.get())           { mut_ = gringo_make_unique<std::mutex>(); }
     }
 private:
     using OptLock = std::unique_ptr<std::mutex>;
@@ -201,17 +201,17 @@ private:
 };
 
 class ClingoSolveIter;
-class ClingoControl : public clingo_control, private Gringo::ConfigProxy, private Gringo::SymbolicAtoms {
+class ClingoControl : public clingo_control, private ConfigProxy, private SymbolicAtoms {
 public:
     using StringVec        = std::vector<std::string>;
-    using ExternalVec      = std::vector<std::pair<Gringo::Symbol, Potassco::Value_t>>;
+    using ExternalVec      = std::vector<std::pair<Symbol, Potassco::Value_t>>;
     using PostGroundFunc   = std::function<bool (Clasp::ProgramBuilder &)>;
     using PreSolveFunc     = std::function<bool (Clasp::ClaspFacade &)>;
     enum class ConfigUpdate { KEEP, REPLACE };
 
-    ClingoControl(Gringo::Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Gringo::Logger::Printer printer, unsigned messageLimit);
+    ClingoControl(Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Logger::Printer printer, unsigned messageLimit);
     ~ClingoControl() noexcept override;
-    void prepare(Assumptions &&ass, Gringo::Control::ModelHandler mh, Gringo::Control::FinishHandler fh);
+    void prepare(Assumptions &&ass, Control::ModelHandler mh, Control::FinishHandler fh);
     void commitExternals();
     void parse();
     void parse(const StringVec& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* out, bool addStdIn = true);
@@ -224,23 +224,23 @@ public:
     virtual void prePrepare(Clasp::ClaspFacade& ) { }
     virtual void preSolve(Clasp::ClaspFacade& clasp) { if (psf_) { psf_(clasp);} }
     virtual void postSolve(Clasp::ClaspFacade& ) { }
-    virtual void addToModel(Clasp::Model const&, bool /*complement*/, Gringo::SymVec& ) { }
+    virtual void addToModel(Clasp::Model const&, bool /*complement*/, SymVec& ) { }
 
     // {{{2 SymbolicAtoms interface
 
-    Gringo::SymbolicAtomIter begin(Gringo::Sig sig) const override;
-    Gringo::SymbolicAtomIter begin() const override;
-    Gringo::SymbolicAtomIter end() const override;
-    bool eq(Gringo::SymbolicAtomIter it, Gringo::SymbolicAtomIter jt) const override;
-    Gringo::SymbolicAtomIter lookup(Gringo::Symbol atom) const override;
+    SymbolicAtomIter begin(Sig sig) const override;
+    SymbolicAtomIter begin() const override;
+    SymbolicAtomIter end() const override;
+    bool eq(SymbolicAtomIter it, SymbolicAtomIter jt) const override;
+    SymbolicAtomIter lookup(Symbol atom) const override;
     size_t length() const override;
-    std::vector<Gringo::Sig> signatures() const override;
-    Gringo::Symbol atom(Gringo::SymbolicAtomIter it) const override;
-    Potassco::Lit_t literal(Gringo::SymbolicAtomIter it) const override;
-    bool fact(Gringo::SymbolicAtomIter it) const override;
-    bool external(Gringo::SymbolicAtomIter it) const override;
-    Gringo::SymbolicAtomIter next(Gringo::SymbolicAtomIter it) override;
-    bool valid(Gringo::SymbolicAtomIter it) const override;
+    std::vector<Sig> signatures() const override;
+    Symbol atom(SymbolicAtomIter it) const override;
+    Potassco::Lit_t literal(SymbolicAtomIter it) const override;
+    bool fact(SymbolicAtomIter it) const override;
+    bool external(SymbolicAtomIter it) const override;
+    SymbolicAtomIter next(SymbolicAtomIter it) override;
+    bool valid(SymbolicAtomIter it) const override;
 
     // {{{2 ConfigProxy interface
 
@@ -255,45 +255,45 @@ public:
 
     // {{{2 Control interface
 
-    Gringo::SymbolicAtoms &getDomain() override;
-    void ground(Gringo::Control::GroundVec const &vec, Gringo::Context *ctx) override;
-    void add(std::string const &name, Gringo::FWStringVec const &params, std::string const &part) override;
+    SymbolicAtoms &getDomain() override;
+    void ground(Control::GroundVec const &vec, Context *ctx) override;
+    void add(std::string const &name, Gringo::StringVec const &params, std::string const &part) override;
     void load(std::string const &filename) override;
-    Gringo::SolveResult solve(ModelHandler h, Assumptions &&ass) override;
+    SolveResult solve(ModelHandler h, Assumptions &&ass) override;
     bool blocked() override;
     std::string str();
-    void assignExternal(Gringo::Symbol ext, Potassco::Value_t) override;
-    Gringo::Symbol getConst(std::string const &name) override;
+    void assignExternal(Symbol ext, Potassco::Value_t) override;
+    Symbol getConst(std::string const &name) override;
     Potassco::AbstractStatistics *statistics() override;
-    Gringo::ConfigProxy &getConf() override;
+    ConfigProxy &getConf() override;
     void useEnumAssumption(bool enable) override;
     bool useEnumAssumption() override;
     void cleanupDomains() override;
-    Gringo::SolveIter *solveIter(Assumptions &&ass) override;
-    Gringo::SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass) override;
-    Gringo::Output::DomainData const &theory() const override { return out_->data; }
-    void registerPropagator(Gringo::UProp p, bool sequential) override;
+    SolveIter *solveIter(Assumptions &&ass) override;
+    SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass) override;
+    Output::DomainData const &theory() const override { return out_->data; }
+    void registerPropagator(UProp p, bool sequential) override;
     void interrupt() override;
     void *claspFacade() override;
-    Gringo::Backend *backend() override;
+    Backend *backend() override;
     Potassco::Atom_t addProgramAtom() override;
-    Gringo::Logger &logger() override { return logger_; }
+    Logger &logger() override { return logger_; }
     void beginAdd() override { parse(); }
-    void add(clingo_ast_statement_t const &stm) override { Gringo::Input::parseStatement(*pb_, logger_, stm); }
+    void add(clingo_ast_statement_t const &stm) override { Input::parseStatement(*pb_, logger_, stm); }
     void endAdd() override { defs_.init(logger_); parsed = true; }
-    void registerObserver(Gringo::UBackend obs, bool replace) override {
+    void registerObserver(UBackend obs, bool replace) override {
         if (replace) { clingoMode_ = false; }
         out_->registerObserver(std::move(obs), replace);
     }
 
     // }}}2
 
-    std::unique_ptr<Gringo::Output::OutputBase>               out_;
-    Gringo::Scripts                                          &scripts_;
-    Gringo::Input::Program                                    prg_;
-    Gringo::Defines                                           defs_;
-    std::unique_ptr<Gringo::Input::NongroundProgramBuilder>   pb_;
-    std::unique_ptr<Gringo::Input::NonGroundParser>           parser_;
+    std::unique_ptr<Output::OutputBase>               out_;
+    Scripts                                          &scripts_;
+    Input::Program                                    prg_;
+    Defines                                           defs_;
+    std::unique_ptr<Input::NongroundProgramBuilder>   pb_;
+    std::unique_ptr<Input::NonGroundParser>           parser_;
     ModelHandler                                              modelHandler_;
     FinishHandler                                             finishHandler_;
     Clasp::ClaspFacade                                       *clasp_ = nullptr;
@@ -301,10 +301,10 @@ public:
     PostGroundFunc                                            pgf_;
     PreSolveFunc                                              psf_;
     std::unique_ptr<Potassco::TheoryData>                     data_;
-    std::vector<Gringo::UProp>                                props_;
+    std::vector<UProp>                                props_;
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>> propagators_;
     ClingoPropagatorLock                                      propLock_;
-    Gringo::Logger                                            logger_;
+    Logger                                            logger_;
 #if CLASP_HAS_THREADS
     std::unique_ptr<ClingoSolveFuture> solveFuture_;
 #endif
@@ -322,24 +322,24 @@ public:
 
 // {{{1 declaration of ClingoModel
 
-class ClingoModel : public Gringo::Model {
+class ClingoModel : public Model {
 public:
     ClingoModel(ClingoControl &ctl, Clasp::Model const *model = nullptr)
     : ctl_(ctl), model_(model) { }
     void reset(Clasp::Model const &m) { model_ = &m; }
-    bool contains(Gringo::Symbol atom) const override {
+    bool contains(Symbol atom) const override {
         auto atm = out().find(atom);
         return atm.second && atm.first->hasUid() && model_->isTrue(lp().getLiteral(atm.first->uid()));
     }
-    Gringo::SymSpan atoms(unsigned atomset) const override {
+    SymSpan atoms(unsigned atomset) const override {
         atms_ = out().atoms(atomset, [this](unsigned uid) { return model_->isTrue(lp().getLiteral(uid)); });
         if (atomset & clingo_show_type_extra){
             ctl_.addToModel(*model_, (atomset & clingo_show_type_complement) != 0, atms_);
         }
         return Potassco::toSpan(atms_);
     }
-    Gringo::Int64Vec optimization() const override {
-        return model_->costs ? Gringo::Int64Vec(model_->costs->begin(), model_->costs->end()) : Gringo::Int64Vec();
+    Int64Vec optimization() const override {
+        return model_->costs ? Int64Vec(model_->costs->begin(), model_->costs->end()) : Int64Vec();
     }
     void addClause(LitVec const &lits) const override {
         Clasp::LitVec claspLits;
@@ -354,32 +354,32 @@ public:
         claspLits.push_back(~ctx().stepLiteral());
         model_->ctx->commitClause(claspLits);
     }
-    Gringo::ModelType type() const override {
-        if (model_->type & Clasp::Model::Brave) { return Gringo::ModelType::BraveConsequences; }
-        if (model_->type & Clasp::Model::Cautious) { return Gringo::ModelType::CautiousConsequences; }
-        return Gringo::ModelType::StableModel;
+    ModelType type() const override {
+        if (model_->type & Clasp::Model::Brave) { return ModelType::BraveConsequences; }
+        if (model_->type & Clasp::Model::Cautious) { return ModelType::CautiousConsequences; }
+        return ModelType::StableModel;
     }
     uint64_t number() const override { return model_->num; }
     Potassco::Id_t threadId() const override { return model_->sId; }
     bool optimality_proven() const override { return model_->opt; }
 private:
     Clasp::Asp::LogicProgram const &lp() const    { return *static_cast<Clasp::Asp::LogicProgram*>(ctl_.clasp_->program()); };
-    Gringo::Output::OutputBase const &out() const { return *ctl_.out_; };
+    Output::OutputBase const &out() const { return *ctl_.out_; };
     Clasp::SharedContext const &ctx() const       { return ctl_.clasp_->ctx; };
     ClingoControl          &ctl_;
     Clasp::Model const     *model_;
-    mutable Gringo::SymVec  atms_;
+    mutable SymVec  atms_;
 };
 
 // {{{1 declaration of ClingoSolveIter
 
-class ClingoSolveIter : public Gringo::SolveIter {
+class ClingoSolveIter : public SolveIter {
 public:
     ClingoSolveIter(ClingoControl &ctl);
 
-    Gringo::Model const *next() override;
+    Model const *next() override;
     void close() override;
-    Gringo::SolveResult get() override;
+    SolveResult get() override;
 
 private:
     Clasp::ClaspFacade::ModelGenerator future_;
@@ -390,7 +390,7 @@ private:
 
 class ClingoLib : public Clasp::EventHandler, public ClingoControl {
 public:
-    ClingoLib(Gringo::Scripts &scripts, int argc, char const * const *argv, Gringo::Logger::Printer printer, unsigned messageLimit);
+    ClingoLib(Scripts &scripts, int argc, char const * const *argv, Logger::Printer printer, unsigned messageLimit);
     ~ClingoLib() override;
 protected:
     void initOptions(Potassco::ProgramOptions::OptionContext& root);
@@ -407,8 +407,10 @@ private:
     Clasp::ClaspFacade                  clasp_;
 };
 
-Gringo::Scripts &g_scripts();
+Scripts &g_scripts();
 
 // }}}1
 
-#endif // _GRINGO_CLINGOCONTROL_HH
+} // namespace Gringo
+
+#endif // CLINGO_CLINGOCONTROL_HH

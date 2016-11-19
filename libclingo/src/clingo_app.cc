@@ -24,6 +24,8 @@
 #include <clasp/parser.h>
 #include <climits>
 
+namespace Gringo {
+
 using namespace Clasp;
 using namespace Clasp::Cli;
 
@@ -123,7 +125,7 @@ ProblemType ClingoApp::getProblemType() {
     if (mode_ != mode_clasp) return Problem_t::Asp;
     return ClaspFacade::detectProblemType(getStream());
 }
-Output* ClingoApp::createOutput(ProblemType f) {
+ClingoApp::Output* ClingoApp::createOutput(ProblemType f) {
     if (mode_ == mode_gringo) return 0;
     return BaseType::createOutput(f);
 }
@@ -158,12 +160,12 @@ bool ClingoApp::onModel(Clasp::Solver const& s, Clasp::Model const& m) {
 void ClingoApp::shutdown() {
     // TODO: can be removed in future...
     //       or could be bound differently given the new interface...
-#if CLASP_HAS_THREADS
     if (grd) {
         grd->solveIter_   = nullptr;
+#if CLASP_HAS_THREADS
         grd->solveFuture_ = nullptr;
-    }
 #endif
+    }
     Clasp::Cli::ClaspAppBase::shutdown();
 }
 void ClingoApp::onEvent(Event const& ev) {
@@ -198,8 +200,10 @@ void ClingoApp::run(Clasp::ClaspFacade& clasp) {
 
 // }}}
 
+} // namespace Gringo
+
 extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main_(int argc, char *argv[]) {
-    ClingoApp app;
+    Gringo::ClingoApp app;
     return app.main(argc, argv);
 }
 

@@ -1014,7 +1014,7 @@ extern "C" void clingo_control_free(clingo_control_t *ctl) {
 
 extern "C" bool clingo_control_add(clingo_control_t *ctl, char const *name, char const * const *params, size_t n, char const *part) {
     GRINGO_CLINGO_TRY {
-        FWStringVec p;
+        StringVec p;
         for (char const * const *it = params, * const *ie = it + n; it != ie; ++it) {
             p.emplace_back(*it);
         }
