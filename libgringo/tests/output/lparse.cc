@@ -1136,10 +1136,7 @@ TEST_CASE("output-lparse", "[output]") {
     }
 
     SECTION("undefinedScript") {
-        REQUIRE(
-            "([[]],[-:1:3-13: info: operation undefined:\n  function 'failure' not found\n])" ==
-            IO::to_string(solve(
-                "a(@failure()).\n")));
+        REQUIRE_THROWS_AS(IO::to_string(solve("a(@failure()).\n")), std::runtime_error);
     }
 
     SECTION("minMax") {

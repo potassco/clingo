@@ -21,7 +21,6 @@
 #include "gringo/input/programbuilder.hh"
 #include "gringo/input/program.hh"
 #include "gringo/output/output.hh"
-#include "gringo/scripts.hh"
 
 #include "tests/tests.hh"
 #include "tests/term_helper.hh"
@@ -71,7 +70,7 @@ struct Builder {
     Location l;
     Defines defs;
     Program prg;
-    Scripts scripts;
+    Gringo::Test::TestContext context;
     NongroundProgramBuilder p;
 };
 
@@ -84,7 +83,7 @@ using namespace Gringo::IO;
 Builder::Builder()
     : out(td, {}, oss)
     , l("dummy", 1, 1, "dummy", 1, 1)
-    , p(scripts, prg, out, defs) { }
+    , p(context, prg, out, defs) { }
 
 void Builder::setUp() {
     defs.~Defines();
@@ -92,7 +91,7 @@ void Builder::setUp() {
     prg.~Program();
     new (&prg) Program();
     p.~NongroundProgramBuilder();
-    new (&p) NongroundProgramBuilder(scripts, prg, out, defs);
+    new (&p) NongroundProgramBuilder(context, prg, out, defs);
 }
 
 // {{{ auxiliary functions

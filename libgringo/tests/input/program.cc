@@ -22,7 +22,6 @@
 #include "gringo/input/programbuilder.hh"
 #include "gringo/input/program.hh"
 #include "gringo/output/output.hh"
-#include "gringo/scripts.hh"
 
 #include "tests/tests.hh"
 #include "tests/term_helper.hh"
@@ -39,14 +38,14 @@ namespace {
 struct Grounder {
     Grounder()
     : out(td, {}, oss)
-    , pb( scripts, p, out, d )
+    , pb( context, p, out, d )
     , ngp( pb, incmode )
     { }
     Gringo::Test::TestGringoModule module;
     Potassco::TheoryData td;
     std::ostringstream oss;
     Output::OutputBase out;
-    Scripts scripts;
+    Gringo::Test::TestContext context;
     Program p;
     Defines d;
     NongroundProgramBuilder pb;

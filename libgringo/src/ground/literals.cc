@@ -22,7 +22,6 @@
 #include "gringo/ground/binders.hh"
 #include "gringo/ground/types.hh"
 #include "gringo/logger.hh"
-#include "gringo/scripts.hh"
 #include <cmath>
 #include <cstring>
 
@@ -108,8 +107,8 @@ struct RangeMatcher : Binder {
 // {{{ declaration of ScriptBinder
 
 struct ScriptBinder : Binder {
-    ScriptBinder(Scripts &scripts, UTerm &&assign, ScriptLiteralShared &shared)
-        : scripts(scripts)
+    ScriptBinder(Context &context, UTerm &&assign, ScriptLiteralShared &shared)
+        : context(context)
         , assign(std::move(assign))
         , shared(shared) { }
     IndexUpdater *getUpdater() override { return nullptr; }
@@ -118,7 +117,7 @@ struct ScriptBinder : Binder {
         bool undefined = false;
         for (auto &x : std::get<1>(shared)) { args.emplace_back(x->eval(undefined, log)); }
         if (!undefined) {
-            matches = scripts.call(assign->loc(), std::get<0>(shared), Potassco::toSpan(args), log);
+            matches = context.call(assign->loc(), std::get<0>(shared), Potassco::toSpan(args), log);
         }
         else { matches = {}; }
         current = matches.begin();
@@ -136,7 +135,7 @@ struct ScriptBinder : Binder {
     }
     virtual ~ScriptBinder() { }
 
-    Scripts             &scripts;
+    Context             &context;
     UTerm                assign;
     ScriptLiteralShared &shared;
     SymVec               matches;
@@ -354,16 +353,16 @@ void Literal::collectImportant(Term::VarSet &vars) {
 // }}}
 // {{{ definition of *Literal::index
 
-UIdx RangeLiteral::index(Scripts &, BinderType, Term::VarSet &bound) {
+UIdx RangeLiteral::index(Context &, BinderType, Term::VarSet &bound) {
     if (assign->bind(bound)) { return gringo_make_unique<RangeBinder>(get_clone(assign), range); }
     else                     { return gringo_make_unique<RangeMatcher>(*assign, range); }
 }
-UIdx ScriptLiteral::index(Scripts &scripts, BinderType, Term::VarSet &bound) {
+UIdx ScriptLiteral::index(Context &context, BinderType, Term::VarSet &bound) {
     UTerm clone(assign->clone());
     clone->bind(bound);
-    return gringo_make_unique<ScriptBinder>(scripts, std::move(clone), shared);
+    return gringo_make_unique<ScriptBinder>(context, std::move(clone), shared);
 }
-UIdx RelationLiteral::index(Scripts &, BinderType, Term::VarSet &bound) {
+UIdx RelationLiteral::index(Context &, BinderType, Term::VarSet &bound) {
     if (std::get<0>(shared) == Relation::EQ) {
         UTerm clone(std::get<1>(shared)->clone());
         VarTermVec occBound;
@@ -371,10 +370,10 @@ UIdx RelationLiteral::index(Scripts &, BinderType, Term::VarSet &bound) {
     }
     return gringo_make_unique<RelationMatcher>(shared);
 }
-UIdx PredicateLiteral::index(Scripts &, BinderType type, Term::VarSet &bound) {
+UIdx PredicateLiteral::index(Context &, BinderType type, Term::VarSet &bound) {
     return make_binder(domain, naf, *repr, offset, type, isRecursive(), bound, 0);
 }
-UIdx ProjectionLiteral::index(Scripts &, BinderType type, Term::VarSet &bound) {
+UIdx ProjectionLiteral::index(Context &, BinderType type, Term::VarSet &bound) {
     assert(bound.empty());
     assert(type == BinderType::ALL || type == BinderType::NEW);
     return make_binder(domain, naf, *repr, offset, type, isRecursive(), bound, initialized_ ? domain.incOffset() : 0);
@@ -466,7 +465,7 @@ void CSPLiteral::collectImportant(Term::VarSet &vars) {
     for (auto &occ : x) { vars.emplace(occ.first->name); }
 }
 
-UIdx CSPLiteral::index(Scripts &, BinderType, Term::VarSet &) {
+UIdx CSPLiteral::index(Context &, BinderType, Term::VarSet &) {
     // NOTE: if the literal is auxiliary it can simply always match
     return gringo_make_unique<CSPLiteralMatcher>(terms_);
 }

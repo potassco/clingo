@@ -70,7 +70,7 @@ struct Ent {
 };
 using SC  = SafetyChecker<unsigned, Ent>;
 
-InstVec _linearize(Logger &log, Scripts &scripts, bool positive, SolutionCallback &cb, Term::VarSet &&important, ULitVec const &lits, Term::VarSet boundInitially = Term::VarSet()) {
+InstVec _linearize(Logger &log, Context &context, bool positive, SolutionCallback &cb, Term::VarSet &&important, ULitVec const &lits, Term::VarSet boundInitially = Term::VarSet()) {
     InstVec insts;
     std::vector<unsigned> rec;
     std::vector<std::vector<std::pair<BinderType,Literal*>>> todo{1};
@@ -143,7 +143,7 @@ InstVec _linearize(Logger &log, Scripts &scripts, bool positive, SolutionCallbac
                 }
                 else { y->data.depends.insert(y->data.depends.end(), bb.second.begin(), bb.second.end()); }
             }
-            auto index(y->data.lit.index(scripts, y->data.type, bound));
+            auto index(y->data.lit.index(context, y->data.type, bound));
             if (auto update = index->getUpdater()) {
                 if (BodyOcc *occ = y->data.lit.occurrence()) {
                     for (HeadOccurrence &x : occ->definedBy()) { x.defines(*update, y->data.type == BinderType::NEW ? &insts.back() : nullptr); }
@@ -284,10 +284,10 @@ void AbstractStatement::startLinearize(bool active) {
 void AbstractStatement::collectImportant(Term::VarSet &vars) {
     def_.collectImportant(vars);
 }
-void AbstractStatement::linearize(Scripts &scripts, bool positive, Logger &log) {
+void AbstractStatement::linearize(Context &context, bool positive, Logger &log) {
     Term::VarSet important;
     collectImportant(important);
-    insts_ = _linearize(log, scripts, positive, *this, std::move(important), lits_);
+    insts_ = _linearize(log, context, positive, *this, std::move(important), lits_);
 }
 
 void AbstractStatement::enqueue(Queue &q) {
@@ -335,7 +335,7 @@ void ExternalRule::startLinearize(bool active) {
     def_.setActive(active);
 }
 
-void ExternalRule::linearize(Scripts &, bool, Logger &) { }
+void ExternalRule::linearize(Context &, bool, Logger &) { }
 
 void ExternalRule::enqueue(Queue &) { }
 
@@ -428,10 +428,10 @@ void Rule::startLinearize(bool active) {
     if (active) { insts_.clear(); }
 }
 
-void Rule::linearize(Scripts &scripts, bool positive, Logger &log) {
+void Rule::linearize(Context &context, bool positive, Logger &log) {
     Term::VarSet important;
     for (auto &def : defs_) { def.collectImportant(important); }
-    insts_ = _linearize(log, scripts, positive, *this, std::move(important), lits_);
+    insts_ = _linearize(log, context, positive, *this, std::move(important), lits_);
 }
 
 void Rule::enqueue(Queue &q) {
@@ -764,7 +764,7 @@ void BodyAggregateComplete::startLinearize(bool active) {
     if (active) { inst_ = Instantiator(*this); }
 }
 
-void BodyAggregateComplete::linearize(Scripts &, bool, Logger &) {
+void BodyAggregateComplete::linearize(Context &, bool, Logger &) {
     auto binder  = gringo_make_unique<BindOnce>();
     for (HeadOccurrence &x : defBy_) { x.defines(*binder->getUpdater(), &inst_); }
     inst_.add(std::move(binder), Instantiator::DependVec{});
@@ -877,8 +877,8 @@ void BodyAggregateAccumulate::report(Output::OutputBase &out, Logger &log) {
     }
 }
 
-void BodyAggregateAccumulate::linearize(Scripts &scripts, bool positive, Logger &log) {
-    AbstractStatement::linearize(scripts, positive, log);
+void BodyAggregateAccumulate::linearize(Context &context, bool positive, Logger &log) {
+    AbstractStatement::linearize(context, positive, log);
     if (isOutputRecursive()) { complete_.setOutputRecursive(); }
 }
 
@@ -948,7 +948,7 @@ void BodyAggregateLiteral::collect(VarTermBoundVec &vars) const {
     complete_.domRepr()->collect(vars, naf_ == NAF::POS);
 }
 
-UIdx BodyAggregateLiteral::index(Scripts &, BinderType type, Term::VarSet &bound) {
+UIdx BodyAggregateLiteral::index(Context &, BinderType type, Term::VarSet &bound) {
     return make_binder(complete_.dom(), naf_, *complete_.domRepr(), offset_, type, isRecursive(), bound, 0);
 }
 
@@ -1005,7 +1005,7 @@ void AssignmentAggregateComplete::startLinearize(bool active) {
     if (active) { inst_ = Instantiator(*this); }
 }
 
-void AssignmentAggregateComplete::linearize(Scripts &, bool, Logger &) {
+void AssignmentAggregateComplete::linearize(Context &, bool, Logger &) {
     auto binder  = gringo_make_unique<BindOnce>();
     for (HeadOccurrence &x : defBy_) { x.defines(*binder->getUpdater(), &inst_); }
     inst_.add(std::move(binder), Instantiator::DependVec{});
@@ -1102,8 +1102,8 @@ AssignmentAggregateAccumulate::AssignmentAggregateAccumulate(AssignmentAggregate
 
 AssignmentAggregateAccumulate::~AssignmentAggregateAccumulate() noexcept = default;
 
-void AssignmentAggregateAccumulate::linearize(Scripts &scripts, bool positive, Logger &log) {
-    AbstractStatement::linearize(scripts, positive, log);
+void AssignmentAggregateAccumulate::linearize(Context &context, bool positive, Logger &log) {
+    AbstractStatement::linearize(context, positive, log);
     if (isOutputRecursive()) { complete_.setOutputRecursive(); }
 }
 
@@ -1188,7 +1188,7 @@ void AssignmentAggregateLiteral::collect(VarTermBoundVec &vars) const {
     complete_.domRepr()->collect(vars, true);
 }
 
-UIdx AssignmentAggregateLiteral::index(Scripts &, BinderType type, Term::VarSet &bound) {
+UIdx AssignmentAggregateLiteral::index(Context &, BinderType type, Term::VarSet &bound) {
     return make_binder(complete_.dom(), NAF::POS, *complete_.domRepr(), offset_, type, isRecursive(), bound, 0);
 }
 
@@ -1257,7 +1257,7 @@ void ConjunctionLiteral::collect(VarTermBoundVec &vars) const {
     complete_.domRepr()->collect(vars, true);
 }
 
-UIdx ConjunctionLiteral::index(Scripts &, BinderType type, Term::VarSet &bound) {
+UIdx ConjunctionLiteral::index(Context &, BinderType type, Term::VarSet &bound) {
     return make_binder(complete_.dom(), NAF::POS, *complete_.domRepr(), offset_, type, isRecursive(), bound, 0);
 }
 
@@ -1302,8 +1302,8 @@ ConjunctionAccumulateCond::ConjunctionAccumulateCond(ConjunctionComplete &comple
 
 ConjunctionAccumulateCond::~ConjunctionAccumulateCond() noexcept = default;
 
-void ConjunctionAccumulateCond::linearize(Scripts &scripts, bool positive, Logger &log) {
-    AbstractStatement::linearize(scripts, positive, log);
+void ConjunctionAccumulateCond::linearize(Context &context, bool positive, Logger &log) {
+    AbstractStatement::linearize(context, positive, log);
     if (isOutputRecursive()) { complete_.setCondRecursive(); }
 }
 
@@ -1336,8 +1336,8 @@ ConjunctionAccumulateHead::ConjunctionAccumulateHead(ConjunctionComplete &comple
 
 ConjunctionAccumulateHead::~ConjunctionAccumulateHead() noexcept = default;
 
-void ConjunctionAccumulateHead::linearize(Scripts &scripts, bool positive, Logger &log) {
-    AbstractStatement::linearize(scripts, positive, log);
+void ConjunctionAccumulateHead::linearize(Context &context, bool positive, Logger &log) {
+    AbstractStatement::linearize(context, positive, log);
     if (isOutputRecursive()) { complete_.setHeadRecursive(); }
 }
 
@@ -1415,7 +1415,7 @@ void ConjunctionComplete::startLinearize(bool active){
     if (active) { inst_ = Instantiator(*this); }
 }
 
-void ConjunctionComplete::linearize(Scripts &, bool, Logger &){
+void ConjunctionComplete::linearize(Context &, bool, Logger &){
     auto binder  = gringo_make_unique<BindOnce>();
     for (HeadOccurrence &x : defBy_) { x.defines(*binder->getUpdater(), &inst_); }
     inst_.add(std::move(binder), Instantiator::DependVec{});
@@ -1530,7 +1530,7 @@ void DisjointComplete::startLinearize(bool active) {
     def_.setActive(active);
     if (active) { inst_ = Instantiator(*this); }
 }
-void DisjointComplete::linearize(Scripts &, bool, Logger &) {
+void DisjointComplete::linearize(Context &, bool, Logger &) {
     auto binder  = gringo_make_unique<BindOnce>();
     for (HeadOccurrence &x : defBy_) { x.defines(*binder->getUpdater(), &inst_); }
     inst_.add(std::move(binder), Instantiator::DependVec{});
@@ -1623,8 +1623,8 @@ void DisjointAccumulate::collectImportant(Term::VarSet &vars) {
     for (auto &x : bound) { vars.emplace(x.first->name); }
 }
 
-void DisjointAccumulate::linearize(Scripts &scripts, bool positive, Logger &log) {
-    AbstractStatement::linearize(scripts, positive, log);
+void DisjointAccumulate::linearize(Context &context, bool positive, Logger &log) {
+    AbstractStatement::linearize(context, positive, log);
     if (isOutputRecursive()) { complete_.setOutputRecursive(); }
 }
 
@@ -1717,7 +1717,7 @@ void DisjointLiteral::collect(VarTermBoundVec &vars) const {
     complete_.domRepr()->collect(vars, naf_ == NAF::POS);
 }
 
-UIdx DisjointLiteral::index(Scripts &, BinderType type, Term::VarSet &bound) {
+UIdx DisjointLiteral::index(Context &, BinderType type, Term::VarSet &bound) {
     return make_binder(complete_.dom(), naf_, *complete_.domRepr(), offset_, type, isRecursive(), bound, 0);
 }
 
@@ -1772,7 +1772,7 @@ void TheoryComplete::startLinearize(bool active) {
     if (active) { inst_ = Instantiator(*this); }
 }
 
-void TheoryComplete::linearize(Scripts &, bool, Logger &) {
+void TheoryComplete::linearize(Context &, bool, Logger &) {
     auto binder  = gringo_make_unique<BindOnce>();
     for (HeadOccurrence &x : defBy_) { x.defines(*binder->getUpdater(), &inst_); }
     inst_.add(std::move(binder), Instantiator::DependVec{});
@@ -1864,8 +1864,8 @@ TheoryAccumulate::TheoryAccumulate(TheoryComplete &complete, Output::UTheoryTerm
 
 TheoryAccumulate::~TheoryAccumulate() noexcept = default;
 
-void TheoryAccumulate::linearize(Scripts &scripts, bool positive, Logger &log) {
-    AbstractStatement::linearize(scripts, positive, log);
+void TheoryAccumulate::linearize(Context &context, bool positive, Logger &log) {
+    AbstractStatement::linearize(context, positive, log);
     if (isOutputRecursive()) { complete_.setOutputRecursive(); }
 }
 
@@ -1975,7 +1975,7 @@ void TheoryLiteral::collect(VarTermBoundVec &vars) const {
     complete_.domRepr()->collect(vars, naf_ == NAF::POS);
 }
 
-UIdx TheoryLiteral::index(Scripts &, BinderType type, Term::VarSet &bound) {
+UIdx TheoryLiteral::index(Context &, BinderType type, Term::VarSet &bound) {
     return make_binder(complete_.dom(), naf_, *complete_.domRepr(), offset_, type, isRecursive(), bound, 0);
 }
 
@@ -2169,7 +2169,7 @@ void HeadAggregateComplete::startLinearize(bool active) {
     }
     if (active) { inst_ = Instantiator(*this); }
 }
-void HeadAggregateComplete::linearize(Scripts &, bool, Logger &) {
+void HeadAggregateComplete::linearize(Context &, bool, Logger &) {
     auto binder  = gringo_make_unique<BindOnce>();
     for (HeadOccurrence &x : defBy_) { x.defines(*binder->getUpdater(), &inst_); }
     inst_.add(std::move(binder), Instantiator::DependVec{});
@@ -2314,7 +2314,7 @@ void HeadAggregateLiteral::collect(VarTermBoundVec &vars) const {
     complete_.domRepr()->collect(vars, true);
 }
 
-UIdx HeadAggregateLiteral::index(Scripts &, BinderType type, Term::VarSet &bound) {
+UIdx HeadAggregateLiteral::index(Context &, BinderType type, Term::VarSet &bound) {
     return make_binder(complete_.dom(), NAF::POS, *complete_.domRepr(), offset_, type, isRecursive(), bound, 0);
 }
 
@@ -2412,7 +2412,7 @@ void DisjunctionLiteral::collect(VarTermBoundVec &vars) const {
     complete_.domRepr()->collect(vars, true);
 }
 
-UIdx DisjunctionLiteral::index(Scripts &, BinderType type, Term::VarSet &bound) {
+UIdx DisjunctionLiteral::index(Context &, BinderType type, Term::VarSet &bound) {
     return make_binder(complete_.dom(), NAF::POS, *complete_.domRepr(), offset_, type, isRecursive(), bound, 0);
 }
 
@@ -2447,7 +2447,7 @@ void DisjunctionComplete::startLinearize(bool active) {
     if (active) { inst_ = Instantiator(*this); }
 }
 
-void DisjunctionComplete::linearize(Scripts &, bool, Logger &) {
+void DisjunctionComplete::linearize(Context &, bool, Logger &) {
     auto binder  = gringo_make_unique<BindOnce>();
     for (HeadOccurrence &x : defBy_) { x.defines(*binder->getUpdater(), &inst_); }
     inst_.add(std::move(binder), Instantiator::DependVec{});
@@ -2575,8 +2575,8 @@ void DisjunctionAccumulate::analyze(Dep::Node &node, Dep &dep) {
     }
 }
 
-void DisjunctionAccumulate::linearize(Scripts &scripts, bool positive, Logger &log) {
-    AbstractStatement::linearize(scripts, positive, log);
+void DisjunctionAccumulate::linearize(Context &context, bool positive, Logger &log) {
+    AbstractStatement::linearize(context, positive, log);
     Term::VarSet important;
     if (predDef_) { predDef_.collectImportant(important); }
     Term::VarSet boundInitially;
@@ -2585,7 +2585,7 @@ void DisjunctionAccumulate::linearize(Scripts &scripts, bool positive, Logger &l
     //       by construction, there cannot be positive recursive literals in it
     elemRepr_->collect(boundInitially);
     complete_.domRepr()->collect(boundInitially);
-    InstVec insts = _linearize(log, scripts, positive, accuHead_, std::move(important), headCond_, boundInitially);
+    InstVec insts = _linearize(log, context, positive, accuHead_, std::move(important), headCond_, boundInitially);
     assert(insts.size() == 1);
     instHead_ = std::move(insts.front());
 }

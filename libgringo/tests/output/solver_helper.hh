@@ -26,7 +26,6 @@
 #include "gringo/input/nongroundparser.hh"
 #include "gringo/input/program.hh"
 #include "gringo/output/output.hh"
-#include "gringo/scripts.hh"
 
 #include "tests/tests.hh"
 
@@ -77,7 +76,7 @@ public:
 struct ClingoState {
     ClingoState()
     : out(td, {}, ss, OutputFormat::INTERMEDIATE)
-    , pb(scripts, prg, out, defs)
+    , pb(context, prg, out, defs)
     , parser(pb, incmode) {
     }
     Gringo::Test::TestGringoModule module;
@@ -86,7 +85,7 @@ struct ClingoState {
     OutputBase out;
     Input::Program prg;
     Defines defs;
-    Scripts scripts;
+    Gringo::Test::TestContext context;
     Input::NongroundProgramBuilder pb;
     Input::NonGroundParser parser;
     bool incmode;
@@ -98,7 +97,7 @@ inline bool ground(ClingoState &state) {
         Ground::Program gPrg(state.prg.toGround(state.out.data, state.module));
         state.out.init(false);
         state.out.beginStep();
-        gPrg.ground(state.scripts, state.out, state.module);
+        gPrg.ground(state.context, state.out, state.module);
         return true;
     }
     return false;

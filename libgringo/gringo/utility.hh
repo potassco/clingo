@@ -348,6 +348,22 @@ private:
     ArrayBuf buf_;
 };
 
+// {{{1 onExit
+
+template <class T>
+class ScopeExit {
+public:
+    ScopeExit(T &&exit) : exit_(std::forward<T>(exit)) { }
+    ~ScopeExit() { exit_(); }
+private:
+    T exit_;
+};
+
+template <typename T>
+ScopeExit<T> onExit(T &&exit) {
+    return ScopeExit<T>(std::forward<T>(exit));
+}
+
 // }}}1
 
 // {{{ definition of gringo_make_unique

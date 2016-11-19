@@ -18,7 +18,7 @@
 
 // }}}
 
-#include <gringo/scripts.hh>
+#include <clingo/scripts.hh>
 #include <gringo/logger.hh>
 
 namespace Gringo {
@@ -43,10 +43,10 @@ void Scripts::main(Control &ctl) {
 }
 
 SymVec Scripts::call(Location const &loc, String name, SymSpan args, Logger &log) {
-    if (context_ && context_->callable(name)) { return context_->call(loc, name, args); }
+    if (context_ && context_->callable(name)) { return context_->call(loc, name, args, log); }
     for (auto &&script : scripts_) {
         if (script.second->callable(name)) {
-            return script.second->call(loc, name, args);
+            return script.second->call(loc, name, args, log);
         }
     }
     GRINGO_REPORT(log, clingo_warning_operation_undefined)
@@ -64,7 +64,7 @@ void Scripts::exec(clingo_ast_script_type type, Location loc, String code) {
     bool notfound = true;
     for (auto &&script : scripts_) {
         if (script.first == type) {
-            script.second->exec(loc, code);
+            script.second->exec(type, loc, code);
             notfound = false;
         }
     }

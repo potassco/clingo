@@ -8,6 +8,7 @@ set(header-group-clingo
     "${header_path}/clingo/clingo_app.hh"
     "${header_path}/clingo/control.hh"
     "${header_path}/clingo/script.h"
+    "${header_path}/clingo/scripts.hh"
     "${header_path}/clingo/incmode.hh"
     "${header_path}/clingo/clingocontrol.hh")
 source_group("${ide_header_group}\\clingo" FILES ${header-group-clingo})
@@ -24,7 +25,8 @@ set(source-group
     "${source_path}/src/incmode.cc"
     "${source_path}/src/gringo_app.cc"
     "${source_path}/src/control.cc"
-    "${source_path}/src/clingo_app.cc")
+    "${source_path}/src/clingo_app.cc"
+    "${source_path}/src/scripts.cc")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source
     ${source-group})

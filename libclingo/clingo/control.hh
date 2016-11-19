@@ -27,9 +27,34 @@
 #include <gringo/locatable.hh>
 #include <gringo/backend.hh>
 #include <gringo/logger.hh>
-#include <gringo/scripts.hh>
 #include <potassco/clingo.h>
 #include <clingo.h>
+
+namespace Gringo {
+
+// {{{1 declaration of SymbolicAtoms
+
+using SymbolicAtoms = clingo_symbolic_atoms;
+using SymbolicAtomIter = clingo_symbolic_atom_iterator_t;
+
+} // namespace Gringo
+
+struct clingo_symbolic_atoms {
+    virtual Gringo::Symbol atom(Gringo::SymbolicAtomIter it) const = 0;
+    virtual Potassco::Lit_t literal(Gringo::SymbolicAtomIter it) const = 0;
+    virtual bool fact(Gringo::SymbolicAtomIter it) const = 0;
+    virtual bool external(Gringo::SymbolicAtomIter it) const = 0;
+    virtual Gringo::SymbolicAtomIter next(Gringo::SymbolicAtomIter it) = 0;
+    virtual bool valid(Gringo::SymbolicAtomIter it) const = 0;
+    virtual Gringo::SymbolicAtomIter begin(Gringo::Sig sig) const = 0;
+    virtual Gringo::SymbolicAtomIter begin() const = 0;
+    virtual Gringo::SymbolicAtomIter lookup(Gringo::Symbol atom) const = 0;
+    virtual bool eq(Gringo::SymbolicAtomIter it, Gringo::SymbolicAtomIter jt) const = 0;
+    virtual Gringo::SymbolicAtomIter end() const = 0;
+    virtual std::vector<Gringo::Sig> signatures() const = 0;
+    virtual size_t length() const = 0;
+    virtual ~clingo_symbolic_atoms() noexcept = default;
+};
 
 namespace Gringo {
 

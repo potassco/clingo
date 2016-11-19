@@ -251,7 +251,7 @@ using IdVec = std::vector<std::pair<Location, String>>;
 
 class NongroundProgramBuilder : public INongroundProgramBuilder {
 public:
-    NongroundProgramBuilder(Scripts &scripts, Program &prg, Output::OutputBase &out, Defines &defs, bool rewriteMinimize = false);
+    NongroundProgramBuilder(Context &context, Program &prg, Output::OutputBase &out, Defines &defs, bool rewriteMinimize = false);
     // {{{2 terms
     TermUid term(Location const &loc, Symbol val) override;                             // constant
     TermUid term(Location const &loc, String name) override;                            // variable
@@ -438,7 +438,7 @@ private:
     TheoryTermDefs      theoryTermDefs_;
     TheoryAtomDefs      theoryAtomDefs_;
     TheoryDefVecs       theoryDefVecs_;
-    Scripts            &scripts_;
+    Context            &context_;
     Program            &prg_;
     Output::OutputBase &out;
     Defines            &defs_;

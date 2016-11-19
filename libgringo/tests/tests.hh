@@ -88,14 +88,14 @@ std::ostream &operator<<(std::ostream &out, std::vector<T...> const &vec) {
 
 template <class T>
 std::ostream &operator<<(std::ostream &out, std::initializer_list<T> const &vec) {
-	out << "[";
-	auto it(vec.begin()), end(vec.end());
-	if (it != end) {
-		out << *it;
-		for (++it; it != end; ++it) { out << "," << *it; }
-	}
-	out << "]";
-	return out;
+    out << "[";
+    auto it(vec.begin()), end(vec.end());
+    if (it != end) {
+        out << *it;
+        for (++it; it != end; ++it) { out << "," << *it; }
+    }
+    out << "]";
+    return out;
 }
 
 template <class... T>
@@ -305,6 +305,12 @@ struct TestGringoModule {
     Gringo::Input::GroundTermParser parser;
     std::vector<std::string> messages_;
     Logger logger;
+};
+
+struct TestContext : Context {
+    bool callable(String) override { return false; }
+    SymVec call(Location const &, String, SymSpan, Logger &) override { throw std::runtime_error("not implemented"); }
+    void exec(clingo_ast_script_type, Location, String) override { throw std::runtime_error("not implemented"); }
 };
 
 inline std::ostream &operator<<(std::ostream &out, TestGringoModule const &mod) {

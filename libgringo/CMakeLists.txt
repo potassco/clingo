@@ -20,7 +20,6 @@ set(header-group-gringo
     "${header_path}/gringo/graph.hh"
     "${header_path}/gringo/symbol.hh"
     "${header_path}/gringo/primes.hh"
-    "${header_path}/gringo/scripts.hh"
     "${header_path}/gringo/terms.hh"
     "${header_path}/gringo/domain.hh"
     "${header_path}/gringo/bug.hh"
@@ -83,7 +82,6 @@ set(source-group
     "${source_path}/src/primes.cc"
     "${source_path}/src/symbol.cc"
     "${source_path}/src/control.cc"
-    "${source_path}/src/scripts.cc"
     "${source_path}/src/terms.cc")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source-group-ground

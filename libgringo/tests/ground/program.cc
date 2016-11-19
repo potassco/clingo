@@ -22,7 +22,6 @@
 #include "gringo/input/nongroundparser.hh"
 #include "gringo/input/program.hh"
 #include "gringo/output/output.hh"
-#include "gringo/scripts.hh"
 
 #include "tests/tests.hh"
 
@@ -43,8 +42,8 @@ Program parse(std::string const &str) {
     Output::OutputBase out(td, {}, oss);
     Input::Program prg;
     Defines defs;
-    Scripts scripts;
-    Input::NongroundProgramBuilder pb{ scripts, prg, out, defs };
+    Gringo::Test::TestContext context;
+    Input::NongroundProgramBuilder pb{ context, prg, out, defs };
     bool incmode;
     Input::NonGroundParser ngp{ pb, incmode };
     ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module.logger);

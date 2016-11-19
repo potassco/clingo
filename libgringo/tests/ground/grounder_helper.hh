@@ -26,7 +26,6 @@
 #include "gringo/input/nongroundparser.hh"
 #include "gringo/input/program.hh"
 #include "gringo/output/output.hh"
-#include "gringo/scripts.hh"
 
 #include "tests/tests.hh"
 
@@ -40,15 +39,15 @@ inline void ground(std::string const &str, Output::OutputFormat fmt, std::ostrea
     Output::OutputBase out(td, {}, ss, fmt);
     Input::Program prg;
     Defines defs;
-    Scripts scripts;
-    Input::NongroundProgramBuilder pb{ scripts, prg, out, defs };
+    Gringo::Test::TestContext context;
+    Input::NongroundProgramBuilder pb{ context, prg, out, defs };
     bool incmode;
     Input::NonGroundParser ngp{ pb, incmode };
     ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module.logger);
     ngp.parse(module.logger);
     prg.rewrite(defs, module.logger);
     Ground::Program gPrg(prg.toGround(out.data, module.logger));
-    gPrg.ground(scripts, out, module.logger);
+    gPrg.ground(context, out, module.logger);
 }
 
 inline std::string groundText(std::string const &str, std::initializer_list<std::string> filter = {""}) {

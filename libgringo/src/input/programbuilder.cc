@@ -24,14 +24,13 @@
 #include "gringo/input/program.hh"
 #include "gringo/input/theory.hh"
 #include "gringo/output/output.hh"
-#include "gringo/scripts.hh"
 
 namespace Gringo { namespace Input {
 
 // {{{1 definition of NongroundProgramBuilder
 
-NongroundProgramBuilder::NongroundProgramBuilder(Scripts &scripts, Program &prg, Output::OutputBase &out, Defines &defs, bool rewriteMinimize)
-: scripts_(scripts)
+NongroundProgramBuilder::NongroundProgramBuilder(Context &context, Program &prg, Output::OutputBase &out, Defines &defs, bool rewriteMinimize)
+: context_(context)
 , prg_(prg)
 , out(out)
 , defs_(defs)
@@ -337,11 +336,11 @@ void NongroundProgramBuilder::show(Location const &loc, TermUid t, BdLitVecUid b
 }
 
 void NongroundProgramBuilder::lua(Location const &loc, String code) {
-    scripts_.exec(clingo_ast_script_type_lua, loc, code);
+    context_.exec(clingo_ast_script_type_lua, loc, code);
 }
 
 void NongroundProgramBuilder::python(Location const &loc, String code) {
-    scripts_.exec(clingo_ast_script_type_python, loc, code);
+    context_.exec(clingo_ast_script_type_python, loc, code);
 }
 
 void NongroundProgramBuilder::block(Location const &loc, String name, IdVecUid args) {

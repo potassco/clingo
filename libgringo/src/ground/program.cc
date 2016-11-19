@@ -60,22 +60,22 @@ std::ostream &operator<<(std::ostream &out, Program const &p) {
     return out;
 }
 
-void Program::linearize(Scripts &scripts, Logger &log) {
+void Program::linearize(Context &context, Logger &log) {
     for (auto &x : stms) {
         for (auto &y : x.first) { y->startLinearize(true); }
-        for (auto &y : x.first) { y->linearize(scripts, x.second, log); }
+        for (auto &y : x.first) { y->linearize(context, x.second, log); }
         for (auto &y : x.first) { y->startLinearize(false); }
     }
     linearized = true;
 }
 
-void Program::ground(Scripts &scripts, Output::OutputBase &out, Logger &log) {
+void Program::ground(Context &context, Output::OutputBase &out, Logger &log) {
     Parameters params;
     params.add("base", SymVec({}));
-    ground(params, scripts, out, true, log);
+    ground(params, context, out, true, log);
 }
 
-void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputBase &out, bool finalize, Logger &log) {
+void Program::ground(Parameters const &params, Context &context, Output::OutputBase &out, bool finalize, Logger &log) {
     for (auto &dom : out.predDoms()) {
         auto name = dom->sig().name();
         if (name.startsWith("#p_")) {
@@ -129,7 +129,7 @@ void Program::ground(Parameters const &params, Scripts &scripts, Output::OutputB
     for (auto &x : stms) {
         if (!linearized) {
             for (auto &y : x.first) { y->startLinearize(true); }
-            for (auto &y : x.first) { y->linearize(scripts, x.second, log); }
+            for (auto &y : x.first) { y->linearize(context, x.second, log); }
             for (auto &y : x.first) { y->startLinearize(false); }
         }
 #if DEBUG_INSTANTIATION > 0

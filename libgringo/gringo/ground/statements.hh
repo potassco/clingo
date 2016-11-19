@@ -89,7 +89,7 @@ public:
     bool isNormal() const override; // false by default
     void analyze(Dep::Node &node, Dep &dep) override;
     void startLinearize(bool active) override;
-    void linearize(Scripts &scripts, bool positive, Logger &log) override;
+    void linearize(Context &context, bool positive, Logger &log) override;
     void enqueue(Queue &q) override;
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
@@ -124,7 +124,7 @@ public:
     bool isNormal() const override;
     void analyze(Dep::Node &node, Dep &dep) override;
     void startLinearize(bool active) override;
-    void linearize(Scripts &scripts, bool positive, Logger &log) override;
+    void linearize(Context &context, bool positive, Logger &log) override;
     void enqueue(Queue &q) override;
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
@@ -154,7 +154,7 @@ public:
     virtual bool isNormal() const;
     virtual void analyze(Dep::Node &node, Dep &dep);
     virtual void startLinearize(bool active);
-    virtual void linearize(Scripts &scripts, bool positive, Logger &log);
+    virtual void linearize(Context &context, bool positive, Logger &log);
     virtual void enqueue(Queue &q);
     // {{{2 Printable interface
     virtual void print(std::ostream &out) const;
@@ -301,7 +301,7 @@ public:
     void collectImportant(Term::VarSet &vars) override;
     // {{{3 Statement interface
     bool isNormal() const override { return true; }
-    void linearize(Scripts &scripts, bool positive, Logger &log) override;
+    void linearize(Context &context, bool positive, Logger &log) override;
     // }}}2
 
 private:
@@ -337,7 +337,7 @@ public:
     bool isNormal() const override;                           // return false -> this one creates choices
     void analyze(Dep::Node &node, Dep &dep) override;         // use accuDoms to build the dependency...
     void startLinearize(bool active) override;                // noop because single instantiator
-    void linearize(Scripts &scripts, bool positive, Logger &log) override; // noop because single instantiator
+    void linearize(Context &context, bool positive, Logger &log) override; // noop because single instantiator
     void enqueue(Queue &q) override;                          // enqueue the single instantiator
     // {{{2 Printable interface
     void print(std::ostream &out) const override;             // #complete { h1, ..., hn } :- accu1,... , accun.
@@ -382,7 +382,7 @@ public:
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
     // {{{2 Literal interface
-    UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
+    UIdx index(Context &context, BinderType type, Term::VarSet &bound) override;
     bool isRecursive() const override;
     BodyOcc *occurrence() override;
     void collect(VarTermBoundVec &vars) const override;
@@ -430,7 +430,7 @@ public:
     void collectImportant(Term::VarSet &vars) override;
     // {{{2 Statement interface
     virtual bool isNormal() const override { return true; }
-    void linearize(Scripts &scripts, bool positive, Logger &log) override;
+    void linearize(Context &context, bool positive, Logger &log) override;
     // }}}2
 
 private:
@@ -463,7 +463,7 @@ public:
     bool isNormal() const override;                           // return false -> this one creates choices
     void analyze(Dep::Node &node, Dep &dep) override;         // use accuDoms to build the dependency...
     void startLinearize(bool active) override;                // noop because single instantiator
-    void linearize(Scripts &scripts, bool positive, Logger &log) override; // noop because single instantiator
+    void linearize(Context &context, bool positive, Logger &log) override; // noop because single instantiator
     void enqueue(Queue &q) override;                          // enqueue the single instantiator
     // {{{2 Printable interface
     void print(std::ostream &out) const override;             // #complete { h1, ..., hn } :- accu1,... , accun.
@@ -505,7 +505,7 @@ public:
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
     // {{{2 Literal interface
-    UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
+    UIdx index(Context &context, BinderType type, Term::VarSet &bound) override;
     bool isRecursive() const override;
     BodyOcc *occurrence() override;
     void collect(VarTermBoundVec &vars) const override;
@@ -573,7 +573,7 @@ public:
     virtual ~ConjunctionAccumulateCond() noexcept;
     // {{{2 Statement interface
     bool isNormal() const override;
-    void linearize(Scripts &scripts, bool positive, Logger &log) override;
+    void linearize(Context &context, bool positive, Logger &log) override;
     // }}}2
 private:
     // {{{2 SolutionCallback interface
@@ -592,7 +592,7 @@ public:
     virtual ~ConjunctionAccumulateHead() noexcept;
     // {{{2 Statement interface
     bool isNormal() const override;
-    void linearize(Scripts &scripts, bool positive, Logger &log) override;
+    void linearize(Context &context, bool positive, Logger &log) override;
     // }}}2
 
 private:
@@ -628,7 +628,7 @@ public:
     bool isNormal() const override;
     void analyze(Dep::Node &node, Dep &dep) override;
     void startLinearize(bool active) override;
-    void linearize(Scripts &scripts, bool positive, Logger &log) override;
+    void linearize(Context &context, bool positive, Logger &log) override;
     void enqueue(Queue &q) override;
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
@@ -674,7 +674,7 @@ public:
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
     // {{{2 Literal interface
-    UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
+    UIdx index(Context &context, BinderType type, Term::VarSet &bound) override;
     bool isRecursive() const override;
     BodyOcc *occurrence() override;
     void collect(VarTermBoundVec &vars) const override;
@@ -720,7 +720,7 @@ public:
     void collectImportant(Term::VarSet &vars) override;
     // {{{2 Statement interface
     bool isNormal() const override { return true; }
-    void linearize(Scripts &scripts, bool positive, Logger &log) override;
+    void linearize(Context &context, bool positive, Logger &log) override;
 private:
     // {{{2 SolutionCallback interface
     void report(Output::OutputBase &out, Logger &log) override;
@@ -754,7 +754,7 @@ public:
     bool isNormal() const override;
     void analyze(Dep::Node &node, Dep &dep) override;
     void startLinearize(bool active) override;
-    void linearize(Scripts &scripts, bool positive, Logger &log) override;
+    void linearize(Context &context, bool positive, Logger &log) override;
     void enqueue(Queue &q) override;
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
@@ -794,7 +794,7 @@ public:
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
     // {{{2 Literal interface
-    UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
+    UIdx index(Context &context, BinderType type, Term::VarSet &bound) override;
     bool isRecursive() const override;
     BodyOcc *occurrence() override;
     void collect(VarTermBoundVec &vars) const override;
@@ -840,7 +840,7 @@ public:
     void collectImportant(Term::VarSet &vars) override;
     // {{{2 Statement interface
     bool isNormal() const override { return true; }
-    void linearize(Scripts &scripts, bool positive, Logger &log) override;
+    void linearize(Context &context, bool positive, Logger &log) override;
     // }}}2
 private:
     // {{{2 SolutionCallback interface
@@ -878,7 +878,7 @@ public:
     bool isNormal() const override;
     void analyze(Dep::Node &node, Dep &dep) override;
     void startLinearize(bool active) override;
-    void linearize(Scripts &scripts, bool positive, Logger &log) override;
+    void linearize(Context &context, bool positive, Logger &log) override;
     void enqueue(Queue &q) override;
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
@@ -923,7 +923,7 @@ public:
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
     // {{{2 Literal interface
-    UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
+    UIdx index(Context &context, BinderType type, Term::VarSet &bound) override;
     bool isRecursive() const override;
     BodyOcc *occurrence() override;
     void collect(VarTermBoundVec &vars) const override;
@@ -996,7 +996,7 @@ public:
     bool isNormal() const override;                           // return false -> this one creates choices
     void analyze(Dep::Node &node, Dep &dep) override;         // use accuDoms to build the dependency...
     void startLinearize(bool active) override;                // noop because single instantiator
-    void linearize(Scripts &scripts, bool positive, Logger &log) override; // noop because single instantiator
+    void linearize(Context &context, bool positive, Logger &log) override; // noop because single instantiator
     void enqueue(Queue &q) override;                          // enqueue the single instantiator
     // {{{2 Printable interface
     void print(std::ostream &out) const override;             // #complete { h1, ..., hn } :- accu1,... , accun.
@@ -1057,7 +1057,7 @@ public:
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
     // {{{2 Literal interface
-    UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
+    UIdx index(Context &context, BinderType type, Term::VarSet &bound) override;
     bool isRecursive() const override;
     BodyOcc *occurrence() override;
     void collect(VarTermBoundVec &vars) const override;
@@ -1149,7 +1149,7 @@ public:
     bool isNormal() const override;                           // return false -> this one creates choices
     void analyze(Dep::Node &node, Dep &dep) override;         // use accuDoms to build the dependency...
     void startLinearize(bool active) override;                // noop because single instantiator
-    void linearize(Scripts &scripts, bool positive, Logger &log) override; // noop because single instantiator
+    void linearize(Context &context, bool positive, Logger &log) override; // noop because single instantiator
     void enqueue(Queue &q) override;                          // enqueue the single instantiator
     // {{{2 Printable interface
     void print(std::ostream &out) const override;             // #complete { h1, ..., hn } :- accu1,... , accun.
@@ -1190,7 +1190,7 @@ public:
     // {{{2 Printable interface
     void print(std::ostream &out) const override;
     // {{{2 Literal interface
-    UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) override;
+    UIdx index(Context &context, BinderType type, Term::VarSet &bound) override;
     bool isRecursive() const override;
     BodyOcc *occurrence() override;
     void collect(VarTermBoundVec &vars) const override;
@@ -1257,7 +1257,7 @@ public:
     void collectImportant(Term::VarSet &vars) override;
 private:
     void reportHead(Output::OutputBase &out, Logger &log);
-    void linearize(Scripts &scripts, bool positive, Logger &log) override;
+    void linearize(Context &context, bool positive, Logger &log) override;
     // {{{2 SolutionCallback interface
     void report(Output::OutputBase &out, Logger &log) override;
     // }}}2

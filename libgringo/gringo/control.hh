@@ -31,32 +31,15 @@
 
 namespace Gringo {
 
-// {{{1 declaration of SymbolicAtoms
-
-using Control = clingo_control;
-using SymbolicAtoms = clingo_symbolic_atoms;
-using SymbolicAtomIter = clingo_symbolic_atom_iterator_t;
-
-} // namespace Gringo
-
-struct clingo_symbolic_atoms {
-    virtual Gringo::Symbol atom(Gringo::SymbolicAtomIter it) const = 0;
-    virtual Potassco::Lit_t literal(Gringo::SymbolicAtomIter it) const = 0;
-    virtual bool fact(Gringo::SymbolicAtomIter it) const = 0;
-    virtual bool external(Gringo::SymbolicAtomIter it) const = 0;
-    virtual Gringo::SymbolicAtomIter next(Gringo::SymbolicAtomIter it) = 0;
-    virtual bool valid(Gringo::SymbolicAtomIter it) const = 0;
-    virtual Gringo::SymbolicAtomIter begin(Gringo::Sig sig) const = 0;
-    virtual Gringo::SymbolicAtomIter begin() const = 0;
-    virtual Gringo::SymbolicAtomIter lookup(Gringo::Symbol atom) const = 0;
-    virtual bool eq(Gringo::SymbolicAtomIter it, Gringo::SymbolicAtomIter jt) const = 0;
-    virtual Gringo::SymbolicAtomIter end() const = 0;
-    virtual std::vector<Gringo::Sig> signatures() const = 0;
-    virtual size_t length() const = 0;
-    virtual ~clingo_symbolic_atoms() noexcept = default;
+class Context {
+public:
+    virtual bool callable(String name) = 0;
+    virtual SymVec call(Location const &loc, String name, SymSpan args, Logger &log) = 0;
+    virtual void exec(clingo_ast_script_type type, Location loc, String code) = 0;
+    virtual ~Context() noexcept = default;
 };
 
-namespace Gringo {
+// {{{1 declaration of TheoryData
 
 using TheoryData = clingo_theory_atoms;
 

@@ -18,38 +18,15 @@
 
 // }}}
 
-#ifndef _GRINGO_SCRIPTS_HH
-#define _GRINGO_SCRIPTS_HH
+#ifndef CLINGO_SCRIPTS_HH
+#define CLINGO_SCRIPTS_HH
 
-#include <gringo/control.hh>
+#include <clingo/control.hh>
 
 namespace Gringo {
 
-template <class T>
-class ScopeExit {
+class Script : public Context {
 public:
-    ScopeExit(T &&exit) : exit_(std::forward<T>(exit)) { }
-    ~ScopeExit() { exit_(); }
-private:
-    T exit_;
-};
-
-template <typename T>
-ScopeExit<T> onExit(T &&exit) {
-    return ScopeExit<T>(std::forward<T>(exit));
-}
-
-struct Context {
-    virtual bool callable(String name) const = 0;
-    virtual SymVec call(Location const &loc, String name, SymSpan args) = 0;
-    virtual ~Context() noexcept = default;
-};
-
-class Script {
-public:
-    virtual void exec(Location const &loc, String code) = 0;
-    virtual SymVec call(Location const &loc, String name, SymSpan args) = 0;
-    virtual bool callable(String name) = 0;
     virtual void main(Control &ctl) = 0;
     virtual char const *version() = 0;
     virtual ~Script() = default;
@@ -57,16 +34,16 @@ public:
 using UScript = std::shared_ptr<Script>;
 using UScriptVec = std::vector<std::pair<clingo_ast_script_type, UScript>>;
 
-class Scripts {
+class Scripts : public Context {
 public:
     Scripts() = default;
-    bool callable(String name);
-    SymVec call(Location const &loc, String name, SymSpan args, Logger &log);
+    bool callable(String name) override;
+    SymVec call(Location const &loc, String name, SymSpan args, Logger &log) override;
     void main(Control &ctl);
     void registerScript(clingo_ast_script_type type, UScript script);
     void setContext(Context &ctx) { context_ = &ctx; }
     void resetContext() { context_ = nullptr; }
-    void exec(clingo_ast_script_type type, Location loc, String code);
+    void exec(clingo_ast_script_type type, Location loc, String code) override;
     char const *version(clingo_ast_script_type type);
 
     ~Scripts();
@@ -78,5 +55,5 @@ private:
 
 } // namespace Gringo
 
-#endif // _GRINGO_SCRIPTS_HH
+#endif // CLINGO_SCRIPTS_HH
 

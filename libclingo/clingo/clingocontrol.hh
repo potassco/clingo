@@ -23,6 +23,7 @@
 #define _GRINGO_CLINGOCONTROL_HH
 
 #include <clingo/control.hh>
+#include <clingo/scripts.hh>
 #include <gringo/output/output.hh>
 #include <gringo/input/program.hh>
 #include <gringo/input/programbuilder.hh>
@@ -30,7 +31,6 @@
 #include <gringo/input/groundtermparser.hh>
 #include <gringo/control.hh>
 #include <gringo/logger.hh>
-#include <gringo/scripts.hh>
 #include <clasp/logic_program.h>
 #include <clasp/clasp_facade.h>
 #include <clasp/clingo.h>

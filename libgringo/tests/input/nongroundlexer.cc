@@ -24,7 +24,6 @@
 #include "gringo/output/output.hh"
 #include "input/nongroundgrammar/grammar.hh"
 #include "gringo/symbol.hh"
-#include "gringo/scripts.hh"
 
 #include "tests/tests.hh"
 
@@ -37,8 +36,8 @@ TEST_CASE("input-nongroundlexer", "[input]") {
     Output::OutputBase out(td, {}, oss);
     Program prg;
     Defines defs;
-    Scripts scripts;
-    NongroundProgramBuilder pb(scripts, prg, out, defs);
+    Gringo::Test::TestContext context;
+    NongroundProgramBuilder pb(context, prg, out, defs);
     bool incmode;
     NonGroundParser ngp(pb, incmode);
     std::string in =

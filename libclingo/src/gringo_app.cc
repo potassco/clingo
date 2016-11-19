@@ -29,7 +29,7 @@
 #include <gringo/output/output.hh>
 #include <gringo/output/statements.hh>
 #include <gringo/logger.hh>
-#include <gringo/scripts.hh>
+#include <clingo/scripts.hh>
 #include <potassco/application.h>
 #include <potassco/program_opts/typed_value.h>
 #include <climits>

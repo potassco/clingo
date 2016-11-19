@@ -38,8 +38,8 @@ std::string iground(std::string in, int last = 3) {
     Output::OutputBase out(td, {}, ss, OutputFormat::INTERMEDIATE);
     Input::Program prg;
     Defines defs;
-    Scripts scripts;
-    Input::NongroundProgramBuilder pb(scripts, prg, out, defs);
+    Gringo::Test::TestContext context;
+    Input::NongroundProgramBuilder pb(context, prg, out, defs);
     bool incmode;
     Input::NonGroundParser parser(pb, incmode);
     parser.pushStream("-", gringo_make_unique<std::stringstream>(in), module.logger);
@@ -55,21 +55,21 @@ std::string iground(std::string in, int last = 3) {
             Ground::Parameters params;
             params.add("base", {});
             out.beginStep();
-            prg.toGround(out.data, module.logger).ground(params, scripts, out, true, module.logger);
+            prg.toGround(out.data, module.logger).ground(params, context, out, true, module.logger);
             out.reset(true);
         }
         for (int i=1; i < last; ++i) {
             Ground::Parameters params;
             params.add("step", {NUM(i)});
             out.beginStep();
-            prg.toGround(out.data, module.logger).ground(params, scripts, out, true, module.logger);
+            prg.toGround(out.data, module.logger).ground(params, context, out, true, module.logger);
             out.reset(true);
         }
         {
             Ground::Parameters params;
             params.add("last", {});
             out.beginStep();
-            prg.toGround(out.data, module.logger).ground(params, scripts, out, true, module.logger);
+            prg.toGround(out.data, module.logger).ground(params, context, out, true, module.logger);
             out.reset(true);
         }
     }

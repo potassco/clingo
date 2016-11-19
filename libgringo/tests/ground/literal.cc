@@ -19,7 +19,6 @@
 // }}}
 
 #include "gringo/ground/literals.hh"
-#include "gringo/scripts.hh"
 
 #include "tests/tests.hh"
 #include "tests/term_helper.hh"
@@ -46,10 +45,10 @@ std::string evalRange(UTerm assign, UTerm l, UTerm r) {
     Gringo::Test::TestGringoModule module;
     Potassco::TheoryData theory;
     DomainData data(theory);
-    Scripts scripts;
+    Gringo::Test::TestContext context;
     RangeLiteral lit(get_clone(assign), get_clone(l), get_clone(r));
     Term::VarSet bound;
-    UIdx idx(lit.index(scripts, BinderType::ALL, bound));
+    UIdx idx(lit.index(context, BinderType::ALL, bound));
     SymVec vals;
     idx->match(module.logger);
     bool undefined = false;
@@ -61,10 +60,10 @@ std::string evalRelation(Relation rel, UTerm l, UTerm r) {
     Gringo::Test::TestGringoModule module;
     Potassco::TheoryData theory;
     DomainData data(theory);
-    Scripts scripts;
+    Gringo::Test::TestContext context;
     Term::VarSet bound;
     RelationLiteral lit(rel, get_clone(l), get_clone(r));
-    UIdx idx(lit.index(scripts, BinderType::ALL, bound));
+    UIdx idx(lit.index(context, BinderType::ALL, bound));
     std::vector<S> vals;
     idx->match(module.logger);
     bool undefined = false;
@@ -81,7 +80,7 @@ S evalPred(L<L<V>> vals, L<P<S,V>> bound, BinderType type, NAF naf, UTerm &&repr
     Gringo::Test::TestGringoModule module;
     Potassco::TheoryData theory;
     DomainData data(theory);
-    Scripts scripts;
+    Gringo::Test::TestContext context;
     Term::VarSet boundSet;
     for (auto &x : bound) {
         U<VarTerm> v(var(x.first.c_str()));
@@ -91,7 +90,7 @@ S evalPred(L<L<V>> vals, L<P<S,V>> bound, BinderType type, NAF naf, UTerm &&repr
     auto &dom = data.add(Sig("f", 2, false));
     PredicateLiteral lit(false, dom, naf, get_clone(repr));
     if (recursive) { lit.setType(OccurrenceType::UNSTRATIFIED); }
-    UIdx idx = lit.index(scripts, type, boundSet);
+    UIdx idx = lit.index(context, type, boundSet);
     std::vector<std::vector<S>> ret;
     dom.init();
     for (auto &x : vals) {

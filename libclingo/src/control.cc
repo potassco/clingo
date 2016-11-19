@@ -1030,11 +1030,11 @@ struct ClingoContext : Context {
     , cb(cb)
     , data(data) {}
 
-    bool callable(String) const override {
+    bool callable(String) override {
         return cb != nullptr;
     }
 
-    SymVec call(Location const &loc, String name, SymSpan args) override {
+    SymVec call(Location const &loc, String name, SymSpan args, Logger &) override {
         assert(cb);
         clingo_location_t loc_c{loc.beginFilename.c_str(), loc.endFilename.c_str(), loc.beginLine, loc.endLine, loc.beginColumn, loc.endColumn};
         auto ret = cb(loc_c, name.c_str(), reinterpret_cast<clingo_symbol_t const *>(args.first), args.size, data, [](clingo_symbol_t const * ret_c, size_t n, void *data) -> bool {
@@ -1048,7 +1048,10 @@ struct ClingoContext : Context {
         if (!ret) { throw ClingoError(); }
         return std::move(this->ret);
     }
-    virtual ~ClingoContext() noexcept = default;
+    void exec(clingo_ast_script_type, Location, String) override {
+        throw std::logic_error("Context::exec: not supported");
+    }
+    ~ClingoContext() noexcept = default;
 
     clingo_control_t *ctl;
     clingo_ground_callback_t *cb;
@@ -1347,12 +1350,12 @@ private:
     clingo_location_t conv(Location const &loc) {
         return {loc.beginFilename.c_str(), loc.endFilename.c_str(), loc.beginLine, loc.endLine, loc.beginColumn, loc.endColumn};
     }
-    void exec(Location const &loc, String code) override {
+    void exec(clingo_ast_script_type, Location loc, String code) override {
         if (script_.execute) {
             handleCError(script_.execute(conv(loc), code.c_str(), data_));
         }
     }
-    SymVec call(Location const &loc, String name, SymSpan args) override {
+    SymVec call(Location const &loc, String name, SymSpan args, Logger &) override {
         using Data = std::pair<SymVec, std::exception_ptr>;
         Data data;
         handleCError(script_.call(

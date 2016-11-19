@@ -45,7 +45,7 @@ public:
     using Score   = double;
     virtual bool auxiliary() const = 0;
     virtual bool isRecursive() const = 0;
-    virtual UIdx index(Scripts &scripts, BinderType type, Term::VarSet &bound) = 0;
+    virtual UIdx index(Context &context, BinderType type, Term::VarSet &bound) = 0;
     virtual BodyOcc *occurrence() = 0;
     virtual void collect(VarTermBoundVec &vars) const = 0;
     virtual void collectImportant(Term::VarSet &vars);

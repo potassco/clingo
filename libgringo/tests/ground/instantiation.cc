@@ -22,7 +22,6 @@
 #include "gringo/input/program.hh"
 #include "gringo/ground/program.hh"
 #include "gringo/output/output.hh"
-#include "gringo/scripts.hh"
 
 #include "tests/tests.hh"
 
@@ -45,15 +44,15 @@ std::string ground(std::string const &str, std::initializer_list<std::string> fi
     Input::Program prg;
     Defines defs;
     Gringo::Test::TestGringoModule module;
-    Scripts scripts;
-    Input::NongroundProgramBuilder pb{ scripts, prg, out, defs };
+    Gringo::Test::TestContext context;
+    Input::NongroundProgramBuilder pb{ context, prg, out, defs };
     bool incmode;
     Input::NonGroundParser ngp{ pb, incmode };
     ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module);
     ngp.parse(module);
     prg.rewrite(defs, module);
     Program gPrg(prg.toGround(out.data, module));
-    gPrg.ground(scripts, out, module);
+    gPrg.ground(context, out, module);
 
     std::string line;
     std::vector<std::string> res;
