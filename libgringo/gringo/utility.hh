@@ -726,17 +726,17 @@ inline void cross_product(std::vector<std::vector<T>> &vec) {
     res.emplace_back();
     res.back().reserve(vec.size());
     for (auto &x : vec) {
-        auto it = res.begin();
+        std::size_t it = 0; // res.begin();
         for (auto lt = x.begin(), mt = x.end() - 1; lt != mt; ++lt) {
             auto jt = it;
-            it = res.end();
+            it = res.size();
             auto kt = jt;
-            for (; kt != it; ++kt) { res.emplace_back(get_clone(*kt)); }
-            for (kt = jt; kt != it - 1; ++kt) { kt->emplace_back(get_clone(*lt)); }
-            kt->emplace_back(std::move(*lt));
+            for (; kt != it; ++kt) { res.emplace_back(get_clone(res[kt])); }
+            for (kt = jt; kt != it - 1; ++kt) { res[kt].emplace_back(get_clone(*lt)); }
+            res[kt].emplace_back(std::move(*lt));
         }
-        for (auto kt = res.end() - 1; it != kt; ++it) { it->emplace_back(get_clone(x.back())); }
-        it->emplace_back(std::move(x.back()));
+        for (auto kt = res.size() - 1; it != kt; ++it) { res[it].emplace_back(get_clone(x.back())); }
+        res[it].emplace_back(std::move(x.back()));
     }
     vec = std::move(res);
 }

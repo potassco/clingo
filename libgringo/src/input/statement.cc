@@ -188,14 +188,14 @@ void _rewriteAssignments(UBodyAggrVec &body) {
     body.clear();
     dep.init(open);
     UBodyAggrVec sorted;
-    for (auto it = open.begin(); it != open.end(); ) {
+    for (std::size_t it = 0; it != open.size(); ) {
         LitDep::EntVec assign;
-        for (; it != open.end(); ++it) {
-            if (!(*it)->data->isAssignment()) {
-                dep.propagate(*it, open, &bound);
-                sorted.emplace_back(std::move((*it)->data));
+        for (; it != open.size(); ++it) {
+            if (!(open[it])->data->isAssignment()) {
+                dep.propagate(open[it], open, &bound);
+                sorted.emplace_back(std::move((open[it])->data));
             }
-            else { assign.emplace_back(*it); }
+            else { assign.emplace_back(open[it]); }
         }
         LitDep::EntVec nextAssign;
         while (!assign.empty()) {

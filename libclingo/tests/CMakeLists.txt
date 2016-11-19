@@ -20,5 +20,7 @@ target_include_directories(test_clingo PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 set_target_properties(test_clingo PROPERTIES FOLDER test)
-
+if(MSVC)
+    target_compile_definitions(test_clingo PRIVATE _SCL_SECURE_NO_WARNINGS)
+endif()
 add_test(NAME test_clingo COMMAND test_clingo)
