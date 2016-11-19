@@ -654,10 +654,9 @@ bool DisjointAtom::translate(DomainData &data, Translator &x, Logger &log) {
                 Rule rule;
                 if (cond.second > 0) { rule.addBody(getEqualClause(data, x, cond, true, false)); }
                 if ((it-1)->second)          { rule.addBody(LiteralId{NAF::NOT, AtomType::Aux, (it-1)->second, 0}); }
-                if (it != bound.atoms.end()) { rule.addBody(LiteralId{NAF::POS, AtomType::Aux, it->second, 0}); }
+                if (it != bound.atoms.end()) { rule.addBody(LiteralId{NAF::POS, AtomType::Aux, it->second, 0}); ++it; }
                 rule.addHead(aux).translate(data, x);
                 values.insert(i*coef + fixed);
-                ++it;
             }
         };
         for (auto &condVal : elem.second) {

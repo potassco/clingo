@@ -60,6 +60,9 @@ else()
         "${CLINGO_SOURCE_DIR}/libgringo/clingo.h"
         DESTINATION include)
 endif()
+if(MSVC)
+    target_compile_definitions(libclingo PRIVATE _SCL_SECURE_NO_WARNINGS)
+endif()
 
 if (CLINGO_BUILD_TESTS)
     add_subdirectory(tests)
