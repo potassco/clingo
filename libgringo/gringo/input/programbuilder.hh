@@ -26,7 +26,6 @@
 #include <gringo/indexed.hh>
 
 #include <gringo/base.hh>
-#include <gringo/control.hh>
 
 #include <vector>
 #include <memory>

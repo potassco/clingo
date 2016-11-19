@@ -21,12 +21,12 @@
 #ifndef CLINGO_CONTROL_HH
 #define CLINGO_CONTROL_HH
 
-#include <gringo/control.hh>
 #include <gringo/symbol.hh>
 #include <gringo/types.hh>
 #include <gringo/locatable.hh>
 #include <gringo/backend.hh>
 #include <gringo/logger.hh>
+#include <gringo/output/literal.hh>
 #include <potassco/clingo.h>
 #include <clingo.h>
 
@@ -144,7 +144,7 @@ using PropagateInit = clingo_propagate_init;
 } // namespace Gringo
 
 struct clingo_propagate_init {
-    virtual Gringo::TheoryData const &theory() const = 0;
+    virtual Gringo::Output::DomainData const &theory() const = 0;
     virtual Gringo::SymbolicAtoms &getDomain() = 0;
     virtual Gringo::Lit_t mapLit(Gringo::Lit_t lit) = 0;
     virtual void addWatch(Gringo::Lit_t lit) = 0;
@@ -193,7 +193,7 @@ struct clingo_control {
     virtual void useEnumAssumption(bool enable) = 0;
     virtual bool useEnumAssumption() = 0;
     virtual void cleanupDomains() = 0;
-    virtual Gringo::TheoryData const &theory() const = 0;
+    virtual Gringo::Output::DomainData const &theory() const = 0;
     virtual void registerPropagator(std::unique_ptr<Gringo::Propagator> p, bool sequential) = 0;
     virtual void registerObserver(Gringo::UBackend program, bool replace) = 0;
     virtual Potassco::Atom_t addProgramAtom() = 0;

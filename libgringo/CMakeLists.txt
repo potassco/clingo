@@ -16,7 +16,6 @@ set(header-group-gringo
     "${header_path}/gringo/indexed.hh"
     "${header_path}/gringo/hashable.hh"
     "${header_path}/gringo/comparable.hh"
-    "${header_path}/gringo/control.hh"
     "${header_path}/gringo/graph.hh"
     "${header_path}/gringo/symbol.hh"
     "${header_path}/gringo/primes.hh"

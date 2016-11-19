@@ -22,6 +22,7 @@
 #define CLINGO_SCRIPTS_HH
 
 #include <clingo/control.hh>
+#include <gringo/base.hh>
 
 namespace Gringo {
 

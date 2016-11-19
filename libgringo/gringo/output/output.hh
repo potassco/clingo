@@ -21,7 +21,6 @@
 #ifndef _GRINGO_OUTPUT_OUTPUT_HH
 #define _GRINGO_OUTPUT_OUTPUT_HH
 
-#include <gringo/control.hh>
 #include <gringo/output/types.hh>
 #include <gringo/output/statements.hh>
 #include <gringo/output/theory.hh>

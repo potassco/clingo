@@ -219,7 +219,7 @@ struct IncrementalControl : Gringo::Control {
     void useEnumAssumption(bool) override { }
     bool useEnumAssumption() override { return false; }
     virtual ~IncrementalControl() { }
-    Gringo::TheoryData const &theory() const override { return out.data.theoryInterface(); }
+    Gringo::Output::DomainData const &theory() const override { return out.data; }
     void cleanupDomains() override { }
     Gringo::Backend *backend() override { return out.backend(); }
     Potassco::Atom_t addProgramAtom() override { return out.data.newAtom(); }

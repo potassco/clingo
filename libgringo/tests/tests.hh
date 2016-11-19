@@ -24,7 +24,7 @@
 #include "catch.hpp"
 #include "gringo/utility.hh"
 #include "gringo/logger.hh"
-#include "gringo/control.hh"
+#include "gringo/base.hh"
 #include "gringo/input/groundtermparser.hh"
 #include <algorithm>
 #include <unordered_map>

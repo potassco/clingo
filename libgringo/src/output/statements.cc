@@ -22,7 +22,6 @@
 #include <gringo/output/theory.hh>
 #include <gringo/output/aggregates.hh>
 #include <gringo/logger.hh>
-#include <gringo/control.hh>
 
 namespace Gringo { namespace Output {
 

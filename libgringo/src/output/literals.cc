@@ -21,7 +21,6 @@
 #include <gringo/output/literal.hh>
 #include <gringo/output/statements.hh>
 #include <gringo/logger.hh>
-#include <gringo/control.hh>
 #include <gringo/output/aggregates.hh>
 #include <gringo/output/theory.hh>
 
@@ -1730,19 +1729,19 @@ HeadAggregateLiteral::~HeadAggregateLiteral() noexcept = default;
 
 // {{{1 definition of DomainData
 
-Gringo::TheoryData::TermType DomainData::termType(Id_t value) const {
+TheoryTermType DomainData::termType(Id_t value) const {
     auto &term = theory_.data().getTerm(value);
     switch (term.type()) {
-        case Potassco::Theory_t::Number: { return Gringo::TheoryData::TermType::Number; }
-        case Potassco::Theory_t::Symbol: { return Gringo::TheoryData::TermType::Symbol; }
+        case Potassco::Theory_t::Number: { return TheoryTermType::Number; }
+        case Potassco::Theory_t::Symbol: { return TheoryTermType::Symbol; }
         case Potassco::Theory_t::Compound: {
-            if (term.isFunction()) { return Gringo::TheoryData::TermType::Function; }
+            if (term.isFunction()) { return TheoryTermType::Function; }
             switch (term.tuple()) {
-                case Potassco::Tuple_t::Paren:   { return Gringo::TheoryData::TermType::Tuple; }
-                case Potassco::Tuple_t::Bracket: { return Gringo::TheoryData::TermType::List; }
-                case Potassco::Tuple_t::Brace:   { return Gringo::TheoryData::TermType::Set; }
+                case Potassco::Tuple_t::Paren:   { return TheoryTermType::Tuple; }
+                case Potassco::Tuple_t::Bracket: { return TheoryTermType::List; }
+                case Potassco::Tuple_t::Brace:   { return TheoryTermType::Set; }
             }
-            return Gringo::TheoryData::TermType::Number;
+            return TheoryTermType::Number;
         }
     }
     throw std::logic_error("must not happen");

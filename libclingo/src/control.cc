@@ -25,7 +25,6 @@
 
 #include <clingo//clingocontrol.hh>
 #include <clingo/script.h>
-#include <gringo/control.hh>
 #include <gringo/input/groundtermparser.hh>
 #include <gringo/input/programbuilder.hh>
 #include <gringo/input/nongroundparser.hh>
@@ -404,6 +403,8 @@ extern "C" bool clingo_symbolic_atoms_is_valid(clingo_symbolic_atoms_t *dom, cli
 
 // {{{1 theory atoms
 
+struct clingo_theory_atoms : Gringo::Output::DomainData { };
+
 extern "C" bool clingo_theory_atoms_term_type(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_theory_term_type_t *ret) {
     GRINGO_CLINGO_TRY { *ret = static_cast<clingo_theory_term_type_t>(atoms->termType(value)); }
     GRINGO_CLINGO_CATCH;
@@ -541,7 +542,7 @@ extern "C" bool clingo_propagate_init_symbolic_atoms(clingo_propagate_init_t *in
 }
 
 extern "C" bool clingo_propagate_init_theory_atoms(clingo_propagate_init_t *init, clingo_theory_atoms_t **ret) {
-    GRINGO_CLINGO_TRY { *ret = const_cast<TheoryData*>(&init->theory()); }
+    GRINGO_CLINGO_TRY { *ret = const_cast<clingo_theory_atoms*>(static_cast<clingo_theory_atoms const*>(&init->theory())); }
     GRINGO_CLINGO_CATCH;
 }
 
@@ -1127,7 +1128,7 @@ extern "C" bool clingo_control_symbolic_atoms(clingo_control_t *ctl, clingo_symb
 }
 
 extern "C" bool clingo_control_theory_atoms(clingo_control_t *ctl, clingo_theory_atoms_t **ret) {
-    GRINGO_CLINGO_TRY { *ret = const_cast<TheoryData*>(&ctl->theory()); }
+    GRINGO_CLINGO_TRY { *ret = const_cast<clingo_theory_atoms*>(static_cast<clingo_theory_atoms const *>(&ctl->theory())); }
     GRINGO_CLINGO_CATCH;
 }
 

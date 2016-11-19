@@ -23,9 +23,9 @@
 
 #include <gringo/base.hh>
 #include <gringo/terms.hh>
+#include <gringo/types.hh>
 #include <gringo/hash_set.hh>
 #include <potassco/theory_data.h>
-#include <gringo/control.hh>
 #include <functional>
 
 namespace Gringo { namespace Output {

@@ -29,7 +29,6 @@
 #include <gringo/input/programbuilder.hh>
 #include <gringo/input/nongroundparser.hh>
 #include <gringo/input/groundtermparser.hh>
-#include <gringo/control.hh>
 #include <gringo/logger.hh>
 #include <clasp/logic_program.h>
 #include <clasp/clasp_facade.h>
@@ -171,7 +170,7 @@ class ClingoPropagateInit : public Gringo::PropagateInit {
 public:
     using Lit_t = Potassco::Lit_t;
     ClingoPropagateInit(Gringo::Control &c, Clasp::ClingoPropagatorInit &p) : c_(c), p_(p) { }
-    Gringo::TheoryData const &theory() const override { return c_.theory(); }
+    Gringo::Output::DomainData const &theory() const override { return c_.theory(); }
     Gringo::SymbolicAtoms &getDomain() override { return c_.getDomain(); }
     Lit_t mapLit(Lit_t lit) override;
     int threads() override;
@@ -271,7 +270,7 @@ public:
     void cleanupDomains() override;
     Gringo::SolveIter *solveIter(Assumptions &&ass) override;
     Gringo::SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass) override;
-    Gringo::TheoryData const &theory() const override { return out_->data.theoryInterface(); }
+    Gringo::Output::DomainData const &theory() const override { return out_->data; }
     void registerPropagator(Gringo::UProp p, bool sequential) override;
     void interrupt() override;
     void *claspFacade() override;

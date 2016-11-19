@@ -27,6 +27,16 @@
 
 namespace Gringo {
 
+// {{{1 declaration of Context
+
+class Context {
+public:
+    virtual bool callable(String name) = 0;
+    virtual SymVec call(Location const &loc, String name, SymSpan args, Logger &log) = 0;
+    virtual void exec(clingo_ast_script_type type, Location loc, String code) = 0;
+    virtual ~Context() noexcept = default;
+};
+
 // {{{1 declaration of TheoryAtomType
 
 enum class TheoryAtomType { Head, Body, Any, Directive };

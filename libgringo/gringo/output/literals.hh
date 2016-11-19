@@ -26,6 +26,7 @@
 #include <gringo/intervals.hh>
 #include <gringo/output/aggregates.hh>
 #include <gringo/output/theory.hh>
+#include <gringo/backend.hh>
 
 namespace Gringo { namespace Output {
 
@@ -1119,7 +1120,16 @@ private:
 
 // {{{1 declaration of DomainData
 
-class DomainData : private Gringo::TheoryData {
+enum class TheoryTermType {
+    Tuple = clingo_theory_term_type_tuple,
+    List = clingo_theory_term_type_list,
+    Set = clingo_theory_term_type_set,
+    Function = clingo_theory_term_type_function,
+    Number = clingo_theory_term_type_number,
+    Symbol = clingo_theory_term_type_symbol
+};
+
+class DomainData {
     using Tuples = UniqueVecVec<2, Symbol>;
     using Clauses = UniqueVecVec<2, LiteralId>;
     using Formulas = UniqueVecVec<2, std::pair<Id_t,Id_t>, value_hash<std::pair<Id_t,Id_t>>>;
@@ -1222,9 +1232,6 @@ public:
     bool canSimplify() const {
         return domains_.empty() && clauses_.empty() && formulas_.empty() && theory_.empty();
     }
-    Gringo::TheoryData const &theoryInterface() const {
-        return *this;
-    }
     BackendAtomVec &tempAtoms() {
         hd_.clear();
         return hd_;
@@ -1238,23 +1245,22 @@ public:
         return wb_;
     }
 
-private:
-    Gringo::TheoryData::TermType termType(Id_t) const override;
-    int termNum(Id_t value) const override;
-    char const *termName(Id_t value) const override;
-    Potassco::IdSpan termArgs(Id_t value) const override;
-    Potassco::IdSpan elemTuple(Id_t value) const override;
-    Potassco::LitSpan elemCond(Id_t value) const override;
-    Potassco::Lit_t elemCondLit(Id_t value) const override;
-    Potassco::IdSpan atomElems(Id_t value) const override;
-    Potassco::Id_t atomTerm(Id_t value) const override;
-    bool atomHasGuard(Id_t value) const override;
-    Potassco::Lit_t atomLit(Id_t value) const override;
-    std::pair<char const *, Id_t> atomGuard(Id_t value) const override;
-    Potassco::Id_t numAtoms() const override;
-    std::string termStr(Id_t value) const override;
-    std::string elemStr(Id_t value) const override;
-    std::string atomStr(Id_t value) const override;
+    TheoryTermType termType(Id_t) const;
+    int termNum(Id_t value) const;
+    char const *termName(Id_t value) const;
+    Potassco::IdSpan termArgs(Id_t value) const;
+    Potassco::IdSpan elemTuple(Id_t value) const;
+    Potassco::LitSpan elemCond(Id_t value) const;
+    Potassco::Lit_t elemCondLit(Id_t value) const;
+    Potassco::IdSpan atomElems(Id_t value) const;
+    Potassco::Id_t atomTerm(Id_t value) const;
+    bool atomHasGuard(Id_t value) const;
+    Potassco::Lit_t atomLit(Id_t value) const;
+    std::pair<char const *, Id_t> atomGuard(Id_t value) const;
+    Potassco::Id_t numAtoms() const;
+    std::string termStr(Id_t value) const;
+    std::string elemStr(Id_t value) const;
+    std::string atomStr(Id_t value) const;
 
 private:
     BackendAtomVec hd_;
