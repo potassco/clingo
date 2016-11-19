@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.1)
 
-file(READ "libgringo/clingo.h" clingoh)
+file(READ "libclingo/clingo.h" clingoh)
 string(REGEX MATCH "#define CLINGO_VERSION \"([^\"]*)\"" clingov ${clingoh})
 
 project(CLINGO VERSION "${CMAKE_MATCH_1}" LANGUAGES C CXX)

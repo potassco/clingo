@@ -48,14 +48,14 @@ uint64_t setUpper(uint16_t u, uint64_t rep) { return combine(u, 0, 0) | (rep & 0
 //}
 
 enum class SymbolType_ : uint8_t {
-    Inf = clingo_symbol_type_infimum,
-    Num = clingo_symbol_type_number,
-    IdP = clingo_symbol_type_number+1,
-    IdN = clingo_symbol_type_number+2,
-    Str = clingo_symbol_type_string,
-    Fun = clingo_symbol_type_function,
-    Special = clingo_symbol_type_supremum-1,
-    Sup = clingo_symbol_type_supremum
+    Inf = 0,
+    Num = 1,
+    IdP = 2,
+    IdN = 3,
+    Str = 4,
+    Fun = 5,
+    Special = 6,
+    Sup = 7
 };
 SymbolType_ symbolType_(uint64_t rep) { return static_cast<SymbolType_>(upper(rep)); }
 template <class T>

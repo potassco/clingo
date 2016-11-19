@@ -76,7 +76,7 @@ void TheoryTermDef::addOpDef(TheoryOpDef &&def, Logger &log) {
         opDefs_.push(std::move(def));
     }
     else {
-        GRINGO_REPORT(log, clingo_error_runtime)
+        GRINGO_REPORT(log, Warnings::RuntimeError)
             << def.loc() << ": error: redefinition of theory operator:" << "\n"
             << "  " << def.op() << "\n"
             << it->loc() << ": note: operator first defined here\n";
@@ -205,7 +205,7 @@ void TheoryDef::addAtomDef(TheoryAtomDef &&def, Logger &log) {
         atomDefs_.push(std::move(def));
     }
     else {
-        GRINGO_REPORT(log, clingo_error_runtime)
+        GRINGO_REPORT(log, Warnings::RuntimeError)
             << def.loc() << ": error: redefinition of theory atom:" << "\n"
             << "  " << def.sig() << "\n"
             << it->loc() << ": note: atom first defined here\n";
@@ -218,7 +218,7 @@ void TheoryDef::addTermDef(TheoryTermDef &&def, Logger &log) {
         termDefs_.push(std::move(def));
     }
     else {
-        GRINGO_REPORT(log, clingo_error_runtime)
+        GRINGO_REPORT(log, Warnings::RuntimeError)
             << def.loc() << ": error: redefinition of theory term:" << "\n"
             << "  " << def.name() << "\n"
             << it->loc() << ": note: term first defined term\n";

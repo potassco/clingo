@@ -290,13 +290,13 @@ void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, 
             type_ = atomDef->type();
             if (inBody) {
                 if (type_ == TheoryAtomType::Head) {
-                    GRINGO_REPORT(log, clingo_error_runtime)
+                    GRINGO_REPORT(log, Warnings::RuntimeError)
                         << loc << ": error: theory body atom used in head:" << "\n"
                         << "  " << sig << "\n";
                     return;
                 }
                 else if (type_ == TheoryAtomType::Directive) {
-                    GRINGO_REPORT(log, clingo_error_runtime)
+                    GRINGO_REPORT(log, Warnings::RuntimeError)
                         << loc << ": error: theory directive used in body:" << "\n"
                         << "  " << sig << "\n";
                     return;
@@ -304,13 +304,13 @@ void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, 
             }
             else {
                 if (type_ == TheoryAtomType::Body) {
-                    GRINGO_REPORT(log, clingo_error_runtime)
+                    GRINGO_REPORT(log, Warnings::RuntimeError)
                         << loc << ": error: theory head atom used in body:" << "\n"
                         << "  " << sig << "\n";
                     return;
                 }
                 if (type_ == TheoryAtomType::Directive && hasBody) {
-                    GRINGO_REPORT(log, clingo_error_runtime)
+                    GRINGO_REPORT(log, Warnings::RuntimeError)
                         << loc << ": error: theory directive used with body:" << "\n"
                         << "  " << sig << "\n";
                     return;
@@ -329,13 +329,13 @@ void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, 
                 }
             }
             else {
-                GRINGO_REPORT(log, clingo_error_runtime)
+                GRINGO_REPORT(log, Warnings::RuntimeError)
                     << loc << ": error: missing definition for term:" << "\n"
                     << "  " << atomDef->elemDef() << "\n";
             }
             if (hasGuard()) {
                 if (!atomDef->hasGuard()) {
-                    GRINGO_REPORT(log, clingo_error_runtime)
+                    GRINGO_REPORT(log, Warnings::RuntimeError)
                         << loc << ": error: unexpected guard:" << "\n"
                         << "  " << sig << "\n";
                 }
@@ -347,7 +347,7 @@ void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, 
                     else {
                         std::stringstream ss;
                         print_comma(ss, atomDef->ops(), ",");
-                        GRINGO_REPORT(log, clingo_error_runtime)
+                        GRINGO_REPORT(log, Warnings::RuntimeError)
                             << loc << ": error: unexpected operator:" << "\n"
                             << "  " << op_ << "\n"
                             << loc << ": note: expected one of:\n"
@@ -355,7 +355,7 @@ void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, 
                     }
                 }
                 else {
-                    GRINGO_REPORT(log, clingo_error_runtime)
+                    GRINGO_REPORT(log, Warnings::RuntimeError)
                         << loc << ": error: missing definition for term:" << "\n"
                         << "  " << atomDef->guardDef() << "\n";
                 }
@@ -363,7 +363,7 @@ void TheoryAtom::initTheory(Location const &loc, TheoryDefs &defs, bool inBody, 
             return;
         }
     }
-    GRINGO_REPORT(log, clingo_error_runtime)
+    GRINGO_REPORT(log, Warnings::RuntimeError)
         << loc << ": error: no definition found for theory atom:" << "\n"
         << "  " << sig << "\n";
 }

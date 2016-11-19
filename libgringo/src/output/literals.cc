@@ -90,7 +90,7 @@ bool defined(SymVec const &tuple, AggregateFunction fun, Location const &loc, Lo
     if (tuple.empty()) {
         if (fun == AggregateFunction::COUNT) { return true; }
         else {
-            GRINGO_REPORT(log, clingo_warning_operation_undefined)
+            GRINGO_REPORT(log, Warnings::OperationUndefined)
                 << loc << ": info: empty tuple ignored\n";
             return false;
         }
@@ -106,7 +106,7 @@ bool defined(SymVec const &tuple, AggregateFunction fun, Location const &loc, Lo
             else {
                 std::ostringstream s;
                 print_comma(s, tuple, ",");
-                GRINGO_REPORT(log, clingo_warning_operation_undefined)
+                GRINGO_REPORT(log, Warnings::OperationUndefined)
                     << loc << ": info: tuple ignored:\n"
                     << "  " << s.str() << "\n";
                 return false;
@@ -121,7 +121,7 @@ bool neutral(SymVec const &tuple, AggregateFunction fun, Location const &loc, Lo
     if (tuple.empty()) {
         if (fun == AggregateFunction::COUNT) { return false; }
         else {
-            GRINGO_REPORT(log, clingo_warning_operation_undefined)
+            GRINGO_REPORT(log, Warnings::OperationUndefined)
                 << loc << ": info: empty tuple ignored\n";
             return true;
         }
@@ -138,7 +138,7 @@ bool neutral(SymVec const &tuple, AggregateFunction fun, Location const &loc, Lo
         if (ret && tuple.front() != Symbol::createNum(0)) {
             std::ostringstream s;
             print_comma(s, tuple, ",");
-            GRINGO_REPORT(log, clingo_warning_operation_undefined)
+            GRINGO_REPORT(log, Warnings::OperationUndefined)
                 << loc << ": info: tuple ignored:\n"
                 << "  " << s.str() << "\n";
         }

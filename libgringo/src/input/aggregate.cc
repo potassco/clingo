@@ -70,7 +70,7 @@ void CheckLevel::check(Logger &log) {
         std::ostringstream msg;
         msg << loc << ": error: unsafe variables in:\n  " << p << "\n";
         for (auto &x : vars) { msg << x->data->loc() << ": note: '" << x->data->name << "' is unsafe\n"; }
-        GRINGO_REPORT(log, clingo_error_runtime) << msg.str();
+        GRINGO_REPORT(log, Warnings::RuntimeError) << msg.str();
     }
 }
 CheckLevel::~CheckLevel() { }

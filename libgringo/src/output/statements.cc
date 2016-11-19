@@ -401,7 +401,7 @@ bool Bound::init(DomainData &data, Translator &x, Logger &log) {
                 if      (range_.front()  != std::numeric_limits<int>::min()) { range_.remove(range_.front()+1, std::numeric_limits<int>::max()); }
                 else if (range_.back()+1 != std::numeric_limits<int>::max()) { range_.remove(std::numeric_limits<int>::min(), range_.back()); }
                 else                                                         { range_.clear(), range_.add(0, 1); }
-                GRINGO_REPORT(log, clingo_warning_variable_unbounded)
+                GRINGO_REPORT(log, Warnings::VariableUnbounded)
                     << "warning: unbounded constraint variable:\n"
                     << "  domain of '" << var << "' is set to [" << range_.front() << "," << range_.back() << "]\n"
                     ;
@@ -578,7 +578,7 @@ void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPred
         if (!std::get<1>(x).match("", 0, false) && std::get<2>(x)) {
             auto it(seenSigs_.find(std::hash<uint64_t>(), std::equal_to<uint64_t>(), std::get<1>(x).rep()));
             if (!it) {
-                GRINGO_REPORT(log, clingo_warning_atom_undefined)
+                GRINGO_REPORT(log, Warnings::AtomUndefined)
                     << std::get<0>(x) << ": info: no constraint variables over signature occur in program:\n"
                     << "  $" << std::get<1>(x) << "\n";
                 seenSigs_.insert(std::hash<uint64_t>(), std::equal_to<uint64_t>(), std::get<1>(x).rep());
@@ -614,8 +614,8 @@ void Translator::outputSymbols(DomainData &data, OutputPredicates const &outPred
     for (auto &todo : cspOutput_.todo) {
         auto bound = boundMap_.find(todo.term);
         if (bound == boundMap_.end()) {
-            // TODO: clingo_warning_atom_undefined???
-            GRINGO_REPORT(log, clingo_warning_atom_undefined)
+            // TODO: Warnings::AtomUndefined???
+            GRINGO_REPORT(log, Warnings::AtomUndefined)
                 << "info: constraint variable does not occur in program:\n"
                 << "  $" << todo.term << "\n";
             continue;
@@ -661,24 +661,24 @@ void Translator::showCsp(Bound const &bound, IsTrueLookup isTrue, SymVec &atoms)
 }
 
 void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup isTrue, SymVec &atoms, OutputPredicates const &outPreds) {
-    auto isComp = [isTrue, atomset](unsigned x) { return (atomset & clingo_show_type_complement) ? !isTrue(x) : isTrue(x); };
-    if (atomset & (clingo_show_type_csp | clingo_show_type_shown)) {
+    auto isComp = [isTrue, atomset](unsigned x) { return (atomset & static_cast<unsigned>(ShowType::Complement)) ? !isTrue(x) : isTrue(x); };
+    if (atomset & (static_cast<unsigned>(ShowType::Csp) | static_cast<unsigned>(ShowType::Shown))) {
         for (auto &x : boundMap_) {
-            if (atomset & clingo_show_type_csp || (atomset & clingo_show_type_shown && showBound(outPreds, x))) { showCsp(x, isTrue, atoms); }
+            if (atomset & static_cast<unsigned>(ShowType::Csp) || (atomset & static_cast<unsigned>(ShowType::Shown) && showBound(outPreds, x))) { showCsp(x, isTrue, atoms); }
         }
     }
-    if (atomset & (clingo_show_type_atoms | clingo_show_type_shown)) {
+    if (atomset & (static_cast<unsigned>(ShowType::Atoms) | static_cast<unsigned>(ShowType::Shown))) {
         for (auto &x : data.predDoms()) {
             Sig sig = *x;
             auto name = sig.name();
-            if (((atomset & clingo_show_type_atoms || (atomset & clingo_show_type_shown && showSig(outPreds, sig, false))) && !name.empty() && !name.startsWith("#"))) {
+            if (((atomset & static_cast<unsigned>(ShowType::Atoms) || (atomset & static_cast<unsigned>(ShowType::Shown) && showSig(outPreds, sig, false))) && !name.empty() && !name.startsWith("#"))) {
                 for (auto &y: *x) {
                     if (y.defined() && y.hasUid() && isComp(y.uid())) { atoms.emplace_back(y); }
                 }
             }
         }
     }
-    if (atomset & clingo_show_type_shown) {
+    if (atomset & static_cast<unsigned>(ShowType::Shown)) {
         for (auto &entry : cspOutput_.table) {
             auto bound = boundMap_.find(entry.term);
             if (bound != boundMap_.end() && !showBound(outPreds, *bound) && call(data, entry.cond, &Literal::isTrue, isComp)) {
@@ -686,7 +686,7 @@ void Translator::atoms(DomainData &data, unsigned atomset, IsTrueLookup isTrue, 
             }
         }
     }
-    if (atomset & (clingo_show_type_terms | clingo_show_type_shown)) {
+    if (atomset & (static_cast<unsigned>(ShowType::Terms) | static_cast<unsigned>(ShowType::Shown))) {
         for (auto &entry : termOutput_.table) {
             if (isComp(call(data, entry.cond, &Literal::uid))) {
                 atoms.emplace_back(entry.term);

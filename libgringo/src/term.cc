@@ -40,7 +40,7 @@ void Defines::add(Location const &loc, String name, UTerm &&value, bool defaultD
     if (it == defs_.end())                           { defs_.emplace(name, make_tuple(defaultDef, loc, std::move(value))); }
     else if (std::get<0>(it->second) && !defaultDef) { it->second = make_tuple(defaultDef, loc, std::move(value)); }
     else if (std::get<0>(it->second) || !defaultDef) {
-        GRINGO_REPORT(log, clingo_error_runtime)
+        GRINGO_REPORT(log, Warnings::RuntimeError)
             << loc << ": error: redefinition of constant:\n"
             << "  #const " << name << "=" << *value << ".\n"
             << std::get<1>(it->second) << ": note: constant also defined here\n";
@@ -76,7 +76,7 @@ void Defines::init(Logger &log) {
                     << std::get<1>(x->data->second) << ": note: cycle involves definition:\n"
                     << "  #const " << x->data->first << "=" << *std::get<2>(x->data->second) << ".\n";
             }
-            GRINGO_REPORT(log, clingo_error_runtime) << msg.str();
+            GRINGO_REPORT(log, Warnings::RuntimeError) << msg.str();
         }
         for (auto &x : scc) { Term::replace(std::get<2>(x->data->second), std::get<2>(x->data->second)->replace(*this, true)); }
     }
@@ -475,7 +475,7 @@ int Term::toNum(bool &undefined, Logger &log) {
     if (y.type() == SymbolType::Num) { return y.num(); }
     else {
         undefined = true;
-        GRINGO_REPORT(log, clingo_warning_operation_undefined)
+        GRINGO_REPORT(log, Warnings::OperationUndefined)
             << loc() << ": info: number expected:\n"
             << "  " << *this << "\n";
         return 0;
@@ -1057,7 +1057,7 @@ Symbol LinearTerm::eval(bool &undefined, Logger &log) const {
     if (value.type() == SymbolType::Num) { return Symbol::createNum(m * value.num() + n); }
     else {
         undefined = true;
-        GRINGO_REPORT(log, clingo_warning_operation_undefined)
+        GRINGO_REPORT(log, Warnings::OperationUndefined)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
         return Symbol::createNum(0);
@@ -1160,7 +1160,7 @@ Term::SimplifyRet UnOpTerm::simplify(SimplifyState &state, bool, bool arithmetic
         return {};
     }
     else if ((multiNeg && ret.notNumeric() && ret.notFunction()) || (!multiNeg && ret.notNumeric())) {
-        GRINGO_REPORT(log, clingo_warning_operation_undefined)
+        GRINGO_REPORT(log, Warnings::OperationUndefined)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
         return {};
@@ -1221,7 +1221,7 @@ Symbol UnOpTerm::eval(bool &undefined, Logger &log) const {
     }
     else {
         undefined = true;
-        GRINGO_REPORT(log, clingo_warning_operation_undefined)
+        GRINGO_REPORT(log, Warnings::OperationUndefined)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
         return Symbol::createNum(0);
@@ -1337,7 +1337,7 @@ Term::SimplifyRet BinOpTerm::simplify(SimplifyState &state, bool, bool, Logger &
         return {};
     }
     else if (retLeft.notNumeric() || retRight.notNumeric() || (op == BinOp::DIV && retRight.isZero())) {
-        GRINGO_REPORT(log, clingo_warning_operation_undefined)
+        GRINGO_REPORT(log, Warnings::OperationUndefined)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
         return {};
@@ -1413,7 +1413,7 @@ Symbol BinOpTerm::eval(bool &undefined, Logger &log) const {
     if (l.type() == SymbolType::Num && r.type() == SymbolType::Num && (op != BinOp::DIV || r.num() != 0)) { return Symbol::createNum(Gringo::eval(op, l.num(), r.num())); }
     else {
         undefined = true;
-        GRINGO_REPORT(log, clingo_warning_operation_undefined)
+        GRINGO_REPORT(log, Warnings::OperationUndefined)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
         return Symbol::createNum(0);

@@ -201,7 +201,7 @@ UTheoryTerm TheoryParser::parse(RawTheoryTerm::ElemVec &&elems, Logger &log) {
     for (auto &elem : elems) {
         for (auto &op : elem.first) {
             if (!def_.hasOp(op, unary)) {
-                GRINGO_REPORT(log, clingo_error_runtime)
+                GRINGO_REPORT(log, Warnings::RuntimeError)
                     << loc_ << ": error: missing definition for operator:" << "\n"
                     << "  " << op << "\n";
             }

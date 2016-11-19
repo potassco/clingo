@@ -157,12 +157,12 @@ int ClingoPropagateInit::threads() {
 
 void ClingoControl::parse(const StringVec& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* claspOut, bool addStdIn) {
     using namespace Gringo;
-    logger_.enable(clingo_warning_operation_undefined, !opts.wNoOperationUndefined);
-    logger_.enable(clingo_warning_atom_undefined, !opts.wNoAtomUndef);
-    logger_.enable(clingo_warning_variable_unbounded, !opts.wNoVariableUnbounded);
-    logger_.enable(clingo_warning_file_included, !opts.wNoFileIncluded);
-    logger_.enable(clingo_warning_global_variable, !opts.wNoGlobalVariable);
-    logger_.enable(clingo_warning_other, !opts.wNoOther);
+    logger_.enable(Warnings::OperationUndefined, !opts.wNoOperationUndefined);
+    logger_.enable(Warnings::AtomUndefined, !opts.wNoAtomUndef);
+    logger_.enable(Warnings::VariableUnbounded, !opts.wNoVariableUnbounded);
+    logger_.enable(Warnings::FileIncluded, !opts.wNoFileIncluded);
+    logger_.enable(Warnings::GlobalVariable, !opts.wNoGlobalVariable);
+    logger_.enable(Warnings::Other, !opts.wNoOther);
     verbose_ = opts.verbose;
     Output::OutputPredicates outPreds;
     for (auto &x : opts.foobar) {
@@ -744,7 +744,7 @@ void ClingoLib::onEvent(Clasp::Event const& ev) {
     if (r && finishHandler_) { onFinish(r->summary->result); }
 #endif
     const Clasp::LogEvent* log = Clasp::event_cast<Clasp::LogEvent>(ev);
-    if (log && log->isWarning()) { logger_.print(clingo_warning_other, log->msg); }
+    if (log && log->isWarning()) { logger_.print(Gringo::Warnings::Other, log->msg); }
 }
 bool ClingoLib::parsePositional(const std::string& t, std::string& out) {
     int num;

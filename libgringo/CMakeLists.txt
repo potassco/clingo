@@ -1,9 +1,6 @@
 set(header_path ${CLINGO_SOURCE_DIR}/libgringo)
 # [[[header: .
 set(ide_header_group "Header Files")
-set(header-group
-    "${header_path}/clingo.h")
-source_group("${ide_header_group}" FILES ${header-group})
 set(header-group-gringo
     "${header_path}/gringo/backend.hh"
     "${header_path}/gringo/utility.hh"
@@ -65,7 +62,6 @@ set(header-group-gringo-output
     "${header_path}/gringo/output/aggregates.hh")
 source_group("${ide_header_group}\\gringo\\output" FILES ${header-group-gringo-output})
 set(header
-    ${header-group}
     ${header-group-gringo}
     ${header-group-gringo-ground}
     ${header-group-gringo-input}
@@ -80,7 +76,6 @@ set(source-group
     "${source_path}/src/backend.cc"
     "${source_path}/src/primes.cc"
     "${source_path}/src/symbol.cc"
-    "${source_path}/src/control.cc"
     "${source_path}/src/terms.cc")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source-group-ground
@@ -158,9 +153,6 @@ target_include_directories(libgringo PUBLIC
     "$<BUILD_INTERFACE:${header_path}>"
     "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated/libgringo>")
 target_link_libraries(libgringo PUBLIC libpotassco libreify ${clingo_external_libs})
-target_compile_definitions(libgringo PRIVATE
-    CLINGO_BUILD_LIBRARY
-    CLINGO_GRINGO_ONLY)
 if (NOT CLINGO_BUILD_SHARED)
     target_compile_definitions(libgringo PUBLIC CLINGO_NO_VISIBILITY)
 endif()

@@ -905,7 +905,7 @@ extern "C" bool clingo_parse_term(char const *str, clingo_logger_t *logger, void
         Input::GroundTermParser parser;
         Logger::Printer printer;
         if (logger) {
-            printer = [logger, data](clingo_warning_t code, char const *msg) { logger(code, msg, data); };
+            printer = [logger, data](Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, data); };
         }
         Logger log(printer, message_limit);
         Symbol sym = parser.parse(str, log);
@@ -921,7 +921,7 @@ extern "C" bool clingo_parse_program(char const *program, clingo_ast_callback_t 
         bool incmode = false;
         Input::NonGroundParser parser(builder, incmode);
         Logger::Printer printer;
-        if (logger) { printer = [logger, logger_data](clingo_warning_t cond, char const *msg) { logger(cond, msg, logger_data); }; }
+        if (logger) { printer = [logger, logger_data](Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, logger_data); }; }
         Logger log(printer, message_limit);
         parser.pushStream("<string>", gringo_make_unique<std::istringstream>(program), log);
         parser.parse(log);
@@ -1049,7 +1049,7 @@ struct ClingoContext : Context {
         if (!ret) { throw ClingoError(); }
         return std::move(this->ret);
     }
-    void exec(clingo_ast_script_type, Location, String) override {
+    void exec(ScriptType, Location, String) override {
         throw std::logic_error("Context::exec: not supported");
     }
     ~ClingoContext() noexcept = default;
@@ -1334,7 +1334,7 @@ extern "C" bool clingo_control_new(char const *const * args, size_t n, clingo_lo
     GRINGO_CLINGO_TRY {
         static std::mutex mut;
         std::lock_guard<std::mutex> grd(mut);
-        *ctl = new ClingoLib(g_scripts(), n, args, logger ? [logger, data](clingo_warning_t code, char const *msg) { logger(code, msg, data); } : Logger::Printer(nullptr), message_limit);
+        *ctl = new ClingoLib(g_scripts(), n, args, logger ? [logger, data](Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, data); } : Logger::Printer(nullptr), message_limit);
     }
     GRINGO_CLINGO_CATCH;
 }
@@ -1351,7 +1351,7 @@ private:
     clingo_location_t conv(Location const &loc) {
         return {loc.beginFilename.c_str(), loc.endFilename.c_str(), loc.beginLine, loc.endLine, loc.beginColumn, loc.endColumn};
     }
-    void exec(clingo_ast_script_type, Location loc, String code) override {
+    void exec(ScriptType, Location loc, String code) override {
         if (script_.execute) {
             handleCError(script_.execute(conv(loc), code.c_str(), data_));
         }

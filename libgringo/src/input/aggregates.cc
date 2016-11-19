@@ -116,7 +116,7 @@ void warnGlobal(VarTermBoundVec &vars, bool warn, Logger &log) {
         std::sort(ib, ie, [](VarTermBoundVec::value_type const &a, VarTermBoundVec::value_type const &b) { return a.first->name < b.first->name; });
         ie = std::unique(ib, ie, [](VarTermBoundVec::value_type const &a, VarTermBoundVec::value_type const &b) { return a.first->name == b.first->name; });
         for (auto it = ib; it != ie; ++it) {
-            GRINGO_REPORT(log, clingo_warning_global_variable)
+            GRINGO_REPORT(log, Warnings::GlobalVariable)
                 << it->first->loc() << ": info: global variable in tuple of aggregate element:\n"
                 << "  " << it->first->name << "\n"
                 ;

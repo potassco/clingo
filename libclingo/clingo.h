@@ -994,12 +994,12 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbolic_atoms_is_valid(clingo_symbolic_at
 
 //! Enumeration of theory term types.
 enum clingo_theory_term_type {
-    clingo_theory_term_type_tuple,    //!< a tuple term, e.g., `(1,2,3)`
-    clingo_theory_term_type_list,     //!< a list term, e.g., `[1,2,3]`
-    clingo_theory_term_type_set,      //!< a set term, e.g., `{1,2,3}`
-    clingo_theory_term_type_function, //!< a function term, e.g., `f(1,2,3)`
-    clingo_theory_term_type_number,   //!< a number term, e.g., `42`
-    clingo_theory_term_type_symbol    //!< a symbol term, e.g., `c`
+    clingo_theory_term_type_tuple    = 0, //!< a tuple term, e.g., `(1,2,3)`
+    clingo_theory_term_type_list     = 1, //!< a list term, e.g., `[1,2,3]`
+    clingo_theory_term_type_set      = 2, //!< a set term, e.g., `{1,2,3}`
+    clingo_theory_term_type_function = 3, //!< a function term, e.g., `f(1,2,3)`
+    clingo_theory_term_type_number   = 4, //!< a number term, e.g., `42`
+    clingo_theory_term_type_symbol   = 5  //!< a symbol term, e.g., `c`
 };
 //! Corresponding type to ::clingo_theory_term_type.
 typedef int clingo_theory_term_type_t;
@@ -2984,8 +2984,6 @@ typedef bool clingo_model_callback_t (clingo_model_t *model, void *data, bool *g
 //! @see clingo_control_solve_async()
 typedef bool clingo_finish_callback_t (clingo_solve_result_bitset_t result, void *data);
 
-#ifndef CLINGO_GRINGO_ONLY
-
 //! Create a new control object.
 //!
 //! A control object has to be freed using clingo_control_free().
@@ -3007,8 +3005,6 @@ typedef bool clingo_finish_callback_t (clingo_solve_result_bitset_t result, void
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if argument parsing fails
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_new(char const *const * arguments, size_t arguments_size, clingo_logger_t *logger, void *logger_data, unsigned message_limit, clingo_control_t **control);
-
-#endif
 
 //! Free a control object created with clingo_control_new().
 //! @param[in] control the target

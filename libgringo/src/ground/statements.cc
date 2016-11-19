@@ -488,7 +488,7 @@ void ShowStatement::report(Output::OutputBase &out, Logger &log) {
         out.output(ss);
     }
     else {
-        GRINGO_REPORT(log, clingo_warning_operation_undefined)
+        GRINGO_REPORT(log, Warnings::OperationUndefined)
             << term_->loc() << ": info: tuple ignored:\n"
             << "  " << term << "\n";
     }
@@ -522,13 +522,13 @@ void EdgeStatement::report(Output::OutputBase &out, Logger &log) {
     bool undefined = false;
     Symbol u = u_->eval(undefined, log);
     if (undefined) {
-        GRINGO_REPORT(log, clingo_warning_operation_undefined)
+        GRINGO_REPORT(log, Warnings::OperationUndefined)
             << u_->loc() << ": info: edge ignored\n";
         return;
     }
     Symbol v = v_->eval(undefined, log);
     if (undefined) {
-        GRINGO_REPORT(log, clingo_warning_operation_undefined)
+        GRINGO_REPORT(log, Warnings::OperationUndefined)
             << v_->loc() << ": info: edge ignored\n";
         return;
     }
@@ -615,14 +615,14 @@ void HeuristicStatement::report(Output::OutputBase &out, Logger &log) {
     // check value
     Symbol value = value_->eval(undefined, log);
     if (undefined || value.type() != SymbolType::Num) {
-        GRINGO_REPORT(log, clingo_warning_operation_undefined)
+        GRINGO_REPORT(log, Warnings::OperationUndefined)
             << value_->loc() << ": info: heuristic directive ignored\n";
         return;
     }
     // check priority
     Symbol priority = priority_->eval(undefined, log);
     if (undefined || priority.type() != SymbolType::Num || priority.num() < 0) {
-        GRINGO_REPORT(log, clingo_warning_operation_undefined)
+        GRINGO_REPORT(log, Warnings::OperationUndefined)
             << priority_->loc() << ": info: heuristic directive ignored\n";
         return;
     }
@@ -637,7 +637,7 @@ void HeuristicStatement::report(Output::OutputBase &out, Logger &log) {
     else if (mod == Symbol::createId("init"))   { heuMod = Potassco::Heuristic_t::Init; }
     else if (mod == Symbol::createId("sign"))   { heuMod = Potassco::Heuristic_t::Sign; }
     else {
-        GRINGO_REPORT(log, clingo_warning_operation_undefined)
+        GRINGO_REPORT(log, Warnings::OperationUndefined)
             << mod_->loc() << ": info: heuristic directive ignored\n";
         return;
     }
@@ -694,7 +694,7 @@ void WeakConstraint::report(Output::OutputBase &out, Logger &log) {
         out.output(min);
     }
     else if (!undefined) {
-        GRINGO_REPORT(log, clingo_warning_operation_undefined)
+        GRINGO_REPORT(log, Warnings::OperationUndefined)
             << tuple_.front()->loc() << ": info: tuple ignored:\n"
             << "  " << out.tempVals_.front() << "@" << out.tempVals_[1] << "\n";
     }

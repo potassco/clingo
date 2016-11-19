@@ -21,6 +21,7 @@
 #include <clingo/script.h>
 #include <clingo/incmode.hh>
 #include <clingo/control.hh>
+#include <clingo/ast.hh>
 #include <gringo/input/nongroundparser.hh>
 #include <gringo/input/groundtermparser.hh>
 #include <gringo/input/programbuilder.hh>
@@ -91,12 +92,12 @@ struct IncrementalControl : Gringo::Control {
         using namespace Gringo;
         // TODO: should go where python script is once refactored
         out.keepFacts = opts.keepFacts;
-        logger_.enable(clingo_warning_operation_undefined, !opts.wNoOperationUndefined);
-        logger_.enable(clingo_warning_atom_undefined, !opts.wNoAtomUndef);
-        logger_.enable(clingo_warning_variable_unbounded, !opts.wNoVariableUnbounded);
-        logger_.enable(clingo_warning_file_included, !opts.wNoFileIncluded);
-        logger_.enable(clingo_warning_global_variable, !opts.wNoGlobalVariable);
-        logger_.enable(clingo_warning_other, !opts.wNoOther);
+        logger_.enable(Warnings::OperationUndefined, !opts.wNoOperationUndefined);
+        logger_.enable(Warnings::AtomUndefined, !opts.wNoAtomUndef);
+        logger_.enable(Warnings::VariableUnbounded, !opts.wNoVariableUnbounded);
+        logger_.enable(Warnings::FileIncluded, !opts.wNoFileIncluded);
+        logger_.enable(Warnings::GlobalVariable, !opts.wNoGlobalVariable);
+        logger_.enable(Warnings::Other, !opts.wNoOther);
         for (auto &x : opts.defines) {
             LOG << "define: " << x << std::endl;
             parser.parseDefine(x, logger_);

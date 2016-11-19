@@ -294,6 +294,16 @@ struct LinearConstraint {
 
 // }}}2
 
+enum class ShowType : unsigned {
+    Csp        = 1,
+    Shown      = 2,
+    Atoms      = 4,
+    Terms      = 8,
+    Extra      = 16,
+    All        = 31,
+    Complement = 32
+};
+
 class Translator {
 private:
     struct OutputEntry {

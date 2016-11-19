@@ -24,6 +24,7 @@
 
 #include <clingo/control.hh>
 #include <clingo/scripts.hh>
+#include <clingo/ast.hh>
 #include <gringo/output/output.hh>
 #include <gringo/input/program.hh>
 #include <gringo/input/programbuilder.hh>

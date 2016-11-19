@@ -45,7 +45,7 @@ struct RangeBinder : Binder {
         }
         else {
             if (!undefined) {
-                GRINGO_REPORT(log, clingo_warning_operation_undefined)
+                GRINGO_REPORT(log, Warnings::OperationUndefined)
                     << (range.first->loc() + range.second->loc()) << ": info: interval undefined:\n"
                     << "  " << *range.first << ".." << *range.second << "\n";
             }
@@ -84,7 +84,7 @@ struct RangeMatcher : Binder {
         }
         else {
             if (!undefined) {
-                GRINGO_REPORT(log, clingo_warning_operation_undefined)
+                GRINGO_REPORT(log, Warnings::OperationUndefined)
                     << (range.first->loc() + range.second->loc()) << ": info: interval undefined:\n"
                     << "  " << *range.first << ".." << *range.second << "\n";
             }

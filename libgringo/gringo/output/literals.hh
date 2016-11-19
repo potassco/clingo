@@ -1120,13 +1120,13 @@ private:
 
 // {{{1 declaration of DomainData
 
-enum class TheoryTermType {
-    Tuple = clingo_theory_term_type_tuple,
-    List = clingo_theory_term_type_list,
-    Set = clingo_theory_term_type_set,
-    Function = clingo_theory_term_type_function,
-    Number = clingo_theory_term_type_number,
-    Symbol = clingo_theory_term_type_symbol
+enum class TheoryTermType : int {
+    Tuple = 0,
+    List = 1,
+    Set = 2,
+    Function = 3,
+    Number = 4,
+    Symbol = 5
 };
 
 class DomainData {

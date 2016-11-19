@@ -49,7 +49,7 @@ SymVec Scripts::call(Location const &loc, String name, SymSpan args, Logger &log
             return script.second->call(loc, name, args, log);
         }
     }
-    GRINGO_REPORT(log, clingo_warning_operation_undefined)
+    GRINGO_REPORT(log, Warnings::OperationUndefined)
         << loc << ": info: operation undefined:\n"
         << "  function '" << name << "' not found\n"
         ;
@@ -60,10 +60,10 @@ void Scripts::registerScript(clingo_ast_script_type type, UScript script) {
     if (script) { scripts_.emplace_back(type, std::move(script)); }
 }
 
-void Scripts::exec(clingo_ast_script_type type, Location loc, String code) {
+void Scripts::exec(ScriptType type, Location loc, String code) {
     bool notfound = true;
     for (auto &&script : scripts_) {
-        if (script.first == type) {
+        if (script.first == static_cast<clingo_ast_script_type_t>(type)) {
             script.second->exec(type, loc, code);
             notfound = false;
         }
@@ -72,8 +72,8 @@ void Scripts::exec(clingo_ast_script_type type, Location loc, String code) {
         std::ostringstream oss;
         oss << loc << ": error: ";
         switch (type) {
-            case clingo_ast_script_type_python: { oss << "python"; break; }
-            case clingo_ast_script_type_lua: { oss << "lua"; break; }
+            case ScriptType::Python: { oss << "python"; break; }
+            case ScriptType::Lua:    { oss << "lua"; break; }
         }
         oss << " support not available\n";
         throw GringoError(oss.str().c_str());

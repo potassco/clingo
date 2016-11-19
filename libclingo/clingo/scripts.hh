@@ -44,7 +44,7 @@ public:
     void registerScript(clingo_ast_script_type type, UScript script);
     void setContext(Context &ctx) { context_ = &ctx; }
     void resetContext() { context_ = nullptr; }
-    void exec(clingo_ast_script_type type, Location loc, String code) override;
+    void exec(ScriptType type, Location loc, String code) override;
     char const *version(clingo_ast_script_type type);
 
     ~Scripts();

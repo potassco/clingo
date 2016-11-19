@@ -57,6 +57,5 @@ if(MSVC)
     target_compile_definitions(test_gringo PRIVATE _SCL_SECURE_NO_WARNINGS)
 endif()
 set_target_properties(test_gringo PROPERTIES FOLDER test)
-target_compile_definitions(libgringo PRIVATE CLINGO_GRINGO_ONLY)
 
 add_test(NAME test_gringo COMMAND test_gringo)

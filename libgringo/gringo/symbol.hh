@@ -33,7 +33,6 @@
 #include <iterator>
 #include <algorithm>
 #include <utility>
-#include <clingo.h>
 #include <potassco/basic_types.h>
 
 namespace Gringo {
@@ -91,7 +90,7 @@ inline std::ostream &operator<<(std::ostream &out, String x) {
 class Sig {
 public:
     Sig(String name, uint32_t arity, bool sign);
-    explicit Sig(clingo_signature_t rep) : rep_(rep) {  }
+    explicit Sig(uint64_t rep) : rep_(rep) {  }
     String name() const;
     Sig flipSign() const;
     uint32_t arity() const;
@@ -111,7 +110,7 @@ public:
     bool operator<=(Sig s) const;
     bool operator>=(Sig s) const;
 private:
-    clingo_signature_t rep_;
+    uint64_t rep_;
 };
 
 inline std::ostream &operator<<(std::ostream &out, Sig x) {
@@ -123,12 +122,12 @@ inline std::ostream &operator<<(std::ostream &out, Sig x) {
 // {{{1 declaration of Symbol (flyweight)
 
 enum class SymbolType : uint8_t {
-    Inf     = clingo_symbol_type_infimum,
-    Num     = clingo_symbol_type_number,
-    Str     = clingo_symbol_type_string,
-    Fun     = clingo_symbol_type_function,
-    Special = clingo_symbol_type_supremum-1,
-    Sup     = clingo_symbol_type_supremum
+    Inf     = 0,
+    Num     = 1,
+    Str     = 4,
+    Fun     = 5,
+    Special = 6,
+    Sup     = 7
 };
 inline std::ostream &operator<<(std::ostream &out, SymbolType sym) {
     switch (sym) {
@@ -151,7 +150,7 @@ class Symbol {
 public:
     // construction
     Symbol(); // createSpecial
-    explicit Symbol(clingo_symbol_t sym) : rep_(sym) { };
+    explicit Symbol(uint64_t sym) : rep_(sym) { };
     static Symbol createId(String val, bool sign = false);
     static Symbol createStr(String val);
     static Symbol createNum(int num);
@@ -191,7 +190,7 @@ public:
 
     uint64_t const &rep () const { return rep_; }
 private:
-    clingo_symbol_t rep_;
+    uint64_t rep_;
 };
 
 inline std::ostream& operator<<(std::ostream& out, Symbol sym) {

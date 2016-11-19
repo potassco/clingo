@@ -334,7 +334,7 @@ void OutputBase::checkOutPreds(Logger &log) {
         if (!std::get<1>(x).match("", 0) && !std::get<2>(x)) {
             auto it(predDoms().find(std::get<1>(x)));
             if (it == predDoms().end()) {
-                GRINGO_REPORT(log, clingo_warning_atom_undefined)
+                GRINGO_REPORT(log, Warnings::AtomUndefined)
                     << std::get<0>(x) << ": info: no atoms over signature occur in program:\n"
                     << "  " << std::get<1>(x) << "\n";
             }

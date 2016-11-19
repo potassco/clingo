@@ -57,10 +57,10 @@ void GroundTermGrammar::parser::error(GroundTermGrammar::parser::location_type c
 
 // {{{1 nonterminals
 %union {
-    char const *    str;
-    int             num;
-    unsigned        uid;
-    clingo_symbol_t value;
+    char const *str;
+    int         num;
+    unsigned    uid;
+    uint64_t    value;
 }
 
 // {{{1 terminals
