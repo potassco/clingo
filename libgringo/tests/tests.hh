@@ -290,14 +290,13 @@ V init(T&&... args) {
 
 // {{{1 definition of TestLogger
 
-struct TestGringoModule : Gringo::GringoModule {
+struct TestGringoModule {
     TestGringoModule()
     : logger([&](clingo_warning_t, char const *msg){
         messages_.emplace_back(msg);
     }, std::numeric_limits<unsigned>::max()) { }
 
-    Gringo::Control *newControl(int, char const * const *, Logger::Printer, unsigned) override { throw std::logic_error("TestGringoModule::newControl must not be called"); }
-    Gringo::Symbol parseValue(std::string const &str, Logger::Printer = nullptr, unsigned = 0) override {
+    Gringo::Symbol parseValue(std::string const &str, Logger::Printer = nullptr, unsigned = 0) {
         return parser.parse(str, logger);
     }
     operator Logger &() { return logger; }

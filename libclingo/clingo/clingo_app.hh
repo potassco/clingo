@@ -61,7 +61,6 @@ private:
     ClingoApp& operator=(const ClingoApp&);
     ClingoOptions grOpts_;
     Mode mode_;
-    DefaultGringoModule module;
     std::unique_ptr<ClingoControl> grd;
 };
 

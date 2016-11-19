@@ -81,7 +81,7 @@ static inline bool parseFoobar(const std::string& str, GringoOptions::Foobar& fo
 }
 
 #define LOG if (opts.verbose) std::cerr
-struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
+struct IncrementalControl : Gringo::Control {
     using StringVec = std::vector<std::string>;
     IncrementalControl(Gringo::Output::OutputBase &out, StringVec const &files, GringoOptions const &opts)
     : out(out)
@@ -113,9 +113,6 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     }
     Gringo::Logger &logger() override {
         return logger_;
-    }
-    void registerScript(clingo_ast_script_type type, Gringo::UScript script) override {
-        scripts.registerScript(type, script);
     }
     void parse() {
         if (!parser.empty()) {
@@ -222,8 +219,6 @@ struct IncrementalControl : Gringo::Control, Gringo::GringoModule {
     void useEnumAssumption(bool) override { }
     bool useEnumAssumption() override { return false; }
     virtual ~IncrementalControl() { }
-    Gringo::Symbol parseValue(std::string const &str, Gringo::Logger::Printer, unsigned) override { return termParser.parse(str, logger_); }
-    Gringo::Control *newControl(int, char const * const *, Gringo::Logger::Printer, unsigned) override { throw std::logic_error("new control instances not supported"); }
     Gringo::TheoryData const &theory() const override { return out.data.theoryInterface(); }
     void cleanupDomains() override { }
     Gringo::Backend *backend() override { return out.backend(); }

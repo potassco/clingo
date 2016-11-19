@@ -492,7 +492,7 @@ union SymbolicAtomOffset {
 };
 
 bool operator==(SymbolicAtomOffset const &a, SymbolicAtomOffset const &b) {
-	return a.data.domain_offset == b.data.domain_offset && a.data.atom_offset == b.data.atom_offset;
+    return a.data.domain_offset == b.data.domain_offset && a.data.atom_offset == b.data.atom_offset;
 }
 
 SymbolicAtomOffset &toOffset(clingo_symbolic_atom_iterator_t &it) {
@@ -770,24 +770,11 @@ Gringo::Scripts &g_scripts() {
     return scripts;
 }
 
-DefaultGringoModule::DefaultGringoModule() {
-}
-
-Gringo::Control *DefaultGringoModule::newControl(int argc, char const * const*argv, Gringo::Logger::Printer printer, unsigned messageLimit) {
-    return new ClingoLib(g_scripts(), argc, argv, printer, messageLimit);
-}
-
-Gringo::Symbol DefaultGringoModule::parseValue(std::string const &str, Gringo::Logger::Printer printer, unsigned messageLimit) {
-    Gringo::Logger logger(printer, messageLimit);
-    return parser.parse(str, logger);
-}
-
 extern "C" bool clingo_control_new(char const *const * args, size_t n, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl) {
     GRINGO_CLINGO_TRY {
         static std::mutex mut;
-        static DefaultGringoModule mod;
         std::lock_guard<std::mutex> grd(mut);
-        *ctl = mod.newControl(n, args, logger ? [logger, data](clingo_warning_t code, char const *msg) { logger(code, msg, data); } : Gringo::Logger::Printer(nullptr), message_limit);
+        *ctl = new ClingoLib(g_scripts(), n, args, logger ? [logger, data](clingo_warning_t code, char const *msg) { logger(code, msg, data); } : Gringo::Logger::Printer(nullptr), message_limit);
     }
     GRINGO_CLINGO_CATCH;
 }
