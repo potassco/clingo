@@ -26,7 +26,7 @@
 #include <potassco/basic_types.h>
 #include "clingo.hh"
 #include <signal.h>
-#include <gringo/script.h>
+#include <clingo/script.h>
 #include <clingo/incmode.hh>
 
 // {{{1 definition of ClaspAPIBackend
@@ -763,84 +763,9 @@ ClingoLib::~ClingoLib() {
     clasp_.shutdown();
 }
 
-// {{{1 definition of DefaultGringoModule
-
 Gringo::Scripts &g_scripts() {
     static Gringo::Scripts scripts;
     return scripts;
-}
-
-extern "C" bool clingo_control_new(char const *const * args, size_t n, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl) {
-    GRINGO_CLINGO_TRY {
-        static std::mutex mut;
-        std::lock_guard<std::mutex> grd(mut);
-        *ctl = new ClingoLib(g_scripts(), n, args, logger ? [logger, data](clingo_warning_t code, char const *msg) { logger(code, msg, data); } : Gringo::Logger::Printer(nullptr), message_limit);
-    }
-    GRINGO_CLINGO_CATCH;
-}
-
-namespace {
-
-class CScript : public Gringo::Script {
-public:
-    CScript(clingo_script_t_ script, void *data) : script_(script), data_(data) { }
-    ~CScript() noexcept override {
-        if (script_.free) { script_.free(data_); }
-    }
-private:
-    clingo_location_t conv(Gringo::Location const &loc) {
-        return {loc.beginFilename.c_str(), loc.endFilename.c_str(), loc.beginLine, loc.endLine, loc.beginColumn, loc.endColumn};
-    }
-    void exec(Gringo::Location const &loc, Gringo::String code) override {
-        if (script_.execute) {
-            Gringo::handleCError(script_.execute(conv(loc), code.c_str(), data_));
-        }
-    }
-    Gringo::SymVec call(Gringo::Location const &loc, Gringo::String name, Gringo::SymSpan args) override {
-        using Data = std::pair<Gringo::SymVec, std::exception_ptr>;
-        Data data;
-        Gringo::handleCError(script_.call(
-            conv(loc), name.c_str(), reinterpret_cast<clingo_symbol_t const *>(args.first), args.size,
-            [](clingo_symbol_t const *symbols, size_t symbols_size, void *data) {
-                try {
-                    for (auto it = symbols, ie = it + symbols_size; it != ie; ++it) {
-                        static_cast<Gringo::SymVec*>(data)->emplace_back(Gringo::Symbol{*it});
-                    }
-                    return true;
-                }
-                catch (...) {
-                Gringo::handleCXXError();
-                    return false;
-                }
-            },
-            &data, data_), &data.second);
-        return data.first;
-    }
-    bool callable(Gringo::String name) override {
-        bool ret;
-        Gringo::handleCError(script_.callable(name.c_str(), &ret, data_));
-        return ret;
-    }
-    void main(Gringo::Control &ctl) override {
-        Gringo::handleCError(script_.main(&ctl, data_));
-    }
-    char const *version() override {
-        return script_.version;
-    }
-private:
-    clingo_script_t_ script_;
-    void *data_;
-};
-
-} // namespace
-
-extern "C" CLINGO_VISIBILITY_DEFAULT bool clingo_register_script_(clingo_ast_script_type_t type, clingo_script_t_ *script, void *data) {
-    GRINGO_CLINGO_TRY { g_scripts().registerScript(static_cast<clingo_ast_script_type>(type), Gringo::gringo_make_unique<CScript>(*script, data)); }
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" CLINGO_VISIBILITY_DEFAULT char const *clingo_script_version_(clingo_ast_script_type_t type) {
-    return g_scripts().version(static_cast<clingo_ast_script_type>(type));
 }
 
 // }}}1

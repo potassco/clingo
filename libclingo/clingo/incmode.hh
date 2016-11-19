@@ -22,7 +22,7 @@
 #ifndef CLINGO_INCMODE_HH
 #define CLINGO_INCMODE_HH
 
-#include <gringo/control.hh>
+#include <clingo/control.hh>
 
 void incmode(Gringo::Control &ctl_);
 

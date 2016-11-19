@@ -39,6 +39,24 @@ ScopeExit<T> onExit(T &&exit) {
     return ScopeExit<T>(std::forward<T>(exit));
 }
 
+struct Context {
+    virtual bool callable(String name) const = 0;
+    virtual SymVec call(Location const &loc, String name, SymSpan args) = 0;
+    virtual ~Context() noexcept = default;
+};
+
+class Script {
+public:
+    virtual void exec(Location const &loc, String code) = 0;
+    virtual SymVec call(Location const &loc, String name, SymSpan args) = 0;
+    virtual bool callable(String name) = 0;
+    virtual void main(Control &ctl) = 0;
+    virtual char const *version() = 0;
+    virtual ~Script() = default;
+};
+using UScript = std::shared_ptr<Script>;
+using UScriptVec = std::vector<std::pair<clingo_ast_script_type, UScript>>;
+
 class Scripts {
 public:
     Scripts() = default;

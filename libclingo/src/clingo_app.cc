@@ -20,7 +20,7 @@
 // }}}
 
 #include <clingo/clingo_app.hh>
-#include <gringo/script.h>
+#include <clingo/script.h>
 #include <clasp/parser.h>
 #include <climits>
 

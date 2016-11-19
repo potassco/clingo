@@ -20,7 +20,6 @@ set(header-group-gringo
     "${header_path}/gringo/graph.hh"
     "${header_path}/gringo/symbol.hh"
     "${header_path}/gringo/primes.hh"
-    "${header_path}/gringo/script.h"
     "${header_path}/gringo/scripts.hh"
     "${header_path}/gringo/terms.hh"
     "${header_path}/gringo/domain.hh"

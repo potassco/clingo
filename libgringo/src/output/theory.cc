@@ -235,7 +235,7 @@ RawTheoryTerm &RawTheoryTerm::operator=(RawTheoryTerm &&) = default;
 
 RawTheoryTerm::~RawTheoryTerm() noexcept = default;
 
-void RawTheoryTerm::append(FWStringVec &&ops, UTheoryTerm &&term) {
+void RawTheoryTerm::append(StringVec &&ops, UTheoryTerm &&term) {
     assert(elems_.empty() || !ops.empty());
     elems_.emplace_back(std::move(ops), std::move(term));
 }

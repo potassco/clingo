@@ -18,10 +18,10 @@
 
 // }}}
 
-#ifndef GRINGO_PYTHON_HH
-#define GRINGO_PYTHON_HH
+#ifndef PYCLINGO_PYTHON_HH
+#define PYCLINGO_PYTHON_HH
 
-#include <gringo/script.h>
+#include <clingo/script.h>
 
 #if defined _WIN32 || defined __CYGWIN__
 #   define PYCLINGO_WIN
@@ -51,4 +51,4 @@
 extern "C" PYCLINGO_VISIBILITY_DEFAULT void *clingo_init_python_();
 extern "C" PYCLINGO_VISIBILITY_DEFAULT bool clingo_register_python_();
 
-#endif // GRINGO_PYTHON_HH
+#endif // PYCLINGO_PYTHON_HH

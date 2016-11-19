@@ -18,7 +18,9 @@
 
 // }}}
 
-#include <gringo/script.h>
+#include <clingo/script.h>
+#include <clingo/incmode.hh>
+#include <clingo/control.hh>
 #include <gringo/input/nongroundparser.hh>
 #include <gringo/input/groundtermparser.hh>
 #include <gringo/input/programbuilder.hh>
@@ -28,13 +30,11 @@
 #include <gringo/output/statements.hh>
 #include <gringo/logger.hh>
 #include <gringo/scripts.hh>
-#include <gringo/control.hh>
+#include <potassco/application.h>
+#include <potassco/program_opts/typed_value.h>
 #include <climits>
 #include <iostream>
 #include <stdexcept>
-#include <potassco/application.h>
-#include <potassco/program_opts/typed_value.h>
-#include <clingo/incmode.hh>
 
 using StringVec = std::vector<std::string>;
 

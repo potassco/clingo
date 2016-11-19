@@ -22,6 +22,7 @@
 #ifndef _GRINGO_CLINGOCONTROL_HH
 #define _GRINGO_CLINGOCONTROL_HH
 
+#include <clingo/control.hh>
 #include <gringo/output/output.hh>
 #include <gringo/input/program.hh>
 #include <gringo/input/programbuilder.hh>
@@ -405,8 +406,6 @@ private:
     Clasp::Cli::ClaspCliConfig          claspConfig_;
     Clasp::ClaspFacade                  clasp_;
 };
-
-// {{{1 declaration of DefaultGringoModule
 
 Gringo::Scripts &g_scripts();
 

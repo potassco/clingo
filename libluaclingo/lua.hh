@@ -18,10 +18,10 @@
 
 // }}}
 
-#ifndef _GRINGO_LUA_HH
-#define _GRINGO_LUA_HH
+#ifndef LUACLINGO_LUA_HH
+#define LUACLINGO_LUA_HH
 
-#include <gringo/script.h>
+#include <clingo/script.h>
 
 #if defined _WIN32 || defined __CYGWIN__
 #   define LUACLINGO_WIN
@@ -53,6 +53,6 @@ struct lua_State;
 extern "C" LUACLINGO_VISIBILITY_DEFAULT int clingo_init_lua_(lua_State *L);
 extern "C" LUACLINGO_VISIBILITY_DEFAULT bool clingo_register_lua_();
 
-#endif // _GRINGO_LUA_HH
+#endif // LUACLINGO_LUA_HH
 
 

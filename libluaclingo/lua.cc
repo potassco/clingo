@@ -19,7 +19,6 @@
 // }}}
 
 #include "lua.hh"
-#include <gringo/script.h>
 
 #include <lua.hpp>
 #include <cstring>
