@@ -27,6 +27,7 @@
 #include <sstream>
 #include <vector>
 #include <iostream>
+#include <algorithm>
 
 namespace Gringo {
 
