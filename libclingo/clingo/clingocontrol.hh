@@ -146,26 +146,6 @@ static inline bool parseFoobar(const std::string& str, ClingoOptions::Foobar& fo
     return true;
 }
 
-// {{{1 declaration of ClingoSolveFuture
-
-SolveResult convert(Clasp::ClaspFacade::Result res);
-#if CLASP_HAS_THREADS
-struct ClingoSolveFuture : SolveFuture {
-    ClingoSolveFuture(Clasp::ClaspFacade::AsyncResult const &res);
-    // async
-    SolveResult get() override;
-    void wait() override;
-    bool wait(double timeout) override;
-    void cancel() override;
-
-    void reset(Clasp::ClaspFacade::AsyncResult res);
-
-    Clasp::ClaspFacade::AsyncResult future;
-    SolveResult             ret = {SolveResult::Unknown, false, false};
-    bool                            done = false;
-};
-#endif
-
 // {{{1 declaration of ClingoControl
 class ClingoPropagateInit : public PropagateInit {
 public:
@@ -200,7 +180,7 @@ private:
     unsigned seq_;
 };
 
-class ClingoSolveIter;
+class ClingoSolveFuture;
 class ClingoControl : public clingo_control, private ConfigProxy, private SymbolicAtoms {
 public:
     using StringVec        = std::vector<std::string>;
@@ -269,7 +249,7 @@ public:
     void useEnumAssumption(bool enable) override;
     bool useEnumAssumption() override;
     void cleanupDomains() override;
-    SolveIter *solveIter(Assumptions &&ass) override;
+    SolveFuture *solveIter(Assumptions &&ass) override;
     SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass) override;
     Output::DomainData const &theory() const override { return out_->data; }
     void registerPropagator(UProp p, bool sequential) override;
@@ -305,10 +285,7 @@ public:
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>> propagators_;
     ClingoPropagatorLock                                      propLock_;
     Logger                                            logger_;
-#if CLASP_HAS_THREADS
-    std::unique_ptr<ClingoSolveFuture> solveFuture_;
-#endif
-    std::unique_ptr<ClingoSolveIter>   solveIter_;
+    std::unique_ptr<ClingoSolveFuture>                        solveFuture_;
     bool enableEnumAssupmption_ = true;
     bool clingoMode_;
     bool verbose_               = false;
@@ -371,19 +348,23 @@ private:
     mutable SymVec  atms_;
 };
 
-// {{{1 declaration of ClingoSolveIter
+// {{{1 declaration of ClingoSolveFuture
 
-class ClingoSolveIter : public SolveIter {
+SolveResult convert(Clasp::ClaspFacade::Result res);
+class ClingoSolveFuture : public Gringo::SolveFuture {
 public:
-    ClingoSolveIter(ClingoControl &ctl);
+	ClingoSolveFuture(ClingoControl &ctl, Clasp::SolveMode_t mode);
 
-    Model const *next() override;
-    void close() override;
-    SolveResult get() override;
-
+	SolveResult  get()  override;
+	Model const *next() override;
+	void wait() override;
+	bool wait(double timeout) override;
+	void cancel() override;
 private:
-    Clasp::ClaspFacade::ModelGenerator future_;
-    ClingoModel                        model_;
+	Clasp::ClaspFacade::SolveHandle future_;
+	ClingoModel                     model_;
+	SolveResult                     ret_  = {SolveResult::Unknown, false, false};
+	bool                            done_ = false;
 };
 
 // {{{1 declaration of ClingoLib

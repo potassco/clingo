@@ -184,7 +184,7 @@ struct IncrementalControl : Control {
         out.reset(true);
         return {SolveResult::Unknown, false, false};
     }
-    SolveIter *solveIter(Assumptions &&) override {
+    SolveFuture *solveIter(Assumptions &&) override {
         throw std::runtime_error("solving not supported in gringo");
     }
     void interrupt() override {
