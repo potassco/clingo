@@ -38,9 +38,6 @@
 #endif
 #define PyString_FromStringAndSize PyUnicode_FromStringAndSize
 #define PyString_FromFormat PyUnicode_FromFormat
-#define PyInt_FromLong PyLong_FromLong
-#define PyInt_AsLong PyLong_AsLong
-#define PyInt_Check PyLong_Check
 #define PyString_Check PyUnicode_Check
 #define OBBASE(x) (&(x)->ob_base)
 #else
@@ -230,7 +227,7 @@ Object ObjectProtocoll<T>::getItem(char const *key) {
 }
 template <class T>
 Object ObjectProtocoll<T>::getItem(int key) {
-    return getItem(Object{PyInt_FromLong(key)});
+    return getItem(Object{PyLong_FromLong(key)});
 }
 template <class T>
 void ObjectProtocoll<T>::setItem(char const *key, Reference val) {
@@ -486,9 +483,23 @@ void pyToCpp(Reference pyObj, std::string &x) {
     x.assign(ret);
 }
 
+
+void pyToNum(Reference pyNum, long &x) { x = PyLong_AsLong(pyNum.toPy()); }
+void pyToNum(Reference pyNum, unsigned long &x) { x = PyLong_AsUnsignedLong(pyNum.toPy()); }
+void pyToNum(Reference pyNum, long long &x) { x = PyLong_AsLongLong(pyNum.toPy()); }
+void pyToNum(Reference pyNum, unsigned long long &x) { x = PyLong_AsUnsignedLongLong(pyNum.toPy()); }
+
+template <bool Signed, bool FitsLong> struct NumType;
+template <> struct NumType<true, true> { using Type = long; };
+template <> struct NumType<false, true> { using Type = unsigned long; };
+template <> struct NumType<true, false> { using Type = long long; };
+template <> struct NumType<false, false> { using Type = unsigned long long; };
+
 template <class T>
 void pyToCpp(Reference pyNum, T &x, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr) {
-    x = PyInt_AsLong(pyNum.toPy());
+    typename NumType<std::is_signed<T>::value, (sizeof(T) <= sizeof(long))>::Type y;
+    pyToNum(pyNum, y);
+    x = static_cast<T>(y);
     if (PyErr_Occurred()) { throw PyException(); }
 }
 
@@ -587,10 +598,12 @@ template <class T, class U>
 Object cppToPy(std::pair<T, U> const &pair);
 Object cppToPy(char const *n) { return PyString_FromString(n); }
 Object cppToPy(bool n) { return PyBool_FromLong(n); }
-template <class T>
-Object cppToPy(T n, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr) {
-    return PyInt_FromLong(n);
-}
+Object cppToPy(int n) { return PyLong_FromLong(n); }
+Object cppToPy(unsigned n) { return PyLong_FromUnsignedLong(n); }
+Object cppToPy(long n) { return PyLong_FromLong(n); }
+Object cppToPy(unsigned long n) { return PyLong_FromUnsignedLong(n); }
+Object cppToPy(long long n) { return PyLong_FromLongLong(n); }
+Object cppToPy(unsigned long long n) { return PyLong_FromUnsignedLongLong(n); }
 
 template <class T>
 Object cppToPy(T n, typename std::enable_if<std::is_floating_point<T>::value>::type* = nullptr) {
@@ -846,21 +859,21 @@ struct Get_tp_str<B, CHECK_EXPRESSION(&B::tp_str)> {
     };
 };
 
-template <int P, int S>
+template <typename D, int P, int S>
 struct PyHash {
-    Py_hash_t operator()(size_t x) const { return static_cast<Py_hash_t>(x); }
+    Py_hash_t operator()(D x) const { return static_cast<Py_hash_t>(x); }
 };
 
-template <>
-struct PyHash<4, 8> {
-    Py_hash_t operator()(size_t x) const {
+template <typename D>
+struct PyHash<D, 4, 8> {
+    Py_hash_t operator()(D x) const {
         return static_cast<Py_hash_t>((x >> 32) ^ x);
     }
 };
 
 WRAP_FUNCTION(tp_hash) {
     static Py_hash_t value(PyObject *self) {
-        PY_TRY { return PyHash<sizeof(Py_hash_t), sizeof(size_t)>()(reinterpret_cast<B*>(self)->tp_hash()); }
+        PY_TRY { return PyHash<size_t, sizeof(Py_hash_t), sizeof(size_t)>()(reinterpret_cast<B*>(self)->tp_hash()); }
         PY_CATCH(-1);
     };
 };
@@ -6910,13 +6923,21 @@ PyObject *initclingo_() {
 
 // {{{1 auxiliary functions and objects
 
+bool pyIsInt(Reference x) {
+    if (PyLong_Check(x.toPy())) { return true; }
+#if PY_MAJOR_VERSION < 3
+    if (PyInt_Check(x.toPy())) { return true; }
+#endif
+    return false;
+}
+
 void pyToCpp(Reference obj, symbol_wrapper &val) {
     if (obj.isInstance(Symbol::type))    { val.symbol = reinterpret_cast<Symbol*>(obj.toPy())->val; }
     else if (PyTuple_Check(obj.toPy()))  {
         auto vec = pyToCpp<symbol_vector>(obj);
         handle_c_error(clingo_symbol_create_function("", reinterpret_cast<clingo_symbol_t*>(vec.data()), vec.size(), true, &val.symbol));
     }
-    else if (PyInt_Check(obj.toPy()))    { clingo_symbol_create_number(pyToCpp<int>(obj), &val.symbol); }
+    else if (pyIsInt(obj))               { clingo_symbol_create_number(pyToCpp<int>(obj), &val.symbol); }
     else if (PyString_Check(obj.toPy())) { handle_c_error(clingo_symbol_create_string(pyToCpp<std::string>(obj).c_str(), &val.symbol)); }
     else {
         PyErr_Format(PyExc_RuntimeError, "cannot convert to value: unexpected %s() object", obj.toPy()->ob_type->tp_name);
