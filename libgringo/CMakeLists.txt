@@ -158,6 +158,8 @@ if(MSVC)
         PROPERTIES COMPILE_FLAGS "/wd4267 /wd4065")
     set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/src/input/groundtermgrammar/grammar.cc"
         PROPERTIES COMPILE_FLAGS "/wd4267 /wd4065")
+    set_source_files_properties("${source_path}/src/ground/statements.cc"
+        PROPERTIES COMPILE_FLAGS "/bigobj")
 endif()
 set_target_properties(libgringo PROPERTIES
     OUTPUT_NAME gringo
