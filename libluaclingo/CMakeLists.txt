@@ -30,6 +30,7 @@ if (NOT CLINGO_BUILD_LUA_SHARED)
 else()
     set_target_properties(libluaclingo PROPERTIES SOVERSION 1 VERSION 1.0)
     install(TARGETS libluaclingo
+        RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
 endif()

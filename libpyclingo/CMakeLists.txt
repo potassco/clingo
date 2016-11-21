@@ -30,6 +30,7 @@ if (NOT CLINGO_BUILD_PY_SHARED)
 else()
     set_target_properties(libpyclingo PROPERTIES SOVERSION 1 VERSION 1.0)
     install(TARGETS libpyclingo
+        RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
 endif()
