@@ -1317,7 +1317,7 @@ struct Model : Object<Model> {
         lua_createtable(L, size, 0); // +1
         int i = 1;
         for (auto it = costs, ie = it + size; it != ie; ++it) {
-            lua_pushnumber(L, *it); // +1
+            lua_pushnumber(L, static_cast<lua_Number>(*it)); // +1
             lua_rawseti(L, -2, i++); // -1
         }
         lua_replace(L, -2); // -1
@@ -1384,7 +1384,7 @@ struct Model : Object<Model> {
             return thread_id(L);
         }
         else if (strcmp(name, "number") == 0) {
-            lua_pushnumber(L, call_c(L, clingo_model_number, self.model));
+            lua_pushnumber(L, static_cast<lua_Number>(call_c(L, clingo_model_number, self.model)));
             return 1;
         }
         else if (strcmp(name, "optimality_proven") == 0) {
