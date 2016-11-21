@@ -357,7 +357,7 @@ template <class T>
 void luaToCpp(lua_State *L, int index, std::vector<T> &x);
 
 void luaToCpp(lua_State *L, int index, bool &x) {
-    x = lua_toboolean(L, index);
+    x = lua_toboolean(L, index) != 0;
 }
 
 void luaToCpp(lua_State *L, int index, std::string &x) {
@@ -370,7 +370,7 @@ void luaToCpp(lua_State *L, int index, T &x, typename std::enable_if<std::is_int
     if (lua_type(L, index) != LUA_TNUMBER) {
         luaL_error(L, "number expected");
     }
-    x = lua_tonumber(L, index);
+    x = static_cast<T>(lua_tonumber(L, index));
 }
 
 struct symbol_wrapper {
@@ -906,7 +906,7 @@ struct Term : Object<Term> {
         char const *name = luaL_checklstring(L, 1, nullptr);
         bool positive = true;
         if (!lua_isnone(L, 3) && !lua_isnil(L, 3)) {
-            positive = lua_toboolean(L, 3);
+            luaToCpp(L, 3, positive);
         }
         if (name[0] == '\0' && !positive) { luaL_argerror(L, 2, "tuples must not have signs"); }
         if (lua_isnoneornil(L, 2)) {
@@ -1067,7 +1067,7 @@ clingo_symbol_t luaToVal(lua_State *L, int idx) {
             bool check = false;
             if (lua_getmetatable(L, idx)) {                          // +1
                 lua_getfield(L, LUA_REGISTRYINDEX, "clingo.Symbol"); // +1
-                check = lua_rawequal(L, -1, -2);
+                check = lua_rawequal(L, -1, -2) != 0;
                 lua_pop(L, 2);                                       // -2
             }
             if (check) { return static_cast<Term*>(lua_touserdata(L, idx))->symbol; }
@@ -1317,7 +1317,7 @@ struct Model : Object<Model> {
         lua_createtable(L, size, 0); // +1
         int i = 1;
         for (auto it = costs, ie = it + size; it != ie; ++it) {
-            lua_pushinteger(L, *it); // +1
+            lua_pushnumber(L, *it); // +1
             lua_rawseti(L, -2, i++); // -1
         }
         lua_replace(L, -2); // -1
@@ -1893,7 +1893,7 @@ struct PropagateInit : Object<PropagateInit> {
 
     static int setState(lua_State *L) {
         auto &self = get_self(L);
-        int id = luaL_checknumber(L, 2);
+        int id = luaL_checkinteger(L, 2);
         luaL_checkany(L, 3);
         if (id < 1 || id > (int)clingo_propagate_init_number_of_threads(self.init)) {
             luaL_error(L, "invalid solver thread id %d", id);
@@ -2761,7 +2761,7 @@ struct ControlWrap : Object<ControlWrap> {
         auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
         if (strcmp(name, "use_enumeration_assumption") == 0) {
-            bool enabled = lua_toboolean(L, 3);
+            bool enabled = lua_toboolean(L, 3) != 0;
             handle_c_error(L, clingo_control_use_enumeration_assumption(self.ctl, enabled));
             return 0;
         }
@@ -2866,7 +2866,7 @@ struct ControlWrap : Object<ControlWrap> {
     }
 
     static int registerObserver(lua_State *L) {
-        bool replace = lua_toboolean(L, 3);
+        bool replace = lua_toboolean(L, 3) != 0;
         auto &self = get_self(L);
         lua_pushstring(L, "observers");     // +1
         lua_rawget(L, 1);                   // +0
