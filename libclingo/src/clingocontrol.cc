@@ -337,23 +337,16 @@ unsigned ClingoControl::getRootKey() {
 ConfigProxy &ClingoControl::getConf() {
     return *this;
 }
-SolveIter *ClingoControl::solveIter(Assumptions &&ass) {
+SolveFuture *ClingoControl::solveIter(Assumptions &&ass) {
     prepare(std::move(ass), nullptr, nullptr);
-    solveIter_ = gringo_make_unique<ClingoSolveIter>(*this);
-    return solveIter_.get();
+    solveFuture_ = gringo_make_unique<ClingoSolveFuture>(*this, Clasp::SolveMode_t::Yield);
+    return solveFuture_.get();
 }
 SolveFuture *ClingoControl::solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass) {
     if (!clingoMode_) { throw std::runtime_error("solveAsync is not supported in gringo gringo mode"); }
-#if CLASP_HAS_THREADS
     prepare(std::move(ass), mh, fh);
-    solveFuture_ = gringo_make_unique<ClingoSolveFuture>(clasp_->solveAsync(nullptr, {}));
+    solveFuture_ = gringo_make_unique<ClingoSolveFuture>(*this, Clasp::SolveMode_t::Async);
     return solveFuture_.get();
-#else
-    (void)mh;
-    (void)fh;
-    (void)ass;
-    throw std::runtime_error("solveAsync requires clingo to be build with thread support");
-#endif
 }
 void ClingoControl::interrupt() {
     clasp_->interrupt(30);
@@ -385,10 +378,7 @@ void ClingoControl::prepare(Assumptions &&ass, Control::ModelHandler mh, Control
     }
     grounded = false;
     if (clingoMode_) {
-#if CLASP_HAS_THREADS
         solveFuture_   = nullptr;
-#endif
-        solveIter_     = nullptr;
         finishHandler_ = fh;
         modelHandler_  = mh;
         Clasp::ProgramBuilder *prg = clasp_->program();
@@ -410,7 +400,7 @@ void ClingoControl::prepare(Assumptions &&ass, Control::ModelHandler mh, Control
 
 SolveResult ClingoControl::solve(ModelHandler h, Assumptions &&ass) {
     prepare(std::move(ass), h, nullptr);
-    auto ret = clingoMode_ ? convert(clasp_->solve(nullptr, {})) : SolveResult(SolveResult::Unknown, false, false);
+    auto ret = clingoMode_ ? convert(clasp_->solve()) : SolveResult(SolveResult::Unknown, false, false);
     postSolve(*clasp_);
     return ret;
 }
@@ -623,28 +613,6 @@ Potassco::Atom_t ClingoControl::addProgramAtom() { return out_->data.newAtom(); 
 
 ClingoControl::~ClingoControl() noexcept = default;
 
-// {{{1 definition of ClingoSolveIter
-
-ClingoSolveIter::ClingoSolveIter(ClingoControl &ctl)
-: future_(ctl.clasp_->startSolve({}))
-, model_(ctl) { }
-
-Model const *ClingoSolveIter::next() {
-    if (future_.next()) {
-        model_.reset(future_.model());
-        return &model_;
-    }
-    else { return nullptr; }
-}
-
-void ClingoSolveIter::close() {
-    future_.stop();
-}
-
-SolveResult ClingoSolveIter::get() {
-    return convert(future_.result());
-}
-
 // {{{1 definition of ClingoSolveFuture
 
 SolveResult convert(Clasp::ClaspFacade::Result res) {
@@ -660,26 +628,32 @@ SolveResult convert(Clasp::ClaspFacade::Result res) {
     return {sat, res.exhausted(), res.interrupted()};
 }
 
-#if CLASP_HAS_THREADS
-ClingoSolveFuture::ClingoSolveFuture(Clasp::ClaspFacade::AsyncResult const &res)
-    : future(res) { }
+ClingoSolveFuture::ClingoSolveFuture(ClingoControl &ctl, Clasp::SolveMode_t mode)
+    : future_(ctl.clasp_->solve(mode))
+    , model_(ctl) { }
 SolveResult ClingoSolveFuture::get() {
-    if (!done) {
-        done      = true;
-        ret       = convert(future.get());
+    if (!done_) {
+        done_ = future_.model() == 0;
+        ret_  = convert(future_.get());
     }
-    return ret;
+    return ret_;
+}
+Model const *ClingoSolveFuture::next() {
+    if (future_.next()) {
+        model_.reset(*future_.model());
+        return &model_;
+    }
+    else { return nullptr; }
 }
 void ClingoSolveFuture::wait() { get(); }
 bool ClingoSolveFuture::wait(double timeout) {
-    if (!done) {
-        if (timeout == 0 ? !future.ready() : !future.waitFor(timeout)) { return false; }
+    if (!done_) {
+        if (timeout == 0 ? !future_.ready() : !future_.waitFor(timeout)) { return false; }
         wait();
     }
     return true;
 }
-void ClingoSolveFuture::cancel() { future.cancel(); }
-#endif
+void ClingoSolveFuture::cancel() { future_.cancel(); }
 
 // {{{1 definition of ClingoLib
 
@@ -758,10 +732,7 @@ bool ClingoLib::parsePositional(const std::string& t, std::string& out) {
 }
 ClingoLib::~ClingoLib() {
     // TODO: can be removed after bennies next update...
-#if CLASP_HAS_THREADS
     solveFuture_ = nullptr;
-#endif
-    solveIter_   = nullptr;
     clasp_.shutdown();
 }
 

@@ -107,19 +107,11 @@ namespace Gringo {
 
 struct SolveFuture {
     virtual SolveResult get() = 0;
+    virtual Model const *next() = 0;
     virtual void wait() = 0;
     virtual bool wait(double timeout) = 0;
     virtual void cancel() = 0;
     virtual ~SolveFuture() { }
-};
-
-// {{{1 declaration of SolveIter
-
-struct SolveIter {
-    virtual Model const *next() = 0;
-    virtual void close() = 0;
-    virtual SolveResult get() = 0;
-    virtual ~SolveIter() { }
 };
 
 // {{{1 declaration of ConfigProxy
@@ -181,7 +173,7 @@ struct clingo_control {
     virtual void ground(GroundVec const &vec, Gringo::Context *context) = 0;
     virtual Gringo::SolveResult solve(ModelHandler h, Assumptions &&assumptions) = 0;
     virtual Gringo::SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&assumptions) = 0;
-    virtual Gringo::SolveIter *solveIter(Assumptions &&assumptions) = 0;
+    virtual Gringo::SolveFuture *solveIter(Assumptions &&assumptions) = 0;
     virtual void interrupt() = 0;
     virtual void *claspFacade() = 0;
     virtual void add(std::string const &name, Gringo::StringVec const &params, std::string const &part) = 0;
