@@ -1090,7 +1090,8 @@ private:
     }
 
     Location parseLocation(clingo_location_t const &loc) {
-        return Location(loc.begin_file, loc.begin_line, loc.begin_column, loc.end_file, loc.end_line, loc.end_column);
+        return Location(loc.begin_file, numeric_cast<unsigned>(loc.begin_line), numeric_cast<unsigned>(loc.begin_column)
+            , loc.end_file, numeric_cast<unsigned>(loc.end_line), numeric_cast<unsigned>(loc.end_column));
     }
 
     // {{{2 terms

@@ -154,6 +154,8 @@ endif()
 if(MSVC)
     target_compile_definitions(libgringo PRIVATE _SCL_SECURE_NO_WARNINGS)
     target_compile_definitions(libgringo PRIVATE _CRT_SECURE_NO_WARNINGS)
+    set_source_files_properties("${source_path}/src/ground/statements.cc"
+        PROPERTIES COMPILE_FLAGS "/bigobj")
 endif()
 set_target_properties(libgringo PROPERTIES
     OUTPUT_NAME gringo

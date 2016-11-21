@@ -139,7 +139,7 @@ private:
     }
 
     int map_item(std::string &&item) {
-        auto &ret = *item_map_.emplace(std::move(item), item_map_.size()).first;
+        auto &ret = *item_map_.emplace(std::move(item), static_cast<int>(item_map_.size())).first;
         return ret.second;
     }
 
@@ -187,7 +187,7 @@ private:
     }
 
     void initialize_states(PropagateInit &init) {
-        for (int i = 0; i < init.number_of_threads(); ++i) { states_.emplace_back(pattern_length_, sequence_atoms_.size()); }
+        for (int i = 0; i < init.number_of_threads(); ++i) { states_.emplace_back(pattern_length_, static_cast<int>(sequence_atoms_.size())); }
     }
 
     // {{{2 propagation
@@ -241,7 +241,7 @@ public:
         auto &state = states_[ctl.thread_id()];
         uint32_t dl = ctl.assignment().decision_level();
         if (state.trail.size() == 0 || state.trail.back().decision_level < dl) {
-            state.trail.emplace_back(dl, state.stack.size());
+            state.trail.emplace_back(dl, static_cast<int>(state.stack.size()));
         }
         for (auto &lit : changes) {
             for (auto &pat_atom : pattern_atoms_[lit]) {
@@ -424,7 +424,7 @@ private:
     literal_t a_;
     literal_t b_;
     literal_t c_;
-    int count_ = 0;
+    size_t count_ = 0;
 };
 
 class TestAddClause : public Propagator {
@@ -448,7 +448,7 @@ public:
 private:
     literal_t a_;
     literal_t b_;
-    int count_ = 0;
+    size_t count_ = 0;
 };
 
 class TestException : public Propagator {

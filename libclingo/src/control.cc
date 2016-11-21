@@ -21,6 +21,8 @@
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#elif defined(_MSC_VER)
+#pragma warning (disable : 4996) // 'strcpy' may be unsafe
 #endif
 
 #include <clingo//clingocontrol.hh>
@@ -782,7 +784,7 @@ extern "C" bool clingo_configuration_map_has_subkey(clingo_configuration_t *conf
 }
 
 extern "C" bool clingo_configuration_map_subkey_name(clingo_configuration_t *conf, clingo_id_t key, size_t index, char const **name) {
-    GRINGO_CLINGO_TRY { *name = conf->getSubKeyName(key, index); }
+    GRINGO_CLINGO_TRY { *name = conf->getSubKeyName(key, numeric_cast<unsigned>(index)); }
     GRINGO_CLINGO_CATCH;
 }
 
@@ -797,7 +799,7 @@ extern "C" bool clingo_configuration_map_size(clingo_configuration_t *conf, clin
 }
 
 extern "C" bool clingo_configuration_array_at(clingo_configuration_t *conf, clingo_id_t key, size_t idx, clingo_id_t *ret) {
-    GRINGO_CLINGO_TRY { *ret = conf->getArrKey(key, idx); }
+    GRINGO_CLINGO_TRY { *ret = conf->getArrKey(key, numeric_cast<unsigned>(idx)); }
     GRINGO_CLINGO_CATCH;
 }
 
@@ -1268,7 +1270,7 @@ public:
         call(obs_.rule, ht == Potassco::Head_t::Choice, head.first, head.size, body.first, body.size);
     }
     void rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, Weight_t bound, const Potassco::WeightLitSpan& body) override {
-        call(obs_.weight_rule, ht == Potassco::Head_t::Choice, head.first, bound, head.size, reinterpret_cast<clingo_weighted_literal_t const *>(body.first), body.size);
+        call(obs_.weight_rule, ht == Potassco::Head_t::Choice, head.first, head.size, bound, reinterpret_cast<clingo_weighted_literal_t const *>(body.first), body.size);
     }
     void minimize(Weight_t prio, const Potassco::WeightLitSpan& lits) override {
         call(obs_.minimize, prio, reinterpret_cast<clingo_weighted_literal_t const *>(lits.first), lits.size);
@@ -1338,7 +1340,7 @@ extern "C" bool clingo_control_new(char const *const * args, size_t n, clingo_lo
     GRINGO_CLINGO_TRY {
         static std::mutex mut;
         std::lock_guard<std::mutex> grd(mut);
-        *ctl = new ClingoLib(g_scripts(), n, args, logger ? [logger, data](Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, data); } : Logger::Printer(nullptr), message_limit);
+        *ctl = new ClingoLib(g_scripts(), numeric_cast<int>(n), args, logger ? [logger, data](Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, data); } : Logger::Printer(nullptr), message_limit);
     }
     GRINGO_CLINGO_CATCH;
 }
