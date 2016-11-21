@@ -210,7 +210,7 @@ struct IncrementalControl : Control {
     void assignExternal(Symbol ext, Potassco::Value_t val) override {
         auto atm = out.find(ext);
         if (atm.second && atm.first->hasUid()) {
-            Id_t offset = atm.first - atm.second->begin();
+            Id_t offset = numeric_cast<Id_t>(atm.first - atm.second->begin());
             Output::External external(Output::LiteralId{NAF::POS, Output::AtomType::Predicate, offset, atm.second->domainOffset()}, val);
             out.output(external);
         }

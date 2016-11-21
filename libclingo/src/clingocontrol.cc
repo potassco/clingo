@@ -452,7 +452,7 @@ void ClingoControl::assignExternal(Symbol ext, Potassco::Value_t val) {
     if (update()) {
         auto atm = out_->find(ext);
         if (atm.second && atm.first->hasUid()) {
-            Id_t offset = atm.first - atm.second->begin();
+            Id_t offset = numeric_cast<Id_t>(atm.first - atm.second->begin());
             Output::External external(Output::LiteralId{NAF::POS, Output::AtomType::Predicate, offset, atm.second->domainOffset()}, val);
             out_->output(external);
         }
@@ -601,7 +601,7 @@ SymbolicAtomIter ClingoControl::lookup(Symbol atom) const {
         if (it != out_->predDoms().end()) {
             auto jt = (*it)->find(atom);
             if (jt != (*it)->end()) {
-                return SymbolicAtomOffset(out_->predDoms().offset(it), true, jt - (*it)->begin(), true).repr;
+                return SymbolicAtomOffset(out_->predDoms().offset(it), true, numeric_cast<uint32_t>(jt - (*it)->begin()), true).repr;
             }
         }
     }
