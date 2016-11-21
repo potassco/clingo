@@ -73,15 +73,19 @@ set(source_path ${CLINGO_SOURCE_DIR}/libgringo)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/input/groundtermgrammar")
 bison_target("groundtermgrammar" "${source_path}/src/input/groundtermgrammar.yy" "${CMAKE_CURRENT_BINARY_DIR}/src/input/groundtermgrammar/grammar.cc")
 if(MSVC)
-    set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/src/input/groundtermgrammar/grammar.cc"
+    set_source_files_properties("${BISON_groundtermgrammar_OUTPUT_SOURCE}"
         PROPERTIES COMPILE_FLAGS "/wd4065")
 endif()
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/input")
+re2c_target(NAME "groundtermlexer" INPUT "${source_path}/src/input/groundtermlexer.xh" OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/src/input/groundtermlexer.hh")
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/input/nongroundgrammar")
 bison_target("nongroundgrammar" "${source_path}/src/input/nongroundgrammar.yy" "${CMAKE_CURRENT_BINARY_DIR}/src/input/nongroundgrammar/grammar.cc")
 if(MSVC)
-    set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/src/input/nongroundgrammar/grammar.cc"
+    set_source_files_properties("${BISON_nongroundgrammar_OUTPUT_SOURCE}"
         PROPERTIES COMPILE_FLAGS "/wd4065")
 endif()
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/input")
+re2c_target(NAME "nongroundlexer" INPUT "${source_path}/src/input/nongroundlexer.xch" OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/src/input/nongroundlexer.hh" OPTIONS -c)
 set(ide_source_group "Source Files")
 set(source-group
     "${source_path}/src/backend.cc"
@@ -99,9 +103,13 @@ source_group("${ide_source_group}\\ground" FILES ${source-group-ground})
 set(source-group-input
     "${source_path}/src/input/aggregate.cc"
     "${source_path}/src/input/aggregates.cc"
+    "${source_path}/src/input/groundtermlexer.xh"
+    ${RE2C_groundtermlexer_OUTPUT}
     "${source_path}/src/input/groundtermparser.cc"
     "${source_path}/src/input/literal.cc"
     "${source_path}/src/input/literals.cc"
+    "${source_path}/src/input/nongroundlexer.xch"
+    ${RE2C_nongroundlexer_OUTPUT}
     "${source_path}/src/input/nongroundparser.cc"
     "${source_path}/src/input/program.cc"
     "${source_path}/src/input/programbuilder.cc"
@@ -133,23 +141,6 @@ set(source
     ${source-group-input-nongroundgrammar}
     ${source-group-output})
 # ]]]
-
-# TODO: complex enough to justify adding a function...
-source_group("${ide_source_group}\\input" FILES "${source_path}/src/input/nongroundgrammar.yy")
-re2c_target(NAME "groundtermlexer" INPUT "${source_path}/src/input/groundtermlexer.xh" OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/src/input/groundtermlexer.hh")
-source_group("${ide_source_group}\\input" FILES "${source_path}/src/input/groundtermlexer.xh")
-re2c_target(NAME "nongroundlexer" INPUT "${source_path}/src/input/nongroundlexer.xch" OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/src/input/nongroundlexer.hh" OPTIONS "-c")
-source_group("${ide_source_group}\\input" FILES "${source_path}/src/input/nongroundlexer.xch")
-
-source_group("${ide_source_group}\\input" FILES
-    "${RE2C_nongroundlexer_OUTPUT}"
-    "${RE2C_groundtermlexer_OUTPUT}")
-
-list(APPEND source
-    "${RE2C_groundtermlexer_OUTPUT}"
-    "${RE2C_nongroundlexer_OUTPUT}"
-    "${source_path}/src/input/groundtermlexer.xh"
-    "${source_path}/src/input/nongroundlexer.xch")
 
 add_library(libgringo ${header} ${source})
 target_include_directories(libgringo PUBLIC
