@@ -230,7 +230,7 @@ typename Dependency<Stm, HeadOcc>::ComponentVec Dependency<Stm, HeadOcc>::analyz
     positive.push_back(true);
     for (auto &scc : g.tarjan()) {
         // dependency analysis
-        unsigned negSCC = positive.size();
+        unsigned negSCC = numeric_cast<unsigned>(positive.size());
         for (auto &graphNode : scc) { graphNode->data->negSCC = negSCC; }
         positive.push_back(true);
         for (auto &graphNode : scc) {

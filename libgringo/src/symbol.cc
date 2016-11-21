@@ -311,7 +311,7 @@ Symbol Symbol::createTuple(SymSpan args) {
 
 Symbol Symbol::createFun(String name, SymSpan args, bool sign) {
     return args.size != 0
-        ?  Symbol(combine(static_cast<uint16_t>(SymbolType_::Fun), reinterpret_cast<uintptr_t>(UFun::encode(std::make_pair(Sig(name, args.size, sign), args))), 0))
+        ?  Symbol(combine(static_cast<uint16_t>(SymbolType_::Fun), reinterpret_cast<uintptr_t>(UFun::encode(std::make_pair(Sig(name, numeric_cast<uint32_t>(args.size), sign), args))), 0))
         : createId(name, sign);
 }
 

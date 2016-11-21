@@ -750,8 +750,8 @@ void Translator::showAtom(DomainData &data, PredDomMap::Iterator it) {
         if (jt->defined()) {
             LitVec cond;
             if (!jt->fact()) {
-                Potassco::Id_t domain = it - data.predDoms().begin();
-                Potassco::Id_t offset = jt - (*it)->begin();
+                Potassco::Id_t domain = numeric_cast<Potassco::Id_t>(it - data.predDoms().begin());
+                Potassco::Id_t offset = numeric_cast<Potassco::Id_t>(jt - (*it)->begin());
                 cond.emplace_back(NAF::POS, AtomType::Predicate, offset, domain);
             }
             Atomtab(jt).translate(data, *this);

@@ -31,9 +31,33 @@
 #include <algorithm>
 #include <cassert>
 #include <iterator>
+#include <type_traits>
+#include <limits>
 #include <potassco/basic_types.h>
 
 namespace Gringo {
+namespace detail {
+    template <int X> using int_type = std::integral_constant<int, X>;
+    template <class T, class S>
+    constexpr void nc_check(S s, int_type<0>) { // same sign
+        assert((std::is_same<T, S>::value) || (s >= std::numeric_limits<T>::min() && s <= std::numeric_limits<T>::max()));
+    }
+    template <class T, class S>
+    constexpr void nc_check(S s, int_type<-1>) { // Signed -> Unsigned
+        assert(s >= 0 && static_cast<S>(static_cast<T>(s)) == s);
+    }
+    template <class T, class S>
+    constexpr void nc_check(S s, int_type<1>) { // Unsigned -> Signed
+        assert(!(s > std::numeric_limits<T>::max()));
+    }
+} // namespace detail
+
+template <class T, class S>
+inline T numeric_cast(S s) {
+    constexpr int sv = int(std::numeric_limits<T>::is_signed) - int(std::numeric_limits<S>::is_signed);
+    detail::nc_check<T>(s, detail::int_type<sv>());
+    return static_cast<T>(s);
+}
 
 using Potassco::StringSpan;
 

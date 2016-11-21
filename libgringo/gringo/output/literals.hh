@@ -1197,7 +1197,7 @@ public:
     }
     std::pair<Id_t,Id_t> clause(LitVec &cond) {
         sort_unique(cond);
-        return {clauses_.push(cond).first, cond.size()};
+        return {clauses_.push(cond).first, numeric_cast<Id_t>(cond.size())};
     }
     std::pair<Id_t,Id_t> clause(LitVec &&cond) { return clause(cond); }
     IteratorRange<LitVec::const_iterator> clause(std::pair<Id_t, Id_t> pos) { return clause(pos.first, pos.second); }
@@ -1207,7 +1207,7 @@ public:
     }
     std::pair<Id_t,Id_t> formula(Formula &&lits) {
         sort_unique(lits);
-        return {formulas_.push(lits).first, lits.size()};
+        return {formulas_.push(lits).first, numeric_cast<Id_t>(lits.size())};
     }
     IteratorRange<Formula::iterator> formula(Id_t id, Id_t size) {
         auto it = formulas_.at(id, size);
