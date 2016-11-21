@@ -39,15 +39,15 @@ namespace Gringo {
 namespace detail {
     template <int X> using int_type = std::integral_constant<int, X>;
     template <class T, class S>
-    constexpr void nc_check(S s, int_type<0>) { // same sign
+    inline void nc_check(S s, int_type<0>) { // same sign
         assert((std::is_same<T, S>::value) || (s >= std::numeric_limits<T>::min() && s <= std::numeric_limits<T>::max()));
     }
     template <class T, class S>
-    constexpr void nc_check(S s, int_type<-1>) { // Signed -> Unsigned
+    inline void nc_check(S s, int_type<-1>) { // Signed -> Unsigned
         assert(s >= 0 && static_cast<S>(static_cast<T>(s)) == s);
     }
     template <class T, class S>
-    constexpr void nc_check(S s, int_type<1>) { // Unsigned -> Signed
+    inline void nc_check(S s, int_type<1>) { // Unsigned -> Signed
         assert(!(s > std::numeric_limits<T>::max()));
     }
 } // namespace detail
