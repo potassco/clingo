@@ -1,8 +1,8 @@
-set(source_path ${CLINGO_SOURCE_DIR}/app/luaclingo)
+set(source_path ${CMAKE_CURRENT_SOURCE_DIR})
 # [[[source: .
 set(ide_source_group "Source Files")
 set(source-group
-    "${source_path}/src/main.cc")
+    "${source_path}/main.cc")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source
     ${source-group})

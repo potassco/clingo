@@ -18,8 +18,8 @@
 
 // }}}
 
-#ifndef LUACLINGO_LUA_HH
-#define LUACLINGO_LUA_HH
+#ifndef LUACLINGO_LUACLINGO_H
+#define LUACLINGO_LUACLINGO_H
 
 #include <clingo/script.h>
 
@@ -48,11 +48,19 @@
 #   endif
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct lua_State;
 
-extern "C" LUACLINGO_VISIBILITY_DEFAULT int clingo_init_lua_(lua_State *L);
-extern "C" LUACLINGO_VISIBILITY_DEFAULT bool clingo_register_lua_();
+LUACLINGO_VISIBILITY_DEFAULT int clingo_init_lua_(lua_State *L);
+LUACLINGO_VISIBILITY_DEFAULT bool clingo_register_lua_();
 
-#endif // LUACLINGO_LUA_HH
+#ifdef __cplusplus
+}
+#endif
+
+#endif // LUACLINGO_LUACLINGO_H
 
 

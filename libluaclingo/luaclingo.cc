@@ -18,7 +18,7 @@
 
 // }}}
 
-#include "lua.hh"
+#include "luaclingo.h"
 
 #include <lua.hpp>
 #include <cstring>
@@ -30,8 +30,6 @@
 #include <algorithm>
 #include <cassert>
 #include <limits>
-
-namespace Gringo {
 
 namespace {
 
@@ -2853,7 +2851,7 @@ struct ControlWrap : Object<ControlWrap> {
     template <class F>
     static int new_(lua_State *L, F f) {
         lua_newtable(L);                                                           // +1
-        auto self = (Gringo::ControlWrap*)lua_newuserdata(L, sizeof(ControlWrap)); // +1
+        auto self = (ControlWrap*)lua_newuserdata(L, sizeof(ControlWrap)); // +1
         lua_rawseti(L, -2, 1);                                                     // -1
         protect(L, [self, f]() { f(self); });
         luaL_getmetatable(L, typeName);                                            // +1
@@ -3049,10 +3047,6 @@ int luarequire_clingo(lua_State *L) {
     return 1;
 }
 
-// }}}1
-
-} // namespace
-
 // {{{1 definition of Lua
 
 struct LuaScriptC {
@@ -3140,23 +3134,25 @@ struct LuaScriptC {
     }
 };
 
-} // namespace Gringo
+// }}}1
 
-int clingo_init_lua_(lua_State *L) {
-    return Gringo::luarequire_clingo(L);
+} // namespace
+
+extern "C" int clingo_init_lua_(lua_State *L) {
+    return luarequire_clingo(L);
 }
 
 extern "C" bool clingo_register_lua_() {
     try {
         clingo_script_t_ script = {
-            Gringo::LuaScriptC::execute,
-            Gringo::LuaScriptC::call,
-            Gringo::LuaScriptC::callable,
-            Gringo::LuaScriptC::main,
-            Gringo::LuaScriptC::free,
+            LuaScriptC::execute,
+            LuaScriptC::call,
+            LuaScriptC::callable,
+            LuaScriptC::main,
+            LuaScriptC::free,
             LUA_RELEASE
         };
-        return clingo_register_script_(clingo_ast_script_type_lua, &script, new Gringo::LuaScriptC());
+        return clingo_register_script_(clingo_ast_script_type_lua, &script, new LuaScriptC());
     }
     catch (...) {
         clingo_set_error(clingo_error_runtime, "could not initialize lua interpreter");

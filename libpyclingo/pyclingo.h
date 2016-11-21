@@ -18,8 +18,8 @@
 
 // }}}
 
-#ifndef PYCLINGO_PYTHON_HH
-#define PYCLINGO_PYTHON_HH
+#ifndef PYCLINGO_PYCLINGO_H
+#define PYCLINGO_PYCLINGO_H
 
 #include <clingo/script.h>
 
@@ -48,7 +48,15 @@
 #   endif
 #endif
 
-extern "C" PYCLINGO_VISIBILITY_DEFAULT void *clingo_init_python_();
-extern "C" PYCLINGO_VISIBILITY_DEFAULT bool clingo_register_python_();
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#endif // PYCLINGO_PYTHON_HH
+PYCLINGO_VISIBILITY_DEFAULT void *clingo_init_python_();
+PYCLINGO_VISIBILITY_DEFAULT bool clingo_register_python_();
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // PYCLINGO_PYCLINGO_H

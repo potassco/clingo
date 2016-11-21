@@ -19,8 +19,7 @@
 // }}}
 
 #include <Python.h>
-
-#include "python.hh"
+#include "pyclingo.h"
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -56,8 +55,6 @@
 #else
 #define GRINGO_STRUCT_EXTRA
 #endif
-
-namespace Gringo {
 
 namespace {
 
@@ -6919,8 +6916,6 @@ PyObject *initclingo_() {
     PY_CATCH(nullptr);
 }
 
-// }}}1
-
 // {{{1 auxiliary functions and objects
 
 bool pyIsInt(Reference x) {
@@ -7096,30 +7091,25 @@ std::unique_ptr<PythonImpl> PythonScript::impl = nullptr;
 
 // {{{1 definition of Python
 
-} // namespace Gringo
-
 extern "C" void *clingo_init_python_() {
-    using namespace Gringo;
-    PY_TRY {
-        return initclingo_();
-    }
+    PY_TRY { return initclingo_(); }
     PY_CATCH(nullptr);
 }
 
 extern "C" bool clingo_register_python_() {
     try {
         clingo_script_t_ script = {
-            Gringo::PythonScript::execute,
-            Gringo::PythonScript::call,
-            Gringo::PythonScript::callable,
-            Gringo::PythonScript::main,
-            Gringo::PythonScript::free,
+            PythonScript::execute,
+            PythonScript::call,
+            PythonScript::callable,
+            PythonScript::main,
+            PythonScript::free,
             PY_VERSION
         };
         return clingo_register_script_(clingo_ast_script_type_python, &script, nullptr);
     }
     catch (...) {
-        Gringo::handle_cxx_error("python", "error registering python script");
+        handle_cxx_error("python", "error registering python script");
         return false;
     }
 }

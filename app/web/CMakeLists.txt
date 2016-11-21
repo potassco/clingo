@@ -1,4 +1,4 @@
-set(source_path ${CLINGO_SOURCE_DIR}/app/web)
+set(source_path ${CMAKE_CURRENT_SOURCE_DIR})
 # [[[source: .
 set(ide_source_group "Source Files")
 set(source-group

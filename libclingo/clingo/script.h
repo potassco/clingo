@@ -23,6 +23,10 @@
 
 #include <clingo.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct clingo_script_ {
     bool (*execute) (clingo_location_t loc, char const *code, void *data);
     bool (*call) (clingo_location_t loc, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data, void *data);
@@ -32,8 +36,12 @@ typedef struct clingo_script_ {
     char const *version;
 } clingo_script_t_;
 
-extern "C" CLINGO_VISIBILITY_DEFAULT bool clingo_register_script_(clingo_ast_script_type_t type, clingo_script_t_ *script, void *data);
-extern "C" CLINGO_VISIBILITY_DEFAULT char const *clingo_script_version_(clingo_ast_script_type_t type);
+CLINGO_VISIBILITY_DEFAULT bool clingo_register_script_(clingo_ast_script_type_t type, clingo_script_t_ *script, void *data);
+CLINGO_VISIBILITY_DEFAULT char const *clingo_script_version_(clingo_ast_script_type_t type);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // CLINGO_SCRIPT_H
 

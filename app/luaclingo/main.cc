@@ -17,9 +17,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // }}}
-#include "Python.h"
 
-#include <python.hh>
+#include <luaclingo.h>
 
 #if defined  _WIN32 || defined __CYGWIN__
 #    define VISIBILITY_DEFAULT __declspec (dllexport)
@@ -31,13 +30,7 @@
 #    endif
 #endif
 
-#if PY_MAJOR_VERSION >= 3
-extern "C" VISIBILITY_DEFAULT PyObject *PyInit_clingo() {
-    return (PyObject*)clingo_init_python_();
+extern "C" VISIBILITY_DEFAULT int luaopen_clingo(lua_State *L) {
+    return clingo_init_lua_(L);
 }
-#else
-extern "C" VISIBILITY_DEFAULT void initclingo() {
-    clingo_init_python_();
-}
-#endif
 

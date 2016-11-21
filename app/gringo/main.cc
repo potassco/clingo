@@ -19,10 +19,10 @@
 // }}}
 
 #ifdef CLINGO_WITH_PYTHON
-#   include <python.hh>
+#   include <pyclingo.h>
 #endif
 #ifdef CLINGO_WITH_LUA
-#   include <lua.hh>
+#   include <luaclingo.h>
 #endif
 
 #include <clingo.h>
