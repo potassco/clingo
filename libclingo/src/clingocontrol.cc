@@ -24,7 +24,7 @@
 #include "clasp/solver.h"
 #include <potassco/program_opts/typed_value.h>
 #include <potassco/basic_types.h>
-#include "clingo.hh"
+#include "clingo.h"
 #include <signal.h>
 #include <clingo/script.h>
 #include <clingo/incmode.hh>

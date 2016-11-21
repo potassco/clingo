@@ -420,7 +420,7 @@ std::ostream &operator<<(std::ostream &out, Span<T, I> span) {
 
 // {{{1 signature
 
-class CLINGO_VISIBILITY_DEFAULT Signature {
+class Signature {
 public:
     explicit Signature(clingo_signature_t sig)
     : sig_(sig) { }
@@ -441,12 +441,12 @@ inline std::ostream &operator<<(std::ostream &out, Signature sig) {
     out << (sig.negative() ? "-" : "") << sig.name() << "/" << sig.arity();
     return out;
 }
-CLINGO_VISIBILITY_DEFAULT bool operator==(Signature a, Signature b);
-CLINGO_VISIBILITY_DEFAULT bool operator!=(Signature a, Signature b);
-CLINGO_VISIBILITY_DEFAULT bool operator< (Signature a, Signature b);
-CLINGO_VISIBILITY_DEFAULT bool operator<=(Signature a, Signature b);
-CLINGO_VISIBILITY_DEFAULT bool operator> (Signature a, Signature b);
-CLINGO_VISIBILITY_DEFAULT bool operator>=(Signature a, Signature b);
+bool operator==(Signature a, Signature b);
+bool operator!=(Signature a, Signature b);
+bool operator< (Signature a, Signature b);
+bool operator<=(Signature a, Signature b);
+bool operator> (Signature a, Signature b);
+bool operator>=(Signature a, Signature b);
 
 } namespace std {
 
@@ -471,7 +471,7 @@ class Symbol;
 using SymbolSpan = Span<Symbol>;
 using SymbolVector = std::vector<Symbol>;
 
-class CLINGO_VISIBILITY_DEFAULT Symbol {
+class Symbol {
 public:
     Symbol();
     explicit Symbol(clingo_symbol_t);
@@ -490,20 +490,20 @@ private:
     clingo_symbol_t sym_;
 };
 
-CLINGO_VISIBILITY_DEFAULT Symbol Number(int num);
-CLINGO_VISIBILITY_DEFAULT Symbol Supremum();
-CLINGO_VISIBILITY_DEFAULT Symbol Infimum();
-CLINGO_VISIBILITY_DEFAULT Symbol String(char const *str);
-CLINGO_VISIBILITY_DEFAULT Symbol Id(char const *str, bool positive = true);
-CLINGO_VISIBILITY_DEFAULT Symbol Function(char const *name, SymbolSpan args, bool positive = true);
+Symbol Number(int num);
+Symbol Supremum();
+Symbol Infimum();
+Symbol String(char const *str);
+Symbol Id(char const *str, bool positive = true);
+Symbol Function(char const *name, SymbolSpan args, bool positive = true);
 
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Symbol sym);
-CLINGO_VISIBILITY_DEFAULT bool operator==(Symbol a, Symbol b);
-CLINGO_VISIBILITY_DEFAULT bool operator!=(Symbol a, Symbol b);
-CLINGO_VISIBILITY_DEFAULT bool operator< (Symbol a, Symbol b);
-CLINGO_VISIBILITY_DEFAULT bool operator<=(Symbol a, Symbol b);
-CLINGO_VISIBILITY_DEFAULT bool operator> (Symbol a, Symbol b);
-CLINGO_VISIBILITY_DEFAULT bool operator>=(Symbol a, Symbol b);
+std::ostream &operator<<(std::ostream &out, Symbol sym);
+bool operator==(Symbol a, Symbol b);
+bool operator!=(Symbol a, Symbol b);
+bool operator< (Symbol a, Symbol b);
+bool operator<=(Symbol a, Symbol b);
+bool operator> (Symbol a, Symbol b);
+bool operator>=(Symbol a, Symbol b);
 
 } namespace std {
 
@@ -516,7 +516,7 @@ struct hash<Clingo::Symbol> {
 
 // {{{1 symbolic atoms
 
-class CLINGO_VISIBILITY_DEFAULT SymbolicAtom {
+class SymbolicAtom {
     friend class SymbolicAtomIterator;
 public:
     explicit SymbolicAtom(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t range)
@@ -532,7 +532,7 @@ private:
     clingo_symbolic_atom_iterator_t range_;
 };
 
-class CLINGO_VISIBILITY_DEFAULT SymbolicAtomIterator : private SymbolicAtom, public std::iterator<std::input_iterator_tag, SymbolicAtom> {
+class SymbolicAtomIterator : private SymbolicAtom, public std::iterator<std::input_iterator_tag, SymbolicAtom> {
 public:
     explicit SymbolicAtomIterator(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t range)
     : SymbolicAtom{atoms, range} { }
@@ -550,7 +550,7 @@ public:
     clingo_symbolic_atom_iterator_t to_c() const { return range_; }
 };
 
-class CLINGO_VISIBILITY_DEFAULT SymbolicAtoms {
+class SymbolicAtoms {
 public:
     explicit SymbolicAtoms(clingo_symbolic_atoms_t *atoms)
     : atoms_(atoms) { }
@@ -638,7 +638,7 @@ class TheoryTerm;
 using TheoryTermIterator = TheoryIterator<TheoryTerm>;
 using TheoryTermSpan = Span<clingo_id_t, ToTheoryIterator<TheoryTermIterator>>;
 
-class CLINGO_VISIBILITY_DEFAULT TheoryTerm {
+class TheoryTerm {
     friend class TheoryIterator<TheoryTerm>;
 public:
     explicit TheoryTerm(clingo_theory_atoms_t *atoms, clingo_id_t id)
@@ -661,14 +661,14 @@ private:
     clingo_theory_atoms_t *atoms_;
     clingo_id_t id_;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, TheoryTerm term);
+std::ostream &operator<<(std::ostream &out, TheoryTerm term);
 
 class TheoryElement;
 using TheoryElementIterator = TheoryIterator<TheoryElement>;
 using TheoryElementSpan = Span<clingo_id_t, ToTheoryIterator<TheoryElementIterator>>;
 using LiteralSpan = Span<literal_t>;
 
-class CLINGO_VISIBILITY_DEFAULT TheoryElement {
+class TheoryElement {
     friend class TheoryIterator<TheoryElement>;
 public:
     explicit TheoryElement(clingo_theory_atoms_t *atoms, clingo_id_t id)
@@ -690,9 +690,9 @@ private:
     clingo_theory_atoms_t *atoms_;
     clingo_id_t id_;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, TheoryElement term);
+std::ostream &operator<<(std::ostream &out, TheoryElement term);
 
-class CLINGO_VISIBILITY_DEFAULT TheoryAtom {
+class TheoryAtom {
     friend class TheoryAtomIterator;
 public:
     explicit TheoryAtom(clingo_theory_atoms_t *atoms, clingo_id_t id)
@@ -716,9 +716,9 @@ private:
     clingo_theory_atoms_t *atoms_;
     clingo_id_t id_;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, TheoryAtom term);
+std::ostream &operator<<(std::ostream &out, TheoryAtom term);
 
-class CLINGO_VISIBILITY_DEFAULT TheoryAtomIterator : private TheoryAtom, public std::iterator<TheoryAtom, std::random_access_iterator_tag, ptrdiff_t, TheoryAtom*, TheoryAtom> {
+class TheoryAtomIterator : private TheoryAtom, public std::iterator<TheoryAtom, std::random_access_iterator_tag, ptrdiff_t, TheoryAtom*, TheoryAtom> {
 public:
     explicit TheoryAtomIterator(clingo_theory_atoms_t *atoms, clingo_id_t id)
     : TheoryAtom{atoms, id} { }
@@ -757,7 +757,7 @@ private:
     clingo_id_t &id() { return id_; }
 };
 
-class CLINGO_VISIBILITY_DEFAULT TheoryAtoms {
+class TheoryAtoms {
 public:
     explicit TheoryAtoms(clingo_theory_atoms_t *atoms)
     : atoms_(atoms) { }
@@ -771,7 +771,7 @@ private:
 
 // {{{1 propagate init
 
-class CLINGO_VISIBILITY_DEFAULT PropagateInit {
+class PropagateInit {
 public:
     explicit PropagateInit(clingo_propagate_init_t *init)
     : init_(init) { }
@@ -787,7 +787,7 @@ private:
 
 // {{{1 assignment
 
-class CLINGO_VISIBILITY_DEFAULT Assignment {
+class Assignment {
 public:
     explicit Assignment(clingo_assignment_t *ass)
     : ass_(ass) { }
@@ -824,7 +824,7 @@ inline std::ostream &operator<<(std::ostream &out, ClauseType t) {
     return out;
 }
 
-class CLINGO_VISIBILITY_DEFAULT PropagateControl {
+class PropagateControl {
 public:
     explicit PropagateControl(clingo_propagate_control_t *ctl)
     : ctl_(ctl) { }
@@ -843,7 +843,7 @@ private:
 
 // {{{1 propagator
 
-class CLINGO_VISIBILITY_DEFAULT Propagator {
+class Propagator {
 public:
     virtual void init(PropagateInit &init);
     virtual void propagate(PropagateControl &ctl, LiteralSpan changes);
@@ -857,7 +857,7 @@ public:
 using IdSpan = Span<id_t>;
 using AtomSpan = Span<atom_t>;
 
-class CLINGO_VISIBILITY_DEFAULT WeightedLiteral {
+class WeightedLiteral {
 public:
     WeightedLiteral(clingo_literal_t lit, clingo_weight_t weight)
     : wlit_{lit, weight} { }
@@ -910,7 +910,7 @@ inline std::ostream &operator<<(std::ostream &out, ExternalType t) {
     return out;
 }
 
-class CLINGO_VISIBILITY_DEFAULT GroundProgramObserver {
+class GroundProgramObserver {
 public:
     virtual void init_program(bool incremental);
     virtual void begin_step();
@@ -961,7 +961,7 @@ inline void GroundProgramObserver::theory_atom_with_guard(id_t, id_t, IdSpan, id
 
 // {{{1 symbolic literal
 
-class CLINGO_VISIBILITY_DEFAULT SymbolicLiteral {
+class SymbolicLiteral {
 public:
     SymbolicLiteral(Symbol sym, bool sign)
     : sym_{sym.to_c(), sign} { }
@@ -995,7 +995,7 @@ inline bool operator>=(SymbolicLiteral a, SymbolicLiteral b) { return !(a < b); 
 
 // {{{1 solve control
 
-class CLINGO_VISIBILITY_DEFAULT SolveControl {
+class SolveControl {
 public:
     explicit SolveControl(clingo_solve_control_t *ctl)
     : ctl_(ctl) { }
@@ -1014,7 +1014,7 @@ enum class ModelType : clingo_model_type_t {
     CautiousConsequences = clingo_model_type_cautious_consequences
 };
 
-class CLINGO_VISIBILITY_DEFAULT ShowType {
+class ShowType {
 public:
     enum Type : clingo_show_type_bitset_t {
         CSP        = clingo_show_type_csp,
@@ -1033,7 +1033,7 @@ private:
 
 using CostVector = std::vector<int64_t>;
 
-class CLINGO_VISIBILITY_DEFAULT Model {
+class Model {
 public:
     explicit Model(clingo_model_t *model);
     bool contains(Symbol atom) const;
@@ -1056,7 +1056,7 @@ inline std::ostream &operator<<(std::ostream &out, Model m) {
 
 // {{{1 solve result
 
-class CLINGO_VISIBILITY_DEFAULT SolveResult {
+class SolveResult {
 public:
     SolveResult() : res_(0) { }
     explicit SolveResult(clingo_solve_result_bitset_t res)
@@ -1087,7 +1087,7 @@ inline std::ostream &operator<<(std::ostream &out, SolveResult res) {
 
 // {{{1 solve iteratively
 
-class CLINGO_VISIBILITY_DEFAULT SolveIteratively {
+class SolveIteratively {
 public:
     SolveIteratively();
     explicit SolveIteratively(clingo_solve_iteratively_t *it);
@@ -1104,7 +1104,7 @@ private:
     clingo_solve_iteratively_t *iter_;
 };
 
-class CLINGO_VISIBILITY_DEFAULT ModelIterator : public std::iterator<Model, std::input_iterator_tag> {
+class ModelIterator : public std::iterator<Model, std::input_iterator_tag> {
 public:
     explicit ModelIterator(SolveIteratively &iter)
     : iter_(&iter)
@@ -1139,7 +1139,7 @@ inline ModelIterator end(SolveIteratively &) { return ModelIterator(); }
 
 // {{{1 solve async
 
-class CLINGO_VISIBILITY_DEFAULT SolveAsync {
+class SolveAsync {
 public:
     explicit SolveAsync(clingo_solve_async_t *async)
     : async_(async) { }
@@ -1153,7 +1153,7 @@ private:
 
 // {{{1 location
 
-class CLINGO_VISIBILITY_DEFAULT Location : public clingo_location_t {
+class Location : public clingo_location_t {
 public:
     explicit Location(clingo_location_t loc) : clingo_location_t(loc) { }
     Location(char const *begin_file, char const *end_file, size_t begin_line, size_t end_line, size_t begin_column, size_t end_column)
@@ -1233,14 +1233,14 @@ struct Term {
     Location location;
     Variant<Symbol, Variable, UnaryOperation, BinaryOperation, Interval, Function, Pool> data;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Term const &term);
+std::ostream &operator<<(std::ostream &out, Term const &term);
 
 // Variable
 
 struct Variable {
     char const *name;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Variable const &x);
+std::ostream &operator<<(std::ostream &out, Variable const &x);
 
 // unary operation
 
@@ -1272,7 +1272,7 @@ struct UnaryOperation {
     UnaryOperator unary_operator;
     Term          argument;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, UnaryOperation const &x);
+std::ostream &operator<<(std::ostream &out, UnaryOperation const &x);
 
 // binary operation
 
@@ -1306,7 +1306,7 @@ struct BinaryOperation {
     Term           left;
     Term           right;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, BinaryOperation const &x);
+std::ostream &operator<<(std::ostream &out, BinaryOperation const &x);
 
 // interval
 
@@ -1314,7 +1314,7 @@ struct Interval {
     Term left;
     Term right;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Interval const &x);
+std::ostream &operator<<(std::ostream &out, Interval const &x);
 
 // function
 
@@ -1323,14 +1323,14 @@ struct Function {
     std::vector<Term> arguments;
     bool external;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Function const &x);
+std::ostream &operator<<(std::ostream &out, Function const &x);
 
 // pool
 
 struct Pool {
     std::vector<Term> arguments;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Pool const &x);
+std::ostream &operator<<(std::ostream &out, Pool const &x);
 
 // {{{2 csp
 
@@ -1339,25 +1339,25 @@ struct CSPProduct {
     Term coefficient;
     Optional<Term> variable;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, CSPProduct const &x);
+std::ostream &operator<<(std::ostream &out, CSPProduct const &x);
 
 struct CSPSum {
     Location location;
     std::vector<CSPProduct> terms;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, CSPSum const &x);
+std::ostream &operator<<(std::ostream &out, CSPSum const &x);
 
 struct CSPGuard {
     ComparisonOperator comparison;
     CSPSum term;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, CSPGuard const &x);
+std::ostream &operator<<(std::ostream &out, CSPGuard const &x);
 
 struct CSPLiteral {
     CSPSum term;
     std::vector<CSPGuard> guards;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, CSPLiteral const &x);
+std::ostream &operator<<(std::ostream &out, CSPLiteral const &x);
 
 // {{{2 ids
 
@@ -1365,7 +1365,7 @@ struct Id {
     Location location;
     char const *id;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Id const &x);
+std::ostream &operator<<(std::ostream &out, Id const &x);
 
 // {{{2 literals
 
@@ -1374,19 +1374,19 @@ struct Comparison {
     Term left;
     Term right;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Comparison const &x);
+std::ostream &operator<<(std::ostream &out, Comparison const &x);
 
 struct Boolean {
     bool value;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Boolean const &x);
+std::ostream &operator<<(std::ostream &out, Boolean const &x);
 
 struct Literal {
     Location location;
     Sign sign;
     Variant<Boolean, Term, Comparison, CSPLiteral> data;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Literal const &x);
+std::ostream &operator<<(std::ostream &out, Literal const &x);
 
 // {{{2 aggregates
 
@@ -1418,7 +1418,7 @@ struct ConditionalLiteral {
     Literal literal;
     std::vector<Literal> condition;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, ConditionalLiteral const &x);
+std::ostream &operator<<(std::ostream &out, ConditionalLiteral const &x);
 
 // lparse-style aggregate
 
@@ -1427,7 +1427,7 @@ struct Aggregate {
     Optional<AggregateGuard> left_guard;
     Optional<AggregateGuard> right_guard;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Aggregate const &x);
+std::ostream &operator<<(std::ostream &out, Aggregate const &x);
 
 // body aggregate
 
@@ -1435,7 +1435,7 @@ struct BodyAggregateElement {
     std::vector<Term> tuple;
     std::vector<Literal> condition;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, BodyAggregateElement const &x);
+std::ostream &operator<<(std::ostream &out, BodyAggregateElement const &x);
 
 struct BodyAggregate {
     AggregateFunction function;
@@ -1443,7 +1443,7 @@ struct BodyAggregate {
     Optional<AggregateGuard> left_guard;
     Optional<AggregateGuard> right_guard;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, BodyAggregate const &x);
+std::ostream &operator<<(std::ostream &out, BodyAggregate const &x);
 
 // head aggregate
 
@@ -1451,7 +1451,7 @@ struct HeadAggregateElement {
     std::vector<Term> tuple;
     ConditionalLiteral condition;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, HeadAggregateElement const &x);
+std::ostream &operator<<(std::ostream &out, HeadAggregateElement const &x);
 
 struct HeadAggregate {
     AggregateFunction function;
@@ -1459,14 +1459,14 @@ struct HeadAggregate {
     Optional<AggregateGuard> left_guard;
     Optional<AggregateGuard> right_guard;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, HeadAggregate const &x);
+std::ostream &operator<<(std::ostream &out, HeadAggregate const &x);
 
 // disjunction
 
 struct Disjunction {
     std::vector<ConditionalLiteral> elements;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Disjunction const &x);
+std::ostream &operator<<(std::ostream &out, Disjunction const &x);
 
 // disjoint
 
@@ -1476,12 +1476,12 @@ struct DisjointElement {
     CSPSum term;
     std::vector<Literal> condition;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, DisjointElement const &x);
+std::ostream &operator<<(std::ostream &out, DisjointElement const &x);
 
 struct Disjoint {
     std::vector<DisjointElement> elements;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Disjoint const &x);
+std::ostream &operator<<(std::ostream &out, Disjoint const &x);
 
 // {{{2 theory atom
 
@@ -1515,49 +1515,49 @@ struct TheoryTerm {
     Location location;
     Variant<Symbol, Variable, TheoryTermSequence, TheoryFunction, TheoryUnparsedTerm> data;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, TheoryTerm const &x);
+std::ostream &operator<<(std::ostream &out, TheoryTerm const &x);
 
 struct TheoryTermSequence {
     TheoryTermSequenceType type;
     std::vector<TheoryTerm> terms;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, TheoryTermSequence const &x);
+std::ostream &operator<<(std::ostream &out, TheoryTermSequence const &x);
 
 struct TheoryFunction {
     char const *name;
     std::vector<TheoryTerm> arguments;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, TheoryFunction const &x);
+std::ostream &operator<<(std::ostream &out, TheoryFunction const &x);
 
 struct TheoryUnparsedTermElement {
     std::vector<char const *> operators;
     TheoryTerm term;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, TheoryUnparsedTermElement const &x);
+std::ostream &operator<<(std::ostream &out, TheoryUnparsedTermElement const &x);
 
 struct TheoryUnparsedTerm {
     std::vector<TheoryUnparsedTermElement> elements;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, TheoryUnparsedTerm const &x);
+std::ostream &operator<<(std::ostream &out, TheoryUnparsedTerm const &x);
 
 struct TheoryAtomElement {
     std::vector<TheoryTerm> tuple;
     std::vector<Literal> condition;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, TheoryAtomElement const &x);
+std::ostream &operator<<(std::ostream &out, TheoryAtomElement const &x);
 
 struct TheoryGuard {
     char const *operator_name;
     TheoryTerm term;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, TheoryGuard const &x);
+std::ostream &operator<<(std::ostream &out, TheoryGuard const &x);
 
 struct TheoryAtom {
     Term term;
     std::vector<TheoryAtomElement> elements;
     Optional<TheoryGuard> guard;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, TheoryAtom const &x);
+std::ostream &operator<<(std::ostream &out, TheoryAtom const &x);
 
 // {{{2 head literals
 
@@ -1565,7 +1565,7 @@ struct HeadLiteral {
     Location location;
     Variant<Literal, Disjunction, Aggregate, HeadAggregate, TheoryAtom> data;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, HeadLiteral const &x);
+std::ostream &operator<<(std::ostream &out, HeadLiteral const &x);
 
 // {{{2 body literals
 
@@ -1574,7 +1574,7 @@ struct BodyLiteral {
     Sign sign;
     Variant<Literal, ConditionalLiteral, Aggregate, BodyAggregate, TheoryAtom, Disjoint> data;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, BodyLiteral const &x);
+std::ostream &operator<<(std::ostream &out, BodyLiteral const &x);
 
 // {{{2 theory definitions
 
@@ -1599,20 +1599,20 @@ struct TheoryOperatorDefinition {
     unsigned priority;
     TheoryOperatorType type;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, TheoryOperatorDefinition const &x);
+std::ostream &operator<<(std::ostream &out, TheoryOperatorDefinition const &x);
 
 struct TheoryTermDefinition {
     Location location;
     char const *name;
     std::vector<TheoryOperatorDefinition> operators;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, TheoryTermDefinition const &x);
+std::ostream &operator<<(std::ostream &out, TheoryTermDefinition const &x);
 
 struct TheoryGuardDefinition {
     char const *term;
     std::vector<char const *> operators;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, TheoryGuardDefinition const &x);
+std::ostream &operator<<(std::ostream &out, TheoryGuardDefinition const &x);
 
 enum class TheoryAtomDefinitionType : clingo_ast_theory_atom_definition_type_t {
     Head      = clingo_ast_theory_atom_definition_type_head,
@@ -1639,14 +1639,14 @@ struct TheoryAtomDefinition {
     char const *elements;
     Optional<TheoryGuardDefinition> guard;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, TheoryAtomDefinition const &x);
+std::ostream &operator<<(std::ostream &out, TheoryAtomDefinition const &x);
 
 struct TheoryDefinition {
     char const *name;
     std::vector<TheoryTermDefinition> terms;
     std::vector<TheoryAtomDefinition> atoms;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, TheoryDefinition const &x);
+std::ostream &operator<<(std::ostream &out, TheoryDefinition const &x);
 
 // {{{2 statements
 
@@ -1656,7 +1656,7 @@ struct Rule {
     HeadLiteral head;
     std::vector<BodyLiteral> body;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Rule const &x);
+std::ostream &operator<<(std::ostream &out, Rule const &x);
 
 // definition
 
@@ -1665,7 +1665,7 @@ struct Definition {
     Term value;
     bool is_default;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Definition const &x);
+std::ostream &operator<<(std::ostream &out, Definition const &x);
 
 // show
 
@@ -1673,14 +1673,14 @@ struct ShowSignature {
     Signature signature;
     bool csp;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, ShowSignature const &x);
+std::ostream &operator<<(std::ostream &out, ShowSignature const &x);
 
 struct ShowTerm {
     Term term;
     std::vector<BodyLiteral> body;
     bool csp;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, ShowTerm const &x);
+std::ostream &operator<<(std::ostream &out, ShowTerm const &x);
 
 // minimize
 
@@ -1690,7 +1690,7 @@ struct Minimize {
     std::vector<Term> tuple;
     std::vector<BodyLiteral> body;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Minimize const &x);
+std::ostream &operator<<(std::ostream &out, Minimize const &x);
 
 // script
 
@@ -1711,7 +1711,7 @@ struct Script {
     ScriptType type;
     char const *code;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Script const &x);
+std::ostream &operator<<(std::ostream &out, Script const &x);
 
 // program
 
@@ -1719,7 +1719,7 @@ struct Program {
     char const *name;
     std::vector<Id> parameters;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Program const &x);
+std::ostream &operator<<(std::ostream &out, Program const &x);
 
 // external
 
@@ -1727,7 +1727,7 @@ struct External {
     Term atom;
     std::vector<BodyLiteral> body;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, External const &x);
+std::ostream &operator<<(std::ostream &out, External const &x);
 
 // edge
 
@@ -1736,7 +1736,7 @@ struct Edge {
     Term v;
     std::vector<BodyLiteral> body;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Edge const &x);
+std::ostream &operator<<(std::ostream &out, Edge const &x);
 
 // heuristic
 
@@ -1747,7 +1747,7 @@ struct Heuristic {
     Term priority;
     Term modifier;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Heuristic const &x);
+std::ostream &operator<<(std::ostream &out, Heuristic const &x);
 
 // project
 
@@ -1755,12 +1755,12 @@ struct ProjectAtom {
     Term atom;
     std::vector<BodyLiteral> body;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, ProjectAtom const &x);
+std::ostream &operator<<(std::ostream &out, ProjectAtom const &x);
 
 struct ProjectSignature {
     Signature signature;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, ProjectSignature const &x);
+std::ostream &operator<<(std::ostream &out, ProjectSignature const &x);
 
 // statement
 
@@ -1768,13 +1768,13 @@ struct Statement {
     Location location;
     Variant<Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, ProjectAtom, ProjectSignature, TheoryDefinition> data;
 };
-CLINGO_VISIBILITY_DEFAULT std::ostream &operator<<(std::ostream &out, Statement const &x);
+std::ostream &operator<<(std::ostream &out, Statement const &x);
 
 } // namespace AST
 
 // {{{1 backend
 
-class CLINGO_VISIBILITY_DEFAULT Backend {
+class Backend {
 public:
     explicit Backend(clingo_backend_t *backend)
     : backend_(backend) { }
@@ -1891,7 +1891,7 @@ using StatisticsKeyIterator = KeyIterator<Statistics>;
 using StatisticsArrayIterator = ArrayIterator<Statistics, Statistics const *>;
 using StatisticsKeyRange = IteratorRange<StatisticsKeyIterator>;
 
-class CLINGO_VISIBILITY_DEFAULT Statistics {
+class Statistics {
     friend class KeyIterator<Statistics>;
 public:
     explicit Statistics(clingo_statistics_t *stats, uint64_t key)
@@ -1926,7 +1926,7 @@ using ConfigurationArrayIterator = ArrayIterator<Configuration>;
 using ConfigurationKeyIterator = KeyIterator<Configuration>;
 using ConfigurationKeyRange = IteratorRange<ConfigurationKeyIterator>;
 
-class CLINGO_VISIBILITY_DEFAULT Configuration {
+class Configuration {
     friend class KeyIterator<Configuration>;
 public:
     explicit Configuration(clingo_configuration_t *conf, clingo_id_t key)
@@ -1962,7 +1962,7 @@ private:
 
 // {{{1 program builder
 
-class CLINGO_VISIBILITY_DEFAULT ProgramBuilder {
+class ProgramBuilder {
 public:
     explicit ProgramBuilder(clingo_program_builder_t *builder)
     : builder_(builder) { }
@@ -1977,7 +1977,7 @@ private:
 
 // {{{1 control
 
-class CLINGO_VISIBILITY_DEFAULT Part {
+class Part {
 public:
     Part(char const *name, SymbolSpan params)
     : part_{name, reinterpret_cast<clingo_symbol_t const*>(params.begin()), params.size()} { }
@@ -2026,7 +2026,7 @@ inline std::ostream &operator<<(std::ostream &out, WarningCode code) {
     return out;
 }
 
-class CLINGO_VISIBILITY_DEFAULT Control {
+class Control {
     struct Impl;
 public:
     Control(StringSpan args = {}, Logger logger = nullptr, unsigned message_limit = 20);
@@ -2074,9 +2074,9 @@ private:
 
 using StatementCallback = std::function<void (AST::Statement &&)>;
 
-CLINGO_VISIBILITY_DEFAULT void parse_program(char const *program, StatementCallback cb, Logger logger = nullptr, unsigned message_limit = 20);
-CLINGO_VISIBILITY_DEFAULT Symbol parse_term(char const *str, Logger logger = nullptr, unsigned message_limit = 20);
-CLINGO_VISIBILITY_DEFAULT char const *add_string(char const *str);
+void parse_program(char const *program, StatementCallback cb, Logger logger = nullptr, unsigned message_limit = 20);
+Symbol parse_term(char const *str, Logger logger = nullptr, unsigned message_limit = 20);
+char const *add_string(char const *str);
 
 // }}}1
 
