@@ -74,7 +74,7 @@ file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/input/groundtermgrammar")
 bison_target("groundtermgrammar" "${source_path}/src/input/groundtermgrammar.yy" "${CMAKE_CURRENT_BINARY_DIR}/src/input/groundtermgrammar/grammar.cc")
 if(MSVC)
     set_source_files_properties("${BISON_groundtermgrammar_OUTPUT_SOURCE}"
-        PROPERTIES COMPILE_FLAGS "/wd4065")
+        PROPERTIES COMPILE_FLAGS "/wd4267 /wd4065")
 endif()
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/input")
 re2c_target(NAME "groundtermlexer" INPUT "${source_path}/src/input/groundtermlexer.xh" OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/src/input/groundtermlexer.hh")
@@ -82,7 +82,7 @@ file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/input/nongroundgrammar")
 bison_target("nongroundgrammar" "${source_path}/src/input/nongroundgrammar.yy" "${CMAKE_CURRENT_BINARY_DIR}/src/input/nongroundgrammar/grammar.cc")
 if(MSVC)
     set_source_files_properties("${BISON_nongroundgrammar_OUTPUT_SOURCE}"
-        PROPERTIES COMPILE_FLAGS "/wd4065")
+        PROPERTIES COMPILE_FLAGS "/wd4267 /wd4065")
 endif()
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/input")
 re2c_target(NAME "nongroundlexer" INPUT "${source_path}/src/input/nongroundlexer.xch" OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/src/input/nongroundlexer.hh" OPTIONS -c)
@@ -154,10 +154,6 @@ endif()
 if(MSVC)
     target_compile_definitions(libgringo PRIVATE _SCL_SECURE_NO_WARNINGS)
     target_compile_definitions(libgringo PRIVATE _CRT_SECURE_NO_WARNINGS)
-	set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/src/input/nongroundgrammar/grammar.cc"
-        PROPERTIES COMPILE_FLAGS "/wd4267 /wd4065")
-    set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/src/input/groundtermgrammar/grammar.cc"
-        PROPERTIES COMPILE_FLAGS "/wd4267 /wd4065")
     set_source_files_properties("${source_path}/src/ground/statements.cc"
         PROPERTIES COMPILE_FLAGS "/bigobj")
 endif()

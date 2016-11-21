@@ -36,7 +36,7 @@ file(MAKE_DIRECTORY "${{CMAKE_CURRENT_BINARY_DIR}}/{path}{name}")
 bison_target("{name}" "${{{target}_path}}/{path}{name}{ext}" "${{CMAKE_CURRENT_BINARY_DIR}}/{path}{name}/grammar.cc")
 if(MSVC)
     set_source_files_properties("${{BISON_{name}_OUTPUT_SOURCE}}"
-        PROPERTIES COMPILE_FLAGS "/wd4065")
+        PROPERTIES COMPILE_FLAGS "/wd4267 /wd4065")
 endif()
 '''.format(name=name, path=path, ext=ext, target=target)
             elif re.match(r"^.*\.(xh|xch)$", filename):
