@@ -638,7 +638,7 @@ Potassco::Id_t TheoryData::addElem(Potassco::IdSpan const &tuple, LitVec &&cond)
     }, [&](Potassco::Id_t const &a, Potassco::Id_t const &b) {
         assert(a < size);
         return b == size ? elementEqual(data_.getElement(a), conditions_[a], tuple, cond) : a == b;
-    }, conditions_.size());
+    }, numeric_cast<unsigned>(conditions_.size()));
     if (ret.second) {
         data_.addElement(size, tuple, cond.empty() ? 0 : Potassco::TheoryData::COND_DEFERRED);
         conditions_.emplace_back(std::move(cond));

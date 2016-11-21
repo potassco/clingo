@@ -108,7 +108,7 @@ InstVec _linearize(Logger &log, Context &context, bool positive, SolutionCallbac
                 if (bound.find(occ.first->name) == bound.end()) {
                     auto &varNode(varMap[occ.first->name]);
                     if (!varNode)   {
-                        varNode = &s.insertVar(boundBy.size());
+                        varNode = &s.insertVar(numeric_cast<unsigned>(boundBy.size()));
                         boundBy.emplace_back(occ.first->name, std::vector<unsigned>{});
                     }
                     if (occ.second) { s.insertEdge(entNode, *varNode); }
@@ -224,7 +224,7 @@ HeadDefinition::HeadDefinition(UTerm &&repr, Domain *domain)
 , domain_(domain) { }
 
 void HeadDefinition::defines(IndexUpdater &update, Instantiator *inst) {
-    auto ret(offsets_.emplace(&update, enqueueVec_.size()));
+    auto ret(offsets_.emplace(&update, numeric_cast<unsigned>(enqueueVec_.size())));
     if (ret.second) { enqueueVec_.emplace_back(&update, RInstVec{}); }
     if (active_ && inst) { enqueueVec_[ret.first->second].second.emplace_back(*inst); }
 }
@@ -572,7 +572,7 @@ void ProjectStatement::report(Output::OutputBase &out, Logger &log) {
     auto domain = out.data.predDoms().find(term.sig());
     assert(domain != out.data.predDoms().end());
     auto atom = (*domain)->find(term);
-    Id_t offset = atom - (*domain)->begin();
+    Id_t offset = numeric_cast<Id_t>(atom - (*domain)->begin());
     Output::ProjectStatement ps(Output::LiteralId{NAF::POS, Output::AtomType::Predicate, offset, (*domain)->domainOffset()});
     out.output(ps);
 }
@@ -648,7 +648,7 @@ void HeuristicStatement::report(Output::OutputBase &out, Logger &log) {
         auto lit = x->toOutput(log);
         if (!lit.second) { cond.emplace_back(lit.first); }
     }
-    Id_t offset = atom - (*domain)->begin();
+    Id_t offset = numeric_cast<Id_t>(atom - (*domain)->begin());
     auto atomId = Output::LiteralId{NAF::POS, Output::AtomType::Predicate, offset, (*domain)->domainOffset()};
     Output::HeuristicStatement hs(atomId, value.num(), priority.num(), heuMod, cond);
     out.output(hs);
@@ -833,7 +833,7 @@ void BodyAggregateComplete::checkDefined(LocSet &, SigSet const &, UndefVec &) c
 void BodyAggregateComplete::enqueue(BodyAggregateDomain::Iterator atom) {
     if (!atom->defined() && !atom->enqueued()) {
         atom->setEnqueued(true);
-        todo_.emplace_back(atom - dom().begin());
+        todo_.emplace_back(numeric_cast<TodoVec::value_type>(atom - dom().begin()));
     }
 }
 
@@ -1443,7 +1443,7 @@ void ConjunctionComplete::reportOther(F f, Logger &log) {
     f(atom);
     if (!atom->blocked() && !atom->defined() && !atom->enqueued()) {
         atom->setEnqueued(true);
-        todo_.emplace_back(atom - dom().begin());
+        todo_.emplace_back(numeric_cast<TodoVec::value_type>(atom - dom().begin()));
     }
 }
 
@@ -1557,7 +1557,7 @@ void DisjointComplete::report(Output::OutputBase &, Logger &) {
 
 void DisjointComplete::enqueue(DisjointDomain::Iterator atom) {
     if (!atom->enqueued() && !atom->defined()) {
-        todo_.emplace_back(atom - dom().begin());
+        todo_.emplace_back(numeric_cast<TodoVec::value_type>(atom - dom().begin()));
         atom->setEnqueued(true);
     }
 }
@@ -1786,7 +1786,7 @@ void TheoryComplete::enqueue(Queue &q) {
 
 void TheoryComplete::enqueue(TheoryDomain::Iterator atom) {
     if (!atom->enqueued() && !atom->defined()) {
-        todo_.emplace_back(atom - dom().begin());
+        todo_.emplace_back(numeric_cast<TodoVec::value_type>(atom - dom().begin()));
         atom->setEnqueued(true);
     }
 }
@@ -2057,7 +2057,7 @@ void HeadAggregateRule::report(Output::OutputBase &out, Logger &log) {
     }
     // Note: init bounds and all that stuff should be done here
     assert(!undefined);
-    Id_t offset = ret.first - dom.begin();
+    Id_t offset = numeric_cast<Id_t>(ret.first - dom.begin());
     rule.addHead(Output::LiteralId{NAF::POS, Output::AtomType::HeadAggregate, offset, dom.domainOffset()});
     out.output(rule);
 }
@@ -2123,7 +2123,7 @@ void HeadAggregateAccumulate::report(Output::OutputBase &out, Logger &log) {
         auto &predDom = static_cast<PredicateDomain&>(predDef_.dom());
         auto predAtm = predDom.reserve(predVal);
         if (!predAtm->fact()) {
-            lit = Output::LiteralId(NAF::POS, Output::AtomType::Predicate, predAtm - predDom.begin(), predDom.domainOffset());
+            lit = Output::LiteralId(NAF::POS, Output::AtomType::Predicate, numeric_cast<Id_t>(predAtm - predDom.begin()), predDom.domainOffset());
         }
     }
     atm->accumulate(out.data, tuple_.empty() ? def_.domRepr()->loc() : tuple_.front()->loc(), vals, lit, tempLits, log);
@@ -2150,7 +2150,7 @@ HeadAggregateComplete::HeadAggregateComplete(DomainData &data, UTerm &&repr, Agg
 
 void HeadAggregateComplete::enqueue(HeadAggregateDomain::Iterator atm) {
     if (!atm->enqueued()) {
-        todo_.emplace_back(atm - dom().begin());
+        todo_.emplace_back(numeric_cast<TodoVec::value_type>(atm - dom().begin()));
         atm->setEnqueued(true);
     }
 }
@@ -2358,7 +2358,7 @@ void DisjunctionRule::report(Output::OutputBase &out, Logger &log) {
     if (fact) { ret.first->setFact(true); }
     assert(!undefined);
     complete_.enqueue(ret.first);
-    Id_t offset = ret.first - dom.begin();
+    Id_t offset = numeric_cast<Id_t>(ret.first - dom.begin());
     rule.addHead(Output::LiteralId{NAF::POS, Output::AtomType::Disjunction, offset, dom.domainOffset()});
     out.output(rule);
 }
@@ -2479,7 +2479,7 @@ void DisjunctionComplete::propagate(Queue &queue) {
 void DisjunctionComplete::enqueue(DisjunctionDomain::Iterator atom) {
     if (!atom->enqueued()) {
         atom->setEnqueued(true);
-        todo_.emplace_back(atom - dom().begin());
+        todo_.emplace_back(numeric_cast<TodoVec::value_type>(atom - dom().begin()));
     }
 }
 
@@ -2628,7 +2628,7 @@ void DisjunctionAccumulate::reportHead(Output::OutputBase &out, Logger &log) {
         auto &predDom = static_cast<PredicateDomain&>(predDef_.dom());
         auto predAtm = predDom.reserve(predRepr);
         if (predAtm->fact()) { return; }
-        tempLits.emplace_back(Output::LiteralId(NAF::POS, Output::AtomType::Predicate, predAtm - predDom.begin(), predDom.domainOffset()));
+        tempLits.emplace_back(Output::LiteralId(NAF::POS, Output::AtomType::Predicate, numeric_cast<Id_t>(predAtm - predDom.begin()), predDom.domainOffset()));
     }
     complete_.enqueue(atm);
     atm->accumulateHead(out.data, elemRepr, tempLits);

@@ -347,7 +347,7 @@ public:
         set_.erase(
             [this](SizeType a) { return Hash::operator()(vec_[a]); },
             [this](SizeType a, SizeType b) { return a == b; },
-            vec_.size() - 1);
+            numeric_cast<SizeType>(vec_.size() - 1));
         vec_.pop_back();
     }
     Value &back() { return vec_.back(); }

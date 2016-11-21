@@ -89,7 +89,7 @@ void Defines::apply(Symbol x, Symbol &retVal, UTerm &retTerm, bool replace) {
         if (x.sig().arity() > 0) {
             SymVec args;
             bool changed = true;
-            for (unsigned i = 0, e = x.args().size; i != e; ++i) {
+            for (std::size_t i = 0, e = x.args().size; i != e; ++i) {
                 UTerm rt;
                 args.emplace_back();
                 apply(x.args()[i], args.back(), rt, true);
@@ -243,7 +243,7 @@ void GFunctionTerm::print(std::ostream &out) const {
     out << ")";
 }
 
-Sig GFunctionTerm::sig() const { return Sig(name, args.size(), sign); }
+Sig GFunctionTerm::sig() const { return Sig(name, numeric_cast<uint32_t>(args.size()), sign); }
 
 GTerm::EvalResult GFunctionTerm::eval() const { return EvalResult(false, Symbol()); }
 
@@ -1674,7 +1674,7 @@ LuaTerm *LuaTerm::clone() const {
     return make_locatable<LuaTerm>(loc(), name, get_clone(args)).release();
 }
 
-Sig LuaTerm::getSig() const { return Sig(name, args.size(), false); }
+Sig LuaTerm::getSig() const { return Sig(name, numeric_cast<uint32_t>(args.size()), false); }
 
 UTerm LuaTerm::renameVars(RenameMap &names) const {
     UTermVec args;
@@ -1836,7 +1836,7 @@ FunctionTerm *FunctionTerm::clone() const {
     return make_locatable<FunctionTerm>(loc(), name, get_clone(args)).release();
 }
 
-Sig FunctionTerm::getSig() const { return Sig(name, args.size(), false); }
+Sig FunctionTerm::getSig() const { return Sig(name, numeric_cast<uint32_t>(args.size()), false); }
 
 UTerm FunctionTerm::renameVars(RenameMap &names) const {
     UTermVec args;

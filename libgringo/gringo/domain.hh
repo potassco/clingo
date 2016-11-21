@@ -527,7 +527,7 @@ public:
             ret.second = true;
             ret.first->setGeneration(generation() + 1);
             if (ret.first->delayed()) {
-                delayed_.emplace_back(ret.first - begin());
+                delayed_.emplace_back(numeric_cast<typename OffsetVec::value_type>(ret.first - begin()));
             }
         }
         return ret;
