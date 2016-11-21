@@ -113,11 +113,11 @@ set(source
 # ]]]
 
 # TODO: complex enough to justify adding a function...
-file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated/libgringo/input/groundtermgrammar")
-file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated/libgringo/input/nongroundgrammar")
-bison_target("groundtermgrammar" "${source_path}/src/input/groundtermgrammar.yy" "${CMAKE_BINARY_DIR}/generated/libgringo/input/groundtermgrammar/grammar.cc")
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/input/groundtermgrammar")
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/input/nongroundgrammar")
+bison_target("groundtermgrammar" "${source_path}/src/input/groundtermgrammar.yy" "${CMAKE_CURRENT_BINARY_DIR}/input/groundtermgrammar/grammar.cc")
 source_group("${ide_source_group}\\input" FILES "${source_path}/src/input/groundtermgrammar.yy")
-bison_target("nongroundgrammar" "${source_path}/src/input/nongroundgrammar.yy" "${CMAKE_BINARY_DIR}/generated/libgringo/input/nongroundgrammar/grammar.cc")
+bison_target("nongroundgrammar" "${source_path}/src/input/nongroundgrammar.yy" "${CMAKE_CURRENT_BINARY_DIR}/input/nongroundgrammar/grammar.cc")
 source_group("${ide_source_group}\\input" FILES "${source_path}/src/input/nongroundgrammar.yy")
 re2c_target(NAME "groundtermlexer" INPUT "${source_path}/src/input/groundtermlexer.xh" OUTPUT "${CMAKE_BINARY_DIR}/generated/libgringo/input/groundtermlexer.hh")
 source_group("${ide_source_group}\\input" FILES "${source_path}/src/input/groundtermlexer.xh")
@@ -125,28 +125,24 @@ re2c_target(NAME "nongroundlexer" INPUT "${source_path}/src/input/nongroundlexer
 source_group("${ide_source_group}\\input" FILES "${source_path}/src/input/nongroundlexer.xch")
 
 source_group("${ide_source_group}\\input\\nongroundgrammar" FILES
-    "${BISON_nongroundgrammar_OUTPUT_HEADER}"
-    "${BISON_nongroundgrammar_OUTPUT_SOURCE}")
+    "${BISON_nongroundgrammar_OUTPUTS}"
+    "${BISON_nongroundgrammar_OUTPUTS}")
 source_group("${ide_source_group}\\input\\groundtermgrammar" FILES
-    "${BISON_groundtermgrammar_OUTPUT_HEADER}"
-    "${BISON_groundtermgrammar_OUTPUT_SOURCE}")
+    "${BISON_groundtermgrammar_OUTPUTS}"
+    "${BISON_groundtermgrammar_OUTPUTS}")
 source_group("${ide_source_group}\\input" FILES
-    "${CMAKE_BINARY_DIR}/generated/libgringo/input/groundtermlexer.hh")
-source_group("${ide_source_group}\\input" FILES
-    "${CMAKE_BINARY_DIR}/generated/libgringo/input/nongroundlexer.hh")
+    "${RE2C_nongroundlexer_OUTPUT}"
+    "${RE2C_groundtermlexer_OUTPUT}")
 
-list(APPEND header
-    "${BISON_nongroundgrammar_OUTPUT_HEADER}"
-    "${BISON_groundtermgrammar_OUTPUT_HEADER}"
-    "${CMAKE_BINARY_DIR}/generated/libgringo/input/groundtermlexer.hh"
-    "${CMAKE_BINARY_DIR}/generated/libgringo/input/nongroundlexer.hh")
 list(APPEND source
+    "${BISON_nongroundgrammar_OUTPUTS}"
+    "${BISON_groundtermgrammar_OUTPUTS}"
+    "${RE2C_groundtermlexer_OUTPUT}"
+    "${RE2C_nongroundlexer_OUTPUT}"
     "${source_path}/src/input/groundtermgrammar.yy"
     "${source_path}/src/input/nongroundgrammar.yy"
     "${source_path}/src/input/groundtermlexer.xh"
-    "${source_path}/src/input/nongroundlexer.xch"
-    "${BISON_nongroundgrammar_OUTPUT_SOURCE}"
-    "${BISON_groundtermgrammar_OUTPUT_SOURCE}")
+    "${source_path}/src/input/nongroundlexer.xch")
 
 add_library(libgringo ${header} ${source})
 target_include_directories(libgringo PUBLIC

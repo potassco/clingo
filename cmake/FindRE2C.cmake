@@ -83,6 +83,7 @@ if(RE2C_EXECUTABLE)
             DEPENDS ${PARSED_ARGS_INPUT} ${PARSED_ARGS_DEPENDS}
             COMMENT "[RE2C][${PARSED_ARGS_NAME}] Building lexer with re2c ${RE2C_VERSION}"
         )
+        set(RE2C_${PARSED_ARGS_NAME}_OUTPUT "${PARSED_ARGS_OUTPUT}")
     endmacro(RE2C_TARGET)
 endif()
 
