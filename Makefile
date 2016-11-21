@@ -3,6 +3,7 @@ BUILD_TYPE=debug
 CC=/usr/bin/cc
 CXX=/usr/bin/c++
 
+.PHONY: all
 all: build/$(BUILD_TYPE)
 	cd build/$(BUILD_TYPE) && cd $$(pwd -P) && cmake .
 	$(MAKE) -C build/$(BUILD_TYPE)
@@ -22,11 +23,13 @@ build/$(BUILD_TYPE):
 	cd build/$(BUILD_TYPE) && cd $$(pwd -P) && cmake .
 	$(MAKE) -C build/$(BUILD_TYPE) $@
 
+.PHONY: test
 test: build/$(BUILD_TYPE)
 	cd build/$(BUILD_TYPE) && cd $$(pwd -P) && cmake .
 	$(MAKE) -C build/$(BUILD_TYPE)
 	$(MAKE) -C build/$(BUILD_TYPE) $@ CTEST_OUTPUT_ON_FAILURE=TRUE
 
+.PHONY: web
 web:
 	mkdir -p build/web
 	current="$$(pwd -P)" && cd build/web && cd "$$(pwd -P)" && emsdk construct_env && source emsdk_set_env.sh && emcmake cmake \
@@ -46,3 +49,7 @@ web:
 		-DLUA_INCLUDE_DIR=$(LUA_DIR)/include \
 		"$${current}"
 	$(MAKE) -C build/web web
+
+.PHONY: glob
+glob:
+	find app libclingo libgringo libreify libluaclingo libpyclingo -name CMakeLists.txt | xargs ./cmake/glob-paths.py
