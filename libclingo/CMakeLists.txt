@@ -61,6 +61,7 @@ if (NOT CLINGO_BUILD_SHARED)
 else()
     set_target_properties(libclingo PROPERTIES SOVERSION 1 VERSION 1.0)
     install(TARGETS libclingo
+        RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
     install(FILES

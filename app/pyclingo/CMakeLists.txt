@@ -8,7 +8,9 @@ set(source
     ${source-group})
 # ]]]
 
-if (UNIX)
+if (CYGWIN)
+    set(suffix ".dll")
+elseif (UNIX)
     set(suffix ".so")
 else()
     set(suffix ".pyd")
