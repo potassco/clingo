@@ -28,6 +28,8 @@
 #include <vector>
 #include <iostream>
 #include <algorithm>
+#include <cassert>
+#include <limits>
 
 namespace Gringo {
 
@@ -306,6 +308,35 @@ luaL_Reg const AnyWrap::meta[] = {
 
 // {{{1 auxliary functions
 
+namespace Detail {
+
+template <int X> using int_type = std::integral_constant<int, X>;
+template <class T, class S>
+inline void nc_check(S s, int_type<0>) { // same sign
+    (void)s;
+    assert((std::is_same<T, S>::value) || (s >= std::numeric_limits<T>::min() && s <= std::numeric_limits<T>::max()));
+}
+template <class T, class S>
+inline void nc_check(S s, int_type<-1>) { // Signed -> Unsigned
+    (void)s;
+    assert(s >= 0 && static_cast<S>(static_cast<T>(s)) == s);
+}
+template <class T, class S>
+inline void nc_check(S s, int_type<1>) { // Unsigned -> Signed
+    (void)s;
+    assert(!(s > std::numeric_limits<T>::max()));
+}
+
+} // namespace Detail
+
+template <class T, class S>
+inline T numeric_cast(S s) {
+    constexpr int sv = int(std::numeric_limits<T>::is_signed) - int(std::numeric_limits<S>::is_signed);
+    Detail::nc_check<T>(s, Detail::int_type<sv>());
+    return static_cast<T>(s);
+}
+
+
 clingo_symbol_t luaToVal(lua_State *L, int idx);
 
 #if LUA_VERSION_NUM < 502
@@ -357,7 +388,7 @@ template <class T>
 void luaToCpp(lua_State *L, int index, std::vector<T> &x);
 
 void luaToCpp(lua_State *L, int index, bool &x) {
-    x = lua_toboolean(L, index);
+    x = lua_toboolean(L, index) != 0;
 }
 
 void luaToCpp(lua_State *L, int index, std::string &x) {
@@ -370,7 +401,7 @@ void luaToCpp(lua_State *L, int index, T &x, typename std::enable_if<std::is_int
     if (lua_type(L, index) != LUA_TNUMBER) {
         luaL_error(L, "number expected");
     }
-    x = lua_tonumber(L, index);
+    x = numeric_cast<T>(lua_tointeger(L, index));
 }
 
 struct symbol_wrapper {
@@ -600,13 +631,13 @@ struct TheoryTerm : Object<TheoryTerm> {
     }
     static int number(lua_State *L) {
         auto &self = get_self(L);
-        lua_pushnumber(L, call_c(L, clingo_theory_atoms_term_number, self.atoms, self.id));
+        lua_pushinteger(L, call_c(L, clingo_theory_atoms_term_number, self.atoms, self.id));
         return 1;
     }
     static int args(lua_State *L) {
         auto &self = get_self(L);
         auto ret = call_c(L, clingo_theory_atoms_term_arguments, self.atoms, self.id);
-        lua_createtable(L, ret.second, 0);
+        lua_createtable(L, numeric_cast<int>(ret.second), 0);
         int i = 1;
         for (auto it = ret.first, ie = it + ret.second; it != ie; ++it) {
             new_(L, self.atoms, *it);
@@ -663,7 +694,7 @@ struct TheoryElement : Object<TheoryElement> {
     static int terms(lua_State *L) {
         auto &self = get_self(L);
         auto ret = call_c(L, clingo_theory_atoms_element_tuple, self.atoms, self.id);
-        lua_createtable(L, ret.second, 0);
+        lua_createtable(L, numeric_cast<int>(ret.second), 0);
         int i = 1;
         for (auto it = ret.first, ie = it + ret.second; it != ie; ++it) {
             TheoryTerm::new_(L, self.atoms, *it);
@@ -675,10 +706,10 @@ struct TheoryElement : Object<TheoryElement> {
     static int condition(lua_State *L) {
         auto &self = get_self(L);
         auto ret = call_c(L, clingo_theory_atoms_element_condition, self.atoms, self.id);
-        lua_createtable(L, ret.second, 0);
+        lua_createtable(L, numeric_cast<int>(ret.second), 0);
         int i = 1;
         for (auto it = ret.first, ie = it + ret.second; it != ie; ++it) {
-            lua_pushnumber(L, *it);
+            lua_pushinteger(L, *it);
             lua_rawseti(L, -2, i++);
         }
         return 1;
@@ -686,7 +717,7 @@ struct TheoryElement : Object<TheoryElement> {
 
     static int conditionId(lua_State *L) {
         auto &self = get_self(L);
-        lua_pushnumber(L, call_c(L, clingo_theory_atoms_element_condition_id, self.atoms, self.id));
+        lua_pushinteger(L, call_c(L, clingo_theory_atoms_element_condition_id, self.atoms, self.id));
         return 1;
     }
 
@@ -736,7 +767,7 @@ struct TheoryAtom : Object<TheoryAtom> {
     static int elements(lua_State *L) {
         auto &self = get_self(L);
         auto ret = call_c(L, clingo_theory_atoms_atom_elements, self.atoms, self.id);
-        lua_createtable(L, ret.second, 0);
+        lua_createtable(L, numeric_cast<int>(ret.second), 0);
         int i = 1;
         for (auto it = ret.first, ie = it + ret.second; it != ie; ++it) {
             TheoryElement::new_(L, self.atoms, *it);
@@ -752,7 +783,7 @@ struct TheoryAtom : Object<TheoryAtom> {
 
     static int literal(lua_State *L) {
         auto &self = get_self(L);
-        lua_pushnumber(L, call_c(L, clingo_theory_atoms_atom_literal, self.atoms, self.id));
+        lua_pushinteger(L, call_c(L, clingo_theory_atoms_atom_literal, self.atoms, self.id));
         return 1;
     }
 
@@ -812,16 +843,16 @@ luaL_Reg const TheoryAtom::meta[] = {
 struct TheoryIter {
     static int iter(lua_State *L, clingo_theory_atoms_t *atoms) {
         lua_pushlightuserdata(L, static_cast<void*>(atoms));
-        lua_pushnumber(L, 0);
+        lua_pushinteger(L, 0);
         lua_pushcclosure(L, iter_, 2);
         return 1;
     }
 
     static int iter_(lua_State *L) {
         auto atoms = (clingo_theory_atoms_t *)lua_topointer(L, lua_upvalueindex(1));
-        clingo_id_t idx = lua_tointeger(L, lua_upvalueindex(2));
+        clingo_id_t idx = numeric_cast<clingo_id_t>(lua_tonumber(L, lua_upvalueindex(2)));
         if (idx < call_c(L, clingo_theory_atoms_size, atoms)) {
-            lua_pushnumber(L, idx + 1);
+            lua_pushinteger(L, idx + 1);
             lua_replace(L, lua_upvalueindex(2));
             TheoryAtom::new_(L, atoms, idx);
         }
@@ -906,7 +937,7 @@ struct Term : Object<Term> {
         char const *name = luaL_checklstring(L, 1, nullptr);
         bool positive = true;
         if (!lua_isnone(L, 3) && !lua_isnil(L, 3)) {
-            positive = lua_toboolean(L, 3);
+            luaToCpp(L, 3, positive);
         }
         if (name[0] == '\0' && !positive) { luaL_argerror(L, 2, "tuples must not have signs"); }
         if (lua_isnoneornil(L, 2)) {
@@ -927,7 +958,7 @@ struct Term : Object<Term> {
     }
     static int newNumber(lua_State *L) {
         clingo_symbol_t sym;
-        clingo_symbol_create_number(luaL_checkinteger(L, 1), &sym);
+        clingo_symbol_create_number(numeric_cast<int>(luaL_checkinteger(L, 1)), &sym);
         return Term::new_(L, sym);
     }
     static int newString(lua_State *L) {
@@ -965,7 +996,7 @@ struct Term : Object<Term> {
     static int number(lua_State *L) {
         auto &self = get_self(L);
         if (clingo_symbol_type(self.symbol) == clingo_symbol_type_number) {
-            lua_pushnumber(L, call_c(L, clingo_symbol_number, self.symbol));
+            lua_pushinteger(L, call_c(L, clingo_symbol_number, self.symbol));
         }
         else {
             lua_pushnil(L);
@@ -996,7 +1027,7 @@ struct Term : Object<Term> {
         auto &self = get_self(L);
         if (clingo_symbol_type(self.symbol) == clingo_symbol_type_function) {
             auto ret = call_c(L, clingo_symbol_arguments, self.symbol);
-            lua_createtable(L, ret.second, 0);
+            lua_createtable(L, numeric_cast<int>(ret.second), 0);
             int i = 1;
             for (auto it = ret.first, ie = it + ret.second; it != ie; ++it) {
                 Term::new_(L, *it);
@@ -1060,14 +1091,14 @@ clingo_symbol_t luaToVal(lua_State *L, int idx) {
         }
         case LUA_TNUMBER: {
             clingo_symbol_t ret;
-            clingo_symbol_create_number(lua_tointeger(L, idx), &ret);
+            clingo_symbol_create_number(numeric_cast<int>(lua_tointeger(L, idx)), &ret);
             return ret;
         }
         case LUA_TUSERDATA: {
             bool check = false;
             if (lua_getmetatable(L, idx)) {                          // +1
                 lua_getfield(L, LUA_REGISTRYINDEX, "clingo.Symbol"); // +1
-                check = lua_rawequal(L, -1, -2);
+                check = lua_rawequal(L, -1, -2) != 0;
                 lua_pop(L, 2);                                       // -2
             }
             if (check) { return static_cast<Term*>(lua_touserdata(L, idx))->symbol; }
@@ -1097,7 +1128,7 @@ int luacall_(lua_State *L) {
     for (auto it = args.arguments, ie = it + args.size; it != ie; ++it) {
         Term::new_(L, *it);
     }
-    lua_call(L, args.size + context, 1);
+    lua_call(L, numeric_cast<int>(args.size + context), 1);
     if (lua_type(L, -1) == LUA_TTABLE) {
         lua_pushnil(L);
         while (lua_next(L, -2)) {
@@ -1165,7 +1196,7 @@ int luaCall(lua_State *L) {
     for (auto it = args.arguments, ie = it + args.size; it != ie; ++it) {
         Term::new_(L, *it);
     }
-    lua_call(L, args.size + hasContext, 1);
+    lua_call(L, numeric_cast<int>(args.size + hasContext), 1);
     if (lua_type(L, -1) == LUA_TTABLE) {
         lua_pushnil(L);
         while (lua_next(L, -2)) {
@@ -1300,7 +1331,7 @@ struct Model : Object<Model> {
         auto size = call_c(L, clingo_model_symbols_size, self.model, atomset);
         clingo_symbol_t *symbols = static_cast<clingo_symbol_t *>(lua_newuserdata(L, size * sizeof(*symbols))); // +1
         handle_c_error(L, clingo_model_symbols(self.model, atomset, symbols, size));
-        lua_createtable(L, size, 0); // +1
+        lua_createtable(L, numeric_cast<int>(size), 0); // +1
         int i = 1;
         for (auto it = symbols, ie = it + size; it != ie; ++it) {
             Term::new_(L, *it);      // +1
@@ -1314,10 +1345,10 @@ struct Model : Object<Model> {
         auto size = call_c(L, clingo_model_cost_size, self.model);
         int64_t *costs = static_cast<int64_t *>(lua_newuserdata(L, size * sizeof(*costs))); // +1
         handle_c_error(L, clingo_model_cost(self.model, costs, size));
-        lua_createtable(L, size, 0); // +1
+        lua_createtable(L, numeric_cast<int>(size), 0); // +1
         int i = 1;
         for (auto it = costs, ie = it + size; it != ie; ++it) {
-            lua_pushinteger(L, *it); // +1
+            lua_pushinteger(L, numeric_cast<lua_Integer>(*it)); // +1
             lua_rawseti(L, -2, i++); // -1
         }
         lua_replace(L, -2); // -1
@@ -1384,7 +1415,7 @@ struct Model : Object<Model> {
             return thread_id(L);
         }
         else if (strcmp(name, "number") == 0) {
-            lua_pushnumber(L, call_c(L, clingo_model_number, self.model));
+            lua_pushinteger(L, numeric_cast<lua_Integer>(call_c(L, clingo_model_number, self.model)));
             return 1;
         }
         else if (strcmp(name, "optimality_proven") == 0) {
@@ -1417,14 +1448,14 @@ luaL_Reg const Model::meta[] = {
 int newStatistics(lua_State *L, clingo_statistics_t *stats, uint64_t key) {
     switch (call_c(L, clingo_statistics_type, stats, key)) {
         case clingo_statistics_type_value: {
-            lua_pushnumber(L, call_c(L, clingo_statistics_value_get, stats, key)); // +1
+            lua_pushnumber(L, numeric_cast<lua_Number>(call_c(L, clingo_statistics_value_get, stats, key))); // +1
             return 1;
         }
         case clingo_statistics_type_array: {
             lua_newtable(L); // +1
             for (size_t i = 0, e = call_c(L, clingo_statistics_array_size, stats, key); i != e; ++i) {
                 newStatistics(L, stats, call_c(L, clingo_statistics_array_at, stats, key, i)); // +1
-                lua_rawseti(L, -2, i+1); // -1
+                lua_rawseti(L, -2, numeric_cast<int>(i+1)); // -1
             }
             return 1;
         }
@@ -1535,10 +1566,10 @@ struct Configuration : Object<Configuration> {
         auto type = call_c(L, clingo_configuration_type, self.conf, self.key);
         if (type & clingo_configuration_type_map) {
             size_t size = call_c(L, clingo_configuration_map_size, self.conf, self.key);
-            lua_createtable(L, size, 0);
+            lua_createtable(L, numeric_cast<int>(size), 0);
             for (size_t i = 0; i < size; ++i) {
                 lua_pushstring(L, call_c(L, clingo_configuration_map_subkey_name, self.conf, self.key, i));
-                lua_rawseti(L, -2, i+1);
+                lua_rawseti(L, -2, numeric_cast<int>(i+1));
             }
         }
         return 1;
@@ -1595,7 +1626,7 @@ struct Configuration : Object<Configuration> {
     static int next(lua_State *L) {
         auto &self = *(Configuration *)luaL_checkudata(L, lua_upvalueindex(1), typeName);
         size_t index = luaL_checkinteger(L, lua_upvalueindex(2));
-        lua_pushnumber(L, index + 1);
+        lua_pushinteger(L, numeric_cast<lua_Integer>(index + 1));
         lua_replace(L, lua_upvalueindex(2));
         size_t size = call_c(L, clingo_configuration_array_size, self.conf, self.key);
         if (index < size) {
@@ -1611,7 +1642,7 @@ struct Configuration : Object<Configuration> {
     static int iter(lua_State *L) {
         luaL_checkudata(L, 1, typeName);
         lua_pushvalue(L, 1);
-        lua_pushnumber(L, 0);
+        lua_pushinteger(L, 0);
         lua_pushcclosure(L, next, 2);
         return 1;
     }
@@ -1622,7 +1653,7 @@ struct Configuration : Object<Configuration> {
         if (call_c(L, clingo_configuration_type, self.conf, self.key) & clingo_configuration_type_array) {
             n = call_c(L, clingo_configuration_array_size, self.conf, self.key);
         }
-        lua_pushnumber(L, n);
+        lua_pushinteger(L, numeric_cast<lua_Integer>(n));
         return 1;
     }
 
@@ -1734,7 +1765,7 @@ struct SymbolicAtoms : Object<SymbolicAtoms> {
     static int by_signature(lua_State *L) {
         auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
-        int arity = luaL_checkinteger(L, 3);
+        int arity = numeric_cast<int>(luaL_checkinteger(L, 3));
         bool positive = lua_isnone(L, 4) || lua_toboolean(L, 4);
         clingo_signature_t sig = call_c(L, clingo_signature_create, name, arity, positive);
         auto range = call_c(L, clingo_symbolic_atoms_begin, self.atoms, &sig);
@@ -1748,7 +1779,7 @@ struct SymbolicAtoms : Object<SymbolicAtoms> {
         auto size = call_c(L, clingo_symbolic_atoms_signatures_size, self.atoms);
         clingo_signature_t *ret = static_cast<clingo_signature_t*>(lua_newuserdata(L, sizeof(*ret) * size)); // +1
         handle_c_error(L, clingo_symbolic_atoms_signatures(self.atoms, ret, size));
-        lua_createtable(L, size, 0);                               // +1
+        lua_createtable(L, numeric_cast<int>(size), 0);            // +1
         int i = 1;
         for (auto it = ret, ie = it + size; it != ie; ++it) {
             lua_createtable(L, 3, 0);                              // +1
@@ -1861,19 +1892,19 @@ struct PropagateInit : Object<PropagateInit> {
 
     static int mapLit(lua_State *L) {
         auto &self = get_self(L);
-        int lit = luaL_checkinteger(L, 2);
-        lua_pushnumber(L, call_c(L, clingo_propagate_init_solver_literal, self.init, lit));
+        auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
+        lua_pushinteger(L, call_c(L, clingo_propagate_init_solver_literal, self.init, lit));
         return 1;
     }
 
     static int numThreads(lua_State *L) {
         auto &self = get_self(L);
-        lua_pushnumber(L, clingo_propagate_init_number_of_threads(self.init));
+        lua_pushinteger(L, clingo_propagate_init_number_of_threads(self.init));
         return 1;
     }
     static int addWatch(lua_State *L) {
         auto &self = get_self(L);
-        int lit = luaL_checkinteger(L, 2);
+        auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
         handle_c_error(L, clingo_propagate_init_add_watch(self.init, lit));
         return 0;
     }
@@ -1893,7 +1924,7 @@ struct PropagateInit : Object<PropagateInit> {
 
     static int setState(lua_State *L) {
         auto &self = get_self(L);
-        int id = luaL_checknumber(L, 2);
+        auto id = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
         luaL_checkany(L, 3);
         if (id < 1 || id > (int)clingo_propagate_init_number_of_threads(self.init)) {
             luaL_error(L, "invalid solver thread id %d", id);
@@ -1932,38 +1963,38 @@ struct Assignment : Object<Assignment> {
     }
 
     static int hasLit(lua_State *L) {
-        auto lit = luaL_checkinteger(L, 2);
+        auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
         lua_pushboolean(L, clingo_assignment_has_literal(get_self(L).ass, lit));
         return 1;
     }
 
     static int level(lua_State *L) {
-        int lit = luaL_checkinteger(L, 2);
+        auto lit = numeric_cast<uint32_t>(luaL_checkinteger(L, 2));
         lua_pushinteger(L, call_c(L, clingo_assignment_level, get_self(L).ass, lit));
         return 1;
     }
 
     static int decision(lua_State *L) {
-        int level = luaL_checkinteger(L, 2);
+        auto level = numeric_cast<uint32_t>(luaL_checkinteger(L, 2));
         lua_pushinteger(L, call_c(L, clingo_assignment_decision, get_self(L).ass, level));
         return 1;
     }
 
     static int isFixed(lua_State *L) {
-        int lit = luaL_checkinteger(L, 2);
+        auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
         lua_pushboolean(L, call_c(L, clingo_assignment_is_fixed, get_self(L).ass, lit));
         return 1;
     }
 
     static int isTrue(lua_State *L) {
-        int lit = luaL_checkinteger(L, 2);
+        auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
         lua_pushboolean(L, call_c(L, clingo_assignment_is_true, get_self(L).ass, lit));
         return 1;
     }
 
     static int value(lua_State *L) {
         auto &self = get_self(L);
-        int lit = luaL_checkinteger(L, 2);
+        auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
         auto val = call_c(L, clingo_assignment_truth_value, self.ass, lit);
         if (val == clingo_truth_value_free) { lua_pushnil(L); }
         else { lua_pushboolean(L, val == clingo_truth_value_true); }
@@ -1971,7 +2002,7 @@ struct Assignment : Object<Assignment> {
     }
 
     static int isFalse(lua_State *L) {
-        int lit = luaL_checkinteger(L, 2);
+        auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
         lua_pushboolean(L, call_c(L, clingo_assignment_is_false, get_self(L).ass, lit));
         return 1;
     }
@@ -2011,7 +2042,7 @@ struct PropagateControl : Object<PropagateControl> {
 
     static int id(lua_State *L) {
         auto &self = get_self(L);
-        lua_pushinteger(L, clingo_propagate_control_thread_id(self.ctl));
+        lua_pushinteger(L, numeric_cast<lua_Integer>(clingo_propagate_control_thread_id(self.ctl)));
         return 1;
     }
 
@@ -2030,7 +2061,7 @@ struct PropagateControl : Object<PropagateControl> {
         auto lits = AnyWrap::new_<std::vector<clingo_literal_t>>(L); // +1
         lua_pushnil(L);                                              // +1
         while (lua_next(L, -3)) {                                    // -1
-            int lit = luaL_checkinteger(L, -1);                      // +0
+            auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, -1)); // +0
             PROTECT(lits->emplace_back(lit));
             lua_pop(L, 1);
         }
@@ -2056,27 +2087,27 @@ struct PropagateControl : Object<PropagateControl> {
 
     static int addLiteral(lua_State *L) {
         auto &self = get_self(L);
-        lua_pushnumber(L, call_c(L, clingo_propagate_control_add_literal, self.ctl));
+        lua_pushinteger(L, call_c(L, clingo_propagate_control_add_literal, self.ctl));
         return 1;
     }
 
     static int addWatch(lua_State *L) {
         auto &self = get_self(L);
-        auto lit = luaL_checkinteger(L, 2);
+        auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
         handle_c_error(L, clingo_propagate_control_add_watch(self.ctl, lit));
         return 0;
     }
 
     static int removeWatch(lua_State *L) {
         auto &self = get_self(L);
-        auto lit = luaL_checkinteger(L, 2);
+        auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
         clingo_propagate_control_remove_watch(self.ctl, lit);
         return 0;
     }
 
     static int hasWatch(lua_State *L) {
         auto &self = get_self(L);
-        auto lit = luaL_checkinteger(L, 2);
+        auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
         lua_pushboolean(L, clingo_propagate_control_has_watch(self.ctl, lit));
         return 1;
     }
@@ -2136,7 +2167,7 @@ public:
         while (self->threads.size() < static_cast<size_t>(clingo_propagate_init_number_of_threads(init))) {
             self->threads.emplace_back(lua_newthread(L));
             lua_xmove(L, self->T, 1);
-            lua_rawseti(self->T, ThreadIndex, self->threads.size());
+            lua_rawseti(self->T, ThreadIndex, numeric_cast<int>(self->threads.size()));
         }
         lua_pushvalue(self->T, PropagatorIndex);         // +1
         lua_xmove(self->T, L, 1);                        // +0
@@ -2166,7 +2197,7 @@ public:
         lua_newtable(L);
         for (size_t i = 0; i < size; ++i) {
             lua_pushinteger(L, *(changes + i));
-            lua_rawseti(L, -2, i+1);
+            lua_rawseti(L, -2, numeric_cast<int>(i+1));
         }
         return 1;
     }
@@ -2223,7 +2254,7 @@ public:
         if (!lua_isnil(L, -1)) {
             auto id = clingo_propagate_control_thread_id(control);
             lua_insert(L, -2);
-            lua_pushnumber(L, id + 1);                   // +1
+            lua_pushinteger(L, id + 1);                   // +1
             Assignment::new_(L, clingo_propagate_control_assignment(control));  // +1
             getChanges(L, changes, size);                // +1
             getState(L, self->T, id);                    // +1
@@ -2494,7 +2525,7 @@ private:
     }
     template <class T>
     static void push(lua_State *L, T n, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr) {
-        lua_pushnumber(L, n);
+        lua_pushinteger(L, n);
     }
     template <class T>
     static void push(lua_State *L, Range<T> span) {
@@ -2761,7 +2792,7 @@ struct ControlWrap : Object<ControlWrap> {
         auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
         if (strcmp(name, "use_enumeration_assumption") == 0) {
-            bool enabled = lua_toboolean(L, 3);
+            bool enabled = lua_toboolean(L, 3) != 0;
             handle_c_error(L, clingo_control_use_enumeration_assumption(self.ctl, enabled));
             return 0;
         }
@@ -2866,7 +2897,7 @@ struct ControlWrap : Object<ControlWrap> {
     }
 
     static int registerObserver(lua_State *L) {
-        bool replace = lua_toboolean(L, 3);
+        bool replace = lua_toboolean(L, 3) != 0;
         auto &self = get_self(L);
         lua_pushstring(L, "observers");     // +1
         lua_rawget(L, 1);                   // +0
