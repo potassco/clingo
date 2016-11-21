@@ -12,19 +12,50 @@ def split_path(path):
 
 def find(path, target):
     header = {}
+    output = ""
     for root, dirnames, filenames in os.walk(path):
         if "tests" in dirnames:
             dirnames.remove("tests")
         if target == "header" and "src" in dirnames:
             dirnames.remove("src")
-        for filename in filenames:
+        for filename in sorted(filenames):
             components = split_path(root)
             components.append(filename)
             if re.match(r"^.*\.(h|hh|hpp|c|cc|cpp)$", filename):
                 header.setdefault(root, "")
                 header[root] += "    \"${{{}_path}}/{src}\"\n".format(target, src="/".join(components))
+            elif re.match(r"^.*\.(yy)$", filename):
+                name, ext = os.path.splitext(filename)
+                path = ''.join([d + "/" for d in components[:-1]])
+                header[os.path.join(root, name)] = '''\
+    "${{{target}_path}}/{path}{name}{ext}"
+    ${{BISON_{name}_OUTPUTS}}
+'''.format(name=name,target=target,ext=ext,path=path)
+                output += '''\
+file(MAKE_DIRECTORY "${{CMAKE_CURRENT_BINARY_DIR}}/{path}{name}")
+bison_target("{name}" "${{{target}_path}}/{path}{name}{ext}" "${{CMAKE_CURRENT_BINARY_DIR}}/{path}{name}/grammar.cc")
+if(MSVC)
+    set_source_files_properties("${{BISON_{name}_OUTPUT_SOURCE}}"
+        PROPERTIES COMPILE_FLAGS "/wd4065")
+endif()
+'''.format(name=name, path=path, ext=ext, target=target)
+            elif re.match(r"^.*\.(xh|xch)$", filename):
+                header.setdefault(root, "")
+                name, ext = os.path.splitext(filename)
+                path = ''.join(["/" + d for d in components[:-1]])
+                options = ""
+                if ext == ".xch":
+                    options = " OPTIONS -c"
+                header[root]+= '''\
+    "${{{target}_path}}{path}/{name}{ext}"
+    ${{RE2C_{name}_OUTPUT}}
+'''.format(name=name,target=target,ext=ext,path=path)
+                output += '''\
+file(MAKE_DIRECTORY "${{CMAKE_CURRENT_BINARY_DIR}}{path}")
+re2c_target(NAME "{name}" INPUT "${{{target}_path}}{path}/{name}{ext}" OUTPUT "${{CMAKE_CURRENT_BINARY_DIR}}{path}/{name}.hh"{options})
+'''.format(name=name, path=path, ext=ext, target=target, options=options)
 
-    output = 'set(ide_{}_group "{} Files")\n'.format(target, target.title())
+    output+= 'set(ide_{}_group "{} Files")\n'.format(target, target.title())
 
     groups = []
     for root in sorted(header):
@@ -58,7 +89,7 @@ for f in files:
     replace = re.sub(r"#[ ]*\[\[\[(?P<target>[^:]*): (?P<path>[^\n\]]*)(.|\n)*?\]\]\]", rep, content, 0, re.MULTILINE)
 
     if content != replace:
-        sys.stderr.write("File changed!\n")
+        sys.stderr.write("File {} changed!\n".format(f))
         sys.stderr.flush()
         open(f, "w").write(replace)
 

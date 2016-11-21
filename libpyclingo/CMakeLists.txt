@@ -2,8 +2,8 @@ set(source_path ${CLINGO_SOURCE_DIR}/libpyclingo)
 # [[[source: .
 set(ide_source_group "Source Files")
 set(source-group
-    "${source_path}/python.hh"
-    "${source_path}/python.cc")
+    "${source_path}/python.cc"
+    "${source_path}/python.hh")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source
     ${source-group})

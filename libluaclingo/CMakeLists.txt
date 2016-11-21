@@ -2,8 +2,8 @@ set(source_path ${CLINGO_SOURCE_DIR}/libluaclingo)
 # [[[source: .
 set(ide_source_group "Source Files")
 set(source-group
-    "${source_path}/lua.hh"
-    "${source_path}/lua.cc")
+    "${source_path}/lua.cc"
+    "${source_path}/lua.hh")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source
     ${source-group})

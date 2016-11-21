@@ -2,14 +2,14 @@ set(source_path "${CLINGO_SOURCE_DIR}/libclingo/tests")
 # [[[source: .
 set(ide_source_group "Source Files")
 set(source-group
-    "${source_path}/catch.hpp"
-    "${source_path}/tests.hh"
-    "${source_path}/symbol.cc"
     "${source_path}/ast.cc"
-    "${source_path}/main.cc"
-    "${source_path}/variant.cc"
+    "${source_path}/catch.hpp"
     "${source_path}/clingo.cc"
-    "${source_path}/propagator.cc")
+    "${source_path}/main.cc"
+    "${source_path}/propagator.cc"
+    "${source_path}/symbol.cc"
+    "${source_path}/tests.hh"
+    "${source_path}/variant.cc")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source
     ${source-group})
