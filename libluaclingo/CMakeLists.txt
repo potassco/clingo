@@ -1,9 +1,8 @@
-set(source_path ${CLINGO_SOURCE_DIR}/libluaclingo)
 # [[[source: .
 set(ide_source_group "Source Files")
 set(source-group
-    "${source_path}/luaclingo.cc"
-    "${source_path}/luaclingo.h")
+    "${CMAKE_CURRENT_SOURCE_DIR}/luaclingo.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/luaclingo.h")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source
     ${source-group})
@@ -16,12 +15,10 @@ else()
 endif()
 
 add_library(libluaclingo ${luaclingo_lib_type} ${source})
-target_compile_definitions(libluaclingo PRIVATE LUACLINGO_BUILD_LIBRARY)
-set_property(TARGET libluaclingo PROPERTY INTERFACE_COMPILE_DEFINITIONS "CLINGO_WITH_LUA")
-target_link_libraries(libluaclingo PUBLIC libclingo)
-target_link_libraries(libluaclingo PRIVATE Lua::Lua)
+target_link_libraries(libluaclingo PUBLIC libclingo PRIVATE Lua::Lua)
 target_include_directories(libluaclingo PUBLIC
-    "$<BUILD_INTERFACE:${source_path}>")
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>")
+target_compile_definitions(libluaclingo PRIVATE LUACLINGO_BUILD_LIBRARY PUBLIC CLINGO_WITH_LUA)
 set_target_properties(libluaclingo PROPERTIES
     OUTPUT_NAME luaclingo
     FOLDER lib)

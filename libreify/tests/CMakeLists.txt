@@ -1,14 +1,14 @@
-set(source_path "${CLINGO_SOURCE_DIR}/libreify/tests")
 # [[[source: .
 set(ide_source_group "Source Files")
 set(source-group
-    "${source_path}/catch.hpp"
-    "${source_path}/main.cc"
-    "${source_path}/program.cc")
+    "${CMAKE_CURRENT_SOURCE_DIR}/catch.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/program.cc")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source
     ${source-group})
 # ]]]
+
 add_executable(test_reify ${source})
 target_link_libraries(test_reify PRIVATE libreify)
 target_include_directories(test_reify PRIVATE

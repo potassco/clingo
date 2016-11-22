@@ -1,8 +1,7 @@
-set(source_path ${CMAKE_CURRENT_SOURCE_DIR})
 # [[[source: .
 set(ide_source_group "Source Files")
 set(source-group
-    "${source_path}/main.cc")
+    "${CMAKE_CURRENT_SOURCE_DIR}/main.cc")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source
     ${source-group})

@@ -1,46 +1,45 @@
-set(source_path "${CLINGO_SOURCE_DIR}/libgringo/tests")
 # [[[source: .
 set(ide_source_group "Source Files")
 set(source-group
-    "${source_path}/catch.hpp"
-    "${source_path}/graph.cc"
-    "${source_path}/intervals.cc"
-    "${source_path}/main.cc"
-    "${source_path}/python.cc"
-    "${source_path}/safetycheck.cc"
-    "${source_path}/symbol.cc"
-    "${source_path}/term.cc"
-    "${source_path}/term_helper.hh"
-    "${source_path}/tests.hh"
-    "${source_path}/unique_vec.cc"
-    "${source_path}/utility.cc")
+    "${CMAKE_CURRENT_SOURCE_DIR}/catch.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/graph.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/intervals.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/python.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/safetycheck.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/symbol.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/term.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/term_helper.hh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests.hh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/unique_vec.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/utility.cc")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source-group-ground
-    "${source_path}/ground/dependency.cc"
-    "${source_path}/ground/grounder_helper.hh"
-    "${source_path}/ground/instantiation.cc"
-    "${source_path}/ground/literal.cc"
-    "${source_path}/ground/program.cc"
-    "${source_path}/ground/theory.cc")
+    "${CMAKE_CURRENT_SOURCE_DIR}/ground/dependency.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ground/grounder_helper.hh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ground/instantiation.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ground/literal.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ground/program.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ground/theory.cc")
 source_group("${ide_source_group}\\ground" FILES ${source-group-ground})
 set(source-group-input
-    "${source_path}/input/aggregate.cc"
-    "${source_path}/input/aggregate_helper.hh"
-    "${source_path}/input/lit_helper.hh"
-    "${source_path}/input/literal.cc"
-    "${source_path}/input/nongroundgrammar.cc"
-    "${source_path}/input/nongroundlexer.cc"
-    "${source_path}/input/parse_term.cc"
-    "${source_path}/input/program.cc"
-    "${source_path}/input/programbuilder.cc")
+    "${CMAKE_CURRENT_SOURCE_DIR}/input/aggregate.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/input/aggregate_helper.hh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/input/lit_helper.hh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/input/literal.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/input/nongroundgrammar.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/input/nongroundlexer.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/input/parse_term.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/input/program.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/input/programbuilder.cc")
 source_group("${ide_source_group}\\input" FILES ${source-group-input})
 set(source-group-output
-    "${source_path}/output/aspcomp13.cc"
-    "${source_path}/output/incremental.cc"
-    "${source_path}/output/lparse.cc"
-    "${source_path}/output/solver_helper.hh"
-    "${source_path}/output/theory.cc"
-    "${source_path}/output/warnings.cc")
+    "${CMAKE_CURRENT_SOURCE_DIR}/output/aspcomp13.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/output/incremental.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/output/lparse.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/output/solver_helper.hh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/output/theory.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/output/warnings.cc")
 source_group("${ide_source_group}\\output" FILES ${source-group-output})
 set(source
     ${source-group}
@@ -48,12 +47,11 @@ set(source
     ${source-group-input}
     ${source-group-output})
 # ]]]
+
 add_executable(test_gringo ${source})
 target_link_libraries(test_gringo PRIVATE libgringo libclasp)
 target_include_directories(test_gringo PRIVATE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-    $<BUILD_INTERFACE:${CLINGO_BINARY_DIR}/libgringo/src>)
-
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 if(MSVC)
     target_compile_definitions(test_gringo PRIVATE _SCL_SECURE_NO_WARNINGS)
 endif()

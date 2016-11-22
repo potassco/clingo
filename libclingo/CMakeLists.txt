@@ -1,35 +1,32 @@
-set(header_path ${CLINGO_SOURCE_DIR}/libclingo)
 # [[[header: .
 set(ide_header_group "Header Files")
 set(header-group
-    "${header_path}/clingo.h"
-    "${header_path}/clingo.hh")
+    "${CMAKE_CURRENT_SOURCE_DIR}/clingo.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/clingo.hh")
 source_group("${ide_header_group}" FILES ${header-group})
 set(header-group-clingo
-    "${header_path}/clingo/ast.hh"
-    "${header_path}/clingo/clingo_app.hh"
-    "${header_path}/clingo/clingocontrol.hh"
-    "${header_path}/clingo/control.hh"
-    "${header_path}/clingo/incmode.hh"
-    "${header_path}/clingo/script.h"
-    "${header_path}/clingo/scripts.hh")
+    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/ast.hh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/clingo_app.hh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/clingocontrol.hh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/control.hh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/incmode.hh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/script.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/scripts.hh")
 source_group("${ide_header_group}\\clingo" FILES ${header-group-clingo})
 set(header
     ${header-group}
     ${header-group-clingo})
 # ]]]
-
-set(source_path ${CLINGO_SOURCE_DIR}/libclingo)
 # [[[source: src
 set(ide_source_group "Source Files")
 set(source-group
-    "${source_path}/src/ast.cc"
-    "${source_path}/src/clingo_app.cc"
-    "${source_path}/src/clingocontrol.cc"
-    "${source_path}/src/control.cc"
-    "${source_path}/src/gringo_app.cc"
-    "${source_path}/src/incmode.cc"
-    "${source_path}/src/scripts.cc")
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/ast.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/clingo_app.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/clingocontrol.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/control.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/gringo_app.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/incmode.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/scripts.cc")
 source_group("${ide_source_group}" FILES ${source-group})
 set(source
     ${source-group})
@@ -44,18 +41,14 @@ else()
     set(clingo_lib_type STATIC)
 endif()
 
-add_library(libclingo ${clingo_lib_type} ${clingo_lib_type} ${header} ${source})
-target_include_directories(libclingo PRIVATE
-    "$<BUILD_INTERFACE:${CLASP_SOURCE_DIR}/app>"
-    "$<BUILD_INTERFACE:${header_path}>")
-target_include_directories(libclingo PUBLIC
-    "$<BUILD_INTERFACE:${CLINGO_SOURCE_DIR}/libgringo>"
-    "$<BUILD_INTERFACE:${CLINGO_SOURCE_DIR}/libclingo>")
-target_link_libraries(libclingo PRIVATE libgringo libclasp ${clingo_external_libs})
+add_library(libclingo ${clingo_lib_type} ${header} ${source})
+target_link_libraries(libclingo PRIVATE libgringo libclasp)
+target_include_directories(libclingo
+    PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+    PRIVATE
+    "$<BUILD_INTERFACE:${CLASP_SOURCE_DIR}/app>")
 target_compile_definitions(libclingo PRIVATE CLINGO_BUILD_LIBRARY)
-set_target_properties(libclingo PROPERTIES
-    OUTPUT_NAME clingo
-    FOLDER lib)
 if (NOT CLINGO_BUILD_SHARED)
     target_compile_definitions(libclingo PUBLIC CLINGO_NO_VISIBILITY)
 else()
@@ -65,13 +58,16 @@ else()
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
     install(FILES
-        "${CLINGO_SOURCE_DIR}/libclingo/clingo.hh"
-        "${CLINGO_SOURCE_DIR}/libclingo/clingo.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/clingo.hh"
+        "${CMAKE_CURRENT_SOURCE_DIR}/clingo.h"
         DESTINATION include)
 endif()
 if(MSVC)
     target_compile_definitions(libclingo PRIVATE _SCL_SECURE_NO_WARNINGS)
 endif()
+set_target_properties(libclingo PROPERTIES
+    OUTPUT_NAME clingo
+    FOLDER lib)
 
 if (CLINGO_BUILD_TESTS)
     add_subdirectory(tests)
