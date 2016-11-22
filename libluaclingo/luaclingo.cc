@@ -1110,7 +1110,7 @@ struct LuaCallArgs_ {
     char const *name;
     clingo_symbol_t const *arguments;
     size_t size;
-    clingo_symbol_callback_t *symbol_callback;
+    clingo_symbol_callback_t symbol_callback;
     void *data;
 };
 
@@ -1143,7 +1143,7 @@ int luacall_(lua_State *L) {
 }
 
 // TODO: also needs a version with a string location
-bool luacall(lua_State *L, clingo_location_t location, int context, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data) {
+bool luacall(lua_State *L, clingo_location_t const *location, int context, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) {
     if (!lua_checkstack(L, 4)) {
         clingo_set_error(clingo_error_bad_alloc, "lua stack size exceeded");
         return false;
@@ -1172,42 +1172,6 @@ bool luacall(lua_State *L, clingo_location_t location, int context, char const *
         return handle_lua_error(L, loc.c_str(), desc.c_str(), ret);
     }
     return true;
-}
-
-struct LuaCallArgs {
-    char const *name;
-    clingo_symbol_t const *arguments;
-    size_t size;
-    clingo_symbol_callback_t *symbol_callback;
-    void *data;
-};
-
-// TODO: remove
-int luaCall(lua_State *L) {
-    auto &args = *static_cast<LuaCallArgs*>(lua_touserdata(L, 1));
-    bool hasContext = !lua_isnil(L, 2);
-    if (hasContext) {
-        lua_getfield(L, 2, args.name);
-        lua_pushvalue(L, 2);
-    }
-    else { lua_getglobal(L, args.name); }
-    for (auto it = args.arguments, ie = it + args.size; it != ie; ++it) {
-        Term::new_(L, *it);
-    }
-    lua_call(L, numeric_cast<int>(args.size + hasContext), 1);
-    if (lua_type(L, -1) == LUA_TTABLE) {
-        lua_pushnil(L);
-        while (lua_next(L, -2)) {
-            clingo_symbol_t val = luaToVal(L, -1);
-            handle_c_error(L, args.symbol_callback(&val, 1, args.data));
-            lua_pop(L, 1);
-        }
-    }
-    else {
-        clingo_symbol_t val = luaToVal(L, -1);
-        handle_c_error(L, args.symbol_callback(&val, 1, args.data));
-    }
-    return 0;
 }
 
 // {{{1 wrap SolveControl
@@ -2634,7 +2598,7 @@ struct ControlWrap : Object<ControlWrap> {
         lua_State *L;
         int context;
     };
-    static bool on_context(clingo_location_t location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data) {
+    static bool on_context(clingo_location_t const *location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) {
         auto &ctx = *static_cast<Context*>(data);
         return luacall(ctx.L, location, ctx.context, name, arguments, arguments_size, symbol_callback, symbol_callback_data);
     }
@@ -2890,7 +2854,7 @@ struct ControlWrap : Object<ControlWrap> {
             Propagator::check
         };
         PROTECT(self.propagators.emplace_front(L, T));
-        handle_c_error(L, clingo_control_register_propagator(self.ctl, propagator, &self.propagators.front(), true));
+        handle_c_error(L, clingo_control_register_propagator(self.ctl, &propagator, &self.propagators.front(), true));
         return 0;
     }
 
@@ -2935,7 +2899,7 @@ struct ControlWrap : Object<ControlWrap> {
             GroundProgramObserver::theory_atom_with_guard
         };
         PROTECT(self.observers.emplace_front(L, T));
-        handle_c_error(L, clingo_control_register_observer(self.ctl, observer, replace, &self.observers.front()));
+        handle_c_error(L, clingo_control_register_observer(self.ctl, &observer, replace, &self.observers.front()));
         return 0;
     }
 
@@ -3073,7 +3037,7 @@ struct LuaScriptC {
         bool ret = handle_lua_error(L, "main", "could not load clingo module", code);
         return ret;
     }
-    static bool execute(clingo_location_t loc, char const *code, void *data) {
+    static bool execute(clingo_location_t const *loc, char const *code, void *data) {
         auto &self = *static_cast<LuaScriptC*>(data);
         if (!self.init()) { return false; }
         std::string name;
@@ -3097,7 +3061,7 @@ struct LuaScriptC {
         ret = lua_pcall(self.L, 0, 0, -2);
         return handle_lua_error(self.L, name.c_str(), "running lua script failed", ret);
     }
-    static bool call(clingo_location_t loc, char const *name, clingo_symbol_t const *arguments, size_t size, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data, void *data) {
+    static bool call(clingo_location_t const *loc, char const *name, clingo_symbol_t const *arguments, size_t size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data) {
         auto &self = *static_cast<LuaScriptC*>(data);
         return luacall(self.L, loc, 0, name, arguments, size, symbol_callback, symbol_callback_data);
     }

@@ -3588,13 +3588,13 @@ inline void Control::ground(PartSpan parts, GroundCallback cb) {
     using Data = std::pair<GroundCallback&, std::exception_ptr>;
     Data data(cb, nullptr);
     Detail::handle_error(clingo_control_ground(*impl_, reinterpret_cast<clingo_part_t const *>(parts.begin()), parts.size(),
-        [](clingo_location_t loc, char const *name, clingo_symbol_t const *args, size_t n, void *data, clingo_symbol_callback_t *cb, void *cbdata) -> bool {
+        [](clingo_location_t const *loc, char const *name, clingo_symbol_t const *args, size_t n, void *data, clingo_symbol_callback_t cb, void *cbdata) -> bool {
             auto &d = *static_cast<Data*>(data);
             CLINGO_CALLBACK_TRY {
                 if (d.first) {
                     struct Ret : std::exception { };
                     try {
-                        d.first(Location(loc), name, {reinterpret_cast<Symbol const *>(args), n}, [cb, cbdata](SymbolSpan symret) {
+                        d.first(Location(*loc), name, {reinterpret_cast<Symbol const *>(args), n}, [cb, cbdata](SymbolSpan symret) {
                             if (!cb(reinterpret_cast<clingo_symbol_t const *>(symret.begin()), symret.size(), cbdata)) { throw Ret(); }
                         });
                     }
@@ -3693,7 +3693,7 @@ inline void Control::register_propagator(Propagator &propagator, bool sequential
         reinterpret_cast<decltype(clingo_propagator_t::undo)>(Detail::g_undo),
         reinterpret_cast<decltype(clingo_propagator_t::check)>(Detail::g_check)
     };
-    Detail::handle_error(clingo_control_register_propagator(*impl_, g_propagator, &propagator, sequential));
+    Detail::handle_error(clingo_control_register_propagator(*impl_, &g_propagator, &propagator, sequential));
 }
 
 namespace Detail {
@@ -3822,7 +3822,7 @@ inline void Control::register_observer(GroundProgramObserver &observer, bool rep
         reinterpret_cast<decltype(clingo_ground_program_observer_t::theory_atom_with_guard)>(Detail::g_theory_atom_with_guard)
     };
 
-    Detail::handle_error(clingo_control_register_observer(*impl_, g_observer, replace, &observer));
+    Detail::handle_error(clingo_control_register_observer(*impl_, &g_observer, replace, &observer));
 }
 
 inline void Control::cleanup() {

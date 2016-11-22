@@ -290,7 +290,7 @@ int main(int argc, char const **argv) {
   if (!clingo_control_new(argv+1, argc-1, NULL, NULL, 20, &ctl) != 0) { goto error; }
 
   // register the propagator
-  if (!clingo_control_register_propagator(ctl, prop, &prop_data, false)) { goto error; }
+  if (!clingo_control_register_propagator(ctl, &prop, &prop_data, false)) { goto error; }
 
   // add a logic program to the pigeon part
   if (!clingo_control_add(ctl, "pigeon", params, sizeof(params)/sizeof(*params),

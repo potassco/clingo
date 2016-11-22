@@ -161,7 +161,7 @@ int main(int argc, char const **argv) {
   if (!clingo_program_builder_begin(data.builder)) { goto error; }
 
   // get the AST of the program
-  if (!clingo_parse_program("a :- not b. b :- not a.", (clingo_ast_callback_t*)on_statement, &data, NULL, NULL, 20)) { goto error; }
+  if (!clingo_parse_program("a :- not b. b :- not a.", (clingo_ast_callback_t)on_statement, &data, NULL, NULL, 20)) { goto error; }
 
   // add the external statement: #external enable.
   ext.atom = data.atom;

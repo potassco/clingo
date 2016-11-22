@@ -906,7 +906,7 @@ extern "C" bool clingo_statistics_value_get(clingo_statistics_t *stats, uint64_t
 
 // {{{1 global functions
 
-extern "C" bool clingo_parse_term(char const *str, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_symbol_t *ret) {
+extern "C" bool clingo_parse_term(char const *str, clingo_logger_t logger, void *data, unsigned message_limit, clingo_symbol_t *ret) {
     GRINGO_CLINGO_TRY {
         Input::GroundTermParser parser;
         Logger::Printer printer;
@@ -921,7 +921,7 @@ extern "C" bool clingo_parse_term(char const *str, clingo_logger_t *logger, void
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_parse_program(char const *program, clingo_ast_callback_t *cb, void *cb_data, clingo_logger_t *logger, void *logger_data, unsigned message_limit) {
+extern "C" bool clingo_parse_program(char const *program, clingo_ast_callback_t cb, void *cb_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
     GRINGO_CLINGO_TRY {
         Input::ASTBuilder builder([cb, cb_data](clingo_ast_statement_t const &stm) { handleCError(cb(&stm, cb_data)); });
         bool incmode = false;
@@ -1032,7 +1032,7 @@ extern "C" bool clingo_control_add(clingo_control_t *ctl, char const *name, char
 namespace {
 
 struct ClingoContext : Context {
-    ClingoContext(clingo_control_t *ctl, clingo_ground_callback_t *cb, void *data)
+    ClingoContext(clingo_control_t *ctl, clingo_ground_callback_t cb, void *data)
     : ctl(ctl)
     , cb(cb)
     , data(data) {}
@@ -1044,7 +1044,7 @@ struct ClingoContext : Context {
     SymVec call(Location const &loc, String name, SymSpan args, Logger &) override {
         assert(cb);
         clingo_location_t loc_c{loc.beginFilename.c_str(), loc.endFilename.c_str(), loc.beginLine, loc.endLine, loc.beginColumn, loc.endColumn};
-        auto ret = cb(loc_c, name.c_str(), reinterpret_cast<clingo_symbol_t const *>(args.first), args.size, data, [](clingo_symbol_t const * ret_c, size_t n, void *data) -> bool {
+        auto ret = cb(&loc_c, name.c_str(), reinterpret_cast<clingo_symbol_t const *>(args.first), args.size, data, [](clingo_symbol_t const * ret_c, size_t n, void *data) -> bool {
             auto t = static_cast<ClingoContext*>(data);
             GRINGO_CLINGO_TRY {
                 for (auto it = ret_c, ie = it + n; it != ie; ++it) {
@@ -1061,14 +1061,14 @@ struct ClingoContext : Context {
     ~ClingoContext() noexcept = default;
 
     clingo_control_t *ctl;
-    clingo_ground_callback_t *cb;
+    clingo_ground_callback_t cb;
     void *data;
     SymVec ret;
 };
 
 }
 
-extern "C" bool clingo_control_ground(clingo_control_t *ctl, clingo_part_t const * vec, size_t n, clingo_ground_callback_t *cb, void *data) {
+extern "C" bool clingo_control_ground(clingo_control_t *ctl, clingo_part_t const * vec, size_t n, clingo_ground_callback_t cb, void *data) {
     GRINGO_CLINGO_TRY {
         Control::GroundVec gv;
         gv.reserve(n);
@@ -1097,7 +1097,7 @@ Control::Assumptions toAss(clingo_symbolic_literal_t const * assumptions, size_t
 
 }
 
-extern "C" bool clingo_control_solve(clingo_control_t *ctl, clingo_model_callback_t *model_handler, void *data, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_result_bitset_t *ret) {
+extern "C" bool clingo_control_solve(clingo_control_t *ctl, clingo_model_callback_t model_handler, void *data, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_result_bitset_t *ret) {
     GRINGO_CLINGO_TRY {
         *ret = static_cast<clingo_solve_result_bitset_t>(ctl->solve([model_handler, data](Model const &m) {
             bool goon = true;
@@ -1167,8 +1167,8 @@ private:
 
 } // namespace
 
-extern "C" bool clingo_control_register_propagator(clingo_control_t *ctl, clingo_propagator_t propagator, void *data, bool sequential) {
-    GRINGO_CLINGO_TRY { ctl->registerPropagator(gringo_make_unique<ClingoPropagator>(propagator, data), sequential); }
+extern "C" bool clingo_control_register_propagator(clingo_control_t *ctl, clingo_propagator_t const *propagator, void *data, bool sequential) {
+    GRINGO_CLINGO_TRY { ctl->registerPropagator(gringo_make_unique<ClingoPropagator>(*propagator, data), sequential); }
     GRINGO_CLINGO_CATCH;
 }
 
@@ -1203,7 +1203,7 @@ extern "C" bool clingo_control_load(clingo_control_t *ctl, char const *file) {
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_control_solve_async(clingo_control_t *ctl, clingo_model_callback_t *mh, void *mh_data, clingo_finish_callback_t *fh, void *fh_data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_async_t **ret) {
+extern "C" bool clingo_control_solve_async(clingo_control_t *ctl, clingo_model_callback_t mh, void *mh_data, clingo_finish_callback_t fh, void *fh_data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_async_t **ret) {
     GRINGO_CLINGO_TRY {
         clingo_control::Assumptions ass;
         for (auto it = assumptions, ie = assumptions + n; it != ie; ++it) {
@@ -1331,12 +1331,12 @@ private:
 
 } // namespace
 
-extern "C" bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer_t observer, bool replace, void *data) {
-    GRINGO_CLINGO_TRY { control->registerObserver(gringo_make_unique<Observer>(observer, data), replace); }
+extern "C" bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer_t const *observer, bool replace, void *data) {
+    GRINGO_CLINGO_TRY { control->registerObserver(gringo_make_unique<Observer>(*observer, data), replace); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_control_new(char const *const * args, size_t n, clingo_logger_t *logger, void *data, unsigned message_limit, clingo_control_t **ctl) {
+extern "C" bool clingo_control_new(char const *const * args, size_t n, clingo_logger_t logger, void *data, unsigned message_limit, clingo_control_t **ctl) {
     GRINGO_CLINGO_TRY {
         static std::mutex mut;
         std::lock_guard<std::mutex> grd(mut);
@@ -1359,14 +1359,16 @@ private:
     }
     void exec(ScriptType, Location loc, String code) override {
         if (script_.execute) {
-            handleCError(script_.execute(conv(loc), code.c_str(), data_));
+            auto l = conv(loc);
+            handleCError(script_.execute(&l, code.c_str(), data_));
         }
     }
     SymVec call(Location const &loc, String name, SymSpan args, Logger &) override {
         using Data = std::pair<SymVec, std::exception_ptr>;
         Data data;
+        auto l = conv(loc);
         handleCError(script_.call(
-            conv(loc), name.c_str(), reinterpret_cast<clingo_symbol_t const *>(args.first), args.size,
+            &l, name.c_str(), reinterpret_cast<clingo_symbol_t const *>(args.first), args.size,
             [](clingo_symbol_t const *symbols, size_t symbols_size, void *data) {
                 try {
                     for (auto it = symbols, ie = it + symbols_size; it != ie; ++it) {
@@ -1400,7 +1402,7 @@ private:
 
 } // namespace
 
-extern "C" CLINGO_VISIBILITY_DEFAULT bool clingo_register_script_(clingo_ast_script_type_t type, clingo_script_t_ *script, void *data) {
+extern "C" CLINGO_VISIBILITY_DEFAULT bool clingo_register_script_(clingo_ast_script_type_t type, clingo_script_t_ const *script, void *data) {
     GRINGO_CLINGO_TRY { g_scripts().registerScript(static_cast<clingo_ast_script_type>(type), gringo_make_unique<CScript>(*script, data)); }
     GRINGO_CLINGO_CATCH;
 }

@@ -5459,7 +5459,7 @@ Follows python __exit__ conventions. Does not suppress exceptions.
 
 // {{{1 wrap Control
 
-void pycall(Reference fun, clingo_symbol_t const *arguments, size_t arguments_size, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data) {
+void pycall(Reference fun, clingo_symbol_t const *arguments, size_t arguments_size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) {
     Object tuple = PyTuple_New(arguments_size);
     int i = 0;
     for (auto it = arguments, ie = it + arguments_size; it != ie; ++it, ++i) {
@@ -5580,14 +5580,14 @@ active; you must not call any member function during search.)";
         handle_c_error(clingo_control_load(ctl, filename));
         Py_RETURN_NONE;
     }
-    static bool on_context(clingo_location_t location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data) {
+    static bool on_context(clingo_location_t const *location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) {
         try {
             Object fun = PyObject_GetAttrString(static_cast<PyObject*>(data), name);
             pycall(fun.toPy(), arguments, arguments_size, symbol_callback, symbol_callback_data);
             return true;
         }
         catch (...) {
-            handle_cxx_error(location, "error in context");
+            handle_cxx_error(*location, "error in context");
             return false;
         }
     }
@@ -5766,7 +5766,7 @@ active; you must not call any member function during search.)";
             reinterpret_cast<decltype(clingo_propagator_t::check)>(propagator_check)
         };
         prop.emplace_back(tp);
-        handle_c_error(clingo_control_register_propagator(ctl, propagator, tp.toPy(), false));
+        handle_c_error(clingo_control_register_propagator(ctl, &propagator, tp.toPy(), false));
         Py_RETURN_NONE;
     }
     Object registerObserver(Reference args, Reference kwds) {
@@ -5798,7 +5798,7 @@ active; you must not call any member function during search.)";
         };
 
         observers.emplace_back(obs);
-        handle_c_error(clingo_control_register_observer(ctl, observer, rep.isTrue(), obs.toPy()));
+        handle_c_error(clingo_control_register_observer(ctl, &observer, rep.isTrue(), obs.toPy()));
         return None();
     }
     Object interrupt() {
@@ -7018,7 +7018,7 @@ public:
         Object fun = PyMapping_GetItemString(main, const_cast<char *>(name));
         return PyCallable_Check(fun.toPy());
     }
-    void call(char const *name, clingo_symbol_t const *arguments, size_t size, clingo_symbol_callback_t *symbol_callback, void *data) {
+    void call(char const *name, clingo_symbol_t const *arguments, size_t size, clingo_symbol_callback_t symbol_callback, void *data) {
         Object fun = PyMapping_GetItemString(main, const_cast<char*>(name));
         pycall(fun, arguments, size, symbol_callback, data);
     }
@@ -7035,25 +7035,25 @@ private:
 };
 
 struct PythonScript {
-    static bool execute(clingo_location_t loc, char const *code, void *) {
+    static bool execute(clingo_location_t const *loc, char const *code, void *) {
         try {
             if (!impl) { impl.reset(new PythonImpl()); }
-            impl->exec(loc, code);
+            impl->exec(*loc, code);
             return true;
         }
         catch (...) {
-            handle_cxx_error(loc, "error executing python code");
+            handle_cxx_error(*loc, "error executing python code");
             return false;
         }
     }
-    static bool call(clingo_location_t loc, char const *name, clingo_symbol_t const *arguments, size_t size, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data, void *) {
+    static bool call(clingo_location_t const *loc, char const *name, clingo_symbol_t const *arguments, size_t size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *) {
         try {
             if (!impl) { impl.reset(new PythonImpl()); }
             impl->call(name, arguments, size, symbol_callback, symbol_callback_data);
             return true;
         }
         catch (...) {
-            handle_cxx_error(loc, "error calling python function");
+            handle_cxx_error(*loc, "error calling python function");
             return false;
         }
     }

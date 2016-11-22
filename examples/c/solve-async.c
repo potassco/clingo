@@ -97,7 +97,7 @@ int main(int argc, char const **argv) {
 
   atomic_flag_test_and_set(&running);
   // solve using a model callback
-  if (!clingo_control_solve_async(ctl, on_model, NULL, (clingo_finish_callback_t*)on_finish, &running, NULL, 0, &async)) { goto error; }
+  if (!clingo_control_solve_async(ctl, on_model, NULL, (clingo_finish_callback_t)on_finish, &running, NULL, 0, &async)) { goto error; }
 
   // let's approximate pi
   while (atomic_flag_test_and_set(&running)) {

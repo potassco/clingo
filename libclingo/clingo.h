@@ -167,7 +167,7 @@ CLINGO_VISIBILITY_DEFAULT char const *clingo_warning_string(clingo_warning_t cod
 //! @see clingo_control_new()
 //! @see clingo_parse_term()
 //! @see clingo_parse_program()
-typedef void clingo_logger_t(clingo_warning_t code, char const *message, void *data);
+typedef void (*clingo_logger_t)(clingo_warning_t code, char const *message, void *data);
 
 //! Obtain the clingo version.
 //!
@@ -484,7 +484,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_add_string(char const *string, char const 
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if parsing fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_parse_term(char const *string, clingo_logger_t *logger, void *logger_data, unsigned message_limit, clingo_symbol_t *symbol);
+CLINGO_VISIBILITY_DEFAULT bool clingo_parse_term(char const *string, clingo_logger_t logger, void *logger_data, unsigned message_limit, clingo_symbol_t *symbol);
 
 //! @}
 
@@ -2588,7 +2588,7 @@ typedef struct clingo_ast_statement {
 
 // }}}2
 
-typedef bool clingo_ast_callback_t (clingo_ast_statement_t const *, void *);
+typedef bool (*clingo_ast_callback_t) (clingo_ast_statement_t const *, void *);
 //! Parse the given program and return an abstract syntax tree for each statement via a callback.
 //!
 //! @param[in] program the program in gringo syntax
@@ -2600,7 +2600,7 @@ typedef bool clingo_ast_callback_t (clingo_ast_statement_t const *, void *);
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime if parsing fails
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_parse_program(char const *program, clingo_ast_callback_t *callback, void *callback_data, clingo_logger_t *logger, void *logger_data, unsigned message_limit);
+CLINGO_VISIBILITY_DEFAULT bool clingo_parse_program(char const *program, clingo_ast_callback_t callback, void *callback_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
 
 //! @}
 
@@ -2913,7 +2913,7 @@ typedef struct clingo_part {
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! @see ::clingo_ground_callback_t
-typedef bool clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t symbols_size, void *data);
+typedef bool (*clingo_symbol_callback_t) (clingo_symbol_t const *symbols, size_t symbols_size, void *data);
 
 //! Callback function to implement external functions.
 //!
@@ -2938,12 +2938,12 @@ typedef bool clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t sy
 //! The following example implements the external function <tt>\@f()</tt> returning 42.
 //! ~~~~~~~~~~~~~~~{.c}
 //! bool
-//! ground_callback(clingo_location_t location,
+//! ground_callback(clingo_location_t const *location,
 //!                 char const *name,
 //!                 clingo_symbol_t const *arguments,
 //!                 size_t arguments_size,
 //!                 void *data,
-//!                 clingo_symbol_callback_t *symbol_callback,
+//!                 clingo_symbol_callback_t symbol_callback,
 //!                 void *symbol_callback_data) {
 //!   if (strcmp(name, "f") == 0 && arguments_size == 0) {
 //!     clingo_symbol_t sym;
@@ -2954,7 +2954,7 @@ typedef bool clingo_symbol_callback_t (clingo_symbol_t const *symbols, size_t sy
 //!   return false;
 //! }
 //! ~~~~~~~~~~~~~~~
-typedef bool clingo_ground_callback_t (clingo_location_t location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t *symbol_callback, void *symbol_callback_data);
+typedef bool (*clingo_ground_callback_t) (clingo_location_t const *location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data);
 
 //! Callback function to intercept models.
 //!
@@ -2970,7 +2970,7 @@ typedef bool clingo_ground_callback_t (clingo_location_t location, char const *n
 //!
 //! @see clingo_control_solve()
 //! @see clingo_control_solve_async()
-typedef bool clingo_model_callback_t (clingo_model_t *model, void *data, bool *goon);
+typedef bool (*clingo_model_callback_t) (clingo_model_t *model, void *data, bool *goon);
 
 //! Callback function called at the end of an asynchronous solve operation.
 //!
@@ -2982,7 +2982,7 @@ typedef bool clingo_model_callback_t (clingo_model_t *model, void *data, bool *g
 //! @return whether the call was successful
 //!
 //! @see clingo_control_solve_async()
-typedef bool clingo_finish_callback_t (clingo_solve_result_bitset_t result, void *data);
+typedef bool (*clingo_finish_callback_t) (clingo_solve_result_bitset_t result, void *data);
 
 //! Create a new control object.
 //!
@@ -3004,7 +3004,7 @@ typedef bool clingo_finish_callback_t (clingo_solve_result_bitset_t result, void
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if argument parsing fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_new(char const *const * arguments, size_t arguments_size, clingo_logger_t *logger, void *logger_data, unsigned message_limit, clingo_control_t **control);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_new(char const *const * arguments, size_t arguments_size, clingo_logger_t logger, void *logger_data, unsigned message_limit, clingo_control_t **control);
 
 //! Free a control object created with clingo_control_new().
 //! @param[in] control the target
@@ -3056,7 +3056,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_add(clingo_control_t *control, cha
 //! - error code of ground callback
 //!
 //! @see clingo_part
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t parts_size, clingo_ground_callback_t *ground_callback, void *ground_callback_data);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t parts_size, clingo_ground_callback_t ground_callback, void *ground_callback_data);
 
 //! @}
 
@@ -3075,7 +3075,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, 
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 //! - error code of model callback
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, clingo_model_callback_t *model_callback, void *model_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_result_bitset_t *result);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, clingo_model_callback_t model_callback, void *model_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_result_bitset_t *result);
 //! Solve the currently @link ::clingo_control_ground grounded @endlink logic program enumerating models iteratively.
 //!
 //! See the @ref SolveIter module for more information.
@@ -3103,7 +3103,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_iteratively(clingo_control_t
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving could not be started
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_async(clingo_control_t *control, clingo_model_callback_t *model_callback, void *model_callback_data, clingo_finish_callback_t *finish_callback, void *finish_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_async_t **handle);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_async(clingo_control_t *control, clingo_model_callback_t model_callback, void *model_callback_data, clingo_finish_callback_t finish_callback, void *finish_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_async_t **handle);
 //! Clean up the domains of clingo's grounding component using the solving
 //! component's top level assignment.
 //!
@@ -3150,7 +3150,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_release_external(clingo_control_t 
 //! @param[in] sequential whether the propagator should be called sequentially
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_propagator(clingo_control_t *control, clingo_propagator_t propagator, void *data, bool sequential);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_propagator(clingo_control_t *control, clingo_propagator_t const *propagator, void *data, bool sequential);
 //! Get a statistics object to inspect solver statistics.
 //!
 //! Statistics are updated after a solve call.
@@ -3261,7 +3261,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_theory_atoms(clingo_control_t *con
 //! @param[in] replace just pass the grounding to the observer but not the solver
 //! @param[in] data user data passed to the observer functions
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer_t observer, bool replace, void *data);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer_t const *observer, bool replace, void *data);
 //! @}
 
 //! @name Program Modification Functions
