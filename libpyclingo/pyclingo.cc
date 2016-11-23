@@ -6473,6 +6473,7 @@ csp_term = CSPSum
                           , coefficient : term
                           , variable    : term?
                           )*
+            )
 
 theory_term = Symbol
                ( location : Location
@@ -6527,6 +6528,7 @@ literal = Literal
                          ( comparison : ComparisonOperator
                          , term       : csp_term
                          )+
+           )
 
 -- Head and Body Literals
 
@@ -6559,6 +6561,7 @@ theory_atom = TheoryAtom
                              ( operator_name : str
                              , term          : theory_term
                              )?
+               )
 
 body_atom = aggregate
           | BodyAggregate
@@ -6648,6 +6651,7 @@ statement = Rule
              , name       : str
              , value      : term
              , is_default : bool
+             )
           | ShowSignature
              ( location   : Location
              , name       : str
