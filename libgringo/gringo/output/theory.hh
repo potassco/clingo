@@ -47,8 +47,8 @@ public:
     ~TheoryData() noexcept;
     Potassco::Id_t addTerm(int number);
     Potassco::Id_t addTerm(char const *name);
-    Potassco::Id_t addTerm(Potassco::Id_t funcSym, Potassco::IdSpan const& terms);
-    Potassco::Id_t addTerm(Potassco::Tuple_t type, Potassco::IdSpan const& terms);
+    Potassco::Id_t addTermFun(Potassco::Id_t funcSym, Potassco::IdSpan const& terms);
+    Potassco::Id_t addTermTup(Potassco::Tuple_t type, Potassco::IdSpan const& terms);
     Potassco::Id_t addTerm(Symbol value);
     Potassco::Id_t addElem(Potassco::IdSpan const &tuple, LitVec &&cond);
     std::pair<Potassco::TheoryAtom const &, bool> addAtom(std::function<Potassco::Id_t()> newAtom, Potassco::Id_t termId, Potassco::IdSpan const &elems);

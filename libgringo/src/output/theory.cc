@@ -314,7 +314,7 @@ UnaryTheoryTerm *UnaryTheoryTerm::clone() const {
 Potassco::Id_t UnaryTheoryTerm::eval(TheoryData &data, Logger &log) const {
     auto op = data.addTerm(op_.c_str());
     Potassco::Id_t args[] = { arg_->eval(data, log) };
-    return data.addTerm(op, Potassco::toSpan(args, 1));
+    return data.addTermFun(op, Potassco::toSpan(args, 1));
 }
 
 void UnaryTheoryTerm::collect(VarTermBoundVec &vars) {
@@ -360,7 +360,7 @@ BinaryTheoryTerm *BinaryTheoryTerm::clone() const {
 Potassco::Id_t BinaryTheoryTerm::eval(TheoryData &data, Logger &log) const {
     auto op = data.addTerm(op_.c_str());
     Potassco::Id_t args[] = { left_->eval(data, log), right_->eval(data, log) };
-    return data.addTerm(op, Potassco::toSpan(args, 2));
+    return data.addTermFun(op, Potassco::toSpan(args, 2));
 }
 
 void BinaryTheoryTerm::collect(VarTermBoundVec &vars) {
@@ -414,7 +414,7 @@ Potassco::Id_t TupleTheoryTerm::eval(TheoryData &data, Logger &log) const {
     for (auto &arg : args_) {
         args.emplace_back(arg->eval(data, log));
     }
-    return data.addTerm(type_, Potassco::toSpan(args));
+    return data.addTermTup(type_, Potassco::toSpan(args));
 }
 
 void TupleTheoryTerm::collect(VarTermBoundVec &vars) {
@@ -470,7 +470,7 @@ Potassco::Id_t FunctionTheoryTerm::eval(TheoryData &data, Logger &log) const {
     for (auto &arg : args_) {
         args.emplace_back(arg->eval(data, log));
     }
-    return data.addTerm(name, Potassco::toSpan(args));
+    return data.addTermFun(name, Potassco::toSpan(args));
 }
 
 void FunctionTheoryTerm::collect(VarTermBoundVec &vars) {
@@ -565,11 +565,11 @@ Potassco::Id_t TheoryData::addTerm(char const *name) {
     return addTerm_(name);
 }
 
-Potassco::Id_t TheoryData::addTerm(Potassco::Id_t funcSym, Potassco::IdSpan const& terms) {
+Potassco::Id_t TheoryData::addTermFun(Potassco::Id_t funcSym, Potassco::IdSpan const& terms) {
     return addTerm_(funcSym, terms);
 }
 
-Potassco::Id_t TheoryData::addTerm(Potassco::Tuple_t type, Potassco::IdSpan const& terms) {
+Potassco::Id_t TheoryData::addTermTup(Potassco::Tuple_t type, Potassco::IdSpan const& terms) {
     return addTerm_(type, terms);
 }
 
@@ -581,7 +581,7 @@ Potassco::Id_t TheoryData::addTerm(Symbol value) {
                 auto f = addTerm("-");
                 auto ret = addTerm(-num);
                 Potassco::Id_t args[] = { ret };
-                return addTerm(f, Potassco::toSpan(args, 1));
+                return addTermFun(f, Potassco::toSpan(args, 1));
             }
             else {
                 return addTerm(num);
@@ -606,16 +606,16 @@ Potassco::Id_t TheoryData::addTerm(Symbol value) {
                 args.emplace_back(addTerm(arg));
             }
             if (value.name().empty()) {
-                return addTerm(Potassco::Tuple_t::Paren, Potassco::toSpan(args));
+                return addTermTup(Potassco::Tuple_t::Paren, Potassco::toSpan(args));
             }
             else {
                 Potassco::Id_t name = addTerm(value.name().c_str());
                 auto ret = args.empty()
                     ? addTerm(value.name().c_str())
-                    : addTerm(name, Potassco::toSpan(args));
+                    : addTermFun(name, Potassco::toSpan(args));
                 if (value.sign()) {
                     Potassco::Id_t f = addTerm("-");
-                    ret = addTerm(f, Potassco::toSpan(&ret, 1));
+                    ret = addTermFun(f, Potassco::toSpan(&ret, 1));
                 }
                 return ret;
             }
