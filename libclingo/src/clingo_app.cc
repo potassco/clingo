@@ -26,9 +26,6 @@
 
 namespace Gringo {
 
-using namespace Clasp;
-using namespace Clasp::Cli;
-
 // {{{ declaration of ClingoApp
 
 ClingoApp::ClingoApp() { }
@@ -104,28 +101,28 @@ void ClingoApp::validateOptions(const Potassco::ProgramOptions::OptionContext& r
     if (parsed.count("text") > 0) {
         if (parsed.count("output") > 0) {
             error("'--text' and '--output' are mutually exclusive!");
-            exit(E_NO_RUN);
+            exit(Clasp::Cli::E_NO_RUN);
         }
         if (parsed.count("mode") > 0 && mode_ != mode_gringo) {
             error("'--text' can only be used with '--mode=gringo'!");
-            exit(E_NO_RUN);
+            exit(Clasp::Cli::E_NO_RUN);
         }
         mode_ = mode_gringo;
     }
     if (parsed.count("output") > 0) {
         if (parsed.count("mode") > 0 && mode_ != mode_gringo) {
             error("'--output' can only be used with '--mode=gringo'!");
-            exit(E_NO_RUN);
+            exit(Clasp::Cli::E_NO_RUN);
         }
         mode_ = mode_gringo;
     }
 }
 
-ProblemType ClingoApp::getProblemType() {
-    if (mode_ != mode_clasp) return Problem_t::Asp;
-    return ClaspFacade::detectProblemType(getStream());
+Clasp::ProblemType ClingoApp::getProblemType() {
+    if (mode_ != mode_clasp) return Clasp::Problem_t::Asp;
+    return Clasp::ClaspFacade::detectProblemType(getStream());
 }
-ClingoApp::Output* ClingoApp::createOutput(ProblemType f) {
+ClingoApp::ClaspOutput* ClingoApp::createOutput(ProblemType f) {
     if (mode_ == mode_gringo) return 0;
     return BaseType::createOutput(f);
 }
@@ -163,7 +160,7 @@ void ClingoApp::shutdown() {
     if (grd) grd->solveFuture_ = nullptr;
     Clasp::Cli::ClaspAppBase::shutdown();
 }
-void ClingoApp::onEvent(Event const& ev) {
+void ClingoApp::onEvent(Clasp::Event const& ev) {
 #if CLASP_HAS_THREADS
     Clasp::ClaspFacade::StepReady const *r = Clasp::event_cast<Clasp::ClaspFacade::StepReady>(ev);
     if (r && grd) { grd->onFinish(r->summary->result); }
@@ -175,9 +172,9 @@ void ClingoApp::run(Clasp::ClaspFacade& clasp) {
         using namespace std::placeholders;
         if (mode_ != mode_clasp) {
             ProblemType     pt  = getProblemType();
-            ProgramBuilder* prg = &clasp.start(claspConfig_, pt);
+            Clasp::ProgramBuilder* prg = &clasp.start(claspConfig_, pt);
             grOpts_.verbose = verbose() == UINT_MAX;
-            Asp::LogicProgram* lp = mode_ != mode_gringo ? static_cast<Asp::LogicProgram*>(prg) : 0;
+            Clasp::Asp::LogicProgram* lp = mode_ != mode_gringo ? static_cast<Clasp::Asp::LogicProgram*>(prg) : 0;
             grd = Gringo::gringo_make_unique<ClingoControl>(g_scripts(), mode_ == mode_clingo, clasp_.get(), claspConfig_, std::bind(&ClingoApp::handlePostGroundOptions, this, _1), std::bind(&ClingoApp::handlePreSolveOptions, this, _1), nullptr, 20);
             grd->parse(claspAppOpts_.input, grOpts_, lp);
             grd->main();

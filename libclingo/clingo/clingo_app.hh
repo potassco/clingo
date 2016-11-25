@@ -29,7 +29,7 @@ namespace Gringo {
 
 // Standalone clingo application.
 class ClingoApp : public Clasp::Cli::ClaspAppBase {
-    using Output      = Clasp::Cli::Output;
+    using ClaspOutput = Clasp::Cli::Output;
     using ProblemType = Clasp::ProblemType;
     using BaseType    = Clasp::Cli::ClaspAppBase;
     enum class ConfigUpdate { KEEP, REPLACE };
@@ -47,7 +47,7 @@ protected:
 
     ProblemType getProblemType() override;
     void        run(Clasp::ClaspFacade& clasp) override;
-    Output*     createOutput(ProblemType f) override;
+    ClaspOutput* createOutput(ProblemType f) override;
     void        printHelp(const Potassco::ProgramOptions::OptionContext& root) override;
     void        printVersion() override;
 
