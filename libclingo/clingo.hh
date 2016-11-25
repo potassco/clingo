@@ -3465,14 +3465,14 @@ struct ASTToC {
     clingo_ast_statement_t visit(TheoryDefinition const &x) {
         auto *theory_definition = create_<clingo_ast_theory_definition_t>();
         theory_definition->name       = x.name;
-theory_definition->terms = createArray_(x.terms, &ASTToC::convTheoryTermDefinition);
-theory_definition->terms_size = x.terms.size();
-theory_definition->atoms = createArray_(x.atoms, &ASTToC::convTheoryAtomDefinition);
-theory_definition->atoms_size = x.atoms.size();
-clingo_ast_statement_t ret;
-ret.type = clingo_ast_statement_type_theory_definition;
-ret.theory_definition = theory_definition;
-return ret;
+        theory_definition->terms = createArray_(x.terms, &ASTToC::convTheoryTermDefinition);
+        theory_definition->terms_size = x.terms.size();
+        theory_definition->atoms = createArray_(x.atoms, &ASTToC::convTheoryAtomDefinition);
+        theory_definition->atoms_size = x.atoms.size();
+        clingo_ast_statement_t ret;
+        ret.type = clingo_ast_statement_type_theory_definition;
+        ret.theory_definition = theory_definition;
+        return ret;
     }
 
     // {{{3 aux
@@ -4626,7 +4626,7 @@ inline void parse_program(char const *program, StatementCallback cb, Logger logg
     }, &data, [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
         catch (...) { }
-    }, &logger, message_limit));
+    }, &logger, message_limit), &data.second);
 }
 
 // }}}2
