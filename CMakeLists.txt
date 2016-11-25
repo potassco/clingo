@@ -86,10 +86,11 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
+# NOTE: searching for the interpreter first increases the chance
+#       that searching for the python libraries finds the matching libraries for the default python interpreter
+#       python is also used to run the tests
+find_package(PythonInterp)
 if (CLINGO_BUILD_WITH_PYTHON)
-    # NOTE: searching for the interpreter first increases the chance
-    #       that searching for the python libraries finds the matching libraries for the default python interpreter
-    find_package(PythonInterp)
     if (CLINGO_REQUIRE_PYTHON)
         find_package(PythonLibs REQUIRED)
     else()
