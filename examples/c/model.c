@@ -151,7 +151,7 @@ int main(int argc, char const **argv) {
   if (!clingo_control_ground(ctl, parts, 1, NULL, NULL)) { goto error; }
 
   // solve using a model callback
-  if (!clingo_control_solve(ctl, (clingo_model_callback_t*)on_model, &buf, NULL, 0, &solve_ret)) { goto error; }
+  if (!clingo_control_solve(ctl, (clingo_model_callback_t)on_model, &buf, NULL, 0, &solve_ret)) { goto error; }
 
   goto out;
 
