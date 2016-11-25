@@ -372,7 +372,7 @@ void ClingoControl::prepare(Assumptions &&ass, Control::ModelHandler mh, Control
                     break;
                 }
             }
-            backend->assume(Potassco::toSpan(lits));
+            if (!lits.empty()) { backend->assume(Potassco::toSpan(lits)); }
         }
         out_->endStep(true, logger_);
     }
