@@ -17,4 +17,4 @@ homewv.sh
 .nfs*
 examples/clingo/pydoc/clingo.ast.html
 examples/clingo/pydoc/clingo.html
-
+cmake/FindBISON.cmake

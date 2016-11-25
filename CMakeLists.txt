@@ -33,6 +33,9 @@ CMAKE_DEPENDENT_OPTION(CLINGO_BUILD_SHARED     "build clingo library shared"    
 CMAKE_DEPENDENT_OPTION(CLINGO_BUILD_PY_SHARED  "build pyclingo library shared"    OFF "NOT CLINGO_BUILD_STATIC"  OFF)
 CMAKE_DEPENDENT_OPTION(CLINGO_BUILD_LUA_SHARED "build luaclingo library shared"   OFF "NOT CLINGO_BUILD_STATIC"  OFF)
 
+option(PYCLINGO_USER_INSTALL "install the python module in the user's site directory" ON)
+CMAKE_DEPENDENT_OPTION(PYCLINGO_USE_INSTALL_PREFIX "install the python module under the install prefix" OFF "NOT PYCLINGO_USER_INSTALL" OFF)
+
 # workaround to set custom ar and ranlib
 if (CLINGO_CMAKE_AR)
     set(CMAKE_AR "${CLINGO_CMAKE_AR}")
@@ -84,6 +87,9 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 if (CLINGO_BUILD_WITH_PYTHON)
+    # NOTE: searching for the interpreter first increases the chance
+    #       that searching for the python libraries finds the matching libraries for the default python interpreter
+    find_package(PythonInterp)
     if (CLINGO_REQUIRE_PYTHON)
         find_package(PythonLibs REQUIRED)
     else()
