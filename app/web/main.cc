@@ -19,7 +19,7 @@
 // }}}
 
 #ifdef CLINGO_WITH_LUA
-#   include <lua.hh>
+#   include <luaclingo.h>
 #endif
 #include "clingo/clingo_app.hh"
 #include <iterator>
