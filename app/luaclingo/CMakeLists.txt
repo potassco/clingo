@@ -23,3 +23,14 @@ endif()
 if (CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
     set_target_properties(luaclingo PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/lua)
 endif()
+
+if (LUACLINGO_SUFFIX)
+    set_target_properties(luaclingo PROPERTIES
+        SUFFIX ${LUACLINGO_SUFFIX})
+endif()
+
+if (LUACLINGO_INSTALL_DIR)
+    install(TARGETS luaclingo
+        RUNTIME DESTINATION ${LUACLINGO_INSTALL_DIR}
+        LIBRARY DESTINATION ${LUACLINGO_INSTALL_DIR})
+endif()
