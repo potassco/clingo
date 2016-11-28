@@ -55,7 +55,7 @@ extern "C" {
 struct lua_State;
 
 LUACLINGO_VISIBILITY_DEFAULT int clingo_init_lua_(lua_State *L);
-LUACLINGO_VISIBILITY_DEFAULT bool clingo_register_lua_();
+LUACLINGO_VISIBILITY_DEFAULT bool clingo_register_lua_(lua_State *L);
 
 #ifdef __cplusplus
 }

@@ -50,7 +50,7 @@ extern "C" int run(char const *program, char const *options) {
 #ifdef CLINGO_WITH_LUA
         static bool registered_lua = false;
         if (!registered_lua) {
-            clingo_register_lua_();
+            clingo_register_lua_(nullptr);
             registered_lua = true;
         }
 #endif

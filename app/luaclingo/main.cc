@@ -31,6 +31,7 @@
 #endif
 
 extern "C" VISIBILITY_DEFAULT int luaopen_clingo(lua_State *L) {
+    clingo_register_lua_(L);
     return clingo_init_lua_(L);
 }
 

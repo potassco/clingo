@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
     }
 #   endif
 #   ifdef CLINGO_WITH_LUA
-    if (!clingo_register_lua_()) {
+    if (!clingo_register_lua_(nullptr)) {
         std::cerr << clingo_error_message() << std::endl;
         return 1;
     }

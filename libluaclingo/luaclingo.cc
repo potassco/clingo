@@ -3015,9 +3015,13 @@ int luarequire_clingo(lua_State *L) {
 
 struct LuaScriptC {
     lua_State *L;
-    LuaScriptC() : L(nullptr) { }
+    bool self_init_;
+    LuaScriptC(lua_State *L)
+    : L(L)
+    , self_init_(false)
+    { }
     ~LuaScriptC() {
-        if (L) { lua_close(L); }
+        if (self_init_ && L) { lua_close(L); }
     }
     bool init() {
         if (L) { return true; }
@@ -3026,6 +3030,7 @@ struct LuaScriptC {
             clingo_set_error(clingo_error_runtime, "could not initialize lua interpreter");
             return false;
         }
+        self_init_ = true;
         if (!lua_checkstack(L, 2)) {
             clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
             return false;
@@ -3106,7 +3111,7 @@ extern "C" int clingo_init_lua_(lua_State *L) {
     return luarequire_clingo(L);
 }
 
-extern "C" bool clingo_register_lua_() {
+extern "C" bool clingo_register_lua_(lua_State *L) {
     try {
         clingo_script_t_ script = {
             LuaScriptC::execute,
@@ -3116,7 +3121,7 @@ extern "C" bool clingo_register_lua_() {
             LuaScriptC::free,
             LUA_RELEASE
         };
-        return clingo_register_script_(clingo_ast_script_type_lua, &script, new LuaScriptC());
+        return clingo_register_script_(clingo_ast_script_type_lua, &script, new LuaScriptC(L));
     }
     catch (...) {
         clingo_set_error(clingo_error_runtime, "could not initialize lua interpreter");

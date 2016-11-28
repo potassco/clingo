@@ -33,10 +33,12 @@
 
 #if PY_MAJOR_VERSION >= 3
 extern "C" VISIBILITY_DEFAULT PyObject *PyInit_clingo() {
+    clingo_register_python_();
     return (PyObject*)clingo_init_python_();
 }
 #else
 extern "C" VISIBILITY_DEFAULT void initclingo() {
+    clingo_register_python_();
     clingo_init_python_();
 }
 #endif
