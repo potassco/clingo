@@ -348,6 +348,11 @@ SolveFuture *ClingoControl::solveAsync(ModelHandler mh, FinishHandler fh, Assump
     solveFuture_ = gringo_make_unique<ClingoSolveFuture>(*this, Clasp::SolveMode_t::Async);
     return solveFuture_.get();
 }
+SolveFuture *ClingoControl::solveRefactored(Assumptions &&ass, bool asynchronous) {
+    prepare(std::move(ass), nullptr, nullptr);
+    solveFuture_ = gringo_make_unique<ClingoSolveFuture>(*this, asynchronous ? Clasp::SolveMode_t::Async : Clasp::SolveMode_t::Yield);
+    return solveFuture_.get();
+}
 void ClingoControl::interrupt() {
     clasp_->interrupt(30);
 }
@@ -358,22 +363,7 @@ void ClingoControl::prepare(Assumptions &&ass, Control::ModelHandler mh, Control
     // finalize the program
     if (update()) {
         // pass assumptions to the backend
-        if (auto backend = out_->backend()) {
-            std::vector<Potassco::Lit_t> lits;
-            for (auto &x : ass) {
-                auto atm = out_->find(x.first);
-                if (atm.second && atm.first->hasUid()) {
-                    Potassco::Lit_t l = atm.first->uid();
-                    lits.emplace_back(x.second ? l : -l);
-                }
-                else if (x.second) {
-                    lits.emplace_back(1);
-                    lits.emplace_back(-1);
-                    break;
-                }
-            }
-            if (!lits.empty()) { backend->assume(Potassco::toSpan(lits)); }
-        }
+        out_->assume(std::move(ass));
         out_->endStep(true, logger_);
     }
     grounded = false;
@@ -654,6 +644,7 @@ bool ClingoSolveFuture::wait(double timeout) {
     return true;
 }
 void ClingoSolveFuture::cancel() { future_.cancel(); }
+void ClingoSolveFuture::resume() { future_.resume(); }
 
 // {{{1 definition of ClingoLib
 

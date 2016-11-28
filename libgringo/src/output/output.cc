@@ -391,6 +391,25 @@ Backend *OutputBase::backend() {
     return backend;
 }
 
+void OutputBase::assume(Assumptions &&ass) {
+    if (auto b = backend()) {
+        std::vector<Potassco::Lit_t> lits;
+        for (auto &x : ass) {
+            auto atm = find(x.first);
+            if (atm.second && atm.first->hasUid()) {
+                Potassco::Lit_t l = atm.first->uid();
+                lits.emplace_back(x.second ? l : -l);
+            }
+            else if (x.second) {
+                lits.emplace_back(1);
+                lits.emplace_back(-1);
+                break;
+            }
+        }
+        if (!lits.empty()) { b->assume(Potassco::toSpan(lits)); }
+    }
+}
+
 namespace {
 
 class BackendTee : public Backend {

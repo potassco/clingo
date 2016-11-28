@@ -250,6 +250,7 @@ public:
     bool useEnumAssumption() override;
     void cleanupDomains() override;
     SolveFuture *solveIter(Assumptions &&ass) override;
+    SolveFuture *solveRefactored(Assumptions &&ass, bool asynchronous) override;
     SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass) override;
     Output::DomainData const &theory() const override { return out_->data; }
     void registerPropagator(UProp p, bool sequential) override;
@@ -353,18 +354,19 @@ private:
 SolveResult convert(Clasp::ClaspFacade::Result res);
 class ClingoSolveFuture : public Gringo::SolveFuture {
 public:
-	ClingoSolveFuture(ClingoControl &ctl, Clasp::SolveMode_t mode);
+    ClingoSolveFuture(ClingoControl &ctl, Clasp::SolveMode_t mode);
 
-	SolveResult  get()  override;
-	Model const *next() override;
-	void wait() override;
-	bool wait(double timeout) override;
-	void cancel() override;
+    SolveResult  get()  override;
+    Model const *next() override;
+    void wait() override;
+    bool wait(double timeout) override;
+    void resume() override;
+    void cancel() override;
 private:
-	Clasp::ClaspFacade::SolveHandle future_;
-	ClingoModel                     model_;
-	SolveResult                     ret_  = {SolveResult::Unknown, false, false};
-	bool                            done_ = false;
+    Clasp::ClaspFacade::SolveHandle future_;
+    ClingoModel                     model_;
+    SolveResult                     ret_  = {SolveResult::Unknown, false, false};
+    bool                            done_ = false;
 };
 
 // {{{1 declaration of ClingoLib

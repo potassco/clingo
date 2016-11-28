@@ -111,6 +111,7 @@ struct SolveFuture {
     virtual void wait() = 0;
     virtual bool wait(double timeout) = 0;
     virtual void cancel() = 0;
+    virtual void resume() = 0;
     virtual ~SolveFuture() { }
 };
 
@@ -174,6 +175,7 @@ struct clingo_control {
     virtual Gringo::SolveResult solve(ModelHandler h, Assumptions &&assumptions) = 0;
     virtual Gringo::SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&assumptions) = 0;
     virtual Gringo::SolveFuture *solveIter(Assumptions &&assumptions) = 0;
+    virtual Gringo::SolveFuture *solveRefactored(Assumptions &&assumptions, bool asynchronous) = 0;
     virtual void interrupt() = 0;
     virtual void *claspFacade() = 0;
     virtual void add(std::string const &name, Gringo::StringVec const &params, std::string const &part) = 0;

@@ -996,6 +996,34 @@ extern "C" bool clingo_backend_add_atom(clingo_backend_t *backend, clingo_atom_t
     GRINGO_CLINGO_CATCH;
 }
 
+// {{{1 solve handle
+
+struct clingo_solve_handle : public Gringo::SolveFuture { };
+
+extern "C" bool clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_solve_result_bitset_t *result) {
+    GRINGO_CLINGO_TRY { *result = handle->get(); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result) {
+    GRINGO_CLINGO_TRY { *result = handle->wait(timeout); }
+    GRINGO_CLINGO_CATCH;
+}
+extern "C" bool clingo_solve_handle_cancel(clingo_solve_handle_t *handle) {
+    GRINGO_CLINGO_TRY { handle->cancel(); }
+    GRINGO_CLINGO_CATCH;
+}
+extern "C" bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t **model) {
+    GRINGO_CLINGO_TRY {
+        *model = const_cast<Model*>(handle->next());
+    }
+    GRINGO_CLINGO_CATCH;
+}
+extern "C" bool clingo_solve_handle_resume(clingo_solve_handle_t *handle) {
+    GRINGO_CLINGO_TRY { handle->resume(); }
+    GRINGO_CLINGO_CATCH;
+}
+
 // {{{1 control
 
 struct clingo_program_builder : clingo_control_t { };
@@ -1110,6 +1138,11 @@ extern "C" bool clingo_control_solve(clingo_control_t *ctl, clingo_model_callbac
 
 extern "C" bool clingo_control_solve_iteratively(clingo_control_t *ctl, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_iteratively_t **it) {
     GRINGO_CLINGO_TRY { *it = static_cast<clingo_solve_iteratively_t*>(ctl->solveIter(toAss(assumptions, n))); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_control_solve_refactored(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, bool asynchronous, clingo_solve_handle_t **handle) {
+    GRINGO_CLINGO_TRY { *handle = static_cast<clingo_solve_handle_t*>(control->solveRefactored(toAss(assumptions, assumptions_size), asynchronous)); }
     GRINGO_CLINGO_CATCH;
 }
 

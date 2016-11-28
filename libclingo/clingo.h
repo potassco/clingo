@@ -74,6 +74,14 @@ extern "C" {
 #   endif
 #endif
 
+#if defined __GNUC__
+#define CLINGO_DEPRECATED __attribute__((deprecated))
+#elif defined _MSC_VER
+#define CLINGO_DEPRECATED __declspec(deprecated)
+#else
+#define CLINGO_DEPRECATED
+#endif
+
 // {{{1 basic types and error/warning handling
 
 //! @example version.c
@@ -2842,6 +2850,16 @@ typedef struct clingo_ground_program_observer {
 
 // {{{1 control
 
+// {{{1 solve handle
+
+// TODO: document
+typedef struct clingo_solve_handle clingo_solve_handle_t;
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_solve_result_bitset_t *result);
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result);
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_cancel(clingo_solve_handle_t *handle);
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t **model);
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_resume(clingo_solve_handle_t *handle);
+
 //! @example control.c
 //! The example shows how to ground and solve a simple logic program, and print
 //! its answer sets.
@@ -3075,7 +3093,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, 
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 //! - error code of model callback
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, clingo_model_callback_t model_callback, void *model_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_result_bitset_t *result);
+CLINGO_DEPRECATED CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, clingo_model_callback_t model_callback, void *model_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_result_bitset_t *result);
 //! Solve the currently @link ::clingo_control_ground grounded @endlink logic program enumerating models iteratively.
 //!
 //! See the @ref SolveIter module for more information.
@@ -3087,7 +3105,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, c
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving could not be started
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_iteratively(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_iteratively_t **handle);
+CLINGO_DEPRECATED CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_iteratively(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_iteratively_t **handle);
 //! Solve the currently @link ::clingo_control_ground grounded @endlink logic program asynchronously in the background.
 //!
 //! See the @ref SolveAsync module for more information.
@@ -3103,7 +3121,11 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_iteratively(clingo_control_t
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving could not be started
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_async(clingo_control_t *control, clingo_model_callback_t model_callback, void *model_callback_data, clingo_finish_callback_t finish_callback, void *finish_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_async_t **handle);
+CLINGO_DEPRECATED CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_async(clingo_control_t *control, clingo_model_callback_t model_callback, void *model_callback_data, clingo_finish_callback_t finish_callback, void *finish_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_async_t **handle);
+
+// TODO: document!!!!!
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_refactored(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, bool asynchronous, clingo_solve_handle_t **handle);
+
 //! Clean up the domains of clingo's grounding component using the solving
 //! component's top level assignment.
 //!
