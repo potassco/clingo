@@ -94,15 +94,22 @@ struct Types { };
 
 template<int, typename... T>
 struct LastTypes;
+template<>
+struct LastTypes<0> { using Type = Types<>; };
 template<typename A, typename... T>
 struct LastTypes<0, A, T...> { using Type = Types<A, T...>; };
-template<int n, typename T, typename... A>
-struct LastTypes<n, T, A...> : LastTypes<n-1, A...> { };
+template<int n, typename A, typename... T>
+struct LastTypes<n, A, T...> : LastTypes<n-1, T...> { };
 
 template<int n, typename T>
 struct LastArgs;
 template<int n, typename... Args>
 struct LastArgs<n, bool (*)(Args...)> : LastTypes<n, Args...> { };
+
+template <typename F, typename... Args>
+void call_c_(Types<>*, lua_State *L, F f, Args ...args) {
+    handle_c_error(L, f(args...));
+}
 
 template <typename T, typename F, typename... Args>
 T call_c_(Types<T*>*, lua_State *L, F f, Args ...args) {
@@ -118,7 +125,6 @@ std::pair<T, U> call_c_(Types<T*, U*>*, lua_State *L, F f, Args ...args) {
     handle_c_error(L, f(args..., &ret1, &ret2));
     return {ret1, ret2};
 }
-
 
 template <typename F, typename... Args, typename T=typename LastArgs<sizeof...(Args), F>::Type>
 static auto call_c(lua_State *L, F f, Args... args) -> decltype(call_c_(static_cast<T*>(nullptr), L, f, args...)) {
@@ -1479,16 +1485,17 @@ luaL_Reg const SolveFuture::meta[] = {
 // {{{1 wrap SolveIter
 
 struct SolveIter : Object<SolveIter> {
-    clingo_solve_iteratively_t *handle;
-    SolveIter(clingo_solve_iteratively_t *handle) : handle(handle) { }
+    clingo_solve_handle_t *handle;
+    SolveIter(clingo_solve_handle_t *handle) : handle(handle) { }
     static int close(lua_State *L) {
         auto &self = get_self(L);
-        handle_c_error(L, clingo_solve_iteratively_close(self.handle));
+        handle_c_error(L, clingo_solve_handle_close(self.handle));
         return 0;
     }
     static int next(lua_State *L) {
         auto handle = static_cast<SolveIter*>(luaL_checkudata(L, lua_upvalueindex(1), SolveIter::typeName))->handle;
-        clingo_model_t *model = call_c(L, clingo_solve_iteratively_next, handle);
+        call_c(L, clingo_solve_handle_resume, handle);
+        clingo_model_t *model = call_c(L, clingo_solve_handle_model, handle);
         if (model) { Model::new_(L, model); }
         else       { lua_pushnil(L); }
         return 1;
@@ -1501,7 +1508,7 @@ struct SolveIter : Object<SolveIter> {
     }
     static int get(lua_State *L) {
         auto &self = get_self(L);
-        SolveResult::new_(L, call_c(L, clingo_solve_iteratively_get, self.handle));
+        SolveResult::new_(L, call_c(L, clingo_solve_handle_get, self.handle));
         return 1;
     }
     static luaL_Reg const meta[];
@@ -2216,7 +2223,7 @@ public:
         if (!lua_isnil(L, -1)) {
             auto id = clingo_propagate_control_thread_id(control);
             lua_insert(L, -2);
-            lua_pushinteger(L, id + 1);                   // +1
+            lua_pushinteger(L, id + 1);                  // +1
             Assignment::new_(L, clingo_propagate_control_assignment(control));  // +1
             getChanges(L, changes, size);                // +1
             getState(L, self->T, id);                    // +1
@@ -2658,54 +2665,67 @@ struct ControlWrap : Object<ControlWrap> {
         else { lua_pushnil(L); }
         return 1;
     }
-
-    struct OnModel {
-        lua_State *L;
-        Model *model;
-        int mhIndex;
-        int mIndex;
+    struct SolveData {
+        clingo_control_t *ctl;
+        std::vector<clingo_symbolic_literal_t> *ass;
+        clingo_solve_handle_t *handle;
+        clingo_solve_result_bitset_t ret;
+        int mh;
     };
+    static int solve_(lua_State *L) {
+        auto *data = static_cast<SolveData*>(lua_touserdata(L, 1));
 
-    static bool on_model(clingo_model_t *model, void *data, bool *goon) {
-        auto om = static_cast<OnModel*>(data);
-        if (!lua_checkstack(om->L, 4)) {
-            clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
-            return false;
+        Model::new_(L, nullptr); // +1
+        auto *model = static_cast<Model*>(lua_touserdata(L, -1));
+
+        data->handle = call_c(L, clingo_control_solve_refactored, data->ctl, data->ass->data(), data->ass->size(), false);
+        while (true) {
+            call_c(L, clingo_solve_handle_resume, data->handle);
+            auto m = call_c(L, clingo_solve_handle_model, data->handle);
+            if (!m) { break; }
+            if (!data->mh) { continue; }
+
+            model->model = m;
+            lua_pushvalue(L, 2);   // +1
+            lua_pushvalue(L, -2);  // +1
+            lua_call(L, 1, 1);     // -1
+            bool goon = lua_isnil(L, -1) || lua_toboolean(L, -1);
+            lua_pop(L, 1);         // -1
+            if (!goon) { break; }
         }
-        lua_pushcfunction(om->L, luaTraceback); // +1
-        lua_pushvalue(om->L, om->mhIndex);      // +1
-        lua_pushvalue(om->L, om->mIndex);       // +1
-        om->model->model = model;
-        int code = lua_pcall(om->L, 1, 1, -3);  // -2
-        if (code != 0) {
-            *goon = lua_isnil(om->L, -1) || lua_toboolean(om->L, -1);
-            lua_pop(om->L, 1); // -1
-        }
-        return handle_lua_error(om->L, "on_model", "error in model callback", code);
+
+        lua_pop(L, 1); // -1
+
+        data->ret = call_c(L, clingo_solve_handle_get, data->handle);
+        return 0;
     }
-
     static int solve(lua_State *L) {
         auto &ctl = get_self(L).ctl;
         lua_pushstring(L, "statistics"); // +1
         lua_pushnil(L);                  // +1
         lua_rawset(L, 1);                // -2
-        OnModel om{
-            L,
-            nullptr,
-            !lua_isnone(L, 2) && !lua_isnil(L, 2) ? 2 : 0,
-            0
-        };
+        int mhIdx   = !lua_isnone(L, 2) && !lua_isnil(L, 2) ? 2 : 0;
         int assIdx  = !lua_isnone(L, 3) && !lua_isnil(L, 3) ? 3 : 0;
-        if (om.mhIndex) {
-            Model::new_(L, nullptr); // +1
-            om.model = static_cast<Model*>(lua_touserdata(L, -1));
-            om.mIndex = lua_gettop(L);
-        }
-        auto *ass = AnyWrap::new_<std::vector<clingo_symbolic_literal_t>>(L); // +1
-        if (assIdx) { luaToCpp(L, assIdx, *ass); }
-        auto ret = call_c(L, clingo_control_solve, ctl, om.mhIndex ? on_model : nullptr, om.mhIndex ? &om : nullptr, ass->data(), ass->size());
-        lua_pop(L, 2); // -2
-        return SolveResult::new_(L, ret);
+        SolveData data{
+            ctl,
+            AnyWrap::new_<std::vector<clingo_symbolic_literal_t>>(L), // +1
+            nullptr,
+            0,
+            mhIdx
+        };
+        if (assIdx) { luaToCpp(L, assIdx, *data.ass); }
+
+        lua_pushcfunction(L, luaTraceback); // +1
+        lua_pushcfunction(L, solve_);       // +1
+        lua_pushlightuserdata(L, &data);    // +1
+        if (data.mh) { lua_pushvalue(L, data.mh); }
+        else         { lua_pushnil(L); }    // +1
+        int code = lua_pcall(L, 2, 0, -4);  // -4
+        if (data.handle) { call_c(L, clingo_solve_handle_close, data.handle); }
+        if (code) { lua_error(L); }
+
+        lua_pop(L, 1); // -1
+        return SolveResult::new_(L, data.ret);
     }
     static int cleanup(lua_State *L) {
         auto &self = get_self(L);
@@ -2723,7 +2743,7 @@ struct ControlWrap : Object<ControlWrap> {
         int assIdx  = !lua_isnone(L, 2) && !lua_isnil(L, 2) ? 2 : 0;
         auto *ass = AnyWrap::new_<std::vector<clingo_symbolic_literal_t>>(L); // +1
         if (assIdx) { luaToCpp(L, assIdx, *ass); }
-        SolveIter::new_(L, call_c(L, clingo_control_solve_iteratively, self.ctl, ass->data(), ass->size()));
+        SolveIter::new_(L, call_c(L, clingo_control_solve_refactored, self.ctl, ass->data(), ass->size(), false));
         lua_replace(L, -2); // -1
         return 1;
     }

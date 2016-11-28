@@ -115,6 +115,16 @@ struct SolveFuture {
     virtual ~SolveFuture() { }
 };
 
+struct DefaultSolveFuture : SolveFuture {
+    SolveResult get() override { return {SolveResult::Unknown, false, false}; }
+    Model const *next() override { return nullptr; }
+    void wait() override { }
+    bool wait(double) override { return true; }
+    void cancel() override { }
+    void resume() override { }
+    ~DefaultSolveFuture() override { }
+};
+
 // {{{1 declaration of ConfigProxy
 
 struct ConfigProxy {

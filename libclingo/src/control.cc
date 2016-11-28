@@ -1009,7 +1009,7 @@ extern "C" bool clingo_solve_handle_wait(clingo_solve_handle_t *handle, double t
     GRINGO_CLINGO_TRY { *result = handle->wait(timeout); }
     GRINGO_CLINGO_CATCH;
 }
-extern "C" bool clingo_solve_handle_cancel(clingo_solve_handle_t *handle) {
+extern "C" bool clingo_solve_handle_close(clingo_solve_handle_t *handle) {
     GRINGO_CLINGO_TRY { handle->cancel(); }
     GRINGO_CLINGO_CATCH;
 }

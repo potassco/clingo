@@ -83,16 +83,6 @@ static inline bool parseFoobar(const std::string& str, GringoOptions::Foobar& fo
     return true;
 }
 
-struct GringoSolveFuture : SolveFuture {
-    SolveResult get() override { return {SolveResult::Unknown, false, false}; }
-    Model const *next() override { return nullptr; }
-    void wait() override { }
-    bool wait(double) override { return true; }
-    void cancel() override { }
-    void resume() override { }
-    ~GringoSolveFuture() override { }
-};
-
 #define LOG if (opts.verbose) std::cerr
 struct IncrementalControl : Control {
     IncrementalControl(Output::OutputBase &out, StrVec const &files, GringoOptions const &opts)
@@ -196,6 +186,7 @@ struct IncrementalControl : Control {
     }
     SolveFuture *solveIter(Assumptions &&) override { throw std::runtime_error("error: iterative solving not supported"); }
     SolveFuture *solveRefactored(Assumptions &&ass, bool) override {
+        static DefaultSolveFuture future_;
         out.assume(std::move(ass));
         grounded = false;
         out.endStep(true, logger_);
@@ -247,7 +238,6 @@ struct IncrementalControl : Control {
     Input::NonGroundParser         parser;
     GringoOptions const           &opts;
     Logger                         logger_;
-    GringoSolveFuture              future_;
     std::unique_ptr<Input::NongroundProgramBuilder> builder;
     bool                                   incmode = false;
     bool                                   parsed = false;

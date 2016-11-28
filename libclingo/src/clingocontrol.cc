@@ -337,6 +337,12 @@ unsigned ClingoControl::getRootKey() {
 ConfigProxy &ClingoControl::getConf() {
     return *this;
 }
+SolveResult ClingoControl::solve(ModelHandler h, Assumptions &&ass) {
+    prepare(std::move(ass), h, nullptr);
+    auto ret = clingoMode_ ? convert(clasp_->solve()) : SolveResult(SolveResult::Unknown, false, false);
+    postSolve(*clasp_);
+    return ret;
+}
 SolveFuture *ClingoControl::solveIter(Assumptions &&ass) {
     prepare(std::move(ass), nullptr, nullptr);
     solveFuture_ = gringo_make_unique<ClingoSolveFuture>(*this, Clasp::SolveMode_t::Yield);
@@ -350,8 +356,14 @@ SolveFuture *ClingoControl::solveAsync(ModelHandler mh, FinishHandler fh, Assump
 }
 SolveFuture *ClingoControl::solveRefactored(Assumptions &&ass, bool asynchronous) {
     prepare(std::move(ass), nullptr, nullptr);
-    solveFuture_ = gringo_make_unique<ClingoSolveFuture>(*this, asynchronous ? Clasp::SolveMode_t::Async : Clasp::SolveMode_t::Yield);
-    return solveFuture_.get();
+    if (clingoMode_) {
+        solveFuture_ = gringo_make_unique<ClingoSolveFuture>(*this, asynchronous ? Clasp::SolveMode_t::Async : Clasp::SolveMode_t::Yield);
+        return solveFuture_.get();
+    }
+    else {
+        static DefaultSolveFuture future_;
+        return &future_;
+    }
 }
 void ClingoControl::interrupt() {
     clasp_->interrupt(30);
@@ -386,13 +398,6 @@ void ClingoControl::prepare(Assumptions &&ass, Control::ModelHandler mh, Control
         preSolve(*clasp_);
     }
     out_->reset(data_ || (clasp_ && clasp_->program()));
-}
-
-SolveResult ClingoControl::solve(ModelHandler h, Assumptions &&ass) {
-    prepare(std::move(ass), h, nullptr);
-    auto ret = clingoMode_ ? convert(clasp_->solve()) : SolveResult(SolveResult::Unknown, false, false);
-    postSolve(*clasp_);
-    return ret;
 }
 
 void *ClingoControl::claspFacade() {
