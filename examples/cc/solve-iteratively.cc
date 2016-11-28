@@ -11,7 +11,7 @@ int main(int argc, char const **argv) {
         Control ctl{{argv+1, size_t(argc-1)}, logger, 20};
         ctl.add("base", {}, "a :- not b. b :- not a.");
         ctl.ground({{"base", {}}});
-        for (auto m : ctl.solve_iteratively()) {
+        for (auto m : ctl.solve()) {
             std::cout << "Model:";
             for (auto &atom : m.symbols()) {
                 std::cout << " " << atom;

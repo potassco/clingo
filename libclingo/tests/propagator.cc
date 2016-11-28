@@ -470,12 +470,12 @@ TEST_CASE("propagator", "[clingo][propagator]") {
         auto place = [](int p, int h) { return Function("place", {Number(p), Number(h)}); };
         SECTION("unsat") {
             ctl.ground({{"pigeon", {Number(5), Number(6)}}}, nullptr);
-            ctl.solve(MCB(models));
+            test_solve(ctl.solve(), models);
             REQUIRE(models.empty());
         }
         SECTION("sat") {
             ctl.ground({{"pigeon", {Number(2), Number(2)}}}, nullptr);
-            ctl.solve(MCB(models));
+            test_solve(ctl.solve(), models);
             REQUIRE(models == ModelVec({{place(1,1), place(2,2)}, {place(1,2), place(2,1)}}));
         }
     }
@@ -484,7 +484,7 @@ TEST_CASE("propagator", "[clingo][propagator]") {
         ctl.register_propagator(p, false);
         ctl.add("base", {}, "{a; b}. c.");
         ctl.ground({{"base", {}}}, nullptr);
-        ctl.solve(MCB(models));
+        test_solve(ctl.solve(), models);
         REQUIRE(models.size() == 4);
     }
     SECTION("exception") {
@@ -493,7 +493,7 @@ TEST_CASE("propagator", "[clingo][propagator]") {
         ctl.add("base", {}, "{a}.");
         ctl.ground({{"base", {}}}, nullptr);
         try {
-            ctl.solve(MCB(models));
+            test_solve(ctl.solve(), models);
             FAIL("solve must throw");
         }
         catch (std::runtime_error const &e) { REQUIRE(e.what() == S("the answer is 42")); }
@@ -506,7 +506,7 @@ TEST_CASE("propagator", "[clingo][propagator]") {
         ctl.add("base", {}, "{a}.");
         ctl.ground({{"base", {}}}, nullptr);
         try {
-            ctl.solve(MCB(models));
+            test_solve(ctl.solve(), models);
             FAIL("solve must throw");
         }
         catch (std::runtime_error const &e) {
@@ -522,40 +522,40 @@ TEST_CASE("propagator", "[clingo][propagator]") {
             p.type = ClauseType::Learnt;
             ctl.add("base", {}, "{a; b}.");
             ctl.ground({{"base", {}}}, nullptr);
-            ctl.solve(MCB(models));
+            test_solve(ctl.solve(), models);
             REQUIRE(models.size() == 3);
             p.enable = false;
-            ctl.solve(MCB(models));
+            test_solve(ctl.solve(), models);
             REQUIRE(models.size() >= 3);
         }
         SECTION("static") {
             p.type = ClauseType::Static;
             ctl.add("base", {}, "{a; b}.");
             ctl.ground({{"base", {}}}, nullptr);
-            ctl.solve(MCB(models));
+            test_solve(ctl.solve(), models);
             REQUIRE(models.size() == 3);
             p.enable = false;
-            ctl.solve(MCB(models));
+            test_solve(ctl.solve(), models);
             REQUIRE(models.size() == 3);
         }
         SECTION("volatile") {
             p.type = ClauseType::Volatile;
             ctl.add("base", {}, "{a; b}.");
             ctl.ground({{"base", {}}}, nullptr);
-            ctl.solve(MCB(models));
+            test_solve(ctl.solve(), models);
             REQUIRE(models.size() == 3);
             p.enable = false;
-            ctl.solve(MCB(models));
+            test_solve(ctl.solve(), models);
             REQUIRE(models.size() == 4);
         }
         SECTION("volatile static") {
             p.type = ClauseType::VolatileStatic;
             ctl.add("base", {}, "{a; b}.");
             ctl.ground({{"base", {}}}, nullptr);
-            ctl.solve(MCB(models));
+            test_solve(ctl.solve(), models);
             REQUIRE(models.size() == 3);
             p.enable = false;
-            ctl.solve(MCB(models));
+            test_solve(ctl.solve(), models);
             REQUIRE(models.size() == 4);
         }
     }
@@ -618,7 +618,7 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
             }
         }
         int64_t optimum = std::numeric_limits<int64_t>::max();
-        ctl.solve([&models, &optimum](Model m) {
+        for (auto m : ctl.solve()) {
             int64_t opt = m.cost()[0];
             if (opt == optimum) {
                 models.emplace_back();
@@ -628,8 +628,7 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
                 std::sort(models.back().begin(), models.back().end());
             }
             else { optimum = opt; }
-            return true;
-        });
+        }
         std::sort(models.begin(), models.end());
         auto pat = [](int num, char const *item) { return Function("pat", {Number(num), Id(item)}); };
         ModelVec solution = {

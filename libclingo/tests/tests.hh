@@ -45,6 +45,13 @@ struct MCB {
     ModelVec &models;
 };
 
+inline SolveResult test_solve(SolveHandle &&sh, ModelVec &models) {
+    MCB cb(models);
+    SolveResult ret;
+    for (auto &m : sh) { cb(m); }
+    return sh.get();
+}
+
 class LCB {
 public:
     LCB(MessageVec &messages) : messages_(messages) { }

@@ -59,7 +59,7 @@ ModelVec solve(char const *prg, PartSpan parts = {{"base", {}}}) {
         parse_program(prg, [&b](AST::Statement const &stm) { b.add(stm); });
     });
     ctl.ground(parts);
-    ctl.solve(MCB(models));
+    test_solve(ctl.solve(), models);
     return models;
 }
 

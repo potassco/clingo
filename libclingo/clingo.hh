@@ -1087,26 +1087,29 @@ inline std::ostream &operator<<(std::ostream &out, SolveResult res) {
 
 // {{{1 solve iteratively
 
-class SolveIteratively {
+class SolveHandle {
 public:
-    SolveIteratively();
-    explicit SolveIteratively(clingo_solve_iteratively_t *it);
-    SolveIteratively(SolveIteratively &&it);
-    SolveIteratively(SolveIteratively const &) = delete;
-    SolveIteratively &operator=(SolveIteratively &&it);
-    SolveIteratively &operator=(SolveIteratively const &) = delete;
-    clingo_solve_iteratively_t *to_c() const { return iter_; }
+    SolveHandle();
+    explicit SolveHandle(clingo_solve_handle_t *it);
+    SolveHandle(SolveHandle &&it);
+    SolveHandle(SolveHandle const &) = delete;
+    SolveHandle &operator=(SolveHandle &&it);
+    SolveHandle &operator=(SolveHandle const &) = delete;
+    clingo_solve_handle_t *to_c() const { return iter_; }
+    void resume();
+    bool wait(double timeout);
+    Model model();
     Model next();
     SolveResult get();
     void close();
-    ~SolveIteratively() { close(); }
+    ~SolveHandle() { close(); }
 private:
-    clingo_solve_iteratively_t *iter_;
+    clingo_solve_handle_t *iter_;
 };
 
 class ModelIterator : public std::iterator<Model, std::input_iterator_tag> {
 public:
-    explicit ModelIterator(SolveIteratively &iter)
+    explicit ModelIterator(SolveHandle &iter)
     : iter_(&iter)
     , model_(nullptr) { model_ = iter_->next(); }
     ModelIterator()
@@ -1130,12 +1133,12 @@ public:
     }
     friend bool operator!=(ModelIterator a, ModelIterator b) { return !(a == b); }
 private:
-    SolveIteratively *iter_;
+    SolveHandle *iter_;
     Model model_;
 };
 
-inline ModelIterator begin(SolveIteratively &it) { return ModelIterator(it); }
-inline ModelIterator end(SolveIteratively &) { return ModelIterator(); }
+inline ModelIterator begin(SolveHandle &it) { return ModelIterator(it); }
+inline ModelIterator end(SolveHandle &) { return ModelIterator(); }
 
 // {{{1 solve async
 
@@ -2038,8 +2041,7 @@ public:
     ~Control() noexcept;
     void add(char const *name, StringSpan params, char const *part);
     void ground(PartSpan parts, GroundCallback cb = nullptr);
-    SolveResult solve(ModelCallback mh = nullptr, SymbolicLiteralSpan assumptions = {});
-    SolveIteratively solve_iteratively(SymbolicLiteralSpan assumptions = {});
+    SolveHandle solve(SymbolicLiteralSpan assumptions = {}, bool asynchronous = false);
     void assign_external(Symbol atom, TruthValue value);
     void release_external(Symbol atom);
     SymbolicAtoms symbolic_atoms() const;
@@ -2052,7 +2054,6 @@ public:
     void interrupt() noexcept;
     void *claspFacade();
     void load(char const *file);
-    SolveAsync solve_async(ModelCallback mh = nullptr, FinishCallback fh = nullptr, SymbolicLiteralSpan assumptions = {});
     void use_enumeration_assumption(bool value);
     Backend backend();
     ProgramBuilder builder();
@@ -2667,57 +2668,54 @@ inline ModelType Model::type() const {
     return static_cast<ModelType>(ret);
 }
 
-// {{{2 solve iter
+// {{{2 solve handle
 
-inline SolveIteratively::SolveIteratively()
+inline SolveHandle::SolveHandle()
 : iter_(nullptr) { }
 
-inline SolveIteratively::SolveIteratively(clingo_solve_iteratively_t *it)
+inline SolveHandle::SolveHandle(clingo_solve_handle_t *it)
 : iter_(it) { }
 
-inline SolveIteratively::SolveIteratively(SolveIteratively &&it)
+inline SolveHandle::SolveHandle(SolveHandle &&it)
 : iter_(nullptr) { std::swap(iter_, it.iter_); }
 
-inline SolveIteratively &SolveIteratively::operator=(SolveIteratively &&it) {
+inline SolveHandle &SolveHandle::operator=(SolveHandle &&it) {
     std::swap(iter_, it.iter_);
     return *this;
 }
 
-inline Model SolveIteratively::next() {
+inline void SolveHandle::resume() {
+    if (iter_) { Detail::handle_error(clingo_solve_handle_resume(iter_)); }
+}
+
+inline bool SolveHandle::wait(double timeout) {
+    bool res = true;
+    if (iter_) { Detail::handle_error(clingo_solve_handle_wait(iter_, timeout, &res)); }
+    return res;
+}
+
+inline Model SolveHandle::model() {
     clingo_model_t *m = nullptr;
-    if (iter_) { Detail::handle_error(clingo_solve_iteratively_next(iter_, &m)); }
+    if (iter_) { Detail::handle_error(clingo_solve_handle_model(iter_, &m)); }
     return Model{m};
 }
 
-inline SolveResult SolveIteratively::get() {
+inline Model SolveHandle::next() {
+    resume();
+    return model();
+}
+
+inline SolveResult SolveHandle::get() {
     clingo_solve_result_bitset_t ret = 0;
-    if (iter_) { Detail::handle_error(clingo_solve_iteratively_get(iter_, &ret)); }
+    if (iter_) { Detail::handle_error(clingo_solve_handle_get(iter_, &ret)); }
     return SolveResult{ret};
 }
 
-inline void SolveIteratively::close() {
+inline void SolveHandle::close() {
     if (iter_) {
-        clingo_solve_iteratively_close(iter_);
+        clingo_solve_handle_close(iter_);
         iter_ = nullptr;
     }
-}
-
-// {{{2 solve async
-
-inline void SolveAsync::cancel() {
-    Detail::handle_error(clingo_solve_async_cancel(async_));
-}
-
-inline SolveResult SolveAsync::get() {
-    clingo_solve_result_bitset_t ret;
-    Detail::handle_error(clingo_solve_async_get(async_, &ret));
-    return SolveResult{ret};
-}
-
-inline bool SolveAsync::wait(double timeout) {
-    bool ret;
-    Detail::handle_error(clingo_solve_async_wait(async_, timeout, &ret));
-    return ret;
 }
 
 // {{{2 backend
@@ -3607,22 +3605,10 @@ inline void Control::ground(PartSpan parts, GroundCallback cb) {
 
 inline clingo_control_t *Control::to_c() const { return *impl_; }
 
-inline SolveResult Control::solve(ModelCallback mh, SymbolicLiteralSpan assumptions) {
-    clingo_solve_result_bitset_t ret;
-    using Data = std::pair<ModelCallback&, std::exception_ptr>;
-    Data data(mh, nullptr);
-    Detail::handle_error(clingo_control_solve(*impl_, [](clingo_model_t *m, void *data, bool *ret) -> bool {
-        auto &d = *static_cast<Data*>(data);
-        CLINGO_CALLBACK_TRY { *ret = !d.first || d.first(Model(m)); }
-        CLINGO_CALLBACK_CATCH(d.second);
-    }, &data, reinterpret_cast<clingo_symbolic_literal_t const *>(assumptions.begin()), assumptions.size(), &ret));
-    return SolveResult{ret};
-}
-
-inline SolveIteratively Control::solve_iteratively(SymbolicLiteralSpan assumptions) {
-    clingo_solve_iteratively_t *it;
-    Detail::handle_error(clingo_control_solve_iteratively(*impl_, reinterpret_cast<clingo_symbolic_literal_t const *>(assumptions.begin()), assumptions.size(), &it));
-    return SolveIteratively{it};
+inline SolveHandle Control::solve(SymbolicLiteralSpan assumptions, bool asynchronous) {
+    clingo_solve_handle_t *it;
+    Detail::handle_error(clingo_control_solve_refactored(*impl_, reinterpret_cast<clingo_symbolic_literal_t const *>(assumptions.begin()), assumptions.size(), asynchronous, &it));
+    return SolveHandle{it};
 }
 
 inline void Control::assign_external(Symbol atom, TruthValue value) {
@@ -3853,26 +3839,6 @@ inline void *Control::claspFacade() {
 
 inline void Control::load(char const *file) {
     Detail::handle_error(clingo_control_load(*impl_, file));
-}
-
-inline SolveAsync Control::solve_async(ModelCallback mh, FinishCallback fh, SymbolicLiteralSpan assumptions) {
-    clingo_solve_async_t *ret;
-    impl_->mh = std::move(mh);
-    impl_->fh = std::move(fh);
-    Detail::handle_error(clingo_control_solve_async(*impl_, [](clingo_model_t *m, void *data, bool *ret) -> bool {
-        CLINGO_TRY {
-            auto &mh = *static_cast<ModelCallback*>(data);
-            *ret = !mh || mh(Model{m});
-        }
-        CLINGO_CATCH;
-    }, &impl_->mh, [](clingo_solve_result_bitset_t res, void *data) -> bool {
-        CLINGO_TRY {
-            auto &fh = *static_cast<FinishCallback*>(data);
-            if (fh) { fh(SolveResult{res}); }
-        }
-        CLINGO_CATCH;
-    }, &impl_->fh, reinterpret_cast<clingo_symbolic_literal_t const *>(assumptions.begin()), assumptions.size(), &ret));
-    return SolveAsync{ret};
 }
 
 inline void Control::use_enumeration_assumption(bool value) {
