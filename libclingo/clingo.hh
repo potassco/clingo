@@ -1085,7 +1085,7 @@ inline std::ostream &operator<<(std::ostream &out, SolveResult res) {
     return out;
 }
 
-// {{{1 solve iteratively
+// {{{1 solve handle
 
 class SolveHandle {
 public:
@@ -1139,20 +1139,6 @@ private:
 
 inline ModelIterator begin(SolveHandle &it) { return ModelIterator(it); }
 inline ModelIterator end(SolveHandle &) { return ModelIterator(); }
-
-// {{{1 solve async
-
-class SolveAsync {
-public:
-    explicit SolveAsync(clingo_solve_async_t *async)
-    : async_(async) { }
-    void cancel();
-    SolveResult get();
-    bool wait(double timeout = std::numeric_limits<double>::infinity());
-    clingo_solve_async_t *to_c() const { return async_; }
-private:
-    clingo_solve_async_t *async_;
-};
 
 // {{{1 location
 
