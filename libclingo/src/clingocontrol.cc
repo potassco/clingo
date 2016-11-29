@@ -626,29 +626,19 @@ SolveResult convert(Clasp::ClaspFacade::Result res) {
 }
 
 ClingoSolveFuture::ClingoSolveFuture(ClingoControl &ctl, Clasp::SolveMode_t mode)
-    : future_(ctl.clasp_->solve(mode))
-    , model_(ctl) { }
-SolveResult ClingoSolveFuture::get() {
-    if (!done_) {
-        done_ = future_.model() == 0;
-        ret_  = convert(future_.get());
-    }
-    return ret_;
-}
+: future_(ctl.clasp_->solve(mode))
+, model_(ctl) { }
+SolveResult ClingoSolveFuture::get() { return convert(future_.get()); }
 Model const *ClingoSolveFuture::model() {
-    if (future_.model()) {
-        model_.reset(*future_.model());
+    if (auto m = future_.model()) {
+        model_.reset(*m);
         return &model_;
     }
     else { return nullptr; }
 }
-void ClingoSolveFuture::wait() { get(); }
+void ClingoSolveFuture::wait() { future_.wait(); }
 bool ClingoSolveFuture::wait(double timeout) {
-    if (!done_) {
-        if (timeout == 0 ? !future_.ready() : !future_.waitFor(timeout)) { return false; }
-        wait();
-    }
-    return true;
+    return timeout == 0 ? future_.ready() : future_.waitFor(timeout);
 }
 void ClingoSolveFuture::cancel() { future_.cancel(); }
 void ClingoSolveFuture::resume() { future_.resume(); }

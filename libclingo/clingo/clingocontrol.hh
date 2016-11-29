@@ -368,8 +368,6 @@ public:
 private:
     Clasp::ClaspFacade::SolveHandle future_;
     ClingoModel                     model_;
-    SolveResult                     ret_  = {SolveResult::Unknown, false, false};
-    bool                            done_ = false;
 };
 
 // {{{1 declaration of ClingoLib
