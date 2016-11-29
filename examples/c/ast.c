@@ -135,6 +135,7 @@ bool solve(clingo_control_t *ctl, clingo_solve_result_bitset_t *result) {
 
   if (!clingo_control_solve_refactored(ctl, NULL, 0, false, &handle)) { goto error; }
   while (true) {
+    if (!clingo_solve_handle_resume(handle)) { goto error; }
     if (!clingo_solve_handle_model(handle, &model)) { goto error; }
     if (model) { print_model(model); }
     else       { break; }
