@@ -2,8 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-bool on_model(clingo_model_t *model, void *data, bool *goon) {
-  (void)data;
+bool print_model(clingo_model_t *model) {
   bool ret = true;
   clingo_symbol_t *atoms = NULL;
   size_t atoms_n;
@@ -50,7 +49,6 @@ bool on_model(clingo_model_t *model, void *data, bool *goon) {
   }
 
   printf("\n");
-  *goon = true;
   goto out;
 
 error:
@@ -120,12 +118,36 @@ bool on_statement (clingo_ast_statement_t const *stm, on_statement_data *data) {
   if (!clingo_program_builder_add(data->builder, &stm2)) { goto error; }
 
   goto out;
+
 error:
   ret = false;
+
 out:
   if (body) { free(body); }
 
   return ret;
+}
+
+bool solve(clingo_control_t *ctl, clingo_solve_result_bitset_t *result) {
+  bool ret = true;
+  clingo_solve_handle_t *handle;
+  clingo_model_t *model;
+
+  if (!clingo_control_solve_refactored(ctl, NULL, 0, false, &handle)) { goto error; }
+  while (true) {
+    if (!clingo_solve_handle_model(handle, &model)) { goto error; }
+    if (model) { print_model(model); }
+    else       { break; }
+  }
+  if (!clingo_solve_handle_get(handle, result)) { goto error; }
+
+  goto out;
+
+error:
+  ret = false;
+
+out:
+  return clingo_solve_handle_close(handle) && ret;
 }
 
 int main(int argc, char const **argv) {
@@ -133,6 +155,7 @@ int main(int argc, char const **argv) {
   int ret = 0;
   clingo_solve_result_bitset_t solve_ret;
   clingo_control_t *ctl = NULL;
+  clingo_solve_handle_t *handle = NULL;
   clingo_symbol_t sym;
   clingo_location_t location;
   clingo_ast_statement_t stm;
@@ -180,15 +203,15 @@ int main(int argc, char const **argv) {
 
   // solve with external enable = false
   printf("Solving with enable = false...\n");
-  if (!clingo_control_solve(ctl, on_model, NULL, NULL, 0, &solve_ret)) { goto error; }
+  if (!solve(ctl, &solve_ret)) { goto error; }
   // solve with external enable = true
   printf("Solving with enable = true...\n");
   if (!clingo_control_assign_external(ctl, sym, clingo_truth_value_true)) { goto error; }
-  if (!clingo_control_solve(ctl, on_model, NULL, NULL, 0, &solve_ret)) { goto error; }
+  if (!solve(ctl, &solve_ret)) { goto error; }
   // solve with external enable = false
   printf("Solving with enable = false...\n");
   if (!clingo_control_assign_external(ctl, sym, clingo_truth_value_false)) { goto error; }
-  if (!clingo_control_solve(ctl, on_model, NULL, NULL, 0, &solve_ret)) { goto error; }
+  if (!solve(ctl, &solve_ret)) { goto error; }
 
   goto out;
 
@@ -199,6 +222,7 @@ error:
   ret = clingo_error_code();
 
 out:
+  if (handle) { clingo_solve_handle_close(handle); }
   if (ctl) { clingo_control_free(ctl); }
 
   return ret;
