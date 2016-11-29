@@ -16,10 +16,6 @@
 
 set(CMAKE_C_STANDARD 11)
 
-add_executable(solve-iteratively "${CMAKE_CURRENT_SOURCE_DIR}/solve-iteratively.c")
-target_link_libraries(solve-iteratively PRIVATE libclingo)
-set_target_properties(solve-iteratively PROPERTIES FOLDER "exe/clingo-c-examples")
-
 add_executable(model "${CMAKE_CURRENT_SOURCE_DIR}/model.c")
 target_link_libraries(model PRIVATE libclingo)
 set_target_properties(model PROPERTIES FOLDER "exe/clingo-c-examples")

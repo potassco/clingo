@@ -133,13 +133,18 @@ bool solve(clingo_control_t *ctl, clingo_solve_result_bitset_t *result) {
   clingo_solve_handle_t *handle;
   clingo_model_t *model;
 
+  // get a solve handle
   if (!clingo_control_solve_refactored(ctl, NULL, 0, false, &handle)) { goto error; }
+  // loop over all models
   while (true) {
     if (!clingo_solve_handle_resume(handle)) { goto error; }
     if (!clingo_solve_handle_model(handle, &model)) { goto error; }
+    // print the model
     if (model) { print_model(model); }
+    // stop if there are no more models
     else       { break; }
   }
+  // close the solve handle
   if (!clingo_solve_handle_get(handle, result)) { goto error; }
 
   goto out;
@@ -148,6 +153,7 @@ error:
   ret = false;
 
 out:
+  // free the solve handle
   return clingo_solve_handle_close(handle) && ret;
 }
 
