@@ -674,67 +674,7 @@ enum clingo_solve_result {
 };
 typedef unsigned clingo_solve_result_bitset_t;
 
-
-// {{{1 solve iter
-
-//! @example solve-iteratively.c
-//! The example shows how to iteratively enumerate models.
-//!
-//! ## Output ##
-//!
-//! ~~~~~~~~~~~~
-//! ./solve-iteratively 0
-//! Model: a
-//! Model: b
-//! ~~~~~~~~~~~~
-//!
-//! ## Code ##
-
-//! @defgroup SolveIter Iterative Solving
-//! Iterative enumeration of models (without using callbacks).
-//!
-//! Clingo provides two additional ways to handle solving: @ref SolveIter and @ref SolveAsync.
-//! With iterative solving, models are enumerated one by one by calling @ref clingo_solve_iteratively_next() and @ref clingo_solve_iteratively_get() in a loop.
-//!
-//! For an example, see @ref solve-iteratively.c.
-//! @ingroup Control
-
-//! @addtogroup SolveIter
-//! @{
-
-//! Search handle to enumerate models iteratively.
-//!
-//! @see clingo_control_solve_iteratively()
-typedef struct clingo_solve_iteratively clingo_solve_iteratively_t;
-//! Get the next model.
-//!
-//! @param[in] handle the target
-//! @param[out] model the next model
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_iteratively_next(clingo_solve_iteratively_t *handle, clingo_model_t **model);
-//! Get the solve result.
-//!
-//! @param[in] handle the target
-//! @param[out] result the solve result
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_iteratively_get(clingo_solve_iteratively_t *handle, clingo_solve_result_bitset_t *result);
-//! Closes an active search.
-//!
-//! There must be no function calls on the associated control object until this function has been called.
-//!
-//! @param[in] handle the target
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_iteratively_close(clingo_solve_iteratively_t *handle);
-
-//! @}
-
-// {{{1 solve async
+// {{{1 solve handle
 
 //! @example solve-async.c
 //! The example shows how to solve in the background.
@@ -757,23 +697,43 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_iteratively_close(clingo_solve_itera
 //!
 //! ## Code ##
 
-//! @defgroup SolveAsync Asynchronous Solving
-//! Solve in the background and notify about new models.
+//! @defgroup SolveHandle Solving
+//! Solving can be started both synchronously and asynchronously.
 //!
-//! Clingo provides two additional ways to handle solving: @ref SolveIter and @ref SolveAsync.
-//! With asynchronous solving, the solving process is executed in the background,
-//! and each newly found model is signalled via a @link ::clingo_model_callback_t model callback@endlink.
+//! A ::clingo_solve_handle_t objects can be used for both synchronousy and asynchronous search.
+//! Depending on which mode has been chosen some of the functions are blocking or non-blocking.
 //!
-//! For an example, see @ref solve-async.c.
+//! For an example showing how to solve asynchronously, see @ref solve-async.c.
 //! @ingroup Control
 
-//! @addtogroup SolveAsync
+//! @addtogroup SolveHandle
 //! @{
 
-//! Search handle to an asynchronous solve call.
+//! Enumeration of solve events.
+enum clingo_solve_event {
+    clingo_solve_event_model = 0,    //!< A model has been found.
+    clingo_solve_event_finished = 1, //!< The search has finished.
+};
+//! Corresponding type to ::clingo_solve_event.
+typedef int clingo_solve_event_t;
+
+//! Callback function called during search to notify when the seach is finished or a model is ready.
 //!
-//! @see clingo_control_solve_async()
-typedef struct clingo_solve_async clingo_solve_async_t;
+//! If a (non-recoverable) clingo API function fails in this callback, it must return false.
+//! In case of errors not related to clingo, set error code ::clingo_error_unknown and return false to stop solving with an error.
+//!
+//! @param[in] event result of the solve call
+//! @param[in] data user data of the callback
+//! @return whether the call was successful
+//!
+//! @see clingo_control_solve_refactored()
+typedef bool (*clingo_solve_event_callback_t) (clingo_solve_event_t event, void *data);
+
+//! Search handle to a solve call.
+//!
+//! @see clingo_control_solve_refactored()
+typedef struct clingo_solve_handle clingo_solve_handle_t;
+
 //! Get the solve result.
 //!
 //! Blocks until the search is completed.
@@ -783,11 +743,11 @@ typedef struct clingo_solve_async clingo_solve_async_t;
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_async_get(clingo_solve_async_t *handle, clingo_solve_result_bitset_t *result);
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_solve_result_bitset_t *result);
 //! Wait for the specified amount of time to check if the search has finished.
 //!
 //! If the time is set to zero, this function can be used to poll if the search
-//! has already finished.
+//! is still active.
 //!
 //! @param[in] handle the target
 //! @param[in] timeout the maximum time to wait
@@ -795,8 +755,27 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_async_get(clingo_solve_async_t *hand
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_async_wait(clingo_solve_async_t *handle, double timeout, bool *result);
-//! Stop the running search.
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result);
+//! Get the next model (or zero if there are no more models).
+//!
+//! @param[in] handle the target
+//! @param[out] model the model (it is NULL if there are no more models)
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t **model);
+//! Discards the last model and starts the search for the next one.
+//!
+//! If the search has been started asynchronously, this starts the search in the background.
+//! Otherwise, this function does nothing.
+//! An event handler can be registered to receive notifications about the progress of the search (@see clingo_solve_handle_notify()).
+//!
+//! @param[in] handle the target
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_resume(clingo_solve_handle_t *handle);
+//! Stop the running search and releases the handle.
 //!
 //! Blocks until the search is stopped.
 //!
@@ -804,7 +783,18 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_async_wait(clingo_solve_async_t *han
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_async_cancel(clingo_solve_async_t *handle);
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *handle);
+//! Register an event handler with the solve handle.
+//!
+//! The event handler is called when a model is found or the search has finished.
+//!
+//! @param[in] handle the target
+//! @param[in] notify the event handler to register
+//! @param[in] data the user data for the callback
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_notify(clingo_solve_handle_t *handle, clingo_solve_event_callback_t notify, void *data);
 
 //! @}
 
@@ -992,7 +982,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbolic_atoms_is_valid(clingo_symbolic_at
 //! The total number of theory atoms can be obtained using clingo_theory_atoms_size().
 //!
 //! @attention
-//! All structural information about theory atoms, elements, and terms is reset after @link clingo_control_solve() solving@endlink.
+//! All structural information about theory atoms, elements, and terms is reset after @link clingo_control_solve_refactored() solving@endlink.
 //! If afterward fresh theory atoms are @link clingo_control_ground() grounded@endlink, previously used ids are reused.
 //!
 //! For an example, see @ref theory-atoms.c.
@@ -2665,7 +2655,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_program_builder_end(clingo_program_builder
 typedef struct clingo_ground_program_observer {
     //! Called once in the beginning.
     //!
-    //! If the incremental flag is true, there can be multiple calls to @ref clingo_control_solve().
+    //! If the incremental flag is true, there can be multiple calls to @ref clingo_control_solve_refactored().
     //!
     //! @param[in] incremental whether the program is incremental
     //! @param[in] data user data for the callback
@@ -2850,8 +2840,6 @@ typedef struct clingo_ground_program_observer {
 
 // {{{1 control
 
-// {{{1 solve handle
-
 //! @example control.c
 //! The example shows how to ground and solve a simple logic program, and print
 //! its answer sets.
@@ -2963,51 +2951,6 @@ typedef bool (*clingo_symbol_callback_t) (clingo_symbol_t const *symbols, size_t
 //! ~~~~~~~~~~~~~~~
 typedef bool (*clingo_ground_callback_t) (clingo_location_t const *location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data);
 
-//! Callback function to intercept models.
-//!
-//! The model callback is invoked once for each model found by clingo (@link SolveAsync asynchronously@endlink).
-//!
-//! If a (non-recoverable) clingo API function fails in this callback, the function must return false.
-//! In case of errors not related to clingo, the function can set error code ::clingo_error_unknown can be set and return false to stop solving with an error.
-//!
-//! @param[in] model the current model
-//! @param[in] data user data of the callback
-//! @param[out] goon whether to continue search
-//! @return whether the call was successful
-//!
-//! @see clingo_control_solve()
-//! @see clingo_control_solve_async()
-typedef bool (*clingo_model_callback_t) (clingo_model_t *model, void *data, bool *goon);
-
-//! Callback function called at the end of an asynchronous solve operation.
-//!
-//! If a (non-recoverable) clingo API function fails in this callback, it must return false.
-//! In case of errors not related to clingo, set error code ::clingo_error_unknown and return false to stop solving with an error.
-//!
-//! @param[in] result result of the solve call
-//! @param[in] data user data of the callback
-//! @return whether the call was successful
-//!
-//! @see clingo_control_solve_async()
-typedef bool (*clingo_finish_callback_t) (clingo_solve_result_bitset_t result, void *data);
-
-enum clingo_solve_event {
-    clingo_solve_event_model = 0,    //!< A model has been found.
-    clingo_solve_event_finished = 1, //!< The search has finished.
-};
-typedef int clingo_solve_event_t;
-
-typedef bool (*clingo_solve_event_callback_t) (clingo_solve_event_t, void *data);
-
-typedef struct clingo_solve_handle clingo_solve_handle_t;
-
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_solve_result_bitset_t *result);
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result);
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t **model);
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_resume(clingo_solve_handle_t *handle);
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *handle);
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_notify(clingo_solve_handle_t *handle, clingo_solve_event_callback_t notify, void *data);
-
 //! Control object holding grounding and solving state.
 typedef struct clingo_control clingo_control_t;
 
@@ -3067,7 +3010,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_add(clingo_control_t *control, cha
 
 //! Ground the selected @link ::clingo_part parts @endlink of the current (non-ground) logic program.
 //!
-//! After grounding, logic programs can be solved with ::clingo_control_solve.
+//! After grounding, logic programs can be solved with ::clingo_control_solve_refactored().
 //!
 //! @note Parts of a logic program without an explicit <tt>\#program</tt>
 //! specification are by default put into a program called `base` without
@@ -3090,51 +3033,19 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, 
 //! @name Solving Functions
 //! @{
 
-//! Solve the currently @link ::clingo_control_ground grounded @endlink logic program.
+//! Solve the currently @link ::clingo_control_ground grounded @endlink logic program enumerating its models.
 //!
-//! @param[in] control the target
-//! @param[in] model_callback optional callback to intercept models
-//! @param[in] model_callback_data user data for model callback
-//! @param[in] assumptions array of assumptions to solve under
-//! @param[in] assumptions_size number of assumptions
-//! @param[out] result the result of the search
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving fails
-//! - error code of model callback
-CLINGO_DEPRECATED CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, clingo_model_callback_t model_callback, void *model_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_result_bitset_t *result);
-//! Solve the currently @link ::clingo_control_ground grounded @endlink logic program enumerating models iteratively.
-//!
-//! See the @ref SolveIter module for more information.
+//! See the @ref Solving module for more information.
 //!
 //! @param[in] control the target
 //! @param[in] assumptions array of assumptions to solve under
 //! @param[in] assumptions_size number of assumptions
+//! @param[in] asynchronous wheather the search is started asynchronously
 //! @param[out] handle handle to the current search to enumerate models
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving could not be started
-CLINGO_DEPRECATED CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_iteratively(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_iteratively_t **handle);
-//! Solve the currently @link ::clingo_control_ground grounded @endlink logic program asynchronously in the background.
-//!
-//! See the @ref SolveAsync module for more information.
-//!
-//! @param[in] control the target
-//! @param[in] model_callback optional callback to intercept models
-//! @param[in] model_callback_data user data for model callback
-//! @param[in] finish_callback optional callback called just before the end of the search
-//! @param[in] finish_callback_data user data for finish callback
-//! @param[in] assumptions array of assumptions to solve under
-//! @param[in] assumptions_size number of assumptions
-//! @param[out] handle handle to the current search
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving could not be started
-CLINGO_DEPRECATED CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_async(clingo_control_t *control, clingo_model_callback_t model_callback, void *model_callback_data, clingo_finish_callback_t finish_callback, void *finish_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_async_t **handle);
-
-// TODO: document!!!!!
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_refactored(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, bool asynchronous, clingo_solve_handle_t **handle);
-
 //! Clean up the domains of clingo's grounding component using the solving
 //! component's top level assignment.
 //!
@@ -3320,6 +3231,21 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_program_builder(clingo_control_t *
 //! @}
 
 // }}}1
+
+// TODO: remove
+typedef bool (*clingo_model_callback_t) (clingo_model_t *model, void *data, bool *goon);
+typedef bool (*clingo_finish_callback_t) (clingo_solve_result_bitset_t result, void *data);
+typedef struct clingo_solve_iteratively clingo_solve_iteratively_t;
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_iteratively_next(clingo_solve_iteratively_t *handle, clingo_model_t **model);
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_iteratively_get(clingo_solve_iteratively_t *handle, clingo_solve_result_bitset_t *result);
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_iteratively_close(clingo_solve_iteratively_t *handle);
+typedef struct clingo_solve_async clingo_solve_async_t;
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_async_get(clingo_solve_async_t *handle, clingo_solve_result_bitset_t *result);
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_async_wait(clingo_solve_async_t *handle, double timeout, bool *result);
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_async_cancel(clingo_solve_async_t *handle);
+CLINGO_DEPRECATED CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, clingo_model_callback_t model_callback, void *model_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_result_bitset_t *result);
+CLINGO_DEPRECATED CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_iteratively(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_iteratively_t **handle);
+CLINGO_DEPRECATED CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_async(clingo_control_t *control, clingo_model_callback_t model_callback, void *model_callback_data, clingo_finish_callback_t finish_callback, void *finish_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_async_t **handle);
 
 #ifdef __cplusplus
 }
