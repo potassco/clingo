@@ -527,6 +527,23 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(models == ModelVec({}));
             REQUIRE(trail == std::vector<std::string>({"IP: incremental", "BS", "R: 1:-~1", "ES"}));
         }
+        SECTION("events") {
+            ctl.add("base", {}, "{a}.");
+            ctl.ground({{"base", {}}});
+            int m = 0;
+            int f = 0;
+            EventCallback cb = [&](SolveEvent event) {
+                switch (event) {
+                    case SolveEvent::Model: { ++m; break; }
+                    case SolveEvent::Finished: { ++f; break; }
+                }
+            };
+            auto handle = ctl.solve();
+            handle.notify(cb);
+            REQUIRE(test_solve(std::move(handle), models).is_satisfiable());
+            REQUIRE(m == 2);
+            REQUIRE(f == 1);
+        }
     }
 }
 

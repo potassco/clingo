@@ -2991,10 +2991,11 @@ typedef bool (*clingo_model_callback_t) (clingo_model_t *model, void *data, bool
 //! @see clingo_control_solve_async()
 typedef bool (*clingo_finish_callback_t) (clingo_solve_result_bitset_t result, void *data);
 
-typedef enum clingo_solve_event {
+enum clingo_solve_event {
     clingo_solve_event_model = 0,    //!< A model has been found.
     clingo_solve_event_finished = 1, //!< The search has finished.
-} clingo_solve_event_t;
+};
+typedef int clingo_solve_event_t;
 
 typedef bool (*clingo_solve_event_callback_t) (clingo_solve_event_t, void *data);
 

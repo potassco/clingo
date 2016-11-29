@@ -1087,6 +1087,12 @@ inline std::ostream &operator<<(std::ostream &out, SolveResult res) {
 
 // {{{1 solve handle
 
+enum class SolveEvent : clingo_solve_event_t {
+    Model = clingo_solve_event_model,
+    Finished = clingo_solve_event_finished
+};
+using EventCallback = std::function<void (SolveEvent)>;
+
 class SolveHandle {
 public:
     SolveHandle();
@@ -1102,6 +1108,7 @@ public:
     Model next();
     SolveResult get();
     void close();
+    void notify(EventCallback &cb);
     ~SolveHandle() { close(); }
 private:
     clingo_solve_handle_t *iter_;
@@ -2702,6 +2709,16 @@ inline void SolveHandle::close() {
         clingo_solve_handle_close(iter_);
         iter_ = nullptr;
     }
+}
+
+inline void SolveHandle::notify(EventCallback &cb) {
+    Detail::handle_error(clingo_solve_handle_notify(iter_, [](clingo_solve_event_t event, void *data){
+        CLINGO_TRY {
+            EventCallback *cb = static_cast<EventCallback*>(data);
+            (*cb)(static_cast<SolveEvent>(event));
+        }
+        CLINGO_CATCH;
+    }, &cb));
 }
 
 // {{{2 backend
