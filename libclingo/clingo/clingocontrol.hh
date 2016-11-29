@@ -269,33 +269,34 @@ public:
 
     // }}}2
 
-    std::unique_ptr<Output::OutputBase>               out_;
-    Scripts                                          &scripts_;
-    Input::Program                                    prg_;
-    Defines                                           defs_;
-    std::unique_ptr<Input::NongroundProgramBuilder>   pb_;
-    std::unique_ptr<Input::NonGroundParser>           parser_;
-    ModelHandler                                              modelHandler_;
-    FinishHandler                                             finishHandler_;
-    Clasp::ClaspFacade                                       *clasp_ = nullptr;
-    Clasp::Cli::ClaspCliConfig                               &claspConfig_;
-    PostGroundFunc                                            pgf_;
-    PreSolveFunc                                              psf_;
-    std::unique_ptr<Potassco::TheoryData>                     data_;
-    std::vector<UProp>                                props_;
-    std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>> propagators_;
-    ClingoPropagatorLock                                      propLock_;
-    Logger                                            logger_;
-    std::unique_ptr<ClingoSolveFuture>                        solveFuture_;
-    bool enableEnumAssupmption_ = true;
-    bool clingoMode_;
-    bool verbose_               = false;
-    bool parsed                 = false;
-    bool grounded               = false;
-    bool incremental_           = true;
-    bool configUpdate_          = false;
-    bool initialized_           = false;
-    bool incmode_               = false;
+    std::unique_ptr<Output::OutputBase>                        out_;
+    Scripts                                                   &scripts_;
+    Input::Program                                             prg_;
+    Defines                                                    defs_;
+    std::unique_ptr<Input::NongroundProgramBuilder>            pb_;
+    std::unique_ptr<Input::NonGroundParser>                    parser_;
+    ModelHandler                                               modelHandler_;
+    FinishHandler                                              finishHandler_;
+    SolveFuture::EventHandler                                  eventHandler_;
+    Clasp::ClaspFacade                                        *clasp_                 = nullptr;
+    Clasp::Cli::ClaspCliConfig                                &claspConfig_;
+    PostGroundFunc                                             pgf_;
+    PreSolveFunc                                               psf_;
+    std::unique_ptr<Potassco::TheoryData>                      data_;
+    std::vector<UProp>                                         props_;
+    std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>>  propagators_;
+    ClingoPropagatorLock                                       propLock_;
+    Logger                                                     logger_;
+    std::unique_ptr<ClingoSolveFuture>                         solveFuture_;
+    bool                                                       enableEnumAssupmption_ = true;
+    bool                                                       clingoMode_;
+    bool                                                       verbose_               = false;
+    bool                                                       parsed                 = false;
+    bool                                                       grounded               = false;
+    bool                                                       incremental_           = true;
+    bool                                                       configUpdate_          = false;
+    bool                                                       initialized_           = false;
+    bool                                                       incmode_               = false;
 };
 
 // {{{1 declaration of ClingoModel
@@ -340,6 +341,7 @@ public:
     uint64_t number() const override { return model_->num; }
     Potassco::Id_t threadId() const override { return model_->sId; }
     bool optimality_proven() const override { return model_->opt; }
+    ClingoControl &context() { return ctl_; }
 private:
     Clasp::Asp::LogicProgram const &lp() const    { return *static_cast<Clasp::Asp::LogicProgram*>(ctl_.clasp_->program()); };
     Output::OutputBase const &out() const { return *ctl_.out_; };
@@ -362,6 +364,7 @@ public:
     bool wait(double timeout) override;
     void resume() override;
     void cancel() override;
+    void notify(EventHandler cb) override;
 private:
     Clasp::ClaspFacade::SolveHandle future_;
     ClingoModel                     model_;

@@ -106,23 +106,34 @@ namespace Gringo {
 // {{{1 declaration of SolveFuture
 
 struct SolveFuture {
+    using EventHandler = std::function<void (clingo_solve_event)>;
     virtual SolveResult get() = 0;
     virtual Model const *next() = 0;
     virtual void wait() = 0;
     virtual bool wait(double timeout) = 0;
     virtual void cancel() = 0;
     virtual void resume() = 0;
+    virtual void notify(EventHandler cb) = 0;
     virtual ~SolveFuture() { }
 };
 
 struct DefaultSolveFuture : SolveFuture {
-    SolveResult get() override { return {SolveResult::Unknown, false, false}; }
-    Model const *next() override { return nullptr; }
-    void wait() override { }
-    bool wait(double) override { return true; }
-    void cancel() override { }
-    void resume() override { }
-    ~DefaultSolveFuture() override { }
+    SolveResult get() override { resume(); return {SolveResult::Unknown, false, false}; }
+    Model const *next() override { resume(); return nullptr; }
+    void wait() override { resume(); }
+    bool wait(double) override { resume(); return true; }
+    void cancel() override { resume(); }
+    void resume() override {
+        if (!done_) {
+            done_ = true;
+            if (cb_) { cb_(clingo_solve_event_finished); }
+        }
+    }
+    void notify(EventHandler cb) override { cb_ = cb; }
+    ~DefaultSolveFuture() override { resume(); }
+private:
+    EventHandler cb_;
+    bool done_ = false;
 };
 
 // {{{1 declaration of ConfigProxy

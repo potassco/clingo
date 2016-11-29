@@ -1024,6 +1024,15 @@ extern "C" bool clingo_solve_handle_resume(clingo_solve_handle_t *handle) {
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_solve_handle_notify(clingo_solve_handle_t *handle, clingo_solve_event_callback_t notify, void *data) {
+    GRINGO_CLINGO_TRY {
+        handle->notify([data, notify](clingo_solve_event_t event){
+            if (!notify(event, data)) { throw ClingoError(); }
+        });
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
 // {{{1 control
 
 struct clingo_program_builder : clingo_control_t { };
@@ -1214,7 +1223,6 @@ extern "C" bool clingo_control_has_const(clingo_control_t *ctl, char const *name
     GRINGO_CLINGO_TRY {
         auto sym = ctl->getConst(name);
         *ret = sym.type() != SymbolType::Special;
-
     }
     GRINGO_CLINGO_CATCH;
 }

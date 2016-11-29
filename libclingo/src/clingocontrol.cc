@@ -257,16 +257,17 @@ void ClingoControl::main() {
     }
 }
 bool ClingoControl::onModel(Clasp::Model const &m) {
-    if (!modelHandler_) { return true; }
+    if (!modelHandler_ && !eventHandler_) { return true; }
     std::lock_guard<decltype(propLock_)> lock(propLock_);
-    return modelHandler_(ClingoModel(*this, &m));
+    if (eventHandler_) { eventHandler_(clingo_solve_event_model); }
+    return !modelHandler_ || modelHandler_(ClingoModel(*this, &m));
 }
 void ClingoControl::onFinish(Clasp::ClaspFacade::Result ret) {
-    if (finishHandler_) {
-        finishHandler_(convert(ret));
-        finishHandler_ = nullptr;
-    }
+    if (finishHandler_) { finishHandler_(convert(ret)); }
+    if (eventHandler_) { eventHandler_(clingo_solve_event_finished); }
+    finishHandler_ = nullptr;
     modelHandler_ = nullptr;
+    eventHandler_ = nullptr;
 }
 Symbol ClingoControl::getConst(std::string const &name) {
     auto ret = defs_.defs().find(name.c_str());
@@ -357,7 +358,7 @@ SolveFuture *ClingoControl::solveAsync(ModelHandler mh, FinishHandler fh, Assump
 SolveFuture *ClingoControl::solveRefactored(Assumptions &&ass, bool asynchronous) {
     prepare(std::move(ass), nullptr, nullptr);
     if (clingoMode_) {
-        solveFuture_ = gringo_make_unique<ClingoSolveFuture>(*this, asynchronous ? Clasp::SolveMode_t::Async : Clasp::SolveMode_t::Yield);
+        solveFuture_ = gringo_make_unique<ClingoSolveFuture>(*this, asynchronous ? Clasp::SolveMode_t::AsyncYield : Clasp::SolveMode_t::Yield);
         return solveFuture_.get();
     }
     else {
@@ -372,6 +373,7 @@ bool ClingoControl::blocked() {
     return clasp_->solving();
 }
 void ClingoControl::prepare(Assumptions &&ass, Control::ModelHandler mh, Control::FinishHandler fh) {
+    eventHandler_ = nullptr;
     // finalize the program
     if (update()) {
         // pass assumptions to the backend
@@ -650,6 +652,9 @@ bool ClingoSolveFuture::wait(double timeout) {
 }
 void ClingoSolveFuture::cancel() { future_.cancel(); }
 void ClingoSolveFuture::resume() { future_.resume(); }
+void ClingoSolveFuture::notify(EventHandler cb) {
+    model_.context().eventHandler_ = cb;
+}
 
 // {{{1 definition of ClingoLib
 
@@ -711,10 +716,8 @@ bool ClingoLib::onModel(Clasp::Solver const&, Clasp::Model const& m) {
     return ClingoControl::onModel(m);
 }
 void ClingoLib::onEvent(Clasp::Event const& ev) {
-#if CLASP_HAS_THREADS
     Clasp::ClaspFacade::StepReady const *r = Clasp::event_cast<Clasp::ClaspFacade::StepReady>(ev);
-    if (r && finishHandler_) { onFinish(r->summary->result); }
-#endif
+    if (r) { onFinish(r->summary->result); }
     const Clasp::LogEvent* log = Clasp::event_cast<Clasp::LogEvent>(ev);
     if (log && log->isWarning()) { logger_.print(Warnings::Other, log->msg); }
 }

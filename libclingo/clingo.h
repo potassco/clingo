@@ -2852,14 +2852,6 @@ typedef struct clingo_ground_program_observer {
 
 // {{{1 solve handle
 
-// TODO: document
-typedef struct clingo_solve_handle clingo_solve_handle_t;
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_solve_result_bitset_t *result);
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result);
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t **model);
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_resume(clingo_solve_handle_t *handle);
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *handle);
-
 //! @example control.c
 //! The example shows how to ground and solve a simple logic program, and print
 //! its answer sets.
@@ -2902,9 +2894,6 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *
 
 //! @typedef clingo_solve_result_bitset_t
 //! Corresponding type to ::clingo_solve_result.
-
-//! Control object holding grounding and solving state.
-typedef struct clingo_control clingo_control_t;
 
 //! Struct used to specify the program parts that have to be grounded.
 //!
@@ -3001,6 +2990,25 @@ typedef bool (*clingo_model_callback_t) (clingo_model_t *model, void *data, bool
 //!
 //! @see clingo_control_solve_async()
 typedef bool (*clingo_finish_callback_t) (clingo_solve_result_bitset_t result, void *data);
+
+typedef enum clingo_solve_event {
+    clingo_solve_event_model = 0,    //!< A model has been found.
+    clingo_solve_event_finished = 1, //!< The search has finished.
+} clingo_solve_event_t;
+
+typedef bool (*clingo_solve_event_callback_t) (clingo_solve_event_t, void *data);
+
+typedef struct clingo_solve_handle clingo_solve_handle_t;
+
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_solve_result_bitset_t *result);
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result);
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t **model);
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_resume(clingo_solve_handle_t *handle);
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *handle);
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_notify(clingo_solve_handle_t *handle, clingo_solve_event_callback_t notify, void *data);
+
+//! Control object holding grounding and solving state.
+typedef struct clingo_control clingo_control_t;
 
 //! Create a new control object.
 //!
