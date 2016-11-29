@@ -768,7 +768,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *
 //!
 //! If the search has been started asynchronously, this starts the search in the background.
 //! Otherwise, this function does nothing.
-//! An event handler can be registered to receive notifications about the progress of the search (@see clingo_solve_handle_notify()).
+//! An event handler can be registered to @link clingo_solve_handle_notify() receive notifications@endlink about the progress of the search.
 //!
 //! @param[in] handle the target
 //! @return whether the call was successful; might set one of the following error codes:

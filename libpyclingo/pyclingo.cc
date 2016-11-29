@@ -5685,8 +5685,21 @@ active; you must not call any member function during search.)";
         std::vector<clingo_symbolic_literal_t> ass;
         if (!pyAss.none()) { pyToCpp(pyAss, ass); }
         auto ret = doUnblocked([this, mh, &ass]() {
+            struct Free {
+                ~Free() { handle_c_error(clingo_solve_handle_close(handle)); }
+                clingo_solve_handle_t *handle = nullptr;
+            } free;
+            handle_c_error(clingo_control_solve_refactored(ctl, ass.data(), ass.size(), false, &free.handle));
+            bool goon = true;
+            while (goon) {
+                clingo_model_t *model;
+                handle_c_error(clingo_solve_handle_resume(free.handle));
+                handle_c_error(clingo_solve_handle_model(free.handle, &model));
+                if (!model) { break; }
+                if (!mh.none()) { handle_c_error(on_model_blocked(model, mh.toPy(), &goon)); }
+            }
             clingo_solve_result_bitset_t result;
-            handle_c_error(clingo_control_solve(ctl, mh.none() ? nullptr : on_model_blocked, mh.toPy(), ass.data(), ass.size(), &result));
+            handle_c_error(clingo_solve_handle_get(free.handle, &result));
             return result;
         });
         return SolveResult::construct(ret).release();
