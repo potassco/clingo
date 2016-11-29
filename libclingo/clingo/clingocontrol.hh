@@ -359,7 +359,7 @@ public:
     ClingoSolveFuture(ClingoControl &ctl, Clasp::SolveMode_t mode);
 
     SolveResult  get()  override;
-    Model const *next() override;
+    Model const *model() override;
     void wait() override;
     bool wait(double timeout) override;
     void resume() override;

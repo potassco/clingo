@@ -108,7 +108,7 @@ namespace Gringo {
 struct SolveFuture {
     using EventHandler = std::function<void (clingo_solve_event)>;
     virtual SolveResult get() = 0;
-    virtual Model const *next() = 0;
+    virtual Model const *model() = 0;
     virtual void wait() = 0;
     virtual bool wait(double timeout) = 0;
     virtual void cancel() = 0;
@@ -119,7 +119,7 @@ struct SolveFuture {
 
 struct DefaultSolveFuture : SolveFuture {
     SolveResult get() override { resume(); return {SolveResult::Unknown, false, false}; }
-    Model const *next() override { resume(); return nullptr; }
+    Model const *model() override { resume(); return nullptr; }
     void wait() override { resume(); }
     bool wait(double) override { resume(); return true; }
     void cancel() override { resume(); }

@@ -724,7 +724,10 @@ extern "C" bool clingo_model_type(clingo_model_t *m, clingo_model_type_t *ret) {
 struct clingo_solve_iteratively : SolveFuture { };
 
 extern "C" bool clingo_solve_iteratively_next(clingo_solve_iteratively_t *it, clingo_model **m) {
-    GRINGO_CLINGO_TRY { *m = static_cast<clingo_model*>(const_cast<Model*>(it->next())); }
+    GRINGO_CLINGO_TRY {
+        it->resume();
+        *m = static_cast<clingo_model*>(const_cast<Model*>(it->model()));
+    }
     GRINGO_CLINGO_CATCH;
 }
 
@@ -1015,7 +1018,7 @@ extern "C" bool clingo_solve_handle_close(clingo_solve_handle_t *handle) {
 }
 extern "C" bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t **model) {
     GRINGO_CLINGO_TRY {
-        *model = const_cast<Model*>(handle->next());
+        *model = const_cast<Model*>(handle->model());
     }
     GRINGO_CLINGO_CATCH;
 }

@@ -635,8 +635,8 @@ SolveResult ClingoSolveFuture::get() {
     }
     return ret_;
 }
-Model const *ClingoSolveFuture::next() {
-    if (future_.next()) {
+Model const *ClingoSolveFuture::model() {
+    if (future_.model()) {
         model_.reset(*future_.model());
         return &model_;
     }
