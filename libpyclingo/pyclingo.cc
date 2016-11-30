@@ -2092,9 +2092,8 @@ The atom must be represented using a function symbol.)"},
 // {{{1 wrap SolveFuture
 
 struct SolveFuture : ObjectBase<SolveFuture> {
-    clingo_solve_async_t *future;
-    PyObject *mh;
-    PyObject *fh;
+    clingo_solve_handle_t *future;
+    std::pair<PyObject *, PyObject *> cb;
 
     static PyMethodDef tp_methods[];
     static constexpr char const *tp_type = "SolveFuture";
@@ -2110,25 +2109,37 @@ Functions in this object release the GIL. They are not thread-safe though.
 
 See Control.solve_async for an example.)";
 
-    static Object construct(clingo_solve_async_t *future, PyObject *mh, PyObject *fh) {
+    static SharedObject<SolveFuture> construct(clingo_solve_handle_t *future) {
         auto self = new_();
         self->future = future;
-        self->mh = mh;
-        self->fh = fh;
-        Py_XINCREF(self->mh);
-        Py_XINCREF(self->fh);
+        self->cb.first = nullptr;
+        self->cb.second = nullptr;
         return self;
     }
 
+    void notify(clingo_solve_event_callback_t event, Reference mh, Reference fh) {
+        if (!mh.none()) {
+            cb.first = mh.toPy();
+            Py_XINCREF(cb.first);
+        }
+        if (!fh.none()) {
+            cb.second = fh.toPy();
+            Py_XINCREF(cb.second);
+        }
+        if (!fh.none() || !mh.none()) {
+            handle_c_error(clingo_solve_handle_notify(future, event, &cb));
+        }
+    }
+
     void tp_dealloc() {
-        Py_XDECREF(mh);
-        Py_XDECREF(fh);
+        Py_XDECREF(cb.first);
+        Py_XDECREF(cb.second);
     }
 
     Object get() {
         return SolveResult::construct(doUnblocked([this]() {
             clingo_solve_result_bitset_t result;
-            handle_c_error(clingo_solve_async_get(future, &result));
+            handle_c_error(clingo_solve_handle_get(future, &result));
             return result;
         }));
     }
@@ -2139,7 +2150,7 @@ See Control.solve_async for an example.)";
         if (timeout.none()) {
             doUnblocked([this](){
                 clingo_solve_result_bitset_t ret;
-                handle_c_error(clingo_solve_async_get(future, &ret));
+                handle_c_error(clingo_solve_handle_get(future, &ret));
             });
             Py_RETURN_TRUE;
         }
@@ -2147,7 +2158,7 @@ See Control.solve_async for an example.)";
             auto time = pyToCpp<double>(timeout);
             return cppToPy(doUnblocked([this, time](){
                 bool ret;
-                handle_c_error(clingo_solve_async_wait(future, time, &ret));
+                handle_c_error(clingo_solve_handle_wait(future, time, &ret));
                 return ret;
             }));
         }
@@ -2155,7 +2166,7 @@ See Control.solve_async for an example.)";
 
     Object cancel() {
         doUnblocked([this](){
-            handle_c_error(clingo_solve_async_cancel(future));
+            handle_c_error(clingo_solve_handle_close(future));
         });
         Py_RETURN_NONE;
     }
@@ -5604,6 +5615,7 @@ active; you must not call any member function during search.)";
         for (auto &&cpp_part : cpp_parts) {
             parts.emplace_back(clingo_part_t{cpp_part.first.c_str(), reinterpret_cast<clingo_symbol_t*>(cpp_part.second.data()), cpp_part.second.size()});
         }
+        // TODO: consider unblocking this one (the callbacks have to be blocked again for this to work)
         handle_c_error(clingo_control_ground(ctl, parts.data(), parts.size(), pyContext.none() ? nullptr : on_context, pyContext.none() ? nullptr : pyContext.toPy()));
         Py_RETURN_NONE;
     }
@@ -5618,36 +5630,39 @@ active; you must not call any member function during search.)";
         handle_c_error(clingo_control_get_const(ctl, name, &val));
         return Symbol::construct(val);
     }
-    static bool on_model(clingo_model_t *model, void *data, bool *goon) {
-        try {
-            auto pyModel = Model::construct(model);
-            Object ret = PyObject_CallFunction(static_cast<PyObject*>(data), const_cast<char*>("O"), pyModel.toPy());
-            *goon = ret.none() || pyToCpp<bool>(ret);
-            return true;
+    static bool on_event(clingo_solve_event_t event, clingo_model_t *model, void *data) {
+        std::pair<PyObject*, PyObject*> &cb = *static_cast<std::pair<PyObject*, PyObject*>*>(data);
+        switch (event) {
+            case clingo_solve_event_model: {
+                PyBlock block;
+                try {
+                    auto pyModel = Model::construct(model);
+                    Object ret = PyObject_CallFunction(cb.first, const_cast<char*>("O"), pyModel.toPy());
+                    // TODO: goon
+                    bool todo;
+                    bool *goon = &todo;
+                    *goon = ret.none() || pyToCpp<bool>(ret);
+                    return true;
+                }
+                catch (...) {
+                    handle_cxx_error("<on_model>", "error in model callback");
+                    return false;
+                }
+            }
+            case clingo_solve_event_finished: {
+                PyBlock block;
+                try {
+                    // TODO: Object pyRet = SolveResult::construct(result);
+                    Object fhRet = PyObject_CallFunction(cb.second, const_cast<char*>(""));
+                    return true;
+                }
+                catch (...) {
+                    handle_cxx_error("<on_finish>", "error in finish callback");
+                    return false;
+                }
+            }
         }
-        catch (...) {
-            handle_cxx_error("<on_model>", "error in model callback");
-            return false;
-        }
-    }
-    static bool on_model_blocked(clingo_model_t *model, void *data, bool *goon) {
-        PyBlock block;
-        return on_model(model, data, goon);
-    }
-    static bool on_finish(clingo_solve_result_bitset_t result, void *data) {
-        try {
-            Object pyRet = SolveResult::construct(result);
-            Object fhRet = PyObject_CallFunction(static_cast<PyObject*>(data), const_cast<char*>("O"), pyRet.toPy());
-            return true;
-        }
-        catch (...) {
-            handle_cxx_error("<on_finish>", "error in finish callback");
-            return false;
-        }
-    }
-    static bool on_finish_blocked(clingo_solve_result_bitset_t result, void *data) {
-        PyBlock block;
-        return on_finish(result, data);
+        return true;
     }
     Object solve_async(Reference args, Reference kwds) {
         CHECK_BLOCKED("solve_async");
@@ -5658,9 +5673,12 @@ active; you must not call any member function during search.)";
         ParseTupleAndKeywords(args, kwds, "|OOO", kwlist, mh, fh, pyAss);
         std::vector<clingo_symbolic_literal_t> ass;
         if (!pyAss.none()) { pyToCpp(pyAss, ass); }
-        clingo_solve_async_t *handle;
-        handle_c_error(clingo_control_solve_async(ctl, mh.none() ? nullptr : on_model_blocked, mh.toPy(), fh.none() ? nullptr : on_finish_blocked, fh.toPy(), ass.data(), ass.size(), &handle));
-        return SolveFuture::construct(handle, mh.toPy(), fh.toPy());
+        clingo_solve_handle_t *handle;
+        handle_c_error(clingo_control_solve_refactored(ctl, ass.data(), ass.size(), clingo_solve_mode_async, &handle));
+        auto ret = SolveFuture::construct(handle);
+        ret->notify(&on_event, mh, fh);
+        handle_c_error(clingo_solve_handle_resume(handle));
+        return ret;
     }
     Object solve_iter(Reference args, Reference kwds) {
         CHECK_BLOCKED("solve_iter");
@@ -5686,6 +5704,7 @@ active; you must not call any member function during search.)";
         std::vector<clingo_symbolic_literal_t> ass;
         if (!pyAss.none()) { pyToCpp(pyAss, ass); }
         auto ret = doUnblocked([this, mh, &ass]() {
+            // TODO: can use the event handler as well (same goes for lua interface)
             struct Free {
                 ~Free() { handle_c_error(clingo_solve_handle_close(handle)); }
                 clingo_solve_handle_t *handle = nullptr;
@@ -5697,7 +5716,10 @@ active; you must not call any member function during search.)";
                 handle_c_error(clingo_solve_handle_resume(free.handle));
                 handle_c_error(clingo_solve_handle_model(free.handle, &model));
                 if (!model) { break; }
-                if (!mh.none()) { handle_c_error(on_model_blocked(model, mh.toPy(), &goon)); }
+                if (!mh.none()) {
+                    std::pair<PyObject*, PyObject*> data{mh.toPy(), nullptr};
+                    handle_c_error(on_event(clingo_solve_event_model, model, &data));
+                }
             }
             clingo_solve_result_bitset_t result;
             handle_c_error(clingo_solve_handle_get(free.handle, &result));
