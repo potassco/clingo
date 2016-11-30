@@ -2193,7 +2193,7 @@ See Control.interrupt() for a thread-safe alternative.)"},
 // {{{1 wrap SolveIter
 
 struct SolveIter : ObjectBase<SolveIter> {
-    clingo_solve_iteratively_t *solve_iter;
+    clingo_solve_handle_t *handle;
     static PyMethodDef tp_methods[];
 
     static constexpr char const *tp_type = "SolveIter";
@@ -2204,23 +2204,24 @@ R"(Object to conveniently iterate over all models.
 During solving the GIL is released. The functions in this object are not
 thread-safe though.)";
 
-    static Object construct(clingo_solve_iteratively_t *iter) {
+    static Object construct(clingo_solve_handle_t *handle) {
         auto self = new_();
-        self->solve_iter = iter;
+        self->handle = handle;
         return self;
     }
     Reference tp_iter() { return *this; }
     Object get() {
         return SolveResult::construct(doUnblocked([this]() {
             clingo_solve_result_bitset_t ret;
-            handle_c_error(clingo_solve_iteratively_get(solve_iter, &ret));
+            handle_c_error(clingo_solve_handle_get(handle, &ret));
             return ret;
         }));
     }
     Object tp_iternext() {
         if (clingo_model_t *m = doUnblocked([this]() {
             clingo_model_t *ret;
-            handle_c_error(clingo_solve_iteratively_next(solve_iter, &ret));
+            handle_c_error(clingo_solve_handle_resume(handle));
+            handle_c_error(clingo_solve_handle_model(handle, &ret));
             return ret;
         })) {
             return Model::construct(m);
@@ -2231,7 +2232,7 @@ thread-safe though.)";
     }
     Object enter() { return Reference{*this}; }
     Object exit() {
-        doUnblocked([this]() { handle_c_error(clingo_solve_iteratively_close(solve_iter)); });
+        doUnblocked([this]() { handle_c_error(clingo_solve_handle_close(handle)); });
         Py_RETURN_FALSE;
     }
 };
@@ -5670,8 +5671,8 @@ active; you must not call any member function during search.)";
         ParseTupleAndKeywords(args, kwds, "|O", kwlist, pyAss);
         std::vector<clingo_symbolic_literal_t> ass;
         if (!pyAss.none()) { pyToCpp(pyAss, ass); }
-        clingo_solve_iteratively_t *handle;
-        handle_c_error(clingo_control_solve_iteratively(ctl, ass.data(), ass.size(), &handle));
+        clingo_solve_handle_t *handle;
+        handle_c_error(clingo_control_solve_refactored(ctl, ass.data(), ass.size(), false, &handle));
         return SolveIter::construct(handle);
     }
     Object solve(Reference args, Reference kwds) {
