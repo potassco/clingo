@@ -366,10 +366,10 @@ public:
     void cancel() override;
     void notify(EventHandler cb) override;
 private:
-    void init();
+    Clasp::ClaspFacade::SolveHandle &handle();
 
     Clasp::SolveMode_t                               mode_;
-    std::unique_ptr<Clasp::ClaspFacade::SolveHandle> future_;
+    std::unique_ptr<Clasp::ClaspFacade::SolveHandle> handle_;
     ClingoModel                                      model_;
 };
 

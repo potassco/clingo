@@ -632,42 +632,38 @@ SolveResult convert(Clasp::ClaspFacade::Result res) {
 
 ClingoSolveFuture::ClingoSolveFuture(ClingoControl &ctl, Clasp::SolveMode_t mode)
 : mode_(mode)
-, future_(nullptr)
+, handle_(nullptr)
 , model_(ctl) { }
 SolveResult ClingoSolveFuture::get() {
-    init();
-    return convert(future_->get()); }
+    return convert(handle().get());
+}
 Model const *ClingoSolveFuture::model() {
-    init();
-    if (auto m = future_->model()) {
+    if (auto m = handle().model()) {
         model_.reset(*m);
         return &model_;
     }
     else { return nullptr; }
 }
 void ClingoSolveFuture::wait() {
-    init();
-    future_->wait();
+    handle().wait();
 }
 bool ClingoSolveFuture::wait(double timeout) {
-    init();
-    return timeout == 0 ? future_->ready() : future_->waitFor(timeout);
+    return timeout == 0 ? handle().ready() : handle().waitFor(timeout);
 }
 void ClingoSolveFuture::cancel() {
-    init();
-    future_->cancel();
+    handle().cancel();
 }
 void ClingoSolveFuture::resume() {
-    init();
-    future_->resume();
+    handle().resume();
 }
 void ClingoSolveFuture::notify(EventHandler cb) {
     model_.context().eventHandler_ = cb;
 }
-void ClingoSolveFuture::init() {
-    if (!future_) {
-        future_ = gringo_make_unique<Clasp::ClaspFacade::SolveHandle>(model_.context().clasp_->solve(mode_));
+Clasp::ClaspFacade::SolveHandle &ClingoSolveFuture::handle() {
+    if (!handle_) {
+        handle_ = gringo_make_unique<Clasp::ClaspFacade::SolveHandle>(model_.context().clasp_->solve(mode_));
     }
+    return *handle_;
 }
 
 // {{{1 definition of ClingoLib
