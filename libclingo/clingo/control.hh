@@ -106,7 +106,7 @@ namespace Gringo {
 // {{{1 declaration of SolveFuture
 
 struct SolveFuture {
-    using EventHandler = std::function<void (clingo_solve_event)>;
+    using EventHandler = std::function<void (clingo_solve_event, Model *)>;
     virtual SolveResult get() = 0;
     virtual Model const *model() = 0;
     virtual void wait() = 0;
@@ -126,7 +126,7 @@ struct DefaultSolveFuture : SolveFuture {
     void resume() override {
         if (!done_) {
             done_ = true;
-            if (cb_) { cb_(clingo_solve_event_finished); }
+            if (cb_) { cb_(clingo_solve_event_finished, nullptr); }
         }
     }
     void notify(EventHandler cb) override { cb_ = cb; }

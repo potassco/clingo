@@ -259,12 +259,15 @@ void ClingoControl::main() {
 bool ClingoControl::onModel(Clasp::Model const &m) {
     if (!modelHandler_ && !eventHandler_) { return true; }
     std::lock_guard<decltype(propLock_)> lock(propLock_);
-    if (eventHandler_) { eventHandler_(clingo_solve_event_model); }
+    if (eventHandler_) {
+        ClingoModel model(*this, &m);
+        eventHandler_(clingo_solve_event_model, &model);
+    }
     return !modelHandler_ || modelHandler_(ClingoModel(*this, &m));
 }
 void ClingoControl::onFinish(Clasp::ClaspFacade::Result ret) {
     if (finishHandler_) { finishHandler_(convert(ret)); }
-    if (eventHandler_) { eventHandler_(clingo_solve_event_finished); }
+    if (eventHandler_) { eventHandler_(clingo_solve_event_finished, nullptr); }
     finishHandler_ = nullptr;
     modelHandler_ = nullptr;
     eventHandler_ = nullptr;

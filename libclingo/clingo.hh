@@ -1091,7 +1091,7 @@ enum class SolveEvent : clingo_solve_event_t {
     Model = clingo_solve_event_model,
     Finished = clingo_solve_event_finished
 };
-using EventCallback = std::function<void (SolveEvent)>;
+using EventCallback = std::function<void (SolveEvent, Model *)>;
 
 class SolveHandle {
 public:
@@ -2712,10 +2712,16 @@ inline void SolveHandle::close() {
 }
 
 inline void SolveHandle::notify(EventCallback &cb) {
-    Detail::handle_error(clingo_solve_handle_notify(iter_, [](clingo_solve_event_t event, void *data){
+    Detail::handle_error(clingo_solve_handle_notify(iter_, [](clingo_solve_event_t event, clingo_model_t *model, void *data){
         CLINGO_TRY {
-            EventCallback *cb = static_cast<EventCallback*>(data);
-            (*cb)(static_cast<SolveEvent>(event));
+            EventCallback &cb = *static_cast<EventCallback*>(data);
+            if (model) {
+                Model m{model};
+                cb(static_cast<SolveEvent>(event), &m);
+            }
+            else {
+                cb(static_cast<SolveEvent>(event), nullptr);
+            }
         }
         CLINGO_CATCH;
     }, &cb));

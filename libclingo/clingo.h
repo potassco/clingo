@@ -722,12 +722,15 @@ typedef int clingo_solve_event_t;
 //! If a (non-recoverable) clingo API function fails in this callback, it must return false.
 //! In case of errors not related to clingo, set error code ::clingo_error_unknown and return false to stop solving with an error.
 //!
+//! @attention If the search is finished, the model is NULL.
+//!
 //! @param[in] event result of the solve call
+//! @param[in] model the current model
 //! @param[in] data user data of the callback
 //! @return whether the call was successful
 //!
 //! @see clingo_control_solve_refactored()
-typedef bool (*clingo_solve_event_callback_t) (clingo_solve_event_t event, void *data);
+typedef bool (*clingo_solve_event_callback_t) (clingo_solve_event_t event, clingo_model_t *model, void *data);
 
 //! Search handle to a solve call.
 //!

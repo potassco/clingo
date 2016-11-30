@@ -1029,8 +1029,8 @@ extern "C" bool clingo_solve_handle_resume(clingo_solve_handle_t *handle) {
 
 extern "C" bool clingo_solve_handle_notify(clingo_solve_handle_t *handle, clingo_solve_event_callback_t notify, void *data) {
     GRINGO_CLINGO_TRY {
-        handle->notify([data, notify](clingo_solve_event_t event){
-            if (!notify(event, data)) { throw ClingoError(); }
+        handle->notify([data, notify](clingo_solve_event_t event, Model *m){
+            if (!notify(event, m, data)) { throw ClingoError(); }
         });
     }
     GRINGO_CLINGO_CATCH;
