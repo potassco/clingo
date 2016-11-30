@@ -5672,7 +5672,7 @@ active; you must not call any member function during search.)";
         std::vector<clingo_symbolic_literal_t> ass;
         if (!pyAss.none()) { pyToCpp(pyAss, ass); }
         clingo_solve_handle_t *handle;
-        handle_c_error(clingo_control_solve_refactored(ctl, ass.data(), ass.size(), false, &handle));
+        handle_c_error(clingo_control_solve_refactored(ctl, ass.data(), ass.size(), clingo_solve_mode_yield, &handle));
         return SolveIter::construct(handle);
     }
     Object solve(Reference args, Reference kwds) {
@@ -5690,7 +5690,7 @@ active; you must not call any member function during search.)";
                 ~Free() { handle_c_error(clingo_solve_handle_close(handle)); }
                 clingo_solve_handle_t *handle = nullptr;
             } free;
-            handle_c_error(clingo_control_solve_refactored(ctl, ass.data(), ass.size(), false, &free.handle));
+            handle_c_error(clingo_control_solve_refactored(ctl, ass.data(), ass.size(), clingo_solve_mode_yield, &free.handle));
             bool goon = true;
             while (goon) {
                 clingo_model_t *model;

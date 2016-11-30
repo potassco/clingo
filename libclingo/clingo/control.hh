@@ -196,7 +196,7 @@ struct clingo_control {
     virtual Gringo::SolveResult solve(ModelHandler h, Assumptions &&assumptions) = 0;
     virtual Gringo::SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&assumptions) = 0;
     virtual Gringo::SolveFuture *solveIter(Assumptions &&assumptions) = 0;
-    virtual Gringo::SolveFuture *solveRefactored(Assumptions &&assumptions, bool asynchronous) = 0;
+    virtual Gringo::SolveFuture *solveRefactored(Assumptions &&assumptions, clingo_solve_mode_bitset_t mode) = 0;
     virtual void interrupt() = 0;
     virtual void *claspFacade() = 0;
     virtual void add(std::string const &name, Gringo::StringVec const &params, std::string const &part) = 0;

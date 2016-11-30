@@ -185,7 +185,7 @@ struct IncrementalControl : Control {
         return {SolveResult::Unknown, false, false};
     }
     SolveFuture *solveIter(Assumptions &&) override { throw std::runtime_error("error: iterative solving not supported"); }
-    SolveFuture *solveRefactored(Assumptions &&ass, bool) override {
+    SolveFuture *solveRefactored(Assumptions &&ass, clingo_solve_mode_bitset_t) override {
         static DefaultSolveFuture future_;
         out.assume(std::move(ass));
         grounded = false;

@@ -250,7 +250,7 @@ public:
     bool useEnumAssumption() override;
     void cleanupDomains() override;
     SolveFuture *solveIter(Assumptions &&ass) override;
-    SolveFuture *solveRefactored(Assumptions &&ass, bool asynchronous) override;
+    SolveFuture *solveRefactored(Assumptions &&ass, clingo_solve_mode_bitset_t mode) override;
     SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass) override;
     Output::DomainData const &theory() const override { return out_->data; }
     void registerPropagator(UProp p, bool sequential) override;

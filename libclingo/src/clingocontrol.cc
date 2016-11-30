@@ -358,10 +358,12 @@ SolveFuture *ClingoControl::solveAsync(ModelHandler mh, FinishHandler fh, Assump
     solveFuture_ = gringo_make_unique<ClingoSolveFuture>(*this, Clasp::SolveMode_t::Async);
     return solveFuture_.get();
 }
-SolveFuture *ClingoControl::solveRefactored(Assumptions &&ass, bool asynchronous) {
+SolveFuture *ClingoControl::solveRefactored(Assumptions &&ass, clingo_solve_mode_bitset_t mode) {
     prepare(std::move(ass), nullptr, nullptr);
     if (clingoMode_) {
-        solveFuture_ = gringo_make_unique<ClingoSolveFuture>(*this, asynchronous ? Clasp::SolveMode_t::AsyncYield : Clasp::SolveMode_t::Yield);
+        static_assert(clingo_solve_mode_yield == static_cast<clingo_solve_mode_bitset_t>(Clasp::SolveMode_t::Yield), "");
+        static_assert(clingo_solve_mode_async == static_cast<clingo_solve_mode_bitset_t>(Clasp::SolveMode_t::Async), "");
+        solveFuture_ = gringo_make_unique<ClingoSolveFuture>(*this, static_cast<Clasp::SolveMode_t>(mode));
         return solveFuture_.get();
     }
     else {

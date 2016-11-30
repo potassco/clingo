@@ -2678,7 +2678,7 @@ struct ControlWrap : Object<ControlWrap> {
         Model::new_(L, nullptr); // +1
         auto *model = static_cast<Model*>(lua_touserdata(L, -1));
 
-        data->handle = call_c(L, clingo_control_solve_refactored, data->ctl, data->ass->data(), data->ass->size(), false);
+        data->handle = call_c(L, clingo_control_solve_refactored, data->ctl, data->ass->data(), data->ass->size(), clingo_solve_mode_yield);
         while (true) {
             call_c(L, clingo_solve_handle_resume, data->handle);
             auto m = call_c(L, clingo_solve_handle_model, data->handle);
@@ -2743,7 +2743,7 @@ struct ControlWrap : Object<ControlWrap> {
         int assIdx  = !lua_isnone(L, 2) && !lua_isnil(L, 2) ? 2 : 0;
         auto *ass = AnyWrap::new_<std::vector<clingo_symbolic_literal_t>>(L); // +1
         if (assIdx) { luaToCpp(L, assIdx, *ass); }
-        SolveIter::new_(L, call_c(L, clingo_control_solve_refactored, self.ctl, ass->data(), ass->size(), false));
+        SolveIter::new_(L, call_c(L, clingo_control_solve_refactored, self.ctl, ass->data(), ass->size(), clingo_solve_mode_yield));
         lua_replace(L, -2); // -1
         return 1;
     }

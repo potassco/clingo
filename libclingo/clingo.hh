@@ -2034,7 +2034,7 @@ public:
     ~Control() noexcept;
     void add(char const *name, StringSpan params, char const *part);
     void ground(PartSpan parts, GroundCallback cb = nullptr);
-    SolveHandle solve(SymbolicLiteralSpan assumptions = {}, bool asynchronous = false);
+    SolveHandle solve(SymbolicLiteralSpan assumptions = {}, bool asynchronous = false, bool yield = true);
     void assign_external(Symbol atom, TruthValue value);
     void release_external(Symbol atom);
     SymbolicAtoms symbolic_atoms() const;
@@ -3614,9 +3614,12 @@ inline void Control::ground(PartSpan parts, GroundCallback cb) {
 
 inline clingo_control_t *Control::to_c() const { return *impl_; }
 
-inline SolveHandle Control::solve(SymbolicLiteralSpan assumptions, bool asynchronous) {
+inline SolveHandle Control::solve(SymbolicLiteralSpan assumptions, bool asynchronous, bool yield) {
     clingo_solve_handle_t *it;
-    Detail::handle_error(clingo_control_solve_refactored(*impl_, reinterpret_cast<clingo_symbolic_literal_t const *>(assumptions.begin()), assumptions.size(), asynchronous, &it));
+    clingo_solve_mode_bitset_t mode = 0;
+    if (asynchronous) { mode |= clingo_solve_mode_async; }
+    if (yield) { mode |= clingo_solve_mode_yield; }
+    Detail::handle_error(clingo_control_solve_refactored(*impl_, reinterpret_cast<clingo_symbolic_literal_t const *>(assumptions.begin()), assumptions.size(), mode, &it));
     return SolveHandle{it};
 }
 

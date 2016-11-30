@@ -717,6 +717,14 @@ enum clingo_solve_event {
 //! Corresponding type to ::clingo_solve_event.
 typedef int clingo_solve_event_t;
 
+//! Enumeration of solve events.
+enum clingo_solve_mode {
+    clingo_solve_mode_async = 1, //!< Enable non-blocking search.
+    clingo_solve_mode_yield = 2, //!< Yield models in calls to clingo_solve_handle_model.
+};
+//! Corresponding type to ::clingo_solve_mode.
+typedef unsigned clingo_solve_mode_bitset_t;
+
 //! Callback function called during search to notify when the seach is finished or a model is ready.
 //!
 //! If a (non-recoverable) clingo API function fails in this callback, it must return false.
@@ -3043,12 +3051,12 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, 
 //! @param[in] control the target
 //! @param[in] assumptions array of assumptions to solve under
 //! @param[in] assumptions_size number of assumptions
-//! @param[in] asynchronous wheather the search is started asynchronously
+//! @param[in] mode configures the search mode
 //! @param[out] handle handle to the current search to enumerate models
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving could not be started
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_refactored(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, bool asynchronous, clingo_solve_handle_t **handle);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_refactored(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_mode_bitset_t mode, clingo_solve_handle_t **handle);
 //! Clean up the domains of clingo's grounding component using the solving
 //! component's top level assignment.
 //!
