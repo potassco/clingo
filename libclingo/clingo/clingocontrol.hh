@@ -366,8 +366,11 @@ public:
     void cancel() override;
     void notify(EventHandler cb) override;
 private:
-    Clasp::ClaspFacade::SolveHandle future_;
-    ClingoModel                     model_;
+    void init();
+
+    Clasp::SolveMode_t                               mode_;
+    std::unique_ptr<Clasp::ClaspFacade::SolveHandle> future_;
+    ClingoModel                                      model_;
 };
 
 // {{{1 declaration of ClingoLib
