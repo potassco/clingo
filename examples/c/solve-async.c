@@ -65,10 +65,9 @@ out:
   return ret;
 }
 
-bool on_event(clingo_solve_event_t event, clingo_model_t *model, void *data) {
-  (void)event;
+bool on_event(clingo_model_t *model, void *data) {
   (void)model;
-  assert(event == clingo_solve_event_finished);
+  assert(model == NULL);
   atomic_flag *running = (atomic_flag*)data;
   atomic_flag_clear(running);
   return true;

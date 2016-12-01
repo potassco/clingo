@@ -532,18 +532,13 @@ TEST_CASE("solving", "[clingo]") {
             ctl.ground({{"base", {}}});
             int m = 0;
             int f = 0;
-            EventCallback cb = [&](SolveEvent event, Model *model) {
-                switch (event) {
-                    case SolveEvent::Model: {
-                        ++m;
-                        REQUIRE(model != nullptr);
-                        break;
-                    }
-                    case SolveEvent::Finished: {
-                        ++f;
-                        REQUIRE(model == nullptr);
-                        break;
-                    }
+            EventCallback cb = [&](Model *model) {
+                if (model) {
+                    ++m;
+                    REQUIRE(f == 0);
+                }
+                else {
+                    ++f;
                 }
             };
             auto handle = ctl.solve();

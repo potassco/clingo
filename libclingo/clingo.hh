@@ -1087,11 +1087,7 @@ inline std::ostream &operator<<(std::ostream &out, SolveResult res) {
 
 // {{{1 solve handle
 
-enum class SolveEvent : clingo_solve_event_t {
-    Model = clingo_solve_event_model,
-    Finished = clingo_solve_event_finished
-};
-using EventCallback = std::function<void (SolveEvent, Model *)>;
+using EventCallback = std::function<void (Model *)>;
 
 class SolveHandle {
 public:
@@ -2712,15 +2708,15 @@ inline void SolveHandle::close() {
 }
 
 inline void SolveHandle::notify(EventCallback &cb) {
-    Detail::handle_error(clingo_solve_handle_notify(iter_, [](clingo_solve_event_t event, clingo_model_t *model, void *data){
+    Detail::handle_error(clingo_solve_handle_notify(iter_, [](clingo_model_t *model, void *data){
         CLINGO_TRY {
             EventCallback &cb = *static_cast<EventCallback*>(data);
             if (model) {
                 Model m{model};
-                cb(static_cast<SolveEvent>(event), &m);
+                cb(&m);
             }
             else {
-                cb(static_cast<SolveEvent>(event), nullptr);
+                cb(nullptr);
             }
         }
         CLINGO_CATCH;

@@ -710,14 +710,6 @@ typedef unsigned clingo_solve_result_bitset_t;
 //! @{
 
 //! Enumeration of solve events.
-enum clingo_solve_event {
-    clingo_solve_event_model = 0,    //!< A model has been found.
-    clingo_solve_event_finished = 1, //!< The search has finished.
-};
-//! Corresponding type to ::clingo_solve_event.
-typedef int clingo_solve_event_t;
-
-//! Enumeration of solve events.
 enum clingo_solve_mode {
     clingo_solve_mode_async = 1, //!< Enable non-blocking search.
     clingo_solve_mode_yield = 2, //!< Yield models in calls to clingo_solve_handle_model.
@@ -732,13 +724,12 @@ typedef unsigned clingo_solve_mode_bitset_t;
 //!
 //! @attention If the search is finished, the model is NULL.
 //!
-//! @param[in] event result of the solve call
 //! @param[in] model the current model
 //! @param[in] data user data of the callback
 //! @return whether the call was successful
 //!
 //! @see clingo_control_solve_refactored()
-typedef bool (*clingo_solve_event_callback_t) (clingo_solve_event_t event, clingo_model_t *model, void *data);
+typedef bool (*clingo_solve_event_callback_t) (clingo_model_t *model, void *data);
 
 //! Search handle to a solve call.
 //!
@@ -777,8 +768,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_wait(clingo_solve_handle_t *h
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t **model);
 //! Discards the last model and starts the search for the next one.
 //!
-//! If the search has been started asynchronously, this starts the search in the background.
-//! Otherwise, this function does nothing.
+//! If the search has been started asynchronously, this function also starts the search in the background.
 //! An event handler can be registered to @link clingo_solve_handle_notify() receive notifications@endlink about the progress of the search.
 //!
 //! @param[in] handle the target

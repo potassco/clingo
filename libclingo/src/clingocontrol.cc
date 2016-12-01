@@ -261,13 +261,13 @@ bool ClingoControl::onModel(Clasp::Model const &m) {
     std::lock_guard<decltype(propLock_)> lock(propLock_);
     if (eventHandler_) {
         ClingoModel model(*this, &m);
-        eventHandler_(clingo_solve_event_model, &model);
+        eventHandler_(&model);
     }
     return !modelHandler_ || modelHandler_(ClingoModel(*this, &m));
 }
 void ClingoControl::onFinish(Clasp::ClaspFacade::Result ret) {
     if (finishHandler_) { finishHandler_(convert(ret)); }
-    if (eventHandler_) { eventHandler_(clingo_solve_event_finished, nullptr); }
+    if (eventHandler_) { eventHandler_(nullptr); }
     finishHandler_ = nullptr;
     modelHandler_ = nullptr;
     eventHandler_ = nullptr;
@@ -657,6 +657,7 @@ void ClingoSolveFuture::resume() {
     handle().resume();
 }
 void ClingoSolveFuture::notify(EventHandler cb) {
+    if (handle_) { throw std::runtime_error("event handler cannot be set after solving has started"); }
     model_.context().eventHandler_ = cb;
 }
 Clasp::ClaspFacade::SolveHandle &ClingoSolveFuture::handle() {
