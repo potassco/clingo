@@ -177,14 +177,6 @@ struct IncrementalControl : Control {
         parse();
     }
     bool blocked() override { return false; }
-    SolveResult solve(ModelHandler, Assumptions &&ass) override {
-        if (!ass.empty()) { std::cerr << "warning: the lparse format does not support assumptions" << std::endl; }
-        grounded = false;
-        out.endStep(true, logger_);
-        out.reset(true);
-        return {SolveResult::Unknown, false, false};
-    }
-    SolveFuture *solveIter(Assumptions &&) override { throw std::runtime_error("error: iterative solving not supported"); }
     SolveFuture *solveRefactored(Assumptions &&ass, clingo_solve_mode_bitset_t) override {
         static DefaultSolveFuture future_;
         out.assume(std::move(ass));
@@ -193,7 +185,6 @@ struct IncrementalControl : Control {
         out.reset(true);
         return &future_;
     }
-    SolveFuture *solveAsync(ModelHandler, FinishHandler, Assumptions &&) override { throw std::runtime_error("error: iterative solving not supported"); }
     void interrupt() override { }
     void *claspFacade() override {
         return nullptr;
@@ -386,7 +377,7 @@ struct GringoApp : public Potassco::Application {
             parts.emplace_back("base", SymVec{});
             inc.incremental_ = false;
             inc.ground(parts, nullptr);
-            inc.solve(nullptr, {});
+            inc.solveRefactored({}, 0)->get();
         }
     }
 

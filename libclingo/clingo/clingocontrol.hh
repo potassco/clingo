@@ -191,7 +191,7 @@ public:
 
     ClingoControl(Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Logger::Printer printer, unsigned messageLimit);
     ~ClingoControl() noexcept override;
-    void prepare(Assumptions &&ass, Control::ModelHandler mh, Control::FinishHandler fh);
+    void prepare(Assumptions &&ass);
     void commitExternals();
     void parse();
     void parse(const StringVec& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* out, bool addStdIn = true);
@@ -239,7 +239,6 @@ public:
     void ground(Control::GroundVec const &vec, Context *ctx) override;
     void add(std::string const &name, Gringo::StringVec const &params, std::string const &part) override;
     void load(std::string const &filename) override;
-    SolveResult solve(ModelHandler h, Assumptions &&ass) override;
     bool blocked() override;
     std::string str();
     void assignExternal(Symbol ext, Potassco::Value_t) override;
@@ -249,9 +248,7 @@ public:
     void useEnumAssumption(bool enable) override;
     bool useEnumAssumption() override;
     void cleanupDomains() override;
-    SolveFuture *solveIter(Assumptions &&ass) override;
     SolveFuture *solveRefactored(Assumptions &&ass, clingo_solve_mode_bitset_t mode) override;
-    SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass) override;
     Output::DomainData const &theory() const override { return out_->data; }
     void registerPropagator(UProp p, bool sequential) override;
     void interrupt() override;
@@ -275,8 +272,6 @@ public:
     Defines                                                    defs_;
     std::unique_ptr<Input::NongroundProgramBuilder>            pb_;
     std::unique_ptr<Input::NonGroundParser>                    parser_;
-    ModelHandler                                               modelHandler_;
-    FinishHandler                                              finishHandler_;
     SolveFuture::EventHandler                                  eventHandler_;
     Clasp::ClaspFacade                                        *clasp_                 = nullptr;
     Clasp::Cli::ClaspCliConfig                                &claspConfig_;

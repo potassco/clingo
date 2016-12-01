@@ -65,8 +65,9 @@ out:
   return ret;
 }
 
-bool on_event(clingo_model_t *model, void *data) {
+bool on_event(clingo_model_t *model, void *data, bool *goon) {
   (void)model;
+  (void)goon; // this is true by default
   assert(model == NULL);
   atomic_flag *running = (atomic_flag*)data;
   atomic_flag_clear(running);

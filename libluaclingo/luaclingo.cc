@@ -1443,45 +1443,6 @@ int newStatistics(lua_State *L, clingo_statistics_t *stats, uint64_t key) {
     }
 }
 
-// {{{1 wrap SolveFuture
-
-struct SolveFuture : Object<SolveFuture> {
-    clingo_solve_async_t *handle;
-    SolveFuture(clingo_solve_async_t *handle) : handle(handle) { }
-    static int get(lua_State *L) {
-        auto &self = get_self(L);
-        SolveResult::new_(L, call_c(L, clingo_solve_async_get, self.handle));
-        return 1;
-    }
-    static int wait(lua_State *L) {
-        auto &self = get_self(L);
-        if (lua_isnone(L, 2) == 0) {
-            double timeout = luaL_checknumber(L, 2);
-            lua_pushboolean(L, call_c(L, clingo_solve_async_wait, self.handle, timeout));
-            return 1;
-        }
-        else {
-            call_c(L, clingo_solve_async_get, self.handle);
-            return 0;
-        }
-    }
-    static int cancel(lua_State *L) {
-        auto self = get_self(L);
-        handle_c_error(L, clingo_solve_async_cancel(self.handle));
-        return 0;
-    }
-    static luaL_Reg const meta[];
-    static constexpr char const *typeName = "clingo.SolveFuture";
-};
-
-constexpr char const *SolveFuture::typeName;
-luaL_Reg const SolveFuture::meta[] = {
-    {"get",  get},
-    {"wait", wait},
-    {"cancel", cancel},
-    {nullptr, nullptr}
-};
-
 // {{{1 wrap SolveIter
 
 struct SolveIter : Object<SolveIter> {
@@ -2978,7 +2939,6 @@ int luaopen_clingo(lua_State* L) {
     SymbolType::reg(L);
     Model::reg(L);
     SolveControl::reg(L);
-    SolveFuture::reg(L);
     SolveIter::reg(L);
     ControlWrap::reg(L);
     Configuration::reg(L);

@@ -726,10 +726,11 @@ typedef unsigned clingo_solve_mode_bitset_t;
 //!
 //! @param[in] model the current model
 //! @param[in] data user data of the callback
+//! @param[in] goon can be set to false to stop solving
 //! @return whether the call was successful
 //!
 //! @see clingo_control_solve_refactored()
-typedef bool (*clingo_solve_event_callback_t) (clingo_model_t *model, void *data);
+typedef bool (*clingo_solve_event_callback_t) (clingo_model_t *model, void *data, bool *goon);
 
 //! Search handle to a solve call.
 //!
@@ -3232,21 +3233,6 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_program_builder(clingo_control_t *
 //! @}
 
 // }}}1
-
-// TODO: remove
-typedef bool (*clingo_model_callback_t) (clingo_model_t *model, void *data, bool *goon);
-typedef bool (*clingo_finish_callback_t) (clingo_solve_result_bitset_t result, void *data);
-typedef struct clingo_solve_iteratively clingo_solve_iteratively_t;
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_iteratively_next(clingo_solve_iteratively_t *handle, clingo_model_t **model);
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_iteratively_get(clingo_solve_iteratively_t *handle, clingo_solve_result_bitset_t *result);
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_iteratively_close(clingo_solve_iteratively_t *handle);
-typedef struct clingo_solve_async clingo_solve_async_t;
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_async_get(clingo_solve_async_t *handle, clingo_solve_result_bitset_t *result);
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_async_wait(clingo_solve_async_t *handle, double timeout, bool *result);
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_async_cancel(clingo_solve_async_t *handle);
-CLINGO_DEPRECATED CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, clingo_model_callback_t model_callback, void *model_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_result_bitset_t *result);
-CLINGO_DEPRECATED CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_iteratively(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_iteratively_t **handle);
-CLINGO_DEPRECATED CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_async(clingo_control_t *control, clingo_model_callback_t model_callback, void *model_callback_data, clingo_finish_callback_t finish_callback, void *finish_callback_data, clingo_symbolic_literal_t const * assumptions, size_t assumptions_size, clingo_solve_async_t **handle);
 
 #ifdef __cplusplus
 }

@@ -528,24 +528,27 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(trail == std::vector<std::string>({"IP: incremental", "BS", "R: 1:-~1", "ES"}));
         }
         SECTION("events") {
-            ctl.add("base", {}, "{a}.");
-            ctl.ground({{"base", {}}});
-            int m = 0;
-            int f = 0;
-            EventCallback cb = [&](Model *model) {
-                if (model) {
-                    ++m;
-                    REQUIRE(f == 0);
-                }
-                else {
-                    ++f;
-                }
-            };
-            auto handle = ctl.solve();
-            handle.notify(cb);
-            REQUIRE(test_solve(std::move(handle), models).is_satisfiable());
-            REQUIRE(m == 2);
-            REQUIRE(f == 1);
+            for (int goon = 0; goon < 2; ++goon) {
+                ctl.add("base", {}, "{a}.");
+                ctl.ground({{"base", {}}});
+                int m = 0;
+                int f = 0;
+                EventCallback cb = [&](Model *model) {
+                    if (model) {
+                        ++m;
+                        REQUIRE(f == 0);
+                    }
+                    else {
+                        ++f;
+                    }
+                    return goon == 1;
+                };
+                auto handle = ctl.solve();
+                handle.notify(cb);
+                REQUIRE(test_solve(std::move(handle), models).is_satisfiable());
+                REQUIRE(m == (goon == 1 ? 2 : 1));
+                REQUIRE(f == 1);
+            }
         }
     }
 }

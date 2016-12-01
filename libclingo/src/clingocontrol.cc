@@ -253,24 +253,23 @@ void ClingoControl::main() {
         Control::GroundVec parts;
         parts.emplace_back("base", SymVec{});
         ground(parts, nullptr);
-        solve(nullptr, {});
+        solveRefactored({}, 0)->get();
     }
 }
 bool ClingoControl::onModel(Clasp::Model const &m) {
-    if (!modelHandler_ && !eventHandler_) { return true; }
-    std::lock_guard<decltype(propLock_)> lock(propLock_);
     if (eventHandler_) {
+        std::lock_guard<decltype(propLock_)> lock(propLock_);
         ClingoModel model(*this, &m);
-        eventHandler_(&model);
+        return eventHandler_(&model);
     }
-    return !modelHandler_ || modelHandler_(ClingoModel(*this, &m));
+    return true;
 }
-void ClingoControl::onFinish(Clasp::ClaspFacade::Result ret) {
-    if (finishHandler_) { finishHandler_(convert(ret)); }
-    if (eventHandler_) { eventHandler_(nullptr); }
-    finishHandler_ = nullptr;
-    modelHandler_ = nullptr;
-    eventHandler_ = nullptr;
+void ClingoControl::onFinish(Clasp::ClaspFacade::Result) {
+    // TODO: consider passing the result to the event handler
+    if (eventHandler_) {
+        eventHandler_(nullptr);
+        eventHandler_ = nullptr;
+    }
 }
 Symbol ClingoControl::getConst(std::string const &name) {
     auto ret = defs_.defs().find(name.c_str());
@@ -341,25 +340,8 @@ unsigned ClingoControl::getRootKey() {
 ConfigProxy &ClingoControl::getConf() {
     return *this;
 }
-SolveResult ClingoControl::solve(ModelHandler h, Assumptions &&ass) {
-    prepare(std::move(ass), h, nullptr);
-    auto ret = clingoMode_ ? convert(clasp_->solve()) : SolveResult(SolveResult::Unknown, false, false);
-    postSolve(*clasp_);
-    return ret;
-}
-SolveFuture *ClingoControl::solveIter(Assumptions &&ass) {
-    prepare(std::move(ass), nullptr, nullptr);
-    solveFuture_ = gringo_make_unique<ClingoSolveFuture>(*this, Clasp::SolveMode_t::Yield);
-    return solveFuture_.get();
-}
-SolveFuture *ClingoControl::solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&ass) {
-    if (!clingoMode_) { throw std::runtime_error("solveAsync is not supported in gringo gringo mode"); }
-    prepare(std::move(ass), mh, fh);
-    solveFuture_ = gringo_make_unique<ClingoSolveFuture>(*this, Clasp::SolveMode_t::Async);
-    return solveFuture_.get();
-}
 SolveFuture *ClingoControl::solveRefactored(Assumptions &&ass, clingo_solve_mode_bitset_t mode) {
-    prepare(std::move(ass), nullptr, nullptr);
+    prepare(std::move(ass));
     if (clingoMode_) {
         static_assert(clingo_solve_mode_yield == static_cast<clingo_solve_mode_bitset_t>(Clasp::SolveMode_t::Yield), "");
         static_assert(clingo_solve_mode_async == static_cast<clingo_solve_mode_bitset_t>(Clasp::SolveMode_t::Async), "");
@@ -377,7 +359,7 @@ void ClingoControl::interrupt() {
 bool ClingoControl::blocked() {
     return clasp_->solving();
 }
-void ClingoControl::prepare(Assumptions &&ass, Control::ModelHandler mh, Control::FinishHandler fh) {
+void ClingoControl::prepare(Assumptions &&ass) {
     eventHandler_ = nullptr;
     // finalize the program
     if (update()) {
@@ -388,8 +370,6 @@ void ClingoControl::prepare(Assumptions &&ass, Control::ModelHandler mh, Control
     grounded = false;
     if (clingoMode_) {
         solveFuture_   = nullptr;
-        finishHandler_ = fh;
-        modelHandler_  = mh;
         Clasp::ProgramBuilder *prg = clasp_->program();
         postGround(*prg);
         if (!propagators_.empty()) {

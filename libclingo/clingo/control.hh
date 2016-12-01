@@ -106,7 +106,7 @@ namespace Gringo {
 // {{{1 declaration of SolveFuture
 
 struct SolveFuture {
-    using EventHandler = std::function<void (Model *)>;
+    using EventHandler = std::function<bool (Model *)>;
     virtual SolveResult get() = 0;
     virtual Model const *model() = 0;
     virtual void wait() = 0;
@@ -182,8 +182,6 @@ using Control = clingo_control;
 } // namespace Gringo
 
 struct clingo_control {
-    using ModelHandler = std::function<bool (Gringo::Model const &)>;
-    using FinishHandler = std::function<void (Gringo::SolveResult)>;
     using Assumptions = std::vector<std::pair<Gringo::Symbol, bool>>;
     using GroundVec = std::vector<std::pair<Gringo::String, Gringo::SymVec>>;
     using NewControlFunc = Gringo::Control* (*)(int, char const **);
@@ -193,9 +191,6 @@ struct clingo_control {
     virtual Gringo::SymbolicAtoms &getDomain() = 0;
 
     virtual void ground(GroundVec const &vec, Gringo::Context *context) = 0;
-    virtual Gringo::SolveResult solve(ModelHandler h, Assumptions &&assumptions) = 0;
-    virtual Gringo::SolveFuture *solveAsync(ModelHandler mh, FinishHandler fh, Assumptions &&assumptions) = 0;
-    virtual Gringo::SolveFuture *solveIter(Assumptions &&assumptions) = 0;
     virtual Gringo::SolveFuture *solveRefactored(Assumptions &&assumptions, clingo_solve_mode_bitset_t mode) = 0;
     virtual void interrupt() = 0;
     virtual void *claspFacade() = 0;

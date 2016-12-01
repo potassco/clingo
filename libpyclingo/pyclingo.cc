@@ -5638,16 +5638,13 @@ active; you must not call any member function during search.)";
         handle_c_error(clingo_control_get_const(ctl, name, &val));
         return Symbol::construct(val);
     }
-    static bool on_event(clingo_model_t *model, void *data) {
+    static bool on_event(clingo_model_t *model, void *data, bool *goon) {
         std::pair<PyObject*, PyObject*> &cb = *static_cast<std::pair<PyObject*, PyObject*>*>(data);
         if (model && cb.first) {
             PyBlock block;
             try {
                 auto pyModel = Model::construct(model);
                 Object ret = PyObject_CallFunction(cb.first, const_cast<char*>("O"), pyModel.toPy());
-                // TODO: goon
-                bool todo;
-                bool *goon = &todo;
                 *goon = ret.none() || pyToCpp<bool>(ret);
                 return true;
             }
@@ -5659,7 +5656,7 @@ active; you must not call any member function during search.)";
         else if (!model && cb.second) {
             PyBlock block;
             try {
-                // TODO: Object pyRet = SolveResult::construct(result);
+                // TODO: it would be nice to have a solve result in the finish handler
                 Object fhRet = PyObject_CallFunction(cb.second, const_cast<char*>(""));
                 return true;
             }
@@ -5724,7 +5721,9 @@ active; you must not call any member function during search.)";
                 if (!model) { break; }
                 if (!mh.none()) {
                     std::pair<PyObject*, PyObject*> data{mh.toPy(), nullptr};
-                    handle_c_error(on_event(model, &data));
+                    bool goon = true;
+                    handle_c_error(on_event(model, &data, &goon));
+                    if (!goon) { break; }
                 }
             }
             clingo_solve_result_bitset_t result;

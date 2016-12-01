@@ -25,7 +25,7 @@
 #pragma warning (disable : 4996) // 'strcpy' may be unsafe
 #endif
 
-#include <clingo//clingocontrol.hh>
+#include <clingo/clingocontrol.hh>
 #include <clingo/script.h>
 #include <gringo/input/groundtermparser.hh>
 #include <gringo/input/programbuilder.hh>
@@ -719,47 +719,6 @@ extern "C" bool clingo_model_type(clingo_model_t *m, clingo_model_type_t *ret) {
     GRINGO_CLINGO_CATCH;
 }
 
-// {{{1 solve iter
-
-struct clingo_solve_iteratively : SolveFuture { };
-
-extern "C" bool clingo_solve_iteratively_next(clingo_solve_iteratively_t *it, clingo_model **m) {
-    GRINGO_CLINGO_TRY {
-        it->resume();
-        *m = static_cast<clingo_model*>(const_cast<Model*>(it->model()));
-    }
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" bool clingo_solve_iteratively_get(clingo_solve_iteratively_t *it, clingo_solve_result_bitset_t *ret) {
-    GRINGO_CLINGO_TRY { *ret = convert(it->get().satisfiable()); }
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" bool clingo_solve_iteratively_close(clingo_solve_iteratively_t *it) {
-    GRINGO_CLINGO_TRY { it->cancel(); }
-    GRINGO_CLINGO_CATCH;
-}
-
-// {{{1 solve async
-
-struct clingo_solve_async : SolveFuture { };
-
-extern "C" bool clingo_solve_async_cancel(clingo_solve_async_t *async) {
-    GRINGO_CLINGO_TRY { async->cancel(); }
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" bool clingo_solve_async_get(clingo_solve_async_t *async, clingo_solve_result_bitset_t *ret) {
-    GRINGO_CLINGO_TRY { *ret = async->get(); }
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" bool clingo_solve_async_wait(clingo_solve_async_t *async, double timeout, bool *ret) {
-    GRINGO_CLINGO_TRY { *ret = async->wait(timeout); }
-    GRINGO_CLINGO_CATCH;
-}
-
 // {{{1 configuration
 
 struct clingo_configuration : ConfigProxy { };
@@ -1030,7 +989,9 @@ extern "C" bool clingo_solve_handle_resume(clingo_solve_handle_t *handle) {
 extern "C" bool clingo_solve_handle_notify(clingo_solve_handle_t *handle, clingo_solve_event_callback_t notify, void *data) {
     GRINGO_CLINGO_TRY {
         handle->notify([data, notify](Model *m){
-            if (!notify(m, data)) { throw ClingoError(); }
+            bool goon = true;
+            if (!notify(m, data, &goon)) { throw ClingoError(); }
+            return goon;
         });
     }
     GRINGO_CLINGO_CATCH;
@@ -1137,22 +1098,6 @@ Control::Assumptions toAss(clingo_symbolic_literal_t const * assumptions, size_t
 
 }
 
-extern "C" bool clingo_control_solve(clingo_control_t *ctl, clingo_model_callback_t model_handler, void *data, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_result_bitset_t *ret) {
-    GRINGO_CLINGO_TRY {
-        *ret = static_cast<clingo_solve_result_bitset_t>(ctl->solve([model_handler, data](Model const &m) {
-            bool goon = true;
-            if (model_handler && !model_handler(static_cast<clingo_model*>(const_cast<Model*>(&m)), data, &goon)) { throw ClingoError(); }
-            return goon;
-        }, toAss(assumptions, n)));
-    }
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" bool clingo_control_solve_iteratively(clingo_control_t *ctl, clingo_symbolic_literal_t const *assumptions, size_t n, clingo_solve_iteratively_t **it) {
-    GRINGO_CLINGO_TRY { *it = static_cast<clingo_solve_iteratively_t*>(ctl->solveIter(toAss(assumptions, n))); }
-    GRINGO_CLINGO_CATCH;
-}
-
 extern "C" bool clingo_control_solve_refactored(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_mode_bitset_t mode, clingo_solve_handle_t **handle) {
     GRINGO_CLINGO_TRY { *handle = static_cast<clingo_solve_handle_t*>(control->solveRefactored(toAss(assumptions, assumptions_size), mode)); }
     GRINGO_CLINGO_CATCH;
@@ -1244,24 +1189,6 @@ extern "C" void clingo_control_interrupt(clingo_control_t *ctl) {
 
 extern "C" bool clingo_control_load(clingo_control_t *ctl, char const *file) {
     GRINGO_CLINGO_TRY { ctl->load(file); }
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" bool clingo_control_solve_async(clingo_control_t *ctl, clingo_model_callback_t mh, void *mh_data, clingo_finish_callback_t fh, void *fh_data, clingo_symbolic_literal_t const * assumptions, size_t n, clingo_solve_async_t **ret) {
-    GRINGO_CLINGO_TRY {
-        clingo_control::Assumptions ass;
-        for (auto it = assumptions, ie = assumptions + n; it != ie; ++it) {
-            ass.emplace_back(Symbol(it->symbol), it->positive);
-        }
-        *ret = static_cast<clingo_solve_async_t*>(ctl->solveAsync(
-            [mh, mh_data](Model const &m) {
-                bool result = true;
-                if (mh && !mh(&const_cast<Model &>(m), mh_data, &result)) { throw ClingoError(); }
-                return result;
-            }, [fh, fh_data](SolveResult ret) {
-                if (fh && !fh(ret, fh_data)) { throw ClingoError(); }
-            }, std::move(ass)));
-    }
     GRINGO_CLINGO_CATCH;
 }
 
