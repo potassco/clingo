@@ -7,6 +7,10 @@ project(CLINGO VERSION "${CMAKE_MATCH_1}" LANGUAGES C CXX)
 if (POLICY CMP0063)
     cmake_policy(SET CMP0063 NEW)
 endif()
+if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+	message(STATUS "No build type selected - using 'Release'")
+	set(CMAKE_BUILD_TYPE "Release")
+endif()
 
 include(CMakeDependentOption)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -79,11 +83,6 @@ if (NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
 endif()
 if (NOT CMAKE_IMPORT_LIBRARY_PREFIX)
     set(CMAKE_IMPORT_LIBRARY_PREFIX import_)
-endif()
-
-if (NOT CMAKE_BUILD_TYPE)
-    message(STATUS "No build type selected - using 'Release'")
-    set(CMAKE_BUILD_TYPE "Release")
 endif()
 
 # NOTE: searching for the interpreter first increases the chance
