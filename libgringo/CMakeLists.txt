@@ -151,7 +151,7 @@ if (NOT CLINGO_BUILD_SHARED)
 endif()
 if(MSVC)
     target_compile_definitions(libgringo PRIVATE _SCL_SECURE_NO_WARNINGS _CRT_SECURE_NO_WARNINGS)
-    set_source_files_properties("${source_path}/src/ground/statements.cc"
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/ground/statements.cc"
         PROPERTIES COMPILE_FLAGS "/bigobj")
 endif()
 set_target_properties(libgringo PROPERTIES
