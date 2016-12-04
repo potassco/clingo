@@ -55,11 +55,6 @@ void handleCXXError();
 
 #define GRINGO_CLINGO_TRY try
 #define GRINGO_CLINGO_CATCH catch (...) { handleCXXError(); return false; } return true
-clingo_solve_result_bitset_t convert(SolveResult r) {
-    return static_cast<clingo_solve_result_bitset_t>(r.satisfiable()) |
-           static_cast<clingo_solve_result_bitset_t>(r.interrupted()) * static_cast<clingo_solve_result_bitset_t>(clingo_solve_result_interrupted) |
-           static_cast<clingo_solve_result_bitset_t>(r.exhausted()) * static_cast<clingo_solve_result_bitset_t>(clingo_solve_result_exhausted);
-}
 
 template <class F>
 size_t print_size(F f) {

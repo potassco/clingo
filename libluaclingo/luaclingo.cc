@@ -1165,7 +1165,7 @@ bool luacall(lua_State *L, clingo_location_t const *location, int context, char 
         std::string loc, desc;
         try {
             std::ostringstream oss;
-            oss << location;
+            oss << *location;
             loc = oss.str();
             desc = "error calling ";
             desc += name;
@@ -3028,7 +3028,7 @@ struct LuaScriptC {
         std::string name;
         try {
             std::stringstream oss;
-            oss << loc;
+            oss << *loc;
             name = oss.str();
         }
         catch (...) {
