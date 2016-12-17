@@ -389,8 +389,6 @@ private:
     Clasp::ClaspFacade                  clasp_;
 };
 
-Scripts &g_scripts();
-
 // }}}1
 
 } // namespace Gringo

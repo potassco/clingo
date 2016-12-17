@@ -54,6 +54,8 @@ private:
     UScriptVec scripts_;
 };
 
+Scripts &g_scripts();
+
 } // namespace Gringo
 
 #endif // CLINGO_SCRIPTS_HH

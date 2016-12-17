@@ -91,4 +91,9 @@ char const *Scripts::version(clingo_ast_script_type type) {
 
 Scripts::~Scripts() = default;
 
+Scripts &g_scripts() {
+    static Scripts scripts;
+    return scripts;
+}
+
 } // namespace Gringo

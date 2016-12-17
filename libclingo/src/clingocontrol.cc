@@ -726,11 +726,6 @@ ClingoLib::~ClingoLib() {
     clasp_.shutdown();
 }
 
-Scripts &g_scripts() {
-    static Scripts scripts;
-    return scripts;
-}
-
 // }}}1
 
 } // namespace Gringo

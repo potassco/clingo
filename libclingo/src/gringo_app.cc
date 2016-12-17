@@ -87,6 +87,7 @@ static inline bool parseFoobar(const std::string& str, GringoOptions::Foobar& fo
 struct IncrementalControl : Control {
     IncrementalControl(Output::OutputBase &out, StrVec const &files, GringoOptions const &opts)
     : out(out)
+    , scripts(g_scripts())
     , pb(scripts, prg, out, defs, opts.rewriteMinimize)
     , parser(pb, incmode)
     , opts(opts) {
@@ -222,7 +223,7 @@ struct IncrementalControl : Control {
     Potassco::Atom_t addProgramAtom() override { return out.data.newAtom(); }
     Input::GroundTermParser        termParser;
     Output::OutputBase            &out;
-    Scripts                        scripts;
+    Scripts                       &scripts;
     Defines                        defs;
     Input::Program                 prg;
     Input::NongroundProgramBuilder pb;
