@@ -934,6 +934,7 @@ public:
     virtual void theory_element(id_t element_id, IdSpan terms, LiteralSpan condition);
     virtual void theory_atom(id_t atom_id_or_zero, id_t term_id, IdSpan elements);
     virtual void theory_atom_with_guard(id_t atom_id_or_zero, id_t term_id, IdSpan elements, id_t operator_id, id_t right_hand_side_id);
+    virtual ~GroundProgramObserver() noexcept = default;
 };
 
 inline void GroundProgramObserver::init_program(bool) { }
