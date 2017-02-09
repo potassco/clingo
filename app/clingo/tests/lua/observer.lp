@@ -227,6 +227,9 @@ function Observer:end_step()
 end
 
 function Observer:finalize()
+    if unpack == nil then
+        unpack = table.unpack
+    end
     for _, v in ipairs(self.__delayed) do
         local name, args
         name, args = v[1], v[2]
