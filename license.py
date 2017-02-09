@@ -1,3 +1,11 @@
+#!/usr/bin/env python
+import re
+import os
+import sys
+
+gpl      = re.compile(r"// {{{ GPL License.*?// }}}\n", re.MULTILINE | re.DOTALL)
+filetype = re.compile(r"^.*\.(cc|c|h|hh|yy|xh|xch)$")
+mit      = """\
 // {{{ MIT License
 
 // Copyright 2017 Roland Kaminski
@@ -21,29 +29,14 @@
 // IN THE SOFTWARE.
 
 // }}}
-#include "Python.h"
-
-#include <pyclingo.h>
-
-#if defined  _WIN32 || defined __CYGWIN__
-#    define VISIBILITY_DEFAULT __declspec (dllexport)
-#else
-#    if __GNUC__ >= 4
-#        define VISIBILITY_DEFAULT  __attribute__ ((visibility ("default")))
-#    else
-#        define VISIBILITY_DEFAULT
-#    endif
-#endif
-
-#if PY_MAJOR_VERSION >= 3
-extern "C" VISIBILITY_DEFAULT PyObject *PyInit_clingo() {
-    clingo_register_python_();
-    return (PyObject*)clingo_init_python_();
-}
-#else
-extern "C" VISIBILITY_DEFAULT void initclingo() {
-    clingo_register_python_();
-    clingo_init_python_();
-}
-#endif
+"""
+for path, directories, files in os.walk('.'):
+    if path == ".":
+        directories.remove("clasp")
+        directories.remove("build")
+    for x in files:
+        if filetype.match(x):
+            filepath = os.path.join(path, x)
+            content = open(filepath).read()
+            open(filepath, "w").write(gpl.sub(mit, content))
 
