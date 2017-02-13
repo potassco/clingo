@@ -871,6 +871,68 @@ void HeadAggregateAtom::accumulate(DomainData &data, Location const &loc, SymVec
 
 // }}}1
 
+// {{{1 definition of PredicateDomain
+
+std::pair<Id_t, Id_t> PredicateDomain::cleanup(AssignmentLookup assignment, Mapping &map) {
+    Id_t facts = 0;
+    Id_t deleted = 0;
+    Id_t oldOffset = 0;
+    Id_t newOffset = 0;
+    reset();
+    //std::cerr << "cleaning " << sig_ << std::endl;
+    atoms_.erase([&](PredicateAtom &atom) {
+        if (!atom.defined()) {
+            ++deleted;
+            ++oldOffset;
+            return true;
+        }
+        if (atom.hasUid()) {
+            auto value = assignment(atom.uid());
+            if (!value.first) {
+                switch (value.second) {
+                    case Potassco::Value_t::True: {
+                        // NOTE: externals cannot become facts here
+                        //       because they might get new definitions while grounding
+                        //       because there is no distinction between true and weak true
+                        //       these definitions might be skipped if a weak true external
+                        //       is made a fact here
+                        if (!atom.fact()) { ++facts; }
+                        atom.setFact(true);
+                        break;
+                    }
+                    case Potassco::Value_t::False: {
+                        ++deleted;
+                        ++oldOffset;
+                        return true;
+                    }
+                    default: { break; }
+                }
+            }
+        }
+        //std::cerr << "  mapping " << static_cast<Symbol>(atom) << " from " << oldOffset << " to " << newOffset << std::endl;
+        atom.setGeneration(0);
+        atom.unmarkDelayed();
+        map.add(oldOffset, newOffset);
+        ++oldOffset;
+        ++newOffset;
+        return false;
+    });
+    //std::cerr << "remaining atoms: ";
+    //for (auto &atom : atoms_) {
+    //    std::cerr << "  " << static_cast<Symbol>(atom) << "=" << (atoms_.find(static_cast<Symbol>(atom)) != atoms_.end()) << "/" << atom.generation() << "/" << atom.defined() << "/" << atom.delayed() << std::endl;
+    //}
+    delayed_.clear();
+    generation_ = 1;
+    initOffset_ = atoms_.size();
+    initDelayedOffset_ = 0;
+    incOffset_ = map.bound(incOffset_);
+    showOffset_ = map.bound(showOffset_);
+    return {facts, deleted};
+}
+
+
+// }}}1
+
 // {{{1 definition of AuxLiteral
 
 AuxLiteral::AuxLiteral(DomainData &data, LiteralId id)
