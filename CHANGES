@@ -1,3 +1,5 @@
+clingo 5.2
+  * fix cleanup function
 clingo 5.1.1
   * fix thread id to start with one in propagator.undo in lua
   * fix version macro in clingo.h
