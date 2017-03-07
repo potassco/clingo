@@ -971,7 +971,7 @@ extern "C" bool clingo_solve_handle_wait(clingo_solve_handle_t *handle, double t
     GRINGO_CLINGO_CATCH;
 }
 extern "C" bool clingo_solve_handle_close(clingo_solve_handle_t *handle) {
-    GRINGO_CLINGO_TRY { handle->cancel(); }
+    GRINGO_CLINGO_TRY { if (handle) { handle->cancel(); } }
     GRINGO_CLINGO_CATCH;
 }
 extern "C" bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t **model) {
