@@ -3563,10 +3563,11 @@ struct Control::Impl {
 inline Clingo::Control::Control(StringSpan args, Logger logger, unsigned message_limit)
 : impl_(new Clingo::Control::Impl(logger))
 {
-    Detail::handle_error(clingo_control_new(args.begin(), args.size(), [](clingo_warning_t code, char const *msg, void *data) {
+    clingo_logger_t f = [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
         catch (...) { }
-    }, &impl_->logger, message_limit, &impl_->ctl));
+    };
+    Detail::handle_error(clingo_control_new(args.begin(), args.size(), logger ? f : nullptr, logger ? &impl_->logger : nullptr, message_limit, &impl_->ctl));
 }
 
 inline Control::Control(clingo_control_t *ctl)
