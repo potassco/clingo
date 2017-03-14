@@ -707,19 +707,6 @@ void handle_c_error(bool ret, std::exception_ptr *exc = nullptr) {
     }
 }
 
-// translates a python api error into a c++ exception
-void handle_py_error(clingo_location_t const &loc, char const *msg) {
-    std::ostringstream ss;
-    ss << loc << ": error: " << msg << ":\n" << errorToString();
-    throw std::runtime_error(ss.str().c_str());
-}
-
-void handle_py_error(char const *loc, char const *msg) {
-    std::ostringstream ss;
-    ss << loc << ": error: " << msg << ":\n" << errorToString();
-    throw std::runtime_error(ss.str().c_str());
-}
-
 // rethrows the current exception and translates it into a python exception
 void handle_cxx_error_(std::ostringstream &ss) {
     clingo_error_t code = clingo_error_unknown;
