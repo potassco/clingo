@@ -7035,6 +7035,8 @@ public:
             static char const *argv[] = {"clingo", 0};
             PySys_SetArgvEx(1, const_cast<char**>(argv), 0);
 #endif
+            List path{Reference{PySys_GetObject(const_cast<char*>("path"))}};
+            path.append(cppToPy("."));
         }
         Object clingoModule = PyImport_ImportModule("clingo");
         Object mainModule = PyImport_ImportModule("__main__");
