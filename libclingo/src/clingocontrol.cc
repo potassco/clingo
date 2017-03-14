@@ -153,7 +153,7 @@ void ClingoControl::parse() {
 
 Potassco::Lit_t ClingoPropagateInit::mapLit(Lit_t lit) {
     const auto& prg = static_cast<Clasp::Asp::LogicProgram&>(*static_cast<ClingoControl&>(c_).clasp_->program());
-    return Clasp::encodeLit(prg.getLiteral(lit));
+    return Clasp::encodeLit(prg.getLiteral(lit, Clasp::Asp::MapLit_t::Refined));
 }
 
 int ClingoPropagateInit::threads() {
@@ -397,6 +397,7 @@ void *ClingoControl::claspFacade() {
 void ClingoControl::registerPropagator(std::unique_ptr<Propagator> p, bool sequential) {
     propagators_.emplace_back(gringo_make_unique<Clasp::ClingoPropagatorInit>(*p, propLock_.add(sequential)));
     claspConfig_.addConfigurator(propagators_.back().get(), Clasp::Ownership_t::Retain);
+    static_cast<Clasp::Asp::LogicProgram*>(clasp_->program())->enableDistinctTrue();
     props_.emplace_back(std::move(p));
 }
 
