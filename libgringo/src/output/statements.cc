@@ -449,51 +449,37 @@ bool Bound::init(DomainData &data, Translator &x, Logger &log) {
 
 // {{{1 definition of LinearConstraint
 
-void LinearConstraint::Generate::generate(StateVec::iterator it, int current, int remainder) {
-    if (current + remainder > getBound()) {
-        if (it == states.end()) {
-            assert(remainder == 0);
-            aux.emplace_back(data.newAtom());
-            for (auto &x : states) {
-                if (x.atom != x.bound.atoms.end() && x.atom->second) {
-                    Rule()
-                        .addHead({NAF::POS, AtomType::Aux, aux.back(), 0})
-                        .addBody({x.coef < 0 ? NAF::NOT : NAF::POS, AtomType::Aux, x.atom->second, 0})
-                        .translate(data, trans);
+bool LinearConstraint::translate(DomainData &data, Translator &trans) {
+    StateVec states;
+    int current   = 0;
+    // introduces the order variables for each variable
+    for (auto &y : coefs) {
+        states.emplace_back(trans.findBound(y.second), y);
+        current += states.back().lower();
+    }
+    if (current <= bound) {
+        int adjust = 0;
+        LitUintVec body;
+        for (auto &state : states) {
+            if (!state.bound.atoms.empty()) {
+                auto prev = state.bound.begin(), it = prev, ie = state.bound.end();
+                auto atomIt = state.bound.atoms.begin();
+                adjust+= *it * state.coef;
+                for (++it, ++atomIt; it != ie; ++it, ++prev, ++atomIt) {
+                    int diff = state.coef * (*it - *prev);
+                    if (diff > 0) {
+                        body.emplace_back(LiteralId{NAF::POS, AtomType::Aux, atomIt->second, 0}, diff);
+                        adjust += diff;
+                    }
+                    else {
+                        body.emplace_back(LiteralId{NAF::NOT, AtomType::Aux, atomIt->second, 0}, -diff);
+                    }
                 }
             }
         }
-        else {
-            remainder -= it->upper() - it->lower();
-            int total = current - it->lower();
-            for (it->reset(); it->valid(); it->next(total, current)) {
-                generate(it+1, current, remainder);
-                if (current > getBound()) { break; }
-            }
-        }
+        WeightRule{{NAF::POS, AtomType::Aux, atom, 0}, adjust-bound, std::move(body)}.translate(data, trans);
     }
-}
-
-bool LinearConstraint::Generate::init() {
-    int current   = 0;
-    int remainder = 0;
-    for (auto &y : cons.coefs) {
-        states.emplace_back(trans.findBound(y.second), y);
-        current   += states.back().lower();
-        remainder += states.back().upper() - states.back().lower();
-    }
-    if (current <= getBound()) {
-        generate(states.begin(), current, remainder);
-        Rule rule;
-        for (auto &x : aux) { rule.addBody({NAF::POS, AtomType::Aux, x, 0}); }
-        rule.addHead({NAF::POS, AtomType::Aux, cons.atom, 0}).translate(data, trans);
-    }
-    return current <= cons.bound;
-}
-
-bool LinearConstraint::translate(DomainData &data, Translator &x) {
-    Generate gen(*this, data, x);
-    return gen.init();
+    return current <= bound;
 }
 
 // }}}1

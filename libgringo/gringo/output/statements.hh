@@ -243,49 +243,13 @@ struct LinearConstraint {
         using Coef = CoefVarVec::value_type;
         State(Bound &bound, Coef &coef)
             : bound(bound)
-            , coef(coef.first) { reset(); }
+            , coef(coef.first) { }
         int upper()  { return bound.getUpper(coef); }
         int lower()  { return bound.getLower(coef); }
-        bool valid() { return atom != (coef < 0 ? bound.atoms.begin() : bound.atoms.end()); }
-        void next(int total, int &ret) {
-            if (coef < 0) {
-                --atom;
-                --current;
-                auto it = current;
-                --it;
-                ret = total + coef * (*it);
-            }
-            else {
-                ++atom;
-                ++current;
-                ret = total + coef * (*current);
-            }
-        }
-        void reset() {
-            current = coef < 0 ? bound.end() : bound.begin();
-            atom    = coef < 0 ? bound.atoms.end() : bound.atoms.begin();
-        }
-        Bound                   &bound;
-        Bound::ConstIterator     current;
-        Bound::AtomVec::iterator atom;
-        int                      coef;
+        Bound &bound;
+        int    coef;
     };
     using StateVec = std::vector<State>;
-    struct Generate {
-        using AuxVec = std::vector<Potassco::Atom_t>;
-        Generate(LinearConstraint &cons, DomainData &data, Translator &trans)
-            : cons(cons)
-            , data(data)
-            , trans(trans) { }
-        bool init();
-        int getBound() { return cons.bound; }
-        void generate(StateVec::iterator it, int current, int remainder);
-        StateVec          states;
-        LinearConstraint &cons;
-        DomainData       &data;
-        Translator       &trans;
-        AuxVec            aux;
-    };
     LinearConstraint(Potassco::Atom_t atom, CoefVarVec &&coefs, int bound)
         : atom(atom)
         , coefs(std::move(coefs))
