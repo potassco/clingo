@@ -35,6 +35,7 @@
 #include <cassert>
 #include <type_traits>
 #include <memory>
+#include <tuple>
 
 #include <iostream>
 
@@ -2072,6 +2073,7 @@ using StatementCallback = std::function<void (AST::Statement &&)>;
 void parse_program(char const *program, StatementCallback cb, Logger logger = nullptr, unsigned message_limit = 20);
 Symbol parse_term(char const *str, Logger logger = nullptr, unsigned message_limit = 20);
 char const *add_string(char const *str);
+std::tuple<int, int, int> version();
 
 // }}}1
 
@@ -3901,6 +3903,12 @@ inline Symbol parse_term(char const *str, Logger logger, unsigned message_limit)
 inline char const *add_string(char const *str) {
     char const *ret;
     Detail::handle_error(clingo_add_string(str, &ret));
+    return ret;
+}
+
+inline std::tuple<int, int, int> version() {
+    std::tuple<int, int, int> ret;
+    clingo_version(&std::get<0>(ret), &std::get<1>(ret), &std::get<2>(ret));
     return ret;
 }
 
