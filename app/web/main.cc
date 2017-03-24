@@ -26,6 +26,7 @@
 #   include <luaclingo.h>
 #endif
 #include "clingo/clingo_app.hh"
+#include "clingo/scripts.hh"
 #include <iterator>
 
 class ExitException : public std::exception {
@@ -52,11 +53,8 @@ struct WebApp : Gringo::ClingoApp {
 extern "C" int run(char const *program, char const *options) {
     try {
 #ifdef CLINGO_WITH_LUA
-        static bool registered_lua = false;
-        if (!registered_lua) {
-            clingo_register_lua_(nullptr);
-            registered_lua = true;
-        }
+        Gringo::g_scripts() = Gringo::Scripts();
+        clingo_register_lua_(nullptr);
 #endif
         std::streambuf* orig = std::cin.rdbuf();
         auto exit(Gringo::onExit([orig]{ std::cin.rdbuf(orig); }));
