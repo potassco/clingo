@@ -162,8 +162,8 @@ void NonGroundParser::parseError(Location const &loc, std::string const &msg) {
     GRINGO_REPORT(*log_, Warnings::RuntimeError) << loc << ": error: " << msg << "\n";
 }
 
-void NonGroundParser::lexerError(StringSpan token) {
-    GRINGO_REPORT(*log_, Warnings::RuntimeError) << filename() << ":" << line() << ":" << column() << ": error: lexer error, unexpected " << std::string(token.first, token.first + token.size) << "\n";
+void NonGroundParser::lexerError(Location const &loc, StringSpan token) {
+    GRINGO_REPORT(*log_, Warnings::RuntimeError) << loc << ": error: lexer error, unexpected " << std::string(token.first, token.first + token.size) << "\n";
 }
 
 bool NonGroundParser::push(std::string const &filename, bool include) {
@@ -221,9 +221,7 @@ int NonGroundParser::lex(void *pValue, Location &loc) {
     }
     while (!empty()) {
         int minor = lex_impl(pValue, loc);
-        loc.endFilename = filename();
-        loc.endLine     = line();
-        loc.endColumn   = column();
+        end(loc);
         if (minor) { return minor; }
         else       {
             pop();
@@ -337,6 +335,20 @@ void NonGroundParser::start(Location &loc) {
     loc.beginFilename = filename();
     loc.beginLine     = line();
     loc.beginColumn   = column();
+}
+
+Location &NonGroundParser::end(Location &loc) {
+    loc.endFilename = filename();
+    loc.endLine     = line();
+    loc.endColumn   = column();
+    return loc;
+}
+
+Location &NonGroundParser::eof(Location &loc) {
+    start(loc);
+    end(loc);
+    --loc.beginColumn;
+    return loc;
 }
 
 bool NonGroundParser::parse(Logger &log) {

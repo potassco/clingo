@@ -150,8 +150,8 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
         <normal,theory,definition> "%*"       => blockcomment { bc++; continue; }
         <normal,theory,definition> "%"        :=> comment
         <normal,theory,definition> "#!"       :=> comment
-        <normal,theory,definition> KEYWORD    { lexerError(string()); continue; }
-        <normal,theory,definition> ANY        { lexerError(string()); continue; }
+        <normal,theory,definition> KEYWORD    { lexerError(end(loc), string()); continue; }
+        <normal,theory,definition> ANY        { lexerError(end(loc), string()); continue; }
 
         <python> "#end" => normal {
             auto span = string();
@@ -162,7 +162,7 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
         }
         <python> NL {
             if(eof()) {
-                lexerError(Potassco::toSpan("<EOF>", 5));
+                lexerError(eof(loc), Potassco::toSpan("<EOF>", 5));
                 return 0;
             }
             step();
@@ -179,7 +179,7 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
         }
         <lua> NL {
             if(eof()) {
-                lexerError(Potassco::toSpan("<EOF>", 5));
+                lexerError(eof(loc), Potassco::toSpan("<EOF>", 5));
                 return 0;
             }
             step();
@@ -190,12 +190,12 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
         <blockcomment> "*%" { if(--bc == 0) { condition(yycnormal); start(loc); } continue; }
         <blockcomment> "%*" { bc++; continue; }
         <blockcomment> "%"  :=> comment
-        <blockcomment> NL   { if(eof()) { lexerError(Potassco::toSpan("<EOF>", 5)); return 0; } step(); continue; }
+        <blockcomment> NL   { if(eof()) { lexerError(eof(loc), Potassco::toSpan("<EOF>", 5)); return 0; } step(); continue; }
         <blockcomment> ANY  { continue; }
 
         <comment> NL {
             if(eof()) {
-                if(bc > 0) { lexerError(Potassco::toSpan("<EOF>", 5)); }
+                if(bc > 0) { lexerError(eof(loc), Potassco::toSpan("<EOF>", 5)); }
                 return 0;
             }
             step();

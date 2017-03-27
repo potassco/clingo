@@ -69,7 +69,7 @@ public:
 
 private:
     int lex_impl(void *pValue, Location &loc);
-    void lexerError(StringSpan token);
+    void lexerError(Location const &loc, StringSpan token);
     bool push(std::string const &filename, bool include = false);
     bool push(std::string const &file, std::unique_ptr<std::istream> in);
     void pop();
@@ -77,6 +77,9 @@ private:
     void condition(Condition cond);
     using LexerState<std::pair<String, std::pair<String, IdVec>>>::start;
     void start(Location &loc);
+    Location &end(Location &loc);
+    using LexerState<std::pair<String, std::pair<String, IdVec>>>::eof;
+    Location &eof(Location &loc);
     Condition condition() const;
     String filename() const;
 
