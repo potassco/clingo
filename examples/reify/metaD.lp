@@ -66,7 +66,7 @@ internal(C,sum(B,G))  :- scc(C,A), supp(A,sum(B,G)),  scc(C,A'), weighted_litera
 external(C,normal(B)) :- scc(C,A), supp(A,normal(B)), not internal(C,normal(B)).
 external(C,sum(B,G))  :- scc(C,A), supp(A,sum(B,G)),  not internal(C,sum(B,G)).
 
-steps(C,Z) :- scc(C,_), Z = { scc(C,A) : not fact(A) }.
+steps(C,Z-1) :- scc(C,_), Z = { scc(C,A) : not fact(A) }.
 
 wait(C,atom(A),0)   :- scc(C,A), fail(B) : external(C,B).
 wait(C,normal(B),I) :- internal(C,normal(B)), literal_tuple(B,A), wait(C,atom(A),I), steps(C,Z), I < Z.
