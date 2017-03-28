@@ -60,6 +60,9 @@ check clingo/cover "${clingo}" control-lua.lp
 check clingo/domains "${clingo}" domains-py.lp instance.lp
 check clingo/domains "${clingo}" domains-lua.lp instance.lp
 
+check clingo/dl "${clingo}" dl.lp fsE.lp fsI.lp 0
+check clingo/dl "${clingo}" dlO.lp fsE.lp fsI.lp
+
 check clingo/enum-assumption "${clingo}" example-py.lp
 check clingo/enum-assumption "${clingo}" example-lua.lp
 
