@@ -15,7 +15,7 @@ To additionally optimize variable `bound`, pass `dlO.lp` to clingo instead:
 
     $ clingo [clingo options] dlO.lp [files]
 
-# Examples
+# Example Calls
 
 Finding all solutions for the flow shop problem:
 
