@@ -1,8 +1,8 @@
 # Solving the Towers of Hanoi Problem
 
 This example solves Towers of Hanoi problems.  There are two variants.  First,
-there is an incremental encoding.  Second, there branch-and-bound-based
-optimizing version with respect to a given planning horizon.
+there is an incremental encoding.  Second, there is an optimizing version that
+tries to find a shortest plan within a given planning horizon.
 
 # Examples
 
