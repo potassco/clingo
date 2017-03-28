@@ -96,6 +96,9 @@ check clingo/load "${clingo}" load-lua.lp
 check clingo/onmodel "${clingo}" onmodel-py.lp
 check clingo/onmodel "${clingo}" onmodel-lua.lp
 
+check clingo/opt "${clingo}" tohE.lp tohI.lp
+check clingo/opt "${clingo}" opt.lp tohB.lp tohI.lp -c n=30
+
 check clingo/planning "${clingo}" planning-lua.lp encoding.lp instances/coins01.lp
 check clingo/planning "${clingo}" planning-lua.lp encoding.lp instances/comm02.lp
 
