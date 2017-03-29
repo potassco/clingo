@@ -146,6 +146,7 @@ target_include_directories(libgringo
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
     PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>")
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/input/clingopath.hh.in" "${CMAKE_CURRENT_BINARY_DIR}/src/input/clingopath.hh")
 if (NOT CLINGO_BUILD_SHARED)
     target_compile_definitions(libgringo PUBLIC CLINGO_NO_VISIBILITY)
 endif()

@@ -40,6 +40,8 @@ CMAKE_DEPENDENT_OPTION(CLINGO_BUILD_LUA_SHARED "build luaclingo library shared" 
 option(PYCLINGO_USER_INSTALL "install the python module in the user's site directory" ON)
 CMAKE_DEPENDENT_OPTION(PYCLINGO_USE_INSTALL_PREFIX "install the python module under the install prefix" OFF "NOT PYCLINGO_USER_INSTALL" OFF)
 
+set(CLINGO_CLINGOPATH "" CACHE STRING "global search directories for clingo's include statement")
+
 # workaround to set custom ar and ranlib
 if (CLINGO_CMAKE_AR)
     set(CMAKE_AR "${CLINGO_CMAKE_AR}")

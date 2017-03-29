@@ -67,87 +67,112 @@ void report_not_found(T const &loc, char const *filename, Logger &log) {
 // NOTE: is there a better way?
 #ifdef __USE_GNU
 
+bool is_relative(std::string const &filename) {
+    return filename.compare(0, 1, "/", 1) != 0;
+}
+
+bool check_relative(std::string const &filename, std::string path, std::pair<std::string, std::string> &ret) {
+    struct stat sb;
+    if (!path.empty()) { path.push_back('/'); }
+    path.append(filename);
+    if (stat(path.c_str(), &sb) != -1) {
+        if ((sb.st_mode & S_IFMT) == S_IFIFO) {
+            ret = {path, path};
+            return true;
+        }
+        else {
+            std::unique_ptr<char, Free> x{canonicalize_file_name(path.c_str())};
+            if (x) {
+                ret = {x.get(), path};
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+std::string get_dir(std::string const &filename) {
+    std::unique_ptr<char, Free> x(strdup(filename.c_str()));
+    std::string path = dirname(x.get());
+    if (path == ".") { path.clear(); }
+    return path;
+}
+
+#else
+
+bool is_relative(std::string const &) {
+    return true;
+}
+
+bool check_relative(std::string const &filename, std::string path, std::pair<std::string, std::string> &ret) {
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
+    char slash = '\\';
+#else
+    char slash = '/';
+#endif
+    if (!path.empty()) { path.push_back(slash); }
+    path.append(filename);
+    if (std::ifstream(path).good()) {
+        ret = {path, path};
+        return true;
+    }
+    return false;
+}
+
+std::string get_dir(std::string const &filename) {
+#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
+    const char *SLASH = "/\\";
+#else
+    const char *SLASH = "/";
+#endif
+    size_t slash = filename.find_last_of(SLASH);
+    return slash != std::string::npos
+        ? filename.substr(0, slash)
+        : "";
+}
+
+#endif
+
+template<typename Out>
+void split(char const *s, char delim, Out result) {
+    std::istringstream ss;
+    ss.str(s);
+    std::string item;
+    while (std::getline(ss, item, delim)) {
+        *(result++) = std::move(item);
+    }
+}
+
 std::string check_file(std::string const &filename) {
     if (filename == "-") { return filename; }
-    struct stat sb;
-    if (stat(filename.c_str(), &sb) != -1) {
-        if ((sb.st_mode & S_IFMT) == S_IFIFO) {
-            return filename;
-        }
-        else {
-            std::unique_ptr<char, Free> x(canonicalize_file_name(filename.c_str()));
-            if (x) { return x.get(); }
-        }
-    }
+    std::pair<std::string, std::string> ret = {"", ""};
+    if (check_relative(filename, "", ret)) { return ret.first; }
     return "";
 }
 
 std::pair<std::string, std::string> check_file(std::string const &filename, std::string const &source) {
-    struct stat sb;
-    if (stat(filename.c_str(), &sb) != -1) {
-        if ((sb.st_mode & S_IFMT) == S_IFIFO) {
-            return {filename, filename};
-        }
-        else {
-            std::unique_ptr<char, Free> x(canonicalize_file_name(filename.c_str()));
-            if (x) { return {x.get(), filename}; }
-        }
+    std::pair<std::string, std::string> ret = {"", ""};
+    if (check_relative(filename, "", ret)) {
+        return ret;
     }
-    else if (filename.compare(0, 1, "/", 1) != 0) {
-        std::unique_ptr<char, Free> x(strdup(source.c_str()));
-        std::string path = dirname(x.get());
-        path.push_back('/');
-        path.append(filename);
-        if (stat(path.c_str(), &sb) != -1) {
-            if ((sb.st_mode & S_IFMT) == S_IFIFO) {
-                return {path, path};
-            }
-            else {
-                x.reset(canonicalize_file_name(path.c_str()));
-                if (x) { return {x.get(), path}; }
-            }
-        }
+    else if (is_relative(filename)) {
+        auto path = get_dir(source);
+        if (path != "" && check_relative(filename, path, ret)) { return ret; }
     }
-    return {"", ""};
+#   include "input/clingopath.hh"
+    std::vector<std::string> e_paths;
+    std::vector<std::string> const *paths = &g_paths;
+    if (char *env_paths = getenv("CLINGOPATH")) {
+        split(env_paths, ':', std::back_inserter(e_paths));
+        paths = &e_paths;
+    }
+    for (auto &path : *paths) {
+        if (check_relative(filename, path, ret)) { return ret; }
+    }
+    return ret;
 }
 
-#else
-
-std::string check_file(std::string const &filename) {
-    if (filename == "-" && std::cin.good()) {
-        return filename;
-    }
-    if (std::ifstream(filename).good()) {
-        return filename;
-    }
-    return "";
-}
-
-std::pair<std::string, std::string> check_file(std::string const &filename, std::string const &source) {
-    if (std::ifstream(filename).good()) {
-        return {filename, filename};
-    }
-    else {
-#if defined _WIN32 || defined __WIN32__ || defined __EMX__ || defined __DJGPP__
-        const char *SLASH = "/\\";
-#else
-        const char *SLASH = "/";
-#endif
-        size_t slash = source.find_last_of(SLASH);
-        if (slash != std::string::npos) {
-            std::string path = source.substr(0, slash + 1);
-            path.append(filename);
-            if (std::ifstream(path).good()) {
-                return {path, path};
-            }
-        }
-    }
-    return {"", ""};
-}
-
-#endif
-
-}
+} // namespace
 
 // {{{ defintion of NonGroundParser
 
