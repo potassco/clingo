@@ -221,6 +221,10 @@ public:
     T const *get() const { return data_.get(); }
     T *operator->() { return get(); }
     T const *operator->() const { return get(); }
+    T &operator*() & { return *get(); }
+    T const &operator*() const & { return *get(); }
+    T &&operator*() && { return std::move(*get()); }
+    T const &&operator*() const && { return std::move(*get()); }
     template <class... Args>
     void emplace(Args&&... x) {
         clear();
