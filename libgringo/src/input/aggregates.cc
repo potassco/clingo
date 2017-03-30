@@ -917,6 +917,17 @@ void TupleHeadAggregate::collect(VarTermBoundVec &vars) const {
     }
 }
 
+namespace {
+
+template <class T>
+void zeroLevel(VarTermBoundVec &bound, T const &x) {
+    bound.clear();
+    x->collect(bound, false);
+    for (auto &var : bound) { var.first->level = 0; }
+}
+
+} // namspace
+
 UHeadAggr TupleHeadAggregate::rewriteAggregates(UBodyAggrVec &body) {
     for (auto &x : elems) {
         if (ULit shifted = std::get<1>(x)->shift(false)) {
@@ -936,9 +947,7 @@ UHeadAggr TupleHeadAggregate::rewriteAggregates(UBodyAggrVec &body) {
         Location l = tuple.empty() ? loc() : tuple.front()->loc();
         for (auto &term : tuple) {
             // NOTE: there could be special predicates for is_integer and is_defined
-            bound.clear();
-            term->collect(bound, false);
-            for (auto &var : bound) { var.first->level = 0; }
+            zeroLevel(bound, term);
             UTerm first = get_clone(term);
             if (weight) {
                 first = make_locatable<BinOpTerm>(l, BinOp::ADD, std::move(first), make_locatable<ValTerm>(l, Symbol::createNum(0)));
@@ -949,15 +958,11 @@ UHeadAggr TupleHeadAggregate::rewriteAggregates(UBodyAggrVec &body) {
         tuple.clear();
         tuple.emplace_back(make_locatable<ValTerm>(l, Symbol::createNum(0)));
         for (auto &lit : std::get<2>(elem)) {
-            bound.clear();
-            lit->collect(bound, true);
-            for (auto &var : bound) { var.first->level = 0; }
+            zeroLevel(bound, lit);
             body.emplace_back(gringo_make_unique<SimpleBodyLiteral>(std::move(lit)));
         }
         std::get<2>(elem).clear();
-        bound.clear();
-        std::get<1>(elem)->collect(bound, false);
-        for (auto &var : bound) { var.first->level = 0; }
+        zeroLevel(bound, std::get<1>(elem));
     }
     return nullptr;
 }
