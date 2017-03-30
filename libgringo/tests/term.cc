@@ -178,7 +178,7 @@ TEST_CASE("term", "[base]") {
         REQUIRE(*gterm(lin("X",2,3)) != *gterm(lin("X",1,3)));
         REQUIRE(*gterm(lin("X",2,3)) != *gterm(lin("X",2,2)));
         REQUIRE(*gterm(var("X")) == *gterm(var("X")));
-        REQUIRE(*gterm(fun("f", var("X"), var("X"))) == *gterm(fun("f", var("X"), var("X", 1)))); // Note: all levels=0
+        REQUIRE(*gterm(fun("f", var("X"), var("X"))) != *gterm(fun("f", var("X"), var("X", 1)))); // Note: all levels=0
         REQUIRE(*gterm(var("X")) == *gterm(var("Y"))); // Note: intended
         REQUIRE(*gterm(fun("f", val(NUM(1)), val(NUM(2)))) == *gterm(fun("f", val(NUM(1)), val(NUM(2)))));
         REQUIRE(*gterm(fun("f", val(NUM(1)), val(NUM(2)))) != *gterm(fun("g", val(NUM(1)), val(NUM(2)))));

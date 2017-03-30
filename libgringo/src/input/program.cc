@@ -106,6 +106,8 @@ void Program::rewrite(Defines &defs, Logger &log) {
         UTerm blockTerm(args.empty()
             ? (UTerm)make_locatable<ValTerm>(block.loc, Symbol::createId(block.name))
             : make_locatable<FunctionTerm>(block.loc, block.name, get_clone(args)));
+        VarTermBoundVec blockBound;
+        blockTerm->collect(blockBound, true);
         incDefs.init(log);
 
         for (auto &fact : block.addedEdb) { sigs_.push(fact.sig()); }
@@ -136,7 +138,7 @@ void Program::rewrite(Defines &defs, Logger &log) {
             std::get<1>(*block.edb).emplace_back(x->isEDB());
             if (std::get<1>(*block.edb).back().type() == SymbolType::Special) {
                 x->add(make_locatable<PredicateLiteral>(block.loc, NAF::POS, get_clone(blockTerm), true));
-                x->rewrite2();
+                x->rewrite();
                 block.stms.emplace_back(std::move(x));
                 std::get<1>(*block.edb).pop_back();
             }
@@ -144,7 +146,7 @@ void Program::rewrite(Defines &defs, Logger &log) {
         };
         auto rewrite1 = [&](UStm &x) -> void {
             x->initTheory(theoryDefs_, log);
-            if (x->rewrite1(project_, log)) {
+            if (x->simplify(project_, log)) {
                 if (x->hasPool(false)) { for (auto &y : x->unpool(false)) { rewrite2(y); } }
                 else                   { rewrite2(x); }
             }
@@ -152,6 +154,7 @@ void Program::rewrite(Defines &defs, Logger &log) {
         for (auto &x : block.addedStms) {
             x->replace(defs);
             x->replace(incDefs);
+            x->assignLevels(blockBound);
             if (x->hasPool(true)) { for (auto &y : x->unpool(true)) { rewrite1(y); } }
             else                  { rewrite1(x); }
         }

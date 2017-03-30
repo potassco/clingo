@@ -109,7 +109,27 @@ TEST_CASE("output-lparse", "[output]") {
             ))
         );
     }
-
+    SECTION("rewrite-bug1") {
+        REQUIRE(
+            "([[p(1),p(2),q(1),q(2)],[p(1),q(1),q(2)],[p(2),q(1),q(2)],[q(1),q(2)]],[])" ==
+            IO::to_string(solve(
+                "q(1..2)."
+                "{ p(X) : q(X) } :- 2 { q(X) }."
+            ))
+        );
+    }
+    SECTION("rewrite-bug2") {
+        REQUIRE(
+            "([[x]],[-:1:19-25: info: atom does not occur in any rule head:\n"
+            "  p(#Arith0)\n"
+            ",-:1:21-24: info: operation undefined:\n"
+            "  (X+Y)\n"
+            "])" ==
+            IO::to_string(solve(
+                "x :- #count { 1 : p(X+Y) } >= 0, X=1, Y=a."
+            ))
+        );
+    }
     SECTION("recCondBug") {
         REQUIRE(
             "([[0,2,4,5,9],[0,2,5,9],[0,4,9],[0,9]],[])" ==
@@ -1148,7 +1168,7 @@ TEST_CASE("output-lparse", "[output]") {
                 "a(a).\n"
                 "a(1).\n"
                 "X <= { p(X) } < X+1 :- a(X).\n", { "p(" })));
-		REQUIRE(
+        REQUIRE(
             "([[p(1)]],[-:3:1-2: info: operation undefined:\n  (1*X+-1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"

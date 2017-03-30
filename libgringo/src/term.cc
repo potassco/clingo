@@ -561,7 +561,7 @@ bool Term::bind(VarSet &bound) {
 
 UTerm Term::insert(ArithmeticsMap &arith, AuxGen &auxGen, UTerm &&term, bool eq) {
     unsigned level = term->getLevel();
-    assert(level < arith.size());
+    if (arith[level].find(term) == arith[level].end()) { level = arith.size() - 1; }
     auto ret = arith[level].emplace(std::move(term), nullptr);
     if (ret.second) { ret.first->second = auxGen.uniqueVar(ret.first->first->loc(), level, "#Arith"); }
     if (eq) {
@@ -584,12 +584,12 @@ UTerm AuxGen::uniqueVar(Location const &loc, unsigned level, const char *prefix)
 // {{{1 definition of SimplifyState
 
 std::unique_ptr<LinearTerm> SimplifyState::createScript(Location const &loc, String name, UTermVec &&args) {
-    scripts.emplace_back(gen.uniqueVar(loc, 0, "#Script"), name, std::move(args));
+    scripts.emplace_back(gen.uniqueVar(loc, level, "#Script"), name, std::move(args));
     return make_locatable<LinearTerm>(loc, static_cast<VarTerm&>(*std::get<0>(scripts.back())), 1, 0);
 }
 
 std::unique_ptr<LinearTerm> SimplifyState::createDots(Location const &loc, UTerm &&left, UTerm &&right) {
-    dots.emplace_back(gen.uniqueVar(loc, 0, "#Range"), std::move(left), std::move(right));
+    dots.emplace_back(gen.uniqueVar(loc, level, "#Range"), std::move(left), std::move(right));
     return make_locatable<LinearTerm>(loc, static_cast<VarTerm&>(*std::get<0>(dots.back())), 1, 0);
 }
 
@@ -892,7 +892,7 @@ ValTerm::~ValTerm() { }
 
 VarTerm::VarTerm(String name, SVal ref, unsigned level, bool bindRef)
     : name(name)
-    , ref(ref)
+    , ref(name == "_" ? std::make_shared<Symbol>() : ref)
     , bindRef(bindRef)
     , level(level) { assert(ref || name == "_"); }
 
@@ -917,7 +917,6 @@ void VarTerm::print(std::ostream &out) const { out << name; }
 
 Term::SimplifyRet VarTerm::simplify(SimplifyState &state, bool positional, bool arithmetic, Logger &) {
     if (name == "_") {
-        ref = std::make_shared<Symbol>();
         if (positional) { return {*this, true}; }
         else { name = state.gen.uniqueName("#Anon"); }
     }
@@ -968,10 +967,13 @@ UTerm VarTerm::rewriteArithmetics(Term::ArithmeticsMap &, AuxGen &, bool) { retu
 
 bool VarTerm::operator==(Term const &x) const {
     auto t = dynamic_cast<VarTerm const*>(&x);
-    return t && name == t->name && level == t->level;
+    return t && name == t->name && level == t->level && (name != "_" || t == this);
 }
 
 size_t VarTerm::hash() const {
+    // NOTE: in principle ref and level could be used as identity
+    //       if not for the way gterms are constructed
+    //       which create arbitrary references
     return get_value_hash(typeid(VarTerm).hash_code(), name, level);
 }
 
@@ -987,7 +989,7 @@ UTerm VarTerm::renameVars(RenameMap &names) const {
         ret.first->second.first  = ((bindRef ? "X" : "Y") + std::to_string(names.size() - 1)).c_str();
         ret.first->second.second = std::make_shared<Symbol>();
     }
-    return make_locatable<VarTerm>(loc(), ret.first->second.first, ret.first->second.second, 0, bindRef);
+    return make_locatable<VarTerm>(loc(), ret.first->second.first, ret.first->second.second, level, bindRef);
 }
 
 UGTerm VarTerm::gterm(RenameMap &names, ReferenceMap &refs) const { return gringo_make_unique<GVarTerm>(_newRef(names, refs)); }

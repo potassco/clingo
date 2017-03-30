@@ -125,9 +125,20 @@ bool Statement::hasPool(bool beforeRewrite) const {
 }
 
 // }}}
-// {{{ definition of Statement::rewrite1
+// {{{ definition of Statement::assignLevels
 
-bool Statement::rewrite1(Projections &project, Logger &log) {
+void Statement::assignLevels(VarTermBoundVec &bound) {
+    AssignLevel c;
+    head->assignLevels(c);
+    for (auto &y : body) { y->assignLevels(c); }
+    c.add(bound);
+    c.assignLevels();
+}
+
+// }}}
+// {{{ definition of Statement::simplify
+
+bool Statement::simplify(Projections &project, Logger &log) {
     SimplifyState state;
     if (!head->simplify(project, state, log)) { return false; }
     bool singleton = std::accumulate(body.begin(), body.end(), 0, [](unsigned x, UBodyAggr const &y){ return x + y->projectScore(); }) == 1 && head->isPredicate();
@@ -140,7 +151,7 @@ bool Statement::rewrite1(Projections &project, Logger &log) {
 }
 
 // }}}
-// {{{ definition of Statement::rewrite2
+// {{{ definition of Statement::rewrite
 
 namespace {
 
@@ -235,17 +246,11 @@ void _rewriteAssignments(UBodyAggrVec &body) {
 
 } // namespace
 
-void Statement::rewrite2() {
+void Statement::rewrite() {
     AuxGen auxGen;
     { // rewrite aggregates
         Term::replace(head, head->rewriteAggregates(body));
         _rewriteAggregates(body);
-    }
-    { // assign levels
-        AssignLevel c;
-        head->assignLevels(c);
-        for (auto &y : body) { y->assignLevels(c); }
-        c.assignLevels();
     }
     { // rewrite arithmetics
         Term::ArithmeticsMap arith;

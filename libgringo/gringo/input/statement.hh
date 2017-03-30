@@ -37,8 +37,9 @@ enum class StatementType { RULE, EXTERNAL, WEAKCONSTRAINT };
 struct Statement : Printable, Locatable {
     Statement(UHeadAggr &&head, UBodyAggrVec &&body, StatementType type);
     virtual UStmVec unpool(bool beforeRewrite);
-    virtual bool rewrite1(Projections &project, Logger &log);
-    virtual void rewrite2();
+    virtual void assignLevels(VarTermBoundVec &bound);
+    virtual bool simplify(Projections &project, Logger &log);
+    virtual void rewrite();
     virtual Symbol isEDB() const;
     virtual void print(std::ostream &out) const;
     virtual bool hasPool(bool beforeRewrite) const;

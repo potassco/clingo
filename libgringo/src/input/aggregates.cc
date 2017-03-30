@@ -925,7 +925,10 @@ UHeadAggr TupleHeadAggregate::rewriteAggregates(UBodyAggrVec &body) {
             std::get<2>(x).emplace_back(std::move(shifted));
         }
     }
+    // NOTE: if it were possible to add further ruleshere,
+    // then also aggregates with more than one element could be supported
     if (elems.size() == 1 && bounds.empty()) {
+        VarTermBoundVec bound;
         auto &elem = elems.front();
         // Note: to handle undefinedness in tuples
         bool weight = fun == AggregateFunction::SUM || fun == AggregateFunction::SUMP;
@@ -933,6 +936,9 @@ UHeadAggr TupleHeadAggregate::rewriteAggregates(UBodyAggrVec &body) {
         Location l = tuple.empty() ? loc() : tuple.front()->loc();
         for (auto &term : tuple) {
             // NOTE: there could be special predicates for is_integer and is_defined
+            bound.clear();
+            term->collect(bound, false);
+            for (auto &var : bound) { var.first->level = 0; }
             UTerm first = get_clone(term);
             if (weight) {
                 first = make_locatable<BinOpTerm>(l, BinOp::ADD, std::move(first), make_locatable<ValTerm>(l, Symbol::createNum(0)));
@@ -943,9 +949,15 @@ UHeadAggr TupleHeadAggregate::rewriteAggregates(UBodyAggrVec &body) {
         tuple.clear();
         tuple.emplace_back(make_locatable<ValTerm>(l, Symbol::createNum(0)));
         for (auto &lit : std::get<2>(elem)) {
+            bound.clear();
+            lit->collect(bound, true);
+            for (auto &var : bound) { var.first->level = 0; }
             body.emplace_back(gringo_make_unique<SimpleBodyLiteral>(std::move(lit)));
         }
         std::get<2>(elem).clear();
+        bound.clear();
+        std::get<1>(elem)->collect(bound, false);
+        for (auto &var : bound) { var.first->level = 0; }
     }
     return nullptr;
 }

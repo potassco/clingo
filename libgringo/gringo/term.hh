@@ -135,8 +135,9 @@ struct SimplifyState {
     using DotsMap = std::vector<std::tuple<UTerm, UTerm, UTerm>>;
     using ScriptMap = std::vector<std::tuple<UTerm, String, UTermVec>>;
     SimplifyState(SimplifyState &state)
-    : gen(state.gen) { }
-    SimplifyState() { }
+    : gen(state.gen)
+    , level(state.level + 1) { }
+    SimplifyState() : level(0) { }
     SimplifyState(SimplifyState const &) = delete;
     SimplifyState(SimplifyState &&)      = default;
 
@@ -146,6 +147,7 @@ struct SimplifyState {
     DotsMap dots;
     ScriptMap scripts;
     AuxGen gen;
+    int level;
 };
 
 struct Term : public Printable, public Hashable, public Locatable, public Comparable<Term>, public Clonable<Term> {

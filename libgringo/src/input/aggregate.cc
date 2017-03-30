@@ -31,7 +31,7 @@ namespace Gringo { namespace Input {
 // {{{ definition of AssignLevel
 
 void AssignLevel::add(VarTermBoundVec &vars) {
-    for (auto &occ : vars) { occurr[occ.first->name].emplace_back(occ.first); }
+    for (auto &occ : vars) { occurr[occ.first->ref].emplace_back(occ.first); }
 }
 AssignLevel &AssignLevel::subLevel() {
     childs.emplace_front();
@@ -44,8 +44,8 @@ void AssignLevel::assignLevels() {
 void AssignLevel::assignLevels(unsigned level, BoundSet const &parent) {
     BoundSet bound(parent);
     for (auto &occs : occurr) {
-        auto ret = bound.emplace(occs.first, level);
-        for (auto &occ : occs.second) { occ->level = ret.first->second; }
+        unsigned l = bound.emplace(occs.first, level).first->second;
+        for (auto &occ : occs.second) { occ->level = l; }
     }
     for (auto &child : childs) { child.assignLevels(level + 1, bound); }
 }

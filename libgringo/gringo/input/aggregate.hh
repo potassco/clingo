@@ -65,7 +65,7 @@ using UHeadAggrVec = std::vector<UHeadAggr>;
 // {{{ declaration of AssignLevel
 
 struct AssignLevel {
-    typedef std::unordered_map<String, unsigned> BoundSet;
+    typedef std::unordered_map<Term::SVal, unsigned> BoundSet;
 
     void add(VarTermBoundVec &vars);
     AssignLevel &subLevel();
@@ -74,7 +74,7 @@ struct AssignLevel {
     virtual ~AssignLevel();
 
     std::list<AssignLevel> childs;
-    std::unordered_map<String, std::vector<VarTerm*>> occurr;
+    std::unordered_map<Term::SVal, std::vector<VarTerm*>> occurr;
 };
 
 // }}}
