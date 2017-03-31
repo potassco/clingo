@@ -315,8 +315,12 @@ private:
         return *this;
     }
     Variant &operator=(Holder &&data) {
-        data_.swap(data);
-        data.destroy();
+        Holder x;
+        x.swap(data);
+        // Destroy the old data_ only after securing the new data
+        // Otherwise, data would be destroyed together with data_ if it was a descendant of data_
+        data_.destroy();
+        x.swap(data_);
         return *this;
     }
     template <class U, class... Args>
