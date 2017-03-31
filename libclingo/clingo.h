@@ -713,13 +713,21 @@ typedef unsigned clingo_solve_result_bitset_t;
 //! @addtogroup SolveHandle
 //! @{
 
-//! Enumeration of solve events.
+//! Enumeration of solve modes.
 enum clingo_solve_mode {
     clingo_solve_mode_async = 1, //!< Enable non-blocking search.
     clingo_solve_mode_yield = 2, //!< Yield models in calls to clingo_solve_handle_model.
 };
 //! Corresponding type to ::clingo_solve_mode.
 typedef unsigned clingo_solve_mode_bitset_t;
+
+//! Enumeration of solve events.
+enum clingo_solve_event_type {
+    clingo_solve_event_type_model  = 0, //!< Issued if a model is found.
+    clingo_solve_event_type_result = 1, //!< Issued if the search has completed.
+};
+//! Corresponding type to ::clingo_solve_event_t.
+typedef unsigned clingo_solve_event_type_t;
 
 //! Callback function called during search to notify when the seach is finished or a model is ready.
 //!
@@ -734,7 +742,7 @@ typedef unsigned clingo_solve_mode_bitset_t;
 //! @return whether the call was successful
 //!
 //! @see clingo_control_solve_refactored()
-typedef bool (*clingo_solve_event_callback_t) (clingo_model_t *model, void *data, bool *goon);
+typedef bool (*clingo_solve_event_callback_t) (clingo_solve_event_type_t type, void *event, void *data, bool *goon);
 
 //! Search handle to a solve call.
 //!

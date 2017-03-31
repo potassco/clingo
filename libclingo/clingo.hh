@@ -1097,7 +1097,16 @@ inline std::ostream &operator<<(std::ostream &out, SolveResult res) {
 
 // {{{1 solve handle
 
-using EventCallback = std::function<bool (Model *)>;
+class SolveEventHandler {
+public:
+    virtual bool on_model(Model const &model);
+    virtual void on_result(SolveResult result);
+    virtual ~SolveEventHandler() = default;
+};
+using USolveEventHandler = std::unique_ptr<SolveEventHandler>;
+
+inline bool SolveEventHandler::on_model(Model const &) { return true; }
+inline void SolveEventHandler::on_result(SolveResult) { }
 
 class SolveHandle {
 public:
@@ -1114,9 +1123,10 @@ public:
     Model next();
     SolveResult get();
     void close();
-    void notify(EventCallback &cb);
+    void notify(USolveEventHandler cb);
     ~SolveHandle() { close(); }
 private:
+    USolveEventHandler cb_;
     clingo_solve_handle_t *iter_;
 };
 
@@ -2718,20 +2728,26 @@ inline void SolveHandle::close() {
     }
 }
 
-inline void SolveHandle::notify(EventCallback &cb) {
-    Detail::handle_error(clingo_solve_handle_notify(iter_, [](clingo_model_t *model, void *data, bool *goon){
+inline void SolveHandle::notify(USolveEventHandler cb) {
+    cb_ = std::move(cb);
+    Detail::handle_error(clingo_solve_handle_notify(iter_, [](clingo_solve_event_type_t type, void *event, void *data, bool *goon){
         CLINGO_TRY {
-            EventCallback &cb = *static_cast<EventCallback*>(data);
-            if (model) {
-                Model m{model};
-                *goon = cb(&m);
-            }
-            else {
-                *goon = cb(nullptr);
+            SolveEventHandler &cb = *static_cast<SolveEventHandler*>(data);
+            switch (type) {
+                case clingo_solve_event_type_model: {
+                    Model m{static_cast<clingo_model_t*>(event)};
+                    *goon = cb.on_model(m);
+                    break;
+                }
+                case clingo_solve_event_type_result: {
+                    cb.on_result(SolveResult{*static_cast<clingo_solve_result_bitset_t*>(event)});
+                    *goon = true;
+                    break;
+                }
             }
         }
         CLINGO_CATCH;
-    }, &cb));
+    }, cb_.get()));
 }
 
 // {{{2 backend

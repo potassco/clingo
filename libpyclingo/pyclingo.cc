@@ -5629,31 +5629,37 @@ active; you must not call any member function during search.)";
         handle_c_error(clingo_control_get_const(ctl, name, &val));
         return Symbol::construct(val);
     }
-    static bool on_event(clingo_model_t *model, void *data, bool *goon) {
+    static bool on_event(clingo_solve_event_type_t type, void *event, void *data, bool *goon) {
         std::pair<PyObject*, PyObject*> &cb = *static_cast<std::pair<PyObject*, PyObject*>*>(data);
-        if (model && cb.first) {
-            PyBlock block;
-            try {
-                auto pyModel = Model::construct(model);
-                Object ret = PyObject_CallFunction(cb.first, const_cast<char*>("O"), pyModel.toPy());
-                *goon = ret.none() || pyToCpp<bool>(ret);
-                return true;
+        switch (type) {
+            case clingo_solve_event_type_model: {
+                if (cb.first) {
+                    PyBlock block;
+                    try {
+                        auto pyModel = Model::construct(static_cast<clingo_model_t*>(event));
+                        Object ret = PyObject_CallFunction(cb.first, const_cast<char*>("O"), pyModel.toPy());
+                        *goon = ret.none() || pyToCpp<bool>(ret);
+                        return true;
+                    }
+                    catch (...) {
+                        handle_cxx_error("<on_model>", "error in model callback");
+                        return false;
+                    }
+                }
             }
-            catch (...) {
-                handle_cxx_error("<on_model>", "error in model callback");
-                return false;
-            }
-        }
-        else if (!model && cb.second) {
-            PyBlock block;
-            try {
-                // TODO: it would be nice to have a solve result in the finish handler
-                Object fhRet = PyObject_CallFunction(cb.second, const_cast<char*>(""));
-                return true;
-            }
-            catch (...) {
-                handle_cxx_error("<on_finish>", "error in finish callback");
-                return false;
+            case clingo_solve_event_type_result: {
+                if (cb.second) {
+                    PyBlock block;
+                    try {
+                        auto ret = SolveResult::construct(*static_cast<clingo_solve_result_bitset_t*>(event));
+                        Object fhRet = PyObject_CallFunction(cb.second, const_cast<char*>("O"), ret.toPy());
+                        return true;
+                    }
+                    catch (...) {
+                        handle_cxx_error("<on_finish>", "error in finish callback");
+                        return false;
+                    }
+                }
             }
         }
         return true;
@@ -5713,7 +5719,7 @@ active; you must not call any member function during search.)";
                 if (!mh.none()) {
                     std::pair<PyObject*, PyObject*> data{mh.toPy(), nullptr};
                     bool goon = true;
-                    handle_c_error(on_event(model, &data, &goon));
+                    handle_c_error(on_event(clingo_solve_event_type_model,  model, &data, &goon));
                     if (!goon) { break; }
                 }
             }

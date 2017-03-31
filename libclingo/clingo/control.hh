@@ -109,15 +109,23 @@ namespace Gringo {
 
 // {{{1 declaration of SolveFuture
 
+struct SolveEventHandler {
+    virtual bool on_model(Model &model);
+    virtual void on_result(SolveResult ret);
+    virtual ~SolveEventHandler() = default;
+};
+using USolveEventHandler = std::unique_ptr<SolveEventHandler>;
+inline bool SolveEventHandler::on_model(Model &) { return true; };
+inline void SolveEventHandler::on_result(SolveResult) { };
+
 struct SolveFuture {
-    using EventHandler = std::function<bool (Model *)>;
     virtual SolveResult get() = 0;
     virtual Model const *model() = 0;
     virtual void wait() = 0;
     virtual bool wait(double timeout) = 0;
     virtual void cancel() = 0;
     virtual void resume() = 0;
-    virtual void notify(EventHandler cb) = 0;
+    virtual void notify(USolveEventHandler cb) = 0;
     virtual ~SolveFuture() { }
 };
 
@@ -130,13 +138,15 @@ struct DefaultSolveFuture : SolveFuture {
     void resume() override {
         if (!done_) {
             done_ = true;
-            if (cb_) { cb_(nullptr); }
+            if (cb_) {
+                cb_->on_result({SolveResult::Unknown, false, false});
+            }
         }
     }
-    void notify(EventHandler cb) override { cb_ = cb; }
+    void notify(USolveEventHandler cb) override { cb_ = std::move(cb); }
     ~DefaultSolveFuture() override { resume(); }
 private:
-    EventHandler cb_;
+    USolveEventHandler cb_;
     bool done_ = false;
 };
 

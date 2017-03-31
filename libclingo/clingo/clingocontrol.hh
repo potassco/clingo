@@ -136,7 +136,7 @@ inline std::vector<std::string> split(std::string const &source, char const *del
     return results;
 }
 
-static inline bool parseFoobar(const std::string& str, ClingoOptions::Foobar& foobar) {
+inline bool parseFoobar(const std::string& str, ClingoOptions::Foobar& foobar) {
     for (auto &x : split(str, ",")) {
         auto y = split(x, "/");
         if (y.size() != 2) { return false; }
@@ -275,7 +275,7 @@ public:
     Defines                                                    defs_;
     std::unique_ptr<Input::NongroundProgramBuilder>            pb_;
     std::unique_ptr<Input::NonGroundParser>                    parser_;
-    SolveFuture::EventHandler                                  eventHandler_;
+    USolveEventHandler                                         eventHandler_;
     Clasp::ClaspFacade                                        *clasp_                 = nullptr;
     Clasp::Cli::ClaspCliConfig                                &claspConfig_;
     PostGroundFunc                                             pgf_;
@@ -362,7 +362,7 @@ public:
     bool wait(double timeout) override;
     void resume() override;
     void cancel() override;
-    void notify(EventHandler cb) override;
+    void notify(USolveEventHandler cb) override;
 private:
     Clasp::ClaspFacade::SolveHandle &handle();
 

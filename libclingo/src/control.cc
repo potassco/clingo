@@ -985,13 +985,33 @@ extern "C" bool clingo_solve_handle_resume(clingo_solve_handle_t *handle) {
     GRINGO_CLINGO_CATCH;
 }
 
+namespace {
+
+class ClingoSolveEventHandler : public SolveEventHandler {
+public:
+    ClingoSolveEventHandler(clingo_solve_event_callback_t cb, void *data)
+    : cb_(cb)
+    , data_(data) { }
+private:
+    bool on_model(Model &model) override {
+        bool goon = true;
+        if (!cb_(clingo_solve_event_type_model, &model, data_, &goon)) { throw ClingoError(); }
+        return goon;
+    }
+    void on_result(SolveResult ret) override {
+        bool goon = true;
+        if (!cb_(clingo_solve_event_type_result, &ret, data_, &goon)) { throw ClingoError(); }
+    }
+private:
+    clingo_solve_event_callback_t cb_;
+    void *data_;
+};
+
+} // namespace
+
 extern "C" bool clingo_solve_handle_notify(clingo_solve_handle_t *handle, clingo_solve_event_callback_t notify, void *data) {
     GRINGO_CLINGO_TRY {
-        handle->notify([data, notify](Model *m){
-            bool goon = true;
-            if (!notify(m, data, &goon)) { throw ClingoError(); }
-            return goon;
-        });
+        handle->notify(gringo_make_unique<ClingoSolveEventHandler>(notify, data));
     }
     GRINGO_CLINGO_CATCH;
 }
@@ -1386,5 +1406,4 @@ extern "C" CLINGO_VISIBILITY_DEFAULT char const *clingo_script_version_(clingo_a
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
-
 

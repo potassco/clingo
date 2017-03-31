@@ -15,7 +15,7 @@ def on_model(x):
         + "hasVolatile(" + str(x.contains(clingo.Function("volatile", [9]))).lower() + ") "
         + "model(" +       ",".join(sorted(map(str, x.symbols(shown=True)))) + ") ")
 
-def on_finish():
+def on_finish(ret):
     writeln("Answer: 42")
     writeln("on_finish")
 

@@ -539,18 +539,22 @@ TEST_CASE("solving", "[clingo]") {
                 bool goon = true;
                 SECTION("stop") { goon = false; }
                 SECTION("goon") { goon = true; }
-                EventCallback cb = [&](Model *model) {
-                    if (model) {
-                        ++m;
+                struct EH : Clingo::SolveEventHandler {
+                    EH(bool goon, int &m, int &f) : goon(goon), m(m), f(f) { }
+                    bool on_model(Model const &) override {
                         REQUIRE(f == 0);
+                        ++m;
+                        return goon;
                     }
-                    else {
+                    void on_result(SolveResult) override {
                         ++f;
                     }
-                    return goon;
+                    bool goon;
+                    int &m;
+                    int &f;
                 };
                 auto handle = ctl.solve();
-                handle.notify(cb);
+                handle.notify(USolveEventHandler{new EH(goon, m, f)});
                 REQUIRE(test_solve(std::move(handle), models).is_satisfiable());
                 REQUIRE(m == (goon ? 2 : 1));
                 REQUIRE(f == 1);
