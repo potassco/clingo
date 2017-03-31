@@ -1,6 +1,7 @@
 #script(lua)
 
 prg = nil
+loadstring = loadstring or load
 
 function main(program)
   prg = program
