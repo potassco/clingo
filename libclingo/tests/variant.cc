@@ -6,6 +6,12 @@ namespace Clingo { namespace Test {
 
 using V = Variant<int, std::string, std::unique_ptr<int>>;
 
+struct R;
+using VR = Variant<int, R>;
+struct R {
+    VR x;
+};
+
 struct D {
     D(std::string &r) : r(r) { r = "not called"; }
     void visit(int &x) {
@@ -54,6 +60,11 @@ TEST_CASE("visitor", "[clingo]") {
     REQUIRE(y.get<std::string>() == "s1");
     x = y;
     REQUIRE(x.get<std::string>() == "s1");
+
+    VR xr{R{1}};
+    REQUIRE(xr.get<R>().x.get<int>() == 1);
+    xr = std::move(xr.get<R>().x);
+    REQUIRE(xr.get<int>() == 1);
 
 #if (__clang__ || __GNUC__ >= 5)
     std::string r;
