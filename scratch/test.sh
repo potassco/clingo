@@ -18,7 +18,7 @@ EOF
         [[ $a == "y" || $a == "" ]] && break
     done
 }
-cd "$(dirname "$0")"
+cd "$(dirname "$0")"/../examples
 clingo=$(realpath ../build/release/bin/clingo)
 export python=python
 export PYTHONPATH=$(realpath ../build/release/bin/python)
@@ -68,9 +68,9 @@ check clingo/enum-assumption "${clingo}" example-lua.lp
 
 check clingo/expansion "${python}" ./main.py --verbose --option solver.forget_on_step 1 \
     GraphColouring/encodings/encoding.lp \
-    GraphColouring/instances/0004-graph_colouring-125-0.lp
+    GraphColouring/instances/0007-graph_colouring-125-0.lp
 
-check clingo/expansion "${python}" main.py --verbose --option solver.forget_on_step 1 --maxobj 40 \
+check clingo/expansion "${python}" main.py --verbose --option solver.forget_on_step 1 --maxobj 30 \
     PartnerUnits/encodings/encoding.lp \
     PartnerUnits/instances/180-partner_units_polynomial-47-0.lp
 

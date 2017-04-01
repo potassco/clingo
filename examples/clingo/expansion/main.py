@@ -47,7 +47,7 @@ class App:
         self.control.ground(parts)
 
         if self.args.verbose:
-             print("Solving:", count)
+             print("Solving: {}".format(count))
 
     def run(self):
         for source in self.args.file:
