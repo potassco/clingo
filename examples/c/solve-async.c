@@ -65,12 +65,14 @@ out:
   return ret;
 }
 
-bool on_event(clingo_model_t *model, void *data, bool *goon) {
-  (void)model;
+bool on_event(clingo_solve_event_type_t type, void *event, void *data, bool *goon) {
+  (void)type;
+  (void)event;
   (void)goon; // this is true by default
-  assert(model == NULL);
-  atomic_flag *running = (atomic_flag*)data;
-  atomic_flag_clear(running);
+  if (type == clingo_solve_event_type_result) {
+      atomic_flag *running = (atomic_flag*)data;
+      atomic_flag_clear(running);
+  }
   return true;
 }
 
