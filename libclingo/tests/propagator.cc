@@ -455,14 +455,18 @@ private:
     size_t count_ = 0;
 };
 
+
+#ifdef CLINGO_TEST_EXCEPTION
 class TestException : public Propagator {
 public:
     void check(PropagateControl &) override {
         throw std::runtime_error("the answer is 42");
     }
 };
+#endif
 
 TEST_CASE("propagator", "[clingo][propagator]") {
+    bool test_exception = false;
     MessageVec messages;
     ModelVec models;
     Logger logger = [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); };
@@ -492,6 +496,7 @@ TEST_CASE("propagator", "[clingo][propagator]") {
         REQUIRE(models.size() == 4);
     }
     SECTION("exception") {
+#ifdef CLINGO_TEST_EXCEPTION
         TestException p;
         ctl.register_propagator(p, false);
         ctl.add("base", {}, "{a}.");
@@ -501,21 +506,24 @@ TEST_CASE("propagator", "[clingo][propagator]") {
             FAIL("solve must throw");
         }
         catch (std::runtime_error const &e) { REQUIRE(e.what() == S("the answer is 42")); }
+#endif
     }
-#if defined(CLASP_HAS_THREADS) && CLASP_HAS_THREADS == 1
+#if defined(CLINGO_TEST_EXCEPTION) && defined(CLASP_HAS_THREADS) && CLASP_HAS_THREADS == 1
     SECTION("exception-t2") {
-        ctl.configuration()["solve.parallel_mode"] = "2";
-        TestException p;
-        ctl.register_propagator(p, false);
-        ctl.add("base", {}, "{a}.");
-        ctl.ground({{"base", {}}}, nullptr);
-        try {
-            test_solve(ctl.solve(), models);
-            FAIL("solve must throw");
-        }
-        catch (std::runtime_error const &e) {
-            // NOTE: in the multithreaded case a runtime error is thrown after the last thread died
-            REQUIRE(e.what() == S("RUNTIME ERROR!"));
+        if (test_exception) {
+            ctl.configuration()["solve.parallel_mode"] = "2";
+            TestException p;
+            ctl.register_propagator(p, false);
+            ctl.add("base", {}, "{a}.");
+            ctl.ground({{"base", {}}}, nullptr);
+            try {
+                test_solve(ctl.solve(), models);
+                FAIL("solve must throw");
+            }
+            catch (std::runtime_error const &e) {
+                // NOTE: in the multithreaded case a runtime error is thrown after the last thread died
+                REQUIRE(e.what() == S("RUNTIME ERROR!"));
+            }
         }
     }
 #endif

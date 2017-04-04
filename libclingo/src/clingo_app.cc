@@ -151,14 +151,8 @@ void ClingoApp::printVersion() {
     BaseType::printLibClaspVersion();
 }
 bool ClingoApp::onModel(Clasp::Solver const& s, Clasp::Model const& m) {
-    try {
-        bool ret = !grd || grd->onModel(m);
-        return BaseType::onModel(s, m) && ret;
-    }
-    catch (std::exception const &e) {
-        std::cerr << "***************exception: " << e.what() << std::endl;
-        throw;
-    }
+    bool ret = !grd || grd->onModel(m);
+    return BaseType::onModel(s, m) && ret;
 }
 void ClingoApp::shutdown() {
     // TODO: can be removed in future...
