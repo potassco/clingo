@@ -16,7 +16,7 @@ def main(prg):
         prg.release_external(Function("volatile", [t-1]))
         prg.cleanup()
         prg.assign_external(Function("volatile", [t]), True)
-        ret = prg.solve()
+        ret = prg.solve_refactored()
         if ret.satisfiable is False and t > 20: break
         if ret.satisfiable is True:
             e -= 1

@@ -51,7 +51,6 @@ auto protect(lua_State *L, T f) -> decltype(f()) {
 // translates a clingo api error into a lua error
 void handle_c_error(lua_State *L, bool ret) {
     if (!ret) {
-        //if (exc && *exc) { std::rethrow_exception(*exc); }
         char const *msg = clingo_error_message();
         if (!msg) { msg = "no message"; }
         luaL_error(L, msg);
@@ -1159,12 +1158,14 @@ bool luacall(lua_State *L, clingo_location_t const *location, int context, char 
         return false;
     }
     LuaCallArgs_ args{ name, arguments, arguments_size, symbol_callback, symbol_callback_data };
-    lua_pushcfunction(L, luaTraceback);
-    lua_pushcfunction(L, luacall_);
-    lua_pushlightuserdata(L, &args);
+    lua_pushcfunction(L, luaTraceback); // +1
+    int err = lua_gettop(L);
+    lua_pushcfunction(L, luacall_);     // +1
+    lua_pushlightuserdata(L, &args);    // +1
     if (context) { lua_pushvalue(L, context); }
-    else         { lua_pushnil(L); }
-    auto ret = lua_pcall(L, 2, 0, -4);
+    else         { lua_pushnil(L); }    // +1
+    auto ret = lua_pcall(L, 2, 0, -4);  // -3|-2
+    lua_remove(L, err);
     if (ret != 0) {
         std::string loc, desc;
         try {
@@ -1175,7 +1176,7 @@ bool luacall(lua_State *L, clingo_location_t const *location, int context, char 
             desc += name;
         }
         catch (...) {
-            lua_pop(L, 1);
+            lua_pop(L, 1); // |-1
             clingo_set_error(clingo_error_runtime, "error during error handling");
             return false;
         }
@@ -1446,6 +1447,165 @@ int newStatistics(lua_State *L, clingo_statistics_t *stats, uint64_t key) {
         }
     }
 }
+
+// {{{1 wrap SolveHandle
+
+struct SolveHandle : Object<SolveHandle> {
+    clingo_solve_handle_t *handle;
+    clingo_solve_mode_bitset_t mode;
+    bool hasMH, hasFH;
+    SolveHandle(clingo_solve_handle_t *handle) : handle(handle) { }
+    static SolveHandle &get_self(lua_State *L, int offset=1) {
+        void *p = nullptr;
+        if (lua_istable(L, offset)) {
+            lua_rawgeti(L, offset, 1);              // +1
+            p = lua_touserdata(L, -1);
+            if (p) {
+                if (lua_getmetatable(L, offset)) {  // +1
+                    luaL_getmetatable(L, typeName); // +1
+                    if (!lua_rawequal(L, -1, -2)) { p = nullptr; }
+                    lua_pop(L, 2);                  // -2
+                }
+                else { p = nullptr; }
+            }
+            lua_pop(L, 1);                          // -1
+        }
+        if (!p) {
+            const char *msg = lua_pushfstring(L, "%s expected, got %s", typeName, luaL_typename(L, 1)); // +1
+            luaL_argerror(L, 1, msg);
+        }
+        return *static_cast<SolveHandle*>(p);
+    }
+    static SolveHandle *new_(lua_State *L) {
+        lua_newtable(L);                         // +1
+        auto *self = (SolveHandle*)lua_newuserdata(L, sizeof(SolveHandle)); // +1
+        lua_rawseti(L, -2, 1);                   // -1
+        luaL_getmetatable(L, typeName);          // +1
+        lua_setmetatable(L, -2);                 // -1
+        self->handle = nullptr;
+        self->mode = 0;
+        self->hasFH = false;
+        self->hasMH = false;
+        return self;
+    }
+    static int close(lua_State *L) {
+        auto &self = get_self(L);
+        handle_c_error(L, clingo_solve_handle_close(self.handle));
+        return 0;
+    }
+    static int next(lua_State *L) {
+        auto &handle = get_self(L, lua_upvalueindex(1));
+        call_c(L, clingo_solve_handle_resume, handle.handle);
+        clingo_model_t *model = call_c(L, clingo_solve_handle_model, handle.handle);
+        if (model) { Model::new_(L, model); }
+        else       { lua_pushnil(L); }
+        return 1;
+    }
+    static int iter(lua_State *L) {
+        get_self(L);
+        lua_pushvalue(L,1);
+        lua_pushcclosure(L, next, 1);
+        return 1;
+    }
+    static int get(lua_State *L) {
+        auto &self = get_self(L);
+        SolveResult::new_(L, call_c(L, clingo_solve_handle_get, self.handle));
+        return 1;
+    }
+    static int resume(lua_State *L) {
+        auto &self = get_self(L);
+        call_c(L, clingo_solve_handle_resume, self.handle);
+        return 0;
+    }
+    static int cancel(lua_State *L) {
+        return close(L);
+    }
+    static int on_model_(lua_State *L) {
+        auto m = static_cast<clingo_model_t*>(lua_touserdata(L, 2));
+        auto goon = static_cast<bool*>(lua_touserdata(L, 3));
+        lua_pushstring(L, "on_model");
+        lua_rawget(L, 1);
+        Model::new_(L, m);
+        lua_call(L, 1, 1);
+        *goon = lua_toboolean(L, -1);
+        return 0;
+    }
+    static int on_finish_(lua_State *L) {
+        lua_pushstring(L, "on_model");
+        lua_rawget(L, 1);
+        auto x = static_cast<clingo_solve_mode_bitset_t*>(lua_touserdata(L, 2));
+        SolveResult::new_(L, *x);
+        lua_call(L, 1, 0);
+        return 0;
+    }
+    static bool on_event_(clingo_solve_event_type_t type, void *event, void *data, bool *goon) {
+        auto *L = static_cast<lua_State*>(data);
+        int top = lua_gettop(L);
+        auto &handle = get_self(L, top);
+        if (!lua_checkstack(L, 5)) {
+            clingo_set_error(clingo_error_bad_alloc, "lua stack size exceeded");
+            return false;
+        }
+        switch (type) {
+            case clingo_solve_event_type_model: {
+                if (!handle.hasMH) { return true; }
+                lua_pushcfunction(L, luaTraceback); // +1
+                lua_pushcfunction(L, on_model_);    // +1
+                lua_pushvalue(L, top);              // +1
+                lua_pushlightuserdata(L, event);    // +1
+                lua_pushlightuserdata(L, goon);     // +1
+                int code = lua_pcall(L, 3, 0, -5);  // -4|-3
+                lua_remove(L, top + 1);             // -1
+                if (code) {
+                }
+                return handle_lua_error(L, "on_model", "error in model callback", code); // |-1
+            }
+            case clingo_solve_event_type_finish: {
+                if (!handle.hasFH) { return true; }
+                lua_pushcfunction(L, luaTraceback); // +1
+                lua_pushcfunction(L, on_finish_);   // +1
+                lua_pushvalue(L, top);              // +1
+                lua_pushlightuserdata(L, event);    // +1
+                int code = lua_pcall(L, 2, 0, -4);  // -3|-2
+                lua_remove(L, top + 1);             // -1
+                bool ret = handle_lua_error(L, "on_finish", "error in finish callback", code); // |-1
+                return ret;
+            }
+        }
+        return true;
+    }
+    static int solve_(lua_State *L) {
+        auto &handle = get_self(L);
+        if (handle.hasFH || handle.hasMH) {
+            call_c(L, clingo_solve_handle_notify, handle.handle, SolveHandle::on_event_, L);
+        }
+
+        if (handle.mode == 0) {
+            lua_pushcfunction(L, get); // +1
+            lua_pushvalue(L, 1);       // +1
+            lua_call(L, 1, 1);         // -1
+            call_c(L, clingo_solve_handle_close, handle.handle);
+        }
+        else {
+            call_c(L, clingo_solve_handle_resume, handle.handle);
+            lua_pushvalue(L, 1);       // +1
+        }
+
+        return 1;
+    }
+    static luaL_Reg const meta[];
+    static constexpr char const *typeName = "clingo.SolveHandle";
+};
+
+constexpr char const *SolveHandle::typeName;
+luaL_Reg const SolveHandle::meta[] = {
+    {"iter",  iter},
+    {"close", close},
+    {"get", get},
+    {"resume", resume},
+    {"cancel", cancel},
+    {nullptr, nullptr}
+};
 
 // {{{1 wrap SolveIter
 
@@ -2120,11 +2280,13 @@ public:
             clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
             return false;
         }
-        lua_pushcfunction(self->L, luaTraceback);
-        lua_pushcfunction(self->L, init_);
-        lua_pushlightuserdata(self->L, self);
-        lua_pushlightuserdata(self->L, init);
-        auto ret = lua_pcall(self->L, 2, 0, -4);
+        lua_pushcfunction(self->L, luaTraceback); // +1
+        int err = lua_gettop(self->L);
+        lua_pushcfunction(self->L, init_);        // +1
+        lua_pushlightuserdata(self->L, self);     // +1
+        lua_pushlightuserdata(self->L, init);     // +1
+        auto ret = lua_pcall(self->L, 2, 0, err); // -3
+        lua_remove(self->L, err);                 // -1
         return handle_lua_error(self->L, "Propagator::init", "initializing the propagator failed", ret);
     }
     static int getChanges(lua_State *L, clingo_literal_t const *changes, size_t size) {
@@ -2636,6 +2798,7 @@ struct ControlWrap : Object<ControlWrap> {
         clingo_solve_handle_t *handle;
         clingo_solve_result_bitset_t ret;
         int mh;
+        int fh;
     };
     static int solve_(lua_State *L) {
         auto *data = static_cast<SolveData*>(lua_touserdata(L, 1));
@@ -2676,16 +2839,19 @@ struct ControlWrap : Object<ControlWrap> {
             AnyWrap::new_<std::vector<clingo_symbolic_literal_t>>(L), // +1
             nullptr,
             0,
-            mhIdx
+            mhIdx,
+            0
         };
         if (assIdx) { luaToCpp(L, assIdx, *data.ass); }
 
         lua_pushcfunction(L, luaTraceback); // +1
+        int err = lua_gettop(L);
         lua_pushcfunction(L, solve_);       // +1
         lua_pushlightuserdata(L, &data);    // +1
         if (data.mh) { lua_pushvalue(L, data.mh); }
         else         { lua_pushnil(L); }    // +1
-        int code = lua_pcall(L, 2, 0, -4);  // -4
+        int code = lua_pcall(L, 2, 0, err); // -3
+        lua_remove(L, err);
         if (data.handle) { call_c(L, clingo_solve_handle_close, data.handle); }
         if (code) { lua_error(L); }
 
@@ -2710,6 +2876,58 @@ struct ControlWrap : Object<ControlWrap> {
         if (assIdx) { luaToCpp(L, assIdx, *ass); }
         SolveIter::new_(L, call_c(L, clingo_control_solve_refactored, self.ctl, ass->data(), ass->size(), clingo_solve_mode_yield));
         lua_replace(L, -2); // -1
+        return 1;
+    }
+    static int solve_refactored(lua_State *L) {
+        auto &self = get_self(L);
+        lua_pushstring(L, "statistics"); // +1
+        lua_pushnil(L);                  // +1
+        lua_rawset(L, 1);                // -2
+
+        auto handle = SolveHandle::new_(L); // +1
+        int handleIdx = lua_gettop(L);
+        auto *ass = AnyWrap::new_<std::vector<clingo_symbolic_literal_t>>(L); // +1
+
+        // this can be made more flexible by both accepting a table as well as normal arguments
+        if (!lua_isnone(L, 2) && !lua_isnil(L, 2)) {
+            luaL_checktype(L, 2, LUA_TTABLE);
+            lua_getfield(L, 2, "assumptions"); // +1
+            if (!lua_isnil(L, -1)) { luaToCpp(L, -1, *ass); }
+            lua_pop(L, 1);                     // -1
+
+            lua_getfield(L, 2, "yield");       // +1
+            if (lua_toboolean(L, -1)) { handle->mode |= clingo_solve_mode_yield; }
+            lua_pop(L, 1);                     // -1
+
+            lua_getfield(L, 2, "async");       // +1
+            if (lua_toboolean(L, -1)) { handle->mode |= clingo_solve_mode_async; }
+            lua_pop(L, 1);                     // -1
+
+            lua_pushstring(L, "on_model");     // +1
+            lua_getfield(L, 2, "on_model");    // +1
+            handle->hasMH = !lua_isnil(L, -1);
+            lua_rawset(L, handleIdx);          // -2
+
+            lua_pushstring(L, "on_finish");    // +1
+            lua_getfield(L, 2, "on_finish");   // +1
+            handle->hasFH = !lua_isnil(L, -1);
+            lua_rawset(L, handleIdx);          // -2
+        }
+
+        if (handle->mode & clingo_solve_mode_async) { return luaL_error(L, "asynchronous solving not supported"); }
+
+        lua_settop(L, handleIdx);
+
+        if (!lua_checkstack(L, 3)) { luaL_error(L, "lua stack size exceeded"); }
+        handle->handle = call_c(L, clingo_control_solve_refactored, self.ctl, ass->data(), ass->size(), handle->mode);
+        lua_pushcfunction(L, luaTraceback);        // +1
+        lua_pushcfunction(L, SolveHandle::solve_); // +1
+        lua_pushvalue(L, handleIdx);               // +1
+        int code = lua_pcall(L, 1, 1, -3);         // -1
+        lua_replace(L, -2);                        // -1
+        if (code) { call_c(L, clingo_solve_handle_close, handle->handle); }
+        lua_replace(L, -2);                        // -1
+        if (code) { lua_error(L); }
         return 1;
     }
     static int assign_external(lua_State *L) {
@@ -2898,6 +3116,7 @@ luaL_Reg ControlWrap::meta[] = {
     {"add", add},
     {"load", load},
     {"solve", solve},
+    {"solve_refactored", solve_refactored},
     {"cleanup", cleanup},
     {"solve_async", solve_async},
     {"solve_iter", solve_iter},
@@ -2944,6 +3163,7 @@ int luaopen_clingo(lua_State* L) {
     Model::reg(L);
     SolveControl::reg(L);
     SolveIter::reg(L);
+    SolveHandle::reg(L);
     ControlWrap::reg(L);
     Configuration::reg(L);
     SolveResult::reg(L);

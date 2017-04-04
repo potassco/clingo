@@ -998,9 +998,9 @@ private:
         if (!cb_(clingo_solve_event_type_model, &model, data_, &goon)) { throw ClingoError(); }
         return goon;
     }
-    void on_result(SolveResult ret) override {
+    void on_finish(SolveResult ret) override {
         bool goon = true;
-        if (!cb_(clingo_solve_event_type_result, &ret, data_, &goon)) { throw ClingoError(); }
+        if (!cb_(clingo_solve_event_type_finish, &ret, data_, &goon)) { throw ClingoError(); }
     }
 private:
     clingo_solve_event_callback_t cb_;

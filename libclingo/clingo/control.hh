@@ -111,12 +111,12 @@ namespace Gringo {
 
 struct SolveEventHandler {
     virtual bool on_model(Model &model);
-    virtual void on_result(SolveResult ret);
+    virtual void on_finish(SolveResult ret);
     virtual ~SolveEventHandler() = default;
 };
 using USolveEventHandler = std::unique_ptr<SolveEventHandler>;
 inline bool SolveEventHandler::on_model(Model &) { return true; };
-inline void SolveEventHandler::on_result(SolveResult) { };
+inline void SolveEventHandler::on_finish(SolveResult) { };
 
 struct SolveFuture {
     virtual SolveResult get() = 0;
@@ -139,7 +139,7 @@ struct DefaultSolveFuture : SolveFuture {
         if (!done_) {
             done_ = true;
             if (cb_) {
-                cb_->on_result({SolveResult::Unknown, false, false});
+                cb_->on_finish({SolveResult::Unknown, false, false});
             }
         }
     }

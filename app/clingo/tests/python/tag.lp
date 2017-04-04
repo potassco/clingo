@@ -1,7 +1,10 @@
 #script(python)
 class Tag:
     def __init__(self):
-        pass
+        self.__add = True
+
+    def flip(self):
+        self.__add = not self.__add
 
     def init(self, init):
         for atom in init.symbolic_atoms:
@@ -9,8 +12,7 @@ class Tag:
             init.add_watch(-init.solver_literal(atom.literal))
 
     def propagate(self, control, changes):
-        global add
-        if add: control.add_clause([],tag=True)
+        if self.__add: control.add_clause([], tag=True)
         return True
 
     def undo(self, thread_id, assign, undo):
@@ -20,13 +22,12 @@ class Tag:
         return True
 
 def main(prg):
-    global add
-    add=True
     prg.ground([("base", [])])
-    prg.register_propagator(Tag())
-    ret=prg.solve()
-    add=not add
-    ret=prg.solve()
+    p = Tag()
+    prg.register_propagator(p)
+    prg.solve_refactored()
+    p.flip()
+    prg.solve_refactored()
 
 #end.
 

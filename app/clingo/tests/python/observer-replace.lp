@@ -119,7 +119,7 @@ def main(prg):
     obs = Observer()
     prg.register_observer(obs, True)
     prg.ground([("base", [])])
-    prg.solve(assumptions=[(Function("b"), False)])
+    prg.solve_refactored(assumptions=[(Function("b"), False)])
     ctx = obs.finalize()
     print ("Solving...")
     print ("Answer: 1")

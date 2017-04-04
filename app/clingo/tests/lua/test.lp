@@ -26,7 +26,7 @@ function main (prg)
     parts = {}
     parts[#parts+1] = {"base", {}}
     prg:ground(parts)
-    prg:solve()
+    prg:solve_refactored()
     parts = {}
     prg:add("test", {"x"}, "test(x).")
     parts[#parts+1] = {"test", {clingo.Function("f", {1,2})}}
@@ -34,7 +34,7 @@ function main (prg)
         parts[#parts+1] = {"cumulative", {i}}
         prg:ground(parts)
         parts = {}
-        ret = prg:solve(on_model)
+        ret = prg:solve_refactored{on_model=on_model}
         print("Answer: 42")
         print(tostring(ret))
         io.flush()

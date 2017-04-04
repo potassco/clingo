@@ -724,7 +724,7 @@ typedef unsigned clingo_solve_mode_bitset_t;
 //! Enumeration of solve events.
 enum clingo_solve_event_type {
     clingo_solve_event_type_model  = 0, //!< Issued if a model is found.
-    clingo_solve_event_type_result = 1, //!< Issued if the search has completed.
+    clingo_solve_event_type_finish = 1, //!< Issued if the search has completed.
 };
 //! Corresponding type to ::clingo_solve_event_t.
 typedef unsigned clingo_solve_event_type_t;

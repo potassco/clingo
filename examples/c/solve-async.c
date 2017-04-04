@@ -69,7 +69,7 @@ bool on_event(clingo_solve_event_type_t type, void *event, void *data, bool *goo
   (void)type;
   (void)event;
   (void)goon; // this is true by default
-  if (type == clingo_solve_event_type_result) {
+  if (type == clingo_solve_event_type_finish) {
       atomic_flag *running = (atomic_flag*)data;
       atomic_flag_clear(running);
   }

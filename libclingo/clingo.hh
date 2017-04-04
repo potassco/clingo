@@ -1104,13 +1104,13 @@ inline std::ostream &operator<<(std::ostream &out, SolveResult res) {
 class SolveEventHandler {
 public:
     virtual bool on_model(Model const &model);
-    virtual void on_result(SolveResult result);
+    virtual void on_finish(SolveResult result);
     virtual ~SolveEventHandler() = default;
 };
 using USolveEventHandler = std::unique_ptr<SolveEventHandler>;
 
 inline bool SolveEventHandler::on_model(Model const &) { return true; }
-inline void SolveEventHandler::on_result(SolveResult) { }
+inline void SolveEventHandler::on_finish(SolveResult) { }
 
 class SolveHandle {
 public:
@@ -2743,8 +2743,8 @@ inline void SolveHandle::notify(USolveEventHandler cb) {
                     *goon = cb.on_model(m);
                     break;
                 }
-                case clingo_solve_event_type_result: {
-                    cb.on_result(SolveResult{*static_cast<clingo_solve_result_bitset_t*>(event)});
+                case clingo_solve_event_type_finish: {
+                    cb.on_finish(SolveResult{*static_cast<clingo_solve_result_bitset_t*>(event)});
                     *goon = true;
                     break;
                 }

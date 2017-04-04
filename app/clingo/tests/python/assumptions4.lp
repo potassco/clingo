@@ -5,13 +5,14 @@ from clingo import Function
 
 def main(prg):
     prg.ground([("base", [])])
-    prg.solve(assumptions=[(Function("a"), True)])
+    prg.solve_refactored(assumptions=[(Function("a"), True)])
 
-    f = prg.solve_async(assumptions=[(Function("a"), True)])
-    f.wait()
+    with prg.solve_refactored(assumptions=[(Function("a"), True)], async=True) as handle:
+        handle.get()
 
-    with prg.solve_iter(assumptions=[(Function("a"), True)]) as it:
-        for model in it: pass
+    with prg.solve_refactored(assumptions=[(Function("a"), True)], yield_=True) as handle:
+        for model in handle:
+            pass
 
 #end.
 

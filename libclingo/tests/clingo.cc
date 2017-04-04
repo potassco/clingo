@@ -546,7 +546,7 @@ TEST_CASE("solving", "[clingo]") {
                         ++m;
                         return goon;
                     }
-                    void on_result(SolveResult) override {
+                    void on_finish(SolveResult) override {
                         ++f;
                     }
                     bool goon;

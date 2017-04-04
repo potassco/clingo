@@ -269,7 +269,7 @@ bool ClingoControl::onModel(Clasp::Model const &m) {
 }
 void ClingoControl::onFinish(Clasp::ClaspFacade::Result ret) {
     if (eventHandler_) {
-        eventHandler_->on_result(convert(ret));
+        eventHandler_->on_finish(convert(ret));
         eventHandler_ = nullptr;
     }
 }
