@@ -554,7 +554,8 @@ TEST_CASE("solving", "[clingo]") {
                     int &f;
                 };
                 auto handle = ctl.solve();
-                handle.notify(USolveEventHandler{new EH(goon, m, f)});
+                EH handler{goon, m, f};
+                handle.notify(handler);
                 REQUIRE(test_solve(std::move(handle), models).is_satisfiable());
                 REQUIRE(m == (goon ? 2 : 1));
                 REQUIRE(f == 1);

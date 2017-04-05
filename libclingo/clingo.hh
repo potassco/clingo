@@ -1109,7 +1109,6 @@ public:
     virtual void on_finish(SolveResult result);
     virtual ~SolveEventHandler() = default;
 };
-using USolveEventHandler = std::unique_ptr<SolveEventHandler>;
 
 inline bool SolveEventHandler::on_model(Model const &) { return true; }
 inline void SolveEventHandler::on_finish(SolveResult) { }
@@ -1136,12 +1135,11 @@ public:
     Model next();
     SolveResult get();
     void close();
-    void notify(USolveEventHandler cb);
+    void notify(SolveEventHandler &cb);
     ~SolveHandle() { close(); }
 private:
     struct Data {
-        ~Data() { delete handler; }
-        SolveEventHandler  *handler;
+        SolveEventHandler *handler;
         Detail::AssignOnce<std::exception_ptr> &exception;
     };
     std::unique_ptr<Data> data_;
@@ -2782,9 +2780,8 @@ inline void SolveHandle::close() {
     }
 }
 
-inline void SolveHandle::notify(USolveEventHandler cb) {
-    delete data_->handler;
-    data_->handler = cb.release();
+inline void SolveHandle::notify(SolveEventHandler &cb) {
+    data_->handler = &cb;
     Detail::handle_error(clingo_solve_handle_notify(iter_, [](clingo_solve_event_type_t type, void *event, void *pdata, bool *goon){
         Data &data = *static_cast<Data*>(pdata);
         switch (type) {

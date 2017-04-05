@@ -48,7 +48,18 @@ namespace {
 
 // {{{1 declaration of ClingoError
 
-struct ClingoError : std::exception { };
+struct ClingoError : std::exception {
+    ClingoError()
+    : code(clingo_error_code()) {
+        try { message = clingo_error_message(); }
+        catch (...) { }
+    }
+    char const *what() const noexcept {
+        return message.c_str();
+    }
+    std::string message;
+    clingo_error_t code;
+};
 
 void inline clingo_expect(bool expr) {
     if (!expr) { throw std::runtime_error("unexpected"); }
@@ -126,11 +137,11 @@ void handleCError(bool ret, std::exception_ptr *exc) {
 
 void handleCXXError() {
     try { throw; }
-    catch (GringoError const &)       { g_lastException = std::current_exception(); g_lastCode = clingo_error_runtime; return; }
+    catch (GringoError const &)         { g_lastException = std::current_exception(); g_lastCode = clingo_error_runtime; return; }
     // Note: a ClingoError is throw after an exception is set or a user error is thrown so either
     //       - g_lastException is already set, or
     //       - there was a user error (currently not associated to an error message)
-    catch (ClingoError const &)         { return; }
+    catch (ClingoError const &e)        { g_lastException = std::current_exception(); g_lastCode = e.code; }
     catch (MessageLimitError const &)   { g_lastException = std::current_exception(); g_lastCode = clingo_error_runtime; return; }
     catch (std::bad_alloc const &)      { g_lastException = std::current_exception(); g_lastCode = clingo_error_bad_alloc; return; }
     catch (std::runtime_error const &)  { g_lastException = std::current_exception(); g_lastCode = clingo_error_runtime; return; }
@@ -139,9 +150,9 @@ void handleCXXError() {
 }
 
 
-void clingo_terminate() {
-    char const *msg = clingo_error_message();
-    std::cerr << msg << std::endl;
+void clingo_terminate(char const *loc) {
+    fprintf(stderr, "%s:\n %s\n", loc, clingo_error_message());
+    fflush(stderr);
     std::_Exit(1);
 }
 
@@ -1007,7 +1018,9 @@ private:
     }
     void on_finish(SolveResult ret) override {
         bool goon = true;
-        if (!cb_(clingo_solve_event_type_finish, &ret, data_, &goon)) { clingo_terminate(); }
+        if (!cb_(clingo_solve_event_type_finish, &ret, data_, &goon)) {
+            clingo_terminate("error in SolveEventHandler::on_finish going to terminate");
+        }
     }
 private:
     clingo_solve_event_callback_t cb_;
