@@ -323,7 +323,7 @@ function main(c)
             end
         end
     end
-    c:solve()
+    c:solve_refactored()
 end
 
 -- }}}1

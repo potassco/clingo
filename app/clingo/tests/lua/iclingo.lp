@@ -14,7 +14,7 @@ function main(prg)
         end
         prg:ground({{"step", {step}}})
         prg:assign_external(clingo.Function("vol", {step}), true)
-        ret = prg:solve()
+        ret = prg:solve_refactored()
         if ret.satisfiable then
             break
         end

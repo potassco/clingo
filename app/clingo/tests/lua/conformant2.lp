@@ -17,7 +17,7 @@ function main(prg)
         prg:cleanup()
         prg:ground(parts)
         prg:assign_external(clingo.Function("vol", {step}), true)
-        local ret = prg:solve()
+        local ret = prg:solve_refactored()
         if ret.satisfiable then
             if not check and prg:get_const("nocheck") == nil then
                 check = true
@@ -25,7 +25,7 @@ function main(prg)
                 parts[#parts+1] = {"check", {step}}
                 prg:cleanup()
                 prg:ground(parts)
-                ret = prg:solve()
+                ret = prg:solve_refactored()
                 if ret.satisfiable then
                     break
                 end

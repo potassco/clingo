@@ -9,7 +9,7 @@ function main(prg)
         end
         prg:ground({{"cumulative", {step}}})
         prg:assign_external(clingo.Function("volatile", {step}), true)
-        ret = prg:solve()
+        ret = prg:solve_refactored()
         if step == stop then
             break
         end

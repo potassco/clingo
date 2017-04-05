@@ -1527,7 +1527,7 @@ struct SolveHandle : Object<SolveHandle> {
         lua_rawget(L, 1);
         Model::new_(L, m);
         lua_call(L, 1, 1);
-        *goon = lua_toboolean(L, -1);
+        *goon = lua_isnil(L, -1) || lua_toboolean(L, -1);
         return 0;
     }
     static int on_finish_(lua_State *L) {

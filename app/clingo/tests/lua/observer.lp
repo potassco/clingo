@@ -253,11 +253,11 @@ function main(prg)
     obs = Observer.new()
     prg:register_observer(obs)
     prg:ground({{"base", {}}})
-    prg:solve(nil, {{Function("b"), false}})
+    prg:solve_refactored{assumptions={{Function("b"), false}}}
     ctx = obs:finalize()
     prg:add("q", {}, "q(@get()).")
     prg:ground({{"q", {}}}, ctx)
-    prg:solve()
+    prg:solve_refactored()
 end
 
 #end.

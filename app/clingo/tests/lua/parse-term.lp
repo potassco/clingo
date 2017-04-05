@@ -7,7 +7,7 @@ function get()
 end
 
 c:ground({{"base", {}}})
-c:solve()
+c:solve_refactored()
 
 #end.
 

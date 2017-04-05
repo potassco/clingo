@@ -51,7 +51,10 @@ namespace {
 struct ClingoError : std::exception {
     ClingoError()
     : code(clingo_error_code()) {
-        try { message = clingo_error_message(); }
+        try {
+            char const *msg = clingo_error_message();
+            message = msg ? msg : "no message";
+        }
         catch (...) { }
     }
     char const *what() const noexcept {

@@ -4,8 +4,8 @@
 
 function main(prg)
     prg:ground({{"base", {}}})
-    prg:solve()
-    prg:solve()
+    prg:solve_refactored()
+    prg:solve_refactored()
 end
 
 #end.

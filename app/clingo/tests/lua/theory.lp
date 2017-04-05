@@ -3,7 +3,7 @@ clingo = require("clingo")
 
 t = {}
 
-function get() 
+function get()
     return t
 end
 
@@ -48,13 +48,13 @@ function main(c)
         t[#t+1] = clingo.Tuple(r)
     end
     c:ground({{"theory",{}}})
-    c:solve()
+    c:solve_refactored()
 end
 
 #end.
 
 #theory t {
-  t { 
+  t {
     + : 1, binary, left;
     - : 1, binary, left
   };
