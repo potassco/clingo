@@ -17,6 +17,6 @@ def main(prg):
     p = dl.Propagator()
     prg.register_propagator(p)
     prg.ground([("base", [])])
-    prg.solve(on_model = lambda m: print_assignment(p, m))
+    prg.solve(on_model=lambda m: print_assignment(p, m))
 
 #end.

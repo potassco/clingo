@@ -12,7 +12,7 @@ class State:
 
     def run(self, prg):
         prg.ground([("base", [])], self)
-        prg.solve(self.__on_model)
+        prg.solve(on_model=self.__on_model)
         
 def main(prg):
     x = State(21)

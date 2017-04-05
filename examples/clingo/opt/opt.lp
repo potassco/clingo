@@ -10,7 +10,7 @@ def main(prg):
     prg.ground([("base", [])])
     while True:
         bound = 0
-        with prg.solve_iter() as h:
+        with prg.solve(yield_=True) as h:
             for m in h:
                 for atom in m.symbols(atoms=True):
                     if (atom.name == "_minimize"

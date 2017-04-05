@@ -10,7 +10,7 @@ def make_on_finish(stop):
 def main(prg):
     stop = [False]
     prg.ground([("base", [])])
-    future, n, m = prg.solve_async(on_finish=make_on_finish(stop)), 0, 0
+    future, n, m = prg.solve(on_finish=make_on_finish(stop), async=True), 0, 0
     while not stop[0]:
         x, y, m = random(), random(), m+1
         if x * x + y * y < 1: n+= 1

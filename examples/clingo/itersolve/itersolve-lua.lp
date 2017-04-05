@@ -2,7 +2,7 @@
 
 function main(prg)
     prg:ground({{"base", {}}})
-    local it = prg:solve_iter()
+    local it = prg:solve{yield=true}
     local ret, err = pcall(function()
         for m in it:iter() do
             print(m)

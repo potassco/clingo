@@ -60,13 +60,13 @@ function State:run(prg)
     pre:load("instance.lp")
     pre:load("preprocess.lp")
     pre:ground({{"base", {}}})
-    local ret = pre:solve(function(...) self:on_model(...) end)
+    local ret = pre:solve{on_model=function(...) self:on_model(...) end}
     local k = 0
     while ret.satisfiable do
         k = k + 1
         pre:cleanup()
         pre:ground({{"step", {k}}}, self)
-        ret = pre:solve(function(...) self:on_model(...) end)
+        ret = pre:solve{on_model=function(...) self:on_model(...) end}
     end
     self:prepare_instance(k)
     prg:load("cover.lp")

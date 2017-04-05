@@ -18,7 +18,7 @@ def main(prg):
     prg.ground([("base", [])])
     while True:
         bound = 0
-        with prg.solve_iter() as h:
+        with prg.solve(yield_=True) as h:
             for m in h:
                 a = p.get_assignment(m.thread_id)
                 for n, v in a:

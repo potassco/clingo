@@ -18,7 +18,7 @@ def main(prg):
         print("  negative: " + ", ".join(map(str, m.symbols(terms=True, complement=True))))
 
     prg.ground([("base", [])])
-    prg.solve(on_model = on_model)
+    prg.solve(on_model=on_model)
 
 #end.
 

@@ -129,7 +129,7 @@ class SolveThread(Thread):
     def run(self):
         while True:
             if self.state == SolveThread.STATE_SOLVE:
-                f = self.prg.solve_async(on_model=self.on_model, on_finish=self.on_finish)
+                f = self.prg.solve(on_model=self.on_model, on_finish=self.on_finish, async=True)
             msg = self.input.receive()
             if self.state == SolveThread.STATE_SOLVE:
                 f.cancel()

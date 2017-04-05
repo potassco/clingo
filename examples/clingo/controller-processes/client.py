@@ -40,9 +40,9 @@ def main(prg):
         prg.assign_external(clingo.Function("sleep", [k]), True)
         while True:
             if state == States.SOLVE:
-                f = prg.solve_async(
+                f = prg.solve(
                     on_model  = lambda model: conn.sendall(b"Answer: " + str(model).encode() + b"\n"),
-                    on_finish = lambda ret:   conn.sendall(b"finish:" + str(ret).encode() + (b":INTERRUPTED" if ret.interrupted else b"") + b"\n"))
+                    on_finish = lambda ret:   conn.sendall(b"finish:" + str(ret).encode() + (b":INTERRUPTED" if ret.interrupted else b"") + b"\n"), async=True)
             msg = recv.readline().decode()
             if state == States.SOLVE:
                 f.cancel()

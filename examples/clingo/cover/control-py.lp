@@ -41,13 +41,13 @@ class State:
         pre.load("instance.lp")
         pre.load("preprocess.lp")
         pre.ground([("base", [])])
-        ret = pre.solve(on_model = self.on_model)
+        ret = pre.solve(on_model=self.on_model)
         k = 0
         while ret.satisfiable:
             k = k + 1
             pre.cleanup()
             pre.ground([("step", [k])], self)
-            ret = pre.solve(on_model = self.on_model)
+            ret = pre.solve(on_model=self.on_model)
         self.prepare_instance(k)
         prg.load("cover.lp")
         prg.ground([("base", [])], self)

@@ -172,7 +172,7 @@ while True:
     c.ground([("check", [t])])
     c.release_external(clingo.Function("query", [t-1]))
     c.assign_external(clingo.Function("query", [t]), True)
-    if c.solve(on_model).satisfiable:
+    if c.solve(on_model=on_model).satisfiable:
         break
 
 MainWindow().run(Plan(field, stone, target, move))

@@ -21,7 +21,7 @@ end
 function main(prg)
     local n = 0
     prg:ground({{"base", {}}})
-    while prg:solve(on_model).satisfiable do
+    while prg:solve{on_model=on_model}.satisfiable do
         if n > 10 then break end
         n = n + 1
         prg:ground({{"brave", {}}})
