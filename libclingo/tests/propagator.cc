@@ -456,17 +456,14 @@ private:
 };
 
 
-#ifdef CLINGO_TEST_EXCEPTION
 class TestException : public Propagator {
 public:
     void check(PropagateControl &) override {
         throw std::runtime_error("the answer is 42");
     }
 };
-#endif
 
 TEST_CASE("propagator", "[clingo][propagator]") {
-    bool test_exception = false;
     MessageVec messages;
     ModelVec models;
     Logger logger = [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); };
@@ -496,7 +493,6 @@ TEST_CASE("propagator", "[clingo][propagator]") {
         REQUIRE(models.size() == 4);
     }
     SECTION("exception") {
-#ifdef CLINGO_TEST_EXCEPTION
         TestException p;
         ctl.register_propagator(p, false);
         ctl.add("base", {}, "{a}.");
@@ -506,12 +502,15 @@ TEST_CASE("propagator", "[clingo][propagator]") {
             FAIL("solve must throw");
         }
         catch (std::runtime_error const &e) { REQUIRE(e.what() == S("the answer is 42")); }
-#endif
     }
-#if defined(CLINGO_TEST_EXCEPTION) && defined(CLASP_HAS_THREADS) && CLASP_HAS_THREADS == 1
     SECTION("exception-t2") {
-        if (test_exception) {
-            ctl.configuration()["solve.parallel_mode"] = "2";
+        bool skip = false;
+        try { ctl.configuration()["solve.parallel_mode"] = "2"; }
+        catch (std::exception const &e) {
+            if (std::strcmp(e.what(), "invalid key") == 0) { skip = true; }
+            else { throw; }
+        }
+        if (!skip) {
             TestException p;
             ctl.register_propagator(p, false);
             ctl.add("base", {}, "{a}.");
@@ -521,12 +520,10 @@ TEST_CASE("propagator", "[clingo][propagator]") {
                 FAIL("solve must throw");
             }
             catch (std::runtime_error const &e) {
-                // NOTE: in the multithreaded case a runtime error is thrown after the last thread died
-                REQUIRE(e.what() == S("RUNTIME ERROR!"));
+                REQUIRE(e.what() == S("the answer is 42"));
             }
         }
     }
-#endif
     SECTION("add_clause") {
         TestAddClause p;
         ctl.register_propagator(p, false);
