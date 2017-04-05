@@ -14,7 +14,7 @@ def main(prg):
         if step > 0: prg.release_external(Function("vol", [step-1]))
         prg.ground([("step", [step])])
         prg.assign_external(Function("vol", [step]), True)
-        ret = prg.solve()
+        ret = prg.solve_refactored()
         if ret.satisfiable is True:
             break
         step += 1

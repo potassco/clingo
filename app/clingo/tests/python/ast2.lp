@@ -118,7 +118,7 @@ def tht():
 
 def main(prg):
     prg.ground([("base", [])])
-    prg.solve()
+    prg.solve_refactored()
 
 #end.
 

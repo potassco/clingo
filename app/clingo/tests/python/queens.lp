@@ -10,7 +10,7 @@ def main(prg):
             prg.release_external(clingo.Function("volatile", [step-1]))
         prg.ground([("cumulative", [step])])
         prg.assign_external(clingo.Function("volatile", [step]), True)
-        ret = prg.solve()
+        ret = prg.solve_refactored()
         if step == stop:
             break
         step = step + 1

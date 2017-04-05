@@ -1607,47 +1607,6 @@ luaL_Reg const SolveHandle::meta[] = {
     {nullptr, nullptr}
 };
 
-// {{{1 wrap SolveIter
-
-struct SolveIter : Object<SolveIter> {
-    clingo_solve_handle_t *handle;
-    SolveIter(clingo_solve_handle_t *handle) : handle(handle) { }
-    static int close(lua_State *L) {
-        auto &self = get_self(L);
-        handle_c_error(L, clingo_solve_handle_close(self.handle));
-        return 0;
-    }
-    static int next(lua_State *L) {
-        auto handle = static_cast<SolveIter*>(luaL_checkudata(L, lua_upvalueindex(1), SolveIter::typeName))->handle;
-        call_c(L, clingo_solve_handle_resume, handle);
-        clingo_model_t *model = call_c(L, clingo_solve_handle_model, handle);
-        if (model) { Model::new_(L, model); }
-        else       { lua_pushnil(L); }
-        return 1;
-    }
-    static int iter(lua_State *L) {
-        luaL_checkudata(L, 1, typeName);
-        lua_pushvalue(L,1);
-        lua_pushcclosure(L, next, 1);
-        return 1;
-    }
-    static int get(lua_State *L) {
-        auto &self = get_self(L);
-        SolveResult::new_(L, call_c(L, clingo_solve_handle_get, self.handle));
-        return 1;
-    }
-    static luaL_Reg const meta[];
-    static constexpr char const *typeName = "clingo.SolveIter";
-};
-
-constexpr char const *SolveIter::typeName;
-luaL_Reg const SolveIter::meta[] = {
-    {"iter",  iter},
-    {"close", close},
-    {"get", get},
-    {nullptr, nullptr}
-};
-
 // {{{1 wrap Configuration
 
 struct Configuration : Object<Configuration> {
@@ -2792,91 +2751,10 @@ struct ControlWrap : Object<ControlWrap> {
         else { lua_pushnil(L); }
         return 1;
     }
-    struct SolveData {
-        clingo_control_t *ctl;
-        std::vector<clingo_symbolic_literal_t> *ass;
-        clingo_solve_handle_t *handle;
-        clingo_solve_result_bitset_t ret;
-        int mh;
-        int fh;
-    };
-    static int solve_(lua_State *L) {
-        auto *data = static_cast<SolveData*>(lua_touserdata(L, 1));
-
-        Model::new_(L, nullptr); // +1
-        auto *model = static_cast<Model*>(lua_touserdata(L, -1));
-
-        data->handle = call_c(L, clingo_control_solve_refactored, data->ctl, data->ass->data(), data->ass->size(), clingo_solve_mode_yield);
-        while (true) {
-            call_c(L, clingo_solve_handle_resume, data->handle);
-            auto m = call_c(L, clingo_solve_handle_model, data->handle);
-            if (!m) { break; }
-            if (!data->mh) { continue; }
-
-            model->model = m;
-            lua_pushvalue(L, 2);   // +1
-            lua_pushvalue(L, -2);  // +1
-            lua_call(L, 1, 1);     // -1
-            bool goon = lua_isnil(L, -1) || lua_toboolean(L, -1);
-            lua_pop(L, 1);         // -1
-            if (!goon) { break; }
-        }
-
-        lua_pop(L, 1); // -1
-
-        data->ret = call_c(L, clingo_solve_handle_get, data->handle);
-        return 0;
-    }
-    static int solve(lua_State *L) {
-        auto &ctl = get_self(L).ctl;
-        lua_pushstring(L, "statistics"); // +1
-        lua_pushnil(L);                  // +1
-        lua_rawset(L, 1);                // -2
-        int mhIdx   = !lua_isnone(L, 2) && !lua_isnil(L, 2) ? 2 : 0;
-        int assIdx  = !lua_isnone(L, 3) && !lua_isnil(L, 3) ? 3 : 0;
-        SolveData data{
-            ctl,
-            AnyWrap::new_<std::vector<clingo_symbolic_literal_t>>(L), // +1
-            nullptr,
-            0,
-            mhIdx,
-            0
-        };
-        if (assIdx) { luaToCpp(L, assIdx, *data.ass); }
-
-        lua_pushcfunction(L, luaTraceback); // +1
-        int err = lua_gettop(L);
-        lua_pushcfunction(L, solve_);       // +1
-        lua_pushlightuserdata(L, &data);    // +1
-        if (data.mh) { lua_pushvalue(L, data.mh); }
-        else         { lua_pushnil(L); }    // +1
-        int code = lua_pcall(L, 2, 0, err); // -3
-        lua_remove(L, err);
-        if (data.handle) { call_c(L, clingo_solve_handle_close, data.handle); }
-        if (code) { lua_error(L); }
-
-        lua_pop(L, 1); // -1
-        return SolveResult::new_(L, data.ret);
-    }
     static int cleanup(lua_State *L) {
         auto &self = get_self(L);
         handle_c_error(L, clingo_control_cleanup(self.ctl));
         return 0;
-    }
-    static int solve_async(lua_State *L) {
-        return luaL_error(L, "asynchronous solving not supported");
-    }
-    static int solve_iter(lua_State *L) {
-        auto &self = get_self(L);
-        lua_pushstring(L, "statistics"); // +1
-        lua_pushnil(L);                  // +1
-        lua_rawset(L, 1);                // -2
-        int assIdx  = !lua_isnone(L, 2) && !lua_isnil(L, 2) ? 2 : 0;
-        auto *ass = AnyWrap::new_<std::vector<clingo_symbolic_literal_t>>(L); // +1
-        if (assIdx) { luaToCpp(L, assIdx, *ass); }
-        SolveIter::new_(L, call_c(L, clingo_control_solve_refactored, self.ctl, ass->data(), ass->size(), clingo_solve_mode_yield));
-        lua_replace(L, -2); // -1
-        return 1;
     }
     static int solve_refactored(lua_State *L) {
         auto &self = get_self(L);
@@ -3115,11 +2993,8 @@ luaL_Reg ControlWrap::meta[] = {
     {"ground",  ground},
     {"add", add},
     {"load", load},
-    {"solve", solve},
     {"solve_refactored", solve_refactored},
     {"cleanup", cleanup},
-    {"solve_async", solve_async},
-    {"solve_iter", solve_iter},
     {"get_const", get_const},
     {"assign_external", assign_external},
     {"release_external", release_external},
@@ -3162,7 +3037,6 @@ int luaopen_clingo(lua_State* L) {
     SymbolType::reg(L);
     Model::reg(L);
     SolveControl::reg(L);
-    SolveIter::reg(L);
     SolveHandle::reg(L);
     ControlWrap::reg(L);
     Configuration::reg(L);

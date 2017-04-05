@@ -1886,7 +1886,7 @@ Arguments:
 lits -- list of literals represented as pairs of atoms and Booleans
 
 Note that this function can only be called in the model callback (or while
-iterating when using a SolveIter).)"},
+iterating when using a SolveHandle).)"},
     // add_nogood
     {"add_nogood", to_function<&SolveControl::add_nogood>(), METH_O,
 R"(add_nogood(self, lits) -> None
@@ -2095,126 +2095,6 @@ The atom must be represented using a function symbol.)"},
 
 };
 
-// {{{1 wrap SolveFuture
-
-struct SolveFuture : ObjectBase<SolveFuture> {
-    clingo_solve_handle_t *future;
-    std::pair<PyObject *, PyObject *> cb;
-
-    static PyMethodDef tp_methods[];
-    static constexpr char const *tp_type = "SolveFuture";
-    static constexpr char const *tp_name = "clingo.SolveFuture";
-    static constexpr char const *tp_doc =
-R"(Handle for asynchronous solve calls.
-
-SolveFuture objects cannot be created from python. Instead they are returned by
-Control.solve_async, which performs a search in the background.  A SolveFuture
-object can be used to wait for such a background search or cancel it.
-
-Functions in this object release the GIL. They are not thread-safe though.
-
-See Control.solve_async for an example.)";
-
-    static SharedObject<SolveFuture> construct(clingo_solve_handle_t *future) {
-        auto self = new_();
-        self->future = future;
-        self->cb.first = nullptr;
-        self->cb.second = nullptr;
-        return self;
-    }
-
-    void notify(clingo_solve_event_callback_t event, Reference mh, Reference fh) {
-        if (!mh.none()) {
-            cb.first = mh.toPy();
-            Py_XINCREF(cb.first);
-        }
-        else {
-            Py_XDECREF(cb.first);
-            cb.first = nullptr;
-        }
-        if (!fh.none()) {
-            cb.second = fh.toPy();
-            Py_XINCREF(cb.second);
-        }
-        else {
-            Py_XDECREF(cb.second);
-            cb.second = nullptr;
-        }
-        if (cb.first || cb.second) {
-            handle_c_error(clingo_solve_handle_notify(future, event, &cb));
-        }
-    }
-
-    void tp_dealloc() {
-        Py_XDECREF(cb.first);
-        Py_XDECREF(cb.second);
-    }
-
-    Object get() {
-        return SolveResult::construct(doUnblocked([this]() {
-            clingo_solve_result_bitset_t result;
-            handle_c_error(clingo_solve_handle_get(future, &result));
-            return result;
-        }));
-    }
-
-    Object wait(Reference args) {
-        Reference timeout = Py_None;
-        ParseTuple(args, "|O", timeout);
-        if (timeout.none()) {
-            doUnblocked([this](){
-                clingo_solve_result_bitset_t ret;
-                handle_c_error(clingo_solve_handle_get(future, &ret));
-            });
-            Py_RETURN_TRUE;
-        }
-        else {
-            auto time = pyToCpp<double>(timeout);
-            return cppToPy(doUnblocked([this, time](){
-                bool ret;
-                handle_c_error(clingo_solve_handle_wait(future, time, &ret));
-                return ret;
-            }));
-        }
-    }
-
-    Object cancel() {
-        doUnblocked([this](){
-            handle_c_error(clingo_solve_handle_close(future));
-        });
-        Py_RETURN_NONE;
-    }
-};
-
-PyMethodDef SolveFuture::tp_methods[] = {
-    {"get", to_function<&SolveFuture::get>(), METH_NOARGS,
-R"(get(self) -> SolveResult
-
-Get the result of an solve_async call.
-
-If the search is not completed yet, the function blocks until the result is
-ready.)"},
-    {"wait", to_function<&SolveFuture::wait>(),  METH_VARARGS,
-R"(wait(self, timeout) -> None or bool
-
-Wait for solve_async call to finish with an optional timeout.
-
-If a timeout is given, the function waits at most timeout seconds and returns a
-Boolean indicating whether the search has finished. Otherwise, the function
-blocks until the search is finished and returns nothing.
-
-Arguments:
-timeout -- optional timeout in seconds
-           (permits floating point values))"},
-    {"cancel", to_function<&SolveFuture::cancel>(), METH_NOARGS,
-R"(cancel(self) -> None
-
-Cancel the running search.
-
-See Control.interrupt() for a thread-safe alternative.)"},
-    {nullptr, nullptr, 0, nullptr}
-};
-
 // {{{1 wrap SolveHandle
 
 struct SolveHandle : ObjectBase<SolveHandle> {
@@ -2421,75 +2301,6 @@ Follows python __exit__ conventions. Does not suppress exceptions.
 
 Stops the current search. It is necessary to call this method after each
 search.)"},
-    {nullptr, nullptr, 0, nullptr}
-};
-
-// {{{1 wrap SolveIter
-
-struct SolveIter : ObjectBase<SolveIter> {
-    clingo_solve_handle_t *handle;
-    static PyMethodDef tp_methods[];
-
-    static constexpr char const *tp_type = "SolveIter";
-    static constexpr char const *tp_name = "clingo.SolveIter";
-    static constexpr char const *tp_doc =
-R"(Object to conveniently iterate over all models.
-
-During solving the GIL is released. The functions in this object are not
-thread-safe though.)";
-
-    static Object construct(clingo_solve_handle_t *handle) {
-        auto self = new_();
-        self->handle = handle;
-        return self;
-    }
-    Reference tp_iter() { return *this; }
-    Object get() {
-        return SolveResult::construct(doUnblocked([this]() {
-            clingo_solve_result_bitset_t ret;
-            handle_c_error(clingo_solve_handle_get(handle, &ret));
-            return ret;
-        }));
-    }
-    Object tp_iternext() {
-        if (clingo_model_t *m = doUnblocked([this]() {
-            clingo_model_t *ret;
-            handle_c_error(clingo_solve_handle_resume(handle));
-            handle_c_error(clingo_solve_handle_model(handle, &ret));
-            return ret;
-        })) {
-            return Model::construct(m);
-        } else {
-            PyErr_SetNone(PyExc_StopIteration);
-            return nullptr;
-        }
-    }
-    Object enter() { return Reference{*this}; }
-    Object exit() {
-        doUnblocked([this]() { handle_c_error(clingo_solve_handle_close(handle)); });
-        Py_RETURN_FALSE;
-    }
-};
-
-PyMethodDef SolveIter::tp_methods[] = {
-    {"__enter__", to_function<&SolveIter::enter>(), METH_NOARGS,
-R"(__enter__(self) -> SolveIter
-
-Returns self.)"},
-    {"get", to_function<&SolveIter::get>(), METH_NOARGS,
-R"(get(self) -> SolveResult
-
-Return the result of the search.
-
-Note that this function might start a search for the next model and then return
-a result accordingly. The function might be called after iteration to check if
-the search has been interrupted.)"},
-    {"__exit__", to_function<&SolveIter::exit>(), METH_VARARGS,
-R"(__exit__(self, type, value, traceback) -> bool
-
-Follows python __exit__ conventions. Does not suppress exceptions.
-
-Stops the current search. It is necessary to call this method after each search.)"},
     {nullptr, nullptr, 0, nullptr}
 };
 
@@ -5853,70 +5664,6 @@ active; you must not call any member function during search.)";
         handle_c_error(clingo_control_get_const(ctl, name, &val));
         return Symbol::construct(val);
     }
-    static bool on_event(clingo_solve_event_type_t type, void *event, void *data, bool *goon) {
-        std::pair<PyObject*, PyObject*> &cb = *static_cast<std::pair<PyObject*, PyObject*>*>(data);
-        switch (type) {
-            case clingo_solve_event_type_model: {
-                if (cb.first) {
-                    PyBlock block;
-                    try {
-                        auto pyModel = Model::construct(static_cast<clingo_model_t*>(event));
-                        Object ret = PyObject_CallFunction(cb.first, const_cast<char*>("O"), pyModel.toPy());
-                        *goon = ret.none() || pyToCpp<bool>(ret);
-                        return true;
-                    }
-                    catch (...) {
-                        handle_cxx_error("<on_model>", "error in model callback");
-                        return false;
-                    }
-                }
-            }
-            case clingo_solve_event_type_finish: {
-                if (cb.second) {
-                    PyBlock block;
-                    try {
-                        auto ret = SolveResult::construct(*static_cast<clingo_solve_result_bitset_t*>(event));
-                        Object fhRet = PyObject_CallFunction(cb.second, const_cast<char*>("O"), ret.toPy());
-                        return true;
-                    }
-                    catch (...) {
-                        handle_cxx_error("<on_finish>", "error in finish callback");
-                        return false;
-                    }
-                }
-            }
-        }
-        return true;
-    }
-    Object solve_async(Reference args, Reference kwds) {
-        CHECK_BLOCKED("solve_async");
-        Py_XDECREF(stats);
-        stats = nullptr;
-        static char const *kwlist[] = {"on_model", "on_finish", "assumptions", nullptr};
-        Reference pyAss = Py_None, mh = Py_None, fh = Py_None;
-        ParseTupleAndKeywords(args, kwds, "|OOO", kwlist, mh, fh, pyAss);
-        std::vector<clingo_symbolic_literal_t> ass;
-        if (!pyAss.none()) { pyToCpp(pyAss, ass); }
-        clingo_solve_handle_t *handle;
-        handle_c_error(clingo_control_solve_refactored(ctl, ass.data(), ass.size(), clingo_solve_mode_async, &handle));
-        auto ret = SolveFuture::construct(handle);
-        ret->notify(&on_event, mh, fh);
-        handle_c_error(clingo_solve_handle_resume(handle));
-        return ret;
-    }
-    Object solve_iter(Reference args, Reference kwds) {
-        CHECK_BLOCKED("solve_iter");
-        Py_XDECREF(stats);
-        stats = nullptr;
-        Reference pyAss = Py_None;
-        char const *kwlist[] = {"assumptions", nullptr};
-        ParseTupleAndKeywords(args, kwds, "|O", kwlist, pyAss);
-        std::vector<clingo_symbolic_literal_t> ass;
-        if (!pyAss.none()) { pyToCpp(pyAss, ass); }
-        clingo_solve_handle_t *handle;
-        handle_c_error(clingo_control_solve_refactored(ctl, ass.data(), ass.size(), clingo_solve_mode_yield, &handle));
-        return SolveIter::construct(handle);
-    }
     Object solve_refactored(Reference args, Reference kwds) {
         CHECK_BLOCKED("solve");
         Py_XDECREF(stats);
@@ -5939,42 +5686,6 @@ active; you must not call any member function during search.)";
             handle->resume();
             return handle;
         }
-    }
-    Object solve(Reference args, Reference kwds) {
-        CHECK_BLOCKED("solve");
-        Py_XDECREF(stats);
-        stats = nullptr;
-        static char const *kwlist[] = {"on_model", "assumptions", nullptr};
-        Reference mh = Py_None;
-        Reference pyAss = Py_None;
-        ParseTupleAndKeywords(args, kwds, "|OO", kwlist, mh, pyAss);
-        std::vector<clingo_symbolic_literal_t> ass;
-        if (!pyAss.none()) { pyToCpp(pyAss, ass); }
-        auto ret = doUnblocked([this, mh, &ass]() {
-            // TODO: can use the event handler as well (same goes for lua interface)
-            struct Free {
-                ~Free() { handle_c_error(clingo_solve_handle_close(handle)); }
-                clingo_solve_handle_t *handle = nullptr;
-            } free;
-            handle_c_error(clingo_control_solve_refactored(ctl, ass.data(), ass.size(), clingo_solve_mode_yield, &free.handle));
-            bool goon = true;
-            while (goon) {
-                clingo_model_t *model;
-                handle_c_error(clingo_solve_handle_resume(free.handle));
-                handle_c_error(clingo_solve_handle_model(free.handle, &model));
-                if (!model) { break; }
-                if (!mh.none()) {
-                    std::pair<PyObject*, PyObject*> data{mh.toPy(), nullptr};
-                    bool goon = true;
-                    handle_c_error(on_event(clingo_solve_event_type_model,  model, &data, &goon));
-                    if (!goon) { break; }
-                }
-            }
-            clingo_solve_result_bitset_t result;
-            handle_c_error(clingo_solve_handle_get(free.handle, &result));
-            return result;
-        });
-        return SolveResult::construct(ret).release();
     }
     Object cleanup() {
         CHECK_BLOCKED("cleanup");
@@ -6197,12 +5908,9 @@ Arguments:
 path -- path to program)"},
     // solve_refactored
     {"solve_refactored", to_function<&ControlWrap::solve_refactored>(), METH_KEYWORDS | METH_VARARGS,
-R"()"},
-    // solve_async
-    {"solve_async", to_function<&ControlWrap::solve_async>(), METH_KEYWORDS | METH_VARARGS,
-R"(solve_async(self, on_model, on_finish, assumptions) -> SolveFuture
+R"(solve(self, assumptions, on_model, on_finish, yield_, async) -> SolveHandle|SolveResult
 
-Start a search process in the background and return a SolveFuture object.
+Starts a search.
 
 Keyword Arguments:
 on_model    -- optional callback for intercepting models
@@ -6213,14 +5921,55 @@ on_finish   -- optional callback called once search has finished
 assumptions -- list of (atom, boolean) tuples that serve as assumptions for
                the solve call, e.g. - solving under assumptions [(Function("a"),
                True)] only admits answer sets that contain atom a
+yield_      -- The resulting SolveHandle is iterable yielding Model objects.
+async       -- The solve call and SolveHandle.resume() are non-blocking.
 
-Note that this function is only available in clingo with thread support
-enabled. Both the on_model and the on_finish callbacks are called from another
-thread.  To ensure that the methods can be called, make sure to not use any
-functions that block the GIL indefinitely. Furthermore, you might want to start
-clingo using the --outf=3 option to disable all output from clingo.
+If neither yield_ nor async is set, the function returns a SolveResult reight
+away.
+
+Note that in gringo or in clingo with lparse or text output enabled this
+function just grounds and returns a SolveResult where
+SolveResult.satisfiability() is None.
+
+You might want to start clingo using the --outf=3 option to disable all output
+from clingo.
+
+Note that asynchronous solving is only available in clingo with thread support
+enabled. Furthermore, the on_model and on_finish callbacks are called from
+another thread.  To ensure that the methods can be called, make sure to not use
+any functions that block the GIL indefinitely.
+
+This function as well as blocking functions on the SolveHandle release the GIL
+but are not thread-safe.
 
 Example:
+
+#script (python)
+import clingo
+
+def main(prg):
+    prg.add("p", "{a;b;c}.")
+    prg.ground([("p", [])])
+    ret = prg.solve()
+    print(ret)
+
+#end.
+
+Yielding Example:
+
+#script (python)
+import clingo
+
+def main(prg):
+    prg.add("p", "{a;b;c}.")
+    prg.ground([("p", [])])
+    with prg.solve(yield_=True) as handle:
+        for m in handle: print m
+        print(handle.get())
+
+#end.
+
+Asynchronous Example:
 
 #script (python)
 import clingo
@@ -6232,62 +5981,13 @@ def on_finish(res, canceled):
     print res, canceled
 
 def main(prg):
-    prg.ground([("base", [])])
-    f = prg.solve_async(on_model, on_finish)
-    f.wait()
-
-#end.
-
-q.
-
-Expected Output:
-q
-SAT False)"},
-    // solve_iter
-    {"solve_iter", to_function<&ControlWrap::solve_iter>(), METH_KEYWORDS | METH_VARARGS,
-R"(solve_iter(self, assumptions) -> SolveIter
-
-Return a SolveIter object, which can be used to iterate over models.
-
-Keyword Arguments:
-assumptions -- a list of (atom, boolean) tuples that serve as assumptions for
-               the solve call, e.g. - solving under assumptions [(Function("a"),
-               True)] only admits answer sets that contain atom a
-
-Example:
-
-#script (python)
-import clingo
-
-def main(prg):
     prg.add("p", "{a;b;c}.")
-    prg.ground([("p", [])])
-    with prg.solve_iter() as it:
-        for m in it: print m
+    prg.ground([("base", [])])
+    with prg.solve(on_model=on_model, on_finish=on_finish, async=True) as handle:
+        # do something asynchronously
+        print(handle.get())
 
 #end.)"},
-    // solve
-    {"solve", to_function<&ControlWrap::solve>(), METH_KEYWORDS | METH_VARARGS,
-R"(solve(self, on_model, assumptions) -> SolveResult
-
-Start a search process and return a SolveResult.
-
-Keyword Arguments:
-on_model    -- optional callback for intercepting models
-               a Model object is passed to the callback
-assumptions -- a list of (atom, boolean) tuples that serve as assumptions for
-               the solve call, e.g. - solving under assumptions [(Function("a"),
-               True)] only admits answer sets that contain atom a
-
-Note that in gringo or in clingo with lparse or text output enabled this
-function just grounds and returns a SolveResult where
-SolveResult.satisfiability() is None. Furthermore, you might want to start
-clingo using the --outf=3 option to disable all output from clingo.
-
-This function releases the GIL but it is not thread-safe.
-
-Take a look at Control.solve_async for an example on how to use the model
-callback.)"},
     // cleanup
     {"cleanup", to_function<&ControlWrap::cleanup>(), METH_NOARGS,
 R"(cleanup(self) -> None
@@ -7100,9 +6800,7 @@ ProgramBuilder   -- extend a non-ground logic program
 PropagateControl -- controls running search in a custom propagator
 PropagateInit    -- object to initialize custom propagators
 SolveControl     -- controls running search in a model handler
-SolveFuture      -- handle for asynchronous solve calls
 SolveHandle      -- handle for solve calls
-SolveIter        -- handle to iterate over models
 SolveResult      -- result of a solve call
 Symbol           -- captures precomputed terms
 SymbolicAtom     -- captures information about a symbolic atom
@@ -7192,13 +6890,12 @@ PyObject *initclingo_() {
         if (!m.valid() ||
             !SolveResult::initType(m)    || !TheoryTermType::initType(m)   || !PropagateControl::initType(m) ||
             !TheoryElement::initType(m)  || !TheoryAtom::initType(m)       || !TheoryAtomIter::initType(m)   ||
-            !Model::initType(m)          || !SolveIter::initType(m)        || !SolveFuture::initType(m)      ||
+            !Model::initType(m)          || !ModelType::initType(m)        || !SolveHandle::initType(m)      ||
             !ControlWrap::initType(m)    || !Configuration::initType(m)    || !SolveControl::initType(m)     ||
             !SymbolicAtom::initType(m)   || !SymbolicAtomIter::initType(m) || !SymbolicAtoms::initType(m)    ||
             !TheoryTerm::initType(m)     || !PropagateInit::initType(m)    || !Assignment::initType(m)       ||
             !SymbolType::initType(m)     || !Symbol::initType(m)           || !Backend::initType(m)          ||
             !ProgramBuilder::initType(m) || !HeuristicType::initType(m)    || !TruthValue::initType(m)       ||
-            !ModelType::initType(m)      || !SolveHandle::initType(m)      ||
             PyModule_AddStringConstant(m.toPy(), "__version__", CLINGO_VERSION) < 0 ||
             false) { return nullptr; }
         Reference a{initclingoast_()};

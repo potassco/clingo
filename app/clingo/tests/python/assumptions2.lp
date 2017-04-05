@@ -5,7 +5,7 @@ from clingo import Function
 
 def main(prg):
     prg.ground([("base", [])])
-    prg.solve(assumptions=[(Function("b"), True)])
+    prg.solve_refactored(assumptions=[(Function("b"), True)])
 
 #end.
 
