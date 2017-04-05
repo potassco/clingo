@@ -115,11 +115,11 @@ def main(prg):
         d = d.number
     
     prg.ground([("base",[])])
-    prg.solve_refactored()
+    prg.solve()
     
     for k in range(2,d+1):
         prg.ground([("incr",[k])])
-        prg.solve_refactored()
+        prg.solve()
 #end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%

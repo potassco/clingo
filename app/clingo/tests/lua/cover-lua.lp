@@ -79,13 +79,13 @@ edge(k,X,Y) :- edge(k-1,X,Y), not cover(k,X), not cover(k,Y).\n\
 :- edge(k-1,X,Y), leaf(k,Y), edge(k-1,Y,Z), X < Z.\n\
 :- leaf(k,Y), not edge(k-1,_,Y).\n")
     pre:ground({{"base", {}}}, self)
-    local ret = pre:solve_refactored{on_model=function(...) self:on_model(...) end}
+    local ret = pre:solve{on_model=function(...) self:on_model(...) end}
     local k = 0
     while ret.satisfiable do
         k = k + 1
         pre:cleanup()
         pre:ground({{"step", {k}}}, self)
-        ret = pre:solve_refactored{on_model=function(...) self:on_model(...) end}
+        ret = pre:solve{on_model=function(...) self:on_model(...) end}
     end
     self:prepare_instance(k)
     prg:add("base", {}, "\
@@ -100,7 +100,7 @@ cover(X)  :- X = @cover().\n\
 #show cover/1.\n")
     prg:ground({{"base", {}}}, self)
     prg.configuration.solve.models = 0
-    prg:solve_refactored()
+    prg:solve()
 end
 
 function main(prg)

@@ -3709,7 +3709,7 @@ inline SolveHandle Control::solve(SymbolicLiteralSpan assumptions, bool asynchro
     clingo_solve_mode_bitset_t mode = 0;
     if (asynchronous) { mode |= clingo_solve_mode_async; }
     if (yield) { mode |= clingo_solve_mode_yield; }
-    Detail::handle_error(clingo_control_solve_refactored(*impl_, reinterpret_cast<clingo_symbolic_literal_t const *>(assumptions.begin()), assumptions.size(), mode, &it));
+    Detail::handle_error(clingo_control_solve(*impl_, reinterpret_cast<clingo_symbolic_literal_t const *>(assumptions.begin()), assumptions.size(), mode, &it));
     return SolveHandle{it, impl_->ptr};
 }
 

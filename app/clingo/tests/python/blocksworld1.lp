@@ -135,7 +135,7 @@ def main(prg):
     parts.append(("init", [1,0]))
     parts.append(("state", [1,0]))
     prg.ground(parts)
-    prg.solve_refactored()
+    prg.solve()
 
     parts = []
     parts.append(("base_2", []))
@@ -147,7 +147,7 @@ def main(prg):
             parts.append(("state", [j,i]))
             parts.append(("move", [j,i]))
     prg.ground(parts)
-    prg.solve_refactored()
+    prg.solve()
 
     parts = []
     parts.append(("base_3", []))
@@ -161,7 +161,7 @@ def main(prg):
         parts.append(("move", [j,3]))
     parts.append(("table", [3]))
     prg.ground(parts)
-    prg.solve_refactored()
+    prg.solve()
 
     parts = []
     parts.append(("base_4", []))
@@ -175,7 +175,7 @@ def main(prg):
         parts.append(("move", [j,4]))
     parts.append(("table", [4]))
     prg.ground(parts)
-    prg.solve_refactored()
+    prg.solve()
 
     parts = []
     parts.append(("base_5", []))
@@ -189,7 +189,7 @@ def main(prg):
             parts.append(("state", [j,i]))
             parts.append(("move", [j,i]))
     prg.ground(parts)
-    prg.solve_refactored()
+    prg.solve()
 #end.
 
 #program base_2.

@@ -741,12 +741,12 @@ typedef unsigned clingo_solve_event_type_t;
 //! @param[in] goon can be set to false to stop solving
 //! @return whether the call was successful
 //!
-//! @see clingo_control_solve_refactored()
+//! @see clingo_control_solve()
 typedef bool (*clingo_solve_event_callback_t) (clingo_solve_event_type_t type, void *event, void *data, bool *goon);
 
 //! Search handle to a solve call.
 //!
-//! @see clingo_control_solve_refactored()
+//! @see clingo_control_solve()
 typedef struct clingo_solve_handle clingo_solve_handle_t;
 
 //! Get the solve result.
@@ -996,7 +996,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbolic_atoms_is_valid(clingo_symbolic_at
 //! The total number of theory atoms can be obtained using clingo_theory_atoms_size().
 //!
 //! @attention
-//! All structural information about theory atoms, elements, and terms is reset after @link clingo_control_solve_refactored() solving@endlink.
+//! All structural information about theory atoms, elements, and terms is reset after @link clingo_control_solve() solving@endlink.
 //! If afterward fresh theory atoms are @link clingo_control_ground() grounded@endlink, previously used ids are reused.
 //!
 //! For an example, see @ref theory-atoms.c.
@@ -2669,7 +2669,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_program_builder_end(clingo_program_builder
 typedef struct clingo_ground_program_observer {
     //! Called once in the beginning.
     //!
-    //! If the incremental flag is true, there can be multiple calls to @ref clingo_control_solve_refactored().
+    //! If the incremental flag is true, there can be multiple calls to @ref clingo_control_solve().
     //!
     //! @param[in] incremental whether the program is incremental
     //! @param[in] data user data for the callback
@@ -3024,7 +3024,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_add(clingo_control_t *control, cha
 
 //! Ground the selected @link ::clingo_part parts @endlink of the current (non-ground) logic program.
 //!
-//! After grounding, logic programs can be solved with ::clingo_control_solve_refactored().
+//! After grounding, logic programs can be solved with ::clingo_control_solve().
 //!
 //! @note Parts of a logic program without an explicit <tt>\#program</tt>
 //! specification are by default put into a program called `base` without
@@ -3059,7 +3059,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, 
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving could not be started
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve_refactored(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_mode_bitset_t mode, clingo_solve_handle_t **handle);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_mode_bitset_t mode, clingo_solve_handle_t **handle);
 //! Clean up the domains of clingo's grounding component using the solving
 //! component's top level assignment.
 //!

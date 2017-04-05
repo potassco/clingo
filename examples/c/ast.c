@@ -134,7 +134,7 @@ bool solve(clingo_control_t *ctl, clingo_solve_result_bitset_t *result) {
   clingo_model_t *model;
 
   // get a solve handle
-  if (!clingo_control_solve_refactored(ctl, NULL, 0, clingo_solve_mode_yield, &handle)) { goto error; }
+  if (!clingo_control_solve(ctl, NULL, 0, clingo_solve_mode_yield, &handle)) { goto error; }
   // loop over all models
   while (true) {
     if (!clingo_solve_handle_resume(handle)) { goto error; }

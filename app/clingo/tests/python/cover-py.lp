@@ -62,13 +62,13 @@ edge(k,X,Y) :- edge(k-1,X,Y), not cover(k,X), not cover(k,Y).
 :- leaf(k,Y), not edge(k-1,_,Y).
         """)
         pre.ground([("base", [])])
-        ret = pre.solve_refactored(on_model = self.on_model)
+        ret = pre.solve(on_model = self.on_model)
         k = 0
         while ret.satisfiable is True:
             k = k + 1
             pre.cleanup()
             pre.ground([("step", [k])], self)
-            ret = pre.solve_refactored(on_model = self.on_model)
+            ret = pre.solve(on_model = self.on_model)
         self.prepare_instance(k)
         prg.add("base", [], """
 vertex(X) :- X = @vertex().
@@ -81,7 +81,7 @@ cover(X)  :- X = @cover().
 #show cover/1.
         """)
         prg.ground([("base", [])], self)
-        prg.solve_refactored()
+        prg.solve()
 
 def main(prg):
     s = State()

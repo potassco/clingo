@@ -8,7 +8,7 @@ def solve(s):
         clingo.parse_program(s, lambda stm: b.add(stm))
     prg.ground([("base", [])])
     ret = []
-    prg.solve_refactored(on_model=lambda m: ret.append(sorted(m.symbols(shown=True))))
+    prg.solve(on_model=lambda m: ret.append(sorted(m.symbols(shown=True))))
     return str(sorted(ret))
 
 def parse(s):
@@ -129,7 +129,7 @@ def tht():
 
 def main(prg):
     prg.ground([("base", [])])
-    prg.solve_refactored()
+    prg.solve()
 
 #end.
 

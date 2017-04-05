@@ -24,9 +24,9 @@ def on_model(model):
 
 def main(prg):
     prg.ground([("base", [])])
-    prg.solve_refactored(on_model=on_model)
+    prg.solve(on_model=on_model)
     prg.ground([("result", [])])
-    prg.solve_refactored()
+    prg.solve()
 
 #end.
 

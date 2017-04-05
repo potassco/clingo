@@ -2114,7 +2114,7 @@ retrieving models or cancelling a search.
 
 Blocking functions in this object release the GIL. They are not thread-safe though.
 
-See Control.solve_refactored() for an example.)";
+See Control.solve() for an example.)";
 
     static SharedObject<SolveHandle> construct() {
         auto self = new_();
@@ -5664,7 +5664,7 @@ active; you must not call any member function during search.)";
         handle_c_error(clingo_control_get_const(ctl, name, &val));
         return Symbol::construct(val);
     }
-    Object solve_refactored(Reference args, Reference kwds) {
+    Object solve(Reference args, Reference kwds) {
         CHECK_BLOCKED("solve");
         Py_XDECREF(stats);
         stats = nullptr;
@@ -5677,7 +5677,7 @@ active; you must not call any member function during search.)";
         if (pyYield.isTrue()) { mode |= clingo_solve_mode_yield; }
         if (pyAsync.isTrue()) { mode |= clingo_solve_mode_async; }
         auto handle = SolveHandle::construct();
-        handle_c_error(clingo_control_solve_refactored(ctl, ass.data(), ass.size(), mode, &handle->handle));
+        handle_c_error(clingo_control_solve(ctl, ass.data(), ass.size(), mode, &handle->handle));
         handle->notify(&SolveHandle::on_event, pyM, pyF);
         if (!pyYield.isTrue() && !pyAsync.isTrue()) {
             return handle->get();
@@ -5906,8 +5906,8 @@ Extend the logic program with a (non-ground) logic program in a file.
 
 Arguments:
 path -- path to program)"},
-    // solve_refactored
-    {"solve_refactored", to_function<&ControlWrap::solve_refactored>(), METH_KEYWORDS | METH_VARARGS,
+    // solve
+    {"solve", to_function<&ControlWrap::solve>(), METH_KEYWORDS | METH_VARARGS,
 R"(solve(self, assumptions, on_model, on_finish, yield_, async) -> SolveHandle|SolveResult
 
 Starts a search.

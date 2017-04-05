@@ -13,7 +13,7 @@ function main(prg)
         parts[#parts+1] = {"cumulative", {step}}
         prg:ground(parts)
         prg:assign_external(clingo.Function("volatile", {step}), true)
-        ret = prg:solve_refactored()
+        ret = prg:solve()
         if ret.satisfiable then
             break
         end

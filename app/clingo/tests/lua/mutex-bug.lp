@@ -4,10 +4,10 @@ function main(prg)
 
     for step = 1,3,1 do
         prg:ground({{"plan_graph_step", {step}}})
-        prg:solve_refactored()
+        prg:solve()
     end
 --  Comment line 8 and uncomment line 11
---  prg:solve_refactored()
+--  prg:solve()
 end
 #end.
 

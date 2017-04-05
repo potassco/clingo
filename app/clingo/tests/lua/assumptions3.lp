@@ -2,8 +2,8 @@
 
 function main(prg)
     prg:ground({{"base", {}}})
-    prg:solve_refactored{assumptions={{clingo.Function("a"), true}, {clingo.Function("b"), false}, {clingo.Function("d"), true}}}
-    prg:solve_refactored{assumptions={{clingo.Function("a"), false}, {clingo.Function("c"), true}}}
+    prg:solve{assumptions={{clingo.Function("a"), true}, {clingo.Function("b"), false}, {clingo.Function("d"), true}}}
+    prg:solve{assumptions={{clingo.Function("a"), false}, {clingo.Function("c"), true}}}
 end
 
 #end.

@@ -193,7 +193,7 @@ def main(prg):
         for key, lit in sorted(projected_pat.items()):
             if (atom.symbol.arguments[0], key) not in grouped_seq:
                 prg.backend.add_rule([], [atom.literal, lit])
-    prg.solve_refactored()
+    prg.solve()
 
 #end.
 

@@ -118,11 +118,11 @@ def main(prg):
     obs = Observer()
     prg.register_observer(obs)
     prg.ground([("base", [])])
-    prg.solve_refactored(assumptions=[(Function("b"), False)])
+    prg.solve(assumptions=[(Function("b"), False)])
     ctx = obs.finalize()
     prg.add("q", [], "q(@get()).")
     prg.ground([("q", [])], ctx)
-    prg.solve_refactored()
+    prg.solve()
 
 #end.
 

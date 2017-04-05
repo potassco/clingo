@@ -48,7 +48,7 @@ function main(c)
         t[#t+1] = clingo.Tuple(r)
     end
     c:ground({{"theory",{}}})
-    c:solve_refactored()
+    c:solve()
 end
 
 #end.

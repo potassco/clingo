@@ -101,7 +101,7 @@ int main(int argc, char const **argv) {
 
   atomic_flag_test_and_set(&running);
   // create a solve handle
-  if (!clingo_control_solve_refactored(ctl, NULL, 0, clingo_solve_mode_async | clingo_solve_mode_yield, &handle)) { goto error; }
+  if (!clingo_control_solve(ctl, NULL, 0, clingo_solve_mode_async | clingo_solve_mode_yield, &handle)) { goto error; }
   // register an event handler
   if (!clingo_solve_handle_notify(handle, on_event, &running)) { goto error; }
   // start solving in the background

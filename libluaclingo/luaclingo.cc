@@ -2756,7 +2756,7 @@ struct ControlWrap : Object<ControlWrap> {
         handle_c_error(L, clingo_control_cleanup(self.ctl));
         return 0;
     }
-    static int solve_refactored(lua_State *L) {
+    static int solve(lua_State *L) {
         auto &self = get_self(L);
         lua_pushstring(L, "statistics"); // +1
         lua_pushnil(L);                  // +1
@@ -2797,7 +2797,7 @@ struct ControlWrap : Object<ControlWrap> {
         lua_settop(L, handleIdx);
 
         if (!lua_checkstack(L, 3)) { luaL_error(L, "lua stack size exceeded"); }
-        handle->handle = call_c(L, clingo_control_solve_refactored, self.ctl, ass->data(), ass->size(), handle->mode);
+        handle->handle = call_c(L, clingo_control_solve, self.ctl, ass->data(), ass->size(), handle->mode);
         lua_pushcfunction(L, luaTraceback);        // +1
         lua_pushcfunction(L, SolveHandle::solve_); // +1
         lua_pushvalue(L, handleIdx);               // +1
@@ -2993,7 +2993,7 @@ luaL_Reg ControlWrap::meta[] = {
     {"ground",  ground},
     {"add", add},
     {"load", load},
-    {"solve_refactored", solve_refactored},
+    {"solve", solve},
     {"cleanup", cleanup},
     {"get_const", get_const},
     {"assign_external", assign_external},

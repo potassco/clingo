@@ -25,9 +25,9 @@ def main(prg):
     prg.ground([("base", [])])
     p = Tag()
     prg.register_propagator(p)
-    prg.solve_refactored()
+    prg.solve()
     p.flip()
-    prg.solve_refactored()
+    prg.solve()
 
 #end.
 

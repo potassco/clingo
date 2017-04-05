@@ -250,11 +250,11 @@ function main(prg)
     obs = Observer.new()
     prg:register_observer(obs, true)
     prg:ground({{"base", {}}})
-    prg:solve_refactored{assumptions={{Function("b"), false}}}
+    prg:solve{assumptions={{Function("b"), false}}}
     ctx = obs:finalize()
     prg:add("q", {}, "q(@get()).")
     prg:ground({{"q", {}}}, ctx)
-    prg:solve_refactored()
+    prg:solve()
     print "Solving..."
     print "Answer: 1"
     print (table.concat(table.map(ctx:get(), tostring), " "))

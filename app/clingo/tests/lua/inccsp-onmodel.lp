@@ -12,13 +12,13 @@ end
 
 function main(prg)
     prg:ground({{"base", {}}, {"check", {0}}})
-    prg:solve_refactored{on_model=make_on_model()}
+    prg:solve{on_model=make_on_model()}
     prg:ground({{"check", {1}}})
-    prg:solve_refactored{on_model=make_on_model()}
+    prg:solve{on_model=make_on_model()}
     prg:ground({{"check", {2}}})
-    prg:solve_refactored{on_model=make_on_model()}
+    prg:solve{on_model=make_on_model()}
     prg:ground({{"check", {3}}})
-    prg:solve_refactored{on_model=make_on_model()}
+    prg:solve{on_model=make_on_model()}
     print ("SATISFIABLE")
     print ()
 end

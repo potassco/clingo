@@ -24,14 +24,14 @@ def main (prg):
     parts = []
     parts.append(("base", []))
     prg.ground(parts)
-    prg.solve_refactored()
+    prg.solve()
     prg.add("test", ["x"], "test(x).")
     parts.append(("test", [clingo.Function("f", [1,2])]))
     for i in range(1,n+1):
         parts.append(("cumulative", [i]))
         prg.ground(parts)
         parts = []
-        with prg.solve_refactored(on_model=on_model, on_finish=on_finish, async=True) as handle:
+        with prg.solve(on_model=on_model, on_finish=on_finish, async=True) as handle:
             handle.wait(0)
             ret = handle.get()
         writeln("Answer: 42")

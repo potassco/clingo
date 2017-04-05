@@ -136,7 +136,7 @@ function main(prg)
     parts[#parts+1] = {"state", {1, 0}}
     prg:cleanup()
     prg:ground(parts)
-	prg:solve_refactored()
+	prg:solve()
 
     parts = {}
     parts[#parts+1] = {"base_2", {}}
@@ -151,7 +151,7 @@ function main(prg)
     end
     prg:cleanup()
     prg:ground(parts)
-	prg:solve_refactored()
+	prg:solve()
 
     parts = {}
 	parts[#parts+1] = {"base_3", {}}
@@ -168,7 +168,7 @@ function main(prg)
 	parts[#parts+1] = {"table", {3}}
     prg:cleanup()
     prg:ground(parts)
-	prg:solve_refactored()
+	prg:solve()
 
     parts = {}
 	parts[#parts+1] = {"base_4", {}}
@@ -185,7 +185,7 @@ function main(prg)
 	parts[#parts+1] = {"table", {4}}
     prg:cleanup()
     prg:ground(parts)
-	prg:solve_refactored()
+	prg:solve()
 
     parts = {}
 	parts[#parts+1] = {"base_5", {}}
@@ -203,7 +203,7 @@ function main(prg)
     end
     prg:cleanup()
     prg:ground(parts)
-	prg:solve_refactored()
+	prg:solve()
 end
 #end.
 

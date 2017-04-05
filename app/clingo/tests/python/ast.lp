@@ -114,7 +114,7 @@ def test():
 
 def main(prg):
     prg.ground([("base", [])])
-    prg.solve_refactored()
+    prg.solve()
 
 #end.
 
