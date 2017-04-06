@@ -3620,6 +3620,7 @@ struct Control::Impl {
     Detail::AssignOnce ptr;
     Logger logger;
     std::forward_list<std::pair<Propagator&, Detail::AssignOnce&>> propagators_;
+    std::forward_list<std::pair<GroundProgramObserver&, Detail::AssignOnce&>> observers_;
 };
 
 inline Clingo::Control::Control(StringSpan args, Logger logger, unsigned message_limit)
@@ -3656,8 +3657,9 @@ inline void Control::add(char const *name, StringSpan params, char const *part) 
 }
 
 inline void Control::ground(PartSpan parts, GroundCallback cb) {
-    using Data = std::pair<GroundCallback&, std::exception_ptr>;
-    Data data(cb, nullptr);
+    using Data = std::pair<GroundCallback&, Detail::AssignOnce&>;
+    Data data(cb, impl_->ptr);
+    impl_->ptr.reset();
     Detail::handle_error(clingo_control_ground(*impl_, reinterpret_cast<clingo_part_t const *>(parts.begin()), parts.size(),
         [](clingo_location_t const *loc, char const *name, clingo_symbol_t const *args, size_t n, void *data, clingo_symbol_callback_t cb, void *cbdata) -> bool {
             auto &d = *static_cast<Data*>(data);
@@ -3713,7 +3715,7 @@ inline SolveHandle Control::solve(SymbolicLiteralSpan assumptions, SolveEventHan
         }
         return false;
     };
-    Detail::handle_error(clingo_control_solve(*impl_, mode, reinterpret_cast<clingo_symbolic_literal_t const *>(assumptions.begin()), assumptions.size(), handler ? on_event : nullptr, impl_, &it));
+    Detail::handle_error(clingo_control_solve(*impl_, mode, reinterpret_cast<clingo_symbolic_literal_t const *>(assumptions.begin()), assumptions.size(), handler ? on_event : nullptr, impl_, &it), impl_->ptr);
     return SolveHandle{it, impl_->ptr};
 }
 
@@ -3792,131 +3794,153 @@ inline void Control::register_propagator(Propagator &propagator, bool sequential
 
 namespace Detail {
 
-inline bool g_init_program(bool incremental, GroundProgramObserver *self) {
-    CLINGO_TRY { self->init_program(incremental); }
-    CLINGO_CATCH;
+using ObserverData = std::pair<GroundProgramObserver&, AssignOnce&>;
+
+inline bool g_init_program(bool incremental, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.init_program(incremental); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
-inline bool g_begin_step(GroundProgramObserver *self) {
-    CLINGO_TRY { self->begin_step(); }
-    CLINGO_CATCH;
+inline bool g_begin_step(void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.begin_step(); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
-inline bool g_end_step(GroundProgramObserver *self) {
-    CLINGO_TRY { self->end_step(); }
-    CLINGO_CATCH;
+inline bool g_end_step(void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.end_step(); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_rule(bool choice, clingo_atom_t const *head, size_t head_size, clingo_literal_t const *body, size_t body_size, GroundProgramObserver *self) {
-    CLINGO_TRY { self->rule(choice, AtomSpan(head, head_size), LiteralSpan(body, body_size)); }
-    CLINGO_CATCH;
+inline bool g_rule(bool choice, clingo_atom_t const *head, size_t head_size, clingo_literal_t const *body, size_t body_size, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.rule(choice, AtomSpan(head, head_size), LiteralSpan(body, body_size)); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_weight_rule(bool choice, clingo_atom_t const *head, size_t head_size, clingo_weight_t lower_bound, clingo_weighted_literal_t const *body, size_t body_size, GroundProgramObserver *self) {
-    CLINGO_TRY { self->weight_rule(choice, AtomSpan(head, head_size), lower_bound, WeightedLiteralSpan(reinterpret_cast<WeightedLiteral const*>(body), body_size)); }
-    CLINGO_CATCH;
+inline bool g_weight_rule(bool choice, clingo_atom_t const *head, size_t head_size, clingo_weight_t lower_bound, clingo_weighted_literal_t const *body, size_t body_size, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.weight_rule(choice, AtomSpan(head, head_size), lower_bound, WeightedLiteralSpan(reinterpret_cast<WeightedLiteral const*>(body), body_size)); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_minimize(clingo_weight_t priority, clingo_weighted_literal_t const* literals, size_t size, GroundProgramObserver *self) {
-    CLINGO_TRY { self->minimize(priority, WeightedLiteralSpan(reinterpret_cast<WeightedLiteral const*>(literals), size)); }
-    CLINGO_CATCH;
+inline bool g_minimize(clingo_weight_t priority, clingo_weighted_literal_t const* literals, size_t size, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.minimize(priority, WeightedLiteralSpan(reinterpret_cast<WeightedLiteral const*>(literals), size)); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_project(clingo_atom_t const *atoms, size_t size, GroundProgramObserver *self) {
-    CLINGO_TRY { self->project(AtomSpan(atoms, size)); }
-    CLINGO_CATCH;
+inline bool g_project(clingo_atom_t const *atoms, size_t size, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.project(AtomSpan(atoms, size)); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_output_atom(clingo_symbol_t symbol, clingo_atom_t atom, GroundProgramObserver *self) {
-    CLINGO_TRY { self->output_atom(Symbol{symbol}, atom); }
-    CLINGO_CATCH;
+inline bool g_output_atom(clingo_symbol_t symbol, clingo_atom_t atom, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.output_atom(Symbol{symbol}, atom); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_output_term(clingo_symbol_t symbol, clingo_literal_t const *condition, size_t size, GroundProgramObserver *self) {
-    CLINGO_TRY { self->output_term(Symbol{symbol}, LiteralSpan{condition, size}); }
-    CLINGO_CATCH;
+inline bool g_output_term(clingo_symbol_t symbol, clingo_literal_t const *condition, size_t size, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.output_term(Symbol{symbol}, LiteralSpan{condition, size}); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_output_csp(clingo_symbol_t symbol, int value, clingo_literal_t const *condition, size_t size, GroundProgramObserver *self) {
-    CLINGO_TRY { self->output_csp(Symbol{symbol}, value, LiteralSpan{condition, size}); }
-    CLINGO_CATCH;
+inline bool g_output_csp(clingo_symbol_t symbol, int value, clingo_literal_t const *condition, size_t size, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.output_csp(Symbol{symbol}, value, LiteralSpan{condition, size}); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_external(clingo_atom_t atom, clingo_external_type_t type, GroundProgramObserver *self) {
-    CLINGO_TRY { self->external(atom, static_cast<ExternalType>(type)); }
-    CLINGO_CATCH;
+inline bool g_external(clingo_atom_t atom, clingo_external_type_t type, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.external(atom, static_cast<ExternalType>(type)); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_assume(clingo_literal_t const *literals, size_t size, GroundProgramObserver *self) {
-    CLINGO_TRY { self->assume(LiteralSpan(literals, size)); }
-    CLINGO_CATCH;
+inline bool g_assume(clingo_literal_t const *literals, size_t size, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.assume(LiteralSpan(literals, size)); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_heuristic(clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority, clingo_literal_t const *condition, size_t size, GroundProgramObserver *self) {
-    CLINGO_TRY { self->heuristic(atom, static_cast<HeuristicType>(type), bias, priority, LiteralSpan(condition, size)); }
-    CLINGO_CATCH;
+inline bool g_heuristic(clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority, clingo_literal_t const *condition, size_t size, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.heuristic(atom, static_cast<HeuristicType>(type), bias, priority, LiteralSpan(condition, size)); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_acyc_edge(int node_u, int node_v, clingo_literal_t const *condition, size_t size, GroundProgramObserver *self) {
-    CLINGO_TRY { self->acyc_edge(node_u, node_v, LiteralSpan(condition, size)); }
-    CLINGO_CATCH;
+inline bool g_acyc_edge(int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.acyc_edge(node_u, node_v, LiteralSpan(condition, size)); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_theory_term_number(clingo_id_t term_id, int number, GroundProgramObserver *self) {
-    CLINGO_TRY { self->theory_term_number(term_id, number); }
-    CLINGO_CATCH;
+inline bool g_theory_term_number(clingo_id_t term_id, int number, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.theory_term_number(term_id, number); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_theory_term_string(clingo_id_t term_id, char const *name, GroundProgramObserver *self) {
-    CLINGO_TRY { self->theory_term_string(term_id, name); }
-    CLINGO_CATCH;
+inline bool g_theory_term_string(clingo_id_t term_id, char const *name, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.theory_term_string(term_id, name); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_theory_term_compound(clingo_id_t term_id, int name_id_or_type, clingo_id_t const *arguments, size_t size, GroundProgramObserver *self) {
-    CLINGO_TRY { self->theory_term_compound(term_id, name_id_or_type, IdSpan(arguments, size)); }
-    CLINGO_CATCH;
+inline bool g_theory_term_compound(clingo_id_t term_id, int name_id_or_type, clingo_id_t const *arguments, size_t size, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.theory_term_compound(term_id, name_id_or_type, IdSpan(arguments, size)); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_theory_element(clingo_id_t element_id, clingo_id_t const *terms, size_t terms_size, clingo_literal_t const *condition, size_t condition_size, GroundProgramObserver *self) {
-    CLINGO_TRY { self->theory_element(element_id, IdSpan(terms, terms_size), LiteralSpan(condition, condition_size)); }
-    CLINGO_CATCH;
+inline bool g_theory_element(clingo_id_t element_id, clingo_id_t const *terms, size_t terms_size, clingo_literal_t const *condition, size_t condition_size, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.theory_element(element_id, IdSpan(terms, terms_size), LiteralSpan(condition, condition_size)); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_theory_atom(clingo_id_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, GroundProgramObserver *self) {
-    CLINGO_TRY { self->theory_atom(atom_id_or_zero, term_id, IdSpan(elements, size)); }
-    CLINGO_CATCH;
+inline bool g_theory_atom(clingo_id_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.theory_atom(atom_id_or_zero, term_id, IdSpan(elements, size)); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline bool g_theory_atom_with_guard(clingo_id_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, clingo_id_t operator_id, clingo_id_t right_hand_side_id, GroundProgramObserver *self) {
-    CLINGO_TRY { self->theory_atom_with_guard(atom_id_or_zero, term_id, IdSpan(elements, size), operator_id, right_hand_side_id); }
-    CLINGO_CATCH;
+inline bool g_theory_atom_with_guard(clingo_id_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, clingo_id_t operator_id, clingo_id_t right_hand_side_id, void *pdata) {
+    ObserverData &data = *static_cast<ObserverData*>(pdata);
+    CLINGO_CALLBACK_TRY { data.first.theory_atom_with_guard(atom_id_or_zero, term_id, IdSpan(elements, size), operator_id, right_hand_side_id); }
+    CLINGO_CALLBACK_CATCH(data.second);
 }
 
 } // namespace Detail
 
 inline void Control::register_observer(GroundProgramObserver &observer, bool replace) {
+    impl_->observers_.emplace_front(observer, impl_->ptr);
     static clingo_ground_program_observer_t g_observer = {
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::init_program)>(Detail::g_init_program),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::begin_step)>(Detail::g_begin_step),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::end_step)>(Detail::g_end_step),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::rule)>(Detail::g_rule),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::weight_rule)>(Detail::g_weight_rule),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::minimize)>(Detail::g_minimize),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::project)>(Detail::g_project),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::output_atom)>(Detail::g_output_atom),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::output_term)>(Detail::g_output_term),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::output_csp)>(Detail::g_output_csp),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::external)>(Detail::g_external),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::assume)>(Detail::g_assume),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::heuristic)>(Detail::g_heuristic),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::acyc_edge)>(Detail::g_acyc_edge),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::theory_term_number)>(Detail::g_theory_term_number),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::theory_term_string)>(Detail::g_theory_term_string),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::theory_term_compound)>(Detail::g_theory_term_compound),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::theory_element)>(Detail::g_theory_element),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::theory_atom)>(Detail::g_theory_atom),
-        reinterpret_cast<decltype(clingo_ground_program_observer_t::theory_atom_with_guard)>(Detail::g_theory_atom_with_guard)
+        Detail::g_init_program,
+        Detail::g_begin_step,
+        Detail::g_end_step,
+        Detail::g_rule,
+        Detail::g_weight_rule,
+        Detail::g_minimize,
+        Detail::g_project,
+        Detail::g_output_atom,
+        Detail::g_output_term,
+        Detail::g_output_csp,
+        Detail::g_external,
+        Detail::g_assume,
+        Detail::g_heuristic,
+        Detail::g_acyc_edge,
+        Detail::g_theory_term_number,
+        Detail::g_theory_term_string,
+        Detail::g_theory_term_compound,
+        Detail::g_theory_element,
+        Detail::g_theory_atom,
+        Detail::g_theory_atom_with_guard
     };
-
-    Detail::handle_error(clingo_control_register_observer(*impl_, &g_observer, replace, &observer));
+    Detail::handle_error(clingo_control_register_observer(*impl_, &g_observer, replace, &impl_->observers_.front()));
 }
 
 inline void Control::cleanup() {
