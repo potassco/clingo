@@ -1133,16 +1133,11 @@ public:
     Model model();
     Model next();
     SolveResult get();
-    void close();
-    void notify(SolveEventHandler &cb);
-    ~SolveHandle() { close(); }
+    void cancel();
+    ~SolveHandle();
 private:
-    struct Data {
-        SolveEventHandler *handler;
-        Detail::AssignOnce &exception;
-    };
-    std::unique_ptr<Data> data_;
     clingo_solve_handle_t *iter_;
+    Detail::AssignOnce *exception_;
 };
 
 class ModelIterator : public std::iterator<Model, std::input_iterator_tag> {
@@ -2021,8 +2016,6 @@ using SymbolSpanCallback = std::function<void (SymbolSpan)>;
 using PartSpan = Span<Part>;
 using GroundCallback = std::function<void (Location loc, char const *, SymbolSpan, SymbolSpanCallback)>;
 using StringSpan = Span<char const *>;
-using ModelCallback = std::function<bool (Model)>;
-using FinishCallback = std::function<void (SolveResult)>;
 
 enum class ErrorCode : clingo_error_t {
     Runtime = clingo_error_runtime,
@@ -2065,7 +2058,7 @@ public:
     ~Control() noexcept;
     void add(char const *name, StringSpan params, char const *part);
     void ground(PartSpan parts, GroundCallback cb = nullptr);
-    SolveHandle solve(SymbolicLiteralSpan assumptions = {}, bool asynchronous = false, bool yield = true);
+    SolveHandle solve(SymbolicLiteralSpan assumptions = {}, SolveEventHandler *handler = nullptr, bool asynchronous = false, bool yield = true);
     void assign_external(Symbol atom, TruthValue value);
     void release_external(Symbol atom);
     SymbolicAtoms symbolic_atoms() const;
@@ -2741,35 +2734,37 @@ namespace Detail {
 } // namespace Detail
 
 inline SolveHandle::SolveHandle()
-: iter_(nullptr) { }
+: iter_(nullptr)
+, exception_(nullptr) { }
 
 inline SolveHandle::SolveHandle(clingo_solve_handle_t *it, Detail::AssignOnce &ptr)
-: data_(new Data{nullptr, ptr})
-, iter_(it) { }
+: iter_(it)
+, exception_(&ptr) { }
 
 inline SolveHandle::SolveHandle(SolveHandle &&it)
 : SolveHandle() { *this = std::move(it); }
 
 inline SolveHandle &SolveHandle::operator=(SolveHandle &&it) {
-    iter_      = it.iter_;
-    it.iter_   = nullptr;
-    data_      = std::move(it.data_);
+    iter_         = it.iter_;
+    it.iter_      = nullptr;
+    exception_    = it.exception_;
+    it.exception_ = nullptr;
     return *this;
 }
 
 inline void SolveHandle::resume() {
-    if (iter_) { Detail::handle_error(clingo_solve_handle_resume(iter_), data_->exception); }
+    Detail::handle_error(clingo_solve_handle_resume(iter_), *exception_);
 }
 
 inline bool SolveHandle::wait(double timeout) {
     bool res = true;
-    if (iter_) { Detail::handle_error(clingo_solve_handle_wait(iter_, timeout, &res), data_->exception); }
+    Detail::handle_error(clingo_solve_handle_wait(iter_, timeout, &res), *exception_);
     return res;
 }
 
 inline Model SolveHandle::model() {
     clingo_model_t *m = nullptr;
-    if (iter_) { Detail::handle_error(clingo_solve_handle_model(iter_, &m), data_->exception); }
+    Detail::handle_error(clingo_solve_handle_model(iter_, &m), *exception_);
     return Model{m};
 }
 
@@ -2780,49 +2775,16 @@ inline Model SolveHandle::next() {
 
 inline SolveResult SolveHandle::get() {
     clingo_solve_result_bitset_t ret = 0;
-    if (iter_) { Detail::handle_error(clingo_solve_handle_get(iter_, &ret), data_->exception); }
+    Detail::handle_error(clingo_solve_handle_get(iter_, &ret), *exception_);
     return SolveResult{ret};
 }
 
-inline void SolveHandle::close() {
-    // fix this one
-    if (iter_) {
-        Detail::handle_error(clingo_solve_handle_close(iter_), data_->exception);
-        iter_ = nullptr;
-        data_ = nullptr;
-    }
+inline void SolveHandle::cancel() {
+    Detail::handle_error(clingo_solve_handle_close(iter_), *exception_);
 }
 
-inline void SolveHandle::notify(SolveEventHandler &cb) {
-    data_->handler = &cb;
-    Detail::handle_error(clingo_solve_handle_notify(iter_, [](clingo_solve_event_type_t type, void *event, void *pdata, bool *goon){
-        Data &data = *static_cast<Data*>(pdata);
-        switch (type) {
-            case clingo_solve_event_type_model: {
-                CLINGO_CALLBACK_TRY {
-                    Model m{static_cast<clingo_model_t*>(event)};
-                    *goon = data.handler->on_model(m);
-                }
-                CLINGO_CALLBACK_CATCH(data.exception);
-            }
-            case clingo_solve_event_type_finish: {
-                try {
-                    data.handler->on_finish(SolveResult{*static_cast<clingo_solve_result_bitset_t*>(event)});
-                    *goon = true;
-                    return true;
-                }
-                catch (std::exception const &e) {
-                    fprintf(stderr, "error in SolveEventHandler::on_finish going to terminate:\n%s\n", e.what());
-                }
-                catch (...) {
-                    fprintf(stderr, "error in SolveEventHandler::on_finish going to terminate\n");
-                }
-                fflush(stderr);
-                std::terminate();
-            }
-        }
-        return false;
-    }, data_.get()));
+inline SolveHandle::~SolveHandle() {
+    if (iter_) { Detail::handle_error(clingo_solve_handle_close(iter_), *exception_); }
 }
 
 // {{{2 backend
@@ -3643,19 +3605,20 @@ inline void ProgramBuilder::end() {
 
 struct Control::Impl {
     Impl(Logger logger)
-        : ctl(nullptr)
-        , logger(logger) { }
+    : ctl(nullptr)
+    , handler(nullptr)
+    , logger(logger) { }
     Impl(clingo_control_t *ctl)
-        : ctl(ctl) { }
+    : ctl(ctl)
+    , handler(nullptr) { }
     ~Impl() noexcept {
         if (ctl) { clingo_control_free(ctl); }
     }
     operator clingo_control_t *() { return ctl; }
     clingo_control_t *ctl;
+    SolveEventHandler *handler;
     Detail::AssignOnce ptr;
     Logger logger;
-    ModelCallback mh;
-    FinishCallback fh;
     std::forward_list<std::pair<Propagator&, Detail::AssignOnce&>> propagators_;
 };
 
@@ -3715,13 +3678,42 @@ inline void Control::ground(PartSpan parts, GroundCallback cb) {
 
 inline clingo_control_t *Control::to_c() const { return *impl_; }
 
-inline SolveHandle Control::solve(SymbolicLiteralSpan assumptions, bool asynchronous, bool yield) {
+inline SolveHandle Control::solve(SymbolicLiteralSpan assumptions, SolveEventHandler *handler, bool asynchronous, bool yield) {
     clingo_solve_handle_t *it;
     clingo_solve_mode_bitset_t mode = 0;
     if (asynchronous) { mode |= clingo_solve_mode_async; }
     if (yield) { mode |= clingo_solve_mode_yield; }
+    impl_->handler = handler;
     impl_->ptr.reset();
-    Detail::handle_error(clingo_control_solve(*impl_, reinterpret_cast<clingo_symbolic_literal_t const *>(assumptions.begin()), assumptions.size(), mode, &it));
+    clingo_solve_event_callback_t on_event = [](clingo_solve_event_type_t type, void *event, void *pdata, bool *goon) {
+        Impl &data = *static_cast<Impl*>(pdata);
+        switch (type) {
+            case clingo_solve_event_type_model: {
+                CLINGO_CALLBACK_TRY {
+                    Model m{static_cast<clingo_model_t*>(event)};
+                    *goon = data.handler->on_model(m);
+                }
+                CLINGO_CALLBACK_CATCH(data.ptr);
+            }
+            case clingo_solve_event_type_finish: {
+                try {
+                    data.handler->on_finish(SolveResult{*static_cast<clingo_solve_result_bitset_t*>(event)});
+                    *goon = true;
+                    return true;
+                }
+                catch (std::exception const &e) {
+                    fprintf(stderr, "error in SolveEventHandler::on_finish going to terminate:\n%s\n", e.what());
+                }
+                catch (...) {
+                    fprintf(stderr, "error in SolveEventHandler::on_finish going to terminate\n");
+                }
+                fflush(stderr);
+                std::terminate();
+            }
+        }
+        return false;
+    };
+    Detail::handle_error(clingo_control_solve(*impl_, mode, reinterpret_cast<clingo_symbolic_literal_t const *>(assumptions.begin()), assumptions.size(), handler ? on_event : nullptr, impl_, &it));
     return SolveHandle{it, impl_->ptr};
 }
 

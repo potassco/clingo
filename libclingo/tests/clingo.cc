@@ -553,9 +553,8 @@ TEST_CASE("solving", "[clingo]") {
                     int &m;
                     int &f;
                 };
-                auto handle = ctl.solve();
                 EH handler{goon, m, f};
-                handle.notify(handler);
+                auto handle = ctl.solve({}, &handler);
                 REQUIRE(test_solve(std::move(handle), models).is_satisfiable());
                 REQUIRE(m == (goon ? 2 : 1));
                 REQUIRE(f == 1);

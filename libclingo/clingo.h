@@ -789,26 +789,23 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_resume(clingo_solve_handle_t *handle);
-//! Stop the running search and releases the handle.
+//! Stop the running search and block until done.
 //!
-//! Blocks until the search is stopped.
+//! @param[in] handle the target
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_cancel(clingo_solve_handle_t *handle);
+//! Stops the running search and releases the handle.
+//!
+//! Blocks until the search is stopped (as if an implicit cancel was called
+//! before the handle is released).
 //!
 //! @param[in] handle the target
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *handle);
-//! Register an event handler with the solve handle.
-//!
-//! The event handler is called when a model is found or the search has finished.
-//!
-//! @param[in] handle the target
-//! @param[in] notify the event handler to register
-//! @param[in] data the user data for the callback
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_notify(clingo_solve_handle_t *handle, clingo_solve_event_callback_t notify, void *data);
 
 //! @}
 
@@ -3052,14 +3049,16 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, 
 //! See the @ref Solving module for more information.
 //!
 //! @param[in] control the target
+//! @param[in] mode configures the search mode
 //! @param[in] assumptions array of assumptions to solve under
 //! @param[in] assumptions_size number of assumptions
-//! @param[in] mode configures the search mode
+//! @param[in] notify the event handler to register
+//! @param[in] data the user data for the event handler
 //! @param[out] handle handle to the current search to enumerate models
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving could not be started
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_mode_bitset_t mode, clingo_solve_handle_t **handle);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, clingo_solve_mode_bitset_t mode, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_event_callback_t notify, void *data, clingo_solve_handle_t **handle);
 //! Clean up the domains of clingo's grounding component using the solving
 //! component's top level assignment.
 //!

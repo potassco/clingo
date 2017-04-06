@@ -125,11 +125,12 @@ struct SolveFuture {
     virtual bool wait(double timeout) = 0;
     virtual void cancel() = 0;
     virtual void resume() = 0;
-    virtual void notify(USolveEventHandler cb) = 0;
     virtual ~SolveFuture() { }
 };
+using USolveFuture = std::unique_ptr<SolveFuture>;
 
 struct DefaultSolveFuture : SolveFuture {
+    DefaultSolveFuture(USolveEventHandler cb) : cb_(std::move(cb)) { }
     SolveResult get() override { resume(); return {SolveResult::Unknown, false, false}; }
     Model const *model() override { resume(); return nullptr; }
     void wait() override { resume(); }
@@ -138,12 +139,9 @@ struct DefaultSolveFuture : SolveFuture {
     void resume() override {
         if (!done_) {
             done_ = true;
-            if (cb_) {
-                cb_->on_finish({SolveResult::Unknown, false, false});
-            }
+            if (cb_) { cb_->on_finish({SolveResult::Unknown, false, false}); }
         }
     }
-    void notify(USolveEventHandler cb) override { cb_ = std::move(cb); }
     ~DefaultSolveFuture() override { resume(); }
 private:
     USolveEventHandler cb_;
@@ -205,7 +203,7 @@ struct clingo_control {
     virtual Gringo::SymbolicAtoms &getDomain() = 0;
 
     virtual void ground(GroundVec const &vec, Gringo::Context *context) = 0;
-    virtual Gringo::SolveFuture *solveRefactored(Assumptions &&assumptions, clingo_solve_mode_bitset_t mode) = 0;
+    virtual Gringo::USolveFuture solveRefactored(Assumptions &&assumptions, clingo_solve_mode_bitset_t mode, Gringo::USolveEventHandler cb = nullptr) = 0;
     virtual void interrupt() = 0;
     virtual void *claspFacade() = 0;
     virtual void add(std::string const &name, Gringo::StringVec const &params, std::string const &part) = 0;

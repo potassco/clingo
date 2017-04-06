@@ -991,8 +991,12 @@ extern "C" bool clingo_solve_handle_wait(clingo_solve_handle_t *handle, double t
     GRINGO_CLINGO_TRY { *result = handle->wait(timeout); }
     GRINGO_CLINGO_CATCH;
 }
+extern "C" bool clingo_solve_handle_cancel(clingo_solve_handle_t *handle) {
+    GRINGO_CLINGO_TRY { handle->cancel(); }
+    GRINGO_CLINGO_CATCH;
+}
 extern "C" bool clingo_solve_handle_close(clingo_solve_handle_t *handle) {
-    GRINGO_CLINGO_TRY { if (handle) { handle->cancel(); } }
+    GRINGO_CLINGO_TRY { if (handle) { delete handle; } }
     GRINGO_CLINGO_CATCH;
 }
 extern "C" bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t **model) {
@@ -1003,39 +1007,6 @@ extern "C" bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_
 }
 extern "C" bool clingo_solve_handle_resume(clingo_solve_handle_t *handle) {
     GRINGO_CLINGO_TRY { handle->resume(); }
-    GRINGO_CLINGO_CATCH;
-}
-
-namespace {
-
-class ClingoSolveEventHandler : public SolveEventHandler {
-public:
-    ClingoSolveEventHandler(clingo_solve_event_callback_t cb, void *data)
-    : cb_(cb)
-    , data_(data) { }
-private:
-    bool on_model(Model &model) override {
-        bool goon = true;
-        if (!cb_(clingo_solve_event_type_model, &model, data_, &goon)) { throw ClingoError(); }
-        return goon;
-    }
-    void on_finish(SolveResult ret) override {
-        bool goon = true;
-        if (!cb_(clingo_solve_event_type_finish, &ret, data_, &goon)) {
-            clingo_terminate("error in SolveEventHandler::on_finish going to terminate");
-        }
-    }
-private:
-    clingo_solve_event_callback_t cb_;
-    void *data_;
-};
-
-} // namespace
-
-extern "C" bool clingo_solve_handle_notify(clingo_solve_handle_t *handle, clingo_solve_event_callback_t notify, void *data) {
-    GRINGO_CLINGO_TRY {
-        handle->notify(gringo_make_unique<ClingoSolveEventHandler>(notify, data));
-    }
     GRINGO_CLINGO_CATCH;
 }
 
@@ -1138,10 +1109,36 @@ Control::Assumptions toAss(clingo_symbolic_literal_t const * assumptions, size_t
     return ass;
 }
 
-}
+class ClingoSolveEventHandler : public SolveEventHandler {
+public:
+    ClingoSolveEventHandler(clingo_solve_event_callback_t cb, void *data)
+    : cb_(cb)
+    , data_(data) { }
+private:
+    bool on_model(Model &model) override {
+        bool goon = true;
+        if (!cb_(clingo_solve_event_type_model, &model, data_, &goon)) { throw ClingoError(); }
+        return goon;
+    }
+    void on_finish(SolveResult ret) override {
+        bool goon = true;
+        if (!cb_(clingo_solve_event_type_finish, &ret, data_, &goon)) {
+            clingo_terminate("error in SolveEventHandler::on_finish going to terminate");
+        }
+    }
+private:
+    clingo_solve_event_callback_t cb_;
+    void *data_;
+};
 
-extern "C" bool clingo_control_solve(clingo_control_t *control, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_mode_bitset_t mode, clingo_solve_handle_t **handle) {
-    GRINGO_CLINGO_TRY { *handle = static_cast<clingo_solve_handle_t*>(control->solveRefactored(toAss(assumptions, assumptions_size), mode)); }
+} // namespace
+
+extern "C" bool clingo_control_solve(clingo_control_t *control, clingo_solve_mode_bitset_t mode, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_event_callback_t notify, void *data, clingo_solve_handle_t **handle) {
+    GRINGO_CLINGO_TRY { *handle = static_cast<clingo_solve_handle_t*>(control->solveRefactored(
+        toAss(assumptions, assumptions_size),
+        mode,
+        notify ? gringo_make_unique<ClingoSolveEventHandler>(notify, data) : nullptr
+    ).release()); }
     GRINGO_CLINGO_CATCH;
 }
 

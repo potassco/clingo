@@ -256,7 +256,7 @@ void ClingoControl::main() {
         Control::GroundVec parts;
         parts.emplace_back("base", SymVec{});
         ground(parts, nullptr);
-        solveRefactored({}, 0)->get();
+        solveRefactored({}, 0, nullptr)->get();
     }
 }
 bool ClingoControl::onModel(Clasp::Model const &m) {
@@ -342,17 +342,16 @@ unsigned ClingoControl::getRootKey() {
 ConfigProxy &ClingoControl::getConf() {
     return *this;
 }
-SolveFuture *ClingoControl::solveRefactored(Assumptions &&ass, clingo_solve_mode_bitset_t mode) {
+USolveFuture ClingoControl::solveRefactored(Assumptions &&ass, clingo_solve_mode_bitset_t mode, USolveEventHandler cb) {
     prepare(std::move(ass));
     if (clingoMode_) {
         static_assert(clingo_solve_mode_yield == static_cast<clingo_solve_mode_bitset_t>(Clasp::SolveMode_t::Yield), "");
         static_assert(clingo_solve_mode_async == static_cast<clingo_solve_mode_bitset_t>(Clasp::SolveMode_t::Async), "");
-        solveFuture_ = gringo_make_unique<ClingoSolveFuture>(*this, static_cast<Clasp::SolveMode_t>(mode));
-        return solveFuture_.get();
+        eventHandler_ = std::move(cb);
+        return gringo_make_unique<ClingoSolveFuture>(*this, static_cast<Clasp::SolveMode_t>(mode));
     }
     else {
-        static DefaultSolveFuture future_;
-        return &future_;
+        return gringo_make_unique<DefaultSolveFuture>(std::move(cb));
     }
 }
 void ClingoControl::interrupt() {
@@ -371,7 +370,6 @@ void ClingoControl::prepare(Assumptions &&ass) {
     }
     grounded = false;
     if (clingoMode_) {
-        solveFuture_   = nullptr;
         Clasp::ProgramBuilder *prg = clasp_->program();
         postGround(*prg);
         if (!propagators_.empty()) {
@@ -614,40 +612,30 @@ SolveResult convert(Clasp::ClaspFacade::Result res) {
 }
 
 ClingoSolveFuture::ClingoSolveFuture(ClingoControl &ctl, Clasp::SolveMode_t mode)
-: mode_(mode)
-, handle_(nullptr)
-, model_(ctl) { }
+: model_(ctl)
+, handle_(model_.context().clasp_->solve(mode)) {
+}
 SolveResult ClingoSolveFuture::get() {
-    return convert(handle().get());
+    return convert(handle_.get());
 }
 Model const *ClingoSolveFuture::model() {
-    if (auto m = handle().model()) {
+    if (auto m = handle_.model()) {
         model_.reset(*m);
         return &model_;
     }
     else { return nullptr; }
 }
 void ClingoSolveFuture::wait() {
-    handle().wait();
+    handle_.wait();
 }
 bool ClingoSolveFuture::wait(double timeout) {
-    return timeout == 0 ? handle().ready() : handle().waitFor(timeout);
+    return timeout == 0 ? handle_.ready() : handle_.waitFor(timeout);
 }
 void ClingoSolveFuture::cancel() {
-    handle().cancel();
+    handle_.cancel();
 }
 void ClingoSolveFuture::resume() {
-    handle().resume();
-}
-void ClingoSolveFuture::notify(USolveEventHandler cb) {
-    if (handle_) { throw std::runtime_error("event handler cannot be set after solving has started"); }
-    model_.context().eventHandler_ = std::move(cb);
-}
-Clasp::ClaspFacade::SolveHandle &ClingoSolveFuture::handle() {
-    if (!handle_) {
-        handle_ = gringo_make_unique<Clasp::ClaspFacade::SolveHandle>(model_.context().clasp_->solve(mode_));
-    }
-    return *handle_;
+    handle_.resume();
 }
 
 // {{{1 definition of ClingoLib
@@ -724,8 +712,6 @@ bool ClingoLib::parsePositional(const std::string& t, std::string& out) {
     return false;
 }
 ClingoLib::~ClingoLib() {
-    // TODO: can be removed after bennies next update...
-    solveFuture_ = nullptr;
     clasp_.shutdown();
 }
 

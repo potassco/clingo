@@ -1454,6 +1454,8 @@ struct SolveHandle : Object<SolveHandle> {
     clingo_solve_handle_t *handle;
     clingo_solve_mode_bitset_t mode;
     bool hasMH, hasFH;
+    clingo_control_t *ctl;
+    std::vector<clingo_symbolic_literal_t> *ass;
     SolveHandle(clingo_solve_handle_t *handle) : handle(handle) { }
     static SolveHandle &get_self(lua_State *L, int offset=1) {
         void *p = nullptr;
@@ -1486,11 +1488,17 @@ struct SolveHandle : Object<SolveHandle> {
         self->mode = 0;
         self->hasFH = false;
         self->hasMH = false;
+        self->ctl = nullptr;
+        self->ass = nullptr;
         return self;
     }
     static int close(lua_State *L) {
         auto &self = get_self(L);
-        handle_c_error(L, clingo_solve_handle_close(self.handle));
+        if (self.handle) {
+            auto h = self.handle;
+            self.handle = nullptr;
+            handle_c_error(L, clingo_solve_handle_close(h));
+        }
         return 0;
     }
     static int next(lua_State *L) {
@@ -1518,7 +1526,9 @@ struct SolveHandle : Object<SolveHandle> {
         return 0;
     }
     static int cancel(lua_State *L) {
-        return close(L);
+        auto &self = get_self(L);
+        handle_c_error(L, clingo_solve_handle_cancel(self.handle));
+        return 0;
     }
     static int on_model_(lua_State *L) {
         auto m = static_cast<clingo_model_t*>(lua_touserdata(L, 2));
@@ -1574,20 +1584,20 @@ struct SolveHandle : Object<SolveHandle> {
         }
         return true;
     }
+
     static int solve_(lua_State *L) {
         auto &handle = get_self(L);
-        if (handle.hasFH || handle.hasMH) {
-            call_c(L, clingo_solve_handle_notify, handle.handle, SolveHandle::on_event_, L);
-        }
 
+        handle.handle = call_c(L, clingo_control_solve, handle.ctl, handle.mode, handle.ass->data(), handle.ass->size(), (handle.hasFH || handle.hasMH) ? on_event_ : nullptr, L);
         if (handle.mode == 0) {
             lua_pushcfunction(L, get); // +1
             lua_pushvalue(L, 1);       // +1
             lua_call(L, 1, 1);         // -1
-            call_c(L, clingo_solve_handle_close, handle.handle);
+            auto h = handle.handle;
+            handle.handle = nullptr;
+            call_c(L, clingo_solve_handle_close, h);
         }
         else {
-            call_c(L, clingo_solve_handle_resume, handle.handle);
             lua_pushvalue(L, 1);       // +1
         }
 
@@ -1601,6 +1611,7 @@ constexpr char const *SolveHandle::typeName;
 luaL_Reg const SolveHandle::meta[] = {
     {"iter",  iter},
     {"close", close},
+    {"__gc", close},
     {"get", get},
     {"resume", resume},
     {"cancel", cancel},
@@ -2764,13 +2775,14 @@ struct ControlWrap : Object<ControlWrap> {
 
         auto handle = SolveHandle::new_(L); // +1
         int handleIdx = lua_gettop(L);
-        auto *ass = AnyWrap::new_<std::vector<clingo_symbolic_literal_t>>(L); // +1
+        handle->ass = AnyWrap::new_<std::vector<clingo_symbolic_literal_t>>(L); // +1
+        handle->ctl = self.ctl;
 
         // this can be made more flexible by both accepting a table as well as normal arguments
         if (!lua_isnone(L, 2) && !lua_isnil(L, 2)) {
             luaL_checktype(L, 2, LUA_TTABLE);
             lua_getfield(L, 2, "assumptions"); // +1
-            if (!lua_isnil(L, -1)) { luaToCpp(L, -1, *ass); }
+            if (!lua_isnil(L, -1)) { luaToCpp(L, -1, *handle->ass); }
             lua_pop(L, 1);                     // -1
 
             lua_getfield(L, 2, "yield");       // +1
@@ -2797,13 +2809,16 @@ struct ControlWrap : Object<ControlWrap> {
         lua_settop(L, handleIdx);
 
         if (!lua_checkstack(L, 3)) { luaL_error(L, "lua stack size exceeded"); }
-        handle->handle = call_c(L, clingo_control_solve, self.ctl, ass->data(), ass->size(), handle->mode);
         lua_pushcfunction(L, luaTraceback);        // +1
         lua_pushcfunction(L, SolveHandle::solve_); // +1
         lua_pushvalue(L, handleIdx);               // +1
         int code = lua_pcall(L, 1, 1, -3);         // -1
         lua_replace(L, -2);                        // -1
-        if (code) { call_c(L, clingo_solve_handle_close, handle->handle); }
+        if (code) {
+            auto h = handle->handle;
+            handle->handle = NULL;
+            call_c(L, clingo_solve_handle_close, h);
+        }
         lua_replace(L, -2);                        // -1
         if (code) { lua_error(L); }
         return 1;

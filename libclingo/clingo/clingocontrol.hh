@@ -251,7 +251,7 @@ public:
     void useEnumAssumption(bool enable) override;
     bool useEnumAssumption() override;
     void cleanupDomains() override;
-    SolveFuture *solveRefactored(Assumptions &&ass, clingo_solve_mode_bitset_t mode) override;
+    USolveFuture solveRefactored(Assumptions &&ass, clingo_solve_mode_bitset_t mode, USolveEventHandler cb) override;
     Output::DomainData const &theory() const override { return out_->data; }
     void registerPropagator(UProp p, bool sequential) override;
     void interrupt() override;
@@ -285,7 +285,7 @@ public:
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>>  propagators_;
     ClingoPropagatorLock                                       propLock_;
     Logger                                                     logger_;
-    std::unique_ptr<ClingoSolveFuture>                         solveFuture_;
+    std::unique_ptr<SolveFuture>                               solveFuture_;
     bool                                                       enableEnumAssupmption_ = true;
     bool                                                       clingoMode_;
     bool                                                       verbose_               = false;
@@ -362,13 +362,9 @@ public:
     bool wait(double timeout) override;
     void resume() override;
     void cancel() override;
-    void notify(USolveEventHandler cb) override;
 private:
-    Clasp::ClaspFacade::SolveHandle &handle();
-
-    Clasp::SolveMode_t                               mode_;
-    std::unique_ptr<Clasp::ClaspFacade::SolveHandle> handle_;
-    ClingoModel                                      model_;
+    ClingoModel                     model_;
+    Clasp::ClaspFacade::SolveHandle handle_;
 };
 
 // {{{1 declaration of ClingoLib

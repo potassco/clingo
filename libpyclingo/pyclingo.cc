@@ -60,6 +60,11 @@
 #define GRINGO_STRUCT_EXTRA
 #endif
 
+#if defined(__clang__) || defined(__GNUC__)
+#define CLINGO_ATTRIBUTE_UNUSED __attribute__ ((unused))
+#else
+#define CLINGO_ATTRIBUTE_UNUSED
+#endif
 namespace {
 
 // {{{1 workaround for gcc warnings
@@ -486,16 +491,8 @@ void pyToCpp(Reference pyObj, std::string &x) {
 
 void pyToNum(Reference pyNum, long &x) { x = PyLong_AsLong(pyNum.toPy()); }
 void pyToNum(Reference pyNum, unsigned long &x) { x = PyLong_AsUnsignedLong(pyNum.toPy()); }
-#if defined(__clang__) || defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused"
-#pragma GCC diagnostic ignored "-Wunused-function"
-#endif
-void pyToNum(Reference pyNum, long long &x) { x = PyLong_AsLongLong(pyNum.toPy()); }
-void pyToNum(Reference pyNum, unsigned long long &x) { x = PyLong_AsUnsignedLongLong(pyNum.toPy()); }
-#if defined(__clang__) || defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
+CLINGO_ATTRIBUTE_UNUSED void pyToNum(Reference pyNum, long long &x) { x = PyLong_AsLongLong(pyNum.toPy()); }
+CLINGO_ATTRIBUTE_UNUSED void pyToNum(Reference pyNum, unsigned long long &x) { x = PyLong_AsUnsignedLongLong(pyNum.toPy()); }
 
 template <bool Signed, bool FitsLong> struct NumType;
 template <> struct NumType<true, true> { using Type = long; };
@@ -610,16 +607,8 @@ Object cppToPy(int n) { return PyLong_FromLong(n); }
 Object cppToPy(unsigned n) { return PyLong_FromUnsignedLong(n); }
 Object cppToPy(long n) { return PyLong_FromLong(n); }
 Object cppToPy(unsigned long n) { return PyLong_FromUnsignedLong(n); }
-#if defined(__clang__) || defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused"
-#pragma GCC diagnostic ignored "-Wunused-function"
-#endif
-Object cppToPy(long long n) { return PyLong_FromLongLong(n); }
-Object cppToPy(unsigned long long n) { return PyLong_FromUnsignedLongLong(n); }
-#if defined(__clang__) || defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
+CLINGO_ATTRIBUTE_UNUSED Object cppToPy(long long n) { return PyLong_FromLongLong(n); }
+CLINGO_ATTRIBUTE_UNUSED Object cppToPy(unsigned long long n) { return PyLong_FromUnsignedLongLong(n); }
 
 template <class T>
 Object cppToPy(T n, typename std::enable_if<std::is_floating_point<T>::value>::type* = nullptr) {
@@ -2125,12 +2114,16 @@ See Control.solve() for an example.)";
     }
 
     void tp_dealloc() {
-        // FIXME: consider calling cancel here
         Py_XDECREF(on_model);
         Py_XDECREF(on_finish);
+        if (handle) {
+            auto h = handle;
+            handle = nullptr;
+            doUnblocked([h](){ handle_c_error(clingo_solve_handle_close(h)); });
+        }
     }
 
-    void notify(clingo_solve_event_callback_t event, Reference mh, Reference fh) {
+    clingo_solve_event_callback_t notify(clingo_solve_event_callback_t event, Reference mh, Reference fh) {
         if (!mh.none()) {
             on_model = mh.toPy();
             Py_XINCREF(on_model);
@@ -2147,9 +2140,7 @@ See Control.solve() for an example.)";
             Py_XDECREF(on_finish);
             on_finish = nullptr;
         }
-        if (on_model || on_finish) {
-            handle_c_error(clingo_solve_handle_notify(handle, event, this));
-        }
+        return on_model || on_finish ? event : nullptr;
     }
 
     Reference tp_iter() { return *this; }
@@ -2171,7 +2162,11 @@ See Control.solve() for an example.)";
     Object enter() { return Reference{*this}; }
 
     Object exit() {
-        cancel();
+        if (handle) {
+            auto h = handle;
+            handle = nullptr;
+            doUnblocked([h](){ handle_c_error(clingo_solve_handle_close(h)); });
+        }
         Py_RETURN_FALSE;
     }
 
@@ -2211,9 +2206,7 @@ See Control.solve() for an example.)";
     }
 
     Object cancel() {
-        doUnblocked([this](){
-            handle_c_error(clingo_solve_handle_close(handle));
-        });
+        doUnblocked([this](){ handle_c_error(clingo_solve_handle_cancel(handle)); });
         Py_RETURN_NONE;
     }
 
@@ -5677,15 +5670,10 @@ active; you must not call any member function during search.)";
         if (pyYield.isTrue()) { mode |= clingo_solve_mode_yield; }
         if (pyAsync.isTrue()) { mode |= clingo_solve_mode_async; }
         auto handle = SolveHandle::construct();
-        handle_c_error(clingo_control_solve(ctl, ass.data(), ass.size(), mode, &handle->handle));
-        handle->notify(&SolveHandle::on_event, pyM, pyF);
-        if (!pyYield.isTrue() && !pyAsync.isTrue()) {
-            return handle->get();
-        }
-        else {
-            handle->resume();
-            return handle;
-        }
+        auto notify = handle->notify(&SolveHandle::on_event, pyM, pyF);
+        doUnblocked([&](){ handle_c_error(clingo_control_solve(ctl, mode, ass.data(), ass.size(), notify, handle.obj, &handle->handle)); });
+        if (!pyYield.isTrue() && !pyAsync.isTrue()) { return handle->get(); }
+        else { return handle; }
     }
     Object cleanup() {
         CHECK_BLOCKED("cleanup");

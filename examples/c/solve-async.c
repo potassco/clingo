@@ -100,12 +100,8 @@ int main(int argc, char const **argv) {
   if (!clingo_control_ground(ctl, parts, 1, NULL, NULL)) { goto error; }
 
   atomic_flag_test_and_set(&running);
-  // create a solve handle
-  if (!clingo_control_solve(ctl, NULL, 0, clingo_solve_mode_async | clingo_solve_mode_yield, &handle)) { goto error; }
-  // register an event handler
-  if (!clingo_solve_handle_notify(handle, on_event, &running)) { goto error; }
-  // start solving in the background
-  if (!clingo_solve_handle_resume(handle)) { goto error; }
+  // create a solve handle with an attached vent handler
+  if (!clingo_control_solve(ctl, clingo_solve_mode_async | clingo_solve_mode_yield, NULL, 0, on_event, &running, &handle)) { goto error; }
 
   // let's approximate pi
   while (atomic_flag_test_and_set(&running)) {
