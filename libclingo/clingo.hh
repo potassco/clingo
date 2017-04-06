@@ -1115,15 +1115,14 @@ inline void SolveEventHandler::on_finish(SolveResult) { }
 
 namespace Detail {
 
-template <class T>
 class AssignOnce;
 
-}
+} // namespace Detail
 
 class SolveHandle {
 public:
     SolveHandle();
-    explicit SolveHandle(clingo_solve_handle_t *it, Detail::AssignOnce<std::exception_ptr> &ptr);
+    explicit SolveHandle(clingo_solve_handle_t *it, Detail::AssignOnce &ptr);
     SolveHandle(SolveHandle &&it);
     SolveHandle(SolveHandle const &) = delete;
     SolveHandle &operator=(SolveHandle &&it);
@@ -1140,7 +1139,7 @@ public:
 private:
     struct Data {
         SolveEventHandler *handler;
-        Detail::AssignOnce<std::exception_ptr> &exception;
+        Detail::AssignOnce &exception;
     };
     std::unique_ptr<Data> data_;
     clingo_solve_handle_t *iter_;
@@ -2123,13 +2122,8 @@ namespace Clingo {
 
 namespace Detail {
 
-inline void handle_error(bool ret, std::exception_ptr *exc = nullptr) {
+inline void handle_error(bool ret) {
     if (!ret) {
-        if (exc && *exc) {
-            std::exception_ptr p = nullptr;
-            std::swap(p, *exc);
-            std::rethrow_exception(p);
-        }
         char const *msg = clingo_error_message();
         if (!msg) { msg = "no message"; }
         switch (static_cast<clingo_error>(clingo_error_code())) {
@@ -2139,6 +2133,17 @@ inline void handle_error(bool ret, std::exception_ptr *exc = nullptr) {
             case clingo_error_unknown:   { throw std::runtime_error(msg); }
             case clingo_error_success:   { throw std::runtime_error(msg); }
         }
+    }
+}
+
+inline void handle_error(bool ret, std::exception_ptr &exc) {
+    if (!ret) {
+        if (exc) {
+            std::exception_ptr ptr = exc;
+            exc = nullptr;
+            std::rethrow_exception(ptr);
+        }
+        handle_error(false);
     }
 }
 
@@ -2702,26 +2707,26 @@ inline ModelType Model::type() const {
 
 namespace Detail {
 
-template <class T>
 class AssignOnce {
 public:
-    template <class U>
-    AssignOnce(U &&x)
-    : val_(std::forward<U>(x))
-    { }
-    template <class U>
-    AssignOnce &operator=(U &&x) {
-        if (!set_.test_and_set()) {
-            val_ = std::forward<U>(x);
-        }
+    AssignOnce &operator=(std::exception_ptr x) {
+        if (!set_.test_and_set()) { val_ = x; }
         return *this;
     }
-    T &operator*() {
-        set_.clear();
+    std::exception_ptr &operator*() {
+        // TODO: check if this really works
+        //       this is not necessarily the exception that caused the search to stop but just the first that has been set
+        //       it should be no problem to just get one exception if multiple exceptions have been raised in a callback
+        //       one further caveat: if a solve handle function fails with a non-callback related error and there are
+        //                           still threads that set the error here, then bad things can happen
         return val_;
     }
+    void reset() {
+        set_.clear();
+        val_ = nullptr;
+    }
 private:
-    T val_;
+    std::exception_ptr val_ = nullptr;
     std::atomic_flag set_ = ATOMIC_FLAG_INIT;
 };
 
@@ -2730,7 +2735,7 @@ private:
 inline SolveHandle::SolveHandle()
 : iter_(nullptr) { }
 
-inline SolveHandle::SolveHandle(clingo_solve_handle_t *it, Detail::AssignOnce<std::exception_ptr> &ptr)
+inline SolveHandle::SolveHandle(clingo_solve_handle_t *it, Detail::AssignOnce &ptr)
 : data_(new Data{nullptr, ptr})
 , iter_(it) { }
 
@@ -2745,18 +2750,18 @@ inline SolveHandle &SolveHandle::operator=(SolveHandle &&it) {
 }
 
 inline void SolveHandle::resume() {
-    if (iter_) { Detail::handle_error(clingo_solve_handle_resume(iter_), &*data_->exception); }
+    if (iter_) { Detail::handle_error(clingo_solve_handle_resume(iter_), *data_->exception); }
 }
 
 inline bool SolveHandle::wait(double timeout) {
     bool res = true;
-    if (iter_) { Detail::handle_error(clingo_solve_handle_wait(iter_, timeout, &res), &*data_->exception); }
+    if (iter_) { Detail::handle_error(clingo_solve_handle_wait(iter_, timeout, &res), *data_->exception); }
     return res;
 }
 
 inline Model SolveHandle::model() {
     clingo_model_t *m = nullptr;
-    if (iter_) { Detail::handle_error(clingo_solve_handle_model(iter_, &m), &*data_->exception); }
+    if (iter_) { Detail::handle_error(clingo_solve_handle_model(iter_, &m), *data_->exception); }
     return Model{m};
 }
 
@@ -2767,14 +2772,14 @@ inline Model SolveHandle::next() {
 
 inline SolveResult SolveHandle::get() {
     clingo_solve_result_bitset_t ret = 0;
-    if (iter_) { Detail::handle_error(clingo_solve_handle_get(iter_, &ret), &*data_->exception); }
+    if (iter_) { Detail::handle_error(clingo_solve_handle_get(iter_, &ret), *data_->exception); }
     return SolveResult{ret};
 }
 
 inline void SolveHandle::close() {
-    // TODO: not sure about this one...
+    // fix this one
     if (iter_) {
-        Detail::handle_error(clingo_solve_handle_close(iter_), &*data_->exception);
+        Detail::handle_error(clingo_solve_handle_close(iter_), *data_->exception);
         iter_ = nullptr;
         data_ = nullptr;
     }
@@ -3631,21 +3636,19 @@ inline void ProgramBuilder::end() {
 struct Control::Impl {
     Impl(Logger logger)
         : ctl(nullptr)
-        , ptr(nullptr)
         , logger(logger) { }
     Impl(clingo_control_t *ctl)
-        : ctl(ctl)
-        , ptr(nullptr) { }
+        : ctl(ctl) { }
     ~Impl() noexcept {
         if (ctl) { clingo_control_free(ctl); }
     }
     operator clingo_control_t *() { return ctl; }
     clingo_control_t *ctl;
-    Detail::AssignOnce<std::exception_ptr> ptr;
+    Detail::AssignOnce ptr;
     Logger logger;
     ModelCallback mh;
     FinishCallback fh;
-    std::forward_list<std::pair<Propagator&, Detail::AssignOnce<std::exception_ptr>&>> propagators_;
+    std::forward_list<std::pair<Propagator&, Detail::AssignOnce&>> propagators_;
 };
 
 inline Clingo::Control::Control(StringSpan args, Logger logger, unsigned message_limit)
@@ -3699,7 +3702,7 @@ inline void Control::ground(PartSpan parts, GroundCallback cb) {
                 }
             }
             CLINGO_CALLBACK_CATCH(d.second);
-        }, &data), &data.second);
+        }, &data), data.second);
 }
 
 inline clingo_control_t *Control::to_c() const { return *impl_; }
@@ -3709,6 +3712,7 @@ inline SolveHandle Control::solve(SymbolicLiteralSpan assumptions, bool asynchro
     clingo_solve_mode_bitset_t mode = 0;
     if (asynchronous) { mode |= clingo_solve_mode_async; }
     if (yield) { mode |= clingo_solve_mode_yield; }
+    impl_->ptr.reset();
     Detail::handle_error(clingo_control_solve(*impl_, reinterpret_cast<clingo_symbolic_literal_t const *>(assumptions.begin()), assumptions.size(), mode, &it));
     return SolveHandle{it, impl_->ptr};
 }
@@ -3735,7 +3739,7 @@ inline TheoryAtoms Control::theory_atoms() const {
 
 namespace Detail {
 
-using PropagatorData = std::pair<Propagator&, AssignOnce<std::exception_ptr>&>;
+using PropagatorData = std::pair<Propagator&, AssignOnce&>;
 
 inline static bool g_init(clingo_propagate_init_t *ctl, void *pdata) {
     PropagatorData &data = *static_cast<PropagatorData*>(pdata);
@@ -4702,7 +4706,7 @@ inline void parse_program(char const *program, StatementCallback cb, Logger logg
     }, &data, [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
         catch (...) { }
-    }, &logger, message_limit), &data.second);
+    }, &logger, message_limit), data.second);
 }
 
 // }}}2
