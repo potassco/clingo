@@ -2147,6 +2147,37 @@ inline void handle_error(bool ret, std::exception_ptr &exc) {
     }
 }
 
+enum class AssignState { Unassigned=0, Writing=1, Assigned=2 };
+
+class AssignOnce {
+public:
+    AssignOnce &operator=(std::exception_ptr x) {
+        auto ua = AssignState::Unassigned;
+        if (state_.compare_exchange_strong(ua, AssignState::Writing)) {
+            val_ = x;
+            state_ = AssignState::Assigned;
+        }
+        return *this;
+    }
+    std::exception_ptr &operator*() {
+        static std::exception_ptr null = nullptr;
+        // NOTE: this is not necessarily the exception that caused the search to stop
+        //       but just the first that has been set
+        return state_ == AssignState::Assigned ? val_ : null;
+    }
+    void reset() {
+        state_ = AssignState::Unassigned;
+        val_ = nullptr;
+    }
+private:
+    std::atomic<AssignState> state_;
+    std::exception_ptr val_ = nullptr;
+};
+
+inline void handle_error(bool ret, AssignOnce &exc) {
+    if (!ret) { handle_error(ret, *exc); }
+}
+
 inline void handle_cxx_error() {
     try { throw; }
     catch (std::bad_alloc const &e)     { clingo_set_error(clingo_error_bad_alloc, e.what()); return; }
@@ -2707,29 +2738,6 @@ inline ModelType Model::type() const {
 
 namespace Detail {
 
-class AssignOnce {
-public:
-    AssignOnce &operator=(std::exception_ptr x) {
-        if (!set_.test_and_set()) { val_ = x; }
-        return *this;
-    }
-    std::exception_ptr &operator*() {
-        // TODO: check if this really works
-        //       this is not necessarily the exception that caused the search to stop but just the first that has been set
-        //       it should be no problem to just get one exception if multiple exceptions have been raised in a callback
-        //       one further caveat: if a solve handle function fails with a non-callback related error and there are
-        //                           still threads that set the error here, then bad things can happen
-        return val_;
-    }
-    void reset() {
-        set_.clear();
-        val_ = nullptr;
-    }
-private:
-    std::exception_ptr val_ = nullptr;
-    std::atomic_flag set_ = ATOMIC_FLAG_INIT;
-};
-
 } // namespace Detail
 
 inline SolveHandle::SolveHandle()
@@ -2750,18 +2758,18 @@ inline SolveHandle &SolveHandle::operator=(SolveHandle &&it) {
 }
 
 inline void SolveHandle::resume() {
-    if (iter_) { Detail::handle_error(clingo_solve_handle_resume(iter_), *data_->exception); }
+    if (iter_) { Detail::handle_error(clingo_solve_handle_resume(iter_), data_->exception); }
 }
 
 inline bool SolveHandle::wait(double timeout) {
     bool res = true;
-    if (iter_) { Detail::handle_error(clingo_solve_handle_wait(iter_, timeout, &res), *data_->exception); }
+    if (iter_) { Detail::handle_error(clingo_solve_handle_wait(iter_, timeout, &res), data_->exception); }
     return res;
 }
 
 inline Model SolveHandle::model() {
     clingo_model_t *m = nullptr;
-    if (iter_) { Detail::handle_error(clingo_solve_handle_model(iter_, &m), *data_->exception); }
+    if (iter_) { Detail::handle_error(clingo_solve_handle_model(iter_, &m), data_->exception); }
     return Model{m};
 }
 
@@ -2772,14 +2780,14 @@ inline Model SolveHandle::next() {
 
 inline SolveResult SolveHandle::get() {
     clingo_solve_result_bitset_t ret = 0;
-    if (iter_) { Detail::handle_error(clingo_solve_handle_get(iter_, &ret), *data_->exception); }
+    if (iter_) { Detail::handle_error(clingo_solve_handle_get(iter_, &ret), data_->exception); }
     return SolveResult{ret};
 }
 
 inline void SolveHandle::close() {
     // fix this one
     if (iter_) {
-        Detail::handle_error(clingo_solve_handle_close(iter_), *data_->exception);
+        Detail::handle_error(clingo_solve_handle_close(iter_), data_->exception);
         iter_ = nullptr;
         data_ = nullptr;
     }
