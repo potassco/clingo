@@ -19,8 +19,8 @@ To additionally optimize variable `bound`, pass `dlO.lp` to clingo instead:
 
 Finding all solutions for the flow shop problem:
 
-    $ clingo 0 dl.lp fsE.lp fsO.lp
+    $ clingo 0 dl.lp fsE.lp fsI.lp
 
 Finding an optimal solution for the flow shop problem:
 
-    $ clingo dlO.lp fsE.lp fsO.lp
+    $ clingo dlO.lp fsE.lp fsI.lp
