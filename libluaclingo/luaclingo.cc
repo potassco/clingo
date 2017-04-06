@@ -3205,6 +3205,9 @@ extern "C" int clingo_init_lua_(lua_State *L) {
 }
 
 extern "C" bool clingo_register_lua_(lua_State *L) {
+    auto strip_lua = [](char const *str) {
+        return strncmp("Lua ", str, 4) == 0 ? str + 4 : str;
+    };
     try {
         clingo_script_t_ script = {
             LuaScriptC::execute,
@@ -3212,7 +3215,7 @@ extern "C" bool clingo_register_lua_(lua_State *L) {
             LuaScriptC::callable,
             LuaScriptC::main,
             LuaScriptC::free,
-            LUA_RELEASE
+            strip_lua(LUA_RELEASE),
         };
         return clingo_register_script_(clingo_ast_script_type_lua, &script, new LuaScriptC(L));
     }
