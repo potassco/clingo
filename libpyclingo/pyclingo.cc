@@ -5903,21 +5903,26 @@ Starts a search.
 Keyword Arguments:
 on_model    -- optional callback for intercepting models
                a Model object is passed to the callback
+               (Default: None)
 on_finish   -- optional callback called once search has finished
                a SolveResult and a Boolean indicating whether the solve call
                has been canceled is passed to the callback
+               (Default: None)
 assumptions -- list of (atom, boolean) tuples that serve as assumptions for
                the solve call, e.g. - solving under assumptions [(Function("a"),
                True)] only admits answer sets that contain atom a
+               (Default: [])
 yield_      -- The resulting SolveHandle is iterable yielding Model objects.
+               (Default: False)
 async       -- The solve call and SolveHandle.resume() are non-blocking.
+               (Default: False)
 
 If neither yield_ nor async is set, the function returns a SolveResult reight
 away.
 
 Note that in gringo or in clingo with lparse or text output enabled this
-function just grounds and returns a SolveResult where
-SolveResult.satisfiability() is None.
+function just grounds and returns a SolveResult where SolveResult.satisfiable
+is True.
 
 You might want to start clingo using the --outf=3 option to disable all output
 from clingo.
@@ -5972,7 +5977,8 @@ def main(prg):
     prg.add("p", "{a;b;c}.")
     prg.ground([("base", [])])
     with prg.solve(on_model=on_model, on_finish=on_finish, async=True) as handle:
-        # do something asynchronously
+        while not handle.wait(0):
+            # do something asynchronously
         print(handle.get())
 
 #end.)"},
@@ -6052,7 +6058,8 @@ observer -- the observer to register
 
 Keyword Arguments:
 replace  -- if set to true, the output is just passed to the observer and no
-            longer to the underlying solver (Default: False)
+            longer to the underlying solver
+            (Default: False)
 
 An observer should be a class of the form below. Not all functions have to be
 implemented and can be ommited if not needed.
@@ -6724,7 +6731,7 @@ name -- the name of the function (empty for tuples)
 Keyword Arguments:
 arguments -- the arguments in form of a list of symbols
 positive  -- the sign of the function (tuples must not have signs)
-            (Default: True)
+             (Default: True)
 
 This includes constants and tuples. Constants have an empty argument list and
 tuples have an empty name. Functions can represent classically negated atoms.
