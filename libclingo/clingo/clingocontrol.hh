@@ -251,7 +251,7 @@ public:
     void useEnumAssumption(bool enable) override;
     bool useEnumAssumption() override;
     void cleanupDomains() override;
-    USolveFuture solveRefactored(Assumptions &&ass, clingo_solve_mode_bitset_t mode, USolveEventHandler cb) override;
+    USolveFuture solve(Assumptions &&ass, clingo_solve_mode_bitset_t mode, USolveEventHandler cb) override;
     Output::DomainData const &theory() const override { return out_->data; }
     void registerPropagator(UProp p, bool sequential) override;
     void interrupt() override;

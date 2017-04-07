@@ -182,7 +182,7 @@ struct IncrementalControl : Control {
         parse();
     }
     bool blocked() override { return false; }
-    USolveFuture solveRefactored(Assumptions &&ass, clingo_solve_mode_bitset_t, USolveEventHandler cb) override {
+    USolveFuture solve(Assumptions &&ass, clingo_solve_mode_bitset_t, USolveEventHandler cb) override {
         out.assume(std::move(ass));
         grounded = false;
         out.endStep(true, logger_);
@@ -378,7 +378,7 @@ struct GringoApp : public Potassco::Application {
             parts.emplace_back("base", SymVec{});
             inc.incremental_ = false;
             inc.ground(parts, nullptr);
-            inc.solveRefactored({}, 0, nullptr)->get();
+            inc.solve({}, 0, nullptr)->get();
         }
     }
 

@@ -256,7 +256,7 @@ void ClingoControl::main() {
         Control::GroundVec parts;
         parts.emplace_back("base", SymVec{});
         ground(parts, nullptr);
-        solveRefactored({}, 0, nullptr)->get();
+        solve({}, 0, nullptr)->get();
     }
 }
 bool ClingoControl::onModel(Clasp::Model const &m) {
@@ -342,7 +342,7 @@ unsigned ClingoControl::getRootKey() {
 ConfigProxy &ClingoControl::getConf() {
     return *this;
 }
-USolveFuture ClingoControl::solveRefactored(Assumptions &&ass, clingo_solve_mode_bitset_t mode, USolveEventHandler cb) {
+USolveFuture ClingoControl::solve(Assumptions &&ass, clingo_solve_mode_bitset_t mode, USolveEventHandler cb) {
     prepare(std::move(ass));
     if (clingoMode_) {
         static_assert(clingo_solve_mode_yield == static_cast<clingo_solve_mode_bitset_t>(Clasp::SolveMode_t::Yield), "");

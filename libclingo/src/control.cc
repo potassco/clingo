@@ -1134,7 +1134,7 @@ private:
 } // namespace
 
 extern "C" bool clingo_control_solve(clingo_control_t *control, clingo_solve_mode_bitset_t mode, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_event_callback_t notify, void *data, clingo_solve_handle_t **handle) {
-    GRINGO_CLINGO_TRY { *handle = static_cast<clingo_solve_handle_t*>(control->solveRefactored(
+    GRINGO_CLINGO_TRY { *handle = static_cast<clingo_solve_handle_t*>(control->solve(
         toAss(assumptions, assumptions_size),
         mode,
         notify ? gringo_make_unique<ClingoSolveEventHandler>(notify, data) : nullptr
