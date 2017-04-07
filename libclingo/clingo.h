@@ -702,10 +702,10 @@ typedef unsigned clingo_solve_result_bitset_t;
 //! ## Code ##
 
 //! @defgroup SolveHandle Solving
-//! Solving can be started both synchronously and asynchronously.
+//! Interact with a running search.
 //!
-//! A ::clingo_solve_handle_t objects can be used for both synchronousy and asynchronous search.
-//! Depending on which mode has been chosen some of the functions are blocking or non-blocking.
+//! A ::clingo_solve_handle_t objects can be used for both synchronous and asynchronous search,
+//! as well as iteratively receiving models and solve results.
 //!
 //! For an example showing how to solve asynchronously, see @ref solve-async.c.
 //! @ingroup Control
@@ -726,10 +726,10 @@ enum clingo_solve_event_type {
     clingo_solve_event_type_model  = 0, //!< Issued if a model is found.
     clingo_solve_event_type_finish = 1, //!< Issued if the search has completed.
 };
-//! Corresponding type to ::clingo_solve_event_t.
+//! Corresponding type to ::clingo_solve_event_type.
 typedef unsigned clingo_solve_event_type_t;
 
-//! Callback function called during search to notify when the seach is finished or a model is ready.
+//! Callback function called during search to notify when the search is finished or a model is ready.
 //!
 //! If a (non-recoverable) clingo API function fails in this callback, it must return false.
 //! In case of errors not related to clingo, set error code ::clingo_error_unknown and return false to stop solving with an error.
@@ -749,9 +749,11 @@ typedef bool (*clingo_solve_event_callback_t) (clingo_solve_event_type_t type, v
 //! @see clingo_control_solve()
 typedef struct clingo_solve_handle clingo_solve_handle_t;
 
-//! Get the solve result.
+//! Get the next solve result.
 //!
-//! Blocks until the search is completed.
+//! Blocks until the result is ready.
+//! When yielding partial solve results can be obtained, i.e.,
+//! when a model is ready, the result will be satisfiable but neither the search exhausted nor the optimality proven.
 //!
 //! @param[in] handle the target
 //! @param[out] result the solve result
@@ -759,10 +761,9 @@ typedef struct clingo_solve_handle clingo_solve_handle_t;
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_solve_result_bitset_t *result);
-//! Wait for the specified amount of time to check if the search has finished.
+//! Wait for the specified amount of time to check if the next result is ready.
 //!
-//! If the time is set to zero, this function can be used to poll if the search
-//! is still active.
+//! If the time is set to zero, this function can be used to poll if the search is still active.
 //!
 //! @param[in] handle the target
 //! @param[in] timeout the maximum time to wait
@@ -781,8 +782,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_wait(clingo_solve_handle_t *h
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t **model);
 //! Discards the last model and starts the search for the next one.
 //!
-//! If the search has been started asynchronously, this function also starts the search in the background.
-//! An event handler can be registered to @link clingo_solve_handle_notify() receive notifications@endlink about the progress of the search.
+//! If the search has been started asynchronously, this function continues the search in the background.
+//!
+//! @note This function does not block.
 //!
 //! @param[in] handle the target
 //! @return whether the call was successful; might set one of the following error codes:
@@ -798,8 +800,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_resume(clingo_solve_handle_t 
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_cancel(clingo_solve_handle_t *handle);
 //! Stops the running search and releases the handle.
 //!
-//! Blocks until the search is stopped (as if an implicit cancel was called
-//! before the handle is released).
+//! Blocks until the search is stopped (as if an implicit cancel was called before the handle is released).
 //!
 //! @param[in] handle the target
 //! @return whether the call was successful; might set one of the following error codes:
@@ -3046,7 +3047,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, 
 
 //! Solve the currently @link ::clingo_control_ground grounded @endlink logic program enumerating its models.
 //!
-//! See the @ref Solving module for more information.
+//! See the @ref SolveHandle module for more information.
 //!
 //! @param[in] control the target
 //! @param[in] mode configures the search mode
