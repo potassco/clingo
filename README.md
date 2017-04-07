@@ -6,7 +6,7 @@ describe combinatorial problems as *logic programs*.  The *clingo* system then
 takes such a logic program and computes *answer sets* representing solutions to
 the given problem.  To get an idea, check our [Getting
 Started](https://potassco.org/doc/start/) page and the [online
-version](https://potassco.org/run/) of clingo.
+version](https://potassco.org/clingo/run/) of clingo.
 
 Please consult the following resources for further information:
 
@@ -14,4 +14,5 @@ Please consult the following resources for further information:
   - [Changes between releases](CHANGES.md)
   - [Installation and software requirements](INSTALL.md)
   - [Documentation](http://sourceforge.net/projects/potassco/files/guide/)
+  - [Potassco clingo page](https://potassco.org/clingo/run/)
 
