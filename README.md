@@ -1,28 +1,14 @@
-Gringo is a grounder that, given an input program with first-order variables,
-computes an equivalent ground (variable-free) program. Its output can be
-processed further with answer set solver clasp. Starting with gringo series 5,
-its output is no longer compatible with solvers like smodels or cmodels reading
-smodels format.
+# Clingo: A grounder and solver for logic programs
 
-Clingo combines both gringo and clasp into a monolithic system. This way it
-offers more control over the grounding and solving process than gringo and
-clasp can offer individually: multi-shot solving.
-
-The Python and Lua clingo modules offer the functionality of clingo in the
-respective scripting language.
-
-Reify is a small utility that reifies logic programs given in aspif format.
-It produces a set of facts, which can be processed further with gringo.
-
-Lpconvert is a converter between gringo's aspif and smodels format.
+*Answer Set Programming* (ASP) offers a simple and powerful modeling language
+to describe combinatorial problems as *logic programs*.  The *clingo* system
+then takes such a logic program and computes *answer sets* representing
+solutions to the given problem.  To get an idea, check our [Getting
+Started](https://potassco.org/doc/start/) page.
 
 Please consult the following resources for further information:
 
-  - CHANGES:  changes between different releases
-  - INSTALL:  installation instructions and software requirements
-  - examples: a folder with examples each having a focus on certain features
-              (many examples require clingo)
-
-For more information please visit the project website:
-
-  http://potassco.org
+  - [Downloading source and binary releases](https://github.com/potassco/clingo/releases)
+  - [Installation and software requirements](INSTALL.md)
+  - [Changes between releases](CHANGES.md)
+  - [The Potassco website](https://potassco.org)

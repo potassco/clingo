@@ -1,17 +1,19 @@
-clingo 5.2
+# Changes
+
+## clingo 5.2
   * fix cleanup function
-clingo 5.1.1
+## clingo 5.1.1
   * fix thread id to start with one in propagator.undo in lua
   * fix version macro in clingo.h
   * fix added missing methods to get thread id to model in lua/python
-  * fix child_key property in python ast
-clingo 5.1.0
+  * fix child\_key property in python ast
+## clingo 5.1.0
   * update to clasp 3.2.1
   * add interface to add variables during propagation
   * add interface to inspect ground rules (C/C++ only)
   * add experimental interface to access clasp facade (C/C++ only)
   * fixed smodels output (--output=smodels)
-clingo 5.0.0
+## clingo 5.0.0
   * cleanup of python and lua API (breaks backwards compatibility)
   * added new aspif output format replacing the old smodels format
   * added input language support for clasp features
@@ -25,7 +27,7 @@ clingo 5.0.0
   * added support for compilation with Visual Studio 2015
   * improved data structures to reduce memory consumption on typical input
   * updated to clasp version 3.2.0 + patches
-gringo/clingo 4.5.4
+## gringo/clingo 4.5.4
   * fixed bug when creating multiple Control objects
     (affects lua only)
   * fixed bug when trying to configure more solvers than in portfolio
@@ -33,25 +35,25 @@ gringo/clingo 4.5.4
   * fixed #disjoint constraints
   * improved build scripts
   * added option to keep facts in normal rules
-gringo/clingo 4.5.3
+## gringo/clingo 4.5.3
   * fixed regression w.r.t gringo 4.4 in translation of conditional literals
   * fixed projection in incremental programs
   * fixed bug with (double) negative literals in minimize constraints
-gringo/clingo 4.5.2
+## gringo/clingo 4.5.2
   * fixed memory leak in python API when enumerating models
   * updated to clasp version 3.1.3
-gringo/clingo 4.5.1
+## gringo/clingo 4.5.1
   * ground term parser returns None/nil for undefined terms now
   * added warning if a global variable occurs in a tuple of an aggregate element
   * added auto detection of libraries
-  * changed option --update-domains into API function Control:cleanup_domains
+  * changed option --update-domains into API function Control:cleanup\_domains
   * fixed domain cleanup when used with minimize constraints
   * fixed grounding of recursive disjunctions (regression in 4.5.0)
   * fixed Control.stats in lua bindings
   * fixed a bug in clingo that would print 0-ary classically negated atoms wrongly
-gringo/clingo 4.5.0
+## gringo/clingo 4.5.0
   * fixed grounding of recursive aggregates
-  * fixed usage of lua_next
+  * fixed usage of lua\_next
   * fixed bug when applying constant definitions
   * updated underlying clasp to version 3.1.1
   * added support for negation in front of relation literals
@@ -72,7 +74,7 @@ gringo/clingo 4.5.0
   * changed handling of ==, it is treated like = now
   * changed SolveFuture.interrupt to SolveFuture.cancel
     (breaks backwards compatibility)
-gringo/clingo 4.4.0
+## gringo/clingo 4.4.0
   * updated underlying clasp to version 3.1.0
     * this version brings numerous fixes regarding incremental solving
   * scripting API changes
@@ -93,7 +95,7 @@ gringo/clingo 4.4.0
   * rules with fact heads where not simplified in all cases
   * fixed grounding of recursive aggregates
   * fixed translation of aggregates with multiple guards
-gringo/clingo 4.3.0
+## gringo/clingo 4.3.0
   * fixed bug with incremental parameters in minimize constraints
   * fixed handling of empty tuples
   * fixed translation of conditional literals
@@ -105,7 +107,7 @@ gringo/clingo 4.3.0
   * improved handling of conditional literals
   * added method to get optimization values of model in scripting language
   * clingo uses clasp 3.0 now
-gringo/clingo 4.2.1
+## gringo/clingo 4.2.1
   * fixed bug in simplification of aggregates
   * fixed bug with raw strings in macros
   * fixed compilation issues with older glibc versions
@@ -115,7 +117,7 @@ gringo/clingo 4.2.1
     * fixed incremental optimization
     * fixed cleanup up of learnt constraints during incremental solving
   * workaround for libstdc++'s bad choice for hash<uint64_t> on 32bit arches
-gringo/clingo 4.2
+## gringo/clingo 4.2
   * added clingo 
     * supports very flexible scripting support
     * can cover iclingo and oclingo functionality now
@@ -133,7 +135,7 @@ gringo/clingo 4.2
   * fixed show statements for CSP variables (condition was ignored)
   * fixed plain text output of body aggregates
   * added a ton of new bugs
-gringo 4.1
+## gringo 4.1
   * added scripting languages python and lua
   * added -c option to define constants
   * added constraints over integer variables
