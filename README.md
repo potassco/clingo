@@ -10,9 +10,9 @@ version](https://potassco.org/clingo/run/) of clingo.
 
 Please consult the following resources for further information:
 
-  - [Downloading source and binary releases](https://github.com/potassco/clingo/releases)
+  - [**Downloading source and binary releases**](https://github.com/potassco/clingo/releases)
+  - [**Installation and software requirements**](INSTALL.md)
   - [Changes between releases](CHANGES.md)
-  - [Installation and software requirements](INSTALL.md)
   - [Documentation](http://sourceforge.net/projects/potassco/files/guide/)
   - [Potassco clingo page](https://potassco.org/clingo/run/)
 
