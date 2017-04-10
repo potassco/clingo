@@ -1,7 +1,5 @@
 enable_testing()
 
-find_program(CLINGO_PYTHON_EXE NAMES "python")
-
 if (PYTHON_EXECUTABLE)
     if (CLASP_BUILD_WITH_THREADS)
         set(solver-options "-t8")
