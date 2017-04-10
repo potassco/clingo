@@ -1209,10 +1209,11 @@ TEST_CASE("input-nongroundprogrambuilder", "[input]") {
     }
 
     SECTION("include") {
-#ifndef _MSC_VER
-        std::ofstream("/tmp/test_include.lp") << "b.\n";
-        REQUIRE("#program base().\na.\nb.\n#program base().\nc.\nd." == parse("a.\n#include \"/tmp/test_include.lp\".\nc.\nd.\n"));
-#endif
+        struct Del {
+            Del()  { std::ofstream("test_include.lp") << "b.\n"; }
+            ~Del() { std::remove("test_include.lp"); }
+        } del;
+        REQUIRE("#program base().\na.\nb.\n#program base().\nc.\nd." == parse("a.\n#include \"test_include.lp\".\nc.\nd.\n"));
     }
 
     SECTION("csp") {
