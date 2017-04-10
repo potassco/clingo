@@ -135,8 +135,8 @@ few:
 - the [Developer
   Toolset](https://wiki.centos.org/SpecialInterestGroup/SCLo/CollectionsList)
   for CentOS
-- the [Cygwin Ports](http://cygwinports.org/) when using
-  [Cygwin](http://cygwin.org) under Windows
+- the [Cygwin](http://cygwin.org) project under Windows (re2c must be compiled
+  by hand)
 - both [Homebrew](https://brew.sh/) and [MacPorts](https://www.macports.org/)
   provide all the software necessary to compile clingo
 
