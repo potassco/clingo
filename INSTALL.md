@@ -42,10 +42,8 @@
 To build gringo, clingo, and reify in their default configurations in release
 mode, run:
 
-    mkdir <BUILD_DIR>
-    cd <BUILD_DIR>
-    cmake <SOURCE_DIR> -DCMAKE_BUILD_TYPE=Release
-    make
+    cmake -H<SOURCE_DIR> -B<BUILD_DIR> -DCMAKE_BUILD_TYPE=Release
+    cmake --build <BUILD_DIR>
 
 The resulting binaries and shared libraries will be in `<BUILD_DIR>/bin` and
 are ready to use.
@@ -53,11 +51,12 @@ are ready to use.
 To install all binaries and development files under cmake's install
 prefix (see the [build options](#build-options)), run:
 
-    make install
+    cmake --build <BUILD_DIR> --target install
 
-To run the tests, enable option `CLINGO_BUILD_TESTS` (see [build options](#build-options)) and run:
+To run the tests, enable option `CLINGO_BUILD_TESTS` (see [build
+options](#build-options)) and run:
 
-    make test
+    cmake --build <BUILD_DIR> --target test
 
 ## Build Options
 
@@ -69,6 +68,12 @@ cmake on the command line using `-D<VARIABLE>=<VALUE>` or by editing
 
 The build scripts by default try to detect optional dependencies, like Python
 and Lua scripting support.
+
+Clingo uses [libpotassco](https://github.com/potassco/libpotassco) and
+[clasp](https://github.com/potassco/potassco).  Both components have their own
+sets of configuration variables:
+- [building libpotassco](https://github.com/potassco/libpotassco#installation)
+- [building clasp](https://github.com/potassco/clasp#building--installing)
 
 In the following, the most important options to control the build are listed.
 
@@ -125,8 +130,8 @@ After installing the required packages clingo should compile on most \*nixes.
 If a dependency is missing or a software version too old, then there are
 typically community repositories that provide the necessary packages. To list a
 few:
-- the [ToolChain](https://wiki.ubuntu.com/ToolChain) for Ubuntu 14.04 and
-  earlier (later versions should include all required packages)
+- the [ToolChain](https://wiki.ubuntu.com/ToolChain) repository for Ubuntu
+  14.04 and earlier (later versions should include all required packages)
 - the [Developer
   Toolset](https://wiki.centos.org/SpecialInterestGroup/SCLo/CollectionsList)
   for CentOS
