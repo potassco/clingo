@@ -243,7 +243,7 @@ class Variant {
     using Holder = Detail::VariantHolder<1, T...>;
 public:
     Variant(Variant const &other) : Variant(other.data_) { }
-    Variant(Variant &&other)      { data_.swap(other.data_); }
+    Variant(Variant &&other) noexcept { data_.swap(other.data_); }
     template <class U>
     Variant(U &&u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type * = nullptr) { emplace2<U>(std::forward<U>(u)); }
     template <class U>
@@ -258,7 +258,7 @@ public:
     }
     ~Variant() { data_.destroy(); }
     Variant &operator=(Variant const &other) { return *this = other.data_; }
-    Variant &operator=(Variant &&other) { return *this = std::move(other.data_); }
+    Variant &operator=(Variant &&other) noexcept { return *this = std::move(other.data_); }
     template <class U>
     typename std::enable_if<Detail::TypeInList<U, T...>::value, Variant>::type &operator=(U &&u) {
         emplace2<U>(std::forward<U>(u));
@@ -316,7 +316,7 @@ private:
         data_.swap(x.data_);
         return *this;
     }
-    Variant &operator=(Holder &&data) {
+    Variant &operator=(Holder &&data) noexcept {
         Holder x;
         x.swap(data);
         // Destroy the old data_ only after securing the new data
