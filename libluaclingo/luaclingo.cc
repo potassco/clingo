@@ -1481,6 +1481,8 @@ struct SolveHandle : Object<SolveHandle> {
     static SolveHandle *new_(lua_State *L) {
         lua_newtable(L);                         // +1
         auto *self = (SolveHandle*)lua_newuserdata(L, sizeof(SolveHandle)); // +1
+        luaL_getmetatable(L, typeNameI);         // +1
+        lua_setmetatable(L, -2);                 // +1
         lua_rawseti(L, -2, 1);                   // -1
         luaL_getmetatable(L, typeName);          // +1
         lua_setmetatable(L, -2);                 // -1
@@ -1492,8 +1494,17 @@ struct SolveHandle : Object<SolveHandle> {
         self->ass = nullptr;
         return self;
     }
+    static void reg(lua_State *L) {
+        lua_regMeta(L, typeName, meta, index, newindex);
+        lua_regMeta(L, typeNameI, metaI, nullptr, nullptr);
+    }
+    static int gc(lua_State *L) {
+        return close_(L, *(SolveHandle*)lua_touserdata(L, 1));
+    }
     static int close(lua_State *L) {
-        auto &self = get_self(L);
+        return close_(L, get_self(L));
+    }
+    static int close_(lua_State *L, SolveHandle &self) {
         if (self.handle) {
             auto h = self.handle;
             self.handle = nullptr;
@@ -1604,17 +1615,24 @@ struct SolveHandle : Object<SolveHandle> {
         return 1;
     }
     static luaL_Reg const meta[];
+    static luaL_Reg const metaI[];
     static constexpr char const *typeName = "clingo.SolveHandle";
+    static constexpr char const *typeNameI = "clingo._SolveHandle";
 };
 
 constexpr char const *SolveHandle::typeName;
+constexpr char const *SolveHandle::typeNameI;
+
 luaL_Reg const SolveHandle::meta[] = {
     {"iter",  iter},
     {"close", close},
-    {"__gc", close},
     {"get", get},
     {"resume", resume},
     {"cancel", cancel},
+    {nullptr, nullptr}
+};
+luaL_Reg const SolveHandle::metaI[] = {
+    {"__gc", gc},
     {nullptr, nullptr}
 };
 
@@ -2806,21 +2824,21 @@ struct ControlWrap : Object<ControlWrap> {
 
         if (handle->mode & clingo_solve_mode_async) { return luaL_error(L, "asynchronous solving not supported"); }
 
-        lua_settop(L, handleIdx);
+        lua_settop(L, handleIdx + 1);
 
         if (!lua_checkstack(L, 3)) { luaL_error(L, "lua stack size exceeded"); }
         lua_pushcfunction(L, luaTraceback);        // +1
         lua_pushcfunction(L, SolveHandle::solve_); // +1
         lua_pushvalue(L, handleIdx);               // +1
         int code = lua_pcall(L, 1, 1, -3);         // -1
-        lua_replace(L, -2);                        // -1
         if (code) {
             auto h = handle->handle;
             handle->handle = NULL;
             call_c(L, clingo_solve_handle_close, h);
         }
-        lua_replace(L, -2);                        // -1
         if (code) { lua_error(L); }
+        lua_replace(L, handleIdx);
+        lua_settop(L, handleIdx);
         return 1;
     }
     static int assign_external(lua_State *L) {
@@ -2910,16 +2928,24 @@ struct ControlWrap : Object<ControlWrap> {
     }
     template <class F>
     static int new_(lua_State *L, F f) {
-        lua_newtable(L);                                                           // +1
+        lua_newtable(L);                                                   // +1
         auto self = (ControlWrap*)lua_newuserdata(L, sizeof(ControlWrap)); // +1
-        lua_rawseti(L, -2, 1);                                                     // -1
+        // see: https://stackoverflow.com/questions/27426704/lua-5-1-workaround-for-gc-metamethod-for-tables
+        luaL_getmetatable(L, typeNameI);                                   // +1
+        lua_setmetatable(L, -2);                                           // -1
+        lua_rawseti(L, -2, 1);                                             // -1
         protect(L, [self, f]() { f(self); });
-        luaL_getmetatable(L, typeName);                                            // +1
-        lua_setmetatable(L, -2);                                                   // -1
+        luaL_getmetatable(L, typeName);                                    // +1
+        lua_setmetatable(L, -2);                                           // -1
         return 1;
     }
+    static void reg(lua_State *L) {
+        lua_regMeta(L, typeName, meta, index, newindex);
+        lua_regMeta(L, typeNameI, metaI, nullptr, nullptr);
+    }
+
     static int gc(lua_State *L) {
-        auto &self = get_self(L);
+        auto &self = *(ControlWrap*)lua_touserdata(L, 1);
         if (self.free) { clingo_control_free(self.ctl); }
         self.~ControlWrap();
         return 0;
@@ -3000,7 +3026,9 @@ struct ControlWrap : Object<ControlWrap> {
     }
 
     static luaL_Reg meta[];
+    static luaL_Reg metaI[];
     static constexpr char const *typeName = "clingo.Control";
+    static constexpr char const *typeNameI = "clingo._Control";
 };
 
 constexpr char const *ControlWrap::typeName;
@@ -3016,6 +3044,9 @@ luaL_Reg ControlWrap::meta[] = {
     {"interrupt", interrupt},
     {"register_propagator", registerPropagator},
     {"register_observer", registerObserver},
+    {nullptr, nullptr}
+};
+luaL_Reg ControlWrap::metaI[] = {
     {"__gc", gc},
     {nullptr, nullptr}
 };
