@@ -146,9 +146,10 @@ void ClingoApp::printVersion() {
     printf("Configuration: %s%s, %s%s\n",
          py_version ? "with Python " : "without Python", py_version ?  py_version : "",
         lua_version ? "with Lua "    : "without Lua",   lua_version ? lua_version : "");
-    printf("License: MIT\n");
     printf("\n");
     BaseType::printLibClaspVersion();
+	printf("\n");
+	BaseType::printLicense();
 }
 bool ClingoApp::onModel(Clasp::Solver const& s, Clasp::Model const& m) {
     bool ret = !grd || grd->onModel(m);
