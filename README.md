@@ -14,5 +14,5 @@ Please consult the following resources for further information:
   - [**Installation and software requirements**](INSTALL.md)
   - [Changes between releases](CHANGES.md)
   - [Documentation](http://sourceforge.net/projects/potassco/files/guide/)
-  - [Potassco clingo page](https://potassco.org/clingo/run/)
+  - [Potassco clingo page](https://potassco.org/clingo/)
 
