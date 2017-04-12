@@ -77,7 +77,7 @@ TEST_CASE("visitor", "[clingo]") {
 
     auto xu = VU::make<std::unique_ptr<int>>(nullptr);
     auto yu = VU::make<std::string>("s1");
-    REQUIRE(!x.get<std::unique_ptr<int>>());
+    REQUIRE(!xu.get<std::unique_ptr<int>>());
 
     xu.swap(yu);
     REQUIRE(!yu.get<std::unique_ptr<int>>());
