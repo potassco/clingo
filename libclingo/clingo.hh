@@ -97,14 +97,6 @@ struct VariantHolder<n> {
         std::swap(type_, other.type_);
         std::swap(data_, other.data_);
     }
-    template <class V>
-    typename std::enable_if<std::is_copy_constructible<V>::value>::type copy_if_possible(void *src) {
-        data_ = new V(*static_cast<V const*>(src));
-    }
-    template <class V>
-    typename std::enable_if<!std::is_copy_constructible<V>::value>::type copy_if_possible(void *) {
-        throw std::runtime_error("variant not copyable");
-    }
     unsigned type_ = 0;
     void *data_ = nullptr;
 };
@@ -131,7 +123,7 @@ struct VariantHolder<n, T, U...> : VariantHolder<n+1, U...>{
     }
     void copy(VariantHolder const &src) {
         if (src.type_ == n) {
-            Helper::template copy_if_possible<T>(src.data_);
+            data_ = new T(*static_cast<T const*>(src.data_));
             type_ = src.type_;
         }
         Helper::copy(src);
