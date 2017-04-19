@@ -18,6 +18,15 @@
   - *at least* msvc++ 14.0 ([Visual Studio](https://www.visualstudio.com/) 2015
     Update 3)
   - other compilers might work
+- the [cmake](https://www.cmake.org/) build system
+  - at least version 3.3 is recommended
+  - at least version 3.1 is *required*
+
+## Development Dependencies
+
+The following dependencies are only required when compiling a development
+branch. Releases already include the necessary generated files.
+
 - the [bison](https://www.gnu.org/software/bison/) parser generator
   - *at least* version 2.5
   - version 3.0 produces harmless warnings
@@ -25,9 +34,6 @@
 - the [re2c]() lexer generator
   - version 0.15.3 is used for development
   - the earliest tested version is 0.13.5
-- the [cmake](https://www.cmake.org/) build system
-  - at least version 3.3 is recommended
-  - at least version 3.1 is *required*
 
 ## Optional Dependencies
 

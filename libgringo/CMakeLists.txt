@@ -67,22 +67,10 @@ set(header
     ${header-group-gringo-output})
 # ]]]
 # [[[source: ./src
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/input/groundtermgrammar")
-bison_target("groundtermgrammar" "${CMAKE_CURRENT_SOURCE_DIR}/src/input/groundtermgrammar.yy" "${CMAKE_CURRENT_BINARY_DIR}/src/input/groundtermgrammar/grammar.cc")
-if(MSVC)
-    set_source_files_properties("${BISON_groundtermgrammar_OUTPUT_SOURCE}"
-        PROPERTIES COMPILE_FLAGS "/wd4267 /wd4065")
-endif()
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/input")
-re2c_target(NAME "groundtermlexer" INPUT "${CMAKE_CURRENT_SOURCE_DIR}/src/input/groundtermlexer.xh" OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/src/input/groundtermlexer.hh")
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/input/nongroundgrammar")
-bison_target("nongroundgrammar" "${CMAKE_CURRENT_SOURCE_DIR}/src/input/nongroundgrammar.yy" "${CMAKE_CURRENT_BINARY_DIR}/src/input/nongroundgrammar/grammar.cc")
-if(MSVC)
-    set_source_files_properties("${BISON_nongroundgrammar_OUTPUT_SOURCE}"
-        PROPERTIES COMPILE_FLAGS "/wd4267 /wd4065")
-endif()
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/input")
-re2c_target(NAME "nongroundlexer" INPUT "${CMAKE_CURRENT_SOURCE_DIR}/src/input/nongroundlexer.xch" OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/src/input/nongroundlexer.hh" OPTIONS -c)
+bison_target_or_gen("src/input/groundtermgrammar.yy")
+re2c_target_or_gen("/src/input/groundtermlexer.xh")
+bison_target_or_gen("src/input/nongroundgrammar.yy")
+re2c_target_or_gen("/src/input/nongroundlexer.xch")
 set(ide_source_group "Source Files")
 set(source-group
     "${CMAKE_CURRENT_SOURCE_DIR}/src/backend.cc"

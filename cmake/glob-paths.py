@@ -32,12 +32,7 @@ def find(path, target):
     ${{BISON_{name}_OUTPUTS}}
 '''.format(name=name,ext=ext,path=path)
                 output += '''\
-file(MAKE_DIRECTORY "${{CMAKE_CURRENT_BINARY_DIR}}/{path}{name}")
-bison_target("{name}" "${{CMAKE_CURRENT_SOURCE_DIR}}/{path}{name}{ext}" "${{CMAKE_CURRENT_BINARY_DIR}}/{path}{name}/grammar.cc")
-if(MSVC)
-    set_source_files_properties("${{BISON_{name}_OUTPUT_SOURCE}}"
-        PROPERTIES COMPILE_FLAGS "/wd4267 /wd4065")
-endif()
+bison_target_or_gen("{path}{name}{ext}")
 '''.format(name=name, path=path, ext=ext)
             elif re.match(r"^.*\.(xh|xch)$", filename):
                 header.setdefault(root, "")
@@ -51,8 +46,7 @@ endif()
     ${{RE2C_{name}_OUTPUT}}
 '''.format(name=name,ext=ext,path=path)
                 output += '''\
-file(MAKE_DIRECTORY "${{CMAKE_CURRENT_BINARY_DIR}}{path}")
-re2c_target(NAME "{name}" INPUT "${{CMAKE_CURRENT_SOURCE_DIR}}{path}/{name}{ext}" OUTPUT "${{CMAKE_CURRENT_BINARY_DIR}}{path}/{name}.hh"{options})
+re2c_target_or_gen("{path}/{name}{ext}")
 '''.format(name=name, path=path, ext=ext, options=options)
 
     output+= 'set(ide_{}_group "{} Files")\n'.format(target, target.title())

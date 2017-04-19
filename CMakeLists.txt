@@ -14,6 +14,7 @@ endif()
 
 include(CMakeDependentOption)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(clingo_functions)
 
 # Enable folders in IDEs like Visual Studio
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -121,8 +122,8 @@ if (CLINGO_BUILD_WITH_LUA)
         set_property(TARGET Lua::Lua PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${LUA_INCLUDE_DIR}")
     endif()
 endif()
-find_package(BISON "2.5" REQUIRED)
-find_package(RE2C REQUIRED)
+find_package(BISON "2.5")
+find_package(RE2C)
 
 if (POLICY CMP0063 AND (CLINGO_BUILD_SHARED OR PYTHONLIBS_FOUND OR LUA_FOUND))
     set(CMAKE_CXX_VISIBILITY_PRESET hidden)
