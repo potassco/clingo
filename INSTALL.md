@@ -50,8 +50,6 @@ source releases, you can skip this step):
 
     git submodule update --init --recursive
 
-
-
 To build gringo, clingo, and reify in their default configurations in release
 mode, run:
 
@@ -125,6 +123,9 @@ Python development packages are installed.
   installed in the users home directory; otherwise it is installed in the
   system's Python library directory.
   (Default: `ON`)
+- Variable `PYCLINGO_INSTALL_DIR` can be used to customize where to install the
+  python module.
+  (Default: automatically detected)
 
 ### Lua Support
 
@@ -136,6 +137,9 @@ development packages are installed.
 - If option `CLINGO_REQUIRE_LUA` is enabled, configuration will fail if no Lua
   support is detected; otherwise, Lua support will simply be disabled if not
   detected. (Default: `OFF`)
+- If variable `LUACLINGO_INSTALL_DIR` is set, the clingo lua module will be
+  installed there.
+  (Default: not set)
 
 # Troubleshooting
 
