@@ -1,7 +1,24 @@
 # Changes
 
 ## clingo 5.2
+  * switch to MIT license
+  * improve compatibility with abstract gringo
+  * switch build system from scons to cmake
+  * improve windows compatibility
+  * make tests and examples python 3 compatible
+  * bison and re2c are no longer required to build source releases
+  * update to clasp 3.3.0
+  * the CLINGOPATH environment variable can be set
+    to control from where to include files in logic programs
+  * extend interfaces
+    * add program observers
+    * propagators can add variables while solving now
+  * refactor interfaces (breaking backward compatibility)
+    * there is just one solve function now
+    * in the C API do not pass structs by value to functions
+      because ffis of some languages do not support this
   * fix cleanup function
+  * numerous other bugfixes not listed here
 ## clingo 5.1.1
   * fix thread id to start with one in propagator.undo in lua
   * fix version macro in clingo.h
