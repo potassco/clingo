@@ -45,6 +45,13 @@ branch. Releases already include the necessary generated files.
 
 # Build, Install, and Test
 
+When cloning the git repository, do not forget to update the submodules (with
+source releases, you can skip this step):
+
+    git submodule update --init --recursive
+
+
+
 To build gringo, clingo, and reify in their default configurations in release
 mode, run:
 
