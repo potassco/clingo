@@ -33,7 +33,7 @@ option(CLINGO_MANAGE_RPATH      "set rpath if not installed into system director
 
 CMAKE_DEPENDENT_OPTION(CLINGO_REQUIRE_PYTHON   "fail if python support not found" OFF "CLINGO_BUILD_WITH_PYTHON" OFF)
 CMAKE_DEPENDENT_OPTION(CLINGO_REQUIRE_LUA      "fail if lua support not found"    OFF "CLINGO_BUILD_WITH_LUA"    OFF)
-CMAKE_DEPENDENT_OPTION(CLINGO_BUILD_SHARED     "build clingo library shared"       ON "NOT CLINGO_BUILD_STATIC"  OFF)
+CMAKE_DEPENDENT_OPTION(CLINGO_BUILD_SHARED     "build clingo library shared"      ON  "NOT CLINGO_BUILD_STATIC"  OFF)
 CMAKE_DEPENDENT_OPTION(CLINGO_BUILD_PY_SHARED  "build pyclingo library shared"    OFF "NOT CLINGO_BUILD_STATIC"  OFF)
 CMAKE_DEPENDENT_OPTION(CLINGO_BUILD_LUA_SHARED "build luaclingo library shared"   OFF "NOT CLINGO_BUILD_STATIC"  OFF)
 

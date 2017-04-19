@@ -1,6 +1,4 @@
 *.swp
-.sconf_temp
-.sconsign.dblite
 build
 *.pyc
 doc
@@ -13,7 +11,6 @@ ReleaseScript
 *.vcxproj.user
 x64
 libgringo/generated
-homewv.sh
 .nfs*
 examples/clingo/pydoc/clingo.ast.html
 examples/clingo/pydoc/clingo.html

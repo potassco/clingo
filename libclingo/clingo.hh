@@ -190,7 +190,7 @@ public:
     Optional(T &&x) : data_(new T(std::move(x))) { }
     template <class... Args>
     Optional(Args&&... x) : data_(new T{std::forward<Args>(x)...}) { }
-    Optional(Optional &&opt) : data_(opt.data_.release()) { }
+    Optional(Optional &&opt) noexcept : data_(opt.data_.release()) { }
     Optional(Optional const &opt) : data_(opt ? new T(*opt.get()) : nullptr) { }
     Optional &operator=(T const &x) {
         clear();
@@ -204,7 +204,7 @@ public:
         clear();
         data_.reset(new T(std::move(x)));
     }
-    Optional &operator=(Optional &&opt) {
+    Optional &operator=(Optional &&opt) noexcept {
         data_ = std::move(opt.data_);
     }
     Optional &operator=(Optional const &opt) {

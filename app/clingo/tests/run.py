@@ -164,6 +164,18 @@ if parse_ret.action == "run":
                         if not line.startswith(" "):
                             print (line)
                     print
+                    print ("." * 79)
+                    print
+                    print ("STDOUT:")
+                    print
+                    print (out)
+                    print
+                    print ("." * 79)
+                    print
+                    print ("STDERR:")
+                    print
+                    print (err)
+                    print
                 sys.stdout.flush()
 
     print ("=" * 79)
