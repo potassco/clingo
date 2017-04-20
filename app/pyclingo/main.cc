@@ -21,7 +21,16 @@
 // IN THE SOFTWARE.
 
 // }}}
-#include "Python.h"
+
+// NOTE: the python header has a linker pragma to link with python_d.lib
+//       when _DEBUG is set which is not part of official python releases
+#if defined(_MSC_VER) && defined(_DEBUG) && !defined(CLINGO_UNDEF__DEBUG)
+#undef _DEBUG
+#include <Python.h>
+#define _DEBUG
+#else
+#include <Python.h>
+#endif
 
 #include <pyclingo.h>
 

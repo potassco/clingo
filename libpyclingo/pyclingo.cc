@@ -22,7 +22,15 @@
 
 // }}}
 
+// NOTE: the python header has a linker pragma to link with python_d.lib
+//       when _DEBUG is set which is not part of official python releases
+#if defined(_MSC_VER) && defined(_DEBUG) && !defined(CLINGO_UNDEF__DEBUG)
+#undef _DEBUG
 #include <Python.h>
+#define _DEBUG
+#else
+#include <Python.h>
+#endif
 #include "pyclingo.h"
 #include <iostream>
 #include <sstream>
@@ -51,13 +59,6 @@
 #ifndef PyVarObject_HEAD_INIT
     #define PyVarObject_HEAD_INIT(type, size) \
         PyObject_HEAD_INIT(type) size,
-#endif
-
-#ifdef COUNT_ALLOCS
-// tp_allocs, tp_frees, tp_maxalloc, tp_prev, tp_next,
-#define GRINGO_STRUCT_EXTRA 0, 0, 0, nullptr, nullptr,
-#else
-#define GRINGO_STRUCT_EXTRA
 #endif
 
 #if defined(__clang__) || defined(__GNUC__)
@@ -1138,8 +1139,19 @@ PyTypeObject ObjectBase<T>::type = {
     nullptr,                                    // tp_subclasses
     nullptr,                                    // tp_weaklist
     nullptr,                                    // tp_del
+#ifdef Py_TPFLAGS_HAVE_VERSION_TAG
     0,                                          // tp_version_tag
-    GRINGO_STRUCT_EXTRA
+#endif
+#ifdef Py_TPFLAGS_HAVE_FINALIZE
+    nullptr,                                    // tp_finalize
+#endif
+#ifdef COUNT_ALLOCS
+    0,                                          // tp_allocs
+    0,                                          // tp_frees
+    0,                                          // tp_maxalloc
+    nullptr,                                    // tp_prev
+    nullptr,                                    // tp_next
+#endif
 };
 
 template <class T>

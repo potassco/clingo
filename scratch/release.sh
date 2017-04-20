@@ -38,7 +38,7 @@ cd "release-${VERSION}"
 
 if [[ ! -e ${SRC} ]]; then
     #git clone --branch "v${VERSION}" --single-branch --depth=1 git@github.com:potassco/clingo ${SRC}
-    git clone --branch release-scripts --single-branch --depth=1 git@github.com:potassco/clingo ${SRC}
+    git clone --branch wip --single-branch --depth=1 git@github.com:potassco/clingo ${SRC}
     (cd ${SRC}; git submodule update --init --recursive)
     wget -c https://www.lua.org/ftp/lua-5.3.4.tar.gz
     tar -x --transform='s|^[^/]*|lua|' -f lua-5.3.4.tar.gz
