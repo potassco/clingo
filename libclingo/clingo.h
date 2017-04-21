@@ -764,14 +764,12 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_get(clingo_solve_handle_t *ha
 //! Wait for the specified amount of time to check if the next result is ready.
 //!
 //! If the time is set to zero, this function can be used to poll if the search is still active.
+//! If the time is negative, the function blocks until the search is finished.
 //!
 //! @param[in] handle the target
 //! @param[in] timeout the maximum time to wait
 //! @param[out] result whether the search has finished
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result);
+CLINGO_VISIBILITY_DEFAULT void clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result);
 //! Get the next model (or zero if there are no more models).
 //!
 //! @param[in] handle the target

@@ -1121,6 +1121,7 @@ public:
     SolveHandle &operator=(SolveHandle const &) = delete;
     clingo_solve_handle_t *to_c() const { return iter_; }
     void resume();
+    void wait();
     bool wait(double timeout);
     Model model();
     Model next();
@@ -2748,9 +2749,13 @@ inline void SolveHandle::resume() {
     Detail::handle_error(clingo_solve_handle_resume(iter_), *exception_);
 }
 
+inline void SolveHandle::wait() {
+    (void)wait(-1);
+}
+
 inline bool SolveHandle::wait(double timeout) {
     bool res = true;
-    Detail::handle_error(clingo_solve_handle_wait(iter_, timeout, &res), *exception_);
+    clingo_solve_handle_wait(iter_, timeout, &res);
     return res;
 }
 

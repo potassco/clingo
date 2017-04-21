@@ -2193,21 +2193,12 @@ See Control.solve() for an example.)";
     Object wait(Reference args) {
         Reference timeout = Py_None;
         ParseTuple(args, "|O", timeout);
-        if (timeout.none()) {
-            doUnblocked([this](){
-                clingo_solve_result_bitset_t ret;
-                handle_c_error(clingo_solve_handle_get(handle, &ret));
-            });
-            Py_RETURN_TRUE;
-        }
-        else {
-            auto time = pyToCpp<double>(timeout);
-            return cppToPy(doUnblocked([this, time](){
-                bool ret;
-                handle_c_error(clingo_solve_handle_wait(handle, time, &ret));
-                return ret;
-            }));
-        }
+        auto time = timeout.none() ? -1 : pyToCpp<double>(timeout);
+        return cppToPy(doUnblocked([this, time](){
+            bool ret;
+            clingo_solve_handle_wait(handle, time, &ret);
+            return ret;
+        }));
     }
 
     Object resume() {

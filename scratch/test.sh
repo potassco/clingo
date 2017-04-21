@@ -19,9 +19,10 @@ EOF
     done
 }
 cd "$(dirname "$0")"/../examples
-clingo=$(realpath ../build/release/bin/clingo)
-export python=python
-export PYTHONPATH=$(realpath ../build/release/bin/python)
+target=${target-release}
+clingo=$(realpath ../build/${target}/bin/clingo)
+python=python
+export PYTHONPATH=$(realpath ../build/${target}/bin/python)
 
 check clingo/addclause "${clingo}" addclause-py.lp 0
 check clingo/addclause "${clingo}" addclause-lua.lp 0

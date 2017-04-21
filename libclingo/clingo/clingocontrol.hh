@@ -358,7 +358,6 @@ public:
 
     SolveResult  get()  override;
     Model const *model() override;
-    void wait() override;
     bool wait(double timeout) override;
     void resume() override;
     void cancel() override;

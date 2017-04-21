@@ -625,11 +625,10 @@ Model const *ClingoSolveFuture::model() {
     }
     else { return nullptr; }
 }
-void ClingoSolveFuture::wait() {
-    handle_.wait();
-}
 bool ClingoSolveFuture::wait(double timeout) {
-    return timeout == 0 ? handle_.ready() : handle_.waitFor(timeout);
+    if (timeout == 0)      { return handle_.ready(); }
+    else if (timeout < 0)  { return handle_.wait(), true; }
+    else                   { return handle_.waitFor(timeout); }
 }
 void ClingoSolveFuture::cancel() {
     handle_.cancel();

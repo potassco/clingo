@@ -987,9 +987,9 @@ extern "C" bool clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_so
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result) {
-    GRINGO_CLINGO_TRY { *result = handle->wait(timeout); }
-    GRINGO_CLINGO_CATCH;
+extern "C" void clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result) {
+    try { *result = handle->wait(timeout); }
+    catch (...) { std::terminate(); }
 }
 extern "C" bool clingo_solve_handle_cancel(clingo_solve_handle_t *handle) {
     GRINGO_CLINGO_TRY { handle->cancel(); }

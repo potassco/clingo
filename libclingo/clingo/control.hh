@@ -121,7 +121,6 @@ inline void SolveEventHandler::on_finish(SolveResult) { };
 struct SolveFuture {
     virtual SolveResult get() = 0;
     virtual Model const *model() = 0;
-    virtual void wait() = 0;
     virtual bool wait(double timeout) = 0;
     virtual void cancel() = 0;
     virtual void resume() = 0;
@@ -133,7 +132,6 @@ struct DefaultSolveFuture : SolveFuture {
     DefaultSolveFuture(USolveEventHandler cb) : cb_(std::move(cb)) { }
     SolveResult get() override { resume(); return {SolveResult::Unknown, false, false}; }
     Model const *model() override { resume(); return nullptr; }
-    void wait() override { resume(); }
     bool wait(double) override { resume(); return true; }
     void cancel() override { resume(); }
     void resume() override {
