@@ -1,6 +1,7 @@
 # Table of Contents
 
 - [Requirements](#requirements)
+  - [Development Dependencies](#development-dependencies)
   - [Optional Dependencies](#optional-dependencies)
 - [Build, Install, and Test](#build-install-and-test)
   - [Build Options](#build-options)
@@ -37,9 +38,9 @@ branch. Releases already include the necessary generated files.
 
 ## Optional Dependencies
 
-- the [Python](https://www.python.org/) script language (optional)
+- the [Python](https://www.python.org/) script language
   - version 2.7 is tested
-- the [Lua](https://www.lua.org/) script language (optional)
+- the [Lua](https://www.lua.org/) script language
   - version 5.1 is used for development
   - version 5.2 and 5.3 should work
 
