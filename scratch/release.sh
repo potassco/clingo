@@ -50,7 +50,6 @@ fi
 (setopt NULL_GLOB; rm -rf ${SRC}/{.ycm_extra_conf.py*,.travis.yml,.git*,scratch,TODO,Makefile})
 
 function copy_files() {
-    mkdir -p "${3}"
     for x in gringo clingo reify clasp lpconvert; do
         scp -p "${2}:${TEMP}/build/bin/${EXTRA}${x}${EXT}" "${3}/${x}${EXT}"
         chmod +x "${3}/${x}${EXT}"
@@ -70,7 +69,7 @@ function copy_files() {
         chmod +x "${3}/c-api/lib/${LIBSUF}clingo${LIBEXT}"
         scp -p "${2}:${TEMP}/source/libclingo/"{clingo.h,clingo.hh} "${3}/c-api/include/"
     fi
-    scp -rp "${SRC}/"{CHANGES.md,LICENSE.md,README.md,examples} "${3}"
+    scp -rp "${SRC}/"{CHANGES.md,LICENSE.md,examples} "${3}"
     (setopt NULL_GLOB; rm -rf "${3}"/**/CMakeLists.txt)
     for x in "${RSYNC[@]}"; do
         rm -rf "${3}"/**/"$x"
@@ -83,7 +82,8 @@ function copy_files() {
 }
 
 function update_readme() {
-    sed -i '/INSTALL\.md/d' "$1"
+    mkdir -p "$(dirname "$1")"
+    sed '/INSTALL\.md/d' "${SRC}/README.md" > "$1"
     echo >> "$1"
     cat >> "$1"
 }
@@ -111,7 +111,6 @@ cmake "${TEMP}/source" -DCLINGO_REQUIRE_LUA=On -DCLINGO_BUILD_WITH_LUA=ON -DCLIN
 make -j8 VERBOSE=1
 EOF
 
-RSYNC=( cc c ) copy_files tgz "${LIN64}" "${GRINGO_LIN64}"
 update_readme "${GRINGO_LIN64}/README.md" <<"EOF"
 ## Contents of Linux Binary Release
 
@@ -125,6 +124,7 @@ compile clingo yourself.
 - `reify`: reifier for ground programs
 - `lpconvert`: translator for ground formats
 EOF
+RSYNC=( cc c ) copy_files tgz "${LIN64}" "${GRINGO_LIN64}"
 
 # {{{1 build for macos
 
@@ -168,7 +168,6 @@ EOF
 
 (
 LIBEXT=.dylib
-copy_files tgz "${MAC}" "${GRINGO_MAC}"
 update_readme "${GRINGO_MAC}/README.md" <<"EOF"
 ## Contents of MacOS Binary Release
 
@@ -189,6 +188,7 @@ additionally build with Python 2.7 support.
     [PYTHONPATH](https://docs.python.org/2/using/cmdline.html#envvar-PYTHONPATH)
     to the `python-api` directory
 EOF
+copy_files tgz "${MAC}" "${GRINGO_MAC}"
 )
 
 # {{{1 build for win64
@@ -315,7 +315,6 @@ SSH=win_ssh
 PYEXT=.pyd
 LIBSUF=
 LIBEXT=.dll
-copy_files zip "${WIN64}" "${GRINGO_WIN64}"
 update_readme "${GRINGO_WIN64}/README.md" <<"EOF"
 ## Contents of Windows Binary Release
 
@@ -345,4 +344,5 @@ https://www.python.org/ftp/python/2.7.13/python-2.7.13.amd64.msi).
     [PYTHONPATH](https://docs.python.org/2/using/cmdline.html#envvar-PYTHONPATH)
     to the `python-api` directory
 EOF
+copy_files zip "${WIN64}" "${GRINGO_WIN64}"
 )
