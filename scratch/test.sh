@@ -19,7 +19,7 @@ EOF
     done
 }
 cd "$(dirname "$0")"/../examples
-target=${target-release}
+target=${1-release}
 clingo=$(realpath ../build/${target}/bin/clingo)
 python=python
 export PYTHONPATH=$(realpath ../build/${target}/bin/python)
