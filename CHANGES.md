@@ -10,13 +10,11 @@
   * update to clasp 3.3.0
   * the CLINGOPATH environment variable can be set
     to control from where to include files in logic programs
-  * extend interfaces
-    * add program observers
-    * propagators can add variables while solving now
+  * propagators can add variables while solving now
   * refactor interfaces (breaking backward compatibility)
     * there is just one solve function now
     * in the C API do not pass structs by value to functions
-      because ffis of some languages do not support this
+      because FFIs of some languages do not support this
   * fix cleanup function
   * numerous other bugfixes not listed here
 ## clingo 5.1.1
