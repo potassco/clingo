@@ -139,7 +139,7 @@ TEST_CASE("solving", "[clingo]") {
             std::vector<std::string> keys_root;
             std::copy(conf.keys().begin(), conf.keys().end(), std::back_inserter(keys_root));
             std::sort(keys_root.begin(), keys_root.end());
-            std::vector<std::string> keys_check = { "asp", "configuration", "learn_explicit", "parse_ext", "sat_prepro", "share", "solve", "solver", "stats", "tester" };
+            std::vector<std::string> keys_check = { "asp", "configuration", "learn_explicit", "parse_ext", "parse_maxsat", "sat_prepro", "share", "solve", "solver", "stats", "tester" };
             REQUIRE(keys_root == keys_check);
             REQUIRE(conf["solve"]["models"].is_value());
             conf["solve"]["models"] = "2";
