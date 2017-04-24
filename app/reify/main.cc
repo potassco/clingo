@@ -76,8 +76,7 @@ protected:
 
     virtual void printVersion() {
         Application::printVersion();
-        printf(
-            "License: MIT\n");
+        printf("License: The MIT License <https://opensource.org/licenses/MIT>\n");
         fflush(stdout);
     }
 

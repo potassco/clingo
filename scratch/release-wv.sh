@@ -36,10 +36,12 @@ mkdir -p build/${VERSION}
 )
 
 cd /home/wv/bin/linux/64
-rm -f {clingo,gringo,reify}-{${MAJOR},${MINOR}} {clingo,gringo,reify}
+(
+    rm -f {clingo,gringo,reify}-{${MAJOR},${MINOR}} {clingo,gringo,reify}
 
-for x in clingo gringo reify; do
-    ln -s ${prefix}/${x} ${x}-${MINOR}
-    ln -s ${x}-${MINOR}  ${x}-${MAJOR}
-    ln -s ${x}-${MAJOR}  ${x}
-done
+    for x in clingo gringo reify; do
+        ln -s ${prefix}/bin/${x} ${x}-${MINOR}
+        ln -s ${x}-${MINOR}  ${x}-${MAJOR}
+        ln -s ${x}-${MAJOR}  ${x}
+    done
+)

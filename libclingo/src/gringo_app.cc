@@ -360,7 +360,7 @@ struct GringoApp : public Potassco::Application {
         printf("Configuration: %s%s, %s%s\n",
              py_version ? "with Python " : "without Python", py_version ?  py_version : "",
             lua_version ? "with Lua "    : "without Lua",   lua_version ? lua_version : "");
-        printf("License: MIT\n");
+        printf("License: The MIT License <https://opensource.org/licenses/MIT>\n");
         fflush(stdout);
     }
 
