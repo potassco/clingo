@@ -52,7 +52,7 @@ void ClingoApp::initOptions(Potassco::ProgramOptions::OptionContext& root) {
     gringo.addOptions()
         ("text", storeTo(grOpts_, parseText)->flag(), "Print plain text format")
         ("const,c", storeTo(grOpts_.defines, parseConst)->composing()->arg("<id>=<term>"), "Replace term occurrences of <id> with <term>")
-        ("output,o", storeTo(grOpts_.outputFormat = Gringo::Output::OutputFormat::INTERMEDIATE, values<Gringo::Output::OutputFormat>()
+        ("output,o,@1", storeTo(grOpts_.outputFormat = Gringo::Output::OutputFormat::INTERMEDIATE, values<Gringo::Output::OutputFormat>()
           ("intermediate", Gringo::Output::OutputFormat::INTERMEDIATE)
           ("text", Gringo::Output::OutputFormat::TEXT)
           ("reify", Gringo::Output::OutputFormat::REIFY)
@@ -62,7 +62,7 @@ void ClingoApp::initOptions(Potassco::ProgramOptions::OptionContext& root) {
              "      reify       : print program as reified facts\n"
              "      smodels     : print smodels format\n"
              "                    (only supports basic features)")
-        ("output-debug", storeTo(grOpts_.outputOptions.debug = Gringo::Output::OutputDebug::NONE, values<Gringo::Output::OutputDebug>()
+        ("output-debug,@1", storeTo(grOpts_.outputOptions.debug = Gringo::Output::OutputDebug::NONE, values<Gringo::Output::OutputDebug>()
           ("none", Gringo::Output::OutputDebug::NONE)
           ("text", Gringo::Output::OutputDebug::TEXT)
           ("translate", Gringo::Output::OutputDebug::TRANSLATE)
@@ -71,7 +71,7 @@ void ClingoApp::initOptions(Potassco::ProgramOptions::OptionContext& root) {
          "      text     : print rules as plain text (prefix %%)\n"
          "      translate: print translated rules as plain text (prefix %%%%)\n"
          "      all      : combines text and translate")
-        ("warn,W"                   , storeTo(grOpts_, parseWarning)->arg("<warn>")->composing(), "Enable/disable warnings:\n"
+        ("warn,W,@1"                   , storeTo(grOpts_, parseWarning)->arg("<warn>")->composing(), "Enable/disable warnings:\n"
          "      none:                     disable all warnings\n"
          "      all:                      enable all warnings\n"
          "      [no-]atom-undefined:      a :- b.\n"
@@ -80,10 +80,10 @@ void ClingoApp::initOptions(Potassco::ProgramOptions::OptionContext& root) {
          "      [no-]variable-unbounded:  $x > 10.\n"
          "      [no-]global-variable:     :- #count { X } = 1, X = 1.\n"
          "      [no-]other:               clasp related and uncategorized warnings")
-        ("rewrite-minimize"         , flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
-        ("keep-facts"               , flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
-        ("reify-sccs"               , flag(grOpts_.outputOptions.reifySCCs = false), "Calculate SCCs for reified output")
-        ("reify-steps"              , flag(grOpts_.outputOptions.reifySteps = false), "Add step numbers to reified output")
+        ("rewrite-minimize,@1"      , flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
+        ("keep-facts,@1"            , flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
+        ("reify-sccs,@1"            , flag(grOpts_.outputOptions.reifySCCs = false), "Calculate SCCs for reified output")
+        ("reify-steps,@1"           , flag(grOpts_.outputOptions.reifySteps = false), "Add step numbers to reified output")
         ("foobar,@4"                , storeTo(grOpts_.foobar, parseFoobar) , "Foobar")
         ;
     root.add(gringo);
@@ -94,7 +94,7 @@ void ClingoApp::initOptions(Potassco::ProgramOptions::OptionContext& root) {
             ("clingo", mode_clingo)
             ("clasp", mode_clasp)
             ("gringo", mode_gringo)),
-         "Run in {clingo|clasp|gringo} mode\n")
+         "Run in {clingo|clasp|gringo} mode")
         ;
     root.add(basic);
 }

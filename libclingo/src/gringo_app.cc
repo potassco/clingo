@@ -283,6 +283,7 @@ struct GringoApp : public Potassco::Application {
     using StringSeq = std::vector<std::string>;
     virtual const char* getName() const    { return "gringo"; }
     virtual const char* getVersion() const { return CLINGO_VERSION; }
+    virtual HelpOpt     getHelpOption() const { return HelpOpt("Print (<n {1=default|2=advanced}) help and exit", 2); }
     virtual void initOptions(Potassco::ProgramOptions::OptionContext& root) {
         using namespace Potassco::ProgramOptions;
         grOpts_.defines.clear();
@@ -291,7 +292,7 @@ struct GringoApp : public Potassco::Application {
         gringo.addOptions()
             ("text,t", storeTo(grOpts_, parseText)->flag(), "Print plain text format")
             ("const,c", storeTo(grOpts_.defines, parseConst)->composing()->arg("<id>=<term>"), "Replace term occurrences of <id> with <term>")
-            ("output,o", storeTo(grOpts_.outputFormat = Output::OutputFormat::INTERMEDIATE, values<Output::OutputFormat>()
+            ("output,o,@1", storeTo(grOpts_.outputFormat = Output::OutputFormat::INTERMEDIATE, values<Output::OutputFormat>()
               ("intermediate", Output::OutputFormat::INTERMEDIATE)
               ("text", Output::OutputFormat::TEXT)
               ("reify", Output::OutputFormat::REIFY)
@@ -301,7 +302,7 @@ struct GringoApp : public Potassco::Application {
              "      reify       : print program as reified facts\n"
              "      smodels     : print smodels format\n"
              "                    (only supports basic features)")
-            ("output-debug", storeTo(grOpts_.outputOptions.debug = Output::OutputDebug::NONE, values<Output::OutputDebug>()
+            ("output-debug,@1", storeTo(grOpts_.outputOptions.debug = Output::OutputDebug::NONE, values<Output::OutputDebug>()
               ("none", Output::OutputDebug::NONE)
               ("text", Output::OutputDebug::TEXT)
               ("translate", Output::OutputDebug::TRANSLATE)
@@ -310,7 +311,7 @@ struct GringoApp : public Potassco::Application {
              "      text     : print rules as plain text (prefix %%)\n"
              "      translate: print translated rules as plain text (prefix %%%%)\n"
              "      all      : combines text and translate")
-            ("warn,W", storeTo(grOpts_, parseWarning)->arg("<warn>")->composing(), "Enable/disable warnings:\n"
+            ("warn,W,@1", storeTo(grOpts_, parseWarning)->arg("<warn>")->composing(), "Enable/disable warnings:\n"
              "      none:                     disable all warnings\n"
              "      all:                      enable all warnings\n"
              "      [no-]atom-undefined:      a :- b.\n"
@@ -319,10 +320,10 @@ struct GringoApp : public Potassco::Application {
              "      [no-]variable-unbounded:  $x > 10.\n"
              "      [no-]global-variable:     :- #count { X } = 1, X = 1.\n"
              "      [no-]other:               uncategorized warnings")
-            ("rewrite-minimize", flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
-            ("keep-facts", flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
-            ("reify-sccs", flag(grOpts_.outputOptions.reifySCCs = false), "Calculate SCCs for reified output")
-            ("reify-steps", flag(grOpts_.outputOptions.reifySteps = false), "Add step numbers to reified output")
+            ("rewrite-minimize,@1", flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
+            ("keep-facts,@1", flag(grOpts_.keepFacts = false), "Do not remove facts from normal rules")
+            ("reify-sccs,@1", flag(grOpts_.outputOptions.reifySCCs = false), "Calculate SCCs for reified output")
+            ("reify-steps,@1", flag(grOpts_.outputOptions.reifySteps = false), "Add step numbers to reified output")
             ("foobar,@4", storeTo(grOpts_.foobar, parseFoobar), "Foobar")
             ;
         root.add(gringo);
@@ -345,6 +346,7 @@ struct GringoApp : public Potassco::Application {
         printUsage();
         Potassco::ProgramOptions::FileOut out(stdout);
         root.description(out);
+		printf("\nType '%s --help=2' for further options.\n", getName());
         printf("\n");
         printUsage();
     }
