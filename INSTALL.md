@@ -9,6 +9,7 @@
     - [Python Support](#python-support)
     - [Lua Support](#lua-support)
 - [Troubleshooting](#troubleshooting)
+  - [Notes for Windows Users](#notes-for-windows-users)
 
 # Requirements
 
@@ -165,11 +166,11 @@ systems. ;)
 
 clingo can be compiled using the
 [Mingw-w64](https://mingw-w64.sourceforge.net/) compiler, the Cygwin project,
-or Visual Studio 2015 Update 3. For making releases,
+or Visual Studio 2015 Update 3. For development,
 [bison](http://cs.uni-potsdam.de/~kaminski/win_flex_bison-latest.zip) from the
 [Win flex-bison](https://sourceforge.net/projects/winflexbison/) project and a
-self compiled [re2c](http://cs.uni-potsdam.de/~kaminski/re2c.exe) executable is
-used.
+self compiled [re2c](http://cs.uni-potsdam.de/~kaminski/re2c.exe) executable
+can be used.
 
 To build debug binaries with cygwin, you might have to add option
 `-Wa,-mbig-obj` to the compiler options.
