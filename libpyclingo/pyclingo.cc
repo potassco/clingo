@@ -3382,6 +3382,17 @@ format.)";
         handle_c_error(clingo_backend_weight_rule(backend, choice, head.data(), head.size(), lower, body.data(), body.size()));
         Py_RETURN_NONE;
     }
+
+    Object addMinimize(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"priority", "literals", nullptr};
+        Reference pyPriority = Py_None;
+        Reference pyBody = Py_None;
+        ParseTupleAndKeywords(pyargs, pykwds, "OO", kwlist, pyPriority, pyBody);
+        auto priority = pyToCpp<clingo_weight_t>(pyPriority);
+        auto body = pyToCpp<std::vector<clingo_weighted_literal_t>>(pyBody);
+        handle_c_error(clingo_backend_minimize(backend, priority, body.data(), body.size()));
+        Py_RETURN_NONE;
+    }
 };
 
 PyMethodDef Backend::tp_methods[] = {
@@ -3418,6 +3429,15 @@ body  -- list of pairs of program literals and weights
 
 Keyword Arguments:
 choice -- whether to add a disjunctive or choice rule (Default: False)
+)"},
+    // add_minimize
+    {"add_minimize", to_function<&Backend::addMinimize>(), METH_VARARGS | METH_KEYWORDS,
+R"(add_minimize(self, priority, literals) -> None
+Add a minimize constraint to the program.
+
+Arguments:
+priority -- integer for the priority
+literals -- list of pairs of program literals and weights
 )"},
     {nullptr, nullptr, 0, nullptr}
 };

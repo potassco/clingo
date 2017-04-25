@@ -1330,7 +1330,7 @@ struct Model : Object<Model> {
     static int thread_id(lua_State *L) {
         auto &self = get_self(L);
         auto *ctl = call_c(L, clingo_model_context, self.model);
-        lua_pushinteger(L, call_c(L, clingo_solve_control_thread_id, ctl)); // +1
+        lua_pushinteger(L, call_c(L, clingo_solve_control_thread_id, ctl) + 1); // +1
         return 1;
     }
     static int toString(lua_State *L) {
@@ -1956,12 +1956,29 @@ struct Backend : Object<Backend> {
         lua_pop(L, 2);                                                         // -2
         return 0;
     }
+
+    static int addMinimize(lua_State *L) {
+        auto &self = get_self(L);
+        clingo_weight_t priority;
+        auto *body = AnyWrap::new_<std::vector<clingo_weighted_literal_t>>(L); // +1
+        luaL_checktype(L, 2, LUA_TTABLE);
+        luaPushKwArg(L, 2, 1, "priority", false);                              // +1
+        luaToCpp(L, -1, priority);
+        lua_pop(L, 1);                                                         // -1
+        luaPushKwArg(L, 2, 2, "body", false);                                  // +1
+        luaToCpp(L, -1, *body);
+        lua_pop(L, 1);                                                         // -1
+        handle_c_error(L, clingo_backend_minimize(self.backend, priority, body->data(), body->size()));
+        lua_pop(L, 1);                                                         // -1
+        return 0;
+    }
 };
 
 luaL_Reg const Backend::meta[] = {
     {"add_atom", addAtom},
     {"add_rule", addRule},
     {"add_weight_rule", addWeightRule},
+    {"add_minimize", addMinimize},
     {nullptr, nullptr}
 };
 
@@ -2124,7 +2141,7 @@ struct PropagateControl : Object<PropagateControl> {
 
     static int id(lua_State *L) {
         auto &self = get_self(L);
-        lua_pushinteger(L, numeric_cast<lua_Integer>(clingo_propagate_control_thread_id(self.ctl)));
+        lua_pushinteger(L, numeric_cast<lua_Integer>(clingo_propagate_control_thread_id(self.ctl)) + 1);
         return 1;
     }
 
