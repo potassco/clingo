@@ -14,7 +14,7 @@ class Thing:
 class Cannot:
     def __init__(self):
         self.__atoms = []
-        self.states = {}
+        self.__states = {}
 
     def add_minimize(self, backend):
         lits = []
@@ -31,7 +31,7 @@ class Cannot:
 
     def check(self, ctl):
         assign = ctl.assignment
-        state = self.states.setdefault(ctl.thread_id, State())
+        state = self.__states.setdefault(ctl.thread_id, State())
         state.messages = []
         state.invalid = False
         for atom in self.__atoms:
@@ -40,6 +40,12 @@ class Cannot:
                 for elem in atom.elements:
                     if assign.is_true(elem.solver_literal):
                         state.messages.append(elem.message)
+
+    def invalid(self, thread_id):
+        return self.__states[thread_id].invalid
+
+    def messages(self, thread_id):
+        return self.__states[thread_id].messages
 
     def init(self, init):
         for atom in init.theory_atoms:
@@ -70,10 +76,9 @@ def main(prg):
     # the actual solve
     with prg.solve(yield_=True) as it:
         for m in it:
-            state = p.states[m.thread_id]
-            if state.invalid:
+            if p.invalid(m.thread_id):
                 print("ERROR: invalid answer set")
-                for msg in state.messages:
+                for msg in p.messages(m.thread_id):
                     print ("- cannot {}".format(msg))
 
 #end.
