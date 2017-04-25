@@ -1,4 +1,4 @@
-LUA_DIR=$(HOME)/local/lua-5.1.5-js
+LUA_DIR=$(HOME)/local/opt/lua-5.3.4-js
 BUILD_TYPE=debug
 CC=/usr/bin/cc
 CXX=/usr/bin/c++
