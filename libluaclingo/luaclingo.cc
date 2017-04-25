@@ -674,7 +674,7 @@ struct TheoryTerm : Object<TheoryTerm> {
         else {
             lua_getmetatable(L, 1);
             lua_getfield(L, -1, field);
-            return !lua_isnil(L, -1) ? 1 : luaL_error(L, "unknown field: %s", name);
+            return !lua_isnil(L, -1) ? 1 : luaL_error(L, "unknown field: %s", field);
         }
     }
     static constexpr char const *typeName = "clingo.TheoryTerm";
