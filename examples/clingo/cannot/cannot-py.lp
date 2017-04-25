@@ -79,6 +79,6 @@ def main(prg):
 #end.
 
 #theory cannot {
-    t { + : 1, binary, left };
+    t { };
     &cannot/0: t, head
 }.
