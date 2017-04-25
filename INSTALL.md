@@ -171,6 +171,3 @@ or Visual Studio 2015 Update 3. For development,
 [Win flex-bison](https://sourceforge.net/projects/winflexbison/) project and a
 self compiled [re2c](http://cs.uni-potsdam.de/~kaminski/re2c.exe) executable
 can be used.
-
-To build debug binaries with cygwin, you might have to add option
-`-Wa,-mbig-obj` to the compiler options.

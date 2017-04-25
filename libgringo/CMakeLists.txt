@@ -142,6 +142,9 @@ if(MSVC)
     target_compile_definitions(libgringo PRIVATE _SCL_SECURE_NO_WARNINGS _CRT_SECURE_NO_WARNINGS)
     set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/ground/statements.cc"
         PROPERTIES COMPILE_FLAGS "/bigobj")
+elseif(MINGW OR CYGWIN OR MSYS)
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/ground/statements.cc"
+        PROPERTIES COMPILE_FLAGS "-Wa,-mbig-obj")
 endif()
 set_target_properties(libgringo PROPERTIES
     OUTPUT_NAME gringo
