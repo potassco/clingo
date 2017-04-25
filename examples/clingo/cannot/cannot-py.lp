@@ -16,19 +16,6 @@ class Cannot:
         self.__atoms = []
         self.__states = {}
 
-    def add_minimize(self, backend):
-        lits = []
-        for atom in self.__atoms:
-            for elem in atom.elements:
-                condition = elem.condition[:]
-                condition.append(atom.literal)
-                if len(condition) > 1:
-                    atom = backend.add_atom()
-                    backend.add_rule([atom], condition)
-                    condition[0] = atom
-                lits.append((condition[0], 1))
-        backend.add_minimize(0, lits)
-
     def check(self, ctl):
         assign = ctl.assignment
         state = self.__states.setdefault(ctl.thread_id, State())
@@ -49,31 +36,39 @@ class Cannot:
 
     def init(self, init):
         for atom in init.theory_atoms:
-            a = Thing()
-            a.literal = atom.literal
-            a.solver_literal = init.solver_literal(atom.literal)
-            a.elements = []
-            for elem in atom.elements:
-                e = Thing()
-                t = elem.terms
-                e.message = t[0].name[1:-1]
-                for term in t[1:]:
-                    e.message = e.message.replace("%", str(term), 1)
-                e.condition = elem.condition
-                e.solver_literal = init.solver_literal(elem.condition_id)
-                a.elements.append(e)
-            self.__atoms.append(a)
+            if atom.term.name == "cannot" and len(atom.term.arguments) == 0:
+                a = Thing()
+                a.solver_literal = init.solver_literal(atom.literal)
+                a.elements = []
+                for elem in atom.elements:
+                    e = Thing()
+                    t = elem.terms
+                    e.message = t[0].name[1:-1]
+                    for term in t[1:]:
+                        e.message = e.message.replace("%", str(term), 1)
+                    e.solver_literal = init.solver_literal(elem.condition_id)
+                    a.elements.append(e)
+                self.__atoms.append(a)
 
 def main(prg):
+    prg.ground([("base", [])])
+    # minimize the number of messages
+    backend = prg.backend
+    lits = []
+    for atom in prg.theory_atoms:
+        if atom.term.name == "cannot" and len(atom.term.arguments) == 0:
+            for elem in atom.elements:
+                condition = elem.condition[:]
+                condition.append(atom.literal)
+                if len(condition) > 1:
+                    atom = backend.add_atom()
+                    backend.add_rule([atom], condition)
+                    condition[0] = atom
+                lits.append((condition[0], 1))
+    backend.add_minimize(0, lits)
+    # solve where the propagator takes care of collecting the messages
     p = Cannot()
     prg.register_propagator(p)
-    prg.ground([("base", [])])
-    # just to initialize the propagator
-    dummy = clingo.Function("a")
-    prg.solve(assumptions=[(dummy, True), (dummy, False)])
-    # minimize the number of messages
-    p.add_minimize(prg.backend)
-    # the actual solve
     with prg.solve(yield_=True) as it:
         for m in it:
             if p.invalid(m.thread_id):
