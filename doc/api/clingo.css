@@ -34,9 +34,22 @@ div.header {
     background-color: white;
 }
 
+div.memproto {
+    border-top-left-radius: 4px;
+}
+
+h2.memtitle {
+    visibility: hidden;
+    height: 0px;
+    padding: 0px;
+}
+
+li:not([style]) #MSearchBox {
+    position: relative;
+}
+
 #MSearchBox {
     display: inherit;
-    position: relative;
     top: -15px;
     float: right;
 }

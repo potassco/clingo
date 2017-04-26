@@ -1,7 +1,8 @@
 *.swp
 build
 *.pyc
-doc
+doc/api/html
+doc/api/latex
 *.opendb
 Debug
 Release
