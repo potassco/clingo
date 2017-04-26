@@ -1008,7 +1008,8 @@ public:
     explicit SolveControl(clingo_solve_control_t *ctl)
     : ctl_(ctl) { }
     void add_clause(SymbolicLiteralSpan clause);
-    id_t thread_id() const;
+    void add_clause(LiteralSpan clause);
+    SymbolicAtoms symbolic_atoms();
     clingo_solve_control_t *to_c() const { return ctl_; }
 private:
     clingo_solve_control_t *ctl_;
@@ -1050,6 +1051,7 @@ public:
     SymbolVector symbols(ShowType show = ShowType::Shown) const;
     SolveControl context() const;
     ModelType type() const;
+    id_t thread_id() const;
     uint64_t number() const;
     explicit operator bool() const { return model_ != nullptr; }
     clingo_model_t *to_c() const { return model_; }
@@ -2657,14 +2659,28 @@ inline void Propagator::check(PropagateControl &) { }
 
 // {{{2 solve control
 
-inline void SolveControl::add_clause(SymbolicLiteralSpan clause) {
-    Detail::handle_error(clingo_solve_control_add_clause(ctl_, reinterpret_cast<clingo_symbolic_literal_t const *>(clause.begin()), clause.size()));
+inline SymbolicAtoms SolveControl::symbolic_atoms() {
+    clingo_symbolic_atoms_t *atoms;
+    Detail::handle_error(clingo_solve_control_symbolic_atoms(ctl_, &atoms));
+    return SymbolicAtoms{atoms};
 }
 
-inline id_t SolveControl::thread_id() const {
-    id_t ret;
-    Detail::handle_error(clingo_solve_control_thread_id(ctl_, &ret));
-    return ret;
+inline void SolveControl::add_clause(SymbolicLiteralSpan clause) {
+    std::vector<literal_t> lits;
+    auto atoms = symbolic_atoms();
+    for (auto &x : clause) {
+        auto it = atoms.find(x.symbol());
+        if (it != atoms.end()) {
+            auto lit = it->literal();
+            lits.emplace_back(x.is_positive() ? lit : -lit);
+        }
+        else if (x.is_negative()) { return; }
+    }
+    add_clause(LiteralSpan{lits});
+}
+
+inline void SolveControl::add_clause(LiteralSpan clause) {
+    Detail::handle_error(clingo_solve_control_add_clause(ctl_, reinterpret_cast<clingo_literal_t const *>(clause.begin()), clause.size()));
 }
 
 // {{{2 model
@@ -2718,6 +2734,12 @@ inline ModelType Model::type() const {
     clingo_model_type_t ret;
     Detail::handle_error(clingo_model_type(model_, &ret));
     return static_cast<ModelType>(ret);
+}
+
+inline id_t Model::thread_id() const {
+    id_t ret;
+    Detail::handle_error(clingo_model_thread_id(model_, &ret));
+    return ret;
 }
 
 // {{{2 solve handle

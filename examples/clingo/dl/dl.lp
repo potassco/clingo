@@ -6,7 +6,7 @@
 
 #script (python)
 
-import clingo, dl
+import clingo, difference_logic as dl
 
 def print_assignment(p, m):
     a = p.get_assignment(m.thread_id)

@@ -98,10 +98,12 @@ struct clingo_model {
     virtual Gringo::SymSpan atoms(ShowType showset) const = 0;
     virtual Gringo::Int64Vec optimization() const = 0;
     virtual bool optimality_proven() const = 0;
-    virtual void addClause(LitVec const &lits) const = 0;
+    virtual void addClause(Potassco::LitSpan const &lits) const = 0;
     virtual uint64_t number() const = 0;
     virtual Potassco::Id_t threadId() const = 0;
     virtual Gringo::ModelType type() const = 0;
+    virtual bool isTrue(Potassco::Lit_t literal) const = 0;
+    virtual Gringo::SymbolicAtoms &getDomain() const = 0;
     virtual ~clingo_model() { }
 };
 

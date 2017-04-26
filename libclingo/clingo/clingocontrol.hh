@@ -318,18 +318,24 @@ public:
     Int64Vec optimization() const override {
         return model_->costs ? Int64Vec(model_->costs->begin(), model_->costs->end()) : Int64Vec();
     }
-    void addClause(LitVec const &lits) const override {
+    void addClause(Potassco::LitSpan const &lits) const override {
         Clasp::LitVec claspLits;
         for (auto &x : lits) {
-            auto atom = out().find(x.first);
-            if (atom.second && atom.first->hasUid()) {
-                Clasp::Literal lit = lp().getLiteral(atom.first->uid());
-                claspLits.push_back(x.second ? lit : ~lit);
+            auto atom = std::abs(x);
+            if (lp().inProgram(atom)) {
+                Clasp::Literal lit = lp().getLiteral(atom);
+                claspLits.push_back(x > 0 ? lit : ~lit);
             }
-            else if (!x.second) { return; }
+            else if (x < 0) { return; }
         }
         claspLits.push_back(~ctx().stepLiteral());
         model_->ctx->commitClause(claspLits);
+    }
+    Gringo::SymbolicAtoms &getDomain() const override {
+        return ctl_.getDomain();
+    }
+    bool isTrue(Potassco::Lit_t lit) const override {
+      return model_->isTrue(lp().getLiteral(lit));
     }
     ModelType type() const override {
         if (model_->type & Clasp::Model::Brave) { return ModelType::BraveConsequences; }

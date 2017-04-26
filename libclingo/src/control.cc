@@ -662,20 +662,20 @@ extern "C" void clingo_propagate_control_remove_watch(clingo_propagate_control_t
 
 struct clingo_solve_control : clingo_model { };
 
-extern "C" bool clingo_solve_control_thread_id(clingo_solve_control_t *ctl, clingo_id_t *ret) {
+extern "C" bool clingo_model_thread_id(clingo_model_t *ctl, clingo_id_t *ret) {
     GRINGO_CLINGO_TRY { *ret = ctl->threadId(); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_solve_control_add_clause(clingo_solve_control_t *ctl, clingo_symbolic_literal_t const *clause, size_t n) {
-    GRINGO_CLINGO_TRY {
-        // TODO: unnecessary copying
-        Model::LitVec lits;
-        for (auto it = clause, ie = it + n; it != ie; ++it) { lits.emplace_back(Symbol(it->symbol), it->positive); }
-        ctl->addClause(lits); }
+extern "C" bool clingo_solve_control_add_clause(clingo_solve_control_t *ctl, clingo_literal_t const *clause, size_t n) {
+    GRINGO_CLINGO_TRY { ctl->addClause(Potassco::toSpan(clause, n)); }
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_solve_control_symbolic_atoms(clingo_solve_control_t *control, clingo_symbolic_atoms_t **atoms) {
+    GRINGO_CLINGO_TRY { *atoms = &control->getDomain(); }
+    GRINGO_CLINGO_CATCH;
+}
 extern "C" bool clingo_model_contains(clingo_model_t *m, clingo_symbol_t atom, bool *ret) {
     GRINGO_CLINGO_TRY { *ret = m->contains(Symbol(atom)); }
     GRINGO_CLINGO_CATCH;
@@ -736,6 +736,11 @@ extern "C" bool clingo_model_number(clingo_model_t *m, uint64_t *n) {
 
 extern "C" bool clingo_model_type(clingo_model_t *m, clingo_model_type_t *ret) {
     GRINGO_CLINGO_TRY { *ret = static_cast<clingo_model_type_t>(m->type()); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_model_is_true(clingo_model_t *m, clingo_literal_t lit, bool *result) {
+    GRINGO_CLINGO_TRY { *result = static_cast<clingo_model_type_t>(m->isTrue(lit)); }
     GRINGO_CLINGO_CATCH;
 }
 

@@ -1185,6 +1185,154 @@ bool luacall(lua_State *L, clingo_location_t const *location, int context, char 
     return true;
 }
 
+// {{{1 wrap SymbolicAtom
+
+struct SymbolicAtom : Object<SymbolicAtom> {
+    clingo_symbolic_atoms_t *atoms;
+    clingo_symbolic_atom_iterator_t iter;
+    static luaL_Reg const meta[];
+    static constexpr const char *typeName = "clingo.SymbolicAtom";
+    SymbolicAtom(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t iter)
+    : atoms(atoms)
+    , iter(iter) { }
+    static int symbol(lua_State *L) {
+        auto &self = get_self(L);
+        return Term::new_(L, call_c(L, clingo_symbolic_atoms_symbol, self.atoms, self.iter));
+    }
+    static int literal(lua_State *L) {
+        auto &self = get_self(L);
+        lua_pushinteger(L, call_c(L, clingo_symbolic_atoms_literal, self.atoms, self.iter));
+        return 1;
+    }
+    static int is_fact(lua_State *L) {
+        auto &self = get_self(L);
+        lua_pushboolean(L, call_c(L, clingo_symbolic_atoms_is_fact, self.atoms, self.iter));
+        return 1;
+    }
+    static int is_external(lua_State *L) {
+        auto &self = get_self(L);
+        lua_pushboolean(L, call_c(L, clingo_symbolic_atoms_is_external, self.atoms, self.iter));
+        return 1;
+    }
+    static int index(lua_State *L) {
+        char const *name = luaL_checkstring(L, 2);
+        if (strcmp(name, "is_fact") == 0) { return is_fact(L); }
+        else if (strcmp(name, "is_external") == 0) { return is_external(L); }
+        else if (strcmp(name, "symbol") == 0) { return symbol(L); }
+        else if (strcmp(name, "literal") == 0) { return literal(L); }
+        else {
+            lua_getmetatable(L, 1);
+            lua_getfield(L, -1, name);
+            return !lua_isnil(L, -1) ? 1 : luaL_error(L, "unknown field: %s", name);
+        }
+    }
+};
+
+constexpr const char *SymbolicAtom::typeName;
+
+luaL_Reg const SymbolicAtom::meta[] = {
+    {nullptr, nullptr}
+};
+
+// {{{1 wrap SymbolicAtoms
+
+struct SymbolicAtoms : Object<SymbolicAtoms> {
+    clingo_symbolic_atoms_t *atoms;
+    static luaL_Reg const meta[];
+    static constexpr const char *typeName = "clingo.SymbolicAtoms";
+    SymbolicAtoms(clingo_symbolic_atoms_t *atoms) : atoms(atoms) { }
+
+    static int symbolicAtomIter(lua_State *L) {
+        auto current = static_cast<SymbolicAtom *>(luaL_checkudata(L, lua_upvalueindex(1), SymbolicAtom::typeName));
+        if (call_c(L, clingo_symbolic_atoms_is_valid, current->atoms, current->iter)) {
+            lua_pushvalue(L, lua_upvalueindex(1));                                               // +1
+            auto next = call_c(L, clingo_symbolic_atoms_next, current->atoms, current->iter);
+            SymbolicAtom::new_(L, current->atoms, next);                                         // +1
+            lua_replace(L, lua_upvalueindex(1));                                                 // -1
+        }
+        else { lua_pushnil(L); }                                                                 // +1
+        return 1;
+    }
+
+    static int len(lua_State *L) {
+        auto &self = get_self(L);
+        lua_pushinteger(L, call_c(L, clingo_symbolic_atoms_size, self.atoms));
+        return 1;
+    }
+
+    static int iter(lua_State *L) {
+        auto &self = get_self(L);
+        auto range = call_c(L, clingo_symbolic_atoms_begin, self.atoms, nullptr);
+        SymbolicAtom::new_(L, self.atoms, range); // +1
+        lua_pushcclosure(L, symbolicAtomIter, 1); // +0
+        return 1;
+    }
+
+    static int lookup(lua_State *L) {
+        auto &self = get_self(L);
+        auto atom = luaToVal(L, 2);
+        auto range = call_c(L, clingo_symbolic_atoms_find, self.atoms, atom);
+        if (call_c(L, clingo_symbolic_atoms_is_valid, self.atoms, range)) {
+            SymbolicAtom::new_(L, self.atoms, range); // +1
+        }
+        else { lua_pushnil(L); } // +1
+        return 1;
+    }
+
+    static int by_signature(lua_State *L) {
+        auto &self = get_self(L);
+        char const *name = luaL_checkstring(L, 2);
+        int arity = numeric_cast<int>(luaL_checkinteger(L, 3));
+        bool positive = lua_isnone(L, 4) || lua_toboolean(L, 4);
+        clingo_signature_t sig = call_c(L, clingo_signature_create, name, arity, positive);
+        auto range = call_c(L, clingo_symbolic_atoms_begin, self.atoms, &sig);
+        SymbolicAtom::new_(L, self.atoms, range); // +1
+        lua_pushcclosure(L, symbolicAtomIter, 1); // +0
+        return 1;
+    }
+
+    static int signatures(lua_State *L) {
+        auto &self = get_self(L);
+        auto size = call_c(L, clingo_symbolic_atoms_signatures_size, self.atoms);
+        clingo_signature_t *ret = static_cast<clingo_signature_t*>(lua_newuserdata(L, sizeof(*ret) * size)); // +1
+        handle_c_error(L, clingo_symbolic_atoms_signatures(self.atoms, ret, size));
+        lua_createtable(L, numeric_cast<int>(size), 0);            // +1
+        int i = 1;
+        for (auto it = ret, ie = it + size; it != ie; ++it) {
+            lua_createtable(L, 3, 0);                              // +1
+            lua_pushstring(L, clingo_signature_name(*it));         // +1
+            lua_rawseti(L, -2, 1);                                 // -1
+            lua_pushinteger(L, clingo_signature_arity(*it));       // +1
+            lua_rawseti(L, -2, 2);                                 // -1
+            lua_pushboolean(L, clingo_signature_is_positive(*it)); // +1
+            lua_rawseti(L, -2, 3);                                 // -1
+            lua_rawseti(L, -2, i);                                 // -1
+            ++i;
+        }
+        lua_replace(L, -2);                                        // -1
+        return 1;
+    }
+    static int index(lua_State *L) {
+        char const *name = luaL_checkstring(L, 2);
+        if (strcmp(name, "signatures") == 0) { return signatures(L); }
+        else {
+            lua_getmetatable(L, 1);
+            lua_getfield(L, -1, name);
+            return 1;
+        }
+    }
+};
+
+constexpr const char *SymbolicAtoms::typeName;
+
+luaL_Reg const SymbolicAtoms::meta[] = {
+    {"__len", len},
+    {"iter", iter},
+    {"lookup", lookup},
+    {"by_signature", by_signature},
+    {nullptr, nullptr}
+};
+
 // {{{1 wrap SolveControl
 
 struct SolveControl : Object<SolveControl> {
@@ -1192,10 +1340,34 @@ struct SolveControl : Object<SolveControl> {
     SolveControl(clingo_solve_control_t *ctl) : ctl(ctl) { }
     static int getClause(lua_State *L, bool invert) {
         auto &self = get_self(L);
-        std::vector<clingo_symbolic_literal_t> *lits = AnyWrap::new_<std::vector<clingo_symbolic_literal_t>>(L); // +1
-        luaToCpp(L, 2, *lits);
-        if (invert) {
-            for (auto &lit : *lits) { lit.positive = !lit.positive; }
+        using LitVec = std::vector<clingo_literal_t>;
+        if (lua_type(L, 2) != LUA_TTABLE) {
+            luaL_error(L, "table expected");
+        }
+        auto atoms = call_c(L, clingo_solve_control_symbolic_atoms, self.ctl);
+        std::vector<clingo_literal_t> *lits = AnyWrap::new_<std::vector<clingo_literal_t>>(L); // +1
+        lua_pushnil(L);
+        while (lua_next(L, 2) != 0) {
+            if (lua_isnumber(L, -1)) {
+                clingo_literal_t lit;
+                luaToCpp(L, -1, lit);
+                protect(L, [lits, lit]() { lits->emplace_back(lit); });
+            }
+            else {
+                clingo_symbolic_literal_t sym;
+                luaToCpp(L, -1, sym);
+                if (invert) { sym.positive = !sym.positive; }
+                auto it = call_c(L, clingo_symbolic_atoms_find, atoms, sym.symbol);
+                if (call_c(L, clingo_symbolic_atoms_is_valid, atoms, it)) {
+                    clingo_literal_t lit = call_c(L, clingo_symbolic_atoms_literal, atoms, it);
+                    protect(L, [lits, lit, sym]() { lits->emplace_back(sym.positive ? lit : -lit); });
+                }
+                else if (!sym.positive) {
+                    lua_pop(L, 3);
+                    return 0;
+                }
+            }
+            lua_pop(L, 1);
         }
         handle_c_error(L, clingo_solve_control_add_clause(self.ctl, lits->data(), lits->size()));
         lua_pop(L, 1); // -1
@@ -1206,6 +1378,16 @@ struct SolveControl : Object<SolveControl> {
     }
     static int add_nogood(lua_State *L) {
         return getClause(L, true);
+    }
+    static int index(lua_State *L) {
+        auto &self = get_self(L);
+        char const *name = luaL_checkstring(L, 2);
+        if (strcmp(name, "symbolic_atoms") == 0) { return SymbolicAtoms::new_(L, call_c(L, clingo_solve_control_symbolic_atoms, self.ctl)); }
+        else {
+            lua_getmetatable(L, 1);
+            lua_getfield(L, -1, name);
+            return 1;
+        }
     }
     static luaL_Reg const meta[];
     static constexpr char const *typeName = "clingo.SolveControl";
@@ -1279,6 +1461,13 @@ struct Model : Object<Model> {
         lua_pushboolean(L, call_c(L, clingo_model_contains, self.model, sym));
         return 1;
     }
+    static int is_true(lua_State *L) {
+        auto &self = get_self(L);
+        clingo_literal_t lit;
+        luaToCpp(L, 2, lit);
+        lua_pushboolean(L, call_c(L, clingo_model_is_true, self.model, lit));
+        return 1;
+    }
     static int atoms(lua_State *L) {
         auto &self = get_self(L);
         clingo_show_type_bitset_t atomset = 0;
@@ -1329,8 +1518,7 @@ struct Model : Object<Model> {
     }
     static int thread_id(lua_State *L) {
         auto &self = get_self(L);
-        auto *ctl = call_c(L, clingo_model_context, self.model);
-        lua_pushinteger(L, call_c(L, clingo_solve_control_thread_id, ctl) + 1); // +1
+        lua_pushinteger(L, call_c(L, clingo_model_thread_id, self.model) + 1); // +1
         return 1;
     }
     static int toString(lua_State *L) {
@@ -1413,6 +1601,7 @@ luaL_Reg const Model::meta[] = {
     {"__tostring", toString},
     {"symbols", atoms},
     {"contains", contains},
+    {"is_true", is_true},
     {nullptr, nullptr}
 };
 
@@ -1747,154 +1936,6 @@ constexpr char const *Configuration::typeName;
 luaL_Reg const Configuration::meta[] = {
     {"__len", len},
     {"iter", iter},
-    {nullptr, nullptr}
-};
-
-// {{{1 wrap SymbolicAtom
-
-struct SymbolicAtom : Object<SymbolicAtom> {
-    clingo_symbolic_atoms_t *atoms;
-    clingo_symbolic_atom_iterator_t iter;
-    static luaL_Reg const meta[];
-    static constexpr const char *typeName = "clingo.SymbolicAtom";
-    SymbolicAtom(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t iter)
-    : atoms(atoms)
-    , iter(iter) { }
-    static int symbol(lua_State *L) {
-        auto &self = get_self(L);
-        return Term::new_(L, call_c(L, clingo_symbolic_atoms_symbol, self.atoms, self.iter));
-    }
-    static int literal(lua_State *L) {
-        auto &self = get_self(L);
-        lua_pushinteger(L, call_c(L, clingo_symbolic_atoms_literal, self.atoms, self.iter));
-        return 1;
-    }
-    static int is_fact(lua_State *L) {
-        auto &self = get_self(L);
-        lua_pushboolean(L, call_c(L, clingo_symbolic_atoms_is_fact, self.atoms, self.iter));
-        return 1;
-    }
-    static int is_external(lua_State *L) {
-        auto &self = get_self(L);
-        lua_pushboolean(L, call_c(L, clingo_symbolic_atoms_is_external, self.atoms, self.iter));
-        return 1;
-    }
-    static int index(lua_State *L) {
-        char const *name = luaL_checkstring(L, 2);
-        if (strcmp(name, "is_fact") == 0) { return is_fact(L); }
-        else if (strcmp(name, "is_external") == 0) { return is_external(L); }
-        else if (strcmp(name, "symbol") == 0) { return symbol(L); }
-        else if (strcmp(name, "literal") == 0) { return literal(L); }
-        else {
-            lua_getmetatable(L, 1);
-            lua_getfield(L, -1, name);
-            return !lua_isnil(L, -1) ? 1 : luaL_error(L, "unknown field: %s", name);
-        }
-    }
-};
-
-constexpr const char *SymbolicAtom::typeName;
-
-luaL_Reg const SymbolicAtom::meta[] = {
-    {nullptr, nullptr}
-};
-
-// {{{1 wrap SymbolicAtoms
-
-struct SymbolicAtoms : Object<SymbolicAtoms> {
-    clingo_symbolic_atoms_t *atoms;
-    static luaL_Reg const meta[];
-    static constexpr const char *typeName = "clingo.SymbolicAtoms";
-    SymbolicAtoms(clingo_symbolic_atoms_t *atoms) : atoms(atoms) { }
-
-    static int symbolicAtomIter(lua_State *L) {
-        auto current = static_cast<SymbolicAtom *>(luaL_checkudata(L, lua_upvalueindex(1), SymbolicAtom::typeName));
-        if (call_c(L, clingo_symbolic_atoms_is_valid, current->atoms, current->iter)) {
-            lua_pushvalue(L, lua_upvalueindex(1));                                               // +1
-            auto next = call_c(L, clingo_symbolic_atoms_next, current->atoms, current->iter);
-            SymbolicAtom::new_(L, current->atoms, next);                                         // +1
-            lua_replace(L, lua_upvalueindex(1));                                                 // -1
-        }
-        else { lua_pushnil(L); }                                                                 // +1
-        return 1;
-    }
-
-    static int len(lua_State *L) {
-        auto &self = get_self(L);
-        lua_pushinteger(L, call_c(L, clingo_symbolic_atoms_size, self.atoms));
-        return 1;
-    }
-
-    static int iter(lua_State *L) {
-        auto &self = get_self(L);
-        auto range = call_c(L, clingo_symbolic_atoms_begin, self.atoms, nullptr);
-        SymbolicAtom::new_(L, self.atoms, range); // +1
-        lua_pushcclosure(L, symbolicAtomIter, 1); // +0
-        return 1;
-    }
-
-    static int lookup(lua_State *L) {
-        auto &self = get_self(L);
-        auto atom = luaToVal(L, 2);
-        auto range = call_c(L, clingo_symbolic_atoms_find, self.atoms, atom);
-        if (call_c(L, clingo_symbolic_atoms_is_valid, self.atoms, range)) {
-            SymbolicAtom::new_(L, self.atoms, range); // +1
-        }
-        else { lua_pushnil(L); } // +1
-        return 1;
-    }
-
-    static int by_signature(lua_State *L) {
-        auto &self = get_self(L);
-        char const *name = luaL_checkstring(L, 2);
-        int arity = numeric_cast<int>(luaL_checkinteger(L, 3));
-        bool positive = lua_isnone(L, 4) || lua_toboolean(L, 4);
-        clingo_signature_t sig = call_c(L, clingo_signature_create, name, arity, positive);
-        auto range = call_c(L, clingo_symbolic_atoms_begin, self.atoms, &sig);
-        SymbolicAtom::new_(L, self.atoms, range); // +1
-        lua_pushcclosure(L, symbolicAtomIter, 1); // +0
-        return 1;
-    }
-
-    static int signatures(lua_State *L) {
-        auto &self = get_self(L);
-        auto size = call_c(L, clingo_symbolic_atoms_signatures_size, self.atoms);
-        clingo_signature_t *ret = static_cast<clingo_signature_t*>(lua_newuserdata(L, sizeof(*ret) * size)); // +1
-        handle_c_error(L, clingo_symbolic_atoms_signatures(self.atoms, ret, size));
-        lua_createtable(L, numeric_cast<int>(size), 0);            // +1
-        int i = 1;
-        for (auto it = ret, ie = it + size; it != ie; ++it) {
-            lua_createtable(L, 3, 0);                              // +1
-            lua_pushstring(L, clingo_signature_name(*it));         // +1
-            lua_rawseti(L, -2, 1);                                 // -1
-            lua_pushinteger(L, clingo_signature_arity(*it));       // +1
-            lua_rawseti(L, -2, 2);                                 // -1
-            lua_pushboolean(L, clingo_signature_is_positive(*it)); // +1
-            lua_rawseti(L, -2, 3);                                 // -1
-            lua_rawseti(L, -2, i);                                 // -1
-            ++i;
-        }
-        lua_replace(L, -2);                                        // -1
-        return 1;
-    }
-    static int index(lua_State *L) {
-        char const *name = luaL_checkstring(L, 2);
-        if (strcmp(name, "signatures") == 0) { return signatures(L); }
-        else {
-            lua_getmetatable(L, 1);
-            lua_getfield(L, -1, name);
-            return 1;
-        }
-    }
-};
-
-constexpr const char *SymbolicAtoms::typeName;
-
-luaL_Reg const SymbolicAtoms::meta[] = {
-    {"__len", len},
-    {"iter", iter},
-    {"lookup", lookup},
-    {"by_signature", by_signature},
     {nullptr, nullptr}
 };
 

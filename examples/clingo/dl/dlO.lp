@@ -10,7 +10,7 @@
 
 #script (python)
 
-import clingo, dl
+import clingo, difference_logic as dl
 
 def main(prg):
     p = dl.Propagator()

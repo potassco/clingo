@@ -267,7 +267,7 @@ TEST_CASE("solving", "[clingo]") {
             int n = 0;
             for (auto m : ctl.solve()) {
                 REQUIRE(m.type() == ModelType::StableModel);
-                REQUIRE(m.context().thread_id() == 0);
+                REQUIRE(m.thread_id() == 0);
                 ++n;
                 char const *name = m.contains(Id("a")) ? "b" : "a";
                 m.context().add_clause({{Id(name), false}});
@@ -282,7 +282,7 @@ TEST_CASE("solving", "[clingo]") {
             int n = 0;
             for (auto m : ctl.solve()) {
                 REQUIRE(m.type() == ModelType::CautiousConsequences);
-                REQUIRE(m.context().thread_id() == 0);
+                REQUIRE(m.thread_id() == 0);
                 ++n;
             }
             REQUIRE(n == 1);
@@ -295,7 +295,7 @@ TEST_CASE("solving", "[clingo]") {
             int n = 0;
             for (auto m : ctl.solve()) {
                 REQUIRE(m.type() == ModelType::StableModel);
-                REQUIRE(m.context().thread_id() == 0);
+                REQUIRE(m.thread_id() == 0);
                 if (m.optimality_proven()) {
                     REQUIRE(m.number() == 1);
                     REQUIRE(m.cost() == (CostVector{0}));
