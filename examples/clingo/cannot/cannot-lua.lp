@@ -5,12 +5,18 @@ function table.append(table, value)
     return table
 end
 
-function table.shallow_copy(t)
+function table.filter(f, t)
   local ret = {}
   for k, v in pairs(t) do
-    ret[k] = v
+    if f(v) then
+        ret[#ret+1] = v
+    end
   end
   return ret
+end
+
+function table.shallow_copy(t)
+    return table.filter(function() return true end, t)
 end
 
 function main(prg)
@@ -58,17 +64,16 @@ function main(prg)
     local res, ret = pcall(function()
         for m in it:iter() do
             local invalid = false
-            for _, atom in ipairs(atoms) do
-                if m:is_true(atom.literal) then
-                    if not invalid then
-                        print("ERROR: invalid answer set")
-                        invalid = true
-                    end
-                    for _, elem in ipairs(atom.elements) do
-                        if m:is_true(elem.literal) then
-                            print ("- cannot " .. elem.message)
-                        end
-                    end
+            local isTrue = function(x)
+                return m:is_true(x.literal)
+            end
+            for _, atom in ipairs(table.filter(isTrue, atoms)) do
+                if not invalid then
+                    print("ERROR: invalid answer set")
+                    invalid = true
+                end
+                for _, elem in ipairs(table.filter(isTrue, atom.elements)) do
+                    print ("- cannot " .. elem.message)
                 end
             end
         end

@@ -44,15 +44,14 @@ def main(prg):
     # solve and print debug messages
     with prg.solve(yield_=True) as it:
         for m in it:
+            isTrue = lambda x: m.is_true(x.literal)
             invalid = False
-            for atom in atoms:
-                if m.is_true(atom.literal):
-                    if not invalid:
-                        print("ERROR: invalid answer set")
-                        invalid = True
-                    for elem in atom.elements:
-                        if m.is_true(elem.literal):
-                            print ("- cannot {}".format(elem.message))
+            for atom in filter(isTrue, atoms):
+                if not invalid:
+                    print("ERROR: invalid answer set")
+                    invalid = True
+                for elem in filter(isTrue, atom.elements):
+                    print ("- cannot {}".format(elem.message))
 
 #end.
 
