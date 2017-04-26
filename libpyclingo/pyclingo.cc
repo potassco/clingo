@@ -2079,7 +2079,8 @@ they are available as properties of Model objects.)";
         LitVec lits;
         for (auto x : pyLits.iter()) {
             if (PyNumber_Check(x.toPy())) {
-                lits.emplace_back(pyToCpp<clingo_literal_t>(x));
+                auto lit = pyToCpp<clingo_literal_t>(x);
+                lits.emplace_back(invert ? -lit : lit);
             }
             else {
                 clingo_symbolic_literal_t sym = pyToCpp<clingo_symbolic_literal_t>(x);
@@ -2120,23 +2121,24 @@ they are available as properties of Model objects.)";
 PyMethodDef SolveControl::tp_methods[] = {
     // add_clause
     {"add_clause", to_function<&SolveControl::add_clause>(), METH_O,
-R"(add_clause(self, lits) -> None
+R"(add_clause(self, literals) -> None
 
 Add a clause that applies to the current solving step during the search.
 
 Arguments:
-lits -- list of literals represented as pairs of atoms and Booleans
+literals -- list of literals either represented as pairs of symbolic atoms and
+            Booleans or as program literals
 
 Note that this function can only be called in the model callback (or while
 iterating when using a SolveHandle).)"},
     // add_nogood
     {"add_nogood", to_function<&SolveControl::add_nogood>(), METH_O,
-R"(add_nogood(self, lits) -> None
+R"(add_nogood(self, literals) -> None
 
 Equivalent to add_clause with the literals inverted.
 
 Arguments:
-lits -- list of pairs of Booleans and atoms representing the nogood)"},
+literals -- list of pairs of Booleans and atoms representing the nogood)"},
     {nullptr, nullptr, 0, nullptr}
 };
 

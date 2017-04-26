@@ -1351,6 +1351,7 @@ struct SolveControl : Object<SolveControl> {
             if (lua_isnumber(L, -1)) {
                 clingo_literal_t lit;
                 luaToCpp(L, -1, lit);
+                if (invert) { lit = -lit; }
                 protect(L, [lits, lit]() { lits->emplace_back(lit); });
             }
             else {
