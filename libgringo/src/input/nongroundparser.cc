@@ -180,8 +180,8 @@ NonGroundParser::NonGroundParser(INongroundProgramBuilder &pb, bool &incmode)
 : incmode_(incmode)
 , not_("not")
 , pb_(pb)
-, _startSymbol(0)
-, _filename("") { }
+, injectSymbol_(0)
+, filename_("") { }
 
 void NonGroundParser::parseError(Location const &loc, std::string const &msg) {
     GRINGO_REPORT(*log_, Warnings::RuntimeError) << loc << ": error: " << msg << "\n";
@@ -229,7 +229,7 @@ void NonGroundParser::pushBlock(std::string const &name, IdVec const &vec, std::
     LexerState::push(gringo_make_unique<std::istringstream>(block), {"<block>", {name.c_str(), vec}});
 }
 
-void NonGroundParser::_init() {
+void NonGroundParser::init_() {
     if (!empty()) {
         Location loc(filename(), 1, 1, filename(), 1, 1);
         IdVecUid params = pb_.idvec();
@@ -239,18 +239,24 @@ void NonGroundParser::_init() {
 }
 
 int NonGroundParser::lex(void *pValue, Location &loc) {
-    if (_startSymbol) {
-        auto ret = _startSymbol;
-        _startSymbol = 0;
-        return ret;
+    if (injectSymbol_) {
+        auto ret = injectSymbol_;
+        injectSymbol_ = 0;
+        if (ret == NonGroundGrammar::parser::token::SYNC) {
+            pop();
+            init_();
+        }
+        else {
+            return ret;
+        }
     }
     while (!empty()) {
         int minor = lex_impl(pValue, loc);
         end(loc);
         if (minor) { return minor; }
         else       {
-            pop();
-            _init();
+            injectSymbol_ = NonGroundGrammar::parser::token::SYNC;
+            return injectSymbol_;
         }
     }
     return 0;
@@ -328,7 +334,7 @@ void NonGroundParser::include(String file, Location const &loc, bool inbuilt, Lo
 bool NonGroundParser::parseDefine(std::string const &define, Logger &log) {
     log_ = &log;
     pushStream("<" + define + ">", gringo_make_unique<std::stringstream>(define), log);
-    _startSymbol = NonGroundGrammar::parser::token::PARSE_DEF;
+    injectSymbol_ = NonGroundGrammar::parser::token::PARSE_DEF;
     NonGroundGrammar::parser parser(this);
     auto ret = parser.parse();
     filenames_.clear();
@@ -380,10 +386,10 @@ bool NonGroundParser::parse(Logger &log) {
     log_ = &log;
     condition(yycnormal);
     theoryLexing_ = TheoryLexing::Disabled;
-    _startSymbol = NonGroundGrammar::parser::token::PARSE_LP;
+    injectSymbol_ = NonGroundGrammar::parser::token::PARSE_LP;
     if (empty()) { return true; }
     NonGroundGrammar::parser parser(this);
-    _init();
+    init_();
     auto ret = parser.parse();
     filenames_.clear();
     return ret == 0;
@@ -392,15 +398,15 @@ bool NonGroundParser::parse(Logger &log) {
 INongroundProgramBuilder &NonGroundParser::builder() { return pb_; }
 
 unsigned NonGroundParser::aggregate(AggregateFunction fun, bool choice, unsigned elems, BoundVecUid bounds) {
-    return _aggregates.insert({fun, choice, elems, bounds});
+    return aggregates_.insert({fun, choice, elems, bounds});
 }
 
 unsigned NonGroundParser::aggregate(TheoryAtomUid atom) {
-    return _aggregates.insert({AggregateFunction::COUNT, 2, atom, static_cast<BoundVecUid>(0)});
+    return aggregates_.insert({AggregateFunction::COUNT, 2, atom, static_cast<BoundVecUid>(0)});
 }
 
 HdLitUid NonGroundParser::headaggregate(Location const &loc, unsigned hdaggr) {
-    auto aggr = _aggregates.erase(hdaggr);
+    auto aggr = aggregates_.erase(hdaggr);
     switch (aggr.choice) {
         case 1:  return builder().headaggr(loc, aggr.fun, aggr.bounds, CondLitVecUid(aggr.elems));
         case 2:  return builder().headaggr(loc, static_cast<TheoryAtomUid>(aggr.elems));
@@ -409,7 +415,7 @@ HdLitUid NonGroundParser::headaggregate(Location const &loc, unsigned hdaggr) {
 }
 
 BdLitVecUid NonGroundParser::bodyaggregate(BdLitVecUid body, Location const &loc, NAF naf, unsigned bdaggr) {
-    auto aggr = _aggregates.erase(bdaggr);
+    auto aggr = aggregates_.erase(bdaggr);
     switch (aggr.choice) {
         case 1:  return builder().bodyaggr(body, loc, naf, aggr.fun, aggr.bounds, CondLitVecUid(aggr.elems));
         case 2:  return builder().bodyaggr(body, loc, naf, static_cast<TheoryAtomUid>(aggr.elems));

@@ -86,6 +86,7 @@ TEST_CASE("input-nongroundlexer", "[input]") {
     REQUIRE(String("___xyz") == String::fromRep(val.str));
     REQUIRE(5 == loc.beginLine);
     REQUIRE(23 == loc.beginColumn);
+    REQUIRE(int(NonGroundGrammar::parser::token::SYNC) == ngp.lex(&val, loc));
     REQUIRE(0 == ngp.lex(&val, loc));
 }
 

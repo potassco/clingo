@@ -73,7 +73,7 @@ private:
     bool push(std::string const &filename, bool include = false);
     bool push(std::string const &file, std::unique_ptr<std::istream> in);
     void pop();
-    void _init();
+    void init_();
     void condition(Condition cond);
     using LexerState<std::pair<String, std::pair<String, IdVec>>>::start;
     void start(Location &loc);
@@ -97,10 +97,10 @@ private:
         unsigned elems;
         BoundVecUid bounds;
     };
-    Indexed<Aggr> _aggregates;
-    int           _startSymbol;
+    Indexed<Aggr> aggregates_;
+    int           injectSymbol_;
     Condition     condition_ = yycnormal;
-    String        _filename;
+    String        filename_;
     Logger *log_ = nullptr;
 };
 

@@ -13,8 +13,6 @@
 - sorting via conditional literals became less efficient with the latest implementation in some cases
 - projection is disabled in non-monotone constructs for now
   it could be enabled again if equivalences are used for affected atoms
-- last error reported in first file
-  - clingo <(echo "a.") <(echo "b")
 - csp-rewrite + output format
 - shifting of disjunctions
 - language/API extensions in view of preferences

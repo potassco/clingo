@@ -300,6 +300,7 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
     BODY        "body"
     DIRECTIVE   "directive"
     THEORY      "#theory"
+    SYNC        "EOF"
 
 
 %token <num>
@@ -334,18 +335,21 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
 
 start
     : PARSE_LP  program
-    | PARSE_DEF define
+    | PARSE_DEF define SYNC
     ;
 
 program
     : program statement
-    | 
+    |
     ;
 
 // Note: skip until the next "." in case of an error and switch back to normal lexing
 
 statement
-    : error disable_theory_lexing DOT
+    : SYNC
+    | DOT                               { lexer->parseError(@$, "syntax error, unexpected ."); }
+    | error disable_theory_lexing DOT
+    | error disable_theory_lexing SYNC
     ;
 
 identifier
