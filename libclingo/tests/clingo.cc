@@ -181,7 +181,7 @@ TEST_CASE("solving", "[clingo]") {
             // void heuristic(atom_t atom, HeuristicType type, int bias, unsigned priority, LitSpan condition);
         }
         SECTION("backend-project") {
-            ctl.configuration()["solve.project"] = "1";
+            ctl.configuration()["solve.project"] = "auto";
             auto backend = ctl.backend();
             atom_t a = backend.add_atom(), b = backend.add_atom();
             backend.rule(true, {a, b}, {});

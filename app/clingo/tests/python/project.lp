@@ -106,7 +106,7 @@ def main(prg):
     #Chargement du jeu de données
     theseq = readsequence("we_cmp.seq.minepi")
     genASPsequence(theseq, prg)
-    prg.configuration.solve.project = 1
+    prg.configuration.solve.project = "auto"
     prg.configuration.solve.models  = 0
     d = prg.get_const("ml")
     if d is None:
