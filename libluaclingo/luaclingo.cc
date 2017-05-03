@@ -1340,7 +1340,6 @@ struct SolveControl : Object<SolveControl> {
     SolveControl(clingo_solve_control_t *ctl) : ctl(ctl) { }
     static int getClause(lua_State *L, bool invert) {
         auto &self = get_self(L);
-        using LitVec = std::vector<clingo_literal_t>;
         if (lua_type(L, 2) != LUA_TTABLE) {
             luaL_error(L, "table expected");
         }
