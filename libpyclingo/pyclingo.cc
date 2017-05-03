@@ -6901,30 +6901,31 @@ Tuple()         -- create a tuple symbol (shortcut)
 
 Classes:
 
-Assignment       -- partial assignment of truth values to solver literals
-Backend          -- extend the logic program
-Configuration    -- modify/inspect the solver configuration
-Control          -- controls the grounding/solving process
-HeuristicType    -- enumeration of heuristic modificators
-Model            -- provides access to a model during solve call
-ModelType        -- captures the type of a model
-ProgramBuilder   -- extend a non-ground logic program
-PropagateControl -- controls running search in a custom propagator
-PropagateInit    -- object to initialize custom propagators
-SolveControl     -- controls running search in a model handler
-SolveHandle      -- handle for solve calls
-SolveResult      -- result of a solve call
-Symbol           -- captures precomputed terms
-SymbolicAtom     -- captures information about a symbolic atom
-SymbolicAtomIter -- iterate over symbolic atoms
-SymbolicAtoms    -- inspection of symbolic atoms
-SymbolType       -- enumeration of symbol types
-TheoryAtom       -- captures theory atoms
-TheoryAtomIter   -- iterate over theory atoms
-TheoryElement    -- captures theory elements
-TheoryTerm       -- captures theory terms
-TheoryTermType   -- the type of a theory term
-TruthValue       -- enumeration of truth values
+Assignment          -- partial assignment of truth values to solver literals
+Backend             -- extend the logic program
+Configuration       -- modify/inspect the solver configuration
+Control             -- controls the grounding/solving process
+HeuristicType       -- enumeration of heuristic modificators
+Model               -- provides access to a model during solve call
+ModelType           -- captures the type of a model
+ProgramBuilder      -- extend a non-ground logic program
+PropagatorCheckMode -- enumeration of check modes
+PropagateControl    -- controls running search in a custom propagator
+PropagateInit       -- object to initialize custom propagators
+SolveControl        -- controls running search in a model handler
+SolveHandle         -- handle for solve calls
+SolveResult         -- result of a solve call
+Symbol              -- captures precomputed terms
+SymbolicAtom        -- captures information about a symbolic atom
+SymbolicAtomIter    -- iterate over symbolic atoms
+SymbolicAtoms       -- inspection of symbolic atoms
+SymbolType          -- enumeration of symbol types
+TheoryAtom          -- captures theory atoms
+TheoryAtomIter      -- iterate over theory atoms
+TheoryElement       -- captures theory elements
+TheoryTerm          -- captures theory terms
+TheoryTermType      -- the type of a theory term
+TruthValue          -- enumeration of truth values
 
 Example:
 
