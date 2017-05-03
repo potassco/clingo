@@ -352,6 +352,11 @@ private:
     Iterator end_;
 };
 
+template <class Iterator>
+IteratorRange<Iterator> make_range(Iterator ib, Iterator ie) {
+    return {ib, ie};
+}
+
 template <class T>
 class ValuePointer {
 public:
@@ -778,6 +783,12 @@ private:
 
 // {{{1 propagate init
 
+enum PropagatorCheckMode : clingo_propagator_check_mode_t {
+    None    = clingo_propagator_check_mode_none,
+    Total   = clingo_propagator_check_mode_total,
+    Partial = clingo_propagator_check_mode_fixpoint,
+};
+
 class PropagateInit {
 public:
     explicit PropagateInit(clingo_propagate_init_t *init)
@@ -787,6 +798,8 @@ public:
     int number_of_threads() const;
     SymbolicAtoms symbolic_atoms() const;
     TheoryAtoms theory_atoms() const;
+    PropagatorCheckMode get_check_mode() const;
+    void set_check_mode(PropagatorCheckMode mode);
     clingo_propagate_init_t *to_c() const { return init_; }
 private:
     clingo_propagate_init_t *init_;
@@ -807,6 +820,9 @@ public:
     bool is_fixed(literal_t lit) const;
     bool is_true(literal_t lit) const;
     bool is_false(literal_t lit) const;
+    size_t size() const;
+    size_t max_size() const;
+    bool is_total() const;
     clingo_assignment_t *to_c() const { return ass_; }
 private:
     clingo_assignment_t *ass_;
@@ -2582,6 +2598,18 @@ inline bool Assignment::is_false(literal_t lit) const {
     return ret;
 }
 
+inline size_t Assignment::size() const {
+    return clingo_assignment_size(ass_);
+}
+
+inline size_t Assignment::max_size() const {
+    return clingo_assignment_max_size(ass_);
+}
+
+inline bool Assignment::is_total() const {
+    return clingo_assignment_is_total(ass_);
+}
+
 // {{{2 propagate init
 
 inline literal_t PropagateInit::solver_literal(literal_t lit) const {
@@ -2608,6 +2636,14 @@ inline TheoryAtoms PropagateInit::theory_atoms() const {
     clingo_theory_atoms_t *ret;
     Detail::handle_error(clingo_propagate_init_theory_atoms(init_, &ret));
     return TheoryAtoms{ret};
+}
+
+inline PropagatorCheckMode PropagateInit::get_check_mode() const {
+    return static_cast<PropagatorCheckMode>(clingo_propagate_init_get_check_mode(init_));
+}
+
+inline void PropagateInit::set_check_mode(PropagatorCheckMode mode) {
+    clingo_propagate_init_set_check_mode(init_, mode);
 }
 
 // {{{2 propagate control

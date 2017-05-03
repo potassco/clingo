@@ -463,6 +463,29 @@ public:
     }
 };
 
+class TestMode : public Propagator {
+public:
+    void init(PropagateInit &init) override {
+        auto atoms = init.symbolic_atoms();
+        auto sig = Clingo::Signature("p", 1);
+        for (auto atom : Clingo::make_range(atoms.begin(sig), atoms.end())) {
+            lits_.insert(init.solver_literal(atom.literal()));
+        }
+        init.set_check_mode(Clingo::PropagatorCheckMode::Partial);
+    }
+    void check(PropagateControl &ctl) override {
+        //if (!ctl.assignment().is_total()) { throw std::logic_error("unexpected total check"); }
+        for (auto &lit : lits_) {
+            if (ctl.assignment().truth_value(lit) == Clingo::TruthValue::Free) {
+                ctl.add_clause({lit});
+                break;
+            }
+        }
+    }
+private:
+    std::set<Clingo::literal_t> lits_;
+};
+
 TEST_CASE("propagator", "[clingo][propagator]") {
     MessageVec messages;
     ModelVec models;
@@ -491,6 +514,15 @@ TEST_CASE("propagator", "[clingo][propagator]") {
         ctl.ground({{"base", {}}}, nullptr);
         test_solve(ctl.solve(), models);
         REQUIRE(models.size() == 4);
+    }
+    SECTION("mode") {
+        TestMode prop;
+        ctl.register_propagator(prop, false);
+        ctl.add("base", {}, "{p(1..9)}.");
+        ctl.ground({{"base", {}}}, nullptr);
+        test_solve(ctl.solve(), models);
+        auto p = [](int n) { return Function("p", {Number(n)}); };
+        REQUIRE(models == ModelVec({{ p(1), p(2), p(3), p(4), p(5), p(6), p(7), p(8), p(9) }}));
     }
     SECTION("exception") {
         TestException p;

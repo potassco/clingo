@@ -572,6 +572,14 @@ extern "C" bool clingo_propagate_init_theory_atoms(clingo_propagate_init_t *init
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" void clingo_propagate_init_set_check_mode(clingo_propagate_init_t *init, clingo_propagator_check_mode_t mode) {
+    init->setCheckMode(mode);
+}
+
+extern "C" clingo_propagator_check_mode_t clingo_propagate_init_get_check_mode(clingo_propagate_init_t *init) {
+    return init->getCheckMode();
+}
+
 // {{{1 assignment
 
 struct clingo_assignment : public Potassco::AbstractAssignment { };
@@ -616,6 +624,18 @@ extern "C" bool clingo_assignment_is_true(clingo_assignment_t *ass, clingo_liter
 extern "C" bool clingo_assignment_is_false(clingo_assignment_t *ass, clingo_literal_t lit, bool *ret) {
     GRINGO_CLINGO_TRY { *ret = ass->isFalse(lit); }
     GRINGO_CLINGO_CATCH;
+}
+
+extern "C" size_t clingo_assignment_size(clingo_assignment_t *assignment) {
+    return assignment->size();
+}
+
+extern "C" size_t clingo_assignment_max_size(clingo_assignment_t *assignment) {
+    return assignment->size() - assignment->unassigned();
+}
+
+extern "C" bool clingo_assignment_is_total(clingo_assignment_t *assignment) {
+    return assignment->isTotal();
 }
 
 // {{{1 propagate control

@@ -23,6 +23,7 @@ def test():
     csp_g = ast.CSPGuard(ast.ComparisonOperator.Equal, csp_s)
     lit_b = ast.BooleanConstant(True);
     lit_s = ast.Literal(loc, ast.Sign.Negation, ast.SymbolicAtom(ast.Function(loc, "p", [trm_s], False)));
+    lit_t = ast.Literal(loc, ast.Sign.NoSign, ast.SymbolicAtom(ast.Function(loc, "q", [trm_s], False)));
     lit_r = ast.Comparison(ast.ComparisonOperator.LessThan, trm_v, trm_s)
     lit_c = ast.CSPLiteral(loc, csp_s, [csp_g])
     lit_l = ast.ConditionalLiteral(loc, lit_s, [lit_b])
@@ -48,7 +49,7 @@ def test():
     thd_g = ast.TheoryGuardDefinition([">", "<"], "t")
     thd_a = ast.TheoryAtomDefinition(loc, ast.TheoryAtomType.Any, "p", 2, "t", thd_g)
     thd_d = ast.TheoryDefinition(loc, "x", [thd_t], [thd_a])
-    stm_r = ast.Rule(loc, lit_s, [lit_s])
+    stm_r = ast.Rule(loc, lit_s, [lit_s, lit_t])
     stm_c = ast.Definition(loc, "x", trm_s, True)
     stm_s = ast.ShowSignature(loc, "x", 2, True, True)
     stm_t = ast.ShowTerm(loc, trm_s, [lit_s], True)
@@ -98,7 +99,7 @@ def test():
         (thd_g, "{ >, < }, t", ast.ASTType.TheoryGuardDefinition),
         (thd_a, "&p/2 : t, { >, < }, t, any", ast.ASTType.TheoryAtomDefinition),
         (thd_d, "#theory x {\n  t {\n    - : 7, unary\n  };\n  &p/2 : t, { >, < }, t, any\n}.", ast.ASTType.TheoryDefinition),
-        (stm_r, "not p(2) :- not p(2).", ast.ASTType.Rule),
+        (stm_r, "not p(2) :- not p(2); q(2).", ast.ASTType.Rule),
         (stm_c, "#const x = 2. [default]", ast.ASTType.Definition),
         (stm_s, "#show $x/2.", ast.ASTType.ShowSignature),
         (stm_t, "#show $2 : not p(2).", ast.ASTType.ShowTerm),

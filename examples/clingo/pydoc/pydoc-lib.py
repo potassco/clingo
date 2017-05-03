@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import clingo, subprocess, pydoc
 
+print("Generating documentation for clingo version {}.".format(clingo.__version__))
 for m in [clingo, clingo.ast]:
     pydoc.writedoc(m)
     subprocess.call(["sed", "-i",

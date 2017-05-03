@@ -2,6 +2,7 @@
 #script (python)
 import clingo, pydoc, subprocess
 
+print("Generating documentation for clingo version {}.".format(clingo.__version__))
 for m in [clingo, clingo.ast]:
     pydoc.writedoc(m)
     subprocess.call(["sed", "-i", 

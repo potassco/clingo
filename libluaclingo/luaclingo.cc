@@ -873,7 +873,7 @@ struct TheoryIter {
 struct SymbolType : Object<SymbolType> {
     clingo_symbol_type_t type;
     SymbolType(clingo_symbol_type_t type) : type(type) { }
-    clingo_theory_term_type_t cmpKey() { return type; }
+    clingo_symbol_type_t cmpKey() { return type; }
     static int addToRegistry(lua_State *L) {
         lua_createtable(L, 0, 5);
         for (auto t : {clingo_symbol_type_number, clingo_symbol_type_string, clingo_symbol_type_function, clingo_symbol_type_infimum, clingo_symbol_type_supremum}) {
@@ -2026,6 +2026,46 @@ luaL_Reg const Backend::meta[] = {
 
 // {{{1 wrap PropagateInit
 
+struct PropagatorCheckMode : Object<PropagatorCheckMode> {
+    clingo_propagator_check_mode type;
+    PropagatorCheckMode(clingo_propagator_check_mode type) : type(type) { }
+    clingo_propagator_check_mode cmpKey() { return type; }
+    static int addToRegistry(lua_State *L) {
+        lua_createtable(L, 0, 5);
+        for (auto t : {clingo_propagator_check_mode_none, clingo_propagator_check_mode_total, clingo_propagator_check_mode_fixpoint}) {
+            new_(L, t);
+            lua_setfield(L, -2, field_(t));
+        }
+        lua_setfield(L, -2, "PropagatorCheckMode");
+        return 0;
+    }
+    static char const *field_(clingo_propagator_check_mode type) {
+        switch (type) {
+            case clingo_propagator_check_mode_none:     { return "Off"; }
+            case clingo_propagator_check_mode_total:    { return "Total"; }
+            case clingo_propagator_check_mode_fixpoint: { return "Fixpoint"; }
+        }
+        return "";
+    }
+
+    static int toString(lua_State *L) {
+        lua_pushstring(L, field_(get_self(L).type));
+        return 1;
+    }
+    static luaL_Reg const meta[];
+    static constexpr char const *typeName = "clingo.PropagatorCheckMode";
+};
+
+constexpr char const *PropagatorCheckMode::typeName;
+
+luaL_Reg const PropagatorCheckMode::meta[] = {
+    {"__eq", eq},
+    {"__lt", lt},
+    {"__le", le},
+    {"__tostring", toString},
+    { nullptr, nullptr }
+};
+
 struct PropagateInit : Object<PropagateInit> {
     lua_State *T;
     clingo_propagate_init_t *init;
@@ -2050,17 +2090,36 @@ struct PropagateInit : Object<PropagateInit> {
         return 0;
     }
 
+    static int getCheckMode(lua_State *L) {
+        PropagatorCheckMode::new_(L, static_cast<clingo_propagator_check_mode>(clingo_propagate_init_get_check_mode(get_self(L).init)));
+        return 1;
+    }
+
+    static int setCheckMode(lua_State *L) {
+        auto init = get_self(L).init;
+        auto mode = static_cast<PropagatorCheckMode*>(luaL_checkudata(L, 3, PropagatorCheckMode::typeName));
+        clingo_propagate_init_set_check_mode(init, mode->type);
+        return 1;
+    }
+
     static int index(lua_State *L) {
         auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
-        if (strcmp(name, "theory_atoms")   == 0) { return TheoryIter::iter(L, call_c(L, clingo_propagate_init_theory_atoms, self.init)); }
-        else if (strcmp(name, "symbolic_atoms") == 0) { return SymbolicAtoms::new_(L, call_c(L, clingo_propagate_init_symbolic_atoms, self.init)); }
-        else if (strcmp(name, "number_of_threads") == 0) { return numThreads(L); }
+        if (strcmp(name, "theory_atoms")               == 0) { return TheoryIter::iter(L, call_c(L, clingo_propagate_init_theory_atoms, self.init)); }
+        else if (strcmp(name, "symbolic_atoms")        == 0) { return SymbolicAtoms::new_(L, call_c(L, clingo_propagate_init_symbolic_atoms, self.init)); }
+        else if (strcmp(name, "number_of_threads")     == 0) { return numThreads(L); }
+        else if (strcmp(name, "check_mode")            == 0) { return getCheckMode(L); }
         else {
             lua_getmetatable(L, 1);
             lua_getfield(L, -1, name);
             return 1;
         }
+    }
+
+    static int newindex(lua_State *L) {
+        char const *name = luaL_checkstring(L, 2);
+        if (strcmp(name, "check_mode")   == 0) { return setCheckMode(L); }
+        return luaL_error(L, "unknown field: %s", name);
     }
 
     static int setState(lua_State *L) {
@@ -2148,10 +2207,28 @@ struct Assignment : Object<Assignment> {
         return 1;
     }
 
+    static int size(lua_State *L) {
+        lua_pushnumber(L, clingo_assignment_size(get_self(L).ass));
+        return 1;
+    }
+
+    static int max_size(lua_State *L) {
+        lua_pushnumber(L, clingo_assignment_max_size(get_self(L).ass));
+        return 1;
+    }
+
+    static int isTotal(lua_State *L) {
+        lua_pushboolean(L, clingo_assignment_is_total(get_self(L).ass));
+        return 1;
+    }
+
     static int index(lua_State *L) {
         char const *name = luaL_checkstring(L, 2);
+        if (strcmp(name, "is_total")       == 0) { return isTotal(L); }
+        if (strcmp(name, "size")           == 0) { return size(L); }
+        if (strcmp(name, "max_size")       == 0) { return max_size(L); }
         if (strcmp(name, "has_conflict")   == 0) { return hasConflict(L); }
-        if (strcmp(name, "decision_level")   == 0) { return decisionLevel(L); }
+        if (strcmp(name, "decision_level") == 0) { return decisionLevel(L); }
         else {
             lua_getmetatable(L, 1);
             lua_getfield(L, -1, name);
@@ -3160,6 +3237,7 @@ int luaopen_clingo(lua_State* L) {
     PropagateControl::reg(L);
     Assignment::reg(L);
     Backend::reg(L);
+    PropagatorCheckMode::reg(L);
 
 #if LUA_VERSION_NUM < 502
     luaL_register(L, "clingo", clingoLib);
@@ -3176,6 +3254,7 @@ int luaopen_clingo(lua_State* L) {
     ExternalType::addToRegistry(L);
     ModelType::addToRegistry(L);
     HeuristicType::addToRegistry(L);
+    PropagatorCheckMode::addToRegistry(L);
 
     lua_pushvalue(L, -1);
     lua_setfield(L, LUA_REGISTRYINDEX, "clingo");

@@ -159,6 +159,12 @@ public:
     Lit_t mapLit(Lit_t lit) override;
     int threads() override;
     void addWatch(Lit_t lit) override { p_.addWatch(Clasp::decodeLit(lit)); }
+    void setCheckMode(clingo_propagator_check_mode_t checkMode) override {
+        p_.enableClingoPropagatorCheck(static_cast<Clasp::ClingoPropagatorCheck_t::Type>(checkMode));
+    }
+    clingo_propagator_check_mode_t getCheckMode() const override {
+        return p_.checkMode();
+    }
 private:
     Control &c_;
     Clasp::ClingoPropagatorInit &p_;

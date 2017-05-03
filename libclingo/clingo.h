@@ -1227,6 +1227,15 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *
 //! @addtogroup Propagator
 //! @{
 
+//! Supported check modes for propagators.
+enum clingo_propagator_check_mode {
+    clingo_propagator_check_mode_none     = 0, //!< do not call @ref ::clingo_propagator::check() at all
+    clingo_propagator_check_mode_total    = 1, //!< call @ref ::clingo_propagator::check() on total assignment
+    clingo_propagator_check_mode_fixpoint = 2, //!< call @ref ::clingo_propagator::check() on propagation fixpoints
+};
+//! Corresponding type to ::clingo_propagator_check_mode.
+typedef int clingo_propagator_check_mode_t;
+
 //! Object to initialize a user-defined propagator before each solving step.
 //!
 //! Each @link SymbolicAtoms symbolic@endlink or @link TheoryAtoms theory atom@endlink is uniquely associated with an aspif atom in form of a positive integer (@ref ::clingo_literal_t).
@@ -1272,6 +1281,18 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_theory_atoms(clingo_propaga
 //! @return the number of threads
 //! @see clingo_propagate_control_thread_id()
 CLINGO_VISIBILITY_DEFAULT int clingo_propagate_init_number_of_threads(clingo_propagate_init_t *init);
+//! Configure when to call the check method of the propagator.
+//!
+//! @param[in] init the target
+//! @param[in] mode bitmask when to call the propagator
+//! @see @ref ::clingo_propagator::check()
+CLINGO_VISIBILITY_DEFAULT void clingo_propagate_init_set_check_mode(clingo_propagate_init_t *init, clingo_propagator_check_mode_t mode);
+//! Get the current check mode of the propagator.
+//!
+//! @param[in] init the target
+//! @return bitmask when to call the propagator
+//! @see clingo_propagate_init_set_check_mode()
+CLINGO_VISIBILITY_DEFAULT clingo_propagator_check_mode_t clingo_propagate_init_get_check_mode(clingo_propagate_init_t *init);
 
 //! @}
 
@@ -1349,6 +1370,21 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_is_false(clingo_assignment_t *a
 //! @param[out] value the resulting truth value
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_truth_value(clingo_assignment_t *assignment, clingo_literal_t literal, clingo_truth_value_t *value);
+//! The number of assigned literals in the assignment.
+//!
+//! @param[in] assignment the target
+//! @return the number of literals
+CLINGO_VISIBILITY_DEFAULT size_t clingo_assignment_size(clingo_assignment_t *assignment);
+//! The maximum size of the assignment (if all literals are assigned).
+//!
+//! @param[in] assignment the target
+//! @return the maximum size
+CLINGO_VISIBILITY_DEFAULT size_t clingo_assignment_max_size(clingo_assignment_t *assignment);
+//! Check if the assignmen is total, i.e. - size == max_size.
+//!
+//! @param[in] assignment the target
+//! @return wheather the assignment is total
+CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_is_total(clingo_assignment_t *assignment);
 
 //! @}
 

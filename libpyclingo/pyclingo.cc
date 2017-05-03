@@ -2705,6 +2705,36 @@ The list is None if the current object is not an option group.)", nullptr},
 
 // {{{1 wrap PropagateInit
 
+struct PropagatorCheckMode : EnumType<PropagatorCheckMode> {
+    using Type = clingo_propagator_check_mode;
+    static constexpr char const *tp_type = "PropagatorCheckMode";
+    static constexpr char const *tp_name = "clingo.PropagatorCheckMode";
+    static constexpr char const *tp_doc =
+R"(Enumeration of supported check modes for propagators.
+
+PropagatorCheckMode objects cannot be constructed from python. Instead the
+following preconstructed objects are available:
+
+PropagatorCheckMode.None     -- do not call Propagator.check() at all
+PropagatorCheckMode.Total    -- call Propagator.check() on total assignment
+PropagatorCheckMode.Fixpoint -- call Propagator.check() on propagation fixpoints
+)";
+
+    static constexpr Type const values[] = {
+        clingo_propagator_check_mode_none,
+        clingo_propagator_check_mode_total,
+        clingo_propagator_check_mode_fixpoint,
+    };
+    static constexpr const char * const strings[] = {
+        "Off",
+        "Total",
+        "Fixpoint",
+    };
+};
+
+constexpr PropagatorCheckMode::Type const PropagatorCheckMode::values[];
+constexpr const char * const PropagatorCheckMode::strings[];
+
 struct PropagateInit : ObjectBase<PropagateInit> {
     clingo_propagate_init_t *init;
     static constexpr char const *tp_type = "PropagateInit";
@@ -2757,6 +2787,12 @@ condition ids to solver literals.)";
         handle_c_error(clingo_propagate_init_add_watch(init, pyToCpp<clingo_literal_t>(lit)));
         Py_RETURN_NONE;
     }
+    Object getCheckMode() {
+        return PropagatorCheckMode::getAttr(clingo_propagate_init_get_check_mode(init));
+    }
+    void setCheckMode(Reference value) {
+        clingo_propagate_init_set_check_mode(init, enumValue<PropagatorCheckMode>(value));
+    }
 };
 
 PyMethodDef PropagateInit::tp_methods[] = {
@@ -2773,6 +2809,7 @@ PyGetSetDef PropagateInit::tp_getset[] = {
     {(char *)"symbolic_atoms", to_getter<&PropagateInit::symbolicAtoms>(), nullptr, (char *)R"(The symbolic atoms captured by a SymbolicAtoms object.)", nullptr},
     {(char *)"theory_atoms", to_getter<&PropagateInit::theoryIter>(), nullptr, (char *)R"(A TheoryAtomIter object to iterate over all theory atoms.)", nullptr},
     {(char *)"number_of_threads", to_getter<&PropagateInit::numThreads>(), nullptr, (char *) R"(The number of solver threads used in the corresponding solve call.)", nullptr},
+    {(char *)"check_mode", to_getter<&PropagateInit::getCheckMode>(), to_setter<&PropagateInit::setCheckMode>(), (char *) R"(PropagatorCheckMode controling when to call Propagator.check().)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -2845,6 +2882,18 @@ respectively.)";
         handle_c_error(clingo_assignment_is_false(assign, pyToCpp<clingo_literal_t>(lit), &ret));
         return cppToPy(ret);
     }
+
+    Object size() {
+        return cppToPy(clingo_assignment_size(assign));
+    }
+
+    Object max_size() {
+        return cppToPy(clingo_assignment_max_size(assign));
+    }
+
+    Object isTotal() {
+        return cppToPy(clingo_assignment_is_total(assign));
+    }
 };
 
 PyMethodDef Assignment::tp_methods[] = {
@@ -2876,8 +2925,11 @@ Determine if the literal is false.)"},
 };
 
 PyGetSetDef Assignment::tp_getset[] = {
-    {(char *)"has_conflict", to_getter<&Assignment::hasConflict>(), nullptr, (char *)R"(True if the current assignment is conflicting.)", nullptr},
+    {(char *)"has_conflict", to_getter<&Assignment::hasConflict>(), nullptr, (char *)R"(True if the assignment is conflicting.)", nullptr},
     {(char *)"decision_level", to_getter<&Assignment::decisionLevel>(), nullptr, (char *)R"(The current decision level.)", nullptr},
+    {(char *)"size", to_getter<&Assignment::size>(), nullptr, (char *)R"(The number of assigned literals.)", nullptr},
+    {(char *)"max_size", to_getter<&Assignment::max_size>(), nullptr, (char *)R"(The maximum size of the assignment (if all literals are assigned).)", nullptr},
+    {(char *)"is_total", to_getter<&Assignment::isTotal>(), nullptr, (char *)R"(Wheather the assignment is total.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -3671,7 +3723,7 @@ struct Sign : EnumType<Sign> {
     static constexpr char const *tp_doc =
 R"(The available signs for literals.
 
-Sign.None           --
+Sign.NoSign         --
 Sign.Negation       -- not
 Sign.DoubleNegation -- not not)";
 
@@ -3681,7 +3733,7 @@ Sign.DoubleNegation -- not not)";
         clingo_ast_sign_double_negation
     };
     static constexpr const char * const strings[] = {
-        "None",
+        "NoSign",
         "Negation",
         "DoubleNegation"
     };
@@ -6948,14 +7000,15 @@ PyObject *initclingo_() {
         Object m = Py_InitModule3("clingo", clingoModuleMethods, clingoModuleDoc);
 #endif
         if (!m.valid() ||
-            !SolveResult::initType(m)    || !TheoryTermType::initType(m)   || !PropagateControl::initType(m) ||
-            !TheoryElement::initType(m)  || !TheoryAtom::initType(m)       || !TheoryAtomIter::initType(m)   ||
-            !Model::initType(m)          || !ModelType::initType(m)        || !SolveHandle::initType(m)      ||
-            !ControlWrap::initType(m)    || !Configuration::initType(m)    || !SolveControl::initType(m)     ||
-            !SymbolicAtom::initType(m)   || !SymbolicAtomIter::initType(m) || !SymbolicAtoms::initType(m)    ||
-            !TheoryTerm::initType(m)     || !PropagateInit::initType(m)    || !Assignment::initType(m)       ||
-            !SymbolType::initType(m)     || !Symbol::initType(m)           || !Backend::initType(m)          ||
-            !ProgramBuilder::initType(m) || !HeuristicType::initType(m)    || !TruthValue::initType(m)       ||
+            !SolveResult::initType(m)         || !TheoryTermType::initType(m)   || !PropagateControl::initType(m) ||
+            !TheoryElement::initType(m)       || !TheoryAtom::initType(m)       || !TheoryAtomIter::initType(m)   ||
+            !Model::initType(m)               || !ModelType::initType(m)        || !SolveHandle::initType(m)      ||
+            !ControlWrap::initType(m)         || !Configuration::initType(m)    || !SolveControl::initType(m)     ||
+            !SymbolicAtom::initType(m)        || !SymbolicAtomIter::initType(m) || !SymbolicAtoms::initType(m)    ||
+            !TheoryTerm::initType(m)          || !PropagateInit::initType(m)    || !Assignment::initType(m)       ||
+            !SymbolType::initType(m)          || !Symbol::initType(m)           || !Backend::initType(m)          ||
+            !ProgramBuilder::initType(m)      || !HeuristicType::initType(m)    || !TruthValue::initType(m)       ||
+            !PropagatorCheckMode::initType(m) ||
             PyModule_AddStringConstant(m.toPy(), "__version__", CLINGO_VERSION) < 0 ||
             false) { return nullptr; }
         Reference a{initclingoast_()};
