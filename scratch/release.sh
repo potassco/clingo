@@ -3,7 +3,7 @@
 # NOTE: simple script to ease releasing binaries
 #       meant for internal purposes
 
-set -ex
+set -e
 
 cd "$(dirname $0)/.."
 
@@ -27,7 +27,43 @@ SSH=ssh
 
 # {{{1 setup
 
-if [[ $1 == clean ]]; then
+clean=0
+branch="v${VERSION}"
+
+function usage() {
+    cat <<EOF
+Usage: $1 [-c] [-b <branch>]
+EOF
+}
+
+while getopts "hcb:" name; do
+    case "${name}" in
+        c)
+            clean=1
+            ;;
+        b)
+            branch="${OPTARG}"
+            ;;
+        h)
+            usage $0
+            exit 0
+            ;;
+        *)
+            usage $0
+            exit 1
+            ;;
+    esac
+done
+
+if [[ "$OPTIND" -le "${#}" ]]; then
+    echo "$0: bad parameter: ${(P)OPTIND}"
+    usage $0
+    exit 1
+fi
+
+set -ex
+
+if [[ $clean == 1 ]]; then
     rm -rf "release-${VERSION}"
     ssh -T "${MAC}" "rm -rf '${TEMP}'"
     ssh -T "${LIN64}" "rm -rf '${TEMP}'"
@@ -37,8 +73,7 @@ mkdir -p "release-${VERSION}"
 cd "release-${VERSION}"
 
 if [[ ! -e ${SRC} ]]; then
-    #git clone --branch "v${VERSION}" --single-branch --depth=1 git@github.com:potassco/clingo ${SRC}
-    git clone --branch wip --single-branch --depth=1 git@github.com:potassco/clingo ${SRC}
+    git clone --branch "$branch" --single-branch --depth=1 git@github.com:potassco/clingo ${SRC}
     (cd ${SRC}; git submodule update --init --recursive)
     wget -c https://www.lua.org/ftp/lua-5.3.4.tar.gz
     tar -x --transform='s|^[^/]*|lua|' -f lua-5.3.4.tar.gz
