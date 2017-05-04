@@ -475,15 +475,19 @@ int eval(BinOp op, int x, int y) {
 }
 
 int Term::toNum(bool &undefined, Logger &log) {
-    Symbol y(eval(undefined, log));
-    if (y.type() == SymbolType::Num) { return y.num(); }
-    else {
-        undefined = true;
+    bool undefined_arg = false;
+    Symbol y(eval(undefined_arg, log));
+    if (y.type() == SymbolType::Num) {
+        undefined = undefined || undefined_arg;
+        return y.num();
+    }
+    else if (!undefined_arg) {
         GRINGO_REPORT(log, Warnings::OperationUndefined)
             << loc() << ": info: number expected:\n"
             << "  " << *this << "\n";
-        return 0;
     }
+    undefined = true;
+    return 0;
 }
 
 std::ostream &operator<<(std::ostream &out, BinOp op) {
@@ -545,7 +549,7 @@ void Term::collect(VarTermSet &x) const {
 
 
 bool Term::isZero(Logger &log) const {
-    bool undefined;
+    bool undefined = false;
     return getInvertibility() == Term::CONSTANT && eval(undefined, log) == Symbol::createNum(0);
 }
 
@@ -1059,15 +1063,19 @@ Term::ProjectRet LinearTerm::project(bool rename, AuxGen &auxGen) {
 }
 
 Symbol LinearTerm::eval(bool &undefined, Logger &log) const {
-    Symbol value = var->eval(undefined, log);
-    if (value.type() == SymbolType::Num) { return Symbol::createNum(m * value.num() + n); }
-    else {
-        undefined = true;
+    bool undefined_arg = false;
+    Symbol value = var->eval(undefined_arg, log);
+    if (value.type() == SymbolType::Num) {
+        undefined = undefined || undefined_arg;
+        return Symbol::createNum(m * value.num() + n);
+    }
+    else if (!undefined_arg) {
         GRINGO_REPORT(log, Warnings::OperationUndefined)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
-        return Symbol::createNum(0);
     }
+    undefined = true;
+    return Symbol::createNum(0);
 }
 
 bool LinearTerm::match(Symbol const &x) const {
@@ -1211,8 +1219,10 @@ void UnOpTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) cons
     arg->collect(vars, minLevel, maxLevel);
 }
 Symbol UnOpTerm::eval(bool &undefined, Logger &log) const {
-    Symbol value = arg->eval(undefined, log);
+    bool undefined_arg = false;
+    Symbol value = arg->eval(undefined_arg, log);
     if (value.type() == SymbolType::Num) {
+        undefined = undefined || undefined_arg;
         int num = value.num();
         switch (op) {
             case UnOp::NEG: { return Symbol::createNum(-num); }
@@ -1223,15 +1233,16 @@ Symbol UnOpTerm::eval(bool &undefined, Logger &log) const {
         return Symbol::createNum(0);
     }
     else if (op == UnOp::NEG && value.type() == SymbolType::Fun) {
+        undefined = undefined || undefined_arg;
         return value.flipSign();
     }
-    else {
-        undefined = true;
+    else if (!undefined_arg) {
         GRINGO_REPORT(log, Warnings::OperationUndefined)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
-        return Symbol::createNum(0);
     }
+    undefined = true;
+    return Symbol::createNum(0);
 }
 bool UnOpTerm::match(Symbol const &x) const  {
     if (op != UnOp::NEG) {
@@ -1352,7 +1363,15 @@ Term::SimplifyRet BinOpTerm::simplify(SimplifyState &state, bool, bool, Logger &
         // NOTE: keep binary operation untouched
     }
     else if (retLeft.type == SimplifyRet::CONSTANT && retRight.type == SimplifyRet::CONSTANT) {
-        return {Symbol::createNum(Gringo::eval(op, retLeft.val.num(), retRight.val.num()))};
+        auto left  = retLeft.val.num();
+        auto right = retRight.val.num();
+        if (op == BinOp::POW && left == 0 && right < 0) {
+            GRINGO_REPORT(log, Warnings::OperationUndefined)
+                << loc() << ": info: operation undefined:\n"
+                << "  " << *this << "\n";
+            return {};
+        }
+        return {Symbol::createNum(Gringo::eval(op, left, right))};
     }
     else if (retLeft.type == SimplifyRet::CONSTANT && retRight.type == SimplifyRet::LINEAR) {
         if (op == BinOp::ADD) {
@@ -1414,16 +1433,25 @@ void BinOpTerm::collect(VarSet &vars, unsigned minLevel , unsigned maxLevel) con
 }
 
 Symbol BinOpTerm::eval(bool &undefined, Logger &log) const {
-    Symbol l(left->eval(undefined, log));
-    Symbol r(right->eval(undefined, log));
-    if (l.type() == SymbolType::Num && r.type() == SymbolType::Num && (op != BinOp::DIV || r.num() != 0)) { return Symbol::createNum(Gringo::eval(op, l.num(), r.num())); }
-    else {
-        undefined = true;
+    bool undefined_arg = false;
+    Symbol l(left->eval(undefined_arg, log));
+    Symbol r(right->eval(undefined_arg, log));
+    bool defined =
+        l.type() == SymbolType::Num &&
+        r.type() == SymbolType::Num &&
+        (op != BinOp::DIV || r.num() != 0) &&
+        (op != BinOp::POW || l.num() != 0 || r.num() >= 0);
+    if (defined) {
+        undefined = undefined || undefined_arg;
+        return Symbol::createNum(Gringo::eval(op, l.num(), r.num()));
+    }
+    else if (!undefined_arg) {
         GRINGO_REPORT(log, Warnings::OperationUndefined)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
-        return Symbol::createNum(0);
     }
+    undefined = true;
+    return Symbol::createNum(0);
 }
 
 bool BinOpTerm::match(Symbol const &) const { throw std::logic_error("Term::rewriteArithmetics must be called before Term::match"); }
@@ -1756,10 +1784,10 @@ Term::SimplifyRet FunctionTerm::simplify(SimplifyState &state, bool positional, 
         ret.update(arg);
     }
     if (constant) {
-        bool undefined;
+        bool undefined = false;
         return {eval(undefined, log)};
     }
-    else          { return {*this, projected}; }
+    else { return {*this, projected}; }
 }
 
 Term::ProjectRet FunctionTerm::project(bool rename, AuxGen &auxGen) {

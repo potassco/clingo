@@ -259,13 +259,20 @@ TEST_CASE("term", "[base]") {
 
     SECTION("undefined") {
         bool undefined = false;
+
         REQUIRE(NUM(0) == binop(BinOp::POW, val(ID("a")), val(NUM(1)))->eval(undefined, log));
         REQUIRE(undefined);
         REQUIRE("dummy:1:1: info: operation undefined:\n  (a**1)\n" == log.messages().back());
+
         undefined = false;
         REQUIRE(NUM(0) == unop(UnOp::NOT, val(ID("a")))->eval(undefined, log));
         REQUIRE(undefined);
         REQUIRE("dummy:1:1: info: operation undefined:\n  (~a)\n" == log.messages().back());
+
+        undefined = false;
+        REQUIRE(NUM(0) == binop(BinOp::POW, val(NUM(0)), val(NUM(-2)))->eval(undefined, log));
+        REQUIRE(undefined);
+        REQUIRE("dummy:1:1: info: operation undefined:\n  (0**-2)\n" == log.messages().back());
     }
 
     SECTION("project") {
