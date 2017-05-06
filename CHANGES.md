@@ -1,5 +1,7 @@
 # Changes
 
+## clingo 5.2.1
+  * properly handle undefined ** operations
 ## clingo 5.2
   * switch to MIT license
   * improve compatibility with abstract gringo
