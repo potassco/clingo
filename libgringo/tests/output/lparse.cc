@@ -29,6 +29,78 @@
 namespace Gringo { namespace Output { namespace Test {
 
 TEST_CASE("output-lparse", "[output]") {
+    SECTION("bug-disjunction-range") {
+        // positive
+        REQUIRE("([[p(1),p(2)],[q]],[])" == IO::to_string(solve("p(1..2); q.")));
+        REQUIRE("([[]],[-:1:3-11: info: operation undefined:\n  (#Range0/X)\n,-:1:3-11: info: operation undefined:\n  (#Range0/X)\n,-:1:3-11: info: operation undefined:\n  (#Range0/X)\n])" == IO::to_string(solve("p((0..2)/X); q :- X=0.")));
+        REQUIRE("([[]],[-:1:3-11: info: operation undefined:\n  (#Range0/0)\n])" == IO::to_string(solve("p((0..2)/0); q :- X=0.")));
+        REQUIRE("([[p(2),p(4)],[q]],[-:1:3-11: info: operation undefined:\n  (4/#Range0)\n])" == IO::to_string(solve("p(4/(0..2)); q.")));
+        // negation
+        REQUIRE("([[],[p(1),p(2),q],[p(1),q],[p(2),q]],[])" == IO::to_string(solve("not p(1..2); q. {p(1)}. {p(2)}.")));
+        REQUIRE("([[],[p(1)]],[-:1:7-15: info: operation undefined:\n  (#Range0/X)\n,-:1:7-15: info: operation undefined:\n  (#Range0/X)\n,-:1:7-15: info: operation undefined:\n  (#Range0/X)\n])" == IO::to_string(solve("not p((0..2)/X); q :- X=0. {p(1)}.")));
+        REQUIRE("([[]],[-:1:7-15: info: operation undefined:\n  (#Range0/0)\n])" == IO::to_string(solve("not p((0..2)/0); q :- X=0.")));
+        REQUIRE("([[],[p(2),p(4),q],[p(2),q],[p(4),q]],[-:1:7-15: info: operation undefined:\n  (4/#Range0)\n])" == IO::to_string(solve("not p(4/(0..2)); q. {p(4)}. {p(2)}.")));
+        // double negation
+        REQUIRE("([[p(1),p(2)],[p(1),q],[p(2),q],[q]],[])" == IO::to_string(solve("not not p(1..2); q. {p(1)}. {p(2)}.")));
+        REQUIRE("([[],[p(1)]],[-:1:11-19: info: operation undefined:\n  (#Range0/X)\n,-:1:11-19: info: operation undefined:\n  (#Range0/X)\n,-:1:11-19: info: operation undefined:\n  (#Range0/X)\n])" == IO::to_string(solve("not not p((0..2)/X); q :- X=0. {p(1)}.")));
+        REQUIRE("([[]],[-:1:11-19: info: operation undefined:\n  (#Range0/0)\n])" == IO::to_string(solve("not not p((0..2)/0); q :- X=0.")));
+        REQUIRE("([[p(2),p(4)],[p(2),q],[p(4),q],[q]],[-:1:11-19: info: operation undefined:\n  (4/#Range0)\n])" == IO::to_string(solve("not not p(4/(0..2)); q. {p(4)}. {p(2)}.")));
+
+        // positive
+        REQUIRE("([[p(1),p(2)],[q]],[])" == IO::to_string(solve("p(1..2):#true; q:#true.")));
+        REQUIRE("([[]],[-:1:3-11: info: operation undefined:\n  (#Range0/X)\n,-:1:3-11: info: operation undefined:\n  (#Range0/X)\n,-:1:3-11: info: operation undefined:\n  (#Range0/X)\n])" == IO::to_string(solve("p((0..2)/X); q :- X=0.")));
+        REQUIRE("([[]],[-:1:3-11: info: operation undefined:\n  (#Range0/0)\n])" == IO::to_string(solve("p((0..2)/0):#true; q:#true :- X=0.")));
+        REQUIRE("([[p(2),p(4)],[q]],[-:1:3-11: info: operation undefined:\n  (4/#Range0)\n])" == IO::to_string(solve("p(4/(0..2)):#true; q:#true.")));
+        // negation
+        REQUIRE("([[],[p(1),p(2),q],[p(1),q],[p(2),q]],[])" == IO::to_string(solve("not p(1..2):#true; q:#true. {p(1)}. {p(2)}.")));
+        REQUIRE("([[],[p(1)]],[-:1:7-15: info: operation undefined:\n  (#Range0/X)\n,-:1:7-15: info: operation undefined:\n  (#Range0/X)\n,-:1:7-15: info: operation undefined:\n  (#Range0/X)\n])" == IO::to_string(solve("not p((0..2)/X):#true; q:#true :- X=0. {p(1)}.")));
+        REQUIRE("([[]],[-:1:7-15: info: operation undefined:\n  (#Range0/0)\n])" == IO::to_string(solve("not p((0..2)/0):#true; q:#true :- X=0.")));
+        REQUIRE("([[],[p(2),p(4),q],[p(2),q],[p(4),q]],[-:1:7-15: info: operation undefined:\n  (4/#Range0)\n])" == IO::to_string(solve("not p(4/(0..2)):#true; q:#true. {p(4)}. {p(2)}.")));
+        // double negation
+        REQUIRE("([[p(1),p(2)],[p(1),q],[p(2),q],[q]],[])" == IO::to_string(solve("not not p(1..2):#true; q:#true. {p(1)}. {p(2)}.")));
+        REQUIRE("([[],[p(1)]],[-:1:11-19: info: operation undefined:\n  (#Range0/X)\n,-:1:11-19: info: operation undefined:\n  (#Range0/X)\n,-:1:11-19: info: operation undefined:\n  (#Range0/X)\n])" == IO::to_string(solve("not not p((0..2)/X):#true; q:#true :- X=0. {p(1)}.")));
+        REQUIRE("([[]],[-:1:11-19: info: operation undefined:\n  (#Range0/0)\n])" == IO::to_string(solve("not not p((0..2)/0):#true; q:#true :- X=0.")));
+        REQUIRE("([[p(2),p(4)],[p(2),q],[p(4),q],[q]],[-:1:11-19: info: operation undefined:\n  (4/#Range0)\n])" == IO::to_string(solve("not not p(4/(0..2)):#true; q:#true. {p(4)}. {p(2)}.")));
+    }
+    SECTION("bug-disjunction-pools") {
+        // positive
+        REQUIRE("([[p(1),p(2)],[q]],[])" == IO::to_string(solve("p(1;2); q.")));
+        REQUIRE("([[p(1),p(2)],[q]],[-:1:3-6: info: operation undefined:\n  (0/X)\n])" == IO::to_string(solve("p(0/X;1;2); q :- X=0.")));
+        REQUIRE("([[p(1),p(2)],[q]],[-:1:3-6: info: operation undefined:\n  (X/0)\n])" == IO::to_string(solve("p(X/0;1;2); q :- X=0.")));
+        REQUIRE("([[]],[-:1:3-6: info: operation undefined:\n  (0/X)\n])" == IO::to_string(solve("p(0/X); q :- X=0.")));
+        REQUIRE("([[]],[-:1:3-6: info: operation undefined:\n  (X/0)\n])" == IO::to_string(solve("p(X/0); q :- X=0.")));
+        // negation
+        REQUIRE("([[],[p(1),p(2),q],[p(1),q],[p(2),q]],[])" == IO::to_string(solve("not p(1;2); q. {p(1)}. {p(2)}.")));
+        REQUIRE("([[],[p(1),p(2),q],[p(1),q],[p(2),q]],[-:1:7-10: info: operation undefined:\n  (0/X)\n])" == IO::to_string(solve("not p(0/X;1;2); q :- X=0. {p(1)}. {p(2)}.")));
+        REQUIRE("([[],[p(1),p(2),q],[p(1),q],[p(2),q]],[-:1:7-10: info: operation undefined:\n  (X/0)\n])" == IO::to_string(solve("not p(X/0;1;2); q :- X=0. {p(1)}. {p(2)}.")));
+        REQUIRE("([[]],[-:1:5-11: info: atom does not occur in any rule head:\n  p((0/X))\n,-:1:7-10: info: operation undefined:\n  (0/X)\n])" == IO::to_string(solve("not p(0/X); q :- X=0.")));
+        REQUIRE("([[]],[-:1:7-10: info: operation undefined:\n  (X/0)\n])" == IO::to_string(solve("not p(X/0); q :- X=0.")));
+        // double negation
+        REQUIRE("([[p(1),p(2)],[p(1),q]],[])" == IO::to_string(solve("not not p(1;2); q. p(1). {p(2)}.")));
+        REQUIRE("([[p(1),p(2)],[p(1),q]],[-:1:11-14: info: operation undefined:\n  (0/X)\n])" == IO::to_string(solve("not not p(0/X;1;2); q :- X=0. p(1). {p(2)}.")));
+        REQUIRE("([[p(1),p(2)],[p(1),q]],[-:1:11-14: info: operation undefined:\n  (X/0)\n])" == IO::to_string(solve("not not p(X/0;1;2); q :- X=0. p(1). {p(2)}.")));
+        REQUIRE("([[]],[-:1:9-15: info: atom does not occur in any rule head:\n  p((0/X))\n,-:1:11-14: info: operation undefined:\n  (0/X)\n])" == IO::to_string(solve("not not p(0/X); q :- X=0.")));
+        REQUIRE("([[]],[-:1:11-14: info: operation undefined:\n  (X/0)\n])" == IO::to_string(solve("not not p(X/0); q :- X=0.")));
+
+        // positive
+        REQUIRE("([[p(1),p(2)],[q]],[])" == IO::to_string(solve("p(1;2):#true; q:#true.")));
+        REQUIRE("([[p(1),p(2)],[q]],[-:1:3-6: info: operation undefined:\n  (0/X)\n])" == IO::to_string(solve("p(0/X;1;2):#true; q:#true :- X=0.")));
+        REQUIRE("([[p(1),p(2)],[q]],[-:1:3-6: info: operation undefined:\n  (X/0)\n])" == IO::to_string(solve("p(X/0;1;2):#true; q:#true :- X=0.")));
+        REQUIRE("([[]],[-:1:3-6: info: operation undefined:\n  (0/X)\n])" == IO::to_string(solve("p(0/X):#true; q:#true :- X=0.")));
+        REQUIRE("([[]],[-:1:3-6: info: operation undefined:\n  (X/0)\n])" == IO::to_string(solve("p(X/0):#true; q:#true :- X=0.")));
+        // negation
+        REQUIRE("([[],[p(1),p(2),q],[p(1),q],[p(2),q]],[])" == IO::to_string(solve("not p(1;2):#true; q:#true. {p(1)}. {p(2)}.")));
+        REQUIRE("([[],[p(1),p(2),q],[p(1),q],[p(2),q]],[-:1:7-10: info: operation undefined:\n  (0/X)\n])" == IO::to_string(solve("not p(0/X;1;2):#true; q:#true :- X=0. {p(1)}. {p(2)}.")));
+        REQUIRE("([[],[p(1),p(2),q],[p(1),q],[p(2),q]],[-:1:7-10: info: operation undefined:\n  (X/0)\n])" == IO::to_string(solve("not p(X/0;1;2):#true; q:#true :- X=0. {p(1)}. {p(2)}.")));
+        REQUIRE("([[]],[-:1:5-11: info: atom does not occur in any rule head:\n  p((0/X))\n,-:1:7-10: info: operation undefined:\n  (0/X)\n])" == IO::to_string(solve("not p(0/X):#true; q:#true :- X=0.")));
+        REQUIRE("([[]],[-:1:7-10: info: operation undefined:\n  (X/0)\n])" == IO::to_string(solve("not p(X/0):#true; q:#true :- X=0.")));
+        // double negation
+        REQUIRE("([[p(1),p(2)],[p(1),q]],[])" == IO::to_string(solve("not not p(1;2):#true; q:#true. p(1). {p(2)}.")));
+        REQUIRE("([[p(1),p(2)],[p(1),q]],[-:1:11-14: info: operation undefined:\n  (0/X)\n])" == IO::to_string(solve("not not p(0/X;1;2):#true; q:#true :- X=0. p(1). {p(2)}.")));
+        REQUIRE("([[p(1),p(2)],[p(1),q]],[-:1:11-14: info: operation undefined:\n  (X/0)\n])" == IO::to_string(solve("not not p(X/0;1;2):#true; q:#true :- X=0. p(1). {p(2)}.")));
+        REQUIRE("([[]],[-:1:9-15: info: atom does not occur in any rule head:\n  p((0/X))\n,-:1:11-14: info: operation undefined:\n  (0/X)\n])" == IO::to_string(solve("not not p(0/X):#true; q:#true :- X=0.")));
+        REQUIRE("([[]],[-:1:11-14: info: operation undefined:\n  (X/0)\n])" == IO::to_string(solve("not not p(X/0):#true; q:#true :- X=0.")));
+    }
     SECTION("bug-classical-negation") {
         REQUIRE(
             "([],[])" ==

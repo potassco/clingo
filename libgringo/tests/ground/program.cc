@@ -194,27 +194,27 @@ TEST_CASE("ground-program", "[ground]") {
             "% component\n"
             "#external.\n"
             "% component\n"
-            "#d0(Y,X):-p(X,Y,Z).\n"
+            "#d0(B,Y,X):-p(X,Y,Z).\n"
             "% component\n"
-            "#complete(#d0(Y,X)):-[#d0(Y,X)!].\n"
+            "#complete(#d0(B,Y,X)):-[#d0(B,Y,X)!].\n"
             "% component\n"
-            "#complete(#d0(Y,X)):-r(A,X),[#d0(Y,X)!].\n"
+            "#complete(#d0(B,Y,X)):-r(A,X),[#d0(B,Y,X)!].\n"
             "% component\n"
-            "a(B,Y);q(A):-#complete(#d0(Y,X))!" ==
+            "a(B,Y);q(A):-#complete(#d0(B,Y,X))!" ==
             toString(parse("q(A):r(A,X);a(B,Y):-p(X,Y,Z).")));
         REQUIRE(
             "% component\n"
             "#external.\n"
             "% component\n"
-            "#d0(Y,X):-p(X,Y,Z).\n"
+            "#d0(B,Y,X):-p(X,Y,Z).\n"
             "% component\n"
-            "#complete(#d0(Y,X)):-[#d0(Y,X)!].\n"
+            "#complete(#d0(B,Y,X)):-[#d0(B,Y,X)!].\n"
             "% component\n"
-            "#complete(#d0(Y,X)):-q(X),[#d0(Y,X)!].\n"
+            "#complete(#d0(B,Y,X)):-q(X),[#d0(B,Y,X)!].\n"
             "% component\n"
-            "#complete(#d0(Y,X)):-r(A,X),[#d0(Y,X)!].\n"
+            "#complete(#d0(B,Y,X)):-r(A,X),[#d0(B,Y,X)!].\n"
             "% component\n"
-            "a(B,Y);#false:X<=1;#false:not not q(A):-#complete(#d0(Y,X))!" ==
+            "a(B,Y);#false:X<=1;#false:not not q(A):-#complete(#d0(B,Y,X))!" ==
             toString(parse("not q(A):r(A,X);a(B,Y);X>1:q(X):-p(X,Y,Z).")));
         REQUIRE(
             "% component\n"
