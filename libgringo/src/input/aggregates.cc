@@ -1335,7 +1335,16 @@ UHeadAggr Disjunction::rewriteAggregates(UBodyAggrVec &body) {
         }
         if (elem.second.empty() && elem.first.size() == 1) {
             auto &head = elem.first.front();
-            for (auto &lit : head.second) { body.emplace_back(make_locatable<SimpleBodyLiteral>(loc(), std::move(lit))); }
+            VarTermBoundVec vars;
+            head.first->collect(vars, false);
+            for (auto &var : vars) { var.first->level = 0; }
+            vars.clear();
+            for (auto &lit : head.second) {
+                lit->collect(vars, false);
+                for (auto &var : vars) { var.first->level = 0; }
+                vars.clear();
+                body.emplace_back(make_locatable<SimpleBodyLiteral>(loc(), std::move(lit)));
+            }
             head.second.clear();
         }
     }
@@ -1344,16 +1353,29 @@ UHeadAggr Disjunction::rewriteAggregates(UBodyAggrVec &body) {
 
 bool Disjunction::simplify(Projections &project, SimplifyState &state, Logger &log) {
     for (auto &elem : elems) {
-        elem.first.erase(std::remove_if(elem.first.begin(), elem.first.end(), [&](Head &head) {
+        for (auto &head : elem.first) {
+            bool replace = false;
             SimplifyState elemState(state);
-            if (!head.first->simplify(log, project, elemState)) { return true; }
-            for (auto &lit : head.second) {
-                if (!lit->simplify(log, project, elemState)) { return true; }
+            if (head.first->simplify(log, project, elemState)) {
+                for (auto &lit : head.second) {
+                    if (!lit->simplify(log, project, elemState)) {
+                        replace = true;
+                        break;
+                    }
+                }
             }
-            for (auto &dot : elemState.dots) { head.second.emplace_back(RangeLiteral::make(dot)); }
-            for (auto &script : elemState.scripts) { head.second.emplace_back(ScriptLiteral::make(script)); }
-            return false;
-        }), elem.first.end());
+            else { replace = true; }
+            if (replace) {
+                auto loc = head.first->loc();
+                head.first = Gringo::make_locatable<RelationLiteral>(loc, Relation::EQ, make_locatable<ValTerm>(
+                    loc, Symbol::createNum(0)), make_locatable<ValTerm>(loc, Symbol::createNum(0)));
+                head.second.clear();
+            }
+            else {
+                for (auto &dot : elemState.dots) { head.second.emplace_back(RangeLiteral::make(dot)); }
+                for (auto &script : elemState.scripts) { head.second.emplace_back(ScriptLiteral::make(script)); }
+            }
+        }
     }
     elems.erase(std::remove_if(elems.begin(), elems.end(), [&](ElemVec::value_type &elem) -> bool {
         SimplifyState elemState(state);

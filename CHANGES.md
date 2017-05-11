@@ -1,7 +1,11 @@
 # Changes
 
 ## clingo 5.2.1
-  * properly handle undefined ** operations
+  * fix handling of undefined ** operations
+  * fix preprocessing of disjunctions with undefined operations
+    (regression in clingo-5)
+  * fix segfault during preprocessing
+    (regression in clingo-5)
 ## clingo 5.2
   * switch to MIT license
   * improve compatibility with abstract gringo

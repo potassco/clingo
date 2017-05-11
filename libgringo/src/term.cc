@@ -1174,6 +1174,7 @@ Term::SimplifyRet UnOpTerm::simplify(SimplifyState &state, bool, bool arithmetic
         return {};
     }
     else if ((multiNeg && ret.notNumeric() && ret.notFunction()) || (!multiNeg && ret.notNumeric())) {
+        ret.update(arg);
         GRINGO_REPORT(log, Warnings::OperationUndefined)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
@@ -1354,6 +1355,7 @@ Term::SimplifyRet BinOpTerm::simplify(SimplifyState &state, bool, bool, Logger &
         return {};
     }
     else if (retLeft.notNumeric() || retRight.notNumeric() || (op == BinOp::DIV && retRight.isZero())) {
+        retLeft.update(left); retRight.update(right);
         GRINGO_REPORT(log, Warnings::OperationUndefined)
             << loc() << ": info: operation undefined:\n"
             << "  " << *this << "\n";
