@@ -47,9 +47,8 @@ struct Incmode {
 
     String get_stop() {
         auto istop  = ctl_.getConst("istop");
-        if (istop.type() == Gringo::SymbolType::Fun && istop.args().size == 0) {
-            return istop.name();
-        }
+        if (istop.type() == Gringo::SymbolType::Str) { return istop.string(); }
+        else if (istop.type() == Gringo::SymbolType::Fun && istop.args().size == 0) { return istop.name(); }
         return "SAT";
     }
 

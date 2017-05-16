@@ -1,6 +1,7 @@
 # Changes
 
 ## clingo 5.2.1
+  * fix handling of istop in incmode programs
   * fix handling of undefined ** operations
   * fix preprocessing of disjunctions with undefined operations
     (regression in clingo-5)
