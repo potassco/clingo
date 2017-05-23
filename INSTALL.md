@@ -73,9 +73,16 @@ options](#build-options)) and run:
 
 ## Build Options
 
-To get an overview over the variables that can be set for building
-gringo/clingo run `cmake -LH` or `cmake -LAH`. The latter also prints important
-cmake specific configuration variables. Options and variables can be passed to
+Cmake's `-L` option can be used to get an overview over the variables that can
+be set for building gringo/clingo. To get gringo/clingo specific options, run
+
+    cmake -H<SOURCE_DIR> -B<BUILD_DIR> -DCMAKE_BUILD_TYPE=Release -LH
+    
+or, to also print important cmake specific configuration variables
+
+    cmake -H<SOURCE_DIR> -B<BUILD_DIR> -DCMAKE_BUILD_TYPE=Release -LAH
+
+Options and variables can be passed to
 cmake on the command line using `-D<VARIABLE>=<VALUE>` or by editing
 `<BUILD_DIR>/CMakeCache.txt` after running cmake.
 
