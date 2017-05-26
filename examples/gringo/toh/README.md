@@ -1,4 +1,4 @@
-# Solving Towers of Hanoi
+# Solving the Towers of Hanoi Problem
 
 This example shows how to incrementally solve the towers of hanoi problem using
 clingo's inbuild incremental solving mode.
