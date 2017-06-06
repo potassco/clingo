@@ -2346,7 +2346,7 @@ Check if an atom a is contained in the model.
 
 The atom must be represented using a function symbol.)"},
     {"is_true", to_function<&Model::is_true>(), METH_O,
-R"(contains(self, a) -> bool
+R"(is_true(self, a) -> bool
 
 Check if the given program literal is true.
 )"},
