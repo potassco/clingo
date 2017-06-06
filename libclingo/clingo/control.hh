@@ -117,8 +117,8 @@ struct SolveEventHandler {
     virtual ~SolveEventHandler() = default;
 };
 using USolveEventHandler = std::unique_ptr<SolveEventHandler>;
-inline bool SolveEventHandler::on_model(Model &) { return true; };
-inline void SolveEventHandler::on_finish(SolveResult) { };
+inline bool SolveEventHandler::on_model(Model &) { return true; }
+inline void SolveEventHandler::on_finish(SolveResult) { }
 
 struct SolveFuture {
     virtual SolveResult get() = 0;
