@@ -140,7 +140,7 @@ Note that it can happen that the found Python interpreter does not match the
 found Python libraries if the development headers for the interpreter are not
 installed. Make sure to install them before running cmake (or remove or adjust
 the `CMakeCache.txt` file). It is also possible to explicitely select a Python
-installation by pointing the variable `PYTHON_EXECUTABLE` to the desired python
+installation by pointing the variable `PYTHON_EXECUTABLE` to the desired Python
 interpreter.
 
 ### Lua Support
