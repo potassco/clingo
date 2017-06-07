@@ -99,7 +99,7 @@ In the following, the most important options to control the build are listed.
 
 ### Generic Options
 
-- Variable `CMAKE_BUILD_TYPE` should be set to `release`.
+- Variable `CMAKE_BUILD_TYPE` should be set to `Release`.
 - Variable `CMAKE_INSTALL_PREFIX` controls where to install clingo.
 - Option `CLINGO_BUILD_APPS` controls whether to build the applications gringo,
   clingo, and reify.
