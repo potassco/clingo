@@ -196,7 +196,7 @@ using Control = clingo_control;
 } // namespace Gringo
 
 struct clingo_control {
-    using Assumptions = std::vector<std::pair<Gringo::Symbol, bool>>;
+    using Assumptions = Potassco::LitSpan;
     using GroundVec = std::vector<std::pair<Gringo::String, Gringo::SymVec>>;
     using NewControlFunc = Gringo::Control* (*)(int, char const **);
     using FreeControlFunc = void (*)(Gringo::Control *);
@@ -205,7 +205,7 @@ struct clingo_control {
     virtual Gringo::SymbolicAtoms &getDomain() = 0;
 
     virtual void ground(GroundVec const &vec, Gringo::Context *context) = 0;
-    virtual Gringo::USolveFuture solve(Assumptions &&assumptions, clingo_solve_mode_bitset_t mode, Gringo::USolveEventHandler cb = nullptr) = 0;
+    virtual Gringo::USolveFuture solve(Assumptions assumptions, clingo_solve_mode_bitset_t mode, Gringo::USolveEventHandler cb = nullptr) = 0;
     virtual void interrupt() = 0;
     virtual void *claspFacade() = 0;
     virtual void add(std::string const &name, Gringo::StringVec const &params, std::string const &part) = 0;

@@ -1126,14 +1126,6 @@ extern "C" bool clingo_control_ground(clingo_control_t *ctl, clingo_part_t const
 
 namespace {
 
-Control::Assumptions toAss(clingo_symbolic_literal_t const * assumptions, size_t n) {
-    Control::Assumptions ass;
-    for (auto it = assumptions, ie = it + n; it != ie; ++it) {
-        ass.emplace_back(static_cast<Symbol const>(it->symbol), it->positive);
-    }
-    return ass;
-}
-
 class ClingoSolveEventHandler : public SolveEventHandler {
 public:
     ClingoSolveEventHandler(clingo_solve_event_callback_t cb, void *data)
@@ -1158,9 +1150,9 @@ private:
 
 } // namespace
 
-extern "C" bool clingo_control_solve(clingo_control_t *control, clingo_solve_mode_bitset_t mode, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_event_callback_t notify, void *data, clingo_solve_handle_t **handle) {
+extern "C" bool clingo_control_solve(clingo_control_t *control, clingo_solve_mode_bitset_t mode, clingo_literal_t const *assumptions, size_t assumptions_size, clingo_solve_event_callback_t notify, void *data, clingo_solve_handle_t **handle) {
     GRINGO_CLINGO_TRY { *handle = static_cast<clingo_solve_handle_t*>(control->solve(
-        toAss(assumptions, assumptions_size),
+        Potassco::toSpan(assumptions, assumptions_size),
         mode,
         notify ? gringo_make_unique<ClingoSolveEventHandler>(notify, data) : nullptr
     ).release()); }

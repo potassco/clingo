@@ -3106,7 +3106,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, 
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving could not be started
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, clingo_solve_mode_bitset_t mode, clingo_symbolic_literal_t const *assumptions, size_t assumptions_size, clingo_solve_event_callback_t notify, void *data, clingo_solve_handle_t **handle);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, clingo_solve_mode_bitset_t mode, clingo_literal_t const *assumptions, size_t assumptions_size, clingo_solve_event_callback_t notify, void *data, clingo_solve_handle_t **handle);
 //! Clean up the domains of clingo's grounding component using the solving
 //! component's top level assignment.
 //!

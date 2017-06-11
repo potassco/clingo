@@ -63,7 +63,7 @@ struct OutputOptions {
     bool        reifySteps = false;
 };
 
-using Assumptions = std::vector<std::pair<Gringo::Symbol, bool>>;
+using Assumptions = Potassco::LitSpan;
 class OutputBase {
 public:
     OutputBase(Potassco::TheoryData &data, OutputPredicates &&outPreds, std::ostream &out, OutputFormat format = OutputFormat::INTERMEDIATE, OutputOptions opts = OutputOptions());
@@ -89,7 +89,7 @@ public:
     Backend *backend();
     void registerObserver(UBackend prg, bool replace);
     void reset(bool resetData);
-    void assume(Assumptions &&ass);
+    void assume(Assumptions ass);
 private:
     UAbstractOutput fromFormat(std::ostream &out, OutputFormat format, OutputOptions opts);
     UAbstractOutput fromBackend(UBackend &&out, OutputOptions opts);

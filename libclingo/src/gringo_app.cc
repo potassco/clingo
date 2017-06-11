@@ -182,8 +182,8 @@ struct IncrementalControl : Control {
         parse();
     }
     bool blocked() override { return false; }
-    USolveFuture solve(Assumptions &&ass, clingo_solve_mode_bitset_t, USolveEventHandler cb) override {
-        out.assume(std::move(ass));
+    USolveFuture solve(Assumptions ass, clingo_solve_mode_bitset_t, USolveEventHandler cb) override {
+        out.assume(ass);
         grounded = false;
         out.endStep(true, logger_);
         out.reset(true);

@@ -1335,18 +1335,18 @@ luaL_Reg const SymbolicAtoms::meta[] = {
 
 // {{{1 wrap SolveControl
 
-struct SolveControl : Object<SolveControl> {
-    clingo_solve_control_t *ctl;
-    SolveControl(clingo_solve_control_t *ctl) : ctl(ctl) { }
-    static int getClause(lua_State *L, bool invert) {
-        auto &self = get_self(L);
-        if (lua_type(L, 2) != LUA_TTABLE) {
+// invert is just to turn nogoods into clauses, which was added to match the formal background in our papers
+// disjunctive determines if the literals are going to be used as a disjunction or conjunction
+// this function returns null if the literals are unnecessary, i.e., if
+//   there is a true literal in a disjunction, or
+//   there is a false literal in a conjunction
+static std::vector<clingo_literal_t> *luaToLits(lua_State *L, int tableIdx, clingo_symbolic_atoms_t *atoms, bool invert, bool disjunctive) {
+        if (lua_type(L, tableIdx) != LUA_TTABLE) {
             luaL_error(L, "table expected");
         }
-        auto atoms = call_c(L, clingo_solve_control_symbolic_atoms, self.ctl);
         std::vector<clingo_literal_t> *lits = AnyWrap::new_<std::vector<clingo_literal_t>>(L); // +1
-        lua_pushnil(L);
-        while (lua_next(L, 2) != 0) {
+        lua_pushnil(L);                                                                        // +1
+        while (lua_next(L, tableIdx) != 0) {                                                   // +1/-1
             if (lua_isnumber(L, -1)) {
                 clingo_literal_t lit;
                 luaToCpp(L, -1, lit);
@@ -1362,15 +1362,26 @@ struct SolveControl : Object<SolveControl> {
                     clingo_literal_t lit = call_c(L, clingo_symbolic_atoms_literal, atoms, it);
                     protect(L, [lits, lit, sym]() { lits->emplace_back(sym.positive ? lit : -lit); });
                 }
-                else if (!sym.positive) {
+                else if (sym.positive != disjunctive) {
                     lua_pop(L, 3);
-                    return 0;
+                    return nullptr;
                 }
             }
-            lua_pop(L, 1);
+            lua_pop(L, 1); // -1
         }
-        handle_c_error(L, clingo_solve_control_add_clause(self.ctl, lits->data(), lits->size()));
-        lua_pop(L, 1); // -1
+        return lits;
+}
+
+struct SolveControl : Object<SolveControl> {
+    clingo_solve_control_t *ctl;
+    SolveControl(clingo_solve_control_t *ctl) : ctl(ctl) { }
+    static int getClause(lua_State *L, bool invert) {
+        auto &self = get_self(L);
+        auto atoms = call_c(L, clingo_solve_control_symbolic_atoms, self.ctl);
+        if (auto *lits = luaToLits(L, 2, atoms, invert, true)) { // +1/+0
+            handle_c_error(L, clingo_solve_control_add_clause(self.ctl, lits->data(), lits->size()));
+            lua_pop(L, 1); // -1
+        }
         return 0;
     }
     static int add_clause(lua_State *L) {
@@ -1644,7 +1655,7 @@ struct SolveHandle : Object<SolveHandle> {
     clingo_solve_mode_bitset_t mode;
     bool hasMH, hasFH;
     clingo_control_t *ctl;
-    std::vector<clingo_symbolic_literal_t> *ass;
+    std::vector<clingo_literal_t> *ass;
     SolveHandle(clingo_solve_handle_t *handle) : handle(handle) { }
     static SolveHandle &get_self(lua_State *L, int offset=1) {
         void *p = nullptr;
@@ -2928,14 +2939,20 @@ struct ControlWrap : Object<ControlWrap> {
 
         auto handle = SolveHandle::new_(L); // +1
         int handleIdx = lua_gettop(L);
-        handle->ass = AnyWrap::new_<std::vector<clingo_symbolic_literal_t>>(L); // +1
+        handle->ass = AnyWrap::new_<std::vector<clingo_literal_t>>(L); // +1
         handle->ctl = self.ctl;
 
         // this can be made more flexible by both accepting a table as well as normal arguments
         if (!lua_isnone(L, 2) && !lua_isnil(L, 2)) {
             luaL_checktype(L, 2, LUA_TTABLE);
             lua_getfield(L, 2, "assumptions"); // +1
-            if (!lua_isnil(L, -1)) { luaToCpp(L, -1, *handle->ass); }
+            if (!lua_isnil(L, -1)) {
+                auto atoms = call_c(L, clingo_control_symbolic_atoms, self.ctl);
+                if (auto *lits = luaToLits(L, 2, atoms, false, false)) { // +1/+0
+                    handle->ass->swap(*lits);
+                    lua_pop(L, 1); // -1
+                }
+            }
             lua_pop(L, 1);                     // -1
 
             lua_getfield(L, 2, "yield");       // +1

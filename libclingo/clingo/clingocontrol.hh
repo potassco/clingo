@@ -200,7 +200,7 @@ public:
 
     ClingoControl(Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Logger::Printer printer, unsigned messageLimit);
     ~ClingoControl() noexcept override;
-    void prepare(Assumptions &&ass);
+    void prepare(Assumptions ass);
     void commitExternals();
     void parse();
     void parse(const StringVec& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* out, bool addStdIn = true);
@@ -257,7 +257,7 @@ public:
     void useEnumAssumption(bool enable) override;
     bool useEnumAssumption() override;
     void cleanupDomains() override;
-    USolveFuture solve(Assumptions &&ass, clingo_solve_mode_bitset_t mode, USolveEventHandler cb) override;
+    USolveFuture solve(Assumptions ass, clingo_solve_mode_bitset_t mode, USolveEventHandler cb) override;
     Output::DomainData const &theory() const override { return out_->data; }
     void registerPropagator(UProp p, bool sequential) override;
     void interrupt() override;

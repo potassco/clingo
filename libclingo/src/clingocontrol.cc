@@ -342,8 +342,8 @@ unsigned ClingoControl::getRootKey() {
 ConfigProxy &ClingoControl::getConf() {
     return *this;
 }
-USolveFuture ClingoControl::solve(Assumptions &&ass, clingo_solve_mode_bitset_t mode, USolveEventHandler cb) {
-    prepare(std::move(ass));
+USolveFuture ClingoControl::solve(Assumptions ass, clingo_solve_mode_bitset_t mode, USolveEventHandler cb) {
+    prepare(ass);
     if (clingoMode_) {
         static_assert(clingo_solve_mode_yield == static_cast<clingo_solve_mode_bitset_t>(Clasp::SolveMode_t::Yield), "");
         static_assert(clingo_solve_mode_async == static_cast<clingo_solve_mode_bitset_t>(Clasp::SolveMode_t::Async), "");
@@ -360,12 +360,12 @@ void ClingoControl::interrupt() {
 bool ClingoControl::blocked() {
     return clasp_->solving();
 }
-void ClingoControl::prepare(Assumptions &&ass) {
+void ClingoControl::prepare(Assumptions ass) {
     eventHandler_ = nullptr;
     // finalize the program
     if (update()) {
         // pass assumptions to the backend
-        out_->assume(std::move(ass));
+        out_->assume(ass);
         out_->endStep(true, logger_);
     }
     grounded = false;
