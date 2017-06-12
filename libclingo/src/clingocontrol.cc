@@ -444,10 +444,7 @@ bool ClingoControl::useEnumAssumption() {
 }
 
 SymbolicAtoms &ClingoControl::getDomain() {
-    if (clingoMode_) { return *this; }
-    else {
-        throw std::runtime_error("domain introspection only supported in clingo mode");
-    }
+    return *this;
 }
 
 namespace {
@@ -531,7 +528,7 @@ bool ClingoControl::fact(SymbolicAtomIter it) const {
 
 bool ClingoControl::external(SymbolicAtomIter it) const {
     auto &elem = domainElem(out_->predDoms(), it);
-    return elem.hasUid() && elem.isExternal() && static_cast<Clasp::Asp::LogicProgram*>(clasp_->program())->isExternal(elem.uid());
+    return elem.hasUid() && elem.isExternal() && (!clingoMode_ || static_cast<Clasp::Asp::LogicProgram*>(clasp_->program())->isExternal(elem.uid()));
 }
 
 SymbolicAtomIter ClingoControl::next(SymbolicAtomIter it) {

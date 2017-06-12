@@ -1341,35 +1341,36 @@ luaL_Reg const SymbolicAtoms::meta[] = {
 //   there is a true literal in a disjunction, or
 //   there is a false literal in a conjunction
 static std::vector<clingo_literal_t> *luaToLits(lua_State *L, int tableIdx, clingo_symbolic_atoms_t *atoms, bool invert, bool disjunctive) {
-        if (lua_type(L, tableIdx) != LUA_TTABLE) {
-            luaL_error(L, "table expected");
+    if (lua_type(L, tableIdx) != LUA_TTABLE) {
+        luaL_error(L, "table expected");
+    }
+    tableIdx = lua_absindex(L, tableIdx);
+    std::vector<clingo_literal_t> *lits = AnyWrap::new_<std::vector<clingo_literal_t>>(L); // +1
+    lua_pushnil(L);                                                                        // +1
+    while (lua_next(L, tableIdx) != 0) {                                                   // +1/-1
+        if (lua_isnumber(L, -1)) {
+            clingo_literal_t lit;
+            luaToCpp(L, -1, lit);
+            if (invert) { lit = -lit; }
+            protect(L, [lits, lit]() { lits->emplace_back(lit); });
         }
-        std::vector<clingo_literal_t> *lits = AnyWrap::new_<std::vector<clingo_literal_t>>(L); // +1
-        lua_pushnil(L);                                                                        // +1
-        while (lua_next(L, tableIdx) != 0) {                                                   // +1/-1
-            if (lua_isnumber(L, -1)) {
-                clingo_literal_t lit;
-                luaToCpp(L, -1, lit);
-                if (invert) { lit = -lit; }
-                protect(L, [lits, lit]() { lits->emplace_back(lit); });
+        else {
+            clingo_symbolic_literal_t sym;
+            luaToCpp(L, -1, sym);
+            if (invert) { sym.positive = !sym.positive; }
+            auto it = call_c(L, clingo_symbolic_atoms_find, atoms, sym.symbol);
+            if (call_c(L, clingo_symbolic_atoms_is_valid, atoms, it)) {
+                clingo_literal_t lit = call_c(L, clingo_symbolic_atoms_literal, atoms, it);
+                protect(L, [lits, lit, sym]() { lits->emplace_back(sym.positive ? lit : -lit); });
             }
-            else {
-                clingo_symbolic_literal_t sym;
-                luaToCpp(L, -1, sym);
-                if (invert) { sym.positive = !sym.positive; }
-                auto it = call_c(L, clingo_symbolic_atoms_find, atoms, sym.symbol);
-                if (call_c(L, clingo_symbolic_atoms_is_valid, atoms, it)) {
-                    clingo_literal_t lit = call_c(L, clingo_symbolic_atoms_literal, atoms, it);
-                    protect(L, [lits, lit, sym]() { lits->emplace_back(sym.positive ? lit : -lit); });
-                }
-                else if (sym.positive != disjunctive) {
-                    lua_pop(L, 3);
-                    return nullptr;
-                }
+            else if (sym.positive != disjunctive) {
+                lua_pop(L, 3);
+                return nullptr;
             }
-            lua_pop(L, 1); // -1
         }
-        return lits;
+        lua_pop(L, 1); // -1
+    }
+    return lits;
 }
 
 struct SolveControl : Object<SolveControl> {
@@ -2948,7 +2949,7 @@ struct ControlWrap : Object<ControlWrap> {
             lua_getfield(L, 2, "assumptions"); // +1
             if (!lua_isnil(L, -1)) {
                 auto atoms = call_c(L, clingo_control_symbolic_atoms, self.ctl);
-                if (auto *lits = luaToLits(L, 2, atoms, false, false)) { // +1/+0
+                if (auto *lits = luaToLits(L, -1, atoms, false, false)) { // +1/+0
                     handle->ass->swap(*lits);
                     lua_pop(L, 1); // -1
                 }

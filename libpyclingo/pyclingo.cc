@@ -2056,6 +2056,35 @@ occurring in the program. A true Boolean stands for a positive signature.)"
 
 // {{{1 wrap SolveControl
 
+std::vector<clingo_literal_t> pyToLits(Reference pyLits, clingo_symbolic_atoms_t *atoms, bool invert, bool disjunctive) {
+    using LitVec = std::vector<clingo_literal_t>;
+    LitVec lits;
+    for (auto x : pyLits.iter()) {
+        if (PyNumber_Check(x.toPy())) {
+            auto lit = pyToCpp<clingo_literal_t>(x);
+            lits.emplace_back(invert ? -lit : lit);
+        }
+        else {
+            clingo_symbolic_literal_t sym = pyToCpp<clingo_symbolic_literal_t>(x);
+            if (invert) { sym.positive = !sym.positive; }
+            clingo_symbolic_atom_iterator_t it;
+            handle_c_error(clingo_symbolic_atoms_find(atoms, sym.symbol, &it));
+            bool valid;
+            handle_c_error(clingo_symbolic_atoms_is_valid(atoms, it, &valid));
+            if (valid) {
+                clingo_literal_t lit;
+                handle_c_error(clingo_symbolic_atoms_literal(atoms, it, &lit));
+                lits.emplace_back(sym.positive ? lit : -lit);
+            }
+            else if (sym.positive != disjunctive) {
+                lits.emplace_back(1);
+                lits.emplace_back(-1);
+            }
+        }
+    }
+    return lits;
+}
+
 struct SolveControl : ObjectBase<SolveControl> {
     clingo_solve_control_t *ctl;
     static PyMethodDef tp_methods[];
@@ -2075,30 +2104,10 @@ they are available as properties of Model objects.)";
     }
 
     Object getClause(Reference pyLits, bool invert) {
+        clingo_symbolic_atoms_t *atoms;
+        handle_c_error(clingo_solve_control_symbolic_atoms(ctl, &atoms));
         using LitVec = std::vector<clingo_literal_t>;
-        LitVec lits;
-        for (auto x : pyLits.iter()) {
-            if (PyNumber_Check(x.toPy())) {
-                auto lit = pyToCpp<clingo_literal_t>(x);
-                lits.emplace_back(invert ? -lit : lit);
-            }
-            else {
-                clingo_symbolic_literal_t sym = pyToCpp<clingo_symbolic_literal_t>(x);
-                if (invert) { sym.positive = !sym.positive; }
-                clingo_symbolic_atoms_t *atoms;
-                handle_c_error(clingo_solve_control_symbolic_atoms(ctl, &atoms));
-                clingo_symbolic_atom_iterator_t it;
-                handle_c_error(clingo_symbolic_atoms_find(atoms, sym.symbol, &it));
-                bool valid;
-                handle_c_error(clingo_symbolic_atoms_is_valid(atoms, it, &valid));
-                if (valid) {
-                    clingo_literal_t lit;
-                    handle_c_error(clingo_symbolic_atoms_literal(atoms, it, &lit));
-                    lits.emplace_back(sym.positive ? lit : -lit);
-                }
-                else if (!sym.positive) { Py_RETURN_NONE; }
-            }
-        }
+        LitVec lits = pyToLits(pyLits, atoms, invert, true);
         handle_c_error(clingo_solve_control_add_clause(ctl, lits.data(), lits.size()));
         Py_RETURN_NONE;
     }
@@ -5647,8 +5656,12 @@ active; you must not call any member function during search.)";
         static char const *kwlist[] = {"assumptions", "on_model", "on_finish", "yield_", "async", nullptr};
         Reference pyAss = Py_None, pyM = Py_None, pyF = Py_None, pyYield = Py_False, pyAsync = Py_False;
         ParseTupleAndKeywords(args, kwds, "|OOOOO", kwlist, pyAss, pyM, pyF, pyYield, pyAsync);
-        std::vector<clingo_symbolic_literal_t> ass;
-        if (!pyAss.none()) { pyToCpp(pyAss, ass); }
+        std::vector<clingo_literal_t> ass;
+        if (!pyAss.none()) {
+            clingo_symbolic_atoms_t *atoms;
+            handle_c_error(clingo_control_symbolic_atoms(ctl, &atoms));
+            ass = pyToLits(pyAss, atoms, false, false);
+        }
         clingo_solve_mode_bitset_t mode = 0;
         if (pyYield.isTrue()) { mode |= clingo_solve_mode_yield; }
         if (pyAsync.isTrue()) { mode |= clingo_solve_mode_async; }
