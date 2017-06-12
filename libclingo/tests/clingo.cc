@@ -532,32 +532,32 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(trail == std::vector<std::string>({"IP: incremental", "BS", "R: 1:-~1", "ES"}));
         }
         SECTION("events") {
-                ctl.add("base", {}, "{a}.");
-                ctl.ground({{"base", {}}});
-                int m = 0;
-                int f = 0;
-                bool goon = true;
-                SECTION("stop") { goon = false; }
-                SECTION("goon") { goon = true; }
-                struct EH : Clingo::SolveEventHandler {
-                    EH(bool goon, int &m, int &f) : goon(goon), m(m), f(f) { }
-                    bool on_model(Model const &) override {
-                        REQUIRE(f == 0);
-                        ++m;
-                        return goon;
-                    }
-                    void on_finish(SolveResult) override {
-                        ++f;
-                    }
-                    bool goon;
-                    int &m;
-                    int &f;
-                };
-                EH handler{goon, m, f};
-                auto handle = ctl.solve({}, &handler);
-                REQUIRE(test_solve(std::move(handle), models).is_satisfiable());
-                REQUIRE(m == (goon ? 2 : 1));
-                REQUIRE(f == 1);
+            ctl.add("base", {}, "{a}.");
+            ctl.ground({{"base", {}}});
+            int m = 0;
+            int f = 0;
+            bool goon = true;
+            SECTION("stop") { goon = false; }
+            SECTION("goon") { goon = true; }
+            struct EH : Clingo::SolveEventHandler {
+                EH(bool goon, int &m, int &f) : goon(goon), m(m), f(f) { }
+                bool on_model(Model const &) override {
+                    REQUIRE(f == 0);
+                    ++m;
+                    return goon;
+                }
+                void on_finish(SolveResult) override {
+                    ++f;
+                }
+                bool goon;
+                int &m;
+                int &f;
+            };
+            EH handler{goon, m, f};
+            auto handle = ctl.solve(LiteralSpan{}, &handler);
+            REQUIRE(test_solve(std::move(handle), models).is_satisfiable());
+            REQUIRE(m == (goon ? 2 : 1));
+            REQUIRE(f == 1);
         }
     }
 }

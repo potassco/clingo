@@ -2069,6 +2069,7 @@ public:
     ~Control() noexcept;
     void add(char const *name, StringSpan params, char const *part);
     void ground(PartSpan parts, GroundCallback cb = nullptr);
+    SolveHandle solve(LiteralSpan assumptions, SolveEventHandler *handler = nullptr, bool asynchronous = false, bool yield = true);
     SolveHandle solve(SymbolicLiteralSpan assumptions = {}, SolveEventHandler *handler = nullptr, bool asynchronous = false, bool yield = true);
     void assign_external(Symbol atom, TruthValue value);
     void release_external(Symbol atom);
@@ -3736,6 +3737,23 @@ inline void Control::ground(PartSpan parts, GroundCallback cb) {
 inline clingo_control_t *Control::to_c() const { return *impl_; }
 
 inline SolveHandle Control::solve(SymbolicLiteralSpan assumptions, SolveEventHandler *handler, bool asynchronous, bool yield) {
+    std::vector<literal_t> lits;
+    auto atoms = symbolic_atoms();
+    for (auto &x : assumptions) {
+        auto it = atoms.find(x.symbol());
+        if (it != atoms.end()) {
+            auto lit = it->literal();
+            lits.emplace_back(x.is_positive() ? lit : -lit);
+        }
+        else if (x.is_positive()) {
+            lits.emplace_back(1);
+            lits.emplace_back(-1);
+        }
+    }
+    return solve(LiteralSpan{lits}, handler, asynchronous, yield);
+}
+
+inline SolveHandle Control::solve(LiteralSpan assumptions, SolveEventHandler *handler, bool asynchronous, bool yield) {
     clingo_solve_handle_t *it;
     clingo_solve_mode_bitset_t mode = 0;
     if (asynchronous) { mode |= clingo_solve_mode_async; }
@@ -3770,7 +3788,7 @@ inline SolveHandle Control::solve(SymbolicLiteralSpan assumptions, SolveEventHan
         }
         return false;
     };
-    Detail::handle_error(clingo_control_solve(*impl_, mode, reinterpret_cast<clingo_symbolic_literal_t const *>(assumptions.begin()), assumptions.size(), handler ? on_event : nullptr, impl_, &it), impl_->ptr);
+    Detail::handle_error(clingo_control_solve(*impl_, mode, assumptions.begin(), assumptions.size(), handler ? on_event : nullptr, impl_, &it), impl_->ptr);
     return SolveHandle{it, impl_->ptr};
 }
 
