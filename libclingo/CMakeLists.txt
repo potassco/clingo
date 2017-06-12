@@ -52,7 +52,7 @@ target_compile_definitions(libclingo PRIVATE CLINGO_BUILD_LIBRARY)
 if (NOT CLINGO_BUILD_SHARED)
     target_compile_definitions(libclingo PUBLIC CLINGO_NO_VISIBILITY)
 else()
-    set_target_properties(libclingo PROPERTIES SOVERSION 1 VERSION 1.0)
+    set_target_properties(libclingo PROPERTIES SOVERSION 2 VERSION 2.0)
     install(TARGETS libclingo
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib

@@ -1,5 +1,12 @@
 # Changes
 
+## clingo 5.3.0
+  * change C API to use numeric instead of symbolic literals
+    * affects assumptions and assigning/releasing externals
+      (breaks backward compatibility)
+    * added overloads to C++, python and lua API to support
+      both numeric and symbolic version
+      (preserves backward compatibility for most code)
 ## clingo 5.2.1
   * fix handling of istop in incmode programs
   * fix handling of undefined ** operations
