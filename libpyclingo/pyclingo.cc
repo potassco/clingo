@@ -2081,41 +2081,31 @@ clingo_literal_t pyToAtom(Reference x, clingo_symbolic_atoms_t *atoms) {
     return 0;
 }
 
-clingo_literal_t pyToLit(Reference x, clingo_symbolic_atoms_t *atoms, bool *positive = nullptr) {
-    if (PyNumber_Check(x.toPy())) {
-        auto ret = pyToCpp<clingo_literal_t>(x);
-        if (positive) { *positive = ret > 0; }
-        return ret;
-    }
-    else {
-        symbolic_literal_t sym = pyToCpp<symbolic_literal_t>(x);
-        clingo_symbolic_atom_iterator_t it;
-        handle_c_error(clingo_symbolic_atoms_find(atoms, sym.symbol, &it));
-        bool valid;
-        handle_c_error(clingo_symbolic_atoms_is_valid(atoms, it, &valid));
-        if (positive) { *positive = sym.positive; }
-        if (valid) {
-            clingo_literal_t lit;
-            handle_c_error(clingo_symbolic_atoms_literal(atoms, it, &lit));
-            return sym.positive ? lit : -lit;
-        }
-    }
-    return 0;
-}
-
 std::vector<clingo_literal_t> pyToLits(Reference pyLits, clingo_symbolic_atoms_t *atoms, bool invert, bool disjunctive) {
-    using LitVec = std::vector<clingo_literal_t>;
-    LitVec lits;
+    std::vector<clingo_literal_t> lits;
     for (auto x : pyLits.iter()) {
-        bool positive;
-        auto lit = pyToLit(x, atoms, &positive);
-        if (lit != 0) {
+        if (PyNumber_Check(x.toPy())) {
+            auto lit = pyToCpp<clingo_literal_t>(x);
             if (invert) { lit = -lit; }
             lits.emplace_back(lit);
         }
-        else if (positive != disjunctive) {
-            lits.emplace_back(1);
-            lits.emplace_back(-1);
+        else {
+            symbolic_literal_t sym = pyToCpp<symbolic_literal_t>(x);
+            if (invert) { sym.positive = !sym.positive; }
+            clingo_symbolic_atom_iterator_t it;
+            handle_c_error(clingo_symbolic_atoms_find(atoms, sym.symbol, &it));
+            bool valid;
+            handle_c_error(clingo_symbolic_atoms_is_valid(atoms, it, &valid));
+            if (valid) {
+                clingo_literal_t lit;
+                handle_c_error(clingo_symbolic_atoms_literal(atoms, it, &lit));
+                if (!sym.positive) { lit = -lit; }
+                lits.emplace_back(lit);
+            }
+            else if (sym.positive != disjunctive) {
+                lits.emplace_back(1);
+                lits.emplace_back(-1);
+            }
         }
     }
     return lits;
@@ -2142,8 +2132,7 @@ they are available as properties of Model objects.)";
     Object getClause(Reference pyLits, bool invert) {
         clingo_symbolic_atoms_t *atoms;
         handle_c_error(clingo_solve_control_symbolic_atoms(ctl, &atoms));
-        using LitVec = std::vector<clingo_literal_t>;
-        LitVec lits = pyToLits(pyLits, atoms, invert, true);
+        auto lits = pyToLits(pyLits, atoms, invert, true);
         handle_c_error(clingo_solve_control_add_clause(ctl, lits.data(), lits.size()));
         Py_RETURN_NONE;
     }

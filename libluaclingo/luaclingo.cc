@@ -1391,15 +1391,26 @@ static std::vector<clingo_literal_t> *luaToLits(lua_State *L, int tableIdx, clin
     std::vector<clingo_literal_t> *lits = AnyWrap::new_<std::vector<clingo_literal_t>>(L); // +1
     lua_pushnil(L);                                                                        // +1
     while (lua_next(L, tableIdx) != 0) {                                                   // +1/-1
-        bool positive;
-        auto lit = luaToLit(L, -1, atoms, &positive);
-        if (lit != 0) {
+        if (lua_isnumber(L, -1)) {
+            clingo_literal_t lit;
+            luaToCpp(L, -1, lit);
             if (invert) { lit = -lit; }
             protect(L, [lits, lit]() { lits->emplace_back(lit); });
         }
-        else if (positive != disjunctive) {
-            lua_pop(L, 3);
-            return nullptr;
+        else {
+            symbolic_literal_t sym;
+            luaToCpp(L, -1, sym);
+            if (invert) { sym.positive = !sym.positive; }
+            auto it = call_c(L, clingo_symbolic_atoms_find, atoms, sym.symbol);
+            if (call_c(L, clingo_symbolic_atoms_is_valid, atoms, it)) {
+                clingo_literal_t lit = call_c(L, clingo_symbolic_atoms_literal, atoms, it);
+                if (!sym.positive) { lit = -lit; }
+                protect(L, [lits, lit]() { lits->emplace_back(lit); });
+            }
+            else if (sym.positive != disjunctive) {
+                lua_pop(L, 3);
+                return nullptr;
+            }
         }
         lua_pop(L, 1); // -1
     }
