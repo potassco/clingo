@@ -250,7 +250,7 @@ public:
     void load(std::string const &filename) override;
     bool blocked() override;
     std::string str();
-    void assignExternal(Symbol ext, Potassco::Value_t) override;
+    void assignExternal(Potassco::Atom_t ext, Potassco::Value_t) override;
     Symbol getConst(std::string const &name) override;
     Potassco::AbstractStatistics *statistics() override;
     ConfigProxy &getConf() override;

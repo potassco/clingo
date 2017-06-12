@@ -206,13 +206,8 @@ struct IncrementalControl : Control {
         out.registerObserver(std::move(prg), replace);
     }
     Potassco::AbstractStatistics *statistics() override { throw std::runtime_error("statistics not supported (yet)"); }
-    void assignExternal(Symbol ext, Potassco::Value_t val) override {
-        auto atm = out.find(ext);
-        if (atm.second && atm.first->hasUid()) {
-            Id_t offset = numeric_cast<Id_t>(atm.first - atm.second->begin());
-            Output::External external(Output::LiteralId{NAF::POS, Output::AtomType::Predicate, offset, atm.second->domainOffset()}, val);
-            out.output(external);
-        }
+    void assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) override {
+        if (auto b = backend()) { b->external(ext, val); }
     }
     SymbolicAtoms &getDomain() override { throw std::runtime_error("domain introspection not supported"); }
     ConfigProxy &getConf() override { throw std::runtime_error("configuration not supported"); }

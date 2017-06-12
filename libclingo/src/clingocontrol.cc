@@ -421,14 +421,9 @@ std::string ClingoControl::str() {
     return "[object:IncrementalControl]";
 }
 
-void ClingoControl::assignExternal(Symbol ext, Potassco::Value_t val) {
+void ClingoControl::assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) {
     if (update()) {
-        auto atm = out_->find(ext);
-        if (atm.second && atm.first->hasUid()) {
-            Id_t offset = numeric_cast<Id_t>(atm.first - atm.second->begin());
-            Output::External external(Output::LiteralId{NAF::POS, Output::AtomType::Predicate, offset, atm.second->domainOffset()}, val);
-            out_->output(external);
-        }
+        if (auto b = backend()) { b->external(ext, val); }
     }
 }
 

@@ -419,7 +419,12 @@ void luaToCpp(lua_State *L, int index, symbol_wrapper &x) {
     x.symbol = luaToVal(L, index);
 }
 
-void luaToCpp(lua_State *L, int index, clingo_symbolic_literal_t &x);
+struct symbolic_literal_t {
+    clingo_symbol_t symbol;
+    bool positive;
+};
+
+void luaToCpp(lua_State *L, int index, symbolic_literal_t &x);
 
 template <class T>
 void luaToCpp(lua_State *L, int index, std::vector<T> &x) {
@@ -461,7 +466,7 @@ void luaToCpp(lua_State *L, int index, std::pair<T, U> &x) {
     }
 }
 
-void luaToCpp(lua_State *L, int index, clingo_symbolic_literal_t &x) {
+void luaToCpp(lua_State *L, int index, symbolic_literal_t &x) {
     std::pair<symbol_wrapper&, bool&> p{reinterpret_cast<symbol_wrapper&>(x.symbol), x.positive};
     luaToCpp(L, index, p);
 }
@@ -1335,7 +1340,45 @@ luaL_Reg const SymbolicAtoms::meta[] = {
 
 // {{{1 wrap SolveControl
 
-// invert is just to turn nogoods into clauses, which was added to match the formal background in our papers
+static clingo_literal_t luaToAtom(lua_State *L, int idx, clingo_symbolic_atoms_t *atoms) {
+    if (lua_isnumber(L, idx)) {
+        clingo_literal_t lit;
+        luaToCpp(L, idx, lit);
+        return lit;
+    }
+    else {
+        symbol_wrapper sym;
+        luaToCpp(L, idx, sym);
+        auto it = call_c(L, clingo_symbolic_atoms_find, atoms, sym.symbol);
+        if (call_c(L, clingo_symbolic_atoms_is_valid, atoms, it)) {
+            auto ret = call_c(L, clingo_symbolic_atoms_literal, atoms, it);
+            return ret;
+        }
+    }
+    return 0;
+}
+
+static clingo_literal_t luaToLit(lua_State *L, int idx, clingo_symbolic_atoms_t *atoms, bool *positive = nullptr) {
+    if (lua_isnumber(L, idx)) {
+        clingo_literal_t lit;
+        luaToCpp(L, idx, lit);
+        if (positive) { *positive = lit > 0; }
+        return lit;
+    }
+    else {
+        symbolic_literal_t sym;
+        luaToCpp(L, idx, sym);
+        if (positive) { *positive = sym.positive; }
+        auto it = call_c(L, clingo_symbolic_atoms_find, atoms, sym.symbol);
+        if (call_c(L, clingo_symbolic_atoms_is_valid, atoms, it)) {
+            auto ret = call_c(L, clingo_symbolic_atoms_literal, atoms, it);
+            return sym.positive ? ret : -ret;
+        }
+    }
+    return 0;
+}
+
+// invert is just to turn clauses into nogoods, which was added to match the formal background in our papers
 // disjunctive determines if the literals are going to be used as a disjunction or conjunction
 // this function returns null if the literals are unnecessary, i.e., if
 //   there is a true literal in a disjunction, or
@@ -1348,25 +1391,15 @@ static std::vector<clingo_literal_t> *luaToLits(lua_State *L, int tableIdx, clin
     std::vector<clingo_literal_t> *lits = AnyWrap::new_<std::vector<clingo_literal_t>>(L); // +1
     lua_pushnil(L);                                                                        // +1
     while (lua_next(L, tableIdx) != 0) {                                                   // +1/-1
-        if (lua_isnumber(L, -1)) {
-            clingo_literal_t lit;
-            luaToCpp(L, -1, lit);
+        bool positive;
+        auto lit = luaToLit(L, -1, atoms, &positive);
+        if (lit != 0) {
             if (invert) { lit = -lit; }
             protect(L, [lits, lit]() { lits->emplace_back(lit); });
         }
-        else {
-            clingo_symbolic_literal_t sym;
-            luaToCpp(L, -1, sym);
-            if (invert) { sym.positive = !sym.positive; }
-            auto it = call_c(L, clingo_symbolic_atoms_find, atoms, sym.symbol);
-            if (call_c(L, clingo_symbolic_atoms_is_valid, atoms, it)) {
-                clingo_literal_t lit = call_c(L, clingo_symbolic_atoms_literal, atoms, it);
-                protect(L, [lits, lit, sym]() { lits->emplace_back(sym.positive ? lit : -lit); });
-            }
-            else if (sym.positive != disjunctive) {
-                lua_pop(L, 3);
-                return nullptr;
-            }
+        else if (positive != disjunctive) {
+            lua_pop(L, 3);
+            return nullptr;
         }
         lua_pop(L, 1); // -1
     }
@@ -2996,7 +3029,8 @@ struct ControlWrap : Object<ControlWrap> {
     }
     static int assign_external(lua_State *L) {
         auto &self = get_self(L);
-        clingo_symbol_t sym = luaToVal(L, 2);
+        auto atoms = call_c(L, clingo_control_symbolic_atoms, self.ctl);
+        auto sym  = luaToAtom(L, 2, atoms);
         luaL_checkany(L, 3);
         clingo_truth_value_t truth;
         if (lua_isnil (L, 3)) { truth = clingo_truth_value_free; }
@@ -3009,7 +3043,8 @@ struct ControlWrap : Object<ControlWrap> {
     }
     static int release_external(lua_State *L) {
         auto &self = get_self(L);
-        clingo_symbol_t sym = luaToVal(L, 2);
+        auto atoms = call_c(L, clingo_control_symbolic_atoms, self.ctl);
+        auto sym  = luaToAtom(L, 2, atoms);
         handle_c_error(L, clingo_control_release_external(self.ctl, sym));
         return 0;
     }

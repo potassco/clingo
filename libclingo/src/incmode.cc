@@ -62,6 +62,12 @@ struct Incmode {
         return true;
     }
 
+    void assign_external_(Symbol sym, Potassco::Value_t val) {
+        auto &dom = ctl_.getDomain();
+        auto atm = dom.lookup(sym);
+        if (atm != dom.end()) { ctl_.assignExternal(dom.literal(atm), val); }
+    }
+
     void run() {
         ctl_.add("check", {"t"}, "#external query(t).");
         imax = get_max();
@@ -73,7 +79,7 @@ struct Incmode {
             parts.reserve(2);
             parts.push_back({"check", {Symbol::createNum(step)}});
             if (step > 0) {
-                ctl_.assignExternal(Symbol::createFun("query", {Symbol::createNum(step - 1)}), Potassco::Value_t::Release);
+                assign_external_(Symbol::createFun("query", {Symbol::createNum(step - 1)}), Potassco::Value_t::Release);
                 ctl_.cleanupDomains();
                 parts.push_back({"step", {Symbol::createNum(step)}});
             }
@@ -81,7 +87,7 @@ struct Incmode {
                 parts.push_back({"base", {}});
             }
             ctl_.ground(parts, nullptr);
-            ctl_.assignExternal(Symbol::createFun("query", {Symbol::createNum(step)}), Potassco::Value_t::True);
+            assign_external_(Symbol::createFun("query", {Symbol::createNum(step)}), Potassco::Value_t::True);
             res = ctl_.solve({}, 0)->get();
             step += 1;
         }

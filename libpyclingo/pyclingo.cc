@@ -530,7 +530,12 @@ void pyToCpp(Reference pyPair, std::pair<T, U> &x) {
     if (pyVal.valid()) { throw std::runtime_error("pair expected"); }
 }
 
-void pyToCpp(Reference obj, clingo_symbolic_literal_t &val) {
+struct symbolic_literal_t {
+    clingo_symbol_t symbol;
+    bool positive;
+};
+
+void pyToCpp(Reference obj, symbolic_literal_t &val) {
     std::pair<symbol_wrapper &, bool &> y{ reinterpret_cast<symbol_wrapper&>(val.symbol), val.positive };
     pyToCpp(obj, y);
 }
@@ -2056,30 +2061,61 @@ occurring in the program. A true Boolean stands for a positive signature.)"
 
 // {{{1 wrap SolveControl
 
+clingo_literal_t pyToAtom(Reference x, clingo_symbolic_atoms_t *atoms) {
+    if (PyNumber_Check(x.toPy())) {
+        auto ret = pyToCpp<clingo_literal_t>(x);
+        return ret;
+    }
+    else {
+        clingo_symbol_t symbol = pyToCpp<symbol_wrapper>(x).symbol;
+        clingo_symbolic_atom_iterator_t it;
+        handle_c_error(clingo_symbolic_atoms_find(atoms, symbol, &it));
+        bool valid;
+        handle_c_error(clingo_symbolic_atoms_is_valid(atoms, it, &valid));
+        if (valid) {
+            clingo_literal_t lit;
+            handle_c_error(clingo_symbolic_atoms_literal(atoms, it, &lit));
+            return lit;
+        }
+    }
+    return 0;
+}
+
+clingo_literal_t pyToLit(Reference x, clingo_symbolic_atoms_t *atoms, bool *positive = nullptr) {
+    if (PyNumber_Check(x.toPy())) {
+        auto ret = pyToCpp<clingo_literal_t>(x);
+        if (positive) { *positive = ret > 0; }
+        return ret;
+    }
+    else {
+        symbolic_literal_t sym = pyToCpp<symbolic_literal_t>(x);
+        clingo_symbolic_atom_iterator_t it;
+        handle_c_error(clingo_symbolic_atoms_find(atoms, sym.symbol, &it));
+        bool valid;
+        handle_c_error(clingo_symbolic_atoms_is_valid(atoms, it, &valid));
+        if (positive) { *positive = sym.positive; }
+        if (valid) {
+            clingo_literal_t lit;
+            handle_c_error(clingo_symbolic_atoms_literal(atoms, it, &lit));
+            return sym.positive ? lit : -lit;
+        }
+    }
+    return 0;
+}
+
 std::vector<clingo_literal_t> pyToLits(Reference pyLits, clingo_symbolic_atoms_t *atoms, bool invert, bool disjunctive) {
     using LitVec = std::vector<clingo_literal_t>;
     LitVec lits;
     for (auto x : pyLits.iter()) {
-        if (PyNumber_Check(x.toPy())) {
-            auto lit = pyToCpp<clingo_literal_t>(x);
-            lits.emplace_back(invert ? -lit : lit);
+        bool positive;
+        auto lit = pyToLit(x, atoms, &positive);
+        if (lit != 0) {
+            if (invert) { lit = -lit; }
+            lits.emplace_back(lit);
         }
-        else {
-            clingo_symbolic_literal_t sym = pyToCpp<clingo_symbolic_literal_t>(x);
-            if (invert) { sym.positive = !sym.positive; }
-            clingo_symbolic_atom_iterator_t it;
-            handle_c_error(clingo_symbolic_atoms_find(atoms, sym.symbol, &it));
-            bool valid;
-            handle_c_error(clingo_symbolic_atoms_is_valid(atoms, it, &valid));
-            if (valid) {
-                clingo_literal_t lit;
-                handle_c_error(clingo_symbolic_atoms_literal(atoms, it, &lit));
-                lits.emplace_back(sym.positive ? lit : -lit);
-            }
-            else if (sym.positive != disjunctive) {
-                lits.emplace_back(1);
-                lits.emplace_back(-1);
-            }
+        else if (positive != disjunctive) {
+            lits.emplace_back(1);
+            lits.emplace_back(-1);
         }
     }
     return lits;
@@ -5688,7 +5724,9 @@ active; you must not call any member function during search.)";
             PyErr_Format(PyExc_RuntimeError, "unexpected %s() object as second argumet", pyVal.toPy()->ob_type->tp_name);
             return nullptr;
         }
-        auto ext = pyToCpp<symbol_wrapper>(pyExt).symbol;
+        clingo_symbolic_atoms_t *atoms;
+        handle_c_error(clingo_control_symbolic_atoms(ctl, &atoms));
+        auto ext = pyToAtom(pyExt, atoms);
         handle_c_error(clingo_control_assign_external(ctl, ext, val));
         Py_RETURN_NONE;
     }
@@ -5696,7 +5734,9 @@ active; you must not call any member function during search.)";
         CHECK_BLOCKED("release_external");
         Reference pyExt;
         ParseTuple(args, "O", pyExt);
-        auto ext = pyToCpp<symbol_wrapper>(pyExt).symbol;
+        clingo_symbolic_atoms_t *atoms;
+        handle_c_error(clingo_control_symbolic_atoms(ctl, &atoms));
+        auto ext = pyToAtom(pyExt, atoms);
         handle_c_error(clingo_control_assign_external(ctl, ext, clingo_external_type_release));
         Py_RETURN_NONE;
     }

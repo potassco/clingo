@@ -987,17 +987,15 @@ inline void GroundProgramObserver::theory_atom_with_guard(id_t, id_t, IdSpan, id
 
 class SymbolicLiteral {
 public:
-    SymbolicLiteral(Symbol sym, bool sign)
-    : sym_{sym.to_c(), sign} { }
-    explicit SymbolicLiteral(clingo_symbolic_literal_t sym)
-    : sym_(sym) { }
-    Symbol symbol() const { return Symbol(sym_.symbol); }
-    bool is_positive() const { return sym_.positive; }
-    bool is_negative() const { return !sym_.positive; }
-    clingo_symbolic_literal_t &to_c() { return sym_; }
-    clingo_symbolic_literal_t const &to_c() const { return sym_; }
+    SymbolicLiteral(Symbol sym, bool positive)
+    : symbol_{sym.to_c()}
+    , positive_{positive} { }
+    Symbol symbol() const { return Symbol{symbol_}; }
+    bool is_positive() const { return positive_; }
+    bool is_negative() const { return !positive_; }
 private:
-    clingo_symbolic_literal_t sym_;
+    clingo_symbol_t symbol_;
+    bool positive_;
 };
 
 using SymbolicLiteralSpan = Span<SymbolicLiteral>;
@@ -2071,7 +2069,9 @@ public:
     void ground(PartSpan parts, GroundCallback cb = nullptr);
     SolveHandle solve(LiteralSpan assumptions, SolveEventHandler *handler = nullptr, bool asynchronous = false, bool yield = true);
     SolveHandle solve(SymbolicLiteralSpan assumptions = {}, SolveEventHandler *handler = nullptr, bool asynchronous = false, bool yield = true);
+    void assign_external(atom_t atom, TruthValue value);
     void assign_external(Symbol atom, TruthValue value);
+    void release_external(atom_t atom);
     void release_external(Symbol atom);
     SymbolicAtoms symbolic_atoms() const;
     TheoryAtoms theory_atoms() const;
@@ -3792,12 +3792,24 @@ inline SolveHandle Control::solve(LiteralSpan assumptions, SolveEventHandler *ha
     return SolveHandle{it, impl_->ptr};
 }
 
+inline void Control::assign_external(atom_t atom, TruthValue value) {
+    Detail::handle_error(clingo_control_assign_external(*impl_, atom, static_cast<clingo_truth_value_t>(value)));
+}
+
 inline void Control::assign_external(Symbol atom, TruthValue value) {
-    Detail::handle_error(clingo_control_assign_external(*impl_, atom.to_c(), static_cast<clingo_truth_value_t>(value)));
+    auto atoms = symbolic_atoms();
+    auto it = atoms.find(atom);
+    if (it != atoms.end()) { assign_external(it->literal(), value); }
+}
+
+inline void Control::release_external(atom_t atom) {
+    Detail::handle_error(clingo_control_release_external(*impl_, atom));
 }
 
 inline void Control::release_external(Symbol atom) {
-    Detail::handle_error(clingo_control_release_external(*impl_, atom.to_c()));
+    auto atoms = symbolic_atoms();
+    auto it = atoms.find(atom);
+    if (it != atoms.end()) { release_external(it->literal()); }
 }
 
 inline SymbolicAtoms Control::symbolic_atoms() const {

@@ -319,12 +319,6 @@ typedef int clingo_symbol_type_t;
 //! arguments are empty and tuples when the name is empty), <tt>\#inf</tt> and <tt>\#sup</tt>.
 typedef uint64_t clingo_symbol_t;
 
-//! Represents a symbolic literal.
-typedef struct clingo_symbolic_literal {
-    clingo_symbol_t symbol; //!< the associated symbol (must be a function)
-    bool positive;          //!< whether the literal has a sign
-} clingo_symbolic_literal_t;
-
 //! @name Symbol Construction Functions
 //! @{
 
@@ -3128,7 +3122,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_cleanup(clingo_control_t *control)
 //! @param[in] value the truth value
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_assign_external(clingo_control_t *control, clingo_symbol_t atom, clingo_truth_value_t value);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_assign_external(clingo_control_t *control, clingo_atom_t atom, clingo_truth_value_t value);
 //! Release an external atom.
 //!
 //! After this call, an external atom is no longer external and subject to
@@ -3139,7 +3133,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_assign_external(clingo_control_t *
 //! @param[in] atom atom to release
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_release_external(clingo_control_t *control, clingo_symbol_t atom);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_release_external(clingo_control_t *control, clingo_atom_t atom);
 //! Register a custom propagator with the control object.
 //!
 //! If the sequential flag is set to true, the propagator is called
