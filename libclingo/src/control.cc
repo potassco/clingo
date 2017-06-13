@@ -1159,13 +1159,20 @@ extern "C" bool clingo_control_solve(clingo_control_t *control, clingo_solve_mod
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_control_assign_external(clingo_control_t *ctl, clingo_atom_t atom, clingo_truth_value_t value) {
-    GRINGO_CLINGO_TRY { ctl->assignExternal(atom, static_cast<Potassco::Value_t>(value)); }
+extern "C" bool clingo_control_assign_external(clingo_control_t *ctl, clingo_literal_t literal, clingo_truth_value_t value) {
+    GRINGO_CLINGO_TRY {
+        if (literal < 0) {
+            literal = -literal;
+            if      (value == Potassco::Value_t::True)  { value = Potassco::Value_t::False; }
+            else if (value == Potassco::Value_t::False) { value = Potassco::Value_t::True; }
+        }
+        ctl->assignExternal(literal, static_cast<Potassco::Value_t>(value));
+    }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_control_release_external(clingo_control_t *ctl, clingo_atom_t atom) {
-    GRINGO_CLINGO_TRY { ctl->assignExternal(atom, Potassco::Value_t::Release); }
+extern "C" bool clingo_control_release_external(clingo_control_t *ctl, clingo_literal_t literal) {
+    GRINGO_CLINGO_TRY { ctl->assignExternal(std::abs(literal), Potassco::Value_t::Release); }
     GRINGO_CLINGO_CATCH;
 }
 

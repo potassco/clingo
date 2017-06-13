@@ -3115,25 +3115,31 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, c
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_cleanup(clingo_control_t *control);
 //! Assign a truth value to an external atom.
 //!
+//! If a negative literal is passed, the corresponding atom is assigned the
+//! inverted truth value.
+//!
 //! If the atom does not exist or is not external, this is a noop.
 //!
 //! @param[in] control the target
-//! @param[in] atom atom to assign
+//! @param[in] literal literal to assign
 //! @param[in] value the truth value
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_assign_external(clingo_control_t *control, clingo_atom_t atom, clingo_truth_value_t value);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_assign_external(clingo_control_t *control, clingo_literal_t literal, clingo_truth_value_t value);
 //! Release an external atom.
+//!
+//! If a negative literal is passed, the corresponding atom is assigned the
+//! inverted truth value.
 //!
 //! After this call, an external atom is no longer external and subject to
 //! program simplifications.  If the atom does not exist or is not external,
 //! this is a noop.
 //!
 //! @param[in] control the target
-//! @param[in] atom atom to release
+//! @param[in] literal literal to release
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_release_external(clingo_control_t *control, clingo_atom_t atom);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_release_external(clingo_control_t *control, clingo_literal_t atom);
 //! Register a custom propagator with the control object.
 //!
 //! If the sequential flag is set to true, the propagator is called

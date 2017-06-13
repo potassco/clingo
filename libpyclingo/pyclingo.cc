@@ -6025,7 +6025,8 @@ Hence, a definition for such an atom in a successive step introduces a fresh ato
     {"assign_external", to_function<&ControlWrap::assign_external>(), METH_VARARGS,
 R"(assign_external(self, external, truth) -> None
 
-Assign a truth value to an external atom (represented as a function symbol).
+Assign a truth value to an external atom (represented as a function symbol or
+program literal).
 
 It is possible to assign a Boolean or None.  A Boolean fixes the external to the
 respective truth value; and None leaves its truth value open.
@@ -6036,8 +6037,11 @@ directive, and has not been forgotten by calling release_external() or defined
 in a logic program with some rule. If the given atom is not external, then the
 function has no effect.
 
+For convenience, the truth assigned to atoms over negative program literals is
+inverted.
+
 Arguments:
-external -- symbol representing the external atom
+external -- symbol or program literal representing the external atom
 truth    -- bool or None indicating the truth value
 
 To determine whether an atom a is external, inspect the symbolic_atoms using
@@ -6047,11 +6051,13 @@ example.)"},
     {"release_external", to_function<&ControlWrap::release_external>(), METH_VARARGS,
 R"(release_external(self, symbol) -> None
 
-Release an external atom represented by the given symbol.
+Release an external atom represented by the given symbol or program literal.
 
 This function causes the corresponding atom to become permanently false if
 there is no definition for the atom in the program. Otherwise, the function has
 no effect.
+
+If the program literal is negative, the corresponding atom is released.
 
 Example:
 

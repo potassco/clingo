@@ -2069,9 +2069,9 @@ public:
     void ground(PartSpan parts, GroundCallback cb = nullptr);
     SolveHandle solve(LiteralSpan assumptions, SolveEventHandler *handler = nullptr, bool asynchronous = false, bool yield = true);
     SolveHandle solve(SymbolicLiteralSpan assumptions = {}, SolveEventHandler *handler = nullptr, bool asynchronous = false, bool yield = true);
-    void assign_external(atom_t atom, TruthValue value);
+    void assign_external(literal_t literal, TruthValue value);
     void assign_external(Symbol atom, TruthValue value);
-    void release_external(atom_t atom);
+    void release_external(literal_t literal);
     void release_external(Symbol atom);
     SymbolicAtoms symbolic_atoms() const;
     TheoryAtoms theory_atoms() const;
@@ -3792,8 +3792,8 @@ inline SolveHandle Control::solve(LiteralSpan assumptions, SolveEventHandler *ha
     return SolveHandle{it, impl_->ptr};
 }
 
-inline void Control::assign_external(atom_t atom, TruthValue value) {
-    Detail::handle_error(clingo_control_assign_external(*impl_, atom, static_cast<clingo_truth_value_t>(value)));
+inline void Control::assign_external(literal_t literal, TruthValue value) {
+    Detail::handle_error(clingo_control_assign_external(*impl_, literal, static_cast<clingo_truth_value_t>(value)));
 }
 
 inline void Control::assign_external(Symbol atom, TruthValue value) {
@@ -3802,8 +3802,8 @@ inline void Control::assign_external(Symbol atom, TruthValue value) {
     if (it != atoms.end()) { assign_external(it->literal(), value); }
 }
 
-inline void Control::release_external(atom_t atom) {
-    Detail::handle_error(clingo_control_release_external(*impl_, atom));
+inline void Control::release_external(literal_t literal) {
+    Detail::handle_error(clingo_control_release_external(*impl_, literal));
 }
 
 inline void Control::release_external(Symbol atom) {
