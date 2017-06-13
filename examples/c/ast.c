@@ -162,8 +162,11 @@ int main(int argc, char const **argv) {
   int ret = 0;
   clingo_solve_result_bitset_t solve_ret;
   clingo_control_t *ctl = NULL;
+  clingo_symbolic_atoms_t *atoms = NULL;
   clingo_solve_handle_t *handle = NULL;
   clingo_symbol_t sym;
+  clingo_symbolic_atom_iterator_t atm_it;
+  clingo_literal_t atm;
   clingo_location_t location;
   clingo_ast_statement_t stm;
   clingo_ast_external_t ext;
@@ -208,16 +211,21 @@ int main(int argc, char const **argv) {
   // ground the base part
   if (!clingo_control_ground(ctl, parts, 1, NULL, NULL)) { goto error; }
 
+  // get the program literal coresponding to the external atom
+  if (!clingo_control_symbolic_atoms(ctl, &atoms)) { goto error; }
+  if (!clingo_symbolic_atoms_find(atoms, sym, &atm_it)) { goto error; }
+  if (!clingo_symbolic_atoms_literal(atoms, atm_it, &atm)) { goto error; }
+
   // solve with external enable = false
   printf("Solving with enable = false...\n");
   if (!solve(ctl, &solve_ret)) { goto error; }
   // solve with external enable = true
   printf("Solving with enable = true...\n");
-  if (!clingo_control_assign_external(ctl, sym, clingo_truth_value_true)) { goto error; }
+  if (!clingo_control_assign_external(ctl, atm, clingo_truth_value_true)) { goto error; }
   if (!solve(ctl, &solve_ret)) { goto error; }
   // solve with external enable = false
   printf("Solving with enable = false...\n");
-  if (!clingo_control_assign_external(ctl, sym, clingo_truth_value_false)) { goto error; }
+  if (!clingo_control_assign_external(ctl, atm, clingo_truth_value_false)) { goto error; }
   if (!solve(ctl, &solve_ret)) { goto error; }
 
   goto out;
