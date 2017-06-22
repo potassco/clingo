@@ -36,7 +36,6 @@ class TermTransformer(Transformer):
         return (n, param)
 
     def visit_Function(self, term):
-        # this does not handle the case that the function is negative, i.e., a classically negated function
         term.name, param = self.__get_param(term.name, term.location)
         term.arguments.append(param)
         return term
