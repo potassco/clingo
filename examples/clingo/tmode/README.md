@@ -9,5 +9,5 @@ file `example.lp`.
 
 # Example Calls
 
-    clingo visitor.lp
+    clingo -q2 visitor.lp
 

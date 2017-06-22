@@ -1,5 +1,6 @@
 #script (python)
 
+import sys
 import clingo
 import clingo.ast
 
@@ -69,6 +70,22 @@ class ProgramTransformer(Transformer):
 def get(val, default):
     return val if val != None else default
 
+def on_model(model):
+    table = {}
+    for sym in model.symbols(shown=True):
+        if sym.type == clingo.SymbolType.Function and len(sym.arguments) > 0:
+            table.setdefault(sym.arguments[-1], []).append(clingo.Function(sym.name, sym.arguments[:-1]))
+    sys.stdout.write("Answer: {}\n".format(model.number))
+    for step, symbols in sorted(table.items()):
+        sys.stdout.write(" State {}:".format(step))
+        name = None
+        for sym in sorted(symbols):
+            if sym.name != name:
+                sys.stdout.write("\n ")
+                name = sym.name
+            sys.stdout.write(" {}".format(sym))
+        sys.stdout.write("\n".format(step))
+
 def imain(prg):
     imin   = get(prg.get_const("imin"), clingo.Number(0))
     imax   = prg.get_const("imax")
@@ -91,7 +108,7 @@ def imain(prg):
             parts.append(("initial", [0]))
         prg.ground(parts)
         prg.assign_external(clingo.Function("finally", [step]), True)
-        ret, step = prg.solve(), step+1
+        ret, step = prg.solve(on_model=on_model), step+1
 
 def main(prg):
     with prg.builder() as b:
