@@ -78,11 +78,11 @@ def on_model(model):
     sys.stdout.write("Answer: {}\n".format(model.number))
     for step, symbols in sorted(table.items()):
         sys.stdout.write(" State {}:".format(step))
-        name = None
+        sig = None
         for sym in sorted(symbols):
-            if sym.name != name:
+            if (sym.name, len(sym.arguments)) != sig:
                 sys.stdout.write("\n ")
-                name = sym.name
+                sig = (sym.name, len(sym.arguments))
             sys.stdout.write(" {}".format(sym))
         sys.stdout.write("\n".format(step))
 
