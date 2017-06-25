@@ -1060,6 +1060,7 @@ class Model {
 public:
     explicit Model(clingo_model_t *model);
     bool contains(Symbol atom) const;
+    bool is_true(literal_t literal) const;
     bool optimality_proven() const;
     CostVector cost() const;
     SymbolVector symbols(ShowType show = ShowType::Shown) const;
@@ -2728,6 +2729,12 @@ inline Model::Model(clingo_model_t *model)
 inline bool Model::contains(Symbol atom) const {
     bool ret;
     Detail::handle_error(clingo_model_contains(model_, atom.to_c(), &ret));
+    return ret;
+}
+
+inline bool Model::is_true(literal_t literal) const {
+    bool ret;
+    Detail::handle_error(clingo_model_is_true(model_, literal, &ret));
     return ret;
 }
 
