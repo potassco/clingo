@@ -14,7 +14,7 @@
     (regression in clingo-5)
   * fix segfault during preprocessing
     (regression in clingo-5)
-## clingo 5.2
+## clingo 5.2.0
   * switch to MIT license
   * improve compatibility with abstract gringo
   * switch build system from scons to cmake
