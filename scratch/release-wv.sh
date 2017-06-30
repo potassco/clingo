@@ -40,7 +40,8 @@ cd /home/wv/bin/linux/64
     rm -f {clingo,gringo,reify}-{${MAJOR},${MINOR}} {clingo,gringo,reify}
 
     for x in clingo gringo reify; do
-        ln -s ${prefix}/bin/${x} ${x}-${MINOR}
+        ln -s ${prefix}/bin/${x} ${x}-${VERSION}
+        ln -s ${x}-${VERSION} ${x}-${MINOR}
         ln -s ${x}-${MINOR}  ${x}-${MAJOR}
         ln -s ${x}-${MAJOR}  ${x}
     done
