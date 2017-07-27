@@ -5539,6 +5539,7 @@ struct ControlWrap : ObjectBase<ControlWrap> {
     clingo_control_t *ctl;
     clingo_control_t *freeCtl;
     PyObject         *stats;
+    PyObject         *logger;
     Propagators       prop;
     Observers         observers;
     bool              blocked;
@@ -5553,8 +5554,11 @@ struct ControlWrap : ObjectBase<ControlWrap> {
 
 Control object for the grounding/solving process.
 
-Arguments:
-arguments -- optional arguments to the grounder and solver (default: []).
+Keyword Arguments:
+arguments     -- arguments to the grounder and solver (default: []).
+logger        -- function to intercept messages normally printed to standard
+                 error (default: None)
+message_limit -- maximum number of messages passed to the logger (default: 20)
 
 Note that only gringo options (without --text) and clasp's search options are
 supported. Furthermore, a Control object is blocked while a search call is
@@ -5577,6 +5581,7 @@ active; you must not call any member function during search.)";
         self->ctl = ctl;
         self->freeCtl = nullptr;
         self->stats   = nullptr;
+        self->logger  = nullptr;
         self->blocked = false;
         new (&self->prop) Propagators();
         new (&self->observers) Observers();
@@ -5587,6 +5592,7 @@ active; you must not call any member function during search.)";
         self->ctl     = nullptr;
         self->freeCtl = nullptr;
         self->stats   = nullptr;
+        self->logger  = nullptr;
         self->blocked = false;
         new (&self->prop) Propagators();
         new (&self->observers) Observers();
@@ -5598,11 +5604,13 @@ active; you must not call any member function during search.)";
         prop.~Propagators();
         observers.~Observers();
         Py_XDECREF(stats);
+        Py_XDECREF(logger);
     }
     void tp_init(Reference pyargs, Reference pykwds) {
-        static char const *kwlist[] = {"aguments", nullptr};
-        Reference params = Py_None;
-        ParseTupleAndKeywords(pyargs, pykwds, "|O", kwlist, params);
+        static char const *kwlist[] = {"aguments", "logger", "message_limit", nullptr};
+        Reference params  = Py_None, pyLogger = Py_None;
+        int message_limit = 20;
+        ParseTupleAndKeywords(pyargs, pykwds, "|OOi", kwlist, params, pyLogger, message_limit);
         std::forward_list<std::string> strs;
         std::vector<char const *> args;
         if (!params.none()) {
@@ -5611,8 +5619,24 @@ active; you must not call any member function during search.)";
                 args.emplace_back(strs.front().c_str());
             }
         }
-        handle_c_error(clingo_control_new(args.data(), args.size(), nullptr, nullptr, 20, &freeCtl));
+        if (!pyLogger.none()) {
+            logger = pyLogger.release();
+        }
+        handle_c_error(clingo_control_new(args.data(), args.size(), logger ? logger_callback : nullptr, logger, message_limit, &freeCtl));
         ctl = freeCtl;
+    }
+    static void logger_callback(clingo_warning_t code, char const *message, void *data) {
+        try {
+            Object pyMsg = cppToPy(message);
+            // TODO: code has to go into an enum class
+            Object pyCode = cppToPy(code);
+            Object ret = PyObject_CallFunctionObjArgs(static_cast<PyObject*>(data), pyCode.toPy(), pyMsg.toPy(), nullptr);
+        }
+        catch (...) {
+            handle_cxx_error("<logger>", "error during message logging going to terminate");
+            std::cerr << clingo_error_message() << std::endl;
+            std::terminate();
+        }
     }
     Object add(Reference args) {
         CHECK_BLOCKED("add");
