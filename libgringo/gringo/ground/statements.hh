@@ -579,6 +579,7 @@ public:
     // {{{2 Statement interface
     bool isNormal() const override;
     void linearize(Context &context, bool positive, Logger &log) override;
+    void analyze(Dep::Node &node, Dep &dep) override;
     // }}}2
 private:
     // {{{2 SolutionCallback interface

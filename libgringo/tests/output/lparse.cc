@@ -101,6 +101,20 @@ TEST_CASE("output-lparse", "[output]") {
         REQUIRE("([[]],[-:1:9-15: info: atom does not occur in any rule head:\n  p((0/X))\n,-:1:11-14: info: operation undefined:\n  (0/X)\n])" == IO::to_string(solve("not not p(0/X):#true; q:#true :- X=0.")));
         REQUIRE("([[]],[-:1:11-14: info: operation undefined:\n  (X/0)\n])" == IO::to_string(solve("not not p(X/0):#true; q:#true :- X=0.")));
     }
+    SECTION("bug-classify-conditional-literal") {
+        REQUIRE(
+            "([[p,p(1),p(2),q(1),q(2)],[p,p(1),q(1),q(2),r(2)],[p,p(2),q(1),q(2),r(1)]],[])" ==
+            IO::to_string(solve(
+                "q(1;2).\n"
+
+                "p(X) :- q(X); p(X) : r(X).\n"
+                "r(X) :- q(X); r(X) : p(X).\n"
+
+                "p :- p(X).\n"
+                "  :- not p.\n"
+            ))
+        );
+    }
     SECTION("bug-classical-negation") {
         REQUIRE(
             "([],[])" ==
