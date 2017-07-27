@@ -7,6 +7,7 @@
     * added overloads to C++, python and lua API to support
       both numeric and symbolic version
       (preserves backward compatibility for most code)
+  * add message logger to python and lua interface
 ## clingo 5.2.1
   * fix handling of istop in incmode programs
   * fix handling of undefined ** operations
