@@ -58,7 +58,7 @@ public:
     void initProgram(bool incremental) override;
     void beginStep() override;
     void rule(Head_t ht, const AtomSpan& head, const LitSpan& body) override;
-    void rule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body) override; 
+    void rule(Head_t ht, const AtomSpan& head, Weight_t bound, const WeightLitSpan& body) override;
     void minimize(Weight_t prio, const WeightLitSpan& lits) override;
     void project(const AtomSpan& atoms) override;
     void output(const StringSpan& str, const LitSpan& condition) override;
@@ -88,6 +88,10 @@ private:
     size_t tuple(M &map, char const *name, T const &args);
     template <class M, class T>
     size_t tuple(M &map, char const *name, std::vector<T> &&args);
+    template <class M, class T>
+    size_t ordered_tuple(M &map, char const *name, T const &args);
+    template <class M, class T>
+    size_t ordered_tuple(M &map, char const *name, std::vector<T> &&args);
     size_t theoryTuple(IdSpan const &args);
     size_t litTuple(LitSpan const &args);
     size_t atomTuple(AtomSpan const &args);
