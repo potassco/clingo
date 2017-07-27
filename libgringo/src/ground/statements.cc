@@ -1311,6 +1311,14 @@ void ConjunctionAccumulateCond::linearize(Context &context, bool positive, Logge
     if (isOutputRecursive()) { complete_.setCondRecursive(); }
 }
 
+void ConjunctionAccumulateCond::analyze(Dep::Node &node, Dep &dep) {
+    def_.analyze(node, dep);
+    for (auto &x : lits_) {
+        auto occ(x->occurrence());
+        if (occ) { dep.depends(node, *occ, true); }
+    }
+}
+
 bool ConjunctionAccumulateCond::isNormal() const {
     return true;
 }
