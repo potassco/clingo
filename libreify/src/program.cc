@@ -69,8 +69,27 @@ size_t Reifier::tuple(M &map, char const *name, std::vector<T> &&args) {
     return ret.first->second;
 }
 
+template <class M, class T>
+size_t Reifier::ordered_tuple(M &map, char const *name, T const &args) {
+    return ordered_tuple(map, name, toVec(args));
+}
+
+template <class M, class T>
+size_t Reifier::ordered_tuple(M &map, char const *name, std::vector<T> &&args) {
+    auto ret = map.emplace(std::move(args), map.size());
+    if (ret.second) {
+        printStepFact(name, ret.first->second);
+        int arg = 0;
+        for (auto &x : ret.first->first) {
+            printStepFact(name, ret.first->second, arg, x);
+            ++arg;
+        }
+    }
+    return ret.first->second;
+}
+
 size_t Reifier::theoryTuple(IdSpan const &args) {
-    return tuple(stepData_.theoryTuples, "theory_tuple", args);
+    return ordered_tuple(stepData_.theoryTuples, "theory_tuple", args);
 }
 
 size_t Reifier::theoryElementTuple(IdSpan const &args) {
