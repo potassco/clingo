@@ -3360,7 +3360,6 @@ int parseTerm(lua_State *L) {
     if (has_limit) { luaToCpp(L, 3, message_limit); }
     lua_State *T = nullptr;
     if (has_logger) {
-        lua_pushstring(L, "logger");
         T = lua_newthread(L);
         lua_pushvalue(L, 2);
         lua_xmove(L, T, 1);
