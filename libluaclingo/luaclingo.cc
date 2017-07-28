@@ -3353,8 +3353,19 @@ int luaMain(lua_State *L) {
 // {{{1 wrap module functions
 
 int parseTerm(lua_State *L) {
+    bool has_logger = !lua_isnone(L, 2);
+    bool has_limit = !lua_isnone(L, 3);
     char const *str = luaL_checkstring(L, 1);
-    return Term::new_(L, call_c(L, clingo_parse_term, str, nullptr, nullptr, 20));
+    int message_limit = 20;
+    if (has_limit) { luaToCpp(L, 3, message_limit); }
+    lua_State *T = nullptr;
+    if (has_logger) {
+        lua_pushstring(L, "logger");
+        T = lua_newthread(L);
+        lua_pushvalue(L, 2);
+        lua_xmove(L, T, 1);
+    }
+    return Term::new_(L, call_c(L, clingo_parse_term, str, has_logger ? logger_callback : nullptr, T, message_limit));
 }
 
 // {{{1 clingo library
