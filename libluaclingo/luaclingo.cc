@@ -3194,9 +3194,9 @@ struct ControlWrap : Object<ControlWrap> {
         }
     }
     static int new_(lua_State *L) {
-        bool has_parameters = !lua_isnone(L, 1);
-        bool has_logger = !lua_isnone(L, 2);
-        bool has_limit = !lua_isnone(L, 3);
+        bool has_parameters = !lua_isnone(L, 1) && !lua_isnil(L, 1);
+        bool has_logger = !lua_isnone(L, 2) && !lua_isnil(L, 2);
+        bool has_limit = !lua_isnone(L, 3) && !lua_isnil(L, 3);
         std::vector<std::string> *args = AnyWrap::new_<std::vector<std::string>>(L);
         if (has_parameters) { luaToCpp(L, 1, *args); }
         std::vector<char const *> *cargs = AnyWrap::new_<std::vector<char const*>>(L);
@@ -3353,8 +3353,8 @@ int luaMain(lua_State *L) {
 // {{{1 wrap module functions
 
 int parseTerm(lua_State *L) {
-    bool has_logger = !lua_isnone(L, 2);
-    bool has_limit = !lua_isnone(L, 3);
+    bool has_logger = !lua_isnone(L, 2) && !lua_isnil(L, 2);
+    bool has_limit = !lua_isnone(L, 3) && !lua_isnil(L, 3);
     char const *str = luaL_checkstring(L, 1);
     int message_limit = 20;
     if (has_limit) { luaToCpp(L, 3, message_limit); }
