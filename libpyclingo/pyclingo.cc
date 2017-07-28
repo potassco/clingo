@@ -5575,6 +5575,19 @@ void pycall(Reference fun, clingo_symbol_t const *arguments, size_t arguments_si
     else { add(ret); }
 }
 
+static void logger_callback(clingo_warning_t code, char const *message, void *data) {
+    try {
+        Object pyMsg = cppToPy(message);
+        Object pyCode = MessageCode::getAttr(code);
+        Object ret = PyObject_CallFunctionObjArgs(static_cast<PyObject*>(data), pyCode.toPy(), pyMsg.toPy(), nullptr);
+    }
+    catch (...) {
+        handle_cxx_error("<logger>", "error during message logging going to terminate");
+        std::cerr << clingo_error_message() << std::endl;
+        std::terminate();
+    }
+}
+
 struct ControlWrap : ObjectBase<ControlWrap> {
     using Propagators = std::vector<Object>;
     using Observers = std::vector<Object>;
@@ -5666,18 +5679,6 @@ active; you must not call any member function during search.)";
         }
         handle_c_error(clingo_control_new(args.data(), args.size(), logger ? logger_callback : nullptr, logger, message_limit, &freeCtl));
         ctl = freeCtl;
-    }
-    static void logger_callback(clingo_warning_t code, char const *message, void *data) {
-        try {
-            Object pyMsg = cppToPy(message);
-            Object pyCode = MessageCode::getAttr(code);
-            Object ret = PyObject_CallFunctionObjArgs(static_cast<PyObject*>(data), pyCode.toPy(), pyMsg.toPy(), nullptr);
-        }
-        catch (...) {
-            handle_cxx_error("<logger>", "error during message logging going to terminate");
-            std::cerr << clingo_error_message() << std::endl;
-            std::terminate();
-        }
     }
     Object add(Reference args) {
         CHECK_BLOCKED("add");
@@ -6435,11 +6436,14 @@ json.dumps(prg.statistics, sort_keys=True, indent=4, separators=(',', ': ')))", 
 
 // {{{1 wrap module functions
 
-// TODO: consider exposing the logger to python...
-Object parseTerm(Reference obj) {
-    auto str = pyToCpp<std::string>(obj);
+Object parseTerm(Reference args, Reference kwds) {
+    static char const *kwlist[] = {"string", "logger", "message_limit", nullptr};
+    char const *str;
+    Reference logger = Py_None;
+    int message_limit = 20;
+    ParseTupleAndKeywords(args, kwds, "s|Oi", kwlist, str, logger, message_limit);
     clingo_symbol_t sym;
-    handle_c_error(clingo_parse_term(str.c_str(), nullptr, nullptr, 20, &sym));
+    handle_c_error(clingo_parse_term(str, !logger.none() ? logger_callback : nullptr, logger.toPy(), message_limit, &sym));
     return Symbol::construct(sym);
 }
 
@@ -6797,11 +6801,19 @@ statement = Rule
 )";
 
 static PyMethodDef clingoModuleMethods[] = {
-    {"parse_term", to_function<parseTerm>(), METH_O,
-R"(parse_term(string) -> Symbol
+    {"parse_term", to_function<parseTerm>(), METH_VARARGS | METH_KEYWORDS,
+R"(parse_term(string, logger, message_limit) -> Symbol
 
 Parse the given string using gringo's term parser for ground terms. The
 function also evaluates arithmetic functions.
+
+Arguments:
+string -- the string to be parsed
+
+Keyword Arguments:
+logger        -- function to intercept messages normally printed to standard
+                 error (default: None)
+message_limit -- maximum number of messages passed to the logger (default: 20)
 
 Example:
 
