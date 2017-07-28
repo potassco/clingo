@@ -2880,6 +2880,84 @@ private:
 
 // {{{1 wrap ControlWrap
 
+struct MessageCode : Object<MessageCode> {
+    clingo_warning type;
+    MessageCode(clingo_warning type) : type(type) { }
+    clingo_warning cmpKey() { return type; }
+    static int addToRegistry(lua_State *L) {
+        lua_createtable(L, 0, 7);
+        for (auto t : {clingo_warning_operation_undefined, clingo_warning_runtime_error, clingo_warning_atom_undefined, clingo_warning_file_included, clingo_warning_variable_unbounded, clingo_warning_global_variable, clingo_warning_other}) {
+            new_(L, t);
+            lua_setfield(L, -2, field_(t));
+        }
+        lua_setfield(L, -2, "MessageCode");
+        return 0;
+    }
+    static char const *field_(clingo_warning type) {
+        switch (type) {
+            case clingo_warning_operation_undefined: { return "OperationUndefined"; }
+            case clingo_warning_runtime_error      : { return "RuntimeError"; }
+            case clingo_warning_atom_undefined     : { return "AtomUndefined"; }
+            case clingo_warning_file_included      : { return "FileIncluded"; }
+            case clingo_warning_variable_unbounded : { return "VariableUnbounded"; }
+            case clingo_warning_global_variable    : { return "GlobalVariable"; }
+            case clingo_warning_other              : { return "Other"; }
+        }
+        return "";
+    }
+
+    static int toString(lua_State *L) {
+        lua_pushstring(L, field_(get_self(L).type));
+        return 1;
+    }
+    static luaL_Reg const meta[];
+    static constexpr char const *typeName = "clingo.MessageCode";
+};
+
+constexpr char const *MessageCode::typeName;
+
+luaL_Reg const MessageCode::meta[] = {
+    {"__eq", eq},
+    {"__lt", lt},
+    {"__le", le},
+    {"__tostring", toString},
+    { nullptr, nullptr }
+};
+static int lua_logger_callback(lua_State *L) {
+    char const *str = *static_cast<char const **>(lua_touserdata(L, 3));
+    int code = lua_tointeger(L, 2);
+    lua_pop(L, 2);                                // +1
+    lua_getfield(L, LUA_REGISTRYINDEX, "clingo"); // +1
+    lua_getfield(L, -1, "MessageCode");           // +1
+    lua_replace(L, -2);                           // -1
+    lua_getfield(L, -1, MessageCode::field_(static_cast<clingo_warning>(code))); // +1
+    lua_replace(L, -2);                           // -1
+    lua_pushstring(L, str);                       // +1
+    lua_call(L, 2, 0);                            // -3
+    return 0;
+}
+
+static void logger_callback(clingo_warning_t code, char const *message, void *data) {
+    lua_State *L = static_cast<lua_State*>(data);
+    if (!lua_checkstack(L, 4)) {
+        std::cerr << "logger: stack size exceeded going to terminate" << std::endl;
+        std::terminate();
+    }
+    lua_pushcfunction(L, luaTraceback);        // +1
+    lua_pushcfunction(L, lua_logger_callback); // +1
+    lua_pushvalue(L, 1);                       // +1
+    lua_pushinteger(L, code);                  // +1
+    lua_pushlightuserdata(L, &message);        // +1
+    auto ret = lua_pcall(L, 3, 0, -5);         // -4
+    if (ret != 0) {
+        std::string loc, desc;
+        char const *msg = lua_tostring(L, -1);
+        std::cerr << "logger: error in logger going to terminate:\n" << msg << std::endl;
+        std::terminate();
+    }
+    lua_pop(L, 1);                             // -1
+}
+
 struct ControlWrap : Object<ControlWrap> {
     clingo_control_t *ctl;
     bool free;
@@ -3116,14 +3194,28 @@ struct ControlWrap : Object<ControlWrap> {
         }
     }
     static int new_(lua_State *L) {
-        bool hasArg = !lua_isnone(L, 1);
+        bool has_parameters = !lua_isnone(L, 1);
+        bool has_logger = !lua_isnone(L, 2);
+        bool has_limit = !lua_isnone(L, 3);
         std::vector<std::string> *args = AnyWrap::new_<std::vector<std::string>>(L);
-        if (hasArg) { luaToCpp(L, 1, *args); }
+        if (has_parameters) { luaToCpp(L, 1, *args); }
         std::vector<char const *> *cargs = AnyWrap::new_<std::vector<char const*>>(L);
+        int message_limit = 20;
+        if (has_limit) { luaToCpp(L, 3, message_limit); }
         for (auto &arg : *args) {
             protect(L, [&arg, &cargs](){ cargs->push_back(arg.c_str()); });
         }
-        return new_(L, [L, cargs](void *mem){ new (mem) ControlWrap(call_c(L, clingo_control_new, cargs->data(), cargs->size(), nullptr, nullptr, 20), true); });
+        return new_(L, [&](void *mem){
+            lua_State *T = nullptr;
+            if (has_logger) {
+                lua_pushstring(L, "logger");
+                T = lua_newthread(L);
+                lua_pushvalue(L, 2);
+                lua_xmove(L, T, 1);
+                lua_rawset(L, -3);
+            }
+            new (mem) ControlWrap(call_c(L, clingo_control_new, cargs->data(), cargs->size(), has_logger ? logger_callback : nullptr, T, message_limit), true);
+        });
     }
     template <class F>
     static int new_(lua_State *L, F f) {
@@ -3280,6 +3372,7 @@ int luaopen_clingo(lua_State* L) {
 
     Term::reg(L);
     SymbolType::reg(L);
+    MessageCode::reg(L);
     Model::reg(L);
     SolveControl::reg(L);
     SolveHandle::reg(L);
@@ -3312,6 +3405,7 @@ int luaopen_clingo(lua_State* L) {
     lua_setfield(L, -2, "__version__");
 
     SymbolType::addToRegistry(L);
+    MessageCode::addToRegistry(L);
     Term::addToRegistry(L);
     TheoryTermType::addToRegistry(L);
     ExternalType::addToRegistry(L);
