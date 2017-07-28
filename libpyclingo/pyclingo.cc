@@ -5513,6 +5513,48 @@ Follows python __exit__ conventions. Does not suppress exceptions.
     {nullptr, nullptr, 0, nullptr}
 };
 
+// {{{1 wrap MessageCode
+
+struct MessageCode : EnumType<MessageCode> {
+    static constexpr char const *tp_type = "TheoryTermType";
+    static constexpr char const *tp_name = "clingo.TheoryTermType";
+    static constexpr char const *tp_doc =
+R"(Enumeration of the different types of theory terms.
+
+TheoryTermType objects cannot be constructed from python. Instead the
+following preconstructed objects are available:
+
+MessageCode.OperationUndefined -- undefined arithmetic operation or weight of aggregate
+MessageCode.RuntimeError       -- to report multiple errors; a corresponding runtime error is raised later
+MessageCode.AtomUndefined      -- undefined atom in program
+MessageCode.FileIncluded       -- same file included multiple times
+MessageCode.VariableUnbounded  -- CSP variable with unbounded domain
+MessageCode.GlobalVariable     -- global variable in tuple of aggregate element
+MessageCode.Other              -- other kinds of messages
+)";
+    static constexpr clingo_warning const values[] = {
+        clingo_warning_operation_undefined,
+        clingo_warning_runtime_error,
+        clingo_warning_atom_undefined,
+        clingo_warning_file_included,
+        clingo_warning_variable_unbounded,
+        clingo_warning_global_variable,
+        clingo_warning_other,
+    };
+    static constexpr const char * const strings[] = {
+        "OperationUndefined",
+        "RuntimeError",
+        "AtomUndefined",
+        "FileIncluded",
+        "VariableUnbounded",
+        "GlobalVariable",
+        "Other"
+    };
+};
+
+constexpr clingo_warning const MessageCode::values[];
+constexpr const char * const MessageCode::strings[];
+
 // {{{1 wrap Control
 
 void pycall(Reference fun, clingo_symbol_t const *arguments, size_t arguments_size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) {
@@ -5628,8 +5670,7 @@ active; you must not call any member function during search.)";
     static void logger_callback(clingo_warning_t code, char const *message, void *data) {
         try {
             Object pyMsg = cppToPy(message);
-            // TODO: code has to go into an enum class
-            Object pyCode = cppToPy(code);
+            Object pyCode = MessageCode::getAttr(code);
             Object ret = PyObject_CallFunctionObjArgs(static_cast<PyObject*>(data), pyCode.toPy(), pyMsg.toPy(), nullptr);
         }
         catch (...) {
@@ -6844,6 +6885,7 @@ Backend             -- extend the logic program
 Configuration       -- modify/inspect the solver configuration
 Control             -- controls the grounding/solving process
 HeuristicType       -- enumeration of heuristic modificators
+MessageCode         -- enumeration of message codes
 Model               -- provides access to a model during solve call
 ModelType           -- captures the type of a model
 ProgramBuilder      -- extend a non-ground logic program
@@ -6947,7 +6989,7 @@ PyObject *initclingo_() {
             !TheoryTerm::initType(m)          || !PropagateInit::initType(m)    || !Assignment::initType(m)       ||
             !SymbolType::initType(m)          || !Symbol::initType(m)           || !Backend::initType(m)          ||
             !ProgramBuilder::initType(m)      || !HeuristicType::initType(m)    || !TruthValue::initType(m)       ||
-            !PropagatorCheckMode::initType(m) ||
+            !PropagatorCheckMode::initType(m) || !MessageCode::initType(m)      ||
             PyModule_AddStringConstant(m.toPy(), "__version__", CLINGO_VERSION) < 0 ||
             false) { return nullptr; }
         Reference a{initclingoast_()};
