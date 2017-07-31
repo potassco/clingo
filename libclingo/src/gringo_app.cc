@@ -375,7 +375,7 @@ struct GringoApp : public Potassco::Application {
             parts.emplace_back("base", SymVec{});
             inc.incremental_ = false;
             inc.ground(parts, nullptr);
-            inc.solve({}, 0, nullptr)->get();
+            inc.solve({nullptr, 0}, 0, nullptr)->get();
         }
     }
 

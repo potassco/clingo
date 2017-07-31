@@ -31,7 +31,10 @@ namespace Gringo {
 
 // {{{ declaration of ClingoApp
 
-ClingoApp::ClingoApp() { }
+ClingoApp::ClingoApp(Logger::Printer logger, unsigned messageLimit, MainFunction main)
+: logger_(logger)
+, messageLimit_(messageLimit)
+, main_(main) { }
 
 static bool parseConst(const std::string& str, std::vector<std::string>& out) {
     out.push_back(str);
@@ -148,8 +151,8 @@ void ClingoApp::printVersion() {
         lua_version ? "with Lua "    : "without Lua",   lua_version ? lua_version : "");
     printf("\n");
     BaseType::printLibClaspVersion();
-	printf("\n");
-	BaseType::printLicense();
+    printf("\n");
+    BaseType::printLicense();
 }
 bool ClingoApp::onModel(Clasp::Solver const& s, Clasp::Model const& m) {
     bool ret = !grd || grd->onModel(m);
@@ -176,9 +179,15 @@ void ClingoApp::run(Clasp::ClaspFacade& clasp) {
             Clasp::ProgramBuilder* prg = &clasp.start(claspConfig_, pt);
             grOpts_.verbose = verbose() == UINT_MAX;
             Clasp::Asp::LogicProgram* lp = mode_ != mode_gringo ? static_cast<Clasp::Asp::LogicProgram*>(prg) : 0;
-            grd = Gringo::gringo_make_unique<ClingoControl>(g_scripts(), mode_ == mode_clingo, clasp_.get(), claspConfig_, std::bind(&ClingoApp::handlePostGroundOptions, this, _1), std::bind(&ClingoApp::handlePreSolveOptions, this, _1), nullptr, 20);
-            grd->parse(claspAppOpts_.input, grOpts_, lp);
-            grd->main();
+            grd = Gringo::gringo_make_unique<ClingoControl>(g_scripts(), mode_ == mode_clingo, clasp_.get(), claspConfig_, std::bind(&ClingoApp::handlePostGroundOptions, this, _1), std::bind(&ClingoApp::handlePreSolveOptions, this, _1), logger_, messageLimit_);
+            if (main_) {
+                grd->parse({}, grOpts_, lp, false);
+                grd->main([&]() { main_(*grd, claspAppOpts_.input); });
+            }
+            else {
+                grd->parse(claspAppOpts_.input, grOpts_, lp);
+                grd->main();
+            }
         }
         else {
             ClaspAppBase::run(clasp);
@@ -194,9 +203,4 @@ void ClingoApp::run(Clasp::ClaspFacade& clasp) {
 // }}}
 
 } // namespace Gringo
-
-extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main_(int argc, char *argv[]) {
-    Gringo::ClingoApp app;
-    return app.main(argc, argv);
-}
 

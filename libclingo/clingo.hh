@@ -2060,7 +2060,7 @@ class Control {
     struct Impl;
 public:
     Control(StringSpan args = {}, Logger logger = nullptr, unsigned message_limit = 20);
-    explicit Control(clingo_control_t *ctl);
+    explicit Control(clingo_control_t *ctl, bool owns = true);
     Control(Control &&c);
     Control(Control const &) = delete;
     Control &operator=(Control &&c);
@@ -2109,6 +2109,9 @@ void parse_program(char const *program, StatementCallback cb, Logger logger = nu
 Symbol parse_term(char const *str, Logger logger = nullptr, unsigned message_limit = 20);
 char const *add_string(char const *str);
 std::tuple<int, int, int> version();
+
+using MainFunction = std::function<void (Control &ctl, StringSpan files)>;
+int clingo_main(char const *program_name, StringSpan arguments, MainFunction main, Logger logger = nullptr, unsigned message_limit = 20);
 
 // }}}1
 
@@ -3670,12 +3673,14 @@ struct Control::Impl {
     Impl(Logger logger)
     : ctl(nullptr)
     , handler(nullptr)
-    , logger(logger) { }
-    Impl(clingo_control_t *ctl)
+    , logger(logger)
+    , owns(true) { }
+    Impl(clingo_control_t *ctl, bool owns)
     : ctl(ctl)
-    , handler(nullptr) { }
+    , handler(nullptr)
+    , owns(owns) { }
     ~Impl() noexcept {
-        if (ctl) { clingo_control_free(ctl); }
+        if (ctl && owns) { clingo_control_free(ctl); }
     }
     operator clingo_control_t *() { return ctl; }
     clingo_control_t *ctl;
@@ -3684,6 +3689,7 @@ struct Control::Impl {
     Logger logger;
     std::forward_list<std::pair<Propagator&, Detail::AssignOnce&>> propagators_;
     std::forward_list<std::pair<GroundProgramObserver&, Detail::AssignOnce&>> observers_;
+    bool owns;
 };
 
 inline Clingo::Control::Control(StringSpan args, Logger logger, unsigned message_limit)
@@ -3696,8 +3702,8 @@ inline Clingo::Control::Control(StringSpan args, Logger logger, unsigned message
     Detail::handle_error(clingo_control_new(args.begin(), args.size(), logger ? f : nullptr, logger ? &impl_->logger : nullptr, message_limit, &impl_->ctl));
 }
 
-inline Control::Control(clingo_control_t *ctl)
-    : impl_(new Impl(ctl)) { }
+inline Control::Control(clingo_control_t *ctl, bool owns)
+    : impl_(new Impl(ctl, owns)) { }
 
 inline Control::Control(Control &&c)
     : impl_(nullptr) {
@@ -4823,6 +4829,23 @@ inline void parse_program(char const *program, StatementCallback cb, Logger logg
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
         catch (...) { }
     }, &logger, message_limit), data.second);
+}
+
+using MainFunction = std::function<void (Control &ctl, StringSpan files)>;
+inline int clingo_main(char const *program_name, StringSpan arguments, MainFunction main, Logger logger, unsigned message_limit) {
+    auto c_logger = [](clingo_warning_t code, char const *msg, void *data) {
+        try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
+        catch (...) { }
+    };
+    using Data = std::pair<MainFunction&, std::exception_ptr>;
+    Data data(main, nullptr);
+    auto c_main = [](clingo_control_t *ctl, char const *const * files, size_t size, void *data) {
+        auto &d = *static_cast<Data*>(data);
+        Control control{ctl, false};
+        CLINGO_CALLBACK_TRY { d.first(control, {files, size}); }
+        CLINGO_CALLBACK_CATCH(d.second);
+    };
+    return ::clingo_main(program_name, arguments.begin(), arguments.size(), c_main, &data, logger ? static_cast<clingo_logger_t>(c_logger) : nullptr, &logger, message_limit);
 }
 
 // }}}2

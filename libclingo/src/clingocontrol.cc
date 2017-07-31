@@ -239,8 +239,13 @@ void ClingoControl::ground(Control::GroundVec const &parts, Context *context) {
     }
 }
 
-void ClingoControl::main() {
-    if (scripts_.callable("main")) {
+void ClingoControl::main(std::function<void ()> m) {
+    if (m) {
+        incremental_ = true;
+        clasp_->enableProgramUpdates();
+        m();
+    }
+    else if (scripts_.callable("main")) {
         incremental_ = true;
         clasp_->enableProgramUpdates();
         scripts_.main(*this);
@@ -256,7 +261,7 @@ void ClingoControl::main() {
         Control::GroundVec parts;
         parts.emplace_back("base", SymVec{});
         ground(parts, nullptr);
-        solve({}, 0, nullptr)->get();
+        solve({nullptr, 0}, 0, nullptr)->get();
     }
 }
 bool ClingoControl::onModel(Clasp::Model const &m) {

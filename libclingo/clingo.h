@@ -3007,6 +3007,16 @@ typedef bool (*clingo_ground_callback_t) (clingo_location_t const *location, cha
 //! Control object holding grounding and solving state.
 typedef struct clingo_control clingo_control_t;
 
+//! Callback to customize clingo main function.
+//!
+//! @param[in] control corresponding control object
+//! @param[in] files files passed via command line arguments
+//! @param[in] size number of files
+//! @param[in] data user data for the callback
+//!
+//! @return whether the call was successful
+typedef bool (*clingo_main_function_t) (clingo_control_t *control, char const *const * files, size_t size, void *data);
+
 //! Create a new control object.
 //!
 //! A control object has to be freed using clingo_control_free().
@@ -3289,7 +3299,24 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_backend(clingo_control_t *control,
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_program_builder(clingo_control_t *control, clingo_program_builder_t **builder);
 //! @}
 
+//! @name Extending Clingo
+//! @{
+
+//! Run clingo with a customized main function (similar to python and lua embedding).
+//!
+//! @param[in] program_name program name used help output
+//! @param[in] arguments command line arguments
+//! @param[in] size number of arguments
+//! @param[in] main callback to customize main function
+//! @param[in] main_data user data for main callback
+//! @param[in] logger callback to intercept messages
+//! @param[in] message_limit maximum number of messages passed to the logger
+//! @return exit code to return from main function
+CLINGO_VISIBILITY_DEFAULT int clingo_main(char const *program_name, char const *const * arguments, size_t size, clingo_main_function_t main, void *main_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
 //! @}
+
+//! @}
+
 
 // }}}1
 

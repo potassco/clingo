@@ -37,7 +37,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     using BaseType    = Clasp::Cli::ClaspAppBase;
     enum class ConfigUpdate { KEEP, REPLACE };
 public:
-    ClingoApp();
+    ClingoApp(Logger::Printer cpp_logger = nullptr, unsigned message_limit = 20, MainFunction main = nullptr);
     const char* getName()    const override { return "clingo"; }
     const char* getVersion() const override { return CLINGO_VERSION; }
     const char* getUsage()   const override { return "[number] [options] [files]"; }
@@ -65,6 +65,9 @@ private:
     ClingoOptions grOpts_;
     Mode mode_;
     std::unique_ptr<ClingoControl> grd;
+    Logger::Printer logger_;
+    unsigned messageLimit_;
+    MainFunction main_;
 };
 
 } // namespace Gringo

@@ -189,6 +189,8 @@ private:
     unsigned seq_;
 };
 
+using MainFunction = std::function<void (Gringo::ClingoControl &ctl, std::vector<std::string> const &files)>;
+
 class ClingoSolveFuture;
 class ClingoControl : public clingo_control, private ConfigProxy, private SymbolicAtoms {
 public:
@@ -204,7 +206,7 @@ public:
     void commitExternals();
     void parse();
     void parse(const StringVec& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* out, bool addStdIn = true);
-    void main();
+    void main(std::function<void()> m = nullptr);
     bool onModel(Clasp::Model const &m);
     void onFinish(Clasp::ClaspFacade::Result ret);
     bool update();

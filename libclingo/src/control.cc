@@ -29,6 +29,7 @@
 #pragma warning (disable : 4996) // 'strcpy' may be unsafe
 #endif
 
+#include <clingo/clingo_app.hh>
 #include <clingo/clingocontrol.hh>
 #include <clingo/script.h>
 #include <gringo/input/groundtermparser.hh>
@@ -1443,6 +1444,48 @@ extern "C" CLINGO_VISIBILITY_DEFAULT bool clingo_register_script_(clingo_ast_scr
 
 extern "C" CLINGO_VISIBILITY_DEFAULT char const *clingo_script_version_(clingo_ast_script_type_t type) {
     return g_scripts().version(static_cast<clingo_ast_script_type>(type));
+}
+
+extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main_(int argc, char *argv[]) {
+    Gringo::ClingoApp app;
+    return app.main(argc, argv);
+}
+
+char *str_duplicate(char const *str) {
+    char *ret = new char[strlen(str) + 1];
+    std::strcpy(ret, str);
+    return ret;
+}
+
+extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main(char const *program_name, char const *const * arguments, size_t arguments_size, clingo_main_function_t main, void *main_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
+    try {
+        std::vector<std::unique_ptr<char[]>> args_buf;
+        std::vector<char *> args;
+        args_buf.emplace_back(str_duplicate(program_name));
+        for (auto arg = arguments, end = arguments + arguments_size; arg != end; ++arg) {
+            args_buf.emplace_back(str_duplicate(*arg));
+        }
+        args_buf.emplace_back(nullptr);
+        for (auto &x : args_buf) { args.emplace_back(x.get()); }
+        Gringo::Logger::Printer cpp_logger;
+        if (logger) { cpp_logger = [logger, logger_data](Gringo::Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, logger_data); }; }
+        Gringo::MainFunction cpp_main;
+        if (main) {
+            cpp_main = [main, main_data](Gringo::ClingoControl &ctl, std::vector<std::string> const &files) {
+                std::vector<char const *> c_files;
+                for (auto &x : files) {
+                    c_files.emplace_back(x.c_str());
+                }
+                handleCError(main(&ctl, c_files.data(), files.size(), main_data));
+            };
+        }
+        Gringo::ClingoApp app{cpp_logger, message_limit, cpp_main};
+        return app.main(args.size() - 1, args.data());
+    }
+    catch (...) {
+        std::cerr << "error during initialization" << std::endl;
+        std::terminate();
+    }
 }
 
 // }}}1
