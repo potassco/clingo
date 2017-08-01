@@ -3304,7 +3304,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_program_builder(clingo_control_t *
 
 //! Run clingo with a customized main function (similar to python and lua embedding).
 //!
-//! @param[in] program_name program name used help output
+//! @param[in] program_name program name used in help output
 //! @param[in] arguments command line arguments
 //! @param[in] size number of arguments
 //! @param[in] main callback to customize main function
