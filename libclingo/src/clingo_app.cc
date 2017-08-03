@@ -31,10 +31,8 @@ namespace Gringo {
 
 // {{{ declaration of ClingoApp
 
-ClingoApp::ClingoApp(Logger::Printer logger, unsigned messageLimit, MainFunction main)
-: logger_(logger)
-, messageLimit_(messageLimit)
-, main_(main) { }
+ClingoApp::ClingoApp(UIClingoApp app)
+: app_{std::move(app)} { }
 
 static bool parseConst(const std::string& str, std::vector<std::string>& out) {
     out.push_back(str);
@@ -100,6 +98,8 @@ void ClingoApp::initOptions(Potassco::ProgramOptions::OptionContext& root) {
          "Run in {clingo|clasp|gringo} mode")
         ;
     root.add(basic);
+    app_->register_options(*this);
+    for (auto &group : optionGroups_) { root.add(group); }
 }
 
 void ClingoApp::validateOptions(const Potassco::ProgramOptions::OptionContext& root, const Potassco::ProgramOptions::ParsedOptions& parsed, const Potassco::ProgramOptions::ParsedValues& vals) {
@@ -122,6 +122,38 @@ void ClingoApp::validateOptions(const Potassco::ProgramOptions::OptionContext& r
         }
         mode_ = mode_gringo;
     }
+    app_->validate_options();
+}
+
+Potassco::ProgramOptions::OptionGroup &ClingoApp::addGroup_(char const *group_name) {
+    using namespace Potassco::ProgramOptions;
+    OptionGroup *group = nullptr;
+    for (auto &x : optionGroups_) {
+        if (x.caption() == group_name) {
+            group = &x;
+            break;
+        }
+    }
+    if (!group) {
+        optionGroups_.emplace_back(group_name);
+        group = &optionGroups_.back();
+    }
+    return *group;
+}
+
+void ClingoApp::addOption(char const *group, char const *option, char const *description, OptionParser parse, char const *argument, bool multi) {
+    using namespace Potassco::ProgramOptions;
+    optionParsers_.emplace_front(parse);
+    std::unique_ptr<Value> value{notify(&optionParsers_.front(), [](OptionParser *p, std::string const &, std::string const &value){ return (*p)(value.c_str()); })};
+    if (argument) { value->arg(argument); }
+    if (multi) { value->composing(); }
+    addGroup_(group).addOptions()(option, value.release(), description);
+}
+
+void ClingoApp::addFlag(char const *group, char const *option, char const *description, bool &target) {
+    using namespace Potassco::ProgramOptions;
+    std::unique_ptr<Value> value{flag(target)};
+    addGroup_(group).addOptions()(option, value.release(), description);
 }
 
 Clasp::ProblemType ClingoApp::getProblemType() {
@@ -158,12 +190,6 @@ bool ClingoApp::onModel(Clasp::Solver const& s, Clasp::Model const& m) {
     bool ret = !grd || grd->onModel(m);
     return BaseType::onModel(s, m) && ret;
 }
-void ClingoApp::shutdown() {
-    // TODO: can be removed in future...
-    //       or could be bound differently given the new interface...
-    if (grd) grd->solveFuture_ = nullptr;
-    Clasp::Cli::ClaspAppBase::shutdown();
-}
 void ClingoApp::onEvent(Clasp::Event const& ev) {
 #if CLASP_HAS_THREADS
     Clasp::ClaspFacade::StepReady const *r = Clasp::event_cast<Clasp::ClaspFacade::StepReady>(ev);
@@ -179,15 +205,8 @@ void ClingoApp::run(Clasp::ClaspFacade& clasp) {
             Clasp::ProgramBuilder* prg = &clasp.start(claspConfig_, pt);
             grOpts_.verbose = verbose() == UINT_MAX;
             Clasp::Asp::LogicProgram* lp = mode_ != mode_gringo ? static_cast<Clasp::Asp::LogicProgram*>(prg) : 0;
-            grd = Gringo::gringo_make_unique<ClingoControl>(g_scripts(), mode_ == mode_clingo, clasp_.get(), claspConfig_, std::bind(&ClingoApp::handlePostGroundOptions, this, _1), std::bind(&ClingoApp::handlePreSolveOptions, this, _1), logger_, messageLimit_);
-            if (main_) {
-                grd->parse({}, grOpts_, lp, false);
-                grd->main([&]() { main_(*grd, claspAppOpts_.input); });
-            }
-            else {
-                grd->parse(claspAppOpts_.input, grOpts_, lp);
-                grd->main();
-            }
+            grd = Gringo::gringo_make_unique<ClingoControl>(g_scripts(), mode_ == mode_clingo, clasp_.get(), claspConfig_, std::bind(&ClingoApp::handlePostGroundOptions, this, _1), std::bind(&ClingoApp::handlePreSolveOptions, this, _1), app_->has_log() ? Logger::Printer{std::bind(&IClingoApp::log, app_.get(), _1, _2)} : nullptr, app_->message_limit());
+            grd->main(*app_, claspAppOpts_.input, grOpts_, lp);
         }
         else {
             ClaspAppBase::run(clasp);

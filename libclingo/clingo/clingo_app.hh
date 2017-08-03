@@ -35,14 +35,16 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     using ClaspOutput = Clasp::Cli::Output;
     using ProblemType = Clasp::ProblemType;
     using BaseType    = Clasp::Cli::ClaspAppBase;
+    using OptionParser = std::function<bool (char const *)>;
     enum class ConfigUpdate { KEEP, REPLACE };
 public:
-    ClingoApp(Logger::Printer cpp_logger = nullptr, unsigned message_limit = 20, MainFunction main = nullptr);
+    ClingoApp(UIClingoApp app = std::make_unique<IClingoApp>());
     const char* getName()    const override { return "clingo"; }
     const char* getVersion() const override { return CLINGO_VERSION; }
     const char* getUsage()   const override { return "[number] [options] [files]"; }
 
-    void shutdown() override;
+    void addOption(char const *group, char const *option, char const *description, OptionParser parse, char const *argument = nullptr, bool multi = false);
+    void addFlag(char const *group, char const *option, char const *description, bool &target);
 protected:
     enum Mode { mode_clingo = 0, mode_clasp = 1, mode_gringo = 2 };
     void        initOptions(Potassco::ProgramOptions::OptionContext& root) override;
@@ -60,14 +62,16 @@ protected:
     bool onModel(const Clasp::Solver& s, const Clasp::Model& m) override;
     // -------------------------------------------------------------------------------------------
 private:
+    Potassco::ProgramOptions::OptionGroup &addGroup_(char const *group_name);
+private:
     ClingoApp(const ClingoApp&);
     ClingoApp& operator=(const ClingoApp&);
     ClingoOptions grOpts_;
     Mode mode_;
     std::unique_ptr<ClingoControl> grd;
-    Logger::Printer logger_;
-    unsigned messageLimit_;
-    MainFunction main_;
+    UIClingoApp app_;
+    std::forward_list<OptionParser> optionParsers_;
+    std::vector<Potassco::ProgramOptions::OptionGroup> optionGroups_;
 };
 
 } // namespace Gringo

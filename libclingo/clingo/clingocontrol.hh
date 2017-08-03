@@ -189,7 +189,28 @@ private:
     unsigned seq_;
 };
 
-using MainFunction = std::function<void (Gringo::ClingoControl &ctl, std::vector<std::string> const &files)>;
+class ClingoApp;
+class IClingoApp {
+public:
+    virtual unsigned message_limit() const { return 20; }
+    virtual char const *program_name() const { return "clingo"; }
+    virtual bool has_main() const { return false; }
+    virtual void main(ClingoControl &ctl, std::vector<std::string> const &files) {
+        static_cast<void>(ctl);
+        static_cast<void>(files);
+        throw std::runtime_error("not implemented");
+    }
+    virtual bool has_log() const { return false; }
+    virtual void log(Gringo::Warnings code, char const *message) noexcept {
+        static_cast<void>(code);
+        static_cast<void>(message);
+        throw std::runtime_error("not implemented");
+    }
+    virtual void register_options(ClingoApp &app) { static_cast<void>(app); }
+    virtual void validate_options() { }
+    virtual ~IClingoApp() = default;
+};
+using UIClingoApp = std::unique_ptr<IClingoApp>;
 
 class ClingoSolveFuture;
 class ClingoControl : public clingo_control, private ConfigProxy, private SymbolicAtoms {
@@ -206,7 +227,7 @@ public:
     void commitExternals();
     void parse();
     void parse(const StringVec& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* out, bool addStdIn = true);
-    void main(std::function<void()> m = nullptr);
+    void main(IClingoApp &app, StringVec const &files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* out);
     bool onModel(Clasp::Model const &m);
     void onFinish(Clasp::ClaspFacade::Result ret);
     bool update();
@@ -293,7 +314,6 @@ public:
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>>  propagators_;
     ClingoPropagatorLock                                       propLock_;
     Logger                                                     logger_;
-    std::unique_ptr<SolveFuture>                               solveFuture_;
     bool                                                       enableEnumAssupmption_ = true;
     bool                                                       clingoMode_;
     bool                                                       verbose_               = false;

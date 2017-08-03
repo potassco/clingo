@@ -239,29 +239,31 @@ void ClingoControl::ground(Control::GroundVec const &parts, Context *context) {
     }
 }
 
-void ClingoControl::main(std::function<void ()> m) {
-    if (m) {
-        incremental_ = true;
+void ClingoControl::main(IClingoApp &app, StringVec const &files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* out) {
+    incremental_ = true;
+    if (app.has_main()) {
+        parse({}, opts, out, false);
         clasp_->enableProgramUpdates();
-        m();
-    }
-    else if (scripts_.callable("main")) {
-        incremental_ = true;
-        clasp_->enableProgramUpdates();
-        scripts_.main(*this);
-    }
-    else if (incmode_) {
-        incremental_ = true;
-        clasp_->enableProgramUpdates();
-        incmode(*this);
+        app.main(*this, files);
     }
     else {
-        incremental_ = false;
-        claspConfig_.releaseOptions();
-        Control::GroundVec parts;
-        parts.emplace_back("base", SymVec{});
-        ground(parts, nullptr);
-        solve({nullptr, 0}, 0, nullptr)->get();
+        parse(files, opts, out);
+        if (scripts_.callable("main")) {
+            clasp_->enableProgramUpdates();
+            scripts_.main(*this);
+        }
+        else if (incmode_) {
+            clasp_->enableProgramUpdates();
+            incmode(*this);
+        }
+        else {
+            incremental_ = false;
+            claspConfig_.releaseOptions();
+            Control::GroundVec parts;
+            parts.emplace_back("base", SymVec{});
+            ground(parts, nullptr);
+            solve({nullptr, 0}, 0, nullptr)->get();
+        }
     }
 }
 bool ClingoControl::onModel(Clasp::Model const &m) {

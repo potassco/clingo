@@ -2100,6 +2100,37 @@ public:
 private:
     Impl *impl_;
 };
+//
+// {{{1 clingo application
+
+namespace Detail {
+    using ParserList = std::forward_list<std::pair<std::function<bool (char const *value)>, AssignOnce&>>;
+}
+
+class ClingoOptions {
+public:
+    explicit ClingoOptions(clingo_options_t *options, Detail::AssignOnce &exception, Detail::ParserList &parsers)
+    : options_{options}
+    , exception_{exception}
+    , parsers_{parsers} { }
+    clingo_options_t *to_c() const { return options_; }
+    void add(char const *group, char const *option, char const *description, std::function<bool (char const *value)> parser, bool multi = false, char const *argument = nullptr);
+    void add_flag(char const *group, char const *option, char const *description, bool &target);
+private:
+    clingo_options_t *options_;
+    Detail::AssignOnce &exception_;
+    Detail::ParserList &parsers_;
+};
+
+struct ClingoApplication {
+    virtual unsigned message_limit() const noexcept;
+    virtual char const *program_name() const noexcept;
+    virtual void main(Control &ctl, StringSpan files) = 0;
+    virtual void log(WarningCode code, char const *message) noexcept;
+    virtual void register_options(ClingoOptions &app);
+    virtual void validate_options();
+    virtual ~ClingoApplication() = default;
+};
 
 // {{{1 global functions
 
@@ -2110,8 +2141,7 @@ Symbol parse_term(char const *str, Logger logger = nullptr, unsigned message_lim
 char const *add_string(char const *str);
 std::tuple<int, int, int> version();
 
-using MainFunction = std::function<void (Control &ctl, StringSpan files)>;
-int clingo_main(char const *program_name, StringSpan arguments, MainFunction main, Logger logger = nullptr, unsigned message_limit = 20);
+inline int clingo_main(ClingoApplication &application, StringSpan arguments);
 
 // }}}1
 
@@ -4103,6 +4133,89 @@ inline ProgramBuilder Control::builder() {
     return ProgramBuilder{ret};
 }
 
+// {{{2 clingo application
+
+inline void ClingoOptions::add(char const *group, char const *option, char const *description, std::function<bool (char const *value)> parse, bool multi, char const *argument) {
+    parsers_.emplace_front(parse, exception_);
+    Detail::handle_error(clingo_options_add(to_c(), group, option, description, [](char const *value, void *data) {
+        auto& p = *static_cast<Detail::ParserList::value_type*>(data);
+        CLINGO_CALLBACK_TRY {
+            return p.first(value);
+        }
+        CLINGO_CALLBACK_CATCH(p.second);
+    }, &parse, multi, argument), exception_);
+}
+
+inline void ClingoOptions::add_flag(char const *group, char const *option, char const *description, bool &target) {
+    Detail::handle_error(clingo_options_add_flag(to_c(), group, option, description, &target), exception_);
+}
+
+inline unsigned ClingoApplication::message_limit() const noexcept {
+    return 20;
+}
+inline char const *ClingoApplication::program_name() const noexcept {
+    return "clingo";
+}
+inline void ClingoApplication::log(WarningCode, char const *message) noexcept {
+    fprintf(stderr, "%s\n", message);
+    fflush(stderr);
+}
+inline void ClingoApplication::register_options(ClingoOptions &) {
+}
+inline void ClingoApplication::validate_options() {
+}
+
+namespace Detail {
+
+struct ApplicationData {
+    ClingoApplication &app;
+    AssignOnce exception;
+    std::forward_list<std::pair<std::function<bool (char const *value)>, AssignOnce&>> parsers;
+};
+
+inline static unsigned g_message_limit(void *adata) {
+    ApplicationData &data = *static_cast<ApplicationData*>(adata);
+    return data.app.message_limit();
+}
+
+inline static char const *g_program_name(void *adata) {
+    ApplicationData &data = *static_cast<ApplicationData*>(adata);
+    return data.app.program_name();
+}
+
+inline static bool g_main(clingo_control_t *control, char const *const * files, size_t size, void *adata) {
+    ApplicationData &data = *static_cast<ApplicationData*>(adata);
+    CLINGO_CALLBACK_TRY {
+        Control ctl{control, false};
+        data.app.main(ctl, {files, size});
+    }
+    CLINGO_CALLBACK_CATCH(data.exception);
+}
+
+inline static void g_logger(clingo_warning_t code, char const *message, void *adata) {
+    ApplicationData &data = *static_cast<ApplicationData*>(adata);
+    return data.app.log(static_cast<WarningCode>(code), message);
+}
+
+inline static bool g_register_options(clingo_options_t *options, void *adata) {
+    ApplicationData &data = *static_cast<ApplicationData*>(adata);
+    CLINGO_CALLBACK_TRY {
+        ClingoOptions opts{options, data.exception, data.parsers};
+        data.app.register_options(opts);
+    }
+    CLINGO_CALLBACK_CATCH(data.exception);
+}
+
+inline static bool g_validate_options(void *adata) {
+    ApplicationData &data = *static_cast<ApplicationData*>(adata);
+    CLINGO_CALLBACK_TRY {
+        data.app.validate_options();
+    }
+    CLINGO_CALLBACK_CATCH(data.exception);
+}
+
+} // namespace
+
 // {{{2 global functions
 
 inline Symbol parse_term(char const *str, Logger logger, unsigned message_limit) {
@@ -4831,21 +4944,17 @@ inline void parse_program(char const *program, StatementCallback cb, Logger logg
     }, &logger, message_limit), data.second);
 }
 
-using MainFunction = std::function<void (Control &ctl, StringSpan files)>;
-inline int clingo_main(char const *program_name, StringSpan arguments, MainFunction main, Logger logger, unsigned message_limit) {
-    auto c_logger = [](clingo_warning_t code, char const *msg, void *data) {
-        try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
-        catch (...) { }
+inline int clingo_main(ClingoApplication &application, StringSpan arguments) {
+    Detail::ApplicationData data{application, {}, Detail::ParserList{}};
+    static clingo_application_t g_app = {
+        Detail::g_program_name,
+        Detail::g_message_limit,
+        Detail::g_main,
+        Detail::g_logger,
+        Detail::g_register_options,
+        Detail::g_validate_options
     };
-    using Data = std::pair<MainFunction&, std::exception_ptr>;
-    Data data(main, nullptr);
-    auto c_main = [](clingo_control_t *ctl, char const *const * files, size_t size, void *data) {
-        auto &d = *static_cast<Data*>(data);
-        Control control{ctl, false};
-        CLINGO_CALLBACK_TRY { d.first(control, {files, size}); }
-        CLINGO_CALLBACK_CATCH(d.second);
-    };
-    return ::clingo_main(program_name, arguments.begin(), arguments.size(), c_main, &data, logger ? static_cast<clingo_logger_t>(c_logger) : nullptr, &logger, message_limit);
+    return ::clingo_main(&g_app, arguments.begin(), arguments.size(), &data);
 }
 
 // }}}2

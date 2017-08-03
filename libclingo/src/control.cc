@@ -1457,33 +1457,92 @@ char *str_duplicate(char const *str) {
     return ret;
 }
 
-extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main(char const *program_name, char const *const * arguments, size_t arguments_size, clingo_main_function_t main, void *main_data, clingo_logger_t logger, void *logger_data, unsigned message_limit) {
+struct clingo_options : ClingoApp {};
+
+namespace {
+
+class CClingoApp : public IClingoApp {
+public:
+    CClingoApp(clingo_application_t app, void *data)
+    : app_(app)
+    , data_{data} { }
+    unsigned message_limit() const override {
+        if (app_.message_limit) {
+            return app_.message_limit(data_);
+        }
+        else {
+            return IClingoApp::message_limit();
+        }
+    }
+    char const *program_name() const override {
+        if (app_.message_limit) {
+            return app_.program_name(data_);
+        }
+        else {
+            return IClingoApp::program_name();
+        }
+    }
+    bool has_main() const override {
+        return app_.main;
+    }
+    void main(ClingoControl &ctl, std::vector<std::string> const &files) override {
+        assert(has_main());
+        std::vector<char const *> c_files;
+        for (auto &x : files) {
+            c_files.emplace_back(x.c_str());
+        }
+        handleCError(app_.main(&ctl, c_files.data(), c_files.size(), data_));
+    }
+    bool has_log() const override { return app_.logger; }
+    void log(Gringo::Warnings code, char const *message) noexcept override {
+        assert(has_log());
+        app_.logger(static_cast<clingo_warning_t>(code), message, data_);
+    }
+    void register_options(ClingoApp &app) override {
+        if (app_.register_options) {
+            handleCError(app_.register_options(static_cast<clingo_options_t*>(&app), data_));
+        }
+    }
+    void validate_options() override {
+        if (app_.validate_options) {
+            handleCError(app_.validate_options(data_));
+        }
+    }
+private:
+    clingo_application_t app_;
+    void *data_;
+};
+
+} // namespace
+
+extern "C" CLINGO_VISIBILITY_DEFAULT bool clingo_options_add(clingo_options_t *options, char const *group, char const *option, char const *description, bool (*parse) (char const *value, void *data), void *data, bool multi, char const *argument) {
+    GRINGO_CLINGO_TRY {
+        options->addOption(group, option, description, [&](char const *value) { return parse(value, data); }, argument, multi);
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" CLINGO_VISIBILITY_DEFAULT bool clingo_options_add_flag(clingo_options_t *options, char const *group, char const *option, char const *description, bool *target) {
+    GRINGO_CLINGO_TRY { options->addFlag(group, option, description, *target); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main(clingo_application *application, char const *const * arguments, size_t size, void *data) {
     try {
+        UIClingoApp app = std::make_unique<CClingoApp>(*application, data);
         std::vector<std::unique_ptr<char[]>> args_buf;
         std::vector<char *> args;
-        args_buf.emplace_back(str_duplicate(program_name));
-        for (auto arg = arguments, end = arguments + arguments_size; arg != end; ++arg) {
+        args_buf.emplace_back(str_duplicate(app->program_name()));
+        for (auto arg = arguments, end = arguments + size; arg != end; ++arg) {
             args_buf.emplace_back(str_duplicate(*arg));
         }
         args_buf.emplace_back(nullptr);
         for (auto &x : args_buf) { args.emplace_back(x.get()); }
-        Gringo::Logger::Printer cpp_logger;
-        if (logger) { cpp_logger = [logger, logger_data](Gringo::Warnings code, char const *msg) { logger(static_cast<clingo_warning_t>(code), msg, logger_data); }; }
-        Gringo::MainFunction cpp_main;
-        if (main) {
-            cpp_main = [main, main_data](Gringo::ClingoControl &ctl, std::vector<std::string> const &files) {
-                std::vector<char const *> c_files;
-                for (auto &x : files) {
-                    c_files.emplace_back(x.c_str());
-                }
-                handleCError(main(&ctl, c_files.data(), files.size(), main_data));
-            };
-        }
-        Gringo::ClingoApp app{cpp_logger, message_limit, cpp_main};
-        return app.main(args.size() - 1, args.data());
+        return Gringo::ClingoApp{std::move(app)}.main(args.size() - 1, args.data());
     }
     catch (...) {
-        std::cerr << "error during initialization" << std::endl;
+        handleCXXError();
+        std::cerr << "error during initialization: going to terminate:\n" << clingo_error_message() << std::endl;
         std::terminate();
     }
 }

@@ -45,7 +45,7 @@ flags = [
 '-fexceptions',
 '-DNDEBUG',
 '-xc++',
-'-std=c++11',
+'-std=c++14',
 '-stdlib=libc++',
 '-Iapp/gringo',
 '-Iapp/clingo/src',

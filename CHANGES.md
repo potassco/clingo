@@ -7,8 +7,9 @@
     * added overloads to C++, python and lua API to support
       both numeric and symbolic version
       (preserves backward compatibility for most code)
-  * the API's now allow for customizing clingo by implementing a custom main function
-    but reusing the rest of the application including the standard output
+  * the C and C++ APIs now allow for customizing clingo by implementing a
+    custom main function but reusing the rest of the application including the
+    standard output
   * add message logger to python and lua interface
 ## clingo 5.2.1
   * fix handling of istop in incmode programs

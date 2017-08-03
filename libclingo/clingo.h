@@ -3007,16 +3007,6 @@ typedef bool (*clingo_ground_callback_t) (clingo_location_t const *location, cha
 //! Control object holding grounding and solving state.
 typedef struct clingo_control clingo_control_t;
 
-//! Callback to customize clingo main function.
-//!
-//! @param[in] control corresponding control object
-//! @param[in] files files passed via command line arguments
-//! @param[in] size number of files
-//! @param[in] data user data for the callback
-//!
-//! @return whether the call was successful
-typedef bool (*clingo_main_function_t) (clingo_control_t *control, char const *const * files, size_t size, void *data);
-
 //! Create a new control object.
 //!
 //! A control object has to be freed using clingo_control_free().
@@ -3138,8 +3128,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_cleanup(clingo_control_t *control)
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_assign_external(clingo_control_t *control, clingo_literal_t literal, clingo_truth_value_t value);
 //! Release an external atom.
 //!
-//! If a negative literal is passed, the corresponding atom is assigned the
-//! inverted truth value.
+//! If a negative literal is passed, the corresponding atom is released.
 //!
 //! After this call, an external atom is no longer external and subject to
 //! program simplifications.  If the atom does not exist or is not external,
@@ -3149,7 +3138,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_assign_external(clingo_control_t *
 //! @param[in] literal literal to release
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_release_external(clingo_control_t *control, clingo_literal_t atom);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_release_external(clingo_control_t *control, clingo_literal_t literal);
 //! Register a custom propagator with the control object.
 //!
 //! If the sequential flag is set to true, the propagator is called
@@ -3299,24 +3288,85 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_backend(clingo_control_t *control,
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_program_builder(clingo_control_t *control, clingo_program_builder_t **builder);
 //! @}
 
-//! @name Extending Clingo
+//! @}
+
+// {{{1 extending clingo
+
+//! @defgroup ExtendingClingo Extending Clingo
+//! Functions to customize clingo's main function.
+//!
+//! This module allows for customizing the clingo application.
+//! For example, this can be used to register custom propagators and command line options with clingo.
+
+//! @addtogroup ExtendingClingo
 //! @{
+
+//! Object to add commandline options.
+typedef struct clingo_options clingo_options_t;
+
+//! Callback to customize clingo main function.
+//!
+//! @param[in] control corresponding control object
+//! @param[in] files files passed via command line arguments
+//! @param[in] size number of files
+//! @param[in] data user data for the callback
+//!
+//! @return whether the call was successful
+typedef bool (*clingo_main_function_t) (clingo_control_t *control, char const *const * files, size_t size, void *data);
+
+//! This struct contains a set of functions to customize the clingo application.
+typedef struct clingo_application {
+    char const *(*program_name) (void *data);                        //!< callback to obtain program name
+    unsigned (*message_limit) (void *data);                          //!< callback to obtain message limit
+    clingo_main_function_t main;                                     //!< callback to override clingo's main function
+    clingo_logger_t logger;                                          //!< callback to override default logger
+    bool (*register_options)(clingo_options_t *options, void *data); //!< callback to register options
+    bool (*validate_options)(void *data);                            //!< callback validate options
+} clingo_application_t;
+
+//! Add an option that is processed with a custom parser.
+//!
+//! Note that the parser also has to take care of storing the semantic value of
+//! the option somewhere.
+//!
+//! Parameter option specifies the name(s) of the option.
+//! For example, "p,ping" adds the short option "-p" and its long form "--ping".
+//! It is also possible to associate an option with a help level by adding "@l" to the option specification.
+//! Options with a level greater than zero are only shown if the argument to help is greater or equal to l.
+//!
+//! @param[in] options object to register the option with
+//! @param[in] group options are grouped into sections as given by this string
+//! @param[in] option specifies the command line option
+//! @param[in] description the description of the option
+//! @param[in] parse callback to parse the value of the option
+//! @param[in] data user data for the callback
+//! @param[in] multi whether the option can appear multiple times on the commandline
+//! @param[in] argument optional string to change the value name in the generated help output
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_options_add(clingo_options_t *options, char const *group, char const *option, char const *description, bool (*parse) (char const *value, void *data), void *data, bool multi, char const *argument);
+//! Add an option that is a simple flag.
+//!
+//! This function is similar to @ref clingo_options_add() but simpler because it only supports flags, which do not have values.
+//! If a flag is passed via the commandline the parameter target is set to true.
+//!
+//! @param[in] options object to register the option with
+//! @param[in] group options are grouped into sections as given by this string
+//! @param[in] option specifies the command line option
+//! @param[in] description the description of the option
+//! @param[in] target boolean set to true if the flag is given on the commandline
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_options_add_flag(clingo_options_t *options, char const *group, char const *option, char const *description, bool *target);
 
 //! Run clingo with a customized main function (similar to python and lua embedding).
 //!
-//! @param[in] program_name program name used in help output
+//! @param[in] application struct with callbacks to override default clingo functionality
 //! @param[in] arguments command line arguments
 //! @param[in] size number of arguments
-//! @param[in] main callback to customize main function
-//! @param[in] main_data user data for main callback
-//! @param[in] logger callback to intercept messages
-//! @param[in] message_limit maximum number of messages passed to the logger
+//! @param[in] data user data to pass to callbacks in application
 //! @return exit code to return from main function
-CLINGO_VISIBILITY_DEFAULT int clingo_main(char const *program_name, char const *const * arguments, size_t size, clingo_main_function_t main, void *main_data, clingo_logger_t logger, void *logger_data, unsigned message_limit);
-//! @}
+CLINGO_VISIBILITY_DEFAULT int clingo_main(clingo_application_t *application, char const *const * arguments, size_t size, void *data);
 
 //! @}
-
 
 // }}}1
 
