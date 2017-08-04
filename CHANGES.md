@@ -12,6 +12,7 @@
     standard output
   * add message logger to python and lua interface
 ## clingo 5.2.1
+  * update to clasp version 3.3.2
   * fix handling of istop in incmode programs
   * fix handling of undefined ** operations
   * fix preprocessing of disjunctions with undefined operations
