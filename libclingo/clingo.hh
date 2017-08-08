@@ -4184,12 +4184,19 @@ inline static char const *g_program_name(void *adata) {
 }
 
 inline static bool g_main(clingo_control_t *control, char const *const * files, size_t size, void *adata) {
+    // Note: looks a bit messy but ensures that exceptions in application callbacks
+    //       during the main function are passed through correctly
+    //       (which currently are none)
     ApplicationData &data = *static_cast<ApplicationData*>(adata);
-    CLINGO_CALLBACK_TRY {
+    try {
         Control ctl{control, false};
         data.app.main(ctl, {files, size});
+        return true;
     }
-    CLINGO_CALLBACK_CATCH(data.exception);
+    catch (...) { data.exception = std::current_exception(); }
+    try         { std::rethrow_exception(*data.exception); }
+    catch (...) { handle_cxx_error(); }
+    return false;
 }
 
 inline static void g_logger(clingo_warning_t code, char const *message, void *adata) {
