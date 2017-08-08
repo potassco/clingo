@@ -4206,19 +4206,27 @@ inline static void g_logger(clingo_warning_t code, char const *message, void *ad
 
 inline static bool g_register_options(clingo_options_t *options, void *adata) {
     ApplicationData &data = *static_cast<ApplicationData*>(adata);
-    CLINGO_CALLBACK_TRY {
+    try {
         ClingoOptions opts{options, data.exception, data.parsers};
         data.app.register_options(opts);
+        return true;
     }
-    CLINGO_CALLBACK_CATCH(data.exception);
+    catch (...) { data.exception = std::current_exception(); }
+    try         { std::rethrow_exception(*data.exception); }
+    catch (...) { handle_cxx_error(); }
+    return false;
 }
 
 inline static bool g_validate_options(void *adata) {
     ApplicationData &data = *static_cast<ApplicationData*>(adata);
-    CLINGO_CALLBACK_TRY {
+    try         {
         data.app.validate_options();
+        return true;
     }
-    CLINGO_CALLBACK_CATCH(data.exception);
+    catch (...) { data.exception = std::current_exception(); }
+    try         { std::rethrow_exception(*data.exception); }
+    catch (...) { handle_cxx_error(); }
+    return false;
 }
 
 } // namespace
