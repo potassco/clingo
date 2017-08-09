@@ -2104,21 +2104,19 @@ private:
 // {{{1 clingo application
 
 namespace Detail {
-    using ParserList = std::forward_list<std::pair<std::function<bool (char const *value)>, AssignOnce&>>;
+    using ParserList = std::forward_list<std::function<bool (char const *value)>>;
 }
 
 class ClingoOptions {
 public:
-    explicit ClingoOptions(clingo_options_t *options, Detail::AssignOnce &exception, Detail::ParserList &parsers)
+    explicit ClingoOptions(clingo_options_t *options, Detail::ParserList &parsers)
     : options_{options}
-    , exception_{exception}
     , parsers_{parsers} { }
     clingo_options_t *to_c() const { return options_; }
     void add(char const *group, char const *option, char const *description, std::function<bool (char const *value)> parser, bool multi = false, char const *argument = nullptr);
     void add_flag(char const *group, char const *option, char const *description, bool &target);
 private:
     clingo_options_t *options_;
-    Detail::AssignOnce &exception_;
     Detail::ParserList &parsers_;
 };
 
@@ -4136,18 +4134,16 @@ inline ProgramBuilder Control::builder() {
 // {{{2 clingo application
 
 inline void ClingoOptions::add(char const *group, char const *option, char const *description, std::function<bool (char const *value)> parse, bool multi, char const *argument) {
-    parsers_.emplace_front(parse, exception_);
+    parsers_.emplace_front(parse);
     Detail::handle_error(clingo_options_add(to_c(), group, option, description, [](char const *value, void *data) {
         auto& p = *static_cast<Detail::ParserList::value_type*>(data);
-        CLINGO_CALLBACK_TRY {
-            return p.first(value);
-        }
-        CLINGO_CALLBACK_CATCH(p.second);
-    }, &parse, multi, argument), exception_);
+        try         { return p(value); }
+        catch (...) { return false; }
+    }, &parsers_.front(), multi, argument));
 }
 
 inline void ClingoOptions::add_flag(char const *group, char const *option, char const *description, bool &target) {
-    Detail::handle_error(clingo_options_add_flag(to_c(), group, option, description, &target), exception_);
+    Detail::handle_error(clingo_options_add_flag(to_c(), group, option, description, &target));
 }
 
 inline unsigned ClingoApplication::message_limit() const noexcept {
@@ -4169,8 +4165,7 @@ namespace Detail {
 
 struct ApplicationData {
     ClingoApplication &app;
-    AssignOnce exception;
-    std::forward_list<std::pair<std::function<bool (char const *value)>, AssignOnce&>> parsers;
+    ParserList parsers;
 };
 
 inline static unsigned g_message_limit(void *adata) {
@@ -4184,19 +4179,12 @@ inline static char const *g_program_name(void *adata) {
 }
 
 inline static bool g_main(clingo_control_t *control, char const *const * files, size_t size, void *adata) {
-    // Note: looks a bit messy but ensures that exceptions in application callbacks
-    //       during the main function are passed through correctly
-    //       (which currently are none)
     ApplicationData &data = *static_cast<ApplicationData*>(adata);
-    try {
+    CLINGO_TRY {
         Control ctl{control, false};
         data.app.main(ctl, {files, size});
-        return true;
     }
-    catch (...) { data.exception = std::current_exception(); }
-    try         { std::rethrow_exception(*data.exception); }
-    catch (...) { handle_cxx_error(); }
-    return false;
+    CLINGO_CATCH;
 }
 
 inline static void g_logger(clingo_warning_t code, char const *message, void *adata) {
@@ -4206,27 +4194,17 @@ inline static void g_logger(clingo_warning_t code, char const *message, void *ad
 
 inline static bool g_register_options(clingo_options_t *options, void *adata) {
     ApplicationData &data = *static_cast<ApplicationData*>(adata);
-    try {
-        ClingoOptions opts{options, data.exception, data.parsers};
+    CLINGO_TRY {
+        ClingoOptions opts{options, data.parsers};
         data.app.register_options(opts);
-        return true;
     }
-    catch (...) { data.exception = std::current_exception(); }
-    try         { std::rethrow_exception(*data.exception); }
-    catch (...) { handle_cxx_error(); }
-    return false;
+    CLINGO_CATCH;
 }
 
 inline static bool g_validate_options(void *adata) {
     ApplicationData &data = *static_cast<ApplicationData*>(adata);
-    try         {
-        data.app.validate_options();
-        return true;
-    }
-    catch (...) { data.exception = std::current_exception(); }
-    try         { std::rethrow_exception(*data.exception); }
-    catch (...) { handle_cxx_error(); }
-    return false;
+    CLINGO_TRY { data.app.validate_options(); }
+    CLINGO_CATCH;
 }
 
 } // namespace
@@ -4960,7 +4938,7 @@ inline void parse_program(char const *program, StatementCallback cb, Logger logg
 }
 
 inline int clingo_main(ClingoApplication &application, StringSpan arguments) {
-    Detail::ApplicationData data{application, {}, Detail::ParserList{}};
+    Detail::ApplicationData data{application, Detail::ParserList{}};
     static clingo_application_t g_app = {
         Detail::g_program_name,
         Detail::g_message_limit,

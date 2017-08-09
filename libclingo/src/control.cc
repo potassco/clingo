@@ -1517,7 +1517,7 @@ private:
 
 extern "C" CLINGO_VISIBILITY_DEFAULT bool clingo_options_add(clingo_options_t *options, char const *group, char const *option, char const *description, bool (*parse) (char const *value, void *data), void *data, bool multi, char const *argument) {
     GRINGO_CLINGO_TRY {
-        options->addOption(group, option, description, [&](char const *value) { return parse(value, data); }, argument, multi);
+        options->addOption(group, option, description, [parse, data](char const *value) { return parse(value, data); }, argument, multi);
     }
     GRINGO_CLINGO_CATCH;
 }
