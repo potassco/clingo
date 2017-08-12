@@ -65,7 +65,7 @@ struct Incmode {
     void assign_external_(Symbol sym, Potassco::Value_t val) {
         auto &dom = ctl_.getDomain();
         auto atm = dom.lookup(sym);
-        if (atm != dom.end()) { ctl_.assignExternal(dom.literal(atm), val); }
+        if (!dom.eq(atm, dom.end())) { ctl_.assignExternal(dom.literal(atm), val); }
     }
 
     void run() {
