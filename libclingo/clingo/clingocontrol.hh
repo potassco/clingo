@@ -275,6 +275,7 @@ public:
     std::string str();
     void assignExternal(Potassco::Atom_t ext, Potassco::Value_t) override;
     Symbol getConst(std::string const &name) override;
+    bool isConflicting() noexcept override;
     Potassco::AbstractStatistics *statistics() override;
     ConfigProxy &getConf() override;
     void useEnumAssumption(bool enable) override;

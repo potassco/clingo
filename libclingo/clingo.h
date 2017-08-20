@@ -3153,6 +3153,17 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_release_external(clingo_control_t 
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_propagator(clingo_control_t *control, clingo_propagator_t const *propagator, void *data, bool sequential);
+//! Check if the solver has determined that the internal program representation is conflicting.
+//!
+//! If this function returns true, solve calls will return immediately with an unsatisfiable solve result.
+//! Note that conflicts first have to be detected, e.g. -
+//! initial unit propagation results in an empty clause,
+//! or later if an empty clause is resolved during solving.
+//! Hence, the function might return false even if the problem is unsatisfiable.
+//!
+//! @param[in] control the target
+//! @return whether the program representation is conflicting
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_is_conflicting(clingo_control_t *control);
 //! Get a statistics object to inspect solver statistics.
 //!
 //! Statistics are updated after a solve call.

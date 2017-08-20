@@ -2079,6 +2079,7 @@ public:
     void register_propagator(Propagator &propagator, bool sequential = false);
     void register_observer(GroundProgramObserver &observer, bool replace = false);
     void cleanup();
+    bool is_conflicting() const noexcept;
     bool has_const(char const *name) const;
     Symbol get_const(char const *name) const;
     void interrupt() noexcept;
@@ -4071,6 +4072,10 @@ inline void Control::register_observer(GroundProgramObserver &observer, bool rep
 
 inline void Control::cleanup() {
     Detail::handle_error(clingo_control_cleanup(*impl_));
+}
+
+inline bool Control::is_conflicting() const noexcept {
+    return clingo_control_is_conflicting(*impl_);
 }
 
 inline bool Control::has_const(char const *name) const {

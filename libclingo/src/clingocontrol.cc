@@ -434,6 +434,10 @@ void ClingoControl::assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) 
     }
 }
 
+bool ClingoControl::isConflicting() noexcept {
+    return clasp_->ok();
+}
+
 Potassco::AbstractStatistics *ClingoControl::statistics() {
     return clasp_->getStats();
 }

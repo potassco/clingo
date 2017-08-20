@@ -206,6 +206,7 @@ struct IncrementalControl : Control {
         out.registerObserver(std::move(prg), replace);
     }
     Potassco::AbstractStatistics *statistics() override { throw std::runtime_error("statistics not supported (yet)"); }
+    bool isConflicting() noexcept override { return false; }
     void assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) override {
         if (auto b = backend()) { b->external(ext, val); }
     }

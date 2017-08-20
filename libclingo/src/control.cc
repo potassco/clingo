@@ -1274,6 +1274,10 @@ extern "C" bool clingo_control_configuration(clingo_control_t *ctl, clingo_confi
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_control_is_conflicting(clingo_control_t *control) {
+    return control->isConflicting();
+}
+
 extern "C" bool clingo_control_statistics(clingo_control_t *ctl, clingo_statistics_t **stats) {
     GRINGO_CLINGO_TRY { *stats = static_cast<clingo_statistics_t*>(ctl->statistics()); }
     GRINGO_CLINGO_CATCH;
