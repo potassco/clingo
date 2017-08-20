@@ -6421,11 +6421,11 @@ Note that initially the enumeration assumption is enabled.)", nullptr},
     {(char*)"is_conflicting", to_getter<&ControlWrap::isConflicting>(), nullptr,
 (char*)R"(Whether the internal program representation is conflicting.
 
-If this (read-only) property is true, solve calls will return immediately with
-an unsatisfiable solve result.  Note that conflicts first have to be detected,
+If this (read-only) property is true, solve calls return immediately with an
+unsatisfiable solve result.  Note that conflicts first have to be detected,
 e.g. - initial unit propagation results in an empty clause, or later if an
-empty clause is resolved during solving.  Hence, the function might return
-false even if the problem is unsatisfiable.)", nullptr},
+empty clause is resolved during solving.  Hence, the property might be false
+even if the problem is unsatisfiable.)", nullptr},
     {(char*)"statistics", to_getter<&ControlWrap::getStats>(), nullptr,
 (char*)R"(A dictionary containing solve statistics of the last solve call.
 
