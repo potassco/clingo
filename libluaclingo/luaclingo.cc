@@ -3187,6 +3187,10 @@ struct ControlWrap : Object<ControlWrap> {
             if (!backend) { return luaL_error(L, "backend not available"); }
             return Backend::new_(L, backend);
         }
+        else if (strcmp(name, "is_conflicting") == 0) {
+            lua_pushboolean(L, clingo_control_is_conflicting(self.ctl));
+            return 1;
+        }
         else {
             lua_getmetatable(L, 1);
             lua_getfield(L, -1, name);
