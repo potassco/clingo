@@ -5795,6 +5795,9 @@ active; you must not call any member function during search.)";
         handle_c_error(clingo_control_assign_external(ctl, ext, clingo_external_type_release));
         Py_RETURN_NONE;
     }
+    Object isConflicting() {
+        return cppToPy(clingo_control_is_conflicting(ctl));
+    }
     Object getStats() {
         CHECK_BLOCKED("statistics");
         if (!stats) {
@@ -6415,6 +6418,14 @@ or without projection, or finding optimal models; as well as clauses/nogoods
 added with Model.add_clause()/Model.add_nogood().
 
 Note that initially the enumeration assumption is enabled.)", nullptr},
+    {(char*)"is_conflicting", to_getter<&ControlWrap::isConflicting>(), nullptr,
+(char*)R"(Whether the internal program representation is conflicting.
+
+If this (read-only) property is true, solve calls will return immediately with
+an unsatisfiable solve result.  Note that conflicts first have to be detected,
+e.g. - initial unit propagation results in an empty clause, or later if an
+empty clause is resolved during solving.  Hence, the function might return
+false even if the problem is unsatisfiable.)", nullptr},
     {(char*)"statistics", to_getter<&ControlWrap::getStats>(), nullptr,
 (char*)R"(A dictionary containing solve statistics of the last solve call.
 
