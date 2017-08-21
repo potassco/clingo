@@ -42,6 +42,7 @@ option(PYCLINGO_USER_INSTALL "install the python module in the user's site direc
 CMAKE_DEPENDENT_OPTION(PYCLINGO_USE_INSTALL_PREFIX "install the python module under the install prefix" OFF "NOT PYCLINGO_USER_INSTALL" OFF)
 
 set(CLINGO_CLINGOPATH "" CACHE STRING "global search directories for clingo's include statement")
+set(CLINGO_LIBRARY_DESTINATION "lib" CACHE STRING "the subfolder under which libraries will be installed")
 
 mark_as_advanced(CLINGO_BUILD_WEB)
 mark_as_advanced(CLINGO_BUILD_STATIC)

@@ -55,8 +55,8 @@ else()
     set_target_properties(libclingo PROPERTIES SOVERSION 2 VERSION 2.0)
     install(TARGETS libclingo
         RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+        LIBRARY DESTINATION "${CLINGO_LIBRARY_DESTINATION}"
+        ARCHIVE DESTINATION "${CLINGO_LIBRARY_DESTINATION}")
     install(FILES
         "${CMAKE_CURRENT_SOURCE_DIR}/clingo.hh"
         "${CMAKE_CURRENT_SOURCE_DIR}/clingo.h"

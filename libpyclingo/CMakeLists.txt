@@ -25,8 +25,8 @@ else()
     set_target_properties(libpyclingo PROPERTIES SOVERSION 1 VERSION 1.0)
     install(TARGETS libpyclingo
         RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+        LIBRARY DESTINATION "${CLINGO_LIBRARY_DESTINATION}"
+        ARCHIVE DESTINATION "${CLINGO_LIBRARY_DESTINATION}")
 endif()
 set_target_properties(libpyclingo PROPERTIES
     OUTPUT_NAME pyclingo
