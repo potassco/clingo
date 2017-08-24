@@ -2006,7 +2006,7 @@ signatures: [('p', 1), ('q', 1)])";
         char const *name;
         int arity;
         PyObject *pos = Py_True;
-        char const *kwlist[] = {"name", "arity", "positive"};
+        char const *kwlist[] = {"name", "arity", "positive", nullptr};
         ParseTupleAndKeywords(pyargs, pykwds, "si|O", kwlist, name, arity, pos);
         clingo_symbolic_atom_iterator_t ret;
         clingo_signature_t sig;
@@ -5487,7 +5487,7 @@ void pycall(Reference fun, clingo_symbol_t const *arguments, size_t arguments_si
     for (auto it = arguments, ie = it + arguments_size; it != ie; ++it, ++i) {
         PyTuple_SET_ITEM(tuple.toPy(), i, Symbol::construct(*it).release());
     }
-    Object ret = PyObject_Call(fun.toPy(), tuple.toPy(), Py_None);
+    Object ret = PyObject_Call(fun.toPy(), tuple.toPy(), nullptr);
     auto add = [&](Reference sym) {
         symbol_wrapper val;
         pyToCpp(sym, val);
@@ -6999,7 +6999,7 @@ public:
         Object params = PyTuple_New(1);
         Object param(ControlWrap::construct(ctl));
         if (PyTuple_SetItem(params.toPy(), 0, param.release()) < 0) { throw PyException(); }
-        Object ret = PyObject_Call(fun.toPy(), params.toPy(), Py_None);
+        Object ret = PyObject_Call(fun.toPy(), params.toPy(), nullptr);
     }
 private:
     bool      selfInit;
