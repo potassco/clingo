@@ -940,7 +940,7 @@ struct Term : Object<Term> {
         clingo_symbol_create_supremum(&sym);
         Object::new_(L, sym);
         lua_setfield(L, -2, "Supremum");
-        clingo_symbol_create_supremum(&sym);
+        clingo_symbol_create_infimum(&sym);
         Object::new_(L, sym);
         lua_setfield(L, -2, "Infimum");
         return 0;

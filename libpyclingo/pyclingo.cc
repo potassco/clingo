@@ -1575,7 +1575,7 @@ preconstructed symbols Infimum and Supremum.)";
         clingo_symbol_create_infimum(&reinterpret_cast<Symbol*>(inf)->val);
         if (PyModule_AddObject(module.toPy(), "Infimum", inf) < 0) { return false; }
         sup = type.tp_alloc(&type, 0);
-        clingo_symbol_create_supremum(&reinterpret_cast<Symbol*>(inf)->val);
+        clingo_symbol_create_supremum(&reinterpret_cast<Symbol*>(sup)->val);
         if (!sup) { return false; }
         if (PyModule_AddObject(module.toPy(), "Supremum", sup) < 0) { return false; }
         return true;
