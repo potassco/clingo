@@ -11,7 +11,7 @@ add_executable(clingo ${header} ${source})
 target_link_libraries(clingo PRIVATE libclingo libpyclingo libluaclingo)
 set_target_properties(clingo PROPERTIES FOLDER exe)
 
-install(TARGETS clingo RUNTIME DESTINATION bin)
+install(TARGETS clingo RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 if (CLINGO_BUILD_TESTS)
     add_subdirectory(tests)

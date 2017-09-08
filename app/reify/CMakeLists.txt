@@ -13,4 +13,4 @@ target_include_directories(reify PRIVATE
     "$<BUILD_INTERFACE:${CLINGO_SOURCE_DIR}/libclingo>")
 set_target_properties(reify PROPERTIES FOLDER exe)
 
-install(TARGETS reify RUNTIME DESTINATION bin)
+install(TARGETS reify RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
