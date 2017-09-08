@@ -24,9 +24,9 @@ if (NOT CLINGO_BUILD_PY_SHARED)
 else()
     set_target_properties(libpyclingo PROPERTIES SOVERSION 1 VERSION 1.0)
     install(TARGETS libpyclingo
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 set_target_properties(libpyclingo PROPERTIES
     OUTPUT_NAME pyclingo
