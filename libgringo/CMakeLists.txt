@@ -127,7 +127,7 @@ set(source
     ${source-group-output})
 # ]]]
 
-add_library(libgringo ${header} ${source})
+add_library(libgringo STATIC ${header} ${source})
 target_link_libraries(libgringo PUBLIC libpotassco libreify)
 target_include_directories(libgringo
     PUBLIC
