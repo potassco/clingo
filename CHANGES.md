@@ -10,7 +10,15 @@
   * the C and C++ APIs now allow for customizing clingo by implementing a
     custom main function but reusing the rest of the application including the
     standard output
+  * add API function to detect conflicting programs
   * add message logger to python and lua interface
+## clingo 5.2.2
+  * update to clasp version 3.3.3
+  * use GNUInstallDirs in cmake files to simplify packaging
+  * fix sup and inf in python/lua bindings
+  * fix reified format term tuples
+  * fix wrong use of python API (causing trouble with python 3.6)
+  * fix compilation problems on 32bit linux (missing libatomic)
 ## clingo 5.2.1
   * update to clasp version 3.3.2
   * fix handling of istop in incmode programs
