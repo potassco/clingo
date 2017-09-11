@@ -345,12 +345,12 @@ struct ParsePtr<Reference> {
 
 template <class... T>
 void ParseTupleAndKeywords(Reference pyargs, Reference pykwds, char const *fmt, char const * const* kwds, T &...x) {
-    PyArg_ParseTupleAndKeywords(pyargs.toPy(), pykwds.toPy(), fmt, const_cast<char**>(kwds), ParsePtr<T>(x).get()...);
+    if (!PyArg_ParseTupleAndKeywords(pyargs.toPy(), pykwds.toPy(), fmt, const_cast<char**>(kwds), ParsePtr<T>(x).get()...)) { throw PyException(); }
 }
 
 template <class... T>
 void ParseTuple(Reference pyargs, char const *fmt, T &...x) {
-    PyArg_ParseTuple(pyargs.toPy(), fmt, ParsePtr<T>(x).get()...);
+    if (!PyArg_ParseTuple(pyargs.toPy(), fmt, ParsePtr<T>(x).get()...)) { throw PyException(); }
 }
 
 template <Object (*f)(Reference, Reference)>
