@@ -16,3 +16,4 @@ Please consult the following resources for further information:
   - [Documentation](http://sourceforge.net/projects/potassco/files/guide/)
   - [Potassco clingo page](https://potassco.org/clingo/)
 
+Clingo is distributed under the [MIT License](LICENSE.md).
