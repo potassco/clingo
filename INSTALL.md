@@ -34,8 +34,8 @@ branch. Releases already include the necessary generated files.
   - version 3.0 produces harmless warnings
     (to stay backwards-compatible)
 - the [re2c]() lexer generator
-  - version 0.15.3 is used for development
-  - the earliest tested version is 0.13.5
+  - *at least* version 0.13
+  - version 0.13.5 is used for development
 
 ## Optional Dependencies
 
