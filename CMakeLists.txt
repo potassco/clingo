@@ -124,7 +124,7 @@ if (CLINGO_BUILD_WITH_LUA)
     endif()
 endif()
 find_package(BISON "2.5")
-find_package(RE2C)
+find_package(RE2C "0.13")
 
 if (POLICY CMP0063 AND (CLINGO_BUILD_SHARED OR PYTHONLIBS_FOUND OR LUA_FOUND))
     set(CMAKE_CXX_VISIBILITY_PRESET hidden)
