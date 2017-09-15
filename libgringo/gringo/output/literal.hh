@@ -75,7 +75,7 @@ public:
     AtomType type() const { return static_cast<AtomType>(data_.type); }
     NAF sign() const { return static_cast<NAF>(data_.sign); }
     bool invertible() const { return sign() != NAF::POS; }
-    LiteralId negate() const { return LiteralId(inv(sign()), type(), offset(), domain()); }
+    LiteralId negate(bool recursive=true) const { return LiteralId(inv(sign(), recursive), type(), offset(), domain()); }
     bool operator==(LiteralId const &other) const { return repr_ == other.repr_; }
     bool operator<(LiteralId const &other) const { return repr_ < other.repr_; }
     uint64_t repr() const { return repr_; }
