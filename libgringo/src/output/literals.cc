@@ -962,8 +962,8 @@ LiteralId AuxLiteral::simplify(Mappings &, AssignmentLookup assignment) const {
     auto value = assignment(id_.offset());
     if (value.second == Potassco::Value_t::Free) { return id_; }
     auto ret = data_.getTrueLit();
-    if (value.second == Potassco::Value_t::False) { ret = ret.negate(); }
-    if (id_.sign() == NAF::NOT){ ret = ret.negate(); }
+    if (value.second == Potassco::Value_t::False) { ret = ret.negate(false); }
+    if (id_.sign() == NAF::NOT){ ret = ret.negate(false); }
     return id_;
 }
 
@@ -1024,7 +1024,7 @@ LiteralId PredicateLiteral::simplify(Mappings &mappings, AssignmentLookup assign
     auto offset = mappings[id_.domain()].get(id_.offset());
     if (offset == InvalidId) {
         auto ret = data_.getTrueLit();
-        if (id_.sign() != NAF::NOT){ ret = ret.negate(); }
+        if (id_.sign() != NAF::NOT){ ret = ret.negate(false); }
         return ret;
     }
     else {
@@ -1034,8 +1034,8 @@ LiteralId PredicateLiteral::simplify(Mappings &mappings, AssignmentLookup assign
             auto value = assignment(atom.uid());
             if (value.second != Potassco::Value_t::Free) {
                 auto ret = data_.getTrueLit();
-                if (value.second == Potassco::Value_t::False) { ret = ret.negate(); }
-                if (id_.sign() == NAF::NOT){ ret = ret.negate(); }
+                if (value.second == Potassco::Value_t::False) { ret = ret.negate(false); }
+                if (id_.sign() == NAF::NOT){ ret = ret.negate(false); }
                 return ret;
             }
         }

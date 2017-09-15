@@ -60,7 +60,7 @@ std::ostream &operator<<(std::ostream &out, TheoryOperatorType type);
 
 enum class NAF { POS = 0, NOT = 1, NOTNOT = 2 };
 std::ostream &operator<<(std::ostream &out, NAF naf);
-NAF inv(NAF naf);
+NAF inv(NAF naf, bool recursive = true);
 
 enum class RECNAF { POS, NOT, NOTNOT, RECNOT };
 RECNAF recnaf(NAF naf, bool recursive);
@@ -132,10 +132,10 @@ inline std::ostream &operator<<(std::ostream &out, TheoryOperatorType type) {
 
 // {{{1 definition of NAF
 
-inline NAF inv(NAF naf) {
+inline NAF inv(NAF naf, bool recursive) {
     switch (naf) {
         case NAF::NOTNOT: { return NAF::NOT; }
-        case NAF::NOT:    { return NAF::NOTNOT; }
+        case NAF::NOT:    { return recursive ? NAF::NOTNOT : NAF::POS; }
         case NAF::POS:    { return NAF::NOT; }
     }
     assert(false);
