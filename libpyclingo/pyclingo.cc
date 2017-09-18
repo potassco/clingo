@@ -3292,7 +3292,7 @@ struct Backend : ObjectBase<Backend> {
     static constexpr char const *tp_type = "Backend";
     static constexpr char const *tp_name = "clingo.Backend";
     static constexpr char const *tp_doc =
-    R"(Backend object providing a low level interface to extend a logic program."
+    R"(Backend object providing a low level interface to extend a logic program.
 
 This class provides an interface that allows for adding statements in ASPIF
 format.)";
