@@ -1563,9 +1563,12 @@ typedef struct clingo_propagator {
     //! @param[in] data user data for the callback
     //! @see ::clingo_propagator_undo_callback_t
     bool (*undo) (clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, void *data);
-    //! This function is similar to @ref clingo_propagate_control_propagate() but is only called on total assignments without a change set.
+    //! This function is similar to @ref clingo_propagate_control_propagate() but is called without a change set on propagation fixpoints.
+    //!
+    //! When exactly this function is called, can be configured using the @ref clingo_propagate_init_set_check_mode() function.
     //!
     //! @note This function is called even if no watches have been added.
+    //!
     //! @param[in] control control object for the target solver
     //! @param[in] data user data for the callback
     //! @return whether the call was successful
