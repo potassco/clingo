@@ -6236,7 +6236,7 @@ class GroundProgramObserver:
         Observe external statements passed to the solver.
 
         Arguments:
-        atom  -- the external atom in form of a Symbol
+        atom  -- the external atom in form of a literal
         value -- the TruthValue of the external statement
 
     assume(self, literals) -> None
