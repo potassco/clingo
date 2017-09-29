@@ -6002,9 +6002,10 @@ on_finish   -- optional callback called once search has finished
                a SolveResult and a Boolean indicating whether the solve call
                has been canceled is passed to the callback
                (Default: None)
-assumptions -- list of (atom, boolean) tuples that serve as assumptions for
-               the solve call, e.g. - solving under assumptions [(Function("a"),
-               True)] only admits answer sets that contain atom a
+assumptions -- list of (atom, boolean) tuples or program literals that serve as
+               assumptions for the solve call, e.g. - solving under assumptions
+               [(Function("a"), True)] only admits answer sets that contain
+               atom a
                (Default: [])
 yield_      -- The resulting SolveHandle is iterable yielding Model objects.
                (Default: False)
