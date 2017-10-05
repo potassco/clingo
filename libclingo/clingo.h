@@ -37,7 +37,7 @@
 //! The source code of clingo is available on [github.com/potassco/clingo](https://github.com/potassco/clingo).
 //!
 //! For information about the syntax and semantics of the clingo language,
-//! take a look the [Potassco Guide](http://sourceforge.net/projects/potassco/files/guide/).
+//! take a look the [Potassco Guide](https://github.com/potassco/guide/releases/).
 //!
 //! @note Each module comes with an example highlighting key functionality.
 //! The example should be studied along with the module documentation.
