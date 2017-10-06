@@ -627,11 +627,11 @@ extern "C" bool clingo_assignment_is_false(clingo_assignment_t *ass, clingo_lite
 }
 
 extern "C" size_t clingo_assignment_size(clingo_assignment_t *assignment) {
-    return assignment->size();
+    return assignment->size() - assignment->unassigned();
 }
 
 extern "C" size_t clingo_assignment_max_size(clingo_assignment_t *assignment) {
-    return assignment->size() - assignment->unassigned();
+    return assignment->size();
 }
 
 extern "C" bool clingo_assignment_is_total(clingo_assignment_t *assignment) {
