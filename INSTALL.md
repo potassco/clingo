@@ -8,6 +8,7 @@
     - [Generic Options](#generic-options)
     - [Python Support](#python-support)
     - [Lua Support](#lua-support)
+  - [Compilation to JavaScript](#compilation-to-javascript)
 - [Troubleshooting](#troubleshooting)
   - [Notes for Windows Users](#notes-for-windows-users)
 
@@ -156,6 +157,36 @@ development packages are installed.
 - If variable `LUACLINGO_INSTALL_DIR` is set, the clingo lua module will be
   installed there.
   (Default: not set)
+
+## Compilation to JavaScript
+
+Clingo can be compiled to JavaScript with Empscripten. The following notes
+assume that [Emscripten](https://kripken.github.io/emscripten-site/) has been
+installed. Only the web target and a subset of clingo's configuration are
+supported when compiling to JavaScript:
+
+    emcmake cmake -H<SOURCE_DIR> -B<BUILD_DIR> \
+        -DCLINGO_BUILD_WEB=On \
+        -DCLINGO_BUILD_WITH_PYTHON=Off \
+        -DCLINGO_BUILD_WITH_LUA=Off \
+        -DCLINGO_BUILD_SHARED=Off \
+        -DCLASP_BUILD_WITH_THREADS=Off \
+        -DCMAKE_VERBOSE_MAKEFILE=On \
+        -DCMAKE_BUILD_TYPE=release \
+        -DCMAKE_CXX_FLAGS="-std=c++11 -Wall -s DISABLE_EXCEPTION_CATCHING=0" \
+        -DCMAKE_CXX_FLAGS_RELEASE="-Os -DNDEBUG" \
+        -DCMAKE_EXE_LINKER_FLAGS="" \
+        -DCMAKE_EXE_LINKER_FLAGS_RELEASE=""
+    cmake --build <BUILD_DIR> --target web
+
+Note that is is possible to enable Lua support. Therefore Lua has to be
+compiled with emscripten, too. See [Lua Support](#lua-support) for information
+about pointing clingo to a custom Lua installation.
+
+For examples how to use the resulting JavaScript code, check out one of the
+following:
+- [webclingo example by Lucas Bourneuf](https://github.com/Aluriak/webclingo-example), or
+- [the source of our website](https://github.com/potassco/potassco.github.io)
 
 # Troubleshooting
 
