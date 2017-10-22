@@ -41,6 +41,7 @@
 #include <potassco/application.h>
 #include <potassco/string_convert.h>
 #include <mutex>
+#include <cstdlib>
 
 namespace Gringo {
 
@@ -209,7 +210,9 @@ public:
     void onFinish(Clasp::ClaspFacade::Result ret);
     bool update();
 
-    virtual void postGround(Clasp::ProgramBuilder& prg) { if (pgf_) { pgf_(prg); } }
+    virtual void postGround(Clasp::ProgramBuilder& prg) {
+        if (pgf_ && !pgf_(prg)) { std::_Exit(0); }
+    }
     virtual void prePrepare(Clasp::ClaspFacade& ) { }
     virtual void preSolve(Clasp::ClaspFacade& clasp) { if (psf_) { psf_(clasp);} }
     virtual void postSolve(Clasp::ClaspFacade& ) { }
