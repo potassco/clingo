@@ -355,7 +355,7 @@ USolveFuture ClingoControl::solve(Assumptions &&ass, clingo_solve_mode_bitset_t 
     }
 }
 void ClingoControl::interrupt() {
-    clasp_->interrupt(30);
+    clasp_->interrupt(65);
 }
 bool ClingoControl::blocked() {
     return clasp_->solving();
@@ -599,7 +599,7 @@ ClingoControl::~ClingoControl() noexcept = default;
 // {{{1 definition of ClingoSolveFuture
 
 SolveResult convert(Clasp::ClaspFacade::Result res) {
-    if (res.interrupted() && res.signal == SIGINT) {
+    if (res.interrupted() && res.signal != 0 && res.signal != 65) {
         throw std::runtime_error("solving stopped by signal");
     }
     SolveResult::Satisfiabily sat = SolveResult::Satisfiable;
