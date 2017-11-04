@@ -3315,7 +3315,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_program_builder(clingo_control_t *
 //! @addtogroup ExtendingClingo
 //! @{
 
-//! Object to add commandline options.
+//! Object to add command-line options.
 typedef struct clingo_options clingo_options_t;
 
 //! Callback to customize clingo main function.
@@ -3354,20 +3354,20 @@ typedef struct clingo_application {
 //! @param[in] description the description of the option
 //! @param[in] parse callback to parse the value of the option
 //! @param[in] data user data for the callback
-//! @param[in] multi whether the option can appear multiple times on the commandline
+//! @param[in] multi whether the option can appear multiple times on the command-line
 //! @param[in] argument optional string to change the value name in the generated help output
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_options_add(clingo_options_t *options, char const *group, char const *option, char const *description, bool (*parse) (char const *value, void *data), void *data, bool multi, char const *argument);
 //! Add an option that is a simple flag.
 //!
 //! This function is similar to @ref clingo_options_add() but simpler because it only supports flags, which do not have values.
-//! If a flag is passed via the commandline the parameter target is set to true.
+//! If a flag is passed via the command-line the parameter target is set to true.
 //!
 //! @param[in] options object to register the option with
 //! @param[in] group options are grouped into sections as given by this string
 //! @param[in] option specifies the command line option
 //! @param[in] description the description of the option
-//! @param[in] target boolean set to true if the flag is given on the commandline
+//! @param[in] target boolean set to true if the flag is given on the command-line
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_options_add_flag(clingo_options_t *options, char const *group, char const *option, char const *description, bool *target);
 
