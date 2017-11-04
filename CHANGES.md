@@ -3,6 +3,10 @@
 ## clingo 5.2.2
   * update to clasp version 3.3.3
   * use GNUInstallDirs in cmake files to simplify packaging
+  * fix --pre option
+  * fix swapped clingo\_assignment\_size and clingo\_assignment\_max\_size
+  * fix docstrings
+  * fix incremental mode
   * fix sup and inf in python/lua bindings
   * fix reified format term tuples
   * fix wrong use of python API (causing trouble with python 3.6)
