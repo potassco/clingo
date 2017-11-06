@@ -28,8 +28,8 @@ mkdir -p build/${VERSION}
         -DLUACLINGO_INSTALL_DIR="${prefix}/lib/lua/5.1" \
         -DLUA_INCLUDE_DIR="/usr/include/lua5.1" \
         -DLUA_LIBRARY="/usr/lib/x86_64-linux-gnu/liblua5.1.so" \
-        -DCMAKE_EXE_LINKER_FLAGS="-s" \
-        -DCMAKE_SHARED_LINKER_FLAGS="-s"
+        -DCMAKE_EXE_LINKER_FLAGS="-s -static-libgcc -static-libstdc++" \
+        -DCMAKE_SHARED_LINKER_FLAGS="-s -static-libgcc -static-libstdc++"
     make -j8
     make test
     make install
@@ -37,12 +37,28 @@ mkdir -p build/${VERSION}
 
 cd /home/wv/bin/linux/64
 (
-    rm -f {clingo,gringo,reify}-{${MAJOR},${MINOR}} {clingo,gringo,reify}
+    rm -f {clingo,gringo,reify}{-${VERSION},-${MAJOR},-${MINOR},}
 
     for x in clingo gringo reify; do
         ln -s ${prefix}/bin/${x} ${x}-${VERSION}
         ln -s ${x}-${VERSION} ${x}-${MINOR}
-        ln -s ${x}-${MINOR}  ${x}-${MAJOR}
-        ln -s ${x}-${MAJOR}  ${x}
+        ln -s ${x}-${MINOR}   ${x}-${MAJOR}
+        ln -s ${x}-${MAJOR}   ${x}
     done
 )
+
+VERSION=$(${prefix}/bin/clasp --version | sed -n '/^clasp version/s/clasp version //p')
+MINOR=${VERSION%.*}
+MAJOR=${MINOR%.*}
+
+cd /home/wv/bin/linux/64
+(
+    rm -f {clasp,lpconvert}{-${VERSION}-mt,${MAJOR},-${MINOR},}
+    for x in clasp lpconvert; do
+        ln -s ${prefix}/bin/${x} ${x}-${VERSION}-mt
+        ln -s ${x}-${VERSION}-mt ${x}-${MINOR}
+        ln -s ${x}-${MINOR}      ${x}${MAJOR}
+        ln -s ${x}${MAJOR}       ${x}
+    done
+)
+
