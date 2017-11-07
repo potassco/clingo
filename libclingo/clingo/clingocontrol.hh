@@ -211,7 +211,11 @@ public:
     bool update();
 
     virtual void postGround(Clasp::ProgramBuilder& prg) {
-        if (pgf_ && !pgf_(prg)) { std::_Exit(0); }
+        if (pgf_ && !pgf_(prg)) {
+            fflush(stderr);
+            fflush(stdout);
+            std::_Exit(0);
+        }
     }
     virtual void prePrepare(Clasp::ClaspFacade& ) { }
     virtual void preSolve(Clasp::ClaspFacade& clasp) { if (psf_) { psf_(clasp);} }
