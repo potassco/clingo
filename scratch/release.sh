@@ -9,7 +9,7 @@ cd "$(dirname $0)/.."
 
 VERSION="$(grep '#define CLINGO_VERSION "[^.]\+.[^.]\+.[^.]\+"' libclingo/clingo.h | colrm 1 23 | tr -d '"')"
 GRINGO="clingo-${VERSION}"
-GRINGO_MAC="${GRINGO}-macos-10.9"
+GRINGO_MAC="${GRINGO}-macos-10.12"
 GRINGO_WIN64="${GRINGO}-win64"
 GRINGO_LIN64="${GRINGO}-linux-x86_64"
 SRC="${GRINGO}-source"
@@ -86,25 +86,25 @@ fi
 
 function copy_files() {
     for x in gringo clingo reify clasp lpconvert; do
-        scp -p "${2}:${TEMP}/build/bin/${EXTRA}${x}${EXT}" "${3}/${x}${EXT}"
+        scp "${@:4}" -p "${2}:${TEMP}/build/bin/${EXTRA}${x}${EXT}" "${3}/${x}${EXT}"
         chmod +x "${3}/${x}${EXT}"
     done
     if echo "test -d '${TEMP}/python'" | ${SSH} ${2}; then
         for x in gringo clingo; do
-            scp -p "${2}:${TEMP}/python/bin/${EXTRA}${x}${EXT}" "${3}/${x}-python${EXT}"
+            scp "${@:4}" -p "${2}:${TEMP}/python/bin/${EXTRA}${x}${EXT}" "${3}/${x}-python${EXT}"
             chmod +x "${3}/${x}-python${EXT}"
         done
         mkdir -p ${3}/python-api
-        scp -p "${2}:${TEMP}/python/bin/python/${EXTRA}clingo${PYEXT}" "${3}/python-api/"
+        scp "${@:4}" -p "${2}:${TEMP}/python/bin/python/${EXTRA}clingo${PYEXT}" "${3}/python-api/"
         chmod +x "${3}/python-api/clingo${PYEXT}"
     fi
     if echo "test -d '${TEMP}/c-api'" | ${SSH} ${2}; then
         mkdir -p ${3}/c-api/{lib,include}
-        scp -p "${2}:${TEMP}/c-api/bin/${EXTRA}${LIBSUF}clingo${LIBEXT}" "${3}/c-api/lib/"
+        scp "${@:4}" -p "${2}:${TEMP}/c-api/bin/${EXTRA}${LIBSUF}clingo${LIBEXT}" "${3}/c-api/lib/"
         chmod +x "${3}/c-api/lib/${LIBSUF}clingo${LIBEXT}"
-        scp -p "${2}:${TEMP}/source/libclingo/"{clingo.h,clingo.hh} "${3}/c-api/include/"
+        scp "${@:4}" -p "${2}:${TEMP}/source/libclingo/"{clingo.h,clingo.hh} "${3}/c-api/include/"
     fi
-    scp -rp "${SRC}/"{CHANGES.md,LICENSE.md,examples} "${3}"
+    scp "${@:4}" -rp "${SRC}/"{CHANGES.md,LICENSE.md,examples} "${3}"
     (setopt NULL_GLOB; rm -rf "${3}"/**/CMakeLists.txt)
     for x in "${RSYNC[@]}"; do
         rm -rf "${3}"/**/"$x"
@@ -228,32 +228,36 @@ copy_files tgz "${MAC}" "${GRINGO_MAC}"
 
 # {{{1 build for win64
 
-# NOTE: requires cmake, python, git bash, and ssh server to be installed on build machine
+# NOTE: requires cmake, python, visual studio, and a cygwin environment with re2c to be installed on build machine
 
 # for some incomprensible reason ssh must run in an interactive shell
 function win_ssh() {
-    script --return -c '/usr/bin/ssh -xT "'"${1}"'" -- "\"C:\Program Files\Git\bin\bash.exe\""' /dev/null
+    ssh -p 2264 "${@}"
 }
 
-TEMP="C:/Users/kaminski/${GRINGO}-work"
+function win_rsync() {
+    rsync -e 'ssh -p 2264' "${@}"
+}
+
+CMAKE="TEMP='C:\\TEMP' TMP='C:\\TEMP' /cygdrive/c/Program\ Files/CMake/bin/cmake.exe"
+
 if [[ $1 == clean ]]; then
-    echo "rm -rf '${TEMP}'" | win_ssh "${WIN64}"
+    echo "rm -rf '${TEMP}'" | win_ssh -T "${WIN64}"
 fi
 
-echo "mkdir -p '${TEMP}'" | win_ssh "${WIN64}"
-scp -pr "${SRC}/." "${WIN64}:${TEMP}/source"
-scp -pr "lua/." "${WIN64}:${TEMP}/lua"
+echo "mkdir -p '${TEMP}'" | win_ssh -T "${WIN64}"
+win_rsync -ar "${SRC}/" "${WIN64}:${TEMP}/source"
+win_rsync -ar "lua/" "${WIN64}:${TEMP}/lua"
 
-win_ssh "${WIN64}" <<EOF
+win_ssh -T "${WIN64}" <<EOF
 set -ex
 mkdir -p '${TEMP}'
 
 cd '${TEMP}'
 
-[[ -e re2c.exe ]] || curl -LO http://cs.uni-potsdam.de/~kaminski/re2c.exe
-[[ -e win_flex_bison-latest.zip ]] || curl -LO http://cs.uni-potsdam.de/~kaminski/win_flex_bison-latest.zip
-
-unzip -ud bison win_flex_bison-latest.zip
+BISON_EXECUTABLE="\$(cygpath -w \$(which bison))"
+RE2C_EXECUTABLE="\$(cygpath -w \$(which re2c))"
+SOURCE="\$(cygpath -w ${TEMP}/source)"
 
 cat > lua/CMakeLists.txt <<"EOS"
 cmake_minimum_required (VERSION 2.6)
@@ -287,62 +291,36 @@ install(FILES
     DESTINATION include)
 EOS
 
-EOF
-
-# the loops are workarounds
-
 # build lua
-for i in a b; do
-win_ssh "${WIN64}" <<EOF
-set -ex
 cd '${TEMP}'
 cd lua
 mkdir -p install
-cmake -G "Visual Studio 14 2015 Win64" -DCMAKE_INSTALL_PREFIX=install
-cmake --build . --target install --config Release
-EOF
-done
+${CMAKE} -G "Visual Studio 14 2015 Win64" -DCMAKE_INSTALL_PREFIX=install
+${CMAKE} --build . --target install --config Release
+export LUA_DIR=\$(cygpath -w ${TEMP}/lua/install)
+echo "\${LUA_DIR}"
 
 # build clingo without python
-for i in a b; do
-win_ssh "${WIN64}" <<EOF
-set -ex
 mkdir -p "${TEMP}/build"
 cd '${TEMP}/build'
-export LUA_DIR=\$(cmd //c echo ${TEMP}/lua/install)
-echo "\${LUA_DIR}"
-cmake -G "Visual Studio 14 2015 Win64" -DCLINGO_BUILD_SHARED=OFF -DCLINGO_BUILD_WITH_PYTHON=OFF -DBISON_EXECUTABLE="${TEMP}/bison/win_bison.exe" -DRE2C_EXECUTABLE="${TEMP}/re2c.exe" -DCLINGO_REQUIRE_LUA=ON "${TEMP}/source"
-cmake --build . --config Release
-EOF
-done
+${CMAKE} -G "Visual Studio 14 2015 Win64" -DCLINGO_BUILD_SHARED=OFF -DCLINGO_BUILD_WITH_PYTHON=OFF -DBISON_EXECUTABLE="\${BISON_EXECUTABLE}" -DRE2C_EXECUTABLE="\${RE2C_EXECUTABLE}" -DCLINGO_REQUIRE_LUA=ON "\${SOURCE}"
+${CMAKE} --build . --config Release
 
 # build clingo api
-for i in a b; do
-win_ssh "${WIN64}" <<EOF
-set -ex
 mkdir -p "${TEMP}/c-api"
 cd '${TEMP}/c-api'
-export LUA_DIR=\$(cmd //c echo ${TEMP}/lua/install)
-echo "\${LUA_DIR}"
-cmake -G "Visual Studio 14 2015 Win64" -DCLINGO_BUILD_SHARED=ON -DCLINGO_BUILD_WITH_LUA=OFF -DCLINGO_BUILD_WITH_PYTHON=OFF -DBISON_EXECUTABLE="${TEMP}/bison/win_bison.exe" -DRE2C_EXECUTABLE="${TEMP}/re2c.exe" "${TEMP}/source"
-cmake --build . --target libclingo --config Release
-EOF
-done
+${CMAKE} -G "Visual Studio 14 2015 Win64" -DCLINGO_BUILD_SHARED=ON -DCLINGO_BUILD_WITH_LUA=OFF -DCLINGO_BUILD_WITH_PYTHON=OFF -DBISON_EXECUTABLE="\${BISON_EXECUTABLE}" -DRE2C_EXECUTABLE="\${RE2C_EXECUTABLE}" "\${SOURCE}"
+${CMAKE} --build . --target libclingo --config Release
 
 # build clingo with python
-for i in a b; do
-win_ssh "${WIN64}" <<EOF
-set -ex
 mkdir -p "${TEMP}/python"
 cd '${TEMP}/python'
-export LUA_DIR=\$(cmd //c echo ${TEMP}/lua/install)
-echo "\${LUA_DIR}"
-cmake -G "Visual Studio 14 2015 Win64" -DCLINGO_BUILD_SHARED=OFF -DCLINGO_REQUIRE_LUA=ON -DCLINGO_BUILD_WITH_PYTHON=ON -DCLINGO_REQUIRE_PYTHON=ON -DBISON_EXECUTABLE="${TEMP}/bison/win_bison.exe" -DRE2C_EXECUTABLE="${TEMP}/re2c.exe" -DPYTHON_EXECUTABLE="c:/program files/python27/python.exe" "${TEMP}/source"
-cmake --build . --target clingo --config Release
-cmake --build . --target gringo --config Release
-cmake --build . --target pyclingo --config Release
+${CMAKE} -G "Visual Studio 14 2015 Win64" -DCLINGO_BUILD_SHARED=OFF -DCLINGO_REQUIRE_LUA=ON -DCLINGO_BUILD_WITH_PYTHON=ON -DCLINGO_REQUIRE_PYTHON=ON -DBISON_EXECUTABLE="\${BISON_EXECUTABLE}" -DRE2C_EXECUTABLE="\${RE2C_EXECUTABLE}" -DPYTHON_EXECUTABLE="c:/program files/python27/python.exe" "\${SOURCE}"
+${CMAKE} --build . --target clingo --config Release
+${CMAKE} --build . --target gringo --config Release
+${CMAKE} --build . --target pyclingo --config Release
 EOF
-done
+
 (
 EXTRA=Release/
 EXT=.exe
@@ -379,5 +357,5 @@ https://www.python.org/ftp/python/2.7.13/python-2.7.13.amd64.msi).
     [PYTHONPATH](https://docs.python.org/2/using/cmdline.html#envvar-PYTHONPATH)
     to the `python-api` directory
 EOF
-copy_files zip "${WIN64}" "${GRINGO_WIN64}"
+copy_files zip "${WIN64}" "${GRINGO_WIN64}" -P 2264
 )
