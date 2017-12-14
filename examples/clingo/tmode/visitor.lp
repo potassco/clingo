@@ -48,14 +48,25 @@ class TermTransformer(Transformer):
 
 class ProgramTransformer(Transformer):
     def __init__(self, parameter):
+        self.final = False
         self.parameter = parameter
         self.term_transformer = TermTransformer(parameter)
+
+    def visit(self, x, *args, **kwargs):
+        ret = Transformer.visit(self, x, *args, **kwargs)
+        if self.final and isinstance(x, clingo.ast.AST) and hasattr(x, "body"):
+            loc = x.location
+            x.body.append(clingo.ast.Literal(loc, clingo.ast.Sign.NoSign, clingo.ast.SymbolicAtom(clingo.ast.Function(loc, "finally", [clingo.ast.Symbol(loc, self.parameter)], False))));
+        return ret
 
     def visit_SymbolicAtom(self, atom):
         atom.term = self.term_transformer.visit(atom.term)
         return atom
 
     def visit_Program(self, prg):
+        self.final = prg.name == "final"
+        if self.final:
+            prg.name = "static"
         prg.parameters.append(clingo.ast.Id(prg.location, self.parameter.name))
         return prg
 
@@ -119,6 +130,9 @@ def main(prg):
     imain(prg)
 
 #end.
+
+#program initial(t).
+initially(t).
 
 #program static(t).
 #external finally(t).

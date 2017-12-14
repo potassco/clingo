@@ -11,4 +11,6 @@ r(X) :- r'(X).
 
 r(X) :- q(X).
 
-:- #sum { X : r(X) } < 10, finally.
+#program final.
+
+:- #sum { X : r(X) } < 10.
