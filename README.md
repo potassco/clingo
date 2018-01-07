@@ -13,7 +13,7 @@ Please consult the following resources for further information:
   - [**Downloading source and binary releases**](https://github.com/potassco/clingo/releases)
   - [**Installation and software requirements**](INSTALL.md)
   - [Changes between releases](CHANGES.md)
-  - [Documentation](http://sourceforge.net/projects/potassco/files/guide/)
+  - [Documentation](https://github.com/potassco/guide/releases)
   - [Potassco clingo page](https://potassco.org/clingo/)
 
 Clingo is distributed under the [MIT License](LICENSE.md).
