@@ -1203,9 +1203,9 @@ inline std::ostream &operator<<(std::ostream &out, Location loc) {
     out << loc.begin_file() << ":" << loc.begin_line() << ":" << loc.begin_column();
     bool dash = true;
     bool eq = std::strcmp(loc.begin_file(), loc.end_file()) == 0;
-    if (!eq) { out << (dash ? "-" : ":") << loc.begin_file(); dash = false; }
+    if (!eq) { out << (dash ? "-" : ":") << loc.end_file(); dash = false; }
     eq = eq && (loc.begin_line() == loc.end_line());
-    if (!eq) { out << (dash ? "-" : ":") << loc.begin_line(); dash = false; }
+    if (!eq) { out << (dash ? "-" : ":") << loc.end_line(); dash = false; }
     eq = eq && (loc.begin_column() == loc.end_column());
     if (!eq) { out << (dash ? "-" : ":") << loc.end_column(); dash = false; }
     return out;
