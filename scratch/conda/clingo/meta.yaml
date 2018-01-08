@@ -1,0 +1,32 @@
+{% set version = "5.2.2" %}
+
+package:
+  name: clingo
+  version: {{ version }}
+
+source:
+  url: https://github.com/potassco/clingo/archive/v{{version}}.tar.gz
+
+requirements:
+  build:
+    - cmake
+    - gxx_linux-64   # [linux]
+    - clangxx_osx-64 # [osx]
+    - python
+  run:
+    - python
+#    - libstdcxx-ng   # [linux]
+#    - libcxx         # [osx]
+
+test:
+  commands:
+    - clingo --version
+    - clasp --version
+    - reify --version
+    - lpconvert --version
+    - gringo --version
+
+about:
+  home:  https://potassco.org/
+  license: MIT
+license_file: LICENSE.md
