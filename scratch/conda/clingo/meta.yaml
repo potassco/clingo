@@ -10,13 +10,12 @@ source:
 requirements:
   build:
     - cmake
-    - gxx_linux-64   # [linux]
-    - clangxx_osx-64 # [osx]
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - vc >=14 [win]
     - python
   run:
     - python
-#    - libstdcxx-ng   # [linux]
-#    - libcxx         # [osx]
 
 test:
   commands:
