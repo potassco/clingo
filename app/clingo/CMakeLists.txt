@@ -8,7 +8,7 @@ set(source
 # ]]]
 
 add_executable(clingo ${header} ${source})
-target_link_libraries(clingo PRIVATE libclingo libpyclingo ${PYTHON_LIBRARIES} libluaclingo)
+target_link_libraries(clingo PRIVATE libclingo libpyclingo Pyclingo::Pyclingo libluaclingo)
 set_target_properties(clingo PROPERTIES FOLDER exe)
 
 install(TARGETS clingo RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
