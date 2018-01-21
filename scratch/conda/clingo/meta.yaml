@@ -28,4 +28,6 @@ test:
 about:
   home:  https://potassco.org/
   license: MIT
-license_file: LICENSE.md
+  summary: A grounder and solver for logic programs.
+  description: Clingo is an answer set programming (ASP) system that takes a logic program as input and calculates its answer sets.
+  license_file: LICENSE.md
