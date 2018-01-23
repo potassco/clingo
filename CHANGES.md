@@ -12,6 +12,7 @@
     standard output
   * add API function to detect conflicting programs
   * add message logger to python and lua interface
+  * add support for primes in the beginning of identifiers and variable names
 ## clingo 5.2.2
   * update to clasp version 3.3.3
   * use GNUInstallDirs in cmake files to simplify packaging

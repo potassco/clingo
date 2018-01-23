@@ -34,7 +34,7 @@
     ANY        = [\000-\377];
     WS         = [\t\r ]*;
     NL         = "\n";
-    IDENTIFIER = "_"*[a-z]['A-Za-z0-9_]*;
+    IDENTIFIER = [_']*[a-z]['A-Za-z0-9_]*;
     STRING     = "\"" ([^\\"\n]|"\\\""|"\\\\"|"\\n")* "\"";
     WSNL       = [\t\r\n ]*;
 */

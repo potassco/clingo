@@ -59,6 +59,10 @@ TEST_CASE("input-nongroundlexer", "[input]") {
         "_xyz "
         "__xyz "
         "___xyz "
+        "'___xyz' "
+        "'___x'yz' "
+        "'___Xyz' "
+        "'___X'yz' "
         // TODO: check errors too: "# "
         ;
     ngp.pushStream("-", std::unique_ptr<std::istream>(new std::stringstream(in)), module.logger);
@@ -86,6 +90,14 @@ TEST_CASE("input-nongroundlexer", "[input]") {
     REQUIRE(String("___xyz") == String::fromRep(val.str));
     REQUIRE(5 == loc.beginLine);
     REQUIRE(23 == loc.beginColumn);
+    REQUIRE(int(NonGroundGrammar::parser::token::IDENTIFIER) == ngp.lex(&val, loc));
+    REQUIRE(String("'___xyz'") == String::fromRep(val.str));
+    REQUIRE(int(NonGroundGrammar::parser::token::IDENTIFIER) == ngp.lex(&val, loc));
+    REQUIRE(String("'___x'yz'") == String::fromRep(val.str));
+    REQUIRE(int(NonGroundGrammar::parser::token::VARIABLE) == ngp.lex(&val, loc));
+    REQUIRE(String("'___Xyz'") == String::fromRep(val.str));
+    REQUIRE(int(NonGroundGrammar::parser::token::VARIABLE) == ngp.lex(&val, loc));
+    REQUIRE(String("'___X'yz'") == String::fromRep(val.str));
     REQUIRE(int(NonGroundGrammar::parser::token::SYNC) == ngp.lex(&val, loc));
     REQUIRE(0 == ngp.lex(&val, loc));
 }
