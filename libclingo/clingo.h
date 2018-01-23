@@ -3311,6 +3311,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_program_builder(clingo_control_t *
 //!
 //! This module allows for customizing the clingo application.
 //! For example, this can be used to register custom propagators and command line options with clingo.
+//!
+//! Warning: This part of the API is not yet finalized and might change in the future.
 
 //! @addtogroup ExtendingClingo
 //! @{
@@ -3344,7 +3346,7 @@ typedef struct clingo_application {
 //! the option somewhere.
 //!
 //! Parameter option specifies the name(s) of the option.
-//! For example, "p,ping" adds the short option "-p" and its long form "--ping".
+//! For example, "ping,p" adds the short option "-p" and its long form "--ping".
 //! It is also possible to associate an option with a help level by adding "@l" to the option specification.
 //! Options with a level greater than zero are only shown if the argument to help is greater or equal to l.
 //!
