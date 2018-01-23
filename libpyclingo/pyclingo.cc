@@ -6450,6 +6450,224 @@ json.dumps(prg.statistics, sort_keys=True, indent=4, separators=(',', ': ')))", 
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
+// {{{1 wrap ApplicationOptions
+
+struct Flag : ObjectBase<Flag> {
+    bool flag;
+    static constexpr char const *tp_type = "Flag";
+    static constexpr char const *tp_name = "clingo.Flag";
+    static constexpr char const *tp_doc = R"(Helper object to parse flags.
+
+Keyword Arguments:
+value -- initial value of the flag
+)";
+    static PyGetSetDef tp_getset[];
+    static Object tp_new(PyTypeObject *type) {
+        auto self = new_(type);
+        self->flag = false;
+        return self;
+    }
+    void tp_init(Reference args, Reference kwargs) {
+        Reference pyValue = Py_False;
+        static char const *kwlist[] = {"value", nullptr};
+        ParseTupleAndKeywords(args, kwargs, "|O", kwlist, pyValue);
+        flag = pyValue.isTrue();
+    }
+    Object get_value() {
+        return cppToPy(flag);
+    }
+    void set_value(Reference value) {
+        flag = value.isTrue();
+    }
+};
+
+PyGetSetDef Flag::tp_getset[] = {
+    {(char*)"value", to_getter<&Flag::get_value>(), to_setter<&Flag::set_value>(), (char*)"The value of the flag.", nullptr},
+    {nullptr, nullptr, nullptr, nullptr, nullptr}
+};
+
+struct ApplicationOptions : ObjectBase<ApplicationOptions> {
+    clingo_options_t *options;
+    std::vector<Object> *refs;
+    static constexpr char const *tp_type = "ApplicationOptions";
+    static constexpr char const *tp_name = "clingo.ApplicationOptions";
+    static constexpr char const *tp_doc = R"(Object add custom options to a clingo based application.)";
+    static PyMethodDef tp_methods[];
+
+    static Object construct(clingo_options_t *options, std::vector<Object> &refs) {
+        auto self = new_();
+        self->options = options;
+        self->refs = &refs;
+        return self;
+    }
+
+    static bool parse_option(char const *value, void *data) {
+        try {
+            Reference pyParse = static_cast<PyObject*>(data);
+            Object params = PyTuple_New(1);
+            if (PyTuple_SetItem(params.toPy(), 0, cppToPy(value).release()) < 0) { throw PyException(); }
+            if (!Object{PyObject_Call(pyParse.toPy(), params.toPy(), nullptr)}.isTrue()) { throw std::runtime_error("parsing option failed"); }
+            return true;
+        }
+        catch (...) {
+            handle_cxx_error("<application>", "error during parse option");
+            return false;
+        }
+    }
+
+    Object add(Reference args, Reference kwds) {
+        static char const *kwlist[] = {"group", "option", "description", "parser", "multi", "argument", nullptr};
+        char const *group = nullptr, *option = nullptr, *description = nullptr, *argument = nullptr;
+        Reference pyParser, pyMulti = Py_False;
+
+        ParseTupleAndKeywords(args, kwds, "sssO|Os", kwlist, group, option, description, pyParser, pyMulti, argument);
+        refs->emplace_back(pyParser);
+
+        clingo_options_add(options, group, option, description, &parse_option, pyParser.toPy(), pyMulti.isTrue(), argument);
+        return None();
+
+    }
+    Object add_flag(Reference args, Reference kwds) {
+        static char const *kwlist[] = {"group", "option", "description", "flag", nullptr};
+        char const *group = nullptr, *option = nullptr, *description = nullptr;
+        Reference pyFlag;
+
+        ParseTupleAndKeywords(args, kwds, "sssO!", kwlist, group, option, description, Flag::type, pyFlag);
+        refs->emplace_back(pyFlag);
+
+        handle_c_error(clingo_options_add_flag(options, group, option, description, &reinterpret_cast<Flag*>(pyFlag.toPy())->flag));
+        return None();
+    }
+};
+
+PyMethodDef ApplicationOptions::tp_methods[] = {
+    {"add", to_function<&ApplicationOptions::add>(), METH_VARARGS | METH_KEYWORDS, R"(add_flag(self, group, option, description, parser, multi, argument) -> None
+
+Add an option that is processed with a custom parser.
+
+Note that the parser also has to take care of storing the semantic value of
+the option somewhere.
+
+Parameter option specifies the name(s) of the option. For example, "ping,p"
+adds the short option "-p" and its long form "--ping". It is also possible to
+associate an option with a help level by adding "@l" to the option
+specification. Options with a level greater than zero are only shown if the
+argument to help is greater or equal to l.
+
+An option parser is a function that takes a string as input and returns true or
+false depending on whether the option was parsed successively.
+
+Note that an error is raised if an option with the same name already exists.
+
+Arguments:
+options     -- object to register the option with
+group       -- options are grouped into sections as given by this string
+option      -- specifies the command line option
+description -- the description of the option
+parser      -- callback to parse the value of the option
+
+Keyword Arguments:
+multi    -- whether the option can appear multiple times on the command-line
+            (Default: False)
+argument -- optional string to change the value name in the generated help
+            output
+)"},
+    {"add_flag", to_function<&ApplicationOptions::add_flag>(), METH_VARARGS | METH_KEYWORDS, R"(add_flag(self, group, option, description, target) -> None
+
+Add an option that is a simple flag.
+
+This function is similar to add() but simpler because it only supports flags,
+which do not have values. Note that the target parameter must be of type Flag,
+which is set to true if the flag is passed on the command line.
+
+Arguments:
+group       -- options are grouped into sections as given by this string
+option      -- name on the command line
+description -- description of the option
+target      -- Flag object
+)"},
+    {nullptr, nullptr, 0, nullptr}
+};
+
+// {{{1 wrap Application
+
+using AppData = std::pair<Reference&, std::vector<Object>>;
+char const *g_app_program_name(void *data) {
+    try {
+        AppData &pyApp = *static_cast<AppData*>(data);
+        Object name = pyApp.first.getAttr("program_name");
+        char const *s;
+        handle_c_error(clingo_add_string(pyToCpp<std::string>(name).c_str(), &s));
+        return s;
+    }
+    catch (...) {
+        handle_cxx_error("<application>", "error when getting program name");
+        std::cerr << clingo_error_message() << std::endl;
+        std::terminate();
+    }
+}
+
+unsigned g_app_message_limit(void *data) {
+    try {
+        AppData &pyApp = *static_cast<AppData*>(data);
+        Object limit = pyApp.first.getAttr("message_limit");
+        return pyToCpp<unsigned>(limit);
+    }
+    catch (...) {
+        handle_cxx_error("<application>", "error when getting message limit");
+        std::cerr << clingo_error_message() << std::endl;
+        std::terminate();
+    }
+}
+
+bool g_app_main(clingo_control_t *control, char const *const * files, size_t size, void *data) {
+    try {
+        AppData &pyApp = *static_cast<AppData*>(data);
+        pyApp.first.call("main", ControlWrap::construct(control), cppToPy(files, size));
+        return true;
+    }
+    catch (...) {
+        handle_cxx_error("<application>", "error during main");
+        return false;
+    }
+}
+
+void g_app_logger(clingo_warning_t code, char const *message, void *data) {
+    try {
+        AppData &pyApp = *static_cast<AppData*>(data);
+        pyApp.first.call("logger", MessageCode::getAttr(code), cppToPy(message));
+    }
+    catch (...) {
+        handle_cxx_error("<application>", "error when calling message logger");
+        std::cerr << clingo_error_message() << std::endl;
+        std::terminate();
+    }
+}
+
+bool g_app_register_options(clingo_options_t *options, void *data) {
+    try {
+        AppData &pyApp = *static_cast<AppData*>(data);
+        pyApp.first.call("register_options", ApplicationOptions::construct(options, pyApp.second));
+        return true;
+    }
+    catch (...) {
+        handle_cxx_error("<application>", "error during register options");
+        return false;
+    }
+}
+
+bool g_app_validate_options(void *data) {
+    try {
+        AppData &pyApp = *static_cast<AppData*>(data);
+        return pyToCpp<bool>(pyApp.first.call("validate_options"));
+    }
+    catch (...) {
+        handle_cxx_error("<application>", "error when validating options");
+        std::cerr << clingo_error_message() << std::endl;
+        std::terminate();
+    }
+}
+
 // {{{1 wrap module functions
 
 Object parseTerm(Reference args, Reference kwds) {
@@ -6461,6 +6679,27 @@ Object parseTerm(Reference args, Reference kwds) {
     clingo_symbol_t sym;
     handle_c_error(clingo_parse_term(str, !logger.none() ? logger_callback : nullptr, logger.toPy(), message_limit, &sym));
     return Symbol::construct(sym);
+}
+
+Object clingoMain(Reference args, Reference kwds) {
+    Reference pyApp;
+    Reference pyArgs;
+    static char const *kwlist[] = {"application", "arguments", nullptr};
+    ParseTupleAndKeywords(args, kwds, "O|O", kwlist, pyApp, pyArgs);
+    std::vector<std::string> sArgs;
+    std::vector<char const*> cArgs;
+    if (pyArgs.valid()) { pyToCpp(pyArgs, sArgs); }
+    for (auto &s : sArgs) { cArgs.emplace_back(s.c_str()); }
+    clingo_application_t app {
+        pyApp.hasAttr("program_name") ? g_app_program_name : nullptr,
+        pyApp.hasAttr("message_limit") ? g_app_message_limit : nullptr,
+        g_app_main,
+        pyApp.hasAttr("logger") ? g_app_logger : nullptr,
+        pyApp.hasAttr("register_options") ? g_app_register_options : nullptr,
+        pyApp.hasAttr("validate_options") ? g_app_validate_options : nullptr,
+    };
+    AppData data{pyApp, {}};
+    return PyLong_FromLong(clingo_main(&app, cArgs.data(), cArgs.size(), &data));
 }
 
 // {{{1 gringo module
@@ -6835,6 +7074,80 @@ Example:
 
 clingo.parse_term('p(1+2)') == clingo.Function("p", [3])
 )"},
+    {"clingo_main", to_function<clingoMain>(), METH_VARARGS | METH_KEYWORDS,
+R"(clingo_main(application, files) -> int
+
+Runs the given applications using clingo's default output and signal handling.
+
+The application can overwrite clingo's default behaviour by registering
+additional options and overriding its default main function.
+
+Arguments:
+application -- the Application object
+
+Keyword Arguments:
+files -- files passed on the command line
+
+The application object must implement a main function and additionally can
+override the other functions.
+
+class Application(object):
+    main(self, control, files) -> None
+        Function to replace clingo's default main function.
+
+    register_options(self, options) -> None
+        Function to register custom options.
+
+        Arguments:
+        options -- ApplicationOptions object that can be used to register
+                   different kind of options
+
+    validate_options(self) -> bool
+        Function to validate custom options.
+
+        This function should return a boolean to indicate that option
+        validation failed.
+
+        Note: this function should not raise execptions
+
+    logger(self, code, message) -> None
+        Function to intercept messages normally printed to standard error.
+        (Default: messages are printed to stdandard error)
+
+        Arguments:
+        code    -- MessageCode object
+        message -- message string
+
+        Note: this function should not raise execptions
+
+    program_name -> String:
+        Optional program name to be used in the help output.
+        (Default: clingo)
+
+    message_limit -> Int:
+        Maximum number of messages passed to the logger.
+        (Default: 20)
+
+Example reproducing the default clingo behaviour:
+
+    import sys
+    import clingo
+
+    class Application:
+        def __init__(self, name):
+            self.program_name = name
+
+        def main(self, ctl, files):
+            if len(files) > 0:
+                for f in files:
+                    ctl.load(f)
+            else:
+                ctl.load("-")
+            ctl.ground([("base", [])])
+            ctl.solve()
+
+    clingo.clingo_main(Application(sys.argv[0]), sys.argv[1:])
+)"},
     {"parse_program", to_function<parseProgram>(), METH_VARARGS | METH_KEYWORDS,
 R"(parse_program(program, callback) -> ast.AST
 
@@ -6908,10 +7221,12 @@ Tuple()         -- create a tuple symbol (shortcut)
 
 Classes:
 
+ApplicationOptions  -- add custom options to clingo
 Assignment          -- partial assignment of truth values to solver literals
 Backend             -- extend the logic program
 Configuration       -- modify/inspect the solver configuration
 Control             -- controls the grounding/solving process
+Flag                -- helper object to parse command line flags
 HeuristicType       -- enumeration of heuristic modificators
 MessageCode         -- enumeration of message codes
 Model               -- provides access to a model during solve call
@@ -7017,7 +7332,8 @@ PyObject *initclingo_() {
             !TheoryTerm::initType(m)          || !PropagateInit::initType(m)    || !Assignment::initType(m)       ||
             !SymbolType::initType(m)          || !Symbol::initType(m)           || !Backend::initType(m)          ||
             !ProgramBuilder::initType(m)      || !HeuristicType::initType(m)    || !TruthValue::initType(m)       ||
-            !PropagatorCheckMode::initType(m) || !MessageCode::initType(m)      ||
+            !PropagatorCheckMode::initType(m) || !MessageCode::initType(m)      || !Flag::initType(m)             ||
+            !ApplicationOptions::initType(m)  ||
             PyModule_AddStringConstant(m.toPy(), "__version__", CLINGO_VERSION) < 0 ||
             false) { return nullptr; }
         Reference a{initclingoast_()};
