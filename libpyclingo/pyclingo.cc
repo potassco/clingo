@@ -5713,6 +5713,11 @@ active; you must not call any member function during search.)";
             return false;
         }
     }
+    Object getCControl() {
+        CHECK_BLOCKED("get_c_control");
+        if (!ctl) { Py_RETURN_NONE; }
+        return PyLong_FromVoidPtr(ctl);
+    }
     Object ground(Reference args, Reference kwds) {
         CHECK_BLOCKED("ground");
         static char const *kwlist[] = {"parts", "context", nullptr};
@@ -5917,6 +5922,11 @@ def main(prg):
 
 #end.
 )"},
+    // get_c_control
+    {"get_c_control", to_function<&ControlWrap::getCControl>(), METH_NOARGS,
+R"(get_c_control(self) -> Pointer
+
+Return the C clingo_control_t pointer.)"},
     // ground
     {"ground", to_function<&ControlWrap::ground>(), METH_KEYWORDS | METH_VARARGS,
 R"(ground(self, parts, context) -> None
