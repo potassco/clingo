@@ -5715,7 +5715,6 @@ active; you must not call any member function during search.)";
     }
     Object getCControl() {
         CHECK_BLOCKED("get_c_control");
-        if (!ctl) { Py_RETURN_NONE; }
         return PyLong_FromVoidPtr(ctl);
     }
     Object ground(Reference args, Reference kwds) {
