@@ -872,6 +872,7 @@ public:
     virtual void propagate(PropagateControl &ctl, LiteralSpan changes);
     virtual void undo(PropagateControl const &ctl, LiteralSpan changes);
     virtual void check(PropagateControl &ctl);
+    virtual void extend_model(int /*threadId*/, bool /*complement*/, SymbolVector& );
     virtual ~Propagator() noexcept = default;
 };
 
@@ -2726,6 +2727,7 @@ inline void Propagator::init(PropagateInit &) { }
 inline void Propagator::propagate(PropagateControl &, LiteralSpan) { }
 inline void Propagator::undo(PropagateControl const &, LiteralSpan) { }
 inline void Propagator::check(PropagateControl &) { }
+inline void Propagator::extend_model(int /*threadId*/, bool /*complement*/, SymbolVector& ) { }
 
 // {{{2 solve control
 
@@ -3906,6 +3908,17 @@ inline static bool g_check(clingo_propagate_control_t *ctl, void *pdata) {
     CLINGO_CALLBACK_CATCH(data.second);
 }
 
+inline static bool g_extend_model(int threadId, bool complement, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *pdata) {
+    PropagatorData &data = *static_cast<PropagatorData*>(pdata);
+    CLINGO_CALLBACK_TRY {
+        SymbolVector v;
+        data.first.extend_model(threadId, complement, v);
+        symbol_callback(reinterpret_cast<const clingo_symbol_t*>(v.data()), v.size(), symbol_callback_data);
+    }
+    CLINGO_CALLBACK_CATCH(data.second);
+}
+
+
 } // namespace Detail
 
 inline void Control::register_propagator(Propagator &propagator, bool sequential) {
@@ -3914,7 +3927,8 @@ inline void Control::register_propagator(Propagator &propagator, bool sequential
         Detail::g_init,
         Detail::g_propagate,
         Detail::g_undo,
-        Detail::g_check
+        Detail::g_check,
+        Detail::g_extend_model
     };
     Detail::handle_error(clingo_control_register_propagator(*impl_, &g_propagator, &impl_->propagators_.front(), sequential));
 }

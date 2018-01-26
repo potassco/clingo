@@ -243,7 +243,11 @@ public:
     virtual void prePrepare(Clasp::ClaspFacade& ) { }
     virtual void preSolve(Clasp::ClaspFacade& clasp) { if (psf_) { psf_(clasp);} }
     virtual void postSolve(Clasp::ClaspFacade& ) { }
-    virtual void addToModel(Clasp::Model const&, bool /*complement*/, SymVec& ) { }
+    virtual void addToModel(Clasp::Model const& m, bool /*complement*/, SymVec& symVec) {
+        for (auto& prop : props_) {
+            prop->extend_model(m.sId, false, symVec);
+        }
+    }
 
     // {{{2 SymbolicAtoms interface
 
@@ -331,6 +335,20 @@ public:
     bool                                                       configUpdate_          = false;
     bool                                                       initialized_           = false;
     bool                                                       incmode_               = false;
+
+private:
+
+    class TheoryOutput : public Clasp::OutputTable::Theory {
+    public:
+        TheoryOutput(ClingoControl& ctl);
+        const char* first(const Clasp::Model& m) override;
+        const char* next() override;
+    private:
+        ClingoControl&              ctl_;
+        std::vector<std::string>    last_;
+        size_t                      index_;
+    } theory_;
+
 };
 
 // {{{1 declaration of ClingoModel

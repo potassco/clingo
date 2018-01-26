@@ -2589,6 +2589,64 @@ public:
         auto ret = lua_pcall(L, 2, 0, -4);
         return handle_lua_error(L, "Propagator::check", "check failed", ret);
     }
+    static int extend_model_(lua_State *L) {
+        auto *self = static_cast<Propagator*>(lua_touserdata(L, 1));
+        auto thread_id  = lua_tointeger(L, 2);
+        auto complement = lua_toboolean(L, 3);
+	return 0;
+	/// No idea what to do here or what this function does
+//	
+//        lua_pushvalue(self->T, PropagatorIndex);         // +1
+//        lua_xmove(self->T, L, 1);                        // +0
+//        lua_getfield(L, -1, "extend_model");             // +1
+//        if (!lua_isnil(L, -1)) {
+//            auto id = clingo_propagate_control_thread_id(control);
+//            lua_insert(L, -2);
+//            lua_pushinteger(L, id + 1);                  // +1
+//            Assignment::new_(L, clingo_propagate_control_assignment(control));  // +1
+//            getChanges(L, changes, size);                // +1
+//            getState(L, self->T, id);                    // +1
+//            lua_call(L, 5, 0);                           // -6
+//        }
+//        else {
+//            lua_pop(L, 2);                               // -2
+//        }
+//        return 0;
+    }
+    static bool extend_model(int thread_id, bool complement, clingo_symbol_callback_t symbol_callback, void* symbol_callback_data, void *data) {
+        auto *self = static_cast<Propagator*>(data);
+
+
+        lua_State *L = self->threads[thread_id];
+        if (!lua_checkstack(L, 6)) {
+            clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
+            return false;
+        }
+        //1. call Lua Method with an empty table
+        LuaClear ll(self->T), lt(L);
+        lua_newtable(L);                                                  // +1
+        auto table = lua_gettop(L);
+        lua_pushcfunction(L, luaTraceback);                               // +1 // error handler
+        lua_pushcfunction(L, extend_model_);                              // +1 // function
+        lua_pushlightuserdata(L, self);                                   // +1 // this pointer
+        lua_pushinteger(L, thread_id+1);                                  // +1 // thread_id
+        lua_pushboolean(L, complement);                                   // +1 // complement
+        lua_pushvalue(L, table);                                          // +1 // symbols
+        auto ret = lua_pcall(L, 4, 0, -6);
+
+        //2. convert data in table to c array
+        std::vector<symbol_wrapper> symbols;
+        luaToCpp(L, table, symbols);
+        lua_pop(L,1);
+
+        //3. call function pointer with c-array
+        symbol_callback(reinterpret_cast<const clingo_symbol_t*>(symbols.data()), symbols.size(), symbol_callback_data);
+
+
+        return handle_lua_error(L, "Propagator::extend_model", "extend_model failed", ret);
+    }
+
+
     virtual ~Propagator() noexcept = default;
 private:
     lua_State *L;
@@ -3268,7 +3326,8 @@ struct ControlWrap : Object<ControlWrap> {
             Propagator::init,
             Propagator::propagate,
             Propagator::undo,
-            Propagator::check
+            Propagator::check,
+            Propagator::extend_model
         };
         PROTECT(self.propagators.emplace_front(L, T));
         handle_c_error(L, clingo_control_register_propagator(self.ctl, &propagator, &self.propagators.front(), true));
