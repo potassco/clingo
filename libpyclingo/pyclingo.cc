@@ -1499,6 +1499,18 @@ R"(Object to iterate over all theory atoms.)";
     }
     Reference tp_iter() { return *this; }
     Object get() { return TheoryAtom::construct(atoms, offset); }
+    Py_ssize_t sq_length() {
+        size_t size;
+        handle_c_error(clingo_theory_atoms_size(atoms, &size));
+        return size;
+    }
+    Object sq_item(Py_ssize_t index) {
+        if (index < 0 || index >= sq_length()) {
+            PyErr_Format(PyExc_IndexError, "invalid index");
+            return nullptr;
+        }
+        return TheoryAtom::construct(atoms, index);
+    }
     Object tp_iternext() {
         size_t size;
         handle_c_error(clingo_theory_atoms_size(atoms, &size));
