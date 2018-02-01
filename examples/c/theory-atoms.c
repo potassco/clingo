@@ -62,13 +62,13 @@ out:
   return ret;
 }
 
-bool solve(clingo_control_t *ctl, clingo_solve_result_bitset_t *result) {
+bool solve(clingo_control_t *ctl, clingo_solve_result_bitset_t *result, clingo_literal_t assumption) {
   bool ret = true;
   clingo_solve_handle_t *handle;
   clingo_model_t *model;
 
   // get a solve handle
-  if (!clingo_control_solve(ctl, clingo_solve_mode_yield, NULL, 0, NULL, NULL, &handle)) { goto error; }
+  if (!clingo_control_solve(ctl, clingo_solve_mode_yield, &assumption, assumption != 0 ? 1 : 0, NULL, NULL, &handle)) { goto error; }
   // loop over all models
   while (true) {
     if (!clingo_solve_handle_resume(handle)) { goto error; }
@@ -145,20 +145,8 @@ int main(int argc, char const **argv) {
     }
   }
 
-  // use the backend to assume that the theory atom is true
-  // (note that only symbolic literals can be passed as assumptions to a solve call;
-  // the backend accepts any aspif literal)
-  if (lit != 0) {
-    clingo_backend_t *backend;
-
-    // get the backend
-    if (!clingo_control_backend(ctl, &backend)) { goto error; }
-    // add the assumption
-    if (!clingo_backend_assume(backend, &lit, 1)) { goto error; }
-  }
-
   // solve using a model callback
-  if (!solve(ctl, &solve_ret)) { goto error; }
+  if (!solve(ctl, &solve_ret, lit)) { goto error; }
 
   goto out;
 

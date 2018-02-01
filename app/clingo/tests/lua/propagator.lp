@@ -280,6 +280,7 @@ function main(c)
     c.configuration.solve.opt_mode = "optN"
     c:ground({ {"base", {}} })
     c:register_propagator(Propagator.new())
+    backend = c:backend()
     -- :- not sup(U), seq(U,_,_), n == 0.
     if c:get_const("n").number == 0 then
         local grouped = {}
@@ -289,11 +290,11 @@ function main(c)
         local keys = table.keys(grouped)
         table.sort(keys)
         for _, key in ipairs(keys) do
-            local a = c.backend:add_atom()
+            local a = backend:add_atom()
             for _, l in ipairs(grouped[key]) do
-                c.backend:add_rule{{a}, {l}}
+                backend:add_rule{{a}, {l}}
             end
-            c.backend:add_rule{{}, {-c.symbolic_atoms:lookup(clingo.Function("sup", {key})).literal, a}}
+            backend:add_rule{{}, {-c.symbolic_atoms:lookup(clingo.Function("sup", {key})).literal, a}}
         end
     end
     -- :- sup(U), pat(_,I), not seq(U,_,I).
@@ -309,9 +310,9 @@ function main(c)
     local keys = table.keys(grouped_pat)
     table.sort(keys)
     for _, key in ipairs(keys) do
-        local a = c.backend:add_atom()
+        local a = backend:add_atom()
         for _, l in ipairs(grouped_pat[key]) do
-            c.backend:add_rule{{a}, {l}}
+            backend:add_rule{{a}, {l}}
         end
         projected_pat[key] = a
     end
@@ -319,10 +320,11 @@ function main(c)
         for _, key in ipairs(keys) do
             local a, b = atom.symbol.arguments[1], key
             if not grouped_seq[tostring(a) .. "," .. tostring(b)] then
-                c.backend:add_rule{{}, {atom.literal, projected_pat[key]}}
+                backend:add_rule{{}, {atom.literal, projected_pat[key]}}
             end
         end
     end
+    backend:close()
     c:solve()
 end
 

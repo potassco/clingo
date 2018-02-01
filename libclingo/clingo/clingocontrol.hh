@@ -205,7 +205,7 @@ public:
     virtual void log(Gringo::Warnings code, char const *message) noexcept {
         static_cast<void>(code);
         static_cast<void>(message);
-        throw std::runtime_error("not implemented");
+        std::terminate();
     }
     virtual void register_options(ClingoApp &app) { static_cast<void>(app); }
     virtual void validate_options() { }
@@ -293,7 +293,9 @@ public:
     void registerPropagator(UProp p, bool sequential) override;
     void interrupt() override;
     void *claspFacade() override;
-    Backend *backend() override;
+    bool beginAddBackend() override;
+    Backend *getBackend() override { return backend_; };
+    void endAddBackend() override;
     Potassco::Atom_t addProgramAtom() override;
     Logger &logger() override { return logger_; }
     void beginAdd() override { parse(); }
@@ -322,6 +324,7 @@ public:
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>>  propagators_;
     ClingoPropagatorLock                                       propLock_;
     Logger                                                     logger_;
+    Backend                                                   *backend_               = nullptr;
     bool                                                       enableEnumAssupmption_ = true;
     bool                                                       clingoMode_;
     bool                                                       verbose_               = false;

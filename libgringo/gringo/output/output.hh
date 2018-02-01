@@ -86,7 +86,9 @@ public:
     Rule &tempRule(bool choice) { return tempRule_.reset(choice); }
     SymVec &tempVals() { tempVals_.clear(); return tempVals_; }
     LitVec &tempLits() { tempLits_.clear(); return tempLits_; }
-    Backend *backend();
+    Backend *backend_();
+    // also prepares the domains to be able to add to them
+    Backend *backend(Logger &logger);
     void registerObserver(UBackend prg, bool replace);
     void reset(bool resetData);
     void assume(Assumptions ass);

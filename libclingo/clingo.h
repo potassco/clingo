@@ -1636,6 +1636,20 @@ typedef struct clingo_weighted_literal {
 //! Handle to the backend to add directives in aspif format.
 typedef struct clingo_backend clingo_backend_t;
 
+//! Prepare the backend for usage.
+//!
+//! @param[in] backend the target backend
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime
+CLINGO_VISIBILITY_DEFAULT bool clingo_backend_begin(clingo_backend_t *backend);
+//! Finalize the backend after using it.
+//!
+//! @param[in] backend the target backend
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime
+CLINGO_VISIBILITY_DEFAULT bool clingo_backend_end(clingo_backend_t *backend);
 //! Add a rule to the program.
 //!
 //! @param[in] backend the target backend

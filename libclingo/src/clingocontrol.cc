@@ -429,9 +429,7 @@ std::string ClingoControl::str() {
 }
 
 void ClingoControl::assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) {
-    if (update()) {
-        if (auto b = backend()) { b->external(ext, val); }
-    }
+    if (update()) { out_->backend_()->external(ext, val); }
 }
 
 bool ClingoControl::isConflicting() noexcept {
@@ -594,7 +592,15 @@ size_t ClingoControl::length() const {
     return ret;
 }
 
-Backend *ClingoControl::backend() { return out_->backend(); }
+bool ClingoControl::beginAddBackend() {
+    backend_ = out_->backend(logger());
+    return backend_ != nullptr;
+}
+
+void ClingoControl::endAddBackend() {
+    out_->flush();
+}
+
 Potassco::Atom_t ClingoControl::addProgramAtom() { return out_->data.newAtom(); }
 
 ClingoControl::~ClingoControl() noexcept = default;

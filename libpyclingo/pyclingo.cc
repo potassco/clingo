@@ -3353,6 +3353,16 @@ format.)";
         return self;
     }
 
+    Object enter() {
+        handle_c_error(clingo_backend_begin(backend));
+        return Reference{*this};
+    }
+
+    Object exit() {
+        handle_c_error(clingo_backend_end(backend));
+        Py_RETURN_FALSE;
+    }
+
     Object addAtom() {
         clingo_atom_t atom;
         handle_c_error(clingo_backend_add_atom(backend, &atom));
@@ -3402,6 +3412,19 @@ format.)";
 };
 
 PyMethodDef Backend::tp_methods[] = {
+    {"__enter__", to_function<&Backend::enter>(), METH_NOARGS,
+R"(__enter__(self) -> Backend
+
+Initialize the backend.
+
+Must be called before using the backend.)"},
+    {"__exit__", to_function<&Backend::exit>(), METH_VARARGS,
+R"(__exit__(self, type, value, traceback) -> bool
+
+Finalize the backend.
+
+Follows python __exit__ conventions. Does not suppress exceptions.
+)"},
     // add_atom
     {"add_atom", to_function<&Backend::addAtom>(), METH_NOARGS,
 R"(add_atom(self) -> Int
@@ -6419,6 +6442,10 @@ This function is thread-safe and can be called from a signal handler.  If no
 search is active the subsequent call to solve(), solve_async(), or solve_iter()
 is interrupted.  The SolveResult of the above solving methods can be used to
 query if the search was interrupted.)"},
+    {"backend", to_function<&ControlWrap::backend>(), METH_NOARGS,
+R"(backend() -> Backend
+
+Returns a Backend object providing a low level interface to extend a logic program.)"},
     {nullptr, nullptr, 0, nullptr}
 };
 
@@ -6458,7 +6485,6 @@ Example:
 import json
 json.dumps(prg.statistics, sort_keys=True, indent=4, separators=(',', ': ')))", nullptr},
     {(char *)"theory_atoms", to_getter<&ControlWrap::theoryIter>(), nullptr, (char *)R"(A TheoryAtomIter object, which can be used to iterate over the theory atoms.)", nullptr},
-    {(char *)"backend", to_getter<&ControlWrap::backend>(), nullptr, (char *)R"(A Backend object providing a low level interface to extend a logic program.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 

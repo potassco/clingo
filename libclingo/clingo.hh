@@ -1808,8 +1808,7 @@ std::ostream &operator<<(std::ostream &out, Statement const &x);
 
 class Backend {
 public:
-    explicit Backend(clingo_backend_t *backend)
-    : backend_(backend) { }
+    explicit Backend(clingo_backend_t *backend);
     void rule(bool choice, AtomSpan head, LiteralSpan body);
     void weight_rule(bool choice, AtomSpan head, weight_t lower, WeightedLiteralSpan body);
     void minimize(weight_t prio, WeightedLiteralSpan body);
@@ -1820,6 +1819,7 @@ public:
     void acyc_edge(int node_u, int node_v, LiteralSpan condition);
     atom_t add_atom();
     clingo_backend_t *to_c() const { return backend_; }
+    ~Backend();
 private:
     clingo_backend_t *backend_;
 };
@@ -2883,6 +2883,15 @@ inline SolveHandle::~SolveHandle() {
 }
 
 // {{{2 backend
+
+inline Backend::Backend(clingo_backend_t *backend)
+: backend_(backend) {
+    Detail::handle_error(clingo_backend_begin(backend_));
+}
+
+inline Backend::~Backend() {
+    Detail::handle_error(clingo_backend_end(backend_));
+}
 
 inline void Backend::rule(bool choice, AtomSpan head, LiteralSpan body) {
     Detail::handle_error(clingo_backend_rule(backend_, choice, head.begin(), head.size(), body.begin(), body.size()));

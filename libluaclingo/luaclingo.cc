@@ -2069,6 +2069,12 @@ struct Backend : Object<Backend> {
         lua_pop(L, 1);                                                         // -1
         return 0;
     }
+
+    static int close(lua_State *L) {
+        auto &self = get_self(L);
+        handle_c_error(L, clingo_backend_end(self.backend));
+        return 0;
+    }
 };
 
 luaL_Reg const Backend::meta[] = {
@@ -2076,6 +2082,7 @@ luaL_Reg const Backend::meta[] = {
     {"add_rule", addRule},
     {"add_weight_rule", addWeightRule},
     {"add_minimize", addMinimize},
+    {"close", close},
     {nullptr, nullptr}
 };
 
@@ -3182,11 +3189,6 @@ struct ControlWrap : Object<ControlWrap> {
             auto atoms = call_c(L, clingo_control_theory_atoms, self.ctl);
             return TheoryIter::iter(L, atoms);
         }
-        else if (strcmp(name, "backend") == 0) {
-            auto backend = call_c(L, clingo_control_backend, self.ctl);
-            if (!backend) { return luaL_error(L, "backend not available"); }
-            return Backend::new_(L, backend);
-        }
         else if (strcmp(name, "is_conflicting") == 0) {
             lua_pushboolean(L, clingo_control_is_conflicting(self.ctl));
             return 1;
@@ -3275,6 +3277,14 @@ struct ControlWrap : Object<ControlWrap> {
         return 0;
     }
 
+    static int backend(lua_State *L) {
+        auto &self = get_self(L);
+        auto backend = call_c(L, clingo_control_backend, self.ctl);
+        if (!backend) { return luaL_error(L, "backend not available"); }
+        call_c(L, clingo_backend_begin, backend);
+        return Backend::new_(L, backend);
+    }
+
     static int registerObserver(lua_State *L) {
         bool replace = lua_toboolean(L, 3) != 0;
         auto &self = get_self(L);
@@ -3339,6 +3349,7 @@ luaL_Reg ControlWrap::meta[] = {
     {"interrupt", interrupt},
     {"register_propagator", registerPropagator},
     {"register_observer", registerObserver},
+    {"backend", backend},
     {nullptr, nullptr}
 };
 luaL_Reg ControlWrap::metaI[] = {
