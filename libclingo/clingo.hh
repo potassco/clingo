@@ -2927,7 +2927,7 @@ inline void Backend::acyc_edge(int node_u, int node_v, LiteralSpan condition) {
 
 inline atom_t Backend::add_atom() {
     clingo_atom_t ret;
-    Detail::handle_error(clingo_backend_add_atom(backend_, &ret));
+    Detail::handle_error(clingo_backend_add_atom(backend_, nullptr, &ret));
     return ret;
 }
 

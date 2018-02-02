@@ -92,6 +92,11 @@ public:
     void registerObserver(UBackend prg, bool replace);
     void reset(bool resetData);
     void assume(Assumptions ass);
+    Id_t addAtom(Symbol sym) {
+        auto &atm = *data.add(sym.sig()).define(sym).first;
+        if (!atm.hasUid()) { atm.setUid(data.newAtom()); }
+        return atm.uid();
+    }
 private:
     UAbstractOutput fromFormat(std::ostream &out, OutputFormat format, OutputOptions opts);
     UAbstractOutput fromBackend(UBackend &&out, OutputOptions opts);

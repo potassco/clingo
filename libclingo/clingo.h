@@ -1732,9 +1732,10 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_acyc_edge(clingo_backend_t *backen
 //! Get a fresh atom to be used in aspif directives.
 //!
 //! @param[in] backend the target backend
+//! @param[in] symbol optional symbol to associate the atom with
 //! @param[out] atom the resulting atom
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_backend_add_atom(clingo_backend_t *backend, clingo_atom_t *atom);
+CLINGO_VISIBILITY_DEFAULT bool clingo_backend_add_atom(clingo_backend_t *backend, clingo_symbol_t *symbol, clingo_atom_t *atom);
 
 //! @}
 

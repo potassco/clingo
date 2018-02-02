@@ -3365,7 +3365,7 @@ format.)";
 
     Object addAtom() {
         clingo_atom_t atom;
-        handle_c_error(clingo_backend_add_atom(backend, &atom));
+        handle_c_error(clingo_backend_add_atom(backend, nullptr, &atom));
         return cppToPy(atom);
     }
 

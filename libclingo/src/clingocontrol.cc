@@ -597,6 +597,10 @@ bool ClingoControl::beginAddBackend() {
     return backend_ != nullptr;
 }
 
+Id_t ClingoControl::addAtom(Symbol sym) {
+    return out_->addAtom(sym);
+}
+
 void ClingoControl::endAddBackend() {
     out_->flush();
 }

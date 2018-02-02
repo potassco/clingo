@@ -223,6 +223,7 @@ struct IncrementalControl : Control {
         return backend_ != nullptr;
     }
     Backend *getBackend() override { return backend_; }
+    Id_t addAtom(Symbol sym) override { return out.addAtom(sym); }
     void endAddBackend() override { out.flush(); }
     Potassco::Atom_t addProgramAtom() override { return out.data.newAtom(); }
     Input::GroundTermParser        termParser;

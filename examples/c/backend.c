@@ -142,7 +142,7 @@ int main(int argc, char const **argv) {
   if (!clingo_backend_begin(backend)) { goto error; }
 
   // add an additional atom (called d below)
-  if (!clingo_backend_add_atom(backend, &atom_ids[3])) { goto error; }
+  if (!clingo_backend_add_atom(backend, NULL, &atom_ids[3])) { goto error; }
 
   // add rule: d :- a, b.
   body[0] = atom_ids[0];

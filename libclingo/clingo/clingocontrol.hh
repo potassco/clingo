@@ -294,6 +294,7 @@ public:
     void interrupt() override;
     void *claspFacade() override;
     bool beginAddBackend() override;
+    Id_t addAtom(Symbol sym) override;
     Backend *getBackend() override { return backend_; };
     void endAddBackend() override;
     Potassco::Atom_t addProgramAtom() override;
