@@ -3363,9 +3363,19 @@ format.)";
         Py_RETURN_FALSE;
     }
 
-    Object addAtom() {
+    Object addAtom(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"symbol", nullptr};
+        Reference symbol;
+        ParseTupleAndKeywords(pyargs, pykwds, "|O", kwlist, symbol);
+        clingo_symbol_t *symp;
+        clingo_symbol_t sym;
+        if (!symbol.valid()) { symp = nullptr; }
+        else {
+            sym = pyToCpp<symbol_wrapper>(symbol).symbol;
+            symp = &sym;
+        }
         clingo_atom_t atom;
-        handle_c_error(clingo_backend_add_atom(backend, nullptr, &atom));
+        handle_c_error(clingo_backend_add_atom(backend, symp, &atom));
         return cppToPy(atom);
     }
 
@@ -3426,10 +3436,17 @@ Finalize the backend.
 Follows python __exit__ conventions. Does not suppress exceptions.
 )"},
     // add_atom
-    {"add_atom", to_function<&Backend::addAtom>(), METH_NOARGS,
-R"(add_atom(self) -> Int
+    {"add_atom", to_function<&Backend::addAtom>(), METH_VARARGS | METH_KEYWORDS,
+R"(add_atom(self, symbol) -> Int
 
-Return a fresh program atom.)"},
+Return a fresh program atom or the atom associated with the given symbol.
+
+If the given symbol does not exist in the atom base, it is added first. Such
+atoms will be used in susequents calls to ground for instantiation.
+
+Keyword Arguments:
+symbol -- optional symbol (Default: None)
+)"},
     // add_rule
     {"add_rule", to_function<&Backend::addRule>(), METH_VARARGS | METH_KEYWORDS,
 R"(add_rule(self, head, body, choice) -> None
