@@ -1818,6 +1818,7 @@ public:
     void heuristic(atom_t atom, HeuristicType type, int bias, unsigned priority, LiteralSpan condition);
     void acyc_edge(int node_u, int node_v, LiteralSpan condition);
     atom_t add_atom();
+    atom_t add_atom(Symbol symbol);
     clingo_backend_t *to_c() const { return backend_; }
     ~Backend();
 private:
@@ -2928,6 +2929,13 @@ inline void Backend::acyc_edge(int node_u, int node_v, LiteralSpan condition) {
 inline atom_t Backend::add_atom() {
     clingo_atom_t ret;
     Detail::handle_error(clingo_backend_add_atom(backend_, nullptr, &ret));
+    return ret;
+}
+
+inline atom_t Backend::add_atom(Symbol symbol) {
+    clingo_atom_t ret;
+    clingo_symbol_t sym = symbol.to_c();
+    Detail::handle_error(clingo_backend_add_atom(backend_, &sym, &ret));
     return ret;
 }
 
