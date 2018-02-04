@@ -2006,7 +2006,13 @@ struct Backend : Object<Backend> {
     static luaL_Reg const meta[];
 
     static int addAtom(lua_State *L) {
-        lua_pushinteger(L, call_c(L, clingo_backend_add_atom, get_self(L).backend, nullptr));
+        symbol_wrapper sym;
+        clingo_symbol_t *symp = nullptr;
+        if (!lua_isnone(L, 2) && !lua_isnil(L, 2)) {
+            luaToCpp(L, 2, sym);
+            symp = &sym.symbol;
+        }
+        lua_pushinteger(L, call_c(L, clingo_backend_add_atom, get_self(L).backend, symp));
         return 1;
     }
 
