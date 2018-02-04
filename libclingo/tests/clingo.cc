@@ -163,16 +163,26 @@ TEST_CASE("solving", "[clingo]") {
         }
         SECTION("backend") {
             // NOTE: ground has to be called before using the backend
-            auto backend = ctl.backend();
-            literal_t a = backend.add_atom(), b = backend.add_atom();
-            backend.rule(true, {atom_t(a)}, {});
-            backend.rule(false, {atom_t(b)}, {-a});
+            literal_t a, b;
+            {
+                auto backend = ctl.backend();
+                a = backend.add_atom();
+                b = backend.add_atom();
+                backend.rule(true, {atom_t(a)}, {});
+                backend.rule(false, {atom_t(b)}, {-a});
+            }
             test_solve(ctl.solve(), models);
             REQUIRE(models == (ModelVec{{},{}}));
-            backend.assume({a});
+            {
+                auto backend = ctl.backend();
+                backend.assume({a});
+            }
             test_solve(ctl.solve(), models);
             REQUIRE(models == (ModelVec{{}}));
-            backend.minimize(1, {{a,1},{b,1}});
+            {
+                auto backend = ctl.backend();
+                backend.minimize(1, {{a,1},{b,1}});
+            }
             test_solve(ctl.solve(), models);
             REQUIRE(ctl.statistics()["summary.costs"].size() == 1);
             REQUIRE(ctl.statistics()["summary.costs"][size_t(0)] == 1);
@@ -182,39 +192,76 @@ TEST_CASE("solving", "[clingo]") {
         }
         SECTION("backend-project") {
             ctl.configuration()["solve.project"] = "auto";
-            auto backend = ctl.backend();
-            atom_t a = backend.add_atom(), b = backend.add_atom();
-            backend.rule(true, {a, b}, {});
-            backend.project({a});
+            {
+                auto backend = ctl.backend();
+                atom_t a = backend.add_atom(), b = backend.add_atom();
+                backend.rule(true, {a, b}, {});
+                backend.project({a});
+            }
             test_solve(ctl.solve(), models);
             REQUIRE(models == (ModelVec{{},{}}));
         }
         SECTION("backend-external") {
-            auto backend = ctl.backend();
-            atom_t a = backend.add_atom();
-            backend.external(a, ExternalType::Free);
-            test_solve(ctl.solve(), models);
-            REQUIRE(models == (ModelVec{{},{}}));
-            backend.external(a, ExternalType::Release);
+            {
+                auto backend = ctl.backend();
+                atom_t a = backend.add_atom();
+                backend.external(a, ExternalType::Free);
+                test_solve(ctl.solve(), models);
+                REQUIRE(models == (ModelVec{{},{}}));
+                backend.external(a, ExternalType::Release);
+            }
             test_solve(ctl.solve(), models);
             REQUIRE(models == (ModelVec{{}}));
         }
         SECTION("backend-acyc") {
-            auto backend = ctl.backend();
-            atom_t a = backend.add_atom(), b = backend.add_atom();
-            backend.rule(true, {a, b}, {});
-            backend.acyc_edge(1, 2, {literal_t(a)});
-            backend.acyc_edge(2, 1, {literal_t(b)});
+            {
+                auto backend = ctl.backend();
+                atom_t a = backend.add_atom(), b = backend.add_atom();
+                backend.rule(true, {a, b}, {});
+                backend.acyc_edge(1, 2, {literal_t(a)});
+                backend.acyc_edge(2, 1, {literal_t(b)});
+            }
             test_solve(ctl.solve(), models);
             REQUIRE(models == (ModelVec{{},{},{}}));
         }
         SECTION("backend-weight-rule") {
-            auto backend = ctl.backend();
-            atom_t a = backend.add_atom(), b = backend.add_atom();
-            backend.rule(true, {a, b}, {});
-            backend.weight_rule(false, {}, 1, {{literal_t(a),1}, {literal_t(b),1}});
+            {
+                auto backend = ctl.backend();
+                atom_t a = backend.add_atom(), b = backend.add_atom();
+                backend.rule(true, {a, b}, {});
+                backend.weight_rule(false, {}, 1, {{literal_t(a),1}, {literal_t(b),1}});
+            }
             test_solve(ctl.solve(), models);
             REQUIRE(models == (ModelVec{{}}));
+        }
+        SECTION("backend-add-atom") {
+            auto a = [](int x) { return Function("a", {Number(x)}); };
+            auto b = [](int x) { return Function("b", {Number(x)}); };
+            auto c = [](int x) { return Function("c", {Number(x)}); };
+            auto d = [](int x) { return Function("d", {Number(x)}); };
+            auto e = [](int x) { return Function("e", {Number(x)}); };
+            {
+                auto backend = ctl.backend();
+                auto aa = backend.add_atom(a(2));
+                auto ab = backend.add_atom(b(1));
+                backend.rule(true, {aa}, {});
+                backend.rule(true, {ab}, {});
+            }
+
+            ctl.ground({{"base", {}}});
+
+            {
+                auto backend = ctl.backend();
+                auto ae = backend.add_atom(e(3));
+                backend.rule(false, {ae}, {});
+            }
+            test_solve(ctl.solve(), models);
+            REQUIRE(models == (ModelVec{{ a(2), b(1), e(3) }, { a(2), e(3) }, { b(1), e(3) }, { e(3) }}));
+
+            ctl.ground({{"multi", {}}});
+            test_solve(ctl.solve(), models);
+            REQUIRE(models == (ModelVec{{ a(2), b(1), e(3) }, { a(2), e(3) }, { b(1), e(3) }, { e(3) }}));
+
         }
         SECTION("optimize") {
             ctl.add("base", {}, "2 {a; b; c; d}.\n"
