@@ -5568,13 +5568,13 @@ Follows python __exit__ conventions. Does not suppress exceptions.
 // {{{1 wrap MessageCode
 
 struct MessageCode : EnumType<MessageCode> {
-    static constexpr char const *tp_type = "TheoryTermType";
-    static constexpr char const *tp_name = "clingo.TheoryTermType";
+    static constexpr char const *tp_type = "MessageCode";
+    static constexpr char const *tp_name = "clingo.MessageCode";
     static constexpr char const *tp_doc =
-R"(Enumeration of the different types of theory terms.
+R"(Enumeration of the different types of messages.
 
-TheoryTermType objects cannot be constructed from python. Instead the
-following preconstructed objects are available:
+MessageCode objects cannot be constructed from python. Instead the following
+preconstructed objects are available:
 
 MessageCode.OperationUndefined -- undefined arithmetic operation or weight of aggregate
 MessageCode.RuntimeError       -- to report multiple errors; a corresponding runtime error is raised later
