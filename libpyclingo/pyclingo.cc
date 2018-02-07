@@ -3194,8 +3194,8 @@ R"(Enumeration of the different truth values.
 TruthValue objects cannot be constructed from python. Instead the following
 preconstructed objects are available:
 
-TruthValue.True    -- truth value true
-TruthValue.False   -- truth value false
+TruthValue._True   -- truth value true
+TruthValue._False  -- truth value false
 TruthValue.Free    -- no truth value
 TruthValue.Release -- indicates that an atom is to be released)";
 
@@ -3206,8 +3206,8 @@ TruthValue.Release -- indicates that an atom is to be released)";
         clingo_external_type_release
     };
     static constexpr const char * const strings[] = {
-        "True",
-        "False",
+        "_True",
+        "_False",
         "Free",
         "Release"
     };
@@ -3394,6 +3394,18 @@ format.)";
         Py_RETURN_NONE;
     }
 
+    Object addExternal(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"head", "value", nullptr};
+        Reference pyAtom = Py_None;
+        Reference pyValue = nullptr;
+        ParseTupleAndKeywords(pyargs, pykwds, "O|O", kwlist, pyAtom, pyValue);
+        clingo_atom_t atom;
+        pyToCpp(pyAtom, atom);
+        clingo_external_type_t value = pyValue.valid() ? enumValue<TruthValue>(pyValue) : clingo_truth_value_false;;
+        handle_c_error(clingo_backend_external(backend, atom, value));
+        Py_RETURN_NONE;
+    }
+
     Object addWeightRule(Reference pyargs, Reference pykwds) {
         static char const *kwlist[] = {"head", "lower", "body", "choice", nullptr};
         Reference pyHead = Py_None;
@@ -3446,6 +3458,20 @@ atoms will be used in susequents calls to ground for instantiation.
 
 Keyword Arguments:
 symbol -- optional symbol (Default: None)
+)"},
+    // add_external
+    {"add_external", to_function<&Backend::addExternal>(), METH_VARARGS | METH_KEYWORDS,
+R"(add_atom(self, atom, value) -> Int
+
+Mark an atom as external optionally fixing its truth value.
+
+Can also be used to unmark an external atom.
+
+Arguments:
+atom  -- the atom to mark as external
+
+Keyword Arguments:
+value -- optional truth value (Default: TruthValue._False)
 )"},
     // add_rule
     {"add_rule", to_function<&Backend::addRule>(), METH_VARARGS | METH_KEYWORDS,
