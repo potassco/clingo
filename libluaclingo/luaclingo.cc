@@ -1997,6 +1997,55 @@ luaL_Reg const Configuration::meta[] = {
 
 // {{{1 wrap wrap Backend
 
+struct ExternalType : Object<ExternalType> {
+    using Type = clingo_external_type_t;
+    Type type;
+    ExternalType(Type type) : type(type) { }
+    Type cmpKey() { return type; }
+    static int addToRegistry(lua_State *L) {
+        lua_createtable(L, 0, 4);
+        for (auto t : { clingo_external_type_true, clingo_external_type_false, clingo_external_type_free, clingo_external_type_release }) {
+            Object::new_(L, t);
+            lua_setfield(L, -2, field_(t));
+        }
+        lua_setfield(L, -2, "ExternalType");
+        return 0;
+    }
+    static char const *field_(Type t) {
+        switch (static_cast<clingo_external_type>(t)) {
+            case clingo_external_type_true:    { return "True"; }
+            case clingo_external_type_false:   { return "False"; }
+            case clingo_external_type_free:    { return "Free"; }
+            case clingo_external_type_release: { break; }
+        }
+        return "Release";
+    }
+    static int new_(lua_State *L, Type t) {
+        lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
+        lua_getfield(L, -1, "ExternalType");
+        lua_replace(L, -2);
+        lua_getfield(L, -1, field_(t));
+        lua_replace(L, -2);
+        return 1;
+    }
+    static int toString(lua_State *L) {
+        lua_pushstring(L, field_(get_self(L).type));
+        return 1;
+    }
+    static luaL_Reg const meta[];
+    static constexpr char const *typeName = "clingo.ExternalType";
+};
+
+constexpr char const *ExternalType::typeName;
+
+luaL_Reg const ExternalType::meta[] = {
+    {"__eq", eq},
+    {"__lt", lt},
+    {"__le", le},
+    {"__tostring", toString},
+    { nullptr, nullptr }
+};
+
 struct Backend : Object<Backend> {
     clingo_backend_t *backend;
 
@@ -2033,6 +2082,18 @@ struct Backend : Object<Backend> {
         lua_pop(L, 1);
         handle_c_error(L, clingo_backend_rule(self.backend, choice, head->data(), head->size(), body->data(), body->size()));
         lua_pop(L, 2);                                                // -2
+        return 0;
+    }
+
+    static int addExternal(lua_State *L) {
+        auto &self = get_self(L);
+        clingo_atom_t atom;
+        clingo_external_type_t value = clingo_external_type_false;
+        luaToCpp(L, 2, atom);
+        if (!lua_isnone(L, 3) && !lua_isnil(L, 3)) {
+            value = static_cast<ExternalType*>(luaL_checkudata(L, 3, ExternalType::typeName))->type;
+        }
+        handle_c_error(L, clingo_backend_external(self.backend, atom, value));
         return 0;
     }
 
@@ -2086,6 +2147,7 @@ struct Backend : Object<Backend> {
 luaL_Reg const Backend::meta[] = {
     {"add_atom", addAtom},
     {"add_rule", addRule},
+    {"add_external", addExternal},
     {"add_weight_rule", addWeightRule},
     {"add_minimize", addMinimize},
     {"close", close},
@@ -2613,55 +2675,6 @@ private:
 };
 
 // {{{1 wrap GroundProgramObserver
-
-struct ExternalType : Object<ExternalType> {
-    using Type = clingo_external_type_t;
-    Type type;
-    ExternalType(Type type) : type(type) { }
-    Type cmpKey() { return type; }
-    static int addToRegistry(lua_State *L) {
-        lua_createtable(L, 0, 4);
-        for (auto t : { clingo_external_type_true, clingo_external_type_false, clingo_external_type_free, clingo_external_type_release }) {
-            Object::new_(L, t);
-            lua_setfield(L, -2, field_(t));
-        }
-        lua_setfield(L, -2, "ExternalType");
-        return 0;
-    }
-    static char const *field_(Type t) {
-        switch (static_cast<clingo_external_type>(t)) {
-            case clingo_external_type_true:    { return "True"; }
-            case clingo_external_type_false:   { return "False"; }
-            case clingo_external_type_free:    { return "Free"; }
-            case clingo_external_type_release: { break; }
-        }
-        return "Release";
-    }
-    static int new_(lua_State *L, Type t) {
-        lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
-        lua_getfield(L, -1, "ExternalType");
-        lua_replace(L, -2);
-        lua_getfield(L, -1, field_(t));
-        lua_replace(L, -2);
-        return 1;
-    }
-    static int toString(lua_State *L) {
-        lua_pushstring(L, field_(get_self(L).type));
-        return 1;
-    }
-    static luaL_Reg const meta[];
-    static constexpr char const *typeName = "clingo.ExternalType";
-};
-
-constexpr char const *ExternalType::typeName;
-
-luaL_Reg const ExternalType::meta[] = {
-    {"__eq", eq},
-    {"__lt", lt},
-    {"__le", le},
-    {"__tostring", toString},
-    { nullptr, nullptr }
-};
 
 struct HeuristicType : Object<HeuristicType> {
     using Type = clingo_heuristic_type_t;
