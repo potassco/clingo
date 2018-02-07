@@ -1,10 +1,12 @@
+{% set name = 'clingo' %}
+
 package:
-  name: clingo
+  name: {{ name }}
   version: 5.3.0
 
 source:
-  git_rev: wip
-  git_url: https://github.com/potassco/clingo.git
+  git_rev: backend
+  git_url: https://github.com/potassco/{{ name }}.git
 
 requirements:
   build:
@@ -15,6 +17,9 @@ requirements:
     - python
   run:
     - python
+
+build:
+  number: 2
 
 test:
   commands:
@@ -30,3 +35,5 @@ about:
   summary: A grounder and solver for logic programs.
   description: Clingo is an answer set programming (ASP) system that takes a logic program as input and calculates its answer sets.
   license_file: LICENSE.md
+  doc_url: https://potassco.org/
+  dev_url: https://github.com/potassco/{{ name }}
