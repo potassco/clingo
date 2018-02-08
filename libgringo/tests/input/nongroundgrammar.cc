@@ -1250,7 +1250,9 @@ TEST_CASE("input-nongroundprogrambuilder", "[input]") {
     SECTION("theory") {
         // NOTE: things would be less error prone if : and ; would not be valid theory connectives
         REQUIRE("#program base().\n&x{}." == parse("&x { }."));
+        REQUIRE("#program base().\n&x{}." == parse("&x."));
         REQUIRE("#program base().\n#false:-&x{}." == parse(":-&x { }."));
+        REQUIRE("#program base().\n#false:-&x{}." == parse(":-&x."));
         REQUIRE("#program base().\n&x{} < 42." == parse("&x { } < 42."));
         REQUIRE("#program base().\n#false:-&x{} < 42." == parse(":-&x { } < 42."));
         REQUIRE("#program base().\n#false:-&x{} < 42 + 17 ^ (- 1)." == parse(":-&x { } < 42+17^(-1)."));
