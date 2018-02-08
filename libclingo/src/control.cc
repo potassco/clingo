@@ -1519,6 +1519,16 @@ public:
         assert(has_log());
         app_.logger(static_cast<clingo_warning_t>(code), message, data_);
     }
+    bool has_printer() const override { return app_.printer; }
+    void print_model(Model *model, std::function<void()> printer) override {
+        handleCError(app_.printer(model, [](void *data) {
+            GRINGO_CLINGO_TRY {
+                (*static_cast<std::function<void()>*>(data))();
+            }
+            GRINGO_CLINGO_CATCH;
+        }, &printer, data_));
+    }
+
     void register_options(ClingoApp &app) override {
         if (app_.register_options) {
             handleCError(app_.register_options(static_cast<clingo_options_t*>(&app), data_));

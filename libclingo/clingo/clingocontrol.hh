@@ -208,6 +208,11 @@ public:
         static_cast<void>(message);
         std::terminate();
     }
+    virtual bool has_printer() const { return false; }
+    virtual void print_model(Model *model, std::function<void()> printer) {
+        static_cast<void>(model);
+        printer();
+    }
     virtual void register_options(ClingoApp &app) { static_cast<void>(app); }
     virtual void validate_options() { }
     virtual ~IClingoApp() = default;

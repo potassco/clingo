@@ -6752,6 +6752,39 @@ bool g_app_register_options(clingo_options_t *options, void *data) {
     }
 }
 
+PyObject* call_printer(PyObject *data) {
+    PY_TRY {
+        auto d = static_cast<std::pair<clingo_default_model_printer_t, void*>*>(PyCapsule_GetPointer(data, nullptr));
+        if (!d) { return nullptr; }
+        handle_c_error(d->first(d->second));
+        Py_RETURN_NONE;
+    }
+    PY_CATCH(nullptr);
+}
+
+PyMethodDef call_printer_def = {
+    "clingo.default_model_printer",
+    reinterpret_cast<PyCFunction>(call_printer),
+    METH_NOARGS,
+    nullptr
+};
+
+bool g_app_model_printer(clingo_model_t *model, clingo_default_model_printer_t printer, void *printer_data, void *data) {
+    PyBlock block;
+    try {
+        AppData &pyApp = *static_cast<AppData*>(data);
+        std::pair<clingo_default_model_printer_t, void*> pd{printer, printer_data};
+        Object ptr = PyCapsule_New(&pd, nullptr, nullptr);
+        Object pyP = PyCFunction_New(&call_printer_def, ptr.toPy());
+        pyApp.first.call("print_model", Model::construct(model), pyP);
+        return true;
+    }
+    catch (...) {
+        handle_cxx_error("<application>", "error during model printing");
+        return false;
+    }
+}
+
 bool g_app_validate_options(void *data) {
     try {
         AppData &pyApp = *static_cast<AppData*>(data);
@@ -6792,6 +6825,7 @@ Object clingoMain(Reference args, Reference kwds) {
         pyApp.hasAttr("message_limit") ? g_app_message_limit : nullptr,
         g_app_main,
         pyApp.hasAttr("logger") ? g_app_logger : nullptr,
+        pyApp.hasAttr("print_model") ? g_app_model_printer : nullptr,
         pyApp.hasAttr("register_options") ? g_app_register_options : nullptr,
         pyApp.hasAttr("validate_options") ? g_app_validate_options : nullptr,
     };

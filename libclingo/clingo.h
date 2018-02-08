@@ -3345,6 +3345,23 @@ typedef struct clingo_options clingo_options_t;
 //! @return whether the call was successful
 typedef bool (*clingo_main_function_t) (clingo_control_t *control, char const *const * files, size_t size, void *data);
 
+//! Callback to print a model in default format.
+//!
+//! @param[in] data user data for the callback
+//!
+//! @return whether the call was successful
+typedef bool (*clingo_default_model_printer_t) (void *data);
+
+//! Callback to customize model printing.
+//!
+//! @param[in] model the model
+//! @param[in] printer the default model printer
+//! @param[in] printer_data user data for the printer
+//! @param[in] data user data for the callback
+//!
+//! @return whether the call was successful
+typedef bool (*clingo_model_printer_t) (clingo_model_t *model, clingo_default_model_printer_t printer, void *printer_data, void *data);
+
 //! This struct contains a set of functions to customize the clingo application.
 typedef struct clingo_application {
     char const *(*program_name) (void *data);                        //!< callback to obtain program name
@@ -3352,6 +3369,7 @@ typedef struct clingo_application {
     unsigned (*message_limit) (void *data);                          //!< callback to obtain message limit
     clingo_main_function_t main;                                     //!< callback to override clingo's main function
     clingo_logger_t logger;                                          //!< callback to override default logger
+    clingo_model_printer_t printer;                                  //!< callback to override default model printing
     bool (*register_options)(clingo_options_t *options, void *data); //!< callback to register options
     bool (*validate_options)(void *data);                            //!< callback validate options
 } clingo_application_t;

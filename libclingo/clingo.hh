@@ -2128,6 +2128,7 @@ struct ClingoApplication {
     virtual char const *version() const noexcept;
     virtual void main(Control &ctl, StringSpan files) = 0;
     virtual void log(WarningCode code, char const *message) noexcept;
+    virtual void print_model(Model const &model, std::function<void()> default_printer) noexcept;
     virtual void register_options(ClingoOptions &app);
     virtual void validate_options();
     virtual ~ClingoApplication() = default;
@@ -4178,6 +4179,9 @@ inline char const *ClingoApplication::program_name() const noexcept {
 inline char const *ClingoApplication::version() const noexcept {
     return CLINGO_VERSION;
 }
+inline void ClingoApplication::print_model(Model const &, std::function<void()> default_printer) noexcept {
+    default_printer();
+}
 inline void ClingoApplication::log(WarningCode, char const *message) noexcept {
     fprintf(stderr, "%s\n", message);
     fflush(stderr);
@@ -4221,6 +4225,16 @@ inline static bool g_main(clingo_control_t *control, char const *const * files, 
 inline static void g_logger(clingo_warning_t code, char const *message, void *adata) {
     ApplicationData &data = *static_cast<ApplicationData*>(adata);
     return data.app.log(static_cast<WarningCode>(code), message);
+}
+
+inline static bool g_model_printer(clingo_model_t *model, clingo_default_model_printer_t printer, void *printer_data, void *data) {
+    ApplicationData &app_data = *static_cast<ApplicationData*>(data);
+    CLINGO_TRY {
+        app_data.app.print_model(Model(model), [&]() {
+            Detail::handle_error(printer(printer_data));
+        });
+    }
+    CLINGO_CATCH;
 }
 
 inline static bool g_register_options(clingo_options_t *options, void *adata) {
@@ -4976,6 +4990,7 @@ inline int clingo_main(ClingoApplication &application, StringSpan arguments) {
         Detail::g_message_limit,
         Detail::g_main,
         Detail::g_logger,
+        Detail::g_model_printer,
         Detail::g_register_options,
         Detail::g_validate_options
     };
