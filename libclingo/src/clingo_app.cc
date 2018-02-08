@@ -177,7 +177,7 @@ void ClingoApp::printVersion() {
     char const *lua_version = clingo_script_version_(clingo_ast_script_type_lua);
     Potassco::Application::printVersion();
     printf("\n");
-    printf("libgringo version " CLINGO_VERSION "\n");
+    printf("libclingo version " CLINGO_VERSION "\n");
     printf("Configuration: %s%s, %s%s\n",
          py_version ? "with Python " : "without Python", py_version ?  py_version : "",
         lua_version ? "with Lua "    : "without Lua",   lua_version ? lua_version : "");

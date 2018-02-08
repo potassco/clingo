@@ -2125,6 +2125,7 @@ private:
 struct ClingoApplication {
     virtual unsigned message_limit() const noexcept;
     virtual char const *program_name() const noexcept;
+    virtual char const *version() const noexcept;
     virtual void main(Control &ctl, StringSpan files) = 0;
     virtual void log(WarningCode code, char const *message) noexcept;
     virtual void register_options(ClingoOptions &app);
@@ -4174,6 +4175,9 @@ inline unsigned ClingoApplication::message_limit() const noexcept {
 inline char const *ClingoApplication::program_name() const noexcept {
     return "clingo";
 }
+inline char const *ClingoApplication::version() const noexcept {
+    return CLINGO_VERSION;
+}
 inline void ClingoApplication::log(WarningCode, char const *message) noexcept {
     fprintf(stderr, "%s\n", message);
     fflush(stderr);
@@ -4198,6 +4202,11 @@ inline static unsigned g_message_limit(void *adata) {
 inline static char const *g_program_name(void *adata) {
     ApplicationData &data = *static_cast<ApplicationData*>(adata);
     return data.app.program_name();
+}
+
+inline static char const *g_version(void *adata) {
+    ApplicationData &data = *static_cast<ApplicationData*>(adata);
+    return data.app.version();
 }
 
 inline static bool g_main(clingo_control_t *control, char const *const * files, size_t size, void *adata) {
@@ -4963,6 +4972,7 @@ inline int clingo_main(ClingoApplication &application, StringSpan arguments) {
     Detail::ApplicationData data{application, Detail::ParserList{}};
     static clingo_application_t g_app = {
         Detail::g_program_name,
+        Detail::g_version,
         Detail::g_message_limit,
         Detail::g_main,
         Detail::g_logger,

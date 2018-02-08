@@ -3348,6 +3348,7 @@ typedef bool (*clingo_main_function_t) (clingo_control_t *control, char const *c
 //! This struct contains a set of functions to customize the clingo application.
 typedef struct clingo_application {
     char const *(*program_name) (void *data);                        //!< callback to obtain program name
+    char const *(*version) (void *data);                             //!< callback to obtain version information
     unsigned (*message_limit) (void *data);                          //!< callback to obtain message limit
     clingo_main_function_t main;                                     //!< callback to override clingo's main function
     clingo_logger_t logger;                                          //!< callback to override default logger

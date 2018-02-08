@@ -3401,7 +3401,7 @@ format.)";
         ParseTupleAndKeywords(pyargs, pykwds, "O|O", kwlist, pyAtom, pyValue);
         clingo_atom_t atom;
         pyToCpp(pyAtom, atom);
-        clingo_external_type_t value = pyValue.valid() ? enumValue<TruthValue>(pyValue) : clingo_truth_value_false;;
+        clingo_external_type_t value = pyValue.valid() ? enumValue<TruthValue>(pyValue) : clingo_external_type_false;;
         handle_c_error(clingo_backend_external(backend, atom, value));
         Py_RETURN_NONE;
     }
@@ -6688,6 +6688,21 @@ char const *g_app_program_name(void *data) {
     }
 }
 
+char const *g_app_version(void *data) {
+    try {
+        AppData &pyApp = *static_cast<AppData*>(data);
+        Object name = pyApp.first.getAttr("version");
+        char const *s;
+        handle_c_error(clingo_add_string(pyToCpp<std::string>(name).c_str(), &s));
+        return s;
+    }
+    catch (...) {
+        handle_cxx_error("<application>", "error when getting version");
+        std::cerr << clingo_error_message() << std::endl;
+        std::terminate();
+    }
+}
+
 unsigned g_app_message_limit(void *data) {
     try {
         AppData &pyApp = *static_cast<AppData*>(data);
@@ -6773,6 +6788,7 @@ Object clingoMain(Reference args, Reference kwds) {
     for (auto &s : sArgs) { cArgs.emplace_back(s.c_str()); }
     clingo_application_t app {
         pyApp.hasAttr("program_name") ? g_app_program_name : nullptr,
+        pyApp.hasAttr("version") ? g_app_version : nullptr,
         pyApp.hasAttr("message_limit") ? g_app_message_limit : nullptr,
         g_app_main,
         pyApp.hasAttr("logger") ? g_app_logger : nullptr,

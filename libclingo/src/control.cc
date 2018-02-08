@@ -1488,11 +1488,19 @@ public:
         }
     }
     char const *program_name() const override {
-        if (app_.message_limit) {
+        if (app_.program_name) {
             return app_.program_name(data_);
         }
         else {
             return IClingoApp::program_name();
+        }
+    }
+    char const *version() const override {
+        if (app_.version) {
+            return app_.version(data_);
+        }
+        else {
+            return IClingoApp::version();
         }
     }
     bool has_main() const override {
