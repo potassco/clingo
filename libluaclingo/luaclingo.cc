@@ -3042,7 +3042,7 @@ struct ControlWrap : Object<ControlWrap> {
     static int get_c_control(lua_State *L) {
         auto &self = get_self(L);
         lua_pushlightuserdata(L,self.ctl);
-        return 0;
+        return 1;
     }
     static int get_const(lua_State *L) {
         auto &self = get_self(L);
