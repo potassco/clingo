@@ -3182,6 +3182,25 @@ bool propagator_check(clingo_propagate_control_t *control, PyObject *prop) {
     }
 }
 
+bool propagator_extend_model(int thread_id, bool complement, clingo_symbol_callback_t symbol_callback, void* symbol_callback_data, PyObject *prop) {
+    PyBlock block;
+    try {
+        if (!PyObject_HasAttrString(prop, "extend_model")) { return true; }
+        Object i = cppToPy(thread_id);
+        Object c = cppToPy(complement);
+        std::vector<symbol_wrapper> v;
+        Object s = cppToPy(v);
+        Object n  = PyString_FromString("extend_model");
+        Object ret = PyObject_CallMethodObjArgs(prop, n.toPy(), i.toPy(), c.toPy(), s.toPy(), nullptr); 
+        pyToCpp(s,v);
+        return symbol_callback(reinterpret_cast<const clingo_symbol_t*>(v.data()), v.size(), symbol_callback_data);
+    }
+    catch (...) {
+        handle_cxx_error("Propagator::extend_model", "error during model extension");
+        return false;
+    }
+}
+
 // {{{1 wrap observer
 
 struct TruthValue : EnumType<TruthValue> {
@@ -5919,7 +5938,8 @@ active; you must not call any member function during search.)";
             reinterpret_cast<decltype(clingo_propagator_t::init)>(propagator_init),
             reinterpret_cast<decltype(clingo_propagator_t::propagate)>(propagator_propagate),
             reinterpret_cast<decltype(clingo_propagator_t::undo)>(propagator_undo),
-            reinterpret_cast<decltype(clingo_propagator_t::check)>(propagator_check)
+            reinterpret_cast<decltype(clingo_propagator_t::check)>(propagator_check),
+            reinterpret_cast<decltype(clingo_propagator_t::extend_model)>(propagator_extend_model)
         };
         prop.emplace_back(tp);
         handle_c_error(clingo_control_register_propagator(ctl, &propagator, tp.toPy(), false));
@@ -6475,7 +6495,20 @@ class Propagator(object)
         Arguments:
         control -- PropagateControl object
 
-        This function is called even if no watches have been added.)"},
+        This function is called even if no watches have been added.
+
+    extend_model(self, thread_id, complement, symbols) -> None
+        This function is called whenever a model is printed (not when it is found).
+        The model can be extended by any number of symbols.
+
+
+        Arguments:
+        thread_id -- the solver thread id
+        complement -- true if the complement of the model is requested
+        symbols -- a list of symbols to be added to the model
+	
+
+        When exactly this function is called, depends on the current output mode.)"},
     {"interrupt", to_function<&ControlWrap::interrupt>(), METH_NOARGS,
 R"(interrupt(self) -> None
 

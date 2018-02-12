@@ -185,6 +185,7 @@ namespace Gringo {
 struct Propagator : Potassco::AbstractPropagator {
     virtual ~Propagator() noexcept = default;
     virtual void init(Gringo::PropagateInit &init) = 0;
+    virtual void extend_model(int threadId, bool complement, SymVec&) { }
 };
 using UProp = std::unique_ptr<Propagator>;
 

@@ -1476,6 +1476,18 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_add_clause(clingo_propag
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_control_propagate(clingo_propagate_control_t *control, bool *result);
 
 //! @}
+//! Callback function to inject symbols.
+//!
+//! @param symbols array of symbols
+//! @param symbols_size size of the symbol array
+//! @param data user data of the callback
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! @see ::clingo_ground_callback_t
+//! @see ::clingo_extend_model
+typedef bool (*clingo_symbol_callback_t) (clingo_symbol_t const *symbols, size_t symbols_size, void *data);
+
+
 
 //! Typedef for @ref ::clingo_propagator::init().
 typedef bool (*clingo_propagator_init_callback_t) (clingo_propagate_init_t *, void *);
@@ -1488,6 +1500,9 @@ typedef bool (*clingo_propagator_undo_callback_t) (clingo_propagate_control_t *,
 
 //! Typedef for @ref ::clingo_propagator::check().
 typedef bool (*clingo_propagator_check_callback_t) (clingo_propagate_control_t *, void *);
+
+//! Typedef for @ref ::clingo_propagator::extend_model().
+typedef bool (*clingo_propagator_extend_model_callback_t) (int, bool, clingo_symbol_callback_t  symbol_callback, void *symbol_callback_dataconst, void *);
 
 //! An instance of this struct has to be registered with a solver to implement a custom propagator.
 //!
@@ -1568,6 +1583,19 @@ typedef struct clingo_propagator {
     //! @return whether the call was successful
     //! @see ::clingo_propagator_check_callback_t
     bool (*check) (clingo_propagate_control_t *control, void *data);
+    //! This function is called whenever a model is printed (not when it is found).
+    //! The model can be extended by any number of symbols.
+    //!
+    //! When exactly this function is called, depends on the current output mode.
+    //!
+    //! @param[in] thread id of the solver that found the model
+    //! @param[in] flag to indicate that the complement of the model is requested
+    //! @param[out] a vector of symbols
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    //! @see ::clingo_propagator_extend_model_callback_t
+    bool (*extend_model) (int, bool, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *);
+
 } clingo_propagator_t;
 
 //! @}
@@ -2970,16 +2998,6 @@ typedef struct clingo_part {
     clingo_symbol_t const *params; //!< array of parameters
     size_t size;                   //!< number of parameters
 } clingo_part_t;
-
-//! Callback function to inject symbols.
-//!
-//! @param symbols array of symbols
-//! @param symbols_size size of the symbol array
-//! @param data user data of the callback
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! @see ::clingo_ground_callback_t
-typedef bool (*clingo_symbol_callback_t) (clingo_symbol_t const *symbols, size_t symbols_size, void *data);
 
 //! Callback function to implement external functions.
 //!

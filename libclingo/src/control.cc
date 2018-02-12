@@ -1226,6 +1226,16 @@ public:
     void check(Potassco::AbstractSolver& solver) override {
         if (prop_.check && !prop_.check(static_cast<clingo_propagate_control_t*>(&solver), data_)) { throw ClingoError(); }
     }
+    void extend_model(int threadId, bool complement, SymVec& symVec) override {
+	auto l = [](clingo_symbol_t const *symbols, size_t symbols_size, void *data) -> bool { 
+	    reinterpret_cast<SymVec*>(data)->insert(reinterpret_cast<SymVec*>(data)->end(),
+	                                            reinterpret_cast<const Symbol*>(symbols),
+						    reinterpret_cast<const Symbol*>(symbols+symbols_size));
+	    return true;
+	    };
+	if (prop_.extend_model && !prop_.extend_model(threadId, complement, l, &symVec, data_))
+	    { throw ClingoError(); }
+    }
 private:
     clingo_propagator_t prop_;
     void *data_;
