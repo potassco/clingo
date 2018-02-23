@@ -75,6 +75,9 @@ void handleCXXError();
 #define GRINGO_CLINGO_TRY try
 #define GRINGO_CLINGO_CATCH catch (...) { handleCXXError(); return false; } return true
 
+#define GRINGO_CALLBACK_TRY try
+#define GRINGO_CALLBACK_CATCH(ref) catch (...){ (ref) = std::current_exception(); return false; } return true
+
 template <class F>
 size_t print_size(F f) {
     CountStream cs;
@@ -136,6 +139,13 @@ void handleCError(bool ret, std::exception_ptr *exc) {
             case clingo_error_unknown:   { throw std::runtime_error(msg); }
             case clingo_error_success:   { throw std::runtime_error(msg); }
         }
+    }
+}
+
+void forwardCError(bool ret, std::exception_ptr *exc) {
+    if (!ret) {
+        if (exc && *exc) { std::rethrow_exception(*exc); }
+        else             { throw ClingoError(); }
     }
 }
 
@@ -1226,6 +1236,19 @@ public:
     void check(Potassco::AbstractSolver& solver) override {
         if (prop_.check && !prop_.check(static_cast<clingo_propagate_control_t*>(&solver), data_)) { throw ClingoError(); }
     }
+    void extend_model(int threadId, bool complement, SymVec& symVec) override {
+        using Data = std::pair<SymVec&, std::exception_ptr>;
+        Data data{symVec, {}};
+        auto l = [](clingo_symbol_t const *symbols, size_t symbols_size, void *pdata) -> bool {
+            auto &data = *reinterpret_cast<Data*>(pdata);
+            GRINGO_CALLBACK_TRY {
+                auto *begin = reinterpret_cast<Symbol const*>(symbols);
+                data.first.insert(data.first.end(), begin, begin + symbols_size);
+            }
+            GRINGO_CALLBACK_CATCH(data.second);
+        };
+        if (prop_.extend_model) { forwardCError(prop_.extend_model(threadId, complement, l, &data, data_), &data.second); }
+    }
 private:
     clingo_propagator_t prop_;
     void *data_;
@@ -1415,19 +1438,16 @@ private:
         using Data = std::pair<SymVec, std::exception_ptr>;
         Data data;
         auto l = conv(loc);
-        handleCError(script_.call(
+        forwardCError(script_.call(
             &l, name.c_str(), reinterpret_cast<clingo_symbol_t const *>(args.first), args.size,
-            [](clingo_symbol_t const *symbols, size_t symbols_size, void *data) {
-                try {
+            [](clingo_symbol_t const *symbols, size_t symbols_size, void *pdata) {
+                auto &data = *static_cast<Data*>(pdata);
+                GRINGO_CALLBACK_TRY {
                     for (auto it = symbols, ie = it + symbols_size; it != ie; ++it) {
-                        static_cast<SymVec*>(data)->emplace_back(Symbol{*it});
+                        data.first.emplace_back(Symbol{*it});
                     }
-                    return true;
                 }
-                catch (...) {
-                    handleCXXError();
-                    return false;
-                }
+                GRINGO_CALLBACK_CATCH(data.second);
             },
             &data, data_), &data.second);
         return data.first;

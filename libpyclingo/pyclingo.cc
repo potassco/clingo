@@ -3182,6 +3182,24 @@ bool propagator_check(clingo_propagate_control_t *control, PyObject *prop) {
     }
 }
 
+bool propagator_extend_model(int thread_id, bool complement, clingo_symbol_callback_t symbol_callback, void* symbol_callback_data, PyObject *prop) {
+    PyBlock block;
+    try {
+        if (!PyObject_HasAttrString(prop, "extend_model")) { return true; }
+        Object pyThreadId = cppToPy(thread_id);
+        Object pyComplement = cppToPy(complement);
+        Object n  = PyString_FromString("extend_model");
+        Object pySymbols = PyObject_CallMethodObjArgs(prop, n.toPy(), pyThreadId.toPy(), pyComplement.toPy(), nullptr);
+        std::vector<symbol_wrapper> symbols;
+        pyToCpp(pySymbols, symbols);
+        return symbol_callback(reinterpret_cast<const clingo_symbol_t*>(symbols.data()), symbols.size(), symbol_callback_data);
+    }
+    catch (...) {
+        handle_cxx_error("Propagator::extend_model", "error during model extension");
+        return false;
+    }
+}
+
 // {{{1 wrap observer
 
 struct TruthValue : EnumType<TruthValue> {
@@ -3468,7 +3486,7 @@ Mark an atom as external optionally fixing its truth value.
 Can also be used to unmark an external atom.
 
 Arguments:
-atom  -- the atom to mark as external
+atom -- the atom to mark as external
 
 Keyword Arguments:
 value -- optional truth value (Default: TruthValue._False)
@@ -5919,7 +5937,8 @@ active; you must not call any member function during search.)";
             reinterpret_cast<decltype(clingo_propagator_t::init)>(propagator_init),
             reinterpret_cast<decltype(clingo_propagator_t::propagate)>(propagator_propagate),
             reinterpret_cast<decltype(clingo_propagator_t::undo)>(propagator_undo),
-            reinterpret_cast<decltype(clingo_propagator_t::check)>(propagator_check)
+            reinterpret_cast<decltype(clingo_propagator_t::check)>(propagator_check),
+            reinterpret_cast<decltype(clingo_propagator_t::extend_model)>(propagator_extend_model)
         };
         prop.emplace_back(tp);
         handle_c_error(clingo_control_register_propagator(ctl, &propagator, tp.toPy(), false));
@@ -6475,7 +6494,17 @@ class Propagator(object)
         Arguments:
         control -- PropagateControl object
 
-        This function is called even if no watches have been added.)"},
+        This function is called even if no watches have been added.
+
+    extend_model(self, thread_id, complement, symbols) -> None
+        This function is called before a model is printed. The model is then
+        extended by the list of symbols returned by this function.
+
+        Arguments:
+        thread_id  -- the solver thread id
+        complement -- whether the complement of the model is requested
+
+        When exactly this function is called, depends on the current output mode.)"},
     {"interrupt", to_function<&ControlWrap::interrupt>(), METH_NOARGS,
 R"(interrupt(self) -> None
 

@@ -138,7 +138,10 @@ ClingoControl::ClingoControl(Scripts &scripts, bool clingoMode, Clasp::ClaspFaca
 , pgf_(pgf)
 , psf_(psf)
 , logger_(printer, messageLimit)
-, clingoMode_(clingoMode) { }
+, clingoMode_(clingoMode)
+, theory_(*this) {
+    clasp->ctx.output.theory = &theory_;
+}
 
 void ClingoControl::parse() {
     if (!parser_->empty()) {
@@ -396,6 +399,29 @@ void ClingoControl::prepare(Assumptions ass) {
 
 void *ClingoControl::claspFacade() {
     return clasp_;
+}
+
+ClingoControl::TheoryOutput::TheoryOutput(ClingoControl& ctl) : ctl_(ctl) { }
+
+const char* ClingoControl::TheoryOutput::first(const Clasp::Model& m) {
+    last_.clear();
+    SymVec symbols_;
+    index_ = 1;
+    for (auto& prop : ctl_.props_) {
+        std::lock_guard<decltype(propLock_)> lock(ctl_.propLock_);
+        prop->extend_model(m.sId, false, symbols_);
+    }
+    std::stringstream ss;
+    for (auto& s : symbols_) {
+        ss.str("");
+        s.print(ss);
+        last_.emplace_back(ss.str());
+    }
+    return last_.size() ? last_.front().c_str() : nullptr;
+}
+
+const char* ClingoControl::TheoryOutput::next() {
+    return last_.size() > index_ ? last_[index_++].c_str() : nullptr;
 }
 
 void ClingoControl::registerPropagator(std::unique_ptr<Propagator> p, bool sequential) {

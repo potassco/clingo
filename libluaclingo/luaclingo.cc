@@ -2664,6 +2664,51 @@ public:
         auto ret = lua_pcall(L, 2, 0, -4);
         return handle_lua_error(L, "Propagator::check", "check failed", ret);
     }
+
+    static int extend_model_(lua_State *L) {
+        auto *self = static_cast<Propagator*>(lua_touserdata(L, 1));
+        lua_pushvalue(self->T, PropagatorIndex);
+        lua_xmove(self->T, L, 1);                        // +1
+
+        lua_getfield(L, -1, "extend_model");             // +1
+        if (!lua_isnil(L, -1)) {
+            auto symbol_callback = *static_cast<clingo_symbol_callback_t*>(lua_touserdata(L, 4));
+            auto data = lua_touserdata(L, 5);
+
+            lua_insert(L, -2);                           // +0
+            lua_pushvalue(L, 2);                         // +1 (thread_id)
+            lua_pushvalue(L, 3);                         // +1 (complement)
+
+            lua_call(L, 3, 1);                           // -3
+            auto *symbols = luaToVals(L, -1);
+            handle_c_error(L, symbol_callback(symbols->data(), symbols->size(), data));
+
+            lua_pop(L, 1);                               // -1
+        }
+        else {
+            lua_pop(L, 2);                               // -2
+        }
+        return 0;
+    }
+    static bool extend_model(int thread_id, bool complement, clingo_symbol_callback_t symbol_callback, void* symbol_callback_data, void *data) {
+        auto *self = static_cast<Propagator*>(data);
+        lua_State *L = self->threads[thread_id];
+        if (!lua_checkstack(L, 7)) {
+            clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
+            return false;
+        }
+        LuaClear ll(self->T), lt(L);
+        lua_pushcfunction(L, luaTraceback);             // +1
+        lua_pushcfunction(L, extend_model_);            // +1
+        lua_pushlightuserdata(L, self);                 // +1
+        lua_pushinteger(L, thread_id+1);                // +1
+        lua_pushboolean(L, complement);                 // +1
+        lua_pushlightuserdata(L, &symbol_callback);     // +1
+        lua_pushlightuserdata(L, symbol_callback_data); // +1
+        auto ret = lua_pcall(L, 5, 0, -7);              // -7
+        return handle_lua_error(L, "Propagator::extend_model", "extend_model failed", ret);
+    }
+
     virtual ~Propagator() noexcept = default;
 private:
     lua_State *L;
@@ -3289,7 +3334,8 @@ struct ControlWrap : Object<ControlWrap> {
             Propagator::init,
             Propagator::propagate,
             Propagator::undo,
-            Propagator::check
+            Propagator::check,
+            Propagator::extend_model
         };
         PROTECT(self.propagators.emplace_front(L, T));
         handle_c_error(L, clingo_control_register_propagator(self.ctl, &propagator, &self.propagators.front(), true));
