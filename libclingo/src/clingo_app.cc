@@ -176,6 +176,7 @@ protected:
         if (x == modelQ()) {
             comment(1, "%s: %" PRIu64"\n", !m.up ? "Answer" : "Update", m.num);
             ClingoModel cm(*ctl_, &m);
+            std::lock_guard<decltype(ctl_->propLock_)> lock(ctl_->propLock_);
             app_.print_model(&cm, [&]() { printValues(out, m); });
         }
         if (x == optQ()) {
