@@ -6700,7 +6700,7 @@ Example:
 clingo.parse_term('p(1+2)') == clingo.Function("p", [3])
 )"},
     {"parse_program", to_function<parseProgram>(), METH_VARARGS | METH_KEYWORDS,
-R"(parse_program(program, callback) -> ast.AST
+R"(parse_program(program, callback) -> None
 
 Parse the given program and return an abstract syntax tree for each statement
 via a callback.
