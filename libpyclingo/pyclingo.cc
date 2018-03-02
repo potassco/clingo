@@ -7309,7 +7309,7 @@ Example reproducing the default clingo behaviour:
     clingo.clingo_main(Application(sys.argv[0]), sys.argv[1:])
 )"},
     {"parse_program", to_function<parseProgram>(), METH_VARARGS | METH_KEYWORDS,
-R"(parse_program(program, callback) -> ast.AST
+R"(parse_program(program, callback) -> None
 
 Parse the given program and return an abstract syntax tree for each statement
 via a callback.
