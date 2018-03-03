@@ -2855,7 +2855,7 @@ PyGetSetDef PropagateInit::tp_getset[] = {
     {(char *)"symbolic_atoms", to_getter<&PropagateInit::symbolicAtoms>(), nullptr, (char *)R"(The symbolic atoms captured by a SymbolicAtoms object.)", nullptr},
     {(char *)"theory_atoms", to_getter<&PropagateInit::theoryIter>(), nullptr, (char *)R"(A TheoryAtomIter object to iterate over all theory atoms.)", nullptr},
     {(char *)"number_of_threads", to_getter<&PropagateInit::numThreads>(), nullptr, (char *) R"(The number of solver threads used in the corresponding solve call.)", nullptr},
-    {(char *)"check_mode", to_getter<&PropagateInit::getCheckMode>(), to_setter<&PropagateInit::setCheckMode>(), (char *) R"(PropagatorCheckMode controling when to call Propagator.check().)", nullptr},
+    {(char *)"check_mode", to_getter<&PropagateInit::getCheckMode>(), to_setter<&PropagateInit::setCheckMode>(), (char *) R"(PropagatorCheckMode controlling when to call Propagator.check().)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -3809,7 +3809,7 @@ BinaryOperator.XOr            -- bitwise exclusive or
 BinaryOperator.Or             -- bitwise or
 BinaryOperator.And            -- bitwise and
 BinaryOperator.Plus           -- arithmetic addition
-BinaryOperator.Minus          -- arithmetic substraction
+BinaryOperator.Minus          -- arithmetic subtraction
 BinaryOperator.Multiplication -- arithmetic multipilcation
 BinaryOperator.Division       -- arithmetic division
 BinaryOperator.Modulo         -- arithmetic modulo
@@ -5758,7 +5758,7 @@ active; you must not call any member function during search.)";
         Py_XDECREF(logger);
     }
     void tp_init(Reference pyargs, Reference pykwds) {
-        static char const *kwlist[] = {"aguments", "logger", "message_limit", nullptr};
+        static char const *kwlist[] = {"arguments", "logger", "message_limit", nullptr};
         Reference params  = Py_None, pyLogger = Py_None;
         int message_limit = 20;
         ParseTupleAndKeywords(pyargs, pykwds, "|OOi", kwlist, params, pyLogger, message_limit);
@@ -6023,7 +6023,7 @@ Ground the given list of program parts specified by tuples of names and argument
 Keyword Arguments:
 parts   -- list of tuples of program names and program arguments to ground
 context -- context object whose methods are called during grounding using
-           the @-syntax (if ommitted methods from the main module are used)
+           the @-syntax (if omitted methods from the main module are used)
 
 Note that parts of a logic program without an explicit #program specification
 are by default put into a program called base without arguments.
@@ -6260,7 +6260,7 @@ replace  -- if set to true, the output is just passed to the observer and no
             (Default: False)
 
 An observer should be a class of the form below. Not all functions have to be
-implemented and can be ommited if not needed.
+implemented and can be omitted if not needed.
 
 class GroundProgramObserver:
     init_program(self, incremental) -> None
@@ -6431,7 +6431,7 @@ Arguments:
 propagator -- the propagator to register
 
 A propagator should be a class of the form below. Not all functions have to be
-implemented and can be ommited if not needed.
+implemented and can be omitted if not needed.
 
 class Propagator(object)
     init(self, init) -> None
@@ -6480,7 +6480,7 @@ class Propagator(object)
         thread_id -- the solver thread id
         changes   -- list of watched solver literals whose assignment is undone
 
-        This function is meant to update assignment dependend state in a
+        This function is meant to update assignment dependent state in a
         propagator.
 
     check(self, control) -> None
@@ -7358,7 +7358,7 @@ be customized if a main function is provided.
 
 Note that gringo's precomputed terms (terms without variables and interpreted
 functions), called symbols in the following, are wrapped in the Symbol class.
-Furthermore, strings, numbers, and tuples can be passed whereever a symbol is
+Furthermore, strings, numbers, and tuples can be passed wherever a symbol is
 expected - they are automatically converted into a Symbol object.  Functions
 called during the grounding process from the logic program must either return a
 symbol or a sequence of symbols.  If a sequence is returned, the corresponding

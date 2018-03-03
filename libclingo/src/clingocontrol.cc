@@ -706,7 +706,7 @@ void ClingoLib::initOptions(Potassco::ProgramOptions::OptionContext& root) {
     OptionGroup gringo("Gringo Options");
     gringo.addOptions()
         ("verbose,V"                , flag(grOpts_.verbose = false), "Enable verbose output")
-        ("const,c"                  , storeTo(grOpts_.defines, parseConst)->composing()->arg("<id>=<term>"), "Replace term occurences of <id> with <term>")
+        ("const,c"                  , storeTo(grOpts_.defines, parseConst)->composing()->arg("<id>=<term>"), "Replace term occurrences of <id> with <term>")
         ("output-debug", storeTo(grOpts_.outputOptions.debug = Output::OutputDebug::NONE, values<Output::OutputDebug>()
           ("none", Output::OutputDebug::NONE)
           ("text", Output::OutputDebug::TEXT)
