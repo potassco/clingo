@@ -138,8 +138,11 @@ int main(int argc, char const **argv) {
   // get the backend
   if (!clingo_control_backend(ctl, &backend)) { goto error; }
 
+  // prepare the backend for adding rules
+  if (!clingo_backend_begin(backend)) { goto error; }
+
   // add an additional atom (called d below)
-  if (!clingo_backend_add_atom(backend, &atom_ids[3])) { goto error; }
+  if (!clingo_backend_add_atom(backend, NULL, &atom_ids[3])) { goto error; }
 
   // add rule: d :- a, b.
   body[0] = atom_ids[0];
@@ -150,6 +153,9 @@ int main(int argc, char const **argv) {
   body[0] = -(clingo_literal_t)atom_ids[3];
   body[1] = atom_ids[2];
   if (!clingo_backend_rule(backend, false, NULL, 0, body, sizeof(body)/sizeof(*body))) { goto error; }
+
+  // finalize the backend
+  if (!clingo_backend_end(backend)) { goto error; }
 
   // solve
   if (!solve(ctl, &solve_ret)) { goto error; }

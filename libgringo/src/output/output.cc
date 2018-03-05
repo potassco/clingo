@@ -389,15 +389,23 @@ std::pair<Id_t, Id_t> OutputBase::simplify(AssignmentLookup assignment) {
     return {facts, deleted};
 }
 
-Backend *OutputBase::backend() {
+Backend *OutputBase::backend_() {
     Backend *backend = nullptr;
     backendLambda(data, *out_, [&backend](DomainData &, UBackend &out) { backend = out.get(); });
     return backend;
 }
 
+Backend *OutputBase::backend(Logger &logger) {
+    for (auto &dom : predDoms()) {
+        dom->incNext();
+    }
+    checkOutPreds(logger);
+    return backend_();
+}
+
 void OutputBase::assume(Assumptions ass) {
     if (ass.size > 0) {
-        if (auto b = backend()) { b->assume(ass); }
+        if (auto b = backend_()) { b->assume(ass); }
     }
 }
 

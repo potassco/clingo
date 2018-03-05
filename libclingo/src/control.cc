@@ -75,6 +75,9 @@ void handleCXXError();
 #define GRINGO_CLINGO_TRY try
 #define GRINGO_CLINGO_CATCH catch (...) { handleCXXError(); return false; } return true
 
+#define GRINGO_CALLBACK_TRY try
+#define GRINGO_CALLBACK_CATCH(ref) catch (...){ (ref) = std::current_exception(); return false; } return true
+
 template <class F>
 size_t print_size(F f) {
     CountStream cs;
@@ -136,6 +139,13 @@ void handleCError(bool ret, std::exception_ptr *exc) {
             case clingo_error_unknown:   { throw std::runtime_error(msg); }
             case clingo_error_success:   { throw std::runtime_error(msg); }
         }
+    }
+}
+
+void forwardCError(bool ret, std::exception_ptr *exc) {
+    if (!ret) {
+        if (exc && *exc) { std::rethrow_exception(*exc); }
+        else             { throw ClingoError(); }
     }
 }
 
@@ -959,48 +969,60 @@ extern "C" void clingo_version(int *major, int *minor, int *revision) {
 
 struct clingo_backend : clingo_control_t { };
 
+extern "C" bool clingo_backend_begin(clingo_backend_t *backend) {
+    GRINGO_CLINGO_TRY {
+        if (!backend->beginAddBackend()) { throw std::runtime_error("backend not available"); }
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_backend_end(clingo_backend_t *backend) {
+    GRINGO_CLINGO_TRY { backend->endAddBackend(); }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" bool clingo_backend_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head, size_t head_n, clingo_literal_t const *body, size_t body_n) {
-    GRINGO_CLINGO_TRY { outputRule(*backend->backend(), choice, {head, head_n}, {body, body_n}); }
+    GRINGO_CLINGO_TRY { outputRule(*backend->getBackend(), choice, {head, head_n}, {body, body_n}); }
     GRINGO_CLINGO_CATCH;
 }
 
 extern "C" bool clingo_backend_weight_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head, size_t head_n, clingo_weight_t lower, clingo_weighted_literal_t const *body, size_t body_n) {
-    GRINGO_CLINGO_TRY { outputRule(*backend->backend(), choice, {head, head_n}, lower, {reinterpret_cast<Potassco::WeightLit_t const *>(body), body_n}); }
+    GRINGO_CLINGO_TRY { outputRule(*backend->getBackend(), choice, {head, head_n}, lower, {reinterpret_cast<Potassco::WeightLit_t const *>(body), body_n}); }
     GRINGO_CLINGO_CATCH;
 }
 
 extern "C" bool clingo_backend_minimize(clingo_backend_t *backend, clingo_weight_t prio, clingo_weighted_literal_t const* lits, size_t lits_n) {
-    GRINGO_CLINGO_TRY { backend->backend()->minimize(prio, {reinterpret_cast<Potassco::WeightLit_t const *>(lits), lits_n}); }
+    GRINGO_CLINGO_TRY { backend->getBackend()->minimize(prio, {reinterpret_cast<Potassco::WeightLit_t const *>(lits), lits_n}); }
     GRINGO_CLINGO_CATCH;
 }
 
 extern "C" bool clingo_backend_project(clingo_backend_t *backend, clingo_atom_t const *atoms, size_t n) {
-    GRINGO_CLINGO_TRY { backend->backend()->project({atoms, n}); }
+    GRINGO_CLINGO_TRY { backend->getBackend()->project({atoms, n}); }
     GRINGO_CLINGO_CATCH;
 }
 
 extern "C" bool clingo_backend_external(clingo_backend_t *backend, clingo_atom_t atom, clingo_external_type_t v) {
-    GRINGO_CLINGO_TRY { backend->backend()->external(atom, Potassco::Value_t(v)); }
+    GRINGO_CLINGO_TRY { backend->getBackend()->external(atom, Potassco::Value_t(v)); }
     GRINGO_CLINGO_CATCH;
 }
 
 extern "C" bool clingo_backend_assume(clingo_backend_t *backend, clingo_literal_t const *literals, size_t n) {
-    GRINGO_CLINGO_TRY { backend->backend()->assume({literals, n}); }
+    GRINGO_CLINGO_TRY { backend->getBackend()->assume({literals, n}); }
     GRINGO_CLINGO_CATCH;
 }
 
 extern "C" bool clingo_backend_heuristic(clingo_backend_t *backend, clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority, clingo_literal_t const *condition, size_t condition_n) {
-    GRINGO_CLINGO_TRY { backend->backend()->heuristic(atom, Potassco::Heuristic_t(type), bias, priority, {condition, condition_n}); }
+    GRINGO_CLINGO_TRY { backend->getBackend()->heuristic(atom, Potassco::Heuristic_t(type), bias, priority, {condition, condition_n}); }
     GRINGO_CLINGO_CATCH;
 }
 
 extern "C" bool clingo_backend_acyc_edge(clingo_backend_t *backend, int node_u, int node_v, clingo_literal_t const *condition, size_t condition_n) {
-    GRINGO_CLINGO_TRY { backend->backend()->acycEdge(node_u, node_v, {condition, condition_n}); }
+    GRINGO_CLINGO_TRY { backend->getBackend()->acycEdge(node_u, node_v, {condition, condition_n}); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_backend_add_atom(clingo_backend_t *backend, clingo_atom_t *ret) {
-    GRINGO_CLINGO_TRY { *ret = backend->addProgramAtom(); }
+extern "C" bool clingo_backend_add_atom(clingo_backend_t *backend, clingo_symbol_t *symbol, clingo_atom_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = symbol ? backend->addAtom(Symbol{*symbol}) : backend->addProgramAtom(); }
     GRINGO_CLINGO_CATCH;
 }
 
@@ -1214,6 +1236,19 @@ public:
     void check(Potassco::AbstractSolver& solver) override {
         if (prop_.check && !prop_.check(static_cast<clingo_propagate_control_t*>(&solver), data_)) { throw ClingoError(); }
     }
+    void extend_model(int threadId, bool complement, SymVec& symVec) override {
+        using Data = std::pair<SymVec&, std::exception_ptr>;
+        Data data{symVec, {}};
+        auto l = [](clingo_symbol_t const *symbols, size_t symbols_size, void *pdata) -> bool {
+            auto &data = *reinterpret_cast<Data*>(pdata);
+            GRINGO_CALLBACK_TRY {
+                auto *begin = reinterpret_cast<Symbol const*>(symbols);
+                data.first.insert(data.first.end(), begin, begin + symbols_size);
+            }
+            GRINGO_CALLBACK_CATCH(data.second);
+        };
+        if (prop_.extend_model) { forwardCError(prop_.extend_model(threadId, complement, l, &data, data_), &data.second); }
+    }
 private:
     clingo_propagator_t prop_;
     void *data_;
@@ -1262,10 +1297,7 @@ extern "C" bool clingo_control_use_enumeration_assumption(clingo_control_t *ctl,
 }
 
 extern "C" bool clingo_control_backend(clingo_control_t *ctl, clingo_backend_t **ret) {
-    GRINGO_CLINGO_TRY {
-        if (ctl->backend()) { *ret = static_cast<clingo_backend_t*>(ctl); }
-        else { throw std::runtime_error("backend not available"); }
-    }
+    GRINGO_CLINGO_TRY { *ret = static_cast<clingo_backend_t*>(ctl); }
     GRINGO_CLINGO_CATCH;
 }
 
@@ -1406,19 +1438,16 @@ private:
         using Data = std::pair<SymVec, std::exception_ptr>;
         Data data;
         auto l = conv(loc);
-        handleCError(script_.call(
+        forwardCError(script_.call(
             &l, name.c_str(), reinterpret_cast<clingo_symbol_t const *>(args.first), args.size,
-            [](clingo_symbol_t const *symbols, size_t symbols_size, void *data) {
-                try {
+            [](clingo_symbol_t const *symbols, size_t symbols_size, void *pdata) {
+                auto &data = *static_cast<Data*>(pdata);
+                GRINGO_CALLBACK_TRY {
                     for (auto it = symbols, ie = it + symbols_size; it != ie; ++it) {
-                        static_cast<SymVec*>(data)->emplace_back(Symbol{*it});
+                        data.first.emplace_back(Symbol{*it});
                     }
-                    return true;
                 }
-                catch (...) {
-                    handleCXXError();
-                    return false;
-                }
+                GRINGO_CALLBACK_CATCH(data.second);
             },
             &data, data_), &data.second);
         return data.first;
@@ -1479,11 +1508,19 @@ public:
         }
     }
     char const *program_name() const override {
-        if (app_.message_limit) {
+        if (app_.program_name) {
             return app_.program_name(data_);
         }
         else {
             return IClingoApp::program_name();
+        }
+    }
+    char const *version() const override {
+        if (app_.version) {
+            return app_.version(data_);
+        }
+        else {
+            return IClingoApp::version();
         }
     }
     bool has_main() const override {
@@ -1502,6 +1539,16 @@ public:
         assert(has_log());
         app_.logger(static_cast<clingo_warning_t>(code), message, data_);
     }
+    bool has_printer() const override { return app_.printer; }
+    void print_model(Model *model, std::function<void()> printer) override {
+        handleCError(app_.printer(model, [](void *data) {
+            GRINGO_CLINGO_TRY {
+                (*static_cast<std::function<void()>*>(data))();
+            }
+            GRINGO_CLINGO_CATCH;
+        }, &printer, data_));
+    }
+
     void register_options(ClingoApp &app) override {
         if (app_.register_options) {
             handleCError(app_.register_options(static_cast<clingo_options_t*>(&app), data_));

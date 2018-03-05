@@ -1997,6 +1997,55 @@ luaL_Reg const Configuration::meta[] = {
 
 // {{{1 wrap wrap Backend
 
+struct ExternalType : Object<ExternalType> {
+    using Type = clingo_external_type_t;
+    Type type;
+    ExternalType(Type type) : type(type) { }
+    Type cmpKey() { return type; }
+    static int addToRegistry(lua_State *L) {
+        lua_createtable(L, 0, 4);
+        for (auto t : { clingo_external_type_true, clingo_external_type_false, clingo_external_type_free, clingo_external_type_release }) {
+            Object::new_(L, t);
+            lua_setfield(L, -2, field_(t));
+        }
+        lua_setfield(L, -2, "ExternalType");
+        return 0;
+    }
+    static char const *field_(Type t) {
+        switch (static_cast<clingo_external_type>(t)) {
+            case clingo_external_type_true:    { return "True"; }
+            case clingo_external_type_false:   { return "False"; }
+            case clingo_external_type_free:    { return "Free"; }
+            case clingo_external_type_release: { break; }
+        }
+        return "Release";
+    }
+    static int new_(lua_State *L, Type t) {
+        lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
+        lua_getfield(L, -1, "ExternalType");
+        lua_replace(L, -2);
+        lua_getfield(L, -1, field_(t));
+        lua_replace(L, -2);
+        return 1;
+    }
+    static int toString(lua_State *L) {
+        lua_pushstring(L, field_(get_self(L).type));
+        return 1;
+    }
+    static luaL_Reg const meta[];
+    static constexpr char const *typeName = "clingo.ExternalType";
+};
+
+constexpr char const *ExternalType::typeName;
+
+luaL_Reg const ExternalType::meta[] = {
+    {"__eq", eq},
+    {"__lt", lt},
+    {"__le", le},
+    {"__tostring", toString},
+    { nullptr, nullptr }
+};
+
 struct Backend : Object<Backend> {
     clingo_backend_t *backend;
 
@@ -2006,7 +2055,13 @@ struct Backend : Object<Backend> {
     static luaL_Reg const meta[];
 
     static int addAtom(lua_State *L) {
-        lua_pushinteger(L, call_c(L, clingo_backend_add_atom, get_self(L).backend));
+        symbol_wrapper sym;
+        clingo_symbol_t *symp = nullptr;
+        if (!lua_isnone(L, 2) && !lua_isnil(L, 2)) {
+            luaToCpp(L, 2, sym);
+            symp = &sym.symbol;
+        }
+        lua_pushinteger(L, call_c(L, clingo_backend_add_atom, get_self(L).backend, symp));
         return 1;
     }
 
@@ -2027,6 +2082,18 @@ struct Backend : Object<Backend> {
         lua_pop(L, 1);
         handle_c_error(L, clingo_backend_rule(self.backend, choice, head->data(), head->size(), body->data(), body->size()));
         lua_pop(L, 2);                                                // -2
+        return 0;
+    }
+
+    static int addExternal(lua_State *L) {
+        auto &self = get_self(L);
+        clingo_atom_t atom;
+        clingo_external_type_t value = clingo_external_type_false;
+        luaToCpp(L, 2, atom);
+        if (!lua_isnone(L, 3) && !lua_isnil(L, 3)) {
+            value = static_cast<ExternalType*>(luaL_checkudata(L, 3, ExternalType::typeName))->type;
+        }
+        handle_c_error(L, clingo_backend_external(self.backend, atom, value));
         return 0;
     }
 
@@ -2069,13 +2136,21 @@ struct Backend : Object<Backend> {
         lua_pop(L, 1);                                                         // -1
         return 0;
     }
+
+    static int close(lua_State *L) {
+        auto &self = get_self(L);
+        handle_c_error(L, clingo_backend_end(self.backend));
+        return 0;
+    }
 };
 
 luaL_Reg const Backend::meta[] = {
     {"add_atom", addAtom},
     {"add_rule", addRule},
+    {"add_external", addExternal},
     {"add_weight_rule", addWeightRule},
     {"add_minimize", addMinimize},
+    {"close", close},
     {nullptr, nullptr}
 };
 
@@ -2589,6 +2664,51 @@ public:
         auto ret = lua_pcall(L, 2, 0, -4);
         return handle_lua_error(L, "Propagator::check", "check failed", ret);
     }
+
+    static int extend_model_(lua_State *L) {
+        auto *self = static_cast<Propagator*>(lua_touserdata(L, 1));
+        lua_pushvalue(self->T, PropagatorIndex);
+        lua_xmove(self->T, L, 1);                        // +1
+
+        lua_getfield(L, -1, "extend_model");             // +1
+        if (!lua_isnil(L, -1)) {
+            auto symbol_callback = *static_cast<clingo_symbol_callback_t*>(lua_touserdata(L, 4));
+            auto data = lua_touserdata(L, 5);
+
+            lua_insert(L, -2);                           // +0
+            lua_pushvalue(L, 2);                         // +1 (thread_id)
+            lua_pushvalue(L, 3);                         // +1 (complement)
+
+            lua_call(L, 3, 1);                           // -3
+            auto *symbols = luaToVals(L, -1);
+            handle_c_error(L, symbol_callback(symbols->data(), symbols->size(), data));
+
+            lua_pop(L, 1);                               // -1
+        }
+        else {
+            lua_pop(L, 2);                               // -2
+        }
+        return 0;
+    }
+    static bool extend_model(int thread_id, bool complement, clingo_symbol_callback_t symbol_callback, void* symbol_callback_data, void *data) {
+        auto *self = static_cast<Propagator*>(data);
+        lua_State *L = self->threads[thread_id];
+        if (!lua_checkstack(L, 7)) {
+            clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
+            return false;
+        }
+        LuaClear ll(self->T), lt(L);
+        lua_pushcfunction(L, luaTraceback);             // +1
+        lua_pushcfunction(L, extend_model_);            // +1
+        lua_pushlightuserdata(L, self);                 // +1
+        lua_pushinteger(L, thread_id+1);                // +1
+        lua_pushboolean(L, complement);                 // +1
+        lua_pushlightuserdata(L, &symbol_callback);     // +1
+        lua_pushlightuserdata(L, symbol_callback_data); // +1
+        auto ret = lua_pcall(L, 5, 0, -7);              // -7
+        return handle_lua_error(L, "Propagator::extend_model", "extend_model failed", ret);
+    }
+
     virtual ~Propagator() noexcept = default;
 private:
     lua_State *L;
@@ -2600,55 +2720,6 @@ private:
 };
 
 // {{{1 wrap GroundProgramObserver
-
-struct ExternalType : Object<ExternalType> {
-    using Type = clingo_external_type_t;
-    Type type;
-    ExternalType(Type type) : type(type) { }
-    Type cmpKey() { return type; }
-    static int addToRegistry(lua_State *L) {
-        lua_createtable(L, 0, 4);
-        for (auto t : { clingo_external_type_true, clingo_external_type_false, clingo_external_type_free, clingo_external_type_release }) {
-            Object::new_(L, t);
-            lua_setfield(L, -2, field_(t));
-        }
-        lua_setfield(L, -2, "ExternalType");
-        return 0;
-    }
-    static char const *field_(Type t) {
-        switch (static_cast<clingo_external_type>(t)) {
-            case clingo_external_type_true:    { return "True"; }
-            case clingo_external_type_false:   { return "False"; }
-            case clingo_external_type_free:    { return "Free"; }
-            case clingo_external_type_release: { break; }
-        }
-        return "Release";
-    }
-    static int new_(lua_State *L, Type t) {
-        lua_getfield(L, LUA_REGISTRYINDEX, "clingo");
-        lua_getfield(L, -1, "ExternalType");
-        lua_replace(L, -2);
-        lua_getfield(L, -1, field_(t));
-        lua_replace(L, -2);
-        return 1;
-    }
-    static int toString(lua_State *L) {
-        lua_pushstring(L, field_(get_self(L).type));
-        return 1;
-    }
-    static luaL_Reg const meta[];
-    static constexpr char const *typeName = "clingo.ExternalType";
-};
-
-constexpr char const *ExternalType::typeName;
-
-luaL_Reg const ExternalType::meta[] = {
-    {"__eq", eq},
-    {"__lt", lt},
-    {"__le", le},
-    {"__tostring", toString},
-    { nullptr, nullptr }
-};
 
 struct HeuristicType : Object<HeuristicType> {
     using Type = clingo_heuristic_type_t;
@@ -3187,11 +3258,6 @@ struct ControlWrap : Object<ControlWrap> {
             auto atoms = call_c(L, clingo_control_theory_atoms, self.ctl);
             return TheoryIter::iter(L, atoms);
         }
-        else if (strcmp(name, "backend") == 0) {
-            auto backend = call_c(L, clingo_control_backend, self.ctl);
-            if (!backend) { return luaL_error(L, "backend not available"); }
-            return Backend::new_(L, backend);
-        }
         else if (strcmp(name, "is_conflicting") == 0) {
             lua_pushboolean(L, clingo_control_is_conflicting(self.ctl));
             return 1;
@@ -3273,11 +3339,20 @@ struct ControlWrap : Object<ControlWrap> {
             Propagator::init,
             Propagator::propagate,
             Propagator::undo,
-            Propagator::check
+            Propagator::check,
+            Propagator::extend_model
         };
         PROTECT(self.propagators.emplace_front(L, T));
         handle_c_error(L, clingo_control_register_propagator(self.ctl, &propagator, &self.propagators.front(), true));
         return 0;
+    }
+
+    static int backend(lua_State *L) {
+        auto &self = get_self(L);
+        auto backend = call_c(L, clingo_control_backend, self.ctl);
+        if (!backend) { return luaL_error(L, "backend not available"); }
+        call_c(L, clingo_backend_begin, backend);
+        return Backend::new_(L, backend);
     }
 
     static int registerObserver(lua_State *L) {
@@ -3345,6 +3420,7 @@ luaL_Reg ControlWrap::meta[] = {
     {"interrupt", interrupt},
     {"register_propagator", registerPropagator},
     {"register_observer", registerObserver},
+    {"backend", backend},
     {nullptr, nullptr}
 };
 luaL_Reg ControlWrap::metaI[] = {

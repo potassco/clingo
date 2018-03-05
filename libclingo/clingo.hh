@@ -482,6 +482,7 @@ enum class SymbolType : clingo_symbol_type_t {
 class Symbol;
 using SymbolSpan = Span<Symbol>;
 using SymbolVector = std::vector<Symbol>;
+using SymbolSpanCallback = std::function<void (SymbolSpan)>;
 
 class Symbol {
 public:
@@ -872,6 +873,7 @@ public:
     virtual void propagate(PropagateControl &ctl, LiteralSpan changes);
     virtual void undo(PropagateControl const &ctl, LiteralSpan changes);
     virtual void check(PropagateControl &ctl);
+    virtual void extend_model(int thread_id, bool complement, SymbolSpanCallback callback);
     virtual ~Propagator() noexcept = default;
 };
 
@@ -1808,8 +1810,7 @@ std::ostream &operator<<(std::ostream &out, Statement const &x);
 
 class Backend {
 public:
-    explicit Backend(clingo_backend_t *backend)
-    : backend_(backend) { }
+    explicit Backend(clingo_backend_t *backend);
     void rule(bool choice, AtomSpan head, LiteralSpan body);
     void weight_rule(bool choice, AtomSpan head, weight_t lower, WeightedLiteralSpan body);
     void minimize(weight_t prio, WeightedLiteralSpan body);
@@ -1819,7 +1820,9 @@ public:
     void heuristic(atom_t atom, HeuristicType type, int bias, unsigned priority, LiteralSpan condition);
     void acyc_edge(int node_u, int node_v, LiteralSpan condition);
     atom_t add_atom();
+    atom_t add_atom(Symbol symbol);
     clingo_backend_t *to_c() const { return backend_; }
+    ~Backend();
 private:
     clingo_backend_t *backend_;
 };
@@ -2022,7 +2025,6 @@ public:
 private:
     clingo_part_t part_;
 };
-using SymbolSpanCallback = std::function<void (SymbolSpan)>;
 using PartSpan = Span<Part>;
 using GroundCallback = std::function<void (Location loc, char const *, SymbolSpan, SymbolSpanCallback)>;
 using StringSpan = Span<char const *>;
@@ -2124,8 +2126,10 @@ private:
 struct ClingoApplication {
     virtual unsigned message_limit() const noexcept;
     virtual char const *program_name() const noexcept;
+    virtual char const *version() const noexcept;
     virtual void main(Control &ctl, StringSpan files) = 0;
     virtual void log(WarningCode code, char const *message) noexcept;
+    virtual void print_model(Model const &model, std::function<void()> default_printer) noexcept;
     virtual void register_options(ClingoOptions &app);
     virtual void validate_options();
     virtual ~ClingoApplication() = default;
@@ -2726,6 +2730,7 @@ inline void Propagator::init(PropagateInit &) { }
 inline void Propagator::propagate(PropagateControl &, LiteralSpan) { }
 inline void Propagator::undo(PropagateControl const &, LiteralSpan) { }
 inline void Propagator::check(PropagateControl &) { }
+inline void Propagator::extend_model(int, bool, SymbolSpanCallback) { }
 
 // {{{2 solve control
 
@@ -2884,6 +2889,15 @@ inline SolveHandle::~SolveHandle() {
 
 // {{{2 backend
 
+inline Backend::Backend(clingo_backend_t *backend)
+: backend_(backend) {
+    Detail::handle_error(clingo_backend_begin(backend_));
+}
+
+inline Backend::~Backend() {
+    Detail::handle_error(clingo_backend_end(backend_));
+}
+
 inline void Backend::rule(bool choice, AtomSpan head, LiteralSpan body) {
     Detail::handle_error(clingo_backend_rule(backend_, choice, head.begin(), head.size(), body.begin(), body.size()));
 }
@@ -2918,7 +2932,14 @@ inline void Backend::acyc_edge(int node_u, int node_v, LiteralSpan condition) {
 
 inline atom_t Backend::add_atom() {
     clingo_atom_t ret;
-    Detail::handle_error(clingo_backend_add_atom(backend_, &ret));
+    Detail::handle_error(clingo_backend_add_atom(backend_, nullptr, &ret));
+    return ret;
+}
+
+inline atom_t Backend::add_atom(Symbol symbol) {
+    clingo_atom_t ret;
+    clingo_symbol_t sym = symbol.to_c();
+    Detail::handle_error(clingo_backend_add_atom(backend_, &sym, &ret));
     return ret;
 }
 
@@ -3906,6 +3927,16 @@ inline static bool g_check(clingo_propagate_control_t *ctl, void *pdata) {
     CLINGO_CALLBACK_CATCH(data.second);
 }
 
+inline static bool g_extend_model(int thread_id, bool complement, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *pdata) {
+    PropagatorData &data = *static_cast<PropagatorData*>(pdata);
+    CLINGO_CALLBACK_TRY {
+        data.first.extend_model(thread_id, complement, [&](SymbolSpan symbols) {
+            Detail::handle_error(symbol_callback(reinterpret_cast<const clingo_symbol_t*>(symbols.begin()), symbols.size(), symbol_callback_data));
+        });
+    }
+    CLINGO_CALLBACK_CATCH(data.second);
+}
+
 } // namespace Detail
 
 inline void Control::register_propagator(Propagator &propagator, bool sequential) {
@@ -3914,7 +3945,8 @@ inline void Control::register_propagator(Propagator &propagator, bool sequential
         Detail::g_init,
         Detail::g_propagate,
         Detail::g_undo,
-        Detail::g_check
+        Detail::g_check,
+        Detail::g_extend_model
     };
     Detail::handle_error(clingo_control_register_propagator(*impl_, &g_propagator, &impl_->propagators_.front(), sequential));
 }
@@ -4157,6 +4189,12 @@ inline unsigned ClingoApplication::message_limit() const noexcept {
 inline char const *ClingoApplication::program_name() const noexcept {
     return "clingo";
 }
+inline char const *ClingoApplication::version() const noexcept {
+    return CLINGO_VERSION;
+}
+inline void ClingoApplication::print_model(Model const &, std::function<void()> default_printer) noexcept {
+    default_printer();
+}
 inline void ClingoApplication::log(WarningCode, char const *message) noexcept {
     fprintf(stderr, "%s\n", message);
     fflush(stderr);
@@ -4183,6 +4221,11 @@ inline static char const *g_program_name(void *adata) {
     return data.app.program_name();
 }
 
+inline static char const *g_version(void *adata) {
+    ApplicationData &data = *static_cast<ApplicationData*>(adata);
+    return data.app.version();
+}
+
 inline static bool g_main(clingo_control_t *control, char const *const * files, size_t size, void *adata) {
     ApplicationData &data = *static_cast<ApplicationData*>(adata);
     CLINGO_TRY {
@@ -4195,6 +4238,16 @@ inline static bool g_main(clingo_control_t *control, char const *const * files, 
 inline static void g_logger(clingo_warning_t code, char const *message, void *adata) {
     ApplicationData &data = *static_cast<ApplicationData*>(adata);
     return data.app.log(static_cast<WarningCode>(code), message);
+}
+
+inline static bool g_model_printer(clingo_model_t *model, clingo_default_model_printer_t printer, void *printer_data, void *data) {
+    ApplicationData &app_data = *static_cast<ApplicationData*>(data);
+    CLINGO_TRY {
+        app_data.app.print_model(Model(model), [&]() {
+            Detail::handle_error(printer(printer_data));
+        });
+    }
+    CLINGO_CATCH;
 }
 
 inline static bool g_register_options(clingo_options_t *options, void *adata) {
@@ -4946,9 +4999,11 @@ inline int clingo_main(ClingoApplication &application, StringSpan arguments) {
     Detail::ApplicationData data{application, Detail::ParserList{}};
     static clingo_application_t g_app = {
         Detail::g_program_name,
+        Detail::g_version,
         Detail::g_message_limit,
         Detail::g_main,
         Detail::g_logger,
+        Detail::g_model_printer,
         Detail::g_register_options,
         Detail::g_validate_options
     };

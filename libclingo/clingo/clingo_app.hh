@@ -40,7 +40,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
 public:
     ClingoApp(UIClingoApp app = std::make_unique<IClingoApp>());
     const char* getName()    const override { return app_->program_name(); }
-    const char* getVersion() const override { return CLINGO_VERSION; }
+    const char* getVersion() const override { return app_->version(); }
     const char* getUsage()   const override { return "[number] [options] [files]"; }
 
     void addOption(char const *group, char const *option, char const *description, OptionParser parse, char const *argument = nullptr, bool multi = false);

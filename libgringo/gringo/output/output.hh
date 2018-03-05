@@ -86,10 +86,17 @@ public:
     Rule &tempRule(bool choice) { return tempRule_.reset(choice); }
     SymVec &tempVals() { tempVals_.clear(); return tempVals_; }
     LitVec &tempLits() { tempLits_.clear(); return tempLits_; }
-    Backend *backend();
+    Backend *backend_();
+    // also prepares the domains to be able to add to them
+    Backend *backend(Logger &logger);
     void registerObserver(UBackend prg, bool replace);
     void reset(bool resetData);
     void assume(Assumptions ass);
+    Id_t addAtom(Symbol sym) {
+        auto &atm = *data.add(sym.sig()).define(sym).first;
+        if (!atm.hasUid()) { atm.setUid(data.newAtom()); }
+        return atm.uid();
+    }
 private:
     UAbstractOutput fromFormat(std::ostream &out, OutputFormat format, OutputOptions opts);
     UAbstractOutput fromBackend(UBackend &&out, OutputOptions opts);

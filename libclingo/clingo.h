@@ -644,6 +644,16 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbolic_atoms_next(clingo_symbolic_atoms_
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_symbolic_atoms_is_valid(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t iterator, bool *valid);
 
+//! Callback function to inject symbols.
+//!
+//! @param symbols array of symbols
+//! @param symbols_size size of the symbol array
+//! @param data user data of the callback
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! @see ::clingo_ground_callback_t
+//! @see ::clingo_propagator::extend_model()
+typedef bool (*clingo_symbol_callback_t) (clingo_symbol_t const *symbols, size_t symbols_size, void *data);
 //! @}
 
 // {{{1 theory atoms
@@ -1489,6 +1499,9 @@ typedef bool (*clingo_propagator_undo_callback_t) (clingo_propagate_control_t *,
 //! Typedef for @ref ::clingo_propagator::check().
 typedef bool (*clingo_propagator_check_callback_t) (clingo_propagate_control_t *, void *);
 
+//! Typedef for @ref ::clingo_propagator::extend_model().
+typedef bool (*clingo_propagator_extend_model_callback_t) (int, bool, clingo_symbol_callback_t  symbol_callback, void *symbol_callback_dataconst, void *);
+
 //! An instance of this struct has to be registered with a solver to implement a custom propagator.
 //!
 //! Not all callbacks have to be implemented and can be set to NULL if not needed.
@@ -1568,6 +1581,18 @@ typedef struct clingo_propagator {
     //! @return whether the call was successful
     //! @see ::clingo_propagator_check_callback_t
     bool (*check) (clingo_propagate_control_t *control, void *data);
+    //! This function is called whenever a model is printed (not when it is found).
+    //! The model can be extended by any number of symbols.
+    //!
+    //! When exactly this function is called, depends on the current output mode.
+    //!
+    //! @param[in] thread_id id of the solver thread that found the model
+    //! @param[in] complement flag to indicate that the complement of the model is requested
+    //! @param[in] symbol_callback function to inject symbols
+    //! @param[in] symbol_callback_data user data for the symbol callback (must be passed untouched)
+    //! @param[in] data user data for the callback
+    //! @return whether the call was successful
+    bool (*extend_model) (int thread_id, bool complement, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data);
 } clingo_propagator_t;
 
 //! @}
@@ -1636,6 +1661,20 @@ typedef struct clingo_weighted_literal {
 //! Handle to the backend to add directives in aspif format.
 typedef struct clingo_backend clingo_backend_t;
 
+//! Prepare the backend for usage.
+//!
+//! @param[in] backend the target backend
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime
+CLINGO_VISIBILITY_DEFAULT bool clingo_backend_begin(clingo_backend_t *backend);
+//! Finalize the backend after using it.
+//!
+//! @param[in] backend the target backend
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime
+CLINGO_VISIBILITY_DEFAULT bool clingo_backend_end(clingo_backend_t *backend);
 //! Add a rule to the program.
 //!
 //! @param[in] backend the target backend
@@ -1718,9 +1757,10 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_acyc_edge(clingo_backend_t *backen
 //! Get a fresh atom to be used in aspif directives.
 //!
 //! @param[in] backend the target backend
+//! @param[in] symbol optional symbol to associate the atom with
 //! @param[out] atom the resulting atom
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_backend_add_atom(clingo_backend_t *backend, clingo_atom_t *atom);
+CLINGO_VISIBILITY_DEFAULT bool clingo_backend_add_atom(clingo_backend_t *backend, clingo_symbol_t *symbol, clingo_atom_t *atom);
 
 //! @}
 
@@ -2956,16 +2996,6 @@ typedef struct clingo_part {
     size_t size;                   //!< number of parameters
 } clingo_part_t;
 
-//! Callback function to inject symbols.
-//!
-//! @param symbols array of symbols
-//! @param symbols_size size of the symbol array
-//! @param data user data of the callback
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! @see ::clingo_ground_callback_t
-typedef bool (*clingo_symbol_callback_t) (clingo_symbol_t const *symbols, size_t symbols_size, void *data);
-
 //! Callback function to implement external functions.
 //!
 //! If an external function of form <tt>\@name(parameters)</tt> occurs in a logic program,
@@ -3330,12 +3360,31 @@ typedef struct clingo_options clingo_options_t;
 //! @return whether the call was successful
 typedef bool (*clingo_main_function_t) (clingo_control_t *control, char const *const * files, size_t size, void *data);
 
+//! Callback to print a model in default format.
+//!
+//! @param[in] data user data for the callback
+//!
+//! @return whether the call was successful
+typedef bool (*clingo_default_model_printer_t) (void *data);
+
+//! Callback to customize model printing.
+//!
+//! @param[in] model the model
+//! @param[in] printer the default model printer
+//! @param[in] printer_data user data for the printer
+//! @param[in] data user data for the callback
+//!
+//! @return whether the call was successful
+typedef bool (*clingo_model_printer_t) (clingo_model_t *model, clingo_default_model_printer_t printer, void *printer_data, void *data);
+
 //! This struct contains a set of functions to customize the clingo application.
 typedef struct clingo_application {
     char const *(*program_name) (void *data);                        //!< callback to obtain program name
+    char const *(*version) (void *data);                             //!< callback to obtain version information
     unsigned (*message_limit) (void *data);                          //!< callback to obtain message limit
     clingo_main_function_t main;                                     //!< callback to override clingo's main function
     clingo_logger_t logger;                                          //!< callback to override default logger
+    clingo_model_printer_t printer;                                  //!< callback to override default model printing
     bool (*register_options)(clingo_options_t *options, void *data); //!< callback to register options
     bool (*validate_options)(void *data);                            //!< callback validate options
 } clingo_application_t;

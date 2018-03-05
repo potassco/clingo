@@ -23,7 +23,7 @@ function main(prg)
     prg:ground({{"base", {}}})
 
     -- extract relevant theory atoms and minimize the number of messages
-    local backend = prg.backend
+    local backend = prg:backend()
     local lits = {}
     local atoms = {}
     for atom in prg.theory_atoms do
@@ -58,6 +58,7 @@ function main(prg)
         end
     end
     backend:add_minimize{0, lits}
+    backend:close()
 
     -- solve and print debug messages
     local it = prg:solve{yield=true}

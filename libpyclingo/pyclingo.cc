@@ -2855,7 +2855,7 @@ PyGetSetDef PropagateInit::tp_getset[] = {
     {(char *)"symbolic_atoms", to_getter<&PropagateInit::symbolicAtoms>(), nullptr, (char *)R"(The symbolic atoms captured by a SymbolicAtoms object.)", nullptr},
     {(char *)"theory_atoms", to_getter<&PropagateInit::theoryIter>(), nullptr, (char *)R"(A TheoryAtomIter object to iterate over all theory atoms.)", nullptr},
     {(char *)"number_of_threads", to_getter<&PropagateInit::numThreads>(), nullptr, (char *) R"(The number of solver threads used in the corresponding solve call.)", nullptr},
-    {(char *)"check_mode", to_getter<&PropagateInit::getCheckMode>(), to_setter<&PropagateInit::setCheckMode>(), (char *) R"(PropagatorCheckMode controling when to call Propagator.check().)", nullptr},
+    {(char *)"check_mode", to_getter<&PropagateInit::getCheckMode>(), to_setter<&PropagateInit::setCheckMode>(), (char *) R"(PropagatorCheckMode controlling when to call Propagator.check().)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -3182,6 +3182,24 @@ bool propagator_check(clingo_propagate_control_t *control, PyObject *prop) {
     }
 }
 
+bool propagator_extend_model(int thread_id, bool complement, clingo_symbol_callback_t symbol_callback, void* symbol_callback_data, PyObject *prop) {
+    PyBlock block;
+    try {
+        if (!PyObject_HasAttrString(prop, "extend_model")) { return true; }
+        Object pyThreadId = cppToPy(thread_id);
+        Object pyComplement = cppToPy(complement);
+        Object n  = PyString_FromString("extend_model");
+        Object pySymbols = PyObject_CallMethodObjArgs(prop, n.toPy(), pyThreadId.toPy(), pyComplement.toPy(), nullptr);
+        std::vector<symbol_wrapper> symbols;
+        pyToCpp(pySymbols, symbols);
+        return symbol_callback(reinterpret_cast<const clingo_symbol_t*>(symbols.data()), symbols.size(), symbol_callback_data);
+    }
+    catch (...) {
+        handle_cxx_error("Propagator::extend_model", "error during model extension");
+        return false;
+    }
+}
+
 // {{{1 wrap observer
 
 struct TruthValue : EnumType<TruthValue> {
@@ -3194,8 +3212,8 @@ R"(Enumeration of the different truth values.
 TruthValue objects cannot be constructed from python. Instead the following
 preconstructed objects are available:
 
-TruthValue.True    -- truth value true
-TruthValue.False   -- truth value false
+TruthValue._True   -- truth value true
+TruthValue._False  -- truth value false
 TruthValue.Free    -- no truth value
 TruthValue.Release -- indicates that an atom is to be released)";
 
@@ -3206,8 +3224,8 @@ TruthValue.Release -- indicates that an atom is to be released)";
         clingo_external_type_release
     };
     static constexpr const char * const strings[] = {
-        "True",
-        "False",
+        "_True",
+        "_False",
         "Free",
         "Release"
     };
@@ -3353,9 +3371,29 @@ format.)";
         return self;
     }
 
-    Object addAtom() {
+    Object enter() {
+        handle_c_error(clingo_backend_begin(backend));
+        return Reference{*this};
+    }
+
+    Object exit() {
+        handle_c_error(clingo_backend_end(backend));
+        Py_RETURN_FALSE;
+    }
+
+    Object addAtom(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"symbol", nullptr};
+        Reference symbol;
+        ParseTupleAndKeywords(pyargs, pykwds, "|O", kwlist, symbol);
+        clingo_symbol_t *symp;
+        clingo_symbol_t sym;
+        if (!symbol.valid()) { symp = nullptr; }
+        else {
+            sym = pyToCpp<symbol_wrapper>(symbol).symbol;
+            symp = &sym;
+        }
         clingo_atom_t atom;
-        handle_c_error(clingo_backend_add_atom(backend, &atom));
+        handle_c_error(clingo_backend_add_atom(backend, symp, &atom));
         return cppToPy(atom);
     }
 
@@ -3371,6 +3409,18 @@ format.)";
         if (!pyBody.none()) { pyToCpp(pyBody, body); }
         bool choice = pyChoice.isTrue();
         handle_c_error(clingo_backend_rule(backend, choice, head.data(), head.size(), body.data(), body.size()));
+        Py_RETURN_NONE;
+    }
+
+    Object addExternal(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"head", "value", nullptr};
+        Reference pyAtom = Py_None;
+        Reference pyValue = nullptr;
+        ParseTupleAndKeywords(pyargs, pykwds, "O|O", kwlist, pyAtom, pyValue);
+        clingo_atom_t atom;
+        pyToCpp(pyAtom, atom);
+        clingo_external_type_t value = pyValue.valid() ? enumValue<TruthValue>(pyValue) : clingo_external_type_false;;
+        handle_c_error(clingo_backend_external(backend, atom, value));
         Py_RETURN_NONE;
     }
 
@@ -3402,11 +3452,45 @@ format.)";
 };
 
 PyMethodDef Backend::tp_methods[] = {
-    // add_atom
-    {"add_atom", to_function<&Backend::addAtom>(), METH_NOARGS,
-R"(add_atom(self) -> Int
+    {"__enter__", to_function<&Backend::enter>(), METH_NOARGS,
+R"(__enter__(self) -> Backend
 
-Return a fresh program atom.)"},
+Initialize the backend.
+
+Must be called before using the backend.)"},
+    {"__exit__", to_function<&Backend::exit>(), METH_VARARGS,
+R"(__exit__(self, type, value, traceback) -> bool
+
+Finalize the backend.
+
+Follows python __exit__ conventions. Does not suppress exceptions.
+)"},
+    // add_atom
+    {"add_atom", to_function<&Backend::addAtom>(), METH_VARARGS | METH_KEYWORDS,
+R"(add_atom(self, symbol) -> Int
+
+Return a fresh program atom or the atom associated with the given symbol.
+
+If the given symbol does not exist in the atom base, it is added first. Such
+atoms will be used in susequents calls to ground for instantiation.
+
+Keyword Arguments:
+symbol -- optional symbol (Default: None)
+)"},
+    // add_external
+    {"add_external", to_function<&Backend::addExternal>(), METH_VARARGS | METH_KEYWORDS,
+R"(add_atom(self, atom, value) -> Int
+
+Mark an atom as external optionally fixing its truth value.
+
+Can also be used to unmark an external atom.
+
+Arguments:
+atom -- the atom to mark as external
+
+Keyword Arguments:
+value -- optional truth value (Default: TruthValue._False)
+)"},
     // add_rule
     {"add_rule", to_function<&Backend::addRule>(), METH_VARARGS | METH_KEYWORDS,
 R"(add_rule(self, head, body, choice) -> None
@@ -3725,7 +3809,7 @@ BinaryOperator.XOr            -- bitwise exclusive or
 BinaryOperator.Or             -- bitwise or
 BinaryOperator.And            -- bitwise and
 BinaryOperator.Plus           -- arithmetic addition
-BinaryOperator.Minus          -- arithmetic substraction
+BinaryOperator.Minus          -- arithmetic subtraction
 BinaryOperator.Multiplication -- arithmetic multipilcation
 BinaryOperator.Division       -- arithmetic division
 BinaryOperator.Modulo         -- arithmetic modulo
@@ -5528,13 +5612,13 @@ Follows python __exit__ conventions. Does not suppress exceptions.
 // {{{1 wrap MessageCode
 
 struct MessageCode : EnumType<MessageCode> {
-    static constexpr char const *tp_type = "TheoryTermType";
-    static constexpr char const *tp_name = "clingo.TheoryTermType";
+    static constexpr char const *tp_type = "MessageCode";
+    static constexpr char const *tp_name = "clingo.MessageCode";
     static constexpr char const *tp_doc =
-R"(Enumeration of the different types of theory terms.
+R"(Enumeration of the different types of messages.
 
-TheoryTermType objects cannot be constructed from python. Instead the
-following preconstructed objects are available:
+MessageCode objects cannot be constructed from python. Instead the following
+preconstructed objects are available:
 
 MessageCode.OperationUndefined -- undefined arithmetic operation or weight of aggregate
 MessageCode.RuntimeError       -- to report multiple errors; a corresponding runtime error is raised later
@@ -5674,7 +5758,7 @@ active; you must not call any member function during search.)";
         Py_XDECREF(logger);
     }
     void tp_init(Reference pyargs, Reference pykwds) {
-        static char const *kwlist[] = {"aguments", "logger", "message_limit", nullptr};
+        static char const *kwlist[] = {"arguments", "logger", "message_limit", nullptr};
         Reference params  = Py_None, pyLogger = Py_None;
         int message_limit = 20;
         ParseTupleAndKeywords(pyargs, pykwds, "|OOi", kwlist, params, pyLogger, message_limit);
@@ -5857,7 +5941,8 @@ active; you must not call any member function during search.)";
             reinterpret_cast<decltype(clingo_propagator_t::init)>(propagator_init),
             reinterpret_cast<decltype(clingo_propagator_t::propagate)>(propagator_propagate),
             reinterpret_cast<decltype(clingo_propagator_t::undo)>(propagator_undo),
-            reinterpret_cast<decltype(clingo_propagator_t::check)>(propagator_check)
+            reinterpret_cast<decltype(clingo_propagator_t::check)>(propagator_check),
+            reinterpret_cast<decltype(clingo_propagator_t::extend_model)>(propagator_extend_model)
         };
         prop.emplace_back(tp);
         handle_c_error(clingo_control_register_propagator(ctl, &propagator, tp.toPy(), false));
@@ -5947,7 +6032,7 @@ Ground the given list of program parts specified by tuples of names and argument
 Keyword Arguments:
 parts   -- list of tuples of program names and program arguments to ground
 context -- context object whose methods are called during grounding using
-           the @-syntax (if ommitted methods from the main module are used)
+           the @-syntax (if omitted methods from the main module are used)
 
 Note that parts of a logic program without an explicit #program specification
 are by default put into a program called base without arguments.
@@ -6184,7 +6269,7 @@ replace  -- if set to true, the output is just passed to the observer and no
             (Default: False)
 
 An observer should be a class of the form below. Not all functions have to be
-implemented and can be ommited if not needed.
+implemented and can be omitted if not needed.
 
 class GroundProgramObserver:
     init_program(self, incremental) -> None
@@ -6355,7 +6440,7 @@ Arguments:
 propagator -- the propagator to register
 
 A propagator should be a class of the form below. Not all functions have to be
-implemented and can be ommited if not needed.
+implemented and can be omitted if not needed.
 
 class Propagator(object)
     init(self, init) -> None
@@ -6404,7 +6489,7 @@ class Propagator(object)
         thread_id -- the solver thread id
         changes   -- list of watched solver literals whose assignment is undone
 
-        This function is meant to update assignment dependend state in a
+        This function is meant to update assignment dependent state in a
         propagator.
 
     check(self, control) -> None
@@ -6418,7 +6503,17 @@ class Propagator(object)
         Arguments:
         control -- PropagateControl object
 
-        This function is called even if no watches have been added.)"},
+        This function is called even if no watches have been added.
+
+    extend_model(self, thread_id, complement, symbols) -> None
+        This function is called before a model is printed. The model is then
+        extended by the list of symbols returned by this function.
+
+        Arguments:
+        thread_id  -- the solver thread id
+        complement -- whether the complement of the model is requested
+
+        When exactly this function is called, depends on the current output mode.)"},
     {"interrupt", to_function<&ControlWrap::interrupt>(), METH_NOARGS,
 R"(interrupt(self) -> None
 
@@ -6428,6 +6523,10 @@ This function is thread-safe and can be called from a signal handler.  If no
 search is active the subsequent call to solve(), solve_async(), or solve_iter()
 is interrupted.  The SolveResult of the above solving methods can be used to
 query if the search was interrupted.)"},
+    {"backend", to_function<&ControlWrap::backend>(), METH_NOARGS,
+R"(backend() -> Backend
+
+Returns a Backend object providing a low level interface to extend a logic program.)"},
     {nullptr, nullptr, 0, nullptr}
 };
 
@@ -6467,7 +6566,6 @@ Example:
 import json
 json.dumps(prg.statistics, sort_keys=True, indent=4, separators=(',', ': ')))", nullptr},
     {(char *)"theory_atoms", to_getter<&ControlWrap::theoryIter>(), nullptr, (char *)R"(A TheoryAtomIter object, which can be used to iterate over the theory atoms.)", nullptr},
-    {(char *)"backend", to_getter<&ControlWrap::backend>(), nullptr, (char *)R"(A Backend object providing a low level interface to extend a logic program.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -6628,6 +6726,21 @@ char const *g_app_program_name(void *data) {
     }
 }
 
+char const *g_app_version(void *data) {
+    try {
+        AppData &pyApp = *static_cast<AppData*>(data);
+        Object name = pyApp.first.getAttr("version");
+        char const *s;
+        handle_c_error(clingo_add_string(pyToCpp<std::string>(name).c_str(), &s));
+        return s;
+    }
+    catch (...) {
+        handle_cxx_error("<application>", "error when getting version");
+        std::cerr << clingo_error_message() << std::endl;
+        std::terminate();
+    }
+}
+
 unsigned g_app_message_limit(void *data) {
     try {
         AppData &pyApp = *static_cast<AppData*>(data);
@@ -6677,6 +6790,39 @@ bool g_app_register_options(clingo_options_t *options, void *data) {
     }
 }
 
+PyObject* call_printer(PyObject *data) {
+    PY_TRY {
+        auto d = static_cast<std::pair<clingo_default_model_printer_t, void*>*>(PyCapsule_GetPointer(data, nullptr));
+        if (!d) { return nullptr; }
+        handle_c_error(d->first(d->second));
+        Py_RETURN_NONE;
+    }
+    PY_CATCH(nullptr);
+}
+
+PyMethodDef call_printer_def = {
+    "clingo.default_model_printer",
+    reinterpret_cast<PyCFunction>(call_printer),
+    METH_NOARGS,
+    nullptr
+};
+
+bool g_app_model_printer(clingo_model_t *model, clingo_default_model_printer_t printer, void *printer_data, void *data) {
+    PyBlock block;
+    try {
+        AppData &pyApp = *static_cast<AppData*>(data);
+        std::pair<clingo_default_model_printer_t, void*> pd{printer, printer_data};
+        Object ptr = PyCapsule_New(&pd, nullptr, nullptr);
+        Object pyP = PyCFunction_New(&call_printer_def, ptr.toPy());
+        pyApp.first.call("print_model", Model::construct(model), pyP);
+        return true;
+    }
+    catch (...) {
+        handle_cxx_error("<application>", "error during model printing");
+        return false;
+    }
+}
+
 bool g_app_validate_options(void *data) {
     try {
         AppData &pyApp = *static_cast<AppData*>(data);
@@ -6713,9 +6859,11 @@ Object clingoMain(Reference args, Reference kwds) {
     for (auto &s : sArgs) { cArgs.emplace_back(s.c_str()); }
     clingo_application_t app {
         pyApp.hasAttr("program_name") ? g_app_program_name : nullptr,
+        pyApp.hasAttr("version") ? g_app_version : nullptr,
         pyApp.hasAttr("message_limit") ? g_app_message_limit : nullptr,
         g_app_main,
         pyApp.hasAttr("logger") ? g_app_logger : nullptr,
+        pyApp.hasAttr("print_model") ? g_app_model_printer : nullptr,
         pyApp.hasAttr("register_options") ? g_app_register_options : nullptr,
         pyApp.hasAttr("validate_options") ? g_app_validate_options : nullptr,
     };
@@ -7170,7 +7318,7 @@ Example reproducing the default clingo behaviour:
     clingo.clingo_main(Application(sys.argv[0]), sys.argv[1:])
 )"},
     {"parse_program", to_function<parseProgram>(), METH_VARARGS | METH_KEYWORDS,
-R"(parse_program(program, callback) -> ast.AST
+R"(parse_program(program, callback) -> None
 
 Parse the given program and return an abstract syntax tree for each statement
 via a callback.
@@ -7219,7 +7367,7 @@ be customized if a main function is provided.
 
 Note that gringo's precomputed terms (terms without variables and interpreted
 functions), called symbols in the following, are wrapped in the Symbol class.
-Furthermore, strings, numbers, and tuples can be passed whereever a symbol is
+Furthermore, strings, numbers, and tuples can be passed wherever a symbol is
 expected - they are automatically converted into a Symbol object.  Functions
 called during the grounding process from the logic program must either return a
 symbol or a sequence of symbols.  If a sequence is returned, the corresponding

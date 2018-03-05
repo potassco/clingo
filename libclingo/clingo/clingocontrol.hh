@@ -195,6 +195,7 @@ class IClingoApp {
 public:
     virtual unsigned message_limit() const { return 20; }
     virtual char const *program_name() const { return "clingo"; }
+    virtual char const *version() const { return CLINGO_VERSION; }
     virtual bool has_main() const { return false; }
     virtual void main(ClingoControl &ctl, std::vector<std::string> const &files) {
         static_cast<void>(ctl);
@@ -205,7 +206,12 @@ public:
     virtual void log(Gringo::Warnings code, char const *message) noexcept {
         static_cast<void>(code);
         static_cast<void>(message);
-        throw std::runtime_error("not implemented");
+        std::terminate();
+    }
+    virtual bool has_printer() const { return false; }
+    virtual void print_model(Model *model, std::function<void()> printer) {
+        static_cast<void>(model);
+        printer();
     }
     virtual void register_options(ClingoApp &app) { static_cast<void>(app); }
     virtual void validate_options() { }
@@ -243,7 +249,11 @@ public:
     virtual void prePrepare(Clasp::ClaspFacade& ) { }
     virtual void preSolve(Clasp::ClaspFacade& clasp) { if (psf_) { psf_(clasp);} }
     virtual void postSolve(Clasp::ClaspFacade& ) { }
-    virtual void addToModel(Clasp::Model const&, bool /*complement*/, SymVec& ) { }
+    virtual void addToModel(Clasp::Model const& m, bool complement, SymVec& symVec) {
+        for (auto& prop : props_) {
+            prop->extend_model(m.sId, complement, symVec);
+        }
+    }
 
     // {{{2 SymbolicAtoms interface
 
@@ -293,7 +303,10 @@ public:
     void registerPropagator(UProp p, bool sequential) override;
     void interrupt() override;
     void *claspFacade() override;
-    Backend *backend() override;
+    bool beginAddBackend() override;
+    Id_t addAtom(Symbol sym) override;
+    Backend *getBackend() override { return backend_; };
+    void endAddBackend() override;
     Potassco::Atom_t addProgramAtom() override;
     Logger &logger() override { return logger_; }
     void beginAdd() override { parse(); }
@@ -322,6 +335,7 @@ public:
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>>  propagators_;
     ClingoPropagatorLock                                       propLock_;
     Logger                                                     logger_;
+    Backend                                                   *backend_               = nullptr;
     bool                                                       enableEnumAssupmption_ = true;
     bool                                                       clingoMode_;
     bool                                                       verbose_               = false;
@@ -331,6 +345,20 @@ public:
     bool                                                       configUpdate_          = false;
     bool                                                       initialized_           = false;
     bool                                                       incmode_               = false;
+
+private:
+
+    class TheoryOutput : public Clasp::OutputTable::Theory {
+    public:
+        TheoryOutput(ClingoControl& ctl);
+        const char* first(const Clasp::Model& m) override;
+        const char* next() override;
+    private:
+        ClingoControl&              ctl_;
+        std::vector<std::string>    last_;
+        size_t                      index_;
+    } theory_;
+
 };
 
 // {{{1 declaration of ClingoModel

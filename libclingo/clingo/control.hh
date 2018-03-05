@@ -185,6 +185,7 @@ namespace Gringo {
 struct Propagator : Potassco::AbstractPropagator {
     virtual ~Propagator() noexcept = default;
     virtual void init(Gringo::PropagateInit &init) = 0;
+    virtual void extend_model(int threadId, bool complement, SymVec&) = 0;
 };
 using UProp = std::unique_ptr<Propagator>;
 
@@ -222,7 +223,10 @@ struct clingo_control {
     virtual void registerPropagator(std::unique_ptr<Gringo::Propagator> p, bool sequential) = 0;
     virtual void registerObserver(Gringo::UBackend program, bool replace) = 0;
     virtual Potassco::Atom_t addProgramAtom() = 0;
-    virtual Gringo::Backend *backend() = 0;
+    virtual bool beginAddBackend() = 0;
+    virtual Gringo::Id_t addAtom(Gringo::Symbol sym) = 0;
+    virtual Gringo::Backend *getBackend() = 0;
+    virtual void endAddBackend() = 0;
     virtual Gringo::Logger &logger() = 0;
     virtual void beginAdd() = 0;
     virtual void add(clingo_ast_statement_t const &stm) = 0;

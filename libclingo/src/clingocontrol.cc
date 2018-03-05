@@ -138,7 +138,10 @@ ClingoControl::ClingoControl(Scripts &scripts, bool clingoMode, Clasp::ClaspFaca
 , pgf_(pgf)
 , psf_(psf)
 , logger_(printer, messageLimit)
-, clingoMode_(clingoMode) { }
+, clingoMode_(clingoMode)
+, theory_(*this) {
+    clasp->ctx.output.theory = &theory_;
+}
 
 void ClingoControl::parse() {
     if (!parser_->empty()) {
@@ -398,6 +401,29 @@ void *ClingoControl::claspFacade() {
     return clasp_;
 }
 
+ClingoControl::TheoryOutput::TheoryOutput(ClingoControl& ctl) : ctl_(ctl) { }
+
+const char* ClingoControl::TheoryOutput::first(const Clasp::Model& m) {
+    last_.clear();
+    SymVec symbols_;
+    index_ = 1;
+    for (auto& prop : ctl_.props_) {
+        std::lock_guard<decltype(propLock_)> lock(ctl_.propLock_);
+        prop->extend_model(m.sId, false, symbols_);
+    }
+    std::stringstream ss;
+    for (auto& s : symbols_) {
+        ss.str("");
+        s.print(ss);
+        last_.emplace_back(ss.str());
+    }
+    return last_.size() ? last_.front().c_str() : nullptr;
+}
+
+const char* ClingoControl::TheoryOutput::next() {
+    return last_.size() > index_ ? last_[index_++].c_str() : nullptr;
+}
+
 void ClingoControl::registerPropagator(std::unique_ptr<Propagator> p, bool sequential) {
     propagators_.emplace_back(gringo_make_unique<Clasp::ClingoPropagatorInit>(*p, propLock_.add(sequential)));
     claspConfig_.addConfigurator(propagators_.back().get(), Clasp::Ownership_t::Retain);
@@ -429,9 +455,7 @@ std::string ClingoControl::str() {
 }
 
 void ClingoControl::assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) {
-    if (update()) {
-        if (auto b = backend()) { b->external(ext, val); }
-    }
+    if (update()) { out_->backend_()->external(ext, val); }
 }
 
 bool ClingoControl::isConflicting() noexcept {
@@ -594,7 +618,19 @@ size_t ClingoControl::length() const {
     return ret;
 }
 
-Backend *ClingoControl::backend() { return out_->backend(); }
+bool ClingoControl::beginAddBackend() {
+    backend_ = out_->backend(logger());
+    return backend_ != nullptr;
+}
+
+Id_t ClingoControl::addAtom(Symbol sym) {
+    return out_->addAtom(sym);
+}
+
+void ClingoControl::endAddBackend() {
+    out_->flush();
+}
+
 Potassco::Atom_t ClingoControl::addProgramAtom() { return out_->data.newAtom(); }
 
 ClingoControl::~ClingoControl() noexcept = default;
@@ -670,7 +706,7 @@ void ClingoLib::initOptions(Potassco::ProgramOptions::OptionContext& root) {
     OptionGroup gringo("Gringo Options");
     gringo.addOptions()
         ("verbose,V"                , flag(grOpts_.verbose = false), "Enable verbose output")
-        ("const,c"                  , storeTo(grOpts_.defines, parseConst)->composing()->arg("<id>=<term>"), "Replace term occurences of <id> with <term>")
+        ("const,c"                  , storeTo(grOpts_.defines, parseConst)->composing()->arg("<id>=<term>"), "Replace term occurrences of <id> with <term>")
         ("output-debug", storeTo(grOpts_.outputOptions.debug = Output::OutputDebug::NONE, values<Output::OutputDebug>()
           ("none", Output::OutputDebug::NONE)
           ("text", Output::OutputDebug::TEXT)

@@ -239,7 +239,7 @@ TEST_CASE("output-lparse", "[output]") {
                 "\n"
                 "holds(body_aggregate(left(#inf,less_equal),sump,body_aggregate_element_set(S),right(greater_equal,U)))\n"
                 "    :- body_aggregate(left(#inf,less_equal),sump,body_aggregate_element_set(S),right(greater_equal,U))\n"
-                "     ; #sum+ { W,T : body_aggregate_element_set(S,body_aggregate_element((W,T),conjunction(C))), holds(C) } >= U % TODO: if the holds is ommitted strange things appear to happen\n"
+                "     ; #sum+ { W,T : body_aggregate_element_set(S,body_aggregate_element((W,T),conjunction(C))), holds(C) } >= U % TODO: if the holds is omitted strange things appear to happen\n"
                 "     .\n"
                 "% NOTE: there are more body aggregates but this is enough to support --lparse-rewrite\n"
                 "\n"

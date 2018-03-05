@@ -208,7 +208,7 @@ struct IncrementalControl : Control {
     Potassco::AbstractStatistics *statistics() override { throw std::runtime_error("statistics not supported (yet)"); }
     bool isConflicting() noexcept override { return false; }
     void assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) override {
-        if (auto b = backend()) { b->external(ext, val); }
+        if (auto *b = out.backend_()) { b->external(ext, val); }
     }
     SymbolicAtoms &getDomain() override { throw std::runtime_error("domain introspection not supported"); }
     ConfigProxy &getConf() override { throw std::runtime_error("configuration not supported"); }
@@ -218,7 +218,13 @@ struct IncrementalControl : Control {
     virtual ~IncrementalControl() { }
     Output::DomainData const &theory() const override { return out.data; }
     void cleanupDomains() override { }
-    Backend *backend() override { return out.backend(); }
+    bool beginAddBackend() override {
+        backend_ = out.backend(logger());
+        return backend_ != nullptr;
+    }
+    Backend *getBackend() override { return backend_; }
+    Id_t addAtom(Symbol sym) override { return out.addAtom(sym); }
+    void endAddBackend() override { out.flush(); }
     Potassco::Atom_t addProgramAtom() override { return out.data.newAtom(); }
     Input::GroundTermParser        termParser;
     Output::OutputBase            &out;
@@ -229,6 +235,7 @@ struct IncrementalControl : Control {
     Input::NonGroundParser         parser;
     GringoOptions const           &opts;
     Logger                         logger_;
+    Backend                       *backend_ = nullptr;
     std::unique_ptr<Input::NongroundProgramBuilder> builder;
     bool                                   incmode = false;
     bool                                   parsed = false;
