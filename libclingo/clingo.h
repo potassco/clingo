@@ -1989,8 +1989,19 @@ enum clingo_statistics_type {
 //! Corresponding type to ::clingo_statistics_type.
 typedef int clingo_statistics_type_t;
 
-//! Handle for to the solver statistics.
+//! Handle for the solver statistics.
 typedef struct clingo_statistic clingo_statistics_t;
+
+//! Handle for the solver statistics.
+typedef struct clingo_user_statistic clingo_user_statistics_t;
+
+//! Callback to add user defined statistics.
+//!
+//! @param[in] data user data for the callback
+//!
+//! @return whether the call was successful
+typedef bool (*clingo_set_user_statistics) (clingo_user_statistics_t* stats, void* data);
+
 
 //! Get the root key of the statistics.
 //!
@@ -2074,6 +2085,58 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_value_get(clingo_statistics_t *
 //! @}
 
 //! @}
+//! @name Functions to set userdefined statistics
+//! @{
+
+//! Create a new value for userdefined statistics.
+//!
+//! @param[in] statistics the target user statistics
+//! @param[in] value the value
+//! @param[out] key the resulting key
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_value_create(clingo_user_statistics_t *statistics, double value, uint64_t* key);
+
+//! Create a new map for userdefined statistics.
+//!
+//! @param[in] statistics the target user statistics
+//! @param[out] key the resulting key
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_create(clingo_user_statistics_t *statistics, uint64_t* key);
+
+//! Create a new array for userdefined statistics.
+//!
+//! @param[in] statistics the target user statistics
+//! @param[out] key the resulting key
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_create(clingo_user_statistics_t *statistics, uint64_t* key);
+
+//! Get the root key for userdefined statistics.
+//!
+//! @param[in] statistics the target user statistics
+//! @param[out] key the root key
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_root(clingo_user_statistics_t *statistics, uint64_t* key);
+
+//! Add a statistic element to a map for userdefined statistics.
+//!
+//! @param[in] statistics the target user statistics
+//! @param[in] map the key of the map to add to
+//! @param[in] name the name the new element will have in the map
+//! @param[in] key the key to add
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_add(clingo_user_statistics_t *statistics, uint64_t map, const char* name, uint64_t key);
+
+//! Add a statistic element to an array for userdefined statistics.
+//!
+//! @param[in] statistics the target user statistics
+//! @param[in] array the key of the array to add to
+//! @param[in] index the index of the new element in the map
+//! @param[in] key the key to add
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_add(clingo_user_statistics_t *statistics, uint64_t array, uint32_t index, uint64_t key);
+
+//! @}
+
 
 // {{{1 ast
 
@@ -3215,6 +3278,17 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_is_conflicting(clingo_control_t *c
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_statistics(clingo_control_t *control, clingo_statistics_t **statistics);
+//! Set a callback to update userdefined statistics.
+//!
+//! See the @ref Statistics module for more information.
+//!
+//! @param[in] control the target
+//! @param[in] cb a callback to the set_user_statistic function
+//! @param[in] data user data passed to the callback function
+//! @see ::clingo_set_user_statistics
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_set_user_statistics(clingo_control_t *control, clingo_set_user_statistics cb, void* data);
+
 //! Interrupt the active solve call (or the following solve call right at the beginning).
 //!
 //! @param[in] control the target

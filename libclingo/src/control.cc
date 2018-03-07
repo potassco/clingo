@@ -881,6 +881,7 @@ extern "C" bool clingo_configuration_value_is_assigned(clingo_configuration_t *c
 // {{{1 statistics
 
 struct clingo_statistic : public Potassco::AbstractStatistics { };
+struct clingo_user_statistic : public Clasp::ClaspFacade::UserdefinedStats { };
 
 extern "C" bool clingo_statistics_root(clingo_statistics_t *stats, uint64_t *ret) {
     GRINGO_CLINGO_TRY { *ret = stats->root(); }
@@ -1312,6 +1313,11 @@ extern "C" bool clingo_control_is_conflicting(clingo_control_t *control) {
 
 extern "C" bool clingo_control_statistics(clingo_control_t *ctl, clingo_statistics_t **stats) {
     GRINGO_CLINGO_TRY { *stats = static_cast<clingo_statistics_t*>(ctl->statistics()); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_control_set_user_statistics(clingo_control_t *ctl, clingo_set_user_statistics cb, void* data) {
+    GRINGO_CLINGO_TRY { ctl->setUserStatisticsCallback(cb,data); }
     GRINGO_CLINGO_CATCH;
 }
 
