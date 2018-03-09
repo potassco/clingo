@@ -2085,55 +2085,83 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_value_get(clingo_statistics_t *
 //! @}
 
 //! @}
-//! @name Functions to set userdefined statistics
+//! @name Functions for userdefined statistics
 //! @{
-
-//! Create a new value for userdefined statistics.
+//
+//! Get the root key of the userdefined statistics.
 //!
 //! @param[in] statistics the target user statistics
-//! @param[in] value the value
-//! @param[out] key the resulting key
+//! @param[out] root the root key as ::clingo_statistics_type_map
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_value_create(clingo_user_statistics_t *statistics, double value, uint64_t* key);
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_root(clingo_user_statistics_t *statistics, size_t *root);
 
-//! Create a new map for userdefined statistics.
+//! Check if a user defined map contains a certain key.
 //!
+//! @pre The @link clingo_statistics_type() type@endlink of the map must be @ref ::clingo_statistics_type_map.
 //! @param[in] statistics the target user statistics
-//! @param[out] key the resulting key
+//! @param[in] map the map
+//! @param[in] name the name of the key
+//! @param[out] in true if the key is in the map
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_create(clingo_user_statistics_t *statistics, uint64_t* key);
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_in(clingo_user_statistics_t *statistics, size_t map, const char* name, bool* in);
 
-//! Create a new array for userdefined statistics.
+//! Check if a user defined map contains a certain key of a certain type.
 //!
+//! @pre The @link clingo_statistics_type() type@endlink of the map must be @ref ::clingo_statistics_type_map.
 //! @param[in] statistics the target user statistics
-//! @param[out] key the resulting key
+//! @param[in] map the map
+//! @param[in] name the name of the key
+//! @param[in] type the type of the key
+//! @param[out] in true if the key is in the map with the specified type
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_create(clingo_user_statistics_t *statistics, uint64_t* key);
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_type(clingo_user_statistics_t *statistics, size_t map, const char* name, clingo_statistics_type_t type, bool* in);
 
-//! Get the root key for userdefined statistics.
+//! Check if a user defined array contains a certain offset.
 //!
+//! @pre The @link clingo_statistics_type() type@endlink of the array must be @ref ::clingo_statistics_type_array.
 //! @param[in] statistics the target user statistics
-//! @param[out] key the root key
+//! @param[in] array the array
+//! @param[in] offset the offset into the array
+//! @param[out] in true if the offset is in the array
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_root(clingo_user_statistics_t *statistics, uint64_t* key);
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_in(clingo_user_statistics_t *statistics, size_t array, size_t offset, bool* in);
 
-//! Add a statistic element to a map for userdefined statistics.
+//! Check if a user defined map contains a certain key of a certain type.
 //!
+//! @pre The @link clingo_statistics_type() type@endlink of the array must be @ref ::clingo_statistics_type_array.
 //! @param[in] statistics the target user statistics
-//! @param[in] map the key of the map to add to
-//! @param[in] name the name the new element will have in the map
-//! @param[in] key the key to add
+//! @param[in] array the array
+//! @param[in] offset the offset into the array
+//! @param[in] type the type of the offset
+//! @param[out] in true if the offset is in the array with the specified type
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_add(clingo_user_statistics_t *statistics, uint64_t map, const char* name, uint64_t key);
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_type(clingo_user_statistics_t *statistics, size_t array, size_t offset, clingo_statistics_type_t type, bool* in);
 
-//! Add a statistic element to an array for userdefined statistics.
+//! Get a statistic object from a map.
+//! If the object does not yet exist, create it.
 //!
+//! @pre The @link clingo_statistics_type() type@endlink of the map must be @ref ::clingo_statistics_type_map.
+//! @pre: Either @link clingo_user_statistics_map_in clingo_user_statistics_array_in(statistics,map,name)@endlink is false or @link clingo_user_statistics_map_type type(statistics,map,name,type)@endling is true
 //! @param[in] statistics the target user statistics
-//! @param[in] array the key of the array to add to
-//! @param[in] index the index of the new element in the map
-//! @param[in] key the key to add
+//! @param[in] map the map
+//! @param[in] name the name of the key
+//! @param[in] type the type of the key
+//! @param[out] result the requested statistic object
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_add(clingo_user_statistics_t *statistics, uint64_t array, uint32_t index, uint64_t key);
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_get(clingo_user_statistics_t *statistics, size_t map, const char* name, clingo_statistics_type_t type, size_t* result);
+
+//! Get a statistic object from an array.
+//! If the object does not yet exist, create it.
+//!
+//! @pre The @link clingo_statistics_type() type@endlink of the array must be @ref ::clingo_statistics_type_array.
+//! @pre: Either @link clingo_user_statistics_array_in clingo_user_statistics_array_in(statistics,array,offset)@endlink is false or @link clingo_user_statistics_array_type type(statistics,array,index,type)@endling is true
+//! @param[in] statistics the target user statistics
+//! @param[in] array the array
+//! @param[in] offset the offset into the array
+//! @param[in] type the type of the key
+//! @param[out] result the requested statistic object
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_get(clingo_user_statistics_t *statistics, size_t array, size_t offset, clingo_statistics_type_t type, size_t* result);
 
 //! @}
 

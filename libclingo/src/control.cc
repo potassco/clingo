@@ -1321,6 +1321,42 @@ extern "C" bool clingo_control_set_user_statistics(clingo_control_t *ctl, clingo
     GRINGO_CLINGO_CATCH;
 }
 
+
+extern "C" bool clingo_user_statistics_root(clingo_user_statistics_t *statistics, size_t *root) {
+    GRINGO_CLINGO_TRY { *root = statistics->root(); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_user_statistics_map_in(clingo_user_statistics_t *statistics, size_t map, const char* name, bool* in) {
+    GRINGO_CLINGO_TRY { size_t r; *in = statistics->exists(map, name, r); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_user_statistics_map_type(clingo_user_statistics_t *statistics, size_t map, const char* name, clingo_statistics_type_t type, bool* in) {
+    GRINGO_CLINGO_TRY { size_t r; *in = statistics->exists(map, name, static_cast<Potassco::Statistics_t>(type), r); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_user_statistics_array_in(clingo_user_statistics_t *statistics, size_t array, size_t offset, bool* in) {
+    GRINGO_CLINGO_TRY { size_t r; *in = statistics->exists(array, offset, r); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_user_statistics_array_type(clingo_user_statistics_t *statistics, size_t array, size_t offset, clingo_statistics_type_t type, bool* in) {
+    GRINGO_CLINGO_TRY { size_t r; *in = statistics->exists(array, offset, static_cast<Potassco::Statistics_t>(type), r); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_user_statistics_map_get(clingo_user_statistics_t *statistics, size_t map, const char* name, clingo_statistics_type_t type, size_t* result) {
+    GRINGO_CLINGO_TRY { *result = statistics->get(map,name, static_cast<Potassco::Statistics_t>(type)); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_user_statistics_array_get(clingo_user_statistics_t *statistics, size_t array, size_t offset, clingo_statistics_type_t type, size_t* result) {
+    GRINGO_CLINGO_TRY { *result = statistics->get(array,offset, static_cast<Potassco::Statistics_t>(type)); }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" bool clingo_control_clasp_facade(clingo_control_t *ctl, void **clasp) {
     GRINGO_CLINGO_TRY { *clasp = ctl->claspFacade(); }
     GRINGO_CLINGO_CATCH;
