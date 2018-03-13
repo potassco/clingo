@@ -2163,6 +2163,15 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_get(clingo_user_statis
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_get(clingo_user_statistics_t *statistics, size_t array, size_t offset, clingo_statistics_type_t type, size_t* result);
 
+//! Set the value for statistic object.
+//!
+//! @pre The @link clingo_statistics_type() type@endlink must be @ref ::clingo_statistics_type_value.
+//! @param[in] statistics the target user statistics
+//! @param[in] key the key to the value to be set
+//! @param[in] value
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_value_set(clingo_user_statistics_t *statistics, size_t key, double value);
+
 //! @}
 
 

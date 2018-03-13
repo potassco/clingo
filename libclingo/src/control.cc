@@ -1357,6 +1357,11 @@ extern "C" bool clingo_user_statistics_array_get(clingo_user_statistics_t *stati
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_user_statistics_value_set(clingo_user_statistics_t *statistics, size_t key, double value) {
+    GRINGO_CLINGO_TRY { statistics->set(key, value); }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" bool clingo_control_clasp_facade(clingo_control_t *ctl, void **clasp) {
     GRINGO_CLINGO_TRY { *clasp = ctl->claspFacade(); }
     GRINGO_CLINGO_CATCH;

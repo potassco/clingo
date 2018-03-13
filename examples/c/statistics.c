@@ -96,6 +96,40 @@ void print_prefix(int depth) {
   }
 }
 
+bool userstats(clingo_user_statistics_t* stats, void* data) {
+  size_t root;
+  size_t map;
+  size_t array;
+  size_t c;
+  size_t value;
+  if (!clingo_user_statistics_root(stats, &root)) { goto error; } 
+  if (!clingo_user_statistics_map_get(stats, root, "information", clingo_statistics_type_map, &map)) { goto error; }
+  if (!clingo_user_statistics_map_get(stats, map, "Animals", clingo_statistics_type_array, &array)) { goto error; }
+  if (!clingo_user_statistics_array_get(stats, array, 0, clingo_statistics_type_map, &c)) { goto error; }
+  if (!clingo_user_statistics_map_get(stats, c, "Age", clingo_statistics_type_value, &value)) { goto error; }
+  if (!clingo_user_statistics_value_set(stats, value, 42)) { goto error; }
+  if (!clingo_user_statistics_map_get(stats, c, "Legs", clingo_statistics_type_value, &value)) { goto error; }
+  if (!clingo_user_statistics_value_set(stats, value, 13)) { goto error; }
+  if (!clingo_user_statistics_map_get(stats, map, "DeathCounter", clingo_statistics_type_value, &value)) { goto error; }
+  if (!clingo_user_statistics_value_set(stats, value, 42)) { goto error; }
+  if (!clingo_user_statistics_array_get(stats, array, 1, clingo_statistics_type_map, &c)) { goto error; }
+  if (!clingo_user_statistics_map_get(stats, c, "Age", clingo_statistics_type_value, &value)) { goto error; }
+  if (!clingo_user_statistics_value_set(stats, value, 2)) { goto error; }
+  if (!clingo_user_statistics_map_get(stats, c, "Legs", clingo_statistics_type_value, &value)) { goto error; }
+  if (!clingo_user_statistics_value_set(stats, value, 7)) { goto error; }
+  if (!clingo_user_statistics_array_get(stats, array, 3, clingo_statistics_type_map, &c)) { goto error; }
+  if (!clingo_user_statistics_map_get(stats, c, "Age", clingo_statistics_type_value, &value)) { goto error; }
+  if (!clingo_user_statistics_value_set(stats, value, 423)) { goto error; }
+  if (!clingo_user_statistics_map_get(stats, c, "Legs", clingo_statistics_type_value, &value)) { goto error; }
+  if (!clingo_user_statistics_value_set(stats, value, 0)) { goto error; }
+  if (!clingo_user_statistics_array_get(stats, array, 4, clingo_statistics_type_value, &value)) { goto error; }
+  if (!clingo_user_statistics_value_set(stats, value, 42)) { goto error; }
+
+  return true;
+error:
+  return false;
+}
+
 // recursively print the statistics object
 bool print_statistics(clingo_statistics_t *stats, uint64_t key, int depth) {
   bool ret = true;
@@ -191,6 +225,9 @@ int main(int argc, char const **argv) {
 
   // add a logic program to the base part
   if (!clingo_control_add(ctl, "base", NULL, 0, "a :- not b. b :- not a.")) { goto error; }
+
+  // add a callback to set userdefined statistics
+  if (!clingo_control_set_user_statistics(ctl, userstats, 0)) { goto error; }
 
   // ground the base part
   if (!clingo_control_ground(ctl, parts, 1, NULL, NULL)) { goto error; }
