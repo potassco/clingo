@@ -1996,10 +1996,6 @@ typedef struct clingo_statistic clingo_statistics_t;
 typedef struct clingo_user_statistic clingo_user_statistics_t;
 
 //! Callback to add user defined statistics.
-//!
-//! @param[in] data user data for the callback
-//!
-//! @return whether the call was successful
 typedef bool (*clingo_set_user_statistics) (clingo_user_statistics_t* stats, void* data);
 
 
@@ -3315,16 +3311,17 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_is_conflicting(clingo_control_t *c
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_statistics(clingo_control_t *control, clingo_statistics_t **statistics);
-//! Set a callback to update userdefined statistics.
+//! Add a callback to update userdefined statistics.
 //!
 //! See the @ref Statistics module for more information.
+//! Several callbacks supported.
 //!
 //! @param[in] control the target
 //! @param[in] cb a callback to the set_user_statistic function
 //! @param[in] data user data passed to the callback function
 //! @see ::clingo_set_user_statistics
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_set_user_statistics(clingo_control_t *control, clingo_set_user_statistics cb, void* data);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_add_user_statistics(clingo_control_t *control, clingo_set_user_statistics cb, void* data);
 
 //! Interrupt the active solve call (or the following solve call right at the beginning).
 //!

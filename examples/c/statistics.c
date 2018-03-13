@@ -227,7 +227,7 @@ int main(int argc, char const **argv) {
   if (!clingo_control_add(ctl, "base", NULL, 0, "a :- not b. b :- not a.")) { goto error; }
 
   // add a callback to set userdefined statistics
-  if (!clingo_control_set_user_statistics(ctl, userstats, 0)) { goto error; }
+  if (!clingo_control_add_user_statistics(ctl, userstats, 0)) { goto error; }
 
   // ground the base part
   if (!clingo_control_ground(ctl, parts, 1, NULL, NULL)) { goto error; }

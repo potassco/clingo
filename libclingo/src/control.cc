@@ -1316,8 +1316,8 @@ extern "C" bool clingo_control_statistics(clingo_control_t *ctl, clingo_statisti
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_control_set_user_statistics(clingo_control_t *ctl, clingo_set_user_statistics cb, void* data) {
-    GRINGO_CLINGO_TRY { ctl->setUserStatisticsCallback(cb,data); }
+extern "C" bool clingo_control_add_user_statistics(clingo_control_t *ctl, clingo_set_user_statistics cb, void* data) {
+    GRINGO_CLINGO_TRY { ctl->addUserStatisticsCallback(cb,data); }
     GRINGO_CLINGO_CATCH;
 }
 

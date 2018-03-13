@@ -216,7 +216,7 @@ struct clingo_control {
     virtual void assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) = 0;
     virtual bool isConflicting() noexcept = 0;
     virtual Potassco::AbstractStatistics *statistics() = 0;
-    virtual void setUserStatisticsCallback(clingo_set_user_statistics cb, void* data) = 0;
+    virtual void addUserStatisticsCallback(clingo_set_user_statistics cb, void* data) = 0;
     virtual void useEnumAssumption(bool enable) = 0;
     virtual bool useEnumAssumption() = 0;
     virtual void cleanupDomains() = 0;
