@@ -1214,7 +1214,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *
 //! The example shows how to write a simple propagator for the pigeon hole problem. For
 //! a detailed description of what is implemented here and some background, take a look at the following paper:
 //!
-//! http://www.cs.uni-potsdam.de/wv/pdfformat/gekakaosscwa16b.pdf
+//! https://www.cs.uni-potsdam.de/wv/publications/#DBLP:conf/iclp/GebserKKOSW16x
 //!
 //! ## Output ##
 //!
