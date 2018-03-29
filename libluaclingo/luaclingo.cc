@@ -2216,7 +2216,13 @@ struct PropagateInit : Object<PropagateInit> {
     static int addWatch(lua_State *L) {
         auto &self = get_self(L);
         auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
-        handle_c_error(L, clingo_propagate_init_add_watch(self.init, lit));
+        if (lua_isnone(L, 3) || lua_isnil(L, 3)) {
+            handle_c_error(L, clingo_propagate_init_add_watch(self.init, lit));
+        }
+        else {
+            auto thread_id = numeric_cast<uint32_t>(luaL_checkinteger(L, 3));
+            handle_c_error(L, clingo_propagate_init_add_watch_to_thread(self.init, lit, thread_id));
+        }
         return 0;
     }
 

@@ -154,12 +154,16 @@ inline bool parseFoobar(const std::string& str, ClingoOptions::Foobar& foobar) {
 class ClingoPropagateInit : public PropagateInit {
 public:
     using Lit_t = Potassco::Lit_t;
-    ClingoPropagateInit(Control &c, Clasp::ClingoPropagatorInit &p) : c_(c), p_(p) { }
+    ClingoPropagateInit(Control &c, Clasp::ClingoPropagatorInit &p) : c_(c), p_(p) {
+        p_.enableHistory(false);
+    }
     Output::DomainData const &theory() const override { return c_.theory(); }
     SymbolicAtoms &getDomain() override { return c_.getDomain(); }
     Lit_t mapLit(Lit_t lit) override;
     int threads() override;
     void addWatch(Lit_t lit) override { p_.addWatch(Clasp::decodeLit(lit)); }
+    void addWatch(uint32_t solverId, Lit_t lit) override { p_.addWatch(solverId, Clasp::decodeLit(lit)); }
+    void enableHistory(bool b) override { p_.enableHistory(b); };
     void setCheckMode(clingo_propagator_check_mode_t checkMode) override {
         p_.enableClingoPropagatorCheck(static_cast<Clasp::ClingoPropagatorCheck_t::Type>(checkMode));
     }

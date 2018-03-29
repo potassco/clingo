@@ -569,6 +569,11 @@ extern "C" bool clingo_propagate_init_add_watch(clingo_propagate_init_t *init, c
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_t *init, clingo_literal_t lit, uint32_t thread_id) {
+    GRINGO_CLINGO_TRY { init->addWatch(thread_id, lit); }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" int clingo_propagate_init_number_of_threads(clingo_propagate_init_t *init) {
     return init->threads();
 }

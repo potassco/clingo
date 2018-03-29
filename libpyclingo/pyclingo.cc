@@ -2829,8 +2829,16 @@ condition ids to solver literals.)";
         return cppToPy(ret);
     }
 
-    Object addWatch(Reference lit) {
-        handle_c_error(clingo_propagate_init_add_watch(init, pyToCpp<clingo_literal_t>(lit)));
+    Object addWatch(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"literal", "thread_id", nullptr};
+        Reference lit, thread_id = Py_None;
+        ParseTupleAndKeywords(pyargs, pykwds, "O|O", kwlist, lit, thread_id);
+        if (!thread_id.none()) {
+            handle_c_error(clingo_propagate_init_add_watch_to_thread(init, pyToCpp<clingo_literal_t>(lit), pyToCpp<uint32_t>(thread_id)));
+        }
+        else {
+            handle_c_error(clingo_propagate_init_add_watch(init, pyToCpp<clingo_literal_t>(lit)));
+        }
         Py_RETURN_NONE;
     }
     Object getCheckMode() {
@@ -2842,9 +2850,19 @@ condition ids to solver literals.)";
 };
 
 PyMethodDef PropagateInit::tp_methods[] = {
-    {"add_watch", to_function<&PropagateInit::addWatch>(), METH_O, R"(add_watch(self, lit) -> None
+    {"add_watch", to_function<&PropagateInit::addWatch>(), METH_KEYWORDS | METH_VARARGS, R"(add_watch(self, lit, thread_id) -> None
 
-Add a watch for the solver literal in the given phase.)"},
+Add a watch for the solver literal in the given phase.
+
+If the thread_id is None then all active threads will watch the literal.
+
+Arguments:
+literal -- the literal to watch
+
+Keyword Arguments:
+thread_id -- id of the thread to watch the literal
+             (Default: None)
+)"},
     {"solver_literal", to_function<&PropagateInit::mapLit>(), METH_O, R"(solver_literal(self, lit) -> int
 
 Map the given program literal or condition id to its solver literal.)"},

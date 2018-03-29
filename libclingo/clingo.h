@@ -1264,9 +1264,16 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_solver_literal(clingo_propa
 //! Add a watch for the solver literal in the given phase.
 //!
 //! @param[in] init the target
-//! @param[out] solver_literal the solver literal
+//! @param[in] solver_literal the solver literal
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch(clingo_propagate_init_t *init, clingo_literal_t solver_literal);
+//! Add a watch for the solver literal in the given phase to the given solver thread.
+//!
+//! @param[in] init the target
+//! @param[in] solver_literal the solver literal
+//! @param[in] thread_id the id of the solver thread
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_t *init, clingo_literal_t lit, uint32_t thread_id);
 //! Get an object to inspect the symbolic atoms.
 //!
 //! @param[in] init the target
