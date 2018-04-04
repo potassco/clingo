@@ -167,6 +167,7 @@ public:
     void setCheckMode(clingo_propagator_check_mode_t checkMode) override {
         p_.enableClingoPropagatorCheck(static_cast<Clasp::ClingoPropagatorCheck_t::Type>(checkMode));
     }
+    Potassco::AbstractAssignment const &assignment() const override;
     clingo_propagator_check_mode_t getCheckMode() const override {
         return p_.checkMode();
     }

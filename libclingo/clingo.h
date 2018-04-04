@@ -1231,82 +1231,6 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *
 //! @addtogroup Propagator
 //! @{
 
-//! Supported check modes for propagators.
-enum clingo_propagator_check_mode {
-    clingo_propagator_check_mode_none     = 0, //!< do not call @ref ::clingo_propagator::check() at all
-    clingo_propagator_check_mode_total    = 1, //!< call @ref ::clingo_propagator::check() on total assignment
-    clingo_propagator_check_mode_fixpoint = 2, //!< call @ref ::clingo_propagator::check() on propagation fixpoints
-};
-//! Corresponding type to ::clingo_propagator_check_mode.
-typedef int clingo_propagator_check_mode_t;
-
-//! Object to initialize a user-defined propagator before each solving step.
-//!
-//! Each @link SymbolicAtoms symbolic@endlink or @link TheoryAtoms theory atom@endlink is uniquely associated with an aspif atom in form of a positive integer (@ref ::clingo_literal_t).
-//! Aspif literals additionally are signed to represent default negation.
-//! Furthermore, there are non-zero integer solver literals (also represented using @ref ::clingo_literal_t).
-//! There is a surjective mapping from program atoms to solver literals.
-//!
-//! All methods called during propagation use solver literals whereas clingo_symbolic_atoms_literal() and clingo_theory_atoms_atom_literal() return program literals.
-//! The function clingo_propagate_init_solver_literal() can be used to map program literals or @link clingo_theory_atoms_element_condition_id() condition ids@endlink to solver literals.
-typedef struct clingo_propagate_init clingo_propagate_init_t;
-
-//! @name Initialization Functions
-//! @{
-
-//! Map the given program literal or condition id to its solver literal.
-//!
-//! @param[in] init the target
-//! @param[in] aspif_literal the aspif literal to map
-//! @param[out] solver_literal the resulting solver literal
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_solver_literal(clingo_propagate_init_t *init, clingo_literal_t aspif_literal, clingo_literal_t *solver_literal);
-//! Add a watch for the solver literal in the given phase.
-//!
-//! @param[in] init the target
-//! @param[in] solver_literal the solver literal
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch(clingo_propagate_init_t *init, clingo_literal_t solver_literal);
-//! Add a watch for the solver literal in the given phase to the given solver thread.
-//!
-//! @param[in] init the target
-//! @param[in] solver_literal the solver literal
-//! @param[in] thread_id the id of the solver thread
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_t *init, clingo_literal_t lit, uint32_t thread_id);
-//! Get an object to inspect the symbolic atoms.
-//!
-//! @param[in] init the target
-//! @param[out] atoms the resulting object
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_symbolic_atoms(clingo_propagate_init_t *init, clingo_symbolic_atoms_t **atoms);
-//! Get an object to inspect the theory atoms.
-//!
-//! @param[in] init the target
-//! @param[out] atoms the resulting object
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_theory_atoms(clingo_propagate_init_t *init, clingo_theory_atoms_t **atoms);
-//! Get the number of threads used in subsequent solving.
-//!
-//! @param[in] init the target
-//! @return the number of threads
-//! @see clingo_propagate_control_thread_id()
-CLINGO_VISIBILITY_DEFAULT int clingo_propagate_init_number_of_threads(clingo_propagate_init_t *init);
-//! Configure when to call the check method of the propagator.
-//!
-//! @param[in] init the target
-//! @param[in] mode bitmask when to call the propagator
-//! @see @ref ::clingo_propagator::check()
-CLINGO_VISIBILITY_DEFAULT void clingo_propagate_init_set_check_mode(clingo_propagate_init_t *init, clingo_propagator_check_mode_t mode);
-//! Get the current check mode of the propagator.
-//!
-//! @param[in] init the target
-//! @return bitmask when to call the propagator
-//! @see clingo_propagate_init_set_check_mode()
-CLINGO_VISIBILITY_DEFAULT clingo_propagator_check_mode_t clingo_propagate_init_get_check_mode(clingo_propagate_init_t *init);
-
-//! @}
-
 //! Represents a (partial) assignment of a particular solver.
 //!
 //! An assignment assigns truth values to a set of literals.
@@ -1396,6 +1320,87 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_assignment_max_size(clingo_assignment_t 
 //! @param[in] assignment the target
 //! @return wheather the assignment is total
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_is_total(clingo_assignment_t *assignment);
+
+//! @}
+
+//! Supported check modes for propagators.
+enum clingo_propagator_check_mode {
+    clingo_propagator_check_mode_none     = 0, //!< do not call @ref ::clingo_propagator::check() at all
+    clingo_propagator_check_mode_total    = 1, //!< call @ref ::clingo_propagator::check() on total assignment
+    clingo_propagator_check_mode_fixpoint = 2, //!< call @ref ::clingo_propagator::check() on propagation fixpoints
+};
+//! Corresponding type to ::clingo_propagator_check_mode.
+typedef int clingo_propagator_check_mode_t;
+
+//! Object to initialize a user-defined propagator before each solving step.
+//!
+//! Each @link SymbolicAtoms symbolic@endlink or @link TheoryAtoms theory atom@endlink is uniquely associated with an aspif atom in form of a positive integer (@ref ::clingo_literal_t).
+//! Aspif literals additionally are signed to represent default negation.
+//! Furthermore, there are non-zero integer solver literals (also represented using @ref ::clingo_literal_t).
+//! There is a surjective mapping from program atoms to solver literals.
+//!
+//! All methods called during propagation use solver literals whereas clingo_symbolic_atoms_literal() and clingo_theory_atoms_atom_literal() return program literals.
+//! The function clingo_propagate_init_solver_literal() can be used to map program literals or @link clingo_theory_atoms_element_condition_id() condition ids@endlink to solver literals.
+typedef struct clingo_propagate_init clingo_propagate_init_t;
+
+//! @name Initialization Functions
+//! @{
+
+//! Map the given program literal or condition id to its solver literal.
+//!
+//! @param[in] init the target
+//! @param[in] aspif_literal the aspif literal to map
+//! @param[out] solver_literal the resulting solver literal
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_solver_literal(clingo_propagate_init_t *init, clingo_literal_t aspif_literal, clingo_literal_t *solver_literal);
+//! Add a watch for the solver literal in the given phase.
+//!
+//! @param[in] init the target
+//! @param[in] solver_literal the solver literal
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch(clingo_propagate_init_t *init, clingo_literal_t solver_literal);
+//! Add a watch for the solver literal in the given phase to the given solver thread.
+//!
+//! @param[in] init the target
+//! @param[in] solver_literal the solver literal
+//! @param[in] thread_id the id of the solver thread
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_t *init, clingo_literal_t lit, uint32_t thread_id);
+//! Get an object to inspect the symbolic atoms.
+//!
+//! @param[in] init the target
+//! @param[out] atoms the resulting object
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_symbolic_atoms(clingo_propagate_init_t *init, clingo_symbolic_atoms_t **atoms);
+//! Get an object to inspect the theory atoms.
+//!
+//! @param[in] init the target
+//! @param[out] atoms the resulting object
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_theory_atoms(clingo_propagate_init_t *init, clingo_theory_atoms_t **atoms);
+//! Get the number of threads used in subsequent solving.
+//!
+//! @param[in] init the target
+//! @return the number of threads
+//! @see clingo_propagate_control_thread_id()
+CLINGO_VISIBILITY_DEFAULT int clingo_propagate_init_number_of_threads(clingo_propagate_init_t *init);
+//! Configure when to call the check method of the propagator.
+//!
+//! @param[in] init the target
+//! @param[in] mode bitmask when to call the propagator
+//! @see @ref ::clingo_propagator::check()
+CLINGO_VISIBILITY_DEFAULT void clingo_propagate_init_set_check_mode(clingo_propagate_init_t *init, clingo_propagator_check_mode_t mode);
+//! Get the current check mode of the propagator.
+//!
+//! @param[in] init the target
+//! @return bitmask when to call the propagator
+//! @see clingo_propagate_init_set_check_mode()
+CLINGO_VISIBILITY_DEFAULT clingo_propagator_check_mode_t clingo_propagate_init_get_check_mode(clingo_propagate_init_t *init);
+//! Get the top level assignment solver.
+//!
+//! @param[in] init the target
+//! @return the assignment
+CLINGO_VISIBILITY_DEFAULT clingo_assignment_t *clingo_propagate_init_assignment(clingo_propagate_init_t *init);
 
 //! @}
 

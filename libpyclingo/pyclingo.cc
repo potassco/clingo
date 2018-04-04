@@ -2749,134 +2749,6 @@ The list is None if the current object is not an option group.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
-// {{{1 wrap PropagateInit
-
-struct PropagatorCheckMode : EnumType<PropagatorCheckMode> {
-    using Type = clingo_propagator_check_mode;
-    static constexpr char const *tp_type = "PropagatorCheckMode";
-    static constexpr char const *tp_name = "clingo.PropagatorCheckMode";
-    static constexpr char const *tp_doc =
-R"(Enumeration of supported check modes for propagators.
-
-PropagatorCheckMode objects cannot be constructed from python. Instead the
-following preconstructed objects are available:
-
-PropagatorCheckMode.None     -- do not call Propagator.check() at all
-PropagatorCheckMode.Total    -- call Propagator.check() on total assignment
-PropagatorCheckMode.Fixpoint -- call Propagator.check() on propagation fixpoints
-)";
-
-    static constexpr Type const values[] = {
-        clingo_propagator_check_mode_none,
-        clingo_propagator_check_mode_total,
-        clingo_propagator_check_mode_fixpoint,
-    };
-    static constexpr const char * const strings[] = {
-        "Off",
-        "Total",
-        "Fixpoint",
-    };
-};
-
-constexpr PropagatorCheckMode::Type const PropagatorCheckMode::values[];
-constexpr const char * const PropagatorCheckMode::strings[];
-
-struct PropagateInit : ObjectBase<PropagateInit> {
-    clingo_propagate_init_t *init;
-    static constexpr char const *tp_type = "PropagateInit";
-    static constexpr char const *tp_name = "clingo.PropagateInit";
-    static constexpr char const *tp_doc = R"(
-Object that is used to initialize a propagator before each solving step.
-
-Each symbolic or theory atom is uniquely associated with a positive program
-atom in form of a positive integer.  Program literals additionally have a sign
-to represent default negation.  Furthermore, there are non-zero integer solver
-literals.  There is a surjective mapping from program atoms to solver literals.
-
-All methods called during propagation use solver literals whereas
-SymbolicAtom.literal() and TheoryAtom.literal() return program literals.  The
-function PropagateInit.solver_literal() can be used to map program literals or
-condition ids to solver literals.)";
-    static PyMethodDef tp_methods[];
-    static PyGetSetDef tp_getset[];
-
-    using ObjectBase<PropagateInit>::new_;
-    static Object construct(clingo_propagate_init_t *init) {
-        auto self = new_();
-        self->init = init;
-        return self;
-    }
-
-    Object theoryIter() {
-        clingo_theory_atoms_t *atoms;
-        handle_c_error(clingo_propagate_init_theory_atoms(init, &atoms));
-        return TheoryAtomIter::construct(atoms, 0);
-    }
-
-    Object symbolicAtoms() {
-        clingo_symbolic_atoms_t *atoms;
-        handle_c_error(clingo_propagate_init_symbolic_atoms(init, &atoms));
-        return SymbolicAtoms::construct(atoms);
-    }
-
-    Object numThreads() {
-        return cppToPy(clingo_propagate_init_number_of_threads(init));
-    }
-
-    Object mapLit(Reference lit) {
-        clingo_literal_t ret;
-        handle_c_error(clingo_propagate_init_solver_literal(init, pyToCpp<clingo_literal_t>(lit), &ret));
-        return cppToPy(ret);
-    }
-
-    Object addWatch(Reference pyargs, Reference pykwds) {
-        static char const *kwlist[] = {"literal", "thread_id", nullptr};
-        Reference lit, thread_id = Py_None;
-        ParseTupleAndKeywords(pyargs, pykwds, "O|O", kwlist, lit, thread_id);
-        if (!thread_id.none()) {
-            handle_c_error(clingo_propagate_init_add_watch_to_thread(init, pyToCpp<clingo_literal_t>(lit), pyToCpp<uint32_t>(thread_id)));
-        }
-        else {
-            handle_c_error(clingo_propagate_init_add_watch(init, pyToCpp<clingo_literal_t>(lit)));
-        }
-        Py_RETURN_NONE;
-    }
-    Object getCheckMode() {
-        return PropagatorCheckMode::getAttr(clingo_propagate_init_get_check_mode(init));
-    }
-    void setCheckMode(Reference value) {
-        clingo_propagate_init_set_check_mode(init, enumValue<PropagatorCheckMode>(value));
-    }
-};
-
-PyMethodDef PropagateInit::tp_methods[] = {
-    {"add_watch", to_function<&PropagateInit::addWatch>(), METH_KEYWORDS | METH_VARARGS, R"(add_watch(self, lit, thread_id) -> None
-
-Add a watch for the solver literal in the given phase.
-
-If the thread_id is None then all active threads will watch the literal.
-
-Arguments:
-literal -- the literal to watch
-
-Keyword Arguments:
-thread_id -- id of the thread to watch the literal
-             (Default: None)
-)"},
-    {"solver_literal", to_function<&PropagateInit::mapLit>(), METH_O, R"(solver_literal(self, lit) -> int
-
-Map the given program literal or condition id to its solver literal.)"},
-    {nullptr, nullptr, 0, nullptr}
-};
-
-PyGetSetDef PropagateInit::tp_getset[] = {
-    {(char *)"symbolic_atoms", to_getter<&PropagateInit::symbolicAtoms>(), nullptr, (char *)R"(The symbolic atoms captured by a SymbolicAtoms object.)", nullptr},
-    {(char *)"theory_atoms", to_getter<&PropagateInit::theoryIter>(), nullptr, (char *)R"(A TheoryAtomIter object to iterate over all theory atoms.)", nullptr},
-    {(char *)"number_of_threads", to_getter<&PropagateInit::numThreads>(), nullptr, (char *) R"(The number of solver threads used in the corresponding solve call.)", nullptr},
-    {(char *)"check_mode", to_getter<&PropagateInit::getCheckMode>(), to_setter<&PropagateInit::setCheckMode>(), (char *) R"(PropagatorCheckMode controlling when to call Propagator.check().)", nullptr},
-    {nullptr, nullptr, nullptr, nullptr, nullptr}
-};
-
 // {{{1 wrap Assignment
 
 struct Assignment : ObjectBase<Assignment> {
@@ -2994,6 +2866,139 @@ PyGetSetDef Assignment::tp_getset[] = {
     {(char *)"size", to_getter<&Assignment::size>(), nullptr, (char *)R"(The number of assigned literals.)", nullptr},
     {(char *)"max_size", to_getter<&Assignment::max_size>(), nullptr, (char *)R"(The maximum size of the assignment (if all literals are assigned).)", nullptr},
     {(char *)"is_total", to_getter<&Assignment::isTotal>(), nullptr, (char *)R"(Wheather the assignment is total.)", nullptr},
+    {nullptr, nullptr, nullptr, nullptr, nullptr}
+};
+
+// {{{1 wrap PropagateInit
+
+struct PropagatorCheckMode : EnumType<PropagatorCheckMode> {
+    using Type = clingo_propagator_check_mode;
+    static constexpr char const *tp_type = "PropagatorCheckMode";
+    static constexpr char const *tp_name = "clingo.PropagatorCheckMode";
+    static constexpr char const *tp_doc =
+R"(Enumeration of supported check modes for propagators.
+
+PropagatorCheckMode objects cannot be constructed from python. Instead the
+following preconstructed objects are available:
+
+PropagatorCheckMode.None     -- do not call Propagator.check() at all
+PropagatorCheckMode.Total    -- call Propagator.check() on total assignment
+PropagatorCheckMode.Fixpoint -- call Propagator.check() on propagation fixpoints
+)";
+
+    static constexpr Type const values[] = {
+        clingo_propagator_check_mode_none,
+        clingo_propagator_check_mode_total,
+        clingo_propagator_check_mode_fixpoint,
+    };
+    static constexpr const char * const strings[] = {
+        "Off",
+        "Total",
+        "Fixpoint",
+    };
+};
+
+constexpr PropagatorCheckMode::Type const PropagatorCheckMode::values[];
+constexpr const char * const PropagatorCheckMode::strings[];
+
+struct PropagateInit : ObjectBase<PropagateInit> {
+    clingo_propagate_init_t *init;
+    static constexpr char const *tp_type = "PropagateInit";
+    static constexpr char const *tp_name = "clingo.PropagateInit";
+    static constexpr char const *tp_doc = R"(
+Object that is used to initialize a propagator before each solving step.
+
+Each symbolic or theory atom is uniquely associated with a positive program
+atom in form of a positive integer.  Program literals additionally have a sign
+to represent default negation.  Furthermore, there are non-zero integer solver
+literals.  There is a surjective mapping from program atoms to solver literals.
+
+All methods called during propagation use solver literals whereas
+SymbolicAtom.literal() and TheoryAtom.literal() return program literals.  The
+function PropagateInit.solver_literal() can be used to map program literals or
+condition ids to solver literals.)";
+    static PyMethodDef tp_methods[];
+    static PyGetSetDef tp_getset[];
+
+    using ObjectBase<PropagateInit>::new_;
+    static Object construct(clingo_propagate_init_t *init) {
+        auto self = new_();
+        self->init = init;
+        return self;
+    }
+
+    Object theoryIter() {
+        clingo_theory_atoms_t *atoms;
+        handle_c_error(clingo_propagate_init_theory_atoms(init, &atoms));
+        return TheoryAtomIter::construct(atoms, 0);
+    }
+
+    Object symbolicAtoms() {
+        clingo_symbolic_atoms_t *atoms;
+        handle_c_error(clingo_propagate_init_symbolic_atoms(init, &atoms));
+        return SymbolicAtoms::construct(atoms);
+    }
+
+    Object assignment() {
+        return Assignment::construct(clingo_propagate_init_assignment(init));
+    }
+
+    Object numThreads() {
+        return cppToPy(clingo_propagate_init_number_of_threads(init));
+    }
+
+    Object mapLit(Reference lit) {
+        clingo_literal_t ret;
+        handle_c_error(clingo_propagate_init_solver_literal(init, pyToCpp<clingo_literal_t>(lit), &ret));
+        return cppToPy(ret);
+    }
+
+    Object addWatch(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"literal", "thread_id", nullptr};
+        Reference lit, thread_id = Py_None;
+        ParseTupleAndKeywords(pyargs, pykwds, "O|O", kwlist, lit, thread_id);
+        if (!thread_id.none()) {
+            handle_c_error(clingo_propagate_init_add_watch_to_thread(init, pyToCpp<clingo_literal_t>(lit), pyToCpp<uint32_t>(thread_id)));
+        }
+        else {
+            handle_c_error(clingo_propagate_init_add_watch(init, pyToCpp<clingo_literal_t>(lit)));
+        }
+        Py_RETURN_NONE;
+    }
+    Object getCheckMode() {
+        return PropagatorCheckMode::getAttr(clingo_propagate_init_get_check_mode(init));
+    }
+    void setCheckMode(Reference value) {
+        clingo_propagate_init_set_check_mode(init, enumValue<PropagatorCheckMode>(value));
+    }
+};
+
+PyMethodDef PropagateInit::tp_methods[] = {
+    {"add_watch", to_function<&PropagateInit::addWatch>(), METH_KEYWORDS | METH_VARARGS, R"(add_watch(self, lit, thread_id) -> None
+
+Add a watch for the solver literal in the given phase.
+
+If the thread_id is None then all active threads will watch the literal.
+
+Arguments:
+literal -- the literal to watch
+
+Keyword Arguments:
+thread_id -- id of the thread to watch the literal
+             (Default: None)
+)"},
+    {"solver_literal", to_function<&PropagateInit::mapLit>(), METH_O, R"(solver_literal(self, lit) -> int
+
+Map the given program literal or condition id to its solver literal.)"},
+    {nullptr, nullptr, 0, nullptr}
+};
+
+PyGetSetDef PropagateInit::tp_getset[] = {
+    {(char *)"symbolic_atoms", to_getter<&PropagateInit::symbolicAtoms>(), nullptr, (char *)R"(The symbolic atoms captured by a SymbolicAtoms object.)", nullptr},
+    {(char *)"theory_atoms", to_getter<&PropagateInit::theoryIter>(), nullptr, (char *)R"(A TheoryAtomIter object to iterate over all theory atoms.)", nullptr},
+    {(char *)"number_of_threads", to_getter<&PropagateInit::numThreads>(), nullptr, (char *) R"(The number of solver threads used in the corresponding solve call.)", nullptr},
+    {(char *)"check_mode", to_getter<&PropagateInit::getCheckMode>(), to_setter<&PropagateInit::setCheckMode>(), (char *) R"(PropagatorCheckMode controlling when to call Propagator.check().)", nullptr},
+    {(char *)"assignment", to_getter<&PropagateInit::assignment>(), nullptr, (char *)R"(The top level assignment.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 

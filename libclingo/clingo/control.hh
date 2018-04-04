@@ -176,6 +176,7 @@ struct clingo_propagate_init {
     virtual void addWatch(Gringo::Lit_t lit) = 0;
     virtual void addWatch(uint32_t solverId, Gringo::Lit_t lit) = 0;
     virtual void enableHistory(bool b) = 0;
+    virtual Potassco::AbstractAssignment const &assignment() const = 0;
     virtual int threads() = 0;
     virtual clingo_propagator_check_mode_t getCheckMode() const = 0;
     virtual void setCheckMode(clingo_propagator_check_mode_t checkMode) = 0;

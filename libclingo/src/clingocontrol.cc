@@ -163,6 +163,10 @@ int ClingoPropagateInit::threads() {
     return static_cast<ClingoControl&>(c_).clasp_->ctx.concurrency();
 }
 
+Potassco::AbstractAssignment const &ClingoPropagateInit::assignment() const {
+    throw std::runtime_error("implement me!!!");
+}
+
 void ClingoControl::parse(const StringVec& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* claspOut, bool addStdIn) {
     using namespace Gringo;
     logger_.enable(Warnings::OperationUndefined, !opts.wNoOperationUndefined);

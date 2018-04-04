@@ -2154,134 +2154,6 @@ luaL_Reg const Backend::meta[] = {
     {nullptr, nullptr}
 };
 
-// {{{1 wrap PropagateInit
-
-struct PropagatorCheckMode : Object<PropagatorCheckMode> {
-    clingo_propagator_check_mode type;
-    PropagatorCheckMode(clingo_propagator_check_mode type) : type(type) { }
-    clingo_propagator_check_mode cmpKey() { return type; }
-    static int addToRegistry(lua_State *L) {
-        lua_createtable(L, 0, 5);
-        for (auto t : {clingo_propagator_check_mode_none, clingo_propagator_check_mode_total, clingo_propagator_check_mode_fixpoint}) {
-            new_(L, t);
-            lua_setfield(L, -2, field_(t));
-        }
-        lua_setfield(L, -2, "PropagatorCheckMode");
-        return 0;
-    }
-    static char const *field_(clingo_propagator_check_mode type) {
-        switch (type) {
-            case clingo_propagator_check_mode_none:     { return "Off"; }
-            case clingo_propagator_check_mode_total:    { return "Total"; }
-            case clingo_propagator_check_mode_fixpoint: { return "Fixpoint"; }
-        }
-        return "";
-    }
-
-    static int toString(lua_State *L) {
-        lua_pushstring(L, field_(get_self(L).type));
-        return 1;
-    }
-    static luaL_Reg const meta[];
-    static constexpr char const *typeName = "clingo.PropagatorCheckMode";
-};
-
-constexpr char const *PropagatorCheckMode::typeName;
-
-luaL_Reg const PropagatorCheckMode::meta[] = {
-    {"__eq", eq},
-    {"__lt", lt},
-    {"__le", le},
-    {"__tostring", toString},
-    { nullptr, nullptr }
-};
-
-struct PropagateInit : Object<PropagateInit> {
-    lua_State *T;
-    clingo_propagate_init_t *init;
-    PropagateInit(lua_State *T, clingo_propagate_init_t *init) : T(T), init(init) { }
-
-    static int mapLit(lua_State *L) {
-        auto &self = get_self(L);
-        auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
-        lua_pushinteger(L, call_c(L, clingo_propagate_init_solver_literal, self.init, lit));
-        return 1;
-    }
-
-    static int numThreads(lua_State *L) {
-        auto &self = get_self(L);
-        lua_pushinteger(L, clingo_propagate_init_number_of_threads(self.init));
-        return 1;
-    }
-    static int addWatch(lua_State *L) {
-        auto &self = get_self(L);
-        auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
-        if (lua_isnone(L, 3) || lua_isnil(L, 3)) {
-            handle_c_error(L, clingo_propagate_init_add_watch(self.init, lit));
-        }
-        else {
-            auto thread_id = numeric_cast<uint32_t>(luaL_checkinteger(L, 3));
-            handle_c_error(L, clingo_propagate_init_add_watch_to_thread(self.init, lit, thread_id));
-        }
-        return 0;
-    }
-
-    static int getCheckMode(lua_State *L) {
-        PropagatorCheckMode::new_(L, static_cast<clingo_propagator_check_mode>(clingo_propagate_init_get_check_mode(get_self(L).init)));
-        return 1;
-    }
-
-    static int setCheckMode(lua_State *L) {
-        auto init = get_self(L).init;
-        auto mode = static_cast<PropagatorCheckMode*>(luaL_checkudata(L, 3, PropagatorCheckMode::typeName));
-        clingo_propagate_init_set_check_mode(init, mode->type);
-        return 1;
-    }
-
-    static int index(lua_State *L) {
-        auto &self = get_self(L);
-        char const *name = luaL_checkstring(L, 2);
-        if (strcmp(name, "theory_atoms")               == 0) { return TheoryIter::iter(L, call_c(L, clingo_propagate_init_theory_atoms, self.init)); }
-        else if (strcmp(name, "symbolic_atoms")        == 0) { return SymbolicAtoms::new_(L, call_c(L, clingo_propagate_init_symbolic_atoms, self.init)); }
-        else if (strcmp(name, "number_of_threads")     == 0) { return numThreads(L); }
-        else if (strcmp(name, "check_mode")            == 0) { return getCheckMode(L); }
-        else {
-            lua_getmetatable(L, 1);
-            lua_getfield(L, -1, name);
-            return 1;
-        }
-    }
-
-    static int newindex(lua_State *L) {
-        char const *name = luaL_checkstring(L, 2);
-        if (strcmp(name, "check_mode")   == 0) { return setCheckMode(L); }
-        return luaL_error(L, "unknown field: %s", name);
-    }
-
-    static int setState(lua_State *L) {
-        auto &self = get_self(L);
-        auto id = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
-        luaL_checkany(L, 3);
-        if (id < 1 || id > (int)clingo_propagate_init_number_of_threads(self.init)) {
-            luaL_error(L, "invalid solver thread id %d", id);
-        }
-        lua_xmove(L, self.T, 1);
-        lua_rawseti(self.T, 2, id);
-        return 0;
-    }
-
-    static constexpr char const *typeName = "clingo.PropagateInit";
-    static luaL_Reg const meta[];
-};
-
-constexpr char const *PropagateInit::typeName;
-luaL_Reg const PropagateInit::meta[] = {
-    {"solver_literal", mapLit},
-    {"add_watch", addWatch},
-    {"set_state", setState},
-    {nullptr, nullptr}
-};
-
 // {{{1 wrap Assignment
 
 struct Assignment : Object<Assignment> {
@@ -2385,6 +2257,141 @@ luaL_Reg const Assignment::meta[] = {
     {"is_true", isTrue},
     {"is_false", isFalse},
     {"decision", decision},
+    {nullptr, nullptr}
+};
+
+// {{{1 wrap PropagateInit
+
+struct PropagatorCheckMode : Object<PropagatorCheckMode> {
+    clingo_propagator_check_mode type;
+    PropagatorCheckMode(clingo_propagator_check_mode type) : type(type) { }
+    clingo_propagator_check_mode cmpKey() { return type; }
+    static int addToRegistry(lua_State *L) {
+        lua_createtable(L, 0, 5);
+        for (auto t : {clingo_propagator_check_mode_none, clingo_propagator_check_mode_total, clingo_propagator_check_mode_fixpoint}) {
+            new_(L, t);
+            lua_setfield(L, -2, field_(t));
+        }
+        lua_setfield(L, -2, "PropagatorCheckMode");
+        return 0;
+    }
+    static char const *field_(clingo_propagator_check_mode type) {
+        switch (type) {
+            case clingo_propagator_check_mode_none:     { return "Off"; }
+            case clingo_propagator_check_mode_total:    { return "Total"; }
+            case clingo_propagator_check_mode_fixpoint: { return "Fixpoint"; }
+        }
+        return "";
+    }
+
+    static int toString(lua_State *L) {
+        lua_pushstring(L, field_(get_self(L).type));
+        return 1;
+    }
+    static luaL_Reg const meta[];
+    static constexpr char const *typeName = "clingo.PropagatorCheckMode";
+};
+
+constexpr char const *PropagatorCheckMode::typeName;
+
+luaL_Reg const PropagatorCheckMode::meta[] = {
+    {"__eq", eq},
+    {"__lt", lt},
+    {"__le", le},
+    {"__tostring", toString},
+    { nullptr, nullptr }
+};
+
+struct PropagateInit : Object<PropagateInit> {
+    lua_State *T;
+    clingo_propagate_init_t *init;
+    PropagateInit(lua_State *T, clingo_propagate_init_t *init) : T(T), init(init) { }
+
+    static int mapLit(lua_State *L) {
+        auto &self = get_self(L);
+        auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
+        lua_pushinteger(L, call_c(L, clingo_propagate_init_solver_literal, self.init, lit));
+        return 1;
+    }
+
+    static int numThreads(lua_State *L) {
+        auto &self = get_self(L);
+        lua_pushinteger(L, clingo_propagate_init_number_of_threads(self.init));
+        return 1;
+    }
+    static int addWatch(lua_State *L) {
+        auto &self = get_self(L);
+        auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
+        if (lua_isnone(L, 3) || lua_isnil(L, 3)) {
+            handle_c_error(L, clingo_propagate_init_add_watch(self.init, lit));
+        }
+        else {
+            auto thread_id = numeric_cast<uint32_t>(luaL_checkinteger(L, 3));
+            handle_c_error(L, clingo_propagate_init_add_watch_to_thread(self.init, lit, thread_id));
+        }
+        return 0;
+    }
+
+    static int getCheckMode(lua_State *L) {
+        PropagatorCheckMode::new_(L, static_cast<clingo_propagator_check_mode>(clingo_propagate_init_get_check_mode(get_self(L).init)));
+        return 1;
+    }
+
+    static int setCheckMode(lua_State *L) {
+        auto init = get_self(L).init;
+        auto mode = static_cast<PropagatorCheckMode*>(luaL_checkudata(L, 3, PropagatorCheckMode::typeName));
+        clingo_propagate_init_set_check_mode(init, mode->type);
+        return 1;
+    }
+
+    static int assignment(lua_State *L) {
+        auto &self = get_self(L);
+        Assignment::new_(L, clingo_propagate_init_assignment(self.init));
+        return 1;
+    }
+
+    static int index(lua_State *L) {
+        auto &self = get_self(L);
+        char const *name = luaL_checkstring(L, 2);
+        if (strcmp(name, "theory_atoms")               == 0) { return TheoryIter::iter(L, call_c(L, clingo_propagate_init_theory_atoms, self.init)); }
+        else if (strcmp(name, "symbolic_atoms")        == 0) { return SymbolicAtoms::new_(L, call_c(L, clingo_propagate_init_symbolic_atoms, self.init)); }
+        else if (strcmp(name, "number_of_threads")     == 0) { return numThreads(L); }
+        else if (strcmp(name, "check_mode")            == 0) { return getCheckMode(L); }
+        else if (strcmp(name, "assignment")            == 0) { return assignment(L); }
+        else {
+            lua_getmetatable(L, 1);
+            lua_getfield(L, -1, name);
+            return 1;
+        }
+    }
+
+    static int newindex(lua_State *L) {
+        char const *name = luaL_checkstring(L, 2);
+        if (strcmp(name, "check_mode")   == 0) { return setCheckMode(L); }
+        return luaL_error(L, "unknown field: %s", name);
+    }
+
+    static int setState(lua_State *L) {
+        auto &self = get_self(L);
+        auto id = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
+        luaL_checkany(L, 3);
+        if (id < 1 || id > (int)clingo_propagate_init_number_of_threads(self.init)) {
+            luaL_error(L, "invalid solver thread id %d", id);
+        }
+        lua_xmove(L, self.T, 1);
+        lua_rawseti(self.T, 2, id);
+        return 0;
+    }
+
+    static constexpr char const *typeName = "clingo.PropagateInit";
+    static luaL_Reg const meta[];
+};
+
+constexpr char const *PropagateInit::typeName;
+luaL_Reg const PropagateInit::meta[] = {
+    {"solver_literal", mapLit},
+    {"add_watch", addWatch},
+    {"set_state", setState},
     {nullptr, nullptr}
 };
 

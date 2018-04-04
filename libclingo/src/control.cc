@@ -557,45 +557,6 @@ extern "C" bool clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms,
     GRINGO_CLINGO_CATCH;
 }
 
-// {{{1 propagate init
-
-extern "C" bool clingo_propagate_init_solver_literal(clingo_propagate_init_t *init, clingo_literal_t lit, clingo_literal_t *ret) {
-    GRINGO_CLINGO_TRY { *ret = init->mapLit(lit); }
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" bool clingo_propagate_init_add_watch(clingo_propagate_init_t *init, clingo_literal_t lit) {
-    GRINGO_CLINGO_TRY { init->addWatch(lit); }
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" bool clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_t *init, clingo_literal_t lit, uint32_t thread_id) {
-    GRINGO_CLINGO_TRY { init->addWatch(thread_id, lit); }
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" int clingo_propagate_init_number_of_threads(clingo_propagate_init_t *init) {
-    return init->threads();
-}
-
-extern "C" bool clingo_propagate_init_symbolic_atoms(clingo_propagate_init_t *init, clingo_symbolic_atoms_t **ret) {
-    GRINGO_CLINGO_TRY { *ret = &init->getDomain(); }
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" bool clingo_propagate_init_theory_atoms(clingo_propagate_init_t *init, clingo_theory_atoms_t **ret) {
-    GRINGO_CLINGO_TRY { *ret = const_cast<clingo_theory_atoms*>(static_cast<clingo_theory_atoms const*>(&init->theory())); }
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" void clingo_propagate_init_set_check_mode(clingo_propagate_init_t *init, clingo_propagator_check_mode_t mode) {
-    init->setCheckMode(mode);
-}
-
-extern "C" clingo_propagator_check_mode_t clingo_propagate_init_get_check_mode(clingo_propagate_init_t *init) {
-    return init->getCheckMode();
-}
-
 // {{{1 assignment
 
 struct clingo_assignment : public Potassco::AbstractAssignment { };
@@ -654,6 +615,49 @@ extern "C" bool clingo_assignment_is_total(clingo_assignment_t *assignment) {
     return assignment->isTotal();
 }
 
+// {{{1 propagate init
+
+extern "C" bool clingo_propagate_init_solver_literal(clingo_propagate_init_t *init, clingo_literal_t lit, clingo_literal_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = init->mapLit(lit); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_propagate_init_add_watch(clingo_propagate_init_t *init, clingo_literal_t lit) {
+    GRINGO_CLINGO_TRY { init->addWatch(lit); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_t *init, clingo_literal_t lit, uint32_t thread_id) {
+    GRINGO_CLINGO_TRY { init->addWatch(thread_id, lit); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" int clingo_propagate_init_number_of_threads(clingo_propagate_init_t *init) {
+    return init->threads();
+}
+
+extern "C" bool clingo_propagate_init_symbolic_atoms(clingo_propagate_init_t *init, clingo_symbolic_atoms_t **ret) {
+    GRINGO_CLINGO_TRY { *ret = &init->getDomain(); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_propagate_init_theory_atoms(clingo_propagate_init_t *init, clingo_theory_atoms_t **ret) {
+    GRINGO_CLINGO_TRY { *ret = const_cast<clingo_theory_atoms*>(static_cast<clingo_theory_atoms const*>(&init->theory())); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" void clingo_propagate_init_set_check_mode(clingo_propagate_init_t *init, clingo_propagator_check_mode_t mode) {
+    init->setCheckMode(mode);
+}
+
+extern "C" clingo_propagator_check_mode_t clingo_propagate_init_get_check_mode(clingo_propagate_init_t *init) {
+    return init->getCheckMode();
+}
+
+extern "C" clingo_assignment_t *clingo_propagate_init_assignment(clingo_propagate_init_t *init) {
+    return const_cast<clingo_assignment_t *>(static_cast<clingo_assignment_t const *>(&init->assignment()));
+}
+
 // {{{1 propagate control
 
 struct clingo_propagate_control : Potassco::AbstractSolver { };
@@ -663,7 +667,7 @@ extern "C" clingo_id_t clingo_propagate_control_thread_id(clingo_propagate_contr
 }
 
 extern "C" clingo_assignment_t *clingo_propagate_control_assignment(clingo_propagate_control_t *ctl) {
-    return const_cast<clingo_assignment *>(static_cast<clingo_assignment const *>(&ctl->assignment()));
+    return const_cast<clingo_assignment_t *>(static_cast<clingo_assignment_t const *>(&ctl->assignment()));
 }
 
 extern "C" bool clingo_propagate_control_add_clause(clingo_propagate_control_t *ctl, clingo_literal_t const *clause, size_t n, clingo_clause_type_t prop, bool *ret) {
