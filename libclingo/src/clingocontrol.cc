@@ -154,6 +154,11 @@ void ClingoControl::parse() {
     }
 }
 
+ClingoPropagateInit::ClingoPropagateInit(Control &c, Clasp::ClingoPropagatorInit &p)
+: c_{c}, p_{p}, a_{*static_cast<ClingoControl&>(c).clasp_->ctx.solver(0)} {
+    p_.enableHistory(false);
+}
+
 Potassco::Lit_t ClingoPropagateInit::mapLit(Lit_t lit) {
     const auto& prg = static_cast<Clasp::Asp::LogicProgram&>(*static_cast<ClingoControl&>(c_).clasp_->program());
     return Clasp::encodeLit(prg.getLiteral(lit, Clasp::Asp::MapLit_t::Refined));
@@ -164,7 +169,7 @@ int ClingoPropagateInit::threads() {
 }
 
 Potassco::AbstractAssignment const &ClingoPropagateInit::assignment() const {
-    throw std::runtime_error("implement me!!!");
+    return a_;
 }
 
 void ClingoControl::parse(const StringVec& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* claspOut, bool addStdIn) {
