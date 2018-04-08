@@ -3813,6 +3813,7 @@ BinaryOperator.Minus          -- arithmetic subtraction
 BinaryOperator.Multiplication -- arithmetic multipilcation
 BinaryOperator.Division       -- arithmetic division
 BinaryOperator.Modulo         -- arithmetic modulo
+BinaryOperator.Power          -- arithmetic exponentiation
 )";
     static constexpr clingo_ast_binary_operator_t const values[] = {
         clingo_ast_binary_operator_xor,
@@ -3823,6 +3824,7 @@ BinaryOperator.Modulo         -- arithmetic modulo
         clingo_ast_binary_operator_multiplication,
         clingo_ast_binary_operator_division,
         clingo_ast_binary_operator_modulo,
+        clingo_ast_binary_operator_power,
     };
     static constexpr const char * const strings[] = {
         "XOr",
@@ -3833,6 +3835,7 @@ BinaryOperator.Modulo         -- arithmetic modulo
         "Multiplication",
         "Division",
         "Modulo",
+        "Power",
     };
     Object tp_repr() {
         switch (offset) {
@@ -3844,6 +3847,7 @@ BinaryOperator.Modulo         -- arithmetic modulo
             case 5: { return PyString_FromString("*"); }
             case 6: { return PyString_FromString("/"); }
             case 7: { return PyString_FromString("\\"); }
+            case 8: { return PyString_FromString("**"); }
         }
         throw std::logic_error("cannot happen");
     }

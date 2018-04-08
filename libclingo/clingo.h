@@ -2184,7 +2184,8 @@ enum clingo_ast_binary_operator {
     clingo_ast_binary_operator_minus          = 4,
     clingo_ast_binary_operator_multiplication = 5,
     clingo_ast_binary_operator_division       = 6,
-    clingo_ast_binary_operator_modulo         = 7
+    clingo_ast_binary_operator_modulo         = 7,
+    clingo_ast_binary_operator_power          = 8
 
 };
 typedef int clingo_ast_binary_operator_t;

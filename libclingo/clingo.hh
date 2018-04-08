@@ -1318,7 +1318,8 @@ enum class BinaryOperator : clingo_ast_binary_operator_t {
     Minus          = clingo_ast_binary_operator_minus,
     Multiplication = clingo_ast_binary_operator_multiplication,
     Division       = clingo_ast_binary_operator_division,
-    Modulo         = clingo_ast_binary_operator_modulo
+    Modulo         = clingo_ast_binary_operator_modulo,
+    Power          = clingo_ast_binary_operator_power
 };
 
 inline std::ostream &operator<<(std::ostream &out, BinaryOperator op) {
@@ -1331,6 +1332,7 @@ inline std::ostream &operator<<(std::ostream &out, BinaryOperator op) {
         case BinaryOperator::Multiplication: { out << "*"; break; }
         case BinaryOperator::Division:       { out << "/"; break; }
         case BinaryOperator::Modulo:         { out << "\\"; break; }
+        case BinaryOperator::Power:          { out << "**"; break; }
     }
     return out;
 }
