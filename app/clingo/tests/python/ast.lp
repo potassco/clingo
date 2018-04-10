@@ -16,6 +16,7 @@ def test():
     trm_s = ast.Symbol(loc, 2)
     trm_u = ast.UnaryOperation(loc, ast.UnaryOperator.Absolute, trm_v)
     trm_b = ast.BinaryOperation(loc, ast.BinaryOperator.Multiplication, trm_u, trm_s)
+    trm_e = ast.BinaryOperation(loc, ast.BinaryOperator.Power, trm_u, trm_s)
     trm_f = ast.Function(loc, "f", [trm_v,trm_s,trm_u,trm_b], True)
     trm_p = ast.Pool(loc, [trm_s,trm_v])
     csp_p = ast.CSPProduct(loc, trm_s, trm_v)
@@ -67,6 +68,7 @@ def test():
         (trm_s, "2", ast.ASTType.Symbol),
         (trm_u, "|X|", ast.ASTType.UnaryOperation),
         (trm_b, "(|X|*2)", ast.ASTType.BinaryOperation),
+        (trm_e, "(|X|**2)", ast.ASTType.BinaryOperation),
         (trm_f, "@f(X,2,|X|,(|X|*2))", ast.ASTType.Function),
         (trm_p, "(2;X)", ast.ASTType.Pool),
         (csp_p, "2$*$X", ast.ASTType.CSPProduct),
