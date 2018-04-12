@@ -4216,41 +4216,41 @@ inline ProgramBuilder Control::builder() {
     return ProgramBuilder{ret};
 }
 
-StatisticsType UserStatistics::type() const {
+inline StatisticsType UserStatistics::type() const {
     clingo_statistics_type_t ret;
     Detail::handle_error(clingo_user_statistics_type(stats_, key_, &ret));
     return StatisticsType(ret);
 }
 
-bool UserStatistics::hasSubkey(char const * name) const {
+inline bool UserStatistics::hasSubkey(char const * name) const {
     bool in;
     Detail::handle_error(clingo_user_statistics_map_has_subkey(stats_, key_, name, &in));
     return in;
 }
 
-bool UserStatistics::hasIndex(size_t index) const {
+inline bool UserStatistics::hasIndex(size_t index) const {
     bool in;
     Detail::handle_error(clingo_user_statistics_array_has_index(stats_, key_, index, &in));
     return in;
 }
 
-UserStatistics UserStatistics::operator[](char const * name) {
+inline UserStatistics UserStatistics::operator[](char const * name) {
     size_t out;
     Detail::handle_error(clingo_user_statistics_map_at(stats_, key_, name, &out));
     return UserStatistics(stats_, out);
 }
 
-UserStatistics UserStatistics::operator[](size_t index) {
+inline UserStatistics UserStatistics::operator[](size_t index) {
     size_t out;
     Detail::handle_error(clingo_user_statistics_array_at(stats_, key_, index, &out));
     return UserStatistics(stats_, out);
 }
 
-void UserStatistics::set(double v) {
+inline void UserStatistics::set(double v) {
     Detail::handle_error(clingo_user_statistics_value_set(stats_, key_, v));
 }
 
-double UserStatistics::fetchAdd(double v) {
+inline double UserStatistics::fetchAdd(double v) {
     double ret;
     Detail::handle_error(clingo_user_statistics_fetch_add(stats_, key_, v, &ret));
     return ret;
