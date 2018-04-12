@@ -2081,92 +2081,86 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_value_get(clingo_statistics_t *
 //! @}
 
 //! @}
-//! @name Functions for userdefined statistics
+//! @name Functions for user-defined statistics
 //! @{
 //
-//! Get the root key of the userdefined statistics.
+//! Get the root key of the user-defined statistics.
 //!
 //! @param[in] statistics the target user statistics
 //! @param[out] root the root key as ::clingo_statistics_type_map
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_root(clingo_user_statistics_t *statistics, size_t *root);
 
-//! Check if a user defined map contains a certain key.
+//! Get the type of a key.
 //!
-//! @pre The @link clingo_statistics_type() type@endlink of the map must be @ref ::clingo_statistics_type_map.
+//! @param[in] statistics the target user statistics
+//! @param[in] key the key
+//! @param[out] type the resulting type
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_type(clingo_user_statistics_t *statistics, size_t key, clingo_statistics_type_t* type);
+
+
+//! Check if a user defined map has a certain key.
+//!
+//! @pre The @link clingo_user_statistics_type() type@endlink of the map must be @ref ::clingo_statistics_type_map.
 //! @param[in] statistics the target user statistics
 //! @param[in] map the map
 //! @param[in] name the name of the key
 //! @param[out] in true if the key is in the map
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_in(clingo_user_statistics_t *statistics, size_t map, const char* name, bool* in);
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_has_subkey(clingo_user_statistics_t *statistics, size_t map, const char* name, bool* in);
 
-//! Check if a user defined map contains a certain key of a certain type.
+//! Check if a user defined array contains a certain index.
 //!
-//! @pre The @link clingo_statistics_type() type@endlink of the map must be @ref ::clingo_statistics_type_map.
-//! @param[in] statistics the target user statistics
-//! @param[in] map the map
-//! @param[in] name the name of the key
-//! @param[in] type the type of the key
-//! @param[out] in true if the key is in the map with the specified type
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_type(clingo_user_statistics_t *statistics, size_t map, const char* name, clingo_statistics_type_t type, bool* in);
-
-//! Check if a user defined array contains a certain offset.
-//!
-//! @pre The @link clingo_statistics_type() type@endlink of the array must be @ref ::clingo_statistics_type_array.
+//! @pre The @link clingo_user_statistics_type() type@endlink of the array must be @ref ::clingo_statistics_type_array.
 //! @param[in] statistics the target user statistics
 //! @param[in] array the array
-//! @param[in] offset the offset into the array
-//! @param[out] in true if the offset is in the array
+//! @param[in] index the index into the array
+//! @param[out] in true if the index is in the array
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_in(clingo_user_statistics_t *statistics, size_t array, size_t offset, bool* in);
-
-//! Check if a user defined map contains a certain key of a certain type.
-//!
-//! @pre The @link clingo_statistics_type() type@endlink of the array must be @ref ::clingo_statistics_type_array.
-//! @param[in] statistics the target user statistics
-//! @param[in] array the array
-//! @param[in] offset the offset into the array
-//! @param[in] type the type of the offset
-//! @param[out] in true if the offset is in the array with the specified type
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_type(clingo_user_statistics_t *statistics, size_t array, size_t offset, clingo_statistics_type_t type, bool* in);
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_has_index(clingo_user_statistics_t *statistics, size_t array, size_t index, bool* in);
 
 //! Get a statistic object from a map.
 //! If the object does not yet exist, create it.
 //!
-//! @pre The @link clingo_statistics_type() type@endlink of the map must be @ref ::clingo_statistics_type_map.
-//! @pre: Either @link clingo_user_statistics_map_in clingo_user_statistics_array_in(statistics,map,name)@endlink is false or @link clingo_user_statistics_map_type type(statistics,map,name,type)@endling is true
+//! @pre The @link clingo_user_statistics_type() type@endlink of the map must be @ref ::clingo_statistics_type_map.
 //! @param[in] statistics the target user statistics
 //! @param[in] map the map
 //! @param[in] name the name of the key
-//! @param[in] type the type of the key
 //! @param[out] result the requested statistic object
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_get(clingo_user_statistics_t *statistics, size_t map, const char* name, clingo_statistics_type_t type, size_t* result);
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_at(clingo_user_statistics_t *statistics, size_t map, const char* name, size_t* result);
 
 //! Get a statistic object from an array.
 //! If the object does not yet exist, create it.
 //!
-//! @pre The @link clingo_statistics_type() type@endlink of the array must be @ref ::clingo_statistics_type_array.
-//! @pre: Either @link clingo_user_statistics_array_in clingo_user_statistics_array_in(statistics,array,offset)@endlink is false or @link clingo_user_statistics_array_type type(statistics,array,index,type)@endling is true
+//! @pre The @link clingo_user_statistics_type() type@endlink of the array must be @ref ::clingo_statistics_type_array.
 //! @param[in] statistics the target user statistics
 //! @param[in] array the array
-//! @param[in] offset the offset into the array
-//! @param[in] type the type of the key
+//! @param[in] index the index into the array
 //! @param[out] result the requested statistic object
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_get(clingo_user_statistics_t *statistics, size_t array, size_t offset, clingo_statistics_type_t type, size_t* result);
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_at(clingo_user_statistics_t *statistics, size_t array, size_t index, size_t* result);
 
 //! Set the value for statistic object.
 //!
-//! @pre The @link clingo_statistics_type() type@endlink must be @ref ::clingo_statistics_type_value.
+//! @pre The @link clingo_user_statistics_type() type@endlink must be @ref ::clingo_statistics_type_value.
 //! @param[in] statistics the target user statistics
 //! @param[in] key the key to the value to be set
 //! @param[in] value
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_value_set(clingo_user_statistics_t *statistics, size_t key, double value);
+
+//! Increase the value of a statistic object and returns the previous value.
+//!
+//! @pre The @link clingo_user_statistics_type() type@endlink must be @ref ::clingo_statistics_type_value.
+//! @param[in] statistics the target user statistics
+//! @param[in] key the key to the value to be increased
+//! @param[in] value increase by this amount
+//! @param[out] oldvalue the previous value
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_fetch_add(clingo_user_statistics_t *statistics, size_t key, double value, double* oldvalue);
+
 
 //! @}
 
@@ -3312,7 +3306,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_is_conflicting(clingo_control_t *c
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_statistics(clingo_control_t *control, clingo_statistics_t **statistics);
-//! Add a callback to update userdefined statistics.
+//! Add a callback to update user-defined statistics.
 //!
 //! See the @ref Statistics module for more information.
 //! Several callbacks supported.
