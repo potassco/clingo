@@ -96,42 +96,25 @@ void print_prefix(int depth) {
   }
 }
 
-bool userstats(clingo_user_statistics_t* stats, void* data) {
-  size_t root;
-  size_t map;
-  size_t array;
-  size_t c;
-  size_t value;
-  if (!clingo_user_statistics_root(stats, &root)) { goto error; } 
-  if (!clingo_user_statistics_map_get(stats, root, "information", clingo_statistics_type_map, &map)) { goto error; }
-  if (!clingo_user_statistics_map_get(stats, map, "Animals", clingo_statistics_type_array, &array)) { goto error; }
-  if (!clingo_user_statistics_array_get(stats, array, 0, clingo_statistics_type_map, &c)) { goto error; }
-  if (!clingo_user_statistics_map_get(stats, c, "Age", clingo_statistics_type_value, &value)) { goto error; }
-  if (!clingo_user_statistics_value_set(stats, value, 42)) { goto error; }
-  if (!clingo_user_statistics_map_get(stats, c, "Legs", clingo_statistics_type_value, &value)) { goto error; }
-  if (!clingo_user_statistics_value_set(stats, value, 13)) { goto error; }
-  if (!clingo_user_statistics_map_get(stats, map, "DeathCounter", clingo_statistics_type_value, &value)) { goto error; }
-  if (!clingo_user_statistics_value_set(stats, value, 42)) { goto error; }
-  if (!clingo_user_statistics_array_get(stats, array, 1, clingo_statistics_type_map, &c)) { goto error; }
-  if (!clingo_user_statistics_map_get(stats, c, "Age", clingo_statistics_type_value, &value)) { goto error; }
-  if (!clingo_user_statistics_value_set(stats, value, 2)) { goto error; }
-  if (!clingo_user_statistics_map_get(stats, c, "Legs", clingo_statistics_type_value, &value)) { goto error; }
-  if (!clingo_user_statistics_value_set(stats, value, 7)) { goto error; }
-  if (!clingo_user_statistics_array_get(stats, array, 3, clingo_statistics_type_map, &c)) { goto error; }
-  if (!clingo_user_statistics_map_get(stats, c, "Age", clingo_statistics_type_value, &value)) { goto error; }
-  if (!clingo_user_statistics_value_set(stats, value, 423)) { goto error; }
-  if (!clingo_user_statistics_map_get(stats, c, "Legs", clingo_statistics_type_value, &value)) { goto error; }
-  if (!clingo_user_statistics_value_set(stats, value, 0)) { goto error; }
-  if (!clingo_user_statistics_array_get(stats, array, 4, clingo_statistics_type_value, &value)) { goto error; }
-  if (!clingo_user_statistics_value_set(stats, value, 42)) { goto error; }
-
+bool userstats(clingo_statistics_t* stats, void* data) {
+  size_t root, map, array, c, value;
+  if (!clingo_statistics_root(stats, &root)) { return false; } 
+  if (!clingo_statistics_map_create(stats, root, "information", clingo_statistics_type_map, &map)) { return false; }
+  if (!clingo_statistics_map_create(stats, map, "Animals", clingo_statistics_type_array, &array)) { return false; }
+  if (!clingo_statistics_array_push(stats, array, clingo_statistics_type_map, &c)) { return false; }
+  if (!clingo_statistics_map_create(stats, c, "Age", clingo_statistics_type_value, &value)) { return false; }
+  if (!clingo_statistics_value_set(stats, value, 42)) { return false; }
+  if (!clingo_statistics_map_create(stats, c, "Legs", clingo_statistics_type_value, &value)) { return false; }
+  if (!clingo_statistics_value_set(stats, value, 13)) { return false; }
+  if (!clingo_statistics_map_create(stats, map, "DeathCounter", clingo_statistics_type_value, &value)) { return false; }
+  if (!clingo_statistics_value_set(stats, value, 42)) { return false; }
+  if (!clingo_statistics_array_push(stats, array, clingo_statistics_type_value, &value)) { return false; }
+  if (!clingo_statistics_value_set(stats, value, 42)) { return false; }
   return true;
-error:
-  return false;
 }
 
 // recursively print the statistics object
-bool print_statistics(clingo_statistics_t *stats, uint64_t key, int depth) {
+bool print_statistics(const clingo_statistics_t *stats, uint64_t key, int depth) {
   bool ret = true;
   clingo_statistics_type_t type;
 
@@ -210,7 +193,7 @@ int main(int argc, char const **argv) {
   clingo_part_t parts[] = {{ "base", NULL, 0 }};
   clingo_configuration_t *conf;
   clingo_id_t conf_root, conf_sub;
-  clingo_statistics_t *stats;
+  const clingo_statistics_t *stats;
   uint64_t stats_key;
 
   // create a control object and pass command line arguments

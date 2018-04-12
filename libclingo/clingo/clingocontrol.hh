@@ -294,7 +294,7 @@ public:
     Symbol getConst(std::string const &name) override;
     bool isConflicting() noexcept override;
     Potassco::AbstractStatistics *statistics() override;
-    void addUserStatisticsCallback(clingo_set_user_statistics, void*) override;
+    void addStatisticsCallback(clingo_set_user_statistics, void*) override;
     ConfigProxy &getConf() override;
     void useEnumAssumption(bool enable) override;
     bool useEnumAssumption() override;
