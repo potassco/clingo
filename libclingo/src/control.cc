@@ -881,6 +881,7 @@ extern "C" bool clingo_configuration_value_is_assigned(clingo_configuration_t *c
 // {{{1 statistics
 
 struct clingo_statistic : public Potassco::AbstractStatistics { };
+struct clingo_user_statistic : public Clasp::ExternalStatistics { };
 
 extern "C" bool clingo_statistics_root(clingo_statistics_t *stats, uint64_t *ret) {
     GRINGO_CLINGO_TRY { *ret = stats->root(); }
@@ -1312,6 +1313,52 @@ extern "C" bool clingo_control_is_conflicting(clingo_control_t *control) {
 
 extern "C" bool clingo_control_statistics(clingo_control_t *ctl, clingo_statistics_t **stats) {
     GRINGO_CLINGO_TRY { *stats = static_cast<clingo_statistics_t*>(ctl->statistics()); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_control_add_user_statistics(clingo_control_t *ctl, clingo_set_user_statistics cb, void* data) {
+    GRINGO_CLINGO_TRY { ctl->addStatisticsCallback(cb,data); }
+    GRINGO_CLINGO_CATCH;
+}
+
+
+extern "C" bool clingo_user_statistics_root(clingo_user_statistics_t *statistics, size_t *root) {
+    GRINGO_CLINGO_TRY { *root = statistics->root(); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_user_statistics_type(clingo_user_statistics_t *statistics, size_t key, clingo_statistics_type_t* type) {
+//    GRINGO_CLINGO_TRY { *type = static_cast<clingo_statistics_type_t>(statistics->type(key)); }
+//    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_user_statistics_map_has_subkey(clingo_user_statistics_t *statistics, size_t map, const char* name, bool* in) {
+    GRINGO_CLINGO_TRY { *in = statistics->mapGet(map, name); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_user_statistics_array_has_index(clingo_user_statistics_t *statistics, size_t array, size_t index, bool* in) {
+    GRINGO_CLINGO_TRY { *in = statistics->arrayGet(array, index); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_user_statistics_map_at(clingo_user_statistics_t *statistics, size_t map, const char* name, size_t* result) {
+    GRINGO_CLINGO_TRY { *result = statistics->mapGet(map,name); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_user_statistics_array_at(clingo_user_statistics_t *statistics, size_t array, size_t index, size_t* result) {
+    GRINGO_CLINGO_TRY { *result = statistics->arrayGet(array,index); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_user_statistics_value_set(clingo_user_statistics_t *statistics, size_t key, double value) {
+    GRINGO_CLINGO_TRY { statistics->set(key, value); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_user_statistics_fetch_add(clingo_user_statistics_t *statistics, size_t key, double value, double* old) {
+    GRINGO_CLINGO_TRY { *old = statistics->fetchAdd(key, value); }
     GRINGO_CLINGO_CATCH;
 }
 
