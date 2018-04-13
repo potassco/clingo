@@ -4191,12 +4191,12 @@ provided in this module.
             case ASTType::Variable: { return fields_.getItem("name").str(); }
             case ASTType::Symbol:   { return fields_.getItem("symbol").str(); }
             case ASTType::UnaryOperation: {
-                Object unop = fields_.getItem("unary_operator");
+                Object unop = fields_.getItem("operator");
                 out << unop.call("left_hand_side") << fields_.getItem("argument") << unop.call("right_hand_side");
                 break;
             }
             case ASTType::BinaryOperation: {
-                out << "(" << fields_.getItem("left") << fields_.getItem("binary_operator") << fields_.getItem("right") << ")";
+                out << "(" << fields_.getItem("left") << fields_.getItem("operator") << fields_.getItem("right") << ")";
                 break;
             }
             case ASTType::Interval: {
@@ -4498,8 +4498,8 @@ PyGetSetDef AST::tp_getset[] = {
 CREATE2(Id, location, id)
 CREATE2(Variable, location, name)
 CREATE2(Symbol, location, symbol)
-CREATE3(UnaryOperation, location, unary_operator, argument)
-CREATE4(BinaryOperation, location, binary_operator, left, right)
+CREATE3(UnaryOperation, location, operator, argument)
+CREATE4(BinaryOperation, location, operator, left, right)
 CREATE3(Interval, location, left, right)
 CREATE4(Function, location, name, arguments, external)
 CREATE2(Pool, location, arguments)
@@ -4952,7 +4952,7 @@ struct ASTToC {
             }
             case ASTType::UnaryOperation: {
                 auto unary_operation = create_<clingo_ast_unary_operation_t>();
-                unary_operation->unary_operator = enumValue<UnaryOperator>(x.getAttr("unary_operator"));
+                unary_operation->unary_operator = enumValue<UnaryOperator>(x.getAttr("operator"));
                 unary_operation->argument       = convTerm(x.getAttr("argument"));
                 ret.type            = clingo_ast_term_type_unary_operation;
                 ret.unary_operation = unary_operation;
@@ -4960,7 +4960,7 @@ struct ASTToC {
             }
             case ASTType::BinaryOperation: {
                 auto binary_operation = create_<clingo_ast_binary_operation_t>();
-                binary_operation->binary_operator = enumValue<BinaryOperator>(x.getAttr("binary_operator"));
+                binary_operation->binary_operator = enumValue<BinaryOperator>(x.getAttr("operator"));
                 binary_operation->left            = convTerm(x.getAttr("left"));
                 binary_operation->right           = convTerm(x.getAttr("right"));
                 ret.type             = clingo_ast_term_type_binary_operation;
