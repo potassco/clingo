@@ -2120,8 +2120,19 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_has_subkey(clingo_user
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_has_index(clingo_user_statistics_t *statistics, size_t array, size_t index, bool* in);
 
-//! Get a statistic object from a map.
+//! Get a statistic object from a map of a certain type.
 //! If the object does not yet exist, create it.
+//!
+//! @pre The @link clingo_user_statistics_type() type@endlink of the map must be @ref ::clingo_statistics_type_map.
+//! @param[in] statistics the target user statistics
+//! @param[in] map the map
+//! @param[in] name the name of the key
+//! @param[in] type the requested type
+//! @param[out] result the requested statistic object
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_at(clingo_user_statistics_t *statistics, size_t map, const char* name, clingo_statistics_type_t type, size_t* result);
+
+//! Get a statistic object from a map.
 //!
 //! @pre The @link clingo_user_statistics_type() type@endlink of the map must be @ref ::clingo_statistics_type_map.
 //! @param[in] statistics the target user statistics
@@ -2129,10 +2140,21 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_has_index(clingo_use
 //! @param[in] name the name of the key
 //! @param[out] result the requested statistic object
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_at(clingo_user_statistics_t *statistics, size_t map, const char* name, size_t* result);
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_get(clingo_user_statistics_t *statistics, size_t map, const char* name, size_t* result);
+
+//! Get a statistic object from an array of a certain type.
+//! If the object does not yet exist, create it.
+//!
+//! @pre The @link clingo_user_statistics_type() type@endlink of the array must be @ref ::clingo_statistics_type_array.
+//! @param[in] statistics the target user statistics
+//! @param[in] array the array
+//! @param[in] index the index into the array
+//! @param[in] type the requested type
+//! @param[out] result the requested statistic object
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_at(clingo_user_statistics_t *statistics, size_t array, size_t index, clingo_statistics_type_t type, size_t* result);
 
 //! Get a statistic object from an array.
-//! If the object does not yet exist, create it.
 //!
 //! @pre The @link clingo_user_statistics_type() type@endlink of the array must be @ref ::clingo_statistics_type_array.
 //! @param[in] statistics the target user statistics
@@ -2140,7 +2162,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_map_at(clingo_user_statist
 //! @param[in] index the index into the array
 //! @param[out] result the requested statistic object
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_at(clingo_user_statistics_t *statistics, size_t array, size_t index, size_t* result);
+CLINGO_VISIBILITY_DEFAULT bool clingo_user_statistics_array_get(clingo_user_statistics_t *statistics, size_t array, size_t index, size_t* result);
+
 
 //! Set the value for statistic object.
 //!

@@ -2077,12 +2077,12 @@ public:
     StatisticsType type() const;
     // arrays
     bool hasIndex(size_t index) const;
-    UserStatistics operator[](size_t index);
-    UserStatistics at(size_t index) { return operator[](index); }
+    UserStatistics operator[](size_t index) const;
+    UserStatistics at(size_t index, StatisticsType type);
     // maps
     bool hasSubkey(char const * name) const;
-    UserStatistics operator[](char const *name);
-    UserStatistics get(char const *name) { return operator[](name); }
+    UserStatistics operator[](char const *name) const;
+    UserStatistics get(char const *name, StatisticsType type);
     // leafs
     void set(double value);
     double fetchAdd(double value);
@@ -4234,15 +4234,27 @@ inline bool UserStatistics::hasIndex(size_t index) const {
     return in;
 }
 
-inline UserStatistics UserStatistics::operator[](char const * name) {
+inline UserStatistics UserStatistics::operator[](char const * name) const {
     size_t out;
-    Detail::handle_error(clingo_user_statistics_map_at(stats_, key_, name, &out));
+    Detail::handle_error(clingo_user_statistics_map_get(stats_, key_, name, &out));
     return UserStatistics(stats_, out);
 }
 
-inline UserStatistics UserStatistics::operator[](size_t index) {
+inline UserStatistics UserStatistics::operator[](size_t index) const {
     size_t out;
-    Detail::handle_error(clingo_user_statistics_array_at(stats_, key_, index, &out));
+    Detail::handle_error(clingo_user_statistics_array_get(stats_, key_, index, &out));
+    return UserStatistics(stats_, out);
+}
+
+inline UserStatistics UserStatistics::get(char const *name, StatisticsType type) {
+    size_t out;
+    Detail::handle_error(clingo_user_statistics_map_at(stats_, key_, name, static_cast<clingo_statistics_type_t>(type), &out));
+    return UserStatistics(stats_, out);
+}
+
+inline UserStatistics UserStatistics::at(size_t index, StatisticsType type) {
+    size_t out;
+    Detail::handle_error(clingo_user_statistics_array_at(stats_, key_, index, static_cast<clingo_statistics_type_t>(type), &out));
     return UserStatistics(stats_, out);
 }
 

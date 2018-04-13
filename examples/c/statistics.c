@@ -103,26 +103,26 @@ bool userstats(clingo_user_statistics_t* stats, void* data) {
   size_t c;
   size_t value;
   if (!clingo_user_statistics_root(stats, &root)) { goto error; } 
-  if (!clingo_user_statistics_map_get(stats, root, "information", clingo_statistics_type_map, &map)) { goto error; }
-  if (!clingo_user_statistics_map_get(stats, map, "Animals", clingo_statistics_type_array, &array)) { goto error; }
-  if (!clingo_user_statistics_array_get(stats, array, 0, clingo_statistics_type_map, &c)) { goto error; }
-  if (!clingo_user_statistics_map_get(stats, c, "Age", clingo_statistics_type_value, &value)) { goto error; }
+  if (!clingo_user_statistics_map_at(stats, root, "information", clingo_statistics_type_map, &map)) { goto error; }
+  if (!clingo_user_statistics_map_at(stats, map, "Animals", clingo_statistics_type_array, &array)) { goto error; }
+  if (!clingo_user_statistics_array_at(stats, array, 0, clingo_statistics_type_map, &c)) { goto error; }
+  if (!clingo_user_statistics_map_at(stats, c, "Age", clingo_statistics_type_value, &value)) { goto error; }
   if (!clingo_user_statistics_value_set(stats, value, 42)) { goto error; }
-  if (!clingo_user_statistics_map_get(stats, c, "Legs", clingo_statistics_type_value, &value)) { goto error; }
+  if (!clingo_user_statistics_map_at(stats, c, "Legs", clingo_statistics_type_value, &value)) { goto error; }
   if (!clingo_user_statistics_value_set(stats, value, 13)) { goto error; }
-  if (!clingo_user_statistics_map_get(stats, map, "DeathCounter", clingo_statistics_type_value, &value)) { goto error; }
+  if (!clingo_user_statistics_map_at(stats, map, "DeathCounter", clingo_statistics_type_value, &value)) { goto error; }
   if (!clingo_user_statistics_value_set(stats, value, 42)) { goto error; }
-  if (!clingo_user_statistics_array_get(stats, array, 1, clingo_statistics_type_map, &c)) { goto error; }
-  if (!clingo_user_statistics_map_get(stats, c, "Age", clingo_statistics_type_value, &value)) { goto error; }
+  if (!clingo_user_statistics_array_at(stats, array, 1, clingo_statistics_type_map, &c)) { goto error; }
+  if (!clingo_user_statistics_map_at(stats, c, "Age", clingo_statistics_type_value, &value)) { goto error; }
   if (!clingo_user_statistics_value_set(stats, value, 2)) { goto error; }
-  if (!clingo_user_statistics_map_get(stats, c, "Legs", clingo_statistics_type_value, &value)) { goto error; }
+  if (!clingo_user_statistics_map_at(stats, c, "Legs", clingo_statistics_type_value, &value)) { goto error; }
   if (!clingo_user_statistics_value_set(stats, value, 7)) { goto error; }
-  if (!clingo_user_statistics_array_get(stats, array, 3, clingo_statistics_type_map, &c)) { goto error; }
-  if (!clingo_user_statistics_map_get(stats, c, "Age", clingo_statistics_type_value, &value)) { goto error; }
+  if (!clingo_user_statistics_array_at(stats, array, 3, clingo_statistics_type_map, &c)) { goto error; }
+  if (!clingo_user_statistics_map_at(stats, c, "Age", clingo_statistics_type_value, &value)) { goto error; }
   if (!clingo_user_statistics_value_set(stats, value, 423)) { goto error; }
-  if (!clingo_user_statistics_map_get(stats, c, "Legs", clingo_statistics_type_value, &value)) { goto error; }
+  if (!clingo_user_statistics_map_at(stats, c, "Legs", clingo_statistics_type_value, &value)) { goto error; }
   if (!clingo_user_statistics_value_set(stats, value, 0)) { goto error; }
-  if (!clingo_user_statistics_array_get(stats, array, 4, clingo_statistics_type_value, &value)) { goto error; }
+  if (!clingo_user_statistics_array_at(stats, array, 4, clingo_statistics_type_value, &value)) { goto error; }
   if (!clingo_user_statistics_value_set(stats, value, 42)) { goto error; }
 
   return true;
