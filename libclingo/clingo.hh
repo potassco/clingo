@@ -1942,12 +1942,15 @@ public:
     Statistics at(size_t index) const { return operator[](index); }
     StatisticsArrayIterator begin() const;
     StatisticsArrayIterator end() const;
+    Statistics create(size_t index, StatisticsType type);
     // maps
     Statistics operator[](char const *name) const;
     Statistics get(char const *name) { return operator[](name); }
     StatisticsKeyRange keys() const;
+    Statistics create(char const *name, StatisticsType type);
     // leafs
     double value() const;
+    void set(double d);
     operator double() const { return value(); }
     clingo_statistics_t *to_c() const { return stats_; }
 private:
@@ -2060,6 +2063,16 @@ inline std::ostream &operator<<(std::ostream &out, WarningCode code) {
     return out;
 }
 
+class Control;
+
+class UserStatisticCallback {
+public:
+    virtual void operator()(Statistics) = 0;
+private:
+    friend class Control;
+};
+
+
 class Control {
     struct Impl;
 public:
@@ -2101,6 +2114,7 @@ public:
     }
     Configuration configuration();
     Statistics statistics() const;
+    void add_user_statistics(UserStatisticCallback& cb);
     clingo_control_t *to_c() const;
 private:
     Impl *impl_;
@@ -2965,6 +2979,13 @@ inline Statistics Statistics::operator[](size_t index) const {
     return Statistics{stats_, ret};
 }
 
+inline Statistics Statistics::create(size_t index, StatisticsType type) {
+    uint64_t ret;
+    Detail::handle_error(clingo_statistics_array_create(stats_, key_, index, static_cast<clingo_statistics_type_t>(type), &ret));
+    return Statistics{stats_, ret};
+}
+
+
 inline StatisticsArrayIterator Statistics::begin() const {
     return StatisticsArrayIterator{this, 0};
 }
@@ -2979,6 +3000,13 @@ inline Statistics Statistics::operator[](char const *name) const {
     return Statistics{stats_, ret};
 }
 
+inline Statistics Statistics::create(char const *name, StatisticsType type) {
+    uint64_t ret;
+    Detail::handle_error(clingo_statistics_map_create(stats_, key_, name, static_cast<clingo_statistics_type_t>(type), &ret));
+    return Statistics{stats_, ret};
+}
+
+
 inline StatisticsKeyRange Statistics::keys() const {
     size_t ret;
     Detail::handle_error(clingo_statistics_map_size(stats_, key_, &ret));
@@ -2990,6 +3018,11 @@ inline double Statistics::value() const {
     Detail::handle_error(clingo_statistics_value_get(stats_, key_, &ret));
     return ret;
 }
+
+inline void Statistics::set(double d) {
+    Detail::handle_error(clingo_statistics_value_set(stats_, key_, d));
+}
+
 
 inline char const *Statistics::key_name(size_t index) const {
     char const *ret;
@@ -4155,6 +4188,11 @@ inline Configuration Control::configuration() {
     Detail::handle_error(clingo_configuration_root(conf, &key));
     return Configuration{conf, key};
 }
+
+inline void Control::add_user_statistics(UserStatisticCallback& cb) {
+    Detail::handle_error(clingo_control_add_user_statistics(to_c(), [](clingo_statistics_t* stats, void* data) { size_t root; clingo_statistics_root(stats,&root); static_cast<UserStatisticCallback*>(data)->operator()(Statistics(stats,root)); return true; }, static_cast<void*>(&cb)));
+}
+
 
 inline Statistics Control::statistics() const {
     clingo_statistics_t *stats;

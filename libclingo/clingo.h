@@ -1989,8 +1989,12 @@ enum clingo_statistics_type {
 //! Corresponding type to ::clingo_statistics_type.
 typedef int clingo_statistics_type_t;
 
-//! Handle for to the solver statistics.
+//! Handle for the solver statistics.
 typedef struct clingo_statistic clingo_statistics_t;
+
+//! Callback to add user defined statistics.
+typedef bool (*clingo_set_user_statistics) (clingo_statistics_t* stats, void* data);
+
 
 //! Get the root key of the statistics.
 //!
@@ -2026,6 +2030,16 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_size(clingo_statistics_t 
 //! @param[out] subkey the resulting subkey
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_at(clingo_statistics_t *statistics, uint64_t key, size_t offset, uint64_t *subkey);
+//! Create the subkey at the given offset of an array entry.
+//!
+//! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_array.
+//! @param[in] statistics the target statistics
+//! @param[in] key the key
+//! @param[in] offset the offset in the array
+//! @param[in] type the type of the new subkey
+//! @param[out] subkey the resulting subkey
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_create(clingo_statistics_t *statistics, uint64_t key, size_t offset, clingo_statistics_type_t type, uint64_t *subkey);
 //! @}
 
 //! @name Functions to access maps
@@ -2058,9 +2072,20 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_subkey_name(clingo_statisti
 //! @param[out] subkey the resulting subkey
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_at(clingo_statistics_t *statistics, uint64_t key, char const *name, uint64_t *subkey);
+//! Create a subkey under the given name.
+//!
+//! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_map.
+//! @param[in] statistics the target statistics
+//! @param[in] key the key
+//! @param[in] name the name of the new subkey
+//! @param[in] type the type of the new subkey
+//! @param[out] subkey the resulting subkey
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_create(clingo_statistics_t *statistics, uint64_t key, char const *name, clingo_statistics_type_t type, uint64_t *subkey);
+
 //! @}
 
-//! @name Functions to inspect values
+//! @name Functions to inspect and change values
 //! @{
 
 //! Get the value of the given entry.
@@ -2071,9 +2096,17 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_at(clingo_statistics_t *sta
 //! @param[out] value the resulting value
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_value_get(clingo_statistics_t *statistics, uint64_t key, double *value);
-//! @}
+//! Set the value of the given entry.
+//!
+//! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_value.
+//! @param[in] statistics the target statistics
+//! @param[in] key the key
+//! @param[out] value the new value
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_value_set(clingo_statistics_t *statistics, uint64_t key, double value);
 
 //! @}
+
 
 // {{{1 ast
 
@@ -3216,6 +3249,18 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_is_conflicting(clingo_control_t *c
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_statistics(clingo_control_t *control, clingo_statistics_t **statistics);
+//! Add a callback to update user-defined statistics.
+//!
+//! See the @ref Statistics module for more information.
+//! Several callbacks supported.
+//!
+//! @param[in] control the target
+//! @param[in] cb a callback to the set_user_statistic function
+//! @param[in] data user data passed to the callback function
+//! @see ::clingo_set_user_statistics
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_add_user_statistics(clingo_control_t *control, clingo_set_user_statistics cb, void* data);
+
 //! Interrupt the active solve call (or the following solve call right at the beginning).
 //!
 //! @param[in] control the target

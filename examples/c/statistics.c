@@ -96,6 +96,23 @@ void print_prefix(int depth) {
   }
 }
 
+bool userstats(clingo_statistics_t* stats, void* data) {
+  size_t root, map, array, c, value;
+  if (!clingo_statistics_root(stats, &root)) { return false; } 
+  if (!clingo_statistics_map_create(stats, root, "information", clingo_statistics_type_map, &map)) { return false; }
+  if (!clingo_statistics_map_create(stats, map, "Animals", clingo_statistics_type_array, &array)) { return false; }
+  if (!clingo_statistics_array_create(stats, array, 0, clingo_statistics_type_map, &c)) { return false; }
+  if (!clingo_statistics_map_create(stats, c, "Age", clingo_statistics_type_value, &value)) { return false; }
+  if (!clingo_statistics_value_set(stats, value, 42)) { return false; }
+  if (!clingo_statistics_map_create(stats, c, "Legs", clingo_statistics_type_value, &value)) { return false; }
+  if (!clingo_statistics_value_set(stats, value, 13)) { return false; }
+  if (!clingo_statistics_map_create(stats, map, "DeathCounter", clingo_statistics_type_value, &value)) { return false; }
+  if (!clingo_statistics_value_set(stats, value, 42)) { return false; }
+  if (!clingo_statistics_array_create(stats, array, 4, clingo_statistics_type_value, &value)) { return false; }
+  if (!clingo_statistics_value_set(stats, value, 42)) { return false; }
+  return true;
+}
+
 // recursively print the statistics object
 bool print_statistics(clingo_statistics_t *stats, uint64_t key, int depth) {
   bool ret = true;
@@ -191,6 +208,9 @@ int main(int argc, char const **argv) {
 
   // add a logic program to the base part
   if (!clingo_control_add(ctl, "base", NULL, 0, "a :- not b. b :- not a.")) { goto error; }
+
+  // add a callback to set userdefined statistics
+  if (!clingo_control_add_user_statistics(ctl, userstats, 0)) { goto error; }
 
   // ground the base part
   if (!clingo_control_ground(ctl, parts, 1, NULL, NULL)) { goto error; }

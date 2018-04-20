@@ -1,4 +1,4 @@
 [submodule "clasp"]
 	path = clasp
-	url = https://github.com/potassco/clasp.git
-	branch = dev
+	url = https://github.com/MaxOstrowski/clasp.git
+	branch = external_stats_change
