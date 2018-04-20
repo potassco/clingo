@@ -97,37 +97,20 @@ void print_prefix(int depth) {
 }
 
 bool userstats(clingo_statistics_t* stats, void* data) {
-  size_t root;
-  size_t map;
-  size_t array;
-  size_t c;
-  size_t value;
-  if (!clingo_statistics_root(stats, &root)) { goto error; } 
-  if (!clingo_statistics_map_create(stats, root, "information", clingo_statistics_type_map, &map)) { goto error; }
-  if (!clingo_statistics_map_create(stats, map, "Animals", clingo_statistics_type_array, &array)) { goto error; }
-  if (!clingo_statistics_array_create(stats, array, 0, clingo_statistics_type_map, &c)) { goto error; }
-  if (!clingo_statistics_map_create(stats, c, "Age", clingo_statistics_type_value, &value)) { goto error; }
-  if (!clingo_statistics_value_set(stats, value, 42)) { goto error; }
-  if (!clingo_statistics_map_create(stats, c, "Legs", clingo_statistics_type_value, &value)) { goto error; }
-  if (!clingo_statistics_value_set(stats, value, 13)) { goto error; }
-  if (!clingo_statistics_map_create(stats, map, "DeathCounter", clingo_statistics_type_value, &value)) { goto error; }
-  if (!clingo_statistics_value_set(stats, value, 42)) { goto error; }
-  if (!clingo_statistics_array_create(stats, array, 1, clingo_statistics_type_map, &c)) { goto error; }
-  if (!clingo_statistics_map_create(stats, c, "Age", clingo_statistics_type_value, &value)) { goto error; }
-  if (!clingo_statistics_value_set(stats, value, 2)) { goto error; }
-  if (!clingo_statistics_map_create(stats, c, "Legs", clingo_statistics_type_value, &value)) { goto error; }
-  if (!clingo_statistics_value_set(stats, value, 7)) { goto error; }
-  if (!clingo_statistics_array_create(stats, array, 3, clingo_statistics_type_map, &c)) { goto error; }
-  if (!clingo_statistics_map_create(stats, c, "Age", clingo_statistics_type_value, &value)) { goto error; }
-  if (!clingo_statistics_value_set(stats, value, 423)) { goto error; }
-  if (!clingo_statistics_map_create(stats, c, "Legs", clingo_statistics_type_value, &value)) { goto error; }
-  if (!clingo_statistics_value_set(stats, value, 0)) { goto error; }
-  if (!clingo_statistics_array_create(stats, array, 4, clingo_statistics_type_value, &value)) { goto error; }
-  if (!clingo_statistics_value_set(stats, value, 42)) { goto error; }
-
+  size_t root, map, array, c, value;
+  if (!clingo_statistics_root(stats, &root)) { return false; } 
+  if (!clingo_statistics_map_create(stats, root, "information", clingo_statistics_type_map, &map)) { return false; }
+  if (!clingo_statistics_map_create(stats, map, "Animals", clingo_statistics_type_array, &array)) { return false; }
+  if (!clingo_statistics_array_create(stats, array, 0, clingo_statistics_type_map, &c)) { return false; }
+  if (!clingo_statistics_map_create(stats, c, "Age", clingo_statistics_type_value, &value)) { return false; }
+  if (!clingo_statistics_value_set(stats, value, 42)) { return false; }
+  if (!clingo_statistics_map_create(stats, c, "Legs", clingo_statistics_type_value, &value)) { return false; }
+  if (!clingo_statistics_value_set(stats, value, 13)) { return false; }
+  if (!clingo_statistics_map_create(stats, map, "DeathCounter", clingo_statistics_type_value, &value)) { return false; }
+  if (!clingo_statistics_value_set(stats, value, 42)) { return false; }
+  if (!clingo_statistics_array_create(stats, array, 4, clingo_statistics_type_value, &value)) { return false; }
+  if (!clingo_statistics_value_set(stats, value, 42)) { return false; }
   return true;
-error:
-  return false;
 }
 
 // recursively print the statistics object
