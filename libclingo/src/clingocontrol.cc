@@ -467,7 +467,7 @@ Potassco::AbstractStatistics *ClingoControl::statistics() {
 }
 
 void ClingoControl::addStatisticsCallback(clingo_set_user_statistics cb, void* data) {
-    clasp_->addStatisticsCallback(reinterpret_cast<void(*)(Clasp::ExternalStatistics*, void*)>(cb), data);
+    clasp_->addStatisticsCallback(reinterpret_cast<void(*)(Clasp::ClaspStatistics*, void*)>(cb), data);
 }
 
 void ClingoControl::useEnumAssumption(bool enable) {

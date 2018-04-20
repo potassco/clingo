@@ -1942,12 +1942,15 @@ public:
     Statistics at(size_t index) const { return operator[](index); }
     StatisticsArrayIterator begin() const;
     StatisticsArrayIterator end() const;
+    Statistics create(size_t index, StatisticsType type);
     // maps
     Statistics operator[](char const *name) const;
     Statistics get(char const *name) { return operator[](name); }
     StatisticsKeyRange keys() const;
+    Statistics create(char const *name, StatisticsType type);
     // leafs
     double value() const;
+    void set(double d);
     operator double() const { return value(); }
     clingo_statistics_t *to_c() const { return stats_; }
 private:
@@ -2062,39 +2065,9 @@ inline std::ostream &operator<<(std::ostream &out, WarningCode code) {
 
 class Control;
 
-class UserStatistics;
-using UserStatisticsKeyIterator = KeyIterator<Statistics>;
-using UserStatisticsArrayIterator = ArrayIterator<Statistics, Statistics const *>;
-using UserStatisticsKeyRange = IteratorRange<StatisticsKeyIterator>;
-
-class UserStatistics {
-    friend class KeyIterator<UserStatistics>;
-public:
-    explicit UserStatistics(clingo_user_statistics_t *stats, size_t key)
-    : stats_(stats)
-    , key_(key) { }
-    // generic
-    StatisticsType type() const;
-    // arrays
-    bool hasIndex(size_t index) const;
-    UserStatistics operator[](size_t index) const;
-    UserStatistics at(size_t index, StatisticsType type);
-    // maps
-    bool hasSubkey(char const * name) const;
-    UserStatistics operator[](char const *name) const;
-    UserStatistics get(char const *name, StatisticsType type);
-    // leafs
-    void set(double value);
-    double fetchAdd(double value);
-    clingo_user_statistics_t *to_c() const { return stats_; }
-private:
-    clingo_user_statistics_t *stats_;
-    uint64_t key_;
-};
-
 class UserStatisticCallback {
 public:
-    virtual void operator()(UserStatistics) = 0;
+    virtual void operator()(Statistics) = 0;
 private:
     friend class Control;
 };
@@ -3006,6 +2979,13 @@ inline Statistics Statistics::operator[](size_t index) const {
     return Statistics{stats_, ret};
 }
 
+inline Statistics Statistics::create(size_t index, StatisticsType type) {
+    uint64_t ret;
+    Detail::handle_error(clingo_statistics_array_create(stats_, key_, index, static_cast<clingo_statistics_type_t>(type), &ret));
+    return Statistics{stats_, ret};
+}
+
+
 inline StatisticsArrayIterator Statistics::begin() const {
     return StatisticsArrayIterator{this, 0};
 }
@@ -3020,6 +3000,13 @@ inline Statistics Statistics::operator[](char const *name) const {
     return Statistics{stats_, ret};
 }
 
+inline Statistics Statistics::create(char const *name, StatisticsType type) {
+    uint64_t ret;
+    Detail::handle_error(clingo_statistics_map_create(stats_, key_, name, static_cast<clingo_statistics_type_t>(type), &ret));
+    return Statistics{stats_, ret};
+}
+
+
 inline StatisticsKeyRange Statistics::keys() const {
     size_t ret;
     Detail::handle_error(clingo_statistics_map_size(stats_, key_, &ret));
@@ -3031,6 +3018,11 @@ inline double Statistics::value() const {
     Detail::handle_error(clingo_statistics_value_get(stats_, key_, &ret));
     return ret;
 }
+
+inline void Statistics::set(double d) {
+    Detail::handle_error(clingo_statistics_value_set(stats_, key_, d));
+}
+
 
 inline char const *Statistics::key_name(size_t index) const {
     char const *ret;
@@ -4198,7 +4190,7 @@ inline Configuration Control::configuration() {
 }
 
 inline void Control::add_user_statistics(UserStatisticCallback& cb) {
-    Detail::handle_error(clingo_control_add_user_statistics(to_c(), [](clingo_user_statistics_t* stats, void* data) { size_t root; clingo_user_statistics_root(stats,&root); static_cast<UserStatisticCallback*>(data)->operator()(UserStatistics(stats,root)); return true; }, static_cast<void*>(&cb)));
+    Detail::handle_error(clingo_control_add_user_statistics(to_c(), [](clingo_statistics_t* stats, void* data) { size_t root; clingo_statistics_root(stats,&root); static_cast<UserStatisticCallback*>(data)->operator()(Statistics(stats,root)); return true; }, static_cast<void*>(&cb)));
 }
 
 
@@ -4215,59 +4207,6 @@ inline ProgramBuilder Control::builder() {
     Detail::handle_error(clingo_control_program_builder(impl_->ctl, &ret));
     return ProgramBuilder{ret};
 }
-
-inline StatisticsType UserStatistics::type() const {
-    clingo_statistics_type_t ret;
-    Detail::handle_error(clingo_user_statistics_type(stats_, key_, &ret));
-    return StatisticsType(ret);
-}
-
-inline bool UserStatistics::hasSubkey(char const * name) const {
-    bool in;
-    Detail::handle_error(clingo_user_statistics_map_has_subkey(stats_, key_, name, &in));
-    return in;
-}
-
-inline bool UserStatistics::hasIndex(size_t index) const {
-    bool in;
-    Detail::handle_error(clingo_user_statistics_array_has_index(stats_, key_, index, &in));
-    return in;
-}
-
-inline UserStatistics UserStatistics::operator[](char const * name) const {
-    size_t out;
-    Detail::handle_error(clingo_user_statistics_map_get(stats_, key_, name, &out));
-    return UserStatistics(stats_, out);
-}
-
-inline UserStatistics UserStatistics::operator[](size_t index) const {
-    size_t out;
-    Detail::handle_error(clingo_user_statistics_array_get(stats_, key_, index, &out));
-    return UserStatistics(stats_, out);
-}
-
-inline UserStatistics UserStatistics::get(char const *name, StatisticsType type) {
-    size_t out;
-    Detail::handle_error(clingo_user_statistics_map_at(stats_, key_, name, static_cast<clingo_statistics_type_t>(type), &out));
-    return UserStatistics(stats_, out);
-}
-
-inline UserStatistics UserStatistics::at(size_t index, StatisticsType type) {
-    size_t out;
-    Detail::handle_error(clingo_user_statistics_array_at(stats_, key_, index, static_cast<clingo_statistics_type_t>(type), &out));
-    return UserStatistics(stats_, out);
-}
-
-inline void UserStatistics::set(double v) {
-    Detail::handle_error(clingo_user_statistics_value_set(stats_, key_, v));
-}
-
-inline double UserStatistics::fetchAdd(double v) {
-    double ret;
-    Detail::handle_error(clingo_user_statistics_fetch_add(stats_, key_, v, &ret));
-    return ret;
-}
-
 
 // {{{2 clingo application
 
