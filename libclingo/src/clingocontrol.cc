@@ -464,7 +464,11 @@ std::string ClingoControl::str() {
 }
 
 void ClingoControl::assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) {
-    if (update()) { out_->backend_()->external(ext, val); }
+    if (update()) {
+        if (auto backend = out_->backend_()) {
+            backend->external(ext, val);
+        }
+    }
 }
 
 bool ClingoControl::isConflicting() noexcept {
