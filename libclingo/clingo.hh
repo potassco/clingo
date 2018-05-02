@@ -1942,7 +1942,7 @@ public:
     Statistics at(size_t index) const { return operator[](index); }
     StatisticsArrayIterator begin() const;
     StatisticsArrayIterator end() const;
-    Statistics create(size_t index, StatisticsType type);
+    Statistics push(StatisticsType type);
     // maps
     Statistics operator[](char const *name) const;
     Statistics get(char const *name) { return operator[](name); }
@@ -2979,9 +2979,9 @@ inline Statistics Statistics::operator[](size_t index) const {
     return Statistics{stats_, ret};
 }
 
-inline Statistics Statistics::create(size_t index, StatisticsType type) {
+inline Statistics Statistics::push(StatisticsType type) {
     uint64_t ret;
-    Detail::handle_error(clingo_statistics_array_create(stats_, key_, index, static_cast<clingo_statistics_type_t>(type), &ret));
+    Detail::handle_error(clingo_statistics_array_push(stats_, key_, static_cast<clingo_statistics_type_t>(type), &ret));
     return Statistics{stats_, ret};
 }
 

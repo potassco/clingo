@@ -101,14 +101,14 @@ bool userstats(clingo_statistics_t* stats, void* data) {
   if (!clingo_statistics_root(stats, &root)) { return false; } 
   if (!clingo_statistics_map_create(stats, root, "information", clingo_statistics_type_map, &map)) { return false; }
   if (!clingo_statistics_map_create(stats, map, "Animals", clingo_statistics_type_array, &array)) { return false; }
-  if (!clingo_statistics_array_create(stats, array, 0, clingo_statistics_type_map, &c)) { return false; }
+  if (!clingo_statistics_array_push(stats, array, clingo_statistics_type_map, &c)) { return false; }
   if (!clingo_statistics_map_create(stats, c, "Age", clingo_statistics_type_value, &value)) { return false; }
   if (!clingo_statistics_value_set(stats, value, 42)) { return false; }
   if (!clingo_statistics_map_create(stats, c, "Legs", clingo_statistics_type_value, &value)) { return false; }
   if (!clingo_statistics_value_set(stats, value, 13)) { return false; }
   if (!clingo_statistics_map_create(stats, map, "DeathCounter", clingo_statistics_type_value, &value)) { return false; }
   if (!clingo_statistics_value_set(stats, value, 42)) { return false; }
-  if (!clingo_statistics_array_create(stats, array, 4, clingo_statistics_type_value, &value)) { return false; }
+  if (!clingo_statistics_array_push(stats, array, clingo_statistics_type_value, &value)) { return false; }
   if (!clingo_statistics_value_set(stats, value, 42)) { return false; }
   return true;
 }
