@@ -4195,11 +4195,11 @@ inline void Control::add_user_statistics(UserStatisticCallback& cb) {
 
 
 inline Statistics Control::statistics() const {
-    clingo_statistics_t *stats;
+    const clingo_statistics_t *stats;
     Detail::handle_error(clingo_control_statistics(const_cast<clingo_control_t*>(impl_->ctl), &stats));
     uint64_t key;
     Detail::handle_error(clingo_statistics_root(stats, &key));
-    return Statistics{stats, key};
+    return Statistics{const_cast<clingo_statistics_t*>(stats), key};
 }
 
 inline ProgramBuilder Control::builder() {

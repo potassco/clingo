@@ -114,7 +114,7 @@ bool userstats(clingo_statistics_t* stats, void* data) {
 }
 
 // recursively print the statistics object
-bool print_statistics(clingo_statistics_t *stats, uint64_t key, int depth) {
+bool print_statistics(const clingo_statistics_t *stats, uint64_t key, int depth) {
   bool ret = true;
   clingo_statistics_type_t type;
 
@@ -193,7 +193,7 @@ int main(int argc, char const **argv) {
   clingo_part_t parts[] = {{ "base", NULL, 0 }};
   clingo_configuration_t *conf;
   clingo_id_t conf_root, conf_sub;
-  clingo_statistics_t *stats;
+  const clingo_statistics_t *stats;
   uint64_t stats_key;
 
   // create a control object and pass command line arguments

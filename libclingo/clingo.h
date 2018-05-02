@@ -2001,14 +2001,14 @@ typedef bool (*clingo_set_user_statistics) (clingo_statistics_t* stats, void* da
 //! @param[in] statistics the target statistics
 //! @param[out] key the root key
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_root(clingo_statistics_t *statistics, uint64_t *key);
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_root(const clingo_statistics_t *statistics, uint64_t *key);
 //! Get the type of a key.
 //!
 //! @param[in] statistics the target statistics
 //! @param[in] key the key
 //! @param[out] type the resulting type
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_type(clingo_statistics_t *statistics, uint64_t key, clingo_statistics_type_t *type);
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_type(const clingo_statistics_t *statistics, uint64_t key, clingo_statistics_type_t *type);
 
 //! @name Functions to access arrays
 //! @{
@@ -2020,7 +2020,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_type(clingo_statistics_t *stati
 //! @param[in] key the key
 //! @param[out] size the resulting size
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_size(clingo_statistics_t *statistics, uint64_t key, size_t *size);
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_size(const clingo_statistics_t *statistics, uint64_t key, size_t *size);
 //! Get the subkey at the given offset of an array entry.
 //!
 //! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_array.
@@ -2029,17 +2029,16 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_size(clingo_statistics_t 
 //! @param[in] offset the offset in the array
 //! @param[out] subkey the resulting subkey
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_at(clingo_statistics_t *statistics, uint64_t key, size_t offset, uint64_t *subkey);
-//! Create the subkey at the given offset of an array entry.
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_at(const clingo_statistics_t *statistics, uint64_t key, size_t offset, uint64_t *subkey);
+//! Create the subkey at the end of an array entry.
 //!
 //! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_array.
 //! @param[in] statistics the target statistics
 //! @param[in] key the key
-//! @param[in] offset the offset in the array
 //! @param[in] type the type of the new subkey
 //! @param[out] subkey the resulting subkey
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_create(clingo_statistics_t *statistics, uint64_t key, size_t offset, clingo_statistics_type_t type, uint64_t *subkey);
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_push(clingo_statistics_t *statistics, uint64_t key, clingo_statistics_type_t type, uint64_t *subkey);
 //! @}
 
 //! @name Functions to access maps
@@ -2052,7 +2051,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_create(clingo_statistics_
 //! @param[in] key the key
 //! @param[out] size the resulting number
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_size(clingo_statistics_t *statistics, uint64_t key, size_t *size);
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_size(const clingo_statistics_t *statistics, uint64_t key, size_t *size);
 //! Get the name associated with the offset-th subkey.
 //!
 //! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_map.
@@ -2061,7 +2060,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_size(clingo_statistics_t *s
 //! @param[in] offset the offset of the name
 //! @param[out] name the resulting name
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_subkey_name(clingo_statistics_t *statistics, uint64_t key, size_t offset, char const **name);
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_subkey_name(const clingo_statistics_t *statistics, uint64_t key, size_t offset, char const **name);
 //! Lookup a subkey under the given name.
 //!
 //! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_map.
@@ -2071,7 +2070,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_subkey_name(clingo_statisti
 //! @param[in] name the name to lookup the subkey
 //! @param[out] subkey the resulting subkey
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_at(clingo_statistics_t *statistics, uint64_t key, char const *name, uint64_t *subkey);
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_at(const clingo_statistics_t *statistics, uint64_t key, char const *name, uint64_t *subkey);
 //! Create a subkey under the given name.
 //!
 //! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_map.
@@ -2095,7 +2094,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_create(clingo_statistics_t 
 //! @param[in] key the key
 //! @param[out] value the resulting value
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_value_get(clingo_statistics_t *statistics, uint64_t key, double *value);
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_value_get(const clingo_statistics_t *statistics, uint64_t key, double *value);
 //! Set the value of the given entry.
 //!
 //! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_value.
@@ -3248,7 +3247,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_is_conflicting(clingo_control_t *c
 //! @param[out] statistics the statistics object
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_statistics(clingo_control_t *control, clingo_statistics_t **statistics);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_statistics(clingo_control_t *control, const clingo_statistics_t **statistics);
 //! Add a callback to update user-defined statistics.
 //!
 //! See the @ref Statistics module for more information.
