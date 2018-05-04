@@ -782,30 +782,6 @@ private:
     clingo_theory_atoms_t *atoms_;
 };
 
-// {{{1 propagate init
-
-enum PropagatorCheckMode : clingo_propagator_check_mode_t {
-    None    = clingo_propagator_check_mode_none,
-    Total   = clingo_propagator_check_mode_total,
-    Partial = clingo_propagator_check_mode_fixpoint,
-};
-
-class PropagateInit {
-public:
-    explicit PropagateInit(clingo_propagate_init_t *init)
-    : init_(init) { }
-    literal_t solver_literal(literal_t lit) const;
-    void add_watch(literal_t lit);
-    int number_of_threads() const;
-    SymbolicAtoms symbolic_atoms() const;
-    TheoryAtoms theory_atoms() const;
-    PropagatorCheckMode get_check_mode() const;
-    void set_check_mode(PropagatorCheckMode mode);
-    clingo_propagate_init_t *to_c() const { return init_; }
-private:
-    clingo_propagate_init_t *init_;
-};
-
 // {{{1 assignment
 
 class Assignment {
@@ -827,6 +803,32 @@ public:
     clingo_assignment_t *to_c() const { return ass_; }
 private:
     clingo_assignment_t *ass_;
+};
+
+// {{{1 propagate init
+
+enum PropagatorCheckMode : clingo_propagator_check_mode_t {
+    None    = clingo_propagator_check_mode_none,
+    Total   = clingo_propagator_check_mode_total,
+    Partial = clingo_propagator_check_mode_fixpoint,
+};
+
+class PropagateInit {
+public:
+    explicit PropagateInit(clingo_propagate_init_t *init)
+    : init_(init) { }
+    literal_t solver_literal(literal_t lit) const;
+    void add_watch(literal_t lit);
+    void add_watch(literal_t literal, id_t thread_id);
+    int number_of_threads() const;
+    Assignment assignment() const;
+    SymbolicAtoms symbolic_atoms() const;
+    TheoryAtoms theory_atoms() const;
+    PropagatorCheckMode get_check_mode() const;
+    void set_check_mode(PropagatorCheckMode mode);
+    clingo_propagate_init_t *to_c() const { return init_; }
+private:
+    clingo_propagate_init_t *init_;
 };
 
 // {{{1 propagate control
@@ -2662,8 +2664,16 @@ inline void PropagateInit::add_watch(literal_t lit) {
     Detail::handle_error(clingo_propagate_init_add_watch(init_, lit));
 }
 
+inline void PropagateInit::add_watch(literal_t lit, id_t thread_id) {
+    Detail::handle_error(clingo_propagate_init_add_watch_to_thread(init_, lit, thread_id));
+}
+
 inline int PropagateInit::number_of_threads() const {
     return clingo_propagate_init_number_of_threads(init_);
+}
+
+inline Assignment PropagateInit::assignment() const {
+    return Assignment{clingo_propagate_init_assignment(init_)};
 }
 
 inline SymbolicAtoms PropagateInit::symbolic_atoms() const {

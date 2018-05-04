@@ -27,6 +27,8 @@
 #include <map>
 #include <unordered_set>
 #include <cassert>
+#include <mutex>
+#include <condition_variable>
 
 #include <iostream>
 
@@ -455,6 +457,48 @@ private:
     size_t count_ = 0;
 };
 
+class TestAddWatch : public Propagator {
+public:
+    void init(PropagateInit &init) override {
+        REQUIRE(init.number_of_threads() == 2);
+        a = init.solver_literal(init.symbolic_atoms().find(Id("a"))->literal());
+        b = init.solver_literal(init.symbolic_atoms().find(Id("b"))->literal());
+        auto c = init.solver_literal(init.symbolic_atoms().find(Id("c"))->literal());
+        auto d = init.solver_literal(init.symbolic_atoms().find(Id("d"))->literal());
+        init.add_watch(a, 0);
+        init.add_watch(-a, 0);
+        init.add_watch(b, 1);
+        auto assignment = init.assignment();
+        REQUIRE(assignment.truth_value(a) == Clingo::TruthValue::Free);
+        REQUIRE(assignment.truth_value(b) == Clingo::TruthValue::Free);
+        REQUIRE(assignment.truth_value(c) == Clingo::TruthValue::True);
+        REQUIRE(assignment.truth_value(d) == Clingo::TruthValue::False);
+        done_ = false;
+    }
+    void propagate(PropagateControl &ctl, LiteralSpan changes) override {
+        if (ctl.thread_id() == 0) {
+            // wait for thread 1 to propagate b
+            std::unique_lock<decltype(mut_)> lock(mut_);
+            cv.wait(lock, [this]() { return done_; });
+        }
+        else {
+            for (auto lit : changes) {
+                std::lock_guard<decltype(mut_)> lock(mut_);
+                done_ = true;
+                propagated.insert(lit);
+            }
+            cv.notify_one();
+        }
+    }
+public:
+    std::set<literal_t> propagated;
+    literal_t a;
+    literal_t b;
+private:
+    std::mutex mut_;
+    std::condition_variable cv;
+    bool done_;
+};
 
 class TestException : public Propagator {
 public:
@@ -523,6 +567,19 @@ TEST_CASE("propagator", "[clingo][propagator]") {
         test_solve(ctl.solve(), models);
         auto p = [](int n) { return Function("p", {Number(n)}); };
         REQUIRE(models == ModelVec({{ p(1), p(2), p(3), p(4), p(5), p(6), p(7), p(8), p(9) }}));
+    }
+    SECTION("add_watch") {
+        TestAddWatch prop;
+        ctl.configuration()["solve"]["parallel_mode"] = "2";
+        ctl.register_propagator(prop, false);
+        ctl.add("base", {}, "{a;b;c;d}. c. :- d.");
+        ctl.ground({{"base", {}}}, nullptr);
+        test_solve(ctl.solve(), models);
+        auto a = Function("a", {});
+        auto b = Function("b", {});
+        auto c = Function("c", {});
+        REQUIRE(models == ModelVec({{ a, b, c }, { a, c }, { b, c }, { c }}));
+        REQUIRE(prop.propagated == std::set<literal_t>{prop.b});
     }
     SECTION("exception") {
         TestException p;
