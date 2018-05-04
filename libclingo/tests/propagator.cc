@@ -469,6 +469,7 @@ public:
         init.add_watch(-a, 0);
         init.add_watch(b, 0);
         init.add_watch(-b, 0);
+        init.add_watch(-b, 1);
         init.add_watch(b, 1);
         auto assignment = init.assignment();
         REQUIRE(assignment.truth_value(a) == Clingo::TruthValue::Free);
@@ -487,7 +488,7 @@ public:
             for (auto lit : changes) {
                 std::lock_guard<decltype(mut_)> lock(mut_);
                 done_ = true;
-                propagated.insert(lit);
+                propagated.insert(std::abs(lit));
             }
             cv.notify_one();
         }
