@@ -467,6 +467,8 @@ public:
         auto d = init.solver_literal(init.symbolic_atoms().find(Id("d"))->literal());
         init.add_watch(a, 0);
         init.add_watch(-a, 0);
+        init.add_watch(b, 0);
+        init.add_watch(-b, 0);
         init.add_watch(b, 1);
         auto assignment = init.assignment();
         REQUIRE(assignment.truth_value(a) == Clingo::TruthValue::Free);
