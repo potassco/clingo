@@ -1948,7 +1948,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_configuration_value_set(clingo_configurati
 //! Enumeration for entries of the statistics.
 enum clingo_statistics_type {
     clingo_statistics_type_empty = 0, //!< the entry is invalid (has neither of the types below)
-    clingo_statistics_type_value = 1, //!< the entry is a (string) value
+    clingo_statistics_type_value = 1, //!< the entry is a (double) value
     clingo_statistics_type_array = 2, //!< the entry is an array
     clingo_statistics_type_map   = 3  //!< the entry is a map
 };
