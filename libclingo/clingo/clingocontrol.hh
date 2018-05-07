@@ -153,35 +153,6 @@ inline bool parseFoobar(const std::string& str, ClingoOptions::Foobar& foobar) {
 
 // {{{1 declaration of ClingoControl
 
-class ClingoAssignment : public Potassco::AbstractAssignment {
-public:
-    ClingoAssignment(Clasp::Solver& s) : s_(s) {}
-    // AbstractAssignment
-    uint32_t size() const override { return s_.numVars(); }
-    uint32_t unassigned() const override { return s_.numFreeVars(); }
-    bool isTotal() const override { return s_.numFreeVars() == 0u; }
-    bool hasConflict() const override { return s_.hasConflict(); }
-    uint32_t level() const override { return s_.decisionLevel(); }
-    bool hasLit(Lit_t lit) const override { return s_.validVar(Clasp::decodeVar(lit)); }
-    Value_t value(Lit_t lit) const override {
-        POTASSCO_REQUIRE(hasLit(lit), "Invalid literal");
-        switch (s_.value(Clasp::decodeVar(lit))) {
-            case Clasp::value_true:  { return lit >= 0 ? Value_t::True  : Value_t::False; }
-            case Clasp::value_false: { return lit >= 0 ? Value_t::False : Value_t::True; }
-            default:                 { return Value_t::Free; }
-        }
-    }
-    uint32_t level(Lit_t lit) const override {
-        return value(lit) != Potassco::Value_t::Free ? s_.level(Clasp::decodeVar(lit)) : UINT32_MAX;
-    }
-    Lit_t decision(uint32_t dl) const override {
-        POTASSCO_REQUIRE(dl <= s_.decisionLevel(), "Invalid decision level");
-        return encodeLit(dl ? s_.decision(dl) : Clasp::lit_true());
-    }
-private:
-    Clasp::Solver &s_;
-};
-
 class ClingoPropagateInit : public PropagateInit {
 public:
     using Lit_t = Potassco::Lit_t;
@@ -203,7 +174,7 @@ public:
 private:
     Control &c_;
     Clasp::ClingoPropagatorInit &p_;
-    ClingoAssignment a_;
+    Clasp::ClingoAssignment a_;
 };
 
 class ClingoPropagatorLock : public Clasp::ClingoPropagatorLock {
