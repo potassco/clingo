@@ -1507,7 +1507,10 @@ class CClingoApp : public IClingoApp {
 public:
     CClingoApp(clingo_application_t app, void *data)
     : app_(app)
-    , data_{data} { }
+    , data_{data} {
+        name_ = app_.program_name ? app_.program_name(data_) : IClingoApp::program_name();
+        version_ = app_.version ? app_.version(data_) : IClingoApp::version();
+    }
     unsigned message_limit() const override {
         if (app_.message_limit) {
             return app_.message_limit(data_);
@@ -1517,20 +1520,10 @@ public:
         }
     }
     char const *program_name() const override {
-        if (app_.program_name) {
-            return app_.program_name(data_);
-        }
-        else {
-            return IClingoApp::program_name();
-        }
+        return name_;
     }
     char const *version() const override {
-        if (app_.version) {
-            return app_.version(data_);
-        }
-        else {
-            return IClingoApp::version();
-        }
+        return version_;
     }
     bool has_main() const override {
         return app_.main;
@@ -1571,6 +1564,8 @@ public:
 private:
     clingo_application_t app_;
     void *data_;
+    char const *name_;
+    char const *version_;
 };
 
 } // namespace
