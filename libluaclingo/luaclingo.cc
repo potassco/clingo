@@ -3123,6 +3123,11 @@ struct ControlWrap : Object<ControlWrap> {
         handle_c_error(L, clingo_control_load(self.ctl, filename));
         return 0;
     }
+    static int get_c_control(lua_State *L) {
+        auto &self = get_self(L);
+        lua_pushlightuserdata(L,self.ctl);
+        return 1;
+    }
     static int get_const(lua_State *L) {
         auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
@@ -3421,6 +3426,7 @@ luaL_Reg ControlWrap::meta[] = {
     {"load", load},
     {"solve", solve},
     {"cleanup", cleanup},
+    {"get_c_control", get_c_control},
     {"get_const", get_const},
     {"assign_external", assign_external},
     {"release_external", release_external},
