@@ -46,6 +46,7 @@ target_link_libraries(libclingo PRIVATE libgringo libclasp)
 target_include_directories(libclingo
     PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
     PRIVATE
     "$<BUILD_INTERFACE:${CLASP_SOURCE_DIR}/app>")
 target_compile_definitions(libclingo PRIVATE CLINGO_BUILD_LIBRARY)
@@ -54,6 +55,7 @@ if (NOT CLINGO_BUILD_SHARED)
 else()
     set_target_properties(libclingo PROPERTIES SOVERSION 2 VERSION 2.0)
     install(TARGETS libclingo
+        EXPORT ClingoTargets
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
@@ -61,6 +63,21 @@ else()
         "${CMAKE_CURRENT_SOURCE_DIR}/clingo.hh"
         "${CMAKE_CURRENT_SOURCE_DIR}/clingo.h"
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(EXPORT ClingoTargets
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Clingo)
+
+    include(CMakePackageConfigHelpers)
+    configure_package_config_file(
+        ${CMAKE_SOURCE_DIR}/cmake/ClingoConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/ClingoConfig.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Clingo)
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/ClingoConfigVersion.cmake
+        COMPATIBILITY SameMajorVersion)
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/ClingoConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/ClingoConfigVersion.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Clingo)
 endif()
 if(MSVC)
     target_compile_definitions(libclingo PRIVATE _SCL_SECURE_NO_WARNINGS)
