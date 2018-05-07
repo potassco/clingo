@@ -2327,7 +2327,7 @@ struct PropagateInit : Object<PropagateInit> {
         }
         else {
             auto thread_id = numeric_cast<uint32_t>(luaL_checkinteger(L, 3));
-            handle_c_error(L, clingo_propagate_init_add_watch_to_thread(self.init, lit, thread_id));
+            handle_c_error(L, clingo_propagate_init_add_watch_to_thread(self.init, lit, thread_id-1));
         }
         return 0;
     }
