@@ -6017,6 +6017,9 @@ active; you must not call any member function during search.)";
         handle_c_error(clingo_control_program_builder(ctl, &builder));
         return ProgramBuilder::construct(builder);
     }
+    Object to_c() {
+        return PyLong_FromVoidPtr(ctl);
+    }
 };
 
 PyMethodDef ControlWrap::tp_methods[] = {
@@ -6584,6 +6587,7 @@ Example:
 import json
 json.dumps(prg.statistics, sort_keys=True, indent=4, separators=(',', ': ')))", nullptr},
     {(char *)"theory_atoms", to_getter<&ControlWrap::theoryIter>(), nullptr, (char *)R"(A TheoryAtomIter object, which can be used to iterate over the theory atoms.)", nullptr},
+    {(char *)"_to_c", to_getter<&ControlWrap::to_c>(), nullptr, (char *)R"(An int representing the pointer to the underlying C clingo_control_t struct.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
