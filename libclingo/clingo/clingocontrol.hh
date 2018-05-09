@@ -311,7 +311,10 @@ public:
     void *claspFacade() override;
     bool beginAddBackend() override;
     Id_t addAtom(Symbol sym) override;
-    Backend *getBackend() override { return backend_; };
+    Backend *getBackend() override {
+        if (!backend_) { throw std::runtime_error("backend not available"); }
+        return backend_;
+    };
     void endAddBackend() override;
     Potassco::Atom_t addProgramAtom() override;
     Logger &logger() override { return logger_; }

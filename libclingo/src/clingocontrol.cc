@@ -642,6 +642,7 @@ Id_t ClingoControl::addAtom(Symbol sym) {
 
 void ClingoControl::endAddBackend() {
     out_->flush();
+    backend_ = nullptr;
 }
 
 Potassco::Atom_t ClingoControl::addProgramAtom() { return out_->data.newAtom(); }

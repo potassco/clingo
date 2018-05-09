@@ -222,9 +222,15 @@ struct IncrementalControl : Control {
         backend_ = out.backend(logger());
         return backend_ != nullptr;
     }
-    Backend *getBackend() override { return backend_; }
+    Backend *getBackend() override {
+        if (!backend_) { throw std::runtime_error("backend not available"); }
+        return backend_;
+    }
     Id_t addAtom(Symbol sym) override { return out.addAtom(sym); }
-    void endAddBackend() override { out.flush(); }
+    void endAddBackend() override {
+        out.flush();
+        backend_ = nullptr;
+    }
     Potassco::Atom_t addProgramAtom() override { return out.data.newAtom(); }
     Input::GroundTermParser        termParser;
     Output::OutputBase            &out;
