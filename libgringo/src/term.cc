@@ -463,7 +463,10 @@ int eval(BinOp op, int x, int y) {
         case BinOp::ADD: { return x + y; }
         case BinOp::SUB: { return x - y; }
         case BinOp::MUL: { return x * y; }
-        case BinOp::MOD: { return x % y; }
+        case BinOp::MOD: {
+            assert(y != 0 && "must be checked before call");
+            return x % y;
+        }
         case BinOp::POW: { return ipow(x, y); }
         case BinOp::DIV: {
             assert(y != 0 && "must be checked before call");
@@ -1354,7 +1357,7 @@ Term::SimplifyRet BinOpTerm::simplify(SimplifyState &state, bool, bool, Logger &
     if (retLeft.undefined() || retRight.undefined()) {
         return {};
     }
-    else if (retLeft.notNumeric() || retRight.notNumeric() || (op == BinOp::DIV && retRight.isZero())) {
+    else if (retLeft.notNumeric() || retRight.notNumeric() || ((op == BinOp::DIV || op == BinOp::MOD) && retRight.isZero())) {
         retLeft.update(left); retRight.update(right);
         GRINGO_REPORT(log, Warnings::OperationUndefined)
             << loc() << ": info: operation undefined:\n"
@@ -1441,7 +1444,7 @@ Symbol BinOpTerm::eval(bool &undefined, Logger &log) const {
     bool defined =
         l.type() == SymbolType::Num &&
         r.type() == SymbolType::Num &&
-        (op != BinOp::DIV || r.num() != 0) &&
+        ((op != BinOp::DIV && op != BinOp::MOD) || r.num() != 0) &&
         (op != BinOp::POW || l.num() != 0 || r.num() >= 0);
     if (defined) {
         undefined = undefined || undefined_arg;
