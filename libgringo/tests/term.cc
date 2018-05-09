@@ -246,6 +246,8 @@ TEST_CASE("term", "[base]") {
         REQUIRE("(0*X)" == to_string(simplify(binop(BinOp::MUL, val(NUM(0)), var("X")))));
         REQUIRE("#undefined" == to_string(simplify(binop(BinOp::ADD, fun("f", val(NUM(1))), var("X")))));
         REQUIRE("#undefined" == to_string(simplify(fun("f", binop(BinOp::ADD, val(NUM(1)), val(ID("a")))))));
+        REQUIRE("#undefined" == to_string(simplify(fun("f", binop(BinOp::MOD, val(NUM(1)), val(NUM(0)))))));
+        REQUIRE("#undefined" == to_string(simplify(fun("f", binop(BinOp::DIV, val(NUM(1)), val(NUM(0)))))));
         REQUIRE("X" == to_string(simplify(binop(BinOp::SUB, val(NUM(1)), binop(BinOp::SUB, val(NUM(1)), var("X"))))));
         REQUIRE("(1*X+1)" == to_string(simplify(binop(BinOp::SUB, val(NUM(1)), unop(UnOp::NEG, var("X"))))));
         REQUIRE("3" == to_string(simplify(binop(BinOp::ADD, val(NUM(1)), val(NUM(2))))));
@@ -273,6 +275,11 @@ TEST_CASE("term", "[base]") {
         REQUIRE(NUM(0) == binop(BinOp::POW, val(NUM(0)), val(NUM(-2)))->eval(undefined, log));
         REQUIRE(undefined);
         REQUIRE("dummy:1:1: info: operation undefined:\n  (0**-2)\n" == log.messages().back());
+
+        undefined = false;
+        REQUIRE(NUM(0) == binop(BinOp::MOD, val(NUM(10)), val(NUM(0)))->eval(undefined, log));
+        REQUIRE(undefined);
+        REQUIRE("dummy:1:1: info: operation undefined:\n  (10\\0)\n" == log.messages().back());
     }
 
     SECTION("project") {
