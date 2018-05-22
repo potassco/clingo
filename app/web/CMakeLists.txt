@@ -14,5 +14,6 @@ target_include_directories(web PRIVATE
     "$<BUILD_INTERFACE:${CLINGO_SOURCE_DIR}/libgringo>"
     "$<BUILD_INTERFACE:${CLASP_SOURCE_DIR}/app>")
 
-set_target_properties(web PROPERTIES LINK_FLAGS "-s EXPORTED_FUNCTIONS='[\"_run\"]'")
+set_target_properties(web PROPERTIES LINK_FLAGS
+    "-s EXPORTED_FUNCTIONS='[\"_run\"]' -s EXTRA_EXPORTED_RUNTIME_METHODS='[\"ccall\"]'")
 set_target_properties(web PROPERTIES OUTPUT_NAME "clingo")
