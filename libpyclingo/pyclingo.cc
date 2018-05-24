@@ -2232,11 +2232,10 @@ R"(Provides access to a model during a solve call.
 The string representation of a model object is similar to the output of models
 by clingo using the default output.
 
-Note that model objects cannot be constructed from python.  Instead they are
-passed as argument to a model callback (see Control.solve() and
-Control.solve_async()).  Furthermore, the lifetime of a model object is limited
-to the scope of the callback. They must not be stored for later use in other
-places like - e.g., the main function.)";
+Note that model objects cannot be constructed from python. Instead they are
+passed as argument to a model callback (see Control.solve()). Furthermore, the
+lifetime of a model object is limited to the scope of the callback. They must
+not be stored for later use in other places like - e.g., the main function.)";
 
     static Object construct(clingo_model_t *model) {
         auto self = new_();
@@ -2560,14 +2559,14 @@ PyMethodDef SolveHandle::tp_methods[] = {
     {"get", to_function<&SolveHandle::get>(), METH_NOARGS,
 R"(get(self) -> SolveResult
 
-Get the result of an solve_async call.
+Get the result of a solve call.
 
 If the search is not completed yet, the function blocks until the result is
 ready.)"},
     {"wait", to_function<&SolveHandle::wait>(),  METH_VARARGS,
 R"(wait(self, timeout) -> None or bool
 
-Wait for solve_async call to finish with an optional timeout.
+Wait for solve call to finish with an optional timeout.
 
 If a timeout is given, the function waits at most timeout seconds and returns a
 Boolean indicating whether the search has finished. Otherwise, the function
@@ -6163,7 +6162,7 @@ Example:
 import clingo
 
 def main(prg):
-    prg.add("p", "{a;b;c}.")
+    prg.add("p", [], "{a;b;c}.")
     prg.ground([("p", [])])
     ret = prg.solve()
     print(ret)
@@ -6176,7 +6175,7 @@ Yielding Example:
 import clingo
 
 def main(prg):
-    prg.add("p", "{a;b;c}.")
+    prg.add("p", [], "{a;b;c}.")
     prg.ground([("p", [])])
     with prg.solve(yield_=True) as handle:
         for m in handle: print m
@@ -6196,7 +6195,7 @@ def on_finish(res, canceled):
     print res, canceled
 
 def main(prg):
-    prg.add("p", "{a;b;c}.")
+    prg.add("p", [], "{a;b;c}.")
     prg.ground([("base", [])])
     with prg.solve(on_model=on_model, on_finish=on_finish, async=True) as handle:
         while not handle.wait(0):
@@ -6297,7 +6296,7 @@ class GroundProgramObserver:
         Called once in the beginning.
 
         If the incremental flag is true, there can be multiple calls to
-        Control.solve(), Control.solve_async(), or Control.solve_iter().
+        Control.solve().
 
         Arguments:
         incremental -- whether the program is incremental
@@ -6540,10 +6539,10 @@ R"(interrupt(self) -> None
 
 Interrupt the active solve call.
 
-This function is thread-safe and can be called from a signal handler.  If no
-search is active the subsequent call to solve(), solve_async(), or solve_iter()
-is interrupted.  The SolveResult of the above solving methods can be used to
-query if the search was interrupted.)"},
+This function is thread-safe and can be called from a signal handler. If no
+search is active the subsequent call to solve() is interrupted. The SolveResult
+of the above solving methods can be used to query if the search was
+interrupted.)"},
     {"backend", to_function<&ControlWrap::backend>(), METH_NOARGS,
 R"(backend() -> Backend
 
@@ -6575,11 +6574,10 @@ even if the problem is unsatisfiable.)", nullptr},
     {(char*)"statistics", to_getter<&ControlWrap::getStats>(), nullptr,
 (char*)R"(A dictionary containing solve statistics of the last solve call.
 
-Contains the statistics of the last solve(), solve_async(), or solve_iter()
-call. The statistics correspond to the --stats output of clingo.  The detail of
-the statistics depends on what level is requested on the command line.
-Furthermore, you might want to start clingo using the --outf=3 option to
-disable all output from clingo.
+Contains the statistics of the last solve() call. The statistics correspond to
+the --stats output of clingo.  The detail of the statistics depends on what
+level is requested on the command line. Furthermore, you might want to start
+clingo using the --outf=3 option to disable all output from clingo.
 
 Note that this (read-only) property is only available in clingo.
 
