@@ -68,7 +68,7 @@ else()
 
     include(CMakePackageConfigHelpers)
     configure_package_config_file(
-        ${CMAKE_SOURCE_DIR}/cmake/ClingoConfig.cmake.in
+        ${PROJECT_SOURCE_DIR}/cmake/ClingoConfig.cmake.in
         ${CMAKE_CURRENT_BINARY_DIR}/ClingoConfig.cmake
         INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Clingo)
     write_basic_package_version_file(
