@@ -173,16 +173,19 @@ public:
 
 protected:
     void printModel(const Clasp::OutputTable& out, const Clasp::Model& m, PrintLevel x) override {
-        if (x == modelQ()) {
-            comment(1, "%s: %" PRIu64"\n", !m.up ? "Answer" : "Update", m.num);
-            ClingoModel cm(*ctl_, &m);
-            std::lock_guard<decltype(ctl_->propLock_)> lock(ctl_->propLock_);
-            app_.print_model(&cm, [&]() { printValues(out, m); });
+        if (ctl_) {
+            if (x == modelQ()) {
+                comment(1, "%s: %" PRIu64"\n", !m.up ? "Answer" : "Update", m.num);
+                ClingoModel cm(*ctl_, &m);
+                std::lock_guard<decltype(ctl_->propLock_)> lock(ctl_->propLock_);
+                app_.print_model(&cm, [&]() { printValues(out, m); });
+            }
+            if (x == optQ()) {
+                printMeta(out, m);
+            }
+            fflush(stdout);
         }
-        if (x == optQ()) {
-            printMeta(out, m);
-        }
-        fflush(stdout);
+        else { Clasp::Cli::TextOutput::printModel(out, m, x); }
     }
 private:
     std::unique_ptr<ClingoControl> &ctl_;
