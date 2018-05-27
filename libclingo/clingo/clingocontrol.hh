@@ -334,10 +334,8 @@ public:
     void addClause(Potassco::LitSpan const &lits) const override {
         Clasp::LitVec claspLits;
         for (auto &x : lits) {
-            auto atom = std::abs(x);
-            if (lp().inProgram(atom)) {
-                Clasp::Literal lit = lp().getLiteral(atom);
-                claspLits.push_back(x > 0 ? lit : ~lit);
+            if (lp().inProgram(lp().getRootId(std::abs(x)))) {
+                claspLits.push_back(lp().getLiteral(x));
             }
             else if (x < 0) { return; }
         }
