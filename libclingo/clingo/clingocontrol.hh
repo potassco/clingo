@@ -394,10 +394,11 @@ public:
     void addClause(Potassco::LitSpan const &lits) const override {
         Clasp::LitVec claspLits;
         for (auto &x : lits) {
-            if (lp().inProgram(lp().getRootId(std::abs(x)))) {
-                claspLits.push_back(lp().getLiteral(x));
+            auto lit = lp().getLiteral(x);
+            if (lit != Clasp::lit_true()) {
+                claspLits.push_back(lit);
             }
-            else if (x < 0) { return; }
+            else { return; }
         }
         claspLits.push_back(~ctx().stepLiteral());
         model_->ctx->commitClause(claspLits);
