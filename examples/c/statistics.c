@@ -97,7 +97,7 @@ void print_prefix(int depth) {
 }
 
 bool userstats(clingo_statistics_t* stats, void* data) {
-  size_t root, map, array, c, value;
+  uint64_t root, map, array, c, value;
   if (!clingo_statistics_root(stats, &root)) { return false; } 
   if (!clingo_statistics_map_create(stats, root, "information", clingo_statistics_type_map, &map)) { return false; }
   if (!clingo_statistics_map_create(stats, map, "Animals", clingo_statistics_type_array, &array)) { return false; }
