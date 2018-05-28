@@ -1928,6 +1928,8 @@ using StatisticsKeyIterator = KeyIterator<Statistics>;
 using StatisticsArrayIterator = ArrayIterator<Statistics, Statistics const *>;
 using StatisticsKeyRange = IteratorRange<StatisticsKeyIterator>;
 
+using UserStatisticCallback = std::function<void (Statistics)>;
+
 class Statistics {
     friend class KeyIterator<Statistics>;
 public:
@@ -2063,16 +2065,6 @@ inline std::ostream &operator<<(std::ostream &out, WarningCode code) {
     out << clingo_warning_string(static_cast<clingo_warning_t>(code));
     return out;
 }
-
-class Control;
-
-class UserStatisticCallback {
-public:
-    virtual void operator()(Statistics) = 0;
-private:
-    friend class Control;
-};
-
 
 class Control {
     struct Impl;
