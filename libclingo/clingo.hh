@@ -4189,7 +4189,7 @@ inline Configuration Control::configuration() {
 }
 
 inline void Control::add_user_statistics(UserStatisticCallback& cb) {
-    Detail::handle_error(clingo_control_add_user_statistics(to_c(), [](clingo_statistics_t* stats, void* data) { size_t root; clingo_statistics_root(stats,&root); static_cast<UserStatisticCallback*>(data)->operator()(Statistics(stats,root)); return true; }, static_cast<void*>(&cb)));
+    Detail::handle_error(clingo_control_add_user_statistics(to_c(), [](clingo_statistics_t* stats, void* data) { uint64_t root; clingo_statistics_root(stats,&root); static_cast<UserStatisticCallback*>(data)->operator()(Statistics(stats,root)); return true; }, static_cast<void*>(&cb)));
 }
 
 
