@@ -1512,7 +1512,7 @@ typedef bool (*clingo_propagator_undo_callback_t) (clingo_propagate_control_t *,
 typedef bool (*clingo_propagator_check_callback_t) (clingo_propagate_control_t *, void *);
 
 //! Typedef for @ref ::clingo_propagator::extend_model().
-typedef bool (*clingo_propagator_extend_model_callback_t) (int, bool, clingo_symbol_callback_t  symbol_callback, void *symbol_callback_dataconst, void *);
+typedef bool (*clingo_propagator_extend_model_callback_t) (int, bool, clingo_symbol_callback_t, void *, void *);
 
 //! An instance of this struct has to be registered with a solver to implement a custom propagator.
 //!
