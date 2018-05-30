@@ -7,6 +7,7 @@ bin=/home/wv/bin/linux/64
 
 cd "${root}"
 clingo="$(pwd -P)"
+revision="$(git rev-parse --short HEAD)"
 
 mkdir -p build/banane
 cd build/banane
@@ -15,15 +16,17 @@ cd "$(pwd -P)"
 prefix=/home/wv/opt/clingo-banane
 
 cmake "${clingo}" \
+    -DCLINGO_BUILD_REVISION="${revision}" \
     -DCMAKE_BUILD_TYPE=release \
     -DCMAKE_INSTALL_PREFIX="${prefix}" \
     -DPYCLINGO_INSTALL_DIR="${prefix}/lib/python/2.7" \
     -DLUACLINGO_INSTALL_DIR="${prefix}/lib/lua/5.1" \
     -DCLINGO_CLINGOPATH='"/home/wv/opt/clingo-banane/lib/clingo"' \
     -DLUA_INCLUDE_DIR="/usr/include/lua5.1" \
-    -DLUA_LIBRARY="/usr/lib/x86_64-linux-gnu/liblua5.1.so"
+    -DLUA_LIBRARY="/usr/lib/x86_64-linux-gnu/liblua5.1.so" \
+    -DCMAKE_VERBOSE_MAKEFILE=True
 
-make -j7
+make -j7 verbose=1
 make install
 
 cd "${prefix}"
@@ -44,6 +47,7 @@ cd "$(pwd -P)"
 prefix=/home/wv/opt/clingo-banane-dbg
 
 cmake "${clingo}" \
+    -DCLINGO_BUILD_REVISION="${revision}" \
     -DCMAKE_CXX_FLAGS="-DPy_TRACE_REFS" \
     -DCMAKE_BUILD_TYPE=Debug \
     -DPYTHON_EXECUTABLE=/usr/bin/python-dbg \

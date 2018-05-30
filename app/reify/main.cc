@@ -28,6 +28,14 @@
 #include "reify/program.hh"
 #include "clingo.h"
 
+#define CLINGO_QUOTE_(name) #name
+#define CLINGO_QUOTE(name) CLINGO_QUOTE_(name)
+#ifdef CLINGO_BUILD_REVISION
+#   define CLINGO_VERSION_STRING CLINGO_VERSION " (" CLINGO_QUOTE(CLINGO_BUILD_REVISION) ")"
+#else
+#   define CLINGO_VERSION_STRING CLINGO_VERSION
+#endif
+
 struct ReifyOptions {
     bool calculateSCCs = false;
     bool reifyStep     = false;
@@ -37,7 +45,7 @@ class ReifyApp : public Potassco::Application {
 public:
     virtual const char* getName() const    { return "reify"; }
 
-    virtual const char* getVersion() const { return CLINGO_VERSION; }
+    virtual const char* getVersion() const { return CLINGO_VERSION_STRING; }
 
 protected:
     virtual void initOptions(Potassco::ProgramOptions::OptionContext& root) {

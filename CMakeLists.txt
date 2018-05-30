@@ -45,6 +45,7 @@ CMAKE_DEPENDENT_OPTION(PYCLINGO_USE_INSTALL_PREFIX "install the python module un
 
 set(CLINGO_CLINGOPATH "" CACHE STRING "global search directories for clingo's include statement")
 set(CLINGO_USE_LIB OFF CACHE BOOL "advanced option to build python and lua modules against an existing libclingo")
+set(CLINGO_BUILD_REVISION "" CACHE STRING "revision string to add to version information")
 
 mark_as_advanced(CLINGO_BUILD_WEB)
 mark_as_advanced(CLINGO_BUILD_STATIC)
@@ -52,6 +53,7 @@ mark_as_advanced(CLINGO_BUILD_SHARED)
 mark_as_advanced(CLINGO_BUILD_PY_SHARED)
 mark_as_advanced(CLINGO_BUILD_LUA_SHARED)
 mark_as_advanced(CLINGO_USE_LIB)
+mark_as_advanced(CLINGO_BUILD_REVISION)
 
 # workaround to set custom ar and ranlib
 if (CLINGO_CMAKE_AR)

@@ -79,8 +79,11 @@ else()
         ${CMAKE_CURRENT_BINARY_DIR}/ClingoConfigVersion.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Clingo)
 endif()
-if(MSVC)
+if (MSVC)
     target_compile_definitions(libclingo PRIVATE _SCL_SECURE_NO_WARNINGS)
+endif()
+if (CLINGO_BUILD_REVISION)
+    target_compile_definitions(libclingo PRIVATE CLINGO_BUILD_REVISION=${CLINGO_BUILD_REVISION})
 endif()
 set_target_properties(libclingo PROPERTIES
     OUTPUT_NAME clingo

@@ -291,7 +291,7 @@ static bool parseText(const std::string&, GringoOptions& out) {
 struct GringoApp : public Potassco::Application {
     using StringSeq = std::vector<std::string>;
     virtual const char* getName() const    { return "gringo"; }
-    virtual const char* getVersion() const { return CLINGO_VERSION; }
+    virtual const char* getVersion() const { return CLINGO_VERSION_STRING; }
     virtual HelpOpt     getHelpOption() const { return HelpOpt("Print (<n {1=default|2=advanced}) help and exit", 2); }
     virtual void initOptions(Potassco::ProgramOptions::OptionContext& root) {
         using namespace Potassco::ProgramOptions;
