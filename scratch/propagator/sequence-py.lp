@@ -22,9 +22,9 @@ class Propagator:
         self.__pat_atoms = dict() # {pattern literal: [(pattern index, item index)]}
         self.__occ_list = []      # [[sequence index]]
         self.__item_map = dict()  # {item: item index}
-        self.__trace = trace      # enable this to see what happens
         self.__pat_len = 0        # the pattern length
         self.__states = []        # [State]
+        self.__trace = trace      # enable this to see what happens
 
     # {{{1 Initialization Functions
 
@@ -50,7 +50,7 @@ class Propagator:
 
     def __add_pat_atoms(self, init, atom):
         for elem in atom.elements:
-            lit = init.solver_literal(elem.condition_literal)
+            lit = init.solver_literal(elem.condition_id)
             index, item = elem.terms
             index = index.number
             assert(index >= 0)
@@ -74,7 +74,7 @@ class Propagator:
     def init(self, init):
         for atom in init.theory_atoms:
             term = atom.term
-            args = term.args
+            args = term.arguments
             if term.name == "seq" and len(args) == 1:
                 self.__add_seq_atom(init, args[0].number, atom)
             if term.name == "pat" and len(args) == 0:
@@ -82,6 +82,7 @@ class Propagator:
         self.__init_occ_list()
 
     # {{{1 Tracing Functions
+
     def __str_item(self, iid):
         for item, jid in self.__item_map.iteritems():
             if iid == jid:
@@ -173,34 +174,36 @@ class Propagator:
     # }}}1
 
 def main(prg):
-    prg.register_propagator(Propagator(bool(prg.get_const("trace"))))
+    prg.configuration.solve.opt_mode = "optN"
+    prg.register_propagator(Propagator(True))
     prg.ground([("base", [])])
-    # :- not sup(U), seq(U,_,_), n == 0.
-    if prg.get_const("n").number == 0:
-        grouped = {}
+    with prg.backend() as backend:
+        # :- not sup(U), seq(U,_,_), n == 0.
+        if prg.get_const("n").number == 0:
+            grouped = {}
+            for atom in prg.symbolic_atoms.by_signature("seq", 3):
+                grouped.setdefault(atom.symbol.arguments[0], []).append(atom.literal)
+            for key, value in sorted(grouped.items()):
+                a = backend.add_atom()
+                for l in value:
+                    backend.add_rule([a], [l])
+                backend.add_rule([], [-prg.symbolic_atoms[clingo.Function("sup", [key])].literal, a])
+        # :- sup(U), pat(_,I), not seq(U,_,I).
+        grouped_pat, grouped_seq = {}, set()
+        for atom in prg.symbolic_atoms.by_signature("pat", 2):
+            grouped_pat.setdefault(atom.symbol.arguments[1], []).append(atom.literal)
         for atom in prg.symbolic_atoms.by_signature("seq", 3):
-            grouped.setdefault(atom.symbol.args[0], []).append(atom.literal)
-        for key, value in sorted(grouped.items()):
-            a = prg.backend.add_atom()
+            grouped_seq.add((atom.symbol.arguments[0], atom.symbol.arguments[2]))
+        projected_pat, projected_seq = {}, {}
+        for key, value in sorted(grouped_pat.items()):
+            a = backend.add_atom()
             for l in value:
-                prg.backend.add_rule([a], [l])
-            prg.backend.add_rule([], [-prg.symbolic_atoms[clingo.function("sup", [key])].literal, a])
-    # :- sup(U), pat(_,I), not seq(U,_,I).
-    grouped_pat, grouped_seq = {}, set()
-    for atom in prg.symbolic_atoms.by_signature("pat", 2):
-        grouped_pat.setdefault(atom.symbol.args[1], []).append(atom.literal)
-    for atom in prg.symbolic_atoms.by_signature("seq", 3):
-        grouped_seq.add((atom.symbol.args[0], atom.symbol.args[2]))
-    projected_pat, projected_seq = {}, {}
-    for key, value in sorted(grouped_pat.items()):
-        a = prg.backend.add_atom()
-        for l in value:
-            prg.backend.add_rule([a], [l])
-        projected_pat[key] = a
-    for atom in prg.symbolic_atoms.by_signature("sup", 1):
-        for key, lit in sorted(projected_pat.items()):
-            if (atom.symbol.args[0], key) not in grouped_seq:
-                prg.backend.add_rule([], [atom.literal, lit])
+                backend.add_rule([a], [l])
+            projected_pat[key] = a
+        for atom in prg.symbolic_atoms.by_signature("sup", 1):
+            for key, lit in sorted(projected_pat.items()):
+                if (atom.symbol.arguments[0], key) not in grouped_seq:
+                    backend.add_rule([], [atom.literal, lit])
     prg.solve()
 
 #end.
