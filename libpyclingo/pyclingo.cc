@@ -6533,8 +6533,7 @@ class Propagator(object)
     check(self, control) -> None
         This function is similar to propagate but is called without a change
         set on propagation fixpoints.  When exactly this function is called,
-        can be configured using the @ref clingo_propagate_init_set_check_mode()
-        function.
+        can be configured using the @ref PropagateInit.check_mode property.
 
         Note that this function is called even if no watches have been added.
 
