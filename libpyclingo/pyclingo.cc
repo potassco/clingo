@@ -2019,6 +2019,16 @@ signatures: [('p', 1), ('q', 1)])";
         else       { Py_RETURN_NONE; }
     }
 
+    bool sq_contains(Reference key) {
+        symbol_wrapper atom;
+        pyToCpp(key, atom);
+        clingo_symbolic_atom_iterator_t range;
+        handle_c_error(clingo_symbolic_atoms_find(atoms, atom.symbol, &range));
+        bool valid;
+        handle_c_error(clingo_symbolic_atoms_is_valid(atoms, range, &valid));
+        return valid;
+    }
+
     Object by_signature(Reference pyargs, Reference pykwds) {
         char const *name;
         int arity;
