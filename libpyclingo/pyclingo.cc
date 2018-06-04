@@ -5727,6 +5727,7 @@ void pycall(Reference fun, clingo_symbol_t const *arguments, size_t arguments_si
 
 static void logger_callback(clingo_warning_t code, char const *message, void *data) {
     try {
+        PyBlock block;
         Object pyMsg = cppToPy(message);
         Object pyCode = MessageCode::getAttr(code);
         Object ret = PyObject_CallFunctionObjArgs(static_cast<PyObject*>(data), pyCode.toPy(), pyMsg.toPy(), nullptr);
@@ -5853,6 +5854,7 @@ active; you must not call any member function during search.)";
         Py_RETURN_NONE;
     }
     static bool on_context(clingo_location_t const *location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) {
+        PyBlock block;
         try {
             Object fun = PyObject_GetAttrString(static_cast<PyObject*>(data), name);
             pycall(fun.toPy(), arguments, arguments_size, symbol_callback, symbol_callback_data);
@@ -5875,8 +5877,7 @@ active; you must not call any member function during search.)";
         for (auto &&cpp_part : cpp_parts) {
             parts.emplace_back(clingo_part_t{cpp_part.first.c_str(), reinterpret_cast<clingo_symbol_t*>(cpp_part.second.data()), cpp_part.second.size()});
         }
-        // TODO: consider unblocking this one (the callbacks have to be blocked again for this to work)
-        handle_c_error(clingo_control_ground(ctl, parts.data(), parts.size(), pyContext.none() ? nullptr : on_context, pyContext.none() ? nullptr : pyContext.toPy()));
+        doUnblocked([&](){ handle_c_error(clingo_control_ground(ctl, parts.data(), parts.size(), pyContext.none() ? nullptr : on_context, pyContext.none() ? nullptr : pyContext.toPy())); });
         Py_RETURN_NONE;
     }
     Object getConst(Reference args) {
@@ -7654,11 +7655,13 @@ public:
         pyExec(code, oss.str().c_str(), main);
     }
     bool callable(char const *name) {
+        PyBlock block;
         if (!PyMapping_HasKeyString(main, const_cast<char *>(name))) { return false; }
         Object fun = PyMapping_GetItemString(main, const_cast<char *>(name));
         return PyCallable_Check(fun.toPy());
     }
     void call(char const *name, clingo_symbol_t const *arguments, size_t size, clingo_symbol_callback_t symbol_callback, void *data) {
+        PyBlock block;
         Object fun = PyMapping_GetItemString(main, const_cast<char*>(name));
         pycall(fun, arguments, size, symbol_callback, data);
     }
