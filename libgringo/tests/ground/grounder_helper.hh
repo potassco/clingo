@@ -50,7 +50,7 @@ inline void ground(std::string const &str, Output::OutputFormat fmt, std::ostrea
     ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module.logger);
     ngp.parse(module.logger);
     prg.rewrite(defs, module.logger);
-    Ground::Program gPrg(prg.toGround(out.data, module.logger));
+    Ground::Program gPrg(prg.toGround({Sig{"base", 0, false}}, out.data, module.logger));
     gPrg.ground(context, out, module.logger);
 }
 

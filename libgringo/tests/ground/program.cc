@@ -53,7 +53,7 @@ Program parse(std::string const &str) {
     ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module.logger);
     ngp.parse(module.logger);
     prg.rewrite(defs, module.logger);
-    return prg.toGround(out.data, module.logger);
+    return prg.toGround({Sig{"base", 0, false}}, out.data, module.logger);
 }
 
 std::string toString(Program const &p) {

@@ -98,7 +98,7 @@ struct ClingoState {
 inline bool ground(ClingoState &state) {
     // grounder: ground
     if (!state.module.logger.hasError()) {
-        Ground::Program gPrg(state.prg.toGround(state.out.data, state.module));
+        Ground::Program gPrg(state.prg.toGround({Sig{"base", 0, false}}, state.out.data, state.module));
         state.out.init(false);
         state.out.beginStep();
         gPrg.ground(state.context, state.out, state.module);

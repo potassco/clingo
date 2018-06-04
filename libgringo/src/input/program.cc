@@ -208,7 +208,7 @@ void Program::print(std::ostream &out) const {
     for (auto &x : stms_) { out << *x << "\n"; }
 }
 
-Ground::Program Program::toGround(DomainData &domains, Logger &log) {
+Ground::Program Program::toGround(std::set<Sig> const &sigs, DomainData &domains, Logger &log) {
     HashSet<uint64_t> neg;
     Ground::Program::ClassicalNegationVec negate;
     auto gn = [&neg, &negate, &domains](Sig x) {
@@ -221,14 +221,16 @@ Ground::Program Program::toGround(DomainData &domains, Logger &log) {
     ToGroundArg arg(auxNames_, domains);
     Ground::SEdbVec edb;
     for (auto &block : blocks_) {
-        for (auto &x : block.edb->second) {
-            auto sig = x.sig();
-            if (sig.sign()) { gn(sig); }
-        }
-        edb.emplace_back(block.edb);
-        for (auto &x : block.stms) {
-            x->getNeg(gn);
-            x->toGround(arg, stms);
+        if (sigs.find(Sig{block.name.c_str() + 5, numeric_cast<uint32_t>(block.params.size()), false}) != sigs.end()) {
+            for (auto &x : block.edb->second) {
+                auto sig = x.sig();
+                if (sig.sign()) { gn(sig); }
+            }
+            edb.emplace_back(block.edb);
+            for (auto &x : block.stms) {
+                x->getNeg(gn);
+                x->toGround(arg, stms);
+            }
         }
     }
     for (auto &x : stms_) {

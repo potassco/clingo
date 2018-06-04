@@ -65,7 +65,7 @@ public:
     void rewrite(Defines &defs, Logger &log);
     void check(Logger &log);
     void print(std::ostream &out) const;
-    Ground::Program toGround(DomainData &domains, Logger &log);
+    Ground::Program toGround(std::set<Sig> const &sigs, DomainData &domains, Logger &log);
     ~Program();
 
 private:

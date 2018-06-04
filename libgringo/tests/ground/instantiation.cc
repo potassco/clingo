@@ -55,7 +55,7 @@ std::string ground(std::string const &str, std::initializer_list<std::string> fi
     ngp.pushStream("-", gringo_make_unique<std::stringstream>(str), module);
     ngp.parse(module);
     prg.rewrite(defs, module);
-    Program gPrg(prg.toGround(out.data, module));
+    Program gPrg(prg.toGround({Sig{"base", 0, false}}, out.data, module));
     gPrg.ground(context, out, module);
 
     std::string line;

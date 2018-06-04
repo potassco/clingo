@@ -241,8 +241,12 @@ void ClingoControl::ground(Control::GroundVec const &parts, Context *context) {
     }
     if (!parts.empty()) {
         Ground::Parameters params;
-        for (auto &x : parts) { params.add(x.first, SymVec(x.second)); }
-        auto gPrg = prg_.toGround(out_->data, logger_);
+        std::set<Sig> sigs;
+        for (auto &x : parts) {
+            params.add(x.first, SymVec(x.second));
+            sigs.emplace(x.first, numeric_cast<uint32_t>(x.second.size()), false);
+        }
+        auto gPrg = prg_.toGround(sigs, out_->data, logger_);
         LOG << "*********** intermediate program ***********" << std::endl << gPrg << std::endl;
         LOG << "************* grounded program *************" << std::endl;
         auto exit = onExit([this]{ scripts_.resetContext(); });

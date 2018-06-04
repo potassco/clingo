@@ -153,8 +153,12 @@ struct IncrementalControl : Control {
         }
         if (!parts.empty()) {
             Ground::Parameters params;
-            for (auto &x : parts) { params.add(x.first, SymVec(x.second)); }
-            Ground::Program gPrg(prg.toGround(out.data, logger_));
+            std::set<Sig> sigs;
+            for (auto &x : parts) {
+                params.add(x.first, SymVec(x.second));
+                sigs.emplace(x.first, numeric_cast<uint32_t>(x.second.size()), false);
+            }
+            Ground::Program gPrg(prg.toGround(sigs, out.data, logger_));
             LOG << "************* intermediate program *************" << std::endl << gPrg << std::endl;
             LOG << "*************** grounded program ***************" << std::endl;
             gPrg.ground(params, scripts, out, false, logger_);
