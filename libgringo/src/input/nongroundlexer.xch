@@ -35,7 +35,11 @@
 /*!re2c
     re2c:cond:goto = "continue;";
 
-    NUMBER     = "0"|([1-9][0-9]*);
+    DEC        = "0"|([1-9][0-9]*);
+    HEX        = "0x"([0-9A-Fa-f]+);
+    OCT        = "0o"([1-7]+);
+    BIN        = "0b"([0-1]+);
+    NUMBER     = DEC | HEX | OCT | BIN;
     ANY        = [\000-\377];
     WS         = [\t\r ]*;
     NL         = "\n";

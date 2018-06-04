@@ -260,14 +260,36 @@ void LexerState<T>::step() {
 
 template <class T>
 int LexerState<T>::integer() const {
-    int r = 0;
     int s = 0;
-    if(*state().start_ == '-') s = 1;
-    for(char *i = state().start_ + s; i != state().cursor_; i++) {
-        r *= 10;
-        r += *i - '0';
+    int base = 10;
+    if (state().cursor_ - state().start_ >= 2) {
+        if (strncmp("0b", state().start_, 2) == 0) {
+            base = 2;
+            s = 2;
+        }
+        else if (strncmp("0o", state().start_, 2) == 0) {
+            base = 8;
+            s = 2;
+        }
+        else if (strncmp("0x", state().start_, 2) == 0) {
+            base = 16;
+            s = 2;
+        }
     }
-    return s ? -r : r;
+    int r = 0;
+    for (char *i = state().start_ + s; i != state().cursor_; i++) {
+        r *= base;
+        if (*i <= '9') {
+            r += *i - '0';
+        }
+        else if (*i <= 'A') {
+            r += *i - 'A' + 10;
+        }
+        else {
+            r += *i - 'a' + 10;
+        }
+    }
+    return r;
 }
 
 template <class T>
