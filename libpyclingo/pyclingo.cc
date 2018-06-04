@@ -7696,6 +7696,7 @@ struct PythonScript {
             return true;
         }
         catch (...) {
+            PyBlock block;
             handle_cxx_error(*loc, "error calling python function");
             return false;
         }
@@ -7706,6 +7707,7 @@ struct PythonScript {
             return true;
         }
         catch (...) {
+            PyBlock block;
             handle_cxx_error("<python>", "error cecking if function is callable");
             return false;
         }
