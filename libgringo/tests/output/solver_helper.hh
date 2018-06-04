@@ -101,7 +101,10 @@ inline bool ground(ClingoState &state) {
         Ground::Program gPrg(state.prg.toGround({Sig{"base", 0, false}}, state.out.data, state.module));
         state.out.init(false);
         state.out.beginStep();
-        gPrg.ground(state.context, state.out, state.module);
+        Ground::Parameters params;
+        params.add("base", {});
+        gPrg.ground(params, state.context, state.out, state.module);
+        state.out.endStep({});
         return true;
     }
     return false;

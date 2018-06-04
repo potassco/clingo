@@ -86,17 +86,13 @@ void translateLambda(DomainData &data, AbstractOutput &out, T const &lambda) {
     TranslateStatement<T>(lambda).passTo(data, out);
 }
 
-// {{{2 definition of EndStepStatement
+// {{{2 definition of EndGroundStatement
 
-class EndStepStatement : public Statement {
+class EndGroundStatement : public Statement {
 public:
-    EndStepStatement(OutputPredicates const &outPreds, bool solve, Logger &log)
-    : outPreds_(outPreds), log_(log), solve_(solve) { }
-    void output(DomainData &, UBackend &out) const override {
-        if (solve_) {
-            out->endStep();
-        }
-    }
+    EndGroundStatement(OutputPredicates const &outPreds, Logger &log)
+    : outPreds_(outPreds), log_(log) { }
+    void output(DomainData &, UBackend &) const override { }
     void print(PrintPlain out, char const *prefix) const override {
         for (auto &x : outPreds_) {
             if (std::get<1>(x).match("", 0)) { out << prefix << "#show.\n"; }
@@ -108,11 +104,10 @@ public:
         trans.output(data, *this);
     }
     void replaceDelayed(DomainData &, LitVec &) override { }
-    virtual ~EndStepStatement() { }
+    virtual ~EndGroundStatement() { }
 private:
     OutputPredicates const &outPreds_;
     Logger &log_;
-    bool solve_;
 };
 
 // }}}2
@@ -279,7 +274,11 @@ void OutputBase::output(Statement &x) {
     out_->output(data, x);
 }
 
-void OutputBase::flush() {
+void OutputBase::beginStep() {
+    backendLambda(data, *out_, [](DomainData &, UBackend &out) { out->beginStep(); });
+}
+
+void OutputBase::endGround(Logger &log) {
     for (auto &lit : delayed_) { DelayedStatement(lit).passTo(data, *out_); }
     delayed_.clear();
     backendLambda(data, *out_, [](DomainData &data, UBackend &out) {
@@ -293,18 +292,11 @@ void OutputBase::flush() {
         };
         Gringo::output(data.theory().data(), *out, getCond);
     });
-}
-
-void OutputBase::beginStep() {
-    backendLambda(data, *out_, [](DomainData &, UBackend &out) { out->beginStep(); });
-}
-
-void OutputBase::endStep(bool solve, Logger &log) {
     if (!outPreds.empty()) {
         std::move(outPredsForce.begin(), outPredsForce.end(), std::back_inserter(outPreds));
         outPredsForce.clear();
     }
-    EndStepStatement(outPreds, solve, log).passTo(data, *out_);
+    EndGroundStatement(outPreds, log).passTo(data, *out_);
     // TODO: get rid of such things #d domains should be stored somewhere else
     std::set<Sig> rm;
     for (auto &x : predDoms()) {
@@ -317,6 +309,13 @@ void OutputBase::endStep(bool solve, Logger &log) {
             return rm.find(dom->sig()) != rm.end();
         });
     }
+}
+
+void OutputBase::endStep(Assumptions const &ass) {
+    if (ass.size > 0) {
+        if (auto b = backend_()) { b->assume(ass); }
+    }
+    backendLambda(data, *out_, [](DomainData &, UBackend &out) { out->endStep(); });
 }
 
 void OutputBase::reset(bool resetData) {
@@ -401,12 +400,6 @@ Backend *OutputBase::backend(Logger &logger) {
     }
     checkOutPreds(logger);
     return backend_();
-}
-
-void OutputBase::assume(Assumptions ass) {
-    if (ass.size > 0) {
-        if (auto b = backend_()) { b->assume(ass); }
-    }
 }
 
 namespace {

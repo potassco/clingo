@@ -73,10 +73,10 @@ public:
     std::pair<Id_t, Id_t> simplify(AssignmentLookup assignment);
     void incremental();
     void output(Statement &x);
-    void flush();
     void init(bool incremental);
     void beginStep();
-    void endStep(bool solve, Logger &log);
+    void endGround(Logger &log);
+    void endStep(Assumptions const &ass);
     void checkOutPreds(Logger &log);
     SymVec atoms(unsigned atomset, IsTrueLookup lookup) const;
     std::pair<PredicateDomain::Iterator, PredicateDomain*> find(Symbol val);
@@ -91,7 +91,6 @@ public:
     Backend *backend(Logger &logger);
     void registerObserver(UBackend prg, bool replace);
     void reset(bool resetData);
-    void assume(Assumptions ass);
     Id_t addAtom(Symbol sym) {
         auto &atm = *data.add(sym.sig()).define(sym).first;
         if (!atm.hasUid()) { atm.setUid(data.newAtom()); }

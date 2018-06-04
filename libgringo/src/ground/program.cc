@@ -73,13 +73,7 @@ void Program::linearize(Context &context, Logger &log) {
     linearized = true;
 }
 
-void Program::ground(Context &context, Output::OutputBase &out, Logger &log) {
-    Parameters params;
-    params.add("base", SymVec({}));
-    ground(params, context, out, true, log);
-}
-
-void Program::ground(Parameters const &params, Context &context, Output::OutputBase &out, bool finalize, Logger &log) {
+void Program::ground(Parameters const &params, Context &context, Output::OutputBase &out, Logger &log) {
     for (auto &dom : out.predDoms()) {
         auto name = dom->sig().name();
         if (name.startsWith("#p_")) {
@@ -159,8 +153,7 @@ void Program::ground(Parameters const &params, Context &context, Output::OutputB
             }
         }
     }
-    out.flush();
-    if (finalize) { out.endStep(true, log); }
+    out.endGround(log);
     linearized = true;
 }
 

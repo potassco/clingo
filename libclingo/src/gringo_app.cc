@@ -161,7 +161,7 @@ struct IncrementalControl : Control {
             Ground::Program gPrg(prg.toGround(sigs, out.data, logger_));
             LOG << "************* intermediate program *************" << std::endl << gPrg << std::endl;
             LOG << "*************** grounded program ***************" << std::endl;
-            gPrg.ground(params, scripts, out, false, logger_);
+            gPrg.ground(params, scripts, out, logger_);
         }
     }
     void add(std::string const &name, StringVec const &params, std::string const &part) override {
@@ -187,9 +187,8 @@ struct IncrementalControl : Control {
     }
     bool blocked() override { return false; }
     USolveFuture solve(Assumptions ass, clingo_solve_mode_bitset_t, USolveEventHandler cb) override {
-        out.assume(ass);
         grounded = false;
-        out.endStep(true, logger_);
+        out.endStep(ass);
         out.reset(true);
         return gringo_make_unique<DefaultSolveFuture>(std::move(cb));
     }
@@ -232,7 +231,7 @@ struct IncrementalControl : Control {
     }
     Id_t addAtom(Symbol sym) override { return out.addAtom(sym); }
     void endAddBackend() override {
-        out.flush();
+        out.endGround(logger());
         backend_ = nullptr;
     }
     Potassco::Atom_t addProgramAtom() override { return out.data.newAtom(); }
@@ -359,7 +358,7 @@ struct GringoApp : public Potassco::Application {
         printUsage();
         Potassco::ProgramOptions::FileOut out(stdout);
         root.description(out);
-		printf("\nType '%s --help=2' for further options.\n", getName());
+        printf("\nType '%s --help=2' for further options.\n", getName());
         printf("\n");
         printUsage();
     }

@@ -251,7 +251,7 @@ void ClingoControl::ground(Control::GroundVec const &parts, Context *context) {
         LOG << "************* grounded program *************" << std::endl;
         auto exit = onExit([this]{ scripts_.resetContext(); });
         if (context) { scripts_.setContext(*context); }
-        gPrg.ground(params, scripts_, *out_, false, logger_);
+        gPrg.ground(params, scripts_, *out_, logger_);
     }
 }
 
@@ -386,11 +386,7 @@ bool ClingoControl::blocked() {
 void ClingoControl::prepare(Assumptions ass) {
     eventHandler_ = nullptr;
     // finalize the program
-    if (update()) {
-        // pass assumptions to the backend
-        out_->assume(ass);
-        out_->endStep(true, logger_);
-    }
+    if (update()) { out_->endStep(ass); }
     grounded = false;
     if (clingoMode_) {
         Clasp::ProgramBuilder *prg = clasp_->program();
@@ -445,7 +441,8 @@ void ClingoControl::registerPropagator(std::unique_ptr<Propagator> p, bool seque
 }
 
 void ClingoControl::cleanupDomains() {
-    out_->endStep(false, logger_);
+    // NOTE: should no longer be necessary because all translation is done after ground()
+    //out_->endGround(logger_);
     if (clingoMode_) {
         Clasp::Asp::LogicProgram &prg = static_cast<Clasp::Asp::LogicProgram&>(*clasp_->program());
         prg.endProgram();
@@ -645,7 +642,7 @@ Id_t ClingoControl::addAtom(Symbol sym) {
 }
 
 void ClingoControl::endAddBackend() {
-    out_->flush();
+    out_->endGround(logger());
     backend_ = nullptr;
 }
 

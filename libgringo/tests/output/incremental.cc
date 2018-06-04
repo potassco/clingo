@@ -59,21 +59,24 @@ std::string iground(std::string in, int last = 3) {
             Ground::Parameters params;
             params.add("base", {});
             out.beginStep();
-            prg.toGround({Sig{"base", 0, false}}, out.data, module.logger).ground(params, context, out, true, module.logger);
+            prg.toGround({Sig{"base", 0, false}}, out.data, module.logger).ground(params, context, out, module.logger);
+            out.endStep({});
             out.reset(true);
         }
         for (int i=1; i < last; ++i) {
             Ground::Parameters params;
             params.add("step", {NUM(i)});
             out.beginStep();
-            prg.toGround({Sig{"step", 1, false}}, out.data, module.logger).ground(params, context, out, true, module.logger);
+            prg.toGround({Sig{"step", 1, false}}, out.data, module.logger).ground(params, context, out, module.logger);
+            out.endStep({});
             out.reset(true);
         }
         {
             Ground::Parameters params;
             params.add("last", {});
             out.beginStep();
-            prg.toGround({Sig{"last", 0, false}}, out.data, module.logger).ground(params, context, out, true, module.logger);
+            prg.toGround({Sig{"last", 0, false}}, out.data, module.logger).ground(params, context, out, module.logger);
+            out.endStep({});
             out.reset(true);
         }
     }

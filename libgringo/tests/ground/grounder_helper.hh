@@ -51,7 +51,10 @@ inline void ground(std::string const &str, Output::OutputFormat fmt, std::ostrea
     ngp.parse(module.logger);
     prg.rewrite(defs, module.logger);
     Ground::Program gPrg(prg.toGround({Sig{"base", 0, false}}, out.data, module.logger));
-    gPrg.ground(context, out, module.logger);
+    Parameters params;
+    params.add("base", {});
+    gPrg.ground(params, context, out, module);
+    out.endStep({});
 }
 
 inline std::string groundText(std::string const &str, std::initializer_list<std::string> filter = {""}) {

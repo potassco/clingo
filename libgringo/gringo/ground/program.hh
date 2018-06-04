@@ -54,8 +54,7 @@ struct Program {
 
     Program(SEdbVec &&edb, Statement::Dep::ComponentVec &&stms, ClassicalNegationVec &&negate);
     void linearize(Context &context, Logger &log);
-    void ground(Parameters const &params, Context &context, Output::OutputBase &out, bool finalize, Logger &log);
-    void ground(Context &context, Output::OutputBase &out, Logger &log);
+    void ground(Parameters const &params, Context &context, Output::OutputBase &out, Logger &log);
 
     SEdbVec                      edb;
     bool                         linearized = false;

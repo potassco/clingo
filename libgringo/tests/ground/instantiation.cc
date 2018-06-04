@@ -56,7 +56,10 @@ std::string ground(std::string const &str, std::initializer_list<std::string> fi
     ngp.parse(module);
     prg.rewrite(defs, module);
     Program gPrg(prg.toGround({Sig{"base", 0, false}}, out.data, module));
-    gPrg.ground(context, out, module);
+    Parameters params;
+    params.add("base", {});
+    gPrg.ground(params, context, out, module);
+    out.endStep({});
 
     std::string line;
     std::vector<std::string> res;
