@@ -113,7 +113,7 @@ TEST_CASE("solving", "[clingo]") {
                 REQUIRE(messages.empty());
             }
         }
-        SECTION("statistics") {
+        SECTION("get_statistics") {
             ctl.add("pigeon", {"p", "h"}, "1 {p(P,H) : P=1..p}1 :- H=1..h."
                                           "1 {p(P,H) : H=1..h}1 :- P=1..p.");
             ctl.ground({{"pigeon", {Number(6), Number(5)}}});
@@ -139,6 +139,30 @@ TEST_CASE("solving", "[clingo]") {
                 ++nloop;
             }
             REQUIRE(nloop == 1);
+        }
+        SECTION("set_statistics") {
+            ctl.ground({{"base", {}}});
+            ctl.register_user_statistics([](UserStatistics statistics) {
+                auto map = statistics.add_subkey("map", StatisticsType::Map);
+                map.add_subkey("x", StatisticsType::Value).set_value(1);
+                map.add_subkey("y", StatisticsType::Value).set_value(2);
+            });
+            REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
+            auto stats = ctl.statistics();
+            REQUIRE(stats["user_defined.map"].type() == StatisticsType::Map);
+            REQUIRE(stats["user_defined.map.x"].type() == StatisticsType::Value);
+            REQUIRE(stats["user_defined.map.y"].type() == StatisticsType::Value);
+            REQUIRE(stats["user_defined.map.x"].value() == 1);
+            REQUIRE(stats["user_defined.map.y"].value() == 2);
+        }
+        SECTION("throw_statistics") {
+            Control ctl{{"0"}, [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); }, 20};
+            ctl.ground({{"base", {}}});
+            ctl.register_user_statistics([](UserStatistics) {
+                throw std::runtime_error("test throw in statistics callback");
+            });
+            REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
+            REQUIRE_THROWS_WITH(ctl.statistics(), "test throw in statistics callback");
         }
         SECTION("configuration") {
             auto conf = ctl.configuration();

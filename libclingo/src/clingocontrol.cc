@@ -480,9 +480,18 @@ Potassco::AbstractStatistics *ClingoControl::statistics() {
     return clasp_->getStats();
 }
 
+
+void ClingoControl::addStatisticsCallback(UserStatisticsCallback cb) {
+    statsCallbacks_.emplace_front(cb);
+    clasp_->addStatisticsCallback([](Potassco::AbstractStatistics *stats, void *data) {
+        static_cast<UserStatisticsCallback*>(data)->operator()(*stats);
+    }, &statsCallbacks_.front());
+}
+
 void ClingoControl::useEnumAssumption(bool enable) {
     enableEnumAssupmption_ = enable;
 }
+
 bool ClingoControl::useEnumAssumption() {
     return enableEnumAssupmption_;
 }

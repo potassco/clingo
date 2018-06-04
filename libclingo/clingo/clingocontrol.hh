@@ -300,6 +300,7 @@ public:
     Symbol getConst(std::string const &name) override;
     bool isConflicting() noexcept override;
     Potassco::AbstractStatistics *statistics() override;
+    void addStatisticsCallback(UserStatisticsCallback cb) override;
     ConfigProxy &getConf() override;
     void useEnumAssumption(bool enable) override;
     bool useEnumAssumption() override;
@@ -342,6 +343,7 @@ public:
     std::unique_ptr<Potassco::TheoryData>                      data_;
     std::vector<UProp>                                         props_;
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>>  propagators_;
+    std::forward_list<UserStatisticsCallback>                  statsCallbacks_;
     ClingoPropagatorLock                                       propLock_;
     Logger                                                     logger_;
     Backend                                                   *backend_               = nullptr;

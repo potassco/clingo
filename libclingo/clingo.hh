@@ -1925,38 +1925,46 @@ enum class StatisticsType : clingo_statistics_type_t {
     Map = clingo_statistics_type_map
 };
 
-class Statistics;
-using StatisticsKeyIterator = KeyIterator<Statistics>;
-using StatisticsArrayIterator = ArrayIterator<Statistics, Statistics const *>;
-using StatisticsKeyRange = IteratorRange<StatisticsKeyIterator>;
-
-class Statistics {
-    friend class KeyIterator<Statistics>;
+template <bool constant>
+class StatisticsBase {
+    friend class KeyIterator<StatisticsBase>;
 public:
-    explicit Statistics(clingo_statistics_t *stats, uint64_t key)
+    using statistics_t = typename std::conditional<constant, clingo_statistics_t const *, clingo_statistics_t*>::type;
+    using KeyIteratorT = KeyIterator<StatisticsBase>;
+    using ArrayIteratorT = ArrayIterator<StatisticsBase, StatisticsBase const *>;;
+    using KeyRangeT = IteratorRange<KeyIteratorT>;
+    explicit StatisticsBase(statistics_t stats, uint64_t key)
     : stats_(stats)
     , key_(key) { }
     // generic
     StatisticsType type() const;
     // arrays
     size_t size() const;
-    Statistics operator[](size_t index) const;
-    Statistics at(size_t index) const { return operator[](index); }
-    StatisticsArrayIterator begin() const;
-    StatisticsArrayIterator end() const;
+    StatisticsBase operator[](size_t index) const;
+    StatisticsBase at(size_t index) const { return operator[](index); }
+    ArrayIteratorT begin() const;
+    ArrayIteratorT end() const;
+    StatisticsBase push(StatisticsType type);
     // maps
-    Statistics operator[](char const *name) const;
-    Statistics get(char const *name) { return operator[](name); }
-    StatisticsKeyRange keys() const;
+    StatisticsBase operator[](char const *name) const;
+    StatisticsBase at(char const *name) const { return operator[](name); }
+    bool has_subkey(char const *name) const;
+    KeyRangeT keys() const;
+    StatisticsBase add_subkey(char const *name, StatisticsType type);
     // leafs
-    double value() const;
     operator double() const { return value(); }
-    clingo_statistics_t *to_c() const { return stats_; }
+    double value() const;
+    void set_value(double d);
+    statistics_t to_c() const { return stats_; }
 private:
     char const *key_name(size_t index) const;
-    clingo_statistics_t *stats_;
+    statistics_t stats_;
     uint64_t key_;
 };
+
+using Statistics = StatisticsBase<true>;
+using UserStatistics = StatisticsBase<false>;
+using UserStatisticCallback = std::function<void (UserStatistics &)>;
 
 // {{{1 configuration
 
@@ -2103,6 +2111,7 @@ public:
     }
     Configuration configuration();
     Statistics statistics() const;
+    void register_user_statistics(UserStatisticCallback cb);
     clingo_control_t *to_c() const;
 private:
     Impl *impl_;
@@ -2957,51 +2966,87 @@ inline atom_t Backend::add_atom(Symbol symbol) {
 
 // {{{2 statistics
 
-inline StatisticsType Statistics::type() const {
+template <bool constant>
+inline StatisticsType StatisticsBase<constant>::type() const {
     clingo_statistics_type_t ret;
     Detail::handle_error(clingo_statistics_type(stats_, key_, &ret));
     return StatisticsType(ret);
 }
 
-inline size_t Statistics::size() const {
+template <bool constant>
+inline size_t StatisticsBase<constant>::size() const {
     size_t ret;
     Detail::handle_error(clingo_statistics_array_size(stats_, key_, &ret));
     return ret;
 }
 
-inline Statistics Statistics::operator[](size_t index) const {
+template <bool constant>
+inline StatisticsBase<constant> StatisticsBase<constant>::operator[](size_t index) const {
     uint64_t ret;
     Detail::handle_error(clingo_statistics_array_at(stats_, key_, index, &ret));
-    return Statistics{stats_, ret};
+    return StatisticsBase{stats_, ret};
 }
 
-inline StatisticsArrayIterator Statistics::begin() const {
-    return StatisticsArrayIterator{this, 0};
+template <bool constant>
+inline StatisticsBase<constant> StatisticsBase<constant>::push(StatisticsType type) {
+    uint64_t ret;
+    Detail::handle_error(clingo_statistics_array_push(stats_, key_, static_cast<clingo_statistics_type_t>(type), &ret));
+    return StatisticsBase{stats_, ret};
 }
 
-inline StatisticsArrayIterator Statistics::end() const {
-    return StatisticsArrayIterator{this, size()};
+
+template <bool constant>
+inline typename StatisticsBase<constant>::ArrayIteratorT StatisticsBase<constant>::begin() const {
+    return ArrayIteratorT{this, 0};
 }
 
-inline Statistics Statistics::operator[](char const *name) const {
+template <bool constant>
+inline typename StatisticsBase<constant>::ArrayIteratorT StatisticsBase<constant>::end() const {
+    return ArrayIteratorT{this, size()};
+}
+
+template <bool constant>
+inline StatisticsBase<constant> StatisticsBase<constant>::operator[](char const *name) const {
     uint64_t ret;
     Detail::handle_error(clingo_statistics_map_at(stats_, key_, name, &ret));
-    return Statistics{stats_, ret};
+    return StatisticsBase{stats_, ret};
 }
 
-inline StatisticsKeyRange Statistics::keys() const {
+template <bool constant>
+inline bool StatisticsBase<constant>::has_subkey(char const *name) const {
+    bool ret;
+    Detail::handle_error(clingo_statistics_map_has_subkey(stats_, key_, name, &ret));
+    return ret;
+}
+
+template <bool constant>
+inline StatisticsBase<constant> StatisticsBase<constant>::add_subkey(char const *name, StatisticsType type) {
+    uint64_t ret;
+    Detail::handle_error(clingo_statistics_map_add_subkey(stats_, key_, name, static_cast<clingo_statistics_type_t>(type), &ret));
+    return StatisticsBase{stats_, ret};
+}
+
+template <bool constant>
+inline typename StatisticsBase<constant>::KeyRangeT StatisticsBase<constant>::keys() const {
     size_t ret;
     Detail::handle_error(clingo_statistics_map_size(stats_, key_, &ret));
-    return StatisticsKeyRange{ StatisticsKeyIterator{this, 0}, StatisticsKeyIterator{this, ret} };
+    return KeyRangeT{ KeyIteratorT{this, 0}, KeyIteratorT{this, ret} };
 }
 
-inline double Statistics::value() const {
+template <bool constant>
+inline double StatisticsBase<constant>::value() const {
     double ret;
     Detail::handle_error(clingo_statistics_value_get(stats_, key_, &ret));
     return ret;
 }
 
-inline char const *Statistics::key_name(size_t index) const {
+template <bool constant>
+inline void StatisticsBase<constant>::set_value(double d) {
+    Detail::handle_error(clingo_statistics_value_set(stats_, key_, d));
+}
+
+template <bool constant>
+inline char const *StatisticsBase<constant>::key_name(size_t index) const {
     char const *ret;
     Detail::handle_error(clingo_statistics_map_subkey_name(stats_, key_, index, &ret));
     return ret;
@@ -3751,6 +3796,7 @@ struct Control::Impl {
     Logger logger;
     std::forward_list<std::pair<Propagator&, Detail::AssignOnce&>> propagators_;
     std::forward_list<std::pair<GroundProgramObserver&, Detail::AssignOnce&>> observers_;
+    std::forward_list<std::pair<UserStatisticCallback, Detail::AssignOnce&>> statistics_;
     bool owns;
 };
 
@@ -4166,9 +4212,24 @@ inline Configuration Control::configuration() {
     return Configuration{conf, key};
 }
 
+inline void Control::register_user_statistics(UserStatisticCallback callback) {
+    impl_->statistics_.emplace_front(callback, impl_->ptr);
+    Detail::handle_error(clingo_control_register_user_statistics(to_c(), [](clingo_statistics_t* stats, void* data) {
+        auto &cb = *static_cast<std::pair<UserStatisticCallback, Detail::AssignOnce&>*>(data);
+        uint64_t root;
+        if (!clingo_statistics_root(stats, &root)) { return false; }
+        CLINGO_CALLBACK_TRY {
+            UserStatistics us{stats, root};
+            cb.first(us);
+        }
+        CLINGO_CALLBACK_CATCH(cb.second);
+    }, static_cast<void*>(&impl_->statistics_.front())));
+}
+
+
 inline Statistics Control::statistics() const {
-    clingo_statistics_t *stats;
-    Detail::handle_error(clingo_control_statistics(const_cast<clingo_control_t*>(impl_->ctl), &stats));
+    const clingo_statistics_t *stats;
+    Detail::handle_error(clingo_control_statistics(const_cast<clingo_control_t*>(impl_->ctl), &stats), impl_->ptr);
     uint64_t key;
     Detail::handle_error(clingo_statistics_root(stats, &key));
     return Statistics{stats, key};

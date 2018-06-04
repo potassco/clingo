@@ -5952,11 +5952,11 @@ active; you must not call any member function during search.)";
     Object getStats() {
         CHECK_BLOCKED("statistics");
         if (!stats) {
-            clingo_statistics_t *s;
+            const clingo_statistics_t *s;
             handle_c_error(clingo_control_statistics(ctl, &s));
             uint64_t root;
             handle_c_error(clingo_statistics_root(s, &root));
-            stats = getStatistics(s, root).release();
+            stats = getStatistics(const_cast<clingo_statistics_t*>(s), root).release();
         }
         Py_XINCREF(stats);
         return stats;

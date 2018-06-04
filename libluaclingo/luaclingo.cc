@@ -3246,7 +3246,7 @@ struct ControlWrap : Object<ControlWrap> {
                 auto stats = call_c(L, clingo_control_statistics, self.ctl);
                 auto root = call_c(L, clingo_statistics_root, stats);
                 lua_pop(L, 1);                          // -1
-                newStatistics(L, stats, root);          // +1
+                newStatistics(L, const_cast<clingo_statistics_t*>(stats), root);          // +1
                 lua_pushstring(L, "statistics");        // +1
                 lua_pushvalue(L, -2);                   // +1
                 lua_rawset(L, 1);                       // -2

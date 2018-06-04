@@ -204,6 +204,8 @@ using UProp = std::unique_ptr<Propagator>;
 
 using StringVec = std::vector<String>;
 using Control = clingo_control;
+using UserStatisticsCallback = std::function<void (Potassco::AbstractStatistics &)>;
+
 
 } // namespace Gringo
 
@@ -227,6 +229,7 @@ struct clingo_control {
     virtual void assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) = 0;
     virtual bool isConflicting() noexcept = 0;
     virtual Potassco::AbstractStatistics *statistics() = 0;
+    virtual void addStatisticsCallback(Gringo::UserStatisticsCallback cb) = 0;
     virtual void useEnumAssumption(bool enable) = 0;
     virtual bool useEnumAssumption() = 0;
     virtual void cleanupDomains() = 0;

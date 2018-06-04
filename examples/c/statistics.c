@@ -96,8 +96,37 @@ void print_prefix(int depth) {
   }
 }
 
+bool user_statistics(clingo_statistics_t* stats, void* data) {
+  (void)data;
+  uint64_t root, values, summary, value;
+  uint16_t n = 10, random = 1;
+  double sum = 0;
+
+  // get the root key which refering to a special modifiable entry
+  // which will appear under key "user_defined" in the output
+  if (!clingo_statistics_root(stats, &root)) { return false; }
+
+  // set some pseudo-random values in an array
+  if (!clingo_statistics_map_add_subkey(stats, root, "values", clingo_statistics_type_array, &values)) { return false; }
+  for (uint16_t i = 0; i < n; ++i) {
+      random = (random << 3) ^ (random ^ ((random & 0xf800) >> 13)) ^ i;
+      if (!clingo_statistics_array_push(stats, values, clingo_statistics_type_value, &value)) { return false; }
+      if (!clingo_statistics_value_set(stats, value, random)) { return false; }
+      sum += random;
+  }
+
+  // add the sum and average of the values in a map under key summary
+  if (!clingo_statistics_map_add_subkey(stats, root, "summary", clingo_statistics_type_map, &summary)) { return false; }
+  if (!clingo_statistics_map_add_subkey(stats, summary, "sum", clingo_statistics_type_value, &value)) { return false; }
+  if (!clingo_statistics_value_set(stats, value, sum)) { return false; }
+  if (!clingo_statistics_map_add_subkey(stats, summary, "avg", clingo_statistics_type_value, &value)) { return false; }
+  if (!clingo_statistics_value_set(stats, value, (double)sum/n)) { return false; }
+
+  return true;
+}
+
 // recursively print the statistics object
-bool print_statistics(clingo_statistics_t *stats, uint64_t key, int depth) {
+bool print_statistics(const clingo_statistics_t *stats, uint64_t key, int depth) {
   bool ret = true;
   clingo_statistics_type_t type;
 
@@ -176,11 +205,11 @@ int main(int argc, char const **argv) {
   clingo_part_t parts[] = {{ "base", NULL, 0 }};
   clingo_configuration_t *conf;
   clingo_id_t conf_root, conf_sub;
-  clingo_statistics_t *stats;
+  const clingo_statistics_t *stats;
   uint64_t stats_key;
 
   // create a control object and pass command line arguments
-  if (!clingo_control_new(argv+1, argc-1, NULL, NULL, 20, &ctl) != 0) { goto error; }
+  if (!clingo_control_new(argv+1, argc-1, NULL, NULL, 20, &ctl)) { goto error; }
 
   // get the configuration object and its root key
   if (!clingo_control_configuration(ctl, &conf)) { goto error; }
@@ -191,6 +220,9 @@ int main(int argc, char const **argv) {
 
   // add a logic program to the base part
   if (!clingo_control_add(ctl, "base", NULL, 0, "a :- not b. b :- not a.")) { goto error; }
+
+  // add a callback to set userdefined statistics
+  if (!clingo_control_register_user_statistics(ctl, user_statistics, NULL)) { goto error; }
 
   // ground the base part
   if (!clingo_control_ground(ctl, parts, 1, NULL, NULL)) { goto error; }
