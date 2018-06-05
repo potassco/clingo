@@ -1663,7 +1663,7 @@ luaL_Reg const Model::meta[] = {
 
 // {{{1 wrap Statistics
 
-int newStatistics(lua_State *L, clingo_statistics_t *stats, uint64_t key) {
+int newStatistics(lua_State *L, clingo_statistics_t const *stats, uint64_t key) {
     switch (call_c(L, clingo_statistics_type, stats, key)) {
         case clingo_statistics_type_value: {
             lua_pushnumber(L, numeric_cast<lua_Number>(call_c(L, clingo_statistics_value_get, stats, key))); // +1
@@ -3246,7 +3246,7 @@ struct ControlWrap : Object<ControlWrap> {
                 auto stats = call_c(L, clingo_control_statistics, self.ctl);
                 auto root = call_c(L, clingo_statistics_root, stats);
                 lua_pop(L, 1);                          // -1
-                newStatistics(L, const_cast<clingo_statistics_t*>(stats), root);          // +1
+                newStatistics(L, stats, root);          // +1
                 lua_pushstring(L, "statistics");        // +1
                 lua_pushvalue(L, -2);                   // +1
                 lua_rawset(L, 1);                       // -2

@@ -1816,7 +1816,7 @@ This is equivalent to satisfiable is None.)", nullptr},
 
 // {{{1 wrap Statistics
 
-Object getStatistics(clingo_statistics_t *stats, uint64_t key) {
+Object getStatistics(clingo_statistics_t const *stats, uint64_t key) {
     clingo_statistics_type_t type;
     handle_c_error(clingo_statistics_type(stats, key, &type));
     switch (type) {
@@ -5952,11 +5952,11 @@ active; you must not call any member function during search.)";
     Object getStats() {
         CHECK_BLOCKED("statistics");
         if (!stats) {
-            const clingo_statistics_t *s;
+            clingo_statistics_t const *s;
             handle_c_error(clingo_control_statistics(ctl, &s));
             uint64_t root;
             handle_c_error(clingo_statistics_root(s, &root));
-            stats = getStatistics(const_cast<clingo_statistics_t*>(s), root).release();
+            stats = getStatistics(s, root).release();
         }
         Py_XINCREF(stats);
         return stats;
