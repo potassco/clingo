@@ -147,6 +147,7 @@ struct ObjectProtocoll {
     bool is_none() const;
     bool is_sequence() const;
     bool is_number() const;
+    bool is_str() const;
     bool valid() const;
 
 private:
@@ -218,7 +219,7 @@ bool ObjectProtocoll<T>::callable() {
 }
 template <class T>
 bool ObjectProtocoll<T>::callable(char const *name) {
-    return hasAttr("name") && getAttr(name).callable();
+    return hasAttr(name) && getAttr(name).callable();
 }
 template <class T>
 template <class... Args>
@@ -334,6 +335,8 @@ template <class T>
 bool ObjectProtocoll<T>::is_sequence() const { return PySequence_Check(toPy_()); }
 template <class T>
 bool ObjectProtocoll<T>::is_number() const { return PyNumber_Check(toPy_()); }
+template <class T>
+bool ObjectProtocoll<T>::is_str() const { return PyString_Check(toPy_()); }
 template <class T>
 bool ObjectProtocoll<T>::valid() const { return toPy_(); }
 
@@ -506,6 +509,8 @@ void pyToCpp(Reference pyObj, std::string &x) {
     x.assign(ret);
 }
 
+void pyToCpp(Reference ref, Object &obj);
+
 void pyToNum(Reference pyNum, long &x) { x = PyLong_AsLong(pyNum.toPy()); }
 void pyToNum(Reference pyNum, unsigned long &x) { x = PyLong_AsUnsignedLong(pyNum.toPy()); }
 CLINGO_ATTRIBUTE_UNUSED void pyToNum(Reference pyNum, long long &x) { x = PyLong_AsLongLong(pyNum.toPy()); }
@@ -568,6 +573,10 @@ void pyToCpp(Reference pyVec, std::vector<T> &vec) {
         pyToCpp(x, ret);
         vec.emplace_back(std::move(ret));
     }
+}
+
+void pyToCpp(Reference ref, Object &obj) {
+    obj = ref;
 }
 
 template <class T>
@@ -5721,12 +5730,15 @@ Object getStatistics(clingo_statistics_t const *stats, uint64_t key) {
     }
 }
 
-void setUserStatistics(clingo_statistics_t *stats, uint64_t key, clingo_statistics_type_t type, Reference value);
+void setUserStatistics(clingo_statistics_t *stats, uint64_t key, clingo_statistics_type_t type, Reference value, bool update);
 Object getUserStatistics(clingo_statistics_t *stats, uint64_t key);
 clingo_statistics_type_t getUserStatisticsType(Reference value) {
-    if (value.is_number() || value.callable()) { return clingo_statistics_type_value; }
-    else if (value.callable("items"))          { return clingo_statistics_type_map; }
-    else                                       { return clingo_statistics_type_array; }
+    // there is an extra check for strings
+    // because recursively iterating over them causes stack overflows
+    if (value.is_str())                             { throw std::runtime_error("unexpected string"); }
+    else if (value.is_number() || value.callable()) { return clingo_statistics_type_value; }
+    else if (value.callable("items"))               { return clingo_statistics_type_map; }
+    else                                            { return clingo_statistics_type_array; }
 }
 
 struct StatisticsArray : ObjectBase<StatisticsArray> {
@@ -5773,11 +5785,29 @@ statistics array.
         uint64_t subkey;
         clingo_statistics_type_t type = getUserStatisticsType(value);
         handle_c_error(clingo_statistics_array_push(stats, key, type, &subkey));
-        setUserStatistics(stats, subkey, type, value);
+        setUserStatistics(stats, subkey, type, value, false);
+        return None();
+    }
+    Object extend(Reference value) {
+        for (auto x : value.iter()) { append(x); }
         return None();
     }
     Object update(Reference value) {
-        throw std::runtime_error("implement me...");
+        size_t size = sq_length(), i = 0;
+        for (auto x : value.iter()) {
+            if (i < size) {
+                uint64_t subkey;
+                clingo_statistics_type_t type;
+                handle_c_error(clingo_statistics_array_at(stats, key, i, &subkey));
+                handle_c_error(clingo_statistics_type(stats, subkey, &type));
+                setUserStatistics(stats, subkey, type, x, true);
+            }
+            else {
+                append(x);
+            }
+            ++i;
+        }
+        return None();
     }
 };
 
@@ -5790,6 +5820,14 @@ Append a statistics to an array.
 
 The statistics parameter has to be a nested structure composed of numbers,
 sequences, and mappings.
+)"},
+    // append
+    {"extend", to_function<&StatisticsArray::extend>(), METH_O,
+R"(extend(self, values) -> None
+
+Extend the statistics array with the given values.
+
+Calls append() for each element of values.
 )"},
     // update
     {"update", to_function<&StatisticsArray::update>(), METH_O,
@@ -5830,42 +5868,112 @@ struct StatisticsMap : ObjectBase<StatisticsMap> {
     Object mp_subscript(Reference name) {
         uint64_t subkey;
         handle_c_error(clingo_statistics_map_at(stats, key, pyToCpp<std::string>(name).c_str(), &subkey));
-        return cppToPy(subkey);
+        return getUserStatistics(stats, subkey);
     };
     void mp_ass_subscript(Reference name, Reference value) {
         uint64_t subkey;
         handle_c_error(clingo_statistics_map_at(stats, key, pyToCpp<std::string>(name).c_str(), &subkey));
         handle_c_error(clingo_statistics_value_set(stats, subkey, pyToCpp<double>(value)));
     };
-    Object add(Reference args, Reference kwargs) {
+
+    bool sq_contains(Reference name) {
+        bool ret;
+        handle_c_error(clingo_statistics_map_has_subkey(stats, key, pyToCpp<std::string>(name).c_str(), &ret));
+        return ret;
+    }
+
+    Object set(Reference args, Reference kwargs) {
         char const *name;
         Object value;
         static char const *kwlist[] = {"key", "statistics", nullptr};
         ParseTupleAndKeywords(args, kwargs, "sO|", kwlist, name, value);
         uint64_t subkey;
-        clingo_statistics_type_t type = getUserStatisticsType(value);
-        handle_c_error(clingo_statistics_map_add_subkey(stats, key, name, type, &subkey));
-        setUserStatistics(stats, subkey, type, value);
+        bool has_subkey;
+        clingo_statistics_type_t type;
+        handle_c_error(clingo_statistics_map_has_subkey(stats, key, name, &has_subkey));
+        if (has_subkey) {
+            handle_c_error(clingo_statistics_map_at(stats, key, name, &subkey));
+            handle_c_error(clingo_statistics_type(stats, subkey, &type));
+        }
+        else {
+            type = getUserStatisticsType(value);
+            handle_c_error(clingo_statistics_map_add_subkey(stats, key, name, type, &subkey));
+        }
+        setUserStatistics(stats, subkey, type, value, has_subkey);
         return None();
     }
     Object update(Reference value) {
-        throw std::runtime_error("implement me...");
+        for (auto x : value.call("items").iter()) {
+            auto pair = pyToCpp<std::pair<Object, Object>>(x);
+            call("set", pair.first, pair.second);
+        }
+        return None();
     }
+    Object tp_iter() {
+        return keys().iter();
+    }
+    Object keys() {
+        List ret;
+        for (Py_ssize_t i = 0, e = mp_length(); i != e; ++i) {
+            char const *name;
+            clingo_statistics_map_subkey_name(stats, key, i, &name);
+            ret.append(cppToPy(name));
+        }
+        return ret;
+    }
+    Object values() {
+        List ret;
+        for (Py_ssize_t i = 0, e = mp_length(); i != e; ++i) {
+            char const *name;
+            uint64_t subkey;
+            clingo_statistics_map_subkey_name(stats, key, i, &name);
+            clingo_statistics_map_at(stats, key, name, &subkey);
+            ret.append(getUserStatistics(stats, subkey));
+        }
+        return ret;
+    }
+    Object items() {
+        List ret;
+        auto jt = begin(values().iter());
+        for (auto key : keys().iter()) {
+            ret.append(Tuple(key, *jt++));
+        }
+        return ret;
+    }
+
 };
 
 PyMethodDef StatisticsMap::tp_methods[] = {
-    // add
-    {"add", to_function<&StatisticsMap::add>(), METH_VARARGS | METH_KEYWORDS,
-R"(add(self, key, statistics) -> None
+    // keys
+    {"keys", to_function<&StatisticsMap::keys>(), METH_NOARGS,
+R"(keys(self) -> [str]
 
-Add statistics to to the map under the given key.
+Return the keys in the statistics map.
+)"},
+    // values
+    {"values", to_function<&StatisticsMap::values>(), METH_NOARGS,
+R"(values(self) -> [Statistics]
+
+Return the values in the statistics map.
+)"},
+    // items
+    {"items", to_function<&StatisticsMap::items>(), METH_NOARGS,
+R"(items(self) -> [(str, Statstics)]
+
+Return the items in the statistics map.
+)"},
+    // set
+    {"set", to_function<&StatisticsMap::set>(), METH_VARARGS | METH_KEYWORDS,
+R"(set(self, key, statistics) -> None
+
+Set the value of the map under the given key to statistics.
 
 The statistics parameter has to be a nested structure composed of numbers,
 sequences, and mappings.
 
 Arguments:
-key        -- the key under which to add
-statistics -- the statistics to add
+key        -- the key under which to set
+statistics -- the statistics to set
 )"},
     // update
     {"update", to_function<&StatisticsMap::update>(), METH_O,
@@ -5879,10 +5987,16 @@ StatisticsArray.update().
     {nullptr, nullptr, 0, nullptr}
 };
 
-void setUserStatistics(clingo_statistics_t *stats, uint64_t key, clingo_statistics_type_t type, Reference value) {
+void setUserStatistics(clingo_statistics_t *stats, uint64_t key, clingo_statistics_type_t type, Reference value, bool update) {
     switch (type) {
         case clingo_statistics_type_value: {
-            double x = pyToCpp<double>(value.callable() ? Reference{value(None())} : value);
+            Object old = None();
+            if (update && value.callable()) {
+                double y;
+                handle_c_error(clingo_statistics_value_get(stats, key, &y));
+                old = cppToPy(y);
+            }
+            double x = pyToCpp<double>(value.callable() ? Reference{value(old)} : value);
             handle_c_error(clingo_statistics_value_set(stats, key, x));
             break;
         }
