@@ -1814,47 +1814,6 @@ This is equivalent to satisfiable is None.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
-// {{{1 wrap Statistics
-
-Object getStatistics(clingo_statistics_t const *stats, uint64_t key) {
-    clingo_statistics_type_t type;
-    handle_c_error(clingo_statistics_type(stats, key, &type));
-    switch (type) {
-        case clingo_statistics_type_value: {
-            double val;
-            handle_c_error(clingo_statistics_value_get(stats, key, &val));
-            return cppToPy(val);
-        }
-        case clingo_statistics_type_array: {
-            size_t e;
-            handle_c_error(clingo_statistics_array_size(stats, key, &e));
-            List list;
-            for (size_t i = 0; i != e; ++i) {
-                uint64_t subkey;
-                handle_c_error(clingo_statistics_array_at(stats, key, i, &subkey));
-                list.append(getStatistics(stats, subkey));
-            }
-            return list;
-        }
-        case clingo_statistics_type_map: {
-            size_t e;
-            handle_c_error(clingo_statistics_map_size(stats, key, &e));
-            Dict dict;
-            for (size_t i = 0; i != e; ++i) {
-                char const *name;
-                uint64_t subkey;
-                handle_c_error(clingo_statistics_map_subkey_name(stats, key, i, &name));
-                handle_c_error(clingo_statistics_map_at(stats, key, name, &subkey));
-                dict.setItem(name, getStatistics(stats, subkey));
-            }
-            return dict;
-        }
-        default: {
-            throw std::logic_error("cannot happen");
-        }
-    }
-}
-
 // {{{1 wrap SymbolicAtom
 
 struct SymbolicAtom : public ObjectBase<SymbolicAtom> {
@@ -5705,6 +5664,210 @@ MessageCode.Other              -- other kinds of messages
 constexpr clingo_warning const MessageCode::values[];
 constexpr const char * const MessageCode::strings[];
 
+// {{{1 wrap Statistics
+
+Object getStatistics(clingo_statistics_t const *stats, uint64_t key) {
+    clingo_statistics_type_t type;
+    handle_c_error(clingo_statistics_type(stats, key, &type));
+    switch (type) {
+        case clingo_statistics_type_value: {
+            double val;
+            handle_c_error(clingo_statistics_value_get(stats, key, &val));
+            return cppToPy(val);
+        }
+        case clingo_statistics_type_array: {
+            size_t e;
+            handle_c_error(clingo_statistics_array_size(stats, key, &e));
+            List list;
+            for (size_t i = 0; i != e; ++i) {
+                uint64_t subkey;
+                handle_c_error(clingo_statistics_array_at(stats, key, i, &subkey));
+                list.append(getStatistics(stats, subkey));
+            }
+            return list;
+        }
+        case clingo_statistics_type_map: {
+            size_t e;
+            handle_c_error(clingo_statistics_map_size(stats, key, &e));
+            Dict dict;
+            for (size_t i = 0; i != e; ++i) {
+                char const *name;
+                uint64_t subkey;
+                handle_c_error(clingo_statistics_map_subkey_name(stats, key, i, &name));
+                handle_c_error(clingo_statistics_map_at(stats, key, name, &subkey));
+                dict.setItem(name, getStatistics(stats, subkey));
+            }
+            return dict;
+        }
+        default: {
+            throw std::logic_error("cannot happen");
+        }
+    }
+}
+
+Object getUserStatistics(clingo_statistics_t *stats, uint64_t key);
+
+struct StatisticsArray : ObjectBase<StatisticsArray> {
+    clingo_statistics_t *stats;
+    uint64_t key;
+
+    static PyMethodDef tp_methods[];
+
+    static constexpr char const *tp_type = "StatisticsArray";
+    static constexpr char const *tp_name = "clingo.StatisticsArray";
+    static constexpr char const *tp_doc =
+    R"(StatisticsArray object to capture statistics stored in an array.
+
+This class implements the sequence protocol but does not support deletion.
+Furthermore, only existing numeric values in a statistics array can be changed
+using the assignment operator.
+
+The update function provides a convenient means to initialize and modify a
+statistics array.
+)";
+
+    static SharedObject<StatisticsArray> construct(clingo_statistics_t *stats, int64_t key) {
+        auto self = new_();
+        self->stats = stats;
+        self->key = key;
+        return self;
+    }
+    Py_ssize_t sq_length() {
+        size_t size;
+        handle_c_error(clingo_statistics_array_size(stats, key, &size));
+        return size;
+    }
+    Object sq_item(Py_ssize_t index) {
+        uint64_t subkey;
+        handle_c_error(clingo_statistics_array_at(stats, key, index, &subkey));
+        return getUserStatistics(stats, subkey);
+    };
+    void sq_ass_item(Py_ssize_t index, Reference value) {
+        uint64_t subkey;
+        handle_c_error(clingo_statistics_array_at(stats, key, index, &subkey));
+        handle_c_error(clingo_statistics_value_set(stats, subkey, pyToCpp<double>(value)));
+    };
+    Object append(Reference value) {
+        throw std::runtime_error("implement me...");
+    }
+    Object update(Reference value) {
+        throw std::runtime_error("implement me...");
+    }
+};
+
+PyMethodDef StatisticsArray::tp_methods[] = {
+    // append
+    {"append", to_function<&StatisticsArray::append>(), METH_O,
+R"(append(self, statistics) -> None
+
+Append a statistics to an array.
+
+The statistics parameter has to be a nested structure composed of numbers,
+sequences, and mappings.
+)"},
+    // update
+    {"update", to_function<&StatisticsArray::update>(), METH_O,
+R"(update(self, statistics) -> None
+
+Update a statistics array.
+
+The statistics argument must be a sequence. Further, it has to be a nested
+structure composed of numbers, sequences, mappings, and callables. A callable
+can be used to update an existing value, it receives the previous numeric value
+(or None if absent) as argument and must return an updated numeric value.
+)"},
+    {nullptr, nullptr, 0, nullptr}
+};
+
+struct StatisticsMap : ObjectBase<StatisticsMap> {
+    clingo_statistics_t *stats;
+    uint64_t key;
+
+    static PyMethodDef tp_methods[];
+
+    static constexpr char const *tp_type = "StatisticsMap";
+    static constexpr char const *tp_name = "clingo.StatisticsMap";
+    static constexpr char const *tp_doc =
+    R"(StatisticsMap object to capture statistics stored in a map.)";
+
+    static SharedObject<StatisticsMap> construct(clingo_statistics_t *stats, int64_t key) {
+        auto self = new_();
+        self->stats = stats;
+        self->key = key;
+        return self;
+    }
+    Py_ssize_t mp_length() {
+        size_t size;
+        handle_c_error(clingo_statistics_array_size(stats, key, &size));
+        return size;
+    }
+    Object mp_subscript(Reference name) {
+        uint64_t subkey;
+        handle_c_error(clingo_statistics_map_at(stats, key, pyToCpp<std::string>(name).c_str(), &subkey));
+        return cppToPy(subkey);
+    };
+    void mp_ass_subscript(Reference name, Reference value) {
+        uint64_t subkey;
+        handle_c_error(clingo_statistics_map_at(stats, key, pyToCpp<std::string>(name).c_str(), &subkey));
+        handle_c_error(clingo_statistics_value_set(stats, subkey, pyToCpp<double>(value)));
+    };
+    Object add(Reference args, Reference kwargs) {
+        char const *name;
+        Object value;
+        static char const *kwlist[] = {"key", "statistics", nullptr};
+        ParseTupleAndKeywords(args, kwargs, "sO|", kwlist, name, value);
+        throw std::runtime_error("implement me...");
+    }
+    Object update(Reference value) {
+        throw std::runtime_error("implement me...");
+    }
+};
+
+PyMethodDef StatisticsMap::tp_methods[] = {
+    // add
+    {"add", to_function<&StatisticsMap::add>(), METH_VARARGS | METH_KEYWORDS,
+R"(add(self, key, statistics) -> None
+
+Add statistics to to the map under the given key.
+
+The statistics parameter has to be a nested structure composed of numbers,
+sequences, and mappings.
+
+Arguments:
+key        -- the key under which to add
+statistics -- the statistics to add
+)"},
+    // update
+    {"update", to_function<&StatisticsMap::update>(), METH_O,
+R"(update(self, statistics) -> None
+
+Update a statistics array.
+
+The statistics argument must be a map. Otherwise, it is equivalent to
+StatisticsArray.update().
+)"},
+    {nullptr, nullptr, 0, nullptr}
+};
+
+Object getUserStatistics(clingo_statistics_t *stats, uint64_t key) {
+    clingo_statistics_type_t type;
+    handle_c_error(clingo_statistics_type(stats, key, &type));
+    switch (type) {
+        case clingo_statistics_type_array: {
+            return StatisticsArray::construct(stats, key);
+        }
+        case clingo_statistics_type_map: {
+            return StatisticsMap::construct(stats, key);
+        }
+        default: {
+            assert(type == clingo_statistics_type_value);
+            double value;
+            handle_c_error(clingo_statistics_value_get(stats, key, &value));
+            return cppToPy(value);
+        }
+    }
+}
+
 // {{{1 wrap Control
 
 void pycall(Reference fun, clingo_symbol_t const *arguments, size_t arguments_size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) {
@@ -5742,12 +5905,14 @@ static void logger_callback(clingo_warning_t code, char const *message, void *da
 struct ControlWrap : ObjectBase<ControlWrap> {
     using Propagators = std::vector<Object>;
     using Observers = std::vector<Object>;
+    using UserStatistics = std::forward_list<Object>;
     clingo_control_t *ctl;
     clingo_control_t *freeCtl;
     PyObject         *stats;
     PyObject         *logger;
     Propagators       prop;
     Observers         observers;
+    UserStatistics    statistics;
     bool              blocked;
 
     static PyGetSetDef tp_getset[];
@@ -5791,6 +5956,7 @@ active; you must not call any member function during search.)";
         self->blocked = false;
         new (&self->prop) Propagators();
         new (&self->observers) Observers();
+        new (&self->statistics) UserStatistics();
         return self;
     }
     static Object tp_new(PyTypeObject *type) {
@@ -5802,6 +5968,7 @@ active; you must not call any member function during search.)";
         self->blocked = false;
         new (&self->prop) Propagators();
         new (&self->observers) Observers();
+        new (&self->statistics) UserStatistics();
         return self;
     }
     void tp_dealloc() {
@@ -5809,6 +5976,7 @@ active; you must not call any member function during search.)";
         ctl = freeCtl = nullptr;
         prop.~Propagators();
         observers.~Observers();
+        statistics.~UserStatistics();
         Py_XDECREF(stats);
         Py_XDECREF(logger);
     }
@@ -5960,6 +6128,23 @@ active; you must not call any member function during search.)";
         }
         Py_XINCREF(stats);
         return stats;
+    }
+    Object registerUserStatistics(Reference callback) {
+        statistics.emplace_front(callback);
+        handle_c_error(clingo_control_register_user_statistics(ctl, [](clingo_statistics_t *stats, void *data){
+            auto &cb = *static_cast<Object*>(data);
+            try {
+                uint64_t root;
+                handle_c_error(clingo_statistics_root(stats, &root));
+                cb(getUserStatistics(stats, root));
+            }
+            catch (...) {
+                handle_cxx_error("<user_statistics_callback>", "error when handling user statistics");
+                return false;
+            }
+            return true;
+        }, &statistics.front()));
+        return None();
     }
     void set_use_enumeration_assumption(Reference pyEnable) {
         CHECK_BLOCKED("use_enumeration_assumption");
@@ -6232,6 +6417,17 @@ def main(prg):
         print(handle.get())
 
 #end.)"},
+    // registerUserStatistics
+    {"register_user_statistics", to_function<&ControlWrap::registerUserStatistics>(), METH_O,
+R"(register_user_statistics(self, callback) -> None
+
+Register a callback to exend the statistics.
+
+The callback receives a Statistics object as argument, which is an object of
+type StatisticsMap.
+
+Arguments:
+callback -- the callback to extend the statistics with)"},
     // cleanup
     {"cleanup", to_function<&ControlWrap::cleanup>(), METH_NOARGS,
 R"(cleanup(self) -> None
@@ -7550,7 +7746,7 @@ PyObject *initclingo_() {
             !SymbolType::initType(m)          || !Symbol::initType(m)           || !Backend::initType(m)          ||
             !ProgramBuilder::initType(m)      || !HeuristicType::initType(m)    || !TruthValue::initType(m)       ||
             !PropagatorCheckMode::initType(m) || !MessageCode::initType(m)      || !Flag::initType(m)             ||
-            !ApplicationOptions::initType(m)  ||
+            !ApplicationOptions::initType(m)  || !StatisticsArray::initType(m)  || !StatisticsMap::initType(m)    ||
             PyModule_AddStringConstant(m.toPy(), "__version__", CLINGO_VERSION) < 0 ||
             false) { return nullptr; }
         Reference a{initclingoast_()};
