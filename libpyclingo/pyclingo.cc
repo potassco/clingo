@@ -7651,6 +7651,8 @@ PropagateInit       -- object to initialize custom propagators
 SolveControl        -- controls running search in a model handler
 SolveHandle         -- handle for solve calls
 SolveResult         -- result of a solve call
+StatisticsArray     -- updatable statistics stored in an array
+StatisticsMap       -- updatable statistics stored in a map
 Symbol              -- captures precomputed terms
 SymbolicAtom        -- captures information about a symbolic atom
 SymbolicAtomIter    -- iterate over symbolic atoms
