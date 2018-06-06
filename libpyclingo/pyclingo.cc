@@ -5778,8 +5778,10 @@ statistics array.
     };
     void sq_ass_item(Py_ssize_t index, Reference value) {
         uint64_t subkey;
+        clingo_statistics_type_t type;
         handle_c_error(clingo_statistics_array_at(stats, key, index, &subkey));
-        handle_c_error(clingo_statistics_value_set(stats, subkey, pyToCpp<double>(value)));
+        handle_c_error(clingo_statistics_type(stats, subkey, &type));
+        setUserStatistics(stats, subkey, type, value, true);
     };
     Object append(Reference value) {
         uint64_t subkey;
@@ -5795,16 +5797,8 @@ statistics array.
     Object update(Reference value) {
         size_t size = sq_length(), i = 0;
         for (auto x : value.iter()) {
-            if (i < size) {
-                uint64_t subkey;
-                clingo_statistics_type_t type;
-                handle_c_error(clingo_statistics_array_at(stats, key, i, &subkey));
-                handle_c_error(clingo_statistics_type(stats, subkey, &type));
-                setUserStatistics(stats, subkey, type, x, true);
-            }
-            else {
-                append(x);
-            }
+            if (i < size) { sq_ass_item(i, x); }
+            else          { append(x); }
             ++i;
         }
         return None();
@@ -5870,42 +5864,31 @@ struct StatisticsMap : ObjectBase<StatisticsMap> {
         handle_c_error(clingo_statistics_map_at(stats, key, pyToCpp<std::string>(name).c_str(), &subkey));
         return getUserStatistics(stats, subkey);
     };
-    void mp_ass_subscript(Reference name, Reference value) {
+    void mp_ass_subscript(Reference pyName, Reference value) {
+        std::string name = pyToCpp<std::string>(pyName);
         uint64_t subkey;
-        handle_c_error(clingo_statistics_map_at(stats, key, pyToCpp<std::string>(name).c_str(), &subkey));
-        handle_c_error(clingo_statistics_value_set(stats, subkey, pyToCpp<double>(value)));
+        bool has_subkey;
+        clingo_statistics_type_t type;
+        handle_c_error(clingo_statistics_map_has_subkey(stats, key, name.c_str(), &has_subkey));
+        if (has_subkey) {
+            handle_c_error(clingo_statistics_map_at(stats, key, name.c_str(), &subkey));
+            handle_c_error(clingo_statistics_type(stats, subkey, &type));
+        }
+        else {
+            type = getUserStatisticsType(value);
+            handle_c_error(clingo_statistics_map_add_subkey(stats, key, name.c_str(), type, &subkey));
+        }
+        setUserStatistics(stats, subkey, type, value, has_subkey);
     };
-
     bool sq_contains(Reference name) {
         bool ret;
         handle_c_error(clingo_statistics_map_has_subkey(stats, key, pyToCpp<std::string>(name).c_str(), &ret));
         return ret;
     }
-
-    Object set(Reference args, Reference kwargs) {
-        char const *name;
-        Object value;
-        static char const *kwlist[] = {"key", "statistics", nullptr};
-        ParseTupleAndKeywords(args, kwargs, "sO|", kwlist, name, value);
-        uint64_t subkey;
-        bool has_subkey;
-        clingo_statistics_type_t type;
-        handle_c_error(clingo_statistics_map_has_subkey(stats, key, name, &has_subkey));
-        if (has_subkey) {
-            handle_c_error(clingo_statistics_map_at(stats, key, name, &subkey));
-            handle_c_error(clingo_statistics_type(stats, subkey, &type));
-        }
-        else {
-            type = getUserStatisticsType(value);
-            handle_c_error(clingo_statistics_map_add_subkey(stats, key, name, type, &subkey));
-        }
-        setUserStatistics(stats, subkey, type, value, has_subkey);
-        return None();
-    }
     Object update(Reference value) {
         for (auto x : value.call("items").iter()) {
             auto pair = pyToCpp<std::pair<Object, Object>>(x);
-            call("set", pair.first, pair.second);
+            mp_ass_subscript(pair.first, pair.second);
         }
         return None();
     }
@@ -5961,19 +5944,6 @@ Return the values in the statistics map.
 R"(items(self) -> [(str, Statstics)]
 
 Return the items in the statistics map.
-)"},
-    // set
-    {"set", to_function<&StatisticsMap::set>(), METH_VARARGS | METH_KEYWORDS,
-R"(set(self, key, statistics) -> None
-
-Set the value of the map under the given key to statistics.
-
-The statistics parameter has to be a nested structure composed of numbers,
-sequences, and mappings.
-
-Arguments:
-key        -- the key under which to set
-statistics -- the statistics to set
 )"},
     // update
     {"update", to_function<&StatisticsMap::update>(), METH_O,
