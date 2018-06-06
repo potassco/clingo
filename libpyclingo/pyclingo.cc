@@ -111,6 +111,8 @@ using Object = SharedObject<PyObject>;
 template <class T>
 struct ObjectProtocoll {
     // {{{2 object protocol
+    bool callable();
+    bool callable(char const *name);
     template <class... Args>
     Object call(char const *name, Args &&... args);
     template <class... Args>
@@ -142,7 +144,9 @@ struct ObjectProtocoll {
     //}
 
     // }}}2
-    bool none() const;
+    bool is_none() const;
+    bool is_sequence() const;
+    bool is_number() const;
     bool valid() const;
 
 private:
@@ -208,6 +212,14 @@ Object None() { Py_RETURN_NONE; }
 template <class T>
 PyObject *ObjectProtocoll<T>::toPy_() const { return static_cast<T const *>(this)->toPy(); }
 
+template <class T>
+bool ObjectProtocoll<T>::callable() {
+    return PyCallable_Check(toPy_());
+}
+template <class T>
+bool ObjectProtocoll<T>::callable(char const *name) {
+    return hasAttr("name") && getAttr(name).callable();
+}
 template <class T>
 template <class... Args>
 Object ObjectProtocoll<T>::call(char const *name, Args &&... args) {
@@ -317,7 +329,11 @@ bool operator!=(Object a, Object b) {
 
 // }}}2
 template <class T>
-bool ObjectProtocoll<T>::none() const { return toPy_() == Py_None; }
+bool ObjectProtocoll<T>::is_none() const { return toPy_() == Py_None; }
+template <class T>
+bool ObjectProtocoll<T>::is_sequence() const { return PySequence_Check(toPy_()); }
+template <class T>
+bool ObjectProtocoll<T>::is_number() const { return PyNumber_Check(toPy_()); }
 template <class T>
 bool ObjectProtocoll<T>::valid() const { return toPy_(); }
 
@@ -1617,7 +1633,7 @@ preconstructed symbols Infimum and Supremum.)";
             throw PyException();
         }
         clingo_symbol_t ret;
-        if (!params.none()) {
+        if (!params.is_none()) {
             std::vector<symbol_wrapper> syms;
             pyToCpp(params, syms);
             handle_c_error(clingo_symbol_create_function(name, reinterpret_cast<clingo_symbol_t*>(syms.data()), syms.size(), !sign, &ret));
@@ -2408,7 +2424,7 @@ See Control.solve() for an example.)";
     }
 
     clingo_solve_event_callback_t notify(clingo_solve_event_callback_t event, Reference mh, Reference fh) {
-        if (!mh.none()) {
+        if (!mh.is_none()) {
             on_model = mh.toPy();
             Py_XINCREF(on_model);
         }
@@ -2416,7 +2432,7 @@ See Control.solve() for an example.)";
             Py_XDECREF(on_model);
             on_model = nullptr;
         }
-        if (!fh.none()) {
+        if (!fh.is_none()) {
             on_finish = fh.toPy();
             Py_XINCREF(on_finish);
         }
@@ -2465,7 +2481,7 @@ See Control.solve() for an example.)";
     Object wait(Reference args) {
         Reference timeout = Py_None;
         ParseTuple(args, "|O", timeout);
-        auto time = timeout.none() ? -1 : pyToCpp<double>(timeout);
+        auto time = timeout.is_none() ? -1 : pyToCpp<double>(timeout);
         return cppToPy(doUnblocked([this, time](){
             bool ret;
             clingo_solve_handle_wait(handle, time, &ret);
@@ -2494,7 +2510,7 @@ See Control.solve() for an example.)";
                     try {
                         auto pyModel = Model::construct(static_cast<clingo_model_t*>(event));
                         Object ret = PyObject_CallFunction(handle.on_model, const_cast<char*>("O"), pyModel.toPy());
-                        *goon = ret.none() || pyToCpp<bool>(ret);
+                        *goon = ret.is_none() || pyToCpp<bool>(ret);
                         return true;
                     }
                     catch (...) {
@@ -2925,7 +2941,7 @@ condition ids to solver literals.)";
         static char const *kwlist[] = {"literal", "thread_id", nullptr};
         Reference lit, thread_id = Py_None;
         ParseTupleAndKeywords(pyargs, pykwds, "O|O", kwlist, lit, thread_id);
-        if (!thread_id.none()) {
+        if (!thread_id.is_none()) {
             handle_c_error(clingo_propagate_init_add_watch_to_thread(init, pyToCpp<clingo_literal_t>(lit), pyToCpp<uint32_t>(thread_id)));
         }
         else {
@@ -3415,7 +3431,7 @@ format.)";
         std::vector<clingo_atom_t> head;
         pyToCpp(pyHead, head);
         std::vector<clingo_literal_t> body;
-        if (!pyBody.none()) { pyToCpp(pyBody, body); }
+        if (!pyBody.is_none()) { pyToCpp(pyBody, body); }
         bool choice = pyChoice.isTrue();
         handle_c_error(clingo_backend_rule(backend, choice, head.data(), head.size(), body.data(), body.size()));
         Py_RETURN_NONE;
@@ -4205,7 +4221,7 @@ provided in this module.
             case ASTType::CSPProduct: {
                 auto var = fields_.getItem("variable");
                 auto coe = fields_.getItem("coefficient");
-                if (!var.none()) { out << coe << "$*" << "$" << var; }
+                if (!var.is_none()) { out << coe << "$*" << "$" << var; }
                 else             { out << coe; }
                 break;
             }
@@ -4251,9 +4267,9 @@ provided in this module.
             }
             case ASTType::Aggregate: {
                 auto left = fields_.getItem("left_guard"), right = fields_.getItem("right_guard");
-                if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
+                if (!left.is_none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
                 out << "{ " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
-                if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
+                if (!right.is_none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
                 break;
             }
             case ASTType::BodyAggregateElement: {
@@ -4262,9 +4278,9 @@ provided in this module.
             }
             case ASTType::BodyAggregate: {
                 auto left = fields_.getItem("left_guard"), right = fields_.getItem("right_guard");
-                if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
+                if (!left.is_none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
                 out << fields_.getItem("function") << " { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
-                if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
+                if (!right.is_none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
                 break;
             }
             case ASTType::HeadAggregateElement: {
@@ -4273,9 +4289,9 @@ provided in this module.
             }
             case ASTType::HeadAggregate: {
                 auto left = fields_.getItem("left_guard"), right = fields_.getItem("right_guard");
-                if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
+                if (!left.is_none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
                 out << fields_.getItem("function") << " { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
-                if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
+                if (!right.is_none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
                 break;
             }
             case ASTType::Disjunction: {
@@ -4323,7 +4339,7 @@ provided in this module.
             case ASTType::TheoryAtom: {
                 auto guard = fields_.getItem("guard");
                 out << "&" << fields_.getItem("term") << " { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
-                if (!guard.none()) { out << " " << guard; }
+                if (!guard.is_none()) { out << " " << guard; }
                 break;
             }
             // {{{3 theory definition
@@ -4342,7 +4358,7 @@ provided in this module.
             case ASTType::TheoryAtomDefinition: {
                 auto guard = fields_.getItem("guard");
                 out << "&" << fields_.getItem("name") << "/" << fields_.getItem("arity") << " : " << fields_.getItem("elements");
-                if (!guard.none()) { out << ", " << guard; }
+                if (!guard.is_none()) { out << ", " << guard; }
                 out << ", " << fields_.getItem("atom_type");
                 break;
             }
@@ -4991,7 +5007,7 @@ struct ASTToC {
     }
 
     clingo_ast_term_t *convTermOpt(Reference x) {
-        return !x.none() ? create_(convTerm(x)) : nullptr;
+        return !x.is_none() ? create_(convTerm(x)) : nullptr;
     }
 
     clingo_ast_csp_product_term_t convCSPProduct(Reference x) {
@@ -5139,7 +5155,7 @@ struct ASTToC {
     // {{{3 aggregates
 
     clingo_ast_aggregate_guard_t *convAggregateGuardOpt(Reference x) {
-        return !x.none()
+        return !x.is_none()
             ? create_<clingo_ast_aggregate_guard_t>({enumValue<ComparisonOperator>(x.getAttr("comparison")), convTerm(x.getAttr("term"))})
             : nullptr;
     }
@@ -5154,7 +5170,7 @@ struct ASTToC {
     }
 
     clingo_ast_theory_guard_t *convTheoryGuardOpt(Reference x) {
-        return !x.none()
+        return !x.is_none()
             ? create_<clingo_ast_theory_guard_t>({convString(x.getAttr("operator_name")), convTheoryTerm(x.getAttr("term"))})
             : nullptr;
     }
@@ -5358,7 +5374,7 @@ struct ASTToC {
     }
 
     clingo_ast_theory_guard_definition_t *convTheoryGuardDefinitionOpt(Reference x) {
-        if (x.none()) { return nullptr; }
+        if (x.is_none()) { return nullptr; }
         auto ret = create_<clingo_ast_theory_guard_definition_t>();
         auto ops = x.getAttr("operators");
         ret->term      = convString(x.getAttr("term"));
@@ -5705,7 +5721,13 @@ Object getStatistics(clingo_statistics_t const *stats, uint64_t key) {
     }
 }
 
+void setUserStatistics(clingo_statistics_t *stats, uint64_t key, clingo_statistics_type_t type, Reference value);
 Object getUserStatistics(clingo_statistics_t *stats, uint64_t key);
+clingo_statistics_type_t getUserStatisticsType(Reference value) {
+    if (value.is_number() || value.callable()) { return clingo_statistics_type_value; }
+    else if (value.callable("items"))          { return clingo_statistics_type_map; }
+    else                                       { return clingo_statistics_type_array; }
+}
 
 struct StatisticsArray : ObjectBase<StatisticsArray> {
     clingo_statistics_t *stats;
@@ -5748,7 +5770,11 @@ statistics array.
         handle_c_error(clingo_statistics_value_set(stats, subkey, pyToCpp<double>(value)));
     };
     Object append(Reference value) {
-        throw std::runtime_error("implement me...");
+        uint64_t subkey;
+        clingo_statistics_type_t type = getUserStatisticsType(value);
+        handle_c_error(clingo_statistics_array_push(stats, key, type, &subkey));
+        setUserStatistics(stats, subkey, type, value);
+        return None();
     }
     Object update(Reference value) {
         throw std::runtime_error("implement me...");
@@ -5816,7 +5842,11 @@ struct StatisticsMap : ObjectBase<StatisticsMap> {
         Object value;
         static char const *kwlist[] = {"key", "statistics", nullptr};
         ParseTupleAndKeywords(args, kwargs, "sO|", kwlist, name, value);
-        throw std::runtime_error("implement me...");
+        uint64_t subkey;
+        clingo_statistics_type_t type = getUserStatisticsType(value);
+        handle_c_error(clingo_statistics_map_add_subkey(stats, key, name, type, &subkey));
+        setUserStatistics(stats, subkey, type, value);
+        return None();
     }
     Object update(Reference value) {
         throw std::runtime_error("implement me...");
@@ -5848,6 +5878,24 @@ StatisticsArray.update().
 )"},
     {nullptr, nullptr, 0, nullptr}
 };
+
+void setUserStatistics(clingo_statistics_t *stats, uint64_t key, clingo_statistics_type_t type, Reference value) {
+    switch (type) {
+        case clingo_statistics_type_value: {
+            double x = pyToCpp<double>(value.callable() ? Reference{value(None())} : value);
+            handle_c_error(clingo_statistics_value_set(stats, key, x));
+            break;
+        }
+        case clingo_statistics_type_map: {
+            StatisticsMap::construct(stats, key)->update(value);
+            break;
+        }
+        case clingo_statistics_type_array: {
+            StatisticsArray::construct(stats, key)->update(value);
+            break;
+        }
+    }
+}
 
 Object getUserStatistics(clingo_statistics_t *stats, uint64_t key) {
     clingo_statistics_type_t type;
@@ -5987,13 +6035,13 @@ active; you must not call any member function during search.)";
         ParseTupleAndKeywords(pyargs, pykwds, "|OOi", kwlist, params, pyLogger, message_limit);
         std::forward_list<std::string> strs;
         std::vector<char const *> args;
-        if (!params.none()) {
+        if (!params.is_none()) {
             for (Object pyVal : Reference{params}.iter()) {
                 strs.emplace_front(pyToCpp<std::string>(pyVal));
                 args.emplace_back(strs.front().c_str());
             }
         }
-        if (!pyLogger.none()) {
+        if (!pyLogger.is_none()) {
             logger = pyLogger.release();
         }
         handle_c_error(clingo_control_new(args.data(), args.size(), logger ? logger_callback : nullptr, logger, message_limit, &freeCtl));
@@ -6045,7 +6093,7 @@ active; you must not call any member function during search.)";
         for (auto &&cpp_part : cpp_parts) {
             parts.emplace_back(clingo_part_t{cpp_part.first.c_str(), reinterpret_cast<clingo_symbol_t*>(cpp_part.second.data()), cpp_part.second.size()});
         }
-        doUnblocked([&](){ handle_c_error(clingo_control_ground(ctl, parts.data(), parts.size(), pyContext.none() ? nullptr : on_context, pyContext.none() ? nullptr : pyContext.toPy())); });
+        doUnblocked([&](){ handle_c_error(clingo_control_ground(ctl, parts.data(), parts.size(), pyContext.is_none() ? nullptr : on_context, pyContext.is_none() ? nullptr : pyContext.toPy())); });
         Py_RETURN_NONE;
     }
     Object getConst(Reference args) {
@@ -6067,7 +6115,7 @@ active; you must not call any member function during search.)";
         Reference pyAss = Py_None, pyM = Py_None, pyF = Py_None, pyYield = Py_False, pyAsync = Py_False;
         ParseTupleAndKeywords(args, kwds, "|OOOOO", kwlist, pyAss, pyM, pyF, pyYield, pyAsync);
         std::vector<clingo_literal_t> ass;
-        if (!pyAss.none()) {
+        if (!pyAss.is_none()) {
             clingo_symbolic_atoms_t *atoms;
             handle_c_error(clingo_control_symbolic_atoms(ctl, &atoms));
             ass = pyToLits(pyAss, atoms, false, false);
@@ -7088,7 +7136,7 @@ Object parseTerm(Reference args, Reference kwds) {
     int message_limit = 20;
     ParseTupleAndKeywords(args, kwds, "s|Oi", kwlist, str, logger, message_limit);
     clingo_symbol_t sym;
-    handle_c_error(clingo_parse_term(str, !logger.none() ? logger_callback : nullptr, logger.toPy(), message_limit, &sym));
+    handle_c_error(clingo_parse_term(str, !logger.is_none() ? logger_callback : nullptr, logger.toPy(), message_limit, &sym));
     return Symbol::construct(sym);
 }
 
