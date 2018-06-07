@@ -6264,6 +6264,7 @@ active; you must not call any member function during search.)";
     Object registerUserStatistics(Reference callback) {
         statistics.emplace_front(callback);
         handle_c_error(clingo_control_register_user_statistics(ctl, [](clingo_statistics_t *stats, void *data){
+            PyBlock block;
             auto &cb = *static_cast<Object*>(data);
             try {
                 uint64_t root;
