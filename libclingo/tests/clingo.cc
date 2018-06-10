@@ -161,8 +161,7 @@ TEST_CASE("solving", "[clingo]") {
             ctl.register_user_statistics([](UserStatistics) {
                 throw std::runtime_error("test throw in statistics callback");
             });
-            REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
-            REQUIRE_THROWS_WITH(ctl.statistics(), "test throw in statistics callback");
+            REQUIRE_THROWS_WITH(test_solve(ctl.solve(), models), "test throw in statistics callback");
         }
         SECTION("configuration") {
             auto conf = ctl.configuration();
