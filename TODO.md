@@ -1,11 +1,6 @@
 # clingo 5
-- maybe additional functions/functionality to work with theory atoms
-  - functions to output aspif rules
-  - reify theory atoms (but not the rest of the program)
-- `--lparse-rewrite` should produce gringo 4 aligned output
 - address `_` in negated literals
   - use `_` or maybe `*`
-- add xor-constraints
 - add sort-constraint
   - `order(B,A) :- (A, B) = #sort{ X : p(X) }.`
   - `order(A,B) :- ((_,A), (_,B)) = #sort{ K,X : p(X), key(X,K) }.`
@@ -13,13 +8,8 @@
 - sorting via conditional literals became less efficient with the latest implementation in some cases
 - projection is disabled in non-monotone constructs for now
   it could be enabled again if equivalences are used for affected atoms
-- csp-rewrite + output format
+- remove CSP support
 - shifting of disjunctions
-- language/API extensions in view of preferences
-  - turn terms into atoms
-    - `x :- #assert(Atom, Sign), (Atom, Sign) = @luaCall().`
-       or `x :- Atom, Atom = @luaCall().`
-- simplify one elementary head aggregates as in gringo-3
 
 # constraints
 - integrate constraint variables tighter into the gringo language
@@ -36,7 +26,7 @@
 # misc
 - **enlarge test suites**
 - incremental programs
-  - atm indexes have to be cleared and recreated afterwards 
+  - atm indexes have to be cleared and recreated afterwards
     - it might be a good idea to optimize this and reuse indices later on
     - for now just clear them to not have them dangling around
 - missing features in view of the ASP standard
@@ -56,4 +46,3 @@
   - using a valvec as key is wasteful
   - uses one unordered\_map too much
 - on large instances both optimizations should safe a lot of memory
-
