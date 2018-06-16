@@ -174,7 +174,7 @@ end
 
 function Observer:_heuristic(atom, type, bias, priority, condition)
     condition = table.sort_unique(self:__map_lits(condition))
-    table.append(self.__reified, Function("heuristic", {atom, tostring(type), bias, Tuple(condition)}))
+    table.append(self.__reified, Function("heuristic", {self:__map(atom), tostring(type), bias, Tuple(condition)}))
 end
 
 function Observer:_acyc_edge(node_u, node_v, condition)

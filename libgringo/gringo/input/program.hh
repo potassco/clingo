@@ -81,6 +81,8 @@ private:
     Projections           project_;
     UStmVec               stms_;
     TheoryDefs            theoryDefs_;
+    UGTermVec             pheads;
+    UGTermVec             nheads;
 };
 
 std::ostream &operator<<(std::ostream &out, Program const &p);

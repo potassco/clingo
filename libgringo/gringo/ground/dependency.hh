@@ -88,6 +88,7 @@ public:
 template <class Stm, class HeadOcc>
 struct Dependency {
     struct Node;
+    using UNode = std::unique_ptr<Node>;
     typedef std::vector<Node*> NodeVec;
     typedef std::tuple<BodyOccurrence<HeadOcc>*, NodeVec, bool> Depend;
     typedef std::pair<Node*, typename NodeVec::size_type> Provide;
@@ -100,6 +101,7 @@ struct Dependency {
         Stm stm;
         bool normal;
         std::vector<Depend> depend;
+        std::vector<std::pair<HeadOcc*, UGTerm>> provide;
         typename G::Node *graphNode = nullptr;
         unsigned negSCC = 0;
         unsigned posSCC = 0;
@@ -108,12 +110,11 @@ struct Dependency {
     Node &add(Stm &&stm, bool normal);
     void depends(Node& n, BodyOccurrence<HeadOcc> &occ, bool forceNegative = false);
     void provides(Node& n, HeadOcc &occ, UGTerm &&term);
-    ComponentVec analyze();
+    std::tuple<ComponentVec, UGTermVec, UGTermVec> analyze();
 
     UGTermVec terms;
     Lookup depend;
-    std::forward_list<Node> nodes;
-    std::vector<std::tuple<Node*, std::reference_wrapper<HeadOcc>, UGTerm>> heads;
+    std::vector<UNode> nodes;
 };
 
 // }}}
@@ -188,8 +189,8 @@ Lookup<Occ>::~Lookup() { }
 
 template <class Stm, class HeadOcc>
 typename Dependency<Stm, HeadOcc>::Node &Dependency<Stm, HeadOcc>::add(Stm &&stm, bool normal) {
-    nodes.emplace_front(std::forward<Stm>(stm), normal);
-    return nodes.front();
+    nodes.emplace_back(gringo_make_unique<Node>(std::forward<Stm>(stm), normal));
+    return *nodes.back();
 }
 
 template <class Stm, class HeadOcc>
@@ -204,33 +205,35 @@ void Dependency<Stm, HeadOcc>::depends(Node& n, BodyOccurrence<HeadOcc> &occ, bo
 template <class Stm, class HeadOcc>
 void Dependency<Stm, HeadOcc>::provides(Node& n, HeadOcc& occ, UGTerm &&term) {
     //std::cerr << *n.stm << " provides   " << *term << std::endl;
-    heads.emplace_back(&n, occ, std::move(term));
+    n.provide.emplace_back(&occ, std::move(term));
 }
 
 template <class Stm, class HeadOcc>
-typename Dependency<Stm, HeadOcc>::ComponentVec Dependency<Stm, HeadOcc>::analyze() {
+std::tuple<typename Dependency<Stm, HeadOcc>::ComponentVec, UGTermVec, UGTermVec> Dependency<Stm, HeadOcc>::analyze() {
     // initialize nodes
-    for (auto &x : heads) {
-        auto f = [&x](typename Lookup::iterator begin, typename Lookup::iterator end) -> void {
-            for (auto it = begin; it != end; ++it) {
-                auto &dep(it->second.first->depend[it->second.second]);
-                std::get<1>(dep).emplace_back(std::get<0>(x));
-                std::get<0>(dep)->definedBy().emplace_back(std::get<1>(x));
-            }
-        };
-        depend.unify(*std::get<2>(x), f);
+    for (auto &node : nodes) {
+        for (auto &x : node->provide) {
+            auto f = [&node, &x](typename Lookup::iterator begin, typename Lookup::iterator end) -> void {
+                for (auto it = begin; it != end; ++it) {
+                    auto &dep(it->second.first->depend[it->second.second]);
+                    std::get<1>(dep).emplace_back(node.get());
+                    std::get<0>(dep)->definedBy().emplace_back(*x.first);
+                }
+            };
+            depend.unify(*x.second, f);
+        }
     }
-    heads.clear();
     // build dependency graph
     G g;
-    for (auto &x : nodes) { x.graphNode = &g.insertNode(&x); }
+    for (auto &x : nodes) { x->graphNode = &g.insertNode(x.get()); }
     for (auto &x : nodes) {
-        for (auto &y : x.depend) {
-            for (auto &z : std::get<1>(y)) { x.graphNode->insertEdge(*z->graphNode); }
+        for (auto &y : x->depend) {
+            for (auto &z : std::get<1>(y)) { x->graphNode->insertEdge(*z->graphNode); }
         }
     }
     std::vector<bool> positive;
     ComponentVec components;
+    UniqueVec<UGTerm, value_hash<UGTerm>, value_equal_to<UGTerm>> phead, nhead;
     positive.push_back(true);
     for (auto &scc : g.tarjan()) {
         // dependency analysis
@@ -285,13 +288,21 @@ typename Dependency<Stm, HeadOcc>::ComponentVec Dependency<Stm, HeadOcc>::analyz
                     }
                     std::get<0>(x)->setType(t);
                 }
+                for (auto &x : graphNode->data->provide) {
+                    if (std::strncmp("#", x.second->sig().name().c_str(), 1) != 0) {
+                        if (positive.back()) { phead.push(std::move(x.second)); }
+                        else                 { nhead.push(std::move(x.second)); }
+                    }
+                }
                 components.back().second = positive.back();
                 components.back().first.emplace_back(std::move(graphNode->data->stm));
             }
             posSCC++;
         }
     }
-    return components;
+    auto head = phead.to_vec();
+    head.erase(std::remove_if(head.begin(), head.end(), [&nhead](UGTerm const &term) { return nhead.find(term) != nhead.end(); }), head.end());
+    return std::make_tuple( std::move(components), std::move(head), nhead.to_vec() );
 }
 // }}}
 

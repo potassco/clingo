@@ -1202,7 +1202,7 @@ TEST_CASE("output-lparse", "[output]") {
                 "a(1).\n"
                 "h :- { not a(X+1) : a(X) } < 2.\n")));
         REQUIRE(
-            "([[a(1),a(a),g(1)]],[-:3:30-31: info: operation undefined:\n  (1*X+1)\n,-:4:30-31: info: operation undefined:\n  (1*X+1)\n])" ==
+            "([[a(1),a(a),g(1)]],[-:4:30-31: info: operation undefined:\n  (1*X+1)\n,-:3:30-31: info: operation undefined:\n  (1*X+1)\n])" ==
             IO::to_string(solve(
                 "a(a).\n"
                 "a(1).\n"

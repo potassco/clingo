@@ -41,6 +41,7 @@ function main(c)
             end
             e[#e+1] = clingo.Tuple({clingo.Tuple(Tuple), clingo.Tuple(cond)})
         end
+        table.sort(e)
         r[#r+1] = clingo.Tuple(e)
         if x.guard ~= nil then
             r[#r+1] = clingo.Tuple({x.guard[1], convert_term(x.guard[2])})

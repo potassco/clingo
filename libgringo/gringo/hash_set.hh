@@ -408,6 +408,10 @@ public:
     ValueType const &at(SizeType offset) const { return vec_.at(offset); }
     ValueType &operator[](SizeType offset) { return vec_[offset]; }
     ValueType const &operator[](SizeType offset) const { return vec_[offset]; }
+    Vec to_vec() {
+        set_.clear();
+        return std::move(vec_);
+    }
 
 private:
     Vec vec_;
