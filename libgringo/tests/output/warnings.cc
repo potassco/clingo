@@ -80,9 +80,9 @@ TEST_CASE("output-warnings", "[output]") {
 
         REQUIRE(
             "([[x=1,y=-1,z=0]],"
-            "[warning: unbounded constraint variable:\n  domain of 'x' is set to [1,1]\n"
+            "[warning: unbounded constraint variable:\n  domain of 'z' is set to [0,0]\n"
             ",warning: unbounded constraint variable:\n  domain of 'y' is set to [-1,-1]\n"
-            ",warning: unbounded constraint variable:\n  domain of 'z' is set to [0,0]\n"
+            ",warning: unbounded constraint variable:\n  domain of 'x' is set to [1,1]\n"
             "])" == IO::to_string(solve("$x $> 0.\n$y $< 0.\na:-$z $> 0.\n")));
         REQUIRE("([[]],[-:1:1-12: info: no constraint variables over signature occur in program:\n  $y/0\n])" == IO::to_string(solve("#show $y/0.")));
         REQUIRE("([[]],[info: constraint variable does not occur in program:\n  $y\n])" == IO::to_string(solve("#show $y.")));

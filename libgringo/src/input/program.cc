@@ -208,6 +208,30 @@ void Program::print(std::ostream &out) const {
     for (auto &x : stms_) { out << *x << "\n"; }
 }
 
+// Defines atoms that have been seen in earlier steps
+class DummyStatement : public Ground::Statement, private Ground::HeadOccurrence {
+public:
+    DummyStatement(UGTermVec terms, bool normal) : terms_{std::move(terms)}, normal_{normal}  {}
+    bool isNormal() const override { return normal_; }
+    void analyze(Dep::Node &node, Dep &dep) override {
+        for (auto &term : terms_) {
+            dep.provides(node, *this, get_clone(term));
+        }
+    }
+    void startLinearize(bool) override { }
+    void linearize(Context &, bool, Logger &) override { }
+    void enqueue(Ground::Queue &) override { }
+    void print(std::ostream &out) const override {
+        print_comma(out, terms_, ";", [](std::ostream &out, UGTerm const &term) { out << *term; });
+        out << ".";
+    }
+private:
+    void defines(IndexUpdater &, Ground::Instantiator *) override { }
+private:
+    UGTermVec terms_;
+    bool normal_;
+};
+
 Ground::Program Program::toGround(std::set<Sig> const &sigs, DomainData &domains, Logger &log) {
     HashSet<uint64_t> neg;
     Ground::Program::ClassicalNegationVec negate;
@@ -217,6 +241,8 @@ Ground::Program Program::toGround(std::set<Sig> const &sigs, DomainData &domains
         }
     };
     Ground::UStmVec stms;
+    if (!pheads.empty()) { stms.emplace_back(gringo_make_unique<DummyStatement>(std::move(pheads), true)); }
+    if (!nheads.empty()) { stms.emplace_back(gringo_make_unique<DummyStatement>(std::move(nheads), false)); }
     stms.emplace_back(make_locatable<Ground::ExternalRule>(Location("#external", 1, 1, "#external", 1, 1)));
     ToGroundArg arg(auxNames_, domains);
     Ground::SEdbVec edb;
@@ -243,7 +269,10 @@ Ground::Program Program::toGround(std::set<Sig> const &sigs, DomainData &domains
         auto &node(dep.add(std::move(x), normal));
         node.stm->analyze(node, dep);
     }
-    Ground::Program prg(std::move(edb), dep.analyze(), std::move(negate));
+    auto ret = dep.analyze();
+    Ground::Program prg(std::move(edb), std::move(std::get<0>(ret)), std::move(negate));
+    pheads = std::move(std::get<1>(ret));
+    nheads = std::move(std::get<2>(ret));
     for (auto &sig : sigs_) {
         domains.add(sig);
     }

@@ -91,7 +91,7 @@ struct GFunctionTerm;
 struct GLinearTerm;
 using UGTerm = std::unique_ptr<GTerm>;
 using UGFunTerm = std::unique_ptr<GFunctionTerm>;
-struct GTerm : Printable, Hashable, Comparable<GTerm> {
+struct GTerm : Clonable<GTerm>, Printable, Hashable, Comparable<GTerm> {
     using EvalResult = std::pair<bool, Symbol>;
     virtual Sig sig() const = 0;
     virtual EvalResult eval() const = 0;
@@ -351,6 +351,7 @@ struct GValTerm : GTerm {
     virtual bool unify(GFunctionTerm &x);
     virtual bool unify(GLinearTerm &x);
     virtual bool unify(GVarTerm &x);
+    virtual GValTerm *clone() const { return new GValTerm{val}; }
     virtual ~GValTerm();
 
     Symbol val;
@@ -374,6 +375,11 @@ struct GFunctionTerm : GTerm {
     virtual bool unify(GFunctionTerm &x);
     virtual bool unify(GLinearTerm &x);
     virtual bool unify(GVarTerm &x);
+    virtual GFunctionTerm *clone() const {
+        auto ret = new GFunctionTerm{name, get_clone(args)};
+        ret->sign = sign;
+        return ret;
+    }
     virtual ~GFunctionTerm();
 
     bool sign;
@@ -398,6 +404,7 @@ struct GLinearTerm : GTerm {
     virtual bool unify(GFunctionTerm &x);
     virtual bool unify(GLinearTerm &x);
     virtual bool unify(GVarTerm &x);
+    virtual GLinearTerm *clone() const { return new GLinearTerm{ref, m, n}; }
     virtual ~GLinearTerm();
 
     SGRef ref;
@@ -422,6 +429,7 @@ struct GVarTerm : GTerm {
     virtual bool unify(GFunctionTerm &x);
     virtual bool unify(GLinearTerm &x);
     virtual bool unify(GVarTerm &x);
+    virtual GVarTerm *clone() const { return new GVarTerm{ref}; }
     virtual ~GVarTerm();
 
     SGRef ref;

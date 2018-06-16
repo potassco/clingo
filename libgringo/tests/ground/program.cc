@@ -62,6 +62,9 @@ std::string toString(Program const &p) {
     replace_all(str, ":-[#inc_base].", ".");
     replace_all(str, ":-[#inc_base],", ":-");
     replace_all(str, ":-[#inc_base];", ":-");
+    replace_all(str, "% component\n#external.\n", "");
+    replace_all(str, "\n% component\n#external.", "");
+    replace_all(str, "% component\n#external.", "");
     return str;
 }
 
@@ -73,42 +76,32 @@ TEST_CASE("ground-program", "[ground]") {
 
     SECTION("toGround") {
         REQUIRE(
-            "% component\n"
-            "#external." ==
-            toString(parse("p(1;2).")));
+            "" == toString(parse("p(1;2).")));
         REQUIRE(
-            "% component\n#external.\n"
             "% positive component\n"
             "p(X):-q(X)." ==
             toString(parse("p(X):-q(X).")));
         REQUIRE(
-            "% component\n#external.\n"
             "% positive component\n"
             "p(#Range0):-#Range0=1..2." ==
             toString(parse("p(1..2).")));
         REQUIRE(
-            "% component\n#external.\n"
             "% positive component\n"
             "p(X):-X=1." ==
             toString(parse("p(X):-X=1.")));
         REQUIRE(
-            "% component\n#external.\n"
             "% component\n"
             "#false:-0=0." ==
             toString(parse(":-.")));
         REQUIRE(
-            "% component\n#external.\n"
             "% component\n"
             "#false:-not not p." ==
             toString(parse("not p.")));
         REQUIRE(
-            "% component\n#external.\n"
             "% positive component\n"
             "p(X,Y):-p(Y),p(X),X=Y,Y=X." ==
             toString(parse("p(X,Y):-X=Y,p(X),p(Y).")));
         REQUIRE(
-            "% component\n"
-            "#external.\n"
             "% positive component\n"
             "#accu(#d0(Z,X,Y),tuple(#special)):-[p(X,Y,Z)],0>Z.\n"
             "% positive component\n"
@@ -121,8 +114,6 @@ TEST_CASE("ground-program", "[ground]") {
             "x:-p(X,Y,Z),Z<#count{#d0(Z,X,Y)}." ==
             toString(parse("x:-p(X,Y,Z),Z<#count{A:q(A),r(A,X);B,Y:a(B,Y)}.")));
         REQUIRE(
-            "% component\n"
-            "#external.\n"
             "% positive component\n"
             "#accu(#d0(Z,X,Y),tuple(#special)):-[p(X,Y,Z)],0=Z.\n"
             "% positive component\n"
@@ -135,8 +126,6 @@ TEST_CASE("ground-program", "[ground]") {
             "x:-p(X,Y,Z),Z=#count{#d0(Z,X,Y)}." ==
             toString(parse("x:-p(X,Y,Z),Z=#count{A:q(A),r(A,X);B,Y:a(B,Y)}.")));
         REQUIRE(
-            "% component\n"
-            "#external.\n"
             "% positive component\n"
             "#accu(#d0(X,Y,ZZ),tuple(#special)):-[p(X,Y,Z)].\n"
             "% positive component\n"
@@ -150,19 +139,15 @@ TEST_CASE("ground-program", "[ground]") {
             toString(parse("x:-p(X,Y,Z),ZZ=#count{A:q(A),r(A,X);B,Y:a(B,Y)}.")));
         REQUIRE(
             "% component\n"
-            "#external.\n"
-            "% component\n"
             "Z<#count(#d0(Z,X,Y)):-p(X,Y,Z).\n"
             "% component\n"
-            "#accu(#d0(Z,X,Y),q(A),tuple(A)):-r(A,X),#d0(Z,X,Y)!.\n"
-            "% component\n"
             "#accu(#d0(Z,X,Y),x,tuple(B,Y)):-a(B,Y),#d0(Z,X,Y)!.\n"
+            "% component\n"
+            "#accu(#d0(Z,X,Y),q(A),tuple(A)):-r(A,X),#d0(Z,X,Y)!.\n"
             "% component\n"
             "Z<#count{A:q(A):#accu(#d0(Z,X,Y),q(A),tuple(A));B,Y:x:#accu(#d0(Z,X,Y),x,tuple(B,Y))}:-#d0(Z,X,Y)!." ==
             toString(parse("Z<#count{A:q(A):r(A,X);B,Y:x:a(B,Y)}:-p(X,Y,Z).")));
         REQUIRE(
-            "% component\n"
-            "#external.\n"
             "% positive component\n"
             "#accu(#d0(Z,X,Y),tuple(#special)):-[p(X,Y,Z)],0>Z.\n"
             "% positive component\n"
@@ -178,47 +163,39 @@ TEST_CASE("ground-program", "[ground]") {
             toString(parse("x:-p(X,Y,Z),Z<{not q(A):r(A,X);a(B,Y);X>1:q(X)}.")));
         REQUIRE(
             "% component\n"
-            "#external.\n"
-            "% component\n"
             "Z<#count(#d0(Z,X,Y)):-p(X,Y,Z).\n"
             "% component\n"
-            "#accu(#d0(Z,X,Y),#true):-r(A,X),not q(A),#d0(Z,X,Y)!.\n"
+            "#accu(#d0(Z,X,Y),#true):-q(X),X>1,#d0(Z,X,Y)!.\n"
             "% component\n"
             "#accu(#d0(Z,X,Y),a(B,Y),tuple(0,a(B,Y))):-#d0(Z,X,Y)!.\n"
             "% component\n"
-            "#accu(#d0(Z,X,Y),#true):-q(X),X>1,#d0(Z,X,Y)!.\n"
+            "#accu(#d0(Z,X,Y),#true):-r(A,X),not q(A),#d0(Z,X,Y)!.\n"
             "% component\n"
             "Z<#count{1,q(A):#true:#accu(#d0(Z,X,Y),#true);0,a(B,Y):a(B,Y):#accu(#d0(Z,X,Y),a(B,Y),tuple(0,a(B,Y)));3,X,1:#true:#accu(#d0(Z,X,Y),#true)}:-#d0(Z,X,Y)!." ==
             toString(parse("Z<{not q(A):r(A,X);a(B,Y);X>1:q(X)}:-p(X,Y,Z).")));
         REQUIRE(
             "% component\n"
-            "#external.\n"
-            "% component\n"
             "#d0(B,Y,X):-p(X,Y,Z).\n"
             "% component\n"
-            "#complete(#d0(B,Y,X)):-[#d0(B,Y,X)!].\n"
-            "% component\n"
             "#complete(#d0(B,Y,X)):-r(A,X),[#d0(B,Y,X)!].\n"
+            "% component\n"
+            "#complete(#d0(B,Y,X)):-[#d0(B,Y,X)!].\n"
             "% component\n"
             "a(B,Y);q(A):-#complete(#d0(B,Y,X))!" ==
             toString(parse("q(A):r(A,X);a(B,Y):-p(X,Y,Z).")));
         REQUIRE(
             "% component\n"
-            "#external.\n"
-            "% component\n"
             "#d0(B,Y,X):-p(X,Y,Z).\n"
             "% component\n"
-            "#complete(#d0(B,Y,X)):-[#d0(B,Y,X)!].\n"
+            "#complete(#d0(B,Y,X)):-r(A,X),[#d0(B,Y,X)!].\n"
             "% component\n"
             "#complete(#d0(B,Y,X)):-q(X),[#d0(B,Y,X)!].\n"
             "% component\n"
-            "#complete(#d0(B,Y,X)):-r(A,X),[#d0(B,Y,X)!].\n"
+            "#complete(#d0(B,Y,X)):-[#d0(B,Y,X)!].\n"
             "% component\n"
             "a(B,Y);#false:X<=1;#false:not not q(A):-#complete(#d0(B,Y,X))!" ==
             toString(parse("not q(A):r(A,X);a(B,Y);X>1:q(X):-p(X,Y,Z).")));
         REQUIRE(
-            "% component\n"
-            "#external.\n"
             "% positive component\n"
             "#accu(#d0(Z,X,Y),tuple(#special)):-[p(X,Y,Z)],0>Z.\n"
             "% positive component\n"
@@ -234,17 +211,15 @@ TEST_CASE("ground-program", "[ground]") {
 
     SECTION("analyze") {
         REQUIRE(
-            "% component\n#external.\n"
             "% positive component\n"
             "x:-x?.\n"
             "% positive component\n"
-            "b:-a?.\n"
             "a:-not y,x,b?.\n"
+            "b:-a?.\n"
             "% positive component\n"
             "c:-b,a." ==
             toString(parse("x:-x.a:-b,x,not y.b:-a.c:-a,b.")));
         REQUIRE(
-            "% component\n#external.\n"
             "% positive component\n"
             "x:-x?.\n"
             "% component\n"

@@ -71,7 +71,7 @@ class Observer:
 
     def _heuristic(self, atom, type, bias, priority, condition):
         condition = sorted(set([ self.__map(lit) for lit in condition ]))
-        self.__reified.append(Function("heuristic", [atom, str(type), bias, Tuple(condition)]))
+        self.__reified.append(Function("heuristic", [self.__map(atom), str(type), bias, Tuple(condition)]))
 
     def _acyc_edge(self, node_u, node_v, condition):
         condition = sorted(set([ self.__map(lit) for lit in condition ]))
