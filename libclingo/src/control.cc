@@ -1087,6 +1087,9 @@ extern "C" bool clingo_solve_handle_resume(clingo_solve_handle_t *handle) {
     GRINGO_CLINGO_TRY { handle->resume(); }
     GRINGO_CLINGO_CATCH;
 }
+extern "C" clingo_statistics_t *clingo_solve_handle_user_statistics(clingo_solve_handle_t *handle, bool final) {
+    return static_cast<clingo_statistics_t*>(&handle->user_statistics(final));
+}
 
 // {{{1 control
 
@@ -1344,16 +1347,6 @@ extern "C" bool clingo_control_statistics(clingo_control_t *ctl, const clingo_st
     GRINGO_CLINGO_TRY { *stats = static_cast<clingo_statistics_t*>(ctl->statistics()); }
     GRINGO_CLINGO_CATCH;
 }
-
-extern "C" bool clingo_control_register_user_statistics(clingo_control_t *ctl, clingo_user_statistics_callback_t cb, void* data) {
-    GRINGO_CLINGO_TRY {
-        ctl->addStatisticsCallback([cb, data](Potassco::AbstractStatistics &stats){
-            if (!cb(static_cast<clingo_statistics_t*>(&stats), data)) { throw ClingoError(); }
-        });
-    }
-    GRINGO_CLINGO_CATCH;
-}
-
 
 extern "C" bool clingo_control_clasp_facade(clingo_control_t *ctl, void **clasp) {
     GRINGO_CLINGO_TRY { *clasp = ctl->claspFacade(); }

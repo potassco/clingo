@@ -1114,79 +1114,6 @@ inline std::ostream &operator<<(std::ostream &out, SolveResult res) {
     return out;
 }
 
-// {{{1 solve handle
-
-class SolveEventHandler {
-public:
-    virtual bool on_model(Model const &model);
-    virtual void on_finish(SolveResult result);
-    virtual ~SolveEventHandler() = default;
-};
-
-inline bool SolveEventHandler::on_model(Model const &) { return true; }
-inline void SolveEventHandler::on_finish(SolveResult) { }
-
-namespace Detail {
-
-class AssignOnce;
-
-} // namespace Detail
-
-class SolveHandle {
-public:
-    SolveHandle();
-    explicit SolveHandle(clingo_solve_handle_t *it, Detail::AssignOnce &ptr);
-    SolveHandle(SolveHandle &&it);
-    SolveHandle(SolveHandle const &) = delete;
-    SolveHandle &operator=(SolveHandle &&it);
-    SolveHandle &operator=(SolveHandle const &) = delete;
-    clingo_solve_handle_t *to_c() const { return iter_; }
-    void resume();
-    void wait();
-    bool wait(double timeout);
-    Model model();
-    Model next();
-    SolveResult get();
-    void cancel();
-    ~SolveHandle();
-private:
-    clingo_solve_handle_t *iter_;
-    Detail::AssignOnce *exception_;
-};
-
-class ModelIterator : public std::iterator<Model, std::input_iterator_tag> {
-public:
-    explicit ModelIterator(SolveHandle &iter)
-    : iter_(&iter)
-    , model_(nullptr) { model_ = iter_->next(); }
-    ModelIterator()
-    : iter_(nullptr)
-    , model_(nullptr) { }
-    ModelIterator &operator++() {
-        model_ = iter_->next();
-        return *this;
-    }
-    // Warning: the resulting iterator should not be used
-    //          because its model is no longer valid
-    ModelIterator operator++(int) {
-        ModelIterator t = *this;
-        ++*this;
-        return t;
-    }
-    Model &operator*() { return model_; }
-    Model *operator->() { return &**this; }
-    friend bool operator==(ModelIterator a, ModelIterator b) {
-        return a.model_.to_c() == b.model_.to_c();
-    }
-    friend bool operator!=(ModelIterator a, ModelIterator b) { return !(a == b); }
-private:
-    SolveHandle *iter_;
-    Model model_;
-};
-
-inline ModelIterator begin(SolveHandle &it) { return ModelIterator(it); }
-inline ModelIterator end(SolveHandle &) { return ModelIterator(); }
-
 // {{{1 location
 
 class Location : public clingo_location_t {
@@ -1966,6 +1893,80 @@ using Statistics = StatisticsBase<true>;
 using UserStatistics = StatisticsBase<false>;
 using UserStatisticCallback = std::function<void (UserStatistics &)>;
 
+// {{{1 solve handle
+
+class SolveEventHandler {
+public:
+    virtual bool on_model(Model const &model);
+    virtual void on_finish(SolveResult result);
+    virtual ~SolveEventHandler() = default;
+};
+
+inline bool SolveEventHandler::on_model(Model const &) { return true; }
+inline void SolveEventHandler::on_finish(SolveResult) { }
+
+namespace Detail {
+
+class AssignOnce;
+
+} // namespace Detail
+
+class SolveHandle {
+public:
+    SolveHandle();
+    explicit SolveHandle(clingo_solve_handle_t *it, Detail::AssignOnce &ptr);
+    SolveHandle(SolveHandle &&it);
+    SolveHandle(SolveHandle const &) = delete;
+    SolveHandle &operator=(SolveHandle &&it);
+    SolveHandle &operator=(SolveHandle const &) = delete;
+    clingo_solve_handle_t *to_c() const { return iter_; }
+    void resume();
+    void wait();
+    bool wait(double timeout);
+    Model model();
+    Model next();
+    SolveResult get();
+    UserStatistics user_statistics(bool final=true);
+    void cancel();
+    ~SolveHandle();
+private:
+    clingo_solve_handle_t *iter_;
+    Detail::AssignOnce *exception_;
+};
+
+class ModelIterator : public std::iterator<Model, std::input_iterator_tag> {
+public:
+    explicit ModelIterator(SolveHandle &iter)
+    : iter_(&iter)
+    , model_(nullptr) { model_ = iter_->next(); }
+    ModelIterator()
+    : iter_(nullptr)
+    , model_(nullptr) { }
+    ModelIterator &operator++() {
+        model_ = iter_->next();
+        return *this;
+    }
+    // Warning: the resulting iterator should not be used
+    //          because its model is no longer valid
+    ModelIterator operator++(int) {
+        ModelIterator t = *this;
+        ++*this;
+        return t;
+    }
+    Model &operator*() { return model_; }
+    Model *operator->() { return &**this; }
+    friend bool operator==(ModelIterator a, ModelIterator b) {
+        return a.model_.to_c() == b.model_.to_c();
+    }
+    friend bool operator!=(ModelIterator a, ModelIterator b) { return !(a == b); }
+private:
+    SolveHandle *iter_;
+    Model model_;
+};
+
+inline ModelIterator begin(SolveHandle &it) { return ModelIterator(it); }
+inline ModelIterator end(SolveHandle &) { return ModelIterator(); }
+
 // {{{1 configuration
 
 class Configuration;
@@ -2111,7 +2112,6 @@ public:
     }
     Configuration configuration();
     Statistics statistics() const;
-    void register_user_statistics(UserStatisticCallback cb);
     clingo_control_t *to_c() const;
 private:
     Impl *impl_;
@@ -2902,6 +2902,13 @@ inline SolveResult SolveHandle::get() {
 
 inline void SolveHandle::cancel() {
     Detail::handle_error(clingo_solve_handle_close(iter_), *exception_);
+}
+
+inline UserStatistics SolveHandle::user_statistics(bool final) {
+    auto stats = clingo_solve_handle_user_statistics(iter_, final);
+    uint64_t root;
+    Detail::handle_error(clingo_statistics_root(stats, &root));
+    return UserStatistics{stats, root};
 }
 
 inline SolveHandle::~SolveHandle() {
@@ -3796,7 +3803,6 @@ struct Control::Impl {
     Logger logger;
     std::forward_list<std::pair<Propagator&, Detail::AssignOnce&>> propagators_;
     std::forward_list<std::pair<GroundProgramObserver&, Detail::AssignOnce&>> observers_;
-    std::forward_list<std::pair<UserStatisticCallback, Detail::AssignOnce&>> statistics_;
     bool owns;
 };
 
@@ -4211,21 +4217,6 @@ inline Configuration Control::configuration() {
     Detail::handle_error(clingo_configuration_root(conf, &key));
     return Configuration{conf, key};
 }
-
-inline void Control::register_user_statistics(UserStatisticCallback callback) {
-    impl_->statistics_.emplace_front(callback, impl_->ptr);
-    Detail::handle_error(clingo_control_register_user_statistics(to_c(), [](clingo_statistics_t* stats, void* data) {
-        auto &cb = *static_cast<std::pair<UserStatisticCallback, Detail::AssignOnce&>*>(data);
-        uint64_t root;
-        if (!clingo_statistics_root(stats, &root)) { return false; }
-        CLINGO_CALLBACK_TRY {
-            UserStatistics us{stats, root};
-            cb.first(us);
-        }
-        CLINGO_CALLBACK_CATCH(cb.second);
-    }, static_cast<void*>(&impl_->statistics_.front())));
-}
-
 
 inline Statistics Control::statistics() const {
     const clingo_statistics_t *stats;

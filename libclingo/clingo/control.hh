@@ -134,6 +134,7 @@ struct SolveFuture {
     virtual bool wait(double timeout) = 0;
     virtual void cancel() = 0;
     virtual void resume() = 0;
+    virtual Potassco::AbstractStatistics &user_statistics(bool final) = 0;
     virtual ~SolveFuture() { }
 };
 using USolveFuture = std::unique_ptr<SolveFuture>;
@@ -150,6 +151,10 @@ struct DefaultSolveFuture : SolveFuture {
             if (cb_) { cb_->on_finish({SolveResult::Unknown, false, false}); }
         }
     }
+    Potassco::AbstractStatistics &user_statistics(bool) override {
+        throw std::runtime_error("statistics not available");
+    }
+
     ~DefaultSolveFuture() override { resume(); }
 private:
     USolveEventHandler cb_;
@@ -204,8 +209,6 @@ using UProp = std::unique_ptr<Propagator>;
 
 using StringVec = std::vector<String>;
 using Control = clingo_control;
-using UserStatisticsCallback = std::function<void (Potassco::AbstractStatistics &)>;
-
 
 } // namespace Gringo
 
@@ -229,7 +232,6 @@ struct clingo_control {
     virtual void assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) = 0;
     virtual bool isConflicting() noexcept = 0;
     virtual Potassco::AbstractStatistics *statistics() = 0;
-    virtual void addStatisticsCallback(Gringo::UserStatisticsCallback cb) = 0;
     virtual void useEnumAssumption(bool enable) = 0;
     virtual bool useEnumAssumption() = 0;
     virtual void cleanupDomains() = 0;

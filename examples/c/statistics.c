@@ -61,49 +61,12 @@ out:
   return ret;
 }
 
-bool solve(clingo_control_t *ctl, clingo_solve_result_bitset_t *result) {
-  bool ret = true;
-  clingo_solve_handle_t *handle;
-  clingo_model_t *model;
-
-  // get a solve handle
-  if (!clingo_control_solve(ctl, clingo_solve_mode_yield, NULL, 0, NULL, NULL, &handle)) { goto error; }
-  // loop over all models
-  while (true) {
-    if (!clingo_solve_handle_resume(handle)) { goto error; }
-    if (!clingo_solve_handle_model(handle, &model)) { goto error; }
-    // print the model
-    if (model) { print_model(model); }
-    // stop if there are no more models
-    else       { break; }
-  }
-  // close the solve handle
-  if (!clingo_solve_handle_get(handle, result)) { goto error; }
-
-  goto out;
-
-error:
-  ret = false;
-
-out:
-  // free the solve handle
-  return clingo_solve_handle_close(handle) && ret;
-}
-
-void print_prefix(int depth) {
-  for (int i = 0; i < depth; ++i) {
-    printf("  ");
-  }
-}
-
-bool user_statistics(clingo_statistics_t* stats, void* data) {
-  (void)data;
+bool user_statistics(clingo_statistics_t* stats) {
   uint64_t root, values, summary, value;
   uint16_t n = 10, random = 1;
   double sum = 0;
 
   // get the root key which refering to a special modifiable entry
-  // which will appear under key "user_defined" in the output
   if (!clingo_statistics_root(stats, &root)) { return false; }
 
   // set some pseudo-random values in an array
@@ -123,6 +86,45 @@ bool user_statistics(clingo_statistics_t* stats, void* data) {
   if (!clingo_statistics_value_set(stats, value, (double)sum/n)) { return false; }
 
   return true;
+}
+
+bool solve(clingo_control_t *ctl, clingo_solve_result_bitset_t *result) {
+  bool ret = true;
+  clingo_solve_handle_t *handle;
+  clingo_model_t *model;
+
+  // get a solve handle
+  if (!clingo_control_solve(ctl, clingo_solve_mode_yield, NULL, 0, NULL, NULL, &handle)) { goto error; }
+  // loop over all models
+  while (true) {
+    if (!clingo_solve_handle_resume(handle)) { goto error; }
+    if (!clingo_solve_handle_model(handle, &model)) { goto error; }
+    // print the model
+    if (model) { print_model(model); }
+    // stop if there are no more models
+    else       { break; }
+  }
+  // get the solve results
+  if (!clingo_solve_handle_get(handle, result)) { goto error; }
+  // add the statistics
+  if (!user_statistics(clingo_solve_handle_user_statistics(handle, true))) { goto error; }
+  // close the solve handle
+  if (!clingo_solve_handle_close(handle)) { goto error; }
+
+  goto out;
+
+error:
+  ret = false;
+
+out:
+  // free the solve handle
+  return clingo_solve_handle_close(handle) && ret;
+}
+
+void print_prefix(int depth) {
+  for (int i = 0; i < depth; ++i) {
+    printf("  ");
+  }
 }
 
 // recursively print the statistics object
@@ -220,9 +222,6 @@ int main(int argc, char const **argv) {
 
   // add a logic program to the base part
   if (!clingo_control_add(ctl, "base", NULL, 0, "a :- not b. b :- not a.")) { goto error; }
-
-  // add a callback to set userdefined statistics
-  if (!clingo_control_register_user_statistics(ctl, user_statistics, NULL)) { goto error; }
 
   // ground the base part
   if (!clingo_control_ground(ctl, parts, 1, NULL, NULL)) { goto error; }

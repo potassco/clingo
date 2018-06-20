@@ -2395,6 +2395,7 @@ Check if the given program literal is true.
 
 // {{{1 wrap SolveHandle
 
+Object getUserStatistics(clingo_statistics_t *stats, uint64_t key);
 struct SolveHandle : ObjectBase<SolveHandle> {
     clingo_solve_handle_t *handle;
     PyObject *on_model;
@@ -2485,6 +2486,15 @@ See Control.solve() for an example.)";
             handle_c_error(clingo_solve_handle_get(handle, &result));
             return result;
         }));
+    }
+
+    Object user_statistics(Reference args) {
+        Reference pyFinal = Py_True;
+        ParseTuple(args, "|O", pyFinal);
+        clingo_statistics_t *stats = clingo_solve_handle_user_statistics(handle, pyToCpp<bool>(pyFinal));
+        uint64_t root;
+        handle_c_error(clingo_statistics_root(stats, &root));
+        return getUserStatistics(stats, root);
     }
 
     Object wait(Reference args) {
@@ -2583,6 +2593,15 @@ Discards the last model and starts the search for the next one.
 If the search has been started asynchronously, this function also starts the
 search in the background.  A model that was not yet retrieved by calling )" CLINGO_PY_NEXT R"(
 is not discared.)"},
+    {"user_statistics", to_function<&SolveHandle::user_statistics>(), METH_VARARGS,
+R"(user_statistics(self, final) -> StatisticsMap
+
+Returns a modifiable statistics object, to add user statistics.
+
+Arguments:
+final -- whether accumulated or per step statistics are to be added
+         (Default: True)
+)"},
     {"__enter__", to_function<&SolveHandle::enter>(), METH_NOARGS,
 R"(__enter__(self) -> SolveHandle
 
@@ -5731,7 +5750,6 @@ Object getStatistics(clingo_statistics_t const *stats, uint64_t key) {
 }
 
 void setUserStatistics(clingo_statistics_t *stats, uint64_t key, clingo_statistics_type_t type, Reference value, bool update);
-Object getUserStatistics(clingo_statistics_t *stats, uint64_t key);
 clingo_statistics_type_t getUserStatisticsType(Reference value) {
     // there is an extra check for strings
     // because recursively iterating over them causes stack overflows
@@ -6044,7 +6062,6 @@ struct ControlWrap : ObjectBase<ControlWrap> {
     PyObject         *logger;
     Propagators       prop;
     Observers         observers;
-    UserStatistics    statistics;
     bool              blocked;
 
     static PyGetSetDef tp_getset[];
@@ -6088,7 +6105,6 @@ active; you must not call any member function during search.)";
         self->blocked = false;
         new (&self->prop) Propagators();
         new (&self->observers) Observers();
-        new (&self->statistics) UserStatistics();
         return self;
     }
     static Object tp_new(PyTypeObject *type) {
@@ -6100,7 +6116,6 @@ active; you must not call any member function during search.)";
         self->blocked = false;
         new (&self->prop) Propagators();
         new (&self->observers) Observers();
-        new (&self->statistics) UserStatistics();
         return self;
     }
     void tp_dealloc() {
@@ -6108,7 +6123,6 @@ active; you must not call any member function during search.)";
         ctl = freeCtl = nullptr;
         prop.~Propagators();
         observers.~Observers();
-        statistics.~UserStatistics();
         Py_XDECREF(stats);
         Py_XDECREF(logger);
     }
@@ -6260,24 +6274,6 @@ active; you must not call any member function during search.)";
         }
         Py_XINCREF(stats);
         return stats;
-    }
-    Object registerUserStatistics(Reference callback) {
-        statistics.emplace_front(callback);
-        handle_c_error(clingo_control_register_user_statistics(ctl, [](clingo_statistics_t *stats, void *data){
-            PyBlock block;
-            auto &cb = *static_cast<Object*>(data);
-            try {
-                uint64_t root;
-                handle_c_error(clingo_statistics_root(stats, &root));
-                cb(getUserStatistics(stats, root));
-            }
-            catch (...) {
-                handle_cxx_error("<user_statistics_callback>", "error when handling user statistics");
-                return false;
-            }
-            return true;
-        }, &statistics.front()));
-        return None();
     }
     void set_use_enumeration_assumption(Reference pyEnable) {
         CHECK_BLOCKED("use_enumeration_assumption");
@@ -6550,17 +6546,6 @@ def main(prg):
         print(handle.get())
 
 #end.)"},
-    // registerUserStatistics
-    {"register_user_statistics", to_function<&ControlWrap::registerUserStatistics>(), METH_O,
-R"(register_user_statistics(self, callback) -> None
-
-Register a callback to exend the statistics.
-
-The callback receives a Statistics object as argument, which is an object of
-type StatisticsMap.
-
-Arguments:
-callback -- the callback to extend the statistics with)"},
     // cleanup
     {"cleanup", to_function<&ControlWrap::cleanup>(), METH_NOARGS,
 R"(cleanup(self) -> None

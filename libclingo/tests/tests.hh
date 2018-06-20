@@ -49,7 +49,8 @@ struct MCB {
     ModelVec &models;
 };
 
-inline SolveResult test_solve(SolveHandle &&sh, ModelVec &models) {
+template <class Handle>
+inline SolveResult test_solve(Handle &&sh, ModelVec &models) {
     MCB cb(models);
     SolveResult ret;
     for (auto &m : sh) { cb(m); }

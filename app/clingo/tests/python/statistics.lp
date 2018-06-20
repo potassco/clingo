@@ -42,11 +42,12 @@ def tomodel():
     return tosymbol(user)
 
 def main(prg):
-    prg.register_user_statistics(add_statistics)
     prg.ground([("base", [])])
-    prg.solve()
+    with prg.solve(async=True) as handle:
+        handle.get()
+        add_statistics(handle.user_statistics(True))
     global user
-    user = prg.statistics["user_defined"]
+    user = prg.statistics["user_accu"]
     prg.ground([("two", [])])
     prg.solve()
 

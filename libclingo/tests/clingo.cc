@@ -124,7 +124,7 @@ TEST_CASE("solving", "[clingo]") {
             auto stats = ctl.statistics();
             std::copy(stats.keys().begin(), stats.keys().end(), std::back_inserter(keys_root));
             std::sort(keys_root.begin(), keys_root.end());
-            std::vector<std::string> keys_check = { "accu", "problem", "solving", "summary" };
+            std::vector<std::string> keys_check = { "accu", "problem", "solving", "summary", "user_accu", "user_step" };
             REQUIRE(keys_root == keys_check);
             auto solving = stats["solving"];
             REQUIRE(solving["solver"].type() == StatisticsType::Array);
@@ -142,26 +142,29 @@ TEST_CASE("solving", "[clingo]") {
         }
         SECTION("set_statistics") {
             ctl.ground({{"base", {}}});
-            ctl.register_user_statistics([](UserStatistics statistics) {
-                auto map = statistics.add_subkey("map", StatisticsType::Map);
+            {
+                auto handle = ctl.solve();
+                REQUIRE(test_solve(handle, models).is_satisfiable());
+                auto stats = handle.user_statistics(false);
+                auto map = stats.add_subkey("map", StatisticsType::Map);
                 map.add_subkey("x", StatisticsType::Value).set_value(1);
                 map.add_subkey("y", StatisticsType::Value).set_value(2);
-            });
-            REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
+                stats = handle.user_statistics();
+                map = stats.add_subkey("map", StatisticsType::Map);
+                map.add_subkey("x", StatisticsType::Value).set_value(3);
+                map.add_subkey("y", StatisticsType::Value).set_value(4);
+            }
             auto stats = ctl.statistics();
-            REQUIRE(stats["user_defined.map"].type() == StatisticsType::Map);
-            REQUIRE(stats["user_defined.map.x"].type() == StatisticsType::Value);
-            REQUIRE(stats["user_defined.map.y"].type() == StatisticsType::Value);
-            REQUIRE(stats["user_defined.map.x"].value() == 1);
-            REQUIRE(stats["user_defined.map.y"].value() == 2);
-        }
-        SECTION("throw_statistics") {
-            Control ctl{{"0"}, [&messages](WarningCode code, char const *msg) { messages.emplace_back(code, msg); }, 20};
-            ctl.ground({{"base", {}}});
-            ctl.register_user_statistics([](UserStatistics) {
-                throw std::runtime_error("test throw in statistics callback");
-            });
-            REQUIRE_THROWS_WITH(test_solve(ctl.solve(), models), "test throw in statistics callback");
+            REQUIRE(stats["user_step.map"].type() == StatisticsType::Map);
+            REQUIRE(stats["user_step.map.x"].type() == StatisticsType::Value);
+            REQUIRE(stats["user_step.map.y"].type() == StatisticsType::Value);
+            REQUIRE(stats["user_step.map.x"].value() == 1);
+            REQUIRE(stats["user_step.map.y"].value() == 2);
+            REQUIRE(stats["user_accu.map"].type() == StatisticsType::Map);
+            REQUIRE(stats["user_accu.map.x"].type() == StatisticsType::Value);
+            REQUIRE(stats["user_accu.map.y"].type() == StatisticsType::Value);
+            REQUIRE(stats["user_accu.map.x"].value() == 3);
+            REQUIRE(stats["user_accu.map.y"].value() == 4);
         }
         SECTION("configuration") {
             auto conf = ctl.configuration();
