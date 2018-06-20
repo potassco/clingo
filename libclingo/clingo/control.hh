@@ -134,6 +134,7 @@ struct SolveFuture {
     virtual bool wait(double timeout) = 0;
     virtual void cancel() = 0;
     virtual void resume() = 0;
+    virtual Potassco::AbstractStatistics &user_statistics(bool final) = 0;
     virtual ~SolveFuture() { }
 };
 using USolveFuture = std::unique_ptr<SolveFuture>;
@@ -150,6 +151,10 @@ struct DefaultSolveFuture : SolveFuture {
             if (cb_) { cb_->on_finish({SolveResult::Unknown, false, false}); }
         }
     }
+    Potassco::AbstractStatistics &user_statistics(bool) override {
+        throw std::runtime_error("statistics not available");
+    }
+
     ~DefaultSolveFuture() override { resume(); }
 private:
     USolveEventHandler cb_;

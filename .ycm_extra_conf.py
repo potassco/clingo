@@ -66,6 +66,7 @@ flags = [
 '-I{home}/local/opt/libcxx/include/c++/v1'.format(home=os.path.expanduser("~")),
 '-I/home/wv/bin/linux/64/gcc-4.9/include/c++/v1',
 '-Ilibgringo/tests',
+'-I/usr/include/python3.6m',
 '-I/usr/include/python2.7',
 '-I/usr/include/lua5.1',
 '-DCLINGO_WITH_PYTHON',

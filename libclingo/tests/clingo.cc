@@ -113,7 +113,7 @@ TEST_CASE("solving", "[clingo]") {
                 REQUIRE(messages.empty());
             }
         }
-        SECTION("statistics") {
+        SECTION("get_statistics") {
             ctl.add("pigeon", {"p", "h"}, "1 {p(P,H) : P=1..p}1 :- H=1..h."
                                           "1 {p(P,H) : H=1..h}1 :- P=1..p.");
             ctl.ground({{"pigeon", {Number(6), Number(5)}}});
@@ -124,7 +124,7 @@ TEST_CASE("solving", "[clingo]") {
             auto stats = ctl.statistics();
             std::copy(stats.keys().begin(), stats.keys().end(), std::back_inserter(keys_root));
             std::sort(keys_root.begin(), keys_root.end());
-            std::vector<std::string> keys_check = { "accu", "problem", "solving", "summary" };
+            std::vector<std::string> keys_check = { "accu", "problem", "solving", "summary", "user_accu", "user_step" };
             REQUIRE(keys_root == keys_check);
             auto solving = stats["solving"];
             REQUIRE(solving["solver"].type() == StatisticsType::Array);
@@ -139,6 +139,32 @@ TEST_CASE("solving", "[clingo]") {
                 ++nloop;
             }
             REQUIRE(nloop == 1);
+        }
+        SECTION("set_statistics") {
+            ctl.ground({{"base", {}}});
+            {
+                auto handle = ctl.solve();
+                REQUIRE(test_solve(handle, models).is_satisfiable());
+                auto stats = handle.user_statistics(false);
+                auto map = stats.add_subkey("map", StatisticsType::Map);
+                map.add_subkey("x", StatisticsType::Value).set_value(1);
+                map.add_subkey("y", StatisticsType::Value).set_value(2);
+                stats = handle.user_statistics();
+                map = stats.add_subkey("map", StatisticsType::Map);
+                map.add_subkey("x", StatisticsType::Value).set_value(3);
+                map.add_subkey("y", StatisticsType::Value).set_value(4);
+            }
+            auto stats = ctl.statistics();
+            REQUIRE(stats["user_step.map"].type() == StatisticsType::Map);
+            REQUIRE(stats["user_step.map.x"].type() == StatisticsType::Value);
+            REQUIRE(stats["user_step.map.y"].type() == StatisticsType::Value);
+            REQUIRE(stats["user_step.map.x"].value() == 1);
+            REQUIRE(stats["user_step.map.y"].value() == 2);
+            REQUIRE(stats["user_accu.map"].type() == StatisticsType::Map);
+            REQUIRE(stats["user_accu.map.x"].type() == StatisticsType::Value);
+            REQUIRE(stats["user_accu.map.y"].type() == StatisticsType::Value);
+            REQUIRE(stats["user_accu.map.x"].value() == 3);
+            REQUIRE(stats["user_accu.map.y"].value() == 4);
         }
         SECTION("configuration") {
             auto conf = ctl.configuration();
