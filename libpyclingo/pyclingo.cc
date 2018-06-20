@@ -2057,6 +2057,10 @@ signatures: [('p', 1), ('q', 1)])";
         }
         return pyRet;
     }
+
+    Object to_c() {
+        return PyLong_FromVoidPtr(atoms);
+    }
 };
 
 PyMethodDef SymbolicAtoms::tp_methods[] = {
@@ -2078,6 +2082,7 @@ PyGetSetDef SymbolicAtoms::tp_getset[] = {
 R"(The list of predicate signatures (triples of names, arities, and Booleans)
 occurring in the program. A true Boolean stands for a positive signature.)"
     , nullptr},
+{(char *)"_to_c", to_getter<&SymbolicAtoms::to_c>(), nullptr, (char *)R"(An int representing the pointer to the underlying C clingo_symbolic_atoms_t struct.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -2172,6 +2177,10 @@ they are available as properties of Model objects.)";
     Object add_nogood(Reference pyLits) {
         return getClause(pyLits, true);
     }
+
+    Object to_c() {
+        return PyLong_FromVoidPtr(ctl);
+    }
 };
 
 PyMethodDef SolveControl::tp_methods[] = {
@@ -2200,6 +2209,7 @@ literals -- list of pairs of Booleans and atoms representing the nogood)"},
 
 PyGetSetDef SolveControl::tp_getset[] = {
     {(char *)"symbolic_atoms", to_getter<&SolveControl::symbolicAtoms>(), nullptr, (char *)R"(The symbolic atoms captured by a SymbolicAtoms object.)", nullptr},
+    {(char *)"_to_c", to_getter<&SolveControl::to_c>(), nullptr, (char *)R"(An int representing the pointer to the underlying C clingo_solve_control_t struct.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -2354,6 +2364,10 @@ not be stored for later use in other places like - e.g., the main function.)";
         handle_c_error(clingo_model_context(model, &ctl));
         return SolveControl::construct(ctl);
     }
+
+    Object to_c() {
+        return PyLong_FromVoidPtr(model);
+    }
 };
 
 PyGetSetDef Model::tp_getset[] = {
@@ -2366,6 +2380,7 @@ The return values correspond to clasp's cost output.)", nullptr},
     {(char *)"optimality_proven", to_getter<&Model::optimality_proven>(), nullptr, (char*)"Whether the optimality of the model has been proven.", nullptr},
     {(char *)"number", to_getter<&Model::number>(), nullptr, (char*)"The running number of the model.", nullptr},
     {(char *)"type", to_getter<&Model::model_type>(), nullptr, (char*)"The type of the model.", nullptr},
+    {(char *)"_to_c", to_getter<&Model::to_c>(), nullptr, (char *)R"(An int representing the pointer to the underlying C clingo_model_t struct.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -2417,6 +2432,7 @@ struct SolveHandle : ObjectBase<SolveHandle> {
     PyObject *on_finish;
 
     static PyMethodDef tp_methods[];
+    static PyGetSetDef tp_getset[];
     static constexpr char const *tp_type = "SolveHandle";
     static constexpr char const *tp_name = "clingo.SolveHandle";
     static constexpr char const *tp_doc =
@@ -2561,6 +2577,10 @@ See Control.solve() for an example.)";
         }
         return true;
     }
+
+    Object to_c() {
+        return PyLong_FromVoidPtr(handle);
+    }
 };
 
 #define CLINGO_PY_NEXT "__next__"
@@ -2613,6 +2633,10 @@ search.)"},
     {nullptr, nullptr, 0, nullptr}
 };
 
+PyGetSetDef SolveHandle::tp_getset[] = {
+    {(char *)"_to_c", to_getter<&SolveHandle::to_c>(), nullptr, (char *)R"(An int representing the pointer to the underlying C clingo_solve_handle_t struct.)", nullptr},
+    {nullptr, nullptr, nullptr, nullptr, nullptr}
+};
 // {{{1 wrap Configuration
 
 struct Configuration : ObjectBase<Configuration> {
@@ -2747,6 +2771,10 @@ Expected Answer Sets:
         handle_c_error(clingo_configuration_array_at(conf, key, index, &subkey));
         return construct(subkey, conf);
     }
+
+    Object to_c() {
+        return PyLong_FromVoidPtr(conf);
+    }
 };
 
 PyGetSetDef Configuration::tp_getset[] = {
@@ -2755,6 +2783,7 @@ PyGetSetDef Configuration::tp_getset[] = {
 (char *)R"(The list of names of sub-option groups or options.
 
 The list is None if the current object is not an option group.)", nullptr},
+    {(char *)"_to_c", to_getter<&Configuration::to_c>(), nullptr, (char *)R"(An int representing the pointer to the underlying C clingo_configuration_t struct.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -2839,6 +2868,10 @@ respectively.)";
     Object isTotal() {
         return cppToPy(clingo_assignment_is_total(assign));
     }
+
+    Object to_c() {
+        return PyLong_FromVoidPtr(assign);
+    }
 };
 
 PyMethodDef Assignment::tp_methods[] = {
@@ -2875,6 +2908,7 @@ PyGetSetDef Assignment::tp_getset[] = {
     {(char *)"size", to_getter<&Assignment::size>(), nullptr, (char *)R"(The number of assigned literals.)", nullptr},
     {(char *)"max_size", to_getter<&Assignment::max_size>(), nullptr, (char *)R"(The maximum size of the assignment (if all literals are assigned).)", nullptr},
     {(char *)"is_total", to_getter<&Assignment::isTotal>(), nullptr, (char *)R"(Wheather the assignment is total.)", nullptr},
+    {(char *)"_to_c", to_getter<&Assignment::to_c>(), nullptr, (char *)R"(An int representing the pointer to the underlying C clingo_assignment_t struct.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -2974,11 +3008,17 @@ condition ids to solver literals.)";
         }
         Py_RETURN_NONE;
     }
+
     Object getCheckMode() {
         return PropagatorCheckMode::getAttr(clingo_propagate_init_get_check_mode(init));
     }
+
     void setCheckMode(Reference value) {
         clingo_propagate_init_set_check_mode(init, enumValue<PropagatorCheckMode>(value));
+    }
+
+    Object to_c() {
+        return PyLong_FromVoidPtr(init);
     }
 };
 
@@ -3008,6 +3048,7 @@ PyGetSetDef PropagateInit::tp_getset[] = {
     {(char *)"number_of_threads", to_getter<&PropagateInit::numThreads>(), nullptr, (char *) R"(The number of solver threads used in the corresponding solve call.)", nullptr},
     {(char *)"check_mode", to_getter<&PropagateInit::getCheckMode>(), to_setter<&PropagateInit::setCheckMode>(), (char *) R"(PropagatorCheckMode controlling when to call Propagator.check().)", nullptr},
     {(char *)"assignment", to_getter<&PropagateInit::assignment>(), nullptr, (char *)R"(The top level assignment.)", nullptr},
+    {(char *)"_to_c", to_getter<&PropagateInit::to_c>(), nullptr, (char *)R"(An int representing the pointer to the underlying C clingo_propagate_init_t struct.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -3091,6 +3132,10 @@ struct PropagateControl : ObjectBase<PropagateControl> {
     Object assignment() {
         return Assignment::construct(clingo_propagate_control_assignment(ctl));
     }
+
+    Object to_c() {
+        return PyLong_FromVoidPtr(ctl);
+    }
 };
 
 PyMethodDef PropagateControl::tp_methods[] = {
@@ -3147,6 +3192,7 @@ Propagate implied literals.)"},
 PyGetSetDef PropagateControl::tp_getset[] = {
     {(char *)"thread_id", to_getter<&PropagateControl::id>(), nullptr, (char *)R"(The numeric id of the current solver thread.)", nullptr},
     {(char *)"assignment", to_getter<&PropagateControl::assignment>(), nullptr, (char *)R"(The partial assignment of the current solver thread.)", nullptr},
+    {(char *)"_to_c", to_getter<&PropagateControl::to_c>(), nullptr, (char *)R"(An int representing the pointer to the underlying C clingo_propagate_control_t struct.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
@@ -3402,6 +3448,7 @@ struct Backend : ObjectBase<Backend> {
     clingo_backend_t *backend;
 
     static PyMethodDef tp_methods[];
+    static PyGetSetDef tp_getset[];
 
     static constexpr char const *tp_type = "Backend";
     static constexpr char const *tp_name = "clingo.Backend";
@@ -3499,6 +3546,10 @@ format.)";
         handle_c_error(clingo_backend_minimize(backend, priority, body.data(), body.size()));
         Py_RETURN_NONE;
     }
+
+    Object to_c() {
+        return PyLong_FromVoidPtr(backend);
+    }
 };
 
 PyMethodDef Backend::tp_methods[] = {
@@ -3580,6 +3631,11 @@ priority -- integer for the priority
 literals -- list of pairs of program literals and weights
 )"},
     {nullptr, nullptr, 0, nullptr}
+};
+
+PyGetSetDef Backend::tp_getset[] = {
+    {(char *)"_to_c", to_getter<&Backend::to_c>(), nullptr, (char *)R"(An int representing the pointer to the underlying C clingo_backend_t struct.)", nullptr},
+    {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
 // {{{1 wrap AST
@@ -5609,6 +5665,7 @@ struct ProgramBuilder : ObjectBase<ProgramBuilder> {
     clingo_program_builder_t *builder;
     bool locked;
     static PyMethodDef tp_methods[];
+    static PyGetSetDef tp_getset[];
 
     static constexpr char const *tp_type = "ProgramBuilder";
     static constexpr char const *tp_name = "clingo.ProgramBuilder";
@@ -5640,6 +5697,10 @@ R"(Object to build non-ground programs.)";
         handle_c_error(clingo_program_builder_end(builder));
         return cppToPy(false);
     }
+
+    Object to_c() {
+        return PyLong_FromVoidPtr(builder);
+    }
 };
 
 PyMethodDef ProgramBuilder::tp_methods[] = {
@@ -5661,6 +5722,11 @@ Finish building a program.
 Follows python __exit__ conventions. Does not suppress exceptions.
 )"},
     {nullptr, nullptr, 0, nullptr}
+};
+
+PyGetSetDef ProgramBuilder::tp_getset[] = {
+    {(char *)"_to_c", to_getter<&ProgramBuilder::to_c>(), nullptr, (char *)R"(An int representing the pointer to the underlying C clingo_program_builder_t struct.)", nullptr},
+    {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
 // {{{1 wrap MessageCode
