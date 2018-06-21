@@ -6833,7 +6833,7 @@ target      -- Flag object
 };
 
 PyGetSetDef ApplicationOptions::tp_getset[] = {
-    {(char *)"_to_c", to_getter<&ApplicationOptions::to_c>(), nullptr, (char *)"An int representing the underlying C clingo_options_t.", nullptr},
+    {(char *)"_to_c", to_getter<&ApplicationOptions::to_c>(), nullptr, (char *)"An int representing the pointer to the underlying C clingo_options_t struct.", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
