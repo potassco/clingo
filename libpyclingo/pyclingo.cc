@@ -6837,7 +6837,6 @@ PyGetSetDef ApplicationOptions::tp_getset[] = {
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
-
 // {{{1 wrap Application
 
 using AppData = std::pair<Reference&, std::vector<Object>>;
