@@ -2283,14 +2283,13 @@ not be stored for later use in other places like - e.g., the main function.)";
     }
     Object atoms(Reference pyargs, Reference pykwds) {
         clingo_show_type_bitset_t atomset = 0;
-        static char const *kwlist[] = {"atoms", "terms", "shown", "csp", "extra", "complement", nullptr};
-        Reference pyAtoms = Py_False, pyTerms = Py_False, pyShown = Py_False, pyCSP = Py_False, pyExtra = Py_False, pyComp = Py_False;
-        ParseTupleAndKeywords(pyargs, pykwds, "|OOOOOO", const_cast<char**>(kwlist), pyAtoms, pyTerms, pyShown, pyCSP, pyExtra, pyComp);
+        static char const *kwlist[] = {"atoms", "terms", "shown", "csp", "complement", nullptr};
+        Reference pyAtoms = Py_False, pyTerms = Py_False, pyShown = Py_False, pyCSP = Py_False, pyComp = Py_False;
+        ParseTupleAndKeywords(pyargs, pykwds, "|OOOOO", const_cast<char**>(kwlist), pyAtoms, pyTerms, pyShown, pyCSP, pyComp);
         if (pyToCpp<bool>(pyAtoms)) { atomset |= clingo_show_type_atoms; }
         if (pyToCpp<bool>(pyTerms)) { atomset |= clingo_show_type_terms; }
         if (pyToCpp<bool>(pyShown)) { atomset |= clingo_show_type_shown; }
         if (pyToCpp<bool>(pyCSP))   { atomset |= clingo_show_type_csp; }
-        if (pyToCpp<bool>(pyExtra)) { atomset |= clingo_show_type_extra; }
         if (pyToCpp<bool>(pyComp))  { atomset |= clingo_show_type_complement; }
         size_t size;
         handle_c_error(clingo_model_symbols_size(model, atomset, &size));
@@ -2369,7 +2368,11 @@ not be stored for later use in other places like - e.g., the main function.)";
         handle_c_error(clingo_model_context(model, &ctl));
         return SolveControl::construct(ctl);
     }
-
+    Object extend(Reference symbols) {
+        auto syms = pyToCpp<std::vector<symbol_wrapper>>(symbols);
+        handle_c_error(clingo_model_extend(model, reinterpret_cast<clingo_symbol_t const *>(syms.data()), syms.size()));
+        return None();
+    }
     Object to_c() {
         return PyLong_FromVoidPtr(model);
     }
@@ -2391,7 +2394,7 @@ The return values correspond to clasp's cost output.)", nullptr},
 
 PyMethodDef Model::tp_methods[] = {
     {"symbols", to_function<&Model::atoms>(), METH_VARARGS | METH_KEYWORDS,
-R"(symbols(self, atoms, terms, shown, csp, extra, complement)
+R"(symbols(self, atoms, terms, shown, csp, complement)
         -> list of terms
 
 Return the list of atoms, terms, or CSP assignments in the model.
@@ -2405,8 +2408,6 @@ shown      -- select all atoms and terms as outputted by clingo
               (Default: False)
 csp        -- select all csp assignments (independent of #show statements)
               (Default: False)
-extra      -- select terms added by clingo extensions
-              (Default: False)
 complement -- return the complement of the answer set w.r.t. to the Herbrand
               base accumulated so far (does not affect csp assignments)
               (Default: False)
@@ -2415,15 +2416,23 @@ Note that atoms are represented using functions (Symbol objects), and that CSP
 assignments are represented using functions with name "$" where the first
 argument is the name of the CSP variable and the second its value.)"},
     {"contains", to_function<&Model::contains>(), METH_O,
-R"(contains(self, a) -> bool
+R"(contains(self, atom) -> bool
 
-Check if an atom a is contained in the model.
+Check if an atom is contained in the model.
 
 The atom must be represented using a function symbol.)"},
     {"is_true", to_function<&Model::is_true>(), METH_O,
 R"(is_true(self, a) -> bool
 
 Check if the given program literal is true.
+)"},
+    {"extend", to_function<&Model::extend>(), METH_O,
+R"(extend(self, symbols) -> None
+
+Extend a model with the given symbols.
+
+This only has an effect if there is an underlying clingo application, which
+will print the added symbols.
 )"},
     {nullptr, nullptr, 0, nullptr}
 
@@ -3261,24 +3270,6 @@ bool propagator_check(clingo_propagate_control_t *control, PyObject *prop) {
     }
     catch (...) {
         handle_cxx_error("Propagator::check", "error during check");
-        return false;
-    }
-}
-
-bool propagator_extend_model(int thread_id, bool complement, clingo_symbol_callback_t symbol_callback, void* symbol_callback_data, PyObject *prop) {
-    PyBlock block;
-    try {
-        if (!PyObject_HasAttrString(prop, "extend_model")) { return true; }
-        Object pyThreadId = cppToPy(thread_id);
-        Object pyComplement = cppToPy(complement);
-        Object n  = PyString_FromString("extend_model");
-        Object pySymbols = PyObject_CallMethodObjArgs(prop, n.toPy(), pyThreadId.toPy(), pyComplement.toPy(), nullptr);
-        std::vector<symbol_wrapper> symbols;
-        pyToCpp(pySymbols, symbols);
-        return symbol_callback(reinterpret_cast<const clingo_symbol_t*>(symbols.data()), symbols.size(), symbol_callback_data);
-    }
-    catch (...) {
-        handle_cxx_error("Propagator::extend_model", "error during model extension");
         return false;
     }
 }
@@ -6064,7 +6055,6 @@ active; you must not call any member function during search.)";
             reinterpret_cast<decltype(clingo_propagator_t::propagate)>(propagator_propagate),
             reinterpret_cast<decltype(clingo_propagator_t::undo)>(propagator_undo),
             reinterpret_cast<decltype(clingo_propagator_t::check)>(propagator_check),
-            reinterpret_cast<decltype(clingo_propagator_t::extend_model)>(propagator_extend_model)
         };
         prop.emplace_back(tp);
         handle_c_error(clingo_control_register_propagator(ctl, &propagator, tp.toPy(), false));
@@ -6622,17 +6612,7 @@ class Propagator(object)
         Arguments:
         control -- PropagateControl object
 
-        This function is called even if no watches have been added.
-
-    extend_model(self, thread_id, complement, symbols) -> None
-        This function is called before a model is printed. The model is then
-        extended by the list of symbols returned by this function.
-
-        Arguments:
-        thread_id  -- the solver thread id
-        complement -- whether the complement of the model is requested
-
-        When exactly this function is called, depends on the current output mode.)"},
+        This function is called even if no watches have been added.)"},
     {"interrupt", to_function<&ControlWrap::interrupt>(), METH_NOARGS,
 R"(interrupt(self) -> None
 

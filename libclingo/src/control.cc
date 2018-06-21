@@ -764,6 +764,11 @@ extern "C" bool clingo_model_cost(clingo_model_t *m, int64_t *ret, size_t n) {
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_model_extend(clingo_model_t *model, clingo_symbol_t const *symbols, size_t size) {
+    GRINGO_CLINGO_TRY { model->add({reinterpret_cast<Symbol const *>(symbols), size}); }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" bool clingo_model_context(clingo_model_t *m, clingo_solve_control_t **ret) {
     GRINGO_CLINGO_TRY { *ret = static_cast<clingo_solve_control_t*>(m); }
     GRINGO_CLINGO_CATCH;
@@ -1244,19 +1249,6 @@ public:
 
     void check(Potassco::AbstractSolver& solver) override {
         if (prop_.check && !prop_.check(static_cast<clingo_propagate_control_t*>(&solver), data_)) { throw ClingoError(); }
-    }
-    void extend_model(int threadId, bool complement, SymVec& symVec) override {
-        using Data = std::pair<SymVec&, std::exception_ptr>;
-        Data data{symVec, {}};
-        auto l = [](clingo_symbol_t const *symbols, size_t symbols_size, void *pdata) -> bool {
-            auto &data = *reinterpret_cast<Data*>(pdata);
-            GRINGO_CALLBACK_TRY {
-                auto *begin = reinterpret_cast<Symbol const*>(symbols);
-                data.first.insert(data.first.end(), begin, begin + symbols_size);
-            }
-            GRINGO_CALLBACK_CATCH(data.second);
-        };
-        if (prop_.extend_model) { forwardCError(prop_.extend_model(threadId, complement, l, &data, data_), &data.second); }
     }
 private:
     clingo_propagator_t prop_;

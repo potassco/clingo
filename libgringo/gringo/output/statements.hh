@@ -267,9 +267,8 @@ enum class ShowType : unsigned {
     Shown      = 2,
     Atoms      = 4,
     Terms      = 8,
-    Extra      = 16,
-    All        = 31,
-    Complement = 32
+    All        = 15,
+    Complement = 16
 };
 
 class Translator {

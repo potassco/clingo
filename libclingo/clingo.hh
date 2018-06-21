@@ -875,7 +875,6 @@ public:
     virtual void propagate(PropagateControl &ctl, LiteralSpan changes);
     virtual void undo(PropagateControl const &ctl, LiteralSpan changes);
     virtual void check(PropagateControl &ctl);
-    virtual void extend_model(int thread_id, bool complement, SymbolSpanCallback callback);
     virtual ~Propagator() noexcept = default;
 };
 
@@ -1048,7 +1047,6 @@ public:
         Shown      = clingo_show_type_shown,
         Atoms      = clingo_show_type_atoms,
         Terms      = clingo_show_type_terms,
-        Theory     = clingo_show_type_extra,
         All        = clingo_show_type_all,
         Complement = clingo_show_type_complement
     };
@@ -1067,6 +1065,7 @@ public:
     bool is_true(literal_t literal) const;
     bool optimality_proven() const;
     CostVector cost() const;
+    void extend(SymbolSpan symbols);
     SymbolVector symbols(ShowType show = ShowType::Shown) const;
     SolveControl context() const;
     ModelType type() const;
@@ -1118,12 +1117,12 @@ inline std::ostream &operator<<(std::ostream &out, SolveResult res) {
 
 class SolveEventHandler {
 public:
-    virtual bool on_model(Model const &model);
+    virtual bool on_model(Model &model);
     virtual void on_finish(SolveResult result);
     virtual ~SolveEventHandler() = default;
 };
 
-inline bool SolveEventHandler::on_model(Model const &) { return true; }
+inline bool SolveEventHandler::on_model(Model &) { return true; }
 inline void SolveEventHandler::on_finish(SolveResult) { }
 
 namespace Detail {
@@ -2742,7 +2741,6 @@ inline void Propagator::init(PropagateInit &) { }
 inline void Propagator::propagate(PropagateControl &, LiteralSpan) { }
 inline void Propagator::undo(PropagateControl const &, LiteralSpan) { }
 inline void Propagator::check(PropagateControl &) { }
-inline void Propagator::extend_model(int, bool, SymbolSpanCallback) { }
 
 // {{{2 solve control
 
@@ -2794,6 +2792,10 @@ inline CostVector Model::cost() const {
     ret.resize(n);
     Detail::handle_error(clingo_model_cost(model_, ret.data(), n));
     return ret;
+}
+
+inline void Model::extend(SymbolSpan symbols) {
+    Detail::handle_error(clingo_model_extend(model_, reinterpret_cast<clingo_symbol_t const *>(symbols.begin()), symbols.size()));
 }
 
 inline SymbolVector Model::symbols(ShowType show) const {
@@ -3939,16 +3941,6 @@ inline static bool g_check(clingo_propagate_control_t *ctl, void *pdata) {
     CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline static bool g_extend_model(int thread_id, bool complement, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *pdata) {
-    PropagatorData &data = *static_cast<PropagatorData*>(pdata);
-    CLINGO_CALLBACK_TRY {
-        data.first.extend_model(thread_id, complement, [&](SymbolSpan symbols) {
-            Detail::handle_error(symbol_callback(reinterpret_cast<const clingo_symbol_t*>(symbols.begin()), symbols.size(), symbol_callback_data));
-        });
-    }
-    CLINGO_CALLBACK_CATCH(data.second);
-}
-
 } // namespace Detail
 
 inline void Control::register_propagator(Propagator &propagator, bool sequential) {
@@ -3958,7 +3950,6 @@ inline void Control::register_propagator(Propagator &propagator, bool sequential
         Detail::g_propagate,
         Detail::g_undo,
         Detail::g_check,
-        Detail::g_extend_model
     };
     Detail::handle_error(clingo_control_register_propagator(*impl_, &g_propagator, &impl_->propagators_.front(), sequential));
 }

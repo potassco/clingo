@@ -2,25 +2,18 @@
 
 import clingo
 
-class Propagator:
-    def init(self, init):
-        self.check_calls = 0
-        init.check_mode = clingo.PropagatorCheckMode.Total
+class State:
+    def __init__(self):
+        self.models = 0
 
-    def check(self, ctl):
-        self.check_calls += 1
-        return True
-
-    def extend_model(self, thread_id, complement):
-        return [clingo.Number(self.check_calls)]
-
-def on_model(m):
-    print ("Extra symbols: {}".format(" ".join(map(str, m.symbols(extra=True)))))
+    def on_model(self, m):
+        self.models += 1
+        m.extend([clingo.Number(self.models)])
 
 def main(prg):
-    prg.register_propagator(Propagator())
+    s = State()
     prg.ground([("base", [])])
-    prg.solve(on_model=on_model)
+    prg.solve(on_model=s.on_model)
 
 #end.
 

@@ -2,44 +2,24 @@
 
 clingo = require("clingo")
 
-Propagator = { }
-Propagator.__index = Propagator
+State = { }
+State.__index = State
 
-function Propagator.new()
-    local self = setmetatable({}, Propagator)
-    self.check_calls = 0
+function State.new()
+    local self = setmetatable({}, State)
+    self.models = 0
     return self
 end
 
-function Propagator:init(init)
-    init.check_mode = clingo.PropagatorCheckMode.Total
-    self.check_calls = 0
-end
-
-function Propagator:check(ctl)
-    self.check_calls = self.check_calls + 1
-    return true
-end
-
-function Propagator:extend_model(thread_id, complement)
-    return {clingo.Number(self.check_calls)}
-end
-
-function Propagator:on_model(m)
-    io.write("Extra symbols:")
-    for _, symbol in ipairs(m:symbols{extra=true}) do
-        io.write(" ")
-        io.write(tostring(symbol))
-    end
-    io.write("\n")
-    io.flush()
+function State:on_model(m)
+    self.models = self.models + 1
+    m:extend{clingo.Number(self.models)}
 end
 
 function main(prg)
-    local p = Propagator.new()
-    prg:register_propagator(p)
+    local s = State.new()
     prg:ground({{"base", {}}})
-    prg:solve{on_model=function (m) p:on_model(m) end}
+    prg:solve{on_model=function (m) s:on_model(m) end}
 end
 
 #end.

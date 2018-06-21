@@ -81,12 +81,6 @@ private:
     std::vector<std::string> &trail_;
 };
 
-class ExtendPropagator : public Propagator {
-    void extend_model(int, bool, SymbolSpanCallback callback) override {
-        callback({Number(42)});
-    }
-};
-
 TEST_CASE("solving", "[clingo]") {
     SECTION("with control") {
         MessageVec messages;
@@ -594,7 +588,7 @@ TEST_CASE("solving", "[clingo]") {
             SECTION("goon") { goon = true; }
             struct EH : Clingo::SolveEventHandler {
                 EH(bool goon, int &m, int &f) : goon(goon), m(m), f(f) { }
-                bool on_model(Model const &) override {
+                bool on_model(Model &) override {
                     REQUIRE(f == 0);
                     ++m;
                     return goon;
@@ -611,14 +605,6 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(test_solve(std::move(handle), models).is_satisfiable());
             REQUIRE(m == (goon ? 2 : 1));
             REQUIRE(f == 1);
-        }
-        SECTION("extend model") {
-            ExtendPropagator p;
-            ctl.register_propagator(p);
-            ctl.add("base", {}, "1 {a;b;c} 1.");
-            ctl.ground({{"base", {}}});
-            REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
-            REQUIRE(models == ModelVec({{Number(42), Function("a", {})}, {Number(42), Function("b", {})}, {Number(42), Function("c", {})}}));
         }
     }
 }

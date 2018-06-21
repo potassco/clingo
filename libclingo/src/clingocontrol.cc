@@ -138,8 +138,7 @@ ClingoControl::ClingoControl(Scripts &scripts, bool clingoMode, Clasp::ClaspFaca
 , pgf_(pgf)
 , psf_(psf)
 , logger_(printer, messageLimit)
-, clingoMode_(clingoMode)
-, theory_(*this) {
+, clingoMode_(clingoMode) {
     clasp->ctx.output.theory = &theory_;
 }
 
@@ -283,12 +282,14 @@ void ClingoControl::main(IClingoApp &app, StringVec const &files, const ClingoOp
     }
 }
 bool ClingoControl::onModel(Clasp::Model const &m) {
+    bool ret = true;
     if (eventHandler_) {
+        theory_.reset();
         std::lock_guard<decltype(propLock_)> lock(propLock_);
         ClingoModel model(*this, &m);
-        return eventHandler_->on_model(model);
+        ret = eventHandler_->on_model(model);
     }
-    return true;
+    return ret;
 }
 void ClingoControl::onFinish(Clasp::ClaspFacade::Result ret) {
     if (eventHandler_) {
@@ -410,27 +411,20 @@ void *ClingoControl::claspFacade() {
     return clasp_;
 }
 
-ClingoControl::TheoryOutput::TheoryOutput(ClingoControl& ctl) : ctl_(ctl) { }
-
-const char* ClingoControl::TheoryOutput::first(const Clasp::Model& m) {
-    last_.clear();
-    SymVec symbols_;
-    index_ = 1;
-    for (auto& prop : ctl_.props_) {
-        std::lock_guard<decltype(propLock_)> lock(ctl_.propLock_);
-        prop->extend_model(m.sId, false, symbols_);
-    }
-    std::stringstream ss;
-    for (auto& s : symbols_) {
-        ss.str("");
-        s.print(ss);
-        last_.emplace_back(ss.str());
-    }
-    return last_.size() ? last_.front().c_str() : nullptr;
+const char* TheoryOutput::first(const Clasp::Model&) {
+    index_ = 0;
+    return next();
 }
 
-const char* ClingoControl::TheoryOutput::next() {
-    return last_.size() > index_ ? last_[index_++].c_str() : nullptr;
+const char* TheoryOutput::next() {
+    if (index_ < symbols_.size()) {
+        std::stringstream ss;
+        symbols_[index_].print(ss);
+        current_ = ss.str();
+        ++index_;
+        return current_.c_str();
+    }
+    return nullptr;
 }
 
 void ClingoControl::registerPropagator(std::unique_ptr<Propagator> p, bool sequential) {
@@ -748,7 +742,8 @@ void ClingoLib::initOptions(Potassco::ProgramOptions::OptionContext& root) {
 }
 
 bool ClingoLib::onModel(Clasp::Solver const&, Clasp::Model const& m) {
-    return ClingoControl::onModel(m);
+    bool ret = ClingoControl::onModel(m);
+    return ret;
 }
 void ClingoLib::onEvent(Clasp::Event const& ev) {
     Clasp::ClaspFacade::StepReady const *r = Clasp::event_cast<Clasp::ClaspFacade::StepReady>(ev);

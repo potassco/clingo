@@ -1,9 +1,8 @@
-# Extending Models from Propagators
+# Extending Models for Printing
 
-This example shows how to add symbols to a model from a propagator before
-printing.
+This example shows how to add symbols to a model before printing.
 
 # Example Calls
 
-    clingo extend-model-py.lp
-    clingo extend-model-lua.lp
+    clingo extend-model-py.lp 0
+    clingo extend-model-lua.lp 0

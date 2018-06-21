@@ -225,6 +225,25 @@ public:
 };
 using UIClingoApp = std::unique_ptr<IClingoApp>;
 
+class TheoryOutput : public Clasp::OutputTable::Theory {
+public:
+    char const * first(const Clasp::Model&) override;
+    char const * next() override;
+
+    void add(Potassco::Span<Symbol> symbols) {
+        symbols_.insert(symbols_.end(), begin(symbols), end(symbols));
+    }
+    void reset() {
+        symbols_.clear();
+        index_ = 0;
+    }
+
+private:
+    std::vector<Symbol> symbols_;
+    std::string         current_;
+    size_t              index_;
+};
+
 class ClingoSolveFuture;
 class ClingoControl : public clingo_control, private ConfigProxy, private SymbolicAtoms {
 public:
@@ -255,11 +274,6 @@ public:
     virtual void prePrepare(Clasp::ClaspFacade& ) { }
     virtual void preSolve(Clasp::ClaspFacade& clasp) { if (psf_) { psf_(clasp);} }
     virtual void postSolve(Clasp::ClaspFacade& ) { }
-    virtual void addToModel(Clasp::Model const& m, bool complement, SymVec& symVec) {
-        for (auto& prop : props_) {
-            prop->extend_model(m.sId, complement, symVec);
-        }
-    }
 
     // {{{2 SymbolicAtoms interface
 
@@ -344,6 +358,7 @@ public:
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>>  propagators_;
     ClingoPropagatorLock                                       propLock_;
     Logger                                                     logger_;
+    TheoryOutput                                               theory_;
     Backend                                                   *backend_               = nullptr;
     bool                                                       enableEnumAssupmption_ = true;
     bool                                                       clingoMode_;
@@ -354,19 +369,6 @@ public:
     bool                                                       configUpdate_          = false;
     bool                                                       initialized_           = false;
     bool                                                       incmode_               = false;
-
-private:
-
-    class TheoryOutput : public Clasp::OutputTable::Theory {
-    public:
-        TheoryOutput(ClingoControl& ctl);
-        const char* first(const Clasp::Model& m) override;
-        const char* next() override;
-    private:
-        ClingoControl&              ctl_;
-        std::vector<std::string>    last_;
-        size_t                      index_;
-    } theory_;
 
 };
 
@@ -383,9 +385,6 @@ public:
     }
     SymSpan atoms(unsigned atomset) const override {
         atms_ = out().atoms(atomset, [this](unsigned uid) { return model_->isTrue(lp().getLiteral(uid)); });
-        if (atomset & clingo_show_type_extra){
-            ctl_.addToModel(*model_, (atomset & clingo_show_type_complement) != 0, atms_);
-        }
         return Potassco::toSpan(atms_);
     }
     Int64Vec optimization() const override {
@@ -414,6 +413,7 @@ public:
         if (model_->type & Clasp::Model::Cautious) { return ModelType::CautiousConsequences; }
         return ModelType::StableModel;
     }
+    void add(Potassco::Span<Symbol> symbols) override { ctl_.theory_.add(symbols); }
     uint64_t number() const override { return model_->num; }
     Potassco::Id_t threadId() const override { return model_->sId; }
     bool optimality_proven() const override { return model_->opt; }

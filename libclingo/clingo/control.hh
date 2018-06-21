@@ -112,6 +112,7 @@ struct clingo_model {
     virtual Gringo::ModelType type() const = 0;
     virtual bool isTrue(Potassco::Lit_t literal) const = 0;
     virtual Gringo::SymbolicAtoms &getDomain() const = 0;
+    virtual void add(Potassco::Span<Gringo::Symbol> symbols) = 0;
     virtual ~clingo_model() { }
 };
 
@@ -196,7 +197,6 @@ namespace Gringo {
 struct Propagator : Potassco::AbstractPropagator {
     virtual ~Propagator() noexcept = default;
     virtual void init(Gringo::PropagateInit &init) = 0;
-    virtual void extend_model(int threadId, bool complement, SymVec&) = 0;
 };
 using UProp = std::unique_ptr<Propagator>;
 

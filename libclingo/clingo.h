@@ -652,7 +652,6 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbolic_atoms_is_valid(clingo_symbolic_at
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! @see ::clingo_ground_callback_t
-//! @see ::clingo_propagator::extend_model()
 typedef bool (*clingo_symbol_callback_t) (clingo_symbol_t const *symbols, size_t symbols_size, void *data);
 //! @}
 
@@ -940,9 +939,8 @@ enum clingo_show_type {
     clingo_show_type_shown      = 2,  //!< Select shown atoms and terms.
     clingo_show_type_atoms      = 4,  //!< Select all atoms.
     clingo_show_type_terms      = 8,  //!< Select all terms.
-    clingo_show_type_extra      = 16, //!< Select symbols added by extensions.
-    clingo_show_type_all        = 31, //!< Select everything.
-    clingo_show_type_complement = 32  //!< Select false instead of true atoms (::clingo_show_type_atoms) or terms (::clingo_show_type_terms).
+    clingo_show_type_all        = 15, //!< Select everything.
+    clingo_show_type_complement = 16  //!< Select false instead of true atoms (::clingo_show_type_atoms) or terms (::clingo_show_type_terms).
 };
 //! Corresponding type to ::clingo_show_type.
 typedef unsigned clingo_show_type_bitset_t;
@@ -1026,6 +1024,16 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_model_cost(clingo_model_t *model, int64_t 
 //!
 //! @see clingo_model_cost()
 CLINGO_VISIBILITY_DEFAULT bool clingo_model_optimality_proven(clingo_model_t *model, bool *proven);
+//! Add symbols to the model.
+//!
+//! These symbols will appear in clingo's output, which means that this
+//! function is only meaningful if there is an underlying clingo application.
+//!
+//! @param[in] model the target
+//! @param[in] symbols the symbols to add
+//! @param[in] symbols the number of symbols to add
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_model_extend(clingo_model_t *model, clingo_symbol_t const *symbols, size_t size);
 //! Get the id of the solver thread that found the model.
 //!
 //! @param[in] model the target
@@ -1511,9 +1519,6 @@ typedef bool (*clingo_propagator_undo_callback_t) (clingo_propagate_control_t *,
 //! Typedef for @ref ::clingo_propagator::check().
 typedef bool (*clingo_propagator_check_callback_t) (clingo_propagate_control_t *, void *);
 
-//! Typedef for @ref ::clingo_propagator::extend_model().
-typedef bool (*clingo_propagator_extend_model_callback_t) (int, bool, clingo_symbol_callback_t, void *, void *);
-
 //! An instance of this struct has to be registered with a solver to implement a custom propagator.
 //!
 //! Not all callbacks have to be implemented and can be set to NULL if not needed.
@@ -1593,18 +1598,6 @@ typedef struct clingo_propagator {
     //! @return whether the call was successful
     //! @see ::clingo_propagator_check_callback_t
     bool (*check) (clingo_propagate_control_t *control, void *data);
-    //! This function is called whenever a model is printed (not when it is found).
-    //! The model can be extended by any number of symbols.
-    //!
-    //! When exactly this function is called, depends on the current output mode.
-    //!
-    //! @param[in] thread_id id of the solver thread that found the model
-    //! @param[in] complement flag to indicate that the complement of the model is requested
-    //! @param[in] symbol_callback function to inject symbols
-    //! @param[in] symbol_callback_data user data for the symbol callback (must be passed untouched)
-    //! @param[in] data user data for the callback
-    //! @return whether the call was successful
-    bool (*extend_model) (int thread_id, bool complement, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data);
 } clingo_propagator_t;
 
 //! @}
