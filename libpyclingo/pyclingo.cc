@@ -6731,6 +6731,7 @@ struct ApplicationOptions : ObjectBase<ApplicationOptions> {
     static constexpr char const *tp_name = "clingo.ApplicationOptions";
     static constexpr char const *tp_doc = R"(Object add custom options to a clingo based application.)";
     static PyMethodDef tp_methods[];
+    static PyGetSetDef tp_getset[];
 
     static Object construct(clingo_options_t *options, std::vector<Object> &refs) {
         auto self = new_();
@@ -6775,6 +6776,10 @@ struct ApplicationOptions : ObjectBase<ApplicationOptions> {
 
         handle_c_error(clingo_options_add_flag(options, group, option, description, &reinterpret_cast<Flag*>(pyFlag.toPy())->flag));
         return None();
+    }
+
+    Object to_c() {
+        return cppToPy(options);
     }
 };
 
@@ -6825,6 +6830,11 @@ description -- description of the option
 target      -- Flag object
 )"},
     {nullptr, nullptr, 0, nullptr}
+};
+
+PyGetSetDef ApplicationOptions::tp_getset[] = {
+    {(char *)"_to_c", to_getter<&ApplicationOptions::to_c>(), nullptr, (char *)"An int representing the pointer to the underlying C clingo_options_t struct.", nullptr},
+    {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
 // {{{1 wrap Application
