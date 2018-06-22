@@ -599,7 +599,7 @@ ClingoControl::~ClingoControl() noexcept = default;
 // {{{1 definition of ClingoSolveFuture
 
 SolveResult convert(Clasp::ClaspFacade::Result res) {
-    if (res.interrupted() && res.signal != 0 && res.signal != 65) {
+    if (res.interrupted() && res.signal != 0 && res.signal != 9 && res.signal != 65) {
         throw std::runtime_error("solving stopped by signal");
     }
     SolveResult::Satisfiabily sat = SolveResult::Satisfiable;
