@@ -719,7 +719,7 @@ TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {
             }
         }
         int64_t optimum = std::numeric_limits<int64_t>::max();
-        for (auto m : ctl.solve()) {
+        for (auto &m : ctl.solve()) {
             int64_t opt = m.cost()[0];
             if (opt == optimum) {
                 models.emplace_back();

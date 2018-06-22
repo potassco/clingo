@@ -702,7 +702,7 @@ extern "C" void clingo_propagate_control_remove_watch(clingo_propagate_control_t
 
 struct clingo_solve_control : clingo_model { };
 
-extern "C" bool clingo_model_thread_id(clingo_model_t *ctl, clingo_id_t *ret) {
+extern "C" bool clingo_model_thread_id(clingo_model_t const *ctl, clingo_id_t *ret) {
     GRINGO_CLINGO_TRY { *ret = ctl->threadId(); }
     GRINGO_CLINGO_CATCH;
 }
@@ -716,12 +716,12 @@ extern "C" bool clingo_solve_control_symbolic_atoms(clingo_solve_control_t *cont
     GRINGO_CLINGO_TRY { *atoms = &control->getDomain(); }
     GRINGO_CLINGO_CATCH;
 }
-extern "C" bool clingo_model_contains(clingo_model_t *m, clingo_symbol_t atom, bool *ret) {
+extern "C" bool clingo_model_contains(clingo_model_t const *m, clingo_symbol_t atom, bool *ret) {
     GRINGO_CLINGO_TRY { *ret = m->contains(Symbol(atom)); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_model_symbols_size(clingo_model_t *m, clingo_show_type_bitset_t show, size_t *n) {
+extern "C" bool clingo_model_symbols_size(clingo_model_t const *m, clingo_show_type_bitset_t show, size_t *n) {
     GRINGO_CLINGO_TRY {
         // TODO: implement matching C++ functions ...
         SymSpan atoms = m->atoms(show);
@@ -730,7 +730,7 @@ extern "C" bool clingo_model_symbols_size(clingo_model_t *m, clingo_show_type_bi
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_model_symbols(clingo_model_t *m, clingo_show_type_bitset_t show, clingo_symbol_t *ret, size_t n) {
+extern "C" bool clingo_model_symbols(clingo_model_t const *m, clingo_show_type_bitset_t show, clingo_symbol_t *ret, size_t n) {
     GRINGO_CLINGO_TRY {
         // TODO: implement matching C++ functions ...
         SymSpan atoms = m->atoms(show);
@@ -740,12 +740,12 @@ extern "C" bool clingo_model_symbols(clingo_model_t *m, clingo_show_type_bitset_
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_model_optimality_proven(clingo_model_t *m, bool *proven) {
+extern "C" bool clingo_model_optimality_proven(clingo_model_t const *m, bool *proven) {
     GRINGO_CLINGO_TRY { *proven = m->optimality_proven(); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_model_cost_size(clingo_model_t *m, size_t *n) {
+extern "C" bool clingo_model_cost_size(clingo_model_t const *m, size_t *n) {
     GRINGO_CLINGO_TRY {
         // TODO: implement matching C++ functions ...
         auto opt = m->optimization();
@@ -754,7 +754,7 @@ extern "C" bool clingo_model_cost_size(clingo_model_t *m, size_t *n) {
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_model_cost(clingo_model_t *m, int64_t *ret, size_t n) {
+extern "C" bool clingo_model_cost(clingo_model_t const *m, int64_t *ret, size_t n) {
     GRINGO_CLINGO_TRY {
         // TODO: implement matching C++ functions ...
         auto opt = m->optimization();
@@ -769,22 +769,22 @@ extern "C" bool clingo_model_extend(clingo_model_t *model, clingo_symbol_t const
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_model_context(clingo_model_t *m, clingo_solve_control_t **ret) {
-    GRINGO_CLINGO_TRY { *ret = static_cast<clingo_solve_control_t*>(m); }
+extern "C" bool clingo_model_context(clingo_model_t const *m, clingo_solve_control_t **ret) {
+    GRINGO_CLINGO_TRY { *ret = static_cast<clingo_solve_control_t*>(const_cast<clingo_model_t *>(m)); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_model_number(clingo_model_t *m, uint64_t *n) {
+extern "C" bool clingo_model_number(clingo_model_t const *m, uint64_t *n) {
     GRINGO_CLINGO_TRY { *n = m->number(); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_model_type(clingo_model_t *m, clingo_model_type_t *ret) {
+extern "C" bool clingo_model_type(clingo_model_t const *m, clingo_model_type_t *ret) {
     GRINGO_CLINGO_TRY { *ret = static_cast<clingo_model_type_t>(m->type()); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_model_is_true(clingo_model_t *m, clingo_literal_t lit, bool *result) {
+extern "C" bool clingo_model_is_true(clingo_model_t const *m, clingo_literal_t lit, bool *result) {
     GRINGO_CLINGO_TRY { *result = static_cast<clingo_model_type_t>(m->isTrue(lit)); }
     GRINGO_CLINGO_CATCH;
 }
@@ -1082,7 +1082,7 @@ extern "C" bool clingo_solve_handle_close(clingo_solve_handle_t *handle) {
     GRINGO_CLINGO_TRY { if (handle) { delete handle; } }
     GRINGO_CLINGO_CATCH;
 }
-extern "C" bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t **model) {
+extern "C" bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t const **model) {
     GRINGO_CLINGO_TRY {
         *model = const_cast<Model*>(handle->model());
     }

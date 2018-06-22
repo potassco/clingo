@@ -298,7 +298,7 @@ TEST_CASE("solving", "[clingo]") {
             ctl.ground({{"base", {}}});
             SymbolVector model;
             CostVector optimum;
-            for (auto m : ctl.solve()) {
+            for (auto &m : ctl.solve()) {
                 model = m.symbols();
                 optimum = m.cost();
             }
@@ -320,7 +320,7 @@ TEST_CASE("solving", "[clingo]") {
             ctl.add("base", {}, "a. $x $= 1. #show b.");
             ctl.ground({{"base", {}}});
             bool sat = false;
-            for (auto m : ctl.solve()) {
+            for (auto &m : ctl.solve()) {
                 REQUIRE(m.type() == ModelType::StableModel);
                 REQUIRE(m.symbols(ShowType::Atoms) == (SymbolVector{Id("a")}));
                 REQUIRE(m.symbols(ShowType::Terms) == (SymbolVector{Id("b")}));
@@ -338,7 +338,7 @@ TEST_CASE("solving", "[clingo]") {
             ctl.add("base", {}, "1{a;b}1.");
             ctl.ground({{"base", {}}});
             int n = 0;
-            for (auto m : ctl.solve()) {
+            for (auto &m : ctl.solve()) {
                 REQUIRE(m.type() == ModelType::StableModel);
                 REQUIRE(m.thread_id() == 0);
                 ++n;
@@ -353,7 +353,7 @@ TEST_CASE("solving", "[clingo]") {
             ctl.add("base", {}, "a.");
             ctl.ground({{"base", {}}});
             int n = 0;
-            for (auto m : ctl.solve()) {
+            for (auto &m : ctl.solve()) {
                 REQUIRE(m.type() == ModelType::CautiousConsequences);
                 REQUIRE(m.thread_id() == 0);
                 ++n;
@@ -366,7 +366,7 @@ TEST_CASE("solving", "[clingo]") {
             ctl.add("base", {}, "{a}. #minimize { 1:a }.");
             ctl.ground({{"base", {}}});
             int n = 0;
-            for (auto m : ctl.solve()) {
+            for (auto &m : ctl.solve()) {
                 REQUIRE(m.type() == ModelType::StableModel);
                 REQUIRE(m.thread_id() == 0);
                 if (m.optimality_proven()) {
@@ -496,8 +496,8 @@ TEST_CASE("solving", "[clingo]") {
                     auto iter = ctl.solve();
                     {
                         MCB mcb(models);
-                        SECTION("c++") { for (auto m : iter) { mcb(m); }; }
-                        SECTION("java") { while (Model m = iter.next()) { mcb(m); }; }
+                        SECTION("c++") { for (auto &m : iter) { mcb(m); }; }
+                        SECTION("java") { while (auto &m = iter.next()) { mcb(m); }; }
                     }
                     REQUIRE(models == ModelVec{{Id("a")}});
                     REQUIRE(iter.get().is_satisfiable());

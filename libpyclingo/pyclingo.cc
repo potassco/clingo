@@ -2229,7 +2229,8 @@ constexpr enum clingo_model_type const ModelType::values[];
 constexpr const char * const ModelType::strings[];
 
 struct Model : ObjectBase<Model> {
-    clingo_model_t *model;
+    clingo_model_t const *model;
+    clingo_model_t *mut_model;
     static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
 
@@ -2248,6 +2249,13 @@ not be stored for later use in other places like - e.g., the main function.)";
 
     static Object construct(clingo_model_t *model) {
         auto self = new_();
+        self->mut_model = model;
+        self->model = model;
+        return self;
+    }
+    static Object construct(clingo_model_t const *model) {
+        auto self = new_();
+        self->mut_model = nullptr;
         self->model = model;
         return self;
     }
@@ -2354,11 +2362,14 @@ not be stored for later use in other places like - e.g., the main function.)";
     }
     Object extend(Reference symbols) {
         auto syms = pyToCpp<std::vector<symbol_wrapper>>(symbols);
-        handle_c_error(clingo_model_extend(model, reinterpret_cast<clingo_symbol_t const *>(syms.data()), syms.size()));
+        if (!mut_model) {
+            throw std::runtime_error("models can only be extended from on_model callback");
+        }
+        handle_c_error(clingo_model_extend(mut_model, reinterpret_cast<clingo_symbol_t const *>(syms.data()), syms.size()));
         return None();
     }
     Object to_c() {
-        return PyLong_FromVoidPtr(model);
+        return PyLong_FromVoidPtr(const_cast<clingo_model_t*>(model));
     }
 };
 
@@ -2486,8 +2497,8 @@ See Control.solve() for an example.)";
     Reference tp_iter() { return *this; }
 
     Object tp_iternext() {
-        if (clingo_model_t *m = doUnblocked([this]() {
-            clingo_model_t *ret;
+        if (clingo_model_t const *m = doUnblocked([this]() {
+            clingo_model_t const *ret;
             handle_c_error(clingo_solve_handle_resume(handle));
             handle_c_error(clingo_solve_handle_model(handle, &ret));
             return ret;
@@ -7230,7 +7241,7 @@ PyMethodDef call_printer_def = {
     nullptr
 };
 
-bool g_app_model_printer(clingo_model_t *model, clingo_default_model_printer_t printer, void *printer_data, void *data) {
+bool g_app_model_printer(clingo_model_t const *model, clingo_default_model_printer_t printer, void *printer_data, void *data) {
     PyBlock block;
     try {
         AppData &pyApp = *static_cast<AppData*>(data);

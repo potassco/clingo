@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-bool print_model(clingo_model_t *model) {
+bool print_model(clingo_model_t const *model) {
   bool ret = true;
   clingo_symbol_t *atoms = NULL;
   size_t atoms_n;
@@ -91,7 +91,7 @@ bool user_statistics(clingo_statistics_t* stats) {
 bool solve(clingo_control_t *ctl, clingo_solve_result_bitset_t *result) {
   bool ret = true;
   clingo_solve_handle_t *handle;
-  clingo_model_t *model;
+  clingo_model_t const *model;
 
   // get a solve handle
   if (!clingo_control_solve(ctl, clingo_solve_mode_yield, NULL, 0, NULL, NULL, &handle)) { goto error; }
@@ -108,8 +108,6 @@ bool solve(clingo_control_t *ctl, clingo_solve_result_bitset_t *result) {
   if (!clingo_solve_handle_get(handle, result)) { goto error; }
   // add the statistics
   if (!user_statistics(clingo_solve_handle_user_statistics(handle, true))) { goto error; }
-  // close the solve handle
-  if (!clingo_solve_handle_close(handle)) { goto error; }
 
   goto out;
 

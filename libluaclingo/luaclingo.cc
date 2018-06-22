@@ -1509,8 +1509,10 @@ luaL_Reg const ModelType::meta[] = {
 };
 
 struct Model : Object<Model> {
-    clingo_model_t *model;
-    Model(clingo_model_t *model) : model(model) { }
+    clingo_model_t const *model;
+    clingo_model_t *mut_model;
+    Model(clingo_model_t *model) : model(model), mut_model{model} { }
+    Model(clingo_model_t const *model) : model(model), mut_model{nullptr} { }
     static int contains(lua_State *L) {
         auto &self = get_self(L);
         clingo_symbol_t sym = luaToVal(L, 2);
@@ -1619,7 +1621,10 @@ struct Model : Object<Model> {
     static int extend(lua_State *L) {
         auto &self = get_self(L);
         auto *symbols = luaToVals(L, 2); // +1
-        handle_c_error(L, clingo_model_extend(self.model, symbols->data(), symbols->size()));
+        if (!self.mut_model) {
+            luaL_error(L, "models can only be extended from on_model callback");
+        }
+        handle_c_error(L, clingo_model_extend(self.mut_model, symbols->data(), symbols->size()));
         lua_pop(L, 1);                   // -1
         return 0;
     }
@@ -1765,7 +1770,7 @@ struct SolveHandle : Object<SolveHandle> {
     static int next(lua_State *L) {
         auto &handle = get_self(L, lua_upvalueindex(1));
         call_c(L, clingo_solve_handle_resume, handle.handle);
-        clingo_model_t *model = call_c(L, clingo_solve_handle_model, handle.handle);
+        clingo_model_t const *model = call_c(L, clingo_solve_handle_model, handle.handle);
         if (model) { Model::new_(L, model); }
         else       { lua_pushnil(L); }
         return 1;

@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-bool print_model(clingo_model_t *model) {
+bool print_model(clingo_model_t const *model) {
   bool ret = true;
   clingo_symbol_t *atoms = NULL;
   size_t atoms_n;
@@ -65,7 +65,7 @@ out:
 bool solve(clingo_control_t *ctl, clingo_solve_result_bitset_t *result, clingo_literal_t assumption) {
   bool ret = true;
   clingo_solve_handle_t *handle;
-  clingo_model_t *model;
+  clingo_model_t const *model;
 
   // get a solve handle
   if (!clingo_control_solve(ctl, clingo_solve_mode_yield, &assumption, assumption != 0 ? 1 : 0, NULL, NULL, &handle)) { goto error; }

@@ -1061,6 +1061,8 @@ using CostVector = std::vector<int64_t>;
 class Model {
 public:
     explicit Model(clingo_model_t *model);
+    Model(Model const &) = delete;
+    Model(Model &&) = delete;
     bool contains(Symbol atom) const;
     bool is_true(literal_t literal) const;
     bool optimality_proven() const;
@@ -1922,13 +1924,14 @@ public:
     void resume();
     void wait();
     bool wait(double timeout);
-    Model model();
-    Model next();
+    Model const &model();
+    Model const &next();
     SolveResult get();
     UserStatistics user_statistics(bool final=true);
     void cancel();
     ~SolveHandle();
 private:
+    Model model_;
     clingo_solve_handle_t *iter_;
     Detail::AssignOnce *exception_;
 };
@@ -1936,13 +1939,11 @@ private:
 class ModelIterator : public std::iterator<Model, std::input_iterator_tag> {
 public:
     explicit ModelIterator(SolveHandle &iter)
-    : iter_(&iter)
-    , model_(nullptr) { model_ = iter_->next(); }
+    : iter_(&iter) { }
     ModelIterator()
-    : iter_(nullptr)
-    , model_(nullptr) { }
+    : iter_(nullptr) { }
     ModelIterator &operator++() {
-        model_ = iter_->next();
+        iter_->next();
         return *this;
     }
     // Warning: the resulting iterator should not be used
@@ -1952,15 +1953,14 @@ public:
         ++*this;
         return t;
     }
-    Model &operator*() { return model_; }
-    Model *operator->() { return &**this; }
+    Model const &operator*() { return iter_->model(); }
+    Model const *operator->() { return &iter_->model(); }
     friend bool operator==(ModelIterator a, ModelIterator b) {
-        return a.model_.to_c() == b.model_.to_c();
+        return (a.iter_ ? a.iter_->model().to_c() : nullptr) == (b.iter_ ? b.iter_->model().to_c() : nullptr);
     }
     friend bool operator!=(ModelIterator a, ModelIterator b) { return !(a == b); }
 private:
     SolveHandle *iter_;
-    Model model_;
 };
 
 inline ModelIterator begin(SolveHandle &it) { return ModelIterator(it); }
@@ -2853,11 +2853,13 @@ namespace Detail {
 } // namespace Detail
 
 inline SolveHandle::SolveHandle()
-: iter_(nullptr)
+: model_(nullptr)
+, iter_(nullptr)
 , exception_(nullptr) { }
 
 inline SolveHandle::SolveHandle(clingo_solve_handle_t *it, Detail::AssignOnce &ptr)
-: iter_(it)
+: model_(nullptr)
+, iter_(it)
 , exception_(&ptr) { }
 
 inline SolveHandle::SolveHandle(SolveHandle &&it)
@@ -2885,13 +2887,14 @@ inline bool SolveHandle::wait(double timeout) {
     return res;
 }
 
-inline Model SolveHandle::model() {
-    clingo_model_t *m = nullptr;
+inline Model const &SolveHandle::model() {
+    clingo_model_t const *m = nullptr;
     Detail::handle_error(clingo_solve_handle_model(iter_, &m), *exception_);
-    return Model{m};
+    new (&model_) Model{const_cast<clingo_model_t*>(m)};
+    return model_;
 }
 
-inline Model SolveHandle::next() {
+inline Model const &SolveHandle::next() {
     resume();
     return model();
 }
@@ -4295,10 +4298,10 @@ inline static void g_logger(clingo_warning_t code, char const *message, void *ad
     return data.app.log(static_cast<WarningCode>(code), message);
 }
 
-inline static bool g_model_printer(clingo_model_t *model, clingo_default_model_printer_t printer, void *printer_data, void *data) {
+inline static bool g_model_printer(clingo_model_t const *model, clingo_default_model_printer_t printer, void *printer_data, void *data) {
     ApplicationData &app_data = *static_cast<ApplicationData*>(data);
     CLINGO_TRY {
-        app_data.app.print_model(Model(model), [&]() {
+        app_data.app.print_model(Model(const_cast<clingo_model_t*>(model)), [&]() {
             Detail::handle_error(printer(printer_data));
         });
     }

@@ -35,7 +35,7 @@ struct MCB {
     MCB(ModelVec &models) : models(models) {
         models.clear();
     }
-    bool operator()(Model m) {
+    bool operator()(Model const &m) {
         models.emplace_back();
         for (auto sym : m.symbols(ShowType::Shown)) {
             models.back().emplace_back(sym);

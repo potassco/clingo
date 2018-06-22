@@ -31,7 +31,7 @@ int main(int argc, char const **argv) {
 
         ctl.add("base", {}, "p(@c()). p(d). p(e).");
         ctl.ground({{"base", {}}}, ground_callback);
-        for (auto m : ctl.solve()) {
+        for (auto &m : ctl.solve()) {
             std::cout << "Model:";
             for (auto &atom : m.symbols()) {
                 std::cout << " " << atom;
