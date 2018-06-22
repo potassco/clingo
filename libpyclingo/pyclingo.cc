@@ -111,6 +111,8 @@ using Object = SharedObject<PyObject>;
 template <class T>
 struct ObjectProtocoll {
     // {{{2 object protocol
+    bool callable();
+    bool callable(char const *name);
     template <class... Args>
     Object call(char const *name, Args &&... args);
     template <class... Args>
@@ -142,7 +144,10 @@ struct ObjectProtocoll {
     //}
 
     // }}}2
-    bool none() const;
+    bool is_none() const;
+    bool is_sequence() const;
+    bool is_number() const;
+    bool is_str() const;
     bool valid() const;
 
 private:
@@ -208,6 +213,14 @@ Object None() { Py_RETURN_NONE; }
 template <class T>
 PyObject *ObjectProtocoll<T>::toPy_() const { return static_cast<T const *>(this)->toPy(); }
 
+template <class T>
+bool ObjectProtocoll<T>::callable() {
+    return PyCallable_Check(toPy_());
+}
+template <class T>
+bool ObjectProtocoll<T>::callable(char const *name) {
+    return hasAttr(name) && getAttr(name).callable();
+}
 template <class T>
 template <class... Args>
 Object ObjectProtocoll<T>::call(char const *name, Args &&... args) {
@@ -317,7 +330,13 @@ bool operator!=(Object a, Object b) {
 
 // }}}2
 template <class T>
-bool ObjectProtocoll<T>::none() const { return toPy_() == Py_None; }
+bool ObjectProtocoll<T>::is_none() const { return toPy_() == Py_None; }
+template <class T>
+bool ObjectProtocoll<T>::is_sequence() const { return PySequence_Check(toPy_()); }
+template <class T>
+bool ObjectProtocoll<T>::is_number() const { return PyNumber_Check(toPy_()); }
+template <class T>
+bool ObjectProtocoll<T>::is_str() const { return PyString_Check(toPy_()); }
 template <class T>
 bool ObjectProtocoll<T>::valid() const { return toPy_(); }
 
@@ -490,6 +509,8 @@ void pyToCpp(Reference pyObj, std::string &x) {
     x.assign(ret);
 }
 
+void pyToCpp(Reference ref, Object &obj);
+
 void pyToNum(Reference pyNum, long &x) { x = PyLong_AsLong(pyNum.toPy()); }
 void pyToNum(Reference pyNum, unsigned long &x) { x = PyLong_AsUnsignedLong(pyNum.toPy()); }
 CLINGO_ATTRIBUTE_UNUSED void pyToNum(Reference pyNum, long long &x) { x = PyLong_AsLongLong(pyNum.toPy()); }
@@ -552,6 +573,10 @@ void pyToCpp(Reference pyVec, std::vector<T> &vec) {
         pyToCpp(x, ret);
         vec.emplace_back(std::move(ret));
     }
+}
+
+void pyToCpp(Reference ref, Object &obj) {
+    obj = ref;
 }
 
 template <class T>
@@ -1617,7 +1642,7 @@ preconstructed symbols Infimum and Supremum.)";
             throw PyException();
         }
         clingo_symbol_t ret;
-        if (!params.none()) {
+        if (!params.is_none()) {
             std::vector<symbol_wrapper> syms;
             pyToCpp(params, syms);
             handle_c_error(clingo_symbol_create_function(name, reinterpret_cast<clingo_symbol_t*>(syms.data()), syms.size(), !sign, &ret));
@@ -1818,47 +1843,6 @@ This is equivalent to satisfiable is None.)", nullptr},
 (char *)R"(True if the search was interrupted.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
-
-// {{{1 wrap Statistics
-
-Object getStatistics(clingo_statistics_t *stats, uint64_t key) {
-    clingo_statistics_type_t type;
-    handle_c_error(clingo_statistics_type(stats, key, &type));
-    switch (type) {
-        case clingo_statistics_type_value: {
-            double val;
-            handle_c_error(clingo_statistics_value_get(stats, key, &val));
-            return cppToPy(val);
-        }
-        case clingo_statistics_type_array: {
-            size_t e;
-            handle_c_error(clingo_statistics_array_size(stats, key, &e));
-            List list;
-            for (size_t i = 0; i != e; ++i) {
-                uint64_t subkey;
-                handle_c_error(clingo_statistics_array_at(stats, key, i, &subkey));
-                list.append(getStatistics(stats, subkey));
-            }
-            return list;
-        }
-        case clingo_statistics_type_map: {
-            size_t e;
-            handle_c_error(clingo_statistics_map_size(stats, key, &e));
-            Dict dict;
-            for (size_t i = 0; i != e; ++i) {
-                char const *name;
-                uint64_t subkey;
-                handle_c_error(clingo_statistics_map_subkey_name(stats, key, i, &name));
-                handle_c_error(clingo_statistics_map_at(stats, key, name, &subkey));
-                dict.setItem(name, getStatistics(stats, subkey));
-            }
-            return dict;
-        }
-        default: {
-            throw std::logic_error("cannot happen");
-        }
-    }
-}
 
 // {{{1 wrap SymbolicAtom
 
@@ -2440,6 +2424,7 @@ will print the added symbols.
 
 // {{{1 wrap SolveHandle
 
+Object getUserStatistics(clingo_statistics_t *stats, uint64_t key);
 struct SolveHandle : ObjectBase<SolveHandle> {
     clingo_solve_handle_t *handle;
     PyObject *on_model;
@@ -2479,7 +2464,7 @@ See Control.solve() for an example.)";
     }
 
     clingo_solve_event_callback_t notify(clingo_solve_event_callback_t event, Reference mh, Reference fh) {
-        if (!mh.none()) {
+        if (!mh.is_none()) {
             on_model = mh.toPy();
             Py_XINCREF(on_model);
         }
@@ -2487,7 +2472,7 @@ See Control.solve() for an example.)";
             Py_XDECREF(on_model);
             on_model = nullptr;
         }
-        if (!fh.none()) {
+        if (!fh.is_none()) {
             on_finish = fh.toPy();
             Py_XINCREF(on_finish);
         }
@@ -2533,10 +2518,19 @@ See Control.solve() for an example.)";
         }));
     }
 
+    Object user_statistics(Reference args) {
+        Reference pyFinal = Py_True;
+        ParseTuple(args, "|O", pyFinal);
+        clingo_statistics_t *stats = clingo_solve_handle_user_statistics(handle, pyToCpp<bool>(pyFinal));
+        uint64_t root;
+        handle_c_error(clingo_statistics_root(stats, &root));
+        return getUserStatistics(stats, root);
+    }
+
     Object wait(Reference args) {
         Reference timeout = Py_None;
         ParseTuple(args, "|O", timeout);
-        auto time = timeout.none() ? -1 : pyToCpp<double>(timeout);
+        auto time = timeout.is_none() ? -1 : pyToCpp<double>(timeout);
         return cppToPy(doUnblocked([this, time](){
             bool ret;
             clingo_solve_handle_wait(handle, time, &ret);
@@ -2565,7 +2559,7 @@ See Control.solve() for an example.)";
                     try {
                         auto pyModel = Model::construct(static_cast<clingo_model_t*>(event));
                         Object ret = PyObject_CallFunction(handle.on_model, const_cast<char*>("O"), pyModel.toPy());
-                        *goon = ret.none() || pyToCpp<bool>(ret);
+                        *goon = ret.is_none() || pyToCpp<bool>(ret);
                         return true;
                     }
                     catch (...) {
@@ -2633,6 +2627,15 @@ Discards the last model and starts the search for the next one.
 If the search has been started asynchronously, this function also starts the
 search in the background.  A model that was not yet retrieved by calling )" CLINGO_PY_NEXT R"(
 is not discared.)"},
+    {"user_statistics", to_function<&SolveHandle::user_statistics>(), METH_VARARGS,
+R"(user_statistics(self, final) -> StatisticsMap
+
+Returns a modifiable statistics object, to add user statistics.
+
+Arguments:
+final -- whether accumulated or per step statistics are to be added
+         (Default: True)
+)"},
     {"__enter__", to_function<&SolveHandle::enter>(), METH_NOARGS,
 R"(__enter__(self) -> SolveHandle
 
@@ -3014,7 +3017,7 @@ condition ids to solver literals.)";
         static char const *kwlist[] = {"literal", "thread_id", nullptr};
         Reference lit, thread_id = Py_None;
         ParseTupleAndKeywords(pyargs, pykwds, "O|O", kwlist, lit, thread_id);
-        if (!thread_id.none()) {
+        if (!thread_id.is_none()) {
             handle_c_error(clingo_propagate_init_add_watch_to_thread(init, pyToCpp<clingo_literal_t>(lit), pyToCpp<uint32_t>(thread_id)));
         }
         else {
@@ -3499,7 +3502,7 @@ format.)";
         std::vector<clingo_atom_t> head;
         pyToCpp(pyHead, head);
         std::vector<clingo_literal_t> body;
-        if (!pyBody.none()) { pyToCpp(pyBody, body); }
+        if (!pyBody.is_none()) { pyToCpp(pyBody, body); }
         bool choice = pyChoice.isTrue();
         handle_c_error(clingo_backend_rule(backend, choice, head.data(), head.size(), body.data(), body.size()));
         Py_RETURN_NONE;
@@ -4298,7 +4301,7 @@ provided in this module.
             case ASTType::CSPProduct: {
                 auto var = fields_.getItem("variable");
                 auto coe = fields_.getItem("coefficient");
-                if (!var.none()) { out << coe << "$*" << "$" << var; }
+                if (!var.is_none()) { out << coe << "$*" << "$" << var; }
                 else             { out << coe; }
                 break;
             }
@@ -4344,9 +4347,9 @@ provided in this module.
             }
             case ASTType::Aggregate: {
                 auto left = fields_.getItem("left_guard"), right = fields_.getItem("right_guard");
-                if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
+                if (!left.is_none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
                 out << "{ " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
-                if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
+                if (!right.is_none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
                 break;
             }
             case ASTType::BodyAggregateElement: {
@@ -4355,9 +4358,9 @@ provided in this module.
             }
             case ASTType::BodyAggregate: {
                 auto left = fields_.getItem("left_guard"), right = fields_.getItem("right_guard");
-                if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
+                if (!left.is_none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
                 out << fields_.getItem("function") << " { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
-                if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
+                if (!right.is_none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
                 break;
             }
             case ASTType::HeadAggregateElement: {
@@ -4366,9 +4369,9 @@ provided in this module.
             }
             case ASTType::HeadAggregate: {
                 auto left = fields_.getItem("left_guard"), right = fields_.getItem("right_guard");
-                if (!left.none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
+                if (!left.is_none()) { out << left.getAttr("term") << " " << left.getAttr("comparison") << " "; }
                 out << fields_.getItem("function") << " { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
-                if (!right.none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
+                if (!right.is_none()) { out << " " << right.getAttr("comparison") << " " << right.getAttr("term"); }
                 break;
             }
             case ASTType::Disjunction: {
@@ -4416,7 +4419,7 @@ provided in this module.
             case ASTType::TheoryAtom: {
                 auto guard = fields_.getItem("guard");
                 out << "&" << fields_.getItem("term") << " { " << printList(fields_.getItem("elements"), "", "; ", "", false) << " }";
-                if (!guard.none()) { out << " " << guard; }
+                if (!guard.is_none()) { out << " " << guard; }
                 break;
             }
             // {{{3 theory definition
@@ -4435,7 +4438,7 @@ provided in this module.
             case ASTType::TheoryAtomDefinition: {
                 auto guard = fields_.getItem("guard");
                 out << "&" << fields_.getItem("name") << "/" << fields_.getItem("arity") << " : " << fields_.getItem("elements");
-                if (!guard.none()) { out << ", " << guard; }
+                if (!guard.is_none()) { out << ", " << guard; }
                 out << ", " << fields_.getItem("atom_type");
                 break;
             }
@@ -5084,7 +5087,7 @@ struct ASTToC {
     }
 
     clingo_ast_term_t *convTermOpt(Reference x) {
-        return !x.none() ? create_(convTerm(x)) : nullptr;
+        return !x.is_none() ? create_(convTerm(x)) : nullptr;
     }
 
     clingo_ast_csp_product_term_t convCSPProduct(Reference x) {
@@ -5232,7 +5235,7 @@ struct ASTToC {
     // {{{3 aggregates
 
     clingo_ast_aggregate_guard_t *convAggregateGuardOpt(Reference x) {
-        return !x.none()
+        return !x.is_none()
             ? create_<clingo_ast_aggregate_guard_t>({enumValue<ComparisonOperator>(x.getAttr("comparison")), convTerm(x.getAttr("term"))})
             : nullptr;
     }
@@ -5247,7 +5250,7 @@ struct ASTToC {
     }
 
     clingo_ast_theory_guard_t *convTheoryGuardOpt(Reference x) {
-        return !x.none()
+        return !x.is_none()
             ? create_<clingo_ast_theory_guard_t>({convString(x.getAttr("operator_name")), convTheoryTerm(x.getAttr("term"))})
             : nullptr;
     }
@@ -5451,7 +5454,7 @@ struct ASTToC {
     }
 
     clingo_ast_theory_guard_definition_t *convTheoryGuardDefinitionOpt(Reference x) {
-        if (x.none()) { return nullptr; }
+        if (x.is_none()) { return nullptr; }
         auto ret = create_<clingo_ast_theory_guard_definition_t>();
         auto ops = x.getAttr("operators");
         ret->term      = convString(x.getAttr("term"));
@@ -5767,6 +5770,316 @@ MessageCode.Other              -- other kinds of messages
 constexpr clingo_warning const MessageCode::values[];
 constexpr const char * const MessageCode::strings[];
 
+// {{{1 wrap Statistics
+
+Object getStatistics(clingo_statistics_t const *stats, uint64_t key) {
+    clingo_statistics_type_t type;
+    handle_c_error(clingo_statistics_type(stats, key, &type));
+    switch (type) {
+        case clingo_statistics_type_value: {
+            double val;
+            handle_c_error(clingo_statistics_value_get(stats, key, &val));
+            return cppToPy(val);
+        }
+        case clingo_statistics_type_array: {
+            size_t e;
+            handle_c_error(clingo_statistics_array_size(stats, key, &e));
+            List list;
+            for (size_t i = 0; i != e; ++i) {
+                uint64_t subkey;
+                handle_c_error(clingo_statistics_array_at(stats, key, i, &subkey));
+                list.append(getStatistics(stats, subkey));
+            }
+            return list;
+        }
+        case clingo_statistics_type_map: {
+            size_t e;
+            handle_c_error(clingo_statistics_map_size(stats, key, &e));
+            Dict dict;
+            for (size_t i = 0; i != e; ++i) {
+                char const *name;
+                uint64_t subkey;
+                handle_c_error(clingo_statistics_map_subkey_name(stats, key, i, &name));
+                handle_c_error(clingo_statistics_map_at(stats, key, name, &subkey));
+                dict.setItem(name, getStatistics(stats, subkey));
+            }
+            return dict;
+        }
+        default: {
+            throw std::logic_error("cannot happen");
+        }
+    }
+}
+
+void setUserStatistics(clingo_statistics_t *stats, uint64_t key, clingo_statistics_type_t type, Reference value, bool update);
+clingo_statistics_type_t getUserStatisticsType(Reference value) {
+    // there is an extra check for strings
+    // because recursively iterating over them causes stack overflows
+    if (value.is_str())                             { throw std::runtime_error("unexpected string"); }
+    else if (value.is_number() || value.callable()) { return clingo_statistics_type_value; }
+    else if (value.callable("items"))               { return clingo_statistics_type_map; }
+    else                                            { return clingo_statistics_type_array; }
+}
+
+struct StatisticsArray : ObjectBase<StatisticsArray> {
+    clingo_statistics_t *stats;
+    uint64_t key;
+
+    static PyMethodDef tp_methods[];
+
+    static constexpr char const *tp_type = "StatisticsArray";
+    static constexpr char const *tp_name = "clingo.StatisticsArray";
+    static constexpr char const *tp_doc =
+    R"(StatisticsArray object to capture statistics stored in an array.
+
+This class implements the sequence protocol but does not support deletion.
+Furthermore, only existing numeric values in a statistics array can be changed
+using the assignment operator.
+
+The update function provides a convenient means to initialize and modify a
+statistics array.
+)";
+
+    static SharedObject<StatisticsArray> construct(clingo_statistics_t *stats, int64_t key) {
+        auto self = new_();
+        self->stats = stats;
+        self->key = key;
+        return self;
+    }
+    Py_ssize_t sq_length() {
+        size_t size;
+        handle_c_error(clingo_statistics_array_size(stats, key, &size));
+        return size;
+    }
+    Object sq_item(Py_ssize_t index) {
+        uint64_t subkey;
+        handle_c_error(clingo_statistics_array_at(stats, key, index, &subkey));
+        return getUserStatistics(stats, subkey);
+    };
+    void sq_ass_item(Py_ssize_t index, Reference value) {
+        uint64_t subkey;
+        clingo_statistics_type_t type;
+        handle_c_error(clingo_statistics_array_at(stats, key, index, &subkey));
+        handle_c_error(clingo_statistics_type(stats, subkey, &type));
+        setUserStatistics(stats, subkey, type, value, true);
+    };
+    Object append(Reference value) {
+        uint64_t subkey;
+        clingo_statistics_type_t type = getUserStatisticsType(value);
+        handle_c_error(clingo_statistics_array_push(stats, key, type, &subkey));
+        setUserStatistics(stats, subkey, type, value, false);
+        return None();
+    }
+    Object extend(Reference value) {
+        for (auto x : value.iter()) { append(x); }
+        return None();
+    }
+    Object update(Reference value) {
+        size_t size = sq_length(), i = 0;
+        for (auto x : value.iter()) {
+            if (i < size) { sq_ass_item(i, x); }
+            else          { append(x); }
+            ++i;
+        }
+        return None();
+    }
+};
+
+PyMethodDef StatisticsArray::tp_methods[] = {
+    // append
+    {"append", to_function<&StatisticsArray::append>(), METH_O,
+R"(append(self, statistics) -> None
+
+Append a statistics to an array.
+
+The statistics parameter has to be a nested structure composed of numbers,
+sequences, and mappings.
+)"},
+    // append
+    {"extend", to_function<&StatisticsArray::extend>(), METH_O,
+R"(extend(self, values) -> None
+
+Extend the statistics array with the given values.
+
+Calls append() for each element of values.
+)"},
+    // update
+    {"update", to_function<&StatisticsArray::update>(), METH_O,
+R"(update(self, statistics) -> None
+
+Update a statistics array.
+
+The statistics argument must be a sequence. Further, it has to be a nested
+structure composed of numbers, sequences, mappings, and callables. A callable
+can be used to update an existing value, it receives the previous numeric value
+(or None if absent) as argument and must return an updated numeric value.
+)"},
+    {nullptr, nullptr, 0, nullptr}
+};
+
+struct StatisticsMap : ObjectBase<StatisticsMap> {
+    clingo_statistics_t *stats;
+    uint64_t key;
+
+    static PyMethodDef tp_methods[];
+
+    static constexpr char const *tp_type = "StatisticsMap";
+    static constexpr char const *tp_name = "clingo.StatisticsMap";
+    static constexpr char const *tp_doc =
+    R"(StatisticsMap object to capture statistics stored in a map.)";
+
+    static SharedObject<StatisticsMap> construct(clingo_statistics_t *stats, int64_t key) {
+        auto self = new_();
+        self->stats = stats;
+        self->key = key;
+        return self;
+    }
+    Py_ssize_t mp_length() {
+        size_t size;
+        handle_c_error(clingo_statistics_array_size(stats, key, &size));
+        return size;
+    }
+    Object mp_subscript(Reference name) {
+        uint64_t subkey;
+        handle_c_error(clingo_statistics_map_at(stats, key, pyToCpp<std::string>(name).c_str(), &subkey));
+        return getUserStatistics(stats, subkey);
+    };
+    void mp_ass_subscript(Reference pyName, Reference value) {
+        std::string name = pyToCpp<std::string>(pyName);
+        uint64_t subkey;
+        bool has_subkey;
+        clingo_statistics_type_t type;
+        handle_c_error(clingo_statistics_map_has_subkey(stats, key, name.c_str(), &has_subkey));
+        if (has_subkey) {
+            handle_c_error(clingo_statistics_map_at(stats, key, name.c_str(), &subkey));
+            handle_c_error(clingo_statistics_type(stats, subkey, &type));
+        }
+        else {
+            type = getUserStatisticsType(value);
+            handle_c_error(clingo_statistics_map_add_subkey(stats, key, name.c_str(), type, &subkey));
+        }
+        setUserStatistics(stats, subkey, type, value, has_subkey);
+    };
+    bool sq_contains(Reference name) {
+        bool ret;
+        handle_c_error(clingo_statistics_map_has_subkey(stats, key, pyToCpp<std::string>(name).c_str(), &ret));
+        return ret;
+    }
+    Object update(Reference value) {
+        for (auto x : value.call("items").iter()) {
+            auto pair = pyToCpp<std::pair<Object, Object>>(x);
+            mp_ass_subscript(pair.first, pair.second);
+        }
+        return None();
+    }
+    Object tp_iter() {
+        return keys().iter();
+    }
+    Object keys() {
+        List ret;
+        for (Py_ssize_t i = 0, e = mp_length(); i != e; ++i) {
+            char const *name;
+            clingo_statistics_map_subkey_name(stats, key, i, &name);
+            ret.append(cppToPy(name));
+        }
+        return ret;
+    }
+    Object values() {
+        List ret;
+        for (Py_ssize_t i = 0, e = mp_length(); i != e; ++i) {
+            char const *name;
+            uint64_t subkey;
+            clingo_statistics_map_subkey_name(stats, key, i, &name);
+            clingo_statistics_map_at(stats, key, name, &subkey);
+            ret.append(getUserStatistics(stats, subkey));
+        }
+        return ret;
+    }
+    Object items() {
+        List ret;
+        auto jt = begin(values().iter());
+        for (auto key : keys().iter()) {
+            ret.append(Tuple(key, *jt++));
+        }
+        return ret;
+    }
+
+};
+
+PyMethodDef StatisticsMap::tp_methods[] = {
+    // keys
+    {"keys", to_function<&StatisticsMap::keys>(), METH_NOARGS,
+R"(keys(self) -> [str]
+
+Return the keys in the statistics map.
+)"},
+    // values
+    {"values", to_function<&StatisticsMap::values>(), METH_NOARGS,
+R"(values(self) -> [Statistics]
+
+Return the values in the statistics map.
+)"},
+    // items
+    {"items", to_function<&StatisticsMap::items>(), METH_NOARGS,
+R"(items(self) -> [(str, Statstics)]
+
+Return the items in the statistics map.
+)"},
+    // update
+    {"update", to_function<&StatisticsMap::update>(), METH_O,
+R"(update(self, statistics) -> None
+
+Update a statistics array.
+
+The statistics argument must be a map. Otherwise, it is equivalent to
+StatisticsArray.update().
+)"},
+    {nullptr, nullptr, 0, nullptr}
+};
+
+void setUserStatistics(clingo_statistics_t *stats, uint64_t key, clingo_statistics_type_t type, Reference value, bool update) {
+    switch (type) {
+        case clingo_statistics_type_value: {
+            Object old = None();
+            if (update && value.callable()) {
+                double y;
+                handle_c_error(clingo_statistics_value_get(stats, key, &y));
+                old = cppToPy(y);
+            }
+            double x = pyToCpp<double>(value.callable() ? Reference{value(old)} : value);
+            handle_c_error(clingo_statistics_value_set(stats, key, x));
+            break;
+        }
+        case clingo_statistics_type_map: {
+            StatisticsMap::construct(stats, key)->update(value);
+            break;
+        }
+        case clingo_statistics_type_array: {
+            StatisticsArray::construct(stats, key)->update(value);
+            break;
+        }
+    }
+}
+
+Object getUserStatistics(clingo_statistics_t *stats, uint64_t key) {
+    clingo_statistics_type_t type;
+    handle_c_error(clingo_statistics_type(stats, key, &type));
+    switch (type) {
+        case clingo_statistics_type_array: {
+            return StatisticsArray::construct(stats, key);
+        }
+        case clingo_statistics_type_map: {
+            return StatisticsMap::construct(stats, key);
+        }
+        default: {
+            assert(type == clingo_statistics_type_value);
+            double value;
+            handle_c_error(clingo_statistics_value_get(stats, key, &value));
+            return cppToPy(value);
+        }
+    }
+}
+
 // {{{1 wrap Control
 
 void pycall(Reference fun, clingo_symbol_t const *arguments, size_t arguments_size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) {
@@ -5804,6 +6117,7 @@ static void logger_callback(clingo_warning_t code, char const *message, void *da
 struct ControlWrap : ObjectBase<ControlWrap> {
     using Propagators = std::vector<Object>;
     using Observers = std::vector<Object>;
+    using UserStatistics = std::forward_list<Object>;
     clingo_control_t *ctl;
     clingo_control_t *freeCtl;
     PyObject         *stats;
@@ -5881,13 +6195,13 @@ active; you must not call any member function during search.)";
         ParseTupleAndKeywords(pyargs, pykwds, "|OOi", kwlist, params, pyLogger, message_limit);
         std::forward_list<std::string> strs;
         std::vector<char const *> args;
-        if (!params.none()) {
+        if (!params.is_none()) {
             for (Object pyVal : Reference{params}.iter()) {
                 strs.emplace_front(pyToCpp<std::string>(pyVal));
                 args.emplace_back(strs.front().c_str());
             }
         }
-        if (!pyLogger.none()) {
+        if (!pyLogger.is_none()) {
             logger = pyLogger.release();
         }
         handle_c_error(clingo_control_new(args.data(), args.size(), logger ? logger_callback : nullptr, logger, message_limit, &freeCtl));
@@ -5939,7 +6253,7 @@ active; you must not call any member function during search.)";
         for (auto &&cpp_part : cpp_parts) {
             parts.emplace_back(clingo_part_t{cpp_part.first.c_str(), reinterpret_cast<clingo_symbol_t*>(cpp_part.second.data()), cpp_part.second.size()});
         }
-        doUnblocked([&](){ handle_c_error(clingo_control_ground(ctl, parts.data(), parts.size(), pyContext.none() ? nullptr : on_context, pyContext.none() ? nullptr : pyContext.toPy())); });
+        doUnblocked([&](){ handle_c_error(clingo_control_ground(ctl, parts.data(), parts.size(), pyContext.is_none() ? nullptr : on_context, pyContext.is_none() ? nullptr : pyContext.toPy())); });
         Py_RETURN_NONE;
     }
     Object getConst(Reference args) {
@@ -5961,7 +6275,7 @@ active; you must not call any member function during search.)";
         Reference pyAss = Py_None, pyM = Py_None, pyF = Py_None, pyYield = Py_False, pyAsync = Py_False;
         ParseTupleAndKeywords(args, kwds, "|OOOOO", kwlist, pyAss, pyM, pyF, pyYield, pyAsync);
         std::vector<clingo_literal_t> ass;
-        if (!pyAss.none()) {
+        if (!pyAss.is_none()) {
             clingo_symbolic_atoms_t *atoms;
             handle_c_error(clingo_control_symbolic_atoms(ctl, &atoms));
             ass = pyToLits(pyAss, atoms, false, false);
@@ -6014,7 +6328,7 @@ active; you must not call any member function during search.)";
     Object getStats() {
         CHECK_BLOCKED("statistics");
         if (!stats) {
-            clingo_statistics_t *s;
+            clingo_statistics_t const *s;
             handle_c_error(clingo_control_statistics(ctl, &s));
             uint64_t root;
             handle_c_error(clingo_statistics_root(s, &root));
@@ -6953,7 +7267,7 @@ Object parseTerm(Reference args, Reference kwds) {
     int message_limit = 20;
     ParseTupleAndKeywords(args, kwds, "s|Oi", kwlist, str, logger, message_limit);
     clingo_symbol_t sym;
-    handle_c_error(clingo_parse_term(str, !logger.none() ? logger_callback : nullptr, logger.toPy(), message_limit, &sym));
+    handle_c_error(clingo_parse_term(str, !logger.is_none() ? logger_callback : nullptr, logger.toPy(), message_limit, &sym));
     return Symbol::construct(sym);
 }
 
@@ -7516,6 +7830,8 @@ PropagateInit       -- object to initialize custom propagators
 SolveControl        -- controls running search in a model handler
 SolveHandle         -- handle for solve calls
 SolveResult         -- result of a solve call
+StatisticsArray     -- updatable statistics stored in an array
+StatisticsMap       -- updatable statistics stored in a map
 Symbol              -- captures precomputed terms
 SymbolicAtom        -- captures information about a symbolic atom
 SymbolicAtomIter    -- iterate over symbolic atoms
@@ -7611,7 +7927,7 @@ PyObject *initclingo_() {
             !SymbolType::initType(m)          || !Symbol::initType(m)           || !Backend::initType(m)          ||
             !ProgramBuilder::initType(m)      || !HeuristicType::initType(m)    || !TruthValue::initType(m)       ||
             !PropagatorCheckMode::initType(m) || !MessageCode::initType(m)      || !Flag::initType(m)             ||
-            !ApplicationOptions::initType(m)  ||
+            !ApplicationOptions::initType(m)  || !StatisticsArray::initType(m)  || !StatisticsMap::initType(m)    ||
             PyModule_AddStringConstant(m.toPy(), "__version__", CLINGO_VERSION) < 0 ||
             false) { return nullptr; }
         Reference a{initclingoast_()};

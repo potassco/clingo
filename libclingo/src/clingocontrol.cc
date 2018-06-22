@@ -477,6 +477,7 @@ Potassco::AbstractStatistics *ClingoControl::statistics() {
 void ClingoControl::useEnumAssumption(bool enable) {
     enableEnumAssupmption_ = enable;
 }
+
 bool ClingoControl::useEnumAssumption() {
     return enableEnumAssupmption_;
 }
@@ -660,9 +661,11 @@ SolveResult convert(Clasp::ClaspFacade::Result res) {
 }
 
 ClingoSolveFuture::ClingoSolveFuture(ClingoControl &ctl, Clasp::SolveMode_t mode)
-: model_(ctl)
-, handle_(model_.context().clasp_->solve(mode)) {
-}
+: model_{ctl}
+, step_stats_{ctl.statistics(), "user_step"}
+, accu_stats_{ctl.statistics(), "user_accu"}
+, handle_{model_.context().clasp_->solve(mode)} { }
+
 SolveResult ClingoSolveFuture::get() {
     return convert(handle_.get());
 }
@@ -677,6 +680,9 @@ bool ClingoSolveFuture::wait(double timeout) {
     if (timeout == 0)      { return handle_.ready(); }
     else if (timeout < 0)  { return handle_.wait(), true; }
     else                   { return handle_.waitFor(timeout); }
+}
+Potassco::AbstractStatistics &ClingoSolveFuture::user_statistics(bool final) {
+    return final ? accu_stats_ : step_stats_;
 }
 void ClingoSolveFuture::cancel() {
     handle_.cancel();

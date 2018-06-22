@@ -886,336 +886,6 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_theory_atoms_atom_to_string(clingo_theory_
 
 //! @}
 
-// {{{1 model and solve control
-
-//! @example model.c
-//! The example shows how to inspect a model.
-//!
-//! ## Output ##
-//!
-//! ~~~~~~~~~~~~
-//! $ ./model 0
-//! Stable model:
-//!   shown: c
-//!   atoms: b
-//!   terms: c
-//!  ~atoms: a
-//! Stable model:
-//!   shown: a
-//!   atoms: a
-//!   terms:
-//!  ~atoms: b
-//! ~~~~~~~~~~~~
-//!
-//! ## Code ##
-
-//! @defgroup Model Model Inspection
-//! Inspection of models and a high-level interface to add constraints during solving.
-//!
-//! For an example, see @ref model.c.
-//! @ingroup Control
-
-//! @addtogroup Model
-//! @{
-
-//! Object to add clauses during search.
-typedef struct clingo_solve_control clingo_solve_control_t;
-
-//! Object representing a model.
-typedef struct clingo_model clingo_model_t;
-
-//! Enumeration for the different model types.
-enum clingo_model_type {
-    clingo_model_type_stable_model          = 0, //!< The model represents a stable model.
-    clingo_model_type_brave_consequences    = 1, //!< The model represents a set of brave consequences.
-    clingo_model_type_cautious_consequences = 2  //!< The model represents a set of cautious consequences.
-};
-//! Corresponding type to ::clingo_model_type.
-typedef int clingo_model_type_t;
-
-//! Enumeration of bit flags to select symbols in models.
-enum clingo_show_type {
-    clingo_show_type_csp        = 1,  //!< Select CSP assignments.
-    clingo_show_type_shown      = 2,  //!< Select shown atoms and terms.
-    clingo_show_type_atoms      = 4,  //!< Select all atoms.
-    clingo_show_type_terms      = 8,  //!< Select all terms.
-    clingo_show_type_all        = 15, //!< Select everything.
-    clingo_show_type_complement = 16  //!< Select false instead of true atoms (::clingo_show_type_atoms) or terms (::clingo_show_type_terms).
-};
-//! Corresponding type to ::clingo_show_type.
-typedef unsigned clingo_show_type_bitset_t;
-
-//! @name Functions for Inspecting Models
-//! @{
-
-//! Get the type of the model.
-//!
-//! @param[in] model the target
-//! @param[out] type the type of the model
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_type(clingo_model_t *model, clingo_model_type_t *type);
-//! Get the running number of the model.
-//!
-//! @param[in] model the target
-//! @param[out] number the number of the model
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_number(clingo_model_t *model, uint64_t *number);
-//! Get the number of symbols of the selected types in the model.
-//!
-//! @param[in] model the target
-//! @param[in] show which symbols to select
-//! @param[out] size the number symbols
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_symbols_size(clingo_model_t *model, clingo_show_type_bitset_t show, size_t *size);
-//! Get the symbols of the selected types in the model.
-//!
-//! @note CSP assignments are represented using functions with name "$"
-//! where the first argument is the name of the CSP variable and the second one its
-//! value.
-//!
-//! @param[in] model the target
-//! @param[in] show which symbols to select
-//! @param[out] symbols the resulting symbols
-//! @param[in] size the number of selected symbols
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if the size is too small
-//!
-//! @see clingo_model_symbols_size()
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_symbols(clingo_model_t *model, clingo_show_type_bitset_t show, clingo_symbol_t *symbols, size_t size);
-//! Constant time lookup to test whether an atom is in a model.
-//!
-//! @param[in] model the target
-//! @param[in] atom the atom to lookup
-//! @param[out] contained whether the atom is contained
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_contains(clingo_model_t *model, clingo_symbol_t atom, bool *contained);
-//! Check if a program literal is true in a model.
-//!
-//! @param[in] model the target
-//! @param[in] literal the literal to lookup
-//! @param[out] result whether the literal is true
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_is_true(clingo_model_t *model, clingo_literal_t literal, bool *result);
-//! Get the number of cost values of a model.
-//!
-//! @param[in] model the target
-//! @param[out] size the number of costs
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_cost_size(clingo_model_t *model, size_t *size);
-//! Get the cost vector of a model.
-//!
-//! @param[in] model the target
-//! @param[out] costs the resulting costs
-//! @param[in] size the number of costs
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if the size is too small
-//!
-//! @see clingo_model_cost_size()
-//! @see clingo_model_optimality_proven()
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_cost(clingo_model_t *model, int64_t *costs, size_t size);
-//! Whether the optimality of a model has been proven.
-//!
-//! @param[in] model the target
-//! @param[out] proven whether the optimality has been proven
-//! @return whether the call was successful
-//!
-//! @see clingo_model_cost()
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_optimality_proven(clingo_model_t *model, bool *proven);
-//! Add symbols to the model.
-//!
-//! These symbols will appear in clingo's output, which means that this
-//! function is only meaningful if there is an underlying clingo application.
-//!
-//! @param[in] model the target
-//! @param[in] symbols the symbols to add
-//! @param[in] symbols the number of symbols to add
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_extend(clingo_model_t *model, clingo_symbol_t const *symbols, size_t size);
-//! Get the id of the solver thread that found the model.
-//!
-//! @param[in] model the target
-//! @param[out] id the resulting thread id
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_thread_id(clingo_model_t *model, clingo_id_t *id);
-//! @}
-
-//! @name Functions for Adding Clauses
-//! @{
-
-//! Get the associated solve control object of a model.
-//!
-//! This object allows for adding clauses during model enumeration.
-//! @param[in] model the target
-//! @param[out] control the resulting solve control object
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_model_context(clingo_model_t *model, clingo_solve_control_t **control);
-//! Get an object to inspect the symbolic atoms.
-//!
-//! @param[in] control the target
-//! @param[out] atoms the resulting object
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_control_symbolic_atoms(clingo_solve_control_t *control, clingo_symbolic_atoms_t **atoms);
-//! Add a clause that applies to the current solving step during model
-//! enumeration.
-//!
-//! @note The @ref Propagator module provides a more sophisticated
-//! interface to add clauses - even on partial assignments.
-//!
-//! @param[in] control the target
-//! @param[in] clause array of literals representing the clause
-//! @param[in] size the size of the literal array
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if adding the clause fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_control_add_clause(clingo_solve_control_t *control, clingo_literal_t const *clause, size_t size);
-//! @}
-
-//! @}
-
-// {{{1 solve result
-
-// NOTE: documented in Control Module
-enum clingo_solve_result {
-    clingo_solve_result_satisfiable   = 1,
-    clingo_solve_result_unsatisfiable = 2,
-    clingo_solve_result_exhausted     = 4,
-    clingo_solve_result_interrupted   = 8
-};
-typedef unsigned clingo_solve_result_bitset_t;
-
-// {{{1 solve handle
-
-//! @example solve-async.c
-//! The example shows how to solve in the background.
-//!
-//! ## Output (approximately) ##
-//!
-//! ~~~~~~~~~~~~
-//! ./solve-async 0
-//! pi = 3.
-//! 1415926535 8979323846 2643383279 5028841971 6939937510 5820974944
-//! 5923078164 0628620899 8628034825 3421170679 8214808651 3282306647
-//! 0938446095 5058223172 5359408128 4811174502 8410270193 8521105559
-//! 6446229489 5493038196 4428810975 6659334461 2847564823 3786783165
-//! 2712019091 4564856692 3460348610 4543266482 1339360726 0249141273
-//! 7245870066 0631558817 4881520920 9628292540 9171536436 7892590360
-//! 0113305305 4882046652 1384146951 9415116094 3305727036 5759591953
-//! 0921861173 8193261179 3105118548 0744623799 6274956735 1885752724
-//! 8912279381 8301194912 ...
-//! ~~~~~~~~~~~~
-//!
-//! ## Code ##
-
-//! @defgroup SolveHandle Solving
-//! Interact with a running search.
-//!
-//! A ::clingo_solve_handle_t objects can be used for both synchronous and asynchronous search,
-//! as well as iteratively receiving models and solve results.
-//!
-//! For an example showing how to solve asynchronously, see @ref solve-async.c.
-//! @ingroup Control
-
-//! @addtogroup SolveHandle
-//! @{
-
-//! Enumeration of solve modes.
-enum clingo_solve_mode {
-    clingo_solve_mode_async = 1, //!< Enable non-blocking search.
-    clingo_solve_mode_yield = 2, //!< Yield models in calls to clingo_solve_handle_model.
-};
-//! Corresponding type to ::clingo_solve_mode.
-typedef unsigned clingo_solve_mode_bitset_t;
-
-//! Enumeration of solve events.
-enum clingo_solve_event_type {
-    clingo_solve_event_type_model  = 0, //!< Issued if a model is found.
-    clingo_solve_event_type_finish = 1, //!< Issued if the search has completed.
-};
-//! Corresponding type to ::clingo_solve_event_type.
-typedef unsigned clingo_solve_event_type_t;
-
-//! Callback function called during search to notify when the search is finished or a model is ready.
-//!
-//! If a (non-recoverable) clingo API function fails in this callback, it must return false.
-//! In case of errors not related to clingo, set error code ::clingo_error_unknown and return false to stop solving with an error.
-//!
-//! @attention If the search is finished, the model is NULL.
-//!
-//! @param[in] model the current model
-//! @param[in] data user data of the callback
-//! @param[in] goon can be set to false to stop solving
-//! @return whether the call was successful
-//!
-//! @see clingo_control_solve()
-typedef bool (*clingo_solve_event_callback_t) (clingo_solve_event_type_t type, void *event, void *data, bool *goon);
-
-//! Search handle to a solve call.
-//!
-//! @see clingo_control_solve()
-typedef struct clingo_solve_handle clingo_solve_handle_t;
-
-//! Get the next solve result.
-//!
-//! Blocks until the result is ready.
-//! When yielding partial solve results can be obtained, i.e.,
-//! when a model is ready, the result will be satisfiable but neither the search exhausted nor the optimality proven.
-//!
-//! @param[in] handle the target
-//! @param[out] result the solve result
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_solve_result_bitset_t *result);
-//! Wait for the specified amount of time to check if the next result is ready.
-//!
-//! If the time is set to zero, this function can be used to poll if the search is still active.
-//! If the time is negative, the function blocks until the search is finished.
-//!
-//! @param[in] handle the target
-//! @param[in] timeout the maximum time to wait
-//! @param[out] result whether the search has finished
-CLINGO_VISIBILITY_DEFAULT void clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result);
-//! Get the next model (or zero if there are no more models).
-//!
-//! @param[in] handle the target
-//! @param[out] model the model (it is NULL if there are no more models)
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t **model);
-//! Discards the last model and starts the search for the next one.
-//!
-//! If the search has been started asynchronously, this function continues the search in the background.
-//!
-//! @note This function does not block.
-//!
-//! @param[in] handle the target
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_resume(clingo_solve_handle_t *handle);
-//! Stop the running search and block until done.
-//!
-//! @param[in] handle the target
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_cancel(clingo_solve_handle_t *handle);
-//! Stops the running search and releases the handle.
-//!
-//! Blocks until the search is stopped (as if an implicit cancel was called before the handle is released).
-//!
-//! @param[in] handle the target
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if solving fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *handle);
-
-//! @}
-
 // {{{1 propagator
 
 //! @example propagator.c
@@ -1994,7 +1664,7 @@ enum clingo_statistics_type {
 //! Corresponding type to ::clingo_statistics_type.
 typedef int clingo_statistics_type_t;
 
-//! Handle for to the solver statistics.
+//! Handle for the solver statistics.
 typedef struct clingo_statistic clingo_statistics_t;
 
 //! Get the root key of the statistics.
@@ -2002,14 +1672,14 @@ typedef struct clingo_statistic clingo_statistics_t;
 //! @param[in] statistics the target statistics
 //! @param[out] key the root key
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_root(clingo_statistics_t *statistics, uint64_t *key);
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_root(clingo_statistics_t const *statistics, uint64_t *key);
 //! Get the type of a key.
 //!
 //! @param[in] statistics the target statistics
 //! @param[in] key the key
 //! @param[out] type the resulting type
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_type(clingo_statistics_t *statistics, uint64_t key, clingo_statistics_type_t *type);
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_type(clingo_statistics_t const *statistics, uint64_t key, clingo_statistics_type_t *type);
 
 //! @name Functions to access arrays
 //! @{
@@ -2021,7 +1691,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_type(clingo_statistics_t *stati
 //! @param[in] key the key
 //! @param[out] size the resulting size
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_size(clingo_statistics_t *statistics, uint64_t key, size_t *size);
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_size(clingo_statistics_t const *statistics, uint64_t key, size_t *size);
 //! Get the subkey at the given offset of an array entry.
 //!
 //! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_array.
@@ -2030,7 +1700,16 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_size(clingo_statistics_t 
 //! @param[in] offset the offset in the array
 //! @param[out] subkey the resulting subkey
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_at(clingo_statistics_t *statistics, uint64_t key, size_t offset, uint64_t *subkey);
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_at(clingo_statistics_t const *statistics, uint64_t key, size_t offset, uint64_t *subkey);
+//! Create the subkey at the end of an array entry.
+//!
+//! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_array.
+//! @param[in] statistics the target statistics
+//! @param[in] key the key
+//! @param[in] type the type of the new subkey
+//! @param[out] subkey the resulting subkey
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_push(clingo_statistics_t *statistics, uint64_t key, clingo_statistics_type_t type, uint64_t *subkey);
 //! @}
 
 //! @name Functions to access maps
@@ -2043,7 +1722,16 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_array_at(clingo_statistics_t *s
 //! @param[in] key the key
 //! @param[out] size the resulting number
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_size(clingo_statistics_t *statistics, uint64_t key, size_t *size);
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_size(clingo_statistics_t const *statistics, uint64_t key, size_t *size);
+//! Test if the given map contains a specific subkey.
+//!
+//! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_map.
+//! @param[in] statistics the target statistics
+//! @param[in] key the key
+//! @param[in] name name of the subkey
+//! @param[out] true if the map has a subkey with the given name
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_has_subkey(clingo_statistics_t const *statistics, uint64_t key, char const *name, bool* result);
 //! Get the name associated with the offset-th subkey.
 //!
 //! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_map.
@@ -2052,7 +1740,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_size(clingo_statistics_t *s
 //! @param[in] offset the offset of the name
 //! @param[out] name the resulting name
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_subkey_name(clingo_statistics_t *statistics, uint64_t key, size_t offset, char const **name);
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_subkey_name(clingo_statistics_t const *statistics, uint64_t key, size_t offset, char const **name);
 //! Lookup a subkey under the given name.
 //!
 //! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_map.
@@ -2062,10 +1750,20 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_subkey_name(clingo_statisti
 //! @param[in] name the name to lookup the subkey
 //! @param[out] subkey the resulting subkey
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_at(clingo_statistics_t *statistics, uint64_t key, char const *name, uint64_t *subkey);
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_at(clingo_statistics_t const *statistics, uint64_t key, char const *name, uint64_t *subkey);
+//! Add a subkey with the given name.
+//!
+//! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_map.
+//! @param[in] statistics the target statistics
+//! @param[in] key the key
+//! @param[in] name the name of the new subkey
+//! @param[in] type the type of the new subkey
+//! @param[out] subkey the index of the resulting subkey
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_add_subkey(clingo_statistics_t *statistics, uint64_t key, char const *name, clingo_statistics_type_t type, uint64_t *subkey);
 //! @}
 
-//! @name Functions to inspect values
+//! @name Functions to inspect and change values
 //! @{
 
 //! Get the value of the given entry.
@@ -2075,8 +1773,352 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_at(clingo_statistics_t *sta
 //! @param[in] key the key
 //! @param[out] value the resulting value
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_value_get(clingo_statistics_t *statistics, uint64_t key, double *value);
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_value_get(clingo_statistics_t const *statistics, uint64_t key, double *value);
+//! Set the value of the given entry.
+//!
+//! @pre The @link clingo_statistics_type() type@endlink of the entry must be @ref ::clingo_statistics_type_value.
+//! @param[in] statistics the target statistics
+//! @param[in] key the key
+//! @param[out] value the new value
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_value_set(clingo_statistics_t *statistics, uint64_t key, double value);
 //! @}
+
+// {{{1 model and solve control
+
+//! @example model.c
+//! The example shows how to inspect a model.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! $ ./model 0
+//! Stable model:
+//!   shown: c
+//!   atoms: b
+//!   terms: c
+//!  ~atoms: a
+//! Stable model:
+//!   shown: a
+//!   atoms: a
+//!   terms:
+//!  ~atoms: b
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
+
+//! @defgroup Model Model Inspection
+//! Inspection of models and a high-level interface to add constraints during solving.
+//!
+//! For an example, see @ref model.c.
+//! @ingroup Control
+
+//! @addtogroup Model
+//! @{
+
+//! Object to add clauses during search.
+typedef struct clingo_solve_control clingo_solve_control_t;
+
+//! Object representing a model.
+typedef struct clingo_model clingo_model_t;
+
+//! Enumeration for the different model types.
+enum clingo_model_type {
+    clingo_model_type_stable_model          = 0, //!< The model represents a stable model.
+    clingo_model_type_brave_consequences    = 1, //!< The model represents a set of brave consequences.
+    clingo_model_type_cautious_consequences = 2  //!< The model represents a set of cautious consequences.
+};
+//! Corresponding type to ::clingo_model_type.
+typedef int clingo_model_type_t;
+
+//! Enumeration of bit flags to select symbols in models.
+enum clingo_show_type {
+    clingo_show_type_csp        = 1,  //!< Select CSP assignments.
+    clingo_show_type_shown      = 2,  //!< Select shown atoms and terms.
+    clingo_show_type_atoms      = 4,  //!< Select all atoms.
+    clingo_show_type_terms      = 8,  //!< Select all terms.
+    clingo_show_type_all        = 15, //!< Select everything.
+    clingo_show_type_complement = 16  //!< Select false instead of true atoms (::clingo_show_type_atoms) or terms (::clingo_show_type_terms).
+};
+//! Corresponding type to ::clingo_show_type.
+typedef unsigned clingo_show_type_bitset_t;
+
+//! @name Functions for Inspecting Models
+//! @{
+
+//! Get the type of the model.
+//!
+//! @param[in] model the target
+//! @param[out] type the type of the model
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_model_type(clingo_model_t *model, clingo_model_type_t *type);
+//! Get the running number of the model.
+//!
+//! @param[in] model the target
+//! @param[out] number the number of the model
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_model_number(clingo_model_t *model, uint64_t *number);
+//! Get the number of symbols of the selected types in the model.
+//!
+//! @param[in] model the target
+//! @param[in] show which symbols to select
+//! @param[out] size the number symbols
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_model_symbols_size(clingo_model_t *model, clingo_show_type_bitset_t show, size_t *size);
+//! Get the symbols of the selected types in the model.
+//!
+//! @note CSP assignments are represented using functions with name "$"
+//! where the first argument is the name of the CSP variable and the second one its
+//! value.
+//!
+//! @param[in] model the target
+//! @param[in] show which symbols to select
+//! @param[out] symbols the resulting symbols
+//! @param[in] size the number of selected symbols
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if the size is too small
+//!
+//! @see clingo_model_symbols_size()
+CLINGO_VISIBILITY_DEFAULT bool clingo_model_symbols(clingo_model_t *model, clingo_show_type_bitset_t show, clingo_symbol_t *symbols, size_t size);
+//! Constant time lookup to test whether an atom is in a model.
+//!
+//! @param[in] model the target
+//! @param[in] atom the atom to lookup
+//! @param[out] contained whether the atom is contained
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_model_contains(clingo_model_t *model, clingo_symbol_t atom, bool *contained);
+//! Check if a program literal is true in a model.
+//!
+//! @param[in] model the target
+//! @param[in] literal the literal to lookup
+//! @param[out] result whether the literal is true
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_model_is_true(clingo_model_t *model, clingo_literal_t literal, bool *result);
+//! Get the number of cost values of a model.
+//!
+//! @param[in] model the target
+//! @param[out] size the number of costs
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_model_cost_size(clingo_model_t *model, size_t *size);
+//! Get the cost vector of a model.
+//!
+//! @param[in] model the target
+//! @param[out] costs the resulting costs
+//! @param[in] size the number of costs
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if the size is too small
+//!
+//! @see clingo_model_cost_size()
+//! @see clingo_model_optimality_proven()
+CLINGO_VISIBILITY_DEFAULT bool clingo_model_cost(clingo_model_t *model, int64_t *costs, size_t size);
+//! Whether the optimality of a model has been proven.
+//!
+//! @param[in] model the target
+//! @param[out] proven whether the optimality has been proven
+//! @return whether the call was successful
+//!
+//! @see clingo_model_cost()
+CLINGO_VISIBILITY_DEFAULT bool clingo_model_optimality_proven(clingo_model_t *model, bool *proven);
+//! Add symbols to the model.
+//!
+//! These symbols will appear in clingo's output, which means that this
+//! function is only meaningful if there is an underlying clingo application.
+//!
+//! @param[in] model the target
+//! @param[in] symbols the symbols to add
+//! @param[in] symbols the number of symbols to add
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_model_extend(clingo_model_t *model, clingo_symbol_t const *symbols, size_t size);
+//! Get the id of the solver thread that found the model.
+//!
+//! @param[in] model the target
+//! @param[out] id the resulting thread id
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_model_thread_id(clingo_model_t *model, clingo_id_t *id);
+//! @}
+
+//! @name Functions for Adding Clauses
+//! @{
+
+//! Get the associated solve control object of a model.
+//!
+//! This object allows for adding clauses during model enumeration.
+//! @param[in] model the target
+//! @param[out] control the resulting solve control object
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_model_context(clingo_model_t *model, clingo_solve_control_t **control);
+//! Get an object to inspect the symbolic atoms.
+//!
+//! @param[in] control the target
+//! @param[out] atoms the resulting object
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_control_symbolic_atoms(clingo_solve_control_t *control, clingo_symbolic_atoms_t **atoms);
+//! Add a clause that applies to the current solving step during model
+//! enumeration.
+//!
+//! @note The @ref Propagator module provides a more sophisticated
+//! interface to add clauses - even on partial assignments.
+//!
+//! @param[in] control the target
+//! @param[in] clause array of literals representing the clause
+//! @param[in] size the size of the literal array
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if adding the clause fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_control_add_clause(clingo_solve_control_t *control, clingo_literal_t const *clause, size_t size);
+//! @}
+
+//! @}
+
+// {{{1 solve result
+
+// NOTE: documented in Control Module
+enum clingo_solve_result {
+    clingo_solve_result_satisfiable   = 1,
+    clingo_solve_result_unsatisfiable = 2,
+    clingo_solve_result_exhausted     = 4,
+    clingo_solve_result_interrupted   = 8
+};
+typedef unsigned clingo_solve_result_bitset_t;
+
+// {{{1 solve handle
+
+//! @example solve-async.c
+//! The example shows how to solve in the background.
+//!
+//! ## Output (approximately) ##
+//!
+//! ~~~~~~~~~~~~
+//! ./solve-async 0
+//! pi = 3.
+//! 1415926535 8979323846 2643383279 5028841971 6939937510 5820974944
+//! 5923078164 0628620899 8628034825 3421170679 8214808651 3282306647
+//! 0938446095 5058223172 5359408128 4811174502 8410270193 8521105559
+//! 6446229489 5493038196 4428810975 6659334461 2847564823 3786783165
+//! 2712019091 4564856692 3460348610 4543266482 1339360726 0249141273
+//! 7245870066 0631558817 4881520920 9628292540 9171536436 7892590360
+//! 0113305305 4882046652 1384146951 9415116094 3305727036 5759591953
+//! 0921861173 8193261179 3105118548 0744623799 6274956735 1885752724
+//! 8912279381 8301194912 ...
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
+
+//! @defgroup SolveHandle Solving
+//! Interact with a running search.
+//!
+//! A ::clingo_solve_handle_t objects can be used for both synchronous and asynchronous search,
+//! as well as iteratively receiving models and solve results.
+//!
+//! For an example showing how to solve asynchronously, see @ref solve-async.c.
+//! @ingroup Control
+
+//! @addtogroup SolveHandle
+//! @{
+
+//! Enumeration of solve modes.
+enum clingo_solve_mode {
+    clingo_solve_mode_async = 1, //!< Enable non-blocking search.
+    clingo_solve_mode_yield = 2, //!< Yield models in calls to clingo_solve_handle_model.
+};
+//! Corresponding type to ::clingo_solve_mode.
+typedef unsigned clingo_solve_mode_bitset_t;
+
+//! Enumeration of solve events.
+enum clingo_solve_event_type {
+    clingo_solve_event_type_model  = 0, //!< Issued if a model is found.
+    clingo_solve_event_type_finish = 1, //!< Issued if the search has completed.
+};
+//! Corresponding type to ::clingo_solve_event_type.
+typedef unsigned clingo_solve_event_type_t;
+
+//! Callback function called during search to notify when the search is finished or a model is ready.
+//!
+//! If a (non-recoverable) clingo API function fails in this callback, it must return false.
+//! In case of errors not related to clingo, set error code ::clingo_error_unknown and return false to stop solving with an error.
+//!
+//! @attention If the search is finished, the model is NULL.
+//!
+//! @param[in] model the current model
+//! @param[in] data user data of the callback
+//! @param[in] goon can be set to false to stop solving
+//! @return whether the call was successful
+//!
+//! @see clingo_control_solve()
+typedef bool (*clingo_solve_event_callback_t) (clingo_solve_event_type_t type, void *event, void *data, bool *goon);
+
+//! Search handle to a solve call.
+//!
+//! @see clingo_control_solve()
+typedef struct clingo_solve_handle clingo_solve_handle_t;
+
+//! Get the next solve result.
+//!
+//! Blocks until the result is ready.
+//! When yielding partial solve results can be obtained, i.e.,
+//! when a model is ready, the result will be satisfiable but neither the search exhausted nor the optimality proven.
+//!
+//! @param[in] handle the target
+//! @param[out] result the solve result
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_solve_result_bitset_t *result);
+//! Wait for the specified amount of time to check if the next result is ready.
+//!
+//! If the time is set to zero, this function can be used to poll if the search is still active.
+//! If the time is negative, the function blocks until the search is finished.
+//!
+//! @param[in] handle the target
+//! @param[in] timeout the maximum time to wait
+//! @param[out] result whether the search has finished
+CLINGO_VISIBILITY_DEFAULT void clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result);
+//! Get the next model (or zero if there are no more models).
+//!
+//! @param[in] handle the target
+//! @param[out] model the model (it is NULL if there are no more models)
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t **model);
+//! Discards the last model and starts the search for the next one.
+//!
+//! If the search has been started asynchronously, this function continues the search in the background.
+//!
+//! @note This function does not block.
+//!
+//! @param[in] handle the target
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_resume(clingo_solve_handle_t *handle);
+//! Stop the running search and block until done.
+//!
+//! @param[in] handle the target
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_cancel(clingo_solve_handle_t *handle);
+//! Stops the running search and releases the handle.
+//!
+//! Blocks until the search is stopped (as if an implicit cancel was called before the handle is released).
+//!
+//! @param[in] handle the target
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *handle);
+//! Can be used to add per step statistics, which are are printed by clingo's text output.
+//!
+//! The resulting statistics object is valid until the handle is closed.
+//!
+//! @param[in] handle the target
+//! @param[in] final whether to get summary
+//! @return a modifiable statistics object
+CLINGO_VISIBILITY_DEFAULT clingo_statistics_t *clingo_solve_handle_user_statistics(clingo_solve_handle_t *handle, bool final);
 
 //! @}
 
@@ -3220,7 +3262,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_is_conflicting(clingo_control_t *c
 //! @param[out] statistics the statistics object
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_statistics(clingo_control_t *control, clingo_statistics_t **statistics);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_statistics(clingo_control_t *control, clingo_statistics_t const **statistics);
 //! Interrupt the active solve call (or the following solve call right at the beginning).
 //!
 //! @param[in] control the target
