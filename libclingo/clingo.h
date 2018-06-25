@@ -2029,8 +2029,9 @@ typedef unsigned clingo_solve_mode_bitset_t;
 
 //! Enumeration of solve events.
 enum clingo_solve_event_type {
-    clingo_solve_event_type_model  = 0, //!< Issued if a model is found.
-    clingo_solve_event_type_finish = 1, //!< Issued if the search has completed.
+    clingo_solve_event_type_model      = 0, //!< Issued if a model is found.
+    clingo_solve_event_type_statistics = 1, //!< Issued when the statistics can be updated.
+    clingo_solve_event_type_finish     = 2, //!< Issued if the search has completed.
 };
 //! Corresponding type to ::clingo_solve_event_type.
 typedef unsigned clingo_solve_event_type_t;
@@ -2040,9 +2041,10 @@ typedef unsigned clingo_solve_event_type_t;
 //! If a (non-recoverable) clingo API function fails in this callback, it must return false.
 //! In case of errors not related to clingo, set error code ::clingo_error_unknown and return false to stop solving with an error.
 //!
+//! The event is either a pointer to a model, a pointer to two statistics objects (per step and accumulated statistics), or a solve result.
 //! @attention If the search is finished, the model is NULL.
 //!
-//! @param[in] model the current model
+//! @param[in] event the current event.
 //! @param[in] data user data of the callback
 //! @param[in] goon can be set to false to stop solving
 //! @return whether the call was successful
@@ -2111,14 +2113,6 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_cancel(clingo_solve_handle_t 
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if solving fails
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_close(clingo_solve_handle_t *handle);
-//! Can be used to add per step statistics, which are are printed by clingo's text output.
-//!
-//! The resulting statistics object is valid until the handle is closed.
-//!
-//! @param[in] handle the target
-//! @param[in] final whether to get summary
-//! @return a modifiable statistics object
-CLINGO_VISIBILITY_DEFAULT clingo_statistics_t *clingo_solve_handle_user_statistics(clingo_solve_handle_t *handle, bool final);
 
 //! @}
 

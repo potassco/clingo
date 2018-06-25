@@ -244,6 +244,36 @@ private:
     size_t              index_;
 };
 
+class UserStatistics : public Potassco::AbstractStatistics {
+public:
+    explicit UserStatistics()
+    : stats_{nullptr}
+    , root_{0} { }
+    void init(Potassco::AbstractStatistics *stats, char const *root) {
+        stats_ = stats;
+        root_ = stats_->add(stats_->root(), root, Potassco::Statistics_t::Map);
+    }
+
+    Key_t root() const override { return root_; }
+    Potassco::Statistics_t type(Key_t key) const override { return stats_->type(key); };
+    size_t size(Key_t key) const override { return stats_->size(key); }
+    bool writable(Key_t key) const override { return stats_->writable(key); }
+
+    Key_t at(Key_t arr, size_t index) const override { return stats_->at(arr, index); }
+    Key_t push(Key_t arr, Potassco::Statistics_t type) override { return stats_->push(arr, type); }
+
+    const char* key(Key_t mapK, size_t i) const override { return stats_->key(mapK, i); }
+    Key_t get(Key_t mapK, const char* at) const override { return stats_->get(mapK, at); }
+    bool find(Key_t mapK, const char* element, Key_t* outKey) const override { return stats_->find(mapK, element, outKey); }
+
+    Key_t add(Key_t mapK, const char* name, Potassco::Statistics_t type) override { return stats_->add(mapK, name, type); }
+    double value(Key_t key) const override { return stats_->value(key); }
+    void set(Key_t key, double value) override { return stats_->set(key, value); }
+private:
+    Potassco::AbstractStatistics *stats_;
+    Key_t root_;
+};
+
 class ClingoSolveFuture;
 class ClingoControl : public clingo_control, private ConfigProxy, private SymbolicAtoms {
 public:
@@ -360,6 +390,8 @@ public:
     Logger                                                     logger_;
     TheoryOutput                                               theory_;
     Backend                                                   *backend_               = nullptr;
+    UserStatistics                                             step_stats_;
+    UserStatistics                                             accu_stats_;
     bool                                                       enableEnumAssupmption_ = true;
     bool                                                       clingoMode_;
     bool                                                       verbose_               = false;
@@ -429,31 +461,6 @@ private:
 
 // {{{1 declaration of ClingoSolveFuture
 
-class UserStatistics : public Potassco::AbstractStatistics {
-public:
-    explicit UserStatistics(Potassco::AbstractStatistics *stats, char const *root)
-    : stats_{stats}
-    , root_{stats_->add(stats_->root(), root, Potassco::Statistics_t::Map)} { }
-    Key_t root() const override { return root_; }
-    Potassco::Statistics_t type(Key_t key) const override { return stats_->type(key); };
-    size_t size(Key_t key) const override { return stats_->size(key); }
-    bool writable(Key_t key) const override { return stats_->writable(key); }
-
-    Key_t at(Key_t arr, size_t index) const override { return stats_->at(arr, index); }
-    Key_t push(Key_t arr, Potassco::Statistics_t type) override { return stats_->push(arr, type); }
-
-    const char* key(Key_t mapK, size_t i) const override { return stats_->key(mapK, i); }
-    Key_t get(Key_t mapK, const char* at) const override { return stats_->get(mapK, at); }
-    bool find(Key_t mapK, const char* element, Key_t* outKey) const override { return stats_->find(mapK, element, outKey); }
-
-    Key_t add(Key_t mapK, const char* name, Potassco::Statistics_t type) override { return stats_->add(mapK, name, type); }
-    double value(Key_t key) const override { return stats_->value(key); }
-    void set(Key_t key, double value) override { return stats_->set(key, value); }
-private:
-    Potassco::AbstractStatistics *stats_;
-    Key_t root_;
-};
-
 SolveResult convert(Clasp::ClaspFacade::Result res);
 class ClingoSolveFuture : public Gringo::SolveFuture {
 public:
@@ -464,11 +471,8 @@ public:
     bool wait(double timeout) override;
     void resume() override;
     void cancel() override;
-    Potassco::AbstractStatistics &user_statistics(bool final) override;
 private:
     ClingoModel                     model_;
-    UserStatistics                  step_stats_;
-    UserStatistics                  accu_stats_;
     Clasp::ClaspFacade::SolveHandle handle_;
 };
 

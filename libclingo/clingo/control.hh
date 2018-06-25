@@ -122,12 +122,12 @@ namespace Gringo {
 
 struct SolveEventHandler {
     virtual bool on_model(Model &model);
-    virtual void on_finish(SolveResult ret);
+    virtual void on_finish(SolveResult ret, Potassco::AbstractStatistics *step, Potassco::AbstractStatistics *accu);
     virtual ~SolveEventHandler() = default;
 };
 using USolveEventHandler = std::unique_ptr<SolveEventHandler>;
 inline bool SolveEventHandler::on_model(Model &) { return true; }
-inline void SolveEventHandler::on_finish(SolveResult) { }
+inline void SolveEventHandler::on_finish(SolveResult, Potassco::AbstractStatistics *, Potassco::AbstractStatistics *) { }
 
 struct SolveFuture {
     virtual SolveResult get() = 0;
@@ -135,7 +135,6 @@ struct SolveFuture {
     virtual bool wait(double timeout) = 0;
     virtual void cancel() = 0;
     virtual void resume() = 0;
-    virtual Potassco::AbstractStatistics &user_statistics(bool final) = 0;
     virtual ~SolveFuture() { }
 };
 using USolveFuture = std::unique_ptr<SolveFuture>;
@@ -149,11 +148,8 @@ struct DefaultSolveFuture : SolveFuture {
     void resume() override {
         if (!done_) {
             done_ = true;
-            if (cb_) { cb_->on_finish({SolveResult::Unknown, false, false}); }
+            if (cb_) { cb_->on_finish({SolveResult::Unknown, false, false}, nullptr, nullptr); }
         }
-    }
-    Potassco::AbstractStatistics &user_statistics(bool) override {
-        throw std::runtime_error("statistics not available");
     }
 
     ~DefaultSolveFuture() override { resume(); }

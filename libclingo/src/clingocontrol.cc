@@ -293,7 +293,7 @@ bool ClingoControl::onModel(Clasp::Model const &m) {
 }
 void ClingoControl::onFinish(Clasp::ClaspFacade::Result ret) {
     if (eventHandler_) {
-        eventHandler_->on_finish(convert(ret));
+        eventHandler_->on_finish(convert(ret), &step_stats_, &accu_stats_);
         eventHandler_ = nullptr;
     }
 }
@@ -371,6 +371,10 @@ USolveFuture ClingoControl::solve(Assumptions ass, clingo_solve_mode_bitset_t mo
     if (clingoMode_) {
         static_assert(clingo_solve_mode_yield == static_cast<clingo_solve_mode_bitset_t>(Clasp::SolveMode_t::Yield), "");
         static_assert(clingo_solve_mode_async == static_cast<clingo_solve_mode_bitset_t>(Clasp::SolveMode_t::Async), "");
+        if (cb) {
+            step_stats_.init(statistics(), "user_step");
+            accu_stats_.init(statistics(), "user_accu");
+        }
         eventHandler_ = std::move(cb);
         return gringo_make_unique<ClingoSolveFuture>(*this, static_cast<Clasp::SolveMode_t>(mode));
     }
@@ -662,8 +666,6 @@ SolveResult convert(Clasp::ClaspFacade::Result res) {
 
 ClingoSolveFuture::ClingoSolveFuture(ClingoControl &ctl, Clasp::SolveMode_t mode)
 : model_{ctl}
-, step_stats_{ctl.statistics(), "user_step"}
-, accu_stats_{ctl.statistics(), "user_accu"}
 , handle_{model_.context().clasp_->solve(mode)} { }
 
 SolveResult ClingoSolveFuture::get() {
@@ -680,9 +682,6 @@ bool ClingoSolveFuture::wait(double timeout) {
     if (timeout == 0)      { return handle_.ready(); }
     else if (timeout < 0)  { return handle_.wait(), true; }
     else                   { return handle_.waitFor(timeout); }
-}
-Potassco::AbstractStatistics &ClingoSolveFuture::user_statistics(bool final) {
-    return final ? accu_stats_ : step_stats_;
 }
 void ClingoSolveFuture::cancel() {
     handle_.cancel();

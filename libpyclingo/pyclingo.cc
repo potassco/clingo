@@ -2506,25 +2506,10 @@ See Control.solve() for an example.)";
         }
     }
 
-    void update_statistics() {
-        if (on_statistics.valid()) {
-            try {
-                on_statistics(user_statistics_(false), user_statistics_(true));
-                on_statistics.release();
-            }
-            catch (...) {
-                on_statistics.release();
-                throw std::runtime_error("error in statistics callback");
-            }
-        }
-    }
-
     Object enter() { return Reference{*this}; }
 
     Object exit() {
         std::exception_ptr except;
-        try         { update_statistics(); }
-        catch (...) { except = std::current_exception(); }
         if (handle) {
             try         { doUnblocked([this](){ handle_c_error(clingo_solve_handle_close(handle)); }); }
             catch (...) { except = std::current_exception(); }
@@ -2538,25 +2523,17 @@ See Control.solve() for an example.)";
     }
 
     Object get() {
-        auto ret = SolveResult::construct(doUnblocked([this]() {
+        return SolveResult::construct(doUnblocked([this]() {
             clingo_solve_result_bitset_t result;
             handle_c_error(clingo_solve_handle_get(handle, &result));
             return result;
         }));
-        update_statistics();
-        return ret;
     }
 
-    Object user_statistics_(bool final) {
-        clingo_statistics_t *stats = clingo_solve_handle_user_statistics(handle, final);
+    Object user_statistics_(clingo_statistics_t *stats) {
         uint64_t root;
         handle_c_error(clingo_statistics_root(stats, &root));
         return getUserStatistics(stats, root);
-    }
-    Object user_statistics(Reference args) {
-        Reference pyFinal = Py_True;
-        ParseTuple(args, "|O", pyFinal);
-        return user_statistics_(pyToCpp<bool>(pyFinal));
     }
 
     Object wait(Reference args) {
@@ -2595,6 +2572,20 @@ See Control.solve() for an example.)";
                     }
                     catch (...) {
                         handle_cxx_error("<on_model>", "error in model callback");
+                        return false;
+                    }
+                }
+                return true;
+            }
+            case clingo_solve_event_type_statistics: {
+                if (handle.on_statistics.valid()) {
+                    PyBlock block;
+                    try {
+                        auto stats = static_cast<clingo_statistics_t **>(event);
+                        handle.on_statistics(handle.user_statistics_(stats[0]), handle.user_statistics_(stats[1]));
+                    }
+                    catch (...) {
+                        handle_cxx_error("<on_finish>", "error in finish callback");
                         return false;
                     }
                 }
@@ -2659,15 +2650,6 @@ Discards the last model and starts the search for the next one.
 If the search has been started asynchronously, this function also starts the
 search in the background.  A model that was not yet retrieved by calling )" CLINGO_PY_NEXT R"(
 is not discared.)"},
-    {"user_statistics", to_function<&SolveHandle::user_statistics>(), METH_VARARGS,
-R"(user_statistics(self, final) -> StatisticsMap
-
-Returns a modifiable statistics object, to add user statistics.
-
-Arguments:
-final -- whether accumulated or per step statistics are to be added
-         (Default: True)
-)"},
     {"__enter__", to_function<&SolveHandle::enter>(), METH_NOARGS,
 R"(__enter__(self) -> SolveHandle
 

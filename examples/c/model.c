@@ -56,7 +56,7 @@ out:
   return ret;
 }
 
-bool print_model(clingo_model_t *model, model_buffer_t *buf, char const *label, clingo_show_type_bitset_t show) {
+bool print_model(clingo_model_t const *model, model_buffer_t *buf, char const *label, clingo_show_type_bitset_t show) {
   bool ret = true;
   clingo_symbol_t *symbols;
   size_t n;
@@ -96,7 +96,7 @@ out:
   return ret;
 }
 
-bool print_solution(clingo_model_t *model, model_buffer_t *data) {
+bool print_solution(clingo_model_t const *model, model_buffer_t *data) {
   bool ret = true;
   uint64_t number;
   clingo_model_type_t type;
@@ -134,7 +134,7 @@ out:
 bool solve(clingo_control_t *ctl, model_buffer_t *data, clingo_solve_result_bitset_t *result) {
   bool ret = true;
   clingo_solve_handle_t *handle;
-  clingo_model_t *model;
+  clingo_model_t const *model;
 
   // get a solve handle
   if (!clingo_control_solve(ctl, clingo_solve_mode_yield, NULL, 0, NULL, NULL, &handle)) { goto error; }

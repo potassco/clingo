@@ -2,8 +2,8 @@
 
 import clingo
 
-def add_statistics(statistics):
-    statistics.update({
+def add_statistics(step, accu):
+    accu.update({
         "test": 10,
         "x": [1, 2, 3],
         "y": {
@@ -11,12 +11,12 @@ def add_statistics(statistics):
             "b": [1,2,3]
         }
     })
-    statistics["test"] = 20
-    statistics["x"] = [99, 9]
-    statistics["x"].extend([4,5,6])
+    accu["test"] = 20
+    accu["x"] = [99, 9]
+    accu["x"].extend([4,5,6])
     for i in range(1, 10):
-        statistics["test"] += i
-    statistics.update({
+        accu["test"] += i
+    accu.update({
         "y": {
             "a": lambda x: x+40,
             "c": 99,
@@ -43,9 +43,7 @@ def tomodel():
 
 def main(prg):
     prg.ground([("base", [])])
-    with prg.solve(async=True) as handle:
-        handle.get()
-        add_statistics(handle.user_statistics(True))
+    prg.solve(on_statistics=add_statistics)
     global user
     user = prg.statistics["user_accu"]
     prg.ground([("two", [])])

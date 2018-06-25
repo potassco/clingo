@@ -118,7 +118,7 @@ TEST_CASE("solving", "[clingo]") {
             auto stats = ctl.statistics();
             std::copy(stats.keys().begin(), stats.keys().end(), std::back_inserter(keys_root));
             std::sort(keys_root.begin(), keys_root.end());
-            std::vector<std::string> keys_check = { "accu", "problem", "solving", "summary", "user_accu", "user_step" };
+            std::vector<std::string> keys_check = { "accu", "problem", "solving", "summary" };
             REQUIRE(keys_root == keys_check);
             auto solving = stats["solving"];
             REQUIRE(solving["solver"].type() == StatisticsType::Array);
@@ -136,18 +136,17 @@ TEST_CASE("solving", "[clingo]") {
         }
         SECTION("set_statistics") {
             ctl.ground({{"base", {}}});
-            {
-                auto handle = ctl.solve();
-                REQUIRE(test_solve(handle, models).is_satisfiable());
-                auto stats = handle.user_statistics(false);
-                auto map = stats.add_subkey("map", StatisticsType::Map);
-                map.add_subkey("x", StatisticsType::Value).set_value(1);
-                map.add_subkey("y", StatisticsType::Value).set_value(2);
-                stats = handle.user_statistics();
-                map = stats.add_subkey("map", StatisticsType::Map);
-                map.add_subkey("x", StatisticsType::Value).set_value(3);
-                map.add_subkey("y", StatisticsType::Value).set_value(4);
-            }
+            struct H : Clingo::SolveEventHandler {
+                void on_statistics(Clingo::UserStatistics step, Clingo::UserStatistics accu) override {
+                    auto map = step.add_subkey("map", StatisticsType::Map);
+                    map.add_subkey("x", StatisticsType::Value).set_value(1);
+                    map.add_subkey("y", StatisticsType::Value).set_value(2);
+                    map = accu.add_subkey("map", StatisticsType::Map);
+                    map.add_subkey("x", StatisticsType::Value).set_value(3);
+                    map.add_subkey("y", StatisticsType::Value).set_value(4);
+                }
+            } handler;
+            REQUIRE(test_solve(ctl.solve(Clingo::LiteralSpan{}, &handler), models).is_satisfiable());
             auto stats = ctl.statistics();
             REQUIRE(stats["user_step.map"].type() == StatisticsType::Map);
             REQUIRE(stats["user_step.map.x"].type() == StatisticsType::Value);

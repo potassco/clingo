@@ -1092,9 +1092,6 @@ extern "C" bool clingo_solve_handle_resume(clingo_solve_handle_t *handle) {
     GRINGO_CLINGO_TRY { handle->resume(); }
     GRINGO_CLINGO_CATCH;
 }
-extern "C" clingo_statistics_t *clingo_solve_handle_user_statistics(clingo_solve_handle_t *handle, bool final) {
-    return static_cast<clingo_statistics_t*>(&handle->user_statistics(final));
-}
 
 // {{{1 control
 
@@ -1198,8 +1195,12 @@ private:
         if (!cb_(clingo_solve_event_type_model, &model, data_, &goon)) { throw ClingoError(); }
         return goon;
     }
-    void on_finish(SolveResult ret) override {
+    void on_finish(SolveResult ret, Potassco::AbstractStatistics *step, Potassco::AbstractStatistics *accu) override {
         bool goon = true;
+        clingo_statistics_t *stats[] = {static_cast<clingo_statistics_t*>(step), static_cast<clingo_statistics_t*>(accu)};
+        if (!cb_(clingo_solve_event_type_statistics, &stats, data_, &goon)) {
+            clingo_terminate("error in SolveEventHandler::on_statistics going to terminate");
+        }
         if (!cb_(clingo_solve_event_type_finish, &ret, data_, &goon)) {
             clingo_terminate("error in SolveEventHandler::on_finish going to terminate");
         }

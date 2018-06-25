@@ -61,29 +61,40 @@ out:
   return ret;
 }
 
-bool user_statistics(clingo_statistics_t* stats) {
-  uint64_t root, values, summary, value;
-  uint16_t n = 10, random = 1;
-  double sum = 0;
+bool event_handler(clingo_solve_event_type_t type, void *event, void *data, bool *goon) {
+  (void)data;
+  (void)goon;
+  switch (type) {
+    case clingo_solve_event_type_statistics: {
+      clingo_statistics_t *stats;
+      uint64_t root, values, summary, value;
+      uint16_t n = 10, random = 1;
+      double sum = 0;
 
-  // get the root key which refering to a special modifiable entry
-  if (!clingo_statistics_root(stats, &root)) { return false; }
+      // obtain a pointer to the accumulated statistics
+      stats = ((clingo_statistics_t **)event)[1];
 
-  // set some pseudo-random values in an array
-  if (!clingo_statistics_map_add_subkey(stats, root, "values", clingo_statistics_type_array, &values)) { return false; }
-  for (uint16_t i = 0; i < n; ++i) {
-      random = (random << 3) ^ (random ^ ((random & 0xf800) >> 13)) ^ i;
-      if (!clingo_statistics_array_push(stats, values, clingo_statistics_type_value, &value)) { return false; }
-      if (!clingo_statistics_value_set(stats, value, random)) { return false; }
-      sum += random;
+      // get the root key which refering to a special modifiable entry
+      if (!clingo_statistics_root(stats, &root)) { return false; }
+
+      // set some pseudo-random values in an array
+      if (!clingo_statistics_map_add_subkey(stats, root, "values", clingo_statistics_type_array, &values)) { return false; }
+      for (uint16_t i = 0; i < n; ++i) {
+        random = (random << 3) ^ (random ^ ((random & 0xf800) >> 13)) ^ i;
+        if (!clingo_statistics_array_push(stats, values, clingo_statistics_type_value, &value)) { return false; }
+        if (!clingo_statistics_value_set(stats, value, random)) { return false; }
+        sum += random;
+      }
+
+      // add the sum and average of the values in a map under key summary
+      if (!clingo_statistics_map_add_subkey(stats, root, "summary", clingo_statistics_type_map, &summary)) { return false; }
+      if (!clingo_statistics_map_add_subkey(stats, summary, "sum", clingo_statistics_type_value, &value)) { return false; }
+      if (!clingo_statistics_value_set(stats, value, sum)) { return false; }
+      if (!clingo_statistics_map_add_subkey(stats, summary, "avg", clingo_statistics_type_value, &value)) { return false; }
+      if (!clingo_statistics_value_set(stats, value, (double)sum/n)) { return false; }
+      break;
+    }
   }
-
-  // add the sum and average of the values in a map under key summary
-  if (!clingo_statistics_map_add_subkey(stats, root, "summary", clingo_statistics_type_map, &summary)) { return false; }
-  if (!clingo_statistics_map_add_subkey(stats, summary, "sum", clingo_statistics_type_value, &value)) { return false; }
-  if (!clingo_statistics_value_set(stats, value, sum)) { return false; }
-  if (!clingo_statistics_map_add_subkey(stats, summary, "avg", clingo_statistics_type_value, &value)) { return false; }
-  if (!clingo_statistics_value_set(stats, value, (double)sum/n)) { return false; }
 
   return true;
 }
@@ -106,8 +117,6 @@ bool solve(clingo_control_t *ctl, clingo_solve_result_bitset_t *result) {
   }
   // get the solve results
   if (!clingo_solve_handle_get(handle, result)) { goto error; }
-  // add the statistics
-  if (!user_statistics(clingo_solve_handle_user_statistics(handle, true))) { goto error; }
 
   goto out;
 

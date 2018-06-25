@@ -1899,11 +1899,13 @@ using UserStatisticCallback = std::function<void (UserStatistics &)>;
 class SolveEventHandler {
 public:
     virtual bool on_model(Model &model);
+    virtual void on_statistics(UserStatistics step, UserStatistics accu);
     virtual void on_finish(SolveResult result);
     virtual ~SolveEventHandler() = default;
 };
 
 inline bool SolveEventHandler::on_model(Model &) { return true; }
+inline void SolveEventHandler::on_statistics(UserStatistics, UserStatistics) { }
 inline void SolveEventHandler::on_finish(SolveResult) { }
 
 namespace Detail {
@@ -1927,7 +1929,6 @@ public:
     Model const &model();
     Model const &next();
     SolveResult get();
-    UserStatistics user_statistics(bool final=true);
     void cancel();
     ~SolveHandle();
 private:
@@ -2907,13 +2908,6 @@ inline SolveResult SolveHandle::get() {
 
 inline void SolveHandle::cancel() {
     Detail::handle_error(clingo_solve_handle_close(iter_), *exception_);
-}
-
-inline UserStatistics SolveHandle::user_statistics(bool final) {
-    auto stats = clingo_solve_handle_user_statistics(iter_, final);
-    uint64_t root;
-    Detail::handle_error(clingo_statistics_root(stats, &root));
-    return UserStatistics{stats, root};
 }
 
 inline SolveHandle::~SolveHandle() {
@@ -3902,20 +3896,25 @@ inline SolveHandle Control::solve(LiteralSpan assumptions, SolveEventHandler *ha
                 }
                 CLINGO_CALLBACK_CATCH(data.ptr);
             }
+            case clingo_solve_event_type_statistics: {
+                CLINGO_CALLBACK_TRY {
+                    auto stats = static_cast<clingo_statistics_t**>(event);
+                    uint64_t step_root, accu_root;
+                    Detail::handle_error(clingo_statistics_root(stats[0], &step_root));
+                    Detail::handle_error(clingo_statistics_root(stats[1], &accu_root));
+                    data.handler->on_statistics(UserStatistics{stats[0], step_root}, UserStatistics{stats[1], accu_root});
+                    *goon = true;
+                    return true;
+                }
+                CLINGO_CALLBACK_CATCH(data.ptr);
+            }
             case clingo_solve_event_type_finish: {
-                try {
+                CLINGO_CALLBACK_TRY {
                     data.handler->on_finish(SolveResult{*static_cast<clingo_solve_result_bitset_t*>(event)});
                     *goon = true;
                     return true;
                 }
-                catch (std::exception const &e) {
-                    fprintf(stderr, "error in SolveEventHandler::on_finish going to terminate:\n%s\n", e.what());
-                }
-                catch (...) {
-                    fprintf(stderr, "error in SolveEventHandler::on_finish going to terminate\n");
-                }
-                fflush(stderr);
-                std::terminate();
+                CLINGO_CALLBACK_CATCH(data.ptr);
             }
         }
         return false;
