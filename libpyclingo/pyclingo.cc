@@ -3798,7 +3798,7 @@ struct ASTType : EnumType<ASTType> {
         TheorySequence, TheoryFunction, TheoryUnparsedTermElement, TheoryUnparsedTerm, TheoryGuard, TheoryAtomElement, TheoryAtom,
         Literal,
         TheoryOperatorDefinition, TheoryTermDefinition, TheoryGuardDefinition, TheoryAtomDefinition, TheoryDefinition,
-        Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, ProjectAtom, ProjectSignature,
+        Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, ProjectAtom, ProjectSignature, Input
     };
     static constexpr char const *tp_type = "ASTType";
     static constexpr char const *tp_name = "clingo.ast.ASTType";
@@ -3814,7 +3814,7 @@ R"(Enumeration of ast node types.)";
         TheorySequence, TheoryFunction, TheoryUnparsedTermElement, TheoryUnparsedTerm, TheoryGuard, TheoryAtomElement, TheoryAtom,
         Literal,
         TheoryOperatorDefinition, TheoryTermDefinition, TheoryGuardDefinition, TheoryAtomDefinition, TheoryDefinition,
-        Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, ProjectAtom, ProjectSignature,
+        Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, ProjectAtom, ProjectSignature, Input
     };
     static constexpr const char * const strings[] = {
         "Id",
@@ -3825,7 +3825,7 @@ R"(Enumeration of ast node types.)";
         "TheorySequence", "TheoryFunction", "TheoryUnparsedTermElement", "TheoryUnparsedTerm", "TheoryGuard", "TheoryAtomElement", "TheoryAtom",
         "Literal",
         "TheoryOperatorDefinition", "TheoryTermDefinition", "TheoryGuardDefinition", "TheoryAtomDefinition", "TheoryDefinition",
-        "Rule", "Definition", "ShowSignature", "ShowTerm", "Minimize", "Script", "Program", "External", "Edge", "Heuristic", "ProjectAtom", "ProjectSignature",
+        "Rule", "Definition", "ShowSignature", "ShowTerm", "Minimize", "Script", "Program", "External", "Edge", "Heuristic", "ProjectAtom", "ProjectSignature", "Input"
     };
 };
 
@@ -4235,6 +4235,7 @@ provided in this module.
             case ASTType::Rule:                      { return ret({ "head", "body" }); }
             case ASTType::Definition:                { return ret({ "value" }); }
             case ASTType::ShowSignature:             { return ret({ }); }
+            case ASTType::Input:                     { return ret({ }); }
             case ASTType::ShowTerm:                  { return ret({ "term", "body" }); }
             case ASTType::Minimize:                  { return ret({ "weight", "priority", "tuple", "body" }); }
             case ASTType::Script:                    { return ret({ }); }
@@ -4487,6 +4488,10 @@ provided in this module.
                 out << "#show " << (fields_.getItem("csp").isTrue() ? "$" : "") << (fields_.getItem("positive").isTrue() ? "" : "-") << fields_.getItem("name") << "/" << fields_.getItem("arity") << ".";
                 break;
             }
+            case ASTType::Input: {
+                out << "#input " << (fields_.getItem("positive").isTrue() ? "" : "-") << fields_.getItem("name") << "/" << fields_.getItem("arity") << ".";
+                break;
+            }
             case ASTType::ShowTerm: {
                 out << "#show " << (fields_.getItem("csp").isTrue() ? "$" : "") << fields_.getItem("term") << printBody(fields_.getItem("body"));
                 break;
@@ -4646,6 +4651,7 @@ CREATE6(TheoryAtomDefinition, location, atom_type, name, arity, elements, guard)
 CREATE3(Rule, location, head, body)
 CREATE4(Definition, location, name, value, is_default)
 CREATE5(ShowSignature, location, name, arity, positive, csp)
+CREATE4(Input, location, name, arity, positive)
 CREATE4(ShowTerm, location, term, body, csp)
 CREATE5(Minimize, location, weight, priority, tuple, body)
 CREATE3(Script, location, script_type, code)
@@ -4942,6 +4948,10 @@ Object cppToPy(clingo_ast_statement_t const &stm) {
         case clingo_ast_statement_type_show_signature: {
             auto sig = stm.show_signature->signature;
             return call(createShowSignature, cppToPy(stm.location), cppToPy(clingo_signature_name(sig)), cppToPy(clingo_signature_arity(sig)), cppToPy(clingo_signature_is_positive(sig)), cppToPy(stm.show_signature->csp));
+        }
+        case clingo_ast_statement_type_input: {
+            auto sig = stm.input->signature;
+            return call(createInput, cppToPy(stm.location), cppToPy(clingo_signature_name(sig)), cppToPy(clingo_signature_arity(sig)), cppToPy(clingo_signature_is_positive(sig)));
         }
         case clingo_ast_statement_type_show_term: {
             return call(createShowTerm, cppToPy(stm.location), cppToPy(stm.show_term->term), cppToPy(stm.show_term->body, stm.show_term->size), cppToPy(stm.show_term->csp));
@@ -5520,6 +5530,13 @@ struct ASTToC {
                 handle_c_error(clingo_signature_create(convString(x.getAttr("name")), pyToCpp<unsigned>(x.getAttr("arity")), pyToCpp<bool>(x.getAttr("positive")), &show_signature->signature));
                 ret.type           = clingo_ast_statement_type_show_signature;
                 ret.show_signature = show_signature;
+                return ret;
+            }
+            case ASTType::Input: {
+                auto *input = create_<clingo_ast_input_t>();
+                handle_c_error(clingo_signature_create(convString(x.getAttr("name")), pyToCpp<unsigned>(x.getAttr("arity")), pyToCpp<bool>(x.getAttr("positive")), &input->signature));
+                ret.type  = clingo_ast_statement_type_input;
+                ret.input = input;
                 return ret;
             }
             case ASTType::ShowTerm: {
@@ -7355,6 +7372,7 @@ static PyMethodDef clingoASTModuleMethods[] = {
     {"Rule", to_function<createRule>(), METH_VARARGS | METH_KEYWORDS, nullptr},
     {"Definition", to_function<createDefinition>(), METH_VARARGS | METH_KEYWORDS, nullptr},
     {"ShowSignature", to_function<createShowSignature>(), METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"Input", to_function<createInput>(), METH_VARARGS | METH_KEYWORDS, nullptr},
     {"ShowTerm", to_function<createShowTerm>(), METH_VARARGS | METH_KEYWORDS, nullptr},
     {"Minimize", to_function<createMinimize>(), METH_VARARGS | METH_KEYWORDS, nullptr},
     {"Script", to_function<createScript>(), METH_VARARGS | METH_KEYWORDS, nullptr},
@@ -7605,6 +7623,12 @@ statement = Rule
              , arity      : int
              , sign       : bool
              , csp        : bool
+             )
+          | Input
+             ( location   : Location
+             , name       : str
+             , arity      : int
+             , sign       : bool
              )
           | ShowTerm
              ( location : Location

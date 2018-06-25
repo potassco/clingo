@@ -2615,6 +2615,12 @@ typedef struct clingo_ast_show_term {
     bool csp;
 } clingo_ast_show_term_t;
 
+// show
+
+typedef struct clingo_ast_input {
+    clingo_signature_t signature;
+} clingo_ast_input_t;
+
 // minimize
 
 typedef struct clingo_ast_minimize {
@@ -2698,7 +2704,8 @@ enum clingo_ast_statement_type {
     clingo_ast_statement_type_heuristic              = 9,
     clingo_ast_statement_type_project_atom           = 10,
     clingo_ast_statement_type_project_atom_signature = 11,
-    clingo_ast_statement_type_theory_definition      = 12
+    clingo_ast_statement_type_theory_definition      = 12,
+    clingo_ast_statement_type_input                  = 13
 };
 typedef int clingo_ast_statement_type_t;
 
@@ -2719,6 +2726,7 @@ typedef struct clingo_ast_statement {
         clingo_ast_project_t const *project_atom;
         clingo_signature_t project_signature;
         clingo_ast_theory_definition_t const *theory_definition;
+        clingo_ast_input_t const *input;
     };
 } clingo_ast_statement_t;
 

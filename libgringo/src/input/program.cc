@@ -77,6 +77,10 @@ void Program::add(UStm &&stm) {
     }
 }
 
+void Program::addInput(Sig sig) {
+    sigs_.push(sig);
+}
+
 void Program::add(TheoryDef &&def, Logger &log) {
     auto it = theoryDefs_.find(def.name());
     if (it == theoryDefs_.end()) {

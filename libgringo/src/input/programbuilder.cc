@@ -339,6 +339,10 @@ void NongroundProgramBuilder::showsig(Location const &loc, Sig sig, bool csp) {
     out.outPreds.emplace_back(loc, sig, csp);
 }
 
+void NongroundProgramBuilder::input(Location const &, Sig sig) {
+    prg_.addInput(sig);
+}
+
 void NongroundProgramBuilder::show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) {
     prg_.add(make_locatable<Statement>(loc, make_locatable<ShowHeadLiteral>(loc, terms_.erase(t), csp), bodies_.erase(body), StatementType::RULE));
 }

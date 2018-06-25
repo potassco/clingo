@@ -662,6 +662,14 @@ void ASTBuilder::showsig(Location const &loc, Sig sig, bool csp) {
     statement_(loc, clingo_ast_statement_type_show_signature, stm);
 }
 
+void ASTBuilder::input(Location const &loc, Sig sig) {
+    clingo_ast_input_t input;
+    input.signature = sig.rep();
+    clingo_ast_statement stm;
+    stm.input = create_(input);
+    statement_(loc, clingo_ast_statement_type_input, stm);
+}
+
 void ASTBuilder::show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) {
     auto bd = bodies_.erase(body);
     clingo_ast_show_term_t show;

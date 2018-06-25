@@ -246,6 +246,7 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
     DOTS        ".."
     END         0 "<EOF>"
     EXTERNAL    "#external"
+    INPUT       "#input"
     FALSE       "#false"
     FORGET      "#forget"
     GEQ         ">="
@@ -795,6 +796,12 @@ statement
     | SHOW CSP term[t] COLON bodydot[bd]               { BUILDER.show(@$, $t, $bd, true); }
     | SHOW CSP term[t] DOT                             { BUILDER.show(@$, $t, BUILDER.body(), true); }
     ;
+
+// {{{2 warnings
+
+statement
+    : INPUT identifier[id] SLASH NUMBER[num] DOT     { BUILDER.input(@$, Sig(String::fromRep($id), $num, false)); }
+    | INPUT SUB identifier[id] SLASH NUMBER[num] DOT { BUILDER.input(@$, Sig(String::fromRep($id), $num, true)); }
 
 // {{{2 acyclicity
 

@@ -123,6 +123,7 @@ public:
     virtual void define(Location const &loc, String name, TermUid value, bool defaultDef, Logger &log) override;
     virtual void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) override;
     virtual void showsig(Location const &loc, Sig sig, bool csp) override;
+    virtual void input(Location const &loc, Sig sig) override;
     virtual void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) override;
     virtual void python(Location const &loc, String code) override;
     virtual void lua(Location const &loc, String code) override;
@@ -618,6 +619,11 @@ void TestNongroundProgramBuilder::optimize(Location const &, TermUid weight, Ter
 
 void TestNongroundProgramBuilder::showsig(Location const &, Sig sig, bool csp) {
     current_ << "#showsig " << (csp ? "$" : "") << sig << ".";
+    statements_.emplace_back(str());
+}
+
+void TestNongroundProgramBuilder::input(Location const &, Sig sig) {
+    current_ << "#input " << sig << ".";
     statements_.emplace_back(str());
 }
 
@@ -1206,6 +1212,10 @@ TEST_CASE("input-nongroundprogrambuilder", "[input]") {
         REQUIRE("#program base().\n#showsig -p/1." == parse("#show -p/1."));
         REQUIRE("#program base().\n#show (-p/-1)." == parse("#show -p/-1."));
         REQUIRE("#program base().\n#show X:p(X);1<=#count{q(X):p(X)}." == parse("#show X:p(X), 1 { q(X):p(X) }."));
+    }
+
+    SECTION("input") {
+        REQUIRE("#program base().\n#input p/1." == parse("#input p/1."));
     }
 
     SECTION("include") {

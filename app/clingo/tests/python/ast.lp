@@ -53,6 +53,7 @@ def test():
     stm_r = ast.Rule(loc, lit_s, [lit_s, lit_t])
     stm_c = ast.Definition(loc, "x", trm_s, True)
     stm_s = ast.ShowSignature(loc, "x", 2, True, True)
+    stm_i = ast.Input(loc, "i", 2, True)
     stm_t = ast.ShowTerm(loc, trm_s, [lit_s], True)
     stm_m = ast.Minimize(loc, trm_s, trm_s, [trm_v], [lit_s])
     stm_p = ast.Script(loc, ast.ScriptType.Python, "blub!")
@@ -104,6 +105,7 @@ def test():
         (stm_r, "not p(2) :- not p(2); q(2).", ast.ASTType.Rule),
         (stm_c, "#const x = 2. [default]", ast.ASTType.Definition),
         (stm_s, "#show $x/2.", ast.ASTType.ShowSignature),
+        (stm_i, "#input i/2.", ast.ASTType.Input),
         (stm_t, "#show $2 : not p(2).", ast.ASTType.ShowTerm),
         (stm_m, ":~ not p(2). [2@2,X]", ast.ASTType.Minimize),
         (stm_p, "blub!", ast.ASTType.Script),

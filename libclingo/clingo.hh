@@ -1648,6 +1648,13 @@ struct ShowTerm {
 };
 std::ostream &operator<<(std::ostream &out, ShowTerm const &x);
 
+// signature
+
+struct Input {
+    Signature signature;
+};
+std::ostream &operator<<(std::ostream &out, Input const &x);
+
 // minimize
 
 struct Minimize {
@@ -1732,7 +1739,7 @@ std::ostream &operator<<(std::ostream &out, ProjectSignature const &x);
 
 struct Statement {
     Location location;
-    Variant<Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, ProjectAtom, ProjectSignature, TheoryDefinition> data;
+    Variant<Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, ProjectAtom, ProjectSignature, TheoryDefinition, Input> data;
 };
 std::ostream &operator<<(std::ostream &out, Statement const &x);
 
@@ -3615,6 +3622,14 @@ struct ASTToC {
         ret.show_signature = show_signature;
         return ret;
     }
+    clingo_ast_statement_t visit(Input const &x) {
+        auto *input = create_<clingo_ast_input_t>();
+        input->signature = x.signature.to_c();
+        clingo_ast_statement_t ret;
+        ret.type  = clingo_ast_statement_type_input;
+        ret.input = input;
+        return ret;
+    }
     clingo_ast_statement_t visit(ShowTerm const &x) {
         auto *show_term = create_<clingo_ast_show_term_t>();
         show_term->csp  = x.csp;
@@ -4719,6 +4734,10 @@ inline void convStatement(clingo_ast_statement_t const *stm, StatementCallback &
             cb({Location(stm->location), TheoryDefinition{def.name, convTheoryTermDefinitionVec(def.terms, def.terms_size), convTheoryAtomDefinitionVec(def.atoms, def.atoms_size)}});
             break;
         }
+        case clingo_ast_statement_type_input: {
+            cb({Location(stm->location), Input{Signature{stm->input->signature}}});
+            break;
+        }
     }
 }
 
@@ -4976,6 +4995,11 @@ inline std::ostream &operator<<(std::ostream &out, Definition const &x) {
 
 inline std::ostream &operator<<(std::ostream &out, ShowSignature const &x) {
     out << "#show " << (x.csp ? "$" : "") << x.signature << ".";
+    return out;
+}
+
+inline std::ostream &operator<<(std::ostream &out, Input const &x) {
+    out << "#input " << x.signature << ".";
     return out;
 }
 
