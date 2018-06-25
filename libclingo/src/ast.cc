@@ -1033,6 +1033,9 @@ public:
                 auto &y = *stm.show_signature;
                 return prg_.showsig(parseLocation(stm.location), Sig(y.signature), y.csp);
             }
+            case clingo_ast_statement_type_input: {
+                return prg_.input(parseLocation(stm.location), Sig(stm.input->signature));
+            }
             case clingo_ast_statement_type_show_term: {
                 auto &y = *stm.show_term;
                 return prg_.show(parseLocation(stm.location), parseTerm(y.term), parseBodyLiteralVec(y.body, y.size), y.csp);
