@@ -1832,8 +1832,6 @@ struct SolveHandle : Object<SolveHandle> {
                 lua_pushlightuserdata(L, goon);     // +1
                 int code = lua_pcall(L, 3, 0, -5);  // -4|-3
                 lua_remove(L, top + 1);             // -1
-                if (code) {
-                }
                 return handle_lua_error(L, "on_model", "error in model callback", code); // |-1
             }
             case clingo_solve_event_type_finish: {
