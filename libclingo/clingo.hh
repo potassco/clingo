@@ -2143,7 +2143,7 @@ private:
     Detail::ParserList &parsers_;
 };
 
-struct ClingoApplication {
+struct Application {
     virtual unsigned message_limit() const noexcept;
     virtual char const *program_name() const noexcept;
     virtual char const *version() const noexcept;
@@ -2152,7 +2152,7 @@ struct ClingoApplication {
     virtual void print_model(Model const &model, std::function<void()> default_printer) noexcept;
     virtual void register_options(ClingoOptions &app);
     virtual void validate_options();
-    virtual ~ClingoApplication() = default;
+    virtual ~Application() = default;
 };
 
 // {{{1 global functions
@@ -2164,7 +2164,7 @@ Symbol parse_term(char const *str, Logger logger = nullptr, unsigned message_lim
 char const *add_string(char const *str);
 std::tuple<int, int, int> version();
 
-inline int clingo_main(ClingoApplication &application, StringSpan arguments);
+inline int clingo_main(Application &application, StringSpan arguments);
 
 // }}}1
 
@@ -4255,31 +4255,31 @@ inline void ClingoOptions::add_flag(char const *group, char const *option, char 
     Detail::handle_error(clingo_options_add_flag(to_c(), group, option, description, &target));
 }
 
-inline unsigned ClingoApplication::message_limit() const noexcept {
+inline unsigned Application::message_limit() const noexcept {
     return 20;
 }
-inline char const *ClingoApplication::program_name() const noexcept {
+inline char const *Application::program_name() const noexcept {
     return "clingo";
 }
-inline char const *ClingoApplication::version() const noexcept {
+inline char const *Application::version() const noexcept {
     return CLINGO_VERSION;
 }
-inline void ClingoApplication::print_model(Model const &, std::function<void()> default_printer) noexcept {
+inline void Application::print_model(Model const &, std::function<void()> default_printer) noexcept {
     default_printer();
 }
-inline void ClingoApplication::log(WarningCode, char const *message) noexcept {
+inline void Application::log(WarningCode, char const *message) noexcept {
     fprintf(stderr, "%s\n", message);
     fflush(stderr);
 }
-inline void ClingoApplication::register_options(ClingoOptions &) {
+inline void Application::register_options(ClingoOptions &) {
 }
-inline void ClingoApplication::validate_options() {
+inline void Application::validate_options() {
 }
 
 namespace Detail {
 
 struct ApplicationData {
-    ClingoApplication &app;
+    Application &app;
     ParserList parsers;
 };
 
@@ -5076,7 +5076,7 @@ inline void parse_program(char const *program, StatementCallback cb, Logger logg
     }, &logger, message_limit), data.second);
 }
 
-inline int clingo_main(ClingoApplication &application, StringSpan arguments) {
+inline int clingo_main(Application &application, StringSpan arguments) {
     Detail::ApplicationData data{application, Detail::ParserList{}};
     static clingo_application_t g_app = {
         Detail::g_program_name,
