@@ -2049,7 +2049,7 @@ typedef unsigned clingo_solve_event_type_t;
 //!
 //! @param[in] event the current event.
 //! @param[in] data user data of the callback
-//! @param[in] goon can be set to false to stop solving
+//! @param[out] goon can be set to false to stop solving
 //! @return whether the call was successful
 //!
 //! @see clingo_control_solve()
