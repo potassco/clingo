@@ -1,7 +1,8 @@
-LUA_DIR=$(HOME)/local/opt/lua-5.3.4-js
+LUA_DIR=$(HOME)/local/opt/lua-js
 BUILD_TYPE=debug
 CC=/usr/bin/cc
 CXX=/usr/bin/c++
+SHELL=/bin/bash
 
 all: build/$(BUILD_TYPE)
 	cd build/$(BUILD_TYPE) && cd $$(pwd -P) && cmake .
