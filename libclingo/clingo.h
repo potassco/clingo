@@ -1934,6 +1934,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_model_thread_id(clingo_model_t const *mode
 //!
 //! These symbols will appear in clingo's output, which means that this
 //! function is only meaningful if there is an underlying clingo application.
+//! Only models passed to the ::clingo_solve_event_callback_t are extendable.
 //!
 //! @param[in] model the target
 //! @param[in] symbols the symbols to add
