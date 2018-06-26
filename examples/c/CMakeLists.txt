@@ -1,19 +1,3 @@
-# [[[cog
-#    import os
-#    import os.path
-#    import re
-#    os.chdir(os.path.dirname(cog.inFile))
-#    for root, dirnames, filenames in os.walk('.'):
-#        for filename in filenames:
-#            if re.match(r"^.*\.c$", filename):
-#                name = filename[:-2]
-#                cog.out("""
-#                        add_executable({name} "${{CMAKE_CURRENT_SOURCE_DIR}}/{filname}")
-#                        target_link_libraries({name} PRIVATE libclingo)
-#                        set_target_properties({name} PROPERTIES FOLDER "exe/clingo-c-examples")
-#                        """.format(name=name, filname=filename))
-# ]]]
-
 set(CMAKE_C_STANDARD 11)
 
 add_executable(model "${CMAKE_CURRENT_SOURCE_DIR}/model.c")
@@ -64,4 +48,6 @@ add_executable(theory-atoms "${CMAKE_CURRENT_SOURCE_DIR}/theory-atoms.c")
 target_link_libraries(theory-atoms PRIVATE libclingo)
 set_target_properties(theory-atoms PROPERTIES FOLDER "exe/clingo-c-examples")
 
-# [[[end]]]
+add_executable(application "${CMAKE_CURRENT_SOURCE_DIR}/application.c")
+target_link_libraries(application PRIVATE libclingo)
+set_target_properties(application PROPERTIES FOLDER "exe/application")

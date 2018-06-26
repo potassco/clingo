@@ -1043,7 +1043,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch(clingo_propagate_
 //! @param[in] solver_literal the solver literal
 //! @param[in] thread_id the id of the solver thread
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_t *init, clingo_literal_t lit, uint32_t thread_id);
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_t *init, clingo_literal_t solver_literal, uint32_t thread_id);
 //! Get an object to inspect the symbolic atoms.
 //!
 //! @param[in] init the target
@@ -1729,7 +1729,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_size(clingo_statistics_t co
 //! @param[in] statistics the target statistics
 //! @param[in] key the key
 //! @param[in] name name of the subkey
-//! @param[out] true if the map has a subkey with the given name
+//! @param[out] result true if the map has a subkey with the given name
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_has_subkey(clingo_statistics_t const *statistics, uint64_t key, char const *name, bool* result);
 //! Get the name associated with the offset-th subkey.
@@ -1782,6 +1782,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_value_get(clingo_statistics_t c
 //! @param[out] value the new value
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_value_set(clingo_statistics_t *statistics, uint64_t key, double value);
+//! @}
+
 //! @}
 
 // {{{1 model and solve control
@@ -1935,7 +1937,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_model_thread_id(clingo_model_t const *mode
 //!
 //! @param[in] model the target
 //! @param[in] symbols the symbols to add
-//! @param[in] symbols the number of symbols to add
+//! @param[in] size the number of symbols to add
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_model_extend(clingo_model_t *model, clingo_symbol_t const *symbols, size_t size);
 //! @}
@@ -3385,6 +3387,34 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_program_builder(clingo_control_t *
 //! @}
 
 // {{{1 extending clingo
+
+//! @example application.c
+//! The example shows how to extend the clingo application.
+//!
+//! It behaves like a normal normal clingo but adds one option to override the default program part to ground.
+//! ## Example calls ##
+//!
+//! ~~~~~~~~~~~~
+//! $ cat example.lp
+//! b.
+//! #program test.
+//! t.
+//!
+//! $ ./application --program test example.lp
+//! example version 1.0.0
+//! Reading from example.lp
+//! Solving...
+//! Answer: 1
+//! t
+//! SATISFIABLE
+//!
+//! Models       : 1+
+//! Calls        : 1
+//! Time         : 0.004s (Solving: 0.00s 1st Model: 0.00s Unsat: 0.00s)
+//! CPU Time     : 0.004s
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
 
 //! @defgroup ExtendingClingo Extending Clingo
 //! Functions to customize clingo's main function.
