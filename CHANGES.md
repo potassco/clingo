@@ -1,5 +1,18 @@
 # Changes
 
+## clingo 5.2.3
+  * update to clasp version 3.3.4
+  * really fix --pre option
+  * fix link to potassco guide (#74)
+  * fix location printing (#78)
+  * fix linking problems (#79)
+  * fix modulo zero (#100)
+  * fix web builds (#103)
+  * fix addding clauses after a model has been found (#104)
+  * fix python program observer bindings (#105)
+  * expose exponentiation operator in APIs
+  * improve python docstrings (#101, #102)
+  * add option to build python and lua modules against an existing libclingo
 ## clingo 5.2.2
   * update to clasp version 3.3.3
   * use GNUInstallDirs in cmake files to simplify packaging
