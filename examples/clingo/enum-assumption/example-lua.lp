@@ -2,7 +2,6 @@
 
 function main(prg)
     prg.configuration.solve.models = 0
-    print(prg.use_enumeration_assumption)
     prg:ground({{"base", {}}})
     prg.use_enumeration_assumption = true
     print("===================== Solve ========================")
@@ -12,7 +11,6 @@ function main(prg)
     prg:solve()
     print("===================== Solve ========================")
     prg:solve()
-    print(prg.use_enumeration_assumption)
 end
 
 #end.
