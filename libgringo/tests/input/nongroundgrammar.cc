@@ -123,7 +123,7 @@ public:
     virtual void define(Location const &loc, String name, TermUid value, bool defaultDef, Logger &log) override;
     virtual void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) override;
     virtual void showsig(Location const &loc, Sig sig, bool csp) override;
-    virtual void input(Location const &loc, Sig sig) override;
+    virtual void defined(Location const &loc, Sig sig) override;
     virtual void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) override;
     virtual void python(Location const &loc, String code) override;
     virtual void lua(Location const &loc, String code) override;
@@ -622,8 +622,8 @@ void TestNongroundProgramBuilder::showsig(Location const &, Sig sig, bool csp) {
     statements_.emplace_back(str());
 }
 
-void TestNongroundProgramBuilder::input(Location const &, Sig sig) {
-    current_ << "#input " << sig << ".";
+void TestNongroundProgramBuilder::defined(Location const &, Sig sig) {
+    current_ << "#defined " << sig << ".";
     statements_.emplace_back(str());
 }
 
@@ -1215,7 +1215,7 @@ TEST_CASE("input-nongroundprogrambuilder", "[input]") {
     }
 
     SECTION("input") {
-        REQUIRE("#program base().\n#input p/1." == parse("#input p/1."));
+        REQUIRE("#program base().\n#defined p/1." == parse("#defined p/1."));
     }
 
     SECTION("include") {

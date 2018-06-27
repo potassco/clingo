@@ -662,12 +662,12 @@ void ASTBuilder::showsig(Location const &loc, Sig sig, bool csp) {
     statement_(loc, clingo_ast_statement_type_show_signature, stm);
 }
 
-void ASTBuilder::input(Location const &loc, Sig sig) {
-    clingo_ast_input_t input;
-    input.signature = sig.rep();
+void ASTBuilder::defined(Location const &loc, Sig sig) {
+    clingo_ast_defined_t defined;
+    defined.signature = sig.rep();
     clingo_ast_statement stm;
-    stm.input = create_(input);
-    statement_(loc, clingo_ast_statement_type_input, stm);
+    stm.defined = create_(defined);
+    statement_(loc, clingo_ast_statement_type_defined, stm);
 }
 
 void ASTBuilder::show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) {
@@ -1033,8 +1033,8 @@ public:
                 auto &y = *stm.show_signature;
                 return prg_.showsig(parseLocation(stm.location), Sig(y.signature), y.csp);
             }
-            case clingo_ast_statement_type_input: {
-                return prg_.input(parseLocation(stm.location), Sig(stm.input->signature));
+            case clingo_ast_statement_type_defined: {
+                return prg_.defined(parseLocation(stm.location), Sig(stm.defined->signature));
             }
             case clingo_ast_statement_type_show_term: {
                 auto &y = *stm.show_term;

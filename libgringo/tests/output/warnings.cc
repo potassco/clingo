@@ -86,7 +86,7 @@ TEST_CASE("output-warnings", "[output]") {
             "])" == IO::to_string(solve("$x $> 0.\n$y $< 0.\na:-$z $> 0.\n")));
         REQUIRE("([[]],[-:1:1-12: info: no constraint variables over signature occur in program:\n  $y/0\n])" == IO::to_string(solve("#show $y/0.")));
         REQUIRE("([[]],[info: constraint variable does not occur in program:\n  $y\n])" == IO::to_string(solve("#show $y.")));
-        REQUIRE("([[]],[-:1:26-27: info: atom does not occur in any rule head:\n  c\n])" == IO::to_string(solve("#input b/0. a :- b. a :- c.")));
+        REQUIRE("([[]],[-:1:28-29: info: atom does not occur in any rule head:\n  c\n])" == IO::to_string(solve("#defined b/0. a :- b. a :- c.")));
     }
 }
 

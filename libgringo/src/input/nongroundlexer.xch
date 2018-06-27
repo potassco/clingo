@@ -80,7 +80,7 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
         <normal> "#maximi"[zs]"e"             { return NonGroundGrammar::parser::token::MAXIMIZE; }
         <normal> "#program"                   { return NonGroundGrammar::parser::token::BLOCK; }
         <normal> "#external"                  { return NonGroundGrammar::parser::token::EXTERNAL; }
-        <normal> "#input"                     { return NonGroundGrammar::parser::token::INPUT; }
+        <normal> "#defined"                   { return NonGroundGrammar::parser::token::DEFINED; }
         <definition> "left"                   { return NonGroundGrammar::parser::token::LEFT; }
         <definition> "right"                  { return NonGroundGrammar::parser::token::RIGHT; }
         <definition> "head"                   { return NonGroundGrammar::parser::token::HEAD; }

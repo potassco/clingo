@@ -339,7 +339,7 @@ void NongroundProgramBuilder::showsig(Location const &loc, Sig sig, bool csp) {
     out.outPreds.emplace_back(loc, sig, csp);
 }
 
-void NongroundProgramBuilder::input(Location const &, Sig sig) {
+void NongroundProgramBuilder::defined(Location const &, Sig sig) {
     prg_.addInput(sig);
 }
 

@@ -107,7 +107,7 @@ public:
     void define(Location const &loc, String name, TermUid value, bool defaultDef, Logger &log) override;
     void optimize(Location const &loc, TermUid weight, TermUid priority, TermVecUid cond, BdLitVecUid body) override;
     void showsig(Location const &loc, Sig sig, bool csp) override;
-    void input(Location const &loc, Sig sig) override;
+    void defined(Location const &loc, Sig sig) override;
     void show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) override;
     void python(Location const &loc, String code) override;
     void lua(Location const &loc, String code) override;

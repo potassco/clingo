@@ -1650,10 +1650,10 @@ std::ostream &operator<<(std::ostream &out, ShowTerm const &x);
 
 // signature
 
-struct Input {
+struct Defined {
     Signature signature;
 };
-std::ostream &operator<<(std::ostream &out, Input const &x);
+std::ostream &operator<<(std::ostream &out, Defined const &x);
 
 // minimize
 
@@ -1739,7 +1739,7 @@ std::ostream &operator<<(std::ostream &out, ProjectSignature const &x);
 
 struct Statement {
     Location location;
-    Variant<Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, ProjectAtom, ProjectSignature, TheoryDefinition, Input> data;
+    Variant<Rule, Definition, ShowSignature, ShowTerm, Minimize, Script, Program, External, Edge, Heuristic, ProjectAtom, ProjectSignature, TheoryDefinition, Defined> data;
 };
 std::ostream &operator<<(std::ostream &out, Statement const &x);
 
@@ -3622,12 +3622,12 @@ struct ASTToC {
         ret.show_signature = show_signature;
         return ret;
     }
-    clingo_ast_statement_t visit(Input const &x) {
-        auto *input = create_<clingo_ast_input_t>();
-        input->signature = x.signature.to_c();
+    clingo_ast_statement_t visit(Defined const &x) {
+        auto *defined = create_<clingo_ast_defined_t>();
+        defined->signature = x.signature.to_c();
         clingo_ast_statement_t ret;
-        ret.type  = clingo_ast_statement_type_input;
-        ret.input = input;
+        ret.type  = clingo_ast_statement_type_defined;
+        ret.defined = defined;
         return ret;
     }
     clingo_ast_statement_t visit(ShowTerm const &x) {
@@ -4734,8 +4734,8 @@ inline void convStatement(clingo_ast_statement_t const *stm, StatementCallback &
             cb({Location(stm->location), TheoryDefinition{def.name, convTheoryTermDefinitionVec(def.terms, def.terms_size), convTheoryAtomDefinitionVec(def.atoms, def.atoms_size)}});
             break;
         }
-        case clingo_ast_statement_type_input: {
-            cb({Location(stm->location), Input{Signature{stm->input->signature}}});
+        case clingo_ast_statement_type_defined: {
+            cb({Location(stm->location), Defined{Signature{stm->defined->signature}}});
             break;
         }
     }
@@ -4998,8 +4998,8 @@ inline std::ostream &operator<<(std::ostream &out, ShowSignature const &x) {
     return out;
 }
 
-inline std::ostream &operator<<(std::ostream &out, Input const &x) {
-    out << "#input " << x.signature << ".";
+inline std::ostream &operator<<(std::ostream &out, Defined const &x) {
+    out << "#defined " << x.signature << ".";
     return out;
 }
 
