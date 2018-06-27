@@ -1,7 +1,6 @@
 # Changes
 
 ## clingo 5.3.0
-  * update to clasp 3.3.4
   * change C API to use numeric instead of symbolic literals
     * affects assumptions and assigning/releasing externals
       (breaks backward compatibility)
@@ -15,6 +14,31 @@
   * add message logger to python and lua interface
   * add support for primes in the beginning of identifiers and variable names
   * add per solver registration of watches during propagator initialization
+  * add a directive to selectivel suppress undefined atom warnings
+  * add support for user defined statistics
+  * add _to_c functions for python API to be able to call C functions from
+    python
+  * only create ground representations for requested program parts when
+    grounding (#71)
+  * improve program observer (#19)
+  * support for binary, octal, and hexadecimal numbers (#65)
+  * the backend has to be opened/closed now
+  * release python's GIL while grounding (#82)
+  * TruthValue.{True,False} becomes TruthValue.{\_True,\_False} in python API
+  * improve API and it's documentation
+## clingo 5.2.3
+  * update to clasp version 3.3.4
+  * really fix --pre option
+  * fix link to potassco guide (#74)
+  * fix location printing (#78)
+  * fix linking problems (#79)
+  * fix modulo zero (#100)
+  * fix web builds (#103)
+  * fix addding clauses after a model has been found (#104)
+  * fix python program observer bindings (#105)
+  * expose exponentiation operator in APIs
+  * improve python docstrings (#101, #102)
+  * add option to build python and lua modules against an existing libclingo
 ## clingo 5.2.2
   * update to clasp version 3.3.3
   * use GNUInstallDirs in cmake files to simplify packaging
