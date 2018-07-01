@@ -1886,8 +1886,8 @@ struct SymbolicAtom : public ObjectBase<SymbolicAtom> {
 PyGetSetDef SymbolicAtom::tp_getset[] = {
     {(char *)"symbol", to_getter<&SymbolicAtom::symbol>(), nullptr, (char *)R"(The representation of the atom in form of a symbol (Symbol object).)", nullptr},
     {(char *)"literal", to_getter<&SymbolicAtom::literal>(), nullptr, (char *)R"(The program literal associated with the atom.)", nullptr},
-    {(char *)"is_fact", to_getter<&SymbolicAtom::is_fact>(), nullptr, (char *)R"(Wheather the atom is a is_fact.)", nullptr},
-    {(char *)"is_external", to_getter<&SymbolicAtom::is_external>(), nullptr, (char *)R"(Wheather the atom is an external atom.)", nullptr},
+    {(char *)"is_fact", to_getter<&SymbolicAtom::is_fact>(), nullptr, (char *)R"(Whether the atom is a is_fact.)", nullptr},
+    {(char *)"is_external", to_getter<&SymbolicAtom::is_external>(), nullptr, (char *)R"(Whether the atom is an external atom.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr},
 };
 
@@ -2938,7 +2938,7 @@ PyGetSetDef Assignment::tp_getset[] = {
     {(char *)"decision_level", to_getter<&Assignment::decisionLevel>(), nullptr, (char *)R"(The current decision level.)", nullptr},
     {(char *)"size", to_getter<&Assignment::size>(), nullptr, (char *)R"(The number of assigned literals.)", nullptr},
     {(char *)"max_size", to_getter<&Assignment::max_size>(), nullptr, (char *)R"(The maximum size of the assignment (if all literals are assigned).)", nullptr},
-    {(char *)"is_total", to_getter<&Assignment::isTotal>(), nullptr, (char *)R"(Wheather the assignment is total.)", nullptr},
+    {(char *)"is_total", to_getter<&Assignment::isTotal>(), nullptr, (char *)R"(Whether the assignment is total.)", nullptr},
     {(char *)"_to_c", to_getter<&Assignment::to_c>(), nullptr, (char *)R"(An int representing the pointer to the underlying C clingo_assignment_t struct.)", nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
@@ -7389,7 +7389,7 @@ R"(
 
 
 The grammar below defines valid ASTs. For each upper case identifier there is a
-matching function in the module. Arguments follow in paranthesis: each having a
+matching function in the module. Arguments follow in parenthesis: each having a
 type given on the right-hand side of the colon. The symbols ?, *, and + are
 used to denote optional arguments (None encodes abscence), list arguments, and
 non-empty list arguments.
