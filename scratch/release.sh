@@ -16,13 +16,10 @@ SRC="${GRINGO}-source"
 TEMP="/tmp/${GRINGO}-work"
 MAC=kaminski_local@herm
 WIN64=rhuys
-LIN64=zuse
+LIN64=ouessant
 RSYNC=( )
 EXTRA=
 EXT=
-PYEXT=.so
-LIBSUF=lib
-LIBEXT=.so
 SSH=ssh
 
 # {{{1 setup
@@ -89,21 +86,6 @@ function copy_files() {
         scp "${@:4}" -p "${2}:${TEMP}/build/bin/${EXTRA}${x}${EXT}" "${3}/${x}${EXT}"
         chmod +x "${3}/${x}${EXT}"
     done
-    if echo "test -d '${TEMP}/python'" | ${SSH} ${2}; then
-        for x in gringo clingo; do
-            scp "${@:4}" -p "${2}:${TEMP}/python/bin/${EXTRA}${x}${EXT}" "${3}/${x}-python${EXT}"
-            chmod +x "${3}/${x}-python${EXT}"
-        done
-        mkdir -p ${3}/python-api
-        scp "${@:4}" -p "${2}:${TEMP}/python/bin/python/${EXTRA}clingo${PYEXT}" "${3}/python-api/"
-        chmod +x "${3}/python-api/clingo${PYEXT}"
-    fi
-    if echo "test -d '${TEMP}/c-api'" | ${SSH} ${2}; then
-        mkdir -p ${3}/c-api/{lib,include}
-        scp "${@:4}" -p "${2}:${TEMP}/c-api/bin/${EXTRA}${LIBSUF}clingo${LIBEXT}" "${3}/c-api/lib/"
-        chmod +x "${3}/c-api/lib/${LIBSUF}clingo${LIBEXT}"
-        scp "${@:4}" -p "${2}:${TEMP}/source/libclingo/"{clingo.h,clingo.hh} "${3}/c-api/include/"
-    fi
     scp "${@:4}" -rp "${SRC}/"{CHANGES.md,LICENSE.md,examples} "${3}"
     (setopt NULL_GLOB; rm -rf "${3}"/**/CMakeLists.txt)
     for x in "${RSYNC[@]}"; do
@@ -132,17 +114,14 @@ rsync -ar "lua/" "${LIN64}:${TEMP}/lua"
 ssh -T "${LIN64}" <<EOF
 set -ex
 
-module load cmake gcc/4.9.1 bison re2c python/2.7
-
 cd "${TEMP}/lua"
-make -j8 posix CC=cc
+make -j8 generic CC=cc
 make local
 
 mkdir -p "${TEMP}/build"
 cd "${TEMP}/build"
 
-export LUA_DIR="${TEMP}/lua/install"
-cmake "${TEMP}/source" -DCLINGO_REQUIRE_LUA=On -DCLINGO_BUILD_WITH_LUA=ON -DCLINGO_BUILD_WITH_PYTHON=OFF -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc -DCMAKE_BUILD_TYPE=release -DCLINGO_BUILD_STATIC=ON -DCLINGO_MANAGE_RPATH=Off -DCMAKE_EXE_LINKER_FLAGS="-pthread -static -s -Wl,-u,pthread_cond_broadcast,-u,pthread_cond_destroy,-u,pthread_cond_signal,-u,pthread_cond_timedwait,-u,pthread_cond_wait,-u,pthread_create,-u,pthread_detach,-u,pthread_equal,-u,pthread_getspecific,-u,pthread_join,-u,pthread_key_create,-u,pthread_key_delete,-u,pthread_mutex_lock,-u,pthread_mutex_unlock,-u,pthread_once,-u,pthread_setspecific"
+cmake "${TEMP}/source" -DLUA_INCLUDE_DIR=${TEMP}/lua/install/include -DLUA_LIBRARY=${TEMP}/lua/install/lib/liblua.a -DCLINGO_REQUIRE_LUA=On -DCLINGO_BUILD_WITH_LUA=ON -DCLINGO_BUILD_WITH_PYTHON=OFF -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc -DCMAKE_BUILD_TYPE=release -DCLINGO_BUILD_STATIC=ON -DCLINGO_MANAGE_RPATH=Off -DCMAKE_EXE_LINKER_FLAGS="-pthread -static -s -Wl,-u,pthread_cond_broadcast,-u,pthread_cond_destroy,-u,pthread_cond_signal,-u,pthread_cond_timedwait,-u,pthread_cond_wait,-u,pthread_create,-u,pthread_detach,-u,pthread_equal,-u,pthread_getspecific,-u,pthread_join,-u,pthread_key_create,-u,pthread_key_delete,-u,pthread_mutex_lock,-u,pthread_mutex_unlock,-u,pthread_once,-u,pthread_setspecific"
 make -j8 VERBOSE=1
 EOF
 
@@ -150,8 +129,7 @@ update_readme "${GRINGO_LIN64}/README.md" <<"EOF"
 ## Contents of Linux Binary Release
 
 The `clingo` and `gringo` binaries are compiled statically and include Lua 5.3
-but no Python support. For Python support please get a source release and
-compile clingo yourself.
+but no Python support.
 
 - `clingo`: solver for non-ground programs
 - `gringo`: grounder
@@ -171,11 +149,10 @@ ssh -T "${MAC}" <<EOF
 set -ex
 
 cd "${TEMP}/lua"
-make -j8 posix CC=cc
+make -j8 generic CC=cc
 make local
 
-export LUA_DIR="${TEMP}/lua/install"
-COMMON=(-DCMAKE_BUILD_TYPE=release -DCLINGO_MANAGE_RPATH=Off -DBISON_EXECUTABLE=/usr/local/opt/bison/bin/bison -DLUA_LIBRARY:FILEPATH="\${LUA_DIR}/lib/liblua.a" -DPYTHON_EXECUTABLE=/System/Library/Frameworks/Python.framework/Versions/2.7/bin/python)
+COMMON=(-DLUA_INCLUDE_DIR=${TEMP}/lua/install/include -DLUA_LIBRARY=${TEMP}/lua/install/lib/liblua.a -DCMAKE_BUILD_TYPE=release -DCLINGO_MANAGE_RPATH=Off -DBISON_EXECUTABLE=/usr/local/opt/bison/bin/bison -DPYTHON_EXECUTABLE=/System/Library/Frameworks/Python.framework/Versions/2.7/bin/python)
 
 (
 mkdir -p "${TEMP}/build"
@@ -184,49 +161,27 @@ cd "${TEMP}/build"
 cmake "${TEMP}/source" -DCLINGO_BUILD_WITH_LUA=ON -DCLINGO_REQUIRE_LUA=ON -DCLINGO_BUILD_WITH_PYTHON=OFF -DCLINGO_BUILD_SHARED=OFF "\${COMMON[@]}"
 make -j8 VERBOSE=1
 )
-
-(
-mkdir -p "${TEMP}/python"
-cd "${TEMP}/python"
-
-cmake "${TEMP}/source" -DCLINGO_REQUIRE_LUA=ON -DCLINGO_REQUIRE_PYTHON=ON -DCLINGO_BUILD_SHARED=OFF "\${COMMON[@]}"
-make -j8 VERBOSE=1 gringo clingo pyclingo
-)
-
-(
-mkdir -p "${TEMP}/c-api"
-cd "${TEMP}/c-api"
-cmake "${TEMP}/source" -DCLINGO_BUILD_WITH_LUA=OFF -DCLINGO_BUILD_WITH_PYTHON=OFF -DCLINGO_BUILD_SHARED=ON "\${COMMON[@]}"
-make -j8 VERBOSE=1 libclingo
-)
 EOF
 
 (
-LIBEXT=.dylib
 update_readme "${GRINGO_MAC}/README.md" <<"EOF"
 ## Contents of MacOS Binary Release
 
 The `clingo` and `gringo` binaries are compiled with Lua 5.3 but without Python
-2.7 support.  The `clingo-python` and `gringo-python` executables are
-additionally build with Python 2.7 support.
+support.
 
 - `clingo`: solver for non-ground programs
-- `clingo-python`: solver for non-ground programs with Python support
 - `gringo`: grounder
-- `gringo-python`: grounder with Python support
 - `clasp`: solver for ground programs
 - `reify`: reifier for ground programs
 - `lpconvert`: translator for ground formats
-- `c-api/`: headers and library of clingo C and C++ API
-- `python-api/`: clingo Python 2.7 module
-  - to use the module either copy it into the Python path or point the
-    [PYTHONPATH](https://docs.python.org/2/using/cmdline.html#envvar-PYTHONPATH)
-    to the `python-api` directory
 EOF
 copy_files tgz "${MAC}" "${GRINGO_MAC}"
 )
 
 # {{{1 build for win64
+
+exit 0
 
 # NOTE: requires cmake, python, visual studio, and a cygwin environment with re2c to be installed on build machine
 
@@ -300,62 +255,28 @@ ${CMAKE} --build . --target install --config Release
 export LUA_DIR=\$(cygpath -w ${TEMP}/lua/install)
 echo "\${LUA_DIR}"
 
-# build clingo without python
+# build clingo
 mkdir -p "${TEMP}/build"
 cd '${TEMP}/build'
 ${CMAKE} -G "Visual Studio 14 2015 Win64" -DCLINGO_BUILD_SHARED=OFF -DCLINGO_BUILD_WITH_PYTHON=OFF -DBISON_EXECUTABLE="\${BISON_EXECUTABLE}" -DRE2C_EXECUTABLE="\${RE2C_EXECUTABLE}" -DCLINGO_REQUIRE_LUA=ON "\${SOURCE}"
 ${CMAKE} --build . --config Release
-
-# build clingo api
-mkdir -p "${TEMP}/c-api"
-cd '${TEMP}/c-api'
-${CMAKE} -G "Visual Studio 14 2015 Win64" -DCLINGO_BUILD_SHARED=ON -DCLINGO_BUILD_WITH_LUA=OFF -DCLINGO_BUILD_WITH_PYTHON=OFF -DBISON_EXECUTABLE="\${BISON_EXECUTABLE}" -DRE2C_EXECUTABLE="\${RE2C_EXECUTABLE}" "\${SOURCE}"
-${CMAKE} --build . --target libclingo --config Release
-
-# build clingo with python
-mkdir -p "${TEMP}/python"
-cd '${TEMP}/python'
-${CMAKE} -G "Visual Studio 14 2015 Win64" -DCLINGO_BUILD_SHARED=OFF -DCLINGO_REQUIRE_LUA=ON -DCLINGO_BUILD_WITH_PYTHON=ON -DCLINGO_REQUIRE_PYTHON=ON -DBISON_EXECUTABLE="\${BISON_EXECUTABLE}" -DRE2C_EXECUTABLE="\${RE2C_EXECUTABLE}" -DPYTHON_EXECUTABLE="c:/program files/python27/python.exe" "\${SOURCE}"
-${CMAKE} --build . --target clingo --config Release
-${CMAKE} --build . --target gringo --config Release
-${CMAKE} --build . --target pyclingo --config Release
 EOF
 
 (
 EXTRA=Release/
 EXT=.exe
 SSH=win_ssh
-PYEXT=.pyd
-LIBSUF=
-LIBEXT=.dll
 update_readme "${GRINGO_WIN64}/README.md" <<"EOF"
 ## Contents of Windows Binary Release
 
 The `clingo.exe` and `gringo.exe` binaries are compiled with Lua 5.3 but
-without Python support. The `clingo-python.exe` and `gringo-python.exe`
-executables are additionally build with Python 2.7 support.
-
-To run the executables, you may have to install the [Visual C++ Redistributable
-for Visual Studio 2015](
-https://www.microsoft.com/en-us/download/details.aspx?id=48145). When
-downloading choose the `vc_redist.x64.exe` executable.
-
-To run the executables with Python support, you have to install [Python 2.7.13
-for Windows x86-64](
-https://www.python.org/ftp/python/2.7.13/python-2.7.13.amd64.msi).
+without Python support.
 
 - `clingo.exe`: solver for non-ground programs
-- `clingo-python.exe`: solver for non-ground programs with Python support
 - `gringo.exe`: grounder
-- `gringo-python.exe`: grounder with Python support
 - `clasp.exe`: solver for ground programs
 - `reify.exe`: reifier for ground programs
 - `lpconvert.exe`: translator for ground formats
-- `c-api/`: headers and library of clingo C and C++ API
-- `python-api/`: clingo Python 2.7 module
-  - to use the module either copy it into the Python path or point the
-    [PYTHONPATH](https://docs.python.org/2/using/cmdline.html#envvar-PYTHONPATH)
-    to the `python-api` directory
 EOF
 copy_files zip "${WIN64}" "${GRINGO_WIN64}" -P 2264
 )
