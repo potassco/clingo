@@ -7107,7 +7107,7 @@ struct ApplicationOptions : ObjectBase<ApplicationOptions> {
     }
 
     Object to_c() {
-        return cppToPy(options);
+        return PyLong_FromVoidPtr(options);
     }
 };
 
