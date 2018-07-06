@@ -6576,7 +6576,7 @@ Starts a search.
 Keyword Arguments:
 on_model      -- Optional callback for intercepting models.
                  A Model object is passed to the callback.
-		 Return False to stop solving.
+                 Return False to stop solving.
                  (Default: None)
 on_statistics -- Optional callback to update statistics.
                  The step and accumulated statistics are passed as arguments.
