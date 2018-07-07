@@ -118,7 +118,7 @@ mkdir -p lua/{build,install}
     -B"\$(convert_path lua/build)" \\
     -G "${GENERATOR}" \\
     -DCMAKE_BUILD_TYPE=Release \\
-    -DCMAKE_INSTALL_PREFIX="\$(convert_path lua/install)"
+    -DCMAKE_INSTALL_PREFIX="\$(convert_path lua/install)" ${EXTRA_FLAGS}
 "${CMAKE}" --build "\$(convert_path lua/build)" --target install --config Release
 
 mkdir -p build
@@ -192,7 +192,7 @@ package
 # {{{1 Windows
 
 PACKAGE="${GRINGO}-win64"
-EXTRA_FLAGS=""
+EXTRA_FLAGS='-DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG"'
 GENERATOR="Visual Studio 14 2015 Win64"
 PLATFORM="Windows"
 ARCHIVE="zip"
@@ -200,7 +200,7 @@ EXTRA="Release/"
 EXT=".exe"
 BUILD_HOST="localhost"
 # the linux tmp will confuse cmake; this has to be a folder in the windows world
-TEMP="/home/kaminski/git/tmp"
+TEMP="/home/kaminski/git/tmp/${GRINGO}-work"
 CMAKE='/mnt/c/Program Files (x86)/Microsoft Visual Studio/2017/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe'
 SSH_ARGS=("-p" "2222")
 RSYNC_ARGS=("-e" "ssh -p 2222")
