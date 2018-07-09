@@ -255,10 +255,10 @@ void Statement::rewrite() {
     { // rewrite arithmetics
         Term::ArithmeticsMap arith;
         Literal::AssignVec assign;
-        arith.emplace_back();
+        arith.emplace_back(gringo_make_unique<Term::LevelMap>());
         head->rewriteArithmetics(arith, auxGen);
         for (auto &y : body) { y->rewriteArithmetics(arith, assign, auxGen); }
-        for (auto &y : arith.back()) { body.emplace_back(gringo_make_unique<SimpleBodyLiteral>(RelationLiteral::make(y))); }
+        for (auto &y : *arith.back()) { body.emplace_back(gringo_make_unique<SimpleBodyLiteral>(RelationLiteral::make(y))); }
         for (auto &y : assign) { body.emplace_back(gringo_make_unique<SimpleBodyLiteral>(RelationLiteral::make(y))); }
         arith.pop_back();
     }

@@ -448,7 +448,7 @@ RelationLiteral::RelationLiteral(Relation rel, UTerm &&left, UTerm &&right)
     , left(std::move(left))
     , right(std::move(right)) { }
 
-ULit RelationLiteral::make(Term::ArithmeticsMap::value_type::value_type &x) {
+ULit RelationLiteral::make(Term::LevelMap::value_type &x) {
     Location loc(x.first->loc());
     return make_locatable<RelationLiteral>(loc, Relation::EQ, std::move(x.second), get_clone(x.first));
 }

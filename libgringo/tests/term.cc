@@ -78,7 +78,7 @@ TEST_CASE("term", "[base]") {
 
     auto rewriteArithmetics = [&](UTerm &&x) -> std::string {
         Term::ArithmeticsMap vec;
-        vec.emplace_back();
+        vec.emplace_back(gringo_make_unique<Term::LevelMap>());
         AuxGen gen;
         UTerm y(x->rewriteArithmetics(vec, gen));
         return to_string(std::make_pair(y ? std::move(y) : std::move(x), std::move(vec)));
@@ -100,7 +100,7 @@ TEST_CASE("term", "[base]") {
         for(auto &term : unpool(x)) {
             SimplifyState elemState(state);
             Term::ArithmeticsMap arith;
-            arith.emplace_back();
+            arith.emplace_back(gringo_make_unique<Term::LevelMap>());
             term->simplify(elemState, true, false, log).update(term);
             Term::replace(term, term->rewriteArithmetics(arith, elemState.gen));
             res.emplace_back(std::move(term), std::move(elemState.dots), std::move(arith));
@@ -112,7 +112,7 @@ TEST_CASE("term", "[base]") {
         SimplifyState state;
         Term::ArithmeticsMap arith;
         Term::VarSet set;
-        arith.emplace_back();
+        arith.emplace_back(gringo_make_unique<Term::LevelMap>());
         x->simplify(state, true, false, log).update(x);
         Term::replace(x, x->rewriteArithmetics(arith, state.gen));
         x->bind(set);

@@ -135,9 +135,9 @@ bool TheoryElement::simplify(Projections &project, SimplifyState &state, Logger 
 
 void TheoryElement::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen) {
     Literal::AssignVec assign;
-    arith.emplace_back();
+    arith.emplace_back(gringo_make_unique<Term::LevelMap>());
     for (auto &lit : cond_) { lit->rewriteArithmetics(arith, assign, auxGen); }
-    for (auto &y : arith.back()) { cond_.emplace_back(RelationLiteral::make(y)); }
+    for (auto &y : *arith.back()) { cond_.emplace_back(RelationLiteral::make(y)); }
     for (auto &y : assign) { cond_.emplace_back(RelationLiteral::make(y)); }
     arith.pop_back();
 }

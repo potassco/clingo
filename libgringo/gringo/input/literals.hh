@@ -93,7 +93,7 @@ struct RelationLiteral : Literal {
     bool auxiliary() const override { return true; }
     void auxiliary(bool) override { }
     virtual ~RelationLiteral();
-    static ULit make(Term::ArithmeticsMap::value_type::value_type &x);
+    static ULit make(Term::LevelMap::value_type &x);
     static ULit make(Literal::AssignVec::value_type &x);
     void getNeg(std::function<void (Sig)>) const override { }
 

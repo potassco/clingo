@@ -568,11 +568,11 @@ bool Term::bind(VarSet &bound) {
 
 UTerm Term::insert(ArithmeticsMap &arith, AuxGen &auxGen, UTerm &&term, bool eq) {
     unsigned level = term->getLevel();
-    if (arith[level].find(term) == arith[level].end()) { level = numeric_cast<unsigned>(arith.size() - 1); }
-    auto ret = arith[level].emplace(std::move(term), nullptr);
+    if (arith[level]->find(term) == arith[level]->end()) { level = numeric_cast<unsigned>(arith.size() - 1); }
+    auto ret = arith[level]->emplace(std::move(term), nullptr);
     if (ret.second) { ret.first->second = auxGen.uniqueVar(ret.first->first->loc(), level, "#Arith"); }
     if (eq) {
-        auto ret2 = arith[level].emplace(get_clone(ret.first->second), nullptr);
+        auto ret2 = arith[level]->emplace(get_clone(ret.first->second), nullptr);
         if (ret2.second) { ret2.first->second = get_clone(ret.first->first); }
     }
     return get_clone(ret.first->second);

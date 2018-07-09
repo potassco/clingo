@@ -162,7 +162,8 @@ struct Term : public Printable, public Hashable, public Locatable, public Compar
     using ReferenceMap = std::unordered_map<Term*, SGRef, value_hash<Term*>, value_equal_to<Term*>>;
     //! Type that stores for each rewritten arithmetic term (UnopTerm, BinopTerm, LuaTerm) the associated variable and the term itself.
     //! The indices of the vector correspond to the level of the term.
-    using ArithmeticsMap = std::vector<std::unordered_map<UTerm, UTerm, value_hash<UTerm>, value_equal_to<UTerm>>>;
+    using LevelMap = std::unordered_map<UTerm, UTerm, value_hash<UTerm>, value_equal_to<UTerm>>;
+    using ArithmeticsMap = std::vector<std::unique_ptr<LevelMap>>;
     //! The invertibility of a term. This may either be
     //! - CONSTANT for terms that do not contain variables,
     //! - INVERTIBLE for invertible terms (e.g. -X, 1+X, f(X,Y+Z))

@@ -248,9 +248,9 @@ void TupleBodyAggregate::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal
     for (auto &bound : bounds) { bound.rewriteArithmetics(arith, auxGen); }
     for (auto &elem : elems) {
         Literal::AssignVec assign;
-        arith.emplace_back();
+        arith.emplace_back(gringo_make_unique<Term::LevelMap>());
         for (auto &y : std::get<1>(elem)) { y->rewriteArithmetics(arith, assign, auxGen); }
-        for (auto &y : arith.back()) { std::get<1>(elem).emplace_back(RelationLiteral::make(y)); }
+        for (auto &y : *arith.back()) { std::get<1>(elem).emplace_back(RelationLiteral::make(y)); }
         for (auto &y : assign) { std::get<1>(elem).emplace_back(RelationLiteral::make(y)); }
         arith.pop_back();
     }
@@ -476,9 +476,9 @@ void LitBodyAggregate::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::
     for (auto &bound : bounds) { bound.rewriteArithmetics(arith, auxGen); }
     for (auto &elem : elems) {
         Literal::AssignVec assign;
-        arith.emplace_back();
+        arith.emplace_back(gringo_make_unique<Term::LevelMap>());
         for (auto &y : std::get<1>(elem)) { y->rewriteArithmetics(arith, assign, auxGen); }
-        for (auto &y : arith.back()) { std::get<1>(elem).emplace_back(RelationLiteral::make(y)); }
+        for (auto &y : *arith.back()) { std::get<1>(elem).emplace_back(RelationLiteral::make(y)); }
         for (auto &y : assign) { std::get<1>(elem).emplace_back(RelationLiteral::make(y)); }
         arith.pop_back();
     }
@@ -645,18 +645,18 @@ void Conjunction::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::Assig
     for (auto &elem : elems) {
         for (auto &y : elem.first) {
             Literal::AssignVec assign;
-            arith.emplace_back();
+            arith.emplace_back(gringo_make_unique<Term::LevelMap>());
             for (auto &z : y) {
                 z->rewriteArithmetics(arith, assign, auxGen);
             }
-            for (auto &z : arith.back()) { y.emplace_back(RelationLiteral::make(z)); }
+            for (auto &z : *arith.back()) { y.emplace_back(RelationLiteral::make(z)); }
             for (auto &z : assign) { y.emplace_back(RelationLiteral::make(z)); }
             arith.pop_back();
         }
         Literal::AssignVec assign;
-        arith.emplace_back();
+        arith.emplace_back(gringo_make_unique<Term::LevelMap>());
         for (auto &y : elem.second) { y->rewriteArithmetics(arith, assign, auxGen); }
-        for (auto &y : arith.back()) { elem.second.emplace_back(RelationLiteral::make(y)); }
+        for (auto &y : *arith.back()) { elem.second.emplace_back(RelationLiteral::make(y)); }
         for (auto &y : assign) { elem.second.emplace_back(RelationLiteral::make(y)); }
         arith.pop_back();
     }
@@ -993,9 +993,9 @@ void TupleHeadAggregate::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen 
     for (auto &bound : bounds) { bound.rewriteArithmetics(arith, auxGen); }
     for (auto &elem : elems) {
         Literal::AssignVec assign;
-        arith.emplace_back();
+        arith.emplace_back(gringo_make_unique<Term::LevelMap>());
         for (auto &y : std::get<2>(elem)) { y->rewriteArithmetics(arith, assign, auxGen); }
-        for (auto &y : arith.back()) { std::get<2>(elem).emplace_back(RelationLiteral::make(y)); }
+        for (auto &y : *arith.back()) { std::get<2>(elem).emplace_back(RelationLiteral::make(y)); }
         for (auto &y : assign) { std::get<2>(elem).emplace_back(RelationLiteral::make(y)); }
         arith.pop_back();
     }
@@ -1182,9 +1182,9 @@ void LitHeadAggregate::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &a
     for (auto &bound : bounds) { bound.rewriteArithmetics(arith, auxGen); }
     for (auto &elem : elems) {
         Literal::AssignVec assign;
-        arith.emplace_back();
+        arith.emplace_back(gringo_make_unique<Term::LevelMap>());
         for (auto &y : std::get<1>(elem)) { y->rewriteArithmetics(arith, assign, auxGen); }
-        for (auto &y : arith.back()) { std::get<1>(elem).emplace_back(RelationLiteral::make(y)); }
+        for (auto &y : *arith.back()) { std::get<1>(elem).emplace_back(RelationLiteral::make(y)); }
         for (auto &y : assign) { std::get<1>(elem).emplace_back(RelationLiteral::make(y)); }
         arith.pop_back();
     }
@@ -1393,16 +1393,16 @@ void Disjunction::rewriteArithmetics(Term::ArithmeticsMap &arith, AuxGen &auxGen
     for (auto &elem : elems) {
         for (auto &head : elems) {
             Literal::AssignVec assign;
-            arith.emplace_back();
+            arith.emplace_back(gringo_make_unique<Term::LevelMap>());
             for (auto &y : head.second) { y->rewriteArithmetics(arith, assign, auxGen); }
-            for (auto &y : arith.back()) { head.second.emplace_back(RelationLiteral::make(y)); }
+            for (auto &y : *arith.back()) { head.second.emplace_back(RelationLiteral::make(y)); }
             for (auto &y : assign) { head.second.emplace_back(RelationLiteral::make(y)); }
             arith.pop_back();
         }
         Literal::AssignVec assign;
-        arith.emplace_back();
+        arith.emplace_back(gringo_make_unique<Term::LevelMap>());
         for (auto &y : elem.second) { y->rewriteArithmetics(arith, assign, auxGen); }
-        for (auto &y : arith.back()) { elem.second.emplace_back(RelationLiteral::make(y)); }
+        for (auto &y : *arith.back()) { elem.second.emplace_back(RelationLiteral::make(y)); }
         for (auto &y : assign) { elem.second.emplace_back(RelationLiteral::make(y)); }
         arith.pop_back();
     }
@@ -1730,9 +1730,9 @@ bool DisjointAggregate::simplify(Projections &project, SimplifyState &state, boo
 void DisjointAggregate::rewriteArithmetics(Term::ArithmeticsMap &arith, Literal::AssignVec &, AuxGen &auxGen) {
     for (auto &elem : elems) {
         Literal::AssignVec assign;
-        arith.emplace_back();
+        arith.emplace_back(gringo_make_unique<Term::LevelMap>());
         for (auto &y : elem.cond) { y->rewriteArithmetics(arith, assign, auxGen); }
-        for (auto &y : arith.back()) { elem.cond.emplace_back(RelationLiteral::make(y)); }
+        for (auto &y : *arith.back()) { elem.cond.emplace_back(RelationLiteral::make(y)); }
         for (auto &y : assign) { elem.cond.emplace_back(RelationLiteral::make(y)); }
         arith.pop_back();
     }

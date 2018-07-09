@@ -100,7 +100,7 @@ std::string simplify(UHeadAggr &&x) {
 std::string rewrite(UBodyAggr &&x) {
     Literal::AssignVec assign;
     Term::ArithmeticsMap arith;
-    arith.emplace_back();
+    arith.emplace_back(gringo_make_unique<Term::LevelMap>());
     AuxGen gen;
     AssignLevel v;
     x->assignLevels(v);
@@ -111,7 +111,7 @@ std::string rewrite(UBodyAggr &&x) {
 
 std::string rewrite(UHeadAggr &&x) {
     Term::ArithmeticsMap arith;
-    arith.emplace_back();
+    arith.emplace_back(gringo_make_unique<Term::LevelMap>());
     AuxGen gen;
     AssignLevel v;
     x->assignLevels(v);
