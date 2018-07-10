@@ -5856,6 +5856,7 @@ struct StatisticsArray : ObjectBase<StatisticsArray> {
     clingo_statistics_t *stats;
     uint64_t key;
 
+    static PyGetSetDef tp_getset[];
     static PyMethodDef tp_methods[];
 
     static constexpr char const *tp_type = "StatisticsArray";
@@ -5914,6 +5915,9 @@ statistics array.
         }
         return None();
     }
+    Object to_c() {
+        return PyLong_FromVoidPtr(stats);
+    }
 };
 
 PyMethodDef StatisticsArray::tp_methods[] = {
@@ -5948,10 +5952,16 @@ can be used to update an existing value, it receives the previous numeric value
     {nullptr, nullptr, 0, nullptr}
 };
 
+PyGetSetDef StatisticsArray::tp_getset[] = {
+    {(char *)"_to_c", to_getter<&StatisticsArray::to_c>(), nullptr, (char *)"An int representing the pointer to the underlying C clingo_statistics_t struct.", nullptr},
+    {nullptr, nullptr, nullptr, nullptr, nullptr}
+};
+
 struct StatisticsMap : ObjectBase<StatisticsMap> {
     clingo_statistics_t *stats;
     uint64_t key;
 
+    static PyGetSetDef tp_getset[];
     static PyMethodDef tp_methods[];
 
     static constexpr char const *tp_type = "StatisticsMap";
@@ -6034,6 +6044,9 @@ struct StatisticsMap : ObjectBase<StatisticsMap> {
         }
         return ret;
     }
+    Object to_c() {
+        return PyLong_FromVoidPtr(stats);
+    }
 
 };
 
@@ -6066,6 +6079,11 @@ The statistics argument must be a map. Otherwise, it is equivalent to
 StatisticsArray.update().
 )"},
     {nullptr, nullptr, 0, nullptr}
+};
+
+PyGetSetDef StatisticsMap::tp_getset[] = {
+    {(char *)"_to_c", to_getter<&StatisticsMap::to_c>(), nullptr, (char *)"An int representing the pointer to the underlying C clingo_statistics_t struct.", nullptr},
+    {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
 void setUserStatistics(clingo_statistics_t *stats, uint64_t key, clingo_statistics_type_t type, Reference value, bool update) {
