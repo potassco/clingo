@@ -111,7 +111,8 @@ function convert_path() {
 
 cd "${TEMP}"
 
-mkdir -p lua/{build,install}
+"${CMAKE}" -E make_directory lua/build
+"${CMAKE}" -E make_directory lua/install
 
 "${CMAKE}" \\
     -H"\$(convert_path lua)" \\
@@ -121,7 +122,7 @@ mkdir -p lua/{build,install}
     -DCMAKE_INSTALL_PREFIX="\$(convert_path lua/install)" ${EXTRA_FLAGS}
 "${CMAKE}" --build "\$(convert_path lua/build)" --target install --config Release
 
-mkdir -p build
+"${CMAKE}" -E make_directory build
 "${CMAKE}" \\
     -H"\$(convert_path source)" \\
     -B"\$(convert_path build)" \\
