@@ -195,21 +195,26 @@ public:
     Optional &operator=(T const &x) {
         clear();
         data_.reset(new T(x));
+        return *this;
     }
     Optional &operator=(T &x) {
         clear();
         data_.reset(new T(x));
+        return *this;
     }
     Optional &operator=(T &&x) {
         clear();
         data_.reset(new T(std::move(x)));
+        return *this;
     }
     Optional &operator=(Optional &&opt) noexcept {
         data_ = std::move(opt.data_);
+        return *this;
     }
     Optional &operator=(Optional const &opt) {
         clear();
         data_.reset(opt ? new T(*opt.get()) : nullptr);
+        return *this;
     }
     T *get() { return data_.get(); }
     T const *get() const { return data_.get(); }
