@@ -380,6 +380,7 @@ constterm
     | AT[l] identifier[a] LPAREN constargvec[b] RPAREN { $$ = BUILDER.term(@$, String::fromRep($a), $b, true); }
     | VBAR[l] constterm[a] VBAR                        { $$ = BUILDER.term(@$, UnOp::ABS, $a); }
     | identifier[a]                                    { $$ = BUILDER.term(@$, Symbol::createId(String::fromRep($a))); }
+    | AT[l] identifier[a]                              { $$ = BUILDER.term(@$, String::fromRep($a), BUILDER.termvecvec(BUILDER.termvecvec(), BUILDER.termvec()), true); }
     | NUMBER[a]                                        { $$ = BUILDER.term(@$, Symbol::createNum($a)); }
     | STRING[a]                                        { $$ = BUILDER.term(@$, Symbol::createStr(String::fromRep($a))); }
     | INFIMUM[a]                                       { $$ = BUILDER.term(@$, Symbol::createInf()); }
@@ -395,7 +396,7 @@ consttermvec
 
 constargvec
     : consttermvec[a] { $$ = BUILDER.termvecvec(BUILDER.termvecvec(), $a);  }
-    |                 { $$ = BUILDER.termvecvec();  }
+    |                 { $$ = BUILDER.termvecvec(BUILDER.termvecvec(), BUILDER.termvec());  }
     ;
 
 // {{{2 terms including variables
@@ -418,6 +419,7 @@ term
     | AT identifier[a] LPAREN argvec[b] RPAREN { $$ = BUILDER.term(@$, String::fromRep($a), $b, true); }
     | VBAR unaryargvec[a] VBAR                 { $$ = BUILDER.term(@$, UnOp::ABS, $a); }
     | identifier[a]                            { $$ = BUILDER.term(@$, Symbol::createId(String::fromRep($a))); }
+    | AT[l] identifier[a]                      { $$ = BUILDER.term(@$, String::fromRep($a), BUILDER.termvecvec(BUILDER.termvecvec(), BUILDER.termvec()), true); }
     | NUMBER[a]                                { $$ = BUILDER.term(@$, Symbol::createNum($a)); }
     | STRING[a]                                { $$ = BUILDER.term(@$, Symbol::createStr(String::fromRep($a))); }
     | INFIMUM[a]                               { $$ = BUILDER.term(@$, Symbol::createInf()); }

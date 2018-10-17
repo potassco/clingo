@@ -967,6 +967,7 @@ TEST_CASE("input-nongroundprogrambuilder", "[input]") {
         REQUIRE("#program base().\np(|1;2;3|)." == parse("p(|1;2;3|)."));
         // lua function calls
         REQUIRE("#program base().\np(@f())." == parse("p(@f())."));
+        REQUIRE("#program base().\np(@f())." == parse("p(@f)."));
         REQUIRE("#program base().\np(@f(1))." == parse("p(@f(1))."));
         REQUIRE("#program base().\np(@f(1,2))." == parse("p(@f(1,2))."));
         REQUIRE("#program base().\np(@f(1,2,3))." == parse("p(@f(1,2,3))."));
@@ -1195,6 +1196,44 @@ TEST_CASE("input-nongroundprogrambuilder", "[input]") {
 
     SECTION("define") {
         REQUIRE("#program base().\n#const a=10." == parse("#const a=10."));
+        REQUIRE("#program base().\n#const a=x." == parse("#const a=x."));
+        REQUIRE("#program base().\n#const a=1." == parse("#const a=1."));
+        REQUIRE("#program base().\n#const a=\"1\"." == parse("#const a=\"1\"."));
+        REQUIRE("#program base().\n#const a=#inf." == parse("#const a=#inf."));
+        REQUIRE("#program base().\n#const a=#sup." == parse("#const a=#sup."));
+        // absolute
+        REQUIRE("#program base().\n#const a=|1|." == parse("#const a=|1|."));
+        // lua function calls
+        REQUIRE("#program base().\n#const a=@f()." == parse("#const a=@f()."));
+        REQUIRE("#program base().\n#const a=@f()." == parse("#const a=@f."));
+        REQUIRE("#program base().\n#const a=@f(1)." == parse("#const a=@f(1)."));
+        REQUIRE("#program base().\n#const a=@f(1,2)." == parse("#const a=@f(1,2)."));
+        REQUIRE("#program base().\n#const a=@f(1,2,3)." == parse("#const a=@f(1,2,3)."));
+        // function symbols
+        REQUIRE("#program base().\n#const a=f." == parse("#const a=f()."));
+        REQUIRE("#program base().\n#const a=f(1)." == parse("#const a=f(1)."));
+        REQUIRE("#program base().\n#const a=f(1,2)." == parse("#const a=f(1,2)."));
+        REQUIRE("#program base().\n#const a=f(1,2,3)." == parse("#const a=f(1,2,3)."));
+        // tuples / parenthesis
+        REQUIRE("#program base().\n#const a=()." == parse("#const a=()."));
+        REQUIRE("#program base().\n#const a=(1)." == parse("#const a=(1)."));
+        REQUIRE("#program base().\n#const a=(1,2)." == parse("#const a=(1,2)."));
+        REQUIRE("#program base().\n#const a=(1,2,3)." == parse("#const a=(1,2,3)."));
+        // unary operations
+        REQUIRE("#program base().\n#const a=-1." == parse("#const a=-1."));
+        REQUIRE("#program base().\n#const a=~1." == parse("#const a=~1."));
+        // binary operations
+        REQUIRE("#program base().\n#const a=(1**2)." == parse("#const a=1**2."));
+        REQUIRE("#program base().\n#const a=(1\\2)." == parse("#const a=1\\2."));
+        REQUIRE("#program base().\n#const a=(1/2)." == parse("#const a=1/2."));
+        REQUIRE("#program base().\n#const a=(1*2)." == parse("#const a=1*2."));
+        REQUIRE("#program base().\n#const a=(1-2)." == parse("#const a=1-2."));
+        REQUIRE("#program base().\n#const a=(1+2)." == parse("#const a=1+2."));
+        REQUIRE("#program base().\n#const a=(1&2)." == parse("#const a=1&2."));
+        REQUIRE("#program base().\n#const a=(1?2)." == parse("#const a=1?2."));
+        REQUIRE("#program base().\n#const a=(1^2)." == parse("#const a=1^2."));
+        // precedence
+        REQUIRE("#program base().\n#const a=((1+2)+((3*4)*(5**(6**7))))." == parse("#const a=1+2+3*4*5**6**7."));
     }
 
     SECTION("optimize") {
