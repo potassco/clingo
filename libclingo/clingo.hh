@@ -4994,7 +4994,7 @@ inline std::ostream &operator<<(std::ostream &out, Rule const &x) {
 
 inline std::ostream &operator<<(std::ostream &out, Definition const &x) {
     out << "#const " << x.name << " = " << x.value << ".";
-    if (x.is_default) { out << " [default]"; }
+    if (!x.is_default) { out << " [override]"; }
     return out;
 }
 

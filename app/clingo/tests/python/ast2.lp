@@ -17,7 +17,9 @@ def stm():
     return check([
         ("a.", ["a."]),
         ("a:-b.", ["a :- b."]),
-        ("#const a=10.", ["#const a = 10. [default]"]),
+        ("#const a=10.", ["#const a = 10."]),
+        ("#const a=10. [default]", ["#const a = 10."]),
+        ("#const a=10. [override]", ["#const a = 10. [override]"]),
         ("#show a/1.", ["#show a/1."]),
         ("#show $a/1.", ["#show $a/1."]),
         ("#show a : b.", ["#show a : b."]),

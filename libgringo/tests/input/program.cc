@@ -127,6 +127,8 @@ TEST_CASE("input-program", "[input]") {
         REQUIRE("#heuristic x[2@2,sign]:-[x]." == rewrite(parse("#heuristic x. [x@x,sign]#const x=2.")));
         REQUIRE("#heuristic p(2)[2@2,sign]:-[p(2)]." == rewrite(parse("#heuristic p(x). [x@x,sign]#const x=2.")));
         REQUIRE("#theory x{node{};&edge/1:node,{<<},node,head}.#false:-not &edge(2){(2),(Y): p(2,Y)}<<(2)." == rewrite(parse("#theory x{ node{}; &edge/1: node, {<<}, node, head }.&edge(z) { z, Y : p(z,Y)} << z. #const z=2.")));
+        REQUIRE("p(1)." ==  rewrite(parse(R"(#const a=1. [override] #const a=2. [default] p(a).)")));
+        REQUIRE("p(2)." ==  rewrite(parse(R"(#const a=1. #const a=2. [override] p(a).)")));
     }
 
     SECTION("check") {

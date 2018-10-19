@@ -91,6 +91,8 @@ int Gringo::Input::NonGroundParser::lex_impl(void *pValue, Location &loc) {
         <definition> "directive"              { return NonGroundGrammar::parser::token::DIRECTIVE; }
 
         <normal> "not"                        { value.str = String::toRep(not_); return NonGroundGrammar::parser::token::NOT; }
+        <normal> "default"                    { value.str = String::toRep(string()); return NonGroundGrammar::parser::token::DEFAULT; }
+        <normal> "override"                   { value.str = String::toRep(string()); return NonGroundGrammar::parser::token::OVERRIDE; }
         <normal> ANONYMOUS                    { return NonGroundGrammar::parser::token::ANONYMOUS; }
         <normal,theory,definition> IDENTIFIER { value.str = String::toRep(string()); return NonGroundGrammar::parser::token::IDENTIFIER; }
         <normal,theory,definition> NUMBER     { value.num = integer(); return NonGroundGrammar::parser::token::NUMBER; }

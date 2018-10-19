@@ -598,8 +598,9 @@ void TestNongroundProgramBuilder::rule(Location const &, HdLitUid head, BdLitVec
     statements_.emplace_back(str());
 }
 
-void TestNongroundProgramBuilder::define(Location const &, String name, TermUid value, bool, Logger &) {
+void TestNongroundProgramBuilder::define(Location const &, String name, TermUid value, bool def, Logger &) {
     current_ << "#const " << name << "=" << terms_.erase(value) << ".";
+    if (!def) { current_ << " [override]"; }
     statements_.emplace_back(str());
 }
 
@@ -1234,6 +1235,9 @@ TEST_CASE("input-nongroundprogrambuilder", "[input]") {
         REQUIRE("#program base().\n#const a=(1^2)." == parse("#const a=1^2."));
         // precedence
         REQUIRE("#program base().\n#const a=((1+2)+((3*4)*(5**(6**7))))." == parse("#const a=1+2+3*4*5**6**7."));
+        // attributes
+        REQUIRE("#program base().\n#const a=10." == parse("#const a=10. [default]"));
+        REQUIRE("#program base().\n#const a=10. [override]" == parse("#const a=10. [override]"));
     }
 
     SECTION("optimize") {

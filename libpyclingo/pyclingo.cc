@@ -4481,7 +4481,7 @@ provided in this module.
             }
             case ASTType::Definition: {
                 out << "#const " << fields_.getItem("name") << " = " << fields_.getItem("value") << ".";
-                if (fields_.getItem("is_default").isTrue()) { out << " [default]"; }
+                if (!fields_.getItem("is_default").isTrue()) { out << " [override]"; }
                 break;
             }
             case ASTType::ShowSignature: {

@@ -92,7 +92,9 @@ TEST_CASE("parse-ast", "[clingo]") {
     SECTION("statement") {
         REQUIRE(parse("a.") == "a.");
         REQUIRE(parse("a:-b.") == "a :- b.");
-        REQUIRE(parse("#const a=10.") == "#const a = 10. [default]");
+        REQUIRE(parse("#const a=10. [override]") == "#const a = 10. [override]");
+        REQUIRE(parse("#const a=10. [default]") == "#const a = 10.");
+        REQUIRE(parse("#const a=10.") == "#const a = 10.");
         REQUIRE(parse("#show a/1.") == "#show a/1.");
         REQUIRE(parse("#show $a/1.") == "#show $a/1.");
         REQUIRE(parse("#show a : b.") == "#show a : b.");

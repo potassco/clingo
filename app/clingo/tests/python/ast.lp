@@ -103,7 +103,7 @@ def test():
         (thd_a, "&p/2 : t, { >, < }, t, any", ast.ASTType.TheoryAtomDefinition),
         (thd_d, "#theory x {\n  t {\n    - : 7, unary\n  };\n  &p/2 : t, { >, < }, t, any\n}.", ast.ASTType.TheoryDefinition),
         (stm_r, "not p(2) :- not p(2); q(2).", ast.ASTType.Rule),
-        (stm_c, "#const x = 2. [default]", ast.ASTType.Definition),
+        (stm_c, "#const x = 2.", ast.ASTType.Definition),
         (stm_s, "#show $x/2.", ast.ASTType.ShowSignature),
         (stm_i, "#defined i/2.", ast.ASTType.Defined),
         (stm_t, "#show $2 : not p(2).", ast.ASTType.ShowTerm),

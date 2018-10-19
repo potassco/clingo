@@ -316,6 +316,8 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
     VARIABLE   "<VARIABLE>"
     THEORY_OP  "<THEORYOP>"
     NOT        "not"
+    DEFAULT    "default"
+    OVERRIDE   "override"
 
 // {{{2 operator precedence and associativity
 
@@ -355,6 +357,8 @@ statement
 
 identifier
     : IDENTIFIER[a] { $$ = $a; }
+    | DEFAULT[a]    { $$ = $a; }
+    | OVERRIDE[a]   { $$ = $a; }
     ;
 
 // {{{1 terms
@@ -832,8 +836,10 @@ define
     : identifier[uid] EQ constterm[rhs] {  BUILDER.define(@$, String::fromRep($uid), $rhs, false, LOGGER); }
     ;
 
-statement 
-    : CONST identifier[uid] EQ constterm[rhs] DOT {  BUILDER.define(@$, String::fromRep($uid), $rhs, true, LOGGER); }
+statement
+    : CONST identifier[uid] EQ constterm[rhs] DOT                        { BUILDER.define(@$, String::fromRep($uid), $rhs, true, LOGGER); }
+    | CONST identifier[uid] EQ constterm[rhs] DOT LBRACK DEFAULT  RBRACK { BUILDER.define(@$, String::fromRep($uid), $rhs, true, LOGGER); }
+    | CONST identifier[uid] EQ constterm[rhs] DOT LBRACK OVERRIDE RBRACK { BUILDER.define(@$, String::fromRep($uid), $rhs, false, LOGGER); }
     ;
 
 // {{{2 scripts
