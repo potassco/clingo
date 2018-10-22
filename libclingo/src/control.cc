@@ -1198,7 +1198,7 @@ private:
     void on_finish(SolveResult ret, Potassco::AbstractStatistics *step, Potassco::AbstractStatistics *accu) override {
         bool goon = true;
         clingo_statistics_t *stats[] = {static_cast<clingo_statistics_t*>(step), static_cast<clingo_statistics_t*>(accu)};
-        if (!cb_(clingo_solve_event_type_statistics, &stats, data_, &goon)) {
+        if (step && accu && !cb_(clingo_solve_event_type_statistics, &stats, data_, &goon)) {
             clingo_terminate("error in SolveEventHandler::on_statistics going to terminate");
         }
         if (!cb_(clingo_solve_event_type_finish, &ret, data_, &goon)) {
