@@ -31,7 +31,7 @@ def main (prg):
         parts.append(("cumulative", [i]))
         prg.ground(parts)
         parts = []
-        with prg.solve(on_model=on_model, on_finish=on_finish, async=True) as handle:
+        with prg.solve(on_model=on_model, on_finish=on_finish, async_=True) as handle:
             handle.wait(0)
             ret = handle.get()
         writeln("Answer: 42")

@@ -6320,7 +6320,7 @@ active; you must not call any member function during search.)";
         CHECK_BLOCKED("solve");
         Py_XDECREF(stats);
         stats = nullptr;
-        static char const *kwlist[] = {"assumptions", "on_model", "on_statistics", "on_finish", "yield_", "async", nullptr};
+        static char const *kwlist[] = {"assumptions", "on_model", "on_statistics", "on_finish", "yield_", "async_", nullptr};
         Reference pyAss = Py_None, pyM = Py_None, pyS = Py_None, pyF = Py_None, pyYield = Py_False, pyAsync = Py_False;
         ParseTupleAndKeywords(args, kwds, "|OOOOOO", kwlist, pyAss, pyM, pyS, pyF, pyYield, pyAsync);
         std::vector<clingo_literal_t> ass;
@@ -6569,7 +6569,7 @@ Arguments:
 path -- path to program)"},
     // solve
     {"solve", to_function<&ControlWrap::solve>(), METH_KEYWORDS | METH_VARARGS,
-R"(solve(self, assumptions, on_model, on_finish, yield_, async) -> SolveHandle|SolveResult
+R"(solve(self, assumptions, on_model, on_finish, yield_, async_) -> SolveHandle|SolveResult
 
 Starts a search.
 
@@ -6593,10 +6593,10 @@ assumptions   -- List of (atom, boolean) tuples or program literals that serve
                  (Default: [])
 yield_        -- The resulting SolveHandle is iterable yielding Model objects.
                  (Default: False)
-async         -- The solve call and SolveHandle.resume() are non-blocking.
+async_        -- The solve call and SolveHandle.resume() are non-blocking.
                  (Default: False)
 
-If neither yield_ nor async is set, the function returns a SolveResult right
+If neither yield_ nor async_ is set, the function returns a SolveResult right
 away.
 
 Note that in gringo or in clingo with lparse or text output enabled this
@@ -6655,7 +6655,7 @@ def on_finish(res, canceled):
 def main(prg):
     prg.add("p", [], "{a;b;c}.")
     prg.ground([("base", [])])
-    with prg.solve(on_model=on_model, on_finish=on_finish, async=True) as handle:
+    with prg.solve(on_model=on_model, on_finish=on_finish, async_=True) as handle:
         while not handle.wait(0):
             # do something asynchronously
         print(handle.get())

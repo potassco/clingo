@@ -104,7 +104,7 @@ class Solver:
             self.prg.ground([("sleep", [self.k])])
             self.prg.release_external(clingo.Function("sleep", [self.k-1]))
             self.prg.assign_external(clingo.Function("sleep", [self.k]), True)
-        self.future = self.prg.solve(on_model=self.on_model, on_finish=on_finish, async=True)
+        self.future = self.prg.solve(on_model=self.on_model, on_finish=on_finish, async_=True)
 
     def stop(self):
         self.future.cancel()

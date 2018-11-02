@@ -7,7 +7,7 @@ def main(prg):
     prg.ground([("base", [])])
     prg.solve(assumptions=[(Function("a"), True)])
 
-    with prg.solve(assumptions=[(Function("a"), True)], async=True) as handle:
+    with prg.solve(assumptions=[(Function("a"), True)], async_=True) as handle:
         handle.get()
 
     with prg.solve(assumptions=[(Function("a"), True)], yield_=True) as handle:
