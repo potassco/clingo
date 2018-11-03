@@ -2,6 +2,7 @@
 
 import os
 import readline
+import code
 import atexit
 import signal
 import clingo
@@ -47,12 +48,11 @@ class Controller:
         print("")
 
         pyInt = signal.getsignal(signal.SIGINT)
+        console = code.InteractiveConsole()
         while True:
             signal.signal(signal.SIGINT, pyInt)
             try:
-                try: input = raw_input
-                except NameError: pass
-                line = input('> ')
+                line = console.raw_input('> ')
                 signal.signal(signal.SIGINT, signal.SIG_IGN)
             except EOFError:
                 signal.signal(signal.SIGINT, signal.SIG_IGN)
