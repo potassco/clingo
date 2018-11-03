@@ -62,9 +62,9 @@ class Controller:
         while True:
             signal.signal(signal.SIGINT, pyInt)
             try:
-                try: input = raw_input
-                except NameError: pass
-                line = input('> ')
+                try: input_ = raw_input
+                except NameError: input_ = input
+                line = input_('> ')
                 signal.signal(signal.SIGINT, signal.SIG_IGN)
             except EOFError:
                 signal.signal(signal.SIGINT, signal.SIG_IGN)
