@@ -119,7 +119,7 @@ class Solver:
         for x in self.__assign:
             self.__prg.assign_external(x, True)
         self.__solution = None
-        self.__future = self.__prg.solve(on_model=self.__on_model, async=True)
+        self.__future = self.__prg.solve(on_model=self.__on_model, async_=True)
 
     def busy(self):
         if self.__future is None:
@@ -127,7 +127,7 @@ class Solver:
         if self.__future.wait(0):
             if self.__solution is None:
                 self.__next()
-                self.__future = self.__prg.solve(on_model=self.__on_model, async=True)
+                self.__future = self.__prg.solve(on_model=self.__on_model, async_=True)
                 return True
             else:
                 self.__future = None

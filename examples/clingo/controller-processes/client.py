@@ -42,7 +42,7 @@ def main(prg):
             if state == States.SOLVE:
                 f = prg.solve(
                     on_model  = lambda model: conn.sendall(b"Answer: " + str(model).encode() + b"\n"),
-                    on_finish = lambda ret:   conn.sendall(b"finish:" + str(ret).encode() + (b":INTERRUPTED" if ret.interrupted else b"") + b"\n"), async=True)
+                    on_finish = lambda ret:   conn.sendall(b"finish:" + str(ret).encode() + (b":INTERRUPTED" if ret.interrupted else b"") + b"\n"), async_=True)
             msg = recv.readline().decode()
             if state == States.SOLVE:
                 f.cancel()

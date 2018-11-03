@@ -8,7 +8,7 @@ def main(prg):
         prg.assign_external(clingo.Function("p"), True)
         prg.solve()
         prg.assign_external(clingo.Function("p"), False)
-        with prg.solve(async=True) as handle:
+        with prg.solve(async_=True) as handle:
             handle.wait(0.01)
             prg.interrupt()
 
