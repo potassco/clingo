@@ -3873,7 +3873,7 @@ inline void Control::ground(PartSpan parts, GroundCallback cb) {
                             if (!cb(reinterpret_cast<clingo_symbol_t const *>(symret.begin()), symret.size(), cbdata)) { throw Ret(); }
                         });
                     }
-                    catch (Ret e) { return false; }
+                    catch (Ret const &e) { return false; }
                 }
             }
             CLINGO_CALLBACK_CATCH(d.second);
