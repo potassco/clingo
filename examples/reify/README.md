@@ -1,6 +1,10 @@
 Example Calls
 =============
 
+The encodings here have been developed within the [metasp] project allowing for
+handling complex optimization criteria, e.g., inclusion-based minimization or
+Pareto efficiency.
+
 Non-reified + Cardinality Minimization
 --------------------------------------
 
@@ -12,20 +16,20 @@ Reified + Cardinality Minimization
     clingo --rewrite-minimize --output=reify --reify-sccs example1.lp |\
     clingo -Wno-atom-undefined - meta.lp metaD.lp metaO.lp \
       <(echo "optimize(0,1,card).") 0
-    
+
 Reified + Subset Minimization
 -----------------------------
 
     clingo --rewrite-minimize --output=reify --reify-sccs example1.lp |\
     clingo -Wno-atom-undefined - meta.lp metaD.lp metaO.lp \
       <(echo "optimize(0,1,incl).") 0
-  
+
 Reified + Subset Minimization + Query to Solve the Conformant Planning Problem
 ------------------------------------------------------------------------------
 
     clingo example2.lp --output=reify |\
     clingo - meta.lp metaD.lp metaO.lp --project 0
-  
+
 Improving Performance
 =====================
 
@@ -36,3 +40,5 @@ much smaller program:
     clingo --pre --rewrite-minimize ... |\ 
     reify --sccs |\ 
     clingo -Wno-atom-undefined - meta.lp metaD.lp metaO.lp ...
+
+metasp: https://potassco.org/labs/metasp/
