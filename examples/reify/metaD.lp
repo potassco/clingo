@@ -1,22 +1,3 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% This file is part of clingo.                                            %
-%                                                                         %
-% Authors: Martin Gebser, Roland Kaminski, Torsten Schaub                 %
-%                                                                         %
-% This program is free software: you can redistribute it and/or modify    %
-% it under the terms of the GNU General Public License as published by    %
-% the Free Software Foundation, either version 3 of the License, or       %
-% (at your option) any later version.                                     %
-%                                                                         %
-% This program is distributed in the hope that it will be useful,         %
-% but WITHOUT ANY WARRANTY; without even the implied warranty of          %
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the           %
-% GNU General Public License for more details.                            %
-%                                                                         %
-% You should have received a copy of the GNU General Public License       %
-% along with this program.  If not, see <http://www.gnu.org/licenses/>.   %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 % NOTE: assumes that a rule has no more than one head
 
 sum(B,G,T) :- rule(_,sum(B,G)), T = #sum { W,L : weighted_literal_tuple(B,L,W) }.
