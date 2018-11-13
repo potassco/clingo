@@ -41,4 +41,4 @@ much smaller program:
     reify --sccs |\ 
     clingo -Wno-atom-undefined - meta.lp metaD.lp metaO.lp ...
 
-metasp: https://potassco.org/labs/metasp/
+[metasp]: https://potassco.org/labs/metasp/
