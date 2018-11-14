@@ -906,23 +906,9 @@ WRAP_FUNCTION(tp_richcompare) {
         PY_TRY {
             auto self = reinterpret_cast<B*>(pySelf);
             Reference b{pyB};
-            if (!b.isInstance(self->type)) {
-                if      (op == Py_EQ) { Py_RETURN_FALSE; }
-                else if (op == Py_NE) { Py_RETURN_TRUE; }
-                else {
-                    const char *ops = "<";
-                    switch (op) {
-                        case Py_LT: { ops = "<";  break; }
-                        case Py_LE: { ops = "<="; break; }
-                        case Py_EQ: { ops = "=="; break; }
-                        case Py_NE: { ops = "!="; break; }
-                        case Py_GT: { ops = ">";  break; }
-                        case Py_GE: { ops = ">="; break; }
-                    }
-                    return PyErr_Format(PyExc_TypeError, "unorderable types: %s() %s %s()", self->type.tp_name, ops, pyB->ob_type->tp_name);
-                }
-            }
-            return self->tp_richcompare(*reinterpret_cast<B*>(pyB), op).release();
+            return b.isInstance(self->type)
+                ? self->tp_richcompare(*reinterpret_cast<B*>(pyB), op).release()
+                : (Py_INCREF(Py_NotImplemented), Py_NotImplemented);
         }
         PY_CATCH(nullptr);
     };
