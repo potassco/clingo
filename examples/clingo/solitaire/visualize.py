@@ -64,21 +64,26 @@ class MainWindow:
     def exit(self, button):
         raise urwid.ExitMainLoop()
 
+    def quit(self, button):
+        raise KeyboardInterrupt()
+
     def run(self, plan):
 
         c = Board(plan)
 
         ba = urwid.Button("previous")
-        bb = urwid.Button("quit")
+        bb = urwid.Button("done")
         bc = urwid.Button("next")
+        bd = urwid.Button("quit")
 
         urwid.connect_signal(bb, 'click', self.exit)
+        urwid.connect_signal(bd, 'click', self.quit)
         urwid.connect_signal(bc, 'click', c.next)
         urwid.connect_signal(ba, 'click', c.prev)
 
         sf = urwid.Text("")
 
-        b = urwid.Columns([sf, ('fixed', len(bc.label) + 4, bc), ('fixed', len(ba.label) + 4, ba), ('fixed', len(bb.label) + 4, bb), sf], 1)
+        b = urwid.Columns([sf, ('fixed', len(bc.label) + 4, bc), ('fixed', len(ba.label) + 4, ba), ('fixed', len(bb.label) + 4, bb), ('fixed', len(bd.label) + 4, bd), sf], 1)
         f = urwid.Frame(urwid.Filler(c.display), None, b, 'footer')
 
         palette = [
@@ -91,10 +96,10 @@ class MainWindow:
 
 class Plan:
     def __init__(self, field, init, jumps):
-        mx          = min([x for (x, y) in field])
-        my          = min([y for (x, y) in field])
-        self.width  = max([x for (x, y) in field]) - mx + 1
-        self.height = max([y for (x, y) in field]) - my + 1
+        mx          = min(x for (x, y) in field)
+        my          = min(y for (x, y) in field)
+        self.width  = max(x for (x, y) in field) - mx + 1
+        self.height = max(y for (x, y) in field) - my + 1
         self.field  = [ (x - mx, y - my) for (x, y) in field ]
 
         pjumps = {}
@@ -129,37 +134,48 @@ class Plan:
     def first(self):
         return 0
 
-c = clingo.Control()
-c.add("check", ["k"], "#external query(k).")
-for f in sys.argv[1:]: c.load(f)
-def make_on_model(field, init, jumps):
-    sx = { "east": 2, "west": -2, "north":  0, "south": 0 }
-    sy = { "east": 0, "west":  0, "north": -2, "south": 2 }
-    def on_model(m):
-        for atom in m.symbols(atoms=True):
+class Application:
+    def __init__(self, name):
+        self.program_name = name
+        self.version = "1.0"
+
+    def __on_model(self, model):
+        sx = { "east": 2, "west": -2, "north":  0, "south": 0 }
+        sy = { "east": 0, "west":  0, "north": -2, "south": 2 }
+
+        field, init, jumps = [], [], {}
+
+        for atom in model.symbols(atoms=True):
             if atom.name == "field" and len(atom.arguments) == 2:
-                x, y = [n.number for n in atom.arguments]
+                x, y = (n.number for n in atom.arguments)
                 field.append((x, y))
             elif atom.name == "stone" and len(atom.arguments) == 2:
-                x, y = [n.number for n in atom.arguments]
+                x, y = (n.number for n in atom.arguments)
                 init.append((x, y))
             elif atom.name == "jump" and len(atom.arguments) == 4:
-                ox, oy, d, t = [(n.number if n.type == clingo.SymbolType.Number else str(n)) for n in atom.arguments]
+                ox, oy, d, t = ((n.number if n.type == clingo.SymbolType.Number else str(n)) for n in atom.arguments)
                 jumps.setdefault(t, []).append((ox, oy, ox + sx[d], oy + sy[d]))
-        return False
-    return on_model
 
-t, field, init, jumps = 0, [], [], {}
-on_model = make_on_model(field, init, jumps)
-c.ground([("base", [])])
-while True:
-    t += 1
-    c.ground([("step", [t])])
-    c.ground([("check", [t])])
-    c.release_external(clingo.Function("query", [t-1]))
-    c.assign_external(clingo.Function("query", [t]), True)
-    if c.solve(on_model=on_model).satisfiable:
-        break
+        try:
+            MainWindow().run(Plan(field, init, jumps))
+            return True
+        except KeyboardInterrupt:
+            return False
 
-MainWindow().run(Plan(field, init, jumps))
+    def main(self, prg, files):
+        for f in files:
+            prg.load(f)
+        prg.add("check", ["k"], "#external query(k).")
 
+        t = 0
+        sat = False
+        prg.ground([("base", [])])
+        while not sat:
+            t += 1
+            prg.ground([("step", [t])])
+            prg.ground([("check", [t])])
+            prg.release_external(clingo.Function("query", [t-1]))
+            prg.assign_external(clingo.Function("query", [t]), True)
+            sat = prg.solve(on_model=self.__on_model).satisfiable
+
+sys.exit(int(clingo.clingo_main(Application("visualize"), sys.argv[1:])))
