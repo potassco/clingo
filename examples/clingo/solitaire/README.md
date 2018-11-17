@@ -8,21 +8,21 @@ jump of length two above an adjacent peg to a free position on the board.  The
 jumped peg has to be removed after the move.
 
 
-                                      -------
-                                      |o|o|o|
-                                      -------
-                                      |o|o|o|
-                                  ---------------
-                                  |o|o|o|o|o|o|o|
-                                  ---------------
-                                  |o|o|o| |o|o|o|
-                                  ---------------
-                                  |o|o|o|o|o|o|o|
-                                  ---------------
-                                      |o|o|o|
-                                      -------
-                                      |o|o|o|
-                                      -------
+        -------
+        |o|o|o|
+        -------
+        |o|o|o|
+    ---------------
+    |o|o|o|o|o|o|o|
+    ---------------
+    |o|o|o| |o|o|o|
+    ---------------
+    |o|o|o|o|o|o|o|
+    ---------------
+        |o|o|o|
+        -------
+        |o|o|o|
+        -------
 
 ## Setup
 
