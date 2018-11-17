@@ -20,7 +20,7 @@ at(0,(X,Y),N) :- in(X,Y,N).
 0 { move(t,A,B) : n(A,B) } 1 :- move(t,B,_), consecutive == 1.
 
 % check moves
- :- 2 { move(t,A,B) }, move(t,A,_).
+ :- 2 { move(t,A,B) }, dim(A).
 
 % state transition
 at(t,A,N) :- at(t-1,A,N), not move(t,A,_).
