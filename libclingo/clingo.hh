@@ -1871,7 +1871,7 @@ class StatisticsBase {
 public:
     using statistics_t = typename std::conditional<constant, clingo_statistics_t const *, clingo_statistics_t*>::type;
     using KeyIteratorT = KeyIterator<StatisticsBase>;
-    using ArrayIteratorT = ArrayIterator<StatisticsBase, StatisticsBase const *>;;
+    using ArrayIteratorT = ArrayIterator<StatisticsBase, StatisticsBase const *>;
     using KeyRangeT = IteratorRange<KeyIteratorT>;
     explicit StatisticsBase(statistics_t stats, uint64_t key)
     : stats_(stats)
