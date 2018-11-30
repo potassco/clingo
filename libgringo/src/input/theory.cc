@@ -393,20 +393,20 @@ CreateBody TheoryAtom::toGroundBody(ToGroundArg &x, Ground::UStmVec &stms, NAF n
     }
     auto &completeRef = static_cast<Ground::TheoryComplete&>(*stms.back());
     CreateStmVec split;
-    split.emplace_back([&completeRef, this](Ground::ULitVec &&lits) -> Ground::UStm {
+    split.emplace_back([&completeRef](Ground::ULitVec &&lits) -> Ground::UStm {
         auto ret = gringo_make_unique<Ground::TheoryAccumulate>(completeRef, std::move(lits));
         completeRef.addAccuDom(*ret);
         return std::move(ret);
     });
     for (auto &y : elems_) {
-        split.emplace_back([this,&completeRef,&y,&x](Ground::ULitVec &&lits) -> Ground::UStm {
+        split.emplace_back([&completeRef,&y,&x](Ground::ULitVec &&lits) -> Ground::UStm {
             auto ret = y.toGround(x, completeRef, std::move(lits));
             completeRef.addAccuDom(*ret);
             return std::move(ret);
         });
     }
     bool aux1 = type_ != TheoryAtomType::Body;
-    return CreateBody([this, &completeRef, naf, aux1](Ground::ULitVec &lits, bool primary, bool aux2) {
+    return CreateBody([&completeRef, naf, aux1](Ground::ULitVec &lits, bool primary, bool aux2) {
         if (primary) {
             auto ret = gringo_make_unique<Ground::TheoryLiteral>(completeRef, naf, aux1 || aux2);
             lits.emplace_back(std::move(ret));
