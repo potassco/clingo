@@ -323,7 +323,7 @@ CreateBody TupleBodyAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
             return std::move(ret);
         });
         for (auto &y : elems) {
-            split.emplace_back([this,&completeRef,&y,&x](Ground::ULitVec &&lits) -> Ground::UStm {
+            split.emplace_back([&completeRef,&y,&x](Ground::ULitVec &&lits) -> Ground::UStm {
                 for (auto &z : y.second) { lits.emplace_back(z->toGround(x.domains, false)); }
                 auto ret = gringo_make_unique<Ground::BodyAggregateAccumulate>(completeRef, get_clone(y.first), std::move(lits));
                 completeRef.addAccuDom(*ret);
@@ -361,14 +361,14 @@ CreateBody TupleBodyAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) c
             return std::move(ret);
         });
         for (auto &y : elems) {
-            split.emplace_back([this,&completeRef,&y,&x](Ground::ULitVec &&lits) -> Ground::UStm {
+            split.emplace_back([&completeRef,&y,&x](Ground::ULitVec &&lits) -> Ground::UStm {
                 for (auto &z : y.second) { lits.emplace_back(z->toGround(x.domains, false)); }
                 auto ret = gringo_make_unique<Ground::AssignmentAggregateAccumulate>(completeRef, get_clone(y.first), std::move(lits));
                 completeRef.addAccuDom(*ret);
                 return std::move(ret);
             });
         }
-        return CreateBody([&completeRef, this](Ground::ULitVec &lits, bool primary, bool auxiliary) {
+        return CreateBody([&completeRef](Ground::ULitVec &lits, bool primary, bool auxiliary) {
             if (primary) { lits.emplace_back(gringo_make_unique<Ground::AssignmentAggregateLiteral>(completeRef, auxiliary)); }
         }, std::move(split));
     }
@@ -1789,7 +1789,7 @@ CreateBody DisjointAggregate::toGround(ToGroundArg &x, Ground::UStmVec &stms) co
         return std::move(ret);
     });
     for (auto &y : elems) {
-        split.emplace_back([this,&completeRef,&y,&x](Ground::ULitVec &&lits) -> Ground::UStm {
+        split.emplace_back([&completeRef,&y,&x](Ground::ULitVec &&lits) -> Ground::UStm {
             for (auto &z : y.cond) { lits.emplace_back(z->toGround(x.domains, false)); }
             auto ret = gringo_make_unique<Ground::DisjointAccumulate>(completeRef, get_clone(y.tuple), get_clone(y.value), std::move(lits));
             completeRef.addAccuDom(*ret);

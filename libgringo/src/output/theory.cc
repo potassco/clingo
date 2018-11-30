@@ -717,7 +717,7 @@ void TheoryData::printElem(std::ostream &out, Potassco::Id_t elemId, PrintLit pr
     }
     else if (!cond.empty()) {
         out << ": ";
-        print_comma(out, cond, ",", [this, &printLit](std::ostream &out, LiteralId const &lit){ printLit(out, lit); });
+        print_comma(out, cond, ",", [&printLit](std::ostream &out, LiteralId const &lit){ printLit(out, lit); });
     }
 }
 
