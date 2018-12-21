@@ -652,9 +652,6 @@ ClingoControl::~ClingoControl() noexcept = default;
 // {{{1 definition of ClingoSolveFuture
 
 SolveResult convert(Clasp::ClaspFacade::Result res) {
-    if (res.interrupted() && res.signal != 0 && res.signal != 9 && res.signal != 65) {
-        throw std::runtime_error("solving stopped by signal");
-    }
     SolveResult::Satisfiabily sat = SolveResult::Satisfiable;
     switch (res) {
         case Clasp::ClaspFacade::Result::SAT:     { sat = SolveResult::Satisfiable; break; }
@@ -669,7 +666,11 @@ ClingoSolveFuture::ClingoSolveFuture(ClingoControl &ctl, Clasp::SolveMode_t mode
 , handle_{model_.context().clasp_->solve(mode)} { }
 
 SolveResult ClingoSolveFuture::get() {
-    return convert(handle_.get());
+    auto res = handle_.get();
+    if (res.interrupted() && res.signal != 0 && res.signal != 9 && res.signal != 65) {
+        throw std::runtime_error("solving stopped by signal");
+    }
+    return convert(res);
 }
 Model const *ClingoSolveFuture::model() {
     if (auto m = handle_.model()) {
