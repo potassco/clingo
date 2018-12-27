@@ -6168,7 +6168,6 @@ static void logger_callback(clingo_warning_t code, char const *message, void *da
 
 struct ControlWrap : ObjectBase<ControlWrap> {
     using Objects = std::vector<Object>;
-    using UserStatistics = std::forward_list<Object>;
     clingo_control_t *ctl;
     clingo_control_t *freeCtl;
     PyObject         *stats;
