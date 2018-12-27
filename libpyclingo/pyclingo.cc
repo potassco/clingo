@@ -3213,6 +3213,22 @@ PyGetSetDef PropagateControl::tp_getset[] = {
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
+// {{{1 wrap Heuristic
+static clingo_literal_t heuristic_decide(clingo_literal_t vsids, PyObject *heu) {
+    PyBlock block;
+    try {
+        Object l = PyLong_FromLong(vsids);
+        Object n = PyString_FromString("decide");
+        Object ret = PyObject_CallMethodObjArgs(heu, n.toPy(), l.toPy(), nullptr);
+        long retL = PyLong_AsLong(ret.toPy());
+        return retL;
+    }
+    catch (...) {
+        handle_cxx_error("Heuristic::decide", "error during decision");
+        return 0;
+    }
+}
+
 // {{{1 wrap Propagator
 
 static bool propagator_init(clingo_propagate_init_t *init, PyObject *prop) {
@@ -6151,15 +6167,13 @@ static void logger_callback(clingo_warning_t code, char const *message, void *da
 }
 
 struct ControlWrap : ObjectBase<ControlWrap> {
-    using Propagators = std::vector<Object>;
-    using Observers = std::vector<Object>;
+    using Objects = std::vector<Object>;
     using UserStatistics = std::forward_list<Object>;
     clingo_control_t *ctl;
     clingo_control_t *freeCtl;
     PyObject         *stats;
     PyObject         *logger;
-    Propagators       prop;
-    Observers         observers;
+    Objects           objects;
     bool              blocked;
 
     static PyGetSetDef tp_getset[];
@@ -6201,8 +6215,7 @@ active; you must not call any member function during search.)";
         self->stats   = nullptr;
         self->logger  = nullptr;
         self->blocked = false;
-        new (&self->prop) Propagators();
-        new (&self->observers) Observers();
+        new (&self->objects) Objects();
         return self;
     }
     static Object tp_new(PyTypeObject *type) {
@@ -6212,15 +6225,13 @@ active; you must not call any member function during search.)";
         self->stats   = nullptr;
         self->logger  = nullptr;
         self->blocked = false;
-        new (&self->prop) Propagators();
-        new (&self->observers) Observers();
+        new (&self->objects) Objects();
         return self;
     }
     void tp_dealloc() {
         if (freeCtl) { clingo_control_free(freeCtl); }
         ctl = freeCtl = nullptr;
-        prop.~Propagators();
-        observers.~Observers();
+        objects.~Objects();
         Py_XDECREF(stats);
         Py_XDECREF(logger);
     }
@@ -6407,8 +6418,17 @@ active; you must not call any member function during search.)";
             reinterpret_cast<decltype(clingo_propagator_t::undo)>(propagator_undo),
             reinterpret_cast<decltype(clingo_propagator_t::check)>(propagator_check),
         };
-        prop.emplace_back(tp);
+        objects.emplace_back(tp);
         handle_c_error(clingo_control_register_propagator(ctl, &propagator, tp.toPy(), false));
+        Py_RETURN_NONE;
+    }
+    Object registerHeuristic(Reference tp) {
+        CHECK_BLOCKED("register_heuristic");
+        static clingo_heuristic_t heuristic = {
+            reinterpret_cast<decltype(clingo_heuristic_t::decide)>(heuristic_decide)
+        };
+        objects.emplace_back(tp);
+        handle_c_error(clingo_control_register_heuristic(ctl, &heuristic, tp.toPy(), false));
         Py_RETURN_NONE;
     }
     Object registerObserver(Reference args, Reference kwds) {
@@ -6439,7 +6459,7 @@ active; you must not call any member function during search.)";
             observer_theory_atom_with_guard
         };
 
-        observers.emplace_back(obs);
+        objects.emplace_back(obs);
         handle_c_error(clingo_control_register_observer(ctl, &observer, rep.isTrue(), obs.toPy()));
         return None();
     }
@@ -6982,6 +7002,11 @@ interrupted.)"},
 R"(backend() -> Backend
 
 Returns a Backend object providing a low level interface to extend a logic program.)"},
+    {"register_heuristic", to_function<&ControlWrap::registerHeuristic>(), METH_O,
+R"("register_heuristic(self, heuristic) -> None
+
+TODO: document
+")"},
     {nullptr, nullptr, 0, nullptr}
 };
 

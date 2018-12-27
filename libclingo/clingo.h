@@ -1270,6 +1270,10 @@ typedef struct clingo_propagator {
     bool (*check) (clingo_propagate_control_t *control, void *data);
 } clingo_propagator_t;
 
+typedef struct clingo_heuristic {
+    clingo_literal_t (*decide) (clingo_literal_t literal, void *data);
+} clingo_heuristic_t;
+
 //! @}
 
 // {{{1 backend
@@ -3251,6 +3255,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_propagator(clingo_control
 //! @param[in] control the target
 //! @return whether the program representation is conflicting
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_is_conflicting(clingo_control_t const *control);
+
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_heuristic(clingo_control_t *control, clingo_heuristic_t const *heuristic, void *data, bool sequential);
+
 //! Get a statistics object to inspect solver statistics.
 //!
 //! Statistics are updated after a solve call.

@@ -32,6 +32,8 @@
 #include <clingo/script.h>
 #include <clingo/incmode.hh>
 
+#include <iostream>
+
 namespace Gringo {
 
 // {{{1 definition of ClaspAPIBackend
@@ -431,11 +433,17 @@ const char* TheoryOutput::next() {
     return nullptr;
 }
 
-void ClingoControl::registerPropagator(std::unique_ptr<Propagator> p, bool sequential) {
+void ClingoControl::registerPropagator(UProp p, bool sequential) {
     propagators_.emplace_back(gringo_make_unique<Clasp::ClingoPropagatorInit>(*p, propLock_.add(sequential)));
     claspConfig_.addConfigurator(propagators_.back().get(), Clasp::Ownership_t::Retain);
     static_cast<Clasp::Asp::LogicProgram*>(clasp_->program())->enableDistinctTrue();
     props_.emplace_back(std::move(p));
+}
+
+void ClingoControl::registerHeuristic(UHeuristic e, bool sequential) {
+    // TODO: handle sequential using propLock_.add(sequential)
+    heuristics_.emplace_back(std::move(e));
+    claspConfig_.setHeuristicCreator(new Clasp::ClingoHeuristic::Factory(*heuristics_.back()));
 }
 
 void ClingoControl::cleanupDomains() {

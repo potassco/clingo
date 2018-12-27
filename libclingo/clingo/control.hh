@@ -33,6 +33,7 @@
 #include <gringo/output/literal.hh>
 #include <potassco/clingo.h>
 #include <clingo.h>
+#include "../clasp/clasp/clingo.h"
 
 #define CLINGO_QUOTE_(name) #name
 #define CLINGO_QUOTE(name) CLINGO_QUOTE_(name)
@@ -205,6 +206,7 @@ using UProp = std::unique_ptr<Propagator>;
 
 using StringVec = std::vector<String>;
 using Control = clingo_control;
+using UHeuristic = std::unique_ptr<Potassco::AbstractHeuristic>;
 
 } // namespace Gringo
 
@@ -232,7 +234,8 @@ struct clingo_control {
     virtual bool useEnumAssumption() = 0;
     virtual void cleanupDomains() = 0;
     virtual Gringo::Output::DomainData const &theory() const = 0;
-    virtual void registerPropagator(std::unique_ptr<Gringo::Propagator> p, bool sequential) = 0;
+    virtual void registerPropagator(Gringo::UProp p, bool sequential) = 0;
+    virtual void registerHeuristic(Gringo::UHeuristic e, bool sequential) = 0;
     virtual void registerObserver(Gringo::UBackend program, bool replace) = 0;
     virtual Potassco::Atom_t addProgramAtom() = 0;
     virtual bool beginAddBackend() = 0;
