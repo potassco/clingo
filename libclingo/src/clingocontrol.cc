@@ -441,9 +441,8 @@ void ClingoControl::registerPropagator(UProp p, bool sequential) {
 }
 
 void ClingoControl::registerHeuristic(UHeuristic e, bool sequential) {
-    // TODO: handle sequential using propLock_.add(sequential)
     heuristics_.emplace_back(std::move(e));
-    claspConfig_.setHeuristicCreator(new Clasp::ClingoHeuristic::Factory(*heuristics_.back()));
+    claspConfig_.setHeuristicCreator(new Clasp::ClingoHeuristic::Factory(*heuristics_.back(), propLock_.add(sequential)));
 }
 
 void ClingoControl::cleanupDomains() {
