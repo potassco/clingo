@@ -155,7 +155,7 @@ public:
     HeadTheoryLiteral(TheoryAtom &&atom, bool rewritten = false);
     virtual ~HeadTheoryLiteral() noexcept;
     // {{{2 HeadAggregate interface
-    CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const override;
+    CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const override;
     UHeadAggr rewriteAggregates(UBodyAggrVec &aggr) override;
     void collect(VarTermBoundVec &vars) const override;
     void unpool(UHeadAggrVec &x, bool beforeRewrite) override;

@@ -115,29 +115,21 @@ protected:
 
 // Statements
 
-// {{{1 declaration of Rule
+// {{{1 declaration of AbstractRule
 
-enum class RuleType : unsigned short { External, Disjunctive, Choice };
-
-class Rule : public Statement, protected SolutionCallback {
+class AbstractRule : public Statement, protected SolutionCallback {
 public:
     using HeadVec = std::vector<std::pair<UTerm, Domain*>>;
     using HeadDefVec = std::vector<HeadDefinition>;
-    Rule(HeadVec &&heads, ULitVec &&lits, RuleType type_);
-    virtual ~Rule() noexcept;
+    AbstractRule(HeadVec &&heads, ULitVec &&lits);
+    virtual ~AbstractRule() noexcept;
     // {{{2 Statement interface
-    bool isNormal() const override;
     void analyze(Dep::Node &node, Dep &dep) override;
     void startLinearize(bool active) override;
     void linearize(Context &context, bool positive, Logger &log) override;
     void enqueue(Queue &q) override;
-    // {{{2 Printable interface
-    void print(std::ostream &out) const override;
-    // }}}2
 protected:
     // {{{2 SolutionCallback interface
-    void report(Output::OutputBase &out, Logger &log) override;
-    void printHead(std::ostream &out) const override;
     void propagate(Queue &queue) override;
     // }}}2
 
@@ -145,7 +137,46 @@ protected:
     HeadDefVec defs_;
     ULitVec lits_;
     InstVec insts_;
-    RuleType type_;
+};
+
+// {{{1 declaration of Rule
+
+template <bool>
+class Rule : public AbstractRule {
+public:
+    Rule(HeadVec &&heads, ULitVec &&lits);
+    virtual ~Rule() noexcept;
+    // {{{2 Statement interface
+    bool isNormal() const override;
+    // {{{2 Printable interface
+    void print(std::ostream &out) const override;
+    // }}}2
+protected:
+    // {{{2 SolutionCallback interface
+    void report(Output::OutputBase &out, Logger &log) override;
+    void printHead(std::ostream &out) const override;
+    // }}}2
+};
+
+// {{{1 declaration of ExternalStatement
+
+class ExternalStatement : public AbstractRule {
+public:
+    ExternalStatement(HeadVec &&heads, ULitVec &&lits, UTerm &&type);
+    virtual ~ExternalStatement() noexcept;
+    // {{{2 Statement interface
+    bool isNormal() const override;
+    // {{{2 Printable interface
+    void print(std::ostream &out) const override;
+    // }}}2
+protected:
+    // {{{2 SolutionCallback interface
+    void report(Output::OutputBase &out, Logger &log) override;
+    void printHead(std::ostream &out) const override;
+    // }}}2
+
+protected:
+    UTerm type_;
 };
 
 // {{{1 declaration of ExternalRule

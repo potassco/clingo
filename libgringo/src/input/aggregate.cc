@@ -126,4 +126,14 @@ ToGroundArg::~ToGroundArg() { }
 
 // }}}
 
+void HeadAggregate::printWithCondition(std::ostream &out, UBodyAggrVec const &condition) const {
+    out << *this;
+    if (!condition.empty()) {
+        out << ":-";
+        auto f = [](std::ostream &out, UBodyAggr const &x) { out << *x; };
+        print_comma(out, condition, ";", f);
+    }
+    out << ".";
+}
+
 } } // namespace Input Gringo

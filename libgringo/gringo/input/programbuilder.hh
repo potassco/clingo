@@ -182,7 +182,7 @@ public:
     virtual void python(Location const &loc, String code) = 0;
     virtual void lua(Location const &loc, String code) = 0;
     virtual void block(Location const &loc, String name, IdVecUid args) = 0;
-    virtual void external(Location const &loc, TermUid head, BdLitVecUid body) = 0;
+    virtual void external(Location const &loc, TermUid head, BdLitVecUid body, TermUid type) = 0;
     virtual void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) = 0;
     virtual void heuristic(Location const &loc, TermUid termUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) = 0;
     virtual void project(Location const &loc, TermUid termUid, BdLitVecUid body) = 0;
@@ -331,7 +331,7 @@ public:
     void python(Location const &loc, String code) override;
     void lua(Location const &loc, String code) override;
     void block(Location const &loc, String name, IdVecUid args) override;
-    void external(Location const &loc, TermUid head, BdLitVecUid body) override;
+    void external(Location const &loc, TermUid head, BdLitVecUid body, TermUid type) override;
     void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) override;
     void heuristic(Location const &loc, TermUid termUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
     void project(Location const &loc, TermUid termUid, BdLitVecUid body) override;

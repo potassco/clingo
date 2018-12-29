@@ -2662,6 +2662,7 @@ typedef struct clingo_ast_external {
     clingo_ast_term_t atom;
     clingo_ast_body_literal_t const *body;
     size_t size;
+    clingo_ast_term_t type;
 } clingo_ast_external_t;
 
 // edge

@@ -122,7 +122,7 @@ void Program::rewrite(Defines &defs, Logger &log) {
             defs.apply(fact, rv, rt, false);
             if (rt) {
                 Location loc{rt->loc()};
-                block.addedStms.emplace_back(make_locatable<Statement>(loc, gringo_make_unique<SimpleHeadLiteral>(make_locatable<PredicateLiteral>(loc, NAF::POS, std::move(rt))), UBodyAggrVec{}, StatementType::RULE));
+                block.addedStms.emplace_back(make_locatable<Statement>(loc, gringo_make_unique<SimpleHeadLiteral>(make_locatable<PredicateLiteral>(loc, NAF::POS, std::move(rt))), UBodyAggrVec{}));
                 return Symbol();
             }
             else if (rv.type() != SymbolType::Special) { return rv; }
@@ -174,7 +174,7 @@ void Program::rewrite(Defines &defs, Logger &log) {
             stms_.emplace_back(make_locatable<Statement>(
                 loc,
                 gringo_make_unique<SimpleHeadLiteral>(make_locatable<PredicateLiteral>(loc, NAF::POS, get_clone(x.projected))),
-                std::move(body), StatementType::RULE));
+                std::move(body)));
             x.done = true;
         }
     }

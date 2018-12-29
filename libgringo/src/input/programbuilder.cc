@@ -315,7 +315,7 @@ void NongroundProgramBuilder::rule(Location const &loc, HdLitUid head) {
 }
 
 void NongroundProgramBuilder::rule(Location const &loc, HdLitUid head, BdLitVecUid body) {
-    prg_.add(make_locatable<Statement>(loc, heads_.erase(head), bodies_.erase(body), StatementType::RULE));
+    prg_.add(make_locatable<Statement>(loc, heads_.erase(head), bodies_.erase(body)));
 }
 
 void NongroundProgramBuilder::define(Location const &loc, String name, TermUid value, bool defaultDef, Logger &log) {
@@ -331,7 +331,7 @@ void NongroundProgramBuilder::optimize(Location const &loc, TermUid weight, Term
         out.outPredsForce.emplace_back(loc, Sig("_criteria", 3, false), false);
     }
     else {
-        prg_.add(make_locatable<Statement>(loc, make_locatable<MinimizeHeadLiteral>(loc, terms_.erase(weight), terms_.erase(priority), termvecs_.erase(cond)), bodies_.erase(body), StatementType::WEAKCONSTRAINT));
+        prg_.add(make_locatable<Statement>(loc, make_locatable<MinimizeHeadLiteral>(loc, terms_.erase(weight), terms_.erase(priority), termvecs_.erase(cond)), bodies_.erase(body)));
     }
 }
 
@@ -344,7 +344,7 @@ void NongroundProgramBuilder::defined(Location const &, Sig sig) {
 }
 
 void NongroundProgramBuilder::show(Location const &loc, TermUid t, BdLitVecUid body, bool csp) {
-    prg_.add(make_locatable<Statement>(loc, make_locatable<ShowHeadLiteral>(loc, terms_.erase(t), csp), bodies_.erase(body), StatementType::RULE));
+    prg_.add(make_locatable<Statement>(loc, make_locatable<ShowHeadLiteral>(loc, terms_.erase(t), csp), bodies_.erase(body)));
 }
 
 void NongroundProgramBuilder::lua(Location const &loc, String code) {
@@ -359,8 +359,8 @@ void NongroundProgramBuilder::block(Location const &loc, String name, IdVecUid a
     prg_.begin(loc, name, idvecs_.erase(args));
 }
 
-void NongroundProgramBuilder::external(Location const &loc, TermUid head, BdLitVecUid body) {
-    prg_.add(make_locatable<Statement>(loc, heads_.erase(headlit(predlit(loc, NAF::POS, head))), bodies_.erase(body), StatementType::EXTERNAL));
+void NongroundProgramBuilder::external(Location const &loc, TermUid head, BdLitVecUid body, TermUid type) {
+    prg_.add(make_locatable<Statement>(loc, make_locatable<ExternalHeadAtom>(loc, terms_.erase(head), terms_.erase(type)), bodies_.erase(body)));
 }
 
 void NongroundProgramBuilder::edge(Location const &loc, TermVecVecUid edgesUid, BdLitVecUid body) {
@@ -373,18 +373,17 @@ void NongroundProgramBuilder::edge(Location const &loc, TermVecVecUid edgesUid, 
                 std::move(it->front()),
                 std::move(it->back())
             ),
-            it == last ? bodies_.erase(body) : get_clone(bodies_[body]),
-            StatementType::RULE
+            it == last ? bodies_.erase(body) : get_clone(bodies_[body])
         ));
     }
 }
 
 void NongroundProgramBuilder::heuristic(Location const &loc, TermUid termUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) {
-    prg_.add(make_locatable<Statement>(loc, make_locatable<HeuristicHeadAtom>(loc, terms_.erase(termUid), terms_.erase(a), terms_.erase(b), terms_.erase(mod)), bodies_.erase(body), StatementType::RULE));
+    prg_.add(make_locatable<Statement>(loc, make_locatable<HeuristicHeadAtom>(loc, terms_.erase(termUid), terms_.erase(a), terms_.erase(b), terms_.erase(mod)), bodies_.erase(body)));
 }
 
 void NongroundProgramBuilder::project(Location const &loc, TermUid termUid, BdLitVecUid body) {
-    prg_.add(make_locatable<Statement>(loc, make_locatable<ProjectHeadAtom>(loc, terms_.erase(termUid)), bodies_.erase(body), StatementType::RULE));
+    prg_.add(make_locatable<Statement>(loc, make_locatable<ProjectHeadAtom>(loc, terms_.erase(termUid)), bodies_.erase(body)));
 }
 
 void NongroundProgramBuilder::project(Location const &loc, Sig sig) {

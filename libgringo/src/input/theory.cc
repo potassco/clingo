@@ -425,7 +425,7 @@ HeadTheoryLiteral::HeadTheoryLiteral(TheoryAtom &&atom, bool rewritten)
 
 HeadTheoryLiteral::~HeadTheoryLiteral() noexcept = default;
 
-CreateHead HeadTheoryLiteral::toGround(ToGroundArg &, Ground::UStmVec &, Ground::RuleType) const {
+CreateHead HeadTheoryLiteral::toGround(ToGroundArg &, Ground::UStmVec &) const {
     return atom_.toGroundHead();
 }
 

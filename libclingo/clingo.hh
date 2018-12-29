@@ -1704,6 +1704,7 @@ std::ostream &operator<<(std::ostream &out, Program const &x);
 struct External {
     Term atom;
     std::vector<BodyLiteral> body;
+    Term type;
 };
 std::ostream &operator<<(std::ostream &out, External const &x);
 
@@ -3683,6 +3684,7 @@ struct ASTToC {
         external->atom = convTerm(x.atom);
         external->body = convBodyLiteralVec(x.body);
         external->size = x.body.size();
+        external->type = convTerm(x.type);
         clingo_ast_statement_t ret;
         ret.type     = clingo_ast_statement_type_external;
         ret.external = external;
@@ -4714,7 +4716,7 @@ inline void convStatement(clingo_ast_statement_t const *stm, StatementCallback &
             break;
         }
         case clingo_ast_statement_type_external: {
-            cb({Location(stm->location), External{convTerm(stm->external->atom), convBodyLiteralVec(stm->external->body, stm->external->size)}});
+            cb({Location(stm->location), External{convTerm(stm->external->atom), convBodyLiteralVec(stm->external->body, stm->external->size), convTerm(stm->external->type)}});
             break;
         }
         case clingo_ast_statement_type_edge: {
@@ -5033,7 +5035,7 @@ inline std::ostream &operator<<(std::ostream &out, Program const &x) {
 }
 
 inline std::ostream &operator<<(std::ostream &out, External const &x) {
-    out << "#external " << x.atom << Detail::print_body(x.body);
+    out << "#external " << x.atom << Detail::print_body(x.body) << " [" << x.type << "]";
     return out;
 }
 

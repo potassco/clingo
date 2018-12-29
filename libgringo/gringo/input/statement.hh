@@ -32,10 +32,8 @@ namespace Gringo { namespace Input {
 
 // {{{ declaration of Statement
 
-enum class StatementType { RULE, EXTERNAL, WEAKCONSTRAINT };
-
 struct Statement : Printable, Locatable {
-    Statement(UHeadAggr &&head, UBodyAggrVec &&body, StatementType type);
+    Statement(UHeadAggr &&head, UBodyAggrVec &&body);
     virtual UStmVec unpool(bool beforeRewrite);
     virtual void assignLevels(VarTermBoundVec &bound);
     virtual bool simplify(Projections &project, Logger &log);
@@ -53,7 +51,6 @@ struct Statement : Printable, Locatable {
 
     UHeadAggr     head;
     UBodyAggrVec  body;
-    StatementType type;
 };
 
 // }}}

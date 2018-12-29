@@ -711,12 +711,13 @@ void ASTBuilder::block(Location const &loc, String name, IdVecUid args) {
     statement_(loc, clingo_ast_statement_type_program, stm);
 }
 
-void ASTBuilder::external(Location const &loc, TermUid head, BdLitVecUid body) {
+void ASTBuilder::external(Location const &loc, TermUid head, BdLitVecUid body, TermUid type) {
     auto bd = bodies_.erase(body);
     clingo_ast_external_t ext;
     ext.atom = terms_.erase(head);
     ext.body = createArray_(bd);
     ext.size = bd.size();
+    ext.type = terms_.erase(type);
     clingo_ast_statement stm;
     stm.external = create_(ext);
     statement_(loc, clingo_ast_statement_type_external, stm);
@@ -1058,7 +1059,7 @@ public:
             }
             case clingo_ast_statement_type_external: {
                 auto &y = *stm.external;
-                return prg_.external(parseLocation(stm.location), parseTerm(y.atom), parseBodyLiteralVec(y.body, y.size));
+                return prg_.external(parseLocation(stm.location), parseTerm(y.atom), parseBodyLiteralVec(y.body, y.size), parseTerm(y.type));
             }
             case clingo_ast_statement_type_edge: {
                 auto &y = *stm.edge;

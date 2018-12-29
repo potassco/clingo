@@ -3515,7 +3515,7 @@ format.)";
         ParseTupleAndKeywords(pyargs, pykwds, "O|O", kwlist, pyAtom, pyValue);
         clingo_atom_t atom;
         pyToCpp(pyAtom, atom);
-        clingo_external_type_t value = pyValue.valid() ? enumValue<TruthValue>(pyValue) : clingo_external_type_false;;
+        clingo_external_type_t value = pyValue.valid() ? enumValue<TruthValue>(pyValue) : clingo_external_type_false;
         handle_c_error(clingo_backend_external(backend, atom, value));
         Py_RETURN_NONE;
     }
@@ -4226,7 +4226,7 @@ provided in this module.
             case ASTType::Minimize:                  { return ret({ "weight", "priority", "tuple", "body" }); }
             case ASTType::Script:                    { return ret({ }); }
             case ASTType::Program:                   { return ret({ "parameters" }); }
-            case ASTType::External:                  { return ret({ "atom", "body" }); }
+            case ASTType::External:                  { return ret({ "atom", "body", "external_type" }); }
             case ASTType::Edge:                      { return ret({ "u", "v", "body" }); }
             case ASTType::Heuristic:                 { return ret({ "atom", "body", "bias", "priority", "modifier" }); }
             case ASTType::ProjectAtom:               { return ret({ "atom", "body" }); }
@@ -4499,7 +4499,7 @@ provided in this module.
                 break;
             }
             case ASTType::External: {
-                out << "#external " << fields_.getItem("atom") << printBody(fields_.getItem("body"));
+                out << "#external " << fields_.getItem("atom") << printBody(fields_.getItem("body")) << " [" << fields_.getItem("external_type") << "]";
                 break;
             }
             case ASTType::Edge: {
@@ -4642,7 +4642,7 @@ CREATE4(ShowTerm, location, term, body, csp)
 CREATE5(Minimize, location, weight, priority, tuple, body)
 CREATE3(Script, location, script_type, code)
 CREATE3(Program, location, name, parameters)
-CREATE3(External, location, atom, body)
+CREATE4(External, location, atom, body, external_type)
 CREATE4(Edge, location, u, v, body)
 CREATE6(Heuristic, location, atom, body, bias, priority, modifier)
 CREATE3(ProjectAtom, location, atom, body)
@@ -4953,7 +4953,7 @@ Object cppToPy(clingo_ast_statement_t const &stm) {
             return call(createProgram, cppToPy(stm.location), cppToPy(stm.program->name), cppToPy(stm.program->parameters, stm.program->size));
         }
         case clingo_ast_statement_type_external: {
-            return call(createExternal, cppToPy(stm.location), call(createSymbolicAtom, cppToPy(stm.external->atom)), cppToPy(stm.external->body, stm.external->size));
+            return call(createExternal, cppToPy(stm.location), call(createSymbolicAtom, cppToPy(stm.external->atom)), cppToPy(stm.external->body, stm.external->size), cppToPy(stm.external->type));
         }
         case clingo_ast_statement_type_edge: {
             return call(createEdge, cppToPy(stm.location), cppToPy(stm.edge->u), cppToPy(stm.edge->v), cppToPy(stm.edge->body, stm.edge->size));
@@ -5573,6 +5573,7 @@ struct ASTToC {
                 external->atom = convSymbolicAtom(x.getAttr("atom"));
                 external->body = convBodyLiteralVec(body);
                 external->size = body.size();
+                external->type = convTerm(x.getAttr("external_type"));
                 ret.type     = clingo_ast_statement_type_external;
                 ret.external = external;
                 return ret;
@@ -7667,6 +7668,7 @@ statement = Rule
              ( location : Location
              , atom     : symbolic_atom
              , body     : body_literal*
+             , type     : term
              )
           | Edge
              ( location : Location

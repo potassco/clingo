@@ -35,10 +35,9 @@ namespace Gringo { namespace Input {
 
 // {{{ definition of Statement::Statement
 
-Statement::Statement(UHeadAggr &&head, UBodyAggrVec &&body, StatementType type)
+Statement::Statement(UHeadAggr &&head, UBodyAggrVec &&body)
     : head(std::move(head))
-    , body(std::move(body))
-    , type(type) { }
+    , body(std::move(body)) { }
 
 // }}}
 
@@ -63,28 +62,13 @@ void Statement::add(ULit &&lit) {
 // {{{ definition of Statement::print
 
 void Statement::print(std::ostream &out) const {
-    if (type != StatementType::WEAKCONSTRAINT) {
-        if (type == StatementType::EXTERNAL) { out << "#external "; }
-        if (head) { out << *head; }
-        if (!body.empty()) {
-            out << (type == StatementType::EXTERNAL ? ":" : ":-");
-            auto f = [](std::ostream &out, UBodyAggr const &x) { out << *x; };
-            print_comma(out, body, ";", f);
-        }
-        out << ".";
-    }
-    else {
-        out << ":~";
-        print_comma(out, body, ";", [](std::ostream &out, UBodyAggr const &x) { out << *x; });
-        out << ".";
-        head->print(out);
-    }
+    head->printWithCondition(out, body);
 }
 
 // }}}
 // {{{ definition of Statement::isEDB
 
-Symbol Statement::isEDB() const { return type == StatementType::RULE && body.empty() ? head->isEDB() : Symbol(); }
+Symbol Statement::isEDB() const { return body.empty() ? head->isEDB() : Symbol(); }
 
 // }}}
 // {{{ definition of Statement::unpool
@@ -110,7 +94,7 @@ UStmVec Statement::unpool(bool beforeRewrite) {
     UStmVec x;
     for (auto &body : bodies) {
         for (auto &head : heads) {
-            x.emplace_back(make_locatable<Statement>(loc(), get_clone(head), get_clone(body), type));
+            x.emplace_back(make_locatable<Statement>(loc(), get_clone(head), get_clone(body)));
         }
     }
     return x;
@@ -309,13 +293,7 @@ void toGround(CreateHead &&head, UBodyAggrVec const &body, ToGroundArg &x, Groun
 } // namespace
 
 void Statement::toGround(ToGroundArg &x, Ground::UStmVec &stms) const {
-    Ground::RuleType t = Ground::RuleType::Disjunctive;
-    switch (type) {
-        case StatementType::EXTERNAL:   { t = Ground::RuleType::External;   break; }
-        case StatementType::WEAKCONSTRAINT: // t is ignored later
-        case StatementType::RULE:       { t = Ground::RuleType::Disjunctive;     break; }
-    }
-    Gringo::Input::toGround(head->toGround(x, stms, t), body, x, stms);
+    Gringo::Input::toGround(head->toGround(x, stms), body, x, stms);
 }
 
 // }}}

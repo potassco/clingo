@@ -349,11 +349,10 @@ void ExternalRule::print(std::ostream &out) const {
 
 ExternalRule::~ExternalRule() noexcept = default;
 
-//{{{1 definition of Rule
+//{{{1 definition of AbstractRule
 
-Rule::Rule(HeadVec &&heads, ULitVec &&lits, RuleType type)
-: lits_(std::move(lits))
-, type_(type) {
+AbstractRule::AbstractRule(HeadVec &&heads, ULitVec &&lits)
+: lits_(std::move(lits)) {
     defs_.reserve(heads.size());
     for (auto &head : heads) {
         assert(head.first && head.second);
@@ -361,65 +360,9 @@ Rule::Rule(HeadVec &&heads, ULitVec &&lits, RuleType type)
     }
 }
 
-Rule::~Rule() noexcept = default;
+AbstractRule::~AbstractRule() noexcept = default;
 
-void Rule::report(Output::OutputBase &out, Logger &log) {
-    if (type_ == RuleType::External) {
-        for (auto &def : defs_) {
-            bool undefined = false;
-            Symbol val(def.domRepr()->eval(undefined, log));
-            if (!undefined) {
-                auto &dom = static_cast<PredicateDomain&>(def.dom());
-                auto ret = dom.define(val, false);
-                Potassco::Id_t offset = static_cast<Potassco::Id_t>(std::get<0>(ret) - dom.begin());
-                std::get<0>(ret)->setExternal(true);
-                Output::External external({NAF::POS, Output::AtomType::Predicate, offset, dom.domainOffset()}, Potassco::Value_t::False);
-                out.output(external);
-            }
-        }
-    }
-    else {
-        bool choice = type_ == RuleType::Choice;
-        Output::Rule &rule(out.tempRule(choice));
-        bool fact = true;
-        for (auto &x : lits_) {
-            if (x->auxiliary()) { continue; }
-            auto ret = x->toOutput(log);
-            if (ret.first.valid() && (out.keepFacts || !ret.second)) {
-                rule.addBody(ret.first);
-            }
-            if (!ret.second) { fact = false; }
-        }
-        for (auto &def : defs_) {
-            bool undefined = false;
-            Symbol val = def.domRepr()->eval(undefined, log);
-            if (undefined) {
-                if (choice) { continue; }
-                else        { return; }
-            }
-            auto &dom = static_cast<PredicateDomain&>(def.dom());
-            auto ret(dom.define(val));
-            if (!ret.first->fact()) {
-                Potassco::Id_t offset = static_cast<Potassco::Id_t>(ret.first - dom.begin());
-                rule.addHead({NAF::POS, Output::AtomType::Predicate, offset, dom.domainOffset()});
-            }
-            else if (!choice) { return; }
-        }
-        if (choice && rule.numHeads() == 0) { return; }
-        if (!choice && fact && rule.numHeads() == 1) {
-            Output::LiteralId head = rule.heads().front();
-            auto &dom = *out.predDoms()[head.domain()];
-            dom[head.offset()].setFact(true);
-        }
-        out.output(rule);
-    }
-}
-
-bool Rule::isNormal() const {
-    return defs_.size() == 1 && type_ == RuleType::Disjunctive;
-}
-
-void Rule::analyze(Dep::Node &node, Dep &dep) {
+void AbstractRule::analyze(Dep::Node &node, Dep &dep) {
     for (auto &def : defs_) { def.analyze(node, dep); }
     for (auto &x : lits_) {
         auto occ(x->occurrence());
@@ -427,47 +370,159 @@ void Rule::analyze(Dep::Node &node, Dep &dep) {
     }
 }
 
-void Rule::startLinearize(bool active) {
+void AbstractRule::startLinearize(bool active) {
     for (auto &def : defs_) { def.setActive(active); }
     if (active) { insts_.clear(); }
 }
 
-void Rule::linearize(Context &context, bool positive, Logger &log) {
+void AbstractRule::linearize(Context &context, bool positive, Logger &log) {
     Term::VarSet important;
     for (auto &def : defs_) { def.collectImportant(important); }
     insts_ = _linearize(log, context, positive, *this, std::move(important), lits_);
 }
 
-void Rule::enqueue(Queue &q) {
+void AbstractRule::enqueue(Queue &q) {
     for (auto &def : defs_) { def.init(); }
     for (auto &x : insts_) { x.enqueue(q); }
 }
 
-void Rule::printHead(std::ostream &out) const {
-    if (type_ == RuleType::External) { out << "#external "; }
-    if (type_ == RuleType::Choice) { out << "{"; }
-    if (type_ == RuleType::Disjunctive && defs_.empty()) { out << "#false"; }
+void AbstractRule::propagate(Queue &queue) {
+    for (auto &def : defs_) { def.enqueue(queue); }
+}
+
+//{{{1 definition of Rule
+
+template <bool disjunctive>
+Rule<disjunctive>::Rule(HeadVec &&heads, ULitVec &&lits)
+: AbstractRule(std::move(heads), std::move(lits)) { }
+
+template <bool disjunctive>
+Rule<disjunctive>::~Rule() noexcept = default;
+
+template <bool disjunctive>
+void Rule<disjunctive>::printHead(std::ostream &out) const {
+    if (!disjunctive)       { out << "{"; }
+    else if (defs_.empty()) { out << "#false"; }
     bool sep = false;
     for (auto &def : defs_) {
         if (sep) { out << ";"; }
         else { sep = true; }
         out << *def.domRepr();
     }
-    if (type_ == RuleType::Choice) { out << "}"; }
+    if (!disjunctive) { out << "}"; }
 }
 
-void Rule::print(std::ostream &out) const {
+template <bool disjunctive>
+void Rule<disjunctive>::print(std::ostream &out) const {
     printHead(out);
     if (!lits_.empty()) {
-        out << (type_ == RuleType::External ? ":" : ":-");
+        out << ":-";
         out << lits_;
     }
     out << ".";
 }
 
-void Rule::propagate(Queue &queue) {
-    for (auto &def : defs_) { def.enqueue(queue); }
+template <bool disjunctive>
+bool Rule<disjunctive>::isNormal() const {
+    return defs_.size() == 1 && disjunctive;
 }
+
+template <bool disjunctive>
+void Rule<disjunctive>::report(Output::OutputBase &out, Logger &log) {
+    Output::Rule &rule(out.tempRule(!disjunctive));
+    bool fact = true;
+    for (auto &x : lits_) {
+        if (x->auxiliary()) { continue; }
+        auto ret = x->toOutput(log);
+        if (ret.first.valid() && (out.keepFacts || !ret.second)) {
+            rule.addBody(ret.first);
+        }
+        if (!ret.second) { fact = false; }
+    }
+    for (auto &def : defs_) {
+        bool undefined = false;
+        Symbol val = def.domRepr()->eval(undefined, log);
+        if (undefined) {
+            if (!disjunctive) { continue; }
+            else              { return; }
+        }
+        auto &dom = static_cast<PredicateDomain&>(def.dom());
+        auto ret(dom.define(val));
+        if (!ret.first->fact()) {
+            Potassco::Id_t offset = static_cast<Potassco::Id_t>(ret.first - dom.begin());
+            rule.addHead({NAF::POS, Output::AtomType::Predicate, offset, dom.domainOffset()});
+        }
+        else if (!!disjunctive) { return; }
+    }
+    if (!disjunctive && rule.numHeads() == 0) { return; }
+    if (!!disjunctive && fact && rule.numHeads() == 1) {
+        Output::LiteralId head = rule.heads().front();
+        auto &dom = *out.predDoms()[head.domain()];
+        dom[head.offset()].setFact(true);
+    }
+    out.output(rule);
+}
+
+template class Rule<true>;
+template class Rule<false>;
+
+//{{{1 definition of ExternalStatement
+
+ExternalStatement::ExternalStatement(HeadVec &&heads, ULitVec &&lits, UTerm &&type)
+: AbstractRule(std::move(heads), std::move(lits))
+, type_(std::move(type)) { }
+
+ExternalStatement::~ExternalStatement() noexcept = default;
+
+void ExternalStatement::printHead(std::ostream &out) const {
+    out << "#external ";
+    bool sep = false;
+    for (auto &def : defs_) {
+        if (sep) { out << ";"; }
+        else { sep = true; }
+        out << *def.domRepr();
+    }
+}
+
+void ExternalStatement::print(std::ostream &out) const {
+    printHead(out);
+    if (!lits_.empty()) {
+        out << ":";
+        out << lits_;
+    }
+    out << ".";
+}
+
+bool ExternalStatement::isNormal() const {
+    return false;
+}
+
+void ExternalStatement::report(Output::OutputBase &out, Logger &log) {
+    for (auto &def : defs_) {
+        bool undefined = false;
+        Symbol val(def.domRepr()->eval(undefined, log));
+        if (undefined) { continue; }
+        Gringo::Symbol term = type_->eval(undefined, log);
+        if (undefined) { continue; }
+        bool id = term.type() == Gringo::SymbolType::Fun && term.arity() == 0;
+        Potassco::Value_t value;
+        if (id && term.name() == "false")         { value = Potassco::Value_t::False; }
+        else if (id && term.name() == "true")     { value = Potassco::Value_t::True; }
+        else if (id && term.name() == "free")     { value = Potassco::Value_t::Free; }
+        else if (id && term.name() == "release")  { value = Potassco::Value_t::Release; }
+        else {
+            // TODO: report something
+            continue;
+        }
+        auto &dom = static_cast<PredicateDomain&>(def.dom());
+        auto ret = dom.define(val, false);
+        Potassco::Id_t offset = static_cast<Potassco::Id_t>(std::get<0>(ret) - dom.begin());
+        std::get<0>(ret)->setExternal(true);
+        Output::External external({NAF::POS, Output::AtomType::Predicate, offset, dom.domainOffset()}, value);
+        out.output(external);
+    }
+}
+
 
 // }}}1
 

@@ -188,9 +188,9 @@ void External::print(PrintPlain out, char const *prefix) const {
     call(out.domain, head_, &Literal::printPlain, out);
     switch (type_) {
         case Potassco::Value_t::False:   { out << ".\n"; break; }
-        case Potassco::Value_t::True:    { out << "=true.\n"; break; }
-        case Potassco::Value_t::Free:    { out << "=free.\n"; break; }
-        case Potassco::Value_t::Release: { out << "=release.\n"; break; }
+        case Potassco::Value_t::True:    { out << ".[true]\n"; break; }
+        case Potassco::Value_t::Free:    { out << ".[free]\n"; break; }
+        case Potassco::Value_t::Release: { out << ".[release]\n"; break; }
     }
 }
 

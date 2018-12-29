@@ -197,9 +197,10 @@ struct HeadAggregate : Printable, Hashable, Locatable, Clonable<HeadAggregate>, 
     virtual void collect(VarTermBoundVec &vars) const = 0;
     virtual bool hasPool(bool beforeRewrite) const = 0;
     virtual void replace(Defines &dx) = 0;
-    virtual CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms, Ground::RuleType type) const = 0;
+    virtual CreateHead toGround(ToGroundArg &x, Ground::UStmVec &stms) const = 0;
     virtual Symbol isEDB() const;
     virtual void getNeg(std::function<void (Sig)> f) const = 0;
+    virtual void printWithCondition(std::ostream &out, UBodyAggrVec const &condition) const;
     virtual ~HeadAggregate() { }
 };
 

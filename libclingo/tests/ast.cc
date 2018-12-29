@@ -103,8 +103,9 @@ TEST_CASE("parse-ast", "[clingo]") {
         REQUIRE(parse("#minimize{ 1:b }.") == ":~ b. [1@0]");
         REQUIRE(parse("#script (python) 42 #end.") == "#script (python) 42 #end.");
         REQUIRE(parse("#program p(k).") == "#program p(k).");
-        REQUIRE(parse("#external p(k).") == "#external p(k).");
-        REQUIRE(parse("#external p(k) : a, b.") == "#external p(k) : a; b.");
+        REQUIRE(parse("#external p(k).") == "#external p(k). [false]");
+        REQUIRE(parse("#external p(k). [true]") == "#external p(k). [true]");
+        REQUIRE(parse("#external p(k) : a, b.") == "#external p(k) : a; b. [false]");
         REQUIRE(parse("#edge (u,v) : a, b.") == "#edge (u,v) : a; b.");
         REQUIRE(parse("#heuristic a : b, c. [L@P,level]") == "#heuristic a : b; c. [L@P,level]");
         REQUIRE(parse("#project a : b.") == "#project a : b.");

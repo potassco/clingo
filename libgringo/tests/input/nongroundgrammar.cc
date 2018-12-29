@@ -128,7 +128,7 @@ public:
     virtual void python(Location const &loc, String code) override;
     virtual void lua(Location const &loc, String code) override;
     virtual void block(Location const &loc, String name, IdVecUid args) override;
-    virtual void external(Location const &loc, TermUid head, BdLitVecUid body) override;
+    virtual void external(Location const &loc, TermUid head, BdLitVecUid body, TermUid type) override;
     virtual void edge(Location const &loc, TermVecVecUid edges, BdLitVecUid body) override;
     virtual void heuristic(Location const &loc, TermUid termUid, BdLitVecUid body, TermUid a, TermUid b, TermUid mod) override;
     virtual void project(Location const &loc, TermUid termUid, BdLitVecUid body) override;
@@ -655,14 +655,14 @@ void TestNongroundProgramBuilder::block(Location const &, String name, IdVecUid 
     statements_.emplace_back(str());
 }
 
-void TestNongroundProgramBuilder::external(Location const &, TermUid head, BdLitVecUid bodyuid) {
+void TestNongroundProgramBuilder::external(Location const &, TermUid head, BdLitVecUid bodyuid, TermUid type) {
     current_ << "#external " << terms_.erase(head);
     StringVec body(bodies_.erase(bodyuid));
     if (!body.empty()) {
         current_ << ":";
         print(body, ";");
     }
-    current_ << ".";
+    current_ << ". [" << terms_.erase(type) << "]";
     statements_.emplace_back(str());
 }
 
@@ -1161,6 +1161,11 @@ TEST_CASE("input-nongroundprogrambuilder", "[input]") {
         REQUIRE("#program base().\nb:;c:;d:;a:x,y." == parse("a:x,y;b;c;d."));
         REQUIRE("#program base().\nb:;c:d,e;a:x,y." == parse("a:x,y;b,c:d,e."));
         REQUIRE("#program base().\nb:d,e;c:;a:x,y." == parse("a:x,y;b:d,e;c."));
+    }
+
+    SECTION("external") {
+        REQUIRE("#program base().\n#external p(X):q(X). [false]" == parse("#external p(X) : q(X)."));
+        REQUIRE("#program base().\n#external p(X):q(X). [X]" == parse("#external p(X) : q(X). [X]"));
     }
 
     SECTION("rule") {
