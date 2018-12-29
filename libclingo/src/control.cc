@@ -1276,6 +1276,10 @@ public:
         if (prop_.check && !prop_.check(static_cast<clingo_propagate_control_t*>(&solver), data_)) { throw ClingoError(); }
     }
 
+    bool hasHeuristic() const override {
+        return prop_.decide;
+    }
+
     Lit decide(Id_t solverId, Potassco::AbstractAssignment const &assignment, Lit fallback) override {
         if (prop_.decide && !prop_.decide(fallback, data_)) { throw ClingoError(); }
         return fallback;

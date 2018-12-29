@@ -199,6 +199,7 @@ namespace Gringo {
 struct Propagator : Potassco::AbstractPropagator, Potassco::AbstractHeuristic {
     virtual ~Propagator() noexcept = default;
     virtual void init(Gringo::PropagateInit &init) = 0;
+    virtual bool hasHeuristic() const = 0;
 };
 using UProp = std::unique_ptr<Propagator>;
 
