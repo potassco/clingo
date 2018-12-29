@@ -1275,6 +1275,11 @@ public:
     void check(Potassco::AbstractSolver& solver) override {
         if (prop_.check && !prop_.check(static_cast<clingo_propagate_control_t*>(&solver), data_)) { throw ClingoError(); }
     }
+
+    Lit decide(Id_t solverId, Potassco::AbstractAssignment const &assignment, Lit fallback) override {
+        if (prop_.decide && !prop_.decide(fallback, data_)) { throw ClingoError(); }
+        return fallback;
+    }
 private:
     clingo_propagator_t prop_;
     void *data_;
@@ -1282,35 +1287,8 @@ private:
 
 } // namespace
 
-class ClingoHeuristicWrap : public Potassco::AbstractHeuristic
-{
-public:
-    ClingoHeuristicWrap (clingo_heuristic_t heu, void *data)
-    : heu_(heu)
-    , data_(data) { }
-
-	Lit decide(Id_t solverId, const Potassco::AbstractAssignment& assignment, Lit fallback) override {
-        if (heu_.decide) {
-            throw std::runtime_error("ClingoExtHeuristic: implement me properly");
-        } else {
-            return fallback;
-        }
-    }
-
-private:
-    clingo_heuristic_t heu_;
-    void *data_;
-};
-
 extern "C" bool clingo_control_register_propagator(clingo_control_t *ctl, clingo_propagator_t const *propagator, void *data, bool sequential) {
     GRINGO_CLINGO_TRY { ctl->registerPropagator(gringo_make_unique<ClingoPropagator>(*propagator, data), sequential); }
-    GRINGO_CLINGO_CATCH;
-}
-
-extern "C" bool clingo_control_register_heuristic(clingo_control_t *control, clingo_heuristic_t const *heuristic, void *data, bool sequential) {
-    GRINGO_CLINGO_TRY {
-        control->registerHeuristic(gringo_make_unique<ClingoHeuristicWrap>(*heuristic, data), sequential);
-    }
     GRINGO_CLINGO_CATCH;
 }
 

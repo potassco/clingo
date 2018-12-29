@@ -438,11 +438,8 @@ void ClingoControl::registerPropagator(UProp p, bool sequential) {
     claspConfig_.addConfigurator(propagators_.back().get(), Clasp::Ownership_t::Retain);
     static_cast<Clasp::Asp::LogicProgram*>(clasp_->program())->enableDistinctTrue();
     props_.emplace_back(std::move(p));
-}
-
-void ClingoControl::registerHeuristic(UHeuristic e, bool sequential) {
-    heuristics_.emplace_back(std::move(e));
-    claspConfig_.setHeuristicCreator(new Clasp::ClingoHeuristic::Factory(*heuristics_.back(), propLock_.add(sequential)));
+#   pragma message "TODO: something more clever has to happen here..."
+    claspConfig_.setHeuristicCreator(new Clasp::ClingoHeuristic::Factory(*props_.back(), propLock_.add(sequential)));
 }
 
 void ClingoControl::cleanupDomains() {

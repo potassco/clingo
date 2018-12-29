@@ -1576,6 +1576,7 @@ struct Symbol : ObjectBase<Symbol> {
     clingo_symbol_t val;
     static PyObject *inf;
     static PyObject *sup;
+    static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
     static constexpr char const *tp_type = "Symbol";
     static constexpr char const *tp_name = "clingo.Symbol";
@@ -1720,6 +1721,21 @@ preconstructed symbols Infimum and Supremum.)";
         return SymbolType::getAttr(clingo_symbol_type(val));
     }
 
+    Object match(Reference pyargs, Reference pykwds) {
+        char const *name, *pyName;
+        int pyArity;
+        size_t arity;
+        char const *kwlist[] = {"name", "arity", nullptr};
+        ParseTupleAndKeywords(pyargs, pykwds, "si", kwlist, pyName, pyArity);
+        clingo_symbol_t const *args;
+        if (clingo_symbol_type(val) != clingo_symbol_type_function) { Py_RETURN_FALSE; }
+        handle_c_error(clingo_symbol_name(val, &name));
+        if (strcmp(name, pyName) != 0) { Py_RETURN_FALSE; }
+        handle_c_error(clingo_symbol_arguments(val, &args, &arity));
+        if (static_cast<int>(arity) != pyArity) { Py_RETURN_FALSE; }
+        Py_RETURN_TRUE;
+    }
+
     Object tp_repr() {
         std::vector<char> ret;
         size_t size;
@@ -1748,6 +1764,19 @@ preconstructed symbols Infimum and Supremum.)";
     Object to_c() {
         return cppToPy(val);
     }
+};
+
+PyMethodDef Symbol::tp_methods[] = {
+    {"match", to_function<&Symbol::match>(), METH_KEYWORDS | METH_VARARGS,
+R"(match(self, name, arity) -> bool
+
+Check if this is a function symbol with the given signature.
+
+Arguments:
+name     -- the name of the function
+arity    -- the arity of the function
+)"},
+    {nullptr, nullptr, 0, nullptr}
 };
 
 PyGetSetDef Symbol::tp_getset[] = {
@@ -1839,6 +1868,7 @@ struct SymbolicAtom : public ObjectBase<SymbolicAtom> {
     static constexpr char const *tp_type = "SymbolicAtom";
     static constexpr char const *tp_name = "clingo.SymbolicAtom";
     static constexpr char const *tp_doc = "Captures a symbolic atom and provides properties to inspect its state.";
+    static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
 
     static Object construct(clingo_symbolic_atoms_t const *atoms, clingo_symbolic_atom_iterator_t range) {
@@ -1867,6 +1897,23 @@ struct SymbolicAtom : public ObjectBase<SymbolicAtom> {
         handle_c_error(clingo_symbolic_atoms_is_external(atoms, range, &ret));
         return cppToPy(ret);
     }
+    Object match(Reference pyargs, Reference pykwds) {
+        Object sym{symbol()};
+        return reinterpret_cast<SharedObject<Symbol> &>(sym)->match(pyargs, pykwds);
+    }
+};
+
+PyMethodDef SymbolicAtom::tp_methods[] = {
+    {"match", to_function<&SymbolicAtom::match>(), METH_KEYWORDS | METH_VARARGS,
+R"(match(self, name, arity) -> bool
+
+Check if this is an atom with the given signature.
+
+Arguments:
+name     -- the name of the function
+arity    -- the arity of the function
+)"},
+    {nullptr, nullptr, 0, nullptr}
 };
 
 PyGetSetDef SymbolicAtom::tp_getset[] = {
@@ -3213,21 +3260,6 @@ PyGetSetDef PropagateControl::tp_getset[] = {
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
-// {{{1 wrap Heuristic
-static clingo_literal_t heuristic_decide(clingo_literal_t vsids, PyObject *heu) {
-    PyBlock block;
-    try {
-        Object l = PyLong_FromLong(vsids);
-        Object n = PyString_FromString("decide");
-        Object ret = PyObject_CallMethodObjArgs(heu, n.toPy(), l.toPy(), nullptr);
-        long retL = PyLong_AsLong(ret.toPy());
-        return retL;
-    }
-    catch (...) {
-        handle_cxx_error("Heuristic::decide", "error during decision");
-        return 0;
-    }
-}
 
 // {{{1 wrap Propagator
 
@@ -3248,7 +3280,6 @@ static bool propagator_init(clingo_propagate_init_t *init, PyObject *prop) {
 static bool propagator_propagate(clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, PyObject *prop) {
     PyBlock block;
     try {
-        if (!PyObject_HasAttrString(prop, "propagate")) { return true; }
         Object c = PropagateControl::construct(control);
         Object l = cppRngToPy(changes, changes + size);
         Object n = PyString_FromString("propagate");
@@ -3264,7 +3295,6 @@ static bool propagator_propagate(clingo_propagate_control_t *control, clingo_lit
 bool propagator_undo(clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, PyObject *prop) {
     PyBlock block;
     try {
-        if (!PyObject_HasAttrString(prop, "undo")) { return true; }
         Object i = cppToPy(clingo_propagate_control_thread_id(control));
         Object a = Assignment::construct(clingo_propagate_control_assignment(control));
         Object l = cppRngToPy(changes, changes + size);
@@ -3281,7 +3311,6 @@ bool propagator_undo(clingo_propagate_control_t const *control, clingo_literal_t
 bool propagator_check(clingo_propagate_control_t *control, PyObject *prop) {
     PyBlock block;
     try {
-        if (!PyObject_HasAttrString(prop, "check")) { return true; }
         Object c = PropagateControl::construct(control);
         Object n = PyString_FromString("check");
         Object ret = PyObject_CallMethodObjArgs(prop, n.toPy(), c.toPy(), nullptr);
@@ -3290,6 +3319,22 @@ bool propagator_check(clingo_propagate_control_t *control, PyObject *prop) {
     catch (...) {
         handle_cxx_error("Propagator::check", "error during check");
         return false;
+    }
+}
+
+#pragma message "TODO: incomplete..."
+static clingo_literal_t propagator_decide(clingo_literal_t vsids, PyObject *heu) {
+    PyBlock block;
+    try {
+        Object l = PyLong_FromLong(vsids);
+        Object n = PyString_FromString("decide");
+        Object ret = PyObject_CallMethodObjArgs(heu, n.toPy(), l.toPy(), nullptr);
+        long retL = PyLong_AsLong(ret.toPy());
+        return retL;
+    }
+    catch (...) {
+        handle_cxx_error("Propagator::decide", "error during decide");
+        return 0;
     }
 }
 
@@ -6409,25 +6454,20 @@ active; you must not call any member function during search.)";
         handle_c_error(clingo_control_theory_atoms(ctl, &atoms));
         return TheoryAtomIter::construct(atoms, 0);
     }
+    bool has_method(Reference tp, char const *name) {
+        return PyObject_HasAttrString(tp.toPy(), name);
+    }
     Object registerPropagator(Reference tp) {
         CHECK_BLOCKED("register_propagator");
-        static clingo_propagator_t propagator = {
-            reinterpret_cast<decltype(clingo_propagator_t::init)>(propagator_init),
-            reinterpret_cast<decltype(clingo_propagator_t::propagate)>(propagator_propagate),
-            reinterpret_cast<decltype(clingo_propagator_t::undo)>(propagator_undo),
-            reinterpret_cast<decltype(clingo_propagator_t::check)>(propagator_check),
+        clingo_propagator_t propagator = {
+            has_method(tp, "init")      ? reinterpret_cast<decltype(clingo_propagator_t::init)>(propagator_init)           : nullptr,
+            has_method(tp, "propagate") ? reinterpret_cast<decltype(clingo_propagator_t::propagate)>(propagator_propagate) : nullptr,
+            has_method(tp, "undo")      ? reinterpret_cast<decltype(clingo_propagator_t::undo)>(propagator_undo)           : nullptr,
+            has_method(tp, "check")     ? reinterpret_cast<decltype(clingo_propagator_t::check)>(propagator_check)         : nullptr,
+            has_method(tp, "decide")    ? reinterpret_cast<decltype(clingo_propagator_t::decide)>(propagator_decide)       : nullptr,
         };
         objects.emplace_back(tp);
         handle_c_error(clingo_control_register_propagator(ctl, &propagator, tp.toPy(), false));
-        Py_RETURN_NONE;
-    }
-    Object registerHeuristic(Reference tp) {
-        CHECK_BLOCKED("register_heuristic");
-        static clingo_heuristic_t heuristic = {
-            reinterpret_cast<decltype(clingo_heuristic_t::decide)>(heuristic_decide)
-        };
-        objects.emplace_back(tp);
-        handle_c_error(clingo_control_register_heuristic(ctl, &heuristic, tp.toPy(), false));
         Py_RETURN_NONE;
     }
     Object registerObserver(Reference args, Reference kwds) {
@@ -7001,11 +7041,6 @@ interrupted.)"},
 R"(backend() -> Backend
 
 Returns a Backend object providing a low level interface to extend a logic program.)"},
-    {"register_heuristic", to_function<&ControlWrap::registerHeuristic>(), METH_O,
-R"("register_heuristic(self, heuristic) -> None
-
-TODO: document
-")"},
     {nullptr, nullptr, 0, nullptr}
 };
 

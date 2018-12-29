@@ -351,7 +351,6 @@ public:
     USolveFuture solve(Assumptions ass, clingo_solve_mode_bitset_t mode, USolveEventHandler cb) override;
     Output::DomainData const &theory() const override { return out_->data; }
     void registerPropagator(UProp p, bool sequential) override;
-    void registerHeuristic(UHeuristic h, bool sequential) override;
     void interrupt() override;
     void *claspFacade() override;
     bool beginAddBackend() override;
@@ -387,7 +386,6 @@ public:
     std::unique_ptr<Potassco::TheoryData>                      data_;
     std::vector<UProp>                                         props_;
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>>  propagators_;
-    std::vector<UHeuristic>                                    heuristics_;
     ClingoPropagatorLock                                       propLock_;
     Logger                                                     logger_;
     TheoryOutput                                               theory_;
