@@ -1281,8 +1281,9 @@ public:
     }
 
     Lit decide(Id_t solverId, Potassco::AbstractAssignment const &assignment, Lit fallback) override {
-        if (prop_.decide && !prop_.decide(solverId, const_cast<clingo_assignment_t*>(static_cast<clingo_assignment_t const*>(&assignment)), fallback, data_)) { throw ClingoError(); }
-        return fallback;
+        clingo_literal_t decision = 0;
+        if (prop_.decide && !prop_.decide(solverId, const_cast<clingo_assignment_t*>(static_cast<clingo_assignment_t const*>(&assignment)), fallback, data_, &decision)) { throw ClingoError(); }
+        return decision;
     }
 private:
     clingo_propagator_t prop_;

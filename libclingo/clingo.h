@@ -1269,12 +1269,8 @@ typedef struct clingo_propagator {
     //! @see ::clingo_propagator_check_callback_t
     bool (*check) (clingo_propagate_control_t *control, void *data);
 
-
-
-    //! TODO: document
-    clingo_literal_t (*decide) (clingo_id_t thread_id, clingo_assignment_t *assignment, clingo_literal_t literal, void *data);
-
-
+#   pragma message "document..."
+    bool (*decide) (clingo_id_t thread_id, clingo_assignment_t *assignment, clingo_literal_t fallback, void *data, clingo_literal_t *decision);
 } clingo_propagator_t;
 
 //! @}
