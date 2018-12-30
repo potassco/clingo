@@ -1043,7 +1043,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch(clingo_propagate_
 //! @param[in] solver_literal the solver literal
 //! @param[in] thread_id the id of the solver thread
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_t *init, clingo_literal_t solver_literal, uint32_t thread_id);
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_t *init, clingo_literal_t solver_literal, clingo_id_t thread_id);
 //! Get an object to inspect the symbolic atoms.
 //!
 //! @param[in] init the target
@@ -1271,8 +1271,8 @@ typedef struct clingo_propagator {
 
 
 
-    //! TODO: document and extend!!!
-    clingo_literal_t (*decide) (clingo_literal_t literal, void *data);
+    //! TODO: document
+    clingo_literal_t (*decide) (clingo_id_t thread_id, clingo_assignment_t *assignment, clingo_literal_t literal, void *data);
 
 
 } clingo_propagator_t;

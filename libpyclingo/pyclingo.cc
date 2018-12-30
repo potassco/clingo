@@ -3322,13 +3322,14 @@ bool propagator_check(clingo_propagate_control_t *control, PyObject *prop) {
     }
 }
 
-#pragma message "TODO: incomplete..."
-static clingo_literal_t propagator_decide(clingo_literal_t vsids, PyObject *heu) {
+static clingo_literal_t propagator_decide(clingo_id_t solverId, clingo_assignment_t *assign, clingo_literal_t vsids, PyObject *heu) {
     PyBlock block;
     try {
+        Object a = Assignment::construct(assign);
+        Object s = PyLong_FromLong(solverId);
         Object l = PyLong_FromLong(vsids);
         Object n = PyString_FromString("decide");
-        Object ret = PyObject_CallMethodObjArgs(heu, n.toPy(), l.toPy(), nullptr);
+        Object ret = PyObject_CallMethodObjArgs(heu, n.toPy(), s.toPy(), a.toPy(), l.toPy(), nullptr);
         long retL = PyLong_AsLong(ret.toPy());
         return retL;
     }
