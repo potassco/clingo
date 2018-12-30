@@ -33,7 +33,6 @@
 #include <gringo/output/literal.hh>
 #include <potassco/clingo.h>
 #include <clingo.h>
-#include "../clasp/clasp/clingo.h"
 
 #define CLINGO_QUOTE_(name) #name
 #define CLINGO_QUOTE(name) CLINGO_QUOTE_(name)
