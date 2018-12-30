@@ -7007,13 +7007,14 @@ class Propagator(object)
         Each thread has its own assignment and id, which can be obtained using
         PropagateControl.id().
 
-    undo(self, thread_id, assign, changes) -> None
+    undo(self, thread_id, assignment, changes) -> None
         Called whenever a solver with the given id undos assignments to watched
         solver literals.
 
         Arguments:
-        thread_id -- the solver thread id
-        changes   -- list of watched solver literals whose assignment is undone
+        thread_id  -- the solver thread id
+        assignment -- the assignment of the solver
+        changes    -- list of watched solver literals whose assignment is undone
 
         This function is meant to update assignment dependent state in a
         propagator.
@@ -7028,7 +7029,22 @@ class Propagator(object)
         Arguments:
         control -- PropagateControl object
 
-        This function is called even if no watches have been added.)"},
+        This function is called even if no watches have been added.
+
+    decide(self, thread_id, assignment, fallback) -> int
+        This function allows a propagator to implement domain-specific
+        heuristics. It is called whenever propagation reaches a fixed point.
+
+        Arguments:
+        thread_id  -- the solver thread id
+        assignment -- the assignment of the solver
+        fallback   -- the literal choosen by the solver's heuristic
+
+        This function should return a free solver literal that is to be
+        assigned true.  In case multiple propagators are registered, this
+        function can return 0 to let a propagator registered later make a
+        decision.  If all propagators return 0, then the fallback literal is
+        used.)"},
     {"interrupt", to_function<&ControlWrap::interrupt>(), METH_NOARGS,
 R"(interrupt(self) -> None
 
