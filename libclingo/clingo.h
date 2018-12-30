@@ -1255,6 +1255,7 @@ typedef struct clingo_propagator {
     //! @param[in] changes the change set
     //! @param[in] size the size of the change set
     //! @param[in] data user data for the callback
+    //! @return whether the call was successful
     //! @see ::clingo_propagator_undo_callback_t
     bool (*undo) (clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *data);
     //! This function is similar to @ref clingo_propagate_control_propagate() but is called without a change set on propagation fixpoints.
@@ -1268,8 +1269,19 @@ typedef struct clingo_propagator {
     //! @return whether the call was successful
     //! @see ::clingo_propagator_check_callback_t
     bool (*check) (clingo_propagate_control_t *control, void *data);
-
-#   pragma message "document..."
+    //! This function allows a propagator to implement domain-specific heuristics.
+    //!
+    //! It is called whenever propagation reaches a fixed point and
+    //! should return a free solver literal that is to be assigned true.
+    //! In case multiple propagators are registered,
+    //! this function can return 0 to let a propagator registered later make a decision.
+    //! If all propagators return 0, then the fallback literal is
+    //!
+    //! @param[in] thread_id the solver's thread id
+    //! @param[in] assignment the assignment of the solver
+    //! @param[in] fallback the literal choosen by the solver's heuristic
+    //! @param[out] decision the literal to make true
+    //! @return whether the call was successful
     bool (*decide) (clingo_id_t thread_id, clingo_assignment_t *assignment, clingo_literal_t fallback, void *data, clingo_literal_t *decision);
 } clingo_propagator_t;
 
