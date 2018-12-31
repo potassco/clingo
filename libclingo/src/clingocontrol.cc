@@ -32,8 +32,6 @@
 #include <clingo/script.h>
 #include <clingo/incmode.hh>
 
-#include <iostream>
-
 namespace Gringo {
 
 // {{{1 definition of ClaspAPIBackend
