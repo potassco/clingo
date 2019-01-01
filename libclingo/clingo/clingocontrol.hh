@@ -434,7 +434,7 @@ public:
         claspLits.push_back(~ctx().stepLiteral());
         model_->ctx->commitClause(claspLits);
     }
-    Gringo::SymbolicAtoms &getDomain() override {
+    Gringo::SymbolicAtoms &getDomain() const override {
         return ctl_.getDomain();
     }
     bool isTrue(Potassco::Lit_t lit) const override {
