@@ -158,9 +158,9 @@ public:
     using Lit_t = Potassco::Lit_t;
     ClingoPropagateInit(Control &c, Clasp::ClingoPropagatorInit &p);
     Output::DomainData const &theory() const override { return c_.theory(); }
-    SymbolicAtoms &getDomain() override { return c_.getDomain(); }
-    Lit_t mapLit(Lit_t lit) override;
-    int threads() override;
+    SymbolicAtoms &getDomain() const override { return c_.getDomain(); }
+    Lit_t mapLit(Lit_t lit) const override;
+    int threads() const override;
     void addWatch(Lit_t lit) override { p_.addWatch(Clasp::decodeLit(lit)); }
     void addWatch(uint32_t solverId, Lit_t lit) override { p_.addWatch(solverId, Clasp::decodeLit(lit)); }
     void enableHistory(bool b) override { p_.enableHistory(b); };
@@ -318,19 +318,19 @@ public:
     Potassco::Lit_t literal(SymbolicAtomIter it) const override;
     bool fact(SymbolicAtomIter it) const override;
     bool external(SymbolicAtomIter it) const override;
-    SymbolicAtomIter next(SymbolicAtomIter it) override;
+    SymbolicAtomIter next(SymbolicAtomIter it) const override;
     bool valid(SymbolicAtomIter it) const override;
 
     // {{{2 ConfigProxy interface
 
-    bool hasSubKey(unsigned key, char const *name) override;
-    unsigned getSubKey(unsigned key, char const *name) override;
-    unsigned getArrKey(unsigned key, unsigned idx) override;
+    bool hasSubKey(unsigned key, char const *name) const override;
+    unsigned getSubKey(unsigned key, char const *name) const override;
+    unsigned getArrKey(unsigned key, unsigned idx) const override;
     void getKeyInfo(unsigned key, int* nSubkeys = 0, int* arrLen = 0, const char** help = 0, int* nValues = 0) const override;
     const char* getSubKeyName(unsigned key, unsigned idx) const override;
-    bool getKeyValue(unsigned key, std::string &value) override;
+    bool getKeyValue(unsigned key, std::string &value) const override;
     void setKeyValue(unsigned key, const char *val) override;
-    unsigned getRootKey() override;
+    unsigned getRootKey() const override;
 
     // {{{2 Control interface
 
@@ -434,7 +434,7 @@ public:
         claspLits.push_back(~ctx().stepLiteral());
         model_->ctx->commitClause(claspLits);
     }
-    Gringo::SymbolicAtoms &getDomain() const override {
+    Gringo::SymbolicAtoms &getDomain() override {
         return ctl_.getDomain();
     }
     bool isTrue(Potassco::Lit_t lit) const override {
