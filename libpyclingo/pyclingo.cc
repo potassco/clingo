@@ -3263,12 +3263,12 @@ PyGetSetDef PropagateControl::tp_getset[] = {
 
 // {{{1 wrap Propagator
 
-static bool propagator_init(clingo_propagate_init_t *init, PyObject *prop) {
+static bool propagator_init(clingo_propagate_init_t *init, void *prop) {
     PyBlock block;
     try {
         Object i = PropagateInit::construct(init);
         Object n = PyString_FromString("init");
-        Object ret = PyObject_CallMethodObjArgs(prop, n.toPy(), i.toPy(), nullptr);
+        Object ret = PyObject_CallMethodObjArgs(static_cast<PyObject*>(prop), n.toPy(), i.toPy(), nullptr);
         return true;
     }
     catch (...) {
@@ -3277,13 +3277,13 @@ static bool propagator_init(clingo_propagate_init_t *init, PyObject *prop) {
     }
 }
 
-static bool propagator_propagate(clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, PyObject *prop) {
+static bool propagator_propagate(clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, void *prop) {
     PyBlock block;
     try {
         Object c = PropagateControl::construct(control);
         Object l = cppRngToPy(changes, changes + size);
         Object n = PyString_FromString("propagate");
-        Object ret = PyObject_CallMethodObjArgs(prop, n.toPy(), c.toPy(), l.toPy(), nullptr);
+        Object ret = PyObject_CallMethodObjArgs(static_cast<PyObject*>(prop), n.toPy(), c.toPy(), l.toPy(), nullptr);
         return true;
     }
     catch (...) {
@@ -3292,14 +3292,14 @@ static bool propagator_propagate(clingo_propagate_control_t *control, clingo_lit
     }
 }
 
-bool propagator_undo(clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, PyObject *prop) {
+bool propagator_undo(clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *prop) {
     PyBlock block;
     try {
         Object i = cppToPy(clingo_propagate_control_thread_id(control));
         Object a = Assignment::construct(clingo_propagate_control_assignment(control));
         Object l = cppRngToPy(changes, changes + size);
         Object n = PyString_FromString("undo");
-        Object ret = PyObject_CallMethodObjArgs(prop, n.toPy(), i.toPy(), a.toPy(), l.toPy(), nullptr);
+        Object ret = PyObject_CallMethodObjArgs(static_cast<PyObject*>(prop), n.toPy(), i.toPy(), a.toPy(), l.toPy(), nullptr);
         return true;
     }
     catch (...) {
@@ -3308,12 +3308,12 @@ bool propagator_undo(clingo_propagate_control_t const *control, clingo_literal_t
     }
 }
 
-bool propagator_check(clingo_propagate_control_t *control, PyObject *prop) {
+bool propagator_check(clingo_propagate_control_t *control, void *prop) {
     PyBlock block;
     try {
         Object c = PropagateControl::construct(control);
         Object n = PyString_FromString("check");
-        Object ret = PyObject_CallMethodObjArgs(prop, n.toPy(), c.toPy(), nullptr);
+        Object ret = PyObject_CallMethodObjArgs(static_cast<PyObject*>(prop), n.toPy(), c.toPy(), nullptr);
         return true;
     }
     catch (...) {
@@ -3322,14 +3322,14 @@ bool propagator_check(clingo_propagate_control_t *control, PyObject *prop) {
     }
 }
 
-static bool propagator_decide(clingo_id_t solverId, clingo_assignment_t *assign, clingo_literal_t vsids, PyObject *heu, clingo_literal_t *decision) {
+static bool propagator_decide(clingo_id_t solverId, clingo_assignment_t const *assign, clingo_literal_t vsids, void *heu, clingo_literal_t *decision) {
     PyBlock block;
     try {
         Object a = Assignment::construct(assign);
         Object s = PyLong_FromLong(solverId);
         Object l = PyLong_FromLong(vsids);
         Object n = PyString_FromString("decide");
-        Object ret = PyObject_CallMethodObjArgs(heu, n.toPy(), s.toPy(), a.toPy(), l.toPy(), nullptr);
+        Object ret = PyObject_CallMethodObjArgs(static_cast<PyObject*>(heu), n.toPy(), s.toPy(), a.toPy(), l.toPy(), nullptr);
         *decision = pyToCpp<clingo_literal_t>(ret);
         return true;
     }
@@ -6461,11 +6461,11 @@ active; you must not call any member function during search.)";
     Object registerPropagator(Reference tp) {
         CHECK_BLOCKED("register_propagator");
         clingo_propagator_t propagator = {
-            has_method(tp, "init")      ? reinterpret_cast<decltype(clingo_propagator_t::init)>(propagator_init)           : nullptr,
-            has_method(tp, "propagate") ? reinterpret_cast<decltype(clingo_propagator_t::propagate)>(propagator_propagate) : nullptr,
-            has_method(tp, "undo")      ? reinterpret_cast<decltype(clingo_propagator_t::undo)>(propagator_undo)           : nullptr,
-            has_method(tp, "check")     ? reinterpret_cast<decltype(clingo_propagator_t::check)>(propagator_check)         : nullptr,
-            has_method(tp, "decide")    ? reinterpret_cast<decltype(clingo_propagator_t::decide)>(propagator_decide)       : nullptr,
+            has_method(tp, "init")      ? propagator_init      : nullptr,
+            has_method(tp, "propagate") ? propagator_propagate : nullptr,
+            has_method(tp, "undo")      ? propagator_undo      : nullptr,
+            has_method(tp, "check")     ? propagator_check     : nullptr,
+            has_method(tp, "decide")    ? propagator_decide    : nullptr,
         };
         objects.emplace_back(tp);
         handle_c_error(clingo_control_register_propagator(ctl, &propagator, tp.toPy(), false));

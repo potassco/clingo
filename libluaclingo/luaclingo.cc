@@ -2685,6 +2685,47 @@ public:
         auto ret = lua_pcall(L, 2, 0, -4);
         return handle_lua_error(L, "Propagator::check", "check failed", ret);
     }
+    static int decide_(lua_State *L) {
+        auto *self = static_cast<Propagator*>(lua_touserdata(L, 1));
+        auto thread_id = lua_tointeger(L, 2);
+        auto *assignment = static_cast<clingo_assignment_t const *>(lua_touserdata(L, 3));
+        auto *decision = static_cast<clingo_literal_t *>(lua_touserdata(L, 5));
+        lua_pushvalue(self->T, PropagatorIndex); // +1
+        lua_xmove(self->T, L, 1);                // +0
+        lua_getfield(L, -1, "decide");           // +1
+        if (!lua_isnil(L, -1)) {
+            lua_insert(L, -2);
+            lua_pushinteger(L, thread_id+1);     // +1
+            Assignment::new_(L, assignment);     // +1
+            lua_pushvalue(L, 4);                 // +1
+            getState(L, self->T, thread_id);     // +1
+            lua_call(L, 5, 1);                   // -5
+            *decision = lua_tointeger(L, -1);
+            lua_pop(L, 1);                       // +1
+        }
+        else {
+            lua_pop(L, 2);                       // -2
+        }
+        return 0;
+    }
+    static bool decide(clingo_id_t thread_id, clingo_assignment_t const *assignment, clingo_literal_t fallback, void *data, clingo_literal_t *decision) {
+        auto *self = static_cast<Propagator*>(data);
+        lua_State *L = self->threads[thread_id];
+        if (!lua_checkstack(L, 7)) {
+            clingo_set_error(clingo_error_runtime, "lua stack size exceeded");
+            return false;
+        }
+        LuaClear ll(self->T), lt(L);
+        lua_pushcfunction(L, luaTraceback);
+        lua_pushcfunction(L, undo_);
+        lua_pushlightuserdata(L, self); // 1
+        lua_pushnumber(L, thread_id);   // 2
+        lua_pushlightuserdata(L, const_cast<clingo_assignment_t*>(assignment)); // 3
+        lua_pushnumber(L, fallback); // 4
+        lua_pushlightuserdata(L, decision); //5
+        auto ret = lua_pcall(L, 5, 0, -7);
+        return handle_lua_error(L, "Propagator::decide", "decide failed", ret);
+    }
 
     virtual ~Propagator() noexcept = default;
 private:
@@ -3288,6 +3329,12 @@ struct ControlWrap : Object<ControlWrap> {
         self.~ControlWrap();
         return 0;
     }
+    static bool hasField(lua_State *L, char const *name, int index) {
+        lua_getfield(L, index, name); // +1
+        bool ret = !lua_isnil(L, -1);
+        lua_pop(L, 1);                // -1
+        return ret;
+    }
     static int registerPropagator(lua_State *L) {
         auto &self = get_self(L);
         lua_pushstring(L, "propagators");     // +1
@@ -3307,11 +3354,12 @@ struct ControlWrap : Object<ControlWrap> {
         lua_newtable(T);
         lua_newtable(T);
 
-        static clingo_propagator_t propagator = {
-            Propagator::init,
-            Propagator::propagate,
-            Propagator::undo,
-            Propagator::check
+        clingo_propagator_t propagator = {
+            hasField(L, "init", 2) ? Propagator::init : nullptr,
+            hasField(L, "propagate", 2) ? Propagator::propagate : nullptr,
+            hasField(L, "undo", 2) ? Propagator::undo : nullptr,
+            hasField(L, "check", 2) ? Propagator::check : nullptr,
+            hasField(L, "decide", 2) ? Propagator::decide : nullptr,
         };
         PROTECT(self.propagators.emplace_front(L, T));
         handle_c_error(L, clingo_control_register_propagator(self.ctl, &propagator, &self.propagators.front(), true));

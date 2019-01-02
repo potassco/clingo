@@ -4035,7 +4035,7 @@ inline static bool g_check(clingo_propagate_control_t *ctl, void *pdata) {
     CLINGO_CALLBACK_CATCH(data.second);
 }
 
-inline static bool g_decide(clingo_id_t ti, clingo_assignment_t *a,  clingo_literal_t f, void *pdata, clingo_literal_t *l) {
+inline static bool g_decide(clingo_id_t ti, clingo_assignment_t const *a,  clingo_literal_t f, void *pdata, clingo_literal_t *l) {
     PropagatorData &data = *static_cast<PropagatorData*>(pdata);
     CLINGO_CALLBACK_TRY {
         Assignment ass{a};

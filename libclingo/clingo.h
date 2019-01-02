@@ -1282,7 +1282,7 @@ typedef struct clingo_propagator {
     //! @param[in] fallback the literal choosen by the solver's heuristic
     //! @param[out] decision the literal to make true
     //! @return whether the call was successful
-    bool (*decide) (clingo_id_t thread_id, clingo_assignment_t *assignment, clingo_literal_t fallback, void *data, clingo_literal_t *decision);
+    bool (*decide) (clingo_id_t thread_id, clingo_assignment_t const *assignment, clingo_literal_t fallback, void *data, clingo_literal_t *decision);
 } clingo_propagator_t;
 
 //! @}
