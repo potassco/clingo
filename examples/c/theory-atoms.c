@@ -98,7 +98,7 @@ int main(int argc, char const **argv) {
   clingo_solve_result_bitset_t solve_ret;
   clingo_control_t *ctl = NULL;
   clingo_part_t parts[] = {{ "base", NULL, 0 }};
-  clingo_theory_atoms_t *atoms;
+  clingo_theory_atoms_t const *atoms;
   clingo_literal_t lit = 0;
 
   // create a control object and pass command line arguments

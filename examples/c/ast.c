@@ -162,7 +162,7 @@ int main(int argc, char const **argv) {
   int ret = 0;
   clingo_solve_result_bitset_t solve_ret;
   clingo_control_t *ctl = NULL;
-  clingo_symbolic_atoms_t *atoms = NULL;
+  clingo_symbolic_atoms_t const *atoms = NULL;
   clingo_solve_handle_t *handle = NULL;
   clingo_symbol_t sym;
   clingo_symbolic_atom_iterator_t atm_it;

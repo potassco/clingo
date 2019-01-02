@@ -158,12 +158,12 @@ ClingoPropagateInit::ClingoPropagateInit(Control &c, Clasp::ClingoPropagatorInit
     p_.enableHistory(false);
 }
 
-Potassco::Lit_t ClingoPropagateInit::mapLit(Lit_t lit) {
+Potassco::Lit_t ClingoPropagateInit::mapLit(Lit_t lit) const {
     const auto& prg = static_cast<Clasp::Asp::LogicProgram&>(*static_cast<ClingoControl&>(c_).clasp_->program());
     return Clasp::encodeLit(prg.getLiteral(lit, Clasp::Asp::MapLit_t::Refined));
 }
 
-int ClingoPropagateInit::threads() {
+int ClingoPropagateInit::threads() const {
     return static_cast<ClingoControl&>(c_).clasp_->ctx.concurrency();
 }
 
@@ -297,11 +297,11 @@ void ClingoControl::onFinish(Clasp::ClaspFacade::Result ret) {
         eventHandler_ = nullptr;
     }
 }
-Symbol ClingoControl::getConst(std::string const &name) {
+Symbol ClingoControl::getConst(std::string const &name) const {
     auto ret = defs_.defs().find(name.c_str());
     if (ret != defs_.defs().end()) {
         bool undefined = false;
-        Symbol val = std::get<2>(ret->second)->eval(undefined, logger_);
+        Symbol val = std::get<2>(ret->second)->eval(undefined, const_cast<Logger&>(logger_));
         if (!undefined) { return val; }
     }
     return Symbol();
@@ -317,18 +317,18 @@ void ClingoControl::load(std::string const &filename) {
     parser_->pushFile(std::string(filename), logger_);
     parse();
 }
-bool ClingoControl::hasSubKey(unsigned key, char const *name) {
+bool ClingoControl::hasSubKey(unsigned key, char const *name) const {
     unsigned subkey = claspConfig_.getKey(key, name);
     return subkey != Clasp::Cli::ClaspCliConfig::KEY_INVALID;
 }
-unsigned ClingoControl::getSubKey(unsigned key, char const *name) {
+unsigned ClingoControl::getSubKey(unsigned key, char const *name) const {
     unsigned ret = claspConfig_.getKey(key, name);
     if (ret == Clasp::Cli::ClaspCliConfig::KEY_INVALID) {
         throw std::runtime_error("invalid key");
     }
     return ret;
 }
-unsigned ClingoControl::getArrKey(unsigned key, unsigned idx) {
+unsigned ClingoControl::getArrKey(unsigned key, unsigned idx) const {
     unsigned ret = claspConfig_.getArrKey(key, idx);
     if (ret == Clasp::Cli::ClaspCliConfig::KEY_INVALID) {
         throw std::runtime_error("invalid key");
@@ -347,7 +347,7 @@ const char* ClingoControl::getSubKeyName(unsigned key, unsigned idx) const {
     }
     return ret;
 }
-bool ClingoControl::getKeyValue(unsigned key, std::string &value) {
+bool ClingoControl::getKeyValue(unsigned key, std::string &value) const {
     int ret = claspConfig_.getValue(key, value);
     if (ret < -1) {
         throw std::runtime_error("could not get option value");
@@ -360,7 +360,7 @@ void ClingoControl::setKeyValue(unsigned key, const char *val) {
         throw std::runtime_error("could not set option value");
     }
 }
-unsigned ClingoControl::getRootKey() {
+unsigned ClingoControl::getRootKey() const {
     return Clasp::Cli::ClaspCliConfig::KEY_ROOT;
 }
 ConfigProxy &ClingoControl::getConf() {
@@ -372,8 +372,8 @@ USolveFuture ClingoControl::solve(Assumptions ass, clingo_solve_mode_bitset_t mo
         static_assert(clingo_solve_mode_yield == static_cast<clingo_solve_mode_bitset_t>(Clasp::SolveMode_t::Yield), "");
         static_assert(clingo_solve_mode_async == static_cast<clingo_solve_mode_bitset_t>(Clasp::SolveMode_t::Async), "");
         if (cb) {
-            step_stats_.init(statistics(), "user_step");
-            accu_stats_.init(statistics(), "user_accu");
+            step_stats_.init(clasp_->getStats(), "user_step");
+            accu_stats_.init(clasp_->getStats(), "user_accu");
         }
         eventHandler_ = std::move(cb);
         return gringo_make_unique<ClingoSolveFuture>(*this, static_cast<Clasp::SolveMode_t>(mode));
@@ -470,11 +470,11 @@ void ClingoControl::assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) 
     }
 }
 
-bool ClingoControl::isConflicting() noexcept {
+bool ClingoControl::isConflicting() const noexcept {
     return !clasp_->ok();
 }
 
-Potassco::AbstractStatistics *ClingoControl::statistics() {
+Potassco::AbstractStatistics const *ClingoControl::statistics() const {
     return clasp_->getStats();
 }
 
@@ -486,7 +486,7 @@ bool ClingoControl::useEnumAssumption() {
     return enableEnumAssupmption_;
 }
 
-SymbolicAtoms &ClingoControl::getDomain() {
+SymbolicAtoms const &ClingoControl::getDomain() const {
     return *this;
 }
 
@@ -574,7 +574,7 @@ bool ClingoControl::external(SymbolicAtomIter it) const {
     return elem.hasUid() && elem.isExternal() && (!clingoMode_ || static_cast<Clasp::Asp::LogicProgram*>(clasp_->program())->isExternal(elem.uid()));
 }
 
-SymbolicAtomIter ClingoControl::next(SymbolicAtomIter it) {
+SymbolicAtomIter ClingoControl::next(SymbolicAtomIter it) const {
     advance(*out_, it);
     return it;
 }

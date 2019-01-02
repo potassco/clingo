@@ -364,27 +364,27 @@ extern "C" size_t clingo_symbol_hash(clingo_symbol_t sym) {
 
 // {{{1 symbolic atoms
 
-extern "C" bool clingo_symbolic_atoms_begin(clingo_symbolic_atoms_t *dom, clingo_signature_t const *sig, clingo_symbolic_atom_iterator_t *ret) {
+extern "C" bool clingo_symbolic_atoms_begin(clingo_symbolic_atoms_t const *dom, clingo_signature_t const *sig, clingo_symbolic_atom_iterator_t *ret) {
     GRINGO_CLINGO_TRY { *ret = sig ? dom->begin(Sig(*sig)) : dom->begin(); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_symbolic_atoms_end(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t *ret) {
+extern "C" bool clingo_symbolic_atoms_end(clingo_symbolic_atoms_t const *dom, clingo_symbolic_atom_iterator_t *ret) {
     GRINGO_CLINGO_TRY { *ret = dom->end(); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_symbolic_atoms_find(clingo_symbolic_atoms_t *dom, clingo_symbol_t atom, clingo_symbolic_atom_iterator_t *ret) {
+extern "C" bool clingo_symbolic_atoms_find(clingo_symbolic_atoms_t const *dom, clingo_symbol_t atom, clingo_symbolic_atom_iterator_t *ret) {
     GRINGO_CLINGO_TRY { *ret = dom->lookup(Symbol(atom)); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_symbolic_atoms_iterator_is_equal_to(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t it, clingo_symbolic_atom_iterator_t jt, bool *ret) {
+extern "C" bool clingo_symbolic_atoms_iterator_is_equal_to(clingo_symbolic_atoms_t const *dom, clingo_symbolic_atom_iterator_t it, clingo_symbolic_atom_iterator_t jt, bool *ret) {
     GRINGO_CLINGO_TRY { *ret = dom->eq(it, jt); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_symbolic_atoms_signatures_size(clingo_symbolic_atoms_t *dom, size_t *n) {
+extern "C" bool clingo_symbolic_atoms_signatures_size(clingo_symbolic_atoms_t const *dom, size_t *n) {
     GRINGO_CLINGO_TRY {
         // TODO: implement matching C++ functions ...
         auto sigs = dom->signatures();
@@ -393,7 +393,7 @@ extern "C" bool clingo_symbolic_atoms_signatures_size(clingo_symbolic_atoms_t *d
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_symbolic_atoms_signatures(clingo_symbolic_atoms_t *dom, clingo_signature_t *ret, size_t n) {
+extern "C" bool clingo_symbolic_atoms_signatures(clingo_symbolic_atoms_t const *dom, clingo_signature_t *ret, size_t n) {
     GRINGO_CLINGO_TRY {
         // TODO: implement matching C++ functions ...
         auto sigs = dom->signatures();
@@ -403,37 +403,37 @@ extern "C" bool clingo_symbolic_atoms_signatures(clingo_symbolic_atoms_t *dom, c
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_symbolic_atoms_size(clingo_symbolic_atoms_t *dom, size_t *size) {
+extern "C" bool clingo_symbolic_atoms_size(clingo_symbolic_atoms_t const *dom, size_t *size) {
     GRINGO_CLINGO_TRY { *size = dom->length(); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_symbolic_atoms_symbol(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, clingo_symbol_t *sym) {
+extern "C" bool clingo_symbolic_atoms_symbol(clingo_symbolic_atoms_t const *dom, clingo_symbolic_atom_iterator_t atm, clingo_symbol_t *sym) {
     GRINGO_CLINGO_TRY { *sym = dom->atom(atm).rep(); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_symbolic_atoms_literal(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, clingo_literal_t *lit) {
+extern "C" bool clingo_symbolic_atoms_literal(clingo_symbolic_atoms_t const *dom, clingo_symbolic_atom_iterator_t atm, clingo_literal_t *lit) {
     GRINGO_CLINGO_TRY { *lit = dom->literal(atm); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_symbolic_atoms_is_fact(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *fact) {
+extern "C" bool clingo_symbolic_atoms_is_fact(clingo_symbolic_atoms_t const *dom, clingo_symbolic_atom_iterator_t atm, bool *fact) {
     GRINGO_CLINGO_TRY { *fact = dom->fact(atm); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_symbolic_atoms_is_external(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *external) {
+extern "C" bool clingo_symbolic_atoms_is_external(clingo_symbolic_atoms_t const *dom, clingo_symbolic_atom_iterator_t atm, bool *external) {
     GRINGO_CLINGO_TRY { *external = dom->external(atm); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_symbolic_atoms_next(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, clingo_symbolic_atom_iterator_t *next) {
+extern "C" bool clingo_symbolic_atoms_next(clingo_symbolic_atoms_t const *dom, clingo_symbolic_atom_iterator_t atm, clingo_symbolic_atom_iterator_t *next) {
     GRINGO_CLINGO_TRY { *next = dom->next(atm); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_symbolic_atoms_is_valid(clingo_symbolic_atoms_t *dom, clingo_symbolic_atom_iterator_t atm, bool *valid) {
+extern "C" bool clingo_symbolic_atoms_is_valid(clingo_symbolic_atoms_t const *dom, clingo_symbolic_atom_iterator_t atm, bool *valid) {
     GRINGO_CLINGO_TRY { *valid = dom->valid(atm); }
     GRINGO_CLINGO_CATCH;
 }
@@ -442,22 +442,22 @@ extern "C" bool clingo_symbolic_atoms_is_valid(clingo_symbolic_atoms_t *dom, cli
 
 struct clingo_theory_atoms : Gringo::Output::DomainData { };
 
-extern "C" bool clingo_theory_atoms_term_type(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_theory_term_type_t *ret) {
+extern "C" bool clingo_theory_atoms_term_type(clingo_theory_atoms_t const *atoms, clingo_id_t value, clingo_theory_term_type_t *ret) {
     GRINGO_CLINGO_TRY { *ret = static_cast<clingo_theory_term_type_t>(atoms->termType(value)); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_term_number(clingo_theory_atoms_t *atoms, clingo_id_t value, int *ret) {
+extern "C" bool clingo_theory_atoms_term_number(clingo_theory_atoms_t const *atoms, clingo_id_t value, int *ret) {
     GRINGO_CLINGO_TRY { *ret = atoms->termNum(value); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_term_name(clingo_theory_atoms_t *atoms, clingo_id_t value, char const **ret) {
+extern "C" bool clingo_theory_atoms_term_name(clingo_theory_atoms_t const *atoms, clingo_id_t value, char const **ret) {
     GRINGO_CLINGO_TRY { *ret = atoms->termName(value); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_term_arguments(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n) {
+extern "C" bool clingo_theory_atoms_term_arguments(clingo_theory_atoms_t const *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n) {
     GRINGO_CLINGO_TRY {
         auto span = atoms->termArgs(value);
         *ret = span.first;
@@ -466,7 +466,7 @@ extern "C" bool clingo_theory_atoms_term_arguments(clingo_theory_atoms_t *atoms,
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_element_tuple(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n) {
+extern "C" bool clingo_theory_atoms_element_tuple(clingo_theory_atoms_t const *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n) {
     GRINGO_CLINGO_TRY {
         auto span = atoms->elemTuple(value);
         *ret = span.first;
@@ -475,7 +475,7 @@ extern "C" bool clingo_theory_atoms_element_tuple(clingo_theory_atoms_t *atoms, 
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_element_condition(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_literal_t const **ret, size_t *n) {
+extern "C" bool clingo_theory_atoms_element_condition(clingo_theory_atoms_t const *atoms, clingo_id_t value, clingo_literal_t const **ret, size_t *n) {
     GRINGO_CLINGO_TRY {
         auto span = atoms->elemCond(value);
         *ret = span.first;
@@ -484,12 +484,12 @@ extern "C" bool clingo_theory_atoms_element_condition(clingo_theory_atoms_t *ato
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_element_condition_id(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_literal_t *ret) {
+extern "C" bool clingo_theory_atoms_element_condition_id(clingo_theory_atoms_t const *atoms, clingo_id_t value, clingo_literal_t *ret) {
     GRINGO_CLINGO_TRY { *ret = atoms->elemCondLit(value); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_atom_elements(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n) {
+extern "C" bool clingo_theory_atoms_atom_elements(clingo_theory_atoms_t const *atoms, clingo_id_t value, clingo_id_t const **ret, size_t *n) {
     GRINGO_CLINGO_TRY {
         auto span = atoms->atomElems(value);
         *ret = span.first;
@@ -498,22 +498,22 @@ extern "C" bool clingo_theory_atoms_atom_elements(clingo_theory_atoms_t *atoms, 
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_atom_term(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_id_t *ret) {
+extern "C" bool clingo_theory_atoms_atom_term(clingo_theory_atoms_t const *atoms, clingo_id_t value, clingo_id_t *ret) {
     GRINGO_CLINGO_TRY { *ret = atoms->atomTerm(value); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_atom_has_guard(clingo_theory_atoms_t *atoms, clingo_id_t value, bool *ret) {
+extern "C" bool clingo_theory_atoms_atom_has_guard(clingo_theory_atoms_t const *atoms, clingo_id_t value, bool *ret) {
     GRINGO_CLINGO_TRY { *ret = atoms->atomHasGuard(value); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_atom_literal(clingo_theory_atoms_t *atoms, clingo_id_t value, clingo_literal_t *ret) {
+extern "C" bool clingo_theory_atoms_atom_literal(clingo_theory_atoms_t const *atoms, clingo_id_t value, clingo_literal_t *ret) {
     GRINGO_CLINGO_TRY { *ret = atoms->atomLit(value); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_atom_guard(clingo_theory_atoms_t *atoms, clingo_id_t value, char const **ret_op, clingo_id_t *ret_term) {
+extern "C" bool clingo_theory_atoms_atom_guard(clingo_theory_atoms_t const *atoms, clingo_id_t value, char const **ret_op, clingo_id_t *ret_term) {
     GRINGO_CLINGO_TRY {
         auto guard = atoms->atomGuard(value);
         *ret_op = guard.first;
@@ -522,37 +522,37 @@ extern "C" bool clingo_theory_atoms_atom_guard(clingo_theory_atoms_t *atoms, cli
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_size(clingo_theory_atoms_t *atoms, size_t *ret) {
+extern "C" bool clingo_theory_atoms_size(clingo_theory_atoms_t const *atoms, size_t *ret) {
     GRINGO_CLINGO_TRY { *ret = atoms->numAtoms(); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_term_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t value, size_t *n) {
+extern "C" bool clingo_theory_atoms_term_to_string_size(clingo_theory_atoms_t const *atoms, clingo_id_t value, size_t *n) {
     GRINGO_CLINGO_TRY { *n = print_size([atoms, value](std::ostream &out) { out << atoms->termStr(value); }); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_term_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t n) {
+extern "C" bool clingo_theory_atoms_term_to_string(clingo_theory_atoms_t const *atoms, clingo_id_t value, char *ret, size_t n) {
     GRINGO_CLINGO_TRY { print(ret, n, [atoms, value](std::ostream &out) { out << atoms->termStr(value); }); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_element_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t value, size_t *n) {
+extern "C" bool clingo_theory_atoms_element_to_string_size(clingo_theory_atoms_t const *atoms, clingo_id_t value, size_t *n) {
     GRINGO_CLINGO_TRY { *n = print_size([atoms, value](std::ostream &out) { out << atoms->elemStr(value); }); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_element_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t n) {
+extern "C" bool clingo_theory_atoms_element_to_string(clingo_theory_atoms_t const *atoms, clingo_id_t value, char *ret, size_t n) {
     GRINGO_CLINGO_TRY { print(ret, n, [atoms, value](std::ostream &out) { out << atoms->elemStr(value); }); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_atom_to_string_size(clingo_theory_atoms_t *atoms, clingo_id_t value, size_t *n) {
+extern "C" bool clingo_theory_atoms_atom_to_string_size(clingo_theory_atoms_t const *atoms, clingo_id_t value, size_t *n) {
     GRINGO_CLINGO_TRY { *n = print_size([atoms, value](std::ostream &out) { out << atoms->atomStr(value); }); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms, clingo_id_t value, char *ret, size_t n) {
+extern "C" bool clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t const *atoms, clingo_id_t value, char *ret, size_t n) {
     GRINGO_CLINGO_TRY { print(ret, n, [atoms, value](std::ostream &out) { out << atoms->atomStr(value); }); }
     GRINGO_CLINGO_CATCH;
 }
@@ -561,63 +561,63 @@ extern "C" bool clingo_theory_atoms_atom_to_string(clingo_theory_atoms_t *atoms,
 
 struct clingo_assignment : public Potassco::AbstractAssignment { };
 
-extern "C" bool clingo_assignment_has_conflict(clingo_assignment_t *ass) {
+extern "C" bool clingo_assignment_has_conflict(clingo_assignment_t const *ass) {
     return ass->hasConflict();
 }
 
-extern "C" uint32_t clingo_assignment_decision_level(clingo_assignment_t *ass) {
+extern "C" uint32_t clingo_assignment_decision_level(clingo_assignment_t const *ass) {
     return ass->level();
 }
 
-extern "C" bool clingo_assignment_has_literal(clingo_assignment_t *ass, clingo_literal_t lit) {
+extern "C" bool clingo_assignment_has_literal(clingo_assignment_t const *ass, clingo_literal_t lit) {
     return ass->hasLit(lit);
 }
 
-extern "C" bool clingo_assignment_truth_value(clingo_assignment_t *ass, clingo_literal_t lit, clingo_truth_value_t *ret) {
+extern "C" bool clingo_assignment_truth_value(clingo_assignment_t const *ass, clingo_literal_t lit, clingo_truth_value_t *ret) {
     GRINGO_CLINGO_TRY { *ret = ass->value(lit); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_assignment_level(clingo_assignment_t *ass, clingo_literal_t lit, uint32_t *ret) {
+extern "C" bool clingo_assignment_level(clingo_assignment_t const *ass, clingo_literal_t lit, uint32_t *ret) {
     GRINGO_CLINGO_TRY { *ret = ass->level(lit); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_assignment_decision(clingo_assignment_t *ass, uint32_t level, clingo_literal_t *ret) {
+extern "C" bool clingo_assignment_decision(clingo_assignment_t const *ass, uint32_t level, clingo_literal_t *ret) {
     GRINGO_CLINGO_TRY { *ret = ass->decision(level); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_assignment_is_fixed(clingo_assignment_t *ass, clingo_literal_t lit, bool *ret) {
+extern "C" bool clingo_assignment_is_fixed(clingo_assignment_t const *ass, clingo_literal_t lit, bool *ret) {
     GRINGO_CLINGO_TRY { *ret = ass->isFixed(lit); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_assignment_is_true(clingo_assignment_t *ass, clingo_literal_t lit, bool *ret) {
+extern "C" bool clingo_assignment_is_true(clingo_assignment_t const *ass, clingo_literal_t lit, bool *ret) {
     GRINGO_CLINGO_TRY { *ret = ass->isTrue(lit); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_assignment_is_false(clingo_assignment_t *ass, clingo_literal_t lit, bool *ret) {
+extern "C" bool clingo_assignment_is_false(clingo_assignment_t const *ass, clingo_literal_t lit, bool *ret) {
     GRINGO_CLINGO_TRY { *ret = ass->isFalse(lit); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" size_t clingo_assignment_size(clingo_assignment_t *assignment) {
+extern "C" size_t clingo_assignment_size(clingo_assignment_t const *assignment) {
     return assignment->size() - assignment->unassigned();
 }
 
-extern "C" size_t clingo_assignment_max_size(clingo_assignment_t *assignment) {
+extern "C" size_t clingo_assignment_max_size(clingo_assignment_t const *assignment) {
     return assignment->size();
 }
 
-extern "C" bool clingo_assignment_is_total(clingo_assignment_t *assignment) {
+extern "C" bool clingo_assignment_is_total(clingo_assignment_t const *assignment) {
     return assignment->isTotal();
 }
 
 // {{{1 propagate init
 
-extern "C" bool clingo_propagate_init_solver_literal(clingo_propagate_init_t *init, clingo_literal_t lit, clingo_literal_t *ret) {
+extern "C" bool clingo_propagate_init_solver_literal(clingo_propagate_init_t const *init, clingo_literal_t lit, clingo_literal_t *ret) {
     GRINGO_CLINGO_TRY { *ret = init->mapLit(lit); }
     GRINGO_CLINGO_CATCH;
 }
@@ -632,17 +632,17 @@ extern "C" bool clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" int clingo_propagate_init_number_of_threads(clingo_propagate_init_t *init) {
+extern "C" int clingo_propagate_init_number_of_threads(clingo_propagate_init_t const *init) {
     return init->threads();
 }
 
-extern "C" bool clingo_propagate_init_symbolic_atoms(clingo_propagate_init_t *init, clingo_symbolic_atoms_t **ret) {
+extern "C" bool clingo_propagate_init_symbolic_atoms(clingo_propagate_init_t const *init, clingo_symbolic_atoms_t const **ret) {
     GRINGO_CLINGO_TRY { *ret = &init->getDomain(); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_propagate_init_theory_atoms(clingo_propagate_init_t *init, clingo_theory_atoms_t **ret) {
-    GRINGO_CLINGO_TRY { *ret = const_cast<clingo_theory_atoms*>(static_cast<clingo_theory_atoms const*>(&init->theory())); }
+extern "C" bool clingo_propagate_init_theory_atoms(clingo_propagate_init_t const *init, clingo_theory_atoms_t const **ret) {
+    GRINGO_CLINGO_TRY { *ret = static_cast<clingo_theory_atoms const*>(&init->theory()); }
     GRINGO_CLINGO_CATCH;
 }
 
@@ -650,24 +650,24 @@ extern "C" void clingo_propagate_init_set_check_mode(clingo_propagate_init_t *in
     init->setCheckMode(mode);
 }
 
-extern "C" clingo_propagator_check_mode_t clingo_propagate_init_get_check_mode(clingo_propagate_init_t *init) {
+extern "C" clingo_propagator_check_mode_t clingo_propagate_init_get_check_mode(clingo_propagate_init_t const *init) {
     return init->getCheckMode();
 }
 
-extern "C" clingo_assignment_t *clingo_propagate_init_assignment(clingo_propagate_init_t *init) {
-    return const_cast<clingo_assignment_t *>(static_cast<clingo_assignment_t const *>(&init->assignment()));
+extern "C" clingo_assignment_t const *clingo_propagate_init_assignment(clingo_propagate_init_t const *init) {
+    return static_cast<clingo_assignment_t const *>(&init->assignment());
 }
 
 // {{{1 propagate control
 
 struct clingo_propagate_control : Potassco::AbstractSolver { };
 
-extern "C" clingo_id_t clingo_propagate_control_thread_id(clingo_propagate_control_t *ctl) {
+extern "C" clingo_id_t clingo_propagate_control_thread_id(clingo_propagate_control_t const *ctl) {
     return ctl->id();
 }
 
-extern "C" clingo_assignment_t *clingo_propagate_control_assignment(clingo_propagate_control_t *ctl) {
-    return const_cast<clingo_assignment_t *>(static_cast<clingo_assignment_t const *>(&ctl->assignment()));
+extern "C" clingo_assignment_t const *clingo_propagate_control_assignment(clingo_propagate_control_t const *ctl) {
+    return static_cast<clingo_assignment_t const *>(&ctl->assignment());
 }
 
 extern "C" bool clingo_propagate_control_add_clause(clingo_propagate_control_t *ctl, clingo_literal_t const *clause, size_t n, clingo_clause_type_t prop, bool *ret) {
@@ -690,7 +690,7 @@ extern "C" bool clingo_propagate_control_add_watch(clingo_propagate_control_t *c
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_propagate_control_has_watch(clingo_propagate_control_t *control, clingo_literal_t literal) {
+extern "C" bool clingo_propagate_control_has_watch(clingo_propagate_control_t const *control, clingo_literal_t literal) {
     return control->hasWatch(literal);
 }
 
@@ -712,7 +712,7 @@ extern "C" bool clingo_solve_control_add_clause(clingo_solve_control_t *ctl, cli
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_solve_control_symbolic_atoms(clingo_solve_control_t *control, clingo_symbolic_atoms_t **atoms) {
+extern "C" bool clingo_solve_control_symbolic_atoms(clingo_solve_control_t const *control, clingo_symbolic_atoms_t const **atoms) {
     GRINGO_CLINGO_TRY { *atoms = &control->getDomain(); }
     GRINGO_CLINGO_CATCH;
 }
@@ -793,7 +793,7 @@ extern "C" bool clingo_model_is_true(clingo_model_t const *m, clingo_literal_t l
 
 struct clingo_configuration : ConfigProxy { };
 
-extern "C" bool clingo_configuration_type(clingo_configuration_t *conf, clingo_id_t key, clingo_configuration_type_bitset_t *ret) {
+extern "C" bool clingo_configuration_type(clingo_configuration_t const *conf, clingo_id_t key, clingo_configuration_type_bitset_t *ret) {
     GRINGO_CLINGO_TRY {
         int map_size, array_size, value_size;
         conf->getKeyInfo(key, &map_size, &array_size, nullptr, &value_size);
@@ -805,22 +805,22 @@ extern "C" bool clingo_configuration_type(clingo_configuration_t *conf, clingo_i
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_configuration_map_at(clingo_configuration_t *conf, clingo_id_t key, char const *name, clingo_id_t* subkey) {
+extern "C" bool clingo_configuration_map_at(clingo_configuration_t const *conf, clingo_id_t key, char const *name, clingo_id_t* subkey) {
     GRINGO_CLINGO_TRY { *subkey = conf->getSubKey(key, name); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_configuration_map_has_subkey(clingo_configuration_t *conf, clingo_id_t key, char const *name, bool *result) {
+extern "C" bool clingo_configuration_map_has_subkey(clingo_configuration_t const *conf, clingo_id_t key, char const *name, bool *result) {
     GRINGO_CLINGO_TRY { *result = conf->hasSubKey(key, name); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_configuration_map_subkey_name(clingo_configuration_t *conf, clingo_id_t key, size_t index, char const **name) {
+extern "C" bool clingo_configuration_map_subkey_name(clingo_configuration_t const *conf, clingo_id_t key, size_t index, char const **name) {
     GRINGO_CLINGO_TRY { *name = conf->getSubKeyName(key, numeric_cast<unsigned>(index)); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_configuration_map_size(clingo_configuration_t *conf, clingo_id_t key, size_t* ret) {
+extern "C" bool clingo_configuration_map_size(clingo_configuration_t const *conf, clingo_id_t key, size_t* ret) {
     GRINGO_CLINGO_TRY {
         int n;
         conf->getKeyInfo(key, &n, nullptr, nullptr, nullptr);
@@ -830,12 +830,12 @@ extern "C" bool clingo_configuration_map_size(clingo_configuration_t *conf, clin
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_configuration_array_at(clingo_configuration_t *conf, clingo_id_t key, size_t idx, clingo_id_t *ret) {
+extern "C" bool clingo_configuration_array_at(clingo_configuration_t const *conf, clingo_id_t key, size_t idx, clingo_id_t *ret) {
     GRINGO_CLINGO_TRY { *ret = conf->getArrKey(key, numeric_cast<unsigned>(idx)); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_configuration_array_size(clingo_configuration_t *conf, clingo_id_t key, size_t *ret) {
+extern "C" bool clingo_configuration_array_size(clingo_configuration_t const *conf, clingo_id_t key, size_t *ret) {
     GRINGO_CLINGO_TRY {
         int n;
         conf->getKeyInfo(key, nullptr, &n, nullptr, nullptr);
@@ -845,12 +845,12 @@ extern "C" bool clingo_configuration_array_size(clingo_configuration_t *conf, cl
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_configuration_root(clingo_configuration_t *conf, clingo_id_t *ret) {
+extern "C" bool clingo_configuration_root(clingo_configuration_t const *conf, clingo_id_t *ret) {
     GRINGO_CLINGO_TRY { *ret = conf->getRootKey(); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_configuration_description(clingo_configuration_t *conf, clingo_id_t key, char const **ret) {
+extern "C" bool clingo_configuration_description(clingo_configuration_t const *conf, clingo_id_t key, char const **ret) {
     GRINGO_CLINGO_TRY {
         conf->getKeyInfo(key, nullptr, nullptr, ret, nullptr);
         if (!ret) { throw std::runtime_error("no description"); }
@@ -858,7 +858,7 @@ extern "C" bool clingo_configuration_description(clingo_configuration_t *conf, c
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_configuration_value_get_size(clingo_configuration_t *conf, clingo_id_t key, size_t *n) {
+extern "C" bool clingo_configuration_value_get_size(clingo_configuration_t const *conf, clingo_id_t key, size_t *n) {
     GRINGO_CLINGO_TRY {
         std::string value;
         conf->getKeyValue(key, value);
@@ -867,7 +867,7 @@ extern "C" bool clingo_configuration_value_get_size(clingo_configuration_t *conf
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_configuration_value_get(clingo_configuration_t *conf, clingo_id_t key, char *ret, size_t n) {
+extern "C" bool clingo_configuration_value_get(clingo_configuration_t const *conf, clingo_id_t key, char *ret, size_t n) {
     GRINGO_CLINGO_TRY {
         std::string value;
         conf->getKeyValue(key, value);
@@ -877,12 +877,12 @@ extern "C" bool clingo_configuration_value_get(clingo_configuration_t *conf, cli
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_configuration_value_set(clingo_configuration_t *conf, clingo_id_t key, const char *val) {
+extern "C" bool clingo_configuration_value_set(clingo_configuration_t *conf, clingo_id_t key, char const *val) {
     GRINGO_CLINGO_TRY { conf->setKeyValue(key, val); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_configuration_value_is_assigned(clingo_configuration_t *conf, clingo_id_t key, bool *ret) {
+extern "C" bool clingo_configuration_value_is_assigned(clingo_configuration_t const *conf, clingo_id_t key, bool *ret) {
     GRINGO_CLINGO_TRY {
         int n = 0;
         conf->getKeyInfo(key, nullptr, nullptr, nullptr, &n);
@@ -896,22 +896,22 @@ extern "C" bool clingo_configuration_value_is_assigned(clingo_configuration_t *c
 
 struct clingo_statistic : public Potassco::AbstractStatistics { };
 
-extern "C" bool clingo_statistics_root(const clingo_statistics_t *stats, uint64_t *ret) {
+extern "C" bool clingo_statistics_root(clingo_statistics_t const *stats, uint64_t *ret) {
     GRINGO_CLINGO_TRY { *ret = stats->root(); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_statistics_type(const clingo_statistics_t *stats, uint64_t key, clingo_statistics_type_t *ret) {
+extern "C" bool clingo_statistics_type(clingo_statistics_t const *stats, uint64_t key, clingo_statistics_type_t *ret) {
     GRINGO_CLINGO_TRY { *ret = stats->type(key); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_statistics_array_size(const clingo_statistics_t *stats, uint64_t key, size_t *ret) {
+extern "C" bool clingo_statistics_array_size(clingo_statistics_t const *stats, uint64_t key, size_t *ret) {
     GRINGO_CLINGO_TRY { *ret = stats->size(key); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_statistics_array_at(const clingo_statistics_t *stats, uint64_t key, size_t index, uint64_t *ret) {
+extern "C" bool clingo_statistics_array_at(clingo_statistics_t const *stats, uint64_t key, size_t index, uint64_t *ret) {
     GRINGO_CLINGO_TRY { *ret = stats->at(key, index); }
     GRINGO_CLINGO_CATCH;
 }
@@ -921,22 +921,22 @@ extern "C" bool clingo_statistics_array_push(clingo_statistics_t *stats, uint64_
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_statistics_map_size(const clingo_statistics_t *stats, uint64_t key, size_t *n) {
+extern "C" bool clingo_statistics_map_size(clingo_statistics_t const *stats, uint64_t key, size_t *n) {
     GRINGO_CLINGO_TRY { *n = stats->size(key); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_statistics_map_has_subkey(const clingo_statistics_t *stats, uint64_t key, char const *name, bool* result) {
+extern "C" bool clingo_statistics_map_has_subkey(clingo_statistics_t const *stats, uint64_t key, char const *name, bool* result) {
     GRINGO_CLINGO_TRY { uint64_t temp; *result = stats->find(key, name, &temp); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_statistics_map_subkey_name(const clingo_statistics_t *stats, uint64_t key, size_t index, char const **name) {
+extern "C" bool clingo_statistics_map_subkey_name(clingo_statistics_t const *stats, uint64_t key, size_t index, char const **name) {
     GRINGO_CLINGO_TRY { *name = stats->key(key, index); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_statistics_map_at(const clingo_statistics_t *stats, uint64_t key, char const *name, uint64_t *ret) {
+extern "C" bool clingo_statistics_map_at(clingo_statistics_t const *stats, uint64_t key, char const *name, uint64_t *ret) {
     GRINGO_CLINGO_TRY { *ret = stats->get(key, name); }
     GRINGO_CLINGO_CATCH;
 }
@@ -946,7 +946,7 @@ extern "C" bool clingo_statistics_map_add_subkey(clingo_statistics_t *stats, uin
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_statistics_value_get(const clingo_statistics_t *stats, uint64_t key, double *value) {
+extern "C" bool clingo_statistics_value_get(clingo_statistics_t const *stats, uint64_t key, double *value) {
     GRINGO_CLINGO_TRY { *value = stats->value(key); }
     GRINGO_CLINGO_CATCH;
 }
@@ -1084,7 +1084,7 @@ extern "C" bool clingo_solve_handle_close(clingo_solve_handle_t *handle) {
 }
 extern "C" bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t const **model) {
     GRINGO_CLINGO_TRY {
-        *model = const_cast<Model*>(handle->model());
+        *model = handle->model();
     }
     GRINGO_CLINGO_CATCH;
 }
@@ -1243,13 +1243,13 @@ extern "C" bool clingo_control_program_builder(clingo_control_t *ctl, clingo_pro
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_control_symbolic_atoms(clingo_control_t *ctl, clingo_symbolic_atoms_t **ret) {
+extern "C" bool clingo_control_symbolic_atoms(clingo_control_t const *ctl, clingo_symbolic_atoms_t const **ret) {
     GRINGO_CLINGO_TRY { *ret = &ctl->getDomain(); }
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_control_theory_atoms(clingo_control_t *ctl, clingo_theory_atoms_t **ret) {
-    GRINGO_CLINGO_TRY { *ret = const_cast<clingo_theory_atoms*>(static_cast<clingo_theory_atoms const *>(&ctl->theory())); }
+extern "C" bool clingo_control_theory_atoms(clingo_control_t const *ctl, clingo_theory_atoms_t const **ret) {
+    GRINGO_CLINGO_TRY { *ret = static_cast<clingo_theory_atoms const *>(&ctl->theory()); }
     GRINGO_CLINGO_CATCH;
 }
 
@@ -1264,12 +1264,12 @@ public:
         if (prop_.init && !prop_.init(&init, data_)) { throw ClingoError(); }
     }
 
-    void propagate(Potassco::AbstractSolver& solver, const ChangeList& changes) override {
+    void propagate(Potassco::AbstractSolver& solver, ChangeList const &changes) override {
         if (prop_.propagate && !prop_.propagate(static_cast<clingo_propagate_control_t*>(&solver), changes.first, changes.size, data_)) { throw ClingoError(); }
     }
 
-    void undo(const Potassco::AbstractSolver& solver, const ChangeList& undo) override {
-        if (prop_.undo && !prop_.undo(static_cast<clingo_propagate_control_t*>(&const_cast<Potassco::AbstractSolver&>(solver)), undo.first, undo.size, data_)) { throw ClingoError(); }
+    void undo(Potassco::AbstractSolver const &solver, ChangeList const &undo) override {
+        if (prop_.undo && !prop_.undo(static_cast<clingo_propagate_control_t const *>(&solver), undo.first, undo.size, data_)) { throw ClingoError(); }
     }
 
     void check(Potassco::AbstractSolver& solver) override {
@@ -1292,7 +1292,7 @@ extern "C" bool clingo_control_cleanup(clingo_control_t *ctl) {
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_control_has_const(clingo_control_t *ctl, char const *name, bool *ret) {
+extern "C" bool clingo_control_has_const(clingo_control_t const *ctl, char const *name, bool *ret) {
     GRINGO_CLINGO_TRY {
         auto sym = ctl->getConst(name);
         *ret = sym.type() != SymbolType::Special;
@@ -1300,7 +1300,7 @@ extern "C" bool clingo_control_has_const(clingo_control_t *ctl, char const *name
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_control_get_const(clingo_control_t *ctl, char const *name, clingo_symbol_t *ret) {
+extern "C" bool clingo_control_get_const(clingo_control_t const *ctl, char const *name, clingo_symbol_t *ret) {
     GRINGO_CLINGO_TRY {
         auto sym = ctl->getConst(name);
         *ret = sym.type() != SymbolType::Special ? sym.rep() : Symbol::createId(name).rep();
@@ -1332,12 +1332,12 @@ extern "C" bool clingo_control_configuration(clingo_control_t *ctl, clingo_confi
     GRINGO_CLINGO_CATCH;
 }
 
-extern "C" bool clingo_control_is_conflicting(clingo_control_t *control) {
+extern "C" bool clingo_control_is_conflicting(clingo_control_t const *control) {
     return control->isConflicting();
 }
 
-extern "C" bool clingo_control_statistics(clingo_control_t *ctl, const clingo_statistics_t **stats) {
-    GRINGO_CLINGO_TRY { *stats = static_cast<clingo_statistics_t*>(ctl->statistics()); }
+extern "C" bool clingo_control_statistics(clingo_control_t const *ctl, clingo_statistics_t const **stats) {
+    GRINGO_CLINGO_TRY { *stats = static_cast<clingo_statistics_t const *>(ctl->statistics()); }
     GRINGO_CLINGO_CATCH;
 }
 
@@ -1363,16 +1363,16 @@ public:
         call(obs_.end_step);
     }
 
-    void rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, const Potassco::LitSpan& body) override {
+    void rule(Potassco::Head_t ht, Potassco::AtomSpan const& head,Potassco::LitSpan const &body) override {
         call(obs_.rule, ht == Potassco::Head_t::Choice, head.first, head.size, body.first, body.size);
     }
-    void rule(Potassco::Head_t ht, const Potassco::AtomSpan& head, Weight_t bound, const Potassco::WeightLitSpan& body) override {
+    void rule(Potassco::Head_t ht, Potassco::AtomSpan const &head, Weight_t bound,Potassco::WeightLitSpan const &body) override {
         call(obs_.weight_rule, ht == Potassco::Head_t::Choice, head.first, head.size, bound, reinterpret_cast<clingo_weighted_literal_t const *>(body.first), body.size);
     }
-    void minimize(Weight_t prio, const Potassco::WeightLitSpan& lits) override {
+    void minimize(Weight_t prio, Potassco::WeightLitSpan const &lits) override {
         call(obs_.minimize, prio, reinterpret_cast<clingo_weighted_literal_t const *>(lits.first), lits.size);
     }
-    void project(const Potassco::AtomSpan& atoms) override {
+    void project(Potassco::AtomSpan const &atoms) override {
         call(obs_.project, atoms.first, atoms.size);
     }
     void output(Symbol sym, Potassco::Atom_t atom) override {
@@ -1387,33 +1387,33 @@ public:
     void external(Atom_t a, Potassco::Value_t v) override {
         call(obs_.external, a, v);
     }
-    void assume(const Potassco::LitSpan& lits) override {
+    void assume(Potassco::LitSpan const &lits) override {
         call(obs_.assume, lits.first, lits.size);
     }
-    void heuristic(Atom_t a, Potassco::Heuristic_t t, int bias, unsigned prio, const Potassco::LitSpan& condition) override {
+    void heuristic(Atom_t a, Potassco::Heuristic_t t, int bias, unsigned prio, Potassco::LitSpan const &condition) override {
         call(obs_.heuristic, a, t, bias, prio, condition.first, condition.size);
     }
-    void acycEdge(int s, int t, const Potassco::LitSpan& condition) override {
+    void acycEdge(int s, int t, Potassco::LitSpan const &condition) override {
         call(obs_.acyc_edge, s, t, condition.first, condition.size);
     }
 
     void theoryTerm(Id_t termId, int number) override {
         call(obs_.theory_term_number, termId, number);
     }
-    void theoryTerm(Id_t termId, const StringSpan& name) override {
+    void theoryTerm(Id_t termId, StringSpan const &name) override {
         std::string s{name.first, name.size};
         call(obs_.theory_term_string, termId, s.c_str());
     }
-    void theoryTerm(Id_t termId, int cId, const Potassco::IdSpan& args) override {
+    void theoryTerm(Id_t termId, int cId, Potassco::IdSpan const &args) override {
         call(obs_.theory_term_compound, termId, cId, args.first, args.size);
     }
-    void theoryElement(Id_t elementId, const Potassco::IdSpan& terms, const Potassco::LitSpan& cond) override {
+    void theoryElement(Id_t elementId, Potassco::IdSpan const &terms, Potassco::LitSpan const &cond) override {
         call(obs_.theory_element, elementId, terms.first, terms.size, cond.first, cond.size);
     }
-    void theoryAtom(Id_t atomOrZero, Id_t termId, const Potassco::IdSpan& elements) override {
+    void theoryAtom(Id_t atomOrZero, Id_t termId, Potassco::IdSpan const &elements) override {
         call(obs_.theory_atom, atomOrZero, termId, elements.first, elements.size);
     }
-    void theoryAtom(Id_t atomOrZero, Id_t termId, const Potassco::IdSpan& elements, Id_t op, Id_t rhs) override {
+    void theoryAtom(Id_t atomOrZero, Id_t termId, Potassco::IdSpan const &elements, Id_t op, Id_t rhs) override {
         call(obs_.theory_atom_with_guard, atomOrZero, termId, elements.first, elements.size, op, rhs);
     }
 private:

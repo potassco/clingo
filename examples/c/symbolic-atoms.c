@@ -53,7 +53,7 @@ int main(int argc, char const **argv) {
   int ret = 0;
   clingo_control_t *ctl = NULL;
   clingo_part_t parts[] = {{ "base", NULL, 0 }};
-  clingo_symbolic_atoms_t *atoms;
+  clingo_symbolic_atoms_t const *atoms;
   clingo_symbolic_atom_iterator_t it_atoms, ie_atoms;
 
   // create a control object and pass command line arguments

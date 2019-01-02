@@ -171,12 +171,11 @@ struct IncrementalControl : Control {
         parser.pushBlock(name, std::move(idVec), part, logger_);
         parse();
     }
-    Symbol getConst(std::string const &name) override {
-        parse();
+    Symbol getConst(std::string const &name) const override {
         auto ret = defs.defs().find(name.c_str());
         if (ret != defs.defs().end()) {
             bool undefined = false;
-            Symbol val = std::get<2>(ret->second)->eval(undefined, logger_);
+            Symbol val = std::get<2>(ret->second)->eval(undefined, const_cast<Logger&>(logger_));
             if (!undefined) { return val; }
         }
         return Symbol();
@@ -208,12 +207,12 @@ struct IncrementalControl : Control {
     void registerObserver(UBackend prg, bool replace) override {
         out.registerObserver(std::move(prg), replace);
     }
-    Potassco::AbstractStatistics *statistics() override { throw std::runtime_error("statistics not supported (yet)"); }
-    bool isConflicting() noexcept override { return false; }
+    Potassco::AbstractStatistics const *statistics() const override { throw std::runtime_error("statistics not supported (yet)"); }
+    bool isConflicting() const noexcept override { return false; }
     void assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) override {
         if (auto *b = out.backend_()) { b->external(ext, val); }
     }
-    SymbolicAtoms &getDomain() override { throw std::runtime_error("domain introspection not supported"); }
+    SymbolicAtoms const &getDomain() const override { throw std::runtime_error("domain introspection not supported"); }
     ConfigProxy &getConf() override { throw std::runtime_error("configuration not supported"); }
     void registerPropagator(UProp, bool) override { throw std::runtime_error("theory propagators not supported"); }
     void useEnumAssumption(bool) override { }

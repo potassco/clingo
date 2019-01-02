@@ -97,7 +97,7 @@ int main(int argc, char const **argv) {
   size_t offset;
   clingo_solve_result_bitset_t solve_ret;
   clingo_control_t *ctl;
-  clingo_symbolic_atoms_t *atoms;
+  clingo_symbolic_atoms_t const *atoms;
   clingo_backend_t *backend;
   clingo_atom_t atom_ids[4];
   char const *atom_strings[] = {"a", "b", "c"};

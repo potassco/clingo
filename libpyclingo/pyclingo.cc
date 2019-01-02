@@ -1269,7 +1269,7 @@ constexpr clingo_theory_term_type const TheoryTermType::values[];
 constexpr const char * const TheoryTermType::strings[];
 
 struct TheoryTerm : ObjectBase<TheoryTerm> {
-    clingo_theory_atoms_t *atoms;
+    clingo_theory_atoms_t const *atoms;
     clingo_id_t value;
     static PyGetSetDef tp_getset[];
     static constexpr char const *tp_type = "TheoryTerm";
@@ -1280,7 +1280,7 @@ R"(TheoryTerm objects represent theory terms.
 This are read-only objects, which can be obtained from theory atoms and
 elements.)";
 
-    static Object construct(clingo_theory_atoms_t *atoms, clingo_id_t value) {
+    static Object construct(clingo_theory_atoms_t const *atoms, clingo_id_t value) {
         auto self = new_();
         self->value = value;
         self->atoms = atoms;
@@ -1346,7 +1346,7 @@ The numeric representation of the TheoryTerm (for numbers).)", nullptr},
 // {{{1 wrap TheoryElement
 
 struct TheoryElement : ObjectBase<TheoryElement> {
-    clingo_theory_atoms_t *atoms;
+    clingo_theory_atoms_t const *atoms;
     clingo_id_t value;
     static constexpr char const *tp_type = "TheoryElement";
     static constexpr char const *tp_name = "clingo.TheoryElement";
@@ -1354,7 +1354,7 @@ struct TheoryElement : ObjectBase<TheoryElement> {
 R"(TheoryElement objects represent theory elements which consist of a tuple of
 terms and a set of literals.)";
     static PyGetSetDef tp_getset[];
-    static Object construct(clingo_theory_atoms *atoms, clingo_id_t value) {
+    static Object construct(clingo_theory_atoms const *atoms, clingo_id_t value) {
         auto self = new_();
         self->value = value;
         self->atoms = atoms;
@@ -1418,13 +1418,13 @@ to obtain a solver literal equivalent to the condition.)", nullptr},
 // {{{1 wrap TheoryAtom
 
 struct TheoryAtom : ObjectBase<TheoryAtom> {
-    clingo_theory_atoms_t *atoms;
+    clingo_theory_atoms_t const *atoms;
     clingo_id_t value;
     static PyGetSetDef tp_getset[];
     static constexpr char const *tp_type = "TheoryAtom";
     static constexpr char const *tp_name = "clingo.TheoryAtom";
     static constexpr char const *tp_doc = R"(TheoryAtom objects represent theory atoms.)";
-    static Object construct(clingo_theory_atoms_t *atoms, clingo_id_t value) {
+    static Object construct(clingo_theory_atoms_t const *atoms, clingo_id_t value) {
         auto self = new_();
         self->value = value;
         self->atoms = atoms;
@@ -1494,7 +1494,7 @@ The program literal associated with the theory atom.)", nullptr},
 // {{{1 wrap TheoryAtomIter
 
 struct TheoryAtomIter : ObjectBase<TheoryAtomIter> {
-    clingo_theory_atoms_t *atoms;
+    clingo_theory_atoms_t const *atoms;
     clingo_id_t offset;
     static PyMethodDef tp_methods[];
 
@@ -1502,7 +1502,7 @@ struct TheoryAtomIter : ObjectBase<TheoryAtomIter> {
     static constexpr char const *tp_name = "clingo.TheoryAtomIter";
     static constexpr char const *tp_doc =
 R"(Object to iterate over all theory atoms.)";
-    static Object construct(clingo_theory_atoms_t *atoms, clingo_id_t offset) {
+    static Object construct(clingo_theory_atoms_t const *atoms, clingo_id_t offset) {
         auto self = new_();
         self->atoms = atoms;
         self->offset = offset;
@@ -1833,7 +1833,7 @@ This is equivalent to satisfiable is None.)", nullptr},
 // {{{1 wrap SymbolicAtom
 
 struct SymbolicAtom : public ObjectBase<SymbolicAtom> {
-    clingo_symbolic_atoms_t *atoms;
+    clingo_symbolic_atoms_t const *atoms;
     clingo_symbolic_atom_iterator_t range;
 
     static constexpr char const *tp_type = "SymbolicAtom";
@@ -1841,7 +1841,7 @@ struct SymbolicAtom : public ObjectBase<SymbolicAtom> {
     static constexpr char const *tp_doc = "Captures a symbolic atom and provides properties to inspect its state.";
     static PyGetSetDef tp_getset[];
 
-    static Object construct(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t range) {
+    static Object construct(clingo_symbolic_atoms_t const *atoms, clingo_symbolic_atom_iterator_t range) {
         auto self = new_();
         self->atoms = atoms;
         self->range = range;
@@ -1880,14 +1880,14 @@ PyGetSetDef SymbolicAtom::tp_getset[] = {
 // {{{1 wrap SymbolicAtomIter
 
 struct SymbolicAtomIter : ObjectBase<SymbolicAtomIter> {
-    clingo_symbolic_atoms_t *atoms;
+    clingo_symbolic_atoms_t const *atoms;
     clingo_symbolic_atom_iterator_t range;
 
     static constexpr char const *tp_type = "SymbolicAtomIter";
     static constexpr char const *tp_name = "clingo.SymbolicAtomIter";
     static constexpr char const *tp_doc = "Class to iterate over symbolic atoms.";
 
-    static Object construct(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t range) {
+    static Object construct(clingo_symbolic_atoms_t const *atoms, clingo_symbolic_atom_iterator_t range) {
         auto self = new_();
         self->atoms = atoms;
         self->range = range;
@@ -1912,7 +1912,7 @@ struct SymbolicAtomIter : ObjectBase<SymbolicAtomIter> {
 // {{{1 wrap SymbolicAtoms
 
 struct SymbolicAtoms : ObjectBase<SymbolicAtoms> {
-    clingo_symbolic_atoms_t *atoms;
+    clingo_symbolic_atoms_t const *atoms;
     static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
 
@@ -1965,7 +1965,7 @@ p(3) False False
 p(2) False True
 signatures: [('p', 1), ('q', 1)])";
 
-    static Object construct(clingo_symbolic_atoms_t *atoms) {
+    static Object construct(clingo_symbolic_atoms_t const *atoms) {
         auto self = new_();
         self->atoms = atoms;
         return self;
@@ -2034,7 +2034,7 @@ signatures: [('p', 1), ('q', 1)])";
     }
 
     Object to_c() {
-        return PyLong_FromVoidPtr(atoms);
+        return PyLong_FromVoidPtr(const_cast<clingo_symbolic_atoms_t*>(atoms));
     }
 };
 
@@ -2063,7 +2063,7 @@ occurring in the program. A true Boolean stands for a positive signature.)"
 
 // {{{1 wrap SolveControl
 
-clingo_literal_t pyToAtom(Reference x, clingo_symbolic_atoms_t *atoms) {
+clingo_literal_t pyToAtom(Reference x, clingo_symbolic_atoms_t const *atoms) {
     if (PyNumber_Check(x.toPy())) {
         auto ret = pyToCpp<clingo_literal_t>(x);
         return ret;
@@ -2083,7 +2083,7 @@ clingo_literal_t pyToAtom(Reference x, clingo_symbolic_atoms_t *atoms) {
     return 0;
 }
 
-std::vector<clingo_literal_t> pyToLits(Reference pyLits, clingo_symbolic_atoms_t *atoms, bool invert, bool disjunctive) {
+std::vector<clingo_literal_t> pyToLits(Reference pyLits, clingo_symbolic_atoms_t const *atoms, bool invert, bool disjunctive) {
     std::vector<clingo_literal_t> lits;
     for (auto x : pyLits.iter()) {
         if (PyNumber_Check(x.toPy())) {
@@ -2132,7 +2132,7 @@ they are available as properties of Model objects.)";
     }
 
     Object getClause(Reference pyLits, bool invert) {
-        clingo_symbolic_atoms_t *atoms;
+        clingo_symbolic_atoms_t const *atoms;
         handle_c_error(clingo_solve_control_symbolic_atoms(ctl, &atoms));
         auto lits = pyToLits(pyLits, atoms, invert, true);
         handle_c_error(clingo_solve_control_add_clause(ctl, lits.data(), lits.size()));
@@ -2140,7 +2140,7 @@ they are available as properties of Model objects.)";
     }
 
     Object symbolicAtoms() {
-        clingo_symbolic_atoms_t *atoms;
+        clingo_symbolic_atoms_t const *atoms;
         handle_c_error(clingo_solve_control_symbolic_atoms(ctl, &atoms));
         return SymbolicAtoms::construct(atoms);
     }
@@ -2807,7 +2807,7 @@ The list is None if the current object is not an option group.)", nullptr},
 // {{{1 wrap Assignment
 
 struct Assignment : ObjectBase<Assignment> {
-    clingo_assignment_t *assign;
+    clingo_assignment_t const *assign;
     static constexpr char const *tp_type = "Assignment";
     static constexpr char const *tp_name = "clingo.Assignment";
     static constexpr char const *tp_doc = R"(Object to inspect the (parital) assignment of an associated solver.
@@ -2818,7 +2818,7 @@ respectively.)";
     static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
 
-    static Object construct(clingo_assignment_t *assign) {
+    static Object construct(clingo_assignment_t const *assign) {
         auto self = new_();
         self->assign = assign;
         return self;
@@ -2887,7 +2887,7 @@ respectively.)";
     }
 
     Object to_c() {
-        return PyLong_FromVoidPtr(assign);
+        return PyLong_FromVoidPtr(const_cast<clingo_assignment_t*>(assign));
     }
 };
 
@@ -2988,13 +2988,13 @@ condition ids to solver literals.)";
     }
 
     Object theoryIter() {
-        clingo_theory_atoms_t *atoms;
+        clingo_theory_atoms_t const *atoms;
         handle_c_error(clingo_propagate_init_theory_atoms(init, &atoms));
         return TheoryAtomIter::construct(atoms, 0);
     }
 
     Object symbolicAtoms() {
-        clingo_symbolic_atoms_t *atoms;
+        clingo_symbolic_atoms_t const *atoms;
         handle_c_error(clingo_propagate_init_symbolic_atoms(init, &atoms));
         return SymbolicAtoms::construct(atoms);
     }
@@ -3245,7 +3245,7 @@ static bool propagator_propagate(clingo_propagate_control_t *control, clingo_lit
     }
 }
 
-bool propagator_undo(clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, PyObject *prop) {
+bool propagator_undo(clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, PyObject *prop) {
     PyBlock block;
     try {
         if (!PyObject_HasAttrString(prop, "undo")) { return true; }
@@ -6312,7 +6312,7 @@ active; you must not call any member function during search.)";
         ParseTupleAndKeywords(args, kwds, "|OOOOOOO", kwlist, pyAss, pyM, pyS, pyF, pyYield, pyAsync, pyAsync_);
         std::vector<clingo_literal_t> ass;
         if (!pyAss.is_none()) {
-            clingo_symbolic_atoms_t *atoms;
+            clingo_symbolic_atoms_t const *atoms;
             handle_c_error(clingo_control_symbolic_atoms(ctl, &atoms));
             ass = pyToLits(pyAss, atoms, false, false);
         }
@@ -6343,7 +6343,7 @@ active; you must not call any member function during search.)";
             PyErr_Format(PyExc_RuntimeError, "unexpected %s() object as second argumet", pyVal.toPy()->ob_type->tp_name);
             return nullptr;
         }
-        clingo_symbolic_atoms_t *atoms;
+        clingo_symbolic_atoms_t const *atoms;
         handle_c_error(clingo_control_symbolic_atoms(ctl, &atoms));
         auto ext = pyToAtom(pyExt, atoms);
         handle_c_error(clingo_control_assign_external(ctl, ext, val));
@@ -6353,7 +6353,7 @@ active; you must not call any member function during search.)";
         CHECK_BLOCKED("release_external");
         Reference pyExt;
         ParseTuple(args, "O", pyExt);
-        clingo_symbolic_atoms_t *atoms;
+        clingo_symbolic_atoms_t const *atoms;
         handle_c_error(clingo_control_symbolic_atoms(ctl, &atoms));
         auto ext = pyToAtom(pyExt, atoms);
         handle_c_error(clingo_control_assign_external(ctl, ext, clingo_external_type_release));
@@ -6389,13 +6389,13 @@ active; you must not call any member function during search.)";
     }
     Object symbolicAtoms() {
         CHECK_BLOCKED("symbolic_atoms");
-        clingo_symbolic_atoms_t *atoms;
+        clingo_symbolic_atoms_t const *atoms;
         handle_c_error(clingo_control_symbolic_atoms(ctl, &atoms));
         return SymbolicAtoms::construct(atoms);
     }
     Object theoryIter() {
         CHECK_BLOCKED("theory_atoms");
-        clingo_theory_atoms_t *atoms;
+        clingo_theory_atoms_t const *atoms;
         handle_c_error(clingo_control_theory_atoms(ctl, &atoms));
         return TheoryAtomIter::construct(atoms, 0);
     }

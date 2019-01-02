@@ -632,9 +632,9 @@ luaL_Reg const TheoryTermType::meta[] = {
 };
 
 struct TheoryTerm : Object<TheoryTerm> {
-    clingo_theory_atoms_t *atoms;
+    clingo_theory_atoms_t const *atoms;
     clingo_id_t id;
-    TheoryTerm(clingo_theory_atoms_t *atoms, clingo_id_t id) : atoms(atoms), id(id) { }
+    TheoryTerm(clingo_theory_atoms_t const *atoms, clingo_id_t id) : atoms(atoms), id(id) { }
     clingo_id_t cmpKey() { return id; }
     static int name(lua_State *L) {
         auto &self = get_self(L);
@@ -698,8 +698,8 @@ luaL_Reg const TheoryTerm::meta[] = {
 // {{{1 wrap TheoryElement
 
 struct TheoryElement : Object<TheoryElement> {
-    TheoryElement(clingo_theory_atoms_t *atoms, clingo_id_t id) : atoms(atoms) , id(id) { }
-    clingo_theory_atoms_t *atoms;
+    TheoryElement(clingo_theory_atoms_t const *atoms, clingo_id_t id) : atoms(atoms) , id(id) { }
+    clingo_theory_atoms_t const *atoms;
     clingo_id_t cmpKey() { return id; }
     clingo_id_t id;
 
@@ -771,9 +771,9 @@ luaL_Reg const TheoryElement::meta[] = {
 // {{{1 wrap TheoryAtom
 
 struct TheoryAtom : Object<TheoryAtom> {
-    clingo_theory_atoms_t *atoms;
+    clingo_theory_atoms_t const *atoms;
     clingo_id_t id;
-    TheoryAtom(clingo_theory_atoms_t *atoms, clingo_id_t id) : atoms(atoms) , id(id) { }
+    TheoryAtom(clingo_theory_atoms_t const *atoms, clingo_id_t id) : atoms(atoms) , id(id) { }
     clingo_id_t cmpKey() { return id; }
 
     static int elements(lua_State *L) {
@@ -853,15 +853,15 @@ luaL_Reg const TheoryAtom::meta[] = {
 // {{{1 wrap TheoryIter
 
 struct TheoryIter {
-    static int iter(lua_State *L, clingo_theory_atoms_t *atoms) {
-        lua_pushlightuserdata(L, static_cast<void*>(atoms));
+    static int iter(lua_State *L, clingo_theory_atoms_t const *atoms) {
+        lua_pushlightuserdata(L, const_cast<clingo_theory_atoms_t*>(atoms));
         lua_pushinteger(L, 0);
         lua_pushcclosure(L, iter_, 2);
         return 1;
     }
 
     static int iter_(lua_State *L) {
-        auto atoms = (clingo_theory_atoms_t *)lua_topointer(L, lua_upvalueindex(1));
+        auto atoms = (clingo_theory_atoms_t const *)lua_topointer(L, lua_upvalueindex(1));
         clingo_id_t idx = numeric_cast<clingo_id_t>(lua_tonumber(L, lua_upvalueindex(2)));
         if (idx < call_c(L, clingo_theory_atoms_size, atoms)) {
             lua_pushinteger(L, idx + 1);
@@ -1193,11 +1193,11 @@ bool luacall(lua_State *L, clingo_location_t const *location, int context, char 
 // {{{1 wrap SymbolicAtom
 
 struct SymbolicAtom : Object<SymbolicAtom> {
-    clingo_symbolic_atoms_t *atoms;
+    clingo_symbolic_atoms_t const *atoms;
     clingo_symbolic_atom_iterator_t iter;
     static luaL_Reg const meta[];
     static constexpr const char *typeName = "clingo.SymbolicAtom";
-    SymbolicAtom(clingo_symbolic_atoms_t *atoms, clingo_symbolic_atom_iterator_t iter)
+    SymbolicAtom(clingo_symbolic_atoms_t const *atoms, clingo_symbolic_atom_iterator_t iter)
     : atoms(atoms)
     , iter(iter) { }
     static int symbol(lua_State *L) {
@@ -1242,10 +1242,10 @@ luaL_Reg const SymbolicAtom::meta[] = {
 // {{{1 wrap SymbolicAtoms
 
 struct SymbolicAtoms : Object<SymbolicAtoms> {
-    clingo_symbolic_atoms_t *atoms;
+    clingo_symbolic_atoms_t const *atoms;
     static luaL_Reg const meta[];
     static constexpr const char *typeName = "clingo.SymbolicAtoms";
-    SymbolicAtoms(clingo_symbolic_atoms_t *atoms) : atoms(atoms) { }
+    SymbolicAtoms(clingo_symbolic_atoms_t const *atoms) : atoms(atoms) { }
 
     static int symbolicAtomIter(lua_State *L) {
         auto current = static_cast<SymbolicAtom *>(luaL_checkudata(L, lua_upvalueindex(1), SymbolicAtom::typeName));
@@ -1340,7 +1340,7 @@ luaL_Reg const SymbolicAtoms::meta[] = {
 
 // {{{1 wrap SolveControl
 
-static clingo_literal_t luaToAtom(lua_State *L, int idx, clingo_symbolic_atoms_t *atoms) {
+static clingo_literal_t luaToAtom(lua_State *L, int idx, clingo_symbolic_atoms_t const *atoms) {
     if (lua_isnumber(L, idx)) {
         clingo_literal_t lit;
         luaToCpp(L, idx, lit);
@@ -1358,7 +1358,7 @@ static clingo_literal_t luaToAtom(lua_State *L, int idx, clingo_symbolic_atoms_t
     return 0;
 }
 
-static clingo_literal_t luaToLit(lua_State *L, int idx, clingo_symbolic_atoms_t *atoms, bool *positive = nullptr) {
+static clingo_literal_t luaToLit(lua_State *L, int idx, clingo_symbolic_atoms_t const *atoms, bool *positive = nullptr) {
     if (lua_isnumber(L, idx)) {
         clingo_literal_t lit;
         luaToCpp(L, idx, lit);
@@ -1383,7 +1383,7 @@ static clingo_literal_t luaToLit(lua_State *L, int idx, clingo_symbolic_atoms_t 
 // this function returns null if the literals are unnecessary, i.e., if
 //   there is a true literal in a disjunction, or
 //   there is a false literal in a conjunction
-static std::vector<clingo_literal_t> *luaToLits(lua_State *L, int tableIdx, clingo_symbolic_atoms_t *atoms, bool invert, bool disjunctive) {
+static std::vector<clingo_literal_t> *luaToLits(lua_State *L, int tableIdx, clingo_symbolic_atoms_t const *atoms, bool invert, bool disjunctive) {
     if (lua_type(L, tableIdx) != LUA_TTABLE) {
         luaL_error(L, "table expected");
     }
@@ -2165,8 +2165,8 @@ luaL_Reg const Backend::meta[] = {
 // {{{1 wrap Assignment
 
 struct Assignment : Object<Assignment> {
-    clingo_assignment_t *ass;
-    Assignment(clingo_assignment_t *ass) : ass(ass) { }
+    clingo_assignment_t const *ass;
+    Assignment(clingo_assignment_t const *ass) : ass(ass) { }
 
     static int hasConflict(lua_State *L) {
         lua_pushboolean(L, clingo_assignment_has_conflict(get_self(L).ass));
@@ -2636,7 +2636,7 @@ public:
         }
         return 0;
     }
-    static bool undo(clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, void *data) {
+    static bool undo(clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *data) {
         auto *self = static_cast<Propagator*>(data);
         lua_State *L = self->threads[clingo_propagate_control_thread_id(control)];
         if (!lua_checkstack(L, 6)) {
@@ -2647,7 +2647,7 @@ public:
         lua_pushcfunction(L, luaTraceback);
         lua_pushcfunction(L, undo_);
         lua_pushlightuserdata(L, self);
-        lua_pushlightuserdata(L, control);
+        lua_pushlightuserdata(L, const_cast<clingo_propagate_control_t*>(control));
         lua_pushlightuserdata(L, const_cast<clingo_literal_t*>(changes));
         lua_pushinteger(L, size);
         auto ret = lua_pcall(L, 4, 0, -6);
