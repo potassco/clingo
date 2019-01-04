@@ -2717,7 +2717,7 @@ public:
         }
         LuaClear ll(self->T), lt(L);
         lua_pushcfunction(L, luaTraceback);
-        lua_pushcfunction(L, undo_);
+        lua_pushcfunction(L, decide_);
         lua_pushlightuserdata(L, self); // 1
         lua_pushnumber(L, thread_id);   // 2
         lua_pushlightuserdata(L, const_cast<clingo_assignment_t*>(assignment)); // 3
