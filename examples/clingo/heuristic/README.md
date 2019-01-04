@@ -6,3 +6,4 @@ graph coloring problem.
 ## Example Calls
 
     clingo encoding-py.lp instance.lp
+    clingo encoding-lua.lp instance.lp
