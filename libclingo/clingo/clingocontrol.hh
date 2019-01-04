@@ -275,7 +275,7 @@ private:
 };
 
 class ClingoSolveFuture;
-class ClingoControl : public clingo_control, private ConfigProxy, private SymbolicAtoms {
+class ClingoControl : public clingo_control, private ConfigProxy, private SymbolicAtoms, private Potassco::AbstractHeuristic {
 public:
     using StringVec        = std::vector<std::string>;
     using ExternalVec      = std::vector<std::pair<Symbol, Potassco::Value_t>>;
@@ -371,6 +371,7 @@ public:
     }
 
     // }}}2
+    Lit decide(Id_t solverId, Potassco::AbstractAssignment const &assignment, Lit fallback) override;
 
     std::unique_ptr<Output::OutputBase>                        out_;
     Scripts                                                   &scripts_;
@@ -385,6 +386,7 @@ public:
     PreSolveFunc                                               psf_;
     std::unique_ptr<Potassco::TheoryData>                      data_;
     std::vector<UProp>                                         props_;
+    std::vector<Potassco::AbstractHeuristic*>                  heus_;
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>>  propagators_;
     ClingoPropagatorLock                                       propLock_;
     Logger                                                     logger_;

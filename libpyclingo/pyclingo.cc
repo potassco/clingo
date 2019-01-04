@@ -1576,6 +1576,7 @@ struct Symbol : ObjectBase<Symbol> {
     clingo_symbol_t val;
     static PyObject *inf;
     static PyObject *sup;
+    static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
     static constexpr char const *tp_type = "Symbol";
     static constexpr char const *tp_name = "clingo.Symbol";
@@ -1720,6 +1721,21 @@ preconstructed symbols Infimum and Supremum.)";
         return SymbolType::getAttr(clingo_symbol_type(val));
     }
 
+    Object match(Reference pyargs, Reference pykwds) {
+        char const *name, *pyName;
+        int pyArity;
+        size_t arity;
+        char const *kwlist[] = {"name", "arity", nullptr};
+        ParseTupleAndKeywords(pyargs, pykwds, "si", kwlist, pyName, pyArity);
+        clingo_symbol_t const *args;
+        if (clingo_symbol_type(val) != clingo_symbol_type_function) { Py_RETURN_FALSE; }
+        handle_c_error(clingo_symbol_name(val, &name));
+        if (strcmp(name, pyName) != 0) { Py_RETURN_FALSE; }
+        handle_c_error(clingo_symbol_arguments(val, &args, &arity));
+        if (static_cast<int>(arity) != pyArity) { Py_RETURN_FALSE; }
+        Py_RETURN_TRUE;
+    }
+
     Object tp_repr() {
         std::vector<char> ret;
         size_t size;
@@ -1748,6 +1764,19 @@ preconstructed symbols Infimum and Supremum.)";
     Object to_c() {
         return cppToPy(val);
     }
+};
+
+PyMethodDef Symbol::tp_methods[] = {
+    {"match", to_function<&Symbol::match>(), METH_KEYWORDS | METH_VARARGS,
+R"(match(self, name, arity) -> bool
+
+Check if this is a function symbol with the given signature.
+
+Arguments:
+name     -- the name of the function
+arity    -- the arity of the function
+)"},
+    {nullptr, nullptr, 0, nullptr}
 };
 
 PyGetSetDef Symbol::tp_getset[] = {
@@ -1839,6 +1868,7 @@ struct SymbolicAtom : public ObjectBase<SymbolicAtom> {
     static constexpr char const *tp_type = "SymbolicAtom";
     static constexpr char const *tp_name = "clingo.SymbolicAtom";
     static constexpr char const *tp_doc = "Captures a symbolic atom and provides properties to inspect its state.";
+    static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
 
     static Object construct(clingo_symbolic_atoms_t const *atoms, clingo_symbolic_atom_iterator_t range) {
@@ -1867,6 +1897,23 @@ struct SymbolicAtom : public ObjectBase<SymbolicAtom> {
         handle_c_error(clingo_symbolic_atoms_is_external(atoms, range, &ret));
         return cppToPy(ret);
     }
+    Object match(Reference pyargs, Reference pykwds) {
+        Object sym{symbol()};
+        return reinterpret_cast<SharedObject<Symbol> &>(sym)->match(pyargs, pykwds);
+    }
+};
+
+PyMethodDef SymbolicAtom::tp_methods[] = {
+    {"match", to_function<&SymbolicAtom::match>(), METH_KEYWORDS | METH_VARARGS,
+R"(match(self, name, arity) -> bool
+
+Check if this is an atom with the given signature.
+
+Arguments:
+name     -- the name of the function
+arity    -- the arity of the function
+)"},
+    {nullptr, nullptr, 0, nullptr}
 };
 
 PyGetSetDef SymbolicAtom::tp_getset[] = {
@@ -3213,14 +3260,15 @@ PyGetSetDef PropagateControl::tp_getset[] = {
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
+
 // {{{1 wrap Propagator
 
-static bool propagator_init(clingo_propagate_init_t *init, PyObject *prop) {
+static bool propagator_init(clingo_propagate_init_t *init, void *prop) {
     PyBlock block;
     try {
         Object i = PropagateInit::construct(init);
         Object n = PyString_FromString("init");
-        Object ret = PyObject_CallMethodObjArgs(prop, n.toPy(), i.toPy(), nullptr);
+        Object ret = PyObject_CallMethodObjArgs(static_cast<PyObject*>(prop), n.toPy(), i.toPy(), nullptr);
         return true;
     }
     catch (...) {
@@ -3229,14 +3277,13 @@ static bool propagator_init(clingo_propagate_init_t *init, PyObject *prop) {
     }
 }
 
-static bool propagator_propagate(clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, PyObject *prop) {
+static bool propagator_propagate(clingo_propagate_control_t *control, clingo_literal_t const *changes, size_t size, void *prop) {
     PyBlock block;
     try {
-        if (!PyObject_HasAttrString(prop, "propagate")) { return true; }
         Object c = PropagateControl::construct(control);
         Object l = cppRngToPy(changes, changes + size);
         Object n = PyString_FromString("propagate");
-        Object ret = PyObject_CallMethodObjArgs(prop, n.toPy(), c.toPy(), l.toPy(), nullptr);
+        Object ret = PyObject_CallMethodObjArgs(static_cast<PyObject*>(prop), n.toPy(), c.toPy(), l.toPy(), nullptr);
         return true;
     }
     catch (...) {
@@ -3245,15 +3292,14 @@ static bool propagator_propagate(clingo_propagate_control_t *control, clingo_lit
     }
 }
 
-bool propagator_undo(clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, PyObject *prop) {
+bool propagator_undo(clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *prop) {
     PyBlock block;
     try {
-        if (!PyObject_HasAttrString(prop, "undo")) { return true; }
         Object i = cppToPy(clingo_propagate_control_thread_id(control));
         Object a = Assignment::construct(clingo_propagate_control_assignment(control));
         Object l = cppRngToPy(changes, changes + size);
         Object n = PyString_FromString("undo");
-        Object ret = PyObject_CallMethodObjArgs(prop, n.toPy(), i.toPy(), a.toPy(), l.toPy(), nullptr);
+        Object ret = PyObject_CallMethodObjArgs(static_cast<PyObject*>(prop), n.toPy(), i.toPy(), a.toPy(), l.toPy(), nullptr);
         return true;
     }
     catch (...) {
@@ -3262,17 +3308,33 @@ bool propagator_undo(clingo_propagate_control_t const *control, clingo_literal_t
     }
 }
 
-bool propagator_check(clingo_propagate_control_t *control, PyObject *prop) {
+bool propagator_check(clingo_propagate_control_t *control, void *prop) {
     PyBlock block;
     try {
-        if (!PyObject_HasAttrString(prop, "check")) { return true; }
         Object c = PropagateControl::construct(control);
         Object n = PyString_FromString("check");
-        Object ret = PyObject_CallMethodObjArgs(prop, n.toPy(), c.toPy(), nullptr);
+        Object ret = PyObject_CallMethodObjArgs(static_cast<PyObject*>(prop), n.toPy(), c.toPy(), nullptr);
         return true;
     }
     catch (...) {
         handle_cxx_error("Propagator::check", "error during check");
+        return false;
+    }
+}
+
+static bool propagator_decide(clingo_id_t solverId, clingo_assignment_t const *assign, clingo_literal_t vsids, void *heu, clingo_literal_t *decision) {
+    PyBlock block;
+    try {
+        Object a = Assignment::construct(assign);
+        Object s = PyLong_FromLong(solverId);
+        Object l = PyLong_FromLong(vsids);
+        Object n = PyString_FromString("decide");
+        Object ret = PyObject_CallMethodObjArgs(static_cast<PyObject*>(heu), n.toPy(), s.toPy(), a.toPy(), l.toPy(), nullptr);
+        *decision = pyToCpp<clingo_literal_t>(ret);
+        return true;
+    }
+    catch (...) {
+        handle_cxx_error("Propagator::decide", "error during decide");
         return false;
     }
 }
@@ -6151,15 +6213,12 @@ static void logger_callback(clingo_warning_t code, char const *message, void *da
 }
 
 struct ControlWrap : ObjectBase<ControlWrap> {
-    using Propagators = std::vector<Object>;
-    using Observers = std::vector<Object>;
-    using UserStatistics = std::forward_list<Object>;
+    using Objects = std::vector<Object>;
     clingo_control_t *ctl;
     clingo_control_t *freeCtl;
     PyObject         *stats;
     PyObject         *logger;
-    Propagators       prop;
-    Observers         observers;
+    Objects           objects;
     bool              blocked;
 
     static PyGetSetDef tp_getset[];
@@ -6201,8 +6260,7 @@ active; you must not call any member function during search.)";
         self->stats   = nullptr;
         self->logger  = nullptr;
         self->blocked = false;
-        new (&self->prop) Propagators();
-        new (&self->observers) Observers();
+        new (&self->objects) Objects();
         return self;
     }
     static Object tp_new(PyTypeObject *type) {
@@ -6212,15 +6270,13 @@ active; you must not call any member function during search.)";
         self->stats   = nullptr;
         self->logger  = nullptr;
         self->blocked = false;
-        new (&self->prop) Propagators();
-        new (&self->observers) Observers();
+        new (&self->objects) Objects();
         return self;
     }
     void tp_dealloc() {
         if (freeCtl) { clingo_control_free(freeCtl); }
         ctl = freeCtl = nullptr;
-        prop.~Propagators();
-        observers.~Observers();
+        objects.~Objects();
         Py_XDECREF(stats);
         Py_XDECREF(logger);
     }
@@ -6399,15 +6455,19 @@ active; you must not call any member function during search.)";
         handle_c_error(clingo_control_theory_atoms(ctl, &atoms));
         return TheoryAtomIter::construct(atoms, 0);
     }
+    bool has_method(Reference tp, char const *name) {
+        return PyObject_HasAttrString(tp.toPy(), name);
+    }
     Object registerPropagator(Reference tp) {
         CHECK_BLOCKED("register_propagator");
-        static clingo_propagator_t propagator = {
-            reinterpret_cast<decltype(clingo_propagator_t::init)>(propagator_init),
-            reinterpret_cast<decltype(clingo_propagator_t::propagate)>(propagator_propagate),
-            reinterpret_cast<decltype(clingo_propagator_t::undo)>(propagator_undo),
-            reinterpret_cast<decltype(clingo_propagator_t::check)>(propagator_check),
+        clingo_propagator_t propagator = {
+            has_method(tp, "init")      ? propagator_init      : nullptr,
+            has_method(tp, "propagate") ? propagator_propagate : nullptr,
+            has_method(tp, "undo")      ? propagator_undo      : nullptr,
+            has_method(tp, "check")     ? propagator_check     : nullptr,
+            has_method(tp, "decide")    ? propagator_decide    : nullptr,
         };
-        prop.emplace_back(tp);
+        objects.emplace_back(tp);
         handle_c_error(clingo_control_register_propagator(ctl, &propagator, tp.toPy(), false));
         Py_RETURN_NONE;
     }
@@ -6439,7 +6499,7 @@ active; you must not call any member function during search.)";
             observer_theory_atom_with_guard
         };
 
-        observers.emplace_back(obs);
+        objects.emplace_back(obs);
         handle_c_error(clingo_control_register_observer(ctl, &observer, rep.isTrue(), obs.toPy()));
         return None();
     }
@@ -6947,13 +7007,14 @@ class Propagator(object)
         Each thread has its own assignment and id, which can be obtained using
         PropagateControl.id().
 
-    undo(self, thread_id, assign, changes) -> None
+    undo(self, thread_id, assignment, changes) -> None
         Called whenever a solver with the given id undos assignments to watched
         solver literals.
 
         Arguments:
-        thread_id -- the solver thread id
-        changes   -- list of watched solver literals whose assignment is undone
+        thread_id  -- the solver thread id
+        assignment -- the assignment of the solver
+        changes    -- list of watched solver literals whose assignment is undone
 
         This function is meant to update assignment dependent state in a
         propagator.
@@ -6968,7 +7029,22 @@ class Propagator(object)
         Arguments:
         control -- PropagateControl object
 
-        This function is called even if no watches have been added.)"},
+        This function is called even if no watches have been added.
+
+    decide(self, thread_id, assignment, fallback) -> int
+        This function allows a propagator to implement domain-specific
+        heuristics. It is called whenever propagation reaches a fixed point.
+
+        Arguments:
+        thread_id  -- the solver thread id
+        assignment -- the assignment of the solver
+        fallback   -- the literal choosen by the solver's heuristic
+
+        This function should return a free solver literal that is to be
+        assigned true.  In case multiple propagators are registered, this
+        function can return 0 to let a propagator registered later make a
+        decision.  If all propagators return 0, then the fallback literal is
+        used.)"},
     {"interrupt", to_function<&ControlWrap::interrupt>(), METH_NOARGS,
 R"(interrupt(self) -> None
 

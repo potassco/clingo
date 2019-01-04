@@ -501,6 +501,7 @@ public:
     SymbolSpan arguments() const;
     SymbolType type() const;
     std::string to_string() const;
+    bool match(char const *name, unsigned arity) const;
     size_t hash() const;
     clingo_symbol_t &to_c() { return sym_; }
     clingo_symbol_t const &to_c() const { return sym_; }
@@ -544,6 +545,7 @@ public:
     literal_t literal() const;
     bool is_fact() const;
     bool is_external() const;
+    bool match(char const *name, unsigned arity) const;
     clingo_symbolic_atom_iterator_t to_c() const { return range_; }
 private:
     clingo_symbolic_atoms_t const *atoms_;
@@ -881,6 +883,12 @@ public:
     virtual void undo(PropagateControl const &ctl, LiteralSpan changes);
     virtual void check(PropagateControl &ctl);
     virtual ~Propagator() noexcept = default;
+};
+
+class Heuristic : public Propagator {
+public:
+    virtual literal_t decide(id_t thread_id, Assignment const &assign, literal_t fallback);
+    virtual ~Heuristic() noexcept = default;
 };
 
 // {{{1 ground program observer
@@ -2105,6 +2113,7 @@ public:
     SymbolicAtoms symbolic_atoms() const;
     TheoryAtoms theory_atoms() const;
     void register_propagator(Propagator &propagator, bool sequential = false);
+    void register_propagator(Heuristic &propagator, bool sequential = false);
     void register_observer(GroundProgramObserver &observer, bool replace = false);
     void cleanup();
     bool is_conflicting() const noexcept;
@@ -2386,6 +2395,10 @@ inline SymbolType Symbol::type() const {
     return static_cast<SymbolType>(clingo_symbol_type(sym_));
 }
 
+inline bool Symbol::match(char const *name, unsigned arity) const {
+    return type() == SymbolType::Function && strcmp(this->name(), name) == 0 && this->arguments().size() == arity;
+}
+
 inline std::string Symbol::to_string() const {
     return Detail::to_string(clingo_symbol_to_string_size, clingo_symbol_to_string, sym_);
 }
@@ -2430,6 +2443,10 @@ inline bool SymbolicAtom::is_external() const {
     bool ret;
     clingo_symbolic_atoms_is_external(atoms_, range_, &ret);
     return ret;
+}
+
+inline bool SymbolicAtom::match(char const *name, unsigned arity) const {
+    return symbol().match(name, arity);
 }
 
 inline SymbolicAtomIterator &SymbolicAtomIterator::operator++() {
@@ -2764,6 +2781,7 @@ inline void Propagator::init(PropagateInit &) { }
 inline void Propagator::propagate(PropagateControl &, LiteralSpan) { }
 inline void Propagator::undo(PropagateControl const &, LiteralSpan) { }
 inline void Propagator::check(PropagateControl &) { }
+inline literal_t Heuristic::decide(id_t, Assignment const &, literal_t) { return 0; }
 
 // {{{2 solve control
 
@@ -4017,6 +4035,15 @@ inline static bool g_check(clingo_propagate_control_t *ctl, void *pdata) {
     CLINGO_CALLBACK_CATCH(data.second);
 }
 
+inline static bool g_decide(clingo_id_t ti, clingo_assignment_t const *a,  clingo_literal_t f, void *pdata, clingo_literal_t *l) {
+    PropagatorData &data = *static_cast<PropagatorData*>(pdata);
+    CLINGO_CALLBACK_TRY {
+        Assignment ass{a};
+        *l = static_cast<Heuristic&>(data.first).decide(ti, ass, f);
+    }
+    CLINGO_CALLBACK_CATCH(data.second);
+}
+
 } // namespace Detail
 
 inline void Control::register_propagator(Propagator &propagator, bool sequential) {
@@ -4026,6 +4053,19 @@ inline void Control::register_propagator(Propagator &propagator, bool sequential
         Detail::g_propagate,
         Detail::g_undo,
         Detail::g_check,
+        nullptr,
+    };
+    Detail::handle_error(clingo_control_register_propagator(*impl_, &g_propagator, &impl_->propagators_.front(), sequential));
+}
+
+inline void Control::register_propagator(Heuristic &propagator, bool sequential) {
+    impl_->propagators_.emplace_front(propagator, impl_->ptr);
+    static clingo_propagator_t g_propagator = {
+        Detail::g_init,
+        Detail::g_propagate,
+        Detail::g_undo,
+        Detail::g_check,
+        Detail::g_decide,
     };
     Detail::handle_error(clingo_control_register_propagator(*impl_, &g_propagator, &impl_->propagators_.front(), sequential));
 }

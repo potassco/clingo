@@ -111,11 +111,11 @@ extern "C" {
 //! Major version number.
 #define CLINGO_VERSION_MAJOR 5
 //! Minor version number.
-#define CLINGO_VERSION_MINOR 3
+#define CLINGO_VERSION_MINOR 4
 //! Revision number.
-#define CLINGO_VERSION_REVISION 1
+#define CLINGO_VERSION_REVISION 0
 //! String representation of version.
-#define CLINGO_VERSION "5.3.1"
+#define CLINGO_VERSION "5.4.0"
 
 //! Signed integer type used for aspif and solver literals.
 typedef int32_t clingo_literal_t;
@@ -1043,7 +1043,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch(clingo_propagate_
 //! @param[in] solver_literal the solver literal
 //! @param[in] thread_id the id of the solver thread
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_t *init, clingo_literal_t solver_literal, uint32_t thread_id);
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_watch_to_thread(clingo_propagate_init_t *init, clingo_literal_t solver_literal, clingo_id_t thread_id);
 //! Get an object to inspect the symbolic atoms.
 //!
 //! @param[in] init the target
@@ -1255,6 +1255,7 @@ typedef struct clingo_propagator {
     //! @param[in] changes the change set
     //! @param[in] size the size of the change set
     //! @param[in] data user data for the callback
+    //! @return whether the call was successful
     //! @see ::clingo_propagator_undo_callback_t
     bool (*undo) (clingo_propagate_control_t const *control, clingo_literal_t const *changes, size_t size, void *data);
     //! This function is similar to @ref clingo_propagate_control_propagate() but is called without a change set on propagation fixpoints.
@@ -1268,6 +1269,20 @@ typedef struct clingo_propagator {
     //! @return whether the call was successful
     //! @see ::clingo_propagator_check_callback_t
     bool (*check) (clingo_propagate_control_t *control, void *data);
+    //! This function allows a propagator to implement domain-specific heuristics.
+    //!
+    //! It is called whenever propagation reaches a fixed point and
+    //! should return a free solver literal that is to be assigned true.
+    //! In case multiple propagators are registered,
+    //! this function can return 0 to let a propagator registered later make a decision.
+    //! If all propagators return 0, then the fallback literal is
+    //!
+    //! @param[in] thread_id the solver's thread id
+    //! @param[in] assignment the assignment of the solver
+    //! @param[in] fallback the literal choosen by the solver's heuristic
+    //! @param[out] decision the literal to make true
+    //! @return whether the call was successful
+    bool (*decide) (clingo_id_t thread_id, clingo_assignment_t const *assignment, clingo_literal_t fallback, void *data, clingo_literal_t *decision);
 } clingo_propagator_t;
 
 //! @}
@@ -3251,6 +3266,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_propagator(clingo_control
 //! @param[in] control the target
 //! @return whether the program representation is conflicting
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_is_conflicting(clingo_control_t const *control);
+
 //! Get a statistics object to inspect solver statistics.
 //!
 //! Statistics are updated after a solve call.

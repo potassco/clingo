@@ -431,11 +431,25 @@ const char* TheoryOutput::next() {
     return nullptr;
 }
 
-void ClingoControl::registerPropagator(std::unique_ptr<Propagator> p, bool sequential) {
+Potassco::Lit_t ClingoControl::decide(Id_t solverId, Potassco::AbstractAssignment const &assignment, Potassco::Lit_t fallback) {
+    for (auto &heu : heus_) {
+        auto ret = heu->decide(solverId, assignment, fallback);
+        if (ret != 0) { return ret; }
+    }
+    return fallback;
+}
+
+void ClingoControl::registerPropagator(UProp p, bool sequential) {
     propagators_.emplace_back(gringo_make_unique<Clasp::ClingoPropagatorInit>(*p, propLock_.add(sequential)));
     claspConfig_.addConfigurator(propagators_.back().get(), Clasp::Ownership_t::Retain);
     static_cast<Clasp::Asp::LogicProgram*>(clasp_->program())->enableDistinctTrue();
     props_.emplace_back(std::move(p));
+    if (props_.back()->hasHeuristic()) {
+        if (heus_.empty()) {
+            claspConfig_.setHeuristicCreator(new Clasp::ClingoHeuristic::Factory(*this, propLock_.add(sequential)));
+        }
+        heus_.emplace_back(props_.back().get());
+    }
 }
 
 void ClingoControl::cleanupDomains() {

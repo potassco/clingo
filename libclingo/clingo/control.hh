@@ -195,9 +195,10 @@ struct clingo_propagate_init {
 
 namespace Gringo {
 
-struct Propagator : Potassco::AbstractPropagator {
+struct Propagator : Potassco::AbstractPropagator, Potassco::AbstractHeuristic {
     virtual ~Propagator() noexcept = default;
     virtual void init(Gringo::PropagateInit &init) = 0;
+    virtual bool hasHeuristic() const = 0;
 };
 using UProp = std::unique_ptr<Propagator>;
 
@@ -232,7 +233,7 @@ struct clingo_control {
     virtual bool useEnumAssumption() = 0;
     virtual void cleanupDomains() = 0;
     virtual Gringo::Output::DomainData const &theory() const = 0;
-    virtual void registerPropagator(std::unique_ptr<Gringo::Propagator> p, bool sequential) = 0;
+    virtual void registerPropagator(Gringo::UProp p, bool sequential) = 0;
     virtual void registerObserver(Gringo::UBackend program, bool replace) = 0;
     virtual Potassco::Atom_t addProgramAtom() = 0;
     virtual bool beginAddBackend() = 0;
