@@ -23,6 +23,26 @@
   - a translation as above is unsafe
   - the literal is a tautology
 
+# memory management
+- I think that the proper way to handle symbols is to use reference counting
+  - the c api would have to put the burden of reference counting on the user
+  - the APIs can provide reference counted symbols
+- symbols should only be owned in key locations where the reference count is
+  increased
+  - for example a domain owns a symbol and can also take care of flyweighting
+    it
+- touching the counters should be avoided as much as possible during grounding
+  - during the backtraking based instantiation a very limited set of
+    intermediate symbols is created
+  - these intermediate symbols can be freed upon backtracking (if they have not
+    been added to a domain)
+  - the temporary symbols may refer to owned symbols without increasing their
+    reference count
+  - this has the advantage that insertion into hash tables and touching of
+    reference counts only happens when a symbol is commited into a domain
+- implementing this should not be terribly difficult but affects *a lot* of
+  code
+
 # misc
 - **enlarge test suites**
 - incremental programs
