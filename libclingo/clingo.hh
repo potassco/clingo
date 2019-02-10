@@ -1889,6 +1889,7 @@ public:
     StatisticsType type() const;
     // arrays
     size_t size() const;
+    void ensure_size(size_t size, StatisticsType type) const;
     StatisticsBase operator[](size_t index) const;
     StatisticsBase at(size_t index) const { return operator[](index); }
     ArrayIteratorT begin() const;
@@ -3015,6 +3016,11 @@ inline size_t StatisticsBase<constant>::size() const {
     size_t ret;
     Detail::handle_error(clingo_statistics_array_size(stats_, key_, &ret));
     return ret;
+}
+
+template <bool constant>
+void StatisticsBase<constant>::ensure_size(size_t size, StatisticsType type) const {
+    for (auto s = this->size(); s < size; ++s) { push(type); }
 }
 
 template <bool constant>
