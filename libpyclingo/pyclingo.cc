@@ -388,11 +388,22 @@ struct ToFunctionUnary {
     };
 };
 
+template <Object (*f)()>
+struct ToFunctionNullary {
+    static PyObject *value(PyObject *, PyObject *) {
+        PY_TRY { return f().release(); }
+        PY_CATCH(nullptr);
+    };
+};
+
 template <Object (*f)(Reference, Reference)>
 constexpr PyCFunction to_function() { return reinterpret_cast<PyCFunction>(ToFunctionBinary<f>::value); }
 
 template <Object (*f)(Reference)>
 constexpr PyCFunction to_function() { return reinterpret_cast<PyCFunction>(ToFunctionUnary<f>::value); }
+
+template <Object (*f)()>
+constexpr PyCFunction to_function() { return reinterpret_cast<PyCFunction>(ToFunctionNullary<f>::value); }
 
 struct Tuple : Object {
     template <class... Args>
@@ -1655,6 +1666,9 @@ preconstructed symbols Infimum and Supremum.)";
         clingo_symbol_t ret;
         clingo_symbol_create_number(num, &ret);
         return construct(ret);
+    }
+    static Object new_symbol(Reference arg) {
+        return construct(pyToCpp<clingo_symbol_t>(arg));
     }
     static Object new_string(Reference arg) {
         auto str = pyToCpp<std::string>(arg);
@@ -7412,6 +7426,15 @@ Object clingoMain(Reference args, Reference kwds) {
     return PyLong_FromLong(clingo_main(&app, cArgs.data(), cArgs.size(), &data));
 }
 
+Object clingoErrorMessage() {
+    char const *msg = clingo_error_message();
+    return msg ? cppToPy(msg) : None();
+}
+
+Object clingoErrorCode() {
+    return cppToPy(static_cast<int>(clingo_error_code()));
+}
+
 // {{{1 gringo module
 
 static PyMethodDef clingoASTModuleMethods[] = {
@@ -7901,6 +7924,15 @@ Construct a numeric symbol given a number.)"},
     {"String", to_function<Symbol::new_string>(), METH_O, R"(String(string) -> Symbol
 
 Construct a string symbol given a string.)"},
+    {"_Symbol", to_function<Symbol::new_symbol>(), METH_O, R"(_Symbol(value) -> Symbol
+
+Construct a symbol from its numeric C representation.)"},
+    {"_error_message", to_function<clingoErrorMessage>(), METH_NOARGS, R"(_error_message() -> str
+
+Get internal error message.)"},
+    {"_error_code", to_function<clingoErrorCode>(), METH_NOARGS, R"(_error_code() -> int
+
+Get internal error code.)"},
     {nullptr, nullptr, 0, nullptr}
 };
 static char const *clingoModuleDoc =
