@@ -9,9 +9,9 @@ cmod = pdoc.Module(clingo, context=ctx)
 amod = pdoc.Module(clingo.ast, supermodule=cmod, context=ctx)
 
 cmod.doc["ast"] = amod
-cmod.doc["__version__"] = pdoc.Variable("__version__", cmod, "version of the clingo module ({})".format(clingo.__version__))
-cmod.doc["Infimum"] = pdoc.Variable("Infimum", cmod, "represents an `'#inf'` symbol")
-cmod.doc["Supremum"] = pdoc.Variable("Supremum", cmod, "represents a `'#sup'` symbol")
+cmod.doc["__version__"] = pdoc.Variable("__version__", cmod, "version of the clingo module (`'{}'`)".format(clingo.__version__))
+cmod.doc["Infimum"] = pdoc.Variable("Infimum", cmod, "represents a `clingo.Symbol` of type `clingo.SymbolType.Infimum`")
+cmod.doc["Supremum"] = pdoc.Variable("Supremum", cmod, "represents a `clingo.Symbol` of type `clingo.SymbolType.Supremum`")
 pdoc.link_inheritance(ctx)
 
 def replace(s):

@@ -1782,13 +1782,13 @@ preconstructed symbols Infimum and Supremum.)";
 
 PyMethodDef Symbol::tp_methods[] = {
     {"match", to_function<&Symbol::match>(), METH_KEYWORDS | METH_VARARGS,
-R"(match(self, name, arity) -> bool
+R"(`match(self, name, arity) -> bool`
 
 Check if this is a function symbol with the given signature.
 
-Arguments:
-name     -- the name of the function
-arity    -- the arity of the function
+### Arguments
+- `name`  -- the name of the function
+- `arity` -- the arity of the function
 )"},
     {nullptr, nullptr, 0, nullptr}
 };
@@ -1919,13 +1919,13 @@ struct SymbolicAtom : public ObjectBase<SymbolicAtom> {
 
 PyMethodDef SymbolicAtom::tp_methods[] = {
     {"match", to_function<&SymbolicAtom::match>(), METH_KEYWORDS | METH_VARARGS,
-R"(match(self, name, arity) -> bool
+R"(`match(self, name, arity) -> bool`
 
 Check if this is an atom with the given signature.
 
-Arguments:
-name     -- the name of the function
-arity    -- the arity of the function
+### Arguments
+- name  -- the name of the function
+- arity -- the arity of the function
 )"},
     {nullptr, nullptr, 0, nullptr}
 };
@@ -2101,14 +2101,15 @@ signatures: [('p', 1), ('q', 1)])";
 
 PyMethodDef SymbolicAtoms::tp_methods[] = {
     {"by_signature", to_function<&SymbolicAtoms::by_signature>(), METH_KEYWORDS | METH_VARARGS,
-R"(by_signature(self, name, arity, positive) -> SymbolicAtomIter
+R"(`by_signature(self, name, arity, positive) -> SymbolicAtomIter`
 
-Return an iterator over the symbolic atoms with the given signature.
+Return a `clingo.SymbolicAtomIter` to iterate over the symbolic atoms with the
+given signature.
 
-Arguments:
-name     -- the name of the signature
-arity    -- the arity of the signature
-positive -- the sign of the signature
+### Arguments
+- name     -- the name of the signature
+- arity    -- the arity of the signature
+- positive -- the sign of the signature
 )"},
     {nullptr, nullptr, 0, nullptr}
 };
@@ -6567,7 +6568,7 @@ Ground the given list of program parts specified by tuples of names and argument
 Keyword Arguments:
 parts   -- list of tuples of program names and program arguments to ground
 context -- context object whose methods are called during grounding using
-           the @-syntax (if omitted methods from the main module are used)
+           the `@`-syntax (if omitted methods from the main module are used)
 
 Note that parts of a logic program without an explicit #program specification
 are by default put into a program called base without arguments.
@@ -7946,8 +7947,8 @@ control the instantiation process.  In clingo builts, additional functions to
 control and inspect the solving process are available.
 
 Functions defined in a python script block are callable during the
-instantiation process using @-syntax. The default grounding/solving process can
-be customized if a main function is provided.
+instantiation process using `@`-syntax. The default grounding/solving process
+can be customized if a main function is provided.
 
 Note that gringo's precomputed terms (terms without variables and interpreted
 functions), called symbols in the following, are wrapped in the Symbol class.
@@ -7955,7 +7956,7 @@ Furthermore, strings, numbers, and tuples can be passed wherever a symbol is
 expected - they are automatically converted into a Symbol object.  Functions
 called during the grounding process from the logic program must either return a
 symbol or a sequence of symbols.  If a sequence is returned, the corresponding
-@-term is successively substituted by the values in the sequence.
+`@`-term is successively substituted by the values in the sequence.
 
 ## Examples
 
