@@ -7381,11 +7381,15 @@ bool g_app_model_printer(clingo_model_t const *model, clingo_default_model_print
 bool g_app_validate_options(void *data) {
     try {
         AppData &pyApp = *static_cast<AppData*>(data);
-        return pyToCpp<bool>(pyApp.first.call("validate_options"));
+        pyApp.first.call("validate_options");
+        return true;
     }
     catch (...) {
         handle_cxx_error("<application>", "error when validating options");
         std::cerr << clingo_error_message() << std::endl;
+        // NOTE: to avoid getting stack traces for such kind of errors
+        //       could be avoided with a special kind of error that is
+        //       reported differently than a runtime error
         std::terminate();
     }
 }
