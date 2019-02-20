@@ -7983,22 +7983,27 @@ The first example shows how to use the clingo module from Python.
 
 The second example shows how to use Python code from clingo.
 
-    #script (python)
-    import clingo
+```python
+#script (python)
+
+import clingo
+
+class Context:
     def id(x):
         return x
 
     def seq(x, y):
         return [x, y]
 
-    def main(prg):
-        prg.ground([("base", [])])
-        prg.solve()
+def main(prg):
+    prg.ground([("base", [])], context=Context())
+    prg.solve()
 
-    #end.
+#end.
 
-    p(@id(10)).
-    q(@seq(1,2)).
+p(@id(10)).
+q(@seq(1,2)).
+```
 )";
 
 #if PY_MAJOR_VERSION >= 3
