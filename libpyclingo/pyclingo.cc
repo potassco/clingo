@@ -7850,8 +7850,7 @@ class Application(object):
     validate_options(self) -> bool
         Function to validate custom options.
 
-        This function should return a boolean to indicate that option
-        validation failed.
+        This function should throw an exception if option validation fails.
 
         Note: this function should not raise execptions
 
