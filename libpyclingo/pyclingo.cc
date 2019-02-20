@@ -7957,72 +7957,48 @@ called during the grounding process from the logic program must either return a
 symbol or a sequence of symbols.  If a sequence is returned, the corresponding
 @-term is successively substituted by the values in the sequence.
 
-Static Objects:
+## Examples
 
-__version__ -- version of the clingo module ()" CLINGO_VERSION  R"()
-Infimum     -- represents an #inf symbol
-Supremum    -- represents a #sup symbol
+The first example shows how to use the clingo module from Python.
 
-Functions:
+    >>> import clingo
+    >>> class Context:
+    ...     def id(self, x):
+    ...         return x
+    ...     def seq(self, x, y):
+    ...         return [x, y]
+    ...
+    >>> def on_model(m):
+    ...     print (m)
+    ...
+    >>> ctl = clingo.Control()
+    >>> ctl.add("base", [], """\
+    ... p(@id(10)).
+    ... q(@seq(1,2)).
+    ... """)
+    >>> ctl.ground([("base", [])], context=Context())
+    >>> ctl.solve(on_model=on_model)
+    p(10) q(1) q(2)
+    SAT
 
-Function()      -- create a function symbol
-Number()        -- create a number symbol
-parse_program() -- parse a logic program
-parse_term()    -- parse ground terms
-String()        -- create a string symbol
-Tuple()         -- create a tuple symbol (shortcut)
+The second example shows how to use Python code from clingo.
 
-Classes:
+    #script (python)
+    import clingo
+    def id(x):
+        return x
 
-ApplicationOptions  -- add custom options to clingo
-Assignment          -- partial assignment of truth values to solver literals
-Backend             -- extend the logic program
-Configuration       -- modify/inspect the solver configuration
-Control             -- controls the grounding/solving process
-Flag                -- helper object to parse command line flags
-HeuristicType       -- enumeration of heuristic modificators
-MessageCode         -- enumeration of message codes
-Model               -- provides access to a model during solve call
-ModelType           -- captures the type of a model
-ProgramBuilder      -- extend a non-ground logic program
-PropagatorCheckMode -- enumeration of check modes
-PropagateControl    -- controls running search in a custom propagator
-PropagateInit       -- object to initialize custom propagators
-SolveControl        -- controls running search in a model handler
-SolveHandle         -- handle for solve calls
-SolveResult         -- result of a solve call
-StatisticsArray     -- updatable statistics stored in an array
-StatisticsMap       -- updatable statistics stored in a map
-Symbol              -- captures precomputed terms
-SymbolicAtom        -- captures information about a symbolic atom
-SymbolicAtomIter    -- iterate over symbolic atoms
-SymbolicAtoms       -- inspection of symbolic atoms
-SymbolType          -- enumeration of symbol types
-TheoryAtom          -- captures theory atoms
-TheoryAtomIter      -- iterate over theory atoms
-TheoryElement       -- captures theory elements
-TheoryTerm          -- captures theory terms
-TheoryTermType      -- the type of a theory term
-TruthValue          -- enumeration of truth values
+    def seq(x, y):
+        return [x, y]
 
-Example:
+    def main(prg):
+        prg.ground([("base", [])])
+        prg.solve()
 
-#script (python)
-import clingo
-def id(x):
-    return x
+    #end.
 
-def seq(x, y):
-    return [x, y]
-
-def main(prg):
-    prg.ground([("base", [])])
-    prg.solve()
-
-#end.
-
-p(@id(10)).
-q(@seq(1,2)).
+    p(@id(10)).
+    q(@seq(1,2)).
 )";
 
 #if PY_MAJOR_VERSION >= 3
