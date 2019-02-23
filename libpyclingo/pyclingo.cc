@@ -2563,9 +2563,9 @@ See Control.solve() for an example.)";
             catch (...) { except = std::current_exception(); }
             handle = nullptr;
         }
-        on_model.release();
-        on_finish.release();
-        on_statistics.release();
+        on_model = nullptr;
+        on_finish = nullptr;
+        on_statistics = nullptr;
         if (except) { std::rethrow_exception(except); }
         Py_RETURN_FALSE;
     }
