@@ -2505,18 +2505,12 @@ Blocking functions in this object release the GIL. They are not thread-safe thou
 
 See Control.solve() for an example.)";
 
-    SolveHandle()
-    : on_model{nullptr}
-    , on_finish{nullptr}
-    , on_statistics{nullptr} {
-    }
-
     static SharedObject<SolveHandle> construct() {
         auto ret = new_();
+        ret->handle = nullptr;
         new (&ret->on_model) Object{};
         new (&ret->on_finish) Object{};
         new (&ret->on_statistics) Object{};
-        ret->handle = nullptr;
         return ret;
     }
 
