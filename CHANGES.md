@@ -1,5 +1,13 @@
 # Changes
 
+## clingo 5.4.0
+  * add extension to implement custom heuristics
+  * add const modifiers to C API
+  * add flags to external and const statements to match API functions
+  * rename `async` and `yield` to `async_` and `yield_` in python API
+  * fix python memleaks
+  * make compatible with msvc 15
+  * C ABI changes regarding propagators
 ## clingo 5.3.0
   * change C API to use numeric instead of symbolic literals
     * affects assumptions and assigning/releasing externals
