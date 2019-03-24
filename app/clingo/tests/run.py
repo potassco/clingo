@@ -115,8 +115,9 @@ if parse_ret.action == "normalize":
     args = [clingo, "0", parse_ret.file, "-Wnone"]
     b = os.path.splitext(parse_ret.file)[0]
     if os.path.exists(b + ".cmd"):
-        for x in open(b + ".cmd", 'rU'):
-            args.extend(x.strip().split())
+        with open(b + ".cmd", 'rU') as cmd_file:
+            for x in cmd_file:
+                args.extend(x.strip().split())
     args.extend(extra_argv)
     out, err = sp.Popen(args, stderr=sp.PIPE, stdout=sp.PIPE, universal_newlines=True).communicate()
     sys.stdout.write(normalize(out))
@@ -133,24 +134,27 @@ if parse_ret.action == "run":
         for f in sorted(files):
             if f.endswith(".lp"):
                 b = os.path.join(root, f[:-3])
-                inst = open(b + ".lp", 'rU').read()
-                if (not with_python and re.search(r"#script[ ]*\(python\)", inst)) or \
-                   (not with_lua and re.search(r"#script[ ]*\(lua\)", inst)) or \
-                   (not with_threads and re.search("async_=", inst)) or \
-                   (not with_threads and re.search("solve_async", inst)):
-                    continue
+                with open(b + ".lp", 'rU') as inst_file:
+                    inst = inst_file.read()
+                    if (not with_python and re.search(r"#script[ ]*\(python\)", inst)) or \
+                       (not with_lua and re.search(r"#script[ ]*\(lua\)", inst)) or \
+                       (not with_threads and re.search("async_=", inst)) or \
+                       (not with_threads and re.search("solve_async", inst)):
+                        continue
 
                 total+= 1
                 sys.stdout.flush()
 
                 args = [clingo, "0", b + ".lp", "-Wnone"]
                 if os.path.exists(b + ".cmd"):
-                    for x in open(b + ".cmd", 'rU'):
-                        args.extend(x.strip().split())
+                    with open(b + ".cmd", 'rU') as cmd_file:
+                        for x in cmd_file:
+                            args.extend(x.strip().split())
                 args.extend(extra_argv)
                 out, err = sp.Popen(args, stderr=sp.PIPE, stdout=sp.PIPE, universal_newlines=True).communicate()
                 norm = normalize(out)
-                sol  = reorder(open(b + ".sol", 'rU').read())
+                with open(b + ".sol", 'rU') as sol_file:
+                    sol  = reorder(sol_file.read())
                 if norm != sol:
                     failed+= 1
                     print
