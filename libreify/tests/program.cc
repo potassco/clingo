@@ -2,6 +2,8 @@
 #include <potassco/aspif_text.h>
 #include <reify/program.hh>
 
+#include <sstream>
+
 namespace Reify { namespace Test {
 
 bool read(std::stringstream &in, std::stringstream &out, bool scc = false, bool step = false) {

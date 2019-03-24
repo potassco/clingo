@@ -192,6 +192,7 @@ struct SharedObject : ObjectProtocoll<SharedObject<T>>{
     T *operator->() const { return obj; }
     PyObject *toPy() const                             { return reinterpret_cast<PyObject*>(obj); }
     PyObject *release()                                { PyObject *ret = toPy(); obj = nullptr; return ret; }
+    void clear()                                       { Py_CLEAR(obj); }
     SharedObject &operator=(SharedObject const &other) { Py_XDECREF(obj); obj = other.obj; Py_XINCREF(obj); return *this; }
     SharedObject &operator=(SharedObject &&other)      { std::swap(obj, other.obj); return *this; }
     ~SharedObject()                                    { Py_XDECREF(obj); }
@@ -803,6 +804,21 @@ void handle_cxx_error(char const *loc, char const *msg) {
     }
 }
 
+struct TraverseError : std::exception {
+    TraverseError(int ret) : ret{ret} { }
+    int ret;
+};
+
+struct Traverse {
+    void operator()(Reference ref) const {
+        if (ref.valid()) {
+            auto ret = visit(ref.toPy(), arg);
+            if (ret != 0) { throw TraverseError(ret); }
+        }
+    }
+    visitproc visit;
+    void *arg;
+};
 
 namespace PythonDetail {
 
@@ -810,13 +826,18 @@ namespace PythonDetail {
 
 #define CHECK_EXPRESSION(E) decltype(static_cast<void>(E))
 
+template <bool A>
+struct Available {
+    static constexpr bool available = A;
+};
+
 #define WRAP_FUNCTION(F) \
 template <class B, class Enable = void> \
-struct Get_##F { \
+struct Get_##F : Available<false> { \
     static constexpr std::nullptr_t value = nullptr; \
 }; \
 template <class B> \
-struct Get_##F<B, CHECK_EXPRESSION(&B::F)>
+struct Get_##F<B, CHECK_EXPRESSION(&B::F)> : Available<true>
 
 #define BEGIN_PROTOCOL(F) \
 template <class B, class Enable = void> \
@@ -852,10 +873,39 @@ struct Get_##F<B, typename std::enable_if<Get_##G<B>::has_protocol>::type> { \
 template <class B> \
 T Get_##F<B, typename std::enable_if<Get_##G<B>::has_protocol>::type>::value[] =
 
+// gc protocol
+
+WRAP_FUNCTION(tp_traverse) {
+    static int value(PyObject *pySelf, visitproc visit, void *arg) {
+        PY_TRY {
+            auto self = reinterpret_cast<B*>(pySelf);
+            Traverse t{visit, arg};
+            self->tp_traverse(t);
+            return 0;
+        }
+        catch (TraverseError const &e) { return e.ret; }
+        PY_CATCH(1);
+    };
+};
+
+WRAP_FUNCTION(tp_clear) {
+    static int value(PyObject *pySelf) {
+        PY_TRY {
+            auto self = reinterpret_cast<B*>(pySelf);
+            self->tp_clear();
+            return 0;
+        }
+        PY_CATCH(1);
+    };
+};
+
 // object protocol
 
 WRAP_FUNCTION(tp_dealloc) {
     static void value(PyObject *self) {
+        if (PythonDetail::Get_tp_clear<B>::available) {
+            PyObject_GC_UnTrack(self);
+        }
         reinterpret_cast<B*>(self)->tp_dealloc();
         B::type.tp_free(self);
     };
@@ -1139,10 +1189,12 @@ PyTypeObject ObjectBase<T>::type = {
     PythonDetail::Get_tp_getattro<T>::value,    // tp_getattro
     PythonDetail::Get_tp_setattro<T>::value,    // tp_setattro
     nullptr,                                    // tp_as_buffer
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   // tp_flags
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE |
+    (PythonDetail::Get_tp_traverse<T>::available ? Py_TPFLAGS_HAVE_GC : 0UL),
+                                                // tp_flags
     T::tp_doc,                                  // tp_doc
-    nullptr,                                    // tp_traverse
-    nullptr,                                    // tp_clear
+    PythonDetail::Get_tp_traverse<T>::value,    // tp_traverse
+    PythonDetail::Get_tp_clear<T>::value,       // tp_clear
     PythonDetail::Get_tp_richcompare<T>::value, // tp_richcompare
     0,                                          // tp_weaklistoffset
     PythonDetail::Get_tp_iter<T>::value,        // tp_iter
@@ -2514,15 +2566,26 @@ See Control.solve() for an example.)";
         return ret;
     }
 
-    void tp_dealloc() {
+    void tp_traverse(Traverse const &visit) {
+        visit(on_model);
+        visit(on_finish);
+        visit(on_statistics);
+    }
+
+    void tp_clear() {
         if (handle) {
-            try         { doUnblocked([this](){ handle_c_error(clingo_solve_handle_close(handle)); }); }
-            catch (...) { }
+            auto tmp = handle;
             handle = nullptr;
+            try         { doUnblocked([tmp](){ handle_c_error(clingo_solve_handle_close(tmp)); }); }
+            catch (...) { }
         }
-        on_model.~Object();
-        on_finish.~Object();
-        on_statistics.~Object();
+        on_model.clear();
+        on_finish.clear();
+        on_statistics.clear();
+    }
+
+    void tp_dealloc() {
+        tp_clear();
     }
 
     clingo_solve_event_callback_t notify(clingo_solve_event_callback_t event, Reference mh, Reference sh, Reference fh) {
@@ -4332,9 +4395,19 @@ provided in this module.
             ? ret
             : PyObject_GenericGetAttr(reinterpret_cast<PyObject*>(this), name.toPy());
     }
+
+    void tp_traverse(Traverse const &visit) {
+        visit(fields_);
+        visit(children);
+    }
+
+    void tp_clear() {
+        fields_.clear();
+        children.clear();
+    }
+
     void tp_dealloc() {
-        fields_.~Dict();
-        children.~List();
+        tp_clear();
     }
 
     Object tp_repr() {
@@ -6282,12 +6355,20 @@ active; you must not call any member function during search.)";
         new (&self->objects) Objects();
         return self;
     }
+    void tp_traverse(Traverse const &visit) {
+        for (auto &object : objects) { visit(object); }
+    }
+    void tp_clear() {
+        Py_CLEAR(stats);
+        Py_CLEAR(logger);
+        // NOTE: tp_dealloc might be called from an objects deconstructor while tp_clear is running
+        Objects{}.swap(objects);
+    }
     void tp_dealloc() {
+        tp_clear();
         if (freeCtl) { clingo_control_free(freeCtl); }
         ctl = freeCtl = nullptr;
         objects.~Objects();
-        Py_XDECREF(stats);
-        Py_XDECREF(logger);
     }
     void tp_init(Reference pyargs, Reference pykwds) {
         static char const *kwlist[] = {"arguments", "logger", "message_limit", nullptr};

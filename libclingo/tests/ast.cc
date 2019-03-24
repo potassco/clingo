@@ -25,6 +25,7 @@
 #include "tests.hh"
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 namespace Clingo { namespace Test {
 

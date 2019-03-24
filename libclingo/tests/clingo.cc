@@ -25,6 +25,8 @@
 #include "tests.hh"
 #include <iostream>
 #include <fstream>
+#include <sstream>
+#include <iterator>
 #ifdef _MSC_VER
 #pragma warning (disable : 4996) // 'tmpnam': may be unsafe.
 #endif
@@ -262,8 +264,6 @@ TEST_CASE("solving", "[clingo]") {
         SECTION("backend-add-atom") {
             auto a = [](int x) { return Function("a", {Number(x)}); };
             auto b = [](int x) { return Function("b", {Number(x)}); };
-            auto c = [](int x) { return Function("c", {Number(x)}); };
-            auto d = [](int x) { return Function("d", {Number(x)}); };
             auto e = [](int x) { return Function("e", {Number(x)}); };
             {
                 auto backend = ctl.backend();

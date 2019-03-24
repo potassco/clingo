@@ -29,6 +29,7 @@
 #include <cassert>
 #include <mutex>
 #include <condition_variable>
+#include <set>
 
 #include <iostream>
 
@@ -177,9 +178,7 @@ private:
     }
 
     void initialize_occurrence_lists() {
-        for (auto &item : item_map_) {
-            occurrence_list_.emplace_back();
-        }
+        occurrence_list_.resize(occurrence_list_.size() + item_map_.size());
         int sid = 0;
         std::unordered_set<int> seen;
         for (auto &seq : sequence_atoms_) {
