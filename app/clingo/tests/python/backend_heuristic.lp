@@ -6,6 +6,7 @@ import clingo
 
 def main(prg):
     prg.configuration.solve.models = 1
+    prg.configuration.solve.parallel_mode = 1
     prg.configuration.solver.heuristic = "domain"
     prg.ground([("base", [])])
     with prg.backend() as be:
