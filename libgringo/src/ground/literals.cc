@@ -245,7 +245,7 @@ void PredicateLiteral::setType(OccurrenceType x)  { type = x; }
 OccurrenceType PredicateLiteral::getType() const  { return type; }
 BodyOcc::DefinedBy &PredicateLiteral::definedBy() { return defs; }
 void PredicateLiteral::checkDefined(LocSet &done, SigSet const &edb, UndefVec &undef) const {
-    if (!auxiliary_ && defs.empty() && done.find(repr->loc()) == done.end() && edb.find(repr->getSig()) == edb.end()) {
+    if (!auxiliary_ && defs.empty() && done.find(repr->loc()) == done.end() && edb.find(repr->getSig()) == edb.end() && domain.empty()) {
         // accumulate warnings in array of printables ..
         done.insert(repr->loc());
         undef.emplace_back(repr->loc(), repr.get());

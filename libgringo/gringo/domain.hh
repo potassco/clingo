@@ -503,6 +503,10 @@ public:
         return ret;
     }
 
+    bool empty() const {
+        return atoms_.empty();
+    }
+
     void clear() {
         atoms_.clear();
         indices_.clear();
