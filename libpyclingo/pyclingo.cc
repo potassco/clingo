@@ -3713,7 +3713,7 @@ symbol -- optional symbol (Default: None)
 )"},
     // add_external
     {"add_external", to_function<&Backend::addExternal>(), METH_VARARGS | METH_KEYWORDS,
-R"(add_atom(self, atom, value) -> Int
+R"(add_external(self, atom, value) -> Int
 
 Mark an atom as external optionally fixing its truth value.
 
