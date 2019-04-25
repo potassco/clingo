@@ -1057,7 +1057,15 @@ extern "C" bool clingo_backend_acyc_edge(clingo_backend_t *backend, int node_u, 
 }
 
 extern "C" bool clingo_backend_add_atom(clingo_backend_t *backend, clingo_symbol_t *symbol, clingo_atom_t *ret) {
-    GRINGO_CLINGO_TRY { *ret = symbol ? backend->addAtom(Symbol{*symbol}) : backend->addProgramAtom(); }
+    GRINGO_CLINGO_TRY {
+        if (symbol) {
+            if (Symbol{*symbol}.type() != SymbolType::Fun) {
+                throw std::runtime_error("function expected");
+            }
+            *ret = backend->addAtom(Symbol{*symbol});
+        }
+        else { *ret = backend->addProgramAtom(); }
+    }
     GRINGO_CLINGO_CATCH;
 }
 
