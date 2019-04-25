@@ -3455,8 +3455,8 @@ R"(Enumeration of the different heuristic types.
 HeuristicType objects cannot be constructed from python. Instead the following
 preconstructed objects are available:
 
-HeuristicType.True    -- truth value true
-HeuristicType.False   -- truth value false
+HeuristicType.True_   -- truth value true
+HeuristicType.False_  -- truth value false
 HeuristicType.Free    -- no truth value
 HeuristicType.Release -- indicates that an atom is to be released)";
 
@@ -3466,6 +3466,8 @@ HeuristicType.Release -- indicates that an atom is to be released)";
         clingo_heuristic_type_factor,
         clingo_heuristic_type_init,
         clingo_heuristic_type_true,
+        clingo_heuristic_type_false,
+        clingo_heuristic_type_true,
         clingo_heuristic_type_false
     };
     static constexpr const char * const strings[] = {
@@ -3473,6 +3475,8 @@ HeuristicType.Release -- indicates that an atom is to be released)";
         "Sign",
         "Factor",
         "Init",
+        "True_",
+        "False_",
         "True",
         "False"
     };
@@ -3629,7 +3633,7 @@ format.)";
 
     Object addRule(Reference pyargs, Reference pykwds) {
         static char const *kwlist[] = {"head", "body", "choice", nullptr};
-        Reference pyHead = Py_None;
+        Reference pyHead;
         Reference pyBody = Py_None;
         Reference pyChoice = Py_False;
         ParseTupleAndKeywords(pyargs, pykwds, "O|OO", kwlist, pyHead, pyBody, pyChoice);
@@ -3644,7 +3648,7 @@ format.)";
 
     Object addExternal(Reference pyargs, Reference pykwds) {
         static char const *kwlist[] = {"head", "value", nullptr};
-        Reference pyAtom = Py_None;
+        Reference pyAtom;
         Reference pyValue = nullptr;
         ParseTupleAndKeywords(pyargs, pykwds, "O|O", kwlist, pyAtom, pyValue);
         clingo_atom_t atom;
@@ -3656,9 +3660,9 @@ format.)";
 
     Object addWeightRule(Reference pyargs, Reference pykwds) {
         static char const *kwlist[] = {"head", "lower", "body", "choice", nullptr};
-        Reference pyHead = Py_None;
-        Reference pyLower = Py_None;
-        Reference pyBody = Py_None;
+        Reference pyHead;
+        Reference pyLower;
+        Reference pyBody;
         Reference pyChoice = Py_False;
         ParseTupleAndKeywords(pyargs, pykwds, "OOO|O", kwlist, pyHead, pyLower, pyBody, pyChoice);
         auto head = pyToCpp<std::vector<clingo_atom_t>>(pyHead);
@@ -3671,12 +3675,54 @@ format.)";
 
     Object addMinimize(Reference pyargs, Reference pykwds) {
         static char const *kwlist[] = {"priority", "literals", nullptr};
-        Reference pyPriority = Py_None;
-        Reference pyBody = Py_None;
+        Reference pyPriority;
+        Reference pyBody;
         ParseTupleAndKeywords(pyargs, pykwds, "OO", kwlist, pyPriority, pyBody);
         auto priority = pyToCpp<clingo_weight_t>(pyPriority);
         auto body = pyToCpp<std::vector<clingo_weighted_literal_t>>(pyBody);
         handle_c_error(clingo_backend_minimize(backend, priority, body.data(), body.size()));
+        Py_RETURN_NONE;
+    }
+
+    Object addProject(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"atoms", nullptr};
+        Reference pyAtoms;
+        ParseTupleAndKeywords(pyargs, pykwds, "O", kwlist, pyAtoms);
+        auto atoms = pyToCpp<std::vector<clingo_atom_t>>(pyAtoms);
+        handle_c_error(clingo_backend_project(backend, atoms.data(), atoms.size()));
+        Py_RETURN_NONE;
+    }
+
+    Object addAssume(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"literals", nullptr};
+        Reference pyLiterals = nullptr;
+        ParseTupleAndKeywords(pyargs, pykwds, "O", kwlist, pyLiterals);
+        auto literals = pyToCpp<std::vector<clingo_literal_t>>(pyLiterals);
+        handle_c_error(clingo_backend_assume(backend, literals.data(), literals.size()));
+        Py_RETURN_NONE;
+    }
+
+    Object addHeuristic(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"atom", "type", "bias", "priority", "condition", nullptr};
+        Reference pyAtom, pyType, pyBias, pyPriority, pyCondition;
+        ParseTupleAndKeywords(pyargs, pykwds, "OOOOO", kwlist, pyAtom, pyType, pyBias, pyPriority, pyCondition);
+        auto atom = pyToCpp<clingo_atom_t>(pyAtom);
+        auto type = enumValue<HeuristicType>(pyType);
+        auto bias = pyToCpp<int>(pyBias);
+        auto priority = pyToCpp<unsigned>(pyPriority);
+        auto condition = pyToCpp<std::vector<clingo_literal_t>>(pyCondition);
+        handle_c_error(clingo_backend_heuristic(backend, atom, type, bias, priority, condition.data(), condition.size()));
+        Py_RETURN_NONE;
+    }
+
+    Object addAcycEdge(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"node_u", "node_v", "condition", nullptr};
+        Reference pyU, pyV, pyCondition;
+        ParseTupleAndKeywords(pyargs, pykwds, "OOO", kwlist, pyU, pyV, pyCondition);
+        auto u = pyToCpp<int>(pyU);
+        auto v = pyToCpp<int>(pyV);
+        auto condition = pyToCpp<std::vector<clingo_literal_t>>(pyCondition);
+        handle_c_error(clingo_backend_acyc_edge(backend, u, v, condition.data(), condition.size()));
         Py_RETURN_NONE;
     }
 
@@ -3762,6 +3808,44 @@ Add a minimize constraint to the program.
 Arguments:
 priority -- integer for the priority
 literals -- list of pairs of program literals and weights
+)"},
+    // add_project
+    {"add_project", to_function<&Backend::addProject>(), METH_VARARGS | METH_KEYWORDS,
+R"(add_project(self, atoms) -> None
+Add a project statement to the program.
+
+Arguments:
+atoms -- list of atoms
+)"},
+    // add_assume
+    {"add_assume", to_function<&Backend::addAssume>(), METH_VARARGS | METH_KEYWORDS,
+R"(add_assume(self, literals) -> None
+Add assumptions to the program.
+
+Arguments:
+literals -- list of literals
+)"},
+    // add_heuristic
+    {"add_heuristic", to_function<&Backend::addHeuristic>(), METH_VARARGS | METH_KEYWORDS,
+R"(add_heuristic(self, atom, type, bias, priority, condition) -> None
+Add a heuristic directive to the program.
+
+Arguments:
+atom      -- atom to heuristically modify
+type      -- type of modification (see HeuristicType)
+bias      -- a signed integer
+priority  -- an unsigned integer
+condition -- list of literals
+)"},
+    // add_acyc_edge
+    {"add_acyc_edge", to_function<&Backend::addAcycEdge>(), METH_VARARGS | METH_KEYWORDS,
+R"(add_acyc_edge(self, node_u, node_v, condition) -> None
+Add an edge directive to the program.
+
+Arguments:
+node_u    -- start node
+node_v    -- end node
+condition -- list of literals
 )"},
     {nullptr, nullptr, 0, nullptr}
 };
