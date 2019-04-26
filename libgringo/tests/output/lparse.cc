@@ -1404,7 +1404,15 @@ TEST_CASE("output-lparse", "[output]") {
                 "{p(1..2)}.\n"
                 ":- #false:p(X).\n", {"p("})));
     }
-
+    SECTION("bugLargeCond") {
+        REQUIRE(
+            "([[],[a(a)],[a(b)]],[])" ==
+            IO::to_string(solve(
+                "{ a(a;b) }.\n"
+                "b(X) :- a(X).\n"
+                "c(X) :- a(X).\n"
+                ":- #count {A,B: a(A),  b(A),  c(A), a(B), b(B), c(B) } >= 2.\n", {"a("})));
+    }
 }
 
 } } } // namespace Test Output Gringo

@@ -308,7 +308,7 @@ private:
 class BodyAggregateElements_::ClauseOffset {
 public:
     ClauseOffset(Id_t offset, Id_t size)
-    : repr_(std::max(size-1, Id_t(3)) | (offset << 2)) {
+    : repr_(std::min(size-1, Id_t(3)) | (offset << 2)) {
         assert(size > 0);
     }
     ClauseOffset(uint32_t repr)
