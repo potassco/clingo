@@ -928,6 +928,13 @@ typedef struct clingo_assignment clingo_assignment_t;
 //! @param[in] assignment the target assignment
 //! @return the decision level
 CLINGO_VISIBILITY_DEFAULT uint32_t clingo_assignment_decision_level(clingo_assignment_t const *assignment);
+//! Get the current root level.
+//!
+//! Decisions levels smaller or equal to the root level are not backtracked during solving.
+//!
+//! @param[in] assignment the target assignment
+//! @return the decision level
+CLINGO_VISIBILITY_DEFAULT uint32_t clingo_assignment_root_level(clingo_assignment_t const *assignment);
 //! Check if the given assignment is conflicting.
 //!
 //! @param[in] assignment the target assignment

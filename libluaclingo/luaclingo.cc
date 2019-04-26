@@ -2178,6 +2178,11 @@ struct Assignment : Object<Assignment> {
         return 1;
     }
 
+    static int rootLevel(lua_State *L) {
+        lua_pushinteger(L, clingo_assignment_root_level(get_self(L).ass));
+        return 1;
+    }
+
     static int hasLit(lua_State *L) {
         auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
         lua_pushboolean(L, clingo_assignment_has_literal(get_self(L).ass, lit));
@@ -2245,6 +2250,7 @@ struct Assignment : Object<Assignment> {
         if (strcmp(name, "max_size")       == 0) { return max_size(L); }
         if (strcmp(name, "has_conflict")   == 0) { return hasConflict(L); }
         if (strcmp(name, "decision_level") == 0) { return decisionLevel(L); }
+        if (strcmp(name, "root_level")     == 0) { return rootLevel(L); }
         else {
             lua_getmetatable(L, 1);
             lua_getfield(L, -1, name);

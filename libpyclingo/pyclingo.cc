@@ -2953,6 +2953,10 @@ respectively.)";
         return cppToPy(clingo_assignment_decision_level(assign));
     }
 
+    Object rootLevel() {
+        return cppToPy(clingo_assignment_root_level(assign));
+    }
+
     Object hasLit(Reference lit) {
         return cppToPy(clingo_assignment_has_literal(assign, pyToCpp<clingo_literal_t>(lit)));
     }
@@ -3043,6 +3047,7 @@ Determine if the literal is false.)"},
 PyGetSetDef Assignment::tp_getset[] = {
     {(char *)"has_conflict", to_getter<&Assignment::hasConflict>(), nullptr, (char *)R"(True if the assignment is conflicting.)", nullptr},
     {(char *)"decision_level", to_getter<&Assignment::decisionLevel>(), nullptr, (char *)R"(The current decision level.)", nullptr},
+    {(char *)"root_level", to_getter<&Assignment::rootLevel>(), nullptr, (char *)R"(The current root level.)", nullptr},
     {(char *)"size", to_getter<&Assignment::size>(), nullptr, (char *)R"(The number of assigned literals.)", nullptr},
     {(char *)"max_size", to_getter<&Assignment::max_size>(), nullptr, (char *)R"(The maximum size of the assignment (if all literals are assigned).)", nullptr},
     {(char *)"is_total", to_getter<&Assignment::isTotal>(), nullptr, (char *)R"(Whether the assignment is total.)", nullptr},

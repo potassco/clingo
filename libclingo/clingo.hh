@@ -797,6 +797,7 @@ public:
     : ass_(ass) { }
     bool has_conflict() const;
     uint32_t decision_level() const;
+    uint32_t root_level() const;
     bool has_literal(literal_t lit) const;
     TruthValue truth_value(literal_t lit) const;
     uint32_t level(literal_t lit) const;
@@ -2638,6 +2639,10 @@ inline bool Assignment::has_conflict() const {
 
 inline uint32_t Assignment::decision_level() const {
     return clingo_assignment_decision_level(ass_);
+}
+
+inline uint32_t Assignment::root_level() const {
+    return clingo_assignment_root_level(ass_);
 }
 
 inline bool Assignment::has_literal(literal_t lit) const {

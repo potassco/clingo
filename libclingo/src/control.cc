@@ -569,6 +569,10 @@ extern "C" uint32_t clingo_assignment_decision_level(clingo_assignment_t const *
     return ass->level();
 }
 
+extern "C" uint32_t clingo_assignment_root_level(clingo_assignment_t const *ass) {
+    return ass->rootLevel();
+}
+
 extern "C" bool clingo_assignment_has_literal(clingo_assignment_t const *ass, clingo_literal_t lit) {
     return ass->hasLit(lit);
 }
