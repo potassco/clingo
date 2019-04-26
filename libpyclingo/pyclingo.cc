@@ -507,6 +507,8 @@ struct symbol_wrapper {
 };
 using symbol_vector = std::vector<symbol_wrapper>;
 
+bool pyIsSymbol(Reference obj);
+
 template <class T>
 void pyToCpp(Reference pyVec, std::vector<T> &vec);
 
@@ -6358,10 +6360,10 @@ void pycall(Reference fun, clingo_symbol_t const *arguments, size_t arguments_si
         pyToCpp(sym, val);
         handle_c_error(symbol_callback(&val.symbol, 1, symbol_callback_data));
     };
-    if (PyList_Check(ret.toPy())) {
+    if (pyIsSymbol(ret)) { add(ret); }
+    else {
         for (auto &&x : ret.iter()) { add(x); }
     }
-    else { add(ret); }
 }
 
 static void logger_callback(clingo_warning_t code, char const *message, void *data) {
@@ -8247,6 +8249,14 @@ bool pyIsInt(Reference x) {
 #if PY_MAJOR_VERSION < 3
     if (PyInt_Check(x.toPy())) { return true; }
 #endif
+    return false;
+}
+
+bool pyIsSymbol(Reference obj) {
+    if (obj.isInstance(Symbol::type)) { return true; }
+    if (PyTuple_Check(obj.toPy()))    { return true; }
+    if (pyIsInt(obj))                 { return true; }
+    if (PyString_Check(obj.toPy()))   { return true; }
     return false;
 }
 
