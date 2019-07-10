@@ -281,7 +281,7 @@ template <class V, class... T>
 V init(T&&... args) {
     V v;
     Detail::walker<1, V, 0, T...>()(v, std::forward<T>(args)...);
-    return std::move(v);
+    return v;
 }
 
 template <int N, class V, class... T>
@@ -289,7 +289,7 @@ V init(T&&... args) {
     static_assert(N > 0, "think - makes no sense!");
     V v;
     Detail::walker<N, V, 0, T...>()(v, std::forward<T>(args)...);
-    return std::move(v);
+    return v;
 }
 
 // {{{1 definition of TestLogger

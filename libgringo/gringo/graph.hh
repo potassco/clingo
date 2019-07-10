@@ -153,7 +153,7 @@ typename Graph<T>::SCCVec Graph<T>::tarjan() {
         }
     }
     phase_ = nphase();
-    return std::move(sccs);
+    return sccs;
 }
 
 // }}}

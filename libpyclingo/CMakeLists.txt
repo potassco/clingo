@@ -14,6 +14,7 @@ else()
     set(pyclingo_lib_type STATIC)
 endif()
 
+# for embedding
 add_library(libpyclingo ${pyclingo_lib_type} ${source})
 target_link_libraries(libpyclingo PUBLIC libclingo PRIVATE Python::Python)
 target_include_directories(libpyclingo PUBLIC
@@ -30,4 +31,15 @@ else()
 endif()
 set_target_properties(libpyclingo PROPERTIES
     OUTPUT_NAME pyclingo
+    FOLDER lib)
+
+# for module
+add_library(libpyclingom STATIC ${source})
+target_link_libraries(libpyclingom PUBLIC libclingo Python::Module)
+target_include_directories(libpyclingom PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>")
+target_compile_definitions(libpyclingom PRIVATE PYCLINGO_BUILD_LIBRARY PUBLIC CLINGO_WITH_PYTHON)
+target_compile_definitions(libpyclingom PUBLIC PYCLINGO_NO_VISIBILITY)
+set_target_properties(libpyclingom PROPERTIES
+    OUTPUT_NAME pyclingom
     FOLDER lib)

@@ -11,6 +11,7 @@
   * TruthValue.{\_True,\_False} becomes TruthValue.{True\_,False\_} in python API
   * HeuristicType.{True,False} becomes TruthValue.{True\_,False\_} in python API
   * improve python API documentation
+  * use cmakes `find_python` module
 ## clingo 5.3.0
   * change C API to use numeric instead of symbolic literals
     * affects assumptions and assigning/releasing externals

@@ -7,7 +7,7 @@ set(source
     ${source-group})
 # ]]]
 
-add_library(luaclingo SHARED ${source})
+add_library(luaclingo MODULE ${source})
 target_link_libraries(luaclingo PRIVATE libluaclingo)
 set_target_properties(luaclingo PROPERTIES
     FOLDER lib
