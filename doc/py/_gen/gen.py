@@ -30,6 +30,17 @@ cmod.doc["Infimum"] = pdoc.Variable("Infimum", cmod, '''Infimum: Symbol\n\nRepre
 cmod.doc["Supremum"] = pdoc.Variable("Supremum", cmod, '''Supremum: Symbol\n\nRepresents a symbol of type `clingo.SymbolType.Supremum`.''')
 pdoc.link_inheritance(ctx)
 
-os.makedirs("../clingo/ast", exist_ok=True)
-open("../clingo/index.html", "w").write(cmod.html(external_links=True))
-open("../clingo/ast/index.html", "w").write(amod.html(external_links=True))
+prefix = "../clingo/python-api/{}".format(".".join(clingo.__version__.split(".")[:2]))
+cprefix = "../clingo/python-api/current"
+
+os.makedirs("{}/ast".format(prefix), exist_ok=True)
+os.makedirs("{}/ast".format(cprefix), exist_ok=True)
+
+cmod_html = cmod.html(external_links=True)
+amod_html = amod.html(external_links=True)
+
+open("{}/index.html".format(prefix), "w").write(cmod_html)
+open("{}/ast/index.html".format(prefix), "w").write(amod_html)
+
+open("{}/index.html".format(cprefix), "w").write(cmod_html.replace("clingo/python-api/5.4", "clingo/python-api/current"))
+open("{}/ast/index.html".format(cprefix), "w").write(amod_html.replace("clingo/python-api/5.4", "clingo/python-api/current"))

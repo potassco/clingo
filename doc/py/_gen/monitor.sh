@@ -10,8 +10,7 @@ export cpucount=$[ $(cat /proc/cpuinfo | grep processor | wc -l) - 1 ]
     python3 gen.py
 )
 
-export BUNDLE_PATH=$(pwd)/.gem
-bundle install
+bundle install --path "$(pwd)/.gem"
 bundle exec jekyll serve -l &
 trap "kill $!" EXIT
 cd _gen

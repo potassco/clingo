@@ -70,14 +70,14 @@
     annotation = " -> {}".format(p_annotation(x["type"])) if p_ret and x["type"] else ""
     return '<span>{} <span class="ident">{}</span></span><span>({}){}</span>'.format(d, x["name"], params, annotation)
 
-  base_url = "/clingo/python-api/{}".format(".".join(clingo.__version__.split(".")[0:2]))
+  base_url = "clingo/python-api/{}".format(".".join(clingo.__version__.split(".")[0:2]))
 
   def link_replace(match):
     if match.group(1) == "clingo":
-      path = "clingo"
+      path = "/"
     if match.group(1) == "ast":
-      path = "clingo/ast"
-    return '{{site.baseurl}}{% link ' + path + "/index.html" + ' %}'
+      path = "/ast/"
+    return '{{site.baseurl}}{% link ' + base_url + path + "index.html" + ' %}'
 
   def link(d, name=None, fmt='{}'):
     name = fmt.format(name or d.qualname + ('()' if isinstance(d, pdoc.Function) else ''))
@@ -528,7 +528,7 @@
 
 <%
   module_list = 'modules' in context.keys()  # Whether we're showing module list in server mode
-  module_path = module.name.replace(".", "/")
+  module_path = module.name.replace(".", "/").replace("clingo/", "").replace("clingo", "")
 %>
 
 ---
@@ -543,7 +543,7 @@ description: ${module.docstring | glimpse, trim, h}
 css:
   - /css/pdoc.css
   - /css/github.min.css
-permalink: ${base_url}/${module_path}/
+permalink: /${base_url}/${module_path}/
 ---
 
 <main>

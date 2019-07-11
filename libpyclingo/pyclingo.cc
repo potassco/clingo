@@ -5494,7 +5494,7 @@ The list of items of the AST node.
 
 Returns
 -------
-List[Tuple(str,AST)]
+List[Tuple[str,AST]]
 )"},
     {nullptr, nullptr, 0, nullptr}
 };
