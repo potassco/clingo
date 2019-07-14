@@ -7641,7 +7641,7 @@ None
 )"},
     // solve
     {"solve", to_function<&ControlWrap::solve>(), METH_KEYWORDS | METH_VARARGS,
-R"(solve(self, assumptions: List[Union[Tuple[Symbol,bool],int]]=[], on_model: Callback[[Model],Optional[bool]]=None, on_statistics : Callback[[StatisticsMap,StatisticsMap],None]=None, on_finish: Callback[[SolveResult,bool],None]=None, yield_: bool=False, async_: bool=False) -> Union[SolveHandle,SolveResult]
+R"(solve(self, assumptions: List[Union[Tuple[Symbol,bool],int]]=[], on_model: Callback[[Model],Optional[bool]]=None, on_statistics : Callback[[StatisticsMap,StatisticsMap],None]=None, on_finish: Callback[[SolveResult],None]=None, yield_: bool=False, async_: bool=False) -> Union[SolveHandle,SolveResult]
 
 Starts a search.
 
@@ -7660,10 +7660,10 @@ on_model : Callback[[Model],Optional[bool]]=None
 on_statistics : Callback[[StatisticsMap,StatisticsMap],None]=None
     Optional callback to update statistics.
     The step and accumulated statistics are passed as arguments.
-on_finish : Callback[[SolveResult,bool],None]=None
+on_finish : Callback[[SolveResult],None]=None
     Optional callback called once search has finished.
-    A `SolveResult` and a `bool` indicating whether the solve call
-    has been intrrupted or canceled are passed to the callback.
+    A `SolveResult` also indicating whether the solve call has been intrrupted
+    is passed to the callback.
 yield_ : bool=False
     The resulting `SolveHandle` is iterable yielding `Model` objects.
 async_ : bool=False
