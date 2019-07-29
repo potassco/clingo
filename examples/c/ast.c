@@ -200,6 +200,9 @@ int main(int argc, char const **argv) {
   ext.atom = data.atom;
   ext.body = NULL;
   ext.size = 0;
+  ext.type.location = location;
+  ext.type.type = clingo_ast_term_type_symbol;
+  if (!clingo_symbol_create_function("false", NULL, 0, true, &ext.type.symbol)) { goto error; }
   stm.location = location;
   stm.type = clingo_ast_statement_type_external;
   stm.external = &ext;
