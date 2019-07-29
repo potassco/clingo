@@ -38,7 +38,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
     using OptionParser = std::function<bool (char const *)>;
     enum class ConfigUpdate { KEEP, REPLACE };
 public:
-    ClingoApp(UIClingoApp app = std::make_unique<IClingoApp>());
+    ClingoApp(UIClingoApp app = gringo_make_unique<IClingoApp>());
     const char* getName()    const override { return app_->program_name(); }
     const char* getVersion() const override { return app_->version(); }
     const char* getUsage()   const override { return "[number] [options] [files]"; }

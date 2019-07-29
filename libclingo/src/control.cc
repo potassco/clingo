@@ -1623,7 +1623,7 @@ extern "C" CLINGO_VISIBILITY_DEFAULT bool clingo_options_add_flag(clingo_options
 
 extern "C" CLINGO_VISIBILITY_DEFAULT int clingo_main(clingo_application *application, char const *const * arguments, size_t size, void *data) {
     try {
-        UIClingoApp app = std::make_unique<CClingoApp>(*application, data);
+        UIClingoApp app = gringo_make_unique<CClingoApp>(*application, data);
         std::vector<std::unique_ptr<char[]>> args_buf;
         std::vector<char *> args;
         args_buf.emplace_back(str_duplicate(app->program_name()));
