@@ -662,6 +662,11 @@ extern "C" clingo_assignment_t const *clingo_propagate_init_assignment(clingo_pr
     return static_cast<clingo_assignment_t const *>(&init->assignment());
 }
 
+extern "C" bool clingo_propagate_init_add_clause(clingo_propagate_init_t *init, clingo_literal_t const *literals, size_t size, bool *ret) {
+    GRINGO_CLINGO_TRY { *ret = init->addClause(Potassco::LitSpan{literals, size}); }
+    GRINGO_CLINGO_CATCH;
+}
+
 // {{{1 propagate control
 
 struct clingo_propagate_control : Potassco::AbstractSolver { };
