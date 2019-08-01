@@ -103,7 +103,7 @@ endif()
 #       that searching for the python libraries finds the matching libraries for the default python interpreter
 #       python is also used to run the tests
 
-if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.15.0")
+if(CMAKE_VERSION VERSION_GREATER "3.15.0" OR CMAKE_VERSION VERSION_EQUAL "3.15.0")
     set(_args Interpreter)
     if (CLINGO_BUILD_WITH_PYTHON)
         set(_args ${_args} Development)
