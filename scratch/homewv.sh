@@ -47,6 +47,7 @@ mkdir -p build/${VERSION}
         -DLUA_INCLUDE_DIR="/usr/include/lua5.3" \
         -DLUA_LIBRARY="/usr/lib/x86_64-linux-gnu/liblua5.3.so" \
         -DCMAKE_EXE_LINKER_FLAGS="-s -static-libgcc -static-libstdc++" \
+        -DCMAKE_MODULE_LINKER_FLAGS="-s -static-libgcc -static-libstdc++" \
         -DCMAKE_SHARED_LINKER_FLAGS="-s -static-libgcc -static-libstdc++"
     make -j8
     make test
@@ -67,6 +68,7 @@ mkdir -p build/py35-${VERSION}
         -DPYTHON_EXECUTABLE="/usr/bin/python3.5${suffix}" \
         -DCMAKE_INSTALL_PREFIX="${prefix}" \
         -DPYCLINGO_INSTALL_DIR="${prefix}/lib/python/3.5" \
+        -DCMAKE_MODULE_LINKER_FLAGS="-s -static-libgcc -static-libstdc++ -L${prefix}/lib" \
         -DCMAKE_SHARED_LINKER_FLAGS="-s -static-libgcc -static-libstdc++ -L${prefix}/lib"
     make -j8
     make install
@@ -88,6 +90,7 @@ mkdir -p build/lua51-${VERSION}
         -DLUACLINGO_INSTALL_DIR="${prefix}/lib/lua/5.1" \
         -DLUA_INCLUDE_DIR="/usr/include/lua5.1" \
         -DLUA_LIBRARY="/usr/lib/x86_64-linux-gnu/liblua5.1.so" \
+        -DCMAKE_MODULE_LINKER_FLAGS="-s -static-libgcc -static-libstdc++ -L${prefix}/lib" \
         -DCMAKE_SHARED_LINKER_FLAGS="-s -static-libgcc -static-libstdc++ -L${prefix}/lib"
     make -j8
     make install
@@ -108,6 +111,7 @@ mkdir -p build/lua52-${VERSION}
         -DLUACLINGO_INSTALL_DIR="${prefix}/lib/lua/5.2" \
         -DLUA_INCLUDE_DIR="/usr/include/lua5.2" \
         -DLUA_LIBRARY="/usr/lib/x86_64-linux-gnu/liblua5.2.so" \
+        -DCMAKE_MODULE_LINKER_FLAGS="-s -static-libgcc -static-libstdc++ -L${prefix}/lib" \
         -DCMAKE_SHARED_LINKER_FLAGS="-s -static-libgcc -static-libstdc++ -L${prefix}/lib"
     make -j8
     make install
