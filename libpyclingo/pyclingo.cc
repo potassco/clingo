@@ -3479,6 +3479,16 @@ Control.register_propagator
         Py_RETURN_NONE;
     }
 
+    Object addClause(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"clause", nullptr};
+        Reference pyClause;
+        ParseTupleAndKeywords(pyargs, pykwds, "O", kwlist, pyClause);
+        auto clause = pyToCpp<std::vector<clingo_literal_t>>(pyClause);
+        bool ret;
+        handle_c_error(clingo_propagate_init_add_clause(init, clause.data(), clause.size(), &ret));
+        return cppToPy(ret);
+    }
+
     Object getCheckMode() {
         return PropagatorCheckMode::getAttr(clingo_propagate_init_get_check_mode(init));
     }
@@ -3523,6 +3533,20 @@ Returns
 -------
 int
     A solver literal.
+)"},
+    {"add_clause", to_function<&PropagateInit::addClause>(), METH_KEYWORDS | METH_VARARGS, R"(add_clause(self, clause: List[int]) -> None
+
+Statically adds the given clause to the problem.
+
+Parameters
+----------
+clause : List[int]
+    The clause over solver literals to add.
+
+Returns
+-------
+bool
+    Returns false if the clause is conflicting.
 )"},
     {nullptr, nullptr, 0, nullptr}
 };
