@@ -834,6 +834,7 @@ public:
     TheoryAtoms theory_atoms() const;
     PropagatorCheckMode get_check_mode() const;
     void set_check_mode(PropagatorCheckMode mode);
+    bool add_clause(LiteralSpan clause);
     clingo_propagate_init_t *to_c() const { return init_; }
 private:
     clingo_propagate_init_t *init_;
@@ -2739,6 +2740,12 @@ inline PropagatorCheckMode PropagateInit::get_check_mode() const {
 
 inline void PropagateInit::set_check_mode(PropagatorCheckMode mode) {
     clingo_propagate_init_set_check_mode(init_, mode);
+}
+
+inline bool PropagateInit::add_clause(LiteralSpan clause) {
+    bool ret;
+    Detail::handle_error(clingo_propagate_init_add_clause(init_, clause.begin(), clause.size(), &ret));
+    return ret;
 }
 
 // {{{2 propagate control
