@@ -331,7 +331,7 @@ inline void nc_check(S s, int_type<-1>) { // Signed -> Unsigned
 template <class T, class S>
 inline void nc_check(S s, int_type<1>) { // Unsigned -> Signed
     (void)s;
-    assert(!(s > std::numeric_limits<T>::max()));
+    assert(!(s > static_cast<typename std::make_unsigned<T>::type>(std::numeric_limits<T>::max())));
 }
 
 } // namespace Detail
@@ -1358,6 +1358,7 @@ static clingo_literal_t luaToAtom(lua_State *L, int idx, clingo_symbolic_atoms_t
     return 0;
 }
 
+/*
 static clingo_literal_t luaToLit(lua_State *L, int idx, clingo_symbolic_atoms_t const *atoms, bool *positive = nullptr) {
     if (lua_isnumber(L, idx)) {
         clingo_literal_t lit;
@@ -1377,6 +1378,7 @@ static clingo_literal_t luaToLit(lua_State *L, int idx, clingo_symbolic_atoms_t 
     }
     return 0;
 }
+*/
 
 // invert is just to turn clauses into nogoods, which was added to match the formal background in our papers
 // disjunctive determines if the literals are going to be used as a disjunction or conjunction

@@ -55,7 +55,7 @@ namespace detail {
     template <class T, class S>
     inline void nc_check(S s, int_type<1>) { // Unsigned -> Signed
         (void)s;
-        assert(!(s > std::numeric_limits<T>::max()));
+        assert(!(s > static_cast<typename std::make_unsigned<T>::type>(std::numeric_limits<T>::max())));
     }
 } // namespace detail
 

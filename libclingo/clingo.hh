@@ -251,7 +251,7 @@ public:
     static Variant make(Args&& ...args) {
         Variant<T...> x;
         x.data_.emplace(static_cast<U*>(nullptr), std::forward<Args>(args)...);
-        return std::move(x);
+        return x;
     }
     ~Variant() { data_.destroy(); }
     Variant &operator=(Variant const &other) { return *this = other.data_; }
