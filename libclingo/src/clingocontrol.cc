@@ -27,6 +27,7 @@
 #include "clasp/solver.h"
 #include <potassco/program_opts/typed_value.h>
 #include <potassco/basic_types.h>
+#include <clasp/clause.h>
 #include "clingo.h"
 #include <signal.h>
 #include <clingo/script.h>
@@ -156,6 +157,17 @@ void ClingoControl::parse() {
 ClingoPropagateInit::ClingoPropagateInit(Control &c, Clasp::ClingoPropagatorInit &p)
 : c_{c}, p_{p}, a_{*static_cast<ClingoControl&>(c).clasp_->ctx.solver(0)} {
     p_.enableHistory(false);
+}
+
+bool ClingoPropagateInit::addClause(Potassco::LitSpan lits) {
+    auto &ctx = static_cast<Clasp::ClaspFacade*>(c_.claspFacade())->ctx;
+    if (ctx.master()->hasConflict()) { return false; }
+    Clasp::ClauseCreator cc{ctx.master()};
+    cc.start();
+    for (auto &lit : lits) {
+        cc.add(Clasp::decodeLit(lit));
+    }
+    return cc.end(Clasp::ClauseCreator::clause_force_simplify).ok();
 }
 
 Potassco::Lit_t ClingoPropagateInit::mapLit(Lit_t lit) const {

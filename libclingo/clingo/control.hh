@@ -180,6 +180,7 @@ using PropagateInit = clingo_propagate_init;
 } // namespace Gringo
 
 struct clingo_propagate_init {
+    virtual bool addClause(Potassco::LitSpan lits) = 0;
     virtual Gringo::Output::DomainData const &theory() const = 0;
     virtual Gringo::SymbolicAtoms const &getDomain() const = 0;
     virtual Gringo::Lit_t mapLit(Gringo::Lit_t lit) const = 0;

@@ -164,6 +164,7 @@ public:
     void addWatch(Lit_t lit) override { p_.addWatch(Clasp::decodeLit(lit)); }
     void addWatch(uint32_t solverId, Lit_t lit) override { p_.addWatch(solverId, Clasp::decodeLit(lit)); }
     void enableHistory(bool b) override { p_.enableHistory(b); };
+    bool addClause(Potassco::LitSpan lits) override;
     void setCheckMode(clingo_propagator_check_mode_t checkMode) override {
         p_.enableClingoPropagatorCheck(static_cast<Clasp::ClingoPropagatorCheck_t::Type>(checkMode));
     }
