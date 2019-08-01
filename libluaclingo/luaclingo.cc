@@ -2304,6 +2304,7 @@ struct PropagatorCheckMode : Object<PropagatorCheckMode> {
         lua_pushstring(L, field_(get_self(L).type));
         return 1;
     }
+
     static luaL_Reg const meta[];
     static constexpr char const *typeName = "clingo.PropagatorCheckMode";
 };
@@ -2346,6 +2347,22 @@ struct PropagateInit : Object<PropagateInit> {
             handle_c_error(L, clingo_propagate_init_add_watch_to_thread(self.init, lit, thread_id-1));
         }
         return 0;
+    }
+
+    static int addClause(lua_State *L) {
+        auto &self = get_self(L);
+        luaL_checktype(L, 2, LUA_TTABLE);
+        auto lits = AnyWrap::new_<std::vector<clingo_literal_t>>(L); // +1
+        lua_pushnil(L);                                              // +1
+        while (lua_next(L, 2)) {                                     // +1/-1
+            auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, -1));
+            PROTECT(lits->emplace_back(lit));
+            lua_pop(L, 1);                                           // -1
+        }
+        lua_pushboolean(L, call_c(L, clingo_propagate_init_add_clause, self.init, lits->data(), lits->size()));
+                                                                     // +1
+        lua_replace(L, -2);                                          // -1
+        return 1;
     }
 
     static int getCheckMode(lua_State *L) {
@@ -2407,6 +2424,7 @@ constexpr char const *PropagateInit::typeName;
 luaL_Reg const PropagateInit::meta[] = {
     {"solver_literal", mapLit},
     {"add_watch", addWatch},
+    {"add_clause", addClause},
     {"set_state", setState},
     {nullptr, nullptr}
 };
