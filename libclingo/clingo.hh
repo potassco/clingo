@@ -1765,7 +1765,10 @@ std::ostream &operator<<(std::ostream &out, Statement const &x);
 
 class Backend {
 public:
+    Backend(Backend const &) = delete;
+    Backend(Backend &&);
     explicit Backend(clingo_backend_t *backend);
+
     void rule(bool choice, AtomSpan head, LiteralSpan body);
     void weight_rule(bool choice, AtomSpan head, weight_t lower, WeightedLiteralSpan body);
     void minimize(weight_t prio, WeightedLiteralSpan body);
@@ -2960,13 +2963,20 @@ inline SolveHandle::~SolveHandle() {
 
 // {{{2 backend
 
+inline Backend::Backend(Backend &&backend)
+: backend_(nullptr) {
+    std::swap(backend_, backend.backend_);
+}
+
 inline Backend::Backend(clingo_backend_t *backend)
 : backend_(backend) {
     Detail::handle_error(clingo_backend_begin(backend_));
 }
 
 inline Backend::~Backend() {
-    Detail::handle_error(clingo_backend_end(backend_));
+    if (backend_) {
+        Detail::handle_error(clingo_backend_end(backend_));
+    }
 }
 
 inline void Backend::rule(bool choice, AtomSpan head, LiteralSpan body) {
