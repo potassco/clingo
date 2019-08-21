@@ -1765,9 +1765,10 @@ std::ostream &operator<<(std::ostream &out, Statement const &x);
 
 class Backend {
 public:
+    explicit Backend(clingo_backend_t *backend);
     Backend(Backend const &) = delete;
     Backend(Backend &&);
-    explicit Backend(clingo_backend_t *backend);
+    ~Backend();
 
     void rule(bool choice, AtomSpan head, LiteralSpan body);
     void weight_rule(bool choice, AtomSpan head, weight_t lower, WeightedLiteralSpan body);
@@ -1780,7 +1781,6 @@ public:
     atom_t add_atom();
     atom_t add_atom(Symbol symbol);
     clingo_backend_t *to_c() const { return backend_; }
-    ~Backend();
 private:
     clingo_backend_t *backend_;
 };
@@ -2039,11 +2039,12 @@ private:
 
 class ProgramBuilder {
 public:
-    explicit ProgramBuilder(clingo_program_builder_t *builder)
-    : builder_(builder) { }
-    void begin();
+    explicit ProgramBuilder(clingo_program_builder_t *builder);
+    ProgramBuilder(ProgramBuilder const &) = delete;
+    ProgramBuilder(ProgramBuilder &&);
+    ~ProgramBuilder();
+
     void add(AST::Statement const &stm);
-    void end();
     clingo_program_builder_t *to_c() const { return builder_; }
 private:
     clingo_program_builder_t *builder_;
@@ -2129,14 +2130,17 @@ public:
     void *claspFacade();
     void load(char const *file);
     void use_enumeration_assumption(bool value);
-    Backend backend();
     ProgramBuilder builder();
     template <class F>
     void with_builder(F f) {
-        ProgramBuilder b = builder();
-        b.begin();
+        auto b = builder();
         f(b);
-        b.end();
+    }
+    Backend backend();
+    template <class F>
+    void with_backend(F f) {
+        auto b = backend();
+        f(b);
     }
     Configuration configuration();
     Statistics statistics() const;
@@ -2964,12 +2968,12 @@ inline SolveHandle::~SolveHandle() {
 // {{{2 backend
 
 inline Backend::Backend(Backend &&backend)
-: backend_(nullptr) {
+: backend_{nullptr} {
     std::swap(backend_, backend.backend_);
 }
 
 inline Backend::Backend(clingo_backend_t *backend)
-: backend_(backend) {
+: backend_{backend} {
     Detail::handle_error(clingo_backend_begin(backend_));
 }
 
@@ -3833,8 +3837,20 @@ struct ASTToC {
 
 } } // namespace AST Detail
 
-inline void ProgramBuilder::begin() {
+inline ProgramBuilder::ProgramBuilder(clingo_program_builder_t *builder)
+: builder_{builder} {
     Detail::handle_error(clingo_program_builder_begin(builder_));
+}
+
+inline ProgramBuilder::ProgramBuilder(ProgramBuilder &&builder)
+: builder_{nullptr} {
+    std::swap(builder_, builder.builder_);
+}
+
+inline ProgramBuilder::~ProgramBuilder() {
+    if (builder_) {
+        Detail::handle_error(clingo_program_builder_end(builder_));
+    }
 }
 
 inline void ProgramBuilder::add(AST::Statement const &stm) {
@@ -3842,10 +3858,6 @@ inline void ProgramBuilder::add(AST::Statement const &stm) {
     auto x = stm.data.accept(a);
     x.location = stm.location;
     Detail::handle_error(clingo_program_builder_add(builder_, &x));
-}
-
-inline void ProgramBuilder::end() {
-    Detail::handle_error(clingo_program_builder_end(builder_));
 }
 
 // {{{2 control

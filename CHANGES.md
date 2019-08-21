@@ -4,12 +4,16 @@
   * add extension to implement custom heuristics
   * add const modifiers to C API
   * add flags to external and const statements to match API functions
-  * rename `async` and `yield` to `async_` and `yield_` in python API
   * fix python memleaks
   * make compatible with msvc 15
-  * C ABI changes regarding propagators
-  * TruthValue.{\_True,\_False} becomes TruthValue.{True\_,False\_} in python API
-  * HeuristicType.{True,False} becomes TruthValue.{True\_,False\_} in python API
+  * C ABI changes
+    * extended propagators
+  * C++ API changes
+    * unify usage of ProgramBuilder and Backend
+  * python API changes
+    * `TruthValue.{_True,_False}` becomes `TruthValue.{True_,False_}`
+    * `HeuristicType.{True,False}` becomes `TruthValue.{True_,False_}`
+    * `async` and yield becomes `async_` and `yield_`
   * improve python API documentation
   * use cmakes `find_python` module
 ## clingo 5.3.0
