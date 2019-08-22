@@ -3964,83 +3964,83 @@ bool observer_call(char const *loc, char const *msg, void *data, char const *fun
 
 bool observer_init_program(bool incremental, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::init_program", "error in init_program", data, "init_program", cppToPy(incremental));
+    return observer_call("Observer::init_program", "error in init_program", data, "init_program", cppToPy(incremental));
 }
 bool observer_begin_step(void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::begin_step", "error in begin_step", data, "begin_step");
+    return observer_call("Observer::begin_step", "error in begin_step", data, "begin_step");
 }
 bool observer_end_step(void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::end_step", "error in end_step", data, "end_step");
+    return observer_call("Observer::end_step", "error in end_step", data, "end_step");
 }
 bool observer_rule(bool choice, clingo_atom_t const *head, size_t head_size, clingo_literal_t const *body, size_t body_size, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::rule", "error in rule", data, "rule", cppToPy(choice), cppRngToPy(head, head + head_size), cppRngToPy(body, body + body_size));
+    return observer_call("Observer::rule", "error in rule", data, "rule", cppToPy(choice), cppRngToPy(head, head + head_size), cppRngToPy(body, body + body_size));
 }
 bool observer_weight_rule(bool choice, clingo_atom_t const *head, size_t head_size, clingo_weight_t lower_bound, clingo_weighted_literal_t const *body, size_t body_size, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::weight_rule", "error in weight_rule", data, "weight_rule", cppToPy(choice), cppRngToPy(head, head + head_size), cppToPy(lower_bound), cppRngToPy(body, body + body_size));
+    return observer_call("Observer::weight_rule", "error in weight_rule", data, "weight_rule", cppToPy(choice), cppRngToPy(head, head + head_size), cppToPy(lower_bound), cppRngToPy(body, body + body_size));
 }
 bool observer_minimize(clingo_weight_t priority, clingo_weighted_literal_t const* literals, size_t size, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::minimize", "error in minimize", data, "minimize", cppToPy(priority), cppRngToPy(literals, literals + size));
+    return observer_call("Observer::minimize", "error in minimize", data, "minimize", cppToPy(priority), cppRngToPy(literals, literals + size));
 }
 bool observer_project(clingo_atom_t const *atoms, size_t size, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::project", "error in project", data, "project", cppRngToPy(atoms, atoms + size));
+    return observer_call("Observer::project", "error in project", data, "project", cppRngToPy(atoms, atoms + size));
 }
 bool observer_output_atom(clingo_symbol_t symbol, clingo_atom_t atom, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::output_atom", "error in output_atom", data, "output_atom", cppToPy(symbol_wrapper{symbol}), cppToPy(atom));
+    return observer_call("Observer::output_atom", "error in output_atom", data, "output_atom", cppToPy(symbol_wrapper{symbol}), cppToPy(atom));
 }
 bool observer_output_term(clingo_symbol_t symbol, clingo_literal_t const *condition, size_t size, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::output_term", "error in output_term", data, "output_term", cppToPy(symbol_wrapper{symbol}), cppRngToPy(condition, condition + size));
+    return observer_call("Observer::output_term", "error in output_term", data, "output_term", cppToPy(symbol_wrapper{symbol}), cppRngToPy(condition, condition + size));
 }
 bool observer_output_csp(clingo_symbol_t symbol, int value, clingo_literal_t const *condition, size_t size, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::output_csp", "error in output_csp", data, "output_csp", cppToPy(symbol_wrapper{symbol}), cppToPy(value), cppRngToPy(condition, condition + size));
+    return observer_call("Observer::output_csp", "error in output_csp", data, "output_csp", cppToPy(symbol_wrapper{symbol}), cppToPy(value), cppRngToPy(condition, condition + size));
 }
 bool observer_external(clingo_atom_t atom, clingo_external_type_t type, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::external", "error in external", data, "external", cppToPy(atom), TruthValue::getAttr(type));
+    return observer_call("Observer::external", "error in external", data, "external", cppToPy(atom), TruthValue::getAttr(type));
 }
 bool observer_assume(clingo_literal_t const *literals, size_t size, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::assume", "error in assume", data, "assume", cppRngToPy(literals, literals + size));
+    return observer_call("Observer::assume", "error in assume", data, "assume", cppRngToPy(literals, literals + size));
 }
 bool observer_heuristic(clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority, clingo_literal_t const *condition, size_t size, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::heuristic", "error in heuristic", data, "heuristic", cppToPy(atom), HeuristicType::getAttr(type), cppToPy(bias), cppToPy(priority), cppRngToPy(condition, condition + size));
+    return observer_call("Observer::heuristic", "error in heuristic", data, "heuristic", cppToPy(atom), HeuristicType::getAttr(type), cppToPy(bias), cppToPy(priority), cppRngToPy(condition, condition + size));
 }
 bool observer_acyc_edge(int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::acyc_edge", "error in acyc_edge", data, "acyc_edge", cppToPy(node_u), cppToPy(node_v), cppRngToPy(condition, condition + size));
+    return observer_call("Observer::acyc_edge", "error in acyc_edge", data, "acyc_edge", cppToPy(node_u), cppToPy(node_v), cppRngToPy(condition, condition + size));
 }
 bool observer_theory_term_number(clingo_id_t term_id, int number, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::theory_term_number", "error in theory_term_number", data, "theory_term_number", cppToPy(term_id), cppToPy(number));
+    return observer_call("Observer::theory_term_number", "error in theory_term_number", data, "theory_term_number", cppToPy(term_id), cppToPy(number));
 }
 bool observer_theory_term_string(clingo_id_t term_id, char const *name, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::theory_term_string", "error in theory_term_string", data, "theory_term_string", cppToPy(term_id), cppToPy(name));
+    return observer_call("Observer::theory_term_string", "error in theory_term_string", data, "theory_term_string", cppToPy(term_id), cppToPy(name));
 }
 bool observer_theory_term_compound(clingo_id_t term_id, int name_id_or_type, clingo_id_t const *arguments, size_t size, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::theory_term_compound", "error in theory_term_compound", data, "theory_term_compound", cppToPy(term_id), cppToPy(name_id_or_type), cppRngToPy(arguments, arguments + size));
+    return observer_call("Observer::theory_term_compound", "error in theory_term_compound", data, "theory_term_compound", cppToPy(term_id), cppToPy(name_id_or_type), cppRngToPy(arguments, arguments + size));
 }
 bool observer_theory_element(clingo_id_t element_id, clingo_id_t const *terms, size_t terms_size, clingo_literal_t const *condition, size_t condition_size, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::theory_element", "error in theory_element", data, "theory_element", cppToPy(element_id), cppRngToPy(terms, terms + terms_size), cppRngToPy(condition, condition + condition_size));
+    return observer_call("Observer::theory_element", "error in theory_element", data, "theory_element", cppToPy(element_id), cppRngToPy(terms, terms + terms_size), cppRngToPy(condition, condition + condition_size));
 }
 bool observer_theory_atom(clingo_id_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::theory_atom", "error in theory_atom", data, "theory_atom", cppToPy(atom_id_or_zero), cppToPy(term_id), cppRngToPy(elements, elements + size));
+    return observer_call("Observer::theory_atom", "error in theory_atom", data, "theory_atom", cppToPy(atom_id_or_zero), cppToPy(term_id), cppRngToPy(elements, elements + size));
 }
 bool observer_theory_atom_with_guard(clingo_id_t atom_id_or_zero, clingo_id_t term_id, clingo_id_t const *elements, size_t size, clingo_id_t operator_id, clingo_id_t right_hand_side_id, void *data) {
     PyBlock b;
-    return observer_call("GroundProgramObserver::theory_atom_with_guard", "error in theory_atom_with_guard", data, "theory_atom_with_guard", cppToPy(atom_id_or_zero), cppToPy(term_id), cppRngToPy(elements, elements + size), cppToPy(operator_id), cppToPy(right_hand_side_id));
+    return observer_call("Observer::theory_atom_with_guard", "error in theory_atom_with_guard", data, "theory_atom_with_guard", cppToPy(atom_id_or_zero), cppToPy(term_id), cppRngToPy(elements, elements + size), cppToPy(operator_id), cppToPy(right_hand_side_id));
 }
 
 // {{{1 wrap wrap Backend
@@ -7881,7 +7881,7 @@ An observer should be a class of the form below. Not all functions have to be
 implemented and can be omitted if not needed.
 
 ```python
-class GroundProgramObserver:
+class Observer:
     def init_program(self, incremental: bool) -> None:
         """
         Called once in the beginning.
