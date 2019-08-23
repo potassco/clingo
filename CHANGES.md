@@ -16,6 +16,7 @@
     * `async` and yield becomes `async_` and `yield_`
   * improve python API documentation
   * use cmakes `find_python` module
+  * update to clasp version 3.3.5
 ## clingo 5.3.0
   * change C API to use numeric instead of symbolic literals
     * affects assumptions and assigning/releasing externals
