@@ -20,9 +20,9 @@ def main(prg):
                         bound += atom.arguments[0].number
                 break
             else:
-                print "Optimum found"
+                print ("Optimum found")
                 break
-        print "Found new bound: {}".format(bound)
+        print ("Found new bound: {}".format(bound))
         prg.ground([("bound", [bound])])
 
 #end.
