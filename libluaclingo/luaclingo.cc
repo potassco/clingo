@@ -2349,6 +2349,12 @@ struct PropagateInit : Object<PropagateInit> {
         return 0;
     }
 
+    static int addLiteral(lua_State *L) {
+        auto &self = get_self(L);
+        lua_pushinteger(L, call_c(L, clingo_propagate_init_add_literal, self.init));
+        return 1;
+    }
+
     static int addClause(lua_State *L) {
         auto &self = get_self(L);
         luaL_checktype(L, 2, LUA_TTABLE);
@@ -2424,6 +2430,7 @@ constexpr char const *PropagateInit::typeName;
 luaL_Reg const PropagateInit::meta[] = {
     {"solver_literal", mapLit},
     {"add_watch", addWatch},
+    {"add_literal", addLiteral},
     {"add_clause", addClause},
     {"set_state", setState},
     {nullptr, nullptr}

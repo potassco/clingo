@@ -153,31 +153,6 @@ inline bool parseFoobar(const std::string& str, ClingoOptions::Foobar& foobar) {
 
 // {{{1 declaration of ClingoControl
 
-class ClingoPropagateInit : public PropagateInit {
-public:
-    using Lit_t = Potassco::Lit_t;
-    ClingoPropagateInit(Control &c, Clasp::ClingoPropagatorInit &p);
-    Output::DomainData const &theory() const override { return c_.theory(); }
-    SymbolicAtoms const &getDomain() const override { return c_.getDomain(); }
-    Lit_t mapLit(Lit_t lit) const override;
-    int threads() const override;
-    void addWatch(Lit_t lit) override { p_.addWatch(Clasp::decodeLit(lit)); }
-    void addWatch(uint32_t solverId, Lit_t lit) override { p_.addWatch(solverId, Clasp::decodeLit(lit)); }
-    void enableHistory(bool b) override { p_.enableHistory(b); };
-    bool addClause(Potassco::LitSpan lits) override;
-    void setCheckMode(clingo_propagator_check_mode_t checkMode) override {
-        p_.enableClingoPropagatorCheck(static_cast<Clasp::ClingoPropagatorCheck_t::Type>(checkMode));
-    }
-    Potassco::AbstractAssignment const &assignment() const override;
-    clingo_propagator_check_mode_t getCheckMode() const override {
-        return p_.checkMode();
-    }
-private:
-    Control &c_;
-    Clasp::ClingoPropagatorInit &p_;
-    Clasp::ClingoAssignment a_;
-};
-
 class ClingoPropagatorLock : public Clasp::ClingoPropagatorLock {
 public:
     ClingoPropagatorLock() : seq_(0) {}

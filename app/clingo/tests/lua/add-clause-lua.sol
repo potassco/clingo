@@ -1,7 +1,7 @@
 Step: 1
 
-b
+b c
 Step: 2
-b
+b c
 Step: 3
 UNSAT

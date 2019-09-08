@@ -3479,6 +3479,12 @@ Control.register_propagator
         Py_RETURN_NONE;
     }
 
+    Object addLiteral() {
+        clingo_literal_t ret;
+        handle_c_error(clingo_propagate_init_add_literal(init, &ret));
+        return cppToPy(ret);
+    }
+
     Object addClause(Reference pyargs, Reference pykwds) {
         static char const *kwlist[] = {"clause", nullptr};
         Reference pyClause;
@@ -3534,7 +3540,16 @@ Returns
 int
     A solver literal.
 )"},
-    {"add_clause", to_function<&PropagateInit::addClause>(), METH_KEYWORDS | METH_VARARGS, R"(add_clause(self, clause: List[int]) -> None
+    {"add_literal", to_function<&PropagateInit::addLiteral>(), METH_NOARGS, R"(add_literal(self) -> int
+
+Statically adds a literal to the solver.
+
+Returns
+-------
+int
+    Returns the added literal.
+)"},
+    {"add_clause", to_function<&PropagateInit::addClause>(), METH_KEYWORDS | METH_VARARGS, R"(add_clause(self, clause: List[int]) -> bool
 
 Statically adds the given clause to the problem.
 
@@ -3546,7 +3561,7 @@ clause : List[int]
 Returns
 -------
 bool
-    Returns false if the clause is conflicting.
+    The return value is always true and should be ignored.
 )"},
     {nullptr, nullptr, 0, nullptr}
 };

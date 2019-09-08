@@ -15,22 +15,28 @@ end
 function Propagator:init(init)
     local a = init:solver_literal(init.symbolic_atoms:lookup(clingo.Function("a")).literal)
     local b = init:solver_literal(init.symbolic_atoms:lookup(clingo.Function("b")).literal)
+    local c = init:solver_literal(init.symbolic_atoms:lookup(clingo.Function("c")).literal)
     if self.step == 0 then
-        assert(init:add_clause({-a, -b}))
-        assert(init:add_clause({-a,  b}))
-        assert(init:add_clause({-a, -a, -b}))
-        assert(init:add_clause({-a, a}))
+        l = init:add_literal()
+        init:add_clause({-b, l})
+        init:add_clause({-l, b})
+        init:add_clause({-c, l})
+        init:add_clause({-l, c})
+        init:add_clause({-a, -b})
+        init:add_clause({-a,  b})
+        init:add_clause({-a, -a, -b})
+        init:add_clause({-a, a})
     end
     if self.step == 1 then
-        assert(init:add_clause({b}))
-        assert(init:add_clause({b}))
+        init:add_clause({b})
+        init:add_clause({b})
     end
     if self.step == 2 then
-        assert(not init:add_clause({}))
-        assert(not init:add_clause({a}))
-        assert(not init:add_clause({b}))
-        assert(not init:add_clause({-a}))
-        assert(not init:add_clause({-b}))
+        init:add_clause({})
+        init:add_clause({a})
+        init:add_clause({b})
+        init:add_clause({-a})
+        init:add_clause({-b})
     end
     self.step = self.step + 1
 end
@@ -46,4 +52,4 @@ end
 
 #end.
 
-{ a; b }.
+{ a; b; c }.

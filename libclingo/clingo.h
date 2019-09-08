@@ -1086,14 +1086,22 @@ CLINGO_VISIBILITY_DEFAULT clingo_propagator_check_mode_t clingo_propagate_init_g
 //! @param[in] init the target
 //! @return the assignment
 CLINGO_VISIBILITY_DEFAULT clingo_assignment_t const *clingo_propagate_init_assignment(clingo_propagate_init_t const *init);
+//! Add a literal to the solver.
+//!
+//! @param[in] init the target
+//! @param[out] result the added literal
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_literal(clingo_propagate_init_t *init, clingo_literal_t *result);
 //! Add the given clause to the solver.
 //!
-//! This method sets its result to false if the clause is causing a conflict.
+//! @note The result is always set to true and might be removed in a future version of the API.
+//!
 //!
 //! @param[in] init the target
 //! @param[in] clause the clause to add
 //! @param[in] size the size of the clause
-//! @param[out] result result indicating whether the clause is conflicting
+//! @param[out] result always true
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_clause(clingo_propagate_init_t *init, clingo_literal_t const *clause, size_t size, bool *result);
