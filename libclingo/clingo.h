@@ -2292,14 +2292,14 @@ struct clingo_ast_interval {
 
 struct clingo_ast_function {
     char const *name;
-    clingo_ast_term_t *arguments;
+    clingo_ast_term_t const *arguments;
     size_t size;
 };
 
 // pool
 
 struct clingo_ast_pool {
-    clingo_ast_term_t *arguments;
+    clingo_ast_term_t const *arguments;
     size_t size;
 };
 
@@ -2398,7 +2398,7 @@ typedef struct clingo_ast_aggregate {
 // body aggregate
 
 typedef struct clingo_ast_body_aggregate_element {
-    clingo_ast_term_t *tuple;
+    clingo_ast_term_t const *tuple;
     size_t tuple_size;
     clingo_ast_literal_t const *condition;
     size_t condition_size;
