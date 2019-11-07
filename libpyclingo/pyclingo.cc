@@ -7237,8 +7237,8 @@ void pycall(Reference fun, clingo_symbol_t const *arguments, size_t arguments_si
 }
 
 static void logger_callback(clingo_warning_t code, char const *message, void *data) {
+    PyBlock block;
     try {
-        PyBlock block;
         Object pyMsg = cppToPy(message);
         Object pyCode = MessageCode::getAttr(code);
         Object ret = PyObject_CallFunctionObjArgs(static_cast<PyObject*>(data), pyCode.toPy(), pyMsg.toPy(), nullptr);
@@ -8771,6 +8771,7 @@ bool g_app_main(clingo_control_t *control, char const *const * files, size_t siz
 }
 
 void g_app_logger(clingo_warning_t code, char const *message, void *data) {
+    PyBlock block;
     try {
         AppData &pyApp = *static_cast<AppData*>(data);
         pyApp.first.call("logger", MessageCode::getAttr(code), cppToPy(message));
