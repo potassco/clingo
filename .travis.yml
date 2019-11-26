@@ -24,7 +24,7 @@ matrix:
 
 script:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      brew update
+      brew update;
       brew uninstall --ignore-dependencies python@2;
       brew install lua bison re2c;
       export PATH="/usr/local/opt/bison/bin:$PATH";
