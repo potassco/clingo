@@ -1911,6 +1911,26 @@ struct Configuration : Object<Configuration> {
         }
         return 1;
     }
+
+    bool get_subkey(lua_State *L, char const *name, clingo_id_t &subkey) {
+        if ((call_c(L, clingo_configuration_type, conf, key) & clingo_configuration_type_map) &&
+             call_c(L, clingo_configuration_map_has_subkey, conf, key, name)) {
+            subkey = call_c(L, clingo_configuration_map_at, conf, key, name);
+            return true;
+        }
+        return false;
+    }
+
+    static int description(lua_State *L) {
+        auto &self = get_self(L);
+        char const *name = luaL_checkstring(L, 2);
+        clingo_id_t subkey;
+        if (self.get_subkey(L, name, subkey)) {
+            lua_pushstring(L, call_c(L, clingo_configuration_description, self.conf, subkey)); // +1
+            return 1;
+        }
+        return luaL_error(L, "unknown option: %s", name);
+    }
     static int index(lua_State *L) {
         auto &self = get_self(L);
         char const *name = luaL_checkstring(L, 2);
@@ -1926,25 +1946,23 @@ struct Configuration : Object<Configuration> {
         bool desc = strncmp("__desc_", name, 7) == 0;
         if (desc) { name += 7; }
 
-        if ((call_c(L, clingo_configuration_type, self.conf, self.key) & clingo_configuration_type_map) &&
-             call_c(L, clingo_configuration_map_has_subkey, self.conf, self.key, name)) {
-            auto subkey = call_c(L, clingo_configuration_map_at, self.conf, self.key, name);
+        clingo_id_t subkey;
+        if (self.get_subkey(L, name, subkey)) {
+            // NOTE: for backward compatibility should be removed in the future
             if (desc) {
                 lua_pushstring(L, call_c(L, clingo_configuration_description, self.conf, subkey)); // +1
                 return 1;
             }
-            else {
-                if (call_c(L, clingo_configuration_type, self.conf, subkey) & clingo_configuration_type_value) {
-                    if (!call_c(L, clingo_configuration_value_is_assigned, self.conf, subkey)) { lua_pushnil(L); return 1; }
-                    size_t size = call_c(L, clingo_configuration_value_get_size, self.conf, subkey);
-                    char *ret = static_cast<char*>(lua_newuserdata(L, sizeof(*ret) * size)); // +1
-                    handle_c_error(L, clingo_configuration_value_get(self.conf, subkey, ret, size));
-                    lua_pushstring(L, ret); // +1
-                    lua_replace(L, -2); // -1
-                    return 1;
-                }
-                else { return Configuration::new_(L, self.conf, subkey); } // +1
+            else if (call_c(L, clingo_configuration_type, self.conf, subkey) & clingo_configuration_type_value) {
+                if (!call_c(L, clingo_configuration_value_is_assigned, self.conf, subkey)) { lua_pushnil(L); return 1; }
+                size_t size = call_c(L, clingo_configuration_value_get_size, self.conf, subkey);
+                char *ret = static_cast<char*>(lua_newuserdata(L, sizeof(*ret) * size)); // +1
+                handle_c_error(L, clingo_configuration_value_get(self.conf, subkey, ret, size));
+                lua_pushstring(L, ret); // +1
+                lua_replace(L, -2); // -1
+                return 1;
             }
+            else { return Configuration::new_(L, self.conf, subkey); } // +1
         }
 
         lua_pushnil(L); // +1
@@ -2002,6 +2020,7 @@ constexpr char const *Configuration::typeName;
 luaL_Reg const Configuration::meta[] = {
     {"__len", len},
     {"iter", iter},
+    {"description", description},
     {nullptr, nullptr}
 };
 

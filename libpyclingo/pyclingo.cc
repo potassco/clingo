@@ -3005,6 +3005,7 @@ struct.
 struct Configuration : ObjectBase<Configuration> {
     clingo_configuration_t *conf;
     clingo_id_t key;
+    static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
 
     static constexpr char const *tp_type = "Configuration";
@@ -3027,8 +3028,7 @@ To list the subgroups of an option group, use the `Configuration.keys` member.
 Array option groups, like solver, have a non-negative length and can be
 iterated. Furthermore, there are meta options having key `configuration`.
 Assigning a meta option sets a number of related options.  To get further
-information about an option or option group `<opt>`, use property
-`__desc_<opt>` to retrieve a description.
+information about an option or option group `<opt>`, call `description(<opt>)`.
 
 Notes
 -----
@@ -3042,7 +3042,7 @@ models:
 
     >>> import clingo
     >>> prg = clingo.Control()
-    >>> prg.configuration.solve.__desc_models
+    >>> prg.configuration.solve.description("models")
     'Compute at most %A models (0 for all)\n'
     >>> prg.configuration.solve.models = 0
     >>> prg.add("base", [], "{a;b}.")
@@ -3078,38 +3078,59 @@ models:
         return list;
     }
 
+    bool get_subkey(char const *name, clingo_id_t &subkey) {
+        clingo_configuration_type_bitset_t type;
+        handle_c_error(clingo_configuration_type(conf, key, &type));
+        if (type & clingo_configuration_type_map) {
+            bool haskey;
+            handle_c_error(clingo_configuration_map_has_subkey(conf, key, name, &haskey));
+            if (haskey) {
+                handle_c_error(clingo_configuration_map_at(conf, key, name, &subkey));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    Object description(Reference name) {
+        auto cppname = pyToCpp<std::string>(name);
+        clingo_id_t subkey;
+        if (get_subkey(cppname.c_str(), subkey)) {
+            char const *ret;
+            handle_c_error(clingo_configuration_description(conf, subkey, &ret));
+            return cppToPy(ret);
+        }
+        else {
+            return PyErr_Format(PyExc_RuntimeError, "unknown option: %s", cppname.c_str());
+        }
+    }
     Object tp_getattro(Reference name) {
         auto current_ = pyToCpp<std::string>(name);
         char const *current = current_.c_str();
         bool desc = strncmp("__desc_", current, 7) == 0;
         if (desc) { current += 7; }
-        clingo_configuration_type_bitset_t type;
-        handle_c_error(clingo_configuration_type(conf, key, &type));
-        if (type & clingo_configuration_type_map) {
-            bool haskey;
-            handle_c_error(clingo_configuration_map_has_subkey(conf, key, current, &haskey));
-            if (haskey) {
-                clingo_id_t subkey;
-                handle_c_error(clingo_configuration_map_at(conf, key, current, &subkey));
-                if (desc) {
-                    char const *ret;
-                    handle_c_error(clingo_configuration_description(conf, subkey, &ret));
-                    return cppToPy(ret);
+        clingo_id_t subkey;
+        if (get_subkey(current, subkey)) {
+            // NOTE: for backward compatibility should be removed in the future
+            if (desc) {
+                char const *ret;
+                handle_c_error(clingo_configuration_description(conf, subkey, &ret));
+                return cppToPy(ret);
+            }
+            else {
+                clingo_configuration_type_bitset_t type;
+                handle_c_error(clingo_configuration_type(conf, subkey, &type));
+                if (type & clingo_configuration_type_value) {
+                    bool assigned;
+                    handle_c_error(clingo_configuration_value_is_assigned(conf, subkey, &assigned));
+                    if (!assigned) { Py_RETURN_NONE; }
+                    size_t size;
+                    handle_c_error(clingo_configuration_value_get_size(conf, subkey, &size));
+                    std::vector<char> ret(size);
+                    handle_c_error(clingo_configuration_value_get(conf, subkey, ret.data(), size));
+                    return cppToPy(ret.data());
                 }
-                else {
-                    handle_c_error(clingo_configuration_type(conf, subkey, &type));
-                    if (type & clingo_configuration_type_value) {
-                        bool assigned;
-                        handle_c_error(clingo_configuration_value_is_assigned(conf, subkey, &assigned));
-                        if (!assigned) { Py_RETURN_NONE; }
-                        size_t size;
-                        handle_c_error(clingo_configuration_value_get_size(conf, subkey, &size));
-                        std::vector<char> ret(size);
-                        handle_c_error(clingo_configuration_value_get(conf, subkey, ret.data(), size));
-                        return cppToPy(ret.data());
-                    }
-                    else { return construct(subkey, conf); }
-                }
+                else { return construct(subkey, conf); }
             }
         }
         return PyObject_GenericGetAttr(toPy(), name.toPy());
@@ -3145,6 +3166,23 @@ models:
     Object to_c() {
         return PyLong_FromVoidPtr(conf);
     }
+};
+
+PyMethodDef Configuration::tp_methods[] = {
+    {"description", to_function<&Configuration::description>(), METH_O, R"(description(self, name: str) -> str
+
+Get a description for a option or option group.
+
+Parameters
+----------
+name : str
+    The name of the option.
+
+Returns
+-------
+str
+)"},
+    {nullptr, nullptr, 0, nullptr}
 };
 
 PyGetSetDef Configuration::tp_getset[] = {
@@ -3512,7 +3550,6 @@ PyMethodDef PropagateInit::tp_methods[] = {
     {"add_watch", to_function<&PropagateInit::addWatch>(), METH_KEYWORDS | METH_VARARGS, R"(add_watch(self, literal: int, thread_id: Optional[int]=None) -> None
 
 Add a watch for the solver literal in the given phase.
-
 
 Parameters
 ----------

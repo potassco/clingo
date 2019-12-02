@@ -8,10 +8,10 @@ function print_conf(conf, ident)
             if #subconf >= 0 then
                 label = label .. "[0.." .. tostring(#subconf) .. "]"
             end
-            print (ident .. label .. " - " .. conf["__desc_" .. key])
+            print (ident .. label .. " - " .. conf:description(key))
             print_conf(subconf, "  " .. ident .. label .. ".")
         else
-            print (ident .. key .. "[=" .. tostring(subconf) .. "] - " .. conf["__desc_" .. key])
+            print (ident .. key .. "[=" .. tostring(subconf) .. "] - " .. conf:description(key))
         end
     end
 end
