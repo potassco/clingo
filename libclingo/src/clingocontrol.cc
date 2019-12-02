@@ -503,18 +503,19 @@ void ClingoControl::registerPropagator(UProp p, bool sequential) {
 }
 
 void ClingoControl::cleanupDomains() {
-    // NOTE: should no longer be necessary because all translation is done after ground()
-    //out_->endGround(logger_);
     if (clingoMode_) {
         Clasp::Asp::LogicProgram &prg = static_cast<Clasp::Asp::LogicProgram&>(*clasp_->program());
-        prg.endProgram();
         Clasp::Solver &solver = *clasp_->ctx.master();
         auto assignment = [&prg, &solver](unsigned uid) {
-            Clasp::Literal lit = prg.getLiteral(uid);
-            Potassco::Value_t               truth = Potassco::Value_t::Free;
-            if (solver.isTrue(lit))       { truth = Potassco::Value_t::True; }
-            else if (solver.isFalse(lit)) { truth = Potassco::Value_t::False; }
-            return std::make_pair(prg.isExternal(uid), truth);
+            Potassco::Value_t truth{Potassco::Value_t::Free};
+            bool external{false};
+            if (prg.validAtom(uid)) {
+                external = prg.isExternal(uid);
+                Clasp::Literal lit = prg.getLiteral(uid);
+                if (solver.isTrue(lit)) { truth = Potassco::Value_t::True; }
+                else if (solver.isFalse(lit)) { truth = Potassco::Value_t::False; }
+            }
+            return std::make_pair(external, truth);
         };
         auto stats = out_->simplify(assignment);
         LOG << stats.first << " atom" << (stats.first == 1 ? "" : "s") << " became facts" << std::endl;
@@ -701,10 +702,29 @@ bool ClingoControl::beginAddBackend() {
 }
 
 Id_t ClingoControl::addAtom(Symbol sym) {
-    return out_->addAtom(sym);
+    bool added = false;
+    auto atom  = out_->addAtom(sym, &added);
+    if (added) { added_atoms_.emplace_back(sym); }
+    return atom;
+}
+
+void ClingoControl::addFact(Potassco::Atom_t uid) {
+    added_facts_.emplace(uid);
 }
 
 void ClingoControl::endAddBackend() {
+    for (auto &sym : added_atoms_) {
+        auto it = out_->predDoms().find(sym.sig());
+        assert(it != out_->predDoms().end());
+        auto jt = (*it)->find(sym);
+        assert(jt != (*it)->end());
+        assert(jt->hasUid());
+        if (added_facts_.find(jt->uid()) != added_facts_.end()) {
+            jt->setFact(true);
+        }
+    }
+    added_atoms_.clear();
+    added_facts_.clear();
     out_->endGround(logger());
     backend_ = nullptr;
 }

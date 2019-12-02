@@ -331,6 +331,7 @@ public:
     void *claspFacade() override;
     bool beginAddBackend() override;
     Id_t addAtom(Symbol sym) override;
+    void addFact(Potassco::Atom_t uid) override;
     Backend *getBackend() override {
         if (!backend_) { throw std::runtime_error("backend not available"); }
         return backend_;
@@ -364,6 +365,8 @@ public:
     std::vector<UProp>                                         props_;
     std::vector<Potassco::AbstractHeuristic*>                  heus_;
     std::vector<std::unique_ptr<Clasp::ClingoPropagatorInit>>  propagators_;
+    std::vector<Symbol>                                        added_atoms_;
+    std::unordered_set<Potassco::Atom_t>                       added_facts_;
     ClingoPropagatorLock                                       propLock_;
     Logger                                                     logger_;
     TheoryOutput                                               theory_;

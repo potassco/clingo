@@ -240,6 +240,7 @@ struct clingo_control {
     virtual Potassco::Atom_t addProgramAtom() = 0;
     virtual bool beginAddBackend() = 0;
     virtual Gringo::Id_t addAtom(Gringo::Symbol sym) = 0;
+    virtual void addFact(Potassco::Atom_t uid) = 0;
     virtual Gringo::Backend *getBackend() = 0;
     virtual void endAddBackend() = 0;
     virtual Gringo::Logger &logger() = 0;

@@ -341,9 +341,9 @@ public:
     : value_(value)
     , fun_(fun) { values_.emplace_back(getNeutral(fun)); }
     AssignmentAggregateData(AssignmentAggregateData &&) = default;
-    AssignmentAggregateData(AssignmentAggregateData const &) = default;
+    AssignmentAggregateData(AssignmentAggregateData const &) = delete;
     AssignmentAggregateData &operator=(AssignmentAggregateData &&) = default;
-    AssignmentAggregateData &operator=(AssignmentAggregateData const &) = default;
+    AssignmentAggregateData &operator=(AssignmentAggregateData const &) = delete;
     ~AssignmentAggregateData() noexcept = default;
     operator Symbol const &() const { return value_; }
     void accumulate(DomainData &data, Location const &loc, SymVec const &tuple, LitVec &cond, Logger &log);
@@ -445,9 +445,9 @@ class ConjunctionAtom {
 public:
     using Elements = UniqueVec<ConjunctionElement, std::hash<Symbol>, std::equal_to<Symbol>>;
     ConjunctionAtom(ConjunctionAtom &&) = default;
-    ConjunctionAtom(ConjunctionAtom const &) = default;
+    ConjunctionAtom(ConjunctionAtom const &) = delete;
     ConjunctionAtom &operator=(ConjunctionAtom &&) = default;
-    ConjunctionAtom &operator=(ConjunctionAtom const &) = default;
+    ConjunctionAtom &operator=(ConjunctionAtom const &) = delete;
     ~ConjunctionAtom() noexcept = default;
     // {{{2 Atom interface
     ConjunctionAtom(Symbol value)
@@ -520,9 +520,9 @@ using DisjointElemSet = UniqueVec<std::pair<TupleId, DisjointElemVec>, HashFirst
 class DisjointAtom {
 public:
     DisjointAtom(DisjointAtom &&) = default;
-    DisjointAtom(DisjointAtom const &) = default;
+    DisjointAtom(DisjointAtom const &) = delete;
     DisjointAtom &operator=(DisjointAtom &&) noexcept = default;
-    DisjointAtom &operator=(DisjointAtom const &) = default;
+    DisjointAtom &operator=(DisjointAtom const &) = delete;
     ~DisjointAtom() noexcept = default;
     // {{{2 Atom interface
     DisjointAtom(Symbol value)
@@ -601,9 +601,9 @@ class DisjunctionAtom {
 public:
     using Elements = UniqueVec<DisjunctionElement, std::hash<Symbol>, std::equal_to<Symbol>>;
     DisjunctionAtom(DisjunctionAtom &&) = default;
-    DisjunctionAtom(DisjunctionAtom const &) = default;
+    DisjunctionAtom(DisjunctionAtom const &) = delete;
     DisjunctionAtom &operator=(DisjunctionAtom &&) = default;
-    DisjunctionAtom &operator=(DisjunctionAtom const &) = default;
+    DisjunctionAtom &operator=(DisjunctionAtom const &) = delete;
     ~DisjunctionAtom() noexcept = default;
     // {{{2 Atom interface
     DisjunctionAtom(Symbol value)
@@ -660,9 +660,9 @@ private:
 class HeadAggregateAtom {
 public:
     HeadAggregateAtom(HeadAggregateAtom &&) = default;
-    HeadAggregateAtom(HeadAggregateAtom const &) = default;
+    HeadAggregateAtom(HeadAggregateAtom const &) = delete;
     HeadAggregateAtom &operator=(HeadAggregateAtom &&) = default;
-    HeadAggregateAtom &operator=(HeadAggregateAtom const &) = default;
+    HeadAggregateAtom &operator=(HeadAggregateAtom const &) = delete;
     ~HeadAggregateAtom() noexcept = default;
     // {{{2 Atom interface
     HeadAggregateAtom(Symbol value)
@@ -1083,7 +1083,7 @@ class DomainData {
 public:
     DomainData(Potassco::TheoryData &theory)
     : theory_(theory) { }
-    DomainData(DomainData &&) = default;
+    DomainData(DomainData &&) = delete;
     DomainData& operator=(DomainData&&) = delete;
     ~DomainData() noexcept = default;
 

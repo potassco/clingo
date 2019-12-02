@@ -1033,7 +1033,10 @@ extern "C" bool clingo_backend_end(clingo_backend_t *backend) {
 }
 
 extern "C" bool clingo_backend_rule(clingo_backend_t *backend, bool choice, clingo_atom_t const *head, size_t head_n, clingo_literal_t const *body, size_t body_n) {
-    GRINGO_CLINGO_TRY { outputRule(*backend->getBackend(), choice, {head, head_n}, {body, body_n}); }
+    GRINGO_CLINGO_TRY {
+        if (body_n == 0 && head_n == 1 && !choice) { backend->addFact(*head); }
+        outputRule(*backend->getBackend(), choice, {head, head_n}, {body, body_n});
+    }
     GRINGO_CLINGO_CATCH;
 }
 

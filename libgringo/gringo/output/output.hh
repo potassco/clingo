@@ -91,9 +91,13 @@ public:
     Backend *backend(Logger &logger);
     void registerObserver(UBackend prg, bool replace);
     void reset(bool resetData);
-    Id_t addAtom(Symbol sym) {
+    Id_t addAtom(Symbol sym, bool *added = nullptr) {
         auto &atm = *data.add(sym.sig()).define(sym).first;
-        if (!atm.hasUid()) { atm.setUid(data.newAtom()); }
+        if (!atm.hasUid()) {
+            atm.setUid(data.newAtom());
+            if (added) { *added = true; }
+        }
+        else if (added) { *added = false; }
         return atm.uid();
     }
 private:

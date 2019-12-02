@@ -4119,17 +4119,9 @@ Notes
 The `Backend` is a context manager and must be used with Python's `with`
 statement.
 
-Statements added with the backend are added directly to the solver. For
-example, the grounding component will not be aware if facts were added to a
-program via the backend. The only exception are atoms added with
-`Backend.add_atom`, which will subsequently be used to instantiate rules.
-Furthermore, the `Control.cleanup` method can be used to transfer information
-about facts back to the grounder.
-
 Examples
 --------
-The following example shows how to add a fact to a program and the effect of
-the `Control.cleanup` function:
+The following example shows how to add a fact to a program:
 
     >>> import clingo
     >>> ctl = clingo.Control()
@@ -4138,9 +4130,6 @@ the `Control.cleanup` function:
     ...     atm_a = backend.add_atom(sym_a)
     ...     backend.add_rule([atm_a])
     ...
-    >>> ctl.symbolic_atoms[sym_a].is_fact
-    False
-    >>> ctl.cleanup()
     >>> ctl.symbolic_atoms[sym_a].is_fact
     True
     >>> ctl.solve(on_model=lambda m: print("Answer: {}".format(m)))

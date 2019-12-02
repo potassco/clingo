@@ -228,12 +228,33 @@ struct IncrementalControl : Control {
         if (!backend_) { throw std::runtime_error("backend not available"); }
         return backend_;
     }
-    Id_t addAtom(Symbol sym) override { return out.addAtom(sym); }
+    Id_t addAtom(Symbol sym) override {
+        bool added = false;
+        auto atom  = out.addAtom(sym, &added);
+        if (added) { added_atoms_.emplace_back(sym); }
+        return atom;
+    }
+    void addFact(Potassco::Atom_t uid) override {
+        added_facts_.emplace(uid);
+    }
     void endAddBackend() override {
+        for (auto &sym : added_atoms_) {
+            auto it = out.predDoms().find(sym.sig());
+            assert(it != out.predDoms().end());
+            auto jt = (*it)->find(sym);
+            assert(jt != (*it)->end());
+            assert(jt->hasUid());
+            if (added_facts_.find(jt->uid()) != added_facts_.end()) {
+                jt->setFact(true);
+            }
+        }
+        added_atoms_.clear();
+        added_facts_.clear();
         out.endGround(logger());
         backend_ = nullptr;
     }
     Potassco::Atom_t addProgramAtom() override { return out.data.newAtom(); }
+
     Input::GroundTermParser        termParser;
     Output::OutputBase            &out;
     Scripts                       &scripts;
@@ -243,6 +264,8 @@ struct IncrementalControl : Control {
     Input::NonGroundParser         parser;
     GringoOptions const           &opts;
     Logger                         logger_;
+    std::vector<Symbol>            added_atoms_;
+    std::unordered_set<Potassco::Atom_t> added_facts_;
     Backend                       *backend_ = nullptr;
     std::unique_ptr<Input::NongroundProgramBuilder> builder;
     bool                                   incmode = false;
