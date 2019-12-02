@@ -2180,7 +2180,7 @@ void ExternalHeadAtom::check(ChkLvlVec &levels, Logger &) const {
 }
 
 bool ExternalHeadAtom::hasPool(bool beforeRewrite) const {
-    return beforeRewrite && atom_->hasPool() && type_->hasPool();
+    return beforeRewrite && (atom_->hasPool() || type_->hasPool());
 }
 
 void ExternalHeadAtom::replace(Defines &x) {

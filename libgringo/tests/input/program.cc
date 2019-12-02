@@ -204,6 +204,10 @@ TEST_CASE("input-program", "[input]") {
         REQUIRE("#heuristic a[1@2,sign]:-[a]." == rewrite(parse("#heuristic a. [1@2,sign]")));
         REQUIRE("#heuristic a[1@2,level]:-[a]." == rewrite(parse("#heuristic a. [1@2,level]")));
         REQUIRE("#heuristic a[1@0,level]:-[a];c." == rewrite(parse("#heuristic a : c. [1,level]")));
+        REQUIRE("#external p:[#inc_base].[false]" == rewrite(parse("#external p.")));
+        REQUIRE("#external p(X):[#inc_base].[false]#external p(Y):[#inc_base].[false]" == rewrite(parse("#external p(X;Y).")));
+        REQUIRE("#external p:[#inc_base].[X]#external p:[#inc_base].[Y]" == rewrite(parse("#external p. [(X;Y)]")));
+        REQUIRE("#external p(X):[#inc_base].[X]#external p(X):[#inc_base].[Y]#external p(Y):[#inc_base].[X]#external p(Y):[#inc_base].[Y]" == rewrite(parse("#external p(X;Y). [(X;Y)]")));
     }
 
     SECTION("theory") {
