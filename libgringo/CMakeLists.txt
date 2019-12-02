@@ -73,7 +73,6 @@ bison_target_or_gen("src/input/nongroundgrammar.yy")
 re2c_target_or_gen("/src/input/nongroundlexer.xch")
 set(ide_source_group "Source Files")
 set(source-group
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/backend.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/primes.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/symbol.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/term.cc"

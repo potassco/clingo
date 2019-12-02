@@ -24,6 +24,7 @@
 
 #include "gringo/output/theory.hh"
 #include "gringo/output/literal.hh"
+#include "gringo/backend.hh"
 #include "gringo/logger.hh"
 #include <cstring>
 
@@ -543,9 +544,55 @@ UTheoryTerm TermTheoryTerm::initTheory(TheoryParser &, Logger &) {
 
 TheoryData::TheoryData(Potassco::TheoryData &data)
 : data_(data)
+, aSeen_{0}
 { }
 
 TheoryData::~TheoryData() noexcept = default;
+
+void TheoryData::print(Potassco::Id_t termId, const Potassco::TheoryTerm& term) {
+    switch (term.type()) {
+        case Potassco::Theory_t::Number  : out_->theoryTerm(termId, term.number()); break;
+        case Potassco::Theory_t::Symbol  : out_->theoryTerm(termId, Potassco::toSpan(term.symbol())); break;
+        case Potassco::Theory_t::Compound: out_->theoryTerm(termId, term.compound(), term.terms()); break;
+    }
+}
+void TheoryData::print(const Potassco::TheoryAtom& a) {
+    if (a.guard()) { out_->theoryAtom(a.atom(), a.term(), a.elements(), *a.guard(), *a.rhs()); }
+    else           { out_->theoryAtom(a.atom(), a.term(), a.elements()); }
+}
+void TheoryData::visit(Potassco::TheoryData const &data, Potassco::Id_t termId, Potassco::TheoryTerm const &t) {
+    if (addSeen(tSeen_, termId)) { // only visit once
+        // visit any subterms then print
+        data.accept(t, *this);
+        print(termId, t);
+    }
+}
+void TheoryData::visit(Potassco::TheoryData const &data, Potassco::Id_t elemId, Potassco::TheoryElement const &e) {
+    if (addSeen(eSeen_, elemId)) { // only visit once
+        // visit terms then print element
+        data.accept(e, *this);
+        out_->theoryElement(elemId, e.terms(), getCondition(elemId));
+    }
+}
+void TheoryData::visit(Potassco::TheoryData const &data, Potassco::TheoryAtom const &a) {
+    // visit elements then print atom
+    data.accept(a, *this);
+    print(a);
+}
+
+bool TheoryData::addSeen(std::vector<bool>& vec, Potassco::Id_t id) const {
+    if (vec.size() <= id) { vec.resize(id + 1, false); }
+    bool seen = vec[id];
+    if (!seen) { vec[id] = true; }
+    return !seen;
+}
+
+void TheoryData::output(TheoryOutput &out) {
+    // NOTE: a friend class would probably have been nicer
+    out_ = &out;
+    for (auto it = data_.begin() + aSeen_; it != data_.end(); ++it) { visit(data_, **it); }
+    aSeen_ = data_.numAtoms();
+}
 
 template <typename ...Args>
 Potassco::Id_t TheoryData::addTerm_(Args ...args) {
@@ -744,6 +791,9 @@ void TheoryData::setCondition(Potassco::Id_t elementId, Potassco::Id_t newCond) 
 }
 
 void TheoryData::reset(bool resetData) {
+    aSeen_ = 0;
+    tSeen_.clear();
+    eSeen_.clear();
     TIdSet().swap(terms_);
     TIdSet().swap(elems_);
     AtomSet().swap(atoms_);

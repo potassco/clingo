@@ -278,20 +278,54 @@ void OutputBase::beginStep() {
     backendLambda(data, *out_, [](DomainData &, UBackend &out) { out->beginStep(); });
 }
 
+namespace {
+
+class BackendTheoryOutput : public TheoryOutput {
+public:
+    BackendTheoryOutput(DomainData &data, AbstractOutput &out)
+    : data_{data}
+    , out_{out} {
+    }
+private:
+    void theoryTerm(Id_t termId, int number) override {
+        backendLambda(data_, out_, [&](DomainData &, UBackend &out) { out->theoryTerm(termId, number); });
+    }
+    void theoryTerm(Id_t termId, const StringSpan& name) override {
+        backendLambda(data_, out_, [&](DomainData &, UBackend &out) { out->theoryTerm(termId, name); });
+    }
+    void theoryTerm(Id_t termId, int cId, const IdSpan& args) override {
+        backendLambda(data_, out_, [&](DomainData &, UBackend &out) { out->theoryTerm(termId, cId, args); });
+    }
+    void theoryElement(Id_t elementId, IdSpan const & terms, LitVec const &cond) override {
+        backendLambda(data_, out_, [&](DomainData &, UBackend &out) {
+            BackendLitVec bc;
+            bc.reserve(cond.size());
+            for (auto &lit : cond) {
+                bc.emplace_back(call(data_, lit, &Literal::uid));
+            }
+            out->theoryElement(elementId, terms, Potassco::toSpan(bc));
+        });
+    }
+    void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements) override {
+        backendLambda(data_, out_, [&](DomainData &, UBackend &out) { out->theoryAtom(atomOrZero, termId, elements); });
+    }
+    void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements, Id_t op, Id_t rhs) override {
+        backendLambda(data_, out_, [&](DomainData &, UBackend &out) { out->theoryAtom(atomOrZero, termId, elements, op, rhs); });
+    }
+private:
+    DomainData &data_;
+    AbstractOutput &out_;
+};
+
+} // namespace
+
 void OutputBase::endGround(Logger &log) {
     for (auto &lit : delayed_) { DelayedStatement(lit).passTo(data, *out_); }
     delayed_.clear();
-    backendLambda(data, *out_, [](DomainData &data, UBackend &out) {
-        auto getCond = [&data](Id_t elem) {
-            TheoryData &td = data.theory();
-            BackendLitVec bc;
-            for (auto &lit : td.getCondition(elem)) {
-                bc.emplace_back(call(data, lit, &Literal::uid));
-            }
-            return bc;
-        };
-        Gringo::output(data.theory().data(), *out, getCond);
-    });
+
+    BackendTheoryOutput bto{data, *out_};
+    data.theory().output(bto);
+
     if (!outPreds.empty()) {
         std::move(outPredsForce.begin(), outPredsForce.end(), std::back_inserter(outPreds));
         outPredsForce.clear();

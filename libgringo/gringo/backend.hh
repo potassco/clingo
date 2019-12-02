@@ -79,8 +79,6 @@ public:
 };
 using UBackend = std::unique_ptr<Backend>;
 
-void output(Potassco::TheoryData const &data, Backend &out, GetTheoryAtomCondition cond);
-
 inline void outputRule(Backend &out, bool choice, Potassco::AtomSpan head, Potassco::LitSpan body) {
     out.rule(choice ? Potassco::Head_t::Choice : Potassco::Head_t::Disjunctive, head, body);
 }

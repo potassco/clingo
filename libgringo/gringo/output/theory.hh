@@ -41,7 +41,22 @@ using Gringo::GetName;
 
 // {{{1 declaration of TheoryData
 
-class TheoryData {
+class TheoryOutput {
+public:
+    using Id_t = Potassco::Id_t;
+    using IdSpan = Potassco::IdSpan;
+
+    virtual void theoryTerm(Id_t termId, int number) = 0;
+    virtual void theoryTerm(Id_t termId, const StringSpan& name) = 0;
+    virtual void theoryTerm(Id_t termId, int cId, const IdSpan& args) = 0;
+    virtual void theoryElement(Id_t elementId, IdSpan const & terms, LitVec const &cond) = 0;
+    virtual void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements) = 0;
+    virtual void theoryAtom(Id_t atomOrZero, Id_t termId, const IdSpan& elements, Id_t op, Id_t rhs) = 0;
+
+    virtual ~TheoryOutput() = default;
+};
+
+class TheoryData : private Potassco::TheoryData::Visitor {
     using TIdSet = HashSet<Potassco::Id_t>;
     using AtomSet = HashSet<uintptr_t>;
     using ConditionVec = std::vector<LitVec>;
@@ -66,7 +81,15 @@ public:
     void setCondition(Potassco::Id_t elementId, Potassco::Id_t newCond);
     bool hasConditions() const;
     void reset(bool resetData);
+    void output(TheoryOutput &tout);
     Potassco::TheoryAtom const &getAtom(Id_t offset) const { return **(data_.begin() + offset); }
+private:
+    void print(Potassco::Id_t termId, const Potassco::TheoryTerm& term);
+    void print(const Potassco::TheoryAtom& a);
+    void visit(Potassco::TheoryData const &data, Potassco::Id_t termId, Potassco::TheoryTerm const &t) override;
+    void visit(Potassco::TheoryData const &data, Potassco::Id_t elemId, Potassco::TheoryElement const &e) override;
+    void visit(Potassco::TheoryData const &data, Potassco::TheoryAtom const &a) override;
+    bool addSeen(std::vector<bool>& vec, Potassco::Id_t id) const;
 
 private:
     template <typename ...Args>
@@ -79,6 +102,10 @@ private:
     AtomSet atoms_;
     Potassco::TheoryData &data_;
     ConditionVec conditions_;
+    std::vector<bool> tSeen_;
+    std::vector<bool> eSeen_;
+    TheoryOutput *out_;
+    uint32_t aSeen_;
 };
 
 // {{{1 declaration of TheoryTerm

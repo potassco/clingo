@@ -25,12 +25,12 @@ def main(prg):
                     if n == "bound":
                         bound = v
                         break
-                print "Valid assignment for constraints found:"
-                print " ".join(["{}={}".format(n, v) for n, v in a])
+                print ("Valid assignment for constraints found:")
+                print (" ".join(["{}={}".format(n, v) for n, v in a]))
                 break
             else:
-                print "Optimum found"
+                print ("Optimum found")
                 break
-        print "Found new bound: {}".format(bound)
+        print ("Found new bound: {}".format(bound))
         prg.ground([("bound", [bound-1])])
 #end.

@@ -603,6 +603,35 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(models == ModelVec({}));
             REQUIRE(trail == std::vector<std::string>({"IP: incremental", "BS", "R: 1:-~1", "ES"}));
         }
+        SECTION("theory data bug") {
+            struct Observer : Clingo::GroundProgramObserver {
+                Observer(std::vector<id_t> &atoms) : atoms_{atoms} { }
+                void theory_atom(id_t atom_id_or_zero, id_t , IdSpan ) override {
+                    atoms_.emplace_back(atom_id_or_zero);
+                }
+                std::vector<id_t> &atoms_;
+            };
+
+            std::vector<id_t> atoms;
+            Observer o{atoms};
+            ctl.register_observer(o);
+            ctl.add("base",{}, R"(#theory csp {
+                                   dom_term {};
+                                   &dom/0 : dom_term, any}.)");
+            ctl.add("base",{}, "&dom {0}. &dom {1}.");
+            ctl.add("acid",{}, "&dom {1}. &dom {2}.");
+            REQUIRE(atoms == std::vector<id_t>({}));
+            ctl.ground({{"base", {}}});
+            REQUIRE(atoms == std::vector<id_t>({1, 2}));
+            ctl.ground({{"acid", {}}});
+            REQUIRE(atoms == std::vector<id_t>({1, 2, 3}));
+            ctl.cleanup();
+            REQUIRE(atoms == std::vector<id_t>({1, 2, 3}));
+            { ctl.backend(); }
+            REQUIRE(atoms == std::vector<id_t>({1, 2, 3}));
+            { ctl.backend(); }
+            REQUIRE(atoms == std::vector<id_t>({1, 2, 3}));
+        }
         SECTION("events") {
             ctl.add("base", {}, "{a}.");
             ctl.ground({{"base", {}}});
