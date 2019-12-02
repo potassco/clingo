@@ -373,7 +373,6 @@ std::pair<PredicateDomain::Iterator, PredicateDomain*> OutputBase::find(Symbol v
 std::pair<Id_t, Id_t> OutputBase::simplify(AssignmentLookup assignment) {
     Id_t facts = 0;
     Id_t deleted = 0;
-    if (true) {
     if (data.canSimplify()) {
         std::vector<Mapping> mappings;
         for (auto &dom : data.predDoms()) {
@@ -383,7 +382,6 @@ std::pair<Id_t, Id_t> OutputBase::simplify(AssignmentLookup assignment) {
             deleted+= ret.second;
         }
         translateLambda(data, *out_, [&](DomainData &data, Translator &trans) { trans.simplify(data, mappings, assignment); });
-    }
     }
     return {facts, deleted};
 }
