@@ -422,6 +422,13 @@ public:
         }
         return Clasp::WeightConstraint::create(*ctx.master(), Clasp::decodeLit(lit), claspLits, bound, eq ? Clasp::WeightConstraint::create_eq_bound : 0).ok();
     }
+    void addMinimize(Potassco::Lit_t literal, Potassco::Weight_t weight, Potassco::Weight_t priority) override {
+        auto &ctx = static_cast<Clasp::ClaspFacade*>(c_.claspFacade())->ctx;
+        auto &master = *ctx.master();
+        auto lit = Clasp::decodeLit(literal);
+        if (!master.validVar(lit.var())) { master.acquireProblemVars(); }
+        ctx.addMinimize({lit, weight}, priority);
+    }
     bool propagate() override {
         auto &ctx = static_cast<Clasp::ClaspFacade*>(c_.claspFacade())->ctx;
         if (ctx.master()->hasConflict()) { return false; }

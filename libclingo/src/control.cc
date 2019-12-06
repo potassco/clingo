@@ -677,6 +677,11 @@ extern "C" bool clingo_propagate_init_add_weight_constraint(clingo_propagate_ini
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_propagate_init_add_minimize(clingo_propagate_init_t *init, clingo_literal_t literal, clingo_weight_t weight, clingo_weight_t priority) {
+    GRINGO_CLINGO_TRY { init->addMinimize(literal, weight, priority); }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" bool clingo_propagate_init_propagate(clingo_propagate_init_t *init, bool *ret) {
     GRINGO_CLINGO_TRY { *ret = init->propagate(); }
     GRINGO_CLINGO_CATCH;

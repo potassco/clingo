@@ -183,6 +183,7 @@ struct clingo_propagate_init {
     virtual Potassco::Lit_t addLiteral() = 0;
     virtual bool addClause(Potassco::LitSpan lits) = 0;
     virtual bool addWeightConstraint(Potassco::Lit_t lit, Potassco::WeightLitSpan lits, Potassco::Weight_t bound, bool eq) = 0;
+    virtual void addMinimize(Potassco::Lit_t literal, Potassco::Weight_t weight, Potassco::Weight_t priority) = 0;
     virtual bool propagate() = 0;
     virtual Gringo::Output::DomainData const &theory() const = 0;
     virtual Gringo::SymbolicAtoms const &getDomain() const = 0;

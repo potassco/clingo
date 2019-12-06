@@ -681,7 +681,8 @@ TEST_CASE("propagator", "[clingo][propagator]") {
         }
     }
     SECTION("add_clause_init") {
-        // NOTE: the tests would fail if sat preprocessing is activated
+        // NOTE: some of the tests would fail if sat preprocessing were activated
+        //       because propagation has no effect in this case
         ctl.configuration()["sat_prepro"] = "0";
 
         ctl.add("base", {}, "{a; b}. c. :- a, b.");
@@ -757,7 +758,7 @@ TEST_CASE("propagator", "[clingo][propagator]") {
     SECTION("add_weight_constraint") {
         ctl.add("base", {}, "{a; b}.");
         ctl.ground({{"base", {}}}, nullptr);
-        SECTION("wc") {
+        SECTION("equal") {
             auto p{make_init([](Clingo::PropagateInit &init){
                 auto t = init.add_literal();
                 auto a = get_literal(init, "a");
@@ -769,6 +770,27 @@ TEST_CASE("propagator", "[clingo][propagator]") {
             ctl.register_propagator(p, false);
             test_solve(ctl.solve(), models);
             REQUIRE(models.size() == 3);
+        }
+    }
+    SECTION("add_minimize") {
+        ctl.add("base", {}, "2 {a; b; c}. 2 {b; c; d}.");
+        ctl.ground({{"base", {}}}, nullptr);
+        ctl.configuration()["solve"]["opt_mode"] = "optN";
+            SECTION("minimize") {
+            auto p{make_init([](Clingo::PropagateInit &init){
+                init.add_minimize(get_literal(init, "a"), 1, 0);
+                init.add_minimize(get_literal(init, "b"), 1, 0);
+                init.add_minimize(get_literal(init, "c"), 1, 0);
+                init.add_minimize(get_literal(init, "d"), 1, 0);
+            })};
+            ctl.register_propagator(p, false);
+            {
+                MCB mcb{models};
+                for (auto &m : ctl.solve()) {
+                    if (m.optimality_proven()) { mcb(m); }
+                }
+            }
+            REQUIRE(models.size() == 1);
         }
     }
 }

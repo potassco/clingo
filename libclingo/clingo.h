@@ -1129,6 +1129,17 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_clause(clingo_propagate
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_weight_constraint(clingo_propagate_init_t *init, clingo_literal_t literal, clingo_weighted_literal_t const *literals, size_t size, clingo_weight_t bound, bool compare_equal, bool *result);
+//! Add the given literal to minimize to the solver.
+//!
+//! This corresponds to a weak constraint of form `:~ literal. [weight@priority]`.
+//!
+//! @param[in] init the target
+//! @param[in] literal the literal to minimize
+//! @param[in] weight the weight of the literal
+//! @param[in] priority the priority of the literal
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_minimize(clingo_propagate_init_t *init, clingo_literal_t literal, clingo_weight_t weight, clingo_weight_t priority);
 //! Propagates consequences of the underlying problem excluding registered propagators.
 //!
 //! @note The function has no effect if SAT-preprocessing is enabled.

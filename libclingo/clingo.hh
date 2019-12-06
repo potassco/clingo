@@ -852,6 +852,7 @@ public:
     literal_t add_literal();
     bool add_clause(LiteralSpan clause);
     bool add_weight_constraint(literal_t literal, WeightedLiteralSpan literals, weight_t bound, bool compare_equal = false);
+    void add_minimize(literal_t literal, weight_t weight, weight_t priority);
     bool propagate();
     clingo_propagate_init_t *to_c() const { return init_; }
 private:
@@ -2768,6 +2769,10 @@ inline bool PropagateInit::add_weight_constraint(literal_t literal, WeightedLite
     bool ret;
     Detail::handle_error(clingo_propagate_init_add_weight_constraint(init_, literal, reinterpret_cast<clingo_weighted_literal_t const *>(literals.begin()), literals.size(), bound, compare_equal, &ret));
     return ret;
+}
+
+inline void PropagateInit::add_minimize(literal_t literal, weight_t weight, weight_t priority) {
+    Detail::handle_error(clingo_propagate_init_add_minimize(init_, literal, weight, priority));
 }
 
 inline bool PropagateInit::propagate() {
