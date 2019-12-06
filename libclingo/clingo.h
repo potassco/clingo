@@ -1109,7 +1109,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_literal(clingo_propagat
 //! @param[in] init the target
 //! @param[in] clause the clause to add
 //! @param[in] size the size of the clause
-//! @param[out] result result indicating whether whether the problem became unsatisfiable
+//! @param[out] result result indicating whether the problem became unsatisfiable
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_clause(clingo_propagate_init_t *init, clingo_literal_t const *clause, size_t size, bool *result);
@@ -1125,7 +1125,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_clause(clingo_propagate
 //! @param[in] size the number of weighted literals
 //! @param[in] bound the bound of the constraint
 //! @param[in] compare_equal if true compare equal instead of less than equal
-//! @param[out] result result indicating whether whether the problem became unsatisfiable
+//! @param[out] result result indicating whether the problem became unsatisfiable
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_weight_constraint(clingo_propagate_init_t *init, clingo_literal_t literal, clingo_weighted_literal_t const *literals, size_t size, clingo_weight_t bound, bool compare_equal, bool *result);
@@ -1146,7 +1146,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_minimize(clingo_propaga
 //! @attention No further calls on the init object or functions on the assignment should be called when the result of this method is false.
 //!
 //! @param[in] init the target
-//! @param[out] result result indicating whether whether the problem became unsatisfiable
+//! @param[out] result result indicating whether the problem became unsatisfiable
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_propagate(clingo_propagate_init_t *init, bool *result);
