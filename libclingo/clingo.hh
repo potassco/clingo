@@ -43,29 +43,6 @@
 
 namespace Clingo {
 
-// {{{1 basic types
-
-// consider using upper case
-using literal_t = clingo_literal_t;
-using id_t = clingo_id_t;
-using weight_t = clingo_weight_t;
-using atom_t = clingo_atom_t;
-
-enum class TruthValue {
-    Free  = clingo_truth_value_free,
-    True  = clingo_truth_value_true,
-    False = clingo_truth_value_false
-};
-
-inline std::ostream &operator<<(std::ostream &out, TruthValue tv) {
-    switch (tv) {
-        case TruthValue::Free:  { out << "Free"; break; }
-        case TruthValue::True:  { out << "True"; break; }
-        case TruthValue::False: { out << "False"; break; }
-    }
-    return out;
-}
-
 // {{{1 variant
 
 namespace Detail {
@@ -432,6 +409,44 @@ std::ostream &operator<<(std::ostream &out, Span<T, I> span) {
         comma = true;
     }
     out << " }";
+    return out;
+}
+
+// {{{1 basic types
+
+// consider using upper case
+using literal_t = clingo_literal_t;
+using id_t = clingo_id_t;
+using weight_t = clingo_weight_t;
+using atom_t = clingo_atom_t;
+
+class WeightedLiteral {
+public:
+    WeightedLiteral(clingo_literal_t lit, clingo_weight_t weight)
+    : wlit_{lit, weight} { }
+    explicit WeightedLiteral(clingo_weighted_literal_t wlit)
+    : wlit_(wlit) { }
+    literal_t literal() const { return wlit_.literal; }
+    weight_t weight() const { return wlit_.weight; }
+    clingo_weighted_literal_t const &to_c() const { return wlit_; }
+    clingo_weighted_literal_t &to_c() { return wlit_; }
+private:
+    clingo_weighted_literal_t wlit_;
+};
+using WeightedLiteralSpan = Span<WeightedLiteral>;
+
+enum class TruthValue {
+    Free  = clingo_truth_value_free,
+    True  = clingo_truth_value_true,
+    False = clingo_truth_value_false
+};
+
+inline std::ostream &operator<<(std::ostream &out, TruthValue tv) {
+    switch (tv) {
+        case TruthValue::Free:  { out << "Free"; break; }
+        case TruthValue::True:  { out << "True"; break; }
+        case TruthValue::False: { out << "False"; break; }
+    }
     return out;
 }
 
@@ -836,6 +851,7 @@ public:
     void set_check_mode(PropagatorCheckMode mode);
     literal_t add_literal();
     bool add_clause(LiteralSpan clause);
+    bool add_weight_constraint(literal_t literal, WeightedLiteralSpan literals, weight_t bound, bool compare_equal = false);
     bool propagate();
     clingo_propagate_init_t *to_c() const { return init_; }
 private:
@@ -899,21 +915,6 @@ public:
 
 using IdSpan = Span<id_t>;
 using AtomSpan = Span<atom_t>;
-
-class WeightedLiteral {
-public:
-    WeightedLiteral(clingo_literal_t lit, clingo_weight_t weight)
-    : wlit_{lit, weight} { }
-    explicit WeightedLiteral(clingo_weighted_literal_t wlit)
-    : wlit_(wlit) { }
-    literal_t literal() const { return wlit_.literal; }
-    weight_t weight() const { return wlit_.weight; }
-    clingo_weighted_literal_t const &to_c() const { return wlit_; }
-    clingo_weighted_literal_t &to_c() { return wlit_; }
-private:
-    clingo_weighted_literal_t wlit_;
-};
-using WeightedLiteralSpan = Span<WeightedLiteral>;
 
 enum class HeuristicType : clingo_heuristic_type_t {
     Level  = clingo_heuristic_type_level,
@@ -2760,6 +2761,12 @@ inline literal_t PropagateInit::add_literal() {
 inline bool PropagateInit::add_clause(LiteralSpan clause) {
     bool ret;
     Detail::handle_error(clingo_propagate_init_add_clause(init_, clause.begin(), clause.size(), &ret));
+    return ret;
+}
+
+inline bool PropagateInit::add_weight_constraint(literal_t literal, WeightedLiteralSpan literals, weight_t bound, bool compare_equal) {
+    bool ret;
+    Detail::handle_error(clingo_propagate_init_add_weight_constraint(init_, literal, reinterpret_cast<clingo_weighted_literal_t const *>(literals.begin()), literals.size(), bound, compare_equal, &ret));
     return ret;
 }
 

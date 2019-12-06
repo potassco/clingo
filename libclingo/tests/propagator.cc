@@ -754,6 +754,23 @@ TEST_CASE("propagator", "[clingo][propagator]") {
             REQUIRE(models.size() == 0);
         }
     }
+    SECTION("add_weight_constraint") {
+        ctl.add("base", {}, "{a; b}.");
+        ctl.ground({{"base", {}}}, nullptr);
+        SECTION("wc") {
+            auto p{make_init([](Clingo::PropagateInit &init){
+                auto t = init.add_literal();
+                auto a = get_literal(init, "a");
+                auto b = get_literal(init, "b");
+                REQUIRE(init.add_clause({t}));
+                auto l = init.add_literal();
+                REQUIRE(init.add_weight_constraint(t, {{a,1}, {b,1}, {l,1}}, 2, true));
+            })};
+            ctl.register_propagator(p, false);
+            test_solve(ctl.solve(), models);
+            REQUIRE(models.size() == 3);
+        }
+    }
 }
 
 TEST_CASE("propgator-sequence-mining", "[clingo][propagator]") {

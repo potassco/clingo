@@ -125,6 +125,12 @@ typedef uint32_t clingo_atom_t;
 typedef uint32_t clingo_id_t;
 //! Signed integer type for weights in sum aggregates and minimize constraints.
 typedef int32_t clingo_weight_t;
+//! A Literal with an associated weight.
+typedef struct clingo_weighted_literal {
+    clingo_literal_t literal;
+    clingo_weight_t weight;
+} clingo_weighted_literal_t;
+
 
 //! Enumeration of error codes.
 //!
@@ -1107,6 +1113,22 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_literal(clingo_propagat
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_clause(clingo_propagate_init_t *init, clingo_literal_t const *clause, size_t size, bool *result);
+//! Add the given weight constraint to the solver.
+//!
+//! This function add a constraint of form `literal == { lit=weight | (lit, weight) in literals } <= bound` to the solver.
+//!
+//! @attention No further calls on the init object or functions on the assignment should be called when the result of this method is false.
+//!
+//! @param[in] init the target
+//! @param[in] literal the literal of the constraint
+//! @param[in] literals the weighted literals
+//! @param[in] size the number of weighted literals
+//! @param[in] bound the bound of the constraint
+//! @param[in] compare_equal if true compare equal instead of less than equal
+//! @param[out] result result indicating whether whether the problem became unsatisfiable
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_weight_constraint(clingo_propagate_init_t *init, clingo_literal_t literal, clingo_weighted_literal_t const *literals, size_t size, clingo_weight_t bound, bool compare_equal, bool *result);
 //! Propagates consequences of the underlying problem excluding registered propagators.
 //!
 //! @note The function has no effect if SAT-preprocessing is enabled.
@@ -1378,13 +1400,6 @@ enum clingo_external_type {
 //! Corresponding type to ::clingo_external_type.
 //! @ingroup ProgramInspection
 typedef int clingo_external_type_t;
-
-//! A Literal with an associated weight.
-//! @ingroup ProgramInspection
-typedef struct clingo_weighted_literal {
-    clingo_literal_t literal;
-    clingo_weight_t weight;
-} clingo_weighted_literal_t;
 
 //! Handle to the backend to add directives in aspif format.
 typedef struct clingo_backend clingo_backend_t;

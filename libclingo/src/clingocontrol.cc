@@ -28,6 +28,7 @@
 #include <potassco/program_opts/typed_value.h>
 #include <potassco/basic_types.h>
 #include <clasp/clause.h>
+#include <clasp/weight_constraint.h>
 #include "clingo.h"
 #include <signal.h>
 #include <clingo/script.h>
@@ -403,6 +404,23 @@ public:
             cc.add(Clasp::decodeLit(lit));
         }
         return cc.end(Clasp::ClauseCreator::clause_force_simplify).ok();
+    }
+    bool addWeightConstraint(Potassco::Lit_t lit, Potassco::WeightLitSpan lits, Potassco::Weight_t bound, bool eq) override {
+        auto &ctx = static_cast<Clasp::ClaspFacade*>(c_.claspFacade())->ctx;
+        auto &master = *ctx.master();
+        if (master.hasConflict()) { return false; }
+        Clasp::WeightLitVec claspLits;
+        claspLits.reserve(lits.size);
+        Clasp::Var m = 0;
+        for (auto &x : lits) {
+            auto y = Clasp::decodeLit(x.lit);
+            m = std::max(m, y.var());
+            claspLits.push_back({y, x.weight});
+        }
+        if (m > 0 && !master.validVar(m)) {
+            master.acquireProblemVars();
+        }
+        return Clasp::WeightConstraint::create(*ctx.master(), Clasp::decodeLit(lit), claspLits, bound, eq ? Clasp::WeightConstraint::create_eq_bound : 0).ok();
     }
     bool propagate() override {
         auto &ctx = static_cast<Clasp::ClaspFacade*>(c_.claspFacade())->ctx;
