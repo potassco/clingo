@@ -377,8 +377,8 @@ namespace {
 class ClingoPropagateInit : public PropagateInit {
 public:
     using Lit_t = Potassco::Lit_t;
-    ClingoPropagateInit(Control &c, Clasp::ClingoPropagatorInit &p, size_t &literals, Potassco::LitVec &clauses)
-    : c_{c}, p_{p}, a_{*facade_().ctx.solver(0)}, literals_{literals}, clauses_{clauses} {
+    ClingoPropagateInit(Control &c, Clasp::ClingoPropagatorInit &p, size_t &literals)
+    : c_{c}, p_{p}, a_{*facade_().ctx.solver(0)}, literals_{literals} {
         p_.enableHistory(false);
     }
     Output::DomainData const &theory() const override { return c_.theory(); }
@@ -395,9 +395,20 @@ public:
         ++literals_;
         return Clasp::encodeLit(Clasp::Literal(facade_().ctx.addVar(Clasp::Var_t::Atom), false));
     }
-    void addClause(Potassco::LitSpan lits) override {
-        for (auto &lit : lits) { clauses_.push_back(lit); }
-        clauses_.push_back(0);
+    bool addClause(Potassco::LitSpan lits) override {
+        auto &ctx = static_cast<Clasp::ClaspFacade*>(c_.claspFacade())->ctx;
+        if (ctx.master()->hasConflict()) { return false; }
+        Clasp::ClauseCreator cc{ctx.master()};
+        cc.start();
+        for (auto &lit : lits) {
+            cc.add(Clasp::decodeLit(lit));
+        }
+        return cc.end(Clasp::ClauseCreator::clause_force_simplify).ok();
+    }
+    bool propagate() override {
+        auto &ctx = static_cast<Clasp::ClaspFacade*>(c_.claspFacade())->ctx;
+        if (ctx.master()->hasConflict()) { return false; }
+        return ctx.master()->propagate();
     }
     void setCheckMode(clingo_propagator_check_mode_t checkMode) override {
         p_.enableClingoPropagatorCheck(static_cast<Clasp::ClingoPropagatorCheck_t::Type>(checkMode));
@@ -411,7 +422,6 @@ private:
     Clasp::ClingoPropagatorInit &p_;
     Clasp::ClingoAssignment a_;
     size_t &literals_;
-    Potassco::LitVec &clauses_;
 };
 
 } // namespace
@@ -426,33 +436,12 @@ void ClingoControl::prepare(Assumptions ass) {
         postGround(*prg);
         if (!propagators_.empty()) {
             size_t literals{0};
-            Potassco::LitVec clauses;
             clasp_->program()->endProgram();
             for (auto&& pp : propagators_) {
-                ClingoPropagateInit i(*this, *pp, literals, clauses);
+                ClingoPropagateInit i(*this, *pp, literals);
                 static_cast<Propagator*>(pp->propagator())->init(i);
             }
             propLock_.init(clasp_->ctx.concurrency());
-            auto &master = literals > 0
-                ? clasp_->ctx.startAddConstraints(clauses.size())
-                : *clasp_->ctx.master();
-            if (!master.hasConflict() && !clauses.empty()) {
-                Clasp::ClauseCreator cc{&master};
-                bool started = false;
-                for (auto &lit : clauses) {
-                    if (!started) {
-                        cc.start();
-                        started = true;
-                    }
-                    if (lit != 0) { cc.add(Clasp::decodeLit(lit)); }
-                    else {
-                        if (!cc.end(Clasp::ClauseCreator::clause_force_simplify).ok()) {
-                            break;
-                        }
-                        started = false;
-                    }
-                }
-            }
         }
         prePrepare(*clasp_);
         clasp_->prepare(enableEnumAssupmption_ ? Clasp::ClaspFacade::enum_volatile : Clasp::ClaspFacade::enum_static);

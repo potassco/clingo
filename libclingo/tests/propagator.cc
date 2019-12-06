@@ -432,6 +432,27 @@ private:
     size_t count_ = 0;
 };
 
+literal_t get_literal(PropagateInit &init, char const *name) {
+    return init.solver_literal(init.symbolic_atoms().find(Id(name))->literal());
+}
+
+template <typename T>
+class TestInit : public Propagator {
+public:
+    TestInit(T &&f) : f_{std::forward<T>(f)} { }
+    void init(PropagateInit &init) override {
+        f_(init);
+    }
+private:
+    T f_;
+};
+
+template <typename T>
+static TestInit<T> make_init(T &&f) {
+    return {std::forward<T>(f)};
+}
+
+
 class TestAddClause : public Propagator {
 public:
     void init(PropagateInit &init) override {
@@ -657,6 +678,80 @@ TEST_CASE("propagator", "[clingo][propagator]") {
             p.enable = false;
             test_solve(ctl.solve(), models);
             REQUIRE(models.size() == 4);
+        }
+    }
+    SECTION("add_clause_init") {
+        // NOTE: the tests would fail if sat preprocessing is activated
+        ctl.configuration()["sat_prepro"] = "0";
+
+        ctl.add("base", {}, "{a; b}. c. :- a, b.");
+        ctl.ground({{"base", {}}}, nullptr);
+        SECTION("conflict") {
+            auto p{make_init([](Clingo::PropagateInit &init){
+                REQUIRE_FALSE(init.add_clause({-get_literal(init, "c")}));
+            })};
+            ctl.register_propagator(p, false);
+            test_solve(ctl.solve(), models);
+            REQUIRE(models.size() == 0);
+        }
+        SECTION("propagate") {
+            auto p{make_init([](Clingo::PropagateInit &init){
+                REQUIRE(init.add_clause({get_literal(init, "a")}));
+                REQUIRE(init.assignment().is_true(get_literal(init, "a")));
+                REQUIRE(init.propagate());
+                REQUIRE(init.assignment().is_false(get_literal(init, "b")));
+            })};
+            ctl.register_propagator(p, false);
+            test_solve(ctl.solve(), models);
+            REQUIRE(models.size() == 1);
+        }
+        SECTION("propagate") {
+            auto p{make_init([](Clingo::PropagateInit &init){
+                auto ass = init.assignment();
+                auto lit = init.add_literal();
+                auto a = get_literal(init, "a");
+                REQUIRE(init.add_clause({lit}));
+                REQUIRE(ass.is_true(lit));
+                REQUIRE(init.add_clause({-lit, a}));
+                REQUIRE(ass.is_true(a));
+                REQUIRE(init.propagate());
+                REQUIRE(init.assignment().is_false(get_literal(init, "b")));
+            })};
+            ctl.register_propagator(p, false);
+            test_solve(ctl.solve(), models);
+            REQUIRE(models.size() == 1);
+        }
+        SECTION("propagate") {
+            auto p{make_init([](Clingo::PropagateInit &init){
+                auto ass = init.assignment();
+                auto lit = init.add_literal();
+                auto a = get_literal(init, "a");
+                REQUIRE(init.add_clause({-lit, a}));
+                REQUIRE(init.add_clause({lit}));
+                REQUIRE(ass.is_true(lit));
+                REQUIRE(init.propagate());
+                REQUIRE(ass.is_true(a));
+                REQUIRE(init.assignment().is_false(get_literal(init, "b")));
+            })};
+            ctl.register_propagator(p, false);
+            test_solve(ctl.solve(), models);
+            REQUIRE(models.size() == 1);
+        }
+        SECTION("propagate") {
+            auto p{make_init([](Clingo::PropagateInit &init){
+                auto ass = init.assignment();
+                auto lit = init.add_literal();
+                auto a = get_literal(init, "a");
+                auto b = get_literal(init, "b");
+                REQUIRE(init.add_clause({lit}));
+                REQUIRE(ass.is_true(lit));
+                REQUIRE(init.add_clause({-lit, a}));
+                REQUIRE(init.add_clause({-lit, b}));
+                REQUIRE_FALSE(init.propagate());
+            })};
+            ctl.register_propagator(p, false);
+            test_solve(ctl.solve(), models);
+            REQUIRE(models.size() == 0);
         }
     }
 }

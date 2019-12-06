@@ -3533,6 +3533,12 @@ Control.register_propagator
         return cppToPy(ret);
     }
 
+    Object propagate() {
+        bool ret;
+        handle_c_error(clingo_propagate_init_propagate(init, &ret));
+        return cppToPy(ret);
+    }
+
     Object getCheckMode() {
         return PropagatorCheckMode::getAttr(clingo_propagate_init_get_check_mode(init));
     }
@@ -3585,6 +3591,11 @@ Returns
 -------
 int
     Returns the added literal.
+
+Notes
+-----
+If literals are added to the solver, subsequent calls to `add_clause` and
+`propagate` are expensive. It is best to add literals in batches.
 )"},
     {"add_clause", to_function<&PropagateInit::addClause>(), METH_KEYWORDS | METH_VARARGS, R"(add_clause(self, clause: List[int]) -> bool
 
@@ -3598,7 +3609,28 @@ clause : List[int]
 Returns
 -------
 bool
-    The return value is always true and should be ignored.
+    Returns false if the program becomes unsatisfiable.
+
+Notes
+-----
+If this function returns false, initialization should be stopped and no further
+functions of the `PropagateInit` and related objects should be called.
+)"},
+    {"propagate", to_function<&PropagateInit::propagate>(), METH_NOARGS, R"(propagate(self) -> bool
+
+Propagates consequences of the underlying problem excluding registered propagators.
+
+Returns
+-------
+bool
+    Returns false if the program becomes unsatisfiable.
+
+Notes
+-----
+This function has no effect if SAT-preprocessing is enabled.
+
+If this function returns false, initialization should be stopped and no further
+functions of the `PropagateInit` and related objects should be called.
 )"},
     {nullptr, nullptr, 0, nullptr}
 };

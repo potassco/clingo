@@ -2390,6 +2390,12 @@ struct PropagateInit : Object<PropagateInit> {
         return 1;
     }
 
+    static int propagate(lua_State *L) {
+        auto &self = get_self(L);
+        lua_pushboolean(L, call_c(L, clingo_propagate_init_propagate, self.init));
+        return 1;
+    }
+
     static int getCheckMode(lua_State *L) {
         PropagatorCheckMode::new_(L, static_cast<clingo_propagator_check_mode>(clingo_propagate_init_get_check_mode(get_self(L).init)));
         return 1;
@@ -2451,6 +2457,7 @@ luaL_Reg const PropagateInit::meta[] = {
     {"add_watch", addWatch},
     {"add_literal", addLiteral},
     {"add_clause", addClause},
+    {"propagate", propagate},
     {"set_state", setState},
     {nullptr, nullptr}
 };

@@ -836,6 +836,7 @@ public:
     void set_check_mode(PropagatorCheckMode mode);
     literal_t add_literal();
     bool add_clause(LiteralSpan clause);
+    bool propagate();
     clingo_propagate_init_t *to_c() const { return init_; }
 private:
     clingo_propagate_init_t *init_;
@@ -2759,6 +2760,12 @@ inline literal_t PropagateInit::add_literal() {
 inline bool PropagateInit::add_clause(LiteralSpan clause) {
     bool ret;
     Detail::handle_error(clingo_propagate_init_add_clause(init_, clause.begin(), clause.size(), &ret));
+    return ret;
+}
+
+inline bool PropagateInit::propagate() {
+    bool ret;
+    Detail::handle_error(clingo_propagate_init_propagate(init_, &ret));
     return ret;
 }
 

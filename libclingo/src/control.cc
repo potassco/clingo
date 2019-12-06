@@ -668,9 +668,12 @@ extern "C" bool clingo_propagate_init_add_literal(clingo_propagate_init_t *init,
 }
 
 extern "C" bool clingo_propagate_init_add_clause(clingo_propagate_init_t *init, clingo_literal_t const *literals, size_t size, bool *ret) {
-    GRINGO_CLINGO_TRY {
-        if (ret) { *ret = true; }
-        init->addClause(Potassco::LitSpan{literals, size}); }
+    GRINGO_CLINGO_TRY { *ret = init->addClause(Potassco::LitSpan{literals, size}); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_propagate_init_propagate(clingo_propagate_init_t *init, bool *ret) {
+    GRINGO_CLINGO_TRY { *ret = init->propagate(); }
     GRINGO_CLINGO_CATCH;
 }
 

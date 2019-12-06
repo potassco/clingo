@@ -1088,6 +1088,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_propagator_check_mode_t clingo_propagate_init_g
 CLINGO_VISIBILITY_DEFAULT clingo_assignment_t const *clingo_propagate_init_assignment(clingo_propagate_init_t const *init);
 //! Add a literal to the solver.
 //!
+//! @attention If varibales were added, subsequent calls to ::clingo_propagate_init_add_clause() and ::clingo_propagate_init_propagate() are expensive.
+//! It is best to add varables in batches.
+//!
 //! @param[in] init the target
 //! @param[out] result the added literal
 //! @return whether the call was successful; might set one of the following error codes:
@@ -1095,16 +1098,25 @@ CLINGO_VISIBILITY_DEFAULT clingo_assignment_t const *clingo_propagate_init_assig
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_literal(clingo_propagate_init_t *init, clingo_literal_t *result);
 //! Add the given clause to the solver.
 //!
-//! @note The result is always set to true and might be removed in a future version of the API.
-//!
+//! @attention No further calls on the init object or functions on the assignment should be called when the result of this method is false.
 //!
 //! @param[in] init the target
 //! @param[in] clause the clause to add
 //! @param[in] size the size of the clause
-//! @param[out] result always true
+//! @param[out] result result indicating whether whether the problem became unsatisfiable
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_add_clause(clingo_propagate_init_t *init, clingo_literal_t const *clause, size_t size, bool *result);
+//! Propagates consequences of the underlying problem excluding registered propagators.
+//!
+//! @note The function has no effect if SAT-preprocessing is enabled.
+//! @attention No further calls on the init object or functions on the assignment should be called when the result of this method is false.
+//!
+//! @param[in] init the target
+//! @param[out] result result indicating whether whether the problem became unsatisfiable
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_propagate_init_propagate(clingo_propagate_init_t *init, bool *result);
 
 //! @}
 

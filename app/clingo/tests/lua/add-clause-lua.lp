@@ -19,24 +19,40 @@ function Propagator:init(init)
     if self.step == 0 then
         l = init:add_literal()
         init:add_clause({-b, l})
+        init:propagate()
         init:add_clause({-l, b})
+        init:propagate()
         init:add_clause({-c, l})
+        init:propagate()
         init:add_clause({-l, c})
+        init:propagate()
         init:add_clause({-a, -b})
+        init:propagate()
         init:add_clause({-a,  b})
+        init:propagate()
         init:add_clause({-a, -a, -b})
+        init:propagate()
         init:add_clause({-a, a})
+        init:propagate()
     end
     if self.step == 1 then
         init:add_clause({b})
+        init:propagate()
         init:add_clause({b})
+        init:propagate()
     end
     if self.step == 2 then
         init:add_clause({})
+        init:propagate()
         init:add_clause({a})
+        init:propagate()
         init:add_clause({b})
+        init:propagate()
+        init:propagate()
         init:add_clause({-a})
+        init:propagate()
         init:add_clause({-b})
+        init:propagate()
     end
     self.step = self.step + 1
 end
