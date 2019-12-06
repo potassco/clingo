@@ -377,8 +377,8 @@ namespace {
 class ClingoPropagateInit : public PropagateInit {
 public:
     using Lit_t = Potassco::Lit_t;
-    ClingoPropagateInit(Control &c, Clasp::ClingoPropagatorInit &p, size_t &literals)
-    : c_{c}, p_{p}, a_{*facade_().ctx.solver(0)}, literals_{literals} {
+    ClingoPropagateInit(Control &c, Clasp::ClingoPropagatorInit &p)
+    : c_{c}, p_{p}, a_{*facade_().ctx.solver(0)} {
         p_.enableHistory(false);
     }
     Output::DomainData const &theory() const override { return c_.theory(); }
@@ -392,7 +392,6 @@ public:
     void addWatch(uint32_t solverId, Lit_t lit) override { p_.addWatch(solverId, Clasp::decodeLit(lit)); }
     void enableHistory(bool b) override { p_.enableHistory(b); };
     Potassco::Lit_t addLiteral() override {
-        ++literals_;
         return Clasp::encodeLit(Clasp::Literal(facade_().ctx.addVar(Clasp::Var_t::Atom), false));
     }
     bool addClause(Potassco::LitSpan lits) override {
@@ -421,7 +420,6 @@ private:
     Control &c_;
     Clasp::ClingoPropagatorInit &p_;
     Clasp::ClingoAssignment a_;
-    size_t &literals_;
 };
 
 } // namespace
@@ -435,10 +433,9 @@ void ClingoControl::prepare(Assumptions ass) {
         Clasp::ProgramBuilder *prg = clasp_->program();
         postGround(*prg);
         if (!propagators_.empty()) {
-            size_t literals{0};
             clasp_->program()->endProgram();
             for (auto&& pp : propagators_) {
-                ClingoPropagateInit i(*this, *pp, literals);
+                ClingoPropagateInit i(*this, *pp);
                 static_cast<Propagator*>(pp->propagator())->init(i);
             }
             propLock_.init(clasp_->ctx.concurrency());
