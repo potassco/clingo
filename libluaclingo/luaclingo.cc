@@ -2376,18 +2376,48 @@ struct PropagateInit : Object<PropagateInit> {
 
     static int addClause(lua_State *L) {
         auto &self = get_self(L);
-        luaL_checktype(L, 2, LUA_TTABLE);
         auto lits = AnyWrap::new_<std::vector<clingo_literal_t>>(L); // +1
-        lua_pushnil(L);                                              // +1
-        while (lua_next(L, 2)) {                                     // +1/-1
-            auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, -1));
-            PROTECT(lits->emplace_back(lit));
-            lua_pop(L, 1);                                           // -1
-        }
+        luaL_checktype(L, 2, LUA_TTABLE);
+        luaToCpp(L, 2, *lits);
         lua_pushboolean(L, call_c(L, clingo_propagate_init_add_clause, self.init, lits->data(), lits->size()));
-                                                                     // +1
         lua_replace(L, -2);                                          // -1
         return 1;
+    }
+
+    static int addWeightConstraint(lua_State *L) {
+        auto &self = get_self(L);
+        luaL_checknumber(L, 2);
+        luaL_checktype(L, 3, LUA_TTABLE);
+        luaL_checknumber(L, 4);
+        bool eq{!lua_isnone(L, 5) && lua_toboolean(L, 5)};
+        clingo_literal_t lit;
+        clingo_weight_t bound;
+        auto lits{AnyWrap::new_<std::vector<clingo_weighted_literal_t>>(L)};
+                                    // +1
+        luaToCpp(L, 2, lit);
+        luaToCpp(L, 3, *lits);
+        luaToCpp(L, 4, bound);
+        lua_pushboolean(L, call_c(L, clingo_propagate_init_add_weight_constraint, self.init, lit, lits->data(), lits->size(), bound, eq));
+                                    // +1
+        lua_replace(L, -2);         // -1
+        return 1;
+    }
+
+    static int addMinimize(lua_State *L) {
+        auto &self = get_self(L);
+        luaL_checknumber(L, 2);
+        luaL_checknumber(L, 3);
+        clingo_literal_t lit;
+        clingo_weight_t weight;
+        clingo_weight_t priority{0};
+        luaToCpp(L, 2, lit);
+        luaToCpp(L, 3, weight);
+        if (!lua_isnone(L, 4)) {
+            luaL_checknumber(L, 4);
+            luaToCpp(L, 4, priority);
+        }
+        call_c(L, clingo_propagate_init_add_minimize, self.init, lit, weight, priority);
+        return 0;
     }
 
     static int propagate(lua_State *L) {
@@ -2457,6 +2487,8 @@ luaL_Reg const PropagateInit::meta[] = {
     {"add_watch", addWatch},
     {"add_literal", addLiteral},
     {"add_clause", addClause},
+    {"add_weight_constraint", addWeightConstraint},
+    {"add_minimize", addMinimize},
     {"propagate", propagate},
     {"set_state", setState},
     {nullptr, nullptr}
