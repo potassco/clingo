@@ -400,9 +400,7 @@ public:
         if (ctx.master()->hasConflict()) { return false; }
         Clasp::ClauseCreator cc{ctx.master()};
         cc.start();
-        for (auto &lit : lits) {
-            cc.add(Clasp::decodeLit(lit));
-        }
+        for (auto &lit : lits) { cc.add(Clasp::decodeLit(lit)); }
         return cc.end(Clasp::ClauseCreator::clause_force_simplify).ok();
     }
     bool addWeightConstraint(Potassco::Lit_t lit, Potassco::WeightLitSpan lits, Potassco::Weight_t bound, bool eq) override {
@@ -411,23 +409,15 @@ public:
         if (master.hasConflict()) { return false; }
         Clasp::WeightLitVec claspLits;
         claspLits.reserve(lits.size);
-        Clasp::Var m = 0;
         for (auto &x : lits) {
-            auto y = Clasp::decodeLit(x.lit);
-            m = std::max(m, y.var());
-            claspLits.push_back({y, x.weight});
-        }
-        if (m > 0 && !master.validVar(m)) {
-            master.acquireProblemVars();
+            claspLits.push_back({Clasp::decodeLit(x.lit), x.weight});
         }
         return Clasp::WeightConstraint::create(*ctx.master(), Clasp::decodeLit(lit), claspLits, bound, eq ? Clasp::WeightConstraint::create_eq_bound : 0).ok();
     }
     void addMinimize(Potassco::Lit_t literal, Potassco::Weight_t weight, Potassco::Weight_t priority) override {
         auto &ctx = static_cast<Clasp::ClaspFacade*>(c_.claspFacade())->ctx;
-        auto &master = *ctx.master();
-        auto lit = Clasp::decodeLit(literal);
-        if (!master.validVar(lit.var())) { master.acquireProblemVars(); }
-        ctx.addMinimize({lit, weight}, priority);
+        if (ctx.master()->hasConflict()) { return; }
+        ctx.addMinimize({Clasp::decodeLit(literal), weight}, priority);
     }
     bool propagate() override {
         auto &ctx = static_cast<Clasp::ClaspFacade*>(c_.claspFacade())->ctx;
