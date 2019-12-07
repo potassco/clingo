@@ -350,10 +350,13 @@ struct ParsePtr {
 
 template <>
 struct ParsePtr<Object> {
-    ParsePtr(Object &x) : x(x) { x = nullptr; }
-    PyObject **get() { return &x.obj; }
-    ~ParsePtr() { Py_XINCREF(x.obj); }
+    ParsePtr(Object &x) : x(x) { }
+    PyObject **get() { return &y.obj; }
+    ~ParsePtr() {
+        if (y.valid()) { x = y; }
+    }
     Object &x;
+    Reference y;
 };
 
 template <>
@@ -3533,6 +3536,31 @@ Control.register_propagator
         return cppToPy(ret);
     }
 
+    Object addWeightConstraint(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"literal", "literals", "bound", "compare_equal", nullptr};
+        Reference pyLit, pyLits, pyBound, pyEq{Py_False};
+        ParseTupleAndKeywords(pyargs, pykwds, "OOO|O", kwlist, pyLit, pyLits, pyBound, pyEq);
+        auto lit = pyToCpp<clingo_literal_t>(pyLit);
+        auto lits = pyToCpp<std::vector<clingo_weighted_literal_t>>(pyLits);
+        auto bound = pyToCpp<clingo_weight_t>(pyBound);
+        auto eq = pyToCpp<bool>(pyEq);
+        bool ret;
+        handle_c_error(clingo_propagate_init_add_weight_constraint(init, lit, lits.data(), lits.size(), bound, eq, &ret));
+        return cppToPy(ret);
+    }
+
+    Object addMinimize(Reference pyargs, Reference pykwds) {
+        static char const *kwlist[] = {"literal", "weight", "priority", nullptr};
+        Reference pyLit, pyWeight;
+        Object pyPrio{cppToPy(0)};
+        ParseTupleAndKeywords(pyargs, pykwds, "OO|O", kwlist, pyLit, pyWeight, pyPrio);
+        auto lit = pyToCpp<clingo_literal_t>(pyLit);
+        auto weight = pyToCpp<clingo_weight_t>(pyWeight);
+        auto prio = pyToCpp<clingo_weight_t>(pyPrio);
+        handle_c_error(clingo_propagate_init_add_minimize(init, lit, weight, prio));
+        return None();
+    }
+
     Object propagate() {
         bool ret;
         handle_c_error(clingo_propagate_init_propagate(init, &ret));
@@ -3615,6 +3643,44 @@ Notes
 -----
 If this function returns false, initialization should be stopped and no further
 functions of the `PropagateInit` and related objects should be called.
+)"},
+    {"add_weight_constraint", to_function<&PropagateInit::addWeightConstraint>(), METH_KEYWORDS | METH_VARARGS, R"(add_weight_constraint(self, literal: int, literals: List[Tuple[int,int]], bound: int, compare_equal: bool=False) -> bool
+
+Statically adds a constraint of form `literal == { l=w | (l, w) in literals } <= bound` to the solver.
+
+Parameters
+----------
+literal : int
+    The literal associated with the constraint.
+literals : List[Tuple[int,int]]
+    The weighted literals of the constrain.
+bound : int
+    The bound of the constraint.
+compare_equal : bool=False
+    A Boolean indicating whether to compare equal or less than equal.
+
+Returns
+-------
+bool
+    Returns false if the program becomes unsatisfiable.
+
+Notes
+-----
+If this function returns false, initialization should be stopped and no further
+functions of the `PropagateInit` and related objects should be called.
+)"},
+    {"add_minimize", to_function<&PropagateInit::addMinimize>(), METH_KEYWORDS | METH_VARARGS, R"(add_minimize(self, literal: int, weight: int, priority: int=0) -> None
+
+Extends the solver's minimize constraint with the given weighted literal.
+
+Parameters
+----------
+literal : int
+    The literal to add.
+weight : int
+    The weight of the literal.
+priority : int=0
+    The priority of the literal.
 )"},
     {"propagate", to_function<&PropagateInit::propagate>(), METH_NOARGS, R"(propagate(self) -> bool
 

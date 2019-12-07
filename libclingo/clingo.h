@@ -1094,7 +1094,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_propagator_check_mode_t clingo_propagate_init_g
 CLINGO_VISIBILITY_DEFAULT clingo_assignment_t const *clingo_propagate_init_assignment(clingo_propagate_init_t const *init);
 //! Add a literal to the solver.
 //!
-//! @attention If varibales were added, subsequent calls to ::clingo_propagate_init_add_clause() and ::clingo_propagate_init_propagate() are expensive.
+//! @attention If varibales were added, subsequent calls to functions adding constraints or ::clingo_propagate_init_propagate() are expensive.
 //! It is best to add varables in batches.
 //!
 //! @param[in] init the target

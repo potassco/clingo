@@ -852,7 +852,7 @@ public:
     literal_t add_literal();
     bool add_clause(LiteralSpan clause);
     bool add_weight_constraint(literal_t literal, WeightedLiteralSpan literals, weight_t bound, bool compare_equal = false);
-    void add_minimize(literal_t literal, weight_t weight, weight_t priority);
+    void add_minimize(literal_t literal, weight_t weight, weight_t priority = 0);
     bool propagate();
     clingo_propagate_init_t *to_c() const { return init_; }
 private:
