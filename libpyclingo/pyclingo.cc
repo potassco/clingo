@@ -5372,7 +5372,44 @@ given in the [grammar](.) above.
             case ASTType::Pool: {
                 Object args = fields_.getItem("arguments");
                 if (args.empty()) { out << "(1/0)"; }
-                else              { out << printList(args, "(", ";", ")", true); }
+                if (args.size() == 1) { out << args.getItem(0); }
+                else {
+                    bool equal = true, old_ext = false;
+                    Object old_name;
+                    for (auto arg : args.iter()) {
+                        if (arg.getAttr("type") == ASTType::getAttr(ASTType::Function)) {
+                            auto name = arg.getAttr("name");
+                            auto ext = pyToCpp<bool>(arg.getAttr("external"));
+                            if (!old_name.valid()) {
+                                old_name = name;
+                                old_ext = ext;
+                            }
+                            else if (name != old_name || ext != old_ext) {
+                                equal = false;
+                                break;
+                            }
+                        }
+                        else {
+                            equal = false;
+                            break;
+                        }
+                    }
+                    if (equal) {
+                        out << (old_ext ? "@" : "") << old_name << "(";
+                        bool sem = false;
+                        for (auto arg : args.iter()) {
+                            if (sem) { out << ";"; }
+                            else { sem = true; }
+                            auto pargs = arg.getAttr("arguments");
+                            bool tc = old_name.size() == 0 && pargs.size() == 1;
+                            out << printList(pargs, "", ",", tc ? "," : "", true);
+                        }
+                        out << ")";
+                    }
+                    else {
+                        out << printList(args, "(", ";", ")", true);
+                    }
+                }
                 break;
             }
             case ASTType::CSPProduct: {

@@ -5058,8 +5058,42 @@ inline std::ostream &operator<<(std::ostream &out, CSPProduct const &x) {
 
 inline std::ostream &operator<<(std::ostream &out, Pool const &x) {
     // NOTE: there is no representation for an empty pool
-    if (x.arguments.empty()) { out << "(1/0)"; }
-    else                     { out << Detail::print(x.arguments, "(", ";", ")", true); }
+    auto &args = x.arguments;
+    if (args.empty()) { out << "(1/0)"; }
+    if (args.size() == 1) { out << args[0]; }
+    else {
+        bool equal{true};
+        Function const *old{nullptr};
+        for (auto &arg : args) {
+            if (arg.data.is<Function>()) {
+                auto &fun = arg.data.get<Function>();
+                if (!old) { old = &fun; }
+                else if (strcmp(fun.name, old->name) != 0 || fun.external != old->external) {
+                    equal = false;
+                    break;
+                }
+            }
+            else {
+                equal = false;
+                break;
+            }
+        }
+        if (equal) {
+            out << (old->external ? "@" : "") << old->name << "(";
+            bool sem = false;
+            for (auto &arg : args) {
+                if (sem) { out << ";"; }
+                else { sem = true; }
+                auto &pargs = arg.data.get<Function>().arguments;
+                bool tc = old->name[0] == '\0' && pargs.size() == 1;
+                out << Detail::print(pargs, "", ",", tc ? "," : "", true);
+            }
+            out << ")";
+        }
+        else {
+            out << Detail::print(x.arguments, "(", ";", ")", true);
+        }
+    }
     return out;
 }
 

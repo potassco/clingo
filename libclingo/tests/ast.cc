@@ -165,8 +165,10 @@ TEST_CASE("parse-ast", "[clingo]") {
         REQUIRE(parse("p((a^b)).") == "p((a^b)).");
         REQUIRE(parse("p(a..b).") == "p((a..b)).");
         REQUIRE(parse("p((),(1,),f(),f(1,2)).") == "p((),(1,),f,f(1,2)).");
-        REQUIRE(parse("p(a;b).") == "(p(a);p(b)).");
+        REQUIRE(parse("p(@f(a;b)).") == "p(@f(a;b)).");
+        REQUIRE(parse("p(a;b).") == "p(a;b).");
         REQUIRE(parse("p((a,;b)).") == "p(((a,);b)).");
+        REQUIRE(parse("p(((a,);b)).") == "p(((a,);b)).");
         REQUIRE(parse("1 $+ 3 $* $x $+ 7 $< 2 $< 3.") == "1$+3$*$x$+7$<2$<3.");
     }
     SECTION("theory terms") {
