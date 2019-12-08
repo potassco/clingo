@@ -133,7 +133,7 @@ TEST_CASE("parse-ast", "[clingo]") {
     SECTION("head literal") {
         REQUIRE(parse("a.") == "a.");
         REQUIRE(parse("a:b.") == "a : b.");
-        REQUIRE(parse("a:b,c;d.") == "d : ; a : b, c.");
+        REQUIRE(parse("a:b,c;d.") == "a : b, c; d : .");
         REQUIRE(parse("1{a:b,c;e}2.") == "1 <= { a : b, c; e :  } <= 2.");
         REQUIRE(parse("{a:b,c;e}2.") == "2 >= { a : b, c; e :  }.");
         REQUIRE(parse("1#min{1,2:h:b,c;1:e}2.") == "1 <= #min { 1,2 : h : b, c; 1 : e :  } <= 2.");

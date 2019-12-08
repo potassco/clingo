@@ -1144,23 +1144,25 @@ TEST_CASE("input-nongroundprogrambuilder", "[input]") {
         REQUIRE("#program base().\na:b." == parse("a:b."));
         REQUIRE("#program base().\na:b,c." == parse("a:b,c."));
         // literal COMMA disjunctionsep literal optcondition
-        REQUIRE("#program base().\nb:;c:;a:." == parse("a,b,c."));
-        REQUIRE("#program base().\nb:;c:;d:;a:." == parse("a,b;c;d."));
-        REQUIRE("#program base().\nb:;c:d,e;a:." == parse("a,b,c:d,e."));
-        REQUIRE("#program base().\nb:d,e;c:;a:." == parse("a,b:d,e;c."));
+        REQUIRE("#program base().\na:;b:;c:." == parse("a,b,c."));
+        REQUIRE("#program base().\na:;b:;c:;d:." == parse("a,b;c;d."));
+        REQUIRE("#program base().\na:;b:;c:d,e." == parse("a,b,c:d,e."));
+        REQUIRE("#program base().\na:;b:d,e;c:." == parse("a,b:d,e;c."));
         // literal SEM disjunctionsep literal optcondition
-        REQUIRE("#program base().\nb:;c:;a:." == parse("a;b,c."));
-        REQUIRE("#program base().\nb:;c:;d:;a:." == parse("a;b;c;d."));
-        REQUIRE("#program base().\nb:;c:d,e;a:." == parse("a;b,c:d,e."));
-        REQUIRE("#program base().\nb:d,e;c:;a:." == parse("a;b:d,e;c."));
+        REQUIRE("#program base().\na:;b:;c:." == parse("a;b,c."));
+        REQUIRE("#program base().\na:;b:;c:;d:." == parse("a;b;c;d."));
+        REQUIRE("#program base().\na:;b:;c:d,e." == parse("a;b,c:d,e."));
+        REQUIRE("#program base().\na:;b:d,e;c:." == parse("a;b:d,e;c."));
         // literal COLON litvec SEM disjunctionsep literal optcondition
-        REQUIRE("#program base().\nc:;a:." == parse("a;c."));
-        REQUIRE("#program base().\nc:;a:x." == parse("a:x;c."));
-        REQUIRE("#program base().\nc:;a:x,y." == parse("a:x,y;c."));
-        REQUIRE("#program base().\nb:;c:;a:x,y." == parse("a:x,y;b,c."));
-        REQUIRE("#program base().\nb:;c:;d:;a:x,y." == parse("a:x,y;b;c;d."));
-        REQUIRE("#program base().\nb:;c:d,e;a:x,y." == parse("a:x,y;b,c:d,e."));
-        REQUIRE("#program base().\nb:d,e;c:;a:x,y." == parse("a:x,y;b:d,e;c."));
+        REQUIRE("#program base().\na:;c:." == parse("a;c."));
+        REQUIRE("#program base().\na:x;c:." == parse("a:x;c."));
+        REQUIRE("#program base().\na:x,y;c:." == parse("a:x,y;c."));
+        REQUIRE("#program base().\na:x,y;b:;c:." == parse("a:x,y;b,c."));
+        REQUIRE("#program base().\na:x,y;b:;c:;d:." == parse("a:x,y;b;c;d."));
+        REQUIRE("#program base().\na:x,y;b:;c:d,e." == parse("a:x,y;b,c:d,e."));
+        REQUIRE("#program base().\na:x,y;b:d,e;c:." == parse("a:x,y;b:d,e;c."));
+        // empty condition
+        REQUIRE("#program base().\na:;b:;c:." == parse("a:;b:;c:."));
     }
 
     SECTION("external") {
@@ -1190,7 +1192,7 @@ TEST_CASE("input-nongroundprogrambuilder", "[input]") {
         REQUIRE("#program base().\n#count{}." == parse("{}."));
         REQUIRE("#program base().\nnott<=#count{}." == parse("nott{}."));
         // disjunction
-        REQUIRE("#program base().\nb:;a:." == parse("a,b."));
+        REQUIRE("#program base().\na:;b:." == parse("a,b."));
         // rules
         REQUIRE("#program base().\na." == parse("a."));
         REQUIRE("#program base().\na:-b." == parse("a:-b."));

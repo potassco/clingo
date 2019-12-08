@@ -678,18 +678,22 @@ dsym
     | VBAR
     ;
 
+// NOTE: this is so complicated because VBAR is also used as the absolute function for terms
+//       due to limited lookahead I found no reasonable way to parse p(X):|q(X)
 disjunctionsep
     : disjunctionsep[vec] literal[lit] COMMA                    { $$ = BUILDER.condlitvec($vec, $lit, BUILDER.litvec()); }
-    | disjunctionsep[vec] literal[lit] noptcondition[cond] dsym { $$ = BUILDER.condlitvec($vec, $lit, $cond); }
-    |                                                           { $$ = BUILDER.condlitvec(); }
+    | disjunctionsep[vec] literal[lit] dsym                     { $$ = BUILDER.condlitvec($vec, $lit, BUILDER.litvec()); }
+    | disjunctionsep[vec] literal[lit] COLON SEM                { $$ = BUILDER.condlitvec($vec, $lit, BUILDER.litvec()); }
+    | disjunctionsep[vec] literal[lit] COLON nlitvec[cond] dsym { $$ = BUILDER.condlitvec($vec, $lit, $cond); }
+    | literal[lit] COMMA                                        { $$ = BUILDER.condlitvec(BUILDER.condlitvec(), $lit, BUILDER.litvec()); }
+    | literal[lit] dsym                                         { $$ = BUILDER.condlitvec(BUILDER.condlitvec(), $lit, BUILDER.litvec()); }
+    | literal[lit] COLON nlitvec[cond] dsym                     { $$ = BUILDER.condlitvec(BUILDER.condlitvec(), $lit, $cond); }
+    | literal[lit] COLON SEM                                    { $$ = BUILDER.condlitvec(BUILDER.condlitvec(), $lit, BUILDER.litvec()); }
     ;
 
-// Note: for simplicity appending first condlit here
 disjunction
-    : literal[lit] COMMA  disjunctionsep[vec] literal[clit] noptcondition[ccond]                    { $$ = BUILDER.condlitvec(BUILDER.condlitvec($vec, $clit, $ccond), $lit, BUILDER.litvec()); }
-    | literal[lit] dsym    disjunctionsep[vec] literal[clit] noptcondition[ccond]                   { $$ = BUILDER.condlitvec(BUILDER.condlitvec($vec, $clit, $ccond), $lit, BUILDER.litvec()); }
-    | literal[lit]  COLON nlitvec[cond] dsym disjunctionsep[vec] literal[clit] noptcondition[ccond] { $$ = BUILDER.condlitvec(BUILDER.condlitvec($vec, $clit, $ccond), $lit, $cond); }
-    | literal[clit] COLON nlitvec[ccond]                                                            { $$ = BUILDER.condlitvec(BUILDER.condlitvec(), $clit, $ccond); }
+    : disjunctionsep[vec] literal[lit] optcondition[cond] { $$ = BUILDER.condlitvec($vec, $lit, $cond); }
+    | literal[lit] COLON litvec[cond]                     { $$ = BUILDER.condlitvec(BUILDER.condlitvec(), $lit, $cond); }
     ;
 
 // {{{1 statements

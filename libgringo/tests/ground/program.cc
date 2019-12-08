@@ -182,7 +182,7 @@ TEST_CASE("ground-program", "[ground]") {
             "#complete(#d0(B,Y,X)):-[#d0(B,Y,X)!].\n"
             "% component\n"
             "a(B,Y);q(A):-#complete(#d0(B,Y,X))!" ==
-            toString(parse("q(A):r(A,X);a(B,Y):-p(X,Y,Z).")));
+            toString(parse("a(B,Y);q(A):r(A,X):-p(X,Y,Z).")));
         REQUIRE(
             "% component\n"
             "#d0(B,Y,X):-p(X,Y,Z).\n"
@@ -194,7 +194,7 @@ TEST_CASE("ground-program", "[ground]") {
             "#complete(#d0(B,Y,X)):-[#d0(B,Y,X)!].\n"
             "% component\n"
             "a(B,Y);#false:X<=1;#false:not not q(A):-#complete(#d0(B,Y,X))!" ==
-            toString(parse("not q(A):r(A,X);a(B,Y);X>1:q(X):-p(X,Y,Z).")));
+            toString(parse("a(B,Y);X>1:q(X);not q(A):r(A,X):-p(X,Y,Z).")));
         REQUIRE(
             "% positive component\n"
             "#accu(#d0(Z,X,Y),tuple(#special)):-[p(X,Y,Z)],0>Z.\n"
