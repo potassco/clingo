@@ -1,5 +1,17 @@
 # Changes
 
+## clingo 5.4.1
+  * improve string representation of AST (#171)
+  * improve parsing of disjunctions (#171)
+  * improve getting description of configuration entries (#174)
+  * improve propagate init interfaces with methods to add weight constraints,
+    minimize constraints, and perform propagation (#183)
+  * fix propagator initialization (#166)
+  * fix cleanup function and handling of theory (#169)
+  * fix shifting of disjunctions (in clasp) (#173)
+  * fix handling of pools in externals (#179)
+  * fix logger in Python API (#175)
+  * update to clasp version 3.3.6 fixing various issues
 ## clingo 5.4.0
   * add extension to implement custom heuristics
   * add const modifiers to C API
