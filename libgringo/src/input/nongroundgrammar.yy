@@ -182,7 +182,7 @@ void NonGroundGrammar::parser::error(DefaultLocation const &l, std::string const
 %type <termvec>         termvec ntermvec consttermvec unaryargvec optimizetuple tuplevec tuplevec_sem
 %type <termvecvec>      argvec constargvec binaryargvec
 %type <lit>             literal
-%type <litvec>          litvec nlitvec optcondition noptcondition
+%type <litvec>          litvec nlitvec optcondition
 %type <bodyaggrelem>    bodyaggrelem
 %type <lbodyaggrelem>   altbodyaggrelem conjunction
 %type <bodyaggrelemvec> bodyaggrelemvec
@@ -557,11 +557,6 @@ litvec
 optcondition
     : COLON litvec[vec] { $$ = $vec; }
     |                   { $$ = BUILDER.litvec(); }
-    ;
-
-noptcondition
-    : COLON nlitvec[vec] { $$ = $vec; }
-    |                    { $$ = BUILDER.litvec(); }
     ;
 
 aggregatefunction
