@@ -19,17 +19,15 @@ class Constraint:
 
     def __init__(self, atom):
         if len(atom.guard[1].arguments) > 0:
-            self.__rhs = -atom.guard[1].arguments[0].number
+            self.rhs = -atom.guard[1].arguments[0].number
         else:
-            self.__rhs = weight = atom.guard[1].number
-        self.__vars = []
+            self.rhs = weight = atom.guard[1].number
+        self.vars = []
         for i in atom.elements:
-            self.__vars += self.parse(i.terms[0])
+            self.vars += self.parse(i.terms[0])
 
     def __str__(self):
-        return "{} <= {}".format(self.__vars,self.__rhs)
-    def vars(self):
-        return self.__vars
+        return "{} <= {}".format(self.vars,self.rhs)
        
 class State:
        def __init__(self):
@@ -83,8 +81,22 @@ class State:
                self.__ub[v] = self.__ub[v][:dl]
                self.__lb[v] = self.__lb[v][:dl]
            self.__dl = dl-1
-       def propagate_true(self, c):
-           return []
+       def propagate_true(self, l, c, control):
+           clauses = []
+           for (a,v) in c.vars:
+               lb = c.rhs
+               lbs = []
+               for (x,var) in c.vars:
+                   if (a,v) != (x,var):
+                       lb -= x*self.lb(var)
+                       if self.lb(var) > min_int:
+                           lbs.append((self.__varval2orderlit[var][x-1]))
+               ub = max(min(math.floor(lb/a),max_int),min_int)
+               if self.__varval2orderlit[v][ub] == None:
+                   self.__varval2orderlit[v][ub] = control.add_literal()
+               lit = self.__varval2orderlit[v][ub]
+               clauses.append([-l,lit,]+lbs)        
+           return clauses
        def propagate_false(self, c):
            return []
        def propagate_free(self, c):
@@ -135,7 +147,7 @@ class Propagator:
                 lit = init.solver_literal(atom.literal)
                 self.__l2c.setdefault(lit, []).append(c)
                 self.__c2l.setdefault(c, []).append(lit)
-                for (a,v) in c.vars():
+                for (a,v) in c.vars:
                     self.__vars.add(v)
         true_lit = init.add_literal()
         init.add_clause([true_lit])
@@ -162,17 +174,19 @@ class Propagator:
             return
         while (change):
             change = False
-            for l,c in self.__l2c.items(): # bad?
-                if control.assignment.is_false(l):
-                    cl = state.propagate_false(c)
-                if control.assignment.is_true(l):
-                    cl = state.propagate_true(c)
-                if not control.assignment.is_fixed(l):
-                    cl = state.propagate_free(c)
-                for clause in cl:
-                    change = True
-                    if not control.add_clause(clause):
-                        return
+            for l,cl in self.__l2c.items(): # bad?
+                for c in cl:
+                    if control.assignment.is_false(l):
+                        cl = state.propagate_false(c)
+                    if control.assignment.is_true(l):
+                        cl = state.propagate_true(l,c,control)
+                    if not control.assignment.is_fixed(l):
+                       cl = state.propagate_free(c)
+                    for clause in cl:
+                        change = True
+                        print(clause)
+                        if not control.add_clause(clause):
+                            return
             if not control.propagate():
                 return
             if not state.propagate_orderlits(control):
