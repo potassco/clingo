@@ -1,7 +1,7 @@
 import clingo, math
 
-max_int = 100
-min_int = -100
+max_int = 10
+min_int = -10
 offset = 0-min_int
 
 class Constraint:
@@ -60,26 +60,28 @@ class State:
            self.__dl = dl
        def propagate_orderlits(self, control):
            for v in self.__varval2orderlit:
-               print(self.__varval2orderlit[v])
-               print(self.__ub[v])
-               print(self.__lb[v])
                lb_lit = (self.__varval2orderlit[v][self.lb(v)-1+offset])
                for value in range(min_int+1,self.lb(v)):
                    if self.__varval2orderlit[v][value-1+offset] != None:
                        if not control.add_clause([lb_lit,-self.__varval2orderlit[v][value-1+offset]]):
+                           print("Clause {}<={}, {}>{} failed".format(v,self.lb(v)-1,v,value))
                            return False
+                       print("Clause {}<={}, {}>{} posted".format(v,self.lb(v)-1,v,value))
                assert self.__varval2orderlit[v][self.ub(v)+offset] != None
                ub_lit = self.__varval2orderlit[v][self.ub(v)+offset]
                for value in range(self.ub(v)+1, max_int):
-                   if self.__varvar2orderlit(v)[value+offset] != None:
-                       if not control.add_clause([-ub_lit,self.__varvar2orderlit(v)[value+offset]]):
+                   if self.__varval2orderlit[v][value+offset] != None:
+                       if not control.add_clause([-ub_lit,self.__varval2orderlit[v][value+offset]]):
+                           print("Clause {}>{}, {}<={} failed".format(v,self.ub(v),v,value))
                            return False
+                       print("Clause {}>{}, {}<={} posted".format(v,self.ub(v),v,value))
            return True
 
        def backtrack(self, dl):
            print("backtrack dl", dl)
-           self.__ub = self.__ub[:dl]
-           self.__lb = self.__lb[:dl]
+           for v in self.__ub:
+               self.__ub[v] = self.__ub[v][:dl]
+               self.__lb[v] = self.__lb[v][:dl]
            self.__dl = dl-1
        def propagate_true(self, c):
            return []
@@ -92,20 +94,26 @@ class State:
        def ub(self, var):
            return self.__ub[var][self.__dl]
        def set_literal(self, var, value, lit):
+           print("Added Literal {}<={} =:= {}".format(var, value, lit))
            self.__varval2orderlit[var][value+offset] = lit
            self.__orderlit2varval.setdefault(lit, []).append((var,value))
        def update_domain(self, order_lit): #literal is always true, may need negation to be found
            if order_lit in self.__orderlit2varval:
                for (var,value) in self.__orderlit2varval[order_lit]:
-                   if self.ub(var) >= value:
+                   if self.ub(var) > value:
+                       print("New upper bound {}<={}".format(var, value))
                        self.__ub[var][self.__dl] = value
+                   else:
+                       print("Old upper bound {}<={}".format(var, value))
+                       
            else:
                assert (-order_lit in self.__orderlit2varval)
                for (var,value) in self.__orderlit2varval[-order_lit]:
-                   if self.lb(var) <= value:
-                       self.__lb[var][self.__dl] = value
-           
-          
+                   if self.lb(var) < value+1:
+                       print("New lower bound {}>={}".format(var, value+1))
+                       self.__lb[var][self.__dl] = value+1
+                   else:
+                       print("Old lower bound {}>={}".format(var, value+1))
 
 class Propagator:
     def __init__(self):
@@ -138,12 +146,15 @@ class Propagator:
 
 #                init.add_watch(lit)
     def propagate(self, control, changes):
+        print("Propagate: {} on dl {}".format(changes, control.assignment.decision_level))
         s = self.__state(control.thread_id)
+        s.set_dl(control.assignment.decision_level)
         for i in changes:
             s.update_domain(i)
 
 
     def check(self, control):
+        print("Check:")
         change = True
         state = self.__state(control.thread_id)
         state.set_dl(control.assignment.decision_level)
@@ -170,10 +181,12 @@ class Propagator:
             return self.check_full(control)
         return
     def check_full(self, control):
+        print("Check Full:")
         s = self.__state(control.thread_id)
         for v in self.__vars:
             if s.lb(v) != s.ub(v):
                 l = control.add_literal()
+                print("Lower {} and upper {} with new {}".format(s.lb(v), s.ub(v), s.lb(v)+ math.floor((s.ub(v)-s.lb(v))/2)))
                 s.set_literal(v,s.lb(v)+ math.floor((s.ub(v)-s.lb(v))/2), l)
                 control.add_watch(l)
                 control.add_watch(-l)
