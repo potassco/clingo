@@ -1,29 +1,53 @@
-import clingo, math
+import math
+import clingo
 
-max_int = 10
-min_int = -10
-offset = 0-min_int
+MAX_INT = 10
+MIN_INT = -10
+OFFSET = 0-MIN_INT
+
+def match(term, name, arity):
+    return (term.type == clingo.TheoryTermType.Function and
+            term.name == name and
+            len(term.arguments) == arity)
+
 
 class Constraint(object):
-    def parse(self, term):
+    def __init__(self, atom):
+        self.rhs = self._parse_num(atom.guard[1])
+        self.vars = list(self._parse_elems(atom.elements))
+
+    def _parse_elems(self, elems):
+        for elem in elems:
+            if len(elem.terms) == 1 and len(elem.condition) == 0:
+                # python 3 has yield from
+                for x in self._parse_elem(elem.terms[0]): yield x
+            else:
+                raise RuntimeError("Invalid Syntax")
+
+    def _parse_elem(self, term):
+        if match(term, "+", 2):
+            for x in self._parse_elem(term.arguments[0]): yield x
+            for x in self._parse_elem(term.arguments[1]): yield x
+        elif match(term, "*", 2):
+            yield self._parse_num(term.arguments[0]), self._parse_var(term.arguments[1])
+        else:
+            raise RuntimeError("Invalid Syntax")
+
+    def _parse_num(self, term):
         if term.type == clingo.TheoryTermType.Number:
             return term.number
-        if term.type == clingo.TheoryTermType.Function:
-            if term.name == "+":
-                return self.parse(term.arguments[0]) + self.parse(term.arguments[1])
-            if term.name == "*":
-                return [(self.parse(term.arguments[0]), str(term.arguments[1]))]
-            if term.name == "-":
-                return -1*term.arguments[0].number
-
-    def __init__(self, atom):
-        if len(atom.guard[1].arguments) > 0:
-            self.rhs = -atom.guard[1].arguments[0].number
+        elif (term.type == clingo.TheoryTermType.Symbol and
+                term.symbol.type == clingo.SymbolType.Number):
+            return term.symbol.number
+        elif match(term, "-", 1):
+            return -self._parse_num(term.arguments[0])
+        elif match(term, "+", 1):
+            return +self._parse_num(term.arguments[0])
         else:
-            self.rhs = atom.guard[1].number
-        self.vars = []
-        for i in atom.elements:
-            self.vars += self.parse(i.terms[0])
+            raise RuntimeError("Invalid Syntax")
+
+    def _parse_var(self, term):
+        return str(term)
 
     def __str__(self):
         return "{} <= {}".format(self.vars, self.rhs)
@@ -43,10 +67,10 @@ class State(object):
     def init_domain(self, variables, true_lit):
         self.__dl = 0
         for v in variables:
-            self.__ub.setdefault(v, []).append(max_int)
-            self.__lb.setdefault(v, []).append(min_int)
-            self.__varval2orderlit[v] = [None]*(max_int-min_int+1)
-            self.set_literal(v, max_int, true_lit)
+            self.__ub.setdefault(v, []).append(MAX_INT)
+            self.__lb.setdefault(v, []).append(MIN_INT)
+            self.__varval2orderlit[v] = [None]*(MAX_INT-MIN_INT+1)
+            self.set_literal(v, MAX_INT, true_lit)
 
     def set_dl(self, dl):
         self.backtrack(dl+1)
@@ -62,14 +86,14 @@ class State(object):
     def propagate_orderlits(self, control):
         for v in self.__varval2orderlit:
             lb_lit = self.get_literal(v, self.lb(v)-1, control)
-            for value in range(min_int+1, self.lb(v)):
+            for value in range(MIN_INT+1, self.lb(v)):
                 if (self.has_literal(v, value-1) and
                         not control.assignment.is_true(-self.get_literal(v, value-1, control)) and
                         not control.add_clause([lb_lit, -self.get_literal(v, value-1, control)])):
                     return False
             assert self.has_literal(v, self.ub(v))
             ub_lit = self.get_literal(v, self.ub(v), control)
-            for value in range(self.ub(v)+1, max_int):
+            for value in range(self.ub(v)+1, MAX_INT):
                 if (self.has_literal(v, value) and
                         not control.assignment.is_true(self.get_literal(v, value, control)) and
                         not control.add_clause([-ub_lit, self.get_literal(v, value, control)])):
@@ -93,7 +117,7 @@ class State(object):
                 if (a, v) != (x, var):
                     if x > 0:
                         bound -= x*self.lb(var)
-                        if self.lb(var) > min_int:
+                        if self.lb(var) > MIN_INT:
                             assert self.has_literal(var, self.lb(var)-1)
                             lbs.append(self.get_literal(var, self.lb(var)-1, control))
 
@@ -102,10 +126,10 @@ class State(object):
                         lbs.append(self.get_literal(var, self.ub(var), control))
 
             if a > 0:
-                ub = max(min(int(math.floor(bound/a)),max_int), min_int)
+                ub = max(min(int(math.floor(bound/a)),MAX_INT), MIN_INT)
                 lit = self.get_literal(v, ub, control)
             else:
-                lb = max(min(int(bound/a), max_int), min_int)
+                lb = max(min(int(bound/a), MAX_INT), MIN_INT)
                 lit = -self.get_literal(v, lb-1, control)
 
             if (not any(control.assignment.is_true(x) for x in lbs) and
@@ -120,19 +144,19 @@ class State(object):
         return self.__ub[var][self.__dl]
 
     def has_literal(self, var, value):
-        return self.__varval2orderlit[var][value+offset] is not None
+        return self.__varval2orderlit[var][value+OFFSET] is not None
 
     def set_literal(self, var, value, lit):
-        self.__varval2orderlit[var][value+offset] = lit
+        self.__varval2orderlit[var][value+OFFSET] = lit
         self.__orderlit2varval.setdefault(lit, []).append((var, value))
 
     def get_literal(self, var, value, control):
-        if self.__varval2orderlit[var][value+offset] is None:
+        if self.__varval2orderlit[var][value+OFFSET] is None:
             lit = control.add_literal()
             self.set_literal(var, value, lit)
             control.add_watch(lit)
             control.add_watch(-lit)
-        return self.__varval2orderlit[var][value+offset]
+        return self.__varval2orderlit[var][value+OFFSET]
 
     def update_domain(self, order_lit): #literal is always true, may need negation to be found
         if order_lit in self.__orderlit2varval:
