@@ -1,8 +1,8 @@
 import math
 import clingo
 
-MAX_INT = 10
-MIN_INT = -10
+MAX_INT = 20
+MIN_INT = -20
 OFFSET = 0-MIN_INT
 TRUE_LIT = 1
 
