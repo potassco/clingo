@@ -15,5 +15,5 @@ To check if a program with difference constraints is satisfiable, simply pass
 
 Finding all solutions for the flow shop problem:
 
-    $ clingo 0 csp.lp fsE.lp fsI.lp
+    $ clingo 0 -c bound=14 csp.lp fsE.lp fsI.lp
 
