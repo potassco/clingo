@@ -106,14 +106,14 @@ class State(object):
         self._litmap = {}
         self._levels = [0]
 
-    def state(self, var):
-        return self._var_state[var]
-
     def get_assignment(self, variables):
         vvs = zip(variables, self._vars)
         return [(v, vs.lower_bound) for v, vs in vvs if vs.lower_bound == vs.upper_bound]
 
-    def get_literal(self, vs, value, control, watch=True):
+    def _state(self, var):
+        return self._var_state[var]
+
+    def _get_literal(self, vs, value, control, watch=True):
         if not vs.has_literal(value):
             lit = TRUE_LIT if control is None else control.add_literal()
             vs.literals[value - MIN_INT] = lit
@@ -128,7 +128,7 @@ class State(object):
         for v in variables:
             vs = VarState()
             self._var_state[v] = vs
-            self.get_literal(vs, MAX_INT, None, False)
+            self._get_literal(vs, MAX_INT, None, False)
             self._vars.append(vs)
 
     # propagation
@@ -140,10 +140,10 @@ class State(object):
                 vs.push()
             self._levels.append(dl)
         for i in changes:
-            self.update_domain(i)
+            self._update_domain(i)
 
     #literal is always true, may need negation to be found
-    def update_domain(self, order_lit):
+    def _update_domain(self, order_lit):
         if order_lit in self._litmap:
             for vs, value in self._litmap[order_lit]:
                 if vs.upper_bound > value:
@@ -161,26 +161,26 @@ class State(object):
             lbs = []
             for co_b, var_b in c.vars:
                 if (co_a, var_a) != (co_b, var_b):
-                    vs_b = self.state(var_b)
+                    vs_b = self._state(var_b)
                     if co_b > 0:
                         bound -= co_b*vs_b.lower_bound
                         if vs_b.lower_bound > MIN_INT:
                             assert vs_b.has_literal(vs_b.lower_bound-1)
-                            lbs.append(self.get_literal(vs_b, vs_b.lower_bound-1, control))
+                            lbs.append(self._get_literal(vs_b, vs_b.lower_bound-1, control))
 
                     else:
                         bound -= co_b*vs_b.upper_bound
-                        lbs.append(self.get_literal(vs_b, vs_b.upper_bound, control))
+                        lbs.append(self._get_literal(vs_b, vs_b.upper_bound, control))
 
-            vs_a = self.state(var_a)
+            vs_a = self._state(var_a)
             if co_a > 0:
                 # NOTE: integer division with floor
                 value = clamp(bound//co_a)
-                lit = self.get_literal(vs_a, value, control)
+                lit = self._get_literal(vs_a, value, control)
             else:
                 # NOTE: integer division with ceil
                 value = clamp(-(bound//-co_a))
-                lit = -self.get_literal(vs_a, value-1, control)
+                lit = -self._get_literal(vs_a, value-1, control)
 
             if (not any(control.assignment.is_true(x) for x in lbs) and
                     not control.assignment.is_true(lit)):
@@ -189,18 +189,18 @@ class State(object):
 
     def propagate_orderlits(self, control):
         for vs in self._vars:
-            lb_lit = self.get_literal(vs, vs.lower_bound-1, control)
+            lb_lit = self._get_literal(vs, vs.lower_bound-1, control)
             for value in range(MIN_INT+1, vs.lower_bound):
                 if (vs.has_literal(value-1) and
-                        not control.assignment.is_true(-self.get_literal(vs, value-1, control)) and
-                        not control.add_clause([lb_lit, -self.get_literal(vs, value-1, control)])):
+                        not control.assignment.is_true(-self._get_literal(vs, value-1, control)) and
+                        not control.add_clause([lb_lit, -self._get_literal(vs, value-1, control)])):
                     return False
             assert vs.has_literal(vs.upper_bound)
-            ub_lit = self.get_literal(vs, vs.upper_bound, control)
+            ub_lit = self._get_literal(vs, vs.upper_bound, control)
             for value in range(vs.upper_bound+1, MAX_INT):
                 if (vs.has_literal(value) and
-                        not control.assignment.is_true(self.get_literal(vs, value, control)) and
-                        not control.add_clause([-ub_lit, self.get_literal(vs, value, control)])):
+                        not control.assignment.is_true(self._get_literal(vs, value, control)) and
+                        not control.add_clause([-ub_lit, self._get_literal(vs, value, control)])):
                     return False
         return True
 
@@ -215,21 +215,21 @@ class State(object):
         for vs in self._vars:
             if vs.lower_bound != vs.upper_bound:
                 value = lerp(vs.lower_bound, vs.upper_bound)
-                self.get_literal(vs, value, control)
+                self._get_literal(vs, value, control)
                 return
 
 
 class Propagator(object):
     def __init__(self):
-        self.__l2c = {}    # {literal: [Constraint]}
-        self.__c2l = {}    # {Constraint: [literal]}
-        self.__states = [] # [threadId : State]
-        self.__vars = []
+        self._l2c = {}    # {literal: [Constraint]}
+        self._c2l = {}    # {Constraint: [literal]}
+        self._states = [] # [threadId : State]
+        self._vars = []   # [str]
 
-    def __state(self, thread_id):
-        while len(self.__states) <= thread_id:
-            self.__states.append(State())
-        return self.__states[thread_id]
+    def _state(self, thread_id):
+        while len(self._states) <= thread_id:
+            self._states.append(State())
+        return self._states[thread_id]
 
     def init(self, init):
         init.check_mode = clingo.PropagatorCheckMode.Fixpoint
@@ -239,27 +239,27 @@ class Propagator(object):
             if match(atom.term, "sum", 0):
                 c = Constraint(atom)
                 lit = init.solver_literal(atom.literal)
-                self.__l2c.setdefault(lit, []).append(c)
-                self.__c2l.setdefault(c, []).append(lit)
+                self._l2c.setdefault(lit, []).append(c)
+                self._c2l.setdefault(c, []).append(lit)
                 for _, v in c.vars:
                     variables.add(v)
-        self.__vars = list(sorted(variables))
+        self._vars = list(sorted(variables))
 
-        for i in range(len(self.__states), init.number_of_threads):
-            self.__state(i).init_domain(self.__vars)
+        for i in range(len(self._states), init.number_of_threads):
+            self._state(i).init_domain(self._vars)
 
     def propagate(self, control, changes):
-        s = self.__state(control.thread_id)
+        state = self._state(control.thread_id)
         dl = control.assignment.decision_level
-        s.propagate(dl, changes)
+        state.propagate(dl, changes)
 
     def check(self, control):
         size = control.assignment.size
-        state = self.__state(control.thread_id)
+        state = self._state(control.thread_id)
         if not state.propagate_orderlits(control):
             return
         # FIXME: do not iterate over hashtable when order matters!
-        for l, constraints in self.__l2c.items():
+        for l, constraints in self._l2c.items():
             for c in constraints:
                 if control.assignment.is_true(l):
                     for clause in state.propagate_true(l, c, control):
@@ -274,7 +274,7 @@ class Propagator(object):
             state.check_full(control)
 
     def undo(self, thread_id, assign, changes):
-        self.__state(thread_id).undo()
+        self._state(thread_id).undo()
 
     def get_assignment(self, thread_id):
-        return self.__state(thread_id).get_assignment(self.__vars)
+        return self._state(thread_id).get_assignment(self._vars)
