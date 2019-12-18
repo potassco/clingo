@@ -6,6 +6,13 @@ MIN_INT = -20
 OFFSET = 0-MIN_INT
 TRUE_LIT = 1
 
+def clamp(x, l=MIN_INT, u=MAX_INT):
+    return min(max(x, l), u)
+
+def lerp(x, y):
+    # NOTE: integer division with floor
+    return x + (y - x) // 2
+
 def match(term, name, arity):
     return (term.type in (clingo.TheoryTermType.Function, clingo.TheoryTermType.Symbol) and
             term.name == name and
@@ -102,6 +109,10 @@ class State(object):
     def state(self, var):
         return self._var_state[var]
 
+    def get_assignment(self, variables):
+        vvs = zip(variables, self._vars)
+        return [(v, vs.lower_bound) for v, vs in vvs if vs.lower_bound == vs.upper_bound]
+
     def get_literal(self, vs, value, control, watch=True):
         if not vs.has_literal(value):
             lit = TRUE_LIT if control is None else control.add_literal()
@@ -114,24 +125,25 @@ class State(object):
 
     # initialization
     def init_domain(self, variables):
-        self._vars = variables
-        for v in self._vars:
+        for v in variables:
             vs = VarState()
             self._var_state[v] = vs
             self.get_literal(vs, MAX_INT, None, False)
+            self._vars.append(vs)
 
     # propagation
     def propagate(self, dl, changes):
         assert self._levels[-1] <= dl
         if self._levels[-1] < dl:
             # FIXME: not much effort to make lazy
-            for vs in map(self.state, self._vars):
+            for vs in self._vars:
                 vs.push()
             self._levels.append(dl)
         for i in changes:
             self.update_domain(i)
 
-    def update_domain(self, order_lit): #literal is always true, may need negation to be found
+    #literal is always true, may need negation to be found
+    def update_domain(self, order_lit):
         if order_lit in self._litmap:
             for vs, value in self._litmap[order_lit]:
                 if vs.upper_bound > value:
@@ -144,29 +156,31 @@ class State(object):
 
     def propagate_true(self, l, c, control):
         clauses = []
-        for a, v in c.vars:
+        for co_a, var_a in c.vars:
             bound = c.rhs
             lbs = []
-            for x, var in c.vars:
-                if (a, v) != (x, var):
-                    vs = self.state(var)
-                    if x > 0:
-                        bound -= x*vs.lower_bound
-                        if vs.lower_bound > MIN_INT:
-                            assert vs.has_literal(vs.lower_bound-1)
-                            lbs.append(self.get_literal(vs, vs.lower_bound-1, control))
+            for co_b, var_b in c.vars:
+                if (co_a, var_a) != (co_b, var_b):
+                    vs_b = self.state(var_b)
+                    if co_b > 0:
+                        bound -= co_b*vs_b.lower_bound
+                        if vs_b.lower_bound > MIN_INT:
+                            assert vs_b.has_literal(vs_b.lower_bound-1)
+                            lbs.append(self.get_literal(vs_b, vs_b.lower_bound-1, control))
 
                     else:
-                        bound -= x*vs.upper_bound
-                        lbs.append(self.get_literal(vs, vs.upper_bound, control))
+                        bound -= co_b*vs_b.upper_bound
+                        lbs.append(self.get_literal(vs_b, vs_b.upper_bound, control))
 
-            vs = self.state(v)
-            if a > 0:
-                ub = max(min(int(math.floor(bound/a)),MAX_INT), MIN_INT)
-                lit = self.get_literal(vs, ub, control)
+            vs_a = self.state(var_a)
+            if co_a > 0:
+                # NOTE: integer division with floor
+                value = clamp(bound//co_a)
+                lit = self.get_literal(vs_a, value, control)
             else:
-                lb = max(min(int(bound/a), MAX_INT), MIN_INT)
-                lit = -self.get_literal(vs, lb-1, control)
+                # NOTE: integer division with ceil
+                value = clamp(-(bound//-co_a))
+                lit = -self.get_literal(vs_a, value-1, control)
 
             if (not any(control.assignment.is_true(x) for x in lbs) and
                     not control.assignment.is_true(lit)):
@@ -174,7 +188,7 @@ class State(object):
         return clauses
 
     def propagate_orderlits(self, control):
-        for vs in map(self.state, self._vars):
+        for vs in self._vars:
             lb_lit = self.get_literal(vs, vs.lower_bound-1, control)
             for value in range(MIN_INT+1, vs.lower_bound):
                 if (vs.has_literal(value-1) and
@@ -192,9 +206,17 @@ class State(object):
 
     def undo(self):
         # FIXME: not much effort to make lazy
-        for v in self._vars:
-            self.state(v).pop()
+        for vs in self._vars:
+            vs.pop()
         self._levels.pop()
+
+    # checking
+    def check_full(self, control):
+        for vs in self._vars:
+            if vs.lower_bound != vs.upper_bound:
+                value = lerp(vs.lower_bound, vs.upper_bound)
+                self.get_literal(vs, value, control)
+                return
 
 
 class Propagator(object):
@@ -237,7 +259,7 @@ class Propagator(object):
         if not state.propagate_orderlits(control):
             return
         # FIXME: do not iterate over hashtable when order matters!
-        for l, constraints in self.__l2c.items(): # bad?
+        for l, constraints in self.__l2c.items():
             for c in constraints:
                 if control.assignment.is_true(l):
                     for clause in state.propagate_true(l, c, control):
@@ -247,21 +269,12 @@ class Propagator(object):
                 return
             if not state.propagate_orderlits(control):
                 return
-        if size == control.assignment.size and control.assignment.is_total: # first condition ensures that wait for propagate first to update our domains
-            self.check_full(control)
-
-    def check_full(self, control):
-        s = self.__state(control.thread_id)
-        for v in self.__vars:
-            vs = s.state(v)
-            if vs.lower_bound != vs.upper_bound:
-                s.get_literal(vs, vs.lower_bound+int(math.floor((vs.upper_bound-vs.lower_bound)/2)), control)
-                return
+        # first condition ensures that wait for propagate first to update our domains
+        if size == control.assignment.size and control.assignment.is_total:
+            state.check_full(control)
 
     def undo(self, thread_id, assign, changes):
         self.__state(thread_id).undo()
 
     def get_assignment(self, thread_id):
-        s = self.__state(thread_id)
-        vvs = ((x, s.state(x)) for x in self.__vars)
-        return [(v, vs.lower_bound) for v, vs in vvs if vs.lower_bound == vs.upper_bound]
+        return self.__state(thread_id).get_assignment(self.__vars)
