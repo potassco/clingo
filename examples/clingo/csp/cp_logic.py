@@ -60,36 +60,34 @@ class Constraint(object):
 
 class VarState(object):
     def __init__(self):
-        self.upper_bound = [MAX_INT]
-        self.lower_bound = [MIN_INT]
+        self._upper_bound = [MAX_INT]
+        self._lower_bound = [MIN_INT]
         # FIXME: needs better container
         self.literals = (MAX_INT-MIN_INT+1)*[None]
 
     def push(self):
-        self.lower_bound.append(self.get_lb())
-        self.upper_bound.append(self.get_ub())
+        self._lower_bound.append(self.lower_bound)
+        self._upper_bound.append(self.upper_bound)
 
     def pop(self):
-        self.lower_bound.pop()
-        self.upper_bound.pop()
+        self._lower_bound.pop()
+        self._upper_bound.pop()
 
-    def get_lb(self):
-        return self.lower_bound[-1]
+    @property
+    def lower_bound(self):
+        return self._lower_bound[-1]
 
-    def set_lb(self, value):
-        self.lower_bound[-1] = value
+    @lower_bound.setter
+    def lower_bound(self, value):
+        self._lower_bound[-1] = value
 
-    def get_ub(self):
-        return self.upper_bound[-1]
+    @property
+    def upper_bound(self):
+        return self._upper_bound[-1]
 
-    def set_ub(self, value):
-        self.upper_bound[-1] = value
-
-    def add_literal(self, value, lit):
-        self.literals[value - MIN_INT] = lit
-
-    def get_literal(self, value):
-        return self.literals[value - MIN_INT]
+    @upper_bound.setter
+    def upper_bound(self, value):
+        self._upper_bound[-1] = value
 
     def has_literal(self, value):
         return self.literals[value - MIN_INT] is not None
@@ -101,33 +99,21 @@ class State(object):
         self._litmap = {}
         self._levels = [0]
 
-    # getters/setters
-    def get_lb(self, var):
-        return self._var_state[var].get_lb()
-
-    def set_lb(self, var, value):
-        self._var_state[var].set_lb(value)
-
-    def get_ub(self, var):
-        return self._var_state[var].get_ub()
-
-    def set_ub(self, var, value):
-        self._var_state[var].set_ub(value)
-
-    def has_literal(self, var, value):
-        return self._var_state[var].has_literal(value)
+    def state(self, var):
+        return self._var_state[var]
 
     def add_literal(self, var, value, lit):
         self._litmap.setdefault(lit, []).append((var, value))
-        self._var_state[var].add_literal(value, lit)
+        self.state(var).literals[value - MIN_INT] = lit
 
     def get_literal(self, var, value, control):
-        if not self._var_state[var].has_literal(value):
+        vs = self.state(var)
+        if not vs.has_literal(value):
             lit = control.add_literal()
             self.add_literal(var, value, lit)
             control.add_watch(lit)
             control.add_watch(-lit)
-        return self._var_state[var].get_literal(value)
+        return vs.literals[value - MIN_INT]
 
     # initialization
     def init_domain(self, variables):
@@ -150,13 +136,15 @@ class State(object):
     def update_domain(self, order_lit): #literal is always true, may need negation to be found
         if order_lit in self._litmap:
             for var, value in self._litmap[order_lit]:
-                if self.get_ub(var) > value:
-                    self.set_ub(var, value)
+                vs = self.state(var)
+                if vs.upper_bound > value:
+                    vs.upper_bound = value
         else:
             assert -order_lit in self._litmap
             for var, value in self._litmap[-order_lit]:
-                if self.get_lb(var) < value+1:
-                    self.set_lb(var, value+1)
+                vs = self.state(var)
+                if vs.lower_bound < value+1:
+                    vs.lower_bound = value+1
 
     def propagate_true(self, l, c, control):
         clauses = []
@@ -165,15 +153,16 @@ class State(object):
             lbs = []
             for x, var in c.vars:
                 if (a, v) != (x, var):
+                    vs = self.state(var)
                     if x > 0:
-                        bound -= x*self.get_lb(var)
-                        if self.get_lb(var) > MIN_INT:
-                            assert self.has_literal(var, self.get_lb(var)-1)
-                            lbs.append(self.get_literal(var, self.get_lb(var)-1, control))
+                        bound -= x*vs.lower_bound
+                        if vs.lower_bound > MIN_INT:
+                            assert vs.has_literal(vs.lower_bound-1)
+                            lbs.append(self.get_literal(var, vs.lower_bound-1, control))
 
                     else:
-                        bound -= x*self.get_ub(var)
-                        lbs.append(self.get_literal(var, self.get_ub(var), control))
+                        bound -= x*vs.upper_bound
+                        lbs.append(self.get_literal(var, vs.upper_bound, control))
 
             if a > 0:
                 ub = max(min(int(math.floor(bound/a)),MAX_INT), MIN_INT)
@@ -189,16 +178,17 @@ class State(object):
 
     def propagate_orderlits(self, control):
         for v in self._vars:
-            lb_lit = self.get_literal(v, self.get_lb(v)-1, control)
-            for value in range(MIN_INT+1, self.get_lb(v)):
-                if (self.has_literal(v, value-1) and
+            vs = self.state(v)
+            lb_lit = self.get_literal(v, vs.lower_bound-1, control)
+            for value in range(MIN_INT+1, vs.lower_bound):
+                if (vs.has_literal(value-1) and
                         not control.assignment.is_true(-self.get_literal(v, value-1, control)) and
                         not control.add_clause([lb_lit, -self.get_literal(v, value-1, control)])):
                     return False
-            assert self.has_literal(v, self.get_ub(v))
-            ub_lit = self.get_literal(v, self.get_ub(v), control)
-            for value in range(self.get_ub(v)+1, MAX_INT):
-                if (self.has_literal(v, value) and
+            assert vs.has_literal(vs.upper_bound)
+            ub_lit = self.get_literal(v, vs.upper_bound, control)
+            for value in range(vs.upper_bound+1, MAX_INT):
+                if (vs.has_literal(value) and
                         not control.assignment.is_true(self.get_literal(v, value, control)) and
                         not control.add_clause([-ub_lit, self.get_literal(v, value, control)])):
                     return False
@@ -207,7 +197,7 @@ class State(object):
     def undo(self):
         # FIXME: not much effort to make lazy
         for v in self._vars:
-            self._var_state[v].pop()
+            self.state(v).pop()
         self._levels.pop()
 
 
@@ -268,9 +258,10 @@ class Propagator(object):
     def check_full(self, control):
         s = self.__state(control.thread_id)
         for v in self.__vars:
-            if s.get_lb(v) != s.get_ub(v):
+            vs = s.state(v)
+            if vs.lower_bound != vs.upper_bound:
                 l = control.add_literal()
-                s.add_literal(v, s.get_lb(v)+int(math.floor((s.get_ub(v)-s.get_lb(v))/2)), l)
+                s.add_literal(v, vs.lower_bound+int(math.floor((vs.upper_bound-vs.lower_bound)/2)), l)
                 control.add_watch(l)
                 control.add_watch(-l)
                 return
@@ -280,4 +271,5 @@ class Propagator(object):
 
     def get_assignment(self, thread_id):
         s = self.__state(thread_id)
-        return [(str(x), s.get_lb(x)) for x in self.__vars if s.get_lb(x) == s.get_ub(x)]
+        vvs = ((x, s.state(x)) for x in self.__vars)
+        return [(v, vs.lower_bound) for v, vs in vvs if vs.lower_bound == vs.upper_bound]
