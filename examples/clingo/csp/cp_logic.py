@@ -7,7 +7,7 @@ OFFSET = 0-MIN_INT
 TRUE_LIT = 1
 
 def match(term, name, arity):
-    return (term.type == clingo.TheoryTermType.Function and
+    return (term.type in (clingo.TheoryTermType.Function, clingo.TheoryTermType.Symbol) and
             term.name == name and
             len(term.arguments) == arity)
 
@@ -102,47 +102,43 @@ class State(object):
     def state(self, var):
         return self._var_state[var]
 
-    def add_literal(self, var, value, lit):
-        self._litmap.setdefault(lit, []).append((var, value))
-        self.state(var).literals[value - MIN_INT] = lit
-
-    def get_literal(self, var, value, control):
-        vs = self.state(var)
+    def get_literal(self, vs, value, control, watch=True):
         if not vs.has_literal(value):
-            lit = control.add_literal()
-            self.add_literal(var, value, lit)
-            control.add_watch(lit)
-            control.add_watch(-lit)
+            lit = TRUE_LIT if control is None else control.add_literal()
+            vs.literals[value - MIN_INT] = lit
+            self._litmap.setdefault(lit, []).append((vs, value))
+            if watch:
+                control.add_watch(lit)
+                control.add_watch(-lit)
         return vs.literals[value - MIN_INT]
 
     # initialization
     def init_domain(self, variables):
         self._vars = variables
         for v in self._vars:
-            self._var_state[v] = VarState()
-            self.add_literal(v, MAX_INT, TRUE_LIT)
+            vs = VarState()
+            self._var_state[v] = vs
+            self.get_literal(vs, MAX_INT, None, False)
 
     # propagation
     def propagate(self, dl, changes):
         assert self._levels[-1] <= dl
         if self._levels[-1] < dl:
             # FIXME: not much effort to make lazy
-            for v in self._vars:
-                self._var_state[v].push()
+            for vs in map(self.state, self._vars):
+                vs.push()
             self._levels.append(dl)
         for i in changes:
             self.update_domain(i)
 
     def update_domain(self, order_lit): #literal is always true, may need negation to be found
         if order_lit in self._litmap:
-            for var, value in self._litmap[order_lit]:
-                vs = self.state(var)
+            for vs, value in self._litmap[order_lit]:
                 if vs.upper_bound > value:
                     vs.upper_bound = value
         else:
             assert -order_lit in self._litmap
-            for var, value in self._litmap[-order_lit]:
-                vs = self.state(var)
+            for vs, value in self._litmap[-order_lit]:
                 if vs.lower_bound < value+1:
                     vs.lower_bound = value+1
 
@@ -158,18 +154,19 @@ class State(object):
                         bound -= x*vs.lower_bound
                         if vs.lower_bound > MIN_INT:
                             assert vs.has_literal(vs.lower_bound-1)
-                            lbs.append(self.get_literal(var, vs.lower_bound-1, control))
+                            lbs.append(self.get_literal(vs, vs.lower_bound-1, control))
 
                     else:
                         bound -= x*vs.upper_bound
-                        lbs.append(self.get_literal(var, vs.upper_bound, control))
+                        lbs.append(self.get_literal(vs, vs.upper_bound, control))
 
+            vs = self.state(v)
             if a > 0:
                 ub = max(min(int(math.floor(bound/a)),MAX_INT), MIN_INT)
-                lit = self.get_literal(v, ub, control)
+                lit = self.get_literal(vs, ub, control)
             else:
                 lb = max(min(int(bound/a), MAX_INT), MIN_INT)
-                lit = -self.get_literal(v, lb-1, control)
+                lit = -self.get_literal(vs, lb-1, control)
 
             if (not any(control.assignment.is_true(x) for x in lbs) and
                     not control.assignment.is_true(lit)):
@@ -177,20 +174,19 @@ class State(object):
         return clauses
 
     def propagate_orderlits(self, control):
-        for v in self._vars:
-            vs = self.state(v)
-            lb_lit = self.get_literal(v, vs.lower_bound-1, control)
+        for vs in map(self.state, self._vars):
+            lb_lit = self.get_literal(vs, vs.lower_bound-1, control)
             for value in range(MIN_INT+1, vs.lower_bound):
                 if (vs.has_literal(value-1) and
-                        not control.assignment.is_true(-self.get_literal(v, value-1, control)) and
-                        not control.add_clause([lb_lit, -self.get_literal(v, value-1, control)])):
+                        not control.assignment.is_true(-self.get_literal(vs, value-1, control)) and
+                        not control.add_clause([lb_lit, -self.get_literal(vs, value-1, control)])):
                     return False
             assert vs.has_literal(vs.upper_bound)
-            ub_lit = self.get_literal(v, vs.upper_bound, control)
+            ub_lit = self.get_literal(vs, vs.upper_bound, control)
             for value in range(vs.upper_bound+1, MAX_INT):
                 if (vs.has_literal(value) and
-                        not control.assignment.is_true(self.get_literal(v, value, control)) and
-                        not control.add_clause([-ub_lit, self.get_literal(v, value, control)])):
+                        not control.assignment.is_true(self.get_literal(vs, value, control)) and
+                        not control.add_clause([-ub_lit, self.get_literal(vs, value, control)])):
                     return False
         return True
 
@@ -218,8 +214,7 @@ class Propagator(object):
 
         variables = set()
         for atom in init.theory_atoms:
-            term = atom.term
-            if term.name == "sum" and len(term.arguments) == 0:
+            if match(atom.term, "sum", 0):
                 c = Constraint(atom)
                 lit = init.solver_literal(atom.literal)
                 self.__l2c.setdefault(lit, []).append(c)
@@ -260,10 +255,7 @@ class Propagator(object):
         for v in self.__vars:
             vs = s.state(v)
             if vs.lower_bound != vs.upper_bound:
-                l = control.add_literal()
-                s.add_literal(v, vs.lower_bound+int(math.floor((vs.upper_bound-vs.lower_bound)/2)), l)
-                control.add_watch(l)
-                control.add_watch(-l)
+                s.get_literal(vs, vs.lower_bound+int(math.floor((vs.upper_bound-vs.lower_bound)/2)), control)
                 return
 
     def undo(self, thread_id, assign, changes):
