@@ -155,37 +155,54 @@ class State(object):
                     vs.lower_bound = value+1
 
     def propagate_true(self, l, c, control):
-        clauses = []
-        for co_a, var_a in c.vars:
-            bound = c.rhs
-            lbs = []
-            for co_b, var_b in c.vars:
-                if (co_a, var_a) != (co_b, var_b):
-                    vs_b = self._state(var_b)
-                    if co_b > 0:
-                        bound -= co_b*vs_b.lower_bound
-                        if vs_b.lower_bound > MIN_INT:
-                            assert vs_b.has_literal(vs_b.lower_bound-1)
-                            lbs.append(self._get_literal(vs_b, vs_b.lower_bound-1, control))
+        """
+        TODO: this guy needs documentation
+        """
+        assert control.assignment.is_true(l)
 
-                    else:
-                        bound -= co_b*vs_b.upper_bound
-                        lbs.append(self._get_literal(vs_b, vs_b.upper_bound, control))
-
-            vs_a = self._state(var_a)
-            if co_a > 0:
-                # NOTE: integer division with floor
-                value = clamp(bound//co_a)
-                lit = self._get_literal(vs_a, value, control)
+        # NOTE: recalculation could be avoided by maintaing per clause state
+        #       (or at least clauses should be propagated only once)
+        slb = c.rhs  # sum of lower bounds
+        lbs = []     # lower bound literals
+        tri = -1     # index of true literal (if any)
+        for i, (co, var) in enumerate(c.vars):
+            vs = self._state(var)
+            lit = 0
+            if co > 0:
+                slb -= co*vs.lower_bound
+                if vs.lower_bound > MIN_INT:
+                    assert vs.has_literal(vs.lower_bound-1)
+                    lit = self._get_literal(vs, vs.lower_bound-1, control)
             else:
-                # NOTE: integer division with ceil
-                value = clamp(-(bound//-co_a))
-                lit = -self._get_literal(vs_a, value-1, control)
+                slb -= co*vs.upper_bound
+                lit = self._get_literal(vs, vs.upper_bound, control)
 
-            if (not any(control.assignment.is_true(x) for x in lbs) and
-                    not control.assignment.is_true(lit)):
-                clauses.append([-l, lit]+lbs)
-        return clauses
+            if lit != 0:
+                if control.assignment.is_true(lit):
+                    if tri >= 0:
+                        # TODO: not sure this can happen without
+                        #       understanding the algorithm better
+                        return
+                    tri = i
+                lbs.append(lit)
+        lbs.append(-l)
+
+        it = enumerate(c.vars) if tri < 0 else ((tri, (c.vars[tri])),)
+        for i, (co, var) in it:
+            vs = self._state(var)
+            if co > 0:
+                bound = slb+co*vs.lower_bound
+                value = clamp(bound//co)
+                lit = self._get_literal(vs, value, control)
+            else:
+                bound = slb+co*vs.upper_bound
+                value = clamp(-(bound//-co))
+                lit = -self._get_literal(vs, value-1, control)
+
+            if not control.assignment.is_true(lit):
+                lbs[i], lit = lit, lbs[i]
+                yield lbs
+                lbs[i] = lit
 
     def propagate_orderlits(self, control):
         for vs in self._vars:
