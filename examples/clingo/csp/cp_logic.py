@@ -276,13 +276,14 @@ class Propagator(object):
             return
         # FIXME: do not iterate over hashtable when order matters!
         for l, constraints in self._l2c.items():
-            for c in constraints:
-                if control.assignment.is_true(l):
+            if control.assignment.is_true(l):
+                for c in constraints:
+                    # INVESTIGATE: with a large number of threads propagation
+                    # sometimes fails with an assertion error that l is not
+                    # true. This must not happen!
                     for clause in state.propagate_true(l, c, control):
-                        if not control.add_clause(clause):
+                        if not control.add_clause(clause) or not control.propagate():
                             return
-            if not control.propagate():
-                return
             if not state.propagate_orderlits(control):
                 return
         # first condition ensures that wait for propagate first to update our domains
