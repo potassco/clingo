@@ -167,7 +167,7 @@ class State(object):
         tri = -1     # index of true literal (if any)
         for i, (co, var) in enumerate(c.vars):
             vs = self._state(var)
-            lit = 0
+            lit = -TRUE_LIT
             if co > 0:
                 slb -= co*vs.lower_bound
                 if vs.lower_bound > MIN_INT:
@@ -177,14 +177,13 @@ class State(object):
                 slb -= co*vs.upper_bound
                 lit = self._get_literal(vs, vs.upper_bound, control)
 
-            if lit != 0:
-                if control.assignment.is_true(lit):
-                    if tri >= 0:
-                        # TODO: not sure this can happen without
-                        #       understanding the algorithm better
-                        return
-                    tri = i
-                lbs.append(lit)
+            if control.assignment.is_true(lit):
+                if tri >= 0:
+                    # TODO: not sure this can happen without
+                    #       understanding the algorithm better
+                    return
+                tri = i
+            lbs.append(lit)
         lbs.append(-l)
 
         it = enumerate(c.vars) if tri < 0 else ((tri, (c.vars[tri])),)
