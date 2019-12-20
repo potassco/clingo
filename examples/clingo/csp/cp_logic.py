@@ -199,28 +199,23 @@ class State(object):
         #       (or at least clauses should be propagated only once)
         slb = c.rhs  # sum of lower bounds (also saw this called slack)
         lbs = []     # lower bound literals
-        tri = -1     # index of true literal (if any)
         for i, (co, var) in enumerate(c.vars):
             vs = self._state(var)
-            lit = -TRUE_LIT
             if co > 0:
                 slb -= co*vs.lower_bound
+                # note that any literal associated with a value smaller than
+                # the lower bound is false
                 lit = self._get_literal(vs, vs.lower_bound-1, control)
             else:
                 slb -= co*vs.upper_bound
+                # note that any literal associated with a value greater or
+                # equal than the upper bound is true
                 lit = -self._get_literal(vs, vs.upper_bound, control)
-
-            if control.assignment.is_true(lit):
-                if tri >= 0:
-                    # TODO: not sure this can happen without
-                    #       understanding the algorithm better
-                    return
-                tri = i
+            assert not control.assignment.is_true(lit)
             lbs.append(lit)
         lbs.append(-l)
 
-        it = enumerate(c.vars) if tri < 0 else ((tri, (c.vars[tri])),)
-        for i, (co, var) in it:
+        for i, (co, var) in enumerate(c.vars):
             vs = self._state(var)
             if co > 0:
                 bound = slb+co*vs.lower_bound
