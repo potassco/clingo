@@ -6,9 +6,6 @@ MAX_INT = 20
 MIN_INT = -20
 TRUE_LIT = 1
 
-def clamp(x, l, u):
-    return min(max(x, l), u)
-
 def lerp(x, y):
     # NOTE: integer division with floor
     return x + (y - x) // 2
@@ -152,7 +149,6 @@ class State(object):
         for i in changes:
             self._update_domain(i)
 
-    #literal is always true, may need negation to be found
     def _update_domain(self, order_lit):
         if order_lit in self._litmap:
             for vs, value in self._litmap[order_lit]:
@@ -166,48 +162,31 @@ class State(object):
 
     def propagate_constraint(self, l, c, control):
         """
-        This function propagates a constraint associated with a true literal.
+        This function propagates a constraint that became active because an its
+        associated literal became true.
 
-        Example how it works
-        ====================
-        Consider the constraint:
-          2*x - 3*z + 1*y <= b
-        with ranges for variables:
-          x=1..3, y=5..7, z=2..4
-        The assignment that makes the rhs of the constraint smallest is:
-          x=1, y=7, z=2
-        The value of the rhs is:
-          2*1 - 3*7 + 1*2 = -17
-        Note that we do not propagate false constraints (the literal l will
-        always be part of the antecedent), rather the last assignments to order
-        literals that made the constraint unsatisfiable should cause the
-        conflict.
-        If rhs is smaller than 17, then the literal on the highest level should
-        be taken back.
-        conflict detection should work like this:
-        - loop over literals in assignment order
-        - when the lower bound exceeds the constraint
-          - add a clause inverting the last assigned literal such that the
-            clause is satisfiable
-        unit propagation can work like done in the current algorithm:
-        - propgation should only be triggered if the lower bound of a
-          constraint gets smaller
+        The function calculates the slack of the constraint w.r.t. to the
+        lower/upper bounds of its values. The order values are then propagated
+        in such a way that the slack is positive. The trick here is that we can
+        use the ordering of variables to restrict the number of propagations.
+        For example, for positive coefficients, we just have to enforce the
+        smallest order variable that would make the slack non-negative.
         """
         assert control.assignment.is_true(l)
 
         # NOTE: recalculation could be avoided by maintaing per clause state
         #       (or at least clauses should be propagated only once)
-        slb = c.rhs  # sum of lower bounds (also saw this called slack)
+        slack = c.rhs  # sum of lower bounds (also saw this called slack)
         lbs = []     # lower bound literals
         for i, (co, var) in enumerate(c.vars):
             vs = self._state(var)
             if co > 0:
-                slb -= co*vs.lower_bound
+                slack -= co*vs.lower_bound
                 # note that any literal associated with a value smaller than
                 # the lower bound is false
                 lit = self._get_literal(vs, vs.lower_bound-1, control)
             else:
-                slb -= co*vs.upper_bound
+                slack -= co*vs.upper_bound
                 # note that any literal associated with a value greater or
                 # equal than the upper bound is true
                 lit = -self._get_literal(vs, vs.upper_bound, control)
@@ -218,13 +197,18 @@ class State(object):
         for i, (co, var) in enumerate(c.vars):
             vs = self._state(var)
             if co > 0:
-                bound = slb+co*vs.lower_bound
-                value = clamp(bound//co, MIN_INT, MAX_INT)
+                diff = slack+co*vs.lower_bound
+                value = diff//co
                 lit = self._get_literal(vs, value, control)
             else:
-                bound = slb+co*vs.upper_bound
-                value = clamp(-(bound//-co), MIN_INT, MAX_INT)
+                diff = slack+co*vs.upper_bound
+                value = -(diff//-co)
                 lit = -self._get_literal(vs, value-1, control)
+
+            # the value is chosen in a way that the slack is greater or equal
+            # than 0 but also so that it does not exceed the coefficient (in
+            # which case the propagation would not be strong enough)
+            assert diff - co*value >= 0 and diff - co*value < abs(co)
 
             if not control.assignment.is_true(lit):
                 lbs[i], lit = lit, lbs[i]
@@ -280,10 +264,10 @@ class State(object):
 
 class Propagator(object):
     def __init__(self):
-        self._l2c = {}    # {literal: [Constraint]}
-        self._c2l = {}    # {Constraint: [literal]}
-        self._states = [] # [threadId : State]
-        self._vars = []   # [str]
+        self._l2c = {}     # {literal: [Constraint]}
+        self._c2l = {}     # {Constraint: [literal]}
+        self._states = []  # [threadId : State]
+        self._vars = []    # [str]
 
     def _state(self, thread_id):
         while len(self._states) <= thread_id:
