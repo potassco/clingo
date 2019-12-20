@@ -1,4 +1,3 @@
-import math
 import sys
 import clingo
 
