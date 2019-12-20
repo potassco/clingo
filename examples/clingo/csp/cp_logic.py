@@ -1,12 +1,12 @@
 import math
+import sys
 import clingo
 
 MAX_INT = 20
 MIN_INT = -20
-OFFSET = 0-MIN_INT
 TRUE_LIT = 1
 
-def clamp(x, l=MIN_INT, u=MAX_INT):
+def clamp(x, l, u):
     return min(max(x, l), u)
 
 def lerp(x, y):
@@ -70,34 +70,41 @@ class VarState(object):
         self._upper_bound = [MAX_INT]
         self._lower_bound = [MIN_INT]
         # FIXME: needs better container
-        self.literals = (MAX_INT-MIN_INT+1)*[None]
+        self.literals = (MAX_INT-MIN_INT)*[None]
 
     def push(self):
         self._lower_bound.append(self.lower_bound)
         self._upper_bound.append(self.upper_bound)
 
     def pop(self):
+        assert len(self._lower_bound) > 1 and len(self._upper_bound) > 1
         self._lower_bound.pop()
         self._upper_bound.pop()
 
     @property
     def lower_bound(self):
+        assert self._lower_bound
         return self._lower_bound[-1]
 
     @lower_bound.setter
     def lower_bound(self, value):
+        assert self._lower_bound
         self._lower_bound[-1] = value
 
     @property
     def upper_bound(self):
+        assert self._upper_bound
         return self._upper_bound[-1]
 
     @upper_bound.setter
     def upper_bound(self, value):
+        assert self._upper_bound
         self._upper_bound[-1] = value
 
     def has_literal(self, value):
-        return self.literals[value - MIN_INT] is not None
+        return (value < MIN_INT or
+                value >= MAX_INT or
+                self.literals[value - MIN_INT] is not None)
 
 class State(object):
     def __init__(self):
@@ -114,8 +121,12 @@ class State(object):
         return self._var_state[var]
 
     def _get_literal(self, vs, value, control, watch=True):
+        if value < MIN_INT:
+            return -TRUE_LIT
+        if value >= MAX_INT:
+            return TRUE_LIT
         if not vs.has_literal(value):
-            lit = TRUE_LIT if control is None else control.add_literal()
+            lit = control.add_literal()
             vs.literals[value - MIN_INT] = lit
             self._litmap.setdefault(lit, []).append((vs, value))
             if watch:
@@ -128,7 +139,6 @@ class State(object):
         for v in variables:
             vs = VarState()
             self._var_state[v] = vs
-            self._get_literal(vs, MAX_INT, None, False)
             self._vars.append(vs)
 
     # propagation
@@ -154,15 +164,40 @@ class State(object):
                 if vs.lower_bound < value+1:
                     vs.lower_bound = value+1
 
-    def propagate_true(self, l, c, control):
+    def propagate_constraint(self, l, c, control):
         """
-        TODO: this guy needs documentation
+        This function propagates a constraint associated with a true literal.
+
+        Example how it works
+        ====================
+        Consider the constraint:
+          2*x - 3*z + 1*y <= b
+        with ranges for variables:
+          x=1..3, y=5..7, z=2..4
+        The assignment that makes the rhs of the constraint smallest is:
+          x=1, y=7, z=2
+        The value of the rhs is:
+          2*1 - 3*7 + 1*2 = -17
+        Note that we do not propagate false constraints (the literal l will
+        always be part of the antecedent), rather the last assignments to order
+        literals that made the constraint unsatisfiable should cause the
+        conflict.
+        If rhs is smaller than 17, then the literal on the highest level should
+        be taken back.
+        conflict detection should work like this:
+        - loop over literals in assignment order
+        - when the lower bound exceeds the constraint
+          - add a clause inverting the last assigned literal such that the
+            clause is satisfiable
+        unit propagation can work like done in the current algorithm:
+        - propgation should only be triggered if the lower bound of a
+          constraint gets smaller
         """
         assert control.assignment.is_true(l)
 
         # NOTE: recalculation could be avoided by maintaing per clause state
         #       (or at least clauses should be propagated only once)
-        slb = c.rhs  # sum of lower bounds
+        slb = c.rhs  # sum of lower bounds (also saw this called slack)
         lbs = []     # lower bound literals
         tri = -1     # index of true literal (if any)
         for i, (co, var) in enumerate(c.vars):
@@ -170,12 +205,10 @@ class State(object):
             lit = -TRUE_LIT
             if co > 0:
                 slb -= co*vs.lower_bound
-                if vs.lower_bound > MIN_INT:
-                    assert vs.has_literal(vs.lower_bound-1)
-                    lit = self._get_literal(vs, vs.lower_bound-1, control)
+                lit = self._get_literal(vs, vs.lower_bound-1, control)
             else:
                 slb -= co*vs.upper_bound
-                lit = self._get_literal(vs, vs.upper_bound, control)
+                lit = -self._get_literal(vs, vs.upper_bound, control)
 
             if control.assignment.is_true(lit):
                 if tri >= 0:
@@ -191,11 +224,11 @@ class State(object):
             vs = self._state(var)
             if co > 0:
                 bound = slb+co*vs.lower_bound
-                value = clamp(bound//co)
+                value = clamp(bound//co, MIN_INT, MAX_INT)
                 lit = self._get_literal(vs, value, control)
             else:
                 bound = slb+co*vs.upper_bound
-                value = clamp(-(bound//-co))
+                value = clamp(-(bound//-co), MIN_INT, MAX_INT)
                 lit = -self._get_literal(vs, value-1, control)
 
             if not control.assignment.is_true(lit):
@@ -203,21 +236,36 @@ class State(object):
                 yield lbs
                 lbs[i] = lit
 
-    def propagate_orderlits(self, control):
+    def _propagate_variable(self, control, vs, rng, lit, sign):
+        for value in rng:
+            if not vs.has_literal(value):
+                continue
+            l = sign * self._get_literal(vs, value, control)
+            if control.assignment.is_true(l):
+                continue
+            if not control.add_clause([-sign * lit, l]):
+                return False
+        return True
+
+    def propagate_variables(self, control):
+        """
+        The function propagates order literals depending on the lower and upper
+        bound of variables.
+
+        If a variable `v` has lower bound `l`, then all order literals `v<=l'`
+        with `l'<l` are made false. Similarly, if a variable `v` has upper
+        bound `u`, then all order literals `v<=u'` with `u'<u` are made true.
+        """
         for vs in self._vars:
-            lb_lit = self._get_literal(vs, vs.lower_bound-1, control)
-            for value in range(MIN_INT+1, vs.lower_bound):
-                if (vs.has_literal(value-1) and
-                        not control.assignment.is_true(-self._get_literal(vs, value-1, control)) and
-                        not control.add_clause([lb_lit, -self._get_literal(vs, value-1, control)])):
-                    return False
+            lit = self._get_literal(vs, vs.lower_bound, control)
+            rng = range(MIN_INT, vs.lower_bound)
+            if not self._propagate_variable(control, vs, rng, lit, -1):
+                return False
             assert vs.has_literal(vs.upper_bound)
-            ub_lit = self._get_literal(vs, vs.upper_bound, control)
-            for value in range(vs.upper_bound+1, MAX_INT):
-                if (vs.has_literal(value) and
-                        not control.assignment.is_true(self._get_literal(vs, value, control)) and
-                        not control.add_clause([-ub_lit, self._get_literal(vs, value, control)])):
-                    return False
+            lit = self._get_literal(vs, vs.upper_bound, control)
+            rng = range(vs.upper_bound+1, MAX_INT+1)
+            if not self._propagate_variable(control, vs, rng, lit, 1):
+                return False
         return True
 
     def undo(self):
@@ -272,19 +320,16 @@ class Propagator(object):
     def check(self, control):
         size = control.assignment.size
         state = self._state(control.thread_id)
-        if not state.propagate_orderlits(control):
+        if not state.propagate_variables(control):
             return
         # FIXME: do not iterate over hashtable when order matters!
         for l, constraints in self._l2c.items():
             if control.assignment.is_true(l):
                 for c in constraints:
-                    # INVESTIGATE: with a large number of threads propagation
-                    # sometimes fails with an assertion error that l is not
-                    # true. This must not happen!
-                    for clause in state.propagate_true(l, c, control):
+                    for clause in state.propagate_constraint(l, c, control):
                         if not control.add_clause(clause) or not control.propagate():
                             return
-            if not state.propagate_orderlits(control):
+            if not state.propagate_variables(control):
                 return
         # first condition ensures that wait for propagate first to update our domains
         if size == control.assignment.size and control.assignment.is_total:
@@ -295,3 +340,58 @@ class Propagator(object):
 
     def get_assignment(self, thread_id):
         return self._state(thread_id).get_assignment(self._vars)
+
+
+class Application(object):
+    def __init__(self):
+        self.program_name = "csp"
+        self.version = "1.0"
+        self.propagator = Propagator()
+
+    def print_assignment(self, model):
+        ass = self.propagator.get_assignment(model.thread_id)
+        print("Valid assignment for constraints found:")
+        print(" ".join("{}={}".format(n, v) for n, v in ass))
+
+    def _parse_min(self, value):
+        global MIN_INT
+        MIN_INT = int(value)
+        return True
+
+    def _parse_max(self, value):
+        global MAX_INT
+        MAX_INT = int(value)
+        return True
+
+    def register_options(self, options):
+        group = "CSP Options"
+        options.add(group, "min-int", "Minimum integer [-20]", self._parse_min, argument="<i>")
+        options.add(group, "max-int", "Maximum integer [20]", self._parse_max, argument="<i>")
+
+    def validate_options(self):
+        if MIN_INT > MAX_INT:
+            raise RuntimeError("min-int must not be larger than max-int")
+
+    def main(self, prg, files):
+        for f in files:
+            prg.load(f)
+        prg.register_propagator(self.propagator)
+        prg.add("base", [], """\
+#theory cp {
+    constant  { - : 1, unary };
+    sum_term {
+    - : 5, unary;
+    * : 4, binary, left;
+    + : 3, binary, left
+    };
+    &sum/0 : sum_term, {<=}, constant, head
+}.
+""")
+
+        prg.ground([("base", [])])
+        prg.solve(on_model=self.print_assignment)
+
+
+if __name__ == "__main__":
+    sys.exit(int(clingo.clingo_main(Application(), sys.argv[1:])))
+
