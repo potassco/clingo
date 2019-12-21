@@ -241,7 +241,7 @@ class State(object):
                 return False
             assert vs.has_literal(vs.upper_bound)
             lit = self._get_literal(vs, vs.upper_bound, control)
-            rng = range(vs.upper_bound+1, MAX_INT+1)
+            rng = range(vs.upper_bound+1, MAX_INT)
             if not self._propagate_variable(control, vs, rng, lit, 1):
                 return False
         return True
