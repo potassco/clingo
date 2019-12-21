@@ -193,6 +193,10 @@ class State(object):
             lbs.append(lit)
         lbs.append(-l)
 
+        # this is necessary to correctly handle empty constraints
+        if slack < 0:
+            yield lbs
+
         for i, (co, var) in enumerate(c.vars):
             vs = self._state(var)
             if co > 0:
