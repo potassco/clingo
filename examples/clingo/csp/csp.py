@@ -116,18 +116,20 @@ class State(object):
     def _state(self, var):
         return self._var_state[var]
 
-    def _get_literal(self, vs, value, control, watch=True):
+    def _get_literal(self, vs, value, control, truth=None):
         if value < MIN_INT:
             return -TRUE_LIT
         if value >= MAX_INT:
             return TRUE_LIT
         if not vs.has_literal(value):
-            lit = control.add_literal()
+            if truth is None:
+                lit = control.add_literal()
+            else:
+                lit = TRUE_LIT if truth else -TRUE_LIT
             vs.literals[value - MIN_INT] = lit
             self._litmap.setdefault(lit, []).append((vs, value))
-            if watch:
-                control.add_watch(lit)
-                control.add_watch(-lit)
+            control.add_watch(lit)
+            control.add_watch(-lit)
         return vs.literals[value - MIN_INT]
 
     # initialization
@@ -176,7 +178,8 @@ class State(object):
         # NOTE: recalculation could be avoided by maintaing per clause state
         #       (or at least clauses should be propagated only once)
         slack = c.rhs  # sum of lower bounds (also saw this called slack)
-        lbs = []     # lower bound literals
+        lbs = []       # lower bound literals
+        num_guess = 0  # number of assignments above level 0
         for i, (co, var) in enumerate(c.vars):
             vs = self._state(var)
             if co > 0:
@@ -189,8 +192,14 @@ class State(object):
                 # note that any literal associated with a value greater or
                 # equal than the upper bound is true
                 lit = -self._get_literal(vs, vs.upper_bound, control)
-            assert not control.assignment.is_true(lit)
+
+            assert control.assignment.is_false(lit)
+            if control.assignment.level(lit) > 0:
+                num_guess += 1
             lbs.append(lit)
+        if control.assignment.level(l) > 0:
+            num_guess += 1
+
         lbs.append(-l)
 
         # this is necessary to correctly handle empty constraints
@@ -199,14 +208,23 @@ class State(object):
 
         for i, (co, var) in enumerate(c.vars):
             vs = self._state(var)
+
+            # adjust the number of guesses if the current literal is a guess
+            adjust = 1 if control.assignment.level(lbs[i]) > 0 else 0
+
+            # if all literals are assigned on level 0 then we can associate the
+            # value with a true/false literal, taken care of by the extra
+            # argument truth to _get_literal
             if co > 0:
+                truth = num_guess == adjust or None
                 diff = slack+co*vs.lower_bound
                 value = diff//co
-                lit = self._get_literal(vs, value, control)
+                lit = self._get_literal(vs, value, control, truth)
             else:
+                truth = num_guess > adjust and None
                 diff = slack+co*vs.upper_bound
                 value = -(diff//-co)
-                lit = -self._get_literal(vs, value-1, control)
+                lit = -self._get_literal(vs, value-1, control, truth)
 
             # the value is chosen in a way that the slack is greater or equal
             # than 0 but also so that it does not exceed the coefficient (in
@@ -237,6 +255,13 @@ class State(object):
         If a variable `v` has lower bound `l`, then all order literals `v<=l'`
         with `l'<l` are made false. Similarly, if a variable `v` has upper
         bound `u`, then all order literals `v<=u'` with `u'<u` are made true.
+
+        Problems
+        ========
+        - This should be chained.
+        - This has to be done over and over because there is no way to
+          statically learn the associated clauses.
+        - This can as well be done in propagate.
         """
         for vs in self._vars:
             lit = self._get_literal(vs, vs.lower_bound, control)
@@ -302,6 +327,13 @@ class Propagator(object):
     def check(self, control):
         size = control.assignment.size
         state = self._state(control.thread_id)
+
+        # TODO: This one is tricky, as this literal is never part of the change
+        # list. For now the update simply happens here making sure it is
+        # reapplied for every decision level.
+        if 1 in state._litmap:
+            state._update_domain(1)
+        # TODO: can this ever do anything at this point?
         if not state.propagate_variables(control):
             return
         # FIXME: do not iterate over hashtable when order matters!
@@ -311,9 +343,12 @@ class Propagator(object):
                     for clause in state.propagate_constraint(l, c, control):
                         if not control.add_clause(clause) or not control.propagate():
                             return
+            # TODO: only the variables propagated by the clause should be
+            # propagated
             if not state.propagate_variables(control):
                 return
-        # first condition ensures that wait for propagate first to update our domains
+        # first condition ensures that wait for propagate first to update our
+        # domains
         if size == control.assignment.size and control.assignment.is_total:
             state.check_full(control)
 
