@@ -97,6 +97,10 @@ class VarState(object):
         assert self._upper_bound
         self._upper_bound[-1] = value
 
+    @property
+    def is_assigned(self):
+        return self.upper_bound == self.lower_bound
+
     def has_literal(self, value):
         return (value < MIN_INT or
                 value >= MAX_INT or
@@ -111,26 +115,46 @@ class State(object):
 
     def get_assignment(self, variables):
         vvs = zip(variables, self._vars)
-        return [(v, vs.lower_bound) for v, vs in vvs if vs.lower_bound == vs.upper_bound]
+        return [(v, vs.lower_bound) for v, vs in vvs]
 
     def _state(self, var):
         return self._var_state[var]
 
-    def _get_literal(self, vs, value, control, truth=None):
+    def _get_literal(self, vs, value, control):
         if value < MIN_INT:
             return -TRUE_LIT
         if value >= MAX_INT:
             return TRUE_LIT
         if not vs.has_literal(value):
-            if truth is None:
-                lit = control.add_literal()
-            else:
-                lit = TRUE_LIT if truth else -TRUE_LIT
+            lit = control.add_literal()
             vs.literals[value - MIN_INT] = lit
             self._litmap.setdefault(lit, []).append((vs, value))
             control.add_watch(lit)
             control.add_watch(-lit)
         return vs.literals[value - MIN_INT]
+
+    def _update_literal(self, vs, value, control, truth):
+        if value < MIN_INT or value >= MAX_INT or truth is None:
+            return None, self._get_literal(vs, value, control)
+        lit = TRUE_LIT if truth else -TRUE_LIT
+        if not vs.has_literal(value):
+            vs.literals[value - MIN_INT] = lit
+            self._litmap.setdefault(lit, []).append((vs, value))
+            return None, lit
+        old = vs.literals[value - MIN_INT]
+        if old == lit:
+            return None, lit
+        vs.literals[value - MIN_INT] = lit
+        vec = self._litmap[old]
+        assert (vs, value) in vec
+        vec.remove((vs, value))
+        if not vec:
+            assert -old not in self._litmap
+            del self._litmap[old]
+            control.remove_watch(old)
+            control.remove_watch(-old)
+        self._litmap.setdefault(lit, []).append((vs, value))
+        return old, lit
 
     # initialization
     def init_domain(self, variables):
@@ -214,17 +238,22 @@ class State(object):
 
             # if all literals are assigned on level 0 then we can associate the
             # value with a true/false literal, taken care of by the extra
-            # argument truth to _get_literal
+            # argument truth to _update_literal
             if co > 0:
                 truth = num_guess == adjust or None
                 diff = slack+co*vs.lower_bound
                 value = diff//co
-                lit = self._get_literal(vs, value, control, truth)
+                old, lit = self._update_literal(vs, value, control, truth)
+                if old is not None and not control.add_clause([old], lock=True):
+                    return False
             else:
                 truth = num_guess > adjust and None
                 diff = slack+co*vs.upper_bound
                 value = -(diff//-co)
-                lit = -self._get_literal(vs, value-1, control, truth)
+                old, lit = self._update_literal(vs, value-1, control, truth)
+                lit = -lit
+                if old is not None and not control.add_clause([-old], lock=True):
+                    return False
 
             # the value is chosen in a way that the slack is greater or equal
             # than 0 but also so that it does not exceed the coefficient (in
@@ -237,13 +266,20 @@ class State(object):
                 lbs[i] = lit
 
     def _propagate_variable(self, control, vs, rng, lit, sign):
+        ass = control.assignment
+        lit = sign * lit
         for value in rng:
             if not vs.has_literal(value):
                 continue
             l = sign * self._get_literal(vs, value, control)
-            if control.assignment.is_true(l):
+            if ass.is_true(lit) and ass.level(lit) == 0 and ass.level(l) > 0:
+                o, l = self._update_literal(vs, value, control, sign > 0)
+                o, l = sign * o, sign * l
+                if not control.add_clause([o], lock=True):
+                    return False
+            if ass.is_true(l):
                 continue
-            if not control.add_clause([-sign * lit, l]):
+            if not control.add_clause([-lit, l]):
                 return False
         return True
 
@@ -284,7 +320,7 @@ class State(object):
     # checking
     def check_full(self, control):
         for vs in self._vars:
-            if vs.lower_bound != vs.upper_bound:
+            if not vs.is_assigned:
                 value = lerp(vs.lower_bound, vs.upper_bound)
                 self._get_literal(vs, value, control)
                 return
