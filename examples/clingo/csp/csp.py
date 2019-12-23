@@ -295,15 +295,15 @@ class State(object):
         Problems
         ========
         - This should be chained.
-        - This has to be done over and over because there is no way to
-          statically learn the associated clauses.
+        - Clauses could be locked.
         - This can as well be done in propagate.
         """
         for vs in self._vars:
-            lit = self._get_literal(vs, vs.lower_bound, control)
-            rng = range(MIN_INT, vs.lower_bound)
-            if not self._propagate_variable(control, vs, rng, lit, -1):
-                return False
+            if vs.lower_bound > MIN_INT:
+                lit = self._get_literal(vs, vs.lower_bound, control)
+                rng = range(MIN_INT, vs.lower_bound)
+                if not self._propagate_variable(control, vs, rng, lit, -1):
+                    return False
             assert vs.has_literal(vs.upper_bound)
             lit = self._get_literal(vs, vs.upper_bound, control)
             rng = range(vs.upper_bound+1, MAX_INT)
@@ -353,7 +353,54 @@ class Propagator(object):
         self._vars = list(sorted(variables))
 
         for i in range(len(self._states), init.number_of_threads):
-            self._state(i).init_domain(self._vars)
+            state = self._state(i)
+            state.init_domain(self._vars)
+
+        ass = init.assignment
+        intrail = set()
+        trail = []
+        trail_offset = 0
+
+        while True:
+            if not init.propagate():
+                return
+
+            # TODO: trail handling should happen in clingo
+            for var in range(1, ass.max_size):
+                if var in intrail:
+                    continue
+                t = ass.value(var)
+                if t is True:
+                    trail.append(var)
+                    intrail.add(var)
+                if t is False:
+                    trail.append(-var)
+                    intrail.add(var)
+
+            # TODO: This is not enough if the lower or upper bound of a
+            # variable changes the loop shoud continue, too. It is time to make
+            # the whole algorithm more lazy.
+            if trail_offset == len(trail):
+                break
+            trail_offset = len(trail)
+
+            for state in self._states:
+                state.propagate(0, trail[trail_offset:])
+
+                # TODO: too much c&p
+                if not state.propagate_variables(init):
+                    return
+                # FIXME: do not iterate over hashtable when order matters!
+                for l, constraints in self._l2c.items():
+                    if init.assignment.is_true(l):
+                        for c in constraints:
+                            for clause in state.propagate_constraint(l, c, init):
+                                if not init.add_clause(clause) or not init.propagate():
+                                    return
+                    # TODO: only the variables propagated by the clause should be
+                    # propagated
+                    if not state.propagate_variables(init):
+                        return
 
     def propagate(self, control, changes):
         state = self._state(control.thread_id)
