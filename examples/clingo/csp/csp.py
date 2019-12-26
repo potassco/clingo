@@ -68,13 +68,18 @@ class VarState(object):
         # FIXME: needs better container
         self.literals = (MAX_INT-MIN_INT)*[None]
 
-    def push(self):
+    def push_lower(self):
         self._lower_bound.append(self.lower_bound)
+
+    def push_upper(self):
         self._upper_bound.append(self.upper_bound)
 
-    def pop(self):
-        assert len(self._lower_bound) > 1 and len(self._upper_bound) > 1
+    def pop_lower(self):
+        assert len(self._lower_bound) > 1
         self._lower_bound.pop()
+
+    def pop_upper(self):
+        assert len(self._upper_bound) > 1
         self._upper_bound.pop()
 
     @property
@@ -106,19 +111,68 @@ class VarState(object):
                 value >= MAX_INT or
                 self.literals[value - MIN_INT] is not None)
 
+class TodoList(object):
+    def __init__(self):
+        self._seen = set()
+        self._list = []
+
+    def __len__(self):
+        return len(self._list)
+
+    def __contains__(self, x):
+        return x in self._seen
+
+    def __iter__(self):
+        return iter(self._list)
+
+    def __getitem__(self, val):
+        return self._list[val]
+
+    def add(self, x):
+        if x not in self:
+            self._seen.add(x)
+            self._list.append(x)
+            return True
+        return False
+
+    def clear(self):
+        self._seen.clear()
+        self._list.clear()
+
+class Level(object):
+    def __init__(self, level):
+        self.level = level
+        # a trail-like data structure would also be possible but then
+        # assignments would have to be undone
+        self.undo_upper = TodoList()
+        self.done_upper = 0
+        self.undo_lower = TodoList()
+        self.done_lower = 0
+
 class State(object):
     def __init__(self):
         self._vars = []
         self._var_state = {}
         self._litmap = {}
-        self._levels = [0]
+        self._levels = [Level(0)]
 
     def get_assignment(self, variables):
         vvs = zip(variables, self._vars)
         return [(v, vs.lower_bound) for v, vs in vvs]
 
+    def _push_level(self, level):
+        if self._levels[-1].level < level:
+            self._levels.append(Level(level))
+
+    def _pop_level(self):
+        self._levels.pop()
+
     def _state(self, var):
         return self._var_state[var]
+
+    @property
+    def _level(self):
+        return self._levels[-1]
 
     def _get_literal(self, vs, value, control):
         if value < MIN_INT:
@@ -164,26 +218,91 @@ class State(object):
             self._vars.append(vs)
 
     # propagation
-    def propagate(self, dl, changes):
-        assert self._levels[-1] <= dl
-        if self._levels[-1] < dl:
-            # FIXME: not much effort to make lazy
-            for vs in self._vars:
-                vs.push()
-            self._levels.append(dl)
-        for i in changes:
-            self._update_domain(i)
+    def propagate(self, control, changes):
+        ass = control.assignment
 
-    def _update_domain(self, order_lit):
-        if order_lit in self._litmap:
-            for vs, value in self._litmap[order_lit]:
+        # open a new decision level if necessary
+        self._push_level(ass.decision_level)
+
+        # propagate order literals that became true/false
+        for lit in changes:
+            if not self._update_domain(control, lit):
+                return False
+
+        return True
+
+    def _propagate_variable(self, control, vs, value, lit, sign):
+        assert vs.has_literal(value)
+        ass = control.assignment
+        assert ass.is_true(lit)
+
+        # get the literal to propagate
+        l = sign * self._get_literal(vs, value, control)
+
+        # on-the-fly simplify
+        if ass.level(lit) == 0 and ass.level(l) > 0:
+            o, l = self._update_literal(vs, value, control, sign > 0)
+            o, l = sign * o, sign * l
+            if not control.add_clause([o], lock=True):
+                return False
+
+        # propagate the literal
+        if not ass.is_true(l) and not control.add_clause([-lit, l]):
+            return False
+
+        return True
+
+    def _update_domain(self, control, lit):
+        """
+        The function updates lower and upper bounds of variables and propagates
+        order literals.
+
+        If a variable `v` has lower bound `l`, then the preceding order
+        literals `v<=l'` with `l'<l` is made false. Similarly, if a variable
+        `v` has upper bound `u`, then the succeeding order literal `v<=u'` with
+        `u'<u` is made true.
+
+        Problems
+        ========
+        - This should be chained.
+        - Clauses could be locked.
+        - This can as well be done in propagate.
+        """
+        assert control.assignment.is_true(lit)
+
+        lvl = self._level
+
+        # update and propagate upper bound
+        if lit in self._litmap:
+            for vs, value in self._litmap[lit]:
+                # update upper bound
                 if vs.upper_bound > value:
+                    if lvl.undo_upper.add(vs):
+                        vs.push_upper()
                     vs.upper_bound = value
-        else:
-            assert -order_lit in self._litmap
-            for vs, value in self._litmap[-order_lit]:
+
+                # make succeeding literal true
+                for succ in range(value+1, MAX_INT):
+                    if vs.has_literal(succ):
+                        if not self._propagate_variable(control, vs, succ, lit, 1):
+                            return False
+
+        # update and propagate lower bound
+        if -lit in self._litmap:
+            for vs, value in self._litmap[-lit]:
+                # update lower bound
                 if vs.lower_bound < value+1:
+                    if lvl.undo_lower.add(vs):
+                        vs.push_lower()
                     vs.lower_bound = value+1
+
+                # make preceeding literal false
+                for prev in range(value-1, MIN_INT-1, -1):
+                    if vs.has_literal(prev):
+                        if not self._propagate_variable(control, vs, prev, lit, -1):
+                            return False
+
+        return True
 
     def propagate_constraint(self, l, c, control):
         """
@@ -265,57 +384,14 @@ class State(object):
                 yield lbs
                 lbs[i] = lit
 
-    def _propagate_variable(self, control, vs, rng, lit, sign):
-        ass = control.assignment
-        lit = sign * lit
-        for value in rng:
-            if not vs.has_literal(value):
-                continue
-            l = sign * self._get_literal(vs, value, control)
-            if ass.is_true(lit) and ass.level(lit) == 0 and ass.level(l) > 0:
-                o, l = self._update_literal(vs, value, control, sign > 0)
-                o, l = sign * o, sign * l
-                if not control.add_clause([o], lock=True):
-                    return False
-            if ass.is_true(l):
-                continue
-            if not control.add_clause([-lit, l]):
-                return False
-        return True
-
-    def propagate_variables(self, control):
-        """
-        The function propagates order literals depending on the lower and upper
-        bound of variables.
-
-        If a variable `v` has lower bound `l`, then all order literals `v<=l'`
-        with `l'<l` are made false. Similarly, if a variable `v` has upper
-        bound `u`, then all order literals `v<=u'` with `u'<u` are made true.
-
-        Problems
-        ========
-        - This should be chained.
-        - Clauses could be locked.
-        - This can as well be done in propagate.
-        """
-        for vs in self._vars:
-            if vs.lower_bound > MIN_INT:
-                lit = self._get_literal(vs, vs.lower_bound, control)
-                rng = range(MIN_INT, vs.lower_bound)
-                if not self._propagate_variable(control, vs, rng, lit, -1):
-                    return False
-            assert vs.has_literal(vs.upper_bound)
-            lit = self._get_literal(vs, vs.upper_bound, control)
-            rng = range(vs.upper_bound+1, MAX_INT)
-            if not self._propagate_variable(control, vs, rng, lit, 1):
-                return False
-        return True
-
     def undo(self):
-        # FIXME: not much effort to make lazy
-        for vs in self._vars:
-            vs.pop()
-        self._levels.pop()
+        lvl = self._level
+        for vs in lvl.undo_lower:
+            vs.pop_lower()
+        lvl.undo_lower.clear()
+        for vs in lvl.undo_upper:
+            vs.pop_upper()
+        self._pop_level()
 
     # checking
     def check_full(self, control):
@@ -361,7 +437,8 @@ class Propagator(object):
         trail = []
         trail_offset = 0
 
-        while True:
+        # restore later when it makes sense
+        while False:
             if not init.propagate():
                 return
 
@@ -377,19 +454,22 @@ class Propagator(object):
                     trail.append(-var)
                     intrail.add(var)
 
-            # TODO: This is not enough if the lower or upper bound of a
-            # variable changes the loop shoud continue, too. It is time to make
-            # the whole algorithm more lazy.
+            # TODO: the current implementation could propagate constraints,
+            # i.e., if a constraint cannot be satisfied given the bounds for
+            # variables, then it's value can be made false. As long as this
+            # does not happen initial propgation does not make much sense.
             if trail_offset == len(trail):
                 break
             trail_offset = len(trail)
 
             for state in self._states:
-                state.propagate(0, trail[trail_offset:])
+                # here only the bounds of order variables associated with the
+                # true literal can be propagated (see the comment above).
+                #state.propagate(0, trail[trail_offset:])
+                if 1 in state._litmap or -1 in state._litmap:
+                    if not state._update_domain(init, 1):
+                        return
 
-                # TODO: too much c&p
-                if not state.propagate_variables(init):
-                    return
                 # FIXME: do not iterate over hashtable when order matters!
                 for l, constraints in self._l2c.items():
                     if init.assignment.is_true(l):
@@ -397,15 +477,10 @@ class Propagator(object):
                             for clause in state.propagate_constraint(l, c, init):
                                 if not init.add_clause(clause) or not init.propagate():
                                     return
-                    # TODO: only the variables propagated by the clause should be
-                    # propagated
-                    if not state.propagate_variables(init):
-                        return
 
     def propagate(self, control, changes):
         state = self._state(control.thread_id)
-        dl = control.assignment.decision_level
-        state.propagate(dl, changes)
+        state.propagate(control, changes)
 
     def check(self, control):
         size = control.assignment.size
@@ -414,22 +489,18 @@ class Propagator(object):
         # TODO: This one is tricky, as this literal is never part of the change
         # list. For now the update simply happens here making sure it is
         # reapplied for every decision level.
-        if 1 in state._litmap:
-            state._update_domain(1)
-        # TODO: can this ever do anything at this point?
-        if not state.propagate_variables(control):
-            return
-        # FIXME: do not iterate over hashtable when order matters!
+        if 1 in state._litmap or -1 in state._litmap:
+            if not state._update_domain(control, 1):
+                return False
+
+        # TODO: has to be done more cleverly
         for l, constraints in self._l2c.items():
             if control.assignment.is_true(l):
                 for c in constraints:
                     for clause in state.propagate_constraint(l, c, control):
                         if not control.add_clause(clause) or not control.propagate():
                             return
-            # TODO: only the variables propagated by the clause should be
-            # propagated
-            if not state.propagate_variables(control):
-                return
+
         # first condition ensures that wait for propagate first to update our
         # domains
         if size == control.assignment.size and control.assignment.is_total:
