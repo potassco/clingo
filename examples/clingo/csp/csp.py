@@ -316,7 +316,7 @@ class State(object):
         For example, for positive coefficients, we just have to enforce the
         smallest order variable that would make the slack non-negative.
         """
-        assert control.assignment.is_true(l)
+        assert not control.assignment.is_false(l)
 
         # NOTE: recalculation could be avoided by maintaing per clause state
         #       (or at least clauses should be propagated only once)
@@ -345,9 +345,13 @@ class State(object):
 
         lbs.append(-l)
 
-        # this is necessary to correctly handle empty constraints
+        # this is necessary to correctly handle empty constraints (and do
+        # propagation of false constraints)
         if slack < 0:
             yield lbs
+
+        if not control.assignment.is_true(l):
+            return True
 
         for i, (co, var) in enumerate(c.vars):
             vs = self._state(var)
@@ -394,6 +398,34 @@ class State(object):
         self._pop_level()
 
     # checking
+    def check(self, l2c, control):
+        lm = self._litmap
+        num_fact_next = len(lm.get(1, [])) + len(lm.get(-1, []))
+
+        # Note: We have to loop here because watches for the true/false
+        # literals do not fire again.
+        while True:
+            num_fact = num_fact_next
+
+            # TODO: There is some unnecessary work done here. For each level
+            if not self._update_domain(control, 1):
+                return False
+
+            # FIXME: do not iterate over hashtable when order matters! Also,
+            # only constraints with update variables should be propagated!
+            for l, constraints in l2c.items():
+                if not control.assignment.is_false(l):
+                    for c in constraints:
+                        for clause in self.propagate_constraint(l, c, control):
+                            if not control.add_clause(clause) or not control.propagate():
+                                return False
+
+            num_fact_next = len(lm.get(1, [])) + len(lm.get(-1, []))
+            if num_fact == num_fact_next:
+                break
+
+        return True
+
     def check_full(self, control):
         for vs in self._vars:
             if not vs.is_assigned:
@@ -437,12 +469,13 @@ class Propagator(object):
         trail = []
         trail_offset = 0
 
-        # restore later when it makes sense
-        while False:
+        # Note: The initial propagation below, will not introduce any order
+        # literals other than true or false.
+        while True:
             if not init.propagate():
                 return
 
-            # TODO: trail handling should happen in clingo
+            # TODO: Trail handling should happen in clingo.
             for var in range(1, ass.max_size):
                 if var in intrail:
                     continue
@@ -454,29 +487,15 @@ class Propagator(object):
                     trail.append(-var)
                     intrail.add(var)
 
-            # TODO: the current implementation could propagate constraints,
-            # i.e., if a constraint cannot be satisfied given the bounds for
-            # variables, then it's value can be made false. As long as this
-            # does not happen initial propgation does not make much sense.
+            # Note: Initially, the trail is guaranteed to have at least size 1.
+            # This ensures that order literals will be propagated.
             if trail_offset == len(trail):
                 break
             trail_offset = len(trail)
 
             for state in self._states:
-                # here only the bounds of order variables associated with the
-                # true literal can be propagated (see the comment above).
-                #state.propagate(0, trail[trail_offset:])
-                if 1 in state._litmap or -1 in state._litmap:
-                    if not state._update_domain(init, 1):
-                        return
-
-                # FIXME: do not iterate over hashtable when order matters!
-                for l, constraints in self._l2c.items():
-                    if init.assignment.is_true(l):
-                        for c in constraints:
-                            for clause in state.propagate_constraint(l, c, init):
-                                if not init.add_clause(clause) or not init.propagate():
-                                    return
+                if not state.check(self._l2c, init):
+                    return
 
     def propagate(self, control, changes):
         state = self._state(control.thread_id)
@@ -486,23 +505,12 @@ class Propagator(object):
         size = control.assignment.size
         state = self._state(control.thread_id)
 
-        # TODO: This one is tricky, as this literal is never part of the change
-        # list. For now the update simply happens here making sure it is
-        # reapplied for every decision level.
-        if 1 in state._litmap or -1 in state._litmap:
-            if not state._update_domain(control, 1):
-                return False
+        if not state.check(self._l2c, control):
+            return
 
-        # TODO: has to be done more cleverly
-        for l, constraints in self._l2c.items():
-            if control.assignment.is_true(l):
-                for c in constraints:
-                    for clause in state.propagate_constraint(l, c, control):
-                        if not control.add_clause(clause) or not control.propagate():
-                            return
-
-        # first condition ensures that wait for propagate first to update our
-        # domains
+        # TODO: should assignment.is_total be true even after new literals have
+        # been added???
+        # Make sure that all variables are assigned in the end.
         if size == control.assignment.size and control.assignment.is_total:
             state.check_full(control)
 
