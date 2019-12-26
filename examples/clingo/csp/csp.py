@@ -414,8 +414,8 @@ class State(object):
             # FIXME: do not iterate over hashtable when order matters! Also,
             # only constraints with update variables should be propagated!
             for l, constraints in l2c.items():
-                if not control.assignment.is_false(l):
-                    for c in constraints:
+                for c in constraints:
+                    if not control.assignment.is_false(l):
                         for clause in self.propagate_constraint(l, c, control):
                             if not control.add_clause(clause) or not control.propagate():
                                 return False
