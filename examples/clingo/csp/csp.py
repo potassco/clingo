@@ -15,7 +15,8 @@ def match(term, name, arity):
             len(term.arguments) == arity)
 
 class Constraint(object):
-    def __init__(self, atom):
+    def __init__(self, atom, literal):
+        self.literal = literal
         self.rhs = self._parse_num(atom.guard[1])
         self.vars = list(self._parse_elems(atom.elements))
 
@@ -62,7 +63,8 @@ class Constraint(object):
 
 
 class VarState(object):
-    def __init__(self):
+    def __init__(self, var):
+        self.var = var
         self._upper_bound = [MAX_INT]
         self._lower_bound = [MIN_INT]
         # FIXME: needs better container
@@ -135,6 +137,10 @@ class TodoList(object):
             return True
         return False
 
+    def extend(self, i):
+        for x in i:
+            self.add(x)
+
     def clear(self):
         self._seen.clear()
         self._list.clear()
@@ -150,11 +156,15 @@ class Level(object):
         self.done_lower = 0
 
 class State(object):
-    def __init__(self):
+    def __init__(self, l2c, vl2c, vu2c):
         self._vars = []
         self._var_state = {}
         self._litmap = {}
         self._levels = [Level(0)]
+        self._vl2c = vl2c
+        self._vu2c = vu2c
+        self._l2c = l2c
+        self._todo = TodoList()
 
     def get_assignment(self, variables):
         vvs = zip(variables, self._vars)
@@ -213,7 +223,7 @@ class State(object):
     # initialization
     def init_domain(self, variables):
         for v in variables:
-            vs = VarState()
+            vs = VarState(v)
             self._var_state[v] = vs
             self._vars.append(vs)
 
@@ -226,6 +236,7 @@ class State(object):
 
         # propagate order literals that became true/false
         for lit in changes:
+            self._todo.extend(self._l2c.get(lit, []))
             if not self._update_domain(control, lit):
                 return False
 
@@ -280,6 +291,7 @@ class State(object):
                     if lvl.undo_upper.add(vs):
                         vs.push_upper()
                     vs.upper_bound = value
+                    self._todo.extend(self._vu2c.get(vs.var, []))
 
                 # make succeeding literal true
                 for succ in range(value+1, MAX_INT):
@@ -295,6 +307,7 @@ class State(object):
                     if lvl.undo_lower.add(vs):
                         vs.push_lower()
                     vs.lower_bound = value+1
+                    self._todo.extend(self._vl2c.get(vs.var, []))
 
                 # make preceeding literal false
                 for prev in range(value-1, MIN_INT-1, -1):
@@ -398,7 +411,7 @@ class State(object):
         self._pop_level()
 
     # checking
-    def check(self, l2c, control):
+    def check(self, control):
         lm = self._litmap
         num_fact_next = len(lm.get(1, [])) + len(lm.get(-1, []))
 
@@ -407,18 +420,22 @@ class State(object):
         while True:
             num_fact = num_fact_next
 
-            # TODO: There is some unnecessary work done here. For each level
+            # TODO: There is some unnecessary work done here. To do this
+            # properly we need to maintain facts per level. When check is
+            # called on a lower level than before. Facts not applied on that
+            # level so far, have to be reapplied.
             if not self._update_domain(control, 1):
                 return False
 
-            # FIXME: do not iterate over hashtable when order matters! Also,
-            # only constraints with update variables should be propagated!
-            for l, constraints in l2c.items():
-                for c in constraints:
-                    if not control.assignment.is_false(l):
-                        for clause in self.propagate_constraint(l, c, control):
-                            if not control.add_clause(clause) or not control.propagate():
-                                return False
+            # propagate affected constraints
+            for c in self._todo:
+                lit = c.literal
+                if not control.assignment.is_false(lit):
+                    for clause in self.propagate_constraint(lit, c, control):
+                        if not control.add_clause(clause) or not control.propagate():
+                            self._todo.clear()
+                            return False
+            self._todo.clear()
 
             num_fact_next = len(lm.get(1, [])) + len(lm.get(-1, []))
             if num_fact == num_fact_next:
@@ -436,14 +453,15 @@ class State(object):
 
 class Propagator(object):
     def __init__(self):
-        self._l2c = {}     # {literal: [Constraint]}
-        self._c2l = {}     # {Constraint: [literal]}
-        self._states = []  # [threadId : State]
-        self._vars = []    # [str]
+        self._l2c = {}     # map literals to constraints
+        self._states = []  # map thread id to states
+        self._vars = []    # list of variables
+        self._vl2c = {}    # map variables affecting lower bound of constraints
+        self._vu2c = {}    # map variables affecting upper bound of constraints
 
     def _state(self, thread_id):
         while len(self._states) <= thread_id:
-            self._states.append(State())
+            self._states.append(State(self._l2c, self._vl2c, self._vu2c))
         return self._states[thread_id]
 
     def init(self, init):
@@ -452,12 +470,18 @@ class Propagator(object):
         variables = set()
         for atom in init.theory_atoms:
             if match(atom.term, "sum", 0):
-                c = Constraint(atom)
-                lit = init.solver_literal(atom.literal)
-                self._l2c.setdefault(lit, []).append(c)
-                self._c2l.setdefault(c, []).append(lit)
-                for _, v in c.vars:
+                c = Constraint(atom, init.solver_literal(atom.literal))
+                # TODO: constraint should be simplified (combining and dropping
+                # zero weights)
+                self._l2c.setdefault(c.literal, []).append(c)
+                init.add_watch(c.literal)
+                for co, v in c.vars:
                     variables.add(v)
+                    if co > 0:
+                        self._vl2c.setdefault(v, []).append(c)
+                    else:
+                        self._vu2c.setdefault(v, []).append(c)
+
         self._vars = list(sorted(variables))
 
         for i in range(len(self._states), init.number_of_threads):
@@ -468,6 +492,11 @@ class Propagator(object):
         intrail = set()
         trail = []
         trail_offset = 0
+
+        # propagate all clauses initially
+        for _, c in sorted(self._l2c.items()):
+            for state in self._states:
+                state._todo.extend(c)
 
         # Note: The initial propagation below, will not introduce any order
         # literals other than true or false.
@@ -494,7 +523,7 @@ class Propagator(object):
             trail_offset = len(trail)
 
             for state in self._states:
-                if not state.check(self._l2c, init):
+                if not state.check(init):
                     return
 
     def propagate(self, control, changes):
@@ -505,7 +534,7 @@ class Propagator(object):
         size = control.assignment.size
         state = self._state(control.thread_id)
 
-        if not state.check(self._l2c, control):
+        if not state.check(control):
             return
 
         # TODO: should assignment.is_total be true even after new literals have
