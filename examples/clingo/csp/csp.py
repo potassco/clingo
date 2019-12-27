@@ -18,7 +18,21 @@ class Constraint(object):
     def __init__(self, atom, literal):
         self.literal = literal
         self.rhs = self._parse_num(atom.guard[1])
-        self.vars = list(self._parse_elems(atom.elements))
+        self.vars = []
+
+        # combine coefficients
+        seen = {}
+        for i, (co, var) in enumerate(self._parse_elems(atom.elements)):
+            if co == 0:
+                continue
+            if var not in seen:
+                seen[var] = i
+                self.vars.append((co, var))
+            else:
+                self.vars[seen[var]][0] += co
+
+        # drop zero weights
+        self.vars = [(co, var) for co, var in self.vars if co != 0]
 
     def _parse_elems(self, elems):
         for elem in elems:
@@ -471,8 +485,6 @@ class Propagator(object):
         for atom in init.theory_atoms:
             if match(atom.term, "sum", 0):
                 c = Constraint(atom, init.solver_literal(atom.literal))
-                # TODO: constraint should be simplified (combining and dropping
-                # zero weights)
                 self._l2c.setdefault(c.literal, []).append(c)
                 init.add_watch(c.literal)
                 for co, v in c.vars:
