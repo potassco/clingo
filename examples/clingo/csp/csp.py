@@ -487,7 +487,15 @@ class Propagator(object):
         return self._states[thread_id]
 
     def init(self, init):
-        # TODO: Reinitialization for multi-shot solving is not implemented yet.
+        # TODO: reinitialization
+        # - all non-fact order literals have to be removed
+        # - upper and lower bounds can be retained
+        # implementation:
+        # - replace all non-fact order literals by None
+        # - loop over all states and gather bounds
+        # - propagate bounds in each state
+        # - add newly added clauses to clauses that have to be propagated
+        #   intially
         init.check_mode = clingo.PropagatorCheckMode.Fixpoint
 
         variables = set()
