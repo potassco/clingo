@@ -81,7 +81,7 @@ class VarState(object):
         self.var = var
         self._upper_bound = [MAX_INT]
         self._lower_bound = [MIN_INT]
-        # FIXME: needs better container
+        # TODO: needs better container
         self.literals = (MAX_INT-MIN_INT)*[None]
 
     def push_lower(self):
@@ -179,6 +179,7 @@ class State(object):
         self._vu2c = vu2c
         self._l2c = l2c
         self._todo = TodoList()
+        self._facts_integrated = [(0, 0)]
 
     def get_assignment(self, variables):
         vvs = zip(variables, self._vars)
@@ -282,16 +283,14 @@ class State(object):
         The function updates lower and upper bounds of variables and propagates
         order literals.
 
-        If a variable `v` has lower bound `l`, then the preceding order
-        literals `v<=l'` with `l'<l` is made false. Similarly, if a variable
-        `v` has upper bound `u`, then the succeeding order literal `v<=u'` with
-        `u'<u` is made true.
+        If a variable `v` has lower bound `l`, then the preceeding order (if
+        any) literal `v<=l'` with `l'<l` is made false. Similarly, if a
+        variable `v` has upper bound `u`, then the succeeding order literal
+        `v<=u'` with `u'<u` is made true.
 
         Problems
         ========
-        - This should be chained.
         - Clauses could be locked.
-        - This can as well be done in propagate.
         """
         assert control.assignment.is_true(lit)
 
@@ -299,7 +298,8 @@ class State(object):
 
         # update and propagate upper bound
         if lit in self._litmap:
-            for vs, value in self._litmap[lit]:
+            start = self._facts_integrated[-1][0] if lit == TRUE_LIT else None
+            for vs, value in self._litmap[lit][start:]:
                 # update upper bound
                 if vs.upper_bound > value:
                     if lvl.undo_upper.add(vs):
@@ -315,7 +315,8 @@ class State(object):
 
         # update and propagate lower bound
         if -lit in self._litmap:
-            for vs, value in self._litmap[-lit]:
+            start = self._facts_integrated[-1][1] if lit == TRUE_LIT else None
+            for vs, value in self._litmap[-lit][start:]:
                 # update lower bound
                 if vs.lower_bound < value+1:
                     if lvl.undo_lower.add(vs):
@@ -343,10 +344,11 @@ class State(object):
         For example, for positive coefficients, we just have to enforce the
         smallest order variable that would make the slack non-negative.
         """
-        assert not control.assignment.is_false(l)
+        ass = control.assignment
+        assert not ass.is_false(l)
 
         # NOTE: recalculation could be avoided by maintaing per clause state
-        #       (or at least clauses should be propagated only once)
+        #       (but the necessary data structure would be quite complicated)
         slack = c.rhs  # sum of lower bounds (also saw this called slack)
         lbs = []       # lower bound literals
         num_guess = 0  # number of assignments above level 0
@@ -363,11 +365,11 @@ class State(object):
                 # equal than the upper bound is true
                 lit = -self._get_literal(vs, vs.upper_bound, control)
 
-            assert control.assignment.is_false(lit)
-            if control.assignment.level(lit) > 0:
+            assert ass.is_false(lit)
+            if ass.level(lit) > 0:
                 num_guess += 1
             lbs.append(lit)
-        if control.assignment.level(l) > 0:
+        if ass.level(l) > 0:
             num_guess += 1
 
         lbs.append(-l)
@@ -377,14 +379,14 @@ class State(object):
         if slack < 0:
             yield lbs
 
-        if not control.assignment.is_true(l):
+        if not ass.is_true(l):
             return True
 
         for i, (co, var) in enumerate(c.vars):
             vs = self._state(var)
 
             # adjust the number of guesses if the current literal is a guess
-            adjust = 1 if control.assignment.level(lbs[i]) > 0 else 0
+            adjust = 1 if ass.level(lbs[i]) > 0 else 0
 
             # if all literals are assigned on level 0 then we can associate the
             # value with a true/false literal, taken care of by the extra
@@ -410,7 +412,7 @@ class State(object):
             # which case the propagation would not be strong enough)
             assert diff - co*value >= 0 and diff - co*value < abs(co)
 
-            if not control.assignment.is_true(lit):
+            if not ass.is_true(lit):
                 lbs[i], lit = lit, lbs[i]
                 yield lbs
                 lbs[i] = lit
@@ -425,34 +427,40 @@ class State(object):
         self._pop_level()
 
     # checking
+    @property
+    def _num_facts(self):
+        return len(self._litmap.get(1, [])), len(self._litmap.get(-1, []))
+
     def check(self, control):
-        lm = self._litmap
-        num_fact_next = len(lm.get(1, [])) + len(lm.get(-1, []))
+        ass = control.assignment
+
+        # Note: Maintain which facts have been integrated on which level.
+        assert ass.decision_level <= len(self._facts_integrated)
+        if ass.decision_level == len(self._facts_integrated):
+            self._facts_integrated.append(self._facts_integrated[-1])
+        del self._facts_integrated[ass.decision_level+1:]
 
         # Note: We have to loop here because watches for the true/false
         # literals do not fire again.
         while True:
-            num_fact = num_fact_next
-
-            # TODO: There is some unnecessary work done here. To do this
-            # properly we need to maintain facts per level. When check is
-            # called on a lower level than before. Facts not applied on that
-            # level so far, have to be reapplied.
+            # Note: This integrates any facts that have not been integrated yet
+            # on the current decision level.
             if not self._update_domain(control, 1):
                 return False
+            num_facts = self._num_facts
+            self._facts_integrated[-1] = num_facts
 
             # propagate affected constraints
             for c in self._todo:
                 lit = c.literal
-                if not control.assignment.is_false(lit):
+                if not ass.is_false(lit):
                     for clause in self.propagate_constraint(lit, c, control):
                         if not control.add_clause(clause) or not control.propagate():
                             self._todo.clear()
                             return False
             self._todo.clear()
 
-            num_fact_next = len(lm.get(1, [])) + len(lm.get(-1, []))
-            if num_fact == num_fact_next:
+            if num_facts == self._num_facts:
                 break
 
         return True
@@ -479,6 +487,7 @@ class Propagator(object):
         return self._states[thread_id]
 
     def init(self, init):
+        # TODO: Reinitialization for multi-shot solving is not implemented yet.
         init.check_mode = clingo.PropagatorCheckMode.Fixpoint
 
         variables = set()
@@ -549,9 +558,9 @@ class Propagator(object):
         if not state.check(control):
             return
 
-        # TODO: should assignment.is_total be true even after new literals have
-        # been added???
-        # Make sure that all variables are assigned in the end.
+        # TODO: Should assignment.is_total be true even after new literals have
+        # been added?
+        # make sure that all variables are assigned in the end
         if size == control.assignment.size and control.assignment.is_total:
             state.check_full(control)
 
