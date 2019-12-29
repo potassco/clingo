@@ -14,6 +14,16 @@ def match(term, name, arity):
             term.name == name and
             len(term.arguments) == arity)
 
+def remove_if(rng, pred):
+    j = 0
+    for i, x in enumerate(rng):
+        if pred(x):
+            continue
+        if i != j:
+            rng[j] = x
+        j += 1
+    return j
+
 class Constraint(object):
     def __init__(self, atom, literal):
         self.literal = literal
@@ -126,6 +136,11 @@ class VarState(object):
         return (value < MIN_INT or
                 value >= MAX_INT or
                 self.literals[value - MIN_INT] is not None)
+
+    def unset(self, value):
+        assert MIN_INT <= value and value < MAX_INT
+        self.literals[value - MIN_INT] = None
+
 
 class TodoList(object):
     def __init__(self):
@@ -474,23 +489,37 @@ class State(object):
 
     # reinitialization
     def remove_literals(self):
-        # Note: iteration order does not matter
+        # remove solve stop local variables
+        # Note: Iteration order does not matter.
         for lit in [lit for lit in self._litmap if abs(lit) != TRUE_LIT]:
             del self._litmap[lit]
-        variables = self._litmap.get(TRUE_LIT, [])
+
+        # remove literals above upper bound
         if TRUE_LIT in self._litmap:
-            self._litmap[TRUE_LIT] = [
-                (vs, value)
-                for vs, value in variables
-                if vs.upper_bound == value]
+            variables = self._litmap[TRUE_LIT]
+            i = remove_if(
+                variables,
+                lambda x: x[1] != x[0].upper_bound)
+            assert i > 0
+            for vs, value in variables:
+                vs.unset(value)
+            del self._litmap[TRUE_LIT][i:]
+
+        # remove literals below lower bound
         if -TRUE_LIT in self._litmap:
-            self._litmap[-TRUE_LIT] = [
-                (vs, value)
-                for vs, value in variables
-                if vs.lower_bound == value]
+            variables = self._litmap[-TRUE_LIT]
+            i = remove_if(
+                variables,
+                lambda x: x[1] != x[0].lower_bound)
+            assert i > 0
+            for vs, value in variables:
+                vs.unset(value)
+            del variables[i:]
 
     def update_bounds(self, init, other):
         assert len(other._litmap) <= 2
+
+        # update upper bounds
         for vs_b, _ in other._litmap.get(TRUE_LIT, []):
             vs_a = self._var_state[vs_b.var]
             if vs_b.upper_bound < vs_a.upper_bound:
@@ -498,6 +527,7 @@ class State(object):
                 if old is not None and not init.add_clause([old]):
                     return False
 
+        # update lower bounds
         for vs_b, _ in other._litmap.get(-TRUE_LIT, []):
             vs_a = self._var_state[vs_b.var]
             if vs_a.lower_bound < vs_b.lower_bound:
