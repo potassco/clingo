@@ -472,6 +472,40 @@ class State(object):
                 self._get_literal(vs, value, control)
                 return
 
+    # reinitialization
+    def remove_literals(self):
+        # Note: iteration order does not matter
+        for lit in [lit for lit in self._litmap if abs(lit) != TRUE_LIT]:
+            del self._litmap[lit]
+        variables = self._litmap.get(TRUE_LIT, [])
+        if TRUE_LIT in self._litmap:
+            self._litmap[TRUE_LIT] = [
+                (vs, value)
+                for vs, value in variables
+                if vs.upper_bound == value]
+        if -TRUE_LIT in self._litmap:
+            self._litmap[-TRUE_LIT] = [
+                (vs, value)
+                for vs, value in variables
+                if vs.lower_bound == value]
+
+    def update_bounds(self, init, other):
+        assert len(other._litmap) <= 2
+        for vs_b, _ in other._litmap.get(TRUE_LIT, []):
+            vs_a = self._var_state[vs_b.var]
+            if vs_b.upper_bound < vs_a.upper_bound:
+                old, _ = self._update_literal(vs_a, vs_b.upper_bound, init, True)
+                if old is not None and not init.add_clause([old]):
+                    return False
+
+        for vs_b, _ in other._litmap.get(-TRUE_LIT, []):
+            vs_a = self._var_state[vs_b.var]
+            if vs_a.lower_bound < vs_b.lower_bound:
+                old, _ = self._update_literal(vs_a, vs_b.lower_bound-1, init, False)
+                if old is not None and not init.add_clause([-old]):
+                    return False
+        return self._update_domain(init, 1)
+
 
 class Propagator(object):
     def __init__(self):
@@ -487,21 +521,15 @@ class Propagator(object):
         return self._states[thread_id]
 
     def init(self, init):
-        # TODO: reinitialization
-        # - all non-fact order literals have to be removed
-        # - upper and lower bounds can be retained
-        # implementation:
-        # - replace all non-fact order literals by None
-        # - loop over all states and gather bounds
-        # - propagate bounds in each state
-        # - add newly added clauses to clauses that have to be propagated
-        #   intially
         init.check_mode = clingo.PropagatorCheckMode.Fixpoint
 
-        variables = set()
+        constraints = []
+        variables = set(self._vars)
         for atom in init.theory_atoms:
             if match(atom.term, "sum", 0):
+                # TODO: exactly those constraints have to be propagated
                 c = Constraint(atom, init.solver_literal(atom.literal))
+                constraints.append(c)
                 self._l2c.setdefault(c.literal, []).append(c)
                 init.add_watch(c.literal)
                 for co, v in c.vars:
@@ -510,22 +538,48 @@ class Propagator(object):
                         self._vl2c.setdefault(v, []).append(c)
                     else:
                         self._vu2c.setdefault(v, []).append(c)
+        sorted_vars = list(sorted(variables))
 
-        self._vars = list(sorted(variables))
+        # replace all non-fact order literals by None in states
+        for state in self._states:
+            state.remove_literals()
 
-        for i in range(len(self._states), init.number_of_threads):
+        # gather bounds of states in master
+        if self._states:
+            master = self._states[0]
+            for state in self._states[1:]:
+                if not master.update_bounds(state):
+                    return
+
+        # adjust number of threads if necessary
+        del self._states[init.number_of_threads:]
+        if self._vars:
+            for i in range(len(self._states), init.number_of_threads):
+                state = self._state(i)
+                state.init_domain(self._vars)
+
+        # add newly introduced variables
+        self._vars.extend(sorted_vars)
+        for i in range(init.number_of_threads):
             state = self._state(i)
-            state.init_domain(self._vars)
+            state.init_domain(sorted_vars)
+
+        # propagate bounds in master to other states
+        for state in self._states[1:]:
+            if not state.update_bounds(master):
+                return
 
         ass = init.assignment
         intrail = set()
         trail = []
+        # TODO: could be a member if we had access to clasp's trail
         trail_offset = 0
 
-        # propagate all clauses initially
-        for _, c in sorted(self._l2c.items()):
-            for state in self._states:
-                state._todo.extend(c)
+        # propagate the newly added constraints
+        # Note: consequences of previously added constraints are stored in the
+        # bounds propagated above.
+        for state in self._states:
+            state._todo.extend(constraints)
 
         # Note: The initial propagation below, will not introduce any order
         # literals other than true or false.
@@ -552,6 +606,10 @@ class Propagator(object):
             trail_offset = len(trail)
 
             for state in self._states:
+                # Note: propagation won't add anything to the trail
+                if not state.propagate(init, trail[trail_offset:]):
+                    return
+
                 if not state.check(init):
                     return
 
