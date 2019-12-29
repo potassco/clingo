@@ -1,6 +1,13 @@
 import sys
 import clingo
 
+try:
+    # Note: Can be installed to play with realistic domain sizes.
+    from sortedcontainers import SortedDict
+    _HAS_SC = True
+except ImportError:
+    _HAS_SC = False
+
 MAX_INT = 20
 MIN_INT = -20
 TRUE_LIT = 1
@@ -20,19 +27,19 @@ def remove_if(rng, pred):
         if pred(x):
             continue
         if i != j:
-            rng[j] = x
+            rng[i], rng[j] = rng[j], rng[i]
         j += 1
     return j
 
 class Constraint(object):
-    def __init__(self, atom, literal):
+    def __init__(self, atom, literal, is_sum):
         self.literal = literal
         self.rhs = self._parse_num(atom.guard[1])
         self.vars = []
 
         # combine coefficients
         seen = {}
-        for i, (co, var) in enumerate(self._parse_elems(atom.elements)):
+        for i, (co, var) in enumerate(self._parse_elems(atom.elements, is_sum)):
             if co == 0:
                 continue
             if var not in seen:
@@ -44,27 +51,34 @@ class Constraint(object):
         # drop zero weights
         self.vars = [(co, var) for co, var in self.vars if co != 0]
 
-    def _parse_elems(self, elems):
+    def _parse_elems(self, elems, is_sum):
         for elem in elems:
-            if len(elem.terms) == 1 and len(elem.condition) == 0:
+            if len(elem.terms) == 1 and not elem.condition:
                 # python 3 has yield from
-                for x in self._parse_elem(elem.terms[0]):
+                for x in self._parse_elem(elem.terms[0], is_sum):
                     yield x
             else:
                 raise RuntimeError("Invalid Syntax")
 
-    def _parse_elem(self, term):
-        if match(term, "+", 2):
-            for x in self._parse_elem(term.arguments[0]):
-                yield x
-            for x in self._parse_elem(term.arguments[1]):
-                yield x
-        elif match(term, "*", 2):
-            num = self._parse_num(term.arguments[0])
-            var = self._parse_var(term.arguments[1])
-            yield num, var
+    def _parse_elem(self, term, is_sum):
+        if not is_sum:
+            if match(term, "-", 2):
+                yield 1, self._parse_var(term.arguments[0])
+                yield -1, self._parse_var(term.arguments[1])
+            else:
+                raise RuntimeError("Invalid Syntax")
         else:
-            raise RuntimeError("Invalid Syntax")
+            if match(term, "+", 2):
+                for x in self._parse_elem(term.arguments[0], True):
+                    yield x
+                for x in self._parse_elem(term.arguments[1], True):
+                    yield x
+            elif match(term, "*", 2):
+                num = self._parse_num(term.arguments[0])
+                var = self._parse_var(term.arguments[1])
+                yield num, var
+            else:
+                raise RuntimeError("Invalid Syntax")
 
     def _parse_num(self, term):
         if term.type == clingo.TheoryTermType.Number:
@@ -92,7 +106,10 @@ class VarState(object):
         self._upper_bound = [MAX_INT]
         self._lower_bound = [MIN_INT]
         # TODO: needs better container
-        self.literals = (MAX_INT-MIN_INT)*[None]
+        if _HAS_SC:
+            self.literals = SortedDict()
+        else:
+            self.literals = (MAX_INT-MIN_INT)*[None]
 
     def push_lower(self):
         self._lower_bound.append(self.lower_bound)
@@ -133,14 +150,57 @@ class VarState(object):
         return self.upper_bound == self.lower_bound
 
     def has_literal(self, value):
-        return (value < MIN_INT or
-                value >= MAX_INT or
-                self.literals[value - MIN_INT] is not None)
+        if value < MIN_INT or value >= MAX_INT:
+            return True
+        if _HAS_SC:
+            return value in self.literals
+        return self.literals[value - MIN_INT] is not None
 
-    def unset(self, value):
-        assert MIN_INT <= value and value < MAX_INT
-        self.literals[value - MIN_INT] = None
+    def get_literal(self, value):
+        assert MIN_INT <= value < MAX_INT and self.has_literal(value)
+        if _HAS_SC:
+            return self.literals[value]
+        return self.literals[value - MIN_INT]
 
+    def prev_literal(self, value):
+        assert MIN_INT <= value < MAX_INT and self.has_literal(value)
+        if _HAS_SC:
+            prev, _ = self.literals.peekitem(self.literals.bisect_left(value))
+            return prev if value < prev else None
+        for prev in range(value-1, MIN_INT-1, -1):
+            if self.has_literal(prev):
+                return prev
+        return None
+
+    def succ_literal(self, value):
+        assert MIN_INT <= value < MAX_INT and self.has_literal(value)
+        if _HAS_SC:
+            i = self.literals.bisect_right(value)
+            if i == len(self.literals):
+                return None
+            succ, _ = self.literals.peekitem()
+            return succ
+        for succ in range(value+1, MAX_INT):
+            if self.has_literal(succ):
+                return succ
+        return None
+
+    def set_literal(self, value, lit):
+        assert MIN_INT <= value < MAX_INT
+        if _HAS_SC:
+            self.literals[value] = lit
+        else:
+            self.literals[value - MIN_INT] = lit
+
+    def unset_literal(self, value):
+        assert MIN_INT <= value < MAX_INT
+        if _HAS_SC:
+            del self.literals[value]
+        else:
+            self.literals[value - MIN_INT] = None
+
+    def __repr__(self):
+        return "{}=[{},{}]".format(self.var, self.lower_bound, self.upper_bound)
 
 class TodoList(object):
     def __init__(self):
@@ -200,6 +260,11 @@ class State(object):
         vvs = zip(variables, self._vars)
         return [(v, vs.lower_bound) for v, vs in vvs]
 
+    def get_value(self, var):
+        return (self._var_state[var].lower_bound
+                if var in self._var_state else
+                MIN_INT)
+
     def _push_level(self, level):
         if self._levels[-1].level < level:
             self._levels.append(Level(level))
@@ -221,24 +286,24 @@ class State(object):
             return TRUE_LIT
         if not vs.has_literal(value):
             lit = control.add_literal()
-            vs.literals[value - MIN_INT] = lit
+            vs.set_literal(value, lit)
             self._litmap.setdefault(lit, []).append((vs, value))
             control.add_watch(lit)
             control.add_watch(-lit)
-        return vs.literals[value - MIN_INT]
+        return vs.get_literal(value)
 
     def _update_literal(self, vs, value, control, truth):
         if value < MIN_INT or value >= MAX_INT or truth is None:
             return None, self._get_literal(vs, value, control)
         lit = TRUE_LIT if truth else -TRUE_LIT
         if not vs.has_literal(value):
-            vs.literals[value - MIN_INT] = lit
+            vs.set_literal(value, lit)
             self._litmap.setdefault(lit, []).append((vs, value))
             return None, lit
-        old = vs.literals[value - MIN_INT]
+        old = vs.get_literal(value)
         if old == lit:
             return None, lit
-        vs.literals[value - MIN_INT] = lit
+        vs.set_literal(value, lit)
         vec = self._litmap[old]
         assert (vs, value) in vec
         vec.remove((vs, value))
@@ -323,10 +388,9 @@ class State(object):
                     self._todo.extend(self._vu2c.get(vs.var, []))
 
                 # make succeeding literal true
-                for succ in range(value+1, MAX_INT):
-                    if vs.has_literal(succ):
-                        if not self._propagate_variable(control, vs, succ, lit, 1):
-                            return False
+                succ = vs.succ_literal(value)
+                if succ is not None and not self._propagate_variable(control, vs, succ, lit, 1):
+                    return False
 
         # update and propagate lower bound
         if -lit in self._litmap:
@@ -340,10 +404,9 @@ class State(object):
                     self._todo.extend(self._vl2c.get(vs.var, []))
 
                 # make preceeding literal false
-                for prev in range(value-1, MIN_INT-1, -1):
-                    if vs.has_literal(prev):
-                        if not self._propagate_variable(control, vs, prev, lit, -1):
-                            return False
+                prev = vs.prev_literal(value)
+                if prev is not None and not self._propagate_variable(control, vs, prev, lit, -1):
+                    return False
 
         return True
 
@@ -488,33 +551,29 @@ class State(object):
                 return
 
     # reinitialization
+    def _remove_literals(self, lit, pred):
+        if lit in self._litmap:
+            variables = self._litmap[lit]
+            i = remove_if(variables, pred)
+            assert i > 0
+            for vs, value in variables[i:]:
+                vs.unset_literal(value)
+            del variables[i:]
+
     def remove_literals(self):
-        # remove solve stop local variables
+        # remove solve step local variables
         # Note: Iteration order does not matter.
-        for lit in [lit for lit in self._litmap if abs(lit) != TRUE_LIT]:
+        remove = [(lit, vss)
+                  for lit, vss in self._litmap.items()
+                  if abs(lit) != TRUE_LIT]
+        for lit, vss in remove:
+            for vs, value in vss:
+                vs.unset_literal(value)
             del self._litmap[lit]
 
-        # remove literals above upper bound
-        if TRUE_LIT in self._litmap:
-            variables = self._litmap[TRUE_LIT]
-            i = remove_if(
-                variables,
-                lambda x: x[1] != x[0].upper_bound)
-            assert i > 0
-            for vs, value in variables:
-                vs.unset(value)
-            del self._litmap[TRUE_LIT][i:]
-
-        # remove literals below lower bound
-        if -TRUE_LIT in self._litmap:
-            variables = self._litmap[-TRUE_LIT]
-            i = remove_if(
-                variables,
-                lambda x: x[1] != x[0].lower_bound)
-            assert i > 0
-            for vs, value in variables:
-                vs.unset(value)
-            del variables[i:]
+        # remove literals above upper or below lower bound
+        self._remove_literals(TRUE_LIT, lambda x: x[1] != x[0].upper_bound)
+        self._remove_literals(-TRUE_LIT, lambda x: x[1] != x[0].lower_bound-1)
 
     def update_bounds(self, init, other):
         assert len(other._litmap) <= 2
@@ -554,21 +613,24 @@ class Propagator(object):
         init.check_mode = clingo.PropagatorCheckMode.Fixpoint
 
         constraints = []
-        variables = set(self._vars)
+        variables = []
+        variables_seen = set(self._vars)
         for atom in init.theory_atoms:
-            if match(atom.term, "sum", 0):
-                # TODO: exactly those constraints have to be propagated
-                c = Constraint(atom, init.solver_literal(atom.literal))
+            is_sum = match(atom.term, "sum", 0)
+            is_diff = match(atom.term, "diff", 0)
+            if is_sum or is_diff:
+                c = Constraint(atom, init.solver_literal(atom.literal), is_sum)
                 constraints.append(c)
                 self._l2c.setdefault(c.literal, []).append(c)
                 init.add_watch(c.literal)
-                for co, v in c.vars:
-                    variables.add(v)
+                for co, var in c.vars:
+                    if var not in variables_seen:
+                        variables_seen.add(var)
+                        variables.append(var)
                     if co > 0:
-                        self._vl2c.setdefault(v, []).append(c)
+                        self._vl2c.setdefault(var, []).append(c)
                     else:
-                        self._vu2c.setdefault(v, []).append(c)
-        sorted_vars = list(sorted(variables))
+                        self._vu2c.setdefault(var, []).append(c)
 
         # replace all non-fact order literals by None in states
         for state in self._states:
@@ -578,7 +640,7 @@ class Propagator(object):
         if self._states:
             master = self._states[0]
             for state in self._states[1:]:
-                if not master.update_bounds(state):
+                if not master.update_bounds(init, state):
                     return
 
         # adjust number of threads if necessary
@@ -589,20 +651,22 @@ class Propagator(object):
                 state.init_domain(self._vars)
 
         # add newly introduced variables
-        self._vars.extend(sorted_vars)
+        self._vars.extend(variables)
         for i in range(init.number_of_threads):
             state = self._state(i)
-            state.init_domain(sorted_vars)
+            state.init_domain(variables)
 
         # propagate bounds in master to other states
+        master = self._states[0]
         for state in self._states[1:]:
-            if not state.update_bounds(master):
+            if not state.update_bounds(init, master):
                 return
 
         ass = init.assignment
         intrail = set()
         trail = []
-        # TODO: could be a member if we had access to clasp's trail
+        # TODO: Could be a member (of the states) if we had access to clasp's
+        # trail.
         trail_offset = 0
 
         # propagate the newly added constraints
@@ -666,17 +730,28 @@ class Propagator(object):
     def get_assignment(self, thread_id):
         return self._state(thread_id).get_assignment(self._vars)
 
+    def get_value(self, symbol, thread_id):
+        return self._state(thread_id).get_value(str(symbol))
+
 
 class Application(object):
     def __init__(self):
         self.program_name = "csp"
         self.version = "1.0"
-        self.propagator = Propagator()
+        self._propagator = Propagator()
+        self._bound_symbol = None
+        self._bound_value = None
 
-    def print_assignment(self, model):
-        ass = self.propagator.get_assignment(model.thread_id)
+    def print_model(self, model, default_printer):
+        ass = self._propagator.get_assignment(model.thread_id)
+
+        default_printer()
+
         print("Valid assignment for constraints found:")
         print(" ".join("{}={}".format(n, v) for n, v in ass))
+
+        if self._bound_symbol is not None:
+            print("CSP Optimization: {}".format(self._get_bound(model)))
 
     def _parse_min(self, value):
         global MIN_INT
@@ -688,35 +763,77 @@ class Application(object):
         MAX_INT = int(value)
         return True
 
+    def _parse_minimize(self, value):
+        term = clingo.parse_term("({},)".format(value))
+        args = term.arguments
+        size = len(args)
+        if size == 0 or size > 2 or (size > 1 and args[1].type != clingo.SymbolType.Number):
+            return False
+        self._bound_symbol = args[0]
+        if size > 1:
+            self._bound_value = args[1].number
+        return True
+
     def register_options(self, options):
         group = "CSP Options"
         options.add(group, "min-int", "Minimum integer [-20]", self._parse_min, argument="<i>")
         options.add(group, "max-int", "Maximum integer [20]", self._parse_max, argument="<i>")
+        options.add(group, "minimize-variable",
+            "Minimize the given variable\n"
+            "      <arg>   : <variable>[,<initial>]\n"
+            "      <variable>: the variable to minimize_\n"
+            "      <initial> : upper bound for the variable\n",
+            self._parse_minimize)
 
     def validate_options(self):
         if MIN_INT > MAX_INT:
             raise RuntimeError("min-int must not be larger than max-int")
 
+    def _get_bound(self, model):
+        return self._propagator.get_value(self._bound_symbol, model.thread_id)
+
     def main(self, prg, files):
         for f in files:
             prg.load(f)
-        prg.register_propagator(self.propagator)
+        prg.register_propagator(self._propagator)
         prg.add("base", [], """\
 #theory cp {
     constant  { - : 1, unary };
-    sum_term {
-    - : 5, unary;
-    * : 4, binary, left;
-    + : 3, binary, left
+    diff_term {
+    - : 0, binary, left
     };
-    &sum/0 : sum_term, {<=}, constant, head
+    sum_term {
+    - : 2, unary;
+    * : 1, binary, left;
+    + : 0, binary, left
+    };
+    &sum/0 : sum_term, {<=}, constant, head;
+    &diff/0 : diff_term, {<=}, constant, head
 }.
 """)
 
         prg.ground([("base", [])])
-        prg.solve(on_model=self.print_assignment)
+        if self._bound_symbol is None:
+            prg.solve()
+        else:
+            # Note: This is to mirror the implementation in clingo-dl. In
+            # principle this could be dealt with differently with order
+            # variables.
+            prg.add("__bound", ("s", "b"), "&sum { 1*s } <= b.")
+
+            found = True
+            while found:
+                if self._bound_value is not None:
+                    prg.ground((("__bound", (
+                        self._bound_symbol,
+                        clingo.Number(self._bound_value - 1))),))
+
+                found = False
+                for model in prg.solve(yield_=True):
+                    self._bound_value = self._get_bound(model)
+                    found = True
+                    break
 
 
 if __name__ == "__main__":
     sys.exit(int(clingo.clingo_main(Application(), sys.argv[1:])))
-
