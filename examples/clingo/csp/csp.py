@@ -162,23 +162,23 @@ class VarState(object):
             return self.literals[value]
         return self.literals[value - MIN_INT]
 
-    def prev_literal(self, value):
+    def prev_value(self, value):
         assert MIN_INT <= value < MAX_INT and self.has_literal(value)
         if _HAS_SC:
             prev, _ = self.literals.peekitem(self.literals.bisect_left(value))
-            return prev if value < prev else None
+            return prev if prev < value else None
         for prev in range(value-1, MIN_INT-1, -1):
             if self.has_literal(prev):
                 return prev
         return None
 
-    def succ_literal(self, value):
+    def succ_value(self, value):
         assert MIN_INT <= value < MAX_INT and self.has_literal(value)
         if _HAS_SC:
             i = self.literals.bisect_right(value)
             if i == len(self.literals):
                 return None
-            succ, _ = self.literals.peekitem()
+            succ, _ = self.literals.peekitem(i)
             return succ
         for succ in range(value+1, MAX_INT):
             if self.has_literal(succ):
@@ -388,7 +388,7 @@ class State(object):
                     self._todo.extend(self._vu2c.get(vs.var, []))
 
                 # make succeeding literal true
-                succ = vs.succ_literal(value)
+                succ = vs.succ_value(value)
                 if succ is not None and not self._propagate_variable(control, vs, succ, lit, 1):
                     return False
 
@@ -404,7 +404,7 @@ class State(object):
                     self._todo.extend(self._vl2c.get(vs.var, []))
 
                 # make preceeding literal false
-                prev = vs.prev_literal(value)
+                prev = vs.prev_value(value)
                 if prev is not None and not self._propagate_variable(control, vs, prev, lit, -1):
                     return False
 
