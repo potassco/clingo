@@ -753,6 +753,8 @@ class Application(object):
         if self._bound_symbol is not None:
             print("CSP Optimization: {}".format(self._get_bound(model)))
 
+        sys.stdout.flush()
+
     def _parse_min(self, value):
         global MIN_INT
         MIN_INT = int(value)
