@@ -784,6 +784,8 @@ class State:
         for vs in lvl.undo_upper:
             vs.pop_upper()
         self._pop_level()
+        # Note: To make sure that the todo list is cleared when there is
+        #       already a conflict during propagate.
         self._todo.clear()
 
     # checking
