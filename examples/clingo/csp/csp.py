@@ -407,7 +407,46 @@ class Level:
 
 
 class State:
+    """
+    Class to store and propagate thread-specific state.
+
+    Private Members
+    ===============
+    _vars             -- List of VarState objects for variables occurring in
+                         constraints.
+    _var_state        -- Map from variable names to `VarState` objects.
+    _litmap           -- Map from order literals to a list of `VarState/value`
+                         pairs. If there is an order literal for `var<=value`,
+                         then the pair `(vs,value)` is contained in the map
+                         where `vs` is the VarState of `var`.
+    _levels           -- For each decision level propagated, there is a `Level`
+                         object in this list until `undo` is called.
+    _vl2c             -- Map from variable names to a list of constraints. The
+                         map contains a variable/constraint pair if increasing
+                         the lower bound of the variable, increases the slack
+                         of the constraint.
+    _vu2c             -- Map from variable names to a list of constraints. The
+                         map contains a variable/constraint pair if decreasing
+                         the upper bound of the variable, increases the slack
+                         of the constraint.
+    _l2c              -- Map from literals to a list of constraints. The map
+                         contains a literal/constraint pair if the literal is
+                         associated with the constraint.
+    _todo             -- Set of constraints that have to be propagated on the
+                         current decision level.
+    _facts_integrated -- A list of integer pairs. Stores for each decision
+                         level, how many true/false facts have already been
+                         integrated. Unlike with `_levels`, there is a pair for
+                         each decision level checked.
+    """
     def __init__(self, l2c, vl2c, vu2c):
+        """
+        Construct an empty state initialising `_lc2` with `l2c`, `_vl2c` with
+        `vl2c`, and `_vu2c` with `vu2c`.
+
+        The state is ready to propagate decision level zero after a call to
+        `init_domain`.
+        """
         self._vars = []
         self._var_state = {}
         self._litmap = {}
@@ -418,30 +457,74 @@ class State:
         self._todo = TodoList()
         self._facts_integrated = [(0, 0)]
 
-    def get_assignment(self, variables):
-        vvs = zip(variables, self._vars)
-        return [(v, vs.lower_bound) for v, vs in vvs]
+    def get_assignment(self):
+        """
+        Get the current assignment to all variables.
+
+        This function should be called on the state corresponding to the thread
+        where a model has been found.
+        """
+        return [(vs.var, vs.lower_bound) for vs in self._vars]
 
     def get_value(self, var):
+        """
+        Get the current value of a variable.
+
+        This function should be called on the state corresponding to the thread
+        where a model has been found.
+        """
         return (self._var_state[var].lower_bound
                 if var in self._var_state else
                 MIN_INT)
 
     def _push_level(self, level):
+        """
+        Add a new decision level specific state if necessary.
+
+        Has to be called in `propagate`.
+        """
+        assert self._levels
         if self._levels[-1].level < level:
             self._levels.append(Level(level))
 
     def _pop_level(self):
+        """
+        Remove the decision level specific states added last.
+
+        Has to be called in `undo`.
+        """
+        assert len(self._levels) > 1
         self._levels.pop()
 
     def _state(self, var):
+        """
+        Get the state associated with variable `var`.
+        """
         return self._var_state[var]
 
     @property
     def _level(self):
+        """
+        Get the state associated with the current decision level.
+
+        Should only be used in `propagate`, `undo`, and `check`. When `check`
+        is called, the current decision level can be higher than that of the
+        `Level` object returned. Hence, the decision level specific state can
+        only be modified for facts because only then changes also apply for
+        smaller decision levels.
+        """
         return self._levels[-1]
 
     def _get_literal(self, vs, value, control):
+        """
+        Returns the literal associated with the `vs.var/value` pair.
+
+        Values smaller the MIN_INT are associated with the false literal and
+        values greater or equal to MAX_INT with the true literal.
+
+        This function creates a new literal using `control` if there is no
+        literal for the given value.
+        """
         if value < MIN_INT:
             return -TRUE_LIT
         if value >= MAX_INT:
@@ -455,9 +538,45 @@ class State:
         return vs.get_literal(value)
 
     def _update_literal(self, vs, value, control, truth):
-        if value < MIN_INT or value >= MAX_INT or truth is None:
+        """
+        This function is an extended version of `_get_literal` that can update
+        an existing order literal for `vs.var/value` if truth is either true or
+        false.
+
+        The return value is best explained with pseudo code:
+        ```
+        # literal is not updated
+        if truth is None:
+          return None, _get_literal(vs, value, control)
+        lit = TRUE_LIT if truth else -TRUE_LIT
+        if value < MIN_INT:
+          old = -TRUE_LIT
+        elif value >= MAX_INT:
+          old = TRUE_LIT
+        elif vs.has_literal(value):
+          old = vs.get_literal(value)
+        else:
+          old = None
+        # literal has not been updated
+        if old == lit:
+          return None, lit
+        # set the new literal
+        vs.set_literal(value, lit)
+        # return old and new literal
+        return old, lit
+        ```
+
+        Additionally, if the the order literal is updated (`old` is not
+        `None`), then the replaced value is also removed from `_litmap`.
+        """
+        if truth is None:
             return None, self._get_literal(vs, value, control)
         lit = TRUE_LIT if truth else -TRUE_LIT
+        if value < MIN_INT or value >= MAX_INT:
+            old = self._get_literal(vs, value, control)
+            if old == lit:
+                return None, lit
+            return old, lit
         if not vs.has_literal(value):
             vs.set_literal(value, lit)
             self._litmap.setdefault(lit, []).append((vs, value))
@@ -665,6 +784,7 @@ class State:
         for vs in lvl.undo_upper:
             vs.pop_upper()
         self._pop_level()
+        self._todo.clear()
 
     # checking
     @property
@@ -890,7 +1010,7 @@ class Propagator(object):
         self._state(thread_id).undo()
 
     def get_assignment(self, thread_id):
-        return self._state(thread_id).get_assignment(self._vars)
+        return self._state(thread_id).get_assignment()
 
     def get_value(self, symbol, thread_id):
         return self._state(thread_id).get_value(str(symbol))
