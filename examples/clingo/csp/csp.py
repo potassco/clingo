@@ -1,3 +1,8 @@
+"""
+This module provides a propagator for CSP constraints. It can also be used as a
+stand-alone application.
+"""
+
 import sys
 import clingo
 
@@ -8,20 +13,36 @@ try:
 except ImportError:
     _HAS_SC = False
 
+
 MAX_INT = 20
 MIN_INT = -20
 TRUE_LIT = 1
 
+
 def lerp(x, y):
+    """
+    Linear interpolation between integers `x` and `y` with a factor of `.5`.
+    """
     # NOTE: integer division with floor
     return x + (y - x) // 2
 
+
 def match(term, name, arity):
+    """
+    Match the given term if it is a function with signature `name/arity`.
+    """
     return (term.type in (clingo.TheoryTermType.Function, clingo.TheoryTermType.Symbol) and
             term.name == name and
             len(term.arguments) == arity)
 
+
 def remove_if(rng, pred):
+    """
+    Remove each element from `rng` for which `pred` evaluates to true by
+    swapping them to the end of the sequence.
+
+    The function returns the number of elements retained.
+    """
     j = 0
     for i, x in enumerate(rng):
         if pred(x):
@@ -31,8 +52,26 @@ def remove_if(rng, pred):
         j += 1
     return j
 
-class Constraint(object):
+
+class Constraint:
+    """
+    Class to capture sum constraints of form `a_0*x_0 + ... + a_n * x_n <= rhs`.
+
+    Members
+    =======
+    literal -- Solver literal associated with the constraint.
+    rhs     -- Integer bound of the constraint.
+    vars    -- List of integer/string pairs representing coefficient and
+               variable.
+    """
     def __init__(self, atom, literal, is_sum):
+        """
+        Construct a constraint from a theory `atom` and associated with the
+        given `literal`.
+
+        If `is_sum` is true parses a sum constraint. Otherwise, it parses a
+        difference constraint as supported by clingo-dl.
+        """
         self.literal = literal
         self.rhs = self._parse_num(atom.guard[1])
         self.vars = []
@@ -83,15 +122,14 @@ class Constraint(object):
     def _parse_num(self, term):
         if term.type == clingo.TheoryTermType.Number:
             return term.number
-        elif (term.type == clingo.TheoryTermType.Symbol and
+        if (term.type == clingo.TheoryTermType.Symbol and
                 term.symbol.type == clingo.SymbolType.Number):
             return term.symbol.number
-        elif match(term, "-", 1):
+        if match(term, "-", 1):
             return -self._parse_num(term.arguments[0])
-        elif match(term, "+", 1):
+        if match(term, "+", 1):
             return +self._parse_num(term.arguments[0])
-        else:
-            raise RuntimeError("Invalid Syntax")
+        raise RuntimeError("Invalid Syntax")
 
     def _parse_var(self, term):
         return str(term)
@@ -100,109 +138,195 @@ class Constraint(object):
         return "{} <= {}".format(self.vars, self.rhs)
 
 
-class VarState(object):
+class VarState:
+    """
+    Class to facilitate handling order literals associated with an integer
+    variable.
+
+    The class maintains a stack of lower and upper bounds, which initially
+    contain the smallest and largest allowed integer. These stacks must always
+    contain at least one value.
+
+    Members
+    =======
+    var -- The name of the integer variable.
+    """
     def __init__(self, var):
+        """
+        Create an initial state for the given variable.
+
+        Initially, the state has a lower bound of `MIN_INT` and an upper bound
+        of `MAX_INT` and is associated with no variables.
+        """
         self.var = var
         self._upper_bound = [MAX_INT]
         self._lower_bound = [MIN_INT]
-        # TODO: needs better container
         if _HAS_SC:
-            self.literals = SortedDict()
+            self._literals = SortedDict()
         else:
-            self.literals = (MAX_INT-MIN_INT)*[None]
+            self._literals = (MAX_INT-MIN_INT)*[None]
 
     def push_lower(self):
+        """
+        Grows the stack of lower bounds by one copying the top value.
+        """
         self._lower_bound.append(self.lower_bound)
 
     def push_upper(self):
+        """
+        Grows the stack of upper bounds by one copying the top value.
+        """
         self._upper_bound.append(self.upper_bound)
 
     def pop_lower(self):
+        """
+        Remove one item from the stack of lower bounds.
+
+        Must be called on a stack of size greater than one.
+        """
         assert len(self._lower_bound) > 1
         self._lower_bound.pop()
 
     def pop_upper(self):
+        """
+        Remove one item from the stack of upper bounds.
+
+        Must be called on a stack of size greater than one.
+        """
         assert len(self._upper_bound) > 1
         self._upper_bound.pop()
 
     @property
     def lower_bound(self):
+        """
+        Get the current lower bound on top of the stack.
+
+        Must not be called on an empty stack.
+        """
         assert self._lower_bound
         return self._lower_bound[-1]
 
     @lower_bound.setter
     def lower_bound(self, value):
+        """
+        Set the current lower bound on top of the stack.
+
+        Must not be called on an empty stack.
+        """
         assert self._lower_bound
         self._lower_bound[-1] = value
 
     @property
     def upper_bound(self):
+        """
+        Get the current upper bound on top of the stack.
+
+        Must not be called on an empty stack.
+        """
         assert self._upper_bound
         return self._upper_bound[-1]
 
     @upper_bound.setter
     def upper_bound(self, value):
+        """
+        Set the current upper bound on top of the stack.
+
+        Must not be called on an empty stack.
+        """
         assert self._upper_bound
         self._upper_bound[-1] = value
 
     @property
     def is_assigned(self):
+        """
+        Determine if the variable is assigned, i.e., the current lower bound
+        equals the current upper bound.
+        """
         return self.upper_bound == self.lower_bound
 
     def has_literal(self, value):
-        if value < MIN_INT or value >= MAX_INT:
-            return True
+        """
+        Determine if the given `value` is associated with an order literal.
+
+        The value must lie in the range `[MIN_INT,MAX_INT)`.
+        """
+        assert MIN_INT <= value < MAX_INT
         if _HAS_SC:
-            return value in self.literals
-        return self.literals[value - MIN_INT] is not None
+            return value in self._literals
+        return self._literals[value - MIN_INT] is not None
 
     def get_literal(self, value):
-        assert MIN_INT <= value < MAX_INT and self.has_literal(value)
+        """
+        Get the literal associated with the given `value`.
+
+        The value must be associated with a literal.
+        """
+        assert self.has_literal(value)
         if _HAS_SC:
-            return self.literals[value]
-        return self.literals[value - MIN_INT]
+            return self._literals[value]
+        return self._literals[value - MIN_INT]
 
     def prev_value(self, value):
-        assert MIN_INT <= value < MAX_INT and self.has_literal(value)
+        """
+        Get the the first value preceeding `value` that is associated with a
+        literal or None if there is no such value.
+
+        The value must be associated with a literal.
+        """
+        assert self.has_literal(value)
         if _HAS_SC:
-            prev, _ = self.literals.peekitem(self.literals.bisect_left(value))
-            return prev if prev < value else None
+            i = self._literals.index(value)
+            return self._literals.peekitem(i-1)[0] if i > 0 else None
         for prev in range(value-1, MIN_INT-1, -1):
             if self.has_literal(prev):
                 return prev
         return None
 
     def succ_value(self, value):
-        assert MIN_INT <= value < MAX_INT and self.has_literal(value)
+        """
+        Get the the first value succeeding `value` that is associated with a
+        literal or None if there is no such value.
+
+        The value must be associated with a literal.
+        """
+        assert self.has_literal(value)
         if _HAS_SC:
-            i = self.literals.bisect_right(value)
-            if i == len(self.literals):
-                return None
-            succ, _ = self.literals.peekitem(i)
-            return succ
+            i = self._literals.index(value)
+            return self._literals.peekitem(i+1)[0] if i+1 < len(self._literals) else None
         for succ in range(value+1, MAX_INT):
             if self.has_literal(succ):
                 return succ
         return None
 
     def set_literal(self, value, lit):
+        """
+        Set the literal of the given `value`.
+
+        The value must lie in the range `[MIN_INT,MAX_INT)`.
+        """
         assert MIN_INT <= value < MAX_INT
         if _HAS_SC:
-            self.literals[value] = lit
+            self._literals[value] = lit
         else:
-            self.literals[value - MIN_INT] = lit
+            self._literals[value - MIN_INT] = lit
 
     def unset_literal(self, value):
+        """
+        Unset the literal of the given `value`.
+
+        The value must lie in the range `[MIN_INT,MAX_INT)`.
+        """
         assert MIN_INT <= value < MAX_INT
         if _HAS_SC:
-            del self.literals[value]
+            del self._literals[value]
         else:
-            self.literals[value - MIN_INT] = None
+            self._literals[value - MIN_INT] = None
 
     def __repr__(self):
         return "{}=[{},{}]".format(self.var, self.lower_bound, self.upper_bound)
 
-class TodoList(object):
+
+class TodoList:
     def __init__(self):
         self._seen = set()
         self._list = []
