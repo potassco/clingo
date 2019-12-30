@@ -275,11 +275,13 @@ class VarState:
         """
         assert self.has_literal(value)
         if _HAS_SC:
-            i = self._literals.index(value)
-            return self._literals.peekitem(i-1)[0] if i > 0 else None
-        for prev in range(value-1, MIN_INT-1, -1):
-            if self.has_literal(prev):
-                return prev
+            i = self._literals.bisect_left(value)
+            if i > 0:
+                return self._literals.peekitem(i-1)[0]
+        else:
+            for prev in range(value-1, MIN_INT-1, -1):
+                if self.has_literal(prev):
+                    return prev
         return None
 
     def succ_value(self, value):
@@ -291,11 +293,13 @@ class VarState:
         """
         assert self.has_literal(value)
         if _HAS_SC:
-            i = self._literals.index(value)
-            return self._literals.peekitem(i+1)[0] if i+1 < len(self._literals) else None
-        for succ in range(value+1, MAX_INT):
-            if self.has_literal(succ):
-                return succ
+            i = self._literals.bisect_right(value)
+            if i < len(self._literals):
+                return self._literals.peekitem(i)[0]
+        else:
+            for succ in range(value+1, MAX_INT):
+                if self.has_literal(succ):
+                    return succ
         return None
 
     def set_literal(self, value, lit):
