@@ -331,7 +331,16 @@ class VarState:
 
 
 class TodoList:
+    """
+    Simple class implementing something like an OrderedSet, which is missing
+    from pythons collections module.
+
+    The container is similar to Python's set but maintains insertion order.
+    """
     def __init__(self):
+        """
+        Construct an empty container.
+        """
         self._seen = set()
         self._list = []
 
@@ -348,6 +357,11 @@ class TodoList:
         return self._list[val]
 
     def add(self, x):
+        """
+        Add `x` to the container if it is not yet contained in it.
+
+        Returns true if the element has been inserted.
+        """
         if x not in self:
             self._seen.add(x)
             self._list.append(x)
@@ -355,24 +369,44 @@ class TodoList:
         return False
 
     def extend(self, i):
+        """
+        Calls `add` for each element in sequence `i`.
+        """
         for x in i:
             self.add(x)
 
     def clear(self):
+        """
+        Clears the container.
+        """
         self._seen.clear()
         self._list.clear()
 
-class Level(object):
-    def __init__(self, level):
-        self.level = level
-        # a trail-like data structure would also be possible but then
-        # assignments would have to be undone
-        self.undo_upper = TodoList()
-        self.done_upper = 0
-        self.undo_lower = TodoList()
-        self.done_lower = 0
 
-class State(object):
+class Level:
+    """
+    Simple class that captures state local to a decision level.
+
+    Members
+    =======
+    level      -- The decision level.
+    undo_upper -- Set of `VarState` objects that have been assigned an upper
+                  bound.
+    undo_lower -- Set of `VarState` objects that have been assigned a lower
+                  bound.
+    """
+    def __init__(self, level):
+        """
+        Construct an empty state for the given decision `level`.
+        """
+        self.level = level
+        # Note: A trail-like data structure would also be possible but then
+        # assignments would have to be undone.
+        self.undo_upper = TodoList()
+        self.undo_lower = TodoList()
+
+
+class State:
     def __init__(self, l2c, vl2c, vu2c):
         self._vars = []
         self._var_state = {}
@@ -471,17 +505,17 @@ class State(object):
         assert ass.is_true(lit)
 
         # get the literal to propagate
-        l = sign * self._get_literal(vs, value, control)
+        con = sign * self._get_literal(vs, value, control)
 
         # on-the-fly simplify
-        if ass.level(lit) == 0 and ass.level(l) > 0:
-            o, l = self._update_literal(vs, value, control, sign > 0)
-            o, l = sign * o, sign * l
+        if ass.level(lit) == 0 and ass.level(con) > 0:
+            o, con = self._update_literal(vs, value, control, sign > 0)
+            o, con = sign * o, sign * con
             if not control.add_clause([o], lock=True):
                 return False
 
         # propagate the literal
-        if not ass.is_true(l) and not control.add_clause([-lit, l]):
+        if not ass.is_true(con) and not control.add_clause([-lit, con]):
             return False
 
         return True
