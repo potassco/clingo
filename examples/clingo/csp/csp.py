@@ -4,6 +4,7 @@ stand-alone application.
 """
 
 import sys
+from itertools import chain
 import clingo
 
 try:
@@ -438,6 +439,8 @@ class State:
                          level, how many true/false facts have already been
                          integrated. Unlike with `_levels`, there is a pair for
                          each decision level checked.
+    _lerp_last        -- Offset of the variable that has been split last during
+                         `check_full`.
     """
     def __init__(self, l2c, vl2c, vu2c):
         """
@@ -456,6 +459,7 @@ class State:
         self._l2c = l2c
         self._todo = TodoList()
         self._facts_integrated = [(0, 0)]
+        self._lerp_last = 0
 
     def get_assignment(self):
         """
@@ -598,6 +602,9 @@ class State:
 
     # initialization
     def init_domain(self, variables):
+        """
+        Adds `VarState` objects for each variable in `variables`.
+        """
         for v in variables:
             vs = VarState(v)
             self._var_state[v] = vs
@@ -605,6 +612,12 @@ class State:
 
     # propagation
     def propagate(self, control, changes):
+        """
+        Propagates constraints and order literals.
+
+        Constraints that became true are added to the todo list and bounds of
+        variables are adjusted according to the truth of order literals.
+        """
         ass = control.assignment
 
         # open a new decision level if necessary
@@ -619,6 +632,21 @@ class State:
         return True
 
     def _propagate_variable(self, control, vs, value, lit, sign):
+        """
+        Propagates the preceeding or succeeding order literal of lit.
+
+        Whether the target literal is a preceeding or succeeding literal is
+        determined by `sign`. The target order literal is given by
+        `(vs.var,value)` and must exist.
+
+        For example, if `sign==1`, then lit is an order literal for some
+        integer value smaller than `value`. The function propagates the clause
+        `lit` implies `_get_literal(vs, value, control)`.
+
+        Furthermore, if `lit` is a fact, the target literal is simplified to a
+        fact, too.
+        """
+
         assert vs.has_literal(value)
         ass = control.assignment
         assert ass.is_true(lit)
@@ -641,17 +669,10 @@ class State:
 
     def _update_domain(self, control, lit):
         """
-        The function updates lower and upper bounds of variables and propagates
-        order literals.
-
-        If a variable `v` has lower bound `l`, then the preceeding order (if
-        any) literal `v<=l'` with `l'<l` is made false. Similarly, if a
-        variable `v` has upper bound `u`, then the succeeding order literal
-        `v<=u'` with `u'<u` is made true.
-
-        Problems
-        ========
-        - Clauses could be locked.
+        If `lit` is an order literal, this function updates the lower or upper
+        bound associated to the variable of the literal (if necessary).
+        Furthermore, the preceeding or succeeding order literal is propagated
+        if it exists.
         """
         assert control.assignment.is_true(lit)
 
@@ -693,15 +714,24 @@ class State:
 
     def propagate_constraint(self, l, c, control):
         """
-        This function propagates a constraint that became active because an its
-        associated literal became true.
+        This function propagates a constraint that became active because its
+        associated literal became true or because the bound of one of its
+        variables changed.
 
         The function calculates the slack of the constraint w.r.t. to the
         lower/upper bounds of its values. The order values are then propagated
-        in such a way that the slack is positive. The trick here is that we can
-        use the ordering of variables to restrict the number of propagations.
-        For example, for positive coefficients, we just have to enforce the
-        smallest order variable that would make the slack non-negative.
+        in such a way that the slack is non-negative. The trick here is that we
+        can use the ordering of variables to restrict the number of
+        propagations. For example, for positive coefficients, we just have to
+        enforce the smallest order variable that would make the slack
+        non-negative.
+
+        The function yields clauses for propagating order literals. Because
+        some order literals might be replaced with facts, some clauses have to
+        be locked to permanently fix the truth values of the previous order
+        literals. For this reason a pairs of clauses and Booleans are yielded
+        where the second argument determines whether the clauses should be
+        locked.
         """
         ass = control.assignment
         assert not ass.is_false(l)
@@ -736,10 +766,10 @@ class State:
         # this is necessary to correctly handle empty constraints (and do
         # propagation of false constraints)
         if slack < 0:
-            yield lbs
+            yield lbs, False
 
         if not ass.is_true(l):
-            return True
+            return
 
         for i, (co, var) in enumerate(c.vars):
             vs = self._state(var)
@@ -755,16 +785,16 @@ class State:
                 diff = slack+co*vs.lower_bound
                 value = diff//co
                 old, lit = self._update_literal(vs, value, control, truth)
-                if old is not None and not control.add_clause([old], lock=True):
-                    return False
+                if old is not None:
+                    yield [old], True
             else:
                 truth = num_guess > adjust and None
                 diff = slack+co*vs.upper_bound
                 value = -(diff//-co)
                 old, lit = self._update_literal(vs, value-1, control, truth)
                 lit = -lit
-                if old is not None and not control.add_clause([-old], lock=True):
-                    return False
+                if old is not None:
+                    yield [-old], True
 
             # the value is chosen in a way that the slack is greater or equal
             # than 0 but also so that it does not exceed the coefficient (in
@@ -773,10 +803,16 @@ class State:
 
             if not ass.is_true(lit):
                 lbs[i], lit = lit, lbs[i]
-                yield lbs
+                yield lbs, False
                 lbs[i] = lit
 
     def undo(self):
+        """
+        This function undos decision level specific state.
+
+        This includes undoing changed bounds of variables clearing constraints
+        that where not propagated on the current decision level.
+        """
         lvl = self._level
         for vs in lvl.undo_lower:
             vs.pop_lower()
@@ -791,9 +827,19 @@ class State:
     # checking
     @property
     def _num_facts(self):
-        return len(self._litmap.get(1, [])), len(self._litmap.get(-1, []))
+        """
+        The a pair of intergers corresponding to the numbers of order literals
+        associated with the true and false literal.
+        """
+        t = len(self._litmap.get(TRUE_LIT, []))
+        f = len(self._litmap.get(-TRUE_LIT, []))
+        return t, f
 
     def check(self, control):
+        """
+        This functions propagates facts that have not been integrated on the
+        current level and propagates constraints gathered during `propagate`.
+        """
         ass = control.assignment
 
         # Note: Maintain which facts have been integrated on which level.
@@ -816,8 +862,8 @@ class State:
             for c in self._todo:
                 lit = c.literal
                 if not ass.is_false(lit):
-                    for clause in self.propagate_constraint(lit, c, control):
-                        if not control.add_clause(clause) or not control.propagate():
+                    for clause, lock in self.propagate_constraint(lit, c, control):
+                        if not control.add_clause(clause, lock=lock) or not control.propagate():
                             self._todo.clear()
                             return False
             self._todo.clear()
@@ -828,14 +874,27 @@ class State:
         return True
 
     def check_full(self, control):
-        for vs in self._vars:
+        """
+        This function selects a variable that is not fully assigned w.r.t. the
+        current assignment and introduces an additional order literal for it.
+
+        This function should only be called total assignments.
+        """
+        post = range(self._lerp_last, len(self._vars))
+        pre = range(0, self._lerp_last)
+        for i in chain(post, pre):
+            vs = self._vars[i]
             if not vs.is_assigned:
+                self._lerp_last = i
                 value = lerp(vs.lower_bound, vs.upper_bound)
                 self._get_literal(vs, value, control)
                 return
 
     # reinitialization
     def _remove_literals(self, lit, pred):
+        """
+        Remove (var,value) pairs associated with `lit` that match `pred`.
+        """
         if lit in self._litmap:
             variables = self._litmap[lit]
             i = remove_if(variables, pred)
@@ -845,6 +904,11 @@ class State:
             del variables[i:]
 
     def remove_literals(self):
+        """
+        This function removes all solve step local variables from the state.
+        Furthermore, it removes all order literals associated with facts that
+        are above the upper or below the lower bound.
+        """
         # remove solve step local variables
         # Note: Iteration order does not matter.
         remove = [(lit, vss)
@@ -860,6 +924,14 @@ class State:
         self._remove_literals(-TRUE_LIT, lambda x: x[1] != x[0].lower_bound-1)
 
     def update_bounds(self, init, other):
+        """
+        Integrate the lower and upper bounds from State `other`.
+
+        The function might add clauses via `init` to fix literals that have to
+        be updated. This can lead to a conflict if states have conflicting
+        lower/upper bounds.
+        """
+        # pylint: disable=protected-access
         assert len(other._litmap) <= 2
 
         # update upper bounds
@@ -880,7 +952,7 @@ class State:
         return self._update_domain(init, 1)
 
 
-class Propagator(object):
+class Propagator:
     def __init__(self):
         self._l2c = {}     # map literals to constraints
         self._states = []  # map thread id to states
