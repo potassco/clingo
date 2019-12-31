@@ -104,8 +104,12 @@ class Constraint:
     def _parse_elem(self, term, is_sum):
         if not is_sum:
             if match(term, "-", 2):
-                yield 1, self._parse_var(term.arguments[0])
-                yield -1, self._parse_var(term.arguments[1])
+                var = self._parse_var(term.arguments[0])
+                if var != "0":
+                    yield 1, var
+                var = self._parse_var(term.arguments[1])
+                if var != "0":
+                    yield -1, var
             else:
                 raise RuntimeError("Invalid Syntax")
         else:
@@ -611,6 +615,15 @@ class State:
             self._var_state[v] = vs
             self._vars.append(vs)
 
+    # heuristic
+    def decide(self, fallback):
+        """
+        Makes order literals true by default.
+        """
+        if -fallback in self._litmap:
+            return -fallback
+        return fallback
+
     # propagation
     def propagate(self, control, changes):
         """
@@ -864,7 +877,12 @@ class State:
                 lit = c.literal
                 if not ass.is_false(lit):
                     for clause, lock in self.propagate_constraint(lit, c, control):
-                        if not control.add_clause(clause, lock=lock) or not control.propagate():
+                        # Note: This is a hack because the PropagateInit object
+                        #       does not have a lock parameter.
+                        args = {}
+                        if lock:
+                            args["lock"] = True
+                        if not control.add_clause(clause, **args) or not control.propagate():
                             self._todo.clear()
                             return False
             self._todo.clear()
@@ -1076,6 +1094,20 @@ class Propagator:
 
                 if not state.check(init):
                     return
+
+    def decide(self, thread_id, assignment, fallback):
+        # pylint: disable=unused-argument
+        """
+        When minimizing the heuristic here is meant to make integer variables
+        as small as possible.
+
+        We simply make order literals true by default here if they are
+        selected. This will assign small values first.
+
+        Note: It might make sense to implement something more sophisticated and
+        provide some options.
+        """
+        return self._state(thread_id).decide(fallback)
 
     def propagate(self, control, changes):
         """
