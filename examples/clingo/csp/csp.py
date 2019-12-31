@@ -953,6 +953,9 @@ class State:
 
 
 class Propagator:
+    """
+    A propagator for CSP constraints.
+    """
     def __init__(self):
         self._l2c = {}     # map literals to constraints
         self._states = []  # map thread id to states
@@ -961,11 +964,20 @@ class Propagator:
         self._vu2c = {}    # map variables affecting upper bound of constraints
 
     def _state(self, thread_id):
+        """
+        Get the state associated with the given `thread_id`.
+        """
         while len(self._states) <= thread_id:
             self._states.append(State(self._l2c, self._vl2c, self._vu2c))
         return self._states[thread_id]
 
     def init(self, init):
+        """
+        Initializes the propagator extracting constraints from the theory data.
+
+        The function handles reinitialization for multi-shot solving and
+        multi-threaded solving.
+        """
         init.check_mode = clingo.PropagatorCheckMode.Fixpoint
 
         constraints = []
@@ -1029,6 +1041,7 @@ class Propagator:
         # Note: consequences of previously added constraints are stored in the
         # bounds propagated above.
         for state in self._states:
+            # pylint: disable=protected-access
             state._todo.extend(constraints)
 
         # Note: The initial propagation below, will not introduce any order
@@ -1064,10 +1077,17 @@ class Propagator:
                     return
 
     def propagate(self, control, changes):
+        """
+        Delegates propagation to the respective state.
+        """
         state = self._state(control.thread_id)
         state.propagate(control, changes)
 
     def check(self, control):
+        """
+        Delegates checking to the respective state and makes sure that all
+        order variables are assigned if the assigment is total.
+        """
         size = control.assignment.size
         state = self._state(control.thread_id)
 
@@ -1081,16 +1101,31 @@ class Propagator:
             state.check_full(control)
 
     def undo(self, thread_id, assign, changes):
+        # pylint: disable=unused-argument
+        """
+        Delegates undoing to the respective state.
+        """
         self._state(thread_id).undo()
 
     def get_assignment(self, thread_id):
+        """
+        Get the assigment from the state associated with `thread_id`.
+
+        Should be called on total assignments.
+        """
         return self._state(thread_id).get_assignment()
 
     def get_value(self, symbol, thread_id):
+        """
+        Get the value of the given variable in the state associated with
+        `thread_id`.
+
+        Should be called on total assignments.
+        """
         return self._state(thread_id).get_value(str(symbol))
 
 
-class Application(object):
+class Application:
     def __init__(self):
         self.program_name = "csp"
         self.version = "1.0"
