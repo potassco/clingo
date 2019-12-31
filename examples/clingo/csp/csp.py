@@ -5,6 +5,7 @@ stand-alone application.
 
 import sys
 from itertools import chain
+from textwrap import dedent
 import clingo
 
 try:
@@ -1126,14 +1127,21 @@ class Propagator:
 
 
 class Application:
+    """
+    Application class that can be used with `clingo.clingo_main` to solve CSP
+    problems.
+    """
     def __init__(self):
         self.program_name = "csp"
         self.version = "1.0"
         self._propagator = Propagator()
-        self._bound_symbol = None
-        self._bound_value = None
+        self._bound_symbol = None  # CSP variable to minimize
+        self._bound_value = None   # current/initial value of CSP variable
 
     def print_model(self, model, default_printer):
+        """
+        Print the current model and the assignment to integer variables.
+        """
         ass = self._propagator.get_assignment(model.thread_id)
 
         default_printer()
@@ -1147,16 +1155,33 @@ class Application:
         sys.stdout.flush()
 
     def _parse_min(self, value):
+        """
+        Parse and set minimum value for integer variables.
+        """
+        # Note: just done like this because otherwise the data-structure for
+        #       literals in `VarState` objects would have become a little more
+        #       difficult. This should not be done in a real application.
+        # pylint: disable=global-statement
         global MIN_INT
         MIN_INT = int(value)
         return True
 
     def _parse_max(self, value):
+        """
+        Parse and set maximum value for integer variables.
+        """
+        # Note: just done like this because otherwise the data-structure for
+        #       literals in `VarState` objects would have become a little more
+        #       difficult. This should not be done in a real application.
+        # pylint: disable=global-statement
         global MAX_INT
         MAX_INT = int(value)
         return True
 
     def _parse_minimize(self, value):
+        """
+        Parse and set variable to minimize and an optional initial value.
+        """
         term = clingo.parse_term("({},)".format(value))
         args = term.arguments
         size = len(args)
@@ -1168,42 +1193,56 @@ class Application:
         return True
 
     def register_options(self, options):
+        """
+        Register CSP related options.
+        """
         group = "CSP Options"
         options.add(group, "min-int", "Minimum integer [-20]", self._parse_min, argument="<i>")
         options.add(group, "max-int", "Maximum integer [20]", self._parse_max, argument="<i>")
-        options.add(group, "minimize-variable",
-            "Minimize the given variable\n"
-            "      <arg>   : <variable>[,<initial>]\n"
-            "      <variable>: the variable to minimize_\n"
-            "      <initial> : upper bound for the variable\n",
-            self._parse_minimize)
+        options.add(group, "minimize-variable", dedent("""\
+            Minimize the given variable
+                  <arg>   : <variable>[,<initial>]
+                  <variable>: the variable to minimize
+                  <initial> : upper bound for the variable,
+            """), self._parse_minimize)
 
     def validate_options(self):
+        """
+        Validate options making sure that the minimum is larger than the
+        maximum integer.
+        """
         if MIN_INT > MAX_INT:
             raise RuntimeError("min-int must not be larger than max-int")
 
     def _get_bound(self, model):
+        """
+        Get the current value of the variable being minimized.
+        """
         return self._propagator.get_value(self._bound_symbol, model.thread_id)
 
     def main(self, prg, files):
+        """
+        Entry point of the application registering the propagator and
+        implementing the standard ground and solve functionality.
+        """
         for f in files:
             prg.load(f)
         prg.register_propagator(self._propagator)
-        prg.add("base", [], """\
-#theory cp {
-    constant  { - : 1, unary };
-    diff_term {
-    - : 0, binary, left
-    };
-    sum_term {
-    - : 2, unary;
-    * : 1, binary, left;
-    + : 0, binary, left
-    };
-    &sum/0 : sum_term, {<=}, constant, head;
-    &diff/0 : diff_term, {<=}, constant, head
-}.
-""")
+        prg.add("base", [], dedent("""\
+            #theory cp {
+                constant  { - : 1, unary };
+                diff_term {
+                - : 0, binary, left
+                };
+                sum_term {
+                - : 2, unary;
+                * : 1, binary, left;
+                + : 0, binary, left
+                };
+                &sum/0 : sum_term, {<=}, constant, head;
+                &diff/0 : diff_term, {<=}, constant, head
+            }.
+            """))
 
         prg.ground([("base", [])])
         if self._bound_symbol is None:
