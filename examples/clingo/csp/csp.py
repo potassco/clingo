@@ -540,6 +540,12 @@ class State:
             return TRUE_LIT
         if not vs.has_literal(value):
             lit = control.add_literal()
+            # Note: By default clasp's heuristic makes literals false. By
+            # flipping the literal for non-negative values, assignments close
+            # to zero are preferred. This way, we might get solutions with
+            # small numbers first.
+            if value >= 0:
+                lit = -lit
             vs.set_literal(value, lit)
             self._litmap.setdefault(lit, []).append((vs, value))
             control.add_watch(lit)
@@ -614,15 +620,6 @@ class State:
             vs = VarState(v)
             self._var_state[v] = vs
             self._vars.append(vs)
-
-    # heuristic
-    def decide(self, fallback):
-        """
-        Makes order literals true by default.
-        """
-        if -fallback in self._litmap:
-            return -fallback
-        return fallback
 
     # propagation
     def propagate(self, control, changes):
@@ -1094,20 +1091,6 @@ class Propagator:
 
                 if not state.check(init):
                     return
-
-    def decide(self, thread_id, assignment, fallback):
-        # pylint: disable=unused-argument
-        """
-        When minimizing the heuristic here is meant to make integer variables
-        as small as possible.
-
-        We simply make order literals true by default here if they are
-        selected. This will assign small values first.
-
-        Note: It might make sense to implement something more sophisticated and
-        provide some options.
-        """
-        return self._state(thread_id).decide(fallback)
 
     def propagate(self, control, changes):
         """
