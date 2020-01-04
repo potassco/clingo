@@ -1110,9 +1110,11 @@ class Propagator:
         if not state.check(control):
             return
 
-        # TODO: Should assignment.is_total be true even after new literals have
-        # been added?
-        # make sure that all variables are assigned in the end
+        # Note: Makes sure that all variables are assigned in the end. But even
+        # if the assignment is total, we do not have to introduce fresh
+        # variables if variables have been introduced during check. In this
+        # case, there is a guaranteed follow-up propagate call because all
+        # newly introduced variables are watched.
         if size == control.assignment.size and control.assignment.is_total:
             state.check_full(control)
 
