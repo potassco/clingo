@@ -916,10 +916,18 @@ class State:
             i = remove_if(variables, pred)
             assert i > 0
             for vs, value in variables[i:]:
+                if vs.get_literal(value) != lit:
+                    # TODO: This can probably not happen. To be on the safe
+                    # side, we can simply fix the truth of the order literal to
+                    # lit in this case.
+                    assert False
+
                 vs.unset_literal(value)
             del variables[i:]
 
-    def remove_literals(self):
+        return True
+
+    def remove_literals(self, init):
         """
         This function removes all solve step local variables from the state.
         Furthermore, it removes all order literals associated with facts that
@@ -929,15 +937,15 @@ class State:
         # Note: Iteration order does not matter.
         remove = [(lit, vss)
                   for lit, vss in self._litmap.items()
-                  if abs(lit) != TRUE_LIT]
+                  if abs(lit) > init.assignment.max_size+1]
         for lit, vss in remove:
             for vs, value in vss:
                 vs.unset_literal(value)
             del self._litmap[lit]
 
         # remove literals above upper or below lower bound
-        self._remove_literals(TRUE_LIT, lambda x: x[1] != x[0].upper_bound)
-        self._remove_literals(-TRUE_LIT, lambda x: x[1] != x[0].lower_bound-1)
+        return (self._remove_literals(TRUE_LIT, lambda x: x[1] != x[0].upper_bound) and
+                self._remove_literals(-TRUE_LIT, lambda x: x[1] != x[0].lower_bound-1))
 
     def update_bounds(self, init, other):
         """
@@ -1018,7 +1026,8 @@ class Propagator:
 
         # replace all non-fact order literals by None in states
         for state in self._states:
-            state.remove_literals()
+            if not state.remove_literals(init):
+                return False
 
         # gather bounds of states in master
         if self._states:
@@ -1067,7 +1076,10 @@ class Propagator:
                 return
 
             # TODO: Trail handling should happen in clingo.
-            for var in range(1, ass.max_size):
+            # NOTE: Apparently, the last valid literal is max_size+1. Probably,
+            # because literals are counted beginning with 2 and even though
+            # literal 1 exists it is not considered part of the assignment.
+            for var in range(1, ass.max_size+2):
                 if var in intrail:
                     continue
                 t = ass.value(var)
