@@ -552,6 +552,22 @@ class State:
             control.add_watch(-lit)
         return vs.get_literal(value)
 
+    def _remove_literal(self, control, vs, lit, value):
+        """
+        Removes order literal `lit` for `vs.var<=value` from `_litmap`.
+        """
+        vec = self._litmap[lit]
+        assert (vs, value) in vec
+        vec.remove((vs, value))
+        if not vec:
+            assert -lit not in self._litmap
+            del self._litmap[lit]
+            # Note: When called with `PropagateInit`, there is no
+            # `remove_watch` function.
+            if hasattr(control, "remove_watch"):
+                control.remove_watch(lit)
+                control.remove_watch(-lit)
+
     def _update_literal(self, vs, value, control, truth):
         """
         This function is an extended version of `_get_literal` that can update
@@ -600,14 +616,7 @@ class State:
         if old == lit:
             return None, lit
         vs.set_literal(value, lit)
-        vec = self._litmap[old]
-        assert (vs, value) in vec
-        vec.remove((vs, value))
-        if not vec:
-            assert -old not in self._litmap
-            del self._litmap[old]
-            control.remove_watch(old)
-            control.remove_watch(-old)
+        self._remove_literal(control, vs, old, value)
         self._litmap.setdefault(lit, []).append((vs, value))
         return old, lit
 
@@ -907,7 +916,7 @@ class State:
                 return
 
     # reinitialization
-    def _remove_literals(self, lit, pred):
+    def _remove_literals(self, init, lit, pred):
         """
         Remove (var,value) pairs associated with `lit` that match `pred`.
         """
@@ -916,12 +925,14 @@ class State:
             i = remove_if(variables, pred)
             assert i > 0
             for vs, value in variables[i:]:
-                if vs.get_literal(value) != lit:
-                    # TODO: This can probably not happen. To be on the safe
-                    # side, we can simply fix the truth of the order literal to
-                    # lit in this case.
-                    assert False
-
+                old = vs.get_literal(value)
+                if old != lit:
+                    # Note: This can probably not happen. To be on the safe
+                    # side, we simply make old and lit equal before removing
+                    # the old literal.
+                    self._remove_literal(init, vs, old, value)
+                    if not init.add_clause([-lit, old]) or not init.add_clause([-old, lit]):
+                        return False
                 vs.unset_literal(value)
             del variables[i:]
 
@@ -944,8 +955,8 @@ class State:
             del self._litmap[lit]
 
         # remove literals above upper or below lower bound
-        return (self._remove_literals(TRUE_LIT, lambda x: x[1] != x[0].upper_bound) and
-                self._remove_literals(-TRUE_LIT, lambda x: x[1] != x[0].lower_bound-1))
+        return (self._remove_literals(init, TRUE_LIT, lambda x: x[1] != x[0].upper_bound) and
+                self._remove_literals(init, -TRUE_LIT, lambda x: x[1] != x[0].lower_bound-1))
 
     def update_bounds(self, init, other):
         """
@@ -1027,7 +1038,7 @@ class Propagator:
         # replace all non-fact order literals by None in states
         for state in self._states:
             if not state.remove_literals(init):
-                return False
+                return
 
         # gather bounds of states in master
         if self._states:
