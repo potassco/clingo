@@ -616,6 +616,11 @@ class State:
         old = vs.get_literal(value)
         if old == lit:
             return None, lit
+        if old == -lit:
+            # Note: In this case, a literal is associated with both true and
+            # false and we get a top level conflict making further data
+            # structure updates unnecessary.
+            return old, lit
         vs.set_literal(value, lit)
         self._remove_literal(control, vs, old, value)
         self._litmap.setdefault(lit, []).append((vs, value))
@@ -939,9 +944,11 @@ class State:
             for vs, value in variables[i:]:
                 old = vs.get_literal(value)
                 if old != lit:
-                    # Note: This can probably not happen. To be on the safe
-                    # side, we simply make old and lit equal before removing
-                    # the old literal.
+                    # Note: This case is probably difficult to trigger but can
+                    # happen when a solution is found and facts are not
+                    # integrated because there are no further check calls. This
+                    # makes the old literal equal to lit before removing the
+                    # old literal.
                     if not init.add_clause([-lit, old]) or not init.add_clause([-old, lit]):
                         return False
                     self._remove_literal(init, vs, old, value)
