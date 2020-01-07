@@ -680,7 +680,7 @@ class State:
         con = sign * self._get_literal(vs, value, control)
 
         # on-the-fly simplify
-        if ass.level(lit) == 0 and ass.level(con) > 0:
+        if ass.is_fixed(lit) and not ass.is_fixed(con):
             o, con = self._update_literal(vs, value, control, sign > 0)
             o, con = sign * o, sign * con
             if not control.add_clause([o], lock=True):
@@ -780,10 +780,10 @@ class State:
                 lit = -self._get_literal(vs, vs.upper_bound, control)
 
             assert ass.is_false(lit)
-            if ass.level(lit) > 0:
+            if not ass.is_fixed(lit):
                 num_guess += 1
             lbs.append(lit)
-        if ass.level(l) > 0:
+        if not ass.is_fixed(l):
             num_guess += 1
 
         lbs.append(-l)
@@ -800,7 +800,7 @@ class State:
             vs = self._state(var)
 
             # adjust the number of guesses if the current literal is a guess
-            adjust = 1 if ass.level(lbs[i]) > 0 else 0
+            adjust = 1 if not ass.is_fixed(lbs[i]) else 0
 
             # if all literals are assigned on level 0 then we can associate the
             # value with a true/false literal, taken care of by the extra
