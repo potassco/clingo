@@ -556,6 +556,7 @@ class State:
         """
         Removes order literal `lit` for `vs.var<=value` from `_litmap`.
         """
+        assert lit not in (TRUE_LIT, -TRUE_LIT)
         vec = self._litmap[lit]
         assert (vs, value) in vec
         vec.remove((vs, value))
@@ -920,8 +921,19 @@ class State:
         """
         Remove (var,value) pairs associated with `lit` that match `pred`.
         """
+        assert lit in (TRUE_LIT, -TRUE_LIT)
         if lit in self._litmap:
             variables = self._litmap[lit]
+
+            # adjust the number of facts that have been integrated
+            idx = 0 if lit == TRUE_LIT else 1
+            nums = list(self._facts_integrated[0])
+            for x in variables[:nums[idx]]:
+                if pred(x):
+                    nums[idx] -= 1
+            self._facts_integrated[0] = tuple(nums)
+
+            # remove values matching pred
             i = remove_if(variables, pred)
             assert i > 0
             for vs, value in variables[i:]:
@@ -930,9 +942,9 @@ class State:
                     # Note: This can probably not happen. To be on the safe
                     # side, we simply make old and lit equal before removing
                     # the old literal.
-                    self._remove_literal(init, vs, old, value)
                     if not init.add_clause([-lit, old]) or not init.add_clause([-old, lit]):
                         return False
+                    self._remove_literal(init, vs, old, value)
                 vs.unset_literal(value)
             del variables[i:]
 
@@ -955,6 +967,7 @@ class State:
             del self._litmap[lit]
 
         # remove literals above upper or below lower bound
+        del self._facts_integrated[1:]
         return (self._remove_literals(init, TRUE_LIT, lambda x: x[1] != x[0].upper_bound) and
                 self._remove_literals(init, -TRUE_LIT, lambda x: x[1] != x[0].lower_bound-1))
 
