@@ -616,14 +616,13 @@ class State:
         old = vs.get_literal(value)
         if old == lit:
             return None, lit
-        if old == -lit:
-            # Note: In this case, a literal is associated with both true and
-            # false and we get a top level conflict making further data
-            # structure updates unnecessary.
-            return old, lit
-        vs.set_literal(value, lit)
-        self._remove_literal(control, vs, old, value)
-        self._litmap.setdefault(lit, []).append((vs, value))
+        # Note: If a literal is associated with both true and false, then we
+        # get a top level conflict making further data structure updates
+        # unnecessary.
+        if old != -lit:
+            vs.set_literal(value, lit)
+            self._remove_literal(control, vs, old, value)
+            self._litmap.setdefault(lit, []).append((vs, value))
         return old, lit
 
     # initialization
