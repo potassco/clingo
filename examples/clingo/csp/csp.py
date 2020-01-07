@@ -867,6 +867,9 @@ class State:
         """
         ass = control.assignment
 
+        # TODO: The stack of facts integrated here can probably be replaced by
+        # a simple tuple. We can only get facts on level 0. On higher levels no
+        # propagation should happen.
         # Note: Maintain which facts have been integrated on which level.
         assert ass.decision_level <= len(self._facts_integrated)
         if ass.decision_level == len(self._facts_integrated):
@@ -943,11 +946,11 @@ class State:
             for vs, value in variables[i:]:
                 old = vs.get_literal(value)
                 if old != lit:
-                    # Note: This case is probably difficult to trigger but can
-                    # happen when a solution is found and facts are not
-                    # integrated because there are no further check calls. This
-                    # makes the old literal equal to lit before removing the
-                    # old literal.
+                    # TODO: This case cannot be triggered if propagation works
+                    # correctly because facts can only be propagated on level
+                    # 0. We can probably just remove this and turn it into an
+                    # assertion. To be on the safe side for now, this makes the
+                    # old literal equal to lit before removing the old literal.
                     if not init.add_clause([-lit, old]) or not init.add_clause([-old, lit]):
                         return False
                     self._remove_literal(init, vs, old, value)
@@ -972,6 +975,8 @@ class State:
                 vs.unset_literal(value)
             del self._litmap[lit]
 
+        # TODO: maybe make this a separate function that is called after the
+        # bounds where updated.
         # remove literals above upper or below lower bound
         del self._facts_integrated[1:]
         return (self._remove_literals(init, TRUE_LIT, lambda x: x[1] != x[0].upper_bound) and
