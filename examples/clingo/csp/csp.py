@@ -867,10 +867,12 @@ class State:
         """
         ass = control.assignment
 
-        # TODO: The stack of facts integrated here can probably be replaced by
-        # a simple tuple. We can only get facts on level 0. On higher levels no
-        # propagation should happen.
-        # Note: Maintain which facts have been integrated on which level.
+        # Note: Maintain which facts have been integrated on which level. In
+        # general, facts will only be propagated and integrated on level 0. To
+        # be on the safe side in view of combinations with other theories, we
+        # still maintain a stack.
+        # TODO: In view of the above, a sorted container storing less tuples
+        # would make sense.
         assert ass.decision_level <= len(self._facts_integrated)
         if ass.decision_level == len(self._facts_integrated):
             self._facts_integrated.append(self._facts_integrated[-1])
@@ -946,11 +948,11 @@ class State:
             for vs, value in variables[i:]:
                 old = vs.get_literal(value)
                 if old != lit:
-                    # TODO: This case cannot be triggered if propagation works
+                    # Note: This case cannot be triggered if propagation works
                     # correctly because facts can only be propagated on level
-                    # 0. We can probably just remove this and turn it into an
-                    # assertion. To be on the safe side for now, this makes the
-                    # old literal equal to lit before removing the old literal.
+                    # 0. But to be on the safe side in view of theory
+                    # extensions, this makes the old literal equal to lit
+                    # before removing the old literal.
                     if not init.add_clause([-lit, old]) or not init.add_clause([-old, lit]):
                         return False
                     self._remove_literal(init, vs, old, value)
@@ -965,19 +967,37 @@ class State:
         Furthermore, it removes all order literals associated with facts that
         are above the upper or below the lower bound.
         """
+        ass = init.assignment
+
+        remove_invalid = []
+        remove_fixed = []
+        for lit, vss in self._litmap.items():
+            if abs(lit) == TRUE_LIT:
+                continue
+            elif not ass.has_literal(lit):
+                remove_invalid.append((lit, vss))
+            elif ass.is_fixed(lit):
+                remove_fixed.append((lit, vss))
+
         # remove solve step local variables
         # Note: Iteration order does not matter.
-        remove = [(lit, vss)
-                  for lit, vss in self._litmap.items()
-                  if abs(lit) > init.assignment.max_size+1]
-        for lit, vss in remove:
+        for lit, vss in remove_invalid:
             for vs, value in vss:
                 vs.unset_literal(value)
             del self._litmap[lit]
 
-        # TODO: maybe make this a separate function that is called after the
-        # bounds where updated.
-        # remove literals above upper or below lower bound
+        # Note: Map bounds associated with top level facts to true/false.
+        # Because we do not know if the facts have already been propagated, we
+        # simply append them and do not touch the counts for integrated facts.
+        for old, vss in sorted(remove_fixed):
+            for vs, value in vss:
+                lit = TRUE_LIT if ass.is_true(old) else -TRUE_LIT
+                self._litmap.setdefault(lit, []).append((vs, value))
+                vs.set_literal(value, lit)
+            del self._litmap[old]
+
+        # TODO: Maybe make this a separate function that is called after
+        # initial propagation is done.
         del self._facts_integrated[1:]
         return (self._remove_literals(init, TRUE_LIT, lambda x: x[1] != x[0].upper_bound) and
                 self._remove_literals(init, -TRUE_LIT, lambda x: x[1] != x[0].lower_bound-1))
@@ -991,7 +1011,6 @@ class State:
         lower/upper bounds.
         """
         # pylint: disable=protected-access
-        assert len(other._litmap) <= 2
 
         # update upper bounds
         for vs_b, _ in other._litmap.get(TRUE_LIT, []):
