@@ -440,10 +440,10 @@ class State:
                          associated with the constraint.
     _todo             -- Set of constraints that have to be propagated on the
                          current decision level.
-    _facts_integrated -- A list of integer pairs. Stores for each decision
+    _facts_integrated -- A list of integer triples. Stores for each decision
                          level, how many true/false facts have already been
-                         integrated. Unlike with `_levels`, there is a pair for
-                         each decision level checked.
+                         integrated. Unlike with `_levels`, such triples are
+                         only introduced if necessary.
     _lerp_last        -- Offset of the variable that has been split last during
                          `check_full`.
     """
@@ -463,7 +463,7 @@ class State:
         self._vu2c = vu2c
         self._l2c = l2c
         self._todo = TodoList()
-        self._facts_integrated = [(0, 0)]
+        self._facts_integrated = [(0, 0, 0)]
         self._lerp_last = 0
 
     def get_assignment(self):
@@ -699,13 +699,14 @@ class State:
         Furthermore, the preceeding or succeeding order literal is propagated
         if it exists.
         """
-        assert control.assignment.is_true(lit)
+        ass = control.assignment
+        assert ass.is_true(lit)
 
         lvl = self._level
 
         # update and propagate upper bound
         if lit in self._litmap:
-            start = self._facts_integrated[-1][0] if lit == TRUE_LIT else None
+            start = self._get_integrated(ass.decision_level)[0] if lit == TRUE_LIT else None
             for vs, value in self._litmap[lit][start:]:
                 # update upper bound
                 if vs.upper_bound > value:
@@ -721,7 +722,7 @@ class State:
 
         # update and propagate lower bound
         if -lit in self._litmap:
-            start = self._facts_integrated[-1][1] if lit == TRUE_LIT else None
+            start = self._get_integrated(ass.decision_level)[1] if lit == TRUE_LIT else None
             for vs, value in self._litmap[-lit][start:]:
                 # update lower bound
                 if vs.lower_bound < value+1:
@@ -860,23 +861,41 @@ class State:
         f = len(self._litmap.get(-TRUE_LIT, []))
         return t, f
 
+    def _get_integrated(self, level):
+        """
+        Returns the a pair of intergers corresponding to the numbers of order
+        literals associated with the true and false literal that have already
+        been propagated on the given level.
+        """
+        assert level >= 0 and self._facts_integrated and self._facts_integrated[0][0] == 0
+        while self._facts_integrated[-1][0] > level:
+            self._facts_integrated.pop()
+        _, t, f = self._facts_integrated[-1]
+        return t, f
+
+    def _set_integrated(self, level, num):
+        """
+        Sets the a pair of intergers corresponding to the numbers of order
+        literals associated with the true and false literal that have already
+        been propagated on the given level.
+        """
+        old = self._get_integrated(level)
+        if old != num:
+            if self._facts_integrated[-1][0] < level:
+                # Note: this case can only happen if facts are learned on
+                # levels above 0. This can only happen if the propagator is
+                # extended.
+                self._facts_integrated.append((level, *num))
+            else:
+                assert self._facts_integrated[-1][0] == level
+                self._facts_integrated[-1] = (level, *num)
+
     def check(self, control):
         """
         This functions propagates facts that have not been integrated on the
         current level and propagates constraints gathered during `propagate`.
         """
         ass = control.assignment
-
-        # Note: Maintain which facts have been integrated on which level. In
-        # general, facts will only be propagated and integrated on level 0. To
-        # be on the safe side in view of combinations with other theories, we
-        # still maintain a stack.
-        # TODO: In view of the above, a sorted container storing less tuples
-        # would make sense.
-        assert ass.decision_level <= len(self._facts_integrated)
-        if ass.decision_level == len(self._facts_integrated):
-            self._facts_integrated.append(self._facts_integrated[-1])
-        del self._facts_integrated[ass.decision_level+1:]
 
         # Note: We have to loop here because watches for the true/false
         # literals do not fire again.
@@ -886,7 +905,7 @@ class State:
             if not self._update_domain(control, 1):
                 return False
             num_facts = self._num_facts
-            self._facts_integrated[-1] = num_facts
+            self._set_integrated(ass.decision_level, num_facts)
 
             # propagate affected constraints
             for c in self._todo:
@@ -936,11 +955,11 @@ class State:
 
             # adjust the number of facts that have been integrated
             idx = 0 if lit == TRUE_LIT else 1
-            nums = list(self._facts_integrated[0])
+            nums = list(self._get_integrated(0))
             for x in variables[:nums[idx]]:
                 if pred(x):
                     nums[idx] -= 1
-            self._facts_integrated[0] = tuple(nums)
+            self._set_integrated(0, nums)
 
             # remove values matching pred
             i = remove_if(variables, pred)
@@ -998,7 +1017,6 @@ class State:
 
         # TODO: Maybe make this a separate function that is called after
         # initial propagation is done.
-        del self._facts_integrated[1:]
         return (self._remove_literals(init, TRUE_LIT, lambda x: x[1] != x[0].upper_bound) and
                 self._remove_literals(init, -TRUE_LIT, lambda x: x[1] != x[0].lower_bound-1))
 
