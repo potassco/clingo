@@ -55,93 +55,128 @@ def remove_if(rng, pred):
     return j
 
 
+def _parse_constraints(init):
+    """
+    Parse and yield sum and diff constraints in the theory data of the given
+    `PropagateInit` object.
+    """
+
+    for atom in init.theory_atoms:
+        is_sum = match(atom.term, "sum", 1)
+        is_diff = match(atom.term, "diff", 1)
+        if is_sum or is_diff:
+            body = match(atom.term.arguments[0], "body", 0)
+            cons = _parse_constraint(init, atom, is_sum)
+            yield cons
+            if body:
+                cons = Constraint(-cons.literal, [(-co, var) for co, var in cons.elements], -cons.rhs-1)
+                yield cons
+
+
+def _parse_constraint(init, atom, is_sum):
+    """
+    Construct a constraint from a theory `atom` and associated with the
+    given `literal`.
+
+    If `is_sum` is true parses a sum constraint. Otherwise, it parses a
+    difference constraint as supported by clingo-dl.
+    """
+
+    elements = []
+
+    # map literal
+    literal = init.solver_literal(atom.literal)
+
+    # combine coefficients
+    seen = {}
+    for i, (co, var) in enumerate(_parse_constraint_elems(atom.elements, is_sum)):
+        if co == 0:
+            continue
+        if var not in seen:
+            seen[var] = i
+            elements.append((co, var))
+        else:
+            elements[seen[var]][0] += co
+
+    # drop zero weights
+    elements = [(co, var) for co, var in elements if co != 0]
+
+    return Constraint(literal, elements, _parse_constraint_num(atom.guard[1]))
+
+
+def _parse_constraint_elems(elems, is_sum):
+    for elem in elems:
+        if len(elem.terms) == 1 and not elem.condition:
+            # python 3 has yield from
+            for x in _parse_constraint_elem(elem.terms[0], is_sum):
+                yield x
+        else:
+            raise RuntimeError("Invalid Syntax")
+
+
+def _parse_constraint_elem(term, is_sum):
+    if not is_sum:
+        if match(term, "-", 2):
+            var = _parse_constraint_var(term.arguments[0])
+            if var != "0":
+                yield 1, var
+            var = _parse_constraint_var(term.arguments[1])
+            if var != "0":
+                yield -1, var
+        else:
+            raise RuntimeError("Invalid Syntax")
+    else:
+        if match(term, "+", 2):
+            for x in _parse_constraint_elem(term.arguments[0], True):
+                yield x
+            for x in _parse_constraint_elem(term.arguments[1], True):
+                yield x
+        elif match(term, "*", 2):
+            num = _parse_constraint_num(term.arguments[0])
+            var = _parse_constraint_var(term.arguments[1])
+            yield num, var
+        else:
+            raise RuntimeError("Invalid Syntax")
+
+
+def _parse_constraint_num(term):
+    if term.type == clingo.TheoryTermType.Number:
+        return term.number
+    if (term.type == clingo.TheoryTermType.Symbol and
+            term.symbol.type == clingo.SymbolType.Number):
+        return term.symbol.number
+    if match(term, "-", 1):
+        return -_parse_constraint_num(term.arguments[0])
+    if match(term, "+", 1):
+        return +_parse_constraint_num(term.arguments[0])
+    raise RuntimeError("Invalid Syntax")
+
+
+def _parse_constraint_var(term):
+    return str(term)
+
+
 class Constraint:
     """
     Class to capture sum constraints of form `a_0*x_0 + ... + a_n * x_n <= rhs`.
 
     Members
     =======
-    literal -- Solver literal associated with the constraint.
-    rhs     -- Integer bound of the constraint.
-    vars    -- List of integer/string pairs representing coefficient and
-               variable.
+    literal  -- Solver literal associated with the constraint.
+    elements -- List of integer/string pairs representing coefficient and
+                variable.
+    rhs      -- Integer bound of the constraint.
     """
-    def __init__(self, atom, literal, is_sum):
+    def __init__(self, literal, elements, rhs):
         """
-        Construct a constraint from a theory `atom` and associated with the
-        given `literal`.
-
-        If `is_sum` is true parses a sum constraint. Otherwise, it parses a
-        difference constraint as supported by clingo-dl.
+        Create a constraint and initialize all members.
         """
         self.literal = literal
-        self.rhs = self._parse_num(atom.guard[1])
-        self.vars = []
-
-        # combine coefficients
-        seen = {}
-        for i, (co, var) in enumerate(self._parse_elems(atom.elements, is_sum)):
-            if co == 0:
-                continue
-            if var not in seen:
-                seen[var] = i
-                self.vars.append((co, var))
-            else:
-                self.vars[seen[var]][0] += co
-
-        # drop zero weights
-        self.vars = [(co, var) for co, var in self.vars if co != 0]
-
-    def _parse_elems(self, elems, is_sum):
-        for elem in elems:
-            if len(elem.terms) == 1 and not elem.condition:
-                # python 3 has yield from
-                for x in self._parse_elem(elem.terms[0], is_sum):
-                    yield x
-            else:
-                raise RuntimeError("Invalid Syntax")
-
-    def _parse_elem(self, term, is_sum):
-        if not is_sum:
-            if match(term, "-", 2):
-                var = self._parse_var(term.arguments[0])
-                if var != "0":
-                    yield 1, var
-                var = self._parse_var(term.arguments[1])
-                if var != "0":
-                    yield -1, var
-            else:
-                raise RuntimeError("Invalid Syntax")
-        else:
-            if match(term, "+", 2):
-                for x in self._parse_elem(term.arguments[0], True):
-                    yield x
-                for x in self._parse_elem(term.arguments[1], True):
-                    yield x
-            elif match(term, "*", 2):
-                num = self._parse_num(term.arguments[0])
-                var = self._parse_var(term.arguments[1])
-                yield num, var
-            else:
-                raise RuntimeError("Invalid Syntax")
-
-    def _parse_num(self, term):
-        if term.type == clingo.TheoryTermType.Number:
-            return term.number
-        if (term.type == clingo.TheoryTermType.Symbol and
-                term.symbol.type == clingo.SymbolType.Number):
-            return term.symbol.number
-        if match(term, "-", 1):
-            return -self._parse_num(term.arguments[0])
-        if match(term, "+", 1):
-            return +self._parse_num(term.arguments[0])
-        raise RuntimeError("Invalid Syntax")
-
-    def _parse_var(self, term):
-        return str(term)
+        self.elements = elements
+        self.rhs = rhs
 
     def __str__(self):
-        return "{} <= {}".format(self.vars, self.rhs)
+        return "{} <= {}".format(self.elements, self.rhs)
 
 
 class VarState:
@@ -767,7 +802,7 @@ class State:
         slack = c.rhs  # sum of lower bounds (also saw this called slack)
         lbs = []       # lower bound literals
         num_guess = 0  # number of assignments above level 0
-        for i, (co, var) in enumerate(c.vars):
+        for i, (co, var) in enumerate(c.elements):
             vs = self._state(var)
             if co > 0:
                 slack -= co*vs.lower_bound
@@ -797,7 +832,7 @@ class State:
         if not ass.is_true(l):
             return
 
-        for i, (co, var) in enumerate(c.vars):
+        for i, (co, var) in enumerate(c.elements):
             vs = self._state(var)
 
             # adjust the number of guesses if the current literal is a guess
@@ -1067,6 +1102,30 @@ class Propagator:
             self._states.append(State(self._l2c, self._vl2c, self._vu2c))
         return self._states[thread_id]
 
+    def _add_constraints(self, init):
+        """
+        Add constraints in theory data to propagator.
+
+        Returns lists of the added constraints and newly added variables.
+        """
+        constraints = []
+        variables = []
+        variables_seen = set(self._vars)
+
+        for c in _parse_constraints(init):
+            self._l2c.setdefault(c.literal, []).append(c)
+            init.add_watch(c.literal)
+            for co, var in c.elements:
+                if var not in variables_seen:
+                    variables_seen.add(var)
+                    variables.append(var)
+                if co > 0:
+                    self._vl2c.setdefault(var, []).append(c)
+                else:
+                    self._vu2c.setdefault(var, []).append(c)
+
+        return constraints, variables
+
     def init(self, init):
         """
         Initializes the propagator extracting constraints from the theory data.
@@ -1076,25 +1135,8 @@ class Propagator:
         """
         init.check_mode = clingo.PropagatorCheckMode.Fixpoint
 
-        constraints = []
-        variables = []
-        variables_seen = set(self._vars)
-        for atom in init.theory_atoms:
-            is_sum = match(atom.term, "sum", 0)
-            is_diff = match(atom.term, "diff", 0)
-            if is_sum or is_diff:
-                c = Constraint(atom, init.solver_literal(atom.literal), is_sum)
-                constraints.append(c)
-                self._l2c.setdefault(c.literal, []).append(c)
-                init.add_watch(c.literal)
-                for co, var in c.vars:
-                    if var not in variables_seen:
-                        variables_seen.add(var)
-                        variables.append(var)
-                    if co > 0:
-                        self._vl2c.setdefault(var, []).append(c)
-                    else:
-                        self._vu2c.setdefault(var, []).append(c)
+        # get newly added constraints and variables
+        constraints, variables = self._add_constraints(init)
 
         # replace all non-fact order literals by None in states
         for state in self._states:
@@ -1227,6 +1269,66 @@ class Propagator:
         return self._state(thread_id).get_value(str(symbol))
 
 
+class Transformer:
+    """
+    Transforms `clingo.ast.AST` objects by visiting all child nodes.
+
+    Implement `visit_<type>` where `<type>` is the type of the nodes to be
+    visited.
+    """
+    def visit_children(self, x, *args, **kwargs):
+        """
+        Visit all child nodes of the current node.
+        """
+        for key in x.child_keys:
+            setattr(x, key, self.visit(getattr(x, key), *args, **kwargs))
+        return x
+
+    def visit(self, x, *args, **kwargs):
+        """
+        Default visit method to dispatch calls to child nodes.
+        """
+        if isinstance(x, clingo.ast.AST):
+            attr = "visit_" + str(x.type)
+            if hasattr(self, attr):
+                return getattr(self, attr)(x, *args, **kwargs)
+            else:
+                return self.visit_children(x, *args, **kwargs)
+        elif isinstance(x, list):
+            return [self.visit(y, *args, **kwargs) for y in x]
+        elif x is None:
+            return x
+        else:
+            raise TypeError("unexpected type")
+
+
+class HeadBodyTransformer(Transformer):
+    """
+    Transforms sum/diff theory atoms in heads and bodies of rules by turning
+    the name of each theory atom into a function with head or body as argument.
+    """
+    # pylint: disable=invalid-name
+
+    def visit_Rule(self, rule):
+        """
+        Visit rules adding a parameter indicating whether the head or body is
+        being visited.
+        """
+        rule.head = self.visit(rule.head, loc="head")
+        rule.body = self.visit(rule.body, loc="body")
+        return rule
+
+    def visit_TheoryAtom(self, atom, loc="body"):
+        """
+        Modify sum and diff in theory atoms by adding loc as parameter to the
+        name of theory atom.
+        """
+        t = atom.term
+        if t.name in ["sum", "diff"] and t.arguments == []:
+            atom.term = clingo.ast.Function(t.location, t.name, [clingo.ast.Function(t.location, loc, [], False)], False)
+        return atom
+
+
 class Application:
     """
     Application class that can be used with `clingo.clingo_main` to solve CSP
@@ -1326,8 +1428,11 @@ class Application:
         Entry point of the application registering the propagator and
         implementing the standard ground and solve functionality.
         """
-        for f in files:
-            prg.load(f)
+        with prg.builder() as b:
+            t = HeadBodyTransformer()
+            for f in files:
+                clingo.parse_program(open(f).read(),
+                                     lambda stm: b.add(t.visit(stm)))
         prg.register_propagator(self._propagator)
         prg.add("base", [], dedent("""\
             #theory cp {
@@ -1340,8 +1445,8 @@ class Application:
                 * : 1, binary, left;
                 + : 0, binary, left
                 };
-                &sum/0 : sum_term, {<=}, constant, head;
-                &diff/0 : diff_term, {<=}, constant, head
+                &sum/1 : sum_term, {<=}, constant, any;
+                &diff/1 : diff_term, {<=}, constant, any
             }.
             """))
 
@@ -1352,7 +1457,10 @@ class Application:
             # Note: This is to mirror the implementation in clingo-dl. In
             # principle this could be dealt with differently with order
             # variables.
-            prg.add("__bound", ("s", "b"), "&sum { 1*s } <= b.")
+            with prg.builder() as b:
+                clingo.parse_program("#program __bound(s,b). &sum { 1*s } <= b.",
+                                     lambda stm: b.add(HeadBodyTransformer().visit(stm)))
+#            prg.add("__bound", ("s", "b"), "&sum { 1*s } <= b.")
 
             found = True
             while found:
