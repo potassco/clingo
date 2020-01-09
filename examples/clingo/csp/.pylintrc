@@ -5,8 +5,6 @@
 # run arbitrary code.
 extension-pkg-whitelist=clingo
 
-generated-members=ast.*
-
 # Use multiple processes to speed up Pylint. Specifying 0 will auto-detect the
 # number of processors available to use.
 jobs=0
@@ -33,6 +31,13 @@ argument-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
 # Regular expression matching correct variable names. Overrides variable-
 # naming-style.
 variable-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
+
+[TYPECHECK]
+
+# List of members which are set dynamically and missed by pylint inference
+# system, and so shouldn't trigger E1101 when accessed. Python regular
+# expressions are accepted.
+generated-members=ast.*
 
 [FORMAT]
 
