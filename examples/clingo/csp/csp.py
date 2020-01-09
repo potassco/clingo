@@ -179,7 +179,7 @@ class Constraint:
         return "{} <= {}".format(self.elements, self.rhs)
 
 
-class VarState:
+class VarState(object):
     """
     Class to facilitate handling order literals associated with an integer
     variable.
@@ -421,7 +421,7 @@ class TodoList:
         Clears the container.
         """
         self._seen.clear()
-        self._list.clear()
+        del self._list[:]
 
 
 class Level:
@@ -447,7 +447,7 @@ class Level:
         self.undo_lower = TodoList()
 
 
-class State:
+class State(object):
     """
     Class to store and propagate thread-specific state.
 
@@ -920,10 +920,10 @@ class State:
                 # Note: this case can only happen if facts are learned on
                 # levels above 0. This can only happen if the propagator is
                 # extended.
-                self._facts_integrated.append((level, *num))
+                self._facts_integrated.append((level, num[0], num[1]))
             else:
                 assert self._facts_integrated[-1][0] == level
-                self._facts_integrated[-1] = (level, *num)
+                self._facts_integrated[-1] = (level, num[0], num[1])
 
     def check(self, control):
         """
