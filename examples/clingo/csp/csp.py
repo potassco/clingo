@@ -156,7 +156,7 @@ def _parse_constraint_var(term):
     return str(term)
 
 
-class Constraint:
+class Constraint(object):
     """
     Class to capture sum constraints of form `a_0*x_0 + ... + a_n * x_n <= rhs`.
 
@@ -371,7 +371,7 @@ class VarState(object):
         return "{}=[{},{}]".format(self.var, self.lower_bound, self.upper_bound)
 
 
-class TodoList:
+class TodoList(object):
     """
     Simple class implementing something like an OrderedSet, which is missing
     from pythons collections module.
@@ -424,7 +424,7 @@ class TodoList:
         del self._list[:]
 
 
-class Level:
+class Level(object):
     """
     Simple class that captures state local to a decision level.
 
@@ -1083,7 +1083,7 @@ class State(object):
         return self._update_domain(init, 1)
 
 
-class Propagator:
+class Propagator(object):
     """
     A propagator for CSP constraints.
     """
@@ -1269,7 +1269,7 @@ class Propagator:
         return self._state(thread_id).get_value(str(symbol))
 
 
-class Transformer:
+class Transformer(object):
     """
     Transforms `clingo.ast.AST` objects by visiting all child nodes.
 
@@ -1329,7 +1329,7 @@ class HeadBodyTransformer(Transformer):
         return atom
 
 
-class Application:
+class Application(object):
     """
     Application class that can be used with `clingo.clingo_main` to solve CSP
     problems.
