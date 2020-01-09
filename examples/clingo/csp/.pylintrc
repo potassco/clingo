@@ -5,6 +5,8 @@
 # run arbitrary code.
 extension-pkg-whitelist=clingo
 
+generated-members=ast.*
+
 # Use multiple processes to speed up Pylint. Specifying 0 will auto-detect the
 # number of processors available to use.
 jobs=0
@@ -20,7 +22,7 @@ jobs=0
 # --enable=similarities". If you want to run only the classes checker, but have
 # no Warning level messages displayed, use "--disable=all --enable=classes
 # --disable=W".
-disable=too-few-public-methods,no-self-use,invalid-unary-operand-type,locally-disabled
+disable=too-few-public-methods,no-self-use,invalid-unary-operand-type,locally-disabled,useless-object-inheritance
 
 [BASIC]
 

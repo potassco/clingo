@@ -7,6 +7,7 @@ import sys
 from itertools import chain
 from textwrap import dedent
 import clingo
+from clingo import ast
 
 try:
     # Note: Can be installed to play with realistic domain sizes.
@@ -479,7 +480,6 @@ class State(object):
                          level, how many true/false facts have already been
                          integrated. Unlike with `_levels`, such triples are
                          only introduced if necessary.
-    _lerp_last        -- Offset of the variable that has been split last during
                          `check_full`.
     """
     def __init__(self, l2c, vl2c, vu2c):
@@ -1288,18 +1288,16 @@ class Transformer(object):
         """
         Default visit method to dispatch calls to child nodes.
         """
-        if isinstance(x, clingo.ast.AST):
+        if isinstance(x, ast.AST):
             attr = "visit_" + str(x.type)
             if hasattr(self, attr):
                 return getattr(self, attr)(x, *args, **kwargs)
-            else:
-                return self.visit_children(x, *args, **kwargs)
-        elif isinstance(x, list):
+            return self.visit_children(x, *args, **kwargs)
+        if isinstance(x, list):
             return [self.visit(y, *args, **kwargs) for y in x]
-        elif x is None:
+        if x is None:
             return x
-        else:
-            raise TypeError("unexpected type")
+        raise TypeError("unexpected type")
 
 
 class HeadBodyTransformer(Transformer):
@@ -1325,7 +1323,7 @@ class HeadBodyTransformer(Transformer):
         """
         t = atom.term
         if t.name in ["sum", "diff"] and t.arguments == []:
-            atom.term = clingo.ast.Function(t.location, t.name, [clingo.ast.Function(t.location, loc, [], False)], False)
+            atom.term = ast.Function(t.location, t.name, [ast.Function(t.location, loc, [], False)], False)
         return atom
 
 
