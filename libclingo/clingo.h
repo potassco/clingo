@@ -1012,6 +1012,11 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_assignment_max_size(clingo_assignment_t 
 //! @return wheather the assignment is total
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_is_total(clingo_assignment_t const *assignment);
 
+// TODO: document!!!
+CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_size(clingo_assignment_t const *assignment, uint32_t *size);
+CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_begin(clingo_assignment_t const *assignment, uint32_t level, uint32_t *offset);
+CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_at(clingo_assignment_t const *assignment, uint32_t offset, clingo_literal_t *literal);
+
 //! @}
 
 //! Supported check modes for propagators.

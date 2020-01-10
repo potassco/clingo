@@ -619,6 +619,21 @@ extern "C" bool clingo_assignment_is_total(clingo_assignment_t const *assignment
     return assignment->isTotal();
 }
 
+extern "C" bool clingo_assignment_trail_size(clingo_assignment_t const *assignment, uint32_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = assignment->trailSize(); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_assignment_trail_begin(clingo_assignment_t const *assignment, uint32_t level, uint32_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = assignment->trailBegin(level); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_assignment_trail_at(clingo_assignment_t const *assignment, uint32_t offset, clingo_literal_t *ret) {
+    GRINGO_CLINGO_TRY { *ret = assignment->trailAt(offset); }
+    GRINGO_CLINGO_CATCH;
+}
+
 // {{{1 propagate init
 
 extern "C" bool clingo_propagate_init_solver_literal(clingo_propagate_init_t const *init, clingo_literal_t lit, clingo_literal_t *ret) {
