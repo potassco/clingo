@@ -980,7 +980,41 @@ class State(object):
                 return
 
     # reinitialization
-    def _remove_literals(self, init, lit, pred):
+    def remove_literals(self, init):
+        """
+        This function removes all solve step local variables from the state and
+        maps fixed global literals to the true/false literal.
+        """
+        ass = init.assignment
+
+        remove_invalid = []
+        remove_fixed = []
+        for lit, vss in self._litmap.items():
+            if abs(lit) == TRUE_LIT:
+                continue
+            elif not ass.has_literal(lit):
+                remove_invalid.append((lit, vss))
+            elif ass.is_fixed(lit):
+                remove_fixed.append((lit, vss))
+
+        # remove solve step local variables
+        # Note: Iteration order does not matter.
+        for lit, vss in remove_invalid:
+            for vs, value in vss:
+                vs.unset_literal(value)
+            del self._litmap[lit]
+
+        # Note: Map bounds associated with top level facts to true/false.
+        # Because we do not know if the facts have already been propagated, we
+        # simply append them and do not touch the counts for integrated facts.
+        for old, vss in sorted(remove_fixed):
+            for vs, value in vss:
+                lit = TRUE_LIT if ass.is_true(old) else -TRUE_LIT
+                self._litmap.setdefault(lit, []).append((vs, value))
+                vs.set_literal(value, lit)
+            del self._litmap[old]
+
+    def _cleanup_literals(self, init, lit, pred):
         """
         Remove (var,value) pairs associated with `lit` that match `pred`.
         """
@@ -1015,45 +1049,13 @@ class State(object):
 
         return True
 
-    def remove_literals(self, init):
+    def cleanup_literals(self, init):
         """
-        This function removes all solve step local variables from the state.
-        Furthermore, it removes all order literals associated with facts that
-        are above the upper or below the lower bound.
+        Remove all order literals associated with facts that are above the
+        upper or below the lower bound.
         """
-        ass = init.assignment
-
-        remove_invalid = []
-        remove_fixed = []
-        for lit, vss in self._litmap.items():
-            if abs(lit) == TRUE_LIT:
-                continue
-            elif not ass.has_literal(lit):
-                remove_invalid.append((lit, vss))
-            elif ass.is_fixed(lit):
-                remove_fixed.append((lit, vss))
-
-        # remove solve step local variables
-        # Note: Iteration order does not matter.
-        for lit, vss in remove_invalid:
-            for vs, value in vss:
-                vs.unset_literal(value)
-            del self._litmap[lit]
-
-        # Note: Map bounds associated with top level facts to true/false.
-        # Because we do not know if the facts have already been propagated, we
-        # simply append them and do not touch the counts for integrated facts.
-        for old, vss in sorted(remove_fixed):
-            for vs, value in vss:
-                lit = TRUE_LIT if ass.is_true(old) else -TRUE_LIT
-                self._litmap.setdefault(lit, []).append((vs, value))
-                vs.set_literal(value, lit)
-            del self._litmap[old]
-
-        # TODO: Maybe make this a separate function that is called after
-        # initial propagation is done.
-        return (self._remove_literals(init, TRUE_LIT, lambda x: x[1] != x[0].upper_bound) and
-                self._remove_literals(init, -TRUE_LIT, lambda x: x[1] != x[0].lower_bound-1))
+        return (self._cleanup_literals(init, TRUE_LIT, lambda x: x[1] != x[0].upper_bound) and
+                self._cleanup_literals(init, -TRUE_LIT, lambda x: x[1] != x[0].lower_bound-1))
 
     def update_bounds(self, init, other):
         """
@@ -1080,7 +1082,22 @@ class State(object):
                 old, _ = self._update_literal(vs_a, vs_b.lower_bound-1, init, False)
                 if old is not None and not init.add_clause([-old]):
                     return False
+
         return self._update_domain(init, 1)
+
+    def copy_domain(self, init, master):
+        """
+        Copy order literals from the given `master` state to the current state.
+        """
+        # pylint: disable=protected-access
+
+        for lit, vss in sorted(master._litmap.items()):
+            # Note: fixed literals are handled in `update_bounds` and `remove_literals`.
+            if not init.assignment.is_fixed(lit):
+                for vs_m, value in vss:
+                    vs = self._var_state[vs_m.var]
+                    vs.set_literal(lit, value)
+                    self._litmap.setdefault(lit, []).append((vs, value))
 
 
 class Propagator(object):
@@ -1113,6 +1130,7 @@ class Propagator(object):
         variables_seen = set(self._vars)
 
         for c in _parse_constraints(init):
+            constraints.append(c)
             self._l2c.setdefault(c.literal, []).append(c)
             init.add_watch(c.literal)
             for co, var in c.elements:
@@ -1138,10 +1156,9 @@ class Propagator(object):
         # get newly added constraints and variables
         constraints, variables = self._add_constraints(init)
 
-        # replace all non-fact order literals by None in states
+        # remove solve step local and fixed literals
         for state in self._states:
-            if not state.remove_literals(init):
-                return
+            state.remove_literals(init)
 
         # gather bounds of states in master
         if self._states:
@@ -1156,6 +1173,7 @@ class Propagator(object):
             for i in range(len(self._states), init.number_of_threads):
                 state = self._state(i)
                 state.init_domain(self._vars)
+                state.copy_domain(self._states[0])
 
         # add newly introduced variables
         self._vars.extend(variables)
@@ -1211,12 +1229,22 @@ class Propagator(object):
             trail_offset = len(trail)
 
             for state in self._states:
-                # Note: propagation won't add anything to the trail
+                # TODO: this should go into a simplify method in the state
+                # Note: Propagation won't add anything to the trail because atm
+                # there are no order literals which could be propagated. This
+                # might change in the multi-shot case when order literals have
+                # been added in a previous step which are then implied by the
+                # newly added constraints.
                 if not state.propagate(init, trail[trail_offset:]):
                     return
 
                 if not state.check(init):
                     return
+
+        # remove unnecessary literals after simplification
+        for state in self._states:
+            if not state.cleanup_literals(init):
+                return
 
     def propagate(self, control, changes):
         """
