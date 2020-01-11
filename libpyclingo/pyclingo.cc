@@ -54,6 +54,8 @@
 #else
 #define OBBASE(x) x
 #define Py_hash_t long
+#define PySlice_Unpack _PySlice_Unpack
+#define PySlice_AdjustIndices _PySlice_AdjustIndices
 #endif
 
 #ifndef PyVarObject_HEAD_INIT
