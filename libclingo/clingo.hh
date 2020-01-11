@@ -871,7 +871,7 @@ private:
 
 class Assignment {
 public:
-    using iterator = IndexIterator<Assignment const, size_t, ssize_t>;
+    using iterator = IndexIterator<Assignment const, size_t, std::make_signed<size_t>::type>;
     using value_type = literal_t;
     explicit Assignment(clingo_assignment_t const *ass)
     : ass_(ass) { }
