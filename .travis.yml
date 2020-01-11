@@ -1,3 +1,4 @@
+sudo: false
 language: c++
 matrix:
   include:
@@ -11,9 +12,6 @@ matrix:
             - bison
             - liblua5.3-dev
             - zsh
-      env:
-        - MY_CC=gcc-5
-        - MY_CXX=g++-5
     - os: osx
       env:
         - MY_CC=clang
@@ -34,8 +32,6 @@ script:
       -DCLASP_BUILD_TESTS=True
       -DLIB_POTASSCO_BUILD_TESTS=True
       -DCLINGO_BUILD_EXAMPLES=True
-      -DCMAKE_C_COMPILER=${MY_CC}
-      -DCMAKE_CXX_COMPILER=${MY_CXX}
       .. &&
     make -j3 &&
     make test CTEST_OUTPUT_ON_FAILURE=True
