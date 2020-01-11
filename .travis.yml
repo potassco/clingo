@@ -13,9 +13,6 @@ matrix:
             - liblua5.3-dev
             - zsh
     - os: osx
-      env:
-        - MY_CC=clang
-        - MY_CXX=clang++
 
 script:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
