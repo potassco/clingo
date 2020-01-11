@@ -1029,8 +1029,11 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_size(clingo_assignment_t 
 //! Returns the offset of the decision literal with the given decision level in
 //! the trail.
 //!
+//! If the level is one above the current decision level, then this function
+//! returns the size of the trail.
+//!
 //! @note Literals in the trail are ordered by decision levels, where the first
-//! literal with a larger level then the previous literals is a decision; the
+//! literal with a larger level than the previous literals is a decision; the
 //! following literals with same level are implied by this decision literal.
 //! Each decision level up to and including the current decision level has a
 //! valid offset in the trail.

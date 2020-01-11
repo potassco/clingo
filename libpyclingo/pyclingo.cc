@@ -3203,6 +3203,133 @@ An int representing the pointer to the underlying C `clingo_configuration_t` str
     {nullptr, nullptr, nullptr, nullptr, nullptr}
 };
 
+// {{{1 wrap Trail
+
+struct Slice : ObjectBase<Slice> {
+    Object seq;
+    Py_ssize_t start, stop, step;
+
+    static constexpr char const *tp_type = "Slice";
+    static constexpr char const *tp_name = "clingo.Slice";
+    static constexpr char const *tp_doc = R"(
+Helper object for slicing support.
+)";
+
+    static Object construct(Reference seq, Reference slice) {
+        auto self = new_();
+        new (&self->seq) Object{seq};
+        if (PySlice_Unpack(slice.toPy(), &self->start, &self->stop, &self->step) < 0) {
+            throw PyException();
+        }
+        return self;
+    }
+
+    void tp_dealloc() {
+        seq.~Object();
+    }
+
+    Py_ssize_t sq_length() {
+        return PySlice_AdjustIndices(seq.size(), &start, &stop, step);
+    }
+
+    Object sq_item(Py_ssize_t index) {
+        if (index < 0 || index >= sq_length()) {
+            PyErr_Format(PyExc_IndexError, "invalid index");
+            return nullptr;
+        }
+        return seq.getItem(start + index * step);
+    }
+
+    Object mp_subscript(Reference slice) {
+        if (PySlice_Check(slice.toPy())) {
+            return Slice::construct(*this, slice);
+        }
+        else {
+            return sq_item(pyToCpp<Py_ssize_t>(slice));
+        }
+    }
+};
+
+struct Trail : ObjectBase<Trail> {
+    clingo_assignment_t const *assign;
+    static constexpr char const *tp_type = "Trail";
+    static constexpr char const *tp_name = "clingo.Trail";
+    static constexpr char const *tp_doc = R"(
+Object to access literals assigned by the solver in chronological order.
+
+Literals in the trail are ordered by decision levels, where the first literal
+with a larger level than the previous literals is a decision; the following
+literals with same level are implied by this decision literal. Each decision
+level up to and including the current decision level has a valid offset in the
+trail.
+
+This class implements `ImmutableSequence[int]` to access the literals in the trail.
+)";
+    static PyMethodDef tp_methods[];
+
+    static Object construct(clingo_assignment_t const *assign) {
+        auto self = new_();
+        self->assign = assign;
+        return self;
+    }
+
+    Object offset(Reference level) {
+        uint32_t ret;
+        handle_c_error(clingo_assignment_trail_begin(assign, pyToCpp<uint32_t>(level), &ret));
+        return cppToPy(ret);
+    }
+
+    Py_ssize_t sq_length() {
+        uint32_t size;
+        handle_c_error(clingo_assignment_trail_size(assign, &size));
+        return size;
+    }
+
+    Object sq_item(Py_ssize_t index) {
+        if (index < 0 || index >= sq_length()) {
+            PyErr_Format(PyExc_IndexError, "invalid index");
+            return nullptr;
+        }
+        clingo_literal_t ret;
+        handle_c_error(clingo_assignment_trail_at(assign, index, &ret));
+        return cppToPy(ret);
+    }
+
+    Object mp_subscript(Reference slice) {
+        if (PySlice_Check(slice.toPy())) {
+            return Slice::construct(*this, slice);
+        }
+        else {
+            return sq_item(pyToCpp<Py_ssize_t>(slice));
+        }
+    }
+
+    Object to_c() {
+        return PyLong_FromVoidPtr(const_cast<clingo_assignment_t*>(assign));
+    }
+};
+
+PyMethodDef Trail::tp_methods[] = {
+    {"offset", to_function<&Trail::offset>(), METH_O, R"(offset(self, level : int) -> int
+
+Returns the offset of the decision literal with the given decision level in the
+trail.
+
+If the level is one above the current decision level, then this function
+returns the size of the trail.
+
+Parameters
+----------
+level : int
+    The decision level.
+
+Returns
+-------
+int
+)"},
+    {nullptr, nullptr, 0, nullptr}
+};
+
 // {{{1 wrap Assignment
 
 struct Assignment : ObjectBase<Assignment> {
@@ -3213,7 +3340,11 @@ struct Assignment : ObjectBase<Assignment> {
 
 Assigns truth values to solver literals.  Each solver literal is either true,
 false, or undefined, represented by the Python constants `True`, `False`, or
-`None`, respectively.)";
+`None`, respectively.
+
+This class implements `ImmutableSequence[int]` to access the (positive)
+literals in the assignment.
+)";
     static PyMethodDef tp_methods[];
     static PyGetSetDef tp_getset[];
 
@@ -3221,6 +3352,10 @@ false, or undefined, represented by the Python constants `True`, `False`, or
         auto self = new_();
         self->assign = assign;
         return self;
+    }
+
+    Object trail() {
+        return Trail::construct(assign);
     }
 
     Object hasConflict() {
@@ -3287,6 +3422,24 @@ false, or undefined, represented by the Python constants `True`, `False`, or
 
     Object isTotal() {
         return cppToPy(clingo_assignment_is_total(assign));
+    }
+
+    Py_ssize_t sq_length() {
+        return clingo_assignment_max_size(assign);
+    }
+
+    Object sq_item(Py_ssize_t index) {
+        if (index < 0 || index >= sq_length()) {
+            PyErr_Format(PyExc_IndexError, "invalid index");
+            return nullptr;
+        }
+        clingo_literal_t ret;
+        handle_c_error(clingo_assignment_at(assign, index, &ret));
+        return cppToPy(ret);
+    }
+
+    Object mp_subscript(Reference slice) {
+        return Slice::construct(*this, slice);
     }
 
     Object to_c() {
@@ -3413,6 +3566,9 @@ The maximum size of the assignment (if all literals are assigned).)", nullptr},
     {(char *)"is_total", to_getter<&Assignment::isTotal>(), nullptr, (char *)R"(is_total: bool
 
 Whether the assignment is total.)", nullptr},
+    {(char *)"trail", to_getter<&Assignment::trail>(), nullptr, (char *)R"(trail: Trail
+
+The trail of assigned literals.)", nullptr},
     {(char *)"_to_c", to_getter<&Assignment::to_c>(), nullptr, (char *)R"(_to_c: int
 
 An int representing the pointer to the underlying C `clingo_assignment_t` struct.
@@ -9810,6 +9966,7 @@ PyObject *initclingo_() {
             !ProgramBuilder::initType(m)      || !HeuristicType::initType(m)    || !TruthValue::initType(m)       ||
             !PropagatorCheckMode::initType(m) || !MessageCode::initType(m)      || !Flag::initType(m)             ||
             !ApplicationOptions::initType(m)  || !StatisticsArray::initType(m)  || !StatisticsMap::initType(m)    ||
+            !Trail::initType(m)               || !Slice::initType(m)            ||
             PyModule_AddStringConstant(m.toPy(), "__version__", CLINGO_VERSION) < 0 ||
             false) { return nullptr; }
         Reference a{initclingoast_()};
