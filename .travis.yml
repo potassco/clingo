@@ -5,6 +5,7 @@ matrix:
   include:
     - os: linux
       compiler: gcc
+      python: 3.5
       addons:
         apt:
           sources:
