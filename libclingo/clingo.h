@@ -1006,6 +1006,13 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_assignment_size(clingo_assignment_t cons
 //! @param[in] assignment the target
 //! @return the maximum size
 CLINGO_VISIBILITY_DEFAULT size_t clingo_assignment_max_size(clingo_assignment_t const *assignment);
+//! The (positive) literal at the given offset in the assignment.
+//!
+//! @param[in] assignment the target
+//! @param[in] offset the offset of the literal
+//! @param[out] literal the literal
+//! @return the maximum size
+CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_at(clingo_assignment_t const *assignment, size_t offset, clingo_literal_t *literal);
 //! Check if the assignmen is total, i.e. - size == max_size.
 //!
 //! @param[in] assignment the target

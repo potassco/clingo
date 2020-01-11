@@ -393,9 +393,38 @@ public:
         c_ = init.solver_literal(init.symbolic_atoms().find(Id("c"))->literal());
         init.add_watch(a_);
         init.add_watch(b_);
+
+        auto ass = init.assignment();
+        auto trail = ass.trail();
+
+        REQUIRE(ass.decision_level() == 0);
+        REQUIRE(trail.offset(0) == 0);
+        REQUIRE(trail.offset(1) == trail.size());
+
+        std::set<Clingo::literal_t> lits;
+        std::set<Clingo::literal_t> check_lits{1, c_};
+
+        lits.clear();
+        for (auto lit : ass) {
+            lits.emplace(lit);
+        }
+        REQUIRE(lits == std::set<Clingo::literal_t>{1, a_, b_, c_});
+
+        lits.clear();
+        for (auto lit : trail) {
+            lits.emplace(lit);
+        }
+        REQUIRE(lits == std::set<Clingo::literal_t>{1, c_});
+
+        lits.clear();
+        for (auto lit : Clingo::make_range(trail.begin(0), trail.end(0))) {
+            lits.emplace(lit);
+        }
+        REQUIRE(lits == std::set<Clingo::literal_t>{1, c_});
     }
     void propagate(PropagateControl &ctl, LiteralSpan changes) override {
         auto ass = ctl.assignment();
+        auto trail = ass.trail();
         count_+= changes.size();
         REQUIRE(ass.is_fixed(c_));
         REQUIRE(!ass.is_fixed(a_));
@@ -404,16 +433,26 @@ public:
         REQUIRE(ass.has_literal(a_));
         REQUIRE(ass.has_literal(b_));
         REQUIRE(!ass.has_literal(1000));
-        auto decision = ass.decision(ass.decision_level());
-        REQUIRE(ass.level(decision) == ass.decision_level());
+        auto level = ass.decision_level();
+        auto decision = ass.decision(level);
+        REQUIRE(ass.level(decision) == level);
         if (count_ == 1) {
-            int a = changes[0];
+            auto a = changes[0];
             REQUIRE(changes.size() == 1);
             REQUIRE(!ass.is_fixed(a_));
             REQUIRE(ass.is_true(a));
             REQUIRE(ass.truth_value(a) == TruthValue::True);
             REQUIRE((ass.is_true(a_) ^ ass.is_true(b_)));
-            REQUIRE(ass.level(a) == ass.decision_level());
+            REQUIRE(ass.level(a) == level);
+            REQUIRE(trail.offset(level+1) - trail.offset(level) >= 1);
+            REQUIRE(trail.offset(level+1) - trail.offset(level) <= 2);
+            bool found = false;
+            for (auto lit : Clingo::make_range(trail.begin(level), trail.end(level))) {
+                if (lit == a) {
+                    found = true;
+                }
+            }
+            REQUIRE(found);
         }
         if (count_ == 2) {
             REQUIRE(!ass.is_fixed(a_));

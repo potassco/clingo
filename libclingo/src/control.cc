@@ -608,29 +608,62 @@ extern "C" bool clingo_assignment_is_false(clingo_assignment_t const *ass, cling
 }
 
 extern "C" size_t clingo_assignment_size(clingo_assignment_t const *assignment) {
-    return assignment->size() - assignment->unassigned();
+    return assignment->size() + 1 - assignment->unassigned();
 }
 
 extern "C" size_t clingo_assignment_max_size(clingo_assignment_t const *assignment) {
-    return assignment->size();
+    return assignment->size() + 1;
 }
 
 extern "C" bool clingo_assignment_is_total(clingo_assignment_t const *assignment) {
     return assignment->isTotal();
 }
 
+extern "C" bool clingo_assignment_at(clingo_assignment_t const *assignment, size_t offset, clingo_literal_t *literal) {
+    GRINGO_CLINGO_TRY {
+        if (offset > assignment->size()) {
+            throw std::runtime_error("invalid offset");
+        }
+        *literal = numeric_cast<clingo_literal_t>(offset + 1);
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" bool clingo_assignment_trail_size(clingo_assignment_t const *assignment, uint32_t *ret) {
-    GRINGO_CLINGO_TRY { *ret = assignment->trailSize(); }
+    GRINGO_CLINGO_TRY { *ret = assignment->trailSize() + 1; }
     GRINGO_CLINGO_CATCH;
 }
 
 extern "C" bool clingo_assignment_trail_begin(clingo_assignment_t const *assignment, uint32_t level, uint32_t *ret) {
-    GRINGO_CLINGO_TRY { *ret = assignment->trailBegin(level); }
+    GRINGO_CLINGO_TRY {
+        if (level > assignment->level() + 1) {
+            throw std::runtime_error("invalid level");
+        }
+        else if (level == 0) {
+            *ret = 0;
+        }
+        else if (assignment->trailSize() == 0) {
+            *ret = 1;
+        }
+        else if (level > assignment->level()) {
+            *ret = assignment->trailSize() + 1;
+        }
+        else {
+            *ret = assignment->trailBegin(level) + 1;
+        }
+    }
     GRINGO_CLINGO_CATCH;
 }
 
 extern "C" bool clingo_assignment_trail_at(clingo_assignment_t const *assignment, uint32_t offset, clingo_literal_t *ret) {
-    GRINGO_CLINGO_TRY { *ret = assignment->trailAt(offset); }
+    GRINGO_CLINGO_TRY {
+        if (offset == 0) {
+            *ret = 1;
+        }
+        else {
+            *ret = assignment->trailAt(offset - 1);
+        }
+    }
     GRINGO_CLINGO_CATCH;
 }
 

@@ -804,10 +804,75 @@ private:
     clingo_theory_atoms_t const *atoms_;
 };
 
+// {{{1 trail
+
+template <class T, class U, class I>
+class IndexIterator : public std::iterator<std::random_access_iterator_tag, typename T::value_type, I, typename T::value_type, typename T::value_type> {
+public:
+    using value_type = typename T::value_type;
+    using base = std::iterator<std::random_access_iterator_tag, value_type, I, value_type*, value_type>;
+    using difference_type = typename base::difference_type;
+    explicit IndexIterator(T *con = nullptr, U index = 0)
+    : con_(con)
+    , index_(index) { }
+    IndexIterator& operator++() { ++index_; return *this; }
+    IndexIterator operator++(int) {
+        IndexIterator t(*this);
+        ++*this;
+        return t;
+    }
+    IndexIterator& operator--() { --index_; return *this; }
+    IndexIterator operator--(int) {
+        IndexIterator t(*this);
+        --*this;
+        return t;
+    }
+    IndexIterator& operator+=(difference_type n) { index_ += n; return *this; }
+    IndexIterator& operator-=(difference_type n) { index_ -= n; return *this; }
+    friend IndexIterator operator+(IndexIterator it, difference_type n) { return IndexIterator{it.ass_, it.index_ + n}; }
+    friend IndexIterator operator+(difference_type n, IndexIterator it) { return IndexIterator{it.ass_, it.index_ + n}; }
+    friend IndexIterator operator-(IndexIterator it, difference_type n) { return IndexIterator{it.ass_, it.index_ - n}; }
+    friend difference_type operator-(IndexIterator a, IndexIterator b)  { return a.index_ - b.index_; }
+    value_type operator*() { return con_->at(index_); }
+    friend void swap(IndexIterator& lhs, IndexIterator& rhs) {
+        std::swap(lhs.ass_, rhs.ass_);
+        std::swap(lhs.index_, rhs.index_);
+    }
+    friend bool operator==(IndexIterator lhs, IndexIterator rhs) { return lhs.index_ == rhs.index_; }
+    friend bool operator!=(IndexIterator lhs, IndexIterator rhs) { return !(lhs == rhs); }
+    friend bool operator< (IndexIterator lhs, IndexIterator rhs) { return lhs.index_ + 1 < rhs.index_ + 1; }
+    friend bool operator> (IndexIterator lhs, IndexIterator rhs) { return rhs < lhs; }
+    friend bool operator<=(IndexIterator lhs, IndexIterator rhs) { return !(lhs > rhs); }
+    friend bool operator>=(IndexIterator lhs, IndexIterator rhs) { return !(lhs < rhs); }
+private:
+    T *con_;
+    U index_;
+};
+
+class Trail {
+public:
+    using iterator = IndexIterator<Trail const, uint32_t, int32_t>;
+    using value_type = literal_t;
+    explicit Trail(clingo_assignment_t const *ass) : ass_{ass} { }
+    uint32_t size() const;
+    uint32_t offset(uint32_t level) const;
+    iterator begin() const { return iterator{this, 0}; }
+    iterator begin(uint32_t level) const { return iterator{this, offset(level)}; }
+    iterator end() const { return iterator{this, size()}; }
+    iterator end(uint32_t level) const { return iterator{this, offset(level + 1)}; }
+    literal_t at(uint32_t offset) const;
+    literal_t operator[](uint32_t offset) { return at(offset); }
+    clingo_assignment_t const *to_c() const { return ass_; }
+private:
+    clingo_assignment_t const *ass_;
+};
+
 // {{{1 assignment
 
 class Assignment {
 public:
+    using iterator = IndexIterator<Assignment const, size_t, ssize_t>;
+    using value_type = literal_t;
     explicit Assignment(clingo_assignment_t const *ass)
     : ass_(ass) { }
     bool has_conflict() const;
@@ -823,6 +888,11 @@ public:
     size_t size() const;
     size_t max_size() const;
     bool is_total() const;
+    literal_t at(size_t offset) const;
+    literal_t operator[](size_t offset) { return at(offset); }
+    iterator begin() const { return iterator{this, 0}; }
+    iterator end() const { return iterator{this, max_size()}; }
+    Trail trail() const { return Trail{ass_}; }
     clingo_assignment_t const *to_c() const { return ass_; }
 private:
     clingo_assignment_t const *ass_;
@@ -2643,6 +2713,26 @@ inline size_t TheoryAtoms::size() const {
     return ret;
 }
 
+// {{{2 trail
+
+inline uint32_t Trail::size() const {
+    uint32_t ret;
+    Detail::handle_error(clingo_assignment_trail_size(ass_, &ret));
+    return ret;
+}
+
+inline uint32_t Trail::offset(uint32_t level) const {
+    uint32_t ret;
+    Detail::handle_error(clingo_assignment_trail_begin(ass_, level, &ret));
+    return ret;
+}
+
+inline literal_t Trail::at(uint32_t offset) const {
+    clingo_literal_t ret;
+    Detail::handle_error(clingo_assignment_trail_at(ass_, offset, &ret));
+    return ret;
+}
+
 // {{{2 assignment
 
 inline bool Assignment::has_conflict() const {
@@ -2707,6 +2797,12 @@ inline size_t Assignment::max_size() const {
 
 inline bool Assignment::is_total() const {
     return clingo_assignment_is_total(ass_);
+}
+
+inline literal_t Assignment::at(size_t offset) const {
+    clingo_literal_t ret;
+    Detail::handle_error(clingo_assignment_at(ass_, offset, &ret));
+    return ret;
 }
 
 // {{{2 propagate init
