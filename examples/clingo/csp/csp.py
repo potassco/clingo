@@ -481,6 +481,8 @@ class State(object):
                          integrated. Unlike with `_levels`, such triples are
                          only introduced if necessary.
                          `check_full`.
+    _lerp_last        -- Offset to speed up `check_full`.
+    _trail_offset     -- Offset to speed up `simplify`.
     """
     def __init__(self, l2c, vl2c, vu2c):
         """
@@ -500,6 +502,7 @@ class State(object):
         self._todo = TodoList()
         self._facts_integrated = [(0, 0, 0)]
         self._lerp_last = 0
+        self._trail_offset = 0
 
     def get_assignment(self):
         """
@@ -669,6 +672,27 @@ class State(object):
             vs = VarState(v)
             self._var_state[v] = vs
             self._vars.append(vs)
+
+    def simplify(self, init, trail_offset):
+        """
+        Simplify the state using fixed literals in the trail up to the given
+        offset.
+        """
+        # Note: Propagation won't add anything to the trail because atm
+        # there are no order literals which could be propagated. This
+        # might change in the multi-shot case when order literals have
+        # been added in a previous step which are then implied by the
+        # newly added constraints.
+        trail = init.assignment.trail
+
+        if not self.propagate(init, trail[self._trail_offset:trail_offset]):
+            return False
+        self._trail_offset = max(self._trail_offset, trail_offset)
+
+        if not self.check(init):
+            return False
+
+        return True
 
     # propagation
     def propagate(self, control, changes):
@@ -1188,10 +1212,7 @@ class Propagator(object):
                 return
 
         ass = init.assignment
-        intrail = set()
-        trail = []
-        # TODO: Could be a member (of the states) if we had access to clasp's
-        # trail.
+        trail = ass.trail
         trail_offset = 0
 
         # propagate the newly added constraints
@@ -1207,39 +1228,17 @@ class Propagator(object):
             if not init.propagate():
                 return
 
-            # TODO: Trail handling should happen in clingo.
-            # NOTE: Apparently, the last valid literal is max_size+1. Probably,
-            # because literals are counted beginning with 2 and even though
-            # literal 1 exists it is not considered part of the assignment.
-            for var in range(1, ass.max_size+2):
-                if var in intrail:
-                    continue
-                t = ass.value(var)
-                if t is True:
-                    trail.append(var)
-                    intrail.add(var)
-                if t is False:
-                    trail.append(-var)
-                    intrail.add(var)
-
             # Note: Initially, the trail is guaranteed to have at least size 1.
             # This ensures that order literals will be propagated.
             if trail_offset == len(trail):
                 break
-            trail_offset = len(trail)
+            next_trail_offset = len(trail)
 
             for state in self._states:
-                # TODO: this should go into a simplify method in the state
-                # Note: Propagation won't add anything to the trail because atm
-                # there are no order literals which could be propagated. This
-                # might change in the multi-shot case when order literals have
-                # been added in a previous step which are then implied by the
-                # newly added constraints.
-                if not state.propagate(init, trail[trail_offset:]):
+                if not state.simplify(init, next_trail_offset):
                     return
 
-                if not state.check(init):
-                    return
+            trail_offset = next_trail_offset
 
         # remove unnecessary literals after simplification
         for state in self._states:
