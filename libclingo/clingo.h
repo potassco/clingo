@@ -1011,10 +1011,34 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_assignment_max_size(clingo_assignment_t 
 //! @param[in] assignment the target
 //! @return wheather the assignment is total
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_is_total(clingo_assignment_t const *assignment);
-
-// TODO: document!!!
+//! Returns the number of literals in the trail.
+//!
+//! @note The function is equivalent to clingo_assignment_size().
+//!
+//! @param[in] assignment the target
+//! @param[out] size the number of literals in the trail
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_size(clingo_assignment_t const *assignment, uint32_t *size);
+//! Returns the offset of the decision literal with the given decision level in
+//! the trail.
+//!
+//! @note Literals in the trail are ordered by decision levels, where the first
+//! literal with a larger level then the previous literals is a decision; the
+//! following literals with same level are implied by this decision literal.
+//! Each decision level up to and including the current decision level has a
+//! valid offset in the trail.
+//!
+//! @param[in] assignment the target
+//! @param[in] level the decision level
+//! @param[out] offset the offset of the decision literal
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_begin(clingo_assignment_t const *assignment, uint32_t level, uint32_t *offset);
+//! Returns the literal at the given position in the trail.
+//!
+//! @param[in] assignment the target
+//! @param[in] offset the offset of the literal
+//! @param[out] literal the literal
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_at(clingo_assignment_t const *assignment, uint32_t offset, clingo_literal_t *literal);
 
 //! @}
