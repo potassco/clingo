@@ -676,7 +676,7 @@ class State(object):
     def simplify(self, init, trail_offset):
         """
         Simplify the state using fixed literals in the trail up to the given
-        offset.
+        offset and the enqued constraints in the todo list.
         """
         # Note: Propagation won't add anything to the trail because atm
         # there are no order literals which could be propagated. This
