@@ -2264,7 +2264,55 @@ struct Assignment : Object<Assignment> {
         return 1;
     }
 
+    static int pairs_iter_(lua_State *L) {
+        auto ass = get_self(L).ass;
+        auto idx = numeric_cast<size_t>(luaL_checkinteger(L, 2));
+        if (idx < clingo_assignment_max_size(ass)) {
+            lua_pushinteger(L, idx + 1);
+            lua_pushnumber(L, call_c(L, clingo_assignment_at, ass, idx));
+            return 2;
+        }
+        return 0;
+    }
+
+    static int iter_(lua_State *L) {
+        auto ass = static_cast<clingo_assignment_t const *>(lua_topointer(L, lua_upvalueindex(1)));
+        auto idx = numeric_cast<size_t>(lua_tointeger(L, lua_upvalueindex(2)));
+        if (idx < clingo_assignment_max_size(ass)) {
+            lua_pushinteger(L, idx + 1);
+            lua_replace(L, lua_upvalueindex(2));
+            lua_pushnumber(L, call_c(L, clingo_assignment_at, ass, idx));
+            return 1;
+        }
+        return 0;
+    }
+
+    static int iter(lua_State *L) {
+        lua_pushlightuserdata(L, const_cast<clingo_assignment_t *>(get_self(L).ass));
+        lua_pushinteger(L, 0);
+        lua_pushcclosure(L, iter_, 2);
+        return 1;
+    }
+
+    static int pairs(lua_State *L) {
+        lua_pushcfunction(L, pairs_iter_);
+        lua_pushvalue(L, 1);
+        lua_pushinteger(L, 0);
+        return 3;
+    }
+
+    static int at(lua_State *L) {
+        auto index = numeric_cast<size_t>(luaL_checkinteger(L, 2)) - 1;
+        auto ass = get_self(L).ass;
+        if (index < clingo_assignment_max_size(ass)) {
+            lua_pushnumber(L, call_c(L, clingo_assignment_at, ass, index));
+            return 1;
+        }
+        return 0;
+    }
+
     static int index(lua_State *L) {
+        if (lua_isnumber(L, 2)) { return at(L); }
         char const *name = luaL_checkstring(L, 2);
         if (strcmp(name, "is_total")       == 0) { return isTotal(L); }
         if (strcmp(name, "size")           == 0) { return size(L); }
@@ -2292,6 +2340,10 @@ luaL_Reg const Assignment::meta[] = {
     {"is_true", isTrue},
     {"is_false", isFalse},
     {"decision", decision},
+    {"iter", iter},
+    {"__len", max_size},
+    {"__pairs", pairs},
+    {"__ipairs", pairs},
     {nullptr, nullptr}
 };
 
