@@ -1257,7 +1257,7 @@ class Propagator(object):
         Delegates checking to the respective state and makes sure that all
         order variables are assigned if the assigment is total.
         """
-        size = control.assignment.size
+        size = len(control.assignment)
         state = self._state(control.thread_id)
 
         if not state.check(control):
@@ -1268,7 +1268,7 @@ class Propagator(object):
         # variables if variables have been introduced during check. In this
         # case, there is a guaranteed follow-up propagate call because all
         # newly introduced variables are watched.
-        if size == control.assignment.size and control.assignment.is_total:
+        if size == len(control.assignment) and control.assignment.is_total:
             state.check_full(control)
 
     def undo(self, thread_id, assign, changes):
