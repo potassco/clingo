@@ -75,10 +75,6 @@ end
 
 
 function Propagator:init(init)
-    local a = init:solver_literal(init.symbolic_atoms:lookup(clingo.Function("a")).literal)
-    local b = init:solver_literal(init.symbolic_atoms:lookup(clingo.Function("b")).literal)
-    local c = init:solver_literal(init.symbolic_atoms:lookup(clingo.Function("c")).literal)
-
     check_trail(init.assignment)
 
     init.check_mode = clingo.PropagatorCheckMode.Fixpoint
