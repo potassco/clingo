@@ -56,17 +56,6 @@
 #define Py_hash_t long
 #endif
 
-#if PY_VERSION_HEX < 0x03060100
-// Note: it is impossible to get around using these functions without keeping
-// the slice object around. Thus, clingo only supports python versions
-// providing them.
-#define SliceUnpack _PySlice_Unpack
-#define SliceAdjustIndices _PySlice_AdjustIndices
-#else
-#define SliceUnpack PySlice_Unpack
-#define SliceAdjustIndices PySlice_AdjustIndices
-#endif
-
 #ifndef PyVarObject_HEAD_INIT
     #define PyVarObject_HEAD_INIT(type, size) \
         PyObject_HEAD_INIT(type) size,
@@ -3218,7 +3207,11 @@ An int representing the pointer to the underlying C `clingo_configuration_t` str
 
 struct Slice : ObjectBase<Slice> {
     Object seq;
+#if PY_VERSION_HEX < 0x03060100
+    Object slice;
+#else
     Py_ssize_t start, stop, step;
+#endif
 
     static constexpr char const *tp_type = "Slice";
     static constexpr char const *tp_name = "clingo.Slice";
@@ -3229,9 +3222,13 @@ Helper object for slicing support.
     static Object construct(Reference seq, Reference slice) {
         auto self = new_();
         new (&self->seq) Object{seq};
-        if (SliceUnpack(slice.toPy(), &self->start, &self->stop, &self->step) < 0) {
+#if PY_VERSION_HEX < 0x03060100
+        new (&self->slice) Object{slice};
+#else
+        if (PySlice_Unpack(slice.toPy(), &self->start, &self->stop, &self->step) < 0) {
             throw PyException();
         }
+#endif
         return self;
     }
 
@@ -3240,13 +3237,34 @@ Helper object for slicing support.
     }
 
     Py_ssize_t sq_length() {
+#if PY_VERSION_HEX < 0x03060100
+        Py_ssize_t l, b, e, step;
+#   if PY_VERSION_HEX < 0x03020000
+        auto ret = PySlice_GetIndicesEx(reinterpret_cast<PySliceObject*>(slice.toPy()), seq.size(), &b, &b, &step, &l);
+#   else
+        auto ret = PySlice_GetIndicesEx(slice.toPy(), seq.size(), &b, &b, &step, &l);
+#   endif
+        if (ret < 0) { throw PyException(); }
+#else
         auto b = start, e = stop;
-        return SliceAdjustIndices(seq.size(), &b, &e, step);
+        auto l = PySlice_AdjustIndices(seq.size(), &b, &e, step);
+#endif
+        return l;
     }
 
     Object sq_item(Py_ssize_t index) {
+#if PY_VERSION_HEX < 0x03060100
+        Py_ssize_t l, b, e, step;
+#   if PY_VERSION_HEX < 0x03020000
+        auto ret = PySlice_GetIndicesEx(reinterpret_cast<PySliceObject*>(slice.toPy()), seq.size(), &b, &e, &step, &l);
+#   else
+        auto ret = PySlice_GetIndicesEx(slice.toPy(), seq.size(), &b, &e, &step, &l);
+#   endif
+        if (ret < 0) { throw PyException(); }
+#else
         auto b = start, e = stop;
-        auto l = SliceAdjustIndices(seq.size(), &b, &e, step);
+        auto l = PySlice_AdjustIndices(seq.size(), &b, &e, step);
+#endif
         if (index < 0 || index >= l) {
             PyErr_Format(PyExc_IndexError, "invalid index");
             return nullptr;
