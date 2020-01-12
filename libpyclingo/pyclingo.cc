@@ -3240,9 +3240,9 @@ Helper object for slicing support.
 #if PY_VERSION_HEX < 0x03060100
         Py_ssize_t l, b, e, step;
 #   if PY_VERSION_HEX < 0x03020000
-        auto ret = PySlice_GetIndicesEx(reinterpret_cast<PySliceObject*>(slice.toPy()), seq.size(), &b, &b, &step, &l);
+        auto ret = PySlice_GetIndicesEx(reinterpret_cast<PySliceObject*>(slice.toPy()), seq.size(), &b, &e, &step, &l);
 #   else
-        auto ret = PySlice_GetIndicesEx(slice.toPy(), seq.size(), &b, &b, &step, &l);
+        auto ret = PySlice_GetIndicesEx(slice.toPy(), seq.size(), &b, &e, &step, &l);
 #   endif
         if (ret < 0) { throw PyException(); }
 #else
