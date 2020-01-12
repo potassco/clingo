@@ -1230,9 +1230,9 @@ class Propagator(object):
 
             # Note: Initially, the trail is guaranteed to have at least size 1.
             # This ensures that order literals will be propagated.
-            if trail_offset == len(trail):
-                break
             next_trail_offset = len(trail)
+            if trail_offset == next_trail_offset:
+                break
 
             for state in self._states:
                 if not state.simplify(init, next_trail_offset):
