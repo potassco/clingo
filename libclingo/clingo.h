@@ -996,16 +996,11 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_is_false(clingo_assignment_t co
 //! @param[out] value the resulting truth value
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_truth_value(clingo_assignment_t const *assignment, clingo_literal_t literal, clingo_truth_value_t *value);
-//! The number of assigned literals in the assignment.
+//! The number of (positive) literals in the assignment.
 //!
 //! @param[in] assignment the target
 //! @return the number of literals
 CLINGO_VISIBILITY_DEFAULT size_t clingo_assignment_size(clingo_assignment_t const *assignment);
-//! The maximum size of the assignment (if all literals are assigned).
-//!
-//! @param[in] assignment the target
-//! @return the maximum size
-CLINGO_VISIBILITY_DEFAULT size_t clingo_assignment_max_size(clingo_assignment_t const *assignment);
 //! The (positive) literal at the given offset in the assignment.
 //!
 //! @param[in] assignment the target
@@ -1013,14 +1008,12 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_assignment_max_size(clingo_assignment_t 
 //! @param[out] literal the literal
 //! @return the maximum size
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_at(clingo_assignment_t const *assignment, size_t offset, clingo_literal_t *literal);
-//! Check if the assignmen is total, i.e. - size == max_size.
+//! Check if the assignment is total, i.e. there are no free literal.
 //!
 //! @param[in] assignment the target
 //! @return wheather the assignment is total
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_is_total(clingo_assignment_t const *assignment);
-//! Returns the number of literals in the trail.
-//!
-//! @note The function is equivalent to clingo_assignment_size().
+//! Returns the number of literals in the trail, i.e., the number of assigned literals.
 //!
 //! @param[in] assignment the target
 //! @param[out] size the number of literals in the trail
@@ -1028,9 +1021,6 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_is_total(clingo_assignment_t co
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_size(clingo_assignment_t const *assignment, uint32_t *size);
 //! Returns the offset of the decision literal with the given decision level in
 //! the trail.
-//!
-//! If the level is one above the current decision level, then this function
-//! returns the size of the trail.
 //!
 //! @note Literals in the trail are ordered by decision levels, where the first
 //! literal with a larger level than the previous literals is a decision; the
@@ -1043,6 +1033,15 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_size(clingo_assignment_t 
 //! @param[out] offset the offset of the decision literal
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_begin(clingo_assignment_t const *assignment, uint32_t level, uint32_t *offset);
+//! Returns the offset following the last literal with the given decision level.
+//!
+//! @note This function is the counter part to clingo_assignment_trail_begin().
+//!
+//! @param[in] assignment the target
+//! @param[in] level the decision level
+//! @param[out] offset the offset
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_end(clingo_assignment_t const *assignment, uint32_t level, uint32_t *offset);
 //! Returns the literal at the given position in the trail.
 //!
 //! @param[in] assignment the target

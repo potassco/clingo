@@ -3313,9 +3313,15 @@ This class implements `ImmutableSequence[int]` to access the literals in the tra
         return self;
     }
 
-    Object offset(Reference level) {
+    Object begin(Reference level) {
         uint32_t ret;
         handle_c_error(clingo_assignment_trail_begin(assign, pyToCpp<uint32_t>(level), &ret));
+        return cppToPy(ret);
+    }
+
+    Object end(Reference level) {
+        uint32_t ret;
+        handle_c_error(clingo_assignment_trail_end(assign, pyToCpp<uint32_t>(level), &ret));
         return cppToPy(ret);
     }
 
@@ -3350,13 +3356,24 @@ This class implements `ImmutableSequence[int]` to access the literals in the tra
 };
 
 PyMethodDef Trail::tp_methods[] = {
-    {"offset", to_function<&Trail::offset>(), METH_O, R"(offset(self, level : int) -> int
+    {"begin", to_function<&Trail::begin>(), METH_O, R"(begin(self, level : int) -> int
 
 Returns the offset of the decision literal with the given decision level in the
 trail.
 
-If the level is one above the current decision level, then this function
-returns the size of the trail.
+Parameters
+----------
+level : int
+    The decision level.
+
+Returns
+-------
+int
+)"},
+    {"end", to_function<&Trail::end>(), METH_O, R"(end(self, level : int) -> int
+
+Returns the offset following the last literal with the given decision literal
+in the trail.
 
 Parameters
 ----------
@@ -3452,20 +3469,12 @@ literals in the assignment.
         return cppToPy(ret);
     }
 
-    Object size() {
-        return cppToPy(clingo_assignment_size(assign));
-    }
-
-    Object max_size() {
-        return cppToPy(clingo_assignment_max_size(assign));
-    }
-
     Object isTotal() {
         return cppToPy(clingo_assignment_is_total(assign));
     }
 
     Py_ssize_t sq_length() {
-        return clingo_assignment_max_size(assign);
+        return clingo_assignment_size(assign);
     }
 
     Object sq_item(Py_ssize_t index) {
@@ -3597,12 +3606,6 @@ The current decision level.)", nullptr},
     {(char *)"root_level", to_getter<&Assignment::rootLevel>(), nullptr, (char *)R"(root_level: int
 
 The current root level.)", nullptr},
-    {(char *)"size", to_getter<&Assignment::size>(), nullptr, (char *)R"(size: int
-
-The number of assigned literals.)", nullptr},
-    {(char *)"max_size", to_getter<&Assignment::max_size>(), nullptr, (char *)R"(max_size: int
-
-The maximum size of the assignment (if all literals are assigned).)", nullptr},
     {(char *)"is_total", to_getter<&Assignment::isTotal>(), nullptr, (char *)R"(is_total: bool
 
 Whether the assignment is total.)", nullptr},

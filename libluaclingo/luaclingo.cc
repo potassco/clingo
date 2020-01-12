@@ -2202,10 +2202,17 @@ struct Trail : Object<Trail> {
         return 1;
     }
 
-    static int offset(lua_State *L) {
+    static int begin(lua_State *L) {
         auto &self = get_self(L);
         auto level = numeric_cast<uint32_t>(luaL_checkinteger(L, 2));
         lua_pushnumber(L, call_c(L, clingo_assignment_trail_begin, self.ass, level) + 1);
+        return 1;
+    }
+
+    static int end(lua_State *L) {
+        auto &self = get_self(L);
+        auto level = numeric_cast<uint32_t>(luaL_checkinteger(L, 2));
+        lua_pushnumber(L, call_c(L, clingo_assignment_trail_end, self.ass, level));
         return 1;
     }
 
@@ -2271,7 +2278,8 @@ struct Trail : Object<Trail> {
 constexpr char const *Trail::typeName;
 luaL_Reg const Trail::meta[] = {
     {"iter", iter},
-    {"offset", offset},
+    {"start", begin},
+    {"stop", end},
     {"__len", size},
     {"__pairs", pairs},
     {"__ipairs", pairs},
@@ -2349,18 +2357,13 @@ struct Assignment : Object<Assignment> {
         return 1;
     }
 
-    static int max_size(lua_State *L) {
-        lua_pushnumber(L, clingo_assignment_max_size(get_self(L).ass));
-        return 1;
-    }
-
     static int isTotal(lua_State *L) {
         lua_pushboolean(L, clingo_assignment_is_total(get_self(L).ass));
         return 1;
     }
 
     int32_t size_() {
-        return clingo_assignment_max_size(ass);
+        return clingo_assignment_size(ass);
     }
 
     clingo_literal_t at_(lua_State *L, size_t idx) {
@@ -2423,8 +2426,6 @@ struct Assignment : Object<Assignment> {
         char const *name = luaL_checkstring(L, 2);
         if (strcmp(name, "trail")          == 0) { return trail(L); }
         if (strcmp(name, "is_total")       == 0) { return isTotal(L); }
-        if (strcmp(name, "size")           == 0) { return size(L); }
-        if (strcmp(name, "max_size")       == 0) { return max_size(L); }
         if (strcmp(name, "has_conflict")   == 0) { return hasConflict(L); }
         if (strcmp(name, "decision_level") == 0) { return decisionLevel(L); }
         if (strcmp(name, "root_level")     == 0) { return rootLevel(L); }
@@ -2449,7 +2450,7 @@ luaL_Reg const Assignment::meta[] = {
     {"is_false", isFalse},
     {"decision", decision},
     {"iter", iter},
-    {"__len", max_size},
+    {"__len", size},
     {"__pairs", pairs},
     {"__ipairs", pairs},
     {nullptr, nullptr}

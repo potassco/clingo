@@ -398,8 +398,8 @@ public:
         auto trail = ass.trail();
 
         REQUIRE(ass.decision_level() == 0);
-        REQUIRE(trail.offset(0) == 0);
-        REQUIRE(trail.offset(1) == trail.size());
+        REQUIRE(trail.begin_offset(0) == 0);
+        REQUIRE(trail.end_offset(0) == trail.size());
 
         std::set<Clingo::literal_t> lits;
         std::set<Clingo::literal_t> check_lits{1, c_};
@@ -444,8 +444,8 @@ public:
             REQUIRE(ass.truth_value(a) == TruthValue::True);
             REQUIRE((ass.is_true(a_) ^ ass.is_true(b_)));
             REQUIRE(ass.level(a) == level);
-            REQUIRE(trail.offset(level+1) - trail.offset(level) >= 1);
-            REQUIRE(trail.offset(level+1) - trail.offset(level) <= 2);
+            REQUIRE(trail.end_offset(level) - trail.begin_offset(level) >= 1);
+            REQUIRE(trail.end_offset(level) - trail.begin_offset(level) <= 2);
             bool found = false;
             for (auto lit : Clingo::make_range(trail.begin(level), trail.end(level))) {
                 if (lit == a) {

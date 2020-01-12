@@ -855,11 +855,12 @@ public:
     using value_type = literal_t;
     explicit Trail(clingo_assignment_t const *ass) : ass_{ass} { }
     uint32_t size() const;
-    uint32_t offset(uint32_t level) const;
+    uint32_t begin_offset(uint32_t level) const;
+    uint32_t end_offset(uint32_t level) const;
     iterator begin() const { return iterator{this, 0}; }
-    iterator begin(uint32_t level) const { return iterator{this, offset(level)}; }
+    iterator begin(uint32_t level) const { return iterator{this, begin_offset(level)}; }
     iterator end() const { return iterator{this, size()}; }
-    iterator end(uint32_t level) const { return iterator{this, offset(level + 1)}; }
+    iterator end(uint32_t level) const { return iterator{this, end_offset(level)}; }
     literal_t at(uint32_t offset) const;
     literal_t operator[](uint32_t offset) { return at(offset); }
     clingo_assignment_t const *to_c() const { return ass_; }
@@ -886,12 +887,11 @@ public:
     bool is_true(literal_t lit) const;
     bool is_false(literal_t lit) const;
     size_t size() const;
-    size_t max_size() const;
     bool is_total() const;
     literal_t at(size_t offset) const;
     literal_t operator[](size_t offset) { return at(offset); }
     iterator begin() const { return iterator{this, 0}; }
-    iterator end() const { return iterator{this, max_size()}; }
+    iterator end() const { return iterator{this, size()}; }
     Trail trail() const { return Trail{ass_}; }
     clingo_assignment_t const *to_c() const { return ass_; }
 private:
@@ -2721,9 +2721,15 @@ inline uint32_t Trail::size() const {
     return ret;
 }
 
-inline uint32_t Trail::offset(uint32_t level) const {
+inline uint32_t Trail::begin_offset(uint32_t level) const {
     uint32_t ret;
     Detail::handle_error(clingo_assignment_trail_begin(ass_, level, &ret));
+    return ret;
+}
+
+inline uint32_t Trail::end_offset(uint32_t level) const {
+    uint32_t ret;
+    Detail::handle_error(clingo_assignment_trail_end(ass_, level, &ret));
     return ret;
 }
 
@@ -2789,10 +2795,6 @@ inline bool Assignment::is_false(literal_t lit) const {
 
 inline size_t Assignment::size() const {
     return clingo_assignment_size(ass_);
-}
-
-inline size_t Assignment::max_size() const {
-    return clingo_assignment_max_size(ass_);
 }
 
 inline bool Assignment::is_total() const {
