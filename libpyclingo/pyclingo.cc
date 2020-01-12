@@ -54,13 +54,16 @@
 #else
 #define OBBASE(x) x
 #define Py_hash_t long
+#endif
 
-int PySlice_Unpack(PyObject *slice, Py_ssize_t *start, Py_ssize_t *stop, Py_ssize_t *step) {
+#if PY_VERSION_HEX < 0x03060100
+
+int SliceUnpack(PyObject *slice, Py_ssize_t *start, Py_ssize_t *stop, Py_ssize_t *step) {
     Py_ssize_t length;
     return PySlice_GetIndicesEx(reinterpret_cast<PySliceObject*>(slice), PY_SSIZE_T_MAX, start, stop, step, &length);
 }
 
-Py_ssize_t PySlice_AdjustIndices(Py_ssize_t length, Py_ssize_t *start, Py_ssize_t *stop, Py_ssize_t step) {
+Py_ssize_t SliceAdjustIndices(Py_ssize_t length, Py_ssize_t *start, Py_ssize_t *stop, Py_ssize_t step) {
     assert(step != 0);
     assert(step >= -PY_SSIZE_T_MAX);
     if (*start < 0) {
@@ -93,6 +96,10 @@ Py_ssize_t PySlice_AdjustIndices(Py_ssize_t length, Py_ssize_t *start, Py_ssize_
     }
     return 0;
 }
+#else
+
+#define SliceUnpack PySlice_Unpack
+#define SliceAdjustIndices PySlice_AdjustIndices
 
 #endif
 
@@ -3258,7 +3265,7 @@ Helper object for slicing support.
     static Object construct(Reference seq, Reference slice) {
         auto self = new_();
         new (&self->seq) Object{seq};
-        if (PySlice_Unpack(slice.toPy(), &self->start, &self->stop, &self->step) < 0) {
+        if (SliceUnpack(slice.toPy(), &self->start, &self->stop, &self->step) < 0) {
             throw PyException();
         }
         return self;
@@ -3269,15 +3276,18 @@ Helper object for slicing support.
     }
 
     Py_ssize_t sq_length() {
-        return PySlice_AdjustIndices(seq.size(), &start, &stop, step);
+        auto b = start, e = stop;
+        return SliceAdjustIndices(seq.size(), &b, &e, step);
     }
 
     Object sq_item(Py_ssize_t index) {
-        if (index < 0 || index >= sq_length()) {
+        auto b = start, e = stop;
+        auto l = SliceAdjustIndices(seq.size(), &b, &e, step);
+        if (index < 0 || index >= l) {
             PyErr_Format(PyExc_IndexError, "invalid index");
             return nullptr;
         }
-        return seq.getItem(start + index * step);
+        return seq.getItem(b + index * step);
     }
 
     Object mp_subscript(Reference slice) {
@@ -3488,7 +3498,12 @@ literals in the assignment.
     }
 
     Object mp_subscript(Reference slice) {
-        return Slice::construct(*this, slice);
+        if (PySlice_Check(slice.toPy())) {
+            return Slice::construct(*this, slice);
+        }
+        else {
+            return sq_item(pyToCpp<Py_ssize_t>(slice));
+        }
     }
 
     Object to_c() {
