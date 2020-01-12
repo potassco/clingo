@@ -2278,8 +2278,8 @@ struct Trail : Object<Trail> {
 constexpr char const *Trail::typeName;
 luaL_Reg const Trail::meta[] = {
     {"iter", iter},
-    {"start", begin},
-    {"stop", end},
+    {"first", begin},
+    {"last", end},
     {"__len", size},
     {"__pairs", pairs},
     {"__ipairs", pairs},
