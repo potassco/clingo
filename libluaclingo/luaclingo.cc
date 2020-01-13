@@ -2183,6 +2183,109 @@ luaL_Reg const Backend::meta[] = {
     {nullptr, nullptr}
 };
 
+// {{{1 wrap Trail
+
+struct Trail : Object<Trail> {
+    clingo_assignment_t const *ass;
+    Trail(clingo_assignment_t const *ass) : ass(ass) { }
+
+    int32_t size_(lua_State *L) {
+        return call_c(L, clingo_assignment_trail_size, ass);
+    }
+
+    clingo_literal_t at_(lua_State *L, uint32_t idx) {
+        return call_c(L, clingo_assignment_trail_at, ass, idx);
+    }
+
+    static int size(lua_State *L) {
+        lua_pushnumber(L, get_self(L).size_(L));
+        return 1;
+    }
+
+    static int begin(lua_State *L) {
+        auto &self = get_self(L);
+        auto level = numeric_cast<uint32_t>(luaL_checkinteger(L, 2));
+        lua_pushnumber(L, call_c(L, clingo_assignment_trail_begin, self.ass, level) + 1);
+        return 1;
+    }
+
+    static int end(lua_State *L) {
+        auto &self = get_self(L);
+        auto level = numeric_cast<uint32_t>(luaL_checkinteger(L, 2));
+        lua_pushnumber(L, call_c(L, clingo_assignment_trail_end, self.ass, level));
+        return 1;
+    }
+
+    static int pairs_iter_(lua_State *L) {
+        auto &self = get_self(L);
+        auto idx = numeric_cast<int32_t>(luaL_checkinteger(L, 2));
+        if (idx < self.size_(L)) {
+            lua_pushinteger(L, idx + 1);
+            lua_pushnumber(L, self.at_(L, idx));
+            return 2;
+        }
+        return 0;
+    }
+
+    static int iter_(lua_State *L) {
+        auto &self = *static_cast<Trail *>(luaL_checkudata(L, lua_upvalueindex(1), typeName));
+        auto idx = numeric_cast<int32_t>(lua_tointeger(L, lua_upvalueindex(2)));
+        if (idx < self.size_(L)) {
+            lua_pushinteger(L, idx + 1);
+            lua_replace(L, lua_upvalueindex(2));
+            lua_pushnumber(L, self.at_(L, idx));
+            return 1;
+        }
+        return 0;
+    }
+
+    static int iter(lua_State *L) {
+        lua_pushvalue(L, 1);
+        lua_pushinteger(L, 0);
+        lua_pushcclosure(L, iter_, 2);
+        return 1;
+    }
+
+    static int pairs(lua_State *L) {
+        lua_pushcfunction(L, pairs_iter_);
+        lua_pushvalue(L, 1);
+        lua_pushinteger(L, 0);
+        return 3;
+    }
+
+    static int at(lua_State *L) {
+        auto &self = get_self(L);
+        auto index = numeric_cast<int32_t>(luaL_checkinteger(L, 2)) - 1;
+        if (index < self.size_(L)) {
+            lua_pushnumber(L, self.at_(L, index));
+            return 1;
+        }
+        return 0;
+    }
+
+    static int index(lua_State *L) {
+        if (lua_isnumber(L, 2)) { return at(L); }
+        char const *name = luaL_checkstring(L, 2);
+        lua_getmetatable(L, 1);
+        lua_getfield(L, -1, name);
+        return 1;
+    }
+
+    static constexpr char const *typeName = "clingo.Trail";
+    static luaL_Reg const meta[];
+};
+
+constexpr char const *Trail::typeName;
+luaL_Reg const Trail::meta[] = {
+    {"iter", iter},
+    {"first", begin},
+    {"last", end},
+    {"__len", size},
+    {"__pairs", pairs},
+    {"__ipairs", pairs},
+    {nullptr, nullptr}
+};
+
 // {{{1 wrap Assignment
 
 struct Assignment : Object<Assignment> {
@@ -2211,7 +2314,7 @@ struct Assignment : Object<Assignment> {
     }
 
     static int level(lua_State *L) {
-        auto lit = numeric_cast<uint32_t>(luaL_checkinteger(L, 2));
+        auto lit = numeric_cast<clingo_literal_t>(luaL_checkinteger(L, 2));
         lua_pushinteger(L, call_c(L, clingo_assignment_level, get_self(L).ass, lit));
         return 1;
     }
@@ -2254,21 +2357,75 @@ struct Assignment : Object<Assignment> {
         return 1;
     }
 
-    static int max_size(lua_State *L) {
-        lua_pushnumber(L, clingo_assignment_max_size(get_self(L).ass));
-        return 1;
-    }
-
     static int isTotal(lua_State *L) {
         lua_pushboolean(L, clingo_assignment_is_total(get_self(L).ass));
         return 1;
     }
 
+    int32_t size_() {
+        return clingo_assignment_size(ass);
+    }
+
+    clingo_literal_t at_(lua_State *L, size_t idx) {
+        return call_c(L, clingo_assignment_at, ass, idx);
+    }
+
+    static int pairs_iter_(lua_State *L) {
+        auto &self = get_self(L);
+        auto idx = numeric_cast<std::make_signed<size_t>::type>(luaL_checkinteger(L, 2));
+        if (0 <= idx && idx < self.size_()) {
+            lua_pushinteger(L, idx + 1);
+            lua_pushnumber(L, self.at_(L, idx));
+            return 2;
+        }
+        return 0;
+    }
+
+    static int iter_(lua_State *L) {
+        auto &self = *static_cast<Assignment*>(luaL_checkudata(L, lua_upvalueindex(1), typeName));
+        auto idx = numeric_cast<std::make_signed<size_t>::type>(lua_tointeger(L, lua_upvalueindex(2)));
+        if (0 <= idx && idx < self.size_()) {
+            lua_pushinteger(L, idx + 1);
+            lua_replace(L, lua_upvalueindex(2));
+            lua_pushnumber(L, self.at_(L, idx));
+            return 1;
+        }
+        return 0;
+    }
+
+    static int iter(lua_State *L) {
+        lua_pushvalue(L, 1);
+        lua_pushinteger(L, 0);
+        lua_pushcclosure(L, iter_, 2);
+        return 1;
+    }
+
+    static int pairs(lua_State *L) {
+        lua_pushcfunction(L, pairs_iter_);
+        lua_pushvalue(L, 1);
+        lua_pushinteger(L, 0);
+        return 3;
+    }
+
+    static int at(lua_State *L) {
+        auto idx = numeric_cast<std::make_signed<size_t>::type>(luaL_checkinteger(L, 2)) - 1;
+        auto &self = get_self(L);
+        if (0 <= idx && idx < self.size_()) {
+            lua_pushnumber(L, self.at_(L, idx));
+            return 1;
+        }
+        return 0;
+    }
+
+    static int trail(lua_State *L) {
+        return Trail::new_(L, get_self(L).ass);
+    }
+
     static int index(lua_State *L) {
+        if (lua_isnumber(L, 2)) { return at(L); }
         char const *name = luaL_checkstring(L, 2);
+        if (strcmp(name, "trail")          == 0) { return trail(L); }
         if (strcmp(name, "is_total")       == 0) { return isTotal(L); }
-        if (strcmp(name, "size")           == 0) { return size(L); }
-        if (strcmp(name, "max_size")       == 0) { return max_size(L); }
         if (strcmp(name, "has_conflict")   == 0) { return hasConflict(L); }
         if (strcmp(name, "decision_level") == 0) { return decisionLevel(L); }
         if (strcmp(name, "root_level")     == 0) { return rootLevel(L); }
@@ -2292,6 +2449,10 @@ luaL_Reg const Assignment::meta[] = {
     {"is_true", isTrue},
     {"is_false", isFalse},
     {"decision", decision},
+    {"iter", iter},
+    {"__len", size},
+    {"__pairs", pairs},
+    {"__ipairs", pairs},
     {nullptr, nullptr}
 };
 
@@ -3596,6 +3757,7 @@ int luaopen_clingo(lua_State* L) {
     TheoryAtom::reg(L);
     PropagateInit::reg(L);
     PropagateControl::reg(L);
+    Trail::reg(L);
     Assignment::reg(L);
     Backend::reg(L);
     PropagatorCheckMode::reg(L);
