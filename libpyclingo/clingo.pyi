@@ -196,7 +196,7 @@ class SymbolicAtom:
 
     def match(self, name: str, arity: int) -> bool: ...
 
-class SymbolicAtomIter:
+class SymbolicAtomIter(Iterator[SymbolicAtom]):
     pass
 
 class SymbolicAtoms:
@@ -210,7 +210,7 @@ class TheoryAtom:
     literal: int
     term: TheoryTerm
 
-class TheoryAtomIter:
+class TheoryAtomIter(Iterator[SymbolicAtom]):
     pass
 
 class TheoryElement:
