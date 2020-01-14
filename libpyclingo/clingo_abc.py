@@ -1,4 +1,7 @@
-class Application:
+from abc import ABC, abstractmethod
+
+
+class Application(ABC):
     """
     Interface that has to be implemented to customize clingo.
 
@@ -11,6 +14,7 @@ class Application:
         Maximum number of messages passed to the logger.
     """
 
+    @abstractmethod
     def main(self, control: Control, files: List[str]) -> None:
         """
         Function to replace clingo's default main function.
@@ -27,6 +31,7 @@ class Application:
         None
         """
 
+    @abstractmethod
     def register_options(self, options: ApplicationOptions) -> None:
         """
         Function to register custom options.
@@ -41,6 +46,7 @@ class Application:
         None
         """
 
+    @abstractmethod
     def validate_options(self) -> bool:
         """
         Function to validate custom options.
@@ -53,6 +59,7 @@ class Application:
         bool
         """
 
+    @abstractmethod
     def logger(self, code: MessageCode, message: str) -> None:
         """
         Function to intercept messages normally printed to standard error.
@@ -75,7 +82,8 @@ class Application:
         This function should not raise exceptions.
         """
 
-class Observer:
+class Observer(ABC):
+    @abstractmethod
     def init_program(self, incremental: bool) -> None:
         """
         Called once in the beginning.
@@ -91,6 +99,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def begin_step(self) -> None:
         """
         Marks the beginning of a block of directives passed to the solver.
@@ -100,6 +109,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def rule(self, choice: bool, head: List[int], body: List[int]) -> None:
         """
         Observe rules passed to the solver.
@@ -118,6 +128,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def weight_rule(self, choice: bool, head: List[int], lower_bound: int,
                     body: List[Tuple[int,int]]) -> None:
         """
@@ -141,6 +152,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def minimize(self, priority: int, literals: List[Tuple[int,int]]) -> None:
         """
         Observe minimize directives (or weak constraints) passed to the
@@ -159,6 +171,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def project(self, atoms: List[int]) -> None:
         """
         Observe projection directives passed to the solver.
@@ -173,6 +186,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def output_atom(self, symbol: Symbol, atom: int) -> None:
         """
         Observe shown atoms passed to the solver.  Facts do not have an
@@ -190,6 +204,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def output_term(self, symbol: Symbol, condition: List[int]) -> None:
         """
         Observe shown terms passed to the solver.
@@ -207,6 +222,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def output_csp(self, symbol: Symbol, value: int,
                    condition: List[int]) -> None:
         """
@@ -227,6 +243,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def external(self, atom: int, value: TruthValue) -> None:
         """
         Observe external statements passed to the solver.
@@ -243,6 +260,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def assume(self, literals: List[int]) -> None:
         """
         Observe assumption directives passed to the solver.
@@ -258,6 +276,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def heuristic(self, atom: int, type: HeuristicType, bias: int,
                   priority: int, condition: List[int]) -> None:
         """
@@ -281,6 +300,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def acyc_edge(self, node_u: int, node_v: int,
                   condition: List[int]) -> None:
         """
@@ -301,6 +321,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def theory_term_number(self, term_id: int, number: int) -> None:
         """
         Observe numeric theory terms.
@@ -317,6 +338,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def theory_term_string(self, term_id : int, name : str) -> None:
         """
         Observe string theory terms.
@@ -333,6 +355,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def theory_term_compound(self, term_id: int, name_id_or_type: int,
                              arguments: List[int]) -> None:
         """
@@ -357,6 +380,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def theory_element(self, element_id: int, terms: List[int],
                        condition: List[int]) -> None:
         """
@@ -376,6 +400,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def theory_atom(self, atom_id_or_zero: int, term_id: int,
                     elements: List[int]) -> None:
         """
@@ -395,6 +420,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def theory_atom_with_guard(self, atom_id_or_zero: int, term_id: int,
                                elements: List[int], operator_id: int,
                                right_hand_side_id: int) -> None:
@@ -419,6 +445,7 @@ class Observer:
         None
         """
 
+    @abstractmethod
     def end_step(self) -> None:
         """
         Marks the end of a block of directives passed to the solver.
@@ -430,7 +457,8 @@ class Observer:
         None
         """
 
-class Propagator:
+class Propagator(ABC):
+    @abstractmethod
     def init(self, init: PropagateInit) -> None:
         """
         This function is called once before each solving step.
@@ -454,6 +482,7 @@ class Propagator:
         started, they are no longer accessible.
         """
 
+    @abstractmethod
     def propagate(self, control: PropagateControl, changes: List[int]) -> None:
         """
         Can be used to propagate solver literals given a partial assignment.
@@ -490,6 +519,7 @@ class Propagator:
         `PropagateControl.id`.
         """
 
+    @abstractmethod
     def undo(self, thread_id: int, assignment: Assignment,
              changes: List[int]) -> None:
         """
@@ -515,6 +545,7 @@ class Propagator:
         propagator but not to modify the current state of the solver.
         """
 
+    @abstractmethod
     def check(self, control: PropagateControl) -> None:
         """
         This function is similar to propagate but is called without a change
@@ -537,6 +568,7 @@ class Propagator:
         This function is called even if no watches have been added.
         """
 
+    @abstractmethod
     def decide(self, thread_id: int, assignment: Assignment, fallback: int) -> int:
         """
         This function allows a propagator to implement domain-specific
