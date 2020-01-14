@@ -1,7 +1,6 @@
 from typing import *
 
 Infimum: Symbol
-
 Supremum: Symbol
 
 __version__: str
