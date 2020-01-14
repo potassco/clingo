@@ -51,6 +51,8 @@ class Configuration:
     keys: Optional[Iterable[str]]
 
 class Control:
+    def __init__(self, arguments: Iterable[str] = (), logger: Callable[[MessageCode, str], None] = None, message_limit: int = 20): ...
+
     configuration: Configuration
     is_conflicting: bool
     statistics: dict
@@ -73,7 +75,8 @@ class Control:
     def solve(self, assumptions: Iterable[Union[Tuple[Symbol, bool], int]] = (), on_model: Callable[[Model], Optional[bool]] = None, on_statistics: Callable[[StatisticsMap, StatisticsMap], None] = None, on_finish: Callable[[SolveResult], None] = None, yield_: bool = False, async_: bool = False) -> Union[SolveHandle, SolveResult]: ...
 
 class Flag:
-    value: bool
+    def __init__(self, value: bool = False):
+        self.value = value
 
 class HeuristicType:
     Level: HeuristicType
