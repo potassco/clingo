@@ -79,7 +79,7 @@ class Control:
     def release_external(self, symbol: Union[Symbol, int]) -> None: ...
     def solve(self, assumptions: Iterable[Union[Tuple[Symbol, bool], int]] = (), on_model: Callback[[Model], Optional[bool]] = None, on_statistics: Callback[[StatisticsMap, StatisticsMap], None] = None, on_finish: Callback[[SolveResult], None] = None, yield_: bool = False, async_: bool = False) -> Union[SolveHandle, SolveResult]: ...
 
-class Flag(value: bool = False):
+class Flag:
 
     value: bool
 
