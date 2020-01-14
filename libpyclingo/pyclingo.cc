@@ -1318,7 +1318,7 @@ Function : TheoryTermType
 Number : TheoryTermType
     For numeric theory terms.
 Symbol : TheoryTermType
-    For symbolic theory terms.
+    For symbolic theory terms (symbol here means the term is a string).
 List : TheoryTermType
     For list theory terms.
 Tuple : TheoryTermType
@@ -1415,7 +1415,7 @@ The type of the theory term.)", nullptr},
     {(char *)"name", to_getter<&TheoryTerm::name>(), nullptr, (char *)R"(name: str
 
 The name of the term (for symbols and functions).)", nullptr},
-    {(char *)"arguments", to_getter<&TheoryTerm::args>(), nullptr, (char *)R"(arguments: List[Symbol]
+    {(char *)"arguments", to_getter<&TheoryTerm::args>(), nullptr, (char *)R"(arguments: List[TheoryTerm]
 
 The arguments of the term (for functions, tuples, list, and sets).
 )", nullptr},
