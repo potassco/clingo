@@ -1,6 +1,9 @@
 # Changes
 
 ## clingo 5.4.1
+  * rename `max_size` to `size` in APIs and remove previous `size` method
+    (breaks backward compatibility but makes things consistent)
+  * improve assignment providing trail and iteration methods (#187)
   * improve string representation of AST (#171)
   * improve parsing of disjunctions (#171)
   * improve getting description of configuration entries (#174)
