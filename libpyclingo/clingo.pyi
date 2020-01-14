@@ -104,9 +104,9 @@ class Model:
     def symbols(self, atoms: bool = False, terms: bool = False, shown: bool = False, csp: bool = False, complement: bool = False) -> Iterable[Symbol]: ...
 
 class ModelType:
-    BraveConsequences
-    CautiousConsequences
-    StableModel
+    BraveConsequences: ModelType
+    CautiousConsequences: ModelType
+    StableModel: ModelType
 
 class ProgramBuilder:
     def add(self, statement: AST) -> None: ...
