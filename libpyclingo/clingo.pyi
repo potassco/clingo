@@ -1,3 +1,5 @@
+from typing import *
+
 Infimum: Symbol
 
 Supremum: Symbol
