@@ -1,5 +1,8 @@
 from typing import *
 
+from clingo_abc import Application, Observer, Propagator
+
+
 Infimum: Symbol
 Supremum: Symbol
 
