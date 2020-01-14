@@ -79,11 +79,11 @@ class Control:
     def release_external(self, symbol: Union[Symbol,int]) -> None: ...
     def solve(self, assumptions: Iterable[Union[Tuple[Symbol,bool],int]] = (), on_model: Callback[[Model],Optional[bool]] = None, on_statistics: Callback[[StatisticsMap,StatisticsMap],None] = None, on_finish: Callback[[SolveResult],None] = None, yield_: bool = False, async_: bool = False) -> Union[SolveHandle,SolveResult]: ...
 
-class Flag(value: bool = False)
+class Flag(value: bool = False):
 
     value: bool
 
-class HeuristicType
+class HeuristicType:
 
     Level: HeuristicType
     Sign: HeuristicType
@@ -92,7 +92,7 @@ class HeuristicType
     True_: HeuristicType
     False_: HeuristicType
 
-class MessageCode
+class MessageCode:
 
     OperationUndefined: MessageCode
     RuntimeError: MessageCode
@@ -122,7 +122,7 @@ class ModelType:
     CautiousConsequences
     StableModel
 
-class ProgramBuilder
+class ProgramBuilder:
 
     def add(self, statement: AST) -> None: ...
 
@@ -211,7 +211,7 @@ class SymbolType:
     Infimum: SymbolType
     Supremum: SymbolType
 
-class SymbolicAtom
+class SymbolicAtom:
 
     is_external: bool
     is_fact: bool
@@ -234,7 +234,7 @@ class TheoryAtom:
     literal: int
     term: TheoryTerm
 
-class TheoryAtomIter
+class TheoryAtomIter:
     pass
 
 class TheoryElement:
