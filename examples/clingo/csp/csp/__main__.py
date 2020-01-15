@@ -6,6 +6,7 @@ import sys
 from textwrap import dedent
 import clingo
 import csp
+from .parsing import transform
 
 
 class Application(object):
@@ -110,7 +111,7 @@ class Application(object):
 
         with prg.builder() as b:
             for f in files:
-                csp.transform(b, open(f).read())
+                transform(b, open(f).read())
 
         prg.ground([("base", [])])
         if self._bound_symbol is None:
@@ -120,7 +121,7 @@ class Application(object):
             # principle this could be dealt with differently with order
             # variables.
             with prg.builder() as b:
-                csp.transform(b, "#program __bound(s,b). &sum { 1*s } <= b.")
+                transform(b, "#program __bound(s,b). &sum { 1*s } <= b.")
 
             found = True
             while found:

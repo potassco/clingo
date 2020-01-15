@@ -4,6 +4,7 @@ Basic functions to run tests.
 
 import clingo
 import csp
+from csp.parsing import transform
 
 
 def parse_model(model, prp):
@@ -15,6 +16,7 @@ def parse_model(model, prp):
         m.append(str(sym))
     a = []
     for var, val in prp.get_assignment(model.thread_id):
+        var = str(var)
         if not var.startswith("_"):
             a.append((var, val))
 
@@ -35,7 +37,7 @@ def solve(s, minint=-20, maxint=20):
 
     prg.add("base", [], csp.THEORY)
     with prg.builder() as b:
-        csp.transform(b, s)
+        transform(b, s)
 
     prg.ground([("base", [])])
 

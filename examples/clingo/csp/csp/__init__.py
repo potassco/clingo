@@ -5,7 +5,8 @@ stand-alone application.
 
 from itertools import chain
 import clingo
-from clingo import ast
+from .parsing import parse_constraints
+from .util import lerp, remove_if, TodoList
 
 try:
     # Note: Can be installed to play with realistic domain sizes.
@@ -25,149 +26,18 @@ THEORY = """\
     - : 0, binary, left
     };
     sum_term {
-    - : 2, unary;
-    * : 1, binary, left;
-    + : 0, binary, left
+    -  : 3, unary;
+    ** : 2, binary, right;
+    *  : 1, binary, left;
+    /  : 1, binary, left;
+    \\ : 1, binary, left;
+    +  : 0, binary, left;
+    -  : 0, binary, left
     };
-    &sum/1 : sum_term, {<=}, constant, any;
+    &sum/1 : sum_term, {<=,=,!=,<,>,>=}, sum_term, any;
     &diff/1 : diff_term, {<=}, constant, any
 }.
 """
-
-
-def lerp(x, y):
-    """
-    Linear interpolation between integers `x` and `y` with a factor of `.5`.
-    """
-    # NOTE: integer division with floor
-    return x + (y - x) // 2
-
-
-def match(term, name, arity):
-    """
-    Match the given term if it is a function with signature `name/arity`.
-    """
-    return (term.type in (clingo.TheoryTermType.Function, clingo.TheoryTermType.Symbol) and
-            term.name == name and
-            len(term.arguments) == arity)
-
-
-def remove_if(rng, pred):
-    """
-    Remove each element from `rng` for which `pred` evaluates to true by
-    swapping them to the end of the sequence.
-
-    The function returns the number of elements retained.
-    """
-    j = 0
-    for i, x in enumerate(rng):
-        if pred(x):
-            continue
-        if i != j:
-            rng[i], rng[j] = rng[j], rng[i]
-        j += 1
-    return j
-
-
-def _parse_constraints(init):
-    """
-    Parse and yield sum and diff constraints in the theory data of the given
-    `PropagateInit` object.
-    """
-
-    for atom in init.theory_atoms:
-        is_sum = match(atom.term, "sum", 1)
-        is_diff = match(atom.term, "diff", 1)
-        if is_sum or is_diff:
-            body = match(atom.term.arguments[0], "body", 0)
-            cons = _parse_constraint(init, atom, is_sum)
-            yield cons
-            if body:
-                cons = Constraint(-cons.literal, [(-co, var) for co, var in cons.elements], -cons.rhs-1)
-                yield cons
-
-
-def _parse_constraint(init, atom, is_sum):
-    """
-    Construct a constraint from a theory `atom` and associated with the
-    given `literal`.
-
-    If `is_sum` is true parses a sum constraint. Otherwise, it parses a
-    difference constraint as supported by clingo-dl.
-    """
-
-    elements = []
-
-    # map literal
-    literal = init.solver_literal(atom.literal)
-
-    # combine coefficients
-    seen = {}
-    for i, (co, var) in enumerate(_parse_constraint_elems(atom.elements, is_sum)):
-        if co == 0:
-            continue
-        if var not in seen:
-            seen[var] = i
-            elements.append((co, var))
-        else:
-            elements[seen[var]][0] += co
-
-    # drop zero weights
-    elements = [(co, var) for co, var in elements if co != 0]
-
-    return Constraint(literal, elements, _parse_constraint_num(atom.guard[1]))
-
-
-def _parse_constraint_elems(elems, is_sum):
-    for elem in elems:
-        if len(elem.terms) == 1 and not elem.condition:
-            # python 3 has yield from
-            for x in _parse_constraint_elem(elem.terms[0], is_sum):
-                yield x
-        else:
-            raise RuntimeError("Invalid Syntax")
-
-
-def _parse_constraint_elem(term, is_sum):
-    if not is_sum:
-        if match(term, "-", 2):
-            var = _parse_constraint_var(term.arguments[0])
-            if var != "0":
-                yield 1, var
-            var = _parse_constraint_var(term.arguments[1])
-            if var != "0":
-                yield -1, var
-        else:
-            raise RuntimeError("Invalid Syntax")
-    else:
-        if match(term, "+", 2):
-            for x in _parse_constraint_elem(term.arguments[0], True):
-                yield x
-            for x in _parse_constraint_elem(term.arguments[1], True):
-                yield x
-        elif match(term, "*", 2):
-            num = _parse_constraint_num(term.arguments[0])
-            var = _parse_constraint_var(term.arguments[1])
-            yield num, var
-        else:
-            raise RuntimeError("Invalid Syntax")
-
-
-def _parse_constraint_num(term):
-    if term.type == clingo.TheoryTermType.Number:
-        return term.number
-    if (term.type == clingo.TheoryTermType.Symbol and
-            term.symbol.type == clingo.SymbolType.Number):
-        return term.symbol.number
-    if match(term, "-", 1):
-        return -_parse_constraint_num(term.arguments[0])
-    if match(term, "+", 1):
-        return +_parse_constraint_num(term.arguments[0])
-    raise RuntimeError("Invalid Syntax")
-
-
-def _parse_constraint_var(term):
-    return str(term)
 
 
 class Constraint(object):
@@ -383,59 +253,6 @@ class VarState(object):
 
     def __repr__(self):
         return "{}=[{},{}]".format(self.var, self.lower_bound, self.upper_bound)
-
-
-class TodoList(object):
-    """
-    Simple class implementing something like an OrderedSet, which is missing
-    from pythons collections module.
-
-    The container is similar to Python's set but maintains insertion order.
-    """
-    def __init__(self):
-        """
-        Construct an empty container.
-        """
-        self._seen = set()
-        self._list = []
-
-    def __len__(self):
-        return len(self._list)
-
-    def __contains__(self, x):
-        return x in self._seen
-
-    def __iter__(self):
-        return iter(self._list)
-
-    def __getitem__(self, val):
-        return self._list[val]
-
-    def add(self, x):
-        """
-        Add `x` to the container if it is not yet contained in it.
-
-        Returns true if the element has been inserted.
-        """
-        if x not in self:
-            self._seen.add(x)
-            self._list.append(x)
-            return True
-        return False
-
-    def extend(self, i):
-        """
-        Calls `add` for each element in sequence `i`.
-        """
-        for x in i:
-            self.add(x)
-
-    def clear(self):
-        """
-        Clears the container.
-        """
-        self._seen.clear()
-        del self._list[:]
 
 
 class Level(object):
@@ -1029,7 +846,8 @@ class State(object):
         for lit, vss in self._litmap.items():
             if abs(lit) == TRUE_LIT:
                 continue
-            elif not ass.has_literal(lit):
+
+            if not ass.has_literal(lit):
                 remove_invalid.append((lit, vss))
             elif ass.is_fixed(lit):
                 remove_fixed.append((lit, vss))
@@ -1166,11 +984,12 @@ class Propagator(object):
         variables = []
         variables_seen = set(self._vars)
 
-        for c in _parse_constraints(init):
+        for lit, elems, rhs in parse_constraints(init):
+            c = Constraint(lit, elems, rhs)
             constraints.append(c)
             self._l2c.setdefault(c.literal, []).append(c)
-            init.add_watch(c.literal)
-            for co, var in c.elements:
+            init.add_watch(lit)
+            for co, var in elems:
                 if var not in variables_seen:
                     variables_seen.add(var)
                     variables.append(var)
@@ -1307,69 +1126,3 @@ class Propagator(object):
         Should be called on total assignments.
         """
         return self._state(thread_id).get_value(str(symbol))
-
-
-class Transformer(object):
-    """
-    Transforms `clingo.ast.AST` objects by visiting all child nodes.
-
-    Implement `visit_<type>` where `<type>` is the type of the nodes to be
-    visited.
-    """
-    def visit_children(self, x, *args, **kwargs):
-        """
-        Visit all child nodes of the current node.
-        """
-        for key in x.child_keys:
-            setattr(x, key, self.visit(getattr(x, key), *args, **kwargs))
-        return x
-
-    def visit(self, x, *args, **kwargs):
-        """
-        Default visit method to dispatch calls to child nodes.
-        """
-        if isinstance(x, ast.AST):
-            attr = "visit_" + str(x.type)
-            if hasattr(self, attr):
-                return getattr(self, attr)(x, *args, **kwargs)
-            return self.visit_children(x, *args, **kwargs)
-        if isinstance(x, list):
-            return [self.visit(y, *args, **kwargs) for y in x]
-        if x is None:
-            return x
-        raise TypeError("unexpected type")
-
-
-class HeadBodyTransformer(Transformer):
-    """
-    Transforms sum/diff theory atoms in heads and bodies of rules by turning
-    the name of each theory atom into a function with head or body as argument.
-    """
-    # pylint: disable=invalid-name
-
-    def visit_Rule(self, rule):
-        """
-        Visit rules adding a parameter indicating whether the head or body is
-        being visited.
-        """
-        rule.head = self.visit(rule.head, loc="head")
-        rule.body = self.visit(rule.body, loc="body")
-        return rule
-
-    def visit_TheoryAtom(self, atom, loc="body"):
-        """
-        Modify sum and diff in theory atoms by adding loc as parameter to the
-        name of theory atom.
-        """
-        t = atom.term
-        if t.name in ["sum", "diff"] and t.arguments == []:
-            atom.term = ast.Function(t.location, t.name, [ast.Function(t.location, loc, [], False)], False)
-        return atom
-
-
-def transform(builder, s):
-    """
-    Transform the program with csp constraints in the given file and path it to the builder.
-    """
-    t = HeadBodyTransformer()
-    clingo.parse_program(s, lambda stm: builder.add(t.visit(stm)))

@@ -49,8 +49,7 @@ class TestMain(unittest.TestCase):
             solve("""\
             &sum { 1 * x + (-1) * y } <= -1.
             &sum { 1 * y + (-1) * x } <= -1.
-            """),
-            [])
+            """), [])
 
         self.assertEqual(
             solve("""\
@@ -62,3 +61,25 @@ class TestMain(unittest.TestCase):
              [('x', 6)],
              ['a', ('x', -6)],
              ['a', ('x', -5)]])
+
+    def test_parse(self):
+        self.assertEqual(solve("&sum { x(f(1+2)) } <= 0.", 0, 0), [[('x(f(3))', 0)]])
+        self.assertEqual(solve("&sum { x(f(1-2)) } <= 0.", 0, 0), [[('x(f(-1))', 0)]])
+        self.assertEqual(solve("&sum { x(f(-2)) } <= 0.", 0, 0), [[('x(f(-2))', 0)]])
+        self.assertEqual(solve("&sum { x(f(2*2)) } <= 0.", 0, 0), [[('x(f(4))', 0)]])
+        self.assertEqual(solve("&sum { x(f(4/2)) } <= 0.", 0, 0), [[('x(f(2))', 0)]])
+        self.assertEqual(solve("&sum { x(f(9\\2)) } <= 0.", 0, 0), [[('x(f(1))', 0)]])
+        self.assertEqual(solve("&sum { (a,b) } <= 0.", 0, 0), [[('(a,b)', 0)]])
+        self.assertEqual(solve("&sum { x } = 5."), [[('x', 5)]])
+        self.assertEqual(solve("&sum { x } != 0.", -3, 3), [[('x', -3)], [('x', -2)], [('x', -1)], [('x', 1)], [('x', 2)], [('x', 3)]])
+        self.assertEqual(solve("&sum { x } < 2.", -3, 3), [[('x', -3)], [('x', -2)], [('x', -1)], [('x', 0)], [('x', 1)]])
+        self.assertEqual(solve("&sum { x } > 1.", -3, 3), [[('x', 2)], [('x', 3)]])
+        self.assertEqual(solve("&sum { x } >= 1.", -3, 3), [[('x', 1)], [('x', 2)], [('x', 3)]])
+        self.assertEqual(solve("a :- &sum { x } >= 1.", -3, 3), [
+            [('x', -3)], [('x', -2)], [('x', -1)],
+            [('x', 0)],
+            ['a', ('x', 1)], ['a', ('x', 2)], ['a', ('x', 3)]])
+        self.assertEqual(solve("a :- &sum { x } = 1.", -3, 3), [
+            [('x', -3)], [('x', -2)], [('x', -1)],
+            [('x', 0)],
+            [('x', 2)], [('x', 3)], ['a', ('x', 1)]])
