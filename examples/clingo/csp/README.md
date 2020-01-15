@@ -11,13 +11,13 @@ Finding all solutions for the flow shop problem.
 The problem can be solved using clingo's python module, which also gives
 options to configure the minimum and maximum values for variables.
 
-    $ python -m csp 0 -c bound=17 --min-int=1 --max-int=17 tests/fsE.lp tests/fsI.lp
+    $ python -m csp 0 -c bound=17 --min-int=1 --max-int=17 examples/fsE.lp examples/fsI.lp
 
 Furthemore, there is an option to minimize a CSP variable:
 
-    $ python -m csp 0 --min-int=0 --max-int=30 --minimize-variable=bound tests/fsO.lp tests/fsI.lp
+    $ python -m csp 0 --min-int=0 --max-int=30 --minimize-variable=bound examples/fsO.lp examples/fsI.lp
 
 To have some more instances to play with, clingo-dl's `diff` atoms are also
 accepted:
 
-    $ python -m csp 0 --min-int=0 --max-int=30 --minimize-variable=bound tests/fsD.lp tests/fsI.lp
+    $ python -m csp 0 --min-int=0 --max-int=30 --minimize-variable=bound examples/fsD.lp examples/fsI.lp
