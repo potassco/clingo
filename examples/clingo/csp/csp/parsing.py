@@ -2,8 +2,21 @@
 This module contains functions for parsing and normalizing constraints.
 """
 
+from functools import reduce
 import clingo
 from clingo import ast
+
+try:
+    from math import gcd
+except ImportError:
+    def gcd(x, y):
+        """
+        Calculate the gcd of the given integers.
+        """
+        x, y = abs(x), abs(y)
+        while y:
+            x, y = y, x % y
+        return x
 
 
 def match(term, name, arity):
@@ -64,8 +77,12 @@ def _parse_constraint(init, atom, is_sum, strict=False):
         else:
             elements[seen[var]][0] += co
 
-    # drop zero weights
+    # drop zero weights and divide by gcd
     elements = [(co, var) for co, var in elements if co != 0]
+    d = reduce(lambda a, b: gcd(a, b[0]), elements, rhs)
+    if d > 1:
+        elements = [(co//d, var) for co, var in elements]
+        rhs //= d
 
     for c in _normalize_constraint(init, literal, elements, atom.guard[0], rhs, strict):
         yield c

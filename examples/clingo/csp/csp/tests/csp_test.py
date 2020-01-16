@@ -53,6 +53,16 @@ class TestMain(unittest.TestCase):
 
         self.assertEqual(
             solve("""\
+            &sum { 1 } <= 2.
+            """), [[]])
+
+        self.assertEqual(
+            solve("""\
+            &sum { 2 } <= 1.
+            """), [])
+
+        self.assertEqual(
+            solve("""\
             {a}.
             &sum {   1 *x } <= -5 :- a.
             &sum { (-1)*x } <= -5 :- not a.
@@ -83,3 +93,5 @@ class TestMain(unittest.TestCase):
             [('x', -3)], [('x', -2)], [('x', -1)],
             [('x', 0)],
             [('x', 2)], [('x', 3)], ['a', ('x', 1)]])
+        self.assertEqual(solve("&sum { 5*x + 10*y } = 20.", -3, 3), [[('x', -2), ('y', 3)], [('x', 0), ('y', 2)], [('x', 2), ('y', 1)]])
+        self.assertEqual(solve("&sum { -5*x + 10*y } = 20.", -3, 3), [[('x', -2), ('y', 1)], [('x', 0), ('y', 2)], [('x', 2), ('y', 3)]])
