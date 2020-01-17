@@ -26,4 +26,4 @@ accepted:
 
 You can run the tests with
 
-    $ python -m unittest discover csp.tests '*_test.py'
+    $ python -m unittest
